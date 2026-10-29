@@ -4,6 +4,7 @@ import { ActivityIndicator, FlatList, Keyboard, Platform, Pressable, ScrollView,
 import { Text, TextInput } from './typography';
 import { KeyboardSafeView } from './keyboard';
 import * as Clipboard from 'expo-clipboard';
+import * as FileSystem from 'expo-file-system/legacy';
 import type { Api } from './api';
 import { AttachmentCard, Avatar, Empty, Icon, IconButton, Notice, Sheet, SheetAction } from './components';
 import { formatDay, formatSize, formatTime, useTheme } from './theme';
@@ -19,6 +20,8 @@ import { mediaPreviewKind } from './media/formats';
 import { AttachmentViewer } from './media/AttachmentViewer';
 import { textMetrics, useChatPreferences } from './chatPreferences';
 import { REACTIONS, foldChat, replyPreview, type Reaction, type ViewMessage } from './messageMeta';
+import { VoiceBubble, VoicePlaybackProvider, VoiceRecordingBar, useVoiceRecorder } from './voice/VoiceMessage';
+import { VOICE_MIME, VOICE_MIN_MS, isVoice, voiceFileName } from './voice/voice';
 
 type Row = {key:string;message?:ViewMessage;pending?:PendingMessage;createdAt:string};
 export function ChatScreen({api,user,chat,store,onBack,wide=false}: {api:Api;user:User;chat:Chat;store:MessengerStore;onBack:()=>void;wide?:boolean}) {
@@ -98,12 +101,30 @@ export function ChatScreen({api,user,chat,store,onBack,wide=false}: {api:Api;use
     }catch(e){if(current())setLocalError(e instanceof Error?e.message:'Не удалось зашифровать и загрузить файл.');throw e;}
     finally{uploadingRef.current=false;if(alive.current)setUploading(false);}
   };
+  const finishVoice=async(keep:boolean)=>{
+    const take=await voice.finish(keep).catch(e=>{setLocalError(e instanceof Error?e.message:'Не удалось остановить запись.');return null;});
+    if(!take)return;
+    if(take.durationMs<VOICE_MIN_MS){await FileSystem.deleteAsync(take.uri,{idempotent:true}).catch(()=>{});setNotice('Слишком короткое голосовое — держи запись хотя бы секунду.');return;}
+    const chatId=chat.id,reply=replyTo?{clientId:replyTo.clientId,senderId:replyTo.senderId,preview:replyPreview(replyTo)}:undefined;
+    uploadingRef.current=true;setUploading(true);setLocalError('');
+    try{
+      const name=voiceFileName();
+      const uploaded=await store.uploadEncrypted({uri:take.uri,name,mimeType:VOICE_MIME});
+      store.send(chatId,'',{...uploaded,name,mimeType:VOICE_MIME,media:{durationMs:Math.round(take.durationMs)}},reply?{reply}:undefined);
+      if(reply)setReplyTo(null);
+      listRef.current?.scrollToOffset({offset:0,animated:true});
+    }catch(e){if(alive.current)setLocalError(e instanceof Error?e.message:'Не удалось отправить голосовое.');}
+    finally{uploadingRef.current=false;if(alive.current)setUploading(false);await FileSystem.deleteAsync(take.uri,{idempotent:true}).catch(()=>{});}
+  };
+  const voice=useVoiceRecorder(()=>void finishVoice(true));
+  const startVoice=()=>{Keyboard.dismiss();setLocalError('');voice.start().catch(e=>setLocalError(e instanceof Error?e.message:'Не удалось начать запись.'));};
+  const canSend=!!text.trim()||attachments.length>0||!!editing;
   const download=async(file:Attachment)=>{setDownloadId(file.id);setLocalError('');try{await shareEncryptedAttachment(api,file);}catch(e){if(alive.current)setLocalError(e instanceof Error?e.message:'Не удалось открыть файл.');}finally{if(alive.current)setDownloadId(null);}};
   const openAttachment=(file:Attachment)=>{if(mediaPreviewKind(file)!=='file')setPreview(file);else void download(file);};
   const copy=async(value:string)=>{await Clipboard.setStringAsync(value);setActions(null);setCopied(true);setTimeout(()=>setCopied(false),2000);};
   const isTyping=(store.typing[chat.id]||0)>Date.now();
 
-  return <KeyboardSafeView style={{flex:1,backgroundColor:'transparent'}}>
+  return <VoicePlaybackProvider api={api}><KeyboardSafeView style={{flex:1,backgroundColor:'transparent'}}>
     <GlassSurface material="regular" radius={27} style={{marginHorizontal:12,marginTop:12,marginBottom:8}} contentStyle={{minHeight:70,flexDirection:'row',alignItems:'center',gap:9,paddingHorizontal:wide?17:8,paddingVertical:10}}>
       {!wide?<IconButton name="chevron-back" label="Назад к чатам" onPress={onBack} style={{width:38,height:43}}/>:null}
       <Pressable onPress={()=>setPeerInfo(true)} accessibilityRole="button" accessibilityLabel={`Профиль ${chat.peer.displayName}`} style={{flex:1,flexDirection:'row',gap:12,alignItems:'center'}}><Avatar user={chat.peer} api={api} size={43}/><View style={{flex:1,gap:5}}><View style={{flexDirection:'row',gap:5,alignItems:'center'}}><Text numberOfLines={1} style={{flexShrink:1,color:t.text,fontSize:16,fontWeight:'700',letterSpacing:-.25}}>{chat.peer.displayName}</Text><StatusEmoji user={chat.peer} size={16}/></View><Text style={{color:isTyping?t.accent:t.muted,fontSize:11}}>{isTyping?'печатает…':`@${chat.peer.username}`}</Text></View></Pressable>
@@ -139,7 +160,7 @@ export function ChatScreen({api,user,chat,store,onBack,wide=false}: {api:Api;use
             <Pressable onLongPress={()=>setActions(item)} delayLongPress={450} accessibilityLabel={`${mine?'Ты':chat.peer.displayName}: ${body||file?.name||'Вложение'}`} style={{maxWidth:wide?'76%':'85%',minWidth:74,backgroundColor:mine?t.bubble:t.incoming,borderRadius:23,borderBottomRightRadius:mine?8:23,borderBottomLeftRadius:mine?23:8,paddingHorizontal:12,paddingTop:file?7:11,paddingBottom:7,borderWidth:1,borderColor:p?.state==='failed'?t.danger:mine?(t.black?'rgba(255,255,255,0.25)':t.dark?'rgba(157,182,255,0.25)':'rgba(255,255,255,0.83)'):(t.dark?'rgba(255,255,255,0.10)':'rgba(255,255,255,0.92)'),shadowColor:t.shadow,shadowOpacity:t.dark?0:.035,shadowRadius:7,shadowOffset:{width:0,height:2}}}>
               {message?.meta?.forward?<Text style={{color:t.accent,fontSize:11,fontWeight:'600',marginBottom:4,paddingHorizontal:1}}>Переслано от {message.meta.forward.from}</Text>:null}
               {(message?.meta?.reply||p?.meta?.reply)?(()=>{const r=(message?.meta?.reply||p?.meta?.reply)!;return <Pressable accessibilityRole="button" accessibilityLabel="Перейти к исходному сообщению" onPress={()=>jumpTo(r.clientId)} style={{flexDirection:'row',gap:7,marginBottom:6,paddingVertical:5,paddingRight:8,borderRadius:10,backgroundColor:t.dark?'rgba(255,255,255,0.06)':'rgba(0,0,0,0.04)'}}><View style={{width:3,borderRadius:2,backgroundColor:t.accent}}/><View style={{flexShrink:1,gap:1}}><Text style={{color:t.accent,fontSize:11,fontWeight:'700'}}>{nameOf(r.senderId)}</Text><Text numberOfLines={2} style={{color:t.muted,fontSize:12}}>{view.byClientId.get(r.clientId)?replyPreview(view.byClientId.get(r.clientId)!):r.preview||'Сообщение удалено'}</Text></View></Pressable>;})():null}
-              {file?<View style={{marginBottom:body?7:1,marginTop:1}}><AttachmentCard api={api} attachment={file} onPress={()=>openAttachment(file)}/></View>:null}
+              {file?<View style={{marginBottom:body?7:1,marginTop:1}}>{isVoice(file)?<VoiceBubble attachment={file} mine={mine}/>:<AttachmentCard api={api} attachment={file} onPress={()=>openAttachment(file)}/>}</View>:null}
               {body?<Text selectable style={{color:t.text,fontSize:metrics.fontSize,lineHeight:metrics.lineHeight,paddingHorizontal:1}}>{body}</Text>:null}
               <View style={{flexDirection:'row',justifyContent:'flex-end',alignItems:'center',gap:5,marginTop:4}}>{downloadId&&file?.id===downloadId?<ActivityIndicator color={t.accent} size="small"/>:null}<Text style={{color:t.muted,fontSize:9}}>{message?.edited?'изм. ':''}{formatTime(item.createdAt)}</Text>{p?p.state==='sending'?<Icon name="time-outline" size={12} color={t.muted}/>:<Icon name="alert-circle" size={13} color={t.danger}/>:mine?<Icon name={chat.peerLastReadMessageId>=(message?.id||0)?'checkmark-done':'checkmark'} size={15} color={chat.peerLastReadMessageId>=(message?.id||0)?t.accent:t.muted}/>:null}</View>
             </Pressable>
@@ -161,11 +182,11 @@ export function ChatScreen({api,user,chat,store,onBack,wide=false}: {api:Api;use
         const kind=mediaPreviewKind(attachment);
         return <View key={attachment.id} style={{width:230,flexDirection:'row',alignItems:'center',gap:8,padding:10,borderRadius:19,backgroundColor:t.accentSoft,borderWidth:1,borderColor:t.border}}><Icon name={kind==='photo'?'image-outline':kind==='video'?'videocam-outline':kind==='audio'?'musical-note-outline':'document-outline'} color={t.accent} size={21}/><View style={{flex:1,gap:3}}><Text numberOfLines={1} style={{color:t.text,fontSize:12,fontWeight:'600'}}>{attachment.name}</Text><Text style={{color:t.muted,fontSize:10}}>{index+1} · {formatSize(attachment.size)}</Text></View><IconButton name="close" label={`Убрать ${attachment.name}`} onPress={()=>{store.removeDraftFile(chat.id,attachment.id);draftCount.current=Math.max(0,draftCount.current-1);}} disabled={uploading} size={18} style={{width:30,height:32}}/></View>;
       })}</ScrollView>:null}
-      <View style={{flexDirection:'row',gap:6,alignItems:'flex-end'}}>
+      {voice.active?<VoiceRecordingBar durationMs={voice.durationMs} levels={voice.levels} onCancel={()=>void finishVoice(false)} onSend={()=>void finishVoice(true)}/>:<View style={{flexDirection:'row',gap:6,alignItems:'flex-end'}}>
         <IconButton name="add" label="Добавить вложения: галерея, аудио или файлы" onPress={()=>{Keyboard.dismiss();setAttachMenu(true);}} color={t.accent} disabled={uploading} style={{width:44,height:44,borderRadius:21}}/>
         <View style={{flex:1,minHeight:44,maxHeight:140,justifyContent:'center'}}><TextInput accessibilityLabel="Сообщение" placeholder={signalAvailable?'Сообщение…':'Нужна мобильная версия'} editable={signalAvailable} value={text} onChangeText={changeText} placeholderTextColor={t.muted} selectionColor={t.accent} keyboardAppearance={t.dark?'dark':'light'} multiline maxLength={8000} style={{fontSize:15,lineHeight:21,color:t.text,paddingHorizontal:6,paddingTop:Platform.OS==='ios'?11:10,paddingBottom:11,maxHeight:136}} onKeyPress={e=>{if(Platform.OS==='web'&&e.nativeEvent.key==='Enter'&&!(e.nativeEvent as unknown as {shiftKey?:boolean}).shiftKey){e.preventDefault();send();}}}/></View>
-        <Pressable accessibilityRole="button" accessibilityLabel="Отправить сообщение" disabled={!signalAvailable||uploading||(!text.trim()&&!attachments.length)} onPress={send} style={({pressed})=>({height:44,width:44,borderRadius:22,backgroundColor:t.accent,alignItems:'center',justifyContent:'center',borderWidth:1,borderColor:t.dark?'rgba(255,255,255,0.32)':'rgba(255,255,255,0.7)',shadowColor:t.accent,shadowOpacity:.2,shadowRadius:9,shadowOffset:{width:0,height:3},opacity:!signalAvailable||uploading||(!text.trim()&&!attachments.length)?.4:pressed?.75:1})}><Icon name="arrow-up" color={t.onAccent} size={23}/></Pressable>
-      </View>
+        {!canSend&&signalAvailable&&!uploading?<Pressable accessibilityRole="button" accessibilityLabel="Записать голосовое сообщение" onPress={startVoice} style={({pressed})=>({height:44,width:44,borderRadius:22,alignItems:'center',justifyContent:'center',backgroundColor:t.accentSoft,borderWidth:1,borderColor:t.border,opacity:pressed?.7:1})}><Icon name="mic-outline" color={t.accent} size={23}/></Pressable>:<Pressable accessibilityRole="button" accessibilityLabel="Отправить сообщение" disabled={!signalAvailable||uploading||(!text.trim()&&!attachments.length)} onPress={send} style={({pressed})=>({height:44,width:44,borderRadius:22,backgroundColor:t.accent,alignItems:'center',justifyContent:'center',borderWidth:1,borderColor:t.dark?'rgba(255,255,255,0.32)':'rgba(255,255,255,0.7)',shadowColor:t.accent,shadowOpacity:.2,shadowRadius:9,shadowOffset:{width:0,height:3},opacity:!signalAvailable||uploading||(!text.trim()&&!attachments.length)?.4:pressed?.75:1})}><Icon name="arrow-up" color={t.onAccent} size={23}/></Pressable>}
+      </View>}
       {text.length>7500?<Text style={{fontSize:10,color:t.muted,textAlign:'right',paddingTop:4,paddingRight:8}}>{text.length} / 8000</Text>:null}
     </GlassSurface>
     <AttachmentPanel key={photoContext} visible={attachMenu} busy={uploading} canAdd={signalAvailable} remainingSlots={Math.max(0,MAX_DRAFT_ATTACHMENTS-attachments.length)} onClose={()=>setAttachMenu(false)} onAdd={item=>upload(item.file)}/>
@@ -187,5 +208,5 @@ export function ChatScreen({api,user,chat,store,onBack,wide=false}: {api:Api;use
       {store.chats.length?store.chats.map(target=><SheetAction key={target.id} icon="chatbubble-outline" label={target.peer.displayName} description={`@${target.peer.username}`} onPress={()=>{const m=forwarding!;setForwarding(null);store.forward(target.id,m,originalAuthor(m)).then(()=>setNotice(`Переслано: ${target.peer.displayName}`)).catch(e=>setLocalError(e instanceof Error?e.message:'Не удалось переслать.'));}}/>):<Text style={{color:t.muted,fontSize:13}}>Пока нет других чатов.</Text>}
     </Sheet>
     <AttachmentViewer api={api} attachment={preview} onClose={()=>setPreview(null)}/>
-  </KeyboardSafeView>;
+  </KeyboardSafeView></VoicePlaybackProvider>;
 }

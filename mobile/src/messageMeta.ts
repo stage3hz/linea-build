@@ -2,6 +2,7 @@
 // The server stores and relays them as ordinary ciphertext and cannot tell a
 // reply, an edit, a reaction or a pin from a normal message.
 import type { Message } from './types';
+import { attachmentLabel } from './voice/voice.ts';
 
 export const REACTIONS = ['👍', '❤️', '😂', '😮', '😢', '🔥', '👎', '🎉', '🙏', '👏', '🤔', '💯'] as const;
 export type Reaction = typeof REACTIONS[number];
@@ -109,5 +110,5 @@ export function foldChat(messages: Message[], userId: string, hiddenForMe: Reado
 export function replyPreview(message: Pick<Message, 'text' | 'attachment'>): string {
   const body = message.text.trim().replace(/\s+/g, ' ');
   if (body) return body.slice(0, 200);
-  return message.attachment ? `📎 ${message.attachment.name}`.slice(0, 200) : '';
+  return message.attachment ? attachmentLabel(message.attachment).slice(0, 200) : '';
 }

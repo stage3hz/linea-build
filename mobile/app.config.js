@@ -1,4 +1,4 @@
-// Linea iOS cloud setup v1: {"appVersion":"0.5.1"}
+// Linea iOS cloud setup v1: {"appVersion":"0.6.0"}
 const development = process.env.APP_ENV !== 'production';
 const allowDevelopmentHttp = development && process.env.EXPO_PUBLIC_ALLOW_LOCAL_HTTP === '1';
 const apiUrl = process.env.EXPO_PUBLIC_API_URL || '';
@@ -11,7 +11,7 @@ module.exports = {
   expo: {
     name: 'INVIZENT',
     slug: 'linea-messenger',
-    version: "0.5.1",
+    version: "0.6.0",
     orientation: 'portrait',
     icon: './assets/icon.png',
     scheme: 'linea',
@@ -32,14 +32,14 @@ module.exports = {
     },
     android: {
       package: development ? 'com.linea.messenger.preview' : 'com.linea.messenger',
-      versionCode: 5,
+      versionCode: 6,
       softwareKeyboardLayoutMode: 'resize',
       allowBackup: false,
       adaptiveIcon: {
         foregroundImage: './assets/adaptive-icon.png',
         backgroundColor: '#0B1530',
       },
-      blockedPermissions: ["android.permission.RECORD_AUDIO","android.permission.CAMERA","android.permission.ACCESS_MEDIA_LOCATION","android.permission.WRITE_EXTERNAL_STORAGE","android.permission.READ_MEDIA_AUDIO","android.permission.ACCESS_COARSE_LOCATION","android.permission.ACCESS_FINE_LOCATION","android.permission.ACCESS_BACKGROUND_LOCATION","android.permission.SYSTEM_ALERT_WINDOW","android.permission.QUERY_ALL_PACKAGES","android.permission.PACKAGE_USAGE_STATS","android.permission.MANAGE_EXTERNAL_STORAGE","android.permission.READ_CONTACTS","android.permission.WRITE_CONTACTS","android.permission.READ_CALENDAR","android.permission.WRITE_CALENDAR"],
+      blockedPermissions: ["android.permission.CAMERA","android.permission.ACCESS_MEDIA_LOCATION","android.permission.WRITE_EXTERNAL_STORAGE","android.permission.READ_MEDIA_AUDIO","android.permission.ACCESS_COARSE_LOCATION","android.permission.ACCESS_FINE_LOCATION","android.permission.ACCESS_BACKGROUND_LOCATION","android.permission.SYSTEM_ALERT_WINDOW","android.permission.QUERY_ALL_PACKAGES","android.permission.PACKAGE_USAGE_STATS","android.permission.MANAGE_EXTERNAL_STORAGE","android.permission.READ_CONTACTS","android.permission.WRITE_CONTACTS","android.permission.READ_CALENDAR","android.permission.WRITE_CALENDAR"],
     },
     web: { bundler: 'metro', favicon: './assets/favicon.png', name: 'INVIZENT' },
     plugins: [
@@ -53,8 +53,8 @@ module.exports = {
       }],
       'expo-asset',
       ['expo-audio', {
-        microphonePermission: false,
-        recordAudioAndroid: false,
+        microphonePermission: 'Инвиз записывает голосовые сообщения только пока ты держишь запись. Запись шифруется до отправки.',
+        recordAudioAndroid: true,
         enableBackgroundPlayback: true,
         enableBackgroundRecording: false,
       }],
