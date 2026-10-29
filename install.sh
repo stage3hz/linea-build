@@ -66,7 +66,6 @@ AI_PROVIDER_V="$(keep AI_PROVIDER)"; AI_API_KEY_V="$(keep AI_API_KEY)"; AI_MODEL
 FLK="$(keep FREELLMAPI_ENCRYPTION_KEY)"; [ -n "$FLK" ] || FLK="$(openssl rand -hex 32)"
 DASH_HOST="${AI_DASHBOARD_HOST:-$(keep AI_DASHBOARD_HOST)}"
 case "$HOST1" in *.nip.io|*.sslip.io) [ -n "$DASH_HOST" ] || DASH_HOST="ai.$HOST1";; esac
-DASH_PASS_FILE="$DIR/deploy/.ai-dashboard-password"
 ( umask 077; cat > deploy/.env <<EOF
 PUBLIC_HOST_RU=$HOST1
 PUBLIC_HOST_COM=$H2
@@ -80,16 +79,13 @@ FREELLMAPI_ENCRYPTION_KEY=$FLK
 AI_DASHBOARD_HOST=$DASH_HOST
 EOF
 )
-# Панель FreeLLMAPI: отдельный адрес, HTTPS и дополнительный пароль поверх её собственного входа.
+# Панель FreeLLMAPI: отдельный адрес с HTTPS. Вход защищён её собственным аккаунтом,
+# а первый аккаунт создаётся только с одноразовым кодом из логов сервера.
+# (Basic auth перед панелью не используется: панель сама шлёт заголовок Authorization.)
 if [ -n "$DASH_HOST" ]; then
-  if [ ! -s "$DASH_PASS_FILE" ]; then ( umask 077; openssl rand -base64 18 | tr -d '/+=' > "$DASH_PASS_FILE" ); fi
-  DASH_HASH="$(docker run --rm caddy:2.11.7-alpine caddy hash-password --plaintext "$(cat "$DASH_PASS_FILE")")"
   cat >> deploy/Caddyfile <<EOF
 
 $DASH_HOST {
-	basic_auth {
-		admin $DASH_HASH
-	}
 	header -Server
 	reverse_proxy freellmapi:3001
 }
@@ -118,7 +114,6 @@ if [ "$ok" = 1 ]; then
   echo "Адрес для приложения:  https://$HOST1"
   if [ -n "$DASH_HOST" ]; then
     echo; echo "Панель бесплатного AI (FreeLLMAPI): https://$DASH_HOST"
-    echo "  Пароль браузера: логин admin, пароль $(cat "$DASH_PASS_FILE")"
     echo "  Код первой настройки:   bash $DIR/deploy/ai.sh setup-code"
     echo "  После добавления ключей: bash $DIR/deploy/ai.sh key ВАШ_КЛЮЧ"
   fi
