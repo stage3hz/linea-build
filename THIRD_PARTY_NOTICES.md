@@ -60,3 +60,7 @@ bridge, всех изменённых частей приложения, скр�
 `deploy/relay-worker/index.js` is copied unchanged from
 https://github.com/tashfeenahmed/freellmapi (examples/fetch-relay-worker, commit 36826e7).
 MIT License, Copyright (c) 2026 Tashfeen Ahmed — full text in `deploy/relay-worker/LICENSE-freellmapi`.
+
+## expo-alternate-app-icons
+
+https://github.com/pchalupa/expo-alternate-app-icons — MIT License. Used to switch the app icon from Settings.

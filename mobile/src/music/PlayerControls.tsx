@@ -1,5 +1,5 @@
 import React, { useEffect, useRef, useState } from 'react';
-import { ActivityIndicator, Image, Platform, Pressable, StyleSheet, View, type GestureResponderEvent } from 'react-native';
+import { ActivityIndicator, Animated, Image, PanResponder, Platform, Pressable, StyleSheet, View, type GestureResponderEvent } from 'react-native';
 import { Text } from '../typography';
 import { LinearGradient } from 'expo-linear-gradient';
 import { Button, Icon, IconButton, Notice } from '../components';
@@ -36,11 +36,30 @@ function PlaybackButton({ large = false }: { large?: boolean }) {
   </Pressable>;
 }
 
+/** Swipe the mini player down to stop the music and hide it. */
+function useSwipeDown(onDismiss: () => void) {
+  const offset = useRef(new Animated.Value(0)).current;
+  const dismiss = useRef(onDismiss); dismiss.current = onDismiss;
+  const responder = useRef(PanResponder.create({
+    onMoveShouldSetPanResponder: (_e, g) => g.dy > 8 && Math.abs(g.dy) > Math.abs(g.dx) * 1.3,
+    onMoveShouldSetPanResponderCapture: (_e, g) => g.dy > 12 && Math.abs(g.dy) > Math.abs(g.dx) * 1.5,
+    onPanResponderMove: (_e, g) => offset.setValue(Math.max(0, g.dy)),
+    onPanResponderRelease: (_e, g) => {
+      if (g.dy > 45 || g.vy > 0.9) Animated.timing(offset, { toValue: 160, duration: 160, useNativeDriver: true }).start(() => { dismiss.current(); offset.setValue(0); });
+      else Animated.spring(offset, { toValue: 0, useNativeDriver: true }).start();
+    },
+    onPanResponderTerminate: () => Animated.spring(offset, { toValue: 0, useNativeDriver: true }).start(),
+  })).current;
+  const style = { transform: [{ translateY: offset }], opacity: offset.interpolate({ inputRange: [0, 140], outputRange: [1, 0], extrapolate: 'clamp' }) };
+  return { handlers: responder.panHandlers, style };
+}
+
 export function MiniPlayer({ onOpen }: { onOpen: () => void }) {
   const music = useMusic(), t = useTheme();
+  const swipe = useSwipeDown(music.stop);
   if (!music.current) return null;
   const progress = music.duration > 0 ? Math.min(1, music.position / music.duration) : 0;
-  return <GlassSurface radius={24} material="regular" style={{ marginHorizontal: 12, marginBottom: 8, maxWidth: 720, width: 'auto', alignSelf: 'stretch' }} contentStyle={{ padding: 9, paddingBottom: 12, flexDirection: 'row', alignItems: 'center', gap: 9, overflow: 'hidden', borderRadius: 24 }}>
+  return <Animated.View {...swipe.handlers} style={swipe.style} accessibilityHint="Смахни вниз, чтобы остановить музыку и убрать плеер" accessibilityActions={[{ name: 'escape', label: 'Убрать плеер' }]} onAccessibilityAction={event => { if (event.nativeEvent.actionName === 'escape') music.stop(); }}><GlassSurface radius={24} material="regular" style={{ marginHorizontal: 12, marginBottom: 8, maxWidth: 720, width: 'auto', alignSelf: 'stretch' }} contentStyle={{ padding: 9, paddingBottom: 12, flexDirection: 'row', alignItems: 'center', gap: 9, overflow: 'hidden', borderRadius: 24 }}>
     <Pressable onPress={onOpen} accessibilityRole="button" accessibilityLabel={`Открыть плеер: ${music.current.title}, ${music.current.artist}`} style={{ flex: 1, minHeight: 48, minWidth: 0, flexDirection: 'row', alignItems: 'center', gap: 11 }}>
       <TrackArtwork track={music.current} size={46} />
       <View style={{ flex: 1, minWidth: 0, gap: 4 }}>
@@ -51,9 +70,8 @@ export function MiniPlayer({ onOpen }: { onOpen: () => void }) {
     <IconButton name="play-skip-back" label="Предыдущий трек или начало текущего" onPress={() => void music.previous()} size={20} style={{ width: 36, height: 44 }} />
     <PlaybackButton />
     <IconButton name="play-skip-forward" label="Следующий трек" onPress={() => void music.next()} size={20} disabled={music.queue.length < 2} style={{ width: 36, height: 44 }} />
-    <IconButton name="close" label="Остановить музыку и убрать плеер" onPress={music.stop} size={19} color={t.muted} style={{ width: 34, height: 44 }} />
     <View pointerEvents="none" style={{ position: 'absolute', bottom: 0, left: 15, right: 15, height: 2, backgroundColor: t.border }}><View style={{ height: 2, width: `${progress * 100}%`, backgroundColor: t.accent }} /></View>
-  </GlassSurface>;
+  </GlassSurface></Animated.View>;
 }
 
 function SeekBar() {

@@ -9,6 +9,7 @@ import { Avatar, Icon, IconButton, Notice, type IconName } from './components';
 import { GlassSurface } from './glass';
 import { useTheme, formatSize } from './theme';
 import { ThemeSettings } from './ThemeSettings';
+import { AppIconPicker } from './AppIconPicker';
 import { StatusEmoji } from './StatusEmoji';
 import { TEXT_SIZES, setChatPreferences, textMetrics, useChatPreferences } from './chatPreferences';
 import { clearDecryptedAttachmentCache } from './e2ee/attachments';
@@ -99,6 +100,7 @@ function Appearance({ theme, darkTheme, onTheme, onDarkTheme }: Props) {
   const t = useTheme(); const preferences = useChatPreferences(); const metrics = textMetrics(preferences.textSize);
   return <>
     <Group label="Тема"><View style={{ padding: 14 }}><ThemeSettings mode={theme} darkTheme={darkTheme} onChange={onTheme} onDarkTheme={onDarkTheme} /></View></Group>
+    <Group label="Иконка приложения"><AppIconPicker /></Group>
     <Group label="Размер текста в чатах">
       <View style={{ padding: 14, gap: 12 }}>
         <View style={{ alignSelf: 'flex-start', maxWidth: '85%', backgroundColor: t.incoming, borderRadius: 20, borderBottomLeftRadius: 7, paddingHorizontal: 12, paddingVertical: 9 }}><Text style={{ color: t.text, fontSize: metrics.fontSize, lineHeight: metrics.lineHeight }}>Привет! Так будет выглядеть текст сообщений.</Text></View>

@@ -1,4 +1,4 @@
-// Linea iOS cloud setup v1: {"appVersion":"0.6.3"}
+// Linea iOS cloud setup v1: {"appVersion":"0.6.4"}
 const development = process.env.APP_ENV !== 'production';
 const allowDevelopmentHttp = development && process.env.EXPO_PUBLIC_ALLOW_LOCAL_HTTP === '1';
 const apiUrl = process.env.EXPO_PUBLIC_API_URL || '';
@@ -11,7 +11,7 @@ module.exports = {
   expo: {
     name: 'INVIZENT',
     slug: 'linea-messenger',
-    version: "0.6.3",
+    version: "0.6.4",
     orientation: 'portrait',
     icon: './assets/icon.png',
     scheme: 'linea',
@@ -32,12 +32,12 @@ module.exports = {
     },
     android: {
       package: development ? 'com.linea.messenger.preview' : 'com.linea.messenger',
-      versionCode: 9,
+      versionCode: 10,
       softwareKeyboardLayoutMode: 'resize',
       allowBackup: false,
       adaptiveIcon: {
         foregroundImage: './assets/adaptive-icon.png',
-        backgroundColor: '#0B1530',
+        backgroundColor: '#07070A',
       },
       blockedPermissions: ["android.permission.CAMERA","android.permission.ACCESS_MEDIA_LOCATION","android.permission.WRITE_EXTERNAL_STORAGE","android.permission.READ_MEDIA_AUDIO","android.permission.ACCESS_COARSE_LOCATION","android.permission.ACCESS_FINE_LOCATION","android.permission.ACCESS_BACKGROUND_LOCATION","android.permission.SYSTEM_ALERT_WINDOW","android.permission.QUERY_ALL_PACKAGES","android.permission.PACKAGE_USAGE_STATS","android.permission.MANAGE_EXTERNAL_STORAGE","android.permission.READ_CONTACTS","android.permission.WRITE_CONTACTS","android.permission.READ_CALENDAR","android.permission.WRITE_CALENDAR"],
     },
@@ -73,6 +73,12 @@ module.exports = {
         preventAutomaticLimitedAccessAlert:true,
       }],
       ['expo-build-properties', { android: { usesCleartextTraffic: allowDevelopmentHttp }, ios: { useFrameworks: 'static' } }],
+      // Alternate app icons (Настройки → Оформление → Иконка приложения).
+      ['expo-alternate-app-icons', [
+        { name: 'Light', ios: './assets/icons/light.png', android: { foregroundImage: './assets/icons/light-android.png', backgroundColor: '#F5F4F9' } },
+        { name: 'Outline', ios: './assets/icons/outline.png', android: { foregroundImage: './assets/icons/outline-android.png', backgroundColor: '#0C0C0E' } },
+        { name: 'Aurora', ios: './assets/icons/aurora.png', android: { foregroundImage: './assets/icons/aurora-android.png', backgroundColor: '#162563' } },
+      ]],
       './.linea-ios-cloud-setup/withLocalPrivacy.cjs',
     ],
   },

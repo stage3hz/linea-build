@@ -1,6 +1,6 @@
 {
   "name": "linea-mobile",
-  "version": "0.6.3",
+  "version": "0.6.4",
   "private": true,
   "main": "index.ts",
   "scripts": {
@@ -25,6 +25,7 @@
     "@react-native-async-storage/async-storage": "2.2.0",
     "base64-js": "1.5.1",
     "expo": "~57.0.31",
+    "expo-alternate-app-icons": "8.0.0",
     "expo-asset": "~57.0.20",
     "expo-audio": "~57.0.5",
     "expo-blur": "~57.0.3",
