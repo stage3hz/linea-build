@@ -33,20 +33,35 @@ export async function openVault(server: string, userId: string): Promise<Private
     throw new Error('Не удалось открыть зашифрованное хранилище. Ключи и сообщения сохранены без изменений.');
   }
   let closed = false;
+  let writes: Promise<void> = Promise.resolve();
   return {
     async get(name) {
       if (closed) throw new Error('Хранилище закрыто.');
       return (await db.getFirstAsync<{ value: string }>('SELECT value FROM private_values WHERE key = ?', name))?.value ?? null;
     },
-    async commit(values) {
-      if (closed) throw new Error('Хранилище закрыто.');
-      await db.withExclusiveTransactionAsync(async transaction => {
-        for (const [name, value] of Object.entries(values)) {
-          if (value === null) await transaction.runAsync('DELETE FROM private_values WHERE key = ?', name);
-          else await transaction.runAsync('INSERT INTO private_values (key,value) VALUES (?,?) ON CONFLICT(key) DO UPDATE SET value=excluded.value', name, value);
+    // Writes run on THIS keyed connection. expo-sqlite's withExclusiveTransactionAsync
+    // opens a second connection that never receives PRAGMA key, so SQLCipher
+    // rejects it with "file is not a database". Commits are queued so two
+    // transactions never interleave on the shared connection.
+    commit(values) {
+      if (closed) return Promise.reject(new Error('Хранилище закрыто.'));
+      const run = writes.then(async () => {
+        if (closed) throw new Error('Хранилище закрыто.');
+        await db.execAsync('BEGIN IMMEDIATE');
+        try {
+          for (const [name, value] of Object.entries(values)) {
+            if (value === null) await db.runAsync('DELETE FROM private_values WHERE key = ?', name);
+            else await db.runAsync('INSERT INTO private_values (key,value) VALUES (?,?) ON CONFLICT(key) DO UPDATE SET value=excluded.value', name, value);
+          }
+          await db.execAsync('COMMIT');
+        } catch (error) {
+          await db.execAsync('ROLLBACK').catch(() => {});
+          throw error;
         }
       });
+      writes = run.catch(() => {});
+      return run;
     },
-    async close() { if (!closed) { closed = true; await db.closeAsync(); } },
+    async close() { if (!closed) { closed = true; await writes; await db.closeAsync(); } },
   };
 }
