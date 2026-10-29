@@ -3,6 +3,7 @@ import {
   asObject, audiusId, canDownloadAudius, canStreamAudius, normalizeAudiusPage,
   normalizeAudiusTrack, safeAudioFilename, safeHttpsUrl,
 } from './catalog';
+import { mergeRanked, spellingVariants } from './fuzzy.ts';
 
 const API_ORIGIN = 'https://api.audius.co';
 const API_BASE = `${API_ORIGIN}/v1`;
@@ -118,7 +119,17 @@ export async function searchMusic(search: MusicSearch = {}): Promise<MusicSearch
     path = '/tracks/trending';
   }
   const response = asObject(await requestJson(`${path}?${params}`));
-  return normalizeAudiusPage(response?.data, { offset, limit, downloadableOnly: search.downloadableOnly });
+  const page = normalizeAudiusPage(response?.data, { offset, limit, downloadableOnly: search.downloadableOnly });
+  // Typos: Audius matches only the exact spelling, so a thin first page also tries likely spellings.
+  if (!query || offset > 0 || page.tracks.length >= 6) return page;
+  const variants = spellingVariants(query, 8);
+  const extra = await Promise.all(variants.map(async variant => {
+    const alt = new URLSearchParams(params); alt.set('query', variant); alt.set('limit', '10');
+    try { return normalizeAudiusPage(asObject(await requestJson(`/tracks/search?${alt}`))?.data, { offset: 0, limit: 10, downloadableOnly: search.downloadableOnly }).tracks; }
+    catch { return []; }
+  }));
+  const tracks = mergeRanked(query, [page.tracks, ...extra]).slice(0, 40);
+  return { tracks, nextOffset: page.nextOffset };
 }
 
 async function freshTrack(sourceId: unknown): Promise<Record<string, unknown>> {

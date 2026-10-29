@@ -241,7 +241,10 @@ export class CryptoService {
     });
   }
   /** Saved messages («Избранное») live only in this device's SQLCipher vault, never on the server. */
-  async loadSaved():Promise<string|null> {await this.initialize();return this.exclusive(()=>this.vault.get('saved:v1'));}
-  async storeSaved(value:string):Promise<void> {await this.initialize();return this.exclusive(()=>this.vault.commit({'saved:v1':value}));}
+  async loadSaved():Promise<string|null> {return this.loadLocal('saved:v1');}
+  async storeSaved(value:string):Promise<void> {return this.storeLocal('saved:v1',value);}
+  /** Other device-only data (AI chat history) shares the same encrypted vault under fixed keys. */
+  async loadLocal(name:'saved:v1'|'ai:v1'):Promise<string|null> {await this.initialize();return this.exclusive(()=>this.vault.get(name));}
+  async storeLocal(name:'saved:v1'|'ai:v1',value:string):Promise<void> {await this.initialize();return this.exclusive(()=>this.vault.commit({[name]:value}));}
   async close():Promise<void> {this.closed=true;await this.tail.catch(()=>{});await this.vault.close();this.local=null;}
 }

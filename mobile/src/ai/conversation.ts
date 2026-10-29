@@ -127,6 +127,14 @@ export class AIConversation {
     this.publish({ ...this.state, pending: false, error: '', turns: this.state.turns.map(turn => turn.id === active.turnId ? { ...turn, status: 'cancelled', error: undefined } : turn) });
   }
 
+  /** Reopens a stored conversation. Unfinished turns come back as cancelled. */
+  restore(turns: AITurn[], consent: boolean) {
+    if (this.closed) return;
+    this.cancel();
+    this.nextId = turns.reduce((max, turn) => Math.max(max, turn.id), 0);
+    this.publish({ consent, pending: false, error: '', turns: storedTurns(turns) });
+  }
+
   clear() {
     if (this.closed) return;
     this.cancel(); this.publish({ ...initial(), consent: this.state.consent });
@@ -162,4 +170,13 @@ export class AIConversation {
   }
 
   private publish(state: AIState) { this.state = state; for (const listener of this.listeners) listener(); }
+}
+
+// Stored history: turns without attached photos (they are large and already answered).
+export function storedTurns(turns: readonly AITurn[]): AITurn[] {
+  return turns.map(turn => {
+    const model = turn.options?.model;
+    const base: AITurn = { id: turn.id, question: turn.question, status: turn.status === 'pending' ? 'cancelled' : turn.status, ...(turn.answer ? { answer: turn.answer } : {}), ...(turn.error ? { error: turn.error } : {}), ...(model ? { options: { model } } : {}) };
+    return base;
+  });
 }

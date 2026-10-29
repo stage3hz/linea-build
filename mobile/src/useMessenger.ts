@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useSaved } from './saved/useSaved';
+import { useAIHistory } from './ai/history';
 import { AppState } from 'react-native';
 import * as Crypto from 'expo-crypto';
 import { Api, ApiError } from './api';
@@ -42,6 +43,7 @@ export function useMessenger(api: Api, user: User, onExpired: ()=>void) {
   useEffect(()=>{let live=true;AsyncStorage.getItem(hiddenKey).then(raw=>{if(!live||!raw)return;try{const list=JSON.parse(raw);if(Array.isArray(list))setHidden(new Set(list.filter((x:unknown)=>typeof x==='string')));}catch{}}).catch(()=>{});return()=>{live=false;};},[hiddenKey]);
   const cryptoRuntime=useMemo(()=>new CryptoRuntime(api,user.id),[api,user.id]);
   const saved=useSaved(cryptoRuntime);
+  const aiHistory=useAIHistory(cryptoRuntime);
   const recoveryFetchRef=useRef(0);
   const socketRef=useRef<WebSocket|null>(null);
   const selectedRef=useRef(selectedId);selectedRef.current=selectedId;
@@ -262,6 +264,6 @@ export function useMessenger(api: Api, user: User, onExpired: ()=>void) {
     if(selectedRef.current)await loadMessages(selectedRef.current);
     await refreshChats();
   },[cryptoRuntime,loadMessages,refreshChats]);
-  return {chats,messages,hasMore,pending,selectedId,selectChat,connection,listLoading,messageLoading,error,setError,typing,refreshChats,loadMessages,send,sendAction,hideForMe,hidden,forward,sendAttachments,retry:performSend,sendTyping,drafts,draftFiles,setDraft,setDraftFile,setDraftFiles,appendDraftFiles,removeDraftFile,recoveryRequests,recoveryError,refreshRecoveryRequests,cancelRecovery,cryptoError,trustSnapshot,approveDevices,uploadEncrypted,saved};
+  return {chats,messages,hasMore,pending,selectedId,selectChat,connection,listLoading,messageLoading,error,setError,typing,refreshChats,loadMessages,send,sendAction,hideForMe,hidden,forward,sendAttachments,retry:performSend,sendTyping,drafts,draftFiles,setDraft,setDraftFile,setDraftFiles,appendDraftFiles,removeDraftFile,recoveryRequests,recoveryError,refreshRecoveryRequests,cancelRecovery,cryptoError,trustSnapshot,approveDevices,uploadEncrypted,saved,aiHistory};
 }
 export type MessengerStore = ReturnType<typeof useMessenger>;

@@ -37,7 +37,13 @@ export function useVoiceRecorder(onLimit: () => void) {
 
   useEffect(() => { if (active && state.isRecording) setLevels(previous => [...previous.slice(-39), levelFromMetering(state.metering)]); }, [active, state.isRecording, state.durationMillis, state.metering]);
   useEffect(() => { if (active && state.durationMillis >= VOICE_MAX_MS) limitRef.current(); }, [active, state.durationMillis]);
-  useEffect(() => () => { if (recorder.isRecording) void recorder.stop().catch(() => {}); void setAudioModeAsync(PLAYBACK_MODE).catch(() => {}); }, [recorder]);
+  // By the time this cleanup runs, useAudioRecorder may already have released the native
+  // recorder; touching a released shared object throws and would crash the app on «Назад».
+  const recordingRef = useRef(false); recordingRef.current = active;
+  useEffect(() => () => {
+    if (recordingRef.current) { try { void recorder.stop().catch(() => {}); } catch { /* already released */ } }
+    void setAudioModeAsync(PLAYBACK_MODE).catch(() => {});
+  }, [recorder]);
 
   const start = useCallback(async () => {
     if (busy.current || active) return;

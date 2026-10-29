@@ -1,4 +1,6 @@
 import React, { useEffect, useRef, useState } from 'react';
+import * as Crypto from 'expo-crypto';
+import type { AIHistoryStore, AIStoredConversation } from './history';
 import { ActivityIndicator, Image, KeyboardAvoidingView, Linking, Modal, Platform, Pressable, ScrollView, Switch, View } from 'react-native';
 import { Text, TextInput } from '../typography';
 import { SafeAreaView } from 'react-native-safe-area-context';
@@ -6,7 +8,7 @@ import * as Clipboard from 'expo-clipboard';
 import type { Api } from '../api';
 import { Button, Icon, IconButton, Notice, Sheet, type IconName } from '../components';
 import { GlassStage, GlassSurface } from '../glass';
-import { useTheme } from '../theme';
+import { formatListTime, useTheme } from '../theme';
 import { aiModels, aiQuestion, aiStatus } from './client';
 import { AIMediaPanel, type MediaMode } from './AIMedia';
 import * as ImagePicker from 'expo-image-picker';
@@ -95,8 +97,19 @@ function CodeApproval({ preview, allowed, onCancel, onApprove }: { preview: Code
 const STRATEGY_HELP: Record<string, string> = { auto: 'Цепочка из панели FreeLLMAPI', 'auto:smart': 'Самые умные из доступных', 'auto:fast': 'Самые быстрые', 'auto:reliable': 'Самые стабильные', fusion: 'Несколько моделей отвечают, судья собирает лучший ответ' };
 const modelLabel = (id: string) => ({ auto: 'Авто', 'auto:smart': 'Умная', 'auto:fast': 'Быстрая', 'auto:reliable': 'Надёжная', 'auto:balanced': 'Сбалансированная', fusion: 'Fusion — консилиум' } as Record<string, string>)[id] || id;
 
-export function AIScreen({ api, onBack, quick = false }: { api: Api; onBack: () => void; quick?: boolean }) {
+export function AIScreen({ api, onBack, quick = false, history }: { api: Api; onBack: () => void; quick?: boolean; history?: AIHistoryStore }) {
   const t = useTheme(), ai = useAI(api);
+  const [conversationId, setConversationId] = useState(() => Crypto.randomUUID());
+  const [historySheet, setHistorySheet] = useState(false);
+  const restored = useRef(false);
+  // Reopen the latest conversation once the encrypted history has loaded (not for the quick dialog).
+  useEffect(() => {
+    if (restored.current || !history?.loaded || !ai.conversation.current) return;
+    restored.current = true;
+    const latest = history.items[0];
+    if (!quick && latest && !ai.conversation.current.getSnapshot().turns.length) { setConversationId(latest.id); ai.conversation.current.restore(latest.turns, latest.consent); }
+  }, [history?.loaded, history?.items, quick, ai.conversation, ai.state]);
+  useEffect(() => { if (history && !ai.state.pending && ai.state.turns.length) history.save(conversationId, ai.state.turns, ai.state.consent); }, [ai.state, conversationId, history?.save]);
   const [draft, setDraft] = useState(''), [mode, setMode] = useState<'text' | 'code' | MediaMode>('text'), [taskError, setTaskError] = useState('');
   const [model, setModel] = useState('auto'), [models, setModels] = useState<string[]>([]), [modelSheet, setModelSheet] = useState(false), [photo, setPhoto] = useState<string | null>(null);
   const router = ai.status?.provider === 'freellmapi';
@@ -140,11 +153,13 @@ export function AIScreen({ api, onBack, quick = false }: { api: Api; onBack: () 
     void owner.ask(approval.preview.prompt, askOptions());
     if (owner.getSnapshot().pending) { setDraft(''); setApproval(null); setTaskError(''); }
   }
-  function clear() { ai.conversation.current?.clear(); setDraft(''); setApproval(null); setTaskError(''); }
+  function clear() { ai.conversation.current?.clear(); setConversationId(Crypto.randomUUID()); setDraft(''); setApproval(null); setTaskError(''); }
+  function openConversation(item: AIStoredConversation) { ai.conversation.current?.restore(item.turns, item.consent); setConversationId(item.id); setDraft(''); setApproval(null); setTaskError(''); setHistorySheet(false); }
   return <KeyboardAvoidingView style={{ flex: 1, backgroundColor: 'transparent' }} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
     <GlassSurface radius={27} style={{ margin: 12, marginBottom: 7 }} contentStyle={{ padding: 8, flexDirection: 'row', alignItems: 'center', gap: 9 }}>
       <IconButton name={quick ? 'close' : 'chevron-back'} label={quick ? 'Закрыть быстрый вопрос AI' : 'Назад к чатам'} onPress={onBack} />
       <View style={{ flex: 1, gap: 3 }}><Text style={{ color: t.text, fontSize: 20, fontWeight: '700' }}>{quick ? 'Быстрый вопрос AI' : 'AI'}</Text><Text style={{ color: t.muted, fontSize: 11 }}>{ai.status?.provider === 'freellmapi' ? 'FreeLLMAPI · бесплатные модели' : 'OpenRouter · бесплатные модели'}</Text></View>
+      {history ? <IconButton name="time-outline" label="История AI-бесед" onPress={() => setHistorySheet(true)} color={t.accent} /> : null}
       <IconButton name="add-circle-outline" label="Начать новую AI-беседу" onPress={clear} color={t.accent} disabled={!ai.state.turns.length && !draft} />
     </GlassSurface>
     <ScrollView ref={list} keyboardShouldPersistTaps="handled" contentContainerStyle={{ padding: 14, paddingTop: 4, paddingBottom: 20, width: '100%', maxWidth: 760, alignSelf: 'center', gap: 13 }} onContentSizeChange={() => { if (ai.state.pending || last?.status === 'complete') list.current?.scrollToEnd({ animated: true }); }}>
@@ -154,7 +169,7 @@ export function AIScreen({ api, onBack, quick = false }: { api: Api; onBack: () 
       <GlassSurface radius={23} shadow={false} contentStyle={{ padding: 16, gap: 10 }}>
         <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12 }}><View style={{ flex: 1, gap: 4 }}><Text style={{ color: t.text, fontSize: 14, fontWeight: '600' }}>Отправлять вопросы AI</Text><Text style={{ color: t.muted, fontSize: 11 }}>Разрешение только для этой беседы</Text></View><Switch accessibilityLabel="Отправлять вопросы внешней AI-службе" value={ai.state.consent} onValueChange={value => ai.conversation.current?.setConsent(value)} trackColor={{ false: t.subtle, true: t.accent }} thumbColor="#FFF" /></View>
         <Text style={help}>Вопросы и история этой AI-беседы передаются через твой сервер {ai.status?.provider === 'freellmapi' ? 'в сервис FreeLLMAPI на нём и бесплатному поставщику модели, которого он выберет' : 'в OpenRouter и поставщику модели'}. В AI попадает только текст, который ты пишешь здесь.</Text>
-        <Text style={help}>В приложении эта история временная: она очищается при закрытии экрана или выходе из аккаунта.</Text>
+        <Text style={help}>{history ? 'История бесед хранится зашифрованной только на этом устройстве — открыть её можно кнопкой с часами вверху.' : 'В быстром вопросе история временная: она очищается при закрытии окна.'}</Text>
         {ai.status?.provider !== 'freellmapi' ? <Pressable accessibilityRole="link" onPress={() => void Linking.openURL('https://openrouter.ai/privacy')} style={{ alignSelf: 'flex-start', paddingVertical: 4 }}><Text style={{ color: t.accent, fontSize: 11 }}>Конфиденциальность OpenRouter</Text></Pressable> : null}
       </GlassSurface>
       {ai.checking ? <View style={{ flexDirection: 'row', gap: 8, alignItems: 'center', justifyContent: 'center', padding: 14 }}><ActivityIndicator color={t.accent} size="small" /><Text style={help}>Проверяем доступность AI…</Text></View> : ai.statusError ? <Notice text={ai.statusError} error onRetry={ai.refresh} /> : !ready ? <GlassSurface radius={23} shadow={false} contentStyle={{ padding: 18, gap: 12 }}><Icon name="sparkles-outline" color={t.muted} size={30} /><Text style={{ color: t.text, fontSize: 17, fontWeight: '700' }}>AI пока не подключён на этом сервере</Text><Text style={help}>Когда администратор подключит сервис, здесь можно будет задать вопрос. Ответы появятся только после реального запроса.</Text><Button secondary label="Проверить снова" icon="refresh-outline" onPress={ai.refresh} /></GlassSurface> : !ai.state.turns.length ? <View style={{ padding: 10, gap: 12 }}><Text style={{ color: t.text, fontSize: 23, fontWeight: '700', letterSpacing: -.5 }}>Что хочешь узнать?</Text><Text style={help}>Задай короткий вопрос или начни с подсказки. Бесплатные модели могут быть временно недоступны.</Text><View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 7 }}>{['Объясни простыми словами ', 'Помоги составить план ', 'Предложи идеи для '].map(prompt => <Pressable key={prompt} accessibilityRole="button" onPress={() => setDraft(prompt)} style={{ paddingHorizontal: 12, paddingVertical: 11, borderRadius: 16, backgroundColor: t.accentSoft, borderWidth: 1, borderColor: t.border }}><Text style={{ color: t.accent, fontSize: 11, fontWeight: '600' }}>{prompt.trim()}…</Text></Pressable>)}</View></View> : null}
@@ -178,6 +193,15 @@ export function AIScreen({ api, onBack, quick = false }: { api: Api; onBack: () 
       <Text style={{ color: t.muted, fontSize: 12, lineHeight: 18, marginBottom: 8 }}>FreeLLMAPI сам выбирает бесплатную модель и переключается, если одна исчерпала лимит. Можно задать стратегию или конкретную модель из доступных сейчас.</Text>
       {(['auto', 'auto:smart', 'auto:fast', 'auto:reliable', 'fusion'] as const).concat(models as never[]).map(id => <Pressable key={id} accessibilityRole="radio" accessibilityState={{ selected: model === id }} onPress={() => { setModel(id); setModelSheet(false); }} style={{ flexDirection: 'row', alignItems: 'center', gap: 10, paddingVertical: 11 }}><Icon name={model === id ? 'radio-button-on' : 'radio-button-off'} size={19} color={model === id ? t.accent : t.muted} /><View style={{ flex: 1 }}><Text style={{ color: t.text, fontSize: 14 }}>{modelLabel(id)}</Text>{STRATEGY_HELP[id] ? <Text style={{ color: t.muted, fontSize: 11 }}>{STRATEGY_HELP[id]}</Text> : null}</View></Pressable>)}
       {!models.length ? <Text style={{ color: t.muted, fontSize: 11, paddingTop: 6 }}>Список конкретных моделей появится, когда в панели FreeLLMAPI будут добавлены ключи провайдеров.</Text> : null}
+    </Sheet>
+    <Sheet visible={historySheet} title="История AI" onClose={() => setHistorySheet(false)}>
+      {history?.items.length ? history.items.map(item => <View key={item.id} style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+        <Pressable accessibilityRole="button" onPress={() => openConversation(item)} style={({ pressed }) => ({ flex: 1, paddingVertical: 12, paddingHorizontal: 10, borderRadius: 16, backgroundColor: item.id === conversationId ? t.accentSoft : pressed ? t.surface2 : 'transparent', gap: 4 })}>
+          <Text numberOfLines={1} style={{ color: t.text, fontSize: 14, fontWeight: '600' }}>{item.title}</Text>
+          <Text style={{ color: t.muted, fontSize: 11 }}>{formatListTime(item.updatedAt)} · {item.turns.length} {item.turns.length === 1 ? 'вопрос' : item.turns.length < 5 ? 'вопроса' : 'вопросов'}</Text>
+        </Pressable>
+        <IconButton name="trash-outline" label={`Удалить беседу ${item.title}`} color={t.danger} size={19} onPress={() => { history.remove(item.id); if (item.id === conversationId) clear(); }} />
+      </View>) : <Text style={{ color: t.muted, fontSize: 13 }}>Пока нет сохранённых бесед.</Text>}
     </Sheet>
     <CodeApproval preview={approval?.preview || null} allowed={ready && ai.state.consent && !ai.state.pending} onCancel={() => setApproval(null)} onApprove={approveCode} />
   </KeyboardAvoidingView>;
