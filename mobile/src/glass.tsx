@@ -80,7 +80,7 @@ export function GlassSurface({children,style,contentStyle,radius=26,material='re
   const hasBlur=!nested&&!reduceTransparency&&(Platform.OS!=='android'||!!target);
   const regular=material==='regular';
   const fill=reduceTransparency?t.glassOpaque:regular?t.glass:t.glassClear;
-  const shadowStyle:ViewStyle=shadow?Platform.OS==='web'?{boxShadow:`0 10px 34px ${t.black?'rgba(0,0,0,0.24)':t.dark?'rgba(0,4,18,0.24)':'rgba(38,66,125,0.09)'}, 0 2px 5px ${t.black?'rgba(0,0,0,0.13)':t.dark?'rgba(0,4,18,0.13)':'rgba(38,66,125,0.035)'}`}:{shadowColor:t.shadow,shadowOffset:{width:0,height:8},shadowOpacity:t.dark?.19:.09,shadowRadius:18,elevation:Platform.OS==='android'?3:0}:{};
+  const shadowStyle:ViewStyle=shadow?Platform.OS==='web'?{boxShadow:`0 10px 34px ${t.black?'rgba(0,0,0,0.24)':t.dark?'rgba(0,4,18,0.24)':'rgba(38,66,125,0.09)'}, 0 2px 5px ${t.black?'rgba(0,0,0,0.13)':t.dark?'rgba(0,4,18,0.13)':'rgba(38,66,125,0.035)'}`}:{shadowColor:t.shadow,shadowOffset:{width:0,height:8},shadowOpacity:t.dark?.19:.09,shadowRadius:18,elevation:0}:{};
   return <View style={[{borderRadius:radius},shadowStyle,style]}>
     <View pointerEvents="none" style={[StyleSheet.absoluteFill,{borderRadius:radius,overflow:'hidden'}]}>
       {!reduceTransparency&&nativeGlass?<GlassView colorScheme={t.dark?'dark':'light'} glassEffectStyle={material} isInteractive={interactive} tintColor={t.glassTint} style={StyleSheet.absoluteFill}/>:hasBlur?<BlurView tint={t.dark?'dark':'light'} intensity={regular?64:35} blurMethod="dimezisBlurViewSdk31Plus" blurTarget={target} style={StyleSheet.absoluteFill}/>:null}

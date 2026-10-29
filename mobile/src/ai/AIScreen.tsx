@@ -1,5 +1,6 @@
 import React, { useEffect, useRef, useState } from 'react';
 import * as Crypto from 'expo-crypto';
+import { KeyboardSafeView } from '../keyboard';
 import type { AIHistoryStore, AIStoredConversation } from './history';
 import { ActivityIndicator, Image, KeyboardAvoidingView, Linking, Modal, Platform, Pressable, ScrollView, Switch, View } from 'react-native';
 import { Text, TextInput } from '../typography';
@@ -155,7 +156,7 @@ export function AIScreen({ api, onBack, quick = false, history }: { api: Api; on
   }
   function clear() { ai.conversation.current?.clear(); setConversationId(Crypto.randomUUID()); setDraft(''); setApproval(null); setTaskError(''); }
   function openConversation(item: AIStoredConversation) { ai.conversation.current?.restore(item.turns, item.consent); setConversationId(item.id); setDraft(''); setApproval(null); setTaskError(''); setHistorySheet(false); }
-  return <KeyboardAvoidingView style={{ flex: 1, backgroundColor: 'transparent' }} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
+  return <KeyboardSafeView style={{ flex: 1, backgroundColor: 'transparent' }}>
     <GlassSurface radius={27} style={{ margin: 12, marginBottom: 7 }} contentStyle={{ padding: 8, flexDirection: 'row', alignItems: 'center', gap: 9 }}>
       <IconButton name={quick ? 'close' : 'chevron-back'} label={quick ? 'Закрыть быстрый вопрос AI' : 'Назад к чатам'} onPress={onBack} />
       <View style={{ flex: 1, gap: 3 }}><Text style={{ color: t.text, fontSize: 20, fontWeight: '700' }}>{quick ? 'Быстрый вопрос AI' : 'AI'}</Text><Text style={{ color: t.muted, fontSize: 11 }}>{ai.status?.provider === 'freellmapi' ? 'FreeLLMAPI · бесплатные модели' : 'OpenRouter · бесплатные модели'}</Text></View>
@@ -204,7 +205,7 @@ export function AIScreen({ api, onBack, quick = false, history }: { api: Api; on
       </View>) : <Text style={{ color: t.muted, fontSize: 13 }}>Пока нет сохранённых бесед.</Text>}
     </Sheet>
     <CodeApproval preview={approval?.preview || null} allowed={ready && ai.state.consent && !ai.state.pending} onCancel={() => setApproval(null)} onApprove={approveCode} />
-  </KeyboardAvoidingView>;
+  </KeyboardSafeView>;
 }
 
 export function AIQuickDialog({ api, visible, onClose }: { api: Api; visible: boolean; onClose: () => void }) {

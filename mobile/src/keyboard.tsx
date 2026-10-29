@@ -11,8 +11,9 @@ import { Dimensions, Keyboard, LayoutAnimation, Platform, View, type KeyboardEve
  * visibly after the keyboard height changes (predictive bar, emoji, language).
  *
  * Here the overlap is measured in window coordinates on every frame change.
- * Android uses windowSoftInputMode=adjustResize (softwareKeyboardLayoutMode),
- * so no extra padding is applied there.
+ * Android: with edge-to-edge (default on Android 15+) adjustResize no longer
+ * shrinks the window, so the same overlap padding is applied there too. When a
+ * device still resizes the window, the measured overlap is simply 0.
  */
 export function KeyboardSafeView({ style, children }: { style?: StyleProp<ViewStyle>; children: React.ReactNode }) {
   const ref = useRef<View>(null);
@@ -28,6 +29,7 @@ export function KeyboardSafeView({ style, children }: { style?: StyleProp<ViewSt
       const bottom = y + height;
       const windowHeight = Dimensions.get('window').height;
       const top = keyboardTop ?? windowHeight;
+      if (keyboardTop === null) { setInset(0); return; }
       setInset(previous => {
         const next = Math.max(0, Math.round(bottom - top));
         if (next !== previous && duration !== undefined) {
@@ -39,6 +41,14 @@ export function KeyboardSafeView({ style, children }: { style?: StyleProp<ViewSt
   }, []);
 
   useEffect(() => {
+    if (Platform.OS === 'android') {
+      const subscriptions = [
+        Keyboard.addListener('keyboardDidShow', event => apply(event.endCoordinates.screenY, 120)),
+        Keyboard.addListener('keyboardDidChangeFrame', event => apply(event.endCoordinates.screenY)),
+        Keyboard.addListener('keyboardDidHide', () => apply(null, 120)),
+      ];
+      return () => subscriptions.forEach(subscription => subscription.remove());
+    }
     if (Platform.OS !== 'ios') return;
     const change = (event: KeyboardEvent) => apply(event.endCoordinates.screenY, event.duration);
     const hide = (event: KeyboardEvent) => apply(null, event.duration);
@@ -53,7 +63,7 @@ export function KeyboardSafeView({ style, children }: { style?: StyleProp<ViewSt
 
   return <View
     ref={ref}
-    style={[style, Platform.OS === 'ios' ? { paddingBottom: inset } : null]}
-    onLayout={() => { if (Platform.OS === 'ios' && lastKeyboardTop.current !== null) apply(lastKeyboardTop.current); }}
+    style={[style, Platform.OS !== 'web' ? { paddingBottom: inset } : null]}
+    onLayout={() => { if (Platform.OS !== 'web' && lastKeyboardTop.current !== null) apply(lastKeyboardTop.current); }}
   >{children}</View>;
 }
