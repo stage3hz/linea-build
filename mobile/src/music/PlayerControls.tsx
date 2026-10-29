@@ -48,9 +48,10 @@ export function MiniPlayer({ onOpen }: { onOpen: () => void }) {
         <Text numberOfLines={1} style={{ color: music.error ? t.danger : t.muted, fontSize: 12 }}>{music.error ? 'Есть сообщение · открыть' : music.loading ? 'Загружаем трек…' : music.current.artist}</Text>
       </View>
     </Pressable>
-    <IconButton name="play-skip-back" label="Предыдущий трек или начало текущего" onPress={() => void music.previous()} size={20} />
+    <IconButton name="play-skip-back" label="Предыдущий трек или начало текущего" onPress={() => void music.previous()} size={20} style={{ width: 36, height: 44 }} />
     <PlaybackButton />
-    <IconButton name="play-skip-forward" label="Следующий трек" onPress={() => void music.next()} size={20} disabled={music.queue.length < 2} />
+    <IconButton name="play-skip-forward" label="Следующий трек" onPress={() => void music.next()} size={20} disabled={music.queue.length < 2} style={{ width: 36, height: 44 }} />
+    <IconButton name="close" label="Остановить музыку и убрать плеер" onPress={music.stop} size={19} color={t.muted} style={{ width: 34, height: 44 }} />
     <View pointerEvents="none" style={{ position: 'absolute', bottom: 0, left: 15, right: 15, height: 2, backgroundColor: t.border }}><View style={{ height: 2, width: `${progress * 100}%`, backgroundColor: t.accent }} /></View>
   </GlassSurface>;
 }
