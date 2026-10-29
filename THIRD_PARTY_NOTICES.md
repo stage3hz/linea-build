@@ -54,3 +54,9 @@ bridge, всех изменённых частей приложения, скр�
 ## Montserrat
 
 Шрифт Montserrat (The Montserrat Project Authors), встроен в приложение. Лицензия SIL Open Font License 1.1: licenses/Montserrat-OFL-1.1.txt. Файлы шрифта взяты из npm-пакета @expo-google-fonts/montserrat 0.4.2.
+
+## FreeLLMAPI fetch-relay Worker
+
+`deploy/relay-worker/index.js` is copied unchanged from
+https://github.com/tashfeenahmed/freellmapi (examples/fetch-relay-worker, commit 36826e7).
+MIT License, Copyright (c) 2026 Tashfeen Ahmed — full text in `deploy/relay-worker/LICENSE-freellmapi`.

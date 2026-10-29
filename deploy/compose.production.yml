@@ -52,6 +52,11 @@ services:
       NODE_ENV: production
       PORT: 3001
       ENCRYPTION_KEY: ${FREELLMAPI_ENCRYPTION_KEY:?Set FREELLMAPI_ENCRYPTION_KEY in deploy/.env}
+      # Optional egress relay for providers that refuse the server's country
+      # (deploy/relay.sh). Empty values keep the dashboard / direct behaviour.
+      PROXY_MODE: ${FREELLMAPI_PROXY_MODE:-}
+      PROXY_URL: ${FREELLMAPI_PROXY_URL:-}
+      FETCH_RELAY_TOKEN: ${FREELLMAPI_RELAY_TOKEN:-}
     # No host port: the API reaches it on the private network, the dashboard
     # only through Caddy with an extra password (see Caddyfile).
     volumes:
