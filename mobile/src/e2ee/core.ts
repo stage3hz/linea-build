@@ -57,7 +57,7 @@ function validEncrypted(value: unknown): value is EncryptedMessage {
   if(new Set(envelopes.map(envelope=>envelope.deviceId.toLowerCase())).size!==envelopes.length)return false;
   return validAttachmentIds(value.attachmentIds??[]);
 }
-function validAttachment(value: unknown): value is Attachment | null {
+export function validAttachment(value: unknown): value is Attachment | null {
   if(value===null)return true;
   if(!hasOnlyKeys(value,['id','name','mimeType','size','encryption','media','preview']))return false;
   const a=value as Attachment;const e=a.encryption;
@@ -240,5 +240,8 @@ export class CryptoService {
       return {...message,text:trusted?'Зашифрованное сообщение. Открой чат для расшифровки.':'Проверь ключ устройства собеседника в разделе «Защита чата».',attachment:null,cryptoState:trusted?'no-key':'unverified'};
     });
   }
+  /** Saved messages («Избранное») live only in this device's SQLCipher vault, never on the server. */
+  async loadSaved():Promise<string|null> {await this.initialize();return this.exclusive(()=>this.vault.get('saved:v1'));}
+  async storeSaved(value:string):Promise<void> {await this.initialize();return this.exclusive(()=>this.vault.commit({'saved:v1':value}));}
   async close():Promise<void> {this.closed=true;await this.tail.catch(()=>{});await this.vault.close();this.local=null;}
 }

@@ -119,6 +119,10 @@ export function ChatScreen({api,user,chat,store,onBack,wide=false}: {api:Api;use
   const voice=useVoiceRecorder(()=>void finishVoice(true));
   const startVoice=()=>{Keyboard.dismiss();setLocalError('');voice.start().catch(e=>setLocalError(e instanceof Error?e.message:'Не удалось начать запись.'));};
   const canSend=!!text.trim()||attachments.length>0||!!editing;
+  const saveToFavorites=(m:ViewMessage)=>{
+    store.saved.save(m.text,m.attachment,{chatId:chat.id,clientId:m.clientId,author:originalAuthor(m).slice(0,80)||'собеседник',sentAt:m.createdAt})
+      .then(added=>setNotice(added?'Сохранено в Избранное':'Уже в Избранном')).catch(e=>setLocalError(e instanceof Error?e.message:'Не удалось сохранить.'));
+  };
   const download=async(file:Attachment)=>{setDownloadId(file.id);setLocalError('');try{await shareEncryptedAttachment(api,file);}catch(e){if(alive.current)setLocalError(e instanceof Error?e.message:'Не удалось открыть файл.');}finally{if(alive.current)setDownloadId(null);}};
   const openAttachment=(file:Attachment)=>{if(mediaPreviewKind(file)!=='file')setPreview(file);else void download(file);};
   const copy=async(value:string)=>{await Clipboard.setStringAsync(value);setActions(null);setCopied(true);setTimeout(()=>setCopied(false),2000);};
@@ -196,6 +200,7 @@ export function ChatScreen({api,user,chat,store,onBack,wide=false}: {api:Api;use
       {actions?.message&&actions.message.cryptoState==='decrypted'?<View style={{flexDirection:'row',flexWrap:'wrap',gap:6,paddingBottom:10}}>{REACTIONS.slice(0,8).map(emoji=>{const chosen=actions.message!.reactions.some(r=>r.mine&&r.emoji===emoji);return <Pressable key={emoji} accessibilityRole="button" accessibilityLabel={`Реакция ${emoji}`} accessibilityState={{selected:chosen}} onPress={()=>{react(actions.message!,emoji);setActions(null);}} style={{width:44,height:44,borderRadius:22,alignItems:'center',justifyContent:'center',backgroundColor:chosen?t.accentSoft:t.surface2,borderWidth:1,borderColor:chosen?t.accent:t.border}}><Text style={{fontSize:21}}>{emoji}</Text></Pressable>;})}</View>:null}
       {actions?.message&&actions.message.cryptoState==='decrypted'?<SheetAction icon="arrow-undo-outline" label="Ответить" onPress={()=>{setEditing(null);setReplyTo(actions.message!);setActions(null);}}/>:null}
       {actions?.message&&actions.message.senderId===user.id&&actions.message.cryptoState==='decrypted'&&actions.message.text?<SheetAction icon="create-outline" label="Изменить" onPress={()=>{setReplyTo(null);setEditing(actions.message!);store.setDraft(chat.id,actions.message!.text);setActions(null);}}/>:null}
+      {actions?.message&&actions.message.cryptoState==='decrypted'?<SheetAction icon="bookmark-outline" label="В Избранное" onPress={()=>{const m=actions.message!;setActions(null);saveToFavorites(m);}}/>:null}
       {actions?.message&&actions.message.cryptoState==='decrypted'?<SheetAction icon="arrow-redo-outline" label="Переслать" onPress={()=>{setForwarding(actions.message!);setActions(null);}}/>:null}
       {actions?.message&&actions.message.cryptoState==='decrypted'?<SheetAction icon={view.pinned?.clientId===actions.message.clientId?'pin':'pin-outline'} label={view.pinned?.clientId===actions.message.clientId?'Открепить':'Закрепить'} onPress={()=>{const m=actions.message!;store.sendAction(chat.id,{type:'pin',target:view.pinned?.clientId===m.clientId?null:m.clientId},m.text);setActions(null);}}/>:null}
       {(actions?.message?.text||actions?.pending?.text)?<SheetAction icon="copy-outline" label="Скопировать текст" onPress={()=>void copy(actions?.message?.text||actions?.pending?.text||'')}/>:null}
@@ -205,6 +210,7 @@ export function ChatScreen({api,user,chat,store,onBack,wide=false}: {api:Api;use
       {actions?.message&&actions.message.senderId===user.id&&actions.message.cryptoState==='decrypted'?<SheetAction icon="trash-outline" label="Удалить у всех" description="Собеседник перестанет видеть сообщение. Зашифрованная копия на сервере остаётся нечитаемой." danger onPress={()=>{store.sendAction(chat.id,{type:'delete',target:actions.message!.clientId});setActions(null);}}/>:null}
     </Sheet>
     <Sheet visible={!!forwarding} title="Переслать в чат" onClose={()=>setForwarding(null)}>
+      <SheetAction icon="bookmark-outline" label="Избранное" description="Только на этом устройстве" onPress={()=>{const m=forwarding!;setForwarding(null);saveToFavorites(m);}}/>
       {store.chats.length?store.chats.map(target=><SheetAction key={target.id} icon="chatbubble-outline" label={target.peer.displayName} description={`@${target.peer.username}`} onPress={()=>{const m=forwarding!;setForwarding(null);store.forward(target.id,m,originalAuthor(m)).then(()=>setNotice(`Переслано: ${target.peer.displayName}`)).catch(e=>setLocalError(e instanceof Error?e.message:'Не удалось переслать.'));}}/>):<Text style={{color:t.muted,fontSize:13}}>Пока нет других чатов.</Text>}
     </Sheet>
     <AttachmentViewer api={api} attachment={preview} onClose={()=>setPreview(null)}/>
