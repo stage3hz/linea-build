@@ -3,6 +3,7 @@
 # Нужен, когда AI-провайдеры отказывают серверу по стране («User location is not supported», 403).
 #   bash deploy/relay.sh setup   — проверить связь, развернуть Worker в вашем Cloudflare и подключить его
 #   bash deploy/relay.sh check   — только проверить, не режет ли провайдер сервера трафик Cloudflare
+#   bash deploy/relay.sh pin     — заново узнать IP Worker'а через DNS-over-HTTPS (если AI вдруг перестал отвечать)
 #   bash deploy/relay.sh off     — вернуть прямой выход FreeLLMAPI
 # Worker: examples/fetch-relay-worker из FreeLLMAPI (MIT), см. deploy/relay-worker/.
 set -euo pipefail
@@ -46,6 +47,41 @@ for k in sys.argv[1].split(".") if sys.argv[1] else []:
 print("" if r is None else r)' "$1"; }
 ok() { case "$1" in ERR*) echo "Cloudflare ответил ошибкой: ${1#ERR }" >&2; exit 1;; esac; }
 
+doh() { # doh HOST — IPv4 адрес через DNS-over-HTTPS (обычный DNS сервера не отдаёт адреса *.workers.dev)
+  local u
+  for u in "https://1.1.1.1/dns-query?name=$1&type=A" "https://dns.google/resolve?name=$1&type=A"; do
+    curl -s --max-time 10 -H 'accept: application/dns-json' "$u" | python3 -c '
+import json,sys,ipaddress
+try:
+    for a in json.load(sys.stdin).get("Answer",[]):
+        if a.get("type")==1: ipaddress.IPv4Address(a["data"]); print(a["data"]); sys.exit(0)
+except Exception: pass
+sys.exit(1)' && return 0
+  done
+  return 1
+}
+probe() { # probe URL TOKEN IP — код ответа Worker'а при подключении к указанному IP
+  local host="${1#https://}"
+  curl -s -o /dev/null -w '%{http_code}' --max-time 20 --resolve "$host:443:$3" "$1" \
+    -H "Fetch-Relay-Authorization: Bearer $2" -H 'Fetch-Relay-Target: https://httpbingo.org/get' || true
+}
+pin() { # pin URL TOKEN — найти рабочий IP, записать его в .env и перезапустить FreeLLMAPI
+  local url="$1" token="$2" ip="" code="" i
+  for i in $(seq 1 24); do
+    ip="$(doh "${url#https://}" || true)"
+    [ -n "$ip" ] && code="$(probe "$url" "$token" "$ip")"
+    [ "$code" = 200 ] && break; sleep 5
+  done
+  [ "$code" = 200 ] || { echo "Worker не ответил (IP: ${ip:-не найден}, код: ${code:-нет}). Пришлите это Claude." >&2; exit 1; }
+  setenv FREELLMAPI_PROXY_MODE fetch-relay
+  setenv FREELLMAPI_PROXY_URL "$url"
+  setenv FREELLMAPI_RELAY_TOKEN "$token"
+  setenv FREELLMAPI_RELAY_HOST "${url#https://}"
+  setenv FREELLMAPI_RELAY_IP "$ip"
+  "${C[@]}" up -d freellmapi
+  echo "Worker отвечает через $ip."
+}
+
 setup() {
   need curl curl; need python3 python3; need openssl openssl
   check || exit 1
@@ -87,18 +123,7 @@ PY
 
   url="https://$WORKER.$sub.workers.dev"
   echo "Worker развёрнут: $url — жду, пока адрес заработает…"
-  for i in $(seq 1 24); do
-    code="$(curl -s -o /dev/null -w '%{http_code}' --max-time 20 "$url" \
-      -H "Fetch-Relay-Authorization: Bearer $relay_token" \
-      -H 'Fetch-Relay-Target: https://httpbingo.org/get' || true)"
-    [ "$code" = 200 ] && break; sleep 5
-  done
-  [ "$code" = 200 ] || { echo "Worker не ответил (последний код: ${code:-нет}). Пришлите это Claude." >&2; exit 1; }
-
-  setenv FREELLMAPI_PROXY_MODE fetch-relay
-  setenv FREELLMAPI_PROXY_URL "$url"
-  setenv FREELLMAPI_RELAY_TOKEN "$relay_token"
-  "${C[@]}" up -d freellmapi
+  pin "$url" "$relay_token"
   echo
   echo "✅ Готово: FreeLLMAPI ходит к провайдерам через Cloudflare."
   echo "   Откройте панель AI → Keys → «Проверить все»."
@@ -107,8 +132,13 @@ PY
 case "${1:-}" in
   setup) setup ;;
   check) check ;;
+  pin)
+    url="$(grep -E '^FREELLMAPI_PROXY_URL=' deploy/.env | cut -d= -f2- || true)"
+    token="$(grep -E '^FREELLMAPI_RELAY_TOKEN=' deploy/.env | cut -d= -f2- || true)"
+    [ -n "$url" ] && [ -n "$token" ] || { echo "Worker ещё не настроен: bash deploy/relay.sh setup" >&2; exit 1; }
+    pin "$url" "$token" ;;
   off)
-    setenv FREELLMAPI_PROXY_MODE ""; setenv FREELLMAPI_PROXY_URL ""; setenv FREELLMAPI_RELAY_TOKEN ""
+    for v in PROXY_MODE PROXY_URL RELAY_TOKEN RELAY_HOST RELAY_IP; do setenv "FREELLMAPI_$v" ""; done
     "${C[@]}" up -d freellmapi; echo "FreeLLMAPI снова выходит в интернет напрямую." ;;
   *) sed -n '2,6p' "$0"; exit 2 ;;
 esac
