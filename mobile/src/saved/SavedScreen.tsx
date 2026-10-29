@@ -1,4 +1,5 @@
 import React, { useMemo, useRef, useState } from 'react';
+import { ComposerInput } from '../ComposerInput';
 import { ActivityIndicator, FlatList, Keyboard, Platform, Pressable, View } from 'react-native';
 import * as Clipboard from 'expo-clipboard';
 import * as FileSystem from 'expo-file-system/legacy';
@@ -105,7 +106,7 @@ export function SavedScreen({ api, user, store, onBack, wide = false }: { api: A
       {voice.active ? <VoiceRecordingBar durationMs={voice.durationMs} levels={voice.levels} onCancel={() => void finishVoice(false)} onSend={() => void finishVoice(true)} /> :
         <View style={{ flexDirection: 'row', gap: 6, alignItems: 'flex-end' }}>
           <IconButton name="add" label="Сохранить фото, видео или файл" onPress={() => { Keyboard.dismiss(); setAttachMenu(true); }} color={t.accent} disabled={busy || !!editing} style={{ width: 44, height: 44, borderRadius: 21 }} />
-          <View style={{ flex: 1, minHeight: 44, maxHeight: 140, justifyContent: 'center' }}><TextInput accessibilityLabel="Заметка" placeholder="Заметка…" value={text} onChangeText={setText} placeholderTextColor={t.muted} selectionColor={t.accent} keyboardAppearance={t.dark ? 'dark' : 'light'} multiline maxLength={8000} style={{ fontSize: 15, lineHeight: 21, color: t.text, paddingHorizontal: 6, paddingTop: Platform.OS === 'ios' ? 11 : 10, paddingBottom: 11, maxHeight: 136 }} /></View>
+          <View style={{ flex: 1, minHeight: 44, maxHeight: 140, justifyContent: 'center' }}><ComposerInput accessibilityLabel="Заметка" placeholder="Заметка…" value={text} onChangeText={setText} placeholderTextColor={t.muted} selectionColor={t.accent} keyboardAppearance={t.dark ? 'dark' : 'light'} multiline maxLength={8000} style={{ fontSize: 15, lineHeight: 21, color: t.text, paddingHorizontal: 6, paddingTop: Platform.OS === 'ios' ? 11 : 10, paddingBottom: 11, maxHeight: 136 }} /></View>
           {!text.trim() && !editing && signalAvailable ? <Pressable accessibilityRole="button" accessibilityLabel="Записать голосовую заметку" disabled={busy} onPress={() => { Keyboard.dismiss(); voice.start().catch(e => fail(e, 'Не удалось начать запись.')); }} style={({ pressed }) => ({ height: 44, width: 44, borderRadius: 22, alignItems: 'center', justifyContent: 'center', backgroundColor: t.accentSoft, borderWidth: 1, borderColor: t.border, opacity: busy ? .4 : pressed ? .7 : 1 })}><Icon name="mic-outline" color={t.accent} size={23} /></Pressable> :
             <Pressable accessibilityRole="button" accessibilityLabel={editing ? 'Сохранить изменения' : 'Сохранить заметку'} disabled={!text.trim() || busy} onPress={submit} style={({ pressed }) => ({ height: 44, width: 44, borderRadius: 22, backgroundColor: t.accent, alignItems: 'center', justifyContent: 'center', opacity: !text.trim() || busy ? .4 : pressed ? .75 : 1 })}><Icon name={editing ? 'checkmark' : 'arrow-up'} color={t.onAccent} size={23} /></Pressable>}
         </View>}

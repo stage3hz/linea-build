@@ -27,3 +27,12 @@ test('durations, previews and meter levels', () => {
   assert.equal(levelFromMetering(-30), .5);
   assert.equal(levelFromMetering(undefined), 0);
 });
+
+test('video notes are recognised by name and labelled', async () => {
+  const { isVideoNote, videoNoteFileName, attachmentLabel } = await import('../src/voice/voice.ts');
+  const name = videoNoteFileName(42);
+  assert.equal(name, 'circle-42.mp4');
+  assert.equal(isVideoNote({ name, mimeType: 'video/mp4' }), true);
+  assert.equal(isVideoNote({ name: 'video.mp4', mimeType: 'video/mp4' }), false);
+  assert.equal(attachmentLabel({ name, mimeType: 'video/mp4', media: { durationMs: 9000 } }), '⏺ Видеосообщение · 0:09');
+});

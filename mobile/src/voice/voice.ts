@@ -25,6 +25,10 @@ export function attachmentLabel(attachment: Pick<Attachment, 'name' | 'mimeType'
     const ms = attachment.media?.durationMs;
     return `🎤 Голосовое сообщение${ms ? ` · ${formatVoiceTime(ms)}` : ''}`;
   }
+  if (isVideoNote(attachment)) {
+    const ms = attachment.media?.durationMs;
+    return `⏺ Видеосообщение${ms ? ` · ${formatVoiceTime(ms)}` : ''}`;
+  }
   if (attachment.mimeType.startsWith('image/')) return '🖼 Фотография';
   if (attachment.mimeType.startsWith('video/')) return '🎬 Видео';
   return `📎 ${attachment.name}`;
@@ -34,4 +38,12 @@ export function attachmentLabel(attachment: Pick<Attachment, 'name' | 'mimeType'
 export function levelFromMetering(db: number | undefined): number {
   if (typeof db !== 'number' || !Number.isFinite(db)) return 0;
   return Math.min(1, Math.max(0, (db + 60) / 60));
+}
+
+// Video notes («кружки»): an end-to-end encrypted MP4 recognised by its name.
+export const VIDEO_NOTE_MAX_MS = 60 * 1000;
+const VIDEO_NOTE_NAME = /^circle-\d{1,16}\.mp4$/;
+export const videoNoteFileName = (now = Date.now()) => `circle-${Math.max(0, Math.floor(now))}.mp4`;
+export function isVideoNote(attachment: Pick<Attachment, 'name' | 'mimeType'> | null | undefined): boolean {
+  return !!attachment && attachment.mimeType === 'video/mp4' && VIDEO_NOTE_NAME.test(attachment.name);
 }

@@ -1,4 +1,5 @@
 import { StatusEmoji } from './StatusEmoji';
+import { ComposerInput } from './ComposerInput';
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { ActivityIndicator, FlatList, Keyboard, Platform, Pressable, ScrollView, View } from 'react-native';
 import { Text, TextInput } from './typography';
@@ -20,10 +21,13 @@ import { mediaPreviewKind } from './media/formats';
 import { AttachmentViewer } from './media/AttachmentViewer';
 import { textMetrics, useChatPreferences } from './chatPreferences';
 import { REACTIONS, foldChat, replyPreview, type Reaction, type ViewMessage } from './messageMeta';
-import { VoiceBubble, VoicePlaybackProvider, VoiceRecordingBar, useVoiceRecorder } from './voice/VoiceMessage';
-import { VOICE_MIME, VOICE_MIN_MS, isVoice, voiceFileName } from './voice/voice';
+import { VoicePlaybackProvider, VoiceRecordingBar, useVoiceRecorder } from './voice/VoiceMessage';
+import { MessageRow, type Row, type RowHandlers } from './MessageRow';
+import { VideoNoteRecorder, type VideoNoteTake } from './videonote/VideoNote';
+import { useCallback } from 'react';
+import { VOICE_MIME, VOICE_MIN_MS, videoNoteFileName, voiceFileName } from './voice/voice';
 
-type Row = {key:string;message?:ViewMessage;pending?:PendingMessage;createdAt:string};
+
 export function ChatScreen({api,user,chat,store,onBack,wide=false}: {api:Api;user:User;chat:Chat;store:MessengerStore;onBack:()=>void;wide?:boolean}) {
   const t=useTheme();const [attachMenu,setAttachMenu]=useState(false);const [uploading,setUploading]=useState(false);const [downloadId,setDownloadId]=useState<string|null>(null);const [localError,setLocalError]=useState('');const [preview,setPreview]=useState<Attachment|null>(null);const [peerInfo,setPeerInfo]=useState(false);const [actions,setActions]=useState<Row|null>(null);const [copied,setCopied]=useState(false);
   const [securityOpen,setSecurityOpen]=useState(false);
@@ -128,6 +132,29 @@ export function ChatScreen({api,user,chat,store,onBack,wide=false}: {api:Api;use
   const copy=async(value:string)=>{await Clipboard.setStringAsync(value);setActions(null);setCopied(true);setTimeout(()=>setCopied(false),2000);};
   const isTyping=(store.typing[chat.id]||0)>Date.now();
 
+  const handlers=useRef<RowHandlers>(null as unknown as RowHandlers);
+  handlers.current={actions:setActions,jumpTo,open:openAttachment,react,retry:pending=>void store.retry(pending),reply:message=>{setEditing(null);setReplyTo(message);}};
+  const peerLastRead=chat.peerLastReadMessageId,peerName=chat.peer.displayName;
+  const renderRow=useCallback(({item,index}:{item:Row;index:number})=>{
+    const message=item.message,p=item.pending,mine=!!p||message?.senderId===user.id;
+    const file=message?.attachment||p?.attachment,reply=message?.meta?.reply||p?.meta?.reply;
+    const original=reply?view.byClientId.get(reply.clientId):undefined;
+    return <MessageRow row={item} olderCreatedAt={rows[index+1]?.createdAt} mine={mine} author={mine?'Ты':peerName} peerLastRead={peerLastRead} wide={wide} fontSize={metrics.fontSize} lineHeight={metrics.lineHeight} downloading={!!downloadId&&file?.id===downloadId} replyAuthor={reply?(reply.senderId===user.id?'Ты':peerName):undefined} replyText={reply?(original?replyPreview(original):reply.preview||'Сообщение удалено'):undefined} api={api} handlers={handlers}/>;
+  },[rows,user.id,peerName,peerLastRead,wide,metrics,downloadId,view.byClientId,api]);
+  const [circleOpen,setCircleOpen]=useState(false);
+  const sendVideoNote=async(take:VideoNoteTake)=>{
+    setCircleOpen(false);
+    const chatId=chat.id,reply=replyTo?{clientId:replyTo.clientId,senderId:replyTo.senderId,preview:replyPreview(replyTo)}:undefined;
+    uploadingRef.current=true;setUploading(true);setLocalError('');
+    try{
+      const name=videoNoteFileName();
+      const uploaded=await store.uploadEncrypted({uri:take.uri,name:'video.mp4',mimeType:'video/mp4'});
+      store.send(chatId,'',{...uploaded,name,mimeType:'video/mp4',media:{...(uploaded.media||{}),durationMs:uploaded.media?.durationMs||Math.round(take.durationMs)}},reply?{reply}:undefined);
+      if(reply)setReplyTo(null);
+      listRef.current?.scrollToOffset({offset:0,animated:true});
+    }catch(e){if(alive.current)setLocalError(e instanceof Error?e.message:'Не удалось отправить видеосообщение.');}
+    finally{uploadingRef.current=false;if(alive.current)setUploading(false);await FileSystem.deleteAsync(take.uri,{idempotent:true}).catch(()=>{});}
+  };
   return <VoicePlaybackProvider api={api}><KeyboardSafeView style={{flex:1,backgroundColor:'transparent'}}>
     <GlassSurface material="regular" radius={27} style={{marginHorizontal:12,marginTop:12,marginBottom:8}} contentStyle={{minHeight:70,flexDirection:'row',alignItems:'center',gap:9,paddingHorizontal:wide?17:8,paddingVertical:10}}>
       {!wide?<IconButton name="chevron-back" label="Назад к чатам" onPress={onBack} style={{width:38,height:43}}/>:null}
@@ -156,23 +183,7 @@ export function ChatScreen({api,user,chat,store,onBack,wide=false}: {api:Api;use
     {copied?<View style={{alignSelf:'center',marginTop:6,paddingVertical:7,paddingHorizontal:14,backgroundColor:t.accentSoft,borderRadius:16,borderWidth:1,borderColor:t.border}}><Text style={{color:t.accent,fontSize:12}}>Скопировано</Text></View>:null}
     {rows.length===0?<View style={{flex:1,justifyContent:'center'}}>{store.messageLoading?<ActivityIndicator color={t.accent}/>:<Empty icon="hand-left-outline" title="Скажи «привет»" description={`Это начало вашей переписки с ${chat.peer.displayName}.`}/>}</View>:<FlatList ref={listRef} inverted data={rows} keyExtractor={row=>row.key} keyboardShouldPersistTaps="handled" keyboardDismissMode={Platform.OS==='ios'?'interactive':'on-drag'} contentContainerStyle={{paddingHorizontal:wide?28:15,paddingTop:14,paddingBottom:14}} initialNumToRender={25} windowSize={11} onScrollToIndexFailed={info=>{listRef.current?.scrollToOffset({offset:info.averageItemLength*info.index,animated:true});setTimeout(()=>listRef.current?.scrollToIndex({index:info.index,animated:true,viewPosition:.5}),250);}}
       ListFooterComponent={store.hasMore[chat.id]?<View style={{alignItems:'center',padding:18}}><GlassSurface material="clear" radius={19} shadow={false}><Pressable onPress={()=>void store.loadMessages(chat.id,true)} disabled={store.messageLoading} accessibilityRole="button" style={{paddingVertical:11,paddingHorizontal:17}}>{store.messageLoading?<ActivityIndicator size="small" color={t.accent}/>:<Text style={{fontSize:12,color:t.accent,fontWeight:'600'}}>Более ранние сообщения</Text>}</Pressable></GlassSurface></View>:null}
-      renderItem={({item,index})=>{
-        const message=item.message;const p=item.pending;const mine=!!p||message?.senderId===user.id;const body=message?.text||p?.text||'';const file=message?.attachment||p?.attachment;const older=rows[index+1];const showDay=!older||new Date(older.createdAt).toDateString()!==new Date(item.createdAt).toDateString();
-        return <View>
-          {showDay?<View style={{alignSelf:'center',backgroundColor:t.black?'rgba(0,0,0,0.68)':t.dark?'rgba(30,36,53,0.68)':'rgba(255,255,255,0.52)',borderWidth:1,borderColor:t.dark?'rgba(255,255,255,0.08)':'rgba(255,255,255,0.88)',paddingVertical:6,paddingHorizontal:14,borderRadius:14,marginTop:15,marginBottom:18}}><Text style={{color:t.muted,fontSize:10,fontWeight:'600'}}>{formatDay(item.createdAt)}</Text></View>:null}
-          <View style={{alignItems:mine?'flex-end':'flex-start',marginBottom:8}}>
-            <Pressable onLongPress={()=>setActions(item)} delayLongPress={450} accessibilityLabel={`${mine?'Ты':chat.peer.displayName}: ${body||file?.name||'Вложение'}`} style={{maxWidth:wide?'76%':'85%',minWidth:74,backgroundColor:mine?t.bubble:t.incoming,borderRadius:23,borderBottomRightRadius:mine?8:23,borderBottomLeftRadius:mine?23:8,paddingHorizontal:12,paddingTop:file?7:11,paddingBottom:7,borderWidth:1,borderColor:p?.state==='failed'?t.danger:mine?(t.black?'rgba(255,255,255,0.25)':t.dark?'rgba(157,182,255,0.25)':'rgba(255,255,255,0.83)'):(t.dark?'rgba(255,255,255,0.10)':'rgba(255,255,255,0.92)'),shadowColor:t.shadow,shadowOpacity:t.dark?0:.035,shadowRadius:7,shadowOffset:{width:0,height:2}}}>
-              {message?.meta?.forward?<Text style={{color:t.accent,fontSize:11,fontWeight:'600',marginBottom:4,paddingHorizontal:1}}>Переслано от {message.meta.forward.from}</Text>:null}
-              {(message?.meta?.reply||p?.meta?.reply)?(()=>{const r=(message?.meta?.reply||p?.meta?.reply)!;return <Pressable accessibilityRole="button" accessibilityLabel="Перейти к исходному сообщению" onPress={()=>jumpTo(r.clientId)} style={{flexDirection:'row',gap:7,marginBottom:6,paddingVertical:5,paddingRight:8,borderRadius:10,backgroundColor:t.dark?'rgba(255,255,255,0.06)':'rgba(0,0,0,0.04)'}}><View style={{width:3,borderRadius:2,backgroundColor:t.accent}}/><View style={{flexShrink:1,gap:1}}><Text style={{color:t.accent,fontSize:11,fontWeight:'700'}}>{nameOf(r.senderId)}</Text><Text numberOfLines={2} style={{color:t.muted,fontSize:12}}>{view.byClientId.get(r.clientId)?replyPreview(view.byClientId.get(r.clientId)!):r.preview||'Сообщение удалено'}</Text></View></Pressable>;})():null}
-              {file?<View style={{marginBottom:body?7:1,marginTop:1}}>{isVoice(file)?<VoiceBubble attachment={file} mine={mine}/>:<AttachmentCard api={api} attachment={file} onPress={()=>openAttachment(file)}/>}</View>:null}
-              {body?<Text selectable style={{color:t.text,fontSize:metrics.fontSize,lineHeight:metrics.lineHeight,paddingHorizontal:1}}>{body}</Text>:null}
-              <View style={{flexDirection:'row',justifyContent:'flex-end',alignItems:'center',gap:5,marginTop:4}}>{downloadId&&file?.id===downloadId?<ActivityIndicator color={t.accent} size="small"/>:null}<Text style={{color:t.muted,fontSize:9}}>{message?.edited?'изм. ':''}{formatTime(item.createdAt)}</Text>{p?p.state==='sending'?<Icon name="time-outline" size={12} color={t.muted}/>:<Icon name="alert-circle" size={13} color={t.danger}/>:mine?<Icon name={chat.peerLastReadMessageId>=(message?.id||0)?'checkmark-done':'checkmark'} size={15} color={chat.peerLastReadMessageId>=(message?.id||0)?t.accent:t.muted}/>:null}</View>
-            </Pressable>
-            {message?.reactions.length?<View style={{flexDirection:'row',flexWrap:'wrap',gap:5,marginTop:4,maxWidth:wide?'76%':'85%',justifyContent:mine?'flex-end':'flex-start'}}>{message.reactions.map(reaction=><Pressable key={reaction.emoji} accessibilityRole="button" accessibilityLabel={`Реакция ${reaction.emoji}: ${reaction.count}${reaction.mine?', твоя':''}`} onPress={()=>react(message,reaction.emoji)} style={{flexDirection:'row',alignItems:'center',gap:4,paddingHorizontal:9,paddingVertical:4,borderRadius:14,backgroundColor:reaction.mine?t.accentSoft:t.dark?'rgba(255,255,255,0.07)':'rgba(255,255,255,0.7)',borderWidth:1,borderColor:reaction.mine?t.accent:t.border}}><Text style={{fontSize:14}}>{reaction.emoji}</Text>{reaction.count>1?<Text style={{color:t.text,fontSize:11,fontWeight:'600'}}>{reaction.count}</Text>:null}</Pressable>)}</View>:null}
-            {p?.state==='failed'?<Pressable accessibilityRole="button" onPress={()=>void store.retry(p)} style={{paddingVertical:8,maxWidth:'85%',gap:3}}><Text style={{fontSize:11,color:t.danger,fontWeight:'600'}}>Не отправлено · повторить</Text>{p.error?<Text style={{fontSize:10,lineHeight:14,color:t.muted}}>{p.error}</Text>:null}</Pressable>:null}
-          </View>
-        </View>;
-      }}/>
+      renderItem={renderRow} removeClippedSubviews={Platform.OS==='android'} maxToRenderPerBatch={12} updateCellsBatchingPeriod={40}/>
     }
     <GlassSurface material="regular" radius={28} style={{marginHorizontal:12,marginTop:5,marginBottom:10}} contentStyle={{padding:8}}>
       {replyTo||editing?<View style={{flexDirection:'row',alignItems:'center',gap:8,paddingLeft:8,paddingBottom:6}}>
@@ -188,11 +199,13 @@ export function ChatScreen({api,user,chat,store,onBack,wide=false}: {api:Api;use
       })}</ScrollView>:null}
       {voice.active?<VoiceRecordingBar durationMs={voice.durationMs} levels={voice.levels} onCancel={()=>void finishVoice(false)} onSend={()=>void finishVoice(true)}/>:<View style={{flexDirection:'row',gap:6,alignItems:'flex-end'}}>
         <IconButton name="add" label="Добавить вложения: галерея, аудио или файлы" onPress={()=>{Keyboard.dismiss();setAttachMenu(true);}} color={t.accent} disabled={uploading} style={{width:44,height:44,borderRadius:21}}/>
-        <View style={{flex:1,minHeight:44,maxHeight:140,justifyContent:'center'}}><TextInput accessibilityLabel="Сообщение" placeholder={signalAvailable?'Сообщение…':'Нужна мобильная версия'} editable={signalAvailable} value={text} onChangeText={changeText} placeholderTextColor={t.muted} selectionColor={t.accent} keyboardAppearance={t.dark?'dark':'light'} multiline maxLength={8000} style={{fontSize:15,lineHeight:21,color:t.text,paddingHorizontal:6,paddingTop:Platform.OS==='ios'?11:10,paddingBottom:11,maxHeight:136}} onKeyPress={e=>{if(Platform.OS==='web'&&e.nativeEvent.key==='Enter'&&!(e.nativeEvent as unknown as {shiftKey?:boolean}).shiftKey){e.preventDefault();send();}}}/></View>
+        <View style={{flex:1,minHeight:44,maxHeight:140,justifyContent:'center'}}><ComposerInput accessibilityLabel="Сообщение" placeholder={signalAvailable?'Сообщение…':'Нужна мобильная версия'} editable={signalAvailable} value={text} onChangeText={changeText} placeholderTextColor={t.muted} selectionColor={t.accent} keyboardAppearance={t.dark?'dark':'light'} multiline maxLength={8000} style={{fontSize:15,lineHeight:21,color:t.text,paddingHorizontal:6,paddingTop:Platform.OS==='ios'?11:10,paddingBottom:11,maxHeight:136}} onKeyPress={e=>{if(Platform.OS==='web'&&e.nativeEvent.key==='Enter'&&!(e.nativeEvent as unknown as {shiftKey?:boolean}).shiftKey){e.preventDefault();send();}}}/></View>
+        {!canSend&&signalAvailable&&!uploading?<Pressable accessibilityRole="button" accessibilityLabel="Записать видеосообщение" onPress={()=>{Keyboard.dismiss();setLocalError('');setCircleOpen(true);}} style={({pressed})=>({height:44,width:40,borderRadius:22,alignItems:'center',justifyContent:'center',opacity:pressed?.6:1})}><Icon name="videocam-outline" color={t.accent} size={23}/></Pressable>:null}
         {!canSend&&signalAvailable&&!uploading?<Pressable accessibilityRole="button" accessibilityLabel="Записать голосовое сообщение" onPress={startVoice} style={({pressed})=>({height:44,width:44,borderRadius:22,alignItems:'center',justifyContent:'center',backgroundColor:t.accentSoft,borderWidth:1,borderColor:t.border,opacity:pressed?.7:1})}><Icon name="mic-outline" color={t.accent} size={23}/></Pressable>:<Pressable accessibilityRole="button" accessibilityLabel="Отправить сообщение" disabled={!signalAvailable||uploading||(!text.trim()&&!attachments.length)} onPress={send} style={({pressed})=>({height:44,width:44,borderRadius:22,backgroundColor:t.accent,alignItems:'center',justifyContent:'center',borderWidth:1,borderColor:t.dark?'rgba(255,255,255,0.32)':'rgba(255,255,255,0.7)',shadowColor:t.accent,shadowOpacity:.2,shadowRadius:9,shadowOffset:{width:0,height:3},opacity:!signalAvailable||uploading||(!text.trim()&&!attachments.length)?.4:pressed?.75:1})}><Icon name="arrow-up" color={t.onAccent} size={23}/></Pressable>}
       </View>}
       {text.length>7500?<Text style={{fontSize:10,color:t.muted,textAlign:'right',paddingTop:4,paddingRight:8}}>{text.length} / 8000</Text>:null}
     </GlassSurface>
+    <VideoNoteRecorder visible={circleOpen} onClose={()=>setCircleOpen(false)} onDone={take=>void sendVideoNote(take)}/>
     <AttachmentPanel key={photoContext} visible={attachMenu} busy={uploading} canAdd={signalAvailable} remainingSlots={Math.max(0,MAX_DRAFT_ATTACHMENTS-attachments.length)} onClose={()=>setAttachMenu(false)} onAdd={item=>upload(item.file)}/>
     <TrustSheet visible={securityOpen} onClose={()=>setSecurityOpen(false)} peerId={chat.peer.id} store={store}/>
     <Sheet visible={peerInfo} title="О собеседнике" onClose={()=>setPeerInfo(false)}><View style={{alignItems:'center',gap:13,paddingBottom:12}}><Avatar api={api} user={chat.peer} size={78}/><View style={{flexDirection:'row',gap:7,alignItems:'center'}}><Text style={{color:t.text,fontSize:23,fontWeight:'700',flexShrink:1}}>{chat.peer.displayName}</Text><StatusEmoji user={chat.peer} size={21}/></View><Pressable onPress={()=>void copy(`@${chat.peer.username}`)} style={{flexDirection:'row',gap:7,alignItems:'center'}}><Text style={{color:t.accent,fontSize:14}}>@{chat.peer.username}</Text><Icon name="copy-outline" color={t.accent} size={14}/></Pressable>{chat.peer.bio?<Text style={{color:t.muted,fontSize:15,lineHeight:22,textAlign:'center',paddingHorizontal:20}}>{chat.peer.bio}</Text>:null}</View></Sheet>

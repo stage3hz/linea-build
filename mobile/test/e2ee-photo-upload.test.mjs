@@ -34,9 +34,13 @@ function harness({conversionError=false,uploadError=false,photo=true,video=false
     '../media/thumbnail':{makeThumbnail:async()=>{if(previewError)throw new Error('thumbnail unsupported');return loadTs(new URL('../src/media/previewModel.ts',import.meta.url)).createPreview(jpegFixture());}},
     'base64-js':{fromByteArray:bytes=>Buffer.from(bytes).toString('base64'),toByteArray:value=>new Uint8Array(Buffer.from(value,'base64'))},
   });
-  const api={async request(){calls.uploaded++;if(uploadError)throw new Error('network failed');
-    const entry=[...files].find(([uri])=>uri.endsWith('.bin'));assert.ok(entry);uploaded.push(Buffer.from(entry[1]));
-    return {id:randomUUID(),size:entry[1].length};
+  const api={async request(path,options){calls.uploaded++;if(uploadError)throw new Error('network failed');
+    // The ciphertext travels as the single file part of a multipart body.
+    assert.equal(path,'/e2ee/files');
+    const boundary=/boundary=(.+)$/.exec(options.headers['Content-Type'])[1];
+    const body=Buffer.from(options.body),start=body.indexOf('\r\n\r\n')+4,end=body.lastIndexOf(Buffer.from(`\r\n--${boundary}--`));
+    const cipher=body.subarray(start,end);uploaded.push(Buffer.from(cipher));
+    return {id:randomUUID(),size:cipher.length};
   }};
   return {source,exported,privateData,png,files,calls,uploaded,encryptAndUpload,api};
 }

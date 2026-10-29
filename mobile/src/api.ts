@@ -1,4 +1,5 @@
 import { Platform } from 'react-native';
+import { toByteArray } from 'base64-js';
 import type { Attachment, Chat, DeviceSession, LocalFile, Message, RecoveryChallenge, RecoveryRequest, RecoveryStatus, SecurityStatus, Session, User, UsernameStatus } from './types';
 import type { ClaimedBundle, CryptoDevice, EncryptedMessage, PublicBundle } from './e2ee/types';
 
@@ -121,9 +122,27 @@ export class Api {
     try{
       const clean=prepared.file;
       if(clean.size&&clean.size>20*1024*1024)throw new Error('Файл слишком большой. Максимум — 20 МБ.');
-      const form=new FormData();form.append('file',{uri:clean.uri,name:clean.name,type:clean.mimeType} as unknown as Blob);
-      return (await this.request<{attachment:Attachment}>('/uploads',{method:'POST',body:form})).attachment;
+      const FileSystem=await import('expo-file-system/legacy');
+      const bytes=toByteArray(await FileSystem.readAsStringAsync(clean.uri,{encoding:FileSystem.EncodingType.Base64}));
+      const part=multipartFile(bytes,clean.name,clean.mimeType);
+      return (await this.request<{attachment:Attachment}>('/uploads',{method:'POST',body:part.body as unknown as BodyInit,headers:{'Content-Type':part.contentType}})).attachment;
     }finally{await prepared.dispose().catch(()=>{});}
   }
 
+}
+
+/**
+ * Builds a one-file multipart/form-data body in memory. Expo's fetch (the global
+ * fetch on iOS and Android since SDK 52+) rejects React Native's {uri,name,type}
+ * FormData parts, which surfaced as «Нет связи с сервером» on every upload.
+ */
+export function multipartFile(bytes: Uint8Array, filename: string, mimeType: string): { body: Uint8Array; contentType: string } {
+  const boundary = `----invizent${Math.random().toString(16).slice(2)}${Date.now().toString(16)}`;
+  const safeName = filename.replace(/["\\\r\n]/g, '_').slice(0, 200) || 'file';
+  const safeType = /^[\w.+-]+\/[\w.+-]+$/.test(mimeType) ? mimeType : 'application/octet-stream';
+  const head = new TextEncoder().encode(`--${boundary}\r\nContent-Disposition: form-data; name="file"; filename="${safeName}"\r\nContent-Type: ${safeType}\r\n\r\n`);
+  const tail = new TextEncoder().encode(`\r\n--${boundary}--\r\n`);
+  const body = new Uint8Array(head.length + bytes.length + tail.length);
+  body.set(head, 0); body.set(bytes, head.length); body.set(tail, head.length + bytes.length);
+  return { body, contentType: `multipart/form-data; boundary=${boundary}` };
 }

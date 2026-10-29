@@ -1,4 +1,5 @@
 import React, { useEffect, useRef, useState } from 'react';
+import { ComposerInput } from '../ComposerInput';
 import * as Crypto from 'expo-crypto';
 import { KeyboardSafeView } from '../keyboard';
 import type { AIHistoryStore, AIStoredConversation } from './history';
@@ -183,7 +184,7 @@ export function AIScreen({ api, onBack, quick = false, history }: { api: Api; on
     {!media ? <GlassSurface radius={26} style={{ margin: 12, marginTop: 3 }} contentStyle={{ padding: 10, gap: 8 }}>
       {photo && mode === 'text' ? <View style={{ flexDirection: 'row', alignItems: 'center', gap: 9, paddingLeft: 6 }}><Image source={{ uri: photo }} style={{ width: 44, height: 44, borderRadius: 10 }} /><Text style={{ flex: 1, color: t.muted, fontSize: 12 }}>Фото к вопросу</Text><IconButton name="close" label="Убрать фото" size={18} color={t.muted} onPress={() => setPhoto(null)} /></View> : null}
       {ai.state.pending ? <><Button secondary label="Отменить ожидание" icon="stop-outline" onPress={() => ai.conversation.current?.cancel()} /><Text style={{ color: t.muted, fontSize: 10, lineHeight: 15, textAlign: 'center' }}>Уже отправленный текст нельзя отозвать у внешней службы.</Text></> : <>
-        <View style={{ flexDirection: 'row', alignItems: 'flex-end', gap: 8 }}><TextInput accessibilityLabel={mode === 'code' ? 'Задача по коду для AI' : 'Вопрос AI'} value={draft} onChangeText={setDraft} placeholder={mode === 'code' ? 'Опиши задачу по коду…' : 'Напиши вопрос…'} placeholderTextColor={t.muted} selectionColor={t.accent} keyboardAppearance={t.dark ? 'dark' : 'light'} multiline maxLength={inputLimit} style={{ flex: 1, minHeight: 45, maxHeight: 140, padding: 10, color: t.text, fontSize: 15, lineHeight: 22 }} />
+        <View style={{ flexDirection: 'row', alignItems: 'flex-end', gap: 8 }}><ComposerInput accessibilityLabel={mode === 'code' ? 'Задача по коду для AI' : 'Вопрос AI'} value={draft} onChangeText={setDraft} placeholder={mode === 'code' ? 'Опиши задачу по коду…' : 'Напиши вопрос…'} placeholderTextColor={t.muted} selectionColor={t.accent} keyboardAppearance={t.dark ? 'dark' : 'light'} multiline maxLength={inputLimit} style={{ flex: 1, minHeight: 45, maxHeight: 140, padding: 10, color: t.text, fontSize: 15, lineHeight: 22 }} />
           {router && mode === 'text' && ai.status?.capabilities.vision.enabled ? <IconButton name="image-outline" label="Прикрепить фото к вопросу" onPress={() => void attachPhoto()} color={t.muted} size={24} style={{ width: 40, height: 46 }} /> : null}
           <IconButton name={mode === 'code' ? 'checkmark-circle-outline' : 'arrow-up-circle'} label={mode === 'code' ? 'Проверить задачу по коду перед отправкой' : 'Отправить вопрос AI'} onPress={send} disabled={!canSend} color={t.accent} size={41} style={{ width: 46, height: 46 }} />
         </View>

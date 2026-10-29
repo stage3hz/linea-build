@@ -64,3 +64,7 @@ MIT License, Copyright (c) 2026 Tashfeen Ahmed — full text in `deploy/relay-wo
 ## expo-alternate-app-icons
 
 https://github.com/pchalupa/expo-alternate-app-icons — MIT License. Used to switch the app icon from Settings.
+
+## expo-camera
+
+https://github.com/expo/expo/tree/main/packages/expo-camera — MIT License. Used only while recording a video message.

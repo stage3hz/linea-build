@@ -6,9 +6,11 @@ function setup({prepareError=false,uploadError=false,platform='android'}={}){
   const calls={prepared:0,disposed:0,uploaded:0};
   const {Api}=loadTs(new URL('../src/api.ts',import.meta.url),{
     'react-native':{Platform:{OS:platform}},
+    'expo-file-system/legacy':{EncodingType:{Base64:'base64'},readAsStringAsync:async()=>Buffer.from('clean-png').toString('base64')},
+    'base64-js':{toByteArray:value=>new Uint8Array(Buffer.from(value,'base64'))},
     './media/pipeline':{prepareMediaForUpload:async()=>{calls.prepared++;if(prepareError)throw new Error('conversion failed');return {file:{uri:'file:///cache/clean.png',name:'photo.png',mimeType:'image/png',size:8},photo:true,dispose:async()=>{calls.disposed++;}};}},
   });
-  const api=new Api('https://test.invalid','token');api.request=async()=>{calls.uploaded++;if(uploadError)throw new Error('upload failed');return {attachment:{id:'test',mimeType:'image/png'}};};
+  const api=new Api('https://test.invalid','token');api.request=async(path,options)=>{calls.uploaded++;assert.equal(path,'/uploads');assert.match(options.headers['Content-Type'],/^multipart\/form-data; boundary=/);assert.ok(Buffer.from(options.body).includes(Buffer.from('clean-png')));if(uploadError)throw new Error('upload failed');return {attachment:{id:'test',mimeType:'image/png'}};};
   return {api,calls};
 }
 test('public profile upload also uses the metadata preparation path and releases its clean copy',async()=>{

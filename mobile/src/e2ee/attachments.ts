@@ -3,7 +3,7 @@ import * as Crypto from 'expo-crypto';
 import * as FileSystem from 'expo-file-system/legacy';
 import * as Sharing from 'expo-sharing';
 import { fromByteArray, toByteArray } from 'base64-js';
-import type { Api } from '../api';
+import { multipartFile, type Api } from '../api';
 import type { Attachment, LocalFile } from '../types';
 import { getSignalBridge } from './signal';
 import { prepareMediaForUpload, type PreparedMedia } from '../media/pipeline';
@@ -42,13 +42,9 @@ async function encryptPrepared(api:Api,prepared:PreparedMedia,bridge:ReturnType<
   const preview=prepared.photo||prepared.video?await makeThumbnail(prepared).catch(()=>undefined):undefined;
   const fileKeyId=Crypto.randomUUID();const key=fromByteArray(await Crypto.getRandomBytesAsync(32));const nonce=fromByteArray(await Crypto.getRandomBytesAsync(12));
   const ciphertext=await bridge.seal(fromByteArray(bytes),key,nonce,associatedData(fileKeyId));
-  const path=`${FileSystem.cacheDirectory}linea-encrypted-${fileKeyId}.bin`;
-  try {
-    await FileSystem.writeAsStringAsync(path,ciphertext,{encoding:FileSystem.EncodingType.Base64});
-    const form=new FormData();form.append('file',{uri:path,name:'encrypted.bin',type:'application/octet-stream'} as unknown as Blob);
-    const result=await api.request<{id:string;size:number}>('/e2ee/files',{method:'POST',body:form});
-    return {id:result.id,name:file.name.slice(0,240)||'file',mimeType:file.mimeType.slice(0,150)||'application/octet-stream',size:bytes.length,encryption:{scheme:'aes-256-gcm-siv',key,nonce,fileKeyId},...(prepared.media?{media:prepared.media}:{}),...(preview?{preview}:{})};
-  }finally{await FileSystem.deleteAsync(path,{idempotent:true}).catch(()=>{});}
+  const part=multipartFile(toByteArray(ciphertext),'encrypted.bin','application/octet-stream');
+  const result=await api.request<{id:string;size:number}>('/e2ee/files',{method:'POST',body:part.body as unknown as BodyInit,headers:{'Content-Type':part.contentType}});
+  return {id:result.id,name:file.name.slice(0,240)||'file',mimeType:file.mimeType.slice(0,150)||'application/octet-stream',size:bytes.length,encryption:{scheme:'aes-256-gcm-siv',key,nonce,fileKeyId},...(prepared.media?{media:prepared.media}:{}),...(preview?{preview}:{})};
 }
 
 function checkAbort(signal?:AbortSignal):void {if(signal?.aborted){const error=new Error('Загрузка отменена.');error.name='AbortError';throw error;}}

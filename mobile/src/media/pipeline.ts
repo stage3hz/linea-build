@@ -7,6 +7,7 @@ import {isPhotoCandidate,sniffPhotoFormat} from '../photo/formats';
 import {isVideoCandidate,mediaPreviewKind,sniffVideoFormat} from './formats';
 import {getVideoBridge} from './videoBridge';
 import {sanitizeMp4} from './mp4';
+import {ensureFileUri} from './localCopy';
 import type {NativeVideoResult} from '../../modules/linea-video';
 export type PreparedMedia=PreparedUpload&{video?:boolean};
 const MAX_OUTPUT=20*1024*1024;
@@ -67,8 +68,16 @@ async function confirmedAudioOnly(file:LocalFile,container:string|null):Promise<
   catch(error){if(error&&typeof error==='object'&&'code'in error&&error.code==='NO_VIDEO_TRACK')return true;throw error;}
 }
 
-export async function prepareMediaForUpload(file:LocalFile):Promise<PreparedMedia>{
-  requireLocal(file.uri);
+export async function prepareMediaForUpload(input:LocalFile):Promise<PreparedMedia>{
+  requireLocal(input.uri);
+  const local=await ensureFileUri(input);
+  try{
+    const prepared=await prepareLocalMedia(local.file);
+    return {...prepared,dispose:async()=>{try{await prepared.dispose();}finally{await local.dispose().catch(()=>{});}}};
+  }catch(error){await local.dispose().catch(()=>{});throw error;}
+}
+
+async function prepareLocalMedia(file:LocalFile):Promise<PreparedMedia>{
   const header=toByteArray(await FileSystem.readAsStringAsync(file.uri,{encoding:FileSystem.EncodingType.Base64,position:0,length:768}));
   const image=sniffPhotoFormat(header),video=sniffVideoFormat(header);
   if(image)return preparePhotoForUpload(file);

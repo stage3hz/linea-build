@@ -1,4 +1,5 @@
 import type { AttachmentMedia,LocalFile } from '../types';
+import {ensureFileUri} from '../media/localCopy';
 import * as FileSystem from 'expo-file-system/legacy';
 import * as Crypto from 'expo-crypto';
 import { fromByteArray,toByteArray } from 'base64-js';
@@ -85,8 +86,14 @@ async function preserveHdrPng(file:LocalFile,options:PhotoOptions):Promise<Prepa
   return writeExport(clean.bytes,{uri:file.uri,width:clean.width,height:clean.height,downsampled:false,format:'png',mimeType:'image/png'},clean.hdr);
 }
 
-async function renderOnce(file:LocalFile,options:PhotoOptions):Promise<PreparedPhoto> {
-  requireLocal(file.uri);
+async function renderOnce(input:LocalFile,options:PhotoOptions):Promise<PreparedPhoto> {
+  requireLocal(input.uri);
+  const local=await ensureFileUri(input);
+  try{return await renderLocal(local.file,options);}
+  finally{await local.dispose().catch(()=>{});}
+}
+
+async function renderLocal(file:LocalFile,options:PhotoOptions):Promise<PreparedPhoto> {
   const hdr=await preserveHdrPng(file,options);if(hdr)return hdr;
   const bridge=getPhotoBridge(),result=await bridge.render(file.uri,options);
   nativeOutputUri(result.uri);
@@ -108,8 +115,18 @@ export function renderPhoto(file:LocalFile,options:PhotoOptions):Promise<Prepare
 
 const noCleanup=async()=>{};
 
-export async function preparePhotoForUpload(file:LocalFile):Promise<PreparedUpload> {
-  requireLocal(file.uri);
+export async function preparePhotoForUpload(input:LocalFile):Promise<PreparedUpload> {
+  requireLocal(input.uri);
+  const owned=ownedExports.get(input.uri);
+  if(owned)return {file:{...owned.file},photo:true,media:{...owned.media},dispose:noCleanup};
+  const local=await ensureFileUri(input);
+  try{
+    const prepared=await prepareLocalPhoto(local.file);
+    return {...prepared,dispose:async()=>{try{await prepared.dispose();}finally{await local.dispose().catch(()=>{});}}};
+  }catch(error){await local.dispose().catch(()=>{});throw error;}
+}
+
+async function prepareLocalPhoto(file:LocalFile):Promise<PreparedUpload> {
   const owned=ownedExports.get(file.uri);
   if(owned)return {file:{...owned.file},photo:true,media:{...owned.media},dispose:noCleanup};
   const header=toByteArray(await FileSystem.readAsStringAsync(file.uri,{encoding:FileSystem.EncodingType.Base64,position:0,length:64}));
