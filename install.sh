@@ -103,6 +103,8 @@ if command -v ufw >/dev/null && ufw status | grep -q "Status: active"; then
   ufw allow 22/tcp >/dev/null; ufw allow 80/tcp >/dev/null; ufw allow 443/tcp >/dev/null; ufw allow 443/udp >/dev/null
 fi
 "${C[@]}" up -d --build
+# Caddy reads its config only at start; restart so new hosts (e.g. the AI dashboard) get certificates.
+"${C[@]}" restart caddy
 
 echo "== 5/5 Проверка"
 ok=0
