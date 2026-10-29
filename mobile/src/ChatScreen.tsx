@@ -1,7 +1,7 @@
 import { StatusEmoji } from './StatusEmoji';
 import { ComposerInput } from './ComposerInput';
 import React, { useEffect, useMemo, useRef, useState } from 'react';
-import { ActivityIndicator, FlatList, Keyboard, Platform, Pressable, ScrollView, View } from 'react-native';
+import { ActivityIndicator, Animated, Dimensions, FlatList, Keyboard, PanResponder, Platform, Pressable, ScrollView, View } from 'react-native';
 import { Text, TextInput } from './typography';
 import { KeyboardSafeView } from './keyboard';
 import * as Clipboard from 'expo-clipboard';
@@ -23,13 +23,15 @@ import { textMetrics, useChatPreferences } from './chatPreferences';
 import { REACTIONS, foldChat, replyPreview, type Reaction, type ViewMessage } from './messageMeta';
 import { VoicePlaybackProvider, VoiceRecordingBar, useVoiceRecorder } from './voice/VoiceMessage';
 import { MessageRow, type Row, type RowHandlers } from './MessageRow';
+import { ContextMenu, MenuItem } from './ContextMenu';
 import { VideoNoteRecorder, type VideoNoteTake } from './videonote/VideoNote';
 import { useCallback } from 'react';
+import { attachmentLabel } from './voice/voice';
 import { VOICE_MIME, VOICE_MIN_MS, videoNoteFileName, voiceFileName } from './voice/voice';
 
 
 export function ChatScreen({api,user,chat,store,onBack,wide=false}: {api:Api;user:User;chat:Chat;store:MessengerStore;onBack:()=>void;wide?:boolean}) {
-  const t=useTheme();const [attachMenu,setAttachMenu]=useState(false);const [uploading,setUploading]=useState(false);const [downloadId,setDownloadId]=useState<string|null>(null);const [localError,setLocalError]=useState('');const [preview,setPreview]=useState<Attachment|null>(null);const [peerInfo,setPeerInfo]=useState(false);const [actions,setActions]=useState<Row|null>(null);const [copied,setCopied]=useState(false);
+  const t=useTheme();const [attachMenu,setAttachMenu]=useState(false);const [uploading,setUploading]=useState(false);const [downloadId,setDownloadId]=useState<string|null>(null);const [localError,setLocalError]=useState('');const [preview,setPreview]=useState<Attachment|null>(null);const [peerInfo,setPeerInfo]=useState(false);const [actions,setActions]=useState<Row|null>(null);const [menuY,setMenuY]=useState(0);const [copied,setCopied]=useState(false);
   const [securityOpen,setSecurityOpen]=useState(false);
   const photoContext=`${user.id}:${chat.id}`;const currentPhotoContext=useRef(photoContext);currentPhotoContext.current=photoContext;
   const text=store.drafts[chat.id]||'';const attachments=store.draftFiles[chat.id]||[];
@@ -132,8 +134,16 @@ export function ChatScreen({api,user,chat,store,onBack,wide=false}: {api:Api;use
   const copy=async(value:string)=>{await Clipboard.setStringAsync(value);setActions(null);setCopied(true);setTimeout(()=>setCopied(false),2000);};
   const isTyping=(store.typing[chat.id]||0)>Date.now();
 
+  // Swipe right anywhere in the chat to go back, as in Telegram for iPhone.
+  const backX=useRef(new Animated.Value(0)).current;const backRef=useRef(onBack);backRef.current=onBack;
+  const backSwipe=useRef(PanResponder.create({
+    onMoveShouldSetPanResponder:(_e,g)=>g.dx>14&&Math.abs(g.dx)>Math.abs(g.dy)*2,
+    onPanResponderMove:(_e,g)=>backX.setValue(Math.max(0,g.dx)),
+    onPanResponderRelease:(_e,g)=>{if(g.dx>110||g.vx>0.8)Animated.timing(backX,{toValue:Dimensions.get('window').width,duration:160,useNativeDriver:true}).start(()=>backRef.current());else Animated.spring(backX,{toValue:0,useNativeDriver:true}).start();},
+    onPanResponderTerminate:()=>Animated.spring(backX,{toValue:0,useNativeDriver:true}).start(),
+  })).current;
   const handlers=useRef<RowHandlers>(null as unknown as RowHandlers);
-  handlers.current={actions:setActions,jumpTo,open:openAttachment,react,retry:pending=>void store.retry(pending),reply:message=>{setEditing(null);setReplyTo(message);}};
+  handlers.current={actions:(row,y)=>{setMenuY(y);setActions(row);},jumpTo,open:openAttachment,react,retry:pending=>void store.retry(pending),reply:message=>{setEditing(null);setReplyTo(message);}};
   const peerLastRead=chat.peerLastReadMessageId,peerName=chat.peer.displayName;
   const renderRow=useCallback(({item,index}:{item:Row;index:number})=>{
     const message=item.message,p=item.pending,mine=!!p||message?.senderId===user.id;
@@ -155,7 +165,7 @@ export function ChatScreen({api,user,chat,store,onBack,wide=false}: {api:Api;use
     }catch(e){if(alive.current)setLocalError(e instanceof Error?e.message:'Не удалось отправить видеосообщение.');}
     finally{uploadingRef.current=false;if(alive.current)setUploading(false);await FileSystem.deleteAsync(take.uri,{idempotent:true}).catch(()=>{});}
   };
-  return <VoicePlaybackProvider api={api}><KeyboardSafeView style={{flex:1,backgroundColor:'transparent'}}>
+  return <VoicePlaybackProvider api={api}><Animated.View style={{flex:1,transform:[{translateX:backX}]}} {...(wide?{}:backSwipe.panHandlers)}><KeyboardSafeView style={{flex:1,backgroundColor:'transparent'}}>
     <GlassSurface material="regular" radius={27} style={{marginHorizontal:12,marginTop:12,marginBottom:8}} contentStyle={{minHeight:70,flexDirection:'row',alignItems:'center',gap:9,paddingHorizontal:wide?17:8,paddingVertical:10}}>
       {!wide?<IconButton name="chevron-back" label="Назад к чатам" onPress={onBack} style={{width:38,height:43}}/>:null}
       <Pressable onPress={()=>setPeerInfo(true)} accessibilityRole="button" accessibilityLabel={`Профиль ${chat.peer.displayName}`} style={{flex:1,flexDirection:'row',gap:12,alignItems:'center'}}><Avatar user={chat.peer} api={api} size={43}/><View style={{flex:1,gap:5}}><View style={{flexDirection:'row',gap:5,alignItems:'center'}}><Text numberOfLines={1} style={{flexShrink:1,color:t.text,fontSize:16,fontWeight:'700',letterSpacing:-.25}}>{chat.peer.displayName}</Text><StatusEmoji user={chat.peer} size={16}/></View><Text style={{color:isTyping?t.accent:t.muted,fontSize:11}}>{isTyping?'печатает…':`@${chat.peer.username}`}</Text></View></Pressable>
@@ -209,23 +219,22 @@ export function ChatScreen({api,user,chat,store,onBack,wide=false}: {api:Api;use
     <AttachmentPanel key={photoContext} visible={attachMenu} busy={uploading} canAdd={signalAvailable} remainingSlots={Math.max(0,MAX_DRAFT_ATTACHMENTS-attachments.length)} onClose={()=>setAttachMenu(false)} onAdd={item=>upload(item.file)}/>
     <TrustSheet visible={securityOpen} onClose={()=>setSecurityOpen(false)} peerId={chat.peer.id} store={store}/>
     <Sheet visible={peerInfo} title="О собеседнике" onClose={()=>setPeerInfo(false)}><View style={{alignItems:'center',gap:13,paddingBottom:12}}><Avatar api={api} user={chat.peer} size={78}/><View style={{flexDirection:'row',gap:7,alignItems:'center'}}><Text style={{color:t.text,fontSize:23,fontWeight:'700',flexShrink:1}}>{chat.peer.displayName}</Text><StatusEmoji user={chat.peer} size={21}/></View><Pressable onPress={()=>void copy(`@${chat.peer.username}`)} style={{flexDirection:'row',gap:7,alignItems:'center'}}><Text style={{color:t.accent,fontSize:14}}>@{chat.peer.username}</Text><Icon name="copy-outline" color={t.accent} size={14}/></Pressable>{chat.peer.bio?<Text style={{color:t.muted,fontSize:15,lineHeight:22,textAlign:'center',paddingHorizontal:20}}>{chat.peer.bio}</Text>:null}</View></Sheet>
-    <Sheet visible={!!actions} title="Сообщение" onClose={()=>setActions(null)}>
-      {actions?.message&&actions.message.cryptoState==='decrypted'?<View style={{flexDirection:'row',flexWrap:'wrap',gap:6,paddingBottom:10}}>{REACTIONS.slice(0,8).map(emoji=>{const chosen=actions.message!.reactions.some(r=>r.mine&&r.emoji===emoji);return <Pressable key={emoji} accessibilityRole="button" accessibilityLabel={`Реакция ${emoji}`} accessibilityState={{selected:chosen}} onPress={()=>{react(actions.message!,emoji);setActions(null);}} style={{width:44,height:44,borderRadius:22,alignItems:'center',justifyContent:'center',backgroundColor:chosen?t.accentSoft:t.surface2,borderWidth:1,borderColor:chosen?t.accent:t.border}}><Text style={{fontSize:21}}>{emoji}</Text></Pressable>;})}</View>:null}
-      {actions?.message&&actions.message.cryptoState==='decrypted'?<SheetAction icon="arrow-undo-outline" label="Ответить" onPress={()=>{setEditing(null);setReplyTo(actions.message!);setActions(null);}}/>:null}
-      {actions?.message&&actions.message.senderId===user.id&&actions.message.cryptoState==='decrypted'&&actions.message.text?<SheetAction icon="create-outline" label="Изменить" onPress={()=>{setReplyTo(null);setEditing(actions.message!);store.setDraft(chat.id,actions.message!.text);setActions(null);}}/>:null}
-      {actions?.message&&actions.message.cryptoState==='decrypted'?<SheetAction icon="bookmark-outline" label="В Избранное" onPress={()=>{const m=actions.message!;setActions(null);saveToFavorites(m);}}/>:null}
-      {actions?.message&&actions.message.cryptoState==='decrypted'?<SheetAction icon="arrow-redo-outline" label="Переслать" onPress={()=>{setForwarding(actions.message!);setActions(null);}}/>:null}
-      {actions?.message&&actions.message.cryptoState==='decrypted'?<SheetAction icon={view.pinned?.clientId===actions.message.clientId?'pin':'pin-outline'} label={view.pinned?.clientId===actions.message.clientId?'Открепить':'Закрепить'} onPress={()=>{const m=actions.message!;store.sendAction(chat.id,{type:'pin',target:view.pinned?.clientId===m.clientId?null:m.clientId},m.text);setActions(null);}}/>:null}
-      {(actions?.message?.text||actions?.pending?.text)?<SheetAction icon="copy-outline" label="Скопировать текст" onPress={()=>void copy(actions?.message?.text||actions?.pending?.text||'')}/>:null}
-      {(actions?.message?.attachment||actions?.pending?.attachment)?<SheetAction icon="download-outline" label="Сохранить вложение" onPress={()=>{const a=actions?.message?.attachment||actions?.pending?.attachment;setActions(null);if(a)void download(a);}}/>:null}
-      {actions?.pending?.state==='failed'?<SheetAction icon="refresh-outline" label="Повторить отправку" onPress={()=>{if(actions.pending)void store.retry(actions.pending);setActions(null);}}/>:null}
-      {actions?.message?<SheetAction icon="eye-off-outline" label="Удалить у меня" description="Сообщение исчезнет только на этом устройстве" danger onPress={()=>{store.hideForMe(actions.message!);setActions(null);}}/>:null}
-      {actions?.message&&actions.message.senderId===user.id&&actions.message.cryptoState==='decrypted'?<SheetAction icon="trash-outline" label="Удалить у всех" description="Собеседник перестанет видеть сообщение. Зашифрованная копия на сервере остаётся нечитаемой." danger onPress={()=>{store.sendAction(chat.id,{type:'delete',target:actions.message!.clientId});setActions(null);}}/>:null}
-    </Sheet>
+    <ContextMenu visible={!!actions} y={menuY} onClose={()=>setActions(null)} preview={actions?(actions.message?.text||actions.pending?.text||(actions.message?.attachment||actions.pending?.attachment?attachmentLabel((actions.message?.attachment||actions.pending?.attachment)!):'')):''} mine={!!actions&&(!!actions.pending||actions.message?.senderId===user.id)} reactions={actions?.message&&actions.message.cryptoState==='decrypted'?<ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{gap:2}}>{REACTIONS.map(emoji=>{const chosen=actions.message!.reactions.some(r=>r.mine&&r.emoji===emoji);return <Pressable key={emoji} accessibilityRole="button" accessibilityLabel={`Реакция ${emoji}`} accessibilityState={{selected:chosen}} onPress={()=>{react(actions.message!,emoji);setActions(null);}} style={{width:42,height:42,borderRadius:21,alignItems:'center',justifyContent:'center',backgroundColor:chosen?t.accentSoft:'transparent'}}><Text style={{fontSize:21}}>{emoji}</Text></Pressable>;})}</ScrollView>:null}>
+      {actions?.message&&actions.message.cryptoState==='decrypted'?<MenuItem icon="arrow-undo-outline" label="Ответить" onPress={()=>{setEditing(null);setReplyTo(actions.message!);setActions(null);}}/>:null}
+      {(actions?.message?.text||actions?.pending?.text)?<MenuItem icon="copy-outline" label="Скопировать" onPress={()=>void copy(actions?.message?.text||actions?.pending?.text||'')}/>:null}
+      {(actions?.message?.attachment||actions?.pending?.attachment)?<MenuItem icon="download-outline" label="Сохранить" onPress={()=>{const a=actions?.message?.attachment||actions?.pending?.attachment;setActions(null);if(a)void download(a);}}/>:null}
+      {actions?.message&&actions.message.cryptoState==='decrypted'?<MenuItem icon={view.pinned?.clientId===actions.message.clientId?'pin':'pin-outline'} label={view.pinned?.clientId===actions.message.clientId?'Открепить':'Закрепить'} onPress={()=>{const m=actions.message!;store.sendAction(chat.id,{type:'pin',target:view.pinned?.clientId===m.clientId?null:m.clientId},m.text);setActions(null);}}/>:null}
+      {actions?.message&&actions.message.cryptoState==='decrypted'?<MenuItem icon="arrow-redo-outline" label="Переслать" onPress={()=>{setForwarding(actions.message!);setActions(null);}}/>:null}
+      {actions?.message&&actions.message.senderId===user.id&&actions.message.cryptoState==='decrypted'&&actions.message.text?<MenuItem icon="create-outline" label="Изменить" onPress={()=>{setReplyTo(null);setEditing(actions.message!);store.setDraft(chat.id,actions.message!.text);setActions(null);}}/>:null}
+      {actions?.message&&actions.message.cryptoState==='decrypted'?<MenuItem icon="bookmark-outline" label="В Избранное" onPress={()=>{const m=actions.message!;setActions(null);saveToFavorites(m);}}/>:null}
+      {actions?.pending?.state==='failed'?<MenuItem icon="refresh-outline" label="Повторить отправку" onPress={()=>{if(actions.pending)void store.retry(actions.pending);setActions(null);}}/>:null}
+      {actions?.message?<MenuItem icon="eye-off-outline" label="Удалить у меня" description="Сообщение исчезнет только на этом устройстве" danger onPress={()=>{store.hideForMe(actions.message!);setActions(null);}}/>:null}
+      {actions?.message&&actions.message.senderId===user.id&&actions.message.cryptoState==='decrypted'?<MenuItem icon="trash-outline" label="Удалить у всех" description="Собеседник перестанет видеть сообщение. Зашифрованная копия на сервере остаётся нечитаемой." danger onPress={()=>{store.sendAction(chat.id,{type:'delete',target:actions.message!.clientId});setActions(null);}}/>:null}
+    </ContextMenu>
     <Sheet visible={!!forwarding} title="Переслать в чат" onClose={()=>setForwarding(null)}>
       <SheetAction icon="bookmark-outline" label="Избранное" description="Только на этом устройстве" onPress={()=>{const m=forwarding!;setForwarding(null);saveToFavorites(m);}}/>
       {store.chats.length?store.chats.map(target=><SheetAction key={target.id} icon="chatbubble-outline" label={target.peer.displayName} description={`@${target.peer.username}`} onPress={()=>{const m=forwarding!;setForwarding(null);store.forward(target.id,m,originalAuthor(m)).then(()=>setNotice(`Переслано: ${target.peer.displayName}`)).catch(e=>setLocalError(e instanceof Error?e.message:'Не удалось переслать.'));}}/>):<Text style={{color:t.muted,fontSize:13}}>Пока нет других чатов.</Text>}
     </Sheet>
     <AttachmentViewer api={api} attachment={preview} onClose={()=>setPreview(null)}/>
-  </KeyboardSafeView></VoicePlaybackProvider>;
+  </KeyboardSafeView></Animated.View></VoicePlaybackProvider>;
 }

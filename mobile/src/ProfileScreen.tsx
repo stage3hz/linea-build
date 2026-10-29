@@ -98,7 +98,10 @@ export function ProfileScreen({ api, user, theme, darkTheme, onTheme, onDarkThem
       if (!live(version)) return;
       if (!attachment.mimeType.startsWith('image/')) throw new Error('Для профиля нужна фотография.');
       if (attachment.size > 4 * 1024 * 1024) throw new Error('После обработки фото больше 4 МБ. Выбери изображение меньшего размера.');
-      setAvatarId(attachment.id); setNotice('Фото подготовлено. Сохрани изменения профиля.');
+      // Like Telegram: the new photo is applied right away, no separate «Сохранить».
+      const saved = await api.profile({ displayName: (name.trim() || user.displayName), bio: bio.trim(), avatarColor: color, avatarId: attachment.id });
+      if (!live(version)) return;
+      setAvatarId(attachment.id); onUser(saved.user); setNotice('Фото профиля обновлено.');
     } catch (failure) { if (live(version)) setError(errorMessage(failure, 'Не удалось выбрать фото.')); }
     finally { finish(version); }
   };

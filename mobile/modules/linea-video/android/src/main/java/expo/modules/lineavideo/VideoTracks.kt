@@ -18,7 +18,9 @@ data class VideoTracks(val video:Int,val audio:Int?,val format:MediaFormat,val h
       val extractor=MediaExtractor()
       try {
         extractor.setDataSource(file.absolutePath)
-        if(extractor.drmInitData!=null||!extractor.psshInfo.isNullOrEmpty())throw VideoFailure("DRM_UNSUPPORTED")
+        // drmInitData is non-null on some devices for clear camera recordings (a stray crypto-key
+        // track entry); real encryption is caught by PSSH here and by SAMPLE_FLAG_ENCRYPTED per sample.
+        if(!extractor.psshInfo.isNullOrEmpty())throw VideoFailure("DRM_UNSUPPORTED")
         return extractor
       }catch(error:Throwable){extractor.release();throw error}
     }

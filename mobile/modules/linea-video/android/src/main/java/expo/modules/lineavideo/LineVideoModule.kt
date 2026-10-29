@@ -32,7 +32,7 @@ class LineVideoModule:Module() {
         else->"Этот файл или его кодек не удалось безопасно обработать. Исходное видео не отправлено."
       }
       val code=if(reason in setOf("NO_VIDEO_TRACK","UNSUPPORTED_CODEC"))reason else "ERR_LINEA_VIDEO_$reason"
-      throw CodedException(code,message,null)
+      throw CodedException(code,"$message [$reason]",null)
     }
   }
 }

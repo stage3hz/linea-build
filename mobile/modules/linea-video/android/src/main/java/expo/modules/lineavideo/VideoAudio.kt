@@ -61,12 +61,14 @@ class VideoAudio(private val input:File,private val track:Int,private val output
     if(inputDone)return false
     val codec=decoder!!;val index=codec.dequeueInputBuffer(1000);if(index<0)return false
     val buffer=codec.getInputBuffer(index) ?: throw VideoFailure("AUDIO_DECODE_FAILED")
-    if(extractor.sampleFlags and MediaExtractor.SAMPLE_FLAG_ENCRYPTED!=0)throw VideoFailure("DRM_UNSUPPORTED")
     val size=extractor.readSampleData(buffer,0)
+    // At end of stream getSampleFlags() returns -1, which has every bit set: the encrypted
+    // check must only look at real samples, or every clear video with sound is rejected.
+    if(size>=0&&extractor.sampleFlags>=0&&(extractor.sampleFlags and MediaExtractor.SAMPLE_FLAG_ENCRYPTED)!=0)throw VideoFailure("DRM_UNSUPPORTED")
     if(size<0) {
       codec.queueInputBuffer(index,0,0,0,MediaCodec.BUFFER_FLAG_END_OF_STREAM);inputDone=true
     }else {
-      val flags=if(extractor.sampleFlags and MediaExtractor.SAMPLE_FLAG_PARTIAL_FRAME!=0)MediaCodec.BUFFER_FLAG_PARTIAL_FRAME else 0
+      val flags=if((extractor.sampleFlags and MediaExtractor.SAMPLE_FLAG_PARTIAL_FRAME)!=0)MediaCodec.BUFFER_FLAG_PARTIAL_FRAME else 0
       codec.queueInputBuffer(index,0,size,extractor.sampleTime,flags);extractor.advance()
     }
     return true
