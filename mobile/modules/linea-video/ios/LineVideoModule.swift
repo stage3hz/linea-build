@@ -1,7 +1,10 @@
 import Foundation
 import ExpoModulesCore
 
-private struct LineaVideoError:CodedError {let code:String;let description:String}
+// LocalizedError makes the Russian message (and the reason code) reach JavaScript
+// instead of «The operation couldn't be completed (LineaVideoError error 1)».
+private struct LineaVideoError:CodedError,LocalizedError {let code:String;let description:String
+  var errorDescription:String? {"\(description) [\(code)]"}}
 
 public final class LineVideoModule:Module {
   private let writer=DispatchQueue(label:"app.linea.video.writer",qos:.userInitiated)

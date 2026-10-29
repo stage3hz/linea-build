@@ -61,6 +61,21 @@ enum VideoFormat {
     }
   }
   static func orientation(_ source:CGAffineTransform,width:Int,height:Int) throws -> (Int,CGAffineTransform) {
+    // Front-camera recordings are often mirrored: a rotation combined with a
+    // horizontal flip (determinant -1). Those four exact matrices are accepted too.
+    if abs(source.a*source.d-source.b*source.c+1)<0.001 {
+      let mirrored:[(Int,CGAffineTransform)]=[
+        (0,CGAffineTransform(a:-1,b:0,c:0,d:1,tx:CGFloat(width),ty:0)),
+        (90,CGAffineTransform(a:0,b:1,c:1,d:0,tx:0,ty:0)),
+        (180,CGAffineTransform(a:1,b:0,c:0,d:-1,tx:0,ty:CGFloat(height))),
+        (270,CGAffineTransform(a:0,b:-1,c:-1,d:0,tx:CGFloat(height),ty:CGFloat(width))),
+      ]
+      for (degrees,candidate) in mirrored {
+        let first=[source.a,source.b,source.c,source.d,source.tx,source.ty],second=[candidate.a,candidate.b,candidate.c,candidate.d,candidate.tx,candidate.ty]
+        if zip(first,second).allSatisfy({pair in pair.0.isFinite && abs(pair.0-pair.1)<0.001}) {return (degrees,candidate)}
+      }
+      throw VideoFailure("UNSUPPORTED_TRANSFORM")
+    }
     let angle=Int((atan2(source.b,source.a)*180 / .pi).rounded())
     let degrees=(angle%360+360)%360
     let output:CGAffineTransform

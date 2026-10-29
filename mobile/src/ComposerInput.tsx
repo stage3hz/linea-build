@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { Platform, type TextInputProps } from 'react-native';
+import { type TextInputProps } from 'react-native';
 import { TextInput } from './typography';
 
 /**
@@ -11,8 +11,8 @@ import { TextInput } from './typography';
 export function ComposerInput({ minHeight = 44, maxHeight = 136, style, value, onContentSizeChange, ...props }: TextInputProps & { minHeight?: number; maxHeight?: number }) {
   const [content, setContent] = useState(0);
   useEffect(() => { if (!value) setContent(0); }, [value]);
-  const padding = Platform.OS === 'ios' ? 22 : 21;
-  const height = Math.min(maxHeight, Math.max(minHeight, content ? content + padding : minHeight));
+  // contentSize already includes the vertical padding on iOS and Android.
+  const height = Math.min(maxHeight, Math.max(minHeight, content ? Math.ceil(content) : minHeight));
   return <TextInput {...props} value={value} multiline scrollEnabled={height >= maxHeight}
     onContentSizeChange={event => { setContent(value ? event.nativeEvent.contentSize.height : 0); onContentSizeChange?.(event); }}
     style={[style, { height, maxHeight }]} />;
