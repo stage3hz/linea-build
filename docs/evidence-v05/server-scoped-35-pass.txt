@@ -1,0 +1,55 @@
+✔ the actual application protects and wires the free-only AI route without a live provider (1417.490642ms)
+✔ AI status is authenticated, reflects configuration, and never claims media executors (5.481505ms)
+✔ missing key disables status and chat without any upstream request (3.365548ms)
+✔ chat only forwards the approved text to the fixed free route with zero price and privacy constraints (4.98086ms)
+✔ unauthenticated, foreign-origin and unapproved calls never reach a provider (5.994156ms)
+✔ clients cannot force paid models, arbitrary origins, system roles, tools or hidden attachments (9.196658ms)
+✔ message count, individual text, total text, malformed Unicode and HTTP body are bounded without truncation (7.10706ms)
+✔ upstream limits use safe retry hints and do not expose prompts, provider details or keys (5.643403ms)
+✔ provider errors, redirects and malformed or empty answers fail safely without fallback (32.115274ms)
+✔ deadline aborts a stalled provider and releases the per-user in-flight slot (20.364863ms)
+✔ oversized streamed provider output is canceled even without Content-Length (4.896532ms)
+✔ per-user concurrency and six-per-minute limits are bounded and recover after the window (8.041862ms)
+✔ server configuration rejects invalid keys, deadlines, origins and dependencies before installing routes (14.454521ms)
+✔ approved web origins work while invalid session subjects and query overrides remain blocked (9.47394ms)
+✔ exact text/history boundaries and valid text responses without a cost field remain supported (5.821491ms)
+✔ malformed provider envelopes, headers, model IDs and tool responses are rejected (42.585032ms)
+✔ safe provider retry bounds and timeouts are preserved for all response classes (21.238858ms)
+✔ global concurrency is bounded and shutdown aborts active provider calls (6.145187ms)
+✔ entitlement absence, trusted time interval, exact expiry and revocation are derived from stored facts (1.128143ms)
+✔ malformed or untrusted stored entitlement rows fail closed without invalid-date exceptions (0.798227ms)
+✔ public emoji needs an active grant and an exact allowed static choice (0.272601ms)
+✔ an @ search addresses public usernames and does not expose the immutable login after a rename (2136.911131ms)
+✔ account status separates immutable private login, unique public username and stable account ID (1247.920629ms)
+✔ one actual free rename is atomic and repeated same-name requests do not spend it twice (1259.7559ms)
+✔ concurrent distinct renames on two server connections consume exactly one free change (1518.378272ms)
+✔ public and immutable-login namespaces remain reserved and conflicts do not consume a free change (3357.685449ms)
+✔ recovery pending before rename keeps the immutable login budget and remains cancellable and usable (4607.604038ms)
+✔ only trusted active Platina permits further name changes and exact expiry revokes the right (1260.574344ms)
+✔ static status emoji requires active Platina and is hidden for peers immediately at expiry (2096.764613ms)
+✔ clients cannot grant Platina, alter login/ID or submit arbitrary emoji assets (1256.98027ms)
+✔ credential changes still reject an immutable login reused as a secret after a public rename (1821.477064ms)
+✔ v3 migration preserves identity, sessions and pending recovery, and prevents login and ID mutation (61.687617ms)
+✔ renaming leaves persisted encryption device identity and account foreign keys unchanged (1227.835314ms)
+✔ administrator grants validate account and expiry, audit changes and revoke idempotently (1239.21902ms)
+✔ the local administrator CLI operates on an existing database without a network or purchase endpoint (2167.869753ms)
+ℹ tests 35
+ℹ suites 0
+ℹ pass 35
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 27070.838073
+ℹ start of coverage report
+ℹ -----------------------------------------------------------------
+ℹ file             | line % | branch % | funcs % | uncovered lines
+ℹ -----------------------------------------------------------------
+ℹ src              |        |          |         | 
+ℹ  ai.js           |  99.37 |    95.65 |   89.47 | 239-240
+ℹ  entitlements.js | 100.00 |   100.00 |  100.00 | 
+ℹ  username.js     | 100.00 |    97.22 |  100.00 | 
+ℹ -----------------------------------------------------------------
+ℹ all files        |  99.53 |    96.30 |   91.67 | 
+ℹ -----------------------------------------------------------------
+ℹ end of coverage report

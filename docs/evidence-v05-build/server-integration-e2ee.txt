@@ -1,0 +1,30 @@
+Command: node --test --test-isolation=none test/integration.test.js
+Working directory: server
+Exit code: 0
+Scope: synthetic relay integration, not a Signal cryptography test
+Output assembled from the two consecutive tool output chunks of the same execution.
+
+✔ registration, search and login use private sessions and validate input (4136.689782ms)
+✔ one private chat per pair, opaque relay messages and unread counts (2411.7341ms)
+✔ a third user cannot read, write or mark another pair’s messages as read (3490.711206ms)
+✔ retrying a send is idempotent and pagination does not lose messages (2555.844466ms)
+✔ read receipts are monotonic and reject messages belonging to a different chat (3285.865169ms)
+✔ opaque attachments stay private until linked and then are readable only by chat participants (3213.003188ms)
+✔ avatar signatures override untrusted MIME labels, non-images are rejected, and upload size is enforced (1282.024761ms)
+✔ profile edits expose only the selected avatar, never arbitrary private attachments (2284.126397ms)
+✔ users, sessions, messages and file bytes survive a server restart (3093.274812ms)
+✔ WebSocket authenticates, relays opaque messages, read receipts and typing privately (2973.582667ms)
+✔ logout revokes only that session and closes its authenticated WebSocket (2163.359709ms)
+✔ expired sessions cannot access HTTP endpoints (1340.617645ms)
+✔ server rejects plaintext, empty or excessive envelopes and invalid IDs without storing messages (2393.659329ms)
+✔ repeated authentication attempts are throttled (1691.057267ms)
+✔ only explicitly allowed browser origins can use authenticated HTTP requests (1337.263039ms)
+✔ React Native endpoint Origin is accepted only for WS upgrades and still requires authentication (2483.32901ms)
+ℹ tests 16
+ℹ suites 0
+ℹ pass 16
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 40320.798034

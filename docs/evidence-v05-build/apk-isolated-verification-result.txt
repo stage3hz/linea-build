@@ -1,0 +1,9 @@
+{
+  "deliverablePath": "/workspace/scratch/f1956a5cefad/linea-0.5.0-preview-arm64.apk",
+  "sizeBytes": 63872204,
+  "apkSha256": "703f42adc995dcc713bb25fd199ad4e5eb7c9b7e6a95dc8512622b18415a88b2",
+  "certificateSha256": "fac61745dc0903786fb9ede62a962b399f7348f0bb6f899b8332667591033b9c",
+  "productionInputsUnchanged": 165,
+  "buildDuration": "1m 40s",
+  "bundleModules": 880
+}

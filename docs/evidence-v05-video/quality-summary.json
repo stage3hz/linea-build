@@ -1,0 +1,21 @@
+{
+  "functionCount": 63,
+  "maximumCrap": 9.2983,
+  "threshold": 9.999,
+  "allBelow10": true,
+  "mp4Tests": {
+    "passed": 26,
+    "failed": 0,
+    "skipped": 0
+  },
+  "firstMutationRun": {
+    "testCount": 18,
+    "killed": 362,
+    "survived": 160,
+    "uncovered": 2,
+    "total": 524,
+    "reportedScorePercent": 69.3
+  },
+  "mutationAfterPriorityTests": "Not yet measured in this report; final rerun owned by overall build scope",
+  "nativeStaticTools": "Kotlin/Swift unsupported by these tool versions; not measured"
+}

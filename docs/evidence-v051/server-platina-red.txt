@@ -1,0 +1,158 @@
+✔ entitlement absence, trusted time interval, exact expiry and revocation are derived from stored facts (5.319225ms)
+✔ malformed or untrusted stored entitlement rows fail closed without invalid-date exceptions (1.05433ms)
+✔ public emoji needs an active grant and an exact allowed static choice (0.26776ms)
+✖ a trusted null expiry is explicitly permanent, remains active in the distant future and still respects start and revocation (2.062849ms)
+✔ null expiry never legitimizes an untrusted or malformed stored grant (0.844106ms)
+✖ public permanent emoji is explicitly marked only for an active permanent grant and an allowed choice (0.691614ms)
+✖ real SQLite v4 migration preserves finite grants, revocations, audit and account/session data before allowing null expiry (92.396002ms)
+✖ permanent grants validate stable accounts and time, replace finite grants, persist on reopen and revoke only once (44.810225ms)
+✖ CLI lookup uses the current public username and grant-permanent accepts only the resolved stable UUID (117.261203ms)
+✔ invalid or conflicting administrator options cannot grant permanently or create a missing database (768.698127ms)
+✔ account status separates immutable private login, unique public username and stable account ID (1733.480201ms)
+✔ one actual free rename is atomic and repeated same-name requests do not spend it twice (1927.101867ms)
+✔ concurrent distinct renames on two server connections consume exactly one free change (1656.73276ms)
+✔ public and immutable-login namespaces remain reserved and conflicts do not consume a free change (3707.971004ms)
+✔ recovery pending before rename keeps the immutable login budget and remains cancellable and usable (5103.448919ms)
+✔ only trusted active Platina permits further name changes and exact expiry revokes the right (1336.26072ms)
+✔ static status emoji requires active Platina and is hidden for peers immediately at expiry (2464.010367ms)
+✔ clients cannot grant Platina, alter login/ID or submit arbitrary emoji assets (1405.851114ms)
+✔ credential changes still reject an immutable login reused as a secret after a public rename (2268.396207ms)
+✖ v3 migration preserves identity, sessions and pending recovery, and prevents login and ID mutation (61.64875ms)
+✔ renaming leaves persisted encryption device identity and account foreign keys unchanged (1350.547075ms)
+✔ administrator grants validate account and expiry, audit changes and revoke idempotently (1541.183547ms)
+✔ the local administrator CLI operates on an existing database without a network or purchase endpoint (1830.942396ms)
+✖ permanent Platina and its emoji survive public renames, server restart and real account recovery, then revoke (2712.65074ms)
+ℹ tests 24
+ℹ suites 0
+ℹ pass 17
+ℹ fail 7
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 30327.917995
+
+✖ failing tests:
+
+test at server/test/entitlements.test.js:60:1
+✖ a trusted null expiry is explicitly permanent, remains active in the distant future and still respects start and revocation (2.062849ms)
+  AssertionError [ERR_ASSERTION]: Expected values to be strictly deep-equal:
+  + actual - expected
+  
+    {
+  +   active: false,
+  -   active: true,
+      expiresAt: null,
+  -   permanent: true
+    }
+  
+      at TestContext.<anonymous> (file:///workspace/scratch/f1956a5cefad/next-release/linea-messenger/server/test/entitlements.test.js:64:10)
+      at Test.runInAsyncScope (node:async_hooks:227:14)
+      at Test.run (node:internal/test_runner/test:1402:25)
+      at Test.processPendingSubtests (node:internal/test_runner/test:974:18)
+      at Test.postRun (node:internal/test_runner/test:1542:19)
+      at Test.run (node:internal/test_runner/test:1467:12)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:974:7) {
+    generatedMessage: true,
+    code: 'ERR_ASSERTION',
+    actual: [Object],
+    expected: [Object],
+    operator: 'deepStrictEqual',
+    diff: 'simple'
+  }
+
+test at server/test/entitlements.test.js:85:1
+✖ public permanent emoji is explicitly marked only for an active permanent grant and an allowed choice (0.691614ms)
+  AssertionError [ERR_ASSERTION]: Expected values to be strictly deep-equal:
+  + actual - expected
+  
+    {
+      statusEmoji: '🎧',
+      statusEmojiExpiresAt: null,
+  -   statusEmojiPermanent: true
+    }
+  
+      at TestContext.<anonymous> (file:///workspace/scratch/f1956a5cefad/next-release/linea-messenger/server/test/entitlements.test.js:87:10)
+      at Test.runInAsyncScope (node:async_hooks:227:14)
+      at Test.run (node:internal/test_runner/test:1402:25)
+      at Test.processPendingSubtests (node:internal/test_runner/test:974:18)
+      at Test.postRun (node:internal/test_runner/test:1542:19)
+      at Test.run (node:internal/test_runner/test:1467:12)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:974:7) {
+    generatedMessage: true,
+    code: 'ERR_ASSERTION',
+    actual: [Object],
+    expected: [Object],
+    operator: 'deepStrictEqual',
+    diff: 'simple'
+  }
+
+test at server/test/platina-admin.test.js:41:1
+✖ real SQLite v4 migration preserves finite grants, revocations, audit and account/session data before allowing null expiry (92.396002ms)
+  AssertionError [ERR_ASSERTION]: Expected values to be strictly equal:
+  
+  4 !== 5
+  
+      at TestContext.<anonymous> (file:///workspace/scratch/f1956a5cefad/next-release/linea-messenger/server/test/platina-admin.test.js:84:14)
+      at async Test.run (node:internal/test_runner/test:1409:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:974:7) {
+    generatedMessage: true,
+    code: 'ERR_ASSERTION',
+    actual: 4,
+    expected: 5,
+    operator: 'strictEqual',
+    diff: 'simple'
+  }
+
+test at server/test/platina-admin.test.js:102:1
+✖ permanent grants validate stable accounts and time, replace finite grants, persist on reopen and revoke only once (44.810225ms)
+  TypeError: admin.grantPermanentPlatina is not a function
+      at TestContext.<anonymous> (file:///workspace/scratch/f1956a5cefad/next-release/linea-messenger/server/test/platina-admin.test.js:115:26)
+      at async Test.run (node:internal/test_runner/test:1409:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:974:7)
+
+test at server/test/platina-admin.test.js:141:1
+✖ CLI lookup uses the current public username and grant-permanent accepts only the resolved stable UUID (117.261203ms)
+  Error: Command failed: /opt/codex/runtimes/codex-primary-runtime/dependencies/node/bin/node /workspace/scratch/f1956a5cefad/next-release/linea-messenger/server/src/platina-admin.js lookup --data-dir /tmp/linea-permanent-test-f0l9fT --username  CURRENT_ALICE 
+  Platina operation failed: Usage: platina-admin.js grant|revoke --data-dir <existing-dir> --user-id <UUID> --reason <text> [--expires-at <UTC-ISO>]
+  
+      at genericNodeError (node:internal/errors:986:15)
+      at wrappedFn (node:internal/errors:540:14)
+      at ChildProcess.exithandler (node:child_process:417:12)
+      at ChildProcess.emit (node:events:514:28)
+      at maybeClose (node:internal/child_process:1172:16)
+      at ChildProcess._handle.onexit (node:internal/child_process:335:5) {
+    code: 1,
+    killed: false,
+    signal: null,
+    cmd: '/opt/codex/runtimes/codex-primary-runtime/dependencies/node/bin/node /workspace/scratch/f1956a5cefad/next-release/linea-messenger/server/src/platina-admin.js lookup --data-dir /tmp/linea-permanent-test-f0l9fT --username  CURRENT_ALICE ',
+    stdout: '',
+    stderr: 'Platina operation failed: Usage: platina-admin.js grant|revoke --data-dir <existing-dir> --user-id <UUID> --reason <text> [--expires-at <UTC-ISO>]\n'
+  }
+
+test at server/test/username.test.js:254:1
+✖ v3 migration preserves identity, sessions and pending recovery, and prevents login and ID mutation (61.64875ms)
+  AssertionError [ERR_ASSERTION]: Expected values to be strictly equal:
+  
+  4 !== 5
+  
+      at verify (file:///workspace/scratch/f1956a5cefad/next-release/linea-messenger/server/test/username.test.js:271:12)
+      at TestContext.<anonymous> (file:///workspace/scratch/f1956a5cefad/next-release/linea-messenger/server/test/username.test.js:286:9)
+      at async Test.run (node:internal/test_runner/test:1409:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:974:7) {
+    generatedMessage: true,
+    code: 'ERR_ASSERTION',
+    actual: 4,
+    expected: 5,
+    operator: 'strictEqual',
+    diff: 'simple'
+  }
+
+test at server/test/username.test.js:348:1
+✖ permanent Platina and its emoji survive public renames, server restart and real account recovery, then revoke (2712.65074ms)
+  TypeError: grantPermanentPlatina is not a function
+      at file:///workspace/scratch/f1956a5cefad/next-release/linea-messenger/server/test/username.test.js:353:15
+      at Object.sql (file:///workspace/scratch/f1956a5cefad/next-release/linea-messenger/server/test/username.test.js:35:53)
+      at TestContext.<anonymous> (file:///workspace/scratch/f1956a5cefad/next-release/linea-messenger/server/test/username.test.js:353:5)
+      at process.processTicksAndRejections (node:internal/process/task_queues:104:5)
+      at async Test.run (node:internal/test_runner/test:1409:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:974:7)

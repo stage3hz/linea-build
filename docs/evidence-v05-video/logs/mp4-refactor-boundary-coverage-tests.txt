@@ -1,0 +1,40 @@
+✔ MP4 sanitation zeroes personal tags, dates, handler/compressor names and unused media bytes (13.122955ms)
+✔ HDR color information is preserved exactly and inconsistent claims are refused (11.781011ms)
+✔ metadata tracks, external data references and unsupported codec entries fail closed (3.736254ms)
+✔ chunk offsets cannot point to metadata or beyond the media payload (1.2195ms)
+✔ truncated boxes, fragmented inputs, oversized files and unsupported atom trees are refused (1.884383ms)
+✔ dependency metadata must match the sample count and contain only defined bits (2.786802ms)
+✔ reserved CICP values and mismatched HDR primaries are refused (8.536304ms)
+✔ essential movie and track headers cannot be omitted (9.011497ms)
+✔ sample timing and sync tables are tied to the declared samples (8.069347ms)
+✔ static HDR payload has bounded chromaticity and luminance fields (2.45445ms)
+✔ AAC config permits only defined LC fields and cannot retain private trailing bytes (10.830222ms)
+✔ color profiles require a complete recognized numeric layout and consistent declarations (2.428516ms)
+✔ valid static HDR stays byte-identical while invalid light and mastering ranges fail closed (3.287878ms)
+✔ sample group descriptions accept defined versions and reject opaque or wrong-sized groups (2.825126ms)
+✔ sample run boundaries, descriptions, and media overlaps are validated (3.263066ms)
+✔ AAC descriptors reject truncation, overlong lengths, external flags, and invalid sync data (2.06783ms)
+✔ extended and to-end atom sizes preserve sample positions and reject invalid bounds (0.707349ms)
+✔ timing tables allow signed composition offsets but reject zero or inconsistent counts (2.773267ms)
+ℹ tests 18
+ℹ suites 0
+ℹ pass 18
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 221.113286
+ℹ start of coverage report
+ℹ -----------------------------------------------------------------
+ℹ file             | line % | branch % | funcs % | uncovered lines
+ℹ -----------------------------------------------------------------
+ℹ mobile           |        |          |         | 
+ℹ  src             |        |          |         | 
+ℹ   media          |        |          |         | 
+ℹ    mp4.ts        |  98.95 |    85.77 |  100.00 | 140 142-143 283
+ℹ    mp4Boxes.ts   | 100.00 |    96.77 |  100.00 | 
+ℹ    mp4Samples.ts | 100.00 |    83.10 |  100.00 | 
+ℹ -----------------------------------------------------------------
+ℹ all files        |  99.26 |    86.20 |  100.00 | 
+ℹ -----------------------------------------------------------------
+ℹ end of coverage report

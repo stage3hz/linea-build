@@ -1,0 +1,232 @@
+WARNING: 155 covered mutations selected in src/ai.js.
+KILLED    src/ai.js:21 !== -> ===
+KILLED    src/ai.js:21 && -> ||
+KILLED    src/ai.js:21 === -> !==
+KILLED    src/ai.js:21 && -> ||
+KILLED    src/ai.js:21 delete !
+KILLED    src/ai.js:24 && -> ||
+KILLED    src/ai.js:28 === -> !==
+KILLED    src/ai.js:28 && -> ||
+KILLED    src/ai.js:28 && -> ||
+KILLED    src/ai.js:28 <= -> <
+KILLED    src/ai.js:28 && -> ||
+KILLED    src/ai.js:29 delete !
+KILLED    src/ai.js:29 && -> ||
+KILLED    src/ai.js:33 delete !
+KILLED    src/ai.js:33 || -> &&
+KILLED    src/ai.js:33 delete !
+KILLED    src/ai.js:34 delete !
+KILLED    src/ai.js:40 delete !
+KILLED    src/ai.js:40 || -> &&
+KILLED    src/ai.js:40 < -> <=
+KILLED    src/ai.js:40 1 -> 0
+KILLED    src/ai.js:40 || -> &&
+KILLED    src/ai.js:40 > -> >=
+KILLED    src/ai.js:45 delete !
+KILLED    src/ai.js:46 !== -> ===
+KILLED    src/ai.js:46 true -> false
+KILLED    src/ai.js:48 + -> -
+KILLED    src/ai.js:48 0 -> 1
+KILLED    src/ai.js:49 > -> >=
+KILLED    src/ai.js:50 0 -> 1
+KILLED    src/ai.js:50 !== -> ===
+SURVIVED  src/ai.js:50 || -> &&
+KILLED    src/ai.js:50 delete -
+SURVIVED  src/ai.js:50 1 -> 0
+KILLED    src/ai.js:50 !== -> ===
+KILLED    src/ai.js:59 false -> true
+KILLED    src/ai.js:60 false -> true
+KILLED    src/ai.js:61 false -> true
+KILLED    src/ai.js:62 false -> true
+KILLED    src/ai.js:67 !== -> ===
+KILLED    src/ai.js:67 || -> &&
+SURVIVED  src/ai.js:67 > -> >=
+KILLED    src/ai.js:68 - -> +
+KILLED    src/ai.js:68 / -> *
+KILLED    src/ai.js:69 1 -> 0
+KILLED    src/ai.js:73 === -> !==
+KILLED    src/ai.js:80 === -> !==
+KILLED    src/ai.js:80 false -> true
+KILLED    src/ai.js:81 delete !
+KILLED    src/ai.js:81 || -> &&
+SURVIVED  src/ai.js:81 > -> >=
+SURVIVED  src/ai.js:86 ?. -> .
+KILLED    src/ai.js:86 0 -> 1
+KILLED    src/ai.js:87 !== -> ===
+KILLED    src/ai.js:87 || -> &&
+KILLED    src/ai.js:87 || -> &&
+KILLED    src/ai.js:87 delete !
+SURVIVED  src/ai.js:87 ?. -> .
+SURVIVED  src/ai.js:88 ?. -> .
+KILLED    src/ai.js:97 0 -> 1
+KILLED    src/ai.js:99 true -> false
+KILLED    src/ai.js:102 delete !
+KILLED    src/ai.js:102 || -> &&
+SURVIVED  src/ai.js:102 + -> -
+SURVIVED  src/ai.js:102 > -> >=
+SURVIVED  src/ai.js:106 true -> false
+KILLED    src/ai.js:116 delete !
+KILLED    src/ai.js:116 || -> &&
+SURVIVED  src/ai.js:116 || -> &&
+KILLED    src/ai.js:116 delete !
+KILLED    src/ai.js:116 || -> &&
+KILLED    src/ai.js:116 !== -> ===
+KILLED    src/ai.js:116 1 -> 0
+KILLED    src/ai.js:117 0 -> 1
+KILLED    src/ai.js:121 === -> !==
+KILLED    src/ai.js:122 !== -> ===
+SURVIVED  src/ai.js:122 || -> &&
+KILLED    src/ai.js:122 delete !
+SURVIVED  src/ai.js:122 || -> &&
+KILLED    src/ai.js:122 !== -> ===
+KILLED    src/ai.js:122 0 -> 1
+SURVIVED  src/ai.js:126 ?. -> .
+KILLED    src/ai.js:127 delete !
+KILLED    src/ai.js:127 || -> &&
+KILLED    src/ai.js:127 !== -> ===
+KILLED    src/ai.js:127 || -> &&
+KILLED    src/ai.js:127 ?. -> .
+KILLED    src/ai.js:127 || -> &&
+KILLED    src/ai.js:128 delete !
+KILLED    src/ai.js:129 delete !
+KILLED    src/ai.js:134 !== -> ===
+KILLED    src/ai.js:134 || -> &&
+KILLED    src/ai.js:134 delete !
+KILLED    src/ai.js:140 ?. -> .
+KILLED    src/ai.js:141 true -> false
+KILLED    src/ai.js:149 false -> true
+KILLED    src/ai.js:151 true -> false
+SURVIVED  src/ai.js:151 true -> false
+KILLED    src/ai.js:152 0 -> 1
+KILLED    src/ai.js:152 0 -> 1
+KILLED    src/ai.js:152 0 -> 1
+SURVIVED  src/ai.js:154 true -> false
+KILLED    src/ai.js:158 delete !
+KILLED    src/ai.js:159 ?. -> .
+SURVIVED  src/ai.js:170 true -> false
+KILLED    src/ai.js:192 delete !
+KILLED    src/ai.js:192 === -> !==
+KILLED    src/ai.js:196 !== -> ===
+KILLED    src/ai.js:196 || -> &&
+SURVIVED  src/ai.js:196 > -> >=
+KILLED    src/ai.js:196 || -> &&
+KILLED    src/ai.js:200 delete !
+KILLED    src/ai.js:200 || -> &&
+SURVIVED  src/ai.js:200 < -> <=
+KILLED    src/ai.js:200 1 -> 0
+KILLED    src/ai.js:200 || -> &&
+KILLED    src/ai.js:200 > -> >=
+KILLED    src/ai.js:204 delete !
+KILLED    src/ai.js:204 || -> &&
+KILLED    src/ai.js:204 !== -> ===
+KILLED    src/ai.js:209 && -> ||
+SURVIVED  src/ai.js:209 >= -> >
+SURVIVED  src/ai.js:209 1 -> 0
+KILLED    src/ai.js:209 && -> ||
+SURVIVED  src/ai.js:209 <= -> <
+KILLED    src/ai.js:213 === -> !==
+KILLED    src/ai.js:213 || -> &&
+KILLED    src/ai.js:213 === -> !==
+KILLED    src/ai.js:213 && -> ||
+KILLED    src/ai.js:221 delete !
+SURVIVED  src/ai.js:221 ?. -> .
+KILLED    src/ai.js:224 delete !
+KILLED    src/ai.js:227 || -> &&
+UNCOVERED src/ai.js:239 <= -> <
+KILLED    src/ai.js:244 && -> ||
+SURVIVED  src/ai.js:244 > -> >=
+SURVIVED  src/ai.js:245 >= -> >
+SURVIVED  src/ai.js:246 >= -> >
+KILLED    src/ai.js:246 && -> ||
+SURVIVED  src/ai.js:246 delete !
+KILLED    src/ai.js:247 0 -> 1
+KILLED    src/ai.js:247 + -> -
+KILLED    src/ai.js:254 >= -> >
+KILLED    src/ai.js:257 >= -> >
+SURVIVED  src/ai.js:257 1 -> 0
+SURVIVED  src/ai.js:257 - -> +
+SURVIVED  src/ai.js:257 / -> *
+SURVIVED  src/ai.js:265 && -> ||
+KILLED    src/ai.js:265 === -> !==
+SURVIVED  src/ai.js:278 ?. -> .
+SURVIVED  src/ai.js:279 delete !
+KILLED    src/ai.js:282 delete !
+KILLED    src/ai.js:288 ?. -> .
+KILLED    src/ai.js:312 > -> >=
+SURVIVED  src/ai.js:312 0 -> 1
+KILLED    src/ai.js:314 true -> false
+KILLED    src/entitlements.js:5 delete !
+KILLED    src/entitlements.js:5 || -> &&
+KILLED    src/entitlements.js:5 !== -> ===
+KILLED    src/entitlements.js:5 false -> true
+KILLED    src/entitlements.js:6 delete !
+KILLED    src/entitlements.js:6 || -> &&
+KILLED    src/entitlements.js:6 delete !
+KILLED    src/entitlements.js:6 false -> true
+KILLED    src/entitlements.js:7 > -> >=
+KILLED    src/entitlements.js:7 && -> ||
+KILLED    src/entitlements.js:7 <= -> <
+KILLED    src/entitlements.js:15 && -> ||
+KILLED    src/entitlements.js:15 === -> !==
+KILLED    src/entitlements.js:15 && -> ||
+KILLED    src/entitlements.js:15 <= -> <
+KILLED    src/entitlements.js:15 && -> ||
+KILLED    src/entitlements.js:15 > -> >=
+KILLED    src/entitlements.js:20 === -> !==
+KILLED    src/entitlements.js:20 && -> ||
+KILLED    src/entitlements.js:23 && -> ||
+Function             Namespace     Killed  Survived  Uncovered  Sites   Score
+-----------------------------------------------------------------------------
+abortAll             ai.AiBudget        0         0          0      0    n/a
+badAnswer            ai                 0         0          0      0    n/a
+constructor          ai.AiFailure       0         0          0      0    n/a
+constructor          ai.AiBudget        0         0          0      0    n/a
+invalid              ai                 0         0          0      0    n/a
+sendFailure          ai                 0         0          0      0    n/a
+sweep                ai.AiBudget        0         0          1      1    n/a
+unavailable          ai                 0         0          0      0    n/a
+withDeadline         ai                 0         1          0      1   0.0%
+reserve              ai.AiBudget        2         3          0      5  40.0%
+validSessionSubject  ai                 2         3          0      5  40.0%
+bucketFor            ai.AiBudget        4         4          0      8  50.0%
+chatHandler          ai                 2         2          0      4  50.0%
+registerAiRoutes     ai                 1         1          0      2  50.0%
+release              ai.AiBudget        1         1          0      2  50.0%
+boundedJson          ai                 4         3          0      7  57.1%
+checkResponseHeaders ai                 5         3          0      8  62.5%
+checkZeroCost        ai                 5         2          0      7  71.4%
+accessGuard          ai                 3         1          0      4  75.0%
+checkKey             ai                 3         1          0      4  75.0%
+completion           ai                 7         2          0      9  77.8%
+excessiveLength      ai                 4         1          0      5  80.0%
+messagesFrom         ai                10         2          0     12  83.3%
+checkDeadline        ai                 5         1          0      6  83.3%
+retryAfter           ai                 5         1          0      6  83.3%
+singleChoice         ai                 7         1          0      8  87.5%
+assistantText        ai                 8         1          0      9  88.9%
+GET /ai/status       ai                 1         0          0      1 100.0%
+allowedOrigin        ai                 4         0          0      4 100.0%
+answerFrom           ai                 2         0          0      2 100.0%
+capabilities         ai                 4         0          0      4 100.0%
+checkDependencies    ai                 2         0          0      2 100.0%
+historyFrom          ai                 6         0          0      6 100.0%
+isStatusEmoji        entitlements       2         0          0      2 100.0%
+messageFrom          ai                 4         0          0      4 100.0%
+modelId              ai                 3         0          0      3 100.0%
+onlyKeys             ai                 1         0          0      1 100.0%
+originSet            ai                 3         0          0      3 100.0%
+platinaState         entitlements       6         0          0      6 100.0%
+record               ai                 5         0          0      5 100.0%
+responseFailure      ai                 1         0          0      1 100.0%
+validStoredGrant     entitlements      11         0          0     11 100.0%
+validText            ai                 7         0          0      7 100.0%
+visibleStatus        entitlements       1         0          0      1 100.0%
+-----------------------------------------------------------------------------
+Total                                 141        34          1    176   80.6%
+Wrote /tmp/linea-account-quality/.metrics/mutate/ai.edn
+Wrote /tmp/linea-account-quality/.metrics/mutate/ai.AiBudget.edn
+Wrote /tmp/linea-account-quality/.metrics/mutate/ai.AiFailure.edn
+Wrote /tmp/linea-account-quality/.metrics/mutate/ai.edn
+Wrote /tmp/linea-account-quality/.metrics/mutate/ai.AiBudget.edn
+Wrote /tmp/linea-account-quality/.metrics/mutate/ai.AiFailure.edn
+Wrote /tmp/linea-account-quality/.metrics/mutate/entitlements.edn

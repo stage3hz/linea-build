@@ -1,0 +1,17 @@
+{
+  "command": [
+    "node",
+    "node_modules/expo/bin/cli",
+    "export",
+    "--platform",
+    "ios",
+    "--output-dir",
+    "/tmp/linea-ios-export-v051"
+  ],
+  "cwd": "mobile",
+  "exitCode": 0,
+  "elapsedSeconds": 21.619,
+  "log": "docs/evidence-v051/mobile-ios-export.txt",
+  "nativeCompilation": false,
+  "signing": false
+}

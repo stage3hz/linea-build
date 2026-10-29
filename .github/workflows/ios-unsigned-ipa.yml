@@ -1,0 +1,150 @@
+name: iOS unsigned IPA (iphoneos arm64)
+
+# Builds a real device (iphoneos, arm64) Release app with embedded JS bundle,
+# without code signing, and packages it as Payload/INVIZENT.app inside an .ipa
+# for later signing on the device (e.g. GBox). No certificates are used here.
+
+on:
+  push:
+    branches: [main]
+    paths-ignore: ['docs/**', '**/*.md']
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: ios-ipa
+  cancel-in-progress: true
+
+jobs:
+  build:
+    runs-on: macos-26-intel
+    timeout-minutes: 120
+    env:
+      APP_ENV: development            # preview bundle id com.linea.messenger.preview
+      EXPO_PUBLIC_ALLOW_LOCAL_HTTP: '0' # never allow cleartext HTTP in this build
+      EXPO_NO_TELEMETRY: '1'
+      CI: '1'
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Select newest Xcode
+        run: |
+          XC=$(ls -d /Applications/Xcode_*.app | grep -v -i beta | sort -V | tail -1)
+          echo "Using $XC"
+          sudo xcode-select -s "$XC/Contents/Developer"
+          xcodebuild -version
+          xcrun --sdk iphoneos --show-sdk-version
+          pod --version || sudo gem install cocoapods
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+
+      - name: Install JS dependencies
+        working-directory: mobile
+        run: npm ci --no-audit --no-fund
+
+      - name: Typecheck
+        working-directory: mobile
+        run: npx tsc --noEmit
+
+      - name: Expo prebuild (iOS)
+        working-directory: mobile
+        run: npx expo prebuild --platform ios --clean --no-install
+
+      - name: Pod install
+        working-directory: mobile/ios
+        run: |
+          set -o pipefail
+          pod install --repo-update 2>&1 | tee ../../pod-install.log
+          grep -n "LIBRARY_SEARCH_PATHS" "Pods/Target Support Files/Pods-$(basename *.xcworkspace .xcworkspace)/"*.release.xcconfig | tee -a ../../pod-install.log
+
+      - name: Build Release for iphoneos (no signing)
+        working-directory: mobile/ios
+        run: |
+          set -o pipefail
+          SCHEME=$(basename *.xcworkspace .xcworkspace)
+          echo "SCHEME=$SCHEME" >> $GITHUB_ENV
+          xcodebuild \
+            -workspace "$SCHEME.xcworkspace" \
+            -scheme "$SCHEME" \
+            -configuration Release \
+            -sdk iphoneos \
+            -destination 'generic/platform=iOS' \
+            -derivedDataPath build -hideShellScriptEnvironment \
+            ARCHS=arm64 ONLY_ACTIVE_ARCH=NO \
+            CODE_SIGNING_ALLOWED=NO CODE_SIGNING_REQUIRED=NO CODE_SIGN_IDENTITY="" CODE_SIGN_ENTITLEMENTS="" \
+            build 2>&1 | tee ../../xcodebuild.log | grep -E "error:|warning: .*deprecated|BUILD (SUCCEEDED|FAILED)|\*\* " || true
+          grep -q "BUILD SUCCEEDED" ../../xcodebuild.log
+
+      - name: Package IPA
+        run: |
+          APP="mobile/ios/build/Build/Products/Release-iphoneos/$SCHEME.app"
+          test -d "$APP"
+          rm -rf out && mkdir -p out/Payload
+          ditto "$APP" out/Payload/INVIZENT.app
+          (cd out && zip -qry ../INVIZENT-iOS-arm64-unsigned.ipa Payload)
+          ls -la INVIZENT-iOS-arm64-unsigned.ipa
+
+      - name: Verify IPA
+        run: |
+          set -e
+          V=verify.txt; : > $V
+          rm -rf chk && mkdir chk && (cd chk && unzip -q ../INVIZENT-iOS-arm64-unsigned.ipa)
+          A=chk/Payload/INVIZENT.app
+          EXE=$(/usr/libexec/PlistBuddy -c 'Print :CFBundleExecutable' $A/Info.plist)
+          {
+            echo "== Xcode"; xcodebuild -version
+            echo "== IPA"; ls -la INVIZENT-iOS-arm64-unsigned.ipa; shasum -a 256 INVIZENT-iOS-arm64-unsigned.ipa
+            echo "== zip listing (top)"; unzip -l INVIZENT-iOS-arm64-unsigned.ipa | head -20
+            echo "== Info.plist keys"
+            for k in CFBundleIdentifier CFBundleExecutable CFBundleDisplayName CFBundleShortVersionString CFBundleVersion MinimumOSVersion DTPlatformName DTSDKName; do
+              printf '%s = ' $k; /usr/libexec/PlistBuddy -c "Print :$k" $A/Info.plist || echo MISSING
+            done
+            echo "== ATS"; /usr/libexec/PlistBuddy -c 'Print :NSAppTransportSecurity' $A/Info.plist || true
+            echo "== Executable"; file "$A/$EXE"; lipo -info "$A/$EXE"
+            echo "== LC_BUILD_VERSION (platform 2 = iOS device)"; otool -l "$A/$EXE" | grep -A4 LC_BUILD_VERSION | head -6
+            echo "== Linked dylibs"; otool -L "$A/$EXE"
+            echo "== Frameworks dir"; ls -la $A/Frameworks 2>/dev/null || echo "(none - static frameworks are linked into the executable)"
+            echo "== JS bundle"; ls -la $A/main.jsbundle; file $A/main.jsbundle
+            echo "== Bundles/resources"; ls $A | head -80
+            echo "== Code signature (expected none)"; codesign -dv "$A" 2>&1 || true
+            echo "== Embedded signal/sqlcipher symbols"
+            nm -gU "$A/$EXE" 2>/dev/null | grep -c -E "signal_" || true
+            nm -gU "$A/$EXE" 2>/dev/null | grep -c -E "sqlite3_key" || true
+          } >> $V 2>&1
+          cat $V
+          test -s $A/main.jsbundle
+          lipo -info "$A/$EXE" | grep -q arm64
+          otool -l "$A/$EXE" | grep -A4 LC_BUILD_VERSION | grep -q "platform 2"
+          test "$(/usr/libexec/PlistBuddy -c 'Print :DTPlatformName' $A/Info.plist)" = iphoneos
+
+      - name: Publish IPA to branch ipa-output
+        if: always()
+        run: |
+          set -e
+          mkdir -p pub
+          cp INVIZENT-iOS-arm64-unsigned.ipa pub/ 2>/dev/null || true
+          cp verify.txt pub/ 2>/dev/null || true
+          for f in xcodebuild.log pod-install.log; do [ -f $f ] && { head -c 1500000 $f; echo; echo '...[cut]...'; tail -c 2500000 $f; } > pub/$f; done
+          grep -n -E "libsignal|signal_ffi|Undefined symbols|ld: " xcodebuild.log 2>/dev/null | head -300 > pub/link.txt || true
+          grep -n "error:" xcodebuild.log 2>/dev/null | head -200 > pub/errors.txt || true
+          echo "${{ job.status }} $GITHUB_SHA $(date -u)" > pub/STATUS.txt
+          cd pub
+          git init -q -b ipa-output
+          git config user.name "linea-ci"; git config user.email "ci@localhost"
+          git add -A && git commit -qm "Build output for $GITHUB_SHA (${{ job.status }})"
+          git push -f "https://x-access-token:${{ github.token }}@github.com/${{ github.repository }}.git" ipa-output
+
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: linea-ios
+          path: |
+            INVIZENT-iOS-arm64-unsigned.ipa
+            verify.txt
+            xcodebuild.log
+            pod-install.log
+          if-no-files-found: ignore

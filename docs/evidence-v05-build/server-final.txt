@@ -1,0 +1,520 @@
+TAP version 13
+# Subtest: the actual application protects and wires the free-only AI route without a live provider
+ok 1 - the actual application protects and wires the free-only AI route without a live provider
+  ---
+  duration_ms: 1701.477873
+  type: 'test'
+  ...
+# Subtest: AI status is authenticated, reflects configuration, and never claims media executors
+ok 2 - AI status is authenticated, reflects configuration, and never claims media executors
+  ---
+  duration_ms: 7.933306
+  type: 'test'
+  ...
+# Subtest: missing key disables status and chat without any upstream request
+ok 3 - missing key disables status and chat without any upstream request
+  ---
+  duration_ms: 5.291527
+  type: 'test'
+  ...
+# Subtest: chat only forwards the approved text to the fixed free route with zero price and privacy constraints
+ok 4 - chat only forwards the approved text to the fixed free route with zero price and privacy constraints
+  ---
+  duration_ms: 7.67588
+  type: 'test'
+  ...
+# Subtest: unauthenticated, foreign-origin and unapproved calls never reach a provider
+ok 5 - unauthenticated, foreign-origin and unapproved calls never reach a provider
+  ---
+  duration_ms: 13.558675
+  type: 'test'
+  ...
+# Subtest: clients cannot force paid models, arbitrary origins, system roles, tools or hidden attachments
+ok 6 - clients cannot force paid models, arbitrary origins, system roles, tools or hidden attachments
+  ---
+  duration_ms: 18.986943
+  type: 'test'
+  ...
+# Subtest: message count, individual text, total text, malformed Unicode and HTTP body are bounded without truncation
+ok 7 - message count, individual text, total text, malformed Unicode and HTTP body are bounded without truncation
+  ---
+  duration_ms: 7.98554
+  type: 'test'
+  ...
+# Subtest: upstream limits use safe retry hints and do not expose prompts, provider details or keys
+ok 8 - upstream limits use safe retry hints and do not expose prompts, provider details or keys
+  ---
+  duration_ms: 11.471178
+  type: 'test'
+  ...
+# Subtest: provider errors, redirects and malformed or empty answers fail safely without fallback
+ok 9 - provider errors, redirects and malformed or empty answers fail safely without fallback
+  ---
+  duration_ms: 42.293036
+  type: 'test'
+  ...
+# Subtest: deadline aborts a stalled provider and releases the per-user in-flight slot
+ok 10 - deadline aborts a stalled provider and releases the per-user in-flight slot
+  ---
+  duration_ms: 20.561305
+  type: 'test'
+  ...
+# Subtest: oversized streamed provider output is canceled even without Content-Length
+ok 11 - oversized streamed provider output is canceled even without Content-Length
+  ---
+  duration_ms: 4.802175
+  type: 'test'
+  ...
+# Subtest: per-user concurrency and six-per-minute limits are bounded and recover after the window
+ok 12 - per-user concurrency and six-per-minute limits are bounded and recover after the window
+  ---
+  duration_ms: 17.928163
+  type: 'test'
+  ...
+# Subtest: server configuration rejects invalid keys, deadlines, origins and dependencies before installing routes
+ok 13 - server configuration rejects invalid keys, deadlines, origins and dependencies before installing routes
+  ---
+  duration_ms: 25.425174
+  type: 'test'
+  ...
+# Subtest: approved web origins work while invalid session subjects and query overrides remain blocked
+ok 14 - approved web origins work while invalid session subjects and query overrides remain blocked
+  ---
+  duration_ms: 8.697129
+  type: 'test'
+  ...
+# Subtest: exact text/history boundaries and valid text responses without a cost field remain supported
+ok 15 - exact text/history boundaries and valid text responses without a cost field remain supported
+  ---
+  duration_ms: 6.531317
+  type: 'test'
+  ...
+# Subtest: malformed provider envelopes, headers, model IDs and tool responses are rejected
+ok 16 - malformed provider envelopes, headers, model IDs and tool responses are rejected
+  ---
+  duration_ms: 73.430915
+  type: 'test'
+  ...
+# Subtest: safe provider retry bounds and timeouts are preserved for all response classes
+ok 17 - safe provider retry bounds and timeouts are preserved for all response classes
+  ---
+  duration_ms: 19.328436
+  type: 'test'
+  ...
+# Subtest: global concurrency is bounded and shutdown aborts active provider calls
+ok 18 - global concurrency is bounded and shutdown aborts active provider calls
+  ---
+  duration_ms: 11.044994
+  type: 'test'
+  ...
+# Subtest: provider byte limits apply across chunks, accept the exact bound and require valid UTF-8
+ok 19 - provider byte limits apply across chunks, accept the exact bound and require valid UTF-8
+  ---
+  duration_ms: 19.741024
+  type: 'test'
+  ...
+# Subtest: missing provider content type or body returns the same safe invalid-response code
+ok 20 - missing provider content type or body returns the same safe invalid-response code
+  ---
+  duration_ms: 11.197865
+  type: 'test'
+  ...
+# Subtest: valid configuration endpoints and short or maximum session IDs work without relaxing invalid-subject checks
+ok 21 - valid configuration endpoints and short or maximum session IDs work without relaxing invalid-subject checks
+  ---
+  duration_ms: 26.351013
+  type: 'test'
+  ...
+# Subtest: an early response disconnect or aborted request cancels the active provider operation
+ok 22 - an early response disconnect or aborted request cancels the active provider operation
+  ---
+  duration_ms: 49.005625
+  type: 'test'
+  ...
+# Subtest: contact-free registration validates independent secrets and exposes only public account data
+ok 23 - contact-free registration validates independent secrets and exposes only public account data
+  ---
+  duration_ms: 3203.032317
+  type: 'test'
+  ...
+# Subtest: new password policy counts Unicode code points and preserves intentional spaces
+ok 24 - new password policy counts Unicode code points and preserves intentional spaces
+  ---
+  duration_ms: 4534.695414
+  type: 'test'
+  ...
+# Subtest: Russian and English recovery words use consistent NFC, case folding and outer-space normalization
+ok 25 - Russian and English recovery words use consistent NFC, case folding and outer-space normalization
+  ---
+  duration_ms: 3513.58779
+  type: 'test'
+  ...
+# Subtest: new accounts require their separate login word and support short Russian recovery words
+ok 26 - new accounts require their separate login word and support short Russian recovery words
+  ---
+  duration_ms: 9080.15508
+  type: 'test'
+  ...
+# Subtest: exactly three failed recovery attempts survive restart and IP changes for a full 24 hours
+ok 27 - exactly three failed recovery attempts survive restart and IP changes for a full 24 hours
+  ---
+  duration_ms: 3834.660939
+  type: 'test'
+  ...
+# Subtest: a correct third recovery word succeeds and resets the failed-attempt budget
+ok 28 - a correct third recovery word succeeds and resets the failed-attempt budget
+  ---
+  duration_ms: 3775.011284
+  type: 'test'
+  ...
+# Subtest: four parallel wrong words cannot reserve more than three per-account attempts
+ok 29 - four parallel wrong words cannot reserve more than three per-account attempts
+  ---
+  duration_ms: 2326.581644
+  type: 'test'
+  ...
+# Subtest: unknown accounts have the same public failure and lock budget as existing accounts
+ok 30 - unknown accounts have the same public failure and lock budget as existing accounts
+  ---
+  duration_ms: 8130.111663
+  type: 'test'
+  ...
+# Subtest: recovery grant is hashed, waits ten minutes on the server, expires after the reset window and grants no normal API access
+ok 31 - recovery grant is hashed, waits ten minutes on the server, expires after the reset window and grants no normal API access
+  ---
+  duration_ms: 2774.31431
+  type: 'test'
+  ...
+# Subtest: pending recovery is visible only to its owner, notifies own sessions without secrets and can be cancelled
+ok 32 - pending recovery is visible only to its owner, notifies own sessions without secrets and can be cancelled
+  ---
+  duration_ms: 4347.48472
+  type: 'test'
+  ...
+# Subtest: cancellation and reset cannot both commit when they race after the waiting period
+ok 33 - cancellation and reset cannot both commit when they race after the waiting period
+  ---
+  duration_ms: 6761.068409
+  type: 'test'
+  ...
+# Subtest: new verification invalidates the previous grant; validation errors do not consume the current grant
+ok 34 - new verification invalidates the previous grant; validation errors do not consume the current grant
+  ---
+  duration_ms: 3385.418911
+  type: 'test'
+  ...
+# Subtest: recovery changes the password, preserves both words, revokes all HTTP and WS sessions, and affects only its bound account
+ok 35 - recovery changes the password, preserves both words, revokes all HTTP and WS sessions, and affects only its bound account
+  ---
+  duration_ms: 10312.926053
+  type: 'test'
+  ...
+# Subtest: two concurrent reset submissions consume their grant exactly once
+ok 36 - two concurrent reset submissions consume their grant exactly once
+  ---
+  duration_ms: 4870.327397
+  type: 'test'
+  ...
+# Subtest: password and recovery-word changes require current password plus login word and revoke every previous session
+ok 37 - password and recovery-word changes require current password plus login word and revoke every previous session
+  ---
+  duration_ms: 19852.268594
+  type: 'test'
+  ...
+# Subtest: changing a login word invalidates old sessions and pending recovery while preserving the password and recovery word
+ok 38 - changing a login word invalidates old sessions and pending recovery while preserving the password and recovery word
+  ---
+  duration_ms: 7143.981159
+  type: 'test'
+  ...
+# Subtest: session list uses opaque public ids, isolates owners and supports targeted/current/all-other revocation
+ok 39 - session list uses opaque public ids, isolates owners and supports targeted/current/all-other revocation
+  ---
+  duration_ms: 3919.582618
+  type: 'test'
+  ...
+# Subtest: v1 database and short legacy password migrate without losing accounts or sessions
+ok 40 - v1 database and short legacy password migrate without losing accounts or sessions
+  ---
+  duration_ms: 11394.948972
+  type: 'test'
+  ...
+# Subtest: a password login already verified before recovery cannot create a fresh session after recovery commits
+ok 41 - a password login already verified before recovery cannot create a fresh session after recovery commits
+  ---
+  duration_ms: 4003.987764
+  type: 'test'
+  ...
+# Subtest: pure envelope boundary accepts exact limits, normalizes identifiers and rejects malformed transport data
+ok 42 - pure envelope boundary accepts exact limits, normalizes identifiers and rejects malformed transport data
+  ---
+  duration_ms: 30.370191
+  type: 'test'
+  ...
+# Subtest: no obsolete constructor option can enable plaintext messages, previews or legacy attachment downloads
+ok 43 - no obsolete constructor option can enable plaintext messages, previews or legacy attachment downloads
+  ---
+  duration_ms: 3059.382741
+  type: 'test'
+  ...
+# Subtest: legacy serialization never reveals message text, names or attachments through caller options
+ok 44 - legacy serialization never reveals message text, names or attachments through caller options
+  ---
+  duration_ms: 0.46938
+  type: 'test'
+  ...
+# Subtest: device registration validates public key boundaries, is immutable, and scopes discovery to chat peers
+ok 45 - device registration validates public key boundaries, is immutable, and scopes discovery to chat peers
+  ---
+  duration_ms: 4452.050698
+  type: 'test'
+  ...
+# Subtest: concurrent claims consume EC prekeys once and registration retries never restore consumed keys
+ok 46 - concurrent claims consume EC prekeys once and registration retries never restore consumed keys
+  ---
+  duration_ms: 2606.764458
+  type: 'test'
+  ...
+# Subtest: encrypted sends require exact active recipients, keep idempotency across device changes, and deliver opaque WS events
+ok 47 - encrypted sends require exact active recipients, keep idempotency across device changes, and deliver opaque WS events
+  ---
+  duration_ms: 5715.769573
+  type: 'test'
+  ...
+# Subtest: opaque file uploads hide names and types, enforce byte bounds, and grant access only after attachment
+ok 48 - opaque file uploads hide names and types, enforce byte bounds, and grant access only after attachment
+  ---
+  duration_ms: 4613.6875
+  type: 'test'
+  ...
+# Subtest: session revocation, password change and recovery deactivate the correct encryption devices
+ok 49 - session revocation, password change and recovery deactivate the correct encryption devices
+  ---
+  duration_ms: 7574.3325
+  type: 'test'
+  ...
+# Subtest: inbox pages messages oldest first per chat, filters device recipients, and requires the bound session
+ok 50 - inbox pages messages oldest first per chat, filters device recipients, and requires the bound session
+  ---
+  duration_ms: 5177.280476
+  type: 'test'
+  ...
+# Subtest: expired sessions stop device discovery and sending until the same identity registers again
+ok 51 - expired sessions stop device discovery and sending until the same identity registers again
+  ---
+  duration_ms: 2361.920027
+  type: 'test'
+  ...
+# Subtest: revoking a device also revokes its bound login so the same token cannot re-register around revocation
+ok 52 - revoking a device also revokes its bound login so the same token cannot re-register around revocation
+  ---
+  duration_ms: 3404.729689
+  type: 'test'
+  ...
+# Subtest: entitlement absence, trusted time interval, exact expiry and revocation are derived from stored facts
+ok 53 - entitlement absence, trusted time interval, exact expiry and revocation are derived from stored facts
+  ---
+  duration_ms: 1.284129
+  type: 'test'
+  ...
+# Subtest: malformed or untrusted stored entitlement rows fail closed without invalid-date exceptions
+ok 54 - malformed or untrusted stored entitlement rows fail closed without invalid-date exceptions
+  ---
+  duration_ms: 2.999652
+  type: 'test'
+  ...
+# Subtest: public emoji needs an active grant and an exact allowed static choice
+ok 55 - public emoji needs an active grant and an exact allowed static choice
+  ---
+  duration_ms: 0.27896
+  type: 'test'
+  ...
+# Subtest: registration, search and login use private sessions and validate input
+ok 56 - registration, search and login use private sessions and validate input
+  ---
+  duration_ms: 17144.921513
+  type: 'test'
+  ...
+# Subtest: one private chat per pair, opaque relay messages and unread counts
+ok 57 - one private chat per pair, opaque relay messages and unread counts
+  ---
+  duration_ms: 2267.987046
+  type: 'test'
+  ...
+# Subtest: a third user cannot read, write or mark another pair’s messages as read
+ok 58 - a third user cannot read, write or mark another pair’s messages as read
+  ---
+  duration_ms: 3815.636831
+  type: 'test'
+  ...
+# Subtest: retrying a send is idempotent and pagination does not lose messages
+ok 59 - retrying a send is idempotent and pagination does not lose messages
+  ---
+  duration_ms: 3193.59201
+  type: 'test'
+  ...
+# Subtest: read receipts are monotonic and reject messages belonging to a different chat
+ok 60 - read receipts are monotonic and reject messages belonging to a different chat
+  ---
+  duration_ms: 3835.817773
+  type: 'test'
+  ...
+# Subtest: opaque attachments stay private until linked and then are readable only by chat participants
+ok 61 - opaque attachments stay private until linked and then are readable only by chat participants
+  ---
+  duration_ms: 3513.557464
+  type: 'test'
+  ...
+# Subtest: avatar signatures override untrusted MIME labels, non-images are rejected, and upload size is enforced
+ok 62 - avatar signatures override untrusted MIME labels, non-images are rejected, and upload size is enforced
+  ---
+  duration_ms: 1331.287863
+  type: 'test'
+  ...
+# Subtest: profile edits expose only the selected avatar, never arbitrary private attachments
+ok 63 - profile edits expose only the selected avatar, never arbitrary private attachments
+  ---
+  duration_ms: 3634.791712
+  type: 'test'
+  ...
+# Subtest: users, sessions, messages and file bytes survive a server restart
+ok 64 - users, sessions, messages and file bytes survive a server restart
+  ---
+  duration_ms: 3959.868647
+  type: 'test'
+  ...
+# Subtest: WebSocket authenticates, relays opaque messages, read receipts and typing privately
+ok 65 - WebSocket authenticates, relays opaque messages, read receipts and typing privately
+  ---
+  duration_ms: 3227.887835
+  type: 'test'
+  ...
+# Subtest: logout revokes only that session and closes its authenticated WebSocket
+ok 66 - logout revokes only that session and closes its authenticated WebSocket
+  ---
+  duration_ms: 2033.757913
+  type: 'test'
+  ...
+# Subtest: expired sessions cannot access HTTP endpoints
+ok 67 - expired sessions cannot access HTTP endpoints
+  ---
+  duration_ms: 1330.98214
+  type: 'test'
+  ...
+# Subtest: server rejects plaintext, empty or excessive envelopes and invalid IDs without storing messages
+ok 68 - server rejects plaintext, empty or excessive envelopes and invalid IDs without storing messages
+  ---
+  duration_ms: 2264.426301
+  type: 'test'
+  ...
+# Subtest: repeated authentication attempts are throttled
+ok 69 - repeated authentication attempts are throttled
+  ---
+  duration_ms: 1511.281405
+  type: 'test'
+  ...
+# Subtest: only explicitly allowed browser origins can use authenticated HTTP requests
+ok 70 - only explicitly allowed browser origins can use authenticated HTTP requests
+  ---
+  duration_ms: 1348.065317
+  type: 'test'
+  ...
+# Subtest: React Native endpoint Origin is accepted only for WS upgrades and still requires authentication
+ok 71 - React Native endpoint Origin is accepted only for WS upgrades and still requires authentication
+  ---
+  duration_ms: 1598.157376
+  type: 'test'
+  ...
+# Subtest: an @ search addresses public usernames and does not expose the immutable login after a rename
+ok 72 - an @ search addresses public usernames and does not expose the immutable login after a rename
+  ---
+  duration_ms: 2175.61423
+  type: 'test'
+  ...
+# Subtest: account status separates immutable private login, unique public username and stable account ID
+ok 73 - account status separates immutable private login, unique public username and stable account ID
+  ---
+  duration_ms: 1218.603044
+  type: 'test'
+  ...
+# Subtest: one actual free rename is atomic and repeated same-name requests do not spend it twice
+ok 74 - one actual free rename is atomic and repeated same-name requests do not spend it twice
+  ---
+  duration_ms: 1203.154234
+  type: 'test'
+  ...
+# Subtest: concurrent distinct renames on two server connections consume exactly one free change
+ok 75 - concurrent distinct renames on two server connections consume exactly one free change
+  ---
+  duration_ms: 1602.078564
+  type: 'test'
+  ...
+# Subtest: public and immutable-login namespaces remain reserved and conflicts do not consume a free change
+ok 76 - public and immutable-login namespaces remain reserved and conflicts do not consume a free change
+  ---
+  duration_ms: 3271.407911
+  type: 'test'
+  ...
+# Subtest: recovery pending before rename keeps the immutable login budget and remains cancellable and usable
+ok 77 - recovery pending before rename keeps the immutable login budget and remains cancellable and usable
+  ---
+  duration_ms: 4326.544086
+  type: 'test'
+  ...
+# Subtest: only trusted active Platina permits further name changes and exact expiry revokes the right
+ok 78 - only trusted active Platina permits further name changes and exact expiry revokes the right
+  ---
+  duration_ms: 1336.802327
+  type: 'test'
+  ...
+# Subtest: static status emoji requires active Platina and is hidden for peers immediately at expiry
+ok 79 - static status emoji requires active Platina and is hidden for peers immediately at expiry
+  ---
+  duration_ms: 2953.230273
+  type: 'test'
+  ...
+# Subtest: clients cannot grant Platina, alter login/ID or submit arbitrary emoji assets
+ok 80 - clients cannot grant Platina, alter login/ID or submit arbitrary emoji assets
+  ---
+  duration_ms: 1756.819615
+  type: 'test'
+  ...
+# Subtest: credential changes still reject an immutable login reused as a secret after a public rename
+ok 81 - credential changes still reject an immutable login reused as a secret after a public rename
+  ---
+  duration_ms: 2025.818125
+  type: 'test'
+  ...
+# Subtest: v3 migration preserves identity, sessions and pending recovery, and prevents login and ID mutation
+ok 82 - v3 migration preserves identity, sessions and pending recovery, and prevents login and ID mutation
+  ---
+  duration_ms: 100.792561
+  type: 'test'
+  ...
+# Subtest: renaming leaves persisted encryption device identity and account foreign keys unchanged
+ok 83 - renaming leaves persisted encryption device identity and account foreign keys unchanged
+  ---
+  duration_ms: 1284.575685
+  type: 'test'
+  ...
+# Subtest: administrator grants validate account and expiry, audit changes and revoke idempotently
+ok 84 - administrator grants validate account and expiry, audit changes and revoke idempotently
+  ---
+  duration_ms: 1341.699837
+  type: 'test'
+  ...
+# Subtest: the local administrator CLI operates on an existing database without a network or purchase endpoint
+ok 85 - the local administrator CLI operates on an existing database without a network or purchase endpoint
+  ---
+  duration_ms: 1585.890797
+  type: 'test'
+  ...
+1..85
+# tests 85
+# suites 0
+# pass 85
+# fail 0
+# cancelled 0
+# skipped 0
+# todo 0
+# duration_ms 240804.08078

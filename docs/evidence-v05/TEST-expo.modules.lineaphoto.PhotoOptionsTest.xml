@@ -1,0 +1,17 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<testsuite name="expo.modules.lineaphoto.PhotoOptionsTest" tests="11" skipped="0" failures="0" errors="0" timestamp="2026-10-28T07:28:52.857Z" hostname="72be72b2ac54" time="0.087">
+  <properties/>
+  <testcase name="strokeWorkIsBoundedBeforeBuildingHugeGeometry" classname="expo.modules.lineaphoto.PhotoOptionsTest" time="0.05"/>
+  <testcase name="originalPixelsArePreservedUntilExplicitlyFittedToAnEffectLimit" classname="expo.modules.lineaphoto.PhotoOptionsTest" time="0.002"/>
+  <testcase name="fractionalCropUsesCoveredPixelBoundsAndNeverShrinksBelowOnePixel" classname="expo.modules.lineaphoto.PhotoOptionsTest" time="0.005"/>
+  <testcase name="exactCropNeverAllocatesAnUnboundedFullSourceOrResamplesBeforeCropping" classname="expo.modules.lineaphoto.PhotoOptionsTest" time="0.002"/>
+  <testcase name="fourfoldExcessIsRejectedUnlessAdditionalReductionIsExplicit" classname="expo.modules.lineaphoto.PhotoOptionsTest" time="0.0"/>
+  <testcase name="invalidCropResolutionAndScaleAreRejectedAtTheBoundary" classname="expo.modules.lineaphoto.PhotoOptionsTest" time="0.004"/>
+  <testcase name="jpegIsExplicitAndTransparencyIsNeverSilentlyFlattened" classname="expo.modules.lineaphoto.PhotoOptionsTest" time="0.002"/>
+  <testcase name="processingLimitsRejectOversizedHeadersAndAmbiguousModes" classname="expo.modules.lineaphoto.PhotoOptionsTest" time="0.001"/>
+  <testcase name="nonFiniteCoordinatesAndWrongJsonShapesCannotReachRasterizer" classname="expo.modules.lineaphoto.PhotoOptionsTest" time="0.003"/>
+  <testcase name="halfResolutionDoesNotRequireAdditionalDownsampleConsent" classname="expo.modules.lineaphoto.PhotoOptionsTest" time="0.001"/>
+  <testcase name="cropThenHalfResolutionThenFourfoldHasTheRequestedDimensions" classname="expo.modules.lineaphoto.PhotoOptionsTest" time="0.0"/>
+  <system-out><![CDATA[]]></system-out>
+  <system-err><![CDATA[]]></system-err>
+</testsuite>

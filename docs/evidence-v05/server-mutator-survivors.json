@@ -1,0 +1,89 @@
+{
+  "killed": 165,
+  "survived": 10,
+  "uncovered": 1,
+  "totalSites": 176,
+  "executedSites": 175,
+  "toolExitCode": 3,
+  "entitlementsKilled": 20,
+  "survivors": [
+    {
+      "file": "server/src/ai.js",
+      "line": 67,
+      "mutation": "> -> >=",
+      "classification": "unverified-boundary",
+      "reason": "Retry-After exact 128-character permissive parser boundary"
+    },
+    {
+      "file": "server/src/ai.js",
+      "line": 122,
+      "mutation": "|| -> &&",
+      "classification": "equivalent-reviewed",
+      "reason": "Strict cost !== 0 still rejects every defined nonzero/non-number value"
+    },
+    {
+      "file": "server/src/ai.js",
+      "line": 122,
+      "mutation": "|| -> &&",
+      "classification": "equivalent-reviewed",
+      "reason": "Strict cost !== 0 still rejects every defined nonzero/non-number value"
+    },
+    {
+      "file": "server/src/ai.js",
+      "line": 170,
+      "mutation": "true -> false",
+      "classification": "equivalent-reviewed",
+      "reason": "AbortSignal fires abort once; listener is removed in finally"
+    },
+    {
+      "file": "server/src/ai.js",
+      "line": 245,
+      "mutation": ">= -> >",
+      "classification": "unverified-stress-boundary",
+      "reason": "Sweep at exactly 10000 rate buckets was not exercised"
+    },
+    {
+      "file": "server/src/ai.js",
+      "line": 246,
+      "mutation": ">= -> >",
+      "classification": "unverified-stress-boundary",
+      "reason": "Capacity/backpressure at 10000 rate buckets was not exercised"
+    },
+    {
+      "file": "server/src/ai.js",
+      "line": 246,
+      "mutation": "delete !",
+      "classification": "unverified-stress-boundary",
+      "reason": "Capacity/backpressure at 10000 rate buckets was not exercised"
+    },
+    {
+      "file": "server/src/ai.js",
+      "line": 257,
+      "mutation": "1 -> 0",
+      "classification": "equivalent-reviewed",
+      "reason": "Active bucket remaining duration always rounds up to at least one second"
+    },
+    {
+      "file": "server/src/ai.js",
+      "line": 265,
+      "mutation": "&& -> ||",
+      "classification": "equivalent-reviewed",
+      "reason": "Private one-in-flight-per-user controller invariant; deletion of absent entry has no effect"
+    },
+    {
+      "file": "server/src/ai.js",
+      "line": 278,
+      "mutation": "?. -> .",
+      "classification": "equivalent-reviewed",
+      "reason": "Event callbacks are installed only after controller reservation"
+    }
+  ],
+  "uncoveredSites": [
+    {
+      "file": "server/src/ai.js",
+      "line": 239,
+      "mutation": "<= to <",
+      "reason": "AiBudget.sweep at rate-map capacity is not exercised"
+    }
+  ]
+}

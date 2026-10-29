@@ -1,0 +1,11 @@
+{
+  "command": [
+    "node",
+    "node_modules/typescript/bin/tsc",
+    "--noEmit"
+  ],
+  "cwd": "mobile",
+  "exitCode": 0,
+  "elapsedSeconds": 4.797,
+  "log": "docs/evidence-v051/mobile-typecheck.txt"
+}

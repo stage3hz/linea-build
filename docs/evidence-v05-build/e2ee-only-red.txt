@@ -1,0 +1,43 @@
+✖ no obsolete constructor option can enable plaintext messages, previews or legacy attachment downloads (2743.453871ms)
+✖ legacy serialization never reveals message text, names or attachments through caller options (0.220633ms)
+ℹ tests 2
+ℹ suites 0
+ℹ pass 0
+ℹ fail 2
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 2934.852597
+
+✖ failing tests:
+
+test at test/e2ee-relay.test.js:143:1
+✖ no obsolete constructor option can enable plaintext messages, previews or legacy attachment downloads (2743.453871ms)
+  AssertionError [ERR_ASSERTION]: {"message":{"id":1,"chatId":"614f6b93-4f72-4890-bd00-5178fbbcfbec","senderId":"efd5d6de-5af7-4440-ae20-49769b8f0fd1","clientId":"0a984d03-e379-4135-97c0-d801d4640138","text":"private text","attachment":null,"createdAt":"2026-10-28T08:41:09.476Z"}}
+  
+  201 !== 400
+  
+      at TestContext.<anonymous> (file:///workspace/scratch/f1956a5cefad/linea-messenger/server/test/e2ee-relay.test.js:153:12)
+      at process.processTicksAndRejections (node:internal/process/task_queues:104:5)
+      at async Test.run (node:internal/test_runner/test:1409:7)
+      at async startSubtestAfterBootstrap (node:internal/test_runner/harness:387:3) {
+    generatedMessage: false,
+    code: 'ERR_ASSERTION',
+    actual: 201,
+    expected: 400,
+    operator: 'strictEqual',
+    diff: 'simple'
+  }
+
+test at test/e2ee-relay.test.js:190:1
+✖ legacy serialization never reveals message text, names or attachments through caller options (0.220633ms)
+  Error: Legacy attachments must not be queried
+      at Object.prepare (file:///workspace/scratch/f1956a5cefad/linea-messenger/server/test/e2ee-relay.test.js:193:39)
+      at publicMessage (file:///workspace/scratch/f1956a5cefad/linea-messenger/server/src/database.js:109:95)
+      at TestContext.<anonymous> (file:///workspace/scratch/f1956a5cefad/linea-messenger/server/test/e2ee-relay.test.js:194:19)
+      at Test.runInAsyncScope (node:async_hooks:227:14)
+      at Test.run (node:internal/test_runner/test:1402:25)
+      at Test.processPendingSubtests (node:internal/test_runner/test:974:18)
+      at Test.postRun (node:internal/test_runner/test:1542:19)
+      at Test.run (node:internal/test_runner/test:1467:12)
+      at async startSubtestAfterBootstrap (node:internal/test_runner/harness:387:3)

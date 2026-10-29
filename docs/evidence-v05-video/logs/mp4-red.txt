@@ -1,0 +1,110 @@
+✔ MP4 sanitation zeroes personal tags, dates, handler/compressor names and unused media bytes (4.158902ms)
+✔ HDR color information is preserved exactly and inconsistent claims are refused (2.128273ms)
+✔ metadata tracks, external data references and unsupported codec entries fail closed (2.265599ms)
+✔ chunk offsets cannot point to metadata or beyond the media payload (0.793316ms)
+✔ truncated boxes, fragmented inputs, oversized files and unsupported atom trees are refused (2.032867ms)
+✖ dependency metadata must match the sample count and contain only defined bits (2.639095ms)
+✖ reserved CICP values and mismatched HDR primaries are refused (1.163164ms)
+✖ essential movie and track headers cannot be omitted (1.443138ms)
+✖ sample timing and sync tables are tied to the declared samples (1.717159ms)
+✖ static HDR payload has bounded chromaticity and luminance fields (1.746026ms)
+ℹ tests 10
+ℹ suites 0
+ℹ pass 5
+ℹ fail 5
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 498.04865
+
+✖ failing tests:
+
+test at mobile/test/media-mp4.test.mjs:50:1
+✖ dependency metadata must match the sample count and contain only defined bits (2.639095ms)
+  AssertionError [ERR_ASSERTION]: Missing expected exception.
+      at TestContext.<anonymous> (file:///workspace/scratch/f1956a5cefad/linea-messenger/mobile/test/media-mp4.test.mjs:53:10)
+      at Test.runInAsyncScope (node:async_hooks:227:14)
+      at Test.run (node:internal/test_runner/test:1402:25)
+      at Test.processPendingSubtests (node:internal/test_runner/test:974:18)
+      at Test.postRun (node:internal/test_runner/test:1542:19)
+      at Test.run (node:internal/test_runner/test:1467:12)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:974:7) {
+    generatedMessage: false,
+    code: 'ERR_ASSERTION',
+    actual: undefined,
+    expected: /sdtp|зависим|образц/i,
+    operator: 'throws',
+    diff: 'simple'
+  }
+
+test at mobile/test/media-mp4.test.mjs:59:1
+✖ reserved CICP values and mismatched HDR primaries are refused (1.163164ms)
+  AssertionError [ERR_ASSERTION]: Missing expected exception.
+      at TestContext.<anonymous> (file:///workspace/scratch/f1956a5cefad/linea-messenger/mobile/test/media-mp4.test.mjs:62:12)
+      at Test.runInAsyncScope (node:async_hooks:227:14)
+      at Test.run (node:internal/test_runner/test:1402:25)
+      at Test.processPendingSubtests (node:internal/test_runner/test:974:18)
+      at Test.postRun (node:internal/test_runner/test:1542:19)
+      at Test.run (node:internal/test_runner/test:1467:12)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:974:7) {
+    generatedMessage: false,
+    code: 'ERR_ASSERTION',
+    actual: undefined,
+    expected: /цвет|CICP|HDR/i,
+    operator: 'throws',
+    diff: 'simple'
+  }
+
+test at mobile/test/media-mp4.test.mjs:68:1
+✖ essential movie and track headers cannot be omitted (1.443138ms)
+  AssertionError [ERR_ASSERTION]: Missing expected exception: mvhd
+      at TestContext.<anonymous> (file:///workspace/scratch/f1956a5cefad/linea-messenger/mobile/test/media-mp4.test.mjs:71:12)
+      at Test.runInAsyncScope (node:async_hooks:227:14)
+      at Test.run (node:internal/test_runner/test:1402:25)
+      at Test.processPendingSubtests (node:internal/test_runner/test:974:18)
+      at Test.postRun (node:internal/test_runner/test:1542:19)
+      at Test.run (node:internal/test_runner/test:1467:12)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:974:7) {
+    generatedMessage: false,
+    code: 'ERR_ASSERTION',
+    actual: undefined,
+    expected: /обязательн|неполн|заголов|таблиц/i,
+    operator: 'throws',
+    diff: 'simple'
+  }
+
+test at mobile/test/media-mp4.test.mjs:75:1
+✖ sample timing and sync tables are tied to the declared samples (1.717159ms)
+  AssertionError [ERR_ASSERTION]: Missing expected exception.
+      at TestContext.<anonymous> (file:///workspace/scratch/f1956a5cefad/linea-messenger/mobile/test/media-mp4.test.mjs:78:10)
+      at Test.runInAsyncScope (node:async_hooks:227:14)
+      at Test.run (node:internal/test_runner/test:1402:25)
+      at Test.processPendingSubtests (node:internal/test_runner/test:974:18)
+      at Test.postRun (node:internal/test_runner/test:1542:19)
+      at Test.run (node:internal/test_runner/test:1467:12)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:974:7) {
+    generatedMessage: false,
+    code: 'ERR_ASSERTION',
+    actual: undefined,
+    expected: /stts|образц|таблиц/i,
+    operator: 'throws',
+    diff: 'simple'
+  }
+
+test at mobile/test/media-mp4.test.mjs:85:1
+✖ static HDR payload has bounded chromaticity and luminance fields (1.746026ms)
+  AssertionError [ERR_ASSERTION]: Missing expected exception.
+      at TestContext.<anonymous> (file:///workspace/scratch/f1956a5cefad/linea-messenger/mobile/test/media-mp4.test.mjs:88:10)
+      at Test.runInAsyncScope (node:async_hooks:227:14)
+      at Test.run (node:internal/test_runner/test:1402:25)
+      at Test.processPendingSubtests (node:internal/test_runner/test:974:18)
+      at Test.postRun (node:internal/test_runner/test:1542:19)
+      at Test.run (node:internal/test_runner/test:1467:12)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:974:7) {
+    generatedMessage: false,
+    code: 'ERR_ASSERTION',
+    actual: undefined,
+    expected: /HDR|цвет|ярк/i,
+    operator: 'throws',
+    diff: 'simple'
+  }

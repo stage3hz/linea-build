@@ -1,0 +1,32 @@
+✔ entitlement absence, trusted time interval, exact expiry and revocation are derived from stored facts (6.409948ms)
+✔ malformed or untrusted stored entitlement rows fail closed without invalid-date exceptions (1.840404ms)
+✔ public emoji needs an active grant and an exact allowed static choice (0.353761ms)
+✔ a trusted null expiry is explicitly permanent, remains active in the distant future and still respects start and revocation (0.670838ms)
+✔ null expiry never legitimizes an untrusted or malformed stored grant (0.568591ms)
+✔ public permanent emoji is explicitly marked only for an active permanent grant and an allowed choice (0.272026ms)
+✔ real SQLite v4 migration preserves finite grants, revocations, audit and account/session data before allowing null expiry (222.82181ms)
+✔ permanent grants validate stable accounts and time, replace finite grants, persist on reopen and revoke only once (41.307118ms)
+✔ CLI lookup uses the current public username and grant-permanent accepts only the resolved stable UUID (816.063729ms)
+✔ invalid or conflicting administrator options cannot grant permanently or create a missing database (672.082945ms)
+✔ account status separates immutable private login, unique public username and stable account ID (1316.810488ms)
+✔ one actual free rename is atomic and repeated same-name requests do not spend it twice (1186.096726ms)
+✔ concurrent distinct renames on two server connections consume exactly one free change (1529.640474ms)
+✔ public and immutable-login namespaces remain reserved and conflicts do not consume a free change (3440.759739ms)
+✔ recovery pending before rename keeps the immutable login budget and remains cancellable and usable (4124.88565ms)
+✔ only trusted active Platina permits further name changes and exact expiry revokes the right (1361.15071ms)
+✔ static status emoji requires active Platina and is hidden for peers immediately at expiry (2042.101694ms)
+✔ clients cannot grant Platina, alter login/ID or submit arbitrary emoji assets (1210.993021ms)
+✔ credential changes still reject an immutable login reused as a secret after a public rename (1743.39631ms)
+✔ v3 migration preserves identity, sessions and pending recovery, and prevents login and ID mutation (72.495742ms)
+✔ renaming leaves persisted encryption device identity and account foreign keys unchanged (1207.294778ms)
+✔ administrator grants validate account and expiry, audit changes and revoke idempotently (1213.830206ms)
+✔ the local administrator CLI operates on an existing database without a network or purchase endpoint (1478.356233ms)
+✔ permanent Platina and its emoji survive public renames, server restart and real account recovery, then revoke (4705.197569ms)
+ℹ tests 24
+ℹ suites 0
+ℹ pass 24
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 28565.963053

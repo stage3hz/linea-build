@@ -1,0 +1,591 @@
+SURVIVED  mobile/src/media/mp4.ts:24 * -> /
+SURVIVED  mobile/src/media/mp4.ts:25 0 -> 1
+KILLED    mobile/src/media/mp4.ts:25 + -> -
+SURVIVED  mobile/src/media/mp4.ts:25 + -> -
+SURVIVED  mobile/src/media/mp4.ts:25 + -> -
+SURVIVED  mobile/src/media/mp4.ts:25 + -> -
+SURVIVED  mobile/src/media/mp4.ts:26 0 -> 1
+KILLED    mobile/src/media/mp4.ts:26 + -> -
+SURVIVED  mobile/src/media/mp4.ts:26 + -> -
+SURVIVED  mobile/src/media/mp4.ts:26 + -> -
+SURVIVED  mobile/src/media/mp4.ts:26 + -> -
+SURVIVED  mobile/src/media/mp4.ts:30 0 -> 1
+KILLED    mobile/src/media/mp4.ts:30 + -> -
+SURVIVED  mobile/src/media/mp4.ts:30 + -> -
+SURVIVED  mobile/src/media/mp4.ts:30 * -> /
+SURVIVED  mobile/src/media/mp4.ts:30 + -> -
+SURVIVED  mobile/src/media/mp4.ts:30 + -> -
+SURVIVED  mobile/src/media/mp4.ts:30 * -> /
+SURVIVED  mobile/src/media/mp4.ts:31 0 -> 1
+KILLED    mobile/src/media/mp4.ts:31 + -> -
+SURVIVED  mobile/src/media/mp4.ts:31 + -> -
+SURVIVED  mobile/src/media/mp4.ts:31 * -> /
+SURVIVED  mobile/src/media/mp4.ts:31 + -> -
+SURVIVED  mobile/src/media/mp4.ts:31 + -> -
+SURVIVED  mobile/src/media/mp4.ts:31 * -> /
+SURVIVED  mobile/src/media/mp4.ts:32 0 -> 1
+KILLED    mobile/src/media/mp4.ts:32 + -> -
+SURVIVED  mobile/src/media/mp4.ts:32 + -> -
+SURVIVED  mobile/src/media/mp4.ts:32 * -> /
+SURVIVED  mobile/src/media/mp4.ts:32 + -> -
+SURVIVED  mobile/src/media/mp4.ts:32 + -> -
+SURVIVED  mobile/src/media/mp4.ts:32 * -> /
+KILLED    mobile/src/media/mp4.ts:36 + -> -
+SURVIVED  mobile/src/media/mp4.ts:36 + -> -
+SURVIVED  mobile/src/media/mp4.ts:36 * -> /
+SURVIVED  mobile/src/media/mp4.ts:38 0 -> 1
+SURVIVED  mobile/src/media/mp4.ts:38 + -> -
+KILLED    mobile/src/media/mp4.ts:43 0 -> 1
+SURVIVED  mobile/src/media/mp4.ts:43 1 -> 0
+KILLED    mobile/src/media/mp4.ts:43 === -> !==
+SURVIVED  mobile/src/media/mp4.ts:43 0 -> 1
+SURVIVED  mobile/src/media/mp4.ts:44 true -> false
+KILLED    mobile/src/media/mp4.ts:45 0 -> 1
+KILLED    mobile/src/media/mp4.ts:45 + -> -
+KILLED    mobile/src/media/mp4.ts:45 + -> -
+SURVIVED  mobile/src/media/mp4.ts:45 + -> -
+SURVIVED  mobile/src/media/mp4.ts:45 * -> /
+KILLED    mobile/src/media/mp4.ts:55 + -> -
+KILLED    mobile/src/media/mp4.ts:55 + -> -
+KILLED    mobile/src/media/mp4.ts:56 !== -> ===
+KILLED    mobile/src/media/mp4.ts:56 && -> ||
+KILLED    mobile/src/media/mp4.ts:56 !== -> ===
+SURVIVED  mobile/src/media/mp4.ts:58 0 -> 1
+KILLED    mobile/src/media/mp4.ts:58 + -> -
+SURVIVED  mobile/src/media/mp4.ts:58 + -> -
+SURVIVED  mobile/src/media/mp4.ts:59 0 -> 1
+KILLED    mobile/src/media/mp4.ts:59 + -> -
+KILLED    mobile/src/media/mp4.ts:65 + -> -
+KILLED    mobile/src/media/mp4.ts:66 + -> -
+KILLED    mobile/src/media/mp4.ts:66 !== -> ===
+SURVIVED  mobile/src/media/mp4.ts:66 || -> &&
+KILLED    mobile/src/media/mp4.ts:66 !== -> ===
+KILLED    mobile/src/media/mp4.ts:66 1 -> 0
+KILLED    mobile/src/media/mp4.ts:67 0 -> 1
+SURVIVED  mobile/src/media/mp4.ts:68 true -> false
+KILLED    mobile/src/media/mp4.ts:69 !== -> ===
+SURVIVED  mobile/src/media/mp4.ts:69 || -> &&
+KILLED    mobile/src/media/mp4.ts:69 !== -> ===
+KILLED    mobile/src/media/mp4.ts:69 1 -> 0
+KILLED    mobile/src/media/mp4.ts:73 delete !
+SURVIVED  mobile/src/media/mp4.ts:73 1 -> 0
+KILLED    mobile/src/media/mp4.ts:74 delete !
+SURVIVED  mobile/src/media/mp4.ts:74 0 -> 1
+SURVIVED  mobile/src/media/mp4.ts:74 1 -> 0
+KILLED    mobile/src/media/mp4.ts:75 delete !
+KILLED    mobile/src/media/mp4.ts:75 1 -> 0
+KILLED    mobile/src/media/mp4.ts:76 === -> !==
+KILLED    mobile/src/media/mp4.ts:76 === -> !==
+KILLED    mobile/src/media/mp4.ts:77 !== -> ===
+KILLED    mobile/src/media/mp4.ts:82 !== -> ===
+KILLED    mobile/src/media/mp4.ts:82 || -> &&
+KILLED    mobile/src/media/mp4.ts:82 delete !
+KILLED    mobile/src/media/mp4.ts:86 && -> ||
+KILLED    mobile/src/media/mp4.ts:86 !== -> ===
+KILLED    mobile/src/media/mp4.ts:87 && -> ||
+SURVIVED  mobile/src/media/mp4.ts:87 !== -> ===
+KILLED    mobile/src/media/mp4.ts:93 + -> -
+KILLED    mobile/src/media/mp4.ts:94 !== -> ===
+KILLED    mobile/src/media/mp4.ts:94 && -> ||
+KILLED    mobile/src/media/mp4.ts:94 !== -> ===
+KILLED    mobile/src/media/mp4.ts:95 === -> !==
+KILLED    mobile/src/media/mp4.ts:95 true -> false
+KILLED    mobile/src/media/mp4.ts:96 === -> !==
+KILLED    mobile/src/media/mp4.ts:96 && -> ||
+KILLED    mobile/src/media/mp4.ts:96 + -> -
+KILLED    mobile/src/media/mp4.ts:96 !== -> ===
+KILLED    mobile/src/media/mp4.ts:96 0 -> 1
+KILLED    mobile/src/media/mp4.ts:97 + -> -
+KILLED    mobile/src/media/mp4.ts:97 + -> -
+KILLED    mobile/src/media/mp4.ts:97 + -> -
+KILLED    mobile/src/media/mp4.ts:102 + -> -
+KILLED    mobile/src/media/mp4.ts:103 !== -> ===
+KILLED    mobile/src/media/mp4.ts:103 0 -> 1
+KILLED    mobile/src/media/mp4.ts:103 && -> ||
+SURVIVED  mobile/src/media/mp4.ts:103 > -> >=
+KILLED    mobile/src/media/mp4.ts:107 0 -> 1
+SURVIVED  mobile/src/media/mp4.ts:107 < -> <=
+SURVIVED  mobile/src/media/mp4.ts:108 + -> -
+KILLED    mobile/src/media/mp4.ts:108 * -> /
+KILLED    mobile/src/media/mp4.ts:108 > -> >=
+KILLED    mobile/src/media/mp4.ts:110 + -> -
+KILLED    mobile/src/media/mp4.ts:110 + -> -
+KILLED    mobile/src/media/mp4.ts:111 <= -> <
+KILLED    mobile/src/media/mp4.ts:111 || -> &&
+KILLED    mobile/src/media/mp4.ts:111 > -> >=
+SURVIVED  mobile/src/media/mp4.ts:115 || -> &&
+KILLED    mobile/src/media/mp4.ts:116 delete !
+KILLED    mobile/src/media/mp4.ts:116 || -> &&
+KILLED    mobile/src/media/mp4.ts:116 === -> !==
+KILLED    mobile/src/media/mp4.ts:117 === -> !==
+SURVIVED  mobile/src/media/mp4.ts:118 true -> false
+KILLED    mobile/src/media/mp4.ts:126 0 -> 1
+SURVIVED  mobile/src/media/mp4.ts:126 0 -> 1
+SURVIVED  mobile/src/media/mp4.ts:126 0 -> 1
+SURVIVED  mobile/src/media/mp4.ts:128 >= -> >
+SURVIVED  mobile/src/media/mp4.ts:128 || -> &&
+SURVIVED  mobile/src/media/mp4.ts:128 > -> >=
+SURVIVED  mobile/src/media/mp4.ts:130 * -> /
+KILLED    mobile/src/media/mp4.ts:130 + -> -
+SURVIVED  mobile/src/media/mp4.ts:132 + -> -
+KILLED    mobile/src/media/mp4.ts:132 > -> >=
+KILLED    mobile/src/media/mp4.ts:133 + -> -
+KILLED    mobile/src/media/mp4.ts:137 0 -> 1
+KILLED    mobile/src/media/mp4.ts:137 1 -> 0
+SURVIVED  mobile/src/media/mp4.ts:137 1 -> 0
+KILLED    mobile/src/media/mp4.ts:138 === -> !==
+SURVIVED  mobile/src/media/mp4.ts:139 < -> <=
+UNCOVERED mobile/src/media/mp4.ts:140 1 -> 0
+UNCOVERED mobile/src/media/mp4.ts:140 1 -> 0
+SURVIVED  mobile/src/media/mp4.ts:141 delete !
+SURVIVED  mobile/src/media/mp4.ts:141 || -> &&
+SURVIVED  mobile/src/media/mp4.ts:141 > -> >=
+SURVIVED  mobile/src/media/mp4.ts:144 > -> >=
+KILLED    mobile/src/media/mp4.ts:149 === -> !==
+KILLED    mobile/src/media/mp4.ts:151 0 -> 1
+KILLED    mobile/src/media/mp4.ts:152 !== -> ===
+KILLED    mobile/src/media/mp4.ts:152 + -> -
+KILLED    mobile/src/media/mp4.ts:153 + -> -
+KILLED    mobile/src/media/mp4.ts:153 !== -> ===
+KILLED    mobile/src/media/mp4.ts:158 !== -> ===
+SURVIVED  mobile/src/media/mp4.ts:158 || -> &&
+KILLED    mobile/src/media/mp4.ts:158 < -> <=
+SURVIVED  mobile/src/media/mp4.ts:158 || -> &&
+KILLED    mobile/src/media/mp4.ts:158 0 -> 1
+KILLED    mobile/src/media/mp4.ts:158 !== -> ===
+KILLED    mobile/src/media/mp4.ts:159 - -> +
+KILLED    mobile/src/media/mp4.ts:159 1 -> 0
+KILLED    mobile/src/media/mp4.ts:159 - -> +
+KILLED    mobile/src/media/mp4.ts:159 1 -> 0
+KILLED    mobile/src/media/mp4.ts:160 delete !
+KILLED    mobile/src/media/mp4.ts:160 1 -> 0
+KILLED    mobile/src/media/mp4.ts:160 || -> &&
+KILLED    mobile/src/media/mp4.ts:160 !== -> ===
+KILLED    mobile/src/media/mp4.ts:160 0 -> 1
+KILLED    mobile/src/media/mp4.ts:165 !== -> ===
+SURVIVED  mobile/src/media/mp4.ts:165 || -> &&
+SURVIVED  mobile/src/media/mp4.ts:165 - -> +
+SURVIVED  mobile/src/media/mp4.ts:165 < -> <=
+SURVIVED  mobile/src/media/mp4.ts:165 || -> &&
+KILLED    mobile/src/media/mp4.ts:165 !== -> ===
+KILLED    mobile/src/media/mp4.ts:165 || -> &&
+KILLED    mobile/src/media/mp4.ts:165 + -> -
+KILLED    mobile/src/media/mp4.ts:165 1 -> 0
+KILLED    mobile/src/media/mp4.ts:165 !== -> ===
+KILLED    mobile/src/media/mp4.ts:166 + -> -
+KILLED    mobile/src/media/mp4.ts:167 !== -> ===
+KILLED    mobile/src/media/mp4.ts:172 !== -> ===
+SURVIVED  mobile/src/media/mp4.ts:172 || -> &&
+KILLED    mobile/src/media/mp4.ts:172 !== -> ===
+SURVIVED  mobile/src/media/mp4.ts:172 || -> &&
+SURVIVED  mobile/src/media/mp4.ts:172 - -> +
+SURVIVED  mobile/src/media/mp4.ts:172 < -> <=
+KILLED    mobile/src/media/mp4.ts:172 || -> &&
+KILLED    mobile/src/media/mp4.ts:172 + -> -
+KILLED    mobile/src/media/mp4.ts:172 !== -> ===
+KILLED    mobile/src/media/mp4.ts:172 0 -> 1
+KILLED    mobile/src/media/mp4.ts:177 !== -> ===
+SURVIVED  mobile/src/media/mp4.ts:177 || -> &&
+KILLED    mobile/src/media/mp4.ts:177 !== -> ===
+SURVIVED  mobile/src/media/mp4.ts:177 || -> &&
+KILLED    mobile/src/media/mp4.ts:177 - -> +
+KILLED    mobile/src/media/mp4.ts:177 !== -> ===
+KILLED    mobile/src/media/mp4.ts:177 1 -> 0
+KILLED    mobile/src/media/mp4.ts:177 || -> &&
+KILLED    mobile/src/media/mp4.ts:177 !== -> ===
+KILLED    mobile/src/media/mp4.ts:182 + -> -
+KILLED    mobile/src/media/mp4.ts:184 + -> -
+KILLED    mobile/src/media/mp4.ts:193 === -> !==
+KILLED    mobile/src/media/mp4.ts:194 === -> !==
+KILLED    mobile/src/media/mp4.ts:195 !== -> ===
+KILLED    mobile/src/media/mp4.ts:195 1 -> 0
+KILLED    mobile/src/media/mp4.ts:200 && -> ||
+KILLED    mobile/src/media/mp4.ts:200 !== -> ===
+KILLED    mobile/src/media/mp4.ts:201 === -> !==
+KILLED    mobile/src/media/mp4.ts:201 && -> ||
+KILLED    mobile/src/media/mp4.ts:201 delete !
+KILLED    mobile/src/media/mp4.ts:206 === -> !==
+KILLED    mobile/src/media/mp4.ts:207 === -> !==
+KILLED    mobile/src/media/mp4.ts:208 === -> !==
+KILLED    mobile/src/media/mp4.ts:208 || -> &&
+KILLED    mobile/src/media/mp4.ts:208 === -> !==
+KILLED    mobile/src/media/mp4.ts:210 === -> !==
+SURVIVED  mobile/src/media/mp4.ts:211 true -> false
+KILLED    mobile/src/media/mp4.ts:216 === -> !==
+KILLED    mobile/src/media/mp4.ts:223 delete !
+KILLED    mobile/src/media/mp4.ts:229 + -> -
+KILLED    mobile/src/media/mp4.ts:229 + -> -
+KILLED    mobile/src/media/mp4.ts:230 delete !
+SURVIVED  mobile/src/media/mp4.ts:230 || -> &&
+KILLED    mobile/src/media/mp4.ts:230 delete !
+SURVIVED  mobile/src/media/mp4.ts:230 || -> &&
+SURVIVED  mobile/src/media/mp4.ts:230 > -> >=
+SURVIVED  mobile/src/media/mp4.ts:230 || -> &&
+SURVIVED  mobile/src/media/mp4.ts:230 > -> >=
+SURVIVED  mobile/src/media/mp4.ts:231 0 -> 1
+KILLED    mobile/src/media/mp4.ts:231 + -> -
+SURVIVED  mobile/src/media/mp4.ts:231 + -> -
+SURVIVED  mobile/src/media/mp4.ts:232 0 -> 1
+KILLED    mobile/src/media/mp4.ts:232 + -> -
+SURVIVED  mobile/src/media/mp4.ts:232 + -> -
+SURVIVED  mobile/src/media/mp4.ts:233 0 -> 1
+KILLED    mobile/src/media/mp4.ts:233 + -> -
+KILLED    mobile/src/media/mp4.ts:233 + -> -
+KILLED    mobile/src/media/mp4.ts:234 + -> -
+SURVIVED  mobile/src/media/mp4.ts:239 + -> -
+KILLED    mobile/src/media/mp4.ts:239 !== -> ===
+KILLED    mobile/src/media/mp4.ts:239 0 -> 1
+SURVIVED  mobile/src/media/mp4.ts:240 0 -> 1
+SURVIVED  mobile/src/media/mp4.ts:240 + -> -
+SURVIVED  mobile/src/media/mp4.ts:240 + -> -
+KILLED    mobile/src/media/mp4.ts:241 + -> -
+KILLED    mobile/src/media/mp4.ts:246 + -> -
+KILLED    mobile/src/media/mp4.ts:247 + -> -
+KILLED    mobile/src/media/mp4.ts:247 !== -> ===
+KILLED    mobile/src/media/mp4.ts:247 1 -> 0
+SURVIVED  mobile/src/media/mp4.ts:247 || -> &&
+KILLED    mobile/src/media/mp4.ts:247 !== -> ===
+KILLED    mobile/src/media/mp4.ts:247 1 -> 0
+KILLED    mobile/src/media/mp4.ts:248 0 -> 1
+KILLED    mobile/src/media/mp4.ts:250 + -> -
+KILLED    mobile/src/media/mp4.ts:250 !== -> ===
+KILLED    mobile/src/media/mp4.ts:250 1 -> 0
+SURVIVED  mobile/src/media/mp4.ts:251 0 -> 1
+SURVIVED  mobile/src/media/mp4.ts:251 + -> -
+KILLED    mobile/src/media/mp4.ts:253 === -> !==
+SURVIVED  mobile/src/media/mp4.ts:258 1 -> 0
+KILLED    mobile/src/media/mp4.ts:259 === -> !==
+KILLED    mobile/src/media/mp4.ts:259 0 -> 1
+KILLED    mobile/src/media/mp4.ts:260 + -> -
+KILLED    mobile/src/media/mp4.ts:260 !== -> ===
+KILLED    mobile/src/media/mp4.ts:261 === -> !==
+KILLED    mobile/src/media/mp4.ts:266 + -> -
+KILLED    mobile/src/media/mp4.ts:266 + -> -
+KILLED    mobile/src/media/mp4.ts:267 delete !
+KILLED    mobile/src/media/mp4.ts:268 === -> !==
+KILLED    mobile/src/media/mp4.ts:268 === -> !==
+KILLED    mobile/src/media/mp4.ts:268 1 -> 0
+SURVIVED  mobile/src/media/mp4.ts:278 ?? -> ||
+KILLED    mobile/src/media/mp4.ts:278 0 -> 1
+KILLED    mobile/src/media/mp4.ts:281 === -> !==
+KILLED    mobile/src/media/mp4.ts:282 === -> !==
+KILLED    mobile/src/media/mp4.ts:282 || -> &&
+KILLED    mobile/src/media/mp4.ts:282 === -> !==
+KILLED    mobile/src/media/mp4.ts:287 === -> !==
+KILLED    mobile/src/media/mp4.ts:288 0 -> 1
+KILLED    mobile/src/media/mp4.ts:288 1 -> 0
+SURVIVED  mobile/src/media/mp4.ts:288 0 -> 1
+SURVIVED  mobile/src/media/mp4.ts:289 true -> false
+KILLED    mobile/src/media/mp4.ts:290 delete !
+KILLED    mobile/src/media/mp4.ts:296 === -> !==
+KILLED    mobile/src/media/mp4.ts:297 === -> !==
+KILLED    mobile/src/media/mp4.ts:298 0 -> 1
+SURVIVED  mobile/src/media/mp4.ts:298 1 -> 0
+KILLED    mobile/src/media/mp4.ts:299 === -> !==
+KILLED    mobile/src/media/mp4.ts:299 1 -> 0
+KILLED    mobile/src/media/mp4.ts:301 === -> !==
+KILLED    mobile/src/media/mp4.ts:301 || -> &&
+KILLED    mobile/src/media/mp4.ts:301 === -> !==
+KILLED    mobile/src/media/mp4.ts:302 delete !
+KILLED    mobile/src/media/mp4.ts:303 === -> !==
+KILLED    mobile/src/media/mp4.ts:307 delete !
+KILLED    mobile/src/media/mp4.ts:308 === -> !==
+KILLED    mobile/src/media/mp4.ts:308 && -> ||
+KILLED    mobile/src/media/mp4.ts:308 + -> -
+KILLED    mobile/src/media/mp4.ts:308 !== -> ===
+KILLED    mobile/src/media/mp4.ts:308 1 -> 0
+KILLED    mobile/src/media/mp4.ts:309 === -> !==
+KILLED    mobile/src/media/mp4.ts:309 && -> ||
+SURVIVED  mobile/src/media/mp4.ts:309 + -> -
+KILLED    mobile/src/media/mp4.ts:309 !== -> ===
+KILLED    mobile/src/media/mp4.ts:309 1 -> 0
+KILLED    mobile/src/media/mp4.ts:313 === -> !==
+SURVIVED  mobile/src/media/mp4.ts:314 >= -> >
+SURVIVED  mobile/src/media/mp4.ts:323 > -> >=
+KILLED    mobile/src/media/mp4.ts:325 delete !
+KILLED    mobile/src/media/mp4.ts:326 && -> ||
+KILLED    mobile/src/media/mp4.ts:326 !== -> ===
+SURVIVED  mobile/src/media/mp4.ts:335 - -> +
+KILLED    mobile/src/media/mp4.ts:337 + -> -
+SURVIVED  mobile/src/media/mp4.ts:337 0 -> 1
+KILLED    mobile/src/media/mp4.ts:338 < -> <=
+SURVIVED  mobile/src/media/mp4.ts:339 === -> !==
+SURVIVED  mobile/src/media/mp4.ts:339 + -> -
+SURVIVED  mobile/src/media/mp4.ts:340 delete !
+SURVIVED  mobile/src/media/mp4.ts:340 + -> -
+KILLED    mobile/src/media/mp4.ts:345 === -> !==
+KILLED    mobile/src/media/mp4.ts:346 === -> !==
+KILLED    mobile/src/media/mp4.ts:347 === -> !==
+KILLED    mobile/src/media/mp4.ts:355 && -> ||
+SURVIVED  mobile/src/media/mp4.ts:355 !== -> ===
+KILLED    mobile/src/media/mp4.ts:359 delete !
+SURVIVED  mobile/src/media/mp4.ts:359 || -> &&
+KILLED    mobile/src/media/mp4.ts:359 delete !
+SURVIVED  mobile/src/media/mp4.ts:359 || -> &&
+KILLED    mobile/src/media/mp4.ts:359 delete !
+KILLED    mobile/src/media/mp4.ts:364 delete !
+SURVIVED  mobile/src/media/mp4.ts:364 || -> &&
+KILLED    mobile/src/media/mp4.ts:364 === -> !==
+KILLED    mobile/src/media/mp4.ts:364 && -> ||
+KILLED    mobile/src/media/mp4.ts:364 !== -> ===
+KILLED    mobile/src/media/mp4.ts:365 !== -> ===
+KILLED    mobile/src/media/mp4.ts:365 === -> !==
+KILLED    mobile/src/media/mp4.ts:369 === -> !==
+KILLED    mobile/src/media/mp4.ts:370 !== -> ===
+KILLED    mobile/src/media/mp4.ts:370 1 -> 0
+SURVIVED  mobile/src/media/mp4.ts:370 || -> &&
+KILLED    mobile/src/media/mp4.ts:370 delete !
+KILLED    mobile/src/media/mp4.ts:370 0 -> 1
+SURVIVED  mobile/src/media/mp4.ts:370 || -> &&
+KILLED    mobile/src/media/mp4.ts:370 delete !
+KILLED    mobile/src/media/mp4.ts:370 0 -> 1
+KILLED    mobile/src/media/mp4.ts:372 0 -> 1
+SURVIVED  mobile/src/media/mp4.ts:377 > -> >=
+KILLED    mobile/src/media/mp4.ts:377 * -> /
+KILLED    mobile/src/media/mp4.ts:377 * -> /
+SURVIVED  mobile/src/media/mp4.ts:378 0 -> 1
+SURVIVED  mobile/src/media/mp4.ts:381 || -> &&
+KILLED    mobile/src/media/mp4Boxes.ts:7 + -> -
+KILLED    mobile/src/media/mp4Boxes.ts:7 + -> -
+KILLED    mobile/src/media/mp4Boxes.ts:9 === -> !==
+KILLED    mobile/src/media/mp4Boxes.ts:9 1 -> 0
+KILLED    mobile/src/media/mp4Boxes.ts:10 - -> +
+SURVIVED  mobile/src/media/mp4Boxes.ts:10 < -> <=
+KILLED    mobile/src/media/mp4Boxes.ts:10 || -> &&
+KILLED    mobile/src/media/mp4Boxes.ts:10 + -> -
+KILLED    mobile/src/media/mp4Boxes.ts:10 !== -> ===
+KILLED    mobile/src/media/mp4Boxes.ts:10 0 -> 1
+KILLED    mobile/src/media/mp4Boxes.ts:11 + -> -
+KILLED    mobile/src/media/mp4Boxes.ts:12 === -> !==
+KILLED    mobile/src/media/mp4Boxes.ts:12 0 -> 1
+KILLED    mobile/src/media/mp4Boxes.ts:12 - -> +
+KILLED    mobile/src/media/mp4Boxes.ts:13 < -> <=
+KILLED    mobile/src/media/mp4Boxes.ts:13 || -> &&
+KILLED    mobile/src/media/mp4Boxes.ts:13 + -> -
+KILLED    mobile/src/media/mp4Boxes.ts:13 > -> >=
+KILLED    mobile/src/media/mp4Boxes.ts:14 + -> -
+KILLED    mobile/src/media/mp4Boxes.ts:14 + -> -
+KILLED    mobile/src/media/mp4Boxes.ts:17 0 -> 1
+KILLED    mobile/src/media/mp4Boxes.ts:19 < -> <=
+SURVIVED  mobile/src/media/mp4Boxes.ts:20 >= -> >
+SURVIVED  mobile/src/media/mp4Boxes.ts:20 || -> &&
+SURVIVED  mobile/src/media/mp4Boxes.ts:20 - -> +
+SURVIVED  mobile/src/media/mp4Boxes.ts:20 < -> <=
+KILLED    mobile/src/media/mp4Boxes.ts:26 false -> true
+KILLED    mobile/src/media/mp4Boxes.ts:27 - -> +
+KILLED    mobile/src/media/mp4Boxes.ts:28 < -> <=
+KILLED    mobile/src/media/mp4Boxes.ts:28 || -> &&
+KILLED    mobile/src/media/mp4Boxes.ts:28 && -> ||
+KILLED    mobile/src/media/mp4Boxes.ts:28 !== -> ===
+KILLED    mobile/src/media/mp4Boxes.ts:31 0 -> 1
+KILLED    mobile/src/media/mp4Boxes.ts:31 0 -> 1
+KILLED    mobile/src/media/mp4Boxes.ts:33 delete !
+KILLED    mobile/src/media/mp4Boxes.ts:33 || -> &&
+KILLED    mobile/src/media/mp4Boxes.ts:33 !== -> ===
+KILLED    mobile/src/media/mp4Boxes.ts:33 0 -> 1
+SURVIVED  mobile/src/media/mp4Boxes.ts:38 0 -> 1
+KILLED    mobile/src/media/mp4Boxes.ts:38 - -> +
+KILLED    mobile/src/media/mp4Boxes.ts:39 + -> -
+KILLED    mobile/src/media/mp4Boxes.ts:43 + -> -
+KILLED    mobile/src/media/mp4Boxes.ts:43 - -> +
+SURVIVED  mobile/src/media/mp4Boxes.ts:44 > -> >=
+SURVIVED  mobile/src/media/mp4Boxes.ts:44 || -> &&
+KILLED    mobile/src/media/mp4Boxes.ts:44 - -> +
+KILLED    mobile/src/media/mp4Boxes.ts:44 !== -> ===
+KILLED    mobile/src/media/mp4Boxes.ts:44 + -> -
+KILLED    mobile/src/media/mp4Boxes.ts:44 * -> /
+KILLED    mobile/src/media/mp4Samples.ts:6 === -> !==
+SURVIVED  mobile/src/media/mp4Samples.ts:6 0 -> 1
+SURVIVED  mobile/src/media/mp4Samples.ts:6 || -> &&
+SURVIVED  mobile/src/media/mp4Samples.ts:6 > -> >=
+KILLED    mobile/src/media/mp4Samples.ts:6 * -> /
+KILLED    mobile/src/media/mp4Samples.ts:6 * -> /
+KILLED    mobile/src/media/mp4Samples.ts:10 + -> -
+KILLED    mobile/src/media/mp4Samples.ts:10 + -> -
+KILLED    mobile/src/media/mp4Samples.ts:11 delete !
+SURVIVED  mobile/src/media/mp4Samples.ts:11 || -> &&
+SURVIVED  mobile/src/media/mp4Samples.ts:11 > -> >=
+KILLED    mobile/src/media/mp4Samples.ts:12 + -> -
+SURVIVED  mobile/src/media/mp4Samples.ts:12 0 -> 1
+KILLED    mobile/src/media/mp4Samples.ts:12 * -> /
+SURVIVED  mobile/src/media/mp4Samples.ts:12 true -> false
+KILLED    mobile/src/media/mp4Samples.ts:13 || -> &&
+KILLED    mobile/src/media/mp4Samples.ts:13 + -> -
+KILLED    mobile/src/media/mp4Samples.ts:13 + -> -
+KILLED    mobile/src/media/mp4Samples.ts:13 * -> /
+KILLED    mobile/src/media/mp4Samples.ts:19 === -> !==
+KILLED    mobile/src/media/mp4Samples.ts:21 + -> -
+KILLED    mobile/src/media/mp4Samples.ts:21 + -> -
+KILLED    mobile/src/media/mp4Samples.ts:21 * -> /
+KILLED    mobile/src/media/mp4Samples.ts:22 === -> !==
+KILLED    mobile/src/media/mp4Samples.ts:22 && -> ||
+SURVIVED  mobile/src/media/mp4Samples.ts:22 !== -> ===
+SURVIVED  mobile/src/media/mp4Samples.ts:22 0 -> 1
+KILLED    mobile/src/media/mp4Samples.ts:23 + -> -
+KILLED    mobile/src/media/mp4Samples.ts:23 - -> +
+KILLED    mobile/src/media/mp4Samples.ts:29 + -> -
+KILLED    mobile/src/media/mp4Samples.ts:29 + -> -
+KILLED    mobile/src/media/mp4Samples.ts:30 > -> >=
+SURVIVED  mobile/src/media/mp4Samples.ts:30 || -> &&
+SURVIVED  mobile/src/media/mp4Samples.ts:30 <= -> <
+KILLED    mobile/src/media/mp4Samples.ts:31 delete !
+SURVIVED  mobile/src/media/mp4Samples.ts:31 || -> &&
+SURVIVED  mobile/src/media/mp4Samples.ts:31 > -> >=
+KILLED    mobile/src/media/mp4Samples.ts:31 || -> &&
+KILLED    mobile/src/media/mp4Samples.ts:31 !== -> ===
+KILLED    mobile/src/media/mp4Samples.ts:31 1 -> 0
+KILLED    mobile/src/media/mp4Samples.ts:37 0 -> 1
+KILLED    mobile/src/media/mp4Samples.ts:37 < -> <=
+KILLED    mobile/src/media/mp4Samples.ts:38 + -> -
+KILLED    mobile/src/media/mp4Samples.ts:38 + -> -
+KILLED    mobile/src/media/mp4Samples.ts:38 * -> /
+SURVIVED  mobile/src/media/mp4Samples.ts:39 delete -
+SURVIVED  mobile/src/media/mp4Samples.ts:39 1 -> 0
+KILLED    mobile/src/media/mp4Samples.ts:39 ?. -> .
+SURVIVED  mobile/src/media/mp4Samples.ts:39 || -> &&
+KILLED    mobile/src/media/mp4Samples.ts:39 0 -> 1
+KILLED    mobile/src/media/mp4Samples.ts:41 0 -> 1
+SURVIVED  mobile/src/media/mp4Samples.ts:41 ?. -> .
+KILLED    mobile/src/media/mp4Samples.ts:41 !== -> ===
+KILLED    mobile/src/media/mp4Samples.ts:41 1 -> 0
+SURVIVED  mobile/src/media/mp4Samples.ts:46 + -> -
+KILLED    mobile/src/media/mp4Samples.ts:46 > -> >=
+KILLED    mobile/src/media/mp4Samples.ts:47 0 -> 1
+KILLED    mobile/src/media/mp4Samples.ts:47 < -> <=
+KILLED    mobile/src/media/mp4Samples.ts:47 + -> -
+KILLED    mobile/src/media/mp4Samples.ts:51 0 -> 1
+KILLED    mobile/src/media/mp4Samples.ts:52 0 -> 1
+KILLED    mobile/src/media/mp4Samples.ts:52 < -> <=
+KILLED    mobile/src/media/mp4Samples.ts:53 + -> -
+KILLED    mobile/src/media/mp4Samples.ts:53 + -> -
+KILLED    mobile/src/media/mp4Samples.ts:53 * -> /
+KILLED    mobile/src/media/mp4Samples.ts:54 delete !
+SURVIVED  mobile/src/media/mp4Samples.ts:54 || -> &&
+SURVIVED  mobile/src/media/mp4Samples.ts:54 + -> -
+KILLED    mobile/src/media/mp4Samples.ts:54 > -> >=
+KILLED    mobile/src/media/mp4Samples.ts:55 === -> !==
+KILLED    mobile/src/media/mp4Samples.ts:55 && -> ||
+KILLED    mobile/src/media/mp4Samples.ts:55 delete !
+KILLED    mobile/src/media/mp4Samples.ts:55 + -> -
+KILLED    mobile/src/media/mp4Samples.ts:58 !== -> ===
+KILLED    mobile/src/media/mp4Samples.ts:62 0 -> 1
+KILLED    mobile/src/media/mp4Samples.ts:63 0 -> 1
+KILLED    mobile/src/media/mp4Samples.ts:63 < -> <=
+KILLED    mobile/src/media/mp4Samples.ts:64 + -> -
+SURVIVED  mobile/src/media/mp4Samples.ts:64 + -> -
+SURVIVED  mobile/src/media/mp4Samples.ts:64 * -> /
+SURVIVED  mobile/src/media/mp4Samples.ts:65 <= -> <
+KILLED    mobile/src/media/mp4Samples.ts:65 || -> &&
+SURVIVED  mobile/src/media/mp4Samples.ts:65 > -> >=
+KILLED    mobile/src/media/mp4Samples.ts:70 + -> -
+SURVIVED  mobile/src/media/mp4Samples.ts:70 true -> false
+KILLED    mobile/src/media/mp4Samples.ts:71 + -> -
+SURVIVED  mobile/src/media/mp4Samples.ts:71 < -> <=
+KILLED    mobile/src/media/mp4Samples.ts:73 !== -> ===
+KILLED    mobile/src/media/mp4Samples.ts:73 0 -> 1
+SURVIVED  mobile/src/media/mp4Samples.ts:73 || -> &&
+KILLED    mobile/src/media/mp4Samples.ts:73 === -> !==
+SURVIVED  mobile/src/media/mp4Samples.ts:73 || -> &&
+KILLED    mobile/src/media/mp4Samples.ts:73 === -> !==
+SURVIVED  mobile/src/media/mp4Samples.ts:73 || -> &&
+KILLED    mobile/src/media/mp4Samples.ts:73 === -> !==
+KILLED    mobile/src/media/mp4Samples.ts:78 delete !
+KILLED    mobile/src/media/mp4Samples.ts:87 delete !
+SURVIVED  mobile/src/media/mp4Samples.ts:87 || -> &&
+KILLED    mobile/src/media/mp4Samples.ts:87 delete !
+SURVIVED  mobile/src/media/mp4Samples.ts:87 || -> &&
+KILLED    mobile/src/media/mp4Samples.ts:87 delete !
+KILLED    mobile/src/media/mp4Samples.ts:90 0 -> 1
+KILLED    mobile/src/media/mp4Samples.ts:90 0 -> 1
+KILLED    mobile/src/media/mp4Samples.ts:91 0 -> 1
+KILLED    mobile/src/media/mp4Samples.ts:91 < -> <=
+KILLED    mobile/src/media/mp4Samples.ts:92 + -> -
+KILLED    mobile/src/media/mp4Samples.ts:92 1 -> 0
+KILLED    mobile/src/media/mp4Samples.ts:92 < -> <=
+KILLED    mobile/src/media/mp4Samples.ts:92 && -> ||
+KILLED    mobile/src/media/mp4Samples.ts:92 + -> -
+KILLED    mobile/src/media/mp4Samples.ts:92 1 -> 0
+KILLED    mobile/src/media/mp4Samples.ts:92 >= -> >
+KILLED    mobile/src/media/mp4Samples.ts:92 + -> -
+KILLED    mobile/src/media/mp4Samples.ts:92 1 -> 0
+KILLED    mobile/src/media/mp4Samples.ts:94 + -> -
+KILLED    mobile/src/media/mp4Samples.ts:96 !== -> ===
+KILLED    mobile/src/media/mp4Samples.ts:102 - -> +
+KILLED    mobile/src/media/mp4Samples.ts:103 0 -> 1
+KILLED    mobile/src/media/mp4Samples.ts:106 < -> <=
+KILLED    mobile/src/media/mp4Samples.ts:106 && -> ||
+SURVIVED  mobile/src/media/mp4Samples.ts:106 < -> <=
+KILLED    mobile/src/media/mp4Samples.ts:108 < -> <=
+SURVIVED  mobile/src/media/mp4Samples.ts:108 || -> &&
+KILLED    mobile/src/media/mp4Samples.ts:108 > -> >=
+KILLED    mobile/src/media/mp4Samples.ts:109 < -> <=
+SURVIVED  mobile/src/media/mp4Samples.ts:110 0 -> 1
+SURVIVED  mobile/src/media/mp4Samples.ts:112 0 -> 1
+KILLED    mobile/src/media/mp4Samples.ts:114 !== -> ===
+Function             Namespace         Killed  Survived  Uncovered  Sites   Score
+---------------------------------------------------------------------------------
+isoText              media.mp4Boxes         0         0          0      0    n/a
+isoView              media.mp4Boxes         0         0          0      0    n/a
+mp4Fail              media.mp4Boxes         0         0          0      0    n/a
+clearTrackHeader     media.mp4              3        18          0     21  14.3%
+clearMovieHeader     media.mp4              2         9          0     11  18.2%
+clearMediaHeader     media.mp4              1         4          0      5  20.0%
+fileType             media.mp4              2         6          0      8  25.0%
+aacBaseLength        media.mp4              3         6          2     11  33.3%
+boxes                media.mp4Boxes         2         4          0      6  33.3%
+descriptor           media.mp4              4         7          0     11  36.4%
+sanitizeMp4          media.mp4              2         3          0      5  40.0%
+audioEntry           media.mp4              3         4          0      7  42.9%
+visualEntry          media.mp4              9        10          0     19  47.4%
+dates                media.mp4              5         5          0     10  50.0%
+validSampleSize      media.mp4Samples       3         3          0      6  50.0%
+visit                media.mp4              1         1          0      2  50.0%
+validateSync         media.mp4Samples       5         4          0      9  55.6%
+topLevel             media.mp4              4         3          0      7  57.1%
+validateDependencies media.mp4Samples       7         5          0     12  58.3%
+validateEsRoot       media.mp4              6         4          0     10  60.0%
+readSampleRun        media.mp4Samples       7         4          0     11  63.6%
+cleanMediaGaps       media.mp4Samples       8         4          0     12  66.7%
+decoderConfig        media.mp4              8         4          0     12  66.7%
+mediaHeader          media.mp4              4         2          0      6  66.7%
+staticHdr            media.mp4              4         2          0      6  66.7%
+zeroBox              media.mp4Boxes         2         1          0      3  66.7%
+sampleSizes          media.mp4Samples       9         4          0     13  69.2%
+colorRange           media.mp4              7         3          0     10  70.0%
+handler              media.mp4              7         3          0     10  70.0%
+sampleRuns           media.mp4Samples      10         4          0     14  71.4%
+dataReferences       media.mp4              9         3          0     12  75.0%
+tableCount           media.mp4Boxes         6         2          0      8  75.0%
+assignHdr            media.mp4              3         1          0      4  75.0%
+walk                 media.mp4              3         1          0      4  75.0%
+syncDescriptor       media.mp4              7         2          0      9  77.8%
+sampleDescription    media.mp4             11         3          0     14  78.6%
+chunkOffsets         media.mp4Samples       8         2          0     10  80.0%
+masteringDisplay     media.mp4              8         2          0     10  80.0%
+videoTrack           media.mp4              8         2          0     10  80.0%
+contentLight         media.mp4              4         1          0      5  80.0%
+sizesInChunk         media.mp4Samples       4         1          0      5  80.0%
+groupDescriptions    media.mp4              5         1          0      6  83.3%
+sampleTable          media.mp4              5         1          0      6  83.3%
+codecChild           media.mp4              6         1          0      7  85.7%
+validateTrack        media.mp4              6         1          0      7  85.7%
+aacConfig            media.mp4             13         2          0     15  86.7%
+timedSamples         media.mp4Samples      13         2          0     15  86.7%
+sampleRanges         media.mp4Samples      18         2          0     20  90.0%
+leaf                 media.mp4             10         1          0     11  90.9%
+requiredChildren     media.mp4             10         1          0     11  90.9%
+readBox              media.mp4Boxes        19         1          0     20  95.0%
+aacExtension         media.mp4              6         0          0      6 100.0%
+codecChildren        media.mp4              2         0          0      2 100.0%
+codecConfiguration   media.mp4              4         0          0      4 100.0%
+color                media.mp4             14         0          0     14 100.0%
+elementaryStream     media.mp4              2         0          0      2 100.0%
+fullBox              media.mp4Boxes         6         0          0      6 100.0%
+need                 media.mp4Boxes         6         0          0      6 100.0%
+sampleGroup          media.mp4              6         0          0      6 100.0%
+validateCodecChild   media.mp4              5         0          0      5 100.0%
+validateHdrColor     media.mp4              3         0          0      3 100.0%
+validateSampleTables media.mp4Samples       1         0          0      1 100.0%
+visitRoot            media.mp4              3         0          0      3 100.0%
+---------------------------------------------------------------------------------
+Total                                     362       160          2    524   69.3%

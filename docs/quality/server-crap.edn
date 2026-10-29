@@ -1,0 +1,72 @@
+{:entries [
+  {:name "buildApp", :namespace "app", :complexity 62, :coverage 79.3388, :crap 95.9039}
+  {:name "POST /uploads", :namespace "app", :complexity 23, :coverage 56.5217, :crap 66.4784}
+  {:name "installAuthRoutes", :namespace "auth", :complexity 51, :coverage 89.1892, :crap 54.2864}
+  {:name "GET /ws", :namespace "app", :complexity 23, :coverage 62.963, :crap 49.8759}
+  {:name "integerEnv", :namespace "index", :complexity 6, :coverage 0.0, :crap 42.0}
+  {:name "openDatabase", :namespace "database", :complexity 18, :coverage 62.5, :crap 35.0859}
+  {:name "POST /e2ee/files", :namespace "e2ee", :complexity 18, :coverage 64.7059, :crap 32.2446}
+  {:name "POST /chats/:chatId/messages", :namespace "app", :complexity 28, :coverage 93.1818, :crap 28.2485}
+  {:name "installE2eeRoutes", :namespace "e2ee", :complexity 23, :coverage 88.2353, :crap 23.8614}
+  {:name "imageMime", :namespace "security", :complexity 13, :coverage 60.0, :crap 23.816}
+  {:name "POST /e2ee/devices", :namespace "e2ee", :complexity 18, :coverage 100.0, :crap 18.0}
+  {:name "PATCH /me", :namespace "app", :complexity 15, :coverage 77.7778, :crap 17.4691}
+  {:name "passwordValue", :namespace "security", :complexity 16, :coverage 89.4737, :crap 16.2986}
+  {:name "GET /files/:id", :namespace "app", :complexity 15, :coverage 85.0, :crap 15.7594}
+  {:name "parseEncryptedMessage", :namespace "e2ee", :complexity 12, :coverage 100.0, :crap 12.0}
+  {:name "passwordMatches", :namespace "security", :complexity 10, :coverage 75.0, :crap 11.5625}
+  {:name "createLimiter", :namespace "security", :complexity 11, :coverage 88.8889, :crap 11.166}
+  {:name "GET /chats/:chatId/messages", :namespace "app", :complexity 10, :coverage 78.5714, :crap 10.984}
+  {:name "safeFilename", :namespace "security", :complexity 4, :coverage 25.0, :crap 10.75}
+  {:name "GET /e2ee/inbox", :namespace "e2ee", :complexity 10, :coverage 84.6154, :crap 10.3641}
+  {:name "POST /auth/recovery/verify", :namespace "auth", :complexity 10, :coverage 92.3077, :crap 10.0455}
+  {:name "isEndpointWebSocketOrigin", :namespace "app", :complexity 9, :coverage 100.0, :crap 9.0}
+  {:name "POST", :namespace "auth", :complexity 9, :coverage 100.0, :crap 9.0}
+  {:name "publicMessage", :namespace "database", :complexity 9, :coverage 100.0, :crap 9.0}
+  {:name "boundedText", :namespace "security", :complexity 6, :coverage 62.5, :crap 7.8984}
+  {:name "POST /auth/login", :namespace "auth", :complexity 7, :coverage 92.3077, :crap 7.0223}
+  {:name "base64", :namespace "e2ee", :complexity 7, :coverage 100.0, :crap 7.0}
+  {:name "recoveryWordValue", :namespace "security", :complexity 7, :coverage 100.0, :crap 7.0}
+  {:name "positiveInteger", :namespace "security", :complexity 4, :coverage 50.0, :crap 6.0}
+  {:name "POST /chats", :namespace "app", :complexity 5, :coverage 71.4286, :crap 5.5831}
+  {:name "objectBody", :namespace "security", :complexity 5, :coverage 80.0, :crap 5.2}
+  {:name "publicChat", :namespace "database", :complexity 4, :coverage 75.0, :crap 4.25}
+  {:name "POST /auth/register", :namespace "auth", :complexity 4, :coverage 87.5, :crap 4.0312}
+  {:name "POST /e2ee/prekeys/claim", :namespace "e2ee", :complexity 4, :coverage 88.8889, :crap 4.0219}
+  {:name "POST /chats/:chatId/read", :namespace "app", :complexity 4, :coverage 100.0, :crap 4.0}
+  {:name "integer", :namespace "e2ee", :complexity 4, :coverage 100.0, :crap 4.0}
+  {:name "normalizeRecoveryWord", :namespace "security", :complexity 4, :coverage 100.0, :crap 4.0}
+  {:name "deviceNameValue", :namespace "security", :complexity 3, :coverage 80.0, :crap 3.072}
+  {:name "POST /e2ee/devices/revoke", :namespace "e2ee", :complexity 3, :coverage 100.0, :crap 3.0}
+  {:name "uuid", :namespace "e2ee", :complexity 3, :coverage 100.0, :crap 3.0}
+  {:name "POST /auth/sessions/revoke-others", :namespace "auth", :complexity 2, :coverage 66.6667, :crap 2.1481}
+  {:name "POST /auth/recovery/reset", :namespace "auth", :complexity 2, :coverage 83.3333, :crap 2.0185}
+  {:name "GET /me", :namespace "app", :complexity 2, :coverage 100.0, :crap 2.0}
+  {:name "POST /auth/password", :namespace "auth", :complexity 2, :coverage 100.0, :crap 2.0}
+  {:name "POST /auth/recovery/cancel", :namespace "auth", :complexity 2, :coverage 100.0, :crap 2.0}
+  {:name "POST /auth/recovery/status", :namespace "auth", :complexity 2, :coverage 100.0, :crap 2.0}
+  {:name "POST /auth/sessions/revoke", :namespace "auth", :complexity 2, :coverage 100.0, :crap 2.0}
+  {:name "transaction", :namespace "database", :complexity 2, :coverage 100.0, :crap 2.0}
+  {:name "GET /e2ee/devices", :namespace "e2ee", :complexity 2, :coverage 100.0, :crap 2.0}
+  {:name "curvePublicKey", :namespace "e2ee", :complexity 2, :coverage 100.0, :crap 2.0}
+  {:name "signedPreKey", :namespace "e2ee", :complexity 2, :coverage 100.0, :crap 2.0}
+  {:name "usernameValue", :namespace "security", :complexity 2, :coverage 100.0, :crap 2.0}
+  {:name "validToken", :namespace "security", :complexity 2, :coverage 100.0, :crap 2.0}
+  {:name "GET /chats", :namespace "app", :complexity 1, :coverage 100.0, :crap 1.0}
+  {:name "GET /health", :namespace "app", :complexity 1, :coverage 100.0, :crap 1.0}
+  {:name "GET /users", :namespace "app", :complexity 1, :coverage 100.0, :crap 1.0}
+  {:name "OPTIONS /*", :namespace "app", :complexity 1, :coverage 100.0, :crap 1.0}
+  {:name "GET /auth/recovery/requests", :namespace "auth", :complexity 1, :coverage 100.0, :crap 1.0}
+  {:name "GET /auth/security", :namespace "auth", :complexity 1, :coverage 100.0, :crap 1.0}
+  {:name "GET /auth/sessions", :namespace "auth", :complexity 1, :coverage 100.0, :crap 1.0}
+  {:name "POST /auth/logout", :namespace "auth", :complexity 1, :coverage 100.0, :crap 1.0}
+  {:name "iso", :namespace "auth", :complexity 1, :coverage 100.0, :crap 1.0}
+  {:name "publicAttachment", :namespace "database", :complexity 1, :coverage 100.0, :crap 1.0}
+  {:name "publicUser", :namespace "database", :complexity 1, :coverage 100.0, :crap 1.0}
+  {:name "GET /e2ee/devices/self", :namespace "e2ee", :complexity 1, :coverage 100.0, :crap 1.0}
+  {:name "fail", :namespace "security", :complexity 1, :coverage 100.0, :crap 1.0}
+  {:name "newToken", :namespace "security", :complexity 1, :coverage 100.0, :crap 1.0}
+  {:name "passwordHash", :namespace "security", :complexity 1, :coverage 100.0, :crap 1.0}
+  {:name "tokenHash", :namespace "security", :complexity 1, :coverage 100.0, :crap 1.0}
+  {:name "constructor", :namespace "security.HttpError", :complexity 1, :coverage 100.0, :crap 1.0}
+]}

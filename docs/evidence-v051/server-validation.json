@@ -1,0 +1,54 @@
+{
+  "date_utc": "2026-10-28",
+  "runtime": "Node.js 24.22.1",
+  "schema_version": 5,
+  "scope": "Permanent Platina, existing finite grants, UUID-based trusted local CLI, real SQLite migration 4 to 5",
+  "real_accounts_or_production_databases_used": false,
+  "commands": {
+    "targeted": "node --test --test-isolation=none server/test/entitlements.test.js server/test/platina-admin.test.js server/test/username.test.js",
+    "full": "node --test --test-isolation=none server/test/*.test.js"
+  },
+  "results": [
+    {
+      "log": "server-platina-red.txt",
+      "exit_code": 1,
+      "tests": 24,
+      "pass": 17,
+      "fail": 7,
+      "skipped": 0,
+      "cancelled": 0
+    },
+    {
+      "log": "server-platina-green.txt",
+      "exit_code": 0,
+      "tests": 24,
+      "pass": 24,
+      "fail": 0,
+      "skipped": 0,
+      "cancelled": 0
+    },
+    {
+      "log": "server-full.txt",
+      "exit_code": 0,
+      "tests": 93,
+      "pass": 93,
+      "fail": 0,
+      "skipped": 0,
+      "cancelled": 0
+    }
+  ],
+  "default_sandbox_diagnostic": "server-platina-red-sandbox.txt: child processes were blocked; not used as proof of CLI behavior",
+  "verified_cli_environment": "Approved subprocess execution; temporary synthetic SQLite databases only",
+  "static_peer_review": "No blocking security, data preservation or compatibility findings; reviewer did not execute tests",
+  "sha256": {
+    "server/src/entitlements.js": "582d27643eeb6b2ca775ccd7b8446499a927b52447aff3e1f99e66057d356a92",
+    "server/src/platina-admin.js": "baf8f099e67fd48ab85094fc6f7afb78082306fc19f81897da057a4490b3b51a",
+    "server/src/database.js": "b75d48d903e613b57e8bef97db36cafbffa3f5884e71f1774fbac6f188f07bae",
+    "server/src/schema.sql": "42b075ddfe51477ab17861ade4b8fffb74d65941ef335d310d303074953ce400",
+    "server/test/entitlements.test.js": "02077c39cae08e53b7f9c9321343783cc0df8de49c97692d31353d383dd5990a",
+    "server/test/platina-admin.test.js": "c54377a2c1df363e008215df91fd9a89e7e7382da4a9fb604e60b9132e54ff8f",
+    "server/test/username.test.js": "5c9f109b1984b8e771f381231b9f82352c96548cae25b741d98263c7d12c6a71",
+    "server/test/auth-security.test.js": "e59ab21c10e0a11056e34ab8515c47ef313c62122f8d1f003474082a2bc88991",
+    "server/test/e2ee-relay.test.js": "f88bdbfa2e999b57c269d9bed897f110f5f6962e698f3f4e31ac69943988d97d"
+  }
+}

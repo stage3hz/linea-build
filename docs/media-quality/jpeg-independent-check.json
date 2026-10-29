@@ -1,0 +1,11 @@
+{
+  "decoder": "Pillow",
+  "dimensions": [
+    2,
+    2
+  ],
+  "pixelEqual": true,
+  "pixelSha256": "d0afff79483f6cd3b220e367e0e413e6721a74e0430a6dc6ebe8903924885d6a",
+  "beforeBytes": 660,
+  "afterBytes": 615
+}

@@ -1,0 +1,40 @@
+npm warn Unknown env config "http-proxy". This will stop working in the next major version of npm.
+
+> linea-mobile@0.4.0 test:e2ee
+> node --test --test-isolation=none test/e2ee*.mjs
+
+✔ CryptoService persists local identity before publication and refuses an incomplete local store (17.631437ms)
+✔ sending and receiving remain blocked until each side approves the same safety code (36.0256ms)
+✔ ratchet, local history and outbox commit atomically before an encrypted payload is released (17.150711ms)
+✔ retries reuse committed ciphertext, including a failed cleanup after delivery (15.392705ms)
+✔ new devices and substituted claim identities require a fresh approval before encryption (29.323971ms)
+✔ multi-device fanout and canonical envelope order preserve the authenticated local preview (39.091891ms)
+✔ oldest-first inbox pages and durable cursors survive reopening the same vault (27.36284ms)
+✔ authenticated routing metadata and tampered ciphertext stop inbox advancement (23.613281ms)
+✔ losing the local key store does not reveal old history after account access returns (21.860593ms)
+✔ malformed encrypted transport data produces an invalid preview rather than crashing the chat (12.51506ms)
+✔ actual Kotlin native core interoperates with official Node Signal for handshake, ratchet, out-of-order/replay/tamper and files (2607.126135ms)
+✔ the actual upload caller cleans PNG metadata before real Signal AEAD encryption and reports exact sanitized size (126.671746ms)
+✔ failed conversion prevents any original image from reaching upload (47.873478ms)
+✔ failed upload releases prepared photo and ciphertext without deleting the original (66.508212ms)
+✔ ordinary documents are encrypted byte for byte without a PNG rewrite (80.708057ms)
+✔ real Api, CryptoService and Fastify relay exchange private messages/files and retain local keys across password recovery (6102.541632ms)
+✔ an unavailable secure RNG prevents creating or saving a vault key without a synchronous fallback (29.828838ms)
+✔ an unavailable secure RNG stops attachment encryption before a key, ciphertext or upload is produced (102.061712ms)
+✔ official pinned libsignal creates independently signed EC and Kyber public bundles (7.028275ms)
+✔ both directions require explicit identity approval and a pinned key cannot be replaced silently (21.952141ms)
+✔ two restored device stores exchange real Signal messages in both directions and advance session state (26.985156ms)
+✔ Signal accepts out-of-order messages and rejects replay after the stored state advances (20.338837ms)
+✔ tampered or misaddressed envelopes fail and never fall back to plaintext (10.977959ms)
+✔ a fresh identity at the same account/device address cannot decrypt the old archive (18.282145ms)
+✔ pre-key replenishment retains outstanding private keys and delayed messages remain decryptable (11.031533ms)
+✔ invalid signatures are rejected before a new session is established (9.444757ms)
+✔ file encryption uses official AES-256-GCM-SIV and authenticates ciphertext, nonce, key and associated data (3.552832ms)
+ℹ tests 27
+ℹ suites 0
+ℹ pass 27
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 10793.615738

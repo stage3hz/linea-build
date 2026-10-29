@@ -1,0 +1,40 @@
+{
+  "scope": "Seven pure image/container parsers; exact copies compared with the files used in isolated quality runs. This is not a whole-application quality claim.",
+  "sources": {
+    "mobile/src/photo/png.ts": {
+      "sha256": "312a6fedfd30e420652361a1e7c96e8f086a7913adcf17e983c8b68eb2a231a5",
+      "bytes": 9146,
+      "matchesTestedStaging": true
+    },
+    "mobile/src/photo/pngHdr.ts": {
+      "sha256": "ec120e287886aa9e22a6983c6ce81920eb1128a9a8a96af0fad4485a2cc424e0",
+      "bytes": 1432,
+      "matchesTestedStaging": true
+    },
+    "mobile/src/photo/exifOrientation.ts": {
+      "sha256": "fa93c03f4b0bd633d3ace747e8827e88315d33f22c31c896ad1f9118a92eb99e",
+      "bytes": 1150,
+      "matchesTestedStaging": true
+    },
+    "mobile/src/photo/jpeg.ts": {
+      "sha256": "2955cee891ada7e25bea47f22466423c442fa1061a48b16593c6edd1fafe6e07",
+      "bytes": 5027,
+      "matchesTestedStaging": true
+    },
+    "mobile/src/media/mp4.ts": {
+      "sha256": "5c5ebceeeb8b7dbca7d6e66101c92ea8c94db2d8a21674604739d97fb050489f",
+      "bytes": 20822,
+      "matchesTestedStaging": true
+    },
+    "mobile/src/media/mp4Boxes.ts": {
+      "sha256": "eb6c1cbf1d0135f1dd53dafbedc523ca179a401d6fd55937f79b41e19113ea66",
+      "bytes": 2427,
+      "matchesTestedStaging": true
+    },
+    "mobile/src/media/mp4Samples.ts": {
+      "sha256": "20cc60d15258cf1282ef861177f4d6e971c2a404f9c1fa21be02867c6bfcfebd",
+      "bytes": 5901,
+      "matchesTestedStaging": true
+    }
+  }
+}

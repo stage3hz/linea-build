@@ -1,0 +1,227 @@
+{
+  "decoder": "Pillow",
+  "version": "12.3.0",
+  "cases": [
+    {
+      "name": "rgba-partial-alpha",
+      "width": 2,
+      "height": 2,
+      "expected": [
+        [
+          255,
+          0,
+          0,
+          0
+        ],
+        [
+          0,
+          255,
+          0,
+          127
+        ],
+        [
+          0,
+          0,
+          255,
+          255
+        ],
+        [
+          40,
+          80,
+          120,
+          254
+        ]
+      ],
+      "idempotent": true,
+      "hasAlpha": true,
+      "removedChunks": [
+        "tEXt"
+      ],
+      "decodedPixels": [
+        [
+          255,
+          0,
+          0,
+          0
+        ],
+        [
+          0,
+          255,
+          0,
+          127
+        ],
+        [
+          0,
+          0,
+          255,
+          255
+        ],
+        [
+          40,
+          80,
+          120,
+          254
+        ]
+      ],
+      "sourceMatchesOutputAndExpected": true,
+      "beforeMetadataKeys": [
+        "Author"
+      ],
+      "afterMetadataKeys": [],
+      "sha256": {
+        "rgba-partial-alpha-before.png": "0b8453494ca320105f1619792a1708955a23eca410df3c4c95f39dc2b84f3546",
+        "rgba-partial-alpha-after.png": "0eec901009ab44834d7aaf4e37d2ec9d0aabcf6162cd3735b62456e4ba2394c9"
+      }
+    },
+    {
+      "name": "indexed-partial-transparency",
+      "width": 2,
+      "height": 1,
+      "expected": [
+        [
+          255,
+          0,
+          0,
+          0
+        ],
+        [
+          0,
+          255,
+          0,
+          255
+        ]
+      ],
+      "idempotent": true,
+      "hasAlpha": true,
+      "removedChunks": [
+        "tEXt"
+      ],
+      "decodedPixels": [
+        [
+          255,
+          0,
+          0,
+          0
+        ],
+        [
+          0,
+          255,
+          0,
+          255
+        ]
+      ],
+      "sourceMatchesOutputAndExpected": true,
+      "beforeMetadataKeys": [
+        "Author",
+        "transparency"
+      ],
+      "afterMetadataKeys": [
+        "transparency"
+      ],
+      "sha256": {
+        "indexed-partial-transparency-before.png": "08759d9f95445ea5f619977713ae9744dd84a760086ebc42d6aa39632963684e",
+        "indexed-partial-transparency-after.png": "2369e2b4c8f69408db8fc3dc709e5447fa004870a334650babf98e059d3e756e"
+      }
+    },
+    {
+      "name": "grayscale-transparency",
+      "width": 2,
+      "height": 1,
+      "expected": [
+        [
+          123,
+          123,
+          123,
+          0
+        ],
+        [
+          124,
+          124,
+          124,
+          255
+        ]
+      ],
+      "idempotent": true,
+      "hasAlpha": true,
+      "removedChunks": [
+        "tEXt"
+      ],
+      "decodedPixels": [
+        [
+          123,
+          123,
+          123,
+          0
+        ],
+        [
+          124,
+          124,
+          124,
+          255
+        ]
+      ],
+      "sourceMatchesOutputAndExpected": true,
+      "beforeMetadataKeys": [
+        "Author",
+        "transparency"
+      ],
+      "afterMetadataKeys": [
+        "transparency"
+      ],
+      "sha256": {
+        "grayscale-transparency-before.png": "6389d123c0cd3e5bfc6a7650ef23d31cb735b3b4791a5130a32aff193bf514bf",
+        "grayscale-transparency-after.png": "3369bab3d346d59b04b75842099e8547c103911629f68594336b080786143590"
+      }
+    },
+    {
+      "name": "truecolor-transparency",
+      "width": 2,
+      "height": 1,
+      "expected": [
+        [
+          20,
+          40,
+          60,
+          0
+        ],
+        [
+          20,
+          40,
+          61,
+          255
+        ]
+      ],
+      "idempotent": true,
+      "hasAlpha": true,
+      "removedChunks": [
+        "tEXt"
+      ],
+      "decodedPixels": [
+        [
+          20,
+          40,
+          60,
+          0
+        ],
+        [
+          20,
+          40,
+          61,
+          255
+        ]
+      ],
+      "sourceMatchesOutputAndExpected": true,
+      "beforeMetadataKeys": [
+        "Author",
+        "transparency"
+      ],
+      "afterMetadataKeys": [
+        "transparency"
+      ],
+      "sha256": {
+        "truecolor-transparency-before.png": "ee2dcb5e4e43e11d391baa0a9fb80bef73df4feaee61a50e9e63b02a3a06327a",
+        "truecolor-transparency-after.png": "c1f64a26d9c3363b9dc7509d4ec4091a18eac19330b9d72bb069475f5a73eeab"
+      }
+    }
+  ]
+}

@@ -1,0 +1,68 @@
+Command: node --test --test-isolation=none test/photo-editor.test.mjs test/attachment*.test.mjs test/ai*.test.mjs test/theme-preference.test.mjs test/status-emoji.test.mjs
+Working directory: mobile
+Exit code: 0
+
+✔ tool availability comes from validated capability flags and missing or malformed flags are rejected (1.814091ms)
+✔ a code task preview contains the exact outgoing request and explicitly limits the task to a text answer (1.334611ms)
+✔ the code-task instruction counts toward the message limit and cannot silently truncate the task (0.462819ms)
+✔ without an explicit AI consent no question leaves the conversation (0.556687ms)
+✔ wire history contains only successful AI turns and the explicit current question (0.283375ms)
+✔ history refuses limits without silently dropping or truncating earlier text (0.708843ms)
+✔ a successful answer records the actual model and sends no extra fields or system prompt (0.639625ms)
+✔ retry reuses the failed question without duplicate user turns (0.437209ms)
+✔ cancellation aborts the request and a late answer cannot change the cancelled turn (0.494258ms)
+✔ revoking consent aborts the active question and prevents retry until allowed again (0.689679ms)
+✔ new conversation removes its history and ignores the previous in-flight answer (0.304486ms)
+✔ unmount/logout closes the session, clears text and consent, and ignores late failures (0.245544ms)
+✔ double send during one in-flight request cannot create a second request (0.135556ms)
+✔ unconfigured status is honest and a paid or malformed response is rejected (0.247015ms)
+✔ a partial batch failure retains only unfinished items and retry does not upload the successful file twice (0.674877ms)
+✔ a resolved original from a closed or different chat never starts an upload (0.219556ms)
+✔ closing during an upload does not continue the rest of the queue or update a new selection (0.195995ms)
+✔ an owned original copy is disposed when its resolution finishes after the panel closes (0.205723ms)
+✔ an owned original copy is disposed on upload failure while the selected item remains for retry (0.242341ms)
+✔ corner multi-selection keeps tap order, removes on second tap, and can add again at the end (0.294003ms)
+✔ file picker merges without duplicate selection or changing previous tap order (0.098839ms)
+✔ selection cap fails before dropping any previous or newly picked file (0.590055ms)
+✔ existing drafts reduce available selection capacity, while removing a selected item is always possible (0.340192ms)
+✔ adjacent pages merge unique asset ids while refreshing metadata in place (0.150644ms)
+✔ video duration uses milliseconds from SDK57 and formats long clips correctly (0.147145ms)
+✔ visible video requests share one thumbnail and dispose only generated cache files (0.404431ms)
+✔ closing a panel during decoding deletes the late thumbnail and skips queued videos (0.62474ms)
+✔ a thumbnail generator returning the original URI cannot cause deletion of the original (0.469769ms)
+✔ landscape preview maps the visible photograph, excluding letterbox gutters (0.259097ms)
+✔ portrait preview preserves aspect ratio and rejects invalid coordinates (0.081806ms)
+✔ dragging a crop in reverse or beyond the photograph keeps a valid normalized frame (0.143079ms)
+✔ portrait crop presets describe pixel aspect ratio rather than normalized-coordinate aspect ratio (0.118283ms)
+✔ plain PNG keeps 12 MP; effects explicitly predict the reduced source and output (0.150496ms)
+✔ 2x scaling describes the reduced processing base when the output cap applies (0.067246ms)
+✔ cropping uses outward pixel bounds before halving each side (0.096959ms)
+✔ explicit 50% resolution is not hidden downsampling and precedes 2x enlargement (0.049243ms)
+✔ 4x enlargement respects the output cap and requests further reduction consent (0.054326ms)
+✔ image MIME and photo extensions from the file picker enter the editor (1.33481ms)
+✔ brush sampling avoids redundant points and respects the UI point budget (0.209036ms)
+✔ a result for previous settings is disposed and cannot be submitted (1.087592ms)
+✔ closing during rendering disposes the eventual result instead of reviving the editor (0.158962ms)
+✔ an upload lease keeps the exact preview alive until the consumer finishes (0.195933ms)
+✔ replacement and repeated close dispose each unleased preview once (0.099166ms)
+✔ status is empty by default; an active, known emoji with a finite future expiry is visible (76.33042ms)
+✔ expired, unknown and null expiry never keep a cached status visible (8.463023ms)
+✔ expiry scheduling is bounded for native timers and stops when hidden (6.404454ms)
+✔ first launch follows the system and preserves the previous navy dark default (41.879612ms)
+✔ all manual modes survive storage round trips; black does not revert to system (151.667555ms)
+✔ invalid preferences recover to system with navy rather than an unknown palette (15.402621ms)
+✔ manual appearance ignores OS changes while automatic mode uses the selected dark variant (3.409042ms)
+(node:2) [MODULE_TYPELESS_PACKAGE_JSON] Warning: Module type of file:///workspace/scratch/f1956a5cefad/linea-messenger/mobile/src/ai/conversation.ts is not specified and it doesn't parse as CommonJS.
+Reparsing as ES module because module syntax was detected. This incurs a performance overhead.
+To eliminate this warning, add "type": "module" to /workspace/scratch/f1956a5cefad/linea-messenger/mobile/package.json.
+(Use `node --trace-warnings ...` to show where the warning was created)
+✔ rapid preference writes are ordered and a rejected save does not block later saves (29.281997ms)
+✔ black has an RGB-zero base and neutral glass; the existing navy palette is retained (33.423408ms)
+ℹ tests 52
+ℹ suites 0
+ℹ pass 52
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 833.592983

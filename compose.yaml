@@ -1,0 +1,18 @@
+services:
+  api:
+    build: ./server
+    restart: unless-stopped
+    ports:
+      - "3001:3001"
+    environment:
+      NODE_ENV: production
+      HOST: 0.0.0.0
+      PORT: 3001
+      DATA_DIR: /data
+      LOG_LEVEL: info
+      OPENROUTER_API_KEY: ${OPENROUTER_API_KEY:-}
+    volumes:
+      - linea-data:/data
+
+volumes:
+  linea-data:

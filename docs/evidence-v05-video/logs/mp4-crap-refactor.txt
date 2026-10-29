@@ -1,0 +1,71 @@
+CRAP Report
+===========
+Languages: typescript
+
+Function                       Namespace                             CC    Cov%     CRAP
+----------------------------------------------------------------------------------------
+color                          media.mp4                              6  20.0%     24.4
+staticHdr                      media.mp4                              6  20.0%     24.4
+groupDescriptions              media.mp4                              5  20.0%     17.8
+readSampleRun                  media.mp4Samples                       6  33.3%     16.7
+descriptor                     media.mp4                              5  33.3%     12.4
+masteringDisplay               media.mp4                              5  33.3%     12.4
+contentLight                   media.mp4                              3   0.0%     12.0
+readBox                        media.mp4Boxes                         7  60.0%     10.1
+timedSamples                   media.mp4Samples                       7  60.0%     10.1
+cleanMediaGaps                 media.mp4Samples                       8  71.4%      9.5
+sampleRanges                   media.mp4Samples                       8  71.4%      9.5
+topLevel                       media.mp4                              8  72.7%      9.3
+leaf                           media.mp4                              9  86.7%      9.2
+aacBaseLength                  media.mp4                              6  57.1%      8.8
+dataReferences                 media.mp4                              5  50.0%      8.1
+syncDescriptor                 media.mp4                              5  50.0%      8.1
+validateEsRoot                 media.mp4                              5  50.0%      8.1
+visualEntry                    media.mp4                              5  50.0%      8.1
+sampleSizes                    media.mp4Samples                       5  50.0%      8.1
+walk                           media.mp4                              7  72.7%      8.0
+chunkOffsets                   media.mp4Samples                       4  40.0%      7.5
+codecChildren                  media.mp4                              6  66.7%      7.3
+validateTrack                  media.mp4                              6  66.7%      7.3
+requiredChildren               media.mp4                              7  88.9%      7.1
+colorRange                     media.mp4                              7 100.0%      7.0
+sampleDescription              media.mp4                              6  71.4%      6.8
+validateCodecChild             media.mp4                              5  60.0%      6.6
+aacConfig                      media.mp4                              6  80.0%      6.3
+sampleRuns                     media.mp4Samples                       6  80.0%      6.3
+sampleTable                    media.mp4                              6  88.9%      6.0
+codecChild                     media.mp4                              6  90.0%      6.0
+decoderConfig                  media.mp4                              6 100.0%      6.0
+validateDependencies           media.mp4Samples                       6 100.0%      6.0
+fileType                       media.mp4                              5  66.7%      5.9
+assignHdr                      media.mp4                              5  71.4%      5.6
+validateSampleTables           media.mp4Samples                       5  71.4%      5.6
+mediaHeader                    media.mp4                              5  87.5%      5.0
+codecConfiguration             media.mp4                              4  60.0%      5.0
+sampleGroup                    media.mp4                              4  60.0%      5.0
+videoTrack                     media.mp4                              4  66.7%      4.6
+tableCount                     media.mp4Boxes                         3  50.0%      4.1
+validSampleSize                media.mp4Samples                       3  50.0%      4.1
+visit                          media.mp4                              4  83.3%      4.1
+aacExtension                   media.mp4                              4 100.0%      4.0
+visitRoot                      media.mp4                              4 100.0%      4.0
+boxes                          media.mp4Boxes                         4 100.0%      4.0
+need                           media.mp4Boxes                         4 100.0%      4.0
+validateSync                   media.mp4Samples                       4 100.0%      4.0
+sizesInChunk                   media.mp4Samples                       3  66.7%      3.3
+handler                        media.mp4                              3 100.0%      3.0
+sanitizeMp4                    media.mp4                              3 100.0%      3.0
+validateHdrColor               media.mp4                              3 100.0%      3.0
+fullBox                        media.mp4Boxes                         3 100.0%      3.0
+audioEntry                     media.mp4                              2  50.0%      2.5
+dates                          media.mp4                              2 100.0%      2.0
+clearMediaHeader               media.mp4                              1 100.0%      1.0
+clearMovieHeader               media.mp4                              1 100.0%      1.0
+clearTrackHeader               media.mp4                              1 100.0%      1.0
+elementaryStream               media.mp4                              1 100.0%      1.0
+isoText                        media.mp4Boxes                         1 100.0%      1.0
+isoView                        media.mp4Boxes                         1 100.0%      1.0
+mp4Fail                        media.mp4Boxes                         1 100.0%      1.0
+zeroBox                        media.mp4Boxes                         1 100.0%      1.0
+Wrote /tmp/linea-mp4-quality/project/.metrics/crap.edn
+CRAP threshold exceeded: 24.4 > 10.0

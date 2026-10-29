@@ -1,0 +1,11 @@
+✔ release requires HTTPS even for local endpoints and a mistakenly enabled development flag (162.721962ms)
+✔ a debug runtime still requires explicit opt-in before local HTTP is accepted (39.148948ms)
+✔ explicit development HTTP is limited to local endpoints and never permits URL credentials or tokens (34.204001ms)
+ℹ tests 3
+ℹ suites 0
+ℹ pass 3
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 569.993695

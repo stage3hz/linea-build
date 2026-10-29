@@ -1,0 +1,6 @@
+Scope: server/package.json, server/package-lock.json, mobile/package.json, mobile/package-lock.json
+Compared before and after npm audit / offline Expo install --check: identical SHA-256 values.
+e601575b4878ca55126ef6c8362c9a27fcaba8da975c9cc52a50267ed9d72637  server/package.json
+8669c01c53d7f49fa873ceb0f31f0d9f2a40bac94d668f109b97eba29f8a5161  server/package-lock.json
+38140420d1f3cbe65dee0f701174861da387d8c55601def4bc780b1d3578153f  mobile/package.json
+136cb2079bb3436804e607c8aa9142e038ac11b383686fffd92dfdb334c23f58  mobile/package-lock.json

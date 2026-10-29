@@ -1,0 +1,20 @@
+{
+  "cli": { "version": ">= 16.0.0", "appVersionSource": "remote" },
+  "build": {
+    "preview": {
+      "distribution": "internal",
+      "env": { "APP_ENV": "development" },
+      "android": { "buildType": "apk" }
+    },
+    "simulator": {
+      "distribution": "internal",
+      "env": { "APP_ENV": "development" },
+      "ios": { "simulator": true }
+    },
+    "production": {
+      "autoIncrement": true,
+      "env": { "APP_ENV": "production" }
+    }
+  },
+  "submit": { "production": {} }
+}

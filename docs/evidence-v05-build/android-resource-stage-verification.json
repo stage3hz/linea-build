@@ -1,0 +1,18 @@
+[
+  {
+    "path": "mobile/android/app/build/intermediates/linked_resources_binary_format/release/processReleaseResources/linked-resources-binary-format-release.ap_",
+    "exists": true,
+    "sizeBytes": 706646,
+    "error": "File is not a zip file"
+  },
+  {
+    "path": "mobile/android/app/build/intermediates/optimized_processed_res/release/optimizeReleaseResources/resources-release-optimize.ap_",
+    "exists": true,
+    "sizeBytes": 4827288,
+    "crcError": null,
+    "entryCount": 1302,
+    "hasManifest": true,
+    "hasResourceTable": true,
+    "svgCount": 2
+  }
+]

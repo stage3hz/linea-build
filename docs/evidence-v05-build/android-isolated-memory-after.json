@@ -1,0 +1,10 @@
+{
+  "utc": "2026-10-28T10:05:05.618478+00:00",
+  "gradleExitCode": 0,
+  "cgroup": {
+    "memory.events": "low 0\nhigh 0\nmax 306064\noom 2\noom_kill 1\noom_group_kill 0",
+    "memory.current": "6471663616",
+    "memory.max": "8589934592",
+    "memory.peak": "8592691200"
+  }
+}

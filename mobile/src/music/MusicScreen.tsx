@@ -1,0 +1,238 @@
+import React, { useEffect, useMemo, useRef, useState } from 'react';
+import { ActivityIndicator, Alert, FlatList, Image, Linking, Platform, Pressable, ScrollView, View } from 'react-native';
+import { Text, TextInput } from '../typography';
+import { LinearGradient } from 'expo-linear-gradient';
+import { Button, Empty, Icon, IconButton, Notice, Sheet, SheetAction, type IconName } from '../components';
+import { GlassSurface } from '../glass';
+import { useTheme } from '../theme';
+import { MUSIC_MOODS, searchMusic } from './api';
+import { useMusic } from './MusicProvider';
+import { MiniPlayer, PlayerControls } from './PlayerControls';
+import type { MusicTrack } from './types';
+
+type Section = 'catalog' | 'favorites' | 'saved';
+const sections: { id: Section; label: string }[] = [
+  { id: 'catalog', label: 'Обзор' },
+  { id: 'favorites', label: 'Любимое' },
+  { id: 'saved', label: 'Мои файлы' },
+];
+
+export function MusicScreen({ onBack }: { onBack: () => void }) {
+  const t = useTheme();
+  const music = useMusic();
+  const [section, setSection] = useState<Section>('catalog');
+  const [input, setInput] = useState('');
+  const [query, setQuery] = useState('');
+  const [mood, setMood] = useState<string | undefined>();
+  const [downloadableOnly, setDownloadableOnly] = useState(true);
+  const [tracks, setTracks] = useState<MusicTrack[]>([]);
+  const [nextOffset, setNextOffset] = useState<number | null>(null);
+  const [loading, setLoading] = useState(false);
+  const [loadingMore, setLoadingMore] = useState(false);
+  const [error, setError] = useState('');
+  const [revision, setRevision] = useState(0);
+  const [infoOpen, setInfoOpen] = useState(false);
+  const [playerOpen, setPlayerOpen] = useState(false);
+  const [actionTrack, setActionTrack] = useState<MusicTrack | null>(null);
+  const generation = useRef(0);
+  const paginationBusy = useRef(false);
+
+  useEffect(() => {
+    const timer = setTimeout(() => setQuery(input.trim()), 450);
+    return () => clearTimeout(timer);
+  }, [input]);
+
+  useEffect(() => {
+    const request = ++generation.current;
+    paginationBusy.current = false;
+    setLoadingMore(false);
+    if (section !== 'catalog') { setLoading(false); return; }
+    setLoading(true); setError(''); setNextOffset(null); setTracks([]);
+    searchMusic({ query, mood, downloadableOnly, limit: 24, offset: 0 })
+      .then(result => {
+        if (generation.current !== request) return;
+        setTracks(result.tracks); setNextOffset(result.nextOffset);
+      })
+      .catch(reason => {
+        if (generation.current === request) setError(reason instanceof Error ? reason.message : 'Не удалось найти музыку.');
+      })
+      .finally(() => { if (generation.current === request) setLoading(false); });
+    return () => { generation.current++; };
+  }, [section, query, mood, downloadableOnly, revision]);
+
+  const more = async () => {
+    if (nextOffset === null || loading || paginationBusy.current) return;
+    paginationBusy.current = true; setLoadingMore(true); setError('');
+    const request = generation.current;
+    try {
+      const result = await searchMusic({ query, mood, downloadableOnly, limit: 24, offset: nextOffset });
+      if (generation.current !== request) return;
+      setTracks(previous => {
+        const known = new Set(previous.map(track => track.id));
+        return [...previous, ...result.tracks.filter(track => !known.has(track.id))];
+      });
+      setNextOffset(result.nextOffset);
+    } catch (reason) {
+      if (generation.current === request) setError(reason instanceof Error ? reason.message : 'Не удалось загрузить следующие треки.');
+    } finally {
+      if (generation.current === request) { paginationBusy.current = false; setLoadingMore(false); }
+    }
+  };
+
+  const rows = useMemo(() => {
+    if (section === 'catalog') return tracks;
+    const source = section === 'favorites' ? music.favorites : music.saved;
+    const needle = query.toLocaleLowerCase();
+    return needle ? source.filter(track => `${track.title} ${track.artist}`.toLocaleLowerCase().includes(needle)) : source;
+  }, [section, tracks, music.favorites, music.saved, query]);
+
+  const openLink = (url: string) => {
+    void Linking.openURL(url).catch(() => {
+      if (Platform.OS === 'web') setError('Не удалось открыть ссылку. Проверь настройки браузера.');
+      else Alert.alert('Ссылка не открылась', 'Попробуй ещё раз.');
+    });
+  };
+  const begin = (track: MusicTrack) => { void music.play(track, rows); };
+  const favoriteIds = new Set(music.favorites.map(track => track.id));
+  const emptyTitle = section === 'saved' ? 'Свой звук' : section === 'favorites' ? 'Любимое будет здесь' : nextOffset !== null ? 'Посмотрим следующую страницу' : 'Попробуем другой запрос';
+  const emptyDescription = section === 'saved'
+    ? Platform.OS === 'web' ? 'Выбери аудиофайлы с устройства. В этой вкладке браузера они доступны до перезагрузки.' : 'Добавь аудиофайлы с устройства. Они останутся здесь и не загрузятся на сервер мессенджера.'
+    : section === 'favorites' ? 'Нажми на сердечко рядом с понравившимся треком.'
+    : nextOffset !== null ? 'На этой странице нет треков с выбранным доступом. Нажми «Показать ещё» или измени фильтры.'
+    : 'Измени название или настроение. Каталог Audius отличается от других музыкальных сервисов.';
+  const action = (fn: (track: MusicTrack) => void) => {
+    if (actionTrack) fn(actionTrack);
+    setActionTrack(null);
+  };
+
+  return <View style={{ flex: 1, width: '100%', maxWidth: 980, alignSelf: 'center' }}>
+    <GlassSurface radius={27} material="clear" style={{ margin: 14, marginBottom: 10 }} contentStyle={{ padding: 11, flexDirection: 'row', alignItems: 'center', gap: 10 }}>
+      <IconButton name="chevron-back" label="Вернуться к мессенджеру" onPress={onBack} />
+      <View style={{ flex: 1, gap: 3 }}>
+        <Text style={{ color: t.text, fontSize: 26, fontWeight: '800', letterSpacing: -1 }}>Музыка</Text>
+        <Text style={{ color: t.muted, fontSize: 11 }}>Audius и твои файлы</Text>
+      </View>
+      <IconButton name="add" label="Добавить аудиофайлы" disabled={music.importing} onPress={() => void music.importFiles()} />
+      <IconButton name="information-outline" label="О музыкальном разделе" onPress={() => setInfoOpen(true)} />
+    </GlassSurface>
+
+    <FlatList
+      data={rows}
+      keyExtractor={track => track.id}
+      keyboardShouldPersistTaps="handled"
+      contentContainerStyle={{ paddingHorizontal: 18, paddingBottom: 20, flexGrow: 1 }}
+      ListHeaderComponent={<View style={{ gap: 16, paddingBottom: 12 }}>
+        <GlassSurface radius={22} shadow={false} contentStyle={{ flexDirection: 'row', padding: 5, minHeight: 49 }}>
+          {sections.map(item => <Pressable key={item.id} accessibilityRole="tab" accessibilityState={{ selected: section === item.id }} onPress={() => setSection(item.id)} style={{ flex: 1, minHeight: 40, borderRadius: 17, alignItems: 'center', justifyContent: 'center', backgroundColor: section === item.id ? t.accentSoft : 'transparent', borderWidth: 1, borderColor: section === item.id ? t.glassBorder : 'transparent' }}>
+            <Text style={{ color: section === item.id ? t.accent : t.muted, fontSize: 12, fontWeight: '700' }}>{item.label}</Text>
+          </Pressable>)}
+        </GlassSurface>
+
+        {section === 'catalog' && !query ? <GlassSurface radius={27} contentStyle={{ padding: 22, gap: 9 }}>
+          <View style={{ position: 'absolute', right: 18, top: 20, opacity: .16, transform: [{ rotate: '-15deg' }] }}><Icon name="musical-notes" size={83} color={t.accent} /></View>
+          <Text style={{ color: t.accent, fontSize: 10, fontWeight: '800', letterSpacing: 1.8 }}>ТВОЙ РИТМ</Text>
+          <Text style={{ color: t.text, fontSize: 28, lineHeight: 33, fontWeight: '800', letterSpacing: -1, maxWidth: 260 }}>Что послушаем?</Text>
+          <Text style={{ color: t.muted, fontSize: 13, lineHeight: 19, maxWidth: 250 }}>Новые имена, любимый звук.{ '\n' }Выбери настроение — и включай.</Text>
+        </GlassSurface> : null}
+
+        <GlassSurface radius={21} shadow={false} contentStyle={{ minHeight: 51, flexDirection: 'row', alignItems: 'center', gap: 10, paddingHorizontal: 14 }}>
+          <Icon name="search-outline" size={20} color={t.muted} />
+          <TextInput accessibilityLabel="Поиск музыки" value={input} onChangeText={setInput} onSubmitEditing={() => setQuery(input.trim())} returnKeyType="search" autoCorrect={false} keyboardAppearance={t.dark ? 'dark' : 'light'} placeholder={section === 'saved' ? 'Поиск в моих файлах' : 'Трек или исполнитель'} placeholderTextColor={t.muted} selectionColor={t.accent} style={{ flex: 1, minWidth: 0, color: t.text, fontSize: 15, paddingVertical: 14 }} />
+          {input ? <Pressable accessibilityRole="button" accessibilityLabel="Очистить поиск музыки" onPress={() => { setInput(''); setQuery(''); }} style={{ minHeight: 44, minWidth: 32, alignItems: 'center', justifyContent: 'center' }}><Icon name="close-circle" size={19} color={t.muted} /></Pressable> : null}
+        </GlassSurface>
+
+        {section === 'catalog' ? <>
+          <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ gap: 8, paddingBottom: 2 }}>
+            <MoodChip label="Любое" icon="sparkles-outline" selected={!mood} onPress={() => setMood(undefined)} />
+            {MUSIC_MOODS.filter(item => item.apiMood).map(item => <MoodChip key={item.id} label={item.label} icon={item.icon as IconName} selected={mood === item.apiMood} onPress={() => setMood(mood === item.apiMood ? undefined : item.apiMood)} />)}
+          </ScrollView>
+          <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 12 }}>
+            <Text style={{ color: t.muted, fontSize: 10, fontWeight: '700', letterSpacing: 1.5 }}>{query ? 'РЕЗУЛЬТАТЫ' : 'ОТКРОЙ ДЛЯ СЕБЯ'}</Text>
+            <Pressable accessibilityRole="switch" accessibilityLabel="Только треки с разрешённым скачиванием" accessibilityState={{ checked: downloadableOnly }} onPress={() => setDownloadableOnly(value => !value)} style={{ minHeight: 44, flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+              <Icon name={downloadableOnly ? 'checkmark-circle' : 'ellipse-outline'} color={downloadableOnly ? t.accent : t.muted} size={19} />
+              <Text style={{ color: downloadableOnly ? t.accent : t.muted, fontSize: 12, fontWeight: '600' }}>Можно скачать</Text>
+            </Pressable>
+          </View>
+        </> : <View style={{ gap: 8 }}>
+          <Text style={{ color: t.muted, fontSize: 12, lineHeight: 18 }}>{section === 'saved' ? Platform.OS === 'web' ? 'В браузере добавленные файлы доступны до перезагрузки. На Android и iPhone они сохраняются в приложении для офлайн-прослушивания.' : 'Твои файлы на этом устройстве. Добавляй аудио через «+» и слушай без интернета.' : 'Треки, которые ты отметил сердцем. Для воспроизведения Audius нужен интернет.'}</Text>
+        </View>}
+        {music.error ? <Notice text={music.error} error /> : null}
+        {music.notice ? <Notice text={music.notice} /> : null}
+        {music.libraryLoading && section !== 'catalog' ? <ActivityIndicator color={t.accent} style={{ paddingVertical: 20 }} /> : null}
+        {error && section === 'catalog' ? <Notice text={error} error onRetry={() => setRevision(value => value + 1)} /> : null}
+        {loading && section === 'catalog' ? <View style={{ paddingVertical: 28, alignItems: 'center', gap: 11 }}><ActivityIndicator color={t.accent} /><Text style={{ color: t.muted, fontSize: 12 }}>Ищем музыку…</Text></View> : null}
+      </View>}
+      renderItem={({ item }) => <TrackRow track={item} active={music.current?.id === item.id} playing={music.current?.id === item.id && music.playing} favorite={favoriteIds.has(item.id)} onPlay={() => music.current?.id === item.id ? music.togglePlayback() : begin(item)} onFavorite={() => music.toggleFavorite(item)} onMore={() => setActionTrack(item)} />}
+      ListEmptyComponent={(section === 'catalog' ? !loading && !error : !music.libraryLoading) ? <Empty icon={section === 'saved' ? 'folder-open-outline' : section === 'favorites' ? 'heart-outline' : 'musical-notes-outline'} title={emptyTitle} description={emptyDescription} action={section === 'saved' ? <Button label="Добавить файлы" icon="add" loading={music.importing} onPress={() => void music.importFiles()} /> : undefined} /> : null}
+      ListFooterComponent={<View style={{ gap: 15, paddingTop: 12 }}>
+        {section === 'catalog' && nextOffset !== null && !loading ? <Button secondary label="Показать ещё" loading={loadingMore} onPress={() => void more()} /> : null}
+        {section === 'catalog' && rows.length > 0 ? <Text style={{ color: t.muted, fontSize: 10, lineHeight: 16, textAlign: 'center', paddingHorizontal: 12 }}>Музыка предоставлена авторами через Audius.{ '\n' }Скачивание — через сервис, когда автор его разрешил.</Text> : null}
+      </View>}
+    />
+
+    {music.current ? <MiniPlayer onOpen={() => setPlayerOpen(true)} /> : null}
+
+    <Sheet visible={playerOpen} title="Сейчас играет" onClose={() => setPlayerOpen(false)}>
+      <PlayerControls />
+      {music.current?.sourceUrl ? <SheetAction icon="open-outline" label="Страница автора и трека" description="Открыть в Audius" onPress={() => openLink(music.current!.sourceUrl!)} /> : null}
+    </Sheet>
+
+    <Sheet visible={!!actionTrack} title={actionTrack?.title || 'Трек'} onClose={() => setActionTrack(null)}>
+      {actionTrack ? <>
+        <Text style={{ color: t.muted, fontSize: 13, marginBottom: 8 }}>{actionTrack.artist}</Text>
+        <SheetAction icon="play" label="Слушать" onPress={() => action(begin)} />
+        <SheetAction icon={favoriteIds.has(actionTrack.id) ? 'heart-dislike-outline' : 'heart-outline'} label={favoriteIds.has(actionTrack.id) ? 'Убрать из любимого' : 'В любимое'} onPress={() => action(track => music.toggleFavorite(track))} />
+        {actionTrack.source === 'audius' && actionTrack.downloadable ? <SheetAction icon="download-outline" label="Скачать через Audius" description="Откроется официальная загрузка трека" onPress={() => action(track => { void music.download(track); })} /> : null}
+        {actionTrack.sourceUrl ? <SheetAction icon="open-outline" label="Открыть источник" description="Автор, трек и условия использования" onPress={() => action(track => openLink(track.sourceUrl!))} /> : null}
+        {actionTrack.source === 'local' ? <>
+          <SheetAction icon="share-outline" label="Поделиться файлом" onPress={() => action(track => { void music.exportSaved(track); })} />
+          <SheetAction icon="trash-outline" label="Убрать из приложения" description="Исходный файл на устройстве сохранится" danger onPress={() => action(track => { void music.removeSaved(track.id); })} />
+        </> : null}
+      </> : null}
+    </Sheet>
+
+    <Sheet visible={infoOpen} title="О музыке" onClose={() => setInfoOpen(false)}>
+      <View style={{ gap: 13 }}>
+        <Text style={{ color: t.text, fontSize: 14, lineHeight: 22 }}>Здесь доступны публичные треки Audius, которые авторы открыли для сторонних плееров. Инвиз не добавляет рекламу. Доступность и качество записи определяет источник; это не полный каталог Яндекс Музыки или SoundCloud.</Text>
+        <Text style={{ color: t.muted, fontSize: 13, lineHeight: 20 }}>Кнопка скачивания открывает официальный адрес Audius и появляется только при разрешении автора. Потоки не сохраняются в постоянный кэш приложения. Для личного офлайн-прослушивания можно добавить свои аудиофайлы через «+».</Text>
+        <Text style={{ color: t.muted, fontSize: 13, lineHeight: 20 }}>При поиске и прослушивании Audius получает запросы и сетевые данные соединения. Токен мессенджера туда не отправляется. Импортированные файлы остаются на устройстве.</Text>
+        <Text style={{ color: t.muted, fontSize: 11, lineHeight: 17 }}>Музыка принадлежит указанным авторам. Учитывай лицензию конкретного трека; для материалов Audius может применяться Open Music License или отдельная лицензия автора.</Text>
+      </View>
+      <SheetAction icon="document-text-outline" label="Условия Audius API" onPress={() => openLink('https://audius.co/documents/ApiTerms.pdf')} />
+      <SheetAction icon="shield-checkmark-outline" label="Конфиденциальность Audius" onPress={() => openLink('https://audius.co/documents/PrivacyPolicy.pdf')} />
+      <SheetAction icon="musical-note-outline" label="Open Music License" onPress={() => openLink('https://audius.org/open-music-license.pdf')} />
+    </Sheet>
+  </View>;
+}
+
+function MoodChip({ label, icon, selected, onPress }: { label: string; icon: IconName; selected: boolean; onPress: () => void }) {
+  const t = useTheme();
+  return <Pressable accessibilityRole="button" accessibilityState={{ selected }} onPress={onPress} style={{ minHeight: 62, minWidth: 100, paddingHorizontal: 16, paddingVertical: 11, gap: 5, justifyContent: 'center', borderRadius: 21, borderWidth: 1, borderColor: selected ? t.accent : t.glassBorder, backgroundColor: selected ? t.accentSoft : t.glassClear }}>
+    <Icon name={icon} size={18} color={selected ? t.accent : t.muted} />
+    <Text style={{ color: selected ? t.accent : t.text, fontSize: 11, fontWeight: '600' }}>{label}</Text>
+  </Pressable>;
+}
+
+function TrackArtwork({ track }: { track: MusicTrack }) {
+  const t = useTheme(); const [failed, setFailed] = useState(false);
+  useEffect(() => setFailed(false), [track.artworkUrl]);
+  return <View style={{ width: 53, height: 53, borderRadius: 17, overflow: 'hidden', borderWidth: 1, borderColor: t.glassBorder }}>
+    {track.artworkUrl && !failed ? <Image source={{ uri: track.artworkUrl }} style={{ width: '100%', height: '100%' }} onError={() => setFailed(true)} accessibilityLabel={`Обложка ${track.title}`} /> : <LinearGradient colors={t.accentGradient} style={{ flex: 1, alignItems: 'center', justifyContent: 'center' }}><Icon name="musical-note" color={t.onAccent} size={25} /></LinearGradient>}
+  </View>;
+}
+
+function TrackRow({ track, active, playing, favorite, onPlay, onFavorite, onMore }: { track: MusicTrack; active: boolean; playing: boolean; favorite: boolean; onPlay: () => void; onFavorite: () => void; onMore: () => void }) {
+  const t = useTheme();
+  return <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4, paddingVertical: 9, paddingHorizontal: 7, marginBottom: 4, borderRadius: 22, backgroundColor: active ? t.accentSoft : 'transparent', borderWidth: 1, borderColor: active ? t.glassBorder : 'transparent' }}>
+    <Pressable accessibilityRole="button" accessibilityLabel={`${playing ? 'Пауза' : 'Слушать'}: ${track.title}, ${track.artist}`} onPress={onPlay} style={{ flex: 1, minWidth: 0, flexDirection: 'row', alignItems: 'center', gap: 12, minHeight: 55 }}>
+      <View><TrackArtwork track={track} />{active ? <View style={{ position: 'absolute', bottom: -2, right: -2, width: 23, height: 23, borderRadius: 12, backgroundColor: t.accent, alignItems: 'center', justifyContent: 'center', borderWidth: 2, borderColor: t.bg }}><Icon name={playing ? 'pause' : 'play'} size={11} color={t.onAccent} /></View> : null}</View>
+      <View style={{ flex: 1, minWidth: 0, gap: 5 }}>
+        <Text numberOfLines={1} style={{ color: active ? t.accent : t.text, fontSize: 14, fontWeight: '700' }}>{track.title}</Text>
+        <Text numberOfLines={1} style={{ color: t.muted, fontSize: 12 }}>{track.artist}</Text>
+        <Text style={{ color: t.subtle, fontSize: 9, fontWeight: '600', letterSpacing: .2 }}>{track.source === 'local' ? 'НА УСТРОЙСТВЕ' : 'AUDIUS'}{track.duration > 0 ? ` · ${Math.floor(track.duration / 60)}:${String(Math.floor(track.duration % 60)).padStart(2, '0')}` : ''}</Text>
+      </View>
+    </Pressable>
+    <IconButton name={favorite ? 'heart' : 'heart-outline'} label={favorite ? `Убрать из любимого: ${track.title}` : `В любимое: ${track.title}`} color={favorite ? t.accent : t.muted} size={19} onPress={onFavorite} />
+    <IconButton name="ellipsis-horizontal" label={`Действия: ${track.title}`} color={t.muted} size={19} onPress={onMore} />
+  </View>;
+}

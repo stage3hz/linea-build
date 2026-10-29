@@ -1,0 +1,13 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<testsuite name="expo.modules.lineasignal.SignalCoreTest" tests="7" skipped="0" failures="0" errors="0" timestamp="2026-10-28T04:23:25.683Z" hostname="72be72b2ac54" time="1.596">
+  <properties/>
+  <testcase name="prekeyCapacityRejectsWithoutDeletingUnconsumedKeys" classname="expo.modules.lineasignal.SignalCoreTest" time="1.478"/>
+  <testcase name="authenticatedFilesRoundTripAndRejectTamperOrWrongAssociatedData" classname="expo.modules.lineasignal.SignalCoreTest" time="0.007"/>
+  <testcase name="tamperedMessageDoesNotConsumeValidState" classname="expo.modules.lineasignal.SignalCoreTest" time="0.053"/>
+  <testcase name="explicitIdentityTrustAndChangedKeyAreEnforced" classname="expo.modules.lineasignal.SignalCoreTest" time="0.009"/>
+  <testcase name="roundTripRatchetAndPersistedReplayProtection" classname="expo.modules.lineasignal.SignalCoreTest" time="0.018"/>
+  <testcase name="signaturesRejectTamperAndKyberReplayCannotMoveToAnotherAddress" classname="expo.modules.lineasignal.SignalCoreTest" time="0.01"/>
+  <testcase name="replenishingRetainsDelayedPrivateKeysAndOnlyPublishesFreshOnes" classname="expo.modules.lineasignal.SignalCoreTest" time="0.01"/>
+  <system-out><![CDATA[]]></system-out>
+  <system-err><![CDATA[]]></system-err>
+</testsuite>

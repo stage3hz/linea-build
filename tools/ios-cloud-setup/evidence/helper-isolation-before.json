@@ -1,0 +1,60 @@
+{
+  "syntheticTestIdentitiesOnly": true,
+  "results": [
+    {
+      "name": "baseline backups, hardening, no cloud actions, byte-preserving idempotency",
+      "passed": false,
+      "error": ""
+    },
+    {
+      "name": "synthetic public settings and app version persist without editing package",
+      "passed": true
+    },
+    {
+      "name": "foreign app baseline refused before backups",
+      "passed": true
+    },
+    {
+      "name": "foreign EAS baseline refused before backups",
+      "passed": true
+    },
+    {
+      "name": "later foreign app changes preserved and refused",
+      "passed": true
+    },
+    {
+      "name": "later EAS customization retained during public settings update",
+      "passed": true
+    },
+    {
+      "name": "malformed public flags and unknown/duplicate options fail before mutation",
+      "passed": true
+    },
+    {
+      "name": "modified privacy guard preserved and refused",
+      "passed": true
+    },
+    {
+      "name": "modified baseline backup preserved and refused",
+      "passed": true
+    },
+    {
+      "name": "symlink app config rejected",
+      "passed": true
+    },
+    {
+      "name": "existing lock blocks overwrite and is not removed",
+      "passed": true
+    },
+    {
+      "name": "unrelated package version rejected",
+      "passed": true
+    },
+    {
+      "name": "missing package version rejected",
+      "passed": true
+    }
+  ],
+  "passed": 12,
+  "total": 13
+}

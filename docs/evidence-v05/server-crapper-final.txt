@@ -1,0 +1,59 @@
+CRAP Report
+===========
+Languages: typescript
+
+Function                       Namespace                             CC    Cov%     CRAP
+----------------------------------------------------------------------------------------
+assistantText                  ai                                     8 100.0%      8.0
+bucketFor                      ai.AiBudget                            6  66.7%      7.3
+accessGuard                    ai                                     7  91.7%      7.0
+checkResponseHeaders           ai                                     7 100.0%      7.0
+boundedJson                    ai                                     6  90.0%      6.0
+chatHandler                    ai                                     6  90.0%      6.0
+messagesFrom                   ai                                     6 100.0%      6.0
+validStoredGrant               entitlements                           6 100.0%      6.0
+PATCH /me/status-emoji         username                               6 100.0%      6.0
+sweep                          ai.AiBudget                            3  33.3%      5.7
+checkZeroCost                  ai                                     5 100.0%      5.0
+retryAfter                     ai                                     5 100.0%      5.0
+singleChoice                   ai                                     5 100.0%      5.0
+validText                      ai                                     5 100.0%      5.0
+platinaState                   entitlements                           5 100.0%      5.0
+PATCH /me/username             username                               5 100.0%      5.0
+sendFailure                    ai                                     4  80.0%      4.1
+checkDeadline                  ai                                     4 100.0%      4.0
+checkKey                       ai                                     4 100.0%      4.0
+historyFrom                    ai                                     4 100.0%      4.0
+messageFrom                    ai                                     4 100.0%      4.0
+responseFailure                ai                                     4 100.0%      4.0
+reserve                        ai.AiBudget                            4 100.0%      4.0
+visibleStatus                  entitlements                           4 100.0%      4.0
+broadcastProfile               username                               4 100.0%      4.0
+withDeadline                   ai                                     3  85.7%      3.0
+allowedOrigin                  ai                                     3 100.0%      3.0
+capabilities                   ai                                     3 100.0%      3.0
+completion                     ai                                     3 100.0%      3.0
+excessiveLength                ai                                     3 100.0%      3.0
+modelId                        ai                                     3 100.0%      3.0
+originSet                      ai                                     3 100.0%      3.0
+record                         ai                                     3 100.0%      3.0
+validSessionSubject            ai                                     3 100.0%      3.0
+release                        ai.AiBudget                            3 100.0%      3.0
+mutateProfile                  username                               3 100.0%      3.0
+activeUser                     username                               2  50.0%      2.5
+answerFrom                     ai                                     2 100.0%      2.0
+checkDependencies              ai                                     2 100.0%      2.0
+onlyKeys                       ai                                     2 100.0%      2.0
+abortAll                       ai.AiBudget                            2 100.0%      2.0
+isStatusEmoji                  entitlements                           2 100.0%      2.0
+accountState                   username                               2 100.0%      2.0
+GET /ai/status                 ai                                     1 100.0%      1.0
+badAnswer                      ai                                     1 100.0%      1.0
+invalid                        ai                                     1 100.0%      1.0
+registerAiRoutes               ai                                     1 100.0%      1.0
+unavailable                    ai                                     1 100.0%      1.0
+constructor                    ai.AiBudget                            1 100.0%      1.0
+constructor                    ai.AiFailure                           1 100.0%      1.0
+GET /me/username               username                               1 100.0%      1.0
+installUsernameRoutes          username                               1 100.0%      1.0
+Wrote /tmp/linea-account-quality/.metrics/crap.edn

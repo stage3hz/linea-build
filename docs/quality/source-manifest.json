@@ -1,0 +1,134 @@
+{
+  "recordedAt": "2026-10-28T04:39:04.033292+00:00",
+  "tools": {
+    "crapper": {
+      "version": "0.1.0",
+      "commit": "6fd92c4c9bcc56efb64a2f8743d5a2993bcfd42d"
+    },
+    "dryer": {
+      "version": "0.1.0",
+      "commit": "66ff6d21a42c04afcad89c78a80066176d1294b0"
+    },
+    "mutator": {
+      "version": "0.1.0",
+      "commit": "a5a0cb803b66e0cdb8bf471b3b08af701d424a41"
+    }
+  },
+  "runtime": {
+    "python": "3.12.14",
+    "node": "24.22.1",
+    "tree-sitter": "0.26.0",
+    "tree-sitter-language-pack": "1.22.1"
+  },
+  "sha256": {
+    "mobile/App.tsx": "49e569dab3fe37261585a98031c1135cd214ae3aa773c769c4ae75ee6bc7b9b5",
+    "mobile/modules/linea-signal/android/src/main/java/expo/modules/lineasignal/LineSignalModule.kt": "1ce76482e24d3d6c9c7d8c55a7a1e396187f3a841d5d42ecd563773a35550a6b",
+    "mobile/modules/linea-signal/android/src/main/java/expo/modules/lineasignal/SignalCore.kt": "6d7f26b0f4f31a1372b5168d6eec752bf0dbee2a062d11cb423520bbec93ef8d",
+    "mobile/modules/linea-signal/android/src/test/java/expo/modules/lineasignal/SignalCoreTest.kt": "dc1d95e8b4273f44cd3caa1eaf1a7283e5e862374bca296ccf8e0f31620bdb36",
+    "mobile/modules/linea-signal/android/src/test/java/expo/modules/lineasignal/SignalInterop.kt": "7e92043f0a2d0866372729edee68d2a569be5f3dddf8ac5224d8ec9d7f32b6d6",
+    "mobile/modules/linea-signal/index.ts": "e2af8b16bd874eba276655e58972495a88503ab18658d2aaa7e809ab41ca170a",
+    "mobile/modules/linea-signal/ios/LineSignalModule.swift": "1cbbde50d6f20d4357033174394512613b54e4a7be926354682b6e3bb3a6d4e3",
+    "mobile/modules/linea-signal/ios/SignalCore.swift": "9923e01700180886f00e9efd565dfa203b48d633fbbbc014c7fc40692b955189",
+    "mobile/package.json": "ba436b5d78a56067f316d96823935ef97ee46ccdb860489aa09dc829bd6f43f8",
+    "mobile/src/AuthScreen.tsx": "e2f19ccc305a5c3218d2e62cd6c667ac7abde4936babdd33eaed8d1fa2f6a388",
+    "mobile/src/ChatListScreen.tsx": "ea24d42b13a13053f7c30b8badff587790a16af09237e9dd32a100d674fd23c9",
+    "mobile/src/ChatScreen.tsx": "921274f323513507b3a08e79541747178f8a5187c00705ff10a20a6cf2005408",
+    "mobile/src/PeopleScreen.tsx": "42c4ab19211ebdf5ab309836128c00209b9b23fe84de93d35733802ba0403a4f",
+    "mobile/src/ProfileScreen.tsx": "08bfe0489f991a146ed5bb87f3fa34b921f07c97c5c86569200ed3e4ef2f0971",
+    "mobile/src/RecoveryNotice.tsx": "a0ecd052d24dcaeef7cf21e0d61992114a22134681d8261b649706275f94e639",
+    "mobile/src/SecurityScreen.tsx": "3dfabe0496cf965c4ae24f4859b9393cd4fde0c66285e7900cdd1bd1c8bce20b",
+    "mobile/src/api.ts": "9a1accac9ce04113b37ec2ef83561f874a19f16d36295b783df835c3f643ea71",
+    "mobile/src/auth/ManualField.tsx": "0ac92ffb18315946a97c5e53e25cec019190624e9dddb053c0ec02e71f2f94ad",
+    "mobile/src/auth/manualEdit.ts": "ee233843c35ae7cddf10000c24b463dd9bf551dcc67f1cdde90c682014b0f326",
+    "mobile/src/auth/recoveryStorage.ts": "af62ec3765192d5d2ba6926cab5a9eedac0e16c96cdf011d1e7f9477f7cf707c",
+    "mobile/src/components.tsx": "21fd17a7b97bdc1b4c19a937917fc5e56782e967e741b2c739ae3f134256c97d",
+    "mobile/src/e2ee/EncryptedImage.tsx": "b904549c61fd043ad6a78ca7d237c1d389e807153a90dee798d38987a8afb7a5",
+    "mobile/src/e2ee/TrustSheet.tsx": "55cbfd6cc94235a8ae87265f67b3353f0505386de3e898834be81cfb90067808",
+    "mobile/src/e2ee/attachments.ts": "8df6027d1362109a10a078b88c9413c1eb116fb86fb3df567deac5c055a8c66e",
+    "mobile/src/e2ee/core.ts": "2c335a6b235b9d1199ed32f0667ffab54b01319ee3fcaeb07b42b5c2a4033bf8",
+    "mobile/src/e2ee/runtime.ts": "f9c9e0089e8ed99d0246bbf9c7dd2981e9642b6b99c7d813874a87e1868d55db",
+    "mobile/src/e2ee/signal.native.ts": "31269631f07677d3920c96cd6a35d536e3ac8a83b62560598cada97cc9c22a10",
+    "mobile/src/e2ee/signal.ts": "ed5bfba21a0f346f95a5c0e71d5ff990aadfe39455db22e77acc817c454a2c85",
+    "mobile/src/e2ee/types.ts": "32369ae746e9442561db37ce74786624c9707023fa8fc2961dc8c934f1741e06",
+    "mobile/src/e2ee/vault.native.ts": "e4b1e5398679bee85dc737627260fed4abdda1a8031eede7b38f4c9648d907a9",
+    "mobile/src/e2ee/vault.ts": "ef9074deefdf5f61baea47065a63ed3a888365c17e72f20a32cfa77c7c23d38b",
+    "mobile/src/glass.tsx": "0fdeffe289880093ea420f43e15905a0193c57298e4d8ac18ab82f26da340ede",
+    "mobile/src/music/MusicProvider.tsx": "e6123d0c14d83ea8b13876445ad94cb7e19638edd05cf777a57ee3aa50ff5c66",
+    "mobile/src/music/MusicScreen.tsx": "ecd995f709297ba1c577436baa423f1a38d1a2160873c864b5a86ce0843befc8",
+    "mobile/src/music/PlayerControls.tsx": "8234f997a8fb00723dc6a4b18790dbb2aa11e34add227964142e8775b788e92a",
+    "mobile/src/music/api.ts": "98ec5b3b90673281181e74249b3a6f57e36948900d62a7c2a9faa8ca7bb2eda3",
+    "mobile/src/music/catalog.ts": "a47de22fb2efe31c27ad43306864eb82ac74b58b0e3ad33b767ff999a71b6a2e",
+    "mobile/src/music/types.ts": "baa7100b37e187455df01749c1e75829b590934cd23b44bc16150c525315eda8",
+    "mobile/src/storage.ts": "e8b77a2da6280a7644669f6be92e6ad0c4da47fd97ba1d38efc75b3d6dce4426",
+    "mobile/src/theme.tsx": "1cc5f633a4fac2e5a32b6ffbcd1eb632733aa8c2feca25f9f4f264a0586183dd",
+    "mobile/src/types.ts": "f3a26f85014ca8e97027d1a1dffdffb9286abd877fd388f4dffeeab74bfdc457",
+    "mobile/src/useMessenger.ts": "84c5e2b61565f6d7fc66ff74f236ab38bcf902587a341c454f6f45201bcf477f",
+    "server/package.json": "da6d5e04af7d003c2fd5d67f7e80bc9723f60c801eb0eed25161b928e6b84548",
+    "server/src/app.js": "c0e083eb1826460eb960499a06443d29b469a8ef6337562c6be6caccb824d767",
+    "server/src/auth.js": "badeb6b177bce538b358af2fbecc089fc542daee68d5d711c6f621547b02c73b",
+    "server/src/database.js": "0e391c2193f2bb42a06de195f93afe852f75adbc0928117a01533c111300d957",
+    "server/src/e2ee.js": "f61840a32fd05d2e183cd16d941bcbfa7453c79c1d3f2acc069d8c71e53ef80c",
+    "server/src/index.js": "db5308ad5d0cf5dc611e6776f837774e293fa753f1580e8316122f395bbdfe02",
+    "server/src/schema.sql": "500126e90207f5572905d75255b2b611348f7fb675dc3225fa30ee2550070006",
+    "server/src/security.js": "496200a8c8bed3f24f30f2cf90d8cd964f038a4a6f7200d9d0655b77a9b39d95",
+    "server/test/auth-security.test.js": "ee5a5a00b52319d4a7651935b3a8e225b0fa3e0b04ff71aed49649409118231b",
+    "server/test/e2ee-relay.test.js": "5bad97c02d7ec5062b464b960a295151d1c30b89c28e0a2141945903fb06c55b",
+    "server/test/integration.test.js": "3bedc24324751b5b6e02368e5467abb580fcb2b805f0062f222ef58689813a57"
+  },
+  "mutationScope": {
+    "source": "server/src/e2ee.js",
+    "lines": [
+      20,
+      23,
+      24,
+      28,
+      32,
+      37,
+      40,
+      51,
+      53,
+      62,
+      63,
+      64,
+      65,
+      66,
+      68
+    ],
+    "selected": 39,
+    "killed": 37,
+    "survived": 2,
+    "otherSitesNotExecuted": 99
+  },
+  "serverGate": {
+    "tests": 45,
+    "passed": 45,
+    "failed": 0,
+    "skipped": 0,
+    "durationMs": 168506.122911,
+    "lineCoverage": 96.42,
+    "branchCoverage": 84.55,
+    "functionCoverage": 93.44
+  },
+  "crap": {
+    "functions": 70,
+    "below10": 49,
+    "atOrAbove10": 21,
+    "highest": 95.9039,
+    "exitCode": 2
+  },
+  "dryer": {
+    "threshold": 0.8,
+    "candidates": 1,
+    "highest": 0.84,
+    "scope": "mobile/src, mobile/App.tsx, mobile/modules: supported TypeScript/TSX only"
+  },
+  "provenanceUpdates": [
+    {
+      "recordedAt": "2026-10-28T04:48:10.106411+00:00",
+      "file": "mobile/package.json",
+      "previousSha256": "773172aaf7dd2d44667058bcec0a7601992939dd7022a936458663075b668636",
+      "currentSha256": "ba436b5d78a56067f316d96823935ef97ee46ccdb860489aa09dc829bd6f43f8",
+      "reason": "Packaging reconciliation: only npm test scripts changed (test-isolation=none plus explicit auth/e2ee commands); dependencies, version and production sources are unchanged. Runtime checks for these scripts are documented in TEST_REPORT.md. No new runtime execution was claimed by this manifest update."
+    }
+  ]
+}

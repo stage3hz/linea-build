@@ -1,0 +1,24 @@
+{
+  "testCount": 71,
+  "phase": "before scoped quality refactor",
+  "files": {
+    "server/src/ai.js": "6c488ec3300931bfd69c3974272060ee3ee28157dce19c7a1166f7751414dd18",
+    "server/src/app.js": "126c11c6e53ff8eda58df3f3d16745f2c61fc7edd4b21698027562d87e4b6163",
+    "server/src/auth.js": "063c8f11d201547b66f4f3f11e26fcbe4c0e2a13f08afcce07b29a9dc1a562fd",
+    "server/src/database.js": "a0c7863028614ba5aa58a7370c24bb973104b2c3036ef8a82da26026013aef3e",
+    "server/src/e2ee.js": "f61840a32fd05d2e183cd16d941bcbfa7453c79c1d3f2acc069d8c71e53ef80c",
+    "server/src/entitlements.js": "934de9ead7fd218aeb061f201ad35cbd0cf6059615072d3efaea6cd3f48fa684",
+    "server/src/index.js": "2ec0d96443b95ac1a980c37147b25493a3d58defc88188ab71c2a2093cb536c2",
+    "server/src/platina-admin.js": "9c60475ede747a4129801f3b4aa6c83a742a98e51fc86a501ffbe85c1ab8ea57",
+    "server/src/schema.sql": "82eb1274fb2cd57f220c5dc59ded61428522ef49b7217393ca0fb6fe6479359d",
+    "server/src/security.js": "496200a8c8bed3f24f30f2cf90d8cd964f038a4a6f7200d9d0655b77a9b39d95",
+    "server/src/username.js": "2953f9cd1026e8f137e01cd27f7818da798af2165eb233c2830b1a4695018c76",
+    "server/test/ai-app.test.js": "5d1f81fb18b2ad004ae19e1c54d714a6dc938a56b1503da94e78ce2e870bb102",
+    "server/test/ai.test.js": "a20977aa7364d6ea8bf19dec04cc0e8255a0a492a8c714354c61aa16e9bcf97c",
+    "server/test/auth-security.test.js": "ecc151bd84dd37362a834a08e8c61e3230d35c44b1f1c1fa83d9d9edf945186f",
+    "server/test/e2ee-relay.test.js": "af83240f402d956ac725f5fc8a770b21f8b48a4d01c88f1d48279c6b15129789",
+    "server/test/integration.test.js": "3bedc24324751b5b6e02368e5467abb580fcb2b805f0062f222ef58689813a57",
+    "server/test/username-search.test.js": "e1fb39068886354893925a219077dd8cfa3bff5815b566de84079f98db0d4f15",
+    "server/test/username.test.js": "66c876d1e331ac155df15050c7cb40f9ad5f11ad0930a49f8d8dcf39e66a284e"
+  }
+}

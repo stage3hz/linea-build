@@ -1,0 +1,13 @@
+{
+  "previousChangedFiles": [
+    "mobile/src/ProfileScreen.tsx"
+  ],
+  "newInputs": [
+    "mobile/src/PlatinaWordmark.tsx",
+    "mobile/assets/branding/platina-chrome.svg",
+    "mobile/assets/branding/platina-chrome-light.svg"
+  ],
+  "allOtherInputsMatchFullTestRun": true,
+  "frozenInputCount": 165,
+  "aggregateSha256": "be45eda17afd7afed27c30bc4f6fa971b348af3ac08137ee8c081fa8da3e8b51"
+}

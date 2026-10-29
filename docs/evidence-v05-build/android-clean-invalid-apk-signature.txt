@@ -1,0 +1,8 @@
+Exception in thread "main" com.android.apksig.apk.ApkFormatException: Missing AndroidManifest.xml
+	at com.android.apksig.ApkSigner.getAndroidManifestFromApk(ApkSigner.java:975)
+	at com.android.apksig.ApkVerifier.getAndroidManifestFromApk(ApkVerifier.java:1245)
+	at com.android.apksig.ApkVerifier.verifyAndGetMinSdkVersion(ApkVerifier.java:656)
+	at com.android.apksig.ApkVerifier.verify(ApkVerifier.java:196)
+	at com.android.apksig.ApkVerifier.verify(ApkVerifier.java:164)
+	at com.android.apksigner.ApkSignerTool.verify(ApkSignerTool.java:610)
+	at com.android.apksigner.ApkSignerTool.main(ApkSignerTool.java:97)

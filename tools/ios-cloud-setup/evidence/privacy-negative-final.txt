@@ -1,0 +1,18 @@
+- Creating native directory (./ios)
+✔ Created native directory
+- Updating package.json
+✔ Updated package.json | no changes
+- Running prebuild
+✖ Prebuild failed
+Error: [ios.finalized]: withIosFinalizedBaseMod: Linea privacy guard: NSLocation* declarations are forbidden.
+Error: [ios.finalized]: withIosFinalizedBaseMod: Linea privacy guard: NSLocation* declarations are forbidden.
+    at deny (/tmp/linea-ios-cloud-final-negative/mobile/.linea-ios-cloud-setup/withLocalPrivacy.cjs:22:33)
+    at checkInfo (/tmp/linea-ios-cloud-final-negative/mobile/.linea-ios-cloud-setup/withLocalPrivacy.cjs:26:69)
+    at /tmp/linea-ios-cloud-final-negative/mobile/.linea-ios-cloud-setup/withLocalPrivacy.cjs:77:12
+    at async action (/tmp/linea-v05-isolated/mobile/node_modules/@expo/config-plugins/build/plugins/withMod.js:197:23)
+    at async interceptingMod (/tmp/linea-v05-isolated/mobile/node_modules/@expo/config-plugins/build/plugins/withMod.js:102:21)
+    at async action (/tmp/linea-v05-isolated/mobile/node_modules/@expo/config-plugins/build/plugins/createBaseMod.js:58:21)
+    at async interceptingMod (/tmp/linea-v05-isolated/mobile/node_modules/@expo/config-plugins/build/plugins/withMod.js:102:21)
+    at async evalModsAsync (/tmp/linea-v05-isolated/mobile/node_modules/@expo/config-plugins/build/plugins/mod-compiler.js:203:25)
+    at async compileModsAsync (/tmp/linea-v05-isolated/mobile/node_modules/@expo/config-plugins/build/plugins/mod-compiler.js:120:10)
+    at async configureProjectAsync (/tmp/linea-v05-isolated/mobile/node_modules/expo/node_modules/@expo/cli/build/src/prebuild/configureProjectAsync.js:92:14)

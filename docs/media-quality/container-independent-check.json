@@ -1,0 +1,54 @@
+{
+  "before": {
+    "tags": {
+      "major_brand": "isom",
+      "minor_version": "512",
+      "compatible_brands": "isomiso2avc1mp41",
+      "creation_time": "2026-10-28T00:00:00.000000Z",
+      "title": "private-title",
+      "encoder": "Lavf60.16.100",
+      "location-eng": "+12.3456+065.4321/",
+      "location": "+12.3456+065.4321/"
+    },
+    "stream_tags": [
+      {
+        "creation_time": "2026-10-28T00:00:00.000000Z",
+        "language": "und",
+        "handler_name": "private-camera",
+        "vendor_id": "[0][0][0][0]",
+        "encoder": "Lavc60.31.102 libx264"
+      },
+      {
+        "creation_time": "2026-10-28T00:00:00.000000Z",
+        "language": "und",
+        "handler_name": "SoundHandler",
+        "vendor_id": "[0][0][0][0]"
+      }
+    ],
+    "decoded_hashes": {
+      "v:0": "e36130879d340d80a7e30f3d71f4e45ba0eef29403ff4afc5c8dc3ac0fe6bccc",
+      "a:0": "8c5b7ab063227df6ac8ce618b5c4071b3c942eace1a1b9ad18fbe5670eba39a6"
+    }
+  },
+  "after": {
+    "tags": {
+      "major_brand": "isom",
+      "minor_version": "0",
+      "compatible_brands": "isomiso2avc1mp41"
+    },
+    "stream_tags": [
+      {
+        "language": "und",
+        "vendor_id": "[0][0][0][0]"
+      },
+      {
+        "language": "und",
+        "vendor_id": "[0][0][0][0]"
+      }
+    ],
+    "decoded_hashes": {
+      "v:0": "e36130879d340d80a7e30f3d71f4e45ba0eef29403ff4afc5c8dc3ac0fe6bccc",
+      "a:0": "8c5b7ab063227df6ac8ce618b5c4071b3c942eace1a1b9ad18fbe5670eba39a6"
+    }
+  }
+}

@@ -1,0 +1,33 @@
+✔ MP4 sanitation zeroes personal tags, dates, handler/compressor names and unused media bytes (11.31025ms)
+✔ HDR color information is preserved exactly and inconsistent claims are refused (10.607058ms)
+✔ metadata tracks, external data references and unsupported codec entries fail closed (20.433185ms)
+✔ chunk offsets cannot point to metadata or beyond the media payload (0.769169ms)
+✔ truncated boxes, fragmented inputs, oversized files and unsupported atom trees are refused (2.451427ms)
+✔ dependency metadata must match the sample count and contain only defined bits (4.04577ms)
+✔ reserved CICP values and mismatched HDR primaries are refused (13.66383ms)
+✔ essential movie and track headers cannot be omitted (6.957736ms)
+✔ sample timing and sync tables are tied to the declared samples (2.205475ms)
+✔ static HDR payload has bounded chromaticity and luminance fields (1.098257ms)
+✔ AAC config permits only defined LC fields and cannot retain private trailing bytes (8.209674ms)
+ℹ tests 11
+ℹ suites 0
+ℹ pass 11
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 226.698259
+ℹ start of coverage report
+ℹ -----------------------------------------------------------------
+ℹ file             | line % | branch % | funcs % | uncovered lines
+ℹ -----------------------------------------------------------------
+ℹ mobile           |        |          |         | 
+ℹ  src             |        |          |         | 
+ℹ   media          |        |          |         | 
+ℹ    mp4.ts        |  98.02 |    71.37 |  100.00 | 69-70 73 96 137
+ℹ    mp4Boxes.ts   |  95.24 |    87.50 |  100.00 | 13-14
+ℹ    mp4Samples.ts | 100.00 |    68.52 |  100.00 | 
+ℹ -----------------------------------------------------------------
+ℹ all files        |  98.25 |    72.10 |  100.00 | 
+ℹ -----------------------------------------------------------------
+ℹ end of coverage report

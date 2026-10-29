@@ -1,0 +1,8 @@
+{:candidates [
+ {:score 0.842105263158
+  :language "typescript"
+  :left {:file "mobile/src/theme.tsx", :start-line 47, :end-line 52}
+  :right {:file "mobile/src/theme.tsx", :start-line 53, :end-line 58}
+  :left-nodes 98
+  :right-nodes 91}
+]}

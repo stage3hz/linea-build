@@ -1,0 +1,121 @@
+{
+  "passed": 8,
+  "total": 23,
+  "results": [
+    {
+      "name": "NSLocation property",
+      "expected": "refuse",
+      "passed": true
+    },
+    {
+      "name": "background location",
+      "expected": "refuse",
+      "passed": true
+    },
+    {
+      "name": "installed app query schemes",
+      "expected": "refuse",
+      "passed": true
+    },
+    {
+      "name": "explicit application groups",
+      "expected": "refuse",
+      "passed": true
+    },
+    {
+      "name": "explicit keychain groups",
+      "expected": "refuse",
+      "passed": true
+    },
+    {
+      "name": "missing Android overlay block",
+      "expected": "refuse",
+      "passed": true
+    },
+    {
+      "name": "UIFileSharingEnabled rejects true",
+      "expected": "refuse",
+      "passed": false
+    },
+    {
+      "name": "UIFileSharingEnabled rejects 1",
+      "expected": "refuse",
+      "passed": false
+    },
+    {
+      "name": "UIFileSharingEnabled rejects \"YES\"",
+      "expected": "refuse",
+      "passed": false
+    },
+    {
+      "name": "UIFileSharingEnabled rejects null",
+      "expected": "refuse",
+      "passed": false
+    },
+    {
+      "name": "LSSupportsOpeningDocumentsInPlace rejects true",
+      "expected": "refuse",
+      "passed": false
+    },
+    {
+      "name": "LSSupportsOpeningDocumentsInPlace rejects 1",
+      "expected": "refuse",
+      "passed": false
+    },
+    {
+      "name": "LSSupportsOpeningDocumentsInPlace rejects \"YES\"",
+      "expected": "refuse",
+      "passed": false
+    },
+    {
+      "name": "LSSupportsOpeningDocumentsInPlace rejects null",
+      "expected": "refuse",
+      "passed": false
+    },
+    {
+      "name": "missing Android QUERY_ALL_PACKAGES block",
+      "expected": "refuse",
+      "passed": false
+    },
+    {
+      "name": "missing Android PACKAGE_USAGE_STATS block",
+      "expected": "refuse",
+      "passed": false
+    },
+    {
+      "name": "missing Android MANAGE_EXTERNAL_STORAGE block",
+      "expected": "refuse",
+      "passed": false
+    },
+    {
+      "name": "missing Android READ_CONTACTS block",
+      "expected": "refuse",
+      "passed": false
+    },
+    {
+      "name": "missing Android WRITE_CONTACTS block",
+      "expected": "refuse",
+      "passed": false
+    },
+    {
+      "name": "missing Android READ_CALENDAR block",
+      "expected": "refuse",
+      "passed": false
+    },
+    {
+      "name": "missing Android WRITE_CALENDAR block",
+      "expected": "refuse",
+      "passed": false
+    },
+    {
+      "name": "ordinary audio mode with no shared entitlements",
+      "expected": "accept",
+      "passed": true
+    },
+    {
+      "name": "explicit boolean false for Documents sharing flags",
+      "expected": "accept",
+      "passed": true
+    }
+  ]
+}

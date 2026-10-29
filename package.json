@@ -1,0 +1,27 @@
+{
+  "name": "linea-messenger",
+  "version": "0.5.1",
+  "private": true,
+  "description": "Линия: приложение-мессенджер для Android и iPhone и собственный API-сервер",
+  "engines": {
+    "node": ">=24.0.0 <25"
+  },
+  "scripts": {
+    "setup": "node scripts/setup.mjs",
+    "server": "npm --prefix server start",
+    "mobile": "npm --prefix mobile start",
+    "web": "npm --prefix mobile run web",
+    "test": "npm --prefix server test",
+    "test:music": "npm --prefix mobile run test:music",
+    "typecheck": "npm --prefix mobile run typecheck",
+    "check": "npm run test && npm run test:music && npm run test:auth-fields && npm run test:dates && npm run test:photo && npm run test:media && npm run test:ai && npm run test:ui && npm run test:security && npm run typecheck",
+    "test:auth-fields": "npm --prefix mobile run test:auth-fields",
+    "test:e2ee": "npm --prefix mobile run test:e2ee",
+    "test:dates": "node --test --test-isolation=none mobile/test/theme-dates.test.mjs",
+    "test:photo": "npm --prefix mobile run test:photo",
+    "test:media": "npm --prefix mobile run test:media",
+    "test:ai": "npm --prefix mobile run test:ai",
+    "test:ui": "npm --prefix mobile run test:ui",
+    "test:security": "npm --prefix mobile run test:security"
+  }
+}

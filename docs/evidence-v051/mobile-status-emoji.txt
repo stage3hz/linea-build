@@ -1,0 +1,14 @@
+✔ status is empty by default; an active, known emoji with a finite future expiry is visible (124.778666ms)
+✔ expired, unknown and null expiry never keep a cached status visible (13.932275ms)
+✔ expiry scheduling is bounded for native timers and stops when hidden (13.324399ms)
+✔ an explicitly permanent server status stays visible without an expiry timer (9.040393ms)
+✔ permanent status requires an exact true marker and a null expiry (9.028543ms)
+✔ a refreshed revoked status and an unknown emoji never inherit permanent visibility (8.502329ms)
+ℹ tests 6
+ℹ suites 0
+ℹ pass 6
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 516.917164

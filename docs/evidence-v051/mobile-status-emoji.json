@@ -1,0 +1,12 @@
+{
+  "command": [
+    "node",
+    "--test",
+    "--test-isolation=none",
+    "test/status-emoji.test.mjs"
+  ],
+  "cwd": "mobile",
+  "exitCode": 0,
+  "elapsedSeconds": 0.589,
+  "log": "docs/evidence-v051/mobile-status-emoji.txt"
+}

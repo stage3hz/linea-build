@@ -1,0 +1,27 @@
+plugins {
+  id 'com.android.library'
+  id 'expo-module-gradle-plugin'
+}
+// React Native finalizes Android source/target to17. Use JDK21 to read the SDK
+// while emitting an Android wrapper compatible with RN's Java/Kotlin target.
+kotlin { jvmToolchain(21) }
+group = 'app.linea.signal'
+version = '0.3.0'
+repositories { maven { url 'https://build-artifacts.signal.org/libraries/maven/' } }
+android {
+  namespace 'expo.modules.lineasignal'
+  defaultConfig { minSdkVersion 26; versionCode 1; versionName '0.3.0' }
+  compileOptions {
+    sourceCompatibility JavaVersion.VERSION_17
+    targetCompatibility JavaVersion.VERSION_17
+    coreLibraryDesugaringEnabled true
+  }
+  kotlinOptions { jvmTarget = '17' }
+}
+dependencies {
+  implementation 'org.signal:libsignal-client:0.106.0'
+  implementation 'org.signal:libsignal-android:0.106.0'
+  coreLibraryDesugaring 'com.android.tools:desugar_jdk_libs:2.1.5'
+  testImplementation 'junit:junit:4.13.2'
+  testImplementation 'org.json:json:20250517'
+}

@@ -1,0 +1,137 @@
+WARNING: 115 covered mutations selected in mobile/src/photo/png.ts.
+Wrote /tmp/linea-photo-quality/project/.metrics/mutate/photo.png.edn
+KILLED    mobile/src/photo/png.ts:15 false -> true
+KILLED    mobile/src/photo/png.ts:19 0 -> 1
+SURVIVED  mobile/src/photo/png.ts:23 - -> +
+KILLED    mobile/src/photo/png.ts:23 < -> <=
+KILLED    mobile/src/photo/png.ts:24 + -> -
+KILLED    mobile/src/photo/png.ts:24 + -> -
+SURVIVED  mobile/src/photo/png.ts:25 > -> >=
+SURVIVED  mobile/src/photo/png.ts:25 || -> &&
+KILLED    mobile/src/photo/png.ts:25 > -> >=
+KILLED    mobile/src/photo/png.ts:26 + -> -
+KILLED    mobile/src/photo/png.ts:26 + -> -
+KILLED    mobile/src/photo/png.ts:27 delete !
+KILLED    mobile/src/photo/png.ts:28 + -> -
+KILLED    mobile/src/photo/png.ts:28 - -> +
+KILLED    mobile/src/photo/png.ts:28 !== -> ===
+KILLED    mobile/src/photo/png.ts:28 - -> +
+KILLED    mobile/src/photo/png.ts:29 + -> -
+KILLED    mobile/src/photo/png.ts:29 - -> +
+KILLED    mobile/src/photo/png.ts:33 !== -> ===
+KILLED    mobile/src/photo/png.ts:34 0 -> 1
+KILLED    mobile/src/photo/png.ts:36 delete !
+KILLED    mobile/src/photo/png.ts:36 ?. -> .
+KILLED    mobile/src/photo/png.ts:37 !== -> ===
+KILLED    mobile/src/photo/png.ts:37 0 -> 1
+KILLED    mobile/src/photo/png.ts:37 || -> &&
+KILLED    mobile/src/photo/png.ts:37 !== -> ===
+KILLED    mobile/src/photo/png.ts:37 0 -> 1
+KILLED    mobile/src/photo/png.ts:37 || -> &&
+KILLED    mobile/src/photo/png.ts:37 > -> >=
+KILLED    mobile/src/photo/png.ts:37 1 -> 0
+KILLED    mobile/src/photo/png.ts:42 < -> <=
+KILLED    mobile/src/photo/png.ts:42 1 -> 0
+KILLED    mobile/src/photo/png.ts:42 || -> &&
+KILLED    mobile/src/photo/png.ts:42 < -> <=
+KILLED    mobile/src/photo/png.ts:42 1 -> 0
+KILLED    mobile/src/photo/png.ts:42 || -> &&
+KILLED    mobile/src/photo/png.ts:42 > -> >=
+KILLED    mobile/src/photo/png.ts:42 || -> &&
+KILLED    mobile/src/photo/png.ts:42 > -> >=
+KILLED    mobile/src/photo/png.ts:42 || -> &&
+KILLED    mobile/src/photo/png.ts:42 * -> /
+KILLED    mobile/src/photo/png.ts:42 > -> >=
+KILLED    mobile/src/photo/png.ts:51 || -> &&
+KILLED    mobile/src/photo/png.ts:51 || -> &&
+KILLED    mobile/src/photo/png.ts:57 < -> <=
+SURVIVED  mobile/src/photo/png.ts:57 || -> &&
+KILLED    mobile/src/photo/png.ts:57 > -> >=
+SURVIVED  mobile/src/photo/png.ts:57 || -> &&
+KILLED    mobile/src/photo/png.ts:57 !== -> ===
+KILLED    mobile/src/photo/png.ts:57 0 -> 1
+KILLED    mobile/src/photo/png.ts:58 === -> !==
+KILLED    mobile/src/photo/png.ts:58 0 -> 1
+KILLED    mobile/src/photo/png.ts:58 || -> &&
+KILLED    mobile/src/photo/png.ts:58 === -> !==
+KILLED    mobile/src/photo/png.ts:59 / -> *
+KILLED    mobile/src/photo/png.ts:60 === -> !==
+KILLED    mobile/src/photo/png.ts:60 && -> ||
+KILLED    mobile/src/photo/png.ts:60 > -> >=
+KILLED    mobile/src/photo/png.ts:65 || -> &&
+KILLED    mobile/src/photo/png.ts:67 === -> !==
+KILLED    mobile/src/photo/png.ts:67 0 -> 1
+KILLED    mobile/src/photo/png.ts:67 === -> !==
+KILLED    mobile/src/photo/png.ts:67 === -> !==
+KILLED    mobile/src/photo/png.ts:67 === -> !==
+KILLED    mobile/src/photo/png.ts:67 === -> !==
+KILLED    mobile/src/photo/png.ts:67 && -> ||
+KILLED    mobile/src/photo/png.ts:67 > -> >=
+SURVIVED  mobile/src/photo/png.ts:67 0 -> 1
+KILLED    mobile/src/photo/png.ts:67 && -> ||
+KILLED    mobile/src/photo/png.ts:67 <= -> <
+KILLED    mobile/src/photo/png.ts:68 delete !
+KILLED    mobile/src/photo/png.ts:69 true -> false
+KILLED    mobile/src/photo/png.ts:74 === -> !==
+KILLED    mobile/src/photo/png.ts:74 && -> ||
+KILLED    mobile/src/photo/png.ts:74 delete !
+KILLED    mobile/src/photo/png.ts:75 true -> false
+KILLED    mobile/src/photo/png.ts:79 !== -> ===
+KILLED    mobile/src/photo/png.ts:79 0 -> 1
+KILLED    mobile/src/photo/png.ts:80 delete !
+KILLED    mobile/src/photo/png.ts:81 true -> false
+KILLED    mobile/src/photo/png.ts:87 delete !
+KILLED    mobile/src/photo/png.ts:87 && -> ||
+KILLED    mobile/src/photo/png.ts:87 !== -> ===
+KILLED    mobile/src/photo/png.ts:88 && -> ||
+KILLED    mobile/src/photo/png.ts:88 !== -> ===
+KILLED    mobile/src/photo/png.ts:88 true -> false
+KILLED    mobile/src/photo/png.ts:90 true -> false
+KILLED    mobile/src/photo/png.ts:92 0 -> 1
+KILLED    mobile/src/photo/png.ts:92 === -> !==
+KILLED    mobile/src/photo/png.ts:92 0 -> 1
+KILLED    mobile/src/photo/png.ts:93 false -> true
+KILLED    mobile/src/photo/png.ts:97 + -> -
+KILLED    mobile/src/photo/png.ts:97 0 -> 1
+KILLED    mobile/src/photo/png.ts:98 0 -> 1
+KILLED    mobile/src/photo/png.ts:102 0 -> 1
+KILLED    mobile/src/photo/png.ts:102 false -> true
+KILLED    mobile/src/photo/png.ts:102 0 -> 1
+KILLED    mobile/src/photo/png.ts:102 false -> true
+KILLED    mobile/src/photo/png.ts:102 false -> true
+KILLED    mobile/src/photo/png.ts:102 false -> true
+KILLED    mobile/src/photo/png.ts:104 0 -> 1
+KILLED    mobile/src/photo/png.ts:105 < -> <=
+KILLED    mobile/src/photo/png.ts:106 > -> >=
+KILLED    mobile/src/photo/png.ts:110 && -> ||
+KILLED    mobile/src/photo/png.ts:110 !== -> ===
+KILLED    mobile/src/photo/png.ts:113 delete !
+KILLED    mobile/src/photo/png.ts:113 || -> &&
+KILLED    mobile/src/photo/png.ts:113 delete !
+KILLED    mobile/src/photo/png.ts:120 > -> >=
+KILLED    mobile/src/photo/png.ts:121 delete !
+KILLED    mobile/src/photo/png.ts:121 === -> !==
+KILLED    mobile/src/photo/png.ts:124 === -> !==
+KILLED    mobile/src/photo/png.ts:124 || -> &&
+KILLED    mobile/src/photo/png.ts:124 === -> !==
+KILLED    mobile/src/photo/png.ts:124 || -> &&
+Function           Namespace  Killed  Survived  Uncovered  Sites   Score
+------------------------------------------------------------------------
+acceptHeader       photo.png       0         0          0      0    n/a
+fail               photo.png       0         0          0      0    n/a
+readChunk          photo.png      13         3          0     16  81.2%
+paletteEntries     photo.png      12         2          0     14  85.7%
+acceptTransparency photo.png      13         1          0     14  92.9%
+acceptChunk        photo.png      11         0          0     11 100.0%
+acceptEnd          photo.png       4         0          0      4 100.0%
+acceptPalette      photo.png       2         0          0      2 100.0%
+acceptPixels       photo.png       4         0          0      4 100.0%
+collectChunks      photo.png      14         0          0     14 100.0%
+crc32              photo.png       1         0          0      1 100.0%
+joinParts          photo.png       3         0          0      3 100.0%
+readHeader         photo.png      12         0          0     12 100.0%
+sanitizePng        photo.png       7         0          0      7 100.0%
+u32                photo.png       1         0          0      1 100.0%
+validateDimensions photo.png      12         0          0     12 100.0%
+------------------------------------------------------------------------
+Total                            109         6          0    115   94.8%

@@ -1,0 +1,205 @@
+✔ AI status is authenticated, reflects configuration, and never claims media executors (126.339194ms)
+✔ missing key disables status and chat without any upstream request (16.54688ms)
+✔ chat only forwards the approved text to the fixed free route with zero price and privacy constraints (58.467155ms)
+✔ unauthenticated, foreign-origin and unapproved calls never reach a provider (15.000491ms)
+✔ clients cannot force paid models, arbitrary origins, system roles, tools or hidden attachments (15.678908ms)
+✔ message count, individual text, total text, malformed Unicode and HTTP body are bounded without truncation (11.740997ms)
+✔ upstream limits use safe retry hints and do not expose prompts, provider details or keys (6.661049ms)
+✔ provider errors, redirects and malformed or empty answers fail safely without fallback (47.314328ms)
+✔ deadline aborts a stalled provider and releases the per-user in-flight slot (23.822905ms)
+✔ oversized streamed provider output is canceled even without Content-Length (5.756383ms)
+✔ per-user concurrency and six-per-minute limits are bounded and recover after the window (18.474286ms)
+✔ contact-free registration validates independent secrets and exposes only public account data (2745.804805ms)
+✔ new password policy counts Unicode code points and preserves intentional spaces (4634.880378ms)
+✔ Russian and English recovery words use consistent NFC, case folding and outer-space normalization (3784.876629ms)
+✔ new accounts require their separate login word and support short Russian recovery words (10516.036984ms)
+✔ exactly three failed recovery attempts survive restart and IP changes for a full 24 hours (3991.486342ms)
+✔ a correct third recovery word succeeds and resets the failed-attempt budget (2979.185561ms)
+✔ four parallel wrong words cannot reserve more than three per-account attempts (3568.248586ms)
+✔ unknown accounts have the same public failure and lock budget as existing accounts (7786.118365ms)
+✔ recovery grant is hashed, waits ten minutes on the server, expires after the reset window and grants no normal API access (2907.856881ms)
+✖ pending recovery is visible only to its owner, notifies own sessions without secrets and can be cancelled (3766.632363ms)
+✔ cancellation and reset cannot both commit when they race after the waiting period (5356.983982ms)
+✔ new verification invalidates the previous grant; validation errors do not consume the current grant (4862.152073ms)
+✖ recovery changes the password, preserves both words, revokes all HTTP and WS sessions, and affects only its bound account (4492.612473ms)
+✔ two concurrent reset submissions consume their grant exactly once (4218.741395ms)
+✔ password and recovery-word changes require current password plus login word and revoke every previous session (15228.549509ms)
+✔ changing a login word invalidates old sessions and pending recovery while preserving the password and recovery word (7323.44213ms)
+✖ session list uses opaque public ids, isolates owners and supports targeted/current/all-other revocation (3351.399733ms)
+✔ v1 database and short legacy password migrate without losing accounts or sessions (9519.255765ms)
+✔ a password login already verified before recovery cannot create a fresh session after recovery commits (3749.170665ms)
+✔ pure envelope boundary accepts exact limits, normalizes identifiers and rejects malformed transport data (32.001674ms)
+✔ production rejects plaintext and redacts legacy history and previews without deleting stored records (2437.402821ms)
+✔ device registration validates public key boundaries, is immutable, and scopes discovery to chat peers (3608.566871ms)
+✔ concurrent claims consume EC prekeys once and registration retries never restore consumed keys (2728.17846ms)
+✖ encrypted sends require exact active recipients, keep idempotency across device changes, and deliver opaque WS events (3737.170072ms)
+✔ opaque file uploads hide names and types, enforce byte bounds, and grant access only after attachment (3946.648229ms)
+✖ session revocation, password change and recovery deactivate the correct encryption devices (3018.755381ms)
+✔ inbox pages messages oldest first per chat, filters device recipients, and requires the bound session (4677.713135ms)
+✔ expired sessions stop device discovery and sending until the same identity registers again (1863.265935ms)
+✖ revoking a device also revokes its bound login so the same token cannot re-register around revocation (1864.197553ms)
+✔ registration, search and login use private sessions and validate input (3382.252505ms)
+✔ one private chat per pair, real messages and unread counts (2238.628699ms)
+✔ a third user cannot read, write or mark another pair’s messages as read (3571.517111ms)
+✔ retrying a send is idempotent and pagination does not lose messages (2612.799868ms)
+✔ read receipts are monotonic and reject messages belonging to a different chat (3559.130022ms)
+✔ attachments stay private until linked and then are readable only by chat participants (3896.251016ms)
+✔ file signatures override untrusted MIME labels, and upload size is enforced (1230.566958ms)
+✔ profile edits expose only the selected avatar, never arbitrary private attachments (2107.362309ms)
+✔ users, sessions, messages and file bytes survive a server restart (2949.16185ms)
+✖ WebSocket authenticates, delivers real messages, read receipts and typing privately (3037.608806ms)
+✖ logout revokes only that session and closes its authenticated WebSocket (2168.640674ms)
+✔ expired sessions cannot access HTTP endpoints (1458.003746ms)
+✔ server rejects blank and excessive messages without storing them (2640.897936ms)
+✔ repeated authentication attempts are throttled (1647.295031ms)
+✔ only explicitly allowed browser origins can use authenticated HTTP requests (1288.723989ms)
+✖ React Native endpoint Origin is accepted only for WS upgrades and still requires authentication (1251.822423ms)
+✔ account status separates immutable private login, unique public username and stable account ID (1325.497349ms)
+✔ one actual free rename is atomic and repeated same-name requests do not spend it twice (1294.271973ms)
+✔ concurrent distinct renames on two server connections consume exactly one free change (1702.772823ms)
+✔ public and immutable-login namespaces remain reserved and conflicts do not consume a free change (3482.895671ms)
+✔ recovery pending before rename keeps the immutable login budget and remains cancellable and usable (4699.31028ms)
+✔ only trusted active Platina permits further name changes and exact expiry revokes the right (1238.008086ms)
+✔ static status emoji requires active Platina and is hidden for peers immediately at expiry (2317.724211ms)
+✔ clients cannot grant Platina, alter login/ID or submit arbitrary emoji assets (1371.089793ms)
+✔ credential changes still reject an immutable login reused as a secret after a public rename (1848.778932ms)
+✔ v3 migration preserves identity, sessions and pending recovery, and prevents login and ID mutation (63.013581ms)
+✔ renaming leaves persisted encryption device identity and account foreign keys unchanged (1333.363202ms)
+✔ administrator grants validate account and expiry, audit changes and revoke idempotently (1246.435704ms)
+✖ the local administrator CLI operates on an existing database without a network or purchase endpoint (1358.826537ms)
+ℹ tests 69
+ℹ suites 0
+ℹ pass 59
+ℹ fail 10
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 195589.469713
+
+✖ failing tests:
+
+test at test/auth-security.test.js:374:1
+✖ pending recovery is visible only to its owner, notifies own sessions without secrets and can be cancelled (3766.632363ms)
+  Error: listen EPERM: operation not permitted 127.0.0.1
+      at Server.setupListenHandle [as _listen2] (node:net:2368:21)
+      at listenInCluster (node:net:2499:12)
+      at node:net:2728:7
+      at process.processTicksAndRejections (node:internal/process/task_queues:90:21) {
+    code: 'EPERM',
+    errno: -1,
+    syscall: 'listen',
+    address: '127.0.0.1'
+  }
+
+test at test/auth-security.test.js:453:1
+✖ recovery changes the password, preserves both words, revokes all HTTP and WS sessions, and affects only its bound account (4492.612473ms)
+  Error: listen EPERM: operation not permitted 127.0.0.1
+      at Server.setupListenHandle [as _listen2] (node:net:2368:21)
+      at listenInCluster (node:net:2499:12)
+      at node:net:2728:7
+      at process.processTicksAndRejections (node:internal/process/task_queues:90:21) {
+    code: 'EPERM',
+    errno: -1,
+    syscall: 'listen',
+    address: '127.0.0.1'
+  }
+
+test at test/auth-security.test.js:542:1
+✖ session list uses opaque public ids, isolates owners and supports targeted/current/all-other revocation (3351.399733ms)
+  Error: listen EPERM: operation not permitted 127.0.0.1
+      at Server.setupListenHandle [as _listen2] (node:net:2368:21)
+      at listenInCluster (node:net:2499:12)
+      at node:net:2728:7
+      at process.processTicksAndRejections (node:internal/process/task_queues:90:21) {
+    code: 'EPERM',
+    errno: -1,
+    syscall: 'listen',
+    address: '127.0.0.1'
+  }
+
+test at test/e2ee-relay.test.js:252:1
+✖ encrypted sends require exact active recipients, keep idempotency across device changes, and deliver opaque WS events (3737.170072ms)
+  Error: listen EPERM: operation not permitted 127.0.0.1
+      at Server.setupListenHandle [as _listen2] (node:net:2368:21)
+      at listenInCluster (node:net:2499:12)
+      at node:net:2728:7
+      at process.processTicksAndRejections (node:internal/process/task_queues:90:21) {
+    code: 'EPERM',
+    errno: -1,
+    syscall: 'listen',
+    address: '127.0.0.1'
+  }
+
+test at test/e2ee-relay.test.js:327:1
+✖ session revocation, password change and recovery deactivate the correct encryption devices (3018.755381ms)
+  Error: listen EPERM: operation not permitted 127.0.0.1
+      at Server.setupListenHandle [as _listen2] (node:net:2368:21)
+      at listenInCluster (node:net:2499:12)
+      at node:net:2728:7
+      at process.processTicksAndRejections (node:internal/process/task_queues:90:21) {
+    code: 'EPERM',
+    errno: -1,
+    syscall: 'listen',
+    address: '127.0.0.1'
+  }
+
+test at test/e2ee-relay.test.js:413:1
+✖ revoking a device also revokes its bound login so the same token cannot re-register around revocation (1864.197553ms)
+  Error: listen EPERM: operation not permitted 127.0.0.1
+      at Server.setupListenHandle [as _listen2] (node:net:2368:21)
+      at listenInCluster (node:net:2499:12)
+      at node:net:2728:7
+      at process.processTicksAndRejections (node:internal/process/task_queues:90:21) {
+    code: 'EPERM',
+    errno: -1,
+    syscall: 'listen',
+    address: '127.0.0.1'
+  }
+
+test at test/integration.test.js:361:1
+✖ WebSocket authenticates, delivers real messages, read receipts and typing privately (3037.608806ms)
+  Error: listen EPERM: operation not permitted 127.0.0.1
+      at Server.setupListenHandle [as _listen2] (node:net:2368:21)
+      at listenInCluster (node:net:2499:12)
+      at node:net:2728:7
+      at process.processTicksAndRejections (node:internal/process/task_queues:90:21) {
+    code: 'EPERM',
+    errno: -1,
+    syscall: 'listen',
+    address: '127.0.0.1'
+  }
+
+test at test/integration.test.js:399:1
+✖ logout revokes only that session and closes its authenticated WebSocket (2168.640674ms)
+  Error: listen EPERM: operation not permitted 127.0.0.1
+      at Server.setupListenHandle [as _listen2] (node:net:2368:21)
+      at listenInCluster (node:net:2499:12)
+      at node:net:2728:7
+      at process.processTicksAndRejections (node:internal/process/task_queues:90:21) {
+    code: 'EPERM',
+    errno: -1,
+    syscall: 'listen',
+    address: '127.0.0.1'
+  }
+
+test at test/integration.test.js:484:1
+✖ React Native endpoint Origin is accepted only for WS upgrades and still requires authentication (1251.822423ms)
+  Error: listen EPERM: operation not permitted 127.0.0.1
+      at Server.setupListenHandle [as _listen2] (node:net:2368:21)
+      at listenInCluster (node:net:2499:12)
+      at node:net:2728:7
+      at process.processTicksAndRejections (node:internal/process/task_queues:90:21) {
+    code: 'EPERM',
+    errno: -1,
+    syscall: 'listen',
+    address: '127.0.0.1'
+  }
+
+test at test/username.test.js:319:1
+✖ the local administrator CLI operates on an existing database without a network or purchase endpoint (1358.826537ms)
+  SyntaxError: Unexpected end of JSON input
+      at JSON.parse (<anonymous>)
+      at TestContext.<anonymous> (file:///workspace/scratch/f1956a5cefad/linea-messenger/server/test/username.test.js:327:21)
+      at process.processTicksAndRejections (node:internal/process/task_queues:104:5)
+      at async Test.run (node:internal/test_runner/test:1409:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:974:7)

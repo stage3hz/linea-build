@@ -1,0 +1,9 @@
+crapper: 6fd92c4c9bcc56efb64a2f8743d5a2993bcfd42d
+dryer: 66ff6d21a42c04afcad89c78a80066176d1294b0
+mutator: a5a0cb803b66e0cdb8bf471b3b08af701d424a41
+Node 24.22.1
+TypeScript 6.0.3
+JDK Temurin 21.0.13+9
+Gradle 9.3.1
+Kotlin JVM test plugin 2.2.20
+FFmpeg 6.1.1-3ubuntu5

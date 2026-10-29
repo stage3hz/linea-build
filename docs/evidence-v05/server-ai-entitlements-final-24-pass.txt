@@ -1,0 +1,43 @@
+✔ AI status is authenticated, reflects configuration, and never claims media executors (125.911536ms)
+✔ missing key disables status and chat without any upstream request (12.822499ms)
+✔ chat only forwards the approved text to the fixed free route with zero price and privacy constraints (41.230386ms)
+✔ unauthenticated, foreign-origin and unapproved calls never reach a provider (13.503764ms)
+✔ clients cannot force paid models, arbitrary origins, system roles, tools or hidden attachments (18.583588ms)
+✔ message count, individual text, total text, malformed Unicode and HTTP body are bounded without truncation (7.602868ms)
+✔ upstream limits use safe retry hints and do not expose prompts, provider details or keys (4.029151ms)
+✔ provider errors, redirects and malformed or empty answers fail safely without fallback (32.294537ms)
+✔ deadline aborts a stalled provider and releases the per-user in-flight slot (21.306588ms)
+✔ oversized streamed provider output is canceled even without Content-Length (4.985467ms)
+✔ per-user concurrency and six-per-minute limits are bounded and recover after the window (10.990652ms)
+✔ server configuration rejects invalid keys, deadlines, origins and dependencies before installing routes (25.766827ms)
+✔ approved web origins work while invalid session subjects and query overrides remain blocked (9.878816ms)
+✔ exact text/history boundaries and valid text responses without a cost field remain supported (6.069038ms)
+✔ malformed provider envelopes, headers, model IDs and tool responses are rejected (51.617163ms)
+✔ safe provider retry bounds and timeouts are preserved for all response classes (125.311025ms)
+✔ global concurrency is bounded and shutdown aborts active provider calls (5.701891ms)
+✔ provider byte limits apply across chunks, accept the exact bound and require valid UTF-8 (9.535017ms)
+✔ missing provider content type or body returns the same safe invalid-response code (6.078982ms)
+✔ valid configuration endpoints and short or maximum session IDs work without relaxing invalid-subject checks (25.769292ms)
+✔ an early response disconnect or aborted request cancels the active provider operation (8.286332ms)
+✔ entitlement absence, trusted time interval, exact expiry and revocation are derived from stored facts (2.275561ms)
+✔ malformed or untrusted stored entitlement rows fail closed without invalid-date exceptions (1.174259ms)
+✔ public emoji needs an active grant and an exact allowed static choice (0.539067ms)
+ℹ tests 24
+ℹ suites 0
+ℹ pass 24
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 756.528959
+ℹ start of coverage report
+ℹ -----------------------------------------------------------------
+ℹ file             | line % | branch % | funcs % | uncovered lines
+ℹ -----------------------------------------------------------------
+ℹ src              |        |          |         | 
+ℹ  ai.js           |  99.37 |    95.83 |   92.98 | 239-240
+ℹ  entitlements.js | 100.00 |   100.00 |  100.00 | 
+ℹ -----------------------------------------------------------------
+ℹ all files        |  99.42 |    96.28 |   93.44 | 
+ℹ -----------------------------------------------------------------
+ℹ end of coverage report

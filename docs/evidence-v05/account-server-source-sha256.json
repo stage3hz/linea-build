@@ -1,0 +1,29 @@
+{
+  "scope": "Owned AI/account production and tests frozen; shared dependency hashes are contextual and parent-maintained",
+  "qualityScope": [
+    "server/src/ai.js",
+    "server/src/entitlements.js",
+    "server/src/username.js"
+  ],
+  "owned": {
+    "server/src/ai.js": "8f61c8151ed552f207bf754a3ce9c1afd9f9f5b9884292fe279953afd90ed913",
+    "server/src/entitlements.js": "0df7c25a0643c2d2b86bf8cbf41dee77645bf859137c43cb154c5a458136e001",
+    "server/src/username.js": "1443ce88f52baed9aa1d31e0805f44a3ea2fd8ff38d6f6041b23f710306bc2dd",
+    "server/src/platina-admin.js": "9c60475ede747a4129801f3b4aa6c83a742a98e51fc86a501ffbe85c1ab8ea57",
+    "server/src/auth.js": "063c8f11d201547b66f4f3f11e26fcbe4c0e2a13f08afcce07b29a9dc1a562fd",
+    "server/src/schema.sql": "82eb1274fb2cd57f220c5dc59ded61428522ef49b7217393ca0fb6fe6479359d",
+    "server/test/ai.test.js": "380ca65ccd7733312b11305b5ac7ad77a05c348b85fd41674e59a315b0e923a9",
+    "server/test/entitlements.test.js": "0bdc59f671e9a4ac6536499b8cedd55be82f9ea988960892322c5d28930c521b",
+    "server/test/username.test.js": "66c876d1e331ac155df15050c7cb40f9ad5f11ad0930a49f8d8dcf39e66a284e"
+  },
+  "sharedDependencies": {
+    "server/src/database.js": "8122646394880ea9683c60063fd335e31feb1ec9fb46c9f70821baa002c8e1d7",
+    "server/src/app.js": "14c0d17201b81db30339be11478455638b454f840bd17c613cfe21a7d64bd687",
+    "server/src/security.js": "496200a8c8bed3f24f30f2cf90d8cd964f038a4a6f7200d9d0655b77a9b39d95",
+    "server/src/index.js": "2ec0d96443b95ac1a980c37147b25493a3d58defc88188ab71c2a2093cb536c2",
+    "server/package.json": "e601575b4878ca55126ef6c8362c9a27fcaba8da975c9cc52a50267ed9d72637"
+  },
+  "liveProviderCalls": false,
+  "liveBilling": false,
+  "mutationGate": "not passed; reviewed survivors and stress coverage gaps remain"
+}

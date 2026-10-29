@@ -1,0 +1,356 @@
+> Task :gradle-plugin:settings-plugin:checkKotlinGradlePluginConfigurationErrors SKIPPED
+> Task :expo-gradle-plugin:expo-autolinking-plugin-shared:checkKotlinGradlePluginConfigurationErrors SKIPPED
+> Task :gradle-plugin:shared:checkKotlinGradlePluginConfigurationErrors SKIPPED
+> Task :gradle-plugin:settings-plugin:pluginDescriptors UP-TO-DATE
+> Task :gradle-plugin:settings-plugin:processResources UP-TO-DATE
+> Task :expo-gradle-plugin:expo-autolinking-settings-plugin:checkKotlinGradlePluginConfigurationErrors SKIPPED
+> Task :expo-gradle-plugin:expo-autolinking-settings-plugin:pluginDescriptors UP-TO-DATE
+> Task :expo-gradle-plugin:expo-autolinking-settings-plugin:processResources UP-TO-DATE
+> Task :gradle-plugin:shared:compileKotlin UP-TO-DATE
+> Task :expo-gradle-plugin:expo-autolinking-plugin-shared:compileKotlin UP-TO-DATE
+> Task :expo-gradle-plugin:expo-autolinking-plugin-shared:compileJava NO-SOURCE
+> Task :gradle-plugin:shared:compileJava NO-SOURCE
+> Task :expo-gradle-plugin:expo-autolinking-plugin-shared:processResources NO-SOURCE
+> Task :expo-gradle-plugin:expo-autolinking-plugin-shared:classes UP-TO-DATE
+> Task :gradle-plugin:shared:processResources NO-SOURCE
+> Task :gradle-plugin:shared:classes UP-TO-DATE
+> Task :gradle-plugin:shared:jar UP-TO-DATE
+> Task :expo-gradle-plugin:expo-autolinking-plugin-shared:jar UP-TO-DATE
+> Task :gradle-plugin:settings-plugin:compileKotlin UP-TO-DATE
+> Task :gradle-plugin:settings-plugin:compileJava NO-SOURCE
+> Task :gradle-plugin:settings-plugin:classes UP-TO-DATE
+> Task :gradle-plugin:settings-plugin:jar UP-TO-DATE
+> Task :expo-gradle-plugin:expo-autolinking-settings-plugin:compileKotlin UP-TO-DATE
+> Task :expo-gradle-plugin:expo-autolinking-settings-plugin:compileJava NO-SOURCE
+> Task :expo-gradle-plugin:expo-autolinking-settings-plugin:classes UP-TO-DATE
+> Task :expo-gradle-plugin:expo-autolinking-settings-plugin:jar UP-TO-DATE
+> Task :gradle-plugin:react-native-gradle-plugin:checkKotlinGradlePluginConfigurationErrors SKIPPED
+> Task :expo-module-gradle-plugin:checkKotlinGradlePluginConfigurationErrors SKIPPED
+> Task :expo-module-gradle-plugin:pluginDescriptors UP-TO-DATE
+> Task :expo-module-gradle-plugin:processResources UP-TO-DATE
+> Task :expo-gradle-plugin:expo-autolinking-plugin:checkKotlinGradlePluginConfigurationErrors SKIPPED
+> Task :gradle-plugin:react-native-gradle-plugin:compileKotlin UP-TO-DATE
+> Task :gradle-plugin:react-native-gradle-plugin:compileJava NO-SOURCE
+> Task :gradle-plugin:react-native-gradle-plugin:pluginDescriptors UP-TO-DATE
+> Task :gradle-plugin:react-native-gradle-plugin:processResources UP-TO-DATE
+> Task :expo-gradle-plugin:expo-autolinking-plugin:compileKotlin UP-TO-DATE
+> Task :gradle-plugin:react-native-gradle-plugin:classes UP-TO-DATE
+> Task :expo-gradle-plugin:expo-autolinking-plugin:compileJava NO-SOURCE
+> Task :gradle-plugin:react-native-gradle-plugin:jar UP-TO-DATE
+> Task :expo-gradle-plugin:expo-autolinking-plugin:pluginDescriptors UP-TO-DATE
+> Task :expo-gradle-plugin:expo-autolinking-plugin:processResources UP-TO-DATE
+> Task :expo-gradle-plugin:expo-autolinking-plugin:classes UP-TO-DATE
+> Task :expo-gradle-plugin:expo-max-sdk-override-plugin:checkKotlinGradlePluginConfigurationErrors SKIPPED
+> Task :expo-gradle-plugin:expo-autolinking-plugin:jar UP-TO-DATE
+> Task :expo-gradle-plugin:expo-max-sdk-override-plugin:compileKotlin UP-TO-DATE
+> Task :expo-gradle-plugin:expo-max-sdk-override-plugin:compileJava NO-SOURCE
+> Task :expo-gradle-plugin:expo-max-sdk-override-plugin:pluginDescriptors UP-TO-DATE
+> Task :expo-gradle-plugin:expo-max-sdk-override-plugin:processResources UP-TO-DATE
+> Task :expo-gradle-plugin:expo-max-sdk-override-plugin:classes UP-TO-DATE
+> Task :expo-gradle-plugin:expo-max-sdk-override-plugin:jar UP-TO-DATE
+> Task :expo-module-gradle-plugin:compileKotlin UP-TO-DATE
+> Task :expo-module-gradle-plugin:compileJava NO-SOURCE
+> Task :expo-module-gradle-plugin:classes UP-TO-DATE
+> Task :expo-module-gradle-plugin:jar UP-TO-DATE
+
+> Configure project :app
+ ℹ️  [33mApplying gradle plugin[0m '[32mexpo-max-sdk-override-plugin[0m'
+  [expo-max-sdk-override-plugin] This plugin will find all permissions declared with `android:maxSdkVersion`. If there exists a declaration with the `android:maxSdkVersion` annotation and another one without, the plugin will remove the annotation from the final merged manifest. In order to see a log with the changes run a clean build of the app.
+
+> Configure project :
+[32m[ExpoRootProject][0m Using the following versions:
+  - buildTools:  [32m36.0.0[0m
+  - minSdk:      [32m26[0m
+  - compileSdk:  [32m36[0m
+  - targetSdk:   [32m36[0m
+  - ndk:         [32m27.1.12297006[0m
+  - kotlin:      [32m2.2.20[0m
+  - ksp:         [32m2.2.20-2.0.4[0m
+
+> Configure project :expo
+
+Using expo modules
+  - [32mexpo-log-box[0m (57.0.4)
+  - [32mexpo-constants[0m (57.0.22)
+  - [32mexpo-modules-core[0m (57.0.24)
+  - [32mexpo-sqlite[0m (57.0.4)
+  - [32mlinea-photo[0m (0.4.0)
+  - [32mlinea-signal[0m (0.3.0)
+  - [32mlinea-video[0m (0.5.0)
+  - [33m[📦][0m [32mexpo-dom-webview[0m (57.0.1)
+  - [33m[📦][0m [32mexpo-asset[0m (57.0.20)
+  - [33m[📦][0m [32mexpo-audio[0m (57.0.5)
+  - [33m[📦][0m [32mexpo-blur[0m (57.0.3)
+  - [33m[📦][0m [32mexpo-clipboard[0m (57.0.2)
+  - [33m[📦][0m [32mexpo-crypto[0m (57.0.4)
+  - [33m[📦][0m [32mexpo-document-picker[0m (57.0.3)
+  - [33m[📦][0m [32mexpo-file-system[0m (57.0.7)
+  - [33m[📦][0m [32mexpo-font[0m (57.0.4)
+  - [33m[📦][0m [32mexpo-image[0m (57.0.5)
+  - [33m[📦][0m [32mexpo-image-loader[0m (57.0.1)
+  - [33m[📦][0m [32mexpo-image-manipulator[0m (57.0.21)
+  - [33m[📦][0m [32mexpo-image-picker[0m (57.0.20)
+  - [33m[📦][0m [32mexpo-keep-awake[0m (57.0.2)
+  - [33m[📦][0m [32mexpo-linear-gradient[0m (57.0.2)
+  - [33m[📦][0m [32mexpo-media-library[0m (57.0.5)
+  - [33m[📦][0m [32mexpo-secure-store[0m (57.0.4)
+  - [33m[📦][0m [32mexpo-sharing[0m (57.0.24)
+  - [33m[📦][0m [32mexpo-status-bar[0m (57.0.1)
+  - [33m[📦][0m [32mexpo-system-ui[0m (57.0.4)
+  - [33m[📦][0m [32mexpo-video[0m (57.0.5)
+  - [33m[📦][0m [32mexpo-video-thumbnails[0m (57.0.2)
+
+
+[Incubating] Problems report is available at: file:///workspace/scratch/f1956a5cefad/linea-messenger/mobile/android/build/reports/problems/problems-report.html
+
+FAILURE: Build failed with an exception.
+
+* What went wrong:
+Could not determine the dependencies of task ':app:mergeReleaseNativeLibs'.
+> Could not resolve all dependencies for configuration ':app:releaseRuntimeClasspath'.
+   > Could not resolve com.github.penfeizhou.android.animation:glide-plugin:3.0.5.
+     Required by:
+         project ':app' > project :expo > expo.modules.image:expo.modules.image:57.0.5
+      > Could not resolve com.github.penfeizhou.android.animation:glide-plugin:3.0.5.
+         > Could not get resource 'https://dl.google.com/dl/android/maven2/com/github/penfeizhou/android/animation/glide-plugin/3.0.5/glide-plugin-3.0.5.pom'.
+            > Could not GET 'https://dl.google.com/dl/android/maven2/com/github/penfeizhou/android/animation/glide-plugin/3.0.5/glide-plugin-3.0.5.pom'.
+               > Got SSL handshake exception during request. It might be caused by SSL misconfiguration
+                  > (certificate_unknown) PKIX path building failed: sun.security.provider.certpath.SunCertPathBuilderException: unable to find valid certification path to requested target
+      > Could not resolve com.github.penfeizhou.android.animation:glide-plugin:3.0.5.
+         > Could not get resource 'https://repo.maven.apache.org/maven2/com/github/penfeizhou/android/animation/glide-plugin/3.0.5/glide-plugin-3.0.5.pom'.
+            > Could not GET 'https://repo.maven.apache.org/maven2/com/github/penfeizhou/android/animation/glide-plugin/3.0.5/glide-plugin-3.0.5.pom'.
+               > Got SSL handshake exception during request. It might be caused by SSL misconfiguration
+                  > (certificate_unknown) PKIX path building failed: sun.security.provider.certpath.SunCertPathBuilderException: unable to find valid certification path to requested target
+      > Could not resolve com.github.penfeizhou.android.animation:glide-plugin:3.0.5.
+         > Could not get resource 'https://www.jitpack.io/com/github/penfeizhou/android/animation/glide-plugin/3.0.5/glide-plugin-3.0.5.pom'.
+            > Could not GET 'https://www.jitpack.io/com/github/penfeizhou/android/animation/glide-plugin/3.0.5/glide-plugin-3.0.5.pom'.
+               > Got SSL handshake exception during request. It might be caused by SSL misconfiguration
+                  > (certificate_unknown) PKIX path building failed: sun.security.provider.certpath.SunCertPathBuilderException: unable to find valid certification path to requested target
+      > Could not resolve com.github.penfeizhou.android.animation:glide-plugin:3.0.5.
+         > Could not get resource 'https://repo.maven.apache.org/maven2/com/github/penfeizhou/android/animation/glide-plugin/3.0.5/glide-plugin-3.0.5.pom'.
+            > Could not GET 'https://repo.maven.apache.org/maven2/com/github/penfeizhou/android/animation/glide-plugin/3.0.5/glide-plugin-3.0.5.pom'.
+               > Got SSL handshake exception during request. It might be caused by SSL misconfiguration
+                  > (certificate_unknown) PKIX path building failed: sun.security.provider.certpath.SunCertPathBuilderException: unable to find valid certification path to requested target
+      > Could not resolve com.github.penfeizhou.android.animation:glide-plugin:3.0.5.
+         > Could not get resource 'https://dl.google.com/dl/android/maven2/com/github/penfeizhou/android/animation/glide-plugin/3.0.5/glide-plugin-3.0.5.pom'.
+            > Could not GET 'https://dl.google.com/dl/android/maven2/com/github/penfeizhou/android/animation/glide-plugin/3.0.5/glide-plugin-3.0.5.pom'.
+               > Got SSL handshake exception during request. It might be caused by SSL misconfiguration
+                  > (certificate_unknown) PKIX path building failed: sun.security.provider.certpath.SunCertPathBuilderException: unable to find valid certification path to requested target
+      > Could not resolve com.github.penfeizhou.android.animation:glide-plugin:3.0.5.
+         > Could not get resource 'https://www.jitpack.io/com/github/penfeizhou/android/animation/glide-plugin/3.0.5/glide-plugin-3.0.5.pom'.
+            > Could not GET 'https://www.jitpack.io/com/github/penfeizhou/android/animation/glide-plugin/3.0.5/glide-plugin-3.0.5.pom'.
+               > Got SSL handshake exception during request. It might be caused by SSL misconfiguration
+                  > (certificate_unknown) PKIX path building failed: sun.security.provider.certpath.SunCertPathBuilderException: unable to find valid certification path to requested target
+   > Could not resolve com.github.bumptech.glide:avif-integration:5.0.5.
+     Required by:
+         project ':app' > project :expo > expo.modules.image:expo.modules.image:57.0.5
+      > Could not resolve com.github.bumptech.glide:avif-integration:5.0.5.
+         > Could not get resource 'https://dl.google.com/dl/android/maven2/com/github/bumptech/glide/avif-integration/5.0.5/avif-integration-5.0.5.pom'.
+            > Could not GET 'https://dl.google.com/dl/android/maven2/com/github/bumptech/glide/avif-integration/5.0.5/avif-integration-5.0.5.pom'.
+               > Got SSL handshake exception during request. It might be caused by SSL misconfiguration
+                  > (certificate_unknown) PKIX path building failed: sun.security.provider.certpath.SunCertPathBuilderException: unable to find valid certification path to requested target
+      > Could not resolve com.github.bumptech.glide:avif-integration:5.0.5.
+         > Could not get resource 'https://repo.maven.apache.org/maven2/com/github/bumptech/glide/avif-integration/5.0.5/avif-integration-5.0.5.pom'.
+            > Could not GET 'https://repo.maven.apache.org/maven2/com/github/bumptech/glide/avif-integration/5.0.5/avif-integration-5.0.5.pom'.
+               > Got SSL handshake exception during request. It might be caused by SSL misconfiguration
+                  > (certificate_unknown) PKIX path building failed: sun.security.provider.certpath.SunCertPathBuilderException: unable to find valid certification path to requested target
+      > Could not resolve com.github.bumptech.glide:avif-integration:5.0.5.
+         > Could not get resource 'https://www.jitpack.io/com/github/bumptech/glide/avif-integration/5.0.5/avif-integration-5.0.5.pom'.
+            > Could not GET 'https://www.jitpack.io/com/github/bumptech/glide/avif-integration/5.0.5/avif-integration-5.0.5.pom'.
+               > Got SSL handshake exception during request. It might be caused by SSL misconfiguration
+                  > (certificate_unknown) PKIX path building failed: sun.security.provider.certpath.SunCertPathBuilderException: unable to find valid certification path to requested target
+      > Could not resolve com.github.bumptech.glide:avif-integration:5.0.5.
+         > Could not get resource 'https://repo.maven.apache.org/maven2/com/github/bumptech/glide/avif-integration/5.0.5/avif-integration-5.0.5.pom'.
+            > Could not GET 'https://repo.maven.apache.org/maven2/com/github/bumptech/glide/avif-integration/5.0.5/avif-integration-5.0.5.pom'.
+               > Got SSL handshake exception during request. It might be caused by SSL misconfiguration
+                  > (certificate_unknown) PKIX path building failed: sun.security.provider.certpath.SunCertPathBuilderException: unable to find valid certification path to requested target
+      > Could not resolve com.github.bumptech.glide:avif-integration:5.0.5.
+         > Could not get resource 'https://dl.google.com/dl/android/maven2/com/github/bumptech/glide/avif-integration/5.0.5/avif-integration-5.0.5.pom'.
+            > Could not GET 'https://dl.google.com/dl/android/maven2/com/github/bumptech/glide/avif-integration/5.0.5/avif-integration-5.0.5.pom'.
+               > Got SSL handshake exception during request. It might be caused by SSL misconfiguration
+                  > (certificate_unknown) PKIX path building failed: sun.security.provider.certpath.SunCertPathBuilderException: unable to find valid certification path to requested target
+      > Could not resolve com.github.bumptech.glide:avif-integration:5.0.5.
+         > Could not get resource 'https://www.jitpack.io/com/github/bumptech/glide/avif-integration/5.0.5/avif-integration-5.0.5.pom'.
+            > Could not GET 'https://www.jitpack.io/com/github/bumptech/glide/avif-integration/5.0.5/avif-integration-5.0.5.pom'.
+               > Got SSL handshake exception during request. It might be caused by SSL misconfiguration
+                  > (certificate_unknown) PKIX path building failed: sun.security.provider.certpath.SunCertPathBuilderException: unable to find valid certification path to requested target
+   > Could not resolve jp.wasabeef:glide-transformations:4.3.0.
+     Required by:
+         project ':app' > project :expo > expo.modules.image:expo.modules.image:57.0.5
+      > Could not resolve jp.wasabeef:glide-transformations:4.3.0.
+         > Could not get resource 'https://dl.google.com/dl/android/maven2/jp/wasabeef/glide-transformations/4.3.0/glide-transformations-4.3.0.pom'.
+            > Could not GET 'https://dl.google.com/dl/android/maven2/jp/wasabeef/glide-transformations/4.3.0/glide-transformations-4.3.0.pom'.
+               > Got SSL handshake exception during request. It might be caused by SSL misconfiguration
+                  > (certificate_unknown) PKIX path building failed: sun.security.provider.certpath.SunCertPathBuilderException: unable to find valid certification path to requested target
+      > Could not resolve jp.wasabeef:glide-transformations:4.3.0.
+         > Could not get resource 'https://repo.maven.apache.org/maven2/jp/wasabeef/glide-transformations/4.3.0/glide-transformations-4.3.0.pom'.
+            > Could not GET 'https://repo.maven.apache.org/maven2/jp/wasabeef/glide-transformations/4.3.0/glide-transformations-4.3.0.pom'.
+               > Got SSL handshake exception during request. It might be caused by SSL misconfiguration
+                  > (certificate_unknown) PKIX path building failed: sun.security.provider.certpath.SunCertPathBuilderException: unable to find valid certification path to requested target
+      > Could not resolve jp.wasabeef:glide-transformations:4.3.0.
+         > Could not get resource 'https://www.jitpack.io/jp/wasabeef/glide-transformations/4.3.0/glide-transformations-4.3.0.pom'.
+            > Could not GET 'https://www.jitpack.io/jp/wasabeef/glide-transformations/4.3.0/glide-transformations-4.3.0.pom'.
+               > Got SSL handshake exception during request. It might be caused by SSL misconfiguration
+                  > (certificate_unknown) PKIX path building failed: sun.security.provider.certpath.SunCertPathBuilderException: unable to find valid certification path to requested target
+      > Could not resolve jp.wasabeef:glide-transformations:4.3.0.
+         > Could not get resource 'https://repo.maven.apache.org/maven2/jp/wasabeef/glide-transformations/4.3.0/glide-transformations-4.3.0.pom'.
+            > Could not GET 'https://repo.maven.apache.org/maven2/jp/wasabeef/glide-transformations/4.3.0/glide-transformations-4.3.0.pom'.
+               > Got SSL handshake exception during request. It might be caused by SSL misconfiguration
+                  > (certificate_unknown) PKIX path building failed: sun.security.provider.certpath.SunCertPathBuilderException: unable to find valid certification path to requested target
+      > Could not resolve jp.wasabeef:glide-transformations:4.3.0.
+         > Could not get resource 'https://dl.google.com/dl/android/maven2/jp/wasabeef/glide-transformations/4.3.0/glide-transformations-4.3.0.pom'.
+            > Could not GET 'https://dl.google.com/dl/android/maven2/jp/wasabeef/glide-transformations/4.3.0/glide-transformations-4.3.0.pom'.
+               > Got SSL handshake exception during request. It might be caused by SSL misconfiguration
+                  > (certificate_unknown) PKIX path building failed: sun.security.provider.certpath.SunCertPathBuilderException: unable to find valid certification path to requested target
+      > Could not resolve jp.wasabeef:glide-transformations:4.3.0.
+         > Could not get resource 'https://www.jitpack.io/jp/wasabeef/glide-transformations/4.3.0/glide-transformations-4.3.0.pom'.
+            > Could not GET 'https://www.jitpack.io/jp/wasabeef/glide-transformations/4.3.0/glide-transformations-4.3.0.pom'.
+               > Got SSL handshake exception during request. It might be caused by SSL misconfiguration
+                  > (certificate_unknown) PKIX path building failed: sun.security.provider.certpath.SunCertPathBuilderException: unable to find valid certification path to requested target
+   > Could not resolve com.caverock:androidsvg-aar:1.4.
+     Required by:
+         project ':app' > project :expo > expo.modules.image:expo.modules.image:57.0.5
+      > Could not resolve com.caverock:androidsvg-aar:1.4.
+         > Could not get resource 'https://dl.google.com/dl/android/maven2/com/caverock/androidsvg-aar/1.4/androidsvg-aar-1.4.pom'.
+            > Could not GET 'https://dl.google.com/dl/android/maven2/com/caverock/androidsvg-aar/1.4/androidsvg-aar-1.4.pom'.
+               > Got SSL handshake exception during request. It might be caused by SSL misconfiguration
+                  > (certificate_unknown) PKIX path building failed: sun.security.provider.certpath.SunCertPathBuilderException: unable to find valid certification path to requested target
+      > Could not resolve com.caverock:androidsvg-aar:1.4.
+         > Could not get resource 'https://repo.maven.apache.org/maven2/com/caverock/androidsvg-aar/1.4/androidsvg-aar-1.4.pom'.
+            > Could not GET 'https://repo.maven.apache.org/maven2/com/caverock/androidsvg-aar/1.4/androidsvg-aar-1.4.pom'.
+               > Got SSL handshake exception during request. It might be caused by SSL misconfiguration
+                  > (certificate_unknown) PKIX path building failed: sun.security.provider.certpath.SunCertPathBuilderException: unable to find valid certification path to requested target
+      > Could not resolve com.caverock:androidsvg-aar:1.4.
+         > Could not get resource 'https://www.jitpack.io/com/caverock/androidsvg-aar/1.4/androidsvg-aar-1.4.pom'.
+            > Could not GET 'https://www.jitpack.io/com/caverock/androidsvg-aar/1.4/androidsvg-aar-1.4.pom'.
+               > Got SSL handshake exception during request. It might be caused by SSL misconfiguration
+                  > (certificate_unknown) PKIX path building failed: sun.security.provider.certpath.SunCertPathBuilderException: unable to find valid certification path to requested target
+      > Could not resolve com.caverock:androidsvg-aar:1.4.
+         > Could not get resource 'https://repo.maven.apache.org/maven2/com/caverock/androidsvg-aar/1.4/androidsvg-aar-1.4.pom'.
+            > Could not GET 'https://repo.maven.apache.org/maven2/com/caverock/androidsvg-aar/1.4/androidsvg-aar-1.4.pom'.
+               > Got SSL handshake exception during request. It might be caused by SSL misconfiguration
+                  > (certificate_unknown) PKIX path building failed: sun.security.provider.certpath.SunCertPathBuilderException: unable to find valid certification path to requested target
+      > Could not resolve com.caverock:androidsvg-aar:1.4.
+         > Could not get resource 'https://dl.google.com/dl/android/maven2/com/caverock/androidsvg-aar/1.4/androidsvg-aar-1.4.pom'.
+            > Could not GET 'https://dl.google.com/dl/android/maven2/com/caverock/androidsvg-aar/1.4/androidsvg-aar-1.4.pom'.
+               > Got SSL handshake exception during request. It might be caused by SSL misconfiguration
+                  > (certificate_unknown) PKIX path building failed: sun.security.provider.certpath.SunCertPathBuilderException: unable to find valid certification path to requested target
+      > Could not resolve com.caverock:androidsvg-aar:1.4.
+         > Could not get resource 'https://www.jitpack.io/com/caverock/androidsvg-aar/1.4/androidsvg-aar-1.4.pom'.
+            > Could not GET 'https://www.jitpack.io/com/caverock/androidsvg-aar/1.4/androidsvg-aar-1.4.pom'.
+               > Got SSL handshake exception during request. It might be caused by SSL misconfiguration
+                  > (certificate_unknown) PKIX path building failed: sun.security.provider.certpath.SunCertPathBuilderException: unable to find valid certification path to requested target
+   > Could not resolve com.github.bumptech.glide:okhttp3-integration:5.0.5.
+     Required by:
+         project ':app' > project :expo > expo.modules.image:expo.modules.image:57.0.5
+      > Could not resolve com.github.bumptech.glide:okhttp3-integration:5.0.5.
+         > Could not get resource 'https://dl.google.com/dl/android/maven2/com/github/bumptech/glide/okhttp3-integration/5.0.5/okhttp3-integration-5.0.5.pom'.
+            > Could not GET 'https://dl.google.com/dl/android/maven2/com/github/bumptech/glide/okhttp3-integration/5.0.5/okhttp3-integration-5.0.5.pom'.
+               > Got SSL handshake exception during request. It might be caused by SSL misconfiguration
+                  > (certificate_unknown) PKIX path building failed: sun.security.provider.certpath.SunCertPathBuilderException: unable to find valid certification path to requested target
+      > Could not resolve com.github.bumptech.glide:okhttp3-integration:5.0.5.
+         > Could not get resource 'https://repo.maven.apache.org/maven2/com/github/bumptech/glide/okhttp3-integration/5.0.5/okhttp3-integration-5.0.5.pom'.
+            > Could not GET 'https://repo.maven.apache.org/maven2/com/github/bumptech/glide/okhttp3-integration/5.0.5/okhttp3-integration-5.0.5.pom'.
+               > Got SSL handshake exception during request. It might be caused by SSL misconfiguration
+                  > (certificate_unknown) PKIX path building failed: sun.security.provider.certpath.SunCertPathBuilderException: unable to find valid certification path to requested target
+      > Could not resolve com.github.bumptech.glide:okhttp3-integration:5.0.5.
+         > Could not get resource 'https://www.jitpack.io/com/github/bumptech/glide/okhttp3-integration/5.0.5/okhttp3-integration-5.0.5.pom'.
+            > Could not GET 'https://www.jitpack.io/com/github/bumptech/glide/okhttp3-integration/5.0.5/okhttp3-integration-5.0.5.pom'.
+               > Got SSL handshake exception during request. It might be caused by SSL misconfiguration
+                  > (certificate_unknown) PKIX path building failed: sun.security.provider.certpath.SunCertPathBuilderException: unable to find valid certification path to requested target
+      > Could not resolve com.github.bumptech.glide:okhttp3-integration:5.0.5.
+         > Could not get resource 'https://repo.maven.apache.org/maven2/com/github/bumptech/glide/okhttp3-integration/5.0.5/okhttp3-integration-5.0.5.pom'.
+            > Could not GET 'https://repo.maven.apache.org/maven2/com/github/bumptech/glide/okhttp3-integration/5.0.5/okhttp3-integration-5.0.5.pom'.
+               > Got SSL handshake exception during request. It might be caused by SSL misconfiguration
+                  > (certificate_unknown) PKIX path building failed: sun.security.provider.certpath.SunCertPathBuilderException: unable to find valid certification path to requested target
+      > Could not resolve com.github.bumptech.glide:okhttp3-integration:5.0.5.
+         > Could not get resource 'https://dl.google.com/dl/android/maven2/com/github/bumptech/glide/okhttp3-integration/5.0.5/okhttp3-integration-5.0.5.pom'.
+            > Could not GET 'https://dl.google.com/dl/android/maven2/com/github/bumptech/glide/okhttp3-integration/5.0.5/okhttp3-integration-5.0.5.pom'.
+               > Got SSL handshake exception during request. It might be caused by SSL misconfiguration
+                  > (certificate_unknown) PKIX path building failed: sun.security.provider.certpath.SunCertPathBuilderException: unable to find valid certification path to requested target
+      > Could not resolve com.github.bumptech.glide:okhttp3-integration:5.0.5.
+         > Could not get resource 'https://www.jitpack.io/com/github/bumptech/glide/okhttp3-integration/5.0.5/okhttp3-integration-5.0.5.pom'.
+            > Could not GET 'https://www.jitpack.io/com/github/bumptech/glide/okhttp3-integration/5.0.5/okhttp3-integration-5.0.5.pom'.
+               > Got SSL handshake exception during request. It might be caused by SSL misconfiguration
+                  > (certificate_unknown) PKIX path building failed: sun.security.provider.certpath.SunCertPathBuilderException: unable to find valid certification path to requested target
+   > Could not resolve androidx.fragment:fragment:1.8.9.
+     Required by:
+         project ':app' > project :expo > host.exp.exponent:expo.modules.video:57.0.5
+      > Could not resolve androidx.fragment:fragment:1.8.9.
+         > Could not get resource 'https://dl.google.com/dl/android/maven2/androidx/fragment/fragment/1.8.9/fragment-1.8.9.pom'.
+            > Could not GET 'https://dl.google.com/dl/android/maven2/androidx/fragment/fragment/1.8.9/fragment-1.8.9.pom'.
+               > Got SSL handshake exception during request. It might be caused by SSL misconfiguration
+                  > (certificate_unknown) PKIX path building failed: sun.security.provider.certpath.SunCertPathBuilderException: unable to find valid certification path to requested target
+      > Could not resolve androidx.fragment:fragment:1.8.9.
+         > Could not get resource 'https://repo.maven.apache.org/maven2/androidx/fragment/fragment/1.8.9/fragment-1.8.9.pom'.
+            > Could not GET 'https://repo.maven.apache.org/maven2/androidx/fragment/fragment/1.8.9/fragment-1.8.9.pom'.
+               > Got SSL handshake exception during request. It might be caused by SSL misconfiguration
+                  > (certificate_unknown) PKIX path building failed: sun.security.provider.certpath.SunCertPathBuilderException: unable to find valid certification path to requested target
+      > Could not resolve androidx.fragment:fragment:1.8.9.
+         > Could not get resource 'https://www.jitpack.io/androidx/fragment/fragment/1.8.9/fragment-1.8.9.pom'.
+            > Could not GET 'https://www.jitpack.io/androidx/fragment/fragment/1.8.9/fragment-1.8.9.pom'.
+               > Got SSL handshake exception during request. It might be caused by SSL misconfiguration
+                  > (certificate_unknown) PKIX path building failed: sun.security.provider.certpath.SunCertPathBuilderException: unable to find valid certification path to requested target
+      > Could not resolve androidx.fragment:fragment:1.8.9.
+         > Could not get resource 'https://repo.maven.apache.org/maven2/androidx/fragment/fragment/1.8.9/fragment-1.8.9.pom'.
+            > Could not GET 'https://repo.maven.apache.org/maven2/androidx/fragment/fragment/1.8.9/fragment-1.8.9.pom'.
+               > Got SSL handshake exception during request. It might be caused by SSL misconfiguration
+                  > (certificate_unknown) PKIX path building failed: sun.security.provider.certpath.SunCertPathBuilderException: unable to find valid certification path to requested target
+      > Could not resolve androidx.fragment:fragment:1.8.9.
+         > Could not get resource 'https://dl.google.com/dl/android/maven2/androidx/fragment/fragment/1.8.9/fragment-1.8.9.pom'.
+            > Could not GET 'https://dl.google.com/dl/android/maven2/androidx/fragment/fragment/1.8.9/fragment-1.8.9.pom'.
+               > Got SSL handshake exception during request. It might be caused by SSL misconfiguration
+                  > (certificate_unknown) PKIX path building failed: sun.security.provider.certpath.SunCertPathBuilderException: unable to find valid certification path to requested target
+      > Could not resolve androidx.fragment:fragment:1.8.9.
+         > Could not get resource 'https://www.jitpack.io/androidx/fragment/fragment/1.8.9/fragment-1.8.9.pom'.
+            > Could not GET 'https://www.jitpack.io/androidx/fragment/fragment/1.8.9/fragment-1.8.9.pom'.
+               > Got SSL handshake exception during request. It might be caused by SSL misconfiguration
+                  > (certificate_unknown) PKIX path building failed: sun.security.provider.certpath.SunCertPathBuilderException: unable to find valid certification path to requested target
+   > Could not resolve androidx.fragment:fragment-ktx:1.8.9.
+     Required by:
+         project ':app' > project :expo > host.exp.exponent:expo.modules.video:57.0.5
+      > Could not resolve androidx.fragment:fragment-ktx:1.8.9.
+         > Could not get resource 'https://dl.google.com/dl/android/maven2/androidx/fragment/fragment-ktx/1.8.9/fragment-ktx-1.8.9.pom'.
+            > Could not GET 'https://dl.google.com/dl/android/maven2/androidx/fragment/fragment-ktx/1.8.9/fragment-ktx-1.8.9.pom'.
+               > Got SSL handshake exception during request. It might be caused by SSL misconfiguration
+                  > (certificate_unknown) PKIX path building failed: sun.security.provider.certpath.SunCertPathBuilderException: unable to find valid certification path to requested target
+      > Could not resolve androidx.fragment:fragment-ktx:1.8.9.
+         > Could not get resource 'https://repo.maven.apache.org/maven2/androidx/fragment/fragment-ktx/1.8.9/fragment-ktx-1.8.9.pom'.
+            > Could not GET 'https://repo.maven.apache.org/maven2/androidx/fragment/fragment-ktx/1.8.9/fragment-ktx-1.8.9.pom'.
+               > Got SSL handshake exception during request. It might be caused by SSL misconfiguration
+                  > (certificate_unknown) PKIX path building failed: sun.security.provider.certpath.SunCertPathBuilderException: unable to find valid certification path to requested target
+      > Could not resolve androidx.fragment:fragment-ktx:1.8.9.
+         > Could not get resource 'https://www.jitpack.io/androidx/fragment/fragment-ktx/1.8.9/fragment-ktx-1.8.9.pom'.
+            > Could not GET 'https://www.jitpack.io/androidx/fragment/fragment-ktx/1.8.9/fragment-ktx-1.8.9.pom'.
+               > Got SSL handshake exception during request. It might be caused by SSL misconfiguration
+                  > (certificate_unknown) PKIX path building failed: sun.security.provider.certpath.SunCertPathBuilderException: unable to find valid certification path to requested target
+      > Could not resolve androidx.fragment:fragment-ktx:1.8.9.
+         > Could not get resource 'https://repo.maven.apache.org/maven2/androidx/fragment/fragment-ktx/1.8.9/fragment-ktx-1.8.9.pom'.
+            > Could not GET 'https://repo.maven.apache.org/maven2/androidx/fragment/fragment-ktx/1.8.9/fragment-ktx-1.8.9.pom'.
+               > Got SSL handshake exception during request. It might be caused by SSL misconfiguration
+                  > (certificate_unknown) PKIX path building failed: sun.security.provider.certpath.SunCertPathBuilderException: unable to find valid certification path to requested target
+      > Could not resolve androidx.fragment:fragment-ktx:1.8.9.
+         > Could not get resource 'https://dl.google.com/dl/android/maven2/androidx/fragment/fragment-ktx/1.8.9/fragment-ktx-1.8.9.pom'.
+            > Could not GET 'https://dl.google.com/dl/android/maven2/androidx/fragment/fragment-ktx/1.8.9/fragment-ktx-1.8.9.pom'.
+               > Got SSL handshake exception during request. It might be caused by SSL misconfiguration
+                  > (certificate_unknown) PKIX path building failed: sun.security.provider.certpath.SunCertPathBuilderException: unable to find valid certification path to requested target
+      > Could not resolve androidx.fragment:fragment-ktx:1.8.9.
+         > Could not get resource 'https://www.jitpack.io/androidx/fragment/fragment-ktx/1.8.9/fragment-ktx-1.8.9.pom'.
+            > Could not GET 'https://www.jitpack.io/androidx/fragment/fragment-ktx/1.8.9/fragment-ktx-1.8.9.pom'.
+               > Got SSL handshake exception during request. It might be caused by SSL misconfiguration
+                  > (certificate_unknown) PKIX path building failed: sun.security.provider.certpath.SunCertPathBuilderException: unable to find valid certification path to requested target
+
+* Try:
+> Run with --stacktrace option to get the stack trace.
+> Run with --info or --debug option to get more log output.
+> Run with --scan to get full insights from a Build Scan (powered by Develocity).
+> Get more help at https://help.gradle.org.
+
+Deprecated Gradle features were used in this build, making it incompatible with Gradle 10.
+
+You can use '--warning-mode all' to show the individual deprecation warnings and determine if they come from your own scripts or plugins.
+
+For more on this, please refer to https://docs.gradle.org/9.3.1/userguide/command_line_interface.html#sec:command_line_warnings in the Gradle documentation.
+
+BUILD FAILED in 13s
+28 actionable tasks: 28 up-to-date

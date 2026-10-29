@@ -1,0 +1,87 @@
+{
+  "date": "2026-10-28",
+  "scope": "PNG sanitizer only; isolated tool project, production source never mutated by Mutator",
+  "sources": {
+    "mobile/src/photo/png.ts": {
+      "sha256": "fa47d3ec2450c8f0d08c99011aead54a9eee673ece928f5e7b923bf4714f6708",
+      "bytes": 7296,
+      "matchesTestedStaging": true
+    },
+    "mobile/test/photo-png.test.mjs": {
+      "sha256": "01831a70742e6b41539e47a0f320db9b8ca589994a91cba64250da4a0d618d76",
+      "bytes": 15388,
+      "matchesTestedStaging": true
+    },
+    "mobile/test/support/png-fixture.mjs": {
+      "sha256": "761f22c2966138a49c2fd9c2ebc8553f2b81199a1104c81b74aca60fd0b5cab3",
+      "bytes": 1103,
+      "matchesTestedStaging": true
+    }
+  },
+  "runtime": {
+    "node": "24.22.1",
+    "typescript": "6.0.3",
+    "python": "3.12.14",
+    "pillow": "12.3.0"
+  },
+  "tools": {
+    "crapper": {
+      "version": "0.1.0",
+      "commit": "6fd92c4c9bcc56efb64a2f8743d5a2993bcfd42d"
+    },
+    "dryer": {
+      "version": "0.1.0",
+      "commit": "66ff6d21a42c04afcad89c78a80066176d1294b0"
+    },
+    "mutator": {
+      "version": "0.1.0",
+      "commit": "a5a0cb803b66e0cdb8bf471b3b08af701d424a41"
+    }
+  },
+  "results": {
+    "tests": {
+      "passed": 71,
+      "failed": 0,
+      "skipped": 0
+    },
+    "coverage": {
+      "scope": "mobile/src/photo/png.ts",
+      "linesPercent": 100,
+      "branchesPercent": 100,
+      "functionsPercent": 100
+    },
+    "typecheck": {
+      "exitCode": 0
+    },
+    "crapper": {
+      "exitCode": 0,
+      "functions": 16,
+      "maxCrap": 8,
+      "thresholdExclusive": 10
+    },
+    "dryer": {
+      "exitCode": 0,
+      "candidateThreshold": 0.8,
+      "candidates": 0
+    },
+    "mutatorFirst": {
+      "exitCode": 3,
+      "sites": 115,
+      "killed": 109,
+      "survived": 6,
+      "uncovered": 0
+    },
+    "mutatorFinal": {
+      "exitCode": 0,
+      "sites": 113,
+      "killed": 113,
+      "survived": 0,
+      "uncovered": 0,
+      "reportedScorePercent": 100
+    },
+    "independentDecoder": {
+      "cases": 4,
+      "passed": 4
+    }
+  }
+}

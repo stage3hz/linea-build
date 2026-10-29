@@ -1,0 +1,23 @@
+plugins { id 'org.jetbrains.kotlin.jvm' version '2.2.20' }
+repositories {
+  mavenCentral()
+  maven { url 'https://build-artifacts.signal.org/libraries/maven/' }
+}
+kotlin { jvmToolchain(21) }
+sourceSets {
+  main.kotlin {
+    srcDirs '../android/src/main/java'
+    exclude '**/LineSignalModule.kt'
+  }
+  test.kotlin.srcDirs '../android/src/test/java'
+}
+dependencies {
+  implementation 'org.signal:libsignal-client:0.106.0'
+  implementation 'org.json:json:20250517'
+  testImplementation 'junit:junit:4.13.2'
+}
+test { testLogging { events 'passed', 'failed', 'skipped'; exceptionFormat 'short' } }
+tasks.register('interopClasspath') {
+  dependsOn testClasses
+  doLast { file('build/interop-classpath.txt').text = sourceSets.test.runtimeClasspath.asPath }
+}

@@ -1,0 +1,42 @@
+{
+  "release": "0.4.0",
+  "date": "2026-10-28",
+  "recordType": "Results recorded from executed commands in this development session",
+  "photoTests": {
+    "command": "npm --prefix mobile run test:photo",
+    "tests": 107,
+    "pass": 107,
+    "fail": 0,
+    "skipped": 0,
+    "durationMs": 1600.245503
+  },
+  "e2eeTests": {
+    "command": "LINEA_SIGNAL_TEST_JAVA=<JDK21>/bin/java npm --prefix mobile run test:e2ee",
+    "tests": 27,
+    "pass": 27,
+    "fail": 0,
+    "skipped": 0,
+    "durationMs": 10793.615738,
+    "stdout": "e2ee-v04-final.txt",
+    "initialRun": "26/27; interop driver failed because PATH selected Java 17 for class version 65; rerun selected JDK 21 without changing source or tests"
+  },
+  "typecheck": {
+    "command": "npm --prefix mobile run typecheck",
+    "exitCode": 0
+  },
+  "expoExport": {
+    "command": "npx expo export --platform all",
+    "exitCode": 0,
+    "webModules": 456,
+    "iosModules": 808,
+    "androidModules": 806,
+    "assets": 38
+  },
+  "scopeLimits": [
+    "No physical Android/iPhone runtime test",
+    "No Xcode/iOS build",
+    "No live ML Kit/Vision mask quality measurement",
+    "No independent security audit",
+    "Current server source unchanged; previous 45/45 gate is historical"
+  ]
+}

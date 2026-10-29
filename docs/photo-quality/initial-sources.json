@@ -1,0 +1,5 @@
+{
+  "mobile/src/photo/png.ts": "0ee253c336c02be5204d15824ab74351cf4b8b0a286d7d6dc896f798c52826c9",
+  "mobile/test/photo-png.test.mjs": "01b48fed7c5c4e83d019c47f09492cb37aa8d67b52293c266c921dcba1685eb3",
+  "mobile/test/support/png-fixture.mjs": "761f22c2966138a49c2fd9c2ebc8553f2b81199a1104c81b74aca60fd0b5cab3"
+}

@@ -1,0 +1,5 @@
+{
+  "platforms": ["apple", "android"],
+  "apple": { "modules": ["LinePhotoModule"] },
+  "android": { "modules": ["expo.modules.lineaphoto.LinePhotoModule"] }
+}

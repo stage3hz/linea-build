@@ -1,0 +1,4 @@
+Same final single-use Gradle invocation, daemon-66122.out.log
+2026-10-28T04:22:27.432-0500 [INFO] [org.gradle.launcher.daemon.server.DefaultIncomingConnectionHandler] Received command: Build{id=9ef0e185-84a7-40df-8a1d-042e832a3651, currentDir=/workspace/scratch/f1956a5cefad/linea-messenger/mobile/android}.
+BUILD SUCCESSFUL in 4m 57s
+474 actionable tasks: 68 executed, 406 up-to-date

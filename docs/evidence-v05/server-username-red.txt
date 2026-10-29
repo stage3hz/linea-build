@@ -1,0 +1,225 @@
+✖ account status separates immutable private login, unique public username and stable account ID (1469.396271ms)
+✖ one actual free rename is atomic and repeated same-name requests do not spend it twice (1301.776092ms)
+✖ concurrent distinct renames on two server connections consume exactly one free change (1710.917677ms)
+✖ public and immutable-login namespaces remain reserved and conflicts do not consume a free change (2028.74178ms)
+✖ recovery pending before rename keeps the immutable login budget and remains cancellable and usable (1573.768571ms)
+✖ only trusted active Platina permits further name changes and exact expiry revokes the right (1320.041393ms)
+✖ static status emoji requires active Platina and is hidden for peers immediately at expiry (2636.166103ms)
+✖ clients cannot grant Platina, alter login/ID or submit arbitrary emoji assets (1214.197585ms)
+✖ credential changes still reject an immutable login reused as a secret after a public rename (1212.993286ms)
+✖ v3 migration preserves identity, sessions and pending recovery, and prevents login and ID mutation (76.452947ms)
+✖ renaming leaves persisted encryption device identity and account foreign keys unchanged (1496.518276ms)
+ℹ tests 11
+ℹ suites 0
+ℹ pass 0
+ℹ fail 11
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 16238.039621
+
+✖ failing tests:
+
+test at server/test/username.test.js:63:1
+✖ account status separates immutable private login, unique public username and stable account ID (1469.396271ms)
+  AssertionError [ERR_ASSERTION]: Expected values to be strictly equal:
+  
+  404 !== 401
+  
+      at TestContext.<anonymous> (file:///workspace/scratch/f1956a5cefad/linea-messenger/server/test/username.test.js:66:10)
+      at process.processTicksAndRejections (node:internal/process/task_queues:104:5)
+      at async Test.run (node:internal/test_runner/test:1409:7)
+      at async startSubtestAfterBootstrap (node:internal/test_runner/harness:387:3) {
+    generatedMessage: true,
+    code: 'ERR_ASSERTION',
+    actual: 404,
+    expected: 401,
+    operator: 'strictEqual',
+    diff: 'simple'
+  }
+
+test at server/test/username.test.js:80:1
+✖ one actual free rename is atomic and repeated same-name requests do not spend it twice (1301.776092ms)
+  AssertionError [ERR_ASSERTION]: {"error":"Адрес не найден."}
+  
+  404 !== 200
+  
+      at TestContext.<anonymous> (file:///workspace/scratch/f1956a5cefad/linea-messenger/server/test/username.test.js:85:10)
+      at process.processTicksAndRejections (node:internal/process/task_queues:104:5)
+      at async Test.run (node:internal/test_runner/test:1409:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:974:7) {
+    generatedMessage: false,
+    code: 'ERR_ASSERTION',
+    actual: 404,
+    expected: 200,
+    operator: 'strictEqual',
+    diff: 'simple'
+  }
+
+test at server/test/username.test.js:104:1
+✖ concurrent distinct renames on two server connections consume exactly one free change (1710.917677ms)
+  AssertionError [ERR_ASSERTION]: Expected values to be strictly deep-equal:
+  + actual - expected
+  
+    [
+  +   404,
+  +   404
+  -   200,
+  -   403
+    ]
+  
+      at TestContext.<anonymous> (file:///workspace/scratch/f1956a5cefad/linea-messenger/server/test/username.test.js:109:10)
+      at process.processTicksAndRejections (node:internal/process/task_queues:104:5)
+      at async Test.run (node:internal/test_runner/test:1409:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:974:7) {
+    generatedMessage: true,
+    code: 'ERR_ASSERTION',
+    actual: [Array],
+    expected: [Array],
+    operator: 'deepStrictEqual',
+    diff: 'simple'
+  }
+
+test at server/test/username.test.js:116:1
+✖ public and immutable-login namespaces remain reserved and conflicts do not consume a free change (2028.74178ms)
+  AssertionError [ERR_ASSERTION]: Expected values to be strictly equal:
+  
+  404 !== 200
+  
+      at TestContext.<anonymous> (file:///workspace/scratch/f1956a5cefad/linea-messenger/server/test/username.test.js:119:10)
+      at process.processTicksAndRejections (node:internal/process/task_queues:104:5)
+      at async Test.run (node:internal/test_runner/test:1409:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:974:7) {
+    generatedMessage: true,
+    code: 'ERR_ASSERTION',
+    actual: 404,
+    expected: 200,
+    operator: 'strictEqual',
+    diff: 'simple'
+  }
+
+test at server/test/username.test.js:135:1
+✖ recovery pending before rename keeps the immutable login budget and remains cancellable and usable (1573.768571ms)
+  AssertionError [ERR_ASSERTION]: Expected values to be strictly equal:
+  
+  404 !== 200
+  
+      at TestContext.<anonymous> (file:///workspace/scratch/f1956a5cefad/linea-messenger/server/test/username.test.js:141:10)
+      at process.processTicksAndRejections (node:internal/process/task_queues:104:5)
+      at async Test.run (node:internal/test_runner/test:1409:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:974:7) {
+    generatedMessage: true,
+    code: 'ERR_ASSERTION',
+    actual: 404,
+    expected: 200,
+    operator: 'strictEqual',
+    diff: 'simple'
+  }
+
+test at server/test/username.test.js:162:1
+✖ only trusted active Platina permits further name changes and exact expiry revokes the right (1320.041393ms)
+  AssertionError [ERR_ASSERTION]: Expected values to be strictly equal:
+  
+  404 !== 200
+  
+      at TestContext.<anonymous> (file:///workspace/scratch/f1956a5cefad/linea-messenger/server/test/username.test.js:165:10)
+      at process.processTicksAndRejections (node:internal/process/task_queues:104:5)
+      at async Test.run (node:internal/test_runner/test:1409:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:974:7) {
+    generatedMessage: true,
+    code: 'ERR_ASSERTION',
+    actual: 404,
+    expected: 200,
+    operator: 'strictEqual',
+    diff: 'simple'
+  }
+
+test at server/test/username.test.js:183:1
+✖ static status emoji requires active Platina and is hidden for peers immediately at expiry (2636.166103ms)
+  AssertionError [ERR_ASSERTION]: Expected values to be strictly equal:
+  
+  404 !== 403
+  
+      at TestContext.<anonymous> (file:///workspace/scratch/f1956a5cefad/linea-messenger/server/test/username.test.js:186:10)
+      at process.processTicksAndRejections (node:internal/process/task_queues:104:5)
+      at async Test.run (node:internal/test_runner/test:1409:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:974:7) {
+    generatedMessage: true,
+    code: 'ERR_ASSERTION',
+    actual: 404,
+    expected: 403,
+    operator: 'strictEqual',
+    diff: 'simple'
+  }
+
+test at server/test/username.test.js:210:1
+✖ clients cannot grant Platina, alter login/ID or submit arbitrary emoji assets (1214.197585ms)
+  AssertionError [ERR_ASSERTION]: Expected values to be strictly equal:
+  
+  404 !== 400
+  
+      at TestContext.<anonymous> (file:///workspace/scratch/f1956a5cefad/linea-messenger/server/test/username.test.js:217:13)
+      at process.processTicksAndRejections (node:internal/process/task_queues:104:5)
+      at async Test.run (node:internal/test_runner/test:1409:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:974:7) {
+    generatedMessage: true,
+    code: 'ERR_ASSERTION',
+    actual: 404,
+    expected: 400,
+    operator: 'strictEqual',
+    diff: 'simple'
+  }
+
+test at server/test/username.test.js:229:1
+✖ credential changes still reject an immutable login reused as a secret after a public rename (1212.993286ms)
+  AssertionError [ERR_ASSERTION]: Expected values to be strictly equal:
+  
+  404 !== 200
+  
+      at TestContext.<anonymous> (file:///workspace/scratch/f1956a5cefad/linea-messenger/server/test/username.test.js:232:10)
+      at process.processTicksAndRejections (node:internal/process/task_queues:104:5)
+      at async Test.run (node:internal/test_runner/test:1409:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:974:7) {
+    generatedMessage: true,
+    code: 'ERR_ASSERTION',
+    actual: 404,
+    expected: 200,
+    operator: 'strictEqual',
+    diff: 'simple'
+  }
+
+test at server/test/username.test.js:244:1
+✖ v3 migration preserves identity, sessions and pending recovery, and prevents login and ID mutation (76.452947ms)
+  AssertionError [ERR_ASSERTION]: Expected values to be strictly equal:
+  
+  3 !== 4
+  
+      at verify (file:///workspace/scratch/f1956a5cefad/linea-messenger/server/test/username.test.js:261:12)
+      at TestContext.<anonymous> (file:///workspace/scratch/f1956a5cefad/linea-messenger/server/test/username.test.js:276:9)
+      at async Test.run (node:internal/test_runner/test:1409:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:974:7) {
+    generatedMessage: true,
+    code: 'ERR_ASSERTION',
+    actual: 3,
+    expected: 4,
+    operator: 'strictEqual',
+    diff: 'simple'
+  }
+
+test at server/test/username.test.js:281:1
+✖ renaming leaves persisted encryption device identity and account foreign keys unchanged (1496.518276ms)
+  AssertionError [ERR_ASSERTION]: {"error":"Адрес не найден."}
+  
+  404 !== 200
+  
+      at TestContext.<anonymous> (file:///workspace/scratch/f1956a5cefad/linea-messenger/server/test/username.test.js:292:10)
+      at process.processTicksAndRejections (node:internal/process/task_queues:104:5)
+      at async Test.run (node:internal/test_runner/test:1409:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:974:7) {
+    generatedMessage: false,
+    code: 'ERR_ASSERTION',
+    actual: 404,
+    expected: 200,
+    operator: 'strictEqual',
+    diff: 'simple'
+  }

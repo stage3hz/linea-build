@@ -1,0 +1,19 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<testsuite name="expo.modules.lineavideo.VideoNalTest" tests="13" skipped="0" failures="0" errors="0" timestamp="2026-10-28T07:29:15.451Z" hostname="72be72b2ac54" time="0.118">
+  <properties/>
+  <testcase name="rejectsMalformedSeiLengthAndUnitOverflow" classname="expo.modules.lineavideo.VideoNalTest" time="0.079"/>
+  <testcase name="rejectsTruncatedLengthsAndInvalidHeaders" classname="expo.modules.lineavideo.VideoNalTest" time="0.006"/>
+  <testcase name="removesPrivateAvcSeiWithoutChangingFrame" classname="expo.modules.lineavideo.VideoNalTest" time="0.002"/>
+  <testcase name="unknownRenderingMetadataIsNotSilentlyDiscarded" classname="expo.modules.lineavideo.VideoNalTest" time="0.001"/>
+  <testcase name="actualEncodedFramesAndHdrRemainByteIdenticalAfterPrivateSeiRemoval" classname="expo.modules.lineavideo.VideoNalTest" time="0.013"/>
+  <testcase name="retainsValidHdrContentLightAndFrame" classname="expo.modules.lineavideo.VideoNalTest" time="0.001"/>
+  <testcase name="readsActualBitDepthFromEncodedSps" classname="expo.modules.lineavideo.VideoNalTest" time="0.002"/>
+  <testcase name="highBitDepthNeedsAnExplicitRangeAndHdrNeedsRealPrecision" classname="expo.modules.lineavideo.VideoNalTest" time="0.001"/>
+  <testcase name="validatesHdrPayloadAndDeclaration" classname="expo.modules.lineavideo.VideoNalTest" time="0.001"/>
+  <testcase name="rejectsDynamicHdrRatherThanDroppingIt" classname="expo.modules.lineavideo.VideoNalTest" time="0.001"/>
+  <testcase name="hdrNeedsRecognizedTransferAndWideColor" classname="expo.modules.lineavideo.VideoNalTest" time="0.001"/>
+  <testcase name="removesHevcUserDataAndFiller" classname="expo.modules.lineavideo.VideoNalTest" time="0.001"/>
+  <testcase name="acceptsThreeByteStartCodesAndNormalizesThem" classname="expo.modules.lineavideo.VideoNalTest" time="0.001"/>
+  <system-out><![CDATA[]]></system-out>
+  <system-err><![CDATA[]]></system-err>
+</testsuite>

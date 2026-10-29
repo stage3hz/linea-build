@@ -1,0 +1,48 @@
+✔ MP4 sanitation zeroes personal tags, dates, handler/compressor names and unused media bytes (7.355919ms)
+✔ HDR color information is preserved exactly and inconsistent claims are refused (3.091933ms)
+✔ metadata tracks, external data references and unsupported codec entries fail closed (1.966624ms)
+✔ chunk offsets cannot point to metadata or beyond the media payload (0.949729ms)
+✔ truncated boxes, fragmented inputs, oversized files and unsupported atom trees are refused (1.268617ms)
+✔ dependency metadata must match the sample count and contain only defined bits (3.444431ms)
+✔ reserved CICP values and mismatched HDR primaries are refused (4.812399ms)
+✔ essential movie and track headers cannot be omitted (3.20985ms)
+✔ sample timing and sync tables are tied to the declared samples (3.098116ms)
+✔ static HDR payload has bounded chromaticity and luminance fields (1.193182ms)
+✔ AAC config permits only defined LC fields and cannot retain private trailing bytes (8.362696ms)
+✔ color profiles require a complete recognized numeric layout and consistent declarations (2.028402ms)
+✔ valid static HDR stays byte-identical while invalid light and mastering ranges fail closed (3.743125ms)
+✔ sample group descriptions accept defined versions and reject opaque or wrong-sized groups (4.309449ms)
+✔ sample run boundaries, descriptions, and media overlaps are validated (2.880024ms)
+✔ AAC descriptors reject truncation, overlong lengths, external flags, and invalid sync data (2.803291ms)
+✔ extended and to-end atom sizes preserve sample positions and reject invalid bounds (0.992526ms)
+✔ timing tables allow signed composition offsets but reject zero or inconsistent counts (2.805241ms)
+✔ 32- and 64-bit movie headers erase dates and private padding while preserving playback fields (4.059279ms)
+✔ visual and AAC entries remove private reserved bytes without damaging essential codec fields (1.810374ms)
+✔ dimension limits reject zero and oversized video and retain the accepted boundary (2.947752ms)
+✔ private boxes and every unreferenced media gap become exact zero padding (0.973722ms)
+✔ each reserved dependency field is rejected independently (1.44305ms)
+✔ fixed sample sizes and 64-bit offsets remain bounded and point only at media (3.291593ms)
+✔ self-contained data references reject missing flags and foreign reference types (0.996271ms)
+✔ AAC explicit frequency config accepts its defined layout and rejects zero or excessive rates (2.27736ms)
+ℹ tests 26
+ℹ suites 0
+ℹ pass 26
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 216.02106
+ℹ start of coverage report
+ℹ -----------------------------------------------------------------
+ℹ file             | line % | branch % | funcs % | uncovered lines
+ℹ -----------------------------------------------------------------
+ℹ mobile           |        |          |         | 
+ℹ  src             |        |          |         | 
+ℹ   media          |        |          |         | 
+ℹ    mp4.ts        |  99.74 |    87.69 |  100.00 | 283
+ℹ    mp4Boxes.ts   | 100.00 |    96.77 |  100.00 | 
+ℹ    mp4Samples.ts | 100.00 |    93.98 |  100.00 | 
+ℹ -----------------------------------------------------------------
+ℹ all files        |  99.82 |    89.84 |  100.00 | 
+ℹ -----------------------------------------------------------------
+ℹ end of coverage report

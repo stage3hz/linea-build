@@ -1,0 +1,76 @@
+CRAP Report
+===========
+Languages: typescript
+
+Function                          Namespace                             CC    Cov%     CRAP
+-------------------------------------------------------------------------------------------
+buildApp                          app                                   62  79.3%     95.9
+POST /uploads                     app                                   23  56.5%     66.5
+installAuthRoutes                 auth                                  51  89.2%     54.3
+GET /ws                           app                                   23  63.0%     49.9
+integerEnv                        index                                  6   0.0%     42.0
+openDatabase                      database                              18  62.5%     35.1
+POST /e2ee/files                  e2ee                                  18  64.7%     32.2
+POST /chats/:chatId/messages      app                                   28  93.2%     28.2
+installE2eeRoutes                 e2ee                                  23  88.2%     23.9
+imageMime                         security                              13  60.0%     23.8
+POST /e2ee/devices                e2ee                                  18 100.0%     18.0
+PATCH /me                         app                                   15  77.8%     17.5
+passwordValue                     security                              16  89.5%     16.3
+GET /files/:id                    app                                   15  85.0%     15.8
+parseEncryptedMessage             e2ee                                  12 100.0%     12.0
+passwordMatches                   security                              10  75.0%     11.6
+createLimiter                     security                              11  88.9%     11.2
+GET /chats/:chatId/messages       app                                   10  78.6%     11.0
+safeFilename                      security                               4  25.0%     10.8
+GET /e2ee/inbox                   e2ee                                  10  84.6%     10.4
+POST /auth/recovery/verify        auth                                  10  92.3%     10.0
+isEndpointWebSocketOrigin         app                                    9 100.0%      9.0
+POST                              auth                                   9 100.0%      9.0
+publicMessage                     database                               9 100.0%      9.0
+boundedText                       security                               6  62.5%      7.9
+POST /auth/login                  auth                                   7  92.3%      7.0
+base64                            e2ee                                   7 100.0%      7.0
+recoveryWordValue                 security                               7 100.0%      7.0
+positiveInteger                   security                               4  50.0%      6.0
+POST /chats                       app                                    5  71.4%      5.6
+objectBody                        security                               5  80.0%      5.2
+publicChat                        database                               4  75.0%      4.2
+POST /auth/register               auth                                   4  87.5%      4.0
+POST /e2ee/prekeys/claim          e2ee                                   4  88.9%      4.0
+POST /chats/:chatId/read          app                                    4 100.0%      4.0
+integer                           e2ee                                   4 100.0%      4.0
+normalizeRecoveryWord             security                               4 100.0%      4.0
+deviceNameValue                   security                               3  80.0%      3.1
+POST /e2ee/devices/revoke         e2ee                                   3 100.0%      3.0
+uuid                              e2ee                                   3 100.0%      3.0
+POST /auth/sessions/revoke-others auth                                   2  66.7%      2.1
+POST /auth/recovery/reset         auth                                   2  83.3%      2.0
+GET /me                           app                                    2 100.0%      2.0
+POST /auth/password               auth                                   2 100.0%      2.0
+POST /auth/recovery/cancel        auth                                   2 100.0%      2.0
+POST /auth/recovery/status        auth                                   2 100.0%      2.0
+POST /auth/sessions/revoke        auth                                   2 100.0%      2.0
+transaction                       database                               2 100.0%      2.0
+GET /e2ee/devices                 e2ee                                   2 100.0%      2.0
+curvePublicKey                    e2ee                                   2 100.0%      2.0
+signedPreKey                      e2ee                                   2 100.0%      2.0
+usernameValue                     security                               2 100.0%      2.0
+validToken                        security                               2 100.0%      2.0
+GET /chats                        app                                    1 100.0%      1.0
+GET /health                       app                                    1 100.0%      1.0
+GET /users                        app                                    1 100.0%      1.0
+OPTIONS /*                        app                                    1 100.0%      1.0
+GET /auth/recovery/requests       auth                                   1 100.0%      1.0
+GET /auth/security                auth                                   1 100.0%      1.0
+GET /auth/sessions                auth                                   1 100.0%      1.0
+POST /auth/logout                 auth                                   1 100.0%      1.0
+iso                               auth                                   1 100.0%      1.0
+publicAttachment                  database                               1 100.0%      1.0
+publicUser                        database                               1 100.0%      1.0
+GET /e2ee/devices/self            e2ee                                   1 100.0%      1.0
+fail                              security                               1 100.0%      1.0
+newToken                          security                               1 100.0%      1.0
+passwordHash                      security                               1 100.0%      1.0
+tokenHash                         security                               1 100.0%      1.0
+constructor                       security.HttpError                     1 100.0%      1.0

@@ -1,0 +1,15 @@
+{:entries [
+  {:name "readHeader", :namespace "photo.png", :complexity 12, :coverage 100.0, :crap 12.0}
+  {:name "sanitizePng", :namespace "photo.png", :complexity 12, :coverage 100.0, :crap 12.0}
+  {:name "acceptPalette", :namespace "photo.png", :complexity 11, :coverage 100.0, :crap 11.0}
+  {:name "acceptChunk", :namespace "photo.png", :complexity 8, :coverage 100.0, :crap 8.0}
+  {:name "acceptTransparency", :namespace "photo.png", :complexity 8, :coverage 100.0, :crap 8.0}
+  {:name "readChunk", :namespace "photo.png", :complexity 6, :coverage 100.0, :crap 6.0}
+  {:name "acceptPixels", :namespace "photo.png", :complexity 4, :coverage 100.0, :crap 4.0}
+  {:name "acceptEnd", :namespace "photo.png", :complexity 3, :coverage 100.0, :crap 3.0}
+  {:name "acceptHeader", :namespace "photo.png", :complexity 2, :coverage 100.0, :crap 2.0}
+  {:name "crc32", :namespace "photo.png", :complexity 2, :coverage 100.0, :crap 2.0}
+  {:name "joinParts", :namespace "photo.png", :complexity 2, :coverage 100.0, :crap 2.0}
+  {:name "fail", :namespace "photo.png", :complexity 1, :coverage 100.0, :crap 1.0}
+  {:name "u32", :namespace "photo.png", :complexity 1, :coverage 100.0, :crap 1.0}
+]}

@@ -1,0 +1,20 @@
+{
+  "status": "prepared",
+  "target": "/tmp/linea-ios-cloud-final/mobile",
+  "baselineVersion": "0.5.0",
+  "appConfigSha256": "50457c0257d789c6c5701b27022a06d352297243630ba6dc6e62fc0aabf05f5d",
+  "easSha256": "067a38734aa7fc0e4aaed23d7525071b82a2857f0f26c5cf72d8dd6f0a36afff",
+  "easPreserved": true,
+  "easChangedSinceBaseline": false,
+  "backupDirectory": "/tmp/linea-ios-cloud-final/mobile/.linea-ios-cloud-setup",
+  "publicConfiguration": {
+    "appVersion": "0.5.1"
+  },
+  "effects": [
+    "ios.useFrameworks=static",
+    "Android location/overlay/application-discovery/broad-storage/contacts/calendar permissions blocked for future builds",
+    "finalized iOS privacy checks"
+  ],
+  "cloudBuildStarted": false,
+  "accountsConnected": false
+}

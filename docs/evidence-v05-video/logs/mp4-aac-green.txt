@@ -1,0 +1,23 @@
+✔ MP4 sanitation zeroes personal tags, dates, handler/compressor names and unused media bytes (5.497704ms)
+✔ HDR color information is preserved exactly and inconsistent claims are refused (1.812766ms)
+✔ metadata tracks, external data references and unsupported codec entries fail closed (1.328879ms)
+✔ chunk offsets cannot point to metadata or beyond the media payload (0.646641ms)
+✔ truncated boxes, fragmented inputs, oversized files and unsupported atom trees are refused (1.7324ms)
+✔ dependency metadata must match the sample count and contain only defined bits (2.070569ms)
+✔ reserved CICP values and mismatched HDR primaries are refused (3.409022ms)
+✔ essential movie and track headers cannot be omitted (2.901245ms)
+✔ sample timing and sync tables are tied to the declared samples (1.168923ms)
+✔ static HDR payload has bounded chromaticity and luminance fields (1.676267ms)
+✔ AAC config permits only defined LC fields and cannot retain private trailing bytes (7.221542ms)
+(node:5) [MODULE_TYPELESS_PACKAGE_JSON] Warning: Module type of file:///workspace/scratch/f1956a5cefad/linea-messenger/mobile/src/media/mp4.ts is not specified and it doesn't parse as CommonJS.
+Reparsing as ES module because module syntax was detected. This incurs a performance overhead.
+To eliminate this warning, add "type": "module" to /workspace/scratch/f1956a5cefad/linea-messenger/mobile/package.json.
+(Use `node --trace-warnings ...` to show where the warning was created)
+ℹ tests 11
+ℹ suites 0
+ℹ pass 11
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 132.949121

@@ -1,0 +1,32 @@
+{
+  "files": {
+    "mobile/modules/linea-photo/android/build.gradle": "3dca19e98fe63d84520766ec4cabd48371c14365ad0d5741eb77d2d7b9270f73",
+    "mobile/modules/linea-photo/android/src/main/java/expo/modules/lineaphoto/LinePhotoModule.kt": "a8dd1ac594a25847216b7b76e95076f9070ed3d3488415e3f9bad24a1c559fb9",
+    "mobile/modules/linea-photo/android/src/main/java/expo/modules/lineaphoto/PhotoBackground.kt": "7b78f4c1fd71445e9f2ebe2e039fca659366ecec51ef9cb843cbb2775ff9ccac",
+    "mobile/modules/linea-photo/android/src/main/java/expo/modules/lineaphoto/PhotoFiles.kt": "64e5186a1f99ccb6c7ff651faf0e65064e9a137422b481ddcc3b43bce46ea4b6",
+    "mobile/modules/linea-photo/android/src/main/java/expo/modules/lineaphoto/PhotoOptions.kt": "f065a5731414daaddcb7d02220b204e634e2abd789d28b885c1d3c10612cd350",
+    "mobile/modules/linea-photo/android/src/main/java/expo/modules/lineaphoto/PhotoPixels.kt": "0e3bbdb2689c301b374a1bef4ed6d4ef42276adcfbe8cf1094741be412642017",
+    "mobile/modules/linea-photo/android/src/main/java/expo/modules/lineaphoto/PhotoSource.kt": "5e692ea8bd7bf85b0ea4cea2639500d17da5ee1cff754c0e7ae2df544e46329e",
+    "mobile/modules/linea-photo/android/src/test/java/expo/modules/lineaphoto/PhotoOptionsTest.kt": "9e70b06254f07aaa1e26f20df2e46404fcef3c86147d268768b830dd41072d6a",
+    "mobile/modules/linea-photo/android/src/test/java/expo/modules/lineaphoto/PhotoPixelsTest.kt": "f73cd3811499bfef3b022a14bbbd36a4850cb3bdeb4277a7bb23444e0891422f",
+    "mobile/modules/linea-photo/android/src/test/java/expo/modules/lineaphoto/PhotoSourceTest.kt": "18d561c658c583574885f40b71975d8464b591935974b41a73f764ea3d3e685f",
+    "mobile/modules/linea-photo/android/src/test/resources/srgb-lcms.icc": "3cd0b9ed06342cbec52c255bf59d249669a0b73541d21a1e8e1d18c1c325e811",
+    "mobile/modules/linea-photo/expo-module.config.json": "62f6e9d00a70c91580e3ecab11ab697f2138fc83bd86e5960b926d3ad6effaee",
+    "mobile/modules/linea-photo/index.ts": "5f3908123ae9b32012c3aaa7f9337c79db9cea649f2364fab868bde50de2dcda",
+    "mobile/modules/linea-photo/ios/LinePhotoModule.swift": "e1fcd0bce9c9e6043bd49747554364f3d1cb2c466c28f413da99fea88371fae1",
+    "mobile/modules/linea-photo/ios/LineaPhoto.podspec": "17f04bc31a25f974db7acf6a21fcabd2e4e7ef6a155183cf34d970200f964d55",
+    "mobile/modules/linea-photo/ios/PhotoBackground.swift": "369911ff31d48fd44ce6562f2deb2a099975f53cab3e1c2b13f7a7266f537436",
+    "mobile/modules/linea-photo/ios/PhotoFiles.swift": "b46f007c399a1e58e8c5a556e1734ec3562b0bc8020f1a3c47e4c00159246341",
+    "mobile/modules/linea-photo/ios/PhotoOptions.swift": "cb2590618ab2f604e25714d2bf2864d06983dbd33cc2826244bf12df1b154337",
+    "mobile/modules/linea-photo/ios/PhotoPixels.swift": "7d1db389a627ab2d1009db9bd44f16c0ddbe625bb904c6d6811a7eb6fe4a055a",
+    "mobile/modules/linea-photo/ios/PhotoSource.swift": "9d654805297b369b03a8813d76d5a85b63d07c40560c64119109b3b41e2443da",
+    "mobile/modules/linea-photo/jvm-tests/build.gradle": "d07a8324a5095b13886c938119378c8313dd203e7d1e6b7f41961ee6547aeb79",
+    "mobile/modules/linea-photo/jvm-tests/settings.gradle": "550df2fbd54f9fefe7db73f9aa602852d27adef1afc33517428c6d834081161b",
+    "mobile/modules/linea-photo/package.json": "911e02ebd241c32c4b199a9e9e20ad23337688117673c0c3e942019f78256df3",
+    "mobile/plugins/withLinePhoto.js": "48a0f9856872345ead6d26eb2a2adba0c13dc4d61f99a9b073f81a65e8027d43"
+  },
+  "count": 24,
+  "apkBuild": "deferred until combined freeze",
+  "iosBuild": "not run",
+  "metadataVersion": "0.5.0"
+}

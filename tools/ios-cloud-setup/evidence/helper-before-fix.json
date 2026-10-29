@@ -1,0 +1,60 @@
+{
+  "syntheticTestIdentitiesOnly": true,
+  "results": [
+    {
+      "name": "baseline backups, hardening, no cloud actions, byte-preserving idempotency",
+      "passed": true
+    },
+    {
+      "name": "synthetic public settings and app version persist without editing package",
+      "passed": true
+    },
+    {
+      "name": "foreign app baseline refused before backups",
+      "passed": true
+    },
+    {
+      "name": "foreign EAS baseline refused before backups",
+      "passed": true
+    },
+    {
+      "name": "later foreign app changes preserved and refused",
+      "passed": true
+    },
+    {
+      "name": "later EAS customization retained during public settings update",
+      "passed": true
+    },
+    {
+      "name": "malformed public flags and unknown/duplicate options fail before mutation",
+      "passed": true
+    },
+    {
+      "name": "modified privacy guard preserved and refused",
+      "passed": true
+    },
+    {
+      "name": "modified baseline backup preserved and refused",
+      "passed": true
+    },
+    {
+      "name": "symlink app config rejected",
+      "passed": true
+    },
+    {
+      "name": "existing lock blocks overwrite and is not removed",
+      "passed": true
+    },
+    {
+      "name": "unrelated package version rejected",
+      "passed": true
+    },
+    {
+      "name": "missing package version rejected",
+      "passed": false,
+      "error": "expected success=False; code=0; stdout={\n  \"status\": \"prepared\",\n  \"target\": \"/tmp/linea-prepare-test-43c9vb1x/missing-version\",\n  \"baselineVersion\": \"0.5.0\",\n  \"appConfigSha256\": \"bf9fff2c364b7a0643da17fbad6adae45148bf7f01b1e09daad7564b8e8409c5\",\n  \"easSha256\": \"067a38734aa7fc0e4aaed23d7525071b82a2857f0f26c5cf72d8dd6f0a36afff\",\n  \"easPreserved\": true,\n  \"easChangedSinceBaseline\": false,\n  \"backupDirectory\": \"/tmp/linea-prepare-test-43c9vb1x/missing-version/.linea-ios-cloud-setup\",\n  \"publicConfiguration\": {},\n  \"effects\": [\n    \"ios.useFrameworks=static\",\n    \"Android location/overlay permissions blocked for future builds\",\n    \"finalized iOS privacy checks\"\n  ],\n  \"cloudBuildStarted\": false,\n  \"accountsConnected\": false\n}\n; stderr="
+    }
+  ],
+  "passed": 12,
+  "total": 13
+}

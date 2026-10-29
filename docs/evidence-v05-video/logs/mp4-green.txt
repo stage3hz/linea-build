@@ -1,0 +1,18 @@
+✔ MP4 sanitation zeroes personal tags, dates, handler/compressor names and unused media bytes (5.695395ms)
+✔ HDR color information is preserved exactly and inconsistent claims are refused (2.139058ms)
+✔ metadata tracks, external data references and unsupported codec entries fail closed (1.65008ms)
+✔ chunk offsets cannot point to metadata or beyond the media payload (0.784838ms)
+✔ truncated boxes, fragmented inputs, oversized files and unsupported atom trees are refused (4.660114ms)
+✔ dependency metadata must match the sample count and contain only defined bits (9.190581ms)
+✔ reserved CICP values and mismatched HDR primaries are refused (7.437083ms)
+✔ essential movie and track headers cannot be omitted (2.475086ms)
+✔ sample timing and sync tables are tied to the declared samples (1.219752ms)
+✔ static HDR payload has bounded chromaticity and luminance fields (0.819981ms)
+ℹ tests 10
+ℹ suites 0
+ℹ pass 10
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 455.074765

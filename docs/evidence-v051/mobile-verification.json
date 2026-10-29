@@ -1,0 +1,31 @@
+{
+  "version": "0.5.1",
+  "statusTests": {
+    "pass": 6,
+    "fail": 0,
+    "skipped": 0
+  },
+  "typecheckExitCode": 0,
+  "iosExport": {
+    "exitCode": 0,
+    "modules": 883,
+    "assets": 21,
+    "nativeCompilation": false
+  },
+  "fullMobileSuiteRerun": false,
+  "nativeBuildCreated": false,
+  "signedIpaCreated": false,
+  "physicalDeviceTested": false,
+  "sha256": {
+    "mobile/src/types.ts": "29d8dfebb4b7332d291475773ef400a56b958c853ed6a126158c18bfa9f99b82",
+    "mobile/src/statusEmojiModel.ts": "d9aa3c9bd50511cbaed1d393ca59c47d61fb413d7863a1ad6fe7ee0f6d9e6d9a",
+    "mobile/src/StatusEmoji.tsx": "8bc381c9750aa0b17e538c29e685797ec1903f1dacd21e46642048d610a86f23",
+    "mobile/src/ProfileScreen.tsx": "89a9fc521bb782b25779cd3b83ee9c01896b8ae69d188382307618f2fc111e3d",
+    "mobile/test/status-emoji.test.mjs": "a6545b2ff32137caa88fb9edd9d54a1cddb903150a2f003977f7c640698daf5a",
+    "mobile/app.config.js": "50457c0257d789c6c5701b27022a06d352297243630ba6dc6e62fc0aabf05f5d",
+    "mobile/eas.json": "067a38734aa7fc0e4aaed23d7525071b82a2857f0f26c5cf72d8dd6f0a36afff",
+    "mobile/package.json": "1a32435c8f61283b58643542b89a874d36f28135b6753989f9d17e9f0e7e0f12",
+    "mobile/package-lock.json": "96661e8d33161ba270b82a547b3bafde8fd9697738ebac1c06f35ac85bc87fa8",
+    "mobile/.linea-ios-cloud-setup/withLocalPrivacy.cjs": "90c0ae216a2a39641fa8a3317bbcef9a8a781751c38e81aa0ceaa07f978c37d9"
+  }
+}

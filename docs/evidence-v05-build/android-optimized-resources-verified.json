@@ -1,0 +1,29 @@
+{
+  "path": "mobile/android/app/build/intermediates/optimized_processed_res/release/optimizeReleaseResources/resources-release-optimize.ap_",
+  "metadataArtifactType": {
+    "type": "OPTIMIZED_PROCESSED_RES",
+    "kind": "Directory"
+  },
+  "sizeBytes": 4827288,
+  "sha256": "9b79c1afdfa51ef5134ec91384ed60260af1a690721ded2a0599a62b7e9b7d8e",
+  "zipCrc": "PASS",
+  "manifestPresent": true,
+  "resourceTablePresent": true,
+  "svgBytesMatch": [
+    {
+      "source": "platina-chrome.svg",
+      "optimizedEntries": [
+        "res/DE.svg"
+      ],
+      "sha256": "f44b7e68e19c1b9d3bd2bec4aff2167940142b3106a331e74f5b571766754fd9"
+    },
+    {
+      "source": "platina-chrome-light.svg",
+      "optimizedEntries": [
+        "res/97.svg"
+      ],
+      "sha256": "a7b58cc1ffbeadcef476606b18f77a74851ae7043a89a4d26e83f747dc5cf4c3"
+    }
+  ],
+  "diagnosticWarning": "Linked intermediate failed ZIP parsing; this verifies only the optimized resource archive consumed by packaging. Final APK verification is required."
+}

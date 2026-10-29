@@ -1,0 +1,22 @@
+{
+  "resourceStageCorrupt": true,
+  "apkSignatureVerification": "FAIL: Missing AndroidManifest.xml",
+  "archives": [
+    {
+      "path": "mobile/android/app/build/intermediates/linked_resources_binary_format/release/processReleaseResources/linked-resources-binary-format-release.ap_",
+      "bytes": 2777533,
+      "sha256": "02416c4991a9a4118433c0ba7028a90bb9fd0f4ce095d75e0b4c953ff42ac2fe"
+    },
+    {
+      "path": "mobile/android/app/build/intermediates/linked_resources_binary_format/release/processReleaseResources/output-metadata.json",
+      "bytes": 437,
+      "sha256": "9f16a5a25210d60c4f13c6b9f5eb04a5fc2d02fa3bc57fa6c41468af77e518fa"
+    },
+    {
+      "path": "mobile/android/app/build/intermediates/optimized_processed_res/release/optimizeReleaseResources/output-metadata.json",
+      "bytes": 418,
+      "sha256": "e4b80625eec59c6e87544a17d1240f3d9dad4aa1319f97cfeb22f9ca73c0280d"
+    }
+  ],
+  "oomCauseConfirmed": false
+}

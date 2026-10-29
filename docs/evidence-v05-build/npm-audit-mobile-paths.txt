@@ -1,0 +1,41 @@
+Command: npm ls zod deepmerge --all --json
+Working directory: mobile
+Exit code: 0
+npm warn Unknown env config "http-proxy". This will stop working in the next major version of npm.
+{
+  "version": "0.5.0",
+  "name": "linea-mobile",
+  "dependencies": {
+    "expo": {
+      "version": "57.0.31",
+      "resolved": "https://registry.npmjs.org/expo/-/expo-57.0.31.tgz",
+      "overridden": false,
+      "dependencies": {
+        "@expo/cli": {
+          "version": "57.0.32",
+          "resolved": "https://registry.npmjs.org/@expo/cli/-/cli-57.0.32.tgz",
+          "overridden": false,
+          "dependencies": {
+            "zod": {
+              "version": "3.25.76",
+              "resolved": "https://registry.npmjs.org/zod/-/zod-3.25.76.tgz",
+              "overridden": false
+            }
+          }
+        },
+        "@expo/config": {
+          "version": "57.0.10",
+          "resolved": "https://registry.npmjs.org/@expo/config/-/config-57.0.10.tgz",
+          "overridden": false,
+          "dependencies": {
+            "deepmerge": {
+              "version": "4.3.1",
+              "resolved": "https://registry.npmjs.org/deepmerge/-/deepmerge-4.3.1.tgz",
+              "overridden": false
+            }
+          }
+        }
+      }
+    }
+  }
+}

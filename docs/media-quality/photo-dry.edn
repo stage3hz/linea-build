@@ -1,0 +1,8 @@
+{:candidates [
+ {:score 1.0
+  :language "typescript"
+  :left {:file "mobile/src/photo/jpeg.ts", :start-line 56, :end-line 60}
+  :right {:file "mobile/src/photo/png.ts", :start-line 107, :end-line 110}
+  :left-nodes 111
+  :right-nodes 111}
+]}

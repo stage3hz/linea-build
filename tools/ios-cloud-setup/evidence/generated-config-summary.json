@@ -1,0 +1,83 @@
+{
+  "expoVersion": "0.5.1",
+  "iosBundleIdentifier": "com.linea.messenger.preview",
+  "ownerPresent": false,
+  "projectIdPresent": false,
+  "blockedPermissions": [
+    "android.permission.RECORD_AUDIO",
+    "android.permission.CAMERA",
+    "android.permission.ACCESS_MEDIA_LOCATION",
+    "android.permission.WRITE_EXTERNAL_STORAGE",
+    "android.permission.READ_MEDIA_AUDIO",
+    "android.permission.ACCESS_COARSE_LOCATION",
+    "android.permission.ACCESS_FINE_LOCATION",
+    "android.permission.ACCESS_BACKGROUND_LOCATION",
+    "android.permission.SYSTEM_ALERT_WINDOW",
+    "android.permission.QUERY_ALL_PACKAGES",
+    "android.permission.PACKAGE_USAGE_STATS",
+    "android.permission.MANAGE_EXTERNAL_STORAGE",
+    "android.permission.READ_CONTACTS",
+    "android.permission.WRITE_CONTACTS",
+    "android.permission.READ_CALENDAR",
+    "android.permission.WRITE_CALENDAR"
+  ],
+  "iosUseFrameworks": "static",
+  "sqlCipher": "true",
+  "generatedInfoPlist": {
+    "CADisableMinimumFrameDurationOnPhone": true,
+    "CFBundleDevelopmentRegion": "$(DEVELOPMENT_LANGUAGE)",
+    "CFBundleDisplayName": "Линия",
+    "CFBundleExecutable": "$(EXECUTABLE_NAME)",
+    "CFBundleIdentifier": "$(PRODUCT_BUNDLE_IDENTIFIER)",
+    "CFBundleInfoDictionaryVersion": "6.0",
+    "CFBundleName": "$(PRODUCT_NAME)",
+    "CFBundlePackageType": "$(PRODUCT_BUNDLE_PACKAGE_TYPE)",
+    "CFBundleShortVersionString": "0.5.1",
+    "CFBundleSignature": "????",
+    "CFBundleURLTypes": [
+      {
+        "CFBundleURLSchemes": [
+          "linea",
+          "com.linea.messenger.preview"
+        ]
+      }
+    ],
+    "CFBundleVersion": "1",
+    "LSMinimumSystemVersion": "12.0",
+    "LSRequiresIPhoneOS": true,
+    "NSAppTransportSecurity": {
+      "NSAllowsArbitraryLoads": false,
+      "NSAllowsLocalNetworking": true
+    },
+    "NSFaceIDUsageDescription": "Allow $(PRODUCT_NAME) to access your Face ID biometric data.",
+    "NSLocalNetworkUsageDescription": "Подключение к вашему серверу мессенджера в локальной сети.",
+    "NSPhotoLibraryUsageDescription": "Выберите фотографию для отправки в чат или профиля.",
+    "PHPhotoLibraryPreventAutomaticLimitedAccessAlert": true,
+    "RCTMetroPort": "$(RCT_METRO_PORT)",
+    "RCTRootViewBackgroundColor": 4278718238,
+    "UIBackgroundModes": [
+      "audio"
+    ],
+    "UILaunchStoryboardName": "SplashScreen",
+    "UIRequiredDeviceCapabilities": [
+      "arm64"
+    ],
+    "UIRequiresFullScreen": false,
+    "UIStatusBarStyle": "UIStatusBarStyleDefault",
+    "UISupportedInterfaceOrientations": [
+      "UIInterfaceOrientationPortrait",
+      "UIInterfaceOrientationPortraitUpsideDown"
+    ],
+    "UIUserInterfaceStyle": "Automatic",
+    "UIViewControllerBasedStatusBarAppearance": false
+  },
+  "generatedEntitlements": {},
+  "inputAppConfigSha256": "50457c0257d789c6c5701b27022a06d352297243630ba6dc6e62fc0aabf05f5d",
+  "inputEasSha256": "067a38734aa7fc0e4aaed23d7525071b82a2857f0f26c5cf72d8dd6f0a36afff",
+  "generatedFilesSha256": {
+    "Podfile": "a5e81dc6f68b187668d26ee4e04e0bf7fe5fe1818fb6a3ed2190b3a5bed6f095",
+    "Podfile.properties.json": "fcd2aae96c882d42fc98bc03342ce68b737e9af03d9d392e3923007639bbe3fc",
+    "Liniya/Info.plist": "261d6913324a10ee203ff4c6d3622b008717658d34259b15306a17bf645df9f9",
+    "Liniya/Liniya.entitlements": "eb80c580e7af55cd9c76b062dd7a3651c94123dc0d695acb613dfe477edbd6a5"
+  }
+}

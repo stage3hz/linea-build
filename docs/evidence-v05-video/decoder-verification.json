@@ -1,0 +1,171 @@
+{
+  "scope": "Production Kotlin NAL-filter outputs + representative FFmpeg MP4s; no Android/iOS media runtime claimed",
+  "nativeFilter": [
+    {
+      "name": "sdr",
+      "frames": 2,
+      "pixelFormat": "yuv420p",
+      "digestBefore": "MD5=5c94eb4f886d9ce038a3b31c7ffba207",
+      "digestAfter": "MD5=5c94eb4f886d9ce038a3b31c7ffba207",
+      "hdrDataEqual": true,
+      "privateUuidSeiRemoved": true,
+      "color": {
+        "pix_fmt": "yuv420p",
+        "color_primaries": null,
+        "color_transfer": null,
+        "color_space": null
+      }
+    },
+    {
+      "name": "hdr10",
+      "frames": 2,
+      "pixelFormat": "yuv420p10le",
+      "digestBefore": "MD5=0118d4f6846131506155b36c65efa203",
+      "digestAfter": "MD5=0118d4f6846131506155b36c65efa203",
+      "hdrDataEqual": true,
+      "privateUuidSeiRemoved": true,
+      "color": {
+        "pix_fmt": "yuv420p10le",
+        "color_primaries": "bt2020",
+        "color_transfer": "smpte2084",
+        "color_space": "bt2020nc"
+      }
+    }
+  ],
+  "containers": [
+    {
+      "name": "sdr",
+      "hdr": "sdr",
+      "size": 967,
+      "width": 64,
+      "height": 48,
+      "frames": 2,
+      "sha256Before": "251b11d7f7304dfa1a6b9393b7876e3511ba4b15073f961ae6ac36775ff17baa",
+      "sha256After": "e95210e45bcf65a8ca23b995a1415030b4134cc461ecbb1c4c257ca9fff2b255",
+      "idempotent": true,
+      "decodedVideoEqual": true,
+      "digestBefore": "MD5=5c94eb4f886d9ce038a3b31c7ffba207",
+      "digestAfter": "MD5=5c94eb4f886d9ce038a3b31c7ffba207",
+      "hdrDataEqual": true,
+      "color": {
+        "pix_fmt": "yuv420p",
+        "color_primaries": null,
+        "color_transfer": null,
+        "color_space": null
+      },
+      "audio": null,
+      "outputTags": {
+        "major_brand": "isom",
+        "minor_version": "0",
+        "compatible_brands": "isomiso2avc1mp41"
+      },
+      "frameSideData": [
+        [],
+        []
+      ]
+    },
+    {
+      "name": "hdr10",
+      "hdr": "pq",
+      "size": 1132,
+      "width": 64,
+      "height": 48,
+      "frames": 2,
+      "sha256Before": "0ff8a868ba14f165ef29d953bf661553f38131a9d56e2852452a71a29b83129f",
+      "sha256After": "ff9dcb7fb6c4435a1cac625c5f8550d5b6d5403b7a0ceeb73c8850f124318616",
+      "idempotent": true,
+      "decodedVideoEqual": true,
+      "digestBefore": "MD5=0118d4f6846131506155b36c65efa203",
+      "digestAfter": "MD5=0118d4f6846131506155b36c65efa203",
+      "hdrDataEqual": true,
+      "color": {
+        "pix_fmt": "yuv420p10le",
+        "color_primaries": "bt2020",
+        "color_transfer": "smpte2084",
+        "color_space": "bt2020nc"
+      },
+      "audio": null,
+      "outputTags": {
+        "major_brand": "isom",
+        "minor_version": "0",
+        "compatible_brands": "isomiso2mp41"
+      },
+      "frameSideData": [
+        [
+          {
+            "side_data_type": "Mastering display metadata",
+            "red_x": "34000/50000",
+            "red_y": "16000/50000",
+            "green_x": "13250/50000",
+            "green_y": "34500/50000",
+            "blue_x": "7500/50000",
+            "blue_y": "3000/50000",
+            "white_point_x": "15635/50000",
+            "white_point_y": "16450/50000",
+            "min_luminance": "50/10000",
+            "max_luminance": "10000000/10000"
+          },
+          {
+            "side_data_type": "Content light level metadata",
+            "max_content": 1000,
+            "max_average": 400
+          }
+        ],
+        [
+          {
+            "side_data_type": "Mastering display metadata",
+            "red_x": "34000/50000",
+            "red_y": "16000/50000",
+            "green_x": "13250/50000",
+            "green_y": "34500/50000",
+            "blue_x": "7500/50000",
+            "blue_y": "3000/50000",
+            "white_point_x": "15635/50000",
+            "white_point_y": "16450/50000",
+            "min_luminance": "50/10000",
+            "max_luminance": "10000000/10000"
+          },
+          {
+            "side_data_type": "Content light level metadata",
+            "max_content": 1000,
+            "max_average": 400
+          }
+        ]
+      ]
+    },
+    {
+      "name": "audio",
+      "hdr": "sdr",
+      "size": 11461,
+      "width": 64,
+      "height": 48,
+      "frames": 2,
+      "sha256Before": "7c1abb7a48c1bb685b26900f50ae09ba2e8d61cbdd9e9cf2c3120ffbf2a25e87",
+      "sha256After": "09ddf0dbbe6a56c995b1ef07abb98fecfb2d6936a5139c46c13d335955701efe",
+      "idempotent": true,
+      "decodedVideoEqual": true,
+      "digestBefore": "MD5=5c94eb4f886d9ce038a3b31c7ffba207",
+      "digestAfter": "MD5=5c94eb4f886d9ce038a3b31c7ffba207",
+      "hdrDataEqual": true,
+      "color": {
+        "pix_fmt": "yuv420p",
+        "color_primaries": null,
+        "color_transfer": null,
+        "color_space": null
+      },
+      "audio": {
+        "digestBefore": "MD5=9f4c33fc182c2b8d98b39ccc09b088de",
+        "digestAfter": "MD5=9f4c33fc182c2b8d98b39ccc09b088de"
+      },
+      "outputTags": {
+        "major_brand": "isom",
+        "minor_version": "0",
+        "compatible_brands": "isomiso2avc1mp41"
+      },
+      "frameSideData": [
+        [],
+        []
+      ]
+    }
+  ]
+}

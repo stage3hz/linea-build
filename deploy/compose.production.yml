@@ -1,0 +1,119 @@
+name: linea-production
+
+services:
+  api:
+    build:
+      context: ../server
+    restart: unless-stopped
+    init: true
+    read_only: true
+    tmpfs:
+      - /tmp:size=64m,mode=1777
+    cap_drop: [ALL]
+    security_opt: [no-new-privileges:true]
+    pids_limit: 256
+    mem_limit: 1536m
+    environment:
+      NODE_ENV: production
+      HOST: 0.0.0.0
+      PORT: 3001
+      DATA_DIR: /data
+      LOG_LEVEL: info
+      # Only the actual Caddy container may supply the original client IP.
+      TRUSTED_PROXIES: 172.30.58.2
+      ALLOWED_ORIGINS: ${ALLOWED_ORIGINS:-}
+      SESSION_TTL_DAYS: 30
+      AUTH_RATE_LIMIT: 20
+      USER_STORAGE_MIB: ${USER_STORAGE_MIB:-512}
+      OPENROUTER_API_KEY: ${OPENROUTER_API_KEY:-}
+      # Self-hosted FreeLLMAPI router (service below). The unified key comes from its dashboard.
+      AI_PROVIDER: ${AI_PROVIDER:-openrouter}
+      AI_BASE_URL: ${AI_BASE_URL:-http://freellmapi:3001/v1}
+      AI_API_KEY: ${AI_API_KEY:-}
+      AI_MODEL: ${AI_MODEL:-auto}
+    volumes:
+      - linea-data:/data
+    networks:
+      backend:
+        ipv4_address: 172.30.58.3
+      ai_egress: {}
+    logging:
+      driver: json-file
+      options:
+        max-size: 10m
+        max-file: '3'
+
+  freellmapi:
+    # MIT-licensed router that pools the administrator's own free-tier LLM keys
+    # behind one OpenAI-compatible endpoint: https://github.com/tashfeenahmed/freellmapi
+    image: ghcr.io/tashfeenahmed/freellmapi:latest
+    restart: unless-stopped
+    environment:
+      NODE_ENV: production
+      PORT: 3001
+      ENCRYPTION_KEY: ${FREELLMAPI_ENCRYPTION_KEY:?Set FREELLMAPI_ENCRYPTION_KEY in deploy/.env}
+    # No host port: the API reaches it on the private network, the dashboard
+    # only through Caddy with an extra password (see Caddyfile).
+    volumes:
+      - freellmapi-data:/app/server/data
+    security_opt: [no-new-privileges:true]
+    mem_limit: 512m
+    networks:
+      ai_egress: {}
+      backend: {}
+    logging:
+      driver: json-file
+      options:
+        max-size: 10m
+        max-file: '3'
+
+  caddy:
+    image: caddy:2.11.7-alpine
+    restart: unless-stopped
+    depends_on:
+      api:
+        condition: service_healthy
+    read_only: true
+    tmpfs:
+      - /tmp:size=16m,mode=1777
+    cap_drop: [ALL]
+    cap_add: [NET_BIND_SERVICE]
+    security_opt: [no-new-privileges:true]
+    pids_limit: 128
+    mem_limit: 256m
+    ports:
+      - '80:80'
+      - '443:443'
+      - '443:443/udp'
+    environment:
+      PUBLIC_HOST_RU: ${PUBLIC_HOST_RU:?Set PUBLIC_HOST_RU in deploy/.env}
+      PUBLIC_HOST_COM: ${PUBLIC_HOST_COM:?Set PUBLIC_HOST_COM in deploy/.env}
+    volumes:
+      - ./Caddyfile:/etc/caddy/Caddyfile:ro
+      - caddy-data:/data
+      - caddy-config:/config
+    networks:
+      edge: {}
+      backend:
+        ipv4_address: 172.30.58.2
+    logging:
+      driver: json-file
+      options:
+        max-size: 10m
+        max-file: '3'
+
+networks:
+  edge: {}
+  # Server-only AI requests need outbound HTTPS; API still has no public host port.
+  ai_egress: {}
+  backend:
+    internal: true
+    ipam:
+      config:
+        - subnet: 172.30.58.0/28
+
+volumes:
+  freellmapi-data:
+  linea-data:
+  caddy-data:
+  caddy-config:

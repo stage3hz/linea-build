@@ -1,0 +1,118 @@
+✔ fresh JPEG is stripped of every APP/COM segment with pixels and dimensions retained (13.665529ms)
+✔ HDR gainmap and ISO gainmap payloads are rejected rather than silently stripped to SDR (0.830122ms)
+✔ truncated, concatenated, malformed or oversized JPEG cannot leave the device (1.145723ms)
+✔ unsupported coding modes and deceptive dimensions fail before returning an attachment (0.357337ms)
+✔ late JPEG comments between image scan and end marker are also removed (0.538589ms)
+✔ grayscale, precision, component counts and exact frame sizes are checked independently (0.623235ms)
+✔ JPEG dimension and pixel limits accept their exact edges and refuse each excess (0.957872ms)
+✔ escaped entropy bytes and both restart marker boundaries survive unchanged (0.584263ms)
+✔ independently missing JPEG signature, frame, scan or end cannot be accepted (3.901639ms)
+✔ JPEG segment count and byte limits accept the boundary and reject a single excess (640.54617ms)
+✔ truncated JPEG length headers produce a controlled format error before any out-of-bounds read (0.618003ms)
+✔ HDR PNG keeps only validated HDR information and identical compressed pixels (3.292287ms)
+✔ HLG code points are kept instead of silently becoming an unlabelled SDR image (0.37186ms)
+✔ HDR passthrough cannot discard an orientation that has not been applied to its pixels (1.946179ms)
+✔ SDR optional color chunks do not count as permitted HDR metadata (0.391014ms)
+✔ HDR color chunks must be unique, correctly sized and before image data (0.848634ms)
+✔ HDR static metadata cannot be retained without known HDR code points (0.582012ms)
+✔ invalid HDR ranges and chromaticities are rejected, not hidden in optional fields (1.293282ms)
+✔ HDR routing hint reads bounded chunks and stops before pixel data (26.333928ms)
+✔ EXIF orientation accepts upright little/big-endian data and refuses ambiguous or malformed IFD0 (3.231802ms)
+✔ HDR PNG routing honours its full chunk-count boundary and IDAT stop (9.43655ms)
+✔ HDR mastering coordinates and luminance boundaries cannot conceal invalid values (1.054261ms)
+✔ EXIF accepts empty and maximum-size IFD0 and reads a later orientation correctly (0.477992ms)
+✔ an IFD offset overlapping or just beyond EOF is rejected without reading outside TIFF (0.116897ms)
+✔ PNG export removes EXIF, GPS text, XMP, dates and private ancillary chunks while preserving pixels and alpha (1.06019ms)
+✔ indexed transparency and the palette required to decode it survive sanitation (0.476365ms)
+✔ an opaque truecolor PNG remains opaque (0.185769ms)
+✔ a suggested truecolor palette cannot appear after its transparency chunk (0.305614ms)
+✔ PNG checksum corruption is rejected even in a metadata chunk that would be removed (0.724631ms)
+✔ sanitation fails closed: wrong signature (0.293056ms)
+✔ sanitation fails closed: truncated chunk (0.251226ms)
+✔ sanitation fails closed: missing IEND (0.381725ms)
+✔ sanitation fails closed: trailing data (0.318706ms)
+✔ sanitation fails closed: zero width (0.413064ms)
+✔ sanitation fails closed: pixel cap (0.255859ms)
+✔ sanitation fails closed: impossible color depth (0.352382ms)
+✔ sanitation fails closed: unknown critical chunk (0.215837ms)
+✔ sanitation fails closed: animated PNG (0.307513ms)
+✔ sanitation fails closed: palette absent (0.362437ms)
+✔ sanitation fails closed: invalid palette length (0.320319ms)
+✔ sanitation fails closed: palette after data (0.361234ms)
+✔ sanitation fails closed: duplicate header (0.648516ms)
+✔ sanitation fails closed: transparency incompatible with RGBA (0.864228ms)
+✔ sanitation fails closed: split data sequence (0.652376ms)
+✔ a chunk with an overflowing declared length never reads beyond the file (0.218522ms)
+✔ an incomplete chunk header produces a controlled PNG error (0.909616ms)
+✔ a bounded declared chunk length cannot exceed the actual input (0.234865ms)
+✔ a PNG without image data is rejected (0.327779ms)
+✔ supported PNG samples and transparency survive: color 0, depth 1 (0.5107ms)
+✔ supported PNG samples and transparency survive: color 0, depth 2 (0.380846ms)
+✔ supported PNG samples and transparency survive: color 0, depth 4 (0.427384ms)
+✔ supported PNG samples and transparency survive: color 0, depth 8 (0.395327ms)
+✔ supported PNG samples and transparency survive: color 0, depth 16 (0.33499ms)
+✔ supported PNG samples and transparency survive: color 2, depth 8 (0.188116ms)
+✔ supported PNG samples and transparency survive: color 2, depth 16 (0.1439ms)
+✔ supported PNG samples and transparency survive: color 3, depth 1 (0.248333ms)
+✔ supported PNG samples and transparency survive: color 3, depth 2 (0.428718ms)
+✔ supported PNG samples and transparency survive: color 3, depth 4 (0.174585ms)
+✔ supported PNG samples and transparency survive: color 3, depth 8 (0.137863ms)
+✔ supported PNG samples and transparency survive: color 4, depth 8 (0.195112ms)
+✔ supported PNG samples and transparency survive: color 4, depth 16 (0.122518ms)
+✔ supported PNG samples and transparency survive: color 6, depth 8 (0.105214ms)
+✔ supported PNG samples and transparency survive: color 6, depth 16 (0.11159ms)
+✔ grayscale and truecolor transparency values survive without a palette (0.769955ms)
+✔ a suggested truecolor palette before transparency is retained in the valid order (0.412085ms)
+✔ indexed transparency may define one alpha while remaining palette entries stay opaque (0.364634ms)
+✔ consecutive image chunks, including empty IDAT chunks, retain the same pixel stream (0.882675ms)
+✔ byte offsets and independent output buffers prevent leaking surrounding memory (0.463611ms)
+✔ invalid PNG structure is rejected: IDAT before IHDR (0.256768ms)
+✔ invalid PNG structure is rejected: short IHDR (0.226286ms)
+✔ invalid PNG structure is rejected: oversized IHDR (0.093075ms)
+✔ invalid PNG structure is rejected: illegal chunk name (0.191764ms)
+✔ invalid PNG structure is rejected: reserved lowercase chunk bit (0.164286ms)
+✔ invalid PNG structure is rejected: duplicate PLTE (0.156977ms)
+✔ invalid PNG structure is rejected: palette for grayscale (0.713593ms)
+✔ invalid PNG structure is rejected: too many palette entries (0.581972ms)
+✔ invalid PNG structure is rejected: empty optional truecolor palette (0.23593ms)
+✔ invalid PNG structure is rejected: oversized optional truecolor palette (0.166913ms)
+✔ invalid PNG structure is rejected: palette exceeds bit depth (0.185848ms)
+✔ invalid PNG structure is rejected: duplicate transparency (0.303041ms)
+✔ invalid PNG structure is rejected: late transparency (0.238474ms)
+✔ invalid PNG structure is rejected: bad grayscale transparency length (0.290823ms)
+✔ invalid PNG structure is rejected: bad RGB transparency length (0.238417ms)
+✔ invalid PNG structure is rejected: indexed transparency exceeds palette (0.271615ms)
+✔ invalid PNG structure is rejected: empty indexed transparency (0.19278ms)
+✔ invalid PNG structure is rejected: frame control without animation header (0.183062ms)
+✔ invalid PNG structure is rejected: frame data without animation header (0.980209ms)
+✔ invalid PNG structure is rejected: unexpected IEND payload (0.322249ms)
+✔ invalid PNG structure is rejected: only empty IDAT (0.499019ms)
+✔ unsupported header algorithms and color types are rejected (0.812276ms)
+✔ the defined Adam7 interlace flag is retained for a one-pixel image (0.39024ms)
+✔ the maximum palette and matching transparency table remain valid (0.600317ms)
+✔ PNG dimension and pixel caps accept their boundaries and reject excess (6.608185ms)
+✔ PNG chunk count accepts 4096 chunks and rejects 4097 (25.990797ms)
+✔ PNG byte cap accepts exactly 20 MiB and rejects a larger input (408.095716ms)
+ℹ tests 95
+ℹ suites 0
+ℹ pass 95
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 1316.26022
+ℹ start of coverage report
+ℹ ----------------------------------------------------------------------
+ℹ file                  | line % | branch % | funcs % | uncovered lines
+ℹ ----------------------------------------------------------------------
+ℹ mobile                |        |          |         | 
+ℹ  src                  |        |          |         | 
+ℹ   photo               |        |          |         | 
+ℹ    exifOrientation.ts | 100.00 |   100.00 |  100.00 | 
+ℹ    jpeg.ts            | 100.00 |    96.05 |  100.00 | 
+ℹ    png.ts             | 100.00 |   100.00 |  100.00 | 
+ℹ    pngHdr.ts          | 100.00 |   100.00 |  100.00 | 
+ℹ ----------------------------------------------------------------------
+ℹ all files             | 100.00 |    98.92 |  100.00 | 
+ℹ ----------------------------------------------------------------------
+ℹ end of coverage report

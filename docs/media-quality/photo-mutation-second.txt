@@ -1,0 +1,354 @@
+KILLED    mobile/src/photo/exifOrientation.ts:3 < -> <=
+KILLED    mobile/src/photo/exifOrientation.ts:3 false -> true
+KILLED    mobile/src/photo/exifOrientation.ts:4 0 -> 1
+KILLED    mobile/src/photo/exifOrientation.ts:4 1 -> 0
+KILLED    mobile/src/photo/exifOrientation.ts:5 !== -> ===
+KILLED    mobile/src/photo/exifOrientation.ts:5 && -> ||
+KILLED    mobile/src/photo/exifOrientation.ts:5 !== -> ===
+KILLED    mobile/src/photo/exifOrientation.ts:5 false -> true
+KILLED    mobile/src/photo/exifOrientation.ts:6 === -> !==
+KILLED    mobile/src/photo/exifOrientation.ts:7 !== -> ===
+KILLED    mobile/src/photo/exifOrientation.ts:7 false -> true
+KILLED    mobile/src/photo/exifOrientation.ts:10 < -> <=
+KILLED    mobile/src/photo/exifOrientation.ts:10 || -> &&
+KILLED    mobile/src/photo/exifOrientation.ts:10 > -> >=
+SURVIVED  mobile/src/photo/exifOrientation.ts:10 - -> +
+KILLED    mobile/src/photo/exifOrientation.ts:10 false -> true
+KILLED    mobile/src/photo/exifOrientation.ts:12 > -> >=
+KILLED    mobile/src/photo/exifOrientation.ts:12 || -> &&
+KILLED    mobile/src/photo/exifOrientation.ts:12 * -> /
+KILLED    mobile/src/photo/exifOrientation.ts:12 > -> >=
+KILLED    mobile/src/photo/exifOrientation.ts:12 - -> +
+KILLED    mobile/src/photo/exifOrientation.ts:12 - -> +
+KILLED    mobile/src/photo/exifOrientation.ts:12 false -> true
+KILLED    mobile/src/photo/exifOrientation.ts:13 + -> -
+KILLED    mobile/src/photo/exifOrientation.ts:17 false -> true
+KILLED    mobile/src/photo/exifOrientation.ts:18 0 -> 1
+KILLED    mobile/src/photo/exifOrientation.ts:18 < -> <=
+KILLED    mobile/src/photo/exifOrientation.ts:19 + -> -
+KILLED    mobile/src/photo/exifOrientation.ts:19 * -> /
+KILLED    mobile/src/photo/exifOrientation.ts:20 !== -> ===
+KILLED    mobile/src/photo/exifOrientation.ts:21 || -> &&
+KILLED    mobile/src/photo/exifOrientation.ts:21 + -> -
+KILLED    mobile/src/photo/exifOrientation.ts:21 !== -> ===
+KILLED    mobile/src/photo/exifOrientation.ts:21 || -> &&
+KILLED    mobile/src/photo/exifOrientation.ts:21 + -> -
+KILLED    mobile/src/photo/exifOrientation.ts:21 !== -> ===
+KILLED    mobile/src/photo/exifOrientation.ts:21 1 -> 0
+KILLED    mobile/src/photo/exifOrientation.ts:21 || -> &&
+KILLED    mobile/src/photo/exifOrientation.ts:21 + -> -
+KILLED    mobile/src/photo/exifOrientation.ts:21 !== -> ===
+KILLED    mobile/src/photo/exifOrientation.ts:21 1 -> 0
+KILLED    mobile/src/photo/exifOrientation.ts:21 false -> true
+KILLED    mobile/src/photo/exifOrientation.ts:22 true -> false
+KILLED    mobile/src/photo/exifOrientation.ts:24 true -> false
+KILLED    mobile/src/photo/jpeg.ts:11 !== -> ===
+KILLED    mobile/src/photo/jpeg.ts:12 === -> !==
+KILLED    mobile/src/photo/jpeg.ts:14 === -> !==
+SURVIVED  mobile/src/photo/jpeg.ts:15 + -> -
+SURVIVED  mobile/src/photo/jpeg.ts:15 > -> >=
+KILLED    mobile/src/photo/jpeg.ts:16 + -> -
+KILLED    mobile/src/photo/jpeg.ts:17 < -> <=
+SURVIVED  mobile/src/photo/jpeg.ts:17 || -> &&
+SURVIVED  mobile/src/photo/jpeg.ts:17 > -> >=
+KILLED    mobile/src/photo/jpeg.ts:18 + -> -
+KILLED    mobile/src/photo/jpeg.ts:23 0 -> 1
+KILLED    mobile/src/photo/jpeg.ts:23 !== -> ===
+KILLED    mobile/src/photo/jpeg.ts:23 || -> &&
+KILLED    mobile/src/photo/jpeg.ts:23 delete !
+KILLED    mobile/src/photo/jpeg.ts:23 1 -> 0
+KILLED    mobile/src/photo/jpeg.ts:23 || -> &&
+KILLED    mobile/src/photo/jpeg.ts:23 !== -> ===
+KILLED    mobile/src/photo/jpeg.ts:23 + -> -
+KILLED    mobile/src/photo/jpeg.ts:23 * -> /
+KILLED    mobile/src/photo/jpeg.ts:24 1 -> 0
+KILLED    mobile/src/photo/jpeg.ts:30 delete !
+KILLED    mobile/src/photo/jpeg.ts:30 || -> &&
+KILLED    mobile/src/photo/jpeg.ts:30 delete !
+KILLED    mobile/src/photo/jpeg.ts:30 || -> &&
+KILLED    mobile/src/photo/jpeg.ts:30 > -> >=
+KILLED    mobile/src/photo/jpeg.ts:30 || -> &&
+KILLED    mobile/src/photo/jpeg.ts:30 > -> >=
+KILLED    mobile/src/photo/jpeg.ts:30 || -> &&
+KILLED    mobile/src/photo/jpeg.ts:30 * -> /
+KILLED    mobile/src/photo/jpeg.ts:30 > -> >=
+SURVIVED  mobile/src/photo/jpeg.ts:40 < -> <=
+KILLED    mobile/src/photo/jpeg.ts:41 !== -> ===
+KILLED    mobile/src/photo/jpeg.ts:42 - -> +
+KILLED    mobile/src/photo/jpeg.ts:42 1 -> 0
+KILLED    mobile/src/photo/jpeg.ts:43 === -> !==
+KILLED    mobile/src/photo/jpeg.ts:45 === -> !==
+KILLED    mobile/src/photo/jpeg.ts:45 0 -> 1
+KILLED    mobile/src/photo/jpeg.ts:45 || -> &&
+KILLED    mobile/src/photo/jpeg.ts:45 >= -> >
+KILLED    mobile/src/photo/jpeg.ts:45 && -> ||
+KILLED    mobile/src/photo/jpeg.ts:45 <= -> <
+KILLED    mobile/src/photo/jpeg.ts:52 0 -> 1
+KILLED    mobile/src/photo/jpeg.ts:53 delete !
+KILLED    mobile/src/photo/jpeg.ts:53 1 -> 0
+KILLED    mobile/src/photo/jpeg.ts:53 || -> &&
+KILLED    mobile/src/photo/jpeg.ts:53 !== -> ===
+KILLED    mobile/src/photo/jpeg.ts:53 1 -> 0
+KILLED    mobile/src/photo/jpeg.ts:53 + -> -
+KILLED    mobile/src/photo/jpeg.ts:53 * -> /
+KILLED    mobile/src/photo/jpeg.ts:53 + -> -
+KILLED    mobile/src/photo/jpeg.ts:57 + -> -
+KILLED    mobile/src/photo/jpeg.ts:57 0 -> 1
+KILLED    mobile/src/photo/jpeg.ts:57 0 -> 1
+KILLED    mobile/src/photo/jpeg.ts:63 >= -> >
+KILLED    mobile/src/photo/jpeg.ts:63 && -> ||
+KILLED    mobile/src/photo/jpeg.ts:63 <= -> <
+KILLED    mobile/src/photo/jpeg.ts:63 || -> &&
+KILLED    mobile/src/photo/jpeg.ts:63 === -> !==
+KILLED    mobile/src/photo/jpeg.ts:66 === -> !==
+KILLED    mobile/src/photo/jpeg.ts:66 true -> false
+KILLED    mobile/src/photo/jpeg.ts:71 delete !
+KILLED    mobile/src/photo/jpeg.ts:71 && -> ||
+KILLED    mobile/src/photo/jpeg.ts:71 !== -> ===
+KILLED    mobile/src/photo/jpeg.ts:73 !== -> ===
+KILLED    mobile/src/photo/jpeg.ts:78 delete !
+KILLED    mobile/src/photo/jpeg.ts:79 true -> false
+KILLED    mobile/src/photo/jpeg.ts:81 === -> !==
+KILLED    mobile/src/photo/jpeg.ts:87 delete !
+KILLED    mobile/src/photo/jpeg.ts:87 || -> &&
+KILLED    mobile/src/photo/jpeg.ts:87 delete !
+KILLED    mobile/src/photo/jpeg.ts:87 || -> &&
+KILLED    mobile/src/photo/jpeg.ts:87 delete !
+KILLED    mobile/src/photo/jpeg.ts:87 || -> &&
+KILLED    mobile/src/photo/jpeg.ts:87 !== -> ===
+KILLED    mobile/src/photo/jpeg.ts:93 > -> >=
+KILLED    mobile/src/photo/jpeg.ts:94 0 -> 1
+KILLED    mobile/src/photo/jpeg.ts:94 !== -> ===
+KILLED    mobile/src/photo/jpeg.ts:94 || -> &&
+KILLED    mobile/src/photo/jpeg.ts:94 1 -> 0
+KILLED    mobile/src/photo/jpeg.ts:94 !== -> ===
+KILLED    mobile/src/photo/jpeg.ts:95 false -> true
+KILLED    mobile/src/photo/jpeg.ts:95 false -> true
+KILLED    mobile/src/photo/jpeg.ts:95 0 -> 1
+KILLED    mobile/src/photo/jpeg.ts:96 0 -> 1
+SURVIVED  mobile/src/photo/jpeg.ts:97 < -> <=
+KILLED    mobile/src/photo/jpeg.ts:97 && -> ||
+KILLED    mobile/src/photo/jpeg.ts:97 delete !
+KILLED    mobile/src/photo/jpeg.ts:98 > -> >=
+KILLED    mobile/src/photo/png.ts:17 false -> true
+KILLED    mobile/src/photo/png.ts:21 0 -> 1
+KILLED    mobile/src/photo/png.ts:25 - -> +
+KILLED    mobile/src/photo/png.ts:25 < -> <=
+KILLED    mobile/src/photo/png.ts:26 + -> -
+KILLED    mobile/src/photo/png.ts:26 + -> -
+KILLED    mobile/src/photo/png.ts:27 > -> >=
+KILLED    mobile/src/photo/png.ts:28 + -> -
+KILLED    mobile/src/photo/png.ts:28 + -> -
+KILLED    mobile/src/photo/png.ts:29 delete !
+KILLED    mobile/src/photo/png.ts:30 + -> -
+KILLED    mobile/src/photo/png.ts:30 - -> +
+KILLED    mobile/src/photo/png.ts:30 !== -> ===
+KILLED    mobile/src/photo/png.ts:30 - -> +
+KILLED    mobile/src/photo/png.ts:31 + -> -
+KILLED    mobile/src/photo/png.ts:31 - -> +
+KILLED    mobile/src/photo/png.ts:35 !== -> ===
+KILLED    mobile/src/photo/png.ts:36 0 -> 1
+KILLED    mobile/src/photo/png.ts:38 delete !
+KILLED    mobile/src/photo/png.ts:38 ?. -> .
+KILLED    mobile/src/photo/png.ts:39 !== -> ===
+KILLED    mobile/src/photo/png.ts:39 0 -> 1
+KILLED    mobile/src/photo/png.ts:39 || -> &&
+KILLED    mobile/src/photo/png.ts:39 !== -> ===
+KILLED    mobile/src/photo/png.ts:39 0 -> 1
+KILLED    mobile/src/photo/png.ts:39 || -> &&
+KILLED    mobile/src/photo/png.ts:39 > -> >=
+KILLED    mobile/src/photo/png.ts:39 1 -> 0
+KILLED    mobile/src/photo/png.ts:44 < -> <=
+KILLED    mobile/src/photo/png.ts:44 1 -> 0
+KILLED    mobile/src/photo/png.ts:44 || -> &&
+KILLED    mobile/src/photo/png.ts:44 < -> <=
+KILLED    mobile/src/photo/png.ts:44 1 -> 0
+KILLED    mobile/src/photo/png.ts:44 || -> &&
+KILLED    mobile/src/photo/png.ts:44 > -> >=
+KILLED    mobile/src/photo/png.ts:44 || -> &&
+KILLED    mobile/src/photo/png.ts:44 > -> >=
+KILLED    mobile/src/photo/png.ts:44 || -> &&
+KILLED    mobile/src/photo/png.ts:44 * -> /
+KILLED    mobile/src/photo/png.ts:44 > -> >=
+KILLED    mobile/src/photo/png.ts:53 || -> &&
+KILLED    mobile/src/photo/png.ts:53 || -> &&
+KILLED    mobile/src/photo/png.ts:59 < -> <=
+KILLED    mobile/src/photo/png.ts:59 || -> &&
+KILLED    mobile/src/photo/png.ts:59 > -> >=
+KILLED    mobile/src/photo/png.ts:59 || -> &&
+KILLED    mobile/src/photo/png.ts:59 !== -> ===
+KILLED    mobile/src/photo/png.ts:59 0 -> 1
+KILLED    mobile/src/photo/png.ts:60 === -> !==
+KILLED    mobile/src/photo/png.ts:60 0 -> 1
+KILLED    mobile/src/photo/png.ts:60 || -> &&
+KILLED    mobile/src/photo/png.ts:60 === -> !==
+KILLED    mobile/src/photo/png.ts:61 / -> *
+KILLED    mobile/src/photo/png.ts:62 === -> !==
+KILLED    mobile/src/photo/png.ts:62 && -> ||
+KILLED    mobile/src/photo/png.ts:62 > -> >=
+KILLED    mobile/src/photo/png.ts:67 || -> &&
+KILLED    mobile/src/photo/png.ts:69 === -> !==
+KILLED    mobile/src/photo/png.ts:69 0 -> 1
+KILLED    mobile/src/photo/png.ts:69 === -> !==
+KILLED    mobile/src/photo/png.ts:69 === -> !==
+KILLED    mobile/src/photo/png.ts:69 === -> !==
+KILLED    mobile/src/photo/png.ts:69 === -> !==
+KILLED    mobile/src/photo/png.ts:69 && -> ||
+KILLED    mobile/src/photo/png.ts:69 > -> >=
+KILLED    mobile/src/photo/png.ts:69 0 -> 1
+KILLED    mobile/src/photo/png.ts:69 && -> ||
+KILLED    mobile/src/photo/png.ts:69 <= -> <
+KILLED    mobile/src/photo/png.ts:70 delete !
+KILLED    mobile/src/photo/png.ts:71 true -> false
+KILLED    mobile/src/photo/png.ts:76 === -> !==
+KILLED    mobile/src/photo/png.ts:76 && -> ||
+KILLED    mobile/src/photo/png.ts:76 delete !
+KILLED    mobile/src/photo/png.ts:77 true -> false
+KILLED    mobile/src/photo/png.ts:81 !== -> ===
+KILLED    mobile/src/photo/png.ts:81 0 -> 1
+KILLED    mobile/src/photo/png.ts:82 delete !
+KILLED    mobile/src/photo/png.ts:83 true -> false
+KILLED    mobile/src/photo/png.ts:89 || -> &&
+KILLED    mobile/src/photo/png.ts:89 || -> &&
+KILLED    mobile/src/photo/png.ts:92 === -> !==
+KILLED    mobile/src/photo/png.ts:92 delete !
+KILLED    mobile/src/photo/png.ts:92 delete !
+KILLED    mobile/src/photo/png.ts:93 true -> false
+KILLED    mobile/src/photo/png.ts:97 delete !
+KILLED    mobile/src/photo/png.ts:97 && -> ||
+KILLED    mobile/src/photo/png.ts:97 !== -> ===
+KILLED    mobile/src/photo/png.ts:98 && -> ||
+KILLED    mobile/src/photo/png.ts:98 !== -> ===
+KILLED    mobile/src/photo/png.ts:98 true -> false
+KILLED    mobile/src/photo/png.ts:100 true -> false
+KILLED    mobile/src/photo/png.ts:103 0 -> 1
+KILLED    mobile/src/photo/png.ts:103 === -> !==
+KILLED    mobile/src/photo/png.ts:103 0 -> 1
+KILLED    mobile/src/photo/png.ts:104 false -> true
+KILLED    mobile/src/photo/png.ts:108 + -> -
+KILLED    mobile/src/photo/png.ts:108 0 -> 1
+KILLED    mobile/src/photo/png.ts:109 0 -> 1
+KILLED    mobile/src/photo/png.ts:113 0 -> 1
+KILLED    mobile/src/photo/png.ts:113 false -> true
+KILLED    mobile/src/photo/png.ts:113 0 -> 1
+KILLED    mobile/src/photo/png.ts:113 false -> true
+KILLED    mobile/src/photo/png.ts:113 false -> true
+KILLED    mobile/src/photo/png.ts:113 false -> true
+KILLED    mobile/src/photo/png.ts:115 0 -> 1
+KILLED    mobile/src/photo/png.ts:116 < -> <=
+KILLED    mobile/src/photo/png.ts:117 > -> >=
+KILLED    mobile/src/photo/png.ts:119 === -> !==
+KILLED    mobile/src/photo/png.ts:122 && -> ||
+KILLED    mobile/src/photo/png.ts:122 !== -> ===
+KILLED    mobile/src/photo/png.ts:125 delete !
+KILLED    mobile/src/photo/png.ts:125 || -> &&
+KILLED    mobile/src/photo/png.ts:125 delete !
+KILLED    mobile/src/photo/png.ts:131 delete !
+KILLED    mobile/src/photo/png.ts:131 && -> ||
+KILLED    mobile/src/photo/png.ts:131 || -> &&
+KILLED    mobile/src/photo/png.ts:132 && -> ||
+KILLED    mobile/src/photo/png.ts:132 > -> >=
+KILLED    mobile/src/photo/png.ts:132 1 -> 0
+KILLED    mobile/src/photo/png.ts:132 || -> &&
+KILLED    mobile/src/photo/png.ts:132 delete !
+KILLED    mobile/src/photo/png.ts:139 > -> >=
+KILLED    mobile/src/photo/png.ts:140 delete !
+KILLED    mobile/src/photo/png.ts:140 === -> !==
+KILLED    mobile/src/photo/png.ts:143 === -> !==
+KILLED    mobile/src/photo/png.ts:143 || -> &&
+KILLED    mobile/src/photo/png.ts:143 === -> !==
+KILLED    mobile/src/photo/png.ts:143 || -> &&
+KILLED    mobile/src/photo/png.ts:148 delete !
+KILLED    mobile/src/photo/png.ts:148 === -> !==
+KILLED    mobile/src/photo/png.ts:148 false -> true
+KILLED    mobile/src/photo/png.ts:149 0 -> 1
+KILLED    mobile/src/photo/png.ts:150 < -> <=
+KILLED    mobile/src/photo/png.ts:151 > -> >=
+KILLED    mobile/src/photo/png.ts:153 === -> !==
+KILLED    mobile/src/photo/png.ts:153 && -> ||
+KILLED    mobile/src/photo/png.ts:153 true -> false
+KILLED    mobile/src/photo/png.ts:154 === -> !==
+KILLED    mobile/src/photo/png.ts:154 || -> &&
+KILLED    mobile/src/photo/png.ts:154 === -> !==
+KILLED    mobile/src/photo/png.ts:154 false -> true
+KILLED    mobile/src/photo/png.ts:156 false -> true
+KILLED    mobile/src/photo/pngHdr.ts:6 !== -> ===
+KILLED    mobile/src/photo/pngHdr.ts:6 || -> &&
+KILLED    mobile/src/photo/pngHdr.ts:6 !== -> ===
+KILLED    mobile/src/photo/pngHdr.ts:6 0 -> 1
+KILLED    mobile/src/photo/pngHdr.ts:6 || -> &&
+KILLED    mobile/src/photo/pngHdr.ts:6 > -> >=
+KILLED    mobile/src/photo/pngHdr.ts:6 1 -> 0
+KILLED    mobile/src/photo/pngHdr.ts:7 1 -> 0
+KILLED    mobile/src/photo/pngHdr.ts:7 !== -> ===
+KILLED    mobile/src/photo/pngHdr.ts:7 && -> ||
+KILLED    mobile/src/photo/pngHdr.ts:7 1 -> 0
+KILLED    mobile/src/photo/pngHdr.ts:7 !== -> ===
+KILLED    mobile/src/photo/pngHdr.ts:8 delete !
+KILLED    mobile/src/photo/pngHdr.ts:8 0 -> 1
+KILLED    mobile/src/photo/pngHdr.ts:9 1 -> 0
+KILLED    mobile/src/photo/pngHdr.ts:9 === -> !==
+KILLED    mobile/src/photo/pngHdr.ts:13 !== -> ===
+KILLED    mobile/src/photo/pngHdr.ts:15 0 -> 1
+KILLED    mobile/src/photo/pngHdr.ts:15 < -> <=
+KILLED    mobile/src/photo/pngHdr.ts:16 + -> -
+KILLED    mobile/src/photo/pngHdr.ts:17 > -> >=
+SURVIVED  mobile/src/photo/pngHdr.ts:17 || -> &&
+KILLED    mobile/src/photo/pngHdr.ts:17 > -> >=
+KILLED    mobile/src/photo/pngHdr.ts:17 || -> &&
+KILLED    mobile/src/photo/pngHdr.ts:17 + -> -
+KILLED    mobile/src/photo/pngHdr.ts:17 > -> >=
+KILLED    mobile/src/photo/pngHdr.ts:19 <= -> <
+KILLED    mobile/src/photo/pngHdr.ts:23 !== -> ===
+KILLED    mobile/src/photo/pngHdr.ts:24 0 -> 1
+KILLED    mobile/src/photo/pngHdr.ts:25 !== -> ===
+KILLED    mobile/src/photo/pngHdr.ts:25 0 -> 1
+KILLED    mobile/src/photo/pngHdr.ts:25 && -> ||
+KILLED    mobile/src/photo/pngHdr.ts:25 > -> >=
+KILLED    mobile/src/photo/pngHdr.ts:30 === -> !==
+KILLED    mobile/src/photo/pngHdr.ts:31 === -> !==
+Function           Namespace              Killed  Survived  Uncovered  Sites   Score
+------------------------------------------------------------------------------------
+acceptHeader       photo.png                   0         0          0      0    n/a
+checkMetadata      photo.jpeg                  0         0          0      0    n/a
+fail               photo.jpeg                  0         0          0      0    n/a
+fail               photo.png                   0         0          0      0    n/a
+fail               photo.pngHdr                0         0          0      0    n/a
+u16                photo.jpeg                  0         0          0      0    n/a
+view               photo.pngHdr                0         0          0      0    n/a
+segmentAt          photo.jpeg                  6         4          0     10  60.0%
+entropyEnd         photo.jpeg                 10         1          0     11  90.9%
+masteringDisplay   photo.pngHdr               10         1          0     11  90.9%
+sanitizeJpeg       photo.jpeg                 13         1          0     14  92.9%
+exifIsUpright      photo.exifOrientation      23         1          0     24  95.8%
+acceptChunk        photo.png                  11         0          0     11 100.0%
+acceptEnd          photo.png                   4         0          0      4 100.0%
+acceptHdr          photo.png                   6         0          0      6 100.0%
+acceptPalette      photo.png                   2         0          0      2 100.0%
+acceptPixels       photo.png                   4         0          0      4 100.0%
+acceptTransparency photo.png                  14         0          0     14 100.0%
+checkScan          photo.jpeg                  9         0          0      9 100.0%
+codePoints         photo.pngHdr               16         0          0     16 100.0%
+collectChunks      photo.png                  15         0          0     15 100.0%
+collectScan        photo.jpeg                  3         0          0      3 100.0%
+collectSegment     photo.jpeg                  6         0          0      6 100.0%
+completeFrame      photo.jpeg                  7         0          0      7 100.0%
+containsHdrPng     photo.png                  14         0          0     14 100.0%
+contentLight       photo.pngHdr                6         0          0      6 100.0%
+crc32              photo.png                   1         0          0      1 100.0%
+inspectPngHdrChunk photo.pngHdr                2         0          0      2 100.0%
+isMetadata         photo.jpeg                  5         0          0      5 100.0%
+joinParts          photo.png                   3         0          0      3 100.0%
+joined             photo.jpeg                  3         0          0      3 100.0%
+paletteEntries     photo.png                  14         0          0     14 100.0%
+readChunk          photo.png                  14         0          0     14 100.0%
+readFrame          photo.jpeg                 10         0          0     10 100.0%
+readHeader         photo.png                  12         0          0     12 100.0%
+sanitizePng        photo.png                   7         0          0      7 100.0%
+u32                photo.png                   1         0          0      1 100.0%
+uprightEntries     photo.exifOrientation      20         0          0     20 100.0%
+validateDimensions photo.png                  12         0          0     12 100.0%
+validateFrameSize  photo.jpeg                 10         0          0     10 100.0%
+validateHdrState   photo.png                   8         0          0      8 100.0%
+------------------------------------------------------------------------------------
+Total                                        301         8          0    309   97.4%

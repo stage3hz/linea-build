@@ -1,0 +1,43 @@
+CRAP Report
+===========
+Languages: typescript
+
+Function                       Namespace                             CC    Cov%     CRAP
+----------------------------------------------------------------------------------------
+staticHdr                      media.mp4                             12  14.3%    102.7
+codecChildren                  media.mp4                             22  66.7%     39.9
+sampleGroup                    media.mp4                             11  46.7%     29.4
+color                          media.mp4                             18  76.0%     22.5
+sampleDescription              media.mp4                             11  55.6%     21.6
+aacConfig                      media.mp4                             16  73.3%     20.9
+dates                          media.mp4                             10  53.8%     19.8
+elementaryStream               media.mp4                              9  50.0%     19.1
+walk                           media.mp4                             16  79.2%     18.3
+sampleTable                    media.mp4                             16  88.0%     16.4
+sampleRuns                     media.mp4Samples                      11  66.7%     15.5
+sampleSizes                    media.mp4Samples                       7  50.0%     13.1
+leaf                           media.mp4                             12  85.0%     12.5
+descriptor                     media.mp4                              5  33.3%     12.4
+topLevel                       media.mp4                             11  81.2%     11.8
+videoTrack                     media.mp4                              9  70.0%     11.2
+boxes                          media.mp4Boxes                        10  81.8%     10.6
+timedSamples                   media.mp4Samples                       7  60.0%     10.1
+cleanMediaGaps                 media.mp4Samples                       8  71.4%      9.5
+sampleRanges                   media.mp4Samples                       8  71.4%      9.5
+dataReferences                 media.mp4                              5  50.0%      8.1
+chunkOffsets                   media.mp4Samples                       4  40.0%      7.5
+decoderConfig                  media.mp4                              6 100.0%      6.0
+validateDependencies           media.mp4Samples                       6 100.0%      6.0
+fileType                       media.mp4                              5  66.7%      5.9
+validateSampleTables           media.mp4Samples                       5  71.4%      5.6
+tableCount                     media.mp4Boxes                         3  50.0%      4.1
+need                           media.mp4Boxes                         4 100.0%      4.0
+validateSync                   media.mp4Samples                       4 100.0%      4.0
+sizesInChunk                   media.mp4Samples                       3  66.7%      3.3
+handler                        media.mp4                              3 100.0%      3.0
+sanitizeMp4                    media.mp4                              3 100.0%      3.0
+fullBox                        media.mp4Boxes                         3 100.0%      3.0
+isoText                        media.mp4Boxes                         1 100.0%      1.0
+isoView                        media.mp4Boxes                         1 100.0%      1.0
+mp4Fail                        media.mp4Boxes                         1 100.0%      1.0
+zeroBox                        media.mp4Boxes                         1 100.0%      1.0

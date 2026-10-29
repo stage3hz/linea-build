@@ -1,0 +1,91 @@
+{
+  "functions": 70,
+  "atOrAbove10": 21,
+  "below10": 49,
+  "highest": [
+    {
+      "name": "buildApp",
+      "namespace": "app",
+      "complexity": 62,
+      "coverage": 79.3388,
+      "crap": 95.9039
+    },
+    {
+      "name": "POST /uploads",
+      "namespace": "app",
+      "complexity": 23,
+      "coverage": 56.5217,
+      "crap": 66.4784
+    },
+    {
+      "name": "installAuthRoutes",
+      "namespace": "auth",
+      "complexity": 51,
+      "coverage": 89.1892,
+      "crap": 54.2864
+    },
+    {
+      "name": "GET /ws",
+      "namespace": "app",
+      "complexity": 23,
+      "coverage": 62.963,
+      "crap": 49.8759
+    },
+    {
+      "name": "integerEnv",
+      "namespace": "index",
+      "complexity": 6,
+      "coverage": 0.0,
+      "crap": 42.0
+    },
+    {
+      "name": "openDatabase",
+      "namespace": "database",
+      "complexity": 18,
+      "coverage": 62.5,
+      "crap": 35.0859
+    },
+    {
+      "name": "POST /e2ee/files",
+      "namespace": "e2ee",
+      "complexity": 18,
+      "coverage": 64.7059,
+      "crap": 32.2446
+    },
+    {
+      "name": "POST /chats/:chatId/messages",
+      "namespace": "app",
+      "complexity": 28,
+      "coverage": 93.1818,
+      "crap": 28.2485
+    },
+    {
+      "name": "installE2eeRoutes",
+      "namespace": "e2ee",
+      "complexity": 23,
+      "coverage": 88.2353,
+      "crap": 23.8614
+    },
+    {
+      "name": "imageMime",
+      "namespace": "security",
+      "complexity": 13,
+      "coverage": 60.0,
+      "crap": 23.816
+    },
+    {
+      "name": "POST /e2ee/devices",
+      "namespace": "e2ee",
+      "complexity": 18,
+      "coverage": 100.0,
+      "crap": 18.0
+    },
+    {
+      "name": "PATCH /me",
+      "namespace": "app",
+      "complexity": 15,
+      "coverage": 77.7778,
+      "crap": 17.4691
+    }
+  ]
+}

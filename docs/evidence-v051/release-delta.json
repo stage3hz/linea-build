@@ -1,0 +1,26 @@
+{
+  "version": "0.5.1",
+  "baselineRelease": "0.5.0",
+  "baselineProductionFiles": 165,
+  "originalBaselineUnchanged": true,
+  "changedBaselineInputs": [
+    "mobile/app.config.js",
+    "mobile/package-lock.json",
+    "mobile/package.json",
+    "mobile/src/ProfileScreen.tsx",
+    "mobile/src/StatusEmoji.tsx",
+    "mobile/src/statusEmojiModel.ts",
+    "mobile/src/types.ts",
+    "package.json",
+    "server/package-lock.json",
+    "server/package.json",
+    "server/src/database.js",
+    "server/src/entitlements.js",
+    "server/src/platina-admin.js",
+    "server/src/schema.sql"
+  ],
+  "newManifestFiles": 183,
+  "dependenciesChanged": false,
+  "signedIpaCreated": false,
+  "androidApkCreated": false
+}

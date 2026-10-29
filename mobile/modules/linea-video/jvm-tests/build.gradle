@@ -1,0 +1,15 @@
+plugins { id 'org.jetbrains.kotlin.jvm' version '2.2.20' }
+repositories { mavenCentral() }
+kotlin { jvmToolchain(21) }
+sourceSets {
+  main.kotlin {
+    srcDirs '../android/src/main/java'
+    include '**/VideoPolicy.kt'
+    include '**/VideoNal.kt'
+    include '**/VideoBits.kt'
+  }
+  test.kotlin.srcDirs '../android/src/test/java'
+  test.resources.srcDirs '../android/src/test/resources'
+}
+dependencies { testImplementation 'junit:junit:4.13.2' }
+test { testLogging { events 'passed', 'failed', 'skipped'; exceptionFormat 'short' } }

@@ -1,0 +1,9 @@
+{
+  "utc": "2026-10-28T09:50:18.565588+00:00",
+  "cgroup": {
+    "memory.events": "low 0\nhigh 0\nmax 275716\noom 2\noom_kill 1\noom_group_kill 0",
+    "memory.current": "7933661184",
+    "memory.max": "8589934592",
+    "memory.peak": "8592691200"
+  }
+}

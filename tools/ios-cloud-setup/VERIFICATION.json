@@ -1,0 +1,221 @@
+{
+  "artifact": "Linea iOS cloud setup kit",
+  "kitVersion": 1,
+  "verifiedAt": "2026-10-28T10:41:09.485262+00:00",
+  "status": "configuration_preparation_verified",
+  "runtime": {
+    "node": "v24.22.1",
+    "packages": {
+      "expo": "57.0.31",
+      "@expo/config-plugins": "57.0.11",
+      "expo-build-properties": "57.0.22"
+    },
+    "platform": "Linux"
+  },
+  "kitFilesSha256": {
+    "prepare-ios.mjs": "dc33e3021fc00b769f064099e855482dc511cb4b50a0278a8457a541157b0f72",
+    "withLocalPrivacy.cjs": "90c0ae216a2a39641fa8a3317bbcef9a8a781751c38e81aa0ceaa07f978c37d9",
+    "PREPARATION_REPORT.md": "3b667bb2d0964d6c0c5ec71d2c0ae53f3e77f69522ad927155c70fde7137717a"
+  },
+  "baseline": {
+    "release": "0.5.0",
+    "appConfigSha256": "0c514d669eba235570ca5d62a598db6da4c1d8ab6819f6b0f8657d530e0b20d3",
+    "easSha256": "067a38734aa7fc0e4aaed23d7525071b82a2857f0f26c5cf72d8dd6f0a36afff",
+    "packageName": "linea-mobile"
+  },
+  "publicOptions": [
+    "--project-id",
+    "--owner",
+    "--bundle-id",
+    "--app-version"
+  ],
+  "configuredPublicSettings": {
+    "appVersion": "0.5.1"
+  },
+  "syntheticIdentitiesUsedOnlyInDisposableTests": true,
+  "behaviorTests": {
+    "helper": {
+      "passed": 13,
+      "total": 13,
+      "exitCode": 0,
+      "evidence": "evidence/helper-final.json"
+    },
+    "privacy": {
+      "passed": 23,
+      "total": 23,
+      "exitCode": 0,
+      "evidence": "evidence/privacy-final.json"
+    }
+  },
+  "redThenGreen": [
+    {
+      "case": "Missing package.version accepted by an undefined optional value",
+      "before": {
+        "passed": 12,
+        "total": 13,
+        "exitCode": 1
+      },
+      "after": {
+        "passed": 13,
+        "total": 13,
+        "exitCode": 0
+      }
+    },
+    {
+      "case": "Requested Documents sharing and additional Android permission exclusions",
+      "helperBefore": {
+        "passed": 12,
+        "total": 13,
+        "exitCode": 1
+      },
+      "privacyBefore": {
+        "passed": 8,
+        "total": 23,
+        "exitCode": 1
+      },
+      "helperAfter": {
+        "passed": 13,
+        "total": 13,
+        "exitCode": 0
+      },
+      "privacyAfter": {
+        "passed": 23,
+        "total": 23,
+        "exitCode": 0
+      }
+    }
+  ],
+  "commands": [
+    {
+      "command": "node prepare-ios.mjs /tmp/linea-ios-cloud-final/mobile --app-version 0.5.1",
+      "exitCode": 0,
+      "evidence": "evidence/preparation-final.json"
+    },
+    {
+      "command": "node node_modules/expo/bin/cli config --type prebuild --json",
+      "cwd": "/tmp/linea-ios-cloud-final/mobile",
+      "exitCode": 0,
+      "evidence": "evidence/generated-config-summary.json"
+    },
+    {
+      "command": "node node_modules/expo/bin/cli prebuild --platform ios --no-install",
+      "cwd": "/tmp/linea-ios-cloud-final/mobile",
+      "exitCode": 0,
+      "evidence": "evidence/prebuild-ios-final.txt"
+    },
+    {
+      "command": "node node_modules/expo/bin/cli prebuild --platform ios --no-install",
+      "cwd": "/tmp/linea-ios-cloud-final-negative/mobile",
+      "fixture": "Other plugin injects NSLocation through withInfoPlist",
+      "exitCode": 1,
+      "expectedExitCode": 1,
+      "guardPhase": "ios.finalized",
+      "evidence": "evidence/privacy-negative-final.txt"
+    }
+  ],
+  "explicitNonSecretBuildEnvironment": {
+    "APP_ENV": "development",
+    "EXPO_PUBLIC_ALLOW_LOCAL_HTTP": "0",
+    "EXPO_PUBLIC_API_URL": "",
+    "EXPO_NO_DOTENV": "1",
+    "EXPO_NO_TELEMETRY": "1",
+    "CI": "1 (prebuild only)"
+  },
+  "guardPolicy": {
+    "requiredBlockedAndroidPermissions": [
+      "android.permission.ACCESS_COARSE_LOCATION",
+      "android.permission.ACCESS_FINE_LOCATION",
+      "android.permission.ACCESS_BACKGROUND_LOCATION",
+      "android.permission.ACCESS_MEDIA_LOCATION",
+      "android.permission.SYSTEM_ALERT_WINDOW",
+      "android.permission.QUERY_ALL_PACKAGES",
+      "android.permission.PACKAGE_USAGE_STATS",
+      "android.permission.MANAGE_EXTERNAL_STORAGE",
+      "android.permission.READ_CONTACTS",
+      "android.permission.WRITE_CONTACTS",
+      "android.permission.READ_CALENDAR",
+      "android.permission.WRITE_CALENDAR"
+    ],
+    "preservedOtherAndroidBlocks": [
+      "android.permission.RECORD_AUDIO",
+      "android.permission.CAMERA",
+      "android.permission.WRITE_EXTERNAL_STORAGE",
+      "android.permission.READ_MEDIA_AUDIO"
+    ],
+    "forbiddenInfoKeyPrefixes": [
+      "NSLocation"
+    ],
+    "forbiddenInfoKeys": [
+      "LSApplicationQueriesSchemes"
+    ],
+    "strictAbsentOrFalseInfoKeys": [
+      "UIFileSharingEnabled",
+      "LSSupportsOpeningDocumentsInPlace"
+    ],
+    "forbiddenBackgroundModes": [
+      "location"
+    ],
+    "forbiddenExplicitEntitlements": [
+      "com.apple.security.application-groups",
+      "keychain-access-groups"
+    ],
+    "generatedChecks": [
+      "Podfile.properties ios.useFrameworks=static",
+      "Podfile use_frameworks! and LibSignalClient",
+      "Info.plist",
+      "*.entitlements"
+    ],
+    "phase": "Expo finalized iOS mod after ordinary mods"
+  },
+  "upstreamPrimaryEvidence": {
+    "localPath": "/tmp/linea-libsignal-01060/swift/README.md",
+    "upstreamUrl": "https://github.com/signalapp/libsignal/blob/v0.106.0/swift/README.md",
+    "bytes": 4628,
+    "sha256": "727d2db250cd87fdc4ebb691753d040f02e29ca48cd6e5c69b3beb126411ee8e",
+    "quote": "Make sure you are using `use_frameworks!` in your Podfile.",
+    "method": "Read cached local primary bytes; not a new web fetch or compiler reproduction",
+    "expoFinalizedModSource": "node_modules/@expo/config-plugins/build/plugins/withFinalizedMod.js",
+    "expoFinalizedModSha256": "6be20081af00063be763dca609177598444b8e2a4c21e50d39ceb82292e4f163"
+  },
+  "frozenReleaseUnchanged": {
+    "filesChecked": 165,
+    "mismatches": [],
+    "manifestAggregateSha256": "be45eda17afd7afed27c30bc4f6fa971b348af3ac08137ee8c081fa8da3e8b51",
+    "apkBytes": 63872204,
+    "apkSha256": "703f42adc995dcc713bb25fd199ad4e5eb7c9b7e6a95dc8512622b18415a88b2",
+    "existingApkOverlayPermissionNotRemoved": true
+  },
+  "notPerformed": [
+    "dependency installation",
+    "CocoaPods installation or resolution",
+    "Swift/Xcode compilation",
+    "EAS cloud build",
+    "Apple/Expo account connection",
+    "signing or IPA creation",
+    "physical iPhone run",
+    "new Android prebuild/build/manifest verification",
+    "runtime isolation audit",
+    "full dependency privacy audit"
+  ],
+  "limitations": [
+    "Only pinned baseline app.config/eas are accepted before first mutation; arbitrary foreign config edits are preserved and refused.",
+    "App version override does not update package/lock/UI/versionCode/buildNumber.",
+    "Generated metadata guard executes through CNG/prebuild; it does not inspect a signed IPA or runtime behavior.",
+    "Owner/projectId/bundle ownership must be provided/verified separately by the user.",
+    "Published 0.5 APK is unchanged; hardening applies to subsequent builds only."
+  ],
+  "evidenceSha256": {
+    "evidence/check-prepare.py": "0786204cd0969f2d6a21286c867ac1da79c126d1e30840be184ce2727ccbae80",
+    "evidence/check-privacy-config.cjs": "a1fd045baf38508245eb4f9b105d5f56de4b54750eaabb506158fe9cf940f206",
+    "evidence/generated-config-summary.json": "63896f71fd74c9db642dc004af7a53993832f4d09ed2986c136479872c8cc302",
+    "evidence/helper-after-fix.json": "28b3da5cb35584ed6ddd7d8af58804341514f5efbc6dd76835de9d6eb686376f",
+    "evidence/helper-before-fix.json": "12de22c33211ac0baee61d985e63a50a9c4a3268e923200a9e0b30d6fc4dcf3a",
+    "evidence/helper-final.json": "28b3da5cb35584ed6ddd7d8af58804341514f5efbc6dd76835de9d6eb686376f",
+    "evidence/helper-isolation-before.json": "d856763223b94a0401d7da652b4dc100fe030a4672465c62f1350d02ecaadab0",
+    "evidence/prebuild-ios-final.txt": "760817c0abef0754ae42e2529d618519cf915fee2cdeec02b4741f131bac4111",
+    "evidence/preparation-final.json": "301a6602ad6533f51dca375272584cd55afff7e65d5c01b7162f19f0528eede2",
+    "evidence/privacy-final.json": "60e780f242bc3172eada785a93141486991f5d69a1cdcbc45d0218bf37c682ff",
+    "evidence/privacy-isolation-before.json": "626224a7526ad8fd03e14cc545ebbc52abc8352b5b131a81289c2301fbf7134c",
+    "evidence/privacy-negative-final.txt": "8b8eee26f4a48866b276c15feb3f7b9b15107f275a0ae2654e1a995d7d3ffe7e"
+  }
+}

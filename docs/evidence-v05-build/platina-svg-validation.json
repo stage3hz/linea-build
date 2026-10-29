@@ -1,0 +1,31 @@
+{
+  "assets": [
+    {
+      "path": "mobile/assets/branding/platina-chrome.svg",
+      "sha256": "f44b7e68e19c1b9d3bd2bec4aff2167940142b3106a331e74f5b571766754fd9",
+      "sizeBytes": 51556,
+      "viewBox": "0 0 1600 520",
+      "letterGroups": 7,
+      "pureVector": true,
+      "fontOrRasterDependencies": false,
+      "filtersOrScripts": false,
+      "externalReferences": false,
+      "xmlParse": "PASS"
+    },
+    {
+      "path": "mobile/assets/branding/platina-chrome-light.svg",
+      "sha256": "a7b58cc1ffbeadcef476606b18f77a74851ae7043a89a4d26e83f747dc5cf4c3",
+      "sizeBytes": 51556,
+      "viewBox": "0 0 1600 520",
+      "letterGroups": 7,
+      "pureVector": true,
+      "fontOrRasterDependencies": false,
+      "filtersOrScripts": false,
+      "externalReferences": false,
+      "xmlParse": "PASS"
+    }
+  ],
+  "desktopRendering": "Inkscape: rendered both assets on black and light backgrounds; reviewed large image and 220px proof on black",
+  "nativeRuntimeVisualTested": false,
+  "fontIdentification": "Exact font from reference JPEGs was not confirmed; original outlines drawn for PLATINA"
+}

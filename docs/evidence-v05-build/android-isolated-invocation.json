@@ -1,0 +1,38 @@
+{
+  "stageRoot": "/tmp/linea-v05-isolated",
+  "cwd": "/tmp/linea-v05-isolated/mobile/android",
+  "environment": {
+    "JAVA_HOME": "/tmp/linea-jdk21",
+    "ANDROID_HOME": "/tmp/linea-android-sdk",
+    "ANDROID_SDK_ROOT": "/tmp/linea-android-sdk",
+    "ANDROID_USER_HOME": "/tmp/linea-android-user",
+    "GRADLE_USER_HOME": "/tmp/linea-gradle-cache",
+    "APP_ENV": "preview",
+    "NODE_ENV": "production",
+    "CI": "1",
+    "EXPO_NO_DOTENV": "1",
+    "EXPO_NO_TELEMETRY": "1",
+    "EXPO_PUBLIC_ALLOW_LOCAL_HTTP": "0",
+    "EXPO_PUBLIC_API_URL": ""
+  },
+  "arguments": [
+    "./gradlew",
+    ":app:assembleRelease",
+    "-PreactNativeArchitectures=arm64-v8a",
+    "--no-daemon",
+    "--no-watch-fs",
+    "--no-build-cache",
+    "--no-configuration-cache",
+    "--no-parallel",
+    "--max-workers=1",
+    "--console=plain",
+    "--stacktrace",
+    "-Dorg.gradle.jvmargs=-Xmx1536m -XX:MaxMetaspaceSize=768m -Djavax.net.ssl.trustStore=/etc/ssl/certs/java/cacerts",
+    "-Pkotlin.compiler.execution.strategy=in-process",
+    "-Djavax.net.ssl.trustStore=/etc/ssl/certs/java/cacerts"
+  ],
+  "localLog": "/tmp/linea-v05-isolated/android-release-build.log",
+  "dependencyPolicy": "Installed npm tree copied separately, native generated build directories excluded; existing external Gradle dependency cache reused, task build/configuration caches disabled. No production source changed.",
+  "signing": "Existing preview certificate restored before build; private key contents omitted from all evidence.",
+  "retryReason": "First isolated build exit1 after 11m11s/444 tasks; mandatory Android Lint failed with Java OutOfMemoryError: Metaspace at384MiB. Retry increases only JVM Metaspace to768MiB, preserves source/outputs, skips no checks. Kernel OOM counters unchanged."
+}
