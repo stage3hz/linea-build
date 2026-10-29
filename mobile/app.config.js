@@ -63,7 +63,7 @@ module.exports = {
       ['expo-image-picker', {
         photosPermission: 'Выберите фотографию для отправки в чат или профиля.',
         cameraPermission: false,
-        microphonePermission: false,
+        microphonePermission: 'Инвиз использует микрофон только во время записи голосового сообщения. Запись шифруется до отправки.',
       }],
       ['expo-media-library',{
         photosPermission:'Выберите фото и видео для вложения в сообщение.',
