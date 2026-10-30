@@ -13,6 +13,7 @@ import type { Attachment } from '../types';
 import { useMedia } from '../media/mediaCache';
 import { ProgressRing } from '../media/MediaBubble';
 import { setCenterStage } from '../media/centerStage';
+import { currentVoiceRate } from '../voice/VoiceMessage';
 import * as FileSystem from 'expo-file-system/legacy';
 import { AndroidNoteCamera, androidNoteCameraAvailable, type AndroidNoteCameraHandle } from './androidCamera';
 import { useMusic } from '../music/MusicProvider';
@@ -125,8 +126,8 @@ function CirclePlayer({ uri, size, expanded, onToggle, onEnd }: { uri: string; s
   const [progress, setProgress] = useState(0);
   useEffect(() => {
     try {
-      if (expanded) { player.muted = false; player.loop = false; player.audioMixingMode = 'doNotMix'; player.currentTime = 0; player.play(); }
-      else { player.muted = true; player.loop = true; player.audioMixingMode = 'mixWithOthers'; if (motionEnabled()) player.play(); else player.pause(); }
+      if (expanded) { player.muted = false; player.loop = false; player.audioMixingMode = 'doNotMix'; player.playbackRate = currentVoiceRate(); player.currentTime = 0; player.play(); }
+      else { player.playbackRate = 1; player.muted = true; player.loop = true; player.audioMixingMode = 'mixWithOthers'; if (motionEnabled()) player.play(); else player.pause(); }
     } catch { /* released */ }
   }, [player, expanded]);
   useEffect(() => () => { try { player.pause(); } catch { /* released */ } }, [player]);

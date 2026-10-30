@@ -12,6 +12,7 @@ import type { Api } from '../api';
 import type { Attachment } from '../types';
 import { decryptAttachment } from '../e2ee/attachments';
 import { useMusic } from '../music/MusicProvider';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { VOICE_MAX_MS, formatVoiceTime, levelFromMetering } from './voice';
 
 // Mono AAC at 48 kHz / 128 kbit/s: full-band, very clear voice (about 0.95 MB per minute;
@@ -102,6 +103,7 @@ export function VoiceRecordingBar({ durationMs, levels, onCancel, onSend }: { du
 type VoicePlayback = {
   activeId: string | null; loadingId: string | null; failedId: string | null; playing: boolean; position: number; duration: number; error: string;
   toggle: (attachment: Attachment) => void; seek: (attachment: Attachment, fraction: number) => void;
+  rate: number; cycleRate: () => void;
 };
 const VoiceContext = createContext<VoicePlayback | null>(null);
 
@@ -116,6 +118,15 @@ export function VoicePlaybackProvider({ api, children }: { api: Api; children: R
   const [failedId, setFailedId] = useState<string | null>(null);
   const files = useRef(new Map<string, { uri: string; dispose: () => Promise<void> }>());
   const request = useRef(0);
+  // Speed of voice and video messages (Telegram: 1× → 1.5× → 2×), remembered for the session.
+  const [rate, setRate] = useState(voiceRate);
+  const [toast, setToast] = useState(''); const toastTimer = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
+  useEffect(() => { try { player.setPlaybackRate(rate); } catch { /* not loaded yet */ } }, [rate, player, activeId, loadingId]);
+  const cycleRate = useCallback(() => {
+    const next = rate === 1 ? 1.5 : rate === 1.5 ? 2 : 1; voiceRate = next; setRate(next);
+    setToast(next === 1 ? 'Звук будет проигрываться с обычной скоростью.' : `Звук будет проигрываться в ${next === 1.5 ? '1,5' : '2'} раза быстрее.`);
+    if (toastTimer.current) clearTimeout(toastTimer.current); toastTimer.current = setTimeout(() => setToast(''), 2200);
+  }, [rate]);
 
   useEffect(() => () => { request.current++; try { player.pause(); } catch { /* released with the hook */ } for (const file of files.current.values()) void file.dispose().catch(() => {}); files.current.clear(); }, [player]);
   useEffect(() => { if (status.didJustFinish) { try { player.pause(); void player.seekTo(0); } catch { /* ignore */ } } }, [status.didJustFinish, player]);
@@ -133,6 +144,7 @@ export function VoicePlaybackProvider({ api, children }: { api: Api; children: R
         await setAudioModeAsync(PLAYBACK_MODE).catch(() => {});
         music.stop();
         player.replace({ uri: file.uri });
+        try { player.setPlaybackRate(voiceRate); } catch { /* applied by the effect */ }
         player.play();
       } catch (e) {
         if (ticket === request.current) { setError(e instanceof Error ? e.message : 'Не удалось воспроизвести голосовое.'); setFailedId(attachment.id); }
@@ -146,8 +158,23 @@ export function VoicePlaybackProvider({ api, children }: { api: Api; children: R
     if (duration > 0) void player.seekTo(Math.max(0, Math.min(1, fraction)) * duration);
   }, [activeId, loadingId, status.duration, player]);
 
-  const value: VoicePlayback = { activeId, loadingId, failedId, playing: status.playing, position: status.currentTime || 0, duration: status.duration || 0, error, toggle, seek };
-  return <VoiceContext.Provider value={value}>{children}</VoiceContext.Provider>;
+  const value: VoicePlayback = { activeId, loadingId, failedId, playing: status.playing, position: status.currentTime || 0, duration: status.duration || 0, error, toggle, seek, rate, cycleRate };
+  return <VoiceContext.Provider value={value}>{children}{toast ? <RateToast text={toast} rate={rate} /> : null}</VoiceContext.Provider>;
+}
+
+let voiceRate = 1;
+/** The chosen speed also plays round video messages (as in Telegram). */
+export const currentVoiceRate = () => voiceRate;
+
+/** Telegram-like hint at the top when the speed changes. */
+function RateToast({ text, rate }: { text: string; rate: number }) {
+  const insets = useSafeAreaInsets();
+  return <View pointerEvents="none" style={{ position: 'absolute', top: insets.top + 64, left: 12, right: 12, alignItems: 'center' }}>
+    <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10, paddingHorizontal: 14, paddingVertical: 10, borderRadius: 14, backgroundColor: 'rgba(20,24,36,0.92)' }}>
+      <View style={{ paddingHorizontal: 6, paddingVertical: 2, borderRadius: 6, borderWidth: 1.5, borderColor: '#FFF' }}><Text style={{ color: '#FFF', fontSize: 11, fontWeight: '800' }}>{rate === 1.5 ? '1,5×' : `${rate}×`}</Text></View>
+      <Text style={{ color: '#FFF', fontSize: 14, flexShrink: 1 }}>{text}</Text>
+    </View>
+  </View>;
 }
 
 export function VoiceBubble({ attachment, mine }: { attachment: Attachment; mine: boolean }) {
@@ -174,6 +201,7 @@ export function VoiceBubble({ attachment, mine }: { attachment: Attachment; mine
       <View style={{ flexDirection: 'row', alignItems: 'center', gap: 5 }}>
         <Icon name="mic" size={12} color={t.muted} />
         <Text style={{ color: t.muted, fontSize: 11, fontVariant: ['tabular-nums'] }}>{active && position > 0 ? `${formatVoiceTime(position)} / ${formatVoiceTime(total)}` : formatVoiceTime(total)}</Text>
+        {active ? <Pressable accessibilityRole="button" accessibilityLabel={`Скорость ${voice.rate}×. Изменить`} onPress={voice.cycleRate} hitSlop={8} style={{ marginLeft: 'auto', paddingHorizontal: 6, paddingVertical: 1, borderRadius: 6, backgroundColor: voice.rate !== 1 ? t.accent : (mine ? 'rgba(127,140,170,0.3)' : t.surface2) }}><Text style={{ color: voice.rate !== 1 ? t.onAccent : t.text, fontSize: 11, fontWeight: '800' }}>{voice.rate === 1.5 ? '1,5×' : `${voice.rate}×`}</Text></Pressable> : null}
       </View>
       {voice.failedId === attachment.id && voice.error ? <Text style={{ color: t.danger, fontSize: 11 }}>{voice.error}</Text> : null}
     </View>
