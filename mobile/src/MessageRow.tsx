@@ -26,7 +26,7 @@ export type RowHandlers = {
 };
 type Props = {
   row: Row; olderCreatedAt?: string; mine: boolean; author: string; peerLastRead: number; wide: boolean;
-  fontSize: number; lineHeight: number; downloading: boolean; replyAuthor?: string; replyText?: string;
+  fontSize: number; lineHeight: number; downloading: boolean; radius?: number; replyAuthor?: string; replyText?: string;
   api: Api; handlers: React.MutableRefObject<RowHandlers>; selecting: boolean; selected: boolean; fresh: boolean;
 };
 const visualKind = (file: Attachment) => { const kind = mediaPreviewKind(file); return kind === 'photo' || kind === 'video'; };
@@ -58,7 +58,7 @@ function SwipeToReply({ enabled, onReply, children }: { enabled: boolean; onRepl
   </View></GestureDetector>;
 }
 
-function MessageRowView({ row, olderCreatedAt, mine, author, peerLastRead, wide, fontSize, lineHeight, downloading, replyAuthor, replyText, api, handlers, selecting, selected, fresh }: Props) {
+function MessageRowView({ row, olderCreatedAt, mine, author, peerLastRead, wide, fontSize, lineHeight, downloading, radius = 20, replyAuthor, replyText, api, handlers, selecting, selected, fresh }: Props) {
   const t = useTheme();
   const message = row.message; const p = row.pending;
   const poll = message?.meta?.poll || p?.meta?.poll;
@@ -103,7 +103,7 @@ function MessageRowView({ row, olderCreatedAt, mine, author, peerLastRead, wide,
     <View style={{ flex: 1 }}>
     <SwipeToReply enabled={!selecting && !!message && message.cryptoState === 'decrypted'} onReply={() => message && handlers.current.reply(message)}>
       <View pointerEvents={selecting ? 'box-only' : 'auto'} style={{ alignItems: mine ? 'flex-end' : 'flex-start', marginBottom: 5 }}>
-        <Pressable onPress={event => press(event.nativeEvent.pageY)} onLongPress={event => longPress(event.nativeEvent.pageY)} delayLongPress={400} accessibilityLabel={`${author}: ${poll ? `Опрос: ${poll.question}` : body || file?.name || 'Вложение'}`} style={circle || emoji ? { maxWidth: '85%' } : bare ? { maxWidth: '85%', borderRadius: 18, overflow: 'hidden', borderWidth: p?.state === 'failed' ? 1 : 0, borderColor: t.danger } : { maxWidth: wide ? '76%' : '85%', minWidth: 60, ...(flush ? { width: flushWidth + 2, overflow: 'hidden' as const } : null), backgroundColor: mine ? t.bubble : t.incoming, borderRadius: 20, borderBottomRightRadius: mine ? 6 : 20, borderBottomLeftRadius: mine ? 20 : 6, paddingHorizontal: flush ? 0 : 12, paddingTop: flush ? 0 : file ? 6 : 8, paddingBottom: inlineTime ? 8 : 6, borderWidth: 1, borderColor: p?.state === 'failed' ? t.danger : mine ? (t.black ? 'rgba(255,255,255,0.25)' : t.dark ? 'rgba(157,182,255,0.25)' : 'rgba(255,255,255,0.83)') : (t.dark ? 'rgba(255,255,255,0.10)' : 'rgba(255,255,255,0.92)') }}>
+        <Pressable onPress={event => press(event.nativeEvent.pageY)} onLongPress={event => longPress(event.nativeEvent.pageY)} delayLongPress={400} accessibilityLabel={`${author}: ${poll ? `Опрос: ${poll.question}` : body || file?.name || 'Вложение'}`} style={circle || emoji ? { maxWidth: '85%' } : bare ? { maxWidth: '85%', borderRadius: 18, overflow: 'hidden', borderWidth: p?.state === 'failed' ? 1 : 0, borderColor: t.danger } : { maxWidth: wide ? '76%' : '85%', minWidth: 60, ...(flush ? { width: flushWidth + 2, overflow: 'hidden' as const } : null), backgroundColor: mine ? t.bubble : t.incoming, borderRadius: radius, borderBottomRightRadius: mine ? Math.min(6, radius) : radius, borderBottomLeftRadius: mine ? radius : Math.min(6, radius), paddingHorizontal: flush ? 0 : 12, paddingTop: flush ? 0 : file ? 6 : 8, paddingBottom: inlineTime ? 8 : 6, borderWidth: 1, borderColor: p?.state === 'failed' ? t.danger : mine ? (t.black ? 'rgba(255,255,255,0.25)' : t.dark ? 'rgba(157,182,255,0.25)' : 'rgba(255,255,255,0.83)') : (t.dark ? 'rgba(255,255,255,0.10)' : 'rgba(255,255,255,0.92)') }}>
           {message?.meta?.forward ? <Text style={[{ color: t.accent, fontSize: 11, fontWeight: '600', marginBottom: 4, paddingHorizontal: 1 }, flush ? { paddingHorizontal: 12, paddingTop: 7 } : null]}>Переслано от {message.meta.forward.from}</Text> : null}
           {reply ? <Pressable accessibilityRole="button" accessibilityLabel="Перейти к исходному сообщению" onPress={() => handlers.current.jumpTo(reply.clientId)} style={{ flexDirection: 'row', gap: 7, marginBottom: 6, ...(flush ? { marginHorizontal: 8, marginTop: 8 } : null), paddingVertical: 5, paddingRight: 8, borderRadius: 10, backgroundColor: t.dark ? 'rgba(255,255,255,0.06)' : 'rgba(0,0,0,0.04)' }}><View style={{ width: 3, borderRadius: 2, backgroundColor: t.accent }} /><View style={{ flexShrink: 1, gap: 1 }}><Text style={{ color: t.accent, fontSize: 11, fontWeight: '700' }}>{replyAuthor}</Text><Text numberOfLines={2} style={{ color: t.muted, fontSize: 12 }}>{replyText}</Text></View></Pressable> : null}
           {row.album ? <View style={{ marginBottom: body ? 7 : 0 }}><AlbumGrid api={api} items={row.album.map(part => part.attachment)} width={albumWidth} onOpen={attachment => selecting ? press() : handlers.current.open(attachment)} onLongPress={() => longPress(0)} /></View> : null}

@@ -11,9 +11,9 @@ export const TEXT_SIZES: { id: TextSize; label: string; fontSize: number; lineHe
 ];
 import type { AnimationMode } from './motionPolicy';
 export type { AnimationMode };
-export type ChatPreferences = { textSize: TextSize; sendTyping: boolean; animations: AnimationMode; lowBattery: number };
+export type ChatPreferences = { textSize: TextSize; sendTyping: boolean; animations: AnimationMode; lowBattery: number; bubbleRadius: number };
 const KEY = 'linea.chat-preferences.v1';
-const DEFAULTS: ChatPreferences = { textSize: 'medium', sendTyping: true, animations: 'auto', lowBattery: 0.27 };
+const DEFAULTS: ChatPreferences = { textSize: 'medium', sendTyping: true, animations: 'auto', lowBattery: 0.27, bubbleRadius: 20 };
 
 let current: ChatPreferences = DEFAULTS;
 const listeners = new Set<() => void>();
@@ -28,6 +28,7 @@ export function parsePreferences(raw: string | null): ChatPreferences {
       sendTyping: typeof value?.sendTyping === 'boolean' ? value.sendTyping : DEFAULTS.sendTyping,
       animations: value?.animations === 'on' || value?.animations === 'off' ? value.animations : 'auto',
       lowBattery: [0, 0.15, 0.27, 0.4].includes(value?.lowBattery) ? value.lowBattery : DEFAULTS.lowBattery,
+      bubbleRadius: [8, 14, 20].includes(value?.bubbleRadius) ? value.bubbleRadius : DEFAULTS.bubbleRadius,
     };
   } catch { return DEFAULTS; }
 }
