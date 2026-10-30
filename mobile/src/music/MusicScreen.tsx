@@ -1,5 +1,6 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
-import { ActivityIndicator, Alert, FlatList, Image, Linking, Platform, Pressable, ScrollView, View } from 'react-native';
+import { ActivityIndicator, Alert, FlatList, Image, Linking, Platform, Pressable, ScrollView, View, useWindowDimensions } from 'react-native';
+import { MusicAmbient } from './MusicAmbient';
 import { Text, TextInput } from '../typography';
 import { LinearGradient } from 'expo-linear-gradient';
 import { Button, Empty, Icon, IconButton, Notice, Sheet, SheetAction, type IconName } from '../components';
@@ -12,7 +13,7 @@ import type { MusicTrack } from './types';
 
 type Section = 'catalog' | 'favorites' | 'saved';
 const sections: { id: Section; label: string }[] = [
-  { id: 'catalog', label: 'Обзор' },
+  { id: 'catalog', label: 'Главная' },
   { id: 'favorites', label: 'Любимое' },
   { id: 'saved', label: 'Мои файлы' },
 ];
@@ -21,6 +22,7 @@ const CATALOG_TTL = 10 * 60 * 1000;
 const catalogCache = new Map<string, { at: number; tracks: MusicTrack[]; nextOffset: number | null }>();
 
 export function MusicScreen({ onBack }: { onBack: () => void }) {
+  const screen = useWindowDimensions();
   const t = useTheme();
   const music = useMusic();
   const [section, setSection] = useState<Section>('catalog');
@@ -128,15 +130,6 @@ export function MusicScreen({ onBack }: { onBack: () => void }) {
     </ScrollView>
   </View>;
   return <View style={{ flex: 1, width: '100%', maxWidth: 980, alignSelf: 'center' }}>
-    <GlassSurface radius={27} material="clear" style={{ margin: 14, marginBottom: 10 }} contentStyle={{ padding: 11, flexDirection: 'row', alignItems: 'center', gap: 10 }}>
-      <IconButton name="chevron-back" label="Вернуться к мессенджеру" onPress={onBack} />
-      <View style={{ flex: 1, gap: 3 }}>
-        <Text style={{ color: t.text, fontSize: 26, fontWeight: '800', letterSpacing: -1 }}>Музыка</Text>
-        <Text style={{ color: t.muted, fontSize: 11 }}>Audius и твои файлы</Text>
-      </View>
-      <IconButton name="add" label="Добавить аудиофайлы" disabled={music.importing} onPress={() => void music.importFiles()} />
-      <IconButton name="information-outline" label="О музыкальном разделе" onPress={() => setInfoOpen(true)} />
-    </GlassSurface>
 
     <FlatList
       data={rows}
@@ -144,18 +137,28 @@ export function MusicScreen({ onBack }: { onBack: () => void }) {
       keyboardShouldPersistTaps="handled"
       contentContainerStyle={{ paddingHorizontal: 18, paddingBottom: 20, flexGrow: 1 }}
       ListHeaderComponent={<View style={{ gap: 16, paddingBottom: 12 }}>
-        <GlassSurface radius={22} shadow={false} contentStyle={{ flexDirection: 'row', padding: 5, minHeight: 49 }}>
-          {sections.map(item => <Pressable key={item.id} accessibilityRole="tab" accessibilityState={{ selected: section === item.id }} onPress={() => setSection(item.id)} style={{ flex: 1, minHeight: 40, borderRadius: 17, alignItems: 'center', justifyContent: 'center', backgroundColor: section === item.id ? t.accentSoft : 'transparent', borderWidth: 1, borderColor: section === item.id ? t.glassBorder : 'transparent' }}>
-            <Text style={{ color: section === item.id ? t.accent : t.muted, fontSize: 12, fontWeight: '700' }}>{item.label}</Text>
-          </Pressable>)}
-        </GlassSurface>
-
-        {section === 'catalog' && !query ? <GlassSurface radius={27} contentStyle={{ padding: 22, gap: 9 }}>
-          <View style={{ position: 'absolute', right: 18, top: 20, opacity: .16, transform: [{ rotate: '-15deg' }] }}><Icon name="musical-notes" size={83} color={t.accent} /></View>
-          <Text style={{ color: t.accent, fontSize: 10, fontWeight: '800', letterSpacing: 1.8 }}>ТВОЙ РИТМ</Text>
-          <Text style={{ color: t.text, fontSize: 28, lineHeight: 33, fontWeight: '800', letterSpacing: -1, maxWidth: 260 }}>Что послушаем?</Text>
-          <Text style={{ color: t.muted, fontSize: 13, lineHeight: 19, maxWidth: 250 }}>Новые имена, любимый звук.{ '\n' }Выбери настроение — и включай.</Text>
-        </GlassSurface> : null}
+        {/* VK-style top: animated cold-colour background, title, tabs and the mix button; scrolls away with the list. */}
+        <View style={{ marginHorizontal: -18, height: section === 'catalog' && !query ? Math.min(430, screen.height * .5) : 132, paddingTop: 6 }}>
+          <MusicAmbient width={screen.width} height={section === 'catalog' && !query ? Math.min(430, screen.height * .5) : 132} />
+          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8, paddingHorizontal: 12 }}>
+            <IconButton name="chevron-back" label="Вернуться к мессенджеру" onPress={onBack} color="#FFF" />
+            <Text style={{ flex: 1, color: '#FFF', fontSize: 22, fontWeight: '700', letterSpacing: -.4 }}>Музыка</Text>
+            <IconButton name="add" label="Добавить аудиофайлы" disabled={music.importing} onPress={() => void music.importFiles()} color="#FFF" />
+            <IconButton name="information-outline" label="О музыкальном разделе" onPress={() => setInfoOpen(true)} color="#FFF" />
+          </View>
+          <View accessibilityRole="tablist" style={{ flexDirection: 'row', gap: 6, paddingHorizontal: 14, marginTop: 6 }}>
+            {sections.map(item => { const on = section === item.id; return <Pressable key={item.id} accessibilityRole="tab" accessibilityState={{ selected: on }} onPress={() => setSection(item.id)} style={{ paddingHorizontal: 14, paddingVertical: 7, borderRadius: 12, backgroundColor: on ? '#FFFFFF' : 'transparent' }}>
+              <Text style={{ color: on ? '#0A1529' : '#DCE6F7', fontSize: 16, fontWeight: on ? '700' : '600' }}>{item.label}</Text>
+            </Pressable>; })}
+          </View>
+          {section === 'catalog' && !query ? <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center', gap: 9, paddingBottom: 10 }}>
+            <Pressable accessibilityRole="button" accessibilityLabel="Слушать микс" disabled={!rows.length} onPress={() => rows[0] && begin(rows[0])} style={({ pressed }) => ({ width: 80, height: 80, borderRadius: 22, backgroundColor: 'rgba(255,255,255,0.14)', alignItems: 'center', justifyContent: 'center', transform: [{ scale: pressed ? .96 : 1 }], opacity: rows.length ? 1 : .6 })}>
+              <View style={{ width: 58, height: 58, borderRadius: 29, backgroundColor: '#FFFFFF', alignItems: 'center', justifyContent: 'center' }}><View style={{ marginLeft: 3 }}><Icon name="play" size={26} color="#0A1529" /></View></View>
+            </Pressable>
+            <Text style={{ color: '#FFF', fontSize: 21, fontWeight: '700' }}>Слушать микс</Text>
+            <Text style={{ color: '#D2DEF2', fontSize: 14 }}>{mood ? `Настроение: ${MUSIC_MOODS.find(item => item.apiMood === mood)?.label || ''}` : 'Новые имена и любимый звук'}</Text>
+          </View> : null}
+        </View>
 
         <GlassSurface radius={21} shadow={false} contentStyle={{ minHeight: 51, flexDirection: 'row', alignItems: 'center', gap: 10, paddingHorizontal: 14 }}>
           <Icon name="search-outline" size={20} color={t.muted} />
