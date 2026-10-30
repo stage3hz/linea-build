@@ -18,11 +18,6 @@ import { addSelectionQueue } from './uploadQueue';
 
 type Tab = 'gallery' | 'audio' | 'files';
 type Phase = 'picking' | 'opening' | 'adding' | null;
-const tabs: { id: Tab; label: string; icon: IconName }[] = [
-  { id: 'gallery', label: 'Галерея', icon: 'images-outline' },
-  { id: 'audio', label: 'Аудио', icon: 'musical-notes-outline' },
-  { id: 'files', label: 'Файлы', icon: 'folder-open-outline' },
-];
 const kindIcon = (kind: AttachmentSelection['kind']): IconName => ({ photo: 'image-outline', video: 'videocam-outline', audio: 'musical-note-outline', file: 'document-outline' } as const)[kind];
 const errorText = (error: unknown) => error instanceof Error ? error.message : 'Не удалось добавить вложение.';
 const fromFile = (file: LocalFile): AttachmentSelection => ({ id: `file:${file.uri}`, file, kind: mediaPreviewKind(file) });
@@ -109,6 +104,21 @@ export function AttachmentPanel({ visible, busy, canAdd, remainingSlots, onClose
     finally { finish(ticket); }
   }
 
+  async function camera() {
+    if (working.current || busy || Platform.OS === 'web') return;
+    const ticket = start('picking');
+    try {
+      const permission = await ImagePicker.requestCameraPermissionsAsync();
+      if (!permission.granted) throw new Error('Разреши доступ к камере в настройках, чтобы снимать прямо из чата.');
+      const result = await ImagePicker.launchCameraAsync({ mediaTypes: ['images', 'videos'], quality: 1, exif: false, allowsEditing: false, videoMaxDuration: 600 });
+      if (!result.canceled && valid(ticket)) {
+        const files = result.assets.map(asset => fromFile({ uri: asset.uri, name: asset.fileName || (asset.type === 'video' ? 'video.mp4' : 'photo.jpg'), mimeType: asset.mimeType || (asset.type === 'video' ? 'video/mp4' : 'image/jpeg'), size: asset.fileSize }));
+        replaceSelection(addSelections(selectedRef.current, files, remainingSlots));
+      }
+    } catch (failure) { if (valid(ticket)) setError(errorText(failure)); }
+    finally { finish(ticket); }
+  }
+
   async function systemGallery() {
     if (Platform.OS === 'web') { await pickDocuments(false); return; }
     if (working.current || busy) return;
@@ -133,13 +143,13 @@ export function AttachmentPanel({ visible, busy, canAdd, remainingSlots, onClose
       <Pressable accessibilityRole="button" accessibilityLabel="Закрыть выбор вложений" onPress={close} style={StyleSheet.absoluteFill} />
       <GlassSurface material="regular" radius={30} style={{ alignSelf: 'center', width: '100%', maxWidth: 600, height: Math.min(650, Math.max(390, window.height * .7)) }} contentStyle={{ flex: 1, padding: 12, gap: 9 }}>
         <View style={{ alignSelf: 'center', width: 35, height: 4, borderRadius: 2, backgroundColor: t.subtle, opacity: .45 }} />
-        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10, paddingLeft: 5 }}><Text style={{ flex: 1, color: t.text, fontSize: 20, fontWeight: '700', letterSpacing: -.4 }}>Вложения</Text>{selected.length ? <Text style={{ color: t.accent, fontSize: 12, fontWeight: '600' }}>{selected.length} / {remainingSlots}</Text> : null}<IconButton name="close" label="Закрыть выбор вложений" onPress={close} disabled={phase === 'adding' || busy} style={{ height: 34, width: 34 }} /></View>
-        <View accessibilityRole="tablist" style={{ flexDirection: 'row', padding: 4, gap: 3, borderRadius: 18, backgroundColor: t.surface2 }}>
-          {onPoll ? <Pressable accessibilityRole="button" accessibilityLabel="Опрос" disabled={locked} onPress={() => { if (!locked) { replaceSelection([]); onPoll(); } }} style={{ flex: 1, minHeight: 41, borderRadius: 14, alignItems: 'center', justifyContent: 'center', flexDirection: 'row', gap: 6 }}><Icon name="stats-chart-outline" size={17} color={t.muted} /><Text style={{ color: t.muted, fontSize: 12, fontWeight: '600' }}>Опрос</Text></Pressable> : null}
-          {tabs.map(item => <Pressable key={item.id} accessibilityRole="tab" accessibilityState={{ selected: tab === item.id, disabled: locked }} disabled={locked} onPress={() => setTab(item.id)} style={{ flex: 1, minHeight: 41, borderRadius: 14, alignItems: 'center', justifyContent: 'center', flexDirection: 'row', gap: 6, backgroundColor: tab === item.id ? t.accentSoft : 'transparent', borderWidth: 1, borderColor: tab === item.id ? t.border : 'transparent' }}><Icon name={item.icon} size={17} color={tab === item.id ? t.accent : t.muted} /><Text style={{ color: tab === item.id ? t.accent : t.muted, fontSize: 12, fontWeight: '600' }}>{item.label}</Text></Pressable>)}
+        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10 }}>
+          <IconButton name="close" label="Закрыть выбор вложений" onPress={close} disabled={phase === 'adding' || busy} style={{ height: 44, width: 44, borderRadius: 22, backgroundColor: t.surface2 }} />
+          <Text style={{ flex: 1, textAlign: 'center', color: t.text, fontSize: 18, fontWeight: '700', letterSpacing: -.3 }}>{tab === 'gallery' ? (selected.length ? `Выбрано: ${selected.length}` : 'Недавние') : tab === 'audio' ? 'Аудио' : 'Файлы'}</Text>
+          <View style={{ width: 44 }} />
         </View>
         <View style={{ flex: 1, minHeight: 0 }}>
-          {tab === 'gallery' ? <GalleryPane active={visible && !editing} selectedIds={selected.map(item => item.id)} disabled={locked} onToggle={choose} onEdit={item => void edit(item)} onFallback={() => void systemGallery()} /> : tab === 'audio' ? <ScrollView contentContainerStyle={{ padding: 7, gap: 12 }}>
+          {tab === 'gallery' ? <GalleryPane onCamera={() => void camera()} active={visible && !editing} selectedIds={selected.map(item => item.id)} disabled={locked} onToggle={choose} onEdit={item => void edit(item)} onFallback={() => void systemGallery()} /> : tab === 'audio' ? <ScrollView contentContainerStyle={{ padding: 7, gap: 12 }}>
             <Button secondary icon="musical-notes-outline" label="Выбрать аудио на устройстве" disabled={locked} onPress={() => void pickDocuments(true)} />
             <Text style={help}>Прикрепи локальный аудиофайл или трек, который ты импортировал в музыку.</Text>
             {localTracks.length ? <Text style={{ color: t.text, fontSize: 13, fontWeight: '700', paddingTop: 6 }}>Из моей музыки</Text> : <View style={{ paddingVertical: 16, alignItems: 'center', gap: 10 }}><Icon name="headset-outline" color={t.subtle} size={38} /><Text style={help}>Импортированных треков пока нет</Text></View>}
@@ -156,7 +166,10 @@ export function AttachmentPanel({ visible, busy, canAdd, remainingSlots, onClose
         {error ? <Notice text={error} error /> : null}
         {phase || notice ? <View accessibilityLiveRegion="polite" style={{ flexDirection: 'row', alignItems: 'center', gap: 8, paddingHorizontal: 5 }}>{phase ? <ActivityIndicator color={t.accent} size="small" /> : <Icon name="checkmark-circle" color={t.accent} size={16} />}<Text style={[help, { flex: 1, fontSize: 11 }]}>{notice || (phase === 'opening' ? 'Открываем оригинал; файл из iCloud может загружаться…' : phase === 'picking' ? 'Выбери файлы в системном окне…' : 'Обрабатываем, шифруем и добавляем…')}</Text></View> : null}
         {!canAdd ? <Text style={{ color: t.muted, fontSize: 11, lineHeight: 16, textAlign: 'center' }}>Отправка со сквозным шифрованием доступна в приложении Android или iPhone.</Text> : null}
-        <Button icon="add-outline" label={selected.length ? `Добавить в сообщение · ${selected.length}` : 'Выбери вложения'} loading={phase === 'adding'} disabled={locked || !canAdd || !selected.length} onPress={() => void addSelected()} />
+        {selected.length || phase === 'adding' ? <Button icon="arrow-up" label={`Добавить · ${selected.length}`} loading={phase === 'adding'} disabled={locked || !canAdd || !selected.length} onPress={() => void addSelected()} /> : null}
+        <View accessibilityRole="tablist" style={{ flexDirection: 'row', alignSelf: 'center', padding: 5, gap: 2, borderRadius: 30, backgroundColor: t.dark ? 'rgba(30,34,48,0.96)' : 'rgba(255,255,255,0.96)', borderWidth: 1, borderColor: t.border }}>
+          {([{ id: 'gallery', label: 'Галерея', icon: 'images' }, { id: 'files', label: 'Файл', icon: 'document' }, ...(onPoll ? [{ id: 'poll', label: 'Опрос', icon: 'stats-chart' }] : []), { id: 'audio', label: 'Аудио', icon: 'musical-notes' }] as { id: Tab | 'poll'; label: string; icon: IconName }[]).map(item => { const active = tab === item.id; return <Pressable key={item.id} accessibilityRole="tab" accessibilityState={{ selected: active, disabled: locked }} disabled={locked} onPress={() => { if (item.id === 'poll') { replaceSelection([]); onPoll?.(); } else setTab(item.id); }} style={{ minWidth: 72, paddingVertical: 7, paddingHorizontal: 8, borderRadius: 24, alignItems: 'center', gap: 3, backgroundColor: active ? t.accentSoft : 'transparent' }}><Icon name={item.icon} size={22} color={active ? t.accent : t.text} /><Text style={{ color: active ? t.accent : t.text, fontSize: 11, fontWeight: '600' }}>{item.label}</Text></Pressable>; })}
+        </View>
         {selected.length > 1 ? <Text style={{ color: t.muted, fontSize: 10, textAlign: 'center' }}>Несколько фото и видео отправятся одним альбомом.</Text> : null}
         {Platform.OS === 'ios' && selected.some(item => item.kind === 'video' && item.assetId) ? <Text style={{ color: t.muted, fontSize: 10, lineHeight: 15, textAlign: 'center' }}>Видео из галереи — оригинал. Изменения монтажа и скорости из приложения «Фото» не переносятся; оригинал из iCloud загрузится после подтверждения.</Text> : null}
       </GlassSurface>

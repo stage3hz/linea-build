@@ -42,6 +42,9 @@ export function openDatabase(dataDir) {
       if (!userColumns.has('login_name')) db.exec('ALTER TABLE users ADD COLUMN login_name TEXT');
       if (!userColumns.has('username_change_used')) db.exec('ALTER TABLE users ADD COLUMN username_change_used INTEGER NOT NULL DEFAULT 0 CHECK(username_change_used IN (0,1))');
       if (!userColumns.has('status_emoji')) db.exec('ALTER TABLE users ADD COLUMN status_emoji TEXT');
+      if (!userColumns.has('last_seen_at')) db.exec('ALTER TABLE users ADD COLUMN last_seen_at TEXT');
+      const privacyColumns = new Set(db.prepare('PRAGMA table_info(user_privacy)').all().map(column => column.name));
+      if (!privacyColumns.has('show_last_seen')) db.exec('ALTER TABLE user_privacy ADD COLUMN show_last_seen INTEGER NOT NULL DEFAULT 1 CHECK(show_last_seen IN (0,1))');
       db.exec('UPDATE users SET login_name=username WHERE login_name IS NULL');
       db.exec(`
         CREATE UNIQUE INDEX IF NOT EXISTS users_login_name ON users(login_name);
@@ -116,16 +119,21 @@ export function publicUser(row, { db, now = Date.now } = {}) {
   };
 }
 
-const PRIVACY_DEFAULTS = { allowNewChats: true, showAvatar: true, readReceipts: true };
+const PRIVACY_DEFAULTS = { allowNewChats: true, showAvatar: true, readReceipts: true, showLastSeen: true };
 export function privacyOf(db, userId) {
   const row = db.prepare('SELECT * FROM user_privacy WHERE user_id=?').get(userId);
-  return row ? { allowNewChats: row.allow_new_chats === 1, showAvatar: row.show_avatar === 1, readReceipts: row.read_receipts === 1 } : { ...PRIVACY_DEFAULTS };
+  return row ? { allowNewChats: row.allow_new_chats === 1, showAvatar: row.show_avatar === 1, readReceipts: row.read_receipts === 1, showLastSeen: row.show_last_seen !== 0 } : { ...PRIVACY_DEFAULTS };
 }
 
 /** A serialized user as another account may see it. The owner always sees everything. */
 export function userForViewer(db, user, viewerId) {
   if (!user || user.id === viewerId) return user;
   return privacyOf(db, user.id).showAvatar ? user : { ...user, avatarId: null };
+}
+
+/** "Online / last seen" is mutual, as in Telegram: whoever hides it does not see it either. */
+export function presenceVisible(db, a, b) {
+  return privacyOf(db, a).showLastSeen && privacyOf(db, b).showLastSeen;
 }
 
 /** Read receipts are mutual, as in common messengers: hidden if either side turned them off. */

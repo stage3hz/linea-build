@@ -579,7 +579,7 @@ test('privacy: new chats, avatar visibility and mutual read receipts are enforce
   const alice = await register(app, 'alice_priv'), bob = await register(app, 'bob_priv'), carol = await register(app, 'carol_priv');
   const defaults = await request(app, 'GET', '/me/privacy', alice);
   assert.equal(defaults.statusCode, 200);
-  assert.deepEqual(defaults.json().privacy, { allowNewChats: true, showAvatar: true, readReceipts: true });
+  assert.deepEqual(defaults.json().privacy, { allowNewChats: true, showAvatar: true, readReceipts: true, showLastSeen: true });
   assert.equal((await request(app, 'PATCH', '/me/privacy', alice, { allowNewChats: 'no' })).statusCode, 400);
   assert.equal((await request(app, 'PATCH', '/me/privacy', alice, { unknown: true })).statusCode, 400);
 
@@ -647,4 +647,33 @@ test('friends list and per-user chat settings (pin, archive, mute) stay private 
   assert.equal((await request(app, 'PATCH', `/chats/${chat.id}/settings`, bob, { pinned: 'yes' })).statusCode, 400);
   const stranger = await register(app, 'carol_social');
   assert.equal((await request(app, 'PATCH', `/chats/${chat.id}/settings`, stranger, { pinned: true })).statusCode, 404);
+});
+
+test('presence: chat peers see online / last seen; hiding it is mutual; strangers see nothing', async t => {
+  const { app } = await fixture(t);
+  const alice = await register(app, 'alice');
+  const bob = await register(app, 'bob');
+  const eve = await register(app, 'eve');
+  await newChat(app, alice, bob);
+  const bobSocket = await socketFor(t, app, bob);
+  const snapshot = await bobSocket.next(packet => packet.type === 'presence.snapshot');
+  assert.deepEqual(snapshot.items.map(item => [item.userId, item.online]), [[alice.user.id, false]]);
+  const eveSocket = await socketFor(t, app, eve);
+  const aliceSocket = await socketFor(t, app, alice);
+  const online = await bobSocket.next(packet => packet.type === 'presence' && packet.presence.userId === alice.user.id && packet.presence.online);
+  assert.equal(online.presence.hidden, false);
+  aliceSocket.socket.close();
+  const offline = await bobSocket.next(packet => packet.type === 'presence' && packet.presence.userId === alice.user.id && !packet.presence.online);
+  assert.ok(Number.isFinite(Date.parse(offline.presence.lastSeenAt)), 'last seen time is recorded');
+  // Bob hides his own presence: he stops seeing Alice's too (as in Telegram).
+  const hide = await request(app, 'PATCH', '/me/privacy', bob, { showLastSeen: false });
+  assert.equal(hide.statusCode, 200);
+  assert.equal(hide.json().privacy.showLastSeen, false);
+  const again = await socketFor(t, app, alice);
+  const hidden = await bobSocket.next(packet => packet.type === 'presence' && packet.presence.userId === alice.user.id && packet.presence.hidden);
+  assert.equal(hidden.presence.online, false);
+  assert.equal(hidden.presence.lastSeenAt, null);
+  const aliceView = await again.next(packet => packet.type === 'presence.snapshot');
+  assert.deepEqual(aliceView.items.map(item => [item.userId, item.hidden, item.lastSeenAt]), [[bob.user.id, true, null]]);
+  assert.equal(eveSocket.packets.some(packet => packet.type === 'presence'), false, 'no presence to non-contacts');
 });

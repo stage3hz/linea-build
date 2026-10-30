@@ -131,6 +131,7 @@ function PrivacySection({ api }: { api: Api }) {
       {!privacy ? <ActivityIndicator color={t.accent} style={{ padding: 20 }} /> : <>
         <Toggle label="Новые разговоры" description="Кто ещё не писал тебе, сможет начать чат. Выключи, чтобы писали только те, с кем переписка уже есть." value={privacy.allowNewChats} disabled={saving} onChange={value => void change({ allowNewChats: value })} />
         <Toggle label="Фото профиля для других" description="Если выключить, собеседники и поиск увидят цветной аватар вместо фото." value={privacy.showAvatar} disabled={saving} onChange={value => void change({ showAvatar: value })} />
+        <Toggle label="Время захода и «в сети»" description="Взаимно, как в Telegram: если скрыть, ты тоже не увидишь, когда собеседник был в сети." value={privacy.showLastSeen !== false} disabled={saving} onChange={value => void change({ showLastSeen: value })} />
         <Toggle label="Отчёты о прочтении" description="Взаимно, как в других мессенджерах: если выключить, ты тоже не увидишь, прочитали ли твои сообщения." value={privacy.readReceipts} disabled={saving} onChange={value => void change({ readReceipts: value })} />
       </>}
     </Group>

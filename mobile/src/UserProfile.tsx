@@ -14,10 +14,11 @@ type Props = {
   api: Api; user: User | null; onClose: () => void;
   chat?: Chat | null; onMessage?: (user: User) => void;
   onMute?: (muted: boolean) => Promise<unknown>;
+  onSearch?: () => void; onSecurity?: () => void; status?: string;
 };
 
 /** Full-screen profile like in Telegram: big photo, name, @username, bio, actions. */
-export function UserProfile({ api, user, onClose, chat, onMessage, onMute }: Props) {
+export function UserProfile({ api, user, onClose, chat, onMessage, onMute, onSearch, onSecurity, status }: Props) {
   const t = useTheme();
   const [contact, setContact] = useState<boolean | null>(null);
   const [fresh, setFresh] = useState<User | null>(null);
@@ -53,6 +54,7 @@ export function UserProfile({ api, user, onClose, chat, onMessage, onMute }: Pro
     ...(onMessage ? [{ icon: 'chatbubble' as IconName, label: 'Написать', onPress: () => { onClose(); onMessage(shown); } }] : []),
     { icon: contact ? 'person-remove' : 'person-add', label: contact ? 'В друзьях' : 'В друзья', onPress: () => void toggleContact(), active: !!contact, loading: contact === null },
     ...(onMute && chat ? [{ icon: (muted ? 'notifications-off' : 'notifications') as IconName, label: muted ? 'Без звука' : 'Звук', onPress: () => void toggleMute(), active: muted }] : []),
+    ...(onSearch ? [{ icon: 'search' as IconName, label: 'Поиск', onPress: () => { onClose(); onSearch(); } }] : []),
   ];
   return <Modal visible animationType="slide" presentationStyle="fullScreen" onRequestClose={onClose}>
     <GlassStage><InsetView style={{ flex: 1 }}>
@@ -64,7 +66,7 @@ export function UserProfile({ api, user, onClose, chat, onMessage, onMute }: Pro
         <Avatar user={shown} api={api} size={128} />
         <View style={{ alignItems: 'center', gap: 6 }}>
           <View style={{ flexDirection: 'row', alignItems: 'center', gap: 7 }}><Text style={{ color: t.text, fontSize: 26, fontWeight: '800', letterSpacing: -.6 }}>{shown.displayName}</Text><StatusEmoji user={shown} size={22} /></View>
-          <Pressable onPress={() => void copy()} accessibilityRole="button" accessibilityLabel="Скопировать имя пользователя"><Text style={{ color: t.accent, fontSize: 15 }}>@{shown.username}</Text></Pressable>
+          {status ? <Text style={{ color: status === 'в сети' ? t.accent : t.muted, fontSize: 14 }}>{status}</Text> : <Pressable onPress={() => void copy()} accessibilityRole="button" accessibilityLabel="Скопировать имя пользователя"><Text style={{ color: t.accent, fontSize: 15 }}>@{shown.username}</Text></Pressable>}
         </View>
         <View style={{ flexDirection: 'row', gap: 10, alignSelf: 'stretch', justifyContent: 'center' }}>
           {actions.map(action => <Pressable key={action.label} accessibilityRole="button" onPress={action.onPress} disabled={action.loading || busy} style={({ pressed }) => ({ flex: 1, maxWidth: 120, opacity: pressed ? .7 : 1 })}>
@@ -79,7 +81,7 @@ export function UserProfile({ api, user, onClose, chat, onMessage, onMute }: Pro
         <GlassSurface radius={20} shadow={false} style={{ alignSelf: 'stretch' }} contentStyle={{ padding: 16, gap: 14 }}>
           {shown.bio ? <View style={{ gap: 4 }}><Text style={{ color: t.text, fontSize: 15, lineHeight: 21 }}>{shown.bio}</Text><Text style={{ color: t.muted, fontSize: 12 }}>О себе</Text></View> : null}
           <View style={{ gap: 4 }}><Text style={{ color: t.accent, fontSize: 15 }}>@{shown.username}</Text><Text style={{ color: t.muted, fontSize: 12 }}>Имя пользователя</Text></View>
-          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}><Icon name="lock-closed" size={14} color={t.muted} /><Text style={{ color: t.muted, fontSize: 12, flex: 1 }}>Переписка защищена сквозным шифрованием</Text></View>
+          <Pressable disabled={!onSecurity} onPress={() => { onClose(); onSecurity?.(); }} accessibilityRole="button" style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}><Icon name="lock-closed" size={14} color={t.accent} /><Text style={{ color: t.muted, fontSize: 12, flex: 1 }}>Переписка защищена сквозным шифрованием{onSecurity ? ' · проверить устройства' : ''}</Text>{onSecurity ? <Icon name="chevron-forward" size={14} color={t.muted} /> : null}</Pressable>
         </GlassSurface>
       </ScrollView>
     </InsetView></GlassStage>

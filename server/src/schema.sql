@@ -156,6 +156,7 @@ CREATE TABLE IF NOT EXISTS user_privacy (
   allow_new_chats INTEGER NOT NULL DEFAULT 1 CHECK(allow_new_chats IN (0,1)),
   show_avatar INTEGER NOT NULL DEFAULT 1 CHECK(show_avatar IN (0,1)),
   read_receipts INTEGER NOT NULL DEFAULT 1 CHECK(read_receipts IN (0,1)),
+  show_last_seen INTEGER NOT NULL DEFAULT 1 CHECK(show_last_seen IN (0,1)),
   updated_at TEXT NOT NULL
 );
 

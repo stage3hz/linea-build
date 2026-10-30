@@ -7,7 +7,7 @@ import { createReadStream, createWriteStream } from 'node:fs';
 import { join, resolve } from 'node:path';
 import { Transform } from 'node:stream';
 import { pipeline } from 'node:stream/promises';
-import { openDatabase, transaction, publicUser as serializePublicUser, publicChat, publicMessage, publicAttachment, privacyOf, userForViewer, receiptsVisible } from './database.js';
+import { openDatabase, transaction, publicUser as serializePublicUser, publicChat, publicMessage, publicAttachment, privacyOf, userForViewer, receiptsVisible, presenceVisible } from './database.js';
 import { installAuthRoutes, RECOVERY_LOCK_MS } from './auth.js';
 import { installE2eeRoutes, parseEncryptedMessage } from './e2ee.js';
 import { registerAiRoutes, aiProvider } from './ai.js';
@@ -129,6 +129,15 @@ export async function buildApp({
     expireEncryptionDevices();
   };
   const memberIds = chatId => db.prepare('SELECT user_id FROM chat_members WHERE chat_id=?').all(chatId).map(row => row.user_id);
+  // Presence ("в сети" / "был(а) …"): online while any authenticated socket is open.
+  const isOnline = userId => [...sockets].some(state => state.auth?.user_id === userId && state.socket.readyState === 1);
+  const peersOf = userId => db.prepare('SELECT DISTINCT b.user_id FROM chat_members a JOIN chat_members b ON a.chat_id=b.chat_id WHERE a.user_id=? AND b.user_id<>?').all(userId, userId).map(row => row.user_id);
+  const presenceFor = (userId, viewerId) => {
+    if (!presenceVisible(db, userId, viewerId)) return { userId, online: false, lastSeenAt: null, hidden: true };
+    const online = isOnline(userId);
+    return { userId, online, lastSeenAt: online ? null : db.prepare('SELECT last_seen_at FROM users WHERE id=?').get(userId)?.last_seen_at || null, hidden: false };
+  };
+  const broadcastPresence = userId => { for (const peerId of peersOf(userId)) emitUser(peerId, { type: 'presence', presence: presenceFor(userId, peerId) }); };
   const emitChat = chatId => {
     for (const userId of memberIds(chatId)) emitUser(userId, { type: 'chat', chat: publicChat(db, chatId, userId, serializationOptions) });
   };
@@ -266,17 +275,18 @@ export async function buildApp({
   app.get('/me/privacy', authOptions, async request => ({ privacy: privacyOf(db, request.auth.user_id) }));
 
   app.patch('/me/privacy', authOptions, async request => {
-    const body = objectBody(request.body, ['allowNewChats', 'showAvatar', 'readReceipts']);
+    const body = objectBody(request.body, ['allowNewChats', 'showAvatar', 'readReceipts', 'showLastSeen']);
     const userId = request.auth.user_id;
     const next = { ...privacyOf(db, userId) };
-    for (const key of ['allowNewChats', 'showAvatar', 'readReceipts']) {
+    for (const key of ['allowNewChats', 'showAvatar', 'readReceipts', 'showLastSeen']) {
       if (body[key] === undefined) continue;
       if (typeof body[key] !== 'boolean') fail(400, 'Настройка конфиденциальности должна быть включена или выключена.');
       next[key] = body[key];
     }
-    db.prepare(`INSERT INTO user_privacy(user_id,allow_new_chats,show_avatar,read_receipts,updated_at) VALUES(?,?,?,?,?)
-      ON CONFLICT(user_id) DO UPDATE SET allow_new_chats=excluded.allow_new_chats,show_avatar=excluded.show_avatar,read_receipts=excluded.read_receipts,updated_at=excluded.updated_at`)
-      .run(userId, next.allowNewChats ? 1 : 0, next.showAvatar ? 1 : 0, next.readReceipts ? 1 : 0, timestamp());
+    db.prepare(`INSERT INTO user_privacy(user_id,allow_new_chats,show_avatar,read_receipts,show_last_seen,updated_at) VALUES(?,?,?,?,?,?)
+      ON CONFLICT(user_id) DO UPDATE SET allow_new_chats=excluded.allow_new_chats,show_avatar=excluded.show_avatar,read_receipts=excluded.read_receipts,show_last_seen=excluded.show_last_seen,updated_at=excluded.updated_at`)
+      .run(userId, next.allowNewChats ? 1 : 0, next.showAvatar ? 1 : 0, next.readReceipts ? 1 : 0, next.showLastSeen ? 1 : 0, timestamp());
+    broadcastPresence(userId);
     // Peers get a fresh view of the avatar and of read receipts.
     for (const { chat_id } of db.prepare('SELECT chat_id FROM chat_members WHERE user_id=?').all(userId)) emitChat(chat_id);
     return { privacy: next };
@@ -489,6 +499,11 @@ export async function buildApp({
     socket.on('close', () => {
       clearTimeout(authDeadline);
       sockets.delete(state);
+      const userId = state.auth?.user_id;
+      if (userId && !databaseClosed && !isOnline(userId)) {
+        db.prepare('UPDATE users SET last_seen_at=? WHERE id=?').run(timestamp(), userId);
+        broadcastPresence(userId);
+      }
     });
     socket.on('message', (buffer, isBinary) => {
       try {
@@ -503,9 +518,12 @@ export async function buildApp({
           if (!session) { socket.close(4401, 'Invalid session'); return; }
           const sameUser = [...sockets].filter(item => item.auth?.user_id === session.user_id).length;
           if (sameUser >= 10) { socket.close(4429, 'Connection limit'); return; }
+          const wasOnline = isOnline(session.user_id);
           state.auth = session;
           clearTimeout(authDeadline);
           sendSocket(state, { type: 'ready', userId: session.user_id });
+          sendSocket(state, { type: 'presence.snapshot', items: peersOf(session.user_id).map(peerId => presenceFor(peerId, session.user_id)) });
+          if (!wasOnline) broadcastPresence(session.user_id);
           return;
         }
         if (!sessionStillValid(state)) { socket.close(4401, 'Session expired'); return; }

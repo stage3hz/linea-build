@@ -4,7 +4,7 @@ import { useAIHistory } from './ai/history';
 import { AppState } from 'react-native';
 import * as Crypto from 'expo-crypto';
 import { Api, ApiError } from './api';
-import type { Attachment, Chat, LocalFile, Message, PendingMessage, RecoveryRequest, User } from './types';
+import type { Attachment, Chat, LocalFile, Message, PendingMessage, Presence, RecoveryRequest, User } from './types';
 import { CryptoRuntime } from './e2ee/runtime';
 import { clearDecryptedAttachmentCache, encryptAndUpload } from './e2ee/attachments';
 import type { TrustSnapshot } from './e2ee/types';
@@ -35,6 +35,7 @@ export function useMessenger(api: Api, user: User, onExpired: ()=>void) {
   const [messageLoading,setMessageLoading]=useState(false);
   const [error,setError]=useState('');
   const [typing,setTyping]=useState<Record<string,number>>({});
+  const [presence,setPresence]=useState<Record<string,Presence>>({});
   const [drafts,setDrafts]=useState<Record<string,string>>({});
   const [draftFiles,updateDraftFiles]=useState<Record<string,Attachment[]>>({});
   const draftFilesRef=useRef(draftFiles);draftFilesRef.current=draftFiles;
@@ -142,9 +143,9 @@ export function useMessenger(api: Api, user: User, onExpired: ()=>void) {
 
   useEffect(()=>{
     aliveRef.current=true;void refreshChats();void refreshRecoveryRequests();
-    let stopped=false, retry:ReturnType<typeof setTimeout>|undefined, attempts=0, lastReceive=Date.now();
+    let stopped=false, paused=false, retry:ReturnType<typeof setTimeout>|undefined, attempts=0, lastReceive=Date.now();
     const connect=()=>{
-      if(stopped)return;
+      if(stopped||paused)return;
       const current=socketRef.current;
       if(current&&(current.readyState===WebSocket.OPEN||current.readyState===WebSocket.CONNECTING))return;
       setConnection('connecting');
@@ -163,6 +164,8 @@ export function useMessenger(api: Api, user: User, onExpired: ()=>void) {
           setChats(prev=>prev.map(c=>c.id===data.chatId?(data.userId===user.id?{...c,lastReadMessageId:Math.max(c.lastReadMessageId,data.messageId),unreadCount:0}:{...c,peerLastReadMessageId:Math.max(c.peerLastReadMessageId,data.messageId)}):c));
         }else if(data.type==='typing'&&data.userId!==user.id){setTyping(prev=>({...prev,[data.chatId]:data.isTyping?Date.now()+5000:0}));}
         else if(data.type==='profile'&&data.user){setChats(prev=>prev.map(c=>c.peer.id===data.user.id?{...c,peer:data.user}:c));}
+        else if(data.type==='presence.snapshot'&&Array.isArray(data.items)){setPresence(Object.fromEntries(data.items.filter((p:any)=>p&&typeof p.userId==='string').map((p:any)=>[p.userId,p])));}
+        else if(data.type==='presence'&&data.presence&&typeof data.presence.userId==='string'){setPresence(prev=>({...prev,[data.presence.userId]:data.presence}));}
         else if(data.type==='recovery.requested'||data.type==='recovery.updated'){void refreshRecoveryRequests();}
         else if(data.type==='e2ee.devices'){if(selectedRef.current)void loadMessages(selectedRef.current);void refreshChats();}
       };
@@ -187,7 +190,9 @@ export function useMessenger(api: Api, user: User, onExpired: ()=>void) {
     },3000);
     const subscription=AppState.addEventListener('change',state=>{
       appState.current=state;
-      if(state==='active'){void refreshChats();void refreshRecoveryRequests();if(selectedRef.current)void loadMessages(selectedRef.current);reconnect();}
+      if(state==='active'){paused=false;void refreshChats();void refreshRecoveryRequests();if(selectedRef.current)void loadMessages(selectedRef.current);reconnect();}
+      // In the background the connection is closed, so peers see "был(а) только что" as in Telegram.
+      else if(state==='background'){paused=true;if(retry)clearTimeout(retry);const previous=socketRef.current;socketRef.current=null;previous?.close();setConnection('offline');}
     });
     const recoveryPoll=setInterval(()=>{if(appState.current==='active')void refreshRecoveryRequests();},30000);
     return ()=>{stopped=true;aliveRef.current=false;++recoveryFetchRef.current;if(retry)clearTimeout(retry);clearInterval(heartbeat);clearInterval(recoveryPoll);subscription.remove();socketRef.current?.close();socketRef.current=null;};
@@ -280,6 +285,6 @@ export function useMessenger(api: Api, user: User, onExpired: ()=>void) {
     setChats(previous=>previous.map(item=>item.id===chat.id?{...item,settings:chat.settings}:item));
     return chat;
   },[api]);
-  return {chats,messages,hasMore,pending,selectedId,selectChat,connection,listLoading,messageLoading,error,setError,typing,refreshChats,loadMessages,send,sendAction,hideForMe,hidden,forward,sendAttachments,retry:performSend,sendPoll,sendTyping,drafts,draftFiles,setDraft,setDraftFile,setDraftFiles,appendDraftFiles,removeDraftFile,recoveryRequests,recoveryError,refreshRecoveryRequests,cancelRecovery,cryptoError,trustSnapshot,approveDevices,uploadEncrypted,saved,aiHistory,updateChatSettings};
+  return {presence,chats,messages,hasMore,pending,selectedId,selectChat,connection,listLoading,messageLoading,error,setError,typing,refreshChats,loadMessages,send,sendAction,hideForMe,hidden,forward,sendAttachments,retry:performSend,sendPoll,sendTyping,drafts,draftFiles,setDraft,setDraftFile,setDraftFiles,appendDraftFiles,removeDraftFile,recoveryRequests,recoveryError,refreshRecoveryRequests,cancelRecovery,cryptoError,trustSnapshot,approveDevices,uploadEncrypted,saved,aiHistory,updateChatSettings};
 }
 export type MessengerStore = ReturnType<typeof useMessenger>;

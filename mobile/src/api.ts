@@ -7,7 +7,7 @@ import type { ClaimedBundle, CryptoDevice, EncryptedMessage, PublicBundle } from
 type ApiErrorDetails = { code?: string; attemptsRemaining?: number; retryAfterSeconds?: number; readyAt?: string; serverTime?: string; expiresAt?: string };
 const deviceName = Platform.OS === 'ios' ? 'iPhone / iPad' : Platform.OS === 'android' ? 'Android' : 'Браузер';
 
-export type Privacy = { allowNewChats: boolean; showAvatar: boolean; readReceipts: boolean };
+export type Privacy = { allowNewChats: boolean; showAvatar: boolean; readReceipts: boolean; showLastSeen?: boolean };
 
 export class ApiError extends Error {
   readonly code?: string;

@@ -38,3 +38,4 @@ export type PendingMessage = {
 };
 export type ThemeMode = 'system' | 'light' | 'dark' | 'black';
 export type DarkTheme = 'dark' | 'black';
+export type Presence = { userId: string; online: boolean; lastSeenAt: string | null; hidden: boolean };

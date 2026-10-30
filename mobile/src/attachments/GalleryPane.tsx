@@ -39,8 +39,16 @@ function GalleryCell({ item, number, disabled, thumbnails, onToggle, onEdit }: {
   </View>;
 }
 
-export function GalleryPane({ active, selectedIds, disabled, onToggle, onEdit, onFallback }: {
-  active: boolean; selectedIds: string[]; disabled: boolean; onToggle: (item: GalleryItem) => void; onEdit: (item: GalleryItem) => void; onFallback: () => void;
+const CAMERA = '__camera__';
+function CameraCell({ disabled, onPress }: { disabled: boolean; onPress: () => void }) {
+  const t = useTheme();
+  return <View style={{ width: '33.333333%', aspectRatio: 1, padding: 2 }}>
+    <Pressable disabled={disabled} onPress={onPress} accessibilityRole="button" accessibilityLabel="Снять фото или видео" style={({ pressed }) => ({ flex: 1, borderRadius: 13, backgroundColor: t.dark ? '#0B0D14' : '#1A1D27', alignItems: 'center', justifyContent: 'center', opacity: pressed ? .7 : 1 })}><Icon name="camera-outline" size={34} color="#FFF" /></Pressable>
+  </View>;
+}
+
+export function GalleryPane({ active, selectedIds, disabled, onToggle, onEdit, onFallback, onCamera }: {
+  active: boolean; selectedIds: string[]; disabled: boolean; onToggle: (item: GalleryItem) => void; onEdit: (item: GalleryItem) => void; onFallback: () => void; onCamera?: () => void;
 }) {
   const t = useTheme(), gallery = useGallery(active);
   const [thumbnails, setThumbnails] = useState<ThumbnailSession | null>(null);
@@ -58,12 +66,12 @@ export function GalleryPane({ active, selectedIds, disabled, onToggle, onEdit, o
     {gallery.permission?.accessPrivileges === 'limited' ? <View style={{ flexDirection: 'row', gap: 8, alignItems: 'center', paddingHorizontal: 7 }}><Text style={[help, { flex: 1, fontSize: 11 }]}>Показаны только разрешённые фото и видео.</Text><Pressable accessibilityRole="button" disabled={disabled} onPress={() => void gallery.addAccess()} style={{ padding: 10 }}><Text style={{ color: t.accent, fontWeight: '600', fontSize: 12 }}>Добавить доступ</Text></Pressable></View> : null}
     {gallery.error ? <View style={{ paddingHorizontal: 5, gap: 8 }}><Notice text={gallery.error} error onRetry={() => void gallery.refresh()} /><Button secondary label="Системный выбор фото и видео" onPress={onFallback} disabled={disabled} /></View> : null}
     {permissionDenied ? <View style={{ padding: 18, gap: 14 }}><Icon name="images-outline" color={t.accent} size={34} /><Text style={{ color: t.text, fontSize: 16, fontWeight: '700' }}>Открой доступ к галерее</Text><Text style={help}>Можно разрешить только выбранные фото и видео. Остальные файлы останутся недоступны приложению.</Text><Button label={gallery.permission?.canAskAgain ? 'Разрешить доступ' : 'Открыть настройки'} onPress={() => { if (gallery.permission?.canAskAgain) void gallery.refresh('request'); else void Linking.openSettings(); }} disabled={disabled} /><Button secondary label="Выбрать через системное окно" onPress={onFallback} disabled={disabled} /></View> : <>
-      <FlatList data={gallery.items} numColumns={3} keyExtractor={item => item.id} extraData={numbers} initialNumToRender={12} maxToRenderPerBatch={9} windowSize={3} showsVerticalScrollIndicator={false}
-        contentContainerStyle={{ paddingBottom: 8, flexGrow: gallery.items.length ? 0 : 1 }} onEndReachedThreshold={.5} onEndReached={() => { if (gallery.hasMore) void gallery.more(); }}
+      <FlatList data={onCamera ? [{ id: CAMERA } as unknown as GalleryItem, ...gallery.items] : gallery.items} numColumns={3} keyExtractor={item => item.id} extraData={numbers} initialNumToRender={12} maxToRenderPerBatch={9} windowSize={3} showsVerticalScrollIndicator={false}
+        contentContainerStyle={{ paddingBottom: 96, flexGrow: gallery.items.length ? 0 : 1 }} onEndReachedThreshold={.5} onEndReached={() => { if (gallery.hasMore) void gallery.more(); }}
         ListEmptyComponent={<View style={{ flex: 1, minHeight: 145, alignItems: 'center', justifyContent: 'center', gap: 12 }}>{gallery.loading ? <ActivityIndicator color={t.accent} /> : <><Icon name="images-outline" color={t.subtle} size={35} /><Text style={help}>{gallery.error ? 'Галерея пока недоступна' : 'В разрешённой галерее пока нет фото или видео'}</Text></>}</View>}
         ListFooterComponent={gallery.loading && gallery.items.length ? <ActivityIndicator color={t.accent} style={{ padding: 14 }} /> : gallery.hasMore && gallery.error ? <Button secondary label="Повторить загрузку" onPress={() => void gallery.more()} /> : null}
-        renderItem={({ item }) => <GalleryCell item={item} number={numbers.get(item.id) || 0} disabled={disabled} thumbnails={thumbnails} onToggle={onToggle} onEdit={onEdit} />} />
-      <Text style={[help, { textAlign: 'center', fontSize: 10 }]}>Угол — выбрать · центр фото — редактор</Text>
+        renderItem={({ item }) => item.id === CAMERA ? <CameraCell disabled={disabled} onPress={() => onCamera?.()} /> : <GalleryCell item={item} number={numbers.get(item.id) || 0} disabled={disabled} thumbnails={thumbnails} onToggle={onToggle} onEdit={onEdit} />} />
+
     </>}
   </View>;
 }

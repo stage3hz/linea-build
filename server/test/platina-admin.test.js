@@ -36,7 +36,9 @@ async function fixture(t) {
   return { dataDir, db, userId: addUser(db) };
 }
 
-const rows = (db, table) => db.prepare(`SELECT * FROM ${table} ORDER BY rowid`).all();
+// Columns added by later migrations (empty for old rows) are not part of the v4 snapshot.
+const ADDED = new Set(['last_seen_at', 'show_last_seen']);
+const rows = (db, table) => db.prepare(`SELECT * FROM ${table} ORDER BY rowid`).all().map(row => Object.fromEntries(Object.entries(row).filter(([key, value]) => !(ADDED.has(key) && (value === null || value === 1)))));
 
 test('real SQLite v4 migration preserves finite grants, revocations, audit and account/session data before allowing null expiry', async t => {
   const dataDir = await directory(t);
