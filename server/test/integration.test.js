@@ -804,7 +804,9 @@ test('communities: game server with roles, private channels, invites, plain chan
 test('blog channels: only authors post, subscribers read and join by link', async t => {
   const { app } = await fixture(t);
   const author = await register(app, 'author_b'), reader = await register(app, 'reader_b');
-  const blog = (await request(app, 'POST', '/communities', author, { kind: 'blog', name: 'Новости' })).json().community;
+  const blog = (await request(app, 'POST', '/communities', author, { kind: 'blog', name: 'Новости', category: 'news' })).json().community;
+  assert.equal(blog.category, 'news');
+  assert.equal((await request(app, 'POST', '/communities', author, { kind: 'blog', name: 'x', category: 'casino' })).statusCode, 400);
   assert.equal(blog.channels.length, 1);
   const posts = blog.channels[0];
   assert.equal((await request(app, 'POST', `/communities/${blog.id}/channels/${posts.id}/messages`, author, { text: 'Первый пост' })).statusCode, 200);

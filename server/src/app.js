@@ -241,6 +241,7 @@ export async function buildApp({
   installCallRoutes({app,authOptions,now,turn});
   installSocialRoutes({app,db,authOptions,publicUser,timestamp,serializationOptions,emitUser});
   db.exec(COMMUNITY_SCHEMA);
+  if (!db.prepare('PRAGMA table_info(communities)').all().some(column => column.name === 'category')) db.exec('ALTER TABLE communities ADD COLUMN category TEXT');
   if (!db.prepare('PRAGMA table_info(uploads)').all().some(column => column.name === 'purpose')) db.exec("ALTER TABLE uploads ADD COLUMN purpose TEXT NOT NULL DEFAULT 'profile'");
   // Voice channels: who is connected where (in memory). Audio flows peer to peer (WebRTC,
   // DTLS-SRTP, through TURN when needed); the server only relays signalling between members.

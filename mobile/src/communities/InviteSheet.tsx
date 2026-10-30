@@ -26,7 +26,7 @@ export function InviteSheet({ api, code, onClose, onJoined }: { api: Api; code: 
     {error ? <Notice text={error} error /> : !community ? <ActivityIndicator color={t.accent} style={{ padding: 24 }} /> : <View style={{ alignItems: 'center', gap: 12 }}>
       <CommunityAvatar api={api} community={community} size={84} />
       <Text style={{ color: t.text, fontSize: 22, fontWeight: '700', textAlign: 'center' }}>{community.name}</Text>
-      <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}><KindBadge kind={community.kind} /><Text style={{ color: t.muted, fontSize: 13 }}>{community.kind === 'blog' ? subscribers(community.memberCount) : members(community.memberCount)}</Text></View>
+      <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}><KindBadge kind={community.kind} category={community.category} /><Text style={{ color: t.muted, fontSize: 13 }}>{community.kind === 'blog' ? subscribers(community.memberCount) : members(community.memberCount)}</Text></View>
       {community.description ? <Text style={{ color: t.muted, fontSize: 14, lineHeight: 20, textAlign: 'center' }}>{community.description}</Text> : null}
       <View style={{ alignSelf: 'stretch', marginTop: 6 }}><Button label={community.kind === 'blog' ? 'Подписаться' : 'Принять приглашение'} loading={busy} onPress={() => void accept()} /></View>
     </View>}

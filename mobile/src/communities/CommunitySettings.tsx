@@ -10,7 +10,7 @@ import { GlassSurface } from '../glass';
 import { Text } from '../typography';
 import { useTheme } from '../theme';
 import { CommunityAvatar, KindBadge } from './parts';
-import { PERM, PERM_LABELS, can, type Community, type CommunityChannel, type CommunityMember, type CommunityRole } from './types';
+import { CATEGORIES, PERM, PERM_LABELS, can, type Community, type CommunityChannel, type CommunityMember, type CommunityRole } from './types';
 
 const ROLE_COLORS = ['#3FA9F5', '#2EE6C8', '#2FD27A', '#F5C542', '#FF7A45', '#FF4D6A', '#B18CFF', '#8A9BB8'];
 const message = (error: unknown, fallback: string) => error instanceof Error ? error.message : fallback;
@@ -55,12 +55,13 @@ export function CommunitySettings({ api, me, community, onBack, onChanged, onLef
     <ScrollView contentContainerStyle={{ padding: 14, gap: 16, paddingBottom: 40 }} keyboardShouldPersistTaps="handled">
       <View style={{ alignItems: 'center', gap: 10 }}>
         <Pressable disabled={!can(community, PERM.MANAGE_COMMUNITY)} onPress={() => void pickAvatar()}><CommunityAvatar api={api} community={community} size={86} /></Pressable>
-        <KindBadge kind={community.kind} />
+        <KindBadge kind={community.kind} category={community.category} />
       </View>
       {error ? <Notice text={error} error /> : null}{notice ? <Notice text={notice} /> : null}
       {can(community, PERM.MANAGE_COMMUNITY) ? <GlassSurface radius={20} shadow={false} contentStyle={{ padding: 16, gap: 14 }}>
         <Field label="Название" value={name} onChangeText={setName} maxLength={60} />
         <Field label="Описание" value={description} onChangeText={setDescription} maxLength={500} multiline style={{ height: 80, textAlignVertical: 'top' }} />
+        {community.kind === 'blog' ? <View style={{ gap: 8 }}><Text style={{ color: t.muted, fontSize: 12, fontWeight: '600' }}>О чём канал</Text><View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 7 }}>{CATEGORIES.map(item => <Pressable key={item.id} accessibilityRole="radio" accessibilityState={{ selected: community.category === item.id }} disabled={!!busy} onPress={() => void run('category', async () => onChanged((await api.updateCommunity(community.id, { category: item.id })).community))} style={{ paddingHorizontal: 12, paddingVertical: 8, borderRadius: 16, backgroundColor: community.category === item.id ? t.accent : t.surface2 }}><Text style={{ color: community.category === item.id ? t.onAccent : t.text, fontSize: 13, fontWeight: '600' }}>{item.label}</Text></Pressable>)}</View></View> : null}
         <Button label="Сохранить" loading={busy === 'save'} disabled={!name.trim() || (name === community.name && description === community.description)} onPress={() => void run('save', async () => onChanged((await api.updateCommunity(community.id, { name: name.trim(), description: description.trim() })).community), 'Сохранено.')} />
       </GlassSurface> : null}
       {can(community, PERM.INVITE) ? section('Приглашения', row('invite', 'link-outline', 'Ссылка-приглашение', undefined, onInvite)) : null}

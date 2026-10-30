@@ -127,9 +127,9 @@ export class Api {
 
   // Communities (game servers and blog channels). Not end-to-end encrypted by design.
   communities = () => this.request<{communities: import('./communities/types').CommunitySummary[]}>('/communities');
-  createCommunity = (fields: {kind: 'server'|'blog'; name: string; description?: string; avatarId?: string|null}) => this.request<{community: import('./communities/types').Community}>('/communities', {method: 'POST', body: JSON.stringify(fields)});
+  createCommunity = (fields: {kind: 'server'|'blog'; name: string; description?: string; avatarId?: string|null; category?: string}) => this.request<{community: import('./communities/types').Community}>('/communities', {method: 'POST', body: JSON.stringify(fields)});
   community = (id: string) => this.request<{community: import('./communities/types').Community}>(`/communities/${encodeURIComponent(id)}`);
-  updateCommunity = (id: string, fields: {name?: string; description?: string; avatarId?: string|null}) => this.request<{community: import('./communities/types').Community}>(`/communities/${encodeURIComponent(id)}`, {method: 'PATCH', body: JSON.stringify(fields)});
+  updateCommunity = (id: string, fields: {name?: string; description?: string; avatarId?: string|null; category?: string}) => this.request<{community: import('./communities/types').Community}>(`/communities/${encodeURIComponent(id)}`, {method: 'PATCH', body: JSON.stringify(fields)});
   communityMe = (id: string, fields: {muted?: boolean; lastReadId?: number}) => this.request<{community: import('./communities/types').CommunitySummary}>(`/communities/${encodeURIComponent(id)}/me`, {method: 'PATCH', body: JSON.stringify(fields)});
   deleteCommunity = (id: string) => this.request<{ok: true}>(`/communities/${encodeURIComponent(id)}`, {method: 'DELETE'});
   leaveCommunity = (id: string) => this.request<{ok: true}>(`/communities/${encodeURIComponent(id)}/leave`, {method: 'POST', body: '{}'});

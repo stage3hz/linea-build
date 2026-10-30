@@ -5,7 +5,7 @@ import type { Api } from '../api';
 import { AuthImage, Icon } from '../components';
 import { Text } from '../typography';
 import { useTheme } from '../theme';
-import type { CommunityKind } from './types';
+import { categoryLabel, type CommunityKind } from './types';
 
 const PALETTE = [['#2C5BD6', '#1AA889'], ['#3FA9F5', '#0D3480'], ['#0B6450', '#2EE6C8'], ['#1B3B78', '#4F8CFF'], ['#0A4E8A', '#1593B8'], ['#16316A', '#7FC8E8']];
 const hash = (value: string) => { let h = 0; for (let i = 0; i < value.length; i++) h = (h * 31 + value.charCodeAt(i)) | 0; return Math.abs(h); };
@@ -23,11 +23,11 @@ export function CommunityAvatar({ api, community, size = 48 }: { api: Api; commu
   </View>;
 }
 
-export function KindBadge({ kind }: { kind: CommunityKind }) {
+export function KindBadge({ kind, category }: { kind: CommunityKind; category?: string | null }) {
   const t = useTheme();
   return <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4, paddingHorizontal: 7, paddingVertical: 2, borderRadius: 8, backgroundColor: t.accentSoft }}>
     <Icon name={kind === 'blog' ? 'megaphone-outline' : 'game-controller-outline'} size={11} color={t.accent} />
-    <Text style={{ color: t.accent, fontSize: 11, fontWeight: '700' }}>{kind === 'blog' ? 'Блог' : 'Сервер'}</Text>
+    <Text style={{ color: t.accent, fontSize: 11, fontWeight: '700' }}>{kind === 'blog' ? categoryLabel(category) : 'Игровой'}</Text>
   </View>;
 }
 
