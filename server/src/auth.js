@@ -16,7 +16,7 @@ const iso = time => new Date(time).toISOString();
 export function installAuthRoutes({
   app, db, now, timestamp, authOptions, authThrottle, recoveryStatusThrottle,
   allowAccountLogin, withPasswordJob, newSession, dummyPasswordHash,
-  closeRevokedSockets, emitUser, authTestHooks,
+  closeRevokedSockets, emitUser, authTestHooks, deleteAccount,
 }) {
   const activeUser = request => {
     const session = db.prepare('SELECT user_id FROM sessions WHERE token_hash=? AND expires_at>?')
@@ -335,6 +335,20 @@ export function installAuthRoutes({
     closeRevokedSockets(snapshot.id);
     return { ok: true };
   });
+  // App Store 5.1.1(v): the account can be deleted from the app. Needs the password (and the
+  // confirmation word when one is set), then removes the account with everything it owns.
+  app.post('/auth/delete-account', authOptions, async request => {
+    authThrottle(request);
+    const body = objectBody(request.body, ['currentPassword', 'currentConfirmationWord']);
+    const snapshot = activeUser(request);
+    const currentPassword = passwordValue(body.currentPassword, { existing: true });
+    const currentConfirmationWord = normalizeRecoveryWord(body.currentConfirmationWord ?? '');
+    await withPasswordJob(() => reauthenticate(snapshot, currentPassword, currentConfirmationWord));
+    unchangedUser(request, snapshot);
+    await deleteAccount(snapshot.id);
+    return { ok: true };
+  });
+
   changeWord('/auth/confirmation-word', 'confirmationWord', 'confirmation_hash', 'recovery_hash');
   changeWord('/auth/recovery-word', 'recoveryWord', 'recovery_hash', 'confirmation_hash');
 

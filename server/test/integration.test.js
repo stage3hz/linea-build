@@ -854,3 +854,42 @@ test('push: token per session, sender name only, mute and «none» respected, tu
   await send(app, alice, chat, 'push-message-0007');
   assert.equal(sent.length, 3, 'a device that turned pushes off gets nothing');
 });
+
+test('block stops messages both ways; reports are stored; deleting the account removes its chats and channels', async t => {
+  const { app, dataDir } = await fixture(t);
+  const alice = await register(app, 'alice_mod', 'Алиса'), bob = await register(app, 'bob_mod');
+  const chat = await newChat(app, alice, bob);
+  await send(app, alice, chat, 'mod-message-0001');
+  assert.equal((await request(app, 'PUT', `/blocks/${alice.user.id}`, alice)).statusCode, 400);
+  assert.equal((await request(app, 'PUT', `/blocks/${bob.user.id}`, alice)).statusCode, 200);
+  assert.equal((await request(app, 'GET', `/users/${bob.user.id}`, alice)).json().blocked, true);
+  assert.deepEqual((await request(app, 'GET', '/blocks', alice)).json().users.map(u => u.id), [bob.user.id]);
+  for (const [from, clientId] of [[bob, 'mod-message-0002'], [alice, 'mod-message-0003']]) {
+    const blocked = await request(app, 'POST', `/chats/${chat.id}/messages`, from, { clientId, encrypted: envelopeFor(from, chat, []) });
+    assert.equal(blocked.statusCode, 403, blocked.body);
+    assert.equal(blocked.json().code, 'BLOCKED');
+  }
+  assert.equal((await request(app, 'DELETE', `/blocks/${bob.user.id}`, alice)).statusCode, 200);
+  await send(app, bob, chat, 'mod-message-0004');
+
+  assert.equal((await request(app, 'POST', '/reports', alice, { userId: bob.user.id, reason: 'nope' })).statusCode, 400);
+  assert.equal((await request(app, 'POST', '/reports', alice, { userId: bob.user.id, reason: 'spam', comment: 'реклама' })).statusCode, 201);
+  const db = new DatabaseSync(path.join(dataDir, 'linea.sqlite'));
+  try { assert.equal(db.prepare('SELECT reason FROM reports WHERE target_user_id=?').get(bob.user.id).reason, 'spam'); } finally { db.close(); }
+
+  const community = await request(app, 'POST', '/communities', alice, { kind: 'blog', name: 'Блог Алисы', description: '' });
+  assert.equal(community.statusCode, 200, community.body);
+  assert.equal((await request(app, 'POST', '/auth/delete-account', alice, { currentPassword: 'wrong-password-1', currentConfirmationWord: CONFIRMATION_WORD })).statusCode, 401);
+  const gone = await request(app, 'POST', '/auth/delete-account', alice, { currentPassword: PASSWORD, currentConfirmationWord: CONFIRMATION_WORD });
+  assert.equal(gone.statusCode, 200, gone.body);
+  assert.equal((await request(app, 'GET', '/chats', bob)).json().chats.length, 0);
+  assert.equal((await request(app, 'GET', `/users/${alice.user.id}`, bob)).statusCode, 404);
+  assert.equal((await request(app, 'GET', '/chats', alice)).statusCode, 401);
+  assert.equal((await request(app, 'POST', '/auth/login', null, { username: 'alice_mod', password: PASSWORD, confirmationWord: CONFIRMATION_WORD })).statusCode, 401);
+  const check = new DatabaseSync(path.join(dataDir, 'linea.sqlite'));
+  try {
+    assert.equal(check.prepare('SELECT COUNT(*) AS n FROM communities WHERE owner_id=?').get(alice.user.id).n, 0);
+    assert.equal(check.prepare('SELECT COUNT(*) AS n FROM messages WHERE chat_id=?').get(chat.id).n, 0);
+    assert.equal(check.prepare('SELECT reporter_id FROM reports').get().reporter_id, null);
+  } finally { check.close(); }
+});

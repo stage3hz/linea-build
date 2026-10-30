@@ -1,6 +1,7 @@
 // Friends (contacts) and per-user chat settings (pin, archive, mute).
 import { fail, objectBody } from './security.js';
 import { chatSettings, publicChat, userForViewer } from './database.js';
+import { blockedByMe } from './moderation.js';
 export { chatSettings };
 
 const uuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
@@ -17,7 +18,7 @@ export function installSocialRoutes({ app, db, authOptions, publicUser, timestam
     if (!row) fail(404, 'Пользователь не найден.');
     const chat = db.prepare('SELECT a.chat_id FROM chat_members a JOIN chat_members b ON a.chat_id=b.chat_id WHERE a.user_id=? AND b.user_id=?').get(viewer, id);
     const contact = !!db.prepare('SELECT 1 FROM contacts WHERE owner_id=? AND contact_id=?').get(viewer, id);
-    return { user: userForViewer(db, publicUser(row), viewer), isContact: contact, chatId: chat?.chat_id ?? null };
+    return { user: userForViewer(db, publicUser(row), viewer), isContact: contact, chatId: chat?.chat_id ?? null, blocked: blockedByMe(db, viewer, id) };
   });
 
   app.get('/contacts', authOptions, async request => {

@@ -1,5 +1,6 @@
 import { installCallRoutes } from './calls.js';
 import { PUSH_SCHEMA, PUSH_KINDS, chatNotification } from './push.js';
+import { MODERATION_SCHEMA, installModerationRoutes, blockedBetween, deleteAccount } from './moderation.js';
 import { COMMUNITY_SCHEMA, installCommunityRoutes, VOICE_LIMIT } from './communities.js';
 import Fastify, { LogController } from 'fastify';
 import websocket from '@fastify/websocket';
@@ -237,12 +238,19 @@ export async function buildApp({
     app, db, now, timestamp, authOptions, authThrottle, recoveryStatusThrottle,
     allowAccountLogin, withPasswordJob, newSession, dummyPasswordHash,
     closeRevokedSockets, emitUser, authTestHooks,
+    deleteAccount: async userId => {
+      const peers = await deleteAccount(db, uploadDir, userId);
+      closeRevokedSockets();
+      for (const { chatId, userId: peer } of peers) emitUser(peer, { type: 'chat.deleted', chatId });
+    },
   });
   registerAiRoutes(app,{authenticate:requireAuth,apiKey:aiApiKey,provider:aiProvider(aiProviderConfig),fetchImpl:aiFetch,allowedOrigins,now});
   installUsernameRoutes({app,db,now,authOptions,emitUser,emitChat});
   installCallRoutes({app,authOptions,now,turn});
   installSocialRoutes({app,db,authOptions,publicUser,timestamp,serializationOptions,emitUser});
   db.exec(PUSH_SCHEMA);
+  db.exec(MODERATION_SCHEMA);
+  installModerationRoutes({ app, db, authOptions, publicUser, timestamp, limiter });
   // Push token of this signed-in device. It lives as long as the session: a revoked or
   // expired session stops receiving pushes.
   app.put('/me/push', authOptions, async request => {
@@ -408,6 +416,7 @@ export async function buildApp({
     const pairKey = [selfId, peerId].sort().join(':');
     let chat = db.prepare('SELECT * FROM chats WHERE pair_key=?').get(pairKey);
     let created = false;
+    if (blockedBetween(db, selfId, peerId)) fail(403, 'Переписка с этим пользователем недоступна.', { code: 'BLOCKED' });
     if (!chat && !privacyOf(db, peerId).allowNewChats) fail(403, 'Пользователь ограничил новые разговоры.', { code: 'NEW_CHATS_DISABLED' });
     if (!chat) {
       const id = randomUUID();
@@ -443,6 +452,8 @@ export async function buildApp({
     const chatId = request.params.chatId;
     const senderId = request.auth.user_id;
     requireMembership(chatId, senderId);
+    const peerMember = db.prepare('SELECT user_id FROM chat_members WHERE chat_id=? AND user_id<>?').get(chatId, senderId);
+    if (peerMember && blockedBetween(db, senderId, peerMember.user_id)) fail(403, 'Переписка с этим пользователем недоступна.', { code: 'BLOCKED' });
     const body = objectBody(request.body, ['text', 'attachmentId', 'clientId', 'encrypted', 'push']);
     if (body.push !== undefined && !PUSH_KINDS.has(body.push)) fail(400, 'Некорректный вид уведомления.');
     if (body.text !== undefined || body.attachmentId !== undefined || !body.encrypted) {
