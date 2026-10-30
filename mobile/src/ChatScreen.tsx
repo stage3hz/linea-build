@@ -6,6 +6,7 @@ import { Text, TextInput } from './typography';
 import { KeyboardSafeView } from './keyboard';
 import * as Clipboard from 'expo-clipboard';
 import { LinearGradient } from 'expo-linear-gradient';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import * as FileSystem from 'expo-file-system/legacy';
 import type { Api } from './api';
 import { AttachmentCard, Avatar, Empty, Icon, IconButton, Notice, Sheet, SheetAction } from './components';
@@ -42,7 +43,7 @@ import { VOICE_MIME, VOICE_MIN_MS, videoNoteFileName, voiceFileName } from './vo
 
 
 export function ChatScreen({api,user,chat,store,onBack,wide=false,onOpenMusic}: {api:Api;user:User;chat:Chat;store:MessengerStore;onBack:()=>void;wide?:boolean;onOpenMusic?:()=>void}) {
-  const calls=useCalls();
+  const calls=useCalls();const insets=useSafeAreaInsets();
   const t=useTheme();const [attachMenu,setAttachMenu]=useState(false);const [uploading,setUploading]=useState(false);const [downloadId,setDownloadId]=useState<string|null>(null);const [localError,setLocalError]=useState('');const [preview,setPreview]=useState<Attachment|null>(null);const [peerInfo,setPeerInfo]=useState(false);const [actions,setActions]=useState<Row|null>(null);const [menuY,setMenuY]=useState(0);const [copied,setCopied]=useState(false);
   const [securityOpen,setSecurityOpen]=useState(false);
   const photoContext=`${user.id}:${chat.id}`;const currentPhotoContext=useRef(photoContext);currentPhotoContext.current=photoContext;
@@ -223,11 +224,12 @@ export function ChatScreen({api,user,chat,store,onBack,wide=false,onOpenMusic}: 
     }catch(e){if(alive.current)setLocalError(e instanceof Error?e.message:'Не удалось отправить видеосообщение.');}
     finally{uploadingRef.current=false;if(alive.current)setUploading(false);await FileSystem.deleteAsync(take.uri,{idempotent:true}).catch(()=>{});}
   };
-  return <VoicePlaybackProvider api={api}><KeyboardSafeView style={{flex:1,backgroundColor:'transparent'}}>
+  // Telegram: messages scroll under the status bar (no hard edge at the safe area); the header sits below it.
+  return <VoicePlaybackProvider api={api}><KeyboardSafeView style={{flex:1,backgroundColor:'transparent',marginTop:wide?0:-insets.top}}>
     {wallpaperColors?<LinearGradient pointerEvents="none" colors={wallpaperColors as unknown as [string,string,string]} start={{x:0,y:0}} end={{x:1,y:1}} style={{position:'absolute',top:-80,bottom:-60,left:0,right:0}}/>:null}
-    <View pointerEvents="box-none" onLayout={e=>setHeaderHeight(e.nativeEvent.layout.height)} style={{position:'absolute',top:0,left:0,right:0,zIndex:5,paddingTop:8,gap:6}}>
+    <View pointerEvents="box-none" onLayout={e=>setHeaderHeight(e.nativeEvent.layout.height)} style={{position:'absolute',top:0,left:0,right:0,zIndex:5,paddingTop:8+(wide?0:insets.top),gap:6}}>
     {/* Messages fade out under the status bar instead of ending at a hard edge. */}
-    <LinearGradient pointerEvents="none" colors={[wallpaperColors?.[0]||t.bgGradient[0],'transparent']} style={{position:'absolute',top:0,left:0,right:0,height:34}}/>
+    <LinearGradient pointerEvents="none" colors={[wallpaperColors?.[0]||t.bgGradient[0],wallpaperColors?.[0]||t.bgGradient[0],'transparent']} locations={[0,wide?0:.55,1]} style={{position:'absolute',top:0,left:0,right:0,height:(wide?0:insets.top)+30}}/>
     {selection?<View style={{flexDirection:'row',alignItems:'center',gap:8,paddingHorizontal:12}}>
       <GlassSurface material="regular" radius={24} interactive contentStyle={{height:48,justifyContent:'center',paddingHorizontal:16}}><Pressable onPress={()=>setSelection(null)} accessibilityRole="button" hitSlop={8}><Text style={{color:t.accent,fontSize:16,fontWeight:'600'}}>Отмена</Text></Pressable></GlassSurface>
       <View style={{flex:1,alignItems:'center'}}><GlassSurface material="regular" radius={24} contentStyle={{height:48,justifyContent:'center',paddingHorizontal:18}}><Text style={{color:t.text,fontSize:16,fontWeight:'700'}}>Выбрано: {selectedMessages.length}</Text></GlassSurface></View>

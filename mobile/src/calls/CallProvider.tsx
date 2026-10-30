@@ -21,7 +21,7 @@ const loadInCall = (): any => { try { return require('react-native-incall-manage
 type CallState = {
   id: string; chat: Chat; peer: User; incoming: boolean; video: boolean; status: CallStatus;
   muted: boolean; speaker: boolean; cameraOff: boolean; startedAt: number | null; endedText: string; key: string[] | null;
-  localUrl: string | null; remoteUrl: string | null; remoteSdp?: string;
+  localUrl: string | null; remoteUrl: string | null; remoteSdp?: string; minimized?: boolean;
 };
 type CallApi = { start: (chat: Chat, video: boolean) => void; available: boolean; busy: boolean };
 const CallContext = createContext<CallApi>({ start: () => {}, available: false, busy: false });
@@ -131,6 +131,20 @@ export function CallProvider({ api, store, me, children }: { api: Api; store: Me
   useEffect(() => store.onCallSignal((message: Message) => {
     const action = message.meta?.action; if (!action || action.type !== 'call') return;
     const current = callRef.current;
+    if (action.step === 'offer' && current && current.id === action.call && current.status !== 'incoming' && action.sdp) {
+      // Mid-call change (the other side turned the camera on): answer the new offer on the same connection.
+      const webrtc = rtc.current; const connection = pc.current; if (!webrtc || !connection) return;
+      if (action.video && !current.video) patch({ video: true });
+      void (async () => {
+        try {
+          await connection.setRemoteDescription(new webrtc.RTCSessionDescription({ type: 'offer', sdp: action.sdp! }));
+          await connection.setLocalDescription(await connection.createAnswer());
+          const sdp = await gathered(connection);
+          signal(current.chat.id, { type: 'call', call: current.id, step: 'answer', sdp });
+        } catch { /* keep the call going without video */ }
+      })();
+      return;
+    }
     if (action.step === 'offer') {
       if (!offerIsFresh(message.createdAt, Date.now(), seen.current, action.call)) return;
       seen.current.add(action.call);
@@ -142,6 +156,10 @@ export function CallProvider({ api, store, me, children }: { api: Api; store: Me
       return;
     }
     if (!current || current.id !== action.call) return;
+    if (action.step === 'answer' && action.sdp && (current.status === 'active' || current.status === 'connecting') && pc.current?.signalingState === 'have-local-offer') {
+      const webrtc = rtc.current; if (webrtc) void pc.current.setRemoteDescription(new webrtc.RTCSessionDescription({ type: 'answer', sdp: action.sdp })).catch(() => {});
+      return;
+    }
     if (action.step === 'answer' && !current.incoming && action.sdp) {
       if (ringTimer.current) clearTimeout(ringTimer.current);
       try { inCall.current?.stopRingback?.(); } catch { /* optional */ }
@@ -156,18 +174,40 @@ export function CallProvider({ api, store, me, children }: { api: Api; store: Me
 
   useEffect(() => cleanup, [cleanup]);
 
+  // Turn the camera on during an audio call: add a video track and renegotiate (offer inside the same call).
+  const enableVideo = async () => {
+    const c = callRef.current; const webrtc = rtc.current; const connection = pc.current;
+    if (!c || !webrtc || !connection || c.status !== 'active') return;
+    try {
+      const stream: any = await webrtc.mediaDevices.getUserMedia({ video: { facingMode: 'user', width: 640, height: 480, frameRate: 30 } } as any);
+      const track = stream.getVideoTracks()[0]; if (!track) return;
+      local.current?.addTrack?.(track); connection.addTrack(track, local.current || stream);
+      try { inCall.current?.setForceSpeakerphoneOn?.(true); } catch { /* optional */ }
+      patch({ video: true, cameraOff: false, speaker: true, localUrl: (local.current || stream).toURL() });
+      await connection.setLocalDescription(await connection.createOffer({}));
+      const sdp = await gathered(connection);
+      signal(c.chat.id, { type: 'call', call: c.id, step: 'offer', video: true, sdp });
+      lightFeedback();
+    } catch { /* camera unavailable — the call goes on with audio */ }
+  };
   const controls = {
+    minimize: () => patch({ minimized: true }),
+    restore: () => patch({ minimized: false }),
     hangup: () => { const c = callRef.current; if (!c) return; finish(c.status === 'incoming' ? 'Звонок отклонён' : 'Звонок завершён', c.status === 'incoming' ? 'declined' : 'hangup'); },
     accept: () => void accept(),
     mute: () => { const c = callRef.current; if (!c) return; local.current?.getAudioTracks().forEach((t: any) => { t.enabled = c.muted; }); patch({ muted: !c.muted }); lightFeedback(); },
     speaker: () => { const c = callRef.current; if (!c) return; try { inCall.current?.setForceSpeakerphoneOn?.(!c.speaker); } catch { /* optional */ } patch({ speaker: !c.speaker }); lightFeedback(); },
-    camera: () => { const c = callRef.current; if (!c || !c.video) return; local.current?.getVideoTracks().forEach((t: any) => { t.enabled = c.cameraOff; }); patch({ cameraOff: !c.cameraOff }); lightFeedback(); },
+    camera: () => {
+      const c = callRef.current; if (!c) return;
+      if (!local.current?.getVideoTracks().length) { void enableVideo(); return; }
+      if (!c.video) return; local.current?.getVideoTracks().forEach((t: any) => { t.enabled = c.cameraOff; }); patch({ cameraOff: !c.cameraOff }); lightFeedback(); },
     flip: () => { local.current?.getVideoTracks().forEach((t: any) => { try { t._switchCamera(); } catch { /* single camera */ } }); lightFeedback(); },
   };
 
   return <CallContext.Provider value={{ start, available: !!rtc.current, busy: !!call }}>
     {children}
-    {call ? <CallScreen call={call} api={api} rtc={rtc.current} {...controls} /> : null}
+    {call && !call.minimized ? <CallScreen call={call} api={api} rtc={rtc.current} {...controls} /> : null}
+    {call && call.minimized ? <CallBanner call={call} onPress={controls.restore} onHangup={controls.hangup} /> : null}
   </CallContext.Provider>;
 }
 
@@ -185,7 +225,7 @@ function CallButton({ icon, label, onPress, active = false, color }: { icon: Ico
   </Pressable>;
 }
 
-function CallScreen({ call, api, rtc, hangup, accept, mute, speaker, camera, flip }: { call: CallState; api: Api; rtc: WebRTC | null; hangup: () => void; accept: () => void; mute: () => void; speaker: () => void; camera: () => void; flip: () => void }) {
+function CallScreen({ call, api, rtc, hangup, accept, mute, speaker, camera, flip, minimize }: { call: CallState; api: Api; rtc: WebRTC | null; hangup: () => void; accept: () => void; mute: () => void; speaker: () => void; camera: () => void; flip: () => void; minimize: () => void; restore?: () => void }) {
   const insets = useSafeAreaInsets(); const { width } = useWindowDimensions();
   const [, tick] = useState(0);
   useEffect(() => { if (call.status !== 'active') return; const timer = setInterval(() => tick(v => v + 1), 1000); return () => clearInterval(timer); }, [call.status]);
@@ -196,6 +236,7 @@ function CallScreen({ call, api, rtc, hangup, accept, mute, speaker, camera, fli
     <LinearGradient colors={call.status === 'active' ? ['#2C8C6E', '#3B6FB6', '#5A55B8'] : ['#5B5FD6', '#6E59C9', '#8A5BC8']} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={StyleSheet.absoluteFill} />
     {showVideo ? <View_ streamURL={call.remoteUrl} objectFit="cover" style={StyleSheet.absoluteFill} /> : null}
     <View style={{ flex: 1, paddingTop: insets.top + 10, paddingBottom: insets.bottom + 24 }}>
+      {call.status !== 'incoming' && call.status !== 'ended' ? <Pressable onPress={minimize} accessibilityRole="button" accessibilityLabel="Свернуть звонок" hitSlop={10} style={{ position: 'absolute', left: 16, top: insets.top + 6, zIndex: 3, width: 40, height: 40, borderRadius: 20, backgroundColor: 'rgba(0,0,0,0.2)', alignItems: 'center', justifyContent: 'center' }}><Icon name="chevron-down" size={24} color="#FFF" /></Pressable> : null}
       <View style={{ alignItems: 'center', minHeight: 34 }}>
         {call.key ? <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, paddingHorizontal: 12, paddingVertical: 6, borderRadius: 16, backgroundColor: 'rgba(0,0,0,0.18)' }}><Icon name="lock-closed" size={13} color="#FFF" /><Text style={{ color: '#FFF', fontSize: 15, letterSpacing: 2 }}>{call.key.join(' ')}</Text></View> : <Text style={{ color: 'rgba(255,255,255,0.8)', fontSize: 12 }}>🔒 Звонок защищён сквозным шифрованием</Text>}
       </View>
@@ -211,7 +252,7 @@ function CallScreen({ call, api, rtc, hangup, accept, mute, speaker, camera, fli
         <CallButton icon={call.video ? 'videocam' : 'call'} label="Ответить" onPress={accept} color="#34C759" />
       </View> : call.status === 'ended' ? null : <View style={{ flexDirection: 'row', justifyContent: 'space-around', paddingHorizontal: 8 }}>
         <CallButton icon="volume-high" label="Динамик" onPress={speaker} active={call.speaker} />
-        {call.video ? <CallButton icon={call.cameraOff ? 'videocam-off' : 'videocam'} label="Видео" onPress={camera} active={!call.cameraOff} /> : <CallButton icon="camera-reverse-outline" label="Камера" onPress={flip} />}
+        <CallButton icon={call.video && !call.cameraOff ? 'videocam' : 'videocam-off'} label="Видео" onPress={camera} active={call.video && !call.cameraOff} />
         <CallButton icon={call.muted ? 'mic-off' : 'mic'} label={call.muted ? 'Звук выкл' : 'Убрать звук'} onPress={mute} active={call.muted} />
         <CallButton icon="close" label="Завершить" onPress={hangup} color="#FF3B30" />
       </View>}
@@ -220,3 +261,17 @@ function CallScreen({ call, api, rtc, hangup, accept, mute, speaker, camera, fli
 }
 
 export const callsSupported = Platform.OS !== 'web';
+
+/** Telegram-style strip while the call is minimized: tap to return, the app stays usable. */
+function CallBanner({ call, onPress, onHangup }: { call: CallState; onPress: () => void; onHangup: () => void }) {
+  const [, tick] = useState(0);
+  useEffect(() => { const timer = setInterval(() => tick(v => v + 1), 1000); return () => clearInterval(timer); }, []);
+  const status = call.status === 'active' ? callClock(Date.now() - (call.startedAt || Date.now())) : call.status === 'ended' ? call.endedText : 'Соединение…';
+  return <View pointerEvents="box-none" style={{ position: 'absolute', top: 0, left: 0, right: 0, zIndex: 50 }}>
+    <Pressable onPress={onPress} accessibilityRole="button" accessibilityLabel={`Вернуться к звонку: ${call.peer.displayName}, ${status}`} style={{ marginHorizontal: 10, marginTop: 2, height: 36, borderRadius: 18, backgroundColor: call.status === 'active' ? '#2BA36B' : '#3B6FB6', flexDirection: 'row', alignItems: 'center', paddingLeft: 14, paddingRight: 4, gap: 8, shadowColor: '#000', shadowOpacity: .25, shadowRadius: 8, shadowOffset: { width: 0, height: 3 } }}>
+      <Icon name={call.video ? 'videocam' : 'call'} size={16} color="#FFF" />
+      <Text numberOfLines={1} style={{ flex: 1, color: '#FFF', fontSize: 14, fontWeight: '600' }}>{call.peer.displayName} · {status}</Text>
+      <Pressable onPress={onHangup} accessibilityRole="button" accessibilityLabel="Завершить звонок" hitSlop={6} style={{ width: 30, height: 30, borderRadius: 15, backgroundColor: '#FF3B30', alignItems: 'center', justifyContent: 'center' }}><Icon name="close" size={16} color="#FFF" /></Pressable>
+    </Pressable>
+  </View>;
+}
