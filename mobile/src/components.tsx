@@ -125,3 +125,13 @@ export function SheetAction({icon,label,description,onPress,danger=false}:{icon:
 export function SectionLabel({children}:{children:React.ReactNode}) {
   const t=useTheme();return <Text style={{fontSize:10,fontWeight:'700',letterSpacing:1.65,color:t.muted,marginBottom:13,paddingLeft:2,textTransform:'uppercase'}}>{children}</Text>;
 }
+
+/**
+ * Safe-area padding for content inside a <Modal>. The native SafeAreaView reports
+ * zero insets inside a full-screen modal on iPhone, which pushed headers under the
+ * status bar; the insets of the main window are the right ones here.
+ */
+export function InsetView({style,children,pointerEvents,bottom=true}:{style?:StyleProp<ViewStyle>;children:React.ReactNode;pointerEvents?:'box-none'|'auto';bottom?:boolean}) {
+  const insets=useSafeAreaInsets();
+  return <View pointerEvents={pointerEvents} style={[{paddingTop:insets.top,paddingBottom:bottom?insets.bottom:0,paddingLeft:insets.left,paddingRight:insets.right},style]}>{children}</View>;
+}

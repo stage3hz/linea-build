@@ -8,6 +8,7 @@ import {isVideoCandidate,mediaPreviewKind,sniffVideoFormat} from './formats';
 import {getVideoBridge} from './videoBridge';
 import {sanitizeMp4} from './mp4';
 import {ensureFileUri} from './localCopy';
+import {sanitizeGif} from '../photo/gif';
 import type {NativeVideoResult} from '../../modules/linea-video';
 export type PreparedMedia=PreparedUpload&{video?:boolean};
 const MAX_OUTPUT=20*1024*1024;
@@ -80,11 +81,24 @@ export async function prepareMediaForUpload(input:LocalFile):Promise<PreparedMed
 async function prepareLocalMedia(file:LocalFile):Promise<PreparedMedia>{
   const header=toByteArray(await FileSystem.readAsStringAsync(file.uri,{encoding:FileSystem.EncodingType.Base64,position:0,length:768}));
   const image=sniffPhotoFormat(header),video=sniffVideoFormat(header);
+  if(image==='gif')return prepareGif(file);
   if(image)return preparePhotoForUpload(file);
   if(await confirmedAudioOnly(file,video))return {file,photo:false,video:false,dispose:noCleanup};
   if(video||isVideoCandidate(file))return exclusive(()=>prepareVideo({...file}));
   if(isPhotoCandidate(file))return preparePhotoForUpload(file);
   return {file,photo:false,video:false,dispose:noCleanup};
+}
+
+/** Animated GIFs stay animated: metadata blocks are removed, frames are kept as they are. */
+async function prepareGif(file:LocalFile):Promise<PreparedMedia>{
+  const info=await FileSystem.getInfoAsync(file.uri);
+  if(!info.exists||info.isDirectory)throw new Error('Не удалось прочитать GIF.');
+  if(info.size>MAX_OUTPUT)throw new Error('Файл слишком большой. Максимум — 20 МБ.');
+  const clean=sanitizeGif(toByteArray(await FileSystem.readAsStringAsync(file.uri,{encoding:FileSystem.EncodingType.Base64})));
+  const uri=`${FileSystem.cacheDirectory}linea-gif-${Crypto.randomUUID()}.gif`;
+  await FileSystem.writeAsStringAsync(uri,fromByteArray(clean.bytes),{encoding:FileSystem.EncodingType.Base64});
+  const name=(file.name.replace(/\.[^.]*$/,'')||'animation').slice(0,200)+'.gif';
+  return {file:{uri,name,mimeType:'image/gif',size:clean.bytes.length},photo:false,video:false,media:{width:clean.width,height:clean.height},dispose:()=>FileSystem.deleteAsync(uri,{idempotent:true})};
 }
 
 export async function resolveVideoLibraryAsset(id:string):Promise<{fileUri:string;dispose:()=>Promise<void>}>{

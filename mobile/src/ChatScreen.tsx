@@ -20,15 +20,19 @@ import { MAX_DRAFT_ATTACHMENTS } from './messageAttachments';
 import { mediaPreviewKind } from './media/formats';
 import { AttachmentViewer } from './media/AttachmentViewer';
 import { textMetrics, useChatPreferences } from './chatPreferences';
-import { REACTIONS, foldChat, replyPreview, type Reaction, type ViewMessage } from './messageMeta';
+import { REACTIONS, foldChat, groupAlbums, replyPreview, type Reaction, type ViewMessage } from './messageMeta';
+import { MediaGallery } from './media/AttachmentViewer';
+import { PollComposer } from './PollBubble';
+import { StickerPanel } from './StickerPanel';
+import { Share } from 'react-native';
 import { VoicePlaybackProvider, VoiceRecordingBar, useVoiceRecorder } from './voice/VoiceMessage';
-import { MessageRow, type Row, type RowHandlers } from './MessageRow';
+import { MessageRow, type AlbumPart, type Row, type RowHandlers } from './MessageRow';
 import { ContextMenu, MenuItem } from './ContextMenu';
 import { UserProfile } from './UserProfile';
 import { impactFeedback, lightFeedback } from './haptics';
 import { VideoNoteRecorder, type VideoNoteTake } from './videonote/VideoNote';
 import { useCallback } from 'react';
-import { attachmentLabel } from './voice/voice';
+import { attachmentLabel, isVideoNote, isVoice } from './voice/voice';
 import { VOICE_MIME, VOICE_MIN_MS, videoNoteFileName, voiceFileName } from './voice/voice';
 
 
@@ -50,16 +54,32 @@ export function ChatScreen({api,user,chat,store,onBack,wide=false}: {api:Api;use
   const [forwarding,setForwarding]=useState<ViewMessage|null>(null);
   const [searchOpen,setSearchOpen]=useState(false);const [query,setQuery]=useState('');
   const [notice,setNotice]=useState('');
-  useEffect(()=>{setReplyTo(null);setEditing(null);setForwarding(null);setSearchOpen(false);setQuery('');},[chat.id]);
+  const [selection,setSelection]=useState<Set<string>|null>(null);
+  // Rows present when the chat opened do not animate; new ones slide in.
+  const seen=useRef<Set<string>|null>(null);
+  const [forwardMany,setForwardMany]=useState<ViewMessage[]|null>(null);
+  const [gallery,setGallery]=useState<{items:Attachment[];index:number}|null>(null);
+  const [pollOpen,setPollOpen]=useState(false);const [deleteAsk,setDeleteAsk]=useState(false);const [stickers,setStickers]=useState(false);
+  useEffect(()=>{setReplyTo(null);setEditing(null);setForwarding(null);setSearchOpen(false);setQuery('');setSelection(null);setGallery(null);seen.current=null;},[chat.id]);
+
   const needle=query.trim().toLocaleLowerCase('ru');
   const rows=useMemo<Row[]>(()=>{
-    const all:Row[]=[
-      ...view.messages.map(message=>({key:`m${message.id}`,message,createdAt:message.createdAt})),
-      ...pending.map(p=>({key:`p${p.clientId}`,pending:p,createdAt:p.createdAt})),
+    type Item={senderId:string;meta?:ViewMessage['meta'];row:Row};
+    const items:Item[]=[
+      ...view.messages.map(message=>({senderId:message.senderId,meta:message.meta,row:{key:`m${message.id}`,message,createdAt:message.createdAt} as Row})),
+      ...pending.map(p=>({senderId:user.id,meta:p.meta,row:{key:`p${p.clientId}`,pending:p,createdAt:p.createdAt} as Row})),
     ];
+    const all:Row[]=groupAlbums(items).map(group=>{
+      if(group.length<2)return group[0].row;
+      const first=group[0].row;
+      const album:AlbumPart[]=group.map(item=>({attachment:(item.row.message?.attachment||item.row.pending?.attachment)!,message:item.row.message,pending:item.row.pending})).filter(part=>!!part.attachment);
+      const caption=group.find(item=>item.row.message?.text||item.row.pending?.text)?.row;
+      const head=caption||first;
+      return {key:`a${first.key}`,message:head.message,pending:head.pending,createdAt:group[group.length-1].row.createdAt,album};
+    });
     const visible=searchOpen&&needle?all.filter(row=>(row.message?.text||row.pending?.text||'').toLocaleLowerCase('ru').includes(needle)||(row.message?.attachment?.name||'').toLocaleLowerCase('ru').includes(needle)):all;
     return visible.reverse();
-  },[view,pending,searchOpen,needle]);
+  },[view,pending,searchOpen,needle,user.id]);
   const preferences=useChatPreferences();const metrics=textMetrics(preferences.textSize);
   const nameOf=(senderId:string)=>senderId===user.id?'Ты':chat.peer.displayName;
   // A forwarded message keeps its first author through further forwards.
@@ -133,9 +153,32 @@ export function ChatScreen({api,user,chat,store,onBack,wide=false}: {api:Api;use
       .then(added=>setNotice(added?'Сохранено в Избранное':'Уже в Избранном')).catch(e=>setLocalError(e instanceof Error?e.message:'Не удалось сохранить.'));
   };
   const download=async(file:Attachment)=>{setDownloadId(file.id);setLocalError('');try{await shareEncryptedAttachment(api,file);}catch(e){if(alive.current)setLocalError(e instanceof Error?e.message:'Не удалось открыть файл.');}finally{if(alive.current)setDownloadId(null);}};
-  const openAttachment=(file:Attachment)=>{if(mediaPreviewKind(file)!=='file')setPreview(file);else void download(file);};
+  const mediaItems=useMemo(()=>view.messages.map(m=>m.attachment).filter((a):a is Attachment=>!!a&&!isVoice(a)&&!isVideoNote(a)&&['photo','video'].includes(mediaPreviewKind(a))),[view.messages]);
+  const openAttachment=(file:Attachment)=>{
+    const kind=mediaPreviewKind(file);
+    if(kind==='photo'||kind==='video'){const index=mediaItems.findIndex(a=>a.id===file.id);setGallery(index>=0?{items:mediaItems,index}:{items:[file],index:0});return;}
+    setPreview(file);
+  };
   const copy=async(value:string)=>{await Clipboard.setStringAsync(value);setActions(null);setCopied(true);setTimeout(()=>setCopied(false),2000);};
   const isTyping=(store.typing[chat.id]||0)>Date.now();
+  const rowMessages=(row:Row):ViewMessage[]=>row.album?row.album.map(part=>part.message).filter((m):m is ViewMessage=>!!m):row.message?[row.message]:[];
+  const selectedRows=selection?rows.filter(row=>selection.has(row.key)):[];
+  const selectedMessages=selectedRows.flatMap(rowMessages).sort((a,b)=>a.id-b.id);
+  const toggleSelect=(row:Row)=>{if(!rowMessages(row).length)return;setSelection(current=>{const next=new Set(current||[]);if(next.has(row.key))next.delete(row.key);else next.add(row.key);return next.size?next:null;});};
+  const startSelect=(row:Row)=>{setActions(null);impactFeedback();if(rowMessages(row).length)setSelection(new Set([row.key]));};
+  const shareMessages=async(list:ViewMessage[])=>{
+    const files=list.map(m=>m.attachment).filter((a):a is Attachment=>!!a);
+    const text=list.map(m=>m.meta?.poll?replyPreview(m):m.text).filter(Boolean).join('\n\n');
+    try{
+      if(files.length===1&&!text)await download(files[0]);
+      else if(text)await Share.share({message:text});
+      else if(files.length)await download(files[0]);
+    }catch(e){setLocalError(e instanceof Error?e.message:'Не удалось поделиться.');}
+  };
+  const deleteSelected=(everyone:boolean)=>{
+    for(const m of selectedMessages){if(everyone&&m.senderId===user.id)store.sendAction(chat.id,{type:'delete',target:m.clientId});else store.hideForMe(m);}
+    setSelection(null);lightFeedback();
+  };
 
   // Swipe right anywhere in the chat to go back, as in Telegram for iPhone.
   const backX=useRef(new Animated.Value(0)).current;const backRef=useRef(onBack);backRef.current=onBack;
@@ -146,14 +189,16 @@ export function ChatScreen({api,user,chat,store,onBack,wide=false}: {api:Api;use
     onPanResponderTerminate:()=>Animated.spring(backX,{toValue:0,useNativeDriver:true}).start(),
   })).current;
   const handlers=useRef<RowHandlers>(null as unknown as RowHandlers);
-  handlers.current={actions:(row,y)=>{setMenuY(y);setActions(row);},jumpTo,open:openAttachment,react,retry:pending=>void store.retry(pending),reply:message=>{setEditing(null);setReplyTo(message);}};
+  handlers.current={actions:(row,y)=>{setMenuY(y);setActions(row);},jumpTo,open:openAttachment,react,retry:pending=>void store.retry(pending),reply:message=>{setEditing(null);setReplyTo(message);},vote:(message,options)=>store.sendAction(chat.id,{type:'vote',target:message.clientId,options},replyPreview(message)),toggleSelect};
+  if(seen.current===null&&rows.length)seen.current=new Set(rows.map(row=>row.key));
+  const fresh=(key:string)=>{if(!seen.current)return false;if(seen.current.has(key))return false;seen.current.add(key);return true;};
   const peerLastRead=chat.peerLastReadMessageId,peerName=chat.peer.displayName;
   const renderRow=useCallback(({item,index}:{item:Row;index:number})=>{
     const message=item.message,p=item.pending,mine=!!p||message?.senderId===user.id;
     const file=message?.attachment||p?.attachment,reply=message?.meta?.reply||p?.meta?.reply;
     const original=reply?view.byClientId.get(reply.clientId):undefined;
-    return <MessageRow row={item} olderCreatedAt={rows[index+1]?.createdAt} mine={mine} author={mine?'Ты':peerName} peerLastRead={peerLastRead} wide={wide} fontSize={metrics.fontSize} lineHeight={metrics.lineHeight} downloading={!!downloadId&&file?.id===downloadId} replyAuthor={reply?(reply.senderId===user.id?'Ты':peerName):undefined} replyText={reply?(original?replyPreview(original):reply.preview||'Сообщение удалено'):undefined} api={api} handlers={handlers}/>;
-  },[rows,user.id,peerName,peerLastRead,wide,metrics,downloadId,view.byClientId,api]);
+    return <MessageRow row={item} selecting={!!selection} selected={!!selection?.has(item.key)} fresh={fresh(item.key)} olderCreatedAt={rows[index+1]?.createdAt} mine={mine} author={mine?'Ты':peerName} peerLastRead={peerLastRead} wide={wide} fontSize={metrics.fontSize} lineHeight={metrics.lineHeight} downloading={!!downloadId&&file?.id===downloadId} replyAuthor={reply?(reply.senderId===user.id?'Ты':peerName):undefined} replyText={reply?(original?replyPreview(original):reply.preview||'Сообщение удалено'):undefined} api={api} handlers={handlers}/>;
+  },[rows,user.id,peerName,peerLastRead,wide,metrics,downloadId,view.byClientId,api,selection]);
   const [circleOpen,setCircleOpen]=useState(false);
   const sendVideoNote=async(take:VideoNoteTake)=>{
     setCircleOpen(false);
@@ -169,12 +214,16 @@ export function ChatScreen({api,user,chat,store,onBack,wide=false}: {api:Api;use
     finally{uploadingRef.current=false;if(alive.current)setUploading(false);await FileSystem.deleteAsync(take.uri,{idempotent:true}).catch(()=>{});}
   };
   return <VoicePlaybackProvider api={api}><Animated.View style={{flex:1,transform:[{translateX:backX}]}} {...(wide?{}:backSwipe.panHandlers)}><KeyboardSafeView style={{flex:1,backgroundColor:'transparent'}}>
-    <GlassSurface material="regular" radius={27} style={{marginHorizontal:12,marginTop:12,marginBottom:8}} contentStyle={{minHeight:70,flexDirection:'row',alignItems:'center',gap:9,paddingHorizontal:wide?17:8,paddingVertical:10}}>
+    {selection?<GlassSurface material="regular" radius={27} style={{marginHorizontal:12,marginTop:12,marginBottom:8}} contentStyle={{minHeight:70,flexDirection:'row',alignItems:'center',gap:9,paddingHorizontal:14,paddingVertical:10}}>
+      <Pressable onPress={()=>setSelection(null)} accessibilityRole="button" style={{paddingVertical:10,paddingHorizontal:6}}><Text style={{color:t.accent,fontSize:16,fontWeight:'600'}}>Отмена</Text></Pressable>
+      <Text style={{flex:1,textAlign:'center',color:t.text,fontSize:16,fontWeight:'700'}}>Выбрано: {selectedMessages.length}</Text>
+      <Pressable onPress={()=>void copy(selectedMessages.map(m=>m.meta?.poll?replyPreview(m):m.text).filter(Boolean).join('\n\n')).then(()=>setSelection(null))} disabled={!selectedMessages.some(m=>m.text)} accessibilityRole="button" style={{paddingVertical:10,paddingHorizontal:6,opacity:selectedMessages.some(m=>m.text)?1:.4}}><Icon name="copy-outline" size={21} color={t.accent}/></Pressable>
+    </GlassSurface>:<GlassSurface material="regular" radius={27} style={{marginHorizontal:12,marginTop:12,marginBottom:8}} contentStyle={{minHeight:70,flexDirection:'row',alignItems:'center',gap:9,paddingHorizontal:wide?17:8,paddingVertical:10}}>
       {!wide?<IconButton name="chevron-back" label="Назад к чатам" onPress={onBack} style={{width:38,height:43}}/>:null}
       <Pressable onPress={()=>setPeerInfo(true)} accessibilityRole="button" accessibilityLabel={`Профиль ${chat.peer.displayName}`} style={{flex:1,flexDirection:'row',gap:12,alignItems:'center'}}><Avatar user={chat.peer} api={api} size={43}/><View style={{flex:1,gap:5}}><View style={{flexDirection:'row',gap:5,alignItems:'center'}}><Text numberOfLines={1} style={{flexShrink:1,color:t.text,fontSize:16,fontWeight:'700',letterSpacing:-.25}}>{chat.peer.displayName}</Text><StatusEmoji user={chat.peer} size={16}/></View><Text style={{color:isTyping?t.accent:t.muted,fontSize:11}}>{isTyping?'печатает…':`@${chat.peer.username}`}</Text></View></Pressable>
       <IconButton name={searchOpen?'close':'search-outline'} label={searchOpen?'Закрыть поиск':'Поиск по переписке'} onPress={()=>{setSearchOpen(!searchOpen);setQuery('');}} color={searchOpen?t.accent:t.muted} style={{width:39,height:43}}/>
       <IconButton name="ellipsis-horizontal" label="О собеседнике" onPress={()=>setPeerInfo(true)} color={t.muted} style={{width:39,height:43}}/>
-    </GlassSurface>
+    </GlassSurface>}
     {searchOpen?<GlassSurface material="regular" radius={22} shadow={false} style={{marginHorizontal:12,marginBottom:6}} contentStyle={{flexDirection:'row',alignItems:'center',gap:9,paddingHorizontal:14,minHeight:46}}>
       <Icon name="search-outline" size={18} color={t.muted}/>
       <TextInput autoFocus value={query} onChangeText={setQuery} placeholder="Поиск в этом чате" placeholderTextColor={t.muted} selectionColor={t.accent} keyboardAppearance={t.dark?'dark':'light'} accessibilityLabel="Поиск в этом чате" style={{flex:1,color:t.text,fontSize:15,paddingVertical:10}}/>
@@ -198,7 +247,14 @@ export function ChatScreen({api,user,chat,store,onBack,wide=false}: {api:Api;use
       ListFooterComponent={store.hasMore[chat.id]?<View style={{alignItems:'center',padding:18}}><GlassSurface material="clear" radius={19} shadow={false}><Pressable onPress={()=>void store.loadMessages(chat.id,true)} disabled={store.messageLoading} accessibilityRole="button" style={{paddingVertical:11,paddingHorizontal:17}}>{store.messageLoading?<ActivityIndicator size="small" color={t.accent}/>:<Text style={{fontSize:12,color:t.accent,fontWeight:'600'}}>Более ранние сообщения</Text>}</Pressable></GlassSurface></View>:null}
       renderItem={renderRow} removeClippedSubviews={Platform.OS==='android'} maxToRenderPerBatch={12} updateCellsBatchingPeriod={40}/>
     }
-    <GlassSurface material="regular" radius={28} style={{marginHorizontal:12,marginTop:5,marginBottom:10}} contentStyle={{padding:8}}>
+    {selection?<GlassSurface material="regular" radius={28} style={{marginHorizontal:12,marginTop:5,marginBottom:10}} contentStyle={{flexDirection:'row',justifyContent:'space-around',alignItems:'center',paddingVertical:8}}>
+      {([
+        {icon:'arrow-redo-outline',label:'Переслать',on:()=>{setForwardMany(selectedMessages);},ok:selectedMessages.length>0},
+        {icon:'share-outline',label:'Поделиться',on:()=>{void shareMessages(selectedMessages);setSelection(null);},ok:selectedMessages.length>0},
+        {icon:'bookmark-outline',label:'В Избранное',on:()=>{selectedMessages.forEach(saveToFavorites);setSelection(null);},ok:selectedMessages.length>0},
+        {icon:'trash-outline',label:'Удалить',on:()=>setDeleteAsk(true),ok:selectedMessages.length>0,danger:true},
+      ] as const).map(item=><Pressable key={item.label} disabled={!item.ok} onPress={()=>{lightFeedback();item.on();}} accessibilityRole="button" style={({pressed})=>({alignItems:'center',gap:4,paddingHorizontal:8,paddingVertical:4,opacity:!item.ok?.35:pressed?.6:1})}><Icon name={item.icon} size={22} color={'danger' in item?t.danger:t.accent}/><Text style={{fontSize:10,color:'danger' in item?t.danger:t.accent,fontWeight:'600'}}>{item.label}</Text></Pressable>)}
+    </GlassSurface>:<GlassSurface material="regular" radius={28} style={{marginHorizontal:12,marginTop:5,marginBottom:10}} contentStyle={{padding:8}}>
       {replyTo||editing?<View style={{flexDirection:'row',alignItems:'center',gap:8,paddingLeft:8,paddingBottom:6}}>
         <Icon name={editing?'create-outline':'arrow-undo-outline'} size={18} color={t.accent}/>
         <View style={{width:3,alignSelf:'stretch',borderRadius:2,backgroundColor:t.accent}}/>
@@ -213,13 +269,15 @@ export function ChatScreen({api,user,chat,store,onBack,wide=false}: {api:Api;use
       {voice.active?<VoiceRecordingBar durationMs={voice.durationMs} levels={voice.levels} onCancel={()=>void finishVoice(false)} onSend={()=>void finishVoice(true)}/>:<View style={{flexDirection:'row',gap:6,alignItems:'flex-end'}}>
         <IconButton name="add" label="Добавить вложения: галерея, аудио или файлы" onPress={()=>{Keyboard.dismiss();setAttachMenu(true);}} color={t.accent} disabled={uploading} style={{width:44,height:44,borderRadius:21}}/>
         <View style={{flex:1,minHeight:44,maxHeight:140,justifyContent:'center'}}><ComposerInput accessibilityLabel="Сообщение" placeholder={signalAvailable?'Сообщение…':'Нужна мобильная версия'} editable={signalAvailable} value={text} onChangeText={changeText} placeholderTextColor={t.muted} selectionColor={t.accent} keyboardAppearance={t.dark?'dark':'light'} multiline maxLength={8000} style={{fontSize:15,lineHeight:21,color:t.text,paddingHorizontal:6,paddingTop:Platform.OS==='ios'?11:10,paddingBottom:11,maxHeight:136}} onKeyPress={e=>{if(Platform.OS==='web'&&e.nativeEvent.key==='Enter'&&!(e.nativeEvent as unknown as {shiftKey?:boolean}).shiftKey){e.preventDefault();send();}}}/></View>
+        <Pressable accessibilityRole="button" accessibilityLabel="Стикеры и эмодзи" onPress={()=>{Keyboard.dismiss();setStickers(value=>!value);}} style={({pressed})=>({height:44,width:34,alignItems:'center',justifyContent:'center',opacity:pressed?.6:1})}><Icon name={stickers?'keypad-outline':'happy-outline'} color={stickers?t.accent:t.muted} size={23}/></Pressable>
         {!canSend&&signalAvailable&&!uploading?<Pressable accessibilityRole="button" accessibilityLabel="Записать видеосообщение" onPress={()=>{Keyboard.dismiss();setLocalError('');setCircleOpen(true);}} style={({pressed})=>({height:44,width:40,borderRadius:22,alignItems:'center',justifyContent:'center',opacity:pressed?.6:1})}><Icon name="videocam-outline" color={t.accent} size={23}/></Pressable>:null}
         {!canSend&&signalAvailable&&!uploading?<Pressable accessibilityRole="button" accessibilityLabel="Записать голосовое сообщение" onPress={startVoice} style={({pressed})=>({height:44,width:44,borderRadius:22,alignItems:'center',justifyContent:'center',backgroundColor:t.accentSoft,borderWidth:1,borderColor:t.border,opacity:pressed?.7:1})}><Icon name="mic-outline" color={t.accent} size={23}/></Pressable>:<Pressable accessibilityRole="button" accessibilityLabel="Отправить сообщение" disabled={!signalAvailable||uploading||(!text.trim()&&!attachments.length)} onPress={send} style={({pressed})=>({height:44,width:44,borderRadius:22,backgroundColor:t.accent,alignItems:'center',justifyContent:'center',borderWidth:1,borderColor:t.dark?'rgba(255,255,255,0.32)':'rgba(255,255,255,0.7)',shadowColor:t.accent,shadowOpacity:.2,shadowRadius:9,shadowOffset:{width:0,height:3},opacity:!signalAvailable||uploading||(!text.trim()&&!attachments.length)?.4:pressed?.75:1})}><Icon name="arrow-up" color={t.onAccent} size={23}/></Pressable>}
       </View>}
       {text.length>7500?<Text style={{fontSize:10,color:t.muted,textAlign:'right',paddingTop:4,paddingRight:8}}>{text.length} / 8000</Text>:null}
-    </GlassSurface>
+    </GlassSurface>}
+    {stickers&&!selection?<StickerPanel onPick={emoji=>{if(!signalAvailable)return;lightFeedback();const reply=replyTo?{clientId:replyTo.clientId,senderId:replyTo.senderId,preview:replyPreview(replyTo)}:undefined;store.send(chat.id,emoji,null,reply?{reply}:undefined);if(reply)setReplyTo(null);listRef.current?.scrollToOffset({offset:0,animated:true});}} onClose={()=>setStickers(false)}/>:null}
     <VideoNoteRecorder visible={circleOpen} onClose={()=>setCircleOpen(false)} onDone={take=>void sendVideoNote(take)}/>
-    <AttachmentPanel key={photoContext} visible={attachMenu} busy={uploading} canAdd={signalAvailable} remainingSlots={Math.max(0,MAX_DRAFT_ATTACHMENTS-attachments.length)} onClose={()=>setAttachMenu(false)} onAdd={item=>upload(item.file)}/>
+    <AttachmentPanel key={photoContext} onPoll={()=>{setAttachMenu(false);setTimeout(()=>setPollOpen(true),350);}} visible={attachMenu} busy={uploading} canAdd={signalAvailable} remainingSlots={Math.max(0,MAX_DRAFT_ATTACHMENTS-attachments.length)} onClose={()=>setAttachMenu(false)} onAdd={item=>upload(item.file)}/>
     <TrustSheet visible={securityOpen} onClose={()=>setSecurityOpen(false)} peerId={chat.peer.id} store={store}/>
     {peerInfo?<UserProfile api={api} user={chat.peer} chat={chat} onClose={()=>setPeerInfo(false)} onMute={muted=>store.updateChatSettings(chat.id,{muted})}/>:null}
     <ContextMenu visible={!!actions} y={menuY} onClose={()=>setActions(null)} preview={actions?(actions.message?.text||actions.pending?.text||(actions.message?.attachment||actions.pending?.attachment?attachmentLabel((actions.message?.attachment||actions.pending?.attachment)!):'')):''} mine={!!actions&&(!!actions.pending||actions.message?.senderId===user.id)} reactions={actions?.message&&actions.message.cryptoState==='decrypted'?<ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{gap:2}}>{REACTIONS.map(emoji=>{const chosen=actions.message!.reactions.some(r=>r.mine&&r.emoji===emoji);return <Pressable key={emoji} accessibilityRole="button" accessibilityLabel={`Реакция ${emoji}`} accessibilityState={{selected:chosen}} onPress={()=>{react(actions.message!,emoji);setActions(null);}} style={{width:42,height:42,borderRadius:21,alignItems:'center',justifyContent:'center',backgroundColor:chosen?t.accentSoft:'transparent'}}><Text style={{fontSize:21}}>{emoji}</Text></Pressable>;})}</ScrollView>:null}>
@@ -229,15 +287,26 @@ export function ChatScreen({api,user,chat,store,onBack,wide=false}: {api:Api;use
       {actions?.message&&actions.message.cryptoState==='decrypted'?<MenuItem icon={view.pinned?.clientId===actions.message.clientId?'pin':'pin-outline'} label={view.pinned?.clientId===actions.message.clientId?'Открепить':'Закрепить'} onPress={()=>{const m=actions.message!;store.sendAction(chat.id,{type:'pin',target:view.pinned?.clientId===m.clientId?null:m.clientId},m.text);setActions(null);}}/>:null}
       {actions?.message&&actions.message.cryptoState==='decrypted'?<MenuItem icon="arrow-redo-outline" label="Переслать" onPress={()=>{setForwarding(actions.message!);setActions(null);}}/>:null}
       {actions?.message&&actions.message.senderId===user.id&&actions.message.cryptoState==='decrypted'&&actions.message.text?<MenuItem icon="create-outline" label="Изменить" onPress={()=>{setReplyTo(null);setEditing(actions.message!);store.setDraft(chat.id,actions.message!.text);setActions(null);}}/>:null}
+      {actions?.message&&actions.message.cryptoState==='decrypted'?<MenuItem icon="share-outline" label="Поделиться" onPress={()=>{const row=actions;setActions(null);void shareMessages(rowMessages(row));}}/>:null}
+      {actions?.message?<MenuItem icon="checkmark-circle-outline" label="Выбрать" onPress={()=>startSelect(actions)}/>:null}
       {actions?.message&&actions.message.cryptoState==='decrypted'?<MenuItem icon="bookmark-outline" label="В Избранное" onPress={()=>{const m=actions.message!;setActions(null);saveToFavorites(m);}}/>:null}
       {actions?.pending?.state==='failed'?<MenuItem icon="refresh-outline" label="Повторить отправку" onPress={()=>{if(actions.pending)void store.retry(actions.pending);setActions(null);}}/>:null}
-      {actions?.message?<MenuItem icon="eye-off-outline" label="Удалить у меня" description="Сообщение исчезнет только на этом устройстве" danger onPress={()=>{store.hideForMe(actions.message!);setActions(null);}}/>:null}
-      {actions?.message&&actions.message.senderId===user.id&&actions.message.cryptoState==='decrypted'?<MenuItem icon="trash-outline" label="Удалить у всех" description="Собеседник перестанет видеть сообщение. Зашифрованная копия на сервере остаётся нечитаемой." danger onPress={()=>{store.sendAction(chat.id,{type:'delete',target:actions.message!.clientId});setActions(null);}}/>:null}
+      {actions?.message?<MenuItem icon="eye-off-outline" label="Удалить у меня" description="Сообщение исчезнет только на этом устройстве" danger onPress={()=>{rowMessages(actions).forEach(m=>store.hideForMe(m));setActions(null);}}/>:null}
+      {actions?.message&&actions.message.senderId===user.id&&actions.message.cryptoState==='decrypted'?<MenuItem icon="trash-outline" label="Удалить у всех" description="Собеседник перестанет видеть сообщение. Зашифрованная копия на сервере остаётся нечитаемой." danger onPress={()=>{rowMessages(actions).forEach(m=>store.sendAction(chat.id,{type:'delete',target:m.clientId}));setActions(null);}}/>:null}
     </ContextMenu>
     <Sheet visible={!!forwarding} title="Переслать в чат" onClose={()=>setForwarding(null)}>
       <SheetAction icon="bookmark-outline" label="Избранное" description="Только на этом устройстве" onPress={()=>{const m=forwarding!;setForwarding(null);saveToFavorites(m);}}/>
       {store.chats.length?store.chats.map(target=><SheetAction key={target.id} icon="chatbubble-outline" label={target.peer.displayName} description={`@${target.peer.username}`} onPress={()=>{const m=forwarding!;setForwarding(null);store.forward(target.id,m,originalAuthor(m)).then(()=>setNotice(`Переслано: ${target.peer.displayName}`)).catch(e=>setLocalError(e instanceof Error?e.message:'Не удалось переслать.'));}}/>):<Text style={{color:t.muted,fontSize:13}}>Пока нет других чатов.</Text>}
     </Sheet>
     <AttachmentViewer api={api} attachment={preview} onClose={()=>setPreview(null)}/>
+    {gallery?<MediaGallery api={api} items={gallery.items} index={gallery.index} onClose={()=>setGallery(null)}/>:null}
+    <PollComposer visible={pollOpen} onClose={()=>setPollOpen(false)} onSend={poll=>{setPollOpen(false);lightFeedback();store.sendPoll(chat.id,poll);listRef.current?.scrollToOffset({offset:0,animated:true});}}/>
+    <Sheet visible={deleteAsk} title={`Удалить ${selectedMessages.length} ${selectedMessages.length===1?'сообщение':selectedMessages.length<5?'сообщения':'сообщений'}?`} onClose={()=>setDeleteAsk(false)}>
+      <SheetAction icon="eye-off-outline" label="Удалить у меня" description="Исчезнут только на этом устройстве" danger onPress={()=>{setDeleteAsk(false);deleteSelected(false);}}/>
+      {selectedMessages.length&&selectedMessages.every(m=>m.senderId===user.id)?<SheetAction icon="trash-outline" label="Удалить у всех" description="Собеседник тоже перестанет их видеть" danger onPress={()=>{setDeleteAsk(false);deleteSelected(true);}}/>:null}
+    </Sheet>
+    <Sheet visible={!!forwardMany} title={`Переслать (${forwardMany?.length||0})`} onClose={()=>setForwardMany(null)}>
+      {store.chats.map(target=><SheetAction key={target.id} icon="chatbubble-outline" label={target.peer.displayName} description={`@${target.peer.username}`} onPress={()=>{const list=forwardMany||[];setForwardMany(null);setSelection(null);void (async()=>{for(const m of list)await store.forward(target.id,m,originalAuthor(m));})().then(()=>setNotice(`Переслано: ${target.peer.displayName}`)).catch(e=>setLocalError(e instanceof Error?e.message:'Не удалось переслать.'));}}/>)}
+    </Sheet>
   </KeyboardSafeView></Animated.View></VoicePlaybackProvider>;
 }

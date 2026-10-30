@@ -29,8 +29,8 @@ const fromFile = (file: LocalFile): AttachmentSelection => ({ id: `file:${file.u
 
 /** Editor output is uploaded while its lease is alive; only unprocessed originals
  * stay selected. A partial batch failure keeps the remaining queue for retry. */
-export function AttachmentPanel({ visible, busy, canAdd, remainingSlots, onClose, onAdd }: {
-  visible: boolean; busy: boolean; canAdd: boolean; remainingSlots: number; onClose: () => void; onAdd: (item: AttachmentSelection) => Promise<void>;
+export function AttachmentPanel({ visible, busy, canAdd, remainingSlots, onClose, onAdd, onPoll }: {
+  visible: boolean; busy: boolean; canAdd: boolean; remainingSlots: number; onClose: () => void; onAdd: (item: AttachmentSelection) => Promise<void>; onPoll?: () => void;
 }) {
   const t = useTheme(), window = useWindowDimensions(), insets = useSafeAreaInsets(), music = useMusic();
   const [tab, setTab] = useState<Tab>('gallery'), [selected, setSelected] = useState<AttachmentSelection[]>([]);
@@ -135,6 +135,7 @@ export function AttachmentPanel({ visible, busy, canAdd, remainingSlots, onClose
         <View style={{ alignSelf: 'center', width: 35, height: 4, borderRadius: 2, backgroundColor: t.subtle, opacity: .45 }} />
         <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10, paddingLeft: 5 }}><Text style={{ flex: 1, color: t.text, fontSize: 20, fontWeight: '700', letterSpacing: -.4 }}>Вложения</Text>{selected.length ? <Text style={{ color: t.accent, fontSize: 12, fontWeight: '600' }}>{selected.length} / {remainingSlots}</Text> : null}<IconButton name="close" label="Закрыть выбор вложений" onPress={close} disabled={phase === 'adding' || busy} style={{ height: 34, width: 34 }} /></View>
         <View accessibilityRole="tablist" style={{ flexDirection: 'row', padding: 4, gap: 3, borderRadius: 18, backgroundColor: t.surface2 }}>
+          {onPoll ? <Pressable accessibilityRole="button" accessibilityLabel="Опрос" disabled={locked} onPress={() => { if (!locked) { replaceSelection([]); onPoll(); } }} style={{ flex: 1, minHeight: 41, borderRadius: 14, alignItems: 'center', justifyContent: 'center', flexDirection: 'row', gap: 6 }}><Icon name="stats-chart-outline" size={17} color={t.muted} /><Text style={{ color: t.muted, fontSize: 12, fontWeight: '600' }}>Опрос</Text></Pressable> : null}
           {tabs.map(item => <Pressable key={item.id} accessibilityRole="tab" accessibilityState={{ selected: tab === item.id, disabled: locked }} disabled={locked} onPress={() => setTab(item.id)} style={{ flex: 1, minHeight: 41, borderRadius: 14, alignItems: 'center', justifyContent: 'center', flexDirection: 'row', gap: 6, backgroundColor: tab === item.id ? t.accentSoft : 'transparent', borderWidth: 1, borderColor: tab === item.id ? t.border : 'transparent' }}><Icon name={item.icon} size={17} color={tab === item.id ? t.accent : t.muted} /><Text style={{ color: tab === item.id ? t.accent : t.muted, fontSize: 12, fontWeight: '600' }}>{item.label}</Text></Pressable>)}
         </View>
         <View style={{ flex: 1, minHeight: 0 }}>
@@ -156,7 +157,7 @@ export function AttachmentPanel({ visible, busy, canAdd, remainingSlots, onClose
         {phase || notice ? <View accessibilityLiveRegion="polite" style={{ flexDirection: 'row', alignItems: 'center', gap: 8, paddingHorizontal: 5 }}>{phase ? <ActivityIndicator color={t.accent} size="small" /> : <Icon name="checkmark-circle" color={t.accent} size={16} />}<Text style={[help, { flex: 1, fontSize: 11 }]}>{notice || (phase === 'opening' ? 'Открываем оригинал; файл из iCloud может загружаться…' : phase === 'picking' ? 'Выбери файлы в системном окне…' : 'Обрабатываем, шифруем и добавляем…')}</Text></View> : null}
         {!canAdd ? <Text style={{ color: t.muted, fontSize: 11, lineHeight: 16, textAlign: 'center' }}>Отправка со сквозным шифрованием доступна в приложении Android или iPhone.</Text> : null}
         <Button icon="add-outline" label={selected.length ? `Добавить в сообщение · ${selected.length}` : 'Выбери вложения'} loading={phase === 'adding'} disabled={locked || !canAdd || !selected.length} onPress={() => void addSelected()} />
-        {selected.length > 1 ? <Text style={{ color: t.muted, fontSize: 10, textAlign: 'center' }}>Вложения отправятся отдельными сообщениями в порядке выбора.</Text> : null}
+        {selected.length > 1 ? <Text style={{ color: t.muted, fontSize: 10, textAlign: 'center' }}>Несколько фото и видео отправятся одним альбомом.</Text> : null}
         {Platform.OS === 'ios' && selected.some(item => item.kind === 'video' && item.assetId) ? <Text style={{ color: t.muted, fontSize: 10, lineHeight: 15, textAlign: 'center' }}>Видео из галереи — оригинал. Изменения монтажа и скорости из приложения «Фото» не переносятся; оригинал из iCloud загрузится после подтверждения.</Text> : null}
       </GlassSurface>
       {editing ? <PhotoEditor key={editing.id} file={editing.file} onCancel={() => setEditing(null)} onReady={addEdited} /> : null}

@@ -1,9 +1,8 @@
 import React, { useEffect, useState } from 'react';
 import { ActivityIndicator, Modal, Pressable, ScrollView, View } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
 import * as Clipboard from 'expo-clipboard';
 import { Text } from './typography';
-import { Avatar, Icon, IconButton, Notice, type IconName } from './components';
+import { Avatar, Icon, InsetView, IconButton, Notice, type IconName } from './components';
 import { GlassStage, GlassSurface } from './glass';
 import { useTheme } from './theme';
 import { StatusEmoji } from './StatusEmoji';
@@ -56,7 +55,7 @@ export function UserProfile({ api, user, onClose, chat, onMessage, onMute }: Pro
     ...(onMute && chat ? [{ icon: (muted ? 'notifications-off' : 'notifications') as IconName, label: muted ? 'Без звука' : 'Звук', onPress: () => void toggleMute(), active: muted }] : []),
   ];
   return <Modal visible animationType="slide" presentationStyle="fullScreen" onRequestClose={onClose}>
-    <GlassStage><SafeAreaView style={{ flex: 1 }}>
+    <GlassStage><InsetView style={{ flex: 1 }}>
       <View style={{ flexDirection: 'row', alignItems: 'center', paddingHorizontal: 10, paddingVertical: 6 }}>
         <IconButton name="chevron-back" label="Назад" onPress={onClose} />
         <Text style={{ flex: 1, textAlign: 'center', color: t.text, fontSize: 16, fontWeight: '700', marginRight: 44 }}>Профиль</Text>
@@ -83,6 +82,6 @@ export function UserProfile({ api, user, onClose, chat, onMessage, onMute }: Pro
           <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}><Icon name="lock-closed" size={14} color={t.muted} /><Text style={{ color: t.muted, fontSize: 12, flex: 1 }}>Переписка защищена сквозным шифрованием</Text></View>
         </GlassSurface>
       </ScrollView>
-    </SafeAreaView></GlassStage>
+    </InsetView></GlassStage>
   </Modal>;
 }

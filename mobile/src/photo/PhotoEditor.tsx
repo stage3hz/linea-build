@@ -1,10 +1,9 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { ActivityIndicator, Image, Modal, Platform, Pressable, ScrollView, StyleSheet, View, useWindowDimensions, type GestureResponderEvent } from 'react-native';
 import { Text } from '../typography';
-import { SafeAreaView } from 'react-native-safe-area-context';
 import type { PhotoCapabilities, PhotoCrop, PhotoInfo, PhotoOptions, PhotoStroke } from '../../modules/linea-photo';
 import type { LocalFile } from '../types';
-import { Button, Icon, IconButton, Notice, SectionLabel } from '../components';
+import { Button, Icon, InsetView, IconButton, Notice, SectionLabel } from '../components';
 import { GlassStage, GlassSurface } from '../glass';
 import { formatSize, useTheme } from '../theme';
 import { getPhotoCapabilities, inspectPhoto, preparePhotoBackground, renderPhoto, type PreparedPhoto } from './pipeline';
@@ -260,7 +259,7 @@ export function PhotoEditor({ file, onCancel, onReady }: { file: LocalFile; onCa
   const status = phase === 'loading' ? 'Открываем фото…' : phase === 'rendering' ? 'Обрабатываем на устройстве…' : phase === 'model' ? 'Подготавливаем удаление фона…' : 'Шифруем и добавляем в сообщение…';
   const helpStyle = { color: t.muted, fontSize: 12, lineHeight: 18 };
   return <Modal visible animationType="slide" presentationStyle="fullScreen" onRequestClose={cancel}>
-    <GlassStage><SafeAreaView style={{ flex: 1 }}>
+    <GlassStage><InsetView style={{ flex: 1 }}>
       <GlassSurface radius={25} style={{ margin: 12, marginBottom: 6 }} contentStyle={{ padding: 8, flexDirection: 'row', alignItems: 'center', gap: 9 }}>
         <IconButton name="close" label="Отменить редактирование фото" onPress={cancel} disabled={phase === 'sending'} />
         <View style={{ flex: 1, gap: 3 }}><Text style={{ color: t.text, fontSize: 18, fontWeight: '700' }}>Фото перед отправкой</Text><Text style={{ color: t.muted, fontSize: 11 }}>Очистка метаданных перед отправкой</Text></View>
@@ -353,6 +352,6 @@ export function PhotoEditor({ file, onCancel, onReady }: { file: LocalFile; onCa
           <Text style={[helpStyle, { textAlign: 'center' }]}>После подтверждения фото шифруется перед загрузкой. Исходник в галерее остаётся прежним. HDR не преобразуется в SDR автоматически; редактирование HDR в этой версии пока недоступно.</Text>
         </> : null}
       </ScrollView>
-    </SafeAreaView></GlassStage>
+    </InsetView></GlassStage>
   </Modal>;
 }

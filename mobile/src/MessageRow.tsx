@@ -10,17 +10,24 @@ import { VoiceBubble } from './voice/VoiceMessage';
 import { isVideoNote, isVoice } from './voice/voice';
 import { VideoNoteBubble } from './videonote/VideoNote';
 import { impactFeedback, lightFeedback } from './haptics';
+import { AlbumGrid, FileBubble, MediaTile, mediaBox } from './media/MediaBubble';
+import { mediaPreviewKind } from './media/formats';
+import { PollBubble, useEntrance } from './PollBubble';
+import { bigEmojiCount } from './messageMeta';
 
-export type Row = { key: string; message?: ViewMessage; pending?: PendingMessage; createdAt: string };
+export type AlbumPart = { attachment: Attachment; message?: ViewMessage; pending?: PendingMessage };
+export type Row = { key: string; message?: ViewMessage; pending?: PendingMessage; createdAt: string; album?: AlbumPart[] };
 export type RowHandlers = {
   actions: (row: Row, y: number) => void; jumpTo: (clientId: string) => void; open: (file: Attachment) => void;
   react: (message: ViewMessage, emoji: Reaction) => void; retry: (pending: PendingMessage) => void; reply: (message: ViewMessage) => void;
+  vote: (message: ViewMessage, options: number[]) => void; toggleSelect: (row: Row) => void;
 };
 type Props = {
   row: Row; olderCreatedAt?: string; mine: boolean; author: string; peerLastRead: number; wide: boolean;
   fontSize: number; lineHeight: number; downloading: boolean; replyAuthor?: string; replyText?: string;
-  api: Api; handlers: React.MutableRefObject<RowHandlers>;
+  api: Api; handlers: React.MutableRefObject<RowHandlers>; selecting: boolean; selected: boolean; fresh: boolean;
 };
+const visualKind = (file: Attachment) => { const kind = mediaPreviewKind(file); return kind === 'photo' || kind === 'video'; };
 
 /** Swipe a message to the LEFT to reply, as in Telegram for iPhone (a right swipe goes back). */
 function SwipeToReply({ enabled, onReply, children }: { enabled: boolean; onReply: () => void; children: React.ReactNode }) {
@@ -45,31 +52,50 @@ function SwipeToReply({ enabled, onReply, children }: { enabled: boolean; onRepl
   </View>;
 }
 
-function MessageRowView({ row, olderCreatedAt, mine, author, peerLastRead, wide, fontSize, lineHeight, downloading, replyAuthor, replyText, api, handlers }: Props) {
+function MessageRowView({ row, olderCreatedAt, mine, author, peerLastRead, wide, fontSize, lineHeight, downloading, replyAuthor, replyText, api, handlers, selecting, selected, fresh }: Props) {
   const t = useTheme();
+  const entrance = useEntrance(fresh);
   const message = row.message; const p = row.pending;
-  const body = message?.text || p?.text || ''; const file = message?.attachment || p?.attachment;
+  const poll = message?.meta?.poll || p?.meta?.poll;
+  const body = poll ? '' : message?.text || p?.text || ''; const file = row.album ? null : message?.attachment || p?.attachment;
+  const emoji = !file && !poll && !row.album ? bigEmojiCount(body) : 0;
+  const visual = !!file && visualKind(file) && !isVideoNote(file);
+  const bare = (visual && !body) || !!row.album && !body || emoji > 0;
+  const box = file && visual ? mediaBox(file, wide ? 300 : 250) : null;
+  const albumWidth = wide ? 320 : 260;
   const showDay = !olderCreatedAt || new Date(olderCreatedAt).toDateString() !== new Date(row.createdAt).toDateString();
   const reply = message?.meta?.reply || p?.meta?.reply;
   const circle = !!file && isVideoNote(file) && !body;
   const read = peerLastRead >= (message?.id || 0);
   const lastTap = useRef(0);
-  return <View>
+  const press = () => {
+    if (selecting) { lightFeedback(); handlers.current.toggleSelect(row); return; }
+    const now = Date.now(); if (message && message.cryptoState === 'decrypted' && now - lastTap.current < 300) { lastTap.current = 0; impactFeedback(); handlers.current.react(message, '❤️'); } else lastTap.current = now;
+  };
+  const longPress = (pageY: number) => { if (selecting) { handlers.current.toggleSelect(row); return; } impactFeedback(); handlers.current.actions(row, pageY); };
+  return <Animated.View style={entrance}>
     {showDay ? <View style={{ alignSelf: 'center', backgroundColor: t.black ? 'rgba(0,0,0,0.68)' : t.dark ? 'rgba(30,36,53,0.68)' : 'rgba(255,255,255,0.52)', borderWidth: 1, borderColor: t.dark ? 'rgba(255,255,255,0.08)' : 'rgba(255,255,255,0.88)', paddingVertical: 6, paddingHorizontal: 14, borderRadius: 14, marginTop: 15, marginBottom: 18 }}><Text style={{ color: t.muted, fontSize: 10, fontWeight: '600' }}>{formatDay(row.createdAt)}</Text></View> : null}
-    <SwipeToReply enabled={!!message && message.cryptoState === 'decrypted'} onReply={() => message && handlers.current.reply(message)}>
-      <View style={{ alignItems: mine ? 'flex-end' : 'flex-start', marginBottom: 8 }}>
-        <Pressable onPress={() => { const now = Date.now(); if (message && message.cryptoState === 'decrypted' && now - lastTap.current < 300) { lastTap.current = 0; impactFeedback(); handlers.current.react(message, '❤️'); } else lastTap.current = now; }} onLongPress={event => { impactFeedback(); handlers.current.actions(row, event.nativeEvent.pageY); }} delayLongPress={450} accessibilityLabel={`${author}: ${body || file?.name || 'Вложение'}`} style={circle ? { maxWidth: '85%' } : { maxWidth: wide ? '76%' : '85%', minWidth: 74, backgroundColor: mine ? t.bubble : t.incoming, borderRadius: 23, borderBottomRightRadius: mine ? 8 : 23, borderBottomLeftRadius: mine ? 23 : 8, paddingHorizontal: 12, paddingTop: file ? 7 : 11, paddingBottom: 7, borderWidth: 1, borderColor: p?.state === 'failed' ? t.danger : mine ? (t.black ? 'rgba(255,255,255,0.25)' : t.dark ? 'rgba(157,182,255,0.25)' : 'rgba(255,255,255,0.83)') : (t.dark ? 'rgba(255,255,255,0.10)' : 'rgba(255,255,255,0.92)') }}>
+    <Pressable disabled={!selecting} onPress={press} style={{ flexDirection: 'row', alignItems: 'center', backgroundColor: selected ? t.accentSoft : 'transparent', borderRadius: 14, marginHorizontal: -6, paddingHorizontal: 6 }}>
+    {selecting ? <View style={{ width: 30, alignItems: 'flex-start' }}><Icon name={selected ? 'checkmark-circle' : 'ellipse-outline'} size={24} color={selected ? t.accent : t.subtle} /></View> : null}
+    <View style={{ flex: 1 }}>
+    <SwipeToReply enabled={!selecting && !!message && message.cryptoState === 'decrypted'} onReply={() => message && handlers.current.reply(message)}>
+      <View pointerEvents={selecting ? 'box-only' : 'auto'} style={{ alignItems: mine ? 'flex-end' : 'flex-start', marginBottom: 8 }}>
+        <Pressable onPress={press} onLongPress={event => longPress(event.nativeEvent.pageY)} delayLongPress={450} accessibilityLabel={`${author}: ${poll ? `Опрос: ${poll.question}` : body || file?.name || 'Вложение'}`} style={circle || emoji ? { maxWidth: '85%' } : bare ? { maxWidth: '85%', borderRadius: 18, overflow: 'hidden', borderWidth: p?.state === 'failed' ? 1 : 0, borderColor: t.danger } : { maxWidth: wide ? '76%' : '85%', minWidth: 74, backgroundColor: mine ? t.bubble : t.incoming, borderRadius: 23, borderBottomRightRadius: mine ? 8 : 23, borderBottomLeftRadius: mine ? 23 : 8, paddingHorizontal: 12, paddingTop: file ? 7 : 11, paddingBottom: 7, borderWidth: 1, borderColor: p?.state === 'failed' ? t.danger : mine ? (t.black ? 'rgba(255,255,255,0.25)' : t.dark ? 'rgba(157,182,255,0.25)' : 'rgba(255,255,255,0.83)') : (t.dark ? 'rgba(255,255,255,0.10)' : 'rgba(255,255,255,0.92)') }}>
           {message?.meta?.forward ? <Text style={{ color: t.accent, fontSize: 11, fontWeight: '600', marginBottom: 4, paddingHorizontal: 1 }}>Переслано от {message.meta.forward.from}</Text> : null}
           {reply ? <Pressable accessibilityRole="button" accessibilityLabel="Перейти к исходному сообщению" onPress={() => handlers.current.jumpTo(reply.clientId)} style={{ flexDirection: 'row', gap: 7, marginBottom: 6, paddingVertical: 5, paddingRight: 8, borderRadius: 10, backgroundColor: t.dark ? 'rgba(255,255,255,0.06)' : 'rgba(0,0,0,0.04)' }}><View style={{ width: 3, borderRadius: 2, backgroundColor: t.accent }} /><View style={{ flexShrink: 1, gap: 1 }}><Text style={{ color: t.accent, fontSize: 11, fontWeight: '700' }}>{replyAuthor}</Text><Text numberOfLines={2} style={{ color: t.muted, fontSize: 12 }}>{replyText}</Text></View></Pressable> : null}
-          {file ? <View style={{ marginBottom: body ? 7 : 1, marginTop: 1 }}>{isVoice(file) ? <VoiceBubble attachment={file} mine={mine} /> : isVideoNote(file) ? <VideoNoteBubble api={api} attachment={file} /> : <AttachmentCard api={api} attachment={file} onPress={() => handlers.current.open(file)} />}</View> : null}
-          {body ? <Text selectable style={{ color: t.text, fontSize, lineHeight, paddingHorizontal: 1 }}>{body}</Text> : null}
-          <View style={{ flexDirection: 'row', justifyContent: 'flex-end', alignItems: 'center', gap: 5, marginTop: 4 }}>{downloading ? <ActivityIndicator color={t.accent} size="small" /> : null}<Text style={{ color: t.muted, fontSize: 9 }}>{message?.edited ? 'изм. ' : ''}{formatTime(row.createdAt)}</Text>{p ? p.state === 'sending' ? <Icon name="time-outline" size={12} color={t.muted} /> : <Icon name="alert-circle" size={13} color={t.danger} /> : mine ? <Icon name={read ? 'checkmark-done' : 'checkmark'} size={15} color={read ? t.accent : t.muted} /> : null}</View>
+          {row.album ? <View style={{ marginBottom: body ? 7 : 0 }}><AlbumGrid api={api} items={row.album.map(part => part.attachment)} width={albumWidth} onOpen={attachment => selecting ? press() : handlers.current.open(attachment)} onLongPress={() => longPress(0)} /></View> : null}
+          {file ? <View style={{ marginBottom: body ? 7 : bare ? 0 : 1, marginTop: bare ? 0 : 1 }}>{isVoice(file) ? <VoiceBubble attachment={file} mine={mine} /> : isVideoNote(file) ? <VideoNoteBubble api={api} attachment={file} /> : visual && box ? <MediaTile api={api} attachment={file} width={box.width} height={box.height} radius={bare ? 18 : 14} onOpen={() => selecting ? press() : handlers.current.open(file)} onLongPress={() => longPress(0)} /> : file.encryption ? <FileBubble api={api} attachment={file} onOpen={() => handlers.current.open(file)} /> : <AttachmentCard api={api} attachment={file} onPress={() => handlers.current.open(file)} />}</View> : null}
+          {poll ? <PollBubble poll={poll} results={message?.poll} disabled={!message || message.cryptoState !== 'decrypted' || selecting} onVote={options => message && handlers.current.vote(message, options)} /> : null}
+          {body ? <Text selectable={!selecting} style={emoji ? { fontSize: emoji === 1 ? 64 : emoji === 2 ? 52 : 44, lineHeight: emoji === 1 ? 76 : emoji === 2 ? 62 : 54 } : { color: t.text, fontSize, lineHeight, paddingHorizontal: 1 }}>{body}</Text> : null}
+          <View style={bare && !body ? { position: 'absolute', right: 8, bottom: 8, flexDirection: 'row', alignItems: 'center', gap: 4, paddingHorizontal: 7, paddingVertical: 2, borderRadius: 10, backgroundColor: 'rgba(10,15,30,0.5)' } : { flexDirection: 'row', justifyContent: 'flex-end', alignItems: 'center', gap: 5, marginTop: 4 }}>{downloading ? <ActivityIndicator color={t.accent} size="small" /> : null}<Text style={{ color: bare && !body ? '#FFF' : t.muted, fontSize: 9 }}>{message?.edited ? 'изм. ' : ''}{formatTime(row.createdAt)}</Text>{p || row.album?.some(part => part.pending) ? (p?.state === 'failed' || row.album?.some(part => part.pending?.state === 'failed')) ? <Icon name="alert-circle" size={13} color={t.danger} /> : <Icon name="time-outline" size={12} color={bare && !body ? '#FFF' : t.muted} /> : mine ? <Icon name={read ? 'checkmark-done' : 'checkmark'} size={15} color={bare && !body ? '#FFF' : read ? t.accent : t.muted} /> : null}</View>
         </Pressable>
         {message?.reactions.length ? <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 5, marginTop: 4, maxWidth: wide ? '76%' : '85%', justifyContent: mine ? 'flex-end' : 'flex-start' }}>{message.reactions.map(reaction => <Pressable key={reaction.emoji} accessibilityRole="button" accessibilityLabel={`Реакция ${reaction.emoji}: ${reaction.count}${reaction.mine ? ', твоя' : ''}`} onPress={() => handlers.current.react(message, reaction.emoji)} style={{ flexDirection: 'row', alignItems: 'center', gap: 4, paddingHorizontal: 9, paddingVertical: 4, borderRadius: 14, backgroundColor: reaction.mine ? t.accentSoft : t.dark ? 'rgba(255,255,255,0.07)' : 'rgba(255,255,255,0.7)', borderWidth: 1, borderColor: reaction.mine ? t.accent : t.border }}><Text style={{ fontSize: 14 }}>{reaction.emoji}</Text>{reaction.count > 1 ? <Text style={{ color: t.text, fontSize: 11, fontWeight: '600' }}>{reaction.count}</Text> : null}</Pressable>)}</View> : null}
         {p?.state === 'failed' ? <Pressable accessibilityRole="button" onPress={() => handlers.current.retry(p)} style={{ paddingVertical: 8, maxWidth: '85%', gap: 3 }}><Text style={{ fontSize: 11, color: t.danger, fontWeight: '600' }}>Не отправлено · повторить</Text>{p.error ? <Text style={{ fontSize: 10, lineHeight: 14, color: t.muted }}>{p.error}</Text> : null}</Pressable> : null}
       </View>
     </SwipeToReply>
-  </View>;
+    </View>
+    </Pressable>
+  </Animated.View>;
 }
 
 /** Re-renders only when this row's own data changes, not on every keystroke in the composer. */

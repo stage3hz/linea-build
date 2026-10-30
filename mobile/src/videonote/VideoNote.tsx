@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useRef, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { ActivityIndicator, Image, Modal, Pressable, StyleSheet, View } from 'react-native';
 import { CameraView, useCameraPermissions, useMicrophonePermissions, type CameraType } from 'expo-camera';
 import { useVideoPlayer, VideoView } from 'expo-video';
@@ -8,7 +8,8 @@ import { Icon } from '../components';
 import { useTheme } from '../theme';
 import type { Api } from '../api';
 import type { Attachment } from '../types';
-import { decryptAttachment } from '../e2ee/attachments';
+import { useMedia } from '../media/mediaCache';
+import { ProgressRing } from '../media/MediaBubble';
 import { useMusic } from '../music/MusicProvider';
 import { VIDEO_NOTE_MAX_MS, formatVoiceTime } from '../voice/voice';
 
@@ -100,27 +101,25 @@ function CirclePlayer({ uri, size, onEnd }: { uri: string; size: number; onEnd: 
 /** Round bubble: shows the encrypted thumbnail; a tap decrypts and plays with sound. */
 export function VideoNoteBubble({ api, attachment }: { api: Api; attachment: Attachment }) {
   const music = useMusic();
-  const [file, setFile] = useState<{ uri: string; dispose: () => Promise<void> } | null>(null);
-  const [loading, setLoading] = useState(false);
-  const [error, setError] = useState('');
+  // Circles are small, so they load by themselves (as in Telegram) and play instantly on tap.
+  const media = useMedia(api, attachment, attachment.size <= 8 * 1024 * 1024);
+  const [playing, setPlaying] = useState(false);
   const size = 220;
   const thumb = useMemo(() => attachment.preview ? `data:${attachment.preview.mimeType};base64,${attachment.preview.base64}` : null, [attachment.preview]);
-  useEffect(() => () => { void file?.dispose().catch(() => {}); }, [file]);
-  const open = async () => {
-    if (loading || file) return;
-    setLoading(true); setError('');
-    try { music.stop(); setFile(await decryptAttachment(api, attachment)); }
-    catch (e) { setError(e instanceof Error ? e.message : 'Не удалось открыть видео.'); }
-    finally { setLoading(false); }
+  const ended = useCallback(() => setPlaying(false), []);
+  const open = () => {
+    if (media.status === 'loading') { media.cancel(); return; }
+    if (media.status === 'ready') { music.stop(); setPlaying(true); return; }
+    void media.start().then(() => { music.stop(); setPlaying(true); }).catch(() => {});
   };
   return <View style={{ alignItems: 'center', gap: 5 }}>
     <View style={{ width: size, height: size, borderRadius: size / 2, overflow: 'hidden', backgroundColor: '#11162A' }}>
-      {file ? <CirclePlayer uri={file.uri} size={size} onEnd={() => { void file.dispose().catch(() => {}); setFile(null); }} /> : <Pressable accessibilityRole="button" accessibilityLabel="Воспроизвести видеосообщение" onPress={() => void open()} style={{ flex: 1, alignItems: 'center', justifyContent: 'center' }}>
-        {thumb ? <Image source={{ uri: thumb }} style={StyleSheet.absoluteFill} resizeMode="cover" blurRadius={0} /> : null}
-        <View style={{ width: 52, height: 52, borderRadius: 26, backgroundColor: 'rgba(10,20,35,0.6)', alignItems: 'center', justifyContent: 'center' }}>{loading ? <ActivityIndicator color="#FFF" /> : <Icon name="play" color="#FFF" size={26} />}</View>
+      {playing && media.uri ? <CirclePlayer uri={media.uri} size={size} onEnd={ended} /> : <Pressable accessibilityRole="button" accessibilityLabel="Воспроизвести видеосообщение" onPress={open} style={{ flex: 1, alignItems: 'center', justifyContent: 'center' }}>
+        {thumb ? <Image source={{ uri: thumb }} style={StyleSheet.absoluteFill} resizeMode="cover" /> : null}
+        <View style={{ width: 52, height: 52, borderRadius: 26, backgroundColor: 'rgba(10,20,35,0.6)', alignItems: 'center', justifyContent: 'center' }}>{media.status === 'loading' ? <><ProgressRing progress={media.progress} size={52} /><Icon name="close" color="#FFF" size={22} /></> : <Icon name={media.status === 'error' ? 'refresh' : 'play'} color="#FFF" size={26} />}</View>
       </Pressable>}
     </View>
     <Text style={{ color: 'rgba(160,170,200,0.9)', fontSize: 11 }}>{formatVoiceTime(attachment.media?.durationMs || 0)}</Text>
-    {error ? <Text style={{ color: '#FF8A8A', fontSize: 11, maxWidth: size }}>{error}</Text> : null}
+    {media.status === 'error' && media.error ? <Text style={{ color: '#FF8A8A', fontSize: 11, maxWidth: size }}>{media.error}</Text> : null}
   </View>;
 }

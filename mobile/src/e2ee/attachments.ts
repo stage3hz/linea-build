@@ -72,6 +72,49 @@ export async function decryptAttachment(api:Api,attachment:Attachment,signal?:Ab
   return {uri:path,dispose:()=>FileSystem.deleteAsync(path,{idempotent:true})};
 }
 
+/**
+ * Same checks as decryptAttachment, but the ciphertext is streamed to disk with
+ * progress (as Telegram shows a ring while a photo or file loads). The ciphertext
+ * file is deleted right after authenticated decryption.
+ */
+export async function decryptAttachmentWithProgress(api:Api,attachment:Attachment,onProgress:(fraction:number)=>void,target:string,signal?:AbortSignal):Promise<void> {
+  checkAbort(signal);
+  const bridge=getSignalBridge();const encryption=attachment.encryption;
+  if(!encryption||encryption.scheme!=='aes-256-gcm-siv')throw new Error('У вложения нет ключа сквозного шифрования.');
+  if(!api.token)throw new Error('Нужно войти в аккаунт.');
+  if(attachment.size>MAX_FILE)throw new Error('Файл превышает допустимый размер.');
+  if(!api.fileUrl(attachment.id).startsWith('https://'))throw new Error('Файлы загружаются только по защищённому соединению.');
+  const temp=`${FileSystem.cacheDirectory}linea-view-dl-${Crypto.randomUUID()}.bin`;
+  const expected=attachment.size+16;
+  const task=FileSystem.createDownloadResumable(api.fileUrl(attachment.id),temp,{headers:{Authorization:`Bearer ${api.token}`},cache:false},data=>{
+    const total=data.totalBytesExpectedToWrite>0?data.totalBytesExpectedToWrite:expected;
+    onProgress(Math.max(0,Math.min(1,data.totalBytesWritten/total)));
+  });
+  const onAbort=()=>{void task.cancelAsync().catch(()=>{});};
+  signal?.addEventListener('abort',onAbort);
+  try{
+    const result=await task.downloadAsync();
+    checkAbort(signal);
+    if(!result||result.status!==200)throw new Error('Не удалось загрузить зашифрованный файл.');
+    const info=await FileSystem.getInfoAsync(temp);
+    if(!info.exists||info.isDirectory||info.size!==expected)throw new Error('Размер вложения не совпадает с сообщением.');
+    const cipher=await FileSystem.readAsStringAsync(temp,{encoding:FileSystem.EncodingType.Base64});
+    checkAbort(signal);
+    let plain:string;
+    try{plain=await bridge.open(cipher,encryption.key,encryption.nonce,associatedData(encryption.fileKeyId));}
+    catch{throw new Error('Проверка вложения не пройдена. Файл не будет открыт.');}
+    checkAbort(signal);
+    try{await FileSystem.writeAsStringAsync(target,plain,{encoding:FileSystem.EncodingType.Base64});checkAbort(signal);}
+    catch(error){await FileSystem.deleteAsync(target,{idempotent:true}).catch(()=>{});throw error;}
+    onProgress(1);
+  }finally{
+    signal?.removeEventListener('abort',onAbort);
+    await FileSystem.deleteAsync(temp,{idempotent:true}).catch(()=>{});
+  }
+}
+
+export const attachmentFileName=(attachment:Attachment)=>safeName(attachment.name);
+
 export async function shareEncryptedAttachment(api:Api,attachment:Attachment):Promise<void> {
   if(!(await Sharing.isAvailableAsync()))throw new Error('На устройстве недоступно сохранение через меню отправки.');
   const decrypted=await decryptAttachment(api,attachment);

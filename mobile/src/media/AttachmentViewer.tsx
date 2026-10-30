@@ -1,7 +1,6 @@
-import React,{useEffect,useState} from 'react';
-import { ActivityIndicator, AppState, Modal, Pressable, ScrollView, View } from 'react-native';
+import React,{useEffect,useRef,useState} from 'react';
+import { ActivityIndicator, Animated, AppState, FlatList, Modal, PanResponder, Pressable, ScrollView, StyleSheet, View, useWindowDimensions } from 'react-native';
 import { Text } from '../typography';
-import {SafeAreaView} from 'react-native-safe-area-context';
 import {Image} from 'expo-image';
 import {useEvent} from 'expo';
 import {useVideoPlayer,VideoView} from 'expo-video';
@@ -9,13 +8,13 @@ import {setAudioModeAsync,useAudioPlayer,useAudioPlayerStatus} from 'expo-audio'
 import * as Sharing from 'expo-sharing';
 import type {Api} from '../api';
 import type {Attachment} from '../types';
-import {Button,Icon,IconButton,Notice} from '../components';
+import {Button,Icon,InsetView,IconButton,Notice} from '../components';
 import {useTheme,formatSize} from '../theme';
 import {GlassStage,GlassSurface} from '../glass';
 import {useMusic} from '../music/MusicProvider';
-import {decryptAttachment} from '../e2ee/attachments';
 import {mediaPreviewKind} from './formats';
-import {ViewSession,type ViewState} from './ViewSession';
+import {loadMedia,useMedia} from './mediaCache';
+import {ProgressRing} from './MediaBubble';
 
 const clock=(seconds:number)=>{const value=Math.max(0,Math.floor(Number.isFinite(seconds)?seconds:0));return `${Math.floor(value/60)}:${String(value%60).padStart(2,'0')}`;};
 
@@ -65,33 +64,78 @@ function PhotoPlayer({uri,name}:{uri:string;name:string}){
   return <View style={{flex:1}}><ScrollView contentContainerStyle={{flexGrow:1}} maximumZoomScale={4} minimumZoomScale={1} centerContent><Image source={{uri}} style={{flex:1,minHeight:300,width:'100%'}} contentFit="contain" accessibilityLabel={name} onError={()=>setFailed(true)}/></ScrollView>{failed?<Notice error text="Устройство не смогло показать изображение. Файл можно сохранить."/>:null}<Text style={{color:t.muted,fontSize:11,textAlign:'center',padding:8}}>Файл расшифрован только на этом устройстве.</Text></View>;
 }
 
+/** Audio files and documents: opened from the local cache once loaded (no second download). */
 export function AttachmentViewer({api,attachment,onClose}:{api:Api;attachment:Attachment|null;onClose:()=>void}){
   const t=useTheme(),music=useMusic();
-  const owner=attachment?`${api.base}|${api.token}|${attachment.id}|${attachment.encryption?.fileKeyId}`:'';
-  const [snapshot,setSnapshot]=useState<{owner:string;state:ViewState}>({owner:'',state:{phase:'closed'}}),[retry,setRetry]=useState(0),[saveError,setSaveError]=useState(''),[saving,setSaving]=useState(false);
-  const state:ViewState=snapshot.owner===owner?snapshot.state:{phase:'loading'};
-  useEffect(()=>{
-    if(!attachment)return;
-    if(['video','audio'].includes(mediaPreviewKind(attachment)))music.stop();setSaveError('');let live=true;
-    const session=new ViewSession(next=>{if(live)setSnapshot({owner,state:next});});
-    void session.open(signal=>decryptAttachment(api,attachment,signal));
-    return()=>{live=false;session.close();};
-  },[api,attachment,owner,retry,music.stop]);
+  const media=useMedia(api,attachment,true);
+  const [saveError,setSaveError]=useState(''),[saving,setSaving]=useState(false);
+  useEffect(()=>{if(attachment&&mediaPreviewKind(attachment)==='audio')music.stop();setSaveError('');},[attachment?.id]);
   const save=async()=>{
-    if(!state.uri||!attachment)return;setSaving(true);setSaveError('');
-    try{if(!await Sharing.isAvailableAsync())throw new Error('На устройстве недоступно меню сохранения.');await Sharing.shareAsync(state.uri,{mimeType:attachment.mimeType,dialogTitle:attachment.name});}
+    if(!media.uri||!attachment)return;setSaving(true);setSaveError('');
+    try{if(!await Sharing.isAvailableAsync())throw new Error('На устройстве недоступно меню сохранения.');await Sharing.shareAsync(media.uri,{mimeType:attachment.mimeType,dialogTitle:attachment.name});}
     catch(error){setSaveError(error instanceof Error?error.message:'Не удалось сохранить файл.');}finally{setSaving(false);}
   };
   const kind=attachment?mediaPreviewKind(attachment):'file';
-  return <Modal visible={!!attachment} animationType="fade" onRequestClose={onClose} presentationStyle="fullScreen">
-    <GlassStage><SafeAreaView style={{flex:1,paddingHorizontal:16}}>
-      <View style={{flexDirection:'row',gap:12,alignItems:'center',paddingVertical:12}}><IconButton name="close" label="Закрыть просмотр" onPress={onClose}/><View style={{flex:1,gap:4}}><Text numberOfLines={1} style={{color:t.text,fontWeight:'700',fontSize:16}}>{attachment?.name}</Text><Text style={{color:t.muted,fontSize:12}}>{attachment?formatSize(attachment.size):''}{attachment?.media?.hdr&&attachment.media.hdr!=='sdr'?` · HDR ${attachment.media.hdr.toUpperCase()}`:''}</Text></View><IconButton name="share-outline" label="Сохранить или поделиться файлом" disabled={state.phase!=='ready'||saving} onPress={()=>void save()}/></View>
-      {state.phase==='loading'?<View style={{flex:1,justifyContent:'center',alignItems:'center',gap:18}}><ActivityIndicator color={t.accent}/><Text style={{color:t.muted}}>Загрузка и проверка вложения…</Text><Text style={{color:t.subtle,fontSize:12}}>Закрытие отменит загрузку.</Text></View>:null}
-      {state.phase==='error'?<View style={{flex:1,justifyContent:'center',gap:18}}><Notice error text={state.error||'Не удалось открыть файл.'}/><Button label="Повторить загрузку" onPress={()=>setRetry(value=>value+1)}/></View>:null}
-      {state.phase==='ready'&&state.uri&&attachment?<React.Fragment key={state.uri}>
-        {kind==='photo'?<PhotoPlayer uri={state.uri} name={attachment.name}/>:kind==='video'?<VideoPlayer uri={state.uri}/>:kind==='audio'?<AudioPlayer uri={state.uri} name={attachment.name}/>:<View style={{flex:1,justifyContent:'center',gap:16}}><Notice text="Файл проверен и расшифрован. Сохрани его или открой в подходящем приложении."/><Button label="Открыть файл" onPress={()=>void save()} loading={saving}/></View>}
+  return <Modal visible={!!attachment} animationType="slide" onRequestClose={onClose} presentationStyle="fullScreen">
+    <GlassStage><InsetView style={{flex:1,paddingHorizontal:16}}>
+      <View style={{flexDirection:'row',gap:12,alignItems:'center',paddingVertical:12}}><IconButton name="close" label="Закрыть просмотр" onPress={onClose}/><View style={{flex:1,gap:4}}><Text numberOfLines={1} style={{color:t.text,fontWeight:'700',fontSize:16}}>{attachment?.name}</Text><Text style={{color:t.muted,fontSize:12}}>{attachment?formatSize(attachment.size):''}</Text></View><IconButton name="share-outline" label="Сохранить или поделиться файлом" disabled={media.status!=='ready'||saving} onPress={()=>void save()}/></View>
+      {media.status==='loading'||media.status==='idle'?<View style={{flex:1,justifyContent:'center',alignItems:'center',gap:18}}><View style={{width:64,height:64,alignItems:'center',justifyContent:'center'}}><ProgressRing progress={media.progress} size={64} color={t.accent} track={t.surface2}/><Text style={{color:t.text,fontSize:13,fontWeight:'700'}}>{Math.round(media.progress*100)}%</Text></View><Text style={{color:t.muted}}>Загрузка и проверка…</Text></View>:null}
+      {media.status==='error'?<View style={{flex:1,justifyContent:'center',gap:18}}><Notice error text={media.error||'Не удалось открыть файл.'}/><Button label="Повторить загрузку" onPress={()=>void media.start().catch(()=>{})}/></View>:null}
+      {media.status==='ready'&&media.uri&&attachment?<React.Fragment key={media.uri}>
+        {kind==='photo'?<PhotoPlayer uri={media.uri} name={attachment.name}/>:kind==='video'?<VideoPlayer uri={media.uri}/>:kind==='audio'?<AudioPlayer uri={media.uri} name={attachment.name}/>:<View style={{flex:1,justifyContent:'center',gap:16,alignItems:'center'}}><Icon name="document-text-outline" size={64} color={t.accent}/><Text style={{color:t.muted,fontSize:13,textAlign:'center'}}>Файл загружен и проверен. Открой его в подходящем приложении или сохрани.</Text><View style={{alignSelf:'stretch'}}><Button label="Открыть в…" icon="open-outline" onPress={()=>void save()} loading={saving}/></View></View>}
       </React.Fragment>:null}
       {saveError?<Notice error text={saveError}/>:null}
-    </SafeAreaView></GlassStage>
+    </InsetView></GlassStage>
+  </Modal>;
+}
+
+function GalleryPage({api,attachment,width,height,active}:{api:Api;attachment:Attachment;width:number;height:number;active:boolean}){
+  const kind=mediaPreviewKind(attachment),media=useMedia(api,attachment,active||kind==='photo');
+  const thumb=attachment.preview?`data:${attachment.preview.mimeType};base64,${attachment.preview.base64}`:null;
+  return <View style={{width,height,alignItems:'center',justifyContent:'center'}}>
+    {media.status!=='ready'&&thumb?<Image source={{uri:thumb}} style={{position:'absolute',width,height:height*0.8}} contentFit="contain" blurRadius={kind==='photo'?16:0}/>:null}
+    {media.status==='ready'&&media.uri?(kind==='photo'?<ScrollView style={{width,height}} contentContainerStyle={{width,height,alignItems:'center',justifyContent:'center'}} maximumZoomScale={5} minimumZoomScale={1} centerContent showsHorizontalScrollIndicator={false} showsVerticalScrollIndicator={false} bouncesZoom><Image source={{uri:media.uri}} style={{width,height}} contentFit="contain" transition={150}/></ScrollView>:active?<View style={{width,height}}><VideoPlayer uri={media.uri}/></View>:<Icon name="play-circle" size={64} color="#FFF"/>):null}
+    {media.status==='loading'||media.status==='idle'?<Pressable onPress={()=>media.status==='loading'?media.cancel():void media.start().catch(()=>{})} accessibilityRole="button" accessibilityLabel={media.status==='loading'?'Отменить загрузку':'Загрузить'} style={{width:60,height:60,borderRadius:30,backgroundColor:'rgba(0,0,0,0.5)',alignItems:'center',justifyContent:'center'}}>{media.status==='loading'?<><ProgressRing progress={media.progress} size={60}/><Icon name="close" color="#FFF" size={24}/></>:<Icon name="arrow-down" color="#FFF" size={26}/>}</Pressable>:null}
+    {media.status==='error'?<Pressable onPress={()=>void media.start().catch(()=>{})} style={{padding:16,alignItems:'center',gap:8}}><Icon name="refresh" color="#FFF" size={30}/><Text style={{color:'#FFF',textAlign:'center'}}>{media.error||'Не удалось загрузить.'} Нажми, чтобы повторить.</Text></Pressable>:null}
+  </View>;
+}
+
+/** Telegram-style full-screen media: black background, swipe left/right between
+ * the chat's photos and videos, swipe down to close, pinch to zoom a photo. */
+export function MediaGallery({api,items,index,onClose}:{api:Api;items:Attachment[];index:number;onClose:()=>void}){
+  const {width,height}=useWindowDimensions();
+  const [current,setCurrent]=useState(index);const [chrome,setChrome]=useState(true);const [saving,setSaving]=useState(false);
+  const music=useMusic();
+  const y=useRef(new Animated.Value(0)).current;
+  useEffect(()=>{setCurrent(index);y.setValue(0);},[index,items]);
+  const visible=items.length>0;
+  const item=items[current];
+  useEffect(()=>{if(item&&mediaPreviewKind(item)==='video')music.stop();},[item?.id]);
+  const close=useRef(onClose);close.current=onClose;
+  const pan=useRef(PanResponder.create({
+    onMoveShouldSetPanResponder:(_e,g)=>Math.abs(g.dy)>14&&Math.abs(g.dy)>Math.abs(g.dx)*1.6,
+    onPanResponderMove:(_e,g)=>y.setValue(g.dy),
+    onPanResponderRelease:(_e,g)=>{if(Math.abs(g.dy)>130||Math.abs(g.vy)>1.1)Animated.timing(y,{toValue:g.dy>0?height:-height,duration:170,useNativeDriver:true}).start(()=>close.current());else Animated.spring(y,{toValue:0,useNativeDriver:true,bounciness:5}).start();},
+    onPanResponderTerminate:()=>Animated.spring(y,{toValue:0,useNativeDriver:true}).start(),
+  })).current;
+  const backdrop=y.interpolate({inputRange:[-height/2,0,height/2],outputRange:[0.2,1,0.2],extrapolate:'clamp'});
+  const share=async()=>{
+    if(!item)return;setSaving(true);
+    try{const uri=await loadMedia(api,item);if(await Sharing.isAvailableAsync())await Sharing.shareAsync(uri,{mimeType:item.mimeType,dialogTitle:item.name});}catch{}finally{setSaving(false);}
+  };
+  return <Modal visible={visible} transparent animationType="fade" onRequestClose={onClose} statusBarTranslucent supportedOrientations={['portrait','landscape']}>
+    <Animated.View style={[StyleSheet.absoluteFill,{backgroundColor:'#000',opacity:backdrop}]}/>
+    <Animated.View style={{flex:1,transform:[{translateY:y}]}} {...pan.panHandlers}>
+      <FlatList data={items} horizontal pagingEnabled keyExtractor={a=>a.id} initialScrollIndex={Math.min(index,Math.max(0,items.length-1))} getItemLayout={(_d,i)=>({length:width,offset:width*i,index:i})} showsHorizontalScrollIndicator={false}
+        onMomentumScrollEnd={e=>setCurrent(Math.round(e.nativeEvent.contentOffset.x/width))}
+        renderItem={({item:page,index:i})=><Pressable onPress={()=>setChrome(v=>!v)} style={{width,height}}><GalleryPage api={api} attachment={page} width={width} height={height} active={i===current}/></Pressable>}/>
+    </Animated.View>
+    {chrome?<InsetView bottom={false} pointerEvents="box-none" style={{position:'absolute',top:0,left:0,right:0}}>
+      <View style={{flexDirection:'row',alignItems:'center',gap:10,paddingHorizontal:10,paddingVertical:8,backgroundColor:'rgba(0,0,0,0.35)'}}>
+        <Pressable onPress={onClose} accessibilityRole="button" accessibilityLabel="Закрыть" style={{width:42,height:42,alignItems:'center',justifyContent:'center'}}><Icon name="chevron-back" color="#FFF" size={26}/></Pressable>
+        <View style={{flex:1}}><Text style={{color:'#FFF',fontSize:16,fontWeight:'700'}}>{items.length>1?`${current+1} из ${items.length}`:mediaPreviewKind(item||{name:'',mimeType:''})==='video'?'Видео':'Фото'}</Text>{item?<Text style={{color:'rgba(255,255,255,0.7)',fontSize:12}}>{formatSize(item.size)}</Text>:null}</View>
+        <Pressable onPress={()=>void share()} disabled={saving} accessibilityRole="button" accessibilityLabel="Сохранить или поделиться" style={{width:42,height:42,alignItems:'center',justifyContent:'center',opacity:saving?.5:1}}><Icon name="share-outline" color="#FFF" size={23}/></Pressable>
+      </View>
+    </InsetView>:null}
   </Modal>;
 }

@@ -1,4 +1,4 @@
-// Linea iOS cloud setup v1: {"appVersion":"0.7.0"}
+// Linea iOS cloud setup v1: {"appVersion":"0.8.0"}
 const development = process.env.APP_ENV !== 'production';
 const allowDevelopmentHttp = development && process.env.EXPO_PUBLIC_ALLOW_LOCAL_HTTP === '1';
 const apiUrl = process.env.EXPO_PUBLIC_API_URL || '';
@@ -11,7 +11,7 @@ module.exports = {
   expo: {
     name: 'INVIZENT',
     slug: 'linea-messenger',
-    version: "0.7.0",
+    version: "0.8.0",
     orientation: 'portrait',
     icon: './assets/icon.png',
     scheme: 'linea',
@@ -32,7 +32,7 @@ module.exports = {
     },
     android: {
       package: development ? 'com.linea.messenger.preview' : 'com.linea.messenger',
-      versionCode: 15,
+      versionCode: 16,
       softwareKeyboardLayoutMode: 'resize',
       allowBackup: false,
       adaptiveIcon: {

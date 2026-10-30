@@ -11,8 +11,12 @@ import type { TrustSnapshot } from './e2ee/types';
 import { appendAttachments, messageAttachmentBatch } from './messageAttachments';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { getChatPreferences } from './chatPreferences';
-import { actionFallback, messageKey, type MessageAction, type MessageMeta } from './messageMeta';
+import { actionFallback, messageKey, pollFallback, type MessageAction, type MessageMeta, type Poll } from './messageMeta';
+import { mediaPreviewKind } from './media/formats';
+import { isVideoNote, isVoice } from './voice/voice';
+const isAlbumMedia=(file:Attachment)=>{const kind=mediaPreviewKind(file);return (kind==='photo'||kind==='video')&&!isVoice(file)&&!isVideoNote(file);};
 import { decryptAttachment } from './e2ee/attachments';
+import { resetMediaCache } from './media/mediaCache';
 
 const HIDDEN_LIMIT = 5000;
 
@@ -63,8 +67,8 @@ export function useMessenger(api: Api, user: User, onExpired: ()=>void) {
     // Publish this installation's public keys even when the account has no chats.
     // Otherwise an online new account would be unable to receive its first message.
     void cryptoRuntime.get().then(service=>service.initialize()).catch(e=>{if(current)setCryptoError(checkError(e));});
-    void clearDecryptedAttachmentCache().catch(()=>{});
-    return()=>{current=false;void cryptoRuntime.close();void clearDecryptedAttachmentCache().catch(()=>{});};
+    resetMediaCache();void clearDecryptedAttachmentCache().catch(()=>{});
+    return()=>{current=false;void cryptoRuntime.close();resetMediaCache();void clearDecryptedAttachmentCache().catch(()=>{});};
   },[cryptoRuntime,checkError]);
 
   const hydrate=useCallback(async(message:Message):Promise<Message>=>{
@@ -239,10 +243,17 @@ export function useMessenger(api: Api, user: User, onExpired: ()=>void) {
   },[api,send]);
   const sendAttachments=useCallback((chatId:string,text:string,attachments:Attachment[])=>{
     const started=Date.now();
-    const items:PendingMessage[]=messageAttachmentBatch(text,attachments).map((part,index)=>({...part,clientId:Crypto.randomUUID(),chatId,state:'sending',createdAt:new Date(started+index).toISOString()}));
+    const parts=messageAttachmentBatch(text,attachments);
+    // Two or more photos/videos go out as one album (Telegram groups them into a grid).
+    const visual=parts.filter(part=>part.attachment&&isAlbumMedia(part.attachment));
+    const album=visual.length>=2?{id:Crypto.randomUUID(),count:visual.length}:null;
+    const ordered=album?[...visual,...parts.filter(part=>!visual.includes(part))]:parts;
+    if(album&&!ordered[0].text&&text.trim()){ordered.forEach(part=>{part.text='';});ordered[0].text=text.trim();}
+    const items:PendingMessage[]=ordered.map((part,index)=>({...part,clientId:Crypto.randomUUID(),chatId,state:'sending',createdAt:new Date(started+index).toISOString(),...(album&&index<album.count?{meta:{album:{id:album.id,index,count:album.count}}}:{})}));
     setPending(previous=>[...previous,...items]);
     void (async()=>{for(const item of items){if(!aliveRef.current)return;await performSend(item);}})();
   },[performSend]);
+  const sendPoll=useCallback((chatId:string,poll:Poll)=>{send(chatId,pollFallback(poll),null,{poll});},[send]);
   const sendTyping=useCallback((chatId:string,isTyping:boolean)=>{
     // Privacy: the user may hide "печатает…". A stop signal is still allowed.
     if(isTyping&&!getChatPreferences().sendTyping)return;
@@ -269,6 +280,6 @@ export function useMessenger(api: Api, user: User, onExpired: ()=>void) {
     setChats(previous=>previous.map(item=>item.id===chat.id?{...item,settings:chat.settings}:item));
     return chat;
   },[api]);
-  return {chats,messages,hasMore,pending,selectedId,selectChat,connection,listLoading,messageLoading,error,setError,typing,refreshChats,loadMessages,send,sendAction,hideForMe,hidden,forward,sendAttachments,retry:performSend,sendTyping,drafts,draftFiles,setDraft,setDraftFile,setDraftFiles,appendDraftFiles,removeDraftFile,recoveryRequests,recoveryError,refreshRecoveryRequests,cancelRecovery,cryptoError,trustSnapshot,approveDevices,uploadEncrypted,saved,aiHistory,updateChatSettings};
+  return {chats,messages,hasMore,pending,selectedId,selectChat,connection,listLoading,messageLoading,error,setError,typing,refreshChats,loadMessages,send,sendAction,hideForMe,hidden,forward,sendAttachments,retry:performSend,sendPoll,sendTyping,drafts,draftFiles,setDraft,setDraftFile,setDraftFiles,appendDraftFiles,removeDraftFile,recoveryRequests,recoveryError,refreshRecoveryRequests,cancelRecovery,cryptoError,trustSnapshot,approveDevices,uploadEncrypted,saved,aiHistory,updateChatSettings};
 }
 export type MessengerStore = ReturnType<typeof useMessenger>;
