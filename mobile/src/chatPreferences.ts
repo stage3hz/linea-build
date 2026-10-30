@@ -11,9 +11,9 @@ export const TEXT_SIZES: { id: TextSize; label: string; fontSize: number; lineHe
 ];
 import type { AnimationMode } from './motionPolicy';
 export type { AnimationMode };
-export type ChatPreferences = { textSize: TextSize; sendTyping: boolean; animations: AnimationMode };
+export type ChatPreferences = { textSize: TextSize; sendTyping: boolean; animations: AnimationMode; lowBattery: number };
 const KEY = 'linea.chat-preferences.v1';
-const DEFAULTS: ChatPreferences = { textSize: 'medium', sendTyping: true, animations: 'auto' };
+const DEFAULTS: ChatPreferences = { textSize: 'medium', sendTyping: true, animations: 'auto', lowBattery: 0.27 };
 
 let current: ChatPreferences = DEFAULTS;
 const listeners = new Set<() => void>();
@@ -27,6 +27,7 @@ export function parsePreferences(raw: string | null): ChatPreferences {
       textSize: TEXT_SIZES.some(size => size.id === value?.textSize) ? value.textSize : DEFAULTS.textSize,
       sendTyping: typeof value?.sendTyping === 'boolean' ? value.sendTyping : DEFAULTS.sendTyping,
       animations: value?.animations === 'on' || value?.animations === 'off' ? value.animations : 'auto',
+      lowBattery: [0, 0.15, 0.27, 0.4].includes(value?.lowBattery) ? value.lowBattery : DEFAULTS.lowBattery,
     };
   } catch { return DEFAULTS; }
 }

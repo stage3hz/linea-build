@@ -186,6 +186,10 @@ function MotionSettings() {
       const selected = preferences.animations === option.id;
       return <Pressable key={option.id} accessibilityRole="radio" accessibilityState={{ selected }} onPress={() => setChatPreferences({ animations: option.id })} style={{ flex: 1, alignItems: 'center', paddingVertical: 10, borderRadius: 15, backgroundColor: selected ? t.accentSoft : t.surface2, borderWidth: 1, borderColor: selected ? t.accent : t.border }}><Text style={{ color: selected ? t.accent : t.text, fontSize: 13, fontWeight: '600' }}>{option.label}</Text></Pressable>;
     })}</View>
+    {preferences.animations === 'auto' ? <View style={{ gap: 7 }}><Text style={{ color: t.muted, fontSize: 12 }}>Энергосбережение: выключать при заряде</Text><View style={{ flexDirection: 'row', gap: 7 }}>{[0, 0.15, 0.27, 0.4].map(level => {
+      const selected = preferences.lowBattery === level;
+      return <Pressable key={level} accessibilityRole="radio" accessibilityState={{ selected }} onPress={() => setChatPreferences({ lowBattery: level })} style={{ flex: 1, alignItems: 'center', paddingVertical: 8, borderRadius: 13, backgroundColor: selected ? t.accentSoft : t.surface2, borderWidth: 1, borderColor: selected ? t.accent : t.border }}><Text style={{ color: selected ? t.accent : t.text, fontSize: 12, fontWeight: '600' }}>{level ? `≤ ${Math.round(level * 100)}%` : 'Никогда'}</Text></Pressable>;
+    })}</View></View> : null}
     <Text style={{ color: t.muted, fontSize: 12, lineHeight: 17 }}>{motion.reason}</Text>
   </View>;
 }

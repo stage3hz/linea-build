@@ -104,6 +104,13 @@ export function useMessenger(api: Api, user: User, onExpired: ()=>void) {
     catch(e){if(aliveRef.current)setError(checkError(e));}
     finally {if(aliveRef.current)setListLoading(false);}
   },[api,checkError,hydrate]);
+  // «Прочитать» from the chat list (swipe or edit mode): no need to have the chat open.
+  const readChat=useCallback(async(chatId:string,messageId:number)=>{
+    if(!messageId||(readRef.current[chatId]||0)>=messageId)return;
+    readRef.current[chatId]=messageId;
+    try { const result=await api.read(chatId,messageId);if(aliveRef.current)setChats(prev=>prev.map(c=>c.id===chatId?{...c,unreadCount:0,lastReadMessageId:result.lastReadMessageId}:c)); }
+    catch(e) {readRef.current[chatId]=0;checkError(e);}
+  },[api,checkError]);
   const markRead=useCallback(async(chatId:string,messageId:number)=>{
     if(!messageId||selectedRef.current!==chatId||appState.current!=='active'||(readRef.current[chatId]||0)>=messageId)return;
     readRef.current[chatId]=messageId;
@@ -288,6 +295,6 @@ export function useMessenger(api: Api, user: User, onExpired: ()=>void) {
     setChats(previous=>previous.map(item=>item.id===chat.id?{...item,settings:chat.settings}:item));
     return chat;
   },[api]);
-  return {presence,chats,messages,hasMore,pending,selectedId,selectChat,connection,listLoading,messageLoading,error,setError,typing,refreshChats,loadMessages,send,sendAction,hideForMe,hidden,forward,sendAttachments,retry:performSend,sendPoll,sendTyping,drafts,draftFiles,setDraft,setDraftFile,setDraftFiles,appendDraftFiles,removeDraftFile,recoveryRequests,recoveryError,refreshRecoveryRequests,cancelRecovery,cryptoError,trustSnapshot,approveDevices,uploadEncrypted,saved,aiHistory,updateChatSettings};
+  return {readChat,presence,chats,messages,hasMore,pending,selectedId,selectChat,connection,listLoading,messageLoading,error,setError,typing,refreshChats,loadMessages,send,sendAction,hideForMe,hidden,forward,sendAttachments,retry:performSend,sendPoll,sendTyping,drafts,draftFiles,setDraft,setDraftFile,setDraftFiles,appendDraftFiles,removeDraftFile,recoveryRequests,recoveryError,refreshRecoveryRequests,cancelRecovery,cryptoError,trustSnapshot,approveDevices,uploadEncrypted,saved,aiHistory,updateChatSettings};
 }
 export type MessengerStore = ReturnType<typeof useMessenger>;

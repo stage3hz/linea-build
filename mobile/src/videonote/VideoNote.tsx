@@ -1,5 +1,7 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { ActivityIndicator, Image, Modal, Pressable, StyleSheet, View } from 'react-native';
+import { ActivityIndicator, Image, Modal, Pressable, StyleSheet, View, useWindowDimensions } from 'react-native';
+import Animated, { LinearTransition } from 'react-native-reanimated';
+import { motionEnabled } from '../motion';
 import { CameraView, useCameraPermissions, useMicrophonePermissions, type CameraType } from 'expo-camera';
 import { useVideoPlayer, VideoView } from 'expo-video';
 import { useEvent } from 'expo';
@@ -84,41 +86,49 @@ export function VideoNoteRecorder({ visible, onClose, onDone }: { visible: boole
 
 const styles = StyleSheet.create({ round: { width: 54, height: 54, borderRadius: 27, backgroundColor: 'rgba(255,255,255,0.12)', alignItems: 'center', justifyContent: 'center' } });
 
-function CirclePlayer({ uri, size, onEnd }: { uri: string; size: number; onEnd: () => void }) {
-  const player = useVideoPlayer(uri, value => { value.loop = false; value.audioMixingMode = 'doNotMix'; });
+/** Telegram circle: plays silently in a loop in the chat; a tap enlarges it and plays from the start with sound. */
+function CirclePlayer({ uri, size, expanded, onToggle, onEnd }: { uri: string; size: number; expanded: boolean; onToggle: () => void; onEnd: () => void }) {
+  const player = useVideoPlayer(uri, value => { value.loop = true; value.muted = true; value.audioMixingMode = 'mixWithOthers'; });
   const { isPlaying } = useEvent(player, 'playingChange', { isPlaying: player.playing });
   const [progress, setProgress] = useState(0);
-  useEffect(() => { player.play(); return () => { try { player.pause(); } catch { /* released */ } }; }, [player]);
+  useEffect(() => {
+    try {
+      if (expanded) { player.muted = false; player.loop = false; player.audioMixingMode = 'doNotMix'; player.currentTime = 0; player.play(); }
+      else { player.muted = true; player.loop = true; player.audioMixingMode = 'mixWithOthers'; if (motionEnabled()) player.play(); else player.pause(); }
+    } catch { /* released */ }
+  }, [player, expanded]);
+  useEffect(() => () => { try { player.pause(); } catch { /* released */ } }, [player]);
   useEffect(() => { const sub = player.addListener('playToEnd', onEnd); return () => sub.remove(); }, [player, onEnd]);
-  useEffect(() => { const timer = setInterval(() => { try { if (player.duration > 0) setProgress(player.currentTime / player.duration); } catch { /* released */ } }, 250); return () => clearInterval(timer); }, [player]);
-  return <Pressable onPress={() => isPlaying ? player.pause() : player.play()} style={{ width: size, height: size }}>
+  useEffect(() => { if (!expanded) return; const timer = setInterval(() => { try { if (player.duration > 0) setProgress(player.currentTime / player.duration); } catch { /* released */ } }, 200); return () => clearInterval(timer); }, [player, expanded]);
+  return <Pressable onPress={() => { if (!expanded) onToggle(); else if (isPlaying) player.pause(); else player.play(); }} onLongPress={expanded ? onToggle : undefined} accessibilityRole="button" accessibilityLabel={expanded ? 'Пауза или продолжить' : 'Смотреть видеосообщение со звуком'} style={{ width: size, height: size }}>
     <VideoView player={player} style={{ width: size, height: size }} contentFit="cover" nativeControls={false} allowsPictureInPicture={false} />
-    <View pointerEvents="none" style={{ position: 'absolute', left: 0, right: 0, bottom: 10, alignItems: 'center' }}><View style={{ width: size * .5, height: 3, borderRadius: 2, backgroundColor: 'rgba(255,255,255,0.35)' }}><View style={{ width: `${progress * 100}%`, height: 3, borderRadius: 2, backgroundColor: '#FFF' }} /></View></View>
-    {!isPlaying ? <View pointerEvents="none" style={[StyleSheet.absoluteFill, { alignItems: 'center', justifyContent: 'center' }]}><Icon name="play" color="#FFF" size={34} /></View> : null}
+    {expanded ? <View pointerEvents="none" style={[StyleSheet.absoluteFill, { borderRadius: size / 2, borderWidth: 3, borderColor: 'rgba(255,255,255,0.18)' }]}><View style={{ position: 'absolute', left: 0, right: 0, bottom: 14, alignItems: 'center' }}><View style={{ width: size * .45, height: 3, borderRadius: 2, backgroundColor: 'rgba(255,255,255,0.35)' }}><View style={{ width: `${progress * 100}%`, height: 3, borderRadius: 2, backgroundColor: '#FFF' }} /></View></View></View>
+      : <View pointerEvents="none" style={{ position: 'absolute', right: 18, bottom: 18, width: 26, height: 26, borderRadius: 13, backgroundColor: 'rgba(10,20,35,0.6)', alignItems: 'center', justifyContent: 'center' }}><Icon name="volume-mute" color="#FFF" size={14} /></View>}
+    {expanded && !isPlaying ? <View pointerEvents="none" style={[StyleSheet.absoluteFill, { alignItems: 'center', justifyContent: 'center' }]}><Icon name="play" color="#FFF" size={40} /></View> : null}
   </Pressable>;
 }
 
 /** Round bubble: shows the encrypted thumbnail; a tap decrypts and plays with sound. */
 export function VideoNoteBubble({ api, attachment }: { api: Api; attachment: Attachment }) {
-  const music = useMusic();
-  // Circles are small, so they load by themselves (as in Telegram) and play instantly on tap.
+  const music = useMusic(); const { width } = useWindowDimensions();
+  // Circles are small, so they load by themselves (as in Telegram) and play silently in the chat.
   const media = useMedia(api, attachment, attachment.size <= 8 * 1024 * 1024);
-  const [playing, setPlaying] = useState(false);
-  const size = 220;
+  const [expanded, setExpanded] = useState(false);
+  const size = expanded ? Math.min(width - 36, 340) : 220;
   const thumb = useMemo(() => attachment.preview ? `data:${attachment.preview.mimeType};base64,${attachment.preview.base64}` : null, [attachment.preview]);
-  const ended = useCallback(() => setPlaying(false), []);
-  const open = () => {
+  const collapse = useCallback(() => setExpanded(false), []);
+  const toggle = useCallback(() => setExpanded(value => { if (!value) music.stop(); return !value; }), [music]);
+  const load = () => {
     if (media.status === 'loading') { media.cancel(); return; }
-    if (media.status === 'ready') { music.stop(); setPlaying(true); return; }
-    void media.start().then(() => { music.stop(); setPlaying(true); }).catch(() => {});
+    void media.start().then(() => { music.stop(); setExpanded(true); }).catch(() => {});
   };
   return <View style={{ alignItems: 'center', gap: 5 }}>
-    <View style={{ width: size, height: size, borderRadius: size / 2, overflow: 'hidden', backgroundColor: '#11162A' }}>
-      {playing && media.uri ? <CirclePlayer uri={media.uri} size={size} onEnd={ended} /> : <Pressable accessibilityRole="button" accessibilityLabel="Воспроизвести видеосообщение" onPress={open} style={{ flex: 1, alignItems: 'center', justifyContent: 'center' }}>
+    <Animated.View layout={LinearTransition.duration(220)} style={{ width: size, height: size, borderRadius: size / 2, overflow: 'hidden', backgroundColor: '#11162A' }}>
+      {media.status === 'ready' && media.uri ? <CirclePlayer uri={media.uri} size={size} expanded={expanded} onToggle={toggle} onEnd={collapse} /> : <Pressable accessibilityRole="button" accessibilityLabel="Воспроизвести видеосообщение" onPress={load} style={{ flex: 1, alignItems: 'center', justifyContent: 'center' }}>
         {thumb ? <Image source={{ uri: thumb }} style={StyleSheet.absoluteFill} resizeMode="cover" /> : null}
-        <View style={{ width: 52, height: 52, borderRadius: 26, backgroundColor: 'rgba(10,20,35,0.6)', alignItems: 'center', justifyContent: 'center' }}>{media.status === 'loading' ? <><ProgressRing progress={media.progress} size={52} /><Icon name="close" color="#FFF" size={22} /></> : <Icon name={media.status === 'error' ? 'refresh' : 'play'} color="#FFF" size={26} />}</View>
+        <View style={{ width: 52, height: 52, borderRadius: 26, backgroundColor: 'rgba(10,20,35,0.6)', alignItems: 'center', justifyContent: 'center' }}>{media.status === 'loading' ? <><ProgressRing progress={media.progress} size={52} /><Icon name="close" size={22} color="#FFF" /></> : <Icon name={media.status === 'error' ? 'refresh' : 'play'} size={24} color="#FFF" />}</View>
       </Pressable>}
-    </View>
+    </Animated.View>
     <Text style={{ color: 'rgba(160,170,200,0.9)', fontSize: 11 }}>{formatVoiceTime(attachment.media?.durationMs || 0)}</Text>
     {media.status === 'error' && media.error ? <Text style={{ color: '#FF8A8A', fontSize: 11, maxWidth: size }}>{media.error}</Text> : null}
   </View>;
