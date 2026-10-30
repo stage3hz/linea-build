@@ -57,7 +57,11 @@ export function ChatScreen({api,user,chat,store,onBack,wide=false,onOpenMusic}: 
   // Actions (edit, delete, react, pin) are encrypted messages too; they are applied, not shown.
   const pending=useMemo(()=>pendingAll.filter(p=>!p.meta?.action),[pendingAll]);
   const failedActions=pendingAll.filter(p=>p.meta?.action&&p.state==='failed');
-  const view=useMemo(()=>foldChat(messages,user.id,store.hidden),[messages,user.id,store.hidden]);
+  // Optimistic actions: a reaction, vote, pin, edit or delete shows at once (as in Telegram),
+  // while its encrypted message is still on the way; the confirmed copy replaces it.
+  const pendingActionKey=pendingAll.filter(p=>p.meta?.action&&p.state==='sending').map(p=>p.clientId).join(',');
+  const optimistic=useMemo(()=>pendingAll.filter(p=>p.meta?.action&&p.state==='sending').map((p,index)=>({id:Number.MAX_SAFE_INTEGER-1000+index,chatId:chat.id,senderId:user.id,clientId:p.clientId,text:p.text,attachment:null,createdAt:p.createdAt,cryptoState:'decrypted' as const,meta:p.meta})),[pendingActionKey,chat.id,user.id]);
+  const view=useMemo(()=>foldChat(optimistic.length?[...messages,...optimistic]:messages,user.id,store.hidden),[messages,optimistic,user.id,store.hidden]);
   const [replyTo,setReplyTo]=useState<ViewMessage|null>(null);
   const [editing,setEditing]=useState<ViewMessage|null>(null);
   const [forwarding,setForwarding]=useState<ViewMessage|null>(null);
