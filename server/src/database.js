@@ -48,8 +48,11 @@ export function openDatabase(dataDir) {
       db.exec('UPDATE users SET login_name=username WHERE login_name IS NULL');
       db.exec(`
         CREATE UNIQUE INDEX IF NOT EXISTS users_login_name ON users(login_name);
-        CREATE TRIGGER IF NOT EXISTS users_login_immutable BEFORE UPDATE OF login_name ON users
-        WHEN OLD.login_name IS NOT NEW.login_name BEGIN SELECT RAISE(ABORT,'Account login is immutable'); END;
+        DROP TRIGGER IF EXISTS users_login_immutable;
+        CREATE TRIGGER IF NOT EXISTS users_login_update BEFORE UPDATE OF login_name ON users
+        WHEN NEW.login_name IS NULL OR length(NEW.login_name) NOT BETWEEN 3 AND 24 OR NEW.login_name GLOB '*[^a-z0-9_]*'
+          OR EXISTS(SELECT 1 FROM users WHERE id<>NEW.id AND (username=NEW.login_name OR login_name=NEW.login_name))
+        BEGIN SELECT RAISE(ABORT,'Account login is invalid or reserved'); END;
         CREATE TRIGGER IF NOT EXISTS users_id_immutable BEFORE UPDATE OF id ON users
         WHEN OLD.id IS NOT NEW.id BEGIN SELECT RAISE(ABORT,'Account ID is immutable'); END;
         CREATE TRIGGER IF NOT EXISTS users_login_required BEFORE INSERT ON users

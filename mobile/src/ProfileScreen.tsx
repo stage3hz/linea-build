@@ -167,7 +167,8 @@ export function ProfileScreen({ api, user, theme, darkTheme, onTheme, onDarkThem
         {statusError ? <Notice text={statusError} error onRetry={() => void loadStatus()}/> : null}
         {status ? <>
           <ReadOnlyValue label="Логин для входа" value={status.loginName} onCopy={() => void copy(status.loginName, 'login')} copied={copied === 'login'}/>
-          <Text style={{ color: t.muted, fontSize: 12, lineHeight: 18 }}>Этот логин остаётся прежним при смене публичного имени. Используй его вместе с паролем и словом подтверждения.</Text>
+          <Text style={{ color: t.muted, fontSize: 12, lineHeight: 18 }}>Логин нужен только для входа и никому не показывается. Публичное имя ниже — отдельное.</Text>
+          <LoginChange api={api} onChanged={loginName => setStatus(current => current ? { ...current, loginName } : current)}/>
           <ReadOnlyValue label="ID аккаунта" value={status.accountId} onCopy={() => void copy(status.accountId, 'id')} copied={copied === 'id'} small/>
           <Field label="Публичное имя пользователя" value={username} onChangeText={value => { setUsername(value); setNotice(''); }} autoCapitalize="none" autoCorrect={false} maxLength={25} editable={!busy && ready && status.canChangeUsername} placeholder="@username"/>
           <Text style={{ color: t.muted, fontSize: 12, lineHeight: 18 }}>{status.freeChangeAvailable ? 'Доступна одна бесплатная смена имени. После неё дополнительные смены доступны с Platina.' : status.canChangeUsername ? 'Бесплатная смена уже использована. Сейчас дополнительные смены доступны с Platina.' : 'Бесплатная смена уже использована. Для новой смены нужна активная Platina.'}</Text>
@@ -203,4 +204,31 @@ export function ProfileScreen({ api, user, theme, darkTheme, onTheme, onDarkThem
 function ReadOnlyValue({ label, value, onCopy, copied, small = false }: { label: string; value: string; onCopy: () => void; copied: boolean; small?: boolean }) {
   const t = useTheme();
   return <View style={{ gap: 7 }}><Text style={{ color: t.muted, fontSize: 11, fontWeight: '600' }}>{label}</Text><Pressable onPress={onCopy} accessibilityRole="button" accessibilityLabel={`Скопировать ${label.toLowerCase()}`} style={{ flexDirection: 'row', alignItems: 'center', gap: 9, padding: 13, borderRadius: 15, backgroundColor: t.glassClear, borderWidth: 1, borderColor: t.border }}><Text selectable style={{ flex: 1, color: t.text, fontSize: small ? 12 : 15 }}>{copied ? 'Скопировано' : value}</Text><Icon name={copied ? 'checkmark' : 'copy-outline'} size={16} color={t.muted}/></Pressable></View>;
+}
+
+/** Change the private sign-in login (password + confirmation word required; other devices are signed out). */
+function LoginChange({ api, onChanged }: { api: Api; onChanged: (loginName: string) => void }) {
+  const [open, setOpen] = useState(false); const [login, setLogin] = useState(''); const [password, setPassword] = useState(''); const [word, setWord] = useState('');
+  const [busy, setBusy] = useState(false); const [error, setError] = useState(''); const [done, setDone] = useState('');
+  const next = login.trim().replace(/^@/, '').toLowerCase();
+  const valid = /^[a-z0-9_]{3,24}$/.test(next) && password.length > 0;
+  const submit = async () => {
+    if (!valid || busy) return; setBusy(true); setError('');
+    try { const result = await api.changeLoginName(next, password, word || undefined); onChanged(result.loginName); setDone(`Логин изменён на ${result.loginName}. Другие устройства вышли из аккаунта.`); setOpen(false); setPassword(''); setWord(''); setLogin(''); }
+    catch (e) { setError(e instanceof Error ? e.message : 'Не удалось сменить логин.'); }
+    finally { setBusy(false); }
+  };
+  return <>
+    <Button label="Сменить логин" secondary icon="key-outline" onPress={() => { setError(''); setDone(''); setOpen(true); }}/>
+    {done ? <Notice text={done}/> : null}
+    <Sheet visible={open} title="Новый логин для входа" onClose={() => { if (!busy) setOpen(false); }}>
+      <View style={{ gap: 14 }}>
+        <Field label="Новый логин" value={login} onChangeText={setLogin} autoCapitalize="none" autoCorrect={false} maxLength={25} placeholder="латиница, цифры, _" editable={!busy}/>
+        <Field label="Текущий пароль" value={password} onChangeText={setPassword} secureTextEntry autoCapitalize="none" autoCorrect={false} textContentType="password" editable={!busy}/>
+        <Field label="Слово подтверждения" value={word} onChangeText={setWord} autoCapitalize="none" autoCorrect={false} editable={!busy}/>
+        {error ? <Notice text={error} error/> : null}
+        <Button label="Сменить логин" icon="checkmark" loading={busy} disabled={!valid || busy} onPress={() => void submit()}/>
+      </View>
+    </Sheet>
+  </>;
 }

@@ -23,19 +23,38 @@ object PhotoPixels {
     val luma=ByteArray(opaque.pixels.size) { i ->
       val p=opaque.pixels[i];((component(p,16)*77+component(p,8)*150+component(p,0)*29+128)/256).toByte()
     }
-    val closeRadius=max(2,min(image.width,image.height)/32)
+    val side=min(image.width,image.height)
+    // Paper brightness: local maximum, then a blur no wider than that maximum,
+    // so the estimate never spills from bright paper into shadows or the table.
+    val closeRadius=max(2,side/40)
     val localMax=maxFilter(luma,image.width,image.height,closeRadius)
-    val illumination=boxBlur(localMax,image.width,image.height,max(4,min(image.width,image.height)/12))
+    val illumination=boxBlur(localMax,image.width,image.height,max(2,closeRadius/2))
+    val normalized=FloatArray(luma.size){i->min(255f,(luma[i].toInt() and 255)*255f/max(16f,illumination[i]))}
+    // Black-and-white: a pixel is ink only when it is clearly darker than its neighbourhood
+    // (or simply very dark). Large uniformly dark areas therefore stay white instead of becoming blots.
+    val neighbourhood=if(monochrome)blurFloat(normalized,image.width,image.height,max(4,side/24))else normalized
     val output=IntArray(opaque.pixels.size) { i ->
       val divisor=max(16.0,illumination[i].toDouble())
       if(monochrome) {
-        if((luma[i].toInt() and 255)*255.0/divisor<214.0) 0xff000000.toInt() else -1
+        val value=normalized[i];val mean=neighbourhood[i]
+        if((value<mean*BW_RATIO && mean-value>BW_MIN_CONTRAST) || value<BW_ALWAYS_INK) 0xff000000.toInt() else -1
       } else {
         val p=opaque.pixels[i]
         color(255,byte(component(p,16)*255.0/divisor),byte(component(p,8)*255.0/divisor),byte(component(p,0)*255.0/divisor))
       }
     }
     return image.copy(pixels=output)
+  }
+
+  private const val BW_RATIO=0.90f
+  private const val BW_MIN_CONTRAST=8f
+  private const val BW_ALWAYS_INK=150f
+
+  private fun blurFloat(input:FloatArray,width:Int,height:Int,radius:Int):FloatArray {
+    val horizontal=FloatArray(input.size);val output=FloatArray(input.size)
+    for(y in 0 until height) blurLine(width,radius,{x->input[y*width+x]},{x,v->horizontal[y*width+x]=v})
+    for(x in 0 until width) blurLine(height,radius,{y->horizontal[y*width+x]},{y,v->output[y*width+x]=v})
+    return output
   }
 
   private fun maxFilter(input:ByteArray,width:Int,height:Int,radius:Int):ByteArray {

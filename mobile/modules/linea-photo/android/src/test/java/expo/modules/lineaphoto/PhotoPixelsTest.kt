@@ -18,6 +18,16 @@ class PhotoPixelsTest {
     assertEquals(-1,result.pixels[15*width+20]);assertEquals(-1,result.pixels[15*width+140])
     assertEquals(0xff000000.toInt(),result.pixels[33*width+50])
   }
+  @Test fun blackAndWhiteDocumentDoesNotTurnADarkCornerIntoABlot() {
+    // Bright paper with a sharp, large dark shadow in one corner (phone vignette / table edge).
+    val width=320; val height=240
+    val pixels=IntArray(width*height) { i -> val x=i%width;val y=i/width; if(x<110&&y<90) argb(255,95,95,95) else argb(255,205,205,205) }
+    for(y in 150..156)for(x in 160..300)pixels[y*width+x]=argb(255,40,40,40)
+    val result=PhotoPixels.document(PixelImage(width,height,pixels),true)
+    val corner=(10 until 80).sumOf { y -> (10 until 100).count { x -> result.pixels[y*width+x]!=-1 } }
+    assertTrue("dark corner turned black: $corner px",corner<70*90/50)
+    assertEquals(0xff000000.toInt(),result.pixels[153*width+200])
+  }
   @Test fun colorDocumentBrightensPaperAndRetainsColoredInk() {
     val width=80; val pixels=IntArray(width*80){0xff707070.toInt()}
     for(y in 30..35)for(x in 25..55)pixels[y*width+x]=0xff700909.toInt()

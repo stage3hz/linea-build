@@ -1,7 +1,7 @@
 import { StatusEmoji } from './StatusEmoji';
 import { ComposerInput } from './ComposerInput';
 import React, { useEffect, useMemo, useRef, useState } from 'react';
-import { ActivityIndicator, Animated, Dimensions, FlatList, Keyboard, PanResponder, Platform, Pressable, ScrollView, View } from 'react-native';
+import { ActivityIndicator, FlatList, Keyboard, Platform, Pressable, ScrollView, View } from 'react-native';
 import { Text, TextInput } from './typography';
 import { KeyboardSafeView } from './keyboard';
 import * as Clipboard from 'expo-clipboard';
@@ -19,6 +19,7 @@ import { AttachmentPanel } from './attachments/AttachmentPanel';
 import { MAX_DRAFT_ATTACHMENTS } from './messageAttachments';
 import { mediaPreviewKind } from './media/formats';
 import { AttachmentViewer } from './media/AttachmentViewer';
+import { openDocument } from './media/documentPreview';
 import { textMetrics, useChatPreferences } from './chatPreferences';
 import { REACTIONS, foldChat, groupAlbums, replyPreview, type Reaction, type ViewMessage } from './messageMeta';
 import { MediaGallery } from './media/AttachmentViewer';
@@ -159,6 +160,7 @@ export function ChatScreen({api,user,chat,store,onBack,wide=false}: {api:Api;use
   const openAttachment=(file:Attachment)=>{
     const kind=mediaPreviewKind(file);
     if(kind==='photo'||kind==='video'){const index=mediaItems.findIndex(a=>a.id===file.id);setGallery(index>=0?{items:mediaItems,index}:{items:[file],index:0});return;}
+    if(kind==='file'){setDownloadId(file.id);void openDocument(api,file).then(shown=>{if(!shown&&alive.current)setPreview(file);}).catch(e=>{if(alive.current)setLocalError(e instanceof Error?e.message:'Не удалось открыть файл.');}).finally(()=>{if(alive.current)setDownloadId(null);});return;}
     setPreview(file);
   };
   const copy=async(value:string)=>{await Clipboard.setStringAsync(value);setActions(null);setCopied(true);setTimeout(()=>setCopied(false),2000);};
@@ -191,14 +193,6 @@ export function ChatScreen({api,user,chat,store,onBack,wide=false}: {api:Api;use
     setSelection(null);lightFeedback();
   };
 
-  // Swipe right anywhere in the chat to go back, as in Telegram for iPhone.
-  const backX=useRef(new Animated.Value(0)).current;const backRef=useRef(onBack);backRef.current=onBack;
-  const backSwipe=useRef(PanResponder.create({
-    onMoveShouldSetPanResponder:(_e,g)=>g.dx>14&&Math.abs(g.dx)>Math.abs(g.dy)*2,
-    onPanResponderMove:(_e,g)=>backX.setValue(Math.max(0,g.dx)),
-    onPanResponderRelease:(_e,g)=>{if(g.dx>110||g.vx>0.8)lightFeedback();if(g.dx>110||g.vx>0.8)Animated.timing(backX,{toValue:Dimensions.get('window').width,duration:160,useNativeDriver:true}).start(()=>backRef.current());else Animated.spring(backX,{toValue:0,useNativeDriver:true}).start();},
-    onPanResponderTerminate:()=>Animated.spring(backX,{toValue:0,useNativeDriver:true}).start(),
-  })).current;
   const handlers=useRef<RowHandlers>(null as unknown as RowHandlers);
   handlers.current={actions:(row,y)=>{setMenuY(y);setActions(row);},jumpTo,open:openAttachment,react,retry:pending=>void store.retry(pending),reply:message=>{setEditing(null);setReplyTo(message);},vote:(message,options)=>store.sendAction(chat.id,{type:'vote',target:message.clientId,options},replyPreview(message)),toggleSelect};
   if(seen.current===null&&rows.length)seen.current=new Set(rows.map(row=>row.key));
@@ -224,7 +218,7 @@ export function ChatScreen({api,user,chat,store,onBack,wide=false}: {api:Api;use
     }catch(e){if(alive.current)setLocalError(e instanceof Error?e.message:'Не удалось отправить видеосообщение.');}
     finally{uploadingRef.current=false;if(alive.current)setUploading(false);await FileSystem.deleteAsync(take.uri,{idempotent:true}).catch(()=>{});}
   };
-  return <VoicePlaybackProvider api={api}><Animated.View style={{flex:1,transform:[{translateX:backX}]}} {...(wide?{}:backSwipe.panHandlers)}><KeyboardSafeView style={{flex:1,backgroundColor:'transparent'}}>
+  return <VoicePlaybackProvider api={api}><KeyboardSafeView style={{flex:1,backgroundColor:'transparent'}}>
     <View pointerEvents="box-none" onLayout={e=>setHeaderHeight(e.nativeEvent.layout.height)} style={{position:'absolute',top:0,left:0,right:0,zIndex:5,paddingTop:8,gap:6}}>
     {selection?<View style={{flexDirection:'row',alignItems:'center',gap:8,paddingHorizontal:12}}>
       <GlassSurface material="regular" radius={24} interactive contentStyle={{height:48,justifyContent:'center',paddingHorizontal:16}}><Pressable onPress={()=>setSelection(null)} accessibilityRole="button" hitSlop={8}><Text style={{color:t.accent,fontSize:16,fontWeight:'600'}}>Отмена</Text></Pressable></GlassSurface>
@@ -333,5 +327,5 @@ export function ChatScreen({api,user,chat,store,onBack,wide=false}: {api:Api;use
     <Sheet visible={!!forwardMany} title={`Переслать (${forwardMany?.length||0})`} onClose={()=>setForwardMany(null)}>
       {store.chats.map(target=><SheetAction key={target.id} icon="chatbubble-outline" label={target.peer.displayName} description={`@${target.peer.username}`} onPress={()=>{const list=forwardMany||[];setForwardMany(null);setSelection(null);void (async()=>{for(const m of list)await store.forward(target.id,m,originalAuthor(m));})().then(()=>setNotice(`Переслано: ${target.peer.displayName}`)).catch(e=>setLocalError(e instanceof Error?e.message:'Не удалось переслать.'));}}/>)}
     </Sheet>
-  </KeyboardSafeView></Animated.View></VoicePlaybackProvider>;
+  </KeyboardSafeView></VoicePlaybackProvider>;
 }

@@ -68,8 +68,11 @@ export function useMessenger(api: Api, user: User, onExpired: ()=>void) {
     // Publish this installation's public keys even when the account has no chats.
     // Otherwise an online new account would be unable to receive its first message.
     void cryptoRuntime.get().then(service=>service.initialize()).catch(e=>{if(current)setCryptoError(checkError(e));});
-    resetMediaCache();void clearDecryptedAttachmentCache().catch(()=>{});
-    return()=>{current=false;void cryptoRuntime.close();resetMediaCache();void clearDecryptedAttachmentCache().catch(()=>{});};
+    // Decrypted media stays on disk between launches (as in Telegram) for the same account;
+    // a different account, sign-out or session end wipes it.
+    resetMediaCache();
+    void AsyncStorage.getItem('linea.media-cache-owner').then(owner=>{if(owner!==user.id)return clearDecryptedAttachmentCache().then(()=>AsyncStorage.setItem('linea.media-cache-owner',user.id));}).catch(()=>{});
+    return()=>{current=false;void cryptoRuntime.close();resetMediaCache();void clearDecryptedAttachmentCache().then(()=>AsyncStorage.removeItem('linea.media-cache-owner')).catch(()=>{});};
   },[cryptoRuntime,checkError]);
 
   const hydrate=useCallback(async(message:Message):Promise<Message>=>{

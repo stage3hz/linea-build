@@ -43,4 +43,6 @@ export interface LineaPhotoBridge {
   prepareBackground():Promise<PhotoCapabilities>;
   dispose(uri:string):Promise<void>;
   clearCache():Promise<void>;
+  /** iOS: Quick Look preview inside the app. false = this type cannot be previewed. */
+  previewFile?(uri:string):Promise<boolean>;
 }

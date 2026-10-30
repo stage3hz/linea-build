@@ -66,10 +66,11 @@ export async function decryptAttachment(api:Api,attachment:Attachment,signal?:Ab
   try{plain=await bridge.open(fromByteArray(bytes),encryption.key,encryption.nonce,associatedData(encryption.fileKeyId));}
   catch{throw new Error('Проверка вложения не пройдена. Файл не будет открыт.');}
   checkAbort(signal);
-  const path=`${FileSystem.cacheDirectory}linea-view-${Crypto.randomUUID()}-${safeName(attachment.name)}`;
-  try{await FileSystem.writeAsStringAsync(path,plain,{encoding:FileSystem.EncodingType.Base64});checkAbort(signal);}
-  catch(error){await FileSystem.deleteAsync(path,{idempotent:true}).catch(()=>{});throw error;}
-  return {uri:path,dispose:()=>FileSystem.deleteAsync(path,{idempotent:true})};
+  // A folder per file keeps the original name visible in the share sheet and Quick Look.
+  const folder=`${FileSystem.cacheDirectory}linea-view-${Crypto.randomUUID()}/`;const path=`${folder}${safeName(attachment.name)}`;
+  try{await FileSystem.makeDirectoryAsync(folder,{intermediates:true});await FileSystem.writeAsStringAsync(path,plain,{encoding:FileSystem.EncodingType.Base64});checkAbort(signal);}
+  catch(error){await FileSystem.deleteAsync(folder,{idempotent:true}).catch(()=>{});throw error;}
+  return {uri:path,dispose:()=>FileSystem.deleteAsync(folder,{idempotent:true})};
 }
 
 /**

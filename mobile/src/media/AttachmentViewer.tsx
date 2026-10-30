@@ -15,6 +15,8 @@ import {useMusic} from '../music/MusicProvider';
 import {mediaPreviewKind} from './formats';
 import {loadMedia,useMedia} from './mediaCache';
 import {ProgressRing} from './MediaBubble';
+import {Gesture,GestureDetector,GestureHandlerRootView} from 'react-native-gesture-handler';
+import Reanimated,{interpolate,runOnJS,useAnimatedStyle,useSharedValue,withSpring,withTiming} from 'react-native-reanimated';
 
 const clock=(seconds:number)=>{const value=Math.max(0,Math.floor(Number.isFinite(seconds)?seconds:0));return `${Math.floor(value/60)}:${String(value%60).padStart(2,'0')}`;};
 
@@ -106,36 +108,50 @@ export function MediaGallery({api,items,index,onClose}:{api:Api;items:Attachment
   const {width,height}=useWindowDimensions();
   const [current,setCurrent]=useState(index);const [chrome,setChrome]=useState(true);const [saving,setSaving]=useState(false);
   const music=useMusic();
-  const y=useRef(new Animated.Value(0)).current;
-  useEffect(()=>{setCurrent(index);y.setValue(0);},[index,items]);
+  const y=useSharedValue(0);
+  useEffect(()=>{setCurrent(index);y.value=0;},[index,items]);
   const visible=items.length>0;
   const item=items[current];
   useEffect(()=>{if(item&&mediaPreviewKind(item)==='video')music.stop();},[item?.id]);
   const close=useRef(onClose);close.current=onClose;
-  const pan=useRef(PanResponder.create({
-    onMoveShouldSetPanResponder:(_e,g)=>Math.abs(g.dy)>14&&Math.abs(g.dy)>Math.abs(g.dx)*1.6,
-    onPanResponderMove:(_e,g)=>y.setValue(g.dy),
-    onPanResponderRelease:(_e,g)=>{if(Math.abs(g.dy)>130||Math.abs(g.vy)>1.1)Animated.timing(y,{toValue:g.dy>0?height:-height,duration:170,useNativeDriver:true}).start(()=>close.current());else Animated.spring(y,{toValue:0,useNativeDriver:true,bounciness:5}).start();},
-    onPanResponderTerminate:()=>Animated.spring(y,{toValue:0,useNativeDriver:true}).start(),
-  })).current;
-  const backdrop=y.interpolate({inputRange:[-height/2,0,height/2],outputRange:[0.2,1,0.2],extrapolate:'clamp'});
+  const finish=()=>close.current();
+  // Swipe up or down to close (UI thread); horizontal swipes page through the album.
+  const pan=Gesture.Pan().activeOffsetY([-14,14]).failOffsetX([-16,16])
+    .onUpdate(event=>{y.value=event.translationY;})
+    .onEnd(event=>{
+      if(Math.abs(event.translationY)>120||Math.abs(event.velocityY)>900){y.value=withTiming(event.translationY>0?height:-height,{duration:170},done=>{if(done)runOnJS(finish)();});}
+      else y.value=withSpring(0,{damping:20,stiffness:260});
+    });
+  const pageStyle=useAnimatedStyle(()=>({transform:[{translateY:y.value},{scale:interpolate(Math.abs(y.value),[0,height/2],[1,0.86],'clamp')}]}));
+  const backdropStyle=useAnimatedStyle(()=>({opacity:interpolate(Math.abs(y.value),[0,height/2],[1,0.15],'clamp')}));
+  const chromeStyle=useAnimatedStyle(()=>({opacity:interpolate(Math.abs(y.value),[0,90],[1,0],'clamp')}));
   const share=async()=>{
     if(!item)return;setSaving(true);
     try{const uri=await loadMedia(api,item);if(await Sharing.isAvailableAsync())await Sharing.shareAsync(uri,{mimeType:item.mimeType,dialogTitle:item.name});}catch{}finally{setSaving(false);}
   };
+  const kind=mediaPreviewKind(item||{name:'',mimeType:''});
+  const title=kind==='video'?'Видео':'Фото';
+  const circle={width:48,height:48,alignItems:'center' as const,justifyContent:'center' as const};
   return <Modal visible={visible} transparent animationType="fade" onRequestClose={onClose} statusBarTranslucent supportedOrientations={['portrait','landscape']}>
-    <Animated.View style={[StyleSheet.absoluteFill,{backgroundColor:'#000',opacity:backdrop}]}/>
-    <Animated.View style={{flex:1,transform:[{translateY:y}]}} {...pan.panHandlers}>
-      <FlatList data={items} horizontal pagingEnabled keyExtractor={a=>a.id} initialScrollIndex={Math.min(index,Math.max(0,items.length-1))} getItemLayout={(_d,i)=>({length:width,offset:width*i,index:i})} showsHorizontalScrollIndicator={false}
+    <GestureHandlerRootView style={{flex:1}}>
+    <Reanimated.View style={[StyleSheet.absoluteFill,{backgroundColor:'#000'},backdropStyle]}/>
+    <GestureDetector gesture={pan}><Reanimated.View style={[{flex:1},pageStyle]}>
+      <FlatList data={items} horizontal pagingEnabled keyExtractor={a=>a.id} initialScrollIndex={Math.min(index,Math.max(0,items.length-1))} getItemLayout={(_d,i)=>({length:width,offset:width*i,index:i})} showsHorizontalScrollIndicator={false} windowSize={3} initialNumToRender={1} maxToRenderPerBatch={2}
         onMomentumScrollEnd={e=>setCurrent(Math.round(e.nativeEvent.contentOffset.x/width))}
         renderItem={({item:page,index:i})=><Pressable onPress={()=>setChrome(v=>!v)} style={{width,height}}><GalleryPage api={api} attachment={page} width={width} height={height} active={i===current}/></Pressable>}/>
-    </Animated.View>
-    {chrome?<InsetView bottom={false} pointerEvents="box-none" style={{position:'absolute',top:0,left:0,right:0}}>
-      <View style={{flexDirection:'row',alignItems:'center',gap:10,paddingHorizontal:10,paddingVertical:8,backgroundColor:'rgba(0,0,0,0.35)'}}>
-        <Pressable onPress={onClose} accessibilityRole="button" accessibilityLabel="Закрыть" style={{width:42,height:42,alignItems:'center',justifyContent:'center'}}><Icon name="chevron-back" color="#FFF" size={26}/></Pressable>
-        <View style={{flex:1}}><Text style={{color:'#FFF',fontSize:16,fontWeight:'700'}}>{items.length>1?`${current+1} из ${items.length}`:mediaPreviewKind(item||{name:'',mimeType:''})==='video'?'Видео':'Фото'}</Text>{item?<Text style={{color:'rgba(255,255,255,0.7)',fontSize:12}}>{formatSize(item.size)}</Text>:null}</View>
-        <Pressable onPress={()=>void share()} disabled={saving} accessibilityRole="button" accessibilityLabel="Сохранить или поделиться" style={{width:42,height:42,alignItems:'center',justifyContent:'center',opacity:saving?.5:1}}><Icon name="share-outline" color="#FFF" size={23}/></Pressable>
+    </Reanimated.View></GestureDetector>
+    {chrome?<Reanimated.View pointerEvents="box-none" style={[{position:'absolute',top:0,left:0,right:0},chromeStyle]}><InsetView bottom={false} pointerEvents="box-none">
+      {/* Telegram-style floating controls: back, title pill, share. */}
+      <View pointerEvents="box-none" style={{flexDirection:'row',alignItems:'center',gap:8,paddingHorizontal:12,paddingTop:6}}>
+        <GlassSurface material="regular" radius={24} interactive contentStyle={circle}><Pressable onPress={onClose} accessibilityRole="button" accessibilityLabel="Закрыть" hitSlop={6} style={circle}><Icon name="chevron-back" color="#FFF" size={26}/></Pressable></GlassSurface>
+        <View pointerEvents="box-none" style={{flex:1,alignItems:'center'}}><GlassSurface material="regular" radius={24} contentStyle={{minHeight:48,justifyContent:'center',alignItems:'center',paddingHorizontal:18}}>
+          <Text style={{color:'#FFF',fontSize:15,fontWeight:'700'}}>{items.length>1?`${title} ${current+1} из ${items.length}`:title}</Text>
+          {item?<Text style={{color:'rgba(255,255,255,0.7)',fontSize:11}}>{formatSize(item.size)}</Text>:null}
+        </GlassSurface></View>
+        <GlassSurface material="regular" radius={24} interactive contentStyle={circle}><Pressable onPress={()=>void share()} disabled={saving} accessibilityRole="button" accessibilityLabel="Сохранить или поделиться" hitSlop={6} style={[circle,{opacity:saving?.5:1}]}>{saving?<ActivityIndicator color="#FFF"/>:<Icon name="share-outline" color="#FFF" size={22}/>}</Pressable></GlassSurface>
       </View>
-    </InsetView>:null}
+    </InsetView></Reanimated.View>:null}
+    {chrome&&items.length>1?<Reanimated.View pointerEvents="none" style={[{position:'absolute',bottom:34,left:0,right:0,flexDirection:'row',justifyContent:'center',gap:6},chromeStyle]}>{items.slice(0,12).map((a,i)=><View key={a.id} style={{width:i===current?8:6,height:i===current?8:6,borderRadius:4,backgroundColor:i===current?'#FFF':'rgba(255,255,255,0.4)'}}/>)}</Reanimated.View>:null}
+    </GestureHandlerRootView>
   </Modal>;
 }

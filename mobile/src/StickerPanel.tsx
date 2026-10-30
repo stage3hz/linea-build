@@ -1,3 +1,4 @@
+import { motionEnabled } from './motion';
 // Emoji stickers below the composer: a tap sends one large emoji, which the
 // chat shows without a bubble, like Telegram's big emoji. No images are
 // downloaded from third-party sticker services.
@@ -23,7 +24,7 @@ export function StickerPanel({ onPick, onClose }: { onPick: (emoji: string) => v
   const [set, setSet] = useState('recent'); const [recent, setRecent] = useState<string[]>([]);
   const lift = useRef(new Animated.Value(0)).current;
   useEffect(() => {
-    Animated.spring(lift, { toValue: 1, useNativeDriver: true, speed: 20, bounciness: 4 }).start();
+    if (!motionEnabled()) lift.setValue(1); else Animated.spring(lift, { toValue: 1, useNativeDriver: true, speed: 20, bounciness: 4 }).start();
     AsyncStorage.getItem(RECENT_KEY).then(raw => { try { const list = JSON.parse(raw || '[]'); if (Array.isArray(list)) { const clean = list.filter((x: unknown) => typeof x === 'string').slice(0, 32); setRecent(clean); if (!clean.length) setSet('faces'); } } catch { setSet('faces'); } }).catch(() => setSet('faces'));
   }, []);
   const pick = (emoji: string) => {

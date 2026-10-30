@@ -115,6 +115,7 @@ export class Api {
   privacy = () => this.request<{privacy: Privacy}>('/me/privacy');
   updatePrivacy = (change: Partial<Privacy>) => this.request<{privacy: Privacy}>('/me/privacy', {method: 'PATCH', body: JSON.stringify(change)});
   profile = (fields: Partial<Pick<User, 'displayName'|'bio'|'avatarColor'|'avatarId'>>) => this.request<{user: User}>('/me', {method: 'PATCH', body: JSON.stringify(fields)});
+  changeLoginName = (newLogin: string, currentPassword: string, currentConfirmationWord?: string) => this.request<{ok: true; loginName: string}>('/auth/login-name', { method: 'POST', body: JSON.stringify({ newLogin, currentPassword, currentConfirmationWord }) });
   usernameStatus = () => this.request<UsernameStatus>('/me/username');
   changeUsername = (username:string) => this.request<{user:User;status:UsernameStatus}>('/me/username',{method:'PATCH',body:JSON.stringify({username})});
   changeStatusEmoji = (statusEmoji:string|null) => this.request<{user:User;status:UsernameStatus}>('/me/status-emoji',{method:'PATCH',body:JSON.stringify({statusEmoji})});

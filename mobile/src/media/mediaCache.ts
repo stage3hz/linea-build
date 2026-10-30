@@ -3,7 +3,6 @@
 // Files live in the app's private cache folder under the `linea-view-` prefix,
 // so clearDecryptedAttachmentCache() wipes them on sign-in and sign-out.
 import { useCallback, useEffect, useState } from 'react';
-import * as Crypto from 'expo-crypto';
 import * as FileSystem from 'expo-file-system/legacy';
 import type { Api } from '../api';
 import type { Attachment } from '../types';
@@ -35,7 +34,7 @@ function evict() {
     if (total <= LIMIT_BYTES) break;
     if (listeners.get(key)?.size) continue; // on screen right now
     entries.delete(key); total -= entry.size;
-    if (entry.uri) void FileSystem.deleteAsync(entry.uri, { idempotent: true }).catch(() => {});
+    if (entry.uri) void FileSystem.deleteAsync(entry.uri.slice(0, entry.uri.lastIndexOf('/') + 1), { idempotent: true }).catch(() => {});
   }
 }
 
@@ -51,16 +50,24 @@ export function loadMedia(api: Api, attachment: Attachment): Promise<string> {
   if (existing?.status === 'ready' && existing.uri) { existing.usedAt = Date.now(); return Promise.resolve(existing.uri); }
   if (existing?.status === 'loading' && existing.promise) return existing.promise;
   const abort = new AbortController(), owner = generation;
-  const target = `${FileSystem.cacheDirectory}linea-view-cache-${Crypto.randomUUID()}-${attachmentFileName(attachment)}`;
+  // One stable folder per file: the original name is kept (Quick Look / «Открыть в…» show it),
+  // and after a restart the decrypted copy is found on disk instead of being downloaded again.
+  const folder = `${FileSystem.cacheDirectory}linea-view-cache-${key.replace(/[^A-Za-z0-9-]/g, '_')}/`;
+  const target = `${folder}${attachmentFileName(attachment)}`;
   const entry: Entry = { status: 'loading', progress: 0, size: attachment.size, usedAt: Date.now(), abort };
   let lastPublished = 0;
-  entry.promise = decryptAttachmentWithProgress(api, attachment, fraction => {
+  entry.promise = FileSystem.getInfoAsync(target).catch(() => null).then(async info => {
+    if (info?.exists && !info.isDirectory && info.size === attachment.size) return;
+    await FileSystem.deleteAsync(folder, { idempotent: true }).catch(() => {});
+    await FileSystem.makeDirectoryAsync(folder, { intermediates: true });
+    await decryptAttachmentWithProgress(api, attachment, fraction => {
     if (entries.get(key) !== entry) return;
     entry.progress = fraction;
     const now = Date.now();
     if (now - lastPublished > 80 || fraction >= 1) { lastPublished = now; publish(key); }
-  }, target, abort.signal).then(() => {
-    if (owner !== generation || entries.get(key) !== entry) { void FileSystem.deleteAsync(target, { idempotent: true }).catch(() => {}); throw new Error('Загрузка отменена.'); }
+  }, target, abort.signal);
+  }).then(() => {
+    if (owner !== generation || entries.get(key) !== entry) { void FileSystem.deleteAsync(folder, { idempotent: true }).catch(() => {}); throw new Error('Загрузка отменена.'); }
     entry.status = 'ready'; entry.progress = 1; entry.uri = target; entry.abort = undefined; entry.promise = undefined;
     publish(key); evict();
     return target;

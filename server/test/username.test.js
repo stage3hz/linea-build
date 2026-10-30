@@ -278,7 +278,8 @@ test('v3 migration preserves identity, sessions and pending recovery, and preven
     assert.equal(db.prepare('SELECT id FROM sessions').get().id, sessionId);
     assert.equal(db.prepare('SELECT id FROM recovery_grants').get().id, recoveryId);
     assert.equal(db.prepare('SELECT COUNT(*) AS count FROM platina_entitlements').get().count, 0);
-    assert.throws(() => db.prepare('UPDATE users SET login_name=? WHERE id=?').run('changed', accountId), /immutable/i);
+    // The login may change only through /auth/login-name; the database still rejects malformed logins.
+    assert.throws(() => db.prepare('UPDATE users SET login_name=? WHERE id=?').run('Bad Login!', accountId), /invalid or reserved/i);
     assert.throws(() => db.prepare('UPDATE users SET id=? WHERE id=?').run(randomUUID(), accountId), /immutable/i);
     assert.equal(publicUser(user, { db }).statusEmoji, null);
   };
@@ -406,4 +407,24 @@ test('permanent Platina and its emoji survive public renames, server restart and
   assert.equal(peer.statusEmoji, null);
   assert.equal(peer.statusEmojiExpiresAt, null);
   assert.equal('statusEmojiPermanent' in peer, false);
+});
+
+test('the sign-in login can be changed with the current password and confirmation word', async t => {
+  const f = await fixture(t);
+  const alice = await register(f.app, 'samelogin');
+  const other = await login(f.app, 'samelogin'); assert.equal(other.statusCode, 200);
+  const change = (payload, account = alice) => request(f.app, 'POST', '/auth/login-name', account, payload);
+  assert.equal((await change({ currentPassword: 'wrong', currentConfirmationWord: CONFIRMATION, newLogin: 'secretlogin' })).statusCode, 401);
+  await register(f.app, 'bob');
+  assert.equal((await change({ currentPassword: PASSWORD, currentConfirmationWord: CONFIRMATION, newLogin: 'bob' })).statusCode, 409);
+  assert.equal((await change({ currentPassword: PASSWORD, currentConfirmationWord: CONFIRMATION, newLogin: 'Bad Login!' })).statusCode, 400);
+  const ok = await change({ currentPassword: PASSWORD, currentConfirmationWord: CONFIRMATION, newLogin: 'SecretLogin' });
+  assert.equal(ok.statusCode, 200, ok.body); assert.equal(ok.json().loginName, 'secretlogin');
+  // Current session keeps working, the other session is signed out.
+  assert.equal((await status(f.app, alice)).json().loginName, 'secretlogin');
+  assert.equal((await status(f.app, other.json())).statusCode, 401);
+  assert.equal((await login(f.app, 'samelogin')).statusCode, 401);
+  assert.equal((await login(f.app, 'secretlogin')).statusCode, 200);
+  // The public username stays and the old login is free again for nobody else's confusion.
+  assert.equal((await status(f.app, alice)).json().username, 'samelogin');
 });

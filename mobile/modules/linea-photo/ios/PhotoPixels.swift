@@ -22,11 +22,22 @@ enum PhotoPixels {
   static func document(_ image: PixelImage, monochrome: Bool) -> PixelImage {
     let opaque = whiteBackground(image)
     let luma = opaque.pixels.map { pixel in UInt8((channel(pixel,16)*77+channel(pixel,8)*150+channel(pixel,0)*29+128)/256) }
-    let localMax = maxFilter(luma,width:image.width,height:image.height,radius:max(2,min(image.width,image.height)/32))
-    let illumination = boxBlur(localMax,width:image.width,height:image.height,radius:max(4,min(image.width,image.height)/12))
+    let side = min(image.width,image.height)
+    // Paper brightness: local maximum, then a blur no wider than that maximum,
+    // so the estimate never spills from bright paper into shadows or the table.
+    let closeRadius = max(2,side/40)
+    let localMax = maxFilter(luma,width:image.width,height:image.height,radius:closeRadius)
+    let illumination = boxBlur(localMax,width:image.width,height:image.height,radius:max(2,closeRadius/2))
+    let normalized = luma.indices.map { i in min(Float(255),Float(luma[i])*255/max(16,illumination[i])) }
+    // Black-and-white: a pixel is ink only when it is clearly darker than its neighbourhood
+    // (or simply very dark). Large uniformly dark areas therefore stay white instead of becoming blots.
+    let neighbourhood = monochrome ? blurFloat(normalized,width:image.width,height:image.height,radius:max(4,side/24)) : normalized
     let output = opaque.pixels.enumerated().map { index, pixel -> UInt32 in
       let divisor = max(16,Double(illumination[index]))
-      if monochrome { return Double(luma[index])*255/divisor < 214 ? 0xff000000 : 0xffffffff }
+      if monochrome {
+        let value = normalized[index]; let mean = neighbourhood[index]
+        return (value < mean*0.90 && mean-value > 8) || value < 150 ? 0xff000000 : 0xffffffff
+      }
       return color(255,byte(Double(channel(pixel,16))*255/divisor),byte(Double(channel(pixel,8))*255/divisor),byte(Double(channel(pixel,0))*255/divisor))
     }
     return PixelImage(width:image.width,height:image.height,pixels:output)
@@ -51,6 +62,13 @@ enum PhotoPixels {
       while tail > head && queue[head] < position-radius { head += 1 }
       write(position,read(queue[head]))
     }
+  }
+  private static func blurFloat(_ input: [Float], width: Int, height: Int, radius: Int) -> [Float] {
+    var horizontal = [Float](repeating:0,count:input.count)
+    var output = horizontal
+    for y in 0..<height { blurLine(length:width,radius:radius,read:{input[y*width+$0]},write:{horizontal[y*width+$0]=$1}) }
+    for x in 0..<width { blurLine(length:height,radius:radius,read:{horizontal[$0*width+x]},write:{output[$0*width+x]=$1}) }
+    return output
   }
   private static func boxBlur(_ input: [UInt8], width: Int, height: Int, radius: Int) -> [Float] {
     var horizontal = [Float](repeating:0,count:input.count)

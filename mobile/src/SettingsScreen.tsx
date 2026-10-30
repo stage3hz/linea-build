@@ -9,6 +9,8 @@ import { Avatar, Icon, IconButton, Notice, type IconName } from './components';
 import { GlassSurface } from './glass';
 import { useTheme, formatSize } from './theme';
 import { ThemeSettings } from './ThemeSettings';
+import { useMotion } from './motion';
+import type { AnimationMode } from './motionPolicy';
 import { AppIconPicker } from './AppIconPicker';
 import { StatusEmoji } from './StatusEmoji';
 import { TEXT_SIZES, setChatPreferences, textMetrics, useChatPreferences } from './chatPreferences';
@@ -101,6 +103,7 @@ function Appearance({ theme, darkTheme, onTheme, onDarkTheme }: Props) {
   return <>
     <Group label="Тема"><View style={{ padding: 14 }}><ThemeSettings mode={theme} darkTheme={darkTheme} onChange={onTheme} onDarkTheme={onDarkTheme} /></View></Group>
     <Group label="Иконка приложения"><AppIconPicker /></Group>
+    <Group label="Анимации"><MotionSettings /></Group>
     <Group label="Размер текста в чатах">
       <View style={{ padding: 14, gap: 12 }}>
         <View style={{ alignSelf: 'flex-start', maxWidth: '85%', backgroundColor: t.incoming, borderRadius: 20, borderBottomLeftRadius: 7, paddingHorizontal: 12, paddingVertical: 9 }}><Text style={{ color: t.text, fontSize: metrics.fontSize, lineHeight: metrics.lineHeight }}>Привет! Так будет выглядеть текст сообщений.</Text></View>
@@ -173,4 +176,16 @@ function DataSection() {
       </View>
     </Group>
   </>;
+}
+
+function MotionSettings() {
+  const t = useTheme(); const preferences = useChatPreferences(); const motion = useMotion();
+  const options: { id: AnimationMode; label: string }[] = [{ id: 'auto', label: 'Авто' }, { id: 'on', label: 'Всегда' }, { id: 'off', label: 'Выкл' }];
+  return <View style={{ padding: 14, gap: 10 }}>
+    <View style={{ flexDirection: 'row', gap: 7 }}>{options.map(option => {
+      const selected = preferences.animations === option.id;
+      return <Pressable key={option.id} accessibilityRole="radio" accessibilityState={{ selected }} onPress={() => setChatPreferences({ animations: option.id })} style={{ flex: 1, alignItems: 'center', paddingVertical: 10, borderRadius: 15, backgroundColor: selected ? t.accentSoft : t.surface2, borderWidth: 1, borderColor: selected ? t.accent : t.border }}><Text style={{ color: selected ? t.accent : t.text, fontSize: 13, fontWeight: '600' }}>{option.label}</Text></Pressable>;
+    })}</View>
+    <Text style={{ color: t.muted, fontSize: 12, lineHeight: 17 }}>{motion.reason}</Text>
+  </View>;
 }

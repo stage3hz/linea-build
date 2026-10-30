@@ -15,6 +15,7 @@ import { signalAvailable } from '../e2ee/signal';
 import { shareEncryptedAttachment } from '../e2ee/attachments';
 import { AttachmentPanel } from '../attachments/AttachmentPanel';
 import { AttachmentViewer } from '../media/AttachmentViewer';
+import { openDocument } from '../media/documentPreview';
 import { mediaPreviewKind } from '../media/formats';
 import { textMetrics, useChatPreferences } from '../chatPreferences';
 import { VoiceBubble, VoicePlaybackProvider, VoiceRecordingBar, useVoiceRecorder } from '../voice/VoiceMessage';
@@ -67,7 +68,7 @@ export function SavedScreen({ api, user, store, onBack, wide = false }: { api: A
   const voice = useVoiceRecorder(() => void finishVoice(true));
   const open = (file: Attachment) => {
     if (mediaPreviewKind(file) !== 'file') setPreview(file);
-    else shareEncryptedAttachment(api, file).catch(e => fail(e, 'Не удалось открыть файл.'));
+    else openDocument(api, file).then(shown => { if (!shown) setPreview(file); }).catch(e => fail(e, 'Не удалось открыть файл.'));
   };
   const copy = async (value: string) => { await Clipboard.setStringAsync(value); setActions(null); flash('Скопировано'); };
 
@@ -94,7 +95,7 @@ export function SavedScreen({ api, user, store, onBack, wide = false }: { api: A
               <Pressable onLongPress={() => setActions(item)} delayLongPress={400} accessibilityLabel={item.text || item.attachment?.name || 'Запись'} style={{ maxWidth: wide ? '76%' : '85%', minWidth: 74, backgroundColor: t.bubble, borderRadius: 23, borderBottomRightRadius: 8, paddingHorizontal: 12, paddingTop: item.attachment ? 7 : 11, paddingBottom: 7, borderWidth: 1, borderColor: t.dark ? 'rgba(157,182,255,0.25)' : 'rgba(255,255,255,0.83)' }}>
                 {item.origin ? <Text style={{ color: t.accent, fontSize: 11, fontWeight: '600', marginBottom: 4 }}>{item.origin.author === user.displayName ? 'Твоё сообщение' : `От ${item.origin.author}`} · {formatDay(item.origin.sentAt)}</Text> : null}
                 {item.attachment ? <View style={{ marginBottom: item.text ? 7 : 1 }}>{isVoice(item.attachment) ? <VoiceBubble attachment={item.attachment} mine /> : <AttachmentCard api={api} attachment={item.attachment} onPress={() => open(item.attachment!)} />}</View> : null}
-                {item.text ? <Text selectable style={{ color: t.text, fontSize: metrics.fontSize, lineHeight: metrics.lineHeight }}>{item.text}</Text> : null}
+                {item.text ? <Text selectable={false} style={{ color: t.text, fontSize: metrics.fontSize, lineHeight: metrics.lineHeight }}>{item.text}</Text> : null}
                 <Text style={{ color: t.muted, fontSize: 9, alignSelf: 'flex-end', marginTop: 4 }}>{item.editedAt ? 'изм. ' : ''}{formatTime(item.savedAt)}</Text>
               </Pressable>
             </View>

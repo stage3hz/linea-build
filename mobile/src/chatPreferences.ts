@@ -9,9 +9,11 @@ export const TEXT_SIZES: { id: TextSize; label: string; fontSize: number; lineHe
   { id: 'large', label: 'Крупный', fontSize: 17, lineHeight: 24 },
   { id: 'xlarge', label: 'Очень крупный', fontSize: 20, lineHeight: 28 },
 ];
-export type ChatPreferences = { textSize: TextSize; sendTyping: boolean };
+import type { AnimationMode } from './motionPolicy';
+export type { AnimationMode };
+export type ChatPreferences = { textSize: TextSize; sendTyping: boolean; animations: AnimationMode };
 const KEY = 'linea.chat-preferences.v1';
-const DEFAULTS: ChatPreferences = { textSize: 'medium', sendTyping: true };
+const DEFAULTS: ChatPreferences = { textSize: 'medium', sendTyping: true, animations: 'auto' };
 
 let current: ChatPreferences = DEFAULTS;
 const listeners = new Set<() => void>();
@@ -24,6 +26,7 @@ export function parsePreferences(raw: string | null): ChatPreferences {
     return {
       textSize: TEXT_SIZES.some(size => size.id === value?.textSize) ? value.textSize : DEFAULTS.textSize,
       sendTyping: typeof value?.sendTyping === 'boolean' ? value.sendTyping : DEFAULTS.sendTyping,
+      animations: value?.animations === 'on' || value?.animations === 'off' ? value.animations : 'auto',
     };
   } catch { return DEFAULTS; }
 }

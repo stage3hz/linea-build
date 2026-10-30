@@ -8,6 +8,17 @@ const TOKEN_KEY = 'linea.session.v1';
 const SERVER_KEY = 'linea.server.v1';
 const THEME_KEY = 'linea.theme.v1';
 const DARK_THEME_KEY = 'linea.dark-theme.v1';
+const USER_KEY = 'linea.session-user.v1';
+
+/** Last known profile of the signed-in account: lets the app open instantly (as Telegram) and refresh in the background. */
+export async function readCachedUser<T>(): Promise<T | null> {
+  if (Platform.OS === 'web') return null;
+  try { const raw = await AsyncStorage.getItem(USER_KEY); return raw ? JSON.parse(raw) as T : null; } catch { return null; }
+}
+export async function writeCachedUser(user: unknown | null) {
+  if (Platform.OS === 'web') return;
+  try { if (user) await AsyncStorage.setItem(USER_KEY, JSON.stringify(user)); else await AsyncStorage.removeItem(USER_KEY); } catch { /* best effort */ }
+}
 
 export async function readToken(): Promise<string | null> {
   if (Platform.OS === 'web') return typeof sessionStorage === 'undefined' ? null : sessionStorage.getItem(TOKEN_KEY);
@@ -19,7 +30,7 @@ export async function writeToken(token: string | null) {
     return;
   }
   if (token) await SecureStore.setItemAsync(TOKEN_KEY, token, { keychainAccessible: SecureStore.WHEN_UNLOCKED_THIS_DEVICE_ONLY });
-  else await SecureStore.deleteItemAsync(TOKEN_KEY);
+  else { await SecureStore.deleteItemAsync(TOKEN_KEY); await AsyncStorage.removeItem(USER_KEY).catch(() => {}); }
 }
 export const readServer = () => AsyncStorage.getItem(SERVER_KEY);
 export const writeServer = (url: string) => AsyncStorage.setItem(SERVER_KEY, url);

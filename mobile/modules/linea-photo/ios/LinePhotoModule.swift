@@ -19,6 +19,10 @@ public final class LinePhotoModule: Module {
     }.runOnQueue(writer)
     AsyncFunction("dispose"){(uri:String) in try self.protect{try PhotoFiles().dispose(uri)}}.runOnQueue(writer)
     AsyncFunction("clearCache"){try self.protect{try PhotoFiles().clearCache()}}.runOnQueue(writer)
+    AsyncFunction("previewFile"){(uri:String) -> Bool in
+      let presenter=self.appContext?.utilities?.currentViewController()
+      return try self.protect{try FilePreview.present(uri,from:presenter)}
+    }.runOnQueue(.main)
   }
   private func render(_ uri: String, options: PhotoOptions) throws -> [String:Any] {
     let files=PhotoFiles();let header=try files.header(uri)
