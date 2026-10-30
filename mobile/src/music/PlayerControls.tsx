@@ -1,5 +1,5 @@
 import React, { useEffect, useRef, useState } from 'react';
-import { ActivityIndicator, Animated, Image, PanResponder, Platform, Pressable, StyleSheet, View, type GestureResponderEvent } from 'react-native';
+import { ActivityIndicator, Animated, Image, PanResponder, Platform, Pressable, StyleSheet, View, type GestureResponderEvent, useWindowDimensions } from 'react-native';
 import { Text } from '../typography';
 import { LinearGradient } from 'expo-linear-gradient';
 import { Button, Icon, IconButton, Notice } from '../components';
@@ -70,8 +70,24 @@ export function MiniPlayer({ onOpen }: { onOpen: () => void }) {
     <IconButton name="play-skip-back" label="Предыдущий трек или начало текущего" onPress={() => void music.previous()} size={20} style={{ width: 36, height: 44 }} />
     <PlaybackButton />
     <IconButton name="play-skip-forward" label="Следующий трек" onPress={() => void music.next()} size={20} disabled={music.queue.length < 2} style={{ width: 36, height: 44 }} />
+    <IconButton name="close" label="Закрыть плеер и остановить музыку" onPress={music.stop} size={20} color={t.muted} style={{ width: 34, height: 44 }} />
     <View pointerEvents="none" style={{ position: 'absolute', bottom: 0, left: 15, right: 15, height: 2, backgroundColor: t.border }}><View style={{ height: 2, width: `${progress * 100}%`, backgroundColor: t.accent }} /></View>
   </GlassSurface></Animated.View>;
+}
+
+/** Telegram-style player strip shown under the chat header while music plays. */
+export function TopPlayerBar({ onOpen }: { onOpen: () => void }) {
+  const music = useMusic(), t = useTheme();
+  if (!music.current) return null;
+  const progress = music.duration > 0 ? Math.min(1, music.position / music.duration) : 0;
+  return <GlassSurface radius={18} material="regular" shadow={false} style={{ marginHorizontal: 12 }} contentStyle={{ flexDirection: 'row', alignItems: 'center', minHeight: 40, paddingLeft: 4, paddingRight: 2 }}>
+    <IconButton name={music.playing ? 'pause' : 'play'} label={music.playing ? 'Пауза' : 'Слушать'} onPress={() => void music.togglePlayback()} size={18} color={t.accent} style={{ width: 36, height: 40 }} />
+    <Pressable onPress={onOpen} accessibilityRole="button" accessibilityLabel={`Открыть плеер: ${music.current.title}, ${music.current.artist}`} style={{ flex: 1, minWidth: 0, paddingHorizontal: 4 }}>
+      <Text numberOfLines={1} style={{ color: t.text, fontSize: 13, fontWeight: '600' }}>{music.current.title}<Text style={{ color: t.muted, fontWeight: '400' }}>{`  ${music.current.artist}`}</Text></Text>
+    </Pressable>
+    <IconButton name="close" label="Закрыть плеер и остановить музыку" onPress={music.stop} size={18} color={t.muted} style={{ width: 36, height: 40 }} />
+    <View pointerEvents="none" style={{ position: 'absolute', bottom: 0, left: 14, right: 14, height: 2, borderRadius: 1, backgroundColor: t.border }}><View style={{ height: 2, borderRadius: 1, width: `${progress * 100}%`, backgroundColor: t.accent }} /></View>
+  </GlassSurface>;
 }
 
 function SeekBar() {
@@ -97,14 +113,14 @@ function SeekBar() {
 }
 
 export function PlayerControls({ compact = false, onOpen }: { compact?: boolean; onOpen?: () => void } = {}) {
-  const music = useMusic(), t = useTheme(); const [showQueue, setShowQueue] = useState(false);
+  const music = useMusic(), t = useTheme(); const [showQueue, setShowQueue] = useState(false); const { width } = useWindowDimensions();
   if (compact && onOpen) return <MiniPlayer onOpen={onOpen} />;
   const track = music.current;
   if (!track) return <View style={{ alignItems: 'center', gap: 15, paddingVertical: 30 }}><Icon name="musical-notes-outline" color={t.accent} size={42} /><Text style={{ color: t.text, fontSize: 19, fontWeight: '600' }}>Выбери музыку для своего дня</Text><Text style={{ color: t.muted, fontSize: 14, lineHeight: 21, textAlign: 'center' }}>Найди трек или добавь аудиофайлы с устройства.</Text></View>;
   const favorite = music.favorites.some(item => item.id === track.id), downloading = Object.prototype.hasOwnProperty.call(music.downloads, track.id);
   const repeatLabel = music.repeat === 'one' ? 'Повтор одного трека' : music.repeat === 'all' ? 'Повтор очереди' : 'Повтор выключен';
   return <View style={{ gap: 21, paddingBottom: 5 }}>
-    <View style={{ alignItems: 'center', paddingVertical: 4 }}><GlassSurface radius={39} material="clear" style={{ padding: 7 }} contentStyle={{ alignItems: 'center' }}><TrackArtwork track={track} size={222} /></GlassSurface></View>
+    <View style={{ alignItems: 'center', paddingVertical: 4 }}><View style={{ borderRadius: 34, shadowColor: '#000', shadowOpacity: .35, shadowRadius: 22, shadowOffset: { width: 0, height: 12 } }}><TrackArtwork track={track} size={Math.min(330, width - 72)} /></View></View>
     <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12 }}>
       <View style={{ flex: 1, gap: 6 }}><Text numberOfLines={3} style={{ color: t.text, fontSize: 25, lineHeight: 30, fontWeight: '700', letterSpacing: -.6 }}>{track.title}</Text><Text numberOfLines={2} style={{ color: t.muted, fontSize: 16, lineHeight: 22 }}>{track.artist}</Text><Text style={{ color: t.subtle, fontSize: 11, letterSpacing: .5 }}>{track.source === 'audius' ? 'AUDIUS · ОНЛАЙН' : Platform.OS === 'web' ? 'ЛОКАЛЬНЫЙ ФАЙЛ · ДО ПЕРЕЗАГРУЗКИ' : 'НА ЭТОМ УСТРОЙСТВЕ'}</Text></View>
       <IconButton name={favorite ? 'heart' : 'heart-outline'} label={favorite ? 'Убрать из избранного' : 'Добавить в избранное'} color={favorite ? t.accent : t.text} onPress={() => void music.toggleFavorite(track)} />

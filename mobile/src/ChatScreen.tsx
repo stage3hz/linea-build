@@ -5,6 +5,7 @@ import { ActivityIndicator, FlatList, Keyboard, Platform, Pressable, ScrollView,
 import { Text, TextInput } from './typography';
 import { KeyboardSafeView } from './keyboard';
 import * as Clipboard from 'expo-clipboard';
+import { LinearGradient } from 'expo-linear-gradient';
 import * as FileSystem from 'expo-file-system/legacy';
 import type { Api } from './api';
 import { AttachmentCard, Avatar, Empty, Icon, IconButton, Notice, Sheet, SheetAction } from './components';
@@ -30,6 +31,7 @@ import { presenceText } from './presence';
 import { VoicePlaybackProvider, VoiceRecordingBar, useVoiceRecorder } from './voice/VoiceMessage';
 import { MessageRow, type AlbumPart, type Row, type RowHandlers } from './MessageRow';
 import { ContextMenu, MenuItem } from './ContextMenu';
+import { TopPlayerBar } from './music/PlayerControls';
 import { UserProfile } from './UserProfile';
 import { impactFeedback, lightFeedback } from './haptics';
 import { VideoNoteRecorder, type VideoNoteTake } from './videonote/VideoNote';
@@ -38,7 +40,7 @@ import { attachmentLabel, isVideoNote, isVoice } from './voice/voice';
 import { VOICE_MIME, VOICE_MIN_MS, videoNoteFileName, voiceFileName } from './voice/voice';
 
 
-export function ChatScreen({api,user,chat,store,onBack,wide=false}: {api:Api;user:User;chat:Chat;store:MessengerStore;onBack:()=>void;wide?:boolean}) {
+export function ChatScreen({api,user,chat,store,onBack,wide=false,onOpenMusic}: {api:Api;user:User;chat:Chat;store:MessengerStore;onBack:()=>void;wide?:boolean;onOpenMusic?:()=>void}) {
   const t=useTheme();const [attachMenu,setAttachMenu]=useState(false);const [uploading,setUploading]=useState(false);const [downloadId,setDownloadId]=useState<string|null>(null);const [localError,setLocalError]=useState('');const [preview,setPreview]=useState<Attachment|null>(null);const [peerInfo,setPeerInfo]=useState(false);const [actions,setActions]=useState<Row|null>(null);const [menuY,setMenuY]=useState(0);const [copied,setCopied]=useState(false);
   const [securityOpen,setSecurityOpen]=useState(false);
   const photoContext=`${user.id}:${chat.id}`;const currentPhotoContext=useRef(photoContext);currentPhotoContext.current=photoContext;
@@ -220,6 +222,8 @@ export function ChatScreen({api,user,chat,store,onBack,wide=false}: {api:Api;use
   };
   return <VoicePlaybackProvider api={api}><KeyboardSafeView style={{flex:1,backgroundColor:'transparent'}}>
     <View pointerEvents="box-none" onLayout={e=>setHeaderHeight(e.nativeEvent.layout.height)} style={{position:'absolute',top:0,left:0,right:0,zIndex:5,paddingTop:8,gap:6}}>
+    {/* Messages fade out under the status bar instead of ending at a hard edge. */}
+    <LinearGradient pointerEvents="none" colors={[t.bgGradient[0],'transparent']} style={{position:'absolute',top:0,left:0,right:0,height:34}}/>
     {selection?<View style={{flexDirection:'row',alignItems:'center',gap:8,paddingHorizontal:12}}>
       <GlassSurface material="regular" radius={24} interactive contentStyle={{height:48,justifyContent:'center',paddingHorizontal:16}}><Pressable onPress={()=>setSelection(null)} accessibilityRole="button" hitSlop={8}><Text style={{color:t.accent,fontSize:16,fontWeight:'600'}}>Отмена</Text></Pressable></GlassSurface>
       <View style={{flex:1,alignItems:'center'}}><GlassSurface material="regular" radius={24} contentStyle={{height:48,justifyContent:'center',paddingHorizontal:18}}><Text style={{color:t.text,fontSize:16,fontWeight:'700'}}>Выбрано: {selectedMessages.length}</Text></GlassSurface></View>
@@ -236,6 +240,7 @@ export function ChatScreen({api,user,chat,store,onBack,wide=false}: {api:Api;use
       </View>
       <Pressable onPress={()=>setPeerInfo(true)} accessibilityRole="button" accessibilityLabel="Открыть профиль" style={({pressed})=>({opacity:pressed?.75:1,borderRadius:28,borderWidth:1.5,borderColor:t.glassBorder})}><Avatar user={chat.peer} api={api} size={52}/></Pressable>
     </View>}
+    {onOpenMusic&&!selection?<TopPlayerBar onOpen={onOpenMusic}/>:null}
     {searchOpen?<GlassSurface material="regular" radius={22} shadow={false} style={{marginHorizontal:12}} contentStyle={{flexDirection:'row',alignItems:'center',gap:9,paddingHorizontal:14,minHeight:46}}>
       <Icon name="search-outline" size={18} color={t.muted}/>
       <TextInput autoFocus value={query} onChangeText={setQuery} placeholder="Поиск в этом чате" placeholderTextColor={t.muted} selectionColor={t.accent} keyboardAppearance={t.dark?'dark':'light'} accessibilityLabel="Поиск в этом чате" style={{flex:1,color:t.text,fontSize:15,paddingVertical:10}}/>

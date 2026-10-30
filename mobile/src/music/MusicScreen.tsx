@@ -17,6 +17,9 @@ const sections: { id: Section; label: string }[] = [
   { id: 'saved', label: 'Мои файлы' },
 ];
 
+const CATALOG_TTL = 10 * 60 * 1000;
+const catalogCache = new Map<string, { at: number; tracks: MusicTrack[]; nextOffset: number | null }>();
+
 export function MusicScreen({ onBack }: { onBack: () => void }) {
   const t = useTheme();
   const music = useMusic();
@@ -47,10 +50,17 @@ export function MusicScreen({ onBack }: { onBack: () => void }) {
     paginationBusy.current = false;
     setLoadingMore(false);
     if (section !== 'catalog') { setLoading(false); return; }
-    setLoading(true); setError(''); setNextOffset(null); setTracks([]);
+    // Switching moods is instant for anything seen in the last minutes; otherwise the old
+    // list stays on screen until the new one arrives (no empty «Ищем музыку…» flash).
+    const cacheKey = `${query}|${mood}|${downloadableOnly}`;
+    const cached = catalogCache.get(cacheKey);
+    setError('');
+    if (cached && Date.now() - cached.at < CATALOG_TTL) { setTracks(cached.tracks); setNextOffset(cached.nextOffset); setLoading(false); return () => { generation.current++; }; }
+    setLoading(true);
     searchMusic({ query, mood, downloadableOnly, limit: 24, offset: 0 })
       .then(result => {
         if (generation.current !== request) return;
+        catalogCache.set(cacheKey, { at: Date.now(), tracks: result.tracks, nextOffset: result.nextOffset });
         setTracks(result.tracks); setNextOffset(result.nextOffset);
       })
       .catch(reason => {
@@ -172,7 +182,7 @@ export function MusicScreen({ onBack }: { onBack: () => void }) {
         {music.notice ? <Notice text={music.notice} /> : null}
         {music.libraryLoading && section !== 'catalog' ? <ActivityIndicator color={t.accent} style={{ paddingVertical: 20 }} /> : null}
         {error && section === 'catalog' ? <Notice text={error} error onRetry={() => setRevision(value => value + 1)} /> : null}
-        {loading && section === 'catalog' ? <View style={{ paddingVertical: 28, alignItems: 'center', gap: 11 }}><ActivityIndicator color={t.accent} /><Text style={{ color: t.muted, fontSize: 12 }}>Ищем музыку…</Text></View> : null}
+        {loading && section === 'catalog' ? tracks.length ? <ActivityIndicator size="small" color={t.accent} style={{ paddingVertical: 6 }} /> : <View style={{ paddingVertical: 28, alignItems: 'center', gap: 11 }}><ActivityIndicator color={t.accent} /><Text style={{ color: t.muted, fontSize: 12 }}>Ищем музыку…</Text></View> : null}
       </View>}
       renderItem={({ item }) => <TrackRow track={item} active={music.current?.id === item.id} playing={music.current?.id === item.id && music.playing} favorite={favoriteIds.has(item.id)} onPlay={() => music.current?.id === item.id ? music.togglePlayback() : begin(item)} onFavorite={() => music.toggleFavorite(item)} onMore={() => setActionTrack(item)} />}
       ListEmptyComponent={(section === 'catalog' ? !loading && !error : !music.libraryLoading) ? <Empty icon={section === 'saved' ? 'folder-open-outline' : section === 'favorites' ? 'heart-outline' : 'musical-notes-outline'} title={emptyTitle} description={emptyDescription} action={section === 'saved' ? <Button label="Добавить файлы" icon="add" loading={music.importing} onPress={() => void music.importFiles()} /> : undefined} /> : null}
