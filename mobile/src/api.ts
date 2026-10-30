@@ -125,6 +125,46 @@ export class Api {
   fileUrl = (id: string) => `${this.base}/files/${encodeURIComponent(id)}`;
   socketUrl = () => this.base.replace(/^http/, 'ws') + '/ws';
 
+  // Communities (game servers and blog channels). Not end-to-end encrypted by design.
+  communities = () => this.request<{communities: import('./communities/types').CommunitySummary[]}>('/communities');
+  createCommunity = (fields: {kind: 'server'|'blog'; name: string; description?: string; avatarId?: string|null}) => this.request<{community: import('./communities/types').Community}>('/communities', {method: 'POST', body: JSON.stringify(fields)});
+  community = (id: string) => this.request<{community: import('./communities/types').Community}>(`/communities/${encodeURIComponent(id)}`);
+  updateCommunity = (id: string, fields: {name?: string; description?: string; avatarId?: string|null}) => this.request<{community: import('./communities/types').Community}>(`/communities/${encodeURIComponent(id)}`, {method: 'PATCH', body: JSON.stringify(fields)});
+  communityMe = (id: string, fields: {muted?: boolean; lastReadId?: number}) => this.request<{community: import('./communities/types').CommunitySummary}>(`/communities/${encodeURIComponent(id)}/me`, {method: 'PATCH', body: JSON.stringify(fields)});
+  deleteCommunity = (id: string) => this.request<{ok: true}>(`/communities/${encodeURIComponent(id)}`, {method: 'DELETE'});
+  leaveCommunity = (id: string) => this.request<{ok: true}>(`/communities/${encodeURIComponent(id)}/leave`, {method: 'POST', body: '{}'});
+  communityMembers = (id: string) => this.request<{members: import('./communities/types').CommunityMember[]}>(`/communities/${encodeURIComponent(id)}/members`);
+  kickMember = (id: string, userId: string) => this.request<{ok: true}>(`/communities/${encodeURIComponent(id)}/members/${encodeURIComponent(userId)}`, {method: 'DELETE'});
+  setMemberRoles = (id: string, userId: string, roleIds: string[]) => this.request<{roleIds: string[]}>(`/communities/${encodeURIComponent(id)}/members/${encodeURIComponent(userId)}/roles`, {method: 'PUT', body: JSON.stringify({roleIds})});
+  createRole = (id: string, fields: {name?: string; color?: string; perms?: number}) => this.request<{role: import('./communities/types').CommunityRole}>(`/communities/${encodeURIComponent(id)}/roles`, {method: 'POST', body: JSON.stringify(fields)});
+  updateRole = (id: string, roleId: string, fields: {name?: string; color?: string; perms?: number}) => this.request<{role: import('./communities/types').CommunityRole}>(`/communities/${encodeURIComponent(id)}/roles/${encodeURIComponent(roleId)}`, {method: 'PATCH', body: JSON.stringify(fields)});
+  deleteRole = (id: string, roleId: string) => this.request<{ok: true}>(`/communities/${encodeURIComponent(id)}/roles/${encodeURIComponent(roleId)}`, {method: 'DELETE'});
+  createChannel = (id: string, fields: {kind: 'text'|'voice'; name: string; topic?: string; category?: string; roleIds?: string[]}) => this.request<{channel: import('./communities/types').CommunityChannel}>(`/communities/${encodeURIComponent(id)}/channels`, {method: 'POST', body: JSON.stringify(fields)});
+  updateChannel = (id: string, channelId: string, fields: {name?: string; topic?: string; category?: string; roleIds?: string[]}) => this.request<{channel: import('./communities/types').CommunityChannel}>(`/communities/${encodeURIComponent(id)}/channels/${encodeURIComponent(channelId)}`, {method: 'PATCH', body: JSON.stringify(fields)});
+  deleteChannel = (id: string, channelId: string) => this.request<{ok: true}>(`/communities/${encodeURIComponent(id)}/channels/${encodeURIComponent(channelId)}`, {method: 'DELETE'});
+  channelMessages = (id: string, channelId: string, before?: number) => this.request<{messages: import('./communities/types').CommunityMessage[]; users: User[]; hasMore: boolean}>(`/communities/${encodeURIComponent(id)}/channels/${encodeURIComponent(channelId)}/messages${before ? `?before=${before}` : ''}`);
+  sendChannelMessage = (id: string, channelId: string, fields: {text?: string; attachmentId?: string; replyTo?: number}) => this.request<{message: import('./communities/types').CommunityMessage}>(`/communities/${encodeURIComponent(id)}/channels/${encodeURIComponent(channelId)}/messages`, {method: 'POST', body: JSON.stringify(fields)});
+  editChannelMessage = (id: string, channelId: string, messageId: number, text: string) => this.request<{message: import('./communities/types').CommunityMessage}>(`/communities/${encodeURIComponent(id)}/channels/${encodeURIComponent(channelId)}/messages/${messageId}`, {method: 'PATCH', body: JSON.stringify({text})});
+  deleteChannelMessage = (id: string, channelId: string, messageId: number) => this.request<{ok: true}>(`/communities/${encodeURIComponent(id)}/channels/${encodeURIComponent(channelId)}/messages/${messageId}`, {method: 'DELETE'});
+  createInvite = (id: string) => this.request<{invite: {code: string}}>(`/communities/${encodeURIComponent(id)}/invites`, {method: 'POST', body: '{}'});
+  invite = (code: string) => this.request<import('./communities/types').InvitePreview>(`/invites/${encodeURIComponent(code)}`);
+  acceptInvite = (code: string) => this.request<{community: import('./communities/types').Community}>(`/invites/${encodeURIComponent(code)}/accept`, {method: 'POST', body: '{}'});
+  inviteUrl = (code: string) => `${this.base}/i/${encodeURIComponent(code)}`;
+  /** A file for a channel: metadata is cleaned like any upload, but the file is stored as is (no E2EE). */
+  async uploadChannelFile(file: LocalFile): Promise<Attachment> {
+    if(Platform.OS==='web')throw new Error('Файлы в каналах отправляются из приложения Android/iPhone.');
+    const {prepareMediaForUpload}=await import('./media/pipeline');
+    const prepared=await prepareMediaForUpload(file);
+    try{
+      const clean=prepared.file;
+      if(clean.size&&clean.size>20*1024*1024)throw new Error('Файл слишком большой. Максимум — 20 МБ.');
+      const FileSystem=await import('expo-file-system/legacy');
+      const bytes=toByteArray(await FileSystem.readAsStringAsync(clean.uri,{encoding:FileSystem.EncodingType.Base64}));
+      const part=multipartFile(bytes,clean.name,clean.mimeType);
+      return (await this.request<{attachment:Attachment}>('/uploads?purpose=channel',{method:'POST',body:part.body as unknown as BodyInit,headers:{'Content-Type':part.contentType}})).attachment;
+    }finally{await prepared.dispose().catch(()=>{});}
+  }
+
   async upload(file: LocalFile): Promise<Attachment> {
     if(Platform.OS==='web')throw new Error('Обработка и загрузка фото профиля доступны в приложении Android/iPhone.');
     const {prepareMediaForUpload}=await import('./media/pipeline');

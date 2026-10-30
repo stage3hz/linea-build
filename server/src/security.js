@@ -124,6 +124,11 @@ export function imageMime(header) {
   return null;
 }
 
+/** A client-declared MIME type for a plain channel file, reduced to a safe token. */
+export function safeMime(value) {
+  return typeof value === 'string' && /^[a-z0-9.+-]{1,40}\/[a-z0-9.+-]{1,80}$/i.test(value) && !/html|xml|javascript|svg/i.test(value) ? value.toLowerCase() : 'application/octet-stream';
+}
+
 export function safeFilename(name) {
   const basename = (String(name || 'file').replaceAll('\\', '/').split('/').pop() || 'file')
     .toWellFormed().replace(/[\x00-\x1f\x7f]/g, '');

@@ -1,4 +1,5 @@
 import { installCallRoutes } from './calls.js';
+import { COMMUNITY_SCHEMA, installCommunityRoutes, VOICE_LIMIT } from './communities.js';
 import Fastify, { LogController } from 'fastify';
 import websocket from '@fastify/websocket';
 import multipart from '@fastify/multipart';
@@ -18,7 +19,7 @@ import { installUsernameRoutes } from './username.js';
 import { installSocialRoutes } from './social.js';
 import {
   HttpError, fail, passwordHash, tokenHash, newToken, validToken,
-  objectBody, boundedText, positiveInteger, imageMime, safeFilename, createLimiter,
+  objectBody, boundedText, positiveInteger, imageMime, safeFilename, safeMime, createLimiter,
 } from './security.js';
 
 const MiB = 1024 * 1024;
@@ -239,6 +240,25 @@ export async function buildApp({
   installUsernameRoutes({app,db,now,authOptions,emitUser,emitChat});
   installCallRoutes({app,authOptions,now,turn});
   installSocialRoutes({app,db,authOptions,publicUser,timestamp,serializationOptions,emitUser});
+  db.exec(COMMUNITY_SCHEMA);
+  if (!db.prepare('PRAGMA table_info(uploads)').all().some(column => column.name === 'purpose')) db.exec("ALTER TABLE uploads ADD COLUMN purpose TEXT NOT NULL DEFAULT 'profile'");
+  // Voice channels: who is connected where (in memory). Audio flows peer to peer (WebRTC,
+  // DTLS-SRTP, through TURN when needed); the server only relays signalling between members.
+  const voiceRooms = new Map(); // channelId -> Map(socketId -> { state, userId, muted })
+  const voiceMembers = channelId => [...(voiceRooms.get(channelId)?.values() || [])].map(item => ({ userId: item.userId, muted: item.muted }));
+  const leaveVoice = state => {
+    const channelId = state.voice?.channelId; if (!channelId) return;
+    const room = voiceRooms.get(channelId); const communityId = state.voice.communityId; state.voice = null;
+    if (room) { room.delete(state.id); if (!room.size) voiceRooms.delete(channelId); }
+    for (const item of room?.values() || []) sendSocket(item.state, { type: 'voice.left', channelId, peer: state.id });
+    communityApi?.emitCommunity(communityApi.community(communityId), { type: 'voice.state', communityId, channelId, members: voiceMembers(channelId) });
+  };
+  const voice = {
+    members: voiceMembers,
+    kick: (userId, communityId) => { for (const state of sockets) if (state.auth?.user_id === userId && state.voice?.communityId === communityId) { sendSocket(state, { type: 'voice.kicked', channelId: state.voice.channelId }); leaveVoice(state); } },
+    close: channelId => { for (const item of [...(voiceRooms.get(channelId)?.values() || [])]) { sendSocket(item.state, { type: 'voice.kicked', channelId }); leaveVoice(item.state); } },
+  };
+  const communityApi = installCommunityRoutes({ app, db, authOptions, publicUser, timestamp, now, emitUser, limiter, voice });
   const e2ee = installE2eeRoutes({
     app, db, now, timestamp, authOptions, emitUser, limiter, uploadDir,
     maxUploadBytes, maxStoredBytesPerUser, closeRevokedSockets,
@@ -439,6 +459,7 @@ export async function buildApp({
 
   app.post('/uploads', authOptions, async (request, reply) => {
     const ownerId = request.auth.user_id;
+    const channelUpload = request.query?.purpose === 'channel';
     if (!request.isMultipart()) fail(400, 'Отправьте файл как multipart/form-data.');
     if (!limiter.allow(`upload:${ownerId}`, 20, 60_000)) fail(429, 'Слишком много загрузок. Попробуйте через минуту.');
     const used = db.prepare('SELECT COALESCE(SUM(size),0) AS bytes FROM uploads WHERE owner_id=?').get(ownerId).bytes;
@@ -471,6 +492,11 @@ export async function buildApp({
         if (part.file.truncated) fail(413, 'Файл превышает допустимый размер.');
         const mime = imageMime(header);
         const video = mime ? null : videoMime(header);
+        if (channelUpload) {
+          // Channel files are not end-to-end encrypted (owner decision); any type up to the upload limit.
+          attachment = { id, name: safeFilename(part.filename), mime_type: mime || video || safeMime(part.mimetype), size, is_image: mime ? 1 : 0, is_video: video ? 1 : 0 };
+          continue;
+        }
         if (video) {
           if (size > MAX_PROFILE_VIDEO_BYTES) fail(400, 'Видео для профиля — до 8 МиБ.');
         } else if (!mime || size > MAX_AVATAR_BYTES) fail(400, 'Для профиля допустимо изображение PNG, JPEG, GIF или WebP до 4 МиБ или видео MP4/MOV до 8 МиБ. Отправка файлов в чат требует шифрования.');
@@ -481,8 +507,8 @@ export async function buildApp({
       // Recheck after async streaming: parallel uploads must not bypass the account quota.
       const finalUsed = db.prepare('SELECT COALESCE(SUM(size),0) AS bytes FROM uploads WHERE owner_id=?').get(ownerId).bytes;
       if (finalUsed + attachment.size > maxStoredBytesPerUser) fail(413, 'Достигнут лимит хранения файлов для аккаунта.');
-      db.prepare('INSERT INTO uploads(id,owner_id,name,mime_type,size,is_image,is_video,created_at) VALUES(?,?,?,?,?,?,?,?)')
-        .run(attachment.id, ownerId, attachment.name, attachment.mime_type, attachment.size, attachment.is_image, attachment.is_video, timestamp());
+      db.prepare('INSERT INTO uploads(id,owner_id,name,mime_type,size,is_image,is_video,purpose,created_at) VALUES(?,?,?,?,?,?,?,?,?)')
+        .run(attachment.id, ownerId, attachment.name, attachment.mime_type, attachment.size, attachment.is_image, attachment.is_video, channelUpload ? 'channel' : 'profile', timestamp());
       persisted = true;
       return reply.code(201).send({ attachment: publicAttachment(attachment) });
     } finally {
@@ -500,6 +526,14 @@ export async function buildApp({
     // Published profile media: the photo, and — while Platina is active — the animated avatar and banner.
     const profileMediaOwner = () => {
       if (upload.is_encrypted) return null;
+      if (upload.purpose === 'channel') {
+        // A channel file: visible to members who can see the channel it was posted in.
+        const posted = db.prepare('SELECT c.*, m.channel_id FROM community_messages m JOIN community_channels ch ON ch.id=m.channel_id JOIN communities c ON c.id=ch.community_id WHERE m.attachment_id=?').get(upload.id);
+        if (!posted) return null;
+        const item = db.prepare('SELECT * FROM community_channels WHERE id=?').get(posted.channel_id);
+        return communityApi.canSee(posted, item, userId) ? { id: userId } : null;
+      }
+      if (upload.is_image && db.prepare('SELECT 1 FROM communities WHERE avatar_id=?').get(upload.id)) return { id: userId };
       const photo = upload.is_image ? db.prepare('SELECT id FROM users WHERE avatar_id=?').get(upload.id) : null;
       if (photo) return photo;
       if (!upload.is_image && !upload.is_video) return null;
@@ -547,6 +581,7 @@ export async function buildApp({
     socket.on('pong', () => { state.alive = true; });
     socket.on('close', () => {
       clearTimeout(authDeadline);
+      if (state.voice && !databaseClosed) leaveVoice(state);
       sockets.delete(state);
       const userId = state.auth?.user_id;
       if (userId && !databaseClosed && !isOnline(userId)) {
@@ -584,6 +619,37 @@ export async function buildApp({
           for (const userId of memberIds(data.chatId)) if (userId !== state.auth.user_id) {
             emitUser(userId, { type: 'typing', chatId: data.chatId, userId: state.auth.user_id, isTyping: data.isTyping });
           }
+          return;
+        }
+        if (data.type === 'voice.join') {
+          const allowed = typeof data.communityId === 'string' && typeof data.channelId === 'string' ? communityApi.voiceAllowed(data.communityId, data.channelId, state.auth.user_id) : null;
+          if (!allowed) fail(403, 'Нет доступа к голосовому каналу.');
+          if (state.voice) leaveVoice(state);
+          const room = voiceRooms.get(data.channelId) || new Map();
+          if (room.size >= VOICE_LIMIT) fail(403, `В голосовом канале максимум ${VOICE_LIMIT} человек.`);
+          const peers = [...room.values()].map(item => ({ peer: item.state.id, userId: item.userId, muted: item.muted }));
+          room.set(state.id, { state, userId: state.auth.user_id, muted: data.muted === true }); voiceRooms.set(data.channelId, room);
+          state.voice = { channelId: data.channelId, communityId: data.communityId };
+          sendSocket(state, { type: 'voice.joined', channelId: data.channelId, self: state.id, peers });
+          communityApi.emitCommunity(allowed.row, { type: 'voice.state', communityId: data.communityId, channelId: data.channelId, members: voiceMembers(data.channelId) });
+          return;
+        }
+        if (data.type === 'voice.leave') { leaveVoice(state); return; }
+        if (data.type === 'voice.mute') {
+          const item = state.voice && voiceRooms.get(state.voice.channelId)?.get(state.id);
+          if (!item || typeof data.muted !== 'boolean') return;
+          item.muted = data.muted;
+          communityApi.emitCommunity(communityApi.community(state.voice.communityId), { type: 'voice.state', communityId: state.voice.communityId, channelId: state.voice.channelId, members: voiceMembers(state.voice.channelId) });
+          return;
+        }
+        if (data.type === 'voice.signal') {
+          // Relays an SDP offer/answer only between two sockets in the same voice room.
+          const room = state.voice && voiceRooms.get(state.voice.channelId);
+          const target = room && typeof data.to === 'string' ? room.get(data.to) : null;
+          if (!target || target.state === state) fail(404, 'Участник вышел из канала.');
+          const payload = data.data;
+          if (!payload || typeof payload !== 'object' || !['offer', 'answer'].includes(payload.kind) || typeof payload.sdp !== 'string' || payload.sdp.length > 60_000 || !payload.sdp.startsWith('v=0')) fail(400, 'Некорректный сигнал.');
+          sendSocket(target.state, { type: 'voice.signal', channelId: state.voice.channelId, from: state.id, userId: state.auth.user_id, data: { kind: payload.kind, sdp: payload.sdp } });
           return;
         }
         sendSocket(state, { type: 'error', error: 'Неизвестный тип события.' });

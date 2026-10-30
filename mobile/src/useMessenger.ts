@@ -140,6 +140,10 @@ export function useMessenger(api: Api, user: User, onExpired: ()=>void) {
   },[api,user.id,checkError,markRead,cryptoRuntime,hydrate]);
 
   // Encrypted call signalling (offer / answer / end) is handed to the call screen, not shown as a message.
+  // Raw socket events for features outside private chats (channels, voice rooms).
+  const socketListeners=useRef(new Set<(data:any)=>void>());
+  const onSocket=useCallback((listener:(data:any)=>void)=>{socketListeners.current.add(listener);return()=>{socketListeners.current.delete(listener);};},[]);
+  const sendSocket=useCallback((payload:object)=>{const socket=socketRef.current;if(!socket||socket.readyState!==1)return false;socket.send(JSON.stringify(payload));return true;},[]);
   const callListeners=useRef(new Set<(message:Message)=>void>());
   const onCallSignal=useCallback((listener:(message:Message)=>void)=>{callListeners.current.add(listener);return()=>{callListeners.current.delete(listener);};},[]);
   const acceptMessage=useCallback(async(raw:Message)=>{
@@ -169,6 +173,7 @@ export function useMessenger(api: Api, user: User, onExpired: ()=>void) {
         if(stopped||socketRef.current!==socket)return;
         lastReceive=Date.now();
         let data:any;try{data=JSON.parse(String(event.data));}catch{return;}
+        if(typeof data.type==='string'&&(data.type.startsWith('community')||data.type.startsWith('voice')||data.type==='ready'||data.type==='error'))socketListeners.current.forEach(listener=>{try{listener(data);}catch{/* keep other listeners */}});
         if(data.type==='ready'){
           attempts=0;setConnection('connected');void refreshChats();void refreshRecoveryRequests();
           if(selectedRef.current)void loadMessages(selectedRef.current);
@@ -309,6 +314,6 @@ export function useMessenger(api: Api, user: User, onExpired: ()=>void) {
     if(selectedRef.current===chat.id)selectChat(null);
   },[removedKey,messages,hideForMe,selectChat]);
   const visibleChats=useMemo(()=>chats.filter(chat=>removed[chat.id]===undefined||(chat.lastMessage?.id||0)>removed[chat.id]),[chats,removed]);
-  return {onCallSignal,readChat,presence,chats:visibleChats,removeChat,messages,hasMore,pending,selectedId,selectChat,connection,listLoading,messageLoading,error,setError,typing,refreshChats,loadMessages,send,sendAction,hideForMe,hidden,forward,sendAttachments,retry:performSend,sendPoll,sendTyping,drafts,draftFiles,setDraft,setDraftFile,setDraftFiles,appendDraftFiles,removeDraftFile,recoveryRequests,recoveryError,refreshRecoveryRequests,cancelRecovery,cryptoError,trustSnapshot,approveDevices,uploadEncrypted,saved,aiHistory,updateChatSettings};
+  return {onSocket,sendSocket,onCallSignal,readChat,presence,chats:visibleChats,removeChat,messages,hasMore,pending,selectedId,selectChat,connection,listLoading,messageLoading,error,setError,typing,refreshChats,loadMessages,send,sendAction,hideForMe,hidden,forward,sendAttachments,retry:performSend,sendPoll,sendTyping,drafts,draftFiles,setDraft,setDraftFile,setDraftFiles,appendDraftFiles,removeDraftFile,recoveryRequests,recoveryError,refreshRecoveryRequests,cancelRecovery,cryptoError,trustSnapshot,approveDevices,uploadEncrypted,saved,aiHistory,updateChatSettings};
 }
 export type MessengerStore = ReturnType<typeof useMessenger>;

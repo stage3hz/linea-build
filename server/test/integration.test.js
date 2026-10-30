@@ -736,3 +736,85 @@ test('Platina decoration: animated avatar, frame and banner need Platina and sta
   // Clearing is always allowed.
   assert.equal((await request(app, 'PATCH', '/me', alice, { avatarVideoId: null, bannerId: null })).statusCode, 200);
 });
+
+test('communities: game server with roles, private channels, invites, plain channel messages and voice signalling', async t => {
+  const { app } = await fixture(t);
+  const owner = await register(app, 'owner_c'), bob = await register(app, 'bob_c'), eve = await register(app, 'eve_c');
+  assert.equal((await request(app, 'POST', '/communities', owner, { kind: 'other', name: 'x' })).statusCode, 400);
+  const created = await request(app, 'POST', '/communities', owner, { kind: 'server', name: 'Клан' });
+  assert.equal(created.statusCode, 200, created.body);
+  const server = created.json().community;
+  assert.deepEqual(server.channels.map(c => c.kind).sort(), ['text', 'text', 'voice', 'voice']);
+  const general = server.channels.find(c => c.kind === 'text');
+  const voiceChannel = server.channels.find(c => c.kind === 'voice');
+
+  // Strangers see nothing; an invite lets Bob in.
+  assert.equal((await request(app, 'GET', `/communities/${server.id}`, bob)).statusCode, 404);
+  const invite = (await request(app, 'POST', `/communities/${server.id}/invites`, owner, {})).json().invite.code;
+  const preview = await request(app, 'GET', `/invites/${invite}`, bob);
+  assert.equal(preview.statusCode, 200);
+  assert.equal(preview.json().community.name, 'Клан');
+  assert.equal((await request(app, 'GET', '/invites/NOPE000000', bob)).statusCode, 404);
+  const page = await app.inject({ method: 'GET', url: `/i/${invite}` });
+  assert.equal(page.statusCode, 200);
+  assert.match(page.body, /linea:\/\/invite\//);
+  assert.match(page.body, /Клан/);
+  assert.equal((await request(app, 'POST', `/invites/${invite}/accept`, bob)).statusCode, 200);
+
+  // Messages: members write in text channels; strangers cannot read.
+  const sent = await request(app, 'POST', `/communities/${server.id}/channels/${general.id}/messages`, bob, { text: 'привет' });
+  assert.equal(sent.statusCode, 200, sent.body);
+  assert.equal((await request(app, 'GET', `/communities/${server.id}/channels/${general.id}/messages`, eve)).statusCode, 404);
+  const history = (await request(app, 'GET', `/communities/${server.id}/channels/${general.id}/messages`, owner)).json();
+  assert.deepEqual(history.messages.map(m => m.text), ['привет']);
+  assert.equal(history.users[0].id, bob.user.id);
+
+  // A role-restricted channel is hidden from members without the role.
+  const role = (await request(app, 'POST', `/communities/${server.id}/roles`, owner, { name: 'Ветераны', color: '#ff0000', perms: 32 | 64 })).json().role;
+  const secret = (await request(app, 'POST', `/communities/${server.id}/channels`, owner, { kind: 'text', name: 'штаб', roleIds: [role.id] })).json().channel;
+  const bobView = () => request(app, 'GET', `/communities/${server.id}`, bob).then(r => r.json().community.channels.map(c => c.id));
+  assert.equal((await bobView()).includes(secret.id), false);
+  assert.equal((await request(app, 'GET', `/communities/${server.id}/channels/${secret.id}/messages`, bob)).statusCode, 404);
+  assert.equal((await request(app, 'POST', `/communities/${server.id}/channels`, bob, { kind: 'text', name: 'мой' })).statusCode, 403);
+  assert.equal((await request(app, 'POST', `/communities/${server.id}/roles`, bob, { name: 'x' })).statusCode, 403);
+  assert.equal((await request(app, 'PUT', `/communities/${server.id}/members/${bob.user.id}/roles`, owner, { roleIds: [role.id] })).statusCode, 200);
+  assert.equal((await bobView()).includes(secret.id), true);
+  assert.equal((await request(app, 'POST', `/communities/${server.id}/roles`, owner, { name: 'adm', perms: 1 })).statusCode, 200, 'owner may create an admin role');
+
+  // Voice: both join, signalling is relayed only inside the room.
+  const ownerSocket = await socketFor(t, app, owner), bobSocket = await socketFor(t, app, bob);
+  ownerSocket.socket.send(JSON.stringify({ type: 'voice.join', communityId: server.id, channelId: voiceChannel.id }));
+  const first = await ownerSocket.next(p => p.type === 'voice.joined');
+  assert.deepEqual(first.peers, []);
+  bobSocket.socket.send(JSON.stringify({ type: 'voice.join', communityId: server.id, channelId: voiceChannel.id }));
+  const second = await bobSocket.next(p => p.type === 'voice.joined');
+  assert.equal(second.peers.length, 1);
+  bobSocket.socket.send(JSON.stringify({ type: 'voice.signal', to: second.peers[0].peer, data: { kind: 'offer', sdp: 'v=0\r\no=- 1 1 IN IP4 0.0.0.0\r\n' } }));
+  const relayed = await ownerSocket.next(p => p.type === 'voice.signal');
+  assert.equal(relayed.userId, bob.user.id);
+  assert.equal(relayed.data.kind, 'offer');
+  const state = await ownerSocket.next(p => p.type === 'voice.state' && p.members.length === 2);
+  assert.equal(state.channelId, voiceChannel.id);
+  const eveSocket = await socketFor(t, app, eve);
+  eveSocket.socket.send(JSON.stringify({ type: 'voice.join', communityId: server.id, channelId: voiceChannel.id }));
+  const denied = await eveSocket.next(p => p.type === 'error');
+  assert.match(denied.error, /доступа/);
+});
+
+test('blog channels: only authors post, subscribers read and join by link', async t => {
+  const { app } = await fixture(t);
+  const author = await register(app, 'author_b'), reader = await register(app, 'reader_b');
+  const blog = (await request(app, 'POST', '/communities', author, { kind: 'blog', name: 'Новости' })).json().community;
+  assert.equal(blog.channels.length, 1);
+  const posts = blog.channels[0];
+  assert.equal((await request(app, 'POST', `/communities/${blog.id}/channels/${posts.id}/messages`, author, { text: 'Первый пост' })).statusCode, 200);
+  const code = (await request(app, 'POST', `/communities/${blog.id}/invites`, author, {})).json().invite.code;
+  assert.equal((await request(app, 'POST', `/invites/${code}/accept`, reader)).statusCode, 200);
+  const write = await request(app, 'POST', `/communities/${blog.id}/channels/${posts.id}/messages`, reader, { text: 'спам' });
+  assert.equal(write.statusCode, 403);
+  const feed = (await request(app, 'GET', `/communities/${blog.id}/channels/${posts.id}/messages`, reader)).json();
+  assert.deepEqual(feed.messages.map(m => m.text), ['Первый пост']);
+  assert.equal((await request(app, 'GET', '/communities', reader)).json().communities[0].memberCount, 2);
+  assert.equal((await request(app, 'POST', `/communities/${blog.id}/leave`, reader)).statusCode, 200);
+  assert.equal((await request(app, 'GET', `/communities/${blog.id}`, reader)).statusCode, 404);
+});

@@ -10,6 +10,8 @@ import { Avatar, Button, Empty, Icon, IconButton, Notice, Sheet, SheetAction } f
 import { GlassSurface } from './glass';
 import { StatusEmoji } from './StatusEmoji';
 import { DecoratedAvatar } from './platina/Decor';
+import { navigate } from './navigation';
+import { VoiceBar } from './communities/VoiceBar';
 import { formatListTime, useTheme } from './theme';
 import type { Api } from './api';
 import type { Chat, User } from './types';
@@ -20,7 +22,7 @@ import { impactFeedback, lightFeedback } from './haptics';
 import { Gesture, GestureDetector } from 'react-native-gesture-handler';
 import Animated, { runOnJS, useAnimatedStyle, useSharedValue, withSpring } from 'react-native-reanimated';
 
-export type MessengerTab = 'chats' | 'people' | 'music' | 'ai' | 'profile';
+export type MessengerTab = 'chats' | 'people' | 'channels' | 'music' | 'ai' | 'profile';
 type Navigation = { onProfile:()=>void;onNewChat:()=>void;onMusic:()=>void;onAI:()=>void;onChats:()=>void;activeTab?:MessengerTab };
 
 export function ChatListScreen({api,user,store,onProfile,onNewChat,onMusic,onAI,onQuickAI,onChats,onSaved,savedActive=false,activeTab='chats'}: {api:Api;user:User;store:MessengerStore;onQuickAI:()=>void;onSaved:()=>void;savedActive?:boolean}&Navigation) {
@@ -81,8 +83,8 @@ export function ChatListScreen({api,user,store,onProfile,onNewChat,onMusic,onAI,
 export function MessengerTabs({onProfile,onNewChat,onMusic,onAI,onChats,activeTab='chats'}: Navigation) {
   const t=useTheme();
   // The music screen shows its own player above the same tab bar; everywhere else it sits here, above the tabs.
-  return <>{activeTab!=='music'?<MiniPlayer onOpen={onMusic}/>:null}<GlassSurface material="clear" radius={29} style={{marginHorizontal:16,marginBottom:10,marginTop:5}} contentStyle={{minHeight:67,flexDirection:'row',alignItems:'center',paddingHorizontal:6,paddingVertical:6}}>
-    {([{id:'ai',label:'AI',icon:'sparkles-outline',onPress:onAI},{id:'people',label:'Люди',icon:'people-outline',onPress:onNewChat},{id:'chats',label:'Чаты',icon:'chatbubbles-outline',onPress:onChats},{id:'music',label:'Музыка',icon:'headset-outline',onPress:onMusic},{id:'profile',label:'Настройки',icon:'settings-outline',onPress:onProfile}] as const).map(item=><Pressable key={item.id} onPress={item.onPress} accessibilityRole="tab" accessibilityLabel={item.label} accessibilityState={{selected:activeTab===item.id}} style={({pressed})=>({flex:1,alignItems:'center',opacity:pressed?.6:1})}><View style={{width:'100%',gap:5,alignItems:'center',paddingVertical:8,borderRadius:20,backgroundColor:activeTab===item.id?t.accentSoft:'transparent',borderWidth:1,borderColor:activeTab===item.id?t.glassBorder:'transparent'}}><Icon name={item.icon} color={activeTab===item.id?t.accent:t.muted} size={21}/><Text style={{fontSize:10,color:activeTab===item.id?t.accent:t.muted,fontWeight:activeTab===item.id?'700':'600'}}>{item.label}</Text></View></Pressable>)}
+  return <><VoiceBar onOpen={communityId=>navigate({to:'channels',communityId})}/>{activeTab!=='music'?<MiniPlayer onOpen={onMusic}/>:null}<GlassSurface material="clear" radius={29} style={{marginHorizontal:16,marginBottom:10,marginTop:5}} contentStyle={{minHeight:67,flexDirection:'row',alignItems:'center',paddingHorizontal:6,paddingVertical:6}}>
+    {([{id:'ai',label:'AI',icon:'sparkles-outline',onPress:onAI},{id:'people',label:'Люди',icon:'people-outline',onPress:onNewChat},{id:'channels',label:'Каналы',icon:'planet-outline',onPress:()=>navigate({to:'channels'})},{id:'chats',label:'Чаты',icon:'chatbubbles-outline',onPress:onChats},{id:'music',label:'Музыка',icon:'headset-outline',onPress:onMusic},{id:'profile',label:'Настройки',icon:'settings-outline',onPress:onProfile}] as const).map(item=><Pressable key={item.id} onPress={item.onPress} accessibilityRole="tab" accessibilityLabel={item.label} accessibilityState={{selected:activeTab===item.id}} style={({pressed})=>({flex:1,alignItems:'center',opacity:pressed?.6:1})}><View style={{width:'100%',gap:5,alignItems:'center',paddingVertical:8,borderRadius:20,backgroundColor:activeTab===item.id?t.accentSoft:'transparent',borderWidth:1,borderColor:activeTab===item.id?t.glassBorder:'transparent'}}><Icon name={item.icon} color={activeTab===item.id?t.accent:t.muted} size={21}/><Text style={{fontSize:10,color:activeTab===item.id?t.accent:t.muted,fontWeight:activeTab===item.id?'700':'600'}}>{item.label}</Text></View></Pressable>)}
   </GlassSurface></>;
 }
 
