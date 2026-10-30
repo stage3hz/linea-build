@@ -10,17 +10,21 @@ import { StatusEmoji } from './StatusEmoji';
 import { DecoratedAvatar, ProfileBanner } from './platina/Decor';
 import { lightFeedback } from './haptics';
 import type { Api } from './api';
-import type { Chat, User } from './types';
+import type { Attachment, Chat, User } from './types';
+import type { ViewMessage } from './messageMeta';
+import { SharedMedia } from './SharedMedia';
 
 type Props = {
   api: Api; user: User | null; onClose: () => void;
   chat?: Chat | null; onMessage?: (user: User) => void;
   onMute?: (muted: boolean) => Promise<unknown>;
   onSearch?: () => void; onSecurity?: () => void; status?: string;
+  /** The chat's decrypted history: shown as Медиа / Файлы / Голосовые / Ссылки tabs. */
+  shared?: ViewMessage[]; onOpenAttachment?: (attachment: Attachment) => void;
 };
 
 /** Full-screen profile like in Telegram: big photo, name, @username, bio, actions. */
-export function UserProfile({ api, user, onClose, chat, onMessage, onMute, onSearch, onSecurity, status }: Props) {
+export function UserProfile({ api, user, onClose, chat, onMessage, onMute, onSearch, onSecurity, status, shared, onOpenAttachment }: Props) {
   const calls = useCalls();
   const t = useTheme();
   const [contact, setContact] = useState<boolean | null>(null);
@@ -87,6 +91,7 @@ export function UserProfile({ api, user, onClose, chat, onMessage, onMute, onSea
           <View style={{ gap: 4 }}><Text style={{ color: t.accent, fontSize: 15 }}>@{shown.username}</Text><Text style={{ color: t.muted, fontSize: 12 }}>Имя пользователя</Text></View>
           <Pressable disabled={!onSecurity} onPress={() => { onClose(); onSecurity?.(); }} accessibilityRole="button" style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}><Icon name="lock-closed" size={14} color={t.accent} /><Text style={{ color: t.muted, fontSize: 12, flex: 1 }}>Переписка защищена сквозным шифрованием{onSecurity ? ' · проверить устройства' : ''}</Text>{onSecurity ? <Icon name="chevron-forward" size={14} color={t.muted} /> : null}</Pressable>
         </GlassSurface>
+        {shared && onOpenAttachment ? <SharedMedia messages={shared} onOpen={attachment => { onClose(); setTimeout(() => onOpenAttachment(attachment), 250); }} /> : null}
       </ScrollView>
     </InsetView></GlassStage>
   </Modal>;
