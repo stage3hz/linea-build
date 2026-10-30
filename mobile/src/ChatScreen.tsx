@@ -68,7 +68,7 @@ export function ChatScreen({api,user,chat,store,onBack,wide=false,onOpenMusic}: 
   const seen=useRef<Set<string>|null>(null);
   const [forwardMany,setForwardMany]=useState<ViewMessage[]|null>(null);
   const [gallery,setGallery]=useState<{items:Attachment[];index:number}|null>(null);
-  const [headerHeight,setHeaderHeight]=useState(76);const [showDown,setShowDown]=useState(false);const [recordMode,setRecordMode]=useState<'voice'|'video'>('voice');
+  const [headerHeight,setHeaderHeight]=useState(76);const [footerHeight,setFooterHeight]=useState(60);const [showDown,setShowDown]=useState(false);const [recordMode,setRecordMode]=useState<'voice'|'video'>('voice');
   const [pollOpen,setPollOpen]=useState(false);const [deleteAsk,setDeleteAsk]=useState(false);const [stickers,setStickers]=useState(false);
   useEffect(()=>{setReplyTo(null);setEditing(null);setForwarding(null);setSearchOpen(false);setQuery('');setSelection(null);setGallery(null);seen.current=null;},[chat.id]);
 
@@ -231,11 +231,9 @@ export function ChatScreen({api,user,chat,store,onBack,wide=false,onOpenMusic}: 
     finally{uploadingRef.current=false;if(alive.current)setUploading(false);await FileSystem.deleteAsync(take.uri,{idempotent:true}).catch(()=>{});}
   };
   // Telegram: messages scroll under the status bar (no hard edge at the safe area); the header sits below it.
-  return <VoicePlaybackProvider api={api}><KeyboardSafeView style={{flex:1,backgroundColor:'transparent',marginTop:wide?0:-insets.top}}>
+  return <VoicePlaybackProvider api={api}><KeyboardSafeView style={{flex:1,backgroundColor:'transparent',marginTop:wide?0:-insets.top}}><View style={{flex:1}}>
     {wallpaperColors?<LinearGradient pointerEvents="none" colors={wallpaperColors as unknown as [string,string,string]} start={{x:0,y:0}} end={{x:1,y:1}} style={{position:'absolute',top:-80,bottom:-60,left:0,right:0}}/>:null}
     <View pointerEvents="box-none" onLayout={e=>setHeaderHeight(e.nativeEvent.layout.height)} style={{position:'absolute',top:0,left:0,right:0,zIndex:5,paddingTop:8+(wide?0:insets.top),gap:6}}>
-    {/* Messages fade out under the status bar instead of ending at a hard edge. */}
-    <LinearGradient pointerEvents="none" colors={[wallpaperColors?.[0]||t.bgGradient[0],wallpaperColors?.[0]||t.bgGradient[0],'transparent']} locations={[0,wide?0:.55,1]} style={{position:'absolute',top:0,left:0,right:0,height:(wide?0:insets.top)+30}}/>
     {selection?<View style={{flexDirection:'row',alignItems:'center',gap:8,paddingHorizontal:12}}>
       <GlassSurface material="regular" radius={24} interactive contentStyle={{height:48,justifyContent:'center',paddingHorizontal:16}}><Pressable onPress={()=>setSelection(null)} accessibilityRole="button" hitSlop={8}><Text style={{color:t.accent,fontSize:16,fontWeight:'600'}}>Отмена</Text></Pressable></GlassSurface>
       <View style={{flex:1,alignItems:'center'}}><GlassSurface material="regular" radius={24} contentStyle={{height:48,justifyContent:'center',paddingHorizontal:18}}><Text style={{color:t.text,fontSize:16,fontWeight:'700'}}>Выбрано: {selectedMessages.length}</Text></GlassSurface></View>
@@ -273,11 +271,13 @@ export function ChatScreen({api,user,chat,store,onBack,wide=false,onOpenMusic}: 
     {store.error||localError?<View style={{paddingHorizontal:13,paddingVertical:8}}><Notice text={localError||store.error} error onRetry={()=>{setLocalError('');void store.loadMessages(chat.id);}}/></View>:null}
     {copied?<View style={{alignSelf:'center',marginTop:6,paddingVertical:7,paddingHorizontal:14,backgroundColor:t.accentSoft,borderRadius:16,borderWidth:1,borderColor:t.border}}><Text style={{color:t.accent,fontSize:12}}>Скопировано</Text></View>:null}
     </View>
-    {rows.length===0?<View style={{flex:1,justifyContent:'center',paddingTop:headerHeight}}>{store.messageLoading?<ActivityIndicator color={t.accent}/>:<Empty icon="hand-left-outline" title="Скажи «привет»" description={`Это начало вашей переписки с ${chat.peer.displayName}.`}/>}</View>:<FlatList ref={listRef} inverted data={rows} keyExtractor={row=>row.key} keyboardShouldPersistTaps="handled" keyboardDismissMode={Platform.OS==='ios'?'interactive':'on-drag'} contentContainerStyle={{paddingHorizontal:wide?28:9,paddingTop:10,paddingBottom:headerHeight+14}} onScroll={e=>{const down=e.nativeEvent.contentOffset.y>350;if(down!==showDown)setShowDown(down);}} scrollEventThrottle={100} initialNumToRender={25} windowSize={11} onScrollToIndexFailed={info=>{listRef.current?.scrollToOffset({offset:info.averageItemLength*info.index,animated:true});setTimeout(()=>listRef.current?.scrollToIndex({index:info.index,animated:true,viewPosition:.5}),250);}}
+    {rows.length===0?<View style={{flex:1,justifyContent:'center',paddingTop:headerHeight,paddingBottom:footerHeight}}>{store.messageLoading?<ActivityIndicator color={t.accent}/>:<Empty icon="hand-left-outline" title="Скажи «привет»" description={`Это начало вашей переписки с ${chat.peer.displayName}.`}/>}</View>:<FlatList ref={listRef} inverted data={rows} keyExtractor={row=>row.key} keyboardShouldPersistTaps="handled" keyboardDismissMode={Platform.OS==='ios'?'interactive':'on-drag'} contentContainerStyle={{paddingHorizontal:wide?28:9,paddingTop:footerHeight+8,paddingBottom:headerHeight+14}} onScroll={e=>{const down=e.nativeEvent.contentOffset.y>350;if(down!==showDown)setShowDown(down);}} scrollEventThrottle={100} initialNumToRender={25} windowSize={11} onScrollToIndexFailed={info=>{listRef.current?.scrollToOffset({offset:info.averageItemLength*info.index,animated:true});setTimeout(()=>listRef.current?.scrollToIndex({index:info.index,animated:true,viewPosition:.5}),250);}}
       ListFooterComponent={store.hasMore[chat.id]?<View style={{alignItems:'center',padding:18}}><GlassSurface material="clear" radius={19} shadow={false}><Pressable onPress={()=>void store.loadMessages(chat.id,true)} disabled={store.messageLoading} accessibilityRole="button" style={{paddingVertical:11,paddingHorizontal:17}}>{store.messageLoading?<ActivityIndicator size="small" color={t.accent}/>:<Text style={{fontSize:12,color:t.accent,fontWeight:'600'}}>Более ранние сообщения</Text>}</Pressable></GlassSurface></View>:null}
       renderItem={renderRow} removeClippedSubviews={Platform.OS==='android'} maxToRenderPerBatch={12} updateCellsBatchingPeriod={40}/>
     }
-    {showDown&&!selection?<View pointerEvents="box-none" style={{height:0,zIndex:4}}><View style={{position:'absolute',right:14,bottom:10}}><GlassSurface material="regular" radius={20} interactive contentStyle={{width:40,height:40,alignItems:'center',justifyContent:'center'}}><Pressable onPress={()=>{lightFeedback();listRef.current?.scrollToOffset({offset:0,animated:true});}} accessibilityRole="button" accessibilityLabel="Вниз к новым сообщениям" hitSlop={6}><Icon name="chevron-down" size={26} color={t.text}/></Pressable></GlassSurface></View></View>:null}
+    {/* Like Telegram: the composer floats over the messages, which scroll underneath it. */}
+    <View pointerEvents="box-none" onLayout={e=>setFooterHeight(e.nativeEvent.layout.height)} style={{position:'absolute',left:0,right:0,bottom:0,zIndex:4}}>
+    {showDown&&!selection?<View pointerEvents="box-none" style={{height:0}}><View style={{position:'absolute',right:14,bottom:10}}><GlassSurface material="regular" radius={20} interactive contentStyle={{width:40,height:40,alignItems:'center',justifyContent:'center'}}><Pressable onPress={()=>{lightFeedback();listRef.current?.scrollToOffset({offset:0,animated:true});}} accessibilityRole="button" accessibilityLabel="Вниз к новым сообщениям" hitSlop={6}><Icon name="chevron-down" size={26} color={t.text}/></Pressable></GlassSurface></View></View>:null}
     {selection?<GlassSurface material="regular" radius={28} style={{marginHorizontal:12,marginTop:5,marginBottom:10}} contentStyle={{flexDirection:'row',justifyContent:'space-around',alignItems:'center',paddingVertical:8}}>
       {([
         {icon:'arrow-redo-outline',label:'Переслать',on:()=>{setForwardMany(selectedMessages);},ok:selectedMessages.length>0},
@@ -313,6 +313,7 @@ export function ChatScreen({api,user,chat,store,onBack,wide=false,onOpenMusic}: 
       {text.length>7500?<Text style={{fontSize:10,color:t.muted,textAlign:'right',paddingRight:8}}>{text.length} / 8000</Text>:null}
     </View>}
     {stickers&&!selection?<StickerPanel onPick={emoji=>{if(!signalAvailable)return;lightFeedback();const reply=replyTo?{clientId:replyTo.clientId,senderId:replyTo.senderId,preview:replyPreview(replyTo)}:undefined;store.send(chat.id,emoji,null,reply?{reply}:undefined);if(reply)setReplyTo(null);listRef.current?.scrollToOffset({offset:0,animated:true});}} onClose={()=>setStickers(false)}/>:null}
+    </View>
     <VideoNoteRecorder visible={circleOpen} onClose={()=>setCircleOpen(false)} onDone={take=>void sendVideoNote(take)}/>
     <AttachmentPanel key={photoContext} onPoll={()=>{setAttachMenu(false);setTimeout(()=>setPollOpen(true),350);}} visible={attachMenu} busy={uploading} canAdd={signalAvailable} remainingSlots={Math.max(0,MAX_DRAFT_ATTACHMENTS-attachments.length)} onClose={()=>setAttachMenu(false)} onAdd={item=>upload(item.file)}/>
     <TrustSheet visible={securityOpen} onClose={()=>setSecurityOpen(false)} peerId={chat.peer.id} store={store}/>
@@ -345,5 +346,5 @@ export function ChatScreen({api,user,chat,store,onBack,wide=false,onOpenMusic}: 
     <Sheet visible={!!forwardMany} title={`Переслать (${forwardMany?.length||0})`} onClose={()=>setForwardMany(null)}>
       {store.chats.map(target=><SheetAction key={target.id} icon="chatbubble-outline" label={target.peer.displayName} description={`@${target.peer.username}`} onPress={()=>{const list=forwardMany||[];setForwardMany(null);setSelection(null);void (async()=>{for(const m of list)await store.forward(target.id,m,originalAuthor(m));})().then(()=>setNotice(`Переслано: ${target.peer.displayName}`)).catch(e=>setLocalError(e instanceof Error?e.message:'Не удалось переслать.'));}}/>)}
     </Sheet>
-  </KeyboardSafeView></VoicePlaybackProvider>;
+  </View></KeyboardSafeView></VoicePlaybackProvider>;
 }
