@@ -17,7 +17,7 @@ test('text-only drafts still send, but empty drafts cannot create empty messages
   assert.deepEqual(messageAttachmentBatch(' \n ',[]),[]);
 });
 test('combining partial selections never silently discards the existing draft',()=>{
-  const current=Array.from({length:10},(_,i)=>file(String(i)));
-  assert.throws(()=>appendAttachments(current,[file('overflow')]),/10/);
-  assert.equal(current.length,10);
+  const current=Array.from({length:100},(_,i)=>file(String(i)));
+  assert.throws(()=>appendAttachments(current,[file('overflow')]),/100/);
+  assert.equal(current.length,100);
 });
