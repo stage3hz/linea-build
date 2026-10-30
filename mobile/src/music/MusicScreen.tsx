@@ -120,6 +120,7 @@ export function MusicScreen({ onBack }: { onBack: () => void }) {
   // Full-screen page instead of a modal sheet: on Android the modal + blur
   // combination hid the controls behind a translucent shadow box.
   if (playerOpen && music.current) return <View style={{ flex: 1, width: '100%', maxWidth: 760, alignSelf: 'center' }}>
+    <MusicAmbient width={screen.width} height={screen.height} />
     <GlassSurface radius={27} style={{ margin: 12, marginBottom: 6 }} contentStyle={{ minHeight: 62, flexDirection: 'row', alignItems: 'center', gap: 8, paddingHorizontal: 8 }}>
       <IconButton name="chevron-down" label="Свернуть плеер" onPress={() => setPlayerOpen(false)} />
       <Text style={{ flex: 1, color: t.text, fontSize: 18, fontWeight: '700' }}>Сейчас играет</Text>
