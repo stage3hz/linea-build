@@ -37,6 +37,14 @@ export function mediaBox(attachment: Attachment, maxWidth = 250, maxHeight = 330
   return { width: Math.round(Math.max(170, width)), height: Math.round(Math.max(74, height)) };
 }
 
+/** Photo/video with a caption: always the full bubble width, height from the aspect ratio up to
+ * `maxHeight` (a taller picture is cropped in the preview only, it opens whole), as in Telegram. */
+export function captionedMediaBox(attachment: Attachment, maxWidth: number, maxHeight: number) {
+  const w = attachment.media?.width || attachment.preview?.width || 4, h = attachment.media?.height || attachment.preview?.height || 3;
+  const height = Math.min(maxHeight, maxWidth * h / w);
+  return { width: Math.round(maxWidth), height: Math.round(Math.max(120, height)) };
+}
+
 /** One photo or video tile; used alone and inside an album grid. */
 export function MediaTile({ api, attachment, width, height, radius = 16, onOpen, onLongPress }: { api: Api; attachment: Attachment; width: number; height: number; radius?: number; onOpen: () => void; onLongPress?: () => void }) {
   const kind = mediaPreviewKind(attachment), photo = kind === 'photo';

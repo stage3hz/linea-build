@@ -12,7 +12,7 @@ import { VoiceBubble } from './voice/VoiceMessage';
 import { isVideoNote, isVoice } from './voice/voice';
 import { VideoNoteBubble } from './videonote/VideoNote';
 import { impactFeedback, lightFeedback } from './haptics';
-import { AlbumGrid, FileBubble, MediaTile, mediaBox } from './media/MediaBubble';
+import { AlbumGrid, FileBubble, MediaTile, captionedMediaBox, mediaBox } from './media/MediaBubble';
 import { mediaPreviewKind } from './media/formats';
 import { PollBubble } from './PollBubble';
 import { bigEmojiCount } from './messageMeta';
@@ -76,7 +76,7 @@ function MessageRowView({ row, olderCreatedAt, mine, author, peerLastRead, wide,
   const bare = (visual && !body) || !!row.album && !body || emoji > 0;
   // Telegram for iPhone (compact layout): media up to 300×380 pt, at least 170×74 pt, inset 2 pt inside the bubble.
   const mediaMax = Math.round(Math.min(wide ? 440 : 300, screenWidth - 2 * 36));
-  const box = file && visual ? mediaBox(file, mediaMax, wide ? 440 : 380) : null;
+  const box = file && visual ? (body && !emoji ? captionedMediaBox(file, mediaMax, wide ? 440 : 380) : mediaBox(file, mediaMax, wide ? 440 : 380)) : null;
   const albumWidth = mediaMax;
   // Photo/video/album with a caption: the media fills the bubble edge to edge, the caption sits below (as in Telegram).
   const flush = !!body && !emoji && ((visual && !!box) || !!row.album);
