@@ -1,46 +1,41 @@
-// Music equalizer: settings store, the audio route (headphones / speaker) and the native bridge
+// Music equalizer (one for every output): settings store and the native bridge
 // (iOS: filters on expo-audio's AVPlayer; Android: the system Equalizer on its ExoPlayer session).
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { Platform } from 'react-native';
 import { requireOptionalNativeModule } from 'expo-modules-core';
 import { useEffect, useSyncExternalStore } from 'react';
-import { DEFAULT_EQ, effectiveGains, parseEq, type EqProfile, type EqRoute, type EqSettings } from './equalizerModel';
+import { DEFAULT_EQ, effectiveGains, parseEq, type EqProfile } from './equalizerModel';
 
 type Native = {
   attachEqualizer?: (player: unknown) => Promise<void>;
   setEqualizer?: (low: number, mid: number, high: number, enabled: boolean) => void;
-  audioRoute?: () => { route: EqRoute; name?: string | null };
-  addListener?: (event: string, listener: (value: { route: EqRoute; name?: string | null }) => void) => { remove: () => void };
 };
 const native: Native | null = Platform.OS === 'ios' ? requireOptionalNativeModule('LineaPhoto') : Platform.OS === 'android' ? requireOptionalNativeModule('LineaEqualizer') : null;
 export const equalizerAvailable = !!native?.setEqualizer;
 
 const KEY = 'linea.equalizer.v1';
-let settings: EqSettings = DEFAULT_EQ;
-let route: { route: EqRoute; name: string | null } = { route: 'speaker', name: null };
+let settings: EqProfile = DEFAULT_EQ;
 const listeners = new Set<() => void>();
-const emit = () => { snapshot = { settings, route }; listeners.forEach(listener => listener()); };
-let snapshot = { settings, route };
+const emit = () => { listeners.forEach(listener => listener()); };
 let started = false;
 
 function apply() {
-  const gains = effectiveGains(settings[route.route]);
+  const gains = effectiveGains(settings);
   try { native?.setEqualizer?.(gains.low, gains.mid, gains.high, gains.enabled); } catch { /* engine unavailable */ }
 }
 function start() {
   if (started) return; started = true;
   void AsyncStorage.getItem(KEY).then(raw => { settings = parseEq(raw); emit(); apply(); }).catch(() => {});
-  try { const current = native?.audioRoute?.(); if (current) route = { route: current.route === 'headphones' ? 'headphones' : 'speaker', name: current.name || null }; } catch { /* unknown */ }
-  try { native?.addListener?.('onAudioRoute', value => { route = { route: value.route === 'headphones' ? 'headphones' : 'speaker', name: value.name || null }; emit(); apply(); }); } catch { /* no events */ }
-  emit();
+
 }
 
-export function useEqualizer() {
+/** One equalizer for every output: speaker, wired and Bluetooth headphones. */
+export function useEqualizer(): EqProfile {
   start();
-  return useSyncExternalStore(listener => { listeners.add(listener); return () => { listeners.delete(listener); }; }, () => snapshot, () => snapshot);
+  return useSyncExternalStore(listener => { listeners.add(listener); return () => { listeners.delete(listener); }; }, () => settings, () => settings);
 }
-export function setEqProfile(which: EqRoute, profile: EqProfile) {
-  settings = { ...settings, [which]: profile }; emit(); apply();
+export function setEqProfile(profile: EqProfile) {
+  settings = profile; emit(); apply();
   void AsyncStorage.setItem(KEY, JSON.stringify(settings)).catch(() => {});
 }
 /** Connects the equalizer to the music player once it exists (and again if it is recreated). */

@@ -1,4 +1,4 @@
-import React, { useEffect, useRef, useState } from 'react';
+import React, { useRef, useState } from 'react';
 import { Modal, Pressable, ScrollView, View, useWindowDimensions } from 'react-native';
 import Svg, { Circle, Defs, Line, LinearGradient, Path, Rect, Stop } from 'react-native-svg';
 import { Gesture, GestureDetector, GestureHandlerRootView } from 'react-native-gesture-handler';
@@ -11,23 +11,20 @@ import { lightFeedback } from '../haptics';
 import { useMusic } from './MusicProvider';
 import { TrackArtwork } from './PlayerControls';
 import { equalizerAvailable, setEqProfile, useEqualizer } from './equalizer';
-import { EQ_BANDS, EQ_LIMIT, type EqProfile, type EqRoute } from './equalizerModel';
+import { EQ_BANDS, EQ_LIMIT, type EqProfile } from './equalizerModel';
 
 type Key = 'low' | 'mid' | 'high';
 
 /**
  * Equalizer in the layout of the AirPods settings: «Рекомендованный / Пользовательский», the
  * playing track with ▶ to listen while adjusting, a curve with three points (НЧ, СЧ, ВЧ) that
- * are dragged up and down, «Сбросить». Separate settings for headphones and the phone speaker.
+ * are dragged up and down, «Сбросить». One setting for the speaker, wired and Bluetooth headphones.
  */
 export function EqualizerScreen({ visible, onClose }: { visible: boolean; onClose: () => void }) {
   const t = useTheme(); const insets = useSafeAreaInsets(); const { width } = useWindowDimensions();
-  const music = useMusic(); const { settings, route } = useEqualizer();
-  const [editing, setEditing] = useState<EqRoute>(route.route);
-  useEffect(() => { if (visible) setEditing(route.route); }, [visible, route.route]);
-  const profile = settings[editing];
+  const music = useMusic(); const profile = useEqualizer();
   const card = t.dark ? '#1C1C1E' : '#FFFFFF';
-  const update = (change: Partial<EqProfile>) => setEqProfile(editing, { ...profile, ...change });
+  const update = (change: Partial<EqProfile>) => setEqProfile({ ...profile, ...change });
   return <Modal visible={visible} animationType="slide" onRequestClose={onClose} statusBarTranslucent>
     <GestureHandlerRootView style={{ flex: 1, backgroundColor: t.dark ? '#000' : '#F2F2F7' }}>
       <View style={{ paddingTop: insets.top + 6, flexDirection: 'row', alignItems: 'center', paddingHorizontal: 12, height: insets.top + 60 }}>
@@ -35,21 +32,13 @@ export function EqualizerScreen({ visible, onClose }: { visible: boolean; onClos
         <Text style={{ flex: 1, textAlign: 'center', color: t.text, fontSize: 17, fontWeight: '600', marginRight: 44 }}>Эквалайзер</Text>
       </View>
       <ScrollView contentContainerStyle={{ padding: 16, paddingBottom: insets.bottom + 24, gap: 14 }}>
-        <View style={{ flexDirection: 'row', padding: 3, borderRadius: 10, backgroundColor: t.dark ? '#1C1C1E' : '#E3E3E8' }}>
-          {(['headphones', 'speaker'] as const).map(item => <Pressable key={item} accessibilityRole="tab" accessibilityState={{ selected: editing === item }} onPress={() => setEditing(item)} style={{ flex: 1, height: 34, borderRadius: 8, alignItems: 'center', justifyContent: 'center', flexDirection: 'row', gap: 6, backgroundColor: editing === item ? (t.dark ? '#3A3A3C' : '#FFFFFF') : 'transparent' }}>
-            <Icon name={item === 'headphones' ? 'headset-outline' : 'phone-portrait-outline'} size={15} color={t.text} />
-            <Text style={{ color: t.text, fontSize: 14, fontWeight: '600' }}>{item === 'headphones' ? 'Наушники' : 'Динамик'}</Text>
-            {route.route === item ? <View style={{ width: 6, height: 6, borderRadius: 3, backgroundColor: '#34C759' }} /> : null}
-          </Pressable>)}
-        </View>
-        <Text style={{ color: t.muted, fontSize: 13, paddingHorizontal: 4, marginTop: -6 }}>{route.route === 'headphones' ? `Сейчас: ${route.name || 'наушники'}` : 'Сейчас: динамик телефона'} · профиль включается сам</Text>
         <View style={{ borderRadius: 22, backgroundColor: card, overflow: 'hidden' }}>
           {(['recommended', 'custom'] as const).map((mode, index) => <Pressable key={mode} accessibilityRole="radio" accessibilityState={{ selected: profile.mode === mode }} onPress={() => update({ mode })} style={({ pressed }) => ({ flexDirection: 'row', alignItems: 'center', minHeight: 56, paddingHorizontal: 18, borderTopWidth: index ? 0.5 : 0, borderTopColor: t.border, backgroundColor: pressed ? t.accentSoft : 'transparent' })}>
             <Text style={{ flex: 1, color: t.text, fontSize: 17 }}>{mode === 'recommended' ? 'Рекомендованный' : 'Пользовательский'}</Text>
             {profile.mode === mode ? <Icon name="checkmark" size={22} color="#0A84FF" /> : null}
           </Pressable>)}
         </View>
-        <Text style={{ color: t.muted, fontSize: 13, lineHeight: 18, paddingHorizontal: 4 }}>«Рекомендованный» — звук трека без изменений. В «Пользовательском» потяни точки НЧ, СЧ и ВЧ вверх или вниз: настройки отдельные для наушников и для динамика.</Text>
+        <Text style={{ color: t.muted, fontSize: 13, lineHeight: 18, paddingHorizontal: 4 }}>«Рекомендованный» — звук трека без изменений. В «Пользовательском» потяни точки НЧ, СЧ и ВЧ вверх или вниз. Настройка одна для динамика, проводных и Bluetooth-наушников.</Text>
         <View style={{ borderRadius: 22, backgroundColor: card, padding: 18, gap: 16, opacity: profile.mode === 'custom' ? 1 : 0.5 }}>
           <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12 }}>
             {music.current ? <TrackArtwork track={music.current} size={64} /> : <View style={{ width: 64, height: 64, borderRadius: 14, backgroundColor: t.dark ? '#2C2C2E' : '#E5E5EA' }} />}

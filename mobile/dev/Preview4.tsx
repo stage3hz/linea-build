@@ -5,7 +5,7 @@ import { ThemeContext, palette } from '../src/theme';
 import { MusicProvider } from '../src/music/MusicProvider';
 import { EqualizerScreen } from '../src/music/EqualizerScreen';
 import { setEqProfile } from '../src/music/equalizer';
-setEqProfile('speaker', { mode: 'custom', low: 6, mid: -6, high: 6 });
+setEqProfile({ mode: 'custom', low: 6, mid: -6, high: 6 });
 export default function Preview() {
   return <SafeAreaProvider><ThemeContext.Provider value={palette.dark}><MusicProvider><EqualizerScreen visible onClose={() => {}} /></MusicProvider></ThemeContext.Provider></SafeAreaProvider>;
 }
