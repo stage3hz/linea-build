@@ -5,7 +5,7 @@ import type { Attachment } from '../types';
 
 export const VOICE_MIME = 'audio/mp4';
 export const VOICE_MIN_MS = 700;
-export const VOICE_MAX_MS = 15 * 60 * 1000; // ~6 MB at 48 kbit/s, well under the 20 MB attachment limit
+export const VOICE_MAX_MS = 15 * 60 * 1000; // ~14.4 MB at 128 kbit/s, under the 20 MB attachment limit
 const VOICE_NAME = /^voice-\d{1,16}\.m4a$/;
 
 export const voiceFileName = (now = Date.now()) => `voice-${Math.max(0, Math.floor(now))}.m4a`;

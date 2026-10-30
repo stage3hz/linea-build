@@ -14,12 +14,13 @@ import { decryptAttachment } from '../e2ee/attachments';
 import { useMusic } from '../music/MusicProvider';
 import { VOICE_MAX_MS, formatVoiceTime, levelFromMetering } from './voice';
 
-// Mono AAC at 48 kbit/s: clear speech, about 360 KB per minute.
+// Mono AAC at 48 kHz / 128 kbit/s: full-band, very clear voice (about 0.95 MB per minute;
+// was 32 kHz / 48 kbit/s). Still encrypted before sending like any other attachment.
 const VOICE_RECORDING: RecordingOptions = {
-  extension: '.m4a', sampleRate: 32000, numberOfChannels: 1, bitRate: 48000, isMeteringEnabled: true,
+  extension: '.m4a', sampleRate: 48000, numberOfChannels: 1, bitRate: 128000, isMeteringEnabled: true,
   android: { outputFormat: 'mpeg4', audioEncoder: 'aac' },
-  ios: { outputFormat: IOSOutputFormat.MPEG4AAC, audioQuality: AudioQuality.HIGH, linearPCMBitDepth: 16, linearPCMIsBigEndian: false, linearPCMIsFloat: false },
-  web: { mimeType: 'audio/webm', bitsPerSecond: 48000 },
+  ios: { outputFormat: IOSOutputFormat.MPEG4AAC, audioQuality: AudioQuality.MAX, linearPCMBitDepth: 16, linearPCMIsBigEndian: false, linearPCMIsFloat: false },
+  web: { mimeType: 'audio/webm', bitsPerSecond: 128000 },
 };
 const PLAYBACK_MODE = { playsInSilentMode: true, shouldPlayInBackground: true, interruptionMode: 'doNotMix', allowsRecording: false } as const;
 
