@@ -25,12 +25,16 @@ type Props = {
 const errorMessage = (error: unknown, fallback: string) => error instanceof Error ? error.message : fallback;
 const normalizedUsername = (value: string) => value.trim().replace(/^@/, '').toLowerCase();
 
+// Last known account status per user: the screen opens instantly and refreshes in the background.
+const statusCache = new Map<string, UsernameStatus>();
+
 export function ProfileScreen({ api, user, theme, darkTheme, onTheme, onDarkTheme, onUser, onBack, onLogout, onSecurity }: Props) {
   const t = useTheme();
   const [name, setName] = useState(user.displayName), [bio, setBio] = useState(user.bio);
   const [avatarId, setAvatarId] = useState(user.avatarId), [color, setColor] = useState(user.avatarColor);
   const [error, setError] = useState(''), [notice, setNotice] = useState('');
-  const [status, setStatus] = useState<UsernameStatus | null>(null), [statusError, setStatusError] = useState(''), [statusLoading, setStatusLoading] = useState(true);
+  const cached = statusCache.get(user.id) ?? null;
+  const [status, setStatus] = useState<UsernameStatus | null>(cached), [statusError, setStatusError] = useState(''), [statusLoading, setStatusLoading] = useState(!cached);
   const [username, setUsername] = useState(user.username), [usernameReview, setUsernameReview] = useState<{ previous: string; next: string } | null>(null);
   const [emojiVisible, setEmojiVisible] = useState(false), [platinaVisible, setPlatinaVisible] = useState(false), [logoutVisible, setLogoutVisible] = useState(false);
   const [action, setAction] = useState<Action>(null), actionRef = useRef<Action>(null);
@@ -44,12 +48,12 @@ export function ProfileScreen({ api, user, theme, darkTheme, onTheme, onDarkThem
   const loadStatus = async (resetDraft = false) => {
     const version = generation.current, request = ++statusGeneration.current;
     if (!live(version)) return;
-    setStatusLoading(true); setStatusError('');
+    if (!statusCache.has(user.id)) setStatusLoading(true); setStatusError('');
     try {
       const next = await api.usernameStatus();
       if (!live(version) || request !== statusGeneration.current) return;
       if (next.accountId !== user.id) throw new Error('Сервер вернул настройки другого аккаунта.');
-      setStatus(next); if (resetDraft) setUsername(next.username);
+      statusCache.set(user.id, next); setStatus(next); if (resetDraft) setUsername(next.username);
     } catch (failure) { if (live(version) && request === statusGeneration.current) setStatusError(errorMessage(failure, 'Не удалось получить настройки имени и статуса.')); }
     finally { if (live(version) && request === statusGeneration.current) setStatusLoading(false); }
   };
@@ -57,7 +61,7 @@ export function ProfileScreen({ api, user, theme, darkTheme, onTheme, onDarkThem
   useEffect(() => {
     mounted.current = true; generation.current++; actionRef.current = null; setAction(null);
     setName(user.displayName); setBio(user.bio); setAvatarId(user.avatarId); setColor(user.avatarColor);
-    setStatus(null); setError(''); setNotice(''); setUsernameReview(null); setEmojiVisible(false);
+    setStatus(statusCache.get(user.id) ?? null); setError(''); setNotice(''); setUsernameReview(null); setEmojiVisible(false);
     void loadStatus(true);
     const listener = AppState.addEventListener('change', state => { if (state === 'active' && !actionRef.current) void loadStatus(); });
     return () => { mounted.current = false; generation.current++; statusGeneration.current++; listener.remove(); if (copyTimer.current) clearTimeout(copyTimer.current); };

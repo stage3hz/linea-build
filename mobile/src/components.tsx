@@ -1,4 +1,5 @@
 import React, { useEffect, useMemo, useState } from 'react';
+import { Image as CachedImage } from 'expo-image';
 import { ActivityIndicator, Image, KeyboardAvoidingView, Modal, Platform, Pressable, ScrollView, StyleSheet, View, type ImageStyle, type StyleProp, type TextInputProps, type ViewStyle } from 'react-native';
 import { Text, TextInput } from './typography';
 import { Ionicons } from '@expo/vector-icons';
@@ -64,17 +65,20 @@ export function Empty({icon,title,description,action}:{icon:IconName;title:strin
 }
 
 export function AuthImage({api,id,style,resizeMode='cover'}:{api:Api;id:string;style:StyleProp<ImageStyle>;resizeMode?:'cover'|'contain'}) {
-  const t=useTheme();const [uri,setUri]=useState<string|null>(null);const [failed,setFailed]=useState(false);
+  const t=useTheme();const [uri,setUri]=useState<string|null>(Platform.OS==='web'?null:api.fileUrl(id));const [failed,setFailed]=useState(false);
   useEffect(()=>{
-    let active=true,objectUrl:string|undefined;const abort=new AbortController();setUri(null);setFailed(false);
+    let active=true,objectUrl:string|undefined;const abort=new AbortController();setUri(Platform.OS==='web'?null:api.fileUrl(id));setFailed(false);
     if(Platform.OS==='web'){
       fetch(api.fileUrl(id),{headers:{Authorization:`Bearer ${api.token}`},signal:abort.signal}).then(response=>{if(!response.ok)throw new Error('image');return response.blob();}).then(blob=>{if(!active||!blob)return;objectUrl=URL.createObjectURL(blob);setUri(objectUrl);}).catch(()=>{if(active)setFailed(true);});
-    }else setUri(api.fileUrl(id));
+    }else{setUri(api.fileUrl(id));}
     return()=>{active=false;abort.abort();if(objectUrl)URL.revokeObjectURL(objectUrl);};
   },[api.base,api.token,id]);
   if(failed)return <View style={[style as StyleProp<ViewStyle>,{backgroundColor:t.surface2,alignItems:'center',justifyContent:'center'}]}><Icon name="image-outline" color={t.muted}/></View>;
   if(!uri)return <View style={[style as StyleProp<ViewStyle>,{backgroundColor:t.surface2,alignItems:'center',justifyContent:'center'}]}><ActivityIndicator size="small" color={t.accent}/></View>;
-  return <Image source={{uri,...(Platform.OS==='web'?{}:{headers:{Authorization:`Bearer ${api.token}`}})}} style={style} resizeMode={resizeMode} onError={()=>setFailed(true)} accessibilityLabel="Изображение"/>;
+  // Uploaded files never change, so the id is a stable cache key: avatars come from
+  // memory/disk instantly instead of being downloaded again on every screen.
+  if(Platform.OS!=='web')return <CachedImage source={{uri,headers:{Authorization:`Bearer ${api.token}`},cacheKey:`invizent-file-${id}`}} cachePolicy="memory-disk" style={style as StyleProp<ImageStyle>} contentFit={resizeMode} transition={0} onError={()=>setFailed(true)} accessibilityLabel="Изображение"/>;
+  return <Image source={{uri}} style={style} resizeMode={resizeMode} onError={()=>setFailed(true)} accessibilityLabel="Изображение"/>;
 }
 
 function avatarTextColor(color:string) {

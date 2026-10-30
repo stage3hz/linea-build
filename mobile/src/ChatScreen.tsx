@@ -24,6 +24,7 @@ import { REACTIONS, foldChat, replyPreview, type Reaction, type ViewMessage } fr
 import { VoicePlaybackProvider, VoiceRecordingBar, useVoiceRecorder } from './voice/VoiceMessage';
 import { MessageRow, type Row, type RowHandlers } from './MessageRow';
 import { ContextMenu, MenuItem } from './ContextMenu';
+import { impactFeedback, lightFeedback } from './haptics';
 import { VideoNoteRecorder, type VideoNoteTake } from './videonote/VideoNote';
 import { useCallback } from 'react';
 import { attachmentLabel } from './voice/voice';
@@ -79,6 +80,7 @@ export function ChatScreen({api,user,chat,store,onBack,wide=false}: {api:Api;use
     typingTimer.current=setTimeout(()=>store.sendTyping(chat.id,false),1800);
   };
   const send=()=>{
+    if(signalAvailable&&!uploadingRef.current&&(text.trim()||attachments.length))lightFeedback();
     if(!signalAvailable||uploadingRef.current||(!text.trim()&&!attachments.length))return;
     if(editing){
       const next=text.trim();
@@ -123,7 +125,7 @@ export function ChatScreen({api,user,chat,store,onBack,wide=false}: {api:Api;use
     finally{uploadingRef.current=false;if(alive.current)setUploading(false);await FileSystem.deleteAsync(take.uri,{idempotent:true}).catch(()=>{});}
   };
   const voice=useVoiceRecorder(()=>void finishVoice(true));
-  const startVoice=()=>{Keyboard.dismiss();setLocalError('');voice.start().catch(e=>setLocalError(e instanceof Error?e.message:'Не удалось начать запись.'));};
+  const startVoice=()=>{impactFeedback();Keyboard.dismiss();setLocalError('');voice.start().catch(e=>setLocalError(e instanceof Error?e.message:'Не удалось начать запись.'));};
   const canSend=!!text.trim()||attachments.length>0||!!editing;
   const saveToFavorites=(m:ViewMessage)=>{
     store.saved.save(m.text,m.attachment,{chatId:chat.id,clientId:m.clientId,author:originalAuthor(m).slice(0,80)||'собеседник',sentAt:m.createdAt})
@@ -139,7 +141,7 @@ export function ChatScreen({api,user,chat,store,onBack,wide=false}: {api:Api;use
   const backSwipe=useRef(PanResponder.create({
     onMoveShouldSetPanResponder:(_e,g)=>g.dx>14&&Math.abs(g.dx)>Math.abs(g.dy)*2,
     onPanResponderMove:(_e,g)=>backX.setValue(Math.max(0,g.dx)),
-    onPanResponderRelease:(_e,g)=>{if(g.dx>110||g.vx>0.8)Animated.timing(backX,{toValue:Dimensions.get('window').width,duration:160,useNativeDriver:true}).start(()=>backRef.current());else Animated.spring(backX,{toValue:0,useNativeDriver:true}).start();},
+    onPanResponderRelease:(_e,g)=>{if(g.dx>110||g.vx>0.8)lightFeedback();if(g.dx>110||g.vx>0.8)Animated.timing(backX,{toValue:Dimensions.get('window').width,duration:160,useNativeDriver:true}).start(()=>backRef.current());else Animated.spring(backX,{toValue:0,useNativeDriver:true}).start();},
     onPanResponderTerminate:()=>Animated.spring(backX,{toValue:0,useNativeDriver:true}).start(),
   })).current;
   const handlers=useRef<RowHandlers>(null as unknown as RowHandlers);
