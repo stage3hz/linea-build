@@ -1,5 +1,6 @@
 import { resolve } from 'node:path';
 import { buildApp } from './app.js';
+import { createFcm, loadServiceAccount } from './push.js';
 
 function integerEnv(name, fallback, min, max) {
   const raw = process.env[name];
@@ -17,7 +18,11 @@ for (const origin of allowedOrigins) {
 const trustedProxies = (process.env.TRUSTED_PROXIES || '').split(',').map(value => value.trim()).filter(Boolean);
 if (trustedProxies.some(value => ['*', 'true', 'false'].includes(value))) throw new Error('TRUSTED_PROXIES: list only trusted proxy IPs or CIDRs');
 
+// Push (Android, Firebase): FCM_SERVICE_ACCOUNT = path to the service account JSON on this server.
+const push = createFcm(loadServiceAccount(process.env.FCM_SERVICE_ACCOUNT || ''));
+
 const app = await buildApp({
+  push,
   dataDir: resolve(process.env.DATA_DIR || 'data'),
   logger: { level: process.env.LOG_LEVEL || 'info' },
   allowedOrigins,

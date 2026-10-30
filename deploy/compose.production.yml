@@ -34,8 +34,11 @@ services:
       # TURN credentials for calls (deploy/compose.turn.yml).
       TURN_SECRET: ${TURN_SECRET:-}
       TURN_HOST: ${TURN_HOST:-}
+      # Push (Android, Firebase): key installed by deploy/push.sh, never in the repository.
+      FCM_SERVICE_ACCOUNT: ${FCM_SERVICE_ACCOUNT:-}
     volumes:
       - linea-data:/data
+      - ./secrets:/secrets:ro
     networks:
       backend:
         ipv4_address: 172.30.58.3

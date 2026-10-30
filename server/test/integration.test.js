@@ -820,3 +820,37 @@ test('blog channels: only authors post, subscribers read and join by link', asyn
   assert.equal((await request(app, 'POST', `/communities/${blog.id}/leave`, reader)).statusCode, 200);
   assert.equal((await request(app, 'GET', `/communities/${blog.id}`, reader)).statusCode, 404);
 });
+
+test('push: token per session, sender name only, mute and «none» respected, turning off stops pushes', async t => {
+  const sent = [];
+  const { app } = await fixture(t, { push: async (token, message) => { sent.push({ token, message }); return token === 'gone-token-0000000000000' ? 'gone' : 'ok'; } });
+  const alice = await register(app, 'alice_push', 'Алиса'), bob = await register(app, 'bob_push');
+  const chat = await newChat(app, alice, bob);
+  assert.equal((await request(app, 'PUT', '/me/push', bob, { token: 'short', platform: 'android' })).statusCode, 400);
+  assert.equal((await request(app, 'PUT', '/me/push', bob, { token: 'fcm-token-bob-000000000000', platform: 'ios' })).statusCode, 400);
+  const saved = await request(app, 'PUT', '/me/push', bob, { token: 'fcm-token-bob-000000000000', platform: 'android' });
+  assert.equal(saved.statusCode, 200, saved.body);
+  assert.equal(saved.json().enabled, true);
+  await send(app, alice, chat, 'push-message-0001');
+  await send(app, alice, chat, 'push-message-0002');
+  await new Promise(resolve => setImmediate(resolve));
+  assert.equal(sent.length, 2);
+  assert.equal(sent[0].token, 'fcm-token-bob-000000000000');
+  assert.equal(sent[0].message.android.notification.title, 'Алиса');
+  assert.equal(sent[1].message.android.notification.body, '2 новых сообщения');
+  assert.ok(!JSON.stringify(sent).includes('ciphertext'));
+  const quiet = await request(app, 'POST', `/chats/${chat.id}/messages`, alice, { clientId: 'push-message-0003', encrypted: envelopeFor(alice, chat, []), push: 'none' });
+  assert.equal(quiet.statusCode, 201, quiet.body);
+  assert.equal((await request(app, 'POST', `/chats/${chat.id}/messages`, alice, { clientId: 'push-message-0004', encrypted: envelopeFor(alice, chat, []), push: 'loud' })).statusCode, 400);
+  await request(app, 'PATCH', `/chats/${chat.id}/settings`, bob, { muted: true });
+  await send(app, alice, chat, 'push-message-0005');
+  assert.equal(sent.length, 2, 'muted chat and «none» send nothing');
+  await request(app, 'POST', `/chats/${chat.id}/messages`, alice, { clientId: 'push-message-0006', encrypted: envelopeFor(alice, chat, []), push: 'call' });
+  await new Promise(resolve => setImmediate(resolve));
+  assert.equal(sent.length, 3, 'calls ring even in a muted chat');
+  assert.equal(sent[2].message.android.notification.channel_id, 'calls');
+  await request(app, 'PATCH', `/chats/${chat.id}/settings`, bob, { muted: false });
+  assert.equal((await request(app, 'DELETE', '/me/push', bob)).statusCode, 200);
+  await send(app, alice, chat, 'push-message-0007');
+  assert.equal(sent.length, 3, 'a device that turned pushes off gets nothing');
+});

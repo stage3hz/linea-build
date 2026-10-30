@@ -21,3 +21,6 @@ mobile/ios/
 .test-tools/
 coverage/
 .quality/
+
+# Server-only secrets (deploy/push.sh)
+deploy/secrets/

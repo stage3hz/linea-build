@@ -36,6 +36,8 @@ module.exports = {
       package: development ? 'com.linea.messenger.preview' : 'com.linea.messenger',
       versionCode: 24,
       softwareKeyboardLayoutMode: 'resize',
+      // Firebase Cloud Messaging (push). The file lists only the preview package for now.
+      ...(development ? { googleServicesFile: './google-services.json' } : {}),
       allowBackup: false,
       adaptiveIcon: {
         foregroundImage: './assets/adaptive-icon.png',
@@ -61,6 +63,8 @@ module.exports = {
         enableBackgroundPlayback: true,
         enableBackgroundRecording: false,
       }],
+      ['expo-notifications', { icon: './assets/notification-icon.png', color: '#4C7DFF', defaultChannel: 'messages' }],
+      './plugins/withNoIosPush',
       ['expo-sensors', { motionPermission: 'Инвиз использует наклон телефона только для лёгкого движения обоев в чатах.' }],
       ['expo-camera', { cameraPermission: 'Камера нужна для видеосообщений. Видео шифруется до отправки.', microphonePermission: 'Инвиз использует микрофон только во время записи голосового или видеосообщения. Запись шифруется до отправки.', recordAudioAndroid: true }],
       ['expo-secure-store', { configureAndroidBackup: true }],

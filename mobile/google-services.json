@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "376762621406",
+    "project_id": "invizent",
+    "storage_bucket": "invizent.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:376762621406:android:331040ec12b98b48d0114f",
+        "android_client_info": {
+          "package_name": "com.linea.messenger.preview"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyAtp6soWR_OmuQGwtHI6Velrvsup4galp0"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

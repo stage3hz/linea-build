@@ -229,7 +229,7 @@ export function useMessenger(api: Api, user: User, onExpired: ()=>void) {
       const peer=chatsRef.current.find(chat=>chat.id===item.chatId)?.peer;
       if(!peer)throw new Error('Сначала открой разговор.');
       const crypto=await cryptoRuntime.get();const encrypted=await crypto.encrypt(item.chatId,peer.id,item.clientId,item.text,item.attachment,item.meta);
-      const result=await api.sendEncrypted(item.chatId,item.clientId,encrypted);
+      const action=item.meta?.action;const result=await api.sendEncrypted(item.chatId,item.clientId,encrypted,!action?undefined:action.type==='call'&&action.step==='offer'?'call':'none');
       await crypto.delivered(item.chatId,item.clientId).catch(()=>{});
       if(aliveRef.current){await acceptMessage(result.message);void refreshChats();}
     }

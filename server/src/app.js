@@ -1,4 +1,5 @@
 import { installCallRoutes } from './calls.js';
+import { PUSH_SCHEMA, PUSH_KINDS, chatNotification } from './push.js';
 import { COMMUNITY_SCHEMA, installCommunityRoutes, VOICE_LIMIT } from './communities.js';
 import Fastify, { LogController } from 'fastify';
 import websocket from '@fastify/websocket';
@@ -9,7 +10,7 @@ import { createReadStream, createWriteStream } from 'node:fs';
 import { join, resolve } from 'node:path';
 import { Transform } from 'node:stream';
 import { pipeline } from 'node:stream/promises';
-import { openDatabase, transaction, publicUser as serializePublicUser, publicChat, publicMessage, publicAttachment, privacyOf, effectivePrivacy, PLATINA_PRIVACY, userForViewer, receiptsVisible, presenceVisible } from './database.js';
+import { openDatabase, transaction, publicUser as serializePublicUser, publicChat, publicMessage, publicAttachment, privacyOf, effectivePrivacy, PLATINA_PRIVACY, userForViewer, receiptsVisible, presenceVisible, chatSettings } from './database.js';
 import { isAvatarFrame, isBannerPreset, MAX_PROFILE_VIDEO_BYTES, videoMime } from './cosmetics.js';
 import { platinaState } from './entitlements.js';
 import { installAuthRoutes, RECOVERY_LOCK_MS } from './auth.js';
@@ -43,6 +44,7 @@ function isEndpointWebSocketOrigin(request, origin) {
 /** An independent, ready Fastify instance; tests may inject requests without binding a port. */
 export async function buildApp({
   turn = null,
+  push = null,
   dataDir = resolve('data'),
   logger = false,
   allowedOrigins = [],
@@ -240,6 +242,38 @@ export async function buildApp({
   installUsernameRoutes({app,db,now,authOptions,emitUser,emitChat});
   installCallRoutes({app,authOptions,now,turn});
   installSocialRoutes({app,db,authOptions,publicUser,timestamp,serializationOptions,emitUser});
+  db.exec(PUSH_SCHEMA);
+  // Push token of this signed-in device. It lives as long as the session: a revoked or
+  // expired session stops receiving pushes.
+  app.put('/me/push', authOptions, async request => {
+    const body = objectBody(request.body, ['token', 'platform']);
+    if (typeof body.token !== 'string' || !/^[A-Za-z0-9_:\-]{20,4096}$/.test(body.token)) fail(400, 'Некорректный токен уведомлений.');
+    if (body.platform !== 'android') fail(400, 'Уведомления пока работают только на Android.');
+    db.prepare('INSERT INTO push_tokens(token,user_id,session_hash,platform,updated_at) VALUES(?,?,?,?,?) ON CONFLICT(token) DO UPDATE SET user_id=excluded.user_id,session_hash=excluded.session_hash,updated_at=excluded.updated_at')
+      .run(body.token, request.auth.user_id, request.auth.token_hash, body.platform, now());
+    return { ok: true, enabled: !!push };
+  });
+  app.delete('/me/push', authOptions, async request => {
+    db.prepare('DELETE FROM push_tokens WHERE session_hash=?').run(request.auth.token_hash);
+    return { ok: true };
+  });
+  const notify = (chatId, senderId, kind) => {
+    if (!push || kind === 'none') return;
+    const sender = db.prepare('SELECT display_name FROM users WHERE id=?').get(senderId);
+    for (const userId of memberIds(chatId)) {
+      if (userId === senderId) continue;
+      if (kind !== 'call' && chatSettings(db, userId, chatId).muted) continue;
+      const tokens = db.prepare('SELECT p.token FROM push_tokens p JOIN sessions s ON s.token_hash=p.session_hash WHERE p.user_id=? AND s.expires_at>?').all(userId, now());
+      if (!tokens.length) continue;
+      const member = db.prepare('SELECT last_read_message_id FROM chat_members WHERE chat_id=? AND user_id=?').get(chatId, userId);
+      const unread = db.prepare('SELECT COUNT(*) AS count FROM messages WHERE chat_id=? AND sender_id<>? AND id>?').get(chatId, userId, member?.last_read_message_id ?? 0).count;
+      const message = chatNotification({ chatId, senderName: sender?.display_name || 'Инвиз', kind, unread });
+      for (const { token } of tokens) {
+        push(token, message).then(result => { if (result === 'gone' && !databaseClosed) db.prepare('DELETE FROM push_tokens WHERE token=?').run(token); })
+          .catch(error => app.log.warn({ err: error.message }, 'push failed'));
+      }
+    }
+  };
   db.exec(COMMUNITY_SCHEMA);
   if (!db.prepare('PRAGMA table_info(communities)').all().some(column => column.name === 'category')) db.exec('ALTER TABLE communities ADD COLUMN category TEXT');
   if (!db.prepare('PRAGMA table_info(uploads)').all().some(column => column.name === 'purpose')) db.exec("ALTER TABLE uploads ADD COLUMN purpose TEXT NOT NULL DEFAULT 'profile'");
@@ -409,7 +443,8 @@ export async function buildApp({
     const chatId = request.params.chatId;
     const senderId = request.auth.user_id;
     requireMembership(chatId, senderId);
-    const body = objectBody(request.body, ['text', 'attachmentId', 'clientId', 'encrypted']);
+    const body = objectBody(request.body, ['text', 'attachmentId', 'clientId', 'encrypted', 'push']);
+    if (body.push !== undefined && !PUSH_KINDS.has(body.push)) fail(400, 'Некорректный вид уведомления.');
     if (body.text !== undefined || body.attachmentId !== undefined || !body.encrypted) {
       fail(400, 'Сообщения принимаются только в зашифрованном виде.', { code: 'E2EE_PLAINTEXT_REJECTED' });
     }
@@ -436,6 +471,7 @@ export async function buildApp({
     const message = publicMessage(db, db.prepare('SELECT * FROM messages WHERE id=?').get(id), serializationOptions);
     for (const userId of memberIds(chatId)) emitUser(userId, { type: 'message', chatId, message });
     emitChat(chatId);
+    notify(chatId, senderId, body.push || 'message');
     return reply.code(201).send({ message });
   });
 

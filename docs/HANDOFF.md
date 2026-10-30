@@ -198,3 +198,9 @@ cd android && ./gradlew assembleRelease
 - **Голосовые каналы**: до 12 человек, полная mesh-сеть WebRTC (аудио, DTLS-SRTP, TURN), сервер только пересылает offer/answer внутри комнаты (`voice.join/leave/mute/signal` по WS, состояние в памяти). Связь сохраняется при переходах по приложению (`VoiceBar`).
 - Файлы в каналах: `POST /uploads?purpose=channel` (до 20 МиБ, без E2EE, метаданные фото/видео чистятся клиентом); доступ — только тем, кто видит канал.
 - Тесты: сервер 106, клиент 336.
+
+## Push-уведомления (Android, Firebase)
+- Клиент: `mobile/src/push.ts` (expo-notifications, каналы «Сообщения»/«Звонки», токен FCM → `PUT /me/push`, выход → `DELETE /me/push`, тап по уведомлению открывает чат). `google-services.json` только для пакета `com.linea.messenger.preview` (подключается в development-сборке).
+- iOS push пока нет: `plugins/withNoIosPush.js` убирает `aps-environment`.
+- Сервер: `server/src/push.js` (FCM HTTP v1, JWT RS256 из ключа сервисного аккаунта), таблица `push_tokens` привязана к сессии. В уведомлении только имя отправителя и «Новое сообщение»/«N новых сообщений»/«📞 Входящий звонок»: текст E2EE и на сервер не попадает. Заглушённые чаты молчат (кроме звонков). Клиент шлёт `push: 'none'` для реакций/правок, `'call'` для предложения звонка.
+- Ключ сервисного аккаунта кладётся только на сервер: `bash deploy/push.sh /путь/ключ.json` (или без аргумента — вставить JSON, Ctrl+D). Лежит в `deploy/secrets/fcm.json` (в .gitignore), монтируется в контейнер read-only.

@@ -37,6 +37,7 @@ import { CommunitiesScreen } from './src/communities/CommunitiesScreen';
 import { InviteSheet } from './src/communities/InviteSheet';
 import { inviteCodeFrom } from './src/communities/types';
 import { onNavigate } from './src/navigation';
+import { usePush, stopPush } from './src/push';
 import { CallProvider } from './src/calls/CallProvider';
 import { GlassBackdrop } from './src/glass';
 
@@ -80,6 +81,7 @@ export default function App() {
     logoutInProgress.current=true;
     let revokeError:unknown=null;
     try {
+      await stopPush(api);
       try {await api.logout();}
       catch(error) {if(!(error instanceof ApiError&&error.status===401))revokeError=error;}
       try {await writeToken(null);}
@@ -120,6 +122,10 @@ function Messenger({api,session,onUser,themeMode,darkTheme,onTheme,onDarkTheme,o
   const chat=store.chats.find(c=>c.id===store.selectedId);
   const goBack=()=>{if(page==='security'||page==='profile')setPage('settings');else if(page==='saved')setPage('chats');else if(page!=='chats')setPage('chats');else store.selectChat(null);};
   useEffect(()=>{const sub=BackHandler.addEventListener('hardwareBackPress',()=>{if(page==='channels'&&openCommunity){setOpenCommunity(null);return true;}if(page==='security'||page==='profile'){setPage('settings');return true;}if(page!=='chats'){setPage('chats');return true;}if(store.selectedId){store.selectChat(null);return true;}return false;});return()=>sub.remove();},[page,store.selectedId,store.selectChat,openCommunity]);
+  // Tapping a push opens that chat (as soon as the chat list has it).
+  const [pushChat,setPushChat]=useState<string|null>(null);
+  usePush(api,setPushChat);
+  useEffect(()=>{if(!pushChat)return;const target=store.chats.find(c=>c.id===pushChat);if(target){setPushChat(null);setPage('chats');store.selectChat(target);}},[pushChat,store.chats,store.selectChat]);
   const newChat=()=>{store.selectChat(null);setPage('people');};
   // Channels: open a community, or an invite from a banner / a linea://invite/… link.
   useEffect(()=>onNavigate(request=>{if(request.to==='invite'){setInviteCode(request.code);return;}store.selectChat(null);setPage('channels');setOpenCommunity(request.communityId??null);}),[store.selectChat]);

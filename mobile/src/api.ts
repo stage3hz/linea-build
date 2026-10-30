@@ -112,7 +112,16 @@ export class Api {
   removeContact = (userId: string) => this.request<{ok: true}>(`/contacts/${encodeURIComponent(userId)}`, {method: 'DELETE'});
   chatSettings = (chatId: string, change: Partial<{pinned: boolean; archived: boolean; muted: boolean}>) => this.request<{chat: Chat}>(`/chats/${encodeURIComponent(chatId)}/settings`, {method: 'PATCH', body: JSON.stringify(change)});
   messages = (chatId: string, before?: number) => this.request<{messages: Message[]; hasMore: boolean}>(`/chats/${encodeURIComponent(chatId)}/messages?limit=50${before ? `&before=${before}` : ''}`);
-  sendEncrypted = (chatId: string, clientId: string, encrypted: EncryptedMessage) => this.request<{message: Message}>(`/chats/${encodeURIComponent(chatId)}/messages`, {method: 'POST', body: JSON.stringify({clientId, encrypted})});
+  /** push: what the recipient's phone shows ('call' rings, 'none' for reactions/edits); an older server without push gets no field. */
+  private pushField = true;
+  sendEncrypted = async (chatId: string, clientId: string, encrypted: EncryptedMessage, push?: 'message' | 'call' | 'none') => {
+    const post = (withPush: boolean) => this.request<{message: Message}>(`/chats/${encodeURIComponent(chatId)}/messages`, {method: 'POST', body: JSON.stringify(withPush && push ? {clientId, encrypted, push} : {clientId, encrypted})});
+    if (!push || !this.pushField) return post(false);
+    try { return await post(true); }
+    catch (error) { if (error instanceof ApiError && error.status === 400 && /неизвестные поля/.test(error.message)) { this.pushField = false; return post(false); } throw error; }
+  };
+  registerPush = (token: string, platform: 'android') => this.request<{ok: true; enabled: boolean}>('/me/push', {method: 'PUT', body: JSON.stringify({token, platform})});
+  unregisterPush = () => this.request<{ok: true}>('/me/push', {method: 'DELETE'});
   read = (chatId: string, messageId: number) => this.request<{ok: boolean; lastReadMessageId: number}>(`/chats/${encodeURIComponent(chatId)}/read`, {method: 'POST', body: JSON.stringify({messageId})});
   privacy = () => this.request<PrivacyResponse>('/me/privacy');
   updatePrivacy = (change: Partial<Privacy>) => this.request<PrivacyResponse>('/me/privacy', {method: 'PATCH', body: JSON.stringify(change)});
