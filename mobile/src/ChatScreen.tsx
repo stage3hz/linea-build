@@ -21,7 +21,7 @@ import { MAX_DRAFT_ATTACHMENTS } from './messageAttachments';
 import { mediaPreviewKind } from './media/formats';
 import { AttachmentViewer } from './media/AttachmentViewer';
 import { openDocument } from './media/documentPreview';
-import { textMetrics, useChatPreferences } from './chatPreferences';
+import { WALLPAPERS, textMetrics, useChatPreferences } from './chatPreferences';
 import { REACTIONS, foldChat, groupAlbums, replyPreview, type Reaction, type ViewMessage } from './messageMeta';
 import { MediaGallery } from './media/AttachmentViewer';
 import { PollComposer } from './PollBubble';
@@ -88,6 +88,7 @@ export function ChatScreen({api,user,chat,store,onBack,wide=false,onOpenMusic}: 
     return visible.reverse();
   },[view,pending,searchOpen,needle,user.id]);
   const preferences=useChatPreferences();const metrics=textMetrics(preferences.textSize);
+  const wallpaperColors=WALLPAPERS.find(item=>item.id===preferences.wallpaper)?.colors||null;
   const nameOf=(senderId:string)=>senderId===user.id?'Ты':chat.peer.displayName;
   // A forwarded message keeps its first author through further forwards.
   const originalAuthor=(message:ViewMessage)=>message.meta?.forward?.from||(message.senderId===user.id?user.displayName:chat.peer.displayName);
@@ -223,9 +224,10 @@ export function ChatScreen({api,user,chat,store,onBack,wide=false,onOpenMusic}: 
     finally{uploadingRef.current=false;if(alive.current)setUploading(false);await FileSystem.deleteAsync(take.uri,{idempotent:true}).catch(()=>{});}
   };
   return <VoicePlaybackProvider api={api}><KeyboardSafeView style={{flex:1,backgroundColor:'transparent'}}>
+    {wallpaperColors?<LinearGradient pointerEvents="none" colors={wallpaperColors as unknown as [string,string,string]} start={{x:0,y:0}} end={{x:1,y:1}} style={{position:'absolute',top:-80,bottom:-60,left:0,right:0}}/>:null}
     <View pointerEvents="box-none" onLayout={e=>setHeaderHeight(e.nativeEvent.layout.height)} style={{position:'absolute',top:0,left:0,right:0,zIndex:5,paddingTop:8,gap:6}}>
     {/* Messages fade out under the status bar instead of ending at a hard edge. */}
-    <LinearGradient pointerEvents="none" colors={[t.bgGradient[0],'transparent']} style={{position:'absolute',top:0,left:0,right:0,height:34}}/>
+    <LinearGradient pointerEvents="none" colors={[wallpaperColors?.[0]||t.bgGradient[0],'transparent']} style={{position:'absolute',top:0,left:0,right:0,height:34}}/>
     {selection?<View style={{flexDirection:'row',alignItems:'center',gap:8,paddingHorizontal:12}}>
       <GlassSurface material="regular" radius={24} interactive contentStyle={{height:48,justifyContent:'center',paddingHorizontal:16}}><Pressable onPress={()=>setSelection(null)} accessibilityRole="button" hitSlop={8}><Text style={{color:t.accent,fontSize:16,fontWeight:'600'}}>Отмена</Text></Pressable></GlassSurface>
       <View style={{flex:1,alignItems:'center'}}><GlassSurface material="regular" radius={24} contentStyle={{height:48,justifyContent:'center',paddingHorizontal:18}}><Text style={{color:t.text,fontSize:16,fontWeight:'700'}}>Выбрано: {selectedMessages.length}</Text></GlassSurface></View>

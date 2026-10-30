@@ -6,7 +6,7 @@ import { ActivityIndicator, FlatList, LayoutAnimation, Platform, Pressable, Refr
 if (Platform.OS === 'android' && UIManager.setLayoutAnimationEnabledExperimental) UIManager.setLayoutAnimationEnabledExperimental(true);
 import { Text, TextInput } from './typography';
 import { MiniPlayer } from './music/PlayerControls';
-import { Avatar, Button, Empty, Icon, IconButton, Notice } from './components';
+import { Avatar, Button, Empty, Icon, IconButton, Notice, Sheet, SheetAction } from './components';
 import { GlassSurface } from './glass';
 import { StatusEmoji } from './StatusEmoji';
 import { formatListTime, useTheme } from './theme';
@@ -24,7 +24,7 @@ type Navigation = { onProfile:()=>void;onNewChat:()=>void;onMusic:()=>void;onAI:
 
 export function ChatListScreen({api,user,store,onProfile,onNewChat,onMusic,onAI,onQuickAI,onChats,onSaved,savedActive=false,activeTab='chats'}: {api:Api;user:User;store:MessengerStore;onQuickAI:()=>void;onSaved:()=>void;savedActive?:boolean}&Navigation) {
   const t=useTheme();const [query,setQuery]=useState('');const [refreshing,setRefreshing]=useState(false);
-  const [archive,setArchive]=useState(false);const [editing,setEditing]=useState<Set<string>|null>(null);const [menu,setMenu]=useState<{chat:Chat;y:number}|null>(null);const [menuError,setMenuError]=useState('');
+  const [archive,setArchive]=useState(false);const [editing,setEditing]=useState<Set<string>|null>(null);const [removeAsk,setRemoveAsk]=useState<Chat[]|null>(null);const [menu,setMenu]=useState<{chat:Chat;y:number}|null>(null);const [menuError,setMenuError]=useState('');
   const archivedCount=store.chats.filter(c=>c.settings?.archived).length;
   const folders=useChatFolders(user.id);const [filter,setFilter]=useState<FolderFilter>('all');const [editor,setEditor]=useState<{folder:ChatFolder|null}|null>(null);
   const unread=store.chats.filter(c=>!c.settings?.archived&&c.unreadCount>0).length;
@@ -60,12 +60,17 @@ export function ChatListScreen({api,user,store,onProfile,onNewChat,onMusic,onAI,
       <Pressable onPress={()=>bulk(readChat)} accessibilityRole="button" style={{padding:10}}><Text style={{color:t.accent,fontSize:14,fontWeight:'600'}}>{selectedChats.length?'Прочитать':'Прочитать все'}</Text></Pressable>
       <Pressable disabled={!selectedChats.length} onPress={()=>bulk(chat=>change(chat,{archived:!archive}))} accessibilityRole="button" style={{padding:10,opacity:selectedChats.length?1:.4}}><Text style={{color:t.accent,fontSize:14,fontWeight:'600'}}>{archive?'Из архива':'В архив'}</Text></Pressable>
       <Pressable disabled={!selectedChats.length} onPress={()=>bulk(chat=>change(chat,{muted:!chat.settings?.muted}))} accessibilityRole="button" style={{padding:10,opacity:selectedChats.length?1:.4}}><Text style={{color:t.accent,fontSize:14,fontWeight:'600'}}>Звук</Text></Pressable>
+      <Pressable disabled={!selectedChats.length} onPress={()=>setRemoveAsk(selectedChats)} accessibilityRole="button" style={{padding:10,opacity:selectedChats.length?1:.4}}><Text style={{color:t.danger,fontSize:14,fontWeight:'600'}}>Удалить</Text></Pressable>
     </GlassSurface>:null}
+    <Sheet visible={!!removeAsk} title={removeAsk&&removeAsk.length>1?`Удалить чаты (${removeAsk.length})?`:'Удалить чат?'} onClose={()=>setRemoveAsk(null)}>
+      <SheetAction icon="trash-outline" label="Удалить у меня" description="Чат и загруженные сообщения исчезнут на этом устройстве. Если собеседник напишет снова, чат вернётся." danger onPress={()=>{const list=removeAsk||[];setRemoveAsk(null);setEditing(null);lightFeedback();list.forEach(chat=>store.removeChat(chat));}}/>
+    </Sheet>
     <ContextMenu visible={!!menu} y={menu?.y||0} onClose={()=>setMenu(null)} preview={menu?.chat.peer.displayName}>
       {menu?<>
         <MenuItem icon={menu.chat.settings?.pinnedAt?'pin':'pin-outline'} label={menu.chat.settings?.pinnedAt?'Открепить':'Закрепить'} onPress={()=>change(menu.chat,{pinned:!menu.chat.settings?.pinnedAt})}/>
         <MenuItem icon={menu.chat.settings?.muted?'notifications-outline':'notifications-off-outline'} label={menu.chat.settings?.muted?'Включить звук':'Выключить звук'} onPress={()=>change(menu.chat,{muted:!menu.chat.settings?.muted})}/>
         <MenuItem icon="archive-outline" label={menu.chat.settings?.archived?'Вернуть из архива':'В архив'} onPress={()=>change(menu.chat,{archived:!menu.chat.settings?.archived})}/>
+        <MenuItem icon="trash-outline" label="Удалить чат" danger onPress={()=>{const chat=menu.chat;setMenu(null);setRemoveAsk([chat]);}}/>
       </>:null}
     </ContextMenu>
     {editing?null:<MessengerTabs onProfile={onProfile} onNewChat={onNewChat} onMusic={onMusic} onAI={onAI} onChats={onChats} activeTab={activeTab}/>}

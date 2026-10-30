@@ -13,7 +13,8 @@ import { useMotion } from './motion';
 import type { AnimationMode } from './motionPolicy';
 import { AppIconPicker } from './AppIconPicker';
 import { StatusEmoji } from './StatusEmoji';
-import { TEXT_SIZES, setChatPreferences, textMetrics, useChatPreferences } from './chatPreferences';
+import { TEXT_SIZES, WALLPAPERS, setChatPreferences, textMetrics, useChatPreferences } from './chatPreferences';
+import { LinearGradient } from 'expo-linear-gradient';
 import { clearDecryptedAttachmentCache } from './e2ee/attachments';
 import { clearPhotoCache } from './photo/pipeline';
 import { clearVideoCache } from './media/pipeline';
@@ -104,6 +105,12 @@ function Appearance({ theme, darkTheme, onTheme, onDarkTheme }: Props) {
     <Group label="Тема"><View style={{ padding: 14 }}><ThemeSettings mode={theme} darkTheme={darkTheme} onChange={onTheme} onDarkTheme={onDarkTheme} /></View></Group>
     <Group label="Иконка приложения"><AppIconPicker /></Group>
     <Group label="Анимации"><MotionSettings /></Group>
+    <Group label="Обои чатов"><ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ padding: 14, gap: 9 }}>{WALLPAPERS.map(item => {
+      const selected = preferences.wallpaper === item.id;
+      return <Pressable key={item.id} accessibilityRole="radio" accessibilityState={{ selected }} onPress={() => setChatPreferences({ wallpaper: item.id })} style={{ alignItems: 'center', gap: 6 }}>
+        <View style={{ width: 64, height: 96, borderRadius: 14, overflow: 'hidden', borderWidth: 2, borderColor: selected ? t.accent : t.border, backgroundColor: t.bg }}>{item.colors ? <LinearGradient colors={item.colors as unknown as [string, string, string]} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={{ flex: 1 }} /> : null}<View style={{ position: 'absolute', right: 6, bottom: 10, width: 30, height: 10, borderRadius: 5, backgroundColor: t.bubble }} /><View style={{ position: 'absolute', left: 6, bottom: 26, width: 26, height: 10, borderRadius: 5, backgroundColor: t.incoming }} /></View>
+        <Text style={{ color: selected ? t.accent : t.text, fontSize: 11, fontWeight: '600' }}>{item.label}</Text></Pressable>;
+    })}</ScrollView></Group>
     <Group label="Углы сообщений"><View style={{ padding: 14, flexDirection: 'row', gap: 7 }}>{([[8, 'Острые'], [14, 'Средние'], [20, 'Круглые']] as const).map(([value, label]) => {
       const selected = preferences.bubbleRadius === value;
       return <Pressable key={value} accessibilityRole="radio" accessibilityState={{ selected }} onPress={() => setChatPreferences({ bubbleRadius: value })} style={{ flex: 1, alignItems: 'center', gap: 8, paddingVertical: 10, borderRadius: 15, backgroundColor: selected ? t.accentSoft : t.surface2, borderWidth: 1, borderColor: selected ? t.accent : t.border }}><View style={{ width: 46, height: 22, borderRadius: value, borderBottomRightRadius: Math.min(6, value), backgroundColor: t.bubble }} /><Text style={{ color: selected ? t.accent : t.text, fontSize: 12, fontWeight: '600' }}>{label}</Text></Pressable>;
