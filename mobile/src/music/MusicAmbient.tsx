@@ -36,10 +36,11 @@ function Layer({ phase, index, children }: { phase: SharedValue<number>; index: 
   return <Animated.View style={[StyleSheet.absoluteFill, style]}>{children}</Animated.View>;
 }
 
-function Patch({ x, y, size, offset, drift, strength, tone }: { x: number; y: number; size: number; offset: number; drift: number; strength: number; tone: AmbientTone }) {
+function Patch({ x, y, size, offset, drift, strength, tone, still }: { x: number; y: number; size: number; offset: number; drift: number; strength: number; tone: AmbientTone; still?: boolean }) {
   const palette = PALETTES[tone];
   const phase = useSharedValue(offset); const dx = useSharedValue(0); const dy = useSharedValue(0);
   useEffect(() => {
+    if (still) return; // static variant (call screen)
     phase.value = withRepeat(withTiming(offset + COUNT, { duration: STEP * COUNT, easing: Easing.linear }), -1, false);
     const ease = Easing.inOut(Easing.sin);
     dx.value = withRepeat(withSequence(withTiming(drift, { duration: 9000 + offset * 900, easing: ease }), withTiming(-drift, { duration: 9000 + offset * 900, easing: ease })), -1, true);
@@ -52,14 +53,14 @@ function Patch({ x, y, size, offset, drift, strength, tone }: { x: number; y: nu
 }
 
 /** `fadeTo` blends the bottom edge into the screen background below (the track list). */
-export function MusicAmbient({ width, height, tone = 'dark', fadeTo }: { width: number; height: number; tone?: AmbientTone; fadeTo?: string }) {
+export function MusicAmbient({ width, height, tone = 'dark', fadeTo, still = false }: { width: number; height: number; tone?: AmbientTone; fadeTo?: string; still?: boolean }) {
   const palette = PALETTES[tone];
   const strength = tone === 'light' ? .75 : 1;
   return <View pointerEvents="none" style={[StyleSheet.absoluteFill, { backgroundColor: palette.base, overflow: 'hidden' }]}>
-    <Patch tone={tone} x={width * .25} y={height * .35} size={width * 1.3} offset={0} drift={50} strength={.55 * strength} />
-    <Patch tone={tone} x={width * .85} y={height * .55} size={width * 1.2} offset={1.7} drift={45} strength={.45 * strength} />
-    <Patch tone={tone} x={width * .5} y={height * .85} size={width * 1.3} offset={3.1} drift={40} strength={.5 * strength} />
-    <Patch tone={tone} x={width * .55} y={height * .3} size={width * .8} offset={4.2} drift={55} strength={.3 * strength} />
+    <Patch still={still} tone={tone} x={width * .25} y={height * .35} size={width * 1.3} offset={0} drift={50} strength={.55 * strength} />
+    <Patch still={still} tone={tone} x={width * .85} y={height * .55} size={width * 1.2} offset={1.7} drift={45} strength={.45 * strength} />
+    <Patch still={still} tone={tone} x={width * .5} y={height * .85} size={width * 1.3} offset={3.1} drift={40} strength={.5 * strength} />
+    <Patch still={still} tone={tone} x={width * .55} y={height * .3} size={width * .8} offset={4.2} drift={55} strength={.3 * strength} />
     {fadeTo ? <Svg width={width} height={height} style={StyleSheet.absoluteFill}>
       <Defs><LinearGradient id="fade" x1="0" y1="0" x2="0" y2="1"><Stop offset="0.62" stopColor={fadeTo} stopOpacity={0} /><Stop offset="1" stopColor={fadeTo} stopOpacity={1} /></LinearGradient></Defs>
       <Rect width={width} height={height} fill="url(#fade)" />

@@ -117,7 +117,7 @@ export function VideoNoteBubble({ api, attachment }: { api: Api; attachment: Att
   // Circles are small, so they load by themselves (as in Telegram) and play silently in the chat.
   const media = useMedia(api, attachment, attachment.size <= 8 * 1024 * 1024);
   const [expanded, setExpanded] = useState(false);
-  const size = expanded ? Math.min(width - 36, 340) : 220;
+  const size = expanded ? Math.min(width - 36, 340) : 212; // Telegram: 212 pt circle
   const thumb = useMemo(() => attachment.preview ? `data:${attachment.preview.mimeType};base64,${attachment.preview.base64}` : null, [attachment.preview]);
   const collapse = useCallback(() => setExpanded(false), []);
   const toggle = useCallback(() => setExpanded(value => { if (!value) music.stop(); return !value; }), [music]);

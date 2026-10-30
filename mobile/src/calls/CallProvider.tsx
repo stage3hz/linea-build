@@ -1,7 +1,10 @@
 import React, { createContext, useCallback, useContext, useEffect, useRef, useState } from 'react';
 import { Modal, Platform, Pressable, StyleSheet, Vibration, View, useWindowDimensions } from 'react-native';
 import * as Crypto from 'expo-crypto';
+import { MusicAmbient } from '../music/MusicAmbient';
 import { LinearGradient } from 'expo-linear-gradient';
+import { Image as BlurImage } from 'expo-image';
+import { useTheme } from '../theme';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import Animated, { Easing, useAnimatedStyle, useSharedValue, withRepeat, withTiming } from 'react-native-reanimated';
 import { Text } from '../typography';
@@ -226,14 +229,19 @@ function CallButton({ icon, label, onPress, active = false, color }: { icon: Ico
 }
 
 function CallScreen({ call, api, rtc, hangup, accept, mute, speaker, camera, flip, minimize }: { call: CallState; api: Api; rtc: WebRTC | null; hangup: () => void; accept: () => void; mute: () => void; speaker: () => void; camera: () => void; flip: () => void; minimize: () => void; restore?: () => void }) {
-  const insets = useSafeAreaInsets(); const { width } = useWindowDimensions();
+  const insets = useSafeAreaInsets(); const { width, height } = useWindowDimensions(); const t = useTheme();
   const [, tick] = useState(0);
   useEffect(() => { if (call.status !== 'active') return; const timer = setInterval(() => tick(v => v + 1), 1000); return () => clearInterval(timer); }, [call.status]);
   const status = call.status === 'requesting' ? 'Запрос…' : call.status === 'ringing' ? 'Вызов…' : call.status === 'incoming' ? (call.video ? 'Входящий видеозвонок' : 'Входящий звонок') : call.status === 'connecting' ? 'Соединение…' : call.status === 'active' ? callClock(Date.now() - (call.startedAt || Date.now())) : call.endedText;
   const View_ = rtc?.RTCView as any;
   const showVideo = call.video && call.remoteUrl && View_;
   return <Modal visible transparent={false} animationType="slide" onRequestClose={() => {}} statusBarTranslucent supportedOrientations={['portrait']}>
-    <LinearGradient colors={call.status === 'active' ? ['#2C8C6E', '#3B6FB6', '#5A55B8'] : ['#5B5FD6', '#6E59C9', '#8A5BC8']} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={StyleSheet.absoluteFill} />
+    {/* Like Telegram / iOS: the background is the other person's avatar, heavily blurred and dimmed.
+        Without a photo — their avatar colour over the app's deep-blue background. */}
+    <MusicAmbient width={width} height={height} tone={t.black ? 'black' : 'dark'} still />
+    {call.peer.avatarId ? <BlurImage source={{ uri: api.fileUrl(call.peer.avatarId), headers: { Authorization: `Bearer ${api.token}` }, cacheKey: `invizent-file-${call.peer.avatarId}` }} cachePolicy="memory-disk" blurRadius={60} contentFit="cover" style={[StyleSheet.absoluteFill, { transform: [{ scale: 1.25 }] }]} />
+      : <LinearGradient colors={[`${call.peer.avatarColor || '#4B73BB'}CC`, `${call.peer.avatarColor || '#4B73BB'}55`, 'rgba(0,0,0,0)']} start={{ x: 0.5, y: 0 }} end={{ x: 0.5, y: 1 }} style={StyleSheet.absoluteFill} />}
+    <View pointerEvents="none" style={[StyleSheet.absoluteFill, { backgroundColor: 'rgba(0,0,0,0.32)' }]} />
     {showVideo ? <View_ streamURL={call.remoteUrl} objectFit="cover" style={StyleSheet.absoluteFill} /> : null}
     <View style={{ flex: 1, paddingTop: insets.top + 10, paddingBottom: insets.bottom + 24 }}>
       {call.status !== 'incoming' && call.status !== 'ended' ? <Pressable onPress={minimize} accessibilityRole="button" accessibilityLabel="Свернуть звонок" hitSlop={10} style={{ position: 'absolute', left: 16, top: insets.top + 6, zIndex: 3, width: 40, height: 40, borderRadius: 20, backgroundColor: 'rgba(0,0,0,0.2)', alignItems: 'center', justifyContent: 'center' }}><Icon name="chevron-down" size={24} color="#FFF" /></Pressable> : null}

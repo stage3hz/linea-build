@@ -34,7 +34,7 @@ export function mediaBox(attachment: Attachment, maxWidth = 250, maxHeight = 330
   const ratio = Math.max(0.45, Math.min(2.2, w / h));
   let width = maxWidth, height = width / ratio;
   if (height > maxHeight) { height = maxHeight; width = height * ratio; }
-  return { width: Math.round(Math.max(150, width)), height: Math.round(Math.max(110, height)) };
+  return { width: Math.round(Math.max(170, width)), height: Math.round(Math.max(74, height)) };
 }
 
 /** One photo or video tile; used alone and inside an album grid. */
