@@ -4,10 +4,11 @@ import { useSyncExternalStore } from 'react';
 
 export type TextSize = 'small' | 'medium' | 'large' | 'xlarge';
 export const TEXT_SIZES: { id: TextSize; label: string; fontSize: number; lineHeight: number }[] = [
-  { id: 'small', label: 'Мелкий', fontSize: 13, lineHeight: 19 },
-  { id: 'medium', label: 'Обычный', fontSize: 15, lineHeight: 22 },
-  { id: 'large', label: 'Крупный', fontSize: 17, lineHeight: 24 },
-  { id: 'xlarge', label: 'Очень крупный', fontSize: 20, lineHeight: 28 },
+  // «Обычный» = Telegram for iPhone default (17 pt text, 22 pt line).
+  { id: 'small', label: 'Мелкий', fontSize: 15, lineHeight: 20 },
+  { id: 'medium', label: 'Обычный', fontSize: 17, lineHeight: 22 },
+  { id: 'large', label: 'Крупный', fontSize: 19, lineHeight: 25 },
+  { id: 'xlarge', label: 'Очень крупный', fontSize: 22, lineHeight: 28 },
 ];
 import type { AnimationMode } from './motionPolicy';
 /** Chat backgrounds (Настройки → Оформление → Обои чатов). Colours are drawn over the app background. */
