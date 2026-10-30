@@ -120,7 +120,7 @@ export function MusicScreen({ onBack }: { onBack: () => void }) {
 
   return <View style={{ flex: 1, width: '100%', maxWidth: 980, alignSelf: 'center' }}>
 
-    <FlatList
+    <FlatList keyboardDismissMode="on-drag"
       data={rows}
       keyExtractor={track => track.id}
       keyboardShouldPersistTaps="handled"
