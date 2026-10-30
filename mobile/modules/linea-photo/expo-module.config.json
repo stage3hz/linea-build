@@ -11,7 +11,8 @@
   "android": {
     "modules": [
       "expo.modules.lineaphoto.LinePhotoModule",
-      "expo.modules.lineaphoto.VideoNoteModule"
+      "expo.modules.lineaphoto.VideoNoteModule",
+      "expo.modules.lineaphoto.MusicEqualizerModule"
     ]
   }
 }

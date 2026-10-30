@@ -1,6 +1,7 @@
 import ExpoModulesCore
 import Foundation
 import CoreGraphics
+import AVFoundation
 
 private struct LineaPhotoError: CodedError {
   let code: String
@@ -9,6 +10,7 @@ private struct LineaPhotoError: CodedError {
 
 public final class LinePhotoModule: Module {
   private let writer=DispatchQueue(label:"app.linea.photo.writer",qos:.userInitiated)
+  private var routeObserver:NSObjectProtocol?
   public func definition() -> ModuleDefinition {
     Name("LineaPhoto")
     AsyncFunction("capabilities"){PhotoBackground.capabilities()}
@@ -19,6 +21,17 @@ public final class LinePhotoModule: Module {
     }.runOnQueue(writer)
     AsyncFunction("dispose"){(uri:String) in try self.protect{try PhotoFiles().dispose(uri)}}.runOnQueue(writer)
     AsyncFunction("clearCache"){try self.protect{try PhotoFiles().clearCache()}}.runOnQueue(writer)
+    // Music equalizer on expo-audio's player (see MusicEqualizer.swift).
+    AsyncFunction("attachEqualizer"){(player:SharedRef<AVPlayer>) in MusicEqualizer.attach(player.ref)}.runOnQueue(.main)
+    Function("setEqualizer"){(low:Double,mid:Double,high:Double,enabled:Bool) in MusicEqualizer.set(low:low,mid:mid,high:high,enabled:enabled)}
+    Function("audioRoute"){() -> [String:Any?] in ["route":MusicEqualizer.route(),"name":MusicEqualizer.routeName()]}
+    Events("onAudioRoute")
+    OnStartObserving("onAudioRoute"){
+      self.routeObserver=NotificationCenter.default.addObserver(forName:AVAudioSession.routeChangeNotification,object:nil,queue:.main){[weak self] _ in
+        self?.sendEvent("onAudioRoute",["route":MusicEqualizer.route(),"name":MusicEqualizer.routeName()])
+      }
+    }
+    OnStopObserving("onAudioRoute"){ if let observer=self.routeObserver{NotificationCenter.default.removeObserver(observer)};self.routeObserver=nil }
     AsyncFunction("setCenterStage"){(enabled:Bool) -> [String:Any] in CenterStage.set(enabled)}.runOnQueue(.main)
     AsyncFunction("previewFile"){(uri:String) -> Bool in
       let presenter=self.appContext?.utilities?.currentViewController()

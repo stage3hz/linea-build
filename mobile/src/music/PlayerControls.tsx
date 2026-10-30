@@ -3,6 +3,7 @@ import { ActivityIndicator, Animated, Image, Modal, PanResponder, Platform, Pres
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { MusicAmbient, type AmbientTone } from './MusicAmbient';
 import { Image as BlurImage } from 'expo-image';
+import { EqualizerScreen } from './EqualizerScreen';
 import { Text } from '../typography';
 import { LinearGradient } from 'expo-linear-gradient';
 import { Button, Icon, IconButton, Notice } from '../components';
@@ -196,7 +197,7 @@ export function PlayerControls({ compact = false, onOpen, onCollapse }: { compac
  */
 export function FullPlayer({ visible, onClose, onSource }: { visible: boolean; onClose: () => void; onSource?: (url: string) => void }) {
   const music = useMusic(), t = useTheme(); const { width, height } = useWindowDimensions();
-  const insets = useSafeAreaInsets(); const [panel, setPanel] = useState<'queue' | 'lyrics' | null>(null);
+  const insets = useSafeAreaInsets(); const [panel, setPanel] = useState<'queue' | 'lyrics' | null>(null); const [eqOpen, setEqOpen] = useState(false);
   useEffect(() => { if (visible) setPanel(null); }, [visible]);
   const close = () => onClose();
   // Collapse only on a clear, mostly vertical drag; no live movement of the page.
@@ -243,6 +244,7 @@ export function FullPlayer({ visible, onClose, onSource }: { visible: boolean; o
               {chip(track.source === 'local' ? 'share-outline' : 'download-outline', null, () => void music.download(track), track.source === 'audius' && !track.downloadable, downloading)}
               {chip(favorite ? 'heart' : 'heart-outline', favorite ? 'В любимом' : 'В любимое', () => void music.toggleFavorite(track))}
               {chip('shuffle', music.shuffle ? 'Перемешано' : 'Перемешать', music.toggleShuffle)}
+              {chip('options-outline', 'Эквалайзер', () => setEqOpen(true))}
             </ScrollView>
             <SeekBar />
             <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: 6 }}>
@@ -270,6 +272,7 @@ export function FullPlayer({ visible, onClose, onSource }: { visible: boolean; o
           </View>
         </View> : null}
       </View>
+      <EqualizerScreen visible={eqOpen} onClose={() => setEqOpen(false)} />
     </GestureHandlerRootView>
   </Modal>;
 }

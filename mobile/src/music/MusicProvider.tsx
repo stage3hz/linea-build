@@ -2,6 +2,7 @@ import React, { createContext, useCallback, useContext, useEffect, useMemo, useR
 import { Linking, Platform } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { setAudioModeAsync, useAudioPlayer, useAudioPlayerStatus } from 'expo-audio';
+import { reattachEqualizer, useEqualizerOn } from './equalizer';
 import * as DocumentPicker from 'expo-document-picker';
 import * as Sharing from 'expo-sharing';
 import { Directory, File as NativeFile, Paths } from 'expo-file-system';
@@ -121,11 +122,12 @@ export function MusicProvider({ children }: { children: React.ReactNode }) {
 function NativeMusicProvider({ children }: { children: React.ReactNode }) {
   const player = useAudioPlayer(null, { updateInterval: 400, downloadFirst: false });
   const status = useAudioPlayerStatus(player);
+  useEqualizerOn(player);
   const engine = useMemo<Engine>(() => {
     let configuration: Promise<void> | null = null;
     return {
       prepare: () => configuration ||= setAudioModeAsync({ playsInSilentMode: true, shouldPlayInBackground: true, interruptionMode: 'doNotMix', allowsRecording: false }).catch(error => { configuration = null; throw error; }),
-      replace: uri => player.replace(uri),
+      replace: uri => { player.replace(uri); reattachEqualizer(player); },
       play: async () => { player.play(); }, pause: () => player.pause(), seek: seconds => player.seekTo(seconds), loop: enabled => { player.loop = enabled; },
       metadata: track => track ? player.setActiveForLockScreen(true, { title: track.title, artist: track.artist, ...(track.artworkUrl ? { artworkUrl: track.artworkUrl } : {}) }) : player.clearLockScreenControls(),
     };
