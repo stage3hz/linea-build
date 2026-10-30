@@ -13,6 +13,8 @@ import type { Attachment } from '../types';
 import { useMedia } from '../media/mediaCache';
 import { ProgressRing } from '../media/MediaBubble';
 import { setCenterStage } from '../media/centerStage';
+import * as FileSystem from 'expo-file-system/legacy';
+import { AndroidNoteCamera, androidNoteCameraAvailable, type AndroidNoteCameraHandle } from './androidCamera';
 import { useMusic } from '../music/MusicProvider';
 import { VIDEO_NOTE_MAX_MS, formatVoiceTime } from '../voice/voice';
 
@@ -20,7 +22,8 @@ export type VideoNoteTake = { uri: string; durationMs: number };
 const CIRCLE = 300;
 // iPhone: the camera input is swapped inside the running capture session, so the recording continues
 // (as in Telegram). Android's CameraX rebinds the camera and would stop the file, so there it stays before recording.
-const FLIP_WHILE_RECORDING = Platform.OS === 'ios';
+// Android: our CameraX recorder (persistent recording) keeps the file going across a switch.
+const FLIP_WHILE_RECORDING = Platform.OS === 'ios' || androidNoteCameraAvailable;
 
 /** Full-screen recorder for a round video message. Camera and microphone are used only while it is open. */
 export function VideoNoteRecorder({ visible, onClose, onDone }: { visible: boolean; onClose: () => void; onDone: (take: VideoNoteTake) => void }) {
@@ -33,6 +36,8 @@ export function VideoNoteRecorder({ visible, onClose, onDone }: { visible: boole
   const [elapsed, setElapsed] = useState(0);
   const [error, setError] = useState('');
   const ref = useRef<CameraView>(null);
+  const nativeRef = useRef<AndroidNoteCameraHandle>(null);
+  const limit = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
   // Center Stage (iPhone 17 family): the front camera keeps the face in frame while you move.
   const [stage, setStage] = useState<{ supported: boolean; enabled: boolean }>({ supported: false, enabled: false });
   useEffect(() => { if (visible) void setCenterStage(true).then(setStage); }, [visible]);
@@ -53,20 +58,39 @@ export function VideoNoteRecorder({ visible, onClose, onDone }: { visible: boole
     return () => clearInterval(timer);
   }, [recording]);
 
+  const finishTake = (uri: string | undefined) => {
+    const durationMs = Math.min(VIDEO_NOTE_MAX_MS, Date.now() - started.current);
+    setRecording(false);
+    if (cancelled.current || !uri) return;
+    if (durationMs < 1000) { setError('Слишком короткое видео — запиши хотя бы секунду.'); return; }
+    onDone({ uri, durationMs });
+  };
   const start = async () => {
-    if (!ref.current || recording || !ready) return;
+    if (recording || !ready) return;
     cancelled.current = false; setError(''); started.current = Date.now(); setElapsed(0); setRecording(true);
+    if (androidNoteCameraAvailable) {
+      try {
+        await nativeRef.current?.startRecording(`${FileSystem.cacheDirectory}videonote-${Date.now()}.mp4`);
+        limit.current = setTimeout(() => void stop(), VIDEO_NOTE_MAX_MS);
+      } catch (e) { setRecording(false); setError(e instanceof Error ? e.message : 'Не удалось начать запись.'); }
+      return;
+    }
+    if (!ref.current) { setRecording(false); return; }
     try {
       const result = await ref.current.recordAsync({ maxDuration: VIDEO_NOTE_MAX_MS / 1000 });
-      const durationMs = Math.min(VIDEO_NOTE_MAX_MS, Date.now() - started.current);
-      setRecording(false);
-      if (cancelled.current || !result?.uri) return;
-      if (durationMs < 1000) { setError('Слишком короткое видео — запиши хотя бы секунду.'); return; }
-      onDone({ uri: result.uri, durationMs });
+      finishTake(result?.uri);
     } catch (e) { setRecording(false); if (!cancelled.current) setError(e instanceof Error ? e.message : 'Не удалось записать видео.'); }
   };
-  const stop = () => { if (recording) ref.current?.stopRecording(); };
-  const cancel = () => { cancelled.current = true; if (recording) ref.current?.stopRecording(); onClose(); };
+  const stop = async () => {
+    if (limit.current) { clearTimeout(limit.current); limit.current = undefined; }
+    if (androidNoteCameraAvailable) {
+      try { finishTake(await nativeRef.current?.stopRecording()); }
+      catch (e) { setRecording(false); if (!cancelled.current) setError(e instanceof Error ? e.message : 'Не удалось записать видео.'); }
+      return;
+    }
+    if (recording) ref.current?.stopRecording();
+  };
+  const cancel = () => { cancelled.current = true; if (recording) void stop(); onClose(); };
   const allowed = !!camera?.granted && !!mic?.granted;
   const progress = Math.min(1, elapsed / VIDEO_NOTE_MAX_MS);
 
@@ -75,7 +99,7 @@ export function VideoNoteRecorder({ visible, onClose, onDone }: { visible: boole
       <Text style={{ color: '#FFF', fontSize: 17, fontWeight: '700' }}>{recording ? formatVoiceTime(elapsed) : 'Видеосообщение'}</Text>
       <View style={{ width: CIRCLE + 12, height: CIRCLE + 12, borderRadius: (CIRCLE + 12) / 2, padding: 6, borderWidth: 3, borderColor: recording ? t.danger : 'rgba(255,255,255,0.25)' }}>
         <View style={{ width: CIRCLE, height: CIRCLE, borderRadius: CIRCLE / 2, overflow: 'hidden', backgroundColor: '#000' }}>
-          {visible && allowed ? <CameraView key={Platform.OS === 'ios' ? 'camera' : facing} ref={ref} style={{ position: 'absolute', left: 0, top: -CIRCLE / 6, width: CIRCLE, height: CIRCLE * 4 / 3 }} facing={facing} mode="video" ratio="4:3" mirror={facing === 'front'} videoQuality="480p" onCameraReady={() => setReady(true)} onMountError={event => setError(event.message || 'Камера недоступна.')} /> : null}
+          {visible && allowed && androidNoteCameraAvailable ? <AndroidNoteCamera ref={nativeRef} facing={facing === 'back' ? 'back' : 'front'} style={{ position: 'absolute', left: 0, top: -CIRCLE / 6, width: CIRCLE, height: CIRCLE * 4 / 3 }} onReady={() => setReady(true)} onCameraError={event => setError(event.nativeEvent.message || 'Камера недоступна.')} /> : visible && allowed ? <CameraView key={Platform.OS === 'ios' ? 'camera' : facing} ref={ref} style={{ position: 'absolute', left: 0, top: -CIRCLE / 6, width: CIRCLE, height: CIRCLE * 4 / 3 }} facing={facing} mode="video" ratio="4:3" mirror={facing === 'front'} videoQuality="480p" onCameraReady={() => setReady(true)} onMountError={event => setError(event.message || 'Камера недоступна.')} /> : null}
         </View>
         {recording ? <View pointerEvents="none" style={{ position: 'absolute', left: 6, right: 6, bottom: -14, height: 4, borderRadius: 2, backgroundColor: 'rgba(255,255,255,0.2)' }}><View style={{ width: `${progress * 100}%`, height: 4, borderRadius: 2, backgroundColor: t.danger }} /></View> : null}
       </View>
@@ -83,10 +107,10 @@ export function VideoNoteRecorder({ visible, onClose, onDone }: { visible: boole
       {error ? <Text style={{ color: '#FFB4B4', fontSize: 13, textAlign: 'center', maxWidth: 320 }}>{error}</Text> : <Text style={{ color: 'rgba(255,255,255,0.6)', fontSize: 12 }}>{recording ? 'Нажми ещё раз, чтобы отправить' : 'До 60 секунд · шифруется перед отправкой'}</Text>}
       <View style={{ flexDirection: 'row', alignItems: 'center', gap: 34 }}>
         <Pressable accessibilityRole="button" accessibilityLabel="Отменить видеосообщение" onPress={cancel} style={styles.round}><Icon name="close" color="#FFF" size={26} /></Pressable>
-        <Pressable accessibilityRole="button" accessibilityLabel={recording ? 'Остановить и отправить' : 'Начать запись'} disabled={!allowed || !ready} onPress={() => recording ? stop() : void start()} style={{ width: 78, height: 78, borderRadius: 39, borderWidth: 4, borderColor: '#FFF', alignItems: 'center', justifyContent: 'center', opacity: !allowed || !ready ? .4 : 1 }}>
+        <Pressable accessibilityRole="button" accessibilityLabel={recording ? 'Остановить и отправить' : 'Начать запись'} disabled={!allowed || !ready} onPress={() => recording ? void stop() : void start()} style={{ width: 78, height: 78, borderRadius: 39, borderWidth: 4, borderColor: '#FFF', alignItems: 'center', justifyContent: 'center', opacity: !allowed || !ready ? .4 : 1 }}>
           {!ready && allowed ? <ActivityIndicator color="#FFF" /> : <View style={{ width: recording ? 28 : 58, height: recording ? 28 : 58, borderRadius: recording ? 7 : 29, backgroundColor: t.danger }} />}
         </Pressable>
-        <Pressable accessibilityRole="button" accessibilityLabel="Сменить камеру" onPress={() => { if (recording && !FLIP_WHILE_RECORDING) return; if (!recording && Platform.OS !== 'ios') setReady(false); setError(''); setFacing(value => value === 'front' ? 'back' : 'front'); }} style={[styles.round, { opacity: recording && !FLIP_WHILE_RECORDING ? .3 : 1 }]}><Icon name="camera-reverse-outline" color="#FFF" size={26} /></Pressable>
+        <Pressable accessibilityRole="button" accessibilityLabel="Сменить камеру" onPress={() => { if (recording && !FLIP_WHILE_RECORDING) return; if (!recording && Platform.OS !== 'ios' && !androidNoteCameraAvailable) setReady(false); setError(''); setFacing(value => value === 'front' ? 'back' : 'front'); }} style={[styles.round, { opacity: recording && !FLIP_WHILE_RECORDING ? .3 : 1 }]}><Icon name="camera-reverse-outline" color="#FFF" size={26} /></Pressable>
       </View>
     </View>
   </Modal>;

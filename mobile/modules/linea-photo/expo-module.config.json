@@ -1,5 +1,17 @@
 {
-  "platforms": ["apple", "android"],
-  "apple": { "modules": ["LinePhotoModule"] },
-  "android": { "modules": ["expo.modules.lineaphoto.LinePhotoModule"] }
+  "platforms": [
+    "apple",
+    "android"
+  ],
+  "apple": {
+    "modules": [
+      "LinePhotoModule"
+    ]
+  },
+  "android": {
+    "modules": [
+      "expo.modules.lineaphoto.LinePhotoModule",
+      "expo.modules.lineaphoto.VideoNoteModule"
+    ]
+  }
 }

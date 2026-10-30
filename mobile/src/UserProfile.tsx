@@ -20,11 +20,11 @@ type Props = {
   onMute?: (muted: boolean) => Promise<unknown>;
   onSearch?: () => void; onSecurity?: () => void; status?: string;
   /** The chat's decrypted history: shown as Медиа / Файлы / Голосовые / Ссылки tabs. */
-  shared?: ViewMessage[]; onOpenAttachment?: (attachment: Attachment) => void;
+  shared?: ViewMessage[]; onOpenAttachment?: (attachment: Attachment) => void; onWallpaper?: () => void;
 };
 
 /** Full-screen profile like in Telegram: big photo, name, @username, bio, actions. */
-export function UserProfile({ api, user, onClose, chat, onMessage, onMute, onSearch, onSecurity, status, shared, onOpenAttachment }: Props) {
+export function UserProfile({ api, user, onClose, chat, onMessage, onMute, onSearch, onSecurity, status, shared, onOpenAttachment, onWallpaper }: Props) {
   const calls = useCalls();
   const t = useTheme();
   const [contact, setContact] = useState<boolean | null>(null);
@@ -63,6 +63,7 @@ export function UserProfile({ api, user, onClose, chat, onMessage, onMute, onSea
     { icon: contact ? 'person-remove' : 'person-add', label: contact ? 'В друзьях' : 'В друзья', onPress: () => void toggleContact(), active: !!contact, loading: contact === null },
     ...(onMute && chat ? [{ icon: (muted ? 'notifications-off' : 'notifications') as IconName, label: muted ? 'Без звука' : 'Звук', onPress: () => void toggleMute(), active: muted }] : []),
     ...(onSearch ? [{ icon: 'search' as IconName, label: 'Поиск', onPress: () => { onClose(); onSearch(); } }] : []),
+    ...(onWallpaper ? [{ icon: 'image' as IconName, label: 'Обои', onPress: () => { onClose(); onWallpaper(); } }] : []),
   ];
   return <Modal visible animationType="slide" presentationStyle="fullScreen" onRequestClose={onClose}>
     <GlassStage>{shown.bannerId || shown.bannerPreset ? <View pointerEvents="none" style={{ position: 'absolute', top: 0, left: 0, right: 0, height: 260 }}><ProfileBanner user={shown} api={api} height={260} /></View> : null}<InsetView style={{ flex: 1 }}>

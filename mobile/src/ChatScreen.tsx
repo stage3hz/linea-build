@@ -1,5 +1,7 @@
 import { StatusEmoji } from './StatusEmoji';
 import { DecoratedAvatar } from './platina/Decor';
+import { ChatWallpaper, WallpaperPicker } from './WallpaperPicker';
+import { useWallpaper } from './wallpapers';
 import { usePlatina } from './platina/usePlatina';
 import { ComposerInput } from './ComposerInput';
 import React, { useEffect, useMemo, useRef, useState } from 'react';
@@ -95,7 +97,7 @@ export function ChatScreen({api,user,chat,store,onBack,wide=false,onOpenMusic}: 
     return visible.reverse();
   },[view,pending,searchOpen,needle,user.id]);
   const preferences=useChatPreferences();const metrics=textMetrics(preferences.textSize);
-  const wallpaperColors=WALLPAPERS.find(item=>item.id===preferences.wallpaper)?.colors||null;
+  const wallpaper=useWallpaper(chat.id);const [wallpaperOpen,setWallpaperOpen]=useState(false);
   const nameOf=(senderId:string)=>senderId===user.id?'Ты':chat.peer.displayName;
   // A forwarded message keeps its first author through further forwards.
   const originalAuthor=(message:ViewMessage)=>message.meta?.forward?.from||(message.senderId===user.id?user.displayName:chat.peer.displayName);
@@ -236,7 +238,7 @@ export function ChatScreen({api,user,chat,store,onBack,wide=false,onOpenMusic}: 
   };
   // Telegram: messages scroll under the status bar (no hard edge at the safe area); the header sits below it.
   return <VoicePlaybackProvider api={api}><KeyboardSafeView style={{flex:1,backgroundColor:'transparent',marginTop:wide?0:-insets.top}}><View style={{flex:1}}>
-    {wallpaperColors?<LinearGradient pointerEvents="none" colors={wallpaperColors as unknown as [string,string,string]} start={{x:0,y:0}} end={{x:1,y:1}} style={{position:'absolute',top:-80,bottom:-60,left:0,right:0}}/>:null}
+    <ChatWallpaper choice={wallpaper} style={{top:-80,bottom:-60}}/>
     <View pointerEvents="box-none" onLayout={e=>setHeaderHeight(e.nativeEvent.layout.height)} style={{position:'absolute',top:0,left:0,right:0,zIndex:5,paddingTop:8+(wide?0:insets.top),gap:6}}>
     {selection?<View style={{flexDirection:'row',alignItems:'center',gap:8,paddingHorizontal:12}}>
       <GlassSurface material="regular" radius={24} interactive contentStyle={{height:48,justifyContent:'center',paddingHorizontal:16}}><Pressable onPress={()=>setSelection(null)} accessibilityRole="button" hitSlop={8}><Text style={{color:t.accent,fontSize:16,fontWeight:'600'}}>Отмена</Text></Pressable></GlassSurface>
@@ -321,7 +323,8 @@ export function ChatScreen({api,user,chat,store,onBack,wide=false,onOpenMusic}: 
     <VideoNoteRecorder visible={circleOpen} onClose={()=>setCircleOpen(false)} onDone={take=>void sendVideoNote(take)}/>
     <AttachmentPanel key={photoContext} onPoll={()=>{setAttachMenu(false);setTimeout(()=>setPollOpen(true),350);}} visible={attachMenu} busy={uploading} canAdd={signalAvailable} remainingSlots={Math.max(0,MAX_DRAFT_ATTACHMENTS-attachments.length)} onClose={()=>setAttachMenu(false)} onAdd={item=>upload(item.file)}/>
     <TrustSheet visible={securityOpen} onClose={()=>setSecurityOpen(false)} peerId={chat.peer.id} store={store}/>
-    {peerInfo?<UserProfile api={api} user={chat.peer} chat={chat} shared={view.messages} onOpenAttachment={openAttachment} status={headerStatus.text.startsWith('@')||headerStatus.text.endsWith('…')?undefined:headerStatus.text} onClose={()=>setPeerInfo(false)} onMute={muted=>store.updateChatSettings(chat.id,{muted})} onSearch={()=>{setSearchOpen(true);setQuery('');}} onSecurity={()=>setTimeout(()=>setSecurityOpen(true),350)}/>:null}
+    {peerInfo?<UserProfile api={api} user={chat.peer} chat={chat} shared={view.messages} onOpenAttachment={openAttachment} status={headerStatus.text.startsWith('@')||headerStatus.text.endsWith('…')?undefined:headerStatus.text} onClose={()=>setPeerInfo(false)} onMute={muted=>store.updateChatSettings(chat.id,{muted})} onSearch={()=>{setSearchOpen(true);setQuery('');}} onSecurity={()=>setTimeout(()=>setSecurityOpen(true),350)} onWallpaper={()=>setTimeout(()=>setWallpaperOpen(true),350)}/>:null}
+    <WallpaperPicker visible={wallpaperOpen} onClose={()=>setWallpaperOpen(false)} chatId={chat.id}/>
     <ContextMenu visible={!!actions} y={menuY} onClose={()=>setActions(null)} preview={actions?(actions.message?.text||actions.pending?.text||(actions.message?.attachment||actions.pending?.attachment?attachmentLabel((actions.message?.attachment||actions.pending?.attachment)!):'')):''} mine={!!actions&&(!!actions.pending||actions.message?.senderId===user.id)} reactions={actions?.message&&actions.message.cryptoState==='decrypted'?REACTIONS.map(emoji=>({emoji,chosen:actions.message!.reactions.some(r=>r.mine&&r.emoji===emoji)})):undefined} onReact={emoji=>{if(actions?.message){react(actions.message,emoji as Reaction);setActions(null);}}}>
       {actions?.message&&actions.message.cryptoState==='decrypted'?<MenuItem icon="arrow-undo-outline" label="Ответить" onPress={()=>{setEditing(null);setReplyTo(actions.message!);setActions(null);}}/>:null}
       {(actions?.message?.text||actions?.pending?.text)?<MenuItem icon="copy-outline" label="Скопировать" onPress={()=>void copy(actions?.message?.text||actions?.pending?.text||'')}/>:null}

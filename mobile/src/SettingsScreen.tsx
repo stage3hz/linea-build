@@ -22,6 +22,7 @@ import type { DarkTheme, ThemeMode, User } from './types';
 import { useSharedValue } from 'react-native-reanimated';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { StackBase, StackScreen } from './stack';
+import { WallpaperPicker } from './WallpaperPicker';
 
 type Section = 'root' | 'appearance' | 'privacy' | 'data';
 type Props = {
@@ -122,16 +123,13 @@ function Root({ api, user, onProfile, onSecurity, onMusic, onLogout, open }: Pro
 
 function Appearance({ theme, darkTheme, onTheme, onDarkTheme }: Props) {
   const t = useTheme(); const preferences = useChatPreferences(); const metrics = textMetrics(preferences.textSize);
+  const [wallpaperOpen, setWallpaperOpen] = useState(false);
   return <>
     <Group label="Тема"><View style={{ padding: 14 }}><ThemeSettings mode={theme} darkTheme={darkTheme} onChange={onTheme} onDarkTheme={onDarkTheme} /></View></Group>
     <Group label="Иконка приложения"><AppIconPicker /></Group>
     <Group label="Анимации"><MotionSettings /></Group>
-    <Group label="Обои чатов"><ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ padding: 14, gap: 9 }}>{WALLPAPERS.map(item => {
-      const selected = preferences.wallpaper === item.id;
-      return <Pressable key={item.id} accessibilityRole="radio" accessibilityState={{ selected }} onPress={() => setChatPreferences({ wallpaper: item.id })} style={{ alignItems: 'center', gap: 6 }}>
-        <View style={{ width: 64, height: 96, borderRadius: 14, overflow: 'hidden', borderWidth: 2, borderColor: selected ? t.accent : t.border, backgroundColor: t.bg }}>{item.colors ? <LinearGradient colors={item.colors as unknown as [string, string, string]} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={{ flex: 1 }} /> : null}<View style={{ position: 'absolute', right: 6, bottom: 10, width: 30, height: 10, borderRadius: 5, backgroundColor: t.bubble }} /><View style={{ position: 'absolute', left: 6, bottom: 26, width: 26, height: 10, borderRadius: 5, backgroundColor: t.incoming }} /></View>
-        <Text style={{ color: selected ? t.accent : t.text, fontSize: 11, fontWeight: '600' }}>{item.label}</Text></Pressable>;
-    })}</ScrollView></Group>
+    <Group label="Обои чатов"><Item icon="image" color="#2EA37A" label="Обои чатов" value="Выбрать" onPress={() => setWallpaperOpen(true)} /></Group>
+    <WallpaperPicker visible={wallpaperOpen} onClose={() => setWallpaperOpen(false)} />
     <Group label="Углы сообщений"><View style={{ padding: 14, flexDirection: 'row', gap: 7 }}>{([[8, 'Острые'], [14, 'Средние'], [20, 'Круглые']] as const).map(([value, label]) => {
       const selected = preferences.bubbleRadius === value;
       return <Pressable key={value} accessibilityRole="radio" accessibilityState={{ selected }} onPress={() => setChatPreferences({ bubbleRadius: value })} style={{ flex: 1, alignItems: 'center', gap: 8, paddingVertical: 10, borderRadius: 15, backgroundColor: selected ? t.accentSoft : t.surface2, borderWidth: 1, borderColor: selected ? t.accent : t.border }}><View style={{ width: 46, height: 22, borderRadius: value, borderBottomRightRadius: Math.min(6, value), backgroundColor: t.bubble }} /><Text style={{ color: selected ? t.accent : t.text, fontSize: 12, fontWeight: '600' }}>{label}</Text></Pressable>;
