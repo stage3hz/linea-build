@@ -14,7 +14,7 @@ const PASSWORD = 'Synthetic!Harbor.42.Maple';
 const NEXT_PASSWORD = 'Synthetic!Orchid.87.Wind';
 const CONFIRMATION = 'AmberGardenPrism';
 const RECOVERY = 'SilverHarborLantern';
-const CHOICES = ['✨', '⭐', '🌙', '☀️', '🌊', '🌿', '🔥', '💎', '🪐', '🎧', '🎮', '🦋'];
+const CHOICES = ['✨', '⭐', '🌙', '☀️', '🌊', '🌿', '🔥', '💎', '🪐', '🎧', '🎮', '🦋', '🌛', '🌞', '🎶', '👾', '⚡', '❄️', '🌈', '👑'];
 const hash = value => createHash('sha256').update(value).digest('hex');
 
 async function fixture(t) {

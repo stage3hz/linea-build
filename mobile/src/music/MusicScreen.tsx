@@ -39,7 +39,6 @@ export function MusicScreen({ onBack }: { onBack: () => void }) {
   const [error, setError] = useState('');
   const [revision, setRevision] = useState(0);
   const [infoOpen, setInfoOpen] = useState(false);
-  const [playerOpen, setPlayerOpen] = useState(false);
   const [actionTrack, setActionTrack] = useState<MusicTrack | null>(null);
   const generation = useRef(0);
   const paginationBusy = useRef(false);
@@ -119,19 +118,6 @@ export function MusicScreen({ onBack }: { onBack: () => void }) {
     setActionTrack(null);
   };
 
-  // Full-screen page instead of a modal sheet: on Android the modal + blur
-  // combination hid the controls behind a translucent shadow box.
-  if (playerOpen && music.current) return <View style={{ flex: 1, width: '100%', maxWidth: 760, alignSelf: 'center' }}>
-    <MusicAmbient width={screen.width} height={screen.height} tone={tone} />
-    <GlassSurface radius={27} style={{ margin: 12, marginBottom: 6 }} contentStyle={{ minHeight: 62, flexDirection: 'row', alignItems: 'center', gap: 8, paddingHorizontal: 8 }}>
-      <IconButton name="chevron-down" label="Свернуть плеер" onPress={() => setPlayerOpen(false)} />
-      <Text style={{ flex: 1, color: t.text, fontSize: 18, fontWeight: '700' }}>Сейчас играет</Text>
-    </GlassSurface>
-    <ScrollView contentContainerStyle={{ padding: 18, paddingTop: 10, paddingBottom: 30, gap: 8 }}>
-      <PlayerControls />
-      {music.current.sourceUrl ? <SheetAction icon="open-outline" label="Страница автора и трека" description="Открыть в Audius" onPress={() => openLink(music.current!.sourceUrl!)} /> : null}
-    </ScrollView>
-  </View>;
   return <View style={{ flex: 1, width: '100%', maxWidth: 980, alignSelf: 'center' }}>
 
     <FlatList
@@ -198,7 +184,7 @@ export function MusicScreen({ onBack }: { onBack: () => void }) {
       </View>}
     />
 
-    {music.current ? <MiniPlayer onOpen={() => setPlayerOpen(true)} /> : null}
+    {music.current ? <MiniPlayer /> : null}
 
 
     <Sheet visible={!!actionTrack} title={actionTrack?.title || 'Трек'} onClose={() => setActionTrack(null)}>

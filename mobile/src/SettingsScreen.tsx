@@ -6,7 +6,7 @@ import Constants from 'expo-constants';
 import { Image } from 'expo-image';
 import type { Api, Privacy } from './api';
 import { Avatar, Icon, IconButton, Notice, type IconName } from './components';
-import { GlassSurface } from './glass';
+import { GlassBackdrop, GlassSurface } from './glass';
 import { useTheme, formatSize } from './theme';
 import { ThemeSettings } from './ThemeSettings';
 import { useMotion } from './motion';
@@ -19,6 +19,9 @@ import { clearDecryptedAttachmentCache } from './e2ee/attachments';
 import { clearPhotoCache } from './photo/pipeline';
 import { clearVideoCache } from './media/pipeline';
 import type { DarkTheme, ThemeMode, User } from './types';
+import { useSharedValue } from 'react-native-reanimated';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { StackBase, StackScreen } from './stack';
 
 type Section = 'root' | 'appearance' | 'privacy' | 'data';
 type Props = {
@@ -27,18 +30,36 @@ type Props = {
   onBack: () => void; onProfile: () => void; onSecurity: () => void; onMusic: () => void; onLogout: () => Promise<void>;
 };
 
-/** Hub in the spirit of Telegram's Settings: profile on top, grouped sections below. */
+/** Settings hub: profile on top, grouped sections below. */
 export function SettingsScreen(props: Props) {
-  const t = useTheme(); const [section, setSection] = useState<Section>('root');
-  const title = section === 'appearance' ? 'Оформление' : section === 'privacy' ? 'Конфиденциальность' : section === 'data' ? 'Данные и память' : 'Настройки';
+  const [section, setSection] = useState<Section>('root');
+  const progress = useSharedValue(1);
+  const page = (current: Section, onBack: () => void) => {
+    const title = current === 'appearance' ? 'Оформление' : current === 'privacy' ? 'Конфиденциальность' : current === 'data' ? 'Данные и память' : 'Настройки';
+    return <Page title={title} backLabel={current === 'root' ? 'Назад' : 'К настройкам'} onBack={onBack}>
+      {current === 'root' ? <Root {...props} open={setSection} /> : current === 'appearance' ? <Appearance {...props} /> : current === 'privacy' ? <PrivacySection api={props.api} /> : <DataSection />}
+    </Page>;
+  };
+  // Sections slide in over the root list and close with the same swipe to the right as chats.
+  return <View style={{ flex: 1 }}>
+    <StackBase progress={progress} covered={section !== 'root'}>{page('root', props.onBack)}</StackBase>
+    {section !== 'root' ? <StackScreen key={section} progress={progress} onBack={() => setSection('root')}>{back => <View style={{ flex: 1 }}><PageBackdrop />{page(section, back)}</View>}</StackScreen> : null}
+  </View>;
+}
+
+function PageBackdrop() {
+  const insets = useSafeAreaInsets();
+  return <View pointerEvents="none" style={{ position: 'absolute', top: -insets.top, bottom: -insets.bottom, left: 0, right: 0 }}><GlassBackdrop /></View>;
+}
+
+function Page({ title, backLabel, onBack, children }: { title: string; backLabel: string; onBack: () => void; children: React.ReactNode }) {
+  const t = useTheme();
   return <View style={{ flex: 1 }}>
     <GlassSurface radius={27} style={{ margin: 12, marginBottom: 7 }} contentStyle={{ padding: 8, flexDirection: 'row', alignItems: 'center', gap: 9, minHeight: 60 }}>
-      <IconButton name="chevron-back" label={section === 'root' ? 'Назад' : 'К настройкам'} onPress={() => section === 'root' ? props.onBack() : setSection('root')} />
+      <IconButton name="chevron-back" label={backLabel} onPress={onBack} />
       <Text style={{ flex: 1, color: t.text, fontSize: 20, fontWeight: '700' }}>{title}</Text>
     </GlassSurface>
-    <ScrollView contentContainerStyle={{ padding: 14, paddingTop: 6, gap: 16, paddingBottom: 30, width: '100%', maxWidth: 680, alignSelf: 'center' }}>
-      {section === 'root' ? <Root {...props} open={setSection} /> : section === 'appearance' ? <Appearance {...props} /> : section === 'privacy' ? <PrivacySection api={props.api} /> : <DataSection />}
-    </ScrollView>
+    <ScrollView contentContainerStyle={{ padding: 14, paddingTop: 6, gap: 16, paddingBottom: 30, width: '100%', maxWidth: 680, alignSelf: 'center' }}>{children}</ScrollView>
   </View>;
 }
 
@@ -60,10 +81,10 @@ function Item({ icon, color, label, value, onPress, danger = false }: { icon: Ic
   </Pressable>;
 }
 
-function Toggle({ label, description, value, onChange, disabled = false }: { label: string; description: string; value: boolean; onChange: (value: boolean) => void; disabled?: boolean }) {
+function Toggle({ label, description, value, onChange, disabled = false, badge }: { label: string; description: string; value: boolean; onChange: (value: boolean) => void; disabled?: boolean; badge?: string }) {
   const t = useTheme();
   return <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12, paddingHorizontal: 14, paddingVertical: 11 }}>
-    <View style={{ flex: 1, gap: 3 }}><Text style={{ color: t.text, fontSize: 15 }}>{label}</Text><Text style={{ color: t.muted, fontSize: 12, lineHeight: 17 }}>{description}</Text></View>
+    <View style={{ flex: 1, gap: 3 }}><View style={{ flexDirection: 'row', alignItems: 'center', gap: 7 }}><Text style={{ color: t.text, fontSize: 15 }}>{label}</Text>{badge ? <View style={{ flexDirection: 'row', alignItems: 'center', gap: 3, paddingHorizontal: 7, paddingVertical: 2, borderRadius: 8, backgroundColor: t.accentSoft }}><Icon name="lock-closed" size={10} color={t.accent} /><Text style={{ color: t.accent, fontSize: 11, fontWeight: '700' }}>{badge}</Text></View> : null}</View><Text style={{ color: t.muted, fontSize: 12, lineHeight: 17 }}>{description}</Text></View>
     <Switch accessibilityLabel={label} value={value} disabled={disabled} onValueChange={onChange} trackColor={{ false: t.subtle, true: t.accent }} thumbColor="#FFF" />
   </View>;
 }
@@ -130,12 +151,13 @@ function Appearance({ theme, darkTheme, onTheme, onDarkTheme }: Props) {
 function PrivacySection({ api }: { api: Api }) {
   const t = useTheme(); const preferences = useChatPreferences();
   const [privacy, setPrivacy] = useState<Privacy | null>(null); const [error, setError] = useState(''); const [saving, setSaving] = useState(false);
-  const load = useCallback(() => { setError(''); api.privacy().then(result => setPrivacy(result.privacy)).catch(e => setError(e instanceof Error ? e.message : 'Не удалось загрузить настройки.')); }, [api]);
+  const [platina, setPlatina] = useState(false);
+  const load = useCallback(() => { setError(''); api.privacy().then(result => { setPrivacy(result.privacy); setPlatina(result.platina === true); }).catch(e => setError(e instanceof Error ? e.message : 'Не удалось загрузить настройки.')); }, [api]);
   useEffect(load, [load]);
   const change = async (patch: Partial<Privacy>) => {
     if (!privacy || saving) return;
     const previous = privacy; setPrivacy({ ...privacy, ...patch }); setSaving(true); setError('');
-    try { setPrivacy((await api.updatePrivacy(patch)).privacy); }
+    try { const result = await api.updatePrivacy(patch); setPrivacy(result.privacy); setPlatina(result.platina === true); }
     catch (e) { setPrivacy(previous); setError(e instanceof Error ? e.message : 'Не удалось сохранить.'); }
     finally { setSaving(false); }
   };
@@ -145,8 +167,8 @@ function PrivacySection({ api }: { api: Api }) {
       {!privacy ? <ActivityIndicator color={t.accent} style={{ padding: 20 }} /> : <>
         <Toggle label="Новые разговоры" description="Кто ещё не писал тебе, сможет начать чат. Выключи, чтобы писали только те, с кем переписка уже есть." value={privacy.allowNewChats} disabled={saving} onChange={value => void change({ allowNewChats: value })} />
         <Toggle label="Фото профиля для других" description="Если выключить, собеседники и поиск увидят цветной аватар вместо фото." value={privacy.showAvatar} disabled={saving} onChange={value => void change({ showAvatar: value })} />
-        <Toggle label="Время захода и «в сети»" description="Взаимно, как в Telegram: если скрыть, ты тоже не увидишь, когда собеседник был в сети." value={privacy.showLastSeen !== false} disabled={saving} onChange={value => void change({ showLastSeen: value })} />
-        <Toggle label="Отчёты о прочтении" description="Взаимно, как в других мессенджерах: если выключить, ты тоже не увидишь, прочитали ли твои сообщения." value={privacy.readReceipts} disabled={saving} onChange={value => void change({ readReceipts: value })} />
+        <Toggle label="Время захода и «в сети»" badge={platina ? undefined : 'Platina'} description={platina ? 'Взаимно: если скрыть, ты тоже не увидишь, когда собеседник был в сети.' : 'Скрывать время захода можно с Platina.'} value={privacy.showLastSeen !== false} disabled={saving || !platina} onChange={value => void change({ showLastSeen: value })} />
+        <Toggle label="Отчёты о прочтении" badge={platina ? undefined : 'Platina'} description={platina ? 'Взаимно: если выключить, ты тоже не увидишь, прочитали ли твои сообщения.' : 'Скрывать прочтение можно с Platina.'} value={privacy.readReceipts} disabled={saving || !platina} onChange={value => void change({ readReceipts: value })} />
       </>}
     </Group>
     <Group label="На этом устройстве">

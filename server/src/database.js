@@ -3,6 +3,7 @@ import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { randomUUID } from 'node:crypto';
 import { platinaState, visibleStatus } from './entitlements.js';
+import { visibleCosmetics } from './cosmetics.js';
 
 function migratePlatinaExpiry(db) {
   const expiry = db.prepare('PRAGMA table_info(platina_entitlements)').all().find(column => column.name === 'expires_at');
@@ -43,6 +44,9 @@ export function openDatabase(dataDir) {
       if (!userColumns.has('username_change_used')) db.exec('ALTER TABLE users ADD COLUMN username_change_used INTEGER NOT NULL DEFAULT 0 CHECK(username_change_used IN (0,1))');
       if (!userColumns.has('status_emoji')) db.exec('ALTER TABLE users ADD COLUMN status_emoji TEXT');
       if (!userColumns.has('last_seen_at')) db.exec('ALTER TABLE users ADD COLUMN last_seen_at TEXT');
+      for (const column of ['avatar_video_id', 'avatar_frame', 'banner_id', 'banner_kind', 'banner_preset']) {
+        if (!userColumns.has(column)) db.exec(`ALTER TABLE users ADD COLUMN ${column} TEXT`);
+      }
       const privacyColumns = new Set(db.prepare('PRAGMA table_info(user_privacy)').all().map(column => column.name));
       if (!privacyColumns.has('show_last_seen')) db.exec('ALTER TABLE user_privacy ADD COLUMN show_last_seen INTEGER NOT NULL DEFAULT 1 CHECK(show_last_seen IN (0,1))');
       db.exec('UPDATE users SET login_name=username WHERE login_name IS NULL');
@@ -89,6 +93,7 @@ export function openDatabase(dataDir) {
       if (!messageColumns.has('encrypted_json')) db.exec('ALTER TABLE messages ADD COLUMN encrypted_json TEXT');
       const uploadColumns = new Set(db.prepare('PRAGMA table_info(uploads)').all().map(column => column.name));
       if (!uploadColumns.has('is_encrypted')) db.exec('ALTER TABLE uploads ADD COLUMN is_encrypted INTEGER NOT NULL DEFAULT 0');
+      if (!uploadColumns.has('is_video')) db.exec('ALTER TABLE uploads ADD COLUMN is_video INTEGER NOT NULL DEFAULT 0');
       if (version < 5) migratePlatinaExpiry(db);
       db.exec('PRAGMA user_version = 5');
     });
@@ -119,6 +124,7 @@ export function publicUser(row, { db, now = Date.now } = {}) {
     avatarId: row.avatar_id,
     createdAt: row.created_at,
     ...visibleStatus(row, platina),
+    ...visibleCosmetics(row, platina),
   };
 }
 
@@ -131,17 +137,27 @@ export function privacyOf(db, userId) {
 /** A serialized user as another account may see it. The owner always sees everything. */
 export function userForViewer(db, user, viewerId) {
   if (!user || user.id === viewerId) return user;
-  return privacyOf(db, user.id).showAvatar ? user : { ...user, avatarId: null };
+  return privacyOf(db, user.id).showAvatar ? user : { ...user, avatarId: null, avatarVideoId: null, bannerId: null, bannerKind: null };
 }
 
-/** "Online / last seen" is mutual, as in Telegram: whoever hides it does not see it either. */
-export function presenceVisible(db, a, b) {
-  return privacyOf(db, a).showLastSeen && privacyOf(db, b).showLastSeen;
+/** Settings that only Platina may switch off; without an active Platina they count as on. */
+export const PLATINA_PRIVACY = Object.freeze(['showLastSeen', 'readReceipts']);
+export function effectivePrivacy(db, userId, time = Date.now()) {
+  const stored = privacyOf(db, userId);
+  if (platinaState(db, userId, time).active) return stored;
+  const effective = { ...stored };
+  for (const key of PLATINA_PRIVACY) effective[key] = true;
+  return effective;
 }
 
-/** Read receipts are mutual, as in common messengers: hidden if either side turned them off. */
-export function receiptsVisible(db, a, b) {
-  return privacyOf(db, a).readReceipts && privacyOf(db, b).readReceipts;
+/** "Online / last seen" is mutual: whoever hides it (Platina) does not see it either. */
+export function presenceVisible(db, a, b, time = Date.now()) {
+  return effectivePrivacy(db, a, time).showLastSeen && effectivePrivacy(db, b, time).showLastSeen;
+}
+
+/** Read receipts are mutual: hidden if either side (with Platina) turned them off. */
+export function receiptsVisible(db, a, b, time = Date.now()) {
+  return effectivePrivacy(db, a, time).readReceipts && effectivePrivacy(db, b, time).readReceipts;
 }
 
 export function publicAttachment(row) {

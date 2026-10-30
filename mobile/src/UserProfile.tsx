@@ -7,6 +7,7 @@ import { Avatar, Icon, InsetView, IconButton, Notice, type IconName } from './co
 import { GlassStage, GlassSurface } from './glass';
 import { useTheme } from './theme';
 import { StatusEmoji } from './StatusEmoji';
+import { DecoratedAvatar, ProfileBanner } from './platina/Decor';
 import { lightFeedback } from './haptics';
 import type { Api } from './api';
 import type { Chat, User } from './types';
@@ -60,15 +61,15 @@ export function UserProfile({ api, user, onClose, chat, onMessage, onMute, onSea
     ...(onSearch ? [{ icon: 'search' as IconName, label: 'Поиск', onPress: () => { onClose(); onSearch(); } }] : []),
   ];
   return <Modal visible animationType="slide" presentationStyle="fullScreen" onRequestClose={onClose}>
-    <GlassStage><InsetView style={{ flex: 1 }}>
+    <GlassStage>{shown.bannerId || shown.bannerPreset ? <View pointerEvents="none" style={{ position: 'absolute', top: 0, left: 0, right: 0, height: 260 }}><ProfileBanner user={shown} api={api} height={260} /></View> : null}<InsetView style={{ flex: 1 }}>
       <View style={{ flexDirection: 'row', alignItems: 'center', paddingHorizontal: 10, paddingVertical: 6 }}>
         <IconButton name="chevron-back" label="Назад" onPress={onClose} />
         <Text style={{ flex: 1, textAlign: 'center', color: t.text, fontSize: 16, fontWeight: '700', marginRight: 44 }}>Профиль</Text>
       </View>
       <ScrollView contentContainerStyle={{ padding: 18, gap: 16, alignItems: 'center' }}>
-        <Avatar user={shown} api={api} size={128} />
+        <DecoratedAvatar user={shown} api={api} size={128} animated />
         <View style={{ alignItems: 'center', gap: 6 }}>
-          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 7 }}><Text style={{ color: t.text, fontSize: 26, fontWeight: '800', letterSpacing: -.6 }}>{shown.displayName}</Text><StatusEmoji user={shown} size={22} /></View>
+          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 7 }}><Text style={{ color: t.text, fontSize: 26, fontWeight: '800', letterSpacing: -.6 }}>{shown.displayName}</Text><StatusEmoji user={shown} size={22} animated /></View>
           {status ? <Text style={{ color: status === 'в сети' ? t.accent : t.muted, fontSize: 14 }}>{status}</Text> : <Pressable onPress={() => void copy()} accessibilityRole="button" accessibilityLabel="Скопировать имя пользователя"><Text style={{ color: t.accent, fontSize: 15 }}>@{shown.username}</Text></Pressable>}
         </View>
         <View style={{ flexDirection: 'row', gap: 10, alignSelf: 'stretch', justifyContent: 'center' }}>

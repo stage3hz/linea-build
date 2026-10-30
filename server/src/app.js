@@ -8,7 +8,9 @@ import { createReadStream, createWriteStream } from 'node:fs';
 import { join, resolve } from 'node:path';
 import { Transform } from 'node:stream';
 import { pipeline } from 'node:stream/promises';
-import { openDatabase, transaction, publicUser as serializePublicUser, publicChat, publicMessage, publicAttachment, privacyOf, userForViewer, receiptsVisible, presenceVisible } from './database.js';
+import { openDatabase, transaction, publicUser as serializePublicUser, publicChat, publicMessage, publicAttachment, privacyOf, effectivePrivacy, PLATINA_PRIVACY, userForViewer, receiptsVisible, presenceVisible } from './database.js';
+import { isAvatarFrame, isBannerPreset, MAX_PROFILE_VIDEO_BYTES, videoMime } from './cosmetics.js';
+import { platinaState } from './entitlements.js';
 import { installAuthRoutes, RECOVERY_LOCK_MS } from './auth.js';
 import { installE2eeRoutes, parseEncryptedMessage } from './e2ee.js';
 import { registerAiRoutes, aiProvider } from './ai.js';
@@ -135,7 +137,7 @@ export async function buildApp({
   const isOnline = userId => [...sockets].some(state => state.auth?.user_id === userId && state.socket.readyState === 1);
   const peersOf = userId => db.prepare('SELECT DISTINCT b.user_id FROM chat_members a JOIN chat_members b ON a.chat_id=b.chat_id WHERE a.user_id=? AND b.user_id<>?').all(userId, userId).map(row => row.user_id);
   const presenceFor = (userId, viewerId) => {
-    if (!presenceVisible(db, userId, viewerId)) return { userId, online: false, lastSeenAt: null, hidden: true };
+    if (!presenceVisible(db, userId, viewerId, now())) return { userId, online: false, lastSeenAt: null, hidden: true };
     const online = isOnline(userId);
     return { userId, online, lastSeenAt: online ? null : db.prepare('SELECT last_seen_at FROM users WHERE id=?').get(userId)?.last_seen_at || null, hidden: false };
   };
@@ -250,7 +252,7 @@ export async function buildApp({
   });
 
   app.patch('/me', authOptions, async request => {
-    const body = objectBody(request.body, ['displayName', 'bio', 'avatarColor', 'avatarId']);
+    const body = objectBody(request.body, ['displayName', 'bio', 'avatarColor', 'avatarId', 'avatarVideoId', 'avatarFrame', 'bannerId', 'bannerPreset']);
     const current = db.prepare('SELECT * FROM users WHERE id=?').get(request.auth.user_id);
     const displayName = body.displayName === undefined ? current.display_name : boundedText(body.displayName, 'Имя', 1, 50);
     const bio = body.bio === undefined ? current.bio : boundedText(body.bio, 'О себе', 0, 160);
@@ -263,8 +265,37 @@ export async function buildApp({
       if (!upload) fail(404, 'Фото профиля не найдено.');
       if (!upload.is_image || upload.size > MAX_AVATAR_BYTES) fail(400, 'Фото профиля должно быть изображением PNG, JPEG, GIF или WebP до 4 МиБ.');
     }
-    db.prepare('UPDATE users SET display_name=?,bio=?,avatar_color=?,avatar_id=? WHERE id=?')
-      .run(displayName, bio, avatarColor.toUpperCase(), avatarId, current.id);
+    // Platina decoration. Clearing (null) is always allowed; setting needs an active Platina.
+    const platinaActive = platinaState(db, current.id, now()).active;
+    const needPlatina = key => { if (body[key] !== undefined && body[key] !== null && !platinaActive) fail(403, 'Это оформление доступно с Platina.', { code: 'PLATINA_REQUIRED' }); };
+    for (const key of ['avatarVideoId', 'avatarFrame', 'bannerId', 'bannerPreset']) needPlatina(key);
+    const ownUpload = (id, label) => {
+      if (typeof id !== 'string') fail(400, `Некорректное ${label}.`);
+      const upload = db.prepare('SELECT * FROM uploads WHERE id=? AND owner_id=? AND is_encrypted=0 AND attached_message_id IS NULL').get(id, current.id);
+      if (!upload) fail(404, `${label[0].toUpperCase()}${label.slice(1)} не найдено.`);
+      return upload;
+    };
+    let avatarVideoId = current.avatar_video_id;
+    if (body.avatarVideoId !== undefined) {
+      avatarVideoId = body.avatarVideoId;
+      if (avatarVideoId !== null && !ownUpload(avatarVideoId, 'видео профиля').is_video) fail(400, 'Анимированный аватар должен быть видео MP4 или MOV до 8 МиБ.');
+    }
+    const avatarFrame = body.avatarFrame === undefined ? current.avatar_frame : body.avatarFrame;
+    if (avatarFrame !== null && avatarFrame !== undefined && !isAvatarFrame(avatarFrame)) fail(400, 'Неизвестная рамка.');
+    const bannerPreset = body.bannerPreset === undefined ? current.banner_preset : body.bannerPreset;
+    if (bannerPreset !== null && bannerPreset !== undefined && !isBannerPreset(bannerPreset)) fail(400, 'Неизвестный баннер.');
+    let bannerId = current.banner_id; let bannerKind = current.banner_kind;
+    if (body.bannerId !== undefined) {
+      bannerId = body.bannerId; bannerKind = null;
+      if (bannerId !== null) {
+        const upload = ownUpload(bannerId, 'изображение баннера');
+        if (upload.is_video) bannerKind = 'video';
+        else if (upload.is_image) bannerKind = 'image';
+        else fail(400, 'Баннер должен быть фото или видео.');
+      }
+    }
+    db.prepare('UPDATE users SET display_name=?,bio=?,avatar_color=?,avatar_id=?,avatar_video_id=?,avatar_frame=?,banner_id=?,banner_kind=?,banner_preset=? WHERE id=?')
+      .run(displayName, bio, avatarColor.toUpperCase(), avatarId, avatarVideoId ?? null, avatarFrame ?? null, bannerId ?? null, bannerKind ?? null, bannerPreset ?? null, current.id);
     const user = publicUser(db.prepare('SELECT * FROM users WHERE id=?').get(current.id));
     emitUser(current.id, { type: 'profile', user });
     const chats = db.prepare('SELECT chat_id FROM chat_members WHERE user_id=?').all(current.id);
@@ -275,15 +306,18 @@ export async function buildApp({
     return { user };
   });
 
-  app.get('/me/privacy', authOptions, async request => ({ privacy: privacyOf(db, request.auth.user_id) }));
+  const privacyResponse = userId => ({ privacy: effectivePrivacy(db, userId, now()), platinaOnly: PLATINA_PRIVACY, platina: platinaState(db, userId, now()).active });
+  app.get('/me/privacy', authOptions, async request => privacyResponse(request.auth.user_id));
 
   app.patch('/me/privacy', authOptions, async request => {
     const body = objectBody(request.body, ['allowNewChats', 'showAvatar', 'readReceipts', 'showLastSeen']);
     const userId = request.auth.user_id;
     const next = { ...privacyOf(db, userId) };
+    const platinaActive = platinaState(db, userId, now()).active;
     for (const key of ['allowNewChats', 'showAvatar', 'readReceipts', 'showLastSeen']) {
       if (body[key] === undefined) continue;
       if (typeof body[key] !== 'boolean') fail(400, 'Настройка конфиденциальности должна быть включена или выключена.');
+      if (body[key] === false && PLATINA_PRIVACY.includes(key) && !platinaActive) fail(403, 'Скрывать это можно с Platina.', { code: 'PLATINA_REQUIRED' });
       next[key] = body[key];
     }
     db.prepare(`INSERT INTO user_privacy(user_id,allow_new_chats,show_avatar,read_receipts,show_last_seen,updated_at) VALUES(?,?,?,?,?,?)
@@ -292,7 +326,7 @@ export async function buildApp({
     broadcastPresence(userId);
     // Peers get a fresh view of the avatar and of read receipts.
     for (const { chat_id } of db.prepare('SELECT chat_id FROM chat_members WHERE user_id=?').all(userId)) emitChat(chat_id);
-    return { privacy: next };
+    return privacyResponse(userId);
   });
 
   app.get('/users', authOptions, async request => {
@@ -395,7 +429,7 @@ export async function buildApp({
     if (lastReadMessageId > member.last_read_message_id) {
       db.prepare('UPDATE chat_members SET last_read_message_id=? WHERE chat_id=? AND user_id=?').run(lastReadMessageId, chatId, userId);
       for (const targetId of memberIds(chatId)) {
-        if (targetId !== userId && !receiptsVisible(db, userId, targetId)) continue;
+        if (targetId !== userId && !receiptsVisible(db, userId, targetId, now())) continue;
         emitUser(targetId, { type: 'read', chatId, userId, messageId: lastReadMessageId });
       }
       emitChat(chatId);
@@ -436,16 +470,19 @@ export async function buildApp({
         await pipeline(part.file, inspect, createWriteStream(filePath, { flags: 'wx', mode: 0o600 }));
         if (part.file.truncated) fail(413, 'Файл превышает допустимый размер.');
         const mime = imageMime(header);
-        if (!mime || size > MAX_AVATAR_BYTES) fail(400, 'Для фото профиля допустимо изображение PNG, JPEG, GIF или WebP до 4 МиБ. Отправка файлов в чат требует шифрования.');
-        attachment = { id, name: safeFilename(part.filename), mime_type: mime || 'application/octet-stream', size, is_image: mime ? 1 : 0 };
+        const video = mime ? null : videoMime(header);
+        if (video) {
+          if (size > MAX_PROFILE_VIDEO_BYTES) fail(400, 'Видео для профиля — до 8 МиБ.');
+        } else if (!mime || size > MAX_AVATAR_BYTES) fail(400, 'Для профиля допустимо изображение PNG, JPEG, GIF или WebP до 4 МиБ или видео MP4/MOV до 8 МиБ. Отправка файлов в чат требует шифрования.');
+        attachment = { id, name: safeFilename(part.filename), mime_type: mime || video, size, is_image: mime ? 1 : 0, is_video: video ? 1 : 0 };
       }
       if (!attachment) fail(400, 'Выберите файл для загрузки.');
       if (!sessionStillValid({ auth: request.auth })) fail(401, 'Войдите в аккаунт заново.');
       // Recheck after async streaming: parallel uploads must not bypass the account quota.
       const finalUsed = db.prepare('SELECT COALESCE(SUM(size),0) AS bytes FROM uploads WHERE owner_id=?').get(ownerId).bytes;
       if (finalUsed + attachment.size > maxStoredBytesPerUser) fail(413, 'Достигнут лимит хранения файлов для аккаунта.');
-      db.prepare('INSERT INTO uploads(id,owner_id,name,mime_type,size,is_image,created_at) VALUES(?,?,?,?,?,?,?)')
-        .run(attachment.id, ownerId, attachment.name, attachment.mime_type, attachment.size, attachment.is_image, timestamp());
+      db.prepare('INSERT INTO uploads(id,owner_id,name,mime_type,size,is_image,is_video,created_at) VALUES(?,?,?,?,?,?,?,?)')
+        .run(attachment.id, ownerId, attachment.name, attachment.mime_type, attachment.size, attachment.is_image, attachment.is_video, timestamp());
       persisted = true;
       return reply.code(201).send({ attachment: publicAttachment(attachment) });
     } finally {
@@ -460,7 +497,16 @@ export async function buildApp({
     // The only public media is a deliberately published profile avatar.
     // Historical unencrypted conversation files cannot be downloaded, even by
     // the uploader. Staged avatars remain private until explicitly published.
-    const avatarOwner = upload.is_image ? db.prepare('SELECT id FROM users WHERE avatar_id=?').get(upload.id) : null;
+    // Published profile media: the photo, and — while Platina is active — the animated avatar and banner.
+    const profileMediaOwner = () => {
+      if (upload.is_encrypted) return null;
+      const photo = upload.is_image ? db.prepare('SELECT id FROM users WHERE avatar_id=?').get(upload.id) : null;
+      if (photo) return photo;
+      if (!upload.is_image && !upload.is_video) return null;
+      const decorated = db.prepare('SELECT id FROM users WHERE avatar_video_id=? OR banner_id=?').get(upload.id, upload.id);
+      return decorated && platinaState(db, decorated.id, now()).active ? decorated : null;
+    };
+    const avatarOwner = profileMediaOwner();
     const publicAvatar = Boolean(avatarOwner) && (avatarOwner.id === userId || privacyOf(db, avatarOwner.id).showAvatar);
     if (!upload.is_encrypted && upload.attached_message_id && !publicAvatar) fail(404, 'Файл не найден.');
     let permitted = upload.owner_id === userId || publicAvatar;
@@ -475,7 +521,7 @@ export async function buildApp({
     const fileName = upload.is_encrypted ? 'encrypted.bin' : upload.name;
     const fallbackName = fileName.replace(/[^a-zA-Z0-9._ -]/g, '_').replaceAll('"', '_');
     const encodedName = encodeURIComponent(fileName).replace(/['()*]/g, char => `%${char.charCodeAt(0).toString(16).toUpperCase()}`);
-    reply.header('Content-Disposition', `${!upload.is_encrypted && upload.is_image ? 'inline' : 'attachment'}; filename="${fallbackName}"; filename*=UTF-8''${encodedName}`);
+    reply.header('Content-Disposition', `${!upload.is_encrypted && (upload.is_image || upload.is_video) ? 'inline' : 'attachment'}; filename="${fallbackName}"; filename*=UTF-8''${encodedName}`);
     reply.header('Content-Security-Policy', "default-src 'none'; frame-ancestors 'none'; sandbox");
     reply.header('Content-Length', upload.size);
     reply.type(upload.is_encrypted ? 'application/octet-stream' : upload.mime_type);

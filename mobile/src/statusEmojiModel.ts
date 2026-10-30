@@ -1,7 +1,7 @@
 import type { User } from './types';
 
-// Static Unicode only. Unknown/animated payloads are not rendered as text or URLs.
-export const STATIC_STATUS_EMOJI = ['✨','⭐','🌙','☀️','🌊','🌿','🔥','💎','🪐','🎧','🎮','🦋'] as const;
+// A fixed set of Unicode emoji (animated with Platina where an animation is bundled). Unknown payloads are not rendered.
+export const STATIC_STATUS_EMOJI = ['✨','⭐','🌙','☀️','🌊','🌿','🔥','💎','🪐','🎧','🎮','🦋','🌛','🌞','🎶','👾','⚡','❄️','🌈','👑'] as const;
 export type StatusUser = Pick<User, 'statusEmoji' | 'statusEmojiExpiresAt' | 'statusEmojiPermanent'>;
 
 export function visibleStatusEmoji(user: StatusUser, now = Date.now()): string | null {

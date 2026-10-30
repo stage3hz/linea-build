@@ -16,6 +16,7 @@ import { AlbumGrid, FileBubble, MediaTile, mediaBox } from './media/MediaBubble'
 import { mediaPreviewKind } from './media/formats';
 import { PollBubble } from './PollBubble';
 import { bigEmojiCount } from './messageMeta';
+import { AnimatedEmoji, bigEmoji } from './platina/AnimatedEmoji';
 
 export type AlbumPart = { attachment: Attachment; message?: ViewMessage; pending?: PendingMessage };
 export type Row = { key: string; message?: ViewMessage; pending?: PendingMessage; createdAt: string; album?: AlbumPart[] };
@@ -28,6 +29,8 @@ type Props = {
   row: Row; olderCreatedAt?: string; mine: boolean; author: string; peerLastRead: number; wide: boolean;
   fontSize: number; lineHeight: number; downloading: boolean; radius?: number; groupNext?: boolean; replyAuthor?: string; replyText?: string;
   api: Api; handlers: React.MutableRefObject<RowHandlers>; selecting: boolean; selected: boolean; fresh: boolean;
+  /** Platina: large emoji-only messages play their animation. */
+  animatedEmoji?: boolean;
 };
 const visualKind = (file: Attachment) => { const kind = mediaPreviewKind(file); return kind === 'photo' || kind === 'video'; };
 
@@ -58,12 +61,13 @@ function SwipeToReply({ enabled, onReply, children }: { enabled: boolean; onRepl
   </View></GestureDetector>;
 }
 
-function MessageRowView({ row, olderCreatedAt, mine, author, peerLastRead, wide, fontSize, lineHeight, downloading, radius = 20, groupNext = false, replyAuthor, replyText, api, handlers, selecting, selected, fresh }: Props) {
+function MessageRowView({ row, olderCreatedAt, mine, author, peerLastRead, wide, fontSize, lineHeight, downloading, radius = 20, groupNext = false, replyAuthor, replyText, api, handlers, selecting, selected, fresh, animatedEmoji = false }: Props) {
   const t = useTheme(); const screenWidth = useWindowDimensions().width;
   const message = row.message; const p = row.pending;
   const poll = message?.meta?.poll || p?.meta?.poll;
   const body = poll ? '' : message?.text || p?.text || ''; const file = row.album ? null : message?.attachment || p?.attachment;
   const emoji = !file && !poll && !row.album ? bigEmojiCount(body) : 0;
+  const animatedParts = emoji && animatedEmoji ? bigEmoji(body) : null;
   const visual = !!file && visualKind(file) && !isVideoNote(file);
   const bare = (visual && !body) || !!row.album && !body || emoji > 0;
   // Telegram for iPhone (compact layout): media up to 300×380 pt, at least 170×74 pt, inset 2 pt inside the bubble.
@@ -111,7 +115,7 @@ function MessageRowView({ row, olderCreatedAt, mine, author, peerLastRead, wide,
           {row.album ? <View style={{ marginBottom: body ? 7 : 0 }}><AlbumGrid api={api} items={row.album.map(part => part.attachment)} width={albumWidth} onOpen={attachment => selecting ? press() : handlers.current.open(attachment)} onLongPress={() => longPress(0)} /></View> : null}
           {file ? <View style={{ marginBottom: body ? 7 : bare ? 0 : 1, marginTop: bare || flush ? 0 : 1 }}>{isVoice(file) ? <VoiceBubble attachment={file} mine={mine} /> : isVideoNote(file) ? <VideoNoteBubble api={api} attachment={file} /> : visual && box ? <MediaTile api={api} attachment={file} width={box.width} height={box.height} radius={bare ? 15 : flush ? Math.max(4, radius - 3) : 14} onOpen={() => selecting ? press() : handlers.current.open(file)} onLongPress={() => longPress(0)} /> : file.encryption ? <FileBubble api={api} attachment={file} onOpen={() => handlers.current.open(file)} /> : <AttachmentCard api={api} attachment={file} onPress={() => handlers.current.open(file)} />}</View> : null}
           {poll ? <PollBubble poll={poll} results={message?.poll} disabled={!message || message.cryptoState !== 'decrypted' || selecting} onVote={options => message && handlers.current.vote(message, options)} /> : null}
-          {body ? <Text selectable={false} style={emoji ? { fontSize: emoji === 1 ? 64 : emoji === 2 ? 52 : 44, lineHeight: emoji === 1 ? 76 : emoji === 2 ? 62 : 54 } : { color: t.text, fontSize, lineHeight, paddingHorizontal: flush ? 9 : 1 }}>{body}{inlineTime ? <Text style={{ fontSize: 11, color: 'transparent' }}>{`\u00A0\u00A0\u00A0${message?.edited ? 'изм. ' : ''}${formatTime(row.createdAt)}${mine ? '\u00A0\u00A0\u00A0\u00A0\u00A0\u00A0\u00A0' : ''}\u00A0`}</Text> : null}</Text> : null}
+          {animatedParts ? <View accessible accessibilityLabel={body} style={{ flexDirection: 'row', gap: 2 }}>{animatedParts.map((part, index) => <AnimatedEmoji key={`${index}${part}`} emoji={part} size={emoji === 1 ? 112 : emoji === 2 ? 84 : 68} mode="once" />)}</View> : body ? <Text selectable={false} style={emoji ? { fontSize: emoji === 1 ? 64 : emoji === 2 ? 52 : 44, lineHeight: emoji === 1 ? 76 : emoji === 2 ? 62 : 54 } : { color: t.text, fontSize, lineHeight, paddingHorizontal: flush ? 9 : 1 }}>{body}{inlineTime ? <Text style={{ fontSize: 11, color: 'transparent' }}>{`\u00A0\u00A0\u00A0${message?.edited ? 'изм. ' : ''}${formatTime(row.createdAt)}${mine ? '\u00A0\u00A0\u00A0\u00A0\u00A0\u00A0\u00A0' : ''}\u00A0`}</Text> : null}</Text> : null}
           {reactionsInside ? <View style={{ flexDirection: 'row', alignItems: 'flex-end', gap: 10, marginTop: 6, paddingHorizontal: flush ? 12 : 0 }}><View style={{ flexShrink: 1, flexDirection: 'row', flexWrap: 'wrap', gap: 5 }}>{reactionChips(true)}</View><View style={{ marginLeft: 'auto', flexDirection: 'row', alignItems: 'center', gap: 4, paddingBottom: 1 }}>{downloading ? <ActivityIndicator color={t.accent} size="small" /> : null}<Text style={{ color: bare && !body ? '#FFF' : t.muted, fontSize: 11 }}>{message?.edited ? 'изм. ' : ''}{formatTime(row.createdAt)}</Text>{p || row.album?.some(part => part.pending) ? (p?.state === 'failed' || row.album?.some(part => part.pending?.state === 'failed')) ? <Icon name="alert-circle" size={13} color={t.danger} /> : <Icon name="time-outline" size={12} color={bare && !body ? '#FFF' : t.muted} /> : mine ? <Icon name={read ? 'checkmark-done' : 'checkmark'} size={15} color={bare && !body ? '#FFF' : read ? t.accent : t.muted} /> : null}</View></View> : <View style={inlineTime ? { position: 'absolute', right: 10, bottom: 5, flexDirection: 'row', alignItems: 'center', gap: 4 } : bare && !body ? { position: 'absolute', right: 8, bottom: 8, flexDirection: 'row', alignItems: 'center', gap: 4, paddingHorizontal: 7, paddingVertical: 2, borderRadius: 10, backgroundColor: 'rgba(10,15,30,0.5)' } : { flexDirection: 'row', justifyContent: 'flex-end', alignItems: 'center', gap: 5, marginTop: 4 }}>{downloading ? <ActivityIndicator color={t.accent} size="small" /> : null}<Text style={{ color: bare && !body ? '#FFF' : t.muted, fontSize: 11 }}>{message?.edited ? 'изм. ' : ''}{formatTime(row.createdAt)}</Text>{p || row.album?.some(part => part.pending) ? (p?.state === 'failed' || row.album?.some(part => part.pending?.state === 'failed')) ? <Icon name="alert-circle" size={13} color={t.danger} /> : <Icon name="time-outline" size={12} color={bare && !body ? '#FFF' : t.muted} /> : mine ? <Icon name={read ? 'checkmark-done' : 'checkmark'} size={15} color={bare && !body ? '#FFF' : read ? t.accent : t.muted} /> : null}</View>}
         </Pressable>
         {message?.reactions.length && !reactionsInside ? <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 5, marginTop: 4, maxWidth: wide ? '76%' : '85%', justifyContent: mine ? 'flex-end' : 'flex-start' }}>{reactionChips(false)}</View> : null}

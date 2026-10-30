@@ -1,11 +1,17 @@
 import React, { useEffect, useRef, useState } from 'react';
-import { ActivityIndicator, Animated, Image, PanResponder, Platform, Pressable, StyleSheet, View, type GestureResponderEvent, useWindowDimensions } from 'react-native';
+import { ActivityIndicator, Animated, Image, Modal, PanResponder, Platform, Pressable, ScrollView, StyleSheet, View, type GestureResponderEvent, useWindowDimensions } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { MusicAmbient, type AmbientTone } from './MusicAmbient';
+import { Image as BlurImage } from 'expo-image';
 import { Text } from '../typography';
 import { LinearGradient } from 'expo-linear-gradient';
 import { Button, Icon, IconButton, Notice } from '../components';
 import { GlassSurface } from '../glass';
 import { useTheme } from '../theme';
 import { useMusic } from './MusicProvider';
+import { Gesture, GestureDetector, GestureHandlerRootView } from 'react-native-gesture-handler';
+import Reanimated, { Easing, runOnJS, useAnimatedStyle, useSharedValue, withSpring, withTiming } from 'react-native-reanimated';
+import { lightFeedback } from '../haptics';
 import type { MusicTrack } from './types';
 
 export function formatAudioTime(seconds: number) {
@@ -58,13 +64,13 @@ function useSwipeDown(onDismiss: () => void) {
   return { handlers: responder.panHandlers, style };
 }
 
-export function MiniPlayer({ onOpen }: { onOpen: () => void }) {
+export function MiniPlayer(_props: { onOpen?: () => void }) {
   const music = useMusic(), t = useTheme();
   const swipe = useSwipeDown(music.stop);
   if (!music.current) return null;
   const progress = music.duration > 0 ? Math.min(1, music.position / music.duration) : 0;
   return <Animated.View {...swipe.handlers} style={swipe.style} accessibilityHint="Смахни вниз, чтобы остановить музыку и убрать плеер" accessibilityActions={[{ name: 'escape', label: 'Убрать плеер' }]} onAccessibilityAction={event => { if (event.nativeEvent.actionName === 'escape') music.stop(); }}><GlassSurface radius={24} material="regular" style={{ marginHorizontal: 12, marginBottom: 8, maxWidth: 720, width: 'auto', alignSelf: 'stretch' }} contentStyle={{ padding: 9, paddingBottom: 12, flexDirection: 'row', alignItems: 'center', gap: 9, overflow: 'hidden', borderRadius: 24 }}>
-    <Pressable onPress={onOpen} accessibilityRole="button" accessibilityLabel={`Открыть плеер: ${music.current.title}, ${music.current.artist}`} style={{ flex: 1, minHeight: 48, minWidth: 0, flexDirection: 'row', alignItems: 'center', gap: 11 }}>
+    <Pressable onPress={openFullPlayer} accessibilityRole="button" accessibilityLabel={`Открыть плеер: ${music.current.title}, ${music.current.artist}`} style={{ flex: 1, minHeight: 48, minWidth: 0, flexDirection: 'row', alignItems: 'center', gap: 11 }}>
       <TrackArtwork track={music.current} size={46} />
       <View style={{ flex: 1, minWidth: 0, gap: 4 }}>
         <Text numberOfLines={1} style={{ color: t.text, fontSize: 14, fontWeight: '700' }}>{music.current.title}</Text>
@@ -80,13 +86,13 @@ export function MiniPlayer({ onOpen }: { onOpen: () => void }) {
 }
 
 /** Telegram-style player strip shown under the chat header while music plays. */
-export function TopPlayerBar({ onOpen }: { onOpen: () => void }) {
+export function TopPlayerBar(_props: { onOpen?: () => void }) {
   const music = useMusic(), t = useTheme();
   if (!music.current) return null;
   const progress = music.duration > 0 ? Math.min(1, music.position / music.duration) : 0;
   return <GlassSurface radius={18} material="regular" shadow={false} style={{ marginHorizontal: 12 }} contentStyle={{ flexDirection: 'row', alignItems: 'center', minHeight: 40, paddingLeft: 4, paddingRight: 2 }}>
     <IconButton name={music.playing ? 'pause' : 'play'} label={music.playing ? 'Пауза' : 'Слушать'} onPress={() => void music.togglePlayback()} size={18} color={t.accent} style={{ width: 36, height: 40 }} />
-    <Pressable onPress={onOpen} accessibilityRole="button" accessibilityLabel={`Открыть плеер: ${music.current.title}, ${music.current.artist}`} style={{ flex: 1, minWidth: 0, paddingHorizontal: 4 }}>
+    <Pressable onPress={openFullPlayer} accessibilityRole="button" accessibilityLabel={`Открыть плеер: ${music.current.title}, ${music.current.artist}`} style={{ flex: 1, minWidth: 0, paddingHorizontal: 4 }}>
       <Text numberOfLines={1} style={{ color: t.text, fontSize: 13, fontWeight: '600' }}>{music.current.title}<Text style={{ color: t.muted, fontWeight: '400' }}>{`  ${music.current.artist}`}</Text></Text>
     </Pressable>
     <IconButton name="close" label="Закрыть плеер и остановить музыку" onPress={music.stop} size={18} color={t.muted} style={{ width: 36, height: 40 }} />
@@ -116,7 +122,39 @@ function SeekBar() {
   </View>;
 }
 
-export function PlayerControls({ compact = false, onOpen }: { compact?: boolean; onOpen?: () => void } = {}) {
+/**
+ * Cover of the full player: swipe left / right to change the track, swipe down to collapse
+ * the player (as in the VK and Apple Music players). UI thread.
+ */
+function SwipeArtwork({ track, size, onCollapse }: { track: MusicTrack; size: number; onCollapse?: () => void }) {
+  const music = useMusic();
+  const x = useSharedValue(0), y = useSharedValue(0);
+  const change = (direction: number) => { lightFeedback(); if (direction < 0) void music.next(); else void music.previous(); };
+  const collapse = () => onCollapse?.();
+  const canNext = music.queue.length > 1;
+  useEffect(() => { x.value = 0; y.value = 0; }, [track.id]);
+  const horizontal = Gesture.Pan().activeOffsetX([-12, 12]).failOffsetY([-12, 12])
+    .onUpdate(event => { x.value = event.translationX; })
+    .onEnd(event => {
+      const go = Math.abs(event.translationX) > size * 0.28 || Math.abs(event.velocityX) > 800;
+      if (go && canNext) {
+        const direction = event.translationX < 0 ? -1 : 1;
+        x.value = withTiming(direction * size * 1.2, { duration: 180, easing: Easing.out(Easing.quad) }, done => { if (done) { runOnJS(change)(direction); x.value = -direction * size * 0.4; x.value = withSpring(0, { damping: 18, stiffness: 220 }); } });
+      } else x.value = withSpring(0, { damping: 18, stiffness: 260 });
+    });
+  const vertical = Gesture.Pan().enabled(!!onCollapse).activeOffsetY(14).failOffsetX([-14, 14])
+    .onUpdate(event => { y.value = Math.max(0, event.translationY); })
+    .onEnd(event => {
+      if (event.translationY > 110 || event.velocityY > 900) { runOnJS(collapse)(); }
+      y.value = withSpring(0, { damping: 18, stiffness: 260 });
+    });
+  const style = useAnimatedStyle(() => ({ transform: [{ translateX: x.value }, { translateY: y.value * 0.6 }, { rotate: `${x.value / size * 6}deg` }], opacity: 1 - Math.min(0.5, Math.abs(x.value) / size * 0.6) }));
+  return <GestureDetector gesture={Gesture.Race(horizontal, vertical)}>
+    <Reanimated.View style={style}><TrackArtwork track={track} size={size} /></Reanimated.View>
+  </GestureDetector>;
+}
+
+export function PlayerControls({ compact = false, onOpen, onCollapse }: { compact?: boolean; onOpen?: () => void; onCollapse?: () => void } = {}) {
   const music = useMusic(), t = useTheme(); const [showQueue, setShowQueue] = useState(false); const { width } = useWindowDimensions();
   if (compact && onOpen) return <MiniPlayer onOpen={onOpen} />;
   const track = music.current;
@@ -124,7 +162,7 @@ export function PlayerControls({ compact = false, onOpen }: { compact?: boolean;
   const favorite = music.favorites.some(item => item.id === track.id), downloading = Object.prototype.hasOwnProperty.call(music.downloads, track.id);
   const repeatLabel = music.repeat === 'one' ? 'Повтор одного трека' : music.repeat === 'all' ? 'Повтор очереди' : 'Повтор выключен';
   return <View style={{ gap: 21, paddingBottom: 5 }}>
-    <View style={{ alignItems: 'center', paddingVertical: 4 }}><View style={{ borderRadius: 34, shadowColor: '#000', shadowOpacity: .35, shadowRadius: 22, shadowOffset: { width: 0, height: 12 } }}><TrackArtwork track={track} size={Math.min(353, width - 48)} /></View></View>
+    <View style={{ alignItems: 'center', paddingVertical: 4 }}><View style={{ borderRadius: 34, shadowColor: '#000', shadowOpacity: .35, shadowRadius: 22, shadowOffset: { width: 0, height: 12 } }}><SwipeArtwork track={track} size={Math.min(353, width - 48)} onCollapse={onCollapse} /></View></View>
     <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12 }}>
       <View style={{ flex: 1, gap: 6 }}><Text numberOfLines={2} style={{ color: t.text, fontSize: 20, lineHeight: 25, fontWeight: '700', letterSpacing: -.3 }}>{track.title}</Text><Text numberOfLines={1} style={{ color: t.muted, fontSize: 14, lineHeight: 19 }}>{track.artist}</Text><Text style={{ color: t.subtle, fontSize: 11, letterSpacing: .5 }}>{track.source === 'audius' ? 'AUDIUS · ОНЛАЙН' : Platform.OS === 'web' ? 'ЛОКАЛЬНЫЙ ФАЙЛ · ДО ПЕРЕЗАГРУЗКИ' : 'НА ЭТОМ УСТРОЙСТВЕ'}</Text></View>
       <IconButton name={favorite ? 'heart' : 'heart-outline'} label={favorite ? 'Убрать из избранного' : 'Добавить в избранное'} color={favorite ? t.accent : t.text} onPress={() => void music.toggleFavorite(track)} />
@@ -148,4 +186,92 @@ export function PlayerControls({ compact = false, onOpen }: { compact?: boolean;
       {showQueue ? music.queue.map(item => <Pressable key={item.id} onPress={() => void music.play(item, music.queue)} accessibilityRole="button" accessibilityLabel={`Включить: ${item.title}, ${item.artist}`} accessibilityState={{ selected: item.id === track.id }} style={({ pressed }) => ({ minHeight: 58, flexDirection: 'row', alignItems: 'center', paddingHorizontal: 9, paddingVertical: 8, gap: 10, borderRadius: 14, backgroundColor: pressed || item.id === track.id ? t.accentSoft : 'transparent' })}><TrackArtwork track={item} size={36} /><View style={{ flex: 1, gap: 3 }}><Text numberOfLines={1} style={{ color: t.text, fontSize: 13, fontWeight: '600' }}>{item.title}</Text><Text numberOfLines={1} style={{ color: t.muted, fontSize: 11 }}>{item.artist}</Text></View>{item.id === track.id ? <Icon name={music.playing ? 'volume-medium-outline' : 'pause-outline'} size={17} color={t.accent} /> : null}</Pressable>) : null}
     </GlassSurface>
   </View>;
+}
+
+/**
+ * Full-screen player (VK / Apple Music layout): everything fits on one screen, the cover
+ * swipes between tracks, the whole page swipes down to collapse, the queue opens from the
+ * bottom bar. Shown above the tab bar.
+ */
+export function FullPlayer({ visible, onClose, onSource }: { visible: boolean; onClose: () => void; onSource?: (url: string) => void }) {
+  const music = useMusic(), t = useTheme(); const { width, height } = useWindowDimensions();
+  const insets = useSafeAreaInsets(); const [queueOpen, setQueueOpen] = useState(false);
+  const y = useSharedValue(0);
+  useEffect(() => { if (visible) { y.value = 0; setQueueOpen(false); } }, [visible]);
+  const close = () => onClose();
+  const pan = Gesture.Pan().activeOffsetY(14).failOffsetX([-14, 14])
+    .onUpdate(event => { y.value = Math.max(0, event.translationY); })
+    .onEnd(event => {
+      if (event.translationY > 140 || event.velocityY > 900) y.value = withTiming(height, { duration: 200 }, done => { if (done) runOnJS(close)(); });
+      else y.value = withSpring(0, { damping: 20, stiffness: 260 });
+    });
+  const sheet = useAnimatedStyle(() => ({ transform: [{ translateY: y.value }], borderRadius: y.value > 0 ? 28 : 0 }));
+  const track = music.current;
+  if (!visible || !track) return null;
+  const favorite = music.favorites.some(item => item.id === track.id), downloading = Object.prototype.hasOwnProperty.call(music.downloads, track.id);
+  const repeatLabel = music.repeat === 'one' ? 'Повтор одного трека' : music.repeat === 'all' ? 'Повтор очереди' : 'Повтор выключен';
+  const cover = Math.min(width - 40, height * 0.42, 420);
+  const tone: AmbientTone = t.black ? 'black' : t.dark ? 'dark' : 'light';
+  const chip = (icon: React.ComponentProps<typeof Icon>['name'], label: string, onPress: () => void, disabled = false, loading = false) => <Pressable key={label} accessibilityRole="button" accessibilityLabel={label} disabled={disabled || loading} onPress={onPress} style={({ pressed }) => ({ flexDirection: 'row', alignItems: 'center', gap: 6, height: 34, paddingHorizontal: 12, borderRadius: 10, backgroundColor: t.dark ? 'rgba(255,255,255,0.10)' : 'rgba(0,0,0,0.06)', opacity: disabled ? .4 : pressed ? .6 : 1 })}>
+    {loading ? <ActivityIndicator size="small" color={t.text} /> : <Icon name={icon} size={16} color={t.text} />}<Text style={{ color: t.text, fontSize: 13, fontWeight: '600' }}>{label}</Text>
+  </Pressable>;
+  return <Modal visible transparent animationType="slide" statusBarTranslucent onRequestClose={onClose}>
+    <GestureHandlerRootView style={{ flex: 1 }}>
+      <GestureDetector gesture={pan}>
+        <Reanimated.View style={[{ flex: 1, overflow: 'hidden', backgroundColor: t.bg }, sheet]}>
+          {/* Like VK: the page takes the colour of the cover (blurred), otherwise the cold ambient. */}
+          {track.artworkUrl ? <View pointerEvents="none" style={StyleSheet.absoluteFill}>
+            <BlurImage source={{ uri: track.artworkUrl }} blurRadius={70} contentFit="cover" style={[StyleSheet.absoluteFill, { transform: [{ scale: 1.3 }] }]} transition={250} />
+            <View style={[StyleSheet.absoluteFill, { backgroundColor: t.dark ? 'rgba(0,0,0,0.45)' : 'rgba(255,255,255,0.35)' }]} />
+          </View> : <MusicAmbient width={width} height={height} tone={tone} />}
+          <View style={{ flex: 1, paddingTop: insets.top + 4, paddingBottom: insets.bottom + 4, paddingHorizontal: 20 }}>
+            <View style={{ flexDirection: 'row', alignItems: 'center', height: 44, marginHorizontal: -8 }}>
+              <IconButton name="chevron-down" label="Свернуть плеер" onPress={onClose} color={t.text} />
+              <Text style={{ flex: 1, textAlign: 'center', color: t.text, fontSize: 15, fontWeight: '600' }} numberOfLines={1}>Сейчас играет</Text>
+              <View style={{ width: 44 }} />
+            </View>
+            <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center' }}><SwipeArtwork track={track} size={cover} /></View>
+            <View style={{ gap: 14 }}>
+              <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10 }}>
+                <View style={{ flex: 1, gap: 3 }}><Text numberOfLines={1} style={{ color: t.text, fontSize: 21, fontWeight: '700', letterSpacing: -.3 }}>{track.title}</Text><Text numberOfLines={1} style={{ color: t.muted, fontSize: 14 }}>{track.artist}</Text></View>
+                <Pressable accessibilityRole="button" accessibilityLabel={favorite ? 'Убрать из любимого' : 'В любимое'} onPress={() => void music.toggleFavorite(track)} style={{ width: 36, height: 36, borderRadius: 18, backgroundColor: favorite ? t.text : t.dark ? 'rgba(255,255,255,0.12)' : 'rgba(0,0,0,0.08)', alignItems: 'center', justifyContent: 'center' }}><Icon name={favorite ? 'checkmark' : 'add'} size={20} color={favorite ? t.bg : t.text} /></Pressable>
+              </View>
+              <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ gap: 8, paddingHorizontal: 20 }} style={{ flexGrow: 0, marginHorizontal: -20 }}>
+                {chip(track.source === 'local' ? 'share-outline' : 'download-outline', track.source === 'local' ? 'Поделиться' : 'Скачать', () => void music.download(track), track.source === 'audius' && !track.downloadable, downloading)}
+                {chip('list-outline', `Очередь · ${music.queue.length}`, () => setQueueOpen(true))}
+                {track.sourceUrl && onSource ? chip('open-outline', 'Страница трека', () => onSource(track.sourceUrl!)) : null}
+              </ScrollView>
+              <SeekBar />
+              <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginTop: -6 }}>
+                <IconButton name="shuffle" label={music.shuffle ? 'Случайный порядок включён' : 'Включить случайный порядок'} color={music.shuffle ? t.accent : t.muted} onPress={music.toggleShuffle} size={22} />
+                <IconButton name="play-skip-back" label="Предыдущий трек или начало текущего" onPress={() => void music.previous()} size={34} color={t.text} />
+                <PlaybackButton large />
+                <IconButton name="play-skip-forward" label="Следующий трек" onPress={() => void music.next()} size={34} color={t.text} disabled={music.queue.length < 2} />
+                <IconButton name="repeat" label={`${repeatLabel}. Изменить`} color={music.repeat !== 'off' ? t.accent : t.muted} onPress={music.toggleRepeat} size={22} />
+              </View>
+              {music.error ? <Pressable onPress={music.clearError}><Notice text={music.error} error /></Pressable> : music.notice ? <Pressable onPress={music.clearNotice}><Notice text={music.notice} /></Pressable> : null}
+            </View>
+          </View>
+          {queueOpen ? <View style={[StyleSheet.absoluteFill, { justifyContent: 'flex-end' }]}>
+            <Pressable style={StyleSheet.absoluteFill} onPress={() => setQueueOpen(false)} accessibilityLabel="Закрыть очередь"><View style={{ flex: 1, backgroundColor: 'rgba(0,0,0,0.4)' }} /></Pressable>
+            <View style={{ maxHeight: height * 0.62, backgroundColor: t.dark ? '#141A26' : '#F4F7FC', borderTopLeftRadius: 24, borderTopRightRadius: 24, paddingTop: 10, paddingBottom: insets.bottom + 8 }}>
+              <View style={{ width: 36, height: 4, borderRadius: 2, backgroundColor: t.subtle, alignSelf: 'center', marginBottom: 8 }} />
+              <Text style={{ color: t.text, fontSize: 17, fontWeight: '700', paddingHorizontal: 18, paddingBottom: 6 }}>Очередь · {music.queue.length}</Text>
+              <ScrollView contentContainerStyle={{ paddingHorizontal: 10 }}>{music.queue.map(item => <Pressable key={item.id} onPress={() => void music.play(item, music.queue)} accessibilityRole="button" accessibilityLabel={`Включить: ${item.title}, ${item.artist}`} accessibilityState={{ selected: item.id === track.id }} style={({ pressed }) => ({ minHeight: 56, flexDirection: 'row', alignItems: 'center', paddingHorizontal: 8, gap: 11, borderRadius: 12, backgroundColor: pressed || item.id === track.id ? t.accentSoft : 'transparent' })}><TrackArtwork track={item} size={42} /><View style={{ flex: 1, gap: 2 }}><Text numberOfLines={1} style={{ color: t.text, fontSize: 14, fontWeight: '600' }}>{item.title}</Text><Text numberOfLines={1} style={{ color: t.muted, fontSize: 12 }}>{item.artist}</Text></View>{item.id === track.id ? <Icon name={music.playing ? 'volume-medium-outline' : 'pause-outline'} size={17} color={t.accent} /> : null}</Pressable>)}</ScrollView>
+            </View>
+          </View> : null}
+        </Reanimated.View>
+      </GestureDetector>
+    </GestureHandlerRootView>
+  </Modal>;
+}
+
+// One full player for the whole app: any mini player opens it, it shows above the tabs.
+let fullOpen = false; const fullListeners = new Set<() => void>();
+export function openFullPlayer() { fullOpen = true; fullListeners.forEach(listener => listener()); }
+function closeFullPlayer() { fullOpen = false; fullListeners.forEach(listener => listener()); }
+export function FullPlayerHost({ onSource }: { onSource?: (url: string) => void }) {
+  const [, force] = useState(0);
+  useEffect(() => { const listener = () => force(value => value + 1); fullListeners.add(listener); return () => { fullListeners.delete(listener); }; }, []);
+  return <FullPlayer visible={fullOpen} onClose={closeFullPlayer} onSource={onSource} />;
 }

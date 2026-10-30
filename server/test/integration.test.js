@@ -6,6 +6,8 @@ import { once } from 'node:events';
 import test from 'node:test';
 import WebSocket from 'ws';
 import { buildApp } from '../src/app.js';
+import { DatabaseSync } from 'node:sqlite';
+import { grantPermanentPlatina } from '../src/platina-admin.js';
 import { syntheticEnvelope, syntheticFileBytes, syntheticPublicBundle } from './support/relay-fixtures.js';
 
 const PASSWORD = 'correct-horse-42';
@@ -30,6 +32,11 @@ async function fixture(t, options = {}) {
     await rm(dataDir, { recursive: true, force: true });
   });
   return { app: await open(), open, dataDir };
+}
+
+function platina(dataDir, account) {
+  const db = new DatabaseSync(path.join(dataDir, 'linea.sqlite'));
+  try { grantPermanentPlatina(db, { userId: account.user.id, reason: 'Synthetic local test grant' }); } finally { db.close(); }
 }
 
 async function request(app, method, url, account, payload) {
@@ -575,7 +582,7 @@ test('React Native endpoint Origin is accepted only for WS upgrades and still re
 });
 
 test('privacy: new chats, avatar visibility and mutual read receipts are enforced by the server', async t => {
-  const { app } = await fixture(t);
+  const { app, dataDir } = await fixture(t);
   const alice = await register(app, 'alice_priv'), bob = await register(app, 'bob_priv'), carol = await register(app, 'carol_priv');
   const defaults = await request(app, 'GET', '/me/privacy', alice);
   assert.equal(defaults.statusCode, 200);
@@ -612,6 +619,11 @@ test('privacy: new chats, avatar visibility and mutual read receipts are enforce
   assert.equal((await request(app, 'POST', `/chats/${chat.id}/read`, bob, { messageId: message.id })).statusCode, 200);
   const aliceSees = () => request(app, 'GET', '/chats', alice).then(response => response.json().chats.find(item => item.id === chat.id).peerLastReadMessageId);
   assert.equal(await aliceSees(), message.id);
+  // Hiding read receipts is a Platina option.
+  const locked = await request(app, 'PATCH', '/me/privacy', bob, { readReceipts: false });
+  assert.equal(locked.statusCode, 403);
+  assert.equal(locked.json().code, 'PLATINA_REQUIRED');
+  platina(dataDir, bob);
   assert.equal((await request(app, 'PATCH', '/me/privacy', bob, { readReceipts: false })).statusCode, 200);
   assert.equal(await aliceSees(), 0);
   assert.equal((await request(app, 'PATCH', '/me/privacy', bob, { readReceipts: true })).statusCode, 200);
@@ -650,7 +662,7 @@ test('friends list and per-user chat settings (pin, archive, mute) stay private 
 });
 
 test('presence: chat peers see online / last seen; hiding it is mutual; strangers see nothing', async t => {
-  const { app } = await fixture(t);
+  const { app, dataDir } = await fixture(t);
   const alice = await register(app, 'alice');
   const bob = await register(app, 'bob');
   const eve = await register(app, 'eve');
@@ -665,7 +677,11 @@ test('presence: chat peers see online / last seen; hiding it is mutual; stranger
   aliceSocket.socket.close();
   const offline = await bobSocket.next(packet => packet.type === 'presence' && packet.presence.userId === alice.user.id && !packet.presence.online);
   assert.ok(Number.isFinite(Date.parse(offline.presence.lastSeenAt)), 'last seen time is recorded');
-  // Bob hides his own presence: he stops seeing Alice's too (as in Telegram).
+  // Hiding presence needs Platina; Bob then stops seeing Alice's too (mutual).
+  const locked = await request(app, 'PATCH', '/me/privacy', bob, { showLastSeen: false });
+  assert.equal(locked.statusCode, 403);
+  assert.equal(locked.json().code, 'PLATINA_REQUIRED');
+  platina(dataDir, bob);
   const hide = await request(app, 'PATCH', '/me/privacy', bob, { showLastSeen: false });
   assert.equal(hide.statusCode, 200);
   assert.equal(hide.json().privacy.showLastSeen, false);
@@ -676,4 +692,47 @@ test('presence: chat peers see online / last seen; hiding it is mutual; stranger
   const aliceView = await again.next(packet => packet.type === 'presence.snapshot');
   assert.deepEqual(aliceView.items.map(item => [item.userId, item.hidden, item.lastSeenAt]), [[bob.user.id, true, null]]);
   assert.equal(eveSocket.packets.some(packet => packet.type === 'presence'), false, 'no presence to non-contacts');
+});
+
+test('Platina decoration: animated avatar, frame and banner need Platina and stay public profile media only', async t => {
+  const { app, dataDir } = await fixture(t);
+  const alice = await register(app, 'alice_deco'), bob = await register(app, 'bob_deco');
+  await newChat(app, alice, bob);
+  const mp4 = Buffer.concat([Buffer.from([0, 0, 0, 24]), Buffer.from('ftypisom'), Buffer.alloc(40, 1)]);
+  const video = await uploadAvatar(app, alice, mp4, 'avatar.mp4', 'video/mp4');
+  assert.equal(video.mimeType, 'video/mp4');
+  const png = Buffer.concat([Buffer.from([137, 80, 78, 71, 13, 10, 26, 10, 0, 0, 0, 13]), Buffer.from('IHDR'), Buffer.alloc(40, 0)]);
+  const banner = await uploadAvatar(app, alice, png, 'banner.png', 'image/png');
+
+  for (const patch of [{ avatarVideoId: video.id }, { avatarFrame: 'aurora' }, { bannerPreset: 'deep' }, { bannerId: banner.id }]) {
+    const locked = await request(app, 'PATCH', '/me', alice, patch);
+    assert.equal(locked.statusCode, 403, JSON.stringify(patch));
+    assert.equal(locked.json().code, 'PLATINA_REQUIRED');
+  }
+  assert.equal((await request(app, 'GET', `/files/${video.id}`, bob)).statusCode, 404, 'staged video is private');
+
+  platina(dataDir, alice);
+  assert.equal((await request(app, 'PATCH', '/me', alice, { avatarFrame: 'unknown' })).statusCode, 400);
+  assert.equal((await request(app, 'PATCH', '/me', alice, { avatarVideoId: banner.id })).statusCode, 400, 'a picture is not an animated avatar');
+  const set = await request(app, 'PATCH', '/me', alice, { avatarVideoId: video.id, avatarFrame: 'aurora', bannerId: banner.id, bannerPreset: 'deep' });
+  assert.equal(set.statusCode, 200, set.body);
+  assert.deepEqual(
+    (({ avatarVideoId, avatarFrame, bannerId, bannerKind, bannerPreset }) => ({ avatarVideoId, avatarFrame, bannerId, bannerKind, bannerPreset }))(set.json().user),
+    { avatarVideoId: video.id, avatarFrame: 'aurora', bannerId: banner.id, bannerKind: 'image', bannerPreset: 'deep' });
+  const peer = (await request(app, 'GET', '/chats', bob)).json().chats[0].peer;
+  assert.equal(peer.avatarVideoId, video.id);
+  assert.equal(peer.avatarFrame, 'aurora');
+  const fetched = await request(app, 'GET', `/files/${video.id}`, bob);
+  assert.equal(fetched.statusCode, 200);
+  assert.equal(fetched.headers['content-type'], 'video/mp4');
+
+  // Hiding the profile photo hides uploaded decoration media too; the frame stays.
+  assert.equal((await request(app, 'PATCH', '/me/privacy', alice, { showAvatar: false })).statusCode, 200);
+  const hidden = (await request(app, 'GET', '/chats', bob)).json().chats[0].peer;
+  assert.equal(hidden.avatarVideoId, null);
+  assert.equal(hidden.bannerId, null);
+  assert.equal(hidden.avatarFrame, 'aurora');
+  assert.equal((await request(app, 'GET', `/files/${video.id}`, bob)).statusCode, 404);
+  // Clearing is always allowed.
+  assert.equal((await request(app, 'PATCH', '/me', alice, { avatarVideoId: null, bannerId: null })).statusCode, 200);
 });

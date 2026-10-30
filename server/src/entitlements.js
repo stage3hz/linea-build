@@ -1,4 +1,4 @@
-export const STATUS_EMOJI_CHOICES = Object.freeze(['✨', '⭐', '🌙', '☀️', '🌊', '🌿', '🔥', '💎', '🪐', '🎧', '🎮', '🦋']);
+export const STATUS_EMOJI_CHOICES = Object.freeze(['✨', '⭐', '🌙', '☀️', '🌊', '🌿', '🔥', '💎', '🪐', '🎧', '🎮', '🦋', '🌛', '🌞', '🎶', '👾', '⚡', '❄️', '🌈', '👑']);
 const EMOJI = new Set(STATUS_EMOJI_CHOICES);
 const MAX_TIMESTAMP = 8_640_000_000_000_000;
 

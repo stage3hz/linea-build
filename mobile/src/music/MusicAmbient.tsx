@@ -14,13 +14,20 @@ const PALETTES = {
   dark: { base: '#0A1529', colors: ['#0D3480', '#0B6450', '#123E92', '#0A2F6E', '#B8D8F5'], accent: 4, green: 1 },
   black: { base: '#000000', colors: ['#0A2766', '#08483A', '#0E2F72', '#071F4F', '#8FB3D9'], accent: 4, green: 1 },
   light: { base: '#E7EFFC', colors: ['#9DBDF2', '#A9E0CF', '#B5CDF5', '#8FB0EA', '#FFFFFF'], accent: 4, green: 1 },
+  // Platina profile banners.
+  deep: { base: '#050B1C', colors: ['#0D3480', '#0A2F6E', '#143F9E', '#08245A', '#8FB3D9'], accent: 4, green: 1 },
+  glacier: { base: '#0B1B2E', colors: ['#4C8FD6', '#7FC8E8', '#2F6DB5', '#9FD6F2', '#FFFFFF'], accent: 4, green: 1 },
+  aurora: { base: '#04131C', colors: ['#0B6450', '#1AA889', '#0D3480', '#2EE6C8', '#CFF7EE'], accent: 4, green: 1 },
+  ocean: { base: '#031424', colors: ['#0A4E8A', '#0C7A9E', '#063A6B', '#1593B8', '#B8E4F5'], accent: 4, green: 1 },
+  mint: { base: '#061A16', colors: ['#118A6A', '#4FD1A5', '#0B5C4A', '#7BE8C3', '#E6FFF6'], accent: 4, green: 1 },
+  night: { base: '#000000', colors: ['#0A1A40', '#101F4D', '#06122E', '#1A2C66', '#5D7BB8'], accent: 4, green: 1 },
 } as const;
 export type AmbientTone = keyof typeof PALETTES;
 const COUNT = 5;
 const STEP = 6000; // ms per colour
 
 function Glow({ color, size, opacity }: { color: string; size: number; opacity: number }) {
-  const id = `g${color.slice(1)}${size}`;
+  const id = `g${color.slice(1)}${Math.round(size)}`;
   return <Svg width={size} height={size} style={StyleSheet.absoluteFill}>
     <Defs><RadialGradient id={id} cx="50%" cy="50%" r="50%"><Stop offset="0" stopColor={color} stopOpacity={opacity} /><Stop offset="1" stopColor={color} stopOpacity={0} /></RadialGradient></Defs>
     <Rect width={size} height={size} fill={`url(#${id})`} />

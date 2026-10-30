@@ -1,6 +1,8 @@
 export type User = {
   id: string; username: string; displayName: string; bio: string;
   avatarColor: string; avatarId: string | null; createdAt: string; statusEmoji?:string|null;statusEmojiExpiresAt?:string|null;statusEmojiPermanent?:boolean;
+  /** Platina decoration, present only while the owner's Platina is active. */
+  avatarVideoId?:string|null;avatarFrame?:string|null;bannerId?:string|null;bannerKind?:'image'|'video'|null;bannerPreset?:string|null;
 };
 export type UsernameStatus={accountId:string;loginName:string;username:string;freeChangeAvailable:boolean;canChangeUsername:boolean;platina:{active:boolean;expiresAt:string|null;permanent?:boolean};canSetStatusEmoji:boolean;statusEmoji:string|null;statusEmojiChoices:string[]};
 export type AttachmentMedia = {width?:number;height?:number;durationMs?:number;hdr?:'sdr'|'pq'|'hlg'};
