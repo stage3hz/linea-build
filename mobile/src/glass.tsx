@@ -81,9 +81,15 @@ export function GlassSurface({children,style,contentStyle,radius=26,material='re
   const regular=material==='regular';
   const fill=reduceTransparency?t.glassOpaque:regular?t.glass:t.glassClear;
   const shadowStyle:ViewStyle=shadow?Platform.OS==='web'?{boxShadow:`0 10px 34px ${t.black?'rgba(0,0,0,0.24)':t.dark?'rgba(0,4,18,0.24)':'rgba(38,66,125,0.09)'}, 0 2px 5px ${t.black?'rgba(0,0,0,0.13)':t.dark?'rgba(0,4,18,0.13)':'rgba(38,66,125,0.035)'}`}:{shadowColor:t.shadow,shadowOffset:{width:0,height:8},shadowOpacity:t.dark?.19:.09,shadowRadius:18,elevation:0}:{};
+  // iOS 26: only the system Liquid Glass, rounded by the glass itself. Our own fill, gradient and
+  // two-colour border on top of it were clipped together with the glass and showed stepped edges.
+  if(nativeGlass&&!reduceTransparency)return <View style={[{borderRadius:radius},style]}>
+    <GlassView pointerEvents="none" colorScheme={t.dark?'dark':'light'} glassEffectStyle={material} isInteractive={interactive} tintColor={t.glassTint} style={[StyleSheet.absoluteFill,{borderRadius:radius}]}/>
+    <NestedGlass.Provider value={true}><View style={[{flexGrow:1},contentStyle]}>{children}</View></NestedGlass.Provider>
+  </View>;
   return <View style={[{borderRadius:radius},shadowStyle,style]}>
     <View pointerEvents="none" style={[StyleSheet.absoluteFill,{borderRadius:radius,overflow:'hidden'}]}>
-      {!reduceTransparency&&nativeGlass?<GlassView colorScheme={t.dark?'dark':'light'} glassEffectStyle={material} isInteractive={interactive} tintColor={t.glassTint} style={StyleSheet.absoluteFill}/>:hasBlur?<BlurView tint={t.dark?'dark':'light'} intensity={regular?64:35} blurMethod="dimezisBlurViewSdk31Plus" blurTarget={target} style={StyleSheet.absoluteFill}/>:null}
+      {hasBlur?<BlurView tint={t.dark?'dark':'light'} intensity={regular?64:35} blurMethod="dimezisBlurViewSdk31Plus" blurTarget={target} style={StyleSheet.absoluteFill}/>:null}
       <View style={[StyleSheet.absoluteFill,{backgroundColor:fill}]}/>
       {!reduceTransparency?<LinearGradient colors={[t.glassHighlight,'transparent',t.black?'rgba(255,255,255,0.025)':t.dark?'rgba(129,172,255,0.025)':'rgba(255,255,255,0.08)']} locations={[0,.36,1]} start={{x:.1,y:0}} end={{x:.65,y:1}} style={[StyleSheet.absoluteFill,{opacity:regular?.48:.66}]}/>:null}
       <View style={[StyleSheet.absoluteFill,{borderRadius:radius,borderWidth:1,borderColor:t.glassBorder,borderBottomColor:t.black?'rgba(255,255,255,0.10)':t.dark?'rgba(129,167,230,0.10)':'rgba(139,162,204,0.23)'}]}/>
