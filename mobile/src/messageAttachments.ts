@@ -1,5 +1,7 @@
 import type { Attachment } from './types';
-export const MAX_DRAFT_ATTACHMENTS=10;
+/** As in Telegram: up to 100 photos/videos/files at once; they go out as albums of 10. */
+export const MAX_DRAFT_ATTACHMENTS=100;
+export const ALBUM_SIZE=10;
 
 export function appendAttachments(current:Attachment[],incoming:Attachment[]):Attachment[] {
   const unique=new Map(current.map(file=>[file.id,file]));

@@ -10,6 +10,7 @@ import { Icon, type IconName } from '../components';
 import { formatSize, useTheme } from '../theme';
 import type { Api } from '../api';
 import type { Attachment } from '../types';
+import { albumLayout } from './albumLayout';
 import { mediaPreviewKind } from './formats';
 import { previewUri } from './previewModel';
 import { useMedia } from './mediaCache';
@@ -75,19 +76,9 @@ export function MediaTile({ api, attachment, width, height, radius = 16, onOpen,
 
 /** Photos/videos sent together, laid out in rows like Telegram albums. */
 export function AlbumGrid({ api, items, width, onOpen, onLongPress }: { api: Api; items: Attachment[]; width: number; onOpen: (attachment: Attachment) => void; onLongPress?: () => void }) {
-  const gap = 2;
-  const rows: Attachment[][] = [];
-  const n = items.length;
-  // 2 → 1 row; 3 → 1 big + 2; 4 → 2+2; 5 → 2+3; 6 → 3+3; larger: rows of 3 (last row 2–4).
-  const plan = n === 2 ? [2] : n === 3 ? [1, 2] : n === 4 ? [2, 2] : n === 5 ? [2, 3] : n === 6 ? [3, 3] : n === 7 ? [3, 4] : n === 8 ? [2, 3, 3] : n === 9 ? [3, 3, 3] : [3, 3, 4];
-  let index = 0;
-  for (const count of plan) { rows.push(items.slice(index, index + count)); index += count; }
-  return <View style={{ width, gap, borderRadius: 16, overflow: 'hidden' }}>
-    {rows.map((row, r) => {
-      const height = row.length === 1 ? width * 0.62 : row.length === 2 ? width * 0.48 : width * 0.33;
-      const tile = (width - gap * (row.length - 1)) / row.length;
-      return <View key={r} style={{ flexDirection: 'row', gap }}>{row.map(item => <MediaTile key={item.id} api={api} attachment={item} width={tile} height={height} radius={0} onOpen={() => onOpen(item)} onLongPress={onLongPress} />)}</View>;
-    })}
+  const layout = useMemo(() => albumLayout(items.map(item => { const w = item.media?.width || item.preview?.width || 4, h = item.media?.height || item.preview?.height || 3; return w / h; }), width, width * 1.45), [items, width]);
+  return <View style={{ width, height: layout.height, borderRadius: 16, overflow: 'hidden' }}>
+    {layout.tiles.map(tile => { const item = items[tile.index]; return <View key={item.id} style={{ position: 'absolute', left: tile.x, top: tile.y }}><MediaTile api={api} attachment={item} width={tile.width} height={tile.height} radius={0} onOpen={() => onOpen(item)} onLongPress={onLongPress} /></View>; })}
   </View>;
 }
 

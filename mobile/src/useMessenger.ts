@@ -8,7 +8,7 @@ import type { Attachment, Chat, LocalFile, Message, PendingMessage, Presence, Re
 import { CryptoRuntime } from './e2ee/runtime';
 import { clearDecryptedAttachmentCache, encryptAndUpload } from './e2ee/attachments';
 import type { TrustSnapshot } from './e2ee/types';
-import { appendAttachments, messageAttachmentBatch } from './messageAttachments';
+import { ALBUM_SIZE, appendAttachments, messageAttachmentBatch } from './messageAttachments';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { getChatPreferences } from './chatPreferences';
 import { actionFallback, messageKey, pollFallback, type MessageAction, type MessageMeta, type Poll } from './messageMeta';
@@ -269,11 +269,17 @@ export function useMessenger(api: Api, user: User, onExpired: ()=>void) {
     const started=Date.now();
     const parts=messageAttachmentBatch(text,attachments);
     // Two or more photos/videos go out as one album (Telegram groups them into a grid).
+    // Up to 10 per album (Telegram): 25 photos become albums of 10 + 10 + 5; the caption goes with the first.
     const visual=parts.filter(part=>part.attachment&&isAlbumMedia(part.attachment));
-    const album=visual.length>=2?{id:Crypto.randomUUID(),count:visual.length}:null;
-    const ordered=album?[...visual,...parts.filter(part=>!visual.includes(part))]:parts;
-    if(album&&!ordered[0].text&&text.trim()){ordered.forEach(part=>{part.text='';});ordered[0].text=text.trim();}
-    const items:PendingMessage[]=ordered.map((part,index)=>({...part,clientId:Crypto.randomUUID(),chatId,state:'sending',createdAt:new Date(started+index).toISOString(),...(album&&index<album.count?{meta:{album:{id:album.id,index,count:album.count}}}:{})}));
+    const ordered=visual.length>=2?[...visual,...parts.filter(part=>!visual.includes(part))]:parts;
+    if(visual.length>=2&&text.trim()){ordered.forEach(part=>{part.text='';});ordered[0].text=text.trim();}
+    const albumOf=(index:number)=>{
+      if(visual.length<2||index>=visual.length)return null;
+      const group=Math.floor(index/ALBUM_SIZE),start=group*ALBUM_SIZE,count=Math.min(ALBUM_SIZE,visual.length-start);
+      return count>=2?{group,index:index-start,count}:null;
+    };
+    const albumIds=Array.from({length:Math.ceil(visual.length/ALBUM_SIZE)},()=>Crypto.randomUUID());
+    const items:PendingMessage[]=ordered.map((part,index)=>{const album=albumOf(index);return {...part,clientId:Crypto.randomUUID(),chatId,state:'sending',createdAt:new Date(started+index).toISOString(),...(album?{meta:{album:{id:albumIds[album.group],index:album.index,count:album.count}}}:{})};});
     setPending(previous=>[...previous,...items]);
     void (async()=>{for(const item of items){if(!aliveRef.current)return;await performSend(item);}})();
   },[performSend]);

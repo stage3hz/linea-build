@@ -4,7 +4,7 @@
 import type { Message } from './types';
 import { attachmentLabel } from './voice/voice.ts';
 
-export const REACTIONS = ['👍', '❤️', '😂', '😮', '😢', '🔥', '👎', '🎉', '🙏', '👏', '🤔', '💯'] as const;
+export const REACTIONS = ['👍', '❤️', '😂', '😮', '😢', '🔥', '👎', '🎉', '🙏', '👏', '🤔', '💯', '😍', '🥰', '😁', '🤣', '😎', '🤯', '😱', '🤬', '🥺', '😭', '🤡', '💩', '👀', '💀', '🫡', '🤝', '✍️', '🙈', '😴', '🤗', '🍾', '💔', '⚡', '🏆', '🥶', '😈', '🫶', '✅', '❌', '👌'] as const;
 export type Reaction = typeof REACTIONS[number];
 
 export type ReplyRef = { clientId: string; senderId: string; preview: string };
