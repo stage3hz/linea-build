@@ -11,6 +11,7 @@ import { GlassSurface } from './glass';
 import { StatusEmoji } from './StatusEmoji';
 import { DecoratedAvatar } from './platina/Decor';
 import { navigate } from './navigation';
+import { ChatSearch } from './ChatSearch';
 import { VoiceBar } from './communities/VoiceBar';
 import { formatListTime, useTheme } from './theme';
 import type { Api } from './api';
@@ -26,7 +27,7 @@ export type MessengerTab = 'chats' | 'people' | 'channels' | 'music' | 'ai' | 'p
 type Navigation = { onProfile:()=>void;onNewChat:()=>void;onMusic:()=>void;onAI:()=>void;onChats:()=>void;activeTab?:MessengerTab };
 
 export function ChatListScreen({api,user,store,onProfile,onNewChat,onMusic,onAI,onQuickAI,onChats,onSaved,savedActive=false,activeTab='chats'}: {api:Api;user:User;store:MessengerStore;onQuickAI:()=>void;onSaved:()=>void;savedActive?:boolean}&Navigation) {
-  const t=useTheme();const [query,setQuery]=useState('');const [refreshing,setRefreshing]=useState(false);
+  const t=useTheme();const [searching,setSearching]=useState(false);const query:string='';const [refreshing,setRefreshing]=useState(false);
   const [archive,setArchive]=useState(false);const [editing,setEditing]=useState<Set<string>|null>(null);const [removeAsk,setRemoveAsk]=useState<Chat[]|null>(null);const [menu,setMenu]=useState<{chat:Chat;y:number}|null>(null);const [menuError,setMenuError]=useState('');
   const archivedCount=store.chats.filter(c=>c.settings?.archived).length;
   const folders=useChatFolders(user.id);const [filter,setFilter]=useState<FolderFilter>('all');const [editor,setEditor]=useState<{folder:ChatFolder|null}|null>(null);
@@ -43,6 +44,7 @@ export function ChatListScreen({api,user,store,onProfile,onNewChat,onMusic,onAI,
   const selectedChats=editing?chats.filter(c=>editing.has(c.id)):[];
   const bulk=(fn:(chat:Chat)=>void)=>{const list=selectedChats.length?selectedChats:chats;list.forEach(fn);setEditing(null);lightFeedback();};
   const refresh=async()=>{setRefreshing(true);await store.refreshChats();setRefreshing(false);};
+  if(searching)return <View style={{flex:1,backgroundColor:'transparent'}}><ChatSearch api={api} me={user} store={store} onClose={()=>setSearching(false)} onSaved={onSaved}/></View>;
   return <View style={{flex:1,backgroundColor:'transparent'}}>
     {/* Telegram header: «Изм.» · title with connection state · AI and «new chat» buttons. */}
     <View style={{flexDirection:'row',alignItems:'center',gap:8,paddingHorizontal:12,paddingTop:6,paddingBottom:8}}>
@@ -52,7 +54,7 @@ export function ChatListScreen({api,user,store,onProfile,onNewChat,onMusic,onAI,
       <Pressable onPress={onNewChat} accessibilityRole="button" accessibilityLabel="Новый чат" hitSlop={6} style={({pressed})=>({width:40,height:40,borderRadius:20,backgroundColor:t.accent,alignItems:'center',justifyContent:'center',opacity:pressed?.8:1})}><Icon name="create-outline" size={20} color={t.onAccent}/></Pressable>
     </View>
     <GlassSurface material="regular" radius={18} shadow={false} style={{marginHorizontal:12,marginBottom:8}} contentStyle={{flexDirection:'row',alignItems:'center',gap:8,paddingHorizontal:12,minHeight:38}}>
-      <Icon name="search-outline" color={t.muted} size={19}/><TextInput accessibilityLabel="Поиск по чатам" placeholder="Поиск" value={query} onChangeText={setQuery} placeholderTextColor={t.muted} selectionColor={t.accent} style={{flex:1,fontSize:17,color:t.text,paddingVertical:8}} autoCorrect={false}/>{query?<IconButton name="close-circle" label="Очистить поиск" onPress={()=>setQuery('')} color={t.muted} size={18} style={{width:30,height:36}}/>:null}
+      <Pressable onPress={()=>{lightFeedback();setSearching(true);}} accessibilityRole="search" accessibilityLabel="Поиск" style={{flex:1,flexDirection:'row',alignItems:'center',gap:8,minHeight:38}}><Icon name="search-outline" color={t.muted} size={19}/><Text style={{flex:1,fontSize:17,color:t.muted}}>Поиск</Text></Pressable>
     </GlassSurface>
     {!archive?<FolderTabs folders={folders.folders} filter={filter} unread={unread} onChange={setFilter} onCreate={()=>setEditor({folder:null})} onEdit={folder=>setEditor({folder})}/>:null}
     <FolderEditor visible={!!editor} folder={editor?.folder||null} chats={store.chats} api={api} onClose={()=>setEditor(null)} onSave={folder=>{folders.upsert(folder);setFilter(folder.id);setEditor(null);}} onDelete={id=>{folders.remove(id);setEditor(null);}}/>
