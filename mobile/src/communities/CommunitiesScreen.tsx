@@ -19,13 +19,14 @@ import { InviteCard } from './InviteCard';
  * «Каналы» tab: the user's game servers and blogs, create a new one (choose the type, as in
  * Discord's «create server» flow), or join by an invite link.
  */
-export function CommunitiesScreen({ api, me, store, openId, onOpenInvite, onOpened }: { api: Api; me: User; store: MessengerStore; openId: string | null; onOpenInvite: (code: string) => void; onOpened: (id: string | null) => void }) {
+export function CommunitiesScreen({ api, me, store, openId, onOpenInvite, onOpened, createSignal = 0 }: { api: Api; me: User; store: MessengerStore; createSignal?: number; openId: string | null; onOpenInvite: (code: string) => void; onOpened: (id: string | null) => void }) {
   const t = useTheme(); const insets = useSafeAreaInsets();
   const [list, setList] = useState<CommunitySummary[] | null>(null); const [error, setError] = useState('');
   const [create, setCreate] = useState<CommunityKind | 'choose' | null>(null); const [join, setJoin] = useState(false);
   const progress = useSharedValue(1);
   const load = useCallback(() => { api.communities().then(result => { setList(result.communities); setError(''); }).catch(failure => setError(failure instanceof Error ? failure.message : 'Не удалось загрузить.')); }, [api]);
   useEffect(load, [load]);
+  useEffect(() => { if (createSignal) setCreate('choose'); }, [createSignal]);
   useEffect(() => store.onSocket(data => {
     if (data.type === 'community' && data.community) setList(current => current ? current.some(item => item.id === data.community.id) ? current.map(item => item.id === data.community.id ? data.community : item) : [data.community, ...current] : current);
     else if (data.type === 'community.removed') setList(current => current?.filter(item => item.id !== data.communityId) || current);

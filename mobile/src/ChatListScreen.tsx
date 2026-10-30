@@ -11,6 +11,7 @@ import { GlassSurface } from './glass';
 import { StatusEmoji } from './StatusEmoji';
 import { DecoratedAvatar } from './platina/Decor';
 import { navigate } from './navigation';
+import { NewMessageSheet } from './NewMessageSheet';
 import { VoiceBar } from './communities/VoiceBar';
 import { formatListTime, useTheme } from './theme';
 import type { Api } from './api';
@@ -26,7 +27,7 @@ export type MessengerTab = 'chats' | 'people' | 'channels' | 'music' | 'ai' | 'p
 type Navigation = { onProfile:()=>void;onNewChat:()=>void;onMusic:()=>void;onAI:()=>void;onChats:()=>void;activeTab?:MessengerTab };
 
 export function ChatListScreen({api,user,store,onProfile,onNewChat,onMusic,onAI,onQuickAI,onChats,onSaved,savedActive=false,activeTab='chats'}: {api:Api;user:User;store:MessengerStore;onQuickAI:()=>void;onSaved:()=>void;savedActive?:boolean}&Navigation) {
-  const t=useTheme();const [query,setQuery]=useState('');const [refreshing,setRefreshing]=useState(false);
+  const t=useTheme();const [compose,setCompose]=useState(false);const [query,setQuery]=useState('');const [refreshing,setRefreshing]=useState(false);
   const [archive,setArchive]=useState(false);const [editing,setEditing]=useState<Set<string>|null>(null);const [removeAsk,setRemoveAsk]=useState<Chat[]|null>(null);const [menu,setMenu]=useState<{chat:Chat;y:number}|null>(null);const [menuError,setMenuError]=useState('');
   const archivedCount=store.chats.filter(c=>c.settings?.archived).length;
   const folders=useChatFolders(user.id);const [filter,setFilter]=useState<FolderFilter>('all');const [editor,setEditor]=useState<{folder:ChatFolder|null}|null>(null);
@@ -49,7 +50,7 @@ export function ChatListScreen({api,user,store,onProfile,onNewChat,onMusic,onAI,
       <GlassSurface material="regular" radius={20} interactive contentStyle={{height:40,paddingHorizontal:14,justifyContent:'center'}}><Pressable onPress={()=>{lightFeedback();setEditing(current=>current?null:new Set());}} accessibilityRole="button" hitSlop={6}><Text style={{color:t.text,fontSize:16,fontWeight:'600'}}>{editing?'Готово':'Изм.'}</Text></Pressable></GlassSurface>
       <View style={{flex:1,alignItems:'center'}}>{store.connection==='connected'?<Text style={{color:t.text,fontSize:17,fontWeight:'700'}}>Чаты</Text>:<View style={{flexDirection:'row',alignItems:'center',gap:6}}><ActivityIndicator size="small" color={t.muted}/><Text style={{color:t.text,fontSize:15,fontWeight:'600'}}>{store.connection==='connecting'?'Соединение…':'Ожидание сети…'}</Text></View>}</View>
       <GlassSurface material="regular" radius={20} interactive contentStyle={{width:40,height:40,alignItems:'center',justifyContent:'center'}}><Pressable onPress={onQuickAI} accessibilityRole="button" accessibilityLabel="Быстрый вопрос AI" hitSlop={6}><Icon name="sparkles-outline" size={20} color={t.text}/></Pressable></GlassSurface>
-      <Pressable onPress={onNewChat} accessibilityRole="button" accessibilityLabel="Новый чат" hitSlop={6} style={({pressed})=>({width:40,height:40,borderRadius:20,backgroundColor:t.accent,alignItems:'center',justifyContent:'center',opacity:pressed?.8:1})}><Icon name="create-outline" size={20} color={t.onAccent}/></Pressable>
+      <Pressable onPress={()=>setCompose(true)} accessibilityRole="button" accessibilityLabel="Написать сообщение" hitSlop={6} style={({pressed})=>({width:40,height:40,borderRadius:20,backgroundColor:t.accent,alignItems:'center',justifyContent:'center',opacity:pressed?.8:1})}><Icon name="create-outline" size={20} color={t.onAccent}/></Pressable>
     </View>
     <GlassSurface material="regular" radius={18} shadow={false} style={{marginHorizontal:12,marginBottom:8}} contentStyle={{flexDirection:'row',alignItems:'center',gap:8,paddingHorizontal:12,minHeight:38}}>
       <Icon name="search-outline" color={t.muted} size={19}/><TextInput accessibilityLabel="Поиск по чатам" placeholder="Поиск" value={query} onChangeText={setQuery} placeholderTextColor={t.muted} selectionColor={t.accent} style={{flex:1,fontSize:17,color:t.text,paddingVertical:8}} autoCorrect={false}/>{query?<IconButton name="close-circle" label="Очистить поиск" onPress={()=>setQuery('')} color={t.muted} size={18} style={{width:30,height:36}}/>:null}
@@ -76,6 +77,7 @@ export function ChatListScreen({api,user,store,onProfile,onNewChat,onMusic,onAI,
         <MenuItem icon="trash-outline" label="Удалить чат" danger onPress={()=>{const chat=menu.chat;setMenu(null);setRemoveAsk([chat]);}}/>
       </>:null}
     </ContextMenu>
+    <NewMessageSheet api={api} visible={compose} onClose={()=>setCompose(false)} onOpen={chat=>store.selectChat(chat)} onFindPeople={onNewChat}/>
     {editing?null:<MessengerTabs onProfile={onProfile} onNewChat={onNewChat} onMusic={onMusic} onAI={onAI} onChats={onChats} activeTab={activeTab}/>}
   </View>;
 }
