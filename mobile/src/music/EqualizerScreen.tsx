@@ -10,6 +10,7 @@ import { useTheme } from '../theme';
 import { lightFeedback } from '../haptics';
 import { useMusic } from './MusicProvider';
 import { TrackArtwork } from './PlayerControls';
+import { MusicAmbient } from './MusicAmbient';
 import { equalizerAvailable, setEqProfile, useEqualizer } from './equalizer';
 import { EQ_BANDS, EQ_LIMIT, type EqProfile } from './equalizerModel';
 
@@ -21,12 +22,14 @@ type Key = 'low' | 'mid' | 'high';
  * are dragged up and down, «Сбросить». One setting for the speaker, wired and Bluetooth headphones.
  */
 export function EqualizerScreen({ visible, onClose }: { visible: boolean; onClose: () => void }) {
-  const t = useTheme(); const insets = useSafeAreaInsets(); const { width } = useWindowDimensions();
+  const t = useTheme(); const insets = useSafeAreaInsets(); const { width, height: screenHeight } = useWindowDimensions();
   const music = useMusic(); const profile = useEqualizer();
-  const card = t.dark ? '#1C1C1E' : '#FFFFFF';
+  const card = t.dark ? 'rgba(20,24,36,0.72)' : 'rgba(255,255,255,0.78)';
   const update = (change: Partial<EqProfile>) => setEqProfile({ ...profile, ...change });
   return <Modal visible={visible} animationType="slide" onRequestClose={onClose} statusBarTranslucent>
-    <GestureHandlerRootView style={{ flex: 1, backgroundColor: t.dark ? '#000' : '#F2F2F7' }}>
+    <GestureHandlerRootView style={{ flex: 1, backgroundColor: t.bg }}>
+      {/* Same living background as the music home screen, in the current theme's colours. */}
+      <MusicAmbient width={width} height={screenHeight} tone={t.black ? 'black' : t.dark ? 'dark' : 'light'} />
       <View style={{ paddingTop: insets.top + 6, flexDirection: 'row', alignItems: 'center', paddingHorizontal: 12, height: insets.top + 60 }}>
         <IconButton name="chevron-back" label="Назад" onPress={onClose} />
         <Text style={{ flex: 1, textAlign: 'center', color: t.text, fontSize: 17, fontWeight: '600', marginRight: 44 }}>Эквалайзер</Text>
@@ -41,9 +44,9 @@ export function EqualizerScreen({ visible, onClose }: { visible: boolean; onClos
         <Text style={{ color: t.muted, fontSize: 13, lineHeight: 18, paddingHorizontal: 4 }}>«Рекомендованный» — звук трека без изменений. В «Пользовательском» потяни точки НЧ, СЧ и ВЧ вверх или вниз. Настройка одна для динамика, проводных и Bluetooth-наушников.</Text>
         <View style={{ borderRadius: 22, backgroundColor: card, padding: 18, gap: 16, opacity: profile.mode === 'custom' ? 1 : 0.5 }}>
           <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12 }}>
-            {music.current ? <TrackArtwork track={music.current} size={64} /> : <View style={{ width: 64, height: 64, borderRadius: 14, backgroundColor: t.dark ? '#2C2C2E' : '#E5E5EA' }} />}
+            {music.current ? <TrackArtwork track={music.current} size={64} /> : <View style={{ width: 64, height: 64, borderRadius: 14, backgroundColor: t.dark ? 'rgba(255,255,255,0.1)' : 'rgba(0,0,0,0.06)' }} />}
             <View style={{ flex: 1 }}><Text numberOfLines={1} style={{ color: t.text, fontSize: 15, fontWeight: '600' }}>{music.current?.title || 'Включи трек'}</Text><Text numberOfLines={1} style={{ color: t.muted, fontSize: 13 }}>{music.current?.artist || 'чтобы слышать изменения'}</Text></View>
-            <Pressable accessibilityRole="button" accessibilityLabel={music.playing ? 'Пауза' : 'Слушать'} disabled={!music.current} onPress={() => void music.togglePlayback()} style={{ width: 52, height: 52, borderRadius: 26, backgroundColor: t.dark ? '#2C2C2E' : '#E5E5EA', alignItems: 'center', justifyContent: 'center', opacity: music.current ? 1 : .5 }}><Icon name={music.playing ? 'pause' : 'play'} size={24} color={t.text} /></Pressable>
+            <Pressable accessibilityRole="button" accessibilityLabel={music.playing ? 'Пауза' : 'Слушать'} disabled={!music.current} onPress={() => void music.togglePlayback()} style={{ width: 52, height: 52, borderRadius: 26, backgroundColor: t.dark ? 'rgba(255,255,255,0.12)' : 'rgba(0,0,0,0.07)', alignItems: 'center', justifyContent: 'center', opacity: music.current ? 1 : .5 }}><Icon name={music.playing ? 'pause' : 'play'} size={24} color={t.text} /></Pressable>
           </View>
           <View style={{ height: 0.5, backgroundColor: t.border }} />
           <Curve width={width - 68} profile={profile} disabled={profile.mode !== 'custom'} onChange={(key, value) => update({ [key]: value })} />
