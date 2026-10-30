@@ -1,0 +1,41 @@
+# TURN relay for calls (coturn). Separate file: if it fails to start, the messenger keeps working.
+# Media stays end-to-end encrypted (DTLS-SRTP); the relay only forwards ciphertext.
+name: linea-turn
+
+services:
+  coturn:
+    image: coturn/coturn:4.8.0-alpine
+    restart: unless-stopped
+    network_mode: host
+    mem_limit: 256m
+    security_opt: [no-new-privileges:true]
+    command:
+      - -n
+      - --listening-port=3478
+      - --fingerprint
+      - --use-auth-secret
+      - --static-auth-secret=${TURN_SECRET:?Set TURN_SECRET in deploy/.env}
+      - --realm=${PUBLIC_HOST_RU:?Set PUBLIC_HOST_RU}
+      - --external-ip=${TURN_EXTERNAL_IP:?Set TURN_EXTERNAL_IP}
+      - --min-port=49160
+      - --max-port=49200
+      - --no-cli
+      - --no-tls
+      - --no-dtls
+      - --no-multicast-peers
+      # Never relay into the server's own or private networks.
+      - --denied-peer-ip=0.0.0.0-0.255.255.255
+      - --denied-peer-ip=10.0.0.0-10.255.255.255
+      - --denied-peer-ip=100.64.0.0-100.127.255.255
+      - --denied-peer-ip=127.0.0.0-127.255.255.255
+      - --denied-peer-ip=169.254.0.0-169.254.255.255
+      - --denied-peer-ip=172.16.0.0-172.31.255.255
+      - --denied-peer-ip=192.168.0.0-192.168.255.255
+      - --user-quota=12
+      - --total-quota=200
+      - --log-file=stdout
+    logging:
+      driver: json-file
+      options:
+        max-size: 10m
+        max-file: '3'

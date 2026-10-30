@@ -31,6 +31,9 @@ services:
       AI_BASE_URL: ${AI_BASE_URL:-http://freellmapi:3001/v1}
       AI_API_KEY: ${AI_API_KEY:-}
       AI_MODEL: ${AI_MODEL:-auto}
+      # TURN credentials for calls (deploy/compose.turn.yml).
+      TURN_SECRET: ${TURN_SECRET:-}
+      TURN_HOST: ${TURN_HOST:-}
     volumes:
       - linea-data:/data
     networks:

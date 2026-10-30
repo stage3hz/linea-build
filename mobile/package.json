@@ -21,6 +21,7 @@
     "test:security": "node --test --test-isolation=none test/secure-transport.test.mjs"
   },
   "dependencies": {
+    "@config-plugins/react-native-webrtc": "15.0.2",
     "@expo/vector-icons": "^15.0.2",
     "@react-native-async-storage/async-storage": "2.2.0",
     "base64-js": "1.5.1",
@@ -56,11 +57,13 @@
     "react-dom": "19.2.3",
     "react-native": "0.86.3",
     "react-native-gesture-handler": "~2.32.0",
+    "react-native-incall-manager": "4.3.0",
     "react-native-keyboard-controller": "1.21.9",
     "react-native-reanimated": "4.5.1",
     "react-native-safe-area-context": "~5.7.0",
     "react-native-svg": "15.15.4",
     "react-native-web": "^0.21.2",
+    "react-native-webrtc": "124.0.8",
     "react-native-worklets": "0.10.1"
   },
   "devDependencies": {

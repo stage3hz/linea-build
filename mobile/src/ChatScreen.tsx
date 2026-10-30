@@ -32,6 +32,7 @@ import { VoicePlaybackProvider, VoiceRecordingBar, useVoiceRecorder } from './vo
 import { MessageRow, type AlbumPart, type Row, type RowHandlers } from './MessageRow';
 import { ContextMenu, MenuItem } from './ContextMenu';
 import { TopPlayerBar } from './music/PlayerControls';
+import { useCalls } from './calls/CallProvider';
 import { UserProfile } from './UserProfile';
 import { impactFeedback, lightFeedback } from './haptics';
 import { VideoNoteRecorder, type VideoNoteTake } from './videonote/VideoNote';
@@ -41,6 +42,7 @@ import { VOICE_MIME, VOICE_MIN_MS, videoNoteFileName, voiceFileName } from './vo
 
 
 export function ChatScreen({api,user,chat,store,onBack,wide=false,onOpenMusic}: {api:Api;user:User;chat:Chat;store:MessengerStore;onBack:()=>void;wide?:boolean;onOpenMusic?:()=>void}) {
+  const calls=useCalls();
   const t=useTheme();const [attachMenu,setAttachMenu]=useState(false);const [uploading,setUploading]=useState(false);const [downloadId,setDownloadId]=useState<string|null>(null);const [localError,setLocalError]=useState('');const [preview,setPreview]=useState<Attachment|null>(null);const [peerInfo,setPeerInfo]=useState(false);const [actions,setActions]=useState<Row|null>(null);const [menuY,setMenuY]=useState(0);const [copied,setCopied]=useState(false);
   const [securityOpen,setSecurityOpen]=useState(false);
   const photoContext=`${user.id}:${chat.id}`;const currentPhotoContext=useRef(photoContext);currentPhotoContext.current=photoContext;
@@ -238,6 +240,7 @@ export function ChatScreen({api,user,chat,store,onBack,wide=false,onOpenMusic}: 
           </Pressable>
         </GlassSurface>
       </View>
+      {calls.available?<GlassSurface material="regular" radius={26} interactive contentStyle={{width:52,height:52,alignItems:'center',justifyContent:'center'}}><Pressable onPress={()=>calls.start(chat,false)} onLongPress={()=>calls.start(chat,true)} disabled={calls.busy} accessibilityRole="button" accessibilityLabel="Позвонить. Удерживай — видеозвонок" hitSlop={6}><Icon name="call" size={22} color={t.text}/></Pressable></GlassSurface>:null}
       <Pressable onPress={()=>setPeerInfo(true)} accessibilityRole="button" accessibilityLabel="Открыть профиль" style={({pressed})=>({opacity:pressed?.75:1,borderRadius:28,borderWidth:1.5,borderColor:t.glassBorder})}><Avatar user={chat.peer} api={api} size={52}/></Pressable>
     </View>}
     {onOpenMusic&&!selection?<TopPlayerBar onOpen={onOpenMusic}/>:null}

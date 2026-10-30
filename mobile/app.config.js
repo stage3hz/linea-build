@@ -27,6 +27,8 @@ module.exports = {
       bundleIdentifier: development ? 'com.linea.messenger.preview' : 'com.linea.messenger',
       infoPlist: {
         NSLocalNetworkUsageDescription: 'Подключение к вашему серверу мессенджера в локальной сети.',
+        // Music keeps playing and a call keeps its audio when the app goes to the background.
+        UIBackgroundModes: ['audio', 'voip'],
         ...(allowDevelopmentHttp ? { NSAppTransportSecurity: { NSAllowsArbitraryLoads: true, NSAllowsLocalNetworking: true } } : {}),
       },
     },
@@ -43,6 +45,7 @@ module.exports = {
     },
     web: { bundler: 'metro', favicon: './assets/favicon.png', name: 'INVIZENT' },
     plugins: [
+      ['@config-plugins/react-native-webrtc', { cameraPermission: 'Камера нужна для видеосообщений и видеозвонков. Видео шифруется до отправки.', microphonePermission: 'Микрофон нужен для голосовых сообщений и звонков. Звук шифруется.' }],
       './plugins/withLineSignal',
       './plugins/withLinePhoto',
       './plugins/withLineVideo',

@@ -27,6 +27,7 @@ const app = await buildApp({
   maxStoredBytesPerUser: integerEnv('USER_STORAGE_MIB', 512, 20, 102400) * 1024 * 1024,
   // AI_PROVIDER=freellmapi uses a self-hosted FreeLLMAPI router; default stays OpenRouter.
   aiApiKey: (process.env.AI_PROVIDER === 'freellmapi' ? process.env.AI_API_KEY : process.env.OPENROUTER_API_KEY) || '',
+  turn: process.env.TURN_SECRET ? { secret: process.env.TURN_SECRET, host: process.env.TURN_HOST || '' } : null,
   aiProviderConfig: { provider: process.env.AI_PROVIDER || 'openrouter', baseUrl: process.env.AI_BASE_URL || '', model: process.env.AI_MODEL || '' },
 });
 

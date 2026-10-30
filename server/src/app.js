@@ -1,3 +1,4 @@
+import { installCallRoutes } from './calls.js';
 import Fastify, { LogController } from 'fastify';
 import websocket from '@fastify/websocket';
 import multipart from '@fastify/multipart';
@@ -38,6 +39,7 @@ function isEndpointWebSocketOrigin(request, origin) {
 
 /** An independent, ready Fastify instance; tests may inject requests without binding a port. */
 export async function buildApp({
+  turn = null,
   dataDir = resolve('data'),
   logger = false,
   allowedOrigins = [],
@@ -233,6 +235,7 @@ export async function buildApp({
   });
   registerAiRoutes(app,{authenticate:requireAuth,apiKey:aiApiKey,provider:aiProvider(aiProviderConfig),fetchImpl:aiFetch,allowedOrigins,now});
   installUsernameRoutes({app,db,now,authOptions,emitUser,emitChat});
+  installCallRoutes({app,authOptions,now,turn});
   installSocialRoutes({app,db,authOptions,publicUser,timestamp,serializationOptions,emitUser});
   const e2ee = installE2eeRoutes({
     app, db, now, timestamp, authOptions, emitUser, limiter, uploadDir,

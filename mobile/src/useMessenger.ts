@@ -139,9 +139,13 @@ export function useMessenger(api: Api, user: User, onExpired: ()=>void) {
     finally {if(aliveRef.current)setMessageLoading(false);}
   },[api,user.id,checkError,markRead,cryptoRuntime,hydrate]);
 
+  // Encrypted call signalling (offer / answer / end) is handed to the call screen, not shown as a message.
+  const callListeners=useRef(new Set<(message:Message)=>void>());
+  const onCallSignal=useCallback((listener:(message:Message)=>void)=>{callListeners.current.add(listener);return()=>{callListeners.current.delete(listener);};},[]);
   const acceptMessage=useCallback(async(raw:Message)=>{
     try{await(await cryptoRuntime.get()).syncChat(raw.chatId);if(aliveRef.current)setCryptoError('');}catch(e){if(aliveRef.current)setCryptoError(checkError(e));}
     const message=await hydrate(raw);if(!aliveRef.current)return;
+    if(message.meta?.action?.type==='call'&&message.senderId!==user.id&&message.cryptoState==='decrypted')callListeners.current.forEach(listener=>{try{listener(message);}catch{/* a broken listener must not drop the message */}});
     setMessages(prev=>({...prev,[message.chatId]:mergeMessages(prev[message.chatId]||[],[message])}));
     setPending(prev=>prev.filter(p=>!(p.chatId===message.chatId&&p.clientId===message.clientId&&message.senderId===user.id)));
     setChats(prev=>sortedChats(prev.map(c=>{
@@ -295,6 +299,6 @@ export function useMessenger(api: Api, user: User, onExpired: ()=>void) {
     setChats(previous=>previous.map(item=>item.id===chat.id?{...item,settings:chat.settings}:item));
     return chat;
   },[api]);
-  return {readChat,presence,chats,messages,hasMore,pending,selectedId,selectChat,connection,listLoading,messageLoading,error,setError,typing,refreshChats,loadMessages,send,sendAction,hideForMe,hidden,forward,sendAttachments,retry:performSend,sendPoll,sendTyping,drafts,draftFiles,setDraft,setDraftFile,setDraftFiles,appendDraftFiles,removeDraftFile,recoveryRequests,recoveryError,refreshRecoveryRequests,cancelRecovery,cryptoError,trustSnapshot,approveDevices,uploadEncrypted,saved,aiHistory,updateChatSettings};
+  return {onCallSignal,readChat,presence,chats,messages,hasMore,pending,selectedId,selectChat,connection,listLoading,messageLoading,error,setError,typing,refreshChats,loadMessages,send,sendAction,hideForMe,hidden,forward,sendAttachments,retry:performSend,sendPoll,sendTyping,drafts,draftFiles,setDraft,setDraftFile,setDraftFiles,appendDraftFiles,removeDraftFile,recoveryRequests,recoveryError,refreshRecoveryRequests,cancelRecovery,cryptoError,trustSnapshot,approveDevices,uploadEncrypted,saved,aiHistory,updateChatSettings};
 }
 export type MessengerStore = ReturnType<typeof useMessenger>;
