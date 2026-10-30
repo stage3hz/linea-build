@@ -19,6 +19,7 @@ public final class LinePhotoModule: Module {
     }.runOnQueue(writer)
     AsyncFunction("dispose"){(uri:String) in try self.protect{try PhotoFiles().dispose(uri)}}.runOnQueue(writer)
     AsyncFunction("clearCache"){try self.protect{try PhotoFiles().clearCache()}}.runOnQueue(writer)
+    AsyncFunction("setCenterStage"){(enabled:Bool) -> [String:Any] in CenterStage.set(enabled)}.runOnQueue(.main)
     AsyncFunction("previewFile"){(uri:String) -> Bool in
       let presenter=self.appContext?.utilities?.currentViewController()
       return try self.protect{try FilePreview.present(uri,from:presenter)}

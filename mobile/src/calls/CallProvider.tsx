@@ -13,6 +13,7 @@ import type { Api } from '../api';
 import type { Chat, Message, User } from '../types';
 import type { MessengerStore } from '../useMessenger';
 import { useMusic } from '../music/MusicProvider';
+import { setCenterStage } from '../media/centerStage';
 import { impactFeedback, lightFeedback } from '../haptics';
 import { GATHER_TIMEOUT_MS, RING_TIMEOUT_MS, callClock, keyEmoji, keyMaterial, offerIsFresh, type CallStatus } from './callModel';
 
@@ -66,6 +67,7 @@ export function CallProvider({ api, store, me, children }: { api: Api; store: Me
     let iceServers: any[] = [{ urls: ['stun:stun.l.google.com:19302'] }];
     try { iceServers = (await api.callIce()).iceServers; } catch { /* public STUN only */ }
     const connection: any = new webrtc.RTCPeerConnection({ iceServers, bundlePolicy: 'max-bundle' } as any);
+    if (video) await setCenterStage(true);
     const stream = await webrtc.mediaDevices.getUserMedia({ audio: true, video: video ? { facingMode: 'user', width: 640, height: 480, frameRate: 30 } : false } as any);
     stream.getTracks().forEach((track: any) => connection.addTrack(track, stream));
     connection.addEventListener('track', (event: any) => { const remote = event.streams?.[0]; if (remote) patch({ remoteUrl: remote.toURL() }); });
@@ -182,6 +184,7 @@ export function CallProvider({ api, store, me, children }: { api: Api; store: Me
     const c = callRef.current; const webrtc = rtc.current; const connection = pc.current;
     if (!c || !webrtc || !connection || c.status !== 'active') return;
     try {
+      await setCenterStage(true);
       const stream: any = await webrtc.mediaDevices.getUserMedia({ video: { facingMode: 'user', width: 640, height: 480, frameRate: 30 } } as any);
       const track = stream.getVideoTracks()[0]; if (!track) return;
       local.current?.addTrack?.(track); connection.addTrack(track, local.current || stream);
@@ -261,6 +264,7 @@ function CallScreen({ call, api, rtc, hangup, accept, mute, speaker, camera, fli
       </View> : call.status === 'ended' ? null : <View style={{ flexDirection: 'row', justifyContent: 'space-around', paddingHorizontal: 8 }}>
         <CallButton icon="volume-high" label="Динамик" onPress={speaker} active={call.speaker} />
         <CallButton icon={call.video && !call.cameraOff ? 'videocam' : 'videocam-off'} label="Видео" onPress={camera} active={call.video && !call.cameraOff} />
+        {call.video && !call.cameraOff ? <CallButton icon="camera-reverse" label="Повернуть" onPress={flip} /> : null}
         <CallButton icon={call.muted ? 'mic-off' : 'mic'} label={call.muted ? 'Звук выкл' : 'Убрать звук'} onPress={mute} active={call.muted} />
         <CallButton icon="close" label="Завершить" onPress={hangup} color="#FF3B30" />
       </View>}

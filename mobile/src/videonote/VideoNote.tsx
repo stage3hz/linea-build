@@ -12,6 +12,7 @@ import type { Api } from '../api';
 import type { Attachment } from '../types';
 import { useMedia } from '../media/mediaCache';
 import { ProgressRing } from '../media/MediaBubble';
+import { setCenterStage } from '../media/centerStage';
 import { useMusic } from '../music/MusicProvider';
 import { VIDEO_NOTE_MAX_MS, formatVoiceTime } from '../voice/voice';
 
@@ -32,6 +33,9 @@ export function VideoNoteRecorder({ visible, onClose, onDone }: { visible: boole
   const [elapsed, setElapsed] = useState(0);
   const [error, setError] = useState('');
   const ref = useRef<CameraView>(null);
+  // Center Stage (iPhone 17 family): the front camera keeps the face in frame while you move.
+  const [stage, setStage] = useState<{ supported: boolean; enabled: boolean }>({ supported: false, enabled: false });
+  useEffect(() => { if (visible) void setCenterStage(true).then(setStage); }, [visible]);
   const started = useRef(0); const cancelled = useRef(false);
 
   useEffect(() => {
@@ -75,6 +79,7 @@ export function VideoNoteRecorder({ visible, onClose, onDone }: { visible: boole
         </View>
         {recording ? <View pointerEvents="none" style={{ position: 'absolute', left: 6, right: 6, bottom: -14, height: 4, borderRadius: 2, backgroundColor: 'rgba(255,255,255,0.2)' }}><View style={{ width: `${progress * 100}%`, height: 4, borderRadius: 2, backgroundColor: t.danger }} /></View> : null}
       </View>
+      {stage.supported && facing === 'front' ? <Pressable accessibilityRole="switch" accessibilityState={{ checked: stage.enabled }} accessibilityLabel="Слежение за лицом" onPress={() => void setCenterStage(!stage.enabled).then(setStage)} style={{ flexDirection: 'row', alignItems: 'center', gap: 6, paddingHorizontal: 12, paddingVertical: 7, borderRadius: 16, backgroundColor: stage.enabled ? 'rgba(255,214,10,0.18)' : 'rgba(255,255,255,0.1)' }}><Icon name="scan-outline" size={16} color={stage.enabled ? '#FFD60A' : '#FFF'} /><Text style={{ color: stage.enabled ? '#FFD60A' : '#FFF', fontSize: 13, fontWeight: '600' }}>{stage.enabled ? 'В центре кадра' : 'Слежение выкл.'}</Text></Pressable> : null}
       {error ? <Text style={{ color: '#FFB4B4', fontSize: 13, textAlign: 'center', maxWidth: 320 }}>{error}</Text> : <Text style={{ color: 'rgba(255,255,255,0.6)', fontSize: 12 }}>{recording ? 'Нажми ещё раз, чтобы отправить' : 'До 60 секунд · шифруется перед отправкой'}</Text>}
       <View style={{ flexDirection: 'row', alignItems: 'center', gap: 34 }}>
         <Pressable accessibilityRole="button" accessibilityLabel="Отменить видеосообщение" onPress={cancel} style={styles.round}><Icon name="close" color="#FFF" size={26} /></Pressable>

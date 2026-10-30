@@ -37,6 +37,8 @@ export type NativePhotoResult = {
   format:'png'|'jpeg';mimeType:'image/png'|'image/jpeg';
 };
 export interface LineaPhotoBridge {
+  /** iOS: Center Stage for the front camera (iPhone 17 family); Android: absent. */
+  setCenterStage?(enabled:boolean):Promise<{supported:boolean;enabled:boolean}>;
   capabilities():Promise<PhotoCapabilities>;
   inspect(uri:string):Promise<PhotoInfo>;
   render(uri:string,options:PhotoOptions):Promise<NativePhotoResult>;
