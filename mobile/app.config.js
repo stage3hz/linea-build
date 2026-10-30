@@ -1,4 +1,4 @@
-// Linea iOS cloud setup v1: {"appVersion":"0.9.1"}
+// Linea iOS cloud setup v1: {"appVersion":"0.10.0"}
 const development = process.env.APP_ENV !== 'production';
 const allowDevelopmentHttp = development && process.env.EXPO_PUBLIC_ALLOW_LOCAL_HTTP === '1';
 const apiUrl = process.env.EXPO_PUBLIC_API_URL || '';
@@ -11,7 +11,7 @@ module.exports = {
   expo: {
     name: 'INVIZENT',
     slug: 'linea-messenger',
-    version: "0.9.1",
+    version: "0.10.0",
     orientation: 'portrait',
     icon: './assets/icon.png',
     scheme: 'linea',
@@ -27,12 +27,14 @@ module.exports = {
       bundleIdentifier: development ? 'com.linea.messenger.preview' : 'com.linea.messenger',
       infoPlist: {
         NSLocalNetworkUsageDescription: 'Подключение к вашему серверу мессенджера в локальной сети.',
+        // Music keeps playing and a call keeps its audio when the app goes to the background.
+        UIBackgroundModes: ['audio', 'voip'],
         ...(allowDevelopmentHttp ? { NSAppTransportSecurity: { NSAllowsArbitraryLoads: true, NSAllowsLocalNetworking: true } } : {}),
       },
     },
     android: {
       package: development ? 'com.linea.messenger.preview' : 'com.linea.messenger',
-      versionCode: 19,
+      versionCode: 20,
       softwareKeyboardLayoutMode: 'resize',
       allowBackup: false,
       adaptiveIcon: {
@@ -43,6 +45,7 @@ module.exports = {
     },
     web: { bundler: 'metro', favicon: './assets/favicon.png', name: 'INVIZENT' },
     plugins: [
+      ['@config-plugins/react-native-webrtc', { cameraPermission: 'Камера нужна для видеосообщений и видеозвонков. Видео шифруется до отправки.', microphonePermission: 'Микрофон нужен для голосовых сообщений и звонков. Звук шифруется.' }],
       './plugins/withLineSignal',
       './plugins/withLinePhoto',
       './plugins/withLineVideo',

@@ -13,7 +13,9 @@ export type MessageAction =
   | { type: 'delete'; target: string }
   | { type: 'react'; target: string; emoji: Reaction | null }
   | { type: 'pin'; target: string | null }
-  | { type: 'vote'; target: string; options: number[] };
+  | { type: 'vote'; target: string; options: number[] }
+  // Call signalling travels inside the Signal ciphertext, so the SDP (with its DTLS fingerprint) is authenticated end to end.
+  | { type: 'call'; call: string; step: 'offer' | 'answer' | 'end'; video?: boolean; sdp?: string; reason?: 'hangup' | 'declined' | 'busy' | 'missed' | 'failed' };
 /** Several photos/videos sent together and shown as one grid. */
 export type AlbumRef = { id: string; index: number; count: number };
 export type Poll = { question: string; options: string[]; multiple: boolean };
@@ -33,6 +35,12 @@ function validAction(value: unknown): value is MessageAction {
     case 'react': return only(value, ['type', 'target', 'emoji']) && typeof value.target === 'string' && uuid.test(value.target) && (value.emoji === null || (REACTIONS as readonly unknown[]).includes(value.emoji));
     case 'pin': return only(value, ['type', 'target']) && (value.target === null || (typeof value.target === 'string' && uuid.test(value.target)));
     case 'vote': return only(value, ['type', 'target', 'options']) && typeof value.target === 'string' && uuid.test(value.target) && Array.isArray(value.options) && value.options.length <= POLL_LIMITS.maxOptions && value.options.every(index => Number.isInteger(index) && index >= 0 && index < POLL_LIMITS.maxOptions) && new Set(value.options).size === value.options.length;
+    case 'call': return only(value, ['type', 'call', 'step', 'video', 'sdp', 'reason']) && typeof value.call === 'string' && uuid.test(value.call)
+      && (value.step === 'offer' || value.step === 'answer' || value.step === 'end')
+      && (value.video === undefined || typeof value.video === 'boolean')
+      && (value.sdp === undefined || (typeof value.sdp === 'string' && value.sdp.length <= 60000 && value.sdp.startsWith('v=0')))
+      && (value.step === 'end' ? value.sdp === undefined : typeof value.sdp === 'string')
+      && (value.reason === undefined || ['hangup', 'declined', 'busy', 'missed', 'failed'].includes(value.reason as string));
     default: return false;
   }
 }
@@ -66,6 +74,7 @@ export function actionFallback(action: MessageAction, targetText = ''): string {
     case 'react': return action.emoji ? `${action.emoji} Реакция на сообщение${quote}` : `Реакция убрана${quote}`;
     case 'pin': return action.target ? `📌 Закреплено сообщение${quote}` : '📌 Сообщение откреплено';
     case 'vote': return action.options.length ? `🗳 Голос в опросе${quote}` : `Голос отменён${quote}`;
+    case 'call': return action.step === 'offer' ? (action.video ? '📹 Видеозвонок' : '📞 Звонок') : action.step === 'answer' ? '📞 Звонок принят' : action.reason === 'declined' ? '📞 Звонок отклонён' : action.reason === 'missed' ? '📞 Пропущенный звонок' : '📞 Звонок завершён';
   }
 }
 
@@ -93,6 +102,7 @@ export function foldChat(messages: Message[], userId: string, hiddenForMe: Reado
   for (const message of ordered) {
     const action = message.meta?.action;
     if (!action || message.cryptoState !== 'decrypted') continue;
+    if (action.type === 'call') continue;
     if (action.type === 'pin') { pin = action.target; continue; }
     const author = authorOf.get(action.target);
     if (action.type === 'edit' || action.type === 'delete') {

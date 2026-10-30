@@ -31,14 +31,14 @@ const subscribe = (listener: () => void) => { start(); listeners.add(listener); 
 const snapshot = () => power;
 
 /** Synchronous check for code outside React (RN Animated durations, gesture callbacks). */
-export function motionEnabled(): boolean { start(); return motionAllowed(getChatPreferences().animations, power); }
+export function motionEnabled(): boolean { start(); const preferences = getChatPreferences(); return motionAllowed(preferences.animations, power, preferences.lowBattery); }
 /** `ms` when animations are allowed, otherwise 0 (jump straight to the end). */
 export const animMs = (ms: number) => motionEnabled() ? ms : 0;
 
 export function useMotion(): { enabled: boolean; reason: string } {
   const preferences = useChatPreferences();
   const state = useSyncExternalStore(subscribe, snapshot, snapshot);
-  return { enabled: motionAllowed(preferences.animations, state), reason: motionReason(preferences.animations, state) };
+  return { enabled: motionAllowed(preferences.animations, state, preferences.lowBattery), reason: motionReason(preferences.animations, state, preferences.lowBattery) };
 }
 
 /** Mount once near the root: switches every Reanimated animation in the app on or off. */

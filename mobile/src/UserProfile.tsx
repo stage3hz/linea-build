@@ -1,3 +1,4 @@
+import { useCalls } from './calls/CallProvider';
 import React, { useEffect, useState } from 'react';
 import { ActivityIndicator, Modal, Pressable, ScrollView, View } from 'react-native';
 import * as Clipboard from 'expo-clipboard';
@@ -19,6 +20,7 @@ type Props = {
 
 /** Full-screen profile like in Telegram: big photo, name, @username, bio, actions. */
 export function UserProfile({ api, user, onClose, chat, onMessage, onMute, onSearch, onSecurity, status }: Props) {
+  const calls = useCalls();
   const t = useTheme();
   const [contact, setContact] = useState<boolean | null>(null);
   const [fresh, setFresh] = useState<User | null>(null);
@@ -52,6 +54,7 @@ export function UserProfile({ api, user, onClose, chat, onMessage, onMute, onSea
   const copy = async () => { await Clipboard.setStringAsync(`@${shown.username}`); setNotice('Имя пользователя скопировано'); };
   const actions: { icon: IconName; label: string; onPress: () => void; active?: boolean; loading?: boolean }[] = [
     ...(onMessage ? [{ icon: 'chatbubble' as IconName, label: 'Написать', onPress: () => { onClose(); onMessage(shown); } }] : []),
+    ...(chat && calls.available ? [{ icon: 'call' as IconName, label: 'Звонок', onPress: () => { onClose(); calls.start(chat, false); } }, { icon: 'videocam' as IconName, label: 'Видео', onPress: () => { onClose(); calls.start(chat, true); } }] : []),
     { icon: contact ? 'person-remove' : 'person-add', label: contact ? 'В друзьях' : 'В друзья', onPress: () => void toggleContact(), active: !!contact, loading: contact === null },
     ...(onMute && chat ? [{ icon: (muted ? 'notifications-off' : 'notifications') as IconName, label: muted ? 'Без звука' : 'Звук', onPress: () => void toggleMute(), active: muted }] : []),
     ...(onSearch ? [{ icon: 'search' as IconName, label: 'Поиск', onPress: () => { onClose(); onSearch(); } }] : []),

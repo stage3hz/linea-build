@@ -104,6 +104,13 @@ export function useMessenger(api: Api, user: User, onExpired: ()=>void) {
     catch(e){if(aliveRef.current)setError(checkError(e));}
     finally {if(aliveRef.current)setListLoading(false);}
   },[api,checkError,hydrate]);
+  // «Прочитать» from the chat list (swipe or edit mode): no need to have the chat open.
+  const readChat=useCallback(async(chatId:string,messageId:number)=>{
+    if(!messageId||(readRef.current[chatId]||0)>=messageId)return;
+    readRef.current[chatId]=messageId;
+    try { const result=await api.read(chatId,messageId);if(aliveRef.current)setChats(prev=>prev.map(c=>c.id===chatId?{...c,unreadCount:0,lastReadMessageId:result.lastReadMessageId}:c)); }
+    catch(e) {readRef.current[chatId]=0;checkError(e);}
+  },[api,checkError]);
   const markRead=useCallback(async(chatId:string,messageId:number)=>{
     if(!messageId||selectedRef.current!==chatId||appState.current!=='active'||(readRef.current[chatId]||0)>=messageId)return;
     readRef.current[chatId]=messageId;
@@ -132,9 +139,13 @@ export function useMessenger(api: Api, user: User, onExpired: ()=>void) {
     finally {if(aliveRef.current)setMessageLoading(false);}
   },[api,user.id,checkError,markRead,cryptoRuntime,hydrate]);
 
+  // Encrypted call signalling (offer / answer / end) is handed to the call screen, not shown as a message.
+  const callListeners=useRef(new Set<(message:Message)=>void>());
+  const onCallSignal=useCallback((listener:(message:Message)=>void)=>{callListeners.current.add(listener);return()=>{callListeners.current.delete(listener);};},[]);
   const acceptMessage=useCallback(async(raw:Message)=>{
     try{await(await cryptoRuntime.get()).syncChat(raw.chatId);if(aliveRef.current)setCryptoError('');}catch(e){if(aliveRef.current)setCryptoError(checkError(e));}
     const message=await hydrate(raw);if(!aliveRef.current)return;
+    if(message.meta?.action?.type==='call'&&message.senderId!==user.id&&message.cryptoState==='decrypted')callListeners.current.forEach(listener=>{try{listener(message);}catch{/* a broken listener must not drop the message */}});
     setMessages(prev=>({...prev,[message.chatId]:mergeMessages(prev[message.chatId]||[],[message])}));
     setPending(prev=>prev.filter(p=>!(p.chatId===message.chatId&&p.clientId===message.clientId&&message.senderId===user.id)));
     setChats(prev=>sortedChats(prev.map(c=>{
@@ -288,6 +299,16 @@ export function useMessenger(api: Api, user: User, onExpired: ()=>void) {
     setChats(previous=>previous.map(item=>item.id===chat.id?{...item,settings:chat.settings}:item));
     return chat;
   },[api]);
-  return {presence,chats,messages,hasMore,pending,selectedId,selectChat,connection,listLoading,messageLoading,error,setError,typing,refreshChats,loadMessages,send,sendAction,hideForMe,hidden,forward,sendAttachments,retry:performSend,sendPoll,sendTyping,drafts,draftFiles,setDraft,setDraftFile,setDraftFiles,appendDraftFiles,removeDraftFile,recoveryRequests,recoveryError,refreshRecoveryRequests,cancelRecovery,cryptoError,trustSnapshot,approveDevices,uploadEncrypted,saved,aiHistory,updateChatSettings};
+  // «Удалить чат» (for me): the chat leaves the list until a newer message arrives; stored on this device.
+  const removedKey=`linea.removed-chats.v1:${user.id}`;
+  const [removed,setRemoved]=useState<Record<string,number>>({});
+  useEffect(()=>{let live=true;AsyncStorage.getItem(removedKey).then(raw=>{if(live&&raw)try{const value=JSON.parse(raw);if(value&&typeof value==='object')setRemoved(value);}catch{/* ignore */}}).catch(()=>{});return()=>{live=false;};},[removedKey]);
+  const removeChat=useCallback((chat:Chat)=>{
+    setRemoved(previous=>{const next={...previous,[chat.id]:chat.lastMessage?.id||0};void AsyncStorage.setItem(removedKey,JSON.stringify(next)).catch(()=>{});return next;});
+    (messages[chat.id]||[]).forEach(message=>hideForMe(message));
+    if(selectedRef.current===chat.id)selectChat(null);
+  },[removedKey,messages,hideForMe,selectChat]);
+  const visibleChats=useMemo(()=>chats.filter(chat=>removed[chat.id]===undefined||(chat.lastMessage?.id||0)>removed[chat.id]),[chats,removed]);
+  return {onCallSignal,readChat,presence,chats:visibleChats,removeChat,messages,hasMore,pending,selectedId,selectChat,connection,listLoading,messageLoading,error,setError,typing,refreshChats,loadMessages,send,sendAction,hideForMe,hidden,forward,sendAttachments,retry:performSend,sendPoll,sendTyping,drafts,draftFiles,setDraft,setDraftFile,setDraftFiles,appendDraftFiles,removeDraftFile,recoveryRequests,recoveryError,refreshRecoveryRequests,cancelRecovery,cryptoError,trustSnapshot,approveDevices,uploadEncrypted,saved,aiHistory,updateChatSettings};
 }
 export type MessengerStore = ReturnType<typeof useMessenger>;

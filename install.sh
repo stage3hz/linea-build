@@ -64,6 +64,7 @@ keep() { [ -f deploy/.env ] && grep -E "^$1=" deploy/.env | tail -1 | cut -d= -f
 OLDKEY="$(keep OPENROUTER_API_KEY)"
 AI_PROVIDER_V="$(keep AI_PROVIDER)"; AI_API_KEY_V="$(keep AI_API_KEY)"; AI_MODEL_V="$(keep AI_MODEL)"
 FLK="$(keep FREELLMAPI_ENCRYPTION_KEY)"; [ -n "$FLK" ] || FLK="$(openssl rand -hex 32)"
+TURN_SECRET_V="$(keep TURN_SECRET)"; [ -n "$TURN_SECRET_V" ] || TURN_SECRET_V="$(openssl rand -hex 32)"
 DASH_HOST="${AI_DASHBOARD_HOST:-$(keep AI_DASHBOARD_HOST)}"
 case "$HOST1" in *.nip.io|*.sslip.io) [ -n "$DASH_HOST" ] || DASH_HOST="ai.$HOST1";; esac
 ( umask 077; cat > deploy/.env <<EOF
@@ -77,6 +78,9 @@ AI_API_KEY=$AI_API_KEY_V
 AI_MODEL=${AI_MODEL_V:-auto}
 FREELLMAPI_ENCRYPTION_KEY=$FLK
 AI_DASHBOARD_HOST=$DASH_HOST
+TURN_SECRET=$TURN_SECRET_V
+TURN_HOST=$HOST1
+TURN_EXTERNAL_IP=$MYIP
 EOF
 )
 # Панель FreeLLMAPI: отдельный адрес с HTTPS. Вход защищён её собственным аккаунтом,
@@ -97,10 +101,13 @@ C=(docker compose --env-file deploy/.env -f deploy/compose.production.yml)
 echo "== 4/5 Сборка и запуск (несколько минут)"
 if command -v ufw >/dev/null && ufw status | grep -q "Status: active"; then
   ufw allow 22/tcp >/dev/null; ufw allow 80/tcp >/dev/null; ufw allow 443/tcp >/dev/null; ufw allow 443/udp >/dev/null
+  ufw allow 3478/udp >/dev/null; ufw allow 3478/tcp >/dev/null; ufw allow 49160:49200/udp >/dev/null
 fi
 "${C[@]}" up -d --build
 # Caddy reads its config only at start; restart so new hosts (e.g. the AI dashboard) get certificates.
 "${C[@]}" restart caddy
+# Calls relay (TURN). Its failure must not stop the messenger.
+if [ -n "$MYIP" ]; then docker compose --env-file deploy/.env -f deploy/compose.turn.yml up -d || echo "  ВНИМАНИЕ: TURN для звонков не запустился (звонки через сложный NAT могут не соединяться)."; fi
 
 echo "== 5/5 Проверка"
 ok=0

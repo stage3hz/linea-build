@@ -21,7 +21,7 @@ import { MAX_DRAFT_ATTACHMENTS } from './messageAttachments';
 import { mediaPreviewKind } from './media/formats';
 import { AttachmentViewer } from './media/AttachmentViewer';
 import { openDocument } from './media/documentPreview';
-import { textMetrics, useChatPreferences } from './chatPreferences';
+import { WALLPAPERS, textMetrics, useChatPreferences } from './chatPreferences';
 import { REACTIONS, foldChat, groupAlbums, replyPreview, type Reaction, type ViewMessage } from './messageMeta';
 import { MediaGallery } from './media/AttachmentViewer';
 import { PollComposer } from './PollBubble';
@@ -32,6 +32,7 @@ import { VoicePlaybackProvider, VoiceRecordingBar, useVoiceRecorder } from './vo
 import { MessageRow, type AlbumPart, type Row, type RowHandlers } from './MessageRow';
 import { ContextMenu, MenuItem } from './ContextMenu';
 import { TopPlayerBar } from './music/PlayerControls';
+import { useCalls } from './calls/CallProvider';
 import { UserProfile } from './UserProfile';
 import { impactFeedback, lightFeedback } from './haptics';
 import { VideoNoteRecorder, type VideoNoteTake } from './videonote/VideoNote';
@@ -41,6 +42,7 @@ import { VOICE_MIME, VOICE_MIN_MS, videoNoteFileName, voiceFileName } from './vo
 
 
 export function ChatScreen({api,user,chat,store,onBack,wide=false,onOpenMusic}: {api:Api;user:User;chat:Chat;store:MessengerStore;onBack:()=>void;wide?:boolean;onOpenMusic?:()=>void}) {
+  const calls=useCalls();
   const t=useTheme();const [attachMenu,setAttachMenu]=useState(false);const [uploading,setUploading]=useState(false);const [downloadId,setDownloadId]=useState<string|null>(null);const [localError,setLocalError]=useState('');const [preview,setPreview]=useState<Attachment|null>(null);const [peerInfo,setPeerInfo]=useState(false);const [actions,setActions]=useState<Row|null>(null);const [menuY,setMenuY]=useState(0);const [copied,setCopied]=useState(false);
   const [securityOpen,setSecurityOpen]=useState(false);
   const photoContext=`${user.id}:${chat.id}`;const currentPhotoContext=useRef(photoContext);currentPhotoContext.current=photoContext;
@@ -86,6 +88,7 @@ export function ChatScreen({api,user,chat,store,onBack,wide=false,onOpenMusic}: 
     return visible.reverse();
   },[view,pending,searchOpen,needle,user.id]);
   const preferences=useChatPreferences();const metrics=textMetrics(preferences.textSize);
+  const wallpaperColors=WALLPAPERS.find(item=>item.id===preferences.wallpaper)?.colors||null;
   const nameOf=(senderId:string)=>senderId===user.id?'Ты':chat.peer.displayName;
   // A forwarded message keeps its first author through further forwards.
   const originalAuthor=(message:ViewMessage)=>message.meta?.forward?.from||(message.senderId===user.id?user.displayName:chat.peer.displayName);
@@ -204,8 +207,8 @@ export function ChatScreen({api,user,chat,store,onBack,wide=false,onOpenMusic}: 
     const message=item.message,p=item.pending,mine=!!p||message?.senderId===user.id;
     const file=message?.attachment||p?.attachment,reply=message?.meta?.reply||p?.meta?.reply;
     const original=reply?view.byClientId.get(reply.clientId):undefined;
-    return <MessageRow row={item} selecting={!!selection} selected={!!selection?.has(item.key)} fresh={fresh(item.key)} olderCreatedAt={rows[index+1]?.createdAt} mine={mine} author={mine?'Ты':peerName} peerLastRead={peerLastRead} wide={wide} fontSize={metrics.fontSize} lineHeight={metrics.lineHeight} downloading={!!downloadId&&file?.id===downloadId} replyAuthor={reply?(reply.senderId===user.id?'Ты':peerName):undefined} replyText={reply?(original?replyPreview(original):reply.preview||'Сообщение удалено'):undefined} api={api} handlers={handlers}/>;
-  },[rows,user.id,peerName,peerLastRead,wide,metrics,downloadId,view.byClientId,api,selection]);
+    return <MessageRow row={item} selecting={!!selection} selected={!!selection?.has(item.key)} fresh={fresh(item.key)} olderCreatedAt={rows[index+1]?.createdAt} mine={mine} author={mine?'Ты':peerName} peerLastRead={peerLastRead} wide={wide} fontSize={metrics.fontSize} lineHeight={metrics.lineHeight} radius={preferences.bubbleRadius} downloading={!!downloadId&&file?.id===downloadId} replyAuthor={reply?(reply.senderId===user.id?'Ты':peerName):undefined} replyText={reply?(original?replyPreview(original):reply.preview||'Сообщение удалено'):undefined} api={api} handlers={handlers}/>;
+  },[rows,user.id,peerName,peerLastRead,wide,metrics,downloadId,view.byClientId,api,selection,preferences.bubbleRadius]);
   const [circleOpen,setCircleOpen]=useState(false);
   const sendVideoNote=async(take:VideoNoteTake)=>{
     setCircleOpen(false);
@@ -221,24 +224,26 @@ export function ChatScreen({api,user,chat,store,onBack,wide=false,onOpenMusic}: 
     finally{uploadingRef.current=false;if(alive.current)setUploading(false);await FileSystem.deleteAsync(take.uri,{idempotent:true}).catch(()=>{});}
   };
   return <VoicePlaybackProvider api={api}><KeyboardSafeView style={{flex:1,backgroundColor:'transparent'}}>
+    {wallpaperColors?<LinearGradient pointerEvents="none" colors={wallpaperColors as unknown as [string,string,string]} start={{x:0,y:0}} end={{x:1,y:1}} style={{position:'absolute',top:-80,bottom:-60,left:0,right:0}}/>:null}
     <View pointerEvents="box-none" onLayout={e=>setHeaderHeight(e.nativeEvent.layout.height)} style={{position:'absolute',top:0,left:0,right:0,zIndex:5,paddingTop:8,gap:6}}>
     {/* Messages fade out under the status bar instead of ending at a hard edge. */}
-    <LinearGradient pointerEvents="none" colors={[t.bgGradient[0],'transparent']} style={{position:'absolute',top:0,left:0,right:0,height:34}}/>
+    <LinearGradient pointerEvents="none" colors={[wallpaperColors?.[0]||t.bgGradient[0],'transparent']} style={{position:'absolute',top:0,left:0,right:0,height:34}}/>
     {selection?<View style={{flexDirection:'row',alignItems:'center',gap:8,paddingHorizontal:12}}>
       <GlassSurface material="regular" radius={24} interactive contentStyle={{height:48,justifyContent:'center',paddingHorizontal:16}}><Pressable onPress={()=>setSelection(null)} accessibilityRole="button" hitSlop={8}><Text style={{color:t.accent,fontSize:16,fontWeight:'600'}}>Отмена</Text></Pressable></GlassSurface>
       <View style={{flex:1,alignItems:'center'}}><GlassSurface material="regular" radius={24} contentStyle={{height:48,justifyContent:'center',paddingHorizontal:18}}><Text style={{color:t.text,fontSize:16,fontWeight:'700'}}>Выбрано: {selectedMessages.length}</Text></GlassSurface></View>
       <GlassSurface material="regular" radius={24} interactive contentStyle={{height:48,width:48,alignItems:'center',justifyContent:'center'}}><Pressable onPress={()=>void copy(selectedMessages.map(m=>m.meta?.poll?replyPreview(m):m.text).filter(Boolean).join('\n\n')).then(()=>setSelection(null))} disabled={!selectedMessages.some(m=>m.text)} accessibilityRole="button" accessibilityLabel="Скопировать выбранные" style={{opacity:selectedMessages.some(m=>m.text)?1:.4}}><Icon name="copy-outline" size={21} color={t.accent}/></Pressable></GlassSurface>
     </View>:<View style={{flexDirection:'row',alignItems:'center',gap:8,paddingHorizontal:12}}>
-      {!wide?<GlassSurface material="regular" radius={26} interactive contentStyle={{height:52,minWidth:52,flexDirection:'row',alignItems:'center',justifyContent:'center',paddingHorizontal:otherUnread?10:0,gap:4}}><Pressable onPress={onBack} accessibilityRole="button" accessibilityLabel={`Назад к чатам${otherUnread?`, непрочитанных ${otherUnread}`:''}`} hitSlop={6} style={{flexDirection:'row',alignItems:'center',gap:4}}><Icon name="chevron-back" size={26} color={t.text}/>{otherUnread?<View style={{minWidth:22,height:22,borderRadius:11,paddingHorizontal:6,backgroundColor:t.text,alignItems:'center',justifyContent:'center'}}><Text style={{color:t.dark?'#000':'#FFF',fontSize:12,fontWeight:'700'}}>{otherUnread>99?'99+':otherUnread}</Text></View>:null}</Pressable></GlassSurface>:null}
+      {!wide?<GlassSurface material="regular" radius={26} interactive contentStyle={{height:44,minWidth:44,flexDirection:'row',alignItems:'center',justifyContent:'center',paddingHorizontal:otherUnread?10:0,gap:4}}><Pressable onPress={onBack} accessibilityRole="button" accessibilityLabel={`Назад к чатам${otherUnread?`, непрочитанных ${otherUnread}`:''}`} hitSlop={6} style={{flexDirection:'row',alignItems:'center',gap:4}}><Icon name="chevron-back" size={26} color={t.text}/>{otherUnread?<View style={{minWidth:22,height:22,borderRadius:11,paddingHorizontal:6,backgroundColor:t.text,alignItems:'center',justifyContent:'center'}}><Text style={{color:t.dark?'#000':'#FFF',fontSize:12,fontWeight:'700'}}>{otherUnread>99?'99+':otherUnread}</Text></View>:null}</Pressable></GlassSurface>:null}
       <View style={{flex:1,alignItems:'center'}}>
-        <GlassSurface material="regular" radius={26} interactive contentStyle={{minHeight:52,justifyContent:'center',paddingHorizontal:20,paddingVertical:5}}>
+        <GlassSurface material="regular" radius={22} interactive contentStyle={{minHeight:44,justifyContent:'center',paddingHorizontal:18,paddingVertical:3}}>
           <Pressable onPress={()=>setPeerInfo(true)} accessibilityRole="button" accessibilityLabel={`Профиль ${chat.peer.displayName}`} style={{alignItems:'center',gap:1}}>
-            <View style={{flexDirection:'row',gap:5,alignItems:'center'}}><Text numberOfLines={1} style={{flexShrink:1,color:t.text,fontSize:16,fontWeight:'700',letterSpacing:-.25}}>{chat.peer.displayName}</Text><StatusEmoji user={chat.peer} size={16}/></View>
+            <View style={{flexDirection:'row',gap:5,alignItems:'center'}}><Text numberOfLines={1} style={{flexShrink:1,color:t.text,fontSize:16,fontWeight:'600',letterSpacing:-.25}}>{chat.peer.displayName}</Text><StatusEmoji user={chat.peer} size={16}/></View>
             <Text numberOfLines={1} style={{color:headerStatus.accent?t.accent:t.muted,fontSize:12}}>{headerStatus.text}</Text>
           </Pressable>
         </GlassSurface>
       </View>
-      <Pressable onPress={()=>setPeerInfo(true)} accessibilityRole="button" accessibilityLabel="Открыть профиль" style={({pressed})=>({opacity:pressed?.75:1,borderRadius:28,borderWidth:1.5,borderColor:t.glassBorder})}><Avatar user={chat.peer} api={api} size={52}/></Pressable>
+      {calls.available?<GlassSurface material="regular" radius={22} interactive contentStyle={{width:44,height:44,alignItems:'center',justifyContent:'center'}}><Pressable onPress={()=>calls.start(chat,false)} onLongPress={()=>calls.start(chat,true)} disabled={calls.busy} accessibilityRole="button" accessibilityLabel="Позвонить. Удерживай — видеозвонок" hitSlop={6}><Icon name="call" size={22} color={t.text}/></Pressable></GlassSurface>:null}
+      <Pressable onPress={()=>setPeerInfo(true)} accessibilityRole="button" accessibilityLabel="Открыть профиль" style={({pressed})=>({opacity:pressed?.75:1,borderRadius:24,borderWidth:1.5,borderColor:t.glassBorder})}><Avatar user={chat.peer} api={api} size={44}/></Pressable>
     </View>}
     {onOpenMusic&&!selection?<TopPlayerBar onOpen={onOpenMusic}/>:null}
     {searchOpen?<GlassSurface material="regular" radius={22} shadow={false} style={{marginHorizontal:12}} contentStyle={{flexDirection:'row',alignItems:'center',gap:9,paddingHorizontal:14,minHeight:46}}>
@@ -264,7 +269,7 @@ export function ChatScreen({api,user,chat,store,onBack,wide=false,onOpenMusic}: 
       ListFooterComponent={store.hasMore[chat.id]?<View style={{alignItems:'center',padding:18}}><GlassSurface material="clear" radius={19} shadow={false}><Pressable onPress={()=>void store.loadMessages(chat.id,true)} disabled={store.messageLoading} accessibilityRole="button" style={{paddingVertical:11,paddingHorizontal:17}}>{store.messageLoading?<ActivityIndicator size="small" color={t.accent}/>:<Text style={{fontSize:12,color:t.accent,fontWeight:'600'}}>Более ранние сообщения</Text>}</Pressable></GlassSurface></View>:null}
       renderItem={renderRow} removeClippedSubviews={Platform.OS==='android'} maxToRenderPerBatch={12} updateCellsBatchingPeriod={40}/>
     }
-    {showDown&&!selection?<View pointerEvents="box-none" style={{height:0,zIndex:4}}><View style={{position:'absolute',right:14,bottom:10}}><GlassSurface material="regular" radius={24} interactive contentStyle={{width:48,height:48,alignItems:'center',justifyContent:'center'}}><Pressable onPress={()=>{lightFeedback();listRef.current?.scrollToOffset({offset:0,animated:true});}} accessibilityRole="button" accessibilityLabel="Вниз к новым сообщениям" hitSlop={6}><Icon name="chevron-down" size={26} color={t.text}/></Pressable></GlassSurface></View></View>:null}
+    {showDown&&!selection?<View pointerEvents="box-none" style={{height:0,zIndex:4}}><View style={{position:'absolute',right:14,bottom:10}}><GlassSurface material="regular" radius={20} interactive contentStyle={{width:40,height:40,alignItems:'center',justifyContent:'center'}}><Pressable onPress={()=>{lightFeedback();listRef.current?.scrollToOffset({offset:0,animated:true});}} accessibilityRole="button" accessibilityLabel="Вниз к новым сообщениям" hitSlop={6}><Icon name="chevron-down" size={26} color={t.text}/></Pressable></GlassSurface></View></View>:null}
     {selection?<GlassSurface material="regular" radius={28} style={{marginHorizontal:12,marginTop:5,marginBottom:10}} contentStyle={{flexDirection:'row',justifyContent:'space-around',alignItems:'center',paddingVertical:8}}>
       {([
         {icon:'arrow-redo-outline',label:'Переслать',on:()=>{setForwardMany(selectedMessages);},ok:selectedMessages.length>0},
@@ -272,7 +277,7 @@ export function ChatScreen({api,user,chat,store,onBack,wide=false,onOpenMusic}: 
         {icon:'bookmark-outline',label:'В Избранное',on:()=>{selectedMessages.forEach(saveToFavorites);setSelection(null);},ok:selectedMessages.length>0},
         {icon:'trash-outline',label:'Удалить',on:()=>setDeleteAsk(true),ok:selectedMessages.length>0,danger:true},
       ] as const).map(item=><Pressable key={item.label} disabled={!item.ok} onPress={()=>{lightFeedback();item.on();}} accessibilityRole="button" style={({pressed})=>({alignItems:'center',gap:4,paddingHorizontal:8,paddingVertical:4,opacity:!item.ok?.35:pressed?.6:1})}><Icon name={item.icon} size={22} color={'danger' in item?t.danger:t.accent}/><Text style={{fontSize:10,color:'danger' in item?t.danger:t.accent,fontWeight:'600'}}>{item.label}</Text></Pressable>)}
-    </GlassSurface>:<View style={{marginHorizontal:10,marginTop:4,marginBottom:10,gap:6}}>
+    </GlassSurface>:<View style={{marginHorizontal:8,marginTop:4,marginBottom:8,gap:6}}>
       {replyTo||editing||uploading||attachments.length?<GlassSurface material="regular" radius={22} contentStyle={{paddingHorizontal:8,paddingTop:8,paddingBottom:2}}>
       {replyTo||editing?<View style={{flexDirection:'row',alignItems:'center',gap:8,paddingLeft:8,paddingBottom:6}}>
         <Icon name={editing?'create-outline':'arrow-undo-outline'} size={18} color={t.accent}/>
@@ -287,13 +292,13 @@ export function ChatScreen({api,user,chat,store,onBack,wide=false,onOpenMusic}: 
       })}</ScrollView>:null}
       </GlassSurface>:null}
       {voice.active?<GlassSurface material="regular" radius={26} contentStyle={{padding:6}}><VoiceRecordingBar durationMs={voice.durationMs} levels={voice.levels} onCancel={()=>void finishVoice(false)} onSend={()=>void finishVoice(true)}/></GlassSurface>:<View style={{flexDirection:'row',gap:8,alignItems:'flex-end'}}>
-        <GlassSurface material="regular" radius={24} interactive contentStyle={{width:48,height:48,alignItems:'center',justifyContent:'center'}}><Pressable accessibilityRole="button" accessibilityLabel="Вложения: галерея, файлы, опрос" disabled={uploading} onPress={()=>{Keyboard.dismiss();setStickers(false);setAttachMenu(true);}} hitSlop={6} style={{opacity:uploading?.4:1}}><Icon name="attach" size={27} color={t.text}/></Pressable></GlassSurface>
-        <GlassSurface material="regular" radius={24} style={{flex:1}} contentStyle={{minHeight:48,maxHeight:140,flexDirection:'row',alignItems:'flex-end'}}>
-          <View style={{flex:1,justifyContent:'center',minHeight:48}}><ComposerInput accessibilityLabel="Сообщение" placeholder={signalAvailable?'Сообщение':'Нужна мобильная версия'} editable={signalAvailable} value={text} onChangeText={changeText} placeholderTextColor={t.muted} selectionColor={t.accent} keyboardAppearance={t.dark?'dark':'light'} multiline maxLength={8000} style={{fontSize:16,lineHeight:21,color:t.text,paddingHorizontal:14,paddingTop:Platform.OS==='ios'?12:10,paddingBottom:12,maxHeight:136}} onKeyPress={e=>{if(Platform.OS==='web'&&e.nativeEvent.key==='Enter'&&!(e.nativeEvent as unknown as {shiftKey?:boolean}).shiftKey){e.preventDefault();send();}}}/></View>
-          <Pressable accessibilityRole="button" accessibilityLabel="Стикеры и эмодзи" onPress={()=>{Keyboard.dismiss();setStickers(value=>!value);}} style={({pressed})=>({height:48,width:42,alignItems:'center',justifyContent:'center',opacity:pressed?.6:1})}><Icon name={stickers?'keypad-outline':'happy-outline'} color={stickers?t.accent:t.muted} size={24}/></Pressable>
+        <GlassSurface material="regular" radius={20} interactive contentStyle={{width:40,height:40,alignItems:'center',justifyContent:'center'}}><Pressable accessibilityRole="button" accessibilityLabel="Вложения: галерея, файлы, опрос" disabled={uploading} onPress={()=>{Keyboard.dismiss();setStickers(false);setAttachMenu(true);}} hitSlop={6} style={{opacity:uploading?.4:1}}><Icon name="attach" size={24} color={t.text}/></Pressable></GlassSurface>
+        <GlassSurface material="regular" radius={20} style={{flex:1}} contentStyle={{minHeight:40,maxHeight:140,flexDirection:'row',alignItems:'flex-end'}}>
+          <View style={{flex:1,justifyContent:'center',minHeight:40}}><ComposerInput accessibilityLabel="Сообщение" placeholder={signalAvailable?'Сообщение':'Нужна мобильная версия'} editable={signalAvailable} value={text} onChangeText={changeText} placeholderTextColor={t.muted} selectionColor={t.accent} keyboardAppearance={t.dark?'dark':'light'} multiline maxLength={8000} style={{fontSize:17,lineHeight:22,color:t.text,paddingHorizontal:14,paddingTop:Platform.OS==='ios'?9:7,paddingBottom:9,maxHeight:136}} onKeyPress={e=>{if(Platform.OS==='web'&&e.nativeEvent.key==='Enter'&&!(e.nativeEvent as unknown as {shiftKey?:boolean}).shiftKey){e.preventDefault();send();}}}/></View>
+          <Pressable accessibilityRole="button" accessibilityLabel="Стикеры и эмодзи" onPress={()=>{Keyboard.dismiss();setStickers(value=>!value);}} style={({pressed})=>({height:40,width:38,alignItems:'center',justifyContent:'center',opacity:pressed?.6:1})}><Icon name={stickers?'keypad-outline':'happy-outline'} color={stickers?t.accent:t.muted} size={22}/></Pressable>
         </GlassSurface>
-        {canSend||!signalAvailable||uploading?<Pressable accessibilityRole="button" accessibilityLabel="Отправить сообщение" disabled={!signalAvailable||uploading||(!text.trim()&&!attachments.length&&!editing)} onPress={send} style={({pressed})=>({height:48,width:48,borderRadius:24,backgroundColor:t.accent,alignItems:'center',justifyContent:'center',opacity:!signalAvailable||uploading||(!text.trim()&&!attachments.length&&!editing)?.4:pressed?.75:1})}><Icon name={editing?'checkmark':'arrow-up'} color={t.onAccent} size={25}/></Pressable>
-        :<GlassSurface material="regular" radius={24} interactive contentStyle={{width:48,height:48,alignItems:'center',justifyContent:'center'}}><Pressable accessibilityRole="button" accessibilityLabel={recordMode==='voice'?'Голосовое: удерживай для записи, нажми — переключить на видео':'Видеосообщение: удерживай для записи, нажми — переключить на голосовое'} delayLongPress={220}
+        {canSend||!signalAvailable||uploading?<Pressable accessibilityRole="button" accessibilityLabel="Отправить сообщение" disabled={!signalAvailable||uploading||(!text.trim()&&!attachments.length&&!editing)} onPress={send} style={({pressed})=>({height:40,width:40,borderRadius:20,backgroundColor:t.accent,alignItems:'center',justifyContent:'center',opacity:!signalAvailable||uploading||(!text.trim()&&!attachments.length&&!editing)?.4:pressed?.75:1})}><Icon name={editing?'checkmark':'arrow-up'} color={t.onAccent} size={25}/></Pressable>
+        :<GlassSurface material="regular" radius={20} interactive contentStyle={{width:40,height:40,alignItems:'center',justifyContent:'center'}}><Pressable accessibilityRole="button" accessibilityLabel={recordMode==='voice'?'Голосовое: удерживай для записи, нажми — переключить на видео':'Видеосообщение: удерживай для записи, нажми — переключить на голосовое'} delayLongPress={220}
           onPress={()=>{lightFeedback();const next=recordMode==='voice'?'video':'voice';setRecordMode(next);setNotice(next==='video'?'Удерживай, чтобы записать видеосообщение':'Удерживай, чтобы записать голосовое');setTimeout(()=>setNotice(current=>current.startsWith('Удерживай')?'':current),1800);}}
           onLongPress={()=>{setNotice('');if(recordMode==='voice')startVoice();else{impactFeedback();Keyboard.dismiss();setLocalError('');setCircleOpen(true);}}} hitSlop={6}><Icon name={recordMode==='voice'?'mic-outline':'videocam-outline'} color={t.text} size={25}/></Pressable></GlassSurface>}
       </View>}

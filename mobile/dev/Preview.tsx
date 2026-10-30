@@ -32,7 +32,7 @@ export default function Preview() {
   const api = new Api('https://example.invalid', 'token');
   return <GestureHandlerRootView style={{ flex: 1 }}><SafeAreaProvider><ThemeContext.Provider value={palette.dark}><GlassStage>
     <ScrollView contentContainerStyle={{ padding: 15, width: 390 }}>
-      {rows.map((row, i) => <MessageRow key={row.key} row={row} olderCreatedAt={i ? row.createdAt : undefined} mine={row.message!.senderId === 'me'} author="x" peerLastRead={0} wide={false} fontSize={15} lineHeight={22} downloading={false} replyAuthor="Ты" replyText={reply.preview} api={api} handlers={handlers} selecting={false} selected={false} fresh={false} />)}
+      {rows.map((row, i) => <MessageRow key={row.key} row={row} olderCreatedAt={i ? row.createdAt : undefined} mine={row.message!.senderId === 'me'} author="x" peerLastRead={0} wide={false} fontSize={17} lineHeight={22} downloading={false} replyAuthor="Ты" replyText={reply.preview} api={api} handlers={handlers} selecting={false} selected={false} fresh={false} />)}
     </ScrollView>
   </GlassStage></ThemeContext.Provider></SafeAreaProvider></GestureHandlerRootView>;
 }

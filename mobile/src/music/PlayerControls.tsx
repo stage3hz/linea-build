@@ -28,6 +28,10 @@ export function TrackArtwork({ track, size = 48 }: { track: MusicTrack; size?: n
 
 function PlaybackButton({ large = false }: { large?: boolean }) {
   const music = useMusic(), t = useTheme(); const size = large ? 72 : 46;
+  // VK / Apple Music: in the full player the play/pause is a large bare glyph, no disc.
+  if (large) return <Pressable accessibilityRole="button" accessibilityLabel={music.loading ? 'Загрузка. Повторить воспроизведение' : music.playing ? 'Приостановить' : 'Воспроизвести'} onPress={() => void music.togglePlayback()} hitSlop={10} style={({ pressed }) => ({ width: 72, height: 72, alignItems: 'center', justifyContent: 'center', transform: [{ scale: pressed ? .96 : 1 }] })}>
+    {music.loading ? <ActivityIndicator color="#FFF" /> : <Icon name={music.playing ? 'pause' : 'play'} size={52} color="#FFF" />}
+  </Pressable>;
   return <Pressable accessibilityRole="button" accessibilityLabel={music.loading ? 'Загрузка. Повторить воспроизведение' : music.playing ? 'Приостановить' : 'Воспроизвести'} accessibilityState={{ busy: music.loading }} onPress={() => void music.togglePlayback()} style={({ pressed }) => ({ width: size, height: size, minWidth: 44, minHeight: 44, borderRadius: size / 2, transform: [{ scale: pressed ? .95 : 1 }] })}>
     <GlassSurface radius={size / 2} material="clear" interactive shadow={large} style={{ width: size, height: size }} contentStyle={{ flex: 1, alignItems: 'center', justifyContent: 'center' }}>
       <LinearGradient pointerEvents="none" colors={t.accentGradient} style={[StyleSheet.absoluteFill, { borderRadius: size / 2 }]} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} />
@@ -120,17 +124,17 @@ export function PlayerControls({ compact = false, onOpen }: { compact?: boolean;
   const favorite = music.favorites.some(item => item.id === track.id), downloading = Object.prototype.hasOwnProperty.call(music.downloads, track.id);
   const repeatLabel = music.repeat === 'one' ? 'Повтор одного трека' : music.repeat === 'all' ? 'Повтор очереди' : 'Повтор выключен';
   return <View style={{ gap: 21, paddingBottom: 5 }}>
-    <View style={{ alignItems: 'center', paddingVertical: 4 }}><View style={{ borderRadius: 34, shadowColor: '#000', shadowOpacity: .35, shadowRadius: 22, shadowOffset: { width: 0, height: 12 } }}><TrackArtwork track={track} size={Math.min(330, width - 72)} /></View></View>
+    <View style={{ alignItems: 'center', paddingVertical: 4 }}><View style={{ borderRadius: 34, shadowColor: '#000', shadowOpacity: .35, shadowRadius: 22, shadowOffset: { width: 0, height: 12 } }}><TrackArtwork track={track} size={Math.min(353, width - 48)} /></View></View>
     <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12 }}>
-      <View style={{ flex: 1, gap: 6 }}><Text numberOfLines={3} style={{ color: t.text, fontSize: 25, lineHeight: 30, fontWeight: '700', letterSpacing: -.6 }}>{track.title}</Text><Text numberOfLines={2} style={{ color: t.muted, fontSize: 16, lineHeight: 22 }}>{track.artist}</Text><Text style={{ color: t.subtle, fontSize: 11, letterSpacing: .5 }}>{track.source === 'audius' ? 'AUDIUS · ОНЛАЙН' : Platform.OS === 'web' ? 'ЛОКАЛЬНЫЙ ФАЙЛ · ДО ПЕРЕЗАГРУЗКИ' : 'НА ЭТОМ УСТРОЙСТВЕ'}</Text></View>
+      <View style={{ flex: 1, gap: 6 }}><Text numberOfLines={2} style={{ color: '#FFF', fontSize: 20, lineHeight: 25, fontWeight: '700', letterSpacing: -.3 }}>{track.title}</Text><Text numberOfLines={1} style={{ color: '#C9D6EA', fontSize: 14, lineHeight: 19 }}>{track.artist}</Text><Text style={{ color: t.subtle, fontSize: 11, letterSpacing: .5 }}>{track.source === 'audius' ? 'AUDIUS · ОНЛАЙН' : Platform.OS === 'web' ? 'ЛОКАЛЬНЫЙ ФАЙЛ · ДО ПЕРЕЗАГРУЗКИ' : 'НА ЭТОМ УСТРОЙСТВЕ'}</Text></View>
       <IconButton name={favorite ? 'heart' : 'heart-outline'} label={favorite ? 'Убрать из избранного' : 'Добавить в избранное'} color={favorite ? t.accent : t.text} onPress={() => void music.toggleFavorite(track)} />
     </View>
     <SeekBar />
     <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
       <IconButton name="shuffle" label={music.shuffle ? 'Случайный порядок включён' : 'Включить случайный порядок'} color={music.shuffle ? t.accent : t.subtle} onPress={music.toggleShuffle} size={21} />
-      <IconButton name="play-skip-back" label="Предыдущий трек или начало текущего" onPress={() => void music.previous()} size={27} />
+      <IconButton name="play-skip-back" label="Предыдущий трек или начало текущего" onPress={() => void music.previous()} size={32} color="#FFF" />
       <PlaybackButton large />
-      <IconButton name="play-skip-forward" label="Следующий трек" onPress={() => void music.next()} size={27} disabled={music.queue.length < 2} />
+      <IconButton name="play-skip-forward" label="Следующий трек" onPress={() => void music.next()} size={32} color="#FFF" disabled={music.queue.length < 2} />
       <View><IconButton name="repeat" label={`${repeatLabel}. Изменить`} color={music.repeat !== 'off' ? t.accent : t.subtle} onPress={music.toggleRepeat} size={22} />{music.repeat === 'one' ? <View pointerEvents="none" style={{ position: 'absolute', bottom: 4, right: 3, width: 14, height: 14, borderRadius: 7, backgroundColor: t.accent, alignItems: 'center', justifyContent: 'center' }}><Text style={{ fontSize: 9, fontWeight: '800', color: t.onAccent }}>1</Text></View> : null}</View>
     </View>
     {music.error ? <View style={{ gap: 6 }}><Notice text={music.error} error /><Pressable onPress={music.clearError} accessibilityRole="button" style={{ minHeight: 44, justifyContent: 'center', alignItems: 'flex-end' }}><Text style={{ color: t.accent, fontWeight: '600', fontSize: 13 }}>Понятно</Text></Pressable></View> : null}
