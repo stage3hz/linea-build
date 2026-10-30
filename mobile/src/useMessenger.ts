@@ -264,6 +264,11 @@ export function useMessenger(api: Api, user: User, onExpired: ()=>void) {
     if(selectedRef.current)await loadMessages(selectedRef.current);
     await refreshChats();
   },[cryptoRuntime,loadMessages,refreshChats]);
-  return {chats,messages,hasMore,pending,selectedId,selectChat,connection,listLoading,messageLoading,error,setError,typing,refreshChats,loadMessages,send,sendAction,hideForMe,hidden,forward,sendAttachments,retry:performSend,sendTyping,drafts,draftFiles,setDraft,setDraftFile,setDraftFiles,appendDraftFiles,removeDraftFile,recoveryRequests,recoveryError,refreshRecoveryRequests,cancelRecovery,cryptoError,trustSnapshot,approveDevices,uploadEncrypted,saved,aiHistory};
+  const updateChatSettings=useCallback(async(chatId:string,change:Partial<{pinned:boolean;archived:boolean;muted:boolean}>)=>{
+    const {chat}=await api.chatSettings(chatId,change);
+    setChats(previous=>previous.map(item=>item.id===chat.id?{...item,settings:chat.settings}:item));
+    return chat;
+  },[api]);
+  return {chats,messages,hasMore,pending,selectedId,selectChat,connection,listLoading,messageLoading,error,setError,typing,refreshChats,loadMessages,send,sendAction,hideForMe,hidden,forward,sendAttachments,retry:performSend,sendTyping,drafts,draftFiles,setDraft,setDraftFile,setDraftFiles,appendDraftFiles,removeDraftFile,recoveryRequests,recoveryError,refreshRecoveryRequests,cancelRecovery,cryptoError,trustSnapshot,approveDevices,uploadEncrypted,saved,aiHistory,updateChatSettings};
 }
 export type MessengerStore = ReturnType<typeof useMessenger>;

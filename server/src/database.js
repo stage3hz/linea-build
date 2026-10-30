@@ -151,6 +151,11 @@ export function publicMessage(_db, row) {
   };
 }
 
+export function chatSettings(db, userId, chatId) {
+  const row = db.prepare('SELECT pinned_at,archived,muted FROM chat_settings WHERE user_id=? AND chat_id=?').get(userId, chatId);
+  return { pinnedAt: row?.pinned_at ?? null, archived: !!row?.archived, muted: !!row?.muted };
+}
+
 export function publicChat(db, chatId, userId, options) {
   const chat = db.prepare('SELECT * FROM chats WHERE id=?').get(chatId);
   const self = db.prepare('SELECT * FROM chat_members WHERE chat_id=? AND user_id=?').get(chatId, userId);
@@ -168,5 +173,6 @@ export function publicChat(db, chatId, userId, options) {
     peerLastReadMessageId: receiptsVisible(db, userId, peerMember.user_id) ? peerMember.last_read_message_id : 0,
     createdAt: chat.created_at,
     updatedAt: chat.updated_at,
+    settings: chatSettings(db, userId, chatId),
   };
 }

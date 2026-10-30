@@ -317,7 +317,6 @@ export function AuthScreen({api,onLogin,onChangeServer}: {api:Api;onLogin:(sessi
           {isLogin?<Pressable disabled={disabled} accessibilityRole="button" onPress={()=>{generation.current++;clearSecrets();go('recover');}} style={{minHeight:44,alignItems:'center',justifyContent:'center'}}><Text style={{color:t.accent,fontSize:13,fontWeight:'700'}}>Забыл пароль?</Text></Pressable>:null}
           {mode!=='login-name'&&mode!=='register-name'?<Pressable disabled={disabled} accessibilityRole="button" onPress={back} style={{minHeight:44,flexDirection:'row',alignItems:'center',justifyContent:'center',gap:6}}><Icon name="chevron-back" color={t.muted} size={15}/><Text style={{color:t.muted,fontSize:13}}>{mode==='recover'||mode==='waiting'||mode==='reset'?'Вернуться ко входу':'Назад'}</Text></Pressable>:null}
         </GlassSurface>
-        <Pressable disabled={disabled} onPress={()=>void leaveRecovery(true)} accessibilityRole="button" accessibilityLabel="Сменить сервер" style={{marginTop:15,alignSelf:'center',padding:12,flexDirection:'row',gap:7,alignItems:'center'}}><Icon name="link-outline" size={14} color={t.muted}/><Text numberOfLines={1} style={{color:t.muted,fontSize:12,maxWidth:245}}>{api.base.replace(/^https?:\/\//,'')}</Text><Icon name="chevron-down" size={12} color={t.muted}/></Pressable>
       </View>
     </ScrollView>
   </KeyboardAvoidingView>;

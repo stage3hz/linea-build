@@ -2,13 +2,25 @@ import * as SQLite from 'expo-sqlite';
 import * as SecureStore from 'expo-secure-store';
 import * as Crypto from 'expo-crypto';
 import type { PrivateVault } from './types';
+import { LEGACY_SERVER_URLS } from '../serverConfig';
 
 // The SQLCipher key is unrelated to the password and the two account words.
 // A missing/corrupt key never silently creates a replacement identity.
 export async function openVault(server: string, userId: string): Promise<PrivateVault> {
-  const scope = await Crypto.digestStringAsync(Crypto.CryptoDigestAlgorithm.SHA256, `${server}\u0000${userId}`);
+  // The same account on the same server keeps its vault when the server's address changes
+  // (nip.io → api.invizent.com): an existing vault under a known earlier address is reused.
+  const scopeOf = (base: string) => Crypto.digestStringAsync(Crypto.CryptoDigestAlgorithm.SHA256, `${base}\u0000${userId}`);
+  let scope = await scopeOf(server);
+  let key = await SecureStore.getItemAsync(`linea.e2ee.v1.${scope}`);
+  if (!key) {
+    for (const legacy of LEGACY_SERVER_URLS) {
+      if (legacy === server) continue;
+      const candidate = await scopeOf(legacy);
+      const legacyKey = await SecureStore.getItemAsync(`linea.e2ee.v1.${candidate}`);
+      if (legacyKey) { scope = candidate; key = legacyKey; break; }
+    }
+  }
   const keyName = `linea.e2ee.v1.${scope}`;
-  let key = await SecureStore.getItemAsync(keyName);
   const db = await SQLite.openDatabaseAsync(`linea-e2ee-${scope}.db`, { useNewConnection: true });
   try {
     const cipher = await db.getFirstAsync<Record<string, string>>('PRAGMA cipher_version');

@@ -1,5 +1,6 @@
 import { Platform } from 'react-native';
 import { toByteArray } from 'base64-js';
+import type { UserProfile } from './types';
 import type { Attachment, Chat, DeviceSession, LocalFile, Message, RecoveryChallenge, RecoveryRequest, RecoveryStatus, SecurityStatus, Session, User, UsernameStatus } from './types';
 import type { ClaimedBundle, CryptoDevice, EncryptedMessage, PublicBundle } from './e2ee/types';
 
@@ -103,6 +104,11 @@ export class Api {
   chats = () => this.request<{chats: Chat[]}>('/chats');
   users = (query: string) => this.request<{users: User[]}>(`/users?q=${encodeURIComponent(query)}`);
   createChat = (userId: string) => this.request<{chat: Chat}>('/chats', {method: 'POST', body: JSON.stringify({userId})});
+  userProfile = (userId: string) => this.request<UserProfile>(`/users/${encodeURIComponent(userId)}`);
+  contacts = () => this.request<{users: User[]}>('/contacts');
+  addContact = (userId: string) => this.request<{ok: true}>(`/contacts/${encodeURIComponent(userId)}`, {method: 'PUT'});
+  removeContact = (userId: string) => this.request<{ok: true}>(`/contacts/${encodeURIComponent(userId)}`, {method: 'DELETE'});
+  chatSettings = (chatId: string, change: Partial<{pinned: boolean; archived: boolean; muted: boolean}>) => this.request<{chat: Chat}>(`/chats/${encodeURIComponent(chatId)}/settings`, {method: 'PATCH', body: JSON.stringify(change)});
   messages = (chatId: string, before?: number) => this.request<{messages: Message[]; hasMore: boolean}>(`/chats/${encodeURIComponent(chatId)}/messages?limit=50${before ? `&before=${before}` : ''}`);
   sendEncrypted = (chatId: string, clientId: string, encrypted: EncryptedMessage) => this.request<{message: Message}>(`/chats/${encodeURIComponent(chatId)}/messages`, {method: 'POST', body: JSON.stringify({clientId, encrypted})});
   read = (chatId: string, messageId: number) => this.request<{ok: boolean; lastReadMessageId: number}>(`/chats/${encodeURIComponent(chatId)}/read`, {method: 'POST', body: JSON.stringify({messageId})});

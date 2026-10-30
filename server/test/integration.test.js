@@ -617,3 +617,34 @@ test('privacy: new chats, avatar visibility and mutual read receipts are enforce
   assert.equal((await request(app, 'PATCH', '/me/privacy', bob, { readReceipts: true })).statusCode, 200);
   assert.equal(await aliceSees(), message.id);
 });
+
+test('friends list and per-user chat settings (pin, archive, mute) stay private to their owner', async t => {
+  const { app } = await fixture(t);
+  const alice = await register(app, 'alice_social'), bob = await register(app, 'bob_social');
+  const chat = await newChat(app, alice, bob);
+  let profile = await request(app, 'GET', `/users/${bob.user.id}`, alice);
+  assert.equal(profile.statusCode, 200, profile.body);
+  assert.equal(profile.json().isContact, false);
+  assert.equal(profile.json().chatId, chat.id);
+  assert.equal((await request(app, 'PUT', `/contacts/${bob.user.id}`, alice)).statusCode, 200);
+  assert.equal((await request(app, 'PUT', `/contacts/${alice.user.id}`, alice)).statusCode, 400);
+  profile = await request(app, 'GET', `/users/${bob.user.id}`, alice);
+  assert.equal(profile.json().isContact, true);
+  assert.deepEqual((await request(app, 'GET', '/contacts', alice)).json().users.map(u => u.id), [bob.user.id]);
+  assert.deepEqual((await request(app, 'GET', '/contacts', bob)).json().users, []);
+  assert.equal((await request(app, 'DELETE', `/contacts/${bob.user.id}`, alice)).statusCode, 200);
+  assert.deepEqual((await request(app, 'GET', '/contacts', alice)).json().users, []);
+
+  const pinned = await request(app, 'PATCH', `/chats/${chat.id}/settings`, alice, { pinned: true, muted: true });
+  assert.equal(pinned.statusCode, 200, pinned.body);
+  assert.ok(pinned.json().chat.settings.pinnedAt);
+  assert.equal(pinned.json().chat.settings.muted, true);
+  const bobView = (await request(app, 'GET', '/chats', bob)).json().chats[0];
+  assert.deepEqual(bobView.settings, { pinnedAt: null, archived: false, muted: false });
+  const archived = await request(app, 'PATCH', `/chats/${chat.id}/settings`, alice, { archived: true });
+  assert.equal(archived.json().chat.settings.archived, true);
+  assert.equal(archived.json().chat.settings.pinnedAt, null);
+  assert.equal((await request(app, 'PATCH', `/chats/${chat.id}/settings`, bob, { pinned: 'yes' })).statusCode, 400);
+  const stranger = await register(app, 'carol_social');
+  assert.equal((await request(app, 'PATCH', `/chats/${chat.id}/settings`, stranger, { pinned: true })).statusCode, 404);
+});

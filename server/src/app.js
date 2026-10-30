@@ -12,6 +12,7 @@ import { installAuthRoutes, RECOVERY_LOCK_MS } from './auth.js';
 import { installE2eeRoutes, parseEncryptedMessage } from './e2ee.js';
 import { registerAiRoutes, aiProvider } from './ai.js';
 import { installUsernameRoutes } from './username.js';
+import { installSocialRoutes } from './social.js';
 import {
   HttpError, fail, passwordHash, tokenHash, newToken, validToken,
   objectBody, boundedText, positiveInteger, imageMime, safeFilename, createLimiter,
@@ -223,6 +224,7 @@ export async function buildApp({
   });
   registerAiRoutes(app,{authenticate:requireAuth,apiKey:aiApiKey,provider:aiProvider(aiProviderConfig),fetchImpl:aiFetch,allowedOrigins,now});
   installUsernameRoutes({app,db,now,authOptions,emitUser,emitChat});
+  installSocialRoutes({app,db,authOptions,publicUser,timestamp,serializationOptions,emitUser});
   const e2ee = installE2eeRoutes({
     app, db, now, timestamp, authOptions, emitUser, limiter, uploadDir,
     maxUploadBytes, maxStoredBytesPerUser, closeRevokedSockets,

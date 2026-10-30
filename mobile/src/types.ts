@@ -17,7 +17,10 @@ export type Message = {
 export type Chat = {
   id: string; peer: User; lastMessage: Message | null; unreadCount: number;
   lastReadMessageId: number; peerLastReadMessageId: number; createdAt: string; updatedAt: string;
+  settings?: ChatSettings;
 };
+export type ChatSettings = { pinnedAt: string | null; archived: boolean; muted: boolean };
+export type UserProfile = { user: User; isContact: boolean; chatId: string | null };
 export type Session = { token: string; user: User; securitySetupRequired?: boolean };
 export type RecoveryStatus = { requestId: string; readyAt: string; expiresAt: string; serverTime: string; status: 'waiting' | 'ready' };
 export type RecoveryChallenge = Omit<RecoveryStatus, 'status'> & { resetToken: string };

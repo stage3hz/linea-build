@@ -158,3 +158,22 @@ CREATE TABLE IF NOT EXISTS user_privacy (
   read_receipts INTEGER NOT NULL DEFAULT 1 CHECK(read_receipts IN (0,1)),
   updated_at TEXT NOT NULL
 );
+
+-- Friends list ("Добавить в друзья"): one-way, private to the owner.
+CREATE TABLE IF NOT EXISTS contacts (
+  owner_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+  contact_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+  created_at TEXT NOT NULL,
+  PRIMARY KEY(owner_id, contact_id),
+  CHECK(owner_id <> contact_id)
+);
+
+-- Per-user chat list settings: pinned chats, archive, mute. Never visible to the peer.
+CREATE TABLE IF NOT EXISTS chat_settings (
+  user_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+  chat_id TEXT NOT NULL REFERENCES chats(id) ON DELETE CASCADE,
+  pinned_at TEXT,
+  archived INTEGER NOT NULL DEFAULT 0 CHECK(archived IN (0,1)),
+  muted INTEGER NOT NULL DEFAULT 0 CHECK(muted IN (0,1)),
+  PRIMARY KEY(user_id, chat_id)
+);
