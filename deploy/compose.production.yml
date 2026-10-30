@@ -69,7 +69,9 @@ services:
     mem_limit: 512m
     networks:
       ai_egress: {}
-      backend: {}
+      # Fixed address: a dynamic one could take Caddy's 172.30.58.2 and stop Caddy from starting.
+      backend:
+        ipv4_address: 172.30.58.4
     logging:
       driver: json-file
       options:
