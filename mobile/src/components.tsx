@@ -4,6 +4,7 @@ import { ActivityIndicator, Image, KeyboardAvoidingView, Modal, Platform, Pressa
 import { Text, TextInput } from './typography';
 import { Ionicons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
+import Svg, { Path } from 'react-native-svg';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useTheme, formatSize } from './theme';
 import { GlassStage, GlassSurface } from './glass';
@@ -14,7 +15,20 @@ import { previewUri } from './media/previewModel';
 
 export type IconName = React.ComponentProps<typeof Ionicons>['name'];
 export function Icon({name, size=22, color}:{name:IconName;size?:number;color?:string}) {
-  const t=useTheme();return <Ionicons name={name} size={size} color={color||t.text}/>;
+  const t=useTheme();
+  if(name==='chevron-back')return <BackChevron size={size} color={color||t.text}/>;
+  return <Ionicons name={name} size={size} color={color||t.text}/>;
+}
+
+/**
+ * The back chevron, drawn like Telegram's: taller and thinner than the Ionicons glyph, round caps,
+ * and nudged ~5% left so it looks centred in a round button (its point carries the visual weight).
+ */
+function BackChevron({size,color}:{size:number;color:string}) {
+  const h=size*.78,w=size*.39,stroke=Math.max(1.6,size*.095),cx=size/2-size*.05,cy=size/2;
+  return <Svg width={size} height={size} viewBox={`0 0 ${size} ${size}`} accessibilityElementsHidden importantForAccessibility="no">
+    <Path d={`M${cx+w/2} ${cy-h/2} L${cx-w/2} ${cy} L${cx+w/2} ${cy+h/2}`} stroke={color} strokeWidth={stroke} strokeLinecap="round" strokeLinejoin="round" fill="none"/>
+  </Svg>;
 }
 
 export function IconButton({name,onPress,label,color,disabled=false,size=23,style}:{name:IconName;onPress:()=>void;label:string;color?:string;disabled?:boolean;size?:number;style?:StyleProp<ViewStyle>}) {
