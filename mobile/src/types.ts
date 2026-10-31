@@ -24,7 +24,8 @@ export type Chat = {
   settings?: ChatSettings;
 };
 export type ChatSettings = { pinnedAt: string | null; archived: boolean; muted: boolean };
-export type UserProfile = { user: User; isContact: boolean; chatId: string | null };
+export type UserProfile = { user: User; isContact: boolean; chatId: string | null; blocked?: boolean };
+export type ReportReason = 'spam' | 'abuse' | 'violence' | 'sexual' | 'illegal' | 'scam' | 'other';
 export type Session = { token: string; user: User; securitySetupRequired?: boolean };
 export type RecoveryStatus = { requestId: string; readyAt: string; expiresAt: string; serverTime: string; status: 'waiting' | 'ready' };
 export type RecoveryChallenge = Omit<RecoveryStatus, 'status'> & { resetToken: string };

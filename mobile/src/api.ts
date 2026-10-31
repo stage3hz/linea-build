@@ -107,6 +107,11 @@ export class Api {
   users = (query: string) => this.request<{users: User[]}>(`/users?q=${encodeURIComponent(query)}`);
   createChat = (userId: string) => this.request<{chat: Chat}>('/chats', {method: 'POST', body: JSON.stringify({userId})});
   userProfile = (userId: string) => this.request<UserProfile>(`/users/${encodeURIComponent(userId)}`);
+  blocks = () => this.request<{users: User[]}>('/blocks');
+  block = (userId: string) => this.request<{ok: true}>(`/blocks/${encodeURIComponent(userId)}`, {method: 'PUT'});
+  unblock = (userId: string) => this.request<{ok: true}>(`/blocks/${encodeURIComponent(userId)}`, {method: 'DELETE'});
+  report = (target: {userId?: string; communityId?: string}, reason: import('./types').ReportReason, comment = '') => this.request<{ok: true}>('/reports', {method: 'POST', body: JSON.stringify({...target, reason, ...(comment.trim() ? {comment: comment.trim()} : {})})});
+  deleteAccount = (currentPassword: string, currentConfirmationWord: string) => this.request<{ok: true}>('/auth/delete-account', {method: 'POST', body: JSON.stringify({currentPassword, currentConfirmationWord})});
   contacts = () => this.request<{users: User[]}>('/contacts');
   addContact = (userId: string) => this.request<{ok: true}>(`/contacts/${encodeURIComponent(userId)}`, {method: 'PUT'});
   removeContact = (userId: string) => this.request<{ok: true}>(`/contacts/${encodeURIComponent(userId)}`, {method: 'DELETE'});

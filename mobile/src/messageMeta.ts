@@ -15,7 +15,14 @@ export type MessageAction =
   | { type: 'pin'; target: string | null }
   | { type: 'vote'; target: string; options: number[] }
   // Call signalling travels inside the Signal ciphertext, so the SDP (with its DTLS fingerprint) is authenticated end to end.
-  | { type: 'call'; call: string; step: 'offer' | 'answer' | 'end'; video?: boolean; sdp?: string; reason?: 'hangup' | 'declined' | 'busy' | 'missed' | 'failed' };
+  | { type: 'call'; call: string; step: 'offer' | 'answer' | 'end'; video?: boolean; sdp?: string; reason?: 'hangup' | 'declined' | 'busy' | 'missed' | 'failed' }
+  // Chat rules both sides follow: auto-delete after `ttl` seconds (0 = off) and no copying/forwarding.
+  | { type: 'settings'; ttl: number; noCopy: boolean }
+  // «Очистить историю» for both: everything sent before this action disappears on both phones.
+  | { type: 'clear' };
+export const AUTO_DELETE = [0, 86400, 604800, 2592000] as const;
+export const autoDeleteLabel = (ttl: number) => ttl === 86400 ? '1 день' : ttl === 604800 ? '1 неделя' : ttl === 2592000 ? '1 месяц' : 'Выкл.';
+export type ChatRules = { ttl: number; noCopy: boolean };
 /** Several photos/videos sent together and shown as one grid. */
 export type AlbumRef = { id: string; index: number; count: number };
 export type Poll = { question: string; options: string[]; multiple: boolean };
@@ -41,6 +48,8 @@ function validAction(value: unknown): value is MessageAction {
       && (value.sdp === undefined || (typeof value.sdp === 'string' && value.sdp.length <= 60000 && value.sdp.startsWith('v=0')))
       && (value.step === 'end' ? value.sdp === undefined : typeof value.sdp === 'string')
       && (value.reason === undefined || ['hangup', 'declined', 'busy', 'missed', 'failed'].includes(value.reason as string));
+    case 'settings': return only(value, ['type', 'ttl', 'noCopy']) && (AUTO_DELETE as readonly unknown[]).includes(value.ttl) && typeof value.noCopy === 'boolean';
+    case 'clear': return only(value, ['type']);
     default: return false;
   }
 }
@@ -74,6 +83,8 @@ export function actionFallback(action: MessageAction, targetText = ''): string {
     case 'react': return action.emoji ? `${action.emoji} Реакция на сообщение${quote}` : `Реакция убрана${quote}`;
     case 'pin': return action.target ? `📌 Закреплено сообщение${quote}` : '📌 Сообщение откреплено';
     case 'vote': return action.options.length ? `🗳 Голос в опросе${quote}` : `Голос отменён${quote}`;
+    case 'settings': return action.ttl ? `⏱ Автоудаление: ${autoDeleteLabel(action.ttl)}` : action.noCopy ? '🚫 Копирование запрещено' : '⏱ Автоудаление выключено';
+    case 'clear': return '🧹 История очищена';
     case 'call': return action.step === 'offer' ? (action.video ? '📹 Видеозвонок' : '📞 Звонок') : action.step === 'answer' ? '📞 Звонок принят' : action.reason === 'declined' ? '📞 Звонок отклонён' : action.reason === 'missed' ? '📞 Пропущенный звонок' : '📞 Звонок завершён';
   }
 }
@@ -84,14 +95,14 @@ export const isAction = (message: Pick<Message, 'meta'>) => !!message.meta?.acti
 export type ReactionSummary = { emoji: Reaction; count: number; mine: boolean };
 export type PollResults = { counts: number[]; mine: number[]; voters: number };
 export type ViewMessage = Message & { edited: boolean; reactions: ReactionSummary[]; poll?: PollResults };
-export type ChatView = { messages: ViewMessage[]; pinned: ViewMessage | null; byClientId: Map<string, ViewMessage> };
+export type ChatView = { messages: ViewMessage[]; pinned: ViewMessage | null; byClientId: Map<string, ViewMessage>; rules: ChatRules; nextExpiry: number | null };
 
 /**
  * Applies encrypted actions to the decrypted history, oldest first.
  * Only the author may edit or delete a message; each participant has at most
  * one reaction per message (the latest wins); the latest pin from either side wins.
  */
-export function foldChat(messages: Message[], userId: string, hiddenForMe: ReadonlySet<string> = new Set()): ChatView {
+export function foldChat(messages: Message[], userId: string, hiddenForMe: ReadonlySet<string> = new Set(), now = Date.now()): ChatView {
   const ordered = [...messages].sort((a, b) => a.id - b.id);
   const content = new Map<string, Message>();
   const authorOf = new Map<string, string>();
@@ -99,10 +110,20 @@ export function foldChat(messages: Message[], userId: string, hiddenForMe: Reado
   const edits = new Map<string, string>(), deleted = new Set<string>(), reactions = new Map<string, Map<string, Reaction>>();
   const votes = new Map<string, Map<string, number[]>>();
   let pin: string | null = null;
+  // Rules in force at each moment: a message keeps the auto-delete that applied when it was sent.
+  let rules: ChatRules = { ttl: 0, noCopy: false }; let clearedBefore = 0;
+  const ttlOf = new Map<string, number>();
+  for (const message of ordered) {
+    const action = message.meta?.action;
+    if (!action) { ttlOf.set(message.clientId, rules.ttl); continue; }
+    if (message.cryptoState !== 'decrypted') continue;
+    if (action.type === 'settings') { rules = { ttl: action.ttl, noCopy: action.noCopy }; continue; }
+    if (action.type === 'clear') { clearedBefore = message.id; continue; }
+  }
   for (const message of ordered) {
     const action = message.meta?.action;
     if (!action || message.cryptoState !== 'decrypted') continue;
-    if (action.type === 'call') continue;
+    if (action.type === 'call' || action.type === 'settings' || action.type === 'clear') continue;
     if (action.type === 'pin') { pin = action.target; continue; }
     const author = authorOf.get(action.target);
     if (action.type === 'edit' || action.type === 'delete') {
@@ -125,8 +146,16 @@ export function foldChat(messages: Message[], userId: string, hiddenForMe: Reado
   }
   const view: ViewMessage[] = [];
   const byClientId = new Map<string, ViewMessage>();
+  let nextExpiry: number | null = null;
   for (const message of content.values()) {
     if (deleted.has(message.clientId) || hiddenForMe.has(messageKey(message))) continue;
+    if (message.id > 0 && message.id < clearedBefore) continue;
+    const ttl = ttlOf.get(message.clientId) || 0;
+    if (ttl) {
+      const expires = Date.parse(message.createdAt) + ttl * 1000;
+      if (expires <= now) continue;
+      if (nextExpiry === null || expires < nextExpiry) nextExpiry = expires;
+    }
     const perUser = reactions.get(message.clientId);
     const summary = new Map<Reaction, ReactionSummary>();
     if (perUser) for (const [reactor, emoji] of perUser) {
@@ -145,7 +174,7 @@ export function foldChat(messages: Message[], userId: string, hiddenForMe: Reado
     view.push(item); byClientId.set(message.clientId, item);
   }
   view.sort((a, b) => a.id - b.id);
-  return { messages: view, pinned: pin ? byClientId.get(pin) ?? null : null, byClientId };
+  return { messages: view, pinned: pin ? byClientId.get(pin) ?? null : null, byClientId, rules, nextExpiry };
 }
 
 /** Plain-text one-line quote for a reply. */

@@ -179,6 +179,7 @@ export function useMessenger(api: Api, user: User, onExpired: ()=>void) {
           if(selectedRef.current)void loadMessages(selectedRef.current);
         }else if(data.type==='message'&&data.message){void acceptMessage(data.message);}
         else if(data.type==='chat'&&data.chat){void refreshChats();}
+        else if(data.type==='chat.deleted'&&typeof data.chatId==='string'){const gone=data.chatId;setChats(prev=>prev.filter(c=>c.id!==gone));setMessages(prev=>{const next={...prev};delete next[gone];return next;});if(selectedRef.current===gone)selectChat(null);}
         else if(data.type==='read'){
           setChats(prev=>prev.map(c=>c.id===data.chatId?(data.userId===user.id?{...c,lastReadMessageId:Math.max(c.lastReadMessageId,data.messageId),unreadCount:0}:{...c,peerLastReadMessageId:Math.max(c.peerLastReadMessageId,data.messageId)}):c));
         }else if(data.type==='typing'&&data.userId!==user.id){setTyping(prev=>({...prev,[data.chatId]:data.isTyping?Date.now()+5000:0}));}

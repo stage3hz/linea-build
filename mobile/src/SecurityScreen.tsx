@@ -5,6 +5,7 @@ import { ApiError, type Api } from './api';
 import { Button, Icon, IconButton, Notice, SectionLabel, Sheet } from './components';
 import { GlassSurface } from './glass';
 import { useTheme } from './theme';
+import { AccountZone } from './AccountZone';
 import { SecretInput, newPasswordError, normalizeRecoveryWord, recoveryWordError } from './AuthScreen';
 import type { DeviceSession, SecurityStatus } from './types';
 
@@ -141,6 +142,7 @@ export function SecurityScreen({api,onBack,onCredentialsChanged,onSensitiveActio
           {loading&&status?<ActivityIndicator color={t.accent}/>:null}
           <Button label="Завершить другие сеансы" danger icon="log-out-outline" disabled={busy||!otherCount} onPress={()=>setAction({kind:'others'})}/>
         </GlassSurface>
+        <AccountZone api={api} confirmationConfigured={status.confirmationConfigured} onDeleted={()=>changedCallback.current('Аккаунт удалён.')}/>
       </>:null}
       <Text style={{color:t.subtle,fontSize:11,lineHeight:17,textAlign:'center',paddingHorizontal:10}}>Выбирай два разных непредсказуемых слова. Они должны отличаться друг от друга, ника и пароля. Все значения здесь вводятся вручную.</Text>
     </ScrollView>
