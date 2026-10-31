@@ -129,7 +129,7 @@ export function UserProfile({ api, user, onClose, chat, onMessage, onMute, onSea
     </ContextMenu>
     <Sheet visible={sheet === 'ttl'} title="Автоудаление" onClose={() => setSheet(null)}>
       <Text style={{ color: t.muted, fontSize: 13, lineHeight: 19, marginBottom: 6 }}>Новые сообщения в этом чате удалятся у вас обоих через выбранное время. Собеседник увидит, что автоудаление включено.</Text>
-      {AUTO_DELETE.map(ttl => <SheetAction key={ttl} icon={current.ttl === ttl ? 'checkmark-circle' : 'ellipse-outline'} label={ttl ? autoDeleteLabel(ttl) : 'Выключено'} onPress={() => { setSheet(null); if (ttl !== current.ttl && onRules) { lightFeedback(); onRules({ ...current, ttl }); setNotice(ttl ? `Автоудаление: ${autoDeleteLabel(ttl)}` : 'Автоудаление выключено'); } }} />)}
+      {AUTO_DELETE.map(ttl => <SheetAction key={ttl} icon={current.ttl === ttl ? 'checkmark-circle' : 'ellipse-outline'} label={ttl ? autoDeleteLabel(ttl) : 'Выключено'} selected={current.ttl === ttl} onPress={() => { setSheet(null); if (ttl !== current.ttl && onRules) { lightFeedback(); onRules({ ...current, ttl }); setNotice(ttl ? `Автоудаление: ${autoDeleteLabel(ttl)}` : 'Автоудаление выключено'); } }} />)}
     </Sheet>
     <Sheet visible={sheet === 'clear'} title="Очистить историю?" onClose={() => setSheet(null)}>
       <SheetAction icon="trash-outline" label="Удалить у обоих" description={`Все сообщения исчезнут у тебя и у ${shown.displayName}. Вернуть не получится.`} danger onPress={() => { setSheet(null); onClear?.(); setNotice('История очищена у обоих'); }} />
@@ -139,7 +139,7 @@ export function UserProfile({ api, user, onClose, chat, onMessage, onMute, onSea
     </Sheet>
     <Sheet visible={sheet === 'report'} title="Пожаловаться" onClose={() => { setSheet(null); setReason(null); }}>
       <Text style={{ color: t.muted, fontSize: 13, lineHeight: 19, marginBottom: 6 }}>Переписка зашифрована: модератор увидит только причину и профиль, но не сообщения.</Text>
-      {REASONS.map(item => <SheetAction key={item.id} icon={reason === item.id ? 'checkmark-circle' : 'ellipse-outline'} label={item.label} onPress={() => setReason(item.id)} />)}
+      {REASONS.map(item => <SheetAction key={item.id} icon={reason === item.id ? 'checkmark-circle' : 'ellipse-outline'} label={item.label} selected={reason === item.id} onPress={() => setReason(item.id)} />)}
       <View style={{ marginTop: 8 }}><Button label="Отправить жалобу" disabled={!reason || busy} loading={busy} onPress={() => void sendReport()} /></View>
     </Sheet>
   </Modal>;

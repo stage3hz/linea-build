@@ -118,8 +118,10 @@ export function Sheet({visible,title,onClose,children}:{visible:boolean;title:st
   </Modal>;
 }
 
-export function SheetAction({icon,label,description,onPress,danger=false}:{icon:IconName;label:string;description?:string;onPress:()=>void;danger?:boolean}) {
-  const t=useTheme();return <Pressable onPress={onPress} accessibilityRole="button" style={({pressed})=>({flexDirection:'row',alignItems:'center',gap:14,minHeight:76,paddingVertical:13,paddingHorizontal:10,borderRadius:19,backgroundColor:pressed?t.surface2:'transparent'})}><GlassSurface radius={16} material="clear" shadow={false} style={{width:46,height:46}} contentStyle={{flex:1,alignItems:'center',justifyContent:'center'}}><Icon name={icon} color={danger?t.danger:t.accent}/></GlassSurface><View style={{flex:1,gap:5}}><Text style={{fontSize:16,fontWeight:'600',color:danger?t.danger:t.text}}>{label}</Text>{description?<Text style={{fontSize:12,lineHeight:18,color:t.muted}}>{description}</Text>:null}</View><Icon name="chevron-forward" color={t.subtle} size={18}/></Pressable>;
+/** `selected` makes it a choice row (radio): no chevron, shorter, announced as selected. */
+export function SheetAction({icon,label,description,onPress,danger=false,selected}:{icon:IconName;label:string;description?:string;onPress:()=>void;danger?:boolean;selected?:boolean}) {
+  const choice=selected!==undefined;
+  const t=useTheme();return <Pressable onPress={onPress} accessibilityRole={choice?'radio':'button'} accessibilityState={choice?{selected}:undefined} style={({pressed})=>({flexDirection:'row',alignItems:'center',gap:14,minHeight:choice?60:76,paddingVertical:13,paddingHorizontal:10,borderRadius:19,backgroundColor:pressed?t.surface2:'transparent'})}><GlassSurface radius={16} material="clear" shadow={false} style={{width:46,height:46}} contentStyle={{flex:1,alignItems:'center',justifyContent:'center'}}><Icon name={icon} color={danger?t.danger:t.accent}/></GlassSurface><View style={{flex:1,gap:5}}><Text style={{fontSize:16,fontWeight:'600',color:danger?t.danger:t.text}}>{label}</Text>{description?<Text style={{fontSize:12,lineHeight:18,color:t.muted}}>{description}</Text>:null}</View>{choice?null:<Icon name="chevron-forward" color={t.subtle} size={18}/>}</Pressable>;
 }
 
 export function SectionLabel({children}:{children:React.ReactNode}) {
