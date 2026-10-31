@@ -3,6 +3,10 @@ import { AccessibilityInfo, Platform, StyleSheet, View, type StyleProp, type Vie
 import { LinearGradient } from 'expo-linear-gradient';
 import { BlurTargetView, BlurView } from 'expo-blur';
 import { GlassView, isGlassEffectAPIAvailable, isLiquidGlassAvailable } from 'expo-glass-effect';
+import { LiquidGlassView } from 'react-native-liquid-glassmorphism';
+
+/** Android 13+ can run the refraction shader (AGSL); older Android keeps the blur fallback. */
+const androidLiquid=Platform.OS==='android'&&typeof Platform.Version==='number'&&Platform.Version>=33;
 import { useTheme } from './theme';
 
 type GlassContextValue = { targetRef:RefObject<View|null>|undefined; reduceTransparency:boolean };
@@ -85,6 +89,12 @@ export function GlassSurface({children,style,contentStyle,radius=26,material='re
   // two-colour border on top of it were clipped together with the glass and showed stepped edges.
   if(nativeGlass&&!reduceTransparency)return <View style={[{borderRadius:radius},style]}>
     <GlassView pointerEvents="none" colorScheme={t.dark?'dark':'light'} glassEffectStyle={material} isInteractive={interactive} tintColor={t.glassTint} style={[StyleSheet.absoluteFill,{borderRadius:radius}]}/>
+    <NestedGlass.Provider value={true}><View style={[{flexGrow:1},contentStyle]}>{children}</View></NestedGlass.Provider>
+  </View>;
+  // Android 13+: the same Liquid Glass look as iOS 26 — the real content behind is blurred and
+  // bent at the edges by a shader, with a light rim. No fill or gradient layers on top.
+  if(androidLiquid&&!nested&&!reduceTransparency)return <View style={[{borderRadius:radius},style]}>
+    <LiquidGlassView pointerEvents="none" variant={material} borderRadius={radius} tintColor={t.glassTint} blurRadius={regular?14:6} thickness={1} edgeReflectionStrength={1} legibilityFloor={regular?.22:.12} interactive={false} tilt={false} style={StyleSheet.absoluteFill}/>
     <NestedGlass.Provider value={true}><View style={[{flexGrow:1},contentStyle]}>{children}</View></NestedGlass.Provider>
   </View>;
   return <View style={[{borderRadius:radius},shadowStyle,style]}>
