@@ -90,7 +90,8 @@ export function UserProfile({ api, user, onClose, chat, onMessage, onMute, onSea
     <GlassStage>{shown.bannerId || shown.bannerPreset ? <View pointerEvents="none" style={{ position: 'absolute', top: 0, left: 0, right: 0, height: 260 }}><ProfileBanner user={shown} api={api} height={260} /></View> : null}<InsetView style={{ flex: 1 }}>
       <View style={{ flexDirection: 'row', alignItems: 'center', paddingHorizontal: 10, paddingVertical: 6 }}>
         <IconButton name="chevron-back" label="Назад" onPress={onClose} />
-        <Text style={{ flex: 1, textAlign: 'center', color: t.text, fontSize: 16, fontWeight: '700' }}>Профиль</Text>
+        {/* No title, as in Telegram: over a banner the dark «Профиль» was unreadable. */}
+        <View style={{ flex: 1 }} />
         <IconButton name="ellipsis-horizontal" label="Ещё" onPress={() => { lightFeedback(); setMenu(true); }} />
       </View>
       <ScrollView contentContainerStyle={{ padding: 18, gap: 16, alignItems: 'center' }}>
