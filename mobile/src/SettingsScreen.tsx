@@ -117,7 +117,7 @@ function Root({ api, user, onBack, onProfile, onSecurity, onMusic, onLogout, ope
         <DecoratedAvatar user={user} api={api} size={100} animated />
       </Pressable>
       <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8, marginTop: 12 }}>
-        <PlatinaName user={user} style={{ color: t.text, fontSize: 26, fontWeight: '800', letterSpacing: -0.5 }} />
+        <PlatinaName user={user} numberOfLines={2} style={{ color: t.text, fontSize: 26, fontWeight: '800', letterSpacing: -0.5 }} />
         <StatusEmoji user={user} size={22} animated />
       </View>
       <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8, marginTop: 5 }}>

@@ -49,7 +49,7 @@ export function PlatinaName({ user, style, numberOfLines = 1, animated = true }:
 export function PlatinaSeal({ size = 'md', owner, onPress }: { size?: 'sm' | 'md'; owner?: Pick<User, 'id' | 'displayName'>; onPress?: () => void }) {
   const { enabled } = useMotion(); const [width, setWidth] = useState(0);
   const small = size === 'sm';
-  return <Pressable accessibilityRole="button" accessibilityLabel="Инвиз Platina" onPress={onPress || (() => openPlatinaShowcase(owner))} hitSlop={6}
+  return <Pressable accessibilityRole="button" accessibilityLabel="Инвиз Platina" onPress={onPress || (() => openPlatinaShowcase(owner))} hitSlop={12}
     onLayout={event => setWidth(event.nativeEvent.layout.width)}
     style={({ pressed }) => ({ height: small ? 18 : 22, borderRadius: small ? 6 : 7, overflow: 'hidden', flexDirection: 'row', alignItems: 'center', gap: small ? 3 : 5, paddingLeft: small ? 5 : 6, paddingRight: small ? 6 : 8, transform: [{ scale: pressed ? .96 : 1 }] })}>
     <Sheen width={width} still={!enabled} colors={PLATINUM} duration={4200} />

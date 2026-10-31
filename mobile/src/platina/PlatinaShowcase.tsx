@@ -72,7 +72,7 @@ export function PlatinaShowcaseHost({ api, me, onCustomize }: { api: Api; me: Us
           <Text style={{ color: '#12151C', fontSize: 16, fontWeight: '800' }}>{active ? 'Настроить оформление' : 'Попробовать Platina'}</Text>
         </Pressable>
         {note ? <Text style={{ color: t.muted, fontSize: 13, lineHeight: 19, textAlign: 'center', marginTop: 12, width: cardWidth }}>Покупка в приложении скоро появится. Сейчас Platina выдаёт администратор сервера.</Text>
-          : <Text style={{ color: '#6C7484', fontSize: 12, textAlign: 'center', marginTop: 10 }}>{active ? 'Platina уже активна' : 'Отменить можно в любой момент'}</Text>}
+          : <Text style={{ color: t.muted, fontSize: 12, textAlign: 'center', marginTop: 10 }}>{active ? 'Platina уже активна' : 'Отменить можно в любой момент'}</Text>}
       </ScrollView>
       <View style={{ position: 'absolute', top: insets.top + 8, right: 16 }}>
         <GlassSurface radius={22} shadow={false} interactive contentStyle={{ width: 44, height: 44, alignItems: 'center', justifyContent: 'center' }}>

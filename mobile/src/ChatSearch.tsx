@@ -34,7 +34,7 @@ export function ChatSearch({ api, me, store, onClose, onSaved }: { api: Api; me:
   const [query, setQuery] = useState(''); const [scope, setScope] = useState<Scope>('chats');
   const [recent, setRecent] = useState<Recent[]>([]);
   const [people, setPeople] = useState<User[] | null>(null); const [communities, setCommunities] = useState<CommunitySummary[] | null>(null);
-  const [busy, setBusy] = useState<string | null>(null);
+  const [busy, setBusy] = useState<string | null>(null); const [error, setError] = useState('');
   const needle = query.trim().toLocaleLowerCase();
   const input = useRef<React.ElementRef<typeof TextInput>>(null);
 
@@ -58,7 +58,8 @@ export function ChatSearch({ api, me, store, onClose, onSaved }: { api: Api; me:
     const existing = store.chats.find(chat => chat.peer.id === user.id);
     if (existing) { onClose(); store.selectChat(existing); return; }
     setBusy(user.id);
-    try { const { chat } = await api.createChat(user.id); onClose(); store.selectChat(chat); } catch { /* the row stays; user can retry */ } finally { setBusy(null); }
+    setError('');
+    try { const { chat } = await api.createChat(user.id); onClose(); store.selectChat(chat); } catch (e) { setError(`${e instanceof Error ? e.message : 'Не удалось открыть чат.'} Нажми ещё раз, чтобы повторить.`); } finally { setBusy(null); }
   };
   const openCommunity = (community: Pick<CommunitySummary, 'id' | 'name' | 'kind' | 'avatarId'>) => {
     remember({ kind: 'community', community: { id: community.id, name: community.name, kind: community.kind, avatarId: community.avatarId } });
@@ -94,6 +95,7 @@ export function ChatSearch({ api, me, store, onClose, onSaved }: { api: Api; me:
         <Pressable onPress={() => { Keyboard.dismiss(); onClose(); }} accessibilityRole="button" accessibilityLabel="Закрыть поиск" hitSlop={6} style={{ width: 44, height: 44, alignItems: 'center', justifyContent: 'center' }}><Icon name="close" size={22} color={t.text} /></Pressable>
       </GlassSurface>
     </View>
+    {error ? <Text accessibilityLiveRegion="polite" style={{ color: t.danger, fontSize: 13, paddingHorizontal: 16, paddingBottom: 8 }}>{error}</Text> : null}
     <FlatList data={rows} keyExtractor={row => row.key} keyboardShouldPersistTaps="handled" keyboardDismissMode="on-drag" alwaysBounceVertical contentContainerStyle={{ paddingBottom: 90 + insets.bottom, flexGrow: 1 }}
       ListHeaderComponent={!needle && rows.length ? <View style={{ flexDirection: 'row', alignItems: 'center', paddingHorizontal: 16, paddingTop: 4, paddingBottom: 6 }}>
         <Text style={{ flex: 1, color: t.muted, fontSize: 13, fontWeight: '600', letterSpacing: .3 }}>НЕДАВНИЕ</Text>
