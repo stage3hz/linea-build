@@ -57,7 +57,7 @@ export function GlassStage({children}:{children:React.ReactNode}) {
   const value=useMemo(()=>({targetRef,reduceTransparency}),[reduceTransparency]);
   const t=useTheme();
   return <GlassContext.Provider value={value}><View style={{flex:1,backgroundColor:t.bg}}>
-    {Platform.OS==='android'?<BlurTargetView ref={targetRef} collapsable={false} pointerEvents="none" style={StyleSheet.absoluteFill}><GlassBackdrop/></BlurTargetView>:<GlassBackdrop/>}
+    {Platform.OS==='android'&&!androidLiquid?<BlurTargetView ref={targetRef} collapsable={false} pointerEvents="none" style={StyleSheet.absoluteFill}><GlassBackdrop/></BlurTargetView>:<GlassBackdrop/>}
     {children}
   </View></GlassContext.Provider>;
 }
@@ -93,10 +93,10 @@ export function GlassSurface({children,style,contentStyle,radius=26,material='re
   </View>;
   // Android 13+: the same Liquid Glass look as iOS 26 — the real content behind is blurred and
   // bent at the edges by a shader, with a light rim. No fill or gradient layers on top.
-  if(androidLiquid&&!nested&&!reduceTransparency)return <View style={[{borderRadius:radius},style]}>
-    <LiquidGlassView pointerEvents="none" variant={material} borderRadius={radius} tintColor={t.glassTint} blurRadius={regular?14:6} thickness={1} edgeReflectionStrength={1} legibilityFloor={regular?.22:.12} interactive={false} tilt={false} style={StyleSheet.absoluteFill}/>
+  if(androidLiquid&&!nested&&!reduceTransparency)return <LiquidGlassView variant={material} borderRadius={radius} tintColor={t.glassTint} blurRadius={regular?14:6} thickness={1} edgeReflectionStrength={1} legibilityFloor={regular?.22:.12} interactive={false} tilt={false} style={[{borderRadius:radius},style]}>
+    {/* Content lives inside the glass: the shader excludes it from the backdrop, so icons do not bleed into the blur. */}
     <NestedGlass.Provider value={true}><View style={[{flexGrow:1},contentStyle]}>{children}</View></NestedGlass.Provider>
-  </View>;
+  </LiquidGlassView>;
   return <View style={[{borderRadius:radius},shadowStyle,style]}>
     <View pointerEvents="none" style={[StyleSheet.absoluteFill,{borderRadius:radius,overflow:'hidden'}]}>
       {hasBlur?<BlurView tint={t.dark?'dark':'light'} intensity={regular?64:35} blurMethod="dimezisBlurViewSdk31Plus" blurTarget={target} style={StyleSheet.absoluteFill}/>:null}
