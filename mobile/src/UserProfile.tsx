@@ -1,7 +1,8 @@
 import { useCalls } from './calls/CallProvider';
+import { ProfileEffect } from './platina/Effects';
 import { PlatinaName, PlatinaSeal, hasPlatina } from './platina/PlatinaMark';
 import React, { useEffect, useState } from 'react';
-import { ActivityIndicator, Modal, Pressable, ScrollView, View } from 'react-native';
+import { ActivityIndicator, Modal, Pressable, ScrollView, View, useWindowDimensions } from 'react-native';
 import * as Clipboard from 'expo-clipboard';
 import { Text } from './typography';
 import { Avatar, Button, Icon, InsetView, IconButton, Notice, Sheet, SheetAction, type IconName } from './components';
@@ -33,7 +34,7 @@ const REASONS: { id: ReportReason; label: string }[] = [
 
 /** Full-screen profile like in Telegram: big photo, name, @username, bio, actions. */
 export function UserProfile({ api, user, onClose, chat, onMessage, onMute, onSearch, onSecurity, status, shared, onOpenAttachment, onWallpaper, rules, onRules, onClear }: Props) {
-  const calls = useCalls();
+  const calls = useCalls(); const { width } = useWindowDimensions();
   const t = useTheme();
   const [contact, setContact] = useState<boolean | null>(null);
   const [fresh, setFresh] = useState<User | null>(null);
@@ -116,7 +117,7 @@ export function UserProfile({ api, user, onClose, chat, onMessage, onMute, onSea
         </GlassSurface>
         {shared && onOpenAttachment ? <SharedMedia messages={shared} onOpen={attachment => { onClose(); setTimeout(() => onOpenAttachment(attachment), 250); }} /> : null}
       </ScrollView>
-    </InsetView></GlassStage>
+    </InsetView>{/* Discord-style profile effect over the top while the profile is open. */}<ProfileEffect effect={shown.profileEffect} width={width} height={420} /></GlassStage>
     <ContextMenu visible={menu} y={90} onClose={() => setMenu(false)}>
       {chat && onRules ? <MenuItem icon="timer-outline" label={`Автоудаление · ${autoDeleteLabel(current.ttl)}`} onPress={() => { setMenu(false); setSheet('ttl'); }} /> : null}
       {chat && onRules ? <MenuItem icon={current.noCopy ? 'lock-closed' : 'lock-open-outline'} label={current.noCopy ? 'Разрешить копирование' : 'Запретить копирование'} onPress={() => { setMenu(false); lightFeedback(); onRules({ ...current, noCopy: !current.noCopy }); setNotice(current.noCopy ? 'Копирование снова разрешено' : 'Копировать и пересылать сообщения этого чата теперь нельзя обоим'); }} /> : null}

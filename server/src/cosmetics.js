@@ -6,6 +6,11 @@ export const AVATAR_FRAMES = Object.freeze(['platinum', 'aurora', 'frost', 'embe
 export const BANNER_PRESETS = Object.freeze(['deep', 'glacier', 'aurora', 'ocean', 'mint', 'night']);
 export const MAX_PROFILE_VIDEO_BYTES = 8 * 1024 * 1024;
 
+export const PROFILE_EFFECTS = Object.freeze(['snow', 'sparks', 'petals', 'bubbles', 'stars', 'embers']);
+export const NAMEPLATES = Object.freeze(['platinum', 'deep', 'aurora', 'ember', 'mint', 'night', 'sakura']);
+const EFFECTS = new Set(PROFILE_EFFECTS); const PLATES = new Set(NAMEPLATES);
+export const isProfileEffect = value => typeof value === 'string' && EFFECTS.has(value);
+export const isNameplate = value => typeof value === 'string' && PLATES.has(value);
 const FRAMES = new Set(AVATAR_FRAMES);
 const PRESETS = new Set(BANNER_PRESETS);
 export const isAvatarFrame = value => typeof value === 'string' && FRAMES.has(value);
@@ -25,7 +30,7 @@ export function videoMime(header) {
  * profile photo from this viewer: uploaded video and banner hide with it, presets stay.
  */
 export function visibleCosmetics(row, platina, showMedia = true) {
-  if (!platina.active) return { avatarVideoId: null, avatarFrame: null, bannerId: null, bannerKind: null, bannerPreset: null, seal: null };
+  if (!platina.active) return { avatarVideoId: null, avatarFrame: null, bannerId: null, bannerKind: null, bannerPreset: null, seal: null, profileEffect: null, nameplate: null };
   const banner = showMedia && row.banner_id && (row.banner_kind === 'image' || row.banner_kind === 'video');
   return {
     avatarVideoId: showMedia && row.avatar_video_id ? row.avatar_video_id : null,
@@ -35,5 +40,8 @@ export function visibleCosmetics(row, platina, showMedia = true) {
     bannerPreset: isBannerPreset(row.banner_preset) ? row.banner_preset : null,
     // The visible Platina mark (seal next to the name, platinum name). Other people see it.
     seal: 'platina',
+    // Discord-style: an effect over the profile when someone opens it, a backdrop behind the name in lists.
+    profileEffect: isProfileEffect(row.profile_effect) ? row.profile_effect : null,
+    nameplate: isNameplate(row.nameplate) ? row.nameplate : null,
   };
 }

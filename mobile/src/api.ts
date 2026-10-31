@@ -130,7 +130,7 @@ export class Api {
   read = (chatId: string, messageId: number) => this.request<{ok: boolean; lastReadMessageId: number}>(`/chats/${encodeURIComponent(chatId)}/read`, {method: 'POST', body: JSON.stringify({messageId})});
   privacy = () => this.request<PrivacyResponse>('/me/privacy');
   updatePrivacy = (change: Partial<Privacy>) => this.request<PrivacyResponse>('/me/privacy', {method: 'PATCH', body: JSON.stringify(change)});
-  profile = (fields: Partial<Pick<User, 'displayName'|'bio'|'avatarColor'|'avatarId'|'avatarVideoId'|'avatarFrame'|'bannerId'|'bannerPreset'>>) => this.request<{user: User}>('/me', {method: 'PATCH', body: JSON.stringify(fields)});
+  profile = (fields: Partial<Pick<User, 'displayName'|'bio'|'avatarColor'|'avatarId'|'avatarVideoId'|'avatarFrame'|'bannerId'|'bannerPreset'|'profileEffect'|'nameplate'>>) => this.request<{user: User}>('/me', {method: 'PATCH', body: JSON.stringify(fields)});
   changeLoginName = (newLogin: string, currentPassword: string, currentConfirmationWord?: string) => this.request<{ok: true; loginName: string}>('/auth/login-name', { method: 'POST', body: JSON.stringify({ newLogin, currentPassword, currentConfirmationWord }) });
   callIce = () => this.request<{iceServers: {urls: string[]; username?: string; credential?: string}[]; ttl: number}>('/calls/ice');
   usernameStatus = () => this.request<UsernameStatus>('/me/username');

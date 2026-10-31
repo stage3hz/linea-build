@@ -12,11 +12,14 @@ import type { User } from '../types';
 import { DecoratedAvatar, ProfileBanner } from './Decor';
 import { PLATINUM, PlatinaName, PlatinaSeal, onPlatinaShowcase } from './PlatinaMark';
 import { usePlatina } from './usePlatina';
+import { ProfileEffect } from './Effects';
 
 const PERKS: { icon: IconName; title: string; text: string }[] = [
   { icon: 'videocam', title: 'Живой аватар', text: 'Видео до 10 секунд вместо фото' },
   { icon: 'ellipse-outline', title: 'Рамки', text: 'Платиновая и ещё шесть анимированных' },
   { icon: 'image', title: 'Живой баннер', text: 'Фото, видео или анимация над профилем' },
+  { icon: 'sparkles', title: 'Эффект профиля', text: 'Снег, искры, лепестки — когда открывают твой профиль' },
+  { icon: 'albums', title: 'Табличка', text: 'Фон за именем в чатах и списках участников' },
   { icon: 'diamond', title: 'Платиновое имя и печать', text: 'Видно в чатах, каналах и на серверах' },
   { icon: 'happy', title: 'Анимированные эмодзи', text: 'Статус у имени и большие эмодзи в чатах' },
   { icon: 'eye-off', title: 'Невидимка', text: 'Скрыть время захода и прочтения' },
@@ -35,7 +38,7 @@ export function PlatinaShowcaseHost({ api, me, onCustomize }: { api: Api; me: Us
   const insets = useSafeAreaInsets(); const { width } = useWindowDimensions();
   const [note, setNote] = useState(false);
   useEffect(() => { if (!open) setNote(false); }, [open]);
-  const dressed: User = { ...me, seal: 'platina', avatarFrame: me.avatarFrame || 'platinum' };
+  const dressed: User = { ...me, seal: 'platina', avatarFrame: me.avatarFrame || 'platinum', profileEffect: me.profileEffect || 'sparks' };
   const other = open?.owner && open.owner.id !== me.id ? open.owner : null;
   const cardWidth = Math.min(width - 32, 520);
   return <Modal visible={!!open} animationType="slide" presentationStyle="fullScreen" onRequestClose={() => setOpen(null)} statusBarTranslucent>
@@ -47,6 +50,7 @@ export function PlatinaShowcaseHost({ api, me, onCustomize }: { api: Api; me: Us
           <View style={{ height: 120 }}>
             {me.bannerId || me.bannerPreset ? <ProfileBanner user={me} api={api} height={120} width={cardWidth} /> : <MusicAmbient width={cardWidth} height={120} tone="deep" />}
             <LinearGradient colors={['transparent', '#101217']} locations={[0.4, 1]} style={StyleSheet.absoluteFill} />
+            <ProfileEffect effect={dressed.profileEffect} width={cardWidth} height={200} />
           </View>
           <View style={{ marginTop: -46, paddingHorizontal: 18, paddingBottom: 18 }}>
             <View style={{ alignSelf: 'flex-start', padding: 5, borderRadius: 60, backgroundColor: '#101217' }}><DecoratedAvatar user={dressed} api={api} size={78} animated /></View>

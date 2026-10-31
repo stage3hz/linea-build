@@ -1,4 +1,6 @@
 import React, { useEffect, useState } from 'react';
+import { Nameplate } from '../platina/Effects';
+import { DecoratedAvatar } from '../platina/Decor';
 import { ActivityIndicator, Platform, Pressable, ScrollView, Switch, View } from 'react-native';
 import * as ImagePicker from 'expo-image-picker';
 import * as ImageManipulator from 'expo-image-manipulator';
@@ -74,8 +76,9 @@ export function CommunitySettings({ api, me, community, onBack, onChanged, onLef
         {community.roles.map(item => row(item.id, item.isDefault ? 'people-outline' : 'shield-outline', item.name, item.isDefault ? 'все' : undefined, () => setRole(item), item.isDefault ? undefined : item.color))}
         {row('new-role', 'add', 'Новая роль', undefined, () => setRole('new'), t.accent)}
       </>) : null}
-      {section(blog ? 'Подписчики' : 'Участники', !members ? <ActivityIndicator color={t.accent} style={{ padding: 16 }} /> : <>{members.map(item => <Pressable key={item.user.id} disabled={!can(community, PERM.MANAGE_ROLES) && !can(community, PERM.KICK)} onPress={() => setMember(item)} style={({ pressed }) => ({ flexDirection: 'row', alignItems: 'center', gap: 11, paddingHorizontal: 12, paddingVertical: 7, opacity: pressed ? .6 : 1 })}>
-        <Avatar user={item.user} api={api} size={36} />
+      {section(blog ? 'Подписчики' : 'Участники', !members ? <ActivityIndicator color={t.accent} style={{ padding: 16 }} /> : <>{members.map(item => <Pressable key={item.user.id} disabled={!can(community, PERM.MANAGE_ROLES) && !can(community, PERM.KICK)} onPress={() => setMember(item)} style={({ pressed }) => ({ flexDirection: 'row', alignItems: 'center', gap: 11, paddingHorizontal: 12, paddingVertical: 7, borderRadius: 14, overflow: 'hidden', opacity: pressed ? .6 : 1 })}>
+        <Nameplate plate={item.user.nameplate} radius={14} />
+        <DecoratedAvatar user={item.user} api={api} size={36} />
         <View style={{ flex: 1, minWidth: 0 }}><Text numberOfLines={1} style={{ color: (community.roles.filter(r => item.roleIds.includes(r.id)).sort((a, b) => b.position - a.position)[0]?.color) || t.text, fontSize: 15, fontWeight: '600' }}>{item.user.displayName}{item.owner ? ' 👑' : ''}</Text><Text numberOfLines={1} style={{ color: t.muted, fontSize: 12 }}>{community.roles.filter(r => item.roleIds.includes(r.id)).map(r => r.name).join(', ') || `@${item.user.username}`}</Text></View>
       </Pressable>)}</>)}
       {section('Сообщество', owner ? row('delete', 'trash-outline', 'Удалить сообщество', undefined, () => setConfirm('delete'), t.danger) : row('leave', 'exit-outline', blog ? 'Отписаться' : 'Покинуть сервер', undefined, () => setConfirm('leave'), t.danger))}

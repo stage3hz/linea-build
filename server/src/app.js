@@ -12,7 +12,7 @@ import { join, resolve } from 'node:path';
 import { Transform } from 'node:stream';
 import { pipeline } from 'node:stream/promises';
 import { openDatabase, transaction, publicUser as serializePublicUser, publicChat, publicMessage, publicAttachment, privacyOf, effectivePrivacy, PLATINA_PRIVACY, userForViewer, receiptsVisible, presenceVisible, chatSettings } from './database.js';
-import { isAvatarFrame, isBannerPreset, MAX_PROFILE_VIDEO_BYTES, videoMime } from './cosmetics.js';
+import { isAvatarFrame, isBannerPreset, isProfileEffect, isNameplate, MAX_PROFILE_VIDEO_BYTES, videoMime } from './cosmetics.js';
 import { platinaState } from './entitlements.js';
 import { installAuthRoutes, RECOVERY_LOCK_MS } from './auth.js';
 import { installE2eeRoutes, parseEncryptedMessage } from './e2ee.js';
@@ -249,6 +249,7 @@ export async function buildApp({
   installCallRoutes({app,authOptions,now,turn});
   installSocialRoutes({app,db,authOptions,publicUser,timestamp,serializationOptions,emitUser});
   db.exec(PUSH_SCHEMA);
+  { const columns = new Set(db.prepare('PRAGMA table_info(users)').all().map(column => column.name)); for (const column of ['profile_effect', 'nameplate']) if (!columns.has(column)) db.exec(`ALTER TABLE users ADD COLUMN ${column} TEXT`); }
   db.exec(MODERATION_SCHEMA);
   installModerationRoutes({ app, db, authOptions, publicUser, timestamp, limiter });
   // Push token of this signed-in device. It lives as long as the session: a revoked or
@@ -315,7 +316,7 @@ export async function buildApp({
   });
 
   app.patch('/me', authOptions, async request => {
-    const body = objectBody(request.body, ['displayName', 'bio', 'avatarColor', 'avatarId', 'avatarVideoId', 'avatarFrame', 'bannerId', 'bannerPreset']);
+    const body = objectBody(request.body, ['displayName', 'bio', 'avatarColor', 'avatarId', 'avatarVideoId', 'avatarFrame', 'bannerId', 'bannerPreset', 'profileEffect', 'nameplate']);
     const current = db.prepare('SELECT * FROM users WHERE id=?').get(request.auth.user_id);
     const displayName = body.displayName === undefined ? current.display_name : boundedText(body.displayName, 'Имя', 1, 50);
     const bio = body.bio === undefined ? current.bio : boundedText(body.bio, 'О себе', 0, 160);
@@ -331,7 +332,7 @@ export async function buildApp({
     // Platina decoration. Clearing (null) is always allowed; setting needs an active Platina.
     const platinaActive = platinaState(db, current.id, now()).active;
     const needPlatina = key => { if (body[key] !== undefined && body[key] !== null && !platinaActive) fail(403, 'Это оформление доступно с Platina.', { code: 'PLATINA_REQUIRED' }); };
-    for (const key of ['avatarVideoId', 'avatarFrame', 'bannerId', 'bannerPreset']) needPlatina(key);
+    for (const key of ['avatarVideoId', 'avatarFrame', 'bannerId', 'bannerPreset', 'profileEffect', 'nameplate']) needPlatina(key);
     const ownUpload = (id, label) => {
       if (typeof id !== 'string') fail(400, `Некорректное ${label}.`);
       const upload = db.prepare('SELECT * FROM uploads WHERE id=? AND owner_id=? AND is_encrypted=0 AND attached_message_id IS NULL').get(id, current.id);
@@ -347,6 +348,10 @@ export async function buildApp({
     if (avatarFrame !== null && avatarFrame !== undefined && !isAvatarFrame(avatarFrame)) fail(400, 'Неизвестная рамка.');
     const bannerPreset = body.bannerPreset === undefined ? current.banner_preset : body.bannerPreset;
     if (bannerPreset !== null && bannerPreset !== undefined && !isBannerPreset(bannerPreset)) fail(400, 'Неизвестный баннер.');
+    const profileEffect = body.profileEffect === undefined ? current.profile_effect : body.profileEffect;
+    if (profileEffect !== null && profileEffect !== undefined && !isProfileEffect(profileEffect)) fail(400, 'Неизвестный эффект профиля.');
+    const nameplate = body.nameplate === undefined ? current.nameplate : body.nameplate;
+    if (nameplate !== null && nameplate !== undefined && !isNameplate(nameplate)) fail(400, 'Неизвестная табличка.');
     let bannerId = current.banner_id; let bannerKind = current.banner_kind;
     if (body.bannerId !== undefined) {
       bannerId = body.bannerId; bannerKind = null;
@@ -357,8 +362,8 @@ export async function buildApp({
         else fail(400, 'Баннер должен быть фото или видео.');
       }
     }
-    db.prepare('UPDATE users SET display_name=?,bio=?,avatar_color=?,avatar_id=?,avatar_video_id=?,avatar_frame=?,banner_id=?,banner_kind=?,banner_preset=? WHERE id=?')
-      .run(displayName, bio, avatarColor.toUpperCase(), avatarId, avatarVideoId ?? null, avatarFrame ?? null, bannerId ?? null, bannerKind ?? null, bannerPreset ?? null, current.id);
+    db.prepare('UPDATE users SET display_name=?,bio=?,avatar_color=?,avatar_id=?,avatar_video_id=?,avatar_frame=?,banner_id=?,banner_kind=?,banner_preset=?,profile_effect=?,nameplate=? WHERE id=?')
+      .run(displayName, bio, avatarColor.toUpperCase(), avatarId, avatarVideoId ?? null, avatarFrame ?? null, bannerId ?? null, bannerKind ?? null, bannerPreset ?? null, profileEffect ?? null, nameplate ?? null, current.id);
     const user = publicUser(db.prepare('SELECT * FROM users WHERE id=?').get(current.id));
     emitUser(current.id, { type: 'profile', user });
     const chats = db.prepare('SELECT chat_id FROM chat_members WHERE user_id=?').all(current.id);

@@ -704,7 +704,7 @@ test('Platina decoration: animated avatar, frame and banner need Platina and sta
   const png = Buffer.concat([Buffer.from([137, 80, 78, 71, 13, 10, 26, 10, 0, 0, 0, 13]), Buffer.from('IHDR'), Buffer.alloc(40, 0)]);
   const banner = await uploadAvatar(app, alice, png, 'banner.png', 'image/png');
 
-  for (const patch of [{ avatarVideoId: video.id }, { avatarFrame: 'aurora' }, { bannerPreset: 'deep' }, { bannerId: banner.id }]) {
+  for (const patch of [{ avatarVideoId: video.id }, { avatarFrame: 'aurora' }, { bannerPreset: 'deep' }, { bannerId: banner.id }, { profileEffect: 'snow' }, { nameplate: 'aurora' }]) {
     const locked = await request(app, 'PATCH', '/me', alice, patch);
     assert.equal(locked.statusCode, 403, JSON.stringify(patch));
     assert.equal(locked.json().code, 'PLATINA_REQUIRED');
@@ -722,6 +722,12 @@ test('Platina decoration: animated avatar, frame and banner need Platina and sta
   const peer = (await request(app, 'GET', '/chats', bob)).json().chats[0].peer;
   assert.equal(peer.avatarVideoId, video.id);
   assert.equal(peer.avatarFrame, 'aurora');
+  assert.equal(peer.seal, 'platina');
+  assert.equal((await request(app, 'PATCH', '/me', alice, { profileEffect: 'fireworks' })).statusCode, 400);
+  assert.equal((await request(app, 'PATCH', '/me', alice, { profileEffect: 'snow', nameplate: 'aurora' })).statusCode, 200);
+  const dressed = (await request(app, 'GET', '/chats', bob)).json().chats[0].peer;
+  assert.equal(dressed.profileEffect, 'snow');
+  assert.equal(dressed.nameplate, 'aurora');
   const fetched = await request(app, 'GET', `/files/${video.id}`, bob);
   assert.equal(fetched.statusCode, 200);
   assert.equal(fetched.headers['content-type'], 'video/mp4');

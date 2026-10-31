@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import { EffectSwatch, NAMEPLATES, Nameplate, PROFILE_EFFECTS } from './Effects';
 import { Platform, Pressable, ScrollView, View } from 'react-native';
 import * as ImagePicker from 'expo-image-picker';
 import * as ImageManipulator from 'expo-image-manipulator';
@@ -99,6 +100,28 @@ export function PlatinaStudio({ api, user, active, onUser }: { api: Api; user: U
         </Choice>)}
       </ScrollView>
       <Button label={user.bannerId ? 'Заменить своё фото или видео' : 'Своё фото или видео'} secondary icon="image-outline" loading={busy === 'banner'} disabled={!active || !!busy} onPress={() => void pick('banner')} />
+    </Section>
+
+    <Section title="Эффект профиля" hint="Играет поверх твоего профиля, когда его открывают.">
+      <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ gap: 10, paddingVertical: 4, paddingHorizontal: 2 }}>
+        <Choice label="Нет" selected={!user.profileEffect} disabled={!active || !!busy} onPress={() => void apply('effect', { profileEffect: null }, 'Эффект убран.')}>
+          <View style={{ width: 56, height: 56, borderRadius: 16, borderWidth: 1, borderStyle: 'dashed', borderColor: t.subtle }} />
+        </Choice>
+        {PROFILE_EFFECTS.map(effect => <Choice key={effect.id} label={effect.label} selected={user.profileEffect === effect.id} disabled={!active || !!busy} onPress={() => void apply('effect', { profileEffect: effect.id }, `Эффект «${effect.label}».`)}>
+          <EffectSwatch effect={effect.id} />
+        </Choice>)}
+      </ScrollView>
+    </Section>
+
+    <Section title="Табличка" hint="Фон за твоим именем в списке чатов и участников серверов.">
+      <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ gap: 10, paddingVertical: 4, paddingHorizontal: 2 }}>
+        <Choice label="Нет" selected={!user.nameplate} disabled={!active || !!busy} onPress={() => void apply('plate', { nameplate: null }, 'Табличка убрана.')}>
+          <View style={{ width: 120, height: 40, borderRadius: 12, borderWidth: 1, borderStyle: 'dashed', borderColor: t.subtle }} />
+        </Choice>
+        {NAMEPLATES.map(plate => <Choice key={plate.id} label={plate.label} selected={user.nameplate === plate.id} disabled={!active || !!busy} onPress={() => void apply('plate', { nameplate: plate.id }, `Табличка «${plate.label}».`)}>
+          <View style={{ width: 120, height: 40, borderRadius: 12, overflow: 'hidden', backgroundColor: t.surface2, justifyContent: 'center', paddingLeft: 10 }}><Nameplate plate={plate.id} radius={12} /><Text numberOfLines={1} style={{ color: t.text, fontSize: 13, fontWeight: '600' }}>{user.displayName}</Text></View>
+        </Choice>)}
+      </ScrollView>
     </Section>
   </View>;
 }
