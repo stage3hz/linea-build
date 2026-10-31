@@ -168,13 +168,12 @@ export function ProfileScreen({ api, user, theme, darkTheme, onTheme, onDarkThem
       </GlassSurface>
       {error ? <Notice text={error} error/> : null}{notice ? <Notice text={notice}/> : null}
       <GlassSurface material="regular" radius={28} contentStyle={{ padding: 20, gap: 15 }}>
-        <SectionLabel>Имя и вход</SectionLabel>
+        {/* The login is private: it is not shown here and cannot be changed (it was shown and could be
+            changed before). Only the public @name is edited on this screen. */}
+        <SectionLabel>Публичное имя</SectionLabel>
         {statusLoading ? <View style={{ flexDirection: 'row', gap: 10, alignItems: 'center' }}><ActivityIndicator size="small" color={t.accent}/><Text style={{ color: t.muted, fontSize: 12 }}>Проверяем настройки аккаунта…</Text></View> : null}
         {statusError ? <Notice text={statusError} error onRetry={() => void loadStatus()}/> : null}
         {status ? <>
-          <ReadOnlyValue label="Логин для входа" value={status.loginName} onCopy={() => void copy(status.loginName, 'login')} copied={copied === 'login'}/>
-          <Text style={{ color: t.muted, fontSize: 12, lineHeight: 18 }}>Логин нужен только для входа и никому не показывается. Публичное имя ниже — отдельное.</Text>
-          <LoginChange api={api} onChanged={loginName => setStatus(current => current ? { ...current, loginName } : current)}/>
           <ReadOnlyValue label="ID аккаунта" value={status.accountId} onCopy={() => void copy(status.accountId, 'id')} copied={copied === 'id'} small/>
           <Field label="Публичное имя пользователя" value={username} onChangeText={value => { setUsername(value); setNotice(''); }} autoCapitalize="none" autoCorrect={false} maxLength={25} editable={!busy && ready && status.canChangeUsername} placeholder="@username"/>
           <Text style={{ color: t.muted, fontSize: 12, lineHeight: 18 }}>{status.freeChangeAvailable ? 'Доступна одна бесплатная смена имени. После неё дополнительные смены доступны с Platina.' : status.canChangeUsername ? 'Бесплатная смена уже использована. Сейчас дополнительные смены доступны с Platina.' : 'Бесплатная смена уже использована. Для новой смены нужна активная Platina.'}</Text>
@@ -214,28 +213,3 @@ function ReadOnlyValue({ label, value, onCopy, copied, small = false }: { label:
 }
 
 /** Change the private sign-in login (password + confirmation word required; other devices are signed out). */
-function LoginChange({ api, onChanged }: { api: Api; onChanged: (loginName: string) => void }) {
-  const [open, setOpen] = useState(false); const [login, setLogin] = useState(''); const [password, setPassword] = useState(''); const [word, setWord] = useState('');
-  const [busy, setBusy] = useState(false); const [error, setError] = useState(''); const [done, setDone] = useState('');
-  const next = login.trim().replace(/^@/, '').toLowerCase();
-  const valid = /^[a-z0-9_]{3,24}$/.test(next) && password.length > 0;
-  const submit = async () => {
-    if (!valid || busy) return; setBusy(true); setError('');
-    try { const result = await api.changeLoginName(next, password, word || undefined); onChanged(result.loginName); setDone(`Логин изменён на ${result.loginName}. Другие устройства вышли из аккаунта.`); setOpen(false); setPassword(''); setWord(''); setLogin(''); }
-    catch (e) { setError(e instanceof Error ? e.message : 'Не удалось сменить логин.'); }
-    finally { setBusy(false); }
-  };
-  return <>
-    <Button label="Сменить логин" secondary icon="key-outline" onPress={() => { setError(''); setDone(''); setOpen(true); }}/>
-    {done ? <Notice text={done}/> : null}
-    <Sheet visible={open} title="Новый логин для входа" onClose={() => { if (!busy) setOpen(false); }}>
-      <View style={{ gap: 14 }}>
-        <Field label="Новый логин" value={login} onChangeText={setLogin} autoCapitalize="none" autoCorrect={false} maxLength={25} placeholder="латиница, цифры, _" editable={!busy}/>
-        <Field label="Текущий пароль" value={password} onChangeText={setPassword} secureTextEntry autoCapitalize="none" autoCorrect={false} textContentType="password" editable={!busy}/>
-        <Field label="Слово подтверждения" value={word} onChangeText={setWord} autoCapitalize="none" autoCorrect={false} editable={!busy}/>
-        {error ? <Notice text={error} error/> : null}
-        <Button label="Сменить логин" icon="checkmark" loading={busy} disabled={!valid || busy} onPress={() => void submit()}/>
-      </View>
-    </Sheet>
-  </>;
-}

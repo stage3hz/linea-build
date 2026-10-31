@@ -477,3 +477,23 @@ test('media routes stay off for the OpenRouter provider and fail closed on a bad
   const bad = await freellmapiFixture(t, () => jsonResponse({ data: [{ b64_json: Buffer.from('<svg/>').toString('base64') }] }));
   assert.equal((await bad.call('POST', '/ai/image', { prompt: 'кот', consent: true })).statusCode, 502, 'non-raster output is rejected');
 });
+
+test('without Platina: fast answers only — model choice, photos, media and the model list need Platina', async t => {
+  const { aiProvider } = await import('../src/ai.js');
+  const sent = [];
+  const f = await fixture(t, {
+    isPlatina: () => false,
+    provider: aiProvider({ provider: 'freellmapi', baseUrl: 'http://freellmapi:3001/v1/' }),
+    fetchImpl: async (url, init) => { sent.push(JSON.parse(init.body)); return good(); },
+  });
+  assert.equal((await f.status()).json().platina, false);
+  const plain = await f.post();
+  assert.equal(plain.statusCode, 200);
+  assert.equal(sent[0].model, 'auto:fast', 'free users get the fast route');
+  const chosen = await f.post({ ...body(), model: 'auto:smart' });
+  assert.equal(chosen.statusCode, 403);
+  assert.equal(chosen.json().code, 'AI_PLATINA_REQUIRED');
+  assert.equal((await f.app.inject({ method: 'GET', url: '/ai/models', headers: { authorization: 'Bearer test-session' } })).statusCode, 403);
+  assert.equal((await f.app.inject({ method: 'POST', url: '/ai/image', headers: { authorization: 'Bearer test-session' }, payload: { prompt: 'кот', consent: true } })).statusCode, 403);
+  assert.equal(sent.length, 1);
+});

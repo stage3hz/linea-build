@@ -283,6 +283,10 @@ export function ChatScreen({api,user,chat,store,onBack,wide=false,onOpenMusic}: 
       </Pressable>
       <IconButton name="close" label="Открепить" size={18} color={t.muted} onPress={()=>store.sendAction(chat.id,{type:'pin',target:null})} style={{width:38,height:40}}/>
     </GlassSurface>:null}
+    </View>
+    {/* Notices sit in their own layer under the header: when they lived inside the header container
+        and appeared, iOS 26 glass buttons of the header stretched to the container's new height. */}
+    <View pointerEvents="box-none" style={{position:'absolute',top:headerHeight,left:0,right:0,zIndex:5}}>
     {notice?<Pressable onPress={()=>setNotice('')} style={{alignSelf:'center',marginVertical:4,paddingVertical:7,paddingHorizontal:14,backgroundColor:t.accentSoft,borderRadius:16,borderWidth:1,borderColor:t.border}}><Text style={{color:t.accent,fontSize:12}}>{notice}</Text></Pressable>:null}
     {failedActions.length?<Pressable onPress={()=>failedActions.forEach(item=>void store.retry(item))} style={{alignSelf:'center',marginVertical:4,paddingVertical:7,paddingHorizontal:14,borderRadius:16,borderWidth:1,borderColor:t.danger}}><Text style={{color:t.danger,fontSize:12}}>Действие не отправлено · повторить</Text></Pressable>:null}
     {store.cryptoError?<View style={{paddingHorizontal:13,paddingBottom:8}}><Notice text={store.cryptoError} error onRetry={()=>setSecurityOpen(true)}/></View>:null}

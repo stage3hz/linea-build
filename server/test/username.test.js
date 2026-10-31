@@ -409,22 +409,10 @@ test('permanent Platina and its emoji survive public renames, server restart and
   assert.equal('statusEmojiPermanent' in peer, false);
 });
 
-test('the sign-in login can be changed with the current password and confirmation word', async t => {
+test('the sign-in login cannot be changed (it is private and permanent)', async t => {
   const f = await fixture(t);
   const alice = await register(f.app, 'samelogin');
-  const other = await login(f.app, 'samelogin'); assert.equal(other.statusCode, 200);
-  const change = (payload, account = alice) => request(f.app, 'POST', '/auth/login-name', account, payload);
-  assert.equal((await change({ currentPassword: 'wrong', currentConfirmationWord: CONFIRMATION, newLogin: 'secretlogin' })).statusCode, 401);
-  await register(f.app, 'bob');
-  assert.equal((await change({ currentPassword: PASSWORD, currentConfirmationWord: CONFIRMATION, newLogin: 'bob' })).statusCode, 409);
-  assert.equal((await change({ currentPassword: PASSWORD, currentConfirmationWord: CONFIRMATION, newLogin: 'Bad Login!' })).statusCode, 400);
-  const ok = await change({ currentPassword: PASSWORD, currentConfirmationWord: CONFIRMATION, newLogin: 'SecretLogin' });
-  assert.equal(ok.statusCode, 200, ok.body); assert.equal(ok.json().loginName, 'secretlogin');
-  // Current session keeps working, the other session is signed out.
-  assert.equal((await status(f.app, alice)).json().loginName, 'secretlogin');
-  assert.equal((await status(f.app, other.json())).statusCode, 401);
-  assert.equal((await login(f.app, 'samelogin')).statusCode, 401);
-  assert.equal((await login(f.app, 'secretlogin')).statusCode, 200);
-  // The public username stays and the old login is free again for nobody else's confusion.
-  assert.equal((await status(f.app, alice)).json().username, 'samelogin');
+  const response = await request(f.app, 'POST', '/auth/login-name', alice, { currentPassword: PASSWORD, currentConfirmationWord: CONFIRMATION, newLogin: 'secretlogin' });
+  assert.equal(response.statusCode, 410);
+  assert.equal((await login(f.app, 'samelogin')).statusCode, 200);
 });

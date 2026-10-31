@@ -287,30 +287,9 @@ export function installAuthRoutes({
     return { ok: true };
   });
 
-  // Change the private sign-in login. Requires the current password and confirmation word;
-  // the current session stays, every other session is signed out.
-  app.post('/auth/login-name', authOptions, async request => {
-    authThrottle(request);
-    const body = objectBody(request.body, ['currentPassword', 'currentConfirmationWord', 'newLogin']);
-    const snapshot = activeUser(request);
-    const currentPassword = passwordValue(body.currentPassword, { existing: true });
-    const currentConfirmationWord = normalizeRecoveryWord(body.currentConfirmationWord ?? '');
-    const login = usernameValue(body.newLogin);
-    if (login === snapshot.login_name) fail(400, 'Это и так твой логин.');
-    if (normalizeRecoveryWord(currentPassword) === login) fail(400, 'Пароль совпадает с новым логином. Сначала смени пароль.');
-    await withPasswordJob(() => reauthenticate(snapshot, currentPassword, currentConfirmationWord));
-    const user = transaction(db, () => {
-      const current = unchangedUser(request, snapshot);
-      if (db.prepare('SELECT 1 FROM users WHERE id<>? AND (username=? OR login_name=?)').get(current.id, login, login)) {
-        fail(409, 'Этот логин уже занят.', { code: 'LOGIN_TAKEN' });
-      }
-      db.prepare('UPDATE users SET login_name=? WHERE id=?').run(login, current.id);
-      db.prepare('DELETE FROM sessions WHERE user_id=? AND token_hash<>?').run(current.id, request.auth.token_hash);
-      return db.prepare('SELECT * FROM users WHERE id=?').get(current.id);
-    });
-    closeRevokedSockets(snapshot.id);
-    return { ok: true, loginName: user.login_name };
-  });
+  // The private sign-in login is permanent: registration warns to write it down. Older apps that
+  // still offer «Сменить логин» get a clear answer instead of a change.
+  app.post('/auth/login-name', authOptions, async () => fail(410, 'Логин нельзя сменить. Публичное имя (@имя) меняется в профиле.'));
 
   const changeWord = (path, field, column, otherColumn) => app.post(path, authOptions, async request => {
     authThrottle(request);

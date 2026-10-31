@@ -8,7 +8,8 @@ export type AIReply = { text: string; model: string; provider: AIProvider; freeO
 export type AIAskOptions = { model?: string; image?: string };
 export type AICapabilityName = 'text' | 'code' | 'image' | 'video' | 'threeD' | 'social' | 'speech' | 'transcribe' | 'vision' | 'models';
 export type AICapability = { enabled: boolean; reason?: string };
-export type AIStatus = { configured: boolean; model: string; provider: AIProvider; freeOnly: true; capabilities: Record<AICapabilityName, AICapability> };
+/** `platina`: full AI (model choice, code, photos, media). Without it — fast text answers only. Older servers: true. */
+export type AIStatus = { configured: boolean; model: string; provider: AIProvider; freeOnly: true; platina: boolean; capabilities: Record<AICapabilityName, AICapability> };
 const validModel = (value: unknown): value is string => typeof value === 'string' && /^[A-Za-z0-9_./:@+-]{1,200}$/.test(value);
 // OpenRouter is pinned to its zero-price route; FreeLLMAPI is the administrator's self-hosted router of free-tier keys.
 const validProvider = (provider: unknown, model: unknown): provider is AIProvider => (provider === 'openrouter' && model === 'openrouter/free') || (provider === 'freellmapi' && validModel(model));
@@ -32,7 +33,7 @@ export function parseAIStatus(value: unknown): AIStatus {
     if (typeof entry.enabled !== 'boolean' || (entry.reason !== undefined && typeof entry.reason !== 'string')) throw new Error('Сервер не подтвердил доступность AI-инструментов.');
     return { enabled: entry.enabled, reason: typeof entry.reason === 'string' ? entry.reason : undefined };
   };
-  return { configured: status.configured, provider: status.provider as AIProvider, model: status.model as string, freeOnly: true, capabilities: {
+  return { configured: status.configured, provider: status.provider as AIProvider, model: status.model as string, freeOnly: true, platina: status.platina !== false, capabilities: {
     text: capability('text'), code: capability('code'), image: capability('image'), video: capability('video'), threeD: capability('threeD'), social: capability('social'),
     speech: capability('speech'), transcribe: capability('transcribe'), vision: capability('vision'), models: capability('models'),
   } };

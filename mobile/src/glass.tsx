@@ -98,9 +98,10 @@ export function GlassSurface({children,style,contentStyle,radius=26,material='re
   // Android 13+: the same Liquid Glass look as iOS 26 — the real content behind is blurred and
   // bent at the edges by a shader, with a light rim. No fill or gradient layers on top.
   // Light theme: no dark legibility veil (it scales up over bright backdrops and turned the glass grey),
-  // a milky white tint and a small lift instead — closer to iOS 26. Small round buttons (clear)
+  // a milky white tint and a small lift instead — closer to iOS 26. Dark themes: a deep navy/black
+  // tint, otherwise the library's frost turned dark cards into a light grey slab that stood out. Small round buttons (clear)
   // get a thinner lens: full refraction bent the text behind them and made the circle look uneven.
-  if(androidLiquid&&!nested&&!reduceTransparency)return <LiquidGlassView variant={material} refraction={lens??interactive} borderRadius={radius} tintColor={t.dark?t.glassTint:regular?'rgba(255,255,255,0.34)':'rgba(255,255,255,0.18)'} brightness={t.dark?1:1.06} blurRadius={regular?14:10} thickness={regular?1:.45} edgeReflectionStrength={regular?1:.6} legibilityFloor={t.dark?.12:0} interactive={false} tilt={false} style={[{borderRadius:radius},style]}>
+  if(androidLiquid&&!nested&&!reduceTransparency)return <LiquidGlassView variant={material} refraction={lens??interactive} borderRadius={radius} tintColor={t.black?'rgba(0,0,0,0.5)':t.dark?'rgba(10,18,36,0.42)':regular?'rgba(255,255,255,0.34)':'rgba(255,255,255,0.18)'} brightness={t.dark?0.92:1.06} blurRadius={regular?14:10} thickness={regular?1:.45} edgeReflectionStrength={regular?1:.6} legibilityFloor={t.dark?.12:0} interactive={false} tilt={false} style={[{borderRadius:radius},style]}>
     {/* Content lives inside the glass: the shader excludes it from the backdrop, so icons do not bleed into the blur. */}
     <NestedGlass.Provider value={true}><View style={[{flexGrow:1},contentStyle]}>{children}</View></NestedGlass.Provider>
   </LiquidGlassView>;

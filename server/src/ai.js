@@ -305,7 +305,9 @@ class AiBudget {
   }
 }
 
-function chatHandler({ apiKey, configured, fetchImpl, now, timeoutMs, provider }, budget) {
+const platinaRequired = () => new AiFailure(403, 'AI_PLATINA_REQUIRED', 'Эта возможность AI доступна с Инвиз Platina. Без неё — быстрые ответы.');
+
+function chatHandler({ apiKey, configured, fetchImpl, now, timeoutMs, provider, isPlatina }, budget) {
   return async (request, reply) => {
     let controller;
     const userId = String(request.auth.user_id);
@@ -314,6 +316,11 @@ function chatHandler({ apiKey, configured, fetchImpl, now, timeoutMs, provider }
     try {
       const messages = messagesFrom(request.body);
       const options = chatOptions(request.body, provider);
+      // Without Platina: fast answers only — no model choice, no photo questions.
+      if (!isPlatina(userId)) {
+        if (options.model !== undefined || options.image !== undefined) throw platinaRequired();
+        if (provider.name === 'freellmapi') options.model = 'auto:fast';
+      }
       if (!configured) throw new AiFailure(503, 'AI_NOT_CONFIGURED', 'AI ещё не настроен. Администратору нужен серверный ключ AI-провайдера.');
       controller = budget.reserve(userId);
       request.raw.once('aborted', abort);
@@ -339,6 +346,8 @@ export function registerAiRoutes(app, {
   fetchImpl = globalThis.fetch,
   now = () => Date.now(),
   timeoutMs = 60_000,
+  // Full AI (model choice, photos, images, speech, video) is a Platina feature; tests default to full.
+  isPlatina = () => true,
 } = {}) {
   checkDependencies(authenticate, fetchImpl, now);
   checkKey(apiKey);
@@ -346,13 +355,23 @@ export function registerAiRoutes(app, {
   const access = accessGuard(authenticate, originSet(allowedOrigins));
   const budget = new AiBudget(now);
   const configured = apiKey.length > 0;
-  app.get('/ai/status', { preHandler: access, logLevel: 'silent' }, async () => ({
+  app.get('/ai/status', { preHandler: access, logLevel: 'silent' }, async request => ({
     configured, provider: provider.name, model: provider.model, freeOnly: true, capabilities: capabilities(configured, provider),
+    platina: isPlatina(String(request.auth.user_id)),
   }));
   app.post('/ai/chat', { preHandler: access, bodyLimit: provider.name === 'freellmapi' ? MAX_IMAGE_BODY : MAX_BODY, logLevel: 'silent' },
-    chatHandler({ apiKey, configured, fetchImpl, now, timeoutMs, provider }, budget));
-  registerMediaRoutes(app, { access, budget, apiKey, configured, fetchImpl, now, provider });
+    chatHandler({ apiKey, configured, fetchImpl, now, timeoutMs, provider, isPlatina }, budget));
+  registerMediaRoutes(app, { access: platinaAccess(access, isPlatina), budget, apiKey, configured, fetchImpl, now, provider });
   app.addHook('preClose', async () => budget.abortAll());
+}
+
+/** Media routes and the model list: signed in AND Platina. */
+function platinaAccess(access, isPlatina) {
+  return async (request, reply) => {
+    await access(request, reply);
+    if (reply.sent) return reply;
+    if (!isPlatina(String(request.auth.user_id))) return sendFailure(reply, platinaRequired());
+  };
 }
 
 // ---------------------------------------------------------------------------

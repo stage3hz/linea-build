@@ -246,7 +246,7 @@ export async function buildApp({
       for (const { chatId, userId: peer } of peers) emitUser(peer, { type: 'chat.deleted', chatId });
     },
   });
-  registerAiRoutes(app,{authenticate:requireAuth,apiKey:aiApiKey,provider:aiProvider(aiProviderConfig),fetchImpl:aiFetch,allowedOrigins,now});
+  registerAiRoutes(app,{authenticate:requireAuth,apiKey:aiApiKey,provider:aiProvider(aiProviderConfig),fetchImpl:aiFetch,allowedOrigins,now,isPlatina:userId=>platinaState(db,userId,now()).active});
   installUsernameRoutes({app,db,now,authOptions,emitUser,emitChat});
   installCallRoutes({app,authOptions,now,turn});
   installSocialRoutes({app,db,authOptions,publicUser,timestamp,serializationOptions,emitUser});
