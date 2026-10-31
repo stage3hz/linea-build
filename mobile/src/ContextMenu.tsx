@@ -45,7 +45,7 @@ export function ContextMenu({ visible, y, onClose, reactions, onReact, preview, 
         {list.length > QUICK ? <Pressable accessibilityRole="button" accessibilityLabel="Все реакции" onPress={() => setAll(true)} style={{ width: 30, height: 40, alignItems: 'center', justifyContent: 'center' }}><Icon name="chevron-down" size={18} color={t.muted} /></Pressable> : null}
       </View> : null}
       {preview ? <View style={{ maxWidth: column, borderRadius: 18, paddingHorizontal: 13, paddingVertical: 9, backgroundColor: mine ? t.bubble : t.incoming, ...shadow }}><Text numberOfLines={6} style={{ color: t.text, fontSize: 16, lineHeight: 21 }}>{preview}</Text></View> : null}
-      <View style={{ width: 240, flexShrink: 1, minHeight: 0, borderRadius: 14, overflow: 'hidden', backgroundColor: surface, ...shadow }}>
+      <View style={{ width: 256, flexShrink: 1, minHeight: 0, borderRadius: 14, overflow: 'hidden', backgroundColor: surface, ...shadow }}>
         <ScrollView bounces={false} style={{ flexGrow: 0 }}>{children}</ScrollView>
       </View>
     </Animated.View>

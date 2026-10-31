@@ -118,7 +118,7 @@ export function UserProfile({ api, user, onClose, chat, onMessage, onMute, onSea
         {shared && onOpenAttachment ? <SharedMedia messages={shared} onOpen={attachment => { onClose(); setTimeout(() => onOpenAttachment(attachment), 250); }} /> : null}
       </ScrollView>
     </InsetView>{/* Discord-style profile effect over the top while the profile is open. */}<ProfileEffect effect={shown.profileEffect} width={width} height={420} /></GlassStage>
-    <ContextMenu visible={menu} y={90} onClose={() => setMenu(false)}>
+    <ContextMenu visible={menu} y={90} mine onClose={() => setMenu(false)}>
       {chat && onRules ? <MenuItem icon="timer-outline" label={`Автоудаление · ${autoDeleteLabel(current.ttl)}`} onPress={() => { setMenu(false); setSheet('ttl'); }} /> : null}
       {chat && onRules ? <MenuItem icon={current.noCopy ? 'lock-closed' : 'lock-open-outline'} label={current.noCopy ? 'Разрешить копирование' : 'Запретить копирование'} onPress={() => { setMenu(false); lightFeedback(); onRules({ ...current, noCopy: !current.noCopy }); setNotice(current.noCopy ? 'Копирование снова разрешено' : 'Копировать и пересылать сообщения этого чата теперь нельзя обоим'); }} /> : null}
       {onWallpaper ? <MenuItem icon="image-outline" label="Обои" onPress={() => { setMenu(false); onClose(); onWallpaper(); }} /> : null}
