@@ -47,6 +47,9 @@ import { attachmentLabel, isVideoNote, isVoice } from './voice/voice';
 import { VOICE_MIME, VOICE_MIN_MS, videoNoteFileName, voiceFileName } from './voice/voice';
 
 
+/** #RRGGBB + alpha → rgba(), for the edge fades. */
+const fade=(hex:string,alpha:number)=>{const m=/^#([0-9a-f]{6})$/i.exec(hex);if(!m)return `rgba(0,0,0,${alpha})`;const n=parseInt(m[1],16);return `rgba(${n>>16},${(n>>8)&255},${n&255},${alpha})`;};
+
 export function ChatScreen({api,user,chat,store,onBack,wide=false,onOpenMusic}: {api:Api;user:User;chat:Chat;store:MessengerStore;onBack:()=>void;wide?:boolean;onOpenMusic?:()=>void}) {
   const calls=useCalls();const insets=useSafeAreaInsets();const platina=usePlatina(api,user.id);
   const t=useTheme();const [attachMenu,setAttachMenu]=useState(false);const [uploading,setUploading]=useState(false);const [downloadId,setDownloadId]=useState<string|null>(null);const [localError,setLocalError]=useState('');const [preview,setPreview]=useState<Attachment|null>(null);const [peerInfo,setPeerInfo]=useState(false);const [actions,setActions]=useState<Row|null>(null);const [menuY,setMenuY]=useState(0);const [copied,setCopied]=useState(false);
@@ -244,6 +247,10 @@ export function ChatScreen({api,user,chat,store,onBack,wide=false,onOpenMusic}: 
   // Telegram: messages scroll under the status bar (no hard edge at the safe area); the header sits below it.
   return <VoicePlaybackProvider api={api}><KeyboardSafeView style={{flex:1,backgroundColor:'transparent',marginTop:wide?0:-insets.top}}><View style={{flex:1}}>
     <ChatWallpaper choice={wallpaper} style={{top:-80,bottom:-60}}/>
+    {/* Like Telegram: messages fade out under the status bar + header and under the composer
+        instead of showing through sharp-edged behind the clock and the input field. */}
+    {headerHeight?<LinearGradient pointerEvents="none" colors={[fade(t.bg,.96),fade(t.bg,.82),fade(t.bg,0)]} locations={[0,.55,1]} style={{position:'absolute',top:0,left:0,right:0,height:headerHeight+22,zIndex:4}}/>:null}
+    {footerHeight?<LinearGradient pointerEvents="none" colors={[fade(t.bg,0),fade(t.bg,.82),fade(t.bg,.96)]} locations={[0,.45,1]} style={{position:'absolute',bottom:0,left:0,right:0,height:footerHeight+22,zIndex:3}}/>:null}
     <View pointerEvents="box-none" onLayout={e=>setHeaderHeight(e.nativeEvent.layout.height)} style={{position:'absolute',top:0,left:0,right:0,zIndex:5,paddingTop:8+(wide?0:insets.top),gap:6}}>
     {selection?<View style={{flexDirection:'row',alignItems:'center',gap:8,paddingHorizontal:12}}>
       <GlassSurface material="regular" radius={24} interactive contentStyle={{height:48,justifyContent:'center',paddingHorizontal:16}}><Pressable onPress={()=>setSelection(null)} accessibilityRole="button" hitSlop={8}><Text style={{color:t.accent,fontSize:16,fontWeight:'600'}}>Отмена</Text></Pressable></GlassSurface>

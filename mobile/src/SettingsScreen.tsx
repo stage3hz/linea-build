@@ -104,9 +104,11 @@ function Root({ api, user, onBack, onProfile, onSecurity, onMusic, onLogout, ope
   useEffect(() => { let alive = true; api.usernameStatus().then(status => { if (!alive) return; const p = status.platina; setUntil(p.permanent ? 'Бессрочно' : p.expiresAt ? `Активна до ${new Date(p.expiresAt).toLocaleDateString('ru-RU', { day: 'numeric', month: 'long' })}` : 'Активна'); }).catch(() => {}); return () => { alive = false; }; }, [api, user.id]);
   const bannerHeight = 200 + insets.top;
   const hasBanner = !!(user.bannerId || user.bannerPreset);
-  return <ScrollView contentContainerStyle={{ paddingBottom: 30 }} showsVerticalScrollIndicator={false}>
+  // The scroll view itself starts under the status bar (the screen sits in a SafeAreaView): a negative
+  // margin on its content was clipped by the scroll view, leaving a strip above the banner on iPhone.
+  return <ScrollView style={{ marginTop: -insets.top }} contentContainerStyle={{ paddingBottom: 30 }} showsVerticalScrollIndicator={false} contentInsetAdjustmentBehavior="never">
     {/* Telegram's settings head with Discord's banner: the banner runs under the status bar. */}
-    <View style={{ height: bannerHeight, marginTop: -insets.top }}>
+    <View style={{ height: bannerHeight }}>
       {hasBanner ? <ProfileBanner user={user} api={api} height={bannerHeight} width={width} /> : <LinearGradient colors={t.dark ? ['rgba(96,124,190,0.34)', 'rgba(150,120,200,0.14)', 'transparent'] : ['rgba(120,150,230,0.30)', 'rgba(190,170,240,0.16)', 'transparent']} start={{ x: 0.1, y: 0 }} end={{ x: 0.7, y: 1 }} style={StyleSheet.absoluteFill} />}
       <ProfileEffect effect={user.profileEffect} width={width} height={bannerHeight + 140} />
       <View style={{ position: 'absolute', top: insets.top + 6, left: 16, right: 16, flexDirection: 'row', justifyContent: 'space-between' }}>

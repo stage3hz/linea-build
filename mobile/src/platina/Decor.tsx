@@ -1,6 +1,7 @@
 import React, { useEffect } from 'react';
 import { Platform, StyleSheet, View, useWindowDimensions } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
+import MaskedView from '@react-native-masked-view/masked-view';
 import { useVideoPlayer, VideoView } from 'expo-video';
 import Animated, { Easing, cancelAnimation, useAnimatedStyle, useSharedValue, withRepeat, withTiming } from 'react-native-reanimated';
 import type { Api } from '../api';
@@ -90,8 +91,10 @@ export function ProfileBanner({ user, api, height, width: fixedWidth, preview }:
   else if (user.bannerId) content = <AuthImage api={api} id={user.bannerId} style={StyleSheet.absoluteFill} />;
   else if (user.bannerPreset && BANNERS.some(item => item.id === user.bannerPreset)) content = <MusicAmbient width={width} height={height} tone={user.bannerPreset as AmbientTone} still={!enabled} />;
   if (!content) return null;
-  return <View pointerEvents="none" style={{ width, height, overflow: 'hidden', backgroundColor: t.surface2 }}>
-    {content}
-    {preview ? null : <LinearGradient colors={['transparent', t.bg]} locations={[0.55, 1]} style={StyleSheet.absoluteFill} />}
-  </View>;
+  const body = <View pointerEvents="none" style={{ width, height, overflow: 'hidden', backgroundColor: t.surface2 }}>{content}</View>;
+  if (preview) return body;
+  // The banner fades out by transparency, not into a flat colour: the page behind is a gradient,
+  // so fading «to t.bg» left a visible seam where the banner ended (iPhone, dark theme).
+  if (Platform.OS !== 'web') return <MaskedView pointerEvents="none" style={{ width, height }} maskElement={<LinearGradient colors={['#000', '#000', 'transparent']} locations={[0, 0.5, 1]} style={{ width, height }} />}>{body}</MaskedView>;
+  return <View pointerEvents="none" style={{ width, height }}>{body}<LinearGradient colors={['transparent', t.bg]} locations={[0.55, 1]} style={StyleSheet.absoluteFill} /></View>;
 }

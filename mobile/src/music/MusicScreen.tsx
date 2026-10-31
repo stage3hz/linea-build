@@ -1,8 +1,10 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
-import { ActivityIndicator, Alert, FlatList, Image, Linking, Platform, Pressable, ScrollView, View, useWindowDimensions } from 'react-native';
+import { ActivityIndicator, Alert, FlatList, Image, Linking, Platform, Pressable, ScrollView, StyleSheet, View, useWindowDimensions } from 'react-native';
 import { MusicAmbient, type AmbientTone } from './MusicAmbient';
 import { Text, TextInput } from '../typography';
 import { LinearGradient } from 'expo-linear-gradient';
+import MaskedView from '@react-native-masked-view/masked-view';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Button, Empty, Icon, IconButton, Notice, Sheet, SheetAction, type IconName } from '../components';
 import { GlassSurface } from '../glass';
 import { useTheme } from '../theme';
@@ -31,6 +33,7 @@ export function MusicScreen({ onBack }: { onBack: () => void }) {
   const ink = tt.dark ? '#FFFFFF' : '#14243D', inkInverse = tt.dark ? '#0A1529' : '#FFFFFF', soft = tt.dark ? '#D2DEF2' : '#4A5D7D';
   const t = useTheme();
   const music = useMusic();
+  const insets = useSafeAreaInsets();
   const [section, setSection] = useState<Section>('catalog');
   const [input, setInput] = useState('');
   const [query, setQuery] = useState('');
@@ -136,6 +139,7 @@ export function MusicScreen({ onBack }: { onBack: () => void }) {
     : section === 'favorites' ? 'Нажми на сердечко рядом с понравившимся треком.'
     : nextOffset !== null ? 'На этой странице нет треков с выбранным доступом. Нажми «Показать ещё» или измени фильтры.'
     : `Измени название или настроение. Каталог ${source === 'soundcloud' ? 'SoundCloud' : 'Audius'} отличается от других музыкальных сервисов.`;
+  const headHeight = (section === 'catalog' && !query ? Math.min(430, screen.height * .5) : 132) + insets.top;
   const action = (fn: (track: MusicTrack) => void) => {
     if (actionTrack) fn(actionTrack);
     setActionTrack(null);
@@ -143,15 +147,19 @@ export function MusicScreen({ onBack }: { onBack: () => void }) {
 
   return <View style={{ flex: 1, width: '100%', maxWidth: 980, alignSelf: 'center' }}>
 
-    <FlatList keyboardDismissMode="on-drag"
+    <FlatList keyboardDismissMode="on-drag" style={{ marginTop: -insets.top }} contentInsetAdjustmentBehavior="never"
       data={rows}
       keyExtractor={track => track.id}
       keyboardShouldPersistTaps="handled"
       contentContainerStyle={{ paddingHorizontal: 18, paddingBottom: 20, flexGrow: 1 }}
       ListHeaderComponent={<View style={{ gap: 16, paddingBottom: 12 }}>
         {/* VK-style top: animated cold-colour background, title, tabs and the mix button; scrolls away with the list. */}
-        <View style={{ marginHorizontal: -18, height: section === 'catalog' && !query ? Math.min(430, screen.height * .5) : 132, paddingTop: 6 }}>
-          <MusicAmbient width={screen.width} height={section === 'catalog' && !query ? Math.min(430, screen.height * .5) : 132} tone={tone} fadeTo={t.bg} />
+        {/* Runs under the status bar and fades out by transparency (fading into a flat colour left a seam
+            against the gradient page background on iPhone). */}
+        <View style={{ marginHorizontal: -18, height: headHeight, paddingTop: insets.top + 6 }}>
+          {Platform.OS === 'web'
+            ? <MusicAmbient width={screen.width} height={headHeight} tone={tone} fadeTo={t.bg} />
+            : <MaskedView pointerEvents="none" style={[StyleSheet.absoluteFill, { width: screen.width, height: headHeight }]} maskElement={<LinearGradient colors={['#000', '#000', 'transparent']} locations={[0, 0.6, 1]} style={{ width: screen.width, height: headHeight }} />}><MusicAmbient width={screen.width} height={headHeight} tone={tone} /></MaskedView>}
           <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8, paddingHorizontal: 12 }}>
             <IconButton name="chevron-back" label="Вернуться к мессенджеру" onPress={onBack} color={ink} />
             <Text style={{ flex: 1, color: ink, fontSize: 22, fontWeight: '700', letterSpacing: -.4 }}>Музыка</Text>

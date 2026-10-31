@@ -210,6 +210,8 @@ export function FullPlayer({ visible, onClose, onSource }: { visible: boolean; o
   const favorite = music.favorites.some(item => item.id === track.id), downloading = Object.prototype.hasOwnProperty.call(music.downloads, track.id);
   const repeatLabel = music.repeat === 'one' ? 'Повтор одного трека' : music.repeat === 'all' ? 'Повтор очереди' : 'Повтор выключен';
   const cover = Math.round(Math.min(width - 56, height * 0.44, 460));
+  // One side inset for everything: the top buttons, title, chips and controls line up with the cover's edges.
+  const side = Math.max(16, Math.round((width - cover) / 2));
   const tone: AmbientTone = t.black ? 'black' : t.dark ? 'dark' : 'light';
   const soft = t.dark ? 'rgba(255,255,255,0.12)' : 'rgba(0,0,0,0.07)';
   const chip = (icon: React.ComponentProps<typeof Icon>['name'], label: string | null, onPress: () => void, disabled = false, loading = false) => <Pressable key={icon + (label || '')} accessibilityRole="button" accessibilityLabel={label || icon} disabled={disabled || loading} onPress={onPress} style={({ pressed }) => ({ flexDirection: 'row', alignItems: 'center', gap: 7, height: 40, paddingHorizontal: label ? 14 : 0, width: label ? undefined : 48, justifyContent: 'center', borderRadius: 12, backgroundColor: soft, opacity: disabled ? .4 : pressed ? .6 : 1 })}>
@@ -225,7 +227,7 @@ export function FullPlayer({ visible, onClose, onSource }: { visible: boolean; o
         </View> : <MusicAmbient width={width} height={height} tone={tone} />}
         <View style={{ flex: 1, paddingTop: insets.top }}>
           <GestureDetector gesture={collapseTop}>
-            <View style={{ flexDirection: 'row', alignItems: 'center', height: 52, paddingHorizontal: 8 }}>
+            <View style={{ flexDirection: 'row', alignItems: 'center', height: 52, paddingHorizontal: side }}>
               <IconButton name="chevron-down" label="Свернуть плеер" onPress={onClose} color={t.text} size={26} />
               <Text style={{ flex: 1, textAlign: 'center', color: t.text, fontSize: 16, fontWeight: '500' }} numberOfLines={1}>{track.source === 'local' ? 'Мои файлы' : 'Сейчас играет'}</Text>
               {track.sourceUrl && onSource ? <IconButton name="arrow-redo-outline" label="Открыть страницу трека" onPress={() => onSource(track.sourceUrl!)} color={t.text} size={23} /> : <View style={{ width: 44 }} />}
@@ -234,20 +236,20 @@ export function FullPlayer({ visible, onClose, onSource }: { visible: boolean; o
           <GestureDetector gesture={collapseCover}>
             <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center' }}><SwipeArtwork track={track} size={cover} /></View>
           </GestureDetector>
-          <View style={{ paddingHorizontal: 16, gap: 18, paddingBottom: 14 }}>
+          <View style={{ paddingHorizontal: side, gap: 18, paddingBottom: 14 }}>
             <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12 }}>
               <View style={{ flex: 1, gap: 4 }}><Text numberOfLines={1} style={{ color: t.text, fontSize: 22, fontWeight: '700', letterSpacing: -.3 }}>{track.title}</Text><Text numberOfLines={1} style={{ color: t.muted, fontSize: 15 }}>{track.artist}</Text></View>
               <Pressable accessibilityRole="button" accessibilityLabel={favorite ? 'Убрать из любимого' : 'В любимое'} onPress={() => void music.toggleFavorite(track)} style={({ pressed }) => ({ width: 46, height: 46, borderRadius: 23, backgroundColor: favorite ? t.text : soft, alignItems: 'center', justifyContent: 'center', opacity: pressed ? .7 : 1 })}><Icon name={favorite ? 'checkmark' : 'add'} size={24} color={favorite ? t.bg : t.text} /></Pressable>
               <Pressable accessibilityRole="button" accessibilityLabel="Ещё" onPress={() => setPanel('queue')} style={({ pressed }) => ({ width: 46, height: 46, borderRadius: 23, backgroundColor: soft, alignItems: 'center', justifyContent: 'center', opacity: pressed ? .7 : 1 })}><Icon name="ellipsis-horizontal" size={22} color={t.text} /></Pressable>
             </View>
-            <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ gap: 8, paddingHorizontal: 16 }} style={{ flexGrow: 0, marginHorizontal: -16 }}>
+            <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ gap: 8, paddingHorizontal: side }} style={{ flexGrow: 0, marginHorizontal: -side }}>
               {track.source === 'soundcloud' ? null : chip(track.source === 'local' ? 'share-outline' : 'download-outline', null, () => void music.download(track), track.source === 'audius' && !track.downloadable, downloading)}
               {chip(favorite ? 'heart' : 'heart-outline', favorite ? 'В любимом' : 'В любимое', () => void music.toggleFavorite(track))}
               {chip('shuffle', music.shuffle ? 'Перемешано' : 'Перемешать', music.toggleShuffle)}
               {chip('options-outline', 'Эквалайзер', () => setEqOpen(true))}
             </ScrollView>
             <SeekBar />
-            <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: 6 }}>
+            <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
               <IconButton name="shuffle" label={music.shuffle ? 'Случайный порядок включён' : 'Включить случайный порядок'} color={music.shuffle ? t.accent : t.muted} onPress={music.toggleShuffle} size={26} />
               <IconButton name="play-skip-back" label="Предыдущий трек или начало текущего" onPress={() => void music.previous()} size={36} color={t.text} />
               <PlaybackButton large />
@@ -257,7 +259,8 @@ export function FullPlayer({ visible, onClose, onSource }: { visible: boolean; o
             {music.error ? <Pressable onPress={music.clearError}><Notice text={music.error} error /></Pressable> : music.notice ? <Pressable onPress={music.clearNotice}><Notice text={music.notice} /></Pressable> : null}
           </View>
           {/* VK: «Очередь · N | Текст» on a raised panel at the bottom. */}
-          <View style={{ flexDirection: 'row', height: 64 + insets.bottom, paddingBottom: insets.bottom, borderTopLeftRadius: 22, borderTopRightRadius: 22, backgroundColor: t.dark ? 'rgba(255,255,255,0.07)' : 'rgba(0,0,0,0.05)' }}>
+          {/* A floating rounded bar inside the safe area (it used to run into the home indicator and look cut off). */}
+          <View style={{ flexDirection: 'row', height: 56, marginHorizontal: side, marginBottom: Math.max(12, insets.bottom), borderRadius: 20, backgroundColor: t.dark ? 'rgba(255,255,255,0.08)' : 'rgba(0,0,0,0.05)' }}>
             <Pressable accessibilityRole="button" onPress={() => setPanel('queue')} style={{ flex: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8 }}><Text style={{ color: t.text, fontSize: 16, fontWeight: '600' }}>Очередь</Text><View style={{ minWidth: 22, height: 20, borderRadius: 10, paddingHorizontal: 6, backgroundColor: soft, alignItems: 'center', justifyContent: 'center' }}><Text style={{ color: t.muted, fontSize: 12 }}>{music.queue.length}</Text></View></Pressable>
             <Pressable accessibilityRole="button" onPress={() => setPanel('lyrics')} style={{ flex: 1, alignItems: 'center', justifyContent: 'center' }}><Text style={{ color: t.text, fontSize: 16, fontWeight: '600' }}>Текст</Text></Pressable>
           </View>
