@@ -6,10 +6,11 @@ import * as ImageManipulator from 'expo-image-manipulator';
 import * as FileSystem from 'expo-file-system/legacy';
 import type { Api } from '../api';
 import type { User } from '../types';
-import { Button, Icon, Notice } from '../components';
+import { Button, Icon, Notice, Sheet } from '../components';
 import { Text } from '../typography';
 import { useTheme } from '../theme';
-import { BANNERS, DecoratedAvatar, FRAMES, ProfileBanner } from './Decor';
+import { BANNERS, DecoratedAvatar, FRAMES, HERO_RATIO, ProfileBanner } from './Decor';
+import { PlatinaName, PlatinaSeal, hasPlatina } from './PlatinaMark';
 import { MusicAmbient, type AmbientTone } from '../music/MusicAmbient';
 import { StatusEmoji } from '../StatusEmoji';
 
@@ -29,21 +30,32 @@ export function PlatinaStudio({ api, user, active, onUser }: { api: Api; user: U
     catch (failure) { setError(message(failure, 'Не удалось сохранить оформление.')); }
     finally { setBusy(null); }
   };
+  type Picked = ImagePicker.ImagePickerAsset;
+  const [pending, setPending] = useState<Picked | null>(null);
   const pick = async (kind: 'avatar' | 'banner') => {
     if (!active || busy) return; setError(''); setDone('');
     try {
-      if (Platform.OS !== 'web') { const permission = await ImagePicker.requestMediaLibraryPermissionsAsync(); if (!permission.granted) throw new Error('Разреши доступ к фото и видео в настройках устройства.'); }
+      if (Platform.OS !== 'web') { const permission = await ImagePicker.requestMediaLibraryPermissionsAsync(); if (!permission.granted) throw new Error('Разреши доступ к фото и видео в настройках телефона.'); }
       const result = await ImagePicker.launchImageLibraryAsync({
         mediaTypes: kind === 'avatar' ? ['videos'] : ['images', 'videos'], allowsEditing: true,
-        ...(kind === 'banner' ? { aspect: [3, 1] as [number, number] } : { aspect: [1, 1] as [number, number] }),
+        // The banner is shown about 3:2 at the top of the profile, so it is cropped the same way.
+        ...(kind === 'banner' ? { aspect: [3, 2] as [number, number] } : { aspect: [1, 1] as [number, number] }),
         videoMaxDuration: 10, quality: 0.8, exif: false,
         videoExportPreset: ImagePicker.VideoExportPreset.H264_960x540,
         preferredAssetRepresentationMode: ImagePicker.UIImagePickerPreferredAssetRepresentationMode.Compatible,
       });
       if (result.canceled || !result.assets[0]) return;
       const asset = result.assets[0];
+      if (asset.type === 'video' && (asset.duration || 0) > 10_500) throw new Error('Видео — не длиннее 10 секунд.');
+      // A banner is shown on the profile preview first; it is uploaded only after «Установить».
+      if (kind === 'banner') { setPending(asset); return; }
+      await upload(kind, asset);
+    } catch (failure) { setError(message(failure, 'Не удалось выбрать файл.')); }
+  };
+  const upload = async (kind: 'avatar' | 'banner', asset: Picked) => {
+    setError(''); setDone('');
+    try {
       const video = asset.type === 'video';
-      if (video && (asset.duration || 0) > 10_500) throw new Error('Видео — не длиннее 10 секунд.');
       setBusy(kind);
       let uploaded;
       if (video) uploaded = await api.upload({ uri: asset.uri, name: 'profile.mp4', mimeType: asset.mimeType || 'video/mp4', size: asset.fileSize });
@@ -59,16 +71,9 @@ export function PlatinaStudio({ api, user, active, onUser }: { api: Api; user: U
     } catch (failure) { setError(message(failure, 'Не удалось загрузить файл.')); }
     finally { setBusy(null); }
   };
-
   return <View style={{ gap: 16 }}>
-    {/* Live preview: banner, framed avatar, name with the animated status. */}
-    <View style={{ borderRadius: 22, overflow: 'hidden', backgroundColor: t.surface2 }}>
-      <View style={{ height: 120 }}>{user.bannerId || user.bannerPreset ? <ProfileBanner user={user} api={api} height={120} width={600} preview /> : <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center' }}><Text style={{ color: t.muted, fontSize: 12 }}>Без баннера</Text></View>}</View>
-      <View style={{ alignItems: 'center', marginTop: -44, paddingBottom: 14, gap: 8 }}>
-        <DecoratedAvatar user={user} api={api} size={84} animated />
-        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}><Text style={{ color: t.text, fontSize: 18, fontWeight: '700' }}>{user.displayName}</Text><StatusEmoji user={user} size={18} animated /></View>
-      </View>
-    </View>
+    {/* Live preview: exactly the head of your profile (banner, avatar, name, @username). */}
+    <ProfileHero api={api} user={user} />
     {!active ? <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8, padding: 12, borderRadius: 14, backgroundColor: t.accentSoft }}><Icon name="lock-closed" size={15} color={t.accent} /><Text style={{ flex: 1, color: t.text, fontSize: 13, lineHeight: 18 }}>Оформление доступно с Platina.</Text></View> : null}
     {error ? <Notice text={error} error /> : null}{done ? <Notice text={done} /> : null}
 
@@ -123,6 +128,13 @@ export function PlatinaStudio({ api, user, active, onUser }: { api: Api; user: U
         </Choice>)}
       </ScrollView>
     </Section>
+    <Sheet visible={!!pending} title="Так будет выглядеть профиль" onClose={() => { if (busy !== 'banner') setPending(null); }}>
+      {pending ? <View style={{ gap: 12 }}>
+        <ProfileHero api={api} user={user} local={{ uri: pending.uri, video: pending.type === 'video' }} />
+        <Button label="Установить баннер" icon="checkmark" loading={busy === 'banner'} disabled={!!busy} onPress={() => { const asset = pending; void upload('banner', asset).then(() => setPending(null)); }} />
+        <Button label="Выбрать другое" secondary icon="image-outline" disabled={!!busy} onPress={() => { setPending(null); setTimeout(() => void pick('banner'), 350); }} />
+      </View> : null}
+    </Sheet>
   </View>;
 }
 
@@ -140,4 +152,27 @@ function Choice({ label, selected, disabled, onPress, children }: { label: strin
     <View style={{ padding: 3, borderRadius: 18, borderWidth: 2, borderColor: selected ? t.accent : 'transparent' }}>{children}</View>
     <Text style={{ color: selected ? t.accent : t.muted, fontSize: 11, fontWeight: selected ? '700' : '500' }}>{label}</Text>
   </Pressable>;
+}
+
+/** The top of a profile as others see it (same proportions as Settings): banner with soft edges, avatar, name. */
+function ProfileHero({ api, user, local }: { api: Api; user: User; local?: { uri: string; video: boolean } }) {
+  const t = useTheme(); const [width, setWidth] = useState(0);
+  const scale = width / 393, height = Math.round(width * HERO_RATIO);
+  const banner = local || user.bannerId || user.bannerPreset;
+  return <View onLayout={event => setWidth(Math.round(event.nativeEvent.layout.width))} style={{ borderRadius: 24, overflow: 'hidden', backgroundColor: t.bg, borderWidth: 1, borderColor: t.border }}>
+    {width ? <>
+      <View style={{ height }}>{banner ? <ProfileBanner user={user} api={api} height={height} width={width} local={local} /> : <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center' }}><Text style={{ color: t.muted, fontSize: 12 }}>Без баннера</Text></View>}</View>
+      <View style={{ marginTop: -58 * scale, paddingHorizontal: 20 * scale, paddingBottom: 16 * scale }}>
+        <View style={{ alignSelf: 'flex-start', padding: 5 * scale, borderRadius: 40 * scale, backgroundColor: t.bg }}><DecoratedAvatar user={user} api={api} size={Math.round(100 * scale)} animated /></View>
+        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 * scale, marginTop: 10 * scale }}>
+          <PlatinaName user={user} style={{ color: t.text, fontSize: 26 * scale, fontWeight: '800', letterSpacing: -0.5 }} />
+          <StatusEmoji user={user} size={Math.round(22 * scale)} animated />
+        </View>
+        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8, marginTop: 4 * scale }}>
+          <Text style={{ color: t.muted, fontSize: 15 * scale }}>@{user.username}</Text>
+          {hasPlatina(user) ? <PlatinaSeal size="sm" owner={user} /> : null}
+        </View>
+      </View>
+    </> : <View style={{ height: 260 }} />}
+  </View>;
 }

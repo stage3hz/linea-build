@@ -38,6 +38,26 @@ function evict() {
   }
 }
 
+function paths(attachment: Attachment) {
+  const folder = `${FileSystem.cacheDirectory}linea-view-cache-${mediaKey(attachment).replace(/[^A-Za-z0-9-]/g, '_')}/`;
+  return { folder, target: `${folder}${attachmentFileName(attachment)}` };
+}
+
+/**
+ * After a restart a video or file already decrypted earlier is on disk, but nothing in memory knows
+ * it: without this check it showed the «download» button again. Only a local file check, no network.
+ */
+function probe(attachment: Attachment) {
+  const key = mediaKey(attachment);
+  if (entries.has(key) || !FileSystem.cacheDirectory) return;
+  const { target } = paths(attachment), owner = generation;
+  void FileSystem.getInfoAsync(target).then(info => {
+    if (owner !== generation || entries.has(key) || !info.exists || info.isDirectory || info.size !== attachment.size) return;
+    entries.set(key, { status: 'ready', progress: 1, uri: target, size: attachment.size, usedAt: Date.now() });
+    publish(key);
+  }).catch(() => {});
+}
+
 export function mediaState(attachment: Attachment): MediaState {
   const entry = entries.get(mediaKey(attachment));
   return entry ? { status: entry.status, progress: entry.progress, uri: entry.uri, error: entry.error } : IDLE;
@@ -52,8 +72,7 @@ export function loadMedia(api: Api, attachment: Attachment): Promise<string> {
   const abort = new AbortController(), owner = generation;
   // One stable folder per file: the original name is kept (Quick Look / «Открыть в…» show it),
   // and after a restart the decrypted copy is found on disk instead of being downloaded again.
-  const folder = `${FileSystem.cacheDirectory}linea-view-cache-${key.replace(/[^A-Za-z0-9-]/g, '_')}/`;
-  const target = `${folder}${attachmentFileName(attachment)}`;
+  const { folder, target } = paths(attachment);
   const entry: Entry = { status: 'loading', progress: 0, size: attachment.size, usedAt: Date.now(), abort };
   let lastPublished = 0;
   entry.promise = FileSystem.getInfoAsync(target).catch(() => null).then(async info => {
@@ -107,6 +126,7 @@ export function useMedia(api: Api, attachment: Attachment | null | undefined, au
     const set = listeners.get(key) ?? new Set(); listeners.set(key, set);
     set.add(setState); setState(mediaState(attachment));
     if (auto && attachment.encryption) void loadMedia(api, attachment).catch(() => {});
+    else if (attachment.encryption) probe(attachment);
     return () => { set.delete(setState); if (!set.size) listeners.delete(key); };
   }, [key, auto, api]);
   const start = useCallback(() => attachment ? loadMedia(api, attachment) : Promise.reject(new Error('Нет файла.')), [api, key]);

@@ -5,8 +5,8 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import * as DocumentPicker from 'expo-document-picker';
 import * as ImagePicker from 'expo-image-picker';
 import { Button, Icon, IconButton, Notice, type IconName } from '../components';
-import { GlassSurface } from '../glass';
-import Animated, { Easing, FadeIn, SlideInDown } from 'react-native-reanimated';
+import Animated, { Easing, FadeIn, SlideInDown, runOnJS, useAnimatedStyle, useSharedValue, withTiming } from 'react-native-reanimated';
+import { Gesture, GestureDetector, GestureHandlerRootView } from 'react-native-gesture-handler';
 import { formatSize, useTheme } from '../theme';
 import type { LocalFile } from '../types';
 import { useMusic } from '../music/MusicProvider';
@@ -138,19 +138,39 @@ export function AttachmentPanel({ visible, busy, canAdd, remainingSlots, onClose
     finally { finish(ticket); }
   }
 
+  // Two heights like Telegram: half and almost full screen.
+  const half = Math.min(520, Math.max(360, window.height * .56)), full = window.height - insets.top - Math.max(8, insets.bottom) - 12;
+  const sheetHeight = useSharedValue(half), dragStart = useSharedValue(half);
+  useEffect(() => { if (visible) { sheetHeight.value = half; } }, [visible, half]);
+  const sheetStyle = useAnimatedStyle(() => ({ height: sheetHeight.value }));
+  const drag = Gesture.Pan()
+    .onBegin(() => { dragStart.value = sheetHeight.value; })
+    .onUpdate(event => { sheetHeight.value = Math.max(half * .5, Math.min(full, dragStart.value - event.translationY)); })
+    .onEnd(event => {
+      const goingUp = event.velocityY < -500, goingDown = event.velocityY > 500;
+      if ((goingDown || sheetHeight.value < half * .8) && dragStart.value <= half + 1) { runOnJS(close)(); return; }
+      const target = goingUp ? full : goingDown ? half : sheetHeight.value > (half + full) / 2 ? full : half;
+      sheetHeight.value = withTiming(target, { duration: 240, easing: Easing.bezier(0.2, 0.9, 0.25, 1) });
+    });
   const localTracks = music.saved.filter(track => track.source === 'local' && track.localUri?.startsWith('file://'));
   // Telegram-like: a compact sheet over the half of the screen; it slides up while the backdrop fades.
   return <Modal visible={visible} transparent animationType="none" onRequestClose={close} statusBarTranslucent>
+    <GestureHandlerRootView style={{ flex: 1 }}>
     <View style={{ flex: 1, justifyContent: 'flex-end', paddingHorizontal: 8, paddingBottom: Math.max(8, insets.bottom) }}>
       <Animated.View entering={FadeIn.duration(160)} style={[StyleSheet.absoluteFill, { backgroundColor: t.black ? 'rgba(0,0,0,.4)' : t.dark ? 'rgba(0,5,19,.3)' : 'rgba(43,63,103,.12)' }]}><Pressable accessibilityRole="button" accessibilityLabel="Закрыть выбор вложений" onPress={close} style={StyleSheet.absoluteFill} /></Animated.View>
       <Animated.View entering={SlideInDown.duration(260).easing(Easing.bezier(0.2, 0.9, 0.25, 1))} style={{ alignSelf: 'center', width: '100%', maxWidth: 600 }}>
-      <GlassSurface material={Platform.OS === 'android' ? 'regular' : 'clear'} radius={28} style={{ width: '100%', height: Math.min(520, Math.max(360, window.height * .56)) }} contentStyle={{ flex: 1, paddingHorizontal: 8, paddingTop: 8, paddingBottom: 8, gap: 6 }}>
+      {/* Opaque like Telegram's sheet (clear glass let the chat text show through), and draggable:
+          pull the handle up to expand to almost full screen, down to collapse or close. */}
+      <Animated.View style={[{ width: '100%', borderRadius: 28, overflow: 'hidden', backgroundColor: t.glassOpaque, borderWidth: StyleSheet.hairlineWidth, borderColor: t.border }, sheetStyle]}>
+      <View style={{ flex: 1, paddingHorizontal: 8, paddingTop: 8, paddingBottom: 8, gap: 6 }}>
+        <GestureDetector gesture={drag}><View style={{ gap: 6, paddingBottom: 2 }}>
         <View style={{ alignSelf: 'center', width: 35, height: 4, borderRadius: 2, backgroundColor: t.subtle, opacity: .45 }} />
         <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10 }}>
           <IconButton name="close" label="Закрыть выбор вложений" onPress={close} disabled={phase === 'adding' || busy} size={20} style={{ height: 36, width: 36, borderRadius: 18, backgroundColor: t.surface2 }} />
           <Text style={{ flex: 1, textAlign: 'center', color: t.text, fontSize: 16, fontWeight: '700', letterSpacing: -.3 }}>{tab === 'gallery' ? (selected.length ? `Выбрано: ${selected.length}` : 'Недавние') : tab === 'audio' ? 'Аудио' : 'Файлы'}</Text>
           <View style={{ width: 36 }} />
         </View>
+        </View></GestureDetector>
         <View style={{ flex: 1, minHeight: 0 }}>
           {tab === 'gallery' ? <GalleryPane onCamera={() => void camera()} active={visible && !editing} selectedIds={selected.map(item => item.id)} disabled={locked} onToggle={choose} onEdit={item => void edit(item)} onFallback={() => void systemGallery()} /> : tab === 'audio' ? <ScrollView contentContainerStyle={{ padding: 7, gap: 12 }}>
             <Button secondary icon="musical-notes-outline" label="Выбрать аудио на устройстве" disabled={locked} onPress={() => void pickDocuments(true)} />
@@ -175,9 +195,11 @@ export function AttachmentPanel({ visible, busy, canAdd, remainingSlots, onClose
         </View>
         {selected.length > 1 ? <Text style={{ color: t.muted, fontSize: 10, textAlign: 'center' }}>Несколько фото и видео отправятся одним альбомом.</Text> : null}
         {Platform.OS === 'ios' && selected.some(item => item.kind === 'video' && item.assetId) ? <Text style={{ color: t.muted, fontSize: 10, lineHeight: 15, textAlign: 'center' }}>Видео из галереи — оригинал. Изменения монтажа и скорости из приложения «Фото» не переносятся; оригинал из iCloud загрузится после подтверждения.</Text> : null}
-      </GlassSurface>
+      </View>
+      </Animated.View>
       </Animated.View>
       {editing ? <PhotoEditor key={editing.id} file={editing.file} onCancel={() => setEditing(null)} onReady={addEdited} /> : null}
     </View>
+    </GestureHandlerRootView>
   </Modal>;
 }

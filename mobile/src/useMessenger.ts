@@ -72,7 +72,10 @@ export function useMessenger(api: Api, user: User, onExpired: ()=>void) {
     // a different account, sign-out or session end wipes it.
     resetMediaCache();
     void AsyncStorage.getItem('linea.media-cache-owner').then(owner=>{if(owner!==user.id)return clearDecryptedAttachmentCache().then(()=>AsyncStorage.setItem('linea.media-cache-owner',user.id));}).catch(()=>{});
-    return()=>{current=false;void cryptoRuntime.close();resetMediaCache();void clearDecryptedAttachmentCache().then(()=>AsyncStorage.removeItem('linea.media-cache-owner')).catch(()=>{});};
+    // The files are NOT wiped here: this cleanup also runs when the screen remounts (session refresh at
+    // launch), which deleted every decrypted photo and video so they downloaded again after each restart.
+    // Sign-out wipes them explicitly (App.logout); another account wipes them via the owner check above.
+    return()=>{current=false;void cryptoRuntime.close();resetMediaCache();};
   },[cryptoRuntime,checkError]);
 
   const hydrate=useCallback(async(message:Message):Promise<Message>=>{

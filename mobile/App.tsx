@@ -21,6 +21,8 @@ import { THEME_NAMES, ThemeSettings } from './src/ThemeSettings';
 import { useMessenger } from './src/useMessenger';
 import { GlassStage, GlassSurface } from './src/glass';
 import { MusicProvider } from './src/music/MusicProvider';
+import AsyncStorage from '@react-native-async-storage/async-storage';
+import { clearDecryptedAttachmentCache } from './src/e2ee/attachments';
 import { setSoundCloudApi } from './src/music/soundcloud';
 import { MusicScreen } from './src/music/MusicScreen';
 import { FullPlayerHost, MiniPlayer } from './src/music/PlayerControls';
@@ -86,6 +88,8 @@ export default function App() {
     let revokeError:unknown=null;
     try {
       await stopPush(api);
+      // Decrypted media of this account must not outlive the session on this device.
+      await clearDecryptedAttachmentCache().then(()=>AsyncStorage.removeItem('linea.media-cache-owner')).catch(()=>{});
       try {await api.logout();}
       catch(error) {if(!(error instanceof ApiError&&error.status===401))revokeError=error;}
       try {await writeToken(null);}

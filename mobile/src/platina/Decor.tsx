@@ -2,6 +2,8 @@ import React, { useEffect } from 'react';
 import { Platform, StyleSheet, View, useWindowDimensions } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import MaskedView from '@react-native-masked-view/masked-view';
+import { BlurView } from 'expo-blur';
+import { Image as CachedImage } from 'expo-image';
 import { useVideoPlayer, VideoView } from 'expo-video';
 import Animated, { Easing, cancelAnimation, useAnimatedStyle, useSharedValue, withRepeat, withTiming } from 'react-native-reanimated';
 import type { Api } from '../api';
@@ -82,13 +84,37 @@ function VideoBanner({ api, id }: { api: Api; id: string }) {
   return <VideoView player={player} style={StyleSheet.absoluteFill} contentFit="cover" nativeControls={false} allowsPictureInPicture={false} />;
 }
 
-/** Profile banner: uploaded photo / video, or an animated preset. Null when there is none. */
-export function ProfileBanner({ user, api, height, width: fixedWidth, preview }: { user: Pick<User, 'bannerId' | 'bannerKind' | 'bannerPreset'>; api: Api; height: number; width?: number; preview?: boolean }) {
+/** Soft top and bottom edges (Telegram-like): `blurred` shows only near the edges, the sharp layer in between. */
+const EdgeBlur = ({ children }: { children: React.ReactNode }) => <MaskedView pointerEvents="none" style={StyleSheet.absoluteFill} maskElement={<LinearGradient colors={['#000', 'transparent', 'transparent', '#000']} locations={[0, 0.3, 0.55, 1]} style={StyleSheet.absoluteFill} />}>{children}</MaskedView>;
+
+function LocalVideo({ uri }: { uri: string }) {
+  const player = useVideoPlayer({ uri }, value => { value.loop = true; value.muted = true; value.play(); });
+  return <VideoView player={player} style={StyleSheet.absoluteFill} contentFit="cover" nativeControls={false} allowsPictureInPicture={false} />;
+}
+
+/** The phone-proportioned head of a profile (banner height 200 under a ~59 pt status bar). */
+export const HERO_RATIO = 259 / 393;
+
+/**
+ * Profile banner: uploaded photo / video, or an animated preset. Null when there is none.
+ * `local` shows a file picked on this device before it is uploaded (the «how it will look» preview).
+ */
+export function ProfileBanner({ user, api, height, width: fixedWidth, preview, local }: { user: Pick<User, 'bannerId' | 'bannerKind' | 'bannerPreset'>; api: Api; height: number; width?: number; preview?: boolean; local?: { uri: string; video: boolean } }) {
   const { width: screen } = useWindowDimensions(); const { enabled } = useMotion(); const t = useTheme();
   const width = fixedWidth ?? screen;
+  const soft = !preview && Platform.OS !== 'web';
   let content: React.ReactNode = null;
-  if (user.bannerId && user.bannerKind === 'video' && enabled && Platform.OS !== 'web') content = <VideoBanner api={api} id={user.bannerId} />;
-  else if (user.bannerId) content = <AuthImage api={api} id={user.bannerId} style={StyleSheet.absoluteFill} />;
+  if (local?.video && Platform.OS !== 'web') content = <><LocalVideo uri={local.uri} />{soft && Platform.OS === 'ios' ? <EdgeBlur><BlurView intensity={40} tint="default" style={StyleSheet.absoluteFill} /></EdgeBlur> : null}</>;
+  else if (local) content = <><CachedImage source={{ uri: local.uri }} style={StyleSheet.absoluteFill} contentFit="cover" />{soft ? <EdgeBlur><CachedImage source={{ uri: local.uri }} style={StyleSheet.absoluteFill} contentFit="cover" blurRadius={22} /></EdgeBlur> : null}</>;
+  else if (user.bannerId && user.bannerKind === 'video' && enabled && Platform.OS !== 'web') content = <>
+    <VideoBanner api={api} id={user.bannerId} />
+    {/* iOS blurs live content natively; Android keeps the plain video. */}
+    {soft && Platform.OS === 'ios' ? <EdgeBlur><BlurView intensity={40} tint="default" style={StyleSheet.absoluteFill} /></EdgeBlur> : null}
+  </>;
+  else if (user.bannerId) content = <>
+    <AuthImage api={api} id={user.bannerId} style={StyleSheet.absoluteFill} />
+    {soft ? <EdgeBlur><AuthImage api={api} id={user.bannerId} style={StyleSheet.absoluteFill} blurRadius={22} /></EdgeBlur> : null}
+  </>;
   else if (user.bannerPreset && BANNERS.some(item => item.id === user.bannerPreset)) content = <MusicAmbient width={width} height={height} tone={user.bannerPreset as AmbientTone} still={!enabled} />;
   if (!content) return null;
   const body = <View pointerEvents="none" style={{ width, height, overflow: 'hidden', backgroundColor: t.surface2 }}>{content}</View>;

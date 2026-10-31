@@ -160,18 +160,18 @@ export function MusicScreen({ onBack }: { onBack: () => void }) {
           {Platform.OS === 'web'
             ? <MusicAmbient width={screen.width} height={headHeight} tone={tone} fadeTo={t.bg} />
             : <MaskedView pointerEvents="none" style={[StyleSheet.absoluteFill, { width: screen.width, height: headHeight }]} maskElement={<LinearGradient colors={['#000', '#000', 'transparent']} locations={[0, 0.6, 1]} style={{ width: screen.width, height: headHeight }} />}><MusicAmbient width={screen.width} height={headHeight} tone={tone} /></MaskedView>}
-          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8, paddingHorizontal: 12 }}>
+          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10, paddingHorizontal: 18 }}>
             <IconButton name="chevron-back" label="Вернуться к мессенджеру" onPress={onBack} color={ink} />
             <Text style={{ flex: 1, color: ink, fontSize: 22, fontWeight: '700', letterSpacing: -.4 }}>Музыка</Text>
             <IconButton name="add" label="Добавить аудиофайлы" disabled={music.importing} onPress={() => void music.importFiles()} color={ink} />
             <IconButton name="information-outline" label="О музыкальном разделе" onPress={() => setInfoOpen(true)} color={ink} />
           </View>
-          <View accessibilityRole="tablist" style={{ flexDirection: 'row', gap: 6, paddingHorizontal: 14, marginTop: 6 }}>
+          <View accessibilityRole="tablist" style={{ flexDirection: 'row', gap: 6, paddingHorizontal: 18, marginTop: 10 }}>
             {sections.map(item => { const on = section === item.id; return <Pressable key={item.id} accessibilityRole="tab" accessibilityState={{ selected: on }} onPress={() => setSection(item.id)} style={{ paddingHorizontal: 14, paddingVertical: 7, borderRadius: 12, backgroundColor: on ? ink : 'transparent' }}>
               <Text style={{ color: on ? inkInverse : soft, fontSize: 16, fontWeight: on ? '700' : '600' }}>{item.label}</Text>
             </Pressable>; })}
           </View>
-          {section === 'catalog' && scReady ? <View accessibilityRole="radiogroup" accessibilityLabel="Источник музыки" style={{ flexDirection: 'row', marginHorizontal: 14, marginTop: 12, padding: 3, borderRadius: 16, backgroundColor: t.dark ? 'rgba(255,255,255,0.08)' : 'rgba(20,36,61,0.06)' }}>
+          {section === 'catalog' && scReady ? <View accessibilityRole="radiogroup" accessibilityLabel="Источник музыки" style={{ flexDirection: 'row', marginHorizontal: 18, marginTop: 12, padding: 3, borderRadius: 16, backgroundColor: t.dark ? 'rgba(255,255,255,0.08)' : 'rgba(20,36,61,0.06)' }}>
             {(['soundcloud', 'audius'] as const).map(item => { const on = source === item; return <Pressable key={item} accessibilityRole="radio" accessibilityState={{ selected: on }} onPress={() => pickSource(item)} style={{ flex: 1, minHeight: 40, borderRadius: 13, alignItems: 'center', justifyContent: 'center', backgroundColor: on ? (t.dark ? 'rgba(255,255,255,0.16)' : '#FFFFFF') : 'transparent' }}>
               <Text style={{ color: on ? ink : soft, fontSize: 15, fontWeight: on ? '700' : '600' }}>{item === 'soundcloud' ? 'SoundCloud' : 'Audius'}</Text>
             </Pressable>; })}
@@ -192,7 +192,7 @@ export function MusicScreen({ onBack }: { onBack: () => void }) {
         </GlassSurface>
 
         {section === 'catalog' ? <>
-          <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ gap: 8, paddingBottom: 2 }}>
+          <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{ marginHorizontal: -18 }} contentContainerStyle={{ gap: 8, paddingBottom: 2, paddingHorizontal: 18 }}>
             <MoodChip label="Любое" icon="sparkles-outline" selected={!mood} onPress={() => setMood(undefined)} />
             {MUSIC_MOODS.filter(item => item.apiMood).map(item => <MoodChip key={item.id} label={item.label} icon={item.icon as IconName} selected={mood === item.apiMood} onPress={() => setMood(mood === item.apiMood ? undefined : item.apiMood)} />)}
           </ScrollView>
@@ -272,7 +272,8 @@ function TrackArtwork({ track }: { track: MusicTrack }) {
 
 function TrackRow({ track, active, playing, favorite, onPlay, onFavorite, onMore }: { track: MusicTrack; active: boolean; playing: boolean; favorite: boolean; onPlay: () => void; onFavorite: () => void; onMore: () => void }) {
   const t = useTheme();
-  return <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4, paddingVertical: 9, paddingHorizontal: 7, marginBottom: 4, borderRadius: 22, backgroundColor: active ? t.accentSoft : 'transparent', borderWidth: 1, borderColor: active ? t.glassBorder : 'transparent' }}>
+  // marginHorizontal −7 puts the artwork and the buttons on the same 18 pt edge as the search field and chips.
+  return <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4, paddingVertical: 9, paddingHorizontal: 7, marginHorizontal: -7, marginBottom: 4, borderRadius: 22, backgroundColor: active ? t.accentSoft : 'transparent', borderWidth: 1, borderColor: active ? t.glassBorder : 'transparent' }}>
     <Pressable accessibilityRole="button" accessibilityLabel={`${playing ? 'Пауза' : 'Слушать'}: ${track.title}, ${track.artist}`} onPress={onPlay} style={{ flex: 1, minWidth: 0, flexDirection: 'row', alignItems: 'center', gap: 12, minHeight: 55 }}>
       <View><TrackArtwork track={track} />{active ? <View style={{ position: 'absolute', bottom: -2, right: -2, width: 23, height: 23, borderRadius: 12, backgroundColor: t.accent, alignItems: 'center', justifyContent: 'center', borderWidth: 2, borderColor: t.bg }}><Icon name={playing ? 'pause' : 'play'} size={11} color={t.onAccent} /></View> : null}</View>
       <View style={{ flex: 1, minWidth: 0, gap: 5 }}>
