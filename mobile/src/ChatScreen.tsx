@@ -245,12 +245,16 @@ export function ChatScreen({api,user,chat,store,onBack,wide=false,onOpenMusic}: 
     finally{uploadingRef.current=false;if(alive.current)setUploading(false);await FileSystem.deleteAsync(take.uri,{idempotent:true}).catch(()=>{});}
   };
   // Telegram: messages scroll under the status bar (no hard edge at the safe area); the header sits below it.
+  // Edge fades take the wallpaper's own colour (top / bottom of the gradient), so they never show as a
+  // light band over a dark wallpaper; a photo wallpaper gets a soft dark fade.
+  const preset=wallpaper.kind==='preset'?WALLPAPERS.find(item=>item.id===wallpaper.id)?.colors:null;
+  const edge=preset?{top:preset[0],bottom:preset[preset.length-1],alpha:.9}:wallpaper.kind==='image'?{top:'#000000',bottom:'#000000',alpha:.5}:{top:t.bg,bottom:t.bg,alpha:.96};
   return <VoicePlaybackProvider api={api}><KeyboardSafeView style={{flex:1,backgroundColor:'transparent',marginTop:wide?0:-insets.top}}><View style={{flex:1}}>
     <ChatWallpaper choice={wallpaper} style={{top:-80,bottom:-60}}/>
     {/* Like Telegram: messages fade out under the status bar + header and under the composer
         instead of showing through sharp-edged behind the clock and the input field. */}
-    {headerHeight?<LinearGradient pointerEvents="none" colors={[fade(t.bg,.96),fade(t.bg,.82),fade(t.bg,0)]} locations={[0,.55,1]} style={{position:'absolute',top:0,left:0,right:0,height:headerHeight+22,zIndex:4}}/>:null}
-    {footerHeight?<LinearGradient pointerEvents="none" colors={[fade(t.bg,0),fade(t.bg,.82),fade(t.bg,.96)]} locations={[0,.45,1]} style={{position:'absolute',bottom:0,left:0,right:0,height:footerHeight+22,zIndex:3}}/>:null}
+    {headerHeight?<LinearGradient pointerEvents="none" colors={[fade(edge.top,edge.alpha),fade(edge.top,edge.alpha*.85),fade(edge.top,0)]} locations={[0,.55,1]} style={{position:'absolute',top:0,left:0,right:0,height:headerHeight+22,zIndex:4}}/>:null}
+    {footerHeight?<LinearGradient pointerEvents="none" colors={[fade(edge.bottom,0),fade(edge.bottom,edge.alpha*.85),fade(edge.bottom,edge.alpha)]} locations={[0,.45,1]} style={{position:'absolute',bottom:0,left:0,right:0,height:footerHeight+22,zIndex:3}}/>:null}
     <View pointerEvents="box-none" onLayout={e=>setHeaderHeight(e.nativeEvent.layout.height)} style={{position:'absolute',top:0,left:0,right:0,zIndex:5,paddingTop:8+(wide?0:insets.top),gap:6}}>
     {selection?<View style={{flexDirection:'row',alignItems:'center',gap:8,paddingHorizontal:12}}>
       <GlassSurface material="regular" radius={24} interactive contentStyle={{height:48,justifyContent:'center',paddingHorizontal:16}}><Pressable onPress={()=>setSelection(null)} accessibilityRole="button" hitSlop={8}><Text style={{color:t.accent,fontSize:16,fontWeight:'600'}}>Отмена</Text></Pressable></GlassSurface>

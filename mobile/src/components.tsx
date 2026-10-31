@@ -7,7 +7,7 @@ import { LinearGradient } from 'expo-linear-gradient';
 import Svg, { Path } from 'react-native-svg';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useTheme, formatSize } from './theme';
-import { GlassStage, GlassSurface } from './glass';
+import { FlatGlassScope, GlassStage, GlassSurface } from './glass';
 import type { Attachment, User } from './types';
 import type { Api } from './api';
 import { mediaPreviewKind } from './media/formats';
@@ -123,12 +123,14 @@ export function AttachmentCard({attachment,api,onPress,compact=false}:{attachmen
 
 export function Sheet({visible,title,onClose,children}:{visible:boolean;title:string;onClose:()=>void;children:React.ReactNode}) {
   const t=useTheme();const insets=useSafeAreaInsets();return <Modal visible={visible} transparent animationType="fade" onRequestClose={onClose}>
-    <GlassStage><KeyboardAvoidingView style={{flex:1}} behavior={Platform.OS==='ios'?'padding':undefined}><View style={{flex:1,justifyContent:'flex-end',backgroundColor:t.black?'rgba(0,0,0,0.45)':t.dark?'rgba(0,5,19,0.36)':'rgba(43,63,103,0.12)',paddingHorizontal:12,paddingBottom:Math.max(12,insets.bottom)}}>
+    {/* The screen stays visible under a dim (it used to be replaced by a plain background, so every sheet
+        looked like a jump to another page), and the sheet itself is opaque like Telegram's. */}
+    <KeyboardAvoidingView style={{flex:1}} behavior={Platform.OS==='ios'?'padding':undefined}><View style={{flex:1,justifyContent:'flex-end',backgroundColor:t.black?'rgba(0,0,0,0.55)':t.dark?'rgba(0,5,19,0.5)':'rgba(20,32,60,0.28)',paddingHorizontal:12,paddingBottom:Math.max(12,insets.bottom)}}>
       <Pressable style={StyleSheet.absoluteFill} onPress={onClose} accessibilityRole="button" accessibilityLabel="Закрыть"/>
-      <GlassSurface radius={32} material="regular" style={{width:'100%',maxWidth:580,maxHeight:'88%',alignSelf:'center'}} contentStyle={{padding:22,paddingBottom:25,flexShrink:1}}>
+      <View style={{width:'100%',maxWidth:580,maxHeight:'88%',alignSelf:'center',borderRadius:32,backgroundColor:t.glassOpaque,borderWidth:StyleSheet.hairlineWidth,borderColor:t.border,padding:22,paddingBottom:25,flexShrink:1,shadowColor:'#000',shadowOpacity:.18,shadowRadius:24,shadowOffset:{width:0,height:-4},elevation:12}}><FlatGlassScope>
         <View style={{width:36,height:4,backgroundColor:t.subtle,opacity:.45,borderRadius:2,alignSelf:'center',marginBottom:17}}/><View style={{flexDirection:'row',alignItems:'center',justifyContent:'space-between',gap:12,marginBottom:13}}><Text style={{fontSize:21,fontWeight:'700',letterSpacing:-.45,color:t.text,flex:1}}>{title}</Text><IconButton name="close" label="Закрыть" onPress={onClose}/></View><ScrollView style={{flexGrow:0,flexShrink:1}} keyboardShouldPersistTaps="handled" showsVerticalScrollIndicator={false}>{children}</ScrollView>
-      </GlassSurface>
-    </View></KeyboardAvoidingView></GlassStage>
+      </FlatGlassScope></View>
+    </View></KeyboardAvoidingView>
   </Modal>;
 }
 

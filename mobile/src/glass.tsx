@@ -14,6 +14,8 @@ const GlassContext=createContext<GlassContextValue>({targetRef:undefined,reduceT
 /** True inside another GlassSurface: native glass cannot sample glass, so nested surfaces draw a flat fill. */
 const NestedGlass=createContext(false);
 export const useGlassTarget=()=>useContext(GlassContext).targetRef;
+/** Glass inside an opaque panel (sheets, menus) draws flat: no lens or blur on top of an opaque surface. */
+export function FlatGlassScope({children}:{children:React.ReactNode}){return <NestedGlass.Provider value={true}>{children}</NestedGlass.Provider>;}
 export const useReducedTransparency=()=>useContext(GlassContext).reduceTransparency;
 
 function useTransparencyPreference() {
