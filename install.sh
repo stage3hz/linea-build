@@ -64,7 +64,7 @@ keep() { [ -f deploy/.env ] && grep -E "^$1=" deploy/.env | tail -1 | cut -d= -f
 OLDKEY="$(keep OPENROUTER_API_KEY)"
 AI_PROVIDER_V="$(keep AI_PROVIDER)"; AI_API_KEY_V="$(keep AI_API_KEY)"; AI_MODEL_V="$(keep AI_MODEL)"
 FLK="$(keep FREELLMAPI_ENCRYPTION_KEY)"; [ -n "$FLK" ] || FLK="$(openssl rand -hex 32)"
-FCM_V="$(keep FCM_SERVICE_ACCOUNT)"; SC_V="$(keep SOUNDCLOUD_CREDENTIALS)"; mkdir -p deploy/secrets
+FCM_V="$(keep FCM_SERVICE_ACCOUNT)"; SC_V="$(keep SOUNDCLOUD_CREDENTIALS)"; APNS_V="$(keep APNS_CREDENTIALS)"; mkdir -p deploy/secrets
 TURN_SECRET_V="$(keep TURN_SECRET)"; [ -n "$TURN_SECRET_V" ] || TURN_SECRET_V="$(openssl rand -hex 32)"
 DASH_HOST="${AI_DASHBOARD_HOST:-$(keep AI_DASHBOARD_HOST)}"
 case "$HOST1" in *.nip.io|*.sslip.io) [ -n "$DASH_HOST" ] || DASH_HOST="ai.$HOST1";; esac
@@ -84,6 +84,7 @@ TURN_HOST=$HOST1
 TURN_EXTERNAL_IP=$MYIP
 FCM_SERVICE_ACCOUNT=$FCM_V
 SOUNDCLOUD_CREDENTIALS=$SC_V
+APNS_CREDENTIALS=$APNS_V
 EOF
 )
 # Панель FreeLLMAPI: отдельный адрес с HTTPS. Вход защищён её собственным аккаунтом,

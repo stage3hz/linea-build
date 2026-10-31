@@ -1,6 +1,6 @@
 import { resolve } from 'node:path';
 import { buildApp } from './app.js';
-import { createFcm, loadServiceAccount } from './push.js';
+import { createApns, createFcm, createPush, loadApnsCredentials, loadServiceAccount } from './push.js';
 import { createSoundCloud, loadSoundCloudCredentials } from './soundcloud.js';
 
 function integerEnv(name, fallback, min, max) {
@@ -19,8 +19,12 @@ for (const origin of allowedOrigins) {
 const trustedProxies = (process.env.TRUSTED_PROXIES || '').split(',').map(value => value.trim()).filter(Boolean);
 if (trustedProxies.some(value => ['*', 'true', 'false'].includes(value))) throw new Error('TRUSTED_PROXIES: list only trusted proxy IPs or CIDRs');
 
-// Push (Android, Firebase): FCM_SERVICE_ACCOUNT = path to the service account JSON on this server.
-const push = createFcm(loadServiceAccount(process.env.FCM_SERVICE_ACCOUNT || ''));
+// Push. Android through Firebase: FCM_SERVICE_ACCOUNT = path to the service account JSON.
+// iPhone straight through Apple: APNS_CREDENTIALS = path to the JSON deploy/apns.sh writes from the .p8 key.
+const push = createPush({
+  android: createFcm(loadServiceAccount(process.env.FCM_SERVICE_ACCOUNT || '')),
+  ios: createApns(loadApnsCredentials(process.env.APNS_CREDENTIALS || '')),
+});
 
 // SoundCloud (official API): SOUNDCLOUD_CREDENTIALS = path to {client_id, client_secret} on this server.
 const soundcloud = createSoundCloud(loadSoundCloudCredentials(process.env.SOUNDCLOUD_CREDENTIALS || ''), { dailyLimit: integerEnv('SOUNDCLOUD_DAILY_PLAYS', 1500, 1, 1000000) });

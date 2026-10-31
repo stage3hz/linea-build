@@ -1,5 +1,5 @@
 import { installCallRoutes } from './calls.js';
-import { PUSH_SCHEMA, PUSH_KINDS, chatNotification } from './push.js';
+import { PUSH_SCHEMA, PUSH_KINDS, chatNotification, migratePushTokens } from './push.js';
 import { MODERATION_SCHEMA, installModerationRoutes, blockedBetween, deleteAccount } from './moderation.js';
 import { installSoundCloudRoutes } from './soundcloud.js';
 import { COMMUNITY_SCHEMA, installCommunityRoutes, VOICE_LIMIT } from './communities.js';
@@ -250,6 +250,7 @@ export async function buildApp({
   installUsernameRoutes({app,db,now,authOptions,emitUser,emitChat});
   installCallRoutes({app,authOptions,now,turn});
   installSocialRoutes({app,db,authOptions,publicUser,timestamp,serializationOptions,emitUser});
+  migratePushTokens(db);
   db.exec(PUSH_SCHEMA);
   { const columns = new Set(db.prepare('PRAGMA table_info(users)').all().map(column => column.name)); for (const column of ['profile_effect', 'nameplate']) if (!columns.has(column)) db.exec(`ALTER TABLE users ADD COLUMN ${column} TEXT`); }
   db.exec(MODERATION_SCHEMA);
@@ -260,10 +261,11 @@ export async function buildApp({
   app.put('/me/push', authOptions, async request => {
     const body = objectBody(request.body, ['token', 'platform']);
     if (typeof body.token !== 'string' || !/^[A-Za-z0-9_:\-]{20,4096}$/.test(body.token)) fail(400, 'Некорректный токен уведомлений.');
-    if (body.platform !== 'android') fail(400, 'Уведомления пока работают только на Android.');
+    if (body.platform !== 'android' && body.platform !== 'ios') fail(400, 'Неизвестная платформа уведомлений.');
+    if (body.platform === 'ios' && !/^[0-9a-f]{64,200}$/i.test(body.token)) fail(400, 'Некорректный токен уведомлений.');
     db.prepare('INSERT INTO push_tokens(token,user_id,session_hash,platform,updated_at) VALUES(?,?,?,?,?) ON CONFLICT(token) DO UPDATE SET user_id=excluded.user_id,session_hash=excluded.session_hash,updated_at=excluded.updated_at')
       .run(body.token, request.auth.user_id, request.auth.token_hash, body.platform, now());
-    return { ok: true, enabled: !!push };
+    return { ok: true, enabled: !!push && (push.platforms ? !!push.platforms[body.platform] : body.platform === 'android') };
   });
   app.delete('/me/push', authOptions, async request => {
     db.prepare('DELETE FROM push_tokens WHERE session_hash=?').run(request.auth.token_hash);
@@ -275,13 +277,13 @@ export async function buildApp({
     for (const userId of memberIds(chatId)) {
       if (userId === senderId) continue;
       if (kind !== 'call' && chatSettings(db, userId, chatId).muted) continue;
-      const tokens = db.prepare('SELECT p.token FROM push_tokens p JOIN sessions s ON s.token_hash=p.session_hash WHERE p.user_id=? AND s.expires_at>?').all(userId, now());
+      const tokens = db.prepare('SELECT p.token, p.platform FROM push_tokens p JOIN sessions s ON s.token_hash=p.session_hash WHERE p.user_id=? AND s.expires_at>?').all(userId, now());
       if (!tokens.length) continue;
       const member = db.prepare('SELECT last_read_message_id FROM chat_members WHERE chat_id=? AND user_id=?').get(chatId, userId);
       const unread = db.prepare('SELECT COUNT(*) AS count FROM messages WHERE chat_id=? AND sender_id<>? AND id>?').get(chatId, userId, member?.last_read_message_id ?? 0).count;
       const message = chatNotification({ chatId, senderName: sender?.display_name || 'Инвиз', kind, unread });
-      for (const { token } of tokens) {
-        push(token, message).then(result => { if (result === 'gone' && !databaseClosed) db.prepare('DELETE FROM push_tokens WHERE token=?').run(token); })
+      for (const { token, platform } of tokens) {
+        push(token, message, platform).then(result => { if (result === 'gone' && !databaseClosed) db.prepare('DELETE FROM push_tokens WHERE token=?').run(token); })
           .catch(error => app.log.warn({ err: error.message }, 'push failed'));
       }
     }

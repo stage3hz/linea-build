@@ -36,6 +36,8 @@ services:
       TURN_HOST: ${TURN_HOST:-}
       # Push (Android, Firebase): key installed by deploy/push.sh, never in the repository.
       FCM_SERVICE_ACCOUNT: ${FCM_SERVICE_ACCOUNT:-}
+      # Push (iPhone, Apple APNs): key installed by deploy/apns.sh.
+      APNS_CREDENTIALS: ${APNS_CREDENTIALS:-}
       SOUNDCLOUD_CREDENTIALS: ${SOUNDCLOUD_CREDENTIALS:-}
     volumes:
       - linea-data:/data
