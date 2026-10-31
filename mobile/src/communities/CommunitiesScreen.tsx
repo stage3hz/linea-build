@@ -39,7 +39,7 @@ export function CommunitiesScreen({ api, me, store, openId, onOpenInvite, onOpen
   return <View style={{ flex: 1 }}>
     <StackBase progress={progress} covered={!!openId}>
       <View style={{ flex: 1 }}>
-        <GlassSurface material="clear" radius={27} style={{ marginHorizontal: 14, marginTop: 12 }} contentStyle={{ flexDirection: 'row', alignItems: 'center', padding: 10, gap: 9, minHeight: 64 }}>
+        <GlassSurface lens material="clear" radius={27} style={{ marginHorizontal: 14, marginTop: 12 }} contentStyle={{ flexDirection: 'row', alignItems: 'center', padding: 10, gap: 9, minHeight: 64 }}>
           <View style={{ flex: 1, paddingLeft: 6 }}><Text style={{ fontSize: 22, fontWeight: '700', color: t.text }}>Каналы</Text><Text style={{ fontSize: 12, color: t.muted }}>Игровые серверы и каналы</Text></View>
           <IconButton name="link-outline" label="Вступить по ссылке" onPress={() => setJoin(true)} />
           <Pressable accessibilityRole="button" accessibilityLabel="Создать" onPress={() => setCreate('choose')} style={{ width: 42, height: 42, borderRadius: 21, backgroundColor: t.accent, alignItems: 'center', justifyContent: 'center' }}><Icon name="add" color={t.onAccent} size={24} /></Pressable>

@@ -158,7 +158,7 @@ export function AIScreen({ api, onBack, quick = false, history }: { api: Api; on
   function clear() { ai.conversation.current?.clear(); setConversationId(Crypto.randomUUID()); setDraft(''); setApproval(null); setTaskError(''); }
   function openConversation(item: AIStoredConversation) { ai.conversation.current?.restore(item.turns, item.consent); setConversationId(item.id); setDraft(''); setApproval(null); setTaskError(''); setHistorySheet(false); }
   return <KeyboardSafeView style={{ flex: 1, backgroundColor: 'transparent' }}>
-    <GlassSurface radius={27} style={{ margin: 12, marginBottom: 7 }} contentStyle={{ padding: 8, flexDirection: 'row', alignItems: 'center', gap: 9 }}>
+    <GlassSurface lens radius={27} style={{ margin: 12, marginBottom: 7 }} contentStyle={{ padding: 8, flexDirection: 'row', alignItems: 'center', gap: 9 }}>
       <IconButton name={quick ? 'close' : 'chevron-back'} label={quick ? 'Закрыть быстрый вопрос AI' : 'Назад к чатам'} onPress={onBack} />
       <View style={{ flex: 1, gap: 3 }}><Text style={{ color: t.text, fontSize: 20, fontWeight: '700' }}>{quick ? 'Быстрый вопрос AI' : 'AI'}</Text><Text style={{ color: t.muted, fontSize: 11 }}>{ai.status?.provider === 'freellmapi' ? 'FreeLLMAPI · бесплатные модели' : 'OpenRouter · бесплатные модели'}</Text></View>
       {history ? <IconButton name="time-outline" label="История AI-бесед" onPress={() => setHistorySheet(true)} color={t.accent} /> : null}
@@ -181,7 +181,7 @@ export function AIScreen({ api, onBack, quick = false, history }: { api: Api; on
       {ai.state.error && ai.state.error !== last?.error ? <Notice text={ai.state.error} error /> : null}
       {taskError ? <Notice text={taskError} error /> : null}
     </ScrollView>
-    {!media ? <GlassSurface radius={26} style={{ margin: 12, marginTop: 3 }} contentStyle={{ padding: 10, gap: 8 }}>
+    {!media ? <GlassSurface lens radius={26} style={{ margin: 12, marginTop: 3 }} contentStyle={{ padding: 10, gap: 8 }}>
       {photo && mode === 'text' ? <View style={{ flexDirection: 'row', alignItems: 'center', gap: 9, paddingLeft: 6 }}><Image source={{ uri: photo }} style={{ width: 44, height: 44, borderRadius: 10 }} /><Text style={{ flex: 1, color: t.muted, fontSize: 12 }}>Фото к вопросу</Text><IconButton name="close" label="Убрать фото" size={18} color={t.muted} onPress={() => setPhoto(null)} /></View> : null}
       {ai.state.pending ? <><Button secondary label="Отменить ожидание" icon="stop-outline" onPress={() => ai.conversation.current?.cancel()} /><Text style={{ color: t.muted, fontSize: 10, lineHeight: 15, textAlign: 'center' }}>Уже отправленный текст нельзя отозвать у внешней службы.</Text></> : <>
         <View style={{ flexDirection: 'row', alignItems: 'flex-end', gap: 8 }}><ComposerInput accessibilityLabel={mode === 'code' ? 'Задача по коду для AI' : 'Вопрос AI'} value={draft} onChangeText={setDraft} placeholder={mode === 'code' ? 'Опиши задачу по коду…' : 'Напиши вопрос…'} placeholderTextColor={t.muted} selectionColor={t.accent} keyboardAppearance={t.dark ? 'dark' : 'light'} multiline maxLength={inputLimit} style={{ flex: 1, minHeight: 45, maxHeight: 140, padding: 10, color: t.text, fontSize: 15, lineHeight: 22 }} />

@@ -263,13 +263,13 @@ export function ChatScreen({api,user,chat,store,onBack,wide=false,onOpenMusic}: 
       <Pressable onPress={()=>setPeerInfo(true)} accessibilityRole="button" accessibilityLabel="Открыть профиль" style={({pressed})=>({opacity:pressed?.75:1,borderRadius:24,borderWidth:1.5,borderColor:t.glassBorder})}><DecoratedAvatar user={chat.peer} api={api} size={44} animated/></Pressable>
     </View>}
     {onOpenMusic&&!selection?<TopPlayerBar onOpen={onOpenMusic}/>:null}
-    {searchOpen?<GlassSurface material="regular" radius={22} shadow={false} style={{marginHorizontal:12}} contentStyle={{flexDirection:'row',alignItems:'center',gap:9,paddingHorizontal:14,minHeight:46}}>
+    {searchOpen?<GlassSurface lens material="regular" radius={22} shadow={false} style={{marginHorizontal:12}} contentStyle={{flexDirection:'row',alignItems:'center',gap:9,paddingHorizontal:14,minHeight:46}}>
       <Icon name="search-outline" size={18} color={t.muted}/>
       <TextInput autoFocus value={query} onChangeText={setQuery} placeholder="Поиск в этом чате" placeholderTextColor={t.muted} selectionColor={t.accent} keyboardAppearance={t.dark?'dark':'light'} accessibilityLabel="Поиск в этом чате" style={{flex:1,color:t.text,fontSize:15,paddingVertical:10}}/>
       {needle?<Text style={{color:t.muted,fontSize:11}}>{rows.length?`Найдено: ${rows.length}`:'Ничего'}</Text>:null}
       <IconButton name="close" label="Закрыть поиск" size={18} color={t.muted} onPress={()=>{setSearchOpen(false);setQuery('');}} style={{width:34,height:38}}/>
     </GlassSurface>:null}
-    {view.pinned&&!searchOpen?<GlassSurface material="regular" radius={18} shadow={false} style={{marginHorizontal:12}} contentStyle={{flexDirection:'row',alignItems:'center',gap:8,paddingLeft:12,paddingRight:4,minHeight:44}}>
+    {view.pinned&&!searchOpen?<GlassSurface lens material="regular" radius={18} shadow={false} style={{marginHorizontal:12}} contentStyle={{flexDirection:'row',alignItems:'center',gap:8,paddingLeft:12,paddingRight:4,minHeight:44}}>
       <Pressable accessibilityRole="button" accessibilityLabel="Перейти к закреплённому сообщению" onPress={()=>jumpTo(view.pinned!.clientId)} style={{flex:1,flexDirection:'row',alignItems:'center',gap:9}}>
         <View style={{width:3,alignSelf:'stretch',marginVertical:8,borderRadius:2,backgroundColor:t.accent}}/>
         <View style={{flex:1,gap:2,paddingVertical:6}}><Text style={{color:t.accent,fontSize:11,fontWeight:'700'}}>Закреплённое сообщение</Text><Text numberOfLines={1} style={{color:t.text,fontSize:13}}>{replyPreview(view.pinned)||'Вложение'}</Text></View>
@@ -289,7 +289,7 @@ export function ChatScreen({api,user,chat,store,onBack,wide=false,onOpenMusic}: 
     {/* Like Telegram: the composer floats over the messages, which scroll underneath it. */}
     <View pointerEvents="box-none" onLayout={e=>setFooterHeight(e.nativeEvent.layout.height)} style={{position:'absolute',left:0,right:0,bottom:0,zIndex:4}}>
     {showDown&&!selection?<View pointerEvents="box-none" style={{height:0}}><View style={{position:'absolute',right:14,bottom:10}}><GlassSurface material="regular" radius={20} interactive contentStyle={{width:40,height:40,alignItems:'center',justifyContent:'center'}}><Pressable onPress={()=>{lightFeedback();listRef.current?.scrollToOffset({offset:0,animated:true});}} accessibilityRole="button" accessibilityLabel="Вниз к новым сообщениям" hitSlop={6}><Icon name="chevron-down" size={26} color={t.text}/></Pressable></GlassSurface></View></View>:null}
-    {selection?<GlassSurface material="regular" radius={28} style={{marginHorizontal:12,marginTop:5,marginBottom:10}} contentStyle={{flexDirection:'row',justifyContent:'space-around',alignItems:'center',paddingVertical:8}}>
+    {selection?<GlassSurface lens material="regular" radius={28} style={{marginHorizontal:12,marginTop:5,marginBottom:10}} contentStyle={{flexDirection:'row',justifyContent:'space-around',alignItems:'center',paddingVertical:8}}>
       {([
         {icon:'arrow-redo-outline',label:'Переслать',on:()=>{setForwardMany(selectedMessages);},ok:selectedMessages.length>0},
         {icon:'share-outline',label:'Поделиться',on:()=>{void shareMessages(selectedMessages);setSelection(null);},ok:selectedMessages.length>0},
@@ -297,7 +297,7 @@ export function ChatScreen({api,user,chat,store,onBack,wide=false,onOpenMusic}: 
         {icon:'trash-outline',label:'Удалить',on:()=>setDeleteAsk(true),ok:selectedMessages.length>0,danger:true},
       ] as const).map(item=><Pressable key={item.label} disabled={!item.ok} onPress={()=>{lightFeedback();item.on();}} accessibilityRole="button" style={({pressed})=>({alignItems:'center',gap:4,paddingHorizontal:8,paddingVertical:4,opacity:!item.ok?.35:pressed?.6:1})}><Icon name={item.icon} size={22} color={'danger' in item?t.danger:t.accent}/><Text style={{fontSize:10,color:'danger' in item?t.danger:t.accent,fontWeight:'600'}}>{item.label}</Text></Pressable>)}
     </GlassSurface>:<View style={{marginHorizontal:8,marginTop:4,marginBottom:8,gap:6}}>
-      {replyTo||editing||uploading||attachments.length?<GlassSurface material="regular" radius={22} contentStyle={{paddingHorizontal:8,paddingTop:8,paddingBottom:2}}>
+      {replyTo||editing||uploading||attachments.length?<GlassSurface lens material="regular" radius={22} contentStyle={{paddingHorizontal:8,paddingTop:8,paddingBottom:2}}>
       {replyTo||editing?<View style={{flexDirection:'row',alignItems:'center',gap:8,paddingLeft:8,paddingBottom:6}}>
         <Icon name={editing?'create-outline':'arrow-undo-outline'} size={18} color={t.accent}/>
         <View style={{width:3,alignSelf:'stretch',borderRadius:2,backgroundColor:t.accent}}/>
@@ -310,9 +310,9 @@ export function ChatScreen({api,user,chat,store,onBack,wide=false,onOpenMusic}: 
         return <View key={attachment.id} style={{width:230,flexDirection:'row',alignItems:'center',gap:8,padding:10,borderRadius:19,backgroundColor:t.accentSoft,borderWidth:1,borderColor:t.border}}><Icon name={kind==='photo'?'image-outline':kind==='video'?'videocam-outline':kind==='audio'?'musical-note-outline':'document-outline'} color={t.accent} size={21}/><View style={{flex:1,gap:3}}><Text numberOfLines={1} style={{color:t.text,fontSize:12,fontWeight:'600'}}>{attachment.name}</Text><Text style={{color:t.muted,fontSize:10}}>{index+1} · {formatSize(attachment.size)}</Text></View><IconButton name="close" label={`Убрать ${attachment.name}`} onPress={()=>{store.removeDraftFile(chat.id,attachment.id);draftCount.current=Math.max(0,draftCount.current-1);}} disabled={uploading} size={18} style={{width:30,height:32}}/></View>;
       })}</ScrollView>:null}
       </GlassSurface>:null}
-      {voice.active?<GlassSurface material="regular" radius={26} contentStyle={{padding:6}}><VoiceRecordingBar durationMs={voice.durationMs} levels={voice.levels} onCancel={()=>void finishVoice(false)} onSend={()=>void finishVoice(true)}/></GlassSurface>:<View style={{flexDirection:'row',gap:8,alignItems:'flex-end'}}>
+      {voice.active?<GlassSurface lens material="regular" radius={26} contentStyle={{padding:6}}><VoiceRecordingBar durationMs={voice.durationMs} levels={voice.levels} onCancel={()=>void finishVoice(false)} onSend={()=>void finishVoice(true)}/></GlassSurface>:<View style={{flexDirection:'row',gap:8,alignItems:'flex-end'}}>
         <GlassSurface material="regular" radius={20} interactive contentStyle={{width:40,height:40,alignItems:'center',justifyContent:'center'}}><Pressable accessibilityRole="button" accessibilityLabel="Вложения: галерея, файлы, опрос" disabled={uploading} onPress={()=>{Keyboard.dismiss();setStickers(false);setAttachMenu(true);}} hitSlop={6} style={{opacity:uploading?.4:1}}><Icon name="attach" size={24} color={t.text}/></Pressable></GlassSurface>
-        <GlassSurface material="regular" radius={20} style={{flex:1}} contentStyle={{minHeight:40,maxHeight:140,flexDirection:'row',alignItems:'flex-end'}}>
+        <GlassSurface lens material="regular" radius={20} style={{flex:1}} contentStyle={{minHeight:40,maxHeight:140,flexDirection:'row',alignItems:'flex-end'}}>
           <View style={{flex:1,justifyContent:'center',minHeight:40}}><ComposerInput accessibilityLabel="Сообщение" placeholder={signalAvailable?'Сообщение':'Нужна мобильная версия'} editable={signalAvailable} value={text} onChangeText={changeText} placeholderTextColor={t.muted} selectionColor={t.accent} keyboardAppearance={t.dark?'dark':'light'} multiline maxLength={8000} style={{fontSize:17,lineHeight:22,color:t.text,paddingHorizontal:14,paddingTop:Platform.OS==='ios'?9:7,paddingBottom:9,maxHeight:136}} onKeyPress={e=>{if(Platform.OS==='web'&&e.nativeEvent.key==='Enter'&&!(e.nativeEvent as unknown as {shiftKey?:boolean}).shiftKey){e.preventDefault();send();}}}/></View>
           <Pressable accessibilityRole="button" accessibilityLabel="Стикеры и эмодзи" onPress={()=>{Keyboard.dismiss();setStickers(value=>!value);}} style={({pressed})=>({height:40,width:38,alignItems:'center',justifyContent:'center',opacity:pressed?.6:1})}><Icon name={stickers?'keypad-outline':'happy-outline'} color={stickers?t.accent:t.muted} size={22}/></Pressable>
         </GlassSurface>

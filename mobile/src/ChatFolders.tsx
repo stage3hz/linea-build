@@ -42,12 +42,12 @@ export function FolderTabs({ folders, filter, unread, onChange, onCreate, onEdit
   const fits = tabs.length <= 3;
   const items = <>
     {tabs.map(tab => { const active = filter === tab.id; return <Pressable key={tab.id} onPress={() => { lightFeedback(); onChange(tab.id); }} onLongPress={tab.folder ? () => onEdit(tab.folder!) : undefined} accessibilityRole="tab" accessibilityState={{ selected: active }} style={{ flex: fits ? 1 : undefined, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6, paddingHorizontal: 14, height: 32, borderRadius: 16, backgroundColor: active ? (t.dark ? 'rgba(255,255,255,0.14)' : 'rgba(255,255,255,0.85)') : 'transparent' }}>
-      <Text numberOfLines={1} style={{ color: t.text, fontSize: 14, fontWeight: active ? '700' : '500' }}>{tab.label}</Text>
+      <Text numberOfLines={1} adjustsFontSizeToFit minimumFontScale={0.8} style={{ flexShrink: 1, color: t.text, fontSize: 14, fontWeight: active ? '700' : '500' }}>{tab.label}</Text>
       {tab.badge ? <View style={{ minWidth: 18, height: 18, borderRadius: 9, paddingHorizontal: 5, alignItems: 'center', justifyContent: 'center', backgroundColor: t.accent }}><Text style={{ color: t.onAccent, fontSize: 10, fontWeight: '700' }}>{tab.badge > 99 ? '99+' : tab.badge}</Text></View> : null}
     </Pressable>; })}
     <Pressable onPress={onCreate} accessibilityRole="button" accessibilityLabel="Новая папка" hitSlop={4} style={{ width: 32, height: 32, borderRadius: 16, alignItems: 'center', justifyContent: 'center' }}><Icon name="add" size={18} color={t.muted} /></Pressable>
   </>;
-  return <GlassSurface material="regular" radius={20} shadow={false} style={{ marginHorizontal: 16, marginBottom: 8 }} contentStyle={{ height: 40, justifyContent: 'center' }}>
+  return <GlassSurface lens material="regular" radius={20} shadow={false} style={{ marginHorizontal: 16, marginBottom: 8 }} contentStyle={{ height: 40, justifyContent: 'center' }}>
     {fits ? <View style={{ flexDirection: 'row', alignItems: 'center', paddingHorizontal: 4, gap: 2 }}>{items}</View>
       : <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ paddingHorizontal: 4, gap: 2, alignItems: 'center' }}>{items}</ScrollView>}
   </GlassSurface>;

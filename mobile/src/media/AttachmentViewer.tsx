@@ -144,7 +144,7 @@ export function MediaGallery({api,items,index,onClose}:{api:Api;items:Attachment
       {/* Telegram-style floating controls: back, title pill, share. */}
       <View pointerEvents="box-none" style={{flexDirection:'row',alignItems:'center',gap:8,paddingHorizontal:12,paddingTop:6}}>
         <GlassSurface material="regular" radius={24} interactive contentStyle={circle}><Pressable onPress={onClose} accessibilityRole="button" accessibilityLabel="Закрыть" hitSlop={6} style={circle}><Icon name="chevron-back" color="#FFF" size={26}/></Pressable></GlassSurface>
-        <View pointerEvents="box-none" style={{flex:1,alignItems:'center'}}><GlassSurface material="regular" radius={24} contentStyle={{minHeight:48,justifyContent:'center',alignItems:'center',paddingHorizontal:18}}>
+        <View pointerEvents="box-none" style={{flex:1,alignItems:'center'}}><GlassSurface lens material="regular" radius={24} contentStyle={{minHeight:48,justifyContent:'center',alignItems:'center',paddingHorizontal:18}}>
           <Text style={{color:'#FFF',fontSize:15,fontWeight:'700'}}>{items.length>1?`${title} ${current+1} из ${items.length}`:title}</Text>
           {item?<Text style={{color:'rgba(255,255,255,0.7)',fontSize:11}}>{formatSize(item.size)}</Text>:null}
         </GlassSurface></View>

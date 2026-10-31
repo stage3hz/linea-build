@@ -71,9 +71,13 @@ export type GlassSurfaceProps = {
   interactive?:boolean;
   shadow?:boolean;
   targetRef?:RefObject<View|null>;
+  /** Android 13+: bend the backdrop at the edges (lens). On by default for controls (`interactive`);
+   *  floating bars opt in. Content cards stay flat frosted glass — a lens there pulled neighbouring
+   *  text into smears at the edges (Apple keeps Liquid Glass for the navigation layer too). */
+  lens?:boolean;
 };
 
-export function GlassSurface({children,style,contentStyle,radius=26,material='regular',interactive=false,shadow=true,targetRef}:GlassSurfaceProps) {
+export function GlassSurface({children,style,contentStyle,radius=26,material='regular',interactive=false,shadow=true,targetRef,lens}:GlassSurfaceProps) {
   const t=useTheme();const context=useContext(GlassContext);const target=targetRef||context.targetRef;
   const nested=useContext(NestedGlass);
   const nativeGlass=useMemo(()=>{
@@ -96,7 +100,7 @@ export function GlassSurface({children,style,contentStyle,radius=26,material='re
   // Light theme: no dark legibility veil (it scales up over bright backdrops and turned the glass grey),
   // a milky white tint and a small lift instead — closer to iOS 26. Small round buttons (clear)
   // get a thinner lens: full refraction bent the text behind them and made the circle look uneven.
-  if(androidLiquid&&!nested&&!reduceTransparency)return <LiquidGlassView variant={material} borderRadius={radius} tintColor={t.dark?t.glassTint:regular?'rgba(255,255,255,0.34)':'rgba(255,255,255,0.18)'} brightness={t.dark?1:1.06} blurRadius={regular?14:10} thickness={regular?1:.45} edgeReflectionStrength={regular?1:.6} legibilityFloor={t.dark?.12:0} interactive={false} tilt={false} style={[{borderRadius:radius},style]}>
+  if(androidLiquid&&!nested&&!reduceTransparency)return <LiquidGlassView variant={material} refraction={lens??interactive} borderRadius={radius} tintColor={t.dark?t.glassTint:regular?'rgba(255,255,255,0.34)':'rgba(255,255,255,0.18)'} brightness={t.dark?1:1.06} blurRadius={regular?14:10} thickness={regular?1:.45} edgeReflectionStrength={regular?1:.6} legibilityFloor={t.dark?.12:0} interactive={false} tilt={false} style={[{borderRadius:radius},style]}>
     {/* Content lives inside the glass: the shader excludes it from the backdrop, so icons do not bleed into the blur. */}
     <NestedGlass.Provider value={true}><View style={[{flexGrow:1},contentStyle]}>{children}</View></NestedGlass.Provider>
   </LiquidGlassView>;

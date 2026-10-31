@@ -51,7 +51,7 @@ export function CommunitySettings({ api, me, community, onBack, onChanged, onLef
   </Pressable>;
 
   return <View style={{ flex: 1 }}>
-    <GlassSurface radius={27} style={{ margin: 12, marginBottom: 6 }} contentStyle={{ padding: 8, flexDirection: 'row', alignItems: 'center', gap: 9, minHeight: 60 }}>
+    <GlassSurface lens radius={27} style={{ margin: 12, marginBottom: 6 }} contentStyle={{ padding: 8, flexDirection: 'row', alignItems: 'center', gap: 9, minHeight: 60 }}>
       <IconButton name="chevron-back" label="Назад" onPress={onBack} /><Text style={{ flex: 1, color: t.text, fontSize: 19, fontWeight: '700' }}>Настройки</Text>
     </GlassSurface>
     <ScrollView contentContainerStyle={{ padding: 14, gap: 16, paddingBottom: 40 }} keyboardShouldPersistTaps="handled">

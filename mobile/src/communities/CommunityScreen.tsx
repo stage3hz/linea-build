@@ -60,7 +60,7 @@ export function CommunityScreen({ api, me, store, communityId, onBack, onOpenInv
     catch (failure) { setVoiceError(failure instanceof Error ? failure.message : 'Не удалось подключиться.'); }
   };
 
-  const header = (title: string, subtitle: string, back: () => void, right?: React.ReactNode) => <GlassSurface radius={27} style={{ margin: 12, marginBottom: 6 }} contentStyle={{ padding: 8, flexDirection: 'row', alignItems: 'center', gap: 9, minHeight: 60 }}>
+  const header = (title: string, subtitle: string, back: () => void, right?: React.ReactNode) => <GlassSurface lens radius={27} style={{ margin: 12, marginBottom: 6 }} contentStyle={{ padding: 8, flexDirection: 'row', alignItems: 'center', gap: 9, minHeight: 60 }}>
     <IconButton name="chevron-back" label="Назад" onPress={back} />
     {community ? <CommunityAvatar api={api} community={community} size={38} /> : null}
     <View style={{ flex: 1, minWidth: 0 }}><Text numberOfLines={1} style={{ color: t.text, fontSize: 17, fontWeight: '700' }}>{title}</Text><Text numberOfLines={1} style={{ color: t.muted, fontSize: 12 }}>{subtitle}</Text></View>

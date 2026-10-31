@@ -86,7 +86,7 @@ export function ChatSearch({ api, me, store, onClose, onSaved }: { api: Api; me:
 
   return <View style={{ flex: 1 }}>
     <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10, paddingHorizontal: 16, paddingTop: 6, paddingBottom: 10 }}>
-      <GlassSurface material="regular" radius={22} shadow={false} style={{ flex: 1 }} contentStyle={{ height: 44, flexDirection: 'row', alignItems: 'center', gap: 8, paddingHorizontal: 13 }}>
+      <GlassSurface lens material="regular" radius={22} shadow={false} style={{ flex: 1 }} contentStyle={{ height: 44, flexDirection: 'row', alignItems: 'center', gap: 8, paddingHorizontal: 13 }}>
         <Icon name="search-outline" size={19} color={t.muted} />
         <TextInput ref={input} autoFocus value={query} onChangeText={setQuery} placeholder="Поиск" placeholderTextColor={t.muted} selectionColor={t.accent} autoCapitalize="none" autoCorrect={false} returnKeyType="search" accessibilityLabel="Поиск" style={{ flex: 1, color: t.text, fontSize: 17, paddingVertical: 8 }} />
         {query ? <Pressable onPress={() => setQuery('')} accessibilityRole="button" accessibilityLabel="Стереть" hitSlop={8}><Icon name="close-circle" size={18} color={t.muted} /></Pressable> : null}
@@ -113,7 +113,7 @@ export function ChatSearch({ api, me, store, onClose, onSaved }: { api: Api; me:
     {/* Scope tabs ride on top of the keyboard, as in Telegram. */}
     <KeyboardStickyView offset={{ closed: 0, opened: insets.bottom }} style={{ position: 'absolute', left: 0, right: 0, bottom: insets.bottom + 8 }}>
       <View style={{ alignItems: 'center' }}>
-        <GlassSurface material="regular" radius={21} contentStyle={{ flexDirection: 'row', padding: 4 }}>
+        <GlassSurface lens material="regular" radius={21} contentStyle={{ flexDirection: 'row', padding: 4 }}>
           <ScrollView horizontal showsHorizontalScrollIndicator={false} keyboardShouldPersistTaps="always" contentContainerStyle={{ gap: 2 }}>
             {SCOPES.map(item => <Pressable key={item.id} onPress={() => { lightFeedback(); setScope(item.id); }} accessibilityRole="tab" accessibilityState={{ selected: scope === item.id }} style={{ paddingHorizontal: 16, height: 34, borderRadius: 17, justifyContent: 'center', backgroundColor: scope === item.id ? t.accentSoft : 'transparent' }}>
               <Text style={{ color: scope === item.id ? t.text : t.muted, fontSize: 14, fontWeight: scope === item.id ? '700' : '500' }}>{item.label}</Text>

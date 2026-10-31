@@ -1,5 +1,5 @@
 import React, { memo, useCallback, useEffect, useRef } from 'react';
-import { StyleSheet, View, useWindowDimensions } from 'react-native';
+import { StyleSheet, View, useWindowDimensions, BackHandler } from 'react-native';
 import { Gesture, GestureDetector } from 'react-native-gesture-handler';
 import Animated, { Easing, interpolate, runOnJS, useAnimatedStyle, withTiming, type SharedValue } from 'react-native-reanimated';
 import { lightFeedback } from './haptics';
@@ -25,6 +25,9 @@ export function StackScreen({ progress, onBack, children }: { progress: SharedVa
     if (closing.current) return; closing.current = true;
     progress.value = withTiming(1, CLOSE, done => { if (done) runOnJS(finish)(); });
   }, [progress, finish]);
+  // Android system back closes the top pushed screen first (e.g. Settings › Оформление returns to
+  // Settings, not to Chats). Registered after the app-level handler, so it runs first.
+  useEffect(() => { const sub = BackHandler.addEventListener('hardwareBackPress', () => { back(); return true; }); return () => sub.remove(); }, [back]);
   const pan = Gesture.Pan()
     .activeOffsetX(14).failOffsetY([-14, 14])
     .onUpdate(event => { progress.value = Math.min(1, Math.max(0, event.translationX / width)); })

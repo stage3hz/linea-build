@@ -100,7 +100,7 @@ export function SecurityScreen({api,onBack,onCredentialsChanged,onSensitiveActio
   const otherCount=sessions.filter(session=>!session.isCurrent).length;
 
   return <KeyboardAvoidingView style={{flex:1,backgroundColor:'transparent'}} behavior={Platform.OS==='ios'?'padding':undefined}>
-    <GlassSurface material="clear" radius={27} style={{marginHorizontal:14,marginTop:12,marginBottom:2}} contentStyle={{flexDirection:'row',alignItems:'center',padding:10,gap:9,minHeight:68}}>
+    <GlassSurface lens material="clear" radius={27} style={{marginHorizontal:14,marginTop:12,marginBottom:2}} contentStyle={{flexDirection:'row',alignItems:'center',padding:10,gap:9,minHeight:68}}>
       <IconButton name="chevron-back" label="Назад в профиль" onPress={onBack} disabled={busy}/><Text style={{fontSize:20,fontWeight:'700',letterSpacing:-.5,color:t.text,flex:1}}>Безопасность</Text><View style={{paddingRight:10}}><Icon name="shield-checkmark-outline" color={t.accent} size={23}/></View>
     </GlassSurface>
     <ScrollView keyboardShouldPersistTaps="handled" contentContainerStyle={{padding:17,paddingBottom:36,maxWidth:620,width:'100%',alignSelf:'center',gap:16}}>

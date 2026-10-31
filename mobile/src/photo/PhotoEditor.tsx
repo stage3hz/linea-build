@@ -260,7 +260,7 @@ export function PhotoEditor({ file, onCancel, onReady }: { file: LocalFile; onCa
   const helpStyle = { color: t.muted, fontSize: 12, lineHeight: 18 };
   return <Modal visible animationType="slide" presentationStyle="fullScreen" onRequestClose={cancel}>
     <GlassStage><InsetView style={{ flex: 1 }}>
-      <GlassSurface radius={25} style={{ margin: 12, marginBottom: 6 }} contentStyle={{ padding: 8, flexDirection: 'row', alignItems: 'center', gap: 9 }}>
+      <GlassSurface lens radius={25} style={{ margin: 12, marginBottom: 6 }} contentStyle={{ padding: 8, flexDirection: 'row', alignItems: 'center', gap: 9 }}>
         <IconButton name="close" label="Отменить редактирование фото" onPress={cancel} disabled={phase === 'sending'} />
         <View style={{ flex: 1, gap: 3 }}><Text style={{ color: t.text, fontSize: 18, fontWeight: '700' }}>Фото перед отправкой</Text><Text style={{ color: t.muted, fontSize: 11 }}>Очистка метаданных перед отправкой</Text></View>
         <Icon name="shield-checkmark-outline" color={t.accent} size={22} />

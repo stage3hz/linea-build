@@ -11,7 +11,7 @@ export function VoiceBar({ onOpen }: { onOpen?: (communityId: string) => void })
   const t = useTheme(); const voice = useVoice();
   if (!voice) return null;
   const connected = voice.peers.filter(peer => peer.connected).length;
-  return <GlassSurface radius={18} material="regular" shadow={false} style={{ marginHorizontal: 12, marginBottom: 6 }} contentStyle={{ flexDirection: 'row', alignItems: 'center', minHeight: 48, paddingLeft: 12, paddingRight: 4, gap: 8 }}>
+  return <GlassSurface lens radius={18} material="regular" shadow={false} style={{ marginHorizontal: 12, marginBottom: 6 }} contentStyle={{ flexDirection: 'row', alignItems: 'center', minHeight: 48, paddingLeft: 12, paddingRight: 4, gap: 8 }}>
     <Pressable accessibilityRole="button" accessibilityLabel={`Голосовой канал ${voice.channelName}`} onPress={() => onOpen?.(voice.communityId)} style={{ flex: 1, minWidth: 0, flexDirection: 'row', alignItems: 'center', gap: 9 }}>
       <View style={{ width: 8, height: 8, borderRadius: 4, backgroundColor: voice.status === 'connected' ? '#2FD27A' : '#F5C542' }} />
       <View style={{ flex: 1, minWidth: 0 }}>

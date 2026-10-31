@@ -91,7 +91,7 @@ export function TopPlayerBar(_props: { onOpen?: () => void }) {
   const music = useMusic(), t = useTheme();
   if (!music.current) return null;
   const progress = music.duration > 0 ? Math.min(1, music.position / music.duration) : 0;
-  return <GlassSurface radius={18} material="regular" shadow={false} style={{ marginHorizontal: 12 }} contentStyle={{ flexDirection: 'row', alignItems: 'center', minHeight: 40, paddingLeft: 4, paddingRight: 2 }}>
+  return <GlassSurface lens radius={18} material="regular" shadow={false} style={{ marginHorizontal: 12 }} contentStyle={{ flexDirection: 'row', alignItems: 'center', minHeight: 40, paddingLeft: 4, paddingRight: 2 }}>
     <IconButton name={music.playing ? 'pause' : 'play'} label={music.playing ? 'Пауза' : 'Слушать'} onPress={() => void music.togglePlayback()} size={18} color={t.accent} style={{ width: 36, height: 40 }} />
     <Pressable onPress={openFullPlayer} accessibilityRole="button" accessibilityLabel={`Открыть плеер: ${music.current.title}, ${music.current.artist}`} style={{ flex: 1, minWidth: 0, paddingHorizontal: 4 }}>
       <Text numberOfLines={1} style={{ color: t.text, fontSize: 13, fontWeight: '600' }}>{music.current.title}<Text style={{ color: t.muted, fontWeight: '400' }}>{`  ${music.current.artist}`}</Text></Text>
