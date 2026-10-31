@@ -6,11 +6,14 @@ import Animated, { Easing, cancelAnimation, useAnimatedStyle, useSharedValue, wi
 import { Text } from '../typography';
 import { Icon } from '../components';
 import { useMotion } from '../motion';
+import { useTheme } from '../theme';
 import type { User } from '../types';
 
 /** Platinum: cool white metal with a slow light passing over it. */
 export const PLATINUM = ['#D9DEE8', '#FFFFFF', '#AEB8CA', '#F4F6FA', '#C3CBD9', '#FFFFFF'] as const;
 const NAME_METAL = ['#C9D0DC', '#FFFFFF', '#9AA4B6', '#F3F5F9', '#C9D0DC', '#FFFFFF', '#9AA4B6'] as const;
+// On a light theme white metal would vanish: dark polished platinum instead.
+const NAME_METAL_LIGHT = ['#3B4352', '#7D889C', '#262C37', '#5E687B', '#3B4352', '#8A95A8', '#262C37'] as const;
 export const hasPlatina = (user?: Pick<User, 'seal'> | null) => user?.seal === 'platina';
 
 // Opening the showcase from anywhere (someone's seal, a platinum name, the settings card).
@@ -36,12 +39,12 @@ function Sheen({ width, still, colors, duration = 3600 }: { width: number; still
  * A name in platinum: the letters are a window onto moving metal. Without Platina, or on web
  * (no masking), it is ordinary text.
  */
-export function PlatinaName({ user, style, numberOfLines = 1, animated = true }: { user: Pick<User, 'displayName' | 'seal'>; style?: StyleProp<TextStyle>; numberOfLines?: number; animated?: boolean }) {
-  const { enabled } = useMotion(); const [width, setWidth] = useState(0);
-  if (!hasPlatina(user) || Platform.OS === 'web') return <Text numberOfLines={numberOfLines} style={[style, hasPlatina(user) ? { color: '#E9EDF4' } : null]}>{user.displayName}</Text>;
+export function PlatinaName({ user, style, numberOfLines = 1, animated = true, onDark }: { user: Pick<User, 'displayName' | 'seal'>; style?: StyleProp<TextStyle>; numberOfLines?: number; animated?: boolean; /** Force the light metal (always-dark surfaces like the showcase). */ onDark?: boolean }) {
+  const { enabled } = useMotion(); const [width, setWidth] = useState(0); const t = useTheme(); const dark = onDark ?? t.dark;
+  if (!hasPlatina(user) || Platform.OS === 'web') return <Text numberOfLines={numberOfLines} style={[style, hasPlatina(user) ? { color: dark ? '#E9EDF4' : '#3B4352' } : null]}>{user.displayName}</Text>;
   return <MaskedView style={{ flexShrink: 1 }} maskElement={<Text numberOfLines={numberOfLines} style={[style, { color: '#000' }]}>{user.displayName}</Text>}>
     <Text numberOfLines={numberOfLines} onLayout={event => setWidth(event.nativeEvent.layout.width)} style={[style, { opacity: 0 }]}>{user.displayName}</Text>
-    <Sheen width={width} still={!(animated && enabled)} colors={NAME_METAL} />
+    <Sheen width={width} still={!(animated && enabled)} colors={dark ? NAME_METAL : NAME_METAL_LIGHT} />
   </MaskedView>;
 }
 

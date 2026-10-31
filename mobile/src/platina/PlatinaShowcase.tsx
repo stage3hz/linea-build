@@ -54,12 +54,12 @@ export function PlatinaShowcaseHost({ api, me, onCustomize }: { api: Api; me: Us
           </View>
           <View style={{ marginTop: -46, paddingHorizontal: 18, paddingBottom: 18 }}>
             <View style={{ alignSelf: 'flex-start', padding: 5, borderRadius: 60, backgroundColor: '#101217' }}><DecoratedAvatar user={dressed} api={api} size={78} animated /></View>
-            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8, marginTop: 10 }}><PlatinaName user={dressed} style={{ fontSize: 24, fontWeight: '800', letterSpacing: -0.4 }} /></View>
+            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8, marginTop: 10 }}><PlatinaName onDark user={dressed} style={{ fontSize: 24, fontWeight: '800', letterSpacing: -0.4 }} /></View>
             <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8, marginTop: 6 }}><Text style={{ color: t.muted, fontSize: 14 }}>@{me.username}</Text><PlatinaSeal onPress={() => {}} /></View>
           </View>
         </View>
         <View style={{ width: cardWidth, marginTop: 28, alignItems: 'center' }}>
-          <PlatinaName user={{ displayName: 'Инвиз Platina', seal: 'platina' }} style={{ fontSize: 30, fontWeight: '800', letterSpacing: -0.6 }} />
+          <PlatinaName onDark user={{ displayName: 'Инвиз Platina', seal: 'platina' }} style={{ fontSize: 30, fontWeight: '800', letterSpacing: -0.6 }} />
           <Text style={{ color: t.muted, fontSize: 14, lineHeight: 20, textAlign: 'center', marginTop: 8, paddingHorizontal: 12 }}>Профиль, который заметят. Всё, что ниже, и всё, что появится дальше.</Text>
         </View>
         <View style={{ width: cardWidth, marginTop: 22, borderRadius: 20, backgroundColor: '#101217', paddingVertical: 6 }}>
