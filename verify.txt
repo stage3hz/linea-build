@@ -1,0 +1,209 @@
+== Xcode
+Xcode 26.6
+Build version 17F113
+== IPA
+-rw-r--r--  1 runner  staff  33580068 Oct 31 20:50 INVIZENT-iOS-arm64-unsigned.ipa
+5541ee1ac86efd5ee661b082ef487374a607e4d3e02d835caa45a44e791198ef  INVIZENT-iOS-arm64-unsigned.ipa
+== zip listing (top)
+Archive:  INVIZENT-iOS-arm64-unsigned.ipa
+  Length      Date    Time    Name
+---------  ---------- -----   ----
+        0  10-31-2026 20:50   Payload/
+        0  10-31-2026 20:50   Payload/INVIZENT.app/
+ 39977976  10-31-2026 20:49   Payload/INVIZENT.app/INVIZENT
+        0  10-31-2026 20:32   Payload/INVIZENT.app/React-timing_privacy.bundle/
+      553  10-31-2026 20:32   Payload/INVIZENT.app/React-timing_privacy.bundle/PrivacyInfo.xcprivacy
+      788  10-31-2026 20:32   Payload/INVIZENT.app/React-timing_privacy.bundle/Info.plist
+        0  10-31-2026 20:48   Payload/INVIZENT.app/SplashScreen.storyboardc/
+     2143  10-31-2026 20:48   Payload/INVIZENT.app/SplashScreen.storyboardc/EXPO-VIEWCONTROLLER-1-view-EXPO-ContainerView.nib
+     1004  10-31-2026 20:48   Payload/INVIZENT.app/SplashScreen.storyboardc/SplashScreenViewController.nib
+      225  10-31-2026 20:48   Payload/INVIZENT.app/SplashScreen.storyboardc/Info.plist
+   330872  10-31-2026 20:48   Payload/INVIZENT.app/Montserrat-Medium.ttf
+        0  10-31-2026 20:32   Payload/INVIZENT.app/ExpoSystemUI_privacy.bundle/
+      607  10-31-2026 20:32   Payload/INVIZENT.app/ExpoSystemUI_privacy.bundle/PrivacyInfo.xcprivacy
+      788  10-31-2026 20:32   Payload/INVIZENT.app/ExpoSystemUI_privacy.bundle/Info.plist
+        0  10-31-2026 20:32   Payload/INVIZENT.app/LottiePrivacyInfo.bundle/
+      599  10-31-2026 20:32   Payload/INVIZENT.app/LottiePrivacyInfo.bundle/PrivacyInfo.xcprivacy
+      781  10-31-2026 20:32   Payload/INVIZENT.app/LottiePrivacyInfo.bundle/Info.plist
+== Info.plist keys
+CFBundleIdentifier = com.linea.messenger.preview
+CFBundleExecutable = INVIZENT
+CFBundleDisplayName = INVIZENT
+CFBundleShortVersionString = 0.12.0
+CFBundleVersion = 1
+MinimumOSVersion = 16.4
+DTPlatformName = iphoneos
+DTSDKName = iphoneos26.5
+== ATS
+Dict {
+    NSAllowsArbitraryLoads = false
+    NSAllowsLocalNetworking = true
+}
+== Executable
+chk/Payload/INVIZENT.app/INVIZENT: Mach-O 64-bit executable arm64
+Non-fat file: chk/Payload/INVIZENT.app/INVIZENT is architecture: arm64
+== LC_BUILD_VERSION (platform 2 = iOS device)
+      cmd LC_BUILD_VERSION
+  cmdsize 32
+ platform 2
+    minos 16.4
+      sdk 26.5
+== Linked dylibs
+chk/Payload/INVIZENT.app/INVIZENT:
+	/usr/lib/libSystem.B.dylib (compatibility version 1.0.0, current version 1356.0.0)
+	/usr/lib/libc++.1.dylib (compatibility version 1.0.0, current version 2100.43.0)
+	/usr/lib/libsqlite3.dylib (compatibility version 9.0.0, current version 382.0.0)
+	/usr/lib/libz.1.dylib (compatibility version 1.0.0, current version 1.2.12)
+	/System/Library/Frameworks/AVFoundation.framework/AVFoundation (compatibility version 1.0.0, current version 2.0.0)
+	/System/Library/Frameworks/Accelerate.framework/Accelerate (compatibility version 1.0.0, current version 4.0.0)
+	/System/Library/Frameworks/AudioToolbox.framework/AudioToolbox (compatibility version 1.0.0, current version 1000.0.0)
+	/System/Library/Frameworks/CoreAudio.framework/CoreAudio (compatibility version 1.0.0, current version 1.0.0)
+	/System/Library/Frameworks/CoreGraphics.framework/CoreGraphics (compatibility version 64.0.0, current version 1965.5.1)
+	/System/Library/Frameworks/CoreImage.framework/CoreImage (compatibility version 1.0.0, current version 7.0.0)
+	/System/Library/Frameworks/CoreMedia.framework/CoreMedia (compatibility version 1.0.0, current version 3320.8.1)
+	/System/Library/Frameworks/CoreVideo.framework/CoreVideo (compatibility version 1.2.0, current version 734.4.0)
+	@rpath/ExpoCamera.framework/ExpoCamera (compatibility version 0.0.0, current version 0.0.0)
+	@rpath/ExpoCameraBarcodeScanning.framework/ExpoCameraBarcodeScanning (compatibility version 0.0.0, current version 0.0.0)
+	@rpath/ExpoFileSystem.framework/ExpoFileSystem (compatibility version 0.0.0, current version 0.0.0)
+	@rpath/ExpoFont.framework/ExpoFont (compatibility version 0.0.0, current version 0.0.0)
+	@rpath/ExpoImage.framework/ExpoImage (compatibility version 0.0.0, current version 0.0.0)
+	@rpath/ExpoImageManipulator.framework/ExpoImageManipulator (compatibility version 0.0.0, current version 0.0.0)
+	@rpath/ExpoMediaLibrary.framework/ExpoMediaLibrary (compatibility version 0.0.0, current version 0.0.0)
+	@rpath/ExpoModulesCore.framework/ExpoModulesCore (compatibility version 0.0.0, current version 0.0.0)
+	@rpath/ExpoModulesJSI.framework/ExpoModulesJSI (compatibility version 0.0.0, current version 0.0.0)
+	@rpath/ExpoModulesWorklets.framework/ExpoModulesWorklets (compatibility version 0.0.0, current version 0.0.0)
+	@rpath/ExpoVideo.framework/ExpoVideo (compatibility version 0.0.0, current version 0.0.0)
+	/System/Library/Frameworks/GLKit.framework/GLKit (compatibility version 1.0.0, current version 129.0.0)
+	/System/Library/Frameworks/ImageIO.framework/ImageIO (compatibility version 1.0.0, current version 1.0.0)
+	/System/Library/Frameworks/MediaToolbox.framework/MediaToolbox (compatibility version 1.0.0, current version 3320.8.1)
+	/System/Library/Frameworks/MobileCoreServices.framework/MobileCoreServices (compatibility version 1.0.0, current version 1226.0.0)
+	/System/Library/Frameworks/Photos.framework/Photos (compatibility version 1.0.0, current version 852.0.102)
+	/System/Library/Frameworks/PhotosUI.framework/PhotosUI (compatibility version 1.0.0, current version 852.0.102)
+	/System/Library/Frameworks/QuartzCore.framework/QuartzCore (compatibility version 1.2.0, current version 1195.14.4)
+	/System/Library/Frameworks/QuickLook.framework/QuickLook (compatibility version 1.0.0, current version 1016.206.3)
+	@rpath/React.framework/React (compatibility version 0.0.0, current version 0.0.0)
+	@rpath/ReactNativeDependencies.framework/ReactNativeDependencies (compatibility version 0.0.0, current version 0.0.0)
+	@rpath/SDWebImage.framework/SDWebImage (compatibility version 0.0.0, current version 0.0.0)
+	@rpath/SDWebImageAVIFCoder.framework/SDWebImageAVIFCoder (compatibility version 0.0.0, current version 0.0.0)
+	@rpath/SDWebImageSVGCoder.framework/SDWebImageSVGCoder (compatibility version 0.0.0, current version 0.0.0)
+	@rpath/SDWebImageWebPCoder.framework/SDWebImageWebPCoder (compatibility version 0.0.0, current version 0.0.0)
+	/System/Library/Frameworks/UIKit.framework/UIKit (compatibility version 1.0.0, current version 9126.5.5)
+	/System/Library/Frameworks/UniformTypeIdentifiers.framework/UniformTypeIdentifiers (compatibility version 1.0.0, current version 709.0.0)
+	/System/Library/Frameworks/VideoToolbox.framework/VideoToolbox (compatibility version 1.0.0, current version 3320.8.1)
+	/System/Library/Frameworks/Vision.framework/Vision (compatibility version 1.0.0, current version 9.5.4)
+	@rpath/WebRTC.framework/WebRTC (compatibility version 0.0.0, current version 0.0.0)
+	@rpath/ZXingObjC.framework/ZXingObjC (compatibility version 0.0.0, current version 0.0.0)
+	@rpath/hermesvm.framework/hermesvm (compatibility version 1.0.0, current version 1.0.0)
+	@rpath/libavif.framework/libavif (compatibility version 0.0.0, current version 0.0.0)
+	/System/Library/Frameworks/Combine.framework/Combine (compatibility version 1.0.0, current version 3023.0.0, weak)
+	/System/Library/Frameworks/JavaScriptCore.framework/JavaScriptCore (compatibility version 1.0.0, current version 624.2.5, weak)
+	/System/Library/Frameworks/SwiftUI.framework/SwiftUI (compatibility version 1.0.0, current version 7.5.3, weak)
+	/System/Library/Frameworks/Foundation.framework/Foundation (compatibility version 300.0.0, current version 5026.5.4)
+	/usr/lib/libobjc.A.dylib (compatibility version 1.0.0, current version 228.0.0)
+	/System/Library/Frameworks/AVFAudio.framework/AVFAudio (compatibility version 1.0.0, current version 1.0.0)
+	/System/Library/Frameworks/AVKit.framework/AVKit (compatibility version 1.0.0, current version 1.0.0)
+	/System/Library/Frameworks/CFNetwork.framework/CFNetwork (compatibility version 1.0.0, current version 3860.255.12)
+	/System/Library/Frameworks/CoreFoundation.framework/CoreFoundation (compatibility version 150.0.0, current version 5026.5.4)
+	/System/Library/Frameworks/CoreLocation.framework/CoreLocation (compatibility version 1.0.0, current version 3075.0.8)
+	/System/Library/Frameworks/CoreMotion.framework/CoreMotion (compatibility version 1.0.0, current version 3075.0.8)
+	/System/Library/Frameworks/CoreText.framework/CoreText (compatibility version 1.0.0, current version 877.4.0)
+	/System/Library/Frameworks/CryptoKit.framework/CryptoKit (compatibility version 1.0.0, current version 1.0.0)
+	/System/Library/Frameworks/LocalAuthentication.framework/LocalAuthentication (compatibility version 1.0.0, current version 2005.120.18)
+	/System/Library/Frameworks/MediaPlayer.framework/MediaPlayer (compatibility version 1.0.0, current version 1.0.0)
+	/System/Library/Frameworks/ReplayKit.framework/ReplayKit (compatibility version 1.0.0, current version 1.0.0)
+	/System/Library/Frameworks/Security.framework/Security (compatibility version 1.0.0, current version 61901.120.67)
+	/System/Library/Frameworks/UserNotifications.framework/UserNotifications (compatibility version 1.0.0, current version 1.0.0)
+	/System/Library/Frameworks/WebKit.framework/WebKit (compatibility version 1.0.0, current version 624.2.5)
+	/usr/lib/libcompression.dylib (compatibility version 1.0.0, current version 1.0.0)
+	/usr/lib/swift/libswiftAVFoundation.dylib (compatibility version 1.0.0, current version 2420.7.1)
+	/usr/lib/swift/libswiftAccelerate.dylib (compatibility version 1.0.0, current version 77.100.2, weak)
+	/usr/lib/swift/libswiftCompression.dylib (compatibility version 1.0.0, current version 11.0.0, weak)
+	/usr/lib/swift/libswiftCore.dylib (compatibility version 0.0.0, current version 0.0.0)
+	/usr/lib/swift/libswiftCoreAudio.dylib (compatibility version 1.0.0, current version 411.255.0)
+	/usr/lib/swift/libswiftCoreFoundation.dylib (compatibility version 1.0.0, current version 120.100.0)
+	/usr/lib/swift/libswiftCoreImage.dylib (compatibility version 1.0.0, current version 2.2.0, weak)
+	/usr/lib/swift/libswiftCoreLocation.dylib (compatibility version 1.0.0, current version 53.0.0)
+	/usr/lib/swift/libswiftCoreMIDI.dylib (compatibility version 1.0.0, current version 6.0.0, weak)
+	/usr/lib/swift/libswiftCoreMedia.dylib (compatibility version 1.0.0, current version 3320.8.1)
+	/usr/lib/swift/libswiftDarwin.dylib (compatibility version 1.0.0, current version 377.120.8)
+	/usr/lib/swift/libswiftDispatch.dylib (compatibility version 1.0.0, current version 1542.100.32)
+	/usr/lib/swift/libswiftMetal.dylib (compatibility version 1.0.0, current version 373.2.0, weak)
+	/usr/lib/swift/libswiftOSLog.dylib (compatibility version 1.0.0, current version 10.0.0, weak)
+	/usr/lib/swift/libswiftObjectiveC.dylib (compatibility version 1.0.0, current version 951.7.0)
+	/usr/lib/swift/libswiftQuartzCore.dylib (compatibility version 1.0.0, current version 5.0.0)
+	/usr/lib/swift/libswiftRegexBuilder.dylib (compatibility version 1.0.0, current version 0.0.0)
+	/usr/lib/swift/libswiftSpatial.dylib (compatibility version 1.0.0, current version 1.0.0, weak)
+	/usr/lib/swift/libswiftUniformTypeIdentifiers.dylib (compatibility version 1.0.0, current version 879.5.1)
+	/usr/lib/swift/libswiftXPC.dylib (compatibility version 1.0.0, current version 128.120.2, weak)
+	/usr/lib/swift/libswift_Concurrency.dylib (compatibility version 0.0.0, current version 0.0.0)
+	/usr/lib/swift/libswift_StringProcessing.dylib (compatibility version 1.0.0, current version 0.0.0)
+	/usr/lib/swift/libswiftos.dylib (compatibility version 1.0.0, current version 1082.0.0, weak)
+	/usr/lib/swift/libswiftsimd.dylib (compatibility version 1.0.0, current version 23.0.0, weak)
+	/usr/lib/swift/libswiftCoreGraphics.dylib (compatibility version 1.0.0, current version 1.0.0)
+	/usr/lib/swift/libswiftPhotosUI.dylib (compatibility version 1.0.0, current version 852.0.102)
+	/usr/lib/swift/libswiftUIKit.dylib (compatibility version 1.0.0, current version 1.0.0)
+== Frameworks dir
+total 0
+drwxr-xr-x  23 runner  staff   736 Oct 31 20:50 .
+drwxr-xr-x  33 runner  staff  1056 Oct 31 20:50 ..
+drwxr-xr-x   4 runner  staff   128 Sep 29 10:54 ExpoCamera.framework
+drwxr-xr-x   4 runner  staff   128 Sep 29 10:54 ExpoCameraBarcodeScanning.framework
+drwxr-xr-x   4 runner  staff   128 Sep 11 11:23 ExpoFileSystem.framework
+drwxr-xr-x   4 runner  staff   128 Sep 11 11:23 ExpoFont.framework
+drwxr-xr-x   4 runner  staff   128 Sep 11 11:23 ExpoImage.framework
+drwxr-xr-x   4 runner  staff   128 Oct  6 12:05 ExpoImageManipulator.framework
+drwxr-xr-x   4 runner  staff   128 Sep 11 11:25 ExpoMediaLibrary.framework
+drwxr-xr-x   4 runner  staff   128 Oct 21 14:23 ExpoModulesCore.framework
+drwxr-xr-x   4 runner  staff   128 Oct 31 20:34 ExpoModulesJSI.framework
+drwxr-xr-x   4 runner  staff   128 Oct 21 14:23 ExpoModulesWorklets.framework
+drwxr-xr-x   4 runner  staff   128 Sep 24 10:10 ExpoVideo.framework
+drwxr-xr-x   4 runner  staff   128 Aug 21 10:10 hermesvm.framework
+drwxr-xr-x   4 runner  staff   128 Oct 31 20:27 libavif.framework
+drwxr-xr-x   4 runner  staff   128 Aug 24 14:28 React.framework
+drwxr-xr-x   7 runner  staff   224 Aug 24 14:07 ReactNativeDependencies.framework
+drwxr-xr-x   4 runner  staff   128 Oct 31 20:27 SDWebImage.framework
+drwxr-xr-x   4 runner  staff   128 Oct 31 20:27 SDWebImageAVIFCoder.framework
+drwxr-xr-x   4 runner  staff   128 Oct 31 20:27 SDWebImageSVGCoder.framework
+drwxr-xr-x   4 runner  staff   128 Oct 31 20:27 SDWebImageWebPCoder.framework
+drwxr-xr-x   5 runner  staff   160 Oct 31 20:29 WebRTC.framework
+drwxr-xr-x   4 runner  staff   128 Oct 31 20:27 ZXingObjC.framework
+== JS bundle
+-rw-r--r--  1 runner  staff  5371028 Oct 31 20:50 chk/Payload/INVIZENT.app/main.jsbundle
+chk/Payload/INVIZENT.app/main.jsbundle: Hermes JavaScript bytecode, version 98
+== Bundles/resources
+AppIcon60x60@2x.png
+AppIcon76x76@2x~ipad.png
+assets
+Assets.car
+EXConstants.bundle
+Expo.plist
+ExpoApplication_privacy.bundle
+ExpoConstants_privacy.bundle
+ExpoFileSystem_privacy.bundle
+ExpoMediaLibrary_privacy.bundle
+ExpoNotifications_privacy.bundle
+ExpoSystemUI_privacy.bundle
+Frameworks
+Info.plist
+INVIZENT
+Lottie_React_Native_Privacy.bundle
+LottiePrivacyInfo.bundle
+main.jsbundle
+Montserrat-Bold.ttf
+Montserrat-ExtraBold.ttf
+Montserrat-Medium.ttf
+Montserrat-Regular.ttf
+Montserrat-SemiBold.ttf
+PkgInfo
+PrivacyInfo.xcprivacy
+React-Core_privacy.bundle
+React-cxxreact_privacy.bundle
+React-timing_privacy.bundle
+RNCAsyncStorage_resources.bundle
+RNSVGFilters.bundle
+SplashScreen.storyboardc
+== Code signature (expected none)
+chk/Payload/INVIZENT.app: code object is not signed at all
+== Embedded signal/sqlcipher symbols
+655
+4
