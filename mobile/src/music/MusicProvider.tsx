@@ -8,6 +8,7 @@ import * as Sharing from 'expo-sharing';
 import { Directory, File as NativeFile, Paths } from 'expo-file-system';
 import { randomUUID } from 'expo-crypto';
 import { resolveStream, resolveDownload, getMusicTrack } from './api';
+import { getSoundCloudTrack, isSoundCloudUrn, onSoundCloudChange } from './soundcloud';
 import type { MusicTrack } from './types';
 
 export type RepeatMode = 'off' | 'one' | 'all';
@@ -102,7 +103,7 @@ function ownedFile(name: string) {
 function cleanTrack(value: unknown): MusicTrack | null {
   if (!value || typeof value !== 'object') return null;
   const x = value as Partial<MusicTrack>;
-  if (typeof x.id !== 'string' || !x.id || x.id.length > 180 || (x.source !== 'audius' && x.source !== 'local') || typeof x.title !== 'string' || typeof x.artist !== 'string') return null;
+  if (typeof x.id !== 'string' || !x.id || x.id.length > 180 || (x.source !== 'audius' && x.source !== 'soundcloud' && x.source !== 'local') || typeof x.title !== 'string' || typeof x.artist !== 'string') return null;
   const url = (input: unknown) => { try { return typeof input === 'string' ? remoteUrl(input) : undefined; } catch { return undefined; } };
   return {
     id: x.id, source: x.source, sourceId: typeof x.sourceId === 'string' ? x.sourceId.slice(0, 120) : undefined,
@@ -188,7 +189,7 @@ function WebMusicProvider({ children }: { children: React.ReactNode }) {
   return <MusicStateProvider engine={engine} playback={playback}>{children}</MusicStateProvider>;
 }
 
-type Library = { saved: MusicTrack[]; favorites: MusicTrack[]; names: Record<string, string>; audiusIds: string[] };
+type Library = { saved: MusicTrack[]; favorites: MusicTrack[]; names: Record<string, string>; audiusIds: string[]; scIds: string[] };
 function MusicStateProvider({ children, engine, playback }: { children: React.ReactNode; engine: Engine; playback: Playback }) {
   const [current, setCurrent] = useState<MusicTrack | null>(null);
   const [queue, setQueue] = useState<MusicTrack[]>([]);
@@ -205,7 +206,7 @@ function MusicStateProvider({ children, engine, playback }: { children: React.Re
   const [isImporting, setIsImporting] = useState(false);
   const life = useRef(0), active = useRef(false), playGeneration = useRef(0), sourceReady = useRef(false);
   const currentRef = useRef<MusicTrack | null>(null), queueRef = useRef<MusicTrack[]>([]), repeatRef = useRef<RepeatMode>('off'), shuffleRef = useRef(false);
-  const library = useRef<Library>({ saved: [], favorites: [], names: {}, audiusIds: [] });
+  const library = useRef<Library>({ saved: [], favorites: [], names: {}, audiusIds: [], scIds: [] });
   const boot = useRef<Promise<void>>(Promise.resolve());
   const pendingDownloads = useRef(new Map<string, AbortController>());
   const objectUrls = useRef(new Set<string>());
@@ -221,9 +222,9 @@ function MusicStateProvider({ children, engine, playback }: { children: React.Re
     const epoch = ++life.current; active.current = true;
     boot.current = serialized(async () => {
       const raw = await AsyncStorage.getItem(LIBRARY_KEY);
-      const parsed = raw ? JSON.parse(raw) as { version?: number; saved?: { track?: unknown; file?: unknown }[]; favorites?: unknown[]; audiusFavoriteIds?: unknown[] } : {};
+      const parsed = raw ? JSON.parse(raw) as { version?: number; saved?: { track?: unknown; file?: unknown }[]; favorites?: unknown[]; audiusFavoriteIds?: unknown[]; soundcloudFavoriteIds?: unknown[] } : {};
       if (parsed.version && parsed.version !== 1) throw new Error('Не удалось прочитать музыкальную библиотеку.');
-      const next: Library = { saved: [], favorites: [], names: {}, audiusIds: [...new Set((Array.isArray(parsed.audiusFavoriteIds) ? parsed.audiusFavoriteIds : []).filter((id): id is string => typeof id === 'string' && /^[a-zA-Z0-9_-]{1,100}$/.test(id)))].slice(0, MAX_TRACKS) };
+      const next: Library = { saved: [], favorites: [], names: {}, audiusIds: [...new Set((Array.isArray(parsed.audiusFavoriteIds) ? parsed.audiusFavoriteIds : []).filter((id): id is string => typeof id === 'string' && /^[a-zA-Z0-9_-]{1,100}$/.test(id)))].slice(0, MAX_TRACKS) , scIds: [...new Set((Array.isArray(parsed.soundcloudFavoriteIds) ? parsed.soundcloudFavoriteIds : []).filter(isSoundCloudUrn))].slice(0, MAX_TRACKS) };
       if (Platform.OS !== 'web') {
         const folder = directory(); folder.create({ intermediates: true, idempotent: true });
         for (const entry of Array.isArray(parsed.saved) ? parsed.saved.slice(0, MAX_TRACKS) : []) {
@@ -277,7 +278,7 @@ function MusicStateProvider({ children, engine, playback }: { children: React.Re
       const next = change(library.current);
       const storedSaved = Platform.OS === 'web' ? [] : next.saved.filter(track => next.names[track.id]).map(track => ({ track: cleanTrack(track), file: next.names[track.id] }));
       const storedFavorites = Platform.OS === 'web' ? [] : next.favorites.filter(track => track.source === 'local').map(cleanTrack);
-      await AsyncStorage.setItem(LIBRARY_KEY, JSON.stringify({ version: 1, saved: storedSaved, favorites: storedFavorites, audiusFavoriteIds: next.audiusIds }));
+      await AsyncStorage.setItem(LIBRARY_KEY, JSON.stringify({ version: 1, saved: storedSaved, favorites: storedFavorites, audiusFavoriteIds: next.audiusIds, soundcloudFavoriteIds: next.scIds }));
       if (valid(epoch)) publish(next);
       return true;
     });
@@ -289,12 +290,33 @@ function MusicStateProvider({ children, engine, playback }: { children: React.Re
     setCurrent(null); setQueue([]); setResolving(false); setPlaybackError('');
   }, [cancelStartTimer, engine]);
 
+  // SoundCloud favourites are stored as IDs and restored through our server once signed in.
+  useEffect(() => {
+    let alive = true;
+    const restore = async () => {
+      await boot.current;
+      const missing = library.current.scIds.filter(id => !library.current.favorites.some(track => track.sourceId === id));
+      if (!alive || !missing.length) return;
+      const results = await Promise.allSettled(missing.slice(0, 60).map(getSoundCloudTrack));
+      if (!alive) return;
+      await serialized(async () => {
+        const currentLibrary = library.current;
+        const restored = results.flatMap(result => result.status === 'fulfilled' && result.value.sourceId && currentLibrary.scIds.includes(result.value.sourceId) ? [result.value] : []);
+        if (restored.length) publish({ ...currentLibrary, favorites: unique([...currentLibrary.favorites, ...restored]) });
+      });
+    };
+    void restore().catch(() => undefined);
+    const off = onSoundCloudChange(() => { void restore().catch(() => undefined); });
+    return () => { alive = false; off(); };
+  }, [publish]);
+
   const play = useCallback(async (track: MusicTrack, items?: MusicTrack[]) => {
     const epoch = life.current, generation = ++playGeneration.current;
     cancelStartTimer(); setPlaybackError(''); setOperationError(''); setResolving(true); sourceReady.current = false;
     try { engine.pause(); engine.metadata(null); engine.replace(null); } catch { /* The next source will replace a failed one. */ }
     const prior = currentRef.current;
-    const nextQueue = unique(items?.length ? items : queueRef.current.some(item => item.id === track.id) ? queueRef.current : [track]);
+    // One service per queue: SoundCloud forbids playing its tracks alongside other services' content.
+    const nextQueue = unique((items?.length ? items : queueRef.current.some(item => item.id === track.id) ? queueRef.current : [track]).filter(item => item.source === track.source));
     if (!nextQueue.some(item => item.id === track.id)) nextQueue.unshift(track);
     if (nextQueue.length !== queueRef.current.length || nextQueue.some((item, index) => item.id !== queueRef.current[index]?.id)) { history.current = []; shuffleVisited.current.clear(); }
     if (prior && prior.id !== track.id) history.current = [...history.current.slice(-99), prior.id];
@@ -395,7 +417,8 @@ function MusicStateProvider({ children, engine, playback }: { children: React.Re
     try { await commit(value => {
       const present = value.favorites.some(item => item.id === track.id);
       const audiusIds = track.source === 'audius' && track.sourceId ? present ? value.audiusIds.filter(id => id !== track.sourceId) : [...new Set([track.sourceId, ...value.audiusIds])].slice(0, MAX_TRACKS) : value.audiusIds;
-      return { ...value, audiusIds, favorites: present ? value.favorites.filter(item => item.id !== track.id) : unique([value.saved.find(item => item.id === track.id) || track, ...value.favorites]) };
+      const scIds = track.source === 'soundcloud' && track.sourceId ? present ? value.scIds.filter(id => id !== track.sourceId) : [...new Set([track.sourceId, ...value.scIds])].slice(0, MAX_TRACKS) : value.scIds;
+      return { ...value, audiusIds, scIds, favorites: present ? value.favorites.filter(item => item.id !== track.id) : unique([value.saved.find(item => item.id === track.id) || track, ...value.favorites]) };
     }, epoch); }
     catch { if (valid(epoch)) setOperationError('Не удалось сохранить избранное на этом устройстве.'); }
   }, [commit, valid]);
@@ -488,6 +511,7 @@ function MusicStateProvider({ children, engine, playback }: { children: React.Re
 
   const download = useCallback(async (track: MusicTrack) => {
     if (track.source === 'local') { await exportSaved(track); return; }
+    if (track.source === 'soundcloud') { setOperationError('Треки SoundCloud нельзя скачать: так требуют правила SoundCloud.'); return; }
     const epoch = life.current;
     if (pendingDownloads.current.has(track.id)) return;
     const controller = new AbortController(); pendingDownloads.current.set(track.id, controller);

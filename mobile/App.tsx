@@ -21,6 +21,7 @@ import { THEME_NAMES, ThemeSettings } from './src/ThemeSettings';
 import { useMessenger } from './src/useMessenger';
 import { GlassStage, GlassSurface } from './src/glass';
 import { MusicProvider } from './src/music/MusicProvider';
+import { setSoundCloudApi } from './src/music/soundcloud';
 import { MusicScreen } from './src/music/MusicScreen';
 import { FullPlayerHost, MiniPlayer } from './src/music/PlayerControls';
 import { SettingsScreen } from './src/SettingsScreen';
@@ -50,6 +51,8 @@ export default function App() {
   const [guestMusicOpen,setGuestMusicOpen]=useState(false);
   const theme=palette[resolveTheme(mode,darkTheme,system)];
   const api=useMemo(()=>new Api(server||'',session?.token),[server,session?.token]);
+  // SoundCloud is fetched through our server, so it needs the signed-in session (guests get Audius only).
+  useEffect(()=>{setSoundCloudApi(session?.token&&server?api:null);},[api,session?.token,server]);
   const initialize=useCallback(async()=>{
     setBooting(true);setBootError('');
     try{

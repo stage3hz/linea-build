@@ -899,3 +899,27 @@ test('block stops messages both ways; reports are stored; deleting the account r
     assert.equal(check.prepare('SELECT reporter_id FROM reports').get().reporter_id, null);
   } finally { check.close(); }
 });
+
+test('soundcloud routes: login required, status, search and stream through the server', async t => {
+  const { app: off } = await fixture(t);
+  const someone = await register(off, 'sc_off');
+  assert.equal((await request(off, 'GET', '/music/soundcloud/status')).statusCode, 401);
+  assert.deepEqual((await request(off, 'GET', '/music/soundcloud/status', someone)).json(), { available: false });
+  assert.equal((await request(off, 'GET', '/music/soundcloud/tracks?q=x', someone)).statusCode, 404);
+  const calls = [];
+  const soundcloud = {
+    search: async query => { calls.push(['search', query]); return { tracks: [{ id: 'sc:soundcloud:tracks:1', source: 'soundcloud', sourceId: 'soundcloud:tracks:1', title: 'T', artist: 'A', artworkUrl: null, duration: 10, downloadable: false }], nextOffset: null }; },
+    track: async urn => ({ id: `sc:${urn}`, source: 'soundcloud', sourceId: urn, title: 'T', artist: 'A', artworkUrl: null, duration: 10, downloadable: false }),
+    stream: async urn => { calls.push(['stream', urn]); return { uri: 'https://cf-hls-media.sndcdn.com/x.m3u8', mimeType: 'application/x-mpegURL' }; },
+  };
+  const { app } = await fixture(t, { soundcloud });
+  const user = await register(app, 'sc_on');
+  assert.deepEqual((await request(app, 'GET', '/music/soundcloud/status', user)).json(), { available: true });
+  const page = await request(app, 'GET', '/music/soundcloud/tracks?q=lofi&mood=Peaceful&limit=500', user);
+  assert.equal(page.statusCode, 200);
+  assert.equal(page.json().tracks[0].source, 'soundcloud');
+  assert.deepEqual(calls[0], ['search', { query: 'lofi', mood: 'Peaceful', offset: 0, limit: 40 }]);
+  const stream = await request(app, 'GET', `/music/soundcloud/tracks/${encodeURIComponent('soundcloud:tracks:1')}/stream`, user);
+  assert.equal(stream.json().uri, 'https://cf-hls-media.sndcdn.com/x.m3u8');
+  assert.equal((await request(app, 'GET', '/music/soundcloud/tracks/soundcloud%3Atracks%3A1/stream')).statusCode, 401);
+});

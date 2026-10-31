@@ -1,5 +1,5 @@
 import React, { useEffect, useRef, useState } from 'react';
-import { ActivityIndicator, Animated, Image, Modal, PanResponder, Platform, Pressable, ScrollView, StyleSheet, View, type GestureResponderEvent, useWindowDimensions } from 'react-native';
+import { ActivityIndicator, Animated, Image, Modal, PanResponder, Platform, Pressable, ScrollView, StyleSheet, View, type GestureResponderEvent, useWindowDimensions, Linking } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { MusicAmbient, type AmbientTone } from './MusicAmbient';
 import { Image as BlurImage } from 'expo-image';
@@ -179,8 +179,8 @@ export function PlayerControls({ compact = false, onOpen, onCollapse }: { compac
     {music.error ? <View style={{ gap: 6 }}><Notice text={music.error} error /><Pressable onPress={music.clearError} accessibilityRole="button" style={{ minHeight: 44, justifyContent: 'center', alignItems: 'flex-end' }}><Text style={{ color: t.accent, fontWeight: '600', fontSize: 13 }}>Понятно</Text></Pressable></View> : null}
     {music.notice ? <View style={{ gap: 5 }}><Notice text={music.notice} /><Pressable onPress={music.clearNotice} accessibilityRole="button" style={{ minHeight: 44, justifyContent: 'center', alignItems: 'flex-end' }}><Text style={{ color: t.accent, fontWeight: '600', fontSize: 13 }}>Закрыть сообщение</Text></Pressable></View> : null}
     <View style={{ gap: 9 }}>
-      <Button secondary icon={track.source === 'local' ? 'share-outline' : 'open-outline'} label={track.source === 'local' ? Platform.OS === 'web' ? 'Сохранить файл' : 'Поделиться файлом' : 'Скачать через Audius'} loading={downloading} disabled={track.source === 'audius' && !track.downloadable} onPress={() => void music.download(track)} />
-      <Text style={{ color: t.muted, fontSize: 12, lineHeight: 18, textAlign: 'center', paddingHorizontal: 5 }}>{track.source === 'local' ? 'Твой файл остаётся на устройстве и не отправляется на сервер.' : track.downloadable ? 'Откроется скачивание в сервисе. Файл можно добавить в приложение через «Добавить файлы».' : 'Автор не открыл скачивание этого трека.'}</Text>
+      {track.source === 'soundcloud' ? <Button secondary icon="open-outline" label="Открыть в SoundCloud" disabled={!track.sourceUrl} onPress={() => { if (track.sourceUrl) void Linking.openURL(track.sourceUrl).catch(() => undefined); }} /> : <Button secondary icon={track.source === 'local' ? 'share-outline' : 'open-outline'} label={track.source === 'local' ? Platform.OS === 'web' ? 'Сохранить файл' : 'Поделиться файлом' : 'Скачать через Audius'} loading={downloading} disabled={track.source === 'audius' && !track.downloadable} onPress={() => void music.download(track)} />}
+      <Text style={{ color: t.muted, fontSize: 12, lineHeight: 18, textAlign: 'center', paddingHorizontal: 5 }}>{track.source === 'local' ? 'Твой файл остаётся на устройстве и не отправляется на сервер.' : track.source === 'soundcloud' ? 'Трек и автор — на SoundCloud. Скачивание и офлайн для SoundCloud недоступны.' : track.downloadable ? 'Откроется скачивание в сервисе. Файл можно добавить в приложение через «Добавить файлы».' : 'Автор не открыл скачивание этого трека.'}</Text>
     </View>
     <GlassSurface radius={20} shadow={false} contentStyle={{ padding: 7 }}>
       <Pressable accessibilityRole="button" accessibilityLabel={showQueue ? 'Свернуть очередь' : 'Показать очередь'} accessibilityState={{ expanded: showQueue }} onPress={() => setShowQueue(value => !value)} style={{ minHeight: 47, flexDirection: 'row', alignItems: 'center', paddingHorizontal: 9, gap: 11 }}><Icon name="list-outline" size={20} color={t.accent} /><Text style={{ flex: 1, color: t.text, fontSize: 14, fontWeight: '600' }}>Очередь · {music.queue.length}</Text><Icon name={showQueue ? 'chevron-up' : 'chevron-down'} size={16} color={t.muted} /></Pressable>
@@ -241,7 +241,7 @@ export function FullPlayer({ visible, onClose, onSource }: { visible: boolean; o
               <Pressable accessibilityRole="button" accessibilityLabel="Ещё" onPress={() => setPanel('queue')} style={({ pressed }) => ({ width: 46, height: 46, borderRadius: 23, backgroundColor: soft, alignItems: 'center', justifyContent: 'center', opacity: pressed ? .7 : 1 })}><Icon name="ellipsis-horizontal" size={22} color={t.text} /></Pressable>
             </View>
             <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ gap: 8, paddingHorizontal: 16 }} style={{ flexGrow: 0, marginHorizontal: -16 }}>
-              {chip(track.source === 'local' ? 'share-outline' : 'download-outline', null, () => void music.download(track), track.source === 'audius' && !track.downloadable, downloading)}
+              {track.source === 'soundcloud' ? null : chip(track.source === 'local' ? 'share-outline' : 'download-outline', null, () => void music.download(track), track.source === 'audius' && !track.downloadable, downloading)}
               {chip(favorite ? 'heart' : 'heart-outline', favorite ? 'В любимом' : 'В любимое', () => void music.toggleFavorite(track))}
               {chip('shuffle', music.shuffle ? 'Перемешано' : 'Перемешать', music.toggleShuffle)}
               {chip('options-outline', 'Эквалайзер', () => setEqOpen(true))}

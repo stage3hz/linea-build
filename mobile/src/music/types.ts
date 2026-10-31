@@ -1,6 +1,6 @@
 export type MusicTrack = {
   id: string;
-  source: 'audius' | 'local';
+  source: 'audius' | 'soundcloud' | 'local';
   sourceId?: string;
   title: string;
   artist: string;
@@ -16,6 +16,8 @@ export type MusicTrack = {
   fileSize?: number;
   savedAt?: string;
 };
+
+export type MusicSource = 'soundcloud' | 'audius';
 
 export type MusicSearch = {
   query?: string;

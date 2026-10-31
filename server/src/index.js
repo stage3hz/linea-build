@@ -1,6 +1,7 @@
 import { resolve } from 'node:path';
 import { buildApp } from './app.js';
 import { createFcm, loadServiceAccount } from './push.js';
+import { createSoundCloud, loadSoundCloudCredentials } from './soundcloud.js';
 
 function integerEnv(name, fallback, min, max) {
   const raw = process.env[name];
@@ -21,8 +22,12 @@ if (trustedProxies.some(value => ['*', 'true', 'false'].includes(value))) throw 
 // Push (Android, Firebase): FCM_SERVICE_ACCOUNT = path to the service account JSON on this server.
 const push = createFcm(loadServiceAccount(process.env.FCM_SERVICE_ACCOUNT || ''));
 
+// SoundCloud (official API): SOUNDCLOUD_CREDENTIALS = path to {client_id, client_secret} on this server.
+const soundcloud = createSoundCloud(loadSoundCloudCredentials(process.env.SOUNDCLOUD_CREDENTIALS || ''), { dailyLimit: integerEnv('SOUNDCLOUD_DAILY_PLAYS', 1500, 1, 1000000) });
+
 const app = await buildApp({
   push,
+  soundcloud,
   dataDir: resolve(process.env.DATA_DIR || 'data'),
   logger: { level: process.env.LOG_LEVEL || 'info' },
   allowedOrigins,

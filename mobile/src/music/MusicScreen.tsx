@@ -9,7 +9,11 @@ import { useTheme } from '../theme';
 import { MUSIC_MOODS, searchMusic } from './api';
 import { useMusic } from './MusicProvider';
 import { MiniPlayer, PlayerControls } from './PlayerControls';
-import type { MusicTrack } from './types';
+import type { MusicSource, MusicTrack } from './types';
+import AsyncStorage from '@react-native-async-storage/async-storage';
+import { onSoundCloudChange, searchSoundCloud, soundCloudAvailable } from './soundcloud';
+
+const SOURCE_KEY = 'linea.music-source.v1';
 
 type Section = 'catalog' | 'favorites' | 'saved';
 const sections: { id: Section; label: string }[] = [
@@ -32,6 +36,22 @@ export function MusicScreen({ onBack }: { onBack: () => void }) {
   const [query, setQuery] = useState('');
   const [mood, setMood] = useState<string | undefined>();
   const [downloadableOnly, setDownloadableOnly] = useState(false);
+  // Two catalogues, never mixed: the chosen one feeds search, moods and the mix.
+  const [chosen, setChosen] = useState<MusicSource>('soundcloud');
+  const [scReady, setScReady] = useState(false);
+  const [sourceNotice, setSourceNotice] = useState('');
+  const source: MusicSource = scReady && chosen === 'soundcloud' ? 'soundcloud' : 'audius';
+  useEffect(() => {
+    let alive = true;
+    AsyncStorage.getItem(SOURCE_KEY).then(value => { if (alive && (value === 'soundcloud' || value === 'audius')) setChosen(value); }).catch(() => undefined);
+    const check = () => { void soundCloudAvailable().then(value => { if (alive) setScReady(value); }); };
+    check(); const off = onSoundCloudChange(check);
+    return () => { alive = false; off(); };
+  }, []);
+  const pickSource = (value: MusicSource) => { setChosen(value); setSourceNotice(''); AsyncStorage.setItem(SOURCE_KEY, value).catch(() => undefined); };
+  const page = (offset: number) => source === 'soundcloud'
+    ? searchSoundCloud({ query, mood, offset, limit: 24 })
+    : searchMusic({ query, mood, downloadableOnly, limit: 24, offset });
   const [tracks, setTracks] = useState<MusicTrack[]>([]);
   const [nextOffset, setNextOffset] = useState<number | null>(null);
   const [loading, setLoading] = useState(false);
@@ -55,30 +75,33 @@ export function MusicScreen({ onBack }: { onBack: () => void }) {
     if (section !== 'catalog') { setLoading(false); return; }
     // Switching moods is instant for anything seen in the last minutes; otherwise the old
     // list stays on screen until the new one arrives (no empty «Ищем музыку…» flash).
-    const cacheKey = `${query}|${mood}|${downloadableOnly}`;
+    const cacheKey = `${source}|${query}|${mood}|${source === 'audius' && downloadableOnly}`;
     const cached = catalogCache.get(cacheKey);
     setError('');
     if (cached && Date.now() - cached.at < CATALOG_TTL) { setTracks(cached.tracks); setNextOffset(cached.nextOffset); setLoading(false); return () => { generation.current++; }; }
     setLoading(true);
-    searchMusic({ query, mood, downloadableOnly, limit: 24, offset: 0 })
+    page(0)
       .then(result => {
         if (generation.current !== request) return;
         catalogCache.set(cacheKey, { at: Date.now(), tracks: result.tracks, nextOffset: result.nextOffset });
         setTracks(result.tracks); setNextOffset(result.nextOffset);
       })
       .catch(reason => {
-        if (generation.current === request) setError(reason instanceof Error ? reason.message : 'Не удалось найти музыку.');
+        if (generation.current !== request) return;
+        // SoundCloud down or over its daily cap: fall back to Audius rather than an empty screen.
+        if (source === 'soundcloud') { setSourceNotice(`SoundCloud сейчас недоступен${reason instanceof Error && reason.message ? `: ${reason.message}` : ''}. Показываю Audius.`); setChosen('audius'); return; }
+        setError(reason instanceof Error ? reason.message : 'Не удалось найти музыку.');
       })
       .finally(() => { if (generation.current === request) setLoading(false); });
     return () => { generation.current++; };
-  }, [section, query, mood, downloadableOnly, revision]);
+  }, [section, query, mood, downloadableOnly, revision, source]);
 
   const more = async () => {
     if (nextOffset === null || loading || paginationBusy.current) return;
     paginationBusy.current = true; setLoadingMore(true); setError('');
     const request = generation.current;
     try {
-      const result = await searchMusic({ query, mood, downloadableOnly, limit: 24, offset: nextOffset });
+      const result = await page(nextOffset);
       if (generation.current !== request) return;
       setTracks(previous => {
         const known = new Set(previous.map(track => track.id));
@@ -112,7 +135,7 @@ export function MusicScreen({ onBack }: { onBack: () => void }) {
     ? Platform.OS === 'web' ? 'Выбери аудиофайлы с устройства. В этой вкладке браузера они доступны до перезагрузки.' : 'Добавь аудиофайлы с устройства. Они останутся здесь и не загрузятся на сервер мессенджера.'
     : section === 'favorites' ? 'Нажми на сердечко рядом с понравившимся треком.'
     : nextOffset !== null ? 'На этой странице нет треков с выбранным доступом. Нажми «Показать ещё» или измени фильтры.'
-    : 'Измени название или настроение. Каталог Audius отличается от других музыкальных сервисов.';
+    : `Измени название или настроение. Каталог ${source === 'soundcloud' ? 'SoundCloud' : 'Audius'} отличается от других музыкальных сервисов.`;
   const action = (fn: (track: MusicTrack) => void) => {
     if (actionTrack) fn(actionTrack);
     setActionTrack(null);
@@ -140,6 +163,11 @@ export function MusicScreen({ onBack }: { onBack: () => void }) {
               <Text style={{ color: on ? inkInverse : soft, fontSize: 16, fontWeight: on ? '700' : '600' }}>{item.label}</Text>
             </Pressable>; })}
           </View>
+          {section === 'catalog' && scReady ? <View accessibilityRole="radiogroup" accessibilityLabel="Источник музыки" style={{ flexDirection: 'row', marginHorizontal: 14, marginTop: 12, padding: 3, borderRadius: 16, backgroundColor: t.dark ? 'rgba(255,255,255,0.08)' : 'rgba(20,36,61,0.06)' }}>
+            {(['soundcloud', 'audius'] as const).map(item => { const on = source === item; return <Pressable key={item} accessibilityRole="radio" accessibilityState={{ selected: on }} onPress={() => pickSource(item)} style={{ flex: 1, minHeight: 40, borderRadius: 13, alignItems: 'center', justifyContent: 'center', backgroundColor: on ? (t.dark ? 'rgba(255,255,255,0.16)' : '#FFFFFF') : 'transparent' }}>
+              <Text style={{ color: on ? ink : soft, fontSize: 15, fontWeight: on ? '700' : '600' }}>{item === 'soundcloud' ? 'SoundCloud' : 'Audius'}</Text>
+            </Pressable>; })}
+          </View> : null}
           {section === 'catalog' && !query ? <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center', gap: 9, paddingBottom: 10 }}>
             <Pressable accessibilityRole="button" accessibilityLabel="Слушать микс" disabled={!rows.length} onPress={() => rows[0] && begin(rows[0])} style={({ pressed }) => ({ width: 80, height: 80, borderRadius: 22, backgroundColor: t.dark ? 'rgba(255,255,255,0.14)' : 'rgba(20,36,61,0.08)', alignItems: 'center', justifyContent: 'center', transform: [{ scale: pressed ? .96 : 1 }], opacity: rows.length ? 1 : .6 })}>
               <View style={{ width: 58, height: 58, borderRadius: 29, backgroundColor: t.dark ? '#FFFFFF' : '#14243D', alignItems: 'center', justifyContent: 'center' }}><View style={{ marginLeft: 3 }}><Icon name="play" size={26} color={t.dark ? "#0A1529" : "#FFFFFF"} /></View></View>
@@ -162,16 +190,17 @@ export function MusicScreen({ onBack }: { onBack: () => void }) {
           </ScrollView>
           <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 12 }}>
             <Text style={{ color: t.muted, fontSize: 10, fontWeight: '700', letterSpacing: 1.5 }}>{query ? 'РЕЗУЛЬТАТЫ' : 'ОТКРОЙ ДЛЯ СЕБЯ'}</Text>
-            <Pressable accessibilityRole="switch" accessibilityLabel="Только треки с разрешённым скачиванием" accessibilityState={{ checked: downloadableOnly }} onPress={() => setDownloadableOnly(value => !value)} style={{ minHeight: 44, flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+            {source === 'audius' ? <Pressable accessibilityRole="switch" accessibilityLabel="Только треки с разрешённым скачиванием" accessibilityState={{ checked: downloadableOnly }} onPress={() => setDownloadableOnly(value => !value)} style={{ minHeight: 44, flexDirection: 'row', alignItems: 'center', gap: 6 }}>
               <Icon name={downloadableOnly ? 'checkmark-circle' : 'ellipse-outline'} color={downloadableOnly ? t.accent : t.muted} size={19} />
               <Text style={{ color: downloadableOnly ? t.accent : t.muted, fontSize: 12, fontWeight: '600' }}>Можно скачать</Text>
-            </Pressable>
+            </Pressable> : null}
           </View>
         </> : <View style={{ gap: 8 }}>
           <Text style={{ color: t.muted, fontSize: 12, lineHeight: 18 }}>{section === 'saved' ? Platform.OS === 'web' ? 'В браузере добавленные файлы доступны до перезагрузки. На Android и iPhone они сохраняются в приложении для офлайн-прослушивания.' : 'Твои файлы на этом устройстве. Добавляй аудио через «+» и слушай без интернета.' : 'Треки, которые ты отметил сердцем. Для воспроизведения Audius нужен интернет.'}</Text>
         </View>}
         {music.error ? <Notice text={music.error} error /> : null}
         {music.notice ? <Notice text={music.notice} /> : null}
+        {sourceNotice && section === 'catalog' ? <Notice text={sourceNotice} /> : null}
         {music.libraryLoading && section !== 'catalog' ? <ActivityIndicator color={t.accent} style={{ paddingVertical: 20 }} /> : null}
         {error && section === 'catalog' ? <Notice text={error} error onRetry={() => setRevision(value => value + 1)} /> : null}
         {loading && section === 'catalog' ? tracks.length ? <ActivityIndicator size="small" color={t.accent} style={{ paddingVertical: 6 }} /> : <View style={{ paddingVertical: 28, alignItems: 'center', gap: 11 }}><ActivityIndicator color={t.accent} /><Text style={{ color: t.muted, fontSize: 12 }}>Ищем музыку…</Text></View> : null}
@@ -180,7 +209,7 @@ export function MusicScreen({ onBack }: { onBack: () => void }) {
       ListEmptyComponent={(section === 'catalog' ? !loading && !error : !music.libraryLoading) ? <Empty icon={section === 'saved' ? 'folder-open-outline' : section === 'favorites' ? 'heart-outline' : 'musical-notes-outline'} title={emptyTitle} description={emptyDescription} action={section === 'saved' ? <Button label="Добавить файлы" icon="add" loading={music.importing} onPress={() => void music.importFiles()} /> : undefined} /> : null}
       ListFooterComponent={<View style={{ gap: 15, paddingTop: 12 }}>
         {section === 'catalog' && nextOffset !== null && !loading ? <Button secondary label="Показать ещё" loading={loadingMore} onPress={() => void more()} /> : null}
-        {section === 'catalog' && rows.length > 0 ? <Text style={{ color: t.muted, fontSize: 10, lineHeight: 16, textAlign: 'center', paddingHorizontal: 12 }}>Музыка предоставлена авторами через Audius.{ '\n' }Скачивание — через сервис, когда автор его разрешил.</Text> : null}
+        {section === 'catalog' && rows.length > 0 ? <Text style={{ color: t.muted, fontSize: 10, lineHeight: 16, textAlign: 'center', paddingHorizontal: 12 }}>{source === 'soundcloud' ? <>Треки и авторы — SoundCloud. Нажми «⋯», чтобы открыть трек на soundcloud.com.{'\n'}Скачивание и офлайн для SoundCloud недоступны.</> : <>Музыка предоставлена авторами через Audius.{'\n'}Скачивание — через сервис, когда автор его разрешил.</>}</Text> : null}
       </View>}
     />
 
@@ -193,7 +222,7 @@ export function MusicScreen({ onBack }: { onBack: () => void }) {
         <SheetAction icon="play" label="Слушать" onPress={() => action(begin)} />
         <SheetAction icon={favoriteIds.has(actionTrack.id) ? 'heart-dislike-outline' : 'heart-outline'} label={favoriteIds.has(actionTrack.id) ? 'Убрать из любимого' : 'В любимое'} onPress={() => action(track => music.toggleFavorite(track))} />
         {actionTrack.source === 'audius' && actionTrack.downloadable ? <SheetAction icon="download-outline" label="Скачать через Audius" description="Откроется официальная загрузка трека" onPress={() => action(track => { void music.download(track); })} /> : null}
-        {actionTrack.sourceUrl ? <SheetAction icon="open-outline" label="Открыть источник" description="Автор, трек и условия использования" onPress={() => action(track => openLink(track.sourceUrl!))} /> : null}
+        {actionTrack.sourceUrl ? <SheetAction icon="open-outline" label={actionTrack.source === 'soundcloud' ? 'Открыть в SoundCloud' : 'Открыть источник'} description="Автор, трек и условия использования" onPress={() => action(track => openLink(track.sourceUrl!))} /> : null}
         {actionTrack.source === 'local' ? <>
           <SheetAction icon="share-outline" label="Поделиться файлом" onPress={() => action(track => { void music.exportSaved(track); })} />
           <SheetAction icon="trash-outline" label="Убрать из приложения" description="Исходный файл на устройстве сохранится" danger onPress={() => action(track => { void music.removeSaved(track.id); })} />
@@ -208,6 +237,8 @@ export function MusicScreen({ onBack }: { onBack: () => void }) {
         <Text style={{ color: t.muted, fontSize: 13, lineHeight: 20 }}>При поиске и прослушивании Audius получает запросы и сетевые данные соединения. Токен мессенджера туда не отправляется. Импортированные файлы остаются на устройстве.</Text>
         <Text style={{ color: t.muted, fontSize: 11, lineHeight: 17 }}>Музыка принадлежит указанным авторам. Учитывай лицензию конкретного трека; для материалов Audius может применяться Open Music License или отдельная лицензия автора.</Text>
       </View>
+      {scReady ? <Text style={{ color: t.muted, fontSize: 13, lineHeight: 20 }}>SoundCloud подключён через сервер Инвиза по официальному API: в нём видны только треки, которые SoundCloud разрешает слушать в сторонних приложениях. Подписка SoundCloud Go здесь не действует, скачивания и офлайна нет. Треки SoundCloud и Audius играют отдельными очередями.</Text> : null}
+      {scReady ? <SheetAction icon="document-text-outline" label="Правила SoundCloud API" onPress={() => openLink('https://developers.soundcloud.com/policies')} /> : null}
       <SheetAction icon="document-text-outline" label="Условия Audius API" onPress={() => openLink('https://audius.co/documents/ApiTerms.pdf')} />
       <SheetAction icon="shield-checkmark-outline" label="Конфиденциальность Audius" onPress={() => openLink('https://audius.co/documents/PrivacyPolicy.pdf')} />
       <SheetAction icon="musical-note-outline" label="Open Music License" onPress={() => openLink('https://audius.org/open-music-license.pdf')} />
@@ -239,7 +270,7 @@ function TrackRow({ track, active, playing, favorite, onPlay, onFavorite, onMore
       <View style={{ flex: 1, minWidth: 0, gap: 5 }}>
         <Text numberOfLines={1} style={{ color: active ? t.accent : t.text, fontSize: 14, fontWeight: '700' }}>{track.title}</Text>
         <Text numberOfLines={1} style={{ color: t.muted, fontSize: 12 }}>{track.artist}</Text>
-        <Text style={{ color: t.subtle, fontSize: 9, fontWeight: '600', letterSpacing: .2 }}>{track.source === 'local' ? 'НА УСТРОЙСТВЕ' : 'AUDIUS'}{track.duration > 0 ? ` · ${Math.floor(track.duration / 60)}:${String(Math.floor(track.duration % 60)).padStart(2, '0')}` : ''}</Text>
+        <Text style={{ color: t.subtle, fontSize: 9, fontWeight: '600', letterSpacing: .2 }}>{track.source === 'local' ? 'НА УСТРОЙСТВЕ' : track.source === 'soundcloud' ? 'SOUNDCLOUD' : 'AUDIUS'}{track.duration > 0 ? ` · ${Math.floor(track.duration / 60)}:${String(Math.floor(track.duration % 60)).padStart(2, '0')}` : ''}</Text>
       </View>
     </Pressable>
     <IconButton name={favorite ? 'heart' : 'heart-outline'} label={favorite ? `Убрать из любимого: ${track.title}` : `В любимое: ${track.title}`} color={favorite ? t.accent : t.muted} size={19} onPress={onFavorite} />

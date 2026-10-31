@@ -213,3 +213,11 @@ cd android && ./gradlew assembleRelease
 - Профиль собеседника «⋯»: автоудаление (1 день/неделя/месяц), запрет копирования, обои, поиск, очистить историю у обоих, заблокировать, пожаловаться. Правила чата — зашифрованные действия `settings`/`clear` в `messageMeta.ts` (сервер их не видит).
 - Сервер (`moderation.js`): блокировка (403 BLOCKED на отправку и новый чат), жалобы (таблица `reports`), `POST /auth/delete-account` (пароль + слово) удаляет аккаунт, личные чаты у обоих, свои каналы, файлы. В «Безопасности» внизу — «Заблокированные» и «Удалить аккаунт».
 - Новая нативная зависимость: `@react-native-masked-view/masked-view` (нужна новая сборка).
+
+## SoundCloud рядом с Audius (31 октября 2026)
+
+- Сервер: `server/src/soundcloud.js`. Официальный API SoundCloud с ключами приложения пользователя (Artist Pro, self-serve ключи с мая 2026). Токен client_credentials хранится в памяти, обновляется заранее, при 401 запрашивается заново. Отдаются только треки с `access=playable`; превью Go+ отфильтрованы. Маршруты (только после входа): `GET /music/soundcloud/status`, `/music/soundcloud/tracks?q=&mood=&offset=&limit=`, `/music/soundcloud/tracks/:urn`, `/music/soundcloud/tracks/:urn/stream` (HLS, суточный лимит `SOUNDCLOUD_DAILY_PLAYS`, по умолчанию 1500).
+- Ключи: `bash deploy/soundcloud.sh` спрашивает Client ID и скрытый Client Secret, проверяет их у SoundCloud, кладёт в `deploy/secrets/soundcloud.json` (uid 1000, 600) и выставляет `SOUNDCLOUD_CREDENTIALS`. `install.sh` значение сохраняет. Выключить: `bash deploy/soundcloud.sh off`.
+- Клиент: `mobile/src/music/soundcloud.ts`. Переключатель «SoundCloud | Audius» на главной «Музыки» виден, только если сервер настроен. Если SoundCloud не ответил, экран сам переходит на Audius с пояснением. Гостям доступен только Audius.
+- Правила SoundCloud (developers.soundcloud.com/policies), которые соблюдаются в коде: в очереди всегда треки одного сервиса (`MusicProvider.play`); у треков SoundCloud нет скачивания и офлайна; есть подпись «SOUNDCLOUD» и «Открыть в SoundCloud»; Platina ничего из SoundCloud не открывает.
+- Не проверено: проигрывание HLS из России. SoundCloud заблокирован Роскомнадзором с октября 2022 года. Поиск идёт через наш сервер, а звук приходит напрямую с CDN SoundCloud. Если звук не загрузится, нужно проксировать поток через сервер.

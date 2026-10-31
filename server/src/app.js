@@ -1,6 +1,7 @@
 import { installCallRoutes } from './calls.js';
 import { PUSH_SCHEMA, PUSH_KINDS, chatNotification } from './push.js';
 import { MODERATION_SCHEMA, installModerationRoutes, blockedBetween, deleteAccount } from './moderation.js';
+import { installSoundCloudRoutes } from './soundcloud.js';
 import { COMMUNITY_SCHEMA, installCommunityRoutes, VOICE_LIMIT } from './communities.js';
 import Fastify, { LogController } from 'fastify';
 import websocket from '@fastify/websocket';
@@ -46,6 +47,7 @@ function isEndpointWebSocketOrigin(request, origin) {
 export async function buildApp({
   turn = null,
   push = null,
+  soundcloud = null,
   dataDir = resolve('data'),
   logger = false,
   allowedOrigins = [],
@@ -252,6 +254,7 @@ export async function buildApp({
   { const columns = new Set(db.prepare('PRAGMA table_info(users)').all().map(column => column.name)); for (const column of ['profile_effect', 'nameplate']) if (!columns.has(column)) db.exec(`ALTER TABLE users ADD COLUMN ${column} TEXT`); }
   db.exec(MODERATION_SCHEMA);
   installModerationRoutes({ app, db, authOptions, publicUser, timestamp, limiter });
+  installSoundCloudRoutes({ app, authOptions, soundcloud, limiter });
   // Push token of this signed-in device. It lives as long as the session: a revoked or
   // expired session stops receiving pushes.
   app.put('/me/push', authOptions, async request => {

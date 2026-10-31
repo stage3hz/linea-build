@@ -4,6 +4,7 @@ import {
   normalizeAudiusTrack, safeAudioFilename, safeHttpsUrl,
 } from './catalog';
 import { mergeRanked, spellingVariants } from './fuzzy.ts';
+import { resolveSoundCloudStream } from './soundcloud';
 
 const API_ORIGIN = 'https://api.audius.co';
 const API_BASE = `${API_ORIGIN}/v1`;
@@ -155,6 +156,7 @@ function remoteId(track: MusicTrack): string {
 }
 
 export async function resolveStream(track: MusicTrack): Promise<MusicMedia> {
+  if (track.source === 'soundcloud') return resolveSoundCloudStream(track);
   const id = remoteId(track);
   const raw = await freshTrack(id);
   if (!canStreamAudius(raw)) throw new Error('Автор ограничил доступ к треку, или он больше недоступен.');
