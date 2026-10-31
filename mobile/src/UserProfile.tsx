@@ -1,4 +1,5 @@
 import { useCalls } from './calls/CallProvider';
+import { PlatinaName, PlatinaSeal, hasPlatina } from './platina/PlatinaMark';
 import React, { useEffect, useState } from 'react';
 import { ActivityIndicator, Modal, Pressable, ScrollView, View } from 'react-native';
 import * as Clipboard from 'expo-clipboard';
@@ -74,8 +75,9 @@ export function UserProfile({ api, user, onClose, chat, onMessage, onMute, onSea
       <ScrollView contentContainerStyle={{ padding: 18, gap: 16, alignItems: 'center' }}>
         <DecoratedAvatar user={shown} api={api} size={128} animated />
         <View style={{ alignItems: 'center', gap: 6 }}>
-          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 7 }}><Text style={{ color: t.text, fontSize: 26, fontWeight: '800', letterSpacing: -.6 }}>{shown.displayName}</Text><StatusEmoji user={shown} size={22} animated /></View>
+          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 7 }}><PlatinaName user={shown} style={{ color: t.text, fontSize: 26, fontWeight: '800', letterSpacing: -.6 }} /><StatusEmoji user={shown} size={22} animated /></View>
           {status ? <Text style={{ color: status === 'в сети' ? t.accent : t.muted, fontSize: 14 }}>{status}</Text> : <Pressable onPress={() => void copy()} accessibilityRole="button" accessibilityLabel="Скопировать имя пользователя"><Text style={{ color: t.accent, fontSize: 15 }}>@{shown.username}</Text></Pressable>}
+          {hasPlatina(shown) ? <PlatinaSeal owner={shown} /> : null}
         </View>
         <View style={{ flexDirection: 'row', gap: 10, alignSelf: 'stretch', justifyContent: 'center' }}>
           {actions.map(action => <Pressable key={action.label} accessibilityRole="button" onPress={action.onPress} disabled={action.loading || busy} style={({ pressed }) => ({ flex: 1, maxWidth: 120, opacity: pressed ? .7 : 1 })}>

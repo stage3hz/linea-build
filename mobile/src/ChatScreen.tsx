@@ -1,4 +1,5 @@
 import { StatusEmoji } from './StatusEmoji';
+import { PlatinaGem, PlatinaName, hasPlatina } from './platina/PlatinaMark';
 import { DecoratedAvatar } from './platina/Decor';
 import { ChatWallpaper, WallpaperPicker } from './WallpaperPicker';
 import { useWallpaper } from './wallpapers';
@@ -249,7 +250,7 @@ export function ChatScreen({api,user,chat,store,onBack,wide=false,onOpenMusic}: 
       <View style={{flex:1,alignItems:'center'}}>
         <GlassSurface material="regular" radius={22} interactive contentStyle={{minHeight:44,justifyContent:'center',paddingHorizontal:18,paddingVertical:3}}>
           <Pressable onPress={()=>setPeerInfo(true)} accessibilityRole="button" accessibilityLabel={`Профиль ${chat.peer.displayName}`} style={{alignItems:'center',gap:1}}>
-            <View style={{flexDirection:'row',gap:5,alignItems:'center'}}><Text numberOfLines={1} style={{flexShrink:1,color:t.text,fontSize:16,fontWeight:'600',letterSpacing:-.25}}>{chat.peer.displayName}</Text><StatusEmoji user={chat.peer} size={16} animated/></View>
+            <View style={{flexDirection:'row',gap:5,alignItems:'center'}}><PlatinaName user={chat.peer} style={{flexShrink:1,color:t.text,fontSize:16,fontWeight:'600',letterSpacing:-.25}}/>{hasPlatina(chat.peer)?<PlatinaGem size={11}/>:null}<StatusEmoji user={chat.peer} size={16} animated/></View>
             <Text numberOfLines={1} style={{color:headerStatus.accent?t.accent:t.muted,fontSize:12}}>{headerStatus.text}</Text>
           </Pressable>
         </GlassSurface>

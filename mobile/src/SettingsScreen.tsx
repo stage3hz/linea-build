@@ -1,5 +1,5 @@
 import React, { useCallback, useEffect, useState } from 'react';
-import { ActivityIndicator, Pressable, ScrollView, Switch, View } from 'react-native';
+import { ActivityIndicator, Pressable, ScrollView, StyleSheet, Switch, View, useWindowDimensions } from 'react-native';
 import { Text } from './typography';
 import * as FileSystem from 'expo-file-system/legacy';
 import Constants from 'expo-constants';
@@ -23,6 +23,10 @@ import { useSharedValue } from 'react-native-reanimated';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { StackBase, StackScreen } from './stack';
 import { WallpaperPicker } from './WallpaperPicker';
+import { DecoratedAvatar, ProfileBanner } from './platina/Decor';
+import { PlatinaGem, PlatinaName, PlatinaSeal, hasPlatina, openPlatinaShowcase } from './platina/PlatinaMark';
+import { usePlatina } from './platina/usePlatina';
+import { lightFeedback } from './haptics';
 
 type Section = 'root' | 'appearance' | 'privacy' | 'data';
 type Props = {
@@ -37,8 +41,9 @@ export function SettingsScreen(props: Props) {
   const progress = useSharedValue(1);
   const page = (current: Section, onBack: () => void) => {
     const title = current === 'appearance' ? 'Оформление' : current === 'privacy' ? 'Конфиденциальность' : current === 'data' ? 'Данные и память' : 'Настройки';
-    return <Page title={title} backLabel={current === 'root' ? 'Назад' : 'К настройкам'} onBack={onBack}>
-      {current === 'root' ? <Root {...props} open={setSection} /> : current === 'appearance' ? <Appearance {...props} /> : current === 'privacy' ? <PrivacySection api={props.api} /> : <DataSection />}
+    if (current === 'root') return <Root {...props} onBack={onBack} open={setSection} />;
+    return <Page title={title} backLabel="К настройкам" onBack={onBack}>
+      {current === 'appearance' ? <Appearance {...props} /> : current === 'privacy' ? <PrivacySection api={props.api} /> : <DataSection />}
     </Page>;
   };
   // Sections slide in over the root list and close with the same swipe to the right as chats.
@@ -68,14 +73,14 @@ function Group({ children, label }: { children: React.ReactNode; label?: string 
   const t = useTheme();
   return <View style={{ gap: 7 }}>
     {label ? <Text style={{ color: t.muted, fontSize: 11, fontWeight: '700', letterSpacing: 1.2, paddingHorizontal: 8 }}>{label.toUpperCase()}</Text> : null}
-    <GlassSurface radius={22} shadow={false} contentStyle={{ paddingVertical: 4 }}>{children}</GlassSurface>
+    <GlassSurface radius={20} shadow={false} contentStyle={{ paddingVertical: 2, overflow: 'hidden', borderRadius: 20 }}>{children}</GlassSurface>
   </View>;
 }
 
 function Item({ icon, color, label, value, onPress, danger = false }: { icon: IconName; color: string; label: string; value?: string; onPress: () => void; danger?: boolean }) {
   const t = useTheme();
-  return <Pressable accessibilityRole="button" onPress={onPress} style={({ pressed }) => ({ flexDirection: 'row', alignItems: 'center', gap: 13, minHeight: 52, paddingHorizontal: 14, opacity: pressed ? .6 : 1 })}>
-    <View style={{ width: 32, height: 32, borderRadius: 9, backgroundColor: color, alignItems: 'center', justifyContent: 'center' }}><Icon name={icon} size={18} color="#FFF" /></View>
+  return <Pressable accessibilityRole="button" onPress={onPress} style={({ pressed }) => ({ flexDirection: 'row', alignItems: 'center', gap: 13, minHeight: 48, paddingHorizontal: 14, backgroundColor: pressed ? 'rgba(127,127,127,0.12)' : 'transparent' })}>
+    <View style={{ width: 30, height: 30, borderRadius: 8, backgroundColor: color, alignItems: 'center', justifyContent: 'center' }}><Icon name={icon} size={17} color="#FFF" /></View>
     <Text style={{ flex: 1, color: danger ? t.danger : t.text, fontSize: 15 }}>{label}</Text>
     {value ? <Text style={{ color: t.muted, fontSize: 13 }}>{value}</Text> : null}
     {!danger ? <Icon name="chevron-forward" size={17} color={t.subtle} /> : null}
@@ -90,35 +95,74 @@ function Toggle({ label, description, value, onChange, disabled = false, badge }
   </View>;
 }
 
-function Root({ api, user, onProfile, onSecurity, onMusic, onLogout, open }: Props & { open: (section: Section) => void }) {
-  const t = useTheme(); const preferences = useChatPreferences();
+function Root({ api, user, onBack, onProfile, onSecurity, onMusic, onLogout, open }: Props & { open: (section: Section) => void }) {
+  const t = useTheme(); const preferences = useChatPreferences(); const insets = useSafeAreaInsets(); const { width } = useWindowDimensions();
   const version = Constants.expoConfig?.version || '';
-  return <>
-    <Pressable accessibilityRole="button" accessibilityLabel="Изменить профиль" onPress={onProfile}>
-      <GlassSurface radius={26} contentStyle={{ padding: 16, flexDirection: 'row', alignItems: 'center', gap: 14 }}>
-        <Avatar user={user} api={api} size={62} />
-        <View style={{ flex: 1, gap: 4 }}>
-          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}><Text numberOfLines={1} style={{ flexShrink: 1, color: t.text, fontSize: 19, fontWeight: '700' }}>{user.displayName}</Text><StatusEmoji user={user} size={17} /></View>
-          <Text style={{ color: t.muted, fontSize: 13 }}>@{user.username}</Text>
-        </View>
-        <Icon name="chevron-forward" size={18} color={t.subtle} />
-      </GlassSurface>
+  const active = usePlatina(api, user.id);
+  const [until, setUntil] = useState<string | null>(null);
+  useEffect(() => { let alive = true; api.usernameStatus().then(status => { if (!alive) return; const p = status.platina; setUntil(p.permanent ? 'Бессрочно' : p.expiresAt ? `Активна до ${new Date(p.expiresAt).toLocaleDateString('ru-RU', { day: 'numeric', month: 'long' })}` : 'Активна'); }).catch(() => {}); return () => { alive = false; }; }, [api, user.id]);
+  const bannerHeight = 200 + insets.top;
+  const hasBanner = !!(user.bannerId || user.bannerPreset);
+  return <ScrollView contentContainerStyle={{ paddingBottom: 30 }} showsVerticalScrollIndicator={false}>
+    {/* Telegram's settings head with Discord's banner: the banner runs under the status bar. */}
+    <View style={{ height: bannerHeight, marginTop: -insets.top }}>
+      {hasBanner ? <ProfileBanner user={user} api={api} height={bannerHeight} width={width} /> : <LinearGradient colors={t.dark ? ['rgba(96,124,190,0.34)', 'rgba(150,120,200,0.14)', 'transparent'] : ['rgba(120,150,230,0.30)', 'rgba(190,170,240,0.16)', 'transparent']} start={{ x: 0.1, y: 0 }} end={{ x: 0.7, y: 1 }} style={StyleSheet.absoluteFill} />}
+      <View style={{ position: 'absolute', top: insets.top + 6, left: 16, right: 16, flexDirection: 'row', justifyContent: 'space-between' }}>
+        <GlassSurface radius={22} shadow={false} interactive contentStyle={{ width: 44, height: 44, alignItems: 'center', justifyContent: 'center' }}><Pressable accessibilityRole="button" accessibilityLabel="Назад" onPress={onBack} hitSlop={6} style={{ width: 44, height: 44, alignItems: 'center', justifyContent: 'center' }}><Icon name="chevron-back" size={22} color={t.text} /></Pressable></GlassSurface>
+        <GlassSurface radius={22} shadow={false} interactive contentStyle={{ height: 44, paddingHorizontal: 16, justifyContent: 'center' }}><Pressable accessibilityRole="button" onPress={onProfile} hitSlop={6}><Text style={{ color: t.text, fontSize: 16, fontWeight: '600' }}>Изм.</Text></Pressable></GlassSurface>
+      </View>
+    </View>
+    <View style={{ marginTop: -58, paddingHorizontal: 20 }}>
+      <Pressable accessibilityRole="button" accessibilityLabel="Мой профиль" onPress={onProfile} style={{ alignSelf: 'flex-start', padding: 5, borderRadius: 40, backgroundColor: t.bg }}>
+        <DecoratedAvatar user={user} api={api} size={100} animated />
+      </Pressable>
+      <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8, marginTop: 12 }}>
+        <PlatinaName user={user} style={{ color: t.text, fontSize: 26, fontWeight: '800', letterSpacing: -0.5 }} />
+        <StatusEmoji user={user} size={22} animated />
+      </View>
+      <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8, marginTop: 5 }}>
+        <Text style={{ color: t.muted, fontSize: 15 }}>@{user.username}</Text>
+        {hasPlatina(user) ? <PlatinaSeal owner={user} /> : null}
+      </View>
+    </View>
+    <View style={{ paddingHorizontal: 16, paddingTop: 18, gap: 14, width: '100%', maxWidth: 680, alignSelf: 'center' }}>
+      {active ? <Pressable accessibilityRole="button" onPress={() => openPlatinaShowcase()}>
+        <GlassSurface radius={20} shadow={false} contentStyle={{ flexDirection: 'row', alignItems: 'center', gap: 13, paddingHorizontal: 14, minHeight: 60 }}>
+          <PlatinaGem size={22} />
+          <View style={{ flex: 1 }}><Text style={{ color: t.text, fontSize: 15, fontWeight: '600' }}>Инвиз Platina</Text><Text style={{ color: t.muted, fontSize: 12.5, marginTop: 2 }}>{until || 'Активна'} · всё включено</Text></View>
+          <Icon name="chevron-forward" size={17} color={t.subtle} />
+        </GlassSurface>
+      </Pressable> : <PlatinaOffer />}
+      <Group>
+        <Item icon="person" color="#E2574C" label="Мой профиль" onPress={onProfile} />
+        <Item icon="musical-notes" color="#E5467A" label="Музыка" onPress={onMusic} />
+      </Group>
+      <Group>
+        <Item icon="color-palette" color="#25A69A" label="Оформление" value={textMetrics(preferences.textSize).label} onPress={() => open('appearance')} />
+        <Item icon="lock-closed" color="#8C62E8" label="Конфиденциальность" onPress={() => open('privacy')} />
+        <Item icon="shield-checkmark" color="#34A853" label="Безопасность и устройства" onPress={onSecurity} />
+        <Item icon="server" color="#E39A3B" label="Данные и память" onPress={() => open('data')} />
+      </Group>
+      <Group>
+        <Item icon="log-out-outline" color="#D9534F" label="Выйти из аккаунта" danger onPress={() => void onLogout()} />
+      </Group>
+      <Text style={{ color: t.muted, fontSize: 11, textAlign: 'center' }}>Инвиз {version} · переписка защищена сквозным шифрованием</Text>
+    </View>
+  </ScrollView>;
+}
+
+/** For accounts without Platina: one calm card, never a shouting banner. */
+function PlatinaOffer() {
+  const t = useTheme();
+  return <GlassSurface radius={22} shadow={false} contentStyle={{ padding: 16 }}>
+    <PlatinaName user={{ displayName: 'ИНВИЗ PLATINA', seal: 'platina' }} style={{ fontSize: 11, fontWeight: '800', letterSpacing: 2.4 }} />
+    <Text style={{ color: t.text, fontSize: 18, fontWeight: '800', letterSpacing: -0.3, lineHeight: 23, marginTop: 8 }}>Твой профиль —{'\n'}заметнее любого другого</Text>
+    <Text style={{ color: t.muted, fontSize: 13, lineHeight: 19, marginTop: 6 }}>Живой баннер и аватар, платиновое имя, рамки, невидимка и всё, что выйдет дальше.</Text>
+    <Pressable accessibilityRole="button" onPress={() => { lightFeedback(); openPlatinaShowcase(); }} style={({ pressed }) => ({ height: 46, borderRadius: 15, overflow: 'hidden', marginTop: 14, alignItems: 'center', justifyContent: 'center', transform: [{ scale: pressed ? .96 : 1 }] })}>
+      <LinearGradient colors={['#E9EDF3', '#FFFFFF', '#BCC5D3', '#F6F8FB']} start={{ x: 0, y: 0.3 }} end={{ x: 1, y: 0.7 }} style={StyleSheet.absoluteFill} />
+      <Text style={{ color: '#12151C', fontSize: 15, fontWeight: '800' }}>Попробовать Platina</Text>
     </Pressable>
-    <Group>
-      <Item icon="person-circle-outline" color="#5B7CFA" label="Мой профиль" onPress={onProfile} />
-      <Item icon="musical-notes-outline" color="#E0598B" label="Музыка" onPress={onMusic} />
-    </Group>
-    <Group>
-      <Item icon="color-palette-outline" color="#2FB3B3" label="Оформление" value={textMetrics(preferences.textSize).label} onPress={() => open('appearance')} />
-      <Item icon="lock-closed-outline" color="#8E6CE8" label="Конфиденциальность" onPress={() => open('privacy')} />
-      <Item icon="shield-checkmark-outline" color="#4AA35E" label="Безопасность и устройства" onPress={onSecurity} />
-      <Item icon="server-outline" color="#E39A3B" label="Данные и память" onPress={() => open('data')} />
-    </Group>
-    <Group>
-      <Item icon="log-out-outline" color="#D9534F" label="Выйти из аккаунта" danger onPress={() => void onLogout()} />
-    </Group>
-    <Text style={{ color: t.muted, fontSize: 11, textAlign: 'center' }}>Инвиз {version} · переписка защищена сквозным шифрованием</Text>
-  </>;
+  </GlassSurface>;
 }
 
 function Appearance({ theme, darkTheme, onTheme, onDarkTheme }: Props) {

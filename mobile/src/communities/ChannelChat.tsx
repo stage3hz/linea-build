@@ -1,4 +1,5 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { PlatinaGem, PlatinaName, hasPlatina } from '../platina/PlatinaMark';
 import { ActivityIndicator, FlatList, Platform, Pressable, View } from 'react-native';
 import * as ImagePicker from 'expo-image-picker';
 import * as DocumentPicker from 'expo-document-picker';
@@ -131,7 +132,7 @@ export function ChannelChat({ api, me, store, community, channel, onOpenInvite }
         </View> : <View style={{ flexDirection: 'row', gap: 12, paddingHorizontal: 14, paddingTop: grouped ? 1 : 10, paddingBottom: 2 }}>
           <View style={{ width: 40 }}>{!grouped && author ? <Avatar user={author} api={api} size={40} /> : null}</View>
           <View style={{ flex: 1, gap: 2 }}>
-            {!grouped ? <View style={{ flexDirection: 'row', alignItems: 'baseline', gap: 8 }}><Text numberOfLines={1} style={{ flexShrink: 1, color: roleColors[item.senderId] || t.text, fontSize: 15, fontWeight: '700' }}>{author?.displayName || 'Участник'}</Text>{item.senderId === community.ownerId ? <Icon name="ribbon" size={13} color="#F5C542" /> : null}<Text style={{ color: t.subtle, fontSize: 11 }}>{time(item.createdAt)}</Text></View> : null}
+            {!grouped ? <View style={{ flexDirection: 'row', alignItems: 'baseline', gap: 8 }}>{author && hasPlatina(author) && !roleColors[item.senderId] ? <PlatinaName user={author} animated={false} style={{ flexShrink: 1, fontSize: 15, fontWeight: '700' }} /> : <Text numberOfLines={1} style={{ flexShrink: 1, color: roleColors[item.senderId] || t.text, fontSize: 15, fontWeight: '700' }}>{author?.displayName || 'Участник'}</Text>}{author && hasPlatina(author) ? <PlatinaGem size={10} /> : null}{item.senderId === community.ownerId ? <Icon name="ribbon" size={13} color="#F5C542" /> : null}<Text style={{ color: t.subtle, fontSize: 11 }}>{time(item.createdAt)}</Text></View> : null}
             {body}
           </View>
         </View>}

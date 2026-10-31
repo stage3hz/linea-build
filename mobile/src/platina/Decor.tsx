@@ -12,6 +12,7 @@ import { useTheme } from '../theme';
 
 /** Platina avatar frames: a gradient ring that slowly turns around the avatar. */
 export const FRAMES: { id: string; label: string; colors: string[] }[] = [
+  { id: 'platinum', label: 'Платина', colors: ['#FFFFFF', '#8D97AA', '#F1F4F9', '#6C7588', '#FFFFFF', '#A7B0C1', '#FFFFFF'] },
   { id: 'aurora', label: 'Сияние', colors: ['#3FA9F5', '#2EE6C8', '#E8F6FF', '#3FA9F5'] },
   { id: 'frost', label: 'Иней', colors: ['#BFE6FF', '#FFFFFF', '#6FB6FF', '#BFE6FF'] },
   { id: 'ember', label: 'Пламя', colors: ['#FF4D3A', '#FFC24B', '#FF2E63', '#FF4D3A'] },
@@ -56,7 +57,8 @@ function VideoAvatar({ api, id, size, radius }: { api: Api; id: string; size: nu
  */
 export function DecoratedAvatar({ user, api, size = 54, animated = false }: { user: User; api: Api; size?: number; animated?: boolean }) {
   const t = useTheme(); const { enabled } = useMotion();
-  const frame = FRAMES.find(item => item.id === user.avatarFrame);
+  // Platina without a chosen frame wears the platinum ring.
+  const frame = FRAMES.find(item => item.id === (user.avatarFrame || (user.seal === 'platina' ? 'platinum' : '')));
   const live = animated && enabled;
   const video = live && user.avatarVideoId && Platform.OS !== 'web' ? user.avatarVideoId : null;
   const inner = <View style={{ width: size, height: size }}>

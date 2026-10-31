@@ -2,7 +2,7 @@
 // Values are validated here and only ever shown while Platina is active, so an
 // expired subscription hides the decoration without deleting the user's choice.
 
-export const AVATAR_FRAMES = Object.freeze(['aurora', 'frost', 'ember', 'emerald', 'prism', 'orbit']);
+export const AVATAR_FRAMES = Object.freeze(['platinum', 'aurora', 'frost', 'ember', 'emerald', 'prism', 'orbit']);
 export const BANNER_PRESETS = Object.freeze(['deep', 'glacier', 'aurora', 'ocean', 'mint', 'night']);
 export const MAX_PROFILE_VIDEO_BYTES = 8 * 1024 * 1024;
 
@@ -25,7 +25,7 @@ export function videoMime(header) {
  * profile photo from this viewer: uploaded video and banner hide with it, presets stay.
  */
 export function visibleCosmetics(row, platina, showMedia = true) {
-  if (!platina.active) return { avatarVideoId: null, avatarFrame: null, bannerId: null, bannerKind: null, bannerPreset: null };
+  if (!platina.active) return { avatarVideoId: null, avatarFrame: null, bannerId: null, bannerKind: null, bannerPreset: null, seal: null };
   const banner = showMedia && row.banner_id && (row.banner_kind === 'image' || row.banner_kind === 'video');
   return {
     avatarVideoId: showMedia && row.avatar_video_id ? row.avatar_video_id : null,
@@ -33,5 +33,7 @@ export function visibleCosmetics(row, platina, showMedia = true) {
     bannerId: banner ? row.banner_id : null,
     bannerKind: banner ? row.banner_kind : null,
     bannerPreset: isBannerPreset(row.banner_preset) ? row.banner_preset : null,
+    // The visible Platina mark (seal next to the name, platinum name). Other people see it.
+    seal: 'platina',
   };
 }
