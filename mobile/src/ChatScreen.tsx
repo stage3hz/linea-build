@@ -6,17 +6,18 @@ import { useWallpaper } from './wallpapers';
 import { usePlatina } from './platina/usePlatina';
 import { ComposerInput } from './ComposerInput';
 import React, { useEffect, useMemo, useRef, useState } from 'react';
-import { ActivityIndicator, FlatList, Keyboard, Platform, Pressable, ScrollView, View } from 'react-native';
+import { ActivityIndicator, FlatList, Keyboard, Modal, Platform, Pressable, ScrollView, View } from 'react-native';
 import { Text, TextInput } from './typography';
 import { KeyboardSafeView } from './keyboard';
 import * as Clipboard from 'expo-clipboard';
 import { LinearGradient } from 'expo-linear-gradient';
-import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import * as FileSystem from 'expo-file-system/legacy';
 import type { Api } from './api';
 import { AttachmentCard, Avatar, Empty, Icon, IconButton, Notice, Sheet, SheetAction } from './components';
 import { formatDay, formatSize, formatTime, useTheme } from './theme';
-import { GlassSurface } from './glass';
+import { GlassStage, GlassSurface } from './glass';
+import { SharedMedia } from './SharedMedia';
 import type { Attachment, Chat, LocalFile, Message, PendingMessage, User } from './types';
 import type { MessengerStore } from './useMessenger';
 import { shareEncryptedAttachment } from './e2ee/attachments';
@@ -82,7 +83,7 @@ export function ChatScreen({api,user,chat,store,onBack,wide=false,onOpenMusic}: 
   const seen=useRef<Set<string>|null>(null);
   const [forwardMany,setForwardMany]=useState<ViewMessage[]|null>(null);
   const [gallery,setGallery]=useState<{items:Attachment[];index:number}|null>(null);
-  const [headerHeight,setHeaderHeight]=useState(76);const [footerHeight,setFooterHeight]=useState(60);const [showDown,setShowDown]=useState(false);const [recordMode,setRecordMode]=useState<'voice'|'video'>('voice');
+  const [mediaOpen,setMediaOpen]=useState(false);const [headerHeight,setHeaderHeight]=useState(76);const [footerHeight,setFooterHeight]=useState(60);const [showDown,setShowDown]=useState(false);const [recordMode,setRecordMode]=useState<'voice'|'video'>('voice');
   const [pollOpen,setPollOpen]=useState(false);const [deleteAsk,setDeleteAsk]=useState(false);const [stickers,setStickers]=useState(false);
   useEffect(()=>{setReplyTo(null);setEditing(null);setForwarding(null);setSearchOpen(false);setQuery('');setSelection(null);setGallery(null);seen.current=null;},[chat.id]);
 
@@ -263,16 +264,21 @@ export function ChatScreen({api,user,chat,store,onBack,wide=false,onOpenMusic}: 
     </View>:<View style={{flexDirection:'row',alignItems:'center',gap:8,paddingHorizontal:12}}>
       {/* Telegram: the name sits exactly in the middle of the screen — equal side columns, not «what is left». */}
       <View style={{flex:1,alignItems:'flex-start'}}>{!wide?<GlassSurface material="regular" radius={26} interactive contentStyle={{height:44,minWidth:44,flexDirection:'row',alignItems:'center',justifyContent:'center',paddingHorizontal:otherUnread?10:0,gap:4}}><Pressable onPress={onBack} accessibilityRole="button" accessibilityLabel={`Назад к чатам${otherUnread?`, непрочитанных ${otherUnread}`:''}`} hitSlop={6} style={{flexDirection:'row',alignItems:'center',gap:4}}><Icon name="chevron-back" size={26} color={t.text}/>{otherUnread?<View style={{minWidth:22,height:22,borderRadius:11,paddingHorizontal:6,backgroundColor:t.text,alignItems:'center',justifyContent:'center'}}><Text style={{color:t.dark?'#000':'#FFF',fontSize:12,fontWeight:'700'}}>{otherUnread>99?'99+':otherUnread}</Text></View>:null}</Pressable></GlassSurface>:null}</View>
+      {/* As in Telegram: the name in the middle, the avatar on the right. The name opens the chat's
+          media and files, the avatar opens the profile (calls live there). */}
       <View style={{maxWidth:'62%',alignItems:'center'}}>
         <GlassSurface material="regular" radius={22} interactive style={{maxWidth:'100%'}} contentStyle={{minHeight:44,justifyContent:'center',paddingHorizontal:18,paddingVertical:3}}>
-          <Pressable onPress={()=>setPeerInfo(true)} accessibilityRole="button" accessibilityLabel={`Профиль ${chat.peer.displayName}`} style={{alignItems:'center',gap:1}}>
+          <Pressable onPress={()=>setMediaOpen(true)} accessibilityRole="button" accessibilityLabel={`Вложения чата с ${chat.peer.displayName}`} style={{alignItems:'center'}}>
+            <View style={{flexShrink:1,alignItems:'center',gap:1}}>
             <View style={{flexDirection:'row',gap:5,alignItems:'center'}}><PlatinaName user={chat.peer} style={{flexShrink:1,color:t.text,fontSize:16,fontWeight:'600',letterSpacing:-.25}}/>{hasPlatina(chat.peer)?<PlatinaGem size={11}/>:null}<StatusEmoji user={chat.peer} size={16} animated/></View>
             <Text numberOfLines={1} style={{color:headerStatus.accent?t.accent:t.muted,fontSize:12}}>{headerStatus.text}</Text>
+            </View>
           </Pressable>
         </GlassSurface>
       </View>
-      <View style={{flex:1,flexDirection:'row',justifyContent:'flex-end',alignItems:'center',gap:8}}>{calls.available?<GlassSurface material="regular" radius={22} interactive contentStyle={{width:44,height:44,alignItems:'center',justifyContent:'center'}}><Pressable onPress={()=>calls.start(chat,false)} onLongPress={()=>calls.start(chat,true)} disabled={calls.busy} accessibilityRole="button" accessibilityLabel="Позвонить. Удерживай — видеозвонок" hitSlop={6}><Icon name="call" size={22} color={t.text}/></Pressable></GlassSurface>:null}
-      <Pressable onPress={()=>setPeerInfo(true)} accessibilityRole="button" accessibilityLabel="Открыть профиль" style={({pressed})=>({opacity:pressed?.75:1,borderRadius:24,borderWidth:1.5,borderColor:t.glassBorder})}><DecoratedAvatar user={chat.peer} api={api} size={44} animated/></Pressable></View>
+      <View style={{flex:1,alignItems:'flex-end'}}>
+        <Pressable onPress={()=>setPeerInfo(true)} accessibilityRole="button" accessibilityLabel={`Профиль ${chat.peer.displayName}`} hitSlop={4} style={({pressed})=>({opacity:pressed?.75:1})}><DecoratedAvatar user={chat.peer} api={api} size={44} animated/></Pressable>
+      </View>
     </View>}
     {onOpenMusic&&!selection?<TopPlayerBar onOpen={onOpenMusic}/>:null}
     {searchOpen?<GlassSurface lens material="regular" radius={22} shadow={false} style={{marginHorizontal:12}} contentStyle={{flexDirection:'row',alignItems:'center',gap:9,paddingHorizontal:14,minHeight:46}}>
@@ -344,6 +350,10 @@ export function ChatScreen({api,user,chat,store,onBack,wide=false,onOpenMusic}: 
     <VideoNoteRecorder visible={circleOpen} onClose={()=>setCircleOpen(false)} onDone={take=>void sendVideoNote(take)}/>
     <AttachmentPanel key={photoContext} onPoll={()=>{setAttachMenu(false);setTimeout(()=>setPollOpen(true),350);}} visible={attachMenu} busy={uploading} canAdd={signalAvailable} remainingSlots={Math.max(0,MAX_DRAFT_ATTACHMENTS-attachments.length)} onClose={()=>setAttachMenu(false)} onAdd={item=>upload(item.file)}/>
     <TrustSheet visible={securityOpen} onClose={()=>setSecurityOpen(false)} peerId={chat.peer.id} store={store}/>
+    {mediaOpen?<Modal visible animationType="slide" presentationStyle="pageSheet" onRequestClose={()=>setMediaOpen(false)}><GlassStage><SafeAreaView style={{flex:1}}>
+      <View style={{flexDirection:'row',alignItems:'center',gap:10,paddingHorizontal:14,paddingVertical:10}}><IconButton name="close" label="Закрыть" onPress={()=>setMediaOpen(false)}/><Text style={{flex:1,color:t.text,fontSize:17,fontWeight:'700'}} numberOfLines={1}>Вложения · {chat.peer.displayName}</Text></View>
+      <ScrollView contentContainerStyle={{padding:16,paddingBottom:40}}><SharedMedia messages={view.messages} onOpen={attachment=>{setMediaOpen(false);setTimeout(()=>openAttachment(attachment),250);}}/></ScrollView>
+    </SafeAreaView></GlassStage></Modal>:null}
     {peerInfo?<UserProfile api={api} user={chat.peer} chat={chat} shared={view.messages} onOpenAttachment={openAttachment} status={headerStatus.text.startsWith('@')||headerStatus.text.endsWith('…')?undefined:headerStatus.text} onClose={()=>setPeerInfo(false)} onMute={muted=>store.updateChatSettings(chat.id,{muted})} onSearch={()=>{setSearchOpen(true);setQuery('');}} onSecurity={()=>setTimeout(()=>setSecurityOpen(true),350)} onWallpaper={()=>setTimeout(()=>setWallpaperOpen(true),350)} rules={view.rules} onRules={rules=>store.sendAction(chat.id,{type:'settings',ttl:rules.ttl,noCopy:rules.noCopy})} onClear={()=>store.sendAction(chat.id,{type:'clear'})}/>:null}
     <WallpaperPicker visible={wallpaperOpen} onClose={()=>setWallpaperOpen(false)} chatId={chat.id}/>
     <ContextMenu visible={!!actions} y={menuY} onClose={()=>setActions(null)} preview={actions?(actions.message?.text||actions.pending?.text||(actions.message?.attachment||actions.pending?.attachment?attachmentLabel((actions.message?.attachment||actions.pending?.attachment)!):'')):''} mine={!!actions&&(!!actions.pending||actions.message?.senderId===user.id)} reactions={actions?.message&&actions.message.cryptoState==='decrypted'?REACTIONS.map(emoji=>({emoji,chosen:actions.message!.reactions.some(r=>r.mine&&r.emoji===emoji)})):undefined} onReact={emoji=>{if(actions?.message){react(actions.message,emoji as Reaction);setActions(null);}}}>
