@@ -18,14 +18,31 @@ export type FolderFilter = 'all' | 'unread' | string;
 const key = (userId: string) => `linea.folders.v1:${userId}`;
 const valid = (value: unknown): value is ChatFolder[] => Array.isArray(value) && value.every(item => item && typeof item.id === 'string' && typeof item.name === 'string' && Array.isArray(item.chatIds));
 
+// One shared copy per account: the chat list tabs and Settings → Chat folders stay in sync.
+const shared = new Map<string, { folders: ChatFolder[]; loaded: boolean; listeners: Set<(folders: ChatFolder[]) => void> }>();
+function entry(userId: string) {
+  let item = shared.get(userId);
+  if (!item) {
+    item = { folders: [], loaded: false, listeners: new Set() }; shared.set(userId, item);
+    const current = item;
+    AsyncStorage.getItem(key(userId)).then(raw => {
+      if (!raw) return; try { const list = JSON.parse(raw); if (valid(list)) { current.folders = list.slice(0, 20); current.listeners.forEach(listener => listener(current.folders)); } } catch { /* broken entry is ignored */ }
+    }).catch(() => {}).finally(() => { current.loaded = true; });
+  }
+  return item;
+}
+
 export function useChatFolders(userId: string) {
-  const [folders, setFolders] = useState<ChatFolder[]>([]);
-  useEffect(() => { let live = true; AsyncStorage.getItem(key(userId)).then(raw => { if (!live || !raw) return; try { const list = JSON.parse(raw); if (valid(list)) setFolders(list.slice(0, 20)); } catch { /* broken entry is ignored */ } }).catch(() => {}); return () => { live = false; }; }, [userId]);
-  const save = (next: ChatFolder[]) => { setFolders(next); void AsyncStorage.setItem(key(userId), JSON.stringify(next)).catch(() => {}); };
+  const store = entry(userId);
+  const [folders, setFolders] = useState<ChatFolder[]>(store.folders);
+  useEffect(() => { const listener = (next: ChatFolder[]) => setFolders(next); store.listeners.add(listener); setFolders(store.folders); return () => { store.listeners.delete(listener); }; }, [store]);
+  const save = (next: ChatFolder[]) => { store.folders = next; store.listeners.forEach(listener => listener(next)); void AsyncStorage.setItem(key(userId), JSON.stringify(next)).catch(() => {}); };
   return {
     folders,
-    upsert: (folder: ChatFolder) => save(folders.some(item => item.id === folder.id) ? folders.map(item => item.id === folder.id ? folder : item) : [...folders, folder]),
-    remove: (id: string) => save(folders.filter(item => item.id !== id)),
+    upsert: (folder: ChatFolder) => save(store.folders.some(item => item.id === folder.id) ? store.folders.map(item => item.id === folder.id ? folder : item) : [...store.folders, folder]),
+    remove: (id: string) => save(store.folders.filter(item => item.id !== id)),
+    /** Telegram lets you drag folders; here a folder moves one place up or down. */
+    move: (id: string, delta: -1 | 1) => { const list = [...store.folders]; const from = list.findIndex(item => item.id === id), to = from + delta; if (from < 0 || to < 0 || to >= list.length) return; [list[from], list[to]] = [list[to], list[from]]; save(list); },
   };
 }
 

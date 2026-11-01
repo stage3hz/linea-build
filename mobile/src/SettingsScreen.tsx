@@ -19,7 +19,8 @@ import { LinearGradient } from 'expo-linear-gradient';
 import { clearDecryptedAttachmentCache } from './e2ee/attachments';
 import { clearPhotoCache } from './photo/pipeline';
 import { clearVideoCache } from './media/pipeline';
-import type { DarkTheme, ThemeMode, User } from './types';
+import type { Chat, DarkTheme, ThemeMode, User } from './types';
+import { FolderEditor, useChatFolders, type ChatFolder } from './ChatFolders';
 import { useSharedValue } from 'react-native-reanimated';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { StackBase, StackScreen } from './stack';
@@ -31,11 +32,12 @@ import { lightFeedback } from './haptics';
 import { LANGUAGES, setLanguage, tr, useLanguage } from './i18n';
 import { fileLimits, type FileLimits } from './e2ee/attachments';
 
-type Section = 'root' | 'appearance' | 'privacy' | 'data' | 'language';
+type Section = 'root' | 'appearance' | 'privacy' | 'data' | 'language' | 'folders' | 'power';
 type Props = {
   api: Api; user: User; theme: ThemeMode; darkTheme: DarkTheme;
   onTheme: (mode: ThemeMode) => void; onDarkTheme: (mode: DarkTheme) => void;
   onBack: () => void; onProfile: () => void; onSecurity: () => void; onMusic: () => void; onLogout: () => Promise<void>;
+  chats?: Chat[];
 };
 
 /** Settings hub: profile on top, grouped sections below. */
@@ -43,10 +45,10 @@ export function SettingsScreen(props: Props) {
   const [section, setSection] = useState<Section>('root');
   const progress = useSharedValue(1);
   const page = (current: Section, onBack: () => void) => {
-    const title = current === 'appearance' ? 'Оформление' : current === 'privacy' ? 'Конфиденциальность' : current === 'data' ? 'Данные и память' : current === 'language' ? 'Язык' : 'Настройки';
+    const title = current === 'appearance' ? 'Оформление' : current === 'privacy' ? 'Конфиденциальность' : current === 'data' ? 'Данные и память' : current === 'language' ? 'Язык' : current === 'folders' ? 'Папки с чатами' : current === 'power' ? 'Энергосбережение' : 'Настройки';
     if (current === 'root') return <Root {...props} onBack={onBack} open={setSection} />;
     return <Page title={title} backLabel="К настройкам" onBack={onBack}>
-      {current === 'appearance' ? <Appearance {...props} /> : current === 'privacy' ? <PrivacySection api={props.api} /> : current === 'language' ? <LanguageSection /> : <DataSection api={props.api} />}
+      {current === 'appearance' ? <Appearance {...props} open={setSection} /> : current === 'privacy' ? <PrivacySection api={props.api} /> : current === 'language' ? <LanguageSection /> : current === 'folders' ? <FoldersSection api={props.api} user={props.user} chats={props.chats || []} /> : current === 'power' ? <Group label="Анимации"><MotionSettings /></Group> : <DataSection api={props.api} />}
     </Page>;
   };
   // Sections slide in over the root list and close with the same swipe to the right as chats.
@@ -100,6 +102,7 @@ function Toggle({ label, description, value, onChange, disabled = false, badge }
 
 function Root({ api, user, onBack, onProfile, onSecurity, onMusic, onLogout, open }: Props & { open: (section: Section) => void }) {
   const language = useLanguage();
+  const folders = useChatFolders(user.id);
   const t = useTheme(); const preferences = useChatPreferences(); const insets = useSafeAreaInsets(); const { width } = useWindowDimensions();
   const version = Constants.expoConfig?.version || '';
   const active = usePlatina(api, user.id);
@@ -146,6 +149,8 @@ function Root({ api, user, onBack, onProfile, onSecurity, onMusic, onLogout, ope
       </Group>
       <Group>
         <Item icon="color-palette" color="#25A69A" label="Оформление" value={textMetrics(preferences.textSize).label} onPress={() => open('appearance')} />
+        <Item icon="folder" color="#3D8BFD" label="Папки с чатами" value={folders.folders.length ? String(folders.folders.length) : undefined} onPress={() => open('folders')} />
+        <Item icon="battery-half" color="#F0A030" label="Энергосбережение" onPress={() => open('power')} />
         <Item icon="lock-closed" color="#8C62E8" label="Конфиденциальность" onPress={() => open('privacy')} />
         <Item icon="shield-checkmark" color="#34A853" label="Безопасность и устройства" onPress={onSecurity} />
         <Item icon="server" color="#E39A3B" label="Данные и память" onPress={() => open('data')} />
@@ -173,13 +178,13 @@ function PlatinaOffer() {
   </GlassSurface>;
 }
 
-function Appearance({ theme, darkTheme, onTheme, onDarkTheme }: Props) {
+function Appearance({ theme, darkTheme, onTheme, onDarkTheme, open }: Props & { open?: (section: Section) => void }) {
   const t = useTheme(); const preferences = useChatPreferences(); const metrics = textMetrics(preferences.textSize);
   const [wallpaperOpen, setWallpaperOpen] = useState(false);
   return <>
     <Group label="Тема"><View style={{ padding: 14 }}><ThemeSettings mode={theme} darkTheme={darkTheme} onChange={onTheme} onDarkTheme={onDarkTheme} /></View></Group>
     <Group label="Иконка приложения"><AppIconPicker /></Group>
-    <Group label="Анимации"><MotionSettings /></Group>
+    <Group label="Анимации"><Item icon="battery-half" color="#F0A030" label="Энергосбережение и анимации" onPress={() => open?.('power')} /></Group>
     <Group label="Обои чатов"><Item icon="image" color="#2EA37A" label="Обои чатов" value="Выбрать" onPress={() => setWallpaperOpen(true)} /></Group>
     <WallpaperPicker visible={wallpaperOpen} onClose={() => setWallpaperOpen(false)} />
     <Group label="Углы сообщений"><View style={{ padding: 14, flexDirection: 'row', gap: 7 }}>{([[8, 'Острые'], [14, 'Средние'], [20, 'Круглые']] as const).map(([value, label]) => {
@@ -236,6 +241,27 @@ async function directorySize(uri: string, depth = 0): Promise<number> {
   let total = 0;
   for (const name of await FileSystem.readDirectoryAsync(uri)) total += await directorySize(`${uri.replace(/\/?$/, '/')}${name}`, depth + 1).catch(() => 0);
   return total;
+}
+
+/** Telegram-like folder list: create, rename, pick chats, reorder. Kept only on this device. */
+function FoldersSection({ api, user, chats }: { api: Api; user: User; chats: Chat[] }) {
+  const t = useTheme(); const folders = useChatFolders(user.id);
+  const [editor, setEditor] = useState<{ folder: ChatFolder | null } | null>(null);
+  return <>
+    <Group label="Мои папки">
+      {folders.folders.length ? folders.folders.map((folder, index) => <View key={folder.id} style={{ flexDirection: 'row', alignItems: 'center', minHeight: 54, paddingLeft: 14, paddingRight: 6 }}>
+        <Pressable accessibilityRole="button" accessibilityLabel={folder.name} onPress={() => setEditor({ folder })} style={{ flex: 1, flexDirection: 'row', alignItems: 'center', gap: 12, minHeight: 54 }}>
+          <Icon name="folder-outline" size={21} color={t.accent} />
+          <View style={{ flex: 1 }}><Text raw numberOfLines={1} style={{ color: t.text, fontSize: 15, fontWeight: '600' }}>{folder.name}</Text><Text raw style={{ color: t.muted, fontSize: 12 }}>{folder.chatIds.length}</Text></View>
+        </Pressable>
+        <Pressable accessibilityRole="button" accessibilityLabel="Выше" disabled={index === 0} onPress={() => folders.move(folder.id, -1)} hitSlop={6} style={{ padding: 8, opacity: index === 0 ? .3 : 1 }}><Icon name="chevron-up" size={18} color={t.muted} /></Pressable>
+        <Pressable accessibilityRole="button" accessibilityLabel="Ниже" disabled={index === folders.folders.length - 1} onPress={() => folders.move(folder.id, 1)} hitSlop={6} style={{ padding: 8, opacity: index === folders.folders.length - 1 ? .3 : 1 }}><Icon name="chevron-down" size={18} color={t.muted} /></Pressable>
+      </View>) : <Text style={{ color: t.muted, fontSize: 13, lineHeight: 19, padding: 16 }}>Папок пока нет. Создай папку — она появится вкладкой над списком чатов.</Text>}
+    </Group>
+    <Group><Item icon="add" color="#3D8BFD" label="Создать папку" onPress={() => setEditor({ folder: null })} /></Group>
+    <Text style={{ color: t.muted, fontSize: 12, lineHeight: 17, paddingHorizontal: 8 }}>Папки хранятся только на этом устройстве; сервер не знает, как ты группируешь чаты.</Text>
+    <FolderEditor visible={!!editor} folder={editor?.folder || null} chats={chats} api={api} onClose={() => setEditor(null)} onSave={folder => { folders.upsert(folder); setEditor(null); }} onDelete={id => { folders.remove(id); setEditor(null); }} />
+  </>;
 }
 
 /** Telegram-like language list: the choice applies at once and is kept on this device. */

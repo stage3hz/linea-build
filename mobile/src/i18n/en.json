@@ -1786,5 +1786,14 @@
 "Недоступно": "Unavailable",
 "С Platina: файлы до 5 ГБ, всего 15 ГБ.": "With Platina: files up to 5 GB, 15 GB in total.",
 "Без Platina: файлы до 100 МБ, всего 2 ГБ. С Platina — до 5 ГБ на файл и 15 ГБ всего.": "Without Platina: files up to 100 MB, 2 GB in total. With Platina — up to 5 GB per file and 15 GB in total.",
-"Зашифрованные вложения из личных чатов. Сервер не может их прочитать.": "Encrypted attachments from private chats. The server can't read them."
+"Зашифрованные вложения из личных чатов. Сервер не может их прочитать.": "Encrypted attachments from private chats. The server can't read them.",
+"Папки с чатами": "Chat folders",
+"Энергосбережение": "Power saving",
+"Энергосбережение и анимации": "Power saving and animations",
+"Мои папки": "My folders",
+"Выше": "Up",
+"Ниже": "Down",
+"Создать папку": "Create folder",
+"Папок пока нет. Создай папку — она появится вкладкой над списком чатов.": "No folders yet. Create a folder — it will appear as a tab above the chat list.",
+"Папки хранятся только на этом устройстве; сервер не знает, как ты группируешь чаты.": "Folders are stored only on this device; the server doesn't know how you group chats."
 }
