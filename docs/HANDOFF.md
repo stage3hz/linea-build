@@ -285,4 +285,4 @@ cd /opt/linea && curl -fsSL https://codeload.github.com/stage3hz/linea-build/tar
 
 Серверы и каналы уже работают только по приглашению: эндпоинта «добавить участника» нет, вступить можно только через `/invites/:code/accept`.
 
-Тесты: сервер 125, клиент 351. Не проходит 1 тест: JVM-interop, ему нужна сборка `modules/linea-signal/jvm-tests` вне контейнера.
+Тесты: сервер 123, клиент 351. Не проходит 1 клиентский тест: JVM-interop, ему нужна сборка `modules/linea-signal/jvm-tests` вне контейнера.
