@@ -63,3 +63,6 @@ capture still need device testing. The browser media adapter supports JPEG/PNG/G
 native photo-editor tools and voice/video-note recording do not yet have full desktop parity.
 The existing browser recorder outputs WebM, which cannot be sent as an AAC/M4A voice message.
 This preview rejects that mislabeled recording; existing phone voice messages remain playable.
+
+The installer includes the project license and third-party notices. Electron/Chromium
+notices and the Signal SDK acknowledgments are retained in the packaged distribution.

@@ -5,8 +5,10 @@
 Нативный модуль `mobile/modules/linea-signal` использует официальный проект
 [signalapp/libsignal](https://github.com/signalapp/libsignal/tree/v0.106.0):
 `org.signal:libsignal-client:0.106.0`, `org.signal:libsignal-android:0.106.0`
-на Android и `LibSignalClient` v0.106.0 на iOS. Node-пакет той же версии
-используется только в тестах, не входит в сервер или JavaScript приложения.
+на Android и `LibSignalClient` v0.106.0 на iOS. Официальный Node-пакет
+`@signalapp/libsignal-client@0.106.0` входит в Windows-клиент и выполняется
+в главном процессе Electron; renderer обращается к нему через ограниченный IPC.
+Он также используется в тестах и не входит в сервер.
 
 Лицензия upstream — GNU Affero General Public License version 3. Полный
 текст сохранён в `licenses/libsignal-AGPL-3.0.txt`. Исходники собственного
@@ -22,7 +24,7 @@ bridge, всех изменённых частей приложения, скр�
 ## Expo, React Native и остальные зависимости
 
 Точные версии закреплены в `mobile/package-lock.json` и
-`server/package-lock.json`. Лицензии каждого пакета находятся в его
+`server/package-lock.json`, для Windows — в `desktop/package-lock.json`. Лицензии каждого пакета находятся в его
 распространяемых метаданных и файлах LICENSE; настоящая заметка не заменяет
 их условия. Native SQLCipher включается плагином `expo-sqlite`.
 
@@ -68,3 +70,11 @@ https://github.com/pchalupa/expo-alternate-app-icons — MIT License. Used to sw
 ## expo-camera
 
 https://github.com/expo/expo/tree/main/packages/expo-camera — MIT License. Used only while recording a video message.
+
+## Windows: Electron 45.2.1
+
+[Electron](https://github.com/electron/electron/tree/v45.2.1) распространяется
+по лицензии MIT. Windows-пакет сохраняет штатные notices Electron/Chromium
+(`LICENSE.electron.txt`, `LICENSES.chromium.html`). Официальный Node SDK Signal
+сохраняет свой `dist/acknowledgments.md` и upstream-лицензии внутри пакета.
+Исходники клиента, IPC bridge и скрипты сборки доступны в этом репозитории.
