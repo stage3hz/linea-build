@@ -40,7 +40,7 @@ jobs:
           set -o pipefail
           SCHEME=$(basename *.xcworkspace .xcworkspace)
           echo "SCHEME=$SCHEME" >> "$GITHUB_ENV"
-          xcodebuild -workspace "$SCHEME.xcworkspace" -scheme "$SCHEME" -configuration Release -sdk iphonesimulator -destination 'generic/platform=iOS Simulator' -derivedDataPath simulator-build ARCHS=arm64 ONLY_ACTIVE_ARCH=YES CODE_SIGNING_ALLOWED=NO CODE_SIGNING_REQUIRED=NO CODE_SIGN_IDENTITY='' CODE_SIGN_ENTITLEMENTS='' build > ../../simulator-build.log 2>&1 || { tail -100 ../../simulator-build.log; exit 1; }
+          xcodebuild -workspace "$SCHEME.xcworkspace" -scheme "$SCHEME" -configuration Release -sdk iphonesimulator -destination 'generic/platform=iOS Simulator' -derivedDataPath simulator-build ARCHS=arm64 ONLY_ACTIVE_ARCH=YES CARGO_BUILD_TARGET=aarch64-apple-ios-sim LINEA_SIGNAL_FFI_TARGET=aarch64-apple-ios-sim CODE_SIGNING_ALLOWED=NO CODE_SIGNING_REQUIRED=NO CODE_SIGN_IDENTITY='' CODE_SIGN_ENTITLEMENTS='' build > ../../simulator-build.log 2>&1 || { tail -100 ../../simulator-build.log; exit 1; }
       - name: Launch and capture startup screen
         run: |
           set -euo pipefail
