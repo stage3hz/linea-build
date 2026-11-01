@@ -37,7 +37,7 @@ test('an unavailable secure RNG stops attachment encryption before a key, cipher
   const { encryptAndUpload } = loadTs(new URL('../src/e2ee/attachments.ts', import.meta.url), {
     'expo-crypto': crypto.provider,
     'react-native': { Platform: { OS: 'android' } },
-    'expo-file-system/legacy': {
+    'expo-file-system':{File:class{constructor(uri){this.uri=uri;}get size(){return 0;}}},'expo-file-system/legacy': {
       cacheDirectory: 'file:///tmp/', EncodingType: { Base64: 'base64' },
       getInfoAsync: async () => ({ exists: true, isDirectory: false, size: 8 }),
       readAsStringAsync: async () => Buffer.from('contents').toString('base64'),

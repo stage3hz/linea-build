@@ -25,7 +25,7 @@ export type AlbumPart = { attachment: Attachment; message?: ViewMessage; pending
 export type Row = { key: string; message?: ViewMessage; pending?: PendingMessage; createdAt: string; album?: AlbumPart[] };
 export type RowHandlers = {
   actions: (row: Row, y: number) => void; jumpTo: (clientId: string) => void; open: (file: Attachment) => void;
-  react: (message: ViewMessage, emoji: Reaction) => void; retry: (pending: PendingMessage) => void; reply: (message: ViewMessage) => void;
+  react: (message: ViewMessage, emoji: Reaction) => void; retry: (pending: PendingMessage) => void; cancel?: (pending: PendingMessage) => void; reply: (message: ViewMessage) => void;
   vote: (message: ViewMessage, options: number[]) => void; toggleSelect: (row: Row) => void;
 };
 type Props = {
@@ -64,6 +64,25 @@ function SwipeToReply({ enabled, onReply, children }: { enabled: boolean; onRepl
   </View></GestureDetector>;
 }
 
+const megabytes = (bytes: number) => bytes >= 1024 ** 3 ? `${(bytes / 1024 ** 3).toFixed(2).replace('.', ',')} ГБ` : `${(bytes / 1024 ** 2).toFixed(bytes < 10 * 1024 ** 2 ? 1 : 0).replace('.', ',')} МБ`;
+
+/** A big file on its way: Telegram-like progress with sent/total and a cancel button. */
+function UploadBubble({ pending, onCancel }: { pending: PendingMessage; onCancel: () => void }) {
+  const t = useTheme(); const upload = pending.upload!;
+  const total = upload.total || pending.attachment?.size || 0; const fraction = total ? Math.min(1, upload.sent / total) : 0;
+  const failed = pending.state === 'failed';
+  return <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10, paddingVertical: 6, minWidth: 220, maxWidth: 280 }}>
+    <Pressable accessibilityRole="button" accessibilityLabel="Отменить отправку" onPress={onCancel} hitSlop={6} style={{ width: 44, height: 44, borderRadius: 22, backgroundColor: t.accent, alignItems: 'center', justifyContent: 'center' }}>
+      <Icon name="close" size={22} color={t.onAccent} />
+    </Pressable>
+    <View style={{ flex: 1, gap: 5 }}>
+      <Text numberOfLines={1} style={{ color: t.text, fontSize: 14, fontWeight: '600' }}>{pending.attachment?.name || 'Файл'}</Text>
+      <View style={{ height: 4, borderRadius: 2, backgroundColor: t.dark ? 'rgba(255,255,255,0.12)' : 'rgba(0,0,0,0.08)', overflow: 'hidden' }}><View style={{ width: `${Math.round(fraction * 100)}%`, height: 4, borderRadius: 2, backgroundColor: failed ? t.danger : t.accent }} /></View>
+      <Text style={{ color: t.muted, fontSize: 12, fontVariant: ['tabular-nums'] }}>{failed ? 'Остановлено' : upload.sent ? `${megabytes(upload.sent)} из ${megabytes(total)}` : `Шифрование · ${megabytes(total)}`}</Text>
+    </View>
+  </View>;
+}
+
 function MessageRowView({ row, olderCreatedAt, mine, author, peerLastRead, wide, fontSize, lineHeight, downloading, radius = 20, groupNext = false, replyAuthor, replyText, api, handlers, selecting, selected, fresh, animatedEmoji = false }: Props) {
   const t = useTheme(); const screenWidth = useWindowDimensions().width;
   const message = row.message; const p = row.pending;
@@ -72,7 +91,7 @@ function MessageRowView({ row, olderCreatedAt, mine, author, peerLastRead, wide,
   const emoji = !file && !poll && !row.album ? bigEmojiCount(body) : 0;
   const animatedParts = emoji && animatedEmoji ? bigEmoji(body) : null;
   const invite = body && !emoji ? inviteCodeFrom(body) : null;
-  const visual = !!file && visualKind(file) && !isVideoNote(file);
+  const visual = !!file && !p?.upload && visualKind(file) && !isVideoNote(file);
   const bare = (visual && !body) || !!row.album && !body || emoji > 0;
   // Telegram for iPhone (compact layout): media up to 300×380 pt, at least 170×74 pt, inset 2 pt inside the bubble.
   const mediaMax = Math.round(Math.min(wide ? 440 : 300, screenWidth - 2 * 36));
@@ -118,7 +137,7 @@ function MessageRowView({ row, olderCreatedAt, mine, author, peerLastRead, wide,
           {message?.meta?.forward ? <Text style={[{ color: t.accent, fontSize: 11, fontWeight: '600', marginBottom: 4, paddingHorizontal: 1 }, flush ? { paddingHorizontal: 12, paddingTop: 7 } : null]}>Переслано от {message.meta.forward.from}</Text> : null}
           {reply ? <Pressable accessibilityRole="button" accessibilityLabel="Перейти к исходному сообщению" onPress={() => handlers.current.jumpTo(reply.clientId)} style={{ flexDirection: 'row', gap: 7, marginBottom: 6, ...(flush ? { marginHorizontal: 8, marginTop: 8 } : null), paddingVertical: 5, paddingRight: 8, borderRadius: 10, backgroundColor: t.dark ? 'rgba(255,255,255,0.06)' : 'rgba(0,0,0,0.04)' }}><View style={{ width: 3, borderRadius: 2, backgroundColor: t.accent }} /><View style={{ flexShrink: 1, gap: 1 }}><Text style={{ color: t.accent, fontSize: 11, fontWeight: '700' }}>{replyAuthor}</Text><Text numberOfLines={2} style={{ color: t.muted, fontSize: 12 }}>{replyText}</Text></View></Pressable> : null}
           {row.album ? <View style={{ marginBottom: body ? 7 : 0 }}><AlbumGrid api={api} items={row.album.map(part => part.attachment)} width={albumWidth} onOpen={attachment => selecting ? press() : handlers.current.open(attachment)} onLongPress={() => longPress(0)} /></View> : null}
-          {file ? <View style={{ marginBottom: body ? 7 : bare ? 0 : 1, marginTop: bare || flush ? 0 : 1 }}>{isVoice(file) ? <VoiceBubble attachment={file} mine={mine} /> : isVideoNote(file) ? <VideoNoteBubble api={api} attachment={file} /> : visual && box ? <MediaTile api={api} attachment={file} width={box.width} height={box.height} radius={bare ? 15 : flush ? Math.max(4, radius - 3) : 14} onOpen={() => selecting ? press() : handlers.current.open(file)} onLongPress={() => longPress(0)} /> : file.encryption ? <FileBubble api={api} attachment={file} onOpen={() => handlers.current.open(file)} /> : <AttachmentCard api={api} attachment={file} onPress={() => handlers.current.open(file)} />}</View> : null}
+          {file ? <View style={{ marginBottom: body ? 7 : bare ? 0 : 1, marginTop: bare || flush ? 0 : 1 }}>{p?.upload ? <UploadBubble pending={p} onCancel={() => handlers.current.cancel?.(p)} /> : isVoice(file) ? <VoiceBubble attachment={file} mine={mine} /> : isVideoNote(file) ? <VideoNoteBubble api={api} attachment={file} /> : visual && box ? <MediaTile api={api} attachment={file} width={box.width} height={box.height} radius={bare ? 15 : flush ? Math.max(4, radius - 3) : 14} onOpen={() => selecting ? press() : handlers.current.open(file)} onLongPress={() => longPress(0)} /> : file.encryption ? <FileBubble api={api} attachment={file} onOpen={() => handlers.current.open(file)} /> : <AttachmentCard api={api} attachment={file} onPress={() => handlers.current.open(file)} />}</View> : null}
           {poll ? <PollBubble poll={poll} results={message?.poll} disabled={!message || message.cryptoState !== 'decrypted' || selecting} onVote={options => message && handlers.current.vote(message, options)} /> : null}
           {animatedParts ? <View accessible accessibilityLabel={body} style={{ flexDirection: 'row', gap: 2 }}>{animatedParts.map((part, index) => <AnimatedEmoji key={`${index}${part}`} emoji={part} size={emoji === 1 ? 112 : emoji === 2 ? 84 : 68} mode="once" />)}</View> : body ? <Text selectable={false} style={emoji ? { fontSize: emoji === 1 ? 64 : emoji === 2 ? 52 : 44, lineHeight: emoji === 1 ? 76 : emoji === 2 ? 62 : 54 } : { color: t.text, fontSize, lineHeight, paddingHorizontal: flush ? 9 : 1 }}>{body}{inlineTime ? <Text style={{ fontSize: 11, color: '#00000001' }}>{`\u00A0\u00A0\u00A0${message?.edited ? 'изм. ' : ''}${formatTime(row.createdAt)}${mine ? '\u00A0\u00A0\u00A0\u00A0\u00A0\u00A0\u00A0' : ''}\u00A0`}</Text> : null}</Text> : null}
           {invite ? <View style={{ marginTop: 6, marginBottom: 2 }}><InviteCard api={api} code={invite} onOpen={code => navigate({ to: 'invite', code })} /></View> : null}

@@ -61,8 +61,11 @@ export function validAttachment(value: unknown): value is Attachment | null {
   if(value===null)return true;
   if(!hasOnlyKeys(value,['id','name','mimeType','size','encryption','media','preview']))return false;
   const a=value as Attachment;const e=a.encryption;
-  if(!hasOnlyKeys(e,['scheme','key','nonce','fileKeyId']))return false;
-  return uuid.test(a.id)&&typeof a.name==='string'&&a.name.length>0&&a.name.length<=240&&typeof a.mimeType==='string'&&a.mimeType.length<=150&&Number.isSafeInteger(a.size)&&a.size>=0&&a.size<=20*1024*1024&&!!e&&e.scheme==='aes-256-gcm-siv'&&/^[A-Za-z0-9+/]{43}=$/.test(e.key)&&/^[A-Za-z0-9+/]{16}$/.test(e.nonce)&&uuid.test(e.fileKeyId)&&validMedia(a.media)&&validPreview(a.preview);
+  // Small files: one AES-256-GCM-SIV block up to 20 MB. Big files (up to 5 GB): the same cipher per 4 MiB chunk.
+  const chunked=!!e&&e.scheme==='aes-256-gcm-siv-chunked';
+  if(!hasOnlyKeys(e,chunked?['scheme','key','nonce','fileKeyId','chunkSize']:['scheme','key','nonce','fileKeyId']))return false;
+  if(chunked&&e.chunkSize!==4*1024*1024)return false;
+  return uuid.test(a.id)&&typeof a.name==='string'&&a.name.length>0&&a.name.length<=240&&typeof a.mimeType==='string'&&a.mimeType.length<=150&&Number.isSafeInteger(a.size)&&a.size>=0&&a.size<=(chunked?5*1024*1024*1024:20*1024*1024)&&!!e&&(e.scheme==='aes-256-gcm-siv'||chunked)&&/^[A-Za-z0-9+/]{43}=$/.test(e.key)&&/^[A-Za-z0-9+/]{16}$/.test(e.nonce)&&uuid.test(e.fileKeyId)&&validMedia(a.media)&&validPreview(a.preview);
 }
 
 /** Application integration of the official native Signal library, not a new cipher. */

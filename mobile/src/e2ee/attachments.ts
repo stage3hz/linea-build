@@ -1,6 +1,7 @@
 import { Platform } from 'react-native';
 import * as Crypto from 'expo-crypto';
 import * as FileSystem from 'expo-file-system/legacy';
+import { File } from 'expo-file-system';
 import * as Sharing from 'expo-sharing';
 import { fromByteArray, toByteArray } from 'base64-js';
 import { multipartFile, type Api } from '../api';
@@ -13,11 +14,34 @@ import { sanitizeMp4 } from '../media/mp4';
 import { makeThumbnail } from '../media/thumbnail';
 
 const MAX_FILE=20*1024*1024;
+/** Above this size a file goes in encrypted chunks (Telegram-like, up to 5 GB with Platina), without media re-encoding. */
+export const LARGE_FILE=MAX_FILE;
+export const CHUNK_PLAIN=4*1024*1024;
+const TAG=16;
+const chunkCount=(size:number)=>Math.max(1,Math.ceil(size/CHUNK_PLAIN));
+export const chunkedCipherSize=(size:number)=>size+chunkCount(size)*TAG;
+/** Each chunk gets its own nonce (the base nonce with the chunk index mixed into its last 4 bytes). */
+export function chunkNonce(base:string,index:number):string{
+  const bytes=toByteArray(base);if(bytes.length!==12)throw new Error('Неверный nonce вложения.');
+  const view=new DataView(bytes.buffer,bytes.byteOffset,12);view.setUint32(8,(view.getUint32(8)^index)>>>0);
+  return fromByteArray(bytes);
+}
+/** Position and count are authenticated: chunks cannot be reordered, dropped or cut off. */
+export const chunkAd=(fileKeyId:string,index:number,count:number)=>fromByteArray(new TextEncoder().encode(`linea-attachment-v2:${fileKeyId}:${index}:${count}`));
 const associatedData=(id:string)=>fromByteArray(new TextEncoder().encode(`linea-attachment-v1:${id}`));
 const safeName=(name:string)=>name.replace(/[^a-zA-Zа-яА-ЯёЁ0-9._-]/g,'_').slice(-100)||'file';
-export async function encryptAndUpload(api:Api,file:LocalFile):Promise<Attachment> {
-  const bridge=getSignalBridge();
+/** Size of a local file without reading it (content:// included); 0 when unknown. */
+export function localFileSize(file:LocalFile):number{
+  if(file.size&&file.size>0)return file.size;
+  try{const size=new File(file.uri).size;return typeof size==='number'&&size>0?size:0;}catch{return 0;}
+}
+
+export async function encryptAndUpload(api:Api,file:LocalFile,onProgress?:(sent:number,total:number)=>void):Promise<Attachment> {
   if(Platform.OS==='web')throw new Error('Зашифрованные вложения доступны в приложении Android/iPhone.');
+  // Big files skip photo/video re-encoding and go in chunks (sent as a file, like Telegram's «send as file»).
+  const size=localFileSize(file);
+  if(size>LARGE_FILE)return encryptAndUploadLarge(api,{...file,size},{onProgress});
+  const bridge=getSignalBridge();
   const prepared=await prepareMediaForUpload(file);
   try{return await encryptPrepared(api,prepared,bridge);}
   finally{await prepared.dispose().catch(()=>{});}
@@ -47,10 +71,134 @@ async function encryptPrepared(api:Api,prepared:PreparedMedia,bridge:ReturnType<
   return {id:result.id,name:file.name.slice(0,240)||'file',mimeType:file.mimeType.slice(0,150)||'application/octet-stream',size:bytes.length,encryption:{scheme:'aes-256-gcm-siv',key,nonce,fileKeyId},...(prepared.media?{media:prepared.media}:{}),...(preview?{preview}:{})};
 }
 
+export type FileLimits={platina:boolean;maxFileBytes:number;storageBytes:number;usedBytes:number;chunkBytes:number};
+export const fileLimits=(api:Api)=>api.request<FileLimits>('/e2ee/limits');
+
+/** What a big upload needs to continue after a lost connection: the same key and the server's upload id. */
+export type LargeUploadState={key:string;nonce:string;fileKeyId:string;sessionId?:string};
+const sizeLabel=(bytes:number)=>bytes>=1024**3?`${(bytes/1024**3).toFixed(1).replace('.0','')} ГБ`:`${Math.round(bytes/1024**2)} МБ`;
+const wait=(ms:number)=>new Promise(resolve=>setTimeout(resolve,ms));
+
+/**
+ * Encrypts and uploads a big file chunk by chunk: only one 4 MiB chunk is in memory at a time,
+ * and an interrupted upload resumes from the last chunk the server confirmed.
+ */
+export async function encryptAndUploadLarge(api:Api,file:LocalFile,options:{state?:LargeUploadState;onState?:(state:LargeUploadState)=>void;onProgress?:(sent:number,total:number)=>void;signal?:AbortSignal}={}):Promise<Attachment>{
+  if(Platform.OS==='web')throw new Error('Зашифрованные вложения доступны в приложении Android/iPhone.');
+  const bridge=getSignalBridge();
+  if(!api.token)throw new Error('Нужно войти в аккаунт.');
+  const source=new File(file.uri);
+  const size=typeof source.size==='number'&&source.size>0?source.size:file.size||0;
+  if(!Number.isSafeInteger(size)||size<=0)throw new Error('Не удалось определить размер файла.');
+  const limits=await fileLimits(api).catch(()=>null);
+  if(limits&&size>limits.maxFileBytes)throw new Error(limits.platina?`Файл больше ${sizeLabel(limits.maxFileBytes)}.`:`Файл больше ${sizeLabel(limits.maxFileBytes)}. С Platina можно отправлять файлы до 5 ГБ.`);
+  let state:LargeUploadState=options.state||{key:fromByteArray(await Crypto.getRandomBytesAsync(32)),nonce:fromByteArray(await Crypto.getRandomBytesAsync(12)),fileKeyId:Crypto.randomUUID()};
+  options.onState?.(state);
+  const count=chunkCount(size),full=CHUNK_PLAIN+TAG,total=chunkedCipherSize(size);
+  let received=0;
+  if(state.sessionId){
+    try{received=(await api.request<{received:number}>(`/e2ee/uploads/${state.sessionId}`)).received;}
+    catch{state={...state,sessionId:undefined};}
+  }
+  if(!state.sessionId){
+    const started=await api.request<{id:string}>('/e2ee/uploads',{method:'POST',body:JSON.stringify({size})});
+    state={...state,sessionId:started.id};options.onState?.(state);received=0;
+  }
+  const sessionId=state.sessionId!;
+  const temp=`${FileSystem.cacheDirectory}linea-up-${Crypto.randomUUID()}.bin`;
+  const handle=source.open();
+  try{
+    for(let index=Math.floor(received/full);index<count;index++){
+      checkAbort(options.signal);
+      const offset=index*CHUNK_PLAIN,length=Math.min(CHUNK_PLAIN,size-offset);
+      handle.offset=offset;
+      const plain=handle.readBytes(length);
+      if(plain.length!==length)throw new Error('Файл изменился во время отправки.');
+      const cipher=await bridge.seal(fromByteArray(plain),state.key,chunkNonce(state.nonce,index),chunkAd(state.fileKeyId,index,count));
+      await FileSystem.writeAsStringAsync(temp,cipher,{encoding:FileSystem.EncodingType.Base64});
+      const at=index*full,next=Math.min(total,at+full);
+      for(let attempt=0;;attempt++){
+        checkAbort(options.signal);
+        const result=await FileSystem.uploadAsync(`${api.base}/e2ee/uploads/${sessionId}?offset=${at}`,temp,{httpMethod:'PUT',uploadType:FileSystem.FileSystemUploadType.BINARY_CONTENT,headers:{Authorization:`Bearer ${api.token}`,'Content-Type':'application/octet-stream'}}).catch(()=>null);
+        if(result?.status===200)break;
+        const body=(()=>{try{return JSON.parse(result?.body||'{}');}catch{return {};}})() as {received?:number;error?:string};
+        // The chunk got through but the reply was lost: the server already has it.
+        if(result?.status===409&&body.received===next)break;
+        if(result&&[401,403,404,413,507].includes(result.status))throw new Error(body.error||'Сервер отклонил файл.');
+        if(attempt>=5)throw new Error('Связь прервалась. Нажми «повторить» — отправка продолжится с того же места.');
+        await wait(800*2**attempt);
+      }
+      options.onProgress?.(Math.min(size,offset+length),size);
+    }
+    checkAbort(options.signal);
+    const done=await api.request<{id:string;size:number}>(`/e2ee/uploads/${sessionId}/complete`,{method:'POST'});
+    if(done.size!==total)throw new Error('Размер загруженного файла не совпадает.');
+    return {id:done.id,name:file.name.slice(0,240)||'file',mimeType:(file.mimeType||'application/octet-stream').slice(0,150),size,encryption:{scheme:'aes-256-gcm-siv-chunked',key:state.key,nonce:state.nonce,fileKeyId:state.fileKeyId,chunkSize:CHUNK_PLAIN}};
+  }finally{
+    handle.close();
+    await FileSystem.deleteAsync(temp,{idempotent:true}).catch(()=>{});
+  }
+}
+
+/** Drops an unfinished big upload on the server (cancel). */
+export async function cancelLargeUpload(api:Api,state?:LargeUploadState):Promise<void>{
+  if(state?.sessionId)await api.request(`/e2ee/uploads/${state.sessionId}`,{method:'DELETE'}).catch(()=>{});
+}
+
+/** Downloads a chunked file by byte ranges and decrypts it chunk by chunk straight into `target`. */
+async function downloadChunked(api:Api,attachment:Attachment,target:string,onProgress:(fraction:number)=>void,signal?:AbortSignal):Promise<void>{
+  const encryption=attachment.encryption;
+  if(!encryption||encryption.scheme!=='aes-256-gcm-siv-chunked'||encryption.chunkSize!==CHUNK_PLAIN)throw new Error('У вложения нет ключа сквозного шифрования.');
+  if(!api.token)throw new Error('Нужно войти в аккаунт.');
+  if(!api.fileUrl(attachment.id).startsWith('https://'))throw new Error('Файлы загружаются только по защищённому соединению.');
+  const bridge=getSignalBridge();
+  const size=attachment.size,count=chunkCount(size),full=CHUNK_PLAIN+TAG,total=chunkedCipherSize(size);
+  const temp=`${FileSystem.cacheDirectory}linea-view-dl-${Crypto.randomUUID()}.bin`;
+  const out=new File(target);
+  if(out.exists)out.delete();
+  out.create();
+  const handle=out.open();
+  let ok=false;
+  try{
+    for(let index=0;index<count;index++){
+      checkAbort(signal);
+      const start=index*full,end=Math.min(total,start+full)-1;
+      for(let attempt=0;;attempt++){
+        checkAbort(signal);
+        const result=await FileSystem.downloadAsync(api.fileUrl(attachment.id),temp,{headers:{Authorization:`Bearer ${api.token}`,Range:`bytes=${start}-${end}`},cache:false}).catch(()=>null);
+        const info=result?await FileSystem.getInfoAsync(temp):null;
+        if(result&&(result.status===206||(result.status===200&&count===1))&&info?.exists&&!info.isDirectory&&info.size===end-start+1)break;
+        if(result&&[401,403,404].includes(result.status))throw new Error('Файл недоступен.');
+        if(attempt>=5)throw new Error('Не удалось загрузить файл. Проверь интернет и попробуй ещё раз.');
+        await wait(800*2**attempt);
+      }
+      const cipher=await FileSystem.readAsStringAsync(temp,{encoding:FileSystem.EncodingType.Base64});
+      let plain:string;
+      try{plain=await bridge.open(cipher,encryption.key,chunkNonce(encryption.nonce,index),chunkAd(encryption.fileKeyId,index,count));}
+      catch{throw new Error('Проверка вложения не пройдена. Файл не будет открыт.');}
+      const bytes=toByteArray(plain);
+      if(bytes.length!==Math.min(CHUNK_PLAIN,size-index*CHUNK_PLAIN))throw new Error('Размер вложения не совпадает с сообщением.');
+      handle.writeBytes(bytes);
+      onProgress((index+1)/count);
+    }
+    ok=true;
+  }finally{
+    handle.close();
+    await FileSystem.deleteAsync(temp,{idempotent:true}).catch(()=>{});
+    if(!ok)await FileSystem.deleteAsync(target,{idempotent:true}).catch(()=>{});
+  }
+}
+
 function checkAbort(signal?:AbortSignal):void {if(signal?.aborted){const error=new Error('Загрузка отменена.');error.name='AbortError';throw error;}}
 
 export async function decryptAttachment(api:Api,attachment:Attachment,signal?:AbortSignal):Promise<{uri:string;dispose:()=>Promise<void>}> {
   checkAbort(signal);
+  if(attachment.encryption?.scheme==='aes-256-gcm-siv-chunked'){
+    const folder=`${FileSystem.cacheDirectory}linea-view-${Crypto.randomUUID()}/`;const path=`${folder}${safeName(attachment.name)}`;
+    try{await FileSystem.makeDirectoryAsync(folder,{intermediates:true});await downloadChunked(api,attachment,path,()=>{},signal);}
+    catch(error){await FileSystem.deleteAsync(folder,{idempotent:true}).catch(()=>{});throw error;}
+    return {uri:path,dispose:()=>FileSystem.deleteAsync(folder,{idempotent:true})};
+  }
   const bridge=getSignalBridge();const encryption=attachment.encryption;
   if(!encryption||encryption.scheme!=='aes-256-gcm-siv')throw new Error('У вложения нет ключа сквозного шифрования.');
   if(!api.token)throw new Error('Нужно войти в аккаунт.');
@@ -80,6 +228,7 @@ export async function decryptAttachment(api:Api,attachment:Attachment,signal?:Ab
  */
 export async function decryptAttachmentWithProgress(api:Api,attachment:Attachment,onProgress:(fraction:number)=>void,target:string,signal?:AbortSignal):Promise<void> {
   checkAbort(signal);
+  if(attachment.encryption?.scheme==='aes-256-gcm-siv-chunked')return downloadChunked(api,attachment,target,onProgress,signal);
   const bridge=getSignalBridge();const encryption=attachment.encryption;
   if(!encryption||encryption.scheme!=='aes-256-gcm-siv')throw new Error('У вложения нет ключа сквозного шифрования.');
   if(!api.token)throw new Error('Нужно войти в аккаунт.');

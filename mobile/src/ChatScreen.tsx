@@ -20,7 +20,7 @@ import { GlassStage, GlassSurface } from './glass';
 import { SharedMedia } from './SharedMedia';
 import type { Attachment, Chat, LocalFile, Message, PendingMessage, User } from './types';
 import type { MessengerStore } from './useMessenger';
-import { shareEncryptedAttachment } from './e2ee/attachments';
+import { LARGE_FILE, localFileSize, shareEncryptedAttachment } from './e2ee/attachments';
 import { TrustSheet } from './e2ee/TrustSheet';
 import { signalAvailable } from './e2ee/signal';
 import { AttachmentPanel } from './attachments/AttachmentPanel';
@@ -146,6 +146,8 @@ export function ChatScreen({api,user,chat,store,onBack,wide=false,onOpenMusic}: 
     const current=()=>alive.current&&currentPhotoContext.current===selectedFor;
     if(!current())throw new Error('Чат сменился. Выбери вложение в нужном разговоре.');
     if(!signalAvailable)throw new Error('Отправка со сквозным шифрованием доступна в приложении Android или iPhone.');
+    // A big file goes out at once as a bubble with progress (Telegram-like); small files wait in the draft.
+    if(localFileSize(file)>LARGE_FILE){store.sendLargeFile(chat.id,{...file,size:localFileSize(file)});listRef.current?.scrollToOffset({offset:0,animated:true});return;}
     if(uploadingRef.current)throw new Error('Дождись завершения текущего вложения.');
     if(draftCount.current>=MAX_DRAFT_ATTACHMENTS)throw new Error(`В сообщении уже ${MAX_DRAFT_ATTACHMENTS} вложений. Сначала отправь или убери часть файлов.`);
     uploadingRef.current=true;setUploading(true);setLocalError('');
@@ -217,7 +219,7 @@ export function ChatScreen({api,user,chat,store,onBack,wide=false,onOpenMusic}: 
   };
 
   const handlers=useRef<RowHandlers>(null as unknown as RowHandlers);
-  handlers.current={actions:(row,y)=>{setMenuY(y);setActions(row);},jumpTo,open:openAttachment,react,retry:pending=>void store.retry(pending),reply:message=>{setEditing(null);setReplyTo(message);},vote:(message,options)=>store.sendAction(chat.id,{type:'vote',target:message.clientId,options},replyPreview(message)),toggleSelect};
+  handlers.current={actions:(row,y)=>{setMenuY(y);setActions(row);},jumpTo,open:openAttachment,react,retry:pending=>void store.retry(pending),cancel:pending=>store.cancelPending(pending),reply:message=>{setEditing(null);setReplyTo(message);},vote:(message,options)=>store.sendAction(chat.id,{type:'vote',target:message.clientId,options},replyPreview(message)),toggleSelect};
   if(seen.current===null&&rows.length)seen.current=new Set(rows.map(row=>row.key));
   const fresh=(key:string)=>{if(!seen.current)return false;if(seen.current.has(key))return false;seen.current.add(key);return true;};
   const peerLastRead=chat.peerLastReadMessageId,peerName=chat.peer.displayName;

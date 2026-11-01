@@ -24,7 +24,8 @@ services:
       ALLOWED_ORIGINS: ${ALLOWED_ORIGINS:-}
       SESSION_TTL_DAYS: 30
       AUTH_RATE_LIMIT: 20
-      USER_STORAGE_MIB: ${USER_STORAGE_MIB:-512}
+      USER_STORAGE_MIB: ${USER_STORAGE_MIB:-}
+      DISK_RESERVE_MIB: ${DISK_RESERVE_MIB:-5120}
       OPENROUTER_API_KEY: ${OPENROUTER_API_KEY:-}
       # Self-hosted FreeLLMAPI router (service below). The unified key comes from its dashboard.
       AI_PROVIDER: ${AI_PROVIDER:-openrouter}

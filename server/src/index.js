@@ -38,7 +38,9 @@ const app = await buildApp({
   trustProxy: trustedProxies.length ? trustedProxies : false,
   sessionTtlMs: ttlDays * 24 * 60 * 60 * 1000,
   authRateLimit: integerEnv('AUTH_RATE_LIMIT', 20, 1, 1000),
-  maxStoredBytesPerUser: integerEnv('USER_STORAGE_MIB', 512, 20, 102400) * 1024 * 1024,
+  // Storage: 2 GB per account, 15 GB with Platina (src/bigfiles.js). USER_STORAGE_MIB only adds a lower cap.
+  maxStoredBytesPerUser: process.env.USER_STORAGE_MIB ? integerEnv('USER_STORAGE_MIB', 512, 20, 102400) * 1024 * 1024 : null,
+  diskReserveBytes: integerEnv('DISK_RESERVE_MIB', 5120, 0, 1048576) * 1024 * 1024,
   // AI_PROVIDER=freellmapi uses a self-hosted FreeLLMAPI router; default stays OpenRouter.
   aiApiKey: (process.env.AI_PROVIDER === 'freellmapi' ? process.env.AI_API_KEY : process.env.OPENROUTER_API_KEY) || '',
   turn: process.env.TURN_SECRET ? { secret: process.env.TURN_SECRET, host: process.env.TURN_HOST || '' } : null,

@@ -4,7 +4,7 @@ import test from 'node:test';
 import { loadTs } from './support/load-ts.mjs';
 
 const saved = loadTs(new URL('../src/saved/saved.ts', import.meta.url), {
-  'react-native': { Platform: { OS: 'ios' } }, 'expo-crypto': {}, 'expo-file-system/legacy': {}, 'expo-sharing': {}, 'base64-js': {},
+  'react-native': { Platform: { OS: 'ios' } }, 'expo-crypto': {}, 'expo-file-system':{File:class{constructor(uri){this.uri=uri;}get size(){return 0;}}},'expo-file-system/legacy': {}, 'expo-sharing': {}, 'base64-js': {},
 });
 const now = '2026-10-29T17:00:00.000Z';
 const note = (text, extra = {}) => ({ id: randomUUID(), savedAt: now, text, attachment: null, ...extra });

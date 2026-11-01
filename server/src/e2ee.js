@@ -72,7 +72,7 @@ export function parseEncryptedMessage(value) {
 /** Public-key and opaque-ciphertext relay only. All Signal operations occur on clients. */
 export function installE2eeRoutes({
   app, db, now, timestamp, authOptions, emitUser, limiter, uploadDir,
-  maxUploadBytes, maxStoredBytesPerUser, closeRevokedSockets,
+  maxUploadBytes, storageLimit, closeRevokedSockets,
 }) {
   const assertSession = request => {
     const session = db.prepare('SELECT id,user_id FROM sessions WHERE token_hash=? AND expires_at>?')
@@ -265,7 +265,7 @@ export function installE2eeRoutes({
     if (!limiter.allow(`upload:${ownerId}`, 20, 60_000)) fail(429, 'Слишком много загрузок. Повторите через минуту.');
     const maxCipherBytes = maxUploadBytes + 64;
     const used = db.prepare('SELECT COALESCE(SUM(size),0) AS bytes FROM uploads WHERE owner_id=?').get(ownerId).bytes;
-    if (used >= maxStoredBytesPerUser) fail(413, 'Достигнут лимит хранения файлов для аккаунта.');
+    if (used >= storageLimit(ownerId)) fail(413, 'Достигнут лимит хранения файлов для аккаунта.');
     let attachment = null, filePath = null, persisted = false;
     try {
       for await (const part of request.parts({ limits: { fileSize: maxCipherBytes, files: 1, fields: 0, parts: 1 } })) {
@@ -279,7 +279,7 @@ export function installE2eeRoutes({
         const inspect = new Transform({
           transform(chunk, _encoding, callback) {
             size += chunk.length;
-            if (size > maxCipherBytes || used + size > maxStoredBytesPerUser) {
+            if (size > maxCipherBytes || used + size > storageLimit(ownerId)) {
               callback(new HttpError(413, 'Слишком большой файл или достигнут лимит хранения.'));
               return;
             }
@@ -295,7 +295,7 @@ export function installE2eeRoutes({
       transaction(db, () => {
         assertSession(request);
         const finalUsed = db.prepare('SELECT COALESCE(SUM(size),0) AS bytes FROM uploads WHERE owner_id=?').get(ownerId).bytes;
-        if (finalUsed + attachment.size > maxStoredBytesPerUser) fail(413, 'Достигнут лимит хранения файлов для аккаунта.');
+        if (finalUsed + attachment.size > storageLimit(ownerId)) fail(413, 'Достигнут лимит хранения файлов для аккаунта.');
         db.prepare("INSERT INTO uploads(id,owner_id,name,mime_type,size,is_image,is_encrypted,created_at) VALUES(?,?,'encrypted.bin','application/octet-stream',?,0,1,?)")
           .run(attachment.id, ownerId, attachment.size, timestamp());
       });
@@ -331,5 +331,5 @@ export function installE2eeRoutes({
   const linkAttachments = (messageId, attachmentIds) => {
     for (const id of attachmentIds) db.prepare('INSERT INTO e2ee_message_attachments(upload_id,message_id) VALUES(?,?)').run(id, messageId);
   };
-  return { expireDevices, validateMessage, linkAttachments };
+  return { expireDevices, validateMessage, linkAttachments, assertSession };
 }

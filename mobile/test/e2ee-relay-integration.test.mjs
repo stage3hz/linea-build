@@ -11,7 +11,7 @@ import { CryptoService, MemoryVault, sha256 } from './support/crypto-harness.mjs
 import { nodeSignalBridge as bridge } from './support/signal-node.mjs';
 
 const { Api } = loadTs(new URL('../src/api.ts', import.meta.url), {
-  'react-native': { Platform: { OS: 'android' } }, 'expo-file-system/legacy': {}, 'expo-sharing': {},
+  'react-native': { Platform: { OS: 'android' } }, 'expo-file-system':{File:class{constructor(uri){this.uri=uri;}get size(){return 0;}}},'expo-file-system/legacy': {}, 'expo-sharing': {},
 });
 const PASSWORD = 'Synthetic!Integration.42.Password';
 const NEW_PASSWORD = 'Synthetic!Restored.77.Password';

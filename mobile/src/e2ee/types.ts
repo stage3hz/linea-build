@@ -16,6 +16,9 @@ export type EncryptedMessage = {
 };
 export type FileEncryption = {
   scheme: 'aes-256-gcm-siv'; key: string; nonce: string; fileKeyId: string;
+} | {
+  /** Big files: 4 MiB chunks, each sealed with its own nonce and position-bound associated data. */
+  scheme: 'aes-256-gcm-siv-chunked'; key: string; nonce: string; fileKeyId: string; chunkSize: number;
 };
 export type SignalBridge = {
   createState(localAddressName: string, deviceId: number): Promise<{ state: string; bundle: PublicBundle }>;

@@ -6,7 +6,7 @@ import * as Crypto from 'expo-crypto';
 import { Api, ApiError } from './api';
 import type { Attachment, Chat, LocalFile, Message, PendingMessage, Presence, RecoveryRequest, User } from './types';
 import { CryptoRuntime } from './e2ee/runtime';
-import { clearDecryptedAttachmentCache, encryptAndUpload } from './e2ee/attachments';
+import { cancelLargeUpload, clearDecryptedAttachmentCache, encryptAndUpload, encryptAndUploadLarge } from './e2ee/attachments';
 import type { TrustSnapshot } from './e2ee/types';
 import { ALBUM_SIZE, appendAttachments, messageAttachmentBatch } from './messageAttachments';
 import AsyncStorage from '@react-native-async-storage/async-storage';
@@ -227,11 +227,23 @@ export function useMessenger(api: Api, user: User, onExpired: ()=>void) {
     if(chat){setChats(prev=>sortedChats([chat,...prev.filter(c=>c.id!==chat.id)]));void loadMessages(chat.id);}
   },[loadMessages]);
 
+  const uploadsRef=useRef(new Map<string,AbortController>());
   const performSend=useCallback(async(item:PendingMessage)=>{
     setPending(prev=>[...prev.filter(p=>p.clientId!==item.clientId),{...item,state:'sending',error:undefined}]);
     try {
       const peer=chatsRef.current.find(chat=>chat.id===item.chatId)?.peer;
       if(!peer)throw new Error('Сначала открой разговор.');
+      if(item.upload&&!item.attachment?.encryption){
+        // Big file: upload in chunks first, with progress in the bubble. «Повторить» continues where it stopped.
+        const abort=new AbortController();uploadsRef.current.set(item.clientId,abort);
+        const patch=(change:Partial<NonNullable<PendingMessage['upload']>>)=>{item={...item,upload:{...item.upload!,...change}};setPending(prev=>prev.map(p=>p.clientId===item.clientId?{...p,upload:item.upload}:p));};
+        try{
+          await(await cryptoRuntime.get()).initialize();
+          const uploaded=await encryptAndUploadLarge(api,item.upload.file,{state:item.upload.state,signal:abort.signal,onState:state=>patch({state}),onProgress:(sent,total)=>patch({sent,total})});
+          item={...item,attachment:uploaded,upload:undefined};
+          setPending(prev=>prev.map(p=>p.clientId===item.clientId?item:p));
+        }finally{uploadsRef.current.delete(item.clientId);}
+      }
       const crypto=await cryptoRuntime.get();const encrypted=await crypto.encrypt(item.chatId,peer.id,item.clientId,item.text,item.attachment,item.meta);
       const action=item.meta?.action;const result=await api.sendEncrypted(item.chatId,item.clientId,encrypted,!action?undefined:action.type==='call'&&action.step==='offer'?'call':'none');
       await crypto.delivered(item.chatId,item.clientId).catch(()=>{});
@@ -239,9 +251,21 @@ export function useMessenger(api: Api, user: User, onExpired: ()=>void) {
     }
     catch(e){
       if(e instanceof ApiError&&e.code==='E2EE_DEVICES_CHANGED')await cryptoRuntime.get().then(crypto=>crypto.rejectedDeviceSet(item.chatId,item.clientId)).catch(()=>{});
-      if(aliveRef.current){const message=checkError(e);setPending(prev=>prev.map(p=>p.clientId===item.clientId?{...p,state:'failed',error:message}:p));}
+      if(e instanceof Error&&e.name==='AbortError')return;
+      if(aliveRef.current){const message=checkError(e);setPending(prev=>prev.map(p=>p.clientId===item.clientId?{...p,...(item.upload?{upload:item.upload}:{}),state:'failed',error:message}:p));}
     }
   },[api,acceptMessage,checkError,refreshChats,cryptoRuntime]);
+  /** Sends a big file at once as a bubble with upload progress (the draft flow is for small files). */
+  const sendLargeFile=useCallback((chatId:string,file:LocalFile,text='')=>{
+    const placeholder:Attachment={id:'00000000-0000-4000-8000-000000000000',name:file.name.slice(0,240)||'file',mimeType:(file.mimeType||'application/octet-stream').slice(0,150),size:file.size||0};
+    const item:PendingMessage={clientId:Crypto.randomUUID(),chatId,text,attachment:placeholder,state:'sending',createdAt:new Date().toISOString(),upload:{file,sent:0,total:file.size||0}};
+    void performSend(item);
+  },[performSend]);
+  /** Stops a big upload and removes its bubble; the unfinished file is deleted from the server. */
+  const cancelPending=useCallback((item:PendingMessage)=>{
+    uploadsRef.current.get(item.clientId)?.abort();uploadsRef.current.delete(item.clientId);
+    setPending(prev=>{const current=prev.find(p=>p.clientId===item.clientId);void cancelLargeUpload(api,current?.upload?.state??item.upload?.state);return prev.filter(p=>p.clientId!==item.clientId);});
+  },[api]);
   const send=useCallback((chatId:string,text:string,attachment:Attachment|null,meta?:MessageMeta)=>{
     const item:PendingMessage={clientId:Crypto.randomUUID(),chatId,text,attachment,state:'sending',createdAt:new Date().toISOString(),...(meta?{meta}:{})};
     void performSend(item);
@@ -301,7 +325,7 @@ export function useMessenger(api: Api, user: User, onExpired: ()=>void) {
   const setDraftFile=useCallback((chatId:string,attachment:Attachment|null)=>setDraftFiles(chatId,attachment?[attachment]:[]),[setDraftFiles]);
   const appendDraftFiles=useCallback((chatId:string,attachments:Attachment[])=>setDraftFiles(chatId,appendAttachments(draftFilesRef.current[chatId]||[],attachments)),[setDraftFiles]);
   const removeDraftFile=useCallback((chatId:string,id:string)=>setDraftFiles(chatId,(draftFilesRef.current[chatId]||[]).filter(file=>file.id!==id)),[setDraftFiles]);
-  const uploadEncrypted=useCallback(async(file:LocalFile)=>{await(await cryptoRuntime.get()).initialize();return encryptAndUpload(api,file);},[api,cryptoRuntime]);
+  const uploadEncrypted=useCallback(async(file:LocalFile,onProgress?:(sent:number,total:number)=>void)=>{await(await cryptoRuntime.get()).initialize();return encryptAndUpload(api,file,onProgress);},[api,cryptoRuntime]);
   const uploadEncryptedRef=useRef(uploadEncrypted);uploadEncryptedRef.current=uploadEncrypted;
   const trustSnapshot=useCallback(async(peerId:string)=>(await cryptoRuntime.get()).trustSnapshot(peerId),[cryptoRuntime]);
   const approveDevices=useCallback(async(snapshot:TrustSnapshot)=>{
@@ -324,6 +348,6 @@ export function useMessenger(api: Api, user: User, onExpired: ()=>void) {
     if(selectedRef.current===chat.id)selectChat(null);
   },[removedKey,messages,hideForMe,selectChat]);
   const visibleChats=useMemo(()=>chats.filter(chat=>removed[chat.id]===undefined||(chat.lastMessage?.id||0)>removed[chat.id]),[chats,removed]);
-  return {onSocket,sendSocket,onCallSignal,readChat,presence,chats:visibleChats,removeChat,messages,hasMore,pending,selectedId,selectChat,connection,listLoading,messageLoading,error,setError,typing,refreshChats,loadMessages,send,sendAction,hideForMe,hidden,forward,sendAttachments,retry:performSend,sendPoll,sendTyping,drafts,draftFiles,setDraft,setDraftFile,setDraftFiles,appendDraftFiles,removeDraftFile,recoveryRequests,recoveryError,refreshRecoveryRequests,cancelRecovery,cryptoError,trustSnapshot,approveDevices,uploadEncrypted,saved,aiHistory,updateChatSettings};
+  return {onSocket,sendSocket,onCallSignal,readChat,presence,chats:visibleChats,removeChat,messages,hasMore,pending,selectedId,selectChat,connection,listLoading,messageLoading,error,setError,typing,refreshChats,loadMessages,send,sendAction,hideForMe,hidden,forward,sendAttachments,sendLargeFile,cancelPending,retry:performSend,sendPoll,sendTyping,drafts,draftFiles,setDraft,setDraftFile,setDraftFiles,appendDraftFiles,removeDraftFile,recoveryRequests,recoveryError,refreshRecoveryRequests,cancelRecovery,cryptoError,trustSnapshot,approveDevices,uploadEncrypted,saved,aiHistory,updateChatSettings};
 }
 export type MessengerStore = ReturnType<typeof useMessenger>;

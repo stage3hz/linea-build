@@ -15,6 +15,7 @@ import { pipeline } from 'node:stream/promises';
 import { openDatabase, transaction, publicUser as serializePublicUser, publicChat, publicMessage, publicAttachment, privacyOf, effectivePrivacy, PLATINA_PRIVACY, userForViewer, receiptsVisible, presenceVisible, chatSettings } from './database.js';
 import { isAvatarFrame, isBannerPreset, isProfileEffect, isNameplate, MAX_PROFILE_VIDEO_BYTES, videoMime } from './cosmetics.js';
 import { platinaState } from './entitlements.js';
+import { DEFAULT_FILE_LIMITS, installBigFileRoutes } from './bigfiles.js';
 import { installAuthRoutes, RECOVERY_LOCK_MS } from './auth.js';
 import { installE2eeRoutes, parseEncryptedMessage } from './e2ee.js';
 import { registerAiRoutes, aiProvider } from './ai.js';
@@ -55,7 +56,11 @@ export async function buildApp({
   sessionTtlMs = SESSION_TTL,
   authRateLimit = 20,
   maxUploadBytes = 20 * MiB,
-  maxStoredBytesPerUser = 512 * MiB,
+  // Extra cap on top of the per-tier storage (tests, small servers); null = tier limits only.
+  maxStoredBytesPerUser = null,
+  fileLimits = DEFAULT_FILE_LIMITS,
+  diskReserveBytes = 5 * 1024 * MiB,
+  freeDisk,
   maxConcurrentPasswordJobs = 4,
   authTestHooks,
   aiApiKey = '',
@@ -308,10 +313,17 @@ export async function buildApp({
     close: channelId => { for (const item of [...(voiceRooms.get(channelId)?.values() || [])]) { sendSocket(item.state, { type: 'voice.kicked', channelId }); leaveVoice(item.state); } },
   };
   const communityApi = installCommunityRoutes({ app, db, authOptions, publicUser, timestamp, now, emitUser, limiter, voice });
+  // Storage per account depends on Platina (2 GB without, 15 GB with); big files reserve their size while uploading.
+  const isPlatinaActive = userId => platinaState(db, userId, now()).active;
+  const tierTotal = userId => (isPlatinaActive(userId) ? fileLimits.platina.total : fileLimits.free.total);
+  const storageLimit = userId => Math.min(tierTotal(userId), maxStoredBytesPerUser ?? Infinity);
   const e2ee = installE2eeRoutes({
     app, db, now, timestamp, authOptions, emitUser, limiter, uploadDir,
-    maxUploadBytes, maxStoredBytesPerUser, closeRevokedSockets,
+    maxUploadBytes, storageLimit, closeRevokedSockets,
   });
+  const bigFiles = installBigFileRoutes({ app, db, uploadDir, authOptions, limiter, isPlatina: isPlatinaActive, now, timestamp, assertSession: e2ee.assertSession,
+    limits: { free: { ...fileLimits.free, total: Math.min(fileLimits.free.total, maxStoredBytesPerUser ?? Infinity) }, platina: { ...fileLimits.platina, total: Math.min(fileLimits.platina.total, maxStoredBytesPerUser ?? Infinity) } },
+    diskReserveBytes, ...(freeDisk ? { freeDisk } : {}) });
   expireEncryptionDevices = e2ee.expireDevices;
   expireEncryptionDevices();
 
@@ -521,7 +533,7 @@ export async function buildApp({
     if (!request.isMultipart()) fail(400, 'Отправьте файл как multipart/form-data.');
     if (!limiter.allow(`upload:${ownerId}`, 20, 60_000)) fail(429, 'Слишком много загрузок. Попробуйте через минуту.');
     const used = db.prepare('SELECT COALESCE(SUM(size),0) AS bytes FROM uploads WHERE owner_id=?').get(ownerId).bytes;
-    if (used >= maxStoredBytesPerUser) fail(413, 'Достигнут лимит хранения файлов для аккаунта.');
+    if (used >= storageLimit(ownerId)) fail(413, 'Достигнут лимит хранения файлов для аккаунта.');
     let attachment = null;
     let filePath = null;
     let persisted = false;
@@ -538,7 +550,7 @@ export async function buildApp({
         const inspect = new Transform({
           transform(chunk, _encoding, callback) {
             size += chunk.length;
-            if (size > maxUploadBytes || used + size > maxStoredBytesPerUser) {
+            if (size > maxUploadBytes || used + size > storageLimit(ownerId)) {
               callback(new HttpError(413, 'Слишком большой файл или достигнут лимит хранения.'));
               return;
             }
@@ -564,7 +576,7 @@ export async function buildApp({
       if (!sessionStillValid({ auth: request.auth })) fail(401, 'Войдите в аккаунт заново.');
       // Recheck after async streaming: parallel uploads must not bypass the account quota.
       const finalUsed = db.prepare('SELECT COALESCE(SUM(size),0) AS bytes FROM uploads WHERE owner_id=?').get(ownerId).bytes;
-      if (finalUsed + attachment.size > maxStoredBytesPerUser) fail(413, 'Достигнут лимит хранения файлов для аккаунта.');
+      if (finalUsed + attachment.size > storageLimit(ownerId)) fail(413, 'Достигнут лимит хранения файлов для аккаунта.');
       db.prepare('INSERT INTO uploads(id,owner_id,name,mime_type,size,is_image,is_video,purpose,created_at) VALUES(?,?,?,?,?,?,?,?,?)')
         .run(attachment.id, ownerId, attachment.name, attachment.mime_type, attachment.size, attachment.is_image, attachment.is_video, channelUpload ? 'channel' : 'profile', timestamp());
       persisted = true;
@@ -615,8 +627,17 @@ export async function buildApp({
     const encodedName = encodeURIComponent(fileName).replace(/['()*]/g, char => `%${char.charCodeAt(0).toString(16).toUpperCase()}`);
     reply.header('Content-Disposition', `${!upload.is_encrypted && (upload.is_image || upload.is_video) ? 'inline' : 'attachment'}; filename="${fallbackName}"; filename*=UTF-8''${encodedName}`);
     reply.header('Content-Security-Policy', "default-src 'none'; frame-ancestors 'none'; sandbox");
-    reply.header('Content-Length', upload.size);
     reply.type(upload.is_encrypted ? 'application/octet-stream' : upload.mime_type);
+    reply.header('Accept-Ranges', 'bytes');
+    // Byte ranges: big encrypted files are downloaded chunk by chunk and resumed after a drop.
+    const range = /^bytes=(\d+)-(\d*)$/.exec(String(request.headers.range || ''));
+    if (range) {
+      const start = Number(range[1]), end = range[2] ? Math.min(Number(range[2]), upload.size - 1) : upload.size - 1;
+      if (!Number.isSafeInteger(start) || start > end || start >= upload.size) { reply.header('Content-Range', `bytes */${upload.size}`); return reply.code(416).type('application/json; charset=utf-8').send({ error: 'Неверный диапазон.' }); }
+      reply.code(206).header('Content-Range', `bytes ${start}-${end}/${upload.size}`).header('Content-Length', end - start + 1);
+      return reply.send(createReadStream(filePath, { start, end }));
+    }
+    reply.header('Content-Length', upload.size);
     return reply.send(createReadStream(filePath));
   });
 

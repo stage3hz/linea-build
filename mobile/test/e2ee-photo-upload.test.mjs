@@ -24,7 +24,7 @@ function harness({conversionError=false,uploadError=false,photo=true,video=false
     async deleteAsync(uri){files.delete(uri);},
   };
   const {encryptAndUpload}=loadTs(new URL('../src/e2ee/attachments.ts',import.meta.url),{
-    'react-native':{Platform:{OS:'android'}},'expo-file-system/legacy':fs,'expo-sharing':{},
+    'react-native':{Platform:{OS:'android'}},'expo-file-system':{File:class{constructor(uri){this.uri=uri;}get size(){return 0;}}},'expo-file-system/legacy':fs,'expo-sharing':{},
     'expo-crypto':{randomUUID,getRandomBytesAsync:async count=>new Uint8Array(randomBytes(count))},
     './signal':{getSignalBridge:()=>bridge},
     '../media/pipeline':{prepareMediaForUpload:async()=>{

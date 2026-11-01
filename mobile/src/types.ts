@@ -42,6 +42,8 @@ export type PendingMessage = {
   clientId: string; chatId: string; text: string; attachment: Attachment | null;
   state: 'sending' | 'failed'; error?: string; createdAt: string;
   meta?: import('./messageMeta').MessageMeta;
+  /** A big file still uploading in chunks (Telegram-like progress in the bubble); resumes on retry. */
+  upload?: { file: LocalFile; sent: number; total: number; state?: import('./e2ee/attachments').LargeUploadState };
 };
 export type ThemeMode = 'system' | 'light' | 'dark' | 'black';
 export type DarkTheme = 'dark' | 'black';
