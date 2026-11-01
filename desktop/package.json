@@ -10,7 +10,7 @@
   "scripts": {
     "start": "electron .",
     "dist:win": "electron-builder --win nsis --x64",
-    "test": "node --test test/*.test.mjs",
+    "test": "node --test test/*.test.mjs && node --test --test-isolation=none ../mobile/test/desktop-attachments.test.mjs",
     "build:ui": "node build-ui.mjs",
     "test:electron": "electron electron-smoke.cjs"
   },

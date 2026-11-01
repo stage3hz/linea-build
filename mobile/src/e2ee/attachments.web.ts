@@ -51,7 +51,8 @@ export async function encryptAndUploadLarge(api:Api,file:LocalFile,options:{stat
   if(state.sessionId) received=(await api.request<{received:number}>(`/e2ee/uploads/${state.sessionId}`)).received;
   else { const session=await api.request<{id:string}>('/e2ee/uploads',{method:'POST',body:JSON.stringify({size})});state={...state,sessionId:session.id}; }
   options.onState?.(state);
-  for(let i=Math.floor(received/full);i<count;i++) {
+  if(!Number.isSafeInteger(received)||received<0||received>total||(received<total&&received%full!==0))throw new Error('Неверный размер части.');
+  for(let i=received===total?count:received/full;i<count;i++) {
     abort(options.signal);
     const bytes=new Uint8Array(await blob.slice(i*CHUNK_PLAIN,Math.min(size,(i+1)*CHUNK_PLAIN)).arrayBuffer());
     const cipher=toByteArray(await getSignalBridge().seal(fromByteArray(bytes),state.key,chunkNonce(state.nonce,i),chunkAd(state.fileKeyId,i,count)));
