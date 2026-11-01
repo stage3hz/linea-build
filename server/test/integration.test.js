@@ -923,3 +923,21 @@ test('soundcloud routes: login required, status, search and stream through the s
   assert.equal(stream.json().uri, 'https://cf-hls-media.sndcdn.com/x.m3u8');
   assert.equal((await request(app, 'GET', '/music/soundcloud/tracks/soundcloud%3Atracks%3A1/stream')).statusCode, 401);
 });
+
+test('administrator report list shows who, whom and why, and closes reports', async t => {
+  const { app, dataDir } = await fixture(t);
+  const alice = await register(app, 'alice_rep', 'Алиса'), bob = await register(app, 'bob_rep');
+  const sent = await request(app, 'POST', '/reports', alice, { userId: bob.user.id, reason: 'spam', comment: 'реклама' });
+  assert.equal(sent.statusCode, 201, sent.body);
+  const { DatabaseSync } = await import('node:sqlite');
+  const { listReports, resolveReport } = await import('../src/reports-admin.js');
+  const db = new DatabaseSync(`${dataDir}/linea.sqlite`);
+  try {
+    const [report] = listReports(db);
+    assert.equal(report.target, 'bob_rep'); assert.equal(report.reporter, 'alice_rep'); assert.equal(report.reasonLabel, 'Спам'); assert.equal(report.comment, 'реклама');
+    resolveReport(db, report.id);
+    assert.equal(listReports(db).length, 0);
+    assert.equal(listReports(db, { all: true }).length, 1);
+    assert.throws(() => resolveReport(db, report.id));
+  } finally { db.close(); }
+});
