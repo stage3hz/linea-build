@@ -16,19 +16,15 @@ export const LANGUAGES: { id: Language; name: string; native: string }[] = [
 const DICTIONARIES: Record<Exclude<Language, 'ru'>, Record<string, string>> = { en: en as Record<string, string> };
 const KEY = 'linea.language.v1';
 
-function systemLanguage(): Language {
-  try { const locale = Intl.DateTimeFormat().resolvedOptions().locale || ''; return /^ru|^uk|^be|^kk/i.test(locale) || !locale ? 'ru' : 'en'; } catch { return 'ru'; }
-}
-
 let current: Language = 'ru'; let chosen = false;
 const listeners = new Set<() => void>();
 const emit = () => listeners.forEach(listener => listener());
 
-/** Reads the saved choice; without one the device language decides (Russian-speaking → Russian, else English). */
+/** Reads the saved choice; without one the app stays Russian (English only when chosen in Settings). */
 export async function loadLanguage(): Promise<void> {
   try {
     const saved = await AsyncStorage.getItem(KEY);
-    const next = saved === 'ru' || saved === 'en' ? saved : systemLanguage();
+    const next: Language = saved === 'en' ? 'en' : 'ru';
     chosen = saved === 'ru' || saved === 'en';
     if (next !== current) { current = next; emit(); }
   } catch { /* keep Russian */ }
