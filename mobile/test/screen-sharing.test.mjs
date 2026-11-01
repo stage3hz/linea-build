@@ -63,3 +63,11 @@ test('cancel during sender configuration stops the candidate capture immediately
  f.voice.stopVoiceScreen();assert.equal(f.screen.stopped,true);finish();await assert.rejects(pending,/отменён/);
  assert.equal(f.voice.useVoice().sharing,null);assert.ok(f.pcs.every(pc=>pc.sender.track===null));f.voice.leaveVoice();
 });
+
+test('leaving during capture constraints never republishes the stopped screen',async()=>{
+ const f=fixture();await f.join();let finish;
+ f.screen.applyConstraints=()=>new Promise(resolve=>finish=resolve);
+ const pending=f.voice.startVoiceScreen('720p60');for(let i=0;i<20;i++)await Promise.resolve();assert.ok(finish);
+ f.voice.leaveVoice();assert.equal(f.screen.stopped,true);finish();await pending;
+ assert.equal(f.voice.useVoice(),null);assert.ok(f.pcs.every(pc=>pc.sender.track===null));assert.equal(f.sent.some(m=>m.active===true),false);
+});

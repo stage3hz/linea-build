@@ -226,6 +226,7 @@ export async function startVoiceScreen(quality: ScreenQuality) {
     const track = stream.getVideoTracks()[0];
     if (!track) throw new Error('Система не предоставила видеодорожку экрана.');
     await track.applyConstraints({ width: preset.width, height: preset.height, frameRate: 60 });
+    if (generation !== shareGeneration || !state) { stream.getTracks().forEach((t: any) => t.stop()); return; }
     screenStream = stream; pendingScreenStream = null;
     track.addEventListener('ended', () => { if (screenStream === stream) stopVoiceScreen(); });
     patch({ sharing: quality, screenStream: stream, error: '' });
