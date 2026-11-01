@@ -91,11 +91,13 @@ export function GlassSurface({children,style,contentStyle,radius=26,material='re
   const regular=material==='regular';
   const fill=reduceTransparency?t.glassOpaque:regular?t.glass:t.glassClear;
   const shadowStyle:ViewStyle=shadow?Platform.OS==='web'?{boxShadow:`0 10px 34px ${t.black?'rgba(0,0,0,0.24)':t.dark?'rgba(0,4,18,0.24)':'rgba(38,66,125,0.09)'}, 0 2px 5px ${t.black?'rgba(0,0,0,0.13)':t.dark?'rgba(0,4,18,0.13)':'rgba(38,66,125,0.035)'}`}:{shadowColor:t.shadow,shadowOffset:{width:0,height:8},shadowOpacity:t.dark?.19:.09,shadowRadius:18,elevation:0}:{};
+  // Keep native bounds for the absolute glass layer and content: flattening layout-only
+  // Views can attach the effect to a taller ancestor (e.g. a header with a pinned bar).
   // iOS 26: only the system Liquid Glass, rounded by the glass itself. Our own fill, gradient and
   // two-colour border on top of it were clipped together with the glass and showed stepped edges.
-  if(nativeGlass&&!reduceTransparency)return <View style={[{borderRadius:radius},style]}>
+  if(nativeGlass&&!reduceTransparency)return <View collapsable={false} style={[{borderRadius:radius},style]}>
     <GlassView pointerEvents="none" colorScheme={t.dark?'dark':'light'} glassEffectStyle={material} isInteractive={interactive} tintColor={t.glassTint} style={[StyleSheet.absoluteFill,{borderRadius:radius}]}/>
-    <NestedGlass.Provider value={true}><View style={[{flexGrow:1},contentStyle]}>{children}</View></NestedGlass.Provider>
+    <NestedGlass.Provider value={true}><View collapsable={false} style={[{flexGrow:1},contentStyle]}>{children}</View></NestedGlass.Provider>
   </View>;
   // Android 13+: the same Liquid Glass look as iOS 26 — the real content behind is blurred and
   // bent at the edges by a shader, with a light rim. No fill or gradient layers on top.
@@ -105,9 +107,9 @@ export function GlassSurface({children,style,contentStyle,radius=26,material='re
   // get a thinner lens: full refraction bent the text behind them and made the circle look uneven.
   if(androidLiquid&&!nested&&!reduceTransparency)return <LiquidGlassView variant={material} refraction={lens??interactive} borderRadius={radius} tintColor={t.black?'rgba(0,0,0,0.5)':t.dark?'rgba(10,18,36,0.42)':regular?'rgba(255,255,255,0.34)':'rgba(255,255,255,0.18)'} brightness={t.dark?0.92:1.06} blurRadius={regular?14:10} thickness={regular?1:.45} edgeReflectionStrength={regular?1:.6} legibilityFloor={t.dark?.12:0} interactive={false} tilt={false} style={[{borderRadius:radius},style]}>
     {/* Content lives inside the glass: the shader excludes it from the backdrop, so icons do not bleed into the blur. */}
-    <NestedGlass.Provider value={true}><View style={[{flexGrow:1},contentStyle]}>{children}</View></NestedGlass.Provider>
+    <NestedGlass.Provider value={true}><View collapsable={false} style={[{flexGrow:1},contentStyle]}>{children}</View></NestedGlass.Provider>
   </LiquidGlassView>;
-  return <View style={[{borderRadius:radius},shadowStyle,style]}>
+  return <View collapsable={false} style={[{borderRadius:radius},shadowStyle,style]}>
     <View pointerEvents="none" style={[StyleSheet.absoluteFill,{borderRadius:radius,overflow:'hidden'}]}>
       {hasBlur?<BlurView tint={t.dark?'dark':'light'} intensity={regular?64:35} blurMethod="dimezisBlurViewSdk31Plus" blurTarget={target} style={StyleSheet.absoluteFill}/>:null}
       <View style={[StyleSheet.absoluteFill,{backgroundColor:fill}]}/>
@@ -115,6 +117,6 @@ export function GlassSurface({children,style,contentStyle,radius=26,material='re
       <View style={[StyleSheet.absoluteFill,{borderRadius:radius,borderWidth:1,borderColor:t.glassBorder,borderBottomColor:t.black?'rgba(255,255,255,0.10)':t.dark?'rgba(129,167,230,0.10)':'rgba(139,162,204,0.23)'}]}/>
       <View style={{position:'absolute',top:1,left:radius*.58,right:radius*.58,height:1,borderRadius:1,backgroundColor:t.glassHighlight,opacity:.7}}/>
     </View>
-    <NestedGlass.Provider value={true}><View style={[{flexGrow:1},contentStyle]}>{children}</View></NestedGlass.Provider>
+    <NestedGlass.Provider value={true}><View collapsable={false} style={[{flexGrow:1},contentStyle]}>{children}</View></NestedGlass.Provider>
   </View>;
 }
