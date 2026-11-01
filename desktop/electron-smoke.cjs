@@ -9,6 +9,7 @@ app.on('web-contents-created',(_event,contents)=>{
  contents.once('did-finish-load',async()=>{
   try{
    if(contents.getURL()!=='invizent://app/index.html')return;
+   const preferences=contents.getLastWebPreferences();if(preferences.nodeIntegration||!preferences.contextIsolation||!preferences.sandbox||!preferences.webSecurity)throw new Error('Unsafe renderer preferences');
    const result=await contents.executeJavaScript(`(async()=>{
     const bridge=window.invizentDesktop;if(!bridge)throw new Error('Missing isolated preload');
     const a=await bridge.signal.createState('smoke-alice',1),b=await bridge.signal.createState('smoke-bob',1);
@@ -20,7 +21,7 @@ app.on('web-contents-created',(_event,contents)=>{
     let protectedVault=false;
     try{const id=await bridge.vault.open('smoke-test');await bridge.vault.commit(id,{test:'protected-value'});if(await bridge.vault.get(id,'test')!=='protected-value')throw new Error('Vault mismatch');await bridge.vault.commit(id,{test:null});await bridge.vault.close(id);protectedVault=true;}catch(e){if(${JSON.stringify(process.platform)}==='win32')throw e;}
     for(let i=0;i<30&&!document.body.innerText.trim();i++)await new Promise(resolve=>setTimeout(resolve,500));
-    if(typeof require!=='undefined'||typeof process!=='undefined')throw new Error('Node leaked into renderer');
+    if(typeof window.require==='function'||globalThis.process?.versions?.node||globalThis.process?.versions?.electron)throw new Error('Node leaked into renderer');
     await bridge.files('write',['invizent-cache://local/smoke.txt',new TextEncoder().encode('cache-test')]);
     const bytes=await bridge.files('read',['invizent-cache://local/smoke.txt']);if(new TextDecoder().decode(bytes)!=='cache-test')throw new Error('Cache IPC failed');
     await bridge.files('delete',['invizent-cache://local/smoke.txt']);

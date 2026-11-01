@@ -104,7 +104,7 @@ function connectionFor(peer: string, initiator = false) {
           if (!parameters.encodings?.length) parameters.encodings = [{}];
           parameters.encodings[0].maxBitrate = preset.maxBitrate; parameters.encodings[0].maxFramerate = 60;
           await sender.setParameters(parameters);
-        })().catch(() => { if (state) patch({ error: 'Не удалось настроить демонстрацию для нового участника.' }); });
+        })().catch(() => { if (state?.sharing && connections.get(peer) === connection) patch({ error: 'Не удалось настроить демонстрацию для нового участника.' }); });
       }
     }
     else if (value === 'failed' || value === 'closed') peerUpdate(peer, { connected: false });
@@ -226,19 +226,20 @@ export async function startVoiceScreen(quality: ScreenQuality) {
     const track = stream.getVideoTracks()[0];
     if (!track) throw new Error('Система не предоставила видеодорожку экрана.');
     await track.applyConstraints({ width: preset.width, height: preset.height, frameRate: 60 });
-    for (const sender of screenSenders.values()) {
+    screenStream = stream; pendingScreenStream = null;
+    track.addEventListener('ended', () => { if (screenStream === stream) stopVoiceScreen(); });
+    patch({ sharing: quality, screenStream: stream, error: '' });
+    for (const sender of [...screenSenders.values()]) {
+      if (![...screenSenders.values()].includes(sender)) continue;
       if (generation !== shareGeneration || !state) throw new Error('Запуск отменён.');
       await sender.replaceTrack(track);
       const parameters = sender.getParameters();
-      if (!parameters.encodings?.length) parameters.encodings = [{}];
+      if (!parameters.encodings?.length) continue;
       parameters.encodings[0].maxBitrate = preset.maxBitrate;
       parameters.encodings[0].maxFramerate = 60;
       await sender.setParameters(parameters);
     }
     if (generation !== shareGeneration || !state) { stream.getTracks().forEach((t: any) => t.stop()); return; }
-    screenStream = stream; pendingScreenStream = null;
-    track.addEventListener('ended', () => { if (screenStream === stream) stopVoiceScreen(); });
-    patch({ sharing: quality, screenStream: stream });
     controls.forEach(sendScreenState);
   } catch (error) {
     stream?.getTracks().forEach((t: any) => t.stop());
