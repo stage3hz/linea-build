@@ -298,3 +298,11 @@ cd /opt/linea && curl -fsSL https://codeload.github.com/stage3hz/linea-build/tar
 - Проверки: 34 UI/motion-теста, TypeScript и экспорт Android Hermes-бандла прошли. Версия согласована в app.config/package/package-lock, Android versionCode 26.
 - Нативная Android Release-сборка `assembleRelease` для `arm64-v8a` прошла (989 задач). В APK проверены пакет `com.linea.messenger.preview`, versionName `0.13.1`, versionCode `26` и подпись APK v2. Используется штатный тестовый debug-keystore Android-шаблона, не ключ публикации. Запуск на POCO X6 Pro и замеры FPS по-прежнему не выполнены.
 - Для локальной сборки нужен полный JDK 21 с `javac`, SDK/Build Tools 35 и 36, NDK 27.0 (expo-sqlite) и 27.1 (React Native). В текущем окружении `/tmp` ограничен 8.8 ГБ; кэш Gradle перенесён в `/workspace/linea-toolchain/gradle`, по старому пути `/tmp/linea-gradle` оставлена ссылка.
+
+### Проверка в Android Emulator после 0.13.1
+- Пользователь подтвердил, что растягивание интерфейса исправлено.
+- Установлены Android Emulator 37.2.13 и Google APIs Android 15 / API 35 x86_64. KVM и аппаратная виртуализация недоступны; запуск выполнен с TCG и SwiftShader. Первый старт Android сорвал системный watchdog, повторный завершился (`sys.boot_completed=1`). В эмуляторе также возникают ANR самого Android и Pixel Launcher.
+- Опубликованный arm64 APK установился, но его запуск через ARM-трансляцию упал в SoLoader: загрузчик искал `lib/x86_64/libreactnative.so`. В APK проверено наличие `lib/arm64-v8a/libreactnative.so`; опубликованная сборка не изменялась.
+- Из того же кода без правок собран отдельный Release APK x86_64. Он установлен и запущен: процесс приложения работает, визуально появился экран входа, ReactNativeJS сообщил `Running "main"`, LiquidGlass — `render tier=refraction shaderCompiled=true sdk=35`. После этого запуска в crash-буфере не обнаружено FATAL EXCEPTION приложения.
+- Проверка ограничена стартовым экраном без входа в аккаунт. Чаты, закрепы и переходы авторизованного пользователя в эмуляторе не проверены. FPS и задержки программного эмулятора не характеризуют POCO X6 Pro.
+- Логи, снимки и инструменты этой проверки находятся локально в `/workspace/linea-toolchain/`; код продукта не менялся.
