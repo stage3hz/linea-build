@@ -39,6 +39,13 @@ let screenStream: any = null;
 let pendingScreenStream: any = null;
 let shareGeneration = 0;
 let capturePending = false;
+const releasedStreams = new WeakSet<object>();
+function releaseLocalStream(stream: any) {
+  if (!stream || releasedStreams.has(stream)) return;
+  releasedStreams.add(stream);
+  try { stream.getTracks().forEach((track: any) => track.stop()); }
+  finally { stream.release?.(); }
+}
 function sendScreenState(channel: any) {
   if (channel.readyState === 'open') channel.send(JSON.stringify({ type: 'screen', active: !!state?.sharing, quality: state?.sharing || '720p60' }));
 }
@@ -169,7 +176,7 @@ function cleanup(error: string) {
   stopVoiceScreen();
   connections.forEach(connection => { try { connection.close(); } catch { /* closed */ } });
   connections.clear(); screenSenders.clear(); controls.clear(); remoteScreens.clear();
-  try { local?.getTracks().forEach((track: any) => track.stop()); } catch { /* released */ }
+  try { releaseLocalStream(local); } catch { /* released */ }
   local = null; unsubscribe?.(); unsubscribe = null;
   try { inCall?.stop?.(); } catch { /* optional */ }
   set(error && state ? { ...state, error } : null);
@@ -220,13 +227,13 @@ export async function startVoiceScreen(quality: ScreenQuality) {
   try {
     await prepareScreenCapture(quality);
     stream = await rtc!.mediaDevices.getDisplayMedia({ video: { width: { ideal: preset.width }, height: { ideal: preset.height }, frameRate: { ideal: 60, max: 60 } }, audio: false } as any);
-    if (generation !== shareGeneration || !state) { stream.getTracks().forEach((t: any) => t.stop()); return; }
+    if (generation !== shareGeneration || !state) { releaseLocalStream(stream); return; }
     pendingScreenStream = stream;
     await confirmScreenCapture(() => generation === shareGeneration && !!state);
     const track = stream.getVideoTracks()[0];
     if (!track) throw new Error('Система не предоставила видеодорожку экрана.');
     await track.applyConstraints({ width: preset.width, height: preset.height, frameRate: 60 });
-    if (generation !== shareGeneration || !state) { stream.getTracks().forEach((t: any) => t.stop()); return; }
+    if (generation !== shareGeneration || !state) { releaseLocalStream(stream); return; }
     screenStream = stream; pendingScreenStream = null;
     track.addEventListener('ended', () => { if (screenStream === stream) stopVoiceScreen(); });
     patch({ sharing: quality, screenStream: stream, error: '' });
@@ -240,10 +247,10 @@ export async function startVoiceScreen(quality: ScreenQuality) {
       parameters.encodings[0].maxFramerate = 60;
       await sender.setParameters(parameters);
     }
-    if (generation !== shareGeneration || !state) { stream.getTracks().forEach((t: any) => t.stop()); return; }
+    if (generation !== shareGeneration || !state) { releaseLocalStream(stream); return; }
     controls.forEach(sendScreenState);
   } catch (error) {
-    stream?.getTracks().forEach((t: any) => t.stop());
+    releaseLocalStream(stream);
     stopVoiceScreen();
     throw error;
   } finally { capturePending = false; }
@@ -253,9 +260,9 @@ export function stopVoiceScreen() {
   endScreenCapture();
   const previous = screenStream; screenStream = null;
   const pending = pendingScreenStream; pendingScreenStream = null;
-  pending?.getTracks().forEach((track: any) => track.stop());
+  releaseLocalStream(pending);
   screenSenders.forEach(sender => { void sender.replaceTrack(null).catch(() => {}); });
   patch({ sharing: null, screenStream: null });
   controls.forEach(sendScreenState);
-  previous?.getTracks().forEach((track: any) => track.stop());
+  releaseLocalStream(previous);
 }

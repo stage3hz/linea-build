@@ -11,10 +11,10 @@ test('only two bounded 60fps screen presets are accepted',()=>{
  assert.deepEqual(model.screenControl('{"type":"screen","active":true,"quality":"1080p60"}'),{active:true,quality:'1080p60'});
 });
 function fixture() {
- const pcs=[],sent=[];let socketHandler,display;
+ const pcs=[],sent=[],streams=[];let socketHandler,display;
  const track=kind=>({kind,enabled:true,stopped:false,events:{},addEventListener(n,cb){this.events[n]=cb;},stop(){this.stopped=true;},async applyConstraints(v){this.constraints=v;}});
  const mic=track('audio'),screen=track('video');
- const stream=t=>({getTracks:()=>[t],getAudioTracks:()=>t.kind==='audio'?[t]:[],getVideoTracks:()=>t.kind==='video'?[t]:[]});
+ const stream=t=>{const value={releases:0,release(){this.releases++;},getTracks:()=>[t],getAudioTracks:()=>t.kind==='audio'?[t]:[],getVideoTracks:()=>t.kind==='video'?[t]:[]};streams.push(value);return value;};
  class PC {
   iceGatheringState='complete';signalingState='stable';events={};closed=false;offerCount=0;audio=[];
   constructor(){pcs.push(this);}
@@ -33,7 +33,7 @@ function fixture() {
   'react-native-incall-manager':{default:{start(){},stop(){},setForceSpeakerphoneOn(){}}},
  });
  const store={sendSocket:()=>true,onSocket:cb=>{socketHandler=cb;return()=>{};}};
- return {voice,pcs,sent,mic,screen,stream,setDisplay:v=>display=v,async join(){await voice.joinVoice({callIce:async()=>({iceServers:[]})},store,{communityId:'game',communityName:'Game',channelId:'voice',channelName:'Voice'});socketHandler({type:'voice.joined',channelId:'voice',peers:[{peer:'one',userId:'u1'},{peer:'two',userId:'u2'}]});for(let i=0;i<20;i++)await Promise.resolve();}};
+ return {voice,pcs,sent,mic,screen,stream,streams,setDisplay:v=>display=v,async join(){await voice.joinVoice({callIce:async()=>({iceServers:[]})},store,{communityId:'game',communityName:'Game',channelId:'voice',channelName:'Voice'});socketHandler({type:'voice.joined',channelId:'voice',peers:[{peer:'one',userId:'u1'},{peer:'two',userId:'u2'}]});for(let i=0;i<20;i++)await Promise.resolve();}};
 }
 test('start/stop replaces reserved video tracks without recreating audio connections',async()=>{
  const f=fixture();await f.join();const connections=[...f.pcs];await f.voice.startVoiceScreen('1080p60');
@@ -41,7 +41,7 @@ test('start/stop replaces reserved video tracks without recreating audio connect
  assert.ok(f.pcs.every(pc=>pc.sender.track===f.screen&&pc.audio[0]===f.mic&&pc.offerCount===1));
  assert.ok(f.pcs.every(pc=>pc.parameters.encodings[0].maxFramerate===60&&pc.parameters.encodings[0].maxBitrate===8_000_000));
  f.voice.stopVoiceScreen();assert.ok(f.pcs.every(pc=>pc.sender.track===null&&!pc.closed));assert.equal(f.mic.stopped,false);assert.equal(f.screen.stopped,true);assert.deepEqual(f.pcs,connections);
- assert.ok(f.sent.some(m=>m.active===true));assert.ok(f.sent.some(m=>m.active===false));f.voice.leaveVoice();
+ assert.ok(f.sent.some(m=>m.active===true));assert.ok(f.sent.some(m=>m.active===false));assert.equal(f.streams[1].releases,1);f.voice.leaveVoice();assert.ok(f.streams.every(s=>s.releases===1));
 });
 test('permission rejection preserves voice and never publishes a screen',async()=>{
  const f=fixture();await f.join();f.setDisplay(async()=>{throw new Error('permission denied');});await assert.rejects(f.voice.startVoiceScreen('720p60'),/permission denied/);
@@ -49,7 +49,7 @@ test('permission rejection preserves voice and never publishes a screen',async()
 });
 test('a capture resolving after leaving is stopped and never attached',async()=>{
  const f=fixture();await f.join();let resolve;f.setDisplay(()=>new Promise(done=>resolve=done));const pending=f.voice.startVoiceScreen('720p60');for(let i=0;i<5;i++)await Promise.resolve();f.voice.leaveVoice();resolve(f.stream(f.screen));await pending;
- assert.equal(f.screen.stopped,true);assert.equal(f.voice.useVoice(),null);assert.ok(f.pcs.every(pc=>pc.closed&&pc.sender.track===null));
+ assert.equal(f.screen.stopped,true);assert.equal(f.voice.useVoice(),null);assert.ok(f.pcs.every(pc=>pc.closed&&pc.sender.track===null));assert.ok(f.streams.every(s=>s.releases===1));
 });
 test('late ended event from the old capture cannot stop a new screen',async()=>{
  const f=fixture();await f.join();await f.voice.startVoiceScreen('720p60');const ended=f.screen.events.ended;f.voice.stopVoiceScreen();

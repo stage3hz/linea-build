@@ -2,13 +2,13 @@ name: ReplayKit Swift preflight
 on:
   push:
     branches: [main, feature/desktop-screen-sharing]
-    paths: ['mobile/plugins/screen-broadcast/**', '.github/workflows/screen-broadcast-check.yml']
+    paths: ['mobile/plugins/screen-broadcast/**', 'mobile/scripts/patch-screen-capture.cjs', 'mobile/test/native/**', '.github/workflows/screen-broadcast-check.yml']
   workflow_dispatch:
 permissions:
   contents: read
 jobs:
   typecheck:
-    runs-on: macos-26-intel
+    runs-on: macos-26
     timeout-minutes: 10
     steps:
       - uses: actions/checkout@v4
@@ -16,3 +16,13 @@ jobs:
         run: |
           SDK=$(xcrun --sdk iphoneos --show-sdk-path)
           xcrun --sdk iphoneos swiftc -typecheck -sdk "$SDK" -target arm64-apple-ios16.4 -application-extension mobile/plugins/screen-broadcast/SampleHandler.swift
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+      - run: npm ci --no-audit --no-fund
+        working-directory: mobile
+      - name: Close the native socket before ReplayKit connects
+        run: |
+          RTC=mobile/node_modules/react-native-webrtc/ios/RCTWebRTC
+          xcrun clang -fobjc-arc -fmodules -include unistd.h -I "$RTC" -framework Foundation -framework CoreFoundation -framework CFNetwork "$RTC/SocketConnection.m" mobile/test/native/screen-socket-close.m -o /tmp/invizent-screen-close-test
+          /tmp/invizent-screen-close-test

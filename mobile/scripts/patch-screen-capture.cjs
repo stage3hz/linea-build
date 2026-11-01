@@ -48,3 +48,8 @@ edit(ios,'@"frameRate" : @(30)', '@"frameRate" : @(60)');
 edit(android+'ScreenCaptureController.java',
  'final int width = (int)(displayMetrics.widthPixels * resolutionScale);\n                final int height = (int)(displayMetrics.heightPixels * resolutionScale);',
  'double scale = Math.min(resolutionScale, (double)Math.max(targetWidth, targetHeight) / Math.max(displayMetrics.widthPixels, displayMetrics.heightPixels));\n                final int width = (int)(displayMetrics.widthPixels * scale);\n                final int height = (int)(displayMetrics.heightPixels * scale);');
+
+// Cancelling before ReplayKit connects must not wait on an NSThread that has never started.
+edit('ios/RCTWebRTC/SocketConnection.m',
+    '    [self performSelector:@selector(unscheduleStreams) onThread:self.networkThread withObject:nil waitUntilDone:true];',
+    '    if (self.networkThread.isExecuting) {\n        [self performSelector:@selector(unscheduleStreams) onThread:self.networkThread withObject:nil waitUntilDone:true];\n    }');
