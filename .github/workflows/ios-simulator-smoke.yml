@@ -23,10 +23,13 @@ jobs:
           python3 - <<'PY'
           import json,os
           devices=json.load(open('simulators.json'))['devices']
-          phones=[d for runtime,items in devices.items() if 'iOS' in runtime for d in items if 'iPhone' in d['name']]
+          import re
+          phones=[(tuple(map(int,re.findall(r'\d+',runtime))),d) for runtime,items in devices.items() if 'iOS' in runtime for d in items if 'iPhone' in d['name']]
           if not phones: raise SystemExit('No installed iPhone Simulator runtime')
-          with open(os.environ['GITHUB_ENV'],'a') as out: out.write('SIMULATOR_UDID='+phones[-1]['udid']+'\n')
-          print(phones[-1]['name'])
+          latest=max(version for version,_ in phones)
+          phone=next(d for version,d in phones if version==latest and 'Pro' in d['name'])
+          with open(os.environ['GITHUB_ENV'],'a') as out: out.write('SIMULATOR_UDID='+phone['udid']+'\n')
+          print(phone['name'],latest)
           PY
       - run: npm ci --no-audit --no-fund
         working-directory: mobile
@@ -41,7 +44,17 @@ jobs:
           SCHEME=$(basename *.xcworkspace .xcworkspace)
           echo "SCHEME=$SCHEME" >> "$GITHUB_ENV"
           xcodebuild -workspace "$SCHEME.xcworkspace" -scheme "$SCHEME" -configuration Release -sdk iphonesimulator -destination 'generic/platform=iOS Simulator' -derivedDataPath simulator-build ARCHS=arm64 ONLY_ACTIVE_ARCH=YES CARGO_BUILD_TARGET=aarch64-apple-ios-sim LINEA_SIGNAL_FFI_TARGET=aarch64-apple-ios-sim CODE_SIGNING_ALLOWED=NO CODE_SIGNING_REQUIRED=NO CODE_SIGN_IDENTITY='' CODE_SIGN_ENTITLEMENTS='' build > ../../simulator-build.log 2>&1 || { tail -100 ../../simulator-build.log; exit 1; }
+      - name: Preserve compiled simulator app for installation diagnostics
+        run: |
+          APP="mobile/ios/simulator-build/Build/Products/Release-iphonesimulator/$SCHEME.app"
+          codesign --force --deep --sign - "$APP"
+          ditto -c -k --keepParent "$APP" simulator-app.zip
+      - uses: actions/upload-artifact@v4
+        with:
+          name: ios-simulator-app
+          path: simulator-app.zip
       - name: Launch and capture startup screen
+        timeout-minutes: 12
         run: |
           set -euo pipefail
           APP="mobile/ios/simulator-build/Build/Products/Release-iphonesimulator/$SCHEME.app"

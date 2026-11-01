@@ -50,6 +50,10 @@ jobs:
         working-directory: mobile
         run: npx tsc --noEmit
 
+      - name: UI and extension metadata regression tests
+        working-directory: mobile
+        run: npm run test:ui
+
       - name: Expo prebuild (iOS)
         working-directory: mobile
         run: npx expo prebuild --platform ios --clean --no-install
@@ -119,6 +123,7 @@ jobs:
           test -s $A/main.jsbundle
           EXT="$A/PlugIns/ScreenBroadcast.appex"
           test -s "$EXT/ScreenBroadcast"
+          test -n "$(/usr/libexec/PlistBuddy -c 'Print :CFBundleDisplayName' "$EXT/Info.plist")"
           lipo -info "$EXT/ScreenBroadcast" | grep -q arm64
           test "$(/usr/libexec/PlistBuddy -c 'Print :NSExtension:NSExtensionPointIdentifier' "$EXT/Info.plist")" = com.apple.broadcast-services-upload
           test "$(/usr/libexec/PlistBuddy -c 'Print :RTCAppGroupIdentifier' "$A/Info.plist")" = "$(/usr/libexec/PlistBuddy -c 'Print :RTCAppGroupIdentifier' "$EXT/Info.plist")"

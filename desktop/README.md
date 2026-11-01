@@ -20,7 +20,7 @@ npm run test:electron
 npm run dist:win
 ```
 
-The installer is `desktop/release/INVIZENT-0.14.1-Windows-x64.exe`.
+The installer is `desktop/release/INVIZENT-0.14.2-Windows-x64.exe`.
 The GitHub workflow **Windows desktop EXE** builds on Windows and uploads `invizent-windows`.
 No Windows signing certificate is configured, so the installer is unsigned.
 
