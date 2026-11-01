@@ -12,6 +12,7 @@ import { AuthImage, Avatar } from '../components';
 import { MusicAmbient, type AmbientTone } from '../music/MusicAmbient';
 import { useMotion } from '../motion';
 import { useTheme } from '../theme';
+import { DecorationArt, findDecoration } from './Decorations';
 
 /** Platina avatar frames: a gradient ring that slowly turns around the avatar. */
 export const FRAMES: { id: string; label: string; colors: string[] }[] = [
@@ -64,9 +65,18 @@ export function DecoratedAvatar({ user, api, size = 54, animated = false }: { us
   const frame = FRAMES.find(item => item.id === (user.avatarFrame || (user.seal === 'platina' ? 'platinum' : '')));
   const live = animated && enabled;
   const video = live && user.avatarVideoId && Platform.OS !== 'web' ? user.avatarVideoId : null;
-  const inner = <View style={{ width: size, height: size }}>
-    <Avatar user={user} api={api} size={size} />
-    {video ? <VideoAvatar api={api} id={video} size={size} radius={size * .36} /> : null}
+  const decoration = findDecoration(user.avatarFrame);
+  // Small (list) sizes: the art may reach at most 1.3× the avatar box so it does not cover the
+  // neighbouring rows; the photo shrinks inside to keep filling the opening.
+  const face = decoration && size < 64 && decoration.scale > 1.3 ? Math.round(size * 1.3 / decoration.scale) : size;
+  const inner = <View style={{ width: face, height: face }}>
+    <Avatar user={user} api={api} size={face} round={!!decoration} />
+    {video ? <VideoAvatar api={api} id={video} size={face} radius={decoration ? face / 2 : face * .36} /> : null}
+  </View>;
+  // Art decorations draw outside the avatar box (overflow), so rows keep their layout.
+  if (decoration) return <View style={{ width: size, height: size, alignItems: 'center', justifyContent: 'center' }}>
+    {inner}
+    <View pointerEvents="none" style={{ position: 'absolute', left: (size - face) / 2, top: (size - face) / 2, width: face, height: face }}><DecorationArt decoration={decoration} size={face} live={live} /></View>
   </View>;
   if (!frame) return inner;
   const ring = Math.max(2, Math.round(size * .045)); const gap = Math.max(1.5, Math.round(size * .035));

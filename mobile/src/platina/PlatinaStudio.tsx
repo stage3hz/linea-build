@@ -10,6 +10,7 @@ import { Button, Icon, Notice, Sheet } from '../components';
 import { Text } from '../typography';
 import { useTheme } from '../theme';
 import { BANNERS, DecoratedAvatar, FRAMES, HERO_RATIO, ProfileBanner } from './Decor';
+import { DECORATIONS, DECORATION_COLLECTIONS } from './Decorations';
 import { PlatinaName, PlatinaSeal, hasPlatina } from './PlatinaMark';
 import { MusicAmbient, type AmbientTone } from '../music/MusicAmbient';
 import { StatusEmoji } from '../StatusEmoji';
@@ -84,7 +85,20 @@ export function PlatinaStudio({ api, user, active, onUser }: { api: Api; user: U
       </View>
     </Section>
 
-    <Section title="Рамка аватара" hint="Медленно переливается вокруг фото.">
+    <Section title="Украшение аватара" hint="Рисованные украшения в стиле коллекций. Видны всем; анимация играет в профиле.">
+      <View style={{ gap: 14 }}>
+        {DECORATION_COLLECTIONS.map(collection => <View key={collection} style={{ gap: 8 }}>
+          <Text style={{ color: t.muted, fontSize: 12, fontWeight: '700', letterSpacing: .4, textTransform: 'uppercase' }}>{collection}</Text>
+          <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ gap: 14, paddingVertical: 10, paddingHorizontal: 12 }}>
+            {DECORATIONS.filter(item => item.collection === collection).map(item => <Choice key={item.id} label={item.label} selected={user.avatarFrame === item.id} disabled={!active || !!busy} onPress={() => void apply('frame', { avatarFrame: item.id }, `Украшение «${item.label}».`)}>
+              <View style={{ width: 64, height: 64, alignItems: 'center', justifyContent: 'center' }}><DecoratedAvatar user={{ ...user, avatarFrame: item.id, avatarVideoId: null }} api={api} size={44} animated={user.avatarFrame === item.id} /></View>
+            </Choice>)}
+          </ScrollView>
+        </View>)}
+      </View>
+    </Section>
+
+    <Section title="Рамка аватара" hint="Медленно переливается вокруг фото. Выбор рамки снимает украшение.">
       <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ gap: 12, paddingVertical: 4, paddingHorizontal: 2 }}>
         <Choice label="Нет" selected={!user.avatarFrame} disabled={!active || !!busy} onPress={() => void apply('frame', { avatarFrame: null }, 'Рамка убрана.')}>
           <View style={{ width: 52, height: 52, borderRadius: 19, borderWidth: 1, borderStyle: 'dashed', borderColor: t.subtle }} />

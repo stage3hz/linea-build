@@ -2,7 +2,10 @@
 // Values are validated here and only ever shown while Platina is active, so an
 // expired subscription hides the decoration without deleting the user's choice.
 
-export const AVATAR_FRAMES = Object.freeze(['platinum', 'aurora', 'frost', 'ember', 'emerald', 'prism', 'orbit']);
+export const AVATAR_FRAMES = Object.freeze(['platinum', 'aurora', 'frost', 'ember', 'emerald', 'prism', 'orbit',
+  // Hand-painted avatar decorations (mobile/assets/decorations), stored in the same field.
+  'deco-black-roses', 'deco-white-roses', 'deco-chrome', 'deco-fangs', 'deco-eye', 'deco-ink',
+  'deco-skulls', 'deco-eclipse', 'deco-corona', 'deco-moon', 'deco-moths', 'deco-arch']);
 export const BANNER_PRESETS = Object.freeze(['deep', 'glacier', 'aurora', 'ocean', 'mint', 'night']);
 export const MAX_PROFILE_VIDEO_BYTES = 8 * 1024 * 1024;
 
