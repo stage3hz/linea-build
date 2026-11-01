@@ -60,4 +60,6 @@ screen-sharing lifecycle. The Windows Electron smoke test also checks DPAPI and 
 it runs a loopback WebRTC receiver for each preset. It does not measure sustained 60 FPS.
 A multi-device call, actual Windows installation, POCO X6 Pro performance and signed ReplayKit
 capture still need device testing. The browser media adapter supports JPEG/PNG/GIF and MP4;
-native photo-editor tools and video-note recording do not yet have full desktop parity.
+native photo-editor tools and voice/video-note recording do not yet have full desktop parity.
+The existing browser recorder outputs WebM, which cannot be sent as an AAC/M4A voice message.
+This preview rejects that mislabeled recording; existing phone voice messages remain playable.

@@ -12,12 +12,13 @@ export async function prepareMediaForUpload(file: LocalFile): Promise<PreparedMe
   let bytes:Uint8Array=new Uint8Array(await response.arrayBuffer());
   if(bytes.length>20*1024*1024) throw new Error('Отправь большой файл как файл.');
   const image=sniffPhotoFormat(bytes), video=sniffVideoFormat(bytes);
+  if(file.mimeType==='audio/mp4' && video!=='mp4')throw new Error('Выбери аудиофайл: MP3, M4A, WAV, FLAC или другой поддерживаемый формат.');
   let mime=file.mimeType, photo=false, movie=false;
   if(image==='jpeg') {bytes=sanitizeJpeg(bytes).bytes;mime='image/jpeg';photo=true;}
   else if(image==='png') {bytes=sanitizePng(bytes).bytes;mime='image/png';photo=true;}
   else if(image==='gif') {bytes=sanitizeGif(bytes).bytes;mime='image/gif';}
   else if(image) throw new Error('Этот формат фото нужно сначала преобразовать в JPEG или PNG.');
-  else if(video==='mp4') {bytes=sanitizeMp4(bytes).bytes;mime='video/mp4';movie=true;}
+  else if(video==='mp4' && !file.mimeType.startsWith('audio/')) {bytes=sanitizeMp4(bytes).bytes;mime='video/mp4';movie=true;}
   else if(video && !file.mimeType.startsWith('audio/')) throw new Error('На ПК отправляй видео в формате MP4.');
   const uri=URL.createObjectURL(new Blob([bytes as BlobPart],{type:mime}));
   return {file:{...file,uri,mimeType:mime,size:bytes.length},photo,video:movie,dispose:async()=>URL.revokeObjectURL(uri)};
