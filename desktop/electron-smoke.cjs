@@ -3,7 +3,7 @@ const fs=require('node:fs');const path=require('node:path');
 if(process.platform==='linux') app.commandLine.appendSwitch('ozone-platform','headless');
 app.commandLine.appendSwitch('disable-gpu');
 let finished=false;
-const finish=(code,error)=>{if(finished)return;finished=true;if(error)console.error(error.stack||error);app.exit(code);};
+const finish=(code,error)=>{if(finished)return;finished=true;if(error)console.error(error.stack||error);for(const win of BrowserWindow.getAllWindows())win.destroy();app.exit(code);};
 app.on('web-contents-created',(_event,contents)=>{
  contents.on('console-message',(_event,_level,message)=>{if(String(message).includes('Error'))console.log('Renderer:',message);});
  contents.once('did-finish-load',async()=>{
@@ -39,7 +39,7 @@ app.on('web-contents-created',(_event,contents)=>{
     const picker = new Promise((resolve,reject)=>{
       const timer=setTimeout(()=>reject(new Error('Screen picker did not open')),20000);
       app.once('browser-window-created',(_event,win)=>win.webContents.once('did-finish-load',async()=>{
-        try { console.log('Smoke: capture picker loaded');const selected=await win.webContents.executeJavaScript(`(async()=>{const sources=await window.capturePicker.list();const own=sources.find(s=>s.name==='Инвиз'||s.name==='INVIZENT');if(!own)throw new Error('Own test window not available for capture');return own.id;})()`);void win.webContents.executeJavaScript('window.capturePicker.choose('+JSON.stringify(selected)+')').catch(()=>{});clearTimeout(timer);resolve(true); }catch(e){clearTimeout(timer);reject(e);}
+        try { const ownId=win.getParentWindow().getMediaSourceId();console.log('Smoke: capture picker loaded',ownId);const selected=await win.webContents.executeJavaScript(`(async()=>{const sources=await window.capturePicker.list();const own=sources.find(s=>s.id===${JSON.stringify(ownId)});if(!own)throw new Error('Own test window not available for capture: '+JSON.stringify(sources.map(s=>({id:s.id,name:s.name}))));return own.id;})()`);void win.webContents.executeJavaScript('window.capturePicker.choose('+JSON.stringify(selected)+')').catch(()=>{});clearTimeout(timer);resolve(true); }catch(e){clearTimeout(timer);reject(e);}
       }));
     });
     const capture=contents.executeJavaScript(`(async()=>{
