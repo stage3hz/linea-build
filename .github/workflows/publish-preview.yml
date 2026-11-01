@@ -1,0 +1,71 @@
+name: Publish 0.14 preview downloads
+on:
+  workflow_dispatch:
+    inputs:
+      windows_run_id:
+        description: Successful Windows desktop run
+        required: true
+        default: '41357316009'
+      ios_run_id:
+        description: Successful unsigned IPA run (optional until ready)
+        required: false
+      apk_commit:
+        description: Commit containing the verified APK in builds/0.14.0
+        required: true
+permissions:
+  contents: write
+  actions: read
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+    env:
+      GH_TOKEN: ${{ github.token }}
+      GH_REPO: ${{ github.repository }}
+      WINDOWS_RUN: ${{ inputs.windows_run_id }}
+      IOS_RUN: ${{ inputs.ios_run_id }}
+    steps:
+      - uses: actions/checkout@v4
+      - name: Validate successful runs and draft status
+        id: validate
+        run: |
+          set -euo pipefail
+          [[ "$WINDOWS_RUN" =~ ^[0-9]+$ ]]
+          test "$(gh api repos/$GH_REPO/actions/runs/$WINDOWS_RUN --jq .conclusion)" = success
+          SOURCE=$(gh api repos/$GH_REPO/actions/runs/$WINDOWS_RUN --jq .head_sha)
+          if [ -n "$IOS_RUN" ]; then
+            [[ "$IOS_RUN" =~ ^[0-9]+$ ]]
+            test "$(gh api repos/$GH_REPO/actions/runs/$IOS_RUN --jq .conclusion)" = success
+            test "$(gh api repos/$GH_REPO/actions/runs/$IOS_RUN --jq .head_sha)" = "$SOURCE"
+          fi
+          if gh release view v0.14.0 --json isDraft >/dev/null 2>&1; then
+            test "$(gh release view v0.14.0 --json isDraft --jq .isDraft)" = true
+          else
+            gh release create v0.14.0 --draft --prerelease --target "$SOURCE" --title 'INVIZENT 0.14.0 preview' --notes-file docs/RELEASE-0.14.0.md
+          fi
+      - uses: actions/download-artifact@v4
+        with:
+          name: invizent-windows
+          path: downloads
+          run-id: ${{ inputs.windows_run_id }}
+          github-token: ${{ github.token }}
+      - uses: actions/download-artifact@v4
+        if: inputs.ios_run_id != ''
+        with:
+          name: linea-ios
+          path: ios-download
+          run-id: ${{ inputs.ios_run_id }}
+          github-token: ${{ github.token }}
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ inputs.apk_commit }}
+          path: apk-download
+      - name: Collect verified binaries and upload draft assets
+        run: |
+          set -euo pipefail
+          (cd apk-download && sha256sum -c SHA256SUMS)
+          cp apk-download/INVIZENT-0.14.0-Android-arm64.apk downloads/
+          if [ -n "$IOS_RUN" ]; then
+            cp ios-download/INVIZENT-iOS-arm64-unsigned.ipa downloads/INVIZENT-0.14.0-iOS-arm64-unsigned.ipa
+          fi
+          (cd downloads && sha256sum *.exe *.apk > SHA256SUMS && if [ -n "$IOS_RUN" ]; then sha256sum *.ipa >> SHA256SUMS; fi)
+          gh release upload v0.14.0 downloads/* --clobber
