@@ -38,6 +38,12 @@ jobs:
         working-directory: desktop
       - run: npm run dist:win
         working-directory: desktop
+      - name: Test the packaged application and native SDK
+        run: npm run test:electron
+        timeout-minutes: 3
+        working-directory: desktop
+        env:
+          INVIZENT_SMOKE_ROOT: release/win-unpacked/resources/app.asar
       - uses: actions/upload-artifact@v4
         with:
           name: invizent-windows

@@ -69,4 +69,4 @@ app.on('web-contents-created',(_event,contents)=>{
  });
 });
 setTimeout(()=>finish(1,new Error('Electron startup timed out')),120000).unref();
-require('./main.cjs');
+require(process.env.INVIZENT_SMOKE_ROOT ? path.resolve(process.env.INVIZENT_SMOKE_ROOT,'main.cjs') : './main.cjs');
