@@ -1,0 +1,8 @@
+{
+  "version": "0.14.2",
+  "versionCode": 28,
+  "source": "eba4fd37ac504b555ff30136a1e9492f6a54f0dd",
+  "platform": "Android arm64-v8a",
+  "signing": "Android template debug keystore",
+  "screenCaptureDeviceTest": false
+}
