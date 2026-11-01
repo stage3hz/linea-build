@@ -1,10 +1,12 @@
 const { app, BrowserWindow, ipcMain, protocol, net, session, safeStorage, desktopCapturer, dialog, shell } = require('electron');
+if (!app.requestSingleInstanceLock()) { app.quit(); } else {
 const path = require('node:path');
 const fs = require('node:fs/promises');
 const { randomUUID } = require('node:crypto');
 const { pathToFileURL } = require('node:url');
 protocol.registerSchemesAsPrivileged([{ scheme: 'invizent', privileges: { standard: true, secure: true, supportFetchAPI: true, stream: true } }, { scheme: 'invizent-cache', privileges: { standard: true, secure: true, supportFetchAPI: true, stream: true, corsEnabled: true } }]);
 let window, cacheRoot, picker = null, capture = null;
+app.on('second-instance', () => { if (window) { if (window.isMinimized()) window.restore(); window.show(); window.focus(); } });
 const cachePath = uri => { const url = new URL(uri); if (url.protocol !== 'invizent-cache:' || url.hostname !== 'local') throw new Error('Invalid cache URI'); const target=path.resolve(cacheRoot,'.'+decodeURIComponent(url.pathname)); if (target !== cacheRoot && !target.startsWith(cacheRoot+path.sep)) throw new Error('Invalid cache path'); return target; };
 const vaults = new Map(), scopes = new Map(), requests = new Map();
 const ready = Promise.all([import('./signal.mjs'), import('./vault.mjs')]);
@@ -127,3 +129,5 @@ app.whenReady().then(async () => {
   await window.loadURL('invizent://app/index.html');
 });
 app.on('window-all-closed', () => app.quit());
+
+}

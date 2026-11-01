@@ -20,12 +20,13 @@ npm run test:electron
 npm run dist:win
 ```
 
-The installer is `desktop/release/INVIZENT-0.14.0-Windows-x64.exe`.
+The installer is `desktop/release/INVIZENT-0.14.1-Windows-x64.exe`.
 The GitHub workflow **Windows desktop EXE** builds on Windows and uploads `invizent-windows`.
 No Windows signing certificate is configured, so the installer is unsigned.
 
 ## Local data and isolation
 
+Only one process can open the local profile. A second launch focuses the existing window.
 The renderer has no Node integration. Context isolation, sandboxing and web security stay enabled.
 The preload exposes bounded IPC operations, with sender and main-frame checks.
 The official Signal SDK runs in the main process. Existing native clients retain their implementation.

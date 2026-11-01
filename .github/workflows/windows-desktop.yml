@@ -36,6 +36,9 @@ jobs:
       - run: npm run test:electron
         timeout-minutes: 3
         working-directory: desktop
+      - run: npm run test:single-instance
+        timeout-minutes: 2
+        working-directory: desktop
       - run: npm run dist:win
         working-directory: desktop
       - name: Test the packaged application and native SDK

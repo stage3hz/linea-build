@@ -1,6 +1,6 @@
 {
   "name": "invizent-desktop",
-  "version": "0.14.0",
+  "version": "0.14.1",
   "private": true,
   "type": "module",
   "main": "main.cjs",
@@ -12,7 +12,8 @@
     "dist:win": "electron-builder --win nsis --x64",
     "test": "node --test test/*.test.mjs && node --test --test-isolation=none ../mobile/test/desktop-*.test.mjs",
     "build:ui": "node build-ui.mjs",
-    "test:electron": "electron electron-smoke.cjs"
+    "test:electron": "electron electron-smoke.cjs",
+    "test:single-instance": "electron single-instance-smoke.cjs"
   },
   "dependencies": {
     "@signalapp/libsignal-client": "0.106.0"

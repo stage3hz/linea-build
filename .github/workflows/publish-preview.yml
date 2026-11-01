@@ -2,6 +2,10 @@ name: Publish 0.14 preview downloads
 on:
   workflow_dispatch:
     inputs:
+      release_tag:
+        description: Preview release tag
+        required: true
+        default: v0.14.0
       windows_run_id:
         description: Successful Windows desktop run
         required: true
@@ -21,6 +25,7 @@ jobs:
     env:
       GH_TOKEN: ${{ github.token }}
       GH_REPO: ${{ github.repository }}
+      RELEASE_TAG: ${{ inputs.release_tag }}
       WINDOWS_RUN: ${{ inputs.windows_run_id }}
       IOS_RUN: ${{ inputs.ios_run_id }}
     steps:
@@ -31,6 +36,7 @@ jobs:
         id: validate
         run: |
           set -euo pipefail
+          [[ "$RELEASE_TAG" == v0.14.0 || "$RELEASE_TAG" == v0.14.1 ]]
           [[ "$WINDOWS_RUN" =~ ^[0-9]+$ ]]
           test "$(gh api repos/$GH_REPO/actions/runs/$WINDOWS_RUN --jq .conclusion)" = success
           SOURCE=$(gh api repos/$GH_REPO/actions/runs/$WINDOWS_RUN --jq .head_sha)
@@ -42,10 +48,10 @@ jobs:
             # inputs must be identical; tests and web-only adapters are excluded.
             git diff --exit-code "$SOURCE" "$IOS_SOURCE" -- mobile/ ':(glob,exclude)mobile/test/**' ':(glob,exclude)mobile/src/**/*.web.ts' ':(glob,exclude)mobile/src/**/*.web.tsx'
           fi
-          if gh release view v0.14.0 --json isDraft >/dev/null 2>&1; then
-            test "$(gh release view v0.14.0 --json isDraft --jq .isDraft)" = true
+          if gh release view "$RELEASE_TAG" --json isDraft >/dev/null 2>&1; then
+            test "$(gh release view "$RELEASE_TAG" --json isDraft --jq .isDraft)" = true
           else
-            gh release create v0.14.0 --draft --prerelease --target "$SOURCE" --title 'INVIZENT 0.14.0 preview' --notes-file docs/RELEASE-0.14.0.md
+            gh release create "$RELEASE_TAG" --draft --prerelease --target "$SOURCE" --title "INVIZENT ${RELEASE_TAG#v} preview" --notes-file "docs/RELEASE-${RELEASE_TAG#v}.md"
           fi
       - uses: actions/download-artifact@v4
         with:
@@ -73,4 +79,4 @@ jobs:
             cp ios-download/INVIZENT-iOS-arm64-unsigned.ipa downloads/INVIZENT-0.14.0-iOS-arm64-unsigned.ipa
           fi
           (cd downloads && sha256sum *.exe *.apk > SHA256SUMS && if [ -n "$IOS_RUN" ]; then sha256sum *.ipa >> SHA256SUMS; fi)
-          gh release upload v0.14.0 downloads/* --clobber
+          gh release upload "$RELEASE_TAG" downloads/* --clobber
