@@ -60,7 +60,7 @@ test('rapid preference writes are ordered and a rejected save does not block lat
 });
 
 test('black has an RGB-zero base and neutral glass; the existing navy palette is retained', () => {
-  const { palette } = loadTs(new URL('../src/theme.tsx', import.meta.url));
+  const { palette } = loadTs(new URL('../src/theme.tsx', import.meta.url), { './i18n': { getLanguage: () => 'ru' } });
   assert.equal(palette.dark.bg, '#080F1E');
   assert.equal(palette.dark.glass, 'rgba(19,31,53,0.52)');
   assert.equal(palette.black.bg, '#000000');

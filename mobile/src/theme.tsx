@@ -1,4 +1,5 @@
 import React, { createContext, useContext } from 'react';
+import { getLanguage } from './i18n';
 
 export type Theme = {
   dark:boolean; black:boolean; bg:string; surface:string; surface2:string; text:string; muted:string;
@@ -67,7 +68,9 @@ export function formatDay(value: string) {
   return date.toLocaleDateString('ru-RU', {day:'numeric',month:'long'});
 }
 export function formatSize(bytes: number) {
-  if (bytes < 1024) return `${bytes} Б`;
-  if (bytes < 1024 * 1024) return `${(bytes/1024).toFixed(0)} КБ`;
-  return `${(bytes/1024/1024).toFixed(1)} МБ`;
+  const en = getLanguage() === 'en';
+  if (bytes < 1024) return `${bytes} ${en ? 'B' : 'Б'}`;
+  if (bytes < 1024 * 1024) return `${(bytes/1024).toFixed(0)} ${en ? 'KB' : 'КБ'}`;
+  if (bytes >= 1024 ** 3) return `${(bytes/1024 ** 3).toFixed(1)} ${en ? 'GB' : 'ГБ'}`;
+  return `${(bytes/1024/1024).toFixed(1)} ${en ? 'MB' : 'МБ'}`;
 }

@@ -2,7 +2,7 @@ import assert from 'node:assert/strict';
 import test from 'node:test';
 import { loadTs } from './support/load-ts.mjs';
 
-const { formatListTime, formatDay } = loadTs(new URL('../src/theme.tsx', import.meta.url));
+const { formatListTime, formatDay } = loadTs(new URL('../src/theme.tsx', import.meta.url), { './i18n': { getLanguage: () => 'ru' } });
 
 function localClock(t, zone, now) {
   const previousZone = process.env.TZ;

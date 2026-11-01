@@ -29,7 +29,7 @@ import { DecoratedAvatar, ProfileBanner } from './platina/Decor';
 import { PlatinaGem, PlatinaName, PlatinaSeal, hasPlatina, openPlatinaShowcase } from './platina/PlatinaMark';
 import { usePlatina } from './platina/usePlatina';
 import { lightFeedback } from './haptics';
-import { LANGUAGES, setLanguage, tr, useLanguage } from './i18n';
+import { LANGUAGES, getLanguage, setLanguage, tr, useLanguage } from './i18n';
 import { fileLimits, type FileLimits } from './e2ee/attachments';
 
 type Section = 'root' | 'appearance' | 'privacy' | 'data' | 'language' | 'folders' | 'power';
@@ -282,7 +282,7 @@ function LanguageSection() {
 }
 
 const GB = 1024 ** 3;
-const storageLabel = (bytes: number) => bytes >= GB ? `${(bytes / GB).toFixed(bytes >= 10 * GB ? 0 : 1).replace('.0', '')} ГБ` : formatSize(bytes);
+const storageLabel = (bytes: number) => bytes >= GB ? `${(bytes / GB).toFixed(bytes >= 10 * GB ? 0 : 1).replace('.0', '')} ${getLanguage() === 'en' ? 'GB' : 'ГБ'}` : formatSize(bytes);
 
 /** Files on the server: how much of the account's storage is used (2 GB, 15 GB with Platina). */
 function ServerStorage({ api }: { api: Api }) {
