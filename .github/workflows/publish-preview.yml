@@ -40,7 +40,7 @@ jobs:
             IOS_SOURCE=$(gh api repos/$GH_REPO/actions/runs/$IOS_RUN --jq .head_sha)
             # Desktop-only fixes may follow the iOS build. Shared/native mobile
             # inputs must be identical; tests and web-only adapters are excluded.
-            git diff --exit-code "$SOURCE" "$IOS_SOURCE" -- mobile/ ':(glob,exclude)mobile/test/**' ':(glob,exclude)mobile/src/**/*.web.ts' ':(glob,exclude)mobile/src/**/*.web.tsx' 
+            git diff --exit-code "$SOURCE" "$IOS_SOURCE" -- mobile/ ':(glob,exclude)mobile/test/**' ':(glob,exclude)mobile/src/**/*.web.ts' ':(glob,exclude)mobile/src/**/*.web.tsx'
           fi
           if gh release view v0.14.0 --json isDraft >/dev/null 2>&1; then
             test "$(gh release view v0.14.0 --json isDraft --jq .isDraft)" = true
