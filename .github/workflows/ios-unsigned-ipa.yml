@@ -7,7 +7,7 @@ name: iOS unsigned IPA (iphoneos arm64)
 on:
   push:
     branches: [main]
-    paths-ignore: ['docs/**', '**/*.md']
+    paths: ['mobile/**', '.github/workflows/ios-unsigned-ipa.yml', '!mobile/test/**', '!mobile/src/**/*.web.ts', '!mobile/src/**/*.web.tsx']
   workflow_dispatch:
 
 permissions:
