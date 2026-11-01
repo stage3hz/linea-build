@@ -1,4 +1,5 @@
 import React, { createContext, useCallback, useContext, useEffect, useRef, useState } from 'react';
+import { playCallSound, stopCallSound } from './callSounds';
 import { Modal, Platform, Pressable, StyleSheet, Vibration, View, useWindowDimensions } from 'react-native';
 import * as Crypto from 'expo-crypto';
 import { MusicAmbient } from '../music/MusicAmbient';
@@ -47,6 +48,7 @@ export function CallProvider({ api, store, me, children }: { api: Api; store: Me
 
   const cleanup = useCallback(() => {
     if (ringTimer.current) clearTimeout(ringTimer.current);
+    stopCallSound();
     try { inCall.current?.stopRingtone?.(); inCall.current?.stop?.(); } catch { /* optional */ }
     Vibration.cancel();
     try { local.current?.getTracks().forEach((track: any) => track.stop()); } catch { /* released */ }
@@ -100,7 +102,7 @@ export function CallProvider({ api, store, me, children }: { api: Api; store: Me
     setCall({ id, chat, peer: chat.peer, incoming: false, video, status: 'requesting', muted: false, speaker: video, cameraOff: false, startedAt: null, endedText: '', key: null, localUrl: null, remoteUrl: null });
     void (async () => {
       try {
-        try { inCall.current?.start?.({ media: video ? 'video' : 'audio', ringback: '_DTMF_' }); inCall.current?.setForceSpeakerphoneOn?.(video); } catch { /* optional */ }
+        try { inCall.current?.start?.({ media: video ? 'video' : 'audio' }); inCall.current?.setForceSpeakerphoneOn?.(video); } catch { /* optional */ }
         const { connection, localUrl } = await prepare(video);
         patch({ localUrl });
         await connection.setLocalDescription(await connection.createOffer({}));
@@ -108,6 +110,7 @@ export function CallProvider({ api, store, me, children }: { api: Api; store: Me
         if (callRef.current?.id !== id) return;
         signal(chat.id, { type: 'call', call: id, step: 'offer', video, sdp });
         patch({ status: 'ringing' });
+        void playCallSound('outgoing');
         ringTimer.current = setTimeout(() => { if (callRef.current?.id === id && callRef.current.status === 'ringing') finish('Нет ответа', 'missed'); }, RING_TIMEOUT_MS);
       } catch (error) { finish(error instanceof Error ? error.message : 'Не удалось начать звонок'); }
     })();
@@ -115,6 +118,7 @@ export function CallProvider({ api, store, me, children }: { api: Api; store: Me
 
   const accept = useCallback(async () => {
     const current = callRef.current; if (!current || current.status !== 'incoming' || !current.remoteSdp) return;
+    stopCallSound();
     try { inCall.current?.stopRingtone?.(); } catch { /* optional */ }
     Vibration.cancel(); music.stop(); lightFeedback();
     patch({ status: 'connecting' });
@@ -156,7 +160,7 @@ export function CallProvider({ api, store, me, children }: { api: Api; store: Me
       const chat = storeRef.current.chats.find(c => c.id === message.chatId); if (!chat) return;
       if (current) { signal(chat.id, { type: 'call', call: action.call, step: 'end', reason: 'busy' }); return; }
       setCall({ id: action.call, chat, peer: chat.peer, incoming: true, video: !!action.video, status: 'incoming', muted: false, speaker: !!action.video, cameraOff: false, startedAt: null, endedText: '', key: null, localUrl: null, remoteUrl: null, remoteSdp: action.sdp });
-      try { inCall.current?.startRingtone?.('_DEFAULT_', [0, 600, 900], 'playback', 45); } catch { Vibration.vibrate([0, 600, 900], true); }
+      void playCallSound('incoming'); Vibration.vibrate([0, 600, 900], true);
       ringTimer.current = setTimeout(() => { if (callRef.current?.id === action.call && callRef.current.status === 'incoming') finish('Пропущенный звонок'); }, RING_TIMEOUT_MS);
       return;
     }
@@ -167,6 +171,7 @@ export function CallProvider({ api, store, me, children }: { api: Api; store: Me
     }
     if (action.step === 'answer' && !current.incoming && action.sdp) {
       if (ringTimer.current) clearTimeout(ringTimer.current);
+      stopCallSound();
       try { inCall.current?.stopRingback?.(); } catch { /* optional */ }
       patch({ status: 'connecting', remoteSdp: action.sdp });
       const webrtc = rtc.current; const connection = pc.current;
