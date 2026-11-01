@@ -32,11 +32,13 @@ function checkInfo(value) {
   if (modes !== undefined && (!Array.isArray(modes) || modes.includes('location'))) deny('Location background mode is forbidden.');
 }
 
-function checkEntitlements(value) {
+function checkEntitlements(value, screenGroup) {
   if (!value || typeof value !== 'object' || Array.isArray(value)) deny('Invalid entitlements dictionary.');
-  for (const key of ['com.apple.security.application-groups', 'keychain-access-groups']) {
-    if (Object.hasOwn(value, key)) deny(`Shared storage entitlement is forbidden: ${key}`);
-  }
+  if (Object.hasOwn(value, 'keychain-access-groups')) deny('Shared keychain entitlement is forbidden.');
+  const groups = value['com.apple.security.application-groups'];
+  // The explicitly requested ReplayKit extension shares only its frame socket and
+  // capture settings. Signal keys, tokens and the SQLCipher vault stay outside it.
+  if (groups !== undefined && (!screenGroup || !Array.isArray(groups) || groups.length !== 1 || groups[0] !== screenGroup)) deny('Only the configured ReplayKit App Group is allowed.');
 }
 
 async function filesUnder(directory, depth = 0, state = { count: 0 }) {
@@ -61,8 +63,10 @@ async function readBounded(file) {
 
 function withLocalPrivacy(config) {
   if (!BLOCKED.every(permission => config.android?.blockedPermissions?.includes(permission))) deny('Required Android permission blocks are missing.');
+  const screenEnabled = config.plugins?.some(p => (Array.isArray(p) ? p[0] : p) === './plugins/withScreenBroadcast');
+  const screenGroup = screenEnabled ? (process.env.IOS_SCREEN_APP_GROUP || `group.${config.ios.bundleIdentifier}.screen`) : undefined;
   checkInfo(config.ios?.infoPlist || {});
-  checkEntitlements(config.ios?.entitlements || {});
+  checkEntitlements(config.ios?.entitlements || {}, screenGroup);
   return withFinalizedMod(config, ['ios', async value => {
     const iosRoot = value.modRequest.platformProjectRoot;
     const properties = JSON.parse(await readBounded(path.join(iosRoot, 'Podfile.properties.json')));
@@ -73,7 +77,7 @@ function withLocalPrivacy(config) {
     if (!files.some(file => path.basename(file) === 'Info.plist')) deny('Generated Info.plist was not found.');
     for (const file of files) {
       const data = plist.parse(await readBounded(file));
-      if (file.endsWith('.entitlements')) checkEntitlements(data);
+      if (file.endsWith('.entitlements')) checkEntitlements(data, screenGroup);
       else checkInfo(data);
     }
     return value;

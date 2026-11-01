@@ -1,4 +1,4 @@
-// Linea iOS cloud setup v1: {"appVersion":"0.13.1"}
+// Linea iOS cloud setup v1: {"appVersion":"0.14.0"}
 const development = process.env.APP_ENV !== 'production';
 const allowDevelopmentHttp = development && process.env.EXPO_PUBLIC_ALLOW_LOCAL_HTTP === '1';
 const apiUrl = process.env.EXPO_PUBLIC_API_URL || '';
@@ -11,7 +11,7 @@ module.exports = {
   expo: {
     name: 'INVIZENT',
     slug: 'linea-messenger',
-    version: "0.13.1",
+    version: "0.14.0",
     orientation: 'portrait',
     icon: './assets/icon.png',
     scheme: 'linea',
@@ -34,7 +34,7 @@ module.exports = {
     },
     android: {
       package: development ? 'com.linea.messenger.preview' : 'com.linea.messenger',
-      versionCode: 26,
+      versionCode: 27,
       softwareKeyboardLayoutMode: 'resize',
       // Firebase Cloud Messaging (push). The file lists only the preview package for now.
       ...(development ? { googleServicesFile: './google-services.json' } : {}),
@@ -51,6 +51,7 @@ module.exports = {
       './plugins/withLineSignal',
       './plugins/withLinePhoto',
       './plugins/withLineVideo',
+      './plugins/withScreenBroadcast',
       // Montserrat (SIL OFL 1.1), embedded natively; family 'Montserrat' with weights 400–800.
       ['expo-font', {
         ios: { fonts: ['./assets/fonts/Montserrat-Regular.ttf','./assets/fonts/Montserrat-Medium.ttf','./assets/fonts/Montserrat-SemiBold.ttf','./assets/fonts/Montserrat-Bold.ttf','./assets/fonts/Montserrat-ExtraBold.ttf'] },

@@ -1,3 +1,4 @@
+import './src/installDesktopFetch';
 import { registerRootComponent } from 'expo';
 import App from './App';
 

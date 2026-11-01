@@ -1,3 +1,4 @@
+import { ScreenSharePanel } from './ScreenSharePanel';
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { ActivityIndicator, Pressable, ScrollView, Share, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -109,6 +110,7 @@ export function CommunityScreen({ api, me, store, communityId, onBack, onOpenInv
       </View>)}
       {voice && voice.communityId === community.id ? <GlassSurface radius={20} shadow={false} contentStyle={{ padding: 14, gap: 12 }}>
         <Text style={{ color: '#2FD27A', fontSize: 14, fontWeight: '700' }}>{voice.status === 'connected' ? `Ты в канале «${voice.channelName}»` : 'Подключение…'}</Text>
+        <ScreenSharePanel people={people}/>
         {voice.status === 'connected' && !voice.peers.length ? <Text style={{ color: t.muted, fontSize: 13 }}>Пока никого — позови друзей.</Text> : null}
         <View style={{ flexDirection: 'row', gap: 10 }}>
           <VoiceButton icon={voice.muted ? 'mic-off' : 'mic'} label={voice.muted ? 'Микрофон выкл.' : 'Микрофон'} active={!voice.muted} onPress={toggleVoiceMute} />

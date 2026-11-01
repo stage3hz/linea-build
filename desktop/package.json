@@ -1,0 +1,72 @@
+{
+  "name": "invizent-desktop",
+  "version": "0.14.0",
+  "private": true,
+  "type": "module",
+  "main": "main.cjs",
+  "description": "INVIZENT encrypted messenger for Windows",
+  "author": "INVIZENT",
+  "license": "AGPL-3.0-only",
+  "scripts": {
+    "start": "electron .",
+    "dist:win": "electron-builder --win nsis --x64",
+    "test": "node --test test/*.test.mjs",
+    "build:ui": "node build-ui.mjs",
+    "test:electron": "electron electron-smoke.cjs"
+  },
+  "dependencies": {
+    "@signalapp/libsignal-client": "0.106.0"
+  },
+  "devDependencies": {
+    "electron": "45.2.1",
+    "electron-builder": "26.18.0"
+  },
+  "build": {
+    "appId": "com.invizent.desktop",
+    "productName": "INVIZENT",
+    "asar": true,
+    "asarUnpack": [
+      "node_modules/@signalapp/libsignal-client/prebuilds/**"
+    ],
+    "files": [
+      "main.cjs",
+      "preload.cjs",
+      "capture-preload.cjs",
+      "signal.mjs",
+      "vault.mjs",
+      "dist/**",
+      "node_modules/**",
+      "!node_modules/@signalapp/libsignal-client/prebuilds/{linux-*,darwin-*,win32-arm64}/**"
+    ],
+    "directories": {
+      "output": "release"
+    },
+    "win": {
+      "target": [
+        "nsis"
+      ],
+      "artifactName": "INVIZENT-${version}-Windows-x64.exe",
+      "icon": "../mobile/assets/icon.png"
+    },
+    "nsis": {
+      "oneClick": false,
+      "perMachine": false,
+      "allowElevation": false,
+      "allowToChangeInstallationDirectory": true
+    },
+    "electronLanguages": [
+      "en-US",
+      "ru"
+    ],
+    "extraResources": [
+      {
+        "from": "../LICENSE",
+        "to": "LICENSE.txt"
+      },
+      {
+        "from": "../THIRD_PARTY_NOTICES.md",
+        "to": "THIRD_PARTY_NOTICES.md"
+      }
+    ]
+  }
+}

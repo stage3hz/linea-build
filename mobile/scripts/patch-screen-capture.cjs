@@ -1,0 +1,47 @@
+const fs = require('node:fs');
+const path = require('node:path');
+const root = path.resolve(__dirname, '../node_modules/react-native-webrtc');
+if (JSON.parse(fs.readFileSync(path.join(root,'package.json'),'utf8')).version !== '124.0.8') throw new Error('Review screen capture patch for the new WebRTC version');
+function edit(file, before, after) {
+  const p = path.join(root,file), s = fs.readFileSync(p,'utf8');
+  if (s.includes(after)) return;
+  if (!s.includes(before)) throw new Error('Screen capture patch anchor changed: '+file);
+  fs.writeFileSync(p,s.replace(before,after));
+}
+const android = 'android/src/main/java/com/oney/WebRTCModule/';
+edit(android+'ScreenCaptureController.java','private static final int DEFAULT_FPS = 30;', 'private static final int DEFAULT_FPS = 60;');
+edit(android+'WebRTCModuleOptions.java','public boolean enableMediaProjectionService;', 'public boolean enableMediaProjectionService = true;');
+edit(android+'ScreenCaptureController.java','    @Override\n    public String getDeviceId()', `    // Linea: reserve the requested output size while preserving portrait orientation.
+    @Override
+    public void applyConstraints(com.facebook.react.bridge.ReadableMap constraints,
+            @androidx.annotation.Nullable androidx.core.util.Consumer<Exception> callback) {
+        try {
+            int width = constraints.hasKey("width") ? constraints.getInt("width") : targetWidth;
+            int height = constraints.hasKey("height") ? constraints.getInt("height") : targetHeight;
+            if (width <= 0 || height <= 0 || width > 1920 || height > 1920) throw new IllegalArgumentException("Invalid screen dimensions");
+            targetWidth = width; targetHeight = height; targetFps = 60;
+            if (actualHeight > actualWidth && width > height) { targetWidth = height; targetHeight = width; }
+            actualWidth = targetWidth; actualHeight = targetHeight; actualFps = targetFps;
+            videoCapturer.changeCaptureFormat(targetWidth, targetHeight, targetFps);
+            if (callback != null) callback.accept(null);
+        } catch (Exception error) { if (callback != null) callback.accept(error); }
+    }
+
+    @Override
+    public String getDeviceId()`);
+const ios='ios/RCTWebRTC/ScreenCaptureController.m';
+edit(ios,'#import "SocketConnection.h"','#import "SocketConnection.h"\n#import <WebRTC/RTCVideoSource.h>');
+edit(ios,'- (NSDictionary *)getSettings {',`- (void)applyConstraints:(NSDictionary *)constraints error:(NSError **)outError {
+    int width = [constraints[@"width"] intValue];
+    int height = [constraints[@"height"] intValue];
+    id source = self.capturer.delegate;
+    if (width > 0 && height > 0 && [source isKindOfClass:[RTCVideoSource class]]) {
+        (void)source; // Linea ReplayKit extension owns dimensions; sender limits output FPS.
+    }
+}
+
+- (NSDictionary *)getSettings {`);
+edit(ios,'@"frameRate" : @(30)', '@"frameRate" : @(60)');
+edit(android+'ScreenCaptureController.java',
+ 'final int width = (int)(displayMetrics.widthPixels * resolutionScale);\n                final int height = (int)(displayMetrics.heightPixels * resolutionScale);',
+ 'double scale = Math.min(resolutionScale, (double)Math.max(targetWidth, targetHeight) / Math.max(displayMetrics.widthPixels, displayMetrics.heightPixels));\n                final int width = (int)(displayMetrics.widthPixels * scale);\n                final int height = (int)(displayMetrics.heightPixels * scale);');

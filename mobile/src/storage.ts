@@ -1,3 +1,4 @@
+import { desktopBridge } from './desktop';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import * as SecureStore from 'expo-secure-store';
 import { Platform } from 'react-native';
@@ -21,10 +22,12 @@ export async function writeCachedUser(user: unknown | null) {
 }
 
 export async function readToken(): Promise<string | null> {
+  const desktop = desktopBridge(); if (desktop) return desktop.token.read();
   if (Platform.OS === 'web') return typeof sessionStorage === 'undefined' ? null : sessionStorage.getItem(TOKEN_KEY);
   return SecureStore.getItemAsync(TOKEN_KEY);
 }
 export async function writeToken(token: string | null) {
+  const desktop = desktopBridge(); if (desktop) return desktop.token.write(token);
   if (Platform.OS === 'web') {
     if (token) sessionStorage.setItem(TOKEN_KEY, token); else sessionStorage.removeItem(TOKEN_KEY);
     return;

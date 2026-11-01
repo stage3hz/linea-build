@@ -1,0 +1,42 @@
+name: Windows desktop EXE
+on:
+  push:
+    branches: [main, feature/desktop-screen-sharing]
+    paths: ['desktop/**', 'mobile/**', '.github/workflows/windows-desktop.yml']
+  workflow_dispatch:
+permissions:
+  contents: read
+concurrency:
+  group: windows-desktop
+  cancel-in-progress: true
+jobs:
+  build:
+    runs-on: windows-latest
+    timeout-minutes: 45
+    env:
+      EXPO_NO_TELEMETRY: '1'
+      CSC_IDENTITY_AUTO_DISCOVERY: 'false'
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+      - run: npm ci --no-audit --no-fund
+        working-directory: mobile
+      - run: npm run typecheck
+        working-directory: mobile
+      - run: npm ci --no-audit --no-fund
+        working-directory: desktop
+      - run: npm test
+        working-directory: desktop
+      - run: npm run build:ui
+        working-directory: desktop
+      - run: npm run test:electron
+        working-directory: desktop
+      - run: npm run dist:win
+        working-directory: desktop
+      - uses: actions/upload-artifact@v4
+        with:
+          name: invizent-windows
+          path: desktop/release/*.exe
+          if-no-files-found: error

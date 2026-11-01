@@ -4,7 +4,7 @@ import { Icon, IconButton } from '../components';
 import { GlassSurface } from '../glass';
 import { Text } from '../typography';
 import { useTheme } from '../theme';
-import { leaveVoice, toggleVoiceMute, useVoice } from './voice';
+import { leaveVoice, stopVoiceScreen, toggleVoiceMute, useVoice } from './voice';
 
 /** Strip shown everywhere while connected to a voice channel (as Discord's voice panel). */
 export function VoiceBar({ onOpen }: { onOpen?: (communityId: string) => void }) {
@@ -19,6 +19,7 @@ export function VoiceBar({ onOpen }: { onOpen?: (communityId: string) => void })
         <Text numberOfLines={1} style={{ color: t.muted, fontSize: 12 }}>{voice.channelName} · {voice.communityName}{voice.status === 'connected' ? ` · ${connected + 1} в канале` : ''}</Text>
       </View>
     </Pressable>
+    {voice.sharing ? <IconButton name="stop-circle-outline" label="Остановить демонстрацию" color={t.danger} onPress={stopVoiceScreen} size={23}/> : null}
     <IconButton name={voice.muted ? 'mic-off' : 'mic'} label={voice.muted ? 'Включить микрофон' : 'Выключить микрофон'} color={voice.muted ? t.danger : t.text} onPress={toggleVoiceMute} size={21} />
     <Pressable accessibilityRole="button" accessibilityLabel="Отключиться" onPress={leaveVoice} style={{ width: 40, height: 40, borderRadius: 20, backgroundColor: t.danger, alignItems: 'center', justifyContent: 'center' }}><Icon name="call" size={18} color="#FFF" /></Pressable>
   </GlassSurface>;

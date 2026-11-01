@@ -24,3 +24,7 @@ coverage/
 
 # Server-only secrets (deploy/push.sh)
 deploy/secrets/
+
+# Desktop build artifacts
+desktop/release/
+desktop/smoke-screen.png

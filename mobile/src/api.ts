@@ -1,3 +1,4 @@
+import { desktopBridge } from './desktop';
 import { Platform } from 'react-native';
 import { toByteArray } from 'base64-js';
 import type { UserProfile } from './types';
@@ -5,7 +6,7 @@ import type { Attachment, Chat, DeviceSession, LocalFile, Message, RecoveryChall
 import type { ClaimedBundle, CryptoDevice, EncryptedMessage, PublicBundle } from './e2ee/types';
 
 type ApiErrorDetails = { code?: string; attemptsRemaining?: number; retryAfterSeconds?: number; readyAt?: string; serverTime?: string; expiresAt?: string };
-const deviceName = Platform.OS === 'ios' ? 'iPhone / iPad' : Platform.OS === 'android' ? 'Android' : 'Браузер';
+const deviceName = desktopBridge() ? 'Windows' : Platform.OS === 'ios' ? 'iPhone / iPad' : Platform.OS === 'android' ? 'Android' : 'Браузер';
 
 export type Privacy = { allowNewChats: boolean; showAvatar: boolean; readReceipts: boolean; showLastSeen?: boolean };
 /** `platinaOnly`: settings that only an active Platina may switch off. */
@@ -166,7 +167,7 @@ export class Api {
   inviteUrl = (code: string) => `${this.base}/i/${encodeURIComponent(code)}`;
   /** A file for a channel: metadata is cleaned like any upload, but the file is stored as is (no E2EE). */
   async uploadChannelFile(file: LocalFile): Promise<Attachment> {
-    if(Platform.OS==='web')throw new Error('Файлы в каналах отправляются из приложения Android/iPhone.');
+    if(Platform.OS==='web'&&!desktopBridge())throw new Error('Файлы в каналах отправляются из приложения Android/iPhone.');
     const {prepareMediaForUpload}=await import('./media/pipeline');
     const prepared=await prepareMediaForUpload(file);
     try{
@@ -180,7 +181,7 @@ export class Api {
   }
 
   async upload(file: LocalFile): Promise<Attachment> {
-    if(Platform.OS==='web')throw new Error('Обработка и загрузка фото профиля доступны в приложении Android/iPhone.');
+    if(Platform.OS==='web'&&!desktopBridge())throw new Error('Обработка и загрузка фото профиля доступны в приложении Android/iPhone.');
     const {prepareMediaForUpload}=await import('./media/pipeline');
     const prepared=await prepareMediaForUpload(file);
     try{
