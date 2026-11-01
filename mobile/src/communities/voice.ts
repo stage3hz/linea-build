@@ -35,6 +35,10 @@ const connections = new Map<string, any>();
 const screenSenders = new Map<string, any>();
 const controls = new Map<string, any>();
 const remoteScreens = new Map<string, any>();
+function releaseRemoteScreen(peer: string) {
+  const stream = remoteScreens.get(peer); remoteScreens.delete(peer);
+  stream?.release?.(false); // The peer connection owns the remote track.
+}
 let screenStream: any = null;
 let pendingScreenStream: any = null;
 let shareGeneration = 0;
@@ -83,6 +87,7 @@ function peerUpdate(peer: string, change: Partial<VoicePeer>) {
 }
 
 function connectionFor(peer: string, initiator = false) {
+  releaseRemoteScreen(peer); controls.delete(peer); peerUpdate(peer, { screen: undefined });
   const connection: any = new rtc!.RTCPeerConnection({ iceServers, bundlePolicy: 'max-bundle' } as any);
   // Reserve a video slot before the first SDP exchange. Screen start/stop only replaces
   // this track, so simultaneous shares never tear down audio or race renegotiations.
@@ -93,6 +98,7 @@ function connectionFor(peer: string, initiator = false) {
   connection.addEventListener('datachannel', (event: any) => bindControl(peer, event.channel));
   connection.addEventListener('track', (event: any) => {
     if (connections.get(peer) !== connection || event.track.kind !== 'video') return;
+    releaseRemoteScreen(peer);
     const stream = new rtc!.MediaStream([event.track]);
     remoteScreens.set(peer, stream);
     const announced = controls.get(peer)?.screenState;
@@ -123,7 +129,7 @@ function connectionFor(peer: string, initiator = false) {
 function drop(peer: string) {
   try { connections.get(peer)?.close(); } catch { /* closed */ }
   connections.delete(peer);
-  screenSenders.delete(peer); controls.delete(peer); remoteScreens.delete(peer);
+  screenSenders.delete(peer); controls.delete(peer); releaseRemoteScreen(peer);
   if (state) patch({ peers: state.peers.filter(item => item.peer !== peer) });
 }
 
@@ -175,7 +181,7 @@ async function handle(data: any) {
 function cleanup(error: string) {
   stopVoiceScreen();
   connections.forEach(connection => { try { connection.close(); } catch { /* closed */ } });
-  connections.clear(); screenSenders.clear(); controls.clear(); remoteScreens.clear();
+  connections.clear(); screenSenders.clear(); controls.clear(); remoteScreens.forEach((_stream, peer) => releaseRemoteScreen(peer));
   try { releaseLocalStream(local); } catch { /* released */ }
   local = null; unsubscribe?.(); unsubscribe = null;
   try { inCall?.stop?.(); } catch { /* optional */ }

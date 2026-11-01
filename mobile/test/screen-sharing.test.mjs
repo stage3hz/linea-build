@@ -14,7 +14,7 @@ function fixture() {
  const pcs=[],sent=[],streams=[];let socketHandler,display;
  const track=kind=>({kind,enabled:true,stopped:false,events:{},addEventListener(n,cb){this.events[n]=cb;},stop(){this.stopped=true;},async applyConstraints(v){this.constraints=v;}});
  const mic=track('audio'),screen=track('video');
- const stream=t=>{const value={releases:0,release(){this.releases++;},getTracks:()=>[t],getAudioTracks:()=>t.kind==='audio'?[t]:[],getVideoTracks:()=>t.kind==='video'?[t]:[]};streams.push(value);return value;};
+ const stream=t=>{const value={releases:0,release(tracks=true){this.releases++;this.releaseTracks=tracks;},getTracks:()=>[t],getAudioTracks:()=>t.kind==='audio'?[t]:[],getVideoTracks:()=>t.kind==='video'?[t]:[]};streams.push(value);return value;};
  class PC {
   iceGatheringState='complete';signalingState='stable';events={};closed=false;offerCount=0;audio=[];
   constructor(){pcs.push(this);}
@@ -29,11 +29,11 @@ function fixture() {
  const voice=loadTs(new URL('../src/communities/voice.ts',import.meta.url),{
   react:{useSyncExternalStore:(_subscribe,snapshot)=>snapshot()},
   './screenCapture':{prepareScreenCapture:async()=>{},confirmScreenCapture:async()=>{},endScreenCapture(){}},
-  'react-native-webrtc':{RTCPeerConnection:PC,mediaDevices:{getUserMedia:async()=>stream(mic),getDisplayMedia:async()=>display ? await display() : stream(screen)}},
+  'react-native-webrtc':{RTCPeerConnection:PC,MediaStream:class{constructor(tracks){return stream(tracks[0]);}},mediaDevices:{getUserMedia:async()=>stream(mic),getDisplayMedia:async()=>display ? await display() : stream(screen)}},
   'react-native-incall-manager':{default:{start(){},stop(){},setForceSpeakerphoneOn(){}}},
  });
  const store={sendSocket:()=>true,onSocket:cb=>{socketHandler=cb;return()=>{};}};
- return {voice,pcs,sent,mic,screen,stream,streams,setDisplay:v=>display=v,async join(){await voice.joinVoice({callIce:async()=>({iceServers:[]})},store,{communityId:'game',communityName:'Game',channelId:'voice',channelName:'Voice'});socketHandler({type:'voice.joined',channelId:'voice',peers:[{peer:'one',userId:'u1'},{peer:'two',userId:'u2'}]});for(let i=0;i<20;i++)await Promise.resolve();}};
+ return {voice,pcs,sent,mic,screen,stream,streams,receive:data=>socketHandler(data),setDisplay:v=>display=v,async join(){await voice.joinVoice({callIce:async()=>({iceServers:[]})},store,{communityId:'game',communityName:'Game',channelId:'voice',channelName:'Voice'});socketHandler({type:'voice.joined',channelId:'voice',peers:[{peer:'one',userId:'u1'},{peer:'two',userId:'u2'}]});for(let i=0;i<20;i++)await Promise.resolve();}};
 }
 test('start/stop replaces reserved video tracks without recreating audio connections',async()=>{
  const f=fixture();await f.join();const connections=[...f.pcs];await f.voice.startVoiceScreen('1080p60');
@@ -70,4 +70,11 @@ test('leaving during capture constraints never republishes the stopped screen',a
  const pending=f.voice.startVoiceScreen('720p60');for(let i=0;i<20;i++)await Promise.resolve();assert.ok(finish);
  f.voice.leaveVoice();assert.equal(f.screen.stopped,true);finish();await pending;
  assert.equal(f.voice.useVoice(),null);assert.ok(f.pcs.every(pc=>pc.sender.track===null));assert.equal(f.sent.some(m=>m.active===true),false);
+});
+
+test('remote stream wrappers are released on peer exit and room exit without owning the tracks',async()=>{
+ const f=fixture();await f.join();const tracks=[{kind:'video'},{kind:'video'}];
+ f.pcs.forEach((pc,i)=>pc.events.track({track:tracks[i]}));const remote=f.streams.slice(-2);
+ f.receive({type:'voice.left',peer:'one'});assert.equal(remote[0].releases,1);assert.equal(remote[0].releaseTracks,false);assert.equal(remote[1].releases,0);
+ f.voice.leaveVoice();assert.equal(remote[1].releases,1);assert.equal(remote[1].releaseTracks,false);
 });
