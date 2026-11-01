@@ -28,8 +28,10 @@ import { DecoratedAvatar, ProfileBanner } from './platina/Decor';
 import { PlatinaGem, PlatinaName, PlatinaSeal, hasPlatina, openPlatinaShowcase } from './platina/PlatinaMark';
 import { usePlatina } from './platina/usePlatina';
 import { lightFeedback } from './haptics';
+import { LANGUAGES, setLanguage, tr, useLanguage } from './i18n';
+import { fileLimits, type FileLimits } from './e2ee/attachments';
 
-type Section = 'root' | 'appearance' | 'privacy' | 'data';
+type Section = 'root' | 'appearance' | 'privacy' | 'data' | 'language';
 type Props = {
   api: Api; user: User; theme: ThemeMode; darkTheme: DarkTheme;
   onTheme: (mode: ThemeMode) => void; onDarkTheme: (mode: DarkTheme) => void;
@@ -41,10 +43,10 @@ export function SettingsScreen(props: Props) {
   const [section, setSection] = useState<Section>('root');
   const progress = useSharedValue(1);
   const page = (current: Section, onBack: () => void) => {
-    const title = current === 'appearance' ? 'Оформление' : current === 'privacy' ? 'Конфиденциальность' : current === 'data' ? 'Данные и память' : 'Настройки';
+    const title = current === 'appearance' ? 'Оформление' : current === 'privacy' ? 'Конфиденциальность' : current === 'data' ? 'Данные и память' : current === 'language' ? 'Язык' : 'Настройки';
     if (current === 'root') return <Root {...props} onBack={onBack} open={setSection} />;
     return <Page title={title} backLabel="К настройкам" onBack={onBack}>
-      {current === 'appearance' ? <Appearance {...props} /> : current === 'privacy' ? <PrivacySection api={props.api} /> : <DataSection />}
+      {current === 'appearance' ? <Appearance {...props} /> : current === 'privacy' ? <PrivacySection api={props.api} /> : current === 'language' ? <LanguageSection /> : <DataSection api={props.api} />}
     </Page>;
   };
   // Sections slide in over the root list and close with the same swipe to the right as chats.
@@ -71,9 +73,9 @@ function Page({ title, backLabel, onBack, children }: { title: string; backLabel
 }
 
 function Group({ children, label }: { children: React.ReactNode; label?: string }) {
-  const t = useTheme();
+  const t = useTheme(); const language = useLanguage();
   return <View style={{ gap: 7 }}>
-    {label ? <Text style={{ color: t.muted, fontSize: 11, fontWeight: '700', letterSpacing: 1.2, paddingHorizontal: 8 }}>{label.toUpperCase()}</Text> : null}
+    {label ? <Text raw style={{ color: t.muted, fontSize: 11, fontWeight: '700', letterSpacing: 1.2, paddingHorizontal: 8 }}>{tr(label, language).toUpperCase()}</Text> : null}
     <GlassSurface radius={20} shadow={false} contentStyle={{ paddingVertical: 2, overflow: 'hidden', borderRadius: 20 }}>{children}</GlassSurface>
   </View>;
 }
@@ -97,6 +99,7 @@ function Toggle({ label, description, value, onChange, disabled = false, badge }
 }
 
 function Root({ api, user, onBack, onProfile, onSecurity, onMusic, onLogout, open }: Props & { open: (section: Section) => void }) {
+  const language = useLanguage();
   const t = useTheme(); const preferences = useChatPreferences(); const insets = useSafeAreaInsets(); const { width } = useWindowDimensions();
   const version = Constants.expoConfig?.version || '';
   const active = usePlatina(api, user.id);
@@ -146,6 +149,7 @@ function Root({ api, user, onBack, onProfile, onSecurity, onMusic, onLogout, ope
         <Item icon="lock-closed" color="#8C62E8" label="Конфиденциальность" onPress={() => open('privacy')} />
         <Item icon="shield-checkmark" color="#34A853" label="Безопасность и устройства" onPress={onSecurity} />
         <Item icon="server" color="#E39A3B" label="Данные и память" onPress={() => open('data')} />
+        <Item icon="language" color="#7B61FF" label="Язык" value={LANGUAGES.find(item => item.id === language)?.native} onPress={() => open('language')} />
       </Group>
       <Group>
         <Item icon="log-out-outline" color="#D9534F" label="Выйти из аккаунта" danger onPress={() => void onLogout()} />
@@ -234,7 +238,42 @@ async function directorySize(uri: string, depth = 0): Promise<number> {
   return total;
 }
 
-function DataSection() {
+/** Telegram-like language list: the choice applies at once and is kept on this device. */
+function LanguageSection() {
+  const t = useTheme(); const language = useLanguage();
+  return <>
+    <Group label="Язык интерфейса">
+      {LANGUAGES.map(item => {
+        const selected = item.id === language;
+        return <Pressable key={item.id} accessibilityRole="radio" accessibilityState={{ selected }} onPress={() => { lightFeedback(); setLanguage(item.id); }} style={({ pressed }) => ({ flexDirection: 'row', alignItems: 'center', gap: 12, minHeight: 56, paddingHorizontal: 16, backgroundColor: pressed ? 'rgba(127,127,127,0.12)' : 'transparent' })}>
+          <View style={{ flex: 1, gap: 2 }}><Text raw style={{ color: t.text, fontSize: 15, fontWeight: '600' }}>{item.native}</Text><Text raw style={{ color: t.muted, fontSize: 13 }}>{item.name}</Text></View>
+          {selected ? <Icon name="checkmark" size={20} color={t.accent} /> : null}
+        </Pressable>;
+      })}
+    </Group>
+    <Text style={{ color: t.muted, fontSize: 12, lineHeight: 17, paddingHorizontal: 8 }}>Язык меняется только в интерфейсе. Сообщения и имена остаются как есть.</Text>
+  </>;
+}
+
+const GB = 1024 ** 3;
+const storageLabel = (bytes: number) => bytes >= GB ? `${(bytes / GB).toFixed(bytes >= 10 * GB ? 0 : 1).replace('.0', '')} ГБ` : formatSize(bytes);
+
+/** Files on the server: how much of the account's storage is used (2 GB, 15 GB with Platina). */
+function ServerStorage({ api }: { api: Api }) {
+  const t = useTheme(); const [limits, setLimits] = useState<FileLimits | null>(null); const [failed, setFailed] = useState(false);
+  useEffect(() => { let alive = true; fileLimits(api).then(value => { if (alive) setLimits(value); }).catch(() => { if (alive) setFailed(true); }); return () => { alive = false; }; }, [api]);
+  const fraction = limits ? Math.min(1, limits.usedBytes / Math.max(1, limits.storageBytes)) : 0;
+  return <Group label="Файлы на сервере">
+    <View style={{ padding: 16, gap: 10 }}>
+      <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10 }}><Icon name="cloud-outline" size={22} color={t.accent} /><Text style={{ flex: 1, color: t.text, fontSize: 15 }}>Использовано</Text>{limits ? <Text raw style={{ color: t.text, fontSize: 15, fontWeight: '700' }}>{storageLabel(limits.usedBytes)} / {storageLabel(limits.storageBytes)}</Text> : failed ? <Text style={{ color: t.muted, fontSize: 13 }}>Недоступно</Text> : <ActivityIndicator color={t.accent} size="small" />}</View>
+      <View style={{ height: 6, borderRadius: 3, backgroundColor: t.dark ? 'rgba(255,255,255,0.10)' : 'rgba(0,0,0,0.07)', overflow: 'hidden' }}><View style={{ width: `${Math.round(fraction * 100)}%`, height: 6, borderRadius: 3, backgroundColor: fraction > .9 ? t.danger : t.accent }} /></View>
+      {limits ? <Text style={{ color: t.muted, fontSize: 12, lineHeight: 18 }}>{limits.platina ? 'С Platina: файлы до 5 ГБ, всего 15 ГБ.' : 'Без Platina: файлы до 100 МБ, всего 2 ГБ. С Platina — до 5 ГБ на файл и 15 ГБ всего.'}</Text> : null}
+      <Text style={{ color: t.muted, fontSize: 12, lineHeight: 18 }}>Зашифрованные вложения из личных чатов. Сервер не может их прочитать.</Text>
+    </View>
+  </Group>;
+}
+
+function DataSection({ api }: { api: Api }) {
   const t = useTheme(); const [size, setSize] = useState<number | null>(null); const [busy, setBusy] = useState(false); const [done, setDone] = useState('');
   const measure = useCallback(() => { setSize(null); const dir = FileSystem.cacheDirectory; if (!dir) { setSize(0); return; } directorySize(dir).then(setSize).catch(() => setSize(0)); }, []);
   useEffect(measure, [measure]);
@@ -246,6 +285,7 @@ function DataSection() {
     } finally { setBusy(false); measure(); }
   };
   return <>
+    <ServerStorage api={api} />
     <Group label="Кэш на этом устройстве">
       <View style={{ padding: 16, gap: 12 }}>
         <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10 }}><Icon name="server-outline" size={22} color={t.accent} /><Text style={{ flex: 1, color: t.text, fontSize: 15 }}>Временные файлы</Text>{size === null ? <ActivityIndicator color={t.accent} size="small" /> : <Text style={{ color: t.text, fontSize: 15, fontWeight: '700' }}>{formatSize(size)}</Text>}</View>

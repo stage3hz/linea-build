@@ -3,6 +3,7 @@
 // usual fontWeight values keep working on iOS and Android.
 import React, { forwardRef } from 'react';
 import { Text as RNText, TextInput as RNTextInput, StyleSheet, type TextInputProps, type TextProps } from 'react-native';
+import { tr, trChildren, useLanguage } from './i18n';
 
 export const FONT_FAMILY = 'Montserrat';
 const base = StyleSheet.create({ font: { fontFamily: FONT_FAMILY } });
@@ -13,12 +14,16 @@ const base = StyleSheet.create({ font: { fontFamily: FONT_FAMILY } });
 const MAX_FONT_SCALE = 1.25;
 
 // The base family comes first, so an explicit fontFamily (e.g. monospace for code) still wins.
-export const Text = forwardRef<RNText, TextProps>(function Text({ style, maxFontSizeMultiplier = MAX_FONT_SCALE, ...props }, ref) {
-  return <RNText ref={ref} maxFontSizeMultiplier={maxFontSizeMultiplier} {...props} style={[base.font, style]} />;
+// Interface strings are shown in the chosen language (src/i18n). `raw` marks user content
+// (message text, names): it is never translated, even if it happens to equal an interface string.
+export const Text = forwardRef<RNText, TextProps & { raw?: boolean }>(function Text({ style, maxFontSizeMultiplier = MAX_FONT_SCALE, children, raw = false, ...props }, ref) {
+  const language = useLanguage();
+  return <RNText ref={ref} maxFontSizeMultiplier={maxFontSizeMultiplier} {...props} style={[base.font, style]}>{raw ? children : trChildren(children, language) as React.ReactNode}</RNText>;
 });
 export type Text = RNText;
 
-export const TextInput = forwardRef<RNTextInput, TextInputProps>(function TextInput({ style, maxFontSizeMultiplier = MAX_FONT_SCALE, ...props }, ref) {
-  return <RNTextInput ref={ref} maxFontSizeMultiplier={maxFontSizeMultiplier} {...props} style={[base.font, style]} />;
+export const TextInput = forwardRef<RNTextInput, TextInputProps>(function TextInput({ style, maxFontSizeMultiplier = MAX_FONT_SCALE, placeholder, ...props }, ref) {
+  const language = useLanguage();
+  return <RNTextInput ref={ref} maxFontSizeMultiplier={maxFontSizeMultiplier} {...props} placeholder={placeholder ? tr(placeholder, language) : placeholder} style={[base.font, style]} />;
 });
 export type TextInput = RNTextInput;

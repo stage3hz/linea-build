@@ -44,6 +44,10 @@ import { usePush, stopPush } from './src/push';
 import { PlatinaShowcaseHost } from './src/platina/PlatinaShowcase';
 import { CallProvider } from './src/calls/CallProvider';
 import { GlassBackdrop } from './src/glass';
+import { loadLanguage } from './src/i18n';
+
+// The saved interface language is read before the first screen renders.
+void loadLanguage();
 
 export default function App() {
   const system=useColorScheme();const [mode,setMode]=useState<ThemeMode>('system');const [darkTheme,setDarkTheme]=useState<DarkTheme>('dark');const [themeError,setThemeError]=useState('');const themeSaveRevision=useRef(0);const [server,setServer]=useState<string|null>(null);const [session,setSession]=useState<Session|null>(null);const [booting,setBooting]=useState(true);const [bootError,setBootError]=useState('');const [authNotice,setAuthNotice]=useState('');
