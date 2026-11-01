@@ -1,0 +1,66 @@
+name: iOS Simulator startup smoke
+on:
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  smoke:
+    runs-on: macos-26
+    timeout-minutes: 60
+    env:
+      APP_ENV: development
+      EXPO_PUBLIC_ALLOW_LOCAL_HTTP: '0'
+      EXPO_NO_TELEMETRY: '1'
+      CI: '1'
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+      - name: Check available iPhone simulators
+        run: |
+          xcrun simctl list devices available --json > simulators.json
+          python3 - <<'PY'
+          import json,os
+          devices=json.load(open('simulators.json'))['devices']
+          phones=[d for runtime,items in devices.items() if 'iOS' in runtime for d in items if 'iPhone' in d['name']]
+          if not phones: raise SystemExit('No installed iPhone Simulator runtime')
+          with open(os.environ['GITHUB_ENV'],'a') as out: out.write('SIMULATOR_UDID='+phones[-1]['udid']+'\n')
+          print(phones[-1]['name'])
+          PY
+      - run: npm ci --no-audit --no-fund
+        working-directory: mobile
+      - run: npx expo prebuild --platform ios --clean --no-install
+        working-directory: mobile
+      - run: pod install
+        working-directory: mobile/ios
+      - name: Compile real simulator app
+        working-directory: mobile/ios
+        run: |
+          set -o pipefail
+          SCHEME=$(basename *.xcworkspace .xcworkspace)
+          echo "SCHEME=$SCHEME" >> "$GITHUB_ENV"
+          xcodebuild -workspace "$SCHEME.xcworkspace" -scheme "$SCHEME" -configuration Release -sdk iphonesimulator -destination 'generic/platform=iOS Simulator' -derivedDataPath simulator-build ARCHS=arm64 ONLY_ACTIVE_ARCH=YES CODE_SIGNING_ALLOWED=NO CODE_SIGNING_REQUIRED=NO CODE_SIGN_IDENTITY='' CODE_SIGN_ENTITLEMENTS='' build > ../../simulator-build.log 2>&1 || { tail -100 ../../simulator-build.log; exit 1; }
+      - name: Launch and capture startup screen
+        run: |
+          set -euo pipefail
+          APP="mobile/ios/simulator-build/Build/Products/Release-iphonesimulator/$SCHEME.app"
+          xcrun simctl boot "$SIMULATOR_UDID"
+          xcrun simctl bootstatus "$SIMULATOR_UDID" -b
+          xcrun simctl install "$SIMULATOR_UDID" "$APP"
+          xcrun simctl launch "$SIMULATOR_UDID" com.linea.messenger.preview | tee simulator-launch.log
+          sleep 15
+          xcrun simctl spawn "$SIMULATOR_UDID" launchctl list | grep com.linea.messenger.preview
+          xcrun simctl io "$SIMULATOR_UDID" screenshot ios-startup.png
+          xcrun simctl spawn "$SIMULATOR_UDID" log show --last 1m --style compact --predicate 'process == "INVIZENT"' > simulator-runtime.log
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: ios-simulator-startup
+          path: |
+            ios-startup.png
+            simulators.json
+            simulator-launch.log
+            simulator-runtime.log
+            simulator-build.log
+          if-no-files-found: ignore
