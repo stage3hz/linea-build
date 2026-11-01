@@ -5,7 +5,10 @@ import { createInterface } from 'node:readline';
 import { randomBytes, randomUUID } from 'node:crypto';
 import path from 'node:path';
 import test from 'node:test';
-import { nodeSignalBridge as nodeBridge, claimedBundle } from './support/signal-node.mjs';
+import { nodeSignalBridge, claimedBundle } from './support/signal-node.mjs';
+
+const nodeBridge = process.env.LINEA_SIGNAL_TEST_BRIDGE === 'desktop'
+  ? (await import('../../desktop/signal.mjs')).desktopSignalBridge : nodeSignalBridge;
 
 function nativeDriver(t) {
   const classpath = readFileSync(new URL('../modules/linea-signal/jvm-tests/build/interop-classpath.txt', import.meta.url), 'utf8').trim();

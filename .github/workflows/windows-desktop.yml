@@ -23,6 +23,8 @@ jobs:
           node-version: 24
       - run: npm ci --no-audit --no-fund
         working-directory: mobile
+      - run: npm run test:ui
+        working-directory: mobile
       - run: npm run typecheck
         working-directory: mobile
       - run: npm ci --no-audit --no-fund
@@ -32,6 +34,7 @@ jobs:
       - run: npm run build:ui
         working-directory: desktop
       - run: npm run test:electron
+        timeout-minutes: 3
         working-directory: desktop
       - run: npm run dist:win
         working-directory: desktop

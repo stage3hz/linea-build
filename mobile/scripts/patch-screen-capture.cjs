@@ -19,8 +19,11 @@ edit(android+'ScreenCaptureController.java','    @Override\n    public String ge
             int width = constraints.hasKey("width") ? constraints.getInt("width") : targetWidth;
             int height = constraints.hasKey("height") ? constraints.getInt("height") : targetHeight;
             if (width <= 0 || height <= 0 || width > 1920 || height > 1920) throw new IllegalArgumentException("Invalid screen dimensions");
-            targetWidth = width; targetHeight = height; targetFps = 60;
-            if (actualHeight > actualWidth && width > height) { targetWidth = height; targetHeight = width; }
+            DisplayMetrics metrics = DisplayUtils.getDisplayMetrics((Activity) context);
+            double scale = Math.min(1.0, (double)Math.max(width, height) / Math.max(metrics.widthPixels, metrics.heightPixels));
+            targetWidth = Math.max(2, ((int)(metrics.widthPixels * scale) / 2) * 2);
+            targetHeight = Math.max(2, ((int)(metrics.heightPixels * scale) / 2) * 2);
+            targetFps = 60;
             actualWidth = targetWidth; actualHeight = targetHeight; actualFps = targetFps;
             videoCapturer.changeCaptureFormat(targetWidth, targetHeight, targetFps);
             if (callback != null) callback.accept(null);
