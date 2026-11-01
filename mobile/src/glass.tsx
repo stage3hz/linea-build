@@ -8,6 +8,7 @@ import { LiquidGlassView } from 'react-native-liquid-glassmorphism';
 /** Android 13+ can run the refraction shader (AGSL); older Android keeps the blur fallback. */
 const androidLiquid=Platform.OS==='android'&&typeof Platform.Version==='number'&&Platform.Version>=33;
 import { useTheme } from './theme';
+import { useRenderActive } from './renderActivity';
 
 type GlassContextValue = { targetRef:RefObject<View|null>|undefined; reduceTransparency:boolean };
 const GlassContext=createContext<GlassContextValue>({targetRef:undefined,reduceTransparency:true});
@@ -82,6 +83,7 @@ export type GlassSurfaceProps = {
 export function GlassSurface({children,style,contentStyle,radius=26,material='regular',interactive=false,shadow=true,targetRef,lens}:GlassSurfaceProps) {
   const t=useTheme();const context=useContext(GlassContext);const target=targetRef||context.targetRef;
   const nested=useContext(NestedGlass);
+  const renderActive=useRenderActive();
   const nativeGlass=useMemo(()=>{
     if(Platform.OS!=='ios'||nested)return false;
     try{return isGlassEffectAPIAvailable()&&isLiquidGlassAvailable();}catch{return false;}
@@ -105,7 +107,7 @@ export function GlassSurface({children,style,contentStyle,radius=26,material='re
   // a milky white tint and a small lift instead — closer to iOS 26. Dark themes: a deep navy/black
   // tint, otherwise the library's frost turned dark cards into a light grey slab that stood out. Small round buttons (clear)
   // get a thinner lens: full refraction bent the text behind them and made the circle look uneven.
-  if(androidLiquid&&!nested&&!reduceTransparency)return <LiquidGlassView variant={material} refraction={lens??interactive} borderRadius={radius} tintColor={t.black?'rgba(0,0,0,0.5)':t.dark?'rgba(10,18,36,0.42)':regular?'rgba(255,255,255,0.34)':'rgba(255,255,255,0.18)'} brightness={t.dark?0.92:1.06} blurRadius={regular?14:10} thickness={regular?1:.45} edgeReflectionStrength={regular?1:.6} legibilityFloor={t.dark?.12:0} interactive={false} tilt={false} style={[{borderRadius:radius},style]}>
+  if(androidLiquid&&!nested&&!reduceTransparency)return <LiquidGlassView paused={!renderActive} variant={material} refraction={lens??interactive} borderRadius={radius} tintColor={t.black?'rgba(0,0,0,0.5)':t.dark?'rgba(10,18,36,0.42)':regular?'rgba(255,255,255,0.34)':'rgba(255,255,255,0.18)'} brightness={t.dark?0.92:1.06} blurRadius={regular?14:10} thickness={regular?1:.45} edgeReflectionStrength={regular?1:.6} legibilityFloor={t.dark?.12:0} interactive={false} tilt={false} style={[{borderRadius:radius},style]}>
     {/* Content lives inside the glass: the shader excludes it from the backdrop, so icons do not bleed into the blur. */}
     <NestedGlass.Provider value={true}><View collapsable={false} style={[{flexGrow:1},contentStyle]}>{children}</View></NestedGlass.Provider>
   </LiquidGlassView>;

@@ -1,5 +1,6 @@
 import React, { useEffect, useSyncExternalStore } from 'react';
 import { AccessibilityInfo, Platform } from 'react-native';
+import { useRenderActive } from './renderActivity';
 import { ReduceMotion, ReducedMotionConfig } from 'react-native-reanimated';
 import * as Battery from 'expo-battery';
 import { getChatPreferences, useChatPreferences } from './chatPreferences';
@@ -36,9 +37,10 @@ export function motionEnabled(): boolean { start(); const preferences = getChatP
 export const animMs = (ms: number) => motionEnabled() ? ms : 0;
 
 export function useMotion(): { enabled: boolean; reason: string } {
+  const active = useRenderActive();
   const preferences = useChatPreferences();
   const state = useSyncExternalStore(subscribe, snapshot, snapshot);
-  return { enabled: motionAllowed(preferences.animations, state, preferences.lowBattery), reason: motionReason(preferences.animations, state, preferences.lowBattery) };
+  return { enabled: active && motionAllowed(preferences.animations, state, preferences.lowBattery), reason: motionReason(preferences.animations, state, preferences.lowBattery) };
 }
 
 /** Mount once near the root: switches every Reanimated animation in the app on or off. */

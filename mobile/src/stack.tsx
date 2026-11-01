@@ -3,6 +3,7 @@ import { StyleSheet, View, useWindowDimensions, BackHandler } from 'react-native
 import { Gesture, GestureDetector } from 'react-native-gesture-handler';
 import Animated, { Easing, interpolate, runOnJS, useAnimatedStyle, withTiming, type SharedValue } from 'react-native-reanimated';
 import { lightFeedback } from './haptics';
+import { RenderActivity } from './renderActivity';
 
 /**
  * Telegram-style screen stack: the pushed screen (a chat, Избранное) slides in over
@@ -58,7 +59,7 @@ export function StackBase({ progress, covered, children }: { progress: SharedVal
   const style = useAnimatedStyle(() => ({ transform: [{ translateX: covered ? interpolate(progress.value, [0, 1], [-width * 0.28, 0]) : 0 }] }));
   const dim = useAnimatedStyle(() => ({ opacity: covered ? interpolate(progress.value, [0, 1], [0.38, 0]) : 0 }));
   return <Animated.View style={[{ flex: 1 }, style]} pointerEvents={covered ? 'none' : 'auto'}>
-    <Frozen frozen={covered}>{children}</Frozen>
+    <RenderActivity active={!covered}><Frozen frozen={covered}>{children}</Frozen></RenderActivity>
     <Animated.View pointerEvents="none" style={[StyleSheet.absoluteFill, { backgroundColor: '#000' }, dim]} />
   </Animated.View>;
 }
