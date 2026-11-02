@@ -259,10 +259,7 @@ export function AuthScreen({api,onLogin,onChangeServer}: {api:Api;onLogin:(sessi
     if(mode==='waiting'){await checkRecovery();return;}
     if(mode==='reset')await resetPassword();
   };
-  const titles:Record<Mode,string>={
-    'login-name':'Сначала —\nтвой логин.','login-password':'Теперь\nтвой пароль.','login-word':'Слово, которое\nзнаешь ты.',
-    'register-name':'Твой Инвиз.\nТвой логин.','register-password':'Придумай\nдлинный пароль.','register-confirmation':'Слово\nдля каждого входа.','register-recovery':'Другое слово.\nНа случай потери.',
-    recover:'Вернём\nдоступ.',waiting:'Пауза\nдля защиты.',reset:'Новый пароль.\nТвой Инвиз.'};
+  const titles:Record<Mode,string>={'login-name':'Логин','login-password':'Пароль','login-word':'Слово подтверждения','register-name':'Логин','register-password':'Пароль','register-confirmation':'Слово подтверждения','register-recovery':'Слово восстановления',recover:'Восстановление',waiting:'Ожидание',reset:'Новый пароль'};
   const descriptions:Record<Mode,string>={
     'login-name':'Вход без почты и номера телефона. Данные проверим вместе на последнем шаге.',
     'login-password':'Введи пароль вручную. Следом понадобится слово подтверждения.',
