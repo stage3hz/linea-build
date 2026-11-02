@@ -16,7 +16,7 @@ import * as FileSystem from 'expo-file-system/legacy';
 import { previewDocument } from '../media/documentPreview';
 import { PERM, can, type Community, type CommunityChannel, type CommunityMessage } from './types';
 import { InviteCard } from './InviteCard';
-import { inviteCodeFrom } from './types';
+import { inviteCodeFrom, withoutInviteLink } from './types';
 
 const time = (iso: string) => new Date(iso).toLocaleTimeString('ru-RU', { hour: '2-digit', minute: '2-digit' });
 const day = (iso: string) => new Date(iso).toLocaleDateString('ru-RU', { day: 'numeric', month: 'long' });
@@ -116,10 +116,10 @@ export function ChannelChat({ api, me, store, community, channel, onOpenInvite }
     const grouped = !blog && older && older.senderId === item.senderId && Date.parse(item.createdAt) - Date.parse(older.createdAt) < 7 * 60_000;
     const newDay = !older || new Date(older.createdAt).toDateString() !== new Date(item.createdAt).toDateString();
     const replied = item.replyTo ? byId.get(item.replyTo) : null;
-    const invite = inviteCodeFrom(item.text);
+    const invite = inviteCodeFrom(item.text); const shownText = invite ? withoutInviteLink(item.text) : item.text;
     const body = <>
       {replied ? <View style={{ flexDirection: 'row', gap: 6, alignItems: 'center', marginBottom: 3 }}><Icon name="return-down-forward" size={13} color={t.subtle} /><Text numberOfLines={1} style={{ flex: 1, color: t.muted, fontSize: 13 }}><Text style={{ fontWeight: '600', color: t.muted }}>{users[replied.senderId]?.displayName || 'Участник'}</Text> {replied.text || 'Вложение'}</Text></View> : null}
-      {item.text ? <Text selectable style={{ color: t.text, fontSize: blog ? 16 : 15.5, lineHeight: blog ? 23 : 21 }}>{item.text}{item.editedAt ? <Text style={{ color: t.subtle, fontSize: 11 }}> (изм.)</Text> : null}</Text> : null}
+      {shownText ? <Text selectable style={{ color: t.text, fontSize: blog ? 16 : 15.5, lineHeight: blog ? 23 : 21 }}>{shownText}{item.editedAt ? <Text style={{ color: t.subtle, fontSize: 11 }}> (изм.)</Text> : null}</Text> : null}
       {item.attachment ? <ChannelAttachment api={api} attachment={item.attachment} wide={blog} /> : null}
       {invite ? <View style={{ marginTop: 6 }}><InviteCard api={api} code={invite} onOpen={onOpenInvite} /></View> : null}
     </>;

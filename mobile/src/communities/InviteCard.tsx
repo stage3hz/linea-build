@@ -13,6 +13,11 @@ const preview = (api: Api, code: string) => {
   if (!pending) { pending = api.invite(code).catch(() => null); cache.set(code, pending); setTimeout(() => cache.delete(code), 60_000); }
   return pending;
 };
+/** Closed channels and servers: their banner is not forwarded. Unknown or dead invites are not forwarded either. */
+export async function inviteForwardable(api: Api, code: string): Promise<boolean> {
+  const info = await preview(api, code);
+  return !!info && !info.community.closed;
+}
 
 /**
  * Invite banner shown under a message with an invite link (as Telegram shows a channel
@@ -25,7 +30,7 @@ export function InviteCard({ api, code, onOpen }: { api: Api; code: string; onOp
   if (info === null) return <View style={{ flexDirection: 'row', gap: 8, alignItems: 'center', padding: 12, borderRadius: 14, backgroundColor: t.surface2, minWidth: 220 }}><Icon name="link-outline" size={18} color={t.subtle} /><Text style={{ color: t.muted, fontSize: 13 }}>Приглашение недействительно</Text></View>;
   const community = info.community;
   return <View style={{ borderRadius: 16, backgroundColor: t.dark ? 'rgba(255,255,255,0.06)' : 'rgba(0,0,0,0.04)', borderWidth: 1, borderColor: t.border, padding: 12, gap: 10, minWidth: 230, maxWidth: 300 }}>
-    <Text style={{ color: t.muted, fontSize: 11, fontWeight: '700', letterSpacing: .6 }}>{community.kind === 'blog' ? 'ПРИГЛАШЕНИЕ В КАНАЛ' : 'ПРИГЛАШЕНИЕ НА СЕРВЕР'}</Text>
+    <Text style={{ color: t.muted, fontSize: 11, fontWeight: '700', letterSpacing: .6 }}>{community.kind === 'blog' ? 'КАНАЛ' : 'СЕРВЕР'}{community.closed ? ' · ЗАКРЫТЫЙ' : ''}</Text>
     <View style={{ flexDirection: 'row', alignItems: 'center', gap: 11 }}>
       <CommunityAvatar api={api} community={community} size={48} />
       <View style={{ flex: 1, gap: 3 }}>
@@ -33,8 +38,8 @@ export function InviteCard({ api, code, onOpen }: { api: Api; code: string; onOp
         <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}><KindBadge kind={community.kind} category={community.category} /><Text style={{ color: t.muted, fontSize: 12 }}>{community.kind === 'blog' ? subscribers(community.memberCount) : members(community.memberCount)}</Text></View>
       </View>
     </View>
-    <Pressable accessibilityRole="button" onPress={() => onOpen(code)} style={({ pressed }) => ({ height: 38, borderRadius: 10, backgroundColor: info.isMember ? t.surface2 : '#2FA36B', alignItems: 'center', justifyContent: 'center', opacity: pressed ? .75 : 1 })}>
-      <Text style={{ color: info.isMember ? t.text : '#FFF', fontSize: 14, fontWeight: '700' }}>{info.isMember ? 'Открыть' : 'Принять приглашение'}</Text>
+    <Pressable accessibilityRole="button" accessibilityLabel={info.isMember ? `Открыть ${community.name}` : `Перейти: ${community.name}`} onPress={() => onOpen(code)} style={({ pressed }) => ({ height: 38, borderRadius: 10, backgroundColor: info.isMember ? t.surface2 : '#2FA36B', alignItems: 'center', justifyContent: 'center', opacity: pressed ? .75 : 1 })}>
+      <Text style={{ color: info.isMember ? t.text : '#FFF', fontSize: 14, fontWeight: '700' }}>{info.isMember ? 'Открыть' : community.kind === 'blog' ? 'Перейти в канал' : 'Перейти на сервер'}</Text>
     </Pressable>
   </View>;
 }

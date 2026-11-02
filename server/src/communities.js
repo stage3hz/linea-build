@@ -145,7 +145,7 @@ export function installCommunityRoutes({ app, db, authOptions, publicUser, times
     const mine = member(row.id, viewer);
     const last = db.prepare('SELECT m.* FROM community_messages m JOIN community_channels c ON c.id=m.channel_id WHERE c.community_id=? ORDER BY m.id DESC LIMIT 1').get(row.id);
     return {
-      id: row.id, kind: row.kind, name: row.name, description: row.description, avatarId: row.avatar_id, ownerId: row.owner_id, category: row.category || null,
+      id: row.id, kind: row.kind, name: row.name, description: row.description, avatarId: row.avatar_id, ownerId: row.owner_id, category: row.category || null, closed: row.closed === 1,
       createdAt: row.created_at, memberCount: memberCount(row.id), isMember: !!mine, perms: perms(row, viewer),
       lastMessage: last ? publicMessage(last) : null, muted: mine?.muted === 1,
     };
@@ -231,7 +231,8 @@ export function installCommunityRoutes({ app, db, authOptions, publicUser, times
   app.patch('/communities/:id', authOptions, async request => {
     const viewer = request.auth.user_id, row = community(request.params.id);
     need(row, viewer, PERM.MANAGE_COMMUNITY);
-    const body = objectBody(request.body, ['name', 'description', 'avatarId', 'muted', 'category']);
+    const body = objectBody(request.body, ['name', 'description', 'avatarId', 'muted', 'category', 'closed']);
+    if (body.closed !== undefined && typeof body.closed !== 'boolean') fail(400, 'Некорректная настройка доступа.');
     if (body.category !== undefined && (row.kind !== 'blog' || !CHANNEL_CATEGORIES.includes(body.category))) fail(400, 'Неизвестное содержание канала.');
     if (body.muted !== undefined) {
       if (typeof body.muted !== 'boolean') fail(400, 'Некорректная настройка звука.');
@@ -239,7 +240,7 @@ export function installCommunityRoutes({ app, db, authOptions, publicUser, times
     const name = body.name === undefined ? row.name : text(body.name, 'Название', 1, 60);
     const description = body.description === undefined ? row.description : text(body.description, 'Описание', 0, 500);
     const avatarId = body.avatarId === undefined ? row.avatar_id : uploadOwned(body.avatarId, viewer, true);
-    db.prepare('UPDATE communities SET name=?,description=?,avatar_id=?,category=? WHERE id=?').run(name, description, avatarId, body.category === undefined ? row.category : body.category, row.id);
+    db.prepare('UPDATE communities SET name=?,description=?,avatar_id=?,category=?,closed=? WHERE id=?').run(name, description, avatarId, body.category === undefined ? row.category : body.category, body.closed === undefined ? (row.closed ? 1 : 0) : (body.closed ? 1 : 0), row.id);
     const next = community(row.id); refresh(next);
     return { community: detail(next, viewer) };
   });
@@ -509,7 +510,7 @@ export function installCommunityRoutes({ app, db, authOptions, publicUser, times
   };
   const invitePreview = invite => {
     const row = db.prepare('SELECT * FROM communities WHERE id=?').get(invite.community_id);
-    return { code: invite.code, community: { id: row.id, kind: row.kind, category: row.category || null, name: row.name, description: row.description, avatarId: row.avatar_id, memberCount: memberCount(row.id) } };
+    return { code: invite.code, community: { id: row.id, kind: row.kind, category: row.category || null, closed: row.closed === 1, name: row.name, description: row.description, avatarId: row.avatar_id, memberCount: memberCount(row.id) } };
   };
   app.get('/invites/:code', authOptions, async request => {
     if (!limiter.allow(`invite-view:${request.auth.user_id}`, 120, 60_000)) fail(429, 'Слишком много запросов.');

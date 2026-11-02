@@ -38,6 +38,8 @@ import { presenceText } from './presence';
 import { VoicePlaybackProvider, VoiceRecordingBar, useVoiceRecorder } from './voice/VoiceMessage';
 import { MessageRow, type AlbumPart, type Row, type RowHandlers } from './MessageRow';
 import { ContextMenu, MenuItem } from './ContextMenu';
+import { inviteCodeFrom } from './communities/types';
+import { inviteForwardable } from './communities/InviteCard';
 import { TopPlayerBar } from './music/PlayerControls';
 import { useCalls } from './calls/CallProvider';
 import { UserProfile } from './UserProfile';
@@ -82,6 +84,8 @@ export function ChatScreen({api,user,chat,store,onBack,wide=false,onOpenMusic}: 
   // Rows present when the chat opened do not animate; new ones slide in.
   const seen=useRef<Set<string>|null>(null);
   const [forwardMany,setForwardMany]=useState<ViewMessage[]|null>(null);
+  // A banner of a closed channel/server is not forwarded (the owner chose who gets in).
+  const forwardable=async(list:ViewMessage[])=>{for(const item of list){const code=item.text?inviteCodeFrom(item.text):null;if(code&&!(await inviteForwardable(api,code))){setNotice('Приглашение в закрытый канал или на закрытый сервер переслать нельзя.');return false;}}return true;};
   const [gallery,setGallery]=useState<{items:Attachment[];index:number}|null>(null);
   const [mediaOpen,setMediaOpen]=useState(false);const [headerHeight,setHeaderHeight]=useState(76);const [footerHeight,setFooterHeight]=useState(60);const [showDown,setShowDown]=useState(false);const [recordMode,setRecordMode]=useState<'voice'|'video'>('voice');
   const [pollOpen,setPollOpen]=useState(false);const [deleteAsk,setDeleteAsk]=useState(false);const [stickers,setStickers]=useState(false);
@@ -315,7 +319,7 @@ export function ChatScreen({api,user,chat,store,onBack,wide=false,onOpenMusic}: 
     {showDown&&!selection?<View pointerEvents="box-none" style={{height:0}}><View style={{position:'absolute',right:14,bottom:10}}><GlassSurface material="regular" radius={20} interactive contentStyle={{width:40,height:40,alignItems:'center',justifyContent:'center'}}><Pressable onPress={()=>{lightFeedback();listRef.current?.scrollToOffset({offset:0,animated:true});}} accessibilityRole="button" accessibilityLabel="Вниз к новым сообщениям" hitSlop={6}><Icon name="chevron-down" size={26} color={t.text}/></Pressable></GlassSurface></View></View>:null}
     {selection?<GlassSurface lens material="regular" radius={28} style={{marginHorizontal:12,marginTop:5,marginBottom:10}} contentStyle={{flexDirection:'row',justifyContent:'space-around',alignItems:'center',paddingVertical:8}}>
       {([
-        {icon:'arrow-redo-outline',label:'Переслать',on:()=>{setForwardMany(selectedMessages);},ok:selectedMessages.length>0},
+        {icon:'arrow-redo-outline',label:'Переслать',on:()=>{const list=selectedMessages;void forwardable(list).then(ok=>{if(ok)setForwardMany(list);});},ok:selectedMessages.length>0},
         {icon:'share-outline',label:'Поделиться',on:()=>{void shareMessages(selectedMessages);setSelection(null);},ok:selectedMessages.length>0},
         {icon:'bookmark-outline',label:'В Избранное',on:()=>{selectedMessages.forEach(saveToFavorites);setSelection(null);},ok:selectedMessages.length>0},
         {icon:'trash-outline',label:'Удалить',on:()=>setDeleteAsk(true),ok:selectedMessages.length>0,danger:true},
@@ -363,7 +367,7 @@ export function ChatScreen({api,user,chat,store,onBack,wide=false,onOpenMusic}: 
       {!locked&&(actions?.message?.text||actions?.pending?.text)?<MenuItem icon="copy-outline" label="Скопировать" onPress={()=>void copy(actions?.message?.text||actions?.pending?.text||'')}/>:null}
       {!locked&&(actions?.message?.attachment||actions?.pending?.attachment)?<MenuItem icon="download-outline" label="Сохранить" onPress={()=>{const a=actions?.message?.attachment||actions?.pending?.attachment;setActions(null);if(a)void download(a);}}/>:null}
       {actions?.message&&actions.message.cryptoState==='decrypted'?<MenuItem icon={view.pinned?.clientId===actions.message.clientId?'pin':'pin-outline'} label={view.pinned?.clientId===actions.message.clientId?'Открепить':'Закрепить'} onPress={()=>{const m=actions.message!;store.sendAction(chat.id,{type:'pin',target:view.pinned?.clientId===m.clientId?null:m.clientId},m.text);setActions(null);}}/>:null}
-      {!locked&&actions?.message&&actions.message.cryptoState==='decrypted'?<MenuItem icon="arrow-redo-outline" label="Переслать" onPress={()=>{setForwarding(actions.message!);setActions(null);}}/>:null}
+      {!locked&&actions?.message&&actions.message.cryptoState==='decrypted'?<MenuItem icon="arrow-redo-outline" label="Переслать" onPress={()=>{const item=actions.message!;void forwardable([item]).then(ok=>{if(ok)setForwarding(item);});setActions(null);}}/>:null}
       {actions?.message&&actions.message.senderId===user.id&&actions.message.cryptoState==='decrypted'&&actions.message.text?<MenuItem icon="create-outline" label="Изменить" onPress={()=>{setReplyTo(null);setEditing(actions.message!);store.setDraft(chat.id,actions.message!.text);setActions(null);}}/>:null}
       {!locked&&actions?.message&&actions.message.cryptoState==='decrypted'?<MenuItem icon="share-outline" label="Поделиться" onPress={()=>{const row=actions;setActions(null);void shareMessages(rowMessages(row));}}/>:null}
       {actions?.message?<MenuItem icon="checkmark-circle-outline" label="Выбрать" onPress={()=>startSelect(actions)}/>:null}

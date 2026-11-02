@@ -25,17 +25,27 @@ export const CATEGORIES = [
 export type CategoryId = typeof CATEGORIES[number]['id'];
 export const categoryLabel = (id: string | null | undefined) => CATEGORIES.find(item => item.id === id)?.label || 'Канал';
 export type CommunityMessage = { id: number; channelId: string; senderId: string; text: string; attachment: { id: string; name: string; mimeType: string; size: number } | null; replyTo: number | null; createdAt: string; editedAt: string | null };
-export type CommunitySummary = { id: string; kind: CommunityKind; category?: CategoryId | null; name: string; description: string; avatarId: string | null; ownerId: string; createdAt: string; memberCount: number; isMember: boolean; perms: number; lastMessage: CommunityMessage | null; muted: boolean };
+export type CommunitySummary = { id: string; kind: CommunityKind; category?: CategoryId | null; closed?: boolean; name: string; description: string; avatarId: string | null; ownerId: string; createdAt: string; memberCount: number; isMember: boolean; perms: number; lastMessage: CommunityMessage | null; muted: boolean };
 export type CommunityRole = { id: string; name: string; color: string; position: number; perms: number; isDefault: boolean };
 export type VoiceMember = { userId: string; muted: boolean };
 export type CommunityChannel = { id: string; kind: 'text' | 'voice'; name: string; topic: string; category: string; position: number; roleIds: string[]; voice?: VoiceMember[]; lastMessageId: number };
 export type Community = CommunitySummary & { roles: CommunityRole[]; myRoleIds: string[]; channels: CommunityChannel[] };
 export type CommunityMember = { user: User; roleIds: string[]; owner: boolean; joinedAt: string };
-export type InvitePreview = { code: string; community: { id: string; kind: CommunityKind; category?: CategoryId | null; name: string; description: string; avatarId: string | null; memberCount: number }; isMember: boolean };
+export type InvitePreview = { code: string; community: { id: string; kind: CommunityKind; category?: CategoryId | null; closed?: boolean; name: string; description: string; avatarId: string | null; memberCount: number }; isMember: boolean };
 export const can = (community: Pick<CommunitySummary, 'perms'>, bit: number) => (community.perms & bit) !== 0;
 
-/** Invite code from an in-app or web invite link (linea://invite/CODE or https://host/i/CODE). */
+/**
+ * Invite links are recognised only on our own addresses (invizent://, linea:// and
+ * https://(api.)invizent.com/i/CODE or the legacy server address). A look-alike on any
+ * other host stays plain text: no banner, so nobody can dress up a foreign link as a
+ * channel. The banner itself always opens by code through our server.
+ */
+const INVITE_LINK = /(^|[\s(«"'])(?:(?:invizent|linea):\/\/invite\/|https:\/\/(?:(?:api\.)?invizent\.com|141-133-194-51\.nip\.io)\/i\/)([A-Za-z0-9]{6,16})(?![A-Za-z0-9])/;
 export function inviteCodeFrom(text: string): string | null {
-  const match = text.match(/(?:linea:\/\/invite\/|https?:\/\/[^\s/]+\/i\/)([A-Za-z0-9]{6,16})(?![A-Za-z0-9])/);
-  return match ? match[1] : null;
+  const match = text.match(INVITE_LINK);
+  return match ? match[2] : null;
+}
+/** Message text without the invite link: the link is shown as the banner only. */
+export function withoutInviteLink(text: string): string {
+  return text.replace(new RegExp(INVITE_LINK.source, 'g'), '$1').replace(/[ \t]+\n/g, '\n').replace(/\n{3,}/g, '\n\n').trim();
 }

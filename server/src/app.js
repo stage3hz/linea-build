@@ -329,6 +329,7 @@ export async function buildApp({
   };
   db.exec(COMMUNITY_SCHEMA);
   if (!db.prepare('PRAGMA table_info(communities)').all().some(column => column.name === 'category')) db.exec('ALTER TABLE communities ADD COLUMN category TEXT');
+  if (!db.prepare('PRAGMA table_info(communities)').all().some(column => column.name === 'closed')) db.exec('ALTER TABLE communities ADD COLUMN closed INTEGER NOT NULL DEFAULT 0 CHECK(closed IN (0,1))');
   if (!db.prepare('PRAGMA table_info(uploads)').all().some(column => column.name === 'purpose')) db.exec("ALTER TABLE uploads ADD COLUMN purpose TEXT NOT NULL DEFAULT 'profile'");
   // Voice channels: who is connected where (in memory). Audio flows peer to peer (WebRTC,
   // DTLS-SRTP, through TURN when needed); the server only relays signalling between members.

@@ -18,7 +18,7 @@ import { PollBubble } from './PollBubble';
 import { bigEmojiCount } from './messageMeta';
 import { AnimatedEmoji, bigEmoji } from './platina/AnimatedEmoji';
 import { InviteCard } from './communities/InviteCard';
-import { inviteCodeFrom } from './communities/types';
+import { inviteCodeFrom, withoutInviteLink } from './communities/types';
 import { navigate } from './navigation';
 
 export type AlbumPart = { attachment: Attachment; message?: ViewMessage; pending?: PendingMessage };
@@ -87,10 +87,9 @@ function MessageRowView({ row, olderCreatedAt, mine, author, peerLastRead, wide,
   const t = useTheme(); const screenWidth = useWindowDimensions().width;
   const message = row.message; const p = row.pending;
   const poll = message?.meta?.poll || p?.meta?.poll;
-  const body = poll ? '' : message?.text || p?.text || ''; const file = row.album ? null : message?.attachment || p?.attachment;
+  const rawBody = poll ? '' : message?.text || p?.text || ''; const invite = rawBody ? inviteCodeFrom(rawBody) : null; const body = invite ? withoutInviteLink(rawBody) : rawBody; const file = row.album ? null : message?.attachment || p?.attachment;
   const emoji = !file && !poll && !row.album ? bigEmojiCount(body) : 0;
   const animatedParts = emoji && animatedEmoji ? bigEmoji(body) : null;
-  const invite = body && !emoji ? inviteCodeFrom(body) : null;
   const visual = !!file && !p?.upload && visualKind(file) && !isVideoNote(file);
   const bare = (visual && !body) || !!row.album && !body || emoji > 0;
   // Telegram for iPhone (compact layout): media up to 300×380 pt, at least 170×74 pt, inset 2 pt inside the bubble.
