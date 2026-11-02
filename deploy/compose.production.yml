@@ -45,6 +45,8 @@ services:
       REQUIRE_CLIENT_HEADER: ${REQUIRE_CLIENT_HEADER:-}
       ATTEST_KEY: ${ATTEST_KEY:-}
       ATTEST_MODE: ${ATTEST_MODE:-off}
+      # App update manifest (deploy/release.sh writes deploy/secrets/release.json).
+      RELEASE_MANIFEST: /secrets/release.json
     volumes:
       - linea-data:/data
       - ./secrets:/secrets:ro

@@ -51,6 +51,8 @@ const app = await buildApp({
   // Request signing: ATTEST_KEY (same as the one baked into builds) + ATTEST_MODE=warn|enforce.
   attestKey: process.env.ATTEST_KEY || '',
   attestModeSetting: process.env.ATTEST_MODE || 'off',
+  // Written by deploy/release.sh; the app offers this version for download.
+  releaseManifest: process.env.RELEASE_MANIFEST || null,
 });
 
 let stopping = false;

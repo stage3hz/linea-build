@@ -31,6 +31,7 @@
     ],
     "files": [
       "main.cjs",
+      "update.cjs",
       "preload.cjs",
       "capture-preload.cjs",
       "signal.mjs",

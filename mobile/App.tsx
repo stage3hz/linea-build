@@ -1,5 +1,7 @@
+import { UpdateGate } from './src/update/UpdateScreen';
+import { checkForUpdate } from './src/update/store';
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { ActivityIndicator, BackHandler, Linking, Platform, Pressable, View, useColorScheme, useWindowDimensions } from 'react-native';
+import { ActivityIndicator, AppState, BackHandler, Linking, Platform, Pressable, View, useColorScheme, useWindowDimensions } from 'react-native';
 import { Text } from './src/typography';
 import { SafeAreaProvider, SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { StatusBar } from 'expo-status-bar';
@@ -81,6 +83,8 @@ export default function App() {
     finally{setBooting(false);}
   },[]);
   useEffect(()=>{void initialize();},[initialize]);
+  // Ask the server whether a newer (or required) version exists: at start and when returning to the app.
+  useEffect(()=>{void checkForUpdate();const sub=AppState.addEventListener('change',state=>{if(state==='active')void checkForUpdate();});return()=>sub.remove();},[]);
   useEffect(()=>{void clearPhotoCache().catch(()=>{});void clearVideoCache().catch(()=>{});},[]);
   useEffect(()=>{if(!guestMusicOpen||session)return;const sub=BackHandler.addEventListener('hardwareBackPress',()=>{setGuestMusicOpen(false);return true;});return()=>sub.remove();},[guestMusicOpen,session]);
   useEffect(()=>{if(Platform.OS==='web'&&typeof document!=='undefined'){document.title='Инвиз — личные разговоры';document.body.style.backgroundColor=theme.bg;}},[theme.bg]);
@@ -115,11 +119,11 @@ export default function App() {
   const saveThemePreference=(pending:Promise<void>)=>{const revision=++themeSaveRevision.current;setThemeError('');void pending.catch(()=>{if(revision===themeSaveRevision.current)setThemeError('Оформление изменено, но не сохранилось на устройстве. Выбери его ещё раз, чтобы повторить сохранение.');});};
   const changeTheme=(value:ThemeMode)=>{setMode(value);saveThemePreference(writeTheme(value));};
   const changeDarkTheme=(value:DarkTheme)=>{setDarkTheme(value);saveThemePreference(writeDarkTheme(value));};
-  return <GestureHandlerRootView style={{flex:1}}><KeyboardProvider statusBarTranslucent navigationBarTranslucent><SafeAreaProvider><MotionRoot/><ThemeContext.Provider value={theme}><GlassStage><StatusBar style={theme.dark?'light':'dark'}/><MusicProvider key={`${server||'unconfigured'}:${session?.user.id||'guest'}`}><SafeAreaView style={{flex:1,backgroundColor:'transparent'}}>
+  return <GestureHandlerRootView style={{flex:1}}><KeyboardProvider statusBarTranslucent navigationBarTranslucent><SafeAreaProvider><MotionRoot/><ThemeContext.Provider value={theme}><GlassStage><StatusBar style={theme.dark?'light':'dark'}/><MusicProvider key={`${server||'unconfigured'}:${session?.user.id||'guest'}`}><SafeAreaView style={{flex:1,backgroundColor:'transparent'}}><UpdateGate>
     {themeError?<View style={{padding:12}}><Notice text={themeError} error/></View>:null}
     {booting?<View style={{flex:1}}/>:guestMusicOpen&&!session?<MusicScreen onBack={()=>setGuestMusicOpen(false)}/>:bootError?<View style={{flex:1}}><ThemeAccess mode={mode} darkTheme={darkTheme} onChange={changeTheme} onDarkTheme={changeDarkTheme} onMusic={()=>setGuestMusicOpen(true)}/><View style={{flex:1,justifyContent:'center',padding:28}}><View style={{maxWidth:420,width:'100%',alignSelf:'center',gap:17}}><Empty icon="cloud-offline-outline" title="Не получилось подключиться" description={bootError}/><Button label="Повторить" onPress={()=>void initialize()} icon="refresh-outline"/></View></View></View>:!server?<View style={{flex:1}}><ThemeAccess mode={mode} darkTheme={darkTheme} onChange={changeTheme} onDarkTheme={changeDarkTheme} onMusic={()=>setGuestMusicOpen(true)}/><ConnectScreen onConnect={connect}/></View>:!session?<View style={{flex:1}}><ThemeAccess mode={mode} darkTheme={darkTheme} onChange={changeTheme} onDarkTheme={changeDarkTheme} onMusic={()=>setGuestMusicOpen(true)}/>{authNotice?<View style={{padding:14,paddingBottom:0}}><Notice text={authNotice}/></View>:null}<AuthScreen key={server} api={api} onLogin={login} onChangeServer={()=>void changeServer()}/></View>:<Messenger key={`${server}:${session.user.id}`} api={api} session={session} onUser={user=>setSession(current=>current?.token===session.token&&current.user.id===user.id?{...current,user}:current)} themeMode={mode} darkTheme={darkTheme} onTheme={changeTheme} onDarkTheme={changeDarkTheme} onLogout={logout} onExpired={()=>expired(session.token)} onCredentialsChanged={credentialsChanged} onSensitiveActionPending={securityPending}/>}
     {!booting&&!session&&!guestMusicOpen?<MiniPlayer onOpen={()=>setGuestMusicOpen(true)}/>:null}
-  </SafeAreaView><FullPlayerHost onSource={(url:string)=>{void Linking.openURL(url).catch(()=>{});}}/></MusicProvider></GlassStage></ThemeContext.Provider></SafeAreaProvider></KeyboardProvider></GestureHandlerRootView>;
+  </UpdateGate></SafeAreaView><FullPlayerHost onSource={(url:string)=>{void Linking.openURL(url).catch(()=>{});}}/></MusicProvider></GlassStage></ThemeContext.Provider></SafeAreaProvider></KeyboardProvider></GestureHandlerRootView>;
 }
 
 function ThemeAccess({mode,darkTheme,onChange,onDarkTheme,onMusic}:{mode:ThemeMode;darkTheme:DarkTheme;onChange:(value:ThemeMode)=>void;onDarkTheme:(value:DarkTheme)=>void;onMusic:()=>void}) {

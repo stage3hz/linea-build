@@ -4,6 +4,7 @@ import { toByteArray } from 'base64-js';
 import type { UserProfile } from './types';
 import { APP_VERSION } from './serverConfig';
 import { attestHeaders } from './attest/index';
+import { markUpdateRequired } from './update/store';
 import type { Attachment, Chat, DeviceSession, LocalFile, Message, RecoveryChallenge, RecoveryRequest, RecoveryStatus, SecurityStatus, Session, User, UsernameStatus } from './types';
 import type { ClaimedBundle, CryptoDevice, EncryptedMessage, PublicBundle } from './e2ee/types';
 
@@ -57,6 +58,7 @@ export class Api {
       const response = await fetch(this.base + path, { credentials: 'omit', cache: 'no-store', redirect: 'error', ...options, headers: { ...headers, ...(options.headers || {}) }, signal: abort.signal });
       const data = await response.json().catch(() => ({}));
       if(abort.signal.aborted)throw abortError();
+      if (response.status === 426) markUpdateRequired();
       if (!response.ok) throw new ApiError(typeof data.error === 'string' ? data.error : 'Не удалось выполнить запрос. Попробуй ещё раз.', response.status, data);
       return data as T;
     } catch (error) {

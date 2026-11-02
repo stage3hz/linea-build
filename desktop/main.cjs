@@ -3,12 +3,14 @@ if (!app.requestSingleInstanceLock()) { app.quit(); } else {
 const path = require('node:path');
 const fs = require('node:fs/promises');
 const { randomUUID } = require('node:crypto');
+const { createUpdater } = require('./update.cjs');
 const { pathToFileURL } = require('node:url');
 protocol.registerSchemesAsPrivileged([{ scheme: 'invizent', privileges: { standard: true, secure: true, supportFetchAPI: true, stream: true } }, { scheme: 'invizent-cache', privileges: { standard: true, secure: true, supportFetchAPI: true, stream: true, corsEnabled: true } }]);
 let window, cacheRoot, picker = null, capture = null;
 app.on('second-instance', () => { if (window) { if (window.isMinimized()) window.restore(); window.show(); window.focus(); } });
 const cachePath = uri => { const url = new URL(uri); if (url.protocol !== 'invizent-cache:' || url.hostname !== 'local') throw new Error('Invalid cache URI'); const target=path.resolve(cacheRoot,'.'+decodeURIComponent(url.pathname)); if (target !== cacheRoot && !target.startsWith(cacheRoot+path.sep)) throw new Error('Invalid cache path'); return target; };
 const vaults = new Map(), scopes = new Map(), requests = new Map();
+const update = createUpdater({ tempDir: () => app.getPath('temp') });
 const ready = Promise.all([import('./signal.mjs'), import('./vault.mjs')]);
 const trusted = event => event.sender === window?.webContents && event.senderFrame === window.webContents.mainFrame && event.senderFrame.url.startsWith('invizent://app/');
 async function vault(scope) {
@@ -75,6 +77,17 @@ ipcMain.handle('invizent', async (event, method, ...args) => {
     if (method === 'vaultCommit') { if (!value || Array.isArray(value) || typeof value !== 'object') throw new Error('Invalid commit'); return store.commit(value); }
     // Vault instances are shared across account services; a renderer handle closes independently.
     vaults.delete(id); return;
+  }
+  if (method === 'updateDownload') return update.download(args[0], args[1], args[2]);
+  if (method === 'updateProgress') return update.progress();
+  if (method === 'updateCancel') { update.cancel(); return; }
+  if (method === 'updateInstall') {
+    const file = update.verifiedFile();
+    if (!file) throw new Error('No verified update to install');
+    const problem = await shell.openPath(file);
+    if (problem) throw new Error(problem);
+    setTimeout(() => app.quit(), 1500); // the installer replaces the running app
+    return true;
   }
   if (method === 'tokenRead') return (await vault('invizent:desktop:session')).get('token');
   if (method === 'tokenWrite') { if (args[0] !== null && typeof args[0] !== 'string') throw new Error('Invalid token'); return (await vault('invizent:desktop:session')).commit({ token: args[0] }); }
