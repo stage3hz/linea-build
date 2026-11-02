@@ -41,3 +41,15 @@ test('requireHeader refuses header-less and garbled clients', () => {
   assert.equal(clientGateDecision(parseClientInfo('invizent; p=ios'), opts).code, 'CLIENT_UNKNOWN');
   assert.equal(clientGateDecision(parseClientInfo('invizent; v=0.14.2; p=ios'), opts), null);
 });
+
+test('browsers may send the version and signature headers (CORS)', async t => {
+  const os = await import('node:os'), path = await import('node:path'), { mkdtemp, rm } = await import('node:fs/promises');
+  const { buildApp } = await import('../src/app.js');
+  const dataDir = await mkdtemp(path.join(os.tmpdir(), 'linea-cors-'));
+  const app = await buildApp({ dataDir, logger: false, allowedOrigins: ['https://web.example'] });
+  t.after(async () => { await app.close(); await rm(dataDir, { recursive: true, force: true }); });
+  const pre = await app.inject({ method: 'OPTIONS', url: '/auth/login', headers: { origin: 'https://web.example', 'access-control-request-method': 'POST', 'access-control-request-headers': 'x-linea-client,x-linea-attest' } });
+  const allowed = pre.headers['access-control-allow-headers'].toLowerCase();
+  for (const h of ['x-linea-client', 'x-linea-attest', 'authorization', 'content-type']) assert.ok(allowed.includes(h), h);
+  for (const m of ['PUT', 'DELETE']) assert.ok(pre.headers['access-control-allow-methods'].includes(m), m);
+});

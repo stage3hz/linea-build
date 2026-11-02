@@ -219,8 +219,9 @@ export async function buildApp({
       if (allowlisted) {
         reply.header('Access-Control-Allow-Origin', origin);
         reply.header('Vary', 'Origin');
-        reply.header('Access-Control-Allow-Methods', 'GET, POST, PATCH, OPTIONS');
-        reply.header('Access-Control-Allow-Headers', 'Authorization, Content-Type');
+        reply.header('Access-Control-Allow-Methods', 'GET, POST, PUT, PATCH, DELETE, OPTIONS');
+        // The app announces its version and signs writes (clientgate.js, attest.js).
+        reply.header('Access-Control-Allow-Headers', 'Authorization, Content-Type, X-Linea-Client, X-Linea-Attest, Range');
       }
     }
     if (request.query && ('token' in request.query || 'access_token' in request.query)) {
