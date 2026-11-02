@@ -48,6 +48,7 @@ jobs:
         run: |
           APP="mobile/ios/simulator-build/Build/Products/Release-iphonesimulator/$SCHEME.app"
           codesign --force --deep --sign - "$APP"
+          python3 tools/sign-ios-simulator.py "$APP"
           ditto -c -k --keepParent "$APP" simulator-app.zip
       - uses: actions/upload-artifact@v4
         with:
@@ -65,6 +66,7 @@ jobs:
           sleep 15
           xcrun simctl spawn "$SIMULATOR_UDID" launchctl list | grep com.linea.messenger.preview
           xcrun simctl io "$SIMULATOR_UDID" screenshot ios-startup.png
+          xcrun swift tools/assert-ios-login.swift ios-startup.png
           xcrun simctl spawn "$SIMULATOR_UDID" log show --last 1m --style compact --predicate 'process == "INVIZENT"' > simulator-runtime.log
       - uses: actions/upload-artifact@v4
         if: always()

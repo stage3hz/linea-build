@@ -45,6 +45,7 @@ jobs:
           APP=restored/INVIZENT.app
           test -n "$(/usr/libexec/PlistBuddy -c 'Print :CFBundleDisplayName' "$APP/PlugIns/ScreenBroadcast.appex/Info.plist")"
           otool -l "$APP/INVIZENT" | grep -A4 LC_BUILD_VERSION | grep -q 'platform 7'
+          python3 tools/sign-ios-simulator.py "$APP"
           xcrun simctl list devices available --json > simulators.json
           python3 - <<'PY'
           import json,os,re
@@ -67,6 +68,7 @@ jobs:
           sleep 15
           xcrun simctl spawn "$SIMULATOR_UDID" launchctl list | grep com.linea.messenger.preview
           xcrun simctl io "$SIMULATOR_UDID" screenshot ios-startup.png
+          xcrun swift tools/assert-ios-login.swift ios-startup.png
       - name: Collect runtime log
         if: always() && env.SIMULATOR_UDID != ''
         continue-on-error: true
