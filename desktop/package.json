@@ -48,7 +48,7 @@
         "nsis"
       ],
       "artifactName": "INVIZENT-${version}-Windows-x64.exe",
-      "icon": "../mobile/assets/icon.png"
+      "icon": "../mobile/assets/icons/outline.png"
     },
     "nsis": {
       "oneClick": false,
