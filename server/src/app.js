@@ -15,6 +15,7 @@ import { createReadStream, createWriteStream } from 'node:fs';
 import { join, resolve } from 'node:path';
 import { Transform } from 'node:stream';
 import { pipeline } from 'node:stream/promises';
+import { CALL_MODES, canCall, installCallPrivacyRoutes, migrateCallPrivacy } from './callprivacy.js';
 import { openDatabase, transaction, publicUser as serializePublicUser, publicChat, publicMessage, publicAttachment, privacyOf, effectivePrivacy, PLATINA_PRIVACY, userForViewer, receiptsVisible, presenceVisible, chatSettings } from './database.js';
 import { isAvatarFrame, isBannerPreset, isProfileEffect, isNameplate, MAX_PROFILE_VIDEO_BYTES, videoMime } from './cosmetics.js';
 import { platinaState } from './entitlements.js';
@@ -290,6 +291,8 @@ export async function buildApp({
   db.exec(PUSH_SCHEMA);
   { const columns = new Set(db.prepare('PRAGMA table_info(users)').all().map(column => column.name)); for (const column of ['profile_effect', 'nameplate']) if (!columns.has(column)) db.exec(`ALTER TABLE users ADD COLUMN ${column} TEXT`); }
   db.exec(MODERATION_SCHEMA);
+  migrateCallPrivacy(db);
+  installCallPrivacyRoutes({ app, db, authOptions, publicUser, timestamp });
   installModerationRoutes({ app, db, authOptions, publicUser, timestamp, limiter });
   installSoundCloudRoutes({ app, authOptions, soundcloud, limiter });
   // Push token of this signed-in device. It lives as long as the session: a revoked or
@@ -426,7 +429,7 @@ export async function buildApp({
   app.get('/me/privacy', authOptions, async request => privacyResponse(request.auth.user_id));
 
   app.patch('/me/privacy', authOptions, async request => {
-    const body = objectBody(request.body, ['allowNewChats', 'showAvatar', 'readReceipts', 'showLastSeen']);
+    const body = objectBody(request.body, ['allowNewChats', 'showAvatar', 'readReceipts', 'showLastSeen', 'calls']);
     const userId = request.auth.user_id;
     const next = { ...privacyOf(db, userId) };
     const platinaActive = platinaState(db, userId, now()).active;
@@ -436,9 +439,10 @@ export async function buildApp({
       if (body[key] === false && PLATINA_PRIVACY.includes(key) && !platinaActive) fail(403, 'Скрывать это можно с Platina.', { code: 'PLATINA_REQUIRED' });
       next[key] = body[key];
     }
-    db.prepare(`INSERT INTO user_privacy(user_id,allow_new_chats,show_avatar,read_receipts,show_last_seen,updated_at) VALUES(?,?,?,?,?,?)
-      ON CONFLICT(user_id) DO UPDATE SET allow_new_chats=excluded.allow_new_chats,show_avatar=excluded.show_avatar,read_receipts=excluded.read_receipts,show_last_seen=excluded.show_last_seen,updated_at=excluded.updated_at`)
-      .run(userId, next.allowNewChats ? 1 : 0, next.showAvatar ? 1 : 0, next.readReceipts ? 1 : 0, next.showLastSeen ? 1 : 0, timestamp());
+    if (body.calls !== undefined) { if (!CALL_MODES.includes(body.calls)) fail(400, 'Неизвестная настройка звонков.'); next.calls = body.calls; }
+    db.prepare(`INSERT INTO user_privacy(user_id,allow_new_chats,show_avatar,read_receipts,show_last_seen,calls,updated_at) VALUES(?,?,?,?,?,?,?)
+      ON CONFLICT(user_id) DO UPDATE SET allow_new_chats=excluded.allow_new_chats,show_avatar=excluded.show_avatar,read_receipts=excluded.read_receipts,show_last_seen=excluded.show_last_seen,calls=excluded.calls,updated_at=excluded.updated_at`)
+      .run(userId, next.allowNewChats ? 1 : 0, next.showAvatar ? 1 : 0, next.readReceipts ? 1 : 0, next.showLastSeen ? 1 : 0, next.calls, timestamp());
     broadcastPresence(userId);
     // Peers get a fresh view of the avatar and of read receipts.
     for (const { chat_id } of db.prepare('SELECT chat_id FROM chat_members WHERE user_id=?').all(userId)) emitChat(chat_id);
@@ -509,6 +513,7 @@ export async function buildApp({
     if (peerMember && blockedBetween(db, senderId, peerMember.user_id)) fail(403, 'Переписка с этим пользователем недоступна.', { code: 'BLOCKED' });
     const body = objectBody(request.body, ['text', 'attachmentId', 'clientId', 'encrypted', 'push']);
     if (body.push !== undefined && !PUSH_KINDS.has(body.push)) fail(400, 'Некорректный вид уведомления.');
+    if (body.push === 'call' && peerMember && !canCall(db, senderId, peerMember.user_id)) fail(403, 'Этот человек ограничил, кто может ему звонить.', { code: 'CALLS_RESTRICTED' });
     if (body.text !== undefined || body.attachmentId !== undefined || !body.encrypted) {
       fail(400, 'Сообщения принимаются только в зашифрованном виде.', { code: 'E2EE_PLAINTEXT_REJECTED' });
     }

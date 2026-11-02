@@ -128,10 +128,10 @@ export function publicUser(row, { db, now = Date.now } = {}) {
   };
 }
 
-const PRIVACY_DEFAULTS = { allowNewChats: true, showAvatar: true, readReceipts: true, showLastSeen: true };
+const PRIVACY_DEFAULTS = { allowNewChats: true, showAvatar: true, readReceipts: true, showLastSeen: true, calls: 'everyone' };
 export function privacyOf(db, userId) {
   const row = db.prepare('SELECT * FROM user_privacy WHERE user_id=?').get(userId);
-  return row ? { allowNewChats: row.allow_new_chats === 1, showAvatar: row.show_avatar === 1, readReceipts: row.read_receipts === 1, showLastSeen: row.show_last_seen !== 0 } : { ...PRIVACY_DEFAULTS };
+  return row ? { allowNewChats: row.allow_new_chats === 1, showAvatar: row.show_avatar === 1, readReceipts: row.read_receipts === 1, showLastSeen: row.show_last_seen !== 0, calls: row.calls || 'everyone' } : { ...PRIVACY_DEFAULTS };
 }
 
 /** A serialized user as another account may see it. The owner always sees everything. */

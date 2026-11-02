@@ -28,6 +28,7 @@ import { WallpaperPicker } from './WallpaperPicker';
 import { DecoratedAvatar, ProfileBanner } from './platina/Decor';
 import { PlatinaGem, PlatinaName, PlatinaSeal, hasPlatina, openPlatinaShowcase } from './platina/PlatinaMark';
 import { usePlatina } from './platina/usePlatina';
+import { CallPrivacy } from './privacy/CallPrivacy';
 import { lightFeedback } from './haptics';
 import { LANGUAGES, getLanguage, setLanguage, tr, useLanguage } from './i18n';
 import { fileLimits, type FileLimits } from './e2ee/attachments';
@@ -225,6 +226,9 @@ function PrivacySection({ api }: { api: Api }) {
         <Toggle label="Время захода и «в сети»" badge={platina ? undefined : 'Platina'} description={platina ? 'Взаимно: если скрыть, ты тоже не увидишь, когда собеседник был в сети.' : 'Скрывать время захода можно с Platina.'} value={privacy.showLastSeen !== false} disabled={saving || !platina} onChange={value => void change({ showLastSeen: value })} />
         <Toggle label="Отчёты о прочтении" badge={platina ? undefined : 'Platina'} description={platina ? 'Взаимно: если выключить, ты тоже не увидишь, прочитали ли твои сообщения.' : 'Скрывать прочтение можно с Platina.'} value={privacy.readReceipts} disabled={saving || !platina} onChange={value => void change({ readReceipts: value })} />
       </>}
+    </Group>
+    <Group label="Звонки">
+      {!privacy ? <ActivityIndicator color={t.accent} style={{ padding: 20 }} /> : <CallPrivacy api={api} mode={privacy.calls || 'everyone'} disabled={saving} onMode={calls => void change({ calls })} />}
     </Group>
     <Group label="На этом устройстве">
       <Toggle label="Показывать «печатает…»" description="Собеседник видит, что ты набираешь сообщение." value={preferences.sendTyping} onChange={value => setChatPreferences({ sendTyping: value })} />

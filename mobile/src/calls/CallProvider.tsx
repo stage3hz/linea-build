@@ -102,6 +102,10 @@ export function CallProvider({ api, store, me, children }: { api: Api; store: Me
     setCall({ id, chat, peer: chat.peer, incoming: false, video, status: 'requesting', muted: false, speaker: video, cameraOff: false, startedAt: null, endedText: '', key: null, localUrl: null, remoteUrl: null });
     void (async () => {
       try {
+        // The callee decides who may ring them (Настройки → Конфиденциальность → Звонки).
+        const permission = await api.callPermission(chat.peer.id).catch(() => ({ allowed: true }));
+        if (!permission.allowed) { finish('Этот человек ограничил, кто может ему звонить'); return; }
+        if (callRef.current?.id !== id) return;
         try { inCall.current?.start?.({ media: video ? 'video' : 'audio' }); inCall.current?.setForceSpeakerphoneOn?.(video); } catch { /* optional */ }
         const { connection, localUrl } = await prepare(video);
         patch({ localUrl });
@@ -114,7 +118,7 @@ export function CallProvider({ api, store, me, children }: { api: Api; store: Me
         ringTimer.current = setTimeout(() => { if (callRef.current?.id === id && callRef.current.status === 'ringing') finish('Нет ответа', 'missed'); }, RING_TIMEOUT_MS);
       } catch (error) { finish(error instanceof Error ? error.message : 'Не удалось начать звонок'); }
     })();
-  }, [music, prepare, finish]);
+  }, [api, music, prepare, finish]);
 
   const accept = useCallback(async () => {
     const current = callRef.current; if (!current || current.status !== 'incoming' || !current.remoteSdp) return;
@@ -137,6 +141,12 @@ export function CallProvider({ api, store, me, children }: { api: Api; store: Me
   }, [music, prepare, finish]);
 
   // Incoming signals from the encrypted message stream.
+  const ring = (chat: Chat, action: { call: string; video?: boolean; sdp?: string }, _message: Message) => {
+    if (callRef.current) { signal(chat.id, { type: 'call', call: action.call, step: 'end', reason: 'busy' }); return; }
+    setCall({ id: action.call, chat, peer: chat.peer, incoming: true, video: !!action.video, status: 'incoming', muted: false, speaker: !!action.video, cameraOff: false, startedAt: null, endedText: '', key: null, localUrl: null, remoteUrl: null, remoteSdp: action.sdp });
+    void playCallSound('incoming'); Vibration.vibrate([0, 600, 900], true);
+    ringTimer.current = setTimeout(() => { if (callRef.current?.id === action.call && callRef.current.status === 'incoming') finish('Пропущенный звонок'); }, RING_TIMEOUT_MS);
+  };
   useEffect(() => store.onCallSignal((message: Message) => {
     const action = message.meta?.action; if (!action || action.type !== 'call') return;
     const current = callRef.current;
@@ -158,12 +168,14 @@ export function CallProvider({ api, store, me, children }: { api: Api; store: Me
       if (!offerIsFresh(message.createdAt, Date.now(), seen.current, action.call)) return;
       seen.current.add(action.call);
       const chat = storeRef.current.chats.find(c => c.id === message.chatId); if (!chat) return;
-      if (current) { signal(chat.id, { type: 'call', call: action.call, step: 'end', reason: 'busy' }); return; }
-      setCall({ id: action.call, chat, peer: chat.peer, incoming: true, video: !!action.video, status: 'incoming', muted: false, speaker: !!action.video, cameraOff: false, startedAt: null, endedText: '', key: null, localUrl: null, remoteUrl: null, remoteSdp: action.sdp });
-      void playCallSound('incoming'); Vibration.vibrate([0, 600, 900], true);
-      ringTimer.current = setTimeout(() => { if (callRef.current?.id === action.call && callRef.current.status === 'incoming') finish('Пропущенный звонок'); }, RING_TIMEOUT_MS);
+      // A modified client could skip the server check; this phone still never rings for a caller it must not.
+      void api.callPermission(message.senderId, 'incoming').then(({ allowed }) => {
+        if (!allowed) signal(chat.id, { type: 'call', call: action.call, step: 'end', reason: 'declined' });
+        else ring(chat, action, message);
+      }).catch(() => ring(chat, action, message));
       return;
     }
+
     if (!current || current.id !== action.call) return;
     if (action.step === 'answer' && action.sdp && (current.status === 'active' || current.status === 'connecting') && pc.current?.signalingState === 'have-local-offer') {
       const webrtc = rtc.current; if (webrtc) void pc.current.setRemoteDescription(new webrtc.RTCSessionDescription({ type: 'answer', sdp: action.sdp })).catch(() => {});
@@ -180,7 +192,7 @@ export function CallProvider({ api, store, me, children }: { api: Api; store: Me
       return;
     }
     if (action.step === 'end') finish(action.reason === 'declined' ? 'Звонок отклонён' : action.reason === 'busy' ? 'Собеседник занят' : action.reason === 'missed' ? 'Пропущенный звонок' : 'Звонок завершён');
-  }), [store.onCallSignal, finish]);
+  }), [store.onCallSignal, finish, api]);
 
   useEffect(() => cleanup, [cleanup]);
 

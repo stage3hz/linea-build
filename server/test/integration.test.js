@@ -586,7 +586,7 @@ test('privacy: new chats, avatar visibility and mutual read receipts are enforce
   const alice = await register(app, 'alice_priv'), bob = await register(app, 'bob_priv'), carol = await register(app, 'carol_priv');
   const defaults = await request(app, 'GET', '/me/privacy', alice);
   assert.equal(defaults.statusCode, 200);
-  assert.deepEqual(defaults.json().privacy, { allowNewChats: true, showAvatar: true, readReceipts: true, showLastSeen: true });
+  assert.deepEqual(defaults.json().privacy, { allowNewChats: true, showAvatar: true, readReceipts: true, showLastSeen: true, calls: 'everyone' });
   assert.equal((await request(app, 'PATCH', '/me/privacy', alice, { allowNewChats: 'no' })).statusCode, 400);
   assert.equal((await request(app, 'PATCH', '/me/privacy', alice, { unknown: true })).statusCode, 400);
 
@@ -964,4 +964,33 @@ test('requireClientHeader turns away anything not announcing a known version', a
   const headerless = await app.inject({ method: 'POST', url: '/auth/login', payload: {} });
   assert.equal(headerless.statusCode, 426);
   assert.equal(headerless.json().code, 'CLIENT_UNKNOWN');
+});
+
+test('call privacy: everyone / friends only / allowed only, and a never list by account, enforced by the server', async t => {
+  const { app } = await fixture(t);
+  const alice = await register(app, 'alice'), bob = await register(app, 'bob'), carol = await register(app, 'carol');
+  const ab = await newChat(app, alice, bob), cb = await newChat(app, carol, bob);
+  const offer = (from, chat, id) => request(app, 'POST', `/chats/${chat.id}/messages`, from, { clientId: id, encrypted: envelopeFor(from, chat), push: 'call' });
+  const may = async (from, to) => (await request(app, 'GET', `/calls/permission/${to.user.id}`, from)).json().allowed;
+  assert.equal((await offer(alice, ab, 'call-0001')).statusCode, 201, 'everyone may call by default');
+  assert.equal((await request(app, 'PATCH', '/me/privacy', bob, { calls: 'contacts' })).json().privacy.calls, 'contacts');
+  assert.equal((await offer(alice, ab, 'call-0002')).json().code, 'CALLS_RESTRICTED');
+  assert.equal(await may(alice, bob), false);
+  await request(app, 'PUT', `/contacts/${alice.user.id}`, bob);
+  assert.equal((await offer(alice, ab, 'call-0003')).statusCode, 201, 'a friend may call');
+  assert.equal(await may(carol, bob), false);
+  await request(app, 'PATCH', '/me/privacy', bob, { calls: 'allowed' });
+  assert.equal(await may(alice, bob), false, 'friends are not enough in «allowed only»');
+  assert.equal((await request(app, 'PUT', `/me/call-rules/${carol.user.id}`, bob, { rule: 'allow' })).json().allow[0].id, carol.user.id);
+  assert.equal(await may(carol, bob), true);
+  assert.equal((await request(app, 'GET', `/calls/permission/${carol.user.id}?direction=incoming`, bob)).json().allowed, true);
+  await request(app, 'PATCH', '/me/privacy', bob, { calls: 'everyone' });
+  await request(app, 'PUT', `/me/call-rules/${alice.user.id}`, bob, { rule: 'deny' });
+  assert.equal((await offer(alice, ab, 'call-0004')).json().code, 'CALLS_RESTRICTED', 'the never list wins even for everyone');
+  assert.equal((await offer(carol, cb, 'call-0005')).statusCode, 201);
+  // Ordinary messages are not affected by call privacy.
+  assert.equal((await request(app, 'POST', `/chats/${ab.id}/messages`, alice, { clientId: 'msg-00001', encrypted: envelopeFor(alice, ab) })).statusCode, 201);
+  assert.equal((await request(app, 'PATCH', '/me/privacy', bob, { calls: 'nobody?' })).statusCode, 400);
+  await request(app, 'DELETE', `/me/call-rules/${alice.user.id}`, bob);
+  assert.equal(await may(alice, bob), true);
 });

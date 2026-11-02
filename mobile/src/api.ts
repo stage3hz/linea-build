@@ -14,7 +14,9 @@ const deviceName = desktopBridge() ? 'Windows' : Platform.OS === 'ios' ? 'iPhone
 const clientPlatform = desktopBridge() ? 'windows' : Platform.OS;
 export const CLIENT_HEADER = `invizent; v=${APP_VERSION}; p=${clientPlatform}`;
 
-export type Privacy = { allowNewChats: boolean; showAvatar: boolean; readReceipts: boolean; showLastSeen?: boolean };
+export type CallMode = 'everyone' | 'contacts' | 'allowed';
+export type Privacy = { allowNewChats: boolean; showAvatar: boolean; readReceipts: boolean; showLastSeen?: boolean; calls?: CallMode };
+export type CallRules = { allow: User[]; deny: User[] };
 /** `platinaOnly`: settings that only an active Platina may switch off. */
 export type PrivacyResponse = { privacy: Privacy; platinaOnly?: (keyof Privacy)[]; platina?: boolean };
 
@@ -138,6 +140,11 @@ export class Api {
   read = (chatId: string, messageId: number) => this.request<{ok: boolean; lastReadMessageId: number}>(`/chats/${encodeURIComponent(chatId)}/read`, {method: 'POST', body: JSON.stringify({messageId})});
   privacy = () => this.request<PrivacyResponse>('/me/privacy');
   updatePrivacy = (change: Partial<Privacy>) => this.request<PrivacyResponse>('/me/privacy', {method: 'PATCH', body: JSON.stringify(change)});
+  callRules = () => this.request<CallRules>('/me/call-rules');
+  setCallRule = (userId: string, rule: 'allow' | 'deny') => this.request<CallRules>(`/me/call-rules/${encodeURIComponent(userId)}`, {method: 'PUT', body: JSON.stringify({rule})});
+  removeCallRule = (userId: string) => this.request<CallRules>(`/me/call-rules/${encodeURIComponent(userId)}`, {method: 'DELETE'});
+  /** outgoing: may I call them; incoming: may they call me. */
+  callPermission = (userId: string, direction: 'outgoing' | 'incoming' = 'outgoing') => this.request<{allowed: boolean}>(`/calls/permission/${encodeURIComponent(userId)}${direction === 'incoming' ? '?direction=incoming' : ''}`);
   profile = (fields: Partial<Pick<User, 'displayName'|'bio'|'avatarColor'|'avatarId'|'avatarVideoId'|'avatarFrame'|'bannerId'|'bannerPreset'|'profileEffect'|'nameplate'>>) => this.request<{user: User}>('/me', {method: 'PATCH', body: JSON.stringify(fields)});
   changeLoginName = (newLogin: string, currentPassword: string, currentConfirmationWord?: string) => this.request<{ok: true; loginName: string}>('/auth/login-name', { method: 'POST', body: JSON.stringify({ newLogin, currentPassword, currentConfirmationWord }) });
   callIce = () => this.request<{iceServers: {urls: string[]; username?: string; credential?: string}[]; ttl: number}>('/calls/ice');
