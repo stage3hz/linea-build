@@ -1863,5 +1863,6 @@
 "Закрытый канал": "Closed channel",
 "Закрытый сервер": "Closed server",
 "Баннер приглашения нельзя переслать дальше — попасть можно только по ссылке, которую дашь ты.": "The invite banner cannot be forwarded — people get in only through the link you give them.",
-"Приглашение в закрытый канал или на закрытый сервер переслать нельзя.": "An invite to a closed channel or server cannot be forwarded."
+"Приглашение в закрытый канал или на закрытый сервер переслать нельзя.": "An invite to a closed channel or server cannot be forwarded.",
+"Нет доступа к микрофону. Подключи микрофон и разреши его Инвизу в «Параметры Windows → Конфиденциальность → Микрофон».": "No microphone access. Connect a microphone and allow it for Invizent in “Windows Settings → Privacy → Microphone”."
 }

@@ -1,5 +1,5 @@
 import React, { createContext, useCallback, useContext, useEffect, useRef, useState } from 'react';
-import { ActivityIndicator, Pressable, View, type LayoutChangeEvent } from 'react-native';
+import { ActivityIndicator, Platform, Pressable, View, type LayoutChangeEvent } from 'react-native';
 import * as FileSystem from 'expo-file-system/legacy';
 import {
   AudioQuality, IOSOutputFormat, requestRecordingPermissionsAsync, setAudioModeAsync,
@@ -52,7 +52,7 @@ export function useVoiceRecorder(onLimit: () => void) {
     busy.current = true;
     try {
       const permission = await requestRecordingPermissionsAsync();
-      if (!permission.granted) throw new Error('Нет доступа к микрофону. Разреши его для Инвиза в настройках телефона, чтобы записывать голосовые.');
+      if (!permission.granted) throw new Error(Platform.OS === 'web' ? 'Нет доступа к микрофону. Подключи микрофон и разреши его Инвизу в «Параметры Windows → Конфиденциальность → Микрофон».' : 'Нет доступа к микрофону. Разреши его для Инвиза в настройках телефона, чтобы записывать голосовые.');
       music.stop();
       await setAudioModeAsync({ ...PLAYBACK_MODE, allowsRecording: true, shouldPlayInBackground: false });
       await recorder.prepareToRecordAsync();

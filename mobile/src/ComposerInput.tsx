@@ -1,5 +1,5 @@
 import React, { useEffect, useRef, useState } from 'react';
-import { type TextInputProps } from 'react-native';
+import { type TextInput as RNTextInput, type TextInputProps } from 'react-native';
 import { TextInput } from './typography';
 
 /**
@@ -10,15 +10,18 @@ import { TextInput } from './typography';
  * under the keyboard. Past `maxHeight` it scrolls. A controlled multiline input on iOS keeps
  * its grown height when the value is cleared, so the field is remounted once the text empties.
  */
-export function ComposerInput({ minHeight = 44, maxHeight = 136, style, value, ...props }: TextInputProps & { minHeight?: number; maxHeight?: number }) {
+export function ComposerInput({ minHeight = 44, maxHeight = 136, style, value, focusKey, ...props }: TextInputProps & { minHeight?: number; maxHeight?: number; focusKey?: string | null }) {
   const [generation, setGeneration] = useState(0);
+  const input = useRef<RNTextInput>(null);
+  // «Ответить» / «Изменить»: the cursor goes straight into the field, so typing just works.
+  useEffect(() => { if (focusKey) { const id = setTimeout(() => input.current?.focus(), 60); return () => clearTimeout(id); } }, [focusKey]);
   const had = useRef(!!value), focused = useRef(false);
   useEffect(() => {
     if (had.current && !value) setGeneration(n => n + 1);
     had.current = !!value;
   }, [value]);
   // A remount after sending keeps the keyboard up: the new field takes focus again.
-  return <TextInput key={generation} {...props} value={value} multiline scrollEnabled autoFocus={generation > 0 && focused.current}
+  return <TextInput ref={input} key={generation} {...props} value={value} multiline scrollEnabled autoFocus={generation > 0 && focused.current}
     onFocus={event => { focused.current = true; props.onFocus?.(event); }} onBlur={event => { focused.current = false; props.onBlur?.(event); }}
     style={[style, { minHeight, maxHeight }]} />;
 }
