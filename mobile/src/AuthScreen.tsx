@@ -8,6 +8,7 @@ import { useTheme } from './theme';
 import { isDevelopmentHttpAllowed, normalizeServer } from './storage';
 import type { RecoveryChallenge, Session } from './types';
 import { ManualField } from './auth/ManualField';
+import { AppMark } from './auth/AuthBackdrop';
 import { clearRecovery, readRecovery, saveRecovery } from './auth/recoveryStorage';
 
 export function ConnectScreen({initialUrl='',onConnect}: {initialUrl?:string;onConnect:(url:string)=>Promise<void>}) {
@@ -279,12 +280,15 @@ export function AuthScreen({api,onLogin,onChangeServer}: {api:Api;onLogin:(sessi
   const disabled=busy||restoring;
   const wordHelp=<Text style={{color:t.muted,fontSize:12,lineHeight:18}}>От 4 до 64 русских или английских букв, без пробелов. Регистр не важен; «е» и «ё» различаются.</Text>;
 
-  return <KeyboardAvoidingView style={{flex:1,backgroundColor:'transparent'}} behavior={Platform.OS==='ios'?'padding':undefined}>
-    <ScrollView keyboardShouldPersistTaps="handled" contentContainerStyle={{flexGrow:1,justifyContent:'center',paddingHorizontal:22,paddingVertical:25}}>
+  return <View style={{flex:1}}><KeyboardAvoidingView style={{flex:1,backgroundColor:'transparent'}} behavior={Platform.OS==='ios'?'padding':undefined}>
+    <ScrollView keyboardShouldPersistTaps="handled" contentContainerStyle={{flexGrow:1,justifyContent:'center',paddingHorizontal:22,paddingVertical:28}}>
       <View style={{width:'100%',maxWidth:440,alignSelf:'center'}}>
-        <View style={{flexDirection:'row',alignItems:'center',gap:12,marginBottom:23,paddingHorizontal:6}}><Logo size={43}/><Text style={{color:t.text,fontSize:25,fontWeight:'800',letterSpacing:-1,flex:1}}>Инвиз</Text><View style={{flexDirection:'row',alignItems:'center',gap:5}}><Icon name="shield-checkmark-outline" color={t.muted} size={16}/><Text style={{color:t.muted,fontSize:10}}>Без почты и SMS</Text></View></View>
-        <View style={{paddingHorizontal:6,marginBottom:22}}><Text style={{color:t.text,fontSize:35,lineHeight:40,fontWeight:'800',letterSpacing:-1.3}}>{titles[mode]}</Text><Text style={{color:t.muted,fontSize:14,lineHeight:21,marginTop:12}}>{descriptions[mode]}</Text></View>
-        <GlassSurface material="regular" radius={30} contentStyle={{padding:21,gap:18}}>
+        <View style={{alignItems:'center',marginBottom:26,gap:16}}>
+          <AppMark size={isLogin||isRegister?84:64}/>
+          <Text style={{color:t.muted,fontSize:11,fontWeight:'700',letterSpacing:4}}>ИНВИЗ</Text>
+        </View>
+        <View style={{paddingHorizontal:4,marginBottom:24,alignItems:'center'}}><Text style={{color:t.text,fontSize:34,lineHeight:39,fontWeight:'800',letterSpacing:-1.2,textAlign:'center'}}>{titles[mode]}</Text><Text style={{color:t.muted,fontSize:14,lineHeight:21,marginTop:12,textAlign:'center',maxWidth:340}}>{descriptions[mode]}</Text></View>
+        <GlassSurface material="regular" radius={32} contentStyle={{padding:22,gap:18}}>
           {isLogin||isRegister?<View style={{flexDirection:'row',padding:4,backgroundColor:t.dark?'rgba(0,0,0,0.18)':'rgba(97,113,149,0.08)',borderRadius:19,borderWidth:1,borderColor:t.border}}>
             {[{title:'Войти',register:false},{title:'Создать аккаунт',register:true}].map(tab=><Pressable key={tab.title} disabled={disabled} onPress={()=>switchFlow(tab.register)} accessibilityRole="tab" accessibilityState={{selected:isRegister===tab.register}} style={{flex:1,minHeight:43,alignItems:'center',justifyContent:'center',borderRadius:15,borderWidth:1,borderColor:isRegister===tab.register?t.glassBorder:'transparent',backgroundColor:isRegister===tab.register?(t.dark?'rgba(255,255,255,0.12)':'rgba(255,255,255,0.82)'):'transparent'}}><Text style={{color:isRegister===tab.register?t.text:t.muted,fontWeight:isRegister===tab.register?'700':'500',fontSize:12}}>{tab.title}</Text></Pressable>)}
           </View>:null}
@@ -319,7 +323,10 @@ export function AuthScreen({api,onLogin,onChangeServer}: {api:Api;onLogin:(sessi
           {isLogin?<Pressable disabled={disabled} accessibilityRole="button" onPress={()=>{generation.current++;clearSecrets();go('recover');}} style={{minHeight:44,alignItems:'center',justifyContent:'center'}}><Text style={{color:t.accent,fontSize:13,fontWeight:'700'}}>Забыл пароль?</Text></Pressable>:null}
           {mode!=='login-name'&&mode!=='register-name'?<Pressable disabled={disabled} accessibilityRole="button" onPress={back} style={{minHeight:44,flexDirection:'row',alignItems:'center',justifyContent:'center',gap:6}}><Icon name="chevron-back" color={t.muted} size={15}/><Text style={{color:t.muted,fontSize:13}}>{mode==='recover'||mode==='waiting'||mode==='reset'?'Вернуться ко входу':'Назад'}</Text></Pressable>:null}
         </GlassSurface>
+        <View style={{flexDirection:'row',flexWrap:'wrap',justifyContent:'center',gap:8,marginTop:22}}>
+          {([['lock-closed-outline','Сквозное шифрование'],['mail-unread-outline','Без почты и SMS'],['key-outline','Ключи только у тебя']] as const).map(([icon,label])=><View key={label} style={{flexDirection:'row',alignItems:'center',gap:6,paddingHorizontal:11,paddingVertical:7,borderRadius:14,borderWidth:1,borderColor:t.border,backgroundColor:t.dark?'rgba(255,255,255,0.03)':'rgba(255,255,255,0.4)'}}><Icon name={icon} size={13} color={t.accent}/><Text style={{color:t.muted,fontSize:11,fontWeight:'600'}}>{label}</Text></View>)}
+        </View>
       </View>
     </ScrollView>
-  </KeyboardAvoidingView>;
+  </KeyboardAvoidingView></View>;
 }

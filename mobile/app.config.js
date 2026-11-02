@@ -13,7 +13,8 @@ module.exports = {
     slug: 'linea-messenger',
     version: "0.14.2",
     orientation: 'portrait',
-    icon: './assets/icon.png',
+    // Default icon: white outline N on black («Контур»). The blue one is an alternate.
+    icon: './assets/icons/outline.png',
     scheme: 'linea',
     userInterfaceStyle: 'automatic',
     backgroundColor: '#080F1E',
@@ -40,8 +41,8 @@ module.exports = {
       ...(development ? { googleServicesFile: './google-services.json' } : {}),
       allowBackup: false,
       adaptiveIcon: {
-        foregroundImage: './assets/adaptive-icon.png',
-        backgroundColor: '#07070A',
+        foregroundImage: './assets/icons/outline-android.png',
+        backgroundColor: '#0C0C0E',
       },
       blockedPermissions: ["android.permission.ACCESS_MEDIA_LOCATION","android.permission.WRITE_EXTERNAL_STORAGE","android.permission.READ_MEDIA_AUDIO","android.permission.ACCESS_COARSE_LOCATION","android.permission.ACCESS_FINE_LOCATION","android.permission.ACCESS_BACKGROUND_LOCATION","android.permission.SYSTEM_ALERT_WINDOW","android.permission.QUERY_ALL_PACKAGES","android.permission.PACKAGE_USAGE_STATS","android.permission.MANAGE_EXTERNAL_STORAGE","android.permission.READ_CONTACTS","android.permission.WRITE_CONTACTS","android.permission.READ_CALENDAR","android.permission.WRITE_CALENDAR"],
     },
@@ -87,7 +88,9 @@ module.exports = {
       // Alternate app icons (Настройки → Оформление → Иконка приложения).
       ['expo-alternate-app-icons', [
         { name: 'Light', ios: './assets/icons/light.png', android: { foregroundImage: './assets/icons/light-android.png', backgroundColor: '#F5F4F9' } },
+        // Kept although it now equals the default: removing a chosen Android alias on update can hide the app from the launcher.
         { name: 'Outline', ios: './assets/icons/outline.png', android: { foregroundImage: './assets/icons/outline-android.png', backgroundColor: '#0C0C0E' } },
+        { name: 'Blue', ios: './assets/icons/default.png', android: { foregroundImage: './assets/icons/default-android.png', backgroundColor: '#07070A' } },
         { name: 'Aurora', ios: './assets/icons/aurora.png', android: { foregroundImage: './assets/icons/aurora-android.png', backgroundColor: '#162563' } },
       ]],
       './.linea-ios-cloud-setup/withLocalPrivacy.cjs',

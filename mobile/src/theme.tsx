@@ -1,5 +1,6 @@
 import React, { createContext, useContext } from 'react';
 import { getLanguage } from './i18n';
+import { paletteThemes, type PaletteId } from './themes/palettes';
 
 export type Theme = {
   dark:boolean; black:boolean; bg:string; surface:string; surface2:string; text:string; muted:string;
@@ -10,7 +11,7 @@ export type Theme = {
   accentGradient:readonly [string,string];
 };
 
-export const palette:Record<'light'|'dark'|'black',Theme> = {
+const basePalette:Record<'light'|'dark'|'black',Theme> = {
   light: {
     dark:false, black:false, bg:'#EDF3FB', surface:'rgba(250,252,255,0.88)', surface2:'rgba(225,233,247,0.62)', text:'#14243D',
     muted:'#5C6E88', border:'rgba(81,109,154,0.17)', accent:'#3568E7', accentSoft:'rgba(70,113,239,0.11)',
@@ -42,6 +43,8 @@ export const palette:Record<'light'|'dark'|'black',Theme> = {
     accentGradient:['#F2F2F2','#BFBFBF'],
   },
 };
+/** Built-in themes plus the colour palettes (Аметист, Кофе, …). */
+export const palette:Record<'light'|'dark'|'black'|PaletteId,Theme> = { ...basePalette, ...paletteThemes };
 export const ThemeContext = createContext<Theme>(palette.light);
 export const useTheme = () => useContext(ThemeContext);
 

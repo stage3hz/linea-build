@@ -11,9 +11,9 @@ function iconModule(): IconModule | null {
 }
 
 export const APP_ICONS = [
-  { id: null, label: 'Синяя', image: require('../assets/icons/default.png') },
+  { id: null, label: 'Контур', image: require('../assets/icons/outline.png') },
+  { id: 'Blue', label: 'Синяя', image: require('../assets/icons/default.png') },
   { id: 'Light', label: 'Светлая', image: require('../assets/icons/light.png') },
-  { id: 'Outline', label: 'Контур', image: require('../assets/icons/outline.png') },
   { id: 'Aurora', label: 'Сияние', image: require('../assets/icons/aurora.png') },
 ] as const;
 
@@ -22,7 +22,8 @@ export function AppIconPicker() {
   const [current, setCurrent] = useState<string | null>(null);
   const [busy, setBusy] = useState<string | null | undefined>(undefined);
   const [error, setError] = useState('');
-  useEffect(() => { try { setCurrent(native?.getAppIconName() ?? null); } catch { /* unknown */ } }, []);
+  // 'Outline' is the same picture as the default now; show it as «Контур».
+  useEffect(() => { try { const name = native?.getAppIconName() ?? null; setCurrent(name === 'Outline' ? null : name); } catch { /* unknown */ } }, []);
   if (!native || !native.supportsAlternateIcons) return <Text style={{ color: t.muted, fontSize: 12, padding: 14 }}>Смена иконки недоступна на этом устройстве.</Text>;
   const choose = async (id: string | null) => {
     if (id === current || busy !== undefined) return;
