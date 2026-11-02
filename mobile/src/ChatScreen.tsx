@@ -81,6 +81,8 @@ export function ChatScreen({api,user,chat,store,onBack,wide=false,onOpenMusic}: 
   const [searchOpen,setSearchOpen]=useState(false);const [query,setQuery]=useState('');
   const [notice,setNotice]=useState('');
   const [selection,setSelection]=useState<Set<string>|null>(null);
+  // Desktop: Esc leaves multi-select (as in every desktop messenger).
+  useEffect(()=>{if(Platform.OS!=='web'||!selection||typeof window==='undefined')return;const onKey=(event:KeyboardEvent)=>{if(event.key==='Escape'){event.preventDefault();setSelection(null);}};window.addEventListener('keydown',onKey);return()=>window.removeEventListener('keydown',onKey);},[selection]);
   // Rows present when the chat opened do not animate; new ones slide in.
   const seen=useRef<Set<string>|null>(null);
   const [forwardMany,setForwardMany]=useState<ViewMessage[]|null>(null);
