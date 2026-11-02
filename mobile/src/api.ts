@@ -2,11 +2,15 @@ import { desktopBridge } from './desktop';
 import { Platform } from 'react-native';
 import { toByteArray } from 'base64-js';
 import type { UserProfile } from './types';
+import { APP_VERSION } from './serverConfig';
 import type { Attachment, Chat, DeviceSession, LocalFile, Message, RecoveryChallenge, RecoveryRequest, RecoveryStatus, SecurityStatus, Session, User, UsernameStatus } from './types';
 import type { ClaimedBundle, CryptoDevice, EncryptedMessage, PublicBundle } from './e2ee/types';
 
 type ApiErrorDetails = { code?: string; attemptsRemaining?: number; retryAfterSeconds?: number; readyAt?: string; serverTime?: string; expiresAt?: string };
 const deviceName = desktopBridge() ? 'Windows' : Platform.OS === 'ios' ? 'iPhone / iPad' : Platform.OS === 'android' ? 'Android' : 'Браузер';
+// Announce the real build to the server so retired versions can be turned away.
+const clientPlatform = desktopBridge() ? 'windows' : Platform.OS;
+export const CLIENT_HEADER = `invizent; v=${APP_VERSION}; p=${clientPlatform}`;
 
 export type Privacy = { allowNewChats: boolean; showAvatar: boolean; readReceipts: boolean; showLastSeen?: boolean };
 /** `platinaOnly`: settings that only an active Platina may switch off. */
@@ -48,7 +52,7 @@ export class Api {
     const abortError=()=>{const error=new Error('Запрос отменён.');error.name='AbortError';return error;};
     try {
       if(abort.signal.aborted)throw abortError();
-      const headers: Record<string, string> = { ...(options.body && !(options.body instanceof FormData) ? { 'Content-Type': 'application/json' } : {}), ...(this.token ? { Authorization: `Bearer ${this.token}` } : {}) };
+      const headers: Record<string, string> = { 'X-Linea-Client': CLIENT_HEADER, ...(options.body && !(options.body instanceof FormData) ? { 'Content-Type': 'application/json' } : {}), ...(this.token ? { Authorization: `Bearer ${this.token}` } : {}) };
       const response = await fetch(this.base + path, { credentials: 'omit', cache: 'no-store', redirect: 'error', ...options, headers: { ...headers, ...(options.headers || {}) }, signal: abort.signal });
       const data = await response.json().catch(() => ({}));
       if(abort.signal.aborted)throw abortError();
@@ -67,7 +71,7 @@ export class Api {
     const cancel = () => abort.abort(); caller?.addEventListener('abort', cancel, { once: true });
     const timeout = setTimeout(cancel, requestTimeout(path));
     try {
-      const response = await fetch(this.base + path, { credentials: 'omit', cache: 'no-store', redirect: 'error', ...options, headers: { 'Content-Type': 'application/json', ...(this.token ? { Authorization: `Bearer ${this.token}` } : {}) }, signal: abort.signal });
+      const response = await fetch(this.base + path, { credentials: 'omit', cache: 'no-store', redirect: 'error', ...options, headers: { 'X-Linea-Client': CLIENT_HEADER, 'Content-Type': 'application/json', ...(this.token ? { Authorization: `Bearer ${this.token}` } : {}) }, signal: abort.signal });
       if (!response.ok) {
         const data = await response.json().catch(() => ({}));
         throw new ApiError(typeof data.error === 'string' ? data.error : 'Не удалось выполнить запрос. Попробуй ещё раз.', response.status, data);

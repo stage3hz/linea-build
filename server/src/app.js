@@ -1,4 +1,5 @@
 import { installCallRoutes } from './calls.js';
+import { parseClientInfo, clientGateDecision } from './clientgate.js';
 import { PUSH_SCHEMA, PUSH_KINDS, chatNotification, migratePushTokens } from './push.js';
 import { MODERATION_SCHEMA, installModerationRoutes, blockedBetween, deleteAccount } from './moderation.js';
 import { installSoundCloudRoutes } from './soundcloud.js';
@@ -66,6 +67,9 @@ export async function buildApp({
   aiApiKey = '',
   aiProviderConfig = {},
   aiFetch = globalThis.fetch,
+  // Client version gate (clientgate.js). null = allow every client, including header-less.
+  minClientVersion = null,
+  requireClientHeader = false,
   now = () => Date.now(),
 } = {}) {
   if (!Number.isFinite(sessionTtlMs) || sessionTtlMs <= 0) throw new Error('sessionTtlMs must be positive');
@@ -211,6 +215,12 @@ export async function buildApp({
     }
     if (request.query && ('token' in request.query || 'access_token' in request.query)) {
       fail(400, 'Передавайте токен только в заголовке Authorization или первом сообщении WebSocket.');
+    }
+    // Version gate: health check and CORS preflight always pass.
+    if (request.method !== 'OPTIONS' && request.url !== '/health') {
+      request.clientInfo = parseClientInfo(request.headers['x-linea-client']);
+      const refusal = clientGateDecision(request.clientInfo, { minVersion: minClientVersion, requireHeader: requireClientHeader });
+      if (refusal) fail(426, refusal.message, { code: refusal.code });
     }
   });
   app.options('/*', async (_request, reply) => reply.code(204).send());

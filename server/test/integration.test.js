@@ -941,3 +941,27 @@ test('administrator report list shows who, whom and why, and closes reports', as
     assert.throws(() => resolveReport(db, report.id));
   } finally { db.close(); }
 });
+
+test('client version gate refuses retired builds end-to-end but never blocks /health', async t => {
+  const { open } = await fixture(t, { minClientVersion: '0.14.2' });
+  const app = await open();
+  const health = await app.inject({ method: 'GET', url: '/health', headers: { 'x-linea-client': 'invizent; v=0.1.0; p=ios' } });
+  assert.equal(health.statusCode, 200, 'health is always reachable so the client can detect the server');
+  const old = await app.inject({ method: 'POST', url: '/auth/login', headers: { 'x-linea-client': 'invizent; v=0.14.1; p=android' }, payload: {} });
+  assert.equal(old.statusCode, 426);
+  assert.equal(old.json().code, 'CLIENT_TOO_OLD');
+  // A current build passes the gate (then fails validation normally, not with 426).
+  const current = await app.inject({ method: 'POST', url: '/auth/login', headers: { 'x-linea-client': 'invizent; v=0.14.2; p=android' }, payload: {} });
+  assert.notEqual(current.statusCode, 426);
+  // No header, no requireClientHeader: allowed through (old browsers, curl, health probes).
+  const headerless = await app.inject({ method: 'POST', url: '/auth/login', payload: {} });
+  assert.notEqual(headerless.statusCode, 426);
+});
+
+test('requireClientHeader turns away anything not announcing a known version', async t => {
+  const { open } = await fixture(t, { minClientVersion: '0.14.2', requireClientHeader: true });
+  const app = await open();
+  const headerless = await app.inject({ method: 'POST', url: '/auth/login', payload: {} });
+  assert.equal(headerless.statusCode, 426);
+  assert.equal(headerless.json().code, 'CLIENT_UNKNOWN');
+});

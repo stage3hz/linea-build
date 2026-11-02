@@ -45,6 +45,9 @@ const app = await buildApp({
   aiApiKey: (process.env.AI_PROVIDER === 'freellmapi' ? process.env.AI_API_KEY : process.env.OPENROUTER_API_KEY) || '',
   turn: process.env.TURN_SECRET ? { secret: process.env.TURN_SECRET, host: process.env.TURN_HOST || '' } : null,
   aiProviderConfig: { provider: process.env.AI_PROVIDER || 'openrouter', baseUrl: process.env.AI_BASE_URL || '', model: process.env.AI_MODEL || '' },
+  // Refuse clients older than MIN_CLIENT_VERSION (x.y.z). Unset = allow all.
+  minClientVersion: process.env.MIN_CLIENT_VERSION || null,
+  requireClientHeader: process.env.REQUIRE_CLIENT_HEADER === '1',
 });
 
 let stopping = false;

@@ -3,3 +3,8 @@ export const SERVER_URL = 'https://api.invizent.com';
 // Earlier builds connected through this address. Encrypted local data (keys, history,
 // Избранное, AI history) created there is reused so nothing is lost after the switch.
 export const LEGACY_SERVER_URLS = ['https://141-133-194-51.nip.io'];
+
+// Version this build reports to the server (header X-Linea-Client). The server
+// may refuse clients it has retired (see server/src/clientgate.js). Bump this
+// together with app.config.js version at every release.
+export const APP_VERSION = '0.14.2';
