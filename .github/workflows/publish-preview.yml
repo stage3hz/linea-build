@@ -5,20 +5,20 @@ on:
       release_tag:
         description: Preview release tag
         required: true
-        default: v0.14.0
+        default: v0.14.2
       mobile_version:
         description: Version inside the verified APK and IPA
         required: true
-        default: '0.14.0'
+        default: '0.14.2'
       windows_run_id:
         description: Successful Windows desktop run
         required: true
-        default: '41357316009'
+        default: '41363733977'
       ios_run_id:
         description: Successful unsigned IPA run (optional until ready)
         required: false
       apk_commit:
-        description: Commit containing the verified APK in builds/0.14.0
+        description: Commit containing the verified APK and SHA256SUMS
         required: true
 permissions:
   contents: write
@@ -46,10 +46,12 @@ jobs:
           [[ "$WINDOWS_RUN" =~ ^[0-9]+$ ]]
           test "$(gh api repos/$GH_REPO/actions/runs/$WINDOWS_RUN --jq .conclusion)" = success
           SOURCE=$(gh api repos/$GH_REPO/actions/runs/$WINDOWS_RUN --jq .head_sha)
+          test "$(git show "$SOURCE:desktop/package.json" | jq -r .version)" = "${RELEASE_TAG#v}"
           if [ -n "$IOS_RUN" ]; then
             [[ "$IOS_RUN" =~ ^[0-9]+$ ]]
             test "$(gh api repos/$GH_REPO/actions/runs/$IOS_RUN --jq .conclusion)" = success
             IOS_SOURCE=$(gh api repos/$GH_REPO/actions/runs/$IOS_RUN --jq .head_sha)
+            test "$(git show "$IOS_SOURCE:mobile/package.json" | jq -r .version)" = "$MOBILE_VERSION"
             # Desktop-only fixes may follow the iOS build. Shared/native mobile
             # inputs must be identical; tests and web-only adapters are excluded.
             git diff --exit-code "$SOURCE" "$IOS_SOURCE" -- mobile/ ':(glob,exclude)mobile/test/**' ':(glob,exclude)mobile/src/**/*.web.ts' ':(glob,exclude)mobile/src/**/*.web.tsx'

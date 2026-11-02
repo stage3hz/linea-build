@@ -1,0 +1,84 @@
+name: iOS Simulator test compiled app
+on:
+  workflow_dispatch:
+    inputs:
+      app_run_id:
+        description: Run containing ios-simulator-app artifact
+        required: true
+        default: '41363791103'
+      ios_runtime:
+        description: Installed iOS runtime version
+        required: true
+        default: '26.2'
+permissions:
+  contents: read
+  actions: read
+jobs:
+  smoke:
+    runs-on: macos-26
+    timeout-minutes: 20
+    env:
+      GH_TOKEN: ${{ github.token }}
+      GH_REPO: ${{ github.repository }}
+      APP_RUN: ${{ inputs.app_run_id }}
+      IOS_RUNTIME: ${{ inputs.ios_runtime }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - name: Verify compiled source matches current mobile tree
+        run: |
+          set -euo pipefail
+          [[ "$APP_RUN" =~ ^[0-9]+$ ]]
+          SOURCE=$(gh api repos/$GH_REPO/actions/runs/$APP_RUN --jq .head_sha)
+          test "$(gh api repos/$GH_REPO/actions/runs/$APP_RUN/jobs --jq '.jobs[].steps[]|select(.name=="Compile real simulator app")|.conclusion')" = success
+          git diff --exit-code "$SOURCE" HEAD -- mobile/
+      - uses: actions/download-artifact@v4
+        with:
+          name: ios-simulator-app
+          path: restored
+          run-id: ${{ inputs.app_run_id }}
+          github-token: ${{ github.token }}
+      - name: Restore and validate simulator binary
+        run: |
+          unzip -q restored/simulator-app.zip -d restored
+          APP=restored/INVIZENT.app
+          test -n "$(/usr/libexec/PlistBuddy -c 'Print :CFBundleDisplayName' "$APP/PlugIns/ScreenBroadcast.appex/Info.plist")"
+          otool -l "$APP/INVIZENT" | grep -A4 LC_BUILD_VERSION | grep -q 'platform 7'
+          xcrun simctl list devices available --json > simulators.json
+          python3 - <<'PY'
+          import json,os,re
+          requested=tuple(map(int,os.environ['IOS_RUNTIME'].split('.')))
+          devices=json.load(open('simulators.json'))['devices']
+          phones=[d for runtime,items in devices.items() if 'iOS' in runtime and tuple(map(int,re.findall(r'\d+',runtime)))==requested for d in items if 'iPhone' in d['name']]
+          if not phones: raise SystemExit('Requested iPhone runtime unavailable')
+          phone=next((d for d in phones if 'Pro' in d['name']),phones[0])
+          with open(os.environ['GITHUB_ENV'],'a') as out:out.write('SIMULATOR_UDID='+phone['udid']+'\n')
+          print(phone['name'],requested)
+          PY
+      - name: Boot, install and capture startup screen
+        timeout-minutes: 10
+        run: |
+          set -euo pipefail
+          xcrun simctl boot "$SIMULATOR_UDID"
+          xcrun simctl bootstatus "$SIMULATOR_UDID" -b
+          xcrun simctl install "$SIMULATOR_UDID" restored/INVIZENT.app
+          xcrun simctl launch "$SIMULATOR_UDID" com.linea.messenger.preview | tee simulator-launch.log
+          sleep 15
+          xcrun simctl spawn "$SIMULATOR_UDID" launchctl list | grep com.linea.messenger.preview
+          xcrun simctl io "$SIMULATOR_UDID" screenshot ios-startup.png
+      - name: Collect runtime log
+        if: always() && env.SIMULATOR_UDID != ''
+        continue-on-error: true
+        timeout-minutes: 2
+        run: xcrun simctl spawn "$SIMULATOR_UDID" log show --last 2m --style compact --predicate 'process == "INVIZENT"' > simulator-runtime.log
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: ios-simulator-restored-startup
+          path: |
+            ios-startup.png
+            simulators.json
+            simulator-launch.log
+            simulator-runtime.log
+          if-no-files-found: ignore
