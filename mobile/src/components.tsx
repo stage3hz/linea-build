@@ -58,9 +58,9 @@ export function Field({label,error,style,onFocus,onBlur,...props}:TextInputProps
   </View>;
 }
 
-export function Notice({text,error=false,onRetry}:{text:string;error?:boolean;onRetry?:()=>void}) {
+export function Notice({text,error=false,onRetry,actionLabel='Повторить'}:{text:string;error?:boolean;onRetry?:()=>void;actionLabel?:string}) {
   const t=useTheme();return <View accessibilityRole="alert"><GlassSurface radius={18} shadow={false} contentStyle={{flexDirection:'row',gap:10,padding:14,alignItems:'flex-start'}}>
-    {error?<View pointerEvents="none" style={[StyleSheet.absoluteFill,{borderRadius:18,backgroundColor:t.dangerBg}]}/>:null}<Icon name={error?'alert-circle-outline':'information-circle-outline'} size={19} color={error?t.danger:t.accent}/><Text style={{flex:1,color:error?t.danger:t.text,fontSize:13,lineHeight:19}}>{text}</Text>{onRetry?<Pressable onPress={onRetry} accessibilityRole="button" hitSlop={10} style={{minHeight:28,justifyContent:'center'}}><Text style={{color:t.accent,fontWeight:'700',fontSize:12}}>Повторить</Text></Pressable>:null}
+    {error?<View pointerEvents="none" style={[StyleSheet.absoluteFill,{borderRadius:18,backgroundColor:t.dangerBg}]}/>:null}<Icon name={error?'alert-circle-outline':'information-circle-outline'} size={19} color={error?t.danger:t.accent}/><Text style={{flex:1,color:error?t.danger:t.text,fontSize:13,lineHeight:19}}>{text}</Text>{onRetry?<Pressable onPress={onRetry} accessibilityRole="button" hitSlop={10} style={{minHeight:28,justifyContent:'center'}}><Text style={{color:t.accent,fontWeight:'700',fontSize:12}}>{actionLabel}</Text></Pressable>:null}
   </GlassSurface></View>;
 }
 

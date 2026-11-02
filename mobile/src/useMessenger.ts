@@ -1,3 +1,4 @@
+import { UntrustedDeviceError } from './e2ee/core';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useSaved } from './saved/useSaved';
 import { useAIHistory } from './ai/history';
@@ -28,7 +29,7 @@ export function useMessenger(api: Api, user: User, onExpired: ()=>void) {
   const [chats,setChats]=useState<Chat[]>([]);
   const [messages,setMessages]=useState<Record<string,Message[]>>({});
   const [hasMore,setHasMore]=useState<Record<string,boolean>>({});
-  const [pending,setPending]=useState<PendingMessage[]>([]);
+  const [pending,setPending]=useState<PendingMessage[]>([]);const pendingRef=useRef(pending);pendingRef.current=pending;
   const [selectedId,setSelectedId]=useState<string|null>(null);
   const [connection,setConnection]=useState<Connection>('connecting');
   const [listLoading,setListLoading]=useState(true);
@@ -252,7 +253,7 @@ export function useMessenger(api: Api, user: User, onExpired: ()=>void) {
     catch(e){
       if(e instanceof ApiError&&e.code==='E2EE_DEVICES_CHANGED')await cryptoRuntime.get().then(crypto=>crypto.rejectedDeviceSet(item.chatId,item.clientId)).catch(()=>{});
       if(e instanceof Error&&e.name==='AbortError')return;
-      if(aliveRef.current){const message=checkError(e);setPending(prev=>prev.map(p=>p.clientId===item.clientId?{...p,...(item.upload?{upload:item.upload}:{}),state:'failed',error:message}:p));}
+      if(aliveRef.current){const message=checkError(e);if(e instanceof Error&&e.name==='UntrustedDeviceError')setCryptoError(message);setPending(prev=>prev.map(p=>p.clientId===item.clientId?{...p,...(item.upload?{upload:item.upload}:{}),state:'failed',error:message}:p));}
     }
   },[api,acceptMessage,checkError,refreshChats,cryptoRuntime]);
   /** Sends a big file at once as a bubble with upload progress (the draft flow is for small files). */
@@ -332,7 +333,10 @@ export function useMessenger(api: Api, user: User, onExpired: ()=>void) {
     await(await cryptoRuntime.get()).approveDevices(snapshot);
     if(selectedRef.current)await loadMessages(selectedRef.current);
     await refreshChats();
-  },[cryptoRuntime,loadMessages,refreshChats]);
+    // Messages that stopped only because these keys were not checked yet go out now.
+    const chatIds=new Set(chatsRef.current.filter(chat=>chat.peer?.id===snapshot.peerId).map(chat=>chat.id));
+    for(const item of pendingRef.current)if(item.state==='failed'&&chatIds.has(item.chatId)&&item.error===new UntrustedDeviceError().message)void performSend(item);
+  },[cryptoRuntime,loadMessages,refreshChats,performSend]);
   const updateChatSettings=useCallback(async(chatId:string,change:Partial<{pinned:boolean;archived:boolean;muted:boolean}>)=>{
     const {chat}=await api.chatSettings(chatId,change);
     setChats(previous=>previous.map(item=>item.id===chat.id?{...item,settings:chat.settings}:item));
