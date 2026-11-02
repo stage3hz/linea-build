@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { Modal, Platform, Pressable, ScrollView, StyleSheet, View, useWindowDimensions } from 'react-native';
-import Animated, { Easing, useAnimatedStyle, useSharedValue, withTiming } from 'react-native-reanimated';
+import Animated, { Easing, interpolate, runOnJS, useAnimatedStyle, useSharedValue, withDelay, withSpring, withTiming, type SharedValue } from 'react-native-reanimated';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { BlurView } from 'expo-blur';
 import { Text } from './typography';
@@ -9,55 +9,79 @@ import { useTheme } from './theme';
 
 export type QuickReaction = { emoji: string; chosen: boolean };
 const QUICK = 7;
+// One spring for the whole menu so every part moves as one gesture (Telegram-like: fast, slight overshoot).
+const OPEN = { damping: 19, stiffness: 300, mass: 0.75 } as const;
+const CLOSE_MS = 170;
 
 /**
- * Message menu in the Telegram-for-iPhone layout: the chat behind blurs, the pressed message is
- * shown at its own side, above it a compact reaction pill (a chevron opens every reaction),
- * below it a narrow action list. Opens and closes in about 0.18 s; it always fits on screen.
+ * Message menu in the Telegram-for-iPhone layout. Opening: the chat blurs and dims, the
+ * pressed message lifts from where it was to its spot in the menu, the action list grows
+ * out of the corner next to it and the reactions pop in one after another. Closing plays
+ * the same motion back. Reduce motion / energy saving turns all of it into a cut.
  */
-export function ContextMenu({ visible, y, onClose, reactions, onReact, preview, mine = false, children }: { visible: boolean; y: number; onClose: () => void; reactions?: QuickReaction[]; onReact?: (emoji: string) => void; preview?: string; mine?: boolean; children: React.ReactNode }) {
+export function ContextMenu({ visible, y: liveY, onClose, reactions, onReact, preview, mine: liveMine = false, children }: { visible: boolean; y: number; onClose: () => void; reactions?: QuickReaction[]; onReact?: (emoji: string) => void; preview?: string; mine?: boolean; children: React.ReactNode }) {
   const t = useTheme(); const { height, width } = useWindowDimensions(); const insets = useSafeAreaInsets();
-  const [size, setSize] = useState(0); const [all, setAll] = useState(false);
+  const [size, setSize] = useState(0); const [all, setAll] = useState(false); const [mounted, setMounted] = useState(visible);
   const shown = useSharedValue(0);
-  useEffect(() => { if (!visible) { setSize(0); setAll(false); shown.value = 0; } }, [visible]);
-  useEffect(() => { if (visible && size) shown.value = withTiming(1, { duration: 180, easing: Easing.bezier(0.2, 0, 0, 1) }); }, [visible, size]);
+  // Keep the last content while the close animation plays (the caller clears it at once).
+  const [held, setHeld] = useState({ reactions, preview, children, y: liveY, mine: liveMine });
+  useEffect(() => { if (visible) setHeld({ reactions, preview, children, y: liveY, mine: liveMine }); }, [visible, reactions, preview, children, liveY, liveMine]);
+  const { y, mine } = visible ? { y: liveY, mine: liveMine } : held;
+  useEffect(() => {
+    if (visible) { setMounted(true); return; }
+    if (!mounted) return;
+    shown.value = withTiming(0, { duration: CLOSE_MS, easing: Easing.bezier(0.4, 0, 1, 1) }, done => { if (done) runOnJS(setMounted)(false); });
+  }, [visible]);
+  useEffect(() => { if (!mounted) { setSize(0); setAll(false); shown.value = 0; } }, [mounted]);
+  useEffect(() => { if (visible && size) shown.value = withSpring(1, OPEN); }, [visible, size]);
   const topLimit = insets.top + 8, bottomLimit = height - insets.bottom - 8;
   const top = size ? Math.max(topLimit, Math.min(y - 70, bottomLimit - size)) : topLimit;
   const column = Math.min(340, width - 24);
   const side = mine ? { right: 12 } : { left: 12 };
-  const style = useAnimatedStyle(() => ({ opacity: shown.value, transform: [{ scale: 0.92 + 0.08 * shown.value }] }));
-  const backdrop = useAnimatedStyle(() => ({ opacity: shown.value }));
+  const list = held.reactions || [];
+  const reactionBlock = list.length ? 56 : 0;
+  // How far the message travels: from the finger to its place under the reactions.
+  const lift = size ? y - 20 - (top + reactionBlock) : 0;
+  const backdrop = useAnimatedStyle(() => ({ opacity: interpolate(shown.value, [0, 1], [0, 1], 'clamp') }));
+  const bubble = useAnimatedStyle(() => ({ opacity: interpolate(shown.value, [0, 0.25], [0, 1], 'clamp'), transform: [{ translateY: lift * (1 - shown.value) }, { scale: interpolate(shown.value, [0, 1], [0.96, 1]) }] }));
+  const menu = useAnimatedStyle(() => ({ opacity: interpolate(shown.value, [0, 0.35], [0, 1], 'clamp'), transform: [{ scale: interpolate(shown.value, [0, 1], [0.35, 1]) }] }));
+  const pill = useAnimatedStyle(() => ({ opacity: interpolate(shown.value, [0, 0.3], [0, 1], 'clamp'), transform: [{ scale: interpolate(shown.value, [0, 1], [0.55, 1]) }] }));
   const surface = t.dark ? 'rgba(34,40,58,0.96)' : 'rgba(255,255,255,0.97)';
   const shadow = { shadowColor: '#000', shadowOpacity: .28, shadowRadius: 18, shadowOffset: { width: 0, height: 8 }, elevation: 8 };
-  const list = reactions || [];
-  return <Modal visible={visible} transparent animationType="none" onRequestClose={onClose} statusBarTranslucent>
+  const corner = mine ? 'right' : 'left';
+  if (!mounted) return null;
+  return <Modal visible transparent animationType="none" onRequestClose={onClose} statusBarTranslucent>
     <Animated.View style={[StyleSheet.absoluteFill, backdrop]}>
-      {Platform.OS === 'web' ? null : <BlurView intensity={28} tint={t.dark ? 'dark' : 'light'} style={StyleSheet.absoluteFill} />}
-      <View style={[StyleSheet.absoluteFill, { backgroundColor: t.dark ? 'rgba(0,0,0,0.32)' : 'rgba(20,30,60,0.12)' }]} />
+      {Platform.OS === 'web' ? null : <BlurView intensity={30} tint={t.dark ? 'dark' : 'light'} style={StyleSheet.absoluteFill} />}
+      <View style={[StyleSheet.absoluteFill, { backgroundColor: t.dark ? 'rgba(0,0,0,0.34)' : 'rgba(20,30,60,0.14)' }, Platform.OS === 'web' ? { backdropFilter: 'blur(14px)' } as object : null]} />
       <Pressable accessibilityRole="button" accessibilityLabel="Закрыть меню" onPress={onClose} style={StyleSheet.absoluteFill} />
     </Animated.View>
-    <Animated.View onLayout={event => { const measured = Math.ceil(event.nativeEvent.layout.height); if (Math.abs(measured - size) > 1) setSize(measured); }}
-      style={[{ position: 'absolute', top, ...side, width: column, alignItems: mine ? 'flex-end' : 'flex-start', gap: 8, maxHeight: bottomLimit - topLimit }, style]}>
-      {list.length ? all ? <View style={{ width: column, borderRadius: 22, backgroundColor: surface, padding: 8, flexDirection: 'row', flexWrap: 'wrap', ...shadow }}>
-        {list.map(item => <ReactionButton key={item.emoji} item={item} size={(column - 16) / 7} onPress={() => onReact?.(item.emoji)} />)}
+    <View pointerEvents="box-none" onLayout={event => { const measured = Math.ceil(event.nativeEvent.layout.height); if (Math.abs(measured - size) > 1) setSize(measured); }}
+      style={{ position: 'absolute', top, ...side, width: column, alignItems: mine ? 'flex-end' : 'flex-start', gap: 8, maxHeight: bottomLimit - topLimit, opacity: size ? 1 : 0 }}>
+      {list.length ? <Animated.View style={[{ transformOrigin: `${corner} bottom` } as object, pill]}>{all ? <View style={{ width: column, borderRadius: 22, backgroundColor: surface, padding: 8, flexDirection: 'row', flexWrap: 'wrap', ...shadow }}>
+        {list.map((item, index) => <ReactionButton key={item.emoji} item={item} index={index % 14} shown={shown} size={(column - 16) / 7} onPress={() => onReact?.(item.emoji)} />)}
       </View> : <View style={{ flexDirection: 'row', alignItems: 'center', height: 48, borderRadius: 24, backgroundColor: surface, paddingHorizontal: 4, ...shadow }}>
-        {list.slice(0, QUICK).map(item => <ReactionButton key={item.emoji} item={item} size={40} onPress={() => onReact?.(item.emoji)} />)}
+        {list.slice(0, QUICK).map((item, index) => <ReactionButton key={item.emoji} item={item} index={index} shown={shown} size={40} onPress={() => onReact?.(item.emoji)} />)}
         {list.length > QUICK ? <Pressable accessibilityRole="button" accessibilityLabel="Все реакции" onPress={() => setAll(true)} style={{ width: 30, height: 40, alignItems: 'center', justifyContent: 'center' }}><Icon name="chevron-down" size={18} color={t.muted} /></Pressable> : null}
-      </View> : null}
-      {preview ? <View style={{ maxWidth: column, borderRadius: 18, paddingHorizontal: 13, paddingVertical: 9, backgroundColor: mine ? t.bubble : t.incoming, ...shadow }}><Text numberOfLines={6} style={{ color: t.text, fontSize: 16, lineHeight: 21 }}>{preview}</Text></View> : null}
-      <View style={{ width: 272, flexShrink: 1, minHeight: 0, borderRadius: 14, overflow: 'hidden', backgroundColor: surface, ...shadow }}>
-        <ScrollView bounces={false} style={{ flexGrow: 0 }}>{children}</ScrollView>
-      </View>
-    </Animated.View>
+      </View>}</Animated.View> : null}
+      {held.preview ? <Animated.View style={[{ maxWidth: column, borderRadius: 18, paddingHorizontal: 13, paddingVertical: 9, backgroundColor: mine ? t.bubble : t.incoming, ...shadow }, bubble]}><Text numberOfLines={6} style={{ color: t.text, fontSize: 16, lineHeight: 21 }}>{held.preview}</Text></Animated.View> : null}
+      <Animated.View style={[{ width: 272, flexShrink: 1, minHeight: 0, borderRadius: 14, overflow: 'hidden', backgroundColor: surface, ...shadow, transformOrigin: `${corner} top` } as object, menu]}>
+        <ScrollView bounces={false} style={{ flexGrow: 0 }}>{held.children}</ScrollView>
+      </Animated.View>
+    </View>
   </Modal>;
 }
 
-function ReactionButton({ item, size, onPress }: { item: QuickReaction; size: number; onPress: () => void }) {
+/** Each reaction pops in a beat after its left neighbour, with a small overshoot. */
+function ReactionButton({ item, size, index, shown, onPress }: { item: QuickReaction; size: number; index: number; shown: SharedValue<number>; onPress: () => void }) {
   const t = useTheme();
-  return <Pressable accessibilityRole="button" accessibilityLabel={`Реакция ${item.emoji}`} accessibilityState={{ selected: item.chosen }} onPress={onPress} hitSlop={2}
-    style={({ pressed }) => ({ width: size, height: Math.min(size, 40), borderRadius: 20, alignItems: 'center', justifyContent: 'center', backgroundColor: item.chosen ? t.accentSoft : 'transparent', transform: [{ scale: pressed ? 0.9 : 1 }] })}>
+  const pop = useSharedValue(0);
+  useEffect(() => { pop.value = withDelay(40 + index * 26, withSpring(1, { damping: 11, stiffness: 320, mass: 0.6 })); }, []);
+  const style = useAnimatedStyle(() => ({ opacity: Math.min(1, pop.value * 1.6) * Math.min(1, shown.value * 1.5), transform: [{ scale: interpolate(pop.value, [0, 1], [0.2, 1]) * interpolate(shown.value, [0, 1], [0.6, 1], 'clamp') }] }));
+  return <Animated.View style={style}><Pressable accessibilityRole="button" accessibilityLabel={`Реакция ${item.emoji}`} accessibilityState={{ selected: item.chosen }} onPress={onPress} hitSlop={2}
+    style={({ pressed }) => ({ width: size, height: Math.min(size, 40), borderRadius: 20, alignItems: 'center', justifyContent: 'center', backgroundColor: item.chosen ? t.accentSoft : 'transparent', transform: [{ scale: pressed ? 0.82 : 1 }] })}>
     <Text style={{ fontSize: 25 }}>{item.emoji}</Text>
-  </Pressable>;
+  </Pressable></Animated.View>;
 }
 
 /** One action: icon on the left, as in Telegram. `separated` puts a thick gap above it (destructive group). */
