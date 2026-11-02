@@ -186,3 +186,25 @@ test('malformed encrypted transport data produces an invalid preview rather than
     assert.equal(await bob.vault.get(`cursor:${chatId}`), null);
   }
 });
+
+test('autoTrust (app default): first contact and new devices work without a code check; checking stays optional', async t => {
+  const { alice, bob, make, chatId, relay, approve } = await harness(t, { autoTrust: true });
+  const id = randomUUID();
+  const encrypted = await alice.service.encrypt(chatId, bob.userId, id, 'Без сверки', null);
+  const message = relay.deliver(alice.userId, chatId, id, encrypted);
+  await bob.service.syncChat(chatId);
+  assert.equal((await bob.service.preview(message)).text, 'Без сверки');
+  const back = randomUUID(), reply = await bob.service.encrypt(chatId, alice.userId, back, 'Ответ', null);
+  const replyMessage = relay.deliver(bob.userId, chatId, back, reply);
+  await alice.service.syncChat(chatId);
+  assert.equal((await alice.service.preview(replyMessage)).text, 'Ответ');
+  // Auto-accepted keys are shown as not yet verified; a manual check still works.
+  const snapshot = await alice.service.trustSnapshot(bob.userId);
+  assert.ok(snapshot.devices.every(device => device.trusted === false));
+  await approve(alice, bob);
+  assert.ok((await alice.service.trustSnapshot(bob.userId)).devices.every(device => device.trusted));
+  // A new device of the peer is picked up automatically.
+  await make(bob.userId);
+  const fan = await alice.service.encrypt(chatId, bob.userId, randomUUID(), 'Второе устройство', null);
+  assert.equal(fan.envelopes.length, 2);
+});

@@ -11,7 +11,8 @@ export interface CryptoTransport {
   cryptoInbox(deviceId: string, chatId: string, after: number): Promise<{messages: Message[]; nextCursor: number; hasMore: boolean}>;
 }
 type LocalDevice = { id: string; bundle: PublicBundle };
-type TrustRecord = { identityKey: string; registrationId: number; checkedAt: string };
+/** `auto`: accepted on first sight / after a key change without a manual code check (WhatsApp-style). */
+type TrustRecord = { identityKey: string; registrationId: number; checkedAt: string | null; auto?: boolean };
 type PlainBody = { text: string; attachment: Attachment | null; sentAt: string; meta?: MessageMeta };
 type CachedMessage = { fingerprint: string; plain: PlainBody };
 type Outbox = { encrypted: EncryptedMessage; plain: PlainBody; peerId: string };
@@ -79,7 +80,12 @@ export class CryptoService {
     readonly userId: string, private readonly transport: CryptoTransport,
     private readonly bridge: SignalBridge, private readonly vault: PrivateVault,
     private readonly randomUUID: ()=>string, private readonly sha256: (value:string)=>Promise<string>,
+    /** autoTrust: new or changed device keys are accepted without a code check; checking stays optional. */
+    private readonly options: { autoTrust?: boolean } = {},
   ) {}
+  private autoRecord(device:Pick<CryptoDevice,'identityKey'|'registrationId'>):string {
+    return JSON.stringify({identityKey:device.identityKey,registrationId:device.registrationId,checkedAt:null,auto:true});
+  }
   private exclusive<T>(work:()=>Promise<T>):Promise<T> {
     const next=this.tail.then(async()=>{if(this.closed)throw new Error('Сессия шифрования завершена.');return work();});
     this.tail=next.catch(()=>{});return next;
@@ -131,7 +137,7 @@ export class CryptoService {
       const trusted=parse<TrustRecord>(await this.vault.get(trustKey(device)));
       const pair=[selfIdentity,`${address(device.userId,device.id)}:${device.identityKey}:${device.registrationId}`].sort();
       const code=await this.sha256(`linea-safety-code-v1\u0000${pair.join('\u0000')}`);
-      return {...device,code:code.toUpperCase().match(/.{1,4}/g)!.join(' '),trusted:!!trusted&&sameDevice(trusted,device),self:device.userId===this.userId};
+      return {...device,code:code.toUpperCase().match(/.{1,4}/g)!.join(' '),trusted:!!trusted&&!trusted.auto&&sameDevice(trusted,device),self:device.userId===this.userId};
     }));
     return {peerId,ownDeviceId:local.id,devices,fingerprint:await this.sha256(JSON.stringify(devices.map(device=>[device.userId,device.id,device.identityKey,device.registrationId])))};
   }
@@ -143,7 +149,7 @@ export class CryptoService {
       let state=(await this.vault.get('protocol'))!;const changes:Record<string,string>={};
       for(const device of current.devices){
         const previous=parse<TrustRecord>(await this.vault.get(trustKey(device)));
-        if(previous&&!sameDevice(previous,device))throw new UntrustedDeviceError();
+        if(previous&&!previous.auto&&!sameDevice(previous,device))throw new UntrustedDeviceError();
         state=(await this.bridge.trustIdentity(state,address(device.userId,device.id),1,device.identityKey)).state;
         changes[trustKey(device)]=JSON.stringify({identityKey:device.identityKey,registrationId:device.registrationId,checkedAt:new Date().toISOString()});
       }
@@ -163,9 +169,15 @@ export class CryptoService {
       const encrypted:EncryptedMessage={scheme:'signal-v1',senderDeviceId:this.local!.id,envelopes:[],attachmentIds:attachment?[attachment.id]:[]};
       for(const device of targets){
         const trusted=parse<TrustRecord>(await this.vault.get(trustKey(device)));
-        if(!trusted||!sameDevice(trusted,device))throw new UntrustedDeviceError();
+        let rekey=false;
+        if(!trusted||!sameDevice(trusted,device)){
+          if(!this.options.autoTrust)throw new UntrustedDeviceError();
+          state=(await this.bridge.trustIdentity(state,address(device.userId,device.id),1,device.identityKey)).state;
+          changes[trustKey(device)]=this.autoRecord(device);
+          rekey=!!trusted; // a changed key needs a fresh session
+        }
         let bundle:ClaimedBundle|null=null;
-        if(!(await this.vault.get(sessionKey(device)))){
+        if(rekey||!(await this.vault.get(sessionKey(device)))){
           const claimed=await this.transport.claimPreKey(device.userId,device.id);
           if(claimed.device.id!==device.id||claimed.device.userId!==device.userId||!sameDevice(claimed.device,device)||!sameDevice(claimed.bundle,device))throw new UntrustedDeviceError();
           bundle=claimed.bundle;
@@ -196,7 +208,11 @@ export class CryptoService {
     const envelope=encrypted.envelopes.find(item=>item.userId===this.userId&&item.deviceId===this.local!.id);
     if(!envelope) {await this.vault.commit({[cursorKey]:String(message.id)});return;}
     const sender={userId:message.senderId,id:encrypted.senderDeviceId};
-    const trusted=parse<TrustRecord>(await this.vault.get(trustKey(sender)));
+    let trusted=parse<TrustRecord>(await this.vault.get(trustKey(sender)));
+    if(!trusted&&this.options.autoTrust){
+      const device=(await this.targets(message.senderId===this.userId?this.userId:message.senderId)).find(item=>item.userId===sender.userId&&item.id===sender.id);
+      if(device){trusted={identityKey:device.identityKey,registrationId:device.registrationId,checkedAt:null,auto:true};await this.vault.commit({[trustKey(sender)]:this.autoRecord(device)});}
+    }
     if(!trusted)throw new UntrustedDeviceError();
     let state=(await this.vault.get('protocol'))!;
     state=(await this.bridge.trustIdentity(state,address(sender.userId,sender.id),1,trusted.identityKey)).state;

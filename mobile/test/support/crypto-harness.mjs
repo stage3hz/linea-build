@@ -63,11 +63,11 @@ export class PublicRelay {
   }
 }
 
-export async function harness(t, { initialize = true } = {}) {
+export async function harness(t, { initialize = true, autoTrust = false } = {}) {
   const relay = new PublicRelay(), chatId = randomUUID(), services = [];
   const make = async (userId = randomUUID(), data) => {
     const vault = new MemoryVault(data);
-    const service = new CryptoService(userId, relay.transport(userId, vault), nodeSignalBridge, vault, randomUUID, sha256);
+    const service = new CryptoService(userId, relay.transport(userId, vault), nodeSignalBridge, vault, randomUUID, sha256, { autoTrust });
     const client = { userId, vault, service };
     services.push(client);
     if (initialize) await service.initialize();

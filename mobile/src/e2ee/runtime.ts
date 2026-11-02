@@ -12,7 +12,7 @@ export class CryptoRuntime {
     if(this.disposed)return Promise.reject(new Error('Сессия шифрования завершена.'));
     if(!this.promise)this.promise=(async()=>{
       const bridge=getSignalBridge();const vault=await openVault(this.api.base,this.userId);
-      const service=new CryptoService(this.userId,this.api,bridge,vault,()=>Crypto.randomUUID(),value=>Crypto.digestStringAsync(Crypto.CryptoDigestAlgorithm.SHA256,value));
+      const service=new CryptoService(this.userId,this.api,bridge,vault,()=>Crypto.randomUUID(),value=>Crypto.digestStringAsync(Crypto.CryptoDigestAlgorithm.SHA256,value),{autoTrust:true});
       if(this.disposed){await service.close();throw new Error('Сессия шифрования завершена.');}
       return service;
     })().catch(error=>{this.promise=null;throw error;});
