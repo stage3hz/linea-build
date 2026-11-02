@@ -43,12 +43,10 @@ jobs:
           set -o pipefail
           SCHEME=$(basename *.xcworkspace .xcworkspace)
           echo "SCHEME=$SCHEME" >> "$GITHUB_ENV"
-          xcodebuild -workspace "$SCHEME.xcworkspace" -scheme "$SCHEME" -configuration Release -sdk iphonesimulator -destination 'generic/platform=iOS Simulator' -derivedDataPath simulator-build ARCHS=arm64 ONLY_ACTIVE_ARCH=YES CARGO_BUILD_TARGET=aarch64-apple-ios-sim LINEA_SIGNAL_FFI_TARGET=aarch64-apple-ios-sim CODE_SIGNING_ALLOWED=NO CODE_SIGNING_REQUIRED=NO CODE_SIGN_IDENTITY='' CODE_SIGN_ENTITLEMENTS='' build > ../../simulator-build.log 2>&1 || { tail -100 ../../simulator-build.log; exit 1; }
+          xcodebuild -workspace "$SCHEME.xcworkspace" -scheme "$SCHEME" -configuration Release -sdk iphonesimulator -destination 'generic/platform=iOS Simulator' -derivedDataPath simulator-build ARCHS=arm64 ONLY_ACTIVE_ARCH=YES CARGO_BUILD_TARGET=aarch64-apple-ios-sim LINEA_SIGNAL_FFI_TARGET=aarch64-apple-ios-sim CODE_SIGNING_ALLOWED=YES CODE_SIGNING_REQUIRED=YES CODE_SIGN_STYLE=Manual CODE_SIGN_IDENTITY='-' CODE_SIGN_ENTITLEMENTS='' CODE_SIGN_INJECT_BASE_ENTITLEMENTS=YES build > ../../simulator-build.log 2>&1 || { tail -100 ../../simulator-build.log; exit 1; }
       - name: Preserve compiled simulator app for installation diagnostics
         run: |
           APP="mobile/ios/simulator-build/Build/Products/Release-iphonesimulator/$SCHEME.app"
-          codesign --force --deep --sign - "$APP"
-          python3 tools/sign-ios-simulator.py "$APP"
           ditto -c -k --keepParent "$APP" simulator-app.zip
       - uses: actions/upload-artifact@v4
         with:
