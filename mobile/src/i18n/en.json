@@ -95,7 +95,6 @@
 "Анимированные аватар, рамки, баннер и эмодзи, скрытие времени захода и прочтения, дополнительные смены имени.": "Animated avatar, frames, banner and emoji, hiding last seen and read receipts, extra name changes.",
 "Анимированные эмодзи": "Animated emoji",
 "Анимированный аватар": "Animated avatar",
-"Анимированный аватар (видео до 10 с), анимированные рамки, живой баннер профиля, анимированные эмодзи-статусы и большие эмодзи в чатах, скрытие времени захода и отчётов о прочтении, дополнительные смены публичного имени. Доступ подтверждает сервер.": "Animated avatar (video up to 10 s), animated frames, live profile banner, animated emoji statuses and big emoji in chats, hiding last seen and read receipts, extra public name changes. Access is confirmed by the server.",
 "Анимированный аватар должен быть видео MP4 или MOV до 8 МиБ.": "An animated avatar must be an MP4 or MOV video up to 8 MiB.",
 "Анимированный аватар установлен.": "Animated avatar set.",
 "Архив": "Archive",
@@ -1834,5 +1833,12 @@
 "Это слово нужно при входе после пароля. Оно должно отличаться от логина и пароля.": "This word is needed when signing in after the password. It must differ from the login and password.",
 "Это твой логин для входа. Его видишь только ты, и сменить его потом нельзя. Публичное имя (@имя) сначала совпадает с логином, а поменять его можно в профиле. Запомни логин или запиши в надёжное место.": "This is your login. Only you see it, and it can't be changed later. Your public name (@name) starts the same as the login and can be changed in your profile. Remember the login or write it down somewhere safe.",
 "Восстановление": "Recovery",
-"Ожидание": "Waiting"
+"Ожидание": "Waiting",
+"Цветовые темы": "Colour themes",
+"Семь палитр: Аметист, Кофе, Олива, Сумерки, Лагуна, Индиго, Неон": "Seven palettes: Amethyst, Coffee, Olive, Dusk, Lagoon, Indigo, Neon",
+"Смена @имени": "Change @name",
+"Дополнительные смены публичного имени": "Extra changes of your public name",
+"· с Platina": "· with Platina",
+"Палитры входят в Инвиз Platina. Войди в аккаунт с Platina, чтобы их включить.": "Palettes are part of Invizent Platina. Sign in to an account with Platina to turn them on.",
+"Анимированный аватар (видео до 10 с), анимированные рамки, живой баннер профиля, анимированные эмодзи-статусы и большие эмодзи в чатах, семь цветовых тем, скрытие времени захода и отчётов о прочтении, дополнительные смены публичного имени. Доступ подтверждает сервер.": "Animated avatar (video up to 10 s), animated frames, live profile banner, animated emoji statuses and big emoji in chats, seven colour themes, hiding last seen and read receipts, extra public name changes. Access is confirmed by the server."
 }

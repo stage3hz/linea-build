@@ -178,11 +178,11 @@ function PlatinaOffer() {
   </GlassSurface>;
 }
 
-function Appearance({ theme, darkTheme, onTheme, onDarkTheme, open }: Props & { open?: (section: Section) => void }) {
-  const t = useTheme(); const preferences = useChatPreferences(); const metrics = textMetrics(preferences.textSize);
+function Appearance({ api, user, theme, darkTheme, onTheme, onDarkTheme, open }: Props & { open?: (section: Section) => void }) {
+  const t = useTheme(); const active = usePlatina(api, user.id); const preferences = useChatPreferences(); const metrics = textMetrics(preferences.textSize);
   const [wallpaperOpen, setWallpaperOpen] = useState(false);
   return <>
-    <Group label="Тема"><View style={{ padding: 14 }}><ThemeSettings mode={theme} darkTheme={darkTheme} onChange={onTheme} onDarkTheme={onDarkTheme} /></View></Group>
+    <Group label="Тема"><View style={{ padding: 14 }}><ThemeSettings mode={theme} darkTheme={darkTheme} onChange={onTheme} onDarkTheme={onDarkTheme} platina={active} onLocked={() => openPlatinaShowcase()} /></View></Group>
     <Group label="Иконка приложения"><AppIconPicker /></Group>
     <Group label="Анимации"><Item icon="battery-half" color="#F0A030" label="Энергосбережение и анимации" onPress={() => open?.('power')} /></Group>
     <Group label="Обои чатов"><Item icon="image" color="#2EA37A" label="Обои чатов" value="Выбрать" onPress={() => setWallpaperOpen(true)} /></Group>

@@ -19,7 +19,9 @@ import { Button, Empty, Icon, Logo, Notice, Sheet, SheetAction } from './src/com
 import { clearServer, normalizeServer, readCachedUser, readDarkTheme, readServer, readTheme, readToken, writeCachedUser, writeDarkTheme, writeServer, writeTheme, writeToken } from './src/storage';
 import { ThemeContext, palette, useTheme } from './src/theme';
 import type { DarkTheme, Session, ThemeMode, User } from './src/types';
-import { resolveTheme } from './src/themePreference';
+import { resolveTheme, withPlatina } from './src/themePreference';
+import { useKnownPlatina, usePlatina } from './src/platina/usePlatina';
+import { hasPlatina } from './src/platina/PlatinaMark';
 import { THEME_NAMES, ThemeSettings } from './src/ThemeSettings';
 import { useMessenger } from './src/useMessenger';
 import { GlassStage, GlassSurface } from './src/glass';
@@ -58,7 +60,10 @@ export default function App() {
   const securityInProgress=useRef(false);const pendingSecurityExpiry=useRef(false);
   const currentAuth=useRef({server,token:session?.token});currentAuth.current={server,token:session?.token};
   const [guestMusicOpen,setGuestMusicOpen]=useState(false);
-  const theme=palette[resolveTheme(mode,darkTheme,system)];
+  // Palettes are a Platina feature: the server's answer wins, the account's seal is the instant hint.
+  const knownPlatina=useKnownPlatina(session?.user.id??null);const platina=!!session&&(knownPlatina??hasPlatina(session.user));
+  const shownMode=withPlatina(mode,platina) as ThemeMode,shownDark=withPlatina(darkTheme,platina) as DarkTheme;
+  const theme=palette[resolveTheme(shownMode,shownDark,system)];
   const api=useMemo(()=>new Api(server||'',session?.token),[server,session?.token]);
   // SoundCloud is fetched through our server, so it needs the signed-in session (guests get Audius only).
   useEffect(()=>{setSoundCloudApi(session?.token&&server?api:null);},[api,session?.token,server]);
@@ -122,7 +127,7 @@ export default function App() {
   const changeDarkTheme=(value:DarkTheme)=>{setDarkTheme(value);saveThemePreference(writeDarkTheme(value));};
   return <GestureHandlerRootView style={{flex:1}}><KeyboardProvider statusBarTranslucent navigationBarTranslucent><SafeAreaProvider><MotionRoot/><ThemeContext.Provider value={theme}><GlassStage><StatusBar style={theme.dark?'light':'dark'}/><MusicProvider key={`${server||'unconfigured'}:${session?.user.id||'guest'}`}><SafeAreaView style={{flex:1,backgroundColor:'transparent'}}><UpdateGate>
     {themeError?<View style={{padding:12}}><Notice text={themeError} error/></View>:null}
-    {booting?<View style={{flex:1}}/>:guestMusicOpen&&!session?<MusicScreen onBack={()=>setGuestMusicOpen(false)}/>:bootError?<View style={{flex:1}}><ThemeAccess mode={mode} darkTheme={darkTheme} onChange={changeTheme} onDarkTheme={changeDarkTheme} onMusic={()=>setGuestMusicOpen(true)}/><View style={{flex:1,justifyContent:'center',padding:28}}><View style={{maxWidth:420,width:'100%',alignSelf:'center',gap:17}}><Empty icon="cloud-offline-outline" title="Не получилось подключиться" description={bootError}/><Button label="Повторить" onPress={()=>void initialize()} icon="refresh-outline"/></View></View></View>:!server?<View style={{flex:1}}><ThemeAccess mode={mode} darkTheme={darkTheme} onChange={changeTheme} onDarkTheme={changeDarkTheme} onMusic={()=>setGuestMusicOpen(true)}/><ConnectScreen onConnect={connect}/></View>:!session?<View style={{flex:1}}><AuthBackdrop/><ThemeAccess mode={mode} darkTheme={darkTheme} onChange={changeTheme} onDarkTheme={changeDarkTheme} onMusic={()=>setGuestMusicOpen(true)}/>{authNotice?<View style={{padding:14,paddingBottom:0}}><Notice text={authNotice}/></View>:null}<AuthScreen key={server} api={api} onLogin={login} onChangeServer={()=>void changeServer()}/></View>:<Messenger key={`${server}:${session.user.id}`} api={api} session={session} onUser={user=>setSession(current=>current?.token===session.token&&current.user.id===user.id?{...current,user}:current)} themeMode={mode} darkTheme={darkTheme} onTheme={changeTheme} onDarkTheme={changeDarkTheme} onLogout={logout} onExpired={()=>expired(session.token)} onCredentialsChanged={credentialsChanged} onSensitiveActionPending={securityPending}/>}
+    {booting?<View style={{flex:1}}/>:guestMusicOpen&&!session?<MusicScreen onBack={()=>setGuestMusicOpen(false)}/>:bootError?<View style={{flex:1}}><ThemeAccess mode={shownMode} darkTheme={shownDark} onChange={changeTheme} onDarkTheme={changeDarkTheme} onMusic={()=>setGuestMusicOpen(true)}/><View style={{flex:1,justifyContent:'center',padding:28}}><View style={{maxWidth:420,width:'100%',alignSelf:'center',gap:17}}><Empty icon="cloud-offline-outline" title="Не получилось подключиться" description={bootError}/><Button label="Повторить" onPress={()=>void initialize()} icon="refresh-outline"/></View></View></View>:!server?<View style={{flex:1}}><ThemeAccess mode={shownMode} darkTheme={shownDark} onChange={changeTheme} onDarkTheme={changeDarkTheme} onMusic={()=>setGuestMusicOpen(true)}/><ConnectScreen onConnect={connect}/></View>:!session?<View style={{flex:1}}><AuthBackdrop/><ThemeAccess mode={shownMode} darkTheme={shownDark} onChange={changeTheme} onDarkTheme={changeDarkTheme} onMusic={()=>setGuestMusicOpen(true)}/>{authNotice?<View style={{padding:14,paddingBottom:0}}><Notice text={authNotice}/></View>:null}<AuthScreen key={server} api={api} onLogin={login} onChangeServer={()=>void changeServer()}/></View>:<Messenger key={`${server}:${session.user.id}`} api={api} session={session} onUser={user=>setSession(current=>current?.token===session.token&&current.user.id===user.id?{...current,user}:current)} themeMode={shownMode} darkTheme={shownDark} onTheme={changeTheme} onDarkTheme={changeDarkTheme} onLogout={logout} onExpired={()=>expired(session.token)} onCredentialsChanged={credentialsChanged} onSensitiveActionPending={securityPending}/>}
     {!booting&&!session&&!guestMusicOpen?<MiniPlayer onOpen={()=>setGuestMusicOpen(true)}/>:null}
   </UpdateGate></SafeAreaView><FullPlayerHost onSource={(url:string)=>{void Linking.openURL(url).catch(()=>{});}}/></MusicProvider></GlassStage></ThemeContext.Provider></SafeAreaProvider></KeyboardProvider></GestureHandlerRootView>;
 }
@@ -133,7 +138,7 @@ function ThemeAccess({mode,darkTheme,onChange,onDarkTheme,onMusic}:{mode:ThemeMo
 }
 
 function Messenger({api,session,onUser,themeMode,darkTheme,onTheme,onDarkTheme,onLogout,onExpired,onCredentialsChanged,onSensitiveActionPending}: {api:Api;session:Session;onUser:(user:User)=>void;themeMode:ThemeMode;darkTheme:DarkTheme;onTheme:(mode:ThemeMode)=>void;onDarkTheme:(mode:DarkTheme)=>void;onLogout:()=>Promise<void>;onExpired:()=>void;onCredentialsChanged:(message:string)=>Promise<void>;onSensitiveActionPending:(pending:boolean)=>void}) {
-  const t=useTheme();const {width}=useWindowDimensions();const wide=width>=850;const store=useMessenger(api,session.user,onExpired);const [page,setPage]=useState<'chats'|'saved'|'people'|'channels'|'music'|'ai'|'profile'|'security'|'settings'>(session.securitySetupRequired?'security':'chats');
+  const t=useTheme();const {width}=useWindowDimensions();const wide=width>=850;const store=useMessenger(api,session.user,onExpired);usePlatina(api,session.user.id);const [page,setPage]=useState<'chats'|'saved'|'people'|'channels'|'music'|'ai'|'profile'|'security'|'settings'>(session.securitySetupRequired?'security':'chats');
   const [openCommunity,setOpenCommunity]=useState<string|null>(null);const [inviteCode,setInviteCode]=useState<string|null>(null);
   const [quickAI,setQuickAI]=useState(false);
   const chat=store.chats.find(c=>c.id===store.selectedId);

@@ -25,3 +25,12 @@ export function usePlatina(api: Api, owner: string): boolean {
   }, [api, owner]);
   return snapshot.owner === owner && snapshot.active;
 }
+
+/**
+ * What is already known about `owner`'s Platina, without asking the server:
+ * true/false once a screen has loaded it this session, null before that.
+ */
+export function useKnownPlatina(owner: string | null): boolean | null {
+  const snapshot = useSyncExternalStore(listener => { listeners.add(listener); return () => { listeners.delete(listener); }; }, () => state, () => state);
+  return owner && snapshot.owner === owner ? snapshot.active : null;
+}

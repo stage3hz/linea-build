@@ -23,3 +23,11 @@ test('a chosen palette survives restart; unknown values fall back safely', () =>
   assert.equal(pref.resolveTheme('system', 'coffee', 'dark'), 'coffee');
   assert.equal(pref.resolveTheme('system', 'coffee', 'light'), 'light');
 });
+
+test('palettes need Platina: without it a saved palette shows as dark, others untouched', () => {
+  const pref = loadTs(new URL('../src/themePreference.ts', import.meta.url));
+  assert.equal(pref.withPlatina('amethyst', false), 'dark');
+  assert.equal(pref.withPlatina('amethyst', true), 'amethyst');
+  for (const plain of ['system', 'light', 'dark', 'black']) assert.equal(pref.withPlatina(plain, false), plain);
+  assert.equal(pref.resolveTheme(pref.withPlatina('system', false), pref.withPlatina('neon', false), 'dark'), 'dark');
+});
