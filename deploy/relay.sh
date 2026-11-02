@@ -47,9 +47,13 @@ for k in sys.argv[1].split(".") if sys.argv[1] else []:
 print("" if r is None else r)' "$1"; }
 ok() { case "$1" in ERR*) echo "Cloudflare ответил ошибкой: ${1#ERR }" >&2; exit 1;; esac; }
 
-doh() { # doh HOST — IPv4 адрес через DNS-over-HTTPS (обычный DNS сервера не отдаёт адреса *.workers.dev)
-  local u
-  for u in "https://1.1.1.1/dns-query?name=$1&type=A" "https://dns.google/resolve?name=$1&type=A"; do
+doh() { # doh HOST — IPv4 адрес Worker'а (обычный DNS сервера не отдаёт адреса *.workers.dev)
+  # В России DoH/DoT Google и Cloudflare местами блокируют, поэтому несколько
+  # независимых сервисов по очереди, затем обычный DNS по TCP. Ответ всё равно
+  # проверяется дальше: соединение идёт по HTTPS с проверкой сертификата Cloudflare.
+  local u ip r
+  for u in "https://1.1.1.1/dns-query?name=$1&type=A" "https://dns.google/resolve?name=$1&type=A" \
+           "https://dns.adguard-dns.com/resolve?name=$1&type=A"; do
     curl -s --max-time 10 -H 'accept: application/dns-json' "$u" | python3 -c '
 import json,sys,ipaddress
 try:
@@ -58,6 +62,12 @@ try:
 except Exception: pass
 sys.exit(1)' && return 0
   done
+  if command -v dig >/dev/null 2>&1; then
+    for r in 1.1.1.1 8.8.8.8 9.9.9.9 94.140.14.14; do
+      ip="$(dig +tcp +short +time=5 +tries=1 A "$1" @"$r" 2>/dev/null | grep -E '^[0-9]+(\.[0-9]+){3}$' | head -1)"
+      [ -n "$ip" ] && { echo "$ip"; return 0; }
+    done
+  fi
   return 1
 }
 probe() { # probe URL TOKEN IP — код ответа Worker'а при подключении к указанному IP
