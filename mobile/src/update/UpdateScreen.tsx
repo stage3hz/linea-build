@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { Linking, Modal, Platform, Pressable, View } from 'react-native';
 import { Text } from '../typography';
 import { Button, Icon, Notice } from '../components';
@@ -6,11 +6,19 @@ import { useTheme, formatSize } from '../theme';
 import { APP_VERSION } from '../serverConfig';
 import { desktopBridge } from '../desktop';
 import { assetFor, canSelfUpdate, downloadAndInstall, type Phase } from './install';
-import { dismissUpdate, useUpdateState } from './store';
+import { dismissUpdate, formatSpan, recheckDeadline, serverNow, useUpdateState } from './store';
+
+/** Re-renders every 30 s and locks the app the moment the grace period ends. */
+function useClock() {
+  const [now, setNow] = useState(Date.now());
+  useEffect(() => { const timer = setInterval(() => { setNow(Date.now()); recheckDeadline(); }, 30_000); return () => clearInterval(timer); }, []);
+  return now;
+}
 
 /** Mandatory: covers the whole app. Optional: a dismissible window, shown once per version. */
 export function UpdateGate({ children }: { children: React.ReactNode }) {
   const update = useUpdateState();
+  useClock();
   if (update.required) return <UpdateScreen required />;
   return <>{children}{update.available && !update.dismissed ? <Modal visible transparent animationType="fade" onRequestClose={dismissUpdate}><UpdateScreen required={false} /></Modal> : null}</>;
 }
@@ -18,6 +26,10 @@ export function UpdateGate({ children }: { children: React.ReactNode }) {
 export function UpdateScreen({ required }: { required: boolean }) {
   const t = useTheme();
   const { info } = useUpdateState();
+  const now = useClock();
+  const at = serverNow(info, now);
+  const releasedAgo = info?.releasedAt ? at - info.releasedAt : null;
+  const left = info?.requiredAt ? info.requiredAt - at : null;
   const [phase, setPhase] = useState<Phase | null>(null);
   const [error, setError] = useState('');
   const [opened, setOpened] = useState(false);
@@ -36,9 +48,19 @@ export function UpdateScreen({ required }: { required: boolean }) {
       <View style={{ width: 64, height: 64, borderRadius: 22, backgroundColor: t.accentSoft, alignItems: 'center', justifyContent: 'center', alignSelf: 'center' }}><Icon name="cloud-download-outline" size={32} color={t.accent} /></View>
       <Text style={{ color: t.text, fontSize: 22, fontWeight: '800', textAlign: 'center', letterSpacing: -.4 }}>{required ? 'Требуется обновление' : 'Доступна новая версия'}</Text>
       <Text style={{ color: t.muted, fontSize: 14, lineHeight: 20, textAlign: 'center' }}>
-        {required ? 'Эта версия Инвиза больше не поддерживается. Установи новую — переписка и аккаунт сохранятся.' : 'Вышло обновление Инвиза. Переписка и аккаунт сохранятся.'}
+        {required ? 'Эта версия Инвиза больше не поддерживается. Установи новую — переписка и аккаунт сохранятся.' : 'Вышло обновление Инвиза. Пока им можно пользоваться и без него, но после срока обновление станет обязательным. Переписка и аккаунт сохранятся.'}
       </Text>
       <Text style={{ color: t.muted, fontSize: 12, textAlign: 'center' }}>{info?.version ? `Новая версия ${info.version}${asset ? ` · ${formatSize(asset.size)}` : ''} · у тебя ${APP_VERSION}` : `У тебя ${APP_VERSION}`}</Text>
+      {releasedAgo !== null || left !== null ? <View style={{ flexDirection: 'row', gap: 10 }}>
+        {releasedAgo !== null ? <View style={{ flex: 1, padding: 12, borderRadius: 16, backgroundColor: t.surface2, alignItems: 'center', gap: 4 }}>
+          <Text style={{ color: t.muted, fontSize: 11 }}>Вышло</Text>
+          <Text style={{ color: t.text, fontSize: 15, fontWeight: '700' }}>{formatSpan(releasedAgo)} назад</Text>
+        </View> : null}
+        {!required && left !== null && left > 0 ? <View style={{ flex: 1, padding: 12, borderRadius: 16, backgroundColor: t.accentSoft, alignItems: 'center', gap: 4 }}>
+          <Text style={{ color: t.accent, fontSize: 11 }}>Обязательно через</Text>
+          <Text style={{ color: t.accent, fontSize: 15, fontWeight: '700' }}>{formatSpan(left)}</Text>
+        </View> : null}
+      </View> : null}
       {phase ? <View style={{ gap: 8 }}>
         <View style={{ height: 6, borderRadius: 3, backgroundColor: t.surface2, overflow: 'hidden' }}><View style={{ width: `${Math.round((phase.step === 'install' ? 1 : phase.progress) * 100)}%`, height: 6, backgroundColor: t.accent }} /></View>
         <Text style={{ color: t.muted, fontSize: 12, textAlign: 'center' }}>{opened ? (desktopBridge() ? 'Установщик открыт. Приложение сейчас закроется.' : 'Подтверди установку в системном окне. Если Android попросит — разреши установку из Инвиза.') : label}</Text>

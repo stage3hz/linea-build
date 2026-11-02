@@ -5,11 +5,17 @@
 // checks the SHA-256 it got from HERE, over our own TLS connection, before it
 // opens the installer. Only URLs of this project's GitHub releases are accepted,
 // so a damaged manifest cannot turn the server into a download redirector.
+//
+// Grace period: a new version is optional for `graceHours` (default 72) after
+// `releasedAt`, then it becomes mandatory on its own. The deadline is decided by
+// the SERVER clock, and the version gate starts answering 426 to older builds at
+// the same moment, so changing the phone's clock does not skip the update.
 import { readFileSync, statSync } from 'node:fs';
 import { parseVersion, versionLessThan } from './clientgate.js';
 
 export const RELEASE_URL_PREFIX = 'https://github.com/stage3hz/linea-build/releases/download/';
 const PAGE_PREFIX = 'https://github.com/stage3hz/linea-build/releases/';
+export const DEFAULT_GRACE_HOURS = 72;
 
 function asset(value) {
   if (value === undefined || value === null) return null;
@@ -26,20 +32,37 @@ export function validateManifest(raw) {
   if (!raw || typeof raw !== 'object' || Array.isArray(raw)) throw new Error('manifest must be an object');
   if (!parseVersion(raw.version)) throw new Error('version must be x.y.z');
   if (raw.minVersion !== undefined && raw.minVersion !== null && !parseVersion(raw.minVersion)) throw new Error('minVersion must be x.y.z');
+  const releasedAt = raw.releasedAt === undefined || raw.releasedAt === null ? null : Date.parse(raw.releasedAt);
+  if (releasedAt !== null && !Number.isFinite(releasedAt)) throw new Error('releasedAt must be an ISO date');
+  const graceHours = raw.graceHours === undefined || raw.graceHours === null ? DEFAULT_GRACE_HOURS : raw.graceHours;
+  if (!Number.isFinite(graceHours) || graceHours < 0 || graceHours > 24 * 60) throw new Error('graceHours must be 0..1440');
   const page = typeof raw.page === 'string' && raw.page.startsWith(PAGE_PREFIX) && raw.page.length < 300 ? raw.page : null;
   const notes = typeof raw.notes === 'string' ? raw.notes.slice(0, 1000) : '';
-  return { version: raw.version, minVersion: raw.minVersion || null, page, notes, android: asset(raw.android), windows: asset(raw.windows) };
+  return { version: raw.version, minVersion: raw.minVersion || null, releasedAt, graceHours, page, notes, android: asset(raw.android), windows: asset(raw.windows) };
 }
 
 /** Highest of two optional versions. */
-function higher(a, b) {
+export function higherVersion(a, b) {
   const pa = parseVersion(a), pb = parseVersion(b);
   if (!pa) return pb ? b : null;
   if (!pb) return a;
   return versionLessThan(pa, pb) ? b : a;
 }
 
-export function installReleaseRoutes(app, { manifestPath, minClientVersion = null, log = () => {} }) {
+/** When the offered version stops being optional (ms), or null if never. */
+export function requiredAt(manifest) {
+  if (!manifest || manifest.releasedAt === null) return null;
+  return manifest.releasedAt + manifest.graceHours * 3_600_000;
+}
+
+/** Version every client must have right now according to this manifest. */
+export function manifestMinimum(manifest, nowMs) {
+  if (!manifest) return null;
+  const deadline = requiredAt(manifest);
+  return higherVersion(manifest.minVersion, deadline !== null && nowMs >= deadline ? manifest.version : null);
+}
+
+export function createRelease({ manifestPath, minClientVersion = null, now = () => Date.now(), log = () => {} }) {
   let cached = { mtimeMs: -1, value: null };
   const load = () => {
     if (!manifestPath) return null;
@@ -49,13 +72,24 @@ export function installReleaseRoutes(app, { manifestPath, minClientVersion = nul
       return cached.value;
     } catch (error) {
       if (error?.code !== 'ENOENT') log(error);
+      cached = { mtimeMs: -1, value: null };
       return null;
     }
   };
-  app.get('/app/update', async () => {
-    const manifest = load();
-    const minVersion = higher(manifest?.minVersion ?? null, minClientVersion);
-    if (!manifest) return { version: null, minVersion, android: null, windows: null, page: null, notes: '' };
-    return { ...manifest, minVersion };
-  });
+  /** Minimum version for the gate: owner's MIN_CLIENT_VERSION or the expired grace period. */
+  const currentMinimum = () => higherVersion(minClientVersion, manifestMinimum(load(), now()));
+  const install = app => {
+    app.get('/app/update', async () => {
+      const manifest = load(), serverTime = new Date(now()).toISOString(), minVersion = currentMinimum();
+      if (!manifest) return { version: null, minVersion, releasedAt: null, requiredAt: null, serverTime, android: null, windows: null, page: null, notes: '' };
+      const deadline = requiredAt(manifest);
+      return {
+        version: manifest.version, minVersion, page: manifest.page, notes: manifest.notes,
+        releasedAt: manifest.releasedAt === null ? null : new Date(manifest.releasedAt).toISOString(),
+        requiredAt: deadline === null ? null : new Date(deadline).toISOString(),
+        serverTime, android: manifest.android, windows: manifest.windows,
+      };
+    });
+  };
+  return { currentMinimum, install };
 }

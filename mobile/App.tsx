@@ -1,5 +1,5 @@
 import { UpdateGate } from './src/update/UpdateScreen';
-import { checkForUpdate } from './src/update/store';
+import { appBecameActive, checkForUpdate } from './src/update/store';
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { ActivityIndicator, AppState, BackHandler, Linking, Platform, Pressable, View, useColorScheme, useWindowDimensions } from 'react-native';
 import { Text } from './src/typography';
@@ -83,8 +83,8 @@ export default function App() {
     finally{setBooting(false);}
   },[]);
   useEffect(()=>{void initialize();},[initialize]);
-  // Ask the server whether a newer (or required) version exists: at start and when returning to the app.
-  useEffect(()=>{void checkForUpdate();const sub=AppState.addEventListener('change',state=>{if(state==='active')void checkForUpdate();});return()=>sub.remove();},[]);
+  // Ask the server about updates at every start and every return to the app; after 5+ minutes away the optional prompt shows again.
+  useEffect(()=>{void checkForUpdate();let away=0;const sub=AppState.addEventListener('change',state=>{if(state==='active'){appBecameActive(away?Date.now()-away:0);away=0;}else if(!away)away=Date.now();});return()=>sub.remove();},[]);
   useEffect(()=>{void clearPhotoCache().catch(()=>{});void clearVideoCache().catch(()=>{});},[]);
   useEffect(()=>{if(!guestMusicOpen||session)return;const sub=BackHandler.addEventListener('hardwareBackPress',()=>{setGuestMusicOpen(false);return true;});return()=>sub.remove();},[guestMusicOpen,session]);
   useEffect(()=>{if(Platform.OS==='web'&&typeof document!=='undefined'){document.title='Инвиз — личные разговоры';document.body.style.backgroundColor=theme.bg;}},[theme.bg]);

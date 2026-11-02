@@ -1,7 +1,7 @@
 import { installCallRoutes } from './calls.js';
 import { parseClientInfo, clientGateDecision } from './clientgate.js';
 import { verifyAttest, attestMode } from './attest.js';
-import { installReleaseRoutes } from './release.js';
+import { createRelease } from './release.js';
 import { PUSH_SCHEMA, PUSH_KINDS, chatNotification, migratePushTokens } from './push.js';
 import { MODERATION_SCHEMA, installModerationRoutes, blockedBetween, deleteAccount } from './moderation.js';
 import { installSoundCloudRoutes } from './soundcloud.js';
@@ -90,6 +90,8 @@ export async function buildApp({
   db.prepare('DELETE FROM sessions WHERE expires_at <= ?').run(now());
   const origins = new Set(allowedOrigins);
   const attestState = attestMode(attestModeSetting, attestKey);
+  // Update offer + grace period; also feeds the version gate (deadline passed = minimum).
+  const release = createRelease({ manifestPath: releaseManifest, minClientVersion, now, log: error => app.log.warn({ err: error }, 'release manifest is invalid') });
   const limiter = createLimiter(now);
   const sockets = new Set();
   let passwordJobs = 0;
@@ -227,7 +229,7 @@ export async function buildApp({
     // Version gate: health check and CORS preflight always pass.
     if (request.method !== 'OPTIONS' && request.url !== '/health' && request.url !== '/app/update') {
       request.clientInfo = parseClientInfo(request.headers['x-linea-client']);
-      const refusal = clientGateDecision(request.clientInfo, { minVersion: minClientVersion, requireHeader: requireClientHeader });
+      const refusal = clientGateDecision(request.clientInfo, { minVersion: release.currentMinimum(), requireHeader: requireClientHeader });
       if (refusal) fail(426, refusal.message, { code: refusal.code });
       // Only state-changing requests are signed: logins, sends, uploads, settings. Downloads
       // (GET) and the WebSocket upgrade still require a session, which only a signed login gives.
@@ -267,7 +269,7 @@ export async function buildApp({
   });
 
   app.get('/health', async () => ({ status: 'ok' }));
-  installReleaseRoutes(app, { manifestPath: releaseManifest, minClientVersion, log: error => app.log.warn({ err: error }, 'release manifest is invalid') });
+  release.install(app);
 
   installAuthRoutes({
     app, db, now, timestamp, authOptions, authThrottle, recoveryStatusThrottle,

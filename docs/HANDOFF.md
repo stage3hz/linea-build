@@ -354,3 +354,11 @@ cd /opt/linea && curl -fsSL https://codeload.github.com/stage3hz/linea-build/tar
 - **Исправлено:** `install.sh` при каждом обновлении стирал настройки выхода AI через Worker (`FREELLMAPI_PROXY_*`, `FREELLMAPI_RELAY_*`). Теперь они сохраняются, как и новые `MIN_CLIENT_VERSION`, `REQUIRE_CLIENT_HEADER`, `ATTEST_KEY`, `ATTEST_MODE`.
 - `deploy/relay.sh`: запасные способы найти IP Worker'а (AdGuard DoH, обычный DNS по TCP) — в России блокируют DoH Google/Cloudflare.
 - Тесты: сервер 135, клиент 343 (8 e2ee/desktop требуют libsignal 0.106.0: `LINEA_SIGNAL_TEST_TOOLS`, `npm ci` в `desktop`).
+
+## Обновление приложения из самого приложения (2 ноября 2026, в сборку ещё не выпущено)
+
+- Android и Windows. Экран `mobile/src/update/UpdateScreen.tsx` (`UpdateGate` в `App.tsx`), логика `store.ts`, установка `install.ts`: APK с GitHub → проверка SHA-256 кусками по 2 МБ (`sha256.ts`) → системный установщик (`REQUEST_INSTALL_PACKAGES`, `plugins/withSelfUpdate.js`). Windows: `desktop/update.cjs` (адрес, размер, SHA-256) → запуск установщика, приложение закрывается. iPhone: только ссылка на страницу загрузки.
+- Сервер: `GET /app/update` (`server/src/release.js`) отвечает даже версиям, которым шлюз отвечает 426. Манифест `deploy/secrets/release.json` пишет `bash deploy/release.sh vX.Y.Z [часы|now]`.
+- Правило владельца: **3 дня (72 ч) версия необязательна**, окно со счётчиками «Вышло … назад» и «Обязательно через …» показывается при каждом запуске и при возвращении в приложение после 5+ минут; потом обязательна сама — по часам сервера (смещение часов телефона учитывается), сервер в тот же момент начинает отвечать 426 старым версиям. Уже наступившая обязательность переносится на следующий выпуск.
+- Google Play: самообновление там запрещено политикой; для Play нужна отдельная сборка с Play In-App Updates.
+- Тесты: сервер 140, приложение 381, Windows 6.
