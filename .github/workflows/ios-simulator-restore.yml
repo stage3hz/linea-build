@@ -73,7 +73,7 @@ jobs:
         if: always() && env.SIMULATOR_UDID != ''
         continue-on-error: true
         timeout-minutes: 2
-        run: xcrun simctl spawn "$SIMULATOR_UDID" log show --last 2m --style compact --predicate 'process == "INVIZENT"' > simulator-runtime.log
+        run: xcrun simctl spawn "$SIMULATOR_UDID" log show --last 2m --style compact --predicate 'process == "INVIZENT" OR process == "SpringBoard" OR process == "runningboardd" OR process == "installd"' > simulator-runtime.log
       - uses: actions/upload-artifact@v4
         if: always()
         with:

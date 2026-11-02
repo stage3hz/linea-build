@@ -18,7 +18,7 @@ with tempfile.TemporaryDirectory(prefix='invizent-sim-sign-') as directory:
             if command==0x32:platforms.append(struct.unpack_from('<I',binary,offset+8)[0])
             offset+=size
         if platforms!=[7]:raise SystemExit('Refusing to sign a device binary with a simulator identity')
-        identifier='SIMULATOR0.'+info['CFBundleIdentifier']
-        entitlements={'application-identifier':identifier,'com.apple.developer.team-identifier':'SIMULATOR0','get-task-allow':True,'keychain-access-groups':[identifier]}
+        identifier=info['CFBundleIdentifier']
+        entitlements={'application-identifier':identifier}
         target=pathlib.Path(directory)/f'{index}.plist';target.write_bytes(plistlib.dumps(entitlements))
-        subprocess.run(['codesign','--force','--sign','-','--entitlements',str(target),str(bundle)],check=True)
+        subprocess.run(['codesign','--force','--sign','-','--generate-entitlement-der','--entitlements',str(target),str(bundle)],check=True)
