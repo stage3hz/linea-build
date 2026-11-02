@@ -1,4 +1,7 @@
 import { UntrustedDeviceError } from './e2ee/core';
+import { forwardLabel, visibleText } from './safeText';
+/** What the other side wrote is shown without hidden characters (file names like «фото‮gpj.exe»). */
+const cleanShown=(message:Message):Message=>{let next=message;if(next.attachment?.name&&visibleText(next.attachment.name)!==next.attachment.name)next={...next,attachment:{...next.attachment,name:visibleText(next.attachment.name)||'файл'}};if(next.meta?.forward){const from=forwardLabel(next.meta.forward.from);next={...next,meta:{...next.meta,forward:{from:from??''}}};}return next;};
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useSaved } from './saved/useSaved';
 import { useAIHistory } from './ai/history';
@@ -80,7 +83,7 @@ export function useMessenger(api: Api, user: User, onExpired: ()=>void) {
   },[cryptoRuntime,checkError]);
 
   const hydrate=useCallback(async(message:Message):Promise<Message>=>{
-    try{return await(await cryptoRuntime.get()).preview(message);}
+    try{return cleanShown(await(await cryptoRuntime.get()).preview(message));}
     catch(e){if(aliveRef.current)setCryptoError(checkError(e));return {...message,text:message.legacy?'Сообщение из старой версии без сквозного шифрования.':'Зашифрованное сообщение недоступно на этом устройстве.',attachment:null,cryptoState:message.legacy?'legacy':'no-key'};}
   },[cryptoRuntime,checkError]);
 

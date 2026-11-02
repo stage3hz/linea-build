@@ -4,6 +4,7 @@ import {
   fail, objectBody, boundedText, usernameValue, passwordValue, passwordHash,
   passwordMatches, recoveryWordValue, normalizeRecoveryWord, deviceNameValue,
   tokenHash, newToken, validToken,
+  publicName,
 } from './security.js';
 
 export const RECOVERY_LOCK_MS = 24 * 60 * 60 * 1000;
@@ -136,7 +137,7 @@ export function installAuthRoutes({
     const confirmationWord = recoveryWordValue(body.confirmationWord, { password, username });
     const recoveryWord = recoveryWordValue(body.recoveryWord, { password, username });
     if (confirmationWord === recoveryWord) fail(400, 'Подтверждающее слово и слово для восстановления должны отличаться.');
-    const displayName = boundedText(body.displayName, 'Имя', 1, 50);
+    const displayName = publicName(body.displayName, 'Имя', 1, 50);
     const deviceName = deviceNameValue(body.deviceName);
     if (db.prepare('SELECT 1 FROM users WHERE username=? OR login_name=?').get(username, username)) fail(409, 'Это имя пользователя уже занято.', { code: 'USERNAME_TAKEN' });
     const hashes = await withPasswordJob(async () => ({

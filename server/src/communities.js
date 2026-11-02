@@ -3,7 +3,7 @@
 // end-to-end encrypted: the server stores channel text. TLS and authentication still apply,
 // and private conversations keep their E2EE. Access is enforced here for every route.
 import { randomBytes, randomUUID } from 'node:crypto';
-import { boundedText, fail, objectBody } from './security.js';
+import { boundedText, fail, objectBody, publicName } from './security.js';
 
 export const PERM = Object.freeze({
   ADMIN: 1, MANAGE_COMMUNITY: 2, MANAGE_CHANNELS: 4, MANAGE_ROLES: 8, INVITE: 16,
@@ -203,7 +203,7 @@ export function installCommunityRoutes({ app, db, authOptions, publicUser, times
     if (category !== null && !CHANNEL_CATEGORIES.includes(category)) fail(400, 'Неизвестное содержание канала.');
     if (!limiter.allow(`community-create:${viewer}`, 5, 60 * 60_000)) fail(429, 'Слишком много новых сообществ. Попробуй позже.');
     if (db.prepare('SELECT COUNT(*) AS n FROM communities WHERE owner_id=?').get(viewer).n >= MAX_OWNED) fail(403, 'Можно создать не больше 20 сообществ.');
-    const name = text(body.name, 'Название', 1, 60);
+    const name = publicName(body.name, 'Название', 1, 60);
     const description = body.description === undefined ? '' : text(body.description, 'Описание', 0, 500);
     const avatarId = body.avatarId === undefined ? null : uploadOwned(body.avatarId, viewer, true);
     const id = randomUUID(), time = timestamp();
@@ -237,7 +237,7 @@ export function installCommunityRoutes({ app, db, authOptions, publicUser, times
     if (body.muted !== undefined) {
       if (typeof body.muted !== 'boolean') fail(400, 'Некорректная настройка звука.');
     }
-    const name = body.name === undefined ? row.name : text(body.name, 'Название', 1, 60);
+    const name = body.name === undefined ? row.name : publicName(body.name, 'Название', 1, 60);
     const description = body.description === undefined ? row.description : text(body.description, 'Описание', 0, 500);
     const avatarId = body.avatarId === undefined ? row.avatar_id : uploadOwned(body.avatarId, viewer, true);
     db.prepare('UPDATE communities SET name=?,description=?,avatar_id=?,category=?,closed=? WHERE id=?').run(name, description, avatarId, body.category === undefined ? row.category : body.category, body.closed === undefined ? (row.closed ? 1 : 0) : (body.closed ? 1 : 0), row.id);

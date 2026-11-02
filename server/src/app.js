@@ -28,6 +28,7 @@ import { installSocialRoutes } from './social.js';
 import {
   HttpError, fail, passwordHash, tokenHash, newToken, validToken,
   objectBody, boundedText, positiveInteger, imageMime, safeFilename, safeMime, createLimiter,
+  publicName,
 } from './security.js';
 
 const MiB = 1024 * 1024;
@@ -370,7 +371,7 @@ export async function buildApp({
   app.patch('/me', authOptions, async request => {
     const body = objectBody(request.body, ['displayName', 'bio', 'avatarColor', 'avatarId', 'avatarVideoId', 'avatarFrame', 'bannerId', 'bannerPreset', 'profileEffect', 'nameplate']);
     const current = db.prepare('SELECT * FROM users WHERE id=?').get(request.auth.user_id);
-    const displayName = body.displayName === undefined ? current.display_name : boundedText(body.displayName, 'Имя', 1, 50);
+    const displayName = body.displayName === undefined ? current.display_name : publicName(body.displayName, 'Имя', 1, 50);
     const bio = body.bio === undefined ? current.bio : boundedText(body.bio, 'О себе', 0, 160);
     const avatarColor = body.avatarColor === undefined ? current.avatar_color : body.avatarColor;
     if (typeof avatarColor !== 'string' || !/^#[0-9a-fA-F]{6}$/.test(avatarColor)) fail(400, 'Цвет должен быть в формате #RRGGBB.');

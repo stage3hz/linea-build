@@ -105,6 +105,25 @@ export function boundedText(value, label, min, max, { trim = true } = {}) {
   return result;
 }
 
+// Invisible and direction-changing characters let a name or file look like something
+// else («фото‮gpj.exe», a name padded with zero-width spaces). They are never needed in
+// a name, so they are removed.
+const HIDDEN = /[\u0000-\u001F\u007F-\u009F­͏؜ᅟᅠ឴឵᠋-᠏​-‏‪-‮⁠-⁯ㅤ︀-︎﻿ﾠ￰-￻]/g;
+export function visibleText(value) { return value.replace(HIDDEN, '').replace(/\s+/g, ' ').trim(); }
+
+// Latin look-alikes folded to Cyrillic so «Иnвиз» or «invizent» are caught as one word.
+const FOLD = { a: 'а', b: 'в', c: 'с', e: 'е', h: 'н', k: 'к', m: 'м', o: 'о', p: 'р', t: 'т', x: 'х', y: 'у', i: 'и', n: 'н', v: 'в', z: 'з', '0': 'о', '3': 'з', '1': 'и', l: 'и', 'ё': 'е', 'й': 'и' };
+const fold = value => value.toLowerCase().normalize('NFKC').replace(/[^\p{L}\p{N}]/gu, '').replace(/./gu, char => FOLD[char] || char);
+const RESERVED = ['инвиз', 'инвизент', 'инвиэ', 'поддержка', 'администрац', 'модератор', 'служба', 'support', 'admin', 'official', 'официальн', 'invizent', 'inviz', 'linea', 'линия'].map(fold);
+/** Names people see (accounts, channels): no hidden characters and no posing as the service. */
+export function publicName(value, label, min, max) {
+  const name = visibleText(boundedText(value, label, 0, max * 2));
+  if (name.length < min || name.length > max) fail(400, `${label}: допустимо от ${min} до ${max} символов.`);
+  const folded = fold(name);
+  if (RESERVED.some(word => folded.includes(word))) fail(400, `${label}: нельзя использовать название сервиса или служб поддержки.`, { code: 'RESERVED_NAME' });
+  return name;
+}
+
 export function usernameValue(value) {
   const username = boundedText(value, 'Имя пользователя', 3, 24).toLowerCase();
   if (!/^[a-z0-9_]{3,24}$/.test(username)) fail(400, 'Имя пользователя: латинские буквы, цифры и подчёркивание.');
