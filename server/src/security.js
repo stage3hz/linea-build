@@ -75,7 +75,7 @@ export function recoveryWordValue(value, { password = '', username = '' } = {}) 
   const word = normalizeRecoveryWord(value);
   if (!/^[a-zа-яё]{4,64}$/u.test(word)) fail(400, 'Секретное слово: от 4 до 64 русских или английских букв без пробелов.');
   if (COMMON_SECRETS.has(word) || /^(.)\1+$/u.test(word) || word === username.toLowerCase() || (password && word === normalizeRecoveryWord(password))) {
-    fail(400, 'Выберите непредсказуемое секретное слово, отличающееся от ника и пароля.');
+    fail(400, 'Выберите непредсказуемое секретное слово, отличающееся от логина и пароля.');
   }
   return word;
 }
