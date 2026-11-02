@@ -342,3 +342,15 @@ cd /opt/linea && curl -fsSL https://codeload.github.com/stage3hz/linea-build/tar
 | INVIZENT-0.14.2-Android-arm64.apk | `52aeca0984efc250df7616d5ca8b95243c80dc36ca3b02999571b3f646f260b9` |
 | INVIZENT-0.14.2-iOS-arm64-unsigned.ipa | `5f533614c005ff635aecd2987704af2ee5a3d7536b303aaaa03b34dd27b73966` |
 | INVIZENT-0.14.2-Windows-x64.exe | `a4407fdf76eb4220181386325ce7466d6a0641970f6d3e378f325fd0f67e0c41` |
+
+## Защита от поддельных клиентов (2 ноября 2026)
+
+- **Подписка (Platina) взломом клиента не открывается:** каждая платная функция проверяется сервером по базе (`username.js`, `app.js` оформление/приватность, `bigfiles.js` лимиты, `ai.js`). Выдаёт Platina только `platina-admin.js` на сервере. Локальной лицензии, которую можно «вытащить», нет.
+- **Версия клиента:** приложение шлёт `X-Linea-Client: invizent; v=<версия>; p=<платформа>` (`mobile/src/serverConfig.ts` → `APP_VERSION`, **поднимать вместе с версией**). Сервер (`server/src/clientgate.js`) по `MIN_CLIENT_VERSION` отвечает 426 старым сборкам. По умолчанию выключено.
+- **Подпись запросов:** изменяющие запросы (POST/PUT/PATCH/DELETE) подписываются `X-Linea-Attest: <ts>.<HMAC-SHA256>` (клиент `mobile/src/attest/`, свой HMAC с проверкой по RFC 4231; сервер `server/src/attest.js`). GET и `/ws` не подписываются: без подписанного входа сессии нет. Режимы `off`/`warn`/`enforce`, окно 10 мин.
+  - Ключ в публичном репозитории всегда пустой (`src/attest/key.ts`, тест это проверяет). Сборки получают его из секрета GitHub `ATTEST_KEY` (`scripts/inject-attest-key.mjs`, шаги в iOS и Windows workflow). Для локальной Android-сборки: `ATTEST_KEY=… node scripts/inject-attest-key.mjs` перед сборкой и `git checkout src/attest/key.ts` после.
+  - Включение: `bash deploy/attest.sh on` (ключ + warn) → добавить ключ в секреты GitHub → собрать и поставить новые версии → `bash deploy/attest.sh log` пуст → `bash deploy/attest.sh enforce`.
+  - Честно: ключ внутри приложения можно извлечь; это планка против простых форков и скриптов и рычаг, который меняется без нового сервера.
+- **Исправлено:** `install.sh` при каждом обновлении стирал настройки выхода AI через Worker (`FREELLMAPI_PROXY_*`, `FREELLMAPI_RELAY_*`). Теперь они сохраняются, как и новые `MIN_CLIENT_VERSION`, `REQUIRE_CLIENT_HEADER`, `ATTEST_KEY`, `ATTEST_MODE`.
+- `deploy/relay.sh`: запасные способы найти IP Worker'а (AdGuard DoH, обычный DNS по TCP) — в России блокируют DoH Google/Cloudflare.
+- Тесты: сервер 135, клиент 343 (8 e2ee/desktop требуют libsignal 0.106.0: `LINEA_SIGNAL_TEST_TOOLS`, `npm ci` в `desktop`).

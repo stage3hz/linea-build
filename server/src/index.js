@@ -48,6 +48,9 @@ const app = await buildApp({
   // Refuse clients older than MIN_CLIENT_VERSION (x.y.z). Unset = allow all.
   minClientVersion: process.env.MIN_CLIENT_VERSION || null,
   requireClientHeader: process.env.REQUIRE_CLIENT_HEADER === '1',
+  // Request signing: ATTEST_KEY (same as the one baked into builds) + ATTEST_MODE=warn|enforce.
+  attestKey: process.env.ATTEST_KEY || '',
+  attestModeSetting: process.env.ATTEST_MODE || 'off',
 });
 
 let stopping = false;

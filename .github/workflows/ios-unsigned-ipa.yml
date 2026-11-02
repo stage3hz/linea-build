@@ -54,6 +54,12 @@ jobs:
         working-directory: mobile
         run: npm run test:ui
 
+      - name: Inject request-signing key (empty secret = signing off)
+        working-directory: mobile
+        env:
+          ATTEST_KEY: ${{ secrets.ATTEST_KEY }}
+        run: node scripts/inject-attest-key.mjs
+
       - name: Expo prebuild (iOS)
         working-directory: mobile
         run: npx expo prebuild --platform ios --clean --no-install

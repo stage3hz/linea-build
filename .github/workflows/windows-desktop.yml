@@ -31,6 +31,10 @@ jobs:
         working-directory: desktop
       - run: npm test
         working-directory: desktop
+      - run: node scripts/inject-attest-key.mjs
+        working-directory: mobile
+        env:
+          ATTEST_KEY: ${{ secrets.ATTEST_KEY }}
       - run: npm run build:ui
         working-directory: desktop
       - run: npm run test:electron

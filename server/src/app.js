@@ -1,5 +1,6 @@
 import { installCallRoutes } from './calls.js';
 import { parseClientInfo, clientGateDecision } from './clientgate.js';
+import { verifyAttest, attestMode } from './attest.js';
 import { PUSH_SCHEMA, PUSH_KINDS, chatNotification, migratePushTokens } from './push.js';
 import { MODERATION_SCHEMA, installModerationRoutes, blockedBetween, deleteAccount } from './moderation.js';
 import { installSoundCloudRoutes } from './soundcloud.js';
@@ -70,6 +71,9 @@ export async function buildApp({
   // Client version gate (clientgate.js). null = allow every client, including header-less.
   minClientVersion = null,
   requireClientHeader = false,
+  // Request signing (attest.js): key + 'off' | 'warn' | 'enforce'. No key = off.
+  attestKey = '',
+  attestModeSetting = 'off',
   now = () => Date.now(),
 } = {}) {
   if (!Number.isFinite(sessionTtlMs) || sessionTtlMs <= 0) throw new Error('sessionTtlMs must be positive');
@@ -82,6 +86,7 @@ export async function buildApp({
   await chmod(join(storageDir, 'linea.sqlite'), 0o600);
   db.prepare('DELETE FROM sessions WHERE expires_at <= ?').run(now());
   const origins = new Set(allowedOrigins);
+  const attestState = attestMode(attestModeSetting, attestKey);
   const limiter = createLimiter(now);
   const sockets = new Set();
   let passwordJobs = 0;
@@ -221,6 +226,15 @@ export async function buildApp({
       request.clientInfo = parseClientInfo(request.headers['x-linea-client']);
       const refusal = clientGateDecision(request.clientInfo, { minVersion: minClientVersion, requireHeader: requireClientHeader });
       if (refusal) fail(426, refusal.message, { code: refusal.code });
+      // Only state-changing requests are signed: logins, sends, uploads, settings. Downloads
+      // (GET) and the WebSocket upgrade still require a session, which only a signed login gives.
+      if (attestState !== 'off' && !['GET', 'HEAD'].includes(request.method) && !request.url.startsWith('/ws')) {
+        const problem = verifyAttest(request.headers['x-linea-attest'], { key: attestKey, method: request.method, url: request.url, nowSeconds: Math.floor(now() / 1000) });
+        if (problem) {
+          request.log.warn({ attest: problem, client: request.clientInfo?.raw ?? null, url: request.url.split('?')[0] }, 'request signature check failed');
+          if (attestState === 'enforce') fail(403, 'Запрос не от официального приложения INVIZENT. Установите приложение заново.', { code: 'ATTEST_FAILED' });
+        }
+      }
     }
   });
   app.options('/*', async (_request, reply) => reply.code(204).send());

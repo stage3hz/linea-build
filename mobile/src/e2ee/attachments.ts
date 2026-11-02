@@ -1,10 +1,11 @@
 import { Platform } from 'react-native';
+import { attestHeaders } from '../attest/index';
 import * as Crypto from 'expo-crypto';
 import * as FileSystem from 'expo-file-system/legacy';
 import { File } from 'expo-file-system';
 import * as Sharing from 'expo-sharing';
 import { fromByteArray, toByteArray } from 'base64-js';
-import { multipartFile, type Api } from '../api';
+import { CLIENT_HEADER, multipartFile, type Api } from '../api';
 import type { Attachment, LocalFile } from '../types';
 import { getSignalBridge } from './signal';
 import { prepareMediaForUpload, type PreparedMedia } from '../media/pipeline';
@@ -119,7 +120,8 @@ export async function encryptAndUploadLarge(api:Api,file:LocalFile,options:{stat
       const at=index*full,next=Math.min(total,at+full);
       for(let attempt=0;;attempt++){
         checkAbort(options.signal);
-        const result=await FileSystem.uploadAsync(`${api.base}/e2ee/uploads/${sessionId}?offset=${at}`,temp,{httpMethod:'PUT',uploadType:FileSystem.FileSystemUploadType.BINARY_CONTENT,headers:{Authorization:`Bearer ${api.token}`,'Content-Type':'application/octet-stream'}}).catch(()=>null);
+        const chunkPath=`/e2ee/uploads/${sessionId}?offset=${at}`;
+        const result=await FileSystem.uploadAsync(`${api.base}${chunkPath}`,temp,{httpMethod:'PUT',uploadType:FileSystem.FileSystemUploadType.BINARY_CONTENT,headers:{Authorization:`Bearer ${api.token}`,'Content-Type':'application/octet-stream','X-Linea-Client':CLIENT_HEADER,...attestHeaders('PUT',chunkPath)}}).catch(()=>null);
         if(result?.status===200)break;
         const body=(()=>{try{return JSON.parse(result?.body||'{}');}catch{return {};}})() as {received?:number;error?:string};
         // The chunk got through but the reply was lost: the server already has it.

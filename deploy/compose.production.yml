@@ -40,6 +40,11 @@ services:
       # Push (iPhone, Apple APNs): key installed by deploy/apns.sh.
       APNS_CREDENTIALS: ${APNS_CREDENTIALS:-}
       SOUNDCLOUD_CREDENTIALS: ${SOUNDCLOUD_CREDENTIALS:-}
+      # Client protection (server/src/clientgate.js, attest.js); empty = off. Set by deploy/attest.sh.
+      MIN_CLIENT_VERSION: ${MIN_CLIENT_VERSION:-}
+      REQUIRE_CLIENT_HEADER: ${REQUIRE_CLIENT_HEADER:-}
+      ATTEST_KEY: ${ATTEST_KEY:-}
+      ATTEST_MODE: ${ATTEST_MODE:-off}
     volumes:
       - linea-data:/data
       - ./secrets:/secrets:ro
