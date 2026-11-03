@@ -30,7 +30,8 @@ module.exports = {
         NSLocalNetworkUsageDescription: 'Чтобы писать без интернета тем, кто рядом, и подключаться к серверу мессенджера в вашей сети.',
         NSBluetoothAlwaysUsageDescription: 'Bluetooth нужен, чтобы писать без интернета тем, кто рядом. Сообщения остаются зашифрованными, местоположение не определяется.',
         // Music keeps playing and a call keeps its audio when the app goes to the background.
-        UIBackgroundModes: ['audio', 'voip'],
+        // bluetooth-*: Mesh keeps passing messages with the app in the background (no internet only).
+        UIBackgroundModes: ['audio', 'voip', 'bluetooth-central', 'bluetooth-peripheral'],
         ...(allowDevelopmentHttp ? { NSAppTransportSecurity: { NSAllowsArbitraryLoads: true, NSAllowsLocalNetworking: true } } : {}),
       },
     },

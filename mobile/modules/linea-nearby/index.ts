@@ -15,5 +15,12 @@ export type LineaNearbyBridge = {
   /** Android: the system «Turn on Bluetooth?» dialog. iPhone: the system alert that leads to Bluetooth settings. */
   requestEnable(): Promise<NearbyNativeState>;
   openSettings(): Promise<void>;
+  /** Starts the Bluetooth link (only with permission and Bluetooth on). */
+  startMesh(): Promise<boolean>;
+  stopMesh(): Promise<void>;
+  /** Sends one text message (JSON from src/nearby/session.ts) to a connected phone. */
+  sendMesh(peer: string, text: string): Promise<boolean>;
   addListener(event: 'change', listener: (state: NearbyNativeState) => void): { remove(): void };
+  addListener(event: 'meshPeer' | 'meshLost', listener: (event: { peer: string }) => void): { remove(): void };
+  addListener(event: 'meshData', listener: (event: { peer: string; text: string }) => void): { remove(): void };
 };

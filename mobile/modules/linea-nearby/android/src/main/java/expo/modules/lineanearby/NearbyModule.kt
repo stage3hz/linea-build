@@ -28,6 +28,7 @@ class NearbyModule : Module() {
   private var receiver: BroadcastReceiver? = null
   private var callback: ConnectivityManager.NetworkCallback? = null
   private var pendingEnable: Promise? = null
+  private var radio: MeshRadio? = null
 
   private fun context(): Context = appContext.reactContext ?: throw IllegalStateException("CONTEXT_UNAVAILABLE")
   private fun supported() = Build.VERSION.SDK_INT >= Build.VERSION_CODES.S &&
@@ -69,7 +70,7 @@ class NearbyModule : Module() {
 
   override fun definition() = ModuleDefinition {
     Name("LineaNearby")
-    Events("change")
+    Events("change", "meshPeer", "meshData", "meshLost")
 
     OnStartObserving {
       val ctx = context()
@@ -82,6 +83,7 @@ class NearbyModule : Module() {
         override fun onCapabilitiesChanged(network: Network, caps: NetworkCapabilities) = emitChange()
       }.also { manager.registerDefaultNetworkCallback(it) }
     }
+    OnDestroy { radio?.stop(); radio = null }
     OnStopObserving {
       val ctx = appContext.reactContext ?: return@OnStopObserving
       receiver?.let { runCatching { ctx.unregisterReceiver(it) } }; receiver = null
@@ -116,6 +118,17 @@ class NearbyModule : Module() {
       pendingEnable = null
       current { waiting.resolve(it) }
     }
+
+    // Mesh link: only while the app asks for it (no internet), only with the permission granted.
+    AsyncFunction("startMesh") { promise: Promise ->
+      current { state ->
+        if (state["permission"] != "granted" || state["bluetooth"] != "on") return@current promise.resolve(false)
+        val r = radio ?: MeshRadio(context(), { sendEvent("meshPeer", mapOf("peer" to it)) }, { peer, text -> sendEvent("meshData", mapOf("peer" to peer, "text" to text)) }, { sendEvent("meshLost", mapOf("peer" to it)) }).also { radio = it }
+        r.start(); promise.resolve(true)
+      }
+    }
+    AsyncFunction("stopMesh") { radio?.stop(); radio = null }
+    AsyncFunction("sendMesh") { peer: String, text: String -> radio?.send(peer, text) ?: false }
 
     AsyncFunction("openSettings") {
       val intent = Intent(Settings.ACTION_APPLICATION_DETAILS_SETTINGS, Uri.fromParts("package", context().packageName, null)).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)

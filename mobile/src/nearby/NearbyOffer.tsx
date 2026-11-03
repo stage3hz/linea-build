@@ -19,7 +19,7 @@ export function NearbyOffer() {
         <GlassSurface radius={26} contentStyle={{ padding: 22, gap: 14, alignItems: 'center' }}>
           <View style={{ width: 58, height: 58, borderRadius: 29, alignItems: 'center', justifyContent: 'center', backgroundColor: t.accent }}><Ionicons name="bluetooth" size={30} color={t.onAccent} /></View>
           <Text style={{ color: t.text, fontSize: 20, fontWeight: '700', textAlign: 'center' }}>Отправлять без интернета?</Text>
-          <Text style={{ color: t.muted, fontSize: 14, lineHeight: 20 }}>Сообщения пойдут через Mesh — по Bluetooth через телефоны людей с Инвизом рядом. Шифрование то же.{'\n\n'}• Собеседник рядом — секунды.{'\n'}• Через других людей — от минут до нескольких часов.{'\n'}• Не дойдёт, если рядом никого с Инвизом.{'\n\n'}Дальше телефон спросит разрешение — нажмите «Разрешить».</Text>
+          <Text style={{ color: t.muted, fontSize: 14, lineHeight: 20 }}>Сообщения пойдут через Mesh — по Bluetooth через телефоны людей с Инвизом рядом. Шифрование то же.{'\n\n'}• Собеседник рядом — секунды.{'\n'}• Через других людей — от минут до нескольких часов.{'\n'}• Дойдёт, только если собеседник рядом или рядом есть люди с Инвизом.{'\n\n'}Дальше телефон спросит разрешение — нажмите «Разрешить».</Text>
           <View style={{ alignSelf: 'stretch' }}><Button label="Отправлять без интернета" icon="bluetooth" onPress={() => void act()} /></View>
         </GlassSurface>
       </View>

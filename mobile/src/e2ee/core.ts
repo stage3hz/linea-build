@@ -14,7 +14,9 @@ type LocalDevice = { id: string; bundle: PublicBundle };
 /** `auto`: accepted on first sight / after a key change without a manual code check (WhatsApp-style). */
 type TrustRecord = { identityKey: string; registrationId: number; checkedAt: string | null; auto?: boolean };
 type PlainBody = { text: string; attachment: Attachment | null; sentAt: string; meta?: MessageMeta };
-type CachedMessage = { fingerprint: string; plain: PlainBody };
+/** `mesh`: received over Mesh (Bluetooth) before the server copy; the server copy may be a re-encryption of the same text. */
+type CachedMessage = { fingerprint: string; plain: PlainBody; mesh?: boolean };
+export type MeshEnvelope = { chatId: string; clientId: string; senderId: string; encrypted: EncryptedMessage };
 type Outbox = { encrypted: EncryptedMessage; plain: PlainBody; peerId: string };
 const uuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 const address = (userId: string, deviceId: string) => `${userId}.${deviceId}`;
@@ -22,6 +24,10 @@ const trustKey = (device: Pick<CryptoDevice,'userId'|'id'>) => `trust:${device.u
 const messageKey = (message: Pick<Message,'chatId'|'senderId'|'clientId'>) => `message:${message.chatId}:${message.senderId}:${message.clientId}`;
 const outboxKey = (chatId: string, clientId: string) => `outbox:${chatId}:${clientId}`;
 const sessionKey = (device: Pick<CryptoDevice,'userId'|'id'>) => `session:${device.userId}:${device.id}`;
+/** Last device list seen from the server, so messages can still be encrypted without internet (Mesh). */
+const devicesKey = (userId: string) => `devices:${userId}`;
+const isNetwork = (error: unknown) => error instanceof Error && error.name === 'NetworkError';
+const samePlain = (a: PlainBody, b: PlainBody) => a.text === b.text && JSON.stringify(a.attachment) === JSON.stringify(b.attachment) && JSON.stringify(a.meta ?? null) === JSON.stringify(b.meta ?? null);
 
 export class UntrustedDeviceError extends Error {
   constructor() { super('Проверь коды устройств в разделе «Защита чата». Новые ключи не принимаются автоматически.'); this.name='UntrustedDeviceError'; }
@@ -113,6 +119,17 @@ export class CryptoService {
     return this.initializing;
   }
   get deviceId():string|null {return this.local?.id??null;}
+  /** Without internet: the last lists from the server, only devices we already have a session with. */
+  private async cachedTargets(peerId:string):Promise<CryptoDevice[]> {
+    const read=async(userId:string)=>{try{const list=JSON.parse((await this.vault.get(devicesKey(userId)))||'[]');return Array.isArray(list)?list as CryptoDevice[]:[];}catch{return [];}};
+    const local=this.local!;const out:CryptoDevice[]=[];
+    for(const device of [...(await read(this.userId)).filter(d=>d.id!==local.id),...(await read(peerId))]){
+      if(device.userId!==this.userId&&device.userId!==peerId)continue;
+      if(device.active&&await this.vault.get(sessionKey(device))&&await this.vault.get(trustKey(device)))out.push(device);
+    }
+    if(!out.some(d=>d.userId===peerId))throw new Error('Без интернета можно писать только тем, с кем уже переписывались.');
+    return out;
+  }
   private async targets(peerId:string):Promise<CryptoDevice[]> {
     if(!uuid.test(peerId)||peerId===this.userId)throw new Error('Неверный собеседник.');
     const [own,peer]=await Promise.all([this.transport.cryptoDevices(this.userId),this.transport.cryptoDevices(peerId)]);
@@ -128,7 +145,11 @@ export class CryptoService {
       seen.add(key);
     }
     if(devices.length>9)throw new Error('Слишком много устройств в разговоре.');
-    return devices.sort((a,b)=>address(a.userId,a.id).localeCompare(address(b.userId,b.id)));
+    const result=devices.sort((a,b)=>address(a.userId,a.id).localeCompare(address(b.userId,b.id)));
+    // Remember the lists (only when they changed) for encrypting without internet.
+    const ownJson=JSON.stringify(own.devices),peerJson=JSON.stringify(peer.devices);
+    if(await this.vault.get(devicesKey(this.userId))!==ownJson||await this.vault.get(devicesKey(peerId))!==peerJson)await this.vault.commit({[devicesKey(this.userId)]:ownJson,[devicesKey(peerId)]:peerJson});
+    return result;
   }
   private async snapshot(peerId:string):Promise<TrustSnapshot> {
     const targets=await this.targets(peerId);const local=this.local!;
@@ -164,12 +185,15 @@ export class CryptoService {
         if(previous.peerId!==peerId||previous.plain.text!==text||JSON.stringify(previous.plain.attachment)!==JSON.stringify(attachment)||JSON.stringify(previous.plain.meta)!==JSON.stringify(meta))throw new Error('Идентификатор сообщения уже использован.');
         return previous.encrypted; // Retries reuse exactly the committed ciphertext.
       }
-      const targets=await this.targets(peerId);let state=(await this.vault.get('protocol'))!;
+      let offline=false;let targets:CryptoDevice[];
+      try{targets=await this.targets(peerId);}catch(error){if(!isNetwork(error))throw error;targets=await this.cachedTargets(peerId);offline=true;}
+      let state=(await this.vault.get('protocol'))!;
       const plain:PlainBody={text,attachment,sentAt:new Date().toISOString(),...(meta?{meta}:{})};const changes:Record<string,string>={};
       const encrypted:EncryptedMessage={scheme:'signal-v1',senderDeviceId:this.local!.id,envelopes:[],attachmentIds:attachment?[attachment.id]:[]};
       for(const device of targets){
         const trusted=parse<TrustRecord>(await this.vault.get(trustKey(device)));
         let rekey=false;
+        if(offline&&(!trusted||!sameDevice(trusted,device)))continue; // never accept new keys without the server
         if(!trusted||!sameDevice(trusted,device)){
           if(!this.options.autoTrust)throw new UntrustedDeviceError();
           state=(await this.bridge.trustIdentity(state,address(device.userId,device.id),1,device.identityKey)).state;
@@ -197,16 +221,10 @@ export class CryptoService {
   async rejectedDeviceSet(chatId:string,clientId:string):Promise<void> {
     await this.initialize();return this.exclusive(()=>this.vault.commit({[outboxKey(chatId,clientId)]:null,[messageKey({chatId,clientId,senderId:this.userId})]:null}));
   }
-  private async decode(message:Message,cursorKey:string):Promise<void> {
-    const encrypted=message.encrypted;
-    if(!validEncrypted(encrypted))throw new Error('Некорректный зашифрованный пакет.');
-    const fingerprint=await this.sha256(canonicalEncrypted(encrypted));const cached=parse<CachedMessage>(await this.vault.get(messageKey(message)));
-    if(cached){
-      if(cached.fingerprint!==fingerprint)throw new Error('Сервер изменил сохранённое сообщение.');
-      await this.vault.commit({[cursorKey]:String(message.id)});return;
-    }
+  /** Decrypts our envelope of a message (from the server or from Mesh) and checks it is addressed exactly as claimed. */
+  private async open(message:Pick<Message,'chatId'|'clientId'|'senderId'>,encrypted:EncryptedMessage):Promise<{plain:PlainBody;protocol:string;sender:{userId:string;id:string}}|null> {
     const envelope=encrypted.envelopes.find(item=>item.userId===this.userId&&item.deviceId===this.local!.id);
-    if(!envelope) {await this.vault.commit({[cursorKey]:String(message.id)});return;}
+    if(!envelope)return null;
     const sender={userId:message.senderId,id:encrypted.senderDeviceId};
     let trusted=parse<TrustRecord>(await this.vault.get(trustKey(sender)));
     if(!trusted&&this.options.autoTrust){
@@ -222,8 +240,41 @@ export class CryptoService {
     const attachmentIds=body.attachment?[body.attachment.id]:[];
     if(JSON.stringify([...(encrypted.attachmentIds||[])].sort())!==JSON.stringify(attachmentIds))throw new Error('Неверная привязка зашифрованного вложения.');
     const plain:PlainBody={text:body.text,attachment:body.attachment,sentAt:body.sentAt,...(body.meta?{meta:body.meta}:{})};
-    await this.vault.commit({protocol:result.state,[sessionKey(sender)]:'1',[messageKey(message)]:JSON.stringify({fingerprint,plain}),[cursorKey]:String(message.id)});
+    return {plain,protocol:result.state,sender};
   }
+  private async decode(message:Message,cursorKey:string):Promise<void> {
+    const encrypted=message.encrypted;
+    if(!validEncrypted(encrypted))throw new Error('Некорректный зашифрованный пакет.');
+    const fingerprint=await this.sha256(canonicalEncrypted(encrypted));const cached=parse<CachedMessage>(await this.vault.get(messageKey(message)));
+    if(cached&&(cached.fingerprint===fingerprint||!cached.mesh)){
+      if(cached.fingerprint!==fingerprint)throw new Error('Сервер изменил сохранённое сообщение.');
+      await this.vault.commit({[cursorKey]:String(message.id)});return;
+    }
+    const opened=await this.open(message,encrypted);
+    if(!opened){await this.vault.commit({[cursorKey]:String(message.id)});return;}
+    // Already got it over Mesh, then the sender re-encrypted it for the server: the text must match.
+    if(cached?.mesh&&!samePlain(cached.plain,opened.plain))throw new Error('Сообщение по Mesh и с сервера не совпадают.');
+    const {plain,sender}=opened;
+    await this.vault.commit({protocol:opened.protocol,[sessionKey(sender)]:'1',[messageKey(message)]:JSON.stringify({fingerprint,plain}),[cursorKey]:String(message.id)});
+  }
+  /**
+   * A message that came over Mesh (Bluetooth) instead of the server. Returns the text to show, or
+   * null if it is not for this device or was already received. The server copy, when it arrives
+   * later, is matched to this one (decode) and not shown twice.
+   */
+  async receiveMesh(input:MeshEnvelope):Promise<PlainBody|null> {
+    await this.initialize();return this.exclusive(async()=>{
+      if(!input||!uuid.test(input.chatId)||!uuid.test(input.clientId)||!uuid.test(input.senderId)||input.senderId===this.userId||!validEncrypted(input.encrypted))return null;
+      const key=messageKey(input);if(await this.vault.get(key))return null;
+      const fingerprint=await this.sha256(canonicalEncrypted(input.encrypted));
+      let opened;
+      try{opened=await this.open(input,input.encrypted);}catch(error){if(isNetwork(error))return null;throw error;}
+      if(!opened)return null;
+      await this.vault.commit({protocol:opened.protocol,[sessionKey(opened.sender)]:'1',[key]:JSON.stringify({fingerprint,plain:opened.plain,mesh:true})});
+      return opened.plain;
+    });
+  }
+
   async syncChat(chatId:string):Promise<void> {
     if(this.syncing.has(chatId))return this.syncing.get(chatId)!;
     const task=(async()=>{

@@ -1,5 +1,7 @@
 import { UntrustedDeviceError } from './e2ee/core';
 import { reportFailure } from './servers/pool';
+import { meshActive, useMeshActive } from './nearby/meshState';
+import { onMesh, packetIdOf, publishMessage, publishReceipt, startMesh, stopMesh } from './nearby/meshRuntime';
 import { forwardLabel, visibleText } from './safeText';
 /** What the other side wrote is shown without hidden characters (file names like «фото‮gpj.exe»). */
 const cleanShown=(message:Message):Message=>{let next=message;if(next.attachment?.name&&visibleText(next.attachment.name)!==next.attachment.name)next={...next,attachment:{...next.attachment,name:visibleText(next.attachment.name)||'файл'}};if(next.meta?.forward){const from=forwardLabel(next.meta.forward.from);next={...next,meta:{...next.meta,forward:{from:from??''}}};}return next;};
@@ -26,7 +28,13 @@ import { resetMediaCache } from './media/mediaCache';
 const HIDDEN_LIMIT = 5000;
 
 const sortedChats = (chats: Chat[]) => [...chats].sort((a,b)=>b.updatedAt.localeCompare(a.updatedAt));
-const mergeMessages = (a: Message[], b: Message[]) => Array.from(new Map([...a,...b].map(m=>[m.id,m])).values()).sort((x,y)=>x.id-y.id);
+const MESH_ID_BASE = 9e15; // local ids for messages that came over Mesh, after every server id
+const mergeMessages = (a: Message[], b: Message[]) => {
+  const all = Array.from(new Map([...a,...b].map(m=>[m.id,m])).values());
+  // When the server copy arrives, the Mesh copy of the same message disappears.
+  const fromServer = new Set(all.filter(m=>!m.mesh).map(m=>`${m.senderId}:${m.clientId}`));
+  return all.filter(m=>!m.mesh||!fromServer.has(`${m.senderId}:${m.clientId}`)).sort((x,y)=>x.id-y.id);
+};
 export type Connection = 'connecting'|'connected'|'offline';
 
 export function useMessenger(api: Api, user: User, onExpired: ()=>void) {
@@ -237,6 +245,7 @@ export function useMessenger(api: Api, user: User, onExpired: ()=>void) {
 
   const uploadsRef=useRef(new Map<string,AbortController>());
   const performSend=useCallback(async(item:PendingMessage)=>{
+    let meshBody:string|null=null;let meshPeer='';
     setPending(prev=>[...prev.filter(p=>p.clientId!==item.clientId),{...item,state:'sending',error:undefined}]);
     try {
       const peer=chatsRef.current.find(chat=>chat.id===item.chatId)?.peer;
@@ -253,6 +262,7 @@ export function useMessenger(api: Api, user: User, onExpired: ()=>void) {
         }finally{uploadsRef.current.delete(item.clientId);}
       }
       const crypto=await cryptoRuntime.get();const encrypted=await crypto.encrypt(item.chatId,peer.id,item.clientId,item.text,item.attachment,item.meta);
+      meshPeer=peer.id;meshBody=!item.attachment&&!item.meta?.action?JSON.stringify({chatId:item.chatId,clientId:item.clientId,senderId:user.id,encrypted}):null;
       const action=item.meta?.action;const result=await api.sendEncrypted(item.chatId,item.clientId,encrypted,!action?undefined:action.type==='call'&&action.step==='offer'?'call':'none');
       await crypto.delivered(item.chatId,item.clientId).catch(()=>{});
       if(aliveRef.current){await acceptMessage(result.message);void refreshChats();}
@@ -260,16 +270,49 @@ export function useMessenger(api: Api, user: User, onExpired: ()=>void) {
     catch(e){
       if(e instanceof ApiError&&e.code==='E2EE_DEVICES_CHANGED')await cryptoRuntime.get().then(crypto=>crypto.rejectedDeviceSet(item.chatId,item.clientId)).catch(()=>{});
       if(e instanceof Error&&e.name==='AbortError')return;
-      if(aliveRef.current){const message=checkError(e);if(e instanceof Error&&e.name==='UntrustedDeviceError')setCryptoError(message);setPending(prev=>prev.map(p=>p.clientId===item.clientId?{...p,...(item.upload?{upload:item.upload}:{}),state:'failed',error:message,offline:e instanceof NetworkError?(item.offline||0)+1:undefined}:p));}
+      if(aliveRef.current){const message=checkError(e);if(e instanceof Error&&e.name==='UntrustedDeviceError')setCryptoError(message);setPending(prev=>prev.map(p=>p.clientId===item.clientId?{...p,...(item.upload?{upload:item.upload}:{}),state:'failed',error:message,offline:e instanceof NetworkError?(item.offline||0)+1:undefined,mesh:p.mesh}:p));}
+      // No internet but Mesh is on: hand the same encrypted message to phones nearby. The server
+      // still gets it when the internet is back (retries below), and drops the duplicate by clientId.
+      if(e instanceof NetworkError&&meshBody&&meshActive()){publishMessage(meshPeer,meshBody,item.clientId);setPending(prev=>prev.map(p=>p.clientId===item.clientId&&!p.mesh?{...p,mesh:'queued'}:p));}
     }
-  },[api,acceptMessage,checkError,refreshChats,cryptoRuntime]);
+  },[api,acceptMessage,checkError,refreshChats,cryptoRuntime,user.id]);
+  // ---- Mesh (no internet): radio on/off, messages and receipts from phones nearby ----
+  const mesh=useMeshActive();
+  useEffect(()=>{if(mesh)void startMesh(user.id);else void stopMesh();},[mesh,user.id]);
+  const meshSeq=useRef(0);const readSent=useRef(new Set<string>());
+  useEffect(()=>onMesh({
+    handedOver:id=>setPending(prev=>prev.map(p=>packetIdOf(p.clientId)===id&&(!p.mesh||p.mesh==='queued')?{...p,mesh:'handed'}:p)),
+    deliver:packet=>{
+      let body:unknown;try{body=JSON.parse(packet.body);}catch{return;}
+      if(packet.kind==='ack'||packet.kind==='read'){
+        const id=(body as {ack?:unknown;read?:unknown})[packet.kind==='ack'?'ack':'read'];if(typeof id!=='string')return;
+        const step=packet.kind==='ack'?'delivered':'read';
+        setPending(prev=>prev.map(p=>packetIdOf(p.clientId)===id&&p.mesh!=='read'?{...p,mesh:step}:p));return;
+      }
+      const input=body as {chatId?:unknown;clientId?:unknown;senderId?:unknown;encrypted?:unknown};
+      if(typeof input.chatId!=='string'||typeof input.clientId!=='string'||typeof input.senderId!=='string'||packetIdOf(input.clientId)!==packet.id)return;
+      // Only in an existing chat with that very person (the sender is proven by Signal below).
+      const chat=chatsRef.current.find(c=>c.id===input.chatId&&c.peer.id===input.senderId);if(!chat)return;
+      void cryptoRuntime.get().then(crypto=>crypto.receiveMesh(input as Parameters<typeof crypto.receiveMesh>[0])).then(plain=>{
+        if(!plain||!aliveRef.current)return;
+        const message=cleanShown({id:MESH_ID_BASE+(++meshSeq.current),chatId:chat.id,senderId:chat.peer.id,clientId:input.clientId as string,text:plain.text,attachment:plain.attachment,createdAt:plain.sentAt,cryptoState:'decrypted',mesh:true,...(plain.meta?{meta:plain.meta}:{})});
+        setMessages(prev=>({...prev,[chat.id]:mergeMessages(prev[chat.id]||[],[message])}));
+        publishReceipt('ack',chat.peer.id,packet.id);
+      }).catch(()=>{});
+    },
+  }),[cryptoRuntime]);
+  // «Прочитано» over Mesh for messages that came over Mesh, once the chat is open.
+  useEffect(()=>{
+    if(!selectedId||!meshActive())return;
+    for(const m of messages[selectedId]||[])if(m.mesh&&m.senderId!==user.id&&!readSent.current.has(m.clientId)){readSent.current.add(m.clientId);publishReceipt('read',m.senderId,packetIdOf(m.clientId));}
+  },[selectedId,messages,user.id]);
   // A message that failed only because the servers were switching over (or the network blinked) is
   // sent again by itself: every 3 s, then slower, for about 10 minutes.
   useEffect(()=>{
     const timer=setInterval(()=>{
       const now=Date.now();
       for(const item of pendingRef.current){
-        if(item.state!=='failed'||!item.offline||item.offline>40||item.upload)continue;
+        if(item.state!=='failed'||!item.offline||(item.offline>40&&!item.mesh)||item.upload)continue;
         const wait=Math.min(30000,3000*Math.ceil(item.offline/5));
         const last=retryAtRef.current.get(item.clientId)||0;
         if(now-last<wait)continue;
@@ -375,7 +418,7 @@ export function useMessenger(api: Api, user: User, onExpired: ()=>void) {
   },[removedKey,messages,hideForMe,selectChat]);
   const visibleChats=useMemo(()=>chats.filter(chat=>removed[chat.id]===undefined||(chat.lastMessage?.id||0)>removed[chat.id]),[chats,removed]);
   // While it is being re-sent by itself, the bubble shows the clock, not «Не отправлено».
-  const shownPending=useMemo(()=>pending.map(p=>p.state==='failed'&&p.offline&&p.offline<=40&&!p.upload?{...p,state:'sending' as const,error:undefined}:p),[pending]);
+  const shownPending=useMemo(()=>pending.map(p=>p.state==='failed'&&p.offline&&(p.offline<=40||p.mesh)&&!p.upload?{...p,state:'sending' as const,error:undefined}:p),[pending]);
   return {onSocket,sendSocket,onCallSignal,readChat,presence,chats:visibleChats,removeChat,messages,hasMore,pending:shownPending,selectedId,selectChat,connection,listLoading,messageLoading,error,setError,typing,refreshChats,loadMessages,send,sendAction,hideForMe,hidden,forward,sendAttachments,sendLargeFile,cancelPending,retry:performSend,sendPoll,sendTyping,drafts,draftFiles,setDraft,setDraftFile,setDraftFiles,appendDraftFiles,removeDraftFile,recoveryRequests,recoveryError,refreshRecoveryRequests,cancelRecovery,cryptoError,trustSnapshot,approveDevices,uploadEncrypted,saved,aiHistory,updateChatSettings};
 }
 export type MessengerStore = ReturnType<typeof useMessenger>;

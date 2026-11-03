@@ -19,10 +19,11 @@ public final class NearbyModule: Module {
   private let monitor = NWPathMonitor()
   private var internet = false
   private var observing = false
+  private var radio: MeshRadio?
 
   public func definition() -> ModuleDefinition {
     Name("LineaNearby")
-    Events("change")
+    Events("change", "meshPeer", "meshData", "meshLost")
 
     OnCreate {
       self.listener.changed = { [weak self] in self?.flush(); self?.emit() }
@@ -38,7 +39,7 @@ public final class NearbyModule: Module {
       // would show the system permission question on its own, without our explanation first.
       if CBManager.authorization == .allowedAlways { DispatchQueue.main.async { self.open(alert: false) } }
     }
-    OnDestroy { self.monitor.cancel() }
+    OnDestroy { self.monitor.cancel(); self.radio?.stop() }
     OnStartObserving { self.observing = true }
     OnStopObserving { self.observing = false }
 
@@ -58,6 +59,21 @@ public final class NearbyModule: Module {
       self.open(alert: true)
       DispatchQueue.main.asyncAfter(deadline: .now() + 1.5) { self.flush() }
     }.runOnQueue(.main)
+
+    // Mesh link: only while the app asks for it (no internet), only with permission given.
+    AsyncFunction("startMesh") { () -> Bool in
+      guard CBManager.authorization == .allowedAlways, self.central?.state == .poweredOn else { return false }
+      if self.radio == nil {
+        self.radio = MeshRadio(
+          onPeer: { [weak self] in self?.sendEvent("meshPeer", ["peer": $0]) },
+          onData: { [weak self] in self?.sendEvent("meshData", ["peer": $0, "text": $1]) },
+          onLost: { [weak self] in self?.sendEvent("meshLost", ["peer": $0]) })
+      }
+      self.radio?.start()
+      return true
+    }.runOnQueue(.main)
+    AsyncFunction("stopMesh") { self.radio?.stop(); self.radio = nil }.runOnQueue(.main)
+    AsyncFunction("sendMesh") { (peer: String, text: String) -> Bool in self.radio?.send(peer, text) ?? false }.runOnQueue(.main)
 
     AsyncFunction("openSettings") {
       if let url = URL(string: UIApplication.openSettingsURLString) { UIApplication.shared.open(url) }

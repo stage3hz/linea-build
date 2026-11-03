@@ -22,6 +22,9 @@ export class MemoryVault {
 
 export class PublicRelay {
   devices = new Map(); messages = []; claims = []; registrations = []; pageSize = 2; swapClaim = null; inboxTransform = null;
+  /** true = the phone has no internet: every server call fails like the app's NetworkError. */
+  offline = false;
+  down() { if (this.offline) { const error = new Error('Нет связи с сервером.'); error.name = 'NetworkError'; throw error; } }
   transport(userId, vault) {
     return {
       registerCryptoDevice: async (id, bundle) => {
@@ -37,8 +40,9 @@ export class PublicRelay {
         for (const preKey of bundle.preKeys) if (!record.knownIds.has(preKey.id)) { record.keys.set(preKey.id, structuredClone(preKey)); record.knownIds.add(preKey.id); }
         return { device: structuredClone(record.device), preKeyCount: record.keys.size };
       },
-      cryptoDevices: async requestedId => ({ devices: [...this.devices.values()].filter(record => record.device.userId === requestedId && record.device.active).map(record => ({ ...structuredClone(record.device), preKeyCount: record.keys.size })) }),
+      cryptoDevices: async requestedId => (this.down(), { devices: [...this.devices.values()].filter(record => record.device.userId === requestedId && record.device.active).map(record => ({ ...structuredClone(record.device), preKeyCount: record.keys.size })) }),
       claimPreKey: async (requestedId, id) => {
+        this.down();
         const record = this.devices.get(`${requestedId}:${id}`);
         if (!record) throw new Error('Unknown test device');
         const preKey = record.keys.values().next().value;
@@ -49,6 +53,7 @@ export class PublicRelay {
         return this.swapClaim ? this.swapClaim(result) : result;
       },
       cryptoInbox: async (deviceId, chatId, after) => {
+        this.down();
         const all = this.messages.filter(message => message.chatId === chatId && message.id > after);
         const page = all.slice(0, this.pageSize).map(message => structuredClone(message));
         const result = { messages: page, nextCursor: page.at(-1)?.id ?? after, hasMore: all.length > page.length };
