@@ -7,6 +7,9 @@ import { audioPrefs, PTT_RELEASE_MS } from './devices';
 let pttDown = false, pttUpAt = 0;
 export function setPushToTalk(down: boolean) { if (pttDown && !down) pttUpAt = Date.now(); pttDown = down; }
 export const pushToTalkActive = (now = Date.now()) => pttDown || now - pttUpAt < PTT_RELEASE_MS;
+// «Молчать, пока зажато» (Discord's Push to Mute): wins over every mode.
+let muteDown = false;
+export function setPushToMute(down: boolean) { muteDown = down; }
 
 export const HOLD_MS = 350;
 export const dbfs = (rms: number) => (rms > 0 ? 20 * Math.log10(rms) : -100);
@@ -27,7 +30,7 @@ export function gateTrack(track: any, muted: () => boolean): () => void {
   let lastLoudAt = 0;
   const timer = setInterval(() => {
     const p = audioPrefs();
-    if (muted()) { track.enabled = false; return; }
+    if (muted() || muteDown) { track.enabled = false; return; }
     if (p.inputMode === 'always') { track.enabled = true; return; }
     if (p.inputMode === 'ptt') { track.enabled = pushToTalkActive(); return; }
     analyser.getFloatTimeDomainData(data);

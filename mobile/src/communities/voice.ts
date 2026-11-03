@@ -1,8 +1,10 @@
 import { Platform } from 'react-native';
-import { audioPrefs, subscribeAudio } from '../audio/devices';
+import { audioPrefs, setAudioPrefs, subscribeAudio } from '../audio/devices';
 import { gateTrack } from '../audio/gate';
-import { onBindAction } from '../audio/binds';
+import { onBindAction, setVoiceActive } from '../audio/binds';
 import { playVoiceSound } from './voiceSounds';
+import { connectOverlay, overlayTrack, overlayVoiceChanged } from '../overlay/sync';
+import { unwatchVoice } from '../overlay/speaking';
 import { prepareScreenCapture, confirmScreenCapture, endScreenCapture } from './screenCapture';
 import { useSyncExternalStore } from 'react';
 import type { Api } from '../api';
@@ -34,8 +36,19 @@ export type VoiceState = {
 let state: VoiceState = null;
 const listeners = new Set<() => void>();
 const emit = () => listeners.forEach(listener => listener());
-const set = (next: VoiceState) => { state = next; emit(); };
+const set = (next: VoiceState) => { state = next; emit(); overlayVoiceChanged(); };
 const patch = (change: Partial<NonNullable<VoiceState>>) => { if (state) set({ ...state, ...change }); };
+
+// PC overlay (Настройки → Оверлей): reads the channel state; watches each person's microphone.
+const overlayMics = new Set<string>();
+function attachOverlay() {
+  if (local) overlayTrack('me', local.getAudioTracks()[0]);
+  for (const [peer, connection] of connections) {
+    const mic = (connection.getReceivers?.() || []).find((r: any) => r.track?.kind === 'audio')?.track;
+    if (mic) overlayTrack(peer, mic);
+  }
+}
+connectOverlay(() => state && { channelName: state.channelName, muted: state.muted, deafened: state.deafened, status: state.status, peers: state.peers }, () => attachOverlay());
 
 let rtc: WebRTC | null = null; let inCall: any = null;
 let local: any = null; let unsubscribe: (() => void) | null = null; let storeRef: MessengerStore | null = null;
@@ -110,6 +123,8 @@ function connectionFor(peer: string, initiator = false) {
   connection.addEventListener('datachannel', (event: any) => bindControl(peer, event.channel));
   connection.addEventListener('track', (event: any) => {
     if (event.track?.kind === 'audio' && state?.deafened) event.track.enabled = false;
+    // The first audio track of a person is their microphone (the PC-sound slot comes after it).
+    if (event.track?.kind === 'audio' && !overlayMics.has(peer)) { overlayMics.add(peer); overlayTrack(peer, event.track); }
     if (connections.get(peer) !== connection || event.track.kind !== 'video') return;
     releaseRemoteScreen(peer);
     const stream = new rtc!.MediaStream([event.track]);
@@ -144,6 +159,7 @@ function connectionFor(peer: string, initiator = false) {
 }
 
 function drop(peer: string, quiet = false) {
+  overlayMics.delete(peer); unwatchVoice(peer);
   if (!quiet && state?.peers.some(item => item.peer === peer)) playVoiceSound('leave');
   try { connections.get(peer)?.close(); } catch { /* closed */ }
   connections.delete(peer);
@@ -204,6 +220,7 @@ function cleanup(error: string) {
   connections.forEach(connection => { try { connection.close(); } catch { /* closed */ } });
   connections.clear(); screenSenders.clear(); screenAudioSenders.clear(); controls.clear(); remoteScreens.forEach((_stream, peer) => releaseRemoteScreen(peer));
   stopGate(); stopGate = () => {};
+  if (voiceHookOn) { voiceHookOn = false; setVoiceActive(false); }
   try { releaseLocalStream(local); } catch { /* released */ }
   local = null; unsubscribe?.(); unsubscribe = null;
   try { inCall?.stop?.(); } catch { /* optional */ }
@@ -213,11 +230,12 @@ function cleanup(error: string) {
 export async function joinVoice(api: Api, store: MessengerStore, target: { communityId: string; communityName: string; channelId: string; channelName: string }) {
   if (!voiceAvailable()) throw new Error('Голосовые каналы работают в приложении Android/iPhone.');
   if (state?.channelId === target.channelId) return;
+  lastJoin = [api, store, target];
   if (state) leaveVoice();
   try { iceServers = (await api.callIce()).iceServers; } catch { /* public STUN only */ }
   local = await rtc!.mediaDevices.getUserMedia({ audio: true, video: false } as any);
   // PC: voice activation (Настройки → Звук и микрофон).
-  if (Platform.OS === 'web') stopGate = gateTrack(local.getAudioTracks()[0], () => !!state?.muted);
+  if (Platform.OS === 'web') { stopGate = gateTrack(local.getAudioTracks()[0], () => !!state?.muted); setVoiceActive(true); voiceHookOn = true; overlayTrack('me', local.getAudioTracks()[0]); }
   if (!inCall) inCall = loadInCall();
   try { inCall?.start?.({ media: 'audio' }); inCall?.setForceSpeakerphoneOn?.(true); } catch { /* optional */ }
   storeRef = store;
@@ -266,9 +284,19 @@ export function toggleVoiceSpeaker() {
 // without leaving the channel (the old track is swapped in every connection).
 if (Platform.OS === 'web') subscribeAudio(() => { void switchMicrophone(); });
 // Binds (Настройки → Звук и микрофон): mute and deafen while in a channel.
-onBindAction(action => { if (!state) return; if (action === 'mute') toggleVoiceMute(); else toggleVoiceDeafen(); });
+let lastJoin: Parameters<typeof joinVoice> | null = null;
+onBindAction(action => {
+  if (action === 'rejoin') { if (!state && lastJoin) void joinVoice(...lastJoin).catch(() => {}); return; }
+  if (action === 'toggleVoiceMode') { setAudioPrefs({ inputMode: audioPrefs().inputMode === 'ptt' ? 'activity' : 'ptt' }); return; }
+  if (!state) return;
+  if (action === 'mute') toggleVoiceMute();
+  else if (action === 'deafen') toggleVoiceDeafen();
+  else if (action === 'disconnect') leaveVoice();
+  else if (action === 'screenShare') { if (state.sharing) stopVoiceScreen(); else void startVoiceScreen('1080p60').catch(() => {}); }
+});
 let lastInput = `${audioPrefs().input}|${audioPrefs().noiseSuppression}|${audioPrefs().echoCancellation}`;
 let stopGate: () => void = () => {};
+let voiceHookOn = false;
 async function switchMicrophone() {
   const p = audioPrefs(); const input = `${p.input}|${p.noiseSuppression}|${p.echoCancellation}`;
   if (input === lastInput) return; lastInput = input;

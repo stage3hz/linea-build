@@ -11,7 +11,10 @@ contextBridge.exposeInMainWorld('invizentDesktop', Object.freeze({
   token: Object.freeze({ read: () => invoke('tokenRead'), write: value => invoke('tokenWrite',value) }),
   shortcuts: Object.freeze({
     set: binds => invoke('setShortcuts', binds),
-    onAction: listener => { const handler = (_event, action) => { if (action === 'mute' || action === 'deafen') listener(action); }; ipcRenderer.on('invizent-shortcut', handler); return () => ipcRenderer.removeListener('invizent-shortcut', handler); },
+    setHold: config => invoke('setHold', config),
+    onHold: listener => { const handler = (_event, action, down) => { if ((action === 'ptt' || action === 'pushToMute') && typeof down === 'boolean') listener(action, down); }; ipcRenderer.on('invizent-hold', handler); return () => ipcRenderer.removeListener('invizent-hold', handler); },
+    onAction: listener => { const handler = (_event, action) => { if (typeof action === 'string' && /^[a-z0-9]{1,16}$/.test(action)) listener(action); }; ipcRenderer.on('invizent-shortcut', handler); return () => ipcRenderer.removeListener('invizent-shortcut', handler); },
   }),
+  overlay: Object.freeze({ configure: prefs => invoke('overlayConfigure', prefs), update: view => invoke('overlayUpdate', view) }),
   update: Object.freeze({ download: (url,sha256,size) => invoke('updateDownload',url,sha256,size), progress: () => invoke('updateProgress'), cancel: () => invoke('updateCancel'), install: () => invoke('updateInstall') }),
 }));

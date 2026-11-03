@@ -16,7 +16,8 @@
     "test:single-instance": "electron single-instance-smoke.cjs"
   },
   "dependencies": {
-    "@signalapp/libsignal-client": "0.106.0"
+    "@signalapp/libsignal-client": "0.106.0",
+    "uiohook-napi": "1.5.5"
   },
   "devDependencies": {
     "electron": "45.2.1",
@@ -27,12 +28,16 @@
     "productName": "INVIZENT",
     "asar": true,
     "asarUnpack": [
-      "node_modules/@signalapp/libsignal-client/prebuilds/**"
+      "node_modules/@signalapp/libsignal-client/prebuilds/**",
+      "node_modules/uiohook-napi/prebuilds/**"
     ],
     "files": [
       "main.cjs",
       "update.cjs",
       "preload.cjs",
+      "overlay-preload.cjs",
+      "overlay.html",
+      "overlay.js",
       "capture-preload.cjs",
       "signal.mjs",
       "vault.mjs",

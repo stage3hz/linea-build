@@ -1,0 +1,17 @@
+<!doctype html>
+<html lang="ru"><head><meta charset="utf-8">
+<meta http-equiv="Content-Security-Policy" content="default-src 'none'; style-src 'unsafe-inline'; script-src 'self'">
+<style>
+/* Light on purpose: no blur, no shadows heavier than one layer, no animations except one
+   opacity/border transition — so it costs next to nothing on top of a game. */
+html,body{margin:0;background:transparent;overflow:hidden;font:600 13px/1.2 "Montserrat","Segoe UI",sans-serif;color:#fff;-webkit-user-select:none;user-select:none}
+#list{display:flex;flex-direction:column;gap:4px;padding:6px}
+.ch{font-size:11px;font-weight:700;letter-spacing:.06em;color:#C9D2E4;padding:0 4px 2px;text-shadow:0 1px 2px #000}
+.row{display:flex;align-items:center;gap:8px;padding:3px 10px 3px 3px;border-radius:16px;background:rgba(12,16,26,.72);width:max-content;max-width:240px}
+.av{width:24px;height:24px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:11px;border:2px solid transparent;transition:border-color .12s}
+.speak .av{border-color:#2FD27A}
+.name{white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:170px}
+.speak .name{color:#fff}.quiet .name{color:#C9D2E4}
+.state{font-size:11px;color:#FF7A7A}
+</style></head>
+<body><div id="list"></div><script src="overlay.js"></script></body></html>

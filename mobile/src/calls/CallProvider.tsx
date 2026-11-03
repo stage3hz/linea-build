@@ -1,7 +1,7 @@
 import { networkTier } from '../network/quality';
 import { audioPrefs, subscribeAudio } from '../audio/devices';
 import { gateTrack } from '../audio/gate';
-import { onBindAction } from '../audio/binds';
+import { onBindAction, setVoiceActive } from '../audio/binds';
 import React, { createContext, useCallback, useContext, useEffect, useRef, useState } from 'react';
 import { playCallSound, stopCallSound } from './callSounds';
 import { Modal, Platform, Pressable, StyleSheet, Vibration, View, useWindowDimensions } from 'react-native';
@@ -60,7 +60,7 @@ export function CallProvider({ api, store, me, children }: { api: Api; store: Me
   const music = useMusic();
   const [call, setCall] = useState<CallState | null>(null);
   const callRef = useRef<CallState | null>(null); callRef.current = call;
-  const pc = useRef<any>(null); const local = useRef<any>(null); const stopGate = useRef<() => void>(() => {});
+  const pc = useRef<any>(null); const local = useRef<any>(null); const stopGate = useRef<() => void>(() => {}); const hookOn = useRef(false);
   const seen = useRef(new Set<string>());
   const ringTimer = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
   const storeRef = useRef(store); storeRef.current = store;
@@ -69,8 +69,11 @@ export function CallProvider({ api, store, me, children }: { api: Api; store: Me
   useEffect(() => onBindAction(action => {
     const c = callRef.current; if (!c || c.status === 'ended') return;
     if (action === 'mute') { local.current?.getAudioTracks().forEach((t: any) => { t.enabled = c.muted; }); patch({ muted: !c.muted }); return; }
-    for (const receiver of pc.current?.getReceivers?.() || []) if (receiver.track?.kind === 'audio') receiver.track.enabled = !receiver.track.enabled;
+    if (action === 'deafen') { for (const receiver of pc.current?.getReceivers?.() || []) if (receiver.track?.kind === 'audio') receiver.track.enabled = !receiver.track.enabled; return; }
+    if (action === 'answerCall' && c.status === 'incoming') { void acceptRef.current?.(); return; }
+    if (action === 'endCall') hangupRef.current?.();
   }), []);
+  const acceptRef = useRef<(() => Promise<void>) | null>(null); const hangupRef = useRef<(() => void) | null>(null);
   // PC: a microphone picked in Настройки → Звук и микрофон during a call takes effect at once.
   useEffect(() => {
     if (Platform.OS !== 'web') return;
@@ -96,6 +99,7 @@ export function CallProvider({ api, store, me, children }: { api: Api; store: Me
 
   const cleanup = useCallback(() => {
     stopGate.current(); stopGate.current = () => {};
+    if (hookOn.current) { hookOn.current = false; setVoiceActive(false); }
     if (ringTimer.current) clearTimeout(ringTimer.current);
     stopCallSound();
     try { inCall.current?.stopRingtone?.(); inCall.current?.stop?.(); } catch { /* optional */ }
@@ -128,7 +132,7 @@ export function CallProvider({ api, store, me, children }: { api: Api; store: Me
       else if (state === 'failed') finish('Не удалось соединиться', 'failed');
     });
     pc.current = connection; local.current = stream;
-    if (Platform.OS === 'web') { stopGate.current(); stopGate.current = gateTrack(stream.getAudioTracks()[0], () => !!callRef.current?.muted); }
+    if (Platform.OS === 'web') { stopGate.current(); stopGate.current = gateTrack(stream.getAudioTracks()[0], () => !!callRef.current?.muted); if (!hookOn.current) { hookOn.current = true; setVoiceActive(true); } }
     return { connection, localUrl: video ? stream.toURL() : null };
   }, [api, finish]);
 
@@ -276,6 +280,7 @@ export function CallProvider({ api, store, me, children }: { api: Api; store: Me
       if (!c.video) return; local.current?.getVideoTracks().forEach((t: any) => { t.enabled = c.cameraOff; }); patch({ cameraOff: !c.cameraOff }); lightFeedback(); },
     flip: () => { local.current?.getVideoTracks().forEach((t: any) => { try { t._switchCamera(); } catch { /* single camera */ } }); lightFeedback(); },
   };
+  acceptRef.current = accept; hangupRef.current = controls.hangup;
 
   return <CallContext.Provider value={{ start, available: !!rtc.current, busy: !!call }}>
     {children}

@@ -30,11 +30,12 @@ import { PlatinaGem, PlatinaName, PlatinaSeal, hasPlatina, openPlatinaShowcase }
 import { usePlatina } from './platina/usePlatina';
 import { CallPrivacy } from './privacy/CallPrivacy';
 import { AudioSettings } from './audio/AudioSettings';
+import { OverlaySettings } from './overlay/OverlaySettings';
 import { lightFeedback } from './haptics';
 import { LANGUAGES, getLanguage, setLanguage, tr, useLanguage } from './i18n';
 import { fileLimits, type FileLimits } from './e2ee/attachments';
 
-type Section = 'root' | 'appearance' | 'privacy' | 'data' | 'language' | 'folders' | 'power' | 'audio';
+type Section = 'root' | 'appearance' | 'privacy' | 'data' | 'language' | 'folders' | 'power' | 'audio' | 'overlay';
 type Props = {
   api: Api; user: User; theme: ThemeMode; darkTheme: DarkTheme;
   onTheme: (mode: ThemeMode) => void; onDarkTheme: (mode: DarkTheme) => void;
@@ -47,10 +48,10 @@ export function SettingsScreen(props: Props) {
   const [section, setSection] = useState<Section>('root');
   const progress = useSharedValue(1);
   const page = (current: Section, onBack: () => void) => {
-    const title = current === 'audio' ? 'Звук и микрофон' : current === 'appearance' ? 'Оформление' : current === 'privacy' ? 'Конфиденциальность' : current === 'data' ? 'Данные и память' : current === 'language' ? 'Язык' : current === 'folders' ? 'Папки с чатами' : current === 'power' ? 'Энергосбережение' : 'Настройки';
+    const title = current === 'overlay' ? 'Оверлей' : current === 'audio' ? 'Звук и микрофон' : current === 'appearance' ? 'Оформление' : current === 'privacy' ? 'Конфиденциальность' : current === 'data' ? 'Данные и память' : current === 'language' ? 'Язык' : current === 'folders' ? 'Папки с чатами' : current === 'power' ? 'Энергосбережение' : 'Настройки';
     if (current === 'root') return <Root {...props} onBack={onBack} open={setSection} />;
     return <Page title={title} backLabel="К настройкам" onBack={onBack}>
-      {current === 'appearance' ? <Appearance {...props} open={setSection} /> : current === 'privacy' ? <PrivacySection api={props.api} /> : current === 'language' ? <LanguageSection /> : current === 'folders' ? <FoldersSection api={props.api} user={props.user} chats={props.chats || []} /> : current === 'power' ? <Group label="Анимации"><MotionSettings /></Group> : current === 'audio' ? <AudioSettings /> : <DataSection api={props.api} />}
+      {current === 'appearance' ? <Appearance {...props} open={setSection} /> : current === 'privacy' ? <PrivacySection api={props.api} /> : current === 'language' ? <LanguageSection /> : current === 'folders' ? <FoldersSection api={props.api} user={props.user} chats={props.chats || []} /> : current === 'power' ? <Group label="Анимации"><MotionSettings /></Group> : current === 'audio' ? <AudioSettings /> : current === 'overlay' ? <OverlaySettings /> : <DataSection api={props.api} />}
     </Page>;
   };
   // Sections slide in over the root list and close with the same swipe to the right as chats.
@@ -155,6 +156,7 @@ function Root({ api, user, onBack, onProfile, onSecurity, onMusic, onLogout, ope
         <Item icon="folder" color="#3D8BFD" label="Папки с чатами" value={folders.folders.length ? String(folders.folders.length) : undefined} onPress={() => open('folders')} />
         <Item icon="battery-half" color="#F0A030" label="Энергосбережение" onPress={() => open('power')} />
         {Platform.OS === 'web' ? <Item icon="mic" color="#E5467A" label="Звук и микрофон" onPress={() => open('audio')} /> : null}
+        {Platform.OS === 'web' ? <Item icon="game-controller" color="#5865F2" label="Оверлей" onPress={() => open('overlay')} /> : null}
         <Item icon="lock-closed" color="#8C62E8" label="Конфиденциальность" onPress={() => open('privacy')} />
         <Item icon="shield-checkmark" color="#34A853" label="Безопасность и устройства" onPress={onSecurity} />
         <Item icon="server" color="#E39A3B" label="Данные и память" onPress={() => open('data')} />

@@ -10,7 +10,11 @@ export type DesktopBridge = {
   token: { read(): Promise<string | null>; write(value: string | null): Promise<void> };
   /** Downloads the Windows installer, checks it against the published SHA-256, then launches it. Older builds lack this. */
   /** Mute/deafen keys that work even when Инвиз is in the background (Electron globalShortcut). */
-  shortcuts?: { set(binds: Record<string, string>): Promise<Record<string, boolean>>; onAction(listener: (action: string) => void): () => void };
+  shortcuts?: { set(binds: Record<string, string>): Promise<Record<string, boolean>>; onAction(listener: (action: string) => void): () => void;
+    /** Hold binds over other apps (system keyboard hook, only while in voice / a call). Older builds lack it. */
+    setHold?(config: { active: boolean; ptt?: string; pushToMute?: string }): Promise<{ hooked: boolean }>; onHold?(listener: (action: 'ptt' | 'pushToMute', down: boolean) => void): () => void };
+  /** In-game overlay window (Настройки → Оверлей). Older builds lack it. */
+  overlay?: { configure(prefs: { enabled: boolean; corner: string; onlySpeaking: boolean; opacity: number }): Promise<void>; update(view: unknown): Promise<void> };
   update?: { download(url: string, sha256: string, size: number): Promise<boolean>; progress(): Promise<{ received: number; total: number; ready: boolean }>; cancel(): Promise<void>; install(): Promise<boolean> };
 };
 export const desktopBridge = (): DesktopBridge | undefined => (globalThis as unknown as { invizentDesktop?: DesktopBridge }).invizentDesktop;

@@ -10,7 +10,8 @@ import { Api, ApiError } from './src/api';
 import { AuthScreen, ConnectScreen } from './src/AuthScreen';
 import { ChatListScreen, DesktopRail, MessengerTabs } from './src/ChatListScreen';
 import { NearbyOffer } from './src/nearby/NearbyOffer';
-import { startBinds } from './src/audio/binds';
+import { onBindAction, startBinds } from './src/audio/binds';
+import { setOverlaySelf } from './src/overlay/sync';
 // PC: hot keys for mute / deafen / рация (Настройки → Звук и микрофон).
 startBinds();
 import { QuickSwitcher } from './src/QuickSwitcher';
@@ -184,6 +185,9 @@ function Messenger({api,session,onUser,themeMode,darkTheme,onTheme,onDarkTheme,o
     document.body.style.cursor='col-resize';window.addEventListener('mousemove',move);window.addEventListener('mouseup',up);};
   // Desktop shortcuts: Ctrl+K jump to a chat, Alt+↑/↓ the neighbouring chat.
   const [switcher,setSwitcher]=useState(false);
+  useEffect(()=>{setOverlaySelf(session.user.displayName);},[session.user.displayName]);
+  // Bind «Быстрый переход к чату» (Настройки → Звук и микрофон → Горячие клавиши).
+  useEffect(()=>onBindAction(action=>{if(action==='quickSwitcher')setSwitcher(true);}),[]);
   const navRef=useRef({chats:listStore.chats,chat});navRef.current={chats:listStore.chats,chat};
   useEffect(()=>{
     if(Platform.OS!=='web'||!wide||typeof window==='undefined')return;

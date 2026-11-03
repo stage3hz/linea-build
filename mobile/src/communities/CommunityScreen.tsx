@@ -3,6 +3,7 @@ import React, { useSyncExternalStore, useCallback, useEffect, useMemo, useState 
 import { ActivityIndicator, Platform, Pressable, ScrollView, Share, View } from 'react-native';
 import { audioPrefs, comboLabel, subscribeAudio } from '../audio/devices';
 import { setPushToTalk } from '../audio/gate';
+import { setOverlayNames } from '../overlay/sync';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useSharedValue } from 'react-native-reanimated';
 import * as Clipboard from 'expo-clipboard';
@@ -37,7 +38,7 @@ export function CommunityScreen({ api, me, store, communityId, onBack, onOpenInv
     catch (failure) { setError(failure instanceof Error ? failure.message : 'Не удалось открыть.'); }
   }, [api, communityId]);
   useEffect(() => { void load(); }, [load]);
-  useEffect(() => { api.communityMembers(communityId).then(result => setPeople(Object.fromEntries(result.members.map(item => [item.user.id, item.user])))).catch(() => {}); }, [api, communityId]);
+  useEffect(() => { api.communityMembers(communityId).then(result => { setPeople(Object.fromEntries(result.members.map(item => [item.user.id, item.user]))); setOverlayNames(Object.fromEntries(result.members.map(item => [item.user.id, item.user.displayName]))); }).catch(() => {}); }, [api, communityId]);
   useEffect(() => store.onSocket(data => {
     if (data.communityId !== communityId && data.community?.id !== communityId) return;
     if (data.type === 'community.channels' || data.type === 'community') void load();
@@ -158,7 +159,7 @@ function PushToTalkButton() {
   const t = useTheme(); const [down, setDown] = useState(false);
   const press = (value: boolean) => { setDown(value); setPushToTalk(value); };
   useEffect(() => () => setPushToTalk(false), []);
-  const key = audioPrefs().binds.ptt;
+  const key = audioPrefs().binds.find(b => b.enabled && b.action === 'ptt' && b.combo)?.combo || '';
   return <Pressable accessibilityRole="button" accessibilityLabel="Рация: удерживай, чтобы говорить" onPressIn={() => press(true)} onPressOut={() => press(false)}
     style={{ alignItems: 'center', paddingVertical: 14, borderRadius: 16, backgroundColor: down ? '#2FD27A' : 'rgba(127,127,127,0.16)' }}>
     <Text style={{ color: down ? '#062B16' : t.text, fontWeight: '700' }}>{down ? 'Тебя слышно…' : `Удерживай, чтобы говорить${key ? ` · ${comboLabel(key)}` : ''}`}</Text>

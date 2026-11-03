@@ -32,6 +32,21 @@ test('рация: open while held, a short tail after release; binds are read an
   assert.equal(devices.comboOf({ code: 'KeyM', ctrlKey: true, altKey: false, shiftKey: true, metaKey: false }), 'Ctrl+Shift+KeyM');
   assert.equal(devices.comboOf({ code: 'ShiftLeft', ctrlKey: false, altKey: false, shiftKey: true, metaKey: false }), null, 'a modifier alone is not a bind');
   assert.equal(devices.comboLabel('Ctrl+Shift+KeyM'), 'Ctrl+Shift+M'); assert.equal(devices.comboLabel('Space'), 'Пробел'); assert.equal(devices.comboLabel(''), 'Не назначено');
-  assert.deepEqual(devices.audioPrefs().binds, { mute: 'Ctrl+Shift+KeyM', deafen: 'Ctrl+Shift+KeyD', ptt: '' });
+  assert.deepEqual(devices.audioPrefs().binds, [], 'no binds until the person adds them');
   assert.equal(devices.audioPrefs().inputMode, 'activity');
+});
+
+test('user binds: off by default, only enabled ones with keys fire; broken saved data is dropped', () => {
+  const binds = loadTs(new URL('../src/audio/binds.ts', import.meta.url), { './devices': devices, './gate': { setPushToTalk() {}, setPushToMute() {} }, '../desktop': { desktopBridge: () => undefined }, 'react-native': { Platform: { OS: 'web' } } });
+  const list = [
+    { id: 'a1', action: 'mute', combo: 'Ctrl+KeyM', enabled: true },
+    { id: 'a2', action: 'deafen', combo: 'Ctrl+KeyM', enabled: false },
+    { id: 'a3', action: 'ptt', combo: '', enabled: true },
+  ];
+  assert.deepEqual(binds.bindsFor(list, 'Ctrl+KeyM').map(b => b.id), ['a1']);
+  assert.deepEqual(binds.bindsFor(list, 'KeyV'), []);
+  store.set('invizent.audio.v1', JSON.stringify({ binds: [list[0], { id: '../x', action: 'mute', combo: 'Ctrl+KeyM', enabled: true }, { id: 'b', action: 'rm -rf', combo: 'KeyQ', enabled: true }, { id: 'c', action: 'ptt', combo: '<script>', enabled: true }] }));
+  const fresh = loadTs(new URL('../src/audio/devices.ts', import.meta.url));
+  assert.deepEqual(fresh.audioPrefs().binds.map(b => b.id), ['a1']);
+  assert.ok(Object.keys(fresh.BIND_ACTIONS).includes('pushToMute'));
 });

@@ -1,4 +1,4 @@
-const { app, BrowserWindow, ipcMain, protocol, net, session, safeStorage, desktopCapturer, dialog, shell, globalShortcut } = require('electron');
+const { app, BrowserWindow, ipcMain, protocol, net, session, safeStorage, desktopCapturer, dialog, shell, globalShortcut, screen } = require('electron');
 // Our servers only (same rule as mobile/src/servers/list.ts): any number of them, all under our domains.
 const TRUSTED_HOST = /^(?:[a-z0-9-]+\.)*invizent\.(?:com|ru)$|^141-133-194-51\.nip\.io$/;
 if (!app.requestSingleInstanceLock()) { app.quit(); } else {
@@ -34,6 +34,79 @@ ipcMain.handle('capture-choose',(event,id)=>{
   const sound=process.platform==='win32'||process.platform==='darwin'?{audio:'loopback'}:{};
   callback(source?{video:source,...sound}:{});
 });
+// ---- in-game overlay (Настройки → Оверлей; off by default) ----
+// A tiny transparent window that never takes focus or clicks, above other windows. Shown only
+// while you are in a voice channel and Инвиз itself is not the active window. Works over games in
+// windowed / borderless mode; exclusive fullscreen draws over everything (Discord injects into
+// the game for that — we do not inject into other programs).
+let overlayWin = null, overlayPrefs = { enabled: false, corner: 'topLeft', opacity: 0.9 }, overlayView = null;
+const ROW = 32, HEAD = 22, WIDTH = 260;
+function overlayHeight() { return overlayView ? HEAD + 12 + overlayView.people.length * (ROW + 4) : 40; }
+function placeOverlay() {
+  if (!overlayWin) return;
+  const area = screen.getPrimaryDisplay().workArea, h = overlayHeight(), m = 16;
+  const x = overlayPrefs.corner.endsWith('Right') ? area.x + area.width - WIDTH - m : area.x + m;
+  const y = overlayPrefs.corner.startsWith('bottom') ? area.y + area.height - h - m : area.y + m;
+  overlayWin.setBounds({ x, y, width: WIDTH, height: h });
+}
+function refreshOverlay() {
+  const wanted = overlayPrefs.enabled && overlayView && overlayView.people.length && window && !window.isDestroyed() && !window.isFocused();
+  if (!wanted) { if (overlayWin && overlayWin.isVisible()) overlayWin.hide(); if (overlayWin && overlayView) overlayWin.webContents.send('overlay-view', overlayView, overlayPrefs.opacity); return; }
+  if (!overlayWin) {
+    overlayWin = new BrowserWindow({ width: WIDTH, height: overlayHeight(), show: false, frame: false, transparent: true, resizable: false, movable: false, focusable: false, skipTaskbar: true, hasShadow: false, alwaysOnTop: true, fullscreenable: false,
+      webPreferences: { preload: path.join(__dirname, 'overlay-preload.cjs'), contextIsolation: true, sandbox: true, nodeIntegration: false, spellcheck: false, backgroundThrottling: false } });
+    overlayWin.setAlwaysOnTop(true, 'screen-saver');
+    overlayWin.setIgnoreMouseEvents(true);
+    overlayWin.setVisibleOnAllWorkspaces(true, { visibleOnFullScreen: true });
+    overlayWin.webContents.setWindowOpenHandler(() => ({ action: 'deny' }));
+    overlayWin.webContents.on('will-navigate', e => e.preventDefault());
+    overlayWin.on('closed', () => { overlayWin = null; });
+    void overlayWin.loadFile(path.join(__dirname, 'overlay.html')).then(() => refreshOverlay());
+    return;
+  }
+  placeOverlay();
+  overlayWin.webContents.send('overlay-view', overlayView, overlayPrefs.opacity);
+  if (!overlayWin.isVisible()) overlayWin.showInactive();
+}
+
+// ---- system keyboard hook for hold binds (see 'setHold') ----
+let hook = null, hookRunning = false, holdBinds = [];
+function parseHold(combo) {
+  if (typeof combo !== 'string' || !/^((Ctrl|Alt|Shift|Meta)\+){0,4}[A-Za-z0-9]{1,20}$/.test(combo)) return null;
+  const parts = combo.split('+'); const code = parts.pop();
+  if (!hook) { try { hook = require('uiohook-napi'); } catch { return null; } }
+  const name = code.replace(/^Key(?=[A-Z]$)/, '').replace(/^Digit(?=\d$)/, '');
+  const keycode = hook.UiohookKey[name];
+  if (typeof keycode !== 'number') return null;
+  return { keycode, ctrl: parts.includes('Ctrl'), alt: parts.includes('Alt'), shift: parts.includes('Shift'), meta: parts.includes('Meta') };
+}
+function onHookKey(event, down) {
+  for (const bind of holdBinds) {
+    if (event.keycode !== bind.keycode) continue;
+    // Pressing needs the bind's modifiers; releasing the main key always ends the hold.
+    if (down && ((bind.ctrl && !event.ctrlKey) || (bind.alt && !event.altKey) || (bind.shift && !event.shiftKey) || (bind.meta && !event.metaKey))) continue;
+    if (bind.down === down) continue;
+    bind.down = down;
+    window?.webContents.send('invizent-hold', bind.action, down);
+  }
+}
+function startHook() {
+  if (hookRunning || !hook) return;
+  try {
+    hook.uIOhook.removeAllListeners();
+    hook.uIOhook.on('keydown', e => onHookKey(e, true));
+    hook.uIOhook.on('keyup', e => onHookKey(e, false));
+    hook.uIOhook.start(); hookRunning = true;
+  } catch { hookRunning = false; }
+}
+function stopHook() {
+  if (!hookRunning) return;
+  try { hook.uIOhook.stop(); } catch { /* already stopped */ }
+  hookRunning = false;
+  for (const bind of holdBinds) if (bind.down) { bind.down = false; window?.webContents.send('invizent-hold', bind.action, false); }
+}
+app.on('will-quit', () => stopHook());
+
 // "Ctrl+Shift+KeyM" (KeyboardEvent.code) → "Control+Shift+M" (Electron accelerator).
 function toAccelerator(combo) {
   if (typeof combo !== 'string' || !/^((Ctrl|Alt|Shift|Meta)\+){0,4}[A-Za-z0-9]{1,20}$/.test(combo)) return null;
@@ -66,15 +139,41 @@ ipcMain.handle('invizent', async (event, method, ...args) => {
     if (operation === 'list') return fs.readdir(file);
     throw new Error('Invalid cache operation');
   }
+  if (method === 'overlayConfigure') {
+    const p = args[0] || {};
+    overlayPrefs = { enabled: p.enabled === true, corner: ['topLeft','topRight','bottomLeft','bottomRight'].includes(p.corner) ? p.corner : 'topLeft', opacity: Math.min(1, Math.max(0.3, Number(p.opacity) || 0.9)) };
+    if (!overlayPrefs.enabled) { overlayView = null; overlayWin?.destroy(); overlayWin = null; } else placeOverlay();
+    return;
+  }
+  if (method === 'overlayUpdate') {
+    const v = args[0];
+    overlayView = v && typeof v === 'object' && Array.isArray(v.people) ? { channel: String(v.channel || '').slice(0, 60), people: v.people.slice(0, 12).map(p => ({ name: String(p?.name || '').slice(0, 32), speaking: p?.speaking === true, muted: p?.muted === true, deafened: p?.deafened === true, me: p?.me === true })) } : null;
+    refreshOverlay();
+    return;
+  }
+  if (method === 'setHold') {
+    // Рация / «молчать» while a game is in front: a system keyboard hook (uiohook) that runs only
+    // while the person is in a voice channel or call AND has such a bind switched on. It compares
+    // each key with those binds and nothing else — keys are never stored, logged or sent anywhere.
+    const config = args[0] && typeof args[0] === 'object' ? args[0] : {};
+    holdBinds = [];
+    for (const action of ['ptt', 'pushToMute']) {
+      const parsed = parseHold(config[action]);
+      if (parsed) holdBinds.push({ action, ...parsed, down: false });
+    }
+    if (config.active === true && holdBinds.length) startHook(); else stopHook();
+    return { hooked: hookRunning };
+  }
   if (method === 'setShortcuts') {
-    // Mute / deafen keys that work while another app (a game) is in front. Push-to-talk needs
-    // the key being released too, which globalShortcut cannot report, so рация works in Инвиз only.
-    const binds = args[0] || {}; const result = {};
+    // Press binds that work while another app (a game) is in front. Hold binds (рация) need the
+    // key release too, which globalShortcut cannot report, so they work inside Инвиз only.
+    const binds = args[0] && typeof args[0] === 'object' ? args[0] : {}; const result = {};
     globalShortcut.unregisterAll();
-    for (const action of ['mute', 'deafen']) {
-      const accelerator = toAccelerator(binds[action]);
-      if (!accelerator) { result[action] = false; continue; }
-      try { result[action] = globalShortcut.register(accelerator, () => window?.webContents.send('invizent-shortcut', action)); } catch { result[action] = false; }
+    for (const [id, combo] of Object.entries(binds).slice(0, 50)) {
+      if (!/^[a-z0-9]{1,16}$/.test(id)) continue;
+      const accelerator = toAccelerator(combo);
+      if (!accelerator) { result[id] = false; continue; }
+      try { result[id] = globalShortcut.register(accelerator, () => window?.webContents.send('invizent-shortcut', id)); } catch { result[id] = false; }
     }
     return result;
   }
@@ -166,6 +265,8 @@ app.whenReady().then(async () => {
   }, { useSystemPicker: process.platform === 'darwin' });
   window = new BrowserWindow({ width: 1280, height: 850, minWidth: 850, minHeight: 600, title: 'Инвиз', webPreferences: { preload: path.join(__dirname,'preload.cjs'), nodeIntegration: false, contextIsolation: true, sandbox: true, webSecurity: true } });
   window.webContents.on('will-navigate', (event, url) => { if (!url.startsWith('invizent://app/')) event.preventDefault(); });
+  window.on('focus', () => refreshOverlay()); window.on('blur', () => refreshOverlay()); window.on('minimize', () => refreshOverlay());
+  window.on('closed', () => { overlayWin?.destroy(); overlayWin = null; });
   window.webContents.setWindowOpenHandler(({ url }) => { if (url.startsWith('https://')) void shell.openExternal(url); return { action: 'deny' }; });
   await window.loadURL('invizent://app/index.html');
 });
