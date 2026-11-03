@@ -2,8 +2,9 @@
 // own colours, and the app icon as a lit tile. Motion follows the app's energy
 // policy (low battery / reduce motion → still image).
 import React, { useEffect, useRef } from 'react';
-import { Animated, Easing, Image, StyleSheet, View, useWindowDimensions } from 'react-native';
-import { Text } from '../typography';
+import { Animated, Easing, Image, Platform, StyleSheet, View, useWindowDimensions } from 'react-native';
+import MaskedView from '@react-native-masked-view/masked-view';
+import { FONT_FAMILY, Text } from '../typography';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useTheme } from '../theme';
 import { useMotion } from '../motion';
@@ -59,14 +60,65 @@ export function AppMark({ size = 84 }: { size?: number }) {
 }
 
 /** The sign-in hero: the name itself, large, with the same soft halo the app icon has. */
+// Platinum for the letters: cool white metal on dark themes, dark polished metal on light ones.
+const METAL_DARK = ['#B9C1CF', '#FFFFFF', '#8E99AD', '#EEF1F6', '#B9C1CF', '#FFFFFF', '#8E99AD'];
+const METAL_LIGHT = ['#2E3542', '#7B879B', '#1E232D', '#5A6477', '#2E3542', '#8893A7', '#1E232D'];
+let webKeyframes = false;
+
+/**
+ * «Инвиз» in platinum: the letters are a window onto slowly moving metal, with a glint that
+ * passes now and then (a constant shimmer looks cheap). Under them a soft, deep shadow and a faint
+ * cool glow — depth instead of the old coloured blur. Still image when motion is off.
+ */
 export function Wordmark({ size = 58 }: { size?: number }) {
   const t = useTheme();
   const { enabled } = useMotion();
   const enter = useRef(new Animated.Value(enabled ? 0 : 1)).current;
+  const sweep = useRef(new Animated.Value(0)).current;
+  const [width, setWidth] = React.useState(0);
   useEffect(() => { if (enabled) Animated.spring(enter, { toValue: 1, useNativeDriver: true, speed: 8, bounciness: 6 }).start(); }, []);
-  const halo = size * 2.4;
+  useEffect(() => {
+    if (!enabled || !width) { sweep.setValue(0.35); return; }
+    // Sweep across in 2.4 s, rest 2.6 s.
+    const loop = Animated.loop(Animated.sequence([
+      Animated.timing(sweep, { toValue: 1, duration: 2400, easing: Easing.inOut(Easing.cubic), useNativeDriver: true }),
+      Animated.delay(2600),
+      Animated.timing(sweep, { toValue: 0, duration: 0, useNativeDriver: true }),
+    ]));
+    loop.start(); return () => loop.stop();
+  }, [enabled, width]);
+  const metal = t.dark ? METAL_DARK : METAL_LIGHT;
+  const font = { fontSize: size, lineHeight: size * 1.18, fontWeight: '800' as const, letterSpacing: -size * 0.035 };
+  // Depth: a dark shadow right under the letters + a wide faint cool glow behind. Both copies sit
+  // exactly under the metal letters (their own fill is hidden; a transparent glyph casts no shadow on iOS).
+  const shadow = <Text pointerEvents="none" style={{ ...font, position: 'absolute', color: metal[2], textShadowColor: t.dark ? 'rgba(0,0,0,0.85)' : 'rgba(20,28,45,0.28)', textShadowRadius: size * 0.16, textShadowOffset: { width: 0, height: size * 0.07 } }}>Инвиз</Text>;
+  const glow = <Text pointerEvents="none" style={{ ...font, position: 'absolute', color: metal[2], textShadowColor: t.dark ? 'rgba(205,220,255,0.38)' : 'rgba(120,140,190,0.25)', textShadowRadius: size * 0.55, textShadowOffset: { width: 0, height: 0 } }}>Инвиз</Text>;
+  let letters: React.ReactNode;
+  if (Platform.OS === 'web') {
+    // The PC app: CSS paints the moving metal inside the letters.
+    if (enabled && !webKeyframes && typeof document !== 'undefined') {
+      webKeyframes = true;
+      const style = document.createElement('style');
+      style.textContent = '@keyframes invizMetal{0%{background-position:100% 50%}48%{background-position:0% 50%}100%{background-position:0% 50%}}';
+      document.head.appendChild(style);
+    }
+    letters = React.createElement('div', { role: 'presentation', style: {
+      fontFamily: FONT_FAMILY, fontSize: size, lineHeight: `${size * 1.18}px`, fontWeight: 800, letterSpacing: -size * 0.035,
+      backgroundImage: `linear-gradient(105deg, ${metal.join(', ')})`, backgroundSize: '300% 100%', backgroundPosition: '60% 50%',
+      WebkitBackgroundClip: 'text', backgroundClip: 'text', color: 'transparent', WebkitTextFillColor: 'transparent',
+      animation: enabled ? 'invizMetal 5s cubic-bezier(.65,0,.35,1) infinite' : 'none', position: 'relative',
+      // Shadow and glow from the letters' own shape (text-shadow would show through the metal).
+      filter: t.dark ? `drop-shadow(0 ${size * 0.07}px ${size * 0.09}px rgba(0,0,0,0.85)) drop-shadow(0 0 ${size * 0.3}px rgba(205,220,255,0.35))` : `drop-shadow(0 ${size * 0.06}px ${size * 0.08}px rgba(20,28,45,0.3)) drop-shadow(0 0 ${size * 0.28}px rgba(120,140,190,0.25))`,
+    } }, 'Инвиз');
+  } else {
+    letters = <MaskedView maskElement={<Text style={{ ...font, color: '#000' }}>Инвиз</Text>}>
+      <Text onLayout={e => setWidth(e.nativeEvent.layout.width)} style={{ ...font, opacity: 0 }}>Инвиз</Text>
+      <Animated.View pointerEvents="none" style={{ position: 'absolute', top: 0, bottom: 0, left: 0, width: (width || size * 4) * 3, transform: [{ translateX: sweep.interpolate({ inputRange: [0, 1], outputRange: [0, -(width || size * 4) * 2] }) }] }}>
+        <LinearGradient colors={metal as [string, string, ...string[]]} start={{ x: 0, y: 0.35 }} end={{ x: 1, y: 0.65 }} style={StyleSheet.absoluteFill} />
+      </Animated.View>
+    </MaskedView>;
+  }
   return <Animated.View accessible accessibilityRole="header" accessibilityLabel="Инвиз" style={{ alignItems: 'center', justifyContent: 'center', height: size * 1.5, opacity: enter, transform: [{ scale: enter.interpolate({ inputRange: [0, 1], outputRange: [0.92, 1] }) }] }}>
-    {[1, 0.8, 0.62, 0.46].map((k, i) => <View key={k} pointerEvents="none" style={{ position: 'absolute', width: halo * 1.7 * k, height: halo * 0.62 * k, borderRadius: halo, backgroundColor: t.accent, opacity: 0.03 + i * 0.018 }} />)}
-    <Text style={{ fontSize: size, lineHeight: size * 1.18, fontWeight: '800', letterSpacing: -size * 0.035, color: t.text, textShadowColor: t.accent, textShadowRadius: size * 0.42, textShadowOffset: { width: 0, height: size * 0.06 } }}>Инвиз</Text>
+    {Platform.OS === 'web' ? null : <>{glow}{shadow}</>}{letters}
   </Animated.View>;
 }
