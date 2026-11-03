@@ -53,10 +53,9 @@ export function CommunitiesScreen({ api, me, store, openId, onOpenInvite, onOpen
             <Pressable onPress={() => onOpened(item.id)} accessibilityRole="button" style={({ pressed }) => ({ flexDirection: 'row', alignItems: 'center', gap: 12, padding: 8, borderRadius: 16, backgroundColor: pressed ? t.accentSoft : 'transparent' })}>
               <CommunityAvatar api={api} community={item} size={54} />
               <View style={{ flex: 1, minWidth: 0, gap: 3 }}>
-                <Text numberOfLines={1} style={{ color: t.text, fontSize: 16, fontWeight: '600' }}>{item.name}</Text>
+                <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}><Text numberOfLines={1} style={{ flexShrink: 1, color: t.text, fontSize: 16, fontWeight: '600' }}>{item.name}</Text><CommunityBadges id={item.id} /></View>
                 <Text numberOfLines={1} style={{ color: t.muted, fontSize: 14 }}>{item.lastMessage?.text || item.description || (item.kind === 'blog' ? subscribers(item.memberCount) : members(item.memberCount))}</Text>
               </View>
-              <CommunityBadges id={item.id} />
             </Pressable>} />}
       </View>
     </StackBase>
@@ -119,8 +118,8 @@ function JoinSheet({ api, visible, onClose, onOpenInvite }: { api: Api; visible:
  * count (grey when the community is muted). */
 function CommunityBadges({ id }: { id: string }) {
   const t = useTheme(); const { unread, mentions, muted } = useCommunityCounts(id);
-  const pill = (text: string, color: string, label: string) => <View accessibilityLabel={label} style={{ minWidth: 22, height: 22, paddingHorizontal: 6, borderRadius: 11, backgroundColor: color, alignItems: 'center', justifyContent: 'center' }}><Text style={{ color: t.onAccent, fontSize: 12, fontWeight: '800' }}>{text}</Text></View>;
-  return <View style={{ flexDirection: 'row', alignItems: 'center', gap: 5 }}>
+  const pill = (text: string, color: string, label: string) => <View accessibilityLabel={label} style={{ minWidth: 20, height: 20, paddingHorizontal: 6, borderRadius: 10, backgroundColor: color, alignItems: 'center', justifyContent: 'center' }}><Text style={{ color: t.onAccent, fontSize: 11, fontWeight: '800' }}>{text}</Text></View>;
+  return <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4 }}>
     {muted && !unread ? <Icon name="volume-mute" size={14} color={t.subtle} /> : null}
     {mentions ? pill('@', t.accent, `упоминаний: ${mentions}`) : null}
     {unread ? pill(badgeText(unread), muted ? t.subtle : t.accent, `непрочитанных: ${unread}`) : null}
