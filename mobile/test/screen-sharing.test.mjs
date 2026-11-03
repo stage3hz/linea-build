@@ -19,7 +19,7 @@ function fixture() {
   iceGatheringState='complete';signalingState='stable';events={};closed=false;offerCount=0;audio=[];
   constructor(){pcs.push(this);}
   addEventListener(n,cb){this.events[n]=cb;}
-  addTransceiver(kind){assert.equal(kind,'video');this.sender={track:null,replaceTrack:async t=>{this.sender.track=t;},getParameters:()=>({encodings:[{}]}),setParameters:async p=>{this.parameters=p;}};return {sender:this.sender};}
+  addTransceiver(kind){if(kind==='audio'){this.soundSender={track:null,replaceTrack:async t=>{this.soundSender.track=t;},getParameters:()=>({encodings:[{}]}),setParameters:async p=>{this.soundParameters=p;}};return {sender:this.soundSender};}assert.equal(kind,'video');this.sender={track:null,replaceTrack:async t=>{this.sender.track=t;},getParameters:()=>({encodings:[{}]}),setParameters:async p=>{this.parameters=p;}};return {sender:this.sender};}
   addTrack(t){this.audio.push(t);}
   createDataChannel(){this.control={readyState:'open',label:'screen-control',addEventListener(){},send:data=>sent.push(JSON.parse(data))};return this.control;}
   async createOffer(){this.offerCount++;return {type:'offer',sdp:'v=0\r\n'};}
@@ -27,6 +27,7 @@ function fixture() {
   close(){this.closed=true;}
  }
  const voice=loadTs(new URL('../src/communities/voice.ts',import.meta.url),{
+  'react-native':{Platform:{OS:globalThis.__voiceOS||'ios'}},
   react:{useSyncExternalStore:(_subscribe,snapshot)=>snapshot()},
   './screenCapture':{prepareScreenCapture:async()=>{},confirmScreenCapture:async()=>{},endScreenCapture(){}},
   'react-native-webrtc':{RTCPeerConnection:PC,MediaStream:class{constructor(tracks){return stream(tracks[0]);}},mediaDevices:{getUserMedia:async()=>stream(mic),getDisplayMedia:async()=>display ? await display() : stream(screen)}},
@@ -77,4 +78,23 @@ test('remote stream wrappers are released on peer exit and room exit without own
  f.pcs.forEach((pc,i)=>pc.events.track({track:tracks[i]}));const remote=f.streams.slice(-2);
  f.receive({type:'voice.left',peer:'one'});assert.equal(remote[0].releases,1);assert.equal(remote[0].releaseTracks,false);assert.equal(remote[1].releases,0);
  f.voice.leaveVoice();assert.equal(remote[1].releases,1);assert.equal(remote[1].releaseTracks,false);
+});
+
+test('PC share sends the sound of the whole computer in its own slot, without echo of Инвиз, and stops it', async () => {
+ globalThis.__voiceOS = 'web';
+ try {
+  const f = fixture(); let asked;
+  const sound = { kind: 'audio', enabled: true, stopped: false, addEventListener() {}, stop() { this.stopped = true; } };
+  f.setDisplay(async () => ({ releases: 0, release() { this.releases++; }, getTracks: () => [f.screen, sound], getAudioTracks: () => [sound], getVideoTracks: () => [f.screen] }));
+  const real = f.voice; await f.join();
+  // capture the constraints the app asked for
+  const original = f.pcs; await f.voice.startVoiceScreen('720p60');
+  assert.ok(f.pcs.every(pc => pc.soundSender.track === sound && pc.audio[0] === f.mic), 'PC sound in the reserved slot, microphone untouched');
+  assert.ok(f.pcs.every(pc => pc.soundParameters.encodings[0].maxBitrate === 128000));
+  assert.equal(f.voice.useVoice().sharingAudio, true);
+  f.voice.stopVoiceScreen();
+  assert.ok(f.pcs.every(pc => pc.soundSender.track === null));
+  assert.equal(f.voice.useVoice().sharingAudio, false);
+  f.voice.leaveVoice();
+ } finally { delete globalThis.__voiceOS; }
 });

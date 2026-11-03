@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Pressable, View } from 'react-native';
+import { Platform, Pressable, View } from 'react-native';
 import { Text } from '../typography';
 import { useTheme } from '../theme';
 import { Notice } from '../components';
@@ -15,7 +15,8 @@ export function ScreenSharePanel({ people = {} }: { people?: Record<string,{disp
     <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 8 }}>
       {voice.sharing ? <Pressable accessibilityRole="button" onPress={stopVoiceScreen} style={{ padding: 12, borderRadius: 12, backgroundColor: t.danger }}><Text style={{ color: '#FFF' }}>Остановить демонстрацию</Text></Pressable> : (['720p60', '1080p60'] as const).map(quality => <Pressable key={quality} accessibilityRole="button" disabled={busy || voice.status !== 'connected'} onPress={() => void start(quality)} style={{ padding: 12, borderRadius: 12, backgroundColor: t.accentSoft, opacity: busy ? .5 : 1 }}><Text style={{ color: t.accent }}>{quality === '720p60' ? '720p · 60 FPS' : '1080p · 60 FPS'}</Text></Pressable>)}
     </View>
-    <Text style={{ color: t.muted, fontSize: 12 }}>Фактическое качество зависит от устройства и сети. Всё, что видно на экране, может попасть в трансляцию.</Text>
+    <Text style={{ color: t.muted, fontSize: 12 }}>Фактическое качество зависит от устройства и сети. Всё, что видно на экране, может попасть в трансляцию.{Platform.OS === 'web' ? ' Вместе с картинкой идёт весь звук компьютера (кроме звука самого Инвиза).' : ''}</Text>
+    {voice.sharing && Platform.OS === 'web' ? <Text style={{ color: voice.sharingAudio ? t.accent : t.muted, fontSize: 12, fontWeight: '600' }}>{voice.sharingAudio ? 'Звук компьютера передаётся' : 'Звук компьютера недоступен в этой системе — идёт только картинка'}</Text> : null}
     {busy ? <Pressable accessibilityRole="button" onPress={() => { stopVoiceScreen(); setBusy(false); }}><Text style={{ color: t.accent }}>Отменить запуск</Text></Pressable> : null}
     {error || voice.error ? <Notice error text={error || voice.error} /> : null}
     {voice.sharing && voice.screenStream ? <View><Text style={{ color: t.muted }}>Твой экран</Text><ScreenVideo stream={voice.screenStream} /></View> : null}

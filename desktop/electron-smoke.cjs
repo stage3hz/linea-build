@@ -43,7 +43,9 @@ app.on('web-contents-created',(_event,contents)=>{
       }));
     });
     const capture=contents.executeJavaScript(`(async()=>{
-      const stream=await navigator.mediaDevices.getDisplayMedia({video:{width:{ideal:${width}},height:{ideal:${height}},frameRate:{ideal:60,max:60}},audio:false});
+      // Same request as the app: picture + the sound of the whole PC without Инвиз's own sound.
+      const stream=await navigator.mediaDevices.getDisplayMedia({video:{width:{ideal:${width}},height:{ideal:${height}},frameRate:{ideal:60,max:60}},audio:{restrictOwnAudio:true,suppressLocalAudioPlayback:false,echoCancellation:false,noiseSuppression:false,autoGainControl:false},systemAudio:'include',windowAudio:'system'});
+      const sound=stream.getAudioTracks()[0];const audio=sound?{label:sound.label,settings:sound.getSettings(),supported:'restrictOwnAudio' in navigator.mediaDevices.getSupportedConstraints()}:null;
       const track=stream.getVideoTracks()[0],left=new RTCPeerConnection(),right=new RTCPeerConnection();
       const video=document.createElement('video');video.muted=true;video.autoplay=true;video.style.cssText='position:fixed;bottom:0;right:0;width:160px;height:90px';document.body.append(video);
       try {
@@ -55,7 +57,7 @@ app.on('web-contents-created',(_event,contents)=>{
         await left.setLocalDescription(await left.createOffer());await gather(left);await right.setRemoteDescription(left.localDescription);await right.setLocalDescription(await right.createAnswer());await gather(right);await left.setRemoteDescription(right.localDescription);
         await sender.replaceTrack(track);
         const params=sender.getParameters();params.encodings[0].maxFramerate=60;params.encodings[0].maxBitrate=${width===1280?4000000:8000000};await sender.setParameters(params);
-        const frame=await remote;return {requested:${width},settings:track.getSettings(),remoteFrame:frame};
+        const frame=await remote;return {requested:${width},settings:track.getSettings(),remoteFrame:frame,audio};
       } finally {stream.getTracks().forEach(t=>t.stop());left.close();right.close();video.srcObject=null;video.remove();}
     })()`,true);
     capture.catch(()=>{});await picker;console.log('Smoke: selected capture source');const captured=await capture;result.capture.push(captured);

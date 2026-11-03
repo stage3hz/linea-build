@@ -27,7 +27,12 @@ ipcMain.handle('capture-sources',event=>{
 ipcMain.handle('capture-choose',(event,id)=>{
   if(event.sender!==picker?.webContents)throw new Error('Untrusted capture picker');
   const source=capture.sources.get(id),callback=capture.callback;capture=null;picker.close();picker=null;
-  callback(source?{video:source}:{});
+  // The sound of the whole computer goes with any choice (a screen, a window or a game), not only
+  // when one app is picked. Windows: system loopback; macOS 14.2+: CoreAudio tap (needs
+  // NSAudioCaptureUsageDescription). The renderer asks restrictOwnAudio so Инвиз's own sound
+  // (the people in the channel) is left out — no echo.
+  const sound=process.platform==='win32'||process.platform==='darwin'?{audio:'loopback'}:{};
+  callback(source?{video:source,...sound}:{});
 });
 ipcMain.handle('invizent', async (event, method, ...args) => {
   if (!trusted(event)) throw new Error('Untrusted IPC sender');

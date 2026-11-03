@@ -1,3 +1,4 @@
+import { Platform } from 'react-native';
 import { prepareScreenCapture, confirmScreenCapture, endScreenCapture } from './screenCapture';
 import { useSyncExternalStore } from 'react';
 import type { Api } from '../api';
@@ -19,6 +20,8 @@ export type VoicePeer = { peer: string; userId: string; muted: boolean; connecte
 export type VoiceState = {
   communityId: string; channelId: string; channelName: string; communityName: string;
   sharing: ScreenQuality | null; screenStream: any;
+  /** The PC's sound goes out with the picture (false: the system gave no audio, e.g. Linux). */
+  sharingAudio?: boolean;
   status: 'connecting' | 'connected'; muted: boolean; speaker: boolean; peers: VoicePeer[]; error: string;
 } | null;
 
@@ -33,6 +36,9 @@ let local: any = null; let unsubscribe: (() => void) | null = null; let storeRef
 let iceServers: any[] = [{ urls: ['stun:stun.l.google.com:19302'] }];
 const connections = new Map<string, any>();
 const screenSenders = new Map<string, any>();
+/** Second audio slot per peer: the sound of the shared PC (not the microphone). */
+const screenAudioSenders = new Map<string, any>();
+const SCREEN_AUDIO_BITRATE = 128_000;
 const controls = new Map<string, any>();
 const remoteScreens = new Map<string, any>();
 function releaseRemoteScreen(peer: string) {
@@ -105,6 +111,10 @@ function connectionFor(peer: string, initiator = false) {
     if (announced?.active) peerUpdate(peer, { screen: { stream, quality: announced.quality } });
   });
   local?.getTracks().forEach((track: any) => connection.addTrack(track, local));
+  // Reserved after the microphone so addTrack never lands in it. Sharing only swaps its track.
+  const sound = connection.addTransceiver('audio', { direction: 'sendrecv' });
+  screenAudioSenders.set(peer, sound.sender);
+  if (screenStream?.getAudioTracks?.()[0]) void sound.sender.replaceTrack(screenStream.getAudioTracks()[0]);
   connection.addEventListener('connectionstatechange', () => {
     if (connections.get(peer) !== connection) return;
     const value = connection.connectionState;
@@ -129,7 +139,7 @@ function connectionFor(peer: string, initiator = false) {
 function drop(peer: string) {
   try { connections.get(peer)?.close(); } catch { /* closed */ }
   connections.delete(peer);
-  screenSenders.delete(peer); controls.delete(peer); releaseRemoteScreen(peer);
+  screenSenders.delete(peer); screenAudioSenders.delete(peer); controls.delete(peer); releaseRemoteScreen(peer);
   if (state) patch({ peers: state.peers.filter(item => item.peer !== peer) });
 }
 
@@ -181,7 +191,7 @@ async function handle(data: any) {
 function cleanup(error: string) {
   stopVoiceScreen();
   connections.forEach(connection => { try { connection.close(); } catch { /* closed */ } });
-  connections.clear(); screenSenders.clear(); controls.clear(); remoteScreens.forEach((_stream, peer) => releaseRemoteScreen(peer));
+  connections.clear(); screenSenders.clear(); screenAudioSenders.clear(); controls.clear(); remoteScreens.forEach((_stream, peer) => releaseRemoteScreen(peer));
   try { releaseLocalStream(local); } catch { /* released */ }
   local = null; unsubscribe?.(); unsubscribe = null;
   try { inCall?.stop?.(); } catch { /* optional */ }
@@ -232,7 +242,14 @@ export async function startVoiceScreen(quality: ScreenQuality) {
   let stream: any;
   try {
     await prepareScreenCapture(quality);
-    stream = await rtc!.mediaDevices.getDisplayMedia({ video: { width: { ideal: preset.width }, height: { ideal: preset.height }, frameRate: { ideal: 60, max: 60 } }, audio: false } as any);
+    // PC: the sound of the whole computer, whatever is shown (a screen, a window or a game) —
+    // not only the shared window. restrictOwnAudio (Chromium 140+, Windows/macOS) leaves out
+    // Инвиз's own sound, so the channel never hears itself back. Phones: picture only for now.
+    stream = await rtc!.mediaDevices.getDisplayMedia({
+      video: { width: { ideal: preset.width }, height: { ideal: preset.height }, frameRate: { ideal: 60, max: 60 } },
+      audio: Platform.OS === 'web' ? { restrictOwnAudio: true, suppressLocalAudioPlayback: false, echoCancellation: false, noiseSuppression: false, autoGainControl: false } : false,
+      ...(Platform.OS === 'web' ? { systemAudio: 'include', windowAudio: 'system' } : {}),
+    } as any);
     if (generation !== shareGeneration || !state) { releaseLocalStream(stream); return; }
     pendingScreenStream = stream;
     await confirmScreenCapture(() => generation === shareGeneration && !!state);
@@ -253,6 +270,19 @@ export async function startVoiceScreen(quality: ScreenQuality) {
       parameters.encodings[0].maxFramerate = 60;
       await sender.setParameters(parameters);
     }
+    const sound = stream.getAudioTracks?.()[0];
+    if (sound) {
+      try { sound.contentHint = 'music'; } catch { /* optional */ }
+      for (const sender of [...screenAudioSenders.values()]) {
+        if (generation !== shareGeneration || !state) break;
+        await sender.replaceTrack(sound);
+        const parameters = sender.getParameters();
+        if (!parameters.encodings?.length) parameters.encodings = [{}];
+        parameters.encodings[0].maxBitrate = SCREEN_AUDIO_BITRATE;
+        await sender.setParameters(parameters).catch(() => {});
+      }
+    }
+    patch({ sharingAudio: !!sound });
     if (generation !== shareGeneration || !state) { releaseLocalStream(stream); return; }
     controls.forEach(sendScreenState);
   } catch (error) {
@@ -268,7 +298,8 @@ export function stopVoiceScreen() {
   const pending = pendingScreenStream; pendingScreenStream = null;
   releaseLocalStream(pending);
   screenSenders.forEach(sender => { void sender.replaceTrack(null).catch(() => {}); });
-  patch({ sharing: null, screenStream: null });
+  screenAudioSenders.forEach(sender => { void sender.replaceTrack(null).catch(() => {}); });
+  patch({ sharing: null, screenStream: null, sharingAudio: false });
   controls.forEach(sendScreenState);
   releaseLocalStream(previous);
 }
