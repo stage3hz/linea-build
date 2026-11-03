@@ -24,6 +24,8 @@ import type { Chat, User } from './types';
 import type { MessengerStore } from './useMessenger';
 import type { SavedItem } from './saved/saved.ts';
 import { ContextMenu, MenuItem } from './ContextMenu';
+import { incomingCount, useFriendRequests } from './friendRequests';
+import { useChannelsBadge } from './communities/unread';
 import { impactFeedback, lightFeedback } from './haptics';
 import { Gesture, GestureDetector } from 'react-native-gesture-handler';
 import Animated, { runOnJS, useAnimatedStyle, useSharedValue, withSpring } from 'react-native-reanimated';
@@ -93,10 +95,10 @@ export function ChatListScreen({api,user,store,onProfile,onNewChat,onMusic,onAI,
 }
 
 export function MessengerTabs({onProfile,onNewChat,onMusic,onAI,onChats,activeTab='chats'}: Navigation) {
-  const t=useTheme();const insets=useSafeAreaInsets();const unreadTotal=useUnreadTotal();
+  const t=useTheme();const insets=useSafeAreaInsets();const tabBadges:Record<string,number>=useTabBadges(useUnreadTotal());
   // The music screen shows its own player above the same tab bar; everywhere else it sits here, above the tabs.
   return <><VoiceBar onOpen={communityId=>navigate({to:'channels',communityId})}/>{activeTab!=='music'?<MiniPlayer onOpen={onMusic}/>:null}<GlassSurface lens material="clear" radius={30} style={{marginHorizontal:20,marginBottom:insets.bottom?21-insets.bottom:10,marginTop:5}} contentStyle={{minHeight:60,flexDirection:'row',alignItems:'center',paddingHorizontal:6,paddingVertical:4}}>
-    {([{id:'ai',label:'AI',icon:'sparkles-outline',onPress:onAI},{id:'people',label:'Люди',icon:'people-outline',onPress:onNewChat},{id:'channels',label:'Каналы',icon:'planet-outline',onPress:()=>navigate({to:'channels'})},{id:'chats',label:'Чаты',icon:'chatbubbles-outline',onPress:onChats},{id:'music',label:'Музыка',icon:'headset-outline',onPress:onMusic},{id:'profile',label:'Настройки',icon:'settings-outline',onPress:onProfile}] as const).map(item=><Pressable key={item.id} onPress={item.onPress} accessibilityRole="tab" accessibilityLabel={item.id==='chats'&&unreadTotal?`${item.label}, непрочитанных: ${unreadTotal}`:item.label} accessibilityState={{selected:activeTab===item.id}} style={({pressed})=>({flex:1,alignItems:'center',opacity:pressed?.6:1})}><View style={{width:'100%',gap:5,alignItems:'center',paddingVertical:6,borderRadius:26,backgroundColor:activeTab===item.id?t.accentSoft:'transparent',borderWidth:1,borderColor:activeTab===item.id?t.glassBorder:'transparent'}}><View><Icon name={item.icon} color={activeTab===item.id?t.accent:t.muted} size={21}/>{item.id==='chats'&&unreadTotal?<View accessibilityElementsHidden importantForAccessibility="no" style={{position:'absolute',top:-6,left:13,minWidth:18,height:18,paddingHorizontal:5,borderRadius:9,borderWidth:2,borderColor:t.dark?'#15171D':'#FFF',backgroundColor:t.accent,alignItems:'center',justifyContent:'center'}}><Text style={{color:t.onAccent,fontSize:10,fontWeight:'800'}}>{badgeText(unreadTotal)}</Text></View>:null}</View><Text numberOfLines={1} adjustsFontSizeToFit minimumFontScale={0.8} style={{fontSize:10,color:activeTab===item.id?t.accent:t.muted,fontWeight:activeTab===item.id?'700':'600'}}>{item.label}</Text></View></Pressable>)}
+    {([{id:'ai',label:'AI',icon:'sparkles-outline',onPress:onAI},{id:'people',label:'Люди',icon:'people-outline',onPress:onNewChat},{id:'channels',label:'Каналы',icon:'planet-outline',onPress:()=>navigate({to:'channels'})},{id:'chats',label:'Чаты',icon:'chatbubbles-outline',onPress:onChats},{id:'music',label:'Музыка',icon:'headset-outline',onPress:onMusic},{id:'profile',label:'Настройки',icon:'settings-outline',onPress:onProfile}] as const).map(item=><Pressable key={item.id} onPress={item.onPress} accessibilityRole="tab" accessibilityLabel={tabBadges[item.id]?`${item.label}, ${badgeWord[item.id]}: ${tabBadges[item.id]}`:item.label} accessibilityState={{selected:activeTab===item.id}} style={({pressed})=>({flex:1,alignItems:'center',opacity:pressed?.6:1})}><View style={{width:'100%',gap:5,alignItems:'center',paddingVertical:6,borderRadius:26,backgroundColor:activeTab===item.id?t.accentSoft:'transparent',borderWidth:1,borderColor:activeTab===item.id?t.glassBorder:'transparent'}}><View><Icon name={item.icon} color={activeTab===item.id?t.accent:t.muted} size={21}/>{tabBadges[item.id]?<View accessibilityElementsHidden importantForAccessibility="no" style={{position:'absolute',top:-6,left:13,minWidth:18,height:18,paddingHorizontal:5,borderRadius:9,borderWidth:2,borderColor:t.dark?'#15171D':'#FFF',backgroundColor:t.accent,alignItems:'center',justifyContent:'center'}}><Text style={{color:t.onAccent,fontSize:10,fontWeight:'800'}}>{badgeText(tabBadges[item.id])}</Text></View>:null}</View><Text numberOfLines={1} adjustsFontSizeToFit minimumFontScale={0.8} style={{fontSize:10,color:activeTab===item.id?t.accent:t.muted,fontWeight:activeTab===item.id?'700':'600'}}>{item.label}</Text></View></Pressable>)}
   </GlassSurface></>;
 }
 
@@ -141,16 +143,24 @@ function SwipeRow({enabled,archived,unread,onArchive,onRead,children}:{enabled:b
 export function DesktopRail({api,user,unread,onProfile,onNewChat,onMusic,onAI,onChats,onSettings,activeTab='chats'}: Navigation&{api:Api;user:User;unread:number;onSettings:()=>void}) {
   const t=useTheme();
   const items=[{id:'chats',label:'Чаты',icon:'chatbubbles-outline',active:'chatbubbles',onPress:onChats},{id:'people',label:'Люди',icon:'people-outline',active:'people',onPress:onNewChat},{id:'channels',label:'Каналы',icon:'planet-outline',active:'planet',onPress:()=>navigate({to:'channels'})},{id:'music',label:'Музыка',icon:'headset-outline',active:'headset',onPress:onMusic},{id:'ai',label:'AI',icon:'sparkles-outline',active:'sparkles',onPress:onAI}] as const;
-  const button=(id:string,label:string,icon:React.ComponentProps<typeof Icon>['name'],onPress:()=>void,badge=0,a11y=label)=>{const on=activeTab===id;return <Pressable key={id} onPress={onPress} accessibilityRole="tab" accessibilityLabel={badge?`${a11y}, непрочитанных: ${badge}`:a11y} accessibilityState={{selected:on}}
+  const tabBadges=useTabBadges(unread);const badges:Record<string,number>=tabBadges;
+  const button=(id:string,label:string,icon:React.ComponentProps<typeof Icon>['name'],onPress:()=>void,badge=0,a11y=label,word='непрочитанных')=>{const on=activeTab===id;return <Pressable key={id} onPress={onPress} accessibilityRole="tab" accessibilityLabel={badge?`${a11y}, ${word}: ${badge}`:a11y} accessibilityState={{selected:on}}
     style={(state)=>{const hovered=(state as {hovered?:boolean}).hovered;return {width:64,paddingVertical:8,borderRadius:16,alignItems:'center',gap:4,backgroundColor:on?t.accentSoft:hovered?(t.dark?'rgba(255,255,255,0.06)':'rgba(0,0,0,0.04)'):'transparent',opacity:state.pressed?.7:1};}}>
     {on?<View style={{position:'absolute',left:-6,top:14,bottom:14,width:3,borderRadius:2,backgroundColor:t.accent}}/>:null}
     <View><Icon name={icon} size={23} color={on?t.accent:t.muted}/>{badge?<View style={{position:'absolute',top:-7,left:13,minWidth:18,height:18,paddingHorizontal:5,borderRadius:9,borderWidth:2,borderColor:t.dark?'#15171D':'#FFF',backgroundColor:t.accent,alignItems:'center',justifyContent:'center'}}><Text style={{color:t.onAccent,fontSize:10,fontWeight:'800'}}>{badgeText(badge)}</Text></View>:null}</View>
     {label?<Text numberOfLines={1} style={{fontSize:11,color:on?t.accent:t.muted,fontWeight:on?'700':'600'}}>{label}</Text>:null}
   </Pressable>;};
   return <View accessibilityRole="tablist" style={{width:80,alignItems:'center',paddingTop:14,paddingBottom:14,gap:4,borderRightWidth:1,borderColor:t.border,backgroundColor:t.dark?'rgba(0,0,0,0.18)':'rgba(255,255,255,0.35)'}}>
-    {items.map(item=>button(item.id,item.label,activeTab===item.id?item.active:item.icon,item.onPress,item.id==='chats'?unread:0))}
+    {items.map(item=>button(item.id,item.label,activeTab===item.id?item.active:item.icon,item.onPress,badges[item.id]||0,item.label,badgeWord[item.id]))}
     {button('profile','',activeTab==='profile'?'settings':'settings-outline',onSettings,0,'Настройки')}
     <View style={{flex:1}}/>
     <Pressable onPress={onProfile} accessibilityRole="button" accessibilityLabel="Мой профиль" style={{marginTop:6,borderRadius:22}}><Avatar user={user} api={api} size={40} round/></Pressable>
   </View>;
+}
+
+/** Badge numbers for the section tabs: unread chats, waiting friend requests. */
+const badgeWord: Record<string, string> = { chats: 'непрочитанных', people: 'заявок в друзья', channels: 'непрочитанных' };
+function useTabBadges(chats: number): Record<string, number> {
+  const requests = incomingCount(useFriendRequests());
+  return { chats, people: requests, channels: useChannelsBadge() };
 }

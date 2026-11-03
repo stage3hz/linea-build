@@ -156,7 +156,12 @@ export class Api {
   report = (target: {userId?: string; communityId?: string}, reason: import('./types').ReportReason, comment = '') => this.request<{ok: true}>('/reports', {method: 'POST', body: JSON.stringify({...target, reason, ...(comment.trim() ? {comment: comment.trim()} : {})})});
   deleteAccount = (currentPassword: string, currentConfirmationWord: string) => this.request<{ok: true}>('/auth/delete-account', {method: 'POST', body: JSON.stringify({currentPassword, currentConfirmationWord})});
   contacts = () => this.request<{users: User[]}>('/contacts');
-  addContact = (userId: string) => this.request<{ok: true}>(`/contacts/${encodeURIComponent(userId)}`, {method: 'PUT'});
+  /** Sends a friend request, or accepts the other person's one: status says which happened. */
+  addContact = (userId: string) => this.request<{ok: true; status?: 'requested' | 'friends'}>(`/contacts/${encodeURIComponent(userId)}`, {method: 'PUT'});
+  friendRequests = () => this.request<{incoming: import('./types').FriendRequest[]; outgoing: import('./types').FriendRequest[]}>('/friends/requests');
+  acceptFriend = (userId: string) => this.request<{ok: true}>(`/friends/requests/${encodeURIComponent(userId)}/accept`, {method: 'POST'});
+  /** Declines an incoming request or cancels our own. */
+  dropFriendRequest = (userId: string) => this.request<{ok: true}>(`/friends/requests/${encodeURIComponent(userId)}`, {method: 'DELETE'});
   removeContact = (userId: string) => this.request<{ok: true}>(`/contacts/${encodeURIComponent(userId)}`, {method: 'DELETE'});
   chatSettings = (chatId: string, change: Partial<{pinned: boolean; archived: boolean; muted: boolean}>) => this.request<{chat: Chat}>(`/chats/${encodeURIComponent(chatId)}/settings`, {method: 'PATCH', body: JSON.stringify(change)});
   messages = (chatId: string, before?: number) => this.request<{messages: Message[]; hasMore: boolean}>(`/chats/${encodeURIComponent(chatId)}/messages?lean=1&limit=${networkTier() === 'slow' ? 15 : networkTier() === 'medium' ? 30 : 50}${before ? `&before=${before}` : ''}`);
@@ -197,6 +202,11 @@ export class Api {
   createCommunity = (fields: {kind: 'server'|'blog'; name: string; description?: string; avatarId?: string|null; category?: string}) => this.request<{community: import('./communities/types').Community}>('/communities', {method: 'POST', body: JSON.stringify(fields)});
   community = (id: string) => this.request<{community: import('./communities/types').Community}>(`/communities/${encodeURIComponent(id)}`);
   updateCommunity = (id: string, fields: {name?: string; description?: string; avatarId?: string|null; category?: string; closed?: boolean}) => this.request<{community: import('./communities/types').Community}>(`/communities/${encodeURIComponent(id)}`, {method: 'PATCH', body: JSON.stringify(fields)});
+  /** Marks a channel read; an older server without per-channel marks gets the community-wide one. */
+  readChannel = async (communityId: string, channelId: string, lastReadId: number) => {
+    try { return await this.request<{unread: number; mentions: number}>(`/communities/${encodeURIComponent(communityId)}/channels/${encodeURIComponent(channelId)}/read`, {method: 'POST', body: JSON.stringify({lastReadId})}); }
+    catch (e) { if ((e as {status?: number})?.status === 404) { await this.communityMe(communityId, {lastReadId}); return null; } throw e; }
+  };
   communityMe = (id: string, fields: {muted?: boolean; lastReadId?: number}) => this.request<{community: import('./communities/types').CommunitySummary}>(`/communities/${encodeURIComponent(id)}/me`, {method: 'PATCH', body: JSON.stringify(fields)});
   deleteCommunity = (id: string) => this.request<{ok: true}>(`/communities/${encodeURIComponent(id)}`, {method: 'DELETE'});
   leaveCommunity = (id: string) => this.request<{ok: true}>(`/communities/${encodeURIComponent(id)}/leave`, {method: 'POST', body: '{}'});

@@ -155,7 +155,8 @@ export function createFcm(account, { fetch: fetchImpl = globalThis.fetch, now = 
 const plural = (n, one, few, many) => { const a = n % 10, b = n % 100; return a === 1 && b !== 11 ? one : a >= 2 && a <= 4 && (b < 12 || b > 14) ? few : many; };
 
 /** The FCM message for a chat notification (no message content — it is end-to-end encrypted). */
-export function chatNotification({ chatId, senderName, kind, unread }) {
+export function chatNotification({ chatId, senderName, kind, unread, badge }) {
+  const count = Number.isSafeInteger(badge) && badge >= 0 ? badge : null;
   const call = kind === 'call';
   const body = call ? '📞 Входящий звонок' : unread > 1 ? `${unread} ${plural(unread, 'новое сообщение', 'новых сообщения', 'новых сообщений')}` : 'Новое сообщение';
   return {
@@ -163,12 +164,12 @@ export function chatNotification({ chatId, senderName, kind, unread }) {
     android: {
       priority: 'high',
       ...(call ? { ttl: '45s' } : { collapse_key: chatId }),
-      notification: { title: senderName, body, tag: call ? `call:${chatId}` : chatId, channel_id: call ? 'calls' : 'messages', icon: 'notification_icon', color: '#4C7DFF', sound: 'default' },
+      notification: { title: senderName, body, tag: call ? `call:${chatId}` : chatId, channel_id: call ? 'calls' : 'messages', icon: 'notification_icon', color: '#4C7DFF', sound: 'default', ...(count !== null ? { notification_count: count } : {}) },
     },
     // iPhone: the same shape FCM v1 uses for its `apns` field, sent to Apple directly.
     apns: {
       headers: { ...(call ? { 'apns-expiration': String(Math.floor(Date.now() / 1000) + 45) } : { 'apns-collapse-id': chatId.slice(0, 64) }) },
-      payload: { aps: { alert: { title: senderName, body }, sound: 'default', 'thread-id': chatId, ...(call ? { 'interruption-level': 'time-sensitive' } : {}) }, chatId, kind },
+      payload: { aps: { alert: { title: senderName, body }, sound: 'default', 'thread-id': chatId, ...(count !== null ? { badge: count } : {}), ...(call ? { 'interruption-level': 'time-sensitive' } : {}) }, chatId, kind },
     },
   };
 }

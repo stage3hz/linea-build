@@ -25,10 +25,10 @@ export const CATEGORIES = [
 export type CategoryId = typeof CATEGORIES[number]['id'];
 export const categoryLabel = (id: string | null | undefined) => CATEGORIES.find(item => item.id === id)?.label || 'Канал';
 export type CommunityMessage = { id: number; channelId: string; senderId: string; text: string; attachment: { id: string; name: string; mimeType: string; size: number } | null; replyTo: number | null; createdAt: string; editedAt: string | null };
-export type CommunitySummary = { id: string; kind: CommunityKind; category?: CategoryId | null; closed?: boolean; name: string; description: string; avatarId: string | null; ownerId: string; createdAt: string; memberCount: number; isMember: boolean; perms: number; lastMessage: CommunityMessage | null; muted: boolean };
+export type CommunitySummary = { id: string; kind: CommunityKind; category?: CategoryId | null; closed?: boolean; name: string; description: string; avatarId: string | null; ownerId: string; createdAt: string; memberCount: number; isMember: boolean; perms: number; lastMessage: CommunityMessage | null; muted: boolean; unreadCount?: number; mentionCount?: number };
 export type CommunityRole = { id: string; name: string; color: string; position: number; perms: number; isDefault: boolean };
 export type VoiceMember = { userId: string; muted: boolean };
-export type CommunityChannel = { id: string; kind: 'text' | 'voice'; name: string; topic: string; category: string; position: number; roleIds: string[]; voice?: VoiceMember[]; lastMessageId: number };
+export type CommunityChannel = { id: string; kind: 'text' | 'voice'; name: string; topic: string; category: string; position: number; roleIds: string[]; voice?: VoiceMember[]; lastMessageId: number; unread?: number; mentions?: number };
 export type Community = CommunitySummary & { roles: CommunityRole[]; myRoleIds: string[]; channels: CommunityChannel[] };
 export type CommunityMember = { user: User; roleIds: string[]; owner: boolean; joinedAt: string };
 export type InvitePreview = { code: string; community: { id: string; kind: CommunityKind; category?: CategoryId | null; closed?: boolean; name: string; description: string; avatarId: string | null; memberCount: number }; isMember: boolean };

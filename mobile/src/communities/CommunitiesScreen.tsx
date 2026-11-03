@@ -13,6 +13,8 @@ import { StackBase, StackScreen } from '../stack';
 import { CommunityScreen } from './CommunityScreen';
 import { CommunityAvatar, members, subscribers } from './parts';
 import { CATEGORIES, inviteCodeFrom, type CategoryId, type CommunityKind, type CommunitySummary } from './types';
+import { setCommunitySummaries, useCommunityCounts } from './unread';
+import { badgeText } from '../unreadBadge';
 import { InviteCard } from './InviteCard';
 
 /**
@@ -24,7 +26,7 @@ export function CommunitiesScreen({ api, me, store, openId, onOpenInvite, onOpen
   const [list, setList] = useState<CommunitySummary[] | null>(null); const [error, setError] = useState('');
   const [create, setCreate] = useState<CommunityKind | 'choose' | null>(null); const [join, setJoin] = useState(false);
   const progress = useSharedValue(1);
-  const load = useCallback(() => { api.communities().then(result => { setList(result.communities); setError(''); }).catch(failure => setError(failure instanceof Error ? failure.message : 'Не удалось загрузить.')); }, [api]);
+  const load = useCallback(() => { api.communities().then(result => { setList(result.communities); setCommunitySummaries(result.communities); setError(''); }).catch(failure => setError(failure instanceof Error ? failure.message : 'Не удалось загрузить.')); }, [api]);
   useEffect(load, [load]);
   useEffect(() => store.onSocket(data => {
     if (data.type === 'community' && data.community) setList(current => current ? current.some(item => item.id === data.community.id) ? current.map(item => item.id === data.community.id ? data.community : item) : [data.community, ...current] : current);
@@ -54,7 +56,7 @@ export function CommunitiesScreen({ api, me, store, openId, onOpenInvite, onOpen
                 <Text numberOfLines={1} style={{ color: t.text, fontSize: 16, fontWeight: '600' }}>{item.name}</Text>
                 <Text numberOfLines={1} style={{ color: t.muted, fontSize: 14 }}>{item.lastMessage?.text || item.description || (item.kind === 'blog' ? subscribers(item.memberCount) : members(item.memberCount))}</Text>
               </View>
-              {item.muted ? <Icon name="volume-mute" size={14} color={t.subtle} /> : null}
+              <CommunityBadges id={item.id} />
             </Pressable>} />}
       </View>
     </StackBase>
@@ -112,3 +114,15 @@ function JoinSheet({ api, visible, onClose, onOpenInvite }: { api: Api; visible:
 }
 
 
+
+/** Telegram-style counters on a community row: «@» when you were mentioned, then the unread
+ * count (grey when the community is muted). */
+function CommunityBadges({ id }: { id: string }) {
+  const t = useTheme(); const { unread, mentions, muted } = useCommunityCounts(id);
+  const pill = (text: string, color: string, label: string) => <View accessibilityLabel={label} style={{ minWidth: 22, height: 22, paddingHorizontal: 6, borderRadius: 11, backgroundColor: color, alignItems: 'center', justifyContent: 'center' }}><Text style={{ color: t.onAccent, fontSize: 12, fontWeight: '800' }}>{text}</Text></View>;
+  return <View style={{ flexDirection: 'row', alignItems: 'center', gap: 5 }}>
+    {muted && !unread ? <Icon name="volume-mute" size={14} color={t.subtle} /> : null}
+    {mentions ? pill('@', t.accent, `упоминаний: ${mentions}`) : null}
+    {unread ? pill(badgeText(unread), muted ? t.subtle : t.accent, `непрочитанных: ${unread}`) : null}
+  </View>;
+}

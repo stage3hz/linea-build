@@ -15,6 +15,7 @@ import { lightFeedback } from './haptics';
 import type { Api } from './api';
 import type { Attachment, Chat, ReportReason, User } from './types';
 import { AUTO_DELETE, autoDeleteLabel, type ChatRules, type ViewMessage } from './messageMeta';
+import { refreshFriendRequests } from './friendRequests';
 import { SharedMedia } from './SharedMedia';
 
 type Props = {
@@ -37,6 +38,7 @@ export function UserProfile({ api, user, onClose, chat, onMessage, onMute, onSea
   const calls = useCalls(); const { width } = useWindowDimensions();
   const t = useTheme();
   const [contact, setContact] = useState<boolean | null>(null);
+  const [pendingRequest, setPendingRequest] = useState<'incoming' | 'outgoing' | null>(null);
   const [fresh, setFresh] = useState<User | null>(null);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState('');
@@ -44,10 +46,10 @@ export function UserProfile({ api, user, onClose, chat, onMessage, onMute, onSea
   const [menu, setMenu] = useState(false); const [sheet, setSheet] = useState<'ttl' | 'clear' | 'block' | 'report' | null>(null);
   const [blocked, setBlocked] = useState(false); const [reason, setReason] = useState<ReportReason | null>(null);
   useEffect(() => {
-    setContact(null); setFresh(null); setError(''); setNotice('');
+    setContact(null); setPendingRequest(null); setFresh(null); setError(''); setNotice('');
     if (!user) return;
     let live = true;
-    api.userProfile(user.id).then(result => { if (live) { setContact(result.isContact); setFresh(result.user); setBlocked(!!result.blocked); } }).catch(e => { if (live) setError(e instanceof Error ? e.message : 'Не удалось загрузить профиль.'); });
+    api.userProfile(user.id).then(result => { if (live) { setContact(result.isContact); setPendingRequest(result.friendRequest ?? null); setFresh(result.user); setBlocked(!!result.blocked); } }).catch(e => { if (live) setError(e instanceof Error ? e.message : 'Не удалось загрузить профиль.'); });
     return () => { live = false; };
   }, [api, user?.id]);
   if (!user) return null;
@@ -56,7 +58,13 @@ export function UserProfile({ api, user, onClose, chat, onMessage, onMute, onSea
   const toggleContact = async () => {
     if (contact === null || busy) return;
     setBusy(true); setError(''); lightFeedback();
-    try { if (contact) await api.removeContact(shown.id); else await api.addContact(shown.id); setContact(!contact); setNotice(contact ? 'Удалён из друзей' : 'Добавлен в друзья'); }
+    try {
+      if (contact) { await api.removeContact(shown.id); setContact(false); setNotice('Удалён из друзей'); }
+      else if (pendingRequest === 'outgoing') { await api.dropFriendRequest(shown.id); setPendingRequest(null); setNotice('Заявка отменена'); }
+      else if (pendingRequest === 'incoming') { await api.acceptFriend(shown.id); setPendingRequest(null); setContact(true); setNotice('Теперь вы друзья'); }
+      else { const r = await api.addContact(shown.id); if (r.status === 'requested') { setPendingRequest('outgoing'); setNotice('Заявка отправлена'); } else { setContact(true); setNotice('Теперь вы друзья'); } }
+      void refreshFriendRequests(api);
+    }
     catch (e) { setError(e instanceof Error ? e.message : 'Не удалось изменить список друзей.'); }
     finally { setBusy(false); }
   };
@@ -71,12 +79,12 @@ export function UserProfile({ api, user, onClose, chat, onMessage, onMute, onSea
   const actions: { icon: IconName; label: string; onPress: () => void; active?: boolean; loading?: boolean }[] = [
     ...(onMessage ? [{ icon: 'chatbubble' as IconName, label: 'Написать', onPress: () => { onClose(); onMessage(shown); } }] : []),
     ...(chat && calls.available ? [{ icon: 'call' as IconName, label: 'Звонок', onPress: () => { onClose(); calls.start(chat, false); } }, { icon: 'videocam' as IconName, label: 'Видео', onPress: () => { onClose(); calls.start(chat, true); } }] : []),
-    { icon: contact ? 'person-remove' : 'person-add', label: contact ? 'В друзьях' : 'В друзья', onPress: () => void toggleContact(), active: !!contact, loading: contact === null },
+    { icon: contact ? 'person-remove' : pendingRequest === 'outgoing' ? 'time-outline' : pendingRequest === 'incoming' ? 'person-add' : 'person-add', label: contact ? 'В друзьях' : pendingRequest === 'outgoing' ? 'Заявка' : pendingRequest === 'incoming' ? 'Принять' : 'В друзья', onPress: () => void toggleContact(), active: !!contact || pendingRequest === 'incoming', loading: contact === null },
     ...(onMute && chat ? [{ icon: (muted ? 'notifications-off' : 'notifications') as IconName, label: muted ? 'Без звука' : 'Звук', onPress: () => void toggleMute(), active: muted }] : []),
   ];
   const toggleBlock = async () => {
     setBusy(true); setError('');
-    try { if (blocked) await api.unblock(shown.id); else await api.block(shown.id); setBlocked(!blocked); setNotice(blocked ? 'Разблокирован' : 'Заблокирован: он не сможет тебе писать и звонить'); }
+    try { if (blocked) await api.unblock(shown.id); else { await api.block(shown.id); setContact(false); setPendingRequest(null); void refreshFriendRequests(api); } setBlocked(!blocked); setNotice(blocked ? 'Разблокирован' : 'Заблокирован: он не сможет тебе писать и звонить'); }
     catch (e) { setError(e instanceof Error ? e.message : 'Не получилось.'); } finally { setBusy(false); setSheet(null); }
   };
   const sendReport = async () => {

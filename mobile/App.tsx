@@ -13,6 +13,9 @@ import { NearbyOffer } from './src/nearby/NearbyOffer';
 import { onBindAction, startBinds } from './src/audio/binds';
 import { setOverlaySelf } from './src/overlay/sync';
 import { setUnreadTotal } from './src/unreadBadge';
+import { refreshFriendRequests, resetFriendRequests, useFriendRequests } from './src/friendRequests';
+import { setAppBadge } from './src/appBadge';
+import { applyCommunityEvent, resetCommunityCounts, setCommunitySummaries, useChannelsBadge } from './src/communities/unread';
 // PC: hot keys for mute / deafen / рация (Настройки → Звук и микрофон).
 startBinds();
 import { QuickSwitcher } from './src/QuickSwitcher';
@@ -201,6 +204,14 @@ function Messenger({api,session,onUser,themeMode,darkTheme,onTheme,onDarkTheme,o
   // Unread (not muted, not archived): rail and phone tab bar badges.
   const unreadTotal=store.chats.reduce((sum,item)=>sum+(item.settings?.muted||item.settings?.archived?0:item.unreadCount||0),0);
   useEffect(()=>{setUnreadTotal(unreadTotal);},[unreadTotal]);
+  // App icon / taskbar badge: chats + channels + friend requests.
+  const channelsBadge=useChannelsBadge();const friendRequestCount=useFriendRequests().incoming.length;
+  useEffect(()=>{void setAppBadge(unreadTotal+channelsBadge+friendRequestCount);},[unreadTotal,channelsBadge,friendRequestCount]);
+  useEffect(()=>()=>{void setAppBadge(0);},[]);
+  // Server/channel counters (the «Каналы» badge) stay current without opening the tab.
+  useEffect(()=>{const load=()=>{api.communities().then(r=>setCommunitySummaries(r.communities)).catch(()=>{});};load();const off=store.onSocket(data=>{if(data?.type==='ready')load();else applyCommunityEvent(data,session.user.id);});return()=>{off();resetCommunityCounts();};},[api,store.onSocket,session.user.id]);
+  // Friend requests: the «Люди» badge stays current (WebSocket «friends» events, reconnects).
+  useEffect(()=>{void refreshFriendRequests(api);const off=store.onSocket(data=>{if(data?.type==='friends'||data?.type==='ready')void refreshFriendRequests(api);});return()=>{off();resetFriendRequests();};},[api,store.onSocket]);
   if(!wide&&(page==='chats'||page==='saved'))return <CallProvider api={api} store={store} me={session.user}><View style={{flex:1,width:'100%'}}><RecoveryNotice requests={store.recoveryRequests} error={store.recoveryError} onRefresh={store.refreshRecoveryRequests} onCancel={store.cancelRecovery}/><NearbyOffer/><View style={{flex:1}}><StackBase progress={stackProgress} covered={!!pushed}><ChatListScreen api={api} user={session.user} store={listStore} onNewChat={newChat} onProfile={profile} onMusic={openMusic} onAI={openAI} onQuickAI={()=>setQuickAI(true)} onChats={openChats} onSaved={openSaved} savedActive={page==='saved'} activeTab={page==='saved'?'chats':page}/></StackBase>{pushedScreen}</View><AIQuickDialog api={api} visible={quickAI} onClose={()=>setQuickAI(false)}/><InviteSheet api={api} code={inviteCode} onClose={()=>setInviteCode(null)} onJoined={id=>{setInviteCode(null);store.selectChat(null);setPage('channels');setOpenCommunity(id);}}/><PlatinaShowcaseHost api={api} me={session.user} onCustomize={()=>{store.selectChat(null);setPage('profile');}}/></View></CallProvider>;
   // Desktop: rail of sections | chat list (only for chats and people) | content.
   const railTab=page==='security'||page==='settings'||page==='profile'?'profile':page==='saved'?'chats':page;

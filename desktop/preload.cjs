@@ -15,6 +15,7 @@ contextBridge.exposeInMainWorld('invizentDesktop', Object.freeze({
     onHold: listener => { const handler = (_event, action, down) => { if ((action === 'ptt' || action === 'pushToMute') && typeof down === 'boolean') listener(action, down); }; ipcRenderer.on('invizent-hold', handler); return () => ipcRenderer.removeListener('invizent-hold', handler); },
     onAction: listener => { const handler = (_event, action) => { if (typeof action === 'string' && /^[a-z0-9]{1,16}$/.test(action)) listener(action); }; ipcRenderer.on('invizent-shortcut', handler); return () => ipcRenderer.removeListener('invizent-shortcut', handler); },
   }),
+  badge: (count, picture) => invoke('badge', count, picture),
   overlay: Object.freeze({ configure: prefs => invoke('overlayConfigure', prefs), update: view => invoke('overlayUpdate', view) }),
   update: Object.freeze({ download: (url,sha256,size) => invoke('updateDownload',url,sha256,size), progress: () => invoke('updateProgress'), cancel: () => invoke('updateCancel'), install: () => invoke('updateInstall') }),
 }));

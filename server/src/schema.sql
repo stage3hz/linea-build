@@ -160,7 +160,8 @@ CREATE TABLE IF NOT EXISTS user_privacy (
   updated_at TEXT NOT NULL
 );
 
--- Friends list ("Добавить в друзья"): one-way, private to the owner.
+-- Friends list. New friendships are mutual (two rows, made when a request is accepted);
+-- older one-way rows stay as they were.
 CREATE TABLE IF NOT EXISTS contacts (
   owner_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
   contact_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
@@ -168,6 +169,16 @@ CREATE TABLE IF NOT EXISTS contacts (
   PRIMARY KEY(owner_id, contact_id),
   CHECK(owner_id <> contact_id)
 );
+
+-- Friend requests: a friend is added only when the other person accepts (as in Discord).
+CREATE TABLE IF NOT EXISTS friend_requests (
+  from_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+  to_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+  created_at TEXT NOT NULL,
+  PRIMARY KEY(from_id, to_id),
+  CHECK(from_id <> to_id)
+);
+CREATE INDEX IF NOT EXISTS friend_requests_to ON friend_requests(to_id, created_at);
 
 -- Per-user chat list settings: pinned chats, archive, mute. Never visible to the peer.
 CREATE TABLE IF NOT EXISTS chat_settings (

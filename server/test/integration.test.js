@@ -638,14 +638,31 @@ test('friends list and per-user chat settings (pin, archive, mute) stay private 
   assert.equal(profile.statusCode, 200, profile.body);
   assert.equal(profile.json().isContact, false);
   assert.equal(profile.json().chatId, chat.id);
-  assert.equal((await request(app, 'PUT', `/contacts/${bob.user.id}`, alice)).statusCode, 200);
+  const asked = await request(app, 'PUT', `/contacts/${bob.user.id}`, alice);
+  assert.equal(asked.statusCode, 200);
+  assert.equal(asked.json().status, 'requested', 'adding a friend sends a request');
   assert.equal((await request(app, 'PUT', `/contacts/${alice.user.id}`, alice)).statusCode, 400);
   profile = await request(app, 'GET', `/users/${bob.user.id}`, alice);
+  assert.equal(profile.json().isContact, false);
+  assert.equal(profile.json().friendRequest, 'outgoing');
+  assert.equal((await request(app, 'GET', `/users/${alice.user.id}`, bob)).json().friendRequest, 'incoming');
+  assert.deepEqual((await request(app, 'GET', '/contacts', alice)).json().users, []);
+  const inbox = (await request(app, 'GET', '/friends/requests', bob)).json();
+  assert.deepEqual(inbox.incoming.map(r => r.user.id), [alice.user.id]);
+  assert.deepEqual(inbox.outgoing, []);
+  assert.deepEqual((await request(app, 'GET', '/friends/requests', alice)).json().outgoing.map(r => r.user.id), [bob.user.id]);
+  assert.equal((await request(app, 'POST', `/friends/requests/${bob.user.id}/accept`, alice)).statusCode, 404, 'one cannot accept a request one sent');
+  const accepted = await request(app, 'POST', `/friends/requests/${alice.user.id}/accept`, bob);
+  assert.equal(accepted.json().status, 'friends');
+  profile = await request(app, 'GET', `/users/${bob.user.id}`, alice);
   assert.equal(profile.json().isContact, true);
+  assert.equal(profile.json().friendRequest, null);
   assert.deepEqual((await request(app, 'GET', '/contacts', alice)).json().users.map(u => u.id), [bob.user.id]);
-  assert.deepEqual((await request(app, 'GET', '/contacts', bob)).json().users, []);
+  assert.deepEqual((await request(app, 'GET', '/contacts', bob)).json().users.map(u => u.id), [alice.user.id]);
+  assert.deepEqual((await request(app, 'GET', '/friends/requests', bob)).json().incoming, []);
   assert.equal((await request(app, 'DELETE', `/contacts/${bob.user.id}`, alice)).statusCode, 200);
   assert.deepEqual((await request(app, 'GET', '/contacts', alice)).json().users, []);
+  assert.deepEqual((await request(app, 'GET', '/contacts', bob)).json().users, [], 'removing a friend ends it for both');
 
   const pinned = await request(app, 'PATCH', `/chats/${chat.id}/settings`, alice, { pinned: true, muted: true });
   assert.equal(pinned.statusCode, 200, pinned.body);
@@ -844,6 +861,12 @@ test('push: token per session, sender name only, mute and «none» respected, tu
   assert.equal(sent[0].token, 'fcm-token-bob-000000000000');
   assert.equal(sent[0].message.android.notification.title, 'Алиса');
   assert.equal(sent[1].message.android.notification.body, '2 новых сообщения');
+  assert.equal(sent[1].message.apns.payload.aps.badge, 2, 'the app icon shows the total unread');
+  await request(app, 'PUT', `/contacts/${bob.user.id}`, alice);
+  await send(app, alice, chat, 'push-message-0002b');
+  await new Promise(resolve => setImmediate(resolve));
+  assert.equal(sent[2].message.android.notification.notification_count, 4, 'three unread messages and one friend request');
+  sent.splice(2, 1);
   assert.ok(!JSON.stringify(sent).includes('ciphertext'));
   const quiet = await request(app, 'POST', `/chats/${chat.id}/messages`, alice, { clientId: 'push-message-0003', encrypted: envelopeFor(alice, chat, []), push: 'none' });
   assert.equal(quiet.statusCode, 201, quiet.body);
@@ -977,6 +1000,8 @@ test('call privacy: everyone / friends only / allowed only, and a never list by 
   assert.equal((await offer(alice, ab, 'call-0002')).json().code, 'CALLS_RESTRICTED');
   assert.equal(await may(alice, bob), false);
   await request(app, 'PUT', `/contacts/${alice.user.id}`, bob);
+  assert.equal((await offer(alice, ab, 'call-0003a')).json().code, 'CALLS_RESTRICTED', 'a request alone is not friendship');
+  await request(app, 'POST', `/friends/requests/${bob.user.id}/accept`, alice);
   assert.equal((await offer(alice, ab, 'call-0003')).statusCode, 201, 'a friend may call');
   assert.equal(await may(carol, bob), false);
   await request(app, 'PATCH', '/me/privacy', bob, { calls: 'allowed' });
@@ -1023,4 +1048,72 @@ test('lean lists leave the ciphertext out only when asked', async t => {
   const chats = (await request(app, 'GET', '/chats?lean=1', bob)).json().chats;
   assert.equal(chats[0].lastMessage.lean, true); assert.equal(chats[0].lastMessage.encrypted, undefined);
   assert.ok((await request(app, 'GET', '/chats', bob)).json().chats[0].lastMessage.encrypted);
+});
+
+test('friend requests: mutual add accepts, decline and cancel, blocking hides and clears, live updates', async t => {
+  const { app } = await fixture(t);
+  const alice = await register(app, 'alice_fr'), bob = await register(app, 'bob_fr'), carol = await register(app, 'carol_fr');
+  const bobSocket = await socketFor(t, app, bob);
+  await request(app, 'PUT', `/contacts/${bob.user.id}`, alice);
+  await bobSocket.next(packet => packet.type === 'friends');
+  // Bob presses «В друзья» too: that accepts Alice's request.
+  assert.equal((await request(app, 'PUT', `/contacts/${alice.user.id}`, bob)).json().status, 'friends');
+  assert.deepEqual((await request(app, 'GET', '/contacts', alice)).json().users.map(u => u.id), [bob.user.id]);
+  // Decline and cancel.
+  await request(app, 'PUT', `/contacts/${carol.user.id}`, alice);
+  assert.equal((await request(app, 'DELETE', `/friends/requests/${alice.user.id}`, carol)).statusCode, 200);
+  assert.deepEqual((await request(app, 'GET', '/friends/requests', alice)).json().outgoing, []);
+  await request(app, 'PUT', `/contacts/${carol.user.id}`, alice);
+  await request(app, 'DELETE', `/friends/requests/${carol.user.id}`, alice);
+  assert.deepEqual((await request(app, 'GET', '/friends/requests', carol)).json().incoming, []);
+  // Someone who blocked you never sees your request.
+  await request(app, 'PUT', `/blocks/${alice.user.id}`, carol);
+  assert.equal((await request(app, 'PUT', `/contacts/${carol.user.id}`, alice)).json().status, 'requested');
+  assert.deepEqual((await request(app, 'GET', '/friends/requests', carol)).json().incoming, []);
+  assert.equal((await request(app, 'PUT', `/contacts/${alice.user.id}`, carol)).statusCode, 400, 'blocker must unblock first');
+  // Blocking a friend ends the friendship.
+  await request(app, 'PUT', `/blocks/${alice.user.id}`, bob);
+  assert.deepEqual((await request(app, 'GET', '/contacts', alice)).json().users, []);
+  assert.deepEqual((await request(app, 'GET', '/contacts', bob)).json().users, []);
+});
+
+test('community counters: unread per channel, @mentions and replies, read marks sync to other devices', async t => {
+  const { app } = await fixture(t);
+  const owner = await register(app, 'owner_u'), bob = await register(app, 'bob_u'), carol = await register(app, 'carol_u');
+  const server = (await request(app, 'POST', '/communities', owner, { kind: 'server', name: 'Счётчики' })).json().community;
+  const [general, news] = server.channels.filter(c => c.kind === 'text');
+  const post = (who, channel, text, replyTo) => request(app, 'POST', `/communities/${server.id}/channels/${channel.id}/messages`, who, { text, ...(replyTo ? { replyTo } : {}) }).then(r => r.json().message);
+  const old = await post(owner, general, 'старая история');
+  const code = (await request(app, 'POST', `/communities/${server.id}/invites`, owner, {})).json().invite.code;
+  for (const who of [bob, carol]) await request(app, 'POST', `/invites/${code}/accept`, who);
+  const summary = async who => (await request(app, 'GET', '/communities', who)).json().communities[0];
+  const channels = async who => Object.fromEntries((await request(app, 'GET', `/communities/${server.id}`, who)).json().community.channels.filter(c => c.kind === 'text').map(c => [c.id, [c.unread, c.mentions]]));
+  assert.deepEqual([(await summary(bob)).unreadCount, (await summary(bob)).mentionCount], [0, 0], 'history before joining is not unread');
+
+  const bobSocket = await socketFor(t, app, bob);
+  const ownerMsg = await post(owner, general, 'всем привет');
+  await post(owner, news, 'новость для @Bob_U и @nobody_here');
+  await post(carol, general, 'ответ', ownerMsg.id);
+  await post(carol, general, 'email@bob_u не считается, @bob_ufo тоже');
+  const event = await bobSocket.next(p => p.type === 'community.message' && p.message.channelId === news.id);
+  assert.deepEqual(event.mentions, [bob.user.id]);
+  let s = await summary(bob);
+  assert.deepEqual([s.unreadCount, s.mentionCount], [4, 1]);
+  assert.deepEqual(await channels(bob), { [general.id]: [3, 0], [news.id]: [1, 1] });
+  s = await summary(owner);
+  assert.deepEqual([s.unreadCount, s.mentionCount], [2, 1], 'own messages do not count; a reply counts as a mention');
+
+  // Reading one channel does not mark the other one read.
+  const read = await request(app, 'POST', `/communities/${server.id}/channels/${news.id}/read`, bob, { lastReadId: 1e9 });
+  assert.equal(read.statusCode, 200, read.body);
+  assert.deepEqual([read.json().unread, read.json().mentions], [0, 0]);
+  assert.deepEqual([read.json().community.unreadCount, read.json().community.mentionCount], [3, 0]);
+  const synced = await bobSocket.next(p => p.type === 'community.read');
+  assert.equal(synced.channelId, news.id);
+  assert.deepEqual(await channels(bob), { [general.id]: [3, 0], [news.id]: [0, 0] });
+  assert.equal((await request(app, 'POST', `/communities/${server.id}/channels/${general.id}/read`, bob, { lastReadId: -1 })).statusCode, 400);
+  // Writing marks the channel read for the writer.
+  await post(bob, general, 'я тут');
+  assert.equal((await summary(bob)).unreadCount, 0);
+  assert.ok(old.id > 0);
 });

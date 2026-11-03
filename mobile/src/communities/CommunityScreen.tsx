@@ -19,6 +19,8 @@ import { ChannelChat } from './ChannelChat';
 import { CommunitySettings } from './CommunitySettings';
 import { CommunityAvatar, members, subscribers } from './parts';
 import { PERM, can, type Community, type CommunityChannel, type VoiceMember } from './types';
+import { setCommunityChannels, useChannelCounts } from './unread';
+import { badgeText } from '../unreadBadge';
 import { joinVoice, leaveVoice, toggleVoiceMute, toggleVoiceSpeaker, toggleVoiceDeafen, useVoice, voiceAvailable } from './voice';
 
 type Pushed = { kind: 'channel'; channel: CommunityChannel } | { kind: 'settings' } | null;
@@ -34,7 +36,7 @@ export function CommunityScreen({ api, me, store, communityId, onBack, onOpenInv
   const progress = useSharedValue(1);
 
   const load = useCallback(async () => {
-    try { setCommunity((await api.community(communityId)).community); setError(''); }
+    try { const next = (await api.community(communityId)).community; setCommunity(next); setCommunityChannels(next.id, next.channels); setError(''); }
     catch (failure) { setError(failure instanceof Error ? failure.message : 'Не удалось открыть.'); }
   }, [api, communityId]);
   useEffect(() => { void load(); }, [load]);
@@ -97,8 +99,7 @@ export function CommunityScreen({ api, me, store, communityId, onBack, onOpenInv
             <Pressable accessibilityRole="button" accessibilityLabel={`${channel.kind === 'voice' ? 'Голосовой' : 'Текстовый'} канал ${channel.name}`} onPress={() => channel.kind === 'voice' ? void enterVoice(channel) : setPushed({ kind: 'channel', channel })}
               style={({ pressed }) => ({ flexDirection: 'row', alignItems: 'center', gap: 10, minHeight: 44, paddingHorizontal: 10, borderRadius: 12, backgroundColor: inside ? 'rgba(47,210,122,0.12)' : pressed ? t.accentSoft : 'transparent' })}>
               <Icon name={channel.kind === 'voice' ? 'volume-medium' : 'chatbox-ellipses-outline'} size={19} color={inside ? '#2FD27A' : t.muted} />
-              <Text numberOfLines={1} style={{ flex: 1, color: inside ? '#2FD27A' : t.text, fontSize: 16, fontWeight: inside ? '700' : '500' }}>{channel.kind === 'text' ? `# ${channel.name}` : channel.name}</Text>
-              {locked ? <Icon name="lock-closed" size={13} color={t.subtle} /> : null}
+              {channel.kind === 'text' ? <TextChannelLabel channel={channel} locked={locked} /> : <><Text numberOfLines={1} style={{ flex: 1, color: inside ? '#2FD27A' : t.text, fontSize: 16, fontWeight: inside ? '700' : '500' }}>{channel.name}</Text>{locked ? <Icon name="lock-closed" size={13} color={t.subtle} /> : null}</>}
               {channel.kind === 'voice' && channel.voice?.length ? <Text style={{ color: t.muted, fontSize: 12 }}>{channel.voice.length}/12</Text> : null}
             </Pressable>
             {channel.kind === 'voice' && channel.voice?.length ? <View style={{ paddingLeft: 40, gap: 4, paddingBottom: 4 }}>{channel.voice.map(item => {
@@ -174,3 +175,14 @@ function VoiceButton({ icon, label, onPress, active = false, danger = false }: {
   </Pressable>;
 }
 
+
+/** Text channel name as in Discord: bold with a dot while unread, a counter pill for @mentions. */
+function TextChannelLabel({ channel, locked }: { channel: CommunityChannel; locked: boolean }) {
+  const t = useTheme(); const { unread, mentions } = useChannelCounts(channel.id);
+  return <>
+    {unread ? <View accessibilityElementsHidden importantForAccessibility="no" style={{ position: 'absolute', left: -2, width: 5, height: 9, borderRadius: 3, backgroundColor: t.text }} /> : null}
+    <Text numberOfLines={1} accessibilityLabel={`${channel.name}${unread ? `, непрочитанных: ${unread}` : ''}${mentions ? `, упоминаний: ${mentions}` : ''}`} style={{ flex: 1, color: unread ? t.text : t.muted, fontSize: 16, fontWeight: unread ? '700' : '500' }}>{`# ${channel.name}`}</Text>
+    {locked ? <Icon name="lock-closed" size={13} color={t.subtle} /> : null}
+    {mentions ? <View style={{ minWidth: 20, height: 20, paddingHorizontal: 6, borderRadius: 10, backgroundColor: t.accent, alignItems: 'center', justifyContent: 'center' }}><Text style={{ color: t.onAccent, fontSize: 11, fontWeight: '800' }}>{badgeText(mentions)}</Text></View> : null}
+  </>;
+}

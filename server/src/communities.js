@@ -82,6 +82,21 @@ CREATE TABLE IF NOT EXISTS community_messages (
   edited_at TEXT
 );
 CREATE INDEX IF NOT EXISTS community_messages_channel ON community_messages(channel_id, id);
+-- What each person has read, per text channel (no row: the older per-community mark).
+CREATE TABLE IF NOT EXISTS community_channel_reads (
+  user_id TEXT NOT NULL,
+  channel_id TEXT NOT NULL,
+  last_read_id INTEGER NOT NULL DEFAULT 0,
+  PRIMARY KEY(user_id, channel_id)
+);
+-- @mentions and replies: one row per person a message points at (for the «@» counter).
+CREATE TABLE IF NOT EXISTS community_mentions (
+  message_id INTEGER NOT NULL,
+  channel_id TEXT NOT NULL,
+  user_id TEXT NOT NULL,
+  PRIMARY KEY(message_id, user_id)
+);
+CREATE INDEX IF NOT EXISTS community_mentions_user ON community_mentions(user_id, channel_id, message_id);
 CREATE TABLE IF NOT EXISTS community_invites (
   code TEXT PRIMARY KEY,
   community_id TEXT NOT NULL REFERENCES communities(id) ON DELETE CASCADE,
@@ -134,12 +149,49 @@ export function installCommunityRoutes({ app, db, authOptions, publicUser, times
   };
   const memberCount = id => db.prepare('SELECT COUNT(*) AS n FROM community_members WHERE community_id=?').get(id).n;
   const publicRole = role => ({ id: role.id, name: role.name, color: role.color, position: role.position, perms: role.perms, isDefault: role.is_default === 1 });
+  // Unread and @mention counters (own messages never count). Capped so a huge backlog stays cheap.
+  const COUNT_CAP = 9999;
+  const lastRead = (channelId, communityId, userId) => {
+    const own = db.prepare('SELECT last_read_id FROM community_channel_reads WHERE user_id=? AND channel_id=?').get(userId, channelId);
+    if (own) return own.last_read_id;
+    return db.prepare('SELECT last_read_id FROM community_members WHERE community_id=? AND user_id=?').get(communityId, userId)?.last_read_id || 0;
+  };
+  const counters = (item, userId) => {
+    if (item.kind !== 'text') return { unread: 0, mentions: 0 };
+    const after = lastRead(item.id, item.community_id, userId);
+    return {
+      unread: db.prepare(`SELECT COUNT(*) AS n FROM (SELECT 1 FROM community_messages WHERE channel_id=? AND id>? AND sender_id<>? LIMIT ${COUNT_CAP})`).get(item.id, after, userId).n,
+      mentions: db.prepare(`SELECT COUNT(*) AS n FROM (SELECT 1 FROM community_mentions WHERE user_id=? AND channel_id=? AND message_id>? LIMIT ${COUNT_CAP})`).get(userId, item.id, after).n,
+    };
+  };
+  const totals = (row, userId) => {
+    let unread = 0, mentions = 0;
+    for (const item of db.prepare("SELECT * FROM community_channels WHERE community_id=? AND kind='text'").all(row.id)) {
+      if (!canSee(row, item, userId)) continue;
+      const c = counters(item, userId); unread += c.unread; mentions += c.mentions;
+    }
+    return { unreadCount: Math.min(unread, COUNT_CAP), mentionCount: Math.min(mentions, COUNT_CAP) };
+  };
+  /** People a message points at: @username of members who can see the channel, and the author of the message it answers. */
+  const MENTION = /(^|[^a-z0-9_@])@([a-z0-9_]{3,24})(?![a-z0-9_])/gi;
+  const mentionTargets = (row, item, senderId, text, replyTo) => {
+    const ids = new Set();
+    const names = new Set(); for (const m of String(text).matchAll(MENTION)) { names.add(m[2].toLowerCase()); if (names.size >= 20) break; }
+    for (const name of names) { const user = db.prepare('SELECT id FROM users WHERE username=?').get(name); if (user) ids.add(user.id); }
+    if (replyTo) { const parent = db.prepare('SELECT sender_id FROM community_messages WHERE id=?').get(replyTo); if (parent) ids.add(parent.sender_id); }
+    ids.delete(senderId);
+    return [...ids].filter(id => member(row.id, id) && canSee(row, item, id) && !db.prepare('SELECT 1 FROM blocks WHERE blocker_id=? AND blocked_id=?').get(id, senderId));
+  };
+  const saveMentions = (messageId, item, ids) => {
+    db.prepare('DELETE FROM community_mentions WHERE message_id=?').run(messageId);
+    for (const id of ids) db.prepare('INSERT OR IGNORE INTO community_mentions(message_id,channel_id,user_id) VALUES(?,?,?)').run(messageId, item.id, id);
+  };
   const publicChannel = (item, viewer) => ({
     id: item.id, kind: item.kind, name: item.name, topic: item.topic, category: item.category, position: item.position,
     roleIds: db.prepare('SELECT role_id FROM community_channel_roles WHERE channel_id=?').all(item.id).map(row => row.role_id),
     ...(item.kind === 'voice' ? { voice: voice.members(item.id) } : {}),
     lastMessageId: db.prepare('SELECT MAX(id) AS id FROM community_messages WHERE channel_id=?').get(item.id).id || 0,
-    ...(viewer ? {} : {}),
+    ...(viewer ? counters(item, viewer) : {}),
   });
   const summary = (row, viewer) => {
     const mine = member(row.id, viewer);
@@ -148,6 +200,7 @@ export function installCommunityRoutes({ app, db, authOptions, publicUser, times
       id: row.id, kind: row.kind, name: row.name, description: row.description, avatarId: row.avatar_id, ownerId: row.owner_id, category: row.category || null, closed: row.closed === 1,
       createdAt: row.created_at, memberCount: memberCount(row.id), isMember: !!mine, perms: perms(row, viewer),
       lastMessage: last ? publicMessage(last) : null, muted: mine?.muted === 1,
+      ...(mine ? totals(row, viewer) : { unreadCount: 0, mentionCount: 0 }),
     };
   };
   const detail = (row, viewer) => ({
@@ -176,7 +229,10 @@ export function installCommunityRoutes({ app, db, authOptions, publicUser, times
   const join = (row, userId) => {
     if (member(row.id, userId)) return false;
     if (memberCount(row.id) >= MAX_MEMBERS) fail(403, 'В сообществе максимум участников.');
-    db.prepare('INSERT INTO community_members(community_id,user_id,joined_at) VALUES(?,?,?)').run(row.id, userId, timestamp());
+    // A newcomer starts with everything read: the history is there, but not as a pile of «unread».
+    const latest = db.prepare('SELECT MAX(m.id) AS id FROM community_messages m JOIN community_channels c ON c.id=m.channel_id WHERE c.community_id=?').get(row.id).id || 0;
+    db.prepare('INSERT INTO community_members(community_id,user_id,joined_at,last_read_id) VALUES(?,?,?,?)').run(row.id, userId, timestamp(), latest);
+    db.prepare('DELETE FROM community_channel_reads WHERE user_id=? AND channel_id IN (SELECT id FROM community_channels WHERE community_id=?)').run(userId, row.id);
     return true;
   };
   const text = (value, label, min, max) => boundedText(value, label, min, max);
@@ -261,6 +317,8 @@ export function installCommunityRoutes({ app, db, authOptions, publicUser, times
     db.exec('BEGIN IMMEDIATE');
     try {
       db.prepare('DELETE FROM community_messages WHERE channel_id IN (SELECT id FROM community_channels WHERE community_id=?)').run(row.id);
+      db.prepare('DELETE FROM community_mentions WHERE channel_id IN (SELECT id FROM community_channels WHERE community_id=?)').run(row.id);
+      db.prepare('DELETE FROM community_channel_reads WHERE channel_id IN (SELECT id FROM community_channels WHERE community_id=?)').run(row.id);
       db.prepare('DELETE FROM communities WHERE id=?').run(row.id);
       db.exec('COMMIT');
     } catch (error) { db.exec('ROLLBACK'); throw error; }
@@ -409,6 +467,8 @@ export function installCommunityRoutes({ app, db, authOptions, publicUser, times
     if (db.prepare('SELECT COUNT(*) AS n FROM community_channels WHERE community_id=? AND kind=?').get(row.id, 'text').n <= 1 && item.kind === 'text') fail(400, 'Нужен хотя бы один текстовый канал.');
     voice.close(item.id);
     db.prepare('DELETE FROM community_messages WHERE channel_id=?').run(item.id);
+    db.prepare('DELETE FROM community_mentions WHERE channel_id=?').run(item.id);
+    db.prepare('DELETE FROM community_channel_reads WHERE channel_id=?').run(item.id);
     db.prepare('DELETE FROM community_channels WHERE id=?').run(item.id);
     emitCommunity(row, { type: 'community.channels', communityId: row.id });
     return { ok: true };
@@ -434,6 +494,22 @@ export function installCommunityRoutes({ app, db, authOptions, publicUser, times
     return { messages, users: authorsOf(messages), hasMore: rows.length === 50 };
   });
 
+  // Marks a channel read up to lastReadId; the person's other devices get the new counters.
+  app.post('/communities/:id/channels/:channelId/read', authOptions, async request => {
+    const { row, item, viewer } = visibleChannel(request);
+    const body = objectBody(request.body, ['lastReadId']);
+    if (!Number.isSafeInteger(body.lastReadId) || body.lastReadId < 0) fail(400, 'Некорректное сообщение.');
+    const latest = db.prepare('SELECT MAX(id) AS id FROM community_messages WHERE channel_id=?').get(item.id).id || 0;
+    const mark = Math.min(body.lastReadId, latest);
+    const before = lastRead(item.id, row.id, viewer);
+    if (mark > before || !db.prepare('SELECT 1 FROM community_channel_reads WHERE user_id=? AND channel_id=?').get(viewer, item.id)) {
+      db.prepare('INSERT INTO community_channel_reads(user_id,channel_id,last_read_id) VALUES(?,?,?) ON CONFLICT(user_id,channel_id) DO UPDATE SET last_read_id=MAX(last_read_id,excluded.last_read_id)').run(viewer, item.id, Math.max(mark, before));
+    }
+    const counts = counters(item, viewer), community = summary(row, viewer);
+    if (mark > before) emitUser(viewer, { type: 'community.read', communityId: row.id, channelId: item.id, ...counts, community });
+    return { ...counts, community };
+  });
+
   app.post('/communities/:id/channels/:channelId/messages', authOptions, async request => {
     const { row, item, viewer } = visibleChannel(request, { write: true });
     if (!limiter.allow(`community-send:${viewer}`, 30, 10_000)) fail(429, 'Слишком часто. Подожди немного.');
@@ -453,8 +529,12 @@ export function installCommunityRoutes({ app, db, authOptions, publicUser, times
       replyTo = body.replyTo;
     }
     const result = db.prepare('INSERT INTO community_messages(channel_id,sender_id,text,attachment_id,reply_to,created_at) VALUES(?,?,?,?,?,?)').run(item.id, viewer, value, attachmentId, replyTo, timestamp());
-    const message = publicMessage(db.prepare('SELECT * FROM community_messages WHERE id=?').get(Number(result.lastInsertRowid)));
-    emitCommunity(row, { type: 'community.message', communityId: row.id, message, user: publicUser(db.prepare('SELECT * FROM users WHERE id=?').get(viewer)) }, item);
+    const messageId = Number(result.lastInsertRowid);
+    const mentions = mentionTargets(row, item, viewer, value, replyTo); saveMentions(messageId, item, mentions);
+    // The sender has read everything up to their own message.
+    db.prepare('INSERT INTO community_channel_reads(user_id,channel_id,last_read_id) VALUES(?,?,?) ON CONFLICT(user_id,channel_id) DO UPDATE SET last_read_id=MAX(last_read_id,excluded.last_read_id)').run(viewer, item.id, messageId);
+    const message = publicMessage(db.prepare('SELECT * FROM community_messages WHERE id=?').get(messageId));
+    emitCommunity(row, { type: 'community.message', communityId: row.id, message, mentions, user: publicUser(db.prepare('SELECT * FROM users WHERE id=?').get(viewer)) }, item);
     return { message };
   });
 
@@ -466,6 +546,7 @@ export function installCommunityRoutes({ app, db, authOptions, publicUser, times
     const body = objectBody(request.body, ['text']);
     const value = boundedText(body.text, 'Сообщение', message.attachment_id ? 0 : 1, 4000, { trim: false });
     db.prepare('UPDATE community_messages SET text=?,edited_at=? WHERE id=?').run(value, timestamp(), message.id);
+    saveMentions(message.id, item, mentionTargets(row, item, viewer, value, message.reply_to));
     const next = publicMessage(db.prepare('SELECT * FROM community_messages WHERE id=?').get(message.id));
     emitCommunity(row, { type: 'community.message', communityId: row.id, message: next, edited: true }, item);
     return { message: next };
@@ -477,6 +558,7 @@ export function installCommunityRoutes({ app, db, authOptions, publicUser, times
     if (!message) fail(404, 'Сообщение не найдено.');
     if (message.sender_id !== viewer && !(perms(row, viewer) & PERM.MANAGE_MESSAGES)) fail(403, 'Удалить можно только своё сообщение.');
     db.prepare('DELETE FROM community_messages WHERE id=?').run(message.id);
+    db.prepare('DELETE FROM community_mentions WHERE message_id=?').run(message.id);
     emitCommunity(row, { type: 'community.message.deleted', communityId: row.id, channelId: item.id, messageId: message.id }, item);
     return { ok: true };
   });
@@ -546,7 +628,15 @@ export function installCommunityRoutes({ app, db, authOptions, publicUser, times
 <body><main>${preview ? `<p>${kind} · ${preview.community.memberCount} участн.</p><h1>${title}</h1>${preview.community.description ? `<p>${escape(preview.community.description)}</p>` : '<p>Тебя пригласили в Инвиз.</p>'}<a href="${deepLink}">Открыть в Инвиз</a><small>Если приложение не открылось, установи Инвиз и открой ссылку ещё раз.</small>` : `<h1>${title}</h1><p>Попроси новую ссылку у того, кто тебя пригласил.</p>`}</main></body></html>`;
   });
 
-  return { community, member, canSee, perms, channel, voiceAllowed: (communityId, channelId, userId) => {
+  /** For the app icon badge: unread of every community (a muted one adds only its @mentions). */
+  const badge = userId => {
+    let n = 0;
+    for (const row of db.prepare('SELECT c.*, m.muted AS my_muted FROM communities c JOIN community_members m ON m.community_id=c.id WHERE m.user_id=?').all(userId)) {
+      const t = totals(row, userId); n += row.my_muted === 1 ? t.mentionCount : t.unreadCount;
+    }
+    return n;
+  };
+  return { badge, community, member, canSee, perms, channel, voiceAllowed: (communityId, channelId, userId) => {
     const row = db.prepare('SELECT * FROM communities WHERE id=?').get(communityId);
     if (!row || !member(row.id, userId)) return null;
     const item = db.prepare('SELECT * FROM community_channels WHERE id=? AND community_id=? AND kind=?').get(channelId, row.id, 'voice');

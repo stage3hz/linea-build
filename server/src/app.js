@@ -336,6 +336,16 @@ export async function buildApp({
     db.prepare('DELETE FROM push_tokens WHERE session_hash=?').run(request.auth.token_hash);
     return { ok: true };
   });
+  // The number on the app icon: unread chats (not muted or archived), community counters and
+  // waiting friend requests — the same total the app shows once it is open.
+  const badgeTotal = userId => {
+    const chats = db.prepare(`SELECT COALESCE(SUM((SELECT COUNT(*) FROM messages m WHERE m.chat_id=cm.chat_id AND m.sender_id<>cm.user_id AND m.id>cm.last_read_message_id)),0) AS n
+      FROM chat_members cm LEFT JOIN chat_settings s ON s.user_id=cm.user_id AND s.chat_id=cm.chat_id
+      WHERE cm.user_id=? AND COALESCE(s.muted,0)=0 AND COALESCE(s.archived,0)=0`).get(userId).n;
+    const friends = db.prepare('SELECT COUNT(*) AS n FROM friend_requests r WHERE r.to_id=? AND NOT EXISTS (SELECT 1 FROM blocks b WHERE b.blocker_id=r.to_id AND b.blocked_id=r.from_id)').get(userId).n;
+    let communities = 0; try { communities = communityApi.badge(userId); } catch { /* counters are best effort */ }
+    return Math.min(chats + friends + communities, 99999);
+  };
   const notify = (chatId, senderId, kind) => {
     if (!push || kind === 'none') return;
     const sender = db.prepare('SELECT display_name FROM users WHERE id=?').get(senderId);
@@ -346,7 +356,7 @@ export async function buildApp({
       if (!tokens.length) continue;
       const member = db.prepare('SELECT last_read_message_id FROM chat_members WHERE chat_id=? AND user_id=?').get(chatId, userId);
       const unread = db.prepare('SELECT COUNT(*) AS count FROM messages WHERE chat_id=? AND sender_id<>? AND id>?').get(chatId, userId, member?.last_read_message_id ?? 0).count;
-      const message = chatNotification({ chatId, senderName: sender?.display_name || 'Инвиз', kind, unread });
+      const message = chatNotification({ chatId, senderName: sender?.display_name || 'Инвиз', kind, unread, badge: kind === 'call' ? undefined : badgeTotal(userId) });
       for (const { token, platform } of tokens) {
         push(token, message, platform).then(result => { if (result === 'gone' && !databaseClosed) db.prepare('DELETE FROM push_tokens WHERE token=?').run(token); })
           .catch(error => app.log.warn({ err: error.message }, 'push failed'));

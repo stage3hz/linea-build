@@ -16,6 +16,7 @@ import * as FileSystem from 'expo-file-system/legacy';
 import { previewDocument } from '../media/documentPreview';
 import { PERM, can, type Community, type CommunityChannel, type CommunityMessage } from './types';
 import { InviteCard } from './InviteCard';
+import { mentionsUser, setViewingChannel } from './unread';
 import { inviteCodeFrom, withoutInviteLink } from './types';
 
 const time = (iso: string) => new Date(iso).toLocaleTimeString('ru-RU', { hour: '2-digit', minute: '2-digit' });
@@ -40,11 +41,13 @@ export function ChannelChat({ api, me, store, community, channel, onOpenInvite }
   const absorb = (list: User[]) => setUsers(current => { const next = { ...current }; for (const user of list) next[user.id] = user; return next; });
   const load = useCallback(async () => {
     setLoading(true); setError('');
-    try { const result = await api.channelMessages(community.id, channel.id); setMessages(result.messages); absorb(result.users); setHasMore(result.hasMore); if (result.messages.length) void api.communityMe(community.id, { lastReadId: result.messages[result.messages.length - 1].id }).catch(() => {}); }
+    try { const result = await api.channelMessages(community.id, channel.id); setMessages(result.messages); absorb(result.users); setHasMore(result.hasMore); if (result.messages.length) void api.readChannel(community.id, channel.id, result.messages[result.messages.length - 1].id).catch(() => {}); }
     catch (failure) { setError(failure instanceof Error ? failure.message : 'Не удалось загрузить сообщения.'); }
     finally { setLoading(false); }
   }, [api, community.id, channel.id]);
   useEffect(() => { void load(); }, [load]);
+  // While this channel is open its new messages are read as they arrive (no badge bump).
+  useEffect(() => { setViewingChannel(channel.id); return () => setViewingChannel(null); }, [channel.id]);
   // Role colours for author names (Discord: the highest coloured role).
   useEffect(() => {
     if (blog) return;
@@ -60,7 +63,7 @@ export function ChannelChat({ api, me, store, community, channel, onOpenInvite }
     if (data.type === 'community.message' && data.message?.channelId === channel.id) {
       if (data.user) absorb([data.user]);
       setMessages(current => current.some(item => item.id === data.message.id) ? current.map(item => item.id === data.message.id ? data.message : item) : [...current, data.message]);
-      if (!data.edited) void api.communityMe(community.id, { lastReadId: data.message.id }).catch(() => {});
+      if (!data.edited) void api.readChannel(community.id, channel.id, data.message.id).catch(() => {});
     } else if (data.type === 'community.message.deleted' && data.channelId === channel.id) setMessages(current => current.filter(item => item.id !== data.messageId));
   }), [store, community.id, channel.id, api]);
 
@@ -116,6 +119,8 @@ export function ChannelChat({ api, me, store, community, channel, onOpenInvite }
     const grouped = !blog && older && older.senderId === item.senderId && Date.parse(item.createdAt) - Date.parse(older.createdAt) < 7 * 60_000;
     const newDay = !older || new Date(older.createdAt).toDateString() !== new Date(item.createdAt).toDateString();
     const replied = item.replyTo ? byId.get(item.replyTo) : null;
+    // Discord: a message that mentions you or answers you stands out.
+    const forMe = item.senderId !== me.id && (mentionsUser(item.text, me.username) || replied?.senderId === me.id);
     const invite = inviteCodeFrom(item.text); const shownText = invite ? withoutInviteLink(item.text) : item.text;
     const body = <>
       {replied ? <View style={{ flexDirection: 'row', gap: 6, alignItems: 'center', marginBottom: 3 }}><Icon name="return-down-forward" size={13} color={t.subtle} /><Text numberOfLines={1} style={{ flex: 1, color: t.muted, fontSize: 13 }}><Text style={{ fontWeight: '600', color: t.muted }}>{users[replied.senderId]?.displayName || 'Участник'}</Text> {replied.text || 'Вложение'}</Text></View> : null}
@@ -125,7 +130,7 @@ export function ChannelChat({ api, me, store, community, channel, onOpenInvite }
     </>;
     return <View>
       {newDay ? <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10, marginVertical: 12, paddingHorizontal: 14 }}><View style={{ flex: 1, height: 1, backgroundColor: t.border }} /><Text style={{ color: t.muted, fontSize: 11, fontWeight: '600' }}>{day(item.createdAt)}</Text><View style={{ flex: 1, height: 1, backgroundColor: t.border }} /></View> : null}
-      <Pressable onLongPress={() => { lightFeedback(); setMenu(item); }} delayLongPress={350} style={({ pressed }) => ({ backgroundColor: pressed ? t.accentSoft : 'transparent' })}>
+      <Pressable onLongPress={() => { lightFeedback(); setMenu(item); }} delayLongPress={350} style={({ pressed }) => ({ backgroundColor: pressed ? t.accentSoft : forMe ? 'rgba(245,197,66,0.10)' : 'transparent', borderLeftWidth: forMe ? 2 : 0, borderLeftColor: '#F5C542' })}>
         {blog ? <View style={{ marginHorizontal: 12, marginVertical: 6, padding: 14, borderRadius: 18, backgroundColor: t.incoming, gap: 6 }}>
           {body}
           <Text style={{ color: t.subtle, fontSize: 11, alignSelf: 'flex-end' }}>{time(item.createdAt)}</Text>
@@ -150,7 +155,7 @@ export function ChannelChat({ api, me, store, community, channel, onOpenInvite }
       <View style={{ flexDirection: 'row', alignItems: 'flex-end', gap: 6 }}>
         {!editing ? <IconButton name="add-circle" label="Прикрепить" color={t.muted} onPress={() => setAttach(true)} /> : null}
         <View style={{ flex: 1, minHeight: 40, borderRadius: 20, backgroundColor: t.surface2, borderWidth: 1, borderColor: t.border, paddingHorizontal: 14, justifyContent: 'center' }}>
-          <TextInput value={text} onChangeText={setText} multiline placeholder={blog ? 'Новая публикация' : `Написать в #${channel.name}`} placeholderTextColor={t.subtle} style={{ color: t.text, fontSize: 16, maxHeight: 140, paddingVertical: 9 }} />
+          <TextInput value={text} onChangeText={setText} multiline onKeyPress={e => { if (Platform.OS === 'web' && e.nativeEvent.key === 'Enter' && !(e.nativeEvent as unknown as { shiftKey?: boolean }).shiftKey) { e.preventDefault(); void send(); } }} placeholder={blog ? 'Новая публикация' : `Написать в #${channel.name}`} placeholderTextColor={t.subtle} style={{ color: t.text, fontSize: 16, maxHeight: 140, paddingVertical: 9 }} />
         </View>
         {sending ? <ActivityIndicator color={t.accent} style={{ width: 40, height: 40 }} /> : <IconButton name="arrow-up-circle" label="Отправить" color={text.trim() ? t.accent : t.subtle} size={34} disabled={!text.trim()} onPress={() => void send()} />}
       </View>

@@ -1,4 +1,4 @@
-const { app, BrowserWindow, ipcMain, protocol, net, session, safeStorage, desktopCapturer, dialog, shell, globalShortcut, screen } = require('electron');
+const { app, BrowserWindow, ipcMain, protocol, net, session, safeStorage, desktopCapturer, dialog, shell, globalShortcut, screen, nativeImage } = require('electron');
 // Our servers only (same rule as mobile/src/servers/list.ts): any number of them, all under our domains.
 const TRUSTED_HOST = /^(?:[a-z0-9-]+\.)*invizent\.(?:com|ru)$|^141-133-194-51\.nip\.io$/;
 if (!app.requestSingleInstanceLock()) { app.quit(); } else {
@@ -138,6 +138,17 @@ ipcMain.handle('invizent', async (event, method, ...args) => {
     if (operation === 'delete') { if(file===cacheRoot)throw new Error('Cannot delete cache root'); return fs.rm(file,{recursive:true,force:true}); }
     if (operation === 'list') return fs.readdir(file);
     throw new Error('Invalid cache operation');
+  }
+  // Unread counter on the taskbar button (Windows: a small overlay picture drawn by the page) or
+  // on the dock / launcher icon (macOS, Linux).
+  if (method === 'badge') {
+    const count = Number.isSafeInteger(args[0]) ? Math.min(Math.max(args[0], 0), 99999) : 0;
+    const picture = typeof args[1] === 'string' && args[1].length < 65536 && args[1].startsWith('data:image/png;base64,') ? args[1] : null;
+    if (process.platform === 'win32') {
+      const image = count && picture ? nativeImage.createFromDataURL(picture) : null;
+      window?.setOverlayIcon(image && !image.isEmpty() ? image : null, count ? `Непрочитанных: ${count}` : '');
+    } else app.setBadgeCount(count);
+    return;
   }
   if (method === 'overlayConfigure') {
     const p = args[0] || {};

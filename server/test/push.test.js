@@ -110,3 +110,11 @@ test('old push table that allowed only Android is migrated and keeps its tokens'
   assert.equal(db.prepare('SELECT COUNT(*) AS n FROM push_tokens').get().n, 2);
   migratePushTokens(db);
 });
+
+test('the app icon badge travels in the push when known', () => {
+  const m = chatNotification({ chatId: 'c', senderName: 'x', kind: 'message', unread: 1, badge: 7 });
+  assert.equal(m.apns.payload.aps.badge, 7);
+  assert.equal(m.android.notification.notification_count, 7);
+  const none = chatNotification({ chatId: 'c', senderName: 'x', kind: 'call', unread: 1 });
+  assert.equal('badge' in none.apns.payload.aps, false);
+});

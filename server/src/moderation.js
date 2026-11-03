@@ -41,6 +41,9 @@ export function installModerationRoutes({ app, db, authOptions, publicUser, time
     if (target === me) fail(400, 'Нельзя заблокировать себя.');
     if (!db.prepare('SELECT 1 FROM users WHERE id=?').get(target)) fail(404, 'Пользователь не найден.');
     db.prepare('INSERT OR IGNORE INTO blocks(blocker_id,blocked_id,created_at) VALUES(?,?,?)').run(me, target, timestamp());
+    // As in Discord: blocking ends the friendship and any request between the two.
+    db.prepare('DELETE FROM friend_requests WHERE (from_id=? AND to_id=?) OR (from_id=? AND to_id=?)').run(me, target, target, me);
+    db.prepare('DELETE FROM contacts WHERE (owner_id=? AND contact_id=?) OR (owner_id=? AND contact_id=?)').run(me, target, target, me);
     return { ok: true, blocked: true };
   });
   app.delete('/blocks/:id', authOptions, async request => {

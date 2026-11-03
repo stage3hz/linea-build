@@ -7,6 +7,8 @@ export { chatSettings };
 const uuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 const MAX_CONTACTS = 2000;
 const MAX_PINNED = 5;
+const MAX_OUTGOING = 100;  // unanswered requests one person may have sent
+const MAX_INCOMING = 500;  // waiting requests one person may receive
 
 
 export function installSocialRoutes({ app, db, authOptions, publicUser, timestamp, serializationOptions, emitUser }) {
@@ -18,7 +20,7 @@ export function installSocialRoutes({ app, db, authOptions, publicUser, timestam
     if (!row) fail(404, 'Пользователь не найден.');
     const chat = db.prepare('SELECT a.chat_id FROM chat_members a JOIN chat_members b ON a.chat_id=b.chat_id WHERE a.user_id=? AND b.user_id=?').get(viewer, id);
     const contact = !!db.prepare('SELECT 1 FROM contacts WHERE owner_id=? AND contact_id=?').get(viewer, id);
-    return { user: userForViewer(db, publicUser(row), viewer), isContact: contact, chatId: chat?.chat_id ?? null, blocked: blockedByMe(db, viewer, id) };
+    return { user: userForViewer(db, publicUser(row), viewer), isContact: contact, friendRequest: contact ? null : requestState(viewer, id), chatId: chat?.chat_id ?? null, blocked: blockedByMe(db, viewer, id) };
   });
 
   app.get('/contacts', authOptions, async request => {
@@ -26,17 +28,76 @@ export function installSocialRoutes({ app, db, authOptions, publicUser, timestam
     return { users: rows.map(row => userForViewer(db, publicUser(row), request.auth.user_id)) };
   });
 
+  const isContact = (a, b) => !!db.prepare('SELECT 1 FROM contacts WHERE owner_id=? AND contact_id=?').get(a, b);
+  const requested = (from, to) => !!db.prepare('SELECT 1 FROM friend_requests WHERE from_id=? AND to_id=?').get(from, to);
+  const blockedEither = (a, b) => !!db.prepare('SELECT 1 FROM blocks WHERE (blocker_id=? AND blocked_id=?) OR (blocker_id=? AND blocked_id=?)').get(a, b, b, a);
+  const contactCount = id => db.prepare('SELECT COUNT(*) AS n FROM contacts WHERE owner_id=?').get(id).n;
+  const notify = (...ids) => { for (const id of ids) emitUser?.(id, { type: 'friends' }); };
+  /** Both people become friends (two rows); any request between them is gone. */
+  const befriend = (a, b) => {
+    if (contactCount(a) >= MAX_CONTACTS || contactCount(b) >= MAX_CONTACTS) fail(400, 'Слишком много друзей в списке.');
+    const now = timestamp();
+    db.exec('BEGIN IMMEDIATE');
+    try {
+      db.prepare('INSERT OR IGNORE INTO contacts(owner_id,contact_id,created_at) VALUES(?,?,?)').run(a, b, now);
+      db.prepare('INSERT OR IGNORE INTO contacts(owner_id,contact_id,created_at) VALUES(?,?,?)').run(b, a, now);
+      db.prepare('DELETE FROM friend_requests WHERE (from_id=? AND to_id=?) OR (from_id=? AND to_id=?)').run(a, b, b, a);
+      db.exec('COMMIT');
+    } catch (error) { db.exec('ROLLBACK'); throw error; }
+    notify(a, b);
+  };
+  const requestState = (viewer, other) => requested(viewer, other) ? 'outgoing' : requested(other, viewer) ? 'incoming' : null;
+
+  // "В друзья": sends a request, or accepts the one the other person already sent.
   app.put('/contacts/:id', authOptions, async request => {
     const id = userId(request.params.id), viewer = request.auth.user_id;
     if (id === viewer) fail(400, 'Нельзя добавить себя.');
     if (!db.prepare('SELECT 1 FROM users WHERE id=?').get(id)) fail(404, 'Пользователь не найден.');
-    if (db.prepare('SELECT COUNT(*) AS n FROM contacts WHERE owner_id=?').get(viewer).n >= MAX_CONTACTS) fail(400, 'Слишком много друзей в списке.');
-    db.prepare('INSERT OR IGNORE INTO contacts(owner_id,contact_id,created_at) VALUES(?,?,?)').run(viewer, id, timestamp());
+    if (blockedByMe(db, viewer, id)) fail(400, 'Сначала разблокируй пользователя.');
+    if (isContact(viewer, id) && isContact(id, viewer)) return { ok: true, status: 'friends' };
+    // They already asked (or added us earlier, before requests existed): we become friends now.
+    if (requested(id, viewer) || isContact(id, viewer)) { befriend(viewer, id); return { ok: true, status: 'friends' }; }
+    if (contactCount(viewer) >= MAX_CONTACTS) fail(400, 'Слишком много друзей в списке.');
+    if (requested(viewer, id)) return { ok: true, status: 'requested' };
+    if (db.prepare('SELECT COUNT(*) AS n FROM friend_requests WHERE from_id=?').get(viewer).n >= MAX_OUTGOING) fail(429, 'Слишком много неотвеченных заявок. Отмени часть из них.');
+    // Someone who blocked us never learns about the request; for us it looks sent.
+    if (blockedEither(viewer, id)) return { ok: true, status: 'requested' };
+    if (db.prepare('SELECT COUNT(*) AS n FROM friend_requests WHERE to_id=?').get(id).n >= MAX_INCOMING) return { ok: true, status: 'requested' };
+    db.prepare('INSERT OR IGNORE INTO friend_requests(from_id,to_id,created_at) VALUES(?,?,?)').run(viewer, id, timestamp());
+    notify(viewer, id);
+    return { ok: true, status: 'requested' };
+  });
+
+  // Remove a friend: the friendship ends for both.
+  app.delete('/contacts/:id', authOptions, async request => {
+    const id = userId(request.params.id), viewer = request.auth.user_id;
+    const gone = db.prepare('DELETE FROM contacts WHERE (owner_id=? AND contact_id=?) OR (owner_id=? AND contact_id=?)').run(viewer, id, id, viewer).changes;
+    if (gone) notify(viewer, id);
     return { ok: true };
   });
 
-  app.delete('/contacts/:id', authOptions, async request => {
-    db.prepare('DELETE FROM contacts WHERE owner_id=? AND contact_id=?').run(request.auth.user_id, userId(request.params.id));
+  app.get('/friends/requests', authOptions, async request => {
+    const viewer = request.auth.user_id;
+    const list = sql => db.prepare(sql).all(viewer).map(row => ({ user: userForViewer(db, publicUser(row), viewer), createdAt: row.request_at }));
+    return {
+      incoming: list(`SELECT u.*, r.created_at AS request_at FROM friend_requests r JOIN users u ON u.id=r.from_id
+        WHERE r.to_id=? AND NOT EXISTS (SELECT 1 FROM blocks b WHERE b.blocker_id=r.to_id AND b.blocked_id=r.from_id) ORDER BY r.created_at DESC LIMIT ${MAX_INCOMING}`),
+      outgoing: list(`SELECT u.*, r.created_at AS request_at FROM friend_requests r JOIN users u ON u.id=r.to_id WHERE r.from_id=? ORDER BY r.created_at DESC LIMIT ${MAX_OUTGOING}`),
+    };
+  });
+
+  app.post('/friends/requests/:id/accept', authOptions, async request => {
+    const id = userId(request.params.id), viewer = request.auth.user_id;
+    if (!requested(id, viewer) || blockedEither(viewer, id)) fail(404, 'Заявка не найдена.');
+    befriend(viewer, id);
+    return { ok: true, status: 'friends' };
+  });
+
+  // Decline an incoming request or cancel our own.
+  app.delete('/friends/requests/:id', authOptions, async request => {
+    const id = userId(request.params.id), viewer = request.auth.user_id;
+    const gone = db.prepare('DELETE FROM friend_requests WHERE (from_id=? AND to_id=?) OR (from_id=? AND to_id=?)').run(viewer, id, id, viewer).changes;
+    if (gone) notify(viewer, id);
     return { ok: true };
   });
 
