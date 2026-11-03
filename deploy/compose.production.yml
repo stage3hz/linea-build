@@ -61,6 +61,13 @@ services:
       CLUSTER_LEASE_MS: ${CLUSTER_LEASE_MS:-8000}
       LITESTREAM_ACCESS_KEY_ID: ${LITESTREAM_ACCESS_KEY_ID:-}
       LITESTREAM_SECRET_ACCESS_KEY: ${LITESTREAM_SECRET_ACCESS_KEY:-}
+      # Screen sharing for many viewers (server/src/sfu.js). Empty = off (direct copies only).
+      SFU_PUBLIC_IP: ${SFU_PUBLIC_IP:-}
+      SFU_PORT: ${SFU_PORT:-40000}
+    # SFU media port (only used when SFU_PUBLIC_IP is set). Media is end-to-end encrypted.
+    ports:
+      - "${SFU_PORT:-40000}:${SFU_PORT:-40000}/udp"
+      - "${SFU_PORT:-40000}:${SFU_PORT:-40000}/tcp"
     volumes:
       - linea-data:/data
       - ./secrets:/secrets:ro

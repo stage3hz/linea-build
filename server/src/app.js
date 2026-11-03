@@ -1,3 +1,4 @@
+import { createSfu, sfuConfig } from './sfu.js';
 import { installCallRoutes } from './calls.js';
 import { parseClientInfo, clientGateDecision } from './clientgate.js';
 import { verifyAttest, attestMode } from './attest.js';
@@ -67,6 +68,8 @@ export async function buildApp({
   diskReserveBytes = 5 * 1024 * MiB,
   freeDisk,
   maxConcurrentPasswordJobs = 4,
+  /** SFU for screen sharing (src/sfu.js); undefined = from the environment, null = off. */
+  sfu: sfuOption,
   authTestHooks,
   aiApiKey = '',
   aiProviderConfig = {},
@@ -102,6 +105,7 @@ export async function buildApp({
   let expireEncryptionDevices = () => {};
   // A missing account follows the same scrypt path as a known account.
   const dummyPasswordHash = await passwordHash(randomUUID());
+  const sfu = sfuOption !== undefined ? sfuOption : await createSfu({ config: sfuConfig(), log: (...a) => console.warn('[sfu]', ...a) });
   const app = Fastify({
     logger: logger ? {
       ...(typeof logger === 'object' ? logger : {}),
@@ -275,7 +279,8 @@ export async function buildApp({
   app.addHook('preClose', async () => {
     for (const state of sockets) state.socket.terminate();
   });
-  await app.register(websocket, { options: { maxPayload: 4096, perMessageDeflate: false } });
+  // 128 KB: voice SDP (with ICE candidates) and SFU parameters do not fit into 4 KB.
+  await app.register(websocket, { options: { maxPayload: 128 * 1024, perMessageDeflate: false } });
   await app.register(multipart, {
     limits: { files: 1, fields: 0, parts: 1, fieldNameSize: 100, fileSize: maxUploadBytes, headerPairs: 100 },
   });
@@ -359,6 +364,7 @@ export async function buildApp({
   const leaveVoice = state => {
     const channelId = state.voice?.channelId; if (!channelId) return;
     const room = voiceRooms.get(channelId); const communityId = state.voice.communityId; state.voice = null;
+    sfu?.leave(channelId, state.id);
     if (room) { room.delete(state.id); if (!room.size) voiceRooms.delete(channelId); }
     for (const item of room?.values() || []) sendSocket(item.state, { type: 'voice.left', channelId, peer: state.id });
     communityApi?.emitCommunity(communityApi.community(communityId), { type: 'voice.state', communityId, channelId, members: voiceMembers(channelId) });
@@ -777,11 +783,22 @@ export async function buildApp({
           const peers = [...room.values()].map(item => ({ peer: item.state.id, userId: item.userId, muted: item.muted }));
           room.set(state.id, { state, userId: state.auth.user_id, muted: data.muted === true }); voiceRooms.set(data.channelId, room);
           state.voice = { channelId: data.channelId, communityId: data.communityId };
-          sendSocket(state, { type: 'voice.joined', channelId: data.channelId, self: state.id, peers });
+          sendSocket(state, { type: 'voice.joined', channelId: data.channelId, self: state.id, peers, sfu: !!sfu });
           communityApi.emitCommunity(allowed.row, { type: 'voice.state', communityId: data.communityId, channelId: data.channelId, members: voiceMembers(data.channelId) });
           return;
         }
         if (data.type === 'voice.leave') { leaveVoice(state); return; }
+        if (data.type === 'sfu') {
+          // Screen sharing through the SFU: only members of the voice channel, with a rate limit.
+          if (!sfu || !state.voice) fail(403, 'Демонстрация через сервер недоступна.');
+          if (!limiter.allow(`sfu:${state.auth.user_id}`, 120, 10_000)) fail(429, 'Слишком много запросов.');
+          const channelId = state.voice.channelId, id = data.id;
+          const notify = (socketId, payload) => { const target = voiceRooms.get(channelId)?.get(socketId); if (target) sendSocket(target.state, payload); };
+          void sfu.handle({ channelId, socketId: state.id, data, notify })
+            .then(result => sendSocket(state, { type: 'sfu.reply', id, ok: true, data: result }))
+            .catch(error => sendSocket(state, { type: 'sfu.reply', id, ok: false, error: String(error?.message || error).slice(0, 200) }));
+          return;
+        }
         if (data.type === 'voice.mute') {
           const item = state.voice && voiceRooms.get(state.voice.channelId)?.get(state.id);
           if (!item || typeof data.muted !== 'boolean') return;
@@ -823,6 +840,7 @@ export async function buildApp({
   }, 30_000);
   maintenance.unref();
   app.addHook('onClose', async () => {
+    sfu?.close();
     clearInterval(maintenance);
     if (!databaseClosed) { databaseClosed = true; db.close(); }
   });

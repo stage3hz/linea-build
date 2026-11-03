@@ -191,7 +191,7 @@ export function useMessenger(api: Api, user: User, onExpired: ()=>void) {
         if(stopped||socketRef.current!==socket)return;
         lastReceive=Date.now();
         let data:any;try{data=JSON.parse(String(event.data));}catch{return;}
-        if(typeof data.type==='string'&&(data.type.startsWith('community')||data.type.startsWith('voice')||data.type==='ready'||data.type==='error'))socketListeners.current.forEach(listener=>{try{listener(data);}catch{/* keep other listeners */}});
+        if(typeof data.type==='string'&&(data.type.startsWith('community')||data.type.startsWith('voice')||data.type.startsWith('sfu')||data.type==='ready'||data.type==='error'))socketListeners.current.forEach(listener=>{try{listener(data);}catch{/* keep other listeners */}});
         if(data.type==='ready'){
           attempts=0;setConnection('connected');void refreshChats();void refreshRecoveryRequests();
           if(selectedRef.current)void loadMessages(selectedRef.current);
