@@ -3,7 +3,7 @@ import { prepareScreenCapture, confirmScreenCapture, endScreenCapture } from './
 import { useSyncExternalStore } from 'react';
 import type { Api } from '../api';
 import type { MessengerStore } from '../useMessenger';
-import { SCREEN_QUALITIES, screenControl, screenQuality, type ScreenQuality } from './screenShareModel';
+import { SCREEN_QUALITIES, screenControl, screenQuality, stereoScreenAudio, type ScreenQuality } from './screenShareModel';
 import { GATHER_TIMEOUT_MS } from '../calls/callModel';
 
 /**
@@ -151,7 +151,8 @@ async function handle(data: any) {
     for (const item of data.peers || []) {
       try {
         const connection = connectionFor(item.peer, true);
-        await connection.setLocalDescription(await connection.createOffer({ offerToReceiveAudio: true } as any));
+        const offer = await connection.createOffer({ offerToReceiveAudio: true } as any);
+        await connection.setLocalDescription({ type: offer.type, sdp: stereoScreenAudio(offer.sdp) });
         const sdp = await gathered(connection);
         storeRef?.sendSocket({ type: 'voice.signal', to: item.peer, data: { kind: 'offer', sdp } });
       } catch { drop(item.peer); }
@@ -164,7 +165,8 @@ async function handle(data: any) {
         try { connections.get(from)?.close(); } catch { /* replaced */ }
         const connection = connectionFor(from);
         await connection.setRemoteDescription(new rtc!.RTCSessionDescription({ type: 'offer', sdp: data.data.sdp }));
-        await connection.setLocalDescription(await connection.createAnswer());
+        const answer = await connection.createAnswer();
+        await connection.setLocalDescription({ type: answer.type, sdp: stereoScreenAudio(answer.sdp) });
         const sdp = await gathered(connection);
         storeRef?.sendSocket({ type: 'voice.signal', to: from, data: { kind: 'answer', sdp } });
       } catch { drop(from); }
@@ -247,7 +249,7 @@ export async function startVoiceScreen(quality: ScreenQuality) {
     // Инвиз's own sound, so the channel never hears itself back. Phones: picture only for now.
     stream = await rtc!.mediaDevices.getDisplayMedia({
       video: { width: { ideal: preset.width }, height: { ideal: preset.height }, frameRate: { ideal: 60, max: 60 } },
-      audio: Platform.OS === 'web' ? { restrictOwnAudio: true, suppressLocalAudioPlayback: false, echoCancellation: false, noiseSuppression: false, autoGainControl: false } : false,
+      audio: Platform.OS === 'web' ? { channelCount: 2, restrictOwnAudio: true, suppressLocalAudioPlayback: false, echoCancellation: false, noiseSuppression: false, autoGainControl: false } : false,
       ...(Platform.OS === 'web' ? { systemAudio: 'include', windowAudio: 'system' } : {}),
     } as any);
     if (generation !== shareGeneration || !state) { releaseLocalStream(stream); return; }

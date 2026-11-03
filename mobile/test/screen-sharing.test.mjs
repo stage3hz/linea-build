@@ -98,3 +98,13 @@ test('PC share sends the sound of the whole computer in its own slot, without ec
   f.voice.leaveVoice();
  } finally { delete globalThis.__voiceOS; }
 });
+
+test('PC sound slot is negotiated in stereo; the microphone stays mono', () => {
+ const sdp = ['v=0','m=video 9 UDP/TLS/RTP/SAVPF 96','a=rtpmap:96 VP8/90000','m=audio 9 UDP/TLS/RTP/SAVPF 111','a=rtpmap:111 opus/48000/2','a=fmtp:111 minptime=10;useinbandfec=1','m=audio 9 UDP/TLS/RTP/SAVPF 111','a=rtpmap:111 opus/48000/2','a=fmtp:111 minptime=10;useinbandfec=1','m=application 9 UDP/DTLS/SCTP webrtc-datachannel',''].join('\r\n');
+ const out = model.stereoScreenAudio(sdp);
+ const [, mic, pc] = out.split('m=audio');
+ assert.doesNotMatch(mic, /stereo/);
+ assert.match(pc, /a=fmtp:111 minptime=10;useinbandfec=1;stereo=1;sprop-stereo=1;maxaveragebitrate=128000/);
+ assert.equal(model.stereoScreenAudio(out), out);
+ assert.equal(model.stereoScreenAudio('v=0\r\nm=audio 9 RTP 111\r\na=rtpmap:111 opus/48000/2\r\n'), 'v=0\r\nm=audio 9 RTP 111\r\na=rtpmap:111 opus/48000/2\r\n', 'one audio section: untouched');
+});
