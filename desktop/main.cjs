@@ -1,4 +1,6 @@
 const { app, BrowserWindow, ipcMain, protocol, net, session, safeStorage, desktopCapturer, dialog, shell } = require('electron');
+// Our servers only (same rule as mobile/src/servers/list.ts): any number of them, all under our domains.
+const TRUSTED_HOST = /^(?:[a-z0-9-]+\.)*invizent\.(?:com|ru)$|^141-133-194-51\.nip\.io$/;
 if (!app.requestSingleInstanceLock()) { app.quit(); } else {
 const path = require('node:path');
 const fs = require('node:fs/promises');
@@ -53,7 +55,7 @@ ipcMain.handle('invizent', async (event, method, ...args) => {
   if (method === 'cancelRequest') { requests.get(args[0])?.abort(); return; }
   if (method === 'request') {
     const [id, request] = args, url = new URL(request.url);
-    if (url.protocol !== 'https:' || !['api.invizent.com','141-133-194-51.nip.io'].includes(url.host) || url.username || url.password || typeof id !== 'string' || requests.has(id)) throw new Error('Invalid API request');
+    if (url.protocol !== 'https:' || !TRUSTED_HOST.test(url.host) || url.username || url.password || typeof id !== 'string' || requests.has(id)) throw new Error('Invalid API request');
     if (request.body && (!(request.body instanceof ArrayBuffer) || request.body.byteLength > 32*1024*1024)) throw new Error('Request too large');
     const controller = new AbortController(); requests.set(id, controller);
     try {
@@ -110,7 +112,7 @@ app.whenReady().then(async () => {
       return new Response(response.body,{status:response.status,statusText:response.statusText,headers});
     } catch { return new Response('', { status: 404 }); }
   });
-  session.defaultSession.webRequest.onBeforeSendHeaders({ urls: ['wss://api.invizent.com/*','wss://141-133-194-51.nip.io/*'] }, (details, callback) => {
+  session.defaultSession.webRequest.onBeforeSendHeaders({ urls: ['wss://invizent.com/*','wss://*.invizent.com/*','wss://invizent.ru/*','wss://*.invizent.ru/*','wss://141-133-194-51.nip.io/*'] }, (details, callback) => {
     const headers = { ...details.requestHeaders };
     if (details.webContentsId === window?.webContents.id) { delete headers.Origin; delete headers.origin; }
     callback({ requestHeaders: headers });

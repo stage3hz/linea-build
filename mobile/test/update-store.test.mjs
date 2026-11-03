@@ -4,7 +4,7 @@ import { createHash, randomBytes } from 'node:crypto';
 import { loadTs } from './support/load-ts.mjs';
 
 const react = { useEffect: () => {}, useState: value => [value, () => {}] };
-const store = loadTs(new URL('../src/update/store.ts', import.meta.url), { react, '../serverConfig': { APP_VERSION: '0.14.2', SERVER_URL: 'https://api.invizent.com' } });
+const store = loadTs(new URL('../src/update/store.ts', import.meta.url), { react, '../serverConfig': { APP_VERSION: '0.14.2', SERVER_URL: 'https://api.invizent.com' }, '../servers/pool': { currentEndpoint: () => 'https://api.invizent.com' } });
 const { Sha256 } = loadTs(new URL('../src/update/sha256.ts', import.meta.url));
 const SHA = 'c'.repeat(64);
 const asset = name => ({ url: `https://github.com/stage3hz/linea-build/releases/download/v0.15.0/${name}`, sha256: SHA, size: 100 });

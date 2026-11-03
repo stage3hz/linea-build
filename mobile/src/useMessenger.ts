@@ -1,4 +1,5 @@
 import { UntrustedDeviceError } from './e2ee/core';
+import { reportFailure } from './servers/pool';
 import { forwardLabel, visibleText } from './safeText';
 /** What the other side wrote is shown without hidden characters (file names like «фото‮gpj.exe»). */
 const cleanShown=(message:Message):Message=>{let next=message;if(next.attachment?.name&&visibleText(next.attachment.name)!==next.attachment.name)next={...next,attachment:{...next.attachment,name:visibleText(next.attachment.name)||'файл'}};if(next.meta?.forward){const from=forwardLabel(next.meta.forward.from);next={...next,meta:{...next.meta,forward:{from:from??''}}};}return next;};
@@ -174,8 +175,9 @@ export function useMessenger(api: Api, user: User, onExpired: ()=>void) {
       const current=socketRef.current;
       if(current&&(current.readyState===WebSocket.OPEN||current.readyState===WebSocket.CONNECTING))return;
       setConnection('connecting');
+      const target=api.endpoint;let opened=false;
       const socket=new WebSocket(api.socketUrl());socketRef.current=socket;lastReceive=Date.now();
-      socket.onopen=()=>{if(!stopped&&socketRef.current===socket)socket.send(JSON.stringify({type:'auth',token:api.token}));};
+      socket.onopen=()=>{opened=true;if(!stopped&&socketRef.current===socket)socket.send(JSON.stringify({type:'auth',token:api.token}));};
       socket.onmessage=event=>{
         if(stopped||socketRef.current!==socket)return;
         lastReceive=Date.now();
@@ -199,7 +201,9 @@ export function useMessenger(api: Api, user: User, onExpired: ()=>void) {
       socket.onclose=event=>{
         if(stopped||socketRef.current!==socket)return;setConnection('offline');
         if(event.code===4001||event.code===4401){onExpiredRef.current();return;}
-        retry=setTimeout(connect,Math.min(1000*2**attempts++,15000));
+        // The server could not be reached at all: try the next one at once instead of backing off.
+        if(!opened&&api.endpoint===target){reportFailure(target);}
+        retry=setTimeout(connect,!opened&&api.endpoint!==target?300:Math.min(1000*2**attempts++,15000));
       };
       socket.onerror=()=>{if(!stopped&&socketRef.current===socket)setConnection('offline');};
     };

@@ -11,7 +11,7 @@ import websocket from '@fastify/websocket';
 import multipart from '@fastify/multipart';
 import { randomUUID } from 'node:crypto';
 import { mkdir, chmod, unlink, access } from 'node:fs/promises';
-import { createReadStream, createWriteStream } from 'node:fs';
+import { createReadStream, createWriteStream, readFileSync } from 'node:fs';
 import { join, resolve } from 'node:path';
 import { Transform } from 'node:stream';
 import { pipeline } from 'node:stream/promises';
@@ -79,6 +79,7 @@ export async function buildApp({
   attestModeSetting = 'off',
   // Path to the release manifest written by deploy/release.sh (release.js). null = no updates.
   releaseManifest = null,
+  serverList = null,
   now = () => Date.now(),
 } = {}) {
   if (!Number.isFinite(sessionTtlMs) || sessionTtlMs <= 0) throw new Error('sessionTtlMs must be positive');
@@ -230,7 +231,7 @@ export async function buildApp({
       fail(400, 'Передавайте токен только в заголовке Authorization или первом сообщении WebSocket.');
     }
     // Version gate: health check and CORS preflight always pass.
-    if (request.method !== 'OPTIONS' && request.url !== '/health' && request.url !== '/app/update') {
+    if (request.method !== 'OPTIONS' && request.url !== '/health' && request.url !== '/app/update' && request.url !== '/servers') {
       request.clientInfo = parseClientInfo(request.headers['x-linea-client']);
       const refusal = clientGateDecision(request.clientInfo, { minVersion: release.currentMinimum(), requireHeader: requireClientHeader });
       if (refusal) fail(426, refusal.message, { code: refusal.code });
@@ -272,6 +273,17 @@ export async function buildApp({
   });
 
   app.get('/health', async () => ({ status: 'ok' }));
+  // The server list signed by the owner (deploy/servers.mjs). Served as is: the app checks the
+  // signature itself, so a server can pass the list on but never change it.
+  app.get('/servers', async (request, reply) => {
+    if (!serverList) return reply.code(404).send({ error: 'Список серверов не настроен.' });
+    try {
+      const signed = JSON.parse(readFileSync(serverList, 'utf8'));
+      if (typeof signed?.payload !== 'string' || typeof signed?.sig !== 'string') throw new Error('bad list');
+      reply.header('Cache-Control', 'public, max-age=300');
+      return { payload: signed.payload, sig: signed.sig };
+    } catch { return reply.code(404).send({ error: 'Список серверов не настроен.' }); }
+  });
   release.install(app);
 
   installAuthRoutes({

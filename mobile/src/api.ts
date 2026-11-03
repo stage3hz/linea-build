@@ -2,7 +2,8 @@ import { desktopBridge } from './desktop';
 import { Platform } from 'react-native';
 import { toByteArray } from 'base64-js';
 import type { UserProfile } from './types';
-import { APP_VERSION } from './serverConfig';
+import { APP_VERSION, SERVER_URL } from './serverConfig';
+import { currentEndpoint, reportFailure } from './servers/pool';
 import { attestHeaders } from './attest/index';
 import { markUpdateRequired } from './update/store';
 import type { Attachment, Chat, DeviceSession, LocalFile, Message, RecoveryChallenge, RecoveryRequest, RecoveryStatus, SecurityStatus, Session, User, UsernameStatus } from './types';
@@ -43,9 +44,29 @@ export class ApiError extends Error {
 const AI_TIMEOUTS: Record<string, number> = { '/ai/chat': 70000, '/ai/image': 130000, '/ai/speech': 70000, '/ai/transcribe': 130000, '/ai/video': 340000, '/ai/models': 20000 };
 function requestTimeout(path: string) { return AI_TIMEOUTS[path] ?? (path === '/uploads' || path === '/e2ee/files' ? 120000 : 18000); }
 
+/** No answer at all (as opposed to an error the server returned). */
+export class NetworkError extends Error { constructor(message: string, readonly notDelivered = false) { super(message); this.name = 'NetworkError'; } }
+
 export class Api {
+  /** `base` is the account's realm (fixed: keys and history on the device are tied to it). */
   constructor(public readonly base: string, public readonly token?: string) {}
+  /** Where requests go now: for the main realm, the fastest live server from the pool. */
+  get endpoint(): string { return this.pooled ? currentEndpoint() : this.base; }
+  private get pooled() { return this.base.replace(/\/+$/, '') === SERVER_URL; }
   async request<T>(path: string, options: RequestInit = {}): Promise<T> {
+    const target = this.endpoint;
+    try { return await this.requestOnce<T>(path, options, target); }
+    catch (error) {
+      if (!(error instanceof NetworkError) || !this.pooled) throw error;
+      reportFailure(target);
+      const method = (options.method || 'GET').toUpperCase();
+      // Only reads are repeated on the next server automatically; writes have their own retries
+      // (messages are idempotent by clientId) so nothing is ever done twice.
+      if ((method === 'GET' || method === 'HEAD' || error.notDelivered) && this.endpoint !== target && !(options.body instanceof ReadableStream)) return this.requestOnce<T>(path, options, this.endpoint);
+      throw error;
+    }
+  }
+  private async requestOnce<T>(path: string, options: RequestInit, target: string): Promise<T> {
     const abort = new AbortController();
     const caller=options.signal;
     const cancel=()=>abort.abort();
@@ -57,17 +78,20 @@ export class Api {
     try {
       if(abort.signal.aborted)throw abortError();
       const headers: Record<string, string> = { 'X-Linea-Client': CLIENT_HEADER, ...attestHeaders(options.method || 'GET', path), ...(options.body && !(options.body instanceof FormData) ? { 'Content-Type': 'application/json' } : {}), ...(this.token ? { Authorization: `Bearer ${this.token}` } : {}) };
-      const response = await fetch(this.base + path, { credentials: 'omit', cache: 'no-store', redirect: 'error', ...options, headers: { ...headers, ...(options.headers || {}) }, signal: abort.signal });
+      const response = await fetch(target + path, { credentials: 'omit', cache: 'no-store', redirect: 'error', ...options, headers: { ...headers, ...(options.headers || {}) }, signal: abort.signal });
       const data = await response.json().catch(() => ({}));
       if(abort.signal.aborted)throw abortError();
       if (response.status === 426) markUpdateRequired();
+      // 502/503/504 come from the proxy in front of a server that is down: the request never
+      // reached Invizent itself, so it is safe to send it to the next server.
+      if (response.status === 502 || response.status === 503 || response.status === 504) throw new NetworkError('Сервер недоступен.', true);
       if (!response.ok) throw new ApiError(typeof data.error === 'string' ? data.error : 'Не удалось выполнить запрос. Попробуй ещё раз.', response.status, data);
       return data as T;
     } catch (error) {
-      if (error instanceof ApiError) throw error;
+      if (error instanceof ApiError || error instanceof NetworkError) throw error;
       if(caller?.aborted)throw abortError();
       if (error instanceof Error && error.name === 'AbortError') throw new Error('Сервер не ответил вовремя. Проверь подключение.');
-      throw new Error('Нет связи с сервером. Проверь интернет и адрес подключения.');
+      throw new NetworkError('Нет связи с сервером. Проверь интернет и адрес подключения.');
     } finally { clearTimeout(timeout);caller?.removeEventListener('abort',cancel); }
   }
   /** Raw bytes of a successful response of the expected type (used for AI video). */
@@ -76,7 +100,7 @@ export class Api {
     const cancel = () => abort.abort(); caller?.addEventListener('abort', cancel, { once: true });
     const timeout = setTimeout(cancel, requestTimeout(path));
     try {
-      const response = await fetch(this.base + path, { credentials: 'omit', cache: 'no-store', redirect: 'error', ...options, headers: { 'X-Linea-Client': CLIENT_HEADER, ...attestHeaders(options.method || 'GET', path), 'Content-Type': 'application/json', ...(this.token ? { Authorization: `Bearer ${this.token}` } : {}) }, signal: abort.signal });
+      const response = await fetch(this.endpoint + path, { credentials: 'omit', cache: 'no-store', redirect: 'error', ...options, headers: { 'X-Linea-Client': CLIENT_HEADER, ...attestHeaders(options.method || 'GET', path), 'Content-Type': 'application/json', ...(this.token ? { Authorization: `Bearer ${this.token}` } : {}) }, signal: abort.signal });
       if (!response.ok) {
         const data = await response.json().catch(() => ({}));
         throw new ApiError(typeof data.error === 'string' ? data.error : 'Не удалось выполнить запрос. Попробуй ещё раз.', response.status, data);
@@ -151,8 +175,8 @@ export class Api {
   usernameStatus = () => this.request<UsernameStatus>('/me/username');
   changeUsername = (username:string) => this.request<{user:User;status:UsernameStatus}>('/me/username',{method:'PATCH',body:JSON.stringify({username})});
   changeStatusEmoji = (statusEmoji:string|null) => this.request<{user:User;status:UsernameStatus}>('/me/status-emoji',{method:'PATCH',body:JSON.stringify({statusEmoji})});
-  fileUrl = (id: string) => `${this.base}/files/${encodeURIComponent(id)}`;
-  socketUrl = () => this.base.replace(/^http/, 'ws') + '/ws';
+  fileUrl = (id: string) => `${this.endpoint}/files/${encodeURIComponent(id)}`;
+  socketUrl = () => this.endpoint.replace(/^http/, 'ws') + '/ws';
 
   // Communities (game servers and blog channels). Not end-to-end encrypted by design.
   communities = () => this.request<{communities: import('./communities/types').CommunitySummary[]}>('/communities');

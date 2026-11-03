@@ -53,6 +53,7 @@ const app = await buildApp({
   attestModeSetting: process.env.ATTEST_MODE || 'off',
   // Written by deploy/release.sh; the app offers this version for download.
   releaseManifest: process.env.RELEASE_MANIFEST || null,
+  serverList: process.env.SERVER_LIST || null,
 });
 
 let stopping = false;

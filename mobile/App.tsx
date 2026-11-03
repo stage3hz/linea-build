@@ -10,6 +10,7 @@ import { Api, ApiError } from './src/api';
 import { AuthScreen, ConnectScreen } from './src/AuthScreen';
 import { ChatListScreen, DesktopRail, MessengerTabs } from './src/ChatListScreen';
 import { QuickSwitcher } from './src/QuickSwitcher';
+import { startServerPool } from './src/servers/pool';
 import { ChatScreen } from './src/ChatScreen';
 import { SavedScreen } from './src/saved/SavedScreen';
 import { PeopleScreen } from './src/PeopleScreen';
@@ -68,6 +69,8 @@ export default function App() {
   const api=useMemo(()=>new Api(server||'',session?.token),[server,session?.token]);
   // SoundCloud is fetched through our server, so it needs the signed-in session (guests get Audius only).
   useEffect(()=>{setSoundCloudApi(session?.token&&server?api:null);},[api,session?.token,server]);
+  // Servers: measure once at start, keep measuring in the background, fail over on their own.
+  useEffect(()=>{void startServerPool();},[]);
   const initialize=useCallback(async()=>{
     setBooting(true);setBootError('');
     try{

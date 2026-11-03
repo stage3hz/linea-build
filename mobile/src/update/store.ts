@@ -2,7 +2,8 @@
 // GET /app/update answers even builds the server otherwise turns away (426), so an
 // outdated app always learns where to get the new version.
 import { useEffect, useState } from 'react';
-import { APP_VERSION, SERVER_URL } from '../serverConfig';
+import { APP_VERSION } from '../serverConfig';
+import { currentEndpoint } from '../servers/pool';
 
 export type UpdateAsset = { url: string; sha256: string; size: number };
 export type UpdateInfo = { version: string | null; minVersion: string | null; page: string | null; notes: string; android: UpdateAsset | null; windows: UpdateAsset | null;
@@ -54,7 +55,7 @@ const publish = (next: UpdateState) => { state = next; listeners.forEach(listene
 
 export async function checkForUpdate(fetchImpl: typeof fetch = fetch): Promise<UpdateState> {
   try {
-    const response = await fetchImpl(`${SERVER_URL}/app/update`, { credentials: 'omit', cache: 'no-store', redirect: 'error', headers: { 'X-Linea-Client': `invizent; v=${APP_VERSION}` } });
+    const response = await fetchImpl(`${currentEndpoint()}/app/update`, { credentials: 'omit', cache: 'no-store', redirect: 'error', headers: { 'X-Linea-Client': `invizent; v=${APP_VERSION}` } });
     if (!response.ok) return state;
     const raw = await response.json();
     const time = (value: unknown) => { const ms = typeof value === 'string' ? Date.parse(value) : NaN; return Number.isFinite(ms) ? ms : null; };

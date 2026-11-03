@@ -121,7 +121,7 @@ export async function encryptAndUploadLarge(api:Api,file:LocalFile,options:{stat
       for(let attempt=0;;attempt++){
         checkAbort(options.signal);
         const chunkPath=`/e2ee/uploads/${sessionId}?offset=${at}`;
-        const result=await FileSystem.uploadAsync(`${api.base}${chunkPath}`,temp,{httpMethod:'PUT',uploadType:FileSystem.FileSystemUploadType.BINARY_CONTENT,headers:{Authorization:`Bearer ${api.token}`,'Content-Type':'application/octet-stream','X-Linea-Client':CLIENT_HEADER,...attestHeaders('PUT',chunkPath)}}).catch(()=>null);
+        const result=await FileSystem.uploadAsync(`${api.endpoint}${chunkPath}`,temp,{httpMethod:'PUT',uploadType:FileSystem.FileSystemUploadType.BINARY_CONTENT,headers:{Authorization:`Bearer ${api.token}`,'Content-Type':'application/octet-stream','X-Linea-Client':CLIENT_HEADER,...attestHeaders('PUT',chunkPath)}}).catch(()=>null);
         if(result?.status===200)break;
         const body=(()=>{try{return JSON.parse(result?.body||'{}');}catch{return {};}})() as {received?:number;error?:string};
         // The chunk got through but the reply was lost: the server already has it.

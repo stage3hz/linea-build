@@ -1,10 +1,12 @@
 import { desktopBridge } from './desktop';
+import { TRUSTED_HOST } from './servers/list';
 const desktop = desktopBridge();
 if (desktop) {
   const original = globalThis.fetch.bind(globalThis);
   globalThis.fetch = async (input, init) => {
     const url = new URL(typeof input === 'string' ? input : input instanceof URL ? input.href : input.url, globalThis.location?.href);
-    if (!['api.invizent.com', '141-133-194-51.nip.io'].includes(url.hostname)) return original(input, init);
+    // Every one of our servers (the list can grow) goes through the PC app's protected channel.
+    if (url.protocol !== 'https:' || !TRUSTED_HOST.test(url.hostname)) return original(input, init);
     const request = new Request(input, init);
     const id = crypto.randomUUID();
     const cancel = () => { void desktop.cancelRequest(id); };
