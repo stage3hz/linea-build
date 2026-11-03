@@ -1,6 +1,6 @@
 import React, { useCallback, useEffect, useState } from 'react';
 import { ProfileEffect } from './platina/Effects';
-import { ActivityIndicator, Pressable, ScrollView, StyleSheet, Switch, View, useWindowDimensions } from 'react-native';
+import { ActivityIndicator, Platform, Pressable, ScrollView, StyleSheet, Switch, View, useWindowDimensions } from 'react-native';
 import { Text } from './typography';
 import * as FileSystem from 'expo-file-system/legacy';
 import Constants from 'expo-constants';
@@ -29,11 +29,12 @@ import { DecoratedAvatar, ProfileBanner } from './platina/Decor';
 import { PlatinaGem, PlatinaName, PlatinaSeal, hasPlatina, openPlatinaShowcase } from './platina/PlatinaMark';
 import { usePlatina } from './platina/usePlatina';
 import { CallPrivacy } from './privacy/CallPrivacy';
+import { AudioSettings } from './audio/AudioSettings';
 import { lightFeedback } from './haptics';
 import { LANGUAGES, getLanguage, setLanguage, tr, useLanguage } from './i18n';
 import { fileLimits, type FileLimits } from './e2ee/attachments';
 
-type Section = 'root' | 'appearance' | 'privacy' | 'data' | 'language' | 'folders' | 'power';
+type Section = 'root' | 'appearance' | 'privacy' | 'data' | 'language' | 'folders' | 'power' | 'audio';
 type Props = {
   api: Api; user: User; theme: ThemeMode; darkTheme: DarkTheme;
   onTheme: (mode: ThemeMode) => void; onDarkTheme: (mode: DarkTheme) => void;
@@ -46,10 +47,10 @@ export function SettingsScreen(props: Props) {
   const [section, setSection] = useState<Section>('root');
   const progress = useSharedValue(1);
   const page = (current: Section, onBack: () => void) => {
-    const title = current === 'appearance' ? 'Оформление' : current === 'privacy' ? 'Конфиденциальность' : current === 'data' ? 'Данные и память' : current === 'language' ? 'Язык' : current === 'folders' ? 'Папки с чатами' : current === 'power' ? 'Энергосбережение' : 'Настройки';
+    const title = current === 'audio' ? 'Звук и микрофон' : current === 'appearance' ? 'Оформление' : current === 'privacy' ? 'Конфиденциальность' : current === 'data' ? 'Данные и память' : current === 'language' ? 'Язык' : current === 'folders' ? 'Папки с чатами' : current === 'power' ? 'Энергосбережение' : 'Настройки';
     if (current === 'root') return <Root {...props} onBack={onBack} open={setSection} />;
     return <Page title={title} backLabel="К настройкам" onBack={onBack}>
-      {current === 'appearance' ? <Appearance {...props} open={setSection} /> : current === 'privacy' ? <PrivacySection api={props.api} /> : current === 'language' ? <LanguageSection /> : current === 'folders' ? <FoldersSection api={props.api} user={props.user} chats={props.chats || []} /> : current === 'power' ? <Group label="Анимации"><MotionSettings /></Group> : <DataSection api={props.api} />}
+      {current === 'appearance' ? <Appearance {...props} open={setSection} /> : current === 'privacy' ? <PrivacySection api={props.api} /> : current === 'language' ? <LanguageSection /> : current === 'folders' ? <FoldersSection api={props.api} user={props.user} chats={props.chats || []} /> : current === 'power' ? <Group label="Анимации"><MotionSettings /></Group> : current === 'audio' ? <AudioSettings /> : <DataSection api={props.api} />}
     </Page>;
   };
   // Sections slide in over the root list and close with the same swipe to the right as chats.
@@ -153,6 +154,7 @@ function Root({ api, user, onBack, onProfile, onSecurity, onMusic, onLogout, ope
         <Item icon="color-palette" color="#25A69A" label="Оформление" value={textMetrics(preferences.textSize).label} onPress={() => open('appearance')} />
         <Item icon="folder" color="#3D8BFD" label="Папки с чатами" value={folders.folders.length ? String(folders.folders.length) : undefined} onPress={() => open('folders')} />
         <Item icon="battery-half" color="#F0A030" label="Энергосбережение" onPress={() => open('power')} />
+        {Platform.OS === 'web' ? <Item icon="mic" color="#E5467A" label="Звук и микрофон" onPress={() => open('audio')} /> : null}
         <Item icon="lock-closed" color="#8C62E8" label="Конфиденциальность" onPress={() => open('privacy')} />
         <Item icon="shield-checkmark" color="#34A853" label="Безопасность и устройства" onPress={onSecurity} />
         <Item icon="server" color="#E39A3B" label="Данные и память" onPress={() => open('data')} />

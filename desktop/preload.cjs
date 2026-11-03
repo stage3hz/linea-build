@@ -9,5 +9,9 @@ contextBridge.exposeInMainWorld('invizentDesktop', Object.freeze({
   signal: Object.freeze(Object.fromEntries(['createState','replenish','trustIdentity','encrypt','decrypt','seal','open'].map(method => [method, (...args) => invoke('signal', method, args)]))),
   vault: Object.freeze({ open: scope => invoke('vaultOpen', scope), get: (id,key) => invoke('vaultGet',id,key), commit: (id,changes) => invoke('vaultCommit',id,changes), close: id => invoke('vaultClose',id) }),
   token: Object.freeze({ read: () => invoke('tokenRead'), write: value => invoke('tokenWrite',value) }),
+  shortcuts: Object.freeze({
+    set: binds => invoke('setShortcuts', binds),
+    onAction: listener => { const handler = (_event, action) => { if (action === 'mute' || action === 'deafen') listener(action); }; ipcRenderer.on('invizent-shortcut', handler); return () => ipcRenderer.removeListener('invizent-shortcut', handler); },
+  }),
   update: Object.freeze({ download: (url,sha256,size) => invoke('updateDownload',url,sha256,size), progress: () => invoke('updateProgress'), cancel: () => invoke('updateCancel'), install: () => invoke('updateInstall') }),
 }));

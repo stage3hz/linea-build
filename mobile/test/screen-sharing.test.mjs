@@ -29,6 +29,7 @@ function fixture() {
  const voice=loadTs(new URL('../src/communities/voice.ts',import.meta.url),{
   'react-native':{Platform:{OS:globalThis.__voiceOS||'ios'}},
   react:{useSyncExternalStore:(_subscribe,snapshot)=>snapshot()},
+  './voiceSounds':{playVoiceSound:kind=>{(globalThis.__voiceSounds||=[]).push(kind);}},
   './screenCapture':{prepareScreenCapture:async()=>{},confirmScreenCapture:async()=>{},endScreenCapture(){}},
   'react-native-webrtc':{RTCPeerConnection:PC,MediaStream:class{constructor(tracks){return stream(tracks[0]);}},mediaDevices:{getUserMedia:async()=>stream(mic),getDisplayMedia:async()=>display ? await display() : stream(screen)}},
   'react-native-incall-manager':{default:{start(){},stop(){},setForceSpeakerphoneOn(){}}},
@@ -107,4 +108,13 @@ test('PC sound slot is negotiated in stereo; the microphone stays mono', () => {
  assert.match(pc, /a=fmtp:111 minptime=10;useinbandfec=1;stereo=1;sprop-stereo=1;maxaveragebitrate=128000/);
  assert.equal(model.stereoScreenAudio(out), out);
  assert.equal(model.stereoScreenAudio('v=0\r\nm=audio 9 RTP 111\r\na=rtpmap:111 opus/48000/2\r\n'), 'v=0\r\nm=audio 9 RTP 111\r\na=rtpmap:111 opus/48000/2\r\n', 'one audio section: untouched');
+});
+
+test('voice channel chimes: join on entering and when someone comes in, leave when someone goes', async () => {
+ globalThis.__voiceSounds = [];
+ const f = fixture(); await f.join();
+ assert.deepEqual(globalThis.__voiceSounds, ['join'], 'own join');
+ f.receive({ type: 'voice.left', channelId: 'voice', peer: f.voice.useVoice().peers[0]?.peer || 'p1' });
+ assert.ok(globalThis.__voiceSounds.includes('leave'));
+ f.voice.leaveVoice();
 });

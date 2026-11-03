@@ -9,6 +9,8 @@ export type DesktopBridge = {
   vault: { open(scope: string): Promise<string>; get(id: string, key: string): Promise<string | null>; commit(id: string, changes: Record<string, string | null>): Promise<void>; close(id: string): Promise<void> };
   token: { read(): Promise<string | null>; write(value: string | null): Promise<void> };
   /** Downloads the Windows installer, checks it against the published SHA-256, then launches it. Older builds lack this. */
+  /** Mute/deafen keys that work even when Инвиз is in the background (Electron globalShortcut). */
+  shortcuts?: { set(binds: Record<string, string>): Promise<Record<string, boolean>>; onAction(listener: (action: string) => void): () => void };
   update?: { download(url: string, sha256: string, size: number): Promise<boolean>; progress(): Promise<{ received: number; total: number; ready: boolean }>; cancel(): Promise<void>; install(): Promise<boolean> };
 };
 export const desktopBridge = (): DesktopBridge | undefined => (globalThis as unknown as { invizentDesktop?: DesktopBridge }).invizentDesktop;

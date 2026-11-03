@@ -1,6 +1,8 @@
 import { ScreenSharePanel } from './ScreenSharePanel';
-import React, { useCallback, useEffect, useMemo, useState } from 'react';
-import { ActivityIndicator, Pressable, ScrollView, Share, View } from 'react-native';
+import React, { useSyncExternalStore, useCallback, useEffect, useMemo, useState } from 'react';
+import { ActivityIndicator, Platform, Pressable, ScrollView, Share, View } from 'react-native';
+import { audioPrefs, comboLabel, subscribeAudio } from '../audio/devices';
+import { setPushToTalk } from '../audio/gate';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useSharedValue } from 'react-native-reanimated';
 import * as Clipboard from 'expo-clipboard';
@@ -16,13 +18,14 @@ import { ChannelChat } from './ChannelChat';
 import { CommunitySettings } from './CommunitySettings';
 import { CommunityAvatar, members, subscribers } from './parts';
 import { PERM, can, type Community, type CommunityChannel, type VoiceMember } from './types';
-import { joinVoice, leaveVoice, toggleVoiceMute, toggleVoiceSpeaker, useVoice, voiceAvailable } from './voice';
+import { joinVoice, leaveVoice, toggleVoiceMute, toggleVoiceSpeaker, toggleVoiceDeafen, useVoice, voiceAvailable } from './voice';
 
 type Pushed = { kind: 'channel'; channel: CommunityChannel } | { kind: 'settings' } | null;
 
 /** A community: Discord-style channel list for game servers, the post feed for blogs. */
 export function CommunityScreen({ api, me, store, communityId, onBack, onOpenInvite, onLeft }: { api: Api; me: User; store: MessengerStore; communityId: string; onBack: () => void; onOpenInvite: (code: string) => void; onLeft: () => void }) {
   const t = useTheme(); const insets = useSafeAreaInsets(); const voice = useVoice();
+  const audioMode = useSyncExternalStore(subscribeAudio, () => audioPrefs().inputMode, () => 'activity');
   const [community, setCommunity] = useState<Community | null>(null); const [error, setError] = useState('');
   const [people, setPeople] = useState<Record<string, User>>({}); const [pushed, setPushed] = useState<Pushed>(null);
   const [inviteOpen, setInviteOpen] = useState(false); const [inviteLink, setInviteLink] = useState(''); const [copied, setCopied] = useState(false);
@@ -111,10 +114,12 @@ export function CommunityScreen({ api, me, store, communityId, onBack, onOpenInv
       {voice && voice.communityId === community.id ? <GlassSurface radius={20} shadow={false} contentStyle={{ padding: 14, gap: 12 }}>
         <Text style={{ color: '#2FD27A', fontSize: 14, fontWeight: '700' }}>{voice.status === 'connected' ? `Ты в канале «${voice.channelName}»` : 'Подключение…'}</Text>
         <ScreenSharePanel people={people}/>
+        {Platform.OS === 'web' && audioMode === 'ptt' && voice.status === 'connected' ? <PushToTalkButton /> : null}
         {voice.status === 'connected' && !voice.peers.length ? <Text style={{ color: t.muted, fontSize: 13 }}>Пока никого — позови друзей.</Text> : null}
         <View style={{ flexDirection: 'row', gap: 10 }}>
           <VoiceButton icon={voice.muted ? 'mic-off' : 'mic'} label={voice.muted ? 'Микрофон выкл.' : 'Микрофон'} active={!voice.muted} onPress={toggleVoiceMute} />
-          <VoiceButton icon={voice.speaker ? 'volume-high' : 'ear'} label={voice.speaker ? 'Динамик' : 'Телефон'} active={voice.speaker} onPress={toggleVoiceSpeaker} />
+          <VoiceButton icon={voice.deafened ? 'volume-mute' : 'headset'} label={voice.deafened ? 'Звук выкл.' : 'Звук'} active={!voice.deafened} onPress={toggleVoiceDeafen} />
+          {Platform.OS !== 'web' ? <VoiceButton icon={voice.speaker ? 'volume-high' : 'ear'} label={voice.speaker ? 'Динамик' : 'Телефон'} active={voice.speaker} onPress={toggleVoiceSpeaker} /> : null}
           <VoiceButton icon="call" label="Выйти" danger onPress={leaveVoice} />
         </View>
       </GlassSurface> : null}
@@ -146,6 +151,18 @@ export function CommunityScreen({ api, me, store, communityId, onBack, onOpenInv
 function Backdrop() {
   const insets = useSafeAreaInsets();
   return <View pointerEvents="none" style={{ position: 'absolute', top: -insets.top, bottom: -insets.bottom, left: 0, right: 0 }}><GlassBackdrop /></View>;
+}
+
+/** Рация on screen: hold to talk (same as the bound key). */
+function PushToTalkButton() {
+  const t = useTheme(); const [down, setDown] = useState(false);
+  const press = (value: boolean) => { setDown(value); setPushToTalk(value); };
+  useEffect(() => () => setPushToTalk(false), []);
+  const key = audioPrefs().binds.ptt;
+  return <Pressable accessibilityRole="button" accessibilityLabel="Рация: удерживай, чтобы говорить" onPressIn={() => press(true)} onPressOut={() => press(false)}
+    style={{ alignItems: 'center', paddingVertical: 14, borderRadius: 16, backgroundColor: down ? '#2FD27A' : 'rgba(127,127,127,0.16)' }}>
+    <Text style={{ color: down ? '#062B16' : t.text, fontWeight: '700' }}>{down ? 'Тебя слышно…' : `Удерживай, чтобы говорить${key ? ` · ${comboLabel(key)}` : ''}`}</Text>
+  </Pressable>;
 }
 
 function VoiceButton({ icon, label, onPress, active = false, danger = false }: { icon: React.ComponentProps<typeof Icon>['name']; label: string; onPress: () => void; active?: boolean; danger?: boolean }) {

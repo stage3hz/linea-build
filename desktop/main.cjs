@@ -1,4 +1,4 @@
-const { app, BrowserWindow, ipcMain, protocol, net, session, safeStorage, desktopCapturer, dialog, shell } = require('electron');
+const { app, BrowserWindow, ipcMain, protocol, net, session, safeStorage, desktopCapturer, dialog, shell, globalShortcut } = require('electron');
 // Our servers only (same rule as mobile/src/servers/list.ts): any number of them, all under our domains.
 const TRUSTED_HOST = /^(?:[a-z0-9-]+\.)*invizent\.(?:com|ru)$|^141-133-194-51\.nip\.io$/;
 if (!app.requestSingleInstanceLock()) { app.quit(); } else {
@@ -34,6 +34,15 @@ ipcMain.handle('capture-choose',(event,id)=>{
   const sound=process.platform==='win32'||process.platform==='darwin'?{audio:'loopback'}:{};
   callback(source?{video:source,...sound}:{});
 });
+// "Ctrl+Shift+KeyM" (KeyboardEvent.code) → "Control+Shift+M" (Electron accelerator).
+function toAccelerator(combo) {
+  if (typeof combo !== 'string' || !/^((Ctrl|Alt|Shift|Meta)\+){0,4}[A-Za-z0-9]{1,20}$/.test(combo)) return null;
+  const parts = combo.split('+'); const key = parts.pop();
+  const name = /^Key[A-Z]$/.test(key) ? key.slice(3) : /^Digit\d$/.test(key) ? key.slice(5) : /^F\d{1,2}$/.test(key) ? key : key === 'Space' ? 'Space' : key === 'Backquote' ? '`' : /^Numpad\d$/.test(key) ? 'num' + key.slice(6) : null;
+  if (!name) return null;
+  return [...parts.map(p => (p === 'Ctrl' ? 'Control' : p === 'Meta' ? 'Super' : p)), name].join('+');
+}
+app.on('will-quit', () => globalShortcut.unregisterAll());
 ipcMain.handle('invizent', async (event, method, ...args) => {
   if (!trusted(event)) throw new Error('Untrusted IPC sender');
   if (method === 'saveFile') {
@@ -56,6 +65,18 @@ ipcMain.handle('invizent', async (event, method, ...args) => {
     if (operation === 'delete') { if(file===cacheRoot)throw new Error('Cannot delete cache root'); return fs.rm(file,{recursive:true,force:true}); }
     if (operation === 'list') return fs.readdir(file);
     throw new Error('Invalid cache operation');
+  }
+  if (method === 'setShortcuts') {
+    // Mute / deafen keys that work while another app (a game) is in front. Push-to-talk needs
+    // the key being released too, which globalShortcut cannot report, so рация works in Инвиз only.
+    const binds = args[0] || {}; const result = {};
+    globalShortcut.unregisterAll();
+    for (const action of ['mute', 'deafen']) {
+      const accelerator = toAccelerator(binds[action]);
+      if (!accelerator) { result[action] = false; continue; }
+      try { result[action] = globalShortcut.register(accelerator, () => window?.webContents.send('invizent-shortcut', action)); } catch { result[action] = false; }
+    }
+    return result;
   }
   if (method === 'cancelRequest') { requests.get(args[0])?.abort(); return; }
   if (method === 'request') {

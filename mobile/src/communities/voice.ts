@@ -1,4 +1,8 @@
 import { Platform } from 'react-native';
+import { audioPrefs, subscribeAudio } from '../audio/devices';
+import { gateTrack } from '../audio/gate';
+import { onBindAction } from '../audio/binds';
+import { playVoiceSound } from './voiceSounds';
 import { prepareScreenCapture, confirmScreenCapture, endScreenCapture } from './screenCapture';
 import { useSyncExternalStore } from 'react';
 import type { Api } from '../api';
@@ -22,7 +26,9 @@ export type VoiceState = {
   sharing: ScreenQuality | null; screenStream: any;
   /** The PC's sound goes out with the picture (false: the system gave no audio, e.g. Linux). */
   sharingAudio?: boolean;
-  status: 'connecting' | 'connected'; muted: boolean; speaker: boolean; peers: VoicePeer[]; error: string;
+  status: 'connecting' | 'connected'; muted: boolean; speaker: boolean;
+  /** Звук выключен: nobody is heard (and, as in Discord, the microphone is off too). */
+  deafened?: boolean; peers: VoicePeer[]; error: string;
 } | null;
 
 let state: VoiceState = null;
@@ -103,6 +109,7 @@ function connectionFor(peer: string, initiator = false) {
   if (initiator) bindControl(peer, connection.createDataChannel('screen-control'));
   connection.addEventListener('datachannel', (event: any) => bindControl(peer, event.channel));
   connection.addEventListener('track', (event: any) => {
+    if (event.track?.kind === 'audio' && state?.deafened) event.track.enabled = false;
     if (connections.get(peer) !== connection || event.track.kind !== 'video') return;
     releaseRemoteScreen(peer);
     const stream = new rtc!.MediaStream([event.track]);
@@ -136,7 +143,8 @@ function connectionFor(peer: string, initiator = false) {
   return connection;
 }
 
-function drop(peer: string) {
+function drop(peer: string, quiet = false) {
+  if (!quiet && state?.peers.some(item => item.peer === peer)) playVoiceSound('leave');
   try { connections.get(peer)?.close(); } catch { /* closed */ }
   connections.delete(peer);
   screenSenders.delete(peer); screenAudioSenders.delete(peer); controls.delete(peer); releaseRemoteScreen(peer);
@@ -146,6 +154,7 @@ function drop(peer: string) {
 async function handle(data: any) {
   if (!state) return;
   if (data.type === 'voice.joined' && data.channelId === state.channelId) {
+    playVoiceSound('join');
     patch({ status: 'connected', peers: (data.peers || []).map((item: any) => ({ peer: item.peer, userId: item.userId, muted: !!item.muted, connected: false })) });
     // The newcomer calls everyone already in the room.
     for (const item of data.peers || []) {
@@ -161,7 +170,7 @@ async function handle(data: any) {
     const from = data.from as string;
     if (data.data.kind === 'offer') {
       try {
-        if (!state.peers.some(item => item.peer === from)) patch({ peers: [...state.peers, { peer: from, userId: data.userId, muted: false, connected: false }] });
+        if (!state.peers.some(item => item.peer === from)) { playVoiceSound('join'); patch({ peers: [...state.peers, { peer: from, userId: data.userId, muted: false, connected: false }] }); }
         try { connections.get(from)?.close(); } catch { /* replaced */ }
         const connection = connectionFor(from);
         await connection.setRemoteDescription(new rtc!.RTCSessionDescription({ type: 'offer', sdp: data.data.sdp }));
@@ -184,7 +193,7 @@ async function handle(data: any) {
   else if (data.type === 'ready' && state) {
     // The socket reconnected: the server forgot us, join again.
     stopVoiceScreen();
-    const current = state; connections.forEach((_c, peer) => drop(peer));
+    const current = state; connections.forEach((_c, peer) => drop(peer, true));
     patch({ status: 'connecting', peers: [] });
     storeRef?.sendSocket({ type: 'voice.join', communityId: current.communityId, channelId: current.channelId, muted: current.muted });
   }
@@ -194,6 +203,7 @@ function cleanup(error: string) {
   stopVoiceScreen();
   connections.forEach(connection => { try { connection.close(); } catch { /* closed */ } });
   connections.clear(); screenSenders.clear(); screenAudioSenders.clear(); controls.clear(); remoteScreens.forEach((_stream, peer) => releaseRemoteScreen(peer));
+  stopGate(); stopGate = () => {};
   try { releaseLocalStream(local); } catch { /* released */ }
   local = null; unsubscribe?.(); unsubscribe = null;
   try { inCall?.stop?.(); } catch { /* optional */ }
@@ -206,16 +216,19 @@ export async function joinVoice(api: Api, store: MessengerStore, target: { commu
   if (state) leaveVoice();
   try { iceServers = (await api.callIce()).iceServers; } catch { /* public STUN only */ }
   local = await rtc!.mediaDevices.getUserMedia({ audio: true, video: false } as any);
+  // PC: voice activation (Настройки → Звук и микрофон).
+  if (Platform.OS === 'web') stopGate = gateTrack(local.getAudioTracks()[0], () => !!state?.muted);
   if (!inCall) inCall = loadInCall();
   try { inCall?.start?.({ media: 'audio' }); inCall?.setForceSpeakerphoneOn?.(true); } catch { /* optional */ }
   storeRef = store;
   unsubscribe = store.onSocket(data => { void handle(data); });
-  set({ ...target, sharing: null, screenStream: null, status: 'connecting', muted: false, speaker: true, peers: [], error: '' });
+  set({ ...target, sharing: null, screenStream: null, status: 'connecting', muted: false, deafened: false, speaker: true, peers: [], error: '' });
   if (!store.sendSocket({ type: 'voice.join', communityId: target.communityId, channelId: target.channelId })) { cleanup(''); throw new Error('Нет соединения с сервером.'); }
 }
 
 export function leaveVoice() {
   if (!state) return;
+  playVoiceSound('leave');
   storeRef?.sendSocket({ type: 'voice.leave' });
   cleanup('');
 }
@@ -228,11 +241,46 @@ export function toggleVoiceMute() {
   patch({ muted });
 }
 
+/** Turn off the sound of everyone in the channel (and your microphone); press again to restore. */
+let mutedBeforeDeafen = false;
+export function toggleVoiceDeafen() {
+  if (!state) return;
+  const deafened = !state.deafened;
+  applyDeafen(deafened);
+  if (deafened) { mutedBeforeDeafen = state.muted; if (!state.muted) toggleVoiceMute(); }
+  else if (!mutedBeforeDeafen && state.muted) toggleVoiceMute();
+  patch({ deafened });
+}
+function applyDeafen(deafened: boolean) {
+  for (const connection of connections.values()) for (const receiver of connection.getReceivers?.() || []) if (receiver.track?.kind === 'audio') receiver.track.enabled = !deafened;
+}
+
 export function toggleVoiceSpeaker() {
   if (!state) return;
   const speaker = !state.speaker;
   try { inCall?.setForceSpeakerphoneOn?.(speaker); } catch { /* optional */ }
   patch({ speaker });
+}
+
+// PC: a different microphone picked in Настройки → Звук и микрофон takes effect at once,
+// without leaving the channel (the old track is swapped in every connection).
+if (Platform.OS === 'web') subscribeAudio(() => { void switchMicrophone(); });
+// Binds (Настройки → Звук и микрофон): mute and deafen while in a channel.
+onBindAction(action => { if (!state) return; if (action === 'mute') toggleVoiceMute(); else toggleVoiceDeafen(); });
+let lastInput = `${audioPrefs().input}|${audioPrefs().noiseSuppression}|${audioPrefs().echoCancellation}`;
+let stopGate: () => void = () => {};
+async function switchMicrophone() {
+  const p = audioPrefs(); const input = `${p.input}|${p.noiseSuppression}|${p.echoCancellation}`;
+  if (input === lastInput) return; lastInput = input;
+  if (!state || !local || !rtc) return;
+  const old = local.getAudioTracks()[0]; if (!old) return;
+  const fresh = await rtc.mediaDevices.getUserMedia({ audio: true, video: false } as any).catch(() => null);
+  if (!fresh || !state) { fresh?.getTracks().forEach((t: any) => t.stop()); return; }
+  const track = fresh.getAudioTracks()[0]; track.enabled = !state.muted;
+  for (const connection of connections.values()) for (const sender of connection.getSenders?.() || []) if (sender.track === old) await sender.replaceTrack(track).catch(() => {});
+  try { local.removeTrack?.(old); local.addTrack?.(track); } catch { /* stream wrapper */ }
+  stopGate(); stopGate = gateTrack(track, () => !!state?.muted);
+  old.stop();
 }
 
 /** Explicit system consent is requested for every new capture; never resumed automatically. */

@@ -10,6 +10,9 @@ import { Api, ApiError } from './src/api';
 import { AuthScreen, ConnectScreen } from './src/AuthScreen';
 import { ChatListScreen, DesktopRail, MessengerTabs } from './src/ChatListScreen';
 import { NearbyOffer } from './src/nearby/NearbyOffer';
+import { startBinds } from './src/audio/binds';
+// PC: hot keys for mute / deafen / рация (Настройки → Звук и микрофон).
+startBinds();
 import { QuickSwitcher } from './src/QuickSwitcher';
 import { startServerPool } from './src/servers/pool';
 import { ChatScreen } from './src/ChatScreen';

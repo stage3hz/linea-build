@@ -1,4 +1,7 @@
 import { networkTier } from '../network/quality';
+import { audioPrefs, subscribeAudio } from '../audio/devices';
+import { gateTrack } from '../audio/gate';
+import { onBindAction } from '../audio/binds';
 import React, { createContext, useCallback, useContext, useEffect, useRef, useState } from 'react';
 import { playCallSound, stopCallSound } from './callSounds';
 import { Modal, Platform, Pressable, StyleSheet, Vibration, View, useWindowDimensions } from 'react-native';
@@ -57,17 +60,42 @@ export function CallProvider({ api, store, me, children }: { api: Api; store: Me
   const music = useMusic();
   const [call, setCall] = useState<CallState | null>(null);
   const callRef = useRef<CallState | null>(null); callRef.current = call;
-  const pc = useRef<any>(null); const local = useRef<any>(null);
+  const pc = useRef<any>(null); const local = useRef<any>(null); const stopGate = useRef<() => void>(() => {});
   const seen = useRef(new Set<string>());
   const ringTimer = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
   const storeRef = useRef(store); storeRef.current = store;
   const rtc = useRef<WebRTC | null>(null); if (rtc.current === null) rtc.current = loadRtc();
+  // PC binds during a call: mute the microphone; «звук» turns the other person's voice off.
+  useEffect(() => onBindAction(action => {
+    const c = callRef.current; if (!c || c.status === 'ended') return;
+    if (action === 'mute') { local.current?.getAudioTracks().forEach((t: any) => { t.enabled = c.muted; }); patch({ muted: !c.muted }); return; }
+    for (const receiver of pc.current?.getReceivers?.() || []) if (receiver.track?.kind === 'audio') receiver.track.enabled = !receiver.track.enabled;
+  }), []);
+  // PC: a microphone picked in Настройки → Звук и микрофон during a call takes effect at once.
+  useEffect(() => {
+    if (Platform.OS !== 'web') return;
+    const key = () => { const p = audioPrefs(); return `${p.input}|${p.noiseSuppression}|${p.echoCancellation}`; };
+    let last = key();
+    return subscribeAudio(() => {
+      const input = key(); if (input === last) return; last = input;
+      const connection = pc.current, stream = local.current, webrtc = rtc.current;
+      const old = stream?.getAudioTracks?.()[0]; if (!connection || !old || !webrtc) return;
+      void webrtc.mediaDevices.getUserMedia({ audio: true, video: false } as any).then(async (fresh: any) => {
+        const track = fresh.getAudioTracks()[0]; track.enabled = old.enabled;
+        for (const sender of connection.getSenders?.() || []) if (sender.track === old) await sender.replaceTrack(track).catch(() => {});
+        try { stream.removeTrack?.(old); stream.addTrack?.(track); } catch { /* wrapper */ }
+        stopGate.current(); stopGate.current = gateTrack(track, () => !!callRef.current?.muted);
+        old.stop();
+      }).catch(() => {});
+    });
+  }, []);
   const inCall = useRef<any>(null); if (inCall.current === null) inCall.current = loadInCall();
 
   const patch = (change: Partial<CallState>) => setCall(current => current ? { ...current, ...change } : current);
   const signal = (chatId: string, action: Parameters<MessengerStore['sendAction']>[1]) => storeRef.current.sendAction(chatId, action);
 
   const cleanup = useCallback(() => {
+    stopGate.current(); stopGate.current = () => {};
     if (ringTimer.current) clearTimeout(ringTimer.current);
     stopCallSound();
     try { inCall.current?.stopRingtone?.(); inCall.current?.stop?.(); } catch { /* optional */ }
@@ -100,6 +128,7 @@ export function CallProvider({ api, store, me, children }: { api: Api; store: Me
       else if (state === 'failed') finish('Не удалось соединиться', 'failed');
     });
     pc.current = connection; local.current = stream;
+    if (Platform.OS === 'web') { stopGate.current(); stopGate.current = gateTrack(stream.getAudioTracks()[0], () => !!callRef.current?.muted); }
     return { connection, localUrl: video ? stream.toURL() : null };
   }, [api, finish]);
 
