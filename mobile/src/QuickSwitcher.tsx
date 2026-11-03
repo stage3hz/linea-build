@@ -1,3 +1,4 @@
+import { badgeText } from './unreadBadge';
 // Ctrl+K (as in Discord / Telegram Desktop search): jump to any chat by typing part of a name.
 import React, { useEffect, useMemo, useState } from 'react';
 import { Modal, Pressable, View } from 'react-native';
@@ -31,7 +32,7 @@ export function QuickSwitcher({ api, chats, visible, onClose, onOpen }: { api: A
           style={{ flexDirection: 'row', alignItems: 'center', gap: 12, paddingHorizontal: 14, paddingVertical: 9, backgroundColor: i === index ? t.accentSoft : 'transparent' }}>
           <Avatar user={chat.peer} api={api} size={34} round />
           <View style={{ flex: 1, minWidth: 0 }}><Text numberOfLines={1} style={{ color: t.text, fontSize: 15, fontWeight: '600' }}>{chat.peer.displayName}</Text>{chat.peer.username ? <Text numberOfLines={1} style={{ color: t.muted, fontSize: 12 }}>@{chat.peer.username}</Text> : null}</View>
-          {chat.unreadCount ? <View style={{ minWidth: 20, height: 20, paddingHorizontal: 6, borderRadius: 10, backgroundColor: t.accent, alignItems: 'center', justifyContent: 'center' }}><Text style={{ color: t.onAccent, fontSize: 11, fontWeight: '800' }}>{chat.unreadCount}</Text></View> : null}
+          {chat.unreadCount ? <View style={{ minWidth: 20, height: 20, paddingHorizontal: 6, borderRadius: 10, backgroundColor: t.accent, alignItems: 'center', justifyContent: 'center' }}><Text style={{ color: t.onAccent, fontSize: 11, fontWeight: '800' }}>{badgeText(chat.unreadCount)}</Text></View> : null}
           {i === index ? <Text style={{ color: t.muted, fontSize: 11, fontWeight: '700' }}>ENTER</Text> : null}
         </Pressable>) : <Text style={{ color: t.muted, fontSize: 14, padding: 18 }}>Ничего не нашли</Text>}
       </Pressable>
