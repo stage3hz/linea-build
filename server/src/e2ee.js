@@ -8,6 +8,9 @@ import { transaction, publicMessage } from './database.js';
 import { HttpError, fail, objectBody, deviceNameValue } from './security.js';
 
 const MAX_ACTIVE_DEVICES = 5;
+// An installation unused this long gives its slot to a new one (as WhatsApp unlinks idle devices),
+// so reinstalling the app a few times never locks a person out of their own chats.
+export const IDLE_DEVICE_DAYS = 14;
 const MAX_PREKEYS = 100;
 const MAX_PREKEY_UPLOAD = 32;
 const MAX_ENVELOPES = 10;
@@ -137,7 +140,12 @@ export function installE2eeRoutes({
         fail(409, 'Идентификатор устройства уже связан с другим ключом.');
       }
       if ((!current || !current.active) && activeDevices(session.user_id).length >= MAX_ACTIVE_DEVICES) {
-        fail(409, 'Достигнут лимит пяти активных устройств. Отключите одно из старых устройств.', { code: 'E2EE_DEVICE_LIMIT' });
+        const idleBefore = new Date(now() - IDLE_DEVICE_DAYS * 86_400_000).toISOString();
+        const idle = db.prepare(`SELECT d.id FROM e2ee_devices d JOIN sessions s ON s.id=d.session_id
+          WHERE d.user_id=? AND d.active=1 AND s.expires_at>? AND s.id<>? AND s.last_active_at<>'' AND s.last_active_at<?
+          ORDER BY s.last_active_at LIMIT 1`).get(session.user_id, now(), session.id, idleBefore);
+        if (!idle) fail(409, 'На аккаунте уже пять устройств с шифрованием. Отключи старое в «Безопасность и устройства».', { code: 'E2EE_DEVICE_LIMIT' });
+        db.prepare('UPDATE e2ee_devices SET active=0,session_id=NULL,updated_at=? WHERE id=?').run(timestamp(), idle.id);
       }
       let fresh = 0;
       for (const key of preKeys) {

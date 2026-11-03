@@ -29,7 +29,7 @@ import Animated, { runOnJS, useAnimatedStyle, useSharedValue, withSpring } from 
 export type MessengerTab = 'chats' | 'people' | 'channels' | 'music' | 'ai' | 'profile';
 type Navigation = { onProfile:()=>void;onNewChat:()=>void;onMusic:()=>void;onAI:()=>void;onChats:()=>void;activeTab?:MessengerTab };
 
-export function ChatListScreen({api,user,store,onProfile,onNewChat,onMusic,onAI,onQuickAI,onChats,onSaved,savedActive=false,activeTab='chats'}: {api:Api;user:User;store:MessengerStore;onQuickAI:()=>void;onSaved:()=>void;savedActive?:boolean}&Navigation) {
+export function ChatListScreen({api,user,store,onProfile,onNewChat,onMusic,onAI,onQuickAI,onChats,onSaved,savedActive=false,activeTab='chats',rail=false}: {api:Api;user:User;store:MessengerStore;onQuickAI:()=>void;onSaved:()=>void;savedActive?:boolean;rail?:boolean}&Navigation) {
   // The open chat is highlighted only when it is shown beside the list (tablet/desktop), as in Telegram.
   const wideLayout=useWindowDimensions().width>=850;
   // Rows remount when a chat closes: a press interrupted by opening the chat otherwise left the
@@ -85,7 +85,7 @@ export function ChatListScreen({api,user,store,onProfile,onNewChat,onMusic,onAI,
         <MenuItem icon="trash-outline" label="Удалить чат" danger onPress={()=>{const chat=menu.chat;setMenu(null);setRemoveAsk([chat]);}}/>
       </>:null}
     </ContextMenu>
-    {editing?null:<MessengerTabs onProfile={onProfile} onNewChat={onNewChat} onMusic={onMusic} onAI={onAI} onChats={onChats} activeTab={activeTab}/>}
+    {editing?null:rail?<><VoiceBar onOpen={communityId=>navigate({to:'channels',communityId})}/><MiniPlayer onOpen={onMusic}/></>:<MessengerTabs onProfile={onProfile} onNewChat={onNewChat} onMusic={onMusic} onAI={onAI} onChats={onChats} activeTab={activeTab}/>}
   </View>;
 }
 
@@ -126,4 +126,25 @@ function SwipeRow({enabled,archived,unread,onArchive,onRead,children}:{enabled:b
     <Animated.View pointerEvents="none" style={[{position:'absolute',top:0,bottom:6,right:0,left:0,borderRadius:24,backgroundColor:t.accent,alignItems:'flex-start',justifyContent:'center',paddingLeft:24},right]}><Icon name="chatbubble" size={22} color={t.onAccent}/><Text style={{color:t.onAccent,fontSize:10,fontWeight:'600',marginTop:3}}>Прочитано</Text></Animated.View>
     <Animated.View style={[{backgroundColor:'transparent'},row]}>{children}</Animated.View>
   </View></GestureDetector>;
+}
+
+/**
+ * Desktop: sections live in a narrow rail on the left (as Telegram Desktop folders and
+ * Discord servers), not in a phone tab bar squeezed under the chat list.
+ */
+export function DesktopRail({api,user,unread,onProfile,onNewChat,onMusic,onAI,onChats,onSettings,activeTab='chats'}: Navigation&{api:Api;user:User;unread:number;onSettings:()=>void}) {
+  const t=useTheme();
+  const items=[{id:'chats',label:'Чаты',icon:'chatbubbles-outline',active:'chatbubbles',onPress:onChats},{id:'people',label:'Люди',icon:'people-outline',active:'people',onPress:onNewChat},{id:'channels',label:'Каналы',icon:'planet-outline',active:'planet',onPress:()=>navigate({to:'channels'})},{id:'music',label:'Музыка',icon:'headset-outline',active:'headset',onPress:onMusic},{id:'ai',label:'AI',icon:'sparkles-outline',active:'sparkles',onPress:onAI}] as const;
+  const button=(id:string,label:string,icon:React.ComponentProps<typeof Icon>['name'],onPress:()=>void,badge=0,a11y=label)=>{const on=activeTab===id;return <Pressable key={id} onPress={onPress} accessibilityRole="tab" accessibilityLabel={badge?`${a11y}, непрочитанных: ${badge}`:a11y} accessibilityState={{selected:on}}
+    style={(state)=>{const hovered=(state as {hovered?:boolean}).hovered;return {width:64,paddingVertical:8,borderRadius:16,alignItems:'center',gap:4,backgroundColor:on?t.accentSoft:hovered?(t.dark?'rgba(255,255,255,0.06)':'rgba(0,0,0,0.04)'):'transparent',opacity:state.pressed?.7:1};}}>
+    {on?<View style={{position:'absolute',left:-6,top:14,bottom:14,width:3,borderRadius:2,backgroundColor:t.accent}}/>:null}
+    <View><Icon name={icon} size={23} color={on?t.accent:t.muted}/>{badge?<View style={{position:'absolute',top:-6,right:-12,minWidth:18,height:18,paddingHorizontal:5,borderRadius:9,backgroundColor:t.accent,alignItems:'center',justifyContent:'center'}}><Text style={{color:t.onAccent,fontSize:10.5,fontWeight:'800'}}>{badge>99?'99+':badge}</Text></View>:null}</View>
+    {label?<Text numberOfLines={1} style={{fontSize:11,color:on?t.accent:t.muted,fontWeight:on?'700':'600'}}>{label}</Text>:null}
+  </Pressable>;};
+  return <View accessibilityRole="tablist" style={{width:80,alignItems:'center',paddingTop:14,paddingBottom:14,gap:4,borderRightWidth:1,borderColor:t.border,backgroundColor:t.dark?'rgba(0,0,0,0.18)':'rgba(255,255,255,0.35)'}}>
+    {items.map(item=>button(item.id,item.label,activeTab===item.id?item.active:item.icon,item.onPress,item.id==='chats'?unread:0))}
+    {button('profile','',activeTab==='profile'?'settings':'settings-outline',onSettings,0,'Настройки')}
+    <View style={{flex:1}}/>
+    <Pressable onPress={onProfile} accessibilityRole="button" accessibilityLabel="Мой профиль" style={{marginTop:6,borderRadius:22}}><Avatar user={user} api={api} size={40} round/></Pressable>
+  </View>;
 }

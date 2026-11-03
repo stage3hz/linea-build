@@ -38,6 +38,7 @@ import { presenceText } from './presence';
 import { VoicePlaybackProvider, VoiceRecordingBar, useVoiceRecorder } from './voice/VoiceMessage';
 import { MessageRow, MissingRow, type AlbumPart, type Row, type RowHandlers } from './MessageRow';
 import { ContextMenu, MenuItem } from './ContextMenu';
+import { navigate } from './navigation';
 import { inviteCodeFrom } from './communities/types';
 import { inviteForwardable } from './communities/InviteCard';
 import { TopPlayerBar } from './music/PlayerControls';
@@ -312,7 +313,7 @@ export function ChatScreen({api,user,chat,store,onBack,wide=false,onOpenMusic}: 
     <View pointerEvents="box-none" style={{position:'absolute',top:headerHeight,left:0,right:0,zIndex:5}}>
     {notice?<Pressable onPress={()=>setNotice('')} style={{alignSelf:'center',marginVertical:4,paddingVertical:7,paddingHorizontal:14,backgroundColor:t.accentSoft,borderRadius:16,borderWidth:1,borderColor:t.border}}><Text style={{color:t.accent,fontSize:12}}>{notice}</Text></Pressable>:null}
     {failedActions.length?<Pressable onPress={()=>failedActions.forEach(item=>void store.retry(item))} style={{alignSelf:'center',marginVertical:4,paddingVertical:7,paddingHorizontal:14,borderRadius:16,borderWidth:1,borderColor:t.danger}}><Text style={{color:t.danger,fontSize:12}}>Действие не отправлено · повторить</Text></Pressable>:null}
-    {store.cryptoError?<View style={{paddingHorizontal:13,paddingBottom:8}}><Notice text={store.cryptoError} error onRetry={()=>setSecurityOpen(true)} actionLabel="Сверить коды"/></View>:null}
+    {store.cryptoError?<View style={{paddingHorizontal:13,paddingBottom:8}}><Notice text={store.cryptoError} error onRetry={()=>/устройств/i.test(store.cryptoError)&&/Безопасность/.test(store.cryptoError)?navigate({to:'security'}):setSecurityOpen(true)} actionLabel={/Безопасность/.test(store.cryptoError)?'Устройства':'Сверить коды'}/></View>:null}
     {store.error||localError?<View style={{paddingHorizontal:13,paddingVertical:8}}><Notice text={localError||store.error} error onRetry={()=>{setLocalError('');void store.loadMessages(chat.id);}}/></View>:null}
     {copied?<View style={{alignSelf:'center',marginTop:6,paddingVertical:7,paddingHorizontal:14,backgroundColor:t.accentSoft,borderRadius:16,borderWidth:1,borderColor:t.border}}><Text style={{color:t.accent,fontSize:12}}>Скопировано</Text></View>:null}
     </View>

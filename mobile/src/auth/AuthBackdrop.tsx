@@ -3,6 +3,7 @@
 // policy (low battery / reduce motion → still image).
 import React, { useEffect, useRef } from 'react';
 import { Animated, Easing, Image, StyleSheet, View, useWindowDimensions } from 'react-native';
+import { Text } from '../typography';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useTheme } from '../theme';
 import { useMotion } from '../motion';
@@ -54,5 +55,18 @@ export function AppMark({ size = 84 }: { size?: number }) {
     <View style={{ width: size, height: size, borderRadius: radius, overflow: 'hidden', borderWidth: 1, borderColor: 'rgba(255,255,255,0.14)', shadowColor: t.accent, shadowOpacity: 0.35, shadowRadius: 22, shadowOffset: { width: 0, height: 8 } }}>
       <Image source={require('../../assets/icons/outline.png')} style={{ width: size, height: size }} accessibilityLabel="Инвиз" />
     </View>
+  </Animated.View>;
+}
+
+/** The sign-in hero: the name itself, large, with the same soft halo the app icon has. */
+export function Wordmark({ size = 58 }: { size?: number }) {
+  const t = useTheme();
+  const { enabled } = useMotion();
+  const enter = useRef(new Animated.Value(enabled ? 0 : 1)).current;
+  useEffect(() => { if (enabled) Animated.spring(enter, { toValue: 1, useNativeDriver: true, speed: 8, bounciness: 6 }).start(); }, []);
+  const halo = size * 2.4;
+  return <Animated.View accessible accessibilityRole="header" accessibilityLabel="Инвиз" style={{ alignItems: 'center', justifyContent: 'center', height: size * 1.5, opacity: enter, transform: [{ scale: enter.interpolate({ inputRange: [0, 1], outputRange: [0.92, 1] }) }] }}>
+    {[1, 0.8, 0.62, 0.46].map((k, i) => <View key={k} pointerEvents="none" style={{ position: 'absolute', width: halo * 1.7 * k, height: halo * 0.62 * k, borderRadius: halo, backgroundColor: t.accent, opacity: 0.03 + i * 0.018 }} />)}
+    <Text style={{ fontSize: size, lineHeight: size * 1.18, fontWeight: '800', letterSpacing: -size * 0.035, color: t.text, textShadowColor: t.accent, textShadowRadius: size * 0.42, textShadowOffset: { width: 0, height: size * 0.06 } }}>Инвиз</Text>
   </Animated.View>;
 }

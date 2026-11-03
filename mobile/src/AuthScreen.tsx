@@ -8,7 +8,7 @@ import { useTheme } from './theme';
 import { isDevelopmentHttpAllowed, normalizeServer } from './storage';
 import type { RecoveryChallenge, Session } from './types';
 import { ManualField } from './auth/ManualField';
-import { AppMark } from './auth/AuthBackdrop';
+import { Wordmark } from './auth/AuthBackdrop';
 import { clearRecovery, readRecovery, saveRecovery } from './auth/recoveryStorage';
 
 export function ConnectScreen({initialUrl='',onConnect}: {initialUrl?:string;onConnect:(url:string)=>Promise<void>}) {
@@ -281,10 +281,9 @@ export function AuthScreen({api,onLogin,onChangeServer}: {api:Api;onLogin:(sessi
     <ScrollView keyboardShouldPersistTaps="handled" contentContainerStyle={{flexGrow:1,justifyContent:'center',paddingHorizontal:22,paddingVertical:28}}>
       <View style={{width:'100%',maxWidth:440,alignSelf:'center'}}>
         <View style={{alignItems:'center',marginBottom:26,gap:16}}>
-          <AppMark size={isLogin||isRegister?84:64}/>
-          <Text style={{color:t.muted,fontSize:11,fontWeight:'700',letterSpacing:4}}>ИНВИЗ</Text>
+          <Wordmark size={isLogin||isRegister?60:46}/>
         </View>
-        <View style={{paddingHorizontal:4,marginBottom:24,alignItems:'center'}}><Text style={{color:t.text,fontSize:34,lineHeight:39,fontWeight:'800',letterSpacing:-1.2,textAlign:'center'}}>{titles[mode]}</Text><Text style={{color:t.muted,fontSize:14,lineHeight:21,marginTop:12,textAlign:'center',maxWidth:340}}>{descriptions[mode]}</Text></View>
+        <View style={{paddingHorizontal:4,marginBottom:24,alignItems:'center'}}><Text style={{color:t.text,fontSize:24,lineHeight:30,fontWeight:'700',letterSpacing:-0.6,textAlign:'center'}}>{titles[mode]}</Text><Text style={{color:t.muted,fontSize:14,lineHeight:21,marginTop:12,textAlign:'center',maxWidth:340}}>{descriptions[mode]}</Text></View>
         <GlassSurface material="regular" radius={32} contentStyle={{padding:22,gap:18}}>
           {isLogin||isRegister?<View style={{flexDirection:'row',padding:4,backgroundColor:t.dark?'rgba(0,0,0,0.18)':'rgba(97,113,149,0.08)',borderRadius:19,borderWidth:1,borderColor:t.border}}>
             {[{title:'Войти',register:false},{title:'Создать аккаунт',register:true}].map(tab=><Pressable key={tab.title} disabled={disabled} onPress={()=>switchFlow(tab.register)} accessibilityRole="tab" accessibilityState={{selected:isRegister===tab.register}} style={{flex:1,minHeight:43,alignItems:'center',justifyContent:'center',borderRadius:15,borderWidth:1,borderColor:isRegister===tab.register?t.glassBorder:'transparent',backgroundColor:isRegister===tab.register?(t.dark?'rgba(255,255,255,0.12)':'rgba(255,255,255,0.82)'):'transparent'}}><Text style={{color:isRegister===tab.register?t.text:t.muted,fontWeight:isRegister===tab.register?'700':'500',fontSize:12}}>{tab.title}</Text></Pressable>)}
