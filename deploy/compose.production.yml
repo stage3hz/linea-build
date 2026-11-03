@@ -49,6 +49,18 @@ services:
       RELEASE_MANIFEST: /secrets/release.json
       # Owner-signed list of all servers (deploy/servers.mjs); the app verifies the signature.
       SERVER_LIST: /secrets/servers.json
+      # Several servers (deploy/cluster.md). Empty CLUSTER_SELF = one server, as before.
+      CLUSTER_SELF: ${CLUSTER_SELF:-}
+      CLUSTER_SELF_URL: ${CLUSTER_SELF_URL:-}
+      CLUSTER_PEERS: ${CLUSTER_PEERS:-}
+      CLUSTER_TOKEN: ${CLUSTER_TOKEN:-}
+      CLUSTER_REPLICA: ${CLUSTER_REPLICA:-}
+      CLUSTER_S3_ENDPOINT: ${CLUSTER_S3_ENDPOINT:-}
+      CLUSTER_S3_REGION: ${CLUSTER_S3_REGION:-}
+      CLUSTER_BOOTSTRAP: ${CLUSTER_BOOTSTRAP:-}
+      CLUSTER_LEASE_MS: ${CLUSTER_LEASE_MS:-8000}
+      LITESTREAM_ACCESS_KEY_ID: ${LITESTREAM_ACCESS_KEY_ID:-}
+      LITESTREAM_SECRET_ACCESS_KEY: ${LITESTREAM_SECRET_ACCESS_KEY:-}
     volumes:
       - linea-data:/data
       - ./secrets:/secrets:ro

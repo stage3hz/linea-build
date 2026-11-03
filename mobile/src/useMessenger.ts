@@ -8,7 +8,7 @@ import { useSaved } from './saved/useSaved';
 import { useAIHistory } from './ai/history';
 import { AppState } from 'react-native';
 import * as Crypto from 'expo-crypto';
-import { Api, ApiError } from './api';
+import { Api, ApiError, NetworkError } from './api';
 import type { Attachment, Chat, LocalFile, Message, PendingMessage, Presence, RecoveryRequest, User } from './types';
 import { CryptoRuntime } from './e2ee/runtime';
 import { cancelLargeUpload, clearDecryptedAttachmentCache, encryptAndUpload, encryptAndUploadLarge } from './e2ee/attachments';
@@ -33,7 +33,7 @@ export function useMessenger(api: Api, user: User, onExpired: ()=>void) {
   const [chats,setChats]=useState<Chat[]>([]);
   const [messages,setMessages]=useState<Record<string,Message[]>>({});
   const [hasMore,setHasMore]=useState<Record<string,boolean>>({});
-  const [pending,setPending]=useState<PendingMessage[]>([]);const pendingRef=useRef(pending);pendingRef.current=pending;
+  const [pending,setPending]=useState<PendingMessage[]>([]);const retryAtRef=useRef(new Map<string,number>());const pendingRef=useRef(pending);pendingRef.current=pending;
   const [selectedId,setSelectedId]=useState<string|null>(null);
   const [connection,setConnection]=useState<Connection>('connecting');
   const [listLoading,setListLoading]=useState(true);
@@ -260,9 +260,24 @@ export function useMessenger(api: Api, user: User, onExpired: ()=>void) {
     catch(e){
       if(e instanceof ApiError&&e.code==='E2EE_DEVICES_CHANGED')await cryptoRuntime.get().then(crypto=>crypto.rejectedDeviceSet(item.chatId,item.clientId)).catch(()=>{});
       if(e instanceof Error&&e.name==='AbortError')return;
-      if(aliveRef.current){const message=checkError(e);if(e instanceof Error&&e.name==='UntrustedDeviceError')setCryptoError(message);setPending(prev=>prev.map(p=>p.clientId===item.clientId?{...p,...(item.upload?{upload:item.upload}:{}),state:'failed',error:message}:p));}
+      if(aliveRef.current){const message=checkError(e);if(e instanceof Error&&e.name==='UntrustedDeviceError')setCryptoError(message);setPending(prev=>prev.map(p=>p.clientId===item.clientId?{...p,...(item.upload?{upload:item.upload}:{}),state:'failed',error:message,offline:e instanceof NetworkError?(item.offline||0)+1:undefined}:p));}
     }
   },[api,acceptMessage,checkError,refreshChats,cryptoRuntime]);
+  // A message that failed only because the servers were switching over (or the network blinked) is
+  // sent again by itself: every 3 s, then slower, for about 10 minutes.
+  useEffect(()=>{
+    const timer=setInterval(()=>{
+      const now=Date.now();
+      for(const item of pendingRef.current){
+        if(item.state!=='failed'||!item.offline||item.offline>40||item.upload)continue;
+        const wait=Math.min(30000,3000*Math.ceil(item.offline/5));
+        const last=retryAtRef.current.get(item.clientId)||0;
+        if(now-last<wait)continue;
+        retryAtRef.current.set(item.clientId,now);void performSend(item);
+      }
+    },1000);
+    return()=>clearInterval(timer);
+  },[performSend]);
   /** Sends a big file at once as a bubble with upload progress (the draft flow is for small files). */
   const sendLargeFile=useCallback((chatId:string,file:LocalFile,text='')=>{
     const placeholder:Attachment={id:'00000000-0000-4000-8000-000000000000',name:file.name.slice(0,240)||'file',mimeType:(file.mimeType||'application/octet-stream').slice(0,150),size:file.size||0};
@@ -359,6 +374,8 @@ export function useMessenger(api: Api, user: User, onExpired: ()=>void) {
     if(selectedRef.current===chat.id)selectChat(null);
   },[removedKey,messages,hideForMe,selectChat]);
   const visibleChats=useMemo(()=>chats.filter(chat=>removed[chat.id]===undefined||(chat.lastMessage?.id||0)>removed[chat.id]),[chats,removed]);
-  return {onSocket,sendSocket,onCallSignal,readChat,presence,chats:visibleChats,removeChat,messages,hasMore,pending,selectedId,selectChat,connection,listLoading,messageLoading,error,setError,typing,refreshChats,loadMessages,send,sendAction,hideForMe,hidden,forward,sendAttachments,sendLargeFile,cancelPending,retry:performSend,sendPoll,sendTyping,drafts,draftFiles,setDraft,setDraftFile,setDraftFiles,appendDraftFiles,removeDraftFile,recoveryRequests,recoveryError,refreshRecoveryRequests,cancelRecovery,cryptoError,trustSnapshot,approveDevices,uploadEncrypted,saved,aiHistory,updateChatSettings};
+  // While it is being re-sent by itself, the bubble shows the clock, not «Не отправлено».
+  const shownPending=useMemo(()=>pending.map(p=>p.state==='failed'&&p.offline&&p.offline<=40&&!p.upload?{...p,state:'sending' as const,error:undefined}:p),[pending]);
+  return {onSocket,sendSocket,onCallSignal,readChat,presence,chats:visibleChats,removeChat,messages,hasMore,pending:shownPending,selectedId,selectChat,connection,listLoading,messageLoading,error,setError,typing,refreshChats,loadMessages,send,sendAction,hideForMe,hidden,forward,sendAttachments,sendLargeFile,cancelPending,retry:performSend,sendPoll,sendTyping,drafts,draftFiles,setDraft,setDraftFile,setDraftFiles,appendDraftFiles,removeDraftFile,recoveryRequests,recoveryError,refreshRecoveryRequests,cancelRecovery,cryptoError,trustSnapshot,approveDevices,uploadEncrypted,saved,aiHistory,updateChatSettings};
 }
 export type MessengerStore = ReturnType<typeof useMessenger>;

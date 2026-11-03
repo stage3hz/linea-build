@@ -41,6 +41,8 @@ export type LocalFile = { uri: string; name: string; mimeType: string; size?: nu
 export type PendingMessage = {
   clientId: string; chatId: string; text: string; attachment: Attachment | null;
   state: 'sending' | 'failed'; error?: string; createdAt: string;
+  /** Failed only because no server answered: sent again by itself (the server drops duplicates by clientId). */
+  offline?: number;
   meta?: import('./messageMeta').MessageMeta;
   /** A big file still uploading in chunks (Telegram-like progress in the bubble); resumes on retry. */
   upload?: { file: LocalFile; sent: number; total: number; state?: import('./e2ee/attachments').LargeUploadState };
