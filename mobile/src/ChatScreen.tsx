@@ -1,4 +1,5 @@
 import { StatusEmoji } from './StatusEmoji';
+import { useMeshActive } from './nearby/meshState';
 import { PlatinaGem, PlatinaName, hasPlatina } from './platina/PlatinaMark';
 import { DecoratedAvatar } from './platina/Decor';
 import { ChatWallpaper, WallpaperPicker } from './WallpaperPicker';
@@ -55,6 +56,7 @@ import { VOICE_MIME, VOICE_MIN_MS, videoNoteFileName, voiceFileName } from './vo
 const fade=(hex:string,alpha:number)=>{const m=/^#([0-9a-f]{6})$/i.exec(hex);if(!m)return `rgba(0,0,0,${alpha})`;const n=parseInt(m[1],16);return `rgba(${n>>16},${(n>>8)&255},${n&255},${alpha})`;};
 
 export function ChatScreen({api,user,chat,store,onBack,wide=false,onOpenMusic}: {api:Api;user:User;chat:Chat;store:MessengerStore;onBack:()=>void;wide?:boolean;onOpenMusic?:()=>void}) {
+  const mesh=useMeshActive();
   const calls=useCalls();const insets=useSafeAreaInsets();const platina=usePlatina(api,user.id);
   const t=useTheme();const [attachMenu,setAttachMenu]=useState(false);const [uploading,setUploading]=useState(false);const [downloadId,setDownloadId]=useState<string|null>(null);const [localError,setLocalError]=useState('');const [preview,setPreview]=useState<Attachment|null>(null);const [peerInfo,setPeerInfo]=useState(false);const [actions,setActions]=useState<Row|null>(null);const [menuX,setMenuX]=useState<number|undefined>(undefined);const [menuY,setMenuY]=useState(0);const [copied,setCopied]=useState(false);
   const [securityOpen,setSecurityOpen]=useState(false);
@@ -203,12 +205,13 @@ export function ChatScreen({api,user,chat,store,onBack,wide=false,onOpenMusic}: 
   const otherUnread=store.chats.reduce((sum,c)=>c.id===chat.id||c.settings?.muted||c.settings?.archived?sum:sum+c.unreadCount,0);
   const [clock,setClock]=useState(0);useEffect(()=>{const timer=setInterval(()=>setClock(v=>v+1),30000);return()=>clearInterval(timer);},[]);
   const headerStatus=useMemo(()=>{
+    if(store.connection!=='connected'&&mesh)return {text:'Mesh · без интернета',accent:true};
     if(store.connection==='connecting')return {text:'соединение…',accent:false};
     if(store.connection==='offline')return {text:'ожидание сети…',accent:false};
     if(isTyping)return {text:'печатает…',accent:true};
     const text=presenceText(store.presence[chat.peer.id]);
     return text?{text,accent:text==='в сети'}:{text:`@${chat.peer.username}`,accent:false};
-  },[store.connection,isTyping,store.presence,chat.peer.id,chat.peer.username,clock]);
+  },[store.connection,isTyping,store.presence,chat.peer.id,chat.peer.username,clock,mesh]);
   const rowMessages=(row:Row):ViewMessage[]=>row.album?row.album.map(part=>part.message).filter((m):m is ViewMessage=>!!m):row.message?[row.message]:[];
   const selectedRows=selection?rows.filter(row=>selection.has(row.key)):[];
   const selectedMessages=selectedRows.flatMap(rowMessages).sort((a,b)=>a.id-b.id);

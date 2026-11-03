@@ -25,6 +25,10 @@ export function candidates(): string[] {
 /** The address requests go to now (the realm until the first measurement). */
 export function currentEndpoint(): string { return state.current || builtinServers()[0] || SERVER_URL; }
 export function subscribeServers(listener: () => void) { listeners.add(listener); return () => { listeners.delete(listener); }; }
+let lastOk = 0;
+/** Any HTTP answer from any Invizent server (used to tell «no internet» from a short drop). */
+export function markServerOk() { lastOk = Date.now(); }
+export function lastServerOkAt() { return lastOk; }
 export function serverStatus() { return { current: currentEndpoint(), rtt: { ...state.rtt }, listVersion: state.list?.version ?? null }; }
 // Read-only diagnostics (Settings → «О приложении» can show it; the test stand reads it).
 (globalThis as { __invizentServers?: () => unknown }).__invizentServers = serverStatus;

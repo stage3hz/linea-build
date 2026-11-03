@@ -1,0 +1,8 @@
+{
+  "name": "linea-nearby",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Messages to people nearby without internet (Bluetooth LE): radio state, permissions, network state",
+  "license": "AGPL-3.0-only",
+  "main": "index.ts"
+}

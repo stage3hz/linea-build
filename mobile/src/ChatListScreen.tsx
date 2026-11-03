@@ -1,4 +1,5 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
+import { useMeshActive } from './nearby/meshState';
 import { PlatinaGem, PlatinaName, hasPlatina } from './platina/PlatinaMark';
 import { FolderEditor, FolderTabs, matchesFolder, useChatFolders, type ChatFolder, type FolderFilter } from './ChatFolders';
 import { attachmentLabel } from './voice/voice';
@@ -30,6 +31,7 @@ export type MessengerTab = 'chats' | 'people' | 'channels' | 'music' | 'ai' | 'p
 type Navigation = { onProfile:()=>void;onNewChat:()=>void;onMusic:()=>void;onAI:()=>void;onChats:()=>void;activeTab?:MessengerTab };
 
 export function ChatListScreen({api,user,store,onProfile,onNewChat,onMusic,onAI,onQuickAI,onChats,onSaved,savedActive=false,activeTab='chats',rail=false}: {api:Api;user:User;store:MessengerStore;onQuickAI:()=>void;onSaved:()=>void;savedActive?:boolean;rail?:boolean}&Navigation) {
+  const mesh=useMeshActive();
   // The open chat is highlighted only when it is shown beside the list (tablet/desktop), as in Telegram.
   const wideLayout=useWindowDimensions().width>=850;
   // Rows remount when a chat closes: a press interrupted by opening the chat otherwise left the
@@ -56,7 +58,7 @@ export function ChatListScreen({api,user,store,onProfile,onNewChat,onMusic,onAI,
     {/* Telegram header: «Изм.» · title with connection state · AI and «new chat» buttons. */}
     <View style={{flexDirection:'row',alignItems:'center',gap:8,paddingHorizontal:16,paddingTop:6,paddingBottom:10}}>
       <GlassSurface material="regular" radius={22} interactive contentStyle={{height:44,paddingHorizontal:16,justifyContent:'center'}}><Pressable onPress={()=>{lightFeedback();setEditing(current=>current?null:new Set());}} accessibilityRole="button" hitSlop={6}><Text style={{color:t.text,fontSize:16,fontWeight:'600'}}>{editing?'Готово':'Изм.'}</Text></Pressable></GlassSurface>
-      <View style={{flex:1,alignItems:'center'}}>{store.connection==='connected'?<Text style={{color:t.text,fontSize:17,fontWeight:'700'}}>Чаты</Text>:<View style={{flexDirection:'row',alignItems:'center',gap:6}}><ActivityIndicator size="small" color={t.muted}/><Text style={{color:t.text,fontSize:15,fontWeight:'600'}}>{store.connection==='connecting'?'Соединение…':'Ожидание сети…'}</Text></View>}</View>
+      <View style={{flex:1,alignItems:'center'}}>{store.connection==='connected'?<Text style={{color:t.text,fontSize:17,fontWeight:'700'}}>Чаты</Text>:mesh?<View accessibilityLabel="Связь через Mesh, без интернета" style={{flexDirection:'row',alignItems:'center',gap:6}}><Icon name="bluetooth" size={16} color={t.accent}/><Text style={{color:t.text,fontSize:17,fontWeight:'700'}}>Mesh</Text></View>:<View style={{flexDirection:'row',alignItems:'center',gap:6}}><ActivityIndicator size="small" color={t.muted}/><Text style={{color:t.text,fontSize:15,fontWeight:'600'}}>{store.connection==='connecting'?'Соединение…':'Ожидание сети…'}</Text></View>}</View>
       <GlassSurface material="regular" radius={22} interactive contentStyle={{width:44,height:44,alignItems:'center',justifyContent:'center'}}><Pressable onPress={onQuickAI} accessibilityRole="button" accessibilityLabel="Быстрый вопрос AI" hitSlop={6}><Icon name="sparkles-outline" size={20} color={t.text}/></Pressable></GlassSurface>
       <Pressable onPress={onNewChat} accessibilityRole="button" accessibilityLabel="Новый чат" hitSlop={6} style={({pressed})=>({width:44,height:44,borderRadius:22,backgroundColor:t.accent,alignItems:'center',justifyContent:'center',opacity:pressed?.8:1})}><Icon name="create-outline" size={20} color={t.onAccent}/></Pressable>
     </View>

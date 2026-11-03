@@ -27,7 +27,8 @@ module.exports = {
       supportsTablet: false,
       bundleIdentifier: development ? 'com.linea.messenger.preview' : 'com.linea.messenger',
       infoPlist: {
-        NSLocalNetworkUsageDescription: 'Подключение к вашему серверу мессенджера в локальной сети.',
+        NSLocalNetworkUsageDescription: 'Чтобы писать без интернета тем, кто рядом, и подключаться к серверу мессенджера в вашей сети.',
+        NSBluetoothAlwaysUsageDescription: 'Bluetooth нужен, чтобы писать без интернета тем, кто рядом. Сообщения остаются зашифрованными, местоположение не определяется.',
         // Music keeps playing and a call keeps its audio when the app goes to the background.
         UIBackgroundModes: ['audio', 'voip'],
         ...(allowDevelopmentHttp ? { NSAppTransportSecurity: { NSAllowsArbitraryLoads: true, NSAllowsLocalNetworking: true } } : {}),
@@ -51,6 +52,7 @@ module.exports = {
       ['@config-plugins/react-native-webrtc', { cameraPermission: 'Камера нужна для видеосообщений и видеозвонков. Видео шифруется до отправки.', microphonePermission: 'Микрофон нужен для голосовых сообщений и звонков. Звук шифруется.' }],
       './plugins/withLineSignal',
       './plugins/withLinePhoto',
+      './plugins/withLineNearby',
       './plugins/withLineVideo',
       './plugins/withScreenBroadcast',
       // Montserrat (SIL OFL 1.1), embedded natively; family 'Montserrat' with weights 400–800.

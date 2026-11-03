@@ -3,7 +3,7 @@ import { Platform } from 'react-native';
 import { toByteArray } from 'base64-js';
 import type { UserProfile } from './types';
 import { APP_VERSION, SERVER_URL } from './serverConfig';
-import { currentEndpoint, reportFailure } from './servers/pool';
+import { currentEndpoint, markServerOk, reportFailure } from './servers/pool';
 import { attestHeaders } from './attest/index';
 import { markUpdateRequired } from './update/store';
 import type { Attachment, Chat, DeviceSession, LocalFile, Message, RecoveryChallenge, RecoveryRequest, RecoveryStatus, SecurityStatus, Session, User, UsernameStatus } from './types';
@@ -81,6 +81,7 @@ export class Api {
       const response = await fetch(target + path, { credentials: 'omit', cache: 'no-store', redirect: 'error', ...options, headers: { ...headers, ...(options.headers || {}) }, signal: abort.signal });
       const data = await response.json().catch(() => ({}));
       if(abort.signal.aborted)throw abortError();
+      if (response.status < 500) markServerOk();
       if (response.status === 426) markUpdateRequired();
       // 502/503/504 come from the proxy in front of a server that is down: the request never
       // reached Invizent itself, so it is safe to send it to the next server.
