@@ -106,7 +106,7 @@ export function SecurityScreen({api,onBack,onCredentialsChanged,onSensitiveActio
     <ScrollView keyboardShouldPersistTaps="handled" contentContainerStyle={{padding:17,paddingBottom:36,maxWidth:620,width:'100%',alignSelf:'center',gap:16}}>
       <GlassSurface material="clear" radius={28} contentStyle={{padding:22,gap:11}}>
         <Text style={{color:t.text,fontSize:23,lineHeight:28,fontWeight:'800',letterSpacing:-.7}}>Твой доступ.{ '\n' }Твои устройства.</Text>
-        <Text style={{color:t.muted,fontSize:13,lineHeight:20}}>Вход по нику, паролю и слову подтверждения. Для восстановления — другое слово. Почта и номер телефона не нужны.</Text>
+        <Text style={{color:t.muted,fontSize:13,lineHeight:20}}>Вход по @имени, паролю и слову подтверждения. Для восстановления — другое слово. Почта и номер телефона не нужны.</Text>
       </GlassSurface>
       {api.base.startsWith('http:')?<Notice text="Тестовое подключение без шифрования. Для настоящего аккаунта нужен HTTPS."/>:null}
       {error?<Notice text={error} error onRetry={()=>{if(!pending.current)void refresh();}}/>:null}
@@ -144,7 +144,7 @@ export function SecurityScreen({api,onBack,onCredentialsChanged,onSensitiveActio
         </GlassSurface>
         <AccountZone api={api} confirmationConfigured={status.confirmationConfigured} onDeleted={()=>changedCallback.current('Аккаунт удалён.')}/>
       </>:null}
-      <Text style={{color:t.subtle,fontSize:11,lineHeight:17,textAlign:'center',paddingHorizontal:10}}>Выбирай два разных непредсказуемых слова. Они должны отличаться друг от друга, ника и пароля. Все значения здесь вводятся вручную.</Text>
+      <Text style={{color:t.subtle,fontSize:11,lineHeight:17,textAlign:'center',paddingHorizontal:10}}>Выбирай два разных непредсказуемых слова. Они должны отличаться друг от друга, логина и пароля. Все значения здесь вводятся вручную.</Text>
     </ScrollView>
     <Sheet visible={form!==null} title={form==='password'?'Изменить пароль':form==='confirmation'?'Слово подтверждения':'Слово восстановления'} onClose={closeForm}>
       <View style={{gap:15,paddingBottom:8}}>
@@ -156,7 +156,7 @@ export function SecurityScreen({api,onBack,onCredentialsChanged,onSensitiveActio
           <SecretInput label="Повтори новый пароль" value={confirmation} onChangeText={setConfirmation} placeholder="Для проверки без опечаток" disabled={busy} newPassword onSubmit={()=>void sensitiveChange()}/>
         </>:<>
           <SecretInput label={form==='confirmation'?'Новое слово подтверждения':'Новое слово восстановления'} value={word} onChangeText={setWord} placeholder="Русские или английские буквы" disabled={busy} word/>
-          <Text style={{color:t.muted,fontSize:12,lineHeight:18}}>От 4 до 64 букв, без пробелов. Регистр не важен; «е» и «ё» различаются. Два слова должны отличаться друг от друга, ника и пароля.</Text>
+          <Text style={{color:t.muted,fontSize:12,lineHeight:18}}>От 4 до 64 букв, без пробелов. Регистр не важен; «е» и «ё» различаются. Два слова должны отличаться друг от друга, логина и пароля.</Text>
           <SecretInput label="Повтори новое слово" value={confirmation} onChangeText={setConfirmation} placeholder="Введи то же слово вручную" disabled={busy} word onSubmit={()=>void sensitiveChange()}/>
         </>}
         {formError?<Notice text={formError} error/>:null}

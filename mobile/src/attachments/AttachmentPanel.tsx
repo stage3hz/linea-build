@@ -29,7 +29,7 @@ export function AttachmentPanel({ visible, busy, canAdd, remainingSlots, onClose
   visible: boolean; busy: boolean; canAdd: boolean; remainingSlots: number; onClose: () => void; onAdd: (item: AttachmentSelection) => Promise<void>; onPoll?: () => void;
 }) {
   const t = useTheme(), window = useWindowDimensions(), insets = useSafeAreaInsets(), music = useMusic();
-  const [tab, setTab] = useState<Tab>('gallery'), [selected, setSelected] = useState<AttachmentSelection[]>([]);
+  const [tab, setTab] = useState<Tab>(Platform.OS === 'web' ? 'files' : 'gallery'), [selected, setSelected] = useState<AttachmentSelection[]>([]);
   const [editing, setEditing] = useState<AttachmentSelection | null>(null), [phase, setPhase] = useState<Phase>(null);
   const [error, setError] = useState(''), [notice, setNotice] = useState('');
   const selectedRef = useRef(selected), visibleRef = useRef(visible), alive = useRef(true), operation = useRef(0), working = useRef(false);

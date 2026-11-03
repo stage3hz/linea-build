@@ -82,7 +82,7 @@ export function ChatSearch({ api, me, store, onClose, onSaved }: { api: Api; me:
   }, [needle, scope, recent, store.chats, people, communities, me.id]);
 
   const loading = !!needle && ((scope === 'people' && needle.length >= 2 && people === null) || (scope === 'channels' && communities === null));
-  const empty = needle ? (scope === 'people' && needle.length < 2 ? 'Введи хотя бы 2 буквы ника.' : 'Ничего не нашли.') : 'Здесь появятся чаты и каналы, которые ты открывал из поиска.';
+  const empty = needle ? (scope === 'people' && needle.length < 2 ? 'Введи хотя бы 2 буквы @имени.' : 'Ничего не нашли.') : 'Здесь появятся чаты и каналы, которые ты открывал из поиска.';
 
   return <View style={{ flex: 1 }}>
     <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10, paddingHorizontal: 16, paddingTop: 6, paddingBottom: 10 }}>

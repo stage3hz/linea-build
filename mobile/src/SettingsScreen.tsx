@@ -53,7 +53,8 @@ export function SettingsScreen(props: Props) {
     </Page>;
   };
   // Sections slide in over the root list and close with the same swipe to the right as chats.
-  return <View style={{ flex: 1 }}>
+  // overflow hidden: on desktop the root list slides aside under the section and must not paint over the chat list.
+  return <View style={{ flex: 1, overflow: 'hidden' }}>
     <StackBase progress={progress} covered={section !== 'root'}>{page('root', props.onBack)}</StackBase>
     {section !== 'root' ? <StackScreen key={section} progress={progress} onBack={() => setSection('root')}>{back => <View style={{ flex: 1 }}><PageBackdrop />{page(section, back)}</View>}</StackScreen> : null}
   </View>;

@@ -22,7 +22,17 @@ import { inviteCodeFrom, withoutInviteLink } from './communities/types';
 import { navigate } from './navigation';
 
 export type AlbumPart = { attachment: Attachment; message?: ViewMessage; pending?: PendingMessage };
-export type Row = { key: string; message?: ViewMessage; pending?: PendingMessage; createdAt: string; album?: AlbumPart[] };
+export type Row = { key: string; message?: ViewMessage; pending?: PendingMessage; createdAt: string; album?: AlbumPart[]; missing?: number };
+
+/** Messages sent before this device joined cannot be decrypted here (end-to-end): one calm line instead of a wall of them. */
+export const MissingRow = memo(function MissingRow({ count }: { count: number }) {
+  const t = useTheme();
+  const word = count % 10 === 1 && count % 100 !== 11 ? 'сообщение' : count % 10 >= 2 && count % 10 <= 4 && (count % 100 < 12 || count % 100 > 14) ? 'сообщения' : 'сообщений';
+  return <View accessible accessibilityLabel={`${count} ${word} до входа на этом устройстве`} style={{ alignSelf: 'center', maxWidth: 360, marginVertical: 10, paddingHorizontal: 14, paddingVertical: 10, borderRadius: 16, backgroundColor: t.dark ? 'rgba(255,255,255,0.07)' : 'rgba(0,0,0,0.05)', flexDirection: 'row', gap: 10, alignItems: 'center' }}>
+    <Icon name="lock-closed-outline" size={16} color={t.muted} />
+    <Text style={{ flexShrink: 1, color: t.muted, fontSize: 13, lineHeight: 18 }}>{count} {word} до входа на этом устройстве. Они зашифрованы для других твоих устройств и здесь не открываются.</Text>
+  </View>;
+});
 export type RowHandlers = {
   actions: (row: Row, y: number) => void; jumpTo: (clientId: string) => void; open: (file: Attachment) => void;
   react: (message: ViewMessage, emoji: Reaction) => void; retry: (pending: PendingMessage) => void; cancel?: (pending: PendingMessage) => void; reply: (message: ViewMessage) => void;

@@ -36,7 +36,7 @@ import { StickerPanel } from './StickerPanel';
 import { Share } from 'react-native';
 import { presenceText } from './presence';
 import { VoicePlaybackProvider, VoiceRecordingBar, useVoiceRecorder } from './voice/VoiceMessage';
-import { MessageRow, type AlbumPart, type Row, type RowHandlers } from './MessageRow';
+import { MessageRow, MissingRow, type AlbumPart, type Row, type RowHandlers } from './MessageRow';
 import { ContextMenu, MenuItem } from './ContextMenu';
 import { inviteCodeFrom } from './communities/types';
 import { inviteForwardable } from './communities/InviteCard';
@@ -108,7 +108,10 @@ export function ChatScreen({api,user,chat,store,onBack,wide=false,onOpenMusic}: 
       const head=caption||first;
       return {key:`a${first.key}`,message:head.message,pending:head.pending,createdAt:group[group.length-1].row.createdAt,album};
     });
-    const visible=searchOpen&&needle?all.filter(row=>(row.message?.text||row.pending?.text||'').toLocaleLowerCase('ru').includes(needle)||(row.message?.attachment?.name||'').toLocaleLowerCase('ru').includes(needle)):all;
+    // A run of messages this device has no key for collapses into one line.
+    const folded:Row[]=[];
+    for(const row of all){const last=folded[folded.length-1];if(row.message?.cryptoState==='no-key'&&!row.album){if(last?.missing){last.missing++;last.createdAt=row.createdAt;continue;}folded.push({key:`x${row.key}`,createdAt:row.createdAt,missing:1});continue;}folded.push(row);}
+    const visible=searchOpen&&needle?folded.filter(row=>!row.missing&&((row.message?.text||row.pending?.text||'').toLocaleLowerCase('ru').includes(needle)||(row.message?.attachment?.name||'').toLocaleLowerCase('ru').includes(needle))):folded;
     return visible.reverse();
   },[view,pending,searchOpen,needle,user.id]);
   const preferences=useChatPreferences();const metrics=textMetrics(preferences.textSize);
@@ -237,6 +240,7 @@ export function ChatScreen({api,user,chat,store,onBack,wide=false,onOpenMusic}: 
     const newer=index>0?rows[index-1]:undefined;
     const newerSender=newer?.pending?user.id:newer?.message?.senderId;
     const groupNext=!!newer&&newerSender===(p?user.id:message?.senderId)&&new Date(newer.createdAt).toDateString()===new Date(item.createdAt).toDateString()&&Date.parse(newer.createdAt)-Date.parse(item.createdAt)<5*60_000;
+    if(item.missing)return <MissingRow count={item.missing}/>;
     return <MessageRow animatedEmoji={platina} groupNext={groupNext} row={item} selecting={!!selection} selected={!!selection?.has(item.key)} fresh={fresh(item.key)} olderCreatedAt={rows[index+1]?.createdAt} mine={mine} author={mine?'Ты':peerName} peerLastRead={peerLastRead} wide={wide} fontSize={metrics.fontSize} lineHeight={metrics.lineHeight} radius={preferences.bubbleRadius} downloading={!!downloadId&&file?.id===downloadId} replyAuthor={reply?(reply.senderId===user.id?'Ты':peerName):undefined} replyText={reply?(original?replyPreview(original):reply.preview||'Сообщение удалено'):undefined} api={api} handlers={handlers}/>;
   },[rows,user.id,peerName,peerLastRead,wide,metrics,downloadId,view.byClientId,api,selection,preferences.bubbleRadius,platina]);
   const [circleOpen,setCircleOpen]=useState(false);
