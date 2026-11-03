@@ -1,5 +1,5 @@
-import React, { memo, useEffect, useRef } from 'react';
-import { ActivityIndicator, Keyboard, Pressable, View, useWindowDimensions } from 'react-native';
+import React, { memo, useEffect, useRef, useState } from 'react';
+import { ActivityIndicator, Keyboard, Platform, Pressable, View, useWindowDimensions } from 'react-native';
 import { Gesture, GestureDetector } from 'react-native-gesture-handler';
 import Animated, { FadeInDown, interpolate, runOnJS, useAnimatedStyle, useSharedValue, withSpring } from 'react-native-reanimated';
 import { Text } from './typography';
@@ -34,7 +34,7 @@ export const MissingRow = memo(function MissingRow({ count }: { count: number })
   </View>;
 });
 export type RowHandlers = {
-  actions: (row: Row, y: number) => void; jumpTo: (clientId: string) => void; open: (file: Attachment) => void;
+  actions: (row: Row, y: number, x?: number) => void; jumpTo: (clientId: string) => void; open: (file: Attachment) => void;
   react: (message: ViewMessage, emoji: Reaction) => void; retry: (pending: PendingMessage) => void; cancel?: (pending: PendingMessage) => void; reply: (message: ViewMessage) => void;
   vote: (message: ViewMessage, options: number[]) => void; toggleSelect: (row: Row) => void;
 };
@@ -134,10 +134,30 @@ function MessageRowView({ row, olderCreatedAt, mine, author, peerLastRead, wide,
     if (tapTimer.current) { clearTimeout(tapTimer.current); tapTimer.current = undefined; if (decrypted) { impactFeedback(); handlers.current.react(message!, '❤️'); } return; }
     tapTimer.current = setTimeout(() => { tapTimer.current = undefined; lightFeedback(); handlers.current.actions(row, pageY); }, 230);
   };
+  // Desktop (Telegram Desktop / Discord): a click does nothing, a double click replies, the right
+  // button opens the menu at the cursor, and hovering shows a small toolbar.
+  const desktop = Platform.OS === 'web' && wide;
+  const rootRef = useRef<View>(null);
+  const [hovered, setHovered] = useState(false);
+  useEffect(() => {
+    const node = rootRef.current as unknown as HTMLElement | null;
+    if (!desktop || !node?.addEventListener) return;
+    const onMenu = (event: MouseEvent) => { if (!message && !p) return; event.preventDefault(); handlers.current.actions(row, event.clientY, event.clientX); };
+    const onDouble = (event: MouseEvent) => { if (selecting || !decrypted) return; event.preventDefault(); window.getSelection?.()?.removeAllRanges(); handlers.current.reply(message!); };
+    const enter = () => setHovered(true), leave = () => setHovered(false);
+    node.addEventListener('contextmenu', onMenu); node.addEventListener('dblclick', onDouble); node.addEventListener('mouseenter', enter); node.addEventListener('mouseleave', leave);
+    return () => { node.removeEventListener('contextmenu', onMenu); node.removeEventListener('dblclick', onDouble); node.removeEventListener('mouseenter', enter); node.removeEventListener('mouseleave', leave); };
+  }, [desktop, row, message, p, selecting, decrypted]);
   const longPress = (pageY: number) => { if (tapTimer.current) { clearTimeout(tapTimer.current); tapTimer.current = undefined; } if (selecting) { handlers.current.toggleSelect(row); return; } impactFeedback(); handlers.current.actions(row, pageY); };
   return <Animated.View entering={fresh ? FadeInDown.duration(220) : undefined}>
     {showDay ? <View style={{ alignSelf: 'center', backgroundColor: t.black ? 'rgba(0,0,0,0.68)' : t.dark ? 'rgba(30,36,53,0.68)' : 'rgba(255,255,255,0.52)', borderWidth: 1, borderColor: t.dark ? 'rgba(255,255,255,0.08)' : 'rgba(255,255,255,0.88)', paddingVertical: 6, paddingHorizontal: 14, borderRadius: 14, marginTop: 15, marginBottom: 18 }}><Text style={{ color: t.muted, fontSize: 10, fontWeight: '600' }}>{formatDay(row.createdAt)}</Text></View> : null}
-    <Pressable onPress={event => press(event.nativeEvent.pageY)} onLongPress={event => longPress(event.nativeEvent.pageY)} delayLongPress={400} accessible={false} style={{ flexDirection: 'row', alignItems: 'center', backgroundColor: selected ? t.accentSoft : 'transparent', borderRadius: 14, marginHorizontal: -6, paddingHorizontal: 6 }}>
+    <View ref={rootRef}>
+    {desktop && hovered && !selecting && (message || p) ? <View style={{ position: 'absolute', top: -14, right: 12, zIndex: 3, flexDirection: 'row', borderRadius: 12, padding: 2, backgroundColor: t.glassOpaque, borderWidth: 1, borderColor: t.border, shadowColor: '#000', shadowOpacity: .18, shadowRadius: 8, shadowOffset: { width: 0, height: 3 } }}>
+      {decrypted ? <HoverButton icon="happy-outline" label="Реакция" onPress={(x, y) => handlers.current.actions(row, y, x)} /> : null}
+      {decrypted ? <HoverButton icon="arrow-undo-outline" label="Ответить" onPress={() => handlers.current.reply(message!)} /> : null}
+      <HoverButton icon="ellipsis-horizontal" label="Ещё" onPress={(x, y) => handlers.current.actions(row, y, x)} />
+    </View> : null}
+    <Pressable onPress={event => desktop ? (selecting ? press() : undefined) : press(event.nativeEvent.pageY)} onLongPress={event => longPress(event.nativeEvent.pageY)} delayLongPress={400} accessible={false} style={{ flexDirection: 'row', alignItems: 'center', backgroundColor: selected ? t.accentSoft : desktop && hovered ? (t.dark ? 'rgba(255,255,255,0.03)' : 'rgba(0,0,0,0.025)') : 'transparent', borderRadius: 14, marginHorizontal: -6, paddingHorizontal: 6 }}>
     {selecting ? <View style={{ width: 30, alignItems: 'flex-start' }}><Icon name={selected ? 'checkmark-circle' : 'ellipse-outline'} size={24} color={selected ? t.accent : t.subtle} /></View> : null}
     <View style={{ flex: 1 }}>
     <SwipeToReply enabled={!selecting && !!message && message.cryptoState === 'decrypted'} onReply={() => message && handlers.current.reply(message)}>
@@ -158,8 +178,17 @@ function MessageRowView({ row, olderCreatedAt, mine, author, peerLastRead, wide,
     </SwipeToReply>
     </View>
     </Pressable>
+    </View>
   </Animated.View>;
 }
 
 /** Re-renders only when this row's own data changes, not on every keystroke in the composer. */
 export const MessageRow = memo(MessageRowView);
+
+function HoverButton({ icon, label, onPress }: { icon: React.ComponentProps<typeof Icon>['name']; label: string; onPress: (x: number, y: number) => void }) {
+  const t = useTheme();
+  return <Pressable accessibilityRole="button" accessibilityLabel={label} onPress={event => onPress(event.nativeEvent.pageX, event.nativeEvent.pageY)}
+    style={state => ({ width: 32, height: 30, borderRadius: 9, alignItems: 'center', justifyContent: 'center', backgroundColor: (state as { hovered?: boolean }).hovered ? t.accentSoft : 'transparent' })}>
+    <Icon name={icon} size={17} color={t.muted} />
+  </Pressable>;
+}

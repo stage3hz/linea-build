@@ -56,7 +56,7 @@ const fade=(hex:string,alpha:number)=>{const m=/^#([0-9a-f]{6})$/i.exec(hex);if(
 
 export function ChatScreen({api,user,chat,store,onBack,wide=false,onOpenMusic}: {api:Api;user:User;chat:Chat;store:MessengerStore;onBack:()=>void;wide?:boolean;onOpenMusic?:()=>void}) {
   const calls=useCalls();const insets=useSafeAreaInsets();const platina=usePlatina(api,user.id);
-  const t=useTheme();const [attachMenu,setAttachMenu]=useState(false);const [uploading,setUploading]=useState(false);const [downloadId,setDownloadId]=useState<string|null>(null);const [localError,setLocalError]=useState('');const [preview,setPreview]=useState<Attachment|null>(null);const [peerInfo,setPeerInfo]=useState(false);const [actions,setActions]=useState<Row|null>(null);const [menuY,setMenuY]=useState(0);const [copied,setCopied]=useState(false);
+  const t=useTheme();const [attachMenu,setAttachMenu]=useState(false);const [uploading,setUploading]=useState(false);const [downloadId,setDownloadId]=useState<string|null>(null);const [localError,setLocalError]=useState('');const [preview,setPreview]=useState<Attachment|null>(null);const [peerInfo,setPeerInfo]=useState(false);const [actions,setActions]=useState<Row|null>(null);const [menuX,setMenuX]=useState<number|undefined>(undefined);const [menuY,setMenuY]=useState(0);const [copied,setCopied]=useState(false);
   const [securityOpen,setSecurityOpen]=useState(false);
   const photoContext=`${user.id}:${chat.id}`;const currentPhotoContext=useRef(photoContext);currentPhotoContext.current=photoContext;
   const text=store.drafts[chat.id]||'';const attachments=store.draftFiles[chat.id]||[];
@@ -229,7 +229,7 @@ export function ChatScreen({api,user,chat,store,onBack,wide=false,onOpenMusic}: 
   };
 
   const handlers=useRef<RowHandlers>(null as unknown as RowHandlers);
-  handlers.current={actions:(row,y)=>{setMenuY(y);setActions(row);},jumpTo,open:openAttachment,react,retry:pending=>void store.retry(pending),cancel:pending=>store.cancelPending(pending),reply:message=>{setEditing(null);setReplyTo(message);},vote:(message,options)=>store.sendAction(chat.id,{type:'vote',target:message.clientId,options},replyPreview(message)),toggleSelect};
+  handlers.current={actions:(row,y,x)=>{setMenuY(y);setMenuX(x);setActions(row);},jumpTo,open:openAttachment,react,retry:pending=>void store.retry(pending),cancel:pending=>store.cancelPending(pending),reply:message=>{setEditing(null);setReplyTo(message);},vote:(message,options)=>store.sendAction(chat.id,{type:'vote',target:message.clientId,options},replyPreview(message)),toggleSelect};
   if(seen.current===null&&rows.length)seen.current=new Set(rows.map(row=>row.key));
   const fresh=(key:string)=>{if(!seen.current)return false;if(seen.current.has(key))return false;seen.current.add(key);return true;};
   const peerLastRead=chat.peerLastReadMessageId,peerName=chat.peer.displayName;
@@ -263,6 +263,45 @@ export function ChatScreen({api,user,chat,store,onBack,wide=false,onOpenMusic}: 
   // light band over a dark wallpaper; a photo wallpaper gets a soft dark fade.
   const preset=wallpaper.kind==='preset'?WALLPAPERS.find(item=>item.id===wallpaper.id)?.colors:null;
   const edge=preset?{top:preset[0],bottom:preset[preset.length-1],alpha:.9}:wallpaper.kind==='image'?{top:'#000000',bottom:'#000000',alpha:.5}:{top:t.bg,bottom:t.bg,alpha:.96};
+  // Desktop (Telegram Desktop / Discord): a full-width bar — who, status, and the actions at hand.
+  // Desktop: drop or paste files into the chat; keyboard as in Telegram Desktop / Discord.
+  const [dropping,setDropping]=useState(false);
+  const desktopRef=useRef({upload,text,editing,replyTo,searchOpen,messages:view.messages});desktopRef.current={upload,text,editing,replyTo,searchOpen,messages:view.messages};
+  useEffect(()=>{
+    if(Platform.OS!=='web'||!wide||typeof window==='undefined')return;
+    const take=async(files:File[])=>{for(const file of files){try{await desktopRef.current.upload({uri:URL.createObjectURL(file),name:file.name||'файл',mimeType:file.type||'application/octet-stream',size:file.size,file});}catch(e){setLocalError(e instanceof Error?e.message:'Не удалось добавить файл.');break;}}};
+    let depth=0;
+    const hasFiles=(e:DragEvent)=>!!e.dataTransfer&&Array.from(e.dataTransfer.types||[]).includes('Files');
+    const enter=(e:DragEvent)=>{if(!hasFiles(e))return;e.preventDefault();depth++;setDropping(true);};
+    const over=(e:DragEvent)=>{if(hasFiles(e))e.preventDefault();};
+    const leave=(e:DragEvent)=>{if(!hasFiles(e))return;depth=Math.max(0,depth-1);if(!depth)setDropping(false);};
+    const drop=(e:DragEvent)=>{if(!hasFiles(e))return;e.preventDefault();depth=0;setDropping(false);void take(Array.from(e.dataTransfer!.files));};
+    const paste=(e:ClipboardEvent)=>{const files=Array.from(e.clipboardData?.files||[]);if(!files.length)return;e.preventDefault();void take(files);};
+    const key=(e:KeyboardEvent)=>{
+      const d=desktopRef.current;const mod=e.ctrlKey||e.metaKey;
+      if(mod&&!e.shiftKey&&(e.key==='f'||e.key==='F'||e.key==='а'||e.key==='А')){e.preventDefault();setSearchOpen(true);return;}
+      if(e.key==='Escape'){if(d.searchOpen){setSearchOpen(false);setQuery('');return;}if(d.editing){setEditing(null);store.setDraft(chat.id,'');return;}if(d.replyTo){setReplyTo(null);return;}}
+      // ↑ in an empty field edits your last message.
+      if(e.key==='ArrowUp'&&!mod&&!e.altKey&&!d.text&&!d.editing){const target=e.target as HTMLElement|null;if(target?.tagName!=='TEXTAREA'&&target?.tagName!=='INPUT')return;
+        const last=[...d.messages].reverse().find(m=>m.senderId===user.id&&m.cryptoState==='decrypted'&&!!m.text&&!m.meta?.poll);if(!last)return;e.preventDefault();setReplyTo(null);setEditing(last);store.setDraft(chat.id,last.text);}
+    };
+    window.addEventListener('dragenter',enter);window.addEventListener('dragover',over);window.addEventListener('dragleave',leave);window.addEventListener('drop',drop);window.addEventListener('paste',paste);window.addEventListener('keydown',key,true);
+    return()=>{window.removeEventListener('dragenter',enter);window.removeEventListener('dragover',over);window.removeEventListener('dragleave',leave);window.removeEventListener('drop',drop);window.removeEventListener('paste',paste);window.removeEventListener('keydown',key,true);};
+  },[wide,chat.id,user.id]);
+  const desktopHeader=()=>{const hover=(state:{pressed:boolean})=>{const h=(state as {hovered?:boolean}).hovered;return {width:40,height:40,borderRadius:12,alignItems:'center' as const,justifyContent:'center' as const,backgroundColor:h?(t.dark?'rgba(255,255,255,0.08)':'rgba(0,0,0,0.05)'):'transparent',opacity:state.pressed?.6:1};};
+    return <View style={{height:60,marginTop:-8,flexDirection:'row',alignItems:'center',gap:12,paddingHorizontal:16,backgroundColor:t.glassOpaque,borderBottomWidth:1,borderColor:t.border}}>
+      <Pressable onPress={()=>setPeerInfo(true)} accessibilityRole="button" accessibilityLabel={`Профиль ${chat.peer.displayName}`}><DecoratedAvatar user={chat.peer} api={api} size={40} animated/></Pressable>
+      <Pressable onPress={()=>setPeerInfo(true)} accessibilityRole="button" style={{flex:1,minWidth:0,gap:2}}>
+        <View style={{flexDirection:'row',gap:6,alignItems:'center'}}><PlatinaName user={chat.peer} numberOfLines={1} style={{flexShrink:1,color:t.text,fontSize:16,fontWeight:'700',letterSpacing:-.2}}/>{hasPlatina(chat.peer)?<PlatinaGem size={12}/>:null}<StatusEmoji user={chat.peer} size={16} animated/></View>
+        <Text numberOfLines={1} style={{color:headerStatus.accent?t.accent:t.muted,fontSize:12.5}}>{headerStatus.text}</Text>
+      </Pressable>
+      <Pressable onPress={()=>{setSearchOpen(open=>!open);setQuery('');}} accessibilityRole="button" accessibilityLabel="Поиск в этом чате (Ctrl+F)" style={hover}><Icon name="search-outline" size={20} color={searchOpen?t.accent:t.muted}/></Pressable>
+      {calls.available?<Pressable onPress={()=>calls.start(chat,false)} accessibilityRole="button" accessibilityLabel="Позвонить" style={hover}><Icon name="call-outline" size={20} color={t.muted}/></Pressable>:null}
+      {calls.available?<Pressable onPress={()=>calls.start(chat,true)} accessibilityRole="button" accessibilityLabel="Видеозвонок" style={hover}><Icon name="videocam-outline" size={21} color={t.muted}/></Pressable>:null}
+      <Pressable onPress={()=>setMediaOpen(true)} accessibilityRole="button" accessibilityLabel="Медиа и файлы чата" style={hover}><Icon name="images-outline" size={20} color={t.muted}/></Pressable>
+      <Pressable onPress={()=>setPeerInfo(true)} accessibilityRole="button" accessibilityLabel="Информация" style={hover}><Icon name="information-circle-outline" size={22} color={t.muted}/></Pressable>
+    </View>;};
+
   return <VoicePlaybackProvider api={api}><KeyboardSafeView style={{flex:1,backgroundColor:'transparent',marginTop:wide?0:-insets.top}}><View style={{flex:1}}>
     <ChatWallpaper choice={wallpaper} style={{top:-80,bottom:-60}}/>
     {/* Like Telegram: messages fade out under the status bar + header and under the composer
@@ -274,7 +313,7 @@ export function ChatScreen({api,user,chat,store,onBack,wide=false,onOpenMusic}: 
       <GlassSurface material="regular" radius={24} interactive contentStyle={{height:48,justifyContent:'center',paddingHorizontal:16}}><Pressable onPress={()=>setSelection(null)} accessibilityRole="button" hitSlop={8}><Text style={{color:t.accent,fontSize:16,fontWeight:'600'}}>Отмена</Text></Pressable></GlassSurface>
       <View style={{flex:1,alignItems:'center'}}><GlassSurface material="regular" radius={24} contentStyle={{height:48,justifyContent:'center',paddingHorizontal:18}}><Text style={{color:t.text,fontSize:16,fontWeight:'700'}}>Выбрано: {selectedMessages.length}</Text></GlassSurface></View>
       <GlassSurface material="regular" radius={24} interactive contentStyle={{height:48,width:48,alignItems:'center',justifyContent:'center'}}><Pressable onPress={()=>void copy(selectedMessages.map(m=>m.meta?.poll?replyPreview(m):m.text).filter(Boolean).join('\n\n')).then(()=>setSelection(null))} disabled={!selectedMessages.some(m=>m.text)} accessibilityRole="button" accessibilityLabel="Скопировать выбранные" style={{opacity:selectedMessages.some(m=>m.text)?1:.4}}><Icon name="copy-outline" size={21} color={t.accent}/></Pressable></GlassSurface>
-    </View>:<View style={{flexDirection:'row',alignItems:'center',gap:8,paddingHorizontal:12}}>
+    </View>:wide?desktopHeader():<View style={{flexDirection:'row',alignItems:'center',gap:8,paddingHorizontal:12}}>
       {/* Telegram: the name sits exactly in the middle of the screen — equal side columns, not «what is left». */}
       <View style={{flex:1,alignItems:'flex-start'}}>{!wide?<GlassSurface material="regular" radius={26} interactive style={{height:44,maxHeight:44,flexGrow:0,flexShrink:0}} contentStyle={{height:44,maxHeight:44,flexGrow:0,flexShrink:0,minWidth:44,flexDirection:'row',alignItems:'center',justifyContent:'center',paddingHorizontal:otherUnread?10:0,gap:4}}><Pressable onPress={onBack} accessibilityRole="button" accessibilityLabel={`Назад к чатам${otherUnread?`, непрочитанных ${otherUnread}`:''}`} hitSlop={6} style={{flexDirection:'row',alignItems:'center',gap:4}}><Icon name="chevron-back" size={26} color={t.text}/>{otherUnread?<View style={{minWidth:22,height:22,borderRadius:11,paddingHorizontal:6,backgroundColor:t.text,alignItems:'center',justifyContent:'center'}}><Text style={{color:t.dark?'#000':'#FFF',fontSize:12,fontWeight:'700'}}>{otherUnread>99?'99+':otherUnread}</Text></View>:null}</Pressable></GlassSurface>:null}</View>
       {/* As in Telegram: the name in the middle, the avatar on the right. The name opens the chat's
@@ -369,7 +408,8 @@ export function ChatScreen({api,user,chat,store,onBack,wide=false,onOpenMusic}: 
     </SafeAreaView></GlassStage></Modal>:null}
     {peerInfo?<UserProfile api={api} user={chat.peer} chat={chat} shared={view.messages} onOpenAttachment={openAttachment} status={headerStatus.text.startsWith('@')||headerStatus.text.endsWith('…')?undefined:headerStatus.text} onClose={()=>setPeerInfo(false)} onMute={muted=>store.updateChatSettings(chat.id,{muted})} onSearch={()=>{setSearchOpen(true);setQuery('');}} onSecurity={()=>setTimeout(()=>setSecurityOpen(true),350)} onWallpaper={()=>setTimeout(()=>setWallpaperOpen(true),350)} rules={view.rules} onRules={rules=>store.sendAction(chat.id,{type:'settings',ttl:rules.ttl,noCopy:rules.noCopy})} onClear={()=>store.sendAction(chat.id,{type:'clear'})}/>:null}
     <WallpaperPicker visible={wallpaperOpen} onClose={()=>setWallpaperOpen(false)} chatId={chat.id}/>
-    <ContextMenu visible={!!actions} y={menuY} onClose={()=>setActions(null)} preview={actions?(actions.message?.text||actions.pending?.text||(actions.message?.attachment||actions.pending?.attachment?attachmentLabel((actions.message?.attachment||actions.pending?.attachment)!):'')):''} mine={!!actions&&(!!actions.pending||actions.message?.senderId===user.id)} reactions={actions?.message&&actions.message.cryptoState==='decrypted'?REACTIONS.map(emoji=>({emoji,chosen:actions.message!.reactions.some(r=>r.mine&&r.emoji===emoji)})):undefined} onReact={emoji=>{if(actions?.message){react(actions.message,emoji as Reaction);setActions(null);}}}>
+    {dropping?<View pointerEvents="none" style={{position:'absolute',top:12,left:12,right:12,bottom:12,zIndex:20,borderRadius:24,borderWidth:2,borderStyle:'dashed',borderColor:t.accent,backgroundColor:t.dark?'rgba(10,14,24,0.72)':'rgba(255,255,255,0.78)',alignItems:'center',justifyContent:'center',gap:10}}><Icon name="cloud-upload-outline" size={44} color={t.accent}/><Text style={{color:t.text,fontSize:20,fontWeight:'700'}}>Отпусти, чтобы прикрепить</Text><Text style={{color:t.muted,fontSize:13}}>Файлы зашифруются перед отправкой</Text></View>:null}
+    <ContextMenu visible={!!actions} y={menuY} x={menuX} onClose={()=>setActions(null)} preview={actions?(actions.message?.text||actions.pending?.text||(actions.message?.attachment||actions.pending?.attachment?attachmentLabel((actions.message?.attachment||actions.pending?.attachment)!):'')):''} mine={!!actions&&(!!actions.pending||actions.message?.senderId===user.id)} reactions={actions?.message&&actions.message.cryptoState==='decrypted'?REACTIONS.map(emoji=>({emoji,chosen:actions.message!.reactions.some(r=>r.mine&&r.emoji===emoji)})):undefined} onReact={emoji=>{if(actions?.message){react(actions.message,emoji as Reaction);setActions(null);}}}>
       {actions?.message&&actions.message.cryptoState==='decrypted'?<MenuItem icon="arrow-undo-outline" label="Ответить" onPress={()=>{setEditing(null);setReplyTo(actions.message!);setActions(null);}}/>:null}
       {!locked&&(actions?.message?.text||actions?.pending?.text)?<MenuItem icon="copy-outline" label="Скопировать" onPress={()=>void copy(actions?.message?.text||actions?.pending?.text||'')}/>:null}
       {!locked&&(actions?.message?.attachment||actions?.pending?.attachment)?<MenuItem icon="download-outline" label="Сохранить" onPress={()=>{const a=actions?.message?.attachment||actions?.pending?.attachment;setActions(null);if(a)void download(a);}}/>:null}
