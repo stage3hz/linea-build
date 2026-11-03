@@ -19,8 +19,6 @@ import { existsSync, mkdirSync, readFileSync, renameSync, writeFileSync, createW
 import { pipeline } from 'node:stream/promises';
 import { dirname, join, relative, resolve } from 'node:path';
 import { DatabaseSync } from 'node:sqlite';
-import { buildApp } from './app.js';
-import { appOptions } from './options.js';
 
 const log = (...a) => console.log(new Date().toISOString(), '[cluster]', ...a);
 
@@ -32,9 +30,10 @@ export function clusterConfig(env = process.env) {
   const token = env.CLUSTER_TOKEN || '';
   if (token.length < 32) throw new Error('CLUSTER_TOKEN: at least 32 random characters, the same on every server');
   const replicas = (env.CLUSTER_REPLICA || '').split(/\s+/).filter(Boolean);
-  if (!replicas.length) throw new Error('CLUSTER_REPLICA: storage for the database copy, e.g. s3://bucket/invizent');
+  const witness = env.CLUSTER_WITNESS === '1';
+  if (!replicas.length && !witness) throw new Error('CLUSTER_REPLICA: storage for the database copy, e.g. s3://bucket/invizent');
   return {
-    self, selfUrl: env.CLUSTER_SELF_URL || '', peers, token, replicas,
+    self, selfUrl: env.CLUSTER_SELF_URL || '', peers, token, replicas, witness,
     leaseMs: Number(env.CLUSTER_LEASE_MS || 8000), bootstrap: env.CLUSTER_BOOTSTRAP === '1',
     litestream: env.LITESTREAM_BIN || 'litestream', dataDir: resolve(env.DATA_DIR || 'data'),
   };
@@ -53,8 +52,66 @@ export function shouldGrantVote({ myEpoch, votedEpoch, heardLeaderAgoMs, leaseMs
   return position >= myPosition;
 }
 
+/**
+ * Vote rule of a witness (unit-tested). A witness keeps no database, so it cannot compare copies;
+ * instead it remembers the epoch of the last primary it heard and votes only for a server that was
+ * following that very primary. A server that was switched off while the primary ran (an old copy)
+ * never wins with the witness's vote.
+ */
+export function witnessGrantsVote({ myEpoch, votedEpoch, heardLeaderAgoMs, leaseMs, lastLeaderEpoch }, { epoch, followEpoch }) {
+  if (!(epoch > myEpoch) || votedEpoch >= epoch) return false;
+  if (heardLeaderAgoMs < leaseMs) return false;
+  return Number.isSafeInteger(followEpoch) && followEpoch >= lastLeaderEpoch;
+}
+
+/**
+ * Witness: the cheapest third server. It only votes (2 servers with data + 1 witness = a majority
+ * survives the loss of any one), never becomes primary, keeps no data and serves no app.
+ */
+export async function startWitness({ port, host, cfg = clusterConfig() }) {
+  const statePath = join(cfg.dataDir, 'witness.json');
+  mkdirSync(cfg.dataDir, { recursive: true });
+  let saved = { epoch: 0, votedEpoch: 0, lastLeaderEpoch: 0, leaderId: null };
+  try { saved = { ...saved, ...JSON.parse(readFileSync(statePath, 'utf8')) }; } catch { /* first start */ }
+  const persist = () => { writeFileSync(statePath + '.tmp', JSON.stringify(saved)); renameSync(statePath + '.tmp', statePath); };
+  let heardLeaderAt = Date.now(), heartbeatAt = 0;
+  const authOk = req => { const got = String(req.headers['x-cluster-token'] || ''); return timingSafeEqual(createHash('sha256').update(got).digest(), createHash('sha256').update(cfg.token).digest()); };
+  const body = req => new Promise(r => { let b = ''; req.on('data', d => { b += d; if (b.length > 65536) req.destroy(); }); req.on('end', () => { try { r(JSON.parse(b || '{}')); } catch { r({}); } }); });
+  const json = (res, code, value) => { res.writeHead(code, { 'content-type': 'application/json', 'cache-control': 'no-store' }); res.end(JSON.stringify(value)); };
+  const server = http.createServer(async (req, res) => {
+    const path = (req.url || '').split('?')[0];
+    // Apps must never pick a witness as their server: it always answers 503 to them, so they move
+    // on to a real one. The body still says whether the witness hears a primary (for monitoring).
+    // Docker's own health check asks /health?local=1 from inside the container.
+    if (path === '/health' && /[?&]local=1(&|$)/.test(req.url || '') && !req.headers['x-forwarded-for']) return json(res, 200, { status: 'ok', role: 'witness' });
+    if (path === '/health') return json(res, 503, { status: 'witness', role: 'witness', hearsPrimary: Date.now() - heartbeatAt < 2 * cfg.leaseMs, epoch: saved.epoch, leader: saved.leaderId });
+    if (!path.startsWith('/cluster/')) { res.writeHead(503, { 'retry-after': '1', 'content-type': 'application/json' }); return res.end('{"error":"witness"}'); }
+    if (!authOk(req)) return json(res, 403, { error: 'forbidden' });
+    if (path === '/cluster/heartbeat') {
+      const b = await body(req);
+      if (!(b.epoch >= saved.epoch)) return json(res, 200, { ok: false, epoch: saved.epoch });
+      if (b.epoch > saved.epoch || saved.leaderId !== b.id || saved.lastLeaderEpoch !== b.epoch) { saved.epoch = b.epoch; saved.lastLeaderEpoch = b.epoch; saved.leaderId = b.id; persist(); log(`witness: primary ${b.id} in epoch ${b.epoch}`); }
+      heardLeaderAt = heartbeatAt = Date.now();
+      return json(res, 200, { ok: true, epoch: saved.epoch });
+    }
+    if (path === '/cluster/vote') {
+      const b = await body(req);
+      const grant = witnessGrantsVote({ myEpoch: saved.epoch, votedEpoch: saved.votedEpoch, heardLeaderAgoMs: Date.now() - heardLeaderAt, leaseMs: cfg.leaseMs, lastLeaderEpoch: saved.lastLeaderEpoch }, b);
+      if (grant) { saved.votedEpoch = b.epoch; persist(); heardLeaderAt = Date.now(); log(`witness: vote for ${b.id} in epoch ${b.epoch}`); }
+      return json(res, 200, { granted: grant, epoch: saved.epoch });
+    }
+    if (path === '/cluster/state') return json(res, 200, { self: cfg.self, role: 'witness', epoch: saved.epoch, leader: saved.leaderId, lastLeaderEpoch: saved.lastLeaderEpoch });
+    return json(res, 404, {});
+  });
+  await new Promise(r => server.listen(port, host, r));
+  log(`witness ${cfg.self} on ${host}:${port}, lease ${cfg.leaseMs} ms`);
+  for (const signal of ['SIGINT', 'SIGTERM']) process.once(signal, () => { server.close(); process.exit(0); });
+  return server;
+}
+
 export async function startCluster({ port, host }) {
   const cfg = clusterConfig();
+  if (cfg.witness) return startWitness({ port, host, cfg });
   const size = cfg.peers.length + 1;
   const dbPath = join(cfg.dataDir, 'linea.sqlite');
   const statePath = join(cfg.dataDir, 'cluster.json');
@@ -134,6 +191,7 @@ export async function startCluster({ port, host }) {
 
   // ---- the app (primary only) ----
   const startApp = async () => {
+    const [{ buildApp }, { appOptions }] = await Promise.all([import('./app.js'), import('./options.js')]);
     app = await buildApp(appOptions({ trustProxy: ['127.0.0.1'] }));
     await app.listen({ host: '127.0.0.1', port: appPort });
   };
@@ -189,7 +247,7 @@ export async function startCluster({ port, host }) {
       saved.votedEpoch = epoch; persist();
       const pos = position();
       log(`no primary for ${Math.round((now - heardLeaderAt) / 1000)}s, asking for votes in epoch ${epoch} (position ${pos})`);
-      const votes = await Promise.all(cfg.peers.map(p => call(p.url, '/cluster/vote', { epoch, id: cfg.self, url: cfg.selfUrl, position: pos })));
+      const votes = await Promise.all(cfg.peers.map(p => call(p.url, '/cluster/vote', { epoch, id: cfg.self, url: cfg.selfUrl, position: pos, followEpoch: saved.followEpoch ?? 0 })));
       const higher = votes.find(v => v && v.epoch > epoch);
       if (higher) { saved.epoch = higher.epoch; persist(); }
       else if (1 + votes.filter(v => v?.granted).length >= majority(size) && Date.now() - heardLeaderAt >= cfg.leaseMs) { saved.epoch = epoch; persist(); await becomeLeader(epoch); }

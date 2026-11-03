@@ -1,0 +1,4 @@
+{$WITNESS_HOST} {
+	header -Server
+	reverse_proxy witness:3001
+}

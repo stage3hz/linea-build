@@ -1,0 +1,68 @@
+# Witness server (deploy/cluster.md): the cheapest VPS, only votes in elections, keeps no chats.
+# Runs the server code with plain Node (no build, no npm packages) behind Caddy for HTTPS.
+name: invizent-witness
+
+services:
+  witness:
+    image: node:24-slim
+    restart: unless-stopped
+    init: true
+    read_only: true
+    cap_drop: [ALL]
+    security_opt: [no-new-privileges:true]
+    pids_limit: 64
+    mem_limit: 128m
+    working_dir: /app
+    command: ['node', 'src/index.js']
+    environment:
+      CLUSTER_WITNESS: '1'
+      CLUSTER_SELF: ${CLUSTER_SELF:?Set CLUSTER_SELF in deploy/.env.witness}
+      CLUSTER_PEERS: ${CLUSTER_PEERS:?Set CLUSTER_PEERS in deploy/.env.witness}
+      CLUSTER_TOKEN: ${CLUSTER_TOKEN:?Set CLUSTER_TOKEN in deploy/.env.witness}
+      CLUSTER_LEASE_MS: ${CLUSTER_LEASE_MS:-8000}
+      PORT: '3001'
+      HOST: '0.0.0.0'
+      DATA_DIR: /data
+    volumes:
+      - ../server/src:/app/src:ro
+      - ../server/package.json:/app/package.json:ro
+      - witness-data:/data
+    healthcheck:
+      test: ['CMD', 'node', '-e', "fetch('http://127.0.0.1:3001/health?local=1').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+    logging:
+      driver: json-file
+      options: { max-size: 10m, max-file: '3' }
+
+  caddy:
+    image: caddy:2.11.7-alpine
+    restart: unless-stopped
+    depends_on:
+      witness:
+        condition: service_healthy
+    read_only: true
+    tmpfs:
+      - /tmp:size=16m,mode=1777
+    cap_drop: [ALL]
+    cap_add: [NET_BIND_SERVICE]
+    security_opt: [no-new-privileges:true]
+    mem_limit: 128m
+    ports:
+      - '80:80'
+      - '443:443'
+    environment:
+      WITNESS_HOST: ${WITNESS_HOST:?Set WITNESS_HOST in deploy/.env.witness}
+    volumes:
+      - ./Caddyfile.witness:/etc/caddy/Caddyfile:ro
+      - caddy-data:/data
+      - caddy-config:/config
+    logging:
+      driver: json-file
+      options: { max-size: 10m, max-file: '3' }
+
+volumes:
+  witness-data:
+  caddy-data:
+  caddy-config:

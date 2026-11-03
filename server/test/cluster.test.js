@@ -23,3 +23,19 @@ test('config is checked before anything starts', () => {
   assert.throws(() => clusterConfig({ ...ok, CLUSTER_REPLICA: '' }), /CLUSTER_REPLICA/);
   assert.throws(() => clusterConfig({ ...ok, CLUSTER_PEERS: '[{"id":"BAD ID","url":"x"}]' }), /CLUSTER_PEERS/);
 });
+
+test('witness votes only for a server that followed the last primary it heard', async () => {
+  const { witnessGrantsVote } = await import('../src/cluster.js');
+  const w = { myEpoch: 6, votedEpoch: 6, heardLeaderAgoMs: 20000, leaseMs: 8000, lastLeaderEpoch: 6 };
+  assert.equal(witnessGrantsVote(w, { epoch: 7, followEpoch: 6 }), true);
+  assert.equal(witnessGrantsVote(w, { epoch: 7, followEpoch: 5 }), false, 'was switched off during epoch 6: old copy');
+  assert.equal(witnessGrantsVote(w, { epoch: 7 }), false, 'unknown freshness');
+  assert.equal(witnessGrantsVote({ ...w, heardLeaderAgoMs: 1000 }, { epoch: 7, followEpoch: 6 }), false, 'primary still alive');
+  assert.equal(witnessGrantsVote({ ...w, votedEpoch: 7 }, { epoch: 7, followEpoch: 6 }), false, 'one vote per epoch');
+  assert.equal(witnessGrantsVote(w, { epoch: 6, followEpoch: 6 }), false, 'not a newer epoch');
+});
+
+test('a witness needs no storage settings', () => {
+  const env = { CLUSTER_SELF: 'w', CLUSTER_PEERS: '[{"id":"msk","url":"https://api.invizent.com"}]', CLUSTER_TOKEN: 'x'.repeat(32), CLUSTER_WITNESS: '1' };
+  assert.equal(clusterConfig(env).witness, true);
+});
