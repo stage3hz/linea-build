@@ -23,6 +23,8 @@ import { setCommunityChannels, useChannelCounts } from './unread';
 import { badgeText } from '../unreadBadge';
 import { joinVoice, leaveVoice, toggleVoiceMute, toggleVoiceSpeaker, toggleVoiceDeafen, useVoice, voiceAvailable } from './voice';
 
+// On a wide screen the list stays a column (like Discord / Telegram) so counters sit next to the names.
+export const LIST_WIDTH = 400;
 type Pushed = { kind: 'channel'; channel: CommunityChannel } | { kind: 'settings' } | null;
 
 /** A community: Discord-style channel list for game servers, the post feed for blogs. */
@@ -88,7 +90,7 @@ export function CommunityScreen({ api, me, store, communityId, onBack, onOpenInv
     {header(community.name, count, onBack, tools)}
     {error ? <View style={{ paddingHorizontal: 12 }}><Notice text={error} error /></View> : null}
     {voiceError ? <View style={{ paddingHorizontal: 12 }}><Notice text={voiceError} error /></View> : null}
-    <ScrollView contentContainerStyle={{ padding: 12, paddingBottom: 30 + insets.bottom, gap: 16 }}>
+    <ScrollView contentContainerStyle={{ padding: 12, paddingBottom: 30 + insets.bottom, gap: 16, width: '100%', maxWidth: LIST_WIDTH }}>
       {community.description ? <Text style={{ color: t.muted, fontSize: 14, lineHeight: 20, paddingHorizontal: 6 }}>{community.description}</Text> : null}
       {groups.map(([category, channels]) => <View key={category} style={{ gap: 4 }}>
         <Text style={{ color: t.muted, fontSize: 11, fontWeight: '700', letterSpacing: 1, paddingHorizontal: 8, paddingBottom: 2 }}>{category.toUpperCase()}</Text>
@@ -181,8 +183,10 @@ function TextChannelLabel({ channel, locked }: { channel: CommunityChannel; lock
   const t = useTheme(); const { unread, mentions } = useChannelCounts(channel.id);
   return <>
     {unread ? <View accessibilityElementsHidden importantForAccessibility="no" style={{ position: 'absolute', left: -2, width: 5, height: 9, borderRadius: 3, backgroundColor: t.text }} /> : null}
-    <Text numberOfLines={1} accessibilityLabel={`${channel.name}${unread ? `, непрочитанных: ${unread}` : ''}${mentions ? `, упоминаний: ${mentions}` : ''}`} style={{ flex: 1, color: unread ? t.text : t.muted, fontSize: 16, fontWeight: unread ? '700' : '500' }}>{`# ${channel.name}`}</Text>
+    <Text numberOfLines={1} accessibilityLabel={`${channel.name}${unread ? `, непрочитанных: ${unread}` : ''}${mentions ? `, упоминаний: ${mentions}` : ''}`} style={{ flexShrink: 1, color: unread ? t.text : t.muted, fontSize: 16, fontWeight: unread ? '700' : '500' }}>{`# ${channel.name}`}</Text>
     {locked ? <Icon name="lock-closed" size={13} color={t.subtle} /> : null}
+    {/* The counter sits right after the name, where the eye already is. */}
     {mentions ? <View style={{ minWidth: 20, height: 20, paddingHorizontal: 6, borderRadius: 10, backgroundColor: t.accent, alignItems: 'center', justifyContent: 'center' }}><Text style={{ color: t.onAccent, fontSize: 11, fontWeight: '800' }}>{badgeText(mentions)}</Text></View> : null}
+    <View style={{ flex: 1 }} />
   </>;
 }

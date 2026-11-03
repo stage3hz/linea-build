@@ -10,7 +10,7 @@ import { GlassBackdrop, GlassSurface } from '../glass';
 import { Text } from '../typography';
 import { useTheme } from '../theme';
 import { StackBase, StackScreen } from '../stack';
-import { CommunityScreen } from './CommunityScreen';
+import { CommunityScreen, LIST_WIDTH } from './CommunityScreen';
 import { CommunityAvatar, members, subscribers } from './parts';
 import { CATEGORIES, inviteCodeFrom, type CategoryId, type CommunityKind, type CommunitySummary } from './types';
 import { setCommunitySummaries, useCommunityCounts } from './unread';
@@ -47,7 +47,7 @@ export function CommunitiesScreen({ api, me, store, openId, onOpenInvite, onOpen
           <Pressable accessibilityRole="button" accessibilityLabel="Создать" onPress={() => setCreate('choose')} style={{ width: 42, height: 42, borderRadius: 21, backgroundColor: t.accent, alignItems: 'center', justifyContent: 'center' }}><Icon name="add" color={t.onAccent} size={24} /></Pressable>
         </GlassSurface>
         {error ? <View style={{ padding: 14 }}><Notice text={error} error onRetry={load} /></View> : null}
-        {!list ? <ActivityIndicator color={t.accent} style={{ marginTop: 40 }} /> : <FlatList data={rows} keyExtractor={item => 'header' in item ? item.header : item.id} contentContainerStyle={{ padding: 12, paddingBottom: 30 + insets.bottom, flexGrow: 1 }}
+        {!list ? <ActivityIndicator color={t.accent} style={{ marginTop: 40 }} /> : <FlatList data={rows} keyExtractor={item => 'header' in item ? item.header : item.id} contentContainerStyle={{ padding: 12, paddingBottom: 30 + insets.bottom, flexGrow: 1, width: '100%', maxWidth: LIST_WIDTH }}
           ListEmptyComponent={<View style={{ flex: 1, justifyContent: 'center' }}><Empty icon="planet-outline" title="Свои места для своих" description="Создай игровой сервер с текстовыми и голосовыми каналами или стандартный канал — блог, новости, музыку, что угодно." action={<Button label="Создать" icon="add" onPress={() => setCreate('choose')} />} /></View>}
           renderItem={({ item }) => 'header' in item ? <Text style={{ color: t.muted, fontSize: 11, fontWeight: '700', letterSpacing: 1.2, paddingHorizontal: 8, paddingTop: 10, paddingBottom: 6 }}>{item.header.toUpperCase()}</Text> :
             <Pressable onPress={() => onOpened(item.id)} accessibilityRole="button" style={({ pressed }) => ({ flexDirection: 'row', alignItems: 'center', gap: 12, padding: 8, borderRadius: 16, backgroundColor: pressed ? t.accentSoft : 'transparent' })}>
