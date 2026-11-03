@@ -1,4 +1,4 @@
-import React, { useEffect } from 'react';
+import React, { useEffect, useState } from 'react';
 import { Platform, StyleSheet, View, useWindowDimensions } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import MaskedView from '@react-native-masked-view/masked-view';
@@ -48,6 +48,23 @@ function Spin({ size, radius, colors, still }: { size: number; radius: number; c
 }
 
 /** The video avatar: silent loop, cached by the player, the photo shows until the first frame. */
+/**
+ * PC (Electron): a plain <video> cannot send the account token, so the file is fetched through the
+ * app's own authenticated channel (as AuthImage does for pictures) and played from memory.
+ */
+const webVideoCache = new Map<string, Promise<string>>();
+function webVideoUrl(api: Api, id: string) {
+  let url = webVideoCache.get(id);
+  if (!url) { url = fetch(api.fileUrl(id), { headers: { Authorization: `Bearer ${api.token}` } }).then(r => { if (!r.ok) throw new Error('video'); return r.blob(); }).then(blob => URL.createObjectURL(blob)); url.catch(() => webVideoCache.delete(id)); webVideoCache.set(id, url); }
+  return url;
+}
+function WebLoopVideo({ api, id, uri, style }: { api?: Api; id?: string; uri?: string; style: Record<string, unknown> }) {
+  const [src, setSrc] = useState<string | null>(uri ?? null);
+  useEffect(() => { if (uri) { setSrc(uri); return; } let alive = true; if (api && id) webVideoUrl(api, id).then(url => { if (alive) setSrc(url); }).catch(() => {}); return () => { alive = false; }; }, [api?.token, id, uri]);
+  if (!src) return null;
+  return React.createElement('video', { src, autoPlay: true, muted: true, loop: true, playsInline: true, disablePictureInPicture: true, style: { objectFit: 'cover', pointerEvents: 'none', ...style } });
+}
+
 function VideoAvatar({ api, id, size, radius }: { api: Api; id: string; size: number; radius: number }) {
   const player = useVideoPlayer({ uri: api.fileUrl(id), headers: { Authorization: `Bearer ${api.token}` } }, value => { value.loop = true; value.muted = true; value.play(); });
   return <View pointerEvents="none" style={[StyleSheet.absoluteFill, { borderRadius: radius, overflow: 'hidden' }]}>
@@ -64,14 +81,14 @@ export function DecoratedAvatar({ user, api, size = 54, animated = false }: { us
   // Platina without a chosen frame wears the platinum ring.
   const frame = FRAMES.find(item => item.id === (user.avatarFrame || (user.seal === 'platina' ? 'platinum' : '')));
   const live = animated && enabled;
-  const video = live && user.avatarVideoId && Platform.OS !== 'web' ? user.avatarVideoId : null;
+  const video = live && user.avatarVideoId ? user.avatarVideoId : null;
   const decoration = findDecoration(user.avatarFrame);
   // Small (list) sizes: the art may reach at most 1.3× the avatar box so it does not cover the
   // neighbouring rows; the photo shrinks inside to keep filling the opening.
   const face = decoration && size < 64 && decoration.scale > 1.3 ? Math.round(size * 1.3 / decoration.scale) : size;
   const inner = <View style={{ width: face, height: face }}>
     <Avatar user={user} api={api} size={face} round={!!decoration} />
-    {video ? <VideoAvatar api={api} id={video} size={face} radius={decoration ? face / 2 : face * .36} /> : null}
+    {video ? Platform.OS === 'web' ? <View pointerEvents="none" style={[StyleSheet.absoluteFill, { borderRadius: decoration ? face / 2 : face * .36, overflow: 'hidden' }]}><WebLoopVideo api={api} id={video} style={{ width: face, height: face }} /></View> : <VideoAvatar api={api} id={video} size={face} radius={decoration ? face / 2 : face * .36} /> : null}
   </View>;
   // Art decorations draw outside the avatar box (overflow), so rows keep their layout.
   if (decoration) return <View style={{ width: size, height: size, alignItems: 'center', justifyContent: 'center' }}>
@@ -114,9 +131,11 @@ export function ProfileBanner({ user, api, height, width: fixedWidth, preview, l
   const width = fixedWidth ?? screen;
   const soft = !preview && Platform.OS !== 'web';
   let content: React.ReactNode = null;
-  if (local?.video && Platform.OS !== 'web') content = <><LocalVideo uri={local.uri} />{soft && Platform.OS === 'ios' ? <EdgeBlur><BlurView intensity={40} tint="default" style={StyleSheet.absoluteFill} /></EdgeBlur> : null}</>;
+  if (local?.video && Platform.OS === 'web') content = <WebLoopVideo uri={local.uri} style={{ position: 'absolute', inset: 0, width: '100%', height: '100%' }} />;
+  else if (local?.video) content = <><LocalVideo uri={local.uri} />{soft && Platform.OS === 'ios' ? <EdgeBlur><BlurView intensity={40} tint="default" style={StyleSheet.absoluteFill} /></EdgeBlur> : null}</>;
   else if (local) content = <><CachedImage source={{ uri: local.uri }} style={StyleSheet.absoluteFill} contentFit="cover" />{soft ? <EdgeBlur><CachedImage source={{ uri: local.uri }} style={StyleSheet.absoluteFill} contentFit="cover" blurRadius={22} /></EdgeBlur> : null}</>;
-  else if (user.bannerId && user.bannerKind === 'video' && enabled && Platform.OS !== 'web') content = <>
+  else if (user.bannerId && user.bannerKind === 'video' && enabled && Platform.OS === 'web') content = <WebLoopVideo api={api} id={user.bannerId} style={{ position: 'absolute', inset: 0, width: '100%', height: '100%' }} />;
+  else if (user.bannerId && user.bannerKind === 'video' && enabled) content = <>
     <VideoBanner api={api} id={user.bannerId} />
     {/* iOS blurs live content natively; Android keeps the plain video. */}
     {soft && Platform.OS === 'ios' ? <EdgeBlur><BlurView intensity={40} tint="default" style={StyleSheet.absoluteFill} /></EdgeBlur> : null}

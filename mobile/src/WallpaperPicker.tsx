@@ -118,7 +118,7 @@ function WallpaperPreview({ draft, onChange, onCancel, onSet }: { draft: Wallpap
         {draft.kind === 'image' ? <>
           <View style={{ flexDirection: 'row', gap: 8 }}>
             {toggle('Размытие', 'water-outline', draft.blur, () => onChange({ ...draft, blur: !draft.blur }))}
-            {toggle('Движение', 'phone-portrait-outline', draft.motion, () => onChange({ ...draft, motion: !draft.motion }))}
+            {Platform.OS === 'web' ? null : toggle('Движение', 'phone-portrait-outline', draft.motion, () => onChange({ ...draft, motion: !draft.motion }))}
           </View>
           {t.dark ? <View style={{ gap: 6 }}><Text style={{ color: '#FFF', fontSize: 12 }}>Затемнение в тёмной теме</Text><View style={{ flexDirection: 'row', gap: 6 }}>{[0, 0.2, 0.4, 0.6].map(value => <Pressable key={value} onPress={() => onChange({ ...draft, dim: value })} style={{ flex: 1, height: 34, borderRadius: 10, alignItems: 'center', justifyContent: 'center', backgroundColor: draft.dim === value ? 'rgba(255,255,255,0.3)' : 'rgba(0,0,0,0.35)' }}><Text style={{ color: '#FFF', fontSize: 13, fontWeight: '600' }}>{value === 0 ? 'Нет' : `${value * 100}%`}</Text></Pressable>)}</View></View> : null}
         </> : null}

@@ -28,9 +28,9 @@ export type Row = { key: string; message?: ViewMessage; pending?: PendingMessage
 export const MissingRow = memo(function MissingRow({ count }: { count: number }) {
   const t = useTheme();
   const word = count % 10 === 1 && count % 100 !== 11 ? 'сообщение' : count % 10 >= 2 && count % 10 <= 4 && (count % 100 < 12 || count % 100 > 14) ? 'сообщения' : 'сообщений';
-  return <View accessible accessibilityLabel={`${count} ${word} до входа на этом устройстве`} style={{ alignSelf: 'center', maxWidth: 360, marginVertical: 10, paddingHorizontal: 14, paddingVertical: 10, borderRadius: 16, backgroundColor: t.dark ? 'rgba(255,255,255,0.07)' : 'rgba(0,0,0,0.05)', flexDirection: 'row', gap: 10, alignItems: 'center' }}>
-    <Icon name="lock-closed-outline" size={16} color={t.muted} />
-    <Text style={{ flexShrink: 1, color: t.muted, fontSize: 13, lineHeight: 18 }}>{count} {word} до входа на этом устройстве. Они зашифрованы для других твоих устройств и здесь не открываются.</Text>
+  return <View accessible accessibilityLabel={`${count} ${word} до входа на этом устройстве`} style={{ alignSelf: 'center', maxWidth: 360, marginVertical: 10, paddingHorizontal: 14, paddingVertical: 10, borderRadius: 16, backgroundColor: t.dark ? 'rgba(12,15,24,0.72)' : 'rgba(255,255,255,0.82)', flexDirection: 'row', gap: 10, alignItems: 'center' }}>
+    <Icon name="lock-closed-outline" size={16} color={t.text} />
+    <Text style={{ flexShrink: 1, color: t.text, fontSize: 13, lineHeight: 18 }}>{count} {word} до входа на этом устройстве. Они зашифрованы для других твоих устройств и здесь не открываются.</Text>
   </View>;
 });
 export type RowHandlers = {

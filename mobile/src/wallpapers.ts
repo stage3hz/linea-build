@@ -12,6 +12,8 @@ export type WallpaperChoice =
 type Store = { global: WallpaperChoice | null; chats: Record<string, WallpaperChoice> };
 
 const KEY = 'linea.wallpapers.v1';
+// The PC app keeps pictures in its own encrypted cache (invizent-cache://), phones in file://.
+const OWN_FILES = FileSystem.documentDirectory?.startsWith('file://') ? 'file://' : (FileSystem.documentDirectory || 'file://');
 let state: Store = { global: null, chats: {} };
 const listeners = new Set<() => void>();
 const emit = () => listeners.forEach(listener => listener());
@@ -22,7 +24,7 @@ export function parseWallpapers(raw: string | null): Store {
     const value = raw ? JSON.parse(raw) : null;
     const valid = (item: any): WallpaperChoice | null => {
       if (item?.kind === 'preset' && typeof item.id === 'string' && WALLPAPERS.some(preset => preset.id === item.id)) return { kind: 'preset', id: item.id };
-      if (item?.kind === 'image' && typeof item.uri === 'string' && item.uri.startsWith('file://')) return { kind: 'image', uri: item.uri, blur: item.blur === true, motion: item.motion === true, dim: [0, 0.2, 0.4, 0.6].includes(item.dim) ? item.dim : 0.2 };
+      if (item?.kind === 'image' && typeof item.uri === 'string' && (item.uri.startsWith('file://') || item.uri.startsWith(OWN_FILES))) return { kind: 'image', uri: item.uri, blur: item.blur === true, motion: item.motion === true, dim: [0, 0.2, 0.4, 0.6].includes(item.dim) ? item.dim : 0.2 };
       return null;
     };
     const chats: Record<string, WallpaperChoice> = {};
