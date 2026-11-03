@@ -1,6 +1,8 @@
 // Media inside a message, as in Telegram: photos load by themselves and show
 // in full right in the chat; videos and files show a ring with progress and
 // open instantly once loaded. Tapping during a download cancels it.
+import { useNetworkTier } from '../network/useNetworkTier';
+import { autoload } from '../network/quality';
 import React, { useMemo } from 'react';
 import { Pressable, StyleSheet, View } from 'react-native';
 import { Image } from 'expo-image';
@@ -49,7 +51,9 @@ export function captionedMediaBox(attachment: Attachment, maxWidth: number, maxH
 /** One photo or video tile; used alone and inside an album grid. */
 export function MediaTile({ api, attachment, width, height, radius = 16, onOpen, onLongPress }: { api: Api; attachment: Attachment; width: number; height: number; radius?: number; onOpen: () => void; onLongPress?: () => void }) {
   const kind = mediaPreviewKind(attachment), photo = kind === 'photo';
-  const media = useMedia(api, attachment, photo && attachment.size <= AUTO_PHOTO_BYTES);
+  // EDGE: photos wait for a tap (the blurred preview inside the message is shown at once).
+  const tier = useNetworkTier();
+  const media = useMedia(api, attachment, photo && attachment.size <= (tier === 'medium' ? 1024 * 1024 : AUTO_PHOTO_BYTES) && autoload('photo', tier));
   const thumb = useMemo(() => previewUri(attachment.preview), [attachment.preview]);
   const press = () => {
     if (media.status === 'loading') { lightFeedback(); media.cancel(); return; }

@@ -66,3 +66,27 @@ test('without internet: no first message to a stranger, no new keys accepted, fo
   await assert.rejects(bob.service.receiveMesh({ chatId, clientId: id, senderId: carol.userId, encrypted }).then(v => { if (v === null) throw new Error('dropped'); return v; }));
   assert.equal(await bob.service.receiveMesh({ chatId, clientId: id, senderId: alice.userId, encrypted: { ...encrypted, envelopes: [] } }), null);
 });
+
+test('lean lists: text comes only from this device\'s decrypted copy', async t => {
+  const { alice, bob, chatId, relay } = await talked(t);
+  const id = randomUUID();
+  const message = relay.deliver(alice.userId, chatId, id, await alice.service.encrypt(chatId, bob.userId, id, 'лёгкий список', null));
+  const lean = { ...message, encrypted: undefined, lean: true };
+  assert.equal((await bob.service.preview(lean)).cryptoState, 'no-key', 'not opened yet: nothing invented');
+  await bob.service.syncChat(chatId);
+  const shown = await bob.service.preview({ ...lean, text: 'подмена от сервера' });
+  assert.equal(shown.text, 'лёгкий список'); assert.equal(shown.cryptoState, 'decrypted');
+  assert.equal((await alice.service.preview(lean)).text, 'лёгкий список', 'own sent message from the local copy');
+  assert.equal((await bob.service.preview({ ...message, encrypted: undefined })).cryptoState, 'legacy', 'no lean flag: old behaviour');
+});
+
+test('lean inbox: own messages without ciphertext only move the cursor; others still need it', async t => {
+  const { alice, bob, chatId, relay } = await talked(t);
+  const id = randomUUID();
+  relay.deliver(alice.userId, chatId, id, await alice.service.encrypt(chatId, bob.userId, id, 'своё', null));
+  const original = relay.inboxTransform;
+  relay.inboxTransform = page => ({ ...page, messages: page.messages.map(m => m.senderId === alice.userId ? { ...m, encrypted: undefined, lean: true } : m) });
+  await alice.service.syncChat(chatId);
+  await assert.rejects(bob.service.syncChat(chatId), 'a lean message from someone else is refused');
+  relay.inboxTransform = original;
+});

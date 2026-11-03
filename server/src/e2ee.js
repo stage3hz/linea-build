@@ -264,7 +264,11 @@ export function installE2eeRoutes({
       ) ORDER BY m.id ASC LIMIT ?`)
       .all(session.user_id, after, chatId, chatId, session.user_id, deviceId, session.user_id, deviceId, limit + 1);
     const page = rows.slice(0, limit);
-    return { messages: page.map(row => publicMessage(db, row)), nextCursor: page.at(-1)?.id ?? after, hasMore: rows.length > limit };
+    // lean=1: messages this very device sent come back without their ciphertext — the device
+    // has them already and has no envelope of its own to open (saves 20 KB+ per message on EDGE).
+    const lean = request.query.lean === '1';
+    const shape = row => { const m = publicMessage(db, row); return lean && row.sender_id === session.user_id && m.encrypted?.senderDeviceId === deviceId ? { ...m, encrypted: undefined, lean: true } : m; };
+    return { messages: page.map(shape), nextCursor: page.at(-1)?.id ?? after, hasMore: rows.length > limit };
   });
 
   app.post('/e2ee/files', authOptions, async (request, reply) => {

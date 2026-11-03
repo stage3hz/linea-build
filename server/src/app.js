@@ -140,14 +140,22 @@ export async function buildApp({
     }
     state.socket.send(JSON.stringify(payload));
   };
-  const emitUser = (userId, payload) => {
+  // Lean clients (?lean=1, or lean in the socket auth frame) read their own Signal envelope from
+  // /e2ee/inbox and show text from their local cache; lists and events then leave the full
+  // ciphertext (all devices, 20 KB+ per message) out. Older clients get it as before.
+  const leanMessage = message => (message && message.encrypted ? { ...message, encrypted: undefined, lean: true } : message);
+  const leanPayload = payload => payload.type === 'message' ? { ...payload, message: leanMessage(payload.message) }
+    : payload.type === 'chat' && payload.chat?.lastMessage ? { ...payload, chat: { ...payload.chat, lastMessage: leanMessage(payload.chat.lastMessage) } } : payload;
+  // `exceptSession`: the device that made the change already has the result from its HTTP answer.
+  const emitUser = (userId, payload, exceptSession = null) => {
     for (const state of sockets) {
       if (state.auth?.user_id !== userId) continue;
+      if (exceptSession && state.auth.id === exceptSession) continue;
       if (!sessionStillValid(state)) {
         state.socket.close(4401, 'Session expired');
         continue;
       }
-      sendSocket(state, payload);
+      sendSocket(state, state.lean ? leanPayload(payload) : payload);
     }
   };
   const closeRevokedSockets = recoveryUpdatedUserId => {
@@ -475,7 +483,8 @@ export async function buildApp({
 
   app.get('/chats', authOptions, async request => {
     const rows = db.prepare('SELECT c.id FROM chats c JOIN chat_members m ON c.id=m.chat_id WHERE m.user_id=? ORDER BY c.updated_at DESC,c.id DESC').all(request.auth.user_id);
-    return { chats: rows.map(row => publicChat(db, row.id, request.auth.user_id, serializationOptions)) };
+    const chats = rows.map(row => publicChat(db, row.id, request.auth.user_id, serializationOptions));
+    return { chats: request.query?.lean === '1' ? chats.map(chat => ({ ...chat, lastMessage: leanMessage(chat.lastMessage) })) : chats };
   });
 
   app.post('/chats', authOptions, async (request, reply) => {
@@ -516,9 +525,13 @@ export async function buildApp({
     const before = beforeRaw === undefined ? Number.MAX_SAFE_INTEGER : positiveInteger(Number(beforeRaw), 'Граница сообщений');
     const rows = db.prepare('SELECT * FROM messages WHERE chat_id=? AND id<? ORDER BY id DESC LIMIT ?')
       .all(request.params.chatId, before, limit + 1);
-    return { messages: rows.slice(0, limit).reverse().map(row => publicMessage(db, row, serializationOptions)), hasMore: rows.length > limit };
+    const messages = rows.slice(0, limit).reverse().map(row => publicMessage(db, row, serializationOptions));
+    return { messages: request.query.lean === '1' ? messages.map(leanMessage) : messages, hasMore: rows.length > limit };
   });
 
+  // ?lean=1: the sender already has its ciphertext (often 20 KB+ with several devices), so the
+  // answer leaves it out — on EDGE that is seconds saved per message.
+  const lean = (request, message) => (request.query?.lean === '1' ? { ...message, encrypted: undefined } : message);
   app.post('/chats/:chatId/messages', { ...authOptions, bodyLimit: 1024 * 1024 }, async (request, reply) => {
     const chatId = request.params.chatId;
     const senderId = request.auth.user_id;
@@ -538,7 +551,7 @@ export async function buildApp({
     if (previous) {
       if (previous.chat_id !== chatId) fail(409, 'Этот ключ сообщения уже используется в другом чате.');
       if ((previous.encrypted_json || null) !== encryptedJson) fail(409, 'Этот ключ сообщения уже использован с другим зашифрованным содержимым.');
-      return reply.code(200).send({ message: publicMessage(db, previous, serializationOptions) });
+      return reply.code(200).send({ message: lean(request, publicMessage(db, previous, serializationOptions)) });
     }
     if (!limiter.allow(`send:${senderId}`, 120, 60_000)) fail(429, 'Слишком много сообщений. Подождите минуту.');
     const date = timestamp();
@@ -552,10 +565,12 @@ export async function buildApp({
       return messageId;
     });
     const message = publicMessage(db, db.prepare('SELECT * FROM messages WHERE id=?').get(id), serializationOptions);
-    for (const userId of memberIds(chatId)) emitUser(userId, { type: 'message', chatId, message });
+    // The sending device gets its message from the HTTP answer; echoing 20 KB+ of its own
+    // ciphertext over the socket would double the traffic on EDGE (lean clients only).
+    for (const userId of memberIds(chatId)) emitUser(userId, { type: 'message', chatId, message }, request.query?.lean === '1' ? request.auth.id : null);
     emitChat(chatId);
     notify(chatId, senderId, body.push || 'message');
-    return reply.code(201).send({ message });
+    return reply.code(201).send({ message: lean(request, message) });
   });
 
   app.post('/chats/:chatId/read', authOptions, async request => {
@@ -702,9 +717,11 @@ export async function buildApp({
   }, (socket, request) => {
     const state = { socket, ip: request.ip, auth: null, id: randomUUID(), alive: true };
     sockets.add(state);
+    // 20 s: on EDGE (≈0.5 s round trips behind queued traffic) the auth frame can take a while.
+    // 4408 = «too slow», not «signed out» (4401), so the app just reconnects.
     const authDeadline = setTimeout(() => {
-      if (!state.auth) socket.close(4401, 'Authentication required');
-    }, 5000);
+      if (!state.auth) socket.close(4408, 'Authentication timeout');
+    }, 20000);
     authDeadline.unref();
     socket.on('error', () => {});
     socket.on('pong', () => { state.alive = true; });
@@ -733,6 +750,7 @@ export async function buildApp({
           if (sameUser >= 10) { socket.close(4429, 'Connection limit'); return; }
           const wasOnline = isOnline(session.user_id);
           state.auth = session;
+          state.lean = data.lean === true;
           clearTimeout(authDeadline);
           sendSocket(state, { type: 'ready', userId: session.user_id });
           sendSocket(state, { type: 'presence.snapshot', items: peersOf(session.user_id).map(peerId => presenceFor(peerId, session.user_id)) });

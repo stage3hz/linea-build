@@ -6,6 +6,11 @@
 		Referrer-Policy "no-referrer"
 		-Server
 	}
+	# Smaller JSON on slow mobile links (EDGE/3G). Not for sign-in answers (they carry the
+	# session token next to what the user typed) and not for files (already encrypted, incompressible).
+	@compressible not path /auth/* /files/* /e2ee/files* /uploads*
+	encode @compressible zstd gzip
+
 	handle / {
 		header Content-Type "text/plain; charset=utf-8"
 		respond "Инвиз — сервер мессенджера. Подключение из мобильного приложения." 200

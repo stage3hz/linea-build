@@ -60,3 +60,18 @@ export function chooseServer(current: string | null, rtt: Record<string, number 
   if (current && typeof now === 'number' && !(now - best >= 40 && best <= now * 0.7)) return current;
   return bestUrl;
 }
+
+/**
+ * After `failed` stopped answering: the next server to try. Measured-alive servers first (fastest
+ * first), then never-measured ones; servers whose last probe failed or that failed recently come
+ * after — and if every other server is known dead, we stay on `failed` (a slow link drops
+ * requests now and then; jumping to a dead server would waste a whole upload).
+ */
+export function fallbackServer(failed: string, all: readonly string[], rtt: Record<string, number | null | undefined>, down: Record<string, number>, now: number, downMs: number): string | null {
+  const others = all.filter(u => u !== failed);
+  if (!others.length) return null;
+  const recentlyDown = (u: string) => !!down[u] && now - down[u] < downMs;
+  const rank = (u: string) => (recentlyDown(u) || rtt[u] === null ? 2 : typeof rtt[u] === 'number' ? 0 : 1);
+  const best = [...others].sort((a, b) => rank(a) - rank(b) || (rank(a) === 0 ? (rtt[a] as number) - (rtt[b] as number) : rank(a) === 2 ? (down[a] || 0) - (down[b] || 0) : 0))[0];
+  return rank(best) === 2 && all.includes(failed) ? failed : best;
+}

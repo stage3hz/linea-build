@@ -36,3 +36,17 @@ test('the fastest live server wins; a small difference does not cause flip-flopp
   assert.equal(chooseServer('a', { a: null, b: 300 }), 'b', 'current is down');
   assert.equal(chooseServer('a', { a: null, b: null }), 'a', 'nothing alive: keep trying the current one');
 });
+
+test('after a failure the next server is a live one, never a recently dead one first', () => {
+  const { fallbackServer } = loadTs(new URL('../src/servers/list.ts', import.meta.url));
+  const all = ['https://api.invizent.com', 'https://api2.invizent.com', 'https://api3.invizent.ru'];
+  const now = 1_000_000;
+  // api2 and api3 were never reachable (null) — after api fails, api2 must not jump ahead of a measured one.
+  assert.equal(fallbackServer(all[0], all, { [all[1]]: null, [all[2]]: 120 }, {}, now, 60000), all[2]);
+  // Every other server is known dead: stay where we are (a slow link drops a request now and then).
+  assert.equal(fallbackServer(all[0], all, { [all[1]]: null, [all[2]]: null }, {}, now, 60000), all[0]);
+  assert.equal(fallbackServer(all[0], all, {}, { [all[1]]: now - 5000, [all[2]]: now - 30000 }, now, 60000), all[0]);
+  // Unknown beats recently dead.
+  assert.equal(fallbackServer(all[0], all, {}, { [all[1]]: now - 5000 }, now, 60000), all[2]);
+  assert.equal(fallbackServer(all[0], [all[0]], {}, {}, now, 60000), null);
+});

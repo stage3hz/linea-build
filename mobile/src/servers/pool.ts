@@ -5,10 +5,13 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { LEGACY_SERVER_URLS, SERVER_URL } from '../serverConfig';
 import { SERVER_LIST_KEYS } from './key';
-import { chooseServer, normalizeServer, verifyServerList, type ServerList, type SignedServerList } from './list';
+import { chooseServer, fallbackServer, normalizeServer, verifyServerList, type ServerList, type SignedServerList } from './list';
+import { networkTier } from '../network/quality';
 
 const STORE = 'invizent.servers.v1';
-const PROBE_TIMEOUT = 3000, REPROBE_MS = 5 * 60_000, DOWN_MS = 60_000;
+// Probes wait longer on a slow link (EDGE: one TLS handshake alone takes about a second).
+const probeTimeout = () => (networkTier() === 'slow' ? 9000 : networkTier() === 'medium' ? 5000 : 3000);
+const REPROBE_MS = 5 * 60_000, DOWN_MS = 60_000;
 type State = { list: ServerList | null; signed: SignedServerList | null; current: string | null; rtt: Record<string, number | null>; down: Record<string, number> };
 let state: State = { list: null, signed: null, current: null, rtt: {}, down: {} };
 let started = false, probing: Promise<void> | null = null, timer: ReturnType<typeof setInterval> | undefined;
@@ -36,7 +39,7 @@ export function serverStatus() { return { current: currentEndpoint(), rtt: { ...
 async function probe(url: string): Promise<number | null> {
   let best: number | null = null;
   for (let i = 0; i < 2; i++) {
-    const abort = new AbortController(); const t = setTimeout(() => abort.abort(), PROBE_TIMEOUT);
+    const abort = new AbortController(); const t = setTimeout(() => abort.abort(), probeTimeout());
     const start = Date.now();
     try { const r = await fetch(`${url}/health`, { credentials: 'omit', cache: 'no-store', redirect: 'error', signal: abort.signal }); if (r.ok) { const ms = Date.now() - start; best = best === null ? ms : Math.min(best, ms); } }
     catch { /* unreachable */ } finally { clearTimeout(t); }
@@ -79,7 +82,7 @@ export function reportFailure(endpoint: string) {
   const url = normalizeServer(endpoint); if (!url) return;
   state = { ...state, down: { ...state.down, [url]: Date.now() }, rtt: { ...state.rtt, [url]: null } };
   if (state.current === url) {
-    const next = chooseServer(null, Object.fromEntries(candidates().filter(u => u !== url).map(u => [u, state.rtt[u] ?? 9999])));
+    const next = fallbackServer(url, candidates(), state.rtt, state.down, Date.now(), DOWN_MS);
     state = { ...state, current: next || state.current };
     emit();
   }

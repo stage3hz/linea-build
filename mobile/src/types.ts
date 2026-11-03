@@ -21,6 +21,8 @@ export type Message = {
   meta?: import('./messageMeta').MessageMeta;
   /** Arrived over Mesh (Bluetooth); replaced by the server copy when the internet is back. */
   mesh?: boolean;
+  /** The server left the ciphertext out (lean lists): text comes from this device's decrypted cache. */
+  lean?: boolean;
 };
 export type Chat = {
   id: string; peer: User; lastMessage: Message | null; unreadCount: number;

@@ -243,6 +243,9 @@ export class CryptoService {
     return {plain,protocol:result.state,sender};
   }
   private async decode(message:Message,cursorKey:string):Promise<void> {
+    // Our own device's message left out by a lean inbox: nothing to open here (we have no envelope
+    // for ourselves, and our copy is already cached at send time) — just move the cursor.
+    if(!message.encrypted&&message.lean&&message.senderId===this.userId){await this.vault.commit({[cursorKey]:String(message.id)});return;}
     const encrypted=message.encrypted;
     if(!validEncrypted(encrypted))throw new Error('Некорректный зашифрованный пакет.');
     const fingerprint=await this.sha256(canonicalEncrypted(encrypted));const cached=parse<CachedMessage>(await this.vault.get(messageKey(message)));
@@ -297,6 +300,13 @@ export class CryptoService {
   }
   async preview(message:Message):Promise<Message> {
     await this.initialize();return this.exclusive(async()=>{
+      if(!message.encrypted&&message.lean){
+        // Lean list: our own envelope was already opened from /e2ee/inbox (authenticated by Signal);
+        // the text shown is only ever that decrypted copy, never anything from the list itself.
+        const cached=parse<CachedMessage>(await this.vault.get(messageKey(message)));
+        if(cached)return {...message,text:cached.plain.text,attachment:cached.plain.attachment,createdAt:cached.plain.sentAt,cryptoState:'decrypted',...(cached.plain.meta?{meta:cached.plain.meta}:{})};
+        return {...message,text:'Зашифрованное сообщение. Открой чат для расшифровки.',attachment:null,cryptoState:'no-key'};
+      }
       if(!message.encrypted)return {...message,text:'Сообщение из старой версии без сквозного шифрования.',attachment:null,cryptoState:'legacy'};
       if(!validEncrypted(message.encrypted))return {...message,text:'Проверка сообщения не пройдена.',attachment:null,cryptoState:'invalid'};
       const cached=parse<CachedMessage>(await this.vault.get(messageKey(message)));

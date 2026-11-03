@@ -1,3 +1,4 @@
+import { networkTier } from '../network/quality';
 import React, { createContext, useCallback, useContext, useEffect, useRef, useState } from 'react';
 import { playCallSound, stopCallSound } from './callSounds';
 import { Modal, Platform, Pressable, StyleSheet, Vibration, View, useWindowDimensions } from 'react-native';
@@ -16,7 +17,7 @@ import type { MessengerStore } from '../useMessenger';
 import { useMusic } from '../music/MusicProvider';
 import { setCenterStage } from '../media/centerStage';
 import { impactFeedback, lightFeedback } from '../haptics';
-import { GATHER_TIMEOUT_MS, RING_TIMEOUT_MS, callClock, keyEmoji, keyMaterial, offerIsFresh, type CallStatus } from './callModel';
+import { GATHER_TIMEOUT_MS, RING_TIMEOUT_MS, SEND_BITRATE, callClock, economySdp, keyEmoji, keyMaterial, offerIsFresh, type CallStatus } from './callModel';
 
 // Native modules are loaded lazily: the web build and old builds without them keep working.
 type WebRTC = typeof import('react-native-webrtc');
@@ -31,6 +32,26 @@ type CallState = {
 type CallApi = { start: (chat: Chat, video: boolean) => void; available: boolean; busy: boolean };
 const CallContext = createContext<CallApi>({ start: () => {}, available: false, busy: false });
 export const useCalls = () => useContext(CallContext);
+
+/**
+ * Sets our SDP with economy voice on slow links (EDGE/3G): the other phone sends us less, and our
+ * own audio sender is capped. Measured link speed decides (src/network/quality.ts).
+ */
+async function setLocal(connection: any, description: { type: string; sdp: string }, _video: boolean) {
+  const tier = networkTier();
+  await connection.setLocalDescription({ type: description.type, sdp: economySdp(description.sdp, tier) });
+  const cap = SEND_BITRATE[tier];
+  if (!cap) return;
+  for (const sender of connection.getSenders?.() || []) {
+    if (sender.track?.kind !== 'audio' || !sender.getParameters || !sender.setParameters) continue;
+    try {
+      const params = sender.getParameters();
+      if (!params.encodings?.length) params.encodings = [{}];
+      params.encodings[0].maxBitrate = cap;
+      await sender.setParameters(params);
+    } catch { /* older WebRTC builds: the SDP limit above still applies */ }
+  }
+}
 
 export function CallProvider({ api, store, me, children }: { api: Api; store: MessengerStore; me: User; children: React.ReactNode }) {
   const music = useMusic();
@@ -109,7 +130,7 @@ export function CallProvider({ api, store, me, children }: { api: Api; store: Me
         try { inCall.current?.start?.({ media: video ? 'video' : 'audio' }); inCall.current?.setForceSpeakerphoneOn?.(video); } catch { /* optional */ }
         const { connection, localUrl } = await prepare(video);
         patch({ localUrl });
-        await connection.setLocalDescription(await connection.createOffer({}));
+        await setLocal(connection, await connection.createOffer({}), video);
         const sdp = await gathered(connection);
         if (callRef.current?.id !== id) return;
         signal(chat.id, { type: 'call', call: id, step: 'offer', video, sdp });
@@ -132,7 +153,7 @@ export function CallProvider({ api, store, me, children }: { api: Api; store: Me
       const { connection, localUrl } = await prepare(current.video);
       patch({ localUrl });
       await connection.setRemoteDescription(new webrtc.RTCSessionDescription({ type: 'offer', sdp: current.remoteSdp }));
-      await connection.setLocalDescription(await connection.createAnswer());
+      await setLocal(connection, await connection.createAnswer(), current.video);
       const sdp = await gathered(connection);
       if (callRef.current?.id !== current.id) return;
       signal(current.chat.id, { type: 'call', call: current.id, step: 'answer', sdp });
@@ -157,7 +178,7 @@ export function CallProvider({ api, store, me, children }: { api: Api; store: Me
       void (async () => {
         try {
           await connection.setRemoteDescription(new webrtc.RTCSessionDescription({ type: 'offer', sdp: action.sdp! }));
-          await connection.setLocalDescription(await connection.createAnswer());
+          await setLocal(connection, await connection.createAnswer(), true);
           const sdp = await gathered(connection);
           signal(current.chat.id, { type: 'call', call: current.id, step: 'answer', sdp });
         } catch { /* keep the call going without video */ }
@@ -207,7 +228,7 @@ export function CallProvider({ api, store, me, children }: { api: Api; store: Me
       local.current?.addTrack?.(track); connection.addTrack(track, local.current || stream);
       try { inCall.current?.setForceSpeakerphoneOn?.(true); } catch { /* optional */ }
       patch({ video: true, cameraOff: false, speaker: true, localUrl: (local.current || stream).toURL() });
-      await connection.setLocalDescription(await connection.createOffer({}));
+      await setLocal(connection, await connection.createOffer({}), true);
       const sdp = await gathered(connection);
       signal(c.chat.id, { type: 'call', call: c.id, step: 'offer', video: true, sdp });
       lightFeedback();

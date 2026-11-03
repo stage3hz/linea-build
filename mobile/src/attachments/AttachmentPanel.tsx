@@ -1,3 +1,6 @@
+import { networkTier } from '../network/quality';
+// On a slow link photos are re-compressed when picked (like Telegram), so they go faster.
+const pickQuality = () => (networkTier() === 'slow' ? 0.55 : networkTier() === 'medium' ? 0.8 : 1);
 import React, { useEffect, useRef, useState } from 'react';
 import { ActivityIndicator, Modal, Platform, Pressable, ScrollView, StyleSheet, View, useWindowDimensions } from 'react-native';
 import { Text } from '../typography';
@@ -111,7 +114,7 @@ export function AttachmentPanel({ visible, busy, canAdd, remainingSlots, onClose
     try {
       const permission = await ImagePicker.requestCameraPermissionsAsync();
       if (!permission.granted) throw new Error('Разреши доступ к камере в настройках, чтобы снимать прямо из чата.');
-      const result = await ImagePicker.launchCameraAsync({ mediaTypes: ['images', 'videos'], quality: 1, exif: false, allowsEditing: false, videoMaxDuration: 600 });
+      const result = await ImagePicker.launchCameraAsync({ mediaTypes: ['images', 'videos'], quality: pickQuality(), exif: false, allowsEditing: false, videoMaxDuration: 600 });
       if (!result.canceled && valid(ticket)) {
         const files = result.assets.map(asset => fromFile({ uri: asset.uri, name: asset.fileName || (asset.type === 'video' ? 'video.mp4' : 'photo.jpg'), mimeType: asset.mimeType || (asset.type === 'video' ? 'video/mp4' : 'image/jpeg'), size: asset.fileSize }));
         replaceSelection(addSelections(selectedRef.current, files, remainingSlots));
@@ -126,7 +129,7 @@ export function AttachmentPanel({ visible, busy, canAdd, remainingSlots, onClose
     const ticket = start('picking');
     try {
       const result = await ImagePicker.launchImageLibraryAsync({
-        mediaTypes: ['images', 'videos'], allowsMultipleSelection: true, selectionLimit: Math.max(1, remainingSlots), quality: 1, exif: false,
+        mediaTypes: ['images', 'videos'], allowsMultipleSelection: true, selectionLimit: Math.max(1, remainingSlots), quality: pickQuality(), exif: false,
         allowsEditing: false, videoExportPreset: ImagePicker.VideoExportPreset.Passthrough,
         preferredAssetRepresentationMode: ImagePicker.UIImagePickerPreferredAssetRepresentationMode.Current,
       });

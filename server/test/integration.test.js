@@ -994,3 +994,33 @@ test('call privacy: everyone / friends only / allowed only, and a never list by 
   await request(app, 'DELETE', `/me/call-rules/${alice.user.id}`, bob);
   assert.equal(await may(alice, bob), true);
 });
+
+test('lean send answer leaves out the sender\'s own ciphertext; retries and other members still get it', async t => {
+  const { app } = await fixture(t);
+  const alice = await register(app, 'leanalice'), bob = await register(app, 'leanbob');
+  const chat = await newChat(app, alice, bob);
+  const encrypted = envelopeFor(alice, chat);
+  const first = await request(app, 'POST', `/chats/${chat.id}/messages?lean=1`, alice, { clientId: 'lean-client-1', encrypted });
+  assert.equal(first.statusCode, 201, first.body);
+  assert.equal(first.json().message.encrypted, undefined);
+  assert.ok(first.json().message.id > 0);
+  const retry = await request(app, 'POST', `/chats/${chat.id}/messages?lean=1`, alice, { clientId: 'lean-client-1', encrypted });
+  assert.equal(retry.statusCode, 200); assert.equal(retry.json().message.encrypted, undefined); assert.equal(retry.json().message.id, first.json().message.id);
+  const full = await request(app, 'POST', `/chats/${chat.id}/messages`, alice, { clientId: 'lean-client-1', encrypted });
+  assert.ok(full.json().message.encrypted, 'without lean the old answer is unchanged');
+  const list = await request(app, 'GET', `/chats/${chat.id}/messages?limit=15`, bob);
+  assert.ok(list.json().messages.at(-1).encrypted, 'the recipient still gets the ciphertext');
+});
+
+test('lean lists leave the ciphertext out only when asked', async t => {
+  const { app } = await fixture(t);
+  const alice = await register(app, 'leanlista'), bob = await register(app, 'leanlistb');
+  const chat = await newChat(app, alice, bob);
+  await send(app, alice, chat, 'lean-list-1');
+  const lean = (await request(app, 'GET', `/chats/${chat.id}/messages?lean=1&limit=15`, bob)).json().messages.at(-1);
+  assert.equal(lean.encrypted, undefined); assert.equal(lean.lean, true); assert.equal(lean.clientId, 'lean-list-1');
+  assert.ok((await request(app, 'GET', `/chats/${chat.id}/messages`, bob)).json().messages.at(-1).encrypted);
+  const chats = (await request(app, 'GET', '/chats?lean=1', bob)).json().chats;
+  assert.equal(chats[0].lastMessage.lean, true); assert.equal(chats[0].lastMessage.encrypted, undefined);
+  assert.ok((await request(app, 'GET', '/chats', bob)).json().chats[0].lastMessage.encrypted);
+});

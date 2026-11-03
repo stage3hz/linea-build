@@ -1,5 +1,6 @@
 import { UntrustedDeviceError } from './e2ee/core';
 import { reportFailure } from './servers/pool';
+import { networkTier } from './network/quality';
 import { meshActive, useMeshActive } from './nearby/meshState';
 import { onMesh, packetIdOf, publishMessage, publishReceipt, startMesh, stopMesh } from './nearby/meshRuntime';
 import { forwardLabel, visibleText } from './safeText';
@@ -185,7 +186,7 @@ export function useMessenger(api: Api, user: User, onExpired: ()=>void) {
       setConnection('connecting');
       const target=api.endpoint;let opened=false;
       const socket=new WebSocket(api.socketUrl());socketRef.current=socket;lastReceive=Date.now();
-      socket.onopen=()=>{opened=true;if(!stopped&&socketRef.current===socket)socket.send(JSON.stringify({type:'auth',token:api.token}));};
+      socket.onopen=()=>{opened=true;if(!stopped&&socketRef.current===socket)socket.send(JSON.stringify({type:'auth',token:api.token,lean:true}));};
       socket.onmessage=event=>{
         if(stopped||socketRef.current!==socket)return;
         lastReceive=Date.now();
@@ -208,7 +209,9 @@ export function useMessenger(api: Api, user: User, onExpired: ()=>void) {
       };
       socket.onclose=event=>{
         if(stopped||socketRef.current!==socket)return;setConnection('offline');
-        if(event.code===4001||event.code===4401){onExpiredRef.current();return;}
+        // The socket alone never signs anyone out: on a slow link (EDGE) the server may close it before
+        // our auth frame arrives. Only the HTTP check «is this session really gone?» (401) does.
+        if(event.code===4001||event.code===4401){void api.me().then(()=>{if(!stopped)retry=setTimeout(connect,1000);},e=>{if(e instanceof ApiError&&e.status===401)onExpiredRef.current();else if(!stopped)retry=setTimeout(connect,3000);});return;}
         // The server could not be reached at all: try the next one at once instead of backing off.
         if(!opened&&api.endpoint===target){reportFailure(target);}
         retry=setTimeout(connect,!opened&&api.endpoint!==target?300:Math.min(1000*2**attempts++,15000));
@@ -244,6 +247,14 @@ export function useMessenger(api: Api, user: User, onExpired: ()=>void) {
   },[loadMessages]);
 
   const uploadsRef=useRef(new Map<string,AbortController>());
+  // After a send the list is already updated locally; a full reload is only a check, so several
+  // sends share one, and on a slow link (EDGE) it waits longer so it never competes with messages.
+  const refreshTimer=useRef<ReturnType<typeof setTimeout>|null>(null);
+  const softRefresh=useCallback(()=>{
+    if(refreshTimer.current)return;
+    refreshTimer.current=setTimeout(()=>{refreshTimer.current=null;void refreshChats();},networkTier()==='slow'?15000:networkTier()==='medium'?3000:500);
+  },[refreshChats]);
+  useEffect(()=>()=>{if(refreshTimer.current)clearTimeout(refreshTimer.current);},[]);
   const performSend=useCallback(async(item:PendingMessage)=>{
     let meshBody:string|null=null;let meshPeer='';
     setPending(prev=>[...prev.filter(p=>p.clientId!==item.clientId),{...item,state:'sending',error:undefined}]);
@@ -265,7 +276,7 @@ export function useMessenger(api: Api, user: User, onExpired: ()=>void) {
       meshPeer=peer.id;meshBody=!item.attachment&&!item.meta?.action?JSON.stringify({chatId:item.chatId,clientId:item.clientId,senderId:user.id,encrypted}):null;
       const action=item.meta?.action;const result=await api.sendEncrypted(item.chatId,item.clientId,encrypted,!action?undefined:action.type==='call'&&action.step==='offer'?'call':'none');
       await crypto.delivered(item.chatId,item.clientId).catch(()=>{});
-      if(aliveRef.current){await acceptMessage(result.message);void refreshChats();}
+      if(aliveRef.current){await acceptMessage(result.message);softRefresh();}
     }
     catch(e){
       if(e instanceof ApiError&&e.code==='E2EE_DEVICES_CHANGED')await cryptoRuntime.get().then(crypto=>crypto.rejectedDeviceSet(item.chatId,item.clientId)).catch(()=>{});
@@ -275,7 +286,7 @@ export function useMessenger(api: Api, user: User, onExpired: ()=>void) {
       // still gets it when the internet is back (retries below), and drops the duplicate by clientId.
       if(e instanceof NetworkError&&meshBody&&meshActive()){publishMessage(meshPeer,meshBody,item.clientId);setPending(prev=>prev.map(p=>p.clientId===item.clientId&&!p.mesh?{...p,mesh:'queued'}:p));}
     }
-  },[api,acceptMessage,checkError,refreshChats,cryptoRuntime,user.id]);
+  },[api,acceptMessage,checkError,softRefresh,cryptoRuntime,user.id]);
   // ---- Mesh (no internet): radio on/off, messages and receipts from phones nearby ----
   const mesh=useMeshActive();
   useEffect(()=>{if(mesh)void startMesh(user.id);else void stopMesh();},[mesh,user.id]);

@@ -4,6 +4,7 @@ import { toByteArray } from 'base64-js';
 import type { UserProfile } from './types';
 import { APP_VERSION, SERVER_URL } from './serverConfig';
 import { currentEndpoint, markServerOk, reportFailure } from './servers/pool';
+import { networkTier, reportRequest, timeoutFor } from './network/quality';
 import { attestHeaders } from './attest/index';
 import { markUpdateRequired } from './update/store';
 import type { Attachment, Chat, DeviceSession, LocalFile, Message, RecoveryChallenge, RecoveryRequest, RecoveryStatus, SecurityStatus, Session, User, UsernameStatus } from './types';
@@ -42,7 +43,12 @@ export class ApiError extends Error {
 
 // AI media jobs run much longer than ordinary API calls (video up to ~5 minutes).
 const AI_TIMEOUTS: Record<string, number> = { '/ai/chat': 70000, '/ai/image': 130000, '/ai/speech': 70000, '/ai/transcribe': 130000, '/ai/video': 340000, '/ai/models': 20000 };
-function requestTimeout(path: string) { return AI_TIMEOUTS[path] ?? (path === '/uploads' || path === '/e2ee/files' ? 120000 : 18000); }
+// Ordinary limits grow on slow links (EDGE/3G), so a message is not cut off half-way.
+function requestTimeout(path: string, method = 'GET') {
+  if (AI_TIMEOUTS[path]) return AI_TIMEOUTS[path];
+  const kind = path === '/uploads' || path === '/e2ee/files' ? 'upload' : method !== 'GET' && /\/messages(\?|$)/.test(path) ? 'send' : 'read';
+  return timeoutFor(kind, networkTier());
+}
 
 /** No answer at all (as opposed to an error the server returned). */
 export class NetworkError extends Error { constructor(message: string, readonly notDelivered = false) { super(message); this.name = 'NetworkError'; } }
@@ -72,16 +78,18 @@ export class Api {
     const cancel=()=>abort.abort();
     caller?.addEventListener('abort',cancel,{once:true});
     if(caller?.aborted)cancel();
-    const timeoutMs=requestTimeout(path);
+    const timeoutMs=requestTimeout(path,(options.method||'GET').toUpperCase());const started=Date.now();
     const timeout = setTimeout(cancel,timeoutMs);
     const abortError=()=>{const error=new Error('Запрос отменён.');error.name='AbortError';return error;};
     try {
       if(abort.signal.aborted)throw abortError();
       const headers: Record<string, string> = { 'X-Linea-Client': CLIENT_HEADER, ...attestHeaders(options.method || 'GET', path), ...(options.body && !(options.body instanceof FormData) ? { 'Content-Type': 'application/json' } : {}), ...(this.token ? { Authorization: `Bearer ${this.token}` } : {}) };
       const response = await fetch(target + path, { credentials: 'omit', cache: 'no-store', redirect: 'error', ...options, headers: { ...headers, ...(options.headers || {}) }, signal: abort.signal });
-      const data = await response.json().catch(() => ({}));
+      const raw = await response.text().catch(() => '');
+      let data: any = {};
+      try { data = raw ? JSON.parse(raw) : {}; } catch { data = {}; }
       if(abort.signal.aborted)throw abortError();
-      if (response.status < 500) markServerOk();
+      if (response.status < 500) { markServerOk(); reportRequest(Date.now() - started, raw.length); }
       if (response.status === 426) markUpdateRequired();
       // 502/503/504 come from the proxy in front of a server that is down: the request never
       // reached Invizent itself, so it is safe to send it to the next server.
@@ -136,9 +144,9 @@ export class Api {
   ownCryptoDevices = () => this.request<{devices: CryptoDevice[]}>('/e2ee/devices/self');
   claimPreKey = (userId: string, deviceId: string) => this.request<{device: CryptoDevice; bundle: ClaimedBundle}>('/e2ee/prekeys/claim', {method: 'POST', body: JSON.stringify({userId, deviceId})});
   revokeCryptoDevice = (deviceId: string) => this.request<{ok: true}>('/e2ee/devices/revoke', {method: 'POST', body: JSON.stringify({deviceId})});
-  cryptoInbox = (deviceId: string, chatId: string, after: number) => this.request<{messages: Message[]; nextCursor: number; hasMore: boolean}>(`/e2ee/inbox?deviceId=${encodeURIComponent(deviceId)}&chatId=${encodeURIComponent(chatId)}&after=${after}&limit=100`);
+  cryptoInbox = (deviceId: string, chatId: string, after: number) => this.request<{messages: Message[]; nextCursor: number; hasMore: boolean}>(`/e2ee/inbox?lean=1&deviceId=${encodeURIComponent(deviceId)}&chatId=${encodeURIComponent(chatId)}&after=${after}&limit=100`);
   logout = () => this.request('/auth/logout', { method: 'POST' });
-  chats = () => this.request<{chats: Chat[]}>('/chats');
+  chats = () => this.request<{chats: Chat[]}>('/chats?lean=1');
   users = (query: string) => this.request<{users: User[]}>(`/users?q=${encodeURIComponent(query)}`);
   createChat = (userId: string) => this.request<{chat: Chat}>('/chats', {method: 'POST', body: JSON.stringify({userId})});
   userProfile = (userId: string) => this.request<UserProfile>(`/users/${encodeURIComponent(userId)}`);
@@ -151,11 +159,16 @@ export class Api {
   addContact = (userId: string) => this.request<{ok: true}>(`/contacts/${encodeURIComponent(userId)}`, {method: 'PUT'});
   removeContact = (userId: string) => this.request<{ok: true}>(`/contacts/${encodeURIComponent(userId)}`, {method: 'DELETE'});
   chatSettings = (chatId: string, change: Partial<{pinned: boolean; archived: boolean; muted: boolean}>) => this.request<{chat: Chat}>(`/chats/${encodeURIComponent(chatId)}/settings`, {method: 'PATCH', body: JSON.stringify(change)});
-  messages = (chatId: string, before?: number) => this.request<{messages: Message[]; hasMore: boolean}>(`/chats/${encodeURIComponent(chatId)}/messages?limit=50${before ? `&before=${before}` : ''}`);
+  messages = (chatId: string, before?: number) => this.request<{messages: Message[]; hasMore: boolean}>(`/chats/${encodeURIComponent(chatId)}/messages?lean=1&limit=${networkTier() === 'slow' ? 15 : networkTier() === 'medium' ? 30 : 50}${before ? `&before=${before}` : ''}`);
   /** push: what the recipient's phone shows ('call' rings, 'none' for reactions/edits); an older server without push gets no field. */
   private pushField = true;
   sendEncrypted = async (chatId: string, clientId: string, encrypted: EncryptedMessage, push?: 'message' | 'call' | 'none') => {
-    const post = (withPush: boolean) => this.request<{message: Message}>(`/chats/${encodeURIComponent(chatId)}/messages`, {method: 'POST', body: JSON.stringify(withPush && push ? {clientId, encrypted, push} : {clientId, encrypted})});
+    // lean=1: the server does not echo our own (large) ciphertext back; we put it in from here.
+    const post = async (withPush: boolean) => {
+      const result = await this.request<{message: Message}>(`/chats/${encodeURIComponent(chatId)}/messages?lean=1`, {method: 'POST', body: JSON.stringify(withPush && push ? {clientId, encrypted, push} : {clientId, encrypted})});
+      if (result?.message && !result.message.encrypted) result.message = { ...result.message, encrypted };
+      return result;
+    };
     if (!push || !this.pushField) return post(false);
     try { return await post(true); }
     catch (error) { if (error instanceof ApiError && error.status === 400 && /неизвестные поля/.test(error.message)) { this.pushField = false; return post(false); } throw error; }

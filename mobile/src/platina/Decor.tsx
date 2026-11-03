@@ -1,3 +1,5 @@
+import { useNetworkTier } from '../network/useNetworkTier';
+import { autoload } from '../network/quality';
 import React, { useEffect, useState } from 'react';
 import { Platform, StyleSheet, View, useWindowDimensions } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
@@ -80,7 +82,9 @@ export function DecoratedAvatar({ user, api, size = 54, animated = false }: { us
   const t = useTheme(); const { enabled } = useMotion();
   // Platina without a chosen frame wears the platinum ring.
   const frame = FRAMES.find(item => item.id === (user.avatarFrame || (user.seal === 'platina' ? 'platinum' : '')));
-  const live = animated && enabled;
+  // On a slow link (EDGE/3G) a looping video avatar would eat the bandwidth messages need.
+  const tier = useNetworkTier();
+  const live = animated && enabled && autoload('animatedAvatar', tier);
   const video = live && user.avatarVideoId ? user.avatarVideoId : null;
   const decoration = findDecoration(user.avatarFrame);
   // Small (list) sizes: the art may reach at most 1.3× the avatar box so it does not cover the
@@ -127,7 +131,8 @@ export const HERO_RATIO = 259 / 393;
  * `local` shows a file picked on this device before it is uploaded (the «how it will look» preview).
  */
 export function ProfileBanner({ user, api, height, width: fixedWidth, preview, local }: { user: Pick<User, 'bannerId' | 'bannerKind' | 'bannerPreset'>; api: Api; height: number; width?: number; preview?: boolean; local?: { uri: string; video: boolean } }) {
-  const { width: screen } = useWindowDimensions(); const { enabled } = useMotion(); const t = useTheme();
+  const { width: screen } = useWindowDimensions(); const { enabled: motion } = useMotion(); const t = useTheme();
+  const tier = useNetworkTier(); const enabled = motion && autoload('video', tier);
   const width = fixedWidth ?? screen;
   const soft = !preview && Platform.OS !== 'web';
   let content: React.ReactNode = null;
