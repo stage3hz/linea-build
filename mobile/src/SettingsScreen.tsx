@@ -1,6 +1,6 @@
 import React, { useCallback, useEffect, useState } from 'react';
 import { ProfileEffect } from './platina/Effects';
-import { ActivityIndicator, Platform, Pressable, ScrollView, StyleSheet, Switch, View, useWindowDimensions } from 'react-native';
+import { ActivityIndicator, Platform, Pressable, ScrollView, StyleSheet, Switch, View, useWindowDimensions, Linking } from 'react-native';
 import { Text } from './typography';
 import * as FileSystem from 'expo-file-system/legacy';
 import Constants from 'expo-constants';
@@ -24,6 +24,7 @@ import { FolderEditor, useChatFolders, type ChatFolder } from './ChatFolders';
 import { useSharedValue } from 'react-native-reanimated';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { StackBase, StackScreen } from './stack';
+import { currentEndpoint } from './servers/pool';
 import { FloatingHeader, useTabInset } from './tabInset';
 import { WallpaperPicker } from './WallpaperPicker';
 import { DecoratedAvatar, ProfileBanner } from './platina/Decor';
@@ -156,31 +157,34 @@ function Root({ api, user, onBack, onProfile, onSecurity, onMusic, onLogout, ope
       </View>
       <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8, marginTop: 5 }}>
         <Text style={{ color: t.muted, fontSize: 15 }}>@{user.username}</Text>
-        {hasPlatina(user) ? <PlatinaSeal owner={user} /> : null}
+        {hasPlatina(user) ? <PlatinaSeal owner={user} onPress={() => openPlatinaShowcase()} /> : null}
       </View>
     </View>
     <View style={{ paddingHorizontal: 16, paddingTop: 18, gap: 14, width: '100%', maxWidth: 680, alignSelf: 'center' }}>
-      {active ? <Pressable accessibilityRole="button" onPress={() => openPlatinaShowcase()}>
-        <GlassSurface radius={20} shadow={false} contentStyle={{ flexDirection: 'row', alignItems: 'center', gap: 13, paddingHorizontal: 14, minHeight: 60 }}>
-          <PlatinaGem size={22} />
-          <View style={{ flex: 1 }}><Text style={{ color: t.text, fontSize: 15, fontWeight: '600' }}>Инвиз Platina</Text><Text style={{ color: t.muted, fontSize: 12.5, marginTop: 2 }}>{until || 'Активна'} · всё включено</Text></View>
-          <Icon name="chevron-forward" size={17} color={t.subtle} />
-        </GlassSurface>
-      </Pressable> : <PlatinaOffer />}
+      {/* With Platina the seal next to the name already says it (tap it for details): no second banner here. */}
+      {active ? null : <PlatinaOffer />}
+      {/* Grouped like Telegram: you, how it looks, privacy & data, the PC's sound, help. No duplicates
+          (Музыка has its own tab; animations live only under Энергосбережение). */}
       <Group>
         <Item icon="person" color="#E2574C" label="Мой профиль" onPress={onProfile} />
-        <Item icon="musical-notes" color="#E5467A" label="Музыка" onPress={onMusic} />
       </Group>
       <Group>
         <Item icon="color-palette" color="#25A69A" label="Оформление" value={textMetrics(preferences.textSize).label} onPress={() => open('appearance')} />
         <Item icon="folder" color="#3D8BFD" label="Папки с чатами" value={folders.folders.length ? String(folders.folders.length) : undefined} onPress={() => open('folders')} />
-        <Item icon="battery-half" color="#F0A030" label="Энергосбережение" onPress={() => open('power')} />
-        {Platform.OS === 'web' ? <Item icon="mic" color="#E5467A" label="Звук и микрофон" onPress={() => open('audio')} /> : null}
-        {Platform.OS === 'web' ? <Item icon="game-controller" color="#5865F2" label="Оверлей" onPress={() => open('overlay')} /> : null}
+        <Item icon="battery-half" color="#F0A030" label="Энергосбережение и анимации" onPress={() => open('power')} />
+        <Item icon="language" color="#7B61FF" label="Язык" value={LANGUAGES.find(item => item.id === language)?.native} onPress={() => open('language')} />
+      </Group>
+      <Group>
         <Item icon="lock-closed" color="#8C62E8" label="Конфиденциальность" onPress={() => open('privacy')} />
         <Item icon="shield-checkmark" color="#34A853" label="Безопасность и устройства" onPress={onSecurity} />
         <Item icon="server" color="#E39A3B" label="Данные и память" onPress={() => open('data')} />
-        <Item icon="language" color="#7B61FF" label="Язык" value={LANGUAGES.find(item => item.id === language)?.native} onPress={() => open('language')} />
+      </Group>
+      {Platform.OS === 'web' ? <Group>
+        <Item icon="mic" color="#E5467A" label="Звук и микрофон" onPress={() => open('audio')} />
+        <Item icon="game-controller" color="#5865F2" label="Оверлей в играх" onPress={() => open('overlay')} />
+      </Group> : null}
+      <Group>
+        <Item icon="help-buoy" color="#2AA9E0" label="Помощь и поддержка" onPress={() => { void Linking.openURL(`${currentEndpoint()}/support`).catch(() => {}); }} />
       </Group>
       <Group>
         <Item icon="log-out-outline" color="#D9534F" label="Выйти из аккаунта" danger onPress={() => void onLogout()} />
@@ -210,7 +214,6 @@ function Appearance({ api, user, theme, darkTheme, onTheme, onDarkTheme, open }:
   return <>
     <Group label="Тема"><View style={{ padding: 14 }}><ThemeSettings mode={theme} darkTheme={darkTheme} onChange={onTheme} onDarkTheme={onDarkTheme} platina={active} onLocked={() => openPlatinaShowcase()} /></View></Group>
     <Group label="Иконка приложения"><AppIconPicker /></Group>
-    <Group label="Анимации"><Item icon="battery-half" color="#F0A030" label="Энергосбережение и анимации" onPress={() => open?.('power')} /></Group>
     <Group label="Обои чатов"><Item icon="image" color="#2EA37A" label="Обои чатов" value="Выбрать" onPress={() => setWallpaperOpen(true)} /></Group>
     <WallpaperPicker visible={wallpaperOpen} onClose={() => setWallpaperOpen(false)} />
     <Group label="Углы сообщений"><View style={{ padding: 14, flexDirection: 'row', gap: 7 }}>{([[8, 'Острые'], [14, 'Средние'], [20, 'Круглые']] as const).map(([value, label]) => {

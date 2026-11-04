@@ -1,5 +1,6 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { linkify } from '../linkify';
+import { MiniProfile } from '../MiniProfile';
 import { PlatinaGem, PlatinaName, hasPlatina } from '../platina/PlatinaMark';
 import { ActivityIndicator, FlatList, Platform, Pressable, View } from 'react-native';
 import * as ImagePicker from 'expo-image-picker';
@@ -35,7 +36,7 @@ export function ChannelChat({ api, me, store, community, channel, onOpenInvite }
   const [messages, setMessages] = useState<CommunityMessage[]>([]); const [users, setUsers] = useState<Record<string, User>>({});
   const [hasMore, setHasMore] = useState(false); const [loading, setLoading] = useState(true); const [error, setError] = useState('');
   const [text, setText] = useState(''); const [sending, setSending] = useState(false); const [reply, setReply] = useState<CommunityMessage | null>(null);
-  const [editing, setEditing] = useState<CommunityMessage | null>(null); const [menu, setMenu] = useState<CommunityMessage | null>(null); const [menuAt, setMenuAt] = useState<{ x?: number; y: number }>({ y: 0 }); const [hover, setHover] = useState<number | null>(null); const [attach, setAttach] = useState(false);
+  const [editing, setEditing] = useState<CommunityMessage | null>(null); const [menu, setMenu] = useState<CommunityMessage | null>(null); const [menuAt, setMenuAt] = useState<{ x?: number; y: number }>({ y: 0 }); const [hover, setHover] = useState<number | null>(null); const [mini, setMini] = useState<{ user: User; at: { x: number; y: number } } | null>(null); const [attach, setAttach] = useState(false);
   const [roleColors, setRoleColors] = useState<Record<string, string>>({});
   const blog = community.kind === 'blog';
   const canWrite = can(community, blog ? PERM.POST : PERM.SEND);
@@ -148,9 +149,9 @@ export function ChannelChat({ api, me, store, community, channel, onOpenInvite }
           {body}
           <Text style={{ color: t.subtle, fontSize: 11, alignSelf: 'flex-end' }}>{time(item.createdAt)}</Text>
         </View> : <View style={{ flexDirection: 'row', gap: 12, paddingHorizontal: 14, paddingTop: grouped ? 1 : 10, paddingBottom: 2 }}>
-          <View style={{ width: 40 }}>{!grouped && author ? <Avatar user={author} api={api} size={40} /> : null}</View>
+          <View style={{ width: 40 }}>{!grouped && author ? <Pressable onPress={(e: any) => setMini({ user: author, at: { x: e.nativeEvent.pageX, y: e.nativeEvent.pageY } })} accessibilityRole="button" accessibilityLabel={`Профиль ${author.displayName}`}><Avatar user={author} api={api} size={40} /></Pressable> : null}</View>
           <View style={{ flex: 1, gap: 2 }}>
-            {!grouped ? <View style={{ flexDirection: 'row', alignItems: 'baseline', gap: 8 }}>{author && hasPlatina(author) && !roleColors[item.senderId] ? <PlatinaName user={author} animated={false} style={{ flexShrink: 1, fontSize: 15, fontWeight: '700' }} /> : <Text numberOfLines={1} style={{ flexShrink: 1, color: roleColors[item.senderId] || t.text, fontSize: 15, fontWeight: '700' }}>{author?.displayName || 'Участник'}</Text>}{author && hasPlatina(author) ? <PlatinaGem size={10} /> : null}{item.senderId === community.ownerId ? <Icon name="ribbon" size={13} color="#F5C542" /> : null}<Text style={{ color: t.subtle, fontSize: 11 }}>{time(item.createdAt)}</Text></View> : null}
+            {!grouped ? <Pressable disabled={!author} onPress={(e: any) => author && setMini({ user: author, at: { x: e.nativeEvent.pageX, y: e.nativeEvent.pageY } })} accessibilityRole="button" style={{ flexDirection: 'row', alignItems: 'baseline', gap: 8, alignSelf: 'flex-start' }}>{author && hasPlatina(author) && !roleColors[item.senderId] ? <PlatinaName user={author} animated={false} style={{ flexShrink: 1, fontSize: 15, fontWeight: '700' }} /> : <Text numberOfLines={1} style={{ flexShrink: 1, color: roleColors[item.senderId] || t.text, fontSize: 15, fontWeight: '700' }}>{author?.displayName || 'Участник'}</Text>}{author && hasPlatina(author) ? <PlatinaGem size={10} /> : null}{item.senderId === community.ownerId ? <Icon name="ribbon" size={13} color="#F5C542" /> : null}<Text style={{ color: t.subtle, fontSize: 11 }}>{time(item.createdAt)}</Text></Pressable> : null}
             {body}
           </View>
         </View>}
@@ -186,6 +187,7 @@ export function ChannelChat({ api, me, store, community, channel, onOpenInvite }
       {menu && menu.senderId === me.id && menu.text ? <MenuItem icon="create-outline" label="Изменить" onPress={() => { setEditing(menu); setText(menu.text); setMenu(null); }} /> : null}
       {menu && (menu.senderId === me.id || canModerate) ? <MenuItem icon="trash-outline" label="Удалить" danger separated onPress={() => void remove(menu)} /> : null}
     </ContextMenu>
+    <MiniProfile api={api} user={mini?.user || null} me={me.id} at={mini?.at} onClose={() => setMini(null)} />
   </KeyboardSafeView>;
 }
 

@@ -165,7 +165,7 @@ function Messenger({api,session,onUser,themeMode,darkTheme,onTheme,onDarkTheme,o
   useEffect(()=>{if(!pushChat)return;const target=store.chats.find(c=>c.id===pushChat);if(target){setPushChat(null);setPage('chats');store.selectChat(target);}},[pushChat,store.chats,store.selectChat]);
   const newChat=()=>{store.selectChat(null);setPage('people');};
   // Channels: open a community, or an invite from a banner / a linea://invite/… link.
-  useEffect(()=>onNavigate(request=>{if(request.to==='invite'){setInviteCode(request.code);return;}if(request.to==='security'){store.selectChat(null);setPage('security');return;}store.selectChat(null);setPage('channels');setOpenCommunity(request.communityId??null);}),[store.selectChat]);
+  useEffect(()=>onNavigate(request=>{if(request.to==='chat'){const userId=request.userId;void api.createChat(userId).then(({chat})=>{setPage('chats');store.selectChat(chat);}).catch(()=>{});return;}if(request.to==='invite'){setInviteCode(request.code);return;}if(request.to==='security'){store.selectChat(null);setPage('security');return;}store.selectChat(null);setPage('channels');setOpenCommunity(request.communityId??null);}),[store.selectChat]);
   useEffect(()=>{const handle=(url:string|null)=>{const code=url?inviteCodeFrom(url):null;if(code)setInviteCode(code);};void Linking.getInitialURL().then(handle).catch(()=>{});const sub=Linking.addEventListener('url',event=>handle(event.url));return()=>sub.remove();},[]);
   const profile=()=>{store.selectChat(null);setPage('settings');};
   const openMusic=()=>{store.selectChat(null);setPage('music');};

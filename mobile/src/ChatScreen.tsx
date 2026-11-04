@@ -46,6 +46,7 @@ import { inviteForwardable } from './communities/InviteCard';
 import { TopPlayerBar } from './music/PlayerControls';
 import { useCalls } from './calls/CallProvider';
 import { UserProfile } from './UserProfile';
+import { MiniProfile } from './MiniProfile';
 import { impactFeedback, lightFeedback } from './haptics';
 import { VideoNoteRecorder, type VideoNoteTake } from './videonote/VideoNote';
 import { useCallback } from 'react';
@@ -104,7 +105,7 @@ export function ChatScreen({api,user,chat,store,onBack,wide=false,onOpenMusic}: 
     if(!stickers){setStickers(true);requestAnimationFrame(()=>Keyboard.dismiss());return;}
     stickersToKeyboard();setKeyboardAsk(n=>n+1);
   };
-  const [pollOpen,setPollOpen]=useState(false);const [deleteAsk,setDeleteAsk]=useState(false);const [stickers,setStickers]=useState(false);
+  const [mini,setMini]=useState<{x:number;y:number}|null>(null);const [pollOpen,setPollOpen]=useState(false);const [deleteAsk,setDeleteAsk]=useState(false);const [stickers,setStickers]=useState(false);
   useEffect(()=>{setReplyTo(null);setEditing(null);setForwarding(null);setSearchOpen(false);setQuery('');setSelection(null);setGallery(null);seen.current=null;},[chat.id]);
 
   const needle=query.trim().toLocaleLowerCase('ru');
@@ -320,8 +321,8 @@ export function ChatScreen({api,user,chat,store,onBack,wide=false,onOpenMusic}: 
   },[wide,chat.id,user.id]);
   const desktopHeader=()=>{const hover=(state:{pressed:boolean})=>{const h=(state as {hovered?:boolean}).hovered;return {width:40,height:40,borderRadius:12,alignItems:'center' as const,justifyContent:'center' as const,backgroundColor:h?(t.dark?'rgba(255,255,255,0.08)':'rgba(0,0,0,0.05)'):'transparent',opacity:state.pressed?.6:1};};
     return <View style={{height:60,marginTop:-8,flexDirection:'row',alignItems:'center',gap:12,paddingHorizontal:16,backgroundColor:t.glassOpaque,borderBottomWidth:1,borderColor:t.border}}>
-      <Pressable onPress={()=>setPeerInfo(true)} accessibilityRole="button" accessibilityLabel={`Профиль ${chat.peer.displayName}`}><DecoratedAvatar user={chat.peer} api={api} size={40} animated/></Pressable>
-      <Pressable onPress={()=>setPeerInfo(true)} accessibilityRole="button" style={{flex:1,minWidth:0,gap:2}}>
+      <Pressable onPress={(e:any)=>setMini({x:e.nativeEvent.pageX,y:e.nativeEvent.pageY})} accessibilityRole="button" accessibilityLabel={`Профиль ${chat.peer.displayName}`}><DecoratedAvatar user={chat.peer} api={api} size={40} animated/></Pressable>
+      <Pressable onPress={(e:any)=>setMini({x:e.nativeEvent.pageX,y:e.nativeEvent.pageY})} accessibilityRole="button" style={{flex:1,minWidth:0,gap:2}}>
         <View style={{flexDirection:'row',gap:6,alignItems:'center'}}><PlatinaName user={chat.peer} numberOfLines={1} style={{flexShrink:1,color:t.text,fontSize:16,fontWeight:'700',letterSpacing:-.2}}/>{hasPlatina(chat.peer)?<PlatinaGem size={12}/>:null}<StatusEmoji user={chat.peer} size={16} animated/></View>
         <Text numberOfLines={1} style={{color:headerStatus.accent?t.accent:t.muted,fontSize:12.5}}>{headerStatus.text}</Text>
       </Pressable>
@@ -359,7 +360,7 @@ export function ChatScreen({api,user,chat,store,onBack,wide=false,onOpenMusic}: 
         </GlassSurface>
       </View>
       <View style={{flex:1,alignItems:'flex-end'}}>
-        <Pressable onPress={()=>setPeerInfo(true)} accessibilityRole="button" accessibilityLabel={`Профиль ${chat.peer.displayName}`} hitSlop={4} style={({pressed})=>({opacity:pressed?.75:1})}><DecoratedAvatar user={chat.peer} api={api} size={44} animated/></Pressable>
+        <Pressable onPress={(e:any)=>setMini({x:e.nativeEvent.pageX,y:e.nativeEvent.pageY})} accessibilityRole="button" accessibilityLabel={`Профиль ${chat.peer.displayName}`} hitSlop={4} style={({pressed})=>({opacity:pressed?.75:1})}><DecoratedAvatar user={chat.peer} api={api} size={44} animated/></Pressable>
       </View>
     </View>}
     {onOpenMusic&&!selection?<TopPlayerBar onOpen={onOpenMusic}/>:null}
@@ -436,6 +437,7 @@ export function ChatScreen({api,user,chat,store,onBack,wide=false,onOpenMusic}: 
       <View style={{flexDirection:'row',alignItems:'center',gap:10,paddingHorizontal:14,paddingVertical:10}}><IconButton name="close" label="Закрыть" onPress={()=>setMediaOpen(false)}/><Text style={{flex:1,color:t.text,fontSize:17,fontWeight:'700'}} numberOfLines={1}>Вложения · {chat.peer.displayName}</Text></View>
       <ScrollView contentContainerStyle={{padding:16,paddingBottom:40}}><SharedMedia messages={view.messages} onOpen={attachment=>{setMediaOpen(false);setTimeout(()=>openAttachment(attachment),250);}}/></ScrollView>
     </SafeAreaView></GlassStage></Modal>:null}
+    {mini?<MiniProfile api={api} user={chat.peer} me={user.id} at={mini} inChat status={headerStatus.text} onClose={()=>setMini(null)} onOpenProfile={()=>setPeerInfo(true)}/>:null}
     {peerInfo?<UserProfile api={api} user={chat.peer} chat={chat} shared={view.messages} onOpenAttachment={openAttachment} status={headerStatus.text.startsWith('@')||headerStatus.text.endsWith('…')?undefined:headerStatus.text} onClose={()=>setPeerInfo(false)} onMute={muted=>store.updateChatSettings(chat.id,{muted})} onSearch={()=>{setSearchOpen(true);setQuery('');}} onSecurity={()=>setTimeout(()=>setSecurityOpen(true),350)} onWallpaper={()=>setTimeout(()=>setWallpaperOpen(true),350)} rules={view.rules} onRules={rules=>store.sendAction(chat.id,{type:'settings',ttl:rules.ttl,noCopy:rules.noCopy})} onClear={()=>store.sendAction(chat.id,{type:'clear'})}/>:null}
     <WallpaperPicker visible={wallpaperOpen} onClose={()=>setWallpaperOpen(false)} chatId={chat.id}/>
     {dropping?<View pointerEvents="none" style={{position:'absolute',top:12,left:12,right:12,bottom:12,zIndex:20,borderRadius:24,borderWidth:2,borderStyle:'dashed',borderColor:t.accent,backgroundColor:t.dark?'rgba(10,14,24,0.72)':'rgba(255,255,255,0.78)',alignItems:'center',justifyContent:'center',gap:10}}><Icon name="cloud-upload-outline" size={44} color={t.accent}/><Text style={{color:t.text,fontSize:20,fontWeight:'700'}}>Отпусти, чтобы прикрепить</Text><Text style={{color:t.muted,fontSize:13}}>Файлы зашифруются перед отправкой</Text></View>:null}
