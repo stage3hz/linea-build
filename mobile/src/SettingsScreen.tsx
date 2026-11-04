@@ -145,7 +145,8 @@ function Root({ api, user, onBack, onProfile, onSecurity, onMusic, onLogout, ope
         <GlassSurface radius={22} shadow={false} interactive contentStyle={{ height: 44, paddingHorizontal: 16, justifyContent: 'center' }}><Pressable accessibilityRole="button" onPress={onProfile} hitSlop={6}><Text style={{ color: t.text, fontSize: 16, fontWeight: '600' }}>Изм.</Text></Pressable></GlassSurface>
       </View>
     </View>
-    <View style={{ marginTop: -58, paddingHorizontal: 20 }}>
+    {/* Same column as the list below (on a wide PC window the head used to hug the left edge). */}
+    <View style={{ marginTop: -58, paddingHorizontal: 20, width: '100%', maxWidth: 680, alignSelf: 'center' }}>
       <Pressable accessibilityRole="button" accessibilityLabel="Мой профиль" onPress={onProfile} style={{ alignSelf: 'flex-start', padding: 5, borderRadius: 40, backgroundColor: t.bg }}>
         <DecoratedAvatar user={user} api={api} size={100} animated />
       </Pressable>
