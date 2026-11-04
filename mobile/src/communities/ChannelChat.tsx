@@ -1,4 +1,5 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { linkify } from '../linkify';
 import { PlatinaGem, PlatinaName, hasPlatina } from '../platina/PlatinaMark';
 import { ActivityIndicator, FlatList, Platform, Pressable, View } from 'react-native';
 import * as ImagePicker from 'expo-image-picker';
@@ -134,7 +135,7 @@ export function ChannelChat({ api, me, store, community, channel, onOpenInvite }
     const invite = inviteCodeFrom(item.text); const shownText = invite ? withoutInviteLink(item.text) : item.text;
     const body = <>
       {replied ? <View style={{ flexDirection: 'row', gap: 6, alignItems: 'center', marginBottom: 3 }}><Icon name="return-down-forward" size={13} color={t.subtle} /><Text numberOfLines={1} style={{ flex: 1, color: t.muted, fontSize: 13 }}><Text style={{ fontWeight: '600', color: t.muted }}>{users[replied.senderId]?.displayName || 'Участник'}</Text> {replied.text || 'Вложение'}</Text></View> : null}
-      {shownText ? <Text selectable style={{ color: t.text, fontSize: blog ? 16 : 15.5, lineHeight: blog ? 23 : 21 }}>{shownText}{item.editedAt ? <Text style={{ color: t.subtle, fontSize: 11 }}> (изм.)</Text> : null}</Text> : null}
+      {shownText ? <Text selectable style={{ color: t.text, fontSize: blog ? 16 : 15.5, lineHeight: blog ? 23 : 21 }}>{linkify(shownText, t.accent)}{item.editedAt ? <Text style={{ color: t.subtle, fontSize: 11 }}> (изм.)</Text> : null}</Text> : null}
       {item.attachment ? <ChannelAttachment api={api} attachment={item.attachment} wide={blog} /> : null}
       {invite ? <View style={{ marginTop: 6 }}><InviteCard api={api} code={invite} onOpen={onOpenInvite} /></View> : null}
       {item.reactions?.length ? <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 5, marginTop: 4 }}>{item.reactions.map(r => { const mine = r.userIds.includes(me.id); return <Pressable key={r.emoji} onPress={() => void react(item, r.emoji)} accessibilityRole="button" accessibilityLabel={`${r.emoji} ${r.count}`} style={{ flexDirection: 'row', alignItems: 'center', gap: 5, paddingHorizontal: 8, height: 26, borderRadius: 13, backgroundColor: mine ? t.accentSoft : t.surface2, borderWidth: 1, borderColor: mine ? t.accent : t.border }}><Text raw style={{ fontSize: 14 }}>{r.emoji}</Text><Text style={{ color: mine ? t.accent : t.muted, fontSize: 12, fontWeight: '600' }}>{r.count}</Text></Pressable>; })}</View> : null}
