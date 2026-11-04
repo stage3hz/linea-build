@@ -20,6 +20,13 @@ async function vault(scope) {
   if (!scopes.has(scope)) scopes.set(scope, ready.then(([,v]) => v.openDesktopVault(path.join(app.getPath('userData'),'private'), scope, safeStorage)).catch(e => { scopes.delete(scope); throw e; }));
   return scopes.get(scope);
 }
+ipcMain.handle('window-control', (event, action) => {
+  const win = BrowserWindow.fromWebContents(event.sender); if (!win || win !== window) return null;
+  if (action === 'minimize') win.minimize();
+  else if (action === 'maximize') { if (win.isMaximized()) win.unmaximize(); else win.maximize(); }
+  else if (action === 'close') win.close();
+  return { maximized: win.isMaximized(), fullscreen: win.isFullScreen(), focused: win.isFocused(), platform: process.platform };
+});
 ipcMain.handle('capture-sources',event=>{
   if(event.sender!==picker?.webContents)throw new Error('Untrusted capture picker');
   return [...capture.sources.values()].map(source=>({id:source.id,name:source.name,image:source.thumbnail.toDataURL()}));
@@ -275,12 +282,18 @@ app.whenReady().then(async () => {
       await picker.loadURL('invizent://app/capture.html');
     } catch { callback(null); }
   }, { useSystemPicker: process.platform === 'darwin' });
-  window = new BrowserWindow({ width: 1280, height: 850, minWidth: 850, minHeight: 600, title: 'Инвиз', webPreferences: { preload: path.join(__dirname,'preload.cjs'), nodeIntegration: false, contextIsolation: true, sandbox: true, webSecurity: true } });
+  // Own title bar in the app's colours (macOS style): frameless on Windows/Linux with our traffic
+  // lights drawn by the page; on macOS the native lights stay, inset into the page.
+  window = new BrowserWindow({ width: 1280, height: 850, minWidth: 850, minHeight: 600, title: 'Инвиз', backgroundColor: '#0B0F17',
+    ...(process.platform === 'darwin' ? { titleBarStyle: 'hiddenInset', trafficLightPosition: { x: 12, y: 9 } } : { frame: false, thickFrame: true }),
+    webPreferences: { preload: path.join(__dirname,'preload.cjs'), nodeIntegration: false, contextIsolation: true, sandbox: true, webSecurity: true } });
   // No File/Edit/View/Window bar on Windows and Linux (copy, paste and undo still work in text fields).
   if (process.platform !== 'darwin') window.removeMenu();
   window.webContents.on('will-navigate', (event, url) => { if (!url.startsWith('invizent://app/')) event.preventDefault(); });
   window.on('focus', () => refreshOverlay()); window.on('blur', () => refreshOverlay()); window.on('minimize', () => refreshOverlay());
   window.on('closed', () => { overlayWin?.destroy(); overlayWin = null; });
+  const sendState = () => { if (!window || window.isDestroyed()) return; window.webContents.send('window-state', { maximized: window.isMaximized(), fullscreen: window.isFullScreen(), focused: window.isFocused() }); };
+  for (const name of ['maximize', 'unmaximize', 'enter-full-screen', 'leave-full-screen', 'focus', 'blur']) window.on(name, sendState);
   window.webContents.setWindowOpenHandler(({ url }) => { if (url.startsWith('https://')) void shell.openExternal(url); return { action: 'deny' }; });
   await window.loadURL('invizent://app/index.html');
 });

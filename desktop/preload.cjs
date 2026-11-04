@@ -16,6 +16,11 @@ contextBridge.exposeInMainWorld('invizentDesktop', Object.freeze({
     onAction: listener => { const handler = (_event, action) => { if (typeof action === 'string' && /^[a-z0-9]{1,16}$/.test(action)) listener(action); }; ipcRenderer.on('invizent-shortcut', handler); return () => ipcRenderer.removeListener('invizent-shortcut', handler); },
   }),
   badge: (count, picture) => invoke('badge', count, picture),
+  windowControls: Object.freeze({
+    platform: process.platform,
+    action: action => ['minimize', 'maximize', 'close', 'state'].includes(action) ? ipcRenderer.invoke('window-control', action) : Promise.resolve(null),
+    onState: listener => { const handler = (_event, state) => listener(state); ipcRenderer.on('window-state', handler); return () => ipcRenderer.removeListener('window-state', handler); },
+  }),
   overlay: Object.freeze({ configure: prefs => invoke('overlayConfigure', prefs), update: view => invoke('overlayUpdate', view) }),
   update: Object.freeze({ download: (url,sha256,size) => invoke('updateDownload',url,sha256,size), progress: () => invoke('updateProgress'), cancel: () => invoke('updateCancel'), install: () => invoke('updateInstall') }),
 }));
