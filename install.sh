@@ -62,7 +62,7 @@ fi
 # Сохраняем уже заданные секреты и настройки AI при повторном запуске.
 keep() { [ -f deploy/.env ] && grep -E "^$1=" deploy/.env | tail -1 | cut -d= -f2- || true; }
 # Several servers (deploy/cluster.md) and screen sharing (SFU): these lines are kept as they are.
-KEEP_EXTRA="$( [ -f deploy/.env ] && grep -E "^(CLUSTER_|LITESTREAM_|SFU_)[A-Z_]*=" deploy/.env | grep -v "^CLUSTER_BOOTSTRAP=" || true)"
+KEEP_EXTRA="$( [ -f deploy/.env ] && grep -E "^(CLUSTER_|LITESTREAM_|SFU_|SUPPORT_EMAIL)[A-Z_]*=" deploy/.env | grep -v "^CLUSTER_BOOTSTRAP=" || true)"
 OLDKEY="$(keep OPENROUTER_API_KEY)"
 AI_PROVIDER_V="$(keep AI_PROVIDER)"; AI_API_KEY_V="$(keep AI_API_KEY)"; AI_MODEL_V="$(keep AI_MODEL)"
 FLK="$(keep FREELLMAPI_ENCRYPTION_KEY)"; [ -n "$FLK" ] || FLK="$(openssl rand -hex 32)"

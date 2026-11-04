@@ -1,0 +1,153 @@
+name: iOS App Store / TestFlight
+
+# Signed Release build of Инвиз for the App Store, uploaded to App Store Connect (then TestFlight).
+# Started by hand. Signing is automatic through an App Store Connect API key (role App Manager):
+# Xcode creates the certificates and profiles itself. Secrets (added by the owner in GitHub):
+#   ASC_KEY_ID, ASC_ISSUER_ID, ASC_KEY_P8 (contents of the .p8), APPLE_TEAM_ID (10 characters).
+# The key file is written to the runner's temp folder only for this job and removed at the end.
+
+on:
+  workflow_dispatch:
+    inputs:
+      bundle_id:
+        description: Bundle ID registered in the Apple Developer account
+        default: com.invizent.app
+      runner:
+        description: macOS runner label
+        default: macos-26
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ios-appstore
+  cancel-in-progress: false
+
+jobs:
+  build:
+    runs-on: ${{ inputs.runner || 'macos-26' }}
+    timeout-minutes: 120
+    env:
+      APP_ENV: production
+      EXPO_PUBLIC_API_URL: https://api.invizent.com
+      EXPO_PUBLIC_ALLOW_LOCAL_HTTP: '0'
+      IOS_BUNDLE_ID: ${{ inputs.bundle_id }}
+      IOS_PUSH: '1'
+      # Every upload needs a bigger build number than the previous one.
+      IOS_BUILD_NUMBER: ${{ github.run_number }}
+      EXPO_NO_TELEMETRY: '1'
+      CI: '1'
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Check secrets
+        env:
+          ASC_KEY_ID: ${{ secrets.ASC_KEY_ID }}
+          ASC_ISSUER_ID: ${{ secrets.ASC_ISSUER_ID }}
+          ASC_KEY_P8: ${{ secrets.ASC_KEY_P8 }}
+          APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
+        run: |
+          missing=""
+          for v in ASC_KEY_ID ASC_ISSUER_ID ASC_KEY_P8 APPLE_TEAM_ID; do [ -n "${!v}" ] || missing="$missing $v"; done
+          [ -z "$missing" ] || { echo "::error::Добавь секреты в GitHub: $missing"; exit 1; }
+          [[ "$APPLE_TEAM_ID" =~ ^[A-Z0-9]{10}$ ]] || { echo "::error::APPLE_TEAM_ID — 10 символов (латиница и цифры)"; exit 1; }
+
+      - name: Select newest Xcode
+        run: |
+          XC=$(ls -d /Applications/Xcode_*.app | grep -v -i beta | sort -V | tail -1)
+          sudo xcode-select -s "$XC/Contents/Developer"
+          xcodebuild -version
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+
+      - name: Install JS dependencies
+        working-directory: mobile
+        run: npm ci --no-audit --no-fund
+
+      - name: Typecheck and UI tests
+        working-directory: mobile
+        run: npx tsc --noEmit && npm run test:ui
+
+      - name: Inject request-signing key (empty secret = signing off)
+        working-directory: mobile
+        env:
+          ATTEST_KEY: ${{ secrets.ATTEST_KEY }}
+        run: node scripts/inject-attest-key.mjs
+
+      - name: Expo prebuild (iOS, production)
+        working-directory: mobile
+        run: npx expo prebuild --platform ios --clean --no-install
+
+      - name: Pod install
+        working-directory: mobile/ios
+        run: pod install --repo-update
+
+      - name: API key for signing and upload
+        env:
+          ASC_KEY_ID: ${{ secrets.ASC_KEY_ID }}
+          ASC_KEY_P8: ${{ secrets.ASC_KEY_P8 }}
+        run: |
+          umask 077
+          KEY="$RUNNER_TEMP/AuthKey_${ASC_KEY_ID}.p8"
+          printf '%s\n' "$ASC_KEY_P8" > "$KEY"
+          grep -q "BEGIN PRIVATE KEY" "$KEY" || { echo "::error::ASC_KEY_P8 должен содержать весь файл .p8 со строками BEGIN/END"; exit 1; }
+          echo "ASC_KEY_PATH=$KEY" >> $GITHUB_ENV
+
+      - name: Archive (automatic signing)
+        working-directory: mobile/ios
+        env:
+          ASC_KEY_ID: ${{ secrets.ASC_KEY_ID }}
+          ASC_ISSUER_ID: ${{ secrets.ASC_ISSUER_ID }}
+          APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
+        run: |
+          set -o pipefail
+          SCHEME=$(basename *.xcworkspace .xcworkspace)
+          xcodebuild archive \
+            -workspace "$SCHEME.xcworkspace" -scheme "$SCHEME" -configuration Release \
+            -destination 'generic/platform=iOS' -archivePath "$RUNNER_TEMP/Invizent.xcarchive" \
+            -allowProvisioningUpdates \
+            -authenticationKeyPath "$ASC_KEY_PATH" -authenticationKeyID "$ASC_KEY_ID" -authenticationKeyIssuerID "$ASC_ISSUER_ID" \
+            DEVELOPMENT_TEAM="$APPLE_TEAM_ID" CODE_SIGN_STYLE=Automatic \
+            2>&1 | tee ../../archive.log | grep -E "error:|ARCHIVE (SUCCEEDED|FAILED)|\*\* " || true
+          grep -q "ARCHIVE SUCCEEDED" ../../archive.log
+
+      - name: Export and upload to App Store Connect
+        env:
+          ASC_KEY_ID: ${{ secrets.ASC_KEY_ID }}
+          ASC_ISSUER_ID: ${{ secrets.ASC_ISSUER_ID }}
+          APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
+        run: |
+          set -o pipefail
+          cat > "$RUNNER_TEMP/ExportOptions.plist" <<EOF
+          <?xml version="1.0" encoding="UTF-8"?>
+          <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+          <plist version="1.0"><dict>
+            <key>method</key><string>app-store-connect</string>
+            <key>destination</key><string>upload</string>
+            <key>teamID</key><string>$APPLE_TEAM_ID</string>
+            <key>signingStyle</key><string>automatic</string>
+            <key>uploadSymbols</key><true/>
+          </dict></plist>
+          EOF
+          xcodebuild -exportArchive -archivePath "$RUNNER_TEMP/Invizent.xcarchive" \
+            -exportOptionsPlist "$RUNNER_TEMP/ExportOptions.plist" -exportPath "$RUNNER_TEMP/export" \
+            -allowProvisioningUpdates \
+            -authenticationKeyPath "$ASC_KEY_PATH" -authenticationKeyID "$ASC_KEY_ID" -authenticationKeyIssuerID "$ASC_ISSUER_ID" \
+            2>&1 | tee export.log
+          grep -q -E "EXPORT SUCCEEDED|Upload succeeded|Uploaded" export.log
+          echo "Сборка $IOS_BUILD_NUMBER ($IOS_BUNDLE_ID) отправлена в App Store Connect. Через 10–30 минут она появится в TestFlight."
+
+      - name: Remove the key
+        if: always()
+        run: rm -f "$RUNNER_TEMP"/AuthKey_*.p8
+
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: ios-appstore-logs
+          path: |
+            archive.log
+            export.log
+          if-no-files-found: ignore

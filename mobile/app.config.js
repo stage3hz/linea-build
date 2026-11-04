@@ -25,7 +25,10 @@ module.exports = {
     },
     ios: {
       supportsTablet: false,
-      bundleIdentifier: development ? 'com.linea.messenger.preview' : 'com.linea.messenger',
+      // App Store build: the Bundle ID registered in the owner's Apple Developer account (IOS_BUNDLE_ID),
+      // build number from CI (IOS_BUILD_NUMBER, must grow with every upload).
+      bundleIdentifier: development ? 'com.linea.messenger.preview' : (process.env.IOS_BUNDLE_ID || 'com.invizent.app'),
+      ...(process.env.IOS_BUILD_NUMBER ? { buildNumber: process.env.IOS_BUILD_NUMBER } : {}),
       infoPlist: {
         NSLocalNetworkUsageDescription: 'Чтобы писать без интернета тем, кто рядом, и подключаться к серверу мессенджера в вашей сети.',
         NSBluetoothAlwaysUsageDescription: 'Bluetooth нужен, чтобы писать без интернета тем, кто рядом. Сообщения остаются зашифрованными, местоположение не определяется.',
@@ -69,7 +72,8 @@ module.exports = {
         enableBackgroundRecording: false,
       }],
       ['expo-notifications', { icon: './assets/notification-icon.png', color: '#4C7DFF', defaultChannel: 'messages' }],
-      './plugins/withNoIosPush',
+      // Sideloaded builds have no Push entitlement; the App Store build keeps it (APNs on the server).
+      ...(process.env.IOS_PUSH === '1' ? [] : ['./plugins/withNoIosPush']),
       './plugins/withSelfUpdate',
       ['expo-sensors', { motionPermission: 'Инвиз использует наклон телефона только для лёгкого движения обоев в чатах.' }],
       ['expo-camera', { cameraPermission: 'Камера нужна для видеосообщений. Видео шифруется до отправки.', microphonePermission: 'Инвиз использует микрофон только во время записи голосового или видеосообщения. Запись шифруется до отправки.', recordAudioAndroid: true }],

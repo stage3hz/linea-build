@@ -1140,3 +1140,14 @@ test('login: 5 wrong attempts lock the account for 5 minutes, then it opens agai
   assert.equal(ok.json().user.id, user.user.id);
   assert.equal((await wrong()).json().attemptsLeft, 4, 'success resets the count');
 });
+
+test('public pages for the App Store: privacy policy and support', async t => {
+  const { app } = await fixture(t);
+  for (const url of ['/privacy', '/support']) {
+    const r = await app.inject({ method: 'GET', url });
+    assert.equal(r.statusCode, 200);
+    assert.match(r.headers['content-type'], /text\/html/);
+    assert.match(r.body, /Инвиз/);
+  }
+  assert.match((await app.inject({ method: 'GET', url: '/privacy' })).body, /не<\/b> зашифрованы сквозным/);
+});

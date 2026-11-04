@@ -26,6 +26,7 @@ import { installE2eeRoutes, parseEncryptedMessage } from './e2ee.js';
 import { registerAiRoutes, aiProvider } from './ai.js';
 import { installUsernameRoutes } from './username.js';
 import { installSocialRoutes } from './social.js';
+import { privacyHtml, supportHtml } from './legal.js';
 import {
   HttpError, fail, passwordHash, tokenHash, newToken, validToken,
   objectBody, boundedText, positiveInteger, imageMime, safeFilename, safeMime, createLimiter,
@@ -286,6 +287,10 @@ export async function buildApp({
   });
 
   app.get('/health', async () => ({ status: 'ok' }));
+  // Pages the App Store links to (privacy policy, support).
+  const html = (reply, body) => reply.header('content-type', 'text/html; charset=utf-8').header('cache-control', 'public, max-age=600').send(body);
+  app.get('/privacy', async (_request, reply) => html(reply, privacyHtml(process.env.SUPPORT_EMAIL || '', '4 ноября 2026')));
+  app.get('/support', async (_request, reply) => html(reply, supportHtml(process.env.SUPPORT_EMAIL || '')));
   // The server list signed by the owner (deploy/servers.mjs). Served as is: the app checks the
   // signature itself, so a server can pass the list on but never change it.
   app.get('/servers', async (request, reply) => {

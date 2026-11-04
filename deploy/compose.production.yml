@@ -63,6 +63,8 @@ services:
       LITESTREAM_SECRET_ACCESS_KEY: ${LITESTREAM_SECRET_ACCESS_KEY:-}
       # Screen sharing for many viewers (server/src/sfu.js). Empty = off (direct copies only).
       SFU_PUBLIC_IP: ${SFU_PUBLIC_IP:-}
+      # Contact address on the /privacy and /support pages (App Store).
+      SUPPORT_EMAIL: ${SUPPORT_EMAIL:-}
       SFU_PORT: ${SFU_PORT:-40000}
     # SFU media port (only used when SFU_PUBLIC_IP is set). Media is end-to-end encrypted.
     ports:
