@@ -281,6 +281,24 @@ test('retrying a send is idempotent and pagination does not lose messages', asyn
   assert.equal((await request(app, 'GET', '/chats', bob)).json().chats[0].unreadCount, 5);
 });
 
+test('deleting a chat for everyone removes it and its messages for both sides', async t => {
+  const { app } = await fixture(t);
+  const alice = await register(app, 'alice');
+  const bob = await register(app, 'bob');
+  const carol = await register(app, 'carol');
+  const chat = await newChat(app, alice, bob);
+  await send(app, alice, chat, 'delete-both-1');
+  await send(app, bob, chat, 'delete-both-2');
+  assert.equal((await request(app, 'DELETE', `/chats/${chat.id}`, carol)).statusCode, 404);
+  const gone = await request(app, 'DELETE', `/chats/${chat.id}`, bob);
+  assert.equal(gone.statusCode, 200, gone.body);
+  assert.equal((await request(app, 'GET', '/chats', alice)).json().chats.length, 0);
+  assert.equal((await request(app, 'GET', '/chats', bob)).json().chats.length, 0);
+  assert.notEqual((await request(app, 'GET', `/chats/${chat.id}/messages`, alice)).statusCode, 200);
+  const again = await newChat(app, alice, bob);
+  assert.equal((await request(app, 'GET', `/chats/${again.id}/messages`, alice)).json().messages.length, 0);
+});
+
 test('read receipts are monotonic and reject messages belonging to a different chat', async t => {
   const { app } = await fixture(t);
   const alice = await register(app, 'alice');

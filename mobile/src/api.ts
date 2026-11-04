@@ -205,6 +205,8 @@ export class Api {
   createCommunity = (fields: {kind: 'server'|'blog'; name: string; description?: string; avatarId?: string|null; category?: string}) => this.request<{community: import('./communities/types').Community}>('/communities', {method: 'POST', body: JSON.stringify(fields)});
   community = (id: string) => this.request<{community: import('./communities/types').Community}>(`/communities/${encodeURIComponent(id)}`);
   updateCommunity = (id: string, fields: {name?: string; description?: string; avatarId?: string|null; category?: string; closed?: boolean}) => this.request<{community: import('./communities/types').Community}>(`/communities/${encodeURIComponent(id)}`, {method: 'PATCH', body: JSON.stringify(fields)});
+  /** Deletes a private chat with all messages for both participants. */
+  deleteChatForEveryone = (chatId: string) => this.request<{ok: true}>(`/chats/${encodeURIComponent(chatId)}`, {method: 'DELETE'});
   /** When the peer read my message (null + reason when unread, older than 7 days or hidden by privacy). */
   readDate = (chatId: string, messageId: number) => this.request<{readAt: string|null; reason?: 'unread'|'old'|'hidden'|'unknown'}>(`/chats/${encodeURIComponent(chatId)}/messages/${messageId}/read-date`);
   /** Marks a channel read; an older server without per-channel marks gets the community-wide one. */

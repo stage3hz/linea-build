@@ -427,9 +427,14 @@ export function useMessenger(api: Api, user: User, onExpired: ()=>void) {
     (messages[chat.id]||[]).forEach(message=>hideForMe(message));
     if(selectedRef.current===chat.id)selectChat(null);
   },[removedKey,messages,hideForMe,selectChat]);
+  const removeChatForEveryone=useCallback(async(chat:Chat)=>{
+    await api.deleteChatForEveryone(chat.id);
+    setChats(prev=>prev.filter(c=>c.id!==chat.id));setMessages(prev=>{const next={...prev};delete next[chat.id];return next;});
+    if(selectedRef.current===chat.id)selectChat(null);
+  },[api,selectChat]);
   const visibleChats=useMemo(()=>chats.filter(chat=>removed[chat.id]===undefined||(chat.lastMessage?.id||0)>removed[chat.id]),[chats,removed]);
   // While it is being re-sent by itself, the bubble shows the clock, not «Не отправлено».
   const shownPending=useMemo(()=>pending.map(p=>p.state==='failed'&&p.offline&&(p.offline<=40||p.mesh)&&!p.upload?{...p,state:'sending' as const,error:undefined}:p),[pending]);
-  return {onSocket,sendSocket,onCallSignal,readChat,presence,chats:visibleChats,removeChat,messages,hasMore,pending:shownPending,selectedId,selectChat,connection,listLoading,messageLoading,error,setError,typing,refreshChats,loadMessages,send,sendAction,hideForMe,hidden,forward,sendAttachments,sendLargeFile,cancelPending,retry:performSend,sendPoll,sendTyping,drafts,draftFiles,setDraft,setDraftFile,setDraftFiles,appendDraftFiles,removeDraftFile,recoveryRequests,recoveryError,refreshRecoveryRequests,cancelRecovery,cryptoError,trustSnapshot,approveDevices,uploadEncrypted,saved,aiHistory,updateChatSettings};
+  return {onSocket,sendSocket,onCallSignal,readChat,presence,chats:visibleChats,removeChat,removeChatForEveryone,messages,hasMore,pending:shownPending,selectedId,selectChat,connection,listLoading,messageLoading,error,setError,typing,refreshChats,loadMessages,send,sendAction,hideForMe,hidden,forward,sendAttachments,sendLargeFile,cancelPending,retry:performSend,sendPoll,sendTyping,drafts,draftFiles,setDraft,setDraftFile,setDraftFiles,appendDraftFiles,removeDraftFile,recoveryRequests,recoveryError,refreshRecoveryRequests,cancelRecovery,cryptoError,trustSnapshot,approveDevices,uploadEncrypted,saved,aiHistory,updateChatSettings};
 }
 export type MessengerStore = ReturnType<typeof useMessenger>;

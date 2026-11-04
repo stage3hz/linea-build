@@ -4,7 +4,7 @@ import { parseClientInfo, clientGateDecision } from './clientgate.js';
 import { verifyAttest, attestMode } from './attest.js';
 import { createRelease } from './release.js';
 import { PUSH_SCHEMA, PUSH_KINDS, chatNotification, migratePushTokens } from './push.js';
-import { MODERATION_SCHEMA, installModerationRoutes, blockedBetween, deleteAccount } from './moderation.js';
+import { MODERATION_SCHEMA, installModerationRoutes, blockedBetween, deleteAccount, deleteChatForEveryone } from './moderation.js';
 import { installSoundCloudRoutes } from './soundcloud.js';
 import { COMMUNITY_SCHEMA, installCommunityRoutes, VOICE_LIMIT } from './communities.js';
 import Fastify, { LogController } from 'fastify';
@@ -597,6 +597,15 @@ export async function buildApp({
 
   // «Прочитано сегодня в 18:36» for the sender's own message, like Telegram: only within 7 days,
   // and only when both sides share read receipts (otherwise `hidden`, the time is not revealed).
+  // «Удалить у меня и у собеседника»: the whole private chat, its messages and files, for both.
+  app.delete('/chats/:chatId', authOptions, async request => {
+    const chatId = request.params.chatId;
+    requireMembership(chatId, request.auth.user_id);
+    const members = await deleteChatForEveryone(db, uploadDir, chatId);
+    for (const userId of members) emitUser(userId, { type: 'chat.deleted', chatId });
+    return { ok: true };
+  });
+
   app.get('/chats/:chatId/messages/:messageId/read-date', authOptions, async request => {
     const chatId = request.params.chatId;
     const userId = request.auth.user_id;

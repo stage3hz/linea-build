@@ -73,6 +73,31 @@ export function installModerationRoutes({ app, db, authOptions, publicUser, time
  * servers it owns, its messages in other channels, its files, sessions, devices and settings.
  * Returns the chats that disappeared and their other members, so they can be told.
  */
+/** Removes one private chat with all its messages and attached files, for both participants. */
+export async function deleteChatForEveryone(db, uploadDir, chatId) {
+  const files = [];
+  const members = transaction(db, () => {
+    const ids = db.prepare('SELECT user_id FROM chat_members WHERE chat_id=?').all(chatId).map(row => row.user_id);
+    for (const row of db.prepare('SELECT a.upload_id FROM e2ee_message_attachments a JOIN messages m ON m.id=a.message_id WHERE m.chat_id=?').all(chatId)) files.push(row.upload_id);
+    for (const row of db.prepare('SELECT u.id FROM uploads u JOIN messages m ON m.id=u.attached_message_id WHERE m.chat_id=?').all(chatId)) files.push(row.id);
+    for (const row of db.prepare('SELECT attachment_id FROM messages WHERE chat_id=? AND attachment_id IS NOT NULL').all(chatId)) files.push(row.attachment_id);
+    const unique = [...new Set(files)];
+    db.prepare('DELETE FROM e2ee_message_attachments WHERE message_id IN (SELECT id FROM messages WHERE chat_id=?)').run(chatId);
+    db.prepare('UPDATE uploads SET attached_message_id=NULL WHERE attached_message_id IN (SELECT id FROM messages WHERE chat_id=?)').run(chatId);
+    db.prepare('DELETE FROM messages WHERE chat_id=?').run(chatId);
+    db.prepare('DELETE FROM chats WHERE id=?').run(chatId);
+    for (const uploadId of unique) {
+      db.prepare('UPDATE messages SET attachment_id=NULL WHERE attachment_id=?').run(uploadId);
+      db.prepare('DELETE FROM e2ee_message_attachments WHERE upload_id=?').run(uploadId);
+      db.prepare('DELETE FROM uploads WHERE id=?').run(uploadId);
+    }
+    files.length = 0; files.push(...unique);
+    return ids;
+  });
+  for (const uploadId of files) await unlink(join(uploadDir, uploadId)).catch(() => {});
+  return members;
+}
+
 export async function deleteAccount(db, uploadDir, userId) {
   const files = [];
   const removed = transaction(db, () => {
