@@ -32,7 +32,7 @@ export function AttachmentPanel({ visible, busy, canAdd, remainingSlots, onClose
   visible: boolean; busy: boolean; canAdd: boolean; remainingSlots: number; onClose: () => void; onAdd: (item: AttachmentSelection) => Promise<void>; onPoll?: () => void;
 }) {
   const t = useTheme(), window = useWindowDimensions(), insets = useSafeAreaInsets(), music = useMusic();
-  const [tab, setTab] = useState<Tab>(Platform.OS === 'web' ? 'files' : 'gallery'), [selected, setSelected] = useState<AttachmentSelection[]>([]);
+  const [tab, setTab] = useState<Tab>('gallery'), [selected, setSelected] = useState<AttachmentSelection[]>([]);
   const [editing, setEditing] = useState<AttachmentSelection | null>(null), [phase, setPhase] = useState<Phase>(null);
   const [error, setError] = useState(''), [notice, setNotice] = useState('');
   const selectedRef = useRef(selected), visibleRef = useRef(visible), alive = useRef(true), operation = useRef(0), working = useRef(false);
@@ -95,11 +95,11 @@ export function AttachmentPanel({ visible, busy, canAdd, remainingSlots, onClose
     finally { finish(ticket); }
   }
 
-  async function pickDocuments(audio: boolean) {
+  async function pickDocuments(audio: boolean, media = false) {
     if (working.current || busy) return;
     const ticket = start('picking');
     try {
-      const result = await DocumentPicker.getDocumentAsync({ type: audio ? 'audio/*' : '*/*', multiple: true, copyToCacheDirectory: true });
+      const result = await DocumentPicker.getDocumentAsync({ type: audio ? 'audio/*' : media ? ['image/*', 'video/*'] : '*/*', multiple: true, copyToCacheDirectory: true });
       if (!result.canceled && valid(ticket)) {
         const files = result.assets.map(asset => fromFile({ uri: asset.uri, name: asset.name, mimeType: asset.mimeType || 'application/octet-stream', size: asset.size, file: asset.file }));
         replaceSelection(addSelections(selectedRef.current, files, remainingSlots));
@@ -124,7 +124,7 @@ export function AttachmentPanel({ visible, busy, canAdd, remainingSlots, onClose
   }
 
   async function systemGallery() {
-    if (Platform.OS === 'web') { await pickDocuments(false); return; }
+    if (Platform.OS === 'web') { await pickDocuments(false, true); return; }
     if (working.current || busy) return;
     const ticket = start('picking');
     try {
@@ -142,7 +142,7 @@ export function AttachmentPanel({ visible, busy, canAdd, remainingSlots, onClose
   }
 
   // Two heights like Telegram: half and almost full screen.
-  const half = Math.min(520, Math.max(360, window.height * .56)), full = window.height - insets.top - Math.max(8, insets.bottom) - 12;
+  const half = Platform.OS === 'web' ? Math.min(440, window.height * .7) : Math.min(520, Math.max(360, window.height * .56)), full = window.height - insets.top - Math.max(8, insets.bottom) - 12;
   const sheetHeight = useSharedValue(half), dragStart = useSharedValue(half);
   useEffect(() => { if (visible) { sheetHeight.value = half; } }, [visible, half]);
   const sheetStyle = useAnimatedStyle(() => ({ height: sheetHeight.value }));
@@ -161,7 +161,7 @@ export function AttachmentPanel({ visible, busy, canAdd, remainingSlots, onClose
     <GestureHandlerRootView style={{ flex: 1 }}>
     <View style={{ flex: 1, justifyContent: 'flex-end', paddingHorizontal: 8, paddingBottom: Math.max(8, insets.bottom) }}>
       <Animated.View entering={FadeIn.duration(160)} style={[StyleSheet.absoluteFill, { backgroundColor: t.black ? 'rgba(0,0,0,.4)' : t.dark ? 'rgba(0,5,19,.3)' : 'rgba(43,63,103,.12)' }]}><Pressable accessibilityRole="button" accessibilityLabel="Закрыть выбор вложений" onPress={close} style={StyleSheet.absoluteFill} /></Animated.View>
-      <Animated.View entering={SlideInDown.duration(260).easing(Easing.bezier(0.2, 0.9, 0.25, 1))} style={{ alignSelf: 'center', width: '100%', maxWidth: 600 }}>
+      <Animated.View entering={SlideInDown.duration(260).easing(Easing.bezier(0.2, 0.9, 0.25, 1))} style={{ alignSelf: 'center', width: '100%', maxWidth: Platform.OS === 'web' ? 460 : 600 }}>
       {/* Opaque like Telegram's sheet (clear glass let the chat text show through), and draggable:
           pull the handle up to expand to almost full screen, down to collapse or close. */}
       <Animated.View style={[{ width: '100%', borderRadius: 28, overflow: 'hidden', backgroundColor: t.glassOpaque, borderWidth: StyleSheet.hairlineWidth, borderColor: t.border }, sheetStyle]}>
@@ -170,7 +170,7 @@ export function AttachmentPanel({ visible, busy, canAdd, remainingSlots, onClose
         <View style={{ alignSelf: 'center', width: 35, height: 4, borderRadius: 2, backgroundColor: t.subtle, opacity: .45 }} />
         <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10 }}>
           <IconButton name="close" label="Закрыть выбор вложений" onPress={close} disabled={phase === 'adding' || busy} size={20} style={{ height: 36, width: 36, borderRadius: 18, backgroundColor: t.surface2 }} />
-          <Text style={{ flex: 1, textAlign: 'center', color: t.text, fontSize: 16, fontWeight: '700', letterSpacing: -.3 }}>{tab === 'gallery' ? (selected.length ? `Выбрано: ${selected.length}` : 'Недавние') : tab === 'audio' ? 'Аудио' : 'Файлы'}</Text>
+          <Text style={{ flex: 1, textAlign: 'center', color: t.text, fontSize: 16, fontWeight: '700', letterSpacing: -.3 }}>{tab === 'gallery' ? (selected.length ? `Выбрано: ${selected.length}` : Platform.OS === 'web' ? 'Фото и видео' : 'Недавние') : tab === 'audio' ? 'Аудио' : 'Файлы'}</Text>
           <View style={{ width: 36 }} />
         </View>
         </View></GestureDetector>

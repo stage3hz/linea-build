@@ -59,7 +59,13 @@ export function GalleryPane({ active, selectedIds, disabled, onToggle, onEdit, o
     return () => session.close();
   }, [active]);
   const help = { color: t.muted, fontSize: 12, lineHeight: 17 };
-  if (Platform.OS === 'web') return <View style={{ padding: 18, gap: 14 }}><Icon name="phone-portrait-outline" color={t.accent} size={32} /><Text style={{ color: t.text, fontSize: 16, fontWeight: '700' }}>Галерея устройства — в мобильной версии</Text><Text style={help}>Веб-версия не читает медиатеку телефона. Можно открыть системный выбор файлов; обработка и отправка со сквозным шифрованием требуют приложения Android или iPhone.</Text><Button secondary label="Выбрать файл" icon="folder-open-outline" onPress={onFallback} disabled={disabled} /></View>;
+  // On PC there is no phone media library: the tab is one large area that opens the system picker for photos and videos.
+  if (Platform.OS === 'web') return <Pressable disabled={disabled} onPress={onFallback} accessibilityRole="button" accessibilityLabel="Выбрать фото или видео на компьютере"
+    style={({ hovered }: { pressed: boolean; hovered?: boolean }) => ({ flex: 1, margin: 6, borderRadius: 20, borderWidth: 1.5, borderStyle: 'dashed', borderColor: hovered ? t.accent : t.border, backgroundColor: hovered ? t.accentSoft : 'transparent', alignItems: 'center', justifyContent: 'center', gap: 10, padding: 20 })}>
+    <View style={{ width: 64, height: 64, borderRadius: 32, backgroundColor: t.accentSoft, alignItems: 'center', justifyContent: 'center' }}><Icon name="images-outline" color={t.accent} size={30} /></View>
+    <Text style={{ color: t.text, fontSize: 16, fontWeight: '700' }}>Фото и видео</Text>
+    <Text style={[help, { textAlign: 'center' }]}>Нажми, чтобы выбрать на компьютере. Можно сразу несколько.</Text>
+  </Pressable>;
   const allowed = gallery.permission?.granted || gallery.permission?.accessPrivileges === 'limited';
   const permissionDenied = !!gallery.permission && !allowed;
   return <View style={{ flex: 1, gap: 8 }}>

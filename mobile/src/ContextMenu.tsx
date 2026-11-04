@@ -48,7 +48,8 @@ export function ContextMenu({ visible, y: liveY, x: liveX, onClose, reactions, o
   const bubble = useAnimatedStyle(() => ({ opacity: interpolate(shown.value, [0, 0.25], [0, 1], 'clamp'), transform: [{ translateY: lift * (1 - shown.value) }, { scale: interpolate(shown.value, [0, 1], [0.96, 1]) }] }));
   const menu = useAnimatedStyle(() => ({ opacity: interpolate(shown.value, [0, 0.35], [0, 1], 'clamp'), transform: [{ scale: interpolate(shown.value, [0, 1], [0.35, 1]) }] }));
   const pill = useAnimatedStyle(() => ({ opacity: interpolate(shown.value, [0, 0.3], [0, 1], 'clamp'), transform: [{ scale: interpolate(shown.value, [0, 1], [0.55, 1]) }] }));
-  const surface = t.dark ? 'rgba(34,40,58,0.96)' : 'rgba(255,255,255,0.97)';
+  // The menu follows the chat theme (black theme → near-black, coloured themes → their own tint).
+  const surface = menuSurface(t);
   const shadow = { shadowColor: '#000', shadowOpacity: .28, shadowRadius: 18, shadowOffset: { width: 0, height: 8 }, elevation: 8 };
   const corner = atCursor ? 'left' : mine ? 'right' : 'left';
   if (!mounted) return null;
@@ -96,4 +97,13 @@ export function MenuItem({ icon, label, onPress, danger = false, separated = fal
       <Text style={{ flex: 1, color: danger ? t.danger : t.text, fontSize: 15.5 }}>{label}</Text>
     </Pressable>
   </View>;
+}
+
+/** Opaque menu colour from the theme background: a little lighter than the background in dark themes. */
+export function menuSurface(t: { dark: boolean; bg: string }): string {
+  if (!t.dark) return 'rgba(255,255,255,0.97)';
+  const m = /^#?([0-9a-f]{6})$/i.exec(t.bg.trim());
+  if (!m) return 'rgba(34,40,58,0.96)';
+  const n = parseInt(m[1], 16), mix = (c: number) => Math.round(c + (255 - c) * 0.11);
+  return `rgba(${mix(n >> 16 & 255)},${mix(n >> 8 & 255)},${mix(n & 255)},0.97)`;
 }

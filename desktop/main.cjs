@@ -32,7 +32,8 @@ ipcMain.handle('capture-choose',(event,id)=>{
   // NSAudioCaptureUsageDescription). The renderer asks restrictOwnAudio so Инвиз's own sound
   // (the people in the channel) is left out — no echo.
   const sound=process.platform==='win32'||process.platform==='darwin'?{audio:'loopback'}:{};
-  callback(source?{video:source,...sound}:{});
+  // null = cancelled (an empty object makes Electron throw «Video was requested…» and crash).
+  callback(source?{video:source,...sound}:null);
 });
 // ---- in-game overlay (Настройки → Оверлей; off by default) ----
 // A tiny transparent window that never takes focus or clicks, above other windows. Shown only
@@ -253,28 +254,30 @@ app.whenReady().then(async () => {
     if (details.webContentsId === window?.webContents.id) { delete headers.Origin; delete headers.origin; }
     callback({ requestHeaders: headers });
   });
-  session.defaultSession.setPermissionCheckHandler((contents,permission,origin) => contents===window?.webContents && origin.replace(/\/$/,'')==='invizent://app' && ['display-capture','fullscreen','clipboard-sanitized-write'].includes(permission));
+  session.defaultSession.setPermissionCheckHandler((contents,permission,origin) => contents===window?.webContents && origin.replace(/\/$/,'')==='invizent://app' && ['display-capture','fullscreen','clipboard-sanitized-write','media'].includes(permission));
   session.defaultSession.setPermissionRequestHandler(async (contents, permission, callback, details) => {
     if (contents !== window?.webContents || !details.requestingUrl?.startsWith('invizent://app/')) return callback(false);
     if (['display-capture','fullscreen','clipboard-sanitized-write'].includes(permission)) return callback(true);
-    if (permission !== 'media') return callback(false);
-    const choice = await dialog.showMessageBox(window, { type: 'question', title: 'Инвиз', message: 'Разрешить доступ к микрофону или камере?', buttons: ['Запретить','Разрешить'], defaultId: 0, cancelId: 0 });
-    callback(choice.response === 1);
+    // Microphone and camera for our own page only: no extra question from Инвиз (Windows' own
+    // privacy settings still decide; the page asks only when the user starts a call or a recording).
+    callback(permission === 'media');
   });
   session.defaultSession.setDisplayMediaRequestHandler(async (request, callback) => {
-    if (request.frame !== window?.webContents.mainFrame || !request.securityOrigin.startsWith('invizent://app')) return callback({});
+    if (request.frame !== window?.webContents.mainFrame || !request.securityOrigin.startsWith('invizent://app')) return callback(null);
     try {
-      if(capture)return callback({});
+      if(capture)return callback(null);
       const sources = await desktopCapturer.getSources({types:['screen','window'],thumbnailSize:{width:320,height:180}});
       capture={sources:new Map(sources.map(source=>[source.id,source])),callback};
       picker=new BrowserWindow({parent:window,modal:true,width:780,height:650,title:'Демонстрация экрана',webPreferences:{preload:path.join(__dirname,'capture-preload.cjs'),nodeIntegration:false,contextIsolation:true,sandbox:true,webSecurity:true}});
-      picker.on('closed',()=>{if(capture){const done=capture.callback;capture=null;done({});}picker=null;});
-      picker.webContents.setWindowOpenHandler(()=>({action:'deny'}));
+      picker.on('closed',()=>{if(capture){const done=capture.callback;capture=null;done(null);}picker=null;});
+      picker.removeMenu();picker.webContents.setWindowOpenHandler(()=>({action:'deny'}));
       picker.webContents.on('will-navigate',event=>event.preventDefault());
       await picker.loadURL('invizent://app/capture.html');
-    } catch { callback({}); }
+    } catch { callback(null); }
   }, { useSystemPicker: process.platform === 'darwin' });
   window = new BrowserWindow({ width: 1280, height: 850, minWidth: 850, minHeight: 600, title: 'Инвиз', webPreferences: { preload: path.join(__dirname,'preload.cjs'), nodeIntegration: false, contextIsolation: true, sandbox: true, webSecurity: true } });
+  // No File/Edit/View/Window bar on Windows and Linux (copy, paste and undo still work in text fields).
+  if (process.platform !== 'darwin') window.removeMenu();
   window.webContents.on('will-navigate', (event, url) => { if (!url.startsWith('invizent://app/')) event.preventDefault(); });
   window.on('focus', () => refreshOverlay()); window.on('blur', () => refreshOverlay()); window.on('minimize', () => refreshOverlay());
   window.on('closed', () => { overlayWin?.destroy(); overlayWin = null; });
