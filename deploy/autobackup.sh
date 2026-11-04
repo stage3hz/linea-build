@@ -6,6 +6,7 @@
 #   bash deploy/autobackup.sh status       последний результат, список архивов, место
 #   bash deploy/autobackup.sh key          показать ключ для восстановления (сохрани его ВНЕ сервера)
 #   bash deploy/autobackup.sh remote NAME:путь   копировать архивы ещё и в rclone-хранилище
+#   bash deploy/autobackup.sh s3 БАКЕТ          то же для S3 (Timeweb и др.): спросит ключи и сам всё настроит
 #   bash deploy/autobackup.sh restore ФАЙЛ.age   восстановить базу и файлы из архива
 #
 # Что в архиве: снимок базы (VACUUM INTO — сервер не останавливается), загруженные файлы,
@@ -24,6 +25,9 @@ DEST="${INVIZENT_BACKUP_DIR:-/var/backups/invizent}"
 KEEP_DAILY="${INVIZENT_BACKUP_KEEP:-14}"
 C=(docker compose --env-file "$DEPLOY/.env" -f "$DEPLOY/compose.production.yml")
 STATUS="$DEST/last-status.json"
+# Settings of the off-server storage live next to the other secrets (works the same from the timer).
+RCLONE_CONF="$DEPLOY/secrets/rclone.conf"
+[ -f "$RCLONE_CONF" ] && export RCLONE_CONFIG="$RCLONE_CONF"
 
 say() { printf '%s\n' "$*"; }
 die() { printf 'Ошибка: %s\n' "$*" >&2; exit 1; }
@@ -162,6 +166,22 @@ cmd_remote() {
   say "Готово: архивы будут копироваться в $target. Проверка: bash deploy/autobackup.sh run"
 }
 
+# S3-compatible storage without "rclone config": asks for the keys (secret hidden) and writes
+# deploy/secrets/rclone.conf (600). Defaults are Timeweb S3; other providers: S3_ENDPOINT / S3_REGION.
+cmd_s3() {
+  need_root; local bucket="${1:-}"
+  [ -n "$bucket" ] || die "укажи бакет, например: bash deploy/autobackup.sh s3 invizent-db"
+  [[ "$bucket" =~ ^[a-z0-9][a-z0-9.-]{1,62}$ ]] || die "имя бакета: строчные латинские буквы, цифры, точка и дефис"
+  local endpoint="${S3_ENDPOINT:-https://s3.twcstorage.ru}" region="${S3_REGION:-ru-1}" id secret
+  read -rp "Ключ доступа S3 (Access key / ID): " id
+  read -rsp "Секретный ключ S3 (ввод скрыт): " secret; echo
+  [ -n "$id" ] && [ -n "$secret" ] || die "ключи не введены"
+  mkdir -p "$DEPLOY/secrets"
+  ( umask 077; printf '[invizent-s3]\ntype = s3\nprovider = Other\nenv_auth = false\naccess_key_id = %s\nsecret_access_key = %s\nendpoint = %s\nregion = %s\nforce_path_style = true\n' "$id" "$secret" "$endpoint" "$region" > "$RCLONE_CONF" )
+  export RCLONE_CONFIG="$RCLONE_CONF"
+  cmd_remote "invizent-s3:$bucket/backups"
+}
+
 cmd_restore() {
   need_root; ensure_tools
   local file="${1:-}"; [ -f "$file" ] || die "укажи файл архива .age"
@@ -189,6 +209,7 @@ case "${1:-}" in
   status) cmd_status ;;
   key) cmd_key ;;
   remote) shift; cmd_remote "${1:-}" ;;
+  s3) shift; cmd_s3 "${1:-}" ;;
   restore) shift; cmd_restore "${1:-}" ;;
-  *) sed -n 2,9p "$0" | sed 's/^# \{0,1\}//'; exit 2 ;;
+  *) sed -n 2,10p "$0" | sed 's/^# \{0,1\}//'; exit 2 ;;
 esac
