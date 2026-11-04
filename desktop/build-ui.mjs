@@ -11,3 +11,16 @@ let css='';for(const [name,weight] of [['Regular',400],['Medium',500],['SemiBold
 const html=path.join(dist,'index.html');writeFileSync(html,readFileSync(html,'utf8').replace('</head>',`<style>${css}</style></head>`));
 
 for(const name of ['capture.html','capture-picker.js'])copyFileSync(fileURLToPath(new URL('./'+name,import.meta.url)),path.join(dist,name));
+
+// electron-builder leaves out every folder named node_modules inside the app, so fonts and images
+// that Expo exported under dist/assets/node_modules (icon font included) were missing in the
+// installed PC app: icons showed as empty squares. Move them and fix the references.
+{
+  const { existsSync, renameSync, readdirSync, statSync } = await import('node:fs');
+  const from = path.join(dist, 'assets', 'node_modules'), to = path.join(dist, 'assets', 'vendor');
+  if (existsSync(from)) {
+    renameSync(from, to);
+    const walk = dir => { for (const name of readdirSync(dir)) { const file = path.join(dir, name); if (statSync(file).isDirectory()) walk(file); else if (/\.(js|html|css|json|map)$/.test(name)) { const text = readFileSync(file, 'utf8'); if (text.includes('assets/node_modules/')) writeFileSync(file, text.split('assets/node_modules/').join('assets/vendor/')); } } };
+    walk(dist);
+  }
+}
