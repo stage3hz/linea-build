@@ -1,5 +1,5 @@
 import React, { useEffect, useRef, useState } from 'react';
-import { Platform, Pressable, View } from 'react-native';
+import { Animated, Easing, Platform, Pressable, View } from 'react-native';
 import { Asset } from 'expo-asset';
 import * as FileSystem from 'expo-file-system/legacy';
 import { Text } from '../typography';
@@ -10,7 +10,11 @@ export { emojiClusters };
 
 /** Parsed Lottie documents, loaded from the bundled asset on first use and kept for the session. */
 /** The bundled animation for an emoji, tolerant to a missing or extra U+FE0F. */
+// On iPhone the original Apple glyphs are shown everywhere (the bundled animations are Google's Noto
+// drawings); they get a light motion of their own instead of the Lottie animation.
+const NATIVE_GLYPHS = Platform.OS === 'ios';
 function animationModule(emoji: string): number | undefined {
+  if (NATIVE_GLYPHS) return undefined;
   return ANIMATED_EMOJI[emoji] ?? ANIMATED_EMOJI[emoji.replace(/\uFE0F/g, '')] ?? ANIMATED_EMOJI[`${emoji}\uFE0F`];
 }
 
@@ -32,7 +36,7 @@ function load(emoji: string): Promise<object | null> {
   return pending;
 }
 
-export const hasAnimatedEmoji = (emoji: string) => Platform.OS !== 'web' && Boolean(animationModule(emoji));
+export const hasAnimatedEmoji = (emoji: string) => Platform.OS !== 'web' && (NATIVE_GLYPHS ? isEmojiCluster(emoji) : Boolean(animationModule(emoji)));
 
 import { LottieView } from './lottie';
 const lottie = () => LottieView;
@@ -42,6 +46,33 @@ const lottie = () => LottieView;
  * otherwise, or while animations are off, it is the ordinary system glyph.
  */
 export function AnimatedEmoji({ emoji, size, mode = 'loop', tapToReplay = false }: { emoji: string; size: number; mode?: 'loop' | 'once'; tapToReplay?: boolean }) {
+  if (NATIVE_GLYPHS) return <NativeEmoji emoji={emoji} size={size} mode={mode} tapToReplay={tapToReplay} />;
+  return <LottieEmoji emoji={emoji} size={size} mode={mode} tapToReplay={tapToReplay} />;
+}
+
+/** The system (Apple) glyph: pops in once, or breathes gently while `loop`. */
+function NativeEmoji({ emoji, size, mode, tapToReplay }: { emoji: string; size: number; mode: 'loop' | 'once'; tapToReplay: boolean }) {
+  const { enabled } = useMotion();
+  const scale = useRef(new Animated.Value(enabled ? 0.6 : 1)).current;
+  const play = () => {
+    if (!enabled) { scale.setValue(1); return; }
+    scale.stopAnimation(); scale.setValue(0.6);
+    const pop = Animated.spring(scale, { toValue: 1, useNativeDriver: true, speed: 14, bounciness: 14 });
+    if (mode === 'once') { pop.start(); return; }
+    const breathe = Animated.loop(Animated.sequence([
+      Animated.timing(scale, { toValue: 1.08, duration: 900, easing: Easing.inOut(Easing.quad), useNativeDriver: true }),
+      Animated.timing(scale, { toValue: 1, duration: 900, easing: Easing.inOut(Easing.quad), useNativeDriver: true }),
+    ]));
+    Animated.sequence([pop, breathe]).start();
+  };
+  useEffect(() => { play(); return () => scale.stopAnimation(); }, [emoji, enabled, mode]);
+  const glyph = <Animated.View accessible accessibilityLabel={emoji} style={{ width: size, height: size, alignItems: 'center', justifyContent: 'center', transform: [{ scale }] }}>
+    <Text raw style={{ fontSize: size * 0.86, lineHeight: size, textAlign: 'center' }}>{emoji}</Text>
+  </Animated.View>;
+  return tapToReplay ? <Pressable onPress={play}>{glyph}</Pressable> : glyph;
+}
+
+function LottieEmoji({ emoji, size, mode, tapToReplay }: { emoji: string; size: number; mode: 'loop' | 'once'; tapToReplay: boolean }) {
   const { enabled } = useMotion();
   const [source, setSource] = useState<object | null>(null);
   const ref = useRef<{ play: () => void; reset: () => void } | null>(null);
@@ -62,6 +93,6 @@ export function bigEmoji(text: string): string[] | null {
   const parts = emojiClusters(trimmed);
   if (parts.length < 1 || parts.length > 3) return null;
   if (!parts.every(isEmojiCluster)) return null;
-  return parts.some(part => animationModule(part)) ? parts : null;
+  return NATIVE_GLYPHS || parts.some(part => animationModule(part)) ? parts : null;
 }
 
