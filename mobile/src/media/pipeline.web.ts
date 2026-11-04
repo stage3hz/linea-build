@@ -7,6 +7,26 @@ import { sanitizeMp4 } from './mp4';
 import { sniffPhotoFormat } from '../photo/formats';
 import { sniffVideoFormat } from './formats';
 export type PreparedMedia = PreparedUpload & { video?: boolean };
+const MAX_PIXELS = 16_000_000;
+/**
+ * WebP/AVIF/BMP, photos above 16 MP and damaged JPEGs the strict sanitizer rejects: decoded by the
+ * browser and re-encoded (which also drops all metadata). Big pictures are scaled down like in
+ * Telegram; transparency is kept as PNG.
+ */
+async function transcode(bytes: Uint8Array, alpha: boolean): Promise<{ bytes: Uint8Array; mime: string }> {
+  let bitmap: ImageBitmap;
+  try { bitmap = await createImageBitmap(new Blob([bytes as BlobPart]), { imageOrientation: 'from-image' } as ImageBitmapOptions); }
+  catch { throw new Error('Это фото повреждено или в формате, который не открывается на ПК. Пересохрани его как JPEG или PNG и отправь снова.'); }
+  const scale = Math.min(1, Math.sqrt(MAX_PIXELS / (bitmap.width * bitmap.height)), 8192 / Math.max(bitmap.width, bitmap.height));
+  const canvas = document.createElement('canvas');
+  canvas.width = Math.max(1, Math.round(bitmap.width * scale)); canvas.height = Math.max(1, Math.round(bitmap.height * scale));
+  const ctx = canvas.getContext('2d'); if (!ctx) { bitmap.close(); throw new Error('Не удалось обработать фото.'); }
+  if (!alpha) { ctx.fillStyle = '#FFFFFF'; ctx.fillRect(0, 0, canvas.width, canvas.height); }
+  ctx.imageSmoothingQuality = 'high'; ctx.drawImage(bitmap, 0, 0, canvas.width, canvas.height); bitmap.close();
+  const mime = alpha ? 'image/png' : 'image/jpeg';
+  const blob = await new Promise<Blob>((resolve, reject) => canvas.toBlob(b => b ? resolve(b) : reject(new Error('Не удалось обработать фото.')), mime, 0.9));
+  return { bytes: new Uint8Array(await blob.arrayBuffer()), mime };
+}
 export async function prepareMediaForUpload(file: LocalFile): Promise<PreparedMedia> {
   const response=await fetch(file.uri); if(!response.ok) throw new Error('Не удалось прочитать файл.');
   let bytes:Uint8Array=new Uint8Array(await response.arrayBuffer());
@@ -14,10 +34,10 @@ export async function prepareMediaForUpload(file: LocalFile): Promise<PreparedMe
   const image=sniffPhotoFormat(bytes), video=sniffVideoFormat(bytes);
   if(file.mimeType==='audio/mp4' && video!=='mp4')throw new Error('Выбери аудиофайл: MP3, M4A, WAV, FLAC или другой поддерживаемый формат.');
   let mime=file.mimeType, photo=false, movie=false;
-  if(image==='jpeg') {bytes=sanitizeJpeg(bytes).bytes;mime='image/jpeg';photo=true;}
-  else if(image==='png') {bytes=sanitizePng(bytes).bytes;mime='image/png';photo=true;}
+  if(image==='jpeg') {try{bytes=sanitizeJpeg(bytes).bytes;}catch{bytes=(await transcode(bytes,false)).bytes;}mime='image/jpeg';photo=true;}
+  else if(image==='png') {try{bytes=sanitizePng(bytes).bytes;mime='image/png';}catch{const out=await transcode(bytes,true);bytes=out.bytes;mime=out.mime;}photo=true;}
   else if(image==='gif') {bytes=sanitizeGif(bytes).bytes;mime='image/gif';}
-  else if(image) throw new Error('Этот формат фото нужно сначала преобразовать в JPEG или PNG.');
+  else if(image) {const out=await transcode(bytes,image==='webp'||image==='bmp'||image==='tiff'||image==='avif');bytes=out.bytes;mime=out.mime;photo=true;}
   else if(video==='mp4' && !file.mimeType.startsWith('audio/')) {bytes=sanitizeMp4(bytes).bytes;mime='video/mp4';movie=true;}
   else if(video && !file.mimeType.startsWith('audio/')) throw new Error('На ПК отправляй видео в формате MP4.');
   const uri=URL.createObjectURL(new Blob([bytes as BlobPart],{type:mime}));
