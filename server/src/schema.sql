@@ -189,3 +189,13 @@ CREATE TABLE IF NOT EXISTS chat_settings (
   muted INTEGER NOT NULL DEFAULT 0 CHECK(muted IN (0,1)),
   PRIMARY KEY(user_id, chat_id)
 );
+
+-- When a member's read pointer advanced (for "прочитано сегодня в 18:36" on own messages).
+-- Kept for 7 days; only the time, never message content.
+CREATE TABLE IF NOT EXISTS read_marks (
+  chat_id TEXT NOT NULL REFERENCES chats(id) ON DELETE CASCADE,
+  user_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+  message_id INTEGER NOT NULL,
+  read_at INTEGER NOT NULL,
+  PRIMARY KEY (chat_id, user_id, message_id)
+);

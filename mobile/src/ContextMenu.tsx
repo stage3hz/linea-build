@@ -99,6 +99,44 @@ export function MenuItem({ icon, label, onPress, danger = false, separated = fal
   </View>;
 }
 
+/**
+ * Telegram's first menu row for an own, already read message: «Прочитано сегодня в 18:36».
+ * Opens at once with a placeholder and fills in when the time arrives; disappears if there is none.
+ */
+export function ReadDateRow({ load }: { load: () => Promise<{ readAt: string | null; reason?: string }> }) {
+  const t = useTheme();
+  const [state, setState] = useState<{ text: string } | 'loading' | null>('loading');
+  useEffect(() => {
+    let alive = true;
+    load().then(result => {
+      if (!alive) return;
+      if (result.readAt) setState({ text: readDateText(new Date(result.readAt)) });
+      else if (result.reason === 'hidden') setState({ text: 'Прочитано' });
+      else setState(null);
+    }).catch(() => { if (alive) setState(null); });
+    return () => { alive = false; };
+  }, []);
+  if (!state) return null;
+  return <View>
+    <View accessibilityRole="text" style={{ flexDirection: 'row', alignItems: 'center', gap: 12, minHeight: 40, paddingHorizontal: 14 }}>
+      <Icon name="checkmark-done" size={19} color={t.muted} />
+      {state === 'loading' ? <View style={{ height: 12, width: 150, borderRadius: 6, backgroundColor: t.dark ? 'rgba(255,255,255,0.10)' : 'rgba(0,0,0,0.07)' }} />
+        : <Text style={{ flex: 1, color: t.muted, fontSize: 14 }}>{state.text}</Text>}
+    </View>
+    <View style={{ height: 7, backgroundColor: t.dark ? 'rgba(0,0,0,0.28)' : 'rgba(0,0,0,0.06)' }} />
+  </View>;
+}
+
+export function readDateText(date: Date, now = new Date()): string {
+  const time = `${String(date.getHours()).padStart(2, '0')}:${String(date.getMinutes()).padStart(2, '0')}`;
+  const day = (d: Date) => new Date(d.getFullYear(), d.getMonth(), d.getDate()).getTime();
+  const diff = Math.round((day(now) - day(date)) / 86400000);
+  if (diff === 0) return `Прочитано сегодня в ${time}`;
+  if (diff === 1) return `Прочитано вчера в ${time}`;
+  const months = ['января', 'февраля', 'марта', 'апреля', 'мая', 'июня', 'июля', 'августа', 'сентября', 'октября', 'ноября', 'декабря'];
+  return `Прочитано ${date.getDate()} ${months[date.getMonth()]} в ${time}`;
+}
+
 /** Opaque menu colour from the theme background: a little lighter than the background in dark themes. */
 export function menuSurface(t: { dark: boolean; bg: string }): string {
   if (!t.dark) return 'rgba(255,255,255,0.97)';

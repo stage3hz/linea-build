@@ -628,6 +628,16 @@ test('privacy: new chats, avatar visibility and mutual read receipts are enforce
   assert.equal(await aliceSees(), 0);
   assert.equal((await request(app, 'PATCH', '/me/privacy', bob, { readReceipts: true })).statusCode, 200);
   assert.equal(await aliceSees(), message.id);
+  // «Прочитано в …»: own message only, hidden when receipts are off.
+  const readDate = (who, id) => request(app, 'GET', `/chats/${chat.id}/messages/${id}/read-date`, who);
+  const shown = await readDate(alice, message.id);
+  assert.equal(shown.statusCode, 200, shown.body);
+  assert.ok(Math.abs(Date.parse(shown.json().readAt) - Date.now()) < 60000);
+  assert.equal((await readDate(bob, message.id)).statusCode, 403);
+  const unread = await send(app, alice, chat, '22222222-2222-4222-8222-222222222222');
+  assert.equal((await readDate(alice, unread.id)).json().reason, 'unread');
+  assert.equal((await request(app, 'PATCH', '/me/privacy', bob, { readReceipts: false })).statusCode, 200);
+  assert.deepEqual((await readDate(alice, message.id)).json(), { readAt: null, reason: 'hidden' });
 });
 
 test('friends list and per-user chat settings (pin, archive, mute) stay private to their owner', async t => {

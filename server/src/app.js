@@ -32,6 +32,7 @@ import {
   objectBody, boundedText, positiveInteger, imageMime, safeFilename, safeMime, createLimiter,
   publicName,
 } from './security.js';
+const READ_DATE_WINDOW_MS = 7 * 24 * 3600 * 1000;
 
 const MiB = 1024 * 1024;
 const MAX_AVATAR_BYTES = 4 * MiB;
@@ -594,6 +595,24 @@ export async function buildApp({
     return reply.code(201).send({ message: lean(request, message) });
   });
 
+  // «Прочитано сегодня в 18:36» for the sender's own message, like Telegram: only within 7 days,
+  // and only when both sides share read receipts (otherwise `hidden`, the time is not revealed).
+  app.get('/chats/:chatId/messages/:messageId/read-date', authOptions, async request => {
+    const chatId = request.params.chatId;
+    const userId = request.auth.user_id;
+    requireMembership(chatId, userId);
+    const messageId = positiveInteger(Number(request.params.messageId), 'Номер сообщения');
+    const message = db.prepare('SELECT sender_id, created_at FROM messages WHERE id=? AND chat_id=?').get(messageId, chatId);
+    if (!message) fail(404, 'Сообщение не найдено в этом чате.');
+    if (message.sender_id !== userId) fail(403, 'Время прочтения есть только у своих сообщений.');
+    if (now() - Date.parse(message.created_at) > READ_DATE_WINDOW_MS) return { readAt: null, reason: 'old' };
+    const peer = db.prepare('SELECT user_id, last_read_message_id FROM chat_members WHERE chat_id=? AND user_id<>?').get(chatId, userId);
+    if (!peer || peer.last_read_message_id < messageId) return { readAt: null, reason: 'unread' };
+    if (!receiptsVisible(db, peer.user_id, userId, now())) return { readAt: null, reason: 'hidden' };
+    const mark = db.prepare('SELECT MIN(read_at) AS at FROM read_marks WHERE chat_id=? AND user_id=? AND message_id>=?').get(chatId, peer.user_id, messageId);
+    return mark?.at ? { readAt: new Date(mark.at).toISOString() } : { readAt: null, reason: 'unknown' };
+  });
+
   app.post('/chats/:chatId/read', authOptions, async request => {
     const chatId = request.params.chatId;
     const userId = request.auth.user_id;
@@ -604,6 +623,8 @@ export async function buildApp({
     const lastReadMessageId = Math.max(member.last_read_message_id, messageId);
     if (lastReadMessageId > member.last_read_message_id) {
       db.prepare('UPDATE chat_members SET last_read_message_id=? WHERE chat_id=? AND user_id=?').run(lastReadMessageId, chatId, userId);
+      db.prepare('INSERT OR IGNORE INTO read_marks(chat_id,user_id,message_id,read_at) VALUES(?,?,?,?)').run(chatId, userId, lastReadMessageId, now());
+      db.prepare('DELETE FROM read_marks WHERE read_at<?').run(now() - READ_DATE_WINDOW_MS);
       for (const targetId of memberIds(chatId)) {
         if (targetId !== userId && !receiptsVisible(db, userId, targetId, now())) continue;
         emitUser(targetId, { type: 'read', chatId, userId, messageId: lastReadMessageId });

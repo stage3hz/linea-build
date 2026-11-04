@@ -38,7 +38,7 @@ import { Share } from 'react-native';
 import { presenceText } from './presence';
 import { VoicePlaybackProvider, VoiceRecordingBar, useVoiceRecorder } from './voice/VoiceMessage';
 import { MessageRow, MissingRow, type AlbumPart, type Row, type RowHandlers } from './MessageRow';
-import { ContextMenu, MenuItem } from './ContextMenu';
+import { ContextMenu, ReadDateRow, MenuItem } from './ContextMenu';
 import { navigate } from './navigation';
 import { inviteCodeFrom } from './communities/types';
 import { inviteForwardable } from './communities/InviteCard';
@@ -423,6 +423,7 @@ export function ChatScreen({api,user,chat,store,onBack,wide=false,onOpenMusic}: 
     <WallpaperPicker visible={wallpaperOpen} onClose={()=>setWallpaperOpen(false)} chatId={chat.id}/>
     {dropping?<View pointerEvents="none" style={{position:'absolute',top:12,left:12,right:12,bottom:12,zIndex:20,borderRadius:24,borderWidth:2,borderStyle:'dashed',borderColor:t.accent,backgroundColor:t.dark?'rgba(10,14,24,0.72)':'rgba(255,255,255,0.78)',alignItems:'center',justifyContent:'center',gap:10}}><Icon name="cloud-upload-outline" size={44} color={t.accent}/><Text style={{color:t.text,fontSize:20,fontWeight:'700'}}>Отпусти, чтобы прикрепить</Text><Text style={{color:t.muted,fontSize:13}}>Файлы зашифруются перед отправкой</Text></View>:null}
     <ContextMenu visible={!!actions} y={menuY} x={menuX} onClose={()=>setActions(null)} preview={actions?(actions.message?.text||actions.pending?.text||(actions.message?.attachment||actions.pending?.attachment?attachmentLabel((actions.message?.attachment||actions.pending?.attachment)!):'')):''} mine={!!actions&&(!!actions.pending||actions.message?.senderId===user.id)} reactions={actions?.message&&actions.message.cryptoState==='decrypted'?REACTIONS.map(emoji=>({emoji,chosen:actions.message!.reactions.some(r=>r.mine&&r.emoji===emoji)})):undefined} onReact={emoji=>{if(actions?.message){react(actions.message,emoji as Reaction);setActions(null);}}}>
+      {actions?.message&&actions.message.senderId===user.id&&actions.message.id<=chat.peerLastReadMessageId&&Date.now()-Date.parse(actions.message.createdAt)<7*864e5?<ReadDateRow key={actions.message.id} load={()=>api.readDate(chat.id,actions.message!.id)}/>:null}
       {actions?.message&&actions.message.cryptoState==='decrypted'?<MenuItem icon="arrow-undo-outline" label="Ответить" onPress={()=>{setEditing(null);setReplyTo(actions.message!);setActions(null);}}/>:null}
       {!locked&&(actions?.message?.text||actions?.pending?.text)?<MenuItem icon="copy-outline" label="Скопировать" onPress={()=>void copy(actions?.message?.text||actions?.pending?.text||'')}/>:null}
       {!locked&&(actions?.message?.attachment||actions?.pending?.attachment)?<MenuItem icon="download-outline" label="Сохранить" onPress={()=>{const a=actions?.message?.attachment||actions?.pending?.attachment;setActions(null);if(a)void download(a);}}/>:null}
