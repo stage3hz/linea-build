@@ -1,6 +1,6 @@
 import type { User } from '../types';
 
-export const PERM = { ADMIN: 1, MANAGE_COMMUNITY: 2, MANAGE_CHANNELS: 4, MANAGE_ROLES: 8, INVITE: 16, SEND: 32, VOICE: 64, POST: 128, KICK: 256, MANAGE_MESSAGES: 512 } as const;
+export const PERM = { ADMIN: 1, MANAGE_COMMUNITY: 2, MANAGE_CHANNELS: 4, MANAGE_ROLES: 8, INVITE: 16, SEND: 32, VOICE: 64, POST: 128, KICK: 256, MANAGE_MESSAGES: 512, BAN: 1024, MUTE_MEMBERS: 2048, DEAFEN_MEMBERS: 4096 } as const;
 export const PERM_LABELS: { bit: number; label: string; blog?: boolean; server?: boolean }[] = [
   { bit: PERM.SEND, label: 'Писать в каналах', server: true },
   { bit: PERM.VOICE, label: 'Голосовые каналы', server: true },
@@ -8,6 +8,9 @@ export const PERM_LABELS: { bit: number; label: string; blog?: boolean; server?:
   { bit: PERM.INVITE, label: 'Приглашать по ссылке' },
   { bit: PERM.MANAGE_MESSAGES, label: 'Удалять чужие сообщения' },
   { bit: PERM.KICK, label: 'Исключать участников' },
+  { bit: PERM.BAN, label: 'Блокировать участников' },
+  { bit: PERM.MUTE_MEMBERS, label: 'Отключать микрофон другим', server: true },
+  { bit: PERM.DEAFEN_MEMBERS, label: 'Отключать звук другим', server: true },
   { bit: PERM.MANAGE_CHANNELS, label: 'Управлять каналами', server: true },
   { bit: PERM.MANAGE_ROLES, label: 'Управлять ролями' },
   { bit: PERM.MANAGE_COMMUNITY, label: 'Менять название и фото' },
@@ -24,10 +27,10 @@ export const CATEGORIES = [
 ] as const;
 export type CategoryId = typeof CATEGORIES[number]['id'];
 export const categoryLabel = (id: string | null | undefined) => CATEGORIES.find(item => item.id === id)?.label || 'Канал';
-export type CommunityMessage = { id: number; channelId: string; senderId: string; text: string; attachment: { id: string; name: string; mimeType: string; size: number } | null; replyTo: number | null; createdAt: string; editedAt: string | null };
+export type CommunityMessage = { id: number; channelId: string; senderId: string; text: string; attachment: { id: string; name: string; mimeType: string; size: number } | null; replyTo: number | null; createdAt: string; editedAt: string | null; reactions?: { emoji: string; count: number; userIds: string[] }[] };
 export type CommunitySummary = { id: string; kind: CommunityKind; category?: CategoryId | null; closed?: boolean; name: string; description: string; avatarId: string | null; ownerId: string; createdAt: string; memberCount: number; isMember: boolean; perms: number; lastMessage: CommunityMessage | null; muted: boolean; unreadCount?: number; mentionCount?: number };
 export type CommunityRole = { id: string; name: string; color: string; position: number; perms: number; isDefault: boolean };
-export type VoiceMember = { userId: string; muted: boolean };
+export type VoiceMember = { userId: string; muted: boolean; serverMuted?: boolean; serverDeafened?: boolean };
 export type CommunityChannel = { id: string; kind: 'text' | 'voice'; name: string; topic: string; category: string; position: number; roleIds: string[]; voice?: VoiceMember[]; lastMessageId: number; unread?: number; mentions?: number };
 export type Community = CommunitySummary & { roles: CommunityRole[]; myRoleIds: string[]; channels: CommunityChannel[] };
 export type CommunityMember = { user: User; roleIds: string[]; owner: boolean; joinedAt: string };

@@ -16,6 +16,8 @@ import * as FileSystem from 'expo-file-system/legacy';
 import { previewDocument } from '../media/documentPreview';
 import { PERM, can, type Community, type CommunityChannel, type CommunityMessage } from './types';
 import { InviteCard } from './InviteCard';
+import { ContextMenu, MenuItem, menuSurface } from '../ContextMenu';
+import { REACTIONS } from '../messageMeta';
 import { mentionsUser, setViewingChannel } from './unread';
 import { inviteCodeFrom, withoutInviteLink } from './types';
 
@@ -31,7 +33,7 @@ export function ChannelChat({ api, me, store, community, channel, onOpenInvite }
   const [messages, setMessages] = useState<CommunityMessage[]>([]); const [users, setUsers] = useState<Record<string, User>>({});
   const [hasMore, setHasMore] = useState(false); const [loading, setLoading] = useState(true); const [error, setError] = useState('');
   const [text, setText] = useState(''); const [sending, setSending] = useState(false); const [reply, setReply] = useState<CommunityMessage | null>(null);
-  const [editing, setEditing] = useState<CommunityMessage | null>(null); const [menu, setMenu] = useState<CommunityMessage | null>(null); const [attach, setAttach] = useState(false);
+  const [editing, setEditing] = useState<CommunityMessage | null>(null); const [menu, setMenu] = useState<CommunityMessage | null>(null); const [menuAt, setMenuAt] = useState<{ x?: number; y: number }>({ y: 0 }); const [hover, setHover] = useState<number | null>(null); const [attach, setAttach] = useState(false);
   const [roleColors, setRoleColors] = useState<Record<string, string>>({});
   const blog = community.kind === 'blog';
   const canWrite = can(community, blog ? PERM.POST : PERM.SEND);
@@ -111,6 +113,13 @@ export function ChannelChat({ api, me, store, community, channel, onOpenInvite }
     catch (failure) { setError(failure instanceof Error ? failure.message : 'Не удалось удалить.'); }
   };
 
+  const menuBg = menuSurface(t);
+  const react = async (message: CommunityMessage, emoji: string) => {
+    setMenu(null); lightFeedback();
+    try { const result = await api.reactChannelMessage(community.id, channel.id, message.id, emoji); setMessages(current => current.map(item => item.id === message.id ? result.message : item)); }
+    catch (failure) { setError(failure instanceof Error ? failure.message : 'Не удалось поставить реакцию.'); }
+  };
+  const openMenu = (message: CommunityMessage, y: number, x?: number) => { setMenuAt({ x, y }); setMenu(message); };
   const data = useMemo(() => [...messages].reverse(), [messages]);
   const byId = useMemo(() => new Map(messages.map(item => [item.id, item])), [messages]);
   const render = ({ item, index }: { item: CommunityMessage; index: number }) => {
@@ -127,10 +136,12 @@ export function ChannelChat({ api, me, store, community, channel, onOpenInvite }
       {shownText ? <Text selectable style={{ color: t.text, fontSize: blog ? 16 : 15.5, lineHeight: blog ? 23 : 21 }}>{shownText}{item.editedAt ? <Text style={{ color: t.subtle, fontSize: 11 }}> (изм.)</Text> : null}</Text> : null}
       {item.attachment ? <ChannelAttachment api={api} attachment={item.attachment} wide={blog} /> : null}
       {invite ? <View style={{ marginTop: 6 }}><InviteCard api={api} code={invite} onOpen={onOpenInvite} /></View> : null}
+      {item.reactions?.length ? <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 5, marginTop: 4 }}>{item.reactions.map(r => { const mine = r.userIds.includes(me.id); return <Pressable key={r.emoji} onPress={() => void react(item, r.emoji)} accessibilityRole="button" accessibilityLabel={`${r.emoji} ${r.count}`} style={{ flexDirection: 'row', alignItems: 'center', gap: 5, paddingHorizontal: 8, height: 26, borderRadius: 13, backgroundColor: mine ? t.accentSoft : t.surface2, borderWidth: 1, borderColor: mine ? t.accent : t.border }}><Text raw style={{ fontSize: 14 }}>{r.emoji}</Text><Text style={{ color: mine ? t.accent : t.muted, fontSize: 12, fontWeight: '600' }}>{r.count}</Text></Pressable>; })}</View> : null}
     </>;
     return <View>
       {newDay ? <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10, marginVertical: 12, paddingHorizontal: 14 }}><View style={{ flex: 1, height: 1, backgroundColor: t.border }} /><Text style={{ color: t.muted, fontSize: 11, fontWeight: '600' }}>{day(item.createdAt)}</Text><View style={{ flex: 1, height: 1, backgroundColor: t.border }} /></View> : null}
-      <Pressable onLongPress={() => { lightFeedback(); setMenu(item); }} delayLongPress={350} style={({ pressed }) => ({ backgroundColor: pressed ? t.accentSoft : forMe ? 'rgba(245,197,66,0.10)' : 'transparent', borderLeftWidth: forMe ? 2 : 0, borderLeftColor: '#F5C542' })}>
+      <ChannelRow onContext={(x, y) => openMenu(item, y, x)} onHover={on => setHover(on ? item.id : current => current === item.id ? null : current)} toolbar={hover === item.id && Platform.OS === 'web' ? <View style={{ position: 'absolute', top: -16, right: 14, zIndex: 3, flexDirection: 'row', borderRadius: 10, padding: 2, backgroundColor: menuBg, borderWidth: 1, borderColor: t.border }}>{['👍', '❤️', '😂'].map(e => <Pressable key={e} onPress={() => void react(item, e)} accessibilityLabel={`Реакция ${e}`} style={{ width: 30, height: 28, alignItems: 'center', justifyContent: 'center' }}><Text raw style={{ fontSize: 16 }}>{e}</Text></Pressable>)}{canWrite ? <Pressable onPress={() => setReply(item)} accessibilityLabel="Ответить" style={{ width: 30, height: 28, alignItems: 'center', justifyContent: 'center' }}><Icon name="arrow-undo-outline" size={17} color={t.text} /></Pressable> : null}<Pressable onPress={(e: any) => openMenu(item, e.nativeEvent.pageY, e.nativeEvent.pageX)} accessibilityLabel="Ещё" style={{ width: 30, height: 28, alignItems: 'center', justifyContent: 'center' }}><Icon name="ellipsis-horizontal" size={17} color={t.text} /></Pressable></View> : null}>
+      <Pressable onLongPress={(e: any) => { lightFeedback(); openMenu(item, e.nativeEvent.pageY); }} delayLongPress={350} style={({ pressed }) => ({ backgroundColor: pressed ? t.accentSoft : forMe ? 'rgba(245,197,66,0.10)' : 'transparent', borderLeftWidth: forMe ? 2 : 0, borderLeftColor: '#F5C542' })}>
         {blog ? <View style={{ marginHorizontal: 12, marginVertical: 6, padding: 14, borderRadius: 18, backgroundColor: t.incoming, gap: 6 }}>
           {body}
           <Text style={{ color: t.subtle, fontSize: 11, alignSelf: 'flex-end' }}>{time(item.createdAt)}</Text>
@@ -142,6 +153,7 @@ export function ChannelChat({ api, me, store, community, channel, onOpenInvite }
           </View>
         </View>}
       </Pressable>
+      </ChannelRow>
     </View>;
   };
 
@@ -165,12 +177,13 @@ export function ChannelChat({ api, me, store, community, channel, onOpenInvite }
       <SheetAction icon="document-outline" label="Файл" onPress={() => void upload('file')} />
       <Text style={{ color: t.muted, fontSize: 12, lineHeight: 17, marginTop: 8 }}>Каналы не шифруются сквозным шифрованием: файл увидят все, у кого есть доступ к каналу.</Text>
     </Sheet>
-    <Sheet visible={!!menu} title="Сообщение" onClose={() => setMenu(null)}>
-      {menu && canWrite ? <SheetAction icon="return-down-forward-outline" label="Ответить" onPress={() => { setReply(menu); setMenu(null); }} /> : null}
-      {menu?.text ? <SheetAction icon="copy-outline" label="Скопировать" onPress={() => { void Clipboard.setStringAsync(menu.text); setMenu(null); }} /> : null}
-      {menu && menu.senderId === me.id && menu.text ? <SheetAction icon="create-outline" label="Изменить" onPress={() => { setEditing(menu); setText(menu.text); setMenu(null); }} /> : null}
-      {menu && (menu.senderId === me.id || canModerate) ? <SheetAction icon="trash-outline" label="Удалить" danger onPress={() => void remove(menu)} /> : null}
-    </Sheet>
+    <ContextMenu visible={!!menu} y={menuAt.y} x={menuAt.x} onClose={() => setMenu(null)} preview={menu?.text || menu?.attachment?.name || ''} mine={menu?.senderId === me.id}
+      reactions={menu ? REACTIONS.slice(0, 7).map(emoji => ({ emoji, chosen: !!menu.reactions?.some(r => r.emoji === emoji && r.userIds.includes(me.id)) })) : undefined} onReact={emoji => { if (menu) void react(menu, emoji); }}>
+      {menu && canWrite ? <MenuItem icon="arrow-undo-outline" label="Ответить" onPress={() => { setReply(menu); setMenu(null); }} /> : null}
+      {menu?.text ? <MenuItem icon="copy-outline" label="Скопировать" onPress={() => { void Clipboard.setStringAsync(menu.text); setMenu(null); }} /> : null}
+      {menu && menu.senderId === me.id && menu.text ? <MenuItem icon="create-outline" label="Изменить" onPress={() => { setEditing(menu); setText(menu.text); setMenu(null); }} /> : null}
+      {menu && (menu.senderId === me.id || canModerate) ? <MenuItem icon="trash-outline" label="Удалить" danger separated onPress={() => void remove(menu)} /> : null}
+    </ContextMenu>
   </KeyboardSafeView>;
 }
 
@@ -193,4 +206,19 @@ function ChannelAttachment({ api, attachment, wide }: { api: Api; attachment: No
     <View style={{ width: 40, height: 40, borderRadius: 10, backgroundColor: t.accentSoft, alignItems: 'center', justifyContent: 'center' }}>{busy ? <ActivityIndicator color={t.accent} /> : <Icon name={attachment.mimeType.startsWith('video/') ? 'videocam' : 'document'} color={t.accent} size={20} />}</View>
     <View style={{ flex: 1 }}><Text numberOfLines={1} style={{ color: t.text, fontSize: 14, fontWeight: '600' }}>{attachment.name}</Text><Text style={{ color: t.muted, fontSize: 12 }}>{formatSize(attachment.size)}</Text></View>
   </Pressable>;
+}
+
+/** One channel message row; on PC a right click opens the menu at the cursor and hovering shows a toolbar. */
+function ChannelRow({ onContext, onHover, toolbar, children }: { onContext: (x: number, y: number) => void; onHover: (on: boolean) => void; toolbar: React.ReactNode; children: React.ReactNode }) {
+  const ref = useRef<View>(null);
+  const handlers = useRef({ onContext, onHover }); handlers.current = { onContext, onHover };
+  useEffect(() => {
+    if (Platform.OS !== 'web') return;
+    const node = ref.current as unknown as HTMLElement | null; if (!node?.addEventListener) return;
+    const menu = (e: MouseEvent) => { e.preventDefault(); handlers.current.onContext(e.clientX, e.clientY); };
+    const enter = () => handlers.current.onHover(true), leave = () => handlers.current.onHover(false);
+    node.addEventListener('contextmenu', menu); node.addEventListener('mouseenter', enter); node.addEventListener('mouseleave', leave);
+    return () => { node.removeEventListener('contextmenu', menu); node.removeEventListener('mouseenter', enter); node.removeEventListener('mouseleave', leave); };
+  }, []);
+  return <View ref={ref}>{toolbar}{children}</View>;
 }

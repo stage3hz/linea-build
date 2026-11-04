@@ -24,7 +24,7 @@ export function CommunitySettings({ api, me, community, onBack, onChanged, onLef
   const [busy, setBusy] = useState(''); const [error, setError] = useState(''); const [notice, setNotice] = useState('');
   const [members, setMembers] = useState<CommunityMember[] | null>(null);
   const [role, setRole] = useState<CommunityRole | 'new' | null>(null); const [channel, setChannel] = useState<CommunityChannel | 'text' | 'voice' | null>(null);
-  const [member, setMember] = useState<CommunityMember | null>(null); const [confirm, setConfirm] = useState<'leave' | 'delete' | null>(null);
+  const [member, setMember] = useState<CommunityMember | null>(null); const [bans, setBans] = useState<{ user: CommunityMember['user']; reason: string }[] | null>(null); const [confirm, setConfirm] = useState<'leave' | 'delete' | null>(null);
   const blog = community.kind === 'blog'; const owner = community.ownerId === me.id;
   const reload = async () => { const next = (await api.community(community.id)).community; onChanged(next); return next; };
   const loadMembers = () => { api.communityMembers(community.id).then(result => setMembers(result.members)).catch(failure => setError(message(failure, 'Не удалось загрузить участников.'))); };
@@ -77,11 +77,12 @@ export function CommunitySettings({ api, me, community, onBack, onChanged, onLef
         {community.roles.map(item => row(item.id, item.isDefault ? 'people-outline' : 'shield-outline', item.name, item.isDefault ? 'все' : undefined, () => setRole(item), item.isDefault ? undefined : item.color))}
         {row('new-role', 'add', 'Новая роль', undefined, () => setRole('new'), t.accent)}
       </>) : null}
-      {section(blog ? 'Подписчики' : 'Участники', !members ? <ActivityIndicator color={t.accent} style={{ padding: 16 }} /> : <>{members.map(item => <Pressable key={item.user.id} disabled={!can(community, PERM.MANAGE_ROLES) && !can(community, PERM.KICK)} onPress={() => setMember(item)} style={({ pressed }) => ({ flexDirection: 'row', alignItems: 'center', gap: 11, paddingHorizontal: 12, paddingVertical: 7, borderRadius: 14, overflow: 'hidden', opacity: pressed ? .6 : 1 })}>
+      {section(blog ? 'Подписчики' : 'Участники', !members ? <ActivityIndicator color={t.accent} style={{ padding: 16 }} /> : <>{members.map(item => <Pressable key={item.user.id} disabled={!can(community, PERM.MANAGE_ROLES) && !can(community, PERM.KICK) && !can(community, PERM.BAN)} onPress={() => setMember(item)} style={({ pressed }) => ({ flexDirection: 'row', alignItems: 'center', gap: 11, paddingHorizontal: 12, paddingVertical: 7, borderRadius: 14, overflow: 'hidden', opacity: pressed ? .6 : 1 })}>
         <Nameplate plate={item.user.nameplate} radius={14} />
         <DecoratedAvatar user={item.user} api={api} size={36} />
         <View style={{ flex: 1, minWidth: 0 }}><Text numberOfLines={1} style={{ color: (community.roles.filter(r => item.roleIds.includes(r.id)).sort((a, b) => b.position - a.position)[0]?.color) || t.text, fontSize: 15, fontWeight: '600' }}>{item.user.displayName}{item.owner ? ' 👑' : ''}</Text><Text numberOfLines={1} style={{ color: t.muted, fontSize: 12 }}>{community.roles.filter(r => item.roleIds.includes(r.id)).map(r => r.name).join(', ') || `@${item.user.username}`}</Text></View>
       </Pressable>)}</>)}
+      {can(community, PERM.BAN) ? section('Блокировки', row('bans', 'ban-outline', 'Заблокированные', undefined, () => { setBans([]); api.communityBans(community.id).then(r => setBans(r.bans)).catch(failure => setError(message(failure, 'Не удалось загрузить блокировки.'))); })) : null}
       {section('Сообщество', owner ? row('delete', 'trash-outline', 'Удалить сообщество', undefined, () => setConfirm('delete'), t.danger) : row('leave', 'exit-outline', blog ? 'Отписаться' : 'Покинуть сервер', undefined, () => setConfirm('leave'), t.danger))}
       <Text style={{ color: t.subtle, fontSize: 12, lineHeight: 17, textAlign: 'center', paddingHorizontal: 10 }}>Каналы и серверы не шифруются сквозным шифрованием: сообщения хранятся на сервере Инвиза. Личные чаты по-прежнему зашифрованы.</Text>
     </ScrollView>
@@ -102,7 +103,12 @@ export function CommunitySettings({ api, me, community, onBack, onChanged, onLef
           </View>;
         }) : null}
         {can(community, PERM.KICK) && !member.owner && member.user.id !== me.id ? <SheetAction icon="person-remove-outline" label="Исключить" danger onPress={() => void run('kick', async () => { await api.kickMember(community.id, member.user.id); setMember(null); loadMembers(); }, 'Участник исключён.')} /> : null}
+        {can(community, PERM.BAN) && !member.owner && member.user.id !== me.id ? <SheetAction icon="ban-outline" label="Заблокировать" description="Исключить и не пускать обратно по приглашениям" danger onPress={() => void run('ban', async () => { await api.banMember(community.id, member.user.id); setMember(null); loadMembers(); }, 'Участник заблокирован.')} /> : null}
       </View> : null}
+    </Sheet>
+    <Sheet visible={!!bans} title="Заблокированные" onClose={() => setBans(null)}>
+      {bans && !bans.length ? <Text style={{ color: t.muted, fontSize: 14 }}>Никого нет.</Text> : null}
+      {bans?.map(item => <SheetAction key={item.user.id} icon="person-outline" label={item.user.displayName} description={item.reason ? `Причина: ${item.reason} · нажми, чтобы разблокировать` : 'Нажми, чтобы разблокировать'} onPress={() => void run('unban', async () => { await api.unbanMember(community.id, item.user.id); setBans(current => current?.filter(x => x.user.id !== item.user.id) || null); }, 'Разблокирован.')} />)}
     </Sheet>
     <Sheet visible={!!confirm} title={confirm === 'delete' ? 'Удалить сообщество?' : blog ? 'Отписаться?' : 'Покинуть сервер?'} onClose={() => setConfirm(null)}>
       <Text style={{ color: t.muted, fontSize: 14, lineHeight: 20, marginBottom: 16 }}>{confirm === 'delete' ? 'Каналы, сообщения и приглашения удалятся у всех. Это нельзя отменить.' : 'Вернуться можно по ссылке-приглашению.'}</Text>

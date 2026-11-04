@@ -8,6 +8,8 @@ import { boundedText, fail, objectBody, publicName } from './security.js';
 export const PERM = Object.freeze({
   ADMIN: 1, MANAGE_COMMUNITY: 2, MANAGE_CHANNELS: 4, MANAGE_ROLES: 8, INVITE: 16,
   SEND: 32, VOICE: 64, POST: 128, KICK: 256, MANAGE_MESSAGES: 512,
+  // Discord-like moderation: ban (keeps the person out), and in voice: server mute / server deafen.
+  BAN: 1024, MUTE_MEMBERS: 2048, DEAFEN_MEMBERS: 4096,
 });
 const ALL = Object.values(PERM).reduce((sum, bit) => sum | bit, 0);
 const DEFAULT_EVERYONE = { server: PERM.INVITE | PERM.SEND | PERM.VOICE, blog: PERM.INVITE };
@@ -82,6 +84,30 @@ CREATE TABLE IF NOT EXISTS community_messages (
   edited_at TEXT
 );
 CREATE INDEX IF NOT EXISTS community_messages_channel ON community_messages(channel_id, id);
+CREATE TABLE IF NOT EXISTS community_bans (
+  community_id TEXT NOT NULL REFERENCES communities(id) ON DELETE CASCADE,
+  user_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+  banned_by TEXT NOT NULL,
+  reason TEXT NOT NULL DEFAULT '',
+  created_at TEXT NOT NULL,
+  PRIMARY KEY(community_id, user_id)
+);
+-- Server mute / deafen live on the member, not on the voice session (as in Discord): they stay
+-- after leaving and rejoining voice until a moderator lifts them.
+CREATE TABLE IF NOT EXISTS community_voice_moderation (
+  community_id TEXT NOT NULL REFERENCES communities(id) ON DELETE CASCADE,
+  user_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+  muted INTEGER NOT NULL DEFAULT 0,
+  deafened INTEGER NOT NULL DEFAULT 0,
+  PRIMARY KEY(community_id, user_id)
+);
+CREATE TABLE IF NOT EXISTS community_reactions (
+  message_id INTEGER NOT NULL REFERENCES community_messages(id) ON DELETE CASCADE,
+  user_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+  emoji TEXT NOT NULL,
+  created_at TEXT NOT NULL,
+  PRIMARY KEY (message_id, user_id, emoji)
+);
 -- What each person has read, per text channel (no row: the older per-community mark).
 CREATE TABLE IF NOT EXISTS community_channel_reads (
   user_id TEXT NOT NULL,
@@ -213,7 +239,17 @@ export function installCommunityRoutes({ app, db, authOptions, publicUser, times
     id: message.id, channelId: message.channel_id, senderId: message.sender_id, text: message.text,
     attachment: message.attachment_id ? (row => row ? { id: row.id, name: row.name, mimeType: row.mime_type, size: row.size } : null)(db.prepare('SELECT * FROM uploads WHERE id=?').get(message.attachment_id)) : null,
     replyTo: message.reply_to, createdAt: message.created_at, editedAt: message.edited_at,
+    reactions: reactionsOf(message.id),
   });
+  // Discord-style reactions: each emoji with its count and up to 20 user ids (to mark «mine»).
+  const reactionsOf = messageId => {
+    const groups = new Map();
+    for (const r of db.prepare('SELECT emoji, user_id FROM community_reactions WHERE message_id=? ORDER BY created_at').all(messageId)) {
+      const g = groups.get(r.emoji) || { emoji: r.emoji, count: 0, userIds: [] };
+      g.count++; if (g.userIds.length < 20) g.userIds.push(r.user_id); groups.set(r.emoji, g);
+    }
+    return [...groups.values()];
+  };
   const authorsOf = messages => {
     const ids = [...new Set(messages.map(item => item.senderId))];
     return ids.map(id => db.prepare('SELECT * FROM users WHERE id=?').get(id)).filter(Boolean).map(publicUser);
@@ -228,6 +264,7 @@ export function installCommunityRoutes({ app, db, authOptions, publicUser, times
   const refresh = row => { for (const { user_id } of db.prepare('SELECT user_id FROM community_members WHERE community_id=?').all(row.id)) emitUser(user_id, { type: 'community', community: summary(row, user_id) }); };
   const join = (row, userId) => {
     if (member(row.id, userId)) return false;
+    if (db.prepare('SELECT 1 FROM community_bans WHERE community_id=? AND user_id=?').get(row.id, userId)) fail(403, 'Тебя заблокировали в этом сообществе.', { code: 'BANNED' });
     if (memberCount(row.id) >= MAX_MEMBERS) fail(403, 'В сообществе максимум участников.');
     // A newcomer starts with everything read: the history is there, but not as a pile of «unread».
     const latest = db.prepare('SELECT MAX(m.id) AS id FROM community_messages m JOIN community_channels c ON c.id=m.channel_id WHERE c.community_id=?').get(row.id).id || 0;
@@ -270,7 +307,7 @@ export function installCommunityRoutes({ app, db, authOptions, publicUser, times
       db.prepare('INSERT INTO community_members(community_id,user_id,joined_at) VALUES(?,?,?)').run(id, viewer, time);
       const add = (kind, name, category, position) => db.prepare('INSERT INTO community_channels(id,community_id,kind,name,category,position,created_at) VALUES(?,?,?,?,?,?,?)').run(randomUUID(), id, kind, name, category, position, time);
       if (body.kind === 'server') {
-        db.prepare('INSERT INTO community_roles(id,community_id,name,color,position,perms,is_default) VALUES(?,?,?,?,?,?,0)').run(randomUUID(), id, 'Модератор', '#3FA9F5', 10, PERM.MANAGE_MESSAGES | PERM.KICK | PERM.INVITE | PERM.SEND | PERM.VOICE);
+        db.prepare('INSERT INTO community_roles(id,community_id,name,color,position,perms,is_default) VALUES(?,?,?,?,?,?,0)').run(randomUUID(), id, 'Модератор', '#3FA9F5', 10, PERM.MANAGE_MESSAGES | PERM.KICK | PERM.BAN | PERM.MUTE_MEMBERS | PERM.DEAFEN_MEMBERS | PERM.INVITE | PERM.SEND | PERM.VOICE);
         add('text', 'общий', 'Текстовые каналы', 0); add('text', 'новости', 'Текстовые каналы', 1);
         add('voice', 'Общий', 'Голосовые каналы', 0); add('voice', 'Игра', 'Голосовые каналы', 1);
       } else add('text', 'Публикации', '', 0);
@@ -316,6 +353,7 @@ export function installCommunityRoutes({ app, db, authOptions, publicUser, times
     const members = db.prepare('SELECT user_id FROM community_members WHERE community_id=?').all(row.id).map(item => item.user_id);
     db.exec('BEGIN IMMEDIATE');
     try {
+      db.prepare('DELETE FROM community_reactions WHERE message_id IN (SELECT m.id FROM community_messages m JOIN community_channels c ON c.id=m.channel_id WHERE c.community_id=?)').run(row.id);
       db.prepare('DELETE FROM community_messages WHERE channel_id IN (SELECT id FROM community_channels WHERE community_id=?)').run(row.id);
       db.prepare('DELETE FROM community_mentions WHERE channel_id IN (SELECT id FROM community_channels WHERE community_id=?)').run(row.id);
       db.prepare('DELETE FROM community_channel_reads WHERE channel_id IN (SELECT id FROM community_channels WHERE community_id=?)').run(row.id);
@@ -343,17 +381,74 @@ export function installCommunityRoutes({ app, db, authOptions, publicUser, times
     return { members: rows.map(user => ({ user: publicUser(user), roleIds: roleIds(row.id, user.id), owner: user.id === row.owner_id, joinedAt: user.joined_at })) };
   });
 
+  // Role hierarchy as in Discord: only the owner, or someone whose highest role is above the
+  // target's highest role, can kick or ban them.
+  const topPosition = (row, userId) => userId === row.owner_id ? Infinity : (db.prepare('SELECT MAX(r.position) AS p FROM community_member_roles mr JOIN community_roles r ON r.id=mr.role_id WHERE mr.community_id=? AND mr.user_id=?').get(row.id, userId)?.p ?? 0);
+  const outranks = (row, viewer, target) => viewer === row.owner_id || topPosition(row, viewer) > topPosition(row, target);
+  const removeMember = (row, target) => {
+    db.prepare('DELETE FROM community_member_roles WHERE community_id=? AND user_id=?').run(row.id, target);
+    db.prepare('DELETE FROM community_members WHERE community_id=? AND user_id=?').run(row.id, target);
+    voice.kick(target, row.id);
+    emitUser(target, { type: 'community.removed', communityId: row.id }); refresh(row);
+  };
   app.delete('/communities/:id/members/:userId', authOptions, async request => {
     const viewer = request.auth.user_id, row = community(request.params.id);
     need(row, viewer, PERM.KICK);
     const target = request.params.userId;
     if (target === row.owner_id || target === viewer) fail(400, 'Этого участника нельзя исключить.');
     if (!member(row.id, target)) fail(404, 'Участник не найден.');
-    db.prepare('DELETE FROM community_member_roles WHERE community_id=? AND user_id=?').run(row.id, target);
-    db.prepare('DELETE FROM community_members WHERE community_id=? AND user_id=?').run(row.id, target);
-    voice.kick(target, row.id);
-    emitUser(target, { type: 'community.removed', communityId: row.id }); refresh(row);
+    if (!outranks(row, viewer, target)) fail(403, 'Нельзя исключить участника с такой же или более высокой ролью.');
+    removeMember(row, target);
     return { ok: true };
+  });
+
+  app.get('/communities/:id/bans', authOptions, async request => {
+    const viewer = request.auth.user_id, row = community(request.params.id);
+    need(row, viewer, PERM.BAN);
+    const rows = db.prepare('SELECT u.*, b.reason, b.created_at AS banned_at FROM community_bans b JOIN users u ON u.id=b.user_id WHERE b.community_id=? ORDER BY b.created_at DESC LIMIT 500').all(row.id);
+    return { bans: rows.map(user => ({ user: publicUser(user), reason: user.reason, createdAt: user.banned_at })) };
+  });
+  app.put('/communities/:id/bans/:userId', authOptions, async request => {
+    const viewer = request.auth.user_id, row = community(request.params.id);
+    need(row, viewer, PERM.BAN);
+    const target = request.params.userId;
+    if (target === row.owner_id || target === viewer) fail(400, 'Этого участника нельзя заблокировать.');
+    if (!db.prepare('SELECT 1 FROM users WHERE id=?').get(target)) fail(404, 'Пользователь не найден.');
+    if (member(row.id, target) && !outranks(row, viewer, target)) fail(403, 'Нельзя заблокировать участника с такой же или более высокой ролью.');
+    const body = objectBody(request.body ?? {}, ['reason']);
+    const reason = body.reason === undefined ? '' : text(body.reason, 'Причина', 0, 200);
+    db.prepare('INSERT INTO community_bans(community_id,user_id,banned_by,reason,created_at) VALUES(?,?,?,?,?) ON CONFLICT(community_id,user_id) DO UPDATE SET reason=excluded.reason').run(row.id, target, viewer, reason, timestamp());
+    if (member(row.id, target)) removeMember(row, target);
+    return { ok: true };
+  });
+  app.delete('/communities/:id/bans/:userId', authOptions, async request => {
+    const viewer = request.auth.user_id, row = community(request.params.id);
+    need(row, viewer, PERM.BAN);
+    db.prepare('DELETE FROM community_bans WHERE community_id=? AND user_id=?').run(row.id, request.params.userId);
+    return { ok: true };
+  });
+
+  // Server mute / server deafen (Discord): the moderated person cannot unmute themselves, and other
+  // clients also stop playing their audio, so a modified app cannot get around it.
+  const serverVoice = (communityId, userId) => {
+    const r = communityId ? db.prepare('SELECT muted, deafened FROM community_voice_moderation WHERE community_id=? AND user_id=?').get(communityId, userId) : null;
+    return { serverMuted: r?.muted === 1 || r?.deafened === 1, serverDeafened: r?.deafened === 1 };
+  };
+  app.put('/communities/:id/members/:userId/voice', authOptions, async request => {
+    const viewer = request.auth.user_id, row = community(request.params.id);
+    const target = request.params.userId;
+    const body = objectBody(request.body, ['muted', 'deafened']);
+    if (body.muted !== undefined && typeof body.muted !== 'boolean') fail(400, 'muted: да или нет.');
+    if (body.deafened !== undefined && typeof body.deafened !== 'boolean') fail(400, 'deafened: да или нет.');
+    if (body.muted !== undefined) need(row, viewer, PERM.MUTE_MEMBERS);
+    if (body.deafened !== undefined) need(row, viewer, PERM.DEAFEN_MEMBERS);
+    if (!member(row.id, target) && target !== row.owner_id) fail(404, 'Участник не найден.');
+    if (target === row.owner_id && viewer !== row.owner_id) fail(403, 'Владельца нельзя заглушить.');
+    const current = serverVoice(row.id, target);
+    const muted = body.muted ?? (current.serverMuted && !current.serverDeafened), deafened = body.deafened ?? current.serverDeafened;
+    db.prepare('INSERT INTO community_voice_moderation(community_id,user_id,muted,deafened) VALUES(?,?,?,?) ON CONFLICT(community_id,user_id) DO UPDATE SET muted=excluded.muted,deafened=excluded.deafened').run(row.id, target, muted ? 1 : 0, deafened ? 1 : 0);
+    voice.moderated(target, row.id);
+    return { ok: true, ...serverVoice(row.id, target) };
   });
 
   app.put('/communities/:id/members/:userId/roles', authOptions, async request => {
@@ -466,6 +561,7 @@ export function installCommunityRoutes({ app, db, authOptions, publicUser, times
     const item = channel(row, request.params.channelId);
     if (db.prepare('SELECT COUNT(*) AS n FROM community_channels WHERE community_id=? AND kind=?').get(row.id, 'text').n <= 1 && item.kind === 'text') fail(400, 'Нужен хотя бы один текстовый канал.');
     voice.close(item.id);
+    db.prepare('DELETE FROM community_reactions WHERE message_id IN (SELECT id FROM community_messages WHERE channel_id=?)').run(item.id);
     db.prepare('DELETE FROM community_messages WHERE channel_id=?').run(item.id);
     db.prepare('DELETE FROM community_mentions WHERE channel_id=?').run(item.id);
     db.prepare('DELETE FROM community_channel_reads WHERE channel_id=?').run(item.id);
@@ -552,11 +648,33 @@ export function installCommunityRoutes({ app, db, authOptions, publicUser, times
     return { message: next };
   });
 
+  // Toggle my reaction (max 20 different emoji per message, 1–16 characters each).
+  app.post('/communities/:id/channels/:channelId/messages/:messageId/reactions', authOptions, async request => {
+    const { row, item, viewer } = visibleChannel(request);
+    const message = db.prepare('SELECT * FROM community_messages WHERE id=? AND channel_id=?').get(Number(request.params.messageId), item.id);
+    if (!message) fail(404, 'Сообщение не найдено.');
+    const body = objectBody(request.body, ['emoji']);
+    const emoji = typeof body.emoji === 'string' ? body.emoji.trim() : '';
+    if (!emoji || emoji.length > 16 || /[\s<>]/.test(emoji)) fail(400, 'Неверная реакция.');
+    const mine = db.prepare('SELECT 1 FROM community_reactions WHERE message_id=? AND user_id=? AND emoji=?').get(message.id, viewer, emoji);
+    if (mine) db.prepare('DELETE FROM community_reactions WHERE message_id=? AND user_id=? AND emoji=?').run(message.id, viewer, emoji);
+    else {
+      const kinds = db.prepare('SELECT COUNT(DISTINCT emoji) AS n FROM community_reactions WHERE message_id=?').get(message.id).n;
+      const known = db.prepare('SELECT 1 FROM community_reactions WHERE message_id=? AND emoji=?').get(message.id, emoji);
+      if (!known && kinds >= 20) fail(400, 'На сообщении уже 20 разных реакций.');
+      db.prepare('INSERT INTO community_reactions(message_id,user_id,emoji,created_at) VALUES(?,?,?,?)').run(message.id, viewer, emoji, timestamp());
+    }
+    const next = publicMessage(db.prepare('SELECT * FROM community_messages WHERE id=?').get(message.id));
+    emitCommunity(row, { type: 'community.message', communityId: row.id, message: next, edited: true }, item);
+    return { message: next };
+  });
+
   app.delete('/communities/:id/channels/:channelId/messages/:messageId', authOptions, async request => {
     const { row, item, viewer } = visibleChannel(request);
     const message = db.prepare('SELECT * FROM community_messages WHERE id=? AND channel_id=?').get(Number(request.params.messageId), item.id);
     if (!message) fail(404, 'Сообщение не найдено.');
     if (message.sender_id !== viewer && !(perms(row, viewer) & PERM.MANAGE_MESSAGES)) fail(403, 'Удалить можно только своё сообщение.');
+    db.prepare('DELETE FROM community_reactions WHERE message_id=?').run(message.id);
     db.prepare('DELETE FROM community_messages WHERE id=?').run(message.id);
     db.prepare('DELETE FROM community_mentions WHERE message_id=?').run(message.id);
     emitCommunity(row, { type: 'community.message.deleted', communityId: row.id, channelId: item.id, messageId: message.id }, item);
@@ -636,7 +754,7 @@ export function installCommunityRoutes({ app, db, authOptions, publicUser, times
     }
     return n;
   };
-  return { badge, community, member, canSee, perms, channel, voiceAllowed: (communityId, channelId, userId) => {
+  return { badge, community, member, canSee, perms, channel, serverVoice, voiceAllowed: (communityId, channelId, userId) => {
     const row = db.prepare('SELECT * FROM communities WHERE id=?').get(communityId);
     if (!row || !member(row.id, userId)) return null;
     const item = db.prepare('SELECT * FROM community_channels WHERE id=? AND community_id=? AND kind=?').get(channelId, row.id, 'voice');

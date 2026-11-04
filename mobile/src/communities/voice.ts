@@ -23,7 +23,7 @@ type WebRTC = typeof import('react-native-webrtc');
 const loadRtc = (): WebRTC | null => { try { return require('react-native-webrtc'); } catch { return null; } };
 const loadInCall = (): any => { try { return require('react-native-incall-manager').default; } catch { return null; } };
 
-export type VoicePeer = { peer: string; userId: string; muted: boolean; connected: boolean; screen?: { stream: any; quality: ScreenQuality } };
+export type VoicePeer = { peer: string; userId: string; muted: boolean; serverMuted?: boolean; serverDeafened?: boolean; connected: boolean; screen?: { stream: any; quality: ScreenQuality } };
 export type VoiceState = {
   communityId: string; channelId: string; channelName: string; communityName: string;
   sharing: ScreenQuality | null; screenStream: any;
@@ -32,6 +32,8 @@ export type VoiceState = {
   status: 'connecting' | 'connected'; muted: boolean; speaker: boolean;
   /** Звук выключен: nobody is heard (and, as in Discord, the microphone is off too). */
   deafened?: boolean; peers: VoicePeer[]; error: string;
+  /** Set by a moderator (Discord's server mute / deafen): cannot be lifted from here. */
+  serverMuted?: boolean; serverDeafened?: boolean; userId?: string;
 } | null;
 
 let state: VoiceState = null;
@@ -148,7 +150,7 @@ function connectionFor(peer: string, initiator = false) {
   if (initiator) bindControl(peer, connection.createDataChannel('screen-control'));
   connection.addEventListener('datachannel', (event: any) => bindControl(peer, event.channel));
   connection.addEventListener('track', (event: any) => {
-    if (event.track?.kind === 'audio' && state?.deafened) event.track.enabled = false;
+    if (event.track?.kind === 'audio' && !audible(peer)) event.track.enabled = false;
     // The first audio track of a person is their microphone (the PC-sound slot comes after it).
     if (event.track?.kind === 'audio' && !overlayMics.has(peer)) { overlayMics.add(peer); overlayTrack(peer, event.track); }
     if (connections.get(peer) !== connection || event.track.kind !== 'video') return;
@@ -239,9 +241,13 @@ async function handle(data: any) {
     }
   } else if (data.type === 'voice.left' && typeof data.peer === 'string') drop(data.peer);
   else if (data.type === 'voice.state' && data.channelId === state.channelId && Array.isArray(data.members)) {
-    // Mute flags of everyone in the room.
-    const muted = new Map<string, boolean>(); for (const item of data.members) muted.set(item.userId, !!item.muted);
-    patch({ peers: state.peers.map(item => muted.has(item.userId) ? { ...item, muted: muted.get(item.userId)! } : item) });
+    // Mute flags of everyone in the room, including a moderator's server mute / deafen.
+    const byUser = new Map<string, any>(); for (const item of data.members) byUser.set(item.userId, item);
+    const mine = state.userId ? byUser.get(state.userId) : null;
+    const serverMuted = !!mine?.serverMuted, serverDeafened = !!mine?.serverDeafened;
+    if (serverMuted && !state.muted) toggleVoiceMute();
+    patch({ serverMuted, serverDeafened, peers: state.peers.map(item => { const m = byUser.get(item.userId); return m ? { ...item, muted: !!m.muted, serverMuted: !!m.serverMuted, serverDeafened: !!m.serverDeafened } : item; }) });
+    applyAudio();
   } else if (data.type === 'voice.kicked' && data.channelId === state.channelId) cleanup('');
   else if (data.type === 'error' && state.status === 'connecting') { cleanup(''); set(null); }
   else if (data.type === 'ready' && state) {
@@ -266,7 +272,7 @@ function cleanup(error: string) {
   set(error && state ? { ...state, error } : null);
 }
 
-export async function joinVoice(api: Api, store: MessengerStore, target: { communityId: string; communityName: string; channelId: string; channelName: string }) {
+export async function joinVoice(api: Api, store: MessengerStore, target: { communityId: string; communityName: string; channelId: string; channelName: string; userId?: string }) {
   if (!voiceAvailable()) throw new Error('Голосовые каналы работают в приложении Android/iPhone.');
   if (state?.channelId === target.channelId) return;
   lastJoin = [api, store, target];
@@ -293,6 +299,7 @@ export function leaveVoice() {
 export function toggleVoiceMute() {
   if (!state) return;
   const muted = !state.muted;
+  if (!muted && state.serverMuted) { patch({ error: 'Модератор отключил тебе микрофон на этом сервере.' }); return; }
   try { local?.getAudioTracks().forEach((track: any) => { track.enabled = !muted; }); } catch { /* no track */ }
   storeRef?.sendSocket({ type: 'voice.mute', muted });
   patch({ muted });
@@ -303,13 +310,21 @@ let mutedBeforeDeafen = false;
 export function toggleVoiceDeafen() {
   if (!state) return;
   const deafened = !state.deafened;
+  if (!deafened && state.serverDeafened) { patch({ error: 'Модератор отключил тебе звук на этом сервере.' }); return; }
+  state = { ...state, deafened };
   applyDeafen(deafened);
   if (deafened) { mutedBeforeDeafen = state.muted; if (!state.muted) toggleVoiceMute(); }
   else if (!mutedBeforeDeafen && state.muted) toggleVoiceMute();
   patch({ deafened });
 }
-function applyDeafen(deafened: boolean) {
-  for (const connection of connections.values()) for (const receiver of connection.getReceivers?.() || []) if (receiver.track?.kind === 'audio') receiver.track.enabled = !deafened;
+function applyDeafen(_deafened: boolean) { applyAudio(); }
+/** Whether this peer's audio plays: not while I'm deafened (by myself or a moderator), nor when they are server-muted. */
+function audible(peer: string) {
+  if (!state || state.deafened || state.serverDeafened) return false;
+  return !state.peers.find(item => item.peer === peer)?.serverMuted;
+}
+function applyAudio() {
+  for (const [peer, connection] of connections.entries()) for (const receiver of connection.getReceivers?.() || []) if (receiver.track?.kind === 'audio') receiver.track.enabled = audible(peer);
 }
 
 export function toggleVoiceSpeaker() {

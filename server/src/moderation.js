@@ -115,6 +115,7 @@ export async function deleteAccount(db, uploadDir, userId) {
       db.prepare('DELETE FROM messages WHERE chat_id=?').run(chatId);
       db.prepare('DELETE FROM chats WHERE id=?').run(chatId);
     }
+    db.prepare('DELETE FROM community_reactions WHERE user_id=? OR message_id IN (SELECT id FROM community_messages WHERE sender_id=?)').run(userId, userId);
     db.prepare('DELETE FROM communities WHERE owner_id=?').run(userId);
     db.prepare('DELETE FROM community_messages WHERE sender_id=?').run(userId);
     db.prepare('DELETE FROM community_invites WHERE creator_id=?').run(userId);

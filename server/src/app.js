@@ -376,7 +376,7 @@ export async function buildApp({
   // Voice channels: who is connected where (in memory). Audio flows peer to peer (WebRTC,
   // DTLS-SRTP, through TURN when needed); the server only relays signalling between members.
   const voiceRooms = new Map(); // channelId -> Map(socketId -> { state, userId, muted })
-  const voiceMembers = channelId => [...(voiceRooms.get(channelId)?.values() || [])].map(item => ({ userId: item.userId, muted: item.muted }));
+  const voiceMembers = channelId => [...(voiceRooms.get(channelId)?.values() || [])].map(item => ({ userId: item.userId, muted: item.muted, ...(communityApi?.serverVoice(item.state.voice?.communityId, item.userId) || {}) }));
   const leaveVoice = state => {
     const channelId = state.voice?.channelId; if (!channelId) return;
     const room = voiceRooms.get(channelId); const communityId = state.voice.communityId; state.voice = null;
@@ -388,6 +388,8 @@ export async function buildApp({
   const voice = {
     members: voiceMembers,
     kick: (userId, communityId) => { for (const state of sockets) if (state.auth?.user_id === userId && state.voice?.communityId === communityId) { sendSocket(state, { type: 'voice.kicked', channelId: state.voice.channelId }); leaveVoice(state); } },
+    // A moderator changed someone's server mute/deafen: everyone in that person's voice room gets the new state.
+    moderated: (userId, communityId) => { for (const state of sockets) if (state.auth?.user_id === userId && state.voice?.communityId === communityId) communityApi?.emitCommunity(communityApi.community(communityId), { type: 'voice.state', communityId, channelId: state.voice.channelId, members: voiceMembers(state.voice.channelId) }); },
     close: channelId => { for (const item of [...(voiceRooms.get(channelId)?.values() || [])]) { sendSocket(item.state, { type: 'voice.kicked', channelId }); leaveVoice(item.state); } },
   };
   const communityApi = installCommunityRoutes({ app, db, authOptions, publicUser, timestamp, now, emitUser, limiter, voice });

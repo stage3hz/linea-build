@@ -21,6 +21,8 @@ import { CommunityAvatar, members, subscribers } from './parts';
 import { PERM, can, type Community, type CommunityChannel, type VoiceMember } from './types';
 import { setCommunityChannels, useChannelCounts } from './unread';
 import { badgeText } from '../unreadBadge';
+import { ContextMenu } from '../ContextMenu';
+import { MemberMenuItems, hasMemberActions, type MemberTarget } from './MemberMenu';
 import { joinVoice, leaveVoice, toggleVoiceMute, toggleVoiceSpeaker, toggleVoiceDeafen, useVoice, voiceAvailable } from './voice';
 
 // On a wide screen the list stays a column (like Discord / Telegram) so counters sit next to the names.
@@ -35,6 +37,7 @@ export function CommunityScreen({ api, me, store, communityId, onBack, onOpenInv
   const [people, setPeople] = useState<Record<string, User>>({}); const [pushed, setPushed] = useState<Pushed>(null);
   const [inviteOpen, setInviteOpen] = useState(false); const [inviteLink, setInviteLink] = useState(''); const [copied, setCopied] = useState(false);
   const [voiceError, setVoiceError] = useState('');
+  const [memberMenu, setMemberMenu] = useState<(MemberTarget & { x?: number; y: number }) | null>(null);
   const progress = useSharedValue(1);
 
   const load = useCallback(async () => {
@@ -65,7 +68,7 @@ export function CommunityScreen({ api, me, store, communityId, onBack, onOpenInv
   const enterVoice = async (channel: CommunityChannel) => {
     if (!community) return; setVoiceError('');
     if (voice?.channelId === channel.id) return;
-    try { await joinVoice(api, store, { communityId: community.id, communityName: community.name, channelId: channel.id, channelName: channel.name }); }
+    try { await joinVoice(api, store, { communityId: community.id, communityName: community.name, channelId: channel.id, channelName: channel.name, userId: me.id }); }
     catch (failure) { setVoiceError(failure instanceof Error ? failure.message : 'Не удалось подключиться.'); }
   };
 
@@ -106,11 +109,16 @@ export function CommunityScreen({ api, me, store, communityId, onBack, onOpenInv
             </Pressable>
             {channel.kind === 'voice' && channel.voice?.length ? <View style={{ paddingLeft: 40, gap: 4, paddingBottom: 4 }}>{channel.voice.map(item => {
               const person = people[item.userId];
-              return <View key={item.userId} style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+              const target: MemberTarget = { userId: item.userId, name: person?.displayName || 'Участник', serverMuted: item.serverMuted, serverDeafened: item.serverDeafened, inVoice: true };
+              const actions = hasMemberActions(community, me.id, item.userId);
+              return <Pressable key={item.userId} disabled={!actions} onPress={(e: any) => setMemberMenu({ ...target, y: e.nativeEvent.pageY, x: Platform.OS === 'web' ? e.nativeEvent.pageX : undefined })}
+                accessibilityRole={actions ? 'button' : undefined} accessibilityLabel={actions ? `Действия: ${target.name}` : undefined}
+                style={({ pressed }) => ({ flexDirection: 'row', alignItems: 'center', gap: 8, borderRadius: 8, paddingVertical: 2, paddingHorizontal: 4, backgroundColor: pressed ? t.accentSoft : 'transparent' })}>
                 {person ? <Avatar user={person} api={api} size={24} /> : <View style={{ width: 24, height: 24, borderRadius: 9, backgroundColor: t.surface2 }} />}
-                <Text numberOfLines={1} style={{ flex: 1, color: t.muted, fontSize: 14 }}>{person?.displayName || 'Участник'}{item.userId === me.id ? ' (ты)' : ''}</Text>
-                {item.muted ? <Icon name="mic-off" size={14} color={t.danger} /> : null}
-              </View>;
+                <Text numberOfLines={1} style={{ flex: 1, color: t.muted, fontSize: 14 }}>{target.name}{item.userId === me.id ? ' (ты)' : ''}</Text>
+                {item.serverDeafened ? <Icon name="volume-mute" size={14} color={t.danger} /> : null}
+                {item.serverMuted ? <Icon name="mic-off" size={14} color={t.danger} /> : item.muted ? <Icon name="mic-off" size={14} color={t.subtle} /> : null}
+              </Pressable>;
             })}</View> : null}
           </View>;
         })}
@@ -139,6 +147,9 @@ export function CommunityScreen({ api, me, store, communityId, onBack, onOpenInv
   return <View style={{ flex: 1 }}>
     <StackBase progress={progress} covered={!!pushed}>{root}</StackBase>
     {pushed ? <StackScreen key={pushed.kind === 'channel' ? pushed.channel.id : 'settings'} progress={progress} onBack={() => setPushed(null)}>{() => <View style={{ flex: 1 }}><Backdrop />{child}</View>}</StackScreen> : null}
+    {community ? <ContextMenu visible={!!memberMenu} y={memberMenu?.y || 0} x={memberMenu?.x} onClose={() => setMemberMenu(null)} preview={memberMenu?.name}>
+      {memberMenu ? <MemberMenuItems api={api} community={community} me={me.id} target={memberMenu} onDone={() => setMemberMenu(null)} onError={setVoiceError} /> : null}
+    </ContextMenu> : null}
     <Sheet visible={inviteOpen} title="Пригласить" onClose={() => { setInviteOpen(false); setCopied(false); }}>
       <View style={{ gap: 12 }}>
         <Text style={{ color: t.muted, fontSize: 13, lineHeight: 19 }}>Ссылка открывается и вне мессенджера: в браузере появится страница с кнопкой «Открыть в Инвиз». В чатах Инвиза ссылка показывается баннером с кнопкой «Принять приглашение».</Text>

@@ -819,6 +819,13 @@ test('communities: game server with roles, private channels, invites, plain chan
   const history = (await request(app, 'GET', `/communities/${server.id}/channels/${general.id}/messages`, owner)).json();
   assert.deepEqual(history.messages.map(m => m.text), ['привет']);
   assert.equal(history.users[0].id, bob.user.id);
+  // Reactions toggle per user and travel with the message.
+  const reactPath = `/communities/${server.id}/channels/${general.id}/messages/${sent.json().message.id}/reactions`;
+  assert.deepEqual((await request(app, 'POST', reactPath, owner, { emoji: '🔥' })).json().message.reactions, [{ emoji: '🔥', count: 1, userIds: [owner.user.id] }]);
+  assert.equal((await request(app, 'POST', reactPath, bob, { emoji: '🔥' })).json().message.reactions[0].count, 2);
+  assert.deepEqual((await request(app, 'POST', reactPath, owner, { emoji: '🔥' })).json().message.reactions, [{ emoji: '🔥', count: 1, userIds: [bob.user.id] }]);
+  assert.equal((await request(app, 'POST', reactPath, eve, { emoji: '🔥' })).statusCode, 404);
+  assert.equal((await request(app, 'POST', reactPath, bob, { emoji: '' })).statusCode, 400);
 
   // A role-restricted channel is hidden from members without the role.
   const role = (await request(app, 'POST', `/communities/${server.id}/roles`, owner, { name: 'Ветераны', color: '#ff0000', perms: 32 | 64 })).json().role;
@@ -850,6 +857,25 @@ test('communities: game server with roles, private channels, invites, plain chan
   eveSocket.socket.send(JSON.stringify({ type: 'voice.join', communityId: server.id, channelId: voiceChannel.id }));
   const denied = await eveSocket.next(p => p.type === 'error');
   assert.match(denied.error, /доступа/);
+
+  // Server mute: Bob cannot do it, the owner can; the room sees it, and it survives a rejoin.
+  const voicePath = `/communities/${server.id}/members/${bob.user.id}/voice`;
+  assert.equal((await request(app, 'PUT', `/communities/${server.id}/members/${owner.user.id}/voice`, bob, { muted: true })).statusCode, 403);
+  const muted = await request(app, 'PUT', voicePath, owner, { muted: true });
+  assert.equal(muted.statusCode, 200, muted.body);
+  const mutedState = await ownerSocket.next(p => p.type === 'voice.state' && p.members.some(m => m.userId === bob.user.id && m.serverMuted));
+  assert.equal(mutedState.members.find(m => m.userId === bob.user.id).serverDeafened, false);
+  assert.equal((await request(app, 'PUT', voicePath, owner, { deafened: true })).json().serverDeafened, true);
+  assert.deepEqual(await request(app, 'PUT', voicePath, owner, { muted: false, deafened: false }).then(r => r.json()), { ok: true, serverMuted: false, serverDeafened: false });
+
+  // Ban: removes Bob and keeps him out of invites until unbanned; Bob cannot ban the owner.
+  assert.equal((await request(app, 'PUT', `/communities/${server.id}/bans/${owner.user.id}`, bob)).statusCode, 403);
+  assert.equal((await request(app, 'PUT', `/communities/${server.id}/bans/${bob.user.id}`, owner, { reason: 'спам' })).statusCode, 200);
+  assert.equal((await request(app, 'GET', `/communities/${server.id}/bans`, owner)).json().bans[0].reason, 'спам');
+  const rejoin = await request(app, 'POST', `/invites/${invite}/accept`, bob);
+  assert.equal(rejoin.statusCode, 403);
+  assert.equal((await request(app, 'DELETE', `/communities/${server.id}/bans/${bob.user.id}`, owner)).statusCode, 200);
+  assert.equal((await request(app, 'POST', `/invites/${invite}/accept`, bob)).statusCode, 200);
 });
 
 test('blog channels: only authors post, subscribers read and join by link', async t => {
