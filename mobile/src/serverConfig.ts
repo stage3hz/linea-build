@@ -7,4 +7,4 @@ export const LEGACY_SERVER_URLS = ['https://141-133-194-51.nip.io'];
 // Version this build reports to the server (header X-Linea-Client). The server
 // may refuse clients it has retired (see server/src/clientgate.js). Bump this
 // together with app.config.js version at every release.
-export const APP_VERSION = '0.14.2';
+export const APP_VERSION = '0.14.3';
