@@ -91,8 +91,12 @@ export function Wordmark({ size = 58 }: { size?: number }) {
   const font = { fontSize: size, lineHeight: size * 1.18, fontWeight: '800' as const, letterSpacing: -size * 0.035 };
   // Depth: a dark shadow right under the letters + a wide faint cool glow behind. Both copies sit
   // exactly under the metal letters (their own fill is hidden; a transparent glyph casts no shadow on iOS).
-  const shadow = <Text pointerEvents="none" style={{ ...font, position: 'absolute', color: metal[2], textShadowColor: t.dark ? 'rgba(0,0,0,0.85)' : 'rgba(20,28,45,0.28)', textShadowRadius: size * 0.16, textShadowOffset: { width: 0, height: size * 0.07 } }}>Инвиз</Text>;
-  const glow = <Text pointerEvents="none" style={{ ...font, position: 'absolute', color: metal[2], textShadowColor: t.dark ? 'rgba(205,220,255,0.38)' : 'rgba(120,140,190,0.25)', textShadowRadius: size * 0.55, textShadowOffset: { width: 0, height: 0 } }}>Инвиз</Text>;
+  // iOS cuts a text shadow at the edges of the Text's own box, so a wide blur showed up as a
+  // lighter rectangle around the word. Extra room (padding) lets the blur fade out completely;
+  // the copies stay centred under the letters because the padding is the same on every side.
+  const room = (r: number) => ({ padding: Math.ceil(r * 2.2) });
+  const shadow = <Text pointerEvents="none" style={{ ...font, ...room(size * 0.23), position: 'absolute', color: metal[2], textShadowColor: t.dark ? 'rgba(0,0,0,0.85)' : 'rgba(20,28,45,0.28)', textShadowRadius: size * 0.16, textShadowOffset: { width: 0, height: size * 0.07 } }}>Инвиз</Text>;
+  const glow = <Text pointerEvents="none" style={{ ...font, ...room(size * 0.55), position: 'absolute', color: metal[2], textShadowColor: t.dark ? 'rgba(205,220,255,0.38)' : 'rgba(120,140,190,0.25)', textShadowRadius: size * 0.55, textShadowOffset: { width: 0, height: 0 } }}>Инвиз</Text>;
   let letters: React.ReactNode;
   if (Platform.OS === 'web') {
     // The PC app: CSS paints the moving metal inside the letters.
