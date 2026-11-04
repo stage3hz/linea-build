@@ -38,7 +38,12 @@ ensure_tools() {
   command -v age >/dev/null || die "не удалось установить age"
 }
 recipient() { age-keygen -y "$KEY"; }
-api_image() { "${C[@]}" config --images 2>/dev/null | grep -m1 -- '-api$' || echo linea-production-api; }
+# Image of the running api container (by id: the name printed by "compose config --images" differs
+# between Compose versions, and a wrong name made "docker run" fail with "invalid reference format").
+api_image() {
+  local id; id="$("${C[@]}" ps -q api 2>/dev/null | head -1)"
+  if [ -n "$id" ]; then docker inspect -f '{{.Image}}' "$id"; else echo linea-production-api:latest; fi
+}
 write_status() { # ok|fail, message, archive
   local now; now="$(date -u +%FT%TZ)"
   printf '{"result":"%s","at":"%s","archive":"%s","message":"%s"}\n' "$1" "$now" "${3:-}" "$(printf '%s' "$2" | tr '"\n' "' ")" > "$STATUS"
