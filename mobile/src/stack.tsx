@@ -1,7 +1,7 @@
 import React, { memo, useCallback, useEffect, useRef } from 'react';
 import { StyleSheet, View, useWindowDimensions, BackHandler } from 'react-native';
 import { Gesture, GestureDetector } from 'react-native-gesture-handler';
-import Animated, { Easing, interpolate, runOnJS, useAnimatedStyle, withTiming, type SharedValue } from 'react-native-reanimated';
+import Animated, { Easing, interpolate, runOnJS, useAnimatedStyle, useSharedValue, withTiming, type SharedValue } from 'react-native-reanimated';
 import { lightFeedback } from './haptics';
 import { RenderActivity } from './renderActivity';
 
@@ -29,8 +29,19 @@ export function StackScreen({ progress, onBack, children }: { progress: SharedVa
   // Android system back closes the top pushed screen first (e.g. Settings › Оформление returns to
   // Settings, not to Chats). Registered after the app-level handler, so it runs first.
   useEffect(() => { const sub = BackHandler.addEventListener('hardwareBackPress', () => { back(); return true; }); return () => sub.remove(); }, [back]);
+  // Direction lock like Telegram-iOS: the swipe takes over once the finger has moved right and mostly
+  // sideways (2:1); a clearly vertical move (scrolling a list) lets it go. Fixed ±14 pt vertical
+  // limits used to cancel the swipe on any slight wobble.
+  const start = useSharedValue({ x: 0, y: 0 });
   const pan = Gesture.Pan()
-    .activeOffsetX(14).failOffsetY([-14, 14])
+    .manualActivation(true)
+    .onTouchesDown((event, manager) => { const touch = event.changedTouches[0]; if (!touch) { manager.fail(); return; } start.value = { x: touch.absoluteX, y: touch.absoluteY }; })
+    .onTouchesMove((event, manager) => {
+      const touch = event.changedTouches[0]; if (!touch) return;
+      const dx = touch.absoluteX - start.value.x, dy = Math.abs(touch.absoluteY - start.value.y);
+      if (dx > 10 && dx > dy * 2) manager.activate();
+      else if (dx < -10 || (dy > 10 && dy >= dx)) manager.fail();
+    })
     .onUpdate(event => { progress.value = Math.min(1, Math.max(0, event.translationX / width)); })
     .onEnd(event => {
       const leave = event.translationX > width * 0.33 || event.velocityX > 700;

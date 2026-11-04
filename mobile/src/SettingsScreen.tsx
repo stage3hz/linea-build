@@ -45,20 +45,34 @@ type Props = {
 
 /** Settings hub: profile on top, grouped sections below. */
 export function SettingsScreen(props: Props) {
-  const [section, setSection] = useState<Section>('root');
-  const progress = useSharedValue(1);
+  // A real stack like Telegram: every opened section is its own entry and back removes exactly one
+  // (Оформление › Энергосбережение › back returns to Оформление, not to the settings root).
+  const [stack, setStack] = useState<Section[]>([]);
+  const open = (next: Section) => setStack(current => current[current.length - 1] === next || current.length >= 3 ? current : [...current, next]);
+  const pop = (depth: number) => setStack(current => current.slice(0, depth));
+  const p0 = useSharedValue(1), p1 = useSharedValue(1), p2 = useSharedValue(1);
+  const levels = [p0, p1, p2];
   const page = (current: Section, onBack: () => void) => {
     const title = current === 'overlay' ? 'Оверлей' : current === 'audio' ? 'Звук и микрофон' : current === 'appearance' ? 'Оформление' : current === 'privacy' ? 'Конфиденциальность' : current === 'data' ? 'Данные и память' : current === 'language' ? 'Язык' : current === 'folders' ? 'Папки с чатами' : current === 'power' ? 'Энергосбережение' : 'Настройки';
-    if (current === 'root') return <Root {...props} onBack={onBack} open={setSection} />;
-    return <Page title={title} backLabel="К настройкам" onBack={onBack}>
-      {current === 'appearance' ? <Appearance {...props} open={setSection} /> : current === 'privacy' ? <PrivacySection api={props.api} /> : current === 'language' ? <LanguageSection /> : current === 'folders' ? <FoldersSection api={props.api} user={props.user} chats={props.chats || []} /> : current === 'power' ? <Group label="Анимации"><MotionSettings /></Group> : current === 'audio' ? <AudioSettings /> : current === 'overlay' ? <OverlaySettings /> : <DataSection api={props.api} />}
+    if (current === 'root') return <Root {...props} onBack={onBack} open={open} />;
+    return <Page title={title} backLabel="Назад" onBack={onBack}>
+      {current === 'appearance' ? <Appearance {...props} open={open} /> : current === 'privacy' ? <PrivacySection api={props.api} /> : current === 'language' ? <LanguageSection /> : current === 'folders' ? <FoldersSection api={props.api} user={props.user} chats={props.chats || []} /> : current === 'power' ? <Group label="Анимации"><MotionSettings /></Group> : current === 'audio' ? <AudioSettings /> : current === 'overlay' ? <OverlaySettings /> : <DataSection api={props.api} />}
     </Page>;
   };
-  // Sections slide in over the root list and close with the same swipe to the right as chats.
+  // Each level slides in over the previous one, which shifts aside and dims (StackBase) and closes
+  // with the same swipe to the right as chats.
+  const level = (index: number): React.ReactNode => {
+    if (index >= stack.length) return null;
+    const covered = index + 1 < stack.length;
+    return <StackScreen key={`${index}-${stack[index]}`} progress={levels[index]} onBack={() => pop(index)}>{back => <View style={{ flex: 1 }}>
+      <StackBase progress={levels[index + 1] || levels[index]} covered={covered}><View style={{ flex: 1 }}><PageBackdrop />{page(stack[index], back)}</View></StackBase>
+      {level(index + 1)}
+    </View>}</StackScreen>;
+  };
   // overflow hidden: on desktop the root list slides aside under the section and must not paint over the chat list.
   return <View style={{ flex: 1, overflow: 'hidden' }}>
-    <StackBase progress={progress} covered={section !== 'root'}>{page('root', props.onBack)}</StackBase>
-    {section !== 'root' ? <StackScreen key={section} progress={progress} onBack={() => setSection('root')}>{back => <View style={{ flex: 1 }}><PageBackdrop />{page(section, back)}</View>}</StackScreen> : null}
+    <StackBase progress={p0} covered={stack.length > 0}>{page('root', props.onBack)}</StackBase>
+    {level(0)}
   </View>;
 }
 
