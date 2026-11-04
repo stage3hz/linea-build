@@ -1,7 +1,7 @@
 import { motionEnabled } from './motion';
-// Emoji stickers below the composer: a tap sends one large emoji, which the
-// chat shows without a bubble, like Telegram's big emoji. No images are
-// downloaded from third-party sticker services.
+// Emoji panel below the composer: a tap inserts the emoji into the text at the cursor (like the
+// system keyboard); a message of only 1–3 emoji is shown large, like Telegram's big emoji.
+// No images are downloaded from third-party sticker services.
 import React, { useEffect, useRef, useState } from 'react';
 import { Animated, FlatList, PanResponder, Platform, Pressable, View, useWindowDimensions } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
@@ -23,11 +23,11 @@ const SETS: { id: string; icon: string; items: string[] }[] = [
 ];
 const RECENT_KEY = 'linea.stickers.recent.v1';
 
-export function StickerPanel({ onPick, onClose, bottomInset = 0 }: { onPick: (emoji: string) => void; onClose: () => void; bottomInset?: number }) {
+export function StickerPanel({ onPick, onClose, onErase, bottomInset = 0 }: { onPick: (emoji: string) => void; onClose: () => void; onErase?: () => void; bottomInset?: number }) {
   const { width } = useWindowDimensions();
   const wide = width >= 700;
-  if (wide || Platform.OS === 'web') return <PanelBody onPick={onPick} onClose={onClose} />;
-  return <PhonePanel onPick={onPick} onClose={onClose} bottomInset={bottomInset} />;
+  if (wide || Platform.OS === 'web') return <PanelBody onPick={onPick} onClose={onClose} onErase={onErase} />;
+  return <PhonePanel onPick={onPick} onClose={onClose} onErase={onErase} bottomInset={bottomInset} />;
 }
 
 /**
@@ -35,17 +35,17 @@ export function StickerPanel({ onPick, onClose, bottomInset = 0 }: { onPick: (em
  * height, and while the keyboard is still on screen the panel gives up exactly the space the
  * keyboard covers. Keyboard going down / coming up therefore never moves the composer.
  */
-function PhonePanel({ onPick, onClose, bottomInset }: { onPick: (emoji: string) => void; onClose: () => void; bottomInset: number }) {
+function PhonePanel({ onPick, onClose, onErase, bottomInset }: { onPick: (emoji: string) => void; onClose: () => void; onErase?: () => void; bottomInset: number }) {
   const known = lastKeyboardHeight();
   const height = known ? Math.max(250, known - bottomInset) : 300;
   const { height: keyboard } = useReanimatedKeyboardAnimation(); // 0 … -keyboardHeight
   const room = useAnimatedStyle(() => ({ height: Math.max(0, height + Math.min(0, keyboard.value + bottomInset)) }));
   return <Reanimated.View style={[{ overflow: 'hidden', justifyContent: 'flex-start' }, room]}>
-    <View style={{ height }}><PanelBody onPick={onPick} onClose={onClose} fill /></View>
+    <View style={{ height }}><PanelBody onPick={onPick} onClose={onClose} onErase={onErase} fill /></View>
   </Reanimated.View>;
 }
 
-function PanelBody({ onPick, onClose, fill = false }: { onPick: (emoji: string) => void; onClose: () => void; fill?: boolean }) {
+function PanelBody({ onPick, onClose, onErase, fill = false }: { onPick: (emoji: string) => void; onClose: () => void; onErase?: () => void; fill?: boolean }) {
   const t = useTheme(); const { width } = useWindowDimensions();
   const [set, setSet] = useState('recent'); const [recent, setRecent] = useState<string[]>([]);
   const lift = useRef(new Animated.Value(0)).current;
@@ -79,10 +79,11 @@ function PanelBody({ onPick, onClose, fill = false }: { onPick: (emoji: string) 
     <View style={{ flexDirection: 'row', alignItems: 'center', paddingHorizontal: 8, paddingTop: 6, gap: 2 }}>
       {[{ id: 'recent', icon: '' }, ...SETS].map(item => <Pressable key={item.id} onPress={() => { atTop.current = true; setSet(item.id); }} accessibilityRole="tab" accessibilityState={{ selected: set === item.id }} style={{ width: 40, height: 36, borderRadius: 12, alignItems: 'center', justifyContent: 'center', backgroundColor: set === item.id ? t.accentSoft : 'transparent' }}>{item.id === 'recent' ? <Icon name="time-outline" size={19} color={set === item.id ? t.accent : t.muted} /> : <Text style={{ fontSize: 20 }}>{item.icon}</Text>}</Pressable>)}
       <View style={{ flex: 1 }} />
-      <Pressable onPress={onClose} accessibilityRole="button" accessibilityLabel="Скрыть стикеры" style={{ width: 36, height: 36, alignItems: 'center', justifyContent: 'center' }}><Icon name="chevron-down" size={20} color={t.muted} /></Pressable>
+      {onErase ? <Pressable onPress={onErase} onLongPress={() => { for (let i = 0; i < 8; i++) onErase(); }} accessibilityRole="button" accessibilityLabel="Стереть символ" style={{ width: 40, height: 36, alignItems: 'center', justifyContent: 'center' }}><Icon name="backspace-outline" size={21} color={t.muted} /></Pressable> : null}
+      <Pressable onPress={onClose} accessibilityRole="button" accessibilityLabel="Скрыть эмодзи" style={{ width: 36, height: 36, alignItems: 'center', justifyContent: 'center' }}><Icon name="chevron-down" size={20} color={t.muted} /></Pressable>
     </View>
     {items.length ? <FlatList key={`${set}-${columns}`} data={items} numColumns={columns} keyExtractor={(item, index) => `${item}-${index}`} contentContainerStyle={{ padding: 8 }} keyboardShouldPersistTaps="handled" scrollEventThrottle={32} onScroll={event => { atTop.current = event.nativeEvent.contentOffset.y <= 2; }}
-      renderItem={({ item }) => <Pressable onPress={() => pick(item)} accessibilityRole="button" accessibilityLabel={`Отправить ${item}`} style={({ pressed, hovered }: { pressed: boolean; hovered?: boolean }) => ({ flex: 1 / columns, aspectRatio: 1, borderRadius: 10, backgroundColor: hovered ? t.accentSoft : 'transparent', alignItems: 'center', justifyContent: 'center', transform: [{ scale: pressed ? 1.25 : 1 }] })}><Text style={{ fontSize: wide ? 27 : 34 }}>{item}</Text></Pressable>} />
+      renderItem={({ item }) => <Pressable onPress={() => pick(item)} accessibilityRole="button" accessibilityLabel={`Вставить ${item}`} style={({ pressed, hovered }: { pressed: boolean; hovered?: boolean }) => ({ flex: 1 / columns, aspectRatio: 1, borderRadius: 10, backgroundColor: hovered ? t.accentSoft : 'transparent', alignItems: 'center', justifyContent: 'center', transform: [{ scale: pressed ? 1.25 : 1 }] })}><Text style={{ fontSize: wide ? 27 : 34 }}>{item}</Text></Pressable>} />
       : <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center' }}><Text style={{ color: t.muted, fontSize: 13 }}>Здесь появятся недавние</Text></View>}
   </Animated.View>;
 }

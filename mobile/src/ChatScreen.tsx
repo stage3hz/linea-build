@@ -142,6 +142,22 @@ export function ChatScreen({api,user,chat,store,onBack,wide=false,onOpenMusic}: 
   };
   useEffect(()=>{alive.current=true;return()=>{alive.current=false;if(typingTimer.current)clearTimeout(typingTimer.current);store.sendTyping(chat.id,false);};},[chat.id,store.sendTyping]);
   useEffect(()=>{setAttachMenu(false);setPreview(null);},[photoContext]);
+  // Emoji from the panel go into the text at the cursor, like on the system keyboard (Telegram does the
+  // same); a message made only of emoji is still shown large after sending.
+  const caret=useRef<{start:number;end:number}|null>(null);// null = end of the text (field not touched yet)
+  const caretOf=(value:string)=>caret.current?{start:Math.min(caret.current.start,value.length),end:Math.min(Math.max(caret.current.end,caret.current.start),value.length)}:{start:value.length,end:value.length};const draftNow=useRef(text);draftNow.current=text;
+  const insertEmoji=(emoji:string)=>{
+    const value=draftNow.current;const {start,end}=caretOf(value);
+    const next=value.slice(0,start)+emoji+value.slice(end);if(next.length>8000)return;
+    caret.current={start:start+emoji.length,end:start+emoji.length};draftNow.current=next;changeText(next);lightFeedback();
+  };
+  const eraseBack=()=>{
+    const value=draftNow.current;const {start,end}=caretOf(value);
+    if(start!==end){caret.current={start,end:start};draftNow.current=value.slice(0,start)+value.slice(end);changeText(draftNow.current);return;}
+    if(!start)return;
+    const before=value.slice(0,start);const parts=typeof Intl!=='undefined'&&(Intl as any).Segmenter?[...new (Intl as any).Segmenter(undefined,{granularity:'grapheme'}).segment(before)].map((x:any)=>x.segment):Array.from(before);
+    const cut=start-(parts[parts.length-1]||'').length;caret.current={start:cut,end:cut};draftNow.current=value.slice(0,cut)+value.slice(start);changeText(draftNow.current);
+  };
   const changeText=(value:string)=>{
     store.setDraft(chat.id,value);
     if(Date.now()-typingAt.current>1500){store.sendTyping(chat.id,!!value);typingAt.current=Date.now();}
@@ -400,7 +416,7 @@ export function ChatScreen({api,user,chat,store,onBack,wide=false,onOpenMusic}: 
       {voice.active?<GlassSurface lens material="regular" radius={26} contentStyle={{padding:6}}><VoiceRecordingBar durationMs={voice.durationMs} levels={voice.levels} onCancel={()=>void finishVoice(false)} onSend={()=>void finishVoice(true)}/></GlassSurface>:<View style={{flexDirection:'row',gap:8,alignItems:'flex-end'}}>
         <GlassSurface material="regular" radius={20} interactive contentStyle={{width:40,height:40,alignItems:'center',justifyContent:'center'}}><Pressable accessibilityRole="button" accessibilityLabel="Вложения: галерея, файлы, опрос" disabled={uploading} onPress={()=>{Keyboard.dismiss();setStickers(false);setAttachMenu(true);}} hitSlop={6} style={{opacity:uploading?.4:1}}><Icon name="attach" size={24} color={t.text}/></Pressable></GlassSurface>
         <GlassSurface lens material="regular" radius={20} style={{flex:1}} contentStyle={{minHeight:40,maxHeight:140,flexDirection:'row',alignItems:'flex-end'}}>
-          <View style={{flex:1,justifyContent:'center',minHeight:40}}><ComposerInput focusKey={editing?`edit:${editing.clientId}`:replyTo?`reply:${replyTo.clientId}`:keyboardAsk?`keyboard:${keyboardAsk}`:null} onFocus={()=>{if(stickers&&Platform.OS!=='web')stickersToKeyboard();}} minHeight={40} accessibilityLabel="Сообщение" placeholder={signalAvailable?'Сообщение':'Нужна мобильная версия'} editable={signalAvailable} value={text} onChangeText={changeText} placeholderTextColor={t.muted} selectionColor={t.accent} keyboardAppearance={t.dark?'dark':'light'} multiline maxLength={8000} style={{fontSize:17,lineHeight:22,color:t.text,paddingHorizontal:14,paddingTop:Platform.OS==='ios'?9:7,paddingBottom:9,maxHeight:136}} onKeyPress={e=>{if(Platform.OS==='web'&&e.nativeEvent.key==='Enter'&&!(e.nativeEvent as unknown as {shiftKey?:boolean}).shiftKey){e.preventDefault();send();}}}/></View>
+          <View style={{flex:1,justifyContent:'center',minHeight:40}}><ComposerInput focusKey={editing?`edit:${editing.clientId}`:replyTo?`reply:${replyTo.clientId}`:keyboardAsk?`keyboard:${keyboardAsk}`:null} onFocus={()=>{if(stickers&&Platform.OS!=='web')stickersToKeyboard();}} minHeight={40} accessibilityLabel="Сообщение" placeholder={signalAvailable?'Сообщение':'Нужна мобильная версия'} editable={signalAvailable} value={text} onChangeText={changeText} onSelectionChange={e=>{caret.current=e.nativeEvent.selection;}} placeholderTextColor={t.muted} selectionColor={t.accent} keyboardAppearance={t.dark?'dark':'light'} multiline maxLength={8000} style={{fontSize:17,lineHeight:22,color:t.text,paddingHorizontal:14,paddingTop:Platform.OS==='ios'?9:7,paddingBottom:9,maxHeight:136}} onKeyPress={e=>{if(Platform.OS==='web'&&e.nativeEvent.key==='Enter'&&!(e.nativeEvent as unknown as {shiftKey?:boolean}).shiftKey){e.preventDefault();send();}}}/></View>
           <Pressable accessibilityRole="button" accessibilityLabel="Стикеры и эмодзи" onPress={toggleStickers} style={({pressed})=>({height:40,width:38,alignItems:'center',justifyContent:'center',opacity:pressed?.6:1})}><Icon name={stickers?'keypad-outline':'happy-outline'} color={stickers?t.accent:t.muted} size={22}/></Pressable>
         </GlassSurface>
         {canSend||!signalAvailable||uploading?<Pressable accessibilityRole="button" accessibilityLabel="Отправить сообщение" disabled={!signalAvailable||uploading||(!text.trim()&&!attachments.length&&!editing)} onPress={send} style={({pressed})=>({height:40,width:40,borderRadius:20,backgroundColor:t.accent,alignItems:'center',justifyContent:'center',opacity:!signalAvailable||uploading||(!text.trim()&&!attachments.length&&!editing)?.4:pressed?.75:1})}><Icon name={editing?'checkmark':'arrow-up'} color={t.onAccent} size={25}/></Pressable>
@@ -410,7 +426,7 @@ export function ChatScreen({api,user,chat,store,onBack,wide=false,onOpenMusic}: 
       </View>}
       {text.length>7500?<Text style={{fontSize:10,color:t.muted,textAlign:'right',paddingRight:8}}>{text.length} / 8000</Text>:null}
     </View>}
-    {stickers&&!selection?<StickerPanel bottomInset={insets.bottom} onPick={emoji=>{if(!signalAvailable)return;lightFeedback();const reply=replyTo?{clientId:replyTo.clientId,senderId:replyTo.senderId,preview:replyPreview(replyTo)}:undefined;store.send(chat.id,emoji,null,reply?{reply}:undefined);if(reply)setReplyTo(null);listRef.current?.scrollToOffset({offset:0,animated:true});}} onClose={()=>setStickers(false)}/>:null}
+    {stickers&&!selection?<StickerPanel bottomInset={insets.bottom} onPick={insertEmoji} onErase={eraseBack} onClose={()=>setStickers(false)}/>:null}
     </View>
     <VideoNoteRecorder visible={circleOpen} onClose={()=>setCircleOpen(false)} onDone={take=>void sendVideoNote(take)}/>
     <AttachmentPanel key={photoContext} onPoll={()=>{setAttachMenu(false);setTimeout(()=>setPollOpen(true),350);}} visible={attachMenu} busy={uploading} canAdd={signalAvailable} remainingSlots={Math.max(0,MAX_DRAFT_ATTACHMENTS-attachments.length)} onClose={()=>setAttachMenu(false)} onAdd={item=>upload(item.file)}/>
