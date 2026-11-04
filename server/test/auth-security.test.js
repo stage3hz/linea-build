@@ -228,11 +228,17 @@ test('new accounts require their separate login word and support short Russian r
     const wrong = await login(app, 'short_words', PASSWORD, word);
     assert.equal(wrong.statusCode, 401, wrong.body);
   }
+  // The fifth wrong sign-in in a row locks the account for 5 minutes.
   const missing = await request(app, 'POST', '/auth/login', null, { username: 'short_words', password: PASSWORD });
-  assert.equal(missing.statusCode, 401, missing.body);
+  assert.equal(missing.statusCode, 429, missing.body);
+  assert.equal(missing.json().code, 'LOGIN_LOCKED');
+  await register(app, 'other_words', { confirmationWord: 'берёза', recoveryWord: 'ветер' });
   const unknown = await login(app, 'missing_person', PASSWORD, 'чужой');
-  const wrong = await login(app, 'short_words', PASSWORD, 'чужой');
+  const wrong = await login(app, 'other_words', PASSWORD, 'чужой');
   assert.deepEqual(wrong.json(), unknown.json(), 'public failure does not disclose which credential or account was wrong');
+  const unknownLocked = [];
+  for (let i = 0; i < 4; i++) unknownLocked.push((await login(app, 'missing_person', PASSWORD, 'чужой')).json().code);
+  assert.deepEqual(unknownLocked, ['LOGIN_FAILED', 'LOGIN_FAILED', 'LOGIN_FAILED', 'LOGIN_LOCKED'], 'an unknown name locks the same way');
   await grant(app, 'short_words', '  АСТРА  ');
   await register(app, 'four_letters', { confirmationWord: 'маяк', recoveryWord: 'dawn' });
   assert.equal((await login(app, 'four_letters', PASSWORD, 'МАЯК')).statusCode, 200);

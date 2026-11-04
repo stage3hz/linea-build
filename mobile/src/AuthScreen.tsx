@@ -81,6 +81,7 @@ export function AuthScreen({api,onLogin,onChangeServer}: {api:Api;onLogin:(sessi
   const [recoveryWord,setRecoveryWord]=useState(''),[recoveryRepeat,setRecoveryRepeat]=useState('');
   const [challenge,setChallenge]=useState<RecoveryChallenge|null>(null),[serverOffset,setServerOffset]=useState(0);
   const [busy,setBusy]=useState(false),[restoring,setRestoring]=useState(true),[checking,setChecking]=useState(false);
+  const [loginLockUntil,setLoginLockUntil]=useState(0);
   const [error,setError]=useState(''),[notice,setNotice]=useState(''),[feedback,setFeedback]=useState<RecoveryFeedback|null>(null),[clock,setClock]=useState(Date.now);
   const alive=useRef(false),generation=useRef(0),pending=useRef(false),statusPending=useRef(false),statusGeneration=useRef(0);
   const challengeRef=useRef<RecoveryChallenge|null>(null),modeRef=useRef<Mode>(mode);
@@ -88,6 +89,10 @@ export function AuthScreen({api,onLogin,onChangeServer}: {api:Api;onLogin:(sessi
   const login=username.trim().toLowerCase(),isRegister=registerSteps.includes(mode),isLogin=loginSteps.includes(mode);
   const recoveryFeedback=feedback?.username===login?feedback:null;
   const locked=!!recoveryFeedback?.lockedUntil&&recoveryFeedback.lockedUntil>clock;
+  // 5 wrong sign-ins → 5 minutes wait (the server enforces it; this only shows the countdown).
+  const loginLocked=isLogin&&loginLockUntil>clock;
+  const lockLeft=Math.max(0,Math.ceil((loginLockUntil-clock)/1000));
+  const lockText=`${Math.floor(lockLeft/60)}:${String(lockLeft%60).padStart(2,'0')}`;
   const current=(id:number)=>alive.current&&generation.current===id;
   const clearSecrets=()=>{setPassword('');setPasswordRepeat('');setConfirmationWord('');setConfirmationRepeat('');setRecoveryWord('');setRecoveryRepeat('');};
   const forgetGrant=()=>{setChallenge(null);challengeRef.current=null;};
@@ -105,9 +110,9 @@ export function AuthScreen({api,onLogin,onChangeServer}: {api:Api;onLogin:(sessi
     return()=>{alive.current=false;generation.current++;challengeRef.current=null;};
   },[api.base]);
   useEffect(()=>{
-    if(mode!=='recover'&&mode!=='waiting'&&mode!=='reset')return;
+    if(mode!=='recover'&&mode!=='waiting'&&mode!=='reset'&&!(loginLockUntil>Date.now()))return;
     setClock(Date.now());const timer=setInterval(()=>setClock(Date.now()),1000);return()=>clearInterval(timer);
-  },[mode]);
+  },[mode,loginLockUntil]);
 
   const begin=()=>{if(pending.current||restoring)return null;pending.current=true;setBusy(true);setError('');setNotice('');return ++generation.current;};
   const finish=(id:number)=>{if(current(id)){pending.current=false;setBusy(false);}};
@@ -129,7 +134,18 @@ export function AuthScreen({api,onLogin,onChangeServer}: {api:Api;onLogin:(sessi
     // decides whether an account may enter without a configured word.
     const id=begin();if(id===null)return;
     try{await acceptSession(await api.login(login,password,normalizeRecoveryWord(confirmationWord)),id);}
-    catch(reason){if(current(id)){setConfirmationWord('');setError(reason instanceof Error?reason.message:'Не удалось войти.');}}
+    catch(reason){
+      if(!current(id))return;
+      // Wrong login, password or word: start again from the first step (which of the three was
+      // wrong is never told), with how many tries are left; after 5 the server locks for 5 minutes.
+      if(reason instanceof ApiError&&(reason.code==='LOGIN_FAILED'||reason.code==='LOGIN_LOCKED'||reason.status===401)){
+        clearSecrets();setMode('login-name');
+        if(reason.code==='LOGIN_LOCKED'&&reason.retryAfterSeconds){setLoginLockUntil(Date.now()+reason.retryAfterSeconds*1000);setClock(Date.now());setError('Слишком много неверных попыток. Вход снова откроется через 5 минут.');}
+        else setError(reason.attemptsLeft!==undefined?`Неверный логин, пароль или слово подтверждения. Осталось попыток: ${reason.attemptsLeft}.`:reason.message);
+        return;
+      }
+      setConfirmationWord('');setError(reason instanceof Error?reason.message:'Не удалось войти.');
+    }
     finally{finish(id);}
   };
   const registerNext=async()=>{
@@ -252,7 +268,7 @@ export function AuthScreen({api,onLogin,onChangeServer}: {api:Api;onLogin:(sessi
   const submit=async()=>{
     if(pending.current||restoring)return;
     if(isRegister){await registerNext();return;}
-    if(mode==='login-name'){if(usernameCheck())go('login-password');return;}
+    if(mode==='login-name'){if(loginLocked)return;if(usernameCheck())go('login-password');return;}
     if(mode==='login-password'){if(!password||Array.from(password).length>128){setError('Введи свой пароль. Максимум — 128 символов.');return;}go('login-word');return;}
     if(mode==='login-word'){await signIn();return;}
     if(mode==='recover'){await verifyRecovery();return;}
@@ -315,7 +331,8 @@ export function AuthScreen({api,onLogin,onChangeServer}: {api:Api;onLogin:(sessi
           {mode!=='waiting'?<Text style={{color:t.subtle,fontSize:11,lineHeight:17}}>Только ручной ввод. Вставка и автозаполнение отключены.</Text>:null}
           {api.base.startsWith('http:')?<Notice text="Тестовое подключение без шифрования. Для настоящего аккаунта нужен HTTPS."/>:null}
           {notice?<Notice text={notice}/>:null}{error?<Notice text={error} error/>:null}
-          <Button label={buttonTitle} icon={mode==='waiting'?'refresh-outline':mode==='recover'?'key-outline':'arrow-forward'} onPress={()=>void submit()} loading={busy||checking&&mode==='waiting'} disabled={restoring||mode==='recover'&&locked}/>
+          {loginLocked?<Notice text={`Вход временно закрыт. Попробуй через ${lockText}.`} error/>:null}
+          <Button label={loginLocked?`Подожди ${lockText}`:buttonTitle} icon={mode==='waiting'?'refresh-outline':mode==='recover'?'key-outline':'arrow-forward'} onPress={()=>void submit()} loading={busy||checking&&mode==='waiting'} disabled={restoring||mode==='recover'&&locked||loginLocked}/>
           {isLogin?<Pressable disabled={disabled} accessibilityRole="button" onPress={()=>{generation.current++;clearSecrets();go('recover');}} style={{minHeight:44,alignItems:'center',justifyContent:'center'}}><Text style={{color:t.accent,fontSize:13,fontWeight:'700'}}>Забыл пароль?</Text></Pressable>:null}
           {mode!=='login-name'&&mode!=='register-name'?<Pressable disabled={disabled} accessibilityRole="button" onPress={back} style={{minHeight:44,flexDirection:'row',alignItems:'center',justifyContent:'center',gap:6}}><Icon name="chevron-back" color={t.muted} size={15}/><Text style={{color:t.muted,fontSize:13}}>{mode==='recover'||mode==='waiting'||mode==='reset'?'Вернуться ко входу':'Назад'}</Text></Pressable>:null}
         </GlassSurface>

@@ -10,7 +10,7 @@ import { markUpdateRequired } from './update/store';
 import type { Attachment, Chat, DeviceSession, LocalFile, Message, RecoveryChallenge, RecoveryRequest, RecoveryStatus, SecurityStatus, Session, User, UsernameStatus } from './types';
 import type { ClaimedBundle, CryptoDevice, EncryptedMessage, PublicBundle } from './e2ee/types';
 
-type ApiErrorDetails = { code?: string; attemptsRemaining?: number; retryAfterSeconds?: number; readyAt?: string; serverTime?: string; expiresAt?: string };
+type ApiErrorDetails = { code?: string; attemptsRemaining?: number; attemptsLeft?: number; retryAfterSeconds?: number; readyAt?: string; serverTime?: string; expiresAt?: string };
 const deviceName = desktopBridge() ? 'Windows' : Platform.OS === 'ios' ? 'iPhone / iPad' : Platform.OS === 'android' ? 'Android' : 'Браузер';
 // Announce the real build to the server so retired versions can be turned away.
 const clientPlatform = desktopBridge() ? 'windows' : Platform.OS;
@@ -25,6 +25,8 @@ export type PrivacyResponse = { privacy: Privacy; platinaOnly?: (keyof Privacy)[
 export class ApiError extends Error {
   readonly code?: string;
   readonly attemptsRemaining?: number;
+  /** Wrong sign-ins left before the 5-minute lock (server LOGIN_FAILED). */
+  readonly attemptsLeft?: number;
   readonly retryAfterSeconds?: number;
   readonly readyAt?: string;
   readonly serverTime?: string;
@@ -34,6 +36,7 @@ export class ApiError extends Error {
     this.name = 'ApiError';
     this.code = typeof details.code === 'string' ? details.code : undefined;
     this.attemptsRemaining = typeof details.attemptsRemaining === 'number' && Number.isInteger(details.attemptsRemaining) && details.attemptsRemaining >= 0 && details.attemptsRemaining <= 3 ? details.attemptsRemaining : undefined;
+    this.attemptsLeft = typeof details.attemptsLeft === 'number' && Number.isInteger(details.attemptsLeft) && details.attemptsLeft >= 0 && details.attemptsLeft <= 5 ? details.attemptsLeft : undefined;
     this.retryAfterSeconds = typeof details.retryAfterSeconds === 'number' && Number.isFinite(details.retryAfterSeconds) && details.retryAfterSeconds >= 0 ? details.retryAfterSeconds : undefined;
     this.readyAt = typeof details.readyAt === 'string' ? details.readyAt : undefined;
     this.serverTime = typeof details.serverTime === 'string' ? details.serverTime : undefined;

@@ -1117,3 +1117,26 @@ test('community counters: unread per channel, @mentions and replies, read marks 
   assert.equal((await summary(bob)).unreadCount, 0);
   assert.ok(old.id > 0);
 });
+
+test('login: 5 wrong attempts lock the account for 5 minutes, then it opens again', async t => {
+  let clock = Date.parse('2026-11-04T10:00:00Z');
+  const { app } = await fixture(t, { now: () => clock });
+  const user = await register(app, 'lock_me');
+  const wrong = () => request(app, 'POST', '/auth/login', null, { username: 'lock_me', password: 'wrong-password-123', confirmationWord: CONFIRMATION_WORD });
+  for (let i = 1; i <= 4; i++) {
+    const r = await wrong();
+    assert.equal(r.statusCode, 401);
+    assert.equal(r.json().attemptsLeft, 5 - i);
+  }
+  const fifth = await wrong();
+  assert.equal(fifth.statusCode, 429);
+  assert.equal(fifth.json().code, 'LOGIN_LOCKED');
+  assert.equal(fifth.json().retryAfterSeconds, 300);
+  const right = () => request(app, 'POST', '/auth/login', null, { username: 'lock_me', password: PASSWORD, confirmationWord: CONFIRMATION_WORD });
+  assert.equal((await right()).statusCode, 429, 'even the right password waits');
+  clock += 5 * 60_000 + 1000;
+  const ok = await right();
+  assert.equal(ok.statusCode, 200, ok.body);
+  assert.equal(ok.json().user.id, user.user.id);
+  assert.equal((await wrong()).json().attemptsLeft, 4, 'success resets the count');
+});
