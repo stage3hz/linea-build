@@ -1,5 +1,5 @@
 import React, { useCallback, useRef } from 'react';
-import { Dimensions, Platform, View, type StyleProp, type ViewStyle } from 'react-native';
+import { Dimensions, Keyboard, Platform, View, type StyleProp, type ViewStyle } from 'react-native';
 import Animated, { useAnimatedStyle, useSharedValue } from 'react-native-reanimated';
 import { useReanimatedKeyboardAnimation } from 'react-native-keyboard-controller';
 
@@ -29,3 +29,11 @@ function NativeKeyboardSafeView({ style, children }: { style?: StyleProp<ViewSty
   const padding = useAnimatedStyle(() => ({ paddingBottom: Math.max(0, -height.value - below.value) }));
   return <Animated.View ref={ref as never} onLayout={measure} style={[style, padding]}>{children}</Animated.View>;
 }
+
+/**
+ * Last measured system keyboard height (points), like Telegram: the emoji panel takes exactly this
+ * height so switching keyboard <-> emoji does not move the composer. 0 until the keyboard has shown.
+ */
+let lastKeyboard = 0;
+if (Platform.OS !== 'web') Keyboard.addListener('keyboardDidShow', event => { const h = event.endCoordinates?.height || 0; if (h > 120) lastKeyboard = h; });
+export const lastKeyboardHeight = () => lastKeyboard;
