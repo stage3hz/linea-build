@@ -1,4 +1,5 @@
 import React, { useEffect, useState } from 'react';
+import { useTabInset } from '../tabInset';
 import { Nameplate } from '../platina/Effects';
 import { DecoratedAvatar } from '../platina/Decor';
 import { ActivityIndicator, Platform, Pressable, ScrollView, Switch, View } from 'react-native';
@@ -20,6 +21,7 @@ const message = (error: unknown, fallback: string) => error instanceof Error ? e
 /** Community settings: profile, channels and who sees them, roles and their rights, members. */
 export function CommunitySettings({ api, me, community, onBack, onChanged, onLeft, onInvite }: { api: Api; me: User; community: Community; onBack: () => void; onChanged: (community: Community) => void; onLeft: () => void; onInvite: () => void }) {
   const t = useTheme();
+  const tabInset = useTabInset();
   const [name, setName] = useState(community.name); const [description, setDescription] = useState(community.description);
   const [busy, setBusy] = useState(''); const [error, setError] = useState(''); const [notice, setNotice] = useState('');
   const [members, setMembers] = useState<CommunityMember[] | null>(null);
@@ -54,7 +56,7 @@ export function CommunitySettings({ api, me, community, onBack, onChanged, onLef
     <GlassSurface lens radius={27} style={{ margin: 12, marginBottom: 6 }} contentStyle={{ padding: 8, flexDirection: 'row', alignItems: 'center', gap: 9, minHeight: 60 }}>
       <IconButton name="chevron-back" label="Назад" onPress={onBack} /><Text style={{ flex: 1, color: t.text, fontSize: 19, fontWeight: '700' }}>Настройки</Text>
     </GlassSurface>
-    <ScrollView contentContainerStyle={{ padding: 14, gap: 16, paddingBottom: 40 }} keyboardShouldPersistTaps="handled">
+    <ScrollView contentContainerStyle={{ padding: 14, gap: 16, paddingBottom: 40 + tabInset }} keyboardShouldPersistTaps="handled">
       <View style={{ alignItems: 'center', gap: 10 }}>
         <Pressable disabled={!can(community, PERM.MANAGE_COMMUNITY)} onPress={() => void pickAvatar()}><CommunityAvatar api={api} community={community} size={86} /></Pressable>
         <KindBadge kind={community.kind} category={community.category} />

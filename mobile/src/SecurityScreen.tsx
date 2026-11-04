@@ -8,6 +8,7 @@ import { useTheme } from './theme';
 import { AccountZone } from './AccountZone';
 import { SecretInput, newPasswordError, normalizeRecoveryWord, recoveryWordError } from './AuthScreen';
 import type { DeviceSession, SecurityStatus } from './types';
+import { useTabInset } from './tabInset';
 
 type Form = 'password' | 'confirmation' | 'word' | null;
 type SessionAction = {kind:'one';session:DeviceSession}|{kind:'others'}|null;
@@ -24,7 +25,7 @@ export function SecurityScreen({api,onBack,onCredentialsChanged,onSensitiveActio
   api:Api; onBack:()=>void; onCredentialsChanged:(message:string)=>Promise<void>;
   onSensitiveActionPending:(pending:boolean)=>void;
 }) {
-  const t=useTheme();
+  const t=useTheme(); const tabInset = useTabInset();
   const [status,setStatus]=useState<SecurityStatus|null>(null),[sessions,setSessions]=useState<DeviceSession[]>([]);
   const [loading,setLoading]=useState(true),[busy,setBusy]=useState(false),[error,setError]=useState(''),[notice,setNotice]=useState('');
   const [form,setForm]=useState<Form>(null),[action,setAction]=useState<SessionAction>(null),[formError,setFormError]=useState('');
@@ -103,7 +104,7 @@ export function SecurityScreen({api,onBack,onCredentialsChanged,onSensitiveActio
     <GlassSurface lens material="clear" radius={27} style={{marginHorizontal:14,marginTop:12,marginBottom:2}} contentStyle={{flexDirection:'row',alignItems:'center',padding:10,gap:9,minHeight:68}}>
       <IconButton name="chevron-back" label="Назад в профиль" onPress={onBack} disabled={busy}/><Text style={{fontSize:20,fontWeight:'700',letterSpacing:-.5,color:t.text,flex:1}}>Безопасность</Text><View style={{paddingRight:10}}><Icon name="shield-checkmark-outline" color={t.accent} size={23}/></View>
     </GlassSurface>
-    <ScrollView keyboardShouldPersistTaps="handled" contentContainerStyle={{padding:17,paddingBottom:36,maxWidth:620,width:'100%',alignSelf:'center',gap:16}}>
+    <ScrollView keyboardShouldPersistTaps="handled" contentContainerStyle={{padding:17,paddingBottom:36+tabInset,maxWidth:620,width:'100%',alignSelf:'center',gap:16}}>
       <GlassSurface material="clear" radius={28} contentStyle={{padding:22,gap:11}}>
         <Text style={{color:t.text,fontSize:23,lineHeight:28,fontWeight:'800',letterSpacing:-.7}}>Твой доступ.{ '\n' }Твои устройства.</Text>
         <Text style={{color:t.muted,fontSize:13,lineHeight:20}}>Вход по @имени, паролю и слову подтверждения. Для восстановления — другое слово. Почта и номер телефона не нужны.</Text>

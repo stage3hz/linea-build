@@ -17,6 +17,7 @@ import { AIMediaPanel, type MediaMode } from './AIMedia';
 import * as ImagePicker from 'expo-image-picker';
 import * as ImageManipulator from 'expo-image-manipulator';
 import { AIConversation, AI_MESSAGE_LIMIT, CODE_TASK_PREFIX, codePreviewCurrent, createCodeTaskPreview, type AICapabilityName, type AIState, type AIStatus, type AITurn, type CodeTaskPreview } from './conversation';
+import { useTabInset } from '../tabInset';
 
 const emptyState = (): AIState => ({ consent: false, turns: [], pending: false, error: '' });
 
@@ -101,6 +102,7 @@ const STRATEGY_HELP: Record<string, string> = { auto: 'Цепочка из па�
 const modelLabel = (id: string) => ({ auto: 'Авто', 'auto:smart': 'Умная', 'auto:fast': 'Быстрая', 'auto:reliable': 'Надёжная', 'auto:balanced': 'Сбалансированная', fusion: 'Fusion — консилиум' } as Record<string, string>)[id] || id;
 
 export function AIScreen({ api, onBack, quick = false, history, name }: { api: Api; onBack: () => void; quick?: boolean; history?: AIHistoryStore; name?: string }) {
+  const tabInset = useTabInset();
   const t = useTheme(), ai = useAI(api);
   const [conversationId, setConversationId] = useState(() => Crypto.randomUUID());
   const [historySheet, setHistorySheet] = useState(false);
@@ -174,7 +176,7 @@ export function AIScreen({ api, onBack, quick = false, history, name }: { api: A
   const sendButton = <Pressable accessibilityRole="button" accessibilityLabel={mode === 'code' ? 'Проверить задачу по коду перед отправкой' : 'Отправить вопрос AI'} accessibilityState={{ disabled: !draft.trim() || !ready }} disabled={!draft.trim() || !ready} onPress={submit} style={({ pressed }) => ({ width: 42, height: 42, borderRadius: 21, alignItems: 'center', justifyContent: 'center', backgroundColor: draft.trim() && ready ? t.text : t.surface2, opacity: pressed ? .75 : 1 })}><Icon name={mode === 'code' ? 'checkmark' : 'arrow-up'} size={21} color={draft.trim() && ready ? (t.dark ? '#111' : '#FFF') : t.muted} /></Pressable>;
   const plusButton = <Pressable accessibilityRole="button" accessibilityLabel="Режимы AI и вложения" disabled={ai.state.pending} onPress={() => setToolsSheet(true)} style={({ pressed }) => ({ width: 42, height: 42, borderRadius: 21, alignItems: 'center', justifyContent: 'center', backgroundColor: t.surface2, opacity: pressed ? .7 : 1 })}><Icon name="add" size={24} color={t.text} /></Pressable>;
   const modelPill = router && !media ? <Pressable accessibilityRole="button" accessibilityLabel="Выбрать модель AI" onPress={() => full ? setModelSheet(true) : setPlatinaSheet('Выбор модели')} style={({ pressed }) => ({ flexDirection: 'row', alignItems: 'center', gap: 6, height: 42, paddingHorizontal: 14, borderRadius: 21, backgroundColor: t.surface2, opacity: pressed ? .7 : 1 })}><Text style={{ color: t.text, fontSize: 14 }}>{full ? modelLabel(model) : 'Быстрые ответы'}</Text>{mode !== 'text' && modeItem ? <Text style={{ color: t.muted, fontSize: 14 }}>{modeItem.label}</Text> : null}</Pressable> : mode !== 'text' && modeItem ? <View style={{ height: 42, paddingHorizontal: 14, borderRadius: 21, backgroundColor: t.surface2, justifyContent: 'center' }}><Text style={{ color: t.text, fontSize: 14 }}>{modeItem.label}</Text></View> : null;
-  return <KeyboardSafeView style={{ flex: 1, backgroundColor: 'transparent' }}>
+  return <KeyboardSafeView bottomInset={quick ? 0 : tabInset} style={{ flex: 1, backgroundColor: 'transparent' }}>
     {/* Top: history on the left, private mode on the right (as in modern AI chat apps). */}
     <View style={{ flexDirection: 'row', alignItems: 'center', paddingHorizontal: 16, paddingTop: 10, paddingBottom: 4, gap: 10 }}>
       {quick ? roundButton('close', 'Закрыть быстрый вопрос AI', onBack) : history ? roundButton('menu-outline', 'История AI-бесед', () => setHistorySheet(true)) : null}

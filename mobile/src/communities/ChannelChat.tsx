@@ -11,6 +11,7 @@ import { AuthImage, Avatar, Icon, IconButton, Notice, Sheet, SheetAction } from 
 import { Text, TextInput } from '../typography';
 import { useTheme, formatSize } from '../theme';
 import { KeyboardSafeView } from '../keyboard';
+import { useTabInset } from '../tabInset';
 import { lightFeedback } from '../haptics';
 import * as FileSystem from 'expo-file-system/legacy';
 import { previewDocument } from '../media/documentPreview';
@@ -29,7 +30,7 @@ const day = (iso: string) => new Date(iso).toLocaleDateString('ru-RU', { day: 'n
  * servers; a post feed (large cards, the channel's picture and name as author) for blogs.
  */
 export function ChannelChat({ api, me, store, community, channel, onOpenInvite }: { api: Api; me: User; store: MessengerStore; community: Community; channel: CommunityChannel; onOpenInvite: (code: string) => void }) {
-  const t = useTheme();
+  const t = useTheme(); const tabInset = useTabInset();
   const [messages, setMessages] = useState<CommunityMessage[]>([]); const [users, setUsers] = useState<Record<string, User>>({});
   const [hasMore, setHasMore] = useState(false); const [loading, setLoading] = useState(true); const [error, setError] = useState('');
   const [text, setText] = useState(''); const [sending, setSending] = useState(false); const [reply, setReply] = useState<CommunityMessage | null>(null);
@@ -157,7 +158,7 @@ export function ChannelChat({ api, me, store, community, channel, onOpenInvite }
     </View>;
   };
 
-  return <KeyboardSafeView style={{ flex: 1 }}>
+  return <KeyboardSafeView bottomInset={tabInset} style={{ flex: 1 }}>
     {error ? <View style={{ padding: 10 }}><Notice text={error} error onRetry={messages.length ? undefined : () => void load()} /></View> : null}
     {loading && !messages.length ? <ActivityIndicator color={t.accent} style={{ marginTop: 40 }} /> :
       <FlatList keyboardDismissMode={Platform.OS === 'ios' ? 'interactive' : 'on-drag'} keyboardShouldPersistTaps="handled" inverted data={data} keyExtractor={item => String(item.id)} renderItem={render} onEndReached={() => void older()} onEndReachedThreshold={0.4} contentContainerStyle={{ paddingVertical: 8, flexGrow: 1 }}

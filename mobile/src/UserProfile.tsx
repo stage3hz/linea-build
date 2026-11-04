@@ -2,6 +2,7 @@ import { useCalls } from './calls/CallProvider';
 import { ProfileEffect } from './platina/Effects';
 import { PlatinaName, PlatinaSeal, hasPlatina } from './platina/PlatinaMark';
 import React, { useEffect, useState } from 'react';
+import { useTabInset } from './tabInset';
 import { ActivityIndicator, Modal, Pressable, ScrollView, View, useWindowDimensions } from 'react-native';
 import * as Clipboard from 'expo-clipboard';
 import { Text } from './typography';
@@ -35,7 +36,7 @@ const REASONS: { id: ReportReason; label: string }[] = [
 
 /** Full-screen profile like in Telegram: big photo, name, @username, bio, actions. */
 export function UserProfile({ api, user, onClose, chat, onMessage, onMute, onSearch, onSecurity, status, shared, onOpenAttachment, onWallpaper, rules, onRules, onClear }: Props) {
-  const calls = useCalls(); const { width } = useWindowDimensions();
+  const calls = useCalls(); const { width } = useWindowDimensions(); const tabInset = useTabInset();
   const t = useTheme();
   const [contact, setContact] = useState<boolean | null>(null);
   const [pendingRequest, setPendingRequest] = useState<'incoming' | 'outgoing' | null>(null);
@@ -102,7 +103,7 @@ export function UserProfile({ api, user, onClose, chat, onMessage, onMute, onSea
         <View style={{ flex: 1 }} />
         <IconButton name="ellipsis-horizontal" label="Ещё" onPress={() => { lightFeedback(); setMenu(true); }} />
       </View>
-      <ScrollView contentContainerStyle={{ padding: 18, gap: 16, alignItems: 'center' }}>
+      <ScrollView contentContainerStyle={{ padding: 18, paddingBottom: 18 + tabInset, gap: 16, alignItems: 'center' }}>
         <DecoratedAvatar user={shown} api={api} size={128} animated />
         <View style={{ alignItems: 'center', gap: 6 }}>
           <View style={{ flexDirection: 'row', alignItems: 'center', gap: 7 }}><PlatinaName user={shown} style={{ color: t.text, fontSize: 26, fontWeight: '800', letterSpacing: -.6 }} /><StatusEmoji user={shown} size={22} animated /></View>

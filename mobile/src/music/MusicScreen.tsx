@@ -11,6 +11,7 @@ import { useTheme } from '../theme';
 import { MUSIC_MOODS, searchMusic } from './api';
 import { useMusic } from './MusicProvider';
 import { MiniPlayer, PlayerControls } from './PlayerControls';
+import { useTabInset } from '../tabInset';
 import type { MusicSource, MusicTrack } from './types';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { onSoundCloudChange, searchSoundCloud, soundCloudAvailable } from './soundcloud';
@@ -28,6 +29,7 @@ const CATALOG_TTL = 10 * 60 * 1000;
 const catalogCache = new Map<string, { at: number; tracks: MusicTrack[]; nextOffset: number | null }>();
 
 export function MusicScreen({ onBack }: { onBack: () => void }) {
+  const tabInset = useTabInset();
   const screen = useWindowDimensions();
   const tt = useTheme(); const tone: AmbientTone = tt.black ? 'black' : tt.dark ? 'dark' : 'light';
   const ink = tt.dark ? '#FFFFFF' : '#14243D', inkInverse = tt.dark ? '#0A1529' : '#FFFFFF', soft = tt.dark ? '#D2DEF2' : '#4A5D7D';
@@ -145,7 +147,7 @@ export function MusicScreen({ onBack }: { onBack: () => void }) {
     setActionTrack(null);
   };
 
-  return <View style={{ flex: 1, width: '100%', maxWidth: 980, alignSelf: 'center' }}>
+  return <View style={{ flex: 1, width: '100%', maxWidth: 980, alignSelf: 'center', paddingBottom: tabInset }}>
 
     <FlatList keyboardDismissMode="on-drag" style={{ marginTop: -insets.top }} contentInsetAdjustmentBehavior="never"
       data={rows}

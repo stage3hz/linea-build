@@ -24,6 +24,7 @@ import { FolderEditor, useChatFolders, type ChatFolder } from './ChatFolders';
 import { useSharedValue } from 'react-native-reanimated';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { StackBase, StackScreen } from './stack';
+import { FloatingHeader, useTabInset } from './tabInset';
 import { WallpaperPicker } from './WallpaperPicker';
 import { DecoratedAvatar, ProfileBanner } from './platina/Decor';
 import { PlatinaGem, PlatinaName, PlatinaSeal, hasPlatina, openPlatinaShowcase } from './platina/PlatinaMark';
@@ -82,13 +83,16 @@ function PageBackdrop() {
 }
 
 function Page({ title, backLabel, onBack, children }: { title: string; backLabel: string; onBack: () => void; children: React.ReactNode }) {
-  const t = useTheme();
+  const t = useTheme(); const tabInset = useTabInset(); const [headerHeight, setHeaderHeight] = useState(84);
+  // The list scrolls under the glass header and tab bar (blurred), as in Telegram — no hard cut edges.
   return <View style={{ flex: 1 }}>
+    <ScrollView scrollIndicatorInsets={{ top: headerHeight, bottom: tabInset }} contentContainerStyle={{ padding: 14, paddingTop: headerHeight + 4, gap: 16, paddingBottom: 30 + tabInset, width: '100%', maxWidth: 680, alignSelf: 'center' }}>{children}</ScrollView>
+    <FloatingHeader onHeight={setHeaderHeight}>
     <GlassSurface lens radius={27} style={{ margin: 12, marginBottom: 7 }} contentStyle={{ padding: 8, flexDirection: 'row', alignItems: 'center', gap: 9, minHeight: 60 }}>
       <IconButton name="chevron-back" label={backLabel} onPress={onBack} />
       <Text style={{ flex: 1, color: t.text, fontSize: 20, fontWeight: '700' }}>{title}</Text>
     </GlassSurface>
-    <ScrollView contentContainerStyle={{ padding: 14, paddingTop: 6, gap: 16, paddingBottom: 30, width: '100%', maxWidth: 680, alignSelf: 'center' }}>{children}</ScrollView>
+    </FloatingHeader>
   </View>;
 }
 
@@ -119,6 +123,7 @@ function Toggle({ label, description, value, onChange, disabled = false, badge }
 }
 
 function Root({ api, user, onBack, onProfile, onSecurity, onMusic, onLogout, open }: Props & { open: (section: Section) => void }) {
+  const tabInset = useTabInset();
   const language = useLanguage();
   const folders = useChatFolders(user.id);
   const t = useTheme(); const preferences = useChatPreferences(); const insets = useSafeAreaInsets(); const { width } = useWindowDimensions();
@@ -130,7 +135,7 @@ function Root({ api, user, onBack, onProfile, onSecurity, onMusic, onLogout, ope
   const hasBanner = !!(user.bannerId || user.bannerPreset);
   // The scroll view itself starts under the status bar (the screen sits in a SafeAreaView): a negative
   // margin on its content was clipped by the scroll view, leaving a strip above the banner on iPhone.
-  return <ScrollView style={{ marginTop: -insets.top }} contentContainerStyle={{ paddingBottom: 30 }} showsVerticalScrollIndicator={false} contentInsetAdjustmentBehavior="never">
+  return <ScrollView style={{ marginTop: -insets.top }} contentContainerStyle={{ paddingBottom: 30 + tabInset }} showsVerticalScrollIndicator={false} contentInsetAdjustmentBehavior="never">
     {/* Telegram's settings head with Discord's banner: the banner runs under the status bar. */}
     <View style={{ height: bannerHeight }}>
       {hasBanner ? <ProfileBanner user={user} api={api} height={bannerHeight} width={width} /> : <LinearGradient colors={t.dark ? ['rgba(96,124,190,0.34)', 'rgba(150,120,200,0.14)', 'transparent'] : ['rgba(120,150,230,0.30)', 'rgba(190,170,240,0.16)', 'transparent']} start={{ x: 0.1, y: 0 }} end={{ x: 0.7, y: 1 }} style={StyleSheet.absoluteFill} />}

@@ -24,6 +24,7 @@ import { badgeText } from '../unreadBadge';
 import { ContextMenu } from '../ContextMenu';
 import { MemberMenuItems, hasMemberActions, type MemberTarget } from './MemberMenu';
 import { joinVoice, leaveVoice, toggleVoiceMute, toggleVoiceSpeaker, toggleVoiceDeafen, useVoice, voiceAvailable } from './voice';
+import { useTabInset } from '../tabInset';
 
 // On a wide screen the list stays a column (like Discord / Telegram) so counters sit next to the names.
 export const LIST_WIDTH = 400;
@@ -31,6 +32,7 @@ type Pushed = { kind: 'channel'; channel: CommunityChannel } | { kind: 'settings
 
 /** A community: Discord-style channel list for game servers, the post feed for blogs. */
 export function CommunityScreen({ api, me, store, communityId, onBack, onOpenInvite, onLeft }: { api: Api; me: User; store: MessengerStore; communityId: string; onBack: () => void; onOpenInvite: (code: string) => void; onLeft: () => void }) {
+  const tabInset = useTabInset();
   const t = useTheme(); const insets = useSafeAreaInsets(); const voice = useVoice();
   const audioMode = useSyncExternalStore(subscribeAudio, () => audioPrefs().inputMode, () => 'activity');
   const [community, setCommunity] = useState<Community | null>(null); const [error, setError] = useState('');
@@ -93,7 +95,7 @@ export function CommunityScreen({ api, me, store, communityId, onBack, onOpenInv
     {header(community.name, count, onBack, tools)}
     {error ? <View style={{ paddingHorizontal: 12 }}><Notice text={error} error /></View> : null}
     {voiceError ? <View style={{ paddingHorizontal: 12 }}><Notice text={voiceError} error /></View> : null}
-    <ScrollView contentContainerStyle={{ padding: 12, paddingBottom: 30 + insets.bottom, gap: 16, width: '100%', maxWidth: LIST_WIDTH }}>
+    <ScrollView contentContainerStyle={{ padding: 12, paddingBottom: 30 + insets.bottom + tabInset, gap: 16, width: '100%', maxWidth: LIST_WIDTH }}>
       {community.description ? <Text style={{ color: t.muted, fontSize: 14, lineHeight: 20, paddingHorizontal: 6 }}>{community.description}</Text> : null}
       {groups.map(([category, channels]) => <View key={category} style={{ gap: 4 }}>
         <Text style={{ color: t.muted, fontSize: 11, fontWeight: '700', letterSpacing: 1, paddingHorizontal: 8, paddingBottom: 2 }}>{category.toUpperCase()}</Text>

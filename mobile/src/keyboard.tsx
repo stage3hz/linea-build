@@ -12,12 +12,13 @@ import { useReanimatedKeyboardAnimation } from 'react-native-keyboard-controller
  * uses its layout relative to the parent, so inside a safe-area container (status bar,
  * home indicator, mini player below) it under-pads and the keyboard covers the composer.
  */
-export function KeyboardSafeView({ style, children }: { style?: StyleProp<ViewStyle>; children: React.ReactNode }) {
-  if (Platform.OS === 'web') return <View style={style}>{children}</View>;
-  return <NativeKeyboardSafeView style={style}>{children}</NativeKeyboardSafeView>;
+/** `bottomInset`: room kept at the bottom while the keyboard is hidden (the floating tab bar). */
+export function KeyboardSafeView({ style, children, bottomInset = 0 }: { style?: StyleProp<ViewStyle>; children: React.ReactNode; bottomInset?: number }) {
+  if (Platform.OS === 'web') return <View style={[style, bottomInset ? { paddingBottom: bottomInset } : null]}>{children}</View>;
+  return <NativeKeyboardSafeView style={style} bottomInset={bottomInset}>{children}</NativeKeyboardSafeView>;
 }
 
-function NativeKeyboardSafeView({ style, children }: { style?: StyleProp<ViewStyle>; children: React.ReactNode }) {
+function NativeKeyboardSafeView({ style, children, bottomInset }: { style?: StyleProp<ViewStyle>; children: React.ReactNode; bottomInset: number }) {
   const { height } = useReanimatedKeyboardAnimation(); // 0 … -keyboardHeight
   const below = useSharedValue(0); // distance from this view's bottom to the bottom of the window
   const ref = useRef<View>(null);
@@ -26,7 +27,7 @@ function NativeKeyboardSafeView({ style, children }: { style?: StyleProp<ViewSty
       if (h > 0) below.value = Math.max(0, Dimensions.get('window').height - (y + h));
     });
   }, [below]);
-  const padding = useAnimatedStyle(() => ({ paddingBottom: Math.max(0, -height.value - below.value) }));
+  const padding = useAnimatedStyle(() => ({ paddingBottom: Math.max(bottomInset, -height.value - below.value) }));
   return <Animated.View ref={ref as never} onLayout={measure} style={[style, padding]}>{children}</Animated.View>;
 }
 
