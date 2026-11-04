@@ -166,7 +166,9 @@ cmd_remote() {
   command -v rclone >/dev/null || { apt-get update -qq >/dev/null; apt-get install -y -qq rclone >/dev/null; }
   local name="${target%%:*}"
   rclone listremotes | grep -qx "$name:" || die "хранилища «$name» нет. Создай его сам: rclone config (ключи доступа вводишь только ты, на сервере)"
-  rclone mkdir "$target" && rclone lsf "$target" >/dev/null || die "нет доступа к $target"
+  # The bucket already exists (made in the provider panel): never try to create it — some S3
+  # providers (Timeweb) reject the creation request with InvalidLocationConstraint.
+  rclone lsf "$target" >/dev/null 2>&1 || rclone touch "$target/.invizent" || die "нет доступа к $target"
   touch "$CONF"; chmod 600 "$CONF"; grep -v '^REMOTE=' "$CONF" > "$CONF.tmp" || true; echo "REMOTE=$target" >> "$CONF.tmp"; mv "$CONF.tmp" "$CONF"
   say "Готово: архивы будут копироваться в $target. Проверка: bash deploy/autobackup.sh run"
 }
@@ -182,7 +184,7 @@ cmd_s3() {
   read -rsp "Секретный ключ S3 (ввод скрыт): " secret; echo
   [ -n "$id" ] && [ -n "$secret" ] || die "ключи не введены"
   mkdir -p "$DEPLOY/secrets"
-  ( umask 077; printf '[invizent-s3]\ntype = s3\nprovider = Other\nenv_auth = false\naccess_key_id = %s\nsecret_access_key = %s\nendpoint = %s\nregion = %s\nforce_path_style = true\n' "$id" "$secret" "$endpoint" "$region" > "$RCLONE_CONF" )
+  ( umask 077; printf '[invizent-s3]\ntype = s3\nprovider = Other\nenv_auth = false\naccess_key_id = %s\nsecret_access_key = %s\nendpoint = %s\nregion = %s\nforce_path_style = true\nno_check_bucket = true\n' "$id" "$secret" "$endpoint" "$region" > "$RCLONE_CONF" )
   export RCLONE_CONFIG="$RCLONE_CONF"
   cmd_remote "invizent-s3:$bucket/backups"
 }
