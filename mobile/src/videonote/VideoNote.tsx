@@ -5,6 +5,7 @@ import { motionEnabled } from '../motion';
 import { CameraView, useCameraPermissions, useMicrophonePermissions, type CameraType } from 'expo-camera';
 import { useVideoPlayer, VideoView } from 'expo-video';
 import { useEvent } from 'expo';
+import { BlurView } from 'expo-blur';
 import { Text } from '../typography';
 import { Icon } from '../components';
 import { useTheme } from '../theme';
@@ -20,14 +21,21 @@ import { useMusic } from '../music/MusicProvider';
 import { VIDEO_NOTE_MAX_MS, formatVoiceTime } from '../voice/voice';
 
 export type VideoNoteTake = { uri: string; durationMs: number };
-const CIRCLE = 300;
+const BASE_CIRCLE = 300;
 // iPhone: the camera input is swapped inside the running capture session, so the recording continues
 // (as in Telegram). Android's CameraX rebinds the camera and would stop the file, so there it stays before recording.
 // Android: our CameraX recorder (persistent recording) keeps the file going across a switch.
 const FLIP_WHILE_RECORDING = Platform.OS === 'ios' || androidNoteCameraAvailable;
 
 /** Full-screen recorder for a round video message. Camera and microphone are used only while it is open. */
-export function VideoNoteRecorder({ visible, onClose, onDone }: { visible: boolean; onClose: () => void; onDone: (take: VideoNoteTake) => void }) {
+/**
+ * `hold`: Telegram mode — recording starts by itself while the finger holds the composer button,
+ * `stop`/`cancel` counters come from that button, and the circle floats over the blurred chat
+ * (no separate screen, so the finger's touch is not interrupted). After a lock the buttons appear.
+ */
+export type VideoHold = { stop: number; cancel: number; locked: boolean };
+export function VideoNoteRecorder({ visible, onClose, onDone, hold = null }: { visible: boolean; onClose: () => void; onDone: (take: VideoNoteTake) => void; hold?: VideoHold | null }) {
+  const win = useWindowDimensions();
   const t = useTheme(); const music = useMusic();
   const [camera, requestCamera] = useCameraPermissions();
   const [mic, requestMic] = useMicrophonePermissions();
@@ -63,7 +71,7 @@ export function VideoNoteRecorder({ visible, onClose, onDone }: { visible: boole
     const durationMs = Math.min(VIDEO_NOTE_MAX_MS, Date.now() - started.current);
     setRecording(false);
     if (cancelled.current || !uri) return;
-    if (durationMs < 1000) { setError('Слишком короткое видео — запиши хотя бы секунду.'); return; }
+    if (durationMs < 1000) { if (hold) { onClose(); return; } setError('Слишком короткое видео — запиши хотя бы секунду.'); return; }
     onDone({ uri, durationMs });
   };
   const start = async () => {
@@ -93,10 +101,17 @@ export function VideoNoteRecorder({ visible, onClose, onDone }: { visible: boole
   };
   const cancel = () => { cancelled.current = true; if (recording) void stop(); onClose(); };
   const allowed = !!camera?.granted && !!mic?.granted;
+  const autoStarted = useRef(false);
+  useEffect(() => { if (!visible) autoStarted.current = false; }, [visible]);
+  useEffect(() => { if (visible && hold && ready && allowed && !recording && !autoStarted.current) { autoStarted.current = true; void start(); } }, [visible, hold, ready, allowed, recording]);
+  const stopSeen = useRef(hold?.stop ?? 0), cancelSeen = useRef(hold?.cancel ?? 0);
+  useEffect(() => { if (!hold) return; if (hold.stop !== stopSeen.current) { stopSeen.current = hold.stop; if (recording) void stop(); else onClose(); } }, [hold?.stop]);
+  useEffect(() => { if (!hold) return; if (hold.cancel !== cancelSeen.current) { cancelSeen.current = hold.cancel; cancel(); } }, [hold?.cancel]);
   const progress = Math.min(1, elapsed / VIDEO_NOTE_MAX_MS);
+  const CIRCLE = hold ? Math.round(Math.min(win.width * 0.8, win.height * 0.45, 360)) : BASE_CIRCLE;
 
-  return <Modal visible={visible} animationType="fade" onRequestClose={cancel} statusBarTranslucent>
-    <View style={{ flex: 1, backgroundColor: 'rgba(4,6,14,0.96)', alignItems: 'center', justifyContent: 'center', gap: 26, padding: 20 }}>
+  const showControls = !hold || hold.locked;
+  const body = <View pointerEvents={showControls ? 'auto' : 'none'} style={{ flex: 1, backgroundColor: hold ? 'transparent' : 'rgba(4,6,14,0.96)', alignItems: 'center', justifyContent: hold ? 'flex-start' : 'center', paddingTop: hold ? win.height * 0.12 : 20, gap: 26, padding: 20 }}>
       <Text style={{ color: '#FFF', fontSize: 17, fontWeight: '700' }}>{recording ? formatVoiceTime(elapsed) : 'Видеосообщение'}</Text>
       <View style={{ width: CIRCLE + 12, height: CIRCLE + 12, borderRadius: (CIRCLE + 12) / 2, padding: 6, borderWidth: 3, borderColor: recording ? t.danger : 'rgba(255,255,255,0.25)' }}>
         <View style={{ width: CIRCLE, height: CIRCLE, borderRadius: CIRCLE / 2, overflow: 'hidden', backgroundColor: '#000' }}>
@@ -105,16 +120,21 @@ export function VideoNoteRecorder({ visible, onClose, onDone }: { visible: boole
         {recording ? <View pointerEvents="none" style={{ position: 'absolute', left: 6, right: 6, bottom: -14, height: 4, borderRadius: 2, backgroundColor: 'rgba(255,255,255,0.2)' }}><View style={{ width: `${progress * 100}%`, height: 4, borderRadius: 2, backgroundColor: t.danger }} /></View> : null}
       </View>
       {stage.supported && facing === 'front' ? <Pressable accessibilityRole="switch" accessibilityState={{ checked: stage.enabled }} accessibilityLabel="Слежение за лицом" onPress={() => void setCenterStage(!stage.enabled).then(setStage)} style={{ flexDirection: 'row', alignItems: 'center', gap: 6, paddingHorizontal: 12, paddingVertical: 7, borderRadius: 16, backgroundColor: stage.enabled ? 'rgba(255,214,10,0.18)' : 'rgba(255,255,255,0.1)' }}><Icon name="scan-outline" size={16} color={stage.enabled ? '#FFD60A' : '#FFF'} /><Text style={{ color: stage.enabled ? '#FFD60A' : '#FFF', fontSize: 13, fontWeight: '600' }}>{stage.enabled ? 'В центре кадра' : 'Слежение выкл.'}</Text></Pressable> : null}
-      {error ? <Text style={{ color: '#FFB4B4', fontSize: 13, textAlign: 'center', maxWidth: 320 }}>{error}</Text> : <Text style={{ color: 'rgba(255,255,255,0.6)', fontSize: 12 }}>{recording ? 'Нажми ещё раз, чтобы отправить' : 'До 60 секунд · шифруется перед отправкой'}</Text>}
-      <View style={{ flexDirection: 'row', alignItems: 'center', gap: 34 }}>
+      {error ? <Text style={{ color: '#FFB4B4', fontSize: 13, textAlign: 'center', maxWidth: 320 }}>{error}</Text> : <Text style={{ color: 'rgba(255,255,255,0.6)', fontSize: 12 }}>{recording ? (hold ? 'Нажми ■, чтобы отправить' : 'Нажми ещё раз, чтобы отправить') : 'До 60 секунд · шифруется перед отправкой'}</Text>}
+      {showControls ? <View style={{ flexDirection: 'row', alignItems: 'center', gap: 34 }}>
         <Pressable accessibilityRole="button" accessibilityLabel="Отменить видеосообщение" onPress={cancel} style={styles.round}><Icon name="close" color="#FFF" size={26} /></Pressable>
         <Pressable accessibilityRole="button" accessibilityLabel={recording ? 'Остановить и отправить' : 'Начать запись'} disabled={!allowed || !ready} onPress={() => recording ? void stop() : void start()} style={{ width: 78, height: 78, borderRadius: 39, borderWidth: 4, borderColor: '#FFF', alignItems: 'center', justifyContent: 'center', opacity: !allowed || !ready ? .4 : 1 }}>
           {!ready && allowed ? <ActivityIndicator color="#FFF" /> : <View style={{ width: recording ? 28 : 58, height: recording ? 28 : 58, borderRadius: recording ? 7 : 29, backgroundColor: t.danger }} />}
         </Pressable>
         <Pressable accessibilityRole="button" accessibilityLabel="Сменить камеру" onPress={() => { if (recording && !FLIP_WHILE_RECORDING) return; if (!recording && Platform.OS !== 'ios' && !androidNoteCameraAvailable) setReady(false); setError(''); setFacing(value => value === 'front' ? 'back' : 'front'); }} style={[styles.round, { opacity: recording && !FLIP_WHILE_RECORDING ? .3 : 1 }]}><Icon name="camera-reverse-outline" color="#FFF" size={26} /></Pressable>
-      </View>
-    </View>
-  </Modal>;
+      </View> : <Text style={{ color: 'rgba(255,255,255,0.7)', fontSize: 13 }}>‹ Влево — отмена · вверх — без рук</Text>}
+    </View>;
+  if (hold) return visible ? <View pointerEvents={showControls ? 'auto' : 'box-none'} style={[StyleSheet.absoluteFill, { zIndex: 50 }]}>
+    <BlurView tint="dark" intensity={60} style={StyleSheet.absoluteFill} />
+    <View pointerEvents="none" style={[StyleSheet.absoluteFill, { backgroundColor: 'rgba(0,0,0,0.25)' }]} />
+    {body}
+  </View> : null;
+  return <Modal visible={visible} animationType="fade" onRequestClose={cancel} statusBarTranslucent>{body}</Modal>;
 }
 
 const styles = StyleSheet.create({ round: { width: 54, height: 54, borderRadius: 27, backgroundColor: 'rgba(255,255,255,0.12)', alignItems: 'center', justifyContent: 'center' } });

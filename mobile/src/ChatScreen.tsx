@@ -38,6 +38,7 @@ import { StickerPanel } from './StickerPanel';
 import { Share } from 'react-native';
 import { presenceText } from './presence';
 import { VoicePlaybackProvider, VoiceRecordingBar, useVoiceRecorder } from './voice/VoiceMessage';
+import { RecordButton } from './voice/RecordButton';
 import { MessageRow, MissingRow, type AlbumPart, type Row, type RowHandlers } from './MessageRow';
 import { ContextMenu, ReadDateRow, MenuItem } from './ContextMenu';
 import { navigate } from './navigation';
@@ -48,7 +49,7 @@ import { useCalls } from './calls/CallProvider';
 import { UserProfile } from './UserProfile';
 import { MiniProfile } from './MiniProfile';
 import { impactFeedback, lightFeedback } from './haptics';
-import { VideoNoteRecorder, type VideoNoteTake } from './videonote/VideoNote';
+import { VideoNoteRecorder, type VideoHold, type VideoNoteTake } from './videonote/VideoNote';
 import { useCallback } from 'react';
 import { attachmentLabel, isVideoNote, isVoice } from './voice/voice';
 import { VOICE_MIME, VOICE_MIN_MS, videoNoteFileName, voiceFileName } from './voice/voice';
@@ -214,7 +215,19 @@ export function ChatScreen({api,user,chat,store,onBack,wide=false,onOpenMusic}: 
     finally{uploadingRef.current=false;if(alive.current)setUploading(false);await FileSystem.deleteAsync(take.uri,{idempotent:true}).catch(()=>{});}
   };
   const voice=useVoiceRecorder(()=>void finishVoice(true));
-  const startVoice=()=>{impactFeedback();Keyboard.dismiss();setLocalError('');voice.start().catch(e=>setLocalError(e instanceof Error?e.message:'Не удалось начать запись.'));};
+  const startVoice=(onFail?:()=>void)=>{impactFeedback();Keyboard.dismiss();setLocalError('');voice.start().catch(e=>{onFail?.();setLocalError(e instanceof Error?e.message:'Не удалось начать запись.');});};
+  // Telegram's hold-to-record: hold the button, slide left to cancel, up to lock, release to send.
+  const [recHold,setRecHold]=useState<{kind:'voice'|'video';locked:boolean}|null>(null);
+  const [cancelProgress,setCancelProgress]=useState(0);
+  const [videoHold,setVideoHold]=useState<VideoHold|null>(null);
+  const toggleRecordMode=()=>{lightFeedback();const next=recordMode==='voice'?'video':'voice';setRecordMode(next);setNotice(next==='video'?'Удерживай, чтобы записать видеосообщение':'Удерживай, чтобы записать голосовое');setTimeout(()=>setNotice(current=>current.startsWith('Удерживай')?'':current),1800);};
+  const holdStart=()=>{setNotice('');setStickers(false);
+    if(recordMode==='voice'){setRecHold({kind:'voice',locked:false});startVoice(()=>setRecHold(null));}
+    else{Keyboard.dismiss();setLocalError('');setVideoHold({stop:0,cancel:0,locked:false});setCircleOpen(true);setRecHold({kind:'video',locked:false});}};
+  const holdEnd=(result:'send'|'cancel')=>{const kind=recHold?.kind??recordMode;setRecHold(null);setCancelProgress(0);
+    if(kind==='voice')void finishVoice(result==='send');
+    else setVideoHold(v=>v?{...v,stop:v.stop+(result==='send'?1:0),cancel:v.cancel+(result==='cancel'?1:0)}:v);};
+  const holdLock=()=>{setCancelProgress(0);setRecHold(h=>h?{...h,locked:true}:h);setVideoHold(v=>v?{...v,locked:true}:v);};
   const canSend=!!text.trim()||attachments.length>0||!!editing;
   const saveToFavorites=(m:ViewMessage)=>{
     store.saved.save(m.text,m.attachment,{chatId:chat.id,clientId:m.clientId,author:originalAuthor(m).slice(0,80)||'собеседник',sentAt:m.createdAt})
@@ -415,22 +428,22 @@ export function ChatScreen({api,user,chat,store,onBack,wide=false,onOpenMusic}: 
         return <View key={attachment.id} style={{width:230,flexDirection:'row',alignItems:'center',gap:8,padding:10,borderRadius:19,backgroundColor:t.accentSoft,borderWidth:1,borderColor:t.border}}><Icon name={kind==='photo'?'image-outline':kind==='video'?'videocam-outline':kind==='audio'?'musical-note-outline':'document-outline'} color={t.accent} size={21}/><View style={{flex:1,gap:3}}><Text numberOfLines={1} style={{color:t.text,fontSize:12,fontWeight:'600'}}>{attachment.name}</Text><Text style={{color:t.muted,fontSize:10}}>{index+1} · {formatSize(attachment.size)}</Text></View><IconButton name="close" label={`Убрать ${attachment.name}`} onPress={()=>{store.removeDraftFile(chat.id,attachment.id);draftCount.current=Math.max(0,draftCount.current-1);}} disabled={uploading} size={18} style={{width:30,height:32}}/></View>;
       })}</ScrollView>:null}
       </GlassSurface>:null}
-      {voice.active?<GlassSurface lens material="regular" radius={26} contentStyle={{padding:6}}><VoiceRecordingBar durationMs={voice.durationMs} levels={voice.levels} onCancel={()=>void finishVoice(false)} onSend={()=>void finishVoice(true)}/></GlassSurface>:<View style={{flexDirection:'row',gap:8,alignItems:'flex-end'}}>
+      {voice.active&&!(recHold?.kind==='voice'&&!recHold.locked)?<GlassSurface lens material="regular" radius={26} contentStyle={{padding:6}}><VoiceRecordingBar durationMs={voice.durationMs} levels={voice.levels} paused={voice.paused} onPause={voice.togglePause} onCancel={()=>{setRecHold(null);void finishVoice(false);}} onSend={()=>{setRecHold(null);void finishVoice(true);}}/></GlassSurface>:<View style={{flexDirection:'row',gap:8,alignItems:'flex-end'}}>
+        {recHold?.kind==='voice'&&!recHold.locked?<GlassSurface key="holdstrip" lens material="regular" radius={20} style={{flex:1}} contentStyle={{minHeight:40,justifyContent:'center'}}><VoiceRecordingBar holding cancelProgress={cancelProgress} durationMs={voice.durationMs} levels={voice.levels} onCancel={()=>{}} onSend={()=>{}}/></GlassSurface>:<>
         <GlassSurface material="regular" radius={20} interactive contentStyle={{width:40,height:40,alignItems:'center',justifyContent:'center'}}><Pressable accessibilityRole="button" accessibilityLabel="Вложения: галерея, файлы, опрос" disabled={uploading} onPress={()=>{Keyboard.dismiss();setStickers(false);setAttachMenu(true);}} hitSlop={6} style={{opacity:uploading?.4:1}}><Icon name="attach" size={24} color={t.text}/></Pressable></GlassSurface>
         <GlassSurface lens material="regular" radius={20} style={{flex:1}} contentStyle={{minHeight:40,maxHeight:140,flexDirection:'row',alignItems:'flex-end'}}>
           <View style={{flex:1,justifyContent:'center',minHeight:40}}><ComposerInput focusKey={editing?`edit:${editing.clientId}`:replyTo?`reply:${replyTo.clientId}`:keyboardAsk?`keyboard:${keyboardAsk}`:null} onFocus={()=>{if(stickers&&Platform.OS!=='web')stickersToKeyboard();}} minHeight={40} accessibilityLabel="Сообщение" placeholder={signalAvailable?'Сообщение':'Нужна мобильная версия'} editable={signalAvailable} value={text} onChangeText={changeText} onSelectionChange={e=>{caret.current=e.nativeEvent.selection;}} placeholderTextColor={t.muted} selectionColor={t.accent} keyboardAppearance={t.dark?'dark':'light'} multiline maxLength={8000} style={{fontSize:17,lineHeight:22,color:t.text,paddingHorizontal:14,paddingTop:Platform.OS==='ios'?9:7,paddingBottom:9,maxHeight:136}} onKeyPress={e=>{if(Platform.OS==='web'&&e.nativeEvent.key==='Enter'&&!(e.nativeEvent as unknown as {shiftKey?:boolean}).shiftKey){e.preventDefault();send();}}}/></View>
           <Pressable accessibilityRole="button" accessibilityLabel="Стикеры и эмодзи" onPress={toggleStickers} style={({pressed})=>({height:40,width:38,alignItems:'center',justifyContent:'center',opacity:pressed?.6:1})}><Icon name={stickers?'keypad-outline':'happy-outline'} color={stickers?t.accent:t.muted} size={22}/></Pressable>
         </GlassSurface>
         {canSend||!signalAvailable||uploading?<Pressable accessibilityRole="button" accessibilityLabel="Отправить сообщение" disabled={!signalAvailable||uploading||(!text.trim()&&!attachments.length&&!editing)} onPress={send} style={({pressed})=>({height:40,width:40,borderRadius:20,backgroundColor:t.accent,alignItems:'center',justifyContent:'center',opacity:!signalAvailable||uploading||(!text.trim()&&!attachments.length&&!editing)?.4:pressed?.75:1})}><Icon name={editing?'checkmark':'arrow-up'} color={t.onAccent} size={25}/></Pressable>
-        :<GlassSurface material="regular" radius={20} interactive contentStyle={{width:40,height:40,alignItems:'center',justifyContent:'center'}}><Pressable accessibilityRole="button" accessibilityLabel={recordMode==='voice'?'Голосовое: удерживай для записи, нажми — переключить на видео':'Видеосообщение: удерживай для записи, нажми — переключить на голосовое'} delayLongPress={220}
-          onPress={()=>{lightFeedback();const next=recordMode==='voice'?'video':'voice';setRecordMode(next);setNotice(next==='video'?'Удерживай, чтобы записать видеосообщение':'Удерживай, чтобы записать голосовое');setTimeout(()=>setNotice(current=>current.startsWith('Удерживай')?'':current),1800);}}
-          onLongPress={()=>{setNotice('');if(recordMode==='voice')startVoice();else{impactFeedback();Keyboard.dismiss();setLocalError('');setCircleOpen(true);}}} hitSlop={6}><Icon name={recordMode==='voice'?'mic-outline':'videocam-outline'} color={t.text} size={25}/></Pressable></GlassSurface>}
+        :null}</>}
+        {!(canSend||!signalAvailable||uploading)||recHold?<View key="rec" style={{zIndex:5}}><RecordButton mode={recordMode} disabled={uploading||!signalAvailable} onToggleMode={toggleRecordMode} onHoldStart={holdStart} onHoldEnd={holdEnd} onLock={holdLock} onSlide={setCancelProgress}/></View>:null}
       </View>}
       {text.length>7500?<Text style={{fontSize:10,color:t.muted,textAlign:'right',paddingRight:8}}>{text.length} / 8000</Text>:null}
     </View>}
     {stickers&&!selection?<StickerPanel bottomInset={insets.bottom} onPick={insertEmoji} onErase={eraseBack} onClose={()=>setStickers(false)}/>:null}
     </View>
-    <VideoNoteRecorder visible={circleOpen} onClose={()=>setCircleOpen(false)} onDone={take=>void sendVideoNote(take)}/>
+    <VideoNoteRecorder visible={circleOpen} hold={videoHold} onClose={()=>{setCircleOpen(false);setVideoHold(null);setRecHold(null);}} onDone={take=>{setCircleOpen(false);setVideoHold(null);setRecHold(null);void sendVideoNote(take);}}/>
     <AttachmentPanel key={photoContext} onPoll={()=>{setAttachMenu(false);setTimeout(()=>setPollOpen(true),350);}} visible={attachMenu} busy={uploading} canAdd={signalAvailable} remainingSlots={Math.max(0,MAX_DRAFT_ATTACHMENTS-attachments.length)} onClose={()=>setAttachMenu(false)} onAdd={item=>upload(item.file)}/>
     <TrustSheet visible={securityOpen} onClose={()=>setSecurityOpen(false)} peerId={chat.peer.id} store={store}/>
     {mediaOpen?<Modal visible animationType="slide" presentationStyle="pageSheet" onRequestClose={()=>setMediaOpen(false)}><GlassStage><SafeAreaView style={{flex:1}}>

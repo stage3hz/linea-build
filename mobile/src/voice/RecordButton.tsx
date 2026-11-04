@@ -1,0 +1,70 @@
+// Telegram's record button: tap switches microphone ↔ round video; press and hold records; while
+// holding, slide left to cancel or up to lock (then the hands are free); releasing sends.
+// The button keeps following the finger a little, a lock pill shows above it.
+import React, { useRef, useState } from 'react';
+import { StyleSheet, View } from 'react-native';
+import { Gesture, GestureDetector } from 'react-native-gesture-handler';
+import Animated, { runOnJS, useAnimatedStyle, useSharedValue, withSpring } from 'react-native-reanimated';
+import { Icon } from '../components';
+import { useTheme } from '../theme';
+import { impactFeedback, lightFeedback } from '../haptics';
+
+export const CANCEL_DISTANCE = 120, LOCK_DISTANCE = 90;
+export type RecordKind = 'voice' | 'video';
+
+export function RecordButton({ mode, disabled, onToggleMode, onHoldStart, onHoldEnd, onLock, onSlide }: {
+  mode: RecordKind; disabled?: boolean;
+  onToggleMode: () => void;
+  /** Recording should begin (finger is down long enough). */
+  onHoldStart: () => void;
+  /** Finger lifted: 'send' (normal release), 'cancel' (slid left). Not called after a lock. */
+  onHoldEnd: (result: 'send' | 'cancel') => void;
+  onLock: () => void;
+  /** 0…1 progress of the cancel slide, for the «‹ Влево — отмена» hint. */
+  onSlide?: (cancel: number) => void;
+}) {
+  const t = useTheme();
+  const tx = useSharedValue(0), ty = useSharedValue(0), active = useSharedValue(0);
+  const [holding, setHolding] = useState(false);
+  const done = useRef(false);
+  const begin = () => { done.current = false; setHolding(true); impactFeedback(); onHoldStart(); };
+  const finish = (result: 'send' | 'cancel' | 'lock') => {
+    if (done.current) return; done.current = true; setHolding(false); onSlide?.(0);
+    if (result === 'lock') { lightFeedback(); onLock(); } else onHoldEnd(result);
+  };
+  const slide = (x: number) => onSlide?.(Math.min(1, Math.max(0, -x / CANCEL_DISTANCE)));
+  const reset = () => { 'worklet'; tx.value = withSpring(0, { damping: 18 }); ty.value = withSpring(0, { damping: 18 }); active.value = withSpring(0, { damping: 18 }); };
+
+  const hold = Gesture.Pan().enabled(!disabled).activateAfterLongPress(220)
+    .onStart(() => { active.value = withSpring(1, { damping: 14 }); runOnJS(begin)(); })
+    .onUpdate(e => {
+      // One axis at a time, like Telegram: the larger movement wins.
+      const left = Math.min(0, e.translationX), up = Math.min(0, e.translationY);
+      if (-left > -up) { tx.value = left; ty.value = 0; } else { ty.value = up; tx.value = 0; }
+      runOnJS(slide)(tx.value);
+      if (-tx.value >= CANCEL_DISTANCE) { reset(); runOnJS(finish)('cancel'); }
+      else if (-ty.value >= LOCK_DISTANCE) { reset(); runOnJS(finish)('lock'); }
+    })
+    .onEnd(() => { reset(); runOnJS(finish)('send'); })
+    .onFinalize(() => { reset(); });
+  const tap = Gesture.Tap().enabled(!disabled).maxDuration(220).onEnd((_e, ok) => { if (ok) runOnJS(onToggleMode)(); });
+  const gesture = Gesture.Exclusive(hold, tap);
+
+  const button = useAnimatedStyle(() => ({
+    transform: [{ translateX: tx.value * 0.9 }, { translateY: ty.value * 0.9 }, { scale: 1 + active.value * 0.75 }],
+    backgroundColor: active.value > 0.05 ? t.accent : t.glassOpaque,
+  }));
+  const lockPill = useAnimatedStyle(() => ({ opacity: active.value, transform: [{ translateY: -70 + ty.value * 0.5 }, { scale: 0.8 + active.value * 0.2 }] }));
+
+  return <View style={{ width: 40, height: 40, alignItems: 'center', justifyContent: 'center' }}>
+    {holding ? <Animated.View pointerEvents="none" style={[{ position: 'absolute', width: 36, height: 64, borderRadius: 18, alignItems: 'center', justifyContent: 'space-evenly', backgroundColor: t.glassOpaque, borderWidth: 1, borderColor: t.border }, lockPill]}>
+      <Icon name="lock-open-outline" size={17} color={t.text} /><Icon name="chevron-up" size={14} color={t.muted} />
+    </Animated.View> : null}
+    <GestureDetector gesture={gesture}>
+      <Animated.View accessible accessibilityRole="button" accessibilityLabel={mode === 'voice' ? 'Голосовое: удерживай для записи, свайп влево — отмена, вверх — без рук. Нажми — переключить на видео' : 'Видеосообщение: удерживай для записи, свайп влево — отмена, вверх — без рук. Нажми — переключить на голосовое'}
+        style={[{ width: 40, height: 40, borderRadius: 20, alignItems: 'center', justifyContent: 'center', borderWidth: StyleSheet.hairlineWidth, borderColor: t.border }, button]}>
+        <Icon name={mode === 'voice' ? (holding ? 'mic' : 'mic-outline') : (holding ? 'videocam' : 'videocam-outline')} color={holding ? t.onAccent : t.text} size={holding ? 20 : 25} />
+      </Animated.View>
+    </GestureDetector>
+  </View>;
+}
