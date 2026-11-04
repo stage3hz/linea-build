@@ -61,6 +61,8 @@ else
 fi
 # Сохраняем уже заданные секреты и настройки AI при повторном запуске.
 keep() { [ -f deploy/.env ] && grep -E "^$1=" deploy/.env | tail -1 | cut -d= -f2- || true; }
+# Several servers (deploy/cluster.md) and screen sharing (SFU): these lines are kept as they are.
+KEEP_EXTRA="$( [ -f deploy/.env ] && grep -E "^(CLUSTER_|LITESTREAM_|SFU_)[A-Z_]*=" deploy/.env | grep -v "^CLUSTER_BOOTSTRAP=" || true)"
 OLDKEY="$(keep OPENROUTER_API_KEY)"
 AI_PROVIDER_V="$(keep AI_PROVIDER)"; AI_API_KEY_V="$(keep AI_API_KEY)"; AI_MODEL_V="$(keep AI_MODEL)"
 FLK="$(keep FREELLMAPI_ENCRYPTION_KEY)"; [ -n "$FLK" ] || FLK="$(openssl rand -hex 32)"
@@ -99,6 +101,7 @@ REQUIRE_CLIENT_HEADER=$REQ_HEADER_V
 ATTEST_KEY=$ATTEST_KEY_V
 ATTEST_MODE=$ATTEST_MODE_V
 EOF
+[ -z "$KEEP_EXTRA" ] || printf '%s\n' "$KEEP_EXTRA" >> deploy/.env
 )
 # Панель FreeLLMAPI: отдельный адрес с HTTPS. Вход защищён её собственным аккаунтом,
 # а первый аккаунт создаётся только с одноразовым кодом из логов сервера.
@@ -119,6 +122,7 @@ echo "== 4/5 Сборка и запуск (несколько минут)"
 if command -v ufw >/dev/null && ufw status | grep -q "Status: active"; then
   ufw allow 22/tcp >/dev/null; ufw allow 80/tcp >/dev/null; ufw allow 443/tcp >/dev/null; ufw allow 443/udp >/dev/null
   ufw allow 3478/udp >/dev/null; ufw allow 3478/tcp >/dev/null; ufw allow 49160:49200/udp >/dev/null
+  ufw allow 40000/udp >/dev/null; ufw allow 40000/tcp >/dev/null
 fi
 "${C[@]}" up -d --build
 # Caddy reads its config only at start; restart so new hosts (e.g. the AI dashboard) get certificates.
