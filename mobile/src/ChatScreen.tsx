@@ -10,6 +10,7 @@ import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { ActivityIndicator, FlatList, Keyboard, Modal, Platform, Pressable, ScrollView, View } from 'react-native';
 import { Text, TextInput } from './typography';
 import { KeyboardSafeView } from './keyboard';
+import { shareText } from './share';
 import * as Clipboard from 'expo-clipboard';
 import { LinearGradient } from 'expo-linear-gradient';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -248,7 +249,7 @@ export function ChatScreen({api,user,chat,store,onBack,wide=false,onOpenMusic}: 
     const text=list.map(m=>m.meta?.poll?replyPreview(m):m.text).filter(Boolean).join('\n\n');
     try{
       if(files.length===1&&!text)await download(files[0]);
-      else if(text)await Share.share({message:text});
+      else if(text){if(await shareText(text)==='copied')setNotice('Текст скопирован — вставь его, куда нужно.');}
       else if(files.length)await download(files[0]);
     }catch(e){setLocalError(e instanceof Error?e.message:'Не удалось поделиться.');}
   };

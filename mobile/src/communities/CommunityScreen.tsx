@@ -22,6 +22,7 @@ import { PERM, can, type Community, type CommunityChannel, type VoiceMember } fr
 import { setCommunityChannels, useChannelCounts } from './unread';
 import { badgeText } from '../unreadBadge';
 import { ContextMenu } from '../ContextMenu';
+import { shareText } from '../share';
 import { MemberMenuItems, hasMemberActions, type MemberTarget } from './MemberMenu';
 import { joinVoice, leaveVoice, toggleVoiceMute, toggleVoiceSpeaker, toggleVoiceDeafen, useVoice, voiceAvailable } from './voice';
 import { useTabInset } from '../tabInset';
@@ -157,7 +158,7 @@ export function CommunityScreen({ api, me, store, communityId, onBack, onOpenInv
         <Text style={{ color: t.muted, fontSize: 13, lineHeight: 19 }}>Ссылка открывается и вне мессенджера: в браузере появится страница с кнопкой «Открыть в Инвиз». В чатах Инвиза ссылка показывается баннером с кнопкой «Принять приглашение».</Text>
         <Pressable onPress={() => { void Clipboard.setStringAsync(inviteLink); setCopied(true); }} style={{ padding: 13, borderRadius: 14, backgroundColor: t.surface2, borderWidth: 1, borderColor: t.border }}><Text selectable style={{ color: t.accent, fontSize: 14 }}>{inviteLink}</Text></Pressable>
         <SheetAction icon={copied ? 'checkmark' : 'copy-outline'} label={copied ? 'Скопировано' : 'Скопировать ссылку'} onPress={() => { void Clipboard.setStringAsync(inviteLink); setCopied(true); }} />
-        <SheetAction icon="share-outline" label="Поделиться…" onPress={() => void Share.share({ message: inviteLink })} />
+        <SheetAction icon="share-outline" label="Поделиться…" onPress={() => { void shareText(inviteLink).then(r => { if (r === 'copied') setCopied(true); }); }} />
         <Text style={{ color: t.muted, fontSize: 11, fontWeight: '700', letterSpacing: 1, marginTop: 4 }}>ОТПРАВИТЬ В ЧАТ</Text>
         {store.chats.slice(0, 8).map(chat => <SheetAction key={chat.id} icon="paper-plane-outline" label={chat.peer.displayName} onPress={() => { store.send(chat.id, inviteLink, null); setInviteOpen(false); }} />)}
       </View>
