@@ -19,6 +19,9 @@ export function TitleBar() {
   const region = (value: 'drag' | 'no-drag') => (node: unknown) => { const el = node as HTMLElement | null; if (el?.style) (el.style as unknown as Record<string, string>).webkitAppRegion = value; if (el?.style && value === 'drag') el.style.userSelect = 'none'; };
   const dragRef = useRef(region('drag')).current, noDrag = useRef(region('no-drag')).current;
   useEffect(() => { if (!c) return; void c.action('state').then(s => s && setState(s)); return c.onState(setState); }, [c]);
+  // Dialogs (profile, viewer, sheets) start below our title bar, so the window buttons stay usable.
+  const shown = Platform.OS === 'web' && !!c && !state.fullscreen && c.platform !== 'darwin';
+  useEffect(() => { if (typeof document === 'undefined') return; document.documentElement.classList.toggle('has-titlebar', shown); }, [shown]);
   if (Platform.OS !== 'web' || !c || state.fullscreen) return null;
   const mac = c.platform === 'darwin';
   if (mac) return <View ref={dragRef} style={{ height: TITLE_BAR_HEIGHT, flexDirection: 'row', alignItems: 'center', backgroundColor: 'transparent', zIndex: 1000 }}>
