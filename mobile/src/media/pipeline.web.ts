@@ -41,7 +41,18 @@ export async function prepareMediaForUpload(file: LocalFile): Promise<PreparedMe
   else if(video==='mp4' && !file.mimeType.startsWith('audio/')) {bytes=sanitizeMp4(bytes).bytes;mime='video/mp4';movie=true;}
   else if(video && !file.mimeType.startsWith('audio/')) throw new Error('На ПК отправляй видео в формате MP4.');
   const uri=URL.createObjectURL(new Blob([bytes as BlobPart],{type:mime}));
-  return {file:{...file,uri,mimeType:mime,size:bytes.length},photo,video:movie,dispose:async()=>URL.revokeObjectURL(uri)};
+  // Videos: size and length for the bubble (the «0:12» badge and the right aspect before download).
+  const media=movie?await probeVideo(uri):undefined;
+  return {file:{...file,uri,mimeType:mime,size:bytes.length},photo,video:movie,...(media?{media}:{}),dispose:async()=>URL.revokeObjectURL(uri)};
 }
 export async function resolveVideoLibraryAsset(_id:string):Promise<{fileUri:string;dispose:()=>Promise<void>}>{throw new Error('Выбери видео через диалог файлов.');}
 export async function clearVideoCache(){}
+
+async function probeVideo(uri:string):Promise<{width:number;height:number;durationMs:number}|undefined>{
+  try{
+    const v=document.createElement('video');v.preload='metadata';v.muted=true;v.src=uri;
+    await new Promise<void>((resolve,reject)=>{const t=setTimeout(()=>reject(new Error('timeout')),5000);v.onloadedmetadata=()=>{clearTimeout(t);resolve();};v.onerror=()=>{clearTimeout(t);reject(new Error('video'));};});
+    const out={width:v.videoWidth,height:v.videoHeight,durationMs:Math.round((v.duration||0)*1000)};v.removeAttribute('src');v.load();
+    return out.width>0&&out.height>0&&Number.isFinite(out.durationMs)&&out.durationMs<=86400000?out:undefined;
+  }catch{return undefined;}
+}
