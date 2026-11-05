@@ -42,7 +42,7 @@ export async function encryptAndUpload(api:Api,file:LocalFile,onProgress?:(sent:
     const result=await api.request<{id:string}>('/e2ee/files',{method:'POST',headers:{'Content-Type':part.contentType},body:part.body as unknown as BodyInit});
     onProgress?.(bytes.length,bytes.length);
     // Small preview inside the encrypted message, as on phones (was missing on PC: grey placeholders).
-    const preview=prepared.photo||prepared.video?await makeThumbnail(prepared).catch(()=>undefined):undefined;
+    const gif=prepared.file.mimeType==='image/gif',preview=prepared.photo||prepared.video||gif?await makeThumbnail(gif?{...prepared,photo:true}:prepared).catch(()=>undefined):undefined;
     return {id:result.id,name:file.name,mimeType:prepared.file.mimeType,size:bytes.length,encryption:{scheme:'aes-256-gcm-siv',key,nonce,fileKeyId},...(prepared.media?{media:prepared.media}:{}),...(preview?{preview}:{})};
   } finally {await prepared.dispose();}
 }
