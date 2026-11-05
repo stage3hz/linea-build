@@ -50,13 +50,20 @@ docker --version; docker compose version
 
 echo "== 3/5 Настройки"
 # deploy/Caddyfile.two — исходный шаблон; рабочий Caddyfile каждый раз собирается из него заново.
-[ -f deploy/Caddyfile.two ] || cp deploy/Caddyfile deploy/Caddyfile.two
+# Свежий deploy/Caddyfile из репозитория (i.sh только что скачал его, метки нет) обновляет шаблон —
+# иначе правки Caddyfile в репозитории никогда не доходили до сервера. Собранный файл помечен
+# первой строкой; при повторном запуске без скачивания шаблон остаётся прежним.
+CADDY_MARK='# собрано install.sh из deploy/Caddyfile.two — не править вручную'
+# (Файлы, собранные прежним install.sh, метки не имеют, но уже содержат блок панели AI.)
+if [ ! -f deploy/Caddyfile.two ] || { [ "$(head -n1 deploy/Caddyfile)" != "$CADDY_MARK" ] && ! grep -q 'freellmapi:3001' deploy/Caddyfile; }; then
+  cp deploy/Caddyfile deploy/Caddyfile.two
+fi
 if [ -n "$HOST2" ]; then
-  cp deploy/Caddyfile.two deploy/Caddyfile
+  { echo "$CADDY_MARK"; cat deploy/Caddyfile.two; } > deploy/Caddyfile
   H2="$HOST2"
 else
   # Один домен: Caddy обслуживает только его.
-  sed '1s/.*/{$PUBLIC_HOST_RU} {/' deploy/Caddyfile.two > deploy/Caddyfile
+  { echo "$CADDY_MARK"; sed '1s/.*/{$PUBLIC_HOST_RU} {/' deploy/Caddyfile.two; } > deploy/Caddyfile
   H2="$HOST1"
 fi
 # Сохраняем уже заданные секреты и настройки AI при повторном запуске.
