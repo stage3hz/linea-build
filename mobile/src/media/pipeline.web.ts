@@ -34,7 +34,7 @@ export async function prepareMediaForUpload(file: LocalFile): Promise<PreparedMe
   const image=sniffPhotoFormat(bytes), video=sniffVideoFormat(bytes);
   if(file.mimeType==='audio/mp4' && video!=='mp4')throw new Error('Выбери аудиофайл: MP3, M4A, WAV, FLAC или другой поддерживаемый формат.');
   let mime=file.mimeType, photo=false, movie=false;
-  if(image==='jpeg') {try{bytes=sanitizeJpeg(bytes).bytes;}catch{bytes=(await transcode(bytes,false)).bytes;}mime='image/jpeg';photo=true;}
+  if(image==='jpeg') {if(jpegOrientation(bytes)>1)bytes=(await transcode(bytes,false)).bytes;else try{bytes=sanitizeJpeg(bytes).bytes;}catch{bytes=(await transcode(bytes,false)).bytes;}mime='image/jpeg';photo=true;}
   else if(image==='png') {try{bytes=sanitizePng(bytes).bytes;mime='image/png';}catch{const out=await transcode(bytes,true);bytes=out.bytes;mime=out.mime;}photo=true;}
   else if(image==='gif') {bytes=sanitizeGif(bytes).bytes;mime='image/gif';}
   else if(image) {const out=await transcode(bytes,image==='webp'||image==='bmp'||image==='tiff'||image==='avif');bytes=out.bytes;mime=out.mime;photo=true;}
@@ -55,4 +55,25 @@ async function probeVideo(uri:string):Promise<{width:number;height:number;durati
     const out={width:v.videoWidth,height:v.videoHeight,durationMs:Math.round((v.duration||0)*1000)};v.removeAttribute('src');v.load();
     return out.width>0&&out.height>0&&Number.isFinite(out.durationMs)&&out.durationMs<=86400000?out:undefined;
   }catch{return undefined;}
+}
+
+/**
+ * EXIF orientation of a JPEG (1 = as stored). Phone photos are often stored sideways with a tag;
+ * stripping metadata without applying it sent them rotated. Such photos are redrawn upright instead.
+ */
+function jpegOrientation(b:Uint8Array):number{
+  if(b[0]!==0xff||b[1]!==0xd8)return 1;
+  let i=2;
+  while(i+4<b.length&&b[i]===0xff){
+    const marker=b[i+1],len=(b[i+2]<<8)|b[i+3];
+    if(marker===0xda||len<2)break;
+    if(marker===0xe1&&len>14&&b[i+4]===0x45&&b[i+5]===0x78&&b[i+6]===0x69&&b[i+7]===0x66){
+      const t=i+10,le=b[t]===0x49;const u16=(o:number)=>le?b[o]|(b[o+1]<<8):(b[o]<<8)|b[o+1];const u32=(o:number)=>le?(b[o]|(b[o+1]<<8)|(b[o+2]<<16)|(b[o+3]<<24))>>>0:((b[o]<<24)|(b[o+1]<<16)|(b[o+2]<<8)|b[o+3])>>>0;
+      const ifd=t+u32(t+4);if(ifd+2>b.length)return 1;const n=u16(ifd);
+      for(let k=0;k<n;k++){const e=ifd+2+k*12;if(e+10>b.length)break;if(u16(e)===0x0112){const v=u16(e+8);return v>=1&&v<=8?v:1;}}
+      return 1;
+    }
+    i+=2+len;
+  }
+  return 1;
 }
