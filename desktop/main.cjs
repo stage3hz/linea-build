@@ -1,4 +1,4 @@
-const { app, BrowserWindow, ipcMain, protocol, net, session, safeStorage, desktopCapturer, dialog, shell, globalShortcut, screen, nativeImage } = require('electron');
+const { app, BrowserWindow, ipcMain, protocol, net, session, safeStorage, desktopCapturer, dialog, shell, globalShortcut, screen, nativeImage, Tray, Menu } = require('electron');
 // Our servers only (same rule as mobile/src/servers/list.ts): any number of them, all under our domains.
 const TRUSTED_HOST = /^(?:[a-z0-9-]+\.)*invizent\.(?:com|ru)$|^141-133-194-51\.nip\.io$/;
 if (!app.requestSingleInstanceLock()) { app.quit(); } else {
@@ -232,7 +232,7 @@ ipcMain.handle('invizent', async (event, method, ...args) => {
     if (!file) throw new Error('No verified update to install');
     const problem = await shell.openPath(file);
     if (problem) throw new Error(problem);
-    setTimeout(() => app.quit(), 1500); // the installer replaces the running app
+    setTimeout(() => { quitting = true; app.quit(); }, 1500); // the installer replaces the running app
     return true;
   }
   if (method === 'tokenRead') return (await vault('invizent:desktop:session')).get('token');
@@ -289,6 +289,12 @@ app.whenReady().then(async () => {
     webPreferences: { preload: path.join(__dirname,'preload.cjs'), nodeIntegration: false, contextIsolation: true, sandbox: true, webSecurity: true } });
   // No File/Edit/View/Window bar on Windows and Linux (copy, paste and undo still work in text fields).
   if (process.platform !== 'darwin') window.removeMenu();
+  window.on('close', event => {
+    if (quitting || !tray) return;
+    event.preventDefault(); window.hide(); refreshOverlay();
+    if (!trayHintShown && process.platform === 'win32') { trayHintShown = true; try { tray.displayBalloon({ title: 'Инвиз работает в фоне', content: 'Окно свёрнуто в трей. Чтобы выйти, нажми правой кнопкой на значок → «Выйти».', iconType: 'info' }); } catch { /* balloons can be off */ } }
+  });
+  void setupTray();
   window.webContents.on('will-navigate', (event, url) => { if (!url.startsWith('invizent://app/')) event.preventDefault(); });
   window.on('focus', () => refreshOverlay()); window.on('blur', () => refreshOverlay()); window.on('minimize', () => refreshOverlay());
   window.on('closed', () => { overlayWin?.destroy(); overlayWin = null; });
@@ -298,5 +304,27 @@ app.whenReady().then(async () => {
   await window.loadURL('invizent://app/index.html');
 });
 app.on('window-all-closed', () => app.quit());
+
+// Closing the window keeps Инвиз running in the tray (messages and calls still arrive), as in
+// Telegram / Discord on Windows. «Выйти» in the tray menu (or the updater) really quits.
+let tray = null, quitting = false, trayHintShown = false;
+app.on('before-quit', () => { quitting = true; });
+function showWindow() { if (!window || window.isDestroyed()) return; if (window.isMinimized()) window.restore(); window.show(); window.focus(); }
+async function setupTray() {
+  if (tray || process.platform === 'darwin') return;
+  try {
+    let icon = await app.getFileIcon(process.execPath, { size: 'small' }).catch(() => null);
+    if (!icon || icon.isEmpty()) icon = nativeImage.createEmpty();
+    tray = new Tray(icon);
+    tray.setToolTip('Инвиз');
+    tray.setContextMenu(Menu.buildFromTemplate([
+      { label: 'Открыть Инвиз', click: showWindow },
+      { type: 'separator' },
+      { label: 'Выйти', click: () => { quitting = true; app.quit(); } },
+    ]));
+    tray.on('click', showWindow); tray.on('double-click', showWindow);
+  } catch { tray = null; }
+}
+
 
 }
