@@ -10,7 +10,9 @@ enum VideoLibrary {
     guard let asset=assets.firstObject,asset.mediaType == .video else {throw VideoFailure("LIBRARY_ASSET_UNAVAILABLE")}
     let resources=PHAssetResource.assetResources(for:asset).filter{$0.type == .video}
     guard resources.count==1 else {throw VideoFailure("UNSUPPORTED_LIBRARY_RESOURCE")}
-    let files=VideoFiles(),url=try VideoFiles().newFile("video-source","bin")
+    // The copy keeps the original movie extension: AVURLAsset chooses its parser by extension.
+    let original=(resources[0].originalFilename as NSString).pathExtension.lowercased()
+    let files=VideoFiles(),url=try VideoFiles().newFile("video-source",["mov","mp4","m4v","3gp","qt"].contains(original) ? original:"mov")
     do {
       guard FileManager.default.createFile(atPath:url.path,contents:nil,attributes:[.protectionKey:FileProtectionType.complete]) else {throw VideoFailure("WRITE_FAILED")}
       let transfer=try ResourceCopy(url)

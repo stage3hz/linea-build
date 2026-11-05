@@ -65,21 +65,4 @@ export function EffectSwatch({ effect, size = 56 }: { effect: string; size?: num
   return <View style={{ width: size, height: size, borderRadius: 16, overflow: 'hidden', backgroundColor: '#11141C' }}><ProfileEffect effect={effect} width={size} height={size} /></View>;
 }
 
-/** Discord-style nameplates: a backdrop behind the name in lists, fading out to the left. */
-export const NAMEPLATES: { id: string; label: string; colors: [string, string] }[] = [
-  { id: 'platinum', label: 'Платина', colors: ['rgba(235,240,248,0.32)', 'rgba(150,162,184,0.12)'] },
-  { id: 'deep', label: 'Глубина', colors: ['rgba(70,110,230,0.45)', 'rgba(40,60,140,0.14)'] },
-  { id: 'aurora', label: 'Сияние', colors: ['rgba(46,230,200,0.38)', 'rgba(140,90,240,0.16)'] },
-  { id: 'ember', label: 'Пламя', colors: ['rgba(255,110,60,0.42)', 'rgba(255,46,99,0.14)'] },
-  { id: 'mint', label: 'Мята', colors: ['rgba(80,220,150,0.38)', 'rgba(20,120,90,0.14)'] },
-  { id: 'night', label: 'Ночь', colors: ['rgba(120,90,255,0.42)', 'rgba(30,20,80,0.18)'] },
-  { id: 'sakura', label: 'Сакура', colors: ['rgba(255,150,190,0.42)', 'rgba(200,90,150,0.14)'] },
-];
-export function Nameplate({ plate, radius = 0 }: { plate?: string | null; radius?: number }) {
-  const item = NAMEPLATES.find(entry => entry.id === plate);
-  if (!item) return null;
-  return <View pointerEvents="none" style={[StyleSheet.absoluteFill, { borderRadius: radius, overflow: 'hidden' }]}>
-    <LinearGradient colors={['transparent', item.colors[1], item.colors[0]]} locations={[0, 0.45, 1]} start={{ x: 0, y: 0.5 }} end={{ x: 1, y: 0.5 }} style={StyleSheet.absoluteFill} />
-    <LinearGradient colors={['rgba(255,255,255,0.10)', 'transparent']} start={{ x: 1, y: 0 }} end={{ x: 0.6, y: 1 }} style={StyleSheet.absoluteFill} />
-  </View>;
-}
+export { NAMEPLATES, Nameplate } from './Nameplates';

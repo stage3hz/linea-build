@@ -10,7 +10,7 @@ export const BANNER_PRESETS = Object.freeze(['deep', 'glacier', 'aurora', 'ocean
 export const MAX_PROFILE_VIDEO_BYTES = 8 * 1024 * 1024;
 
 export const PROFILE_EFFECTS = Object.freeze(['snow', 'sparks', 'petals', 'bubbles', 'stars', 'embers']);
-export const NAMEPLATES = Object.freeze(['platinum', 'deep', 'aurora', 'ember', 'mint', 'night', 'sakura']);
+export const NAMEPLATES = Object.freeze(['platinum', 'deep', 'aurora', 'ember', 'mint', 'night', 'sakura', 'crows', 'leopard', 'sparkle']);
 const EFFECTS = new Set(PROFILE_EFFECTS); const PLATES = new Set(NAMEPLATES);
 export const isProfileEffect = value => typeof value === 'string' && EFFECTS.has(value);
 export const isNameplate = value => typeof value === 'string' && PLATES.has(value);
