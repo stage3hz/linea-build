@@ -3,7 +3,7 @@ import { ProfileEffect } from './platina/Effects';
 import { PlatinaName, PlatinaSeal, hasPlatina } from './platina/PlatinaMark';
 import React, { useEffect, useState } from 'react';
 import { useTabInset } from './tabInset';
-import { ActivityIndicator, Modal, Pressable, ScrollView, View, useWindowDimensions } from 'react-native';
+import { ActivityIndicator, Modal, Pressable, ScrollView, StyleSheet, View, useWindowDimensions } from 'react-native';
 import * as Clipboard from 'expo-clipboard';
 import { Text } from './typography';
 import { Avatar, Button, Icon, InsetView, IconButton, Notice, Sheet, SheetAction, type IconName } from './components';
@@ -98,7 +98,14 @@ export function UserProfile({ api, user, onClose, chat, onMessage, onMute, onSea
     catch (e) { setError(e instanceof Error ? e.message : 'Не удалось отправить жалобу.'); } finally { setBusy(false); setSheet(null); setReason(null); }
   };
   const current = rules || { ttl: 0, noCopy: false };
-  return <Modal visible animationType="slide" presentationStyle="fullScreen" onRequestClose={onClose}>
+  // PC / wide windows: a centred card over the dimmed app, like Telegram Desktop and Discord
+  // (a full-window page there looked like a different app). Phones keep the full-screen page.
+  const card = width >= 760;
+  const cardWidth = Math.min(560, width - 48);
+  return <Modal visible transparent={card} animationType={card ? 'fade' : 'slide'} presentationStyle={card ? 'overFullScreen' : 'fullScreen'} onRequestClose={onClose}>
+    {card ? <Pressable accessibilityRole="button" accessibilityLabel="Закрыть профиль" onPress={onClose} style={[StyleSheet.absoluteFill, { backgroundColor: 'rgba(0,0,0,0.55)' }]} /> : null}
+    <View pointerEvents="box-none" style={card ? { flex: 1, alignItems: 'center', justifyContent: 'center', padding: 24 } : { flex: 1 }}>
+    <View style={card ? { width: cardWidth, height: '88%', maxHeight: 860, borderRadius: 22, overflow: 'hidden', borderWidth: StyleSheet.hairlineWidth, borderColor: t.border, shadowColor: '#000', shadowOpacity: 0.4, shadowRadius: 30 } : { flex: 1 }}>
     <GlassStage>{shown.bannerId || shown.bannerPreset ? <View pointerEvents="none" style={{ position: 'absolute', top: 0, left: 0, right: 0, height: 260 }}><ProfileBanner user={shown} api={api} height={260} /></View> : null}<InsetView style={{ flex: 1 }}>
       <View style={{ flexDirection: 'row', alignItems: 'center', paddingHorizontal: 10, paddingVertical: 6 }}>
         <IconButton name="chevron-back" label="Назад" onPress={onClose} />
@@ -130,7 +137,8 @@ export function UserProfile({ api, user, onClose, chat, onMessage, onMute, onSea
         </GlassSurface>
         {shared && onOpenAttachment ? <SharedMedia messages={shared} onOpen={attachment => { onClose(); setTimeout(() => onOpenAttachment(attachment), 250); }} /> : null}
       </ScrollView>
-    </InsetView>{/* Discord-style profile effect over the top while the profile is open. */}<ProfileEffect effect={shown.profileEffect} width={width} height={420} /></GlassStage>
+    </InsetView>{/* Discord-style profile effect over the top while the profile is open. */}<ProfileEffect effect={shown.profileEffect} width={card ? cardWidth : width} height={420} /></GlassStage>
+    </View></View>
     <ContextMenu visible={menu} y={menuAt.y} x={menuAt.x} mine onClose={() => setMenu(false)}>
       {chat && contact !== null ? <MenuItem icon={contact ? 'person-remove-outline' : 'person-add-outline'} label={contact ? 'Удалить из друзей' : pendingRequest === 'outgoing' ? 'Отменить заявку' : pendingRequest === 'incoming' ? 'Принять в друзья' : 'Добавить в друзья'} onPress={() => { setMenu(false); void toggleContact(); }} /> : null}
       {chat && onRules ? <MenuItem icon="timer-outline" label={`Автоудаление · ${autoDeleteLabel(current.ttl)}`} onPress={() => { setMenu(false); setSheet('ttl'); }} /> : null}
