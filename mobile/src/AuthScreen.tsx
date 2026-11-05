@@ -63,7 +63,7 @@ export function SecretInput({label,value,onChangeText,placeholder,disabled=false
   </View>;
 }
 
-type Mode='login-name'|'login-password'|'login-word'|'register-name'|'register-password'|'register-confirmation'|'register-recovery'|'recover'|'waiting'|'reset';
+type Mode='login-name'|'login-password'|'login-word'|'register-name'|'register-profile'|'register-password'|'register-confirmation'|'register-recovery'|'recover'|'waiting'|'reset';
 type RecoveryFeedback={username:string;remaining?:number;lockedUntil?:number};
 const validUsername=(value:string)=>/^[a-z0-9_]{3,24}$/.test(value.trim().toLowerCase());
 const formatCountdown=(until:number,now:number)=>{
@@ -71,11 +71,13 @@ const formatCountdown=(until:number,now:number)=>{
   return `${Math.floor(seconds/3600)?`${String(Math.floor(seconds/3600)).padStart(2,'0')}:`:''}${String(Math.floor(seconds%3600/60)).padStart(2,'0')}:${String(seconds%60).padStart(2,'0')}`;
 };
 const loginSteps:Mode[]=['login-name','login-password','login-word'];
-const registerSteps:Mode[]=['register-name','register-password','register-confirmation','register-recovery'];
+const registerSteps:Mode[]=['register-name','register-profile','register-password','register-confirmation','register-recovery'];
 
 export function AuthScreen({api,onLogin,onChangeServer}: {api:Api;onLogin:(session:Session)=>Promise<void>;onChangeServer:()=>void}) {
   const t=useTheme();const [mode,setMode]=useState<Mode>('login-name');
   const [username,setUsername]=useState(''),[usernameRepeat,setUsernameRepeat]=useState('');
+  // Public profile, separate from the secret login: the name people see and the @username they search.
+  const [displayName,setDisplayName]=useState(''),[handle,setHandle]=useState('');
   const [password,setPassword]=useState(''),[passwordRepeat,setPasswordRepeat]=useState('');
   const [confirmationWord,setConfirmationWord]=useState(''),[confirmationRepeat,setConfirmationRepeat]=useState('');
   const [recoveryWord,setRecoveryWord]=useState(''),[recoveryRepeat,setRecoveryRepeat]=useState('');
@@ -153,6 +155,13 @@ export function AuthScreen({api,onLogin,onChangeServer}: {api:Api;onLogin:(sessi
     if(mode==='register-name'){
       if(!usernameCheck())return;
       if(login!==usernameRepeat.trim().toLowerCase()){setError('Логины не совпадают. Введи оба вручную ещё раз.');return;}
+      go('register-profile');return;
+    }
+    if(mode==='register-profile'){
+      const name=displayName.trim(),publicName=handle.trim().replace(/^@/,'').toLowerCase();
+      if(!name||Array.from(name).length>50){setError('Имя: от 1 до 50 символов.');return;}
+      if(!validUsername(publicName)){setError('@юзернейм: 3–24 символа — латинские буквы, цифры и знак _.');return;}
+      if(publicName===login){setError('@юзернейм должен отличаться от логина: логин никто не должен видеть.');return;}
       go('register-password');return;
     }
     if(mode==='register-password'){
@@ -168,8 +177,11 @@ export function AuthScreen({api,onLogin,onChangeServer}: {api:Api;onLogin:(sessi
     const invalid=recoveryWordError(recoveryWord,password,login,confirmationWord);if(invalid){setError(invalid);return;}
     if(normalizeRecoveryWord(recoveryWord)!==normalizeRecoveryWord(recoveryRepeat)){setError('Слова восстановления не совпадают.');return;}
     const id=begin();if(id===null)return;
-    try{await acceptSession(await api.register(login,password,login,normalizeRecoveryWord(confirmationWord),normalizeRecoveryWord(recoveryWord)),id);}
-    catch(reason){if(current(id))setError(reason instanceof Error?reason.message:'Не удалось создать аккаунт.');}
+    try{await acceptSession(await api.register(login,password,displayName.trim(),normalizeRecoveryWord(confirmationWord),normalizeRecoveryWord(recoveryWord),handle.trim().replace(/^@/,'').toLowerCase()),id);}
+    catch(reason){if(current(id)){const message=reason instanceof Error?reason.message:'Не удалось создать аккаунт.';
+      // A taken @username is fixed on the profile step, not by re-entering every secret.
+      if(/@юзернейм/.test(message))setMode('register-profile');
+      setError(message);}}
     finally{finish(id);}
   };
   const verifyRecovery=async()=>{
@@ -262,7 +274,8 @@ export function AuthScreen({api,onLogin,onChangeServer}: {api:Api;onLogin:(sessi
     if(mode==='login-password'){clearSecrets();setMode('login-name');return;}
     if(mode==='register-recovery'){setRecoveryWord('');setRecoveryRepeat('');setMode('register-confirmation');return;}
     if(mode==='register-confirmation'){setConfirmationWord('');setConfirmationRepeat('');setMode('register-password');return;}
-    if(mode==='register-password'){clearSecrets();setMode('register-name');return;}
+    if(mode==='register-password'){clearSecrets();setMode('register-profile');return;}
+    if(mode==='register-profile'){setMode('register-name');return;}
     clearSecrets();setUsername('');setUsernameRepeat('');setMode('login-name');
   };
   const submit=async()=>{
@@ -275,12 +288,13 @@ export function AuthScreen({api,onLogin,onChangeServer}: {api:Api;onLogin:(sessi
     if(mode==='waiting'){await checkRecovery();return;}
     if(mode==='reset')await resetPassword();
   };
-  const titles:Record<Mode,string>={'login-name':'Логин','login-password':'Пароль','login-word':'Слово подтверждения','register-name':'Логин','register-password':'Пароль','register-confirmation':'Слово подтверждения','register-recovery':'Слово восстановления',recover:'Восстановление',waiting:'Ожидание',reset:'Новый пароль'};
+  const titles:Record<Mode,string>={'login-name':'Логин','login-password':'Пароль','login-word':'Слово подтверждения','register-name':'Логин','register-profile':'Профиль','register-password':'Пароль','register-confirmation':'Слово подтверждения','register-recovery':'Слово восстановления',recover:'Восстановление',waiting:'Ожидание',reset:'Новый пароль'};
   const descriptions:Record<Mode,string>={
     'login-name':'Вход без почты и номера телефона. Данные проверим вместе на последнем шаге.',
     'login-password':'Введи пароль вручную. Следом понадобится слово подтверждения.',
     'login-word':'Введи слово подтверждения, которое выбрал при регистрации.',
     'register-name':'Каждое значение вводится дважды вручную. Это поможет заметить опечатку.',
+    'register-profile':'Это видят другие: имя и @юзернейм для поиска. Логин остаётся тайным.',
     'register-password':'От 15 до 128 символов. Длинная фраза тоже подходит.',
     'register-confirmation':'Это слово нужно при входе после пароля. Оно должно отличаться от логина и пароля.',
     'register-recovery':'Это отдельное слово понадобится, если забудешь пароль. Оно должно отличаться от первого.',
@@ -288,7 +302,7 @@ export function AuthScreen({api,onLogin,onChangeServer}: {api:Api;onLogin:(sessi
     waiting:'Слово восстановления подтверждено. Через 10 минут сервер разрешит задать новый пароль.',
     reset:'Введи новый пароль дважды вручную. Слово подтверждения и слово восстановления сохранятся.'};
   const step=isRegister?registerSteps.indexOf(mode)+1:isLogin?loginSteps.indexOf(mode)+1:0;
-  const stepCount=isRegister?4:3;
+  const stepCount=isRegister?registerSteps.length:3;
   const buttonTitle=mode==='register-recovery'?'Создать аккаунт':mode==='login-word'?'Войти в Инвиз':mode==='recover'?'Подтвердить слово':mode==='waiting'?'Проверить статус':mode==='reset'?'Сохранить новый пароль':'Продолжить';
   const disabled=busy||restoring;
   const wordHelp=<Text style={{color:t.muted,fontSize:12,lineHeight:18}}>От 4 до 64 русских или английских букв, без пробелов. Регистр не важен; «е» и «ё» различаются.</Text>;
@@ -309,7 +323,12 @@ export function AuthScreen({api,onLogin,onChangeServer}: {api:Api;onLogin:(sessi
           {mode==='login-name'||mode==='register-name'||mode==='recover'?<ManualField label="Логин" value={username} onChangeText={setUsername} placeholder="Введите логин" maxLength={24} editable={!disabled} returnKeyType={mode==='login-name'?'go':'next'} onSubmitEditing={mode==='login-name'?()=>void submit():undefined}/>:null}
           {mode==='register-name'?<ManualField label="Повтори логин" value={usernameRepeat} onChangeText={setUsernameRepeat} placeholder="Введи тот же логин вручную" maxLength={24} editable={!disabled} returnKeyType="go" onSubmitEditing={()=>void submit()}/>:null}
           {/* The login is private and permanent: say so before the account exists. */}
-          {mode==='register-name'?<View accessibilityRole="alert" style={{flexDirection:'row',gap:10,padding:13,borderRadius:16,backgroundColor:t.accentSoft,borderWidth:1,borderColor:t.border}}><Icon name="key-outline" size={18} color={t.accent}/><Text style={{flex:1,color:t.text,fontSize:13,lineHeight:19}}>Это твой логин для входа. Его видишь только ты, и сменить его потом нельзя. Публичное имя (@имя) сначала совпадает с логином, а поменять его можно в профиле. Запомни логин или запиши в надёжное место.</Text></View>:null}
+          {mode==='register-name'?<View accessibilityRole="alert" style={{flexDirection:'row',gap:10,padding:13,borderRadius:16,backgroundColor:t.accentSoft,borderWidth:1,borderColor:t.border}}><Icon name="key-outline" size={18} color={t.accent}/><Text style={{flex:1,color:t.text,fontSize:13,lineHeight:19}}>Это твой логин для входа. Его видишь только ты, и сменить его потом нельзя. Публичный @юзернейм задашь на следующем шаге — он будет другим. Запомни логин или запиши в надёжное место.</Text></View>:null}
+          {mode==='register-profile'?<>
+            <ManualField label="Имя" value={displayName} onChangeText={setDisplayName} placeholder="Как тебя видят в чатах" maxLength={50} editable={!disabled} returnKeyType="next"/>
+            <ManualField label="Публичный @юзернейм" value={handle} onChangeText={value=>setHandle(value.replace(/\s/g,''))} placeholder="Для поиска, не как логин" maxLength={25} autoCapitalize="none" autoCorrect={false} editable={!disabled} returnKeyType="go" onSubmitEditing={()=>void submit()}/>
+            <Text style={{color:t.muted,fontSize:12,lineHeight:18}}>По @юзернейму тебя найдут. Логин для входа другой, его не видит никто.</Text>
+          </>:null}
           {mode==='login-password'||mode==='register-password'||mode==='reset'?<SecretInput label={mode==='reset'?'Новый пароль':'Пароль'} value={password} onChangeText={setPassword} placeholder={mode==='login-password'?'Твой пароль':'От 15 символов — можно фразу'} disabled={disabled} onSubmit={mode==='login-password'?()=>void submit():undefined}/>:null}
           {mode==='register-password'||mode==='reset'?<SecretInput label={mode==='reset'?'Повтори новый пароль':'Повтори пароль'} value={passwordRepeat} onChangeText={setPasswordRepeat} placeholder="Введи тот же пароль вручную" disabled={disabled} onSubmit={()=>void submit()}/>:null}
           {mode==='login-word'||mode==='register-confirmation'?<>

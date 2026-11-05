@@ -416,3 +416,20 @@ test('the sign-in login cannot be changed (it is private and permanent)', async 
   assert.equal(response.statusCode, 410);
   assert.equal((await login(f.app, 'samelogin')).statusCode, 200);
 });
+
+test('registration with a separate public @username keeps the login private', async () => {
+  const { buildApp } = await import('../src/app.js');
+  const app = await buildApp({ dataDir: (await import('node:fs')).mkdtempSync((await import('node:path')).join((await import('node:os')).tmpdir(), 'linea-sep-')), authRateLimit: 1000, logger: false });
+  try {
+    const base = { password: 'correct horse battery staple 42', confirmationWord: 'лампочка', recoveryWord: 'черника', displayName: 'Аня' };
+    const same = await app.inject({ method: 'POST', url: '/auth/register', payload: { ...base, username: 'anya_login', publicUsername: 'anya_login' } });
+    assert.equal(same.statusCode, 400);
+    const ok = await app.inject({ method: 'POST', url: '/auth/register', payload: { ...base, username: 'anya_login', publicUsername: 'anya' } });
+    assert.equal(ok.statusCode, 201, ok.body);
+    assert.equal(ok.json().user.username, 'anya');
+    assert.equal(ok.json().user.displayName, 'Аня');
+    assert.ok(!JSON.stringify(ok.json().user).includes('anya_login'));
+    const taken = await app.inject({ method: 'POST', url: '/auth/register', payload: { ...base, username: 'other_login', publicUsername: 'anya_login' } });
+    assert.equal(taken.statusCode, 409);
+  } finally { await app.close(); }
+});

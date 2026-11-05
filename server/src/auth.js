@@ -131,24 +131,32 @@ export function installAuthRoutes({
 
   app.post('/auth/register', async (request, reply) => {
     authThrottle(request);
-    const body = objectBody(request.body, ['username', 'password', 'displayName', 'confirmationWord', 'recoveryWord', 'deviceName']);
+    const body = objectBody(request.body, ['username', 'publicUsername', 'password', 'displayName', 'confirmationWord', 'recoveryWord', 'deviceName']);
     const username = usernameValue(body.username);
+    // The login stays secret: current apps send a separate public @username (it must differ).
+    // Older apps send none and keep the old behaviour (public name = login) until they update.
+    const publicUsername = body.publicUsername === undefined ? null : usernameValue(body.publicUsername);
+    if (publicUsername === username) fail(400, 'Публичный @юзернейм должен отличаться от логина — логин никто не должен видеть.', { code: 'PUBLIC_EQUALS_LOGIN' });
     const password = passwordValue(body.password, { username });
     const confirmationWord = recoveryWordValue(body.confirmationWord, { password, username });
     const recoveryWord = recoveryWordValue(body.recoveryWord, { password, username });
     if (confirmationWord === recoveryWord) fail(400, 'Подтверждающее слово и слово для восстановления должны отличаться.');
     const displayName = publicName(body.displayName, 'Имя', 1, 50);
     const deviceName = deviceNameValue(body.deviceName);
-    if (db.prepare('SELECT 1 FROM users WHERE username=? OR login_name=?').get(username, username)) fail(409, 'Это имя пользователя уже занято.', { code: 'USERNAME_TAKEN' });
+    const taken = name => !!db.prepare('SELECT 1 FROM users WHERE username=? OR login_name=?').get(name, name);
+    if (taken(username)) fail(409, 'Этот логин уже занят.', { code: 'USERNAME_TAKEN' });
+    if (publicUsername && taken(publicUsername)) fail(409, 'Этот @юзернейм уже занят.', { code: 'PUBLIC_USERNAME_TAKEN' });
     const hashes = await withPasswordJob(async () => ({
       password: await passwordHash(password), confirmation: await passwordHash(confirmationWord), recovery: await passwordHash(recoveryWord),
     }));
     const result = transaction(db, () => {
-      if (db.prepare('SELECT 1 FROM users WHERE username=? OR login_name=?').get(username, username)) fail(409, 'Это имя пользователя уже занято.', { code: 'USERNAME_TAKEN' });
+      if (taken(username)) fail(409, 'Этот логин уже занят.', { code: 'USERNAME_TAKEN' });
+      if (publicUsername && taken(publicUsername)) fail(409, 'Этот @юзернейм уже занят.', { code: 'PUBLIC_USERNAME_TAKEN' });
+      const handle = publicUsername || username;
       const id = randomUUID();
       const color = COLORS[Number.parseInt(id.slice(0, 2), 16) % COLORS.length];
       db.prepare('INSERT INTO users(id,username,login_name,display_name,password_hash,confirmation_hash,recovery_hash,avatar_color,created_at) VALUES(?,?,?,?,?,?,?,?,?)')
-        .run(id, username, username, displayName, hashes.password, hashes.confirmation, hashes.recovery, color, timestamp());
+        .run(id, handle, username, displayName, hashes.password, hashes.confirmation, hashes.recovery, color, timestamp());
       db.prepare('DELETE FROM recovery_attempts WHERE name_key=?').run(tokenHash(username));
       return sessionResponse(db.prepare('SELECT * FROM users WHERE id=?').get(id), deviceName);
     });

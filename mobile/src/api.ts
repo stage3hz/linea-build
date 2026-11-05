@@ -129,7 +129,7 @@ export class Api {
   health = () => this.request<{status: string}>('/health');
   me = () => this.request<{user: User; securitySetupRequired?: boolean}>('/me');
   login = (username: string, password: string, confirmationWord: string) => this.request<Session>('/auth/login', { method: 'POST', body: JSON.stringify({ username, password, confirmationWord, deviceName }) });
-  register = (username: string, password: string, displayName: string, confirmationWord: string, recoveryWord: string) => this.request<Session>('/auth/register', { method: 'POST', body: JSON.stringify({ username, password, displayName, confirmationWord, recoveryWord, deviceName }) });
+  register = (username: string, password: string, displayName: string, confirmationWord: string, recoveryWord: string, publicUsername?: string) => this.request<Session>('/auth/register', { method: 'POST', body: JSON.stringify({ username, ...(publicUsername ? { publicUsername } : {}), password, displayName, confirmationWord, recoveryWord, deviceName }) });
   verifyRecovery = (username: string, recoveryWord: string) => this.request<RecoveryChallenge>('/auth/recovery/verify', { method: 'POST', body: JSON.stringify({ username, recoveryWord, deviceName }) });
   recoveryStatus = (resetToken: string) => this.request<RecoveryStatus>('/auth/recovery/status', { method: 'POST', body: JSON.stringify({ resetToken }) });
   resetPassword = (resetToken: string, newPassword: string) => this.request<{ok: true}>('/auth/recovery/reset', { method: 'POST', body: JSON.stringify({ resetToken, newPassword }) });
