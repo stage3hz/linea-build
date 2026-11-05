@@ -75,8 +75,9 @@ export function MiniProfile({ api, user, me, at, status, onClose, onOpenProfile,
     onOpenProfile ? action('person-circle-outline', 'Профиль', onOpenProfile, inChat || self) : null,
   ].filter(Boolean);
   const card = <View style={{ width: wide ? CARD_WIDTH : '100%', maxWidth: 520, borderRadius: 22, overflow: 'hidden', backgroundColor: menuSurface(t), borderWidth: StyleSheet.hairlineWidth, borderColor: t.border, shadowColor: '#000', shadowOpacity: 0.3, shadowRadius: 22, shadowOffset: { width: 0, height: 10 } }}>
-    <View style={{ height: 84, overflow: 'hidden', backgroundColor: user.avatarColor || t.accentSoft }}>
-      {banner ? <ProfileBanner user={user} api={api} height={84} width={wide ? CARD_WIDTH : Math.min(win.width, 520)} /> : <View style={{ flex: 1, backgroundColor: user.avatarColor || t.accent, opacity: 0.55 }} />}
+    {/* No banner: a quiet strip tinted by the person's colour (a full-strength block looked crude). */}
+    <View style={{ height: banner ? 84 : 56, overflow: 'hidden', backgroundColor: menuSurface(t) }}>
+      {banner ? <ProfileBanner user={user} api={api} height={84} width={wide ? CARD_WIDTH : Math.min(win.width, 520)} /> : <View style={{ flex: 1, backgroundColor: user.avatarColor || t.accent, opacity: 0.18 }} />}
     </View>
     <View style={{ paddingHorizontal: 16, paddingBottom: 16, marginTop: -36, gap: 4 }}>
       <Pressable disabled={!onOpenProfile} onPress={() => { onClose(); onOpenProfile?.(); }} accessibilityRole="button" accessibilityLabel="Открыть полный профиль" style={{ alignSelf: 'flex-start', padding: 4, borderRadius: 44, backgroundColor: menuSurface(t) }}><DecoratedAvatar user={user} api={api} size={72} animated /></Pressable>
