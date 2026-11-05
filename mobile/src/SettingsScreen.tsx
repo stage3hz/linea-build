@@ -214,7 +214,7 @@ function Appearance({ api, user, theme, darkTheme, onTheme, onDarkTheme, open }:
   const [wallpaperOpen, setWallpaperOpen] = useState(false);
   return <>
     <Group label="Тема"><View style={{ padding: 14 }}><ThemeSettings mode={theme} darkTheme={darkTheme} onChange={onTheme} onDarkTheme={onDarkTheme} platina={active} onLocked={() => openPlatinaShowcase()} /></View></Group>
-    <Group label="Иконка приложения"><AppIconPicker /></Group>
+    {Platform.OS === 'ios' ? <Group label="Иконка приложения"><AppIconPicker /></Group> : null}
     <Group label="Обои чатов"><Item icon="image" color="#2EA37A" label="Обои чатов" value="Выбрать" onPress={() => setWallpaperOpen(true)} /></Group>
     <WallpaperPicker visible={wallpaperOpen} onClose={() => setWallpaperOpen(false)} />
     <Group label="Углы сообщений"><View style={{ padding: 14, flexDirection: 'row', gap: 7 }}>{([[8, 'Острые'], [14, 'Средние'], [20, 'Круглые']] as const).map(([value, label]) => {
