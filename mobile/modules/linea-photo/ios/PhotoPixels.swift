@@ -21,7 +21,13 @@ enum PhotoPixels {
   }
   static func document(_ image: PixelImage, monochrome: Bool) -> PixelImage {
     let opaque = whiteBackground(image)
-    let luma = opaque.pixels.map { pixel in UInt8((channel(pixel,16)*77+channel(pixel,8)*150+channel(pixel,0)*29+128)/256) }
+    // Split into typed steps: one long expression made the Swift type checker time out on slower Macs.
+    let luma = opaque.pixels.map { pixel -> UInt8 in
+      let r: Int = channel(pixel,16)*77
+      let g: Int = channel(pixel,8)*150
+      let b: Int = channel(pixel,0)*29
+      return UInt8((r+g+b+128)/256)
+    }
     let side = min(image.width,image.height)
     // Paper brightness: local maximum, then a blur no wider than that maximum,
     // so the estimate never spills from bright paper into shadows or the table.
