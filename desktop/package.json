@@ -56,13 +56,9 @@
       "icon": "../mobile/assets/icons/outline.png"
     },
     "nsis": {
-      "oneClick": false,
+      "oneClick": true,
       "perMachine": false,
       "allowElevation": false,
-      "allowToChangeInstallationDirectory": true,
-      "installerSidebar": "build/installerSidebar.bmp",
-      "uninstallerSidebar": "build/uninstallerSidebar.bmp",
-      "installerHeader": "build/installerHeader.bmp",
       "installerLanguages": [
         "ru_RU"
       ],
