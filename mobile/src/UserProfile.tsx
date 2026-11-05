@@ -106,7 +106,7 @@ export function UserProfile({ api, user, onClose, chat, onMessage, onMute, onSea
         <View style={{ flex: 1 }} />
         <IconButton name="ellipsis-horizontal" label="Ещё" onPress={() => { lightFeedback(); setMenu(true); }} />
       </View>
-      <ScrollView contentContainerStyle={{ padding: 18, paddingBottom: 18 + tabInset, gap: 16, alignItems: 'center' }}>
+      <ScrollView contentContainerStyle={{ padding: 18, paddingBottom: 18 + tabInset, gap: 16, alignItems: 'center', width: '100%', maxWidth: 680, alignSelf: 'center' }}>
         <DecoratedAvatar user={shown} api={api} size={128} animated />
         <View style={{ alignItems: 'center', gap: 6 }}>
           <View style={{ flexDirection: 'row', alignItems: 'center', gap: 7 }}><PlatinaName user={shown} style={{ color: t.text, fontSize: 26, fontWeight: '800', letterSpacing: -.6 }} /><StatusEmoji user={shown} size={22} animated /></View>
