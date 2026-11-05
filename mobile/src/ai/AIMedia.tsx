@@ -1,5 +1,5 @@
 import React, { useEffect, useRef, useState } from 'react';
-import { ActivityIndicator, Image, Pressable, View } from 'react-native';
+import { ActivityIndicator, Image, Platform, Pressable, View } from 'react-native';
 import { Text, TextInput } from '../typography';
 import * as FileSystem from 'expo-file-system/legacy';
 import * as Sharing from 'expo-sharing';
@@ -21,7 +21,9 @@ const MAX_TRANSCRIBE = 10 * 1024 * 1024;
 const EXT: Record<string, string> = { 'image/png': 'png', 'image/jpeg': 'jpg', 'image/webp': 'webp', 'audio/mpeg': 'mp3', 'audio/wav': 'wav', 'audio/ogg': 'ogg', 'audio/flac': 'flac', 'audio/mp4': 'm4a', 'audio/webm': 'webm', 'video/mp4': 'mp4' };
 
 /** Writes AI output to the app cache; the screen deletes it when replaced or closed. */
-async function writeCache(base64: string, mimeType: string): Promise<string> {
+export async function writeCache(base64: string, mimeType: string): Promise<string> {
+  // PC app (web): no file cache — the result stays in memory as a data URI.
+  if (Platform.OS === 'web') return `data:${mimeType};base64,${base64}`;
   const dir = FileSystem.cacheDirectory; if (!dir) throw new Error('Кэш недоступен на этом устройстве.');
   const uri = `${dir}linea-ai-${Crypto.randomUUID()}.${EXT[mimeType] || 'bin'}`;
   await FileSystem.writeAsStringAsync(uri, base64, { encoding: FileSystem.EncodingType.Base64 });
@@ -36,7 +38,12 @@ function useCachedFile() {
   return [file, replace] as const;
 }
 
-async function share(uri: string, mimeType: string) {
+export async function share(uri: string, mimeType: string) {
+  if (Platform.OS === 'web' && typeof document !== 'undefined') {
+    // PC: save the file (the browser «Поделиться» menu does not exist in the desktop app).
+    const link = document.createElement('a'); link.href = uri; link.download = `invizent-ai.${EXT[mimeType] || 'bin'}`;
+    document.body.appendChild(link); link.click(); link.remove(); return;
+  }
   if (!await Sharing.isAvailableAsync()) throw new Error('На устройстве недоступно меню «Поделиться».');
   await Sharing.shareAsync(uri, { mimeType });
 }
@@ -125,7 +132,7 @@ function Chips({ items, value, onChange }: { items: { id: string; label: string 
   })}</View>;
 }
 
-function VideoResult({ uri, onShare }: { uri: string; onShare: () => void }) {
+export function VideoResult({ uri, onShare }: { uri: string; onShare: () => void }) {
   const player = useVideoPlayer(uri, value => { value.loop = true; });
   return <View style={{ gap: 10 }}>
     <VideoView player={player} style={{ width: '100%', aspectRatio: 16 / 9, borderRadius: 16 }} contentFit="contain" nativeControls allowsPictureInPicture={false} />
@@ -133,7 +140,7 @@ function VideoResult({ uri, onShare }: { uri: string; onShare: () => void }) {
   </View>;
 }
 
-function AudioResult({ uri, onShare }: { uri: string; onShare: () => void }) {
+export function AudioResult({ uri, onShare }: { uri: string; onShare: () => void }) {
   const t = useTheme(); const player = useAudioPlayer(uri); const status = useAudioPlayerStatus(player);
   return <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10 }}>
     <Pressable accessibilityRole="button" accessibilityLabel={status.playing ? 'Пауза' : 'Слушать'} onPress={() => { if (status.playing) player.pause(); else { if (status.didJustFinish || (status.duration && status.currentTime >= status.duration)) void player.seekTo(0); player.play(); } }} style={{ width: 50, height: 50, borderRadius: 25, backgroundColor: t.accent, alignItems: 'center', justifyContent: 'center' }}><Icon name={status.playing ? 'pause' : 'play'} size={22} color={t.onAccent} /></Pressable>

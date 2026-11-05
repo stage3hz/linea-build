@@ -12,12 +12,16 @@ import { Button, Icon, IconButton, Notice, Sheet, type IconName } from '../compo
 import { GlassStage, GlassSurface } from '../glass';
 import { PlatinaGem, openPlatinaShowcase } from '../platina/PlatinaMark';
 import { formatListTime, useTheme } from '../theme';
-import { aiModels, aiQuestion, aiStatus } from './client';
-import { AIMediaPanel, type MediaMode } from './AIMedia';
+import { aiImage, aiModels, aiQuestion, aiSpeech, aiStatus, aiTranscribe, aiVideo } from './client';
+import { AudioResult, VideoResult, share, writeCache, type MediaMode } from './AIMedia';
+import { detectIntent, speechText } from './intent';
+import { fromByteArray } from 'base64-js';
+import * as FileSystem from 'expo-file-system/legacy';
+import * as DocumentPicker from 'expo-document-picker';
 import { ModelMenu } from './ModelMenu';
 import * as ImagePicker from 'expo-image-picker';
 import * as ImageManipulator from 'expo-image-manipulator';
-import { AIConversation, AI_MESSAGE_LIMIT, CODE_TASK_PREFIX, codePreviewCurrent, createCodeTaskPreview, type AICapabilityName, type AIState, type AIStatus, type AITurn, type CodeTaskPreview } from './conversation';
+import { AIConversation, parseAIReply, type AITaskKind, type AITaskWork, AI_MESSAGE_LIMIT, CODE_TASK_PREFIX, codePreviewCurrent, createCodeTaskPreview, type AICapabilityName, type AIState, type AIStatus, type AITurn, type CodeTaskPreview } from './conversation';
 import { useTabInset } from '../tabInset';
 
 const emptyState = (): AIState => ({ consent: false, turns: [], pending: false, error: '' });
@@ -52,16 +56,17 @@ function AIProgress({ turn, router }: { turn: AITurn; router: boolean }) {
   useEffect(() => { const timer = setInterval(() => setNow(Date.now()), 500); return () => clearInterval(timer); }, []);
   const seconds = Math.max(0, Math.floor((now - (turn.startedAt || now)) / 1000));
   const model = modelLabel(turn.options?.model || 'auto');
+  const working = turn.stage || (turn.kind === 'image' ? 'Рисую картинку' : turn.kind === 'video' ? 'Создаю видео — это может занять до 5 минут' : turn.kind === 'speech' ? 'Озвучиваю текст' : turn.kind === 'transcribe' ? 'Расшифровываю аудио' : router ? (turn.options?.model ? `Модель «${model}» пишет ответ` : 'Подбираю свободную модель и пишу ответ') : 'Бесплатная модель пишет ответ');
   const steps: { text: string; done: boolean }[] = [
-    { text: turn.options?.image ? 'Вопрос и фото отправлены на сервер' : 'Вопрос отправлен на сервер', done: seconds >= 1 },
-    { text: router ? (turn.options?.model ? `Модель «${model}» пишет ответ` : 'Подбираю свободную модель и пишу ответ') : 'Бесплатная модель пишет ответ', done: false },
+    { text: turn.options?.image ? 'Запрос и фото отправлены на сервер' : 'Запрос отправлен на сервер', done: seconds >= 1 },
+    { text: working, done: false },
   ];
   return <View style={{ gap: 8, paddingHorizontal: 6, paddingVertical: 4 }}>
     {steps.map((step, index) => <View key={index} style={{ flexDirection: 'row', alignItems: 'center', gap: 9 }}>
       {step.done ? <Icon name="checkmark-circle" size={16} color={t.accent} /> : <ActivityIndicator size="small" color={t.accent} />}
       <Text style={{ flex: 1, color: step.done ? t.muted : t.text, fontSize: 13 }}>{step.text}{!step.done && index === steps.length - 1 ? ` · ${seconds} с` : ''}</Text>
     </View>)}
-    {seconds >= 12 ? <Text style={{ color: t.muted, fontSize: 11, lineHeight: 16, paddingLeft: 25 }}>{router ? 'Бесплатные модели бывают заняты — сервер может переключиться на другую. Ждём до 2 минут.' : 'Бесплатные модели иногда отвечают медленно. Ждём до 2 минут.'}</Text> : null}
+    {seconds >= 12 && turn.kind !== 'video' ? <Text style={{ color: t.muted, fontSize: 11, lineHeight: 16, paddingLeft: 25 }}>{router ? 'Бесплатные модели бывают заняты — сервер может переключиться на другую. Ждём до 2 минут.' : 'Бесплатные модели иногда отвечают медленно. Ждём до 2 минут.'}</Text> : null}
   </View>;
 }
 
@@ -86,7 +91,10 @@ function AITurnView({ turn, retryable, canRetry, onRetry, router = false }: { tu
         <Text selectable style={{ color: t.muted, fontSize: 12 }}>Ответила модель: {turn.answer.model}</Text>
         {turn.answer.routedVia ? <Text selectable style={{ color: t.muted, fontSize: 12 }}>Через: {turn.answer.routedVia}</Text> : null}
       </View> : null}
-      <Text selectable style={{ color: t.text, fontSize: 15, lineHeight: 23 }}>{turn.answer.text}</Text>
+      {turn.media?.mimeType.startsWith('image/') ? <Pressable accessibilityRole="button" accessibilityLabel="Сохранить или отправить картинку" onPress={() => void share(turn.media!.uri, turn.media!.mimeType).catch(() => {})}><Image source={{ uri: turn.media.uri }} style={{ width: '100%', aspectRatio: 1, borderRadius: 16, backgroundColor: t.surface2 }} resizeMode="cover" /></Pressable>
+        : turn.media?.mimeType === 'video/mp4' ? <VideoResult uri={turn.media.uri} onShare={() => void share(turn.media!.uri, turn.media!.mimeType).catch(() => {})} />
+        : turn.media?.mimeType.startsWith('audio/') ? <AudioResult uri={turn.media.uri} onShare={() => void share(turn.media!.uri, turn.media!.mimeType).catch(() => {})} /> : null}
+      <Text selectable style={{ color: turn.media ? t.muted : t.text, fontSize: turn.media ? 13 : 15, lineHeight: turn.media ? 19 : 23 }}>{turn.answer.text}</Text>
       <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}><View style={{ flex: 1 }} /><Pressable accessibilityRole="button" accessibilityLabel="Скопировать ответ AI" onPress={() => void copy()} style={{ padding: 8 }}><Icon name={copied ? 'checkmark' : 'copy-outline'} size={17} color={t.accent} /></Pressable></View>
     </GlassSurface> : turn.status === 'pending' ? <AIProgress turn={turn} router={router} /> : <View style={{ paddingHorizontal: 8, gap: 8 }}>
       <Text style={{ color: turn.status === 'failed' ? t.danger : t.muted, fontSize: 12, lineHeight: 18 }}>{turn.status === 'cancelled' ? 'Ожидание ответа отменено.' : turn.error || 'Ответ не получен.'}</Text>
@@ -150,13 +158,15 @@ export function AIScreen({ api, onBack, quick = false, history, name }: { api: A
     if (!quick && latest && !ai.conversation.current.getSnapshot().turns.length) { setConversationId(latest.id); ai.conversation.current.restore(latest.turns, latest.consent); }
   }, [history?.loaded, history?.items, quick, ai.conversation, ai.state]);
   useEffect(() => { if (history && !incognito && !ai.state.pending && ai.state.turns.length) history.save(conversationId, ai.state.turns, ai.state.consent); }, [ai.state, conversationId, history?.save, incognito]);
-  const [draft, setDraft] = useState(''), [mode, setMode] = useState<'text' | 'code' | MediaMode>('text'), [taskError, setTaskError] = useState('');
+  // One chat for everything: the request itself decides (see intent.ts) — no separate modes to pick.
+  const [draft, setDraft] = useState(''), [taskError, setTaskError] = useState('');
+  const mode = 'text' as 'text' | 'code' | MediaMode;
   const [model, setModel] = useState('auto'), [models, setModels] = useState<string[]>([]), [photo, setPhoto] = useState<string | null>(null);
   const router = ai.status?.provider === 'freellmapi';
   // Without Platina: fast text answers only. Everything else is shown locked and explains why.
   const full = ai.status?.platina !== false;
   const [platinaSheet, setPlatinaSheet] = useState('');
-  const media = mode !== 'text' && mode !== 'code';
+  const media = false;
   useEffect(() => { if (!router || !ai.status?.capabilities.models.enabled) return; const request = new AbortController(); aiModels(api, request.signal).then(result => setModels(result.models)).catch(() => {}); return () => request.abort(); }, [api, router, ai.status]);
   const attachPhoto = async () => {
     try {
@@ -176,7 +186,7 @@ export function AIScreen({ api, onBack, quick = false, history, name }: { api: A
   const inputLimit = mode === 'code' ? AI_MESSAGE_LIMIT - CODE_TASK_PREFIX.length : AI_MESSAGE_LIMIT;
   const canSend = ready && ai.state.consent && !ai.state.pending && !!draft.trim();
   const help = { color: t.muted, fontSize: 12, lineHeight: 18 };
-  useEffect(() => { setDraft(''); setApproval(null); setTaskError(''); setMode('text'); }, [api]);
+  useEffect(() => { setDraft(''); setApproval(null); setTaskError(''); }, [api]);
   function send() {
     if (!ready || !ai.conversation.current) return;
     const owner = ai.conversation.current;
@@ -185,8 +195,56 @@ export function AIScreen({ api, onBack, quick = false, history, name }: { api: A
       catch (error) { setTaskError(error instanceof Error ? error.message : 'Не удалось подготовить задачу.'); }
       return;
     }
+    const intent = detectIntent(draft, !!photo);
+    if (intent !== 'text') {
+      const label = intent === 'image' ? 'Картинки' : intent === 'video' ? 'Видео' : 'Озвучка';
+      if (!full) { setPlatinaSheet(label); return; }
+      if (!router || !ai.status?.capabilities[intent].enabled) { setTaskError(`${label} пока не подключены на сервере — отвечу текстом.`); void owner.ask(draft, askOptions()); if (owner.getSnapshot().pending) { setDraft(''); setPhoto(null); } return; }
+      const question = draft.trim(), image = photo;
+      const work: AITaskWork = intent === 'image' ? async (signal, stage) => {
+        let prompt = question;
+        if (image) {
+          // The provider draws from text, so the photo is first described (vision) together with the request.
+          stage('Смотрю на твоё фото');
+          const reply = parseAIReply(await aiQuestion(api, [{ role: 'user', content: `Опиши это изображение для генератора картинок: что на нём, цвета, композиция, стиль. Учти просьбу пользователя и выдай один итоговый промпт на английском до 900 символов, без пояснений.\n\nПросьба: ${question}` }], signal, { image }));
+          prompt = reply.text.slice(0, 3900);
+        }
+        stage('Рисую картинку');
+        const result = await aiImage(api, prompt, signal);
+        const uri = await writeCache(result.base64, result.mimeType);
+        return { text: image ? 'Новая картинка по мотивам твоего фото (провайдер рисует заново по описанию, само фото не меняется). Нажми на картинку, чтобы сохранить или отправить.' : 'Готово. Нажми на картинку, чтобы сохранить или отправить.', model: result.routedVia || 'генерация картинок', routedVia: result.routedVia, media: { uri, mimeType: result.mimeType } };
+      } : intent === 'video' ? async signal => {
+        const bytes = await aiVideo(api, question, 5, signal);
+        const uri = await writeCache(fromByteArray(new Uint8Array(bytes)), 'video/mp4');
+        return { text: 'Видео готово.', model: 'генерация видео', media: { uri, mimeType: 'video/mp4' } };
+      } : async signal => {
+        const spoken = speechText(question);
+        if (!spoken) throw new Error('Напиши после «озвучь», что именно сказать.');
+        const result = await aiSpeech(api, spoken, 'nova', signal);
+        const uri = await writeCache(result.base64, result.mimeType);
+        return { text: spoken, model: 'озвучка', media: { uri, mimeType: result.mimeType } };
+      };
+      void owner.askTask(question, intent, work);
+      if (owner.getSnapshot().pending) { setDraft(''); setPhoto(null); setTaskError(''); }
+      return;
+    }
     void owner.ask(draft, askOptions());
     if (owner.getSnapshot().pending) { setDraft(''); setPhoto(null); }
+  }
+  async function transcribeFile() {
+    const owner = ai.conversation.current;
+    if (!owner || !ready) return;
+    if (!ai.state.consent) { setConsentSheet(true); return; }
+    const picked = await DocumentPicker.getDocumentAsync({ type: 'audio/*', multiple: false, copyToCacheDirectory: true }).catch(() => null);
+    const asset = picked && !picked.canceled ? picked.assets[0] : null;
+    if (!asset) return;
+    void owner.askTask(`Расшифруй аудио «${asset.name}»`, 'transcribe' as AITaskKind, async signal => {
+      try {
+        if (asset.size && asset.size > 10 * 1024 * 1024) throw new Error('Аудио для расшифровки — до 10 МБ.');
+        const audio = Platform.OS === 'web' ? fromByteArray(new Uint8Array(await (await fetch(asset.uri)).arrayBuffer())) : await FileSystem.readAsStringAsync(asset.uri, { encoding: FileSystem.EncodingType.Base64 });
+        return { text: await aiTranscribe(api, audio, signal), model: 'расшифровка аудио' };
+      } finally { if (Platform.OS !== 'web') await FileSystem.deleteAsync(asset.uri, { idempotent: true }).catch(() => {}); }
+    });
   }
   function approveCode() {
     const owner = ai.conversation.current;
@@ -234,7 +292,6 @@ export function AIScreen({ api, onBack, quick = false, history, name }: { api: A
             <Text style={{ color: t.text, fontSize: 28, lineHeight: 34, fontWeight: '500', letterSpacing: -0.6, textAlign: 'center', opacity: .92 }}>{greeting}</Text>
             {incognito ? <Text style={{ ...help, textAlign: 'center' }}>Приватная беседа: она не сохранится в истории.</Text> : null}
           </View> : null}
-      {media && ready ? <AIMediaPanel api={api} mode={mode as MediaMode} consent={ai.state.consent} /> : null}
       {ai.state.turns.map(turn => <AITurnView key={turn.id} turn={turn} retryable={turn.id === last?.id} canRetry={ready && ai.state.consent && !ai.state.pending} onRetry={() => void ai.conversation.current?.retry()} router={router} />)}
       {ai.state.error && ai.state.error !== last?.error ? <Notice text={ai.state.error} error /> : null}
       {taskError ? <Notice text={taskError} error /> : null}
@@ -249,8 +306,9 @@ export function AIScreen({ api, onBack, quick = false, history, name }: { api: A
     </View>}
     <Sheet visible={toolsSheet} title="Что сделать" onClose={() => setToolsSheet(false)}>
       <View style={{ gap: 4 }}>
-        {modes.map(item => <Pressable key={item.id} accessibilityRole="radio" accessibilityState={{ selected: mode === item.id }} onPress={() => { setToolsSheet(false); if (!full && item.id !== 'text') { setTimeout(() => setPlatinaSheet(item.label), 300); return; } setMode(item.id); setTaskError(''); }} style={({ pressed }) => ({ flexDirection: 'row', alignItems: 'center', gap: 12, paddingVertical: 12, paddingHorizontal: 6, borderRadius: 14, backgroundColor: mode === item.id ? t.accentSoft : pressed ? t.surface2 : 'transparent' })}><Icon name={item.icon} size={21} color={mode === item.id ? t.accent : t.text} /><Text style={{ flex: 1, color: t.text, fontSize: 15 }}>{item.label}</Text>{!full && item.id !== 'text' ? <Icon name="lock-closed" size={14} color={t.muted} /> : mode === item.id ? <Icon name="checkmark" size={18} color={t.accent} /> : null}</Pressable>)}
-        {router && full && mode === 'text' && ai.status?.capabilities.vision.enabled ? <Pressable accessibilityRole="button" onPress={() => { setToolsSheet(false); void attachPhoto(); }} style={{ flexDirection: 'row', alignItems: 'center', gap: 12, paddingVertical: 12, paddingHorizontal: 6 }}><Icon name="image-outline" size={21} color={t.text} /><Text style={{ color: t.text, fontSize: 15 }}>Фото к вопросу</Text></Pressable> : null}
+        <Text style={{ color: t.muted, fontSize: 13, lineHeight: 19, paddingHorizontal: 6, paddingBottom: 8 }}>Всё в одном чате — просто напиши: «нарисуй кота-космонавта», «сделай видео с закатом», «озвучь: привет». С фото: спроси о нём или напиши «сделай из этого аниме».</Text>
+        <Pressable accessibilityRole="button" onPress={() => { setToolsSheet(false); if (!full) { setTimeout(() => setPlatinaSheet('Фото'), 300); return; } void attachPhoto(); }} disabled={!router || !ai.status?.capabilities.vision.enabled} style={{ flexDirection: 'row', alignItems: 'center', gap: 12, paddingVertical: 12, paddingHorizontal: 6, opacity: router && ai.status?.capabilities.vision.enabled ? 1 : .4 }}><Icon name="image-outline" size={21} color={t.text} /><Text style={{ flex: 1, color: t.text, fontSize: 15 }}>Фото</Text>{!full ? <Icon name="lock-closed" size={14} color={t.muted} /> : null}</Pressable>
+        <Pressable accessibilityRole="button" onPress={() => { setToolsSheet(false); if (!full) { setTimeout(() => setPlatinaSheet('Расшифровка аудио'), 300); return; } setTimeout(() => void transcribeFile(), 300); }} disabled={!router || !ai.status?.capabilities.transcribe.enabled} style={{ flexDirection: 'row', alignItems: 'center', gap: 12, paddingVertical: 12, paddingHorizontal: 6, opacity: router && ai.status?.capabilities.transcribe.enabled ? 1 : .4 }}><Icon name="mic-outline" size={21} color={t.text} /><Text style={{ flex: 1, color: t.text, fontSize: 15 }}>Аудиофайл → текст</Text>{!full ? <Icon name="lock-closed" size={14} color={t.muted} /> : null}</Pressable>
         {!router ? <View style={{ paddingTop: 8 }}><AIUnavailableTools status={ai.status} checking={ai.checking} /></View> : null}
       </View>
     </Sheet>

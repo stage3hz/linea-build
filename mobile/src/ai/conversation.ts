@@ -13,7 +13,12 @@ export type AIStatus = { configured: boolean; model: string; provider: AIProvide
 const validModel = (value: unknown): value is string => typeof value === 'string' && /^[A-Za-z0-9_./:@+-]{1,200}$/.test(value);
 // OpenRouter is pinned to its zero-price route; FreeLLMAPI is the administrator's self-hosted router of free-tier keys.
 const validProvider = (provider: unknown, model: unknown): provider is AIProvider => (provider === 'openrouter' && model === 'openrouter/free') || (provider === 'freellmapi' && validModel(model));
-export type AITurn = { id: number; question: string; status: 'pending' | 'complete' | 'failed' | 'cancelled'; answer?: AIReply; error?: string; options?: AIAskOptions; startedAt?: number; ms?: number };
+export type AITurn = { id: number; question: string; status: 'pending' | 'complete' | 'failed' | 'cancelled'; answer?: AIReply; error?: string; options?: AIAskOptions; startedAt?: number; ms?: number;
+  /** Picture / video / speech made in the same chat (not a text answer). The file lives in the cache only. */
+  kind?: AITaskKind; media?: { uri: string; mimeType: string }; stage?: string };
+export type AITaskKind = 'image' | 'video' | 'speech' | 'transcribe';
+export type AITaskResult = { text: string; model: string; routedVia?: string; media?: { uri: string; mimeType: string } };
+export type AITaskWork = (signal: AbortSignal, stage: (text: string) => void) => Promise<AITaskResult>;
 export type AIState = { consent: boolean; pending: boolean; turns: AITurn[]; error: string };
 type Transport = (messages: AIMessage[], signal: AbortSignal, options?: AIAskOptions) => Promise<unknown>;
 
@@ -110,15 +115,27 @@ export class AIConversation {
     await this.run(turn.id, messages, turn.options);
   }
 
+  /** Picture, video, speech or transcription as a turn of the same conversation. */
+  async askTask(question: string, kind: AITaskKind, work: AITaskWork): Promise<void> {
+    if (!this.canStart()) return;
+    const text = question.trim();
+    if (!text) { this.publish({ ...this.state, error: 'Напиши, что сделать.' }); return; }
+    const turn: AITurn = { id: ++this.nextId, question: text, status: 'pending', startedAt: Date.now(), kind };
+    this.tasks.set(turn.id, work);
+    this.publish({ ...this.state, pending: true, turns: [...this.state.turns, turn], error: '' });
+    await this.run(turn.id, [], undefined, work);
+  }
+
   async retry(): Promise<void> {
     if (!this.canStart()) return;
     const turn = this.state.turns.at(-1);
     if (!turn || !['failed', 'cancelled'].includes(turn.status)) return;
+    if (turn.kind && !this.tasks.has(turn.id)) return; // a stored picture request: ask again
     let messages: AIMessage[];
     try { messages = historyForQuestion(this.state.turns.slice(0, -1), turn.question); }
     catch (error) { this.publish({ ...this.state, error: failureText(error) }); return; }
-    this.publish({ ...this.state, pending: true, error: '', turns: this.state.turns.map(item => item.id === turn.id ? { ...item, status: 'pending', startedAt: Date.now(), ms: undefined, error: undefined } : item) });
-    await this.run(turn.id, messages, turn.options);
+    this.publish({ ...this.state, pending: true, error: '', turns: this.state.turns.map(item => item.id === turn.id ? { ...item, status: 'pending', startedAt: Date.now(), ms: undefined, error: undefined, stage: undefined } : item) });
+    await this.run(turn.id, messages, turn.options, turn.kind ? this.tasks.get(turn.id) : undefined);
   }
 
   cancel() {
@@ -153,15 +170,24 @@ export class AIConversation {
     return false;
   }
 
-  private async run(turnId: number, messages: AIMessage[], options?: AIAskOptions) {
+  private tasks = new Map<number, AITaskWork>();
+
+  private async run(turnId: number, messages: AIMessage[], options?: AIAskOptions, work?: AITaskWork) {
     const revision = ++this.revision, controller = new AbortController();
     this.active = { revision, controller, turnId };
     const current = () => !this.closed && this.state.consent && this.active?.revision === revision;
     try {
-      const answer = parseAIReply(await this.transport(messages, controller.signal, options));
+      let media: AITaskResult['media'];
+      let answer: AIReply;
+      if (work) {
+        const stage = (text: string) => { if (current()) this.publish({ ...this.state, turns: this.state.turns.map(turn => turn.id === turnId ? { ...turn, stage: text } : turn) }); };
+        const result = await work(controller.signal, stage);
+        media = result.media;
+        answer = { text: result.text, model: result.model, provider: 'freellmapi', freeOnly: true, ...(result.routedVia ? { routedVia: result.routedVia } : {}) };
+      } else answer = parseAIReply(await this.transport(messages, controller.signal, options));
       if (!current()) return;
       this.active = null;
-      this.publish({ ...this.state, pending: false, error: '', turns: this.state.turns.map(turn => turn.id === turnId ? { ...turn, status: 'complete', answer, error: undefined, ...(turn.startedAt ? { ms: Date.now() - turn.startedAt } : {}) } : turn) });
+      this.publish({ ...this.state, pending: false, error: '', turns: this.state.turns.map(turn => turn.id === turnId ? { ...turn, status: 'complete', answer, error: undefined, stage: undefined, ...(media ? { media } : {}), ...(turn.startedAt ? { ms: Date.now() - turn.startedAt } : {}) } : turn) });
     } catch (error) {
       if (!current()) return;
       this.active = null;
@@ -177,7 +203,7 @@ export class AIConversation {
 export function storedTurns(turns: readonly AITurn[]): AITurn[] {
   return turns.map(turn => {
     const model = turn.options?.model;
-    const base: AITurn = { id: turn.id, question: turn.question, status: turn.status === 'pending' ? 'cancelled' : turn.status, ...(turn.answer ? { answer: turn.answer } : {}), ...(turn.error ? { error: turn.error } : {}), ...(model ? { options: { model } } : {}), ...(typeof turn.ms === 'number' && Number.isFinite(turn.ms) ? { ms: turn.ms } : {}) };
+    const base: AITurn = { id: turn.id, question: turn.question, status: turn.status === 'pending' ? 'cancelled' : turn.status, ...(turn.answer ? { answer: turn.answer } : {}), ...(turn.error ? { error: turn.error } : {}), ...(model ? { options: { model } } : {}), ...(typeof turn.ms === 'number' && Number.isFinite(turn.ms) ? { ms: turn.ms } : {}), ...(turn.kind ? { kind: turn.kind } : {}) };
     return base;
   });
 }
