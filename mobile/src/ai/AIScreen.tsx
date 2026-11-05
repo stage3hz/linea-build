@@ -14,6 +14,7 @@ import { PlatinaGem, openPlatinaShowcase } from '../platina/PlatinaMark';
 import { formatListTime, useTheme } from '../theme';
 import { aiModels, aiQuestion, aiStatus } from './client';
 import { AIMediaPanel, type MediaMode } from './AIMedia';
+import { ModelMenu } from './ModelMenu';
 import * as ImagePicker from 'expo-image-picker';
 import * as ImageManipulator from 'expo-image-manipulator';
 import { AIConversation, AI_MESSAGE_LIMIT, CODE_TASK_PREFIX, codePreviewCurrent, createCodeTaskPreview, type AICapabilityName, type AIState, type AIStatus, type AITurn, type CodeTaskPreview } from './conversation';
@@ -43,11 +44,33 @@ function useAI(api: Api) {
   return { state, status, statusError, checking, conversation, refresh: () => setRefreshKey(value => value + 1) };
 }
 
-function AITurnView({ turn, retryable, canRetry, onRetry }: { turn: AITurn; retryable: boolean; canRetry: boolean; onRetry: () => void }) {
+// What the AI is doing right now, step by step (like the «думает» line in Claude). Only real stages are
+// shown: the request leaves for the server, the chosen model works on it; the timer is honest elapsed time.
+function AIProgress({ turn, router }: { turn: AITurn; router: boolean }) {
+  const t = useTheme();
+  const [now, setNow] = useState(Date.now());
+  useEffect(() => { const timer = setInterval(() => setNow(Date.now()), 500); return () => clearInterval(timer); }, []);
+  const seconds = Math.max(0, Math.floor((now - (turn.startedAt || now)) / 1000));
+  const model = modelLabel(turn.options?.model || 'auto');
+  const steps: { text: string; done: boolean }[] = [
+    { text: turn.options?.image ? 'Вопрос и фото отправлены на сервер' : 'Вопрос отправлен на сервер', done: seconds >= 1 },
+    { text: router ? (turn.options?.model ? `Модель «${model}» пишет ответ` : 'Подбираю свободную модель и пишу ответ') : 'Бесплатная модель пишет ответ', done: false },
+  ];
+  return <View style={{ gap: 8, paddingHorizontal: 6, paddingVertical: 4 }}>
+    {steps.map((step, index) => <View key={index} style={{ flexDirection: 'row', alignItems: 'center', gap: 9 }}>
+      {step.done ? <Icon name="checkmark-circle" size={16} color={t.accent} /> : <ActivityIndicator size="small" color={t.accent} />}
+      <Text style={{ flex: 1, color: step.done ? t.muted : t.text, fontSize: 13 }}>{step.text}{!step.done && index === steps.length - 1 ? ` · ${seconds} с` : ''}</Text>
+    </View>)}
+    {seconds >= 12 ? <Text style={{ color: t.muted, fontSize: 11, lineHeight: 16, paddingLeft: 25 }}>{router ? 'Бесплатные модели бывают заняты — сервер может переключиться на другую. Ждём до 2 минут.' : 'Бесплатные модели иногда отвечают медленно. Ждём до 2 минут.'}</Text> : null}
+  </View>;
+}
+
+function AITurnView({ turn, retryable, canRetry, onRetry, router = false }: { turn: AITurn; retryable: boolean; canRetry: boolean; onRetry: () => void; router?: boolean }) {
   const t = useTheme();
   const [copied, setCopied] = useState(false);
   const timer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const code = turn.question.startsWith(CODE_TASK_PREFIX);
+  const [details, setDetails] = useState(false);
   useEffect(() => () => { if (timer.current) clearTimeout(timer.current); }, []);
   const copy = async () => {
     if (!turn.answer) return;
@@ -57,10 +80,15 @@ function AITurnView({ turn, retryable, canRetry, onRetry }: { turn: AITurn; retr
   return <View style={{ gap: 10, marginBottom: 18 }}>
     <View style={{ alignSelf: 'flex-end', maxWidth: '92%', backgroundColor: t.bubble, padding: 14, borderRadius: 22, borderBottomRightRadius: 7, borderWidth: 1, borderColor: t.glassBorder, gap: 6 }}>{code ? <Text style={{ color: t.accent, fontSize: 10, fontWeight: '700' }}>Задача по коду</Text> : null}<Text selectable style={{ color: t.text, fontSize: 15, lineHeight: 22 }}>{code ? turn.question.slice(CODE_TASK_PREFIX.length) : turn.question}</Text></View>
     {turn.answer ? <GlassSurface radius={23} shadow={false} contentStyle={{ padding: 16, gap: 11 }}>
-      <View style={{ flexDirection: 'row', alignItems: 'center', gap: 7 }}><Icon name="sparkles-outline" size={17} color={t.accent} /><Text style={{ color: t.accent, fontWeight: '700', fontSize: 12 }}>AI</Text></View>
+      <Pressable accessibilityRole="button" accessibilityLabel="Как получен ответ" onPress={() => setDetails(value => !value)} style={{ flexDirection: 'row', alignItems: 'center', gap: 7, alignSelf: 'flex-start' }}><Icon name="sparkles-outline" size={17} color={t.accent} /><Text style={{ color: t.accent, fontWeight: '700', fontSize: 12 }}>{typeof turn.ms === 'number' ? `Ответ за ${Math.max(1, Math.round(turn.ms / 1000))} с` : 'AI'}</Text><Icon name={details ? 'chevron-up' : 'chevron-down'} size={13} color={t.accent} /></Pressable>
+      {details ? <View style={{ gap: 4, paddingLeft: 24 }}>
+        <Text style={{ color: t.muted, fontSize: 12 }}>Выбор: {modelLabel(turn.options?.model || 'auto')}</Text>
+        <Text selectable style={{ color: t.muted, fontSize: 12 }}>Ответила модель: {turn.answer.model}</Text>
+        {turn.answer.routedVia ? <Text selectable style={{ color: t.muted, fontSize: 12 }}>Через: {turn.answer.routedVia}</Text> : null}
+      </View> : null}
       <Text selectable style={{ color: t.text, fontSize: 15, lineHeight: 23 }}>{turn.answer.text}</Text>
-      <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}><Text style={{ flex: 1, color: t.muted, fontSize: 10, lineHeight: 15 }}>Модель: {turn.answer.model}</Text><Pressable accessibilityRole="button" accessibilityLabel="Скопировать ответ AI" onPress={() => void copy()} style={{ padding: 8 }}><Icon name={copied ? 'checkmark' : 'copy-outline'} size={17} color={t.accent} /></Pressable></View>
-    </GlassSurface> : turn.status === 'pending' ? <View style={{ flexDirection: 'row', alignItems: 'center', gap: 9, padding: 12 }}><ActivityIndicator size="small" color={t.accent} /><Text style={{ color: t.muted, fontSize: 12 }}>AI готовит ответ…</Text></View> : <View style={{ paddingHorizontal: 8, gap: 8 }}>
+      <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}><View style={{ flex: 1 }} /><Pressable accessibilityRole="button" accessibilityLabel="Скопировать ответ AI" onPress={() => void copy()} style={{ padding: 8 }}><Icon name={copied ? 'checkmark' : 'copy-outline'} size={17} color={t.accent} /></Pressable></View>
+    </GlassSurface> : turn.status === 'pending' ? <AIProgress turn={turn} router={router} /> : <View style={{ paddingHorizontal: 8, gap: 8 }}>
       <Text style={{ color: turn.status === 'failed' ? t.danger : t.muted, fontSize: 12, lineHeight: 18 }}>{turn.status === 'cancelled' ? 'Ожидание ответа отменено.' : turn.error || 'Ответ не получен.'}</Text>
       {retryable ? <Button secondary label={code ? 'Повторить эту задачу' : 'Повторить этот вопрос'} icon="refresh-outline" disabled={!canRetry} onPress={onRetry} /> : null}
     </View>}
@@ -98,8 +126,14 @@ function CodeApproval({ preview, allowed, onCancel, onApprove }: { preview: Code
   </View></Sheet>;
 }
 
-const STRATEGY_HELP: Record<string, string> = { auto: 'Цепочка из панели FreeLLMAPI', 'auto:smart': 'Самые умные из доступных', 'auto:fast': 'Самые быстрые', 'auto:reliable': 'Самые стабильные', fusion: 'Несколько моделей отвечают, судья собирает лучший ответ' };
-const modelLabel = (id: string) => ({ auto: 'Авто', 'auto:smart': 'Умная', 'auto:fast': 'Быстрая', 'auto:reliable': 'Надёжная', 'auto:balanced': 'Сбалансированная', fusion: 'Fusion — консилиум' } as Record<string, string>)[id] || id;
+const STRATEGIES: { id: string; help: string }[] = [
+  { id: 'auto:smart', help: 'Для сложных вопросов и кода. Отвечает дольше' },
+  { id: 'auto', help: 'Сама выбирает свободную модель' },
+  { id: 'auto:fast', help: 'Быстрые ответы на простые вопросы' },
+  { id: 'auto:reliable', help: 'Модели, которые реже бывают заняты' },
+  { id: 'fusion', help: 'Отвечают несколько моделей, выбирается лучший ответ' },
+];
+const modelLabel = (id: string) => ({ auto: 'Авто', 'auto:smart': 'Умная', 'auto:fast': 'Быстрая', 'auto:reliable': 'Надёжная', 'auto:balanced': 'Сбалансированная', fusion: 'Консилиум' } as Record<string, string>)[id] || id.split('/').pop() || id;
 
 export function AIScreen({ api, onBack, quick = false, history, name }: { api: Api; onBack: () => void; quick?: boolean; history?: AIHistoryStore; name?: string }) {
   const tabInset = useTabInset();
@@ -117,7 +151,7 @@ export function AIScreen({ api, onBack, quick = false, history, name }: { api: A
   }, [history?.loaded, history?.items, quick, ai.conversation, ai.state]);
   useEffect(() => { if (history && !incognito && !ai.state.pending && ai.state.turns.length) history.save(conversationId, ai.state.turns, ai.state.consent); }, [ai.state, conversationId, history?.save, incognito]);
   const [draft, setDraft] = useState(''), [mode, setMode] = useState<'text' | 'code' | MediaMode>('text'), [taskError, setTaskError] = useState('');
-  const [model, setModel] = useState('auto'), [models, setModels] = useState<string[]>([]), [modelSheet, setModelSheet] = useState(false), [photo, setPhoto] = useState<string | null>(null);
+  const [model, setModel] = useState('auto'), [models, setModels] = useState<string[]>([]), [photo, setPhoto] = useState<string | null>(null);
   const router = ai.status?.provider === 'freellmapi';
   // Without Platina: fast text answers only. Everything else is shown locked and explains why.
   const full = ai.status?.platina !== false;
@@ -175,7 +209,14 @@ export function AIScreen({ api, onBack, quick = false, history, name }: { api: A
   const roundButton = (icon: IconName, label: string, onPress: () => void, active = false) => <Pressable accessibilityRole="button" accessibilityLabel={label} onPress={onPress} style={({ pressed }) => ({ width: 48, height: 48, borderRadius: 24, alignItems: 'center', justifyContent: 'center', backgroundColor: active ? t.accentSoft : t.surface2, borderWidth: 1, borderColor: active ? t.accent : t.glassBorder, opacity: pressed ? .7 : 1 })}><Icon name={icon} size={21} color={active ? t.accent : t.text} /></Pressable>;
   const sendButton = <Pressable accessibilityRole="button" accessibilityLabel={mode === 'code' ? 'Проверить задачу по коду перед отправкой' : 'Отправить вопрос AI'} accessibilityState={{ disabled: !draft.trim() || !ready }} disabled={!draft.trim() || !ready} onPress={submit} style={({ pressed }) => ({ width: 42, height: 42, borderRadius: 21, alignItems: 'center', justifyContent: 'center', backgroundColor: draft.trim() && ready ? t.text : t.surface2, opacity: pressed ? .75 : 1 })}><Icon name={mode === 'code' ? 'checkmark' : 'arrow-up'} size={21} color={draft.trim() && ready ? (t.dark ? '#111' : '#FFF') : t.muted} /></Pressable>;
   const plusButton = <Pressable accessibilityRole="button" accessibilityLabel="Режимы AI и вложения" disabled={ai.state.pending} onPress={() => setToolsSheet(true)} style={({ pressed }) => ({ width: 42, height: 42, borderRadius: 21, alignItems: 'center', justifyContent: 'center', backgroundColor: t.surface2, opacity: pressed ? .7 : 1 })}><Icon name="add" size={24} color={t.text} /></Pressable>;
-  const modelPill = router && !media ? <Pressable accessibilityRole="button" accessibilityLabel="Выбрать модель AI" onPress={() => full ? setModelSheet(true) : setPlatinaSheet('Выбор модели')} style={({ pressed }) => ({ flexDirection: 'row', alignItems: 'center', gap: 6, height: 42, paddingHorizontal: 14, borderRadius: 21, backgroundColor: t.surface2, opacity: pressed ? .7 : 1 })}><Text style={{ color: t.text, fontSize: 14 }}>{full ? modelLabel(model) : 'Быстрые ответы'}</Text>{mode !== 'text' && modeItem ? <Text style={{ color: t.muted, fontSize: 14 }}>{modeItem.label}</Text> : null}</Pressable> : mode !== 'text' && modeItem ? <View style={{ height: 42, paddingHorizontal: 14, borderRadius: 21, backgroundColor: t.surface2, justifyContent: 'center' }}><Text style={{ color: t.text, fontSize: 14 }}>{modeItem.label}</Text></View> : null;
+  // Model choice like in the Claude app. Without the FreeLLMAPI router the server has one free model
+  // («Авто»); without Platina only fast answers — other entries are shown locked.
+  const modeChip = mode !== 'text' && modeItem ? <View style={{ height: 42, paddingHorizontal: 14, borderRadius: 21, backgroundColor: t.surface2, justifyContent: 'center' }}><Text style={{ color: t.text, fontSize: 14 }}>{modeItem.label}</Text></View> : null;
+  const modelPill = <>{!media && ready ? <ModelMenu value={router && full ? model : 'auto'}
+    entries={router ? STRATEGIES.map(item => ({ id: item.id, label: modelLabel(item.id), help: item.help })) : [{ id: 'auto', label: 'Авто', help: 'Бесплатная модель, которую подбирает сервер' }]}
+    more={router ? models.filter(id => !STRATEGIES.some(item => item.id === id)).map(id => ({ id, label: modelLabel(id), help: id.includes('/') ? id.split('/')[0] : undefined })) : []}
+    locked={router && !full} note={!router ? 'Выбор моделей появится, когда на сервере подключат FreeLLMAPI.' : !full ? 'Выбор модели — с Инвиз Platina.' : undefined}
+    onChange={setModel} onLocked={() => setPlatinaSheet('Выбор модели')} /> : null}{modeChip}</>;
   return <KeyboardSafeView bottomInset={quick ? 0 : tabInset} style={{ flex: 1, backgroundColor: 'transparent' }}>
     {/* Top: history on the left, private mode on the right (as in modern AI chat apps). */}
     <View style={{ flexDirection: 'row', alignItems: 'center', paddingHorizontal: 16, paddingTop: 10, paddingBottom: 4, gap: 10 }}>
@@ -194,17 +235,17 @@ export function AIScreen({ api, onBack, quick = false, history, name }: { api: A
             {incognito ? <Text style={{ ...help, textAlign: 'center' }}>Приватная беседа: она не сохранится в истории.</Text> : null}
           </View> : null}
       {media && ready ? <AIMediaPanel api={api} mode={mode as MediaMode} consent={ai.state.consent} /> : null}
-      {ai.state.turns.map(turn => <AITurnView key={turn.id} turn={turn} retryable={turn.id === last?.id} canRetry={ready && ai.state.consent && !ai.state.pending} onRetry={() => void ai.conversation.current?.retry()} />)}
+      {ai.state.turns.map(turn => <AITurnView key={turn.id} turn={turn} retryable={turn.id === last?.id} canRetry={ready && ai.state.consent && !ai.state.pending} onRetry={() => void ai.conversation.current?.retry()} router={router} />)}
       {ai.state.error && ai.state.error !== last?.error ? <Notice text={ai.state.error} error /> : null}
       {taskError ? <Notice text={taskError} error /> : null}
     </ScrollView>
     {media ? <View style={{ paddingHorizontal: 16, paddingBottom: 12, flexDirection: 'row', gap: 8 }}>{plusButton}{modelPill}</View> : <View style={{ marginHorizontal: 14, marginBottom: 12, marginTop: 3, borderRadius: 30, backgroundColor: t.dark ? 'rgba(46,46,48,0.96)' : 'rgba(255,255,255,0.96)', borderWidth: 1, borderColor: t.glassBorder, padding: 8, gap: 6 }}>
       {photo && mode === 'text' ? <View style={{ flexDirection: 'row', alignItems: 'center', gap: 9, paddingLeft: 6, paddingTop: 4 }}><Image source={{ uri: photo }} style={{ width: 44, height: 44, borderRadius: 10 }} /><Text style={{ flex: 1, color: t.muted, fontSize: 12 }}>Фото к вопросу</Text><IconButton name="close" label="Убрать фото" size={18} color={t.muted} onPress={() => setPhoto(null)} /></View> : null}
-      {ai.state.pending ? <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10, padding: 4 }}><ActivityIndicator color={t.accent} /><Text style={{ flex: 1, color: t.muted, fontSize: 13 }}>AI готовит ответ…</Text><Pressable accessibilityRole="button" accessibilityLabel="Отменить ожидание" onPress={() => ai.conversation.current?.cancel()} style={{ width: 42, height: 42, borderRadius: 21, alignItems: 'center', justifyContent: 'center', backgroundColor: t.text }}><Icon name="stop" size={18} color={t.dark ? '#111' : '#FFF'} /></Pressable></View>
+      {ai.state.pending ? <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10, padding: 4 }}><ActivityIndicator color={t.accent} /><Text style={{ flex: 1, color: t.muted, fontSize: 13 }}>AI думает…</Text><Pressable accessibilityRole="button" accessibilityLabel="Отменить ожидание" onPress={() => ai.conversation.current?.cancel()} style={{ width: 42, height: 42, borderRadius: 21, alignItems: 'center', justifyContent: 'center', backgroundColor: t.text }}><Icon name="stop" size={18} color={t.dark ? '#111' : '#FFF'} /></Pressable></View>
         : expanded ? <>
           <ComposerInput accessibilityLabel={mode === 'code' ? 'Задача по коду для AI' : 'Вопрос AI'} value={draft} onChangeText={setDraft} onKeyPress={e => { if (Platform.OS === 'web' && e.nativeEvent.key === 'Enter' && !(e.nativeEvent as unknown as { shiftKey?: boolean }).shiftKey) { e.preventDefault(); submit(); } }} onFocus={() => setFocused(true)} onBlur={() => setFocused(false)} autoFocus={focused} placeholder={mode === 'code' ? 'Опиши задачу по коду' : 'Спроси что угодно'} placeholderTextColor={t.muted} selectionColor={t.accent} keyboardAppearance={t.dark ? 'dark' : 'light'} multiline maxLength={inputLimit} style={{ minHeight: 44, maxHeight: 160, paddingHorizontal: 10, paddingTop: 10, color: t.text, fontSize: 17, lineHeight: 23 }} />
           <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>{plusButton}{modelPill}<View style={{ flex: 1 }} />{router && full && mode === 'text' && ai.status?.capabilities.vision.enabled ? <Pressable accessibilityRole="button" accessibilityLabel="Прикрепить фото к вопросу" onPress={() => void attachPhoto()} style={{ width: 42, height: 42, borderRadius: 21, alignItems: 'center', justifyContent: 'center', backgroundColor: t.surface2 }}><Icon name="image-outline" size={20} color={t.text} /></Pressable> : null}{sendButton}</View>
-        </> : <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>{plusButton}<Pressable accessibilityRole="button" accessibilityLabel={mode === 'code' ? 'Написать задачу по коду' : 'Написать вопрос AI'} onPress={() => setFocused(true)} style={{ flex: 1, height: 42, justifyContent: 'center', paddingHorizontal: 6 }}><Text numberOfLines={1} style={{ color: t.muted, fontSize: 17 }}>{mode === 'code' ? 'Опиши задачу по коду' : 'Спроси что угодно'}</Text></Pressable>{sendButton}</View>}
+        </> : <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>{plusButton}<Pressable accessibilityRole="button" accessibilityLabel={mode === 'code' ? 'Написать задачу по коду' : 'Написать вопрос AI'} onPress={() => setFocused(true)} style={{ flex: 1, height: 42, justifyContent: 'center', paddingHorizontal: 6 }}><Text numberOfLines={1} style={{ color: t.muted, fontSize: 17 }}>{mode === 'code' ? 'Опиши задачу по коду' : 'Спроси что угодно'}</Text></Pressable>{modelPill}{sendButton}</View>}
     </View>}
     <Sheet visible={toolsSheet} title="Что сделать" onClose={() => setToolsSheet(false)}>
       <View style={{ gap: 4 }}>
@@ -228,11 +269,6 @@ export function AIScreen({ api, onBack, quick = false, history, name }: { api: A
         <Text style={{ color: t.muted, fontSize: 13, lineHeight: 19 }}>Без Platina AI отвечает на текстовые вопросы быстрой моделью. С Platina — выбор моделей, код, вопросы по фото, картинки, видео, озвучка и расшифровка аудио.</Text>
         <Button label="Подробнее о Platina" icon="diamond-outline" onPress={() => { setPlatinaSheet(''); setTimeout(() => openPlatinaShowcase(), 300); }} />
       </View>
-    </Sheet>
-    <Sheet visible={modelSheet} title="Модель AI" onClose={() => setModelSheet(false)}>
-      <Text style={{ color: t.muted, fontSize: 12, lineHeight: 18, marginBottom: 8 }}>FreeLLMAPI сам выбирает бесплатную модель и переключается, если одна исчерпала лимит. Можно задать стратегию или конкретную модель из доступных сейчас.</Text>
-      {(['auto', 'auto:smart', 'auto:fast', 'auto:reliable', 'fusion'] as const).concat(models as never[]).map(id => <Pressable key={id} accessibilityRole="radio" accessibilityState={{ selected: model === id }} onPress={() => { setModel(id); setModelSheet(false); }} style={{ flexDirection: 'row', alignItems: 'center', gap: 10, paddingVertical: 11 }}><Icon name={model === id ? 'radio-button-on' : 'radio-button-off'} size={19} color={model === id ? t.accent : t.muted} /><View style={{ flex: 1 }}><Text style={{ color: t.text, fontSize: 14 }}>{modelLabel(id)}</Text>{STRATEGY_HELP[id] ? <Text style={{ color: t.muted, fontSize: 11 }}>{STRATEGY_HELP[id]}</Text> : null}</View></Pressable>)}
-      {!models.length ? <Text style={{ color: t.muted, fontSize: 11, paddingTop: 6 }}>Список конкретных моделей появится, когда в панели FreeLLMAPI будут добавлены ключи провайдеров.</Text> : null}
     </Sheet>
     <Sheet visible={historySheet} title="История AI" onClose={() => setHistorySheet(false)}>
       {history?.items.length ? history.items.map(item => <View key={item.id} style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>

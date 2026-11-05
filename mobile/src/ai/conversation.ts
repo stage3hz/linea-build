@@ -13,7 +13,7 @@ export type AIStatus = { configured: boolean; model: string; provider: AIProvide
 const validModel = (value: unknown): value is string => typeof value === 'string' && /^[A-Za-z0-9_./:@+-]{1,200}$/.test(value);
 // OpenRouter is pinned to its zero-price route; FreeLLMAPI is the administrator's self-hosted router of free-tier keys.
 const validProvider = (provider: unknown, model: unknown): provider is AIProvider => (provider === 'openrouter' && model === 'openrouter/free') || (provider === 'freellmapi' && validModel(model));
-export type AITurn = { id: number; question: string; status: 'pending' | 'complete' | 'failed' | 'cancelled'; answer?: AIReply; error?: string; options?: AIAskOptions };
+export type AITurn = { id: number; question: string; status: 'pending' | 'complete' | 'failed' | 'cancelled'; answer?: AIReply; error?: string; options?: AIAskOptions; startedAt?: number; ms?: number };
 export type AIState = { consent: boolean; pending: boolean; turns: AITurn[]; error: string };
 type Transport = (messages: AIMessage[], signal: AbortSignal, options?: AIAskOptions) => Promise<unknown>;
 
@@ -105,7 +105,7 @@ export class AIConversation {
     let messages: AIMessage[];
     try { messages = historyForQuestion(this.state.turns, question); }
     catch (error) { this.publish({ ...this.state, error: failureText(error) }); return; }
-    const turn: AITurn = { id: ++this.nextId, question: question.trim(), status: 'pending', ...(options && (options.model || options.image) ? { options } : {}) };
+    const turn: AITurn = { id: ++this.nextId, question: question.trim(), status: 'pending', startedAt: Date.now(), ...(options && (options.model || options.image) ? { options } : {}) };
     this.publish({ ...this.state, pending: true, turns: [...this.state.turns, turn], error: '' });
     await this.run(turn.id, messages, turn.options);
   }
@@ -117,7 +117,7 @@ export class AIConversation {
     let messages: AIMessage[];
     try { messages = historyForQuestion(this.state.turns.slice(0, -1), turn.question); }
     catch (error) { this.publish({ ...this.state, error: failureText(error) }); return; }
-    this.publish({ ...this.state, pending: true, error: '', turns: this.state.turns.map(item => item.id === turn.id ? { ...item, status: 'pending', error: undefined } : item) });
+    this.publish({ ...this.state, pending: true, error: '', turns: this.state.turns.map(item => item.id === turn.id ? { ...item, status: 'pending', startedAt: Date.now(), ms: undefined, error: undefined } : item) });
     await this.run(turn.id, messages, turn.options);
   }
 
@@ -161,7 +161,7 @@ export class AIConversation {
       const answer = parseAIReply(await this.transport(messages, controller.signal, options));
       if (!current()) return;
       this.active = null;
-      this.publish({ ...this.state, pending: false, error: '', turns: this.state.turns.map(turn => turn.id === turnId ? { ...turn, status: 'complete', answer, error: undefined } : turn) });
+      this.publish({ ...this.state, pending: false, error: '', turns: this.state.turns.map(turn => turn.id === turnId ? { ...turn, status: 'complete', answer, error: undefined, ...(turn.startedAt ? { ms: Date.now() - turn.startedAt } : {}) } : turn) });
     } catch (error) {
       if (!current()) return;
       this.active = null;
@@ -177,7 +177,7 @@ export class AIConversation {
 export function storedTurns(turns: readonly AITurn[]): AITurn[] {
   return turns.map(turn => {
     const model = turn.options?.model;
-    const base: AITurn = { id: turn.id, question: turn.question, status: turn.status === 'pending' ? 'cancelled' : turn.status, ...(turn.answer ? { answer: turn.answer } : {}), ...(turn.error ? { error: turn.error } : {}), ...(model ? { options: { model } } : {}) };
+    const base: AITurn = { id: turn.id, question: turn.question, status: turn.status === 'pending' ? 'cancelled' : turn.status, ...(turn.answer ? { answer: turn.answer } : {}), ...(turn.error ? { error: turn.error } : {}), ...(model ? { options: { model } } : {}), ...(typeof turn.ms === 'number' && Number.isFinite(turn.ms) ? { ms: turn.ms } : {}) };
     return base;
   });
 }
