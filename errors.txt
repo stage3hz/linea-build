@@ -1,0 +1,1 @@
+14946:/Users/runner/work/linea-build/linea-build/mobile/modules/linea-photo/ios/PhotoPixels.swift:24:9: error: the compiler is unable to type-check this expression in reasonable time; try breaking up the expression into distinct sub-expressions
