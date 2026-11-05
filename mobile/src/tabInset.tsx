@@ -24,7 +24,7 @@ export function TabsOverlay({ tabs, children }: { tabs: React.ReactNode | null; 
 // readable text or a sharp picture through it.
 function TabsFade({ height }: { height: number }) {
   const t = useTheme(); const insets = useSafeAreaInsets(); const extra = Platform.OS === 'web' ? 0 : insets.bottom;
-  return <LinearGradient pointerEvents="none" colors={[tint(t.bg, 0, t.dark), tint(t.bg, .9, t.dark), tint(t.bg, .97, t.dark)]} locations={[0, .4, 1]} style={{ position: 'absolute', left: 0, right: 0, bottom: -extra, height: height + extra + 18 }} />;
+  return <LinearGradient pointerEvents="none" colors={[tint(t.bg, 0, t.dark), tint(t.bg, .95, t.dark), tint(t.bg, 1, t.dark)]} locations={[0, .35, 1]} style={{ position: 'absolute', left: 0, right: 0, bottom: -extra, height: height + extra + 18 }} />;
 }
 const tint = (color: string, alpha: number, dark: boolean) => {
   const m = /^#([0-9a-f]{6})$/i.exec(color); if (!m) return dark ? `rgba(0,0,0,${alpha})` : `rgba(255,255,255,${alpha})`;
