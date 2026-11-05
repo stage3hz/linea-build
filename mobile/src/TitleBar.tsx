@@ -21,7 +21,18 @@ export function TitleBar() {
   useEffect(() => { if (!c) return; void c.action('state').then(s => s && setState(s)); return c.onState(setState); }, [c]);
   // Dialogs (profile, viewer, sheets) start below our title bar, so the window buttons stay usable.
   const shown = Platform.OS === 'web' && !!c && !state.fullscreen && c.platform !== 'darwin';
-  useEffect(() => { if (typeof document === 'undefined') return; document.documentElement.classList.toggle('has-titlebar', shown); }, [shown]);
+  useEffect(() => {
+    if (!shown || typeof document === 'undefined' || typeof MutationObserver === 'undefined') return;
+    // Only the fixed, full-window layers of a dialog are moved (an invisible one would otherwise
+    // swallow clicks on the window buttons); ordinary views inside keep their layout.
+    const lift = () => document.querySelectorAll('[aria-modal="true"]').forEach(node => {
+      for (let el: HTMLElement | null = node as HTMLElement; el && el !== document.body; el = el.parentElement)
+        if (getComputedStyle(el).position === 'fixed' && el.style.top !== `${TITLE_BAR_HEIGHT}px`) el.style.top = `${TITLE_BAR_HEIGHT}px`;
+    });
+    let queued = 0; const schedule = () => { if (!queued) queued = requestAnimationFrame(() => { queued = 0; lift(); }); };
+    lift(); const observer = new MutationObserver(schedule); observer.observe(document.body, { childList: true, subtree: true });
+    return () => { observer.disconnect(); if (queued) cancelAnimationFrame(queued); };
+  }, [shown]);
   if (Platform.OS !== 'web' || !c || state.fullscreen) return null;
   const mac = c.platform === 'darwin';
   if (mac) return <View ref={dragRef} style={{ height: TITLE_BAR_HEIGHT, flexDirection: 'row', alignItems: 'center', backgroundColor: 'transparent', zIndex: 1000 }}>
