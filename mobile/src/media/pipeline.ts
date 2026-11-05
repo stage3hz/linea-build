@@ -66,7 +66,10 @@ async function prepareVideo(file:LocalFile):Promise<PreparedMedia> {
 async function confirmedAudioOnly(file:LocalFile,container:string|null):Promise<boolean> {
   if(mediaPreviewKind(file)!=='audio'||!['mp4','quicktime','3gpp'].includes(container||''))return false;
   try{await getVideoBridge().inspect(file.uri);return false;}
-  catch(error){if(error&&typeof error==='object'&&'code'in error&&error.code==='NO_VIDEO_TRACK')return true;throw error;}
+  // iOS wraps the module's failure as «UnexpectedException … [NO_VIDEO_TRACK]», so the reason may be
+  // only in the code suffix or the message — voice notes were rejected as broken video because of it.
+  catch(error){const code=error&&typeof error==='object'&&'code'in error?String((error as {code:unknown}).code):'',message=error instanceof Error?error.message:String(error);
+    if(/NO_VIDEO_TRACK/.test(code)||/NO_VIDEO_TRACK/.test(message))return true;throw error;}
 }
 
 export async function prepareMediaForUpload(input:LocalFile):Promise<PreparedMedia>{

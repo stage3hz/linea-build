@@ -9,7 +9,7 @@ enum VideoPolicy {
 }
 
 final class VideoFiles {
-  private let pattern="^linea-native-(video|input|video-source)-[0-9a-fA-F-]{36}\\.(mp4|bin|mov|m4v|3gp|qt)$"
+  private let pattern="^linea-native-(video|input|video-source)-[0-9a-fA-F-]{36}\\.(mp4|bin|mov|m4v|m4a|3gp|qt)$"
   private func directory() throws -> URL {
     let cache=try FileManager.default.url(for:.cachesDirectory,in:.userDomainMask,appropriateFor:nil,create:true)
     var url=cache.appendingPathComponent("linea-video",isDirectory:true)
@@ -28,7 +28,7 @@ final class VideoFiles {
     // AVURLAsset picks the container parser from the file extension: a «.bin» copy of an iPhone camera
     // recording opened with no tracks at all (UNSUPPORTED_TRACKS for every round video). Keep a known
     // movie extension; QuickTime's parser also reads MP4.
-    let known=["mov","mp4","m4v","3gp","qt"],ext=source.pathExtension.lowercased()
+    let known=["mov","mp4","m4v","m4a","3gp","qt"],ext=source.pathExtension.lowercased()
     let target=try newFile("input",known.contains(ext) ? ext:"mov")
     do {
       guard let input=InputStream(url:source),let output=OutputStream(url:target,append:false) else {throw VideoFailure("READ_FAILED")}
@@ -68,7 +68,7 @@ final class VideoFiles {
   }
   func dispose(_ uri:String) throws {
     guard let url=URL(string:uri),url.isFileURL,(url.host==nil||url.host==""),url.query==nil,url.fragment==nil,
-      ((url.lastPathComponent.hasPrefix("linea-native-video-source-") && ["bin","mov","mp4","m4v","3gp","qt"].contains(url.pathExtension)) || (url.lastPathComponent.hasPrefix("linea-native-video-") && url.pathExtension=="mp4")) else {throw VideoFailure("INVALID_OUTPUT")}
+      ((url.lastPathComponent.hasPrefix("linea-native-video-source-") && ["bin","mov","mp4","m4v","m4a","3gp","qt"].contains(url.pathExtension)) || (url.lastPathComponent.hasPrefix("linea-native-video-") && url.pathExtension=="mp4")) else {throw VideoFailure("INVALID_OUTPUT")}
     try remove(url)
   }
   func clearCache() throws {

@@ -3,7 +3,8 @@ import { ProfileEffect } from './platina/Effects';
 import { PlatinaName, PlatinaSeal, hasPlatina } from './platina/PlatinaMark';
 import React, { useEffect, useState } from 'react';
 import { useTabInset } from './tabInset';
-import { ActivityIndicator, Modal, Pressable, ScrollView, StyleSheet, View, useWindowDimensions } from 'react-native';
+import { ActivityIndicator, Modal, Pressable, StyleSheet, View, useWindowDimensions } from 'react-native';
+import Animated, { interpolate, useAnimatedScrollHandler, useAnimatedStyle, useSharedValue } from 'react-native-reanimated';
 import * as Clipboard from 'expo-clipboard';
 import { Text } from './typography';
 import { Avatar, Button, Icon, InsetView, IconButton, Notice, Sheet, SheetAction, type IconName } from './components';
@@ -44,6 +45,10 @@ export function UserProfile({ api, user, onClose, chat, onMessage, onMute, onSea
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState('');
   const [notice, setNotice] = useState('');
+  // Telegram: pulling the profile down enlarges the photo; scrolling up shrinks it away.
+  const scrollY = useSharedValue(0);
+  const onScroll = useAnimatedScrollHandler(e => { scrollY.value = e.contentOffset.y; });
+  const avatarStretch = useAnimatedStyle(() => ({ transform: [{ scale: interpolate(scrollY.value, [-160, 0, 120], [1.6, 1, 0.75], 'clamp') }, { translateY: interpolate(scrollY.value, [-160, 0], [-40, 0], 'clamp') }], opacity: interpolate(scrollY.value, [0, 140], [1, 0.4], 'clamp') }));
   const [menu, setMenu] = useState(false); const [menuAt, setMenuAt] = useState<{ x?: number; y: number }>({ y: 90 }); const [sheet, setSheet] = useState<'ttl' | 'clear' | 'block' | 'report' | null>(null);
   const [blocked, setBlocked] = useState(false); const [reason, setReason] = useState<ReportReason | null>(null);
   useEffect(() => {
@@ -113,8 +118,8 @@ export function UserProfile({ api, user, onClose, chat, onMessage, onMute, onSea
         <View style={{ flex: 1 }} />
         <IconButton name="ellipsis-horizontal" label="Ещё" onPress={() => { lightFeedback(); setMenuAt({ y: 90 }); setMenu(true); }} />
       </View>
-      <ScrollView contentContainerStyle={{ padding: 18, paddingBottom: 18 + tabInset, gap: 16, alignItems: 'center', width: '100%', maxWidth: 680, alignSelf: 'center' }}>
-        <DecoratedAvatar user={shown} api={api} size={128} animated />
+      <Animated.ScrollView onScroll={onScroll} scrollEventThrottle={16} contentContainerStyle={{ padding: 18, paddingBottom: 18 + tabInset, gap: 16, alignItems: 'center', width: '100%', maxWidth: 680, alignSelf: 'center' }}>
+        <Animated.View style={avatarStretch}><DecoratedAvatar user={shown} api={api} size={128} animated /></Animated.View>
         <View style={{ alignItems: 'center', gap: 6 }}>
           <View style={{ flexDirection: 'row', alignItems: 'center', gap: 7 }}><PlatinaName user={shown} style={{ color: t.text, fontSize: 26, fontWeight: '800', letterSpacing: -.6 }} /><StatusEmoji user={shown} size={22} animated /></View>
           {status ? <Text style={{ color: status === 'в сети' ? t.accent : t.muted, fontSize: 14 }}>{status}</Text> : <Pressable onPress={() => void copy()} accessibilityRole="button" accessibilityLabel="Скопировать имя пользователя"><Text style={{ color: t.accent, fontSize: 15 }}>@{shown.username}</Text></Pressable>}
@@ -136,7 +141,7 @@ export function UserProfile({ api, user, onClose, chat, onMessage, onMute, onSea
           <Pressable disabled={!onSecurity} onPress={() => { onClose(); onSecurity?.(); }} accessibilityRole="button" style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}><Icon name="lock-closed" size={14} color={t.accent} /><Text style={{ color: t.muted, fontSize: 12, flex: 1 }}>Переписка защищена сквозным шифрованием{onSecurity ? ' · проверить устройства' : ''}</Text>{onSecurity ? <Icon name="chevron-forward" size={14} color={t.muted} /> : null}</Pressable>
         </GlassSurface>
         {shared && onOpenAttachment ? <SharedMedia messages={shared} onOpen={attachment => { onClose(); setTimeout(() => onOpenAttachment(attachment), 250); }} /> : null}
-      </ScrollView>
+      </Animated.ScrollView>
     </InsetView>{/* Discord-style profile effect over the top while the profile is open. */}<ProfileEffect effect={shown.profileEffect} width={card ? cardWidth : width} height={420} /></GlassStage>
     </View></View>
     <ContextMenu visible={menu} y={menuAt.y} x={menuAt.x} mine onClose={() => setMenu(false)}>

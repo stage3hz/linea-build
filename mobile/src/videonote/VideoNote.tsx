@@ -25,7 +25,9 @@ const BASE_CIRCLE = 300;
 // iPhone: the camera input is swapped inside the running capture session, so the recording continues
 // (as in Telegram). Android's CameraX rebinds the camera and would stop the file, so there it stays before recording.
 // Android: our CameraX recorder (persistent recording) keeps the file going across a switch.
-const FLIP_WHILE_RECORDING = Platform.OS === 'ios' || androidNoteCameraAvailable;
+// iPhone: switching cameras mid-take ended the recording (the circle closed) and mixed two different
+// video formats in one file, which the encryption step rejects. Switch before recording instead.
+const FLIP_WHILE_RECORDING = androidNoteCameraAvailable;
 
 /** Full-screen recorder for a round video message. Camera and microphone are used only while it is open. */
 /**
@@ -131,7 +133,7 @@ export function VideoNoteRecorder({ visible, onClose, onDone, hold = null }: { v
         </View>
         {recording ? <View pointerEvents="none" style={{ position: 'absolute', left: 6, right: 6, bottom: -14, height: 4, borderRadius: 2, backgroundColor: 'rgba(255,255,255,0.2)' }}><View style={{ width: `${progress * 100}%`, height: 4, borderRadius: 2, backgroundColor: t.danger }} /></View> : null}
       </View>
-      {stage.supported && facing === 'front' ? <Pressable accessibilityRole="switch" accessibilityState={{ checked: stage.enabled }} accessibilityLabel="Слежение за лицом" onPress={() => void setCenterStage(!stage.enabled).then(setStage)} style={{ flexDirection: 'row', alignItems: 'center', gap: 6, paddingHorizontal: 12, paddingVertical: 7, borderRadius: 16, backgroundColor: stage.enabled ? 'rgba(255,214,10,0.18)' : 'rgba(255,255,255,0.1)' }}><Icon name="scan-outline" size={16} color={stage.enabled ? '#FFD60A' : '#FFF'} /><Text style={{ color: stage.enabled ? '#FFD60A' : '#FFF', fontSize: 13, fontWeight: '600' }}>{stage.enabled ? 'В центре кадра' : 'Слежение выкл.'}</Text></Pressable> : null}
+      {stage.supported && facing === 'front' ? <Pressable disabled={recording} accessibilityRole="switch" accessibilityState={{ checked: stage.enabled, disabled: recording }} accessibilityLabel="Слежение за лицом" onPress={() => void setCenterStage(!stage.enabled).then(setStage)} style={{ flexDirection: 'row', alignItems: 'center', gap: 6, paddingHorizontal: 12, paddingVertical: 7, borderRadius: 16, backgroundColor: stage.enabled ? 'rgba(255,214,10,0.18)' : 'rgba(255,255,255,0.1)' }}><Icon name="scan-outline" size={16} color={stage.enabled ? '#FFD60A' : '#FFF'} /><Text style={{ color: stage.enabled ? '#FFD60A' : '#FFF', fontSize: 13, fontWeight: '600' }}>{stage.enabled ? 'В центре кадра' : 'Слежение выкл.'}</Text></Pressable> : null}
       {error ? <Text style={{ color: '#FFB4B4', fontSize: 13, textAlign: 'center', maxWidth: 320 }}>{error}</Text> : <Text style={{ color: 'rgba(255,255,255,0.6)', fontSize: 12 }}>{recording ? (hold ? 'Нажми ■, чтобы отправить' : 'Нажми ещё раз, чтобы отправить') : 'До 60 секунд · шифруется перед отправкой'}</Text>}
       {showControls ? <View style={{ flexDirection: 'row', alignItems: 'center', gap: 34 }}>
         <Pressable accessibilityRole="button" accessibilityLabel="Отменить видеосообщение" onPress={cancel} style={styles.round}><Icon name="close" color="#FFF" size={26} /></Pressable>

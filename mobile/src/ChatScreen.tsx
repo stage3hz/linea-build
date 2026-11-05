@@ -360,11 +360,11 @@ export function ChatScreen({api,user,chat,store,onBack,wide=false,onOpenMusic}: 
     </View>:wide?desktopHeader():<View style={{flexDirection:'row',alignItems:'center',gap:8,paddingHorizontal:12}}>
       {/* Telegram: the name sits exactly in the middle of the screen — equal side columns, not «what is left». */}
       <View style={{flex:1,alignItems:'flex-start'}}>{!wide?<GlassSurface material="regular" radius={26} interactive style={{height:44,maxHeight:44,flexGrow:0,flexShrink:0}} contentStyle={{height:44,maxHeight:44,flexGrow:0,flexShrink:0,minWidth:44,flexDirection:'row',alignItems:'center',justifyContent:'center',paddingHorizontal:otherUnread?10:0,gap:4}}><Pressable onPress={onBack} accessibilityRole="button" accessibilityLabel={`Назад к чатам${otherUnread?`, непрочитанных ${otherUnread}`:''}`} hitSlop={6} style={{flexDirection:'row',alignItems:'center',gap:4}}><Icon name="chevron-back" size={26} color={t.text}/>{otherUnread?<View style={{minWidth:22,height:22,borderRadius:11,paddingHorizontal:6,backgroundColor:t.text,alignItems:'center',justifyContent:'center'}}><Text style={{color:t.dark?'#000':'#FFF',fontSize:12,fontWeight:'700'}}>{otherUnread>99?'99+':otherUnread}</Text></View>:null}</Pressable></GlassSurface>:null}</View>
-      {/* As in Telegram: the name in the middle, the avatar on the right. The name opens a quick card
-          (calls, attachments, friends, no-copy, block); the avatar opens the full profile. */}
+      {/* As in Telegram: the name in the middle, the avatar on the right; both open the full profile
+          (calls, media, «Ещё» with no-copy, auto-delete, block). */}
       <View style={{maxWidth:'62%',alignItems:'center'}}>
         <GlassSurface material="regular" radius={22} interactive style={{maxWidth:'100%',height:44,maxHeight:44,flexGrow:0,flexShrink:0}} contentStyle={{height:44,maxHeight:44,flexGrow:0,flexShrink:0,justifyContent:'center',paddingHorizontal:18,paddingVertical:3}}>
-          <Pressable onPress={(e:any)=>{Keyboard.dismiss();setMini({x:e.nativeEvent.pageX,y:e.nativeEvent.pageY});}} accessibilityRole="button" accessibilityLabel={`${chat.peer.displayName}: звонок, вложения, друзья, блокировка`} style={{alignItems:'center'}}>
+          <Pressable onPress={()=>{Keyboard.dismiss();setPeerInfo(true);}} accessibilityRole="button" accessibilityLabel={`Профиль ${chat.peer.displayName}`} style={{alignItems:'center'}}>
             <View style={{flexShrink:1,alignItems:'center',gap:1}}>
             <View style={{flexDirection:'row',gap:5,alignItems:'center'}}><PlatinaName user={chat.peer} style={{flexShrink:1,color:t.text,fontSize:16,fontWeight:'600',letterSpacing:-.25}}/>{hasPlatina(chat.peer)?<PlatinaGem size={11}/>:null}<StatusEmoji user={chat.peer} size={16} animated/></View>
             <Text numberOfLines={1} style={{color:headerStatus.accent?t.accent:t.muted,fontSize:12}}>{headerStatus.text}</Text>
