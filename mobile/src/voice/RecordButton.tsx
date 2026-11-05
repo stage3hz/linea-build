@@ -12,8 +12,10 @@ import { impactFeedback, lightFeedback } from '../haptics';
 export const CANCEL_DISTANCE = 120, LOCK_DISTANCE = 90;
 export type RecordKind = 'voice' | 'video';
 
-export function RecordButton({ mode, disabled, onToggleMode, onHoldStart, onHoldEnd, onLock, onSlide }: {
+export function RecordButton({ mode, disabled, onToggleMode, onHoldStart, onHoldEnd, onLock, onSlide, level = 0 }: {
   mode: RecordKind; disabled?: boolean;
+  /** 0…1 loudness right now: the halo around the big circle breathes with the voice (Telegram). */
+  level?: number;
   onToggleMode: () => void;
   /** Recording should begin (finger is down long enough). */
   onHoldStart: () => void;
@@ -51,7 +53,7 @@ export function RecordButton({ mode, disabled, onToggleMode, onHoldStart, onHold
   const gesture = Gesture.Exclusive(hold, tap);
 
   const button = useAnimatedStyle(() => ({
-    transform: [{ translateX: tx.value * 0.9 }, { translateY: ty.value * 0.9 }, { scale: 1 + active.value * 0.75 }],
+    transform: [{ translateX: tx.value * 0.9 }, { translateY: ty.value * 0.9 }, { scale: 1 + active.value * 1.05 }],
     backgroundColor: active.value > 0.05 ? t.accent : t.glassOpaque,
   }));
   const lockPill = useAnimatedStyle(() => ({ opacity: active.value, transform: [{ translateY: -70 + ty.value * 0.5 }, { scale: 0.8 + active.value * 0.2 }] }));
@@ -63,6 +65,7 @@ export function RecordButton({ mode, disabled, onToggleMode, onHoldStart, onHold
     <GestureDetector gesture={gesture}>
       <Animated.View accessible accessibilityRole="button" accessibilityLabel={mode === 'voice' ? 'Голосовое: удерживай для записи, свайп влево — отмена, вверх — без рук. Нажми — переключить на видео' : 'Видеосообщение: удерживай для записи, свайп влево — отмена, вверх — без рук. Нажми — переключить на голосовое'}
         style={[{ width: 40, height: 40, borderRadius: 20, alignItems: 'center', justifyContent: 'center', borderWidth: StyleSheet.hairlineWidth, borderColor: t.border }, button]}>
+        {holding ? <View pointerEvents="none" style={{ position: 'absolute', width: 40, height: 40, borderRadius: 20, backgroundColor: t.accent, opacity: .28, transform: [{ scale: 1 + Math.min(1, level) * .5 }] }} /> : null}
         <Icon name={mode === 'voice' ? (holding ? 'mic' : 'mic-outline') : (holding ? 'videocam' : 'videocam-outline')} color={holding ? t.onAccent : t.text} size={holding ? 20 : 25} />
       </Animated.View>
     </GestureDetector>

@@ -208,7 +208,7 @@ export function ChatScreen({api,user,chat,store,onBack,wide=false,onOpenMusic}: 
     try{
       const name=voiceFileName();
       const uploaded=await store.uploadEncrypted({uri:take.uri,name,mimeType:VOICE_MIME});
-      store.send(chatId,'',{...uploaded,name,mimeType:VOICE_MIME,media:{durationMs:Math.round(take.durationMs)}},reply?{reply}:undefined);
+      store.send(chatId,'',{...uploaded,name,mimeType:VOICE_MIME,media:{durationMs:Math.round(take.durationMs),...(take.waveform?{waveform:take.waveform}:{})}},reply?{reply}:undefined);
       if(reply)setReplyTo(null);
       listRef.current?.scrollToOffset({offset:0,animated:true});
     }catch(e){if(alive.current)setLocalError(e instanceof Error?e.message:'Не удалось отправить голосовое.');}
@@ -437,7 +437,7 @@ export function ChatScreen({api,user,chat,store,onBack,wide=false,onOpenMusic}: 
         </GlassSurface>
         {canSend||!signalAvailable||uploading?<Pressable accessibilityRole="button" accessibilityLabel="Отправить сообщение" disabled={!signalAvailable||uploading||(!text.trim()&&!attachments.length&&!editing)} onPress={send} style={({pressed})=>({height:40,width:40,borderRadius:20,backgroundColor:t.accent,alignItems:'center',justifyContent:'center',opacity:!signalAvailable||uploading||(!text.trim()&&!attachments.length&&!editing)?.4:pressed?.75:1})}><Icon name={editing?'checkmark':'arrow-up'} color={t.onAccent} size={25}/></Pressable>
         :null}</>}
-        {!(canSend||!signalAvailable||uploading)||recHold?<View key="rec" style={{zIndex:5}}><RecordButton mode={recordMode} disabled={uploading||!signalAvailable} onToggleMode={toggleRecordMode} onHoldStart={holdStart} onHoldEnd={holdEnd} onLock={holdLock} onSlide={setCancelProgress}/></View>:null}
+        {!(canSend||!signalAvailable||uploading)||recHold?<View key="rec" style={{zIndex:5}}><RecordButton mode={recordMode} disabled={uploading||!signalAvailable} onToggleMode={toggleRecordMode} onHoldStart={holdStart} onHoldEnd={holdEnd} onLock={holdLock} onSlide={setCancelProgress} level={recHold?.kind==='voice'?voice.levels.at(-1)||0:0}/></View>:null}
       </View>}
       {text.length>7500?<Text style={{fontSize:10,color:t.muted,textAlign:'right',paddingRight:8}}>{text.length} / 8000</Text>:null}
     </View>}

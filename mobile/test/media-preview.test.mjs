@@ -23,6 +23,6 @@ test('previews strip APP metadata and reject externally supplied unsanitized JPE
 });
 test('only bounded technical media values are accepted in encrypted messages',()=>{
   const {validMedia}=subject();
-  for(const value of [undefined,{}, {width:320,height:240,durationMs:1000,hdr:'pq'}, {durationMs:0}])assert.equal(validMedia(value),true);
-  for(const value of [null,{width:0},{height:20001},{durationMs:Infinity},{durationMs:-1},{hdr:'dolby'},{gps:'secret'},[]])assert.equal(validMedia(value),false);
+  for(const value of [undefined,{}, {width:320,height:240,durationMs:1000,hdr:'pq'}, {durationMs:0},{durationMs:900,waveform:'ABCDEFGHabcdef'}])assert.equal(validMedia(value),true);
+  for(const value of [null,{width:0},{height:20001},{durationMs:Infinity},{durationMs:-1},{hdr:'dolby'},{gps:'secret'},{waveform:'xyz12345'},{waveform:'AB'},{waveform:7},[]])assert.equal(validMedia(value),false);
 });

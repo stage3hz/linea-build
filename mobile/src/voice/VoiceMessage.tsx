@@ -13,7 +13,7 @@ import type { Attachment } from '../types';
 import { decryptAttachment } from '../e2ee/attachments';
 import { useMusic } from '../music/MusicProvider';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { VOICE_MAX_MS, formatVoiceTime, levelFromMetering } from './voice';
+import { VOICE_MAX_MS, decodeWaveform, encodeWaveform, formatVoiceTime, formatVoiceTimeFine, levelFromMetering } from './voice';
 
 // Mono AAC at 48 kHz / 128 kbit/s: full-band, very clear voice (about 0.95 MB per minute;
 // was 32 kHz / 48 kbit/s). Still encrypted before sending like any other attachment.
@@ -32,7 +32,7 @@ function webVoiceMime(): string {
 }
 const PLAYBACK_MODE = { playsInSilentMode: true, shouldPlayInBackground: true, interruptionMode: 'doNotMix', allowsRecording: false } as const;
 
-export type VoiceTake = { uri: string; durationMs: number };
+export type VoiceTake = { uri: string; durationMs: number; waveform?: string };
 
 /** Microphone recorder for one chat composer. Nothing is recorded until start() and permission. */
 export function useVoiceRecorder(onLimit: () => void) {
@@ -41,10 +41,11 @@ export function useVoiceRecorder(onLimit: () => void) {
   const music = useMusic();
   const [active, setActive] = useState(false); const [paused, setPaused] = useState(false);
   const [levels, setLevels] = useState<number[]>([]);
+  const samples = useRef<number[]>([]); // the whole take, for the bubble's waveform
   const limitRef = useRef(onLimit); limitRef.current = onLimit;
   const busy = useRef(false);
 
-  useEffect(() => { if (active && state.isRecording) setLevels(previous => [...previous.slice(-39), levelFromMetering(state.metering)]); }, [active, state.isRecording, state.durationMillis, state.metering]);
+  useEffect(() => { if (!active || !state.isRecording) return; const level = levelFromMetering(state.metering); if (samples.current.length < 20000) samples.current.push(level); setLevels(previous => [...previous.slice(-39), level]); }, [active, state.isRecording, state.durationMillis, state.metering]);
   useEffect(() => { if (active && state.durationMillis >= VOICE_MAX_MS) limitRef.current(); }, [active, state.durationMillis]);
   // By the time this cleanup runs, useAudioRecorder may already have released the native
   // recorder; touching a released shared object throws and would crash the app on «Назад».
@@ -64,7 +65,7 @@ export function useVoiceRecorder(onLimit: () => void) {
       await setAudioModeAsync({ ...PLAYBACK_MODE, allowsRecording: true, shouldPlayInBackground: false });
       await recorder.prepareToRecordAsync();
       recorder.record();
-      setLevels([]); setPaused(false); setActive(true);
+      samples.current = []; setLevels([]); setPaused(false); setActive(true);
     } catch (error) {
       await setAudioModeAsync(PLAYBACK_MODE).catch(() => {});
       throw error;
@@ -81,7 +82,7 @@ export function useVoiceRecorder(onLimit: () => void) {
       const uri = recorder.uri;
       if (!uri) return null;
       if (!keep) { await FileSystem.deleteAsync(uri, { idempotent: true }).catch(() => {}); return null; }
-      return { uri, durationMs };
+      return { uri, durationMs, waveform: encodeWaveform(samples.current) };
     } finally {
       setActive(false); setPaused(false); setLevels([]); busy.current = false;
       await setAudioModeAsync(PLAYBACK_MODE).catch(() => {});
@@ -100,23 +101,24 @@ export function VoiceRecordingBar({ durationMs, levels, onCancel, onSend, holdin
   const t = useTheme();
   const [blink, setBlink] = useState(true);
   useEffect(() => { const timer = setInterval(() => setBlink(value => !value), 600); return () => clearInterval(timer); }, []);
-  const bars = levels.length ? levels : [0];
-  // While the finger holds the button: Telegram's strip — red dot, time, «‹ Влево — отмена» that
-  // fades as you slide. After a lock: delete, time, levels, pause and send.
+  const level = levels.at(-1) || 0;
+  const dot = <View style={{ width: 9, height: 9, borderRadius: 5, backgroundColor: paused ? t.muted : t.danger, opacity: paused || blink ? 1 : .25 }} />;
+  const time = <Text style={{ color: t.text, fontSize: 15, fontWeight: '500', minWidth: 62, fontVariant: ['tabular-nums'] }}>{formatVoiceTimeFine(durationMs)}</Text>;
+  // As in Telegram. Holding: red dot, 0:01,62 and «‹ Влево — отмена» that follows the finger.
   if (holding) return <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8, minHeight: 44, paddingLeft: 12 }}>
-    <View style={{ width: 9, height: 9, borderRadius: 5, backgroundColor: t.danger, opacity: blink ? 1 : .25 }} />
-    <Text style={{ color: t.text, fontSize: 15, fontWeight: '600', minWidth: 46, fontVariant: ['tabular-nums'] }}>{formatVoiceTime(durationMs)}</Text>
+    {dot}{time}
     <Text style={{ flex: 1, textAlign: 'center', color: t.muted, fontSize: 14, opacity: 1 - cancelProgress, transform: [{ translateX: -cancelProgress * 40 }] }}>‹ Влево — отмена</Text>
   </View>;
-  return <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8, minHeight: 44 }}>
-    <Pressable accessibilityRole="button" accessibilityLabel="Удалить запись" onPress={onCancel} style={({ pressed }) => ({ width: 44, height: 44, borderRadius: 22, alignItems: 'center', justifyContent: 'center', opacity: pressed ? .6 : 1 })}><Icon name="trash-outline" color={t.danger} size={22} /></Pressable>
-    <View style={{ width: 9, height: 9, borderRadius: 5, backgroundColor: paused ? t.muted : t.danger, opacity: paused || blink ? 1 : .25 }} />
-    <Text style={{ color: t.text, fontSize: 15, fontWeight: '600', minWidth: 46, fontVariant: ['tabular-nums'] }}>{formatVoiceTime(durationMs)}</Text>
-    <View accessibilityLabel="Уровень звука" style={{ flex: 1, height: 30, flexDirection: 'row', alignItems: 'center', justifyContent: 'flex-end', gap: 2, overflow: 'hidden' }}>
-      {bars.map((level, index) => <View key={index} style={{ width: 3, borderRadius: 2, height: 4 + level * 24, backgroundColor: t.accent, opacity: .45 + level * .55 }} />)}
+  // Locked (hands free): dot and time, «Отмена» in the middle, pause, and a big send circle that
+  // breathes with the voice.
+  return <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8, minHeight: 50, paddingLeft: 10 }}>
+    {dot}{time}
+    <Pressable accessibilityRole="button" accessibilityLabel="Отменить запись" onPress={onCancel} style={({ pressed }) => ({ flex: 1, height: 44, alignItems: 'center', justifyContent: 'center', opacity: pressed ? .6 : 1 })}><Text style={{ color: t.accent, fontSize: 16, fontWeight: '600' }}>Отмена</Text></Pressable>
+    {onPause ? <Pressable accessibilityRole="button" accessibilityLabel={paused ? 'Продолжить запись' : 'Пауза'} onPress={onPause} style={({ pressed }) => ({ width: 40, height: 40, borderRadius: 20, alignItems: 'center', justifyContent: 'center', backgroundColor: t.surface2, opacity: pressed ? .6 : 1 })}><Icon name={paused ? 'mic' : 'pause'} size={19} color={paused ? t.danger : t.text} /></Pressable> : null}
+    <View style={{ width: 54, height: 54, alignItems: 'center', justifyContent: 'center' }}>
+      <View pointerEvents="none" style={{ position: 'absolute', width: 54, height: 54, borderRadius: 27, backgroundColor: t.accent, opacity: paused ? 0 : .22, transform: [{ scale: 1 + level * .45 }] }} />
+      <Pressable accessibilityRole="button" accessibilityLabel="Отправить голосовое сообщение" onPress={onSend} style={({ pressed }) => ({ height: 50, width: 50, borderRadius: 25, backgroundColor: t.accent, alignItems: 'center', justifyContent: 'center', opacity: pressed ? .75 : 1 })}><Icon name="arrow-up" color={t.onAccent} size={25} /></Pressable>
     </View>
-    {onPause ? <Pressable accessibilityRole="button" accessibilityLabel={paused ? 'Продолжить запись' : 'Пауза'} onPress={onPause} style={({ pressed }) => ({ width: 40, height: 44, alignItems: 'center', justifyContent: 'center', opacity: pressed ? .6 : 1 })}><Icon name={paused ? 'mic' : 'pause'} size={22} color={paused ? t.danger : t.text} /></Pressable> : null}
-    <Pressable accessibilityRole="button" accessibilityLabel="Отправить голосовое сообщение" onPress={onSend} style={({ pressed }) => ({ height: 44, width: 44, borderRadius: 22, backgroundColor: t.accent, alignItems: 'center', justifyContent: 'center', opacity: pressed ? .75 : 1 })}><Icon name="arrow-up" color={t.onAccent} size={23} /></Pressable>
   </View>;
 }
 
@@ -197,10 +199,13 @@ function RateToast({ text, rate }: { text: string; rate: number }) {
   </View>;
 }
 
+// Telegram's voice bubble: play button, the take's waveform (played part bright, tap or drag to seek),
+// time under it, speed while playing. Messages without a waveform (older apps) show even low bars.
 export function VoiceBubble({ attachment, mine }: { attachment: Attachment; mine: boolean }) {
   const t = useTheme();
   const voice = useContext(VoiceContext);
   const [width, setWidth] = useState(1);
+  const bars = React.useMemo(() => decodeWaveform(attachment.media?.waveform) || Array.from({ length: 48 }, () => .12), [attachment.media?.waveform]);
   if (!voice) return null;
   const active = voice.activeId === attachment.id;
   const loading = voice.loadingId === attachment.id;
@@ -208,23 +213,22 @@ export function VoiceBubble({ attachment, mine }: { attachment: Attachment; mine
   const position = active ? voice.position * 1000 : 0;
   const progress = total > 0 ? Math.min(1, position / total) : 0;
   const playing = active && voice.playing;
-  return <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10, paddingVertical: 4, width: 230 }}>
-    <Pressable accessibilityRole="button" accessibilityLabel={playing ? 'Пауза' : 'Прослушать голосовое сообщение'} onPress={() => voice.toggle(attachment)} style={({ pressed }) => ({ width: 42, height: 42, borderRadius: 21, backgroundColor: t.accent, alignItems: 'center', justifyContent: 'center', opacity: pressed ? .75 : 1 })}>
-      {loading ? <ActivityIndicator size="small" color={t.onAccent} /> : <Icon name={playing ? 'pause' : 'play'} color={t.onAccent} size={20} />}
+  const seekAt = (x: number) => { if (active) voice.seek(attachment, x / width); else voice.toggle(attachment); };
+  return <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10, paddingVertical: 4, width: 240 }}>
+    <Pressable accessibilityRole="button" accessibilityLabel={playing ? 'Пауза' : 'Прослушать голосовое сообщение'} onPress={() => voice.toggle(attachment)} style={({ pressed }) => ({ width: 44, height: 44, borderRadius: 22, backgroundColor: t.accent, alignItems: 'center', justifyContent: 'center', opacity: pressed ? .75 : 1 })}>
+      {loading ? <ActivityIndicator size="small" color={t.onAccent} /> : <Icon name={playing ? 'pause' : 'play'} color={t.onAccent} size={21} />}
     </Pressable>
-    <View style={{ flex: 1, gap: 6 }}>
-      <Pressable accessibilityRole="adjustable" accessibilityLabel="Перемотка" disabled={!active} onLayout={(event: LayoutChangeEvent) => setWidth(Math.max(1, event.nativeEvent.layout.width))} onPress={event => voice.seek(attachment, event.nativeEvent.locationX / width)} style={{ height: 18, justifyContent: 'center' }}>
-        <View style={{ height: 4, borderRadius: 2, backgroundColor: mine ? 'rgba(127,140,170,0.35)' : t.border, overflow: 'hidden' }}>
-          <View style={{ width: `${progress * 100}%`, height: 4, borderRadius: 2, backgroundColor: t.accent }} />
-        </View>
-      </Pressable>
-      <View style={{ flexDirection: 'row', alignItems: 'center', gap: 5 }}>
-        <Icon name="mic" size={12} color={t.muted} />
-        <Text style={{ color: t.muted, fontSize: 11, fontVariant: ['tabular-nums'] }}>{active && position > 0 ? `${formatVoiceTime(position)} / ${formatVoiceTime(total)}` : formatVoiceTime(total)}</Text>
+    <View style={{ flex: 1, gap: 4 }}>
+      <View accessibilityRole="adjustable" accessibilityLabel="Перемотка голосового" onLayout={(event: LayoutChangeEvent) => setWidth(Math.max(1, event.nativeEvent.layout.width))}
+        onStartShouldSetResponder={() => true} onMoveShouldSetResponder={() => active} onResponderGrant={event => seekAt(event.nativeEvent.locationX)} onResponderMove={event => { if (active) voice.seek(attachment, event.nativeEvent.locationX / width); }}
+        style={{ height: 24, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
+        {bars.map((value, index) => <View key={index} style={{ width: 2.5, borderRadius: 2, height: Math.max(2.5, value * 22), backgroundColor: (index + .5) / bars.length <= progress ? t.accent : (mine ? 'rgba(127,140,170,0.45)' : t.muted), opacity: (index + .5) / bars.length <= progress ? 1 : .55 }} />)}
+      </View>
+      <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+        <Text style={{ color: t.muted, fontSize: 11, fontVariant: ['tabular-nums'] }}>{active && position > 0 ? formatVoiceTime(position) : formatVoiceTime(total)}</Text>
         {active ? <Pressable accessibilityRole="button" accessibilityLabel={`Скорость ${voice.rate}×. Изменить`} onPress={voice.cycleRate} hitSlop={8} style={{ marginLeft: 'auto', paddingHorizontal: 6, paddingVertical: 1, borderRadius: 6, backgroundColor: voice.rate !== 1 ? t.accent : (mine ? 'rgba(127,140,170,0.3)' : t.surface2) }}><Text style={{ color: voice.rate !== 1 ? t.onAccent : t.text, fontSize: 11, fontWeight: '800' }}>{voice.rate === 1.5 ? '1,5×' : `${voice.rate}×`}</Text></Pressable> : null}
       </View>
       {voice.failedId === attachment.id && voice.error ? <Text style={{ color: t.danger, fontSize: 11 }}>{voice.error}</Text> : null}
     </View>
   </View>;
 }
-
