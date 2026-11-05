@@ -103,7 +103,13 @@ export function VideoNoteRecorder({ visible, onClose, onDone, hold = null }: { v
   const allowed = !!camera?.granted && !!mic?.granted;
   const autoStarted = useRef(false);
   useEffect(() => { if (!visible) autoStarted.current = false; }, [visible]);
-  useEffect(() => { if (visible && hold && ready && allowed && !recording && !autoStarted.current) { autoStarted.current = true; void start(); } }, [visible, hold, ready, allowed, recording]);
+  // iPhone reports «ready» a moment before the first video frames reach the file output; starting at once
+  // could produce a take with a black picture (audio only). A short pause, as the finger is still down anyway.
+  useEffect(() => {
+    if (!(visible && hold && ready && allowed && !recording && !autoStarted.current)) return;
+    const timer = setTimeout(() => { if (!autoStarted.current) { autoStarted.current = true; void start(); } }, Platform.OS === 'ios' ? 450 : 150);
+    return () => clearTimeout(timer);
+  }, [visible, hold, ready, allowed, recording]);
   const stopSeen = useRef(hold?.stop ?? 0), cancelSeen = useRef(hold?.cancel ?? 0);
   useEffect(() => { if (!hold) return; if (hold.stop !== stopSeen.current) { stopSeen.current = hold.stop; if (recording) void stop(); else onClose(); } }, [hold?.stop]);
   useEffect(() => { if (!hold) return; if (hold.cancel !== cancelSeen.current) { cancelSeen.current = hold.cancel; cancel(); } }, [hold?.cancel]);

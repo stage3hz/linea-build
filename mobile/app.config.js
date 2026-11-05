@@ -11,7 +11,7 @@ module.exports = {
   expo: {
     name: 'INVIZENT',
     slug: 'linea-messenger',
-    version: "0.14.3",
+    version: "0.14.4",
     orientation: 'portrait',
     // Default icon: white outline N on black («Контур»). The blue one is an alternate.
     icon: './assets/icons/outline.png',
@@ -40,7 +40,7 @@ module.exports = {
     },
     android: {
       package: development ? 'com.linea.messenger.preview' : 'com.linea.messenger',
-      versionCode: 29,
+      versionCode: 30,
       softwareKeyboardLayoutMode: 'resize',
       // Firebase Cloud Messaging (push). The file lists only the preview package for now.
       ...(development ? { googleServicesFile: './google-services.json' } : {}),

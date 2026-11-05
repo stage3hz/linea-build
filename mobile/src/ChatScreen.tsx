@@ -334,7 +334,7 @@ export function ChatScreen({api,user,chat,store,onBack,wide=false,onOpenMusic}: 
   },[wide,chat.id,user.id]);
   const desktopHeader=()=>{const hover=(state:{pressed:boolean})=>{const h=(state as {hovered?:boolean}).hovered;return {width:40,height:40,borderRadius:12,alignItems:'center' as const,justifyContent:'center' as const,backgroundColor:h?(t.dark?'rgba(255,255,255,0.08)':'rgba(0,0,0,0.05)'):'transparent',opacity:state.pressed?.6:1};};
     return <View style={{height:60,marginTop:-8,flexDirection:'row',alignItems:'center',gap:12,paddingHorizontal:16,backgroundColor:t.glassOpaque,borderBottomWidth:1,borderColor:t.border}}>
-      <Pressable onPress={(e:any)=>setMini({x:e.nativeEvent.pageX,y:e.nativeEvent.pageY})} accessibilityRole="button" accessibilityLabel={`Профиль ${chat.peer.displayName}`}><DecoratedAvatar user={chat.peer} api={api} size={40} animated/></Pressable>
+      <Pressable onPress={()=>setPeerInfo(true)} accessibilityRole="button" accessibilityLabel={`Полный профиль ${chat.peer.displayName}`}><DecoratedAvatar user={chat.peer} api={api} size={40} animated/></Pressable>
       <Pressable onPress={(e:any)=>setMini({x:e.nativeEvent.pageX,y:e.nativeEvent.pageY})} accessibilityRole="button" style={{flex:1,minWidth:0,gap:2}}>
         <View style={{flexDirection:'row',gap:6,alignItems:'center'}}><PlatinaName user={chat.peer} numberOfLines={1} style={{flexShrink:1,color:t.text,fontSize:16,fontWeight:'700',letterSpacing:-.2}}/>{hasPlatina(chat.peer)?<PlatinaGem size={12}/>:null}<StatusEmoji user={chat.peer} size={16} animated/></View>
         <Text numberOfLines={1} style={{color:headerStatus.accent?t.accent:t.muted,fontSize:12.5}}>{headerStatus.text}</Text>
@@ -360,11 +360,11 @@ export function ChatScreen({api,user,chat,store,onBack,wide=false,onOpenMusic}: 
     </View>:wide?desktopHeader():<View style={{flexDirection:'row',alignItems:'center',gap:8,paddingHorizontal:12}}>
       {/* Telegram: the name sits exactly in the middle of the screen — equal side columns, not «what is left». */}
       <View style={{flex:1,alignItems:'flex-start'}}>{!wide?<GlassSurface material="regular" radius={26} interactive style={{height:44,maxHeight:44,flexGrow:0,flexShrink:0}} contentStyle={{height:44,maxHeight:44,flexGrow:0,flexShrink:0,minWidth:44,flexDirection:'row',alignItems:'center',justifyContent:'center',paddingHorizontal:otherUnread?10:0,gap:4}}><Pressable onPress={onBack} accessibilityRole="button" accessibilityLabel={`Назад к чатам${otherUnread?`, непрочитанных ${otherUnread}`:''}`} hitSlop={6} style={{flexDirection:'row',alignItems:'center',gap:4}}><Icon name="chevron-back" size={26} color={t.text}/>{otherUnread?<View style={{minWidth:22,height:22,borderRadius:11,paddingHorizontal:6,backgroundColor:t.text,alignItems:'center',justifyContent:'center'}}><Text style={{color:t.dark?'#000':'#FFF',fontSize:12,fontWeight:'700'}}>{otherUnread>99?'99+':otherUnread}</Text></View>:null}</Pressable></GlassSurface>:null}</View>
-      {/* As in Telegram: the name in the middle, the avatar on the right. The name opens the chat's
-          media and files, the avatar opens the profile (calls live there). */}
+      {/* As in Telegram: the name in the middle, the avatar on the right. The name opens a quick card
+          (calls, attachments, friends, no-copy, block); the avatar opens the full profile. */}
       <View style={{maxWidth:'62%',alignItems:'center'}}>
         <GlassSurface material="regular" radius={22} interactive style={{maxWidth:'100%',height:44,maxHeight:44,flexGrow:0,flexShrink:0}} contentStyle={{height:44,maxHeight:44,flexGrow:0,flexShrink:0,justifyContent:'center',paddingHorizontal:18,paddingVertical:3}}>
-          <Pressable onPress={()=>setMediaOpen(true)} accessibilityRole="button" accessibilityLabel={`Вложения чата с ${chat.peer.displayName}`} style={{alignItems:'center'}}>
+          <Pressable onPress={(e:any)=>{Keyboard.dismiss();setMini({x:e.nativeEvent.pageX,y:e.nativeEvent.pageY});}} accessibilityRole="button" accessibilityLabel={`${chat.peer.displayName}: звонок, вложения, друзья, блокировка`} style={{alignItems:'center'}}>
             <View style={{flexShrink:1,alignItems:'center',gap:1}}>
             <View style={{flexDirection:'row',gap:5,alignItems:'center'}}><PlatinaName user={chat.peer} style={{flexShrink:1,color:t.text,fontSize:16,fontWeight:'600',letterSpacing:-.25}}/>{hasPlatina(chat.peer)?<PlatinaGem size={11}/>:null}<StatusEmoji user={chat.peer} size={16} animated/></View>
             <Text numberOfLines={1} style={{color:headerStatus.accent?t.accent:t.muted,fontSize:12}}>{headerStatus.text}</Text>
@@ -373,7 +373,7 @@ export function ChatScreen({api,user,chat,store,onBack,wide=false,onOpenMusic}: 
         </GlassSurface>
       </View>
       <View style={{flex:1,alignItems:'flex-end'}}>
-        <Pressable onPress={(e:any)=>setMini({x:e.nativeEvent.pageX,y:e.nativeEvent.pageY})} accessibilityRole="button" accessibilityLabel={`Профиль ${chat.peer.displayName}`} hitSlop={4} style={({pressed})=>({opacity:pressed?.75:1})}><DecoratedAvatar user={chat.peer} api={api} size={44} animated/></Pressable>
+        <Pressable onPress={()=>{Keyboard.dismiss();setPeerInfo(true);}} accessibilityRole="button" accessibilityLabel={`Полный профиль ${chat.peer.displayName}`} hitSlop={4} style={({pressed})=>({opacity:pressed?.75:1})}><DecoratedAvatar user={chat.peer} api={api} size={44} animated/></Pressable>
       </View>
     </View>}
     {onOpenMusic&&!selection?<TopPlayerBar onOpen={onOpenMusic}/>:null}
@@ -448,9 +448,9 @@ export function ChatScreen({api,user,chat,store,onBack,wide=false,onOpenMusic}: 
     <TrustSheet visible={securityOpen} onClose={()=>setSecurityOpen(false)} peerId={chat.peer.id} store={store}/>
     {mediaOpen?<Modal visible animationType="slide" presentationStyle="pageSheet" onRequestClose={()=>setMediaOpen(false)}><GlassStage><SafeAreaView style={{flex:1}}>
       <View style={{flexDirection:'row',alignItems:'center',gap:10,paddingHorizontal:14,paddingVertical:10}}><IconButton name="close" label="Закрыть" onPress={()=>setMediaOpen(false)}/><Text style={{flex:1,color:t.text,fontSize:17,fontWeight:'700'}} numberOfLines={1}>Вложения · {chat.peer.displayName}</Text></View>
-      <ScrollView contentContainerStyle={{padding:16,paddingBottom:40}}><SharedMedia messages={view.messages} onOpen={attachment=>{setMediaOpen(false);setTimeout(()=>openAttachment(attachment),250);}}/></ScrollView>
+      <ScrollView contentContainerStyle={{padding:16,paddingBottom:40}}><SharedMedia messages={view.messages} emptyText="Здесь появятся фото, видео, файлы, голосовые и ссылки из этого чата." onOpen={attachment=>{setMediaOpen(false);setTimeout(()=>openAttachment(attachment),250);}}/></ScrollView>
     </SafeAreaView></GlassStage></Modal>:null}
-    {mini?<MiniProfile api={api} user={chat.peer} me={user.id} at={mini} inChat status={headerStatus.text} onClose={()=>setMini(null)} onOpenProfile={()=>setPeerInfo(true)}/>:null}
+    {mini?<MiniProfile api={api} user={chat.peer} me={user.id} at={mini} inChat status={headerStatus.text} onClose={()=>setMini(null)} onOpenProfile={()=>setTimeout(()=>setPeerInfo(true),Platform.OS==='ios'?300:0)} quick={{onCall:calls.available?video=>setTimeout(()=>calls.start(chat,video),Platform.OS==='ios'?300:0):undefined,onAttachments:()=>setTimeout(()=>setMediaOpen(true),Platform.OS==='ios'?300:0),rules:view.rules||{ttl:0,noCopy:false},onRules:rules=>store.sendAction(chat.id,{type:'settings',ttl:rules.ttl,noCopy:rules.noCopy})}}/>:null}
     {peerInfo?<UserProfile api={api} user={chat.peer} chat={chat} shared={view.messages} onOpenAttachment={openAttachment} status={headerStatus.text.startsWith('@')||headerStatus.text.endsWith('…')?undefined:headerStatus.text} onClose={()=>setPeerInfo(false)} onMute={muted=>store.updateChatSettings(chat.id,{muted})} onSearch={()=>{setSearchOpen(true);setQuery('');}} onSecurity={()=>setTimeout(()=>setSecurityOpen(true),350)} onWallpaper={()=>setTimeout(()=>setWallpaperOpen(true),350)} rules={view.rules} onRules={rules=>store.sendAction(chat.id,{type:'settings',ttl:rules.ttl,noCopy:rules.noCopy})} onClear={()=>store.sendAction(chat.id,{type:'clear'})}/>:null}
     <WallpaperPicker visible={wallpaperOpen} onClose={()=>setWallpaperOpen(false)} chatId={chat.id}/>
     {dropping?<View pointerEvents="none" style={{position:'absolute',top:12,left:12,right:12,bottom:12,zIndex:20,borderRadius:24,borderWidth:2,borderStyle:'dashed',borderColor:t.accent,backgroundColor:t.dark?'rgba(10,14,24,0.72)':'rgba(255,255,255,0.78)',alignItems:'center',justifyContent:'center',gap:10}}><Icon name="cloud-upload-outline" size={44} color={t.accent}/><Text style={{color:t.text,fontSize:20,fontWeight:'700'}}>Отпусти, чтобы прикрепить</Text><Text style={{color:t.muted,fontSize:13}}>Файлы зашифруются перед отправкой</Text></View>:null}

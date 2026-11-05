@@ -15,7 +15,7 @@ import { StatusEmoji } from './StatusEmoji';
 import { DecoratedAvatar, ProfileBanner } from './platina/Decor';
 import { PlatinaStudio } from './platina/PlatinaStudio';
 import { AnimatedEmoji } from './platina/AnimatedEmoji';
-import { FloatingHeader, useTabInset } from './tabInset';
+import { FloatingHeader, useBleed, useTabInset } from './tabInset';
 import { setPlatinaActive } from './platina/usePlatina';
 import { STATIC_STATUS_EMOJI } from './statusEmojiModel';
 import type { DarkTheme, ThemeMode, User, UsernameStatus } from './types';
@@ -153,15 +153,15 @@ export function ProfileScreen({ api, user, theme, darkTheme, onTheme, onDarkThem
   const permanent = status?.platina.active === true && status.platina.permanent === true && status.platina.expiresAt === null;
   const previewUser: User = { ...user, displayName: name || user.displayName, avatarId, avatarColor: color, ...(status ? { statusEmoji: status.statusEmoji, statusEmojiExpiresAt: status.statusEmoji ? status.platina.expiresAt : null, statusEmojiPermanent: Boolean(status.statusEmoji && permanent) } : {}) };
   const ready = status !== null && !statusLoading && !statusError;
-  const [headerHeight, setHeaderHeight] = useState(92); const tabInset = useTabInset();
+  const [headerHeight, setHeaderHeight] = useState(92); const tabInset = useTabInset(); const bleed = useBleed();
   const emojiChoices = status?.statusEmojiChoices.filter(emoji => (STATIC_STATUS_EMOJI as readonly string[]).includes(emoji)) || [];
   const expiry = status?.platina.expiresAt && Number.isFinite(Date.parse(status.platina.expiresAt)) ? new Date(status.platina.expiresAt).toLocaleDateString('ru-RU', { day: 'numeric', month: 'long', year: 'numeric' }) : null;
 
   return <KeyboardAvoidingView style={{ flex: 1, backgroundColor: 'transparent' }} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
     <FloatingHeader onHeight={setHeaderHeight}>
-    <GlassSurface material="clear" radius={27} style={{ marginHorizontal: 14, marginTop: 12, marginBottom: 2 }} contentStyle={{ flexDirection: 'row', alignItems: 'center', padding: 10, gap: 9, minHeight: 68 }}><IconButton name="chevron-back" label="Назад" onPress={onBack}/><Text style={{ fontSize: 20, fontWeight: '700', letterSpacing: -.5, color: t.text, flex: 1 }}>Твой Инвиз</Text><View style={{ paddingRight: 10 }}><Icon name="person-circle-outline" color={t.muted} size={24}/></View></GlassSurface>
+    <GlassSurface material="regular" radius={27} style={{ marginHorizontal: 14, marginTop: 12, marginBottom: 2 }} contentStyle={{ flexDirection: 'row', alignItems: 'center', padding: 10, gap: 9, minHeight: 68 }}><IconButton name="chevron-back" label="Назад" onPress={onBack}/><Text style={{ fontSize: 20, fontWeight: '700', letterSpacing: -.5, color: t.text, flex: 1 }}>Твой Инвиз</Text><View style={{ paddingRight: 10 }}><Icon name="person-circle-outline" color={t.muted} size={24}/></View></GlassSurface>
     </FloatingHeader>
-    <ScrollView keyboardShouldPersistTaps="handled" scrollIndicatorInsets={{ top: headerHeight, bottom: tabInset }} contentContainerStyle={{ padding: 17, paddingTop: headerHeight + 8, paddingBottom: 36 + tabInset, maxWidth: 600, width: '100%', alignSelf: 'center', gap: 17 }}>
+    <ScrollView keyboardShouldPersistTaps="handled" style={bleed.style} contentInsetAdjustmentBehavior="never" scrollIndicatorInsets={{ top: headerHeight, bottom: tabInset + bleed.bottom }} contentContainerStyle={{ padding: 17, paddingTop: headerHeight + 8, paddingBottom: 36 + tabInset + bleed.bottom, maxWidth: 600, width: '100%', alignSelf: 'center', gap: 17 }}>
       <GlassSurface material="clear" radius={30} contentStyle={{ alignItems: 'center', gap: 11, paddingHorizontal: 20, paddingTop: 25, paddingBottom: 23 }}>
         {/* Clipped to the card's top corners and sized to the card: a fixed 600 pt banner ran past its right edge. */}
         {user.bannerId || user.bannerPreset ? <View pointerEvents="none" onLayout={event => setBannerWidth(Math.round(event.nativeEvent.layout.width))} style={{ position: 'absolute', top: 0, left: 0, right: 0, height: 120, overflow: 'hidden', borderTopLeftRadius: 30, borderTopRightRadius: 30 }}>{bannerWidth ? <ProfileBanner user={user} api={api} height={120} width={bannerWidth}/> : null}</View> : null}

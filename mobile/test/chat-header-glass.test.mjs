@@ -16,7 +16,7 @@ const attr = (node, name) => node.attributes.properties.find(p => p.name?.getTex
 
 test('back and name constrain surface and content independently of pin, search and player siblings', () => {
   const surfaces = nodes(parse('ChatScreen.tsx'), n => ts.isJsxElement(n) && n.openingElement.tagName.getText() === 'GlassSurface');
-  for (const label of ['Назад к чатам', 'Вложения чата с']) {
+  for (const label of ['Назад к чатам', ': звонок, вложения, друзья, блокировка']) {
     const matches = surfaces.filter(n => n.getText().includes(label));
     assert.equal(matches.length, 1, label);
     for (const name of ['style', 'contentStyle']) {

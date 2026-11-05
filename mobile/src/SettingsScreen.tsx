@@ -25,7 +25,7 @@ import { useSharedValue } from 'react-native-reanimated';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { StackBase, StackScreen } from './stack';
 import { currentEndpoint } from './servers/pool';
-import { FloatingHeader, useTabInset } from './tabInset';
+import { FloatingHeader, useBleed, useTabInset } from './tabInset';
 import { WallpaperPicker } from './WallpaperPicker';
 import { DecoratedAvatar, ProfileBanner } from './platina/Decor';
 import { PlatinaGem, PlatinaName, PlatinaSeal, hasPlatina, openPlatinaShowcase } from './platina/PlatinaMark';
@@ -71,8 +71,9 @@ export function SettingsScreen(props: Props) {
       {level(index + 1)}
     </View>}</StackScreen>;
   };
-  // overflow hidden: on desktop the root list slides aside under the section and must not paint over the chat list.
-  return <View style={{ flex: 1, overflow: 'hidden' }}>
+  // overflow hidden only on desktop: there the root list slides aside under the section and must not paint
+  // over the chat list. On phones the pages reach under the status bar and the home indicator.
+  return <View style={{ flex: 1, overflow: Platform.OS === 'web' ? 'hidden' : 'visible' }}>
     <StackBase progress={p0} covered={stack.length > 0}>{page('root', props.onBack)}</StackBase>
     {level(0)}
   </View>;
@@ -84,10 +85,10 @@ function PageBackdrop() {
 }
 
 function Page({ title, backLabel, onBack, children }: { title: string; backLabel: string; onBack: () => void; children: React.ReactNode }) {
-  const t = useTheme(); const tabInset = useTabInset(); const [headerHeight, setHeaderHeight] = useState(84);
+  const t = useTheme(); const tabInset = useTabInset(); const [headerHeight, setHeaderHeight] = useState(84); const bleed = useBleed();
   // The list scrolls under the glass header and tab bar (blurred), as in Telegram — no hard cut edges.
   return <View style={{ flex: 1 }}>
-    <ScrollView scrollIndicatorInsets={{ top: headerHeight, bottom: tabInset }} contentContainerStyle={{ padding: 14, paddingTop: headerHeight + 4, gap: 16, paddingBottom: 30 + tabInset, width: '100%', maxWidth: 680, alignSelf: 'center' }}>{children}</ScrollView>
+    <ScrollView style={bleed.style} contentInsetAdjustmentBehavior="never" scrollIndicatorInsets={{ top: headerHeight, bottom: tabInset + bleed.bottom }} contentContainerStyle={{ padding: 14, paddingTop: headerHeight + 4, gap: 16, paddingBottom: 30 + tabInset + bleed.bottom, width: '100%', maxWidth: 680, alignSelf: 'center' }}>{children}</ScrollView>
     <FloatingHeader onHeight={setHeaderHeight}>
     <GlassSurface lens radius={27} style={{ margin: 12, marginBottom: 7 }} contentStyle={{ padding: 8, flexDirection: 'row', alignItems: 'center', gap: 9, minHeight: 60 }}>
       <IconButton name="chevron-back" label={backLabel} onPress={onBack} />
@@ -136,7 +137,7 @@ function Root({ api, user, onBack, onProfile, onSecurity, onMusic, onLogout, ope
   const hasBanner = !!(user.bannerId || user.bannerPreset);
   // The scroll view itself starts under the status bar (the screen sits in a SafeAreaView): a negative
   // margin on its content was clipped by the scroll view, leaving a strip above the banner on iPhone.
-  return <ScrollView style={{ marginTop: -insets.top }} contentContainerStyle={{ paddingBottom: 30 + tabInset }} showsVerticalScrollIndicator={false} contentInsetAdjustmentBehavior="never">
+  return <ScrollView style={{ marginTop: -insets.top, marginBottom: Platform.OS === 'web' ? 0 : -insets.bottom }} contentContainerStyle={{ paddingBottom: 30 + tabInset + (Platform.OS === 'web' ? 0 : insets.bottom) }} showsVerticalScrollIndicator={false} contentInsetAdjustmentBehavior="never">
     {/* Telegram's settings head with Discord's banner: the banner runs under the status bar. */}
     <View style={{ height: bannerHeight }}>
       {hasBanner ? <ProfileBanner user={user} api={api} height={bannerHeight} width={width} /> : <LinearGradient colors={t.dark ? ['rgba(96,124,190,0.34)', 'rgba(150,120,200,0.14)', 'transparent'] : ['rgba(120,150,230,0.30)', 'rgba(190,170,240,0.16)', 'transparent']} start={{ x: 0.1, y: 0 }} end={{ x: 0.7, y: 1 }} style={StyleSheet.absoluteFill} />}

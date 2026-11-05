@@ -80,8 +80,11 @@ export function UserProfile({ api, user, onClose, chat, onMessage, onMute, onSea
   const actions: { icon: IconName; label: string; onPress: () => void; active?: boolean; loading?: boolean }[] = [
     ...(onMessage ? [{ icon: 'chatbubble' as IconName, label: 'Написать', onPress: () => { onClose(); onMessage(shown); } }] : []),
     ...(chat && calls.available ? [{ icon: 'call' as IconName, label: 'Звонок', onPress: () => { onClose(); calls.start(chat, false); } }, { icon: 'videocam' as IconName, label: 'Видео', onPress: () => { onClose(); calls.start(chat, true); } }] : []),
-    { icon: contact ? 'person-remove' : pendingRequest === 'outgoing' ? 'time-outline' : pendingRequest === 'incoming' ? 'person-add' : 'person-add', label: contact ? 'В друзьях' : pendingRequest === 'outgoing' ? 'Заявка' : pendingRequest === 'incoming' ? 'Принять' : 'В друзья', onPress: () => void toggleContact(), active: !!contact || pendingRequest === 'incoming', loading: contact === null },
+    ...(chat ? [] : [{ icon: (contact ? 'person-remove' : pendingRequest === 'outgoing' ? 'time-outline' : pendingRequest === 'incoming' ? 'person-add' : 'person-add') as IconName, label: contact ? 'В друзьях' : pendingRequest === 'outgoing' ? 'Заявка' : pendingRequest === 'incoming' ? 'Принять' : 'В друзья', onPress: () => void toggleContact(), active: !!contact || pendingRequest === 'incoming', loading: contact === null }]),
     ...(onMute && chat ? [{ icon: (muted ? 'notifications-off' : 'notifications') as IconName, label: muted ? 'Без звука' : 'Звук', onPress: () => void toggleMute(), active: muted }] : []),
+    // Telegram's row: call · video · sound · search · more.
+    ...(onSearch ? [{ icon: 'search' as IconName, label: 'Поиск', onPress: () => { onClose(); onSearch(); } }] : []),
+    { icon: 'ellipsis-horizontal' as IconName, label: 'Ещё', onPress: () => { lightFeedback(); setMenu(true); } },
   ];
   const toggleBlock = async () => {
     setBusy(true); setError('');
@@ -129,8 +132,9 @@ export function UserProfile({ api, user, onClose, chat, onMessage, onMute, onSea
       </ScrollView>
     </InsetView>{/* Discord-style profile effect over the top while the profile is open. */}<ProfileEffect effect={shown.profileEffect} width={width} height={420} /></GlassStage>
     <ContextMenu visible={menu} y={90} mine onClose={() => setMenu(false)}>
+      {chat && contact !== null ? <MenuItem icon={contact ? 'person-remove-outline' : 'person-add-outline'} label={contact ? 'Удалить из друзей' : pendingRequest === 'outgoing' ? 'Отменить заявку' : pendingRequest === 'incoming' ? 'Принять в друзья' : 'Добавить в друзья'} onPress={() => { setMenu(false); void toggleContact(); }} /> : null}
       {chat && onRules ? <MenuItem icon="timer-outline" label={`Автоудаление · ${autoDeleteLabel(current.ttl)}`} onPress={() => { setMenu(false); setSheet('ttl'); }} /> : null}
-      {chat && onRules ? <MenuItem icon={current.noCopy ? 'lock-closed' : 'lock-open-outline'} label={current.noCopy ? 'Разрешить копирование' : 'Запретить копирование'} onPress={() => { setMenu(false); lightFeedback(); onRules({ ...current, noCopy: !current.noCopy }); setNotice(current.noCopy ? 'Копирование снова разрешено' : 'Копировать и пересылать сообщения этого чата теперь нельзя обоим'); }} /> : null}
+      {chat && onRules ? <MenuItem icon={current.noCopy ? 'lock-closed' : 'lock-open-outline'} label={current.noCopy ? 'Разрешить пересылку и копирование' : 'Запретить пересылку и копирование'} onPress={() => { setMenu(false); lightFeedback(); onRules({ ...current, noCopy: !current.noCopy }); setNotice(current.noCopy ? 'Копирование снова разрешено' : 'Копировать и пересылать сообщения этого чата теперь нельзя обоим'); }} /> : null}
       {onWallpaper ? <MenuItem icon="image-outline" label="Обои" onPress={() => { setMenu(false); onClose(); onWallpaper(); }} /> : null}
       {onSearch ? <MenuItem icon="search-outline" label="Поиск" onPress={() => { setMenu(false); onClose(); onSearch(); }} /> : null}
       {chat && onClear ? <MenuItem separated icon="trash-bin-outline" label="Очистить историю" onPress={() => { setMenu(false); setSheet('clear'); }} /> : null}

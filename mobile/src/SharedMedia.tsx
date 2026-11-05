@@ -9,7 +9,7 @@ import { mediaPreviewKind } from './media/formats';
 import { previewUri } from './media/previewModel';
 import { isVideoNote, isVoice } from './voice/voice';
 
-type Tab = 'media' | 'files' | 'voice' | 'links';
+type Tab = 'photos' | 'videos' | 'files' | 'voice' | 'links';
 const URL = /https?:\/\/[^\s<>"']+/gi;
 const when = (iso: string) => new Date(iso).toLocaleDateString('ru-RU', { day: 'numeric', month: 'short', year: 'numeric' });
 
@@ -17,7 +17,7 @@ const when = (iso: string) => new Date(iso).toLocaleDateString('ru-RU', { day: '
  * Profile tabs with everything shared in the chat (Медиа · Файлы · Голосовые · Ссылки), from
  * the decrypted history on this device — nothing is asked from the server.
  */
-export function SharedMedia({ messages, onOpen }: { messages: ViewMessage[]; onOpen: (attachment: Attachment) => void }) {
+export function SharedMedia({ messages, onOpen, emptyText }: { messages: ViewMessage[]; onOpen: (attachment: Attachment) => void; emptyText?: string }) {
   const t = useTheme(); const { width } = useWindowDimensions();
   const groups = useMemo(() => {
     const media: { a: Attachment; m: ViewMessage }[] = [], files: typeof media = [], voice: typeof media = [], links: { url: string; m: ViewMessage }[] = [];
@@ -30,15 +30,15 @@ export function SharedMedia({ messages, onOpen }: { messages: ViewMessage[]; onO
       }
       for (const url of m.text?.match(URL) || []) links.push({ url: url.replace(/[).,!?»]+$/, ''), m });
     }
-    return { media, files, voice, links };
+    return { media, photos: media.filter(x => mediaPreviewKind(x.a) === 'photo'), videos: media.filter(x => mediaPreviewKind(x.a) === 'video'), files, voice, links };
   }, [messages]);
   const tabs: { id: Tab; label: string; count: number }[] = ([
-    { id: 'media', label: 'Медиа', count: groups.media.length }, { id: 'files', label: 'Файлы', count: groups.files.length },
+    { id: 'photos', label: 'Фото', count: groups.photos.length }, { id: 'videos', label: 'Видео', count: groups.videos.length }, { id: 'files', label: 'Файлы', count: groups.files.length },
     { id: 'voice', label: 'Голосовые', count: groups.voice.length }, { id: 'links', label: 'Ссылки', count: groups.links.length },
   ] as const).filter(tab => tab.count > 0);
   const [tab, setTab] = useState<Tab | null>(null);
   const active = tab && tabs.some(item => item.id === tab) ? tab : tabs[0]?.id;
-  if (!active) return null;
+  if (!active) return emptyText ? <View style={{ alignItems: 'center', gap: 10, paddingVertical: 48 }}><Icon name="images-outline" size={40} color={t.muted} /><Text style={{ color: t.muted, fontSize: 15, textAlign: 'center' }}>{emptyText}</Text></View> : null;
   const cell = Math.floor((Math.min(width, 600) - 36 - 4) / 3);
   return <View style={{ alignSelf: 'stretch', gap: 10 }}>
     <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ gap: 6, padding: 4, borderRadius: 18, backgroundColor: t.surface2 }}>
@@ -46,8 +46,8 @@ export function SharedMedia({ messages, onOpen }: { messages: ViewMessage[]; onO
         <Text style={{ color: item.id === active ? t.accent : t.text, fontSize: 14, fontWeight: '600' }}>{item.label}</Text>
       </Pressable>)}
     </ScrollView>
-    {active === 'media' ? <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 2, borderRadius: 14, overflow: 'hidden' }}>
-      {groups.media.map(({ a }) => { const thumb = previewUri(a.preview); const seconds = Math.floor((a.media?.durationMs || 0) / 1000);
+    {active === 'photos' || active === 'videos' ? <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 2, borderRadius: 14, overflow: 'hidden' }}>
+      {(active === 'photos' ? groups.photos : groups.videos).map(({ a }) => { const thumb = previewUri(a.preview); const seconds = Math.floor((a.media?.durationMs || 0) / 1000);
         return <Pressable key={a.id} onPress={() => onOpen(a)} style={{ width: cell, height: cell, backgroundColor: t.surface2 }}>
           {thumb ? <Image source={{ uri: thumb }} style={{ width: cell, height: cell }} resizeMode="cover" /> : <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center' }}><Icon name="image-outline" color={t.muted} /></View>}
           {mediaPreviewKind(a) === 'video' ? <Text style={{ position: 'absolute', left: 5, bottom: 5, color: '#FFF', fontSize: 11, fontWeight: '600', paddingHorizontal: 5, paddingVertical: 2, borderRadius: 6, backgroundColor: 'rgba(0,0,0,0.5)' }}>{`${Math.floor(seconds / 60)}:${String(seconds % 60).padStart(2, '0')}`}</Text> : null}

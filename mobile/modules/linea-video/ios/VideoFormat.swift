@@ -26,8 +26,14 @@ struct VideoTrackInfo {
     let all=asset.tracks,videoTracks=all.filter{$0.mediaType == .video},audioTracks=all.filter{$0.mediaType == .audio}
     guard !all.isEmpty,all.count<=32 else {throw VideoFailure("UNSUPPORTED_TRACKS")}
     if videoTracks.isEmpty && !audioTracks.isEmpty && audioTracks.count==all.count && audioTracks.allSatisfy(VideoFormat.knownAudio) {throw VideoFailure("NO_VIDEO_TRACK")}
-    guard all.count<=32,videoTracks.count==1,audioTracks.count<=1 else {throw VideoFailure("UNSUPPORTED_TRACKS")}
-    video=videoTracks[0];audio=audioTracks.first;removed=all.count-videoTracks.count-audioTracks.count
+    // iPhone camera files can carry more than one audio track (for example a spatial-audio track next to
+    // the stereo one on newer models) and sometimes a second, disabled video track. Keep one playable
+    // video track and one decodable audio track (stereo/mono first); everything else is dropped.
+    let playableVideo=videoTracks.filter{$0.isEnabled}
+    guard let firstVideo=(playableVideo.isEmpty ? videoTracks : playableVideo).max(by:{$0.naturalSize.width*$0.naturalSize.height<$1.naturalSize.width*$1.naturalSize.height}) else {throw VideoFailure("UNSUPPORTED_TRACKS")}
+    let decodable=audioTracks.filter(VideoFormat.knownAudio)
+    let simple=decodable.filter{VideoFormat.channels($0)<=2}
+    video=firstVideo;audio=simple.first ?? decodable.first;removed=all.count-1-(audio == nil ? 0:1)
     guard let descriptions=video.formatDescriptions as? [CMFormatDescription],descriptions.count==1 else {throw VideoFailure("UNSUPPORTED_VIDEO_CONFIG")}
     original=descriptions[0]
     let codec=CMFormatDescriptionGetMediaSubType(original)
@@ -59,6 +65,10 @@ enum VideoFormat {
       guard let asbd=CMAudioFormatDescriptionGetStreamBasicDescription(format)?.pointee else {return false}
       return codecs.contains(asbd.mFormatID) && asbd.mChannelsPerFrame>0 && asbd.mSampleRate.isFinite && asbd.mSampleRate>0
     }
+  }
+  static func channels(_ track:AVAssetTrack) -> Int {
+    guard let format=(track.formatDescriptions as? [CMFormatDescription])?.first,let asbd=CMAudioFormatDescriptionGetStreamBasicDescription(format)?.pointee else {return 0}
+    return Int(asbd.mChannelsPerFrame)
   }
   static func orientation(_ source:CGAffineTransform,width:Int,height:Int) throws -> (Int,CGAffineTransform) {
     // Front-camera recordings are often mirrored: a rotation combined with a

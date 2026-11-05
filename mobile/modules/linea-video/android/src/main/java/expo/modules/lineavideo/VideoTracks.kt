@@ -36,7 +36,10 @@ data class VideoTracks(val video:Int,val audio:Int?,val format:MediaFormat,val h
         val codecs=MediaCodecList(MediaCodecList.REGULAR_CODECS)
         if(audio.all{codecs.findDecoderForFormat(extractor.getTrackFormat(it))!=null})throw VideoFailure("NO_VIDEO_TRACK")
       }
-      if(video.size!=1||audio.size>1)throw VideoFailure("UNSUPPORTED_TRACKS")
+      // Some phones write extra audio tracks (multi-mic / spatial) or a second video track: keep the
+      // first video track and the first audio track with at most two channels; drop the rest.
+      if(video.isEmpty())throw VideoFailure("UNSUPPORTED_TRACKS")
+      val keptAudio=audio.firstOrNull{integer(extractor.getTrackFormat(it),MediaFormat.KEY_CHANNEL_COUNT,0) in 1..2} ?: audio.firstOrNull()
       val format=extractor.getTrackFormat(video[0]);val mime=format.getString(MediaFormat.KEY_MIME)
       if(mime !in setOf("video/avc","video/hevc"))throw VideoFailure("UNSUPPORTED_CODEC")
       VideoPolicy.dimensions(format.getInteger(MediaFormat.KEY_WIDTH),format.getInteger(MediaFormat.KEY_HEIGHT))
@@ -48,7 +51,7 @@ data class VideoTracks(val video:Int,val audio:Int?,val format:MediaFormat,val h
       // Android only documents muxing this descriptor into WebM, not MP4.
       if(format.containsKey(MediaFormat.KEY_HDR_STATIC_INFO))throw VideoFailure("HDR_CONTAINER_UNSUPPORTED")
       val hdr=VideoPolicy.hdr(integer(format,MediaFormat.KEY_COLOR_TRANSFER,0),integer(format,MediaFormat.KEY_COLOR_STANDARD,0))
-      return VideoTracks(video[0],audio.firstOrNull(),format,hdr,duration,rotation,extractor.trackCount-video.size-audio.size)
+      return VideoTracks(video[0],keptAudio,format,hdr,duration,rotation,extractor.trackCount-1-(if(keptAudio==null)0 else 1))
     }
     fun integer(format:MediaFormat,key:String,fallback:Int):Int=if(format.containsKey(key))format.getInteger(key) else fallback
     fun bytes(format:MediaFormat,key:String):ByteArray? {
