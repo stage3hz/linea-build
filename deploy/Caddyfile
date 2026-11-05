@@ -4,6 +4,9 @@
 		Strict-Transport-Security "max-age=31536000"
 		X-Content-Type-Options "nosniff"
 		Referrer-Policy "no-referrer"
+		# The API answers JSON and encrypted files only: no page may run scripts from here or frame it.
+		Content-Security-Policy "default-src 'none'; frame-ancestors 'none'; base-uri 'none'"
+		X-Frame-Options "DENY"
 		-Server
 	}
 	# Smaller JSON on slow mobile links (EDGE/3G). Not for sign-in answers (they carry the

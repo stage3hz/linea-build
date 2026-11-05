@@ -25,3 +25,11 @@ test('AI documents: unknown, broken and empty files are refused with a clear mes
   await assert.rejects(documentText('bad.docx', Buffer.from([0x50, 0x4b, 3, 4, 0, 0])), /повреждён|текст/);
   await assert.rejects(documentText('empty.txt', Buffer.from('  \n')), /нет текста/);
 });
+
+test('an Office archive that unpacks to too much is refused before it is unpacked', async () => {
+  const { zipSync } = await import('fflate');
+  const slide = new Uint8Array(30 * 1024 * 1024); // zeros: a few KB compressed, 30 MB unpacked
+  const bomb = Buffer.from(zipSync({ 'ppt/slides/slide1.xml': slide, 'ppt/slides/slide2.xml': slide, 'ppt/slides/slide3.xml': slide }, { level: 1 }));
+  assert.ok(bomb.length < 1024 * 1024);
+  await assert.rejects(documentText('bomb.pptx', bomb), /слишком большой после распаковки/);
+});

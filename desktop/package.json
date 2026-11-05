@@ -84,5 +84,9 @@
         "to": "THIRD_PARTY_NOTICES.md"
       }
     ]
+  },
+  "overrides": {
+    "zod": "4.6.7",
+    "uuid": "13.0.2"
   }
 }

@@ -6,6 +6,7 @@ import { unzipSync, strFromU8 } from 'fflate';
 
 export const MAX_DOCUMENT_BYTES = 15 * 1024 * 1024;
 export const MAX_DOCUMENT_TEXT = 120_000;
+const MAX_UNZIPPED = 80 * 1024 * 1024, MAX_PARTS = 600;
 const TEXT_TYPES = /\.(txt|md|markdown|csv|tsv|json|xml|html?|log|ya?ml|ini|srt|vtt|js|ts|py|java|kt|swift|c|cpp|h|cs|go|rs|rb|php|sql|css|sh)$/i;
 
 const decodeEntities = text => text.replace(/&lt;/g, '<').replace(/&gt;/g, '>').replace(/&quot;/g, '"').replace(/&apos;/g, "'")
@@ -23,11 +24,20 @@ function xmlText(xml) {
 }
 
 function zipText(bytes, name) {
-  let files;
+  let files, total = 0, parts = 0;
   try {
-    // Only the parts that hold text are decompressed (an archive bomb elsewhere is never opened).
-    files = unzipSync(bytes, { filter: file => file.originalSize <= 40 * 1024 * 1024 && /^(word\/document\.xml|content\.xml|ppt\/slides\/slide\d+\.xml|xl\/sharedStrings\.xml|xl\/worksheets\/sheet\d+\.xml)$/.test(file.name) });
-  } catch { throw new Error('Файл повреждён или это не документ Office.'); }
+    // Only the parts that hold text are decompressed (an archive bomb elsewhere is never opened),
+    // and all of them together stay under MAX_UNZIPPED: a thousand 40 MB «slides» are refused.
+    files = unzipSync(bytes, { filter: file => {
+      if (!/^(word\/document\.xml|content\.xml|ppt\/slides\/slide\d+\.xml|xl\/sharedStrings\.xml|xl\/worksheets\/sheet\d+\.xml)$/.test(file.name)) return false;
+      total += file.originalSize; parts += 1;
+      if (file.originalSize > 40 * 1024 * 1024 || total > MAX_UNZIPPED || parts > MAX_PARTS) throw new RangeError('too big');
+      return true;
+    } });
+  } catch (error) {
+    if (error instanceof RangeError) throw new Error('Документ слишком большой после распаковки.');
+    throw new Error('Файл повреждён или это не документ Office.');
+  }
   if (files['word/document.xml']) return xmlText(strFromU8(files['word/document.xml']));
   if (files['content.xml']) return xmlText(strFromU8(files['content.xml']));
   const slides = Object.keys(files).filter(key => key.startsWith('ppt/slides/')).sort((a, b) => Number(a.match(/\d+/)[0]) - Number(b.match(/\d+/)[0]));

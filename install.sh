@@ -113,8 +113,22 @@ if [ -n "$DASH_HOST" ]; then
   cat >> deploy/Caddyfile <<EOF
 
 $DASH_HOST {
-	header -Server
-	reverse_proxy freellmapi:3001
+	header {
+		Strict-Transport-Security "max-age=31536000"
+		X-Content-Type-Options "nosniff"
+		X-Frame-Options "DENY"
+		Referrer-Policy "no-referrer"
+		-Server
+	}
+	# The AI API itself is only for the messenger server (private network). From the internet
+	# only the dashboard is reachable, so a leaked unified key cannot be used from outside.
+	# (The dashboard's in-browser playground needs /v1 and stops working; use: bash deploy/ai.sh test)
+	handle /v1* {
+		respond "Not found" 404
+	}
+	handle {
+		reverse_proxy freellmapi:3001
+	}
 }
 EOF
 fi
