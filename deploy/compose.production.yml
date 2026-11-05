@@ -21,6 +21,7 @@ services:
       LOG_LEVEL: info
       # Only the actual Caddy container may supply the original client IP.
       TRUSTED_PROXIES: 172.30.58.2
+      EDGE_SECRET: ${EDGE_SECRET:-}
       ALLOWED_ORIGINS: ${ALLOWED_ORIGINS:-}
       SESSION_TTL_DAYS: 30
       AUTH_RATE_LIMIT: 20

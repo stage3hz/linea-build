@@ -1,6 +1,6 @@
 const { app, BrowserWindow, ipcMain, protocol, net, session, safeStorage, desktopCapturer, dialog, shell, globalShortcut, screen, nativeImage, Tray, Menu } = require('electron');
 // Our servers only (same rule as mobile/src/servers/list.ts): any number of them, all under our domains.
-const TRUSTED_HOST = /^(?:[a-z0-9-]+\.)*invizent\.(?:com|ru)$|^141-133-194-51\.nip\.io$/;
+const TRUSTED_HOST = /^(?:[a-z0-9-]+\.)*invizent\.(?:com|ru)$|^141-133-194-51\.nip\.io$|^invizent-api\.invizent-8165e2\.workers\.dev$/;
 if (!app.requestSingleInstanceLock()) { app.quit(); } else {
 const path = require('node:path');
 const fs = require('node:fs/promises');
@@ -256,7 +256,7 @@ app.whenReady().then(async () => {
       return new Response(response.body,{status:response.status,statusText:response.statusText,headers});
     } catch { return new Response('', { status: 404 }); }
   });
-  session.defaultSession.webRequest.onBeforeSendHeaders({ urls: ['wss://invizent.com/*','wss://*.invizent.com/*','wss://invizent.ru/*','wss://*.invizent.ru/*','wss://141-133-194-51.nip.io/*'] }, (details, callback) => {
+  session.defaultSession.webRequest.onBeforeSendHeaders({ urls: ['wss://invizent.com/*','wss://*.invizent.com/*','wss://invizent.ru/*','wss://*.invizent.ru/*','wss://141-133-194-51.nip.io/*','wss://invizent-api.invizent-8165e2.workers.dev/*'] }, (details, callback) => {
     const headers = { ...details.requestHeaders };
     if (details.webContentsId === window?.webContents.id) { delete headers.Origin; delete headers.origin; }
     callback({ requestHeaders: headers });

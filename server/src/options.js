@@ -36,6 +36,8 @@ export function appOptions(overrides = {}) {
   logger: { level: process.env.LOG_LEVEL || 'info' },
   allowedOrigins,
   trustProxy: trustedProxies.length ? trustedProxies : false,
+  // Shared secret of the Cloudflare reserve entrance (deploy/edge.sh); empty = no edge.
+  edgeSecret: process.env.EDGE_SECRET || '',
   sessionTtlMs: ttlDays * 24 * 60 * 60 * 1000,
   authRateLimit: integerEnv('AUTH_RATE_LIMIT', 20, 1, 1000),
   // Storage: 2 GB per account, 15 GB with Platina (src/bigfiles.js). USER_STORAGE_MIB only adds a lower cap.

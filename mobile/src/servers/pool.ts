@@ -3,7 +3,7 @@
 // Servers: built-in ones + a list signed by the owner. The fastest live one is used; a failed
 // one is skipped at once; everything is re-measured every few minutes and after a failure.
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import { LEGACY_SERVER_URLS, SERVER_URL } from '../serverConfig';
+import { EDGE_SERVER_URLS, LEGACY_SERVER_URLS, SERVER_URL } from '../serverConfig';
 import { SERVER_LIST_KEYS } from './key';
 import { chooseServer, fallbackServer, normalizeServer, verifyServerList, type ServerList, type SignedServerList } from './list';
 import { networkTier } from '../network/quality';
@@ -21,8 +21,9 @@ const emit = () => listeners.forEach(l => l());
 export function builtinServers(): string[] {
   return [SERVER_URL, ...LEGACY_SERVER_URLS].map(normalizeServer).filter((u): u is string => !!u);
 }
+const edgeServers = () => EDGE_SERVER_URLS.map(normalizeServer).filter((u): u is string => !!u);
 export function candidates(): string[] {
-  const all = [...builtinServers(), ...(state.list?.servers.map(s => s.url) || [])];
+  const all = [...builtinServers(), ...(state.list?.servers.map(s => s.url) || []), ...edgeServers()];
   return all.filter((u, i) => all.indexOf(u) === i);
 }
 /** The address requests go to now (the realm until the first measurement). */
@@ -66,7 +67,14 @@ export function measureServers(): Promise<void> {
     const urls = candidates(); const now = Date.now();
     const results = await Promise.all(urls.map(async u => [u, state.down[u] && now - state.down[u] < DOWN_MS ? null : await probe(u)] as const));
     const rtt = Object.fromEntries(results);
-    const current = chooseServer(state.current && rtt[state.current] !== null ? state.current : null, rtt) || state.current;
+    // Cloudflare is a reserve: chosen only when no direct server answers at all.
+    const edges = edgeServers();
+    const direct = Object.fromEntries(Object.entries(rtt).filter(([u]) => !edges.includes(u)));
+    const reserve = Object.fromEntries(Object.entries(rtt).filter(([u]) => edges.includes(u)));
+    const keep = state.current && rtt[state.current] !== null ? state.current : null;
+    const current = chooseServer(keep && !edges.includes(keep) ? keep : null, direct)
+      ?? (Object.values(direct).some(v => typeof v === 'number') ? null : chooseServer(keep && edges.includes(keep) ? keep : null, reserve))
+      ?? state.current;
     state = { ...state, rtt, current };
     const fresh = current ? await refreshList(current) : false;
     emit();

@@ -12,7 +12,7 @@
 import { generateKeyPairSync, createPrivateKey, createPublicKey, sign, verify } from 'node:crypto';
 import { readFileSync, writeFileSync, existsSync } from 'node:fs';
 
-const TRUSTED_HOST = /^(?:[a-z0-9-]+\.)*invizent\.(?:com|ru)$|^141-133-194-51\.nip\.io$/;
+const TRUSTED_HOST = /^(?:[a-z0-9-]+\.)*invizent\.(?:com|ru)$|^141-133-194-51\.nip\.io$|^invizent-api\.invizent-8165e2\.workers\.dev$/;
 const raw = key => (key.type === 'public' ? key : createPublicKey(key)).export({ format: 'der', type: 'spki' }).subarray(-32).toString('base64');
 const die = message => { console.error(message); process.exit(1); };
 const [command, ...args] = process.argv.slice(2);

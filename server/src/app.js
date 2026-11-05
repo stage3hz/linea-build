@@ -10,7 +10,8 @@ import { COMMUNITY_SCHEMA, installCommunityRoutes, VOICE_LIMIT } from './communi
 import Fastify, { LogController } from 'fastify';
 import websocket from '@fastify/websocket';
 import multipart from '@fastify/multipart';
-import { randomUUID } from 'node:crypto';
+import { randomUUID, timingSafeEqual } from 'node:crypto';
+import { isIP } from 'node:net';
 import { mkdir, chmod, unlink, access } from 'node:fs/promises';
 import { createReadStream, createWriteStream, readFileSync } from 'node:fs';
 import { join, resolve } from 'node:path';
@@ -61,6 +62,7 @@ export async function buildApp({
   logger = false,
   allowedOrigins = [],
   trustProxy = false,
+  edgeSecret = '',
   sessionTtlMs = SESSION_TTL,
   authRateLimit = 20,
   maxUploadBytes = 20 * MiB,
@@ -212,10 +214,10 @@ export async function buildApp({
     return token;
   };
   const authThrottle = request => {
-    if (!limiter.allow(`auth:${request.ip}`, authRateLimit, 15 * 60_000)) fail(429, 'Слишком много попыток входа. Повторите через 15 минут.');
+    if (!limiter.allow(`auth:${request.clientIp}`, authRateLimit, 15 * 60_000)) fail(429, 'Слишком много попыток входа. Повторите через 15 минут.');
   };
   const recoveryStatusThrottle = request => {
-    if (!limiter.allow(`recovery-status:${request.ip}`, 120, 60_000)) fail(429, 'Слишком много запросов статуса. Повторите через минуту.');
+    if (!limiter.allow(`recovery-status:${request.clientIp}`, 120, 60_000)) fail(429, 'Слишком много запросов статуса. Повторите через минуту.');
   };
   const allowAccountLogin = username => limiter.allow(`account:${username}`, authRateLimit === false ? false : authRateLimit * 2, 15 * 60_000);
   const withPasswordJob = async work => {
@@ -224,7 +226,20 @@ export async function buildApp({
     try { return await work(); } finally { passwordJobs--; }
   };
 
+  // Reserve entrance through Cloudflare (deploy/edge.sh): only a request carrying the shared
+  // secret may name the real client IP; anything else keeps the address the proxy saw.
+  const edgeKey = typeof edgeSecret === 'string' && edgeSecret.length >= 32 ? Buffer.from(edgeSecret) : null;
+  const fromEdge = request => {
+    const given = request.headers['x-invizent-edge-key'];
+    if (!edgeKey || typeof given !== 'string') return null;
+    const bytes = Buffer.from(given);
+    if (bytes.length !== edgeKey.length || !timingSafeEqual(bytes, edgeKey)) return null;
+    const ip = request.headers['x-invizent-edge-ip'];
+    return typeof ip === 'string' && isIP(ip) ? ip : null;
+  };
+  app.decorateRequest('clientIp', '');
   app.addHook('onRequest', async (request, reply) => {
+    request.clientIp = fromEdge(request) || request.ip;
     reply.header('X-Content-Type-Options', 'nosniff');
     reply.header('Cache-Control', 'no-store');
     reply.header('Referrer-Policy', 'no-referrer');
@@ -762,13 +777,13 @@ export async function buildApp({
   app.get('/ws', {
     websocket: true,
     preValidation: async request => {
-      if (!limiter.allow(`ws-connect:${request.ip}`, 60, 60_000)) fail(429, 'Слишком много подключений.');
+      if (!limiter.allow(`ws-connect:${request.clientIp}`, 60, 60_000)) fail(429, 'Слишком много подключений.');
       let sameIp = 0;
-      for (const state of sockets) if (state.ip === request.ip) sameIp++;
+      for (const state of sockets) if (state.ip === request.clientIp) sameIp++;
       if (sameIp >= 100 || sockets.size >= 1000) fail(503, 'Достигнут лимит подключений.');
     },
   }, (socket, request) => {
-    const state = { socket, ip: request.ip, auth: null, id: randomUUID(), alive: true };
+    const state = { socket, ip: request.clientIp, auth: null, id: randomUUID(), alive: true };
     sockets.add(state);
     // 20 s: on EDGE (≈0.5 s round trips behind queued traffic) the auth frame can take a while.
     // 4408 = «too slow», not «signed out» (4401), so the app just reconnects.

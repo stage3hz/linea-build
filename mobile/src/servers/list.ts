@@ -9,7 +9,7 @@ export type ServerList = { version: number; issuedAt: string; servers: ServerEnt
 export type SignedServerList = { payload: string; sig: string };
 
 /** Only our own domains may ever carry the account (the PC app enforces the same rule). */
-export const TRUSTED_HOST = /^(?:[a-z0-9-]+\.)*invizent\.(?:com|ru)$|^141-133-194-51\.nip\.io$/;
+export const TRUSTED_HOST = /^(?:[a-z0-9-]+\.)*invizent\.(?:com|ru)$|^141-133-194-51\.nip\.io$|^invizent-api\.invizent-8165e2\.workers\.dev$/;
 
 export function normalizeServer(url: string): string | null {
   try {

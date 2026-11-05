@@ -731,7 +731,7 @@ export function installCommunityRoutes({ app, db, authOptions, publicUser, times
 
   // Public landing page for links opened outside the app: name only, then the app link.
   app.get('/i/:code', async (request, reply) => {
-    if (!limiter.allow(`invite-page:${request.ip}`, 60, 60_000)) fail(429, 'Слишком много запросов.');
+    if (!limiter.allow(`invite-page:${request.clientIp || request.ip}`, 60, 60_000)) fail(429, 'Слишком много запросов.');
     const invite = liveInvite(request.params.code);
     const escape = value => String(value).replace(/[&<>"']/g, char => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[char]));
     const preview = invite ? invitePreview(invite) : null;

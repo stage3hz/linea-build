@@ -68,6 +68,8 @@ AI_PROVIDER_V="$(keep AI_PROVIDER)"; AI_API_KEY_V="$(keep AI_API_KEY)"; AI_MODEL
 FLK="$(keep FREELLMAPI_ENCRYPTION_KEY)"; [ -n "$FLK" ] || FLK="$(openssl rand -hex 32)"
 FCM_V="$(keep FCM_SERVICE_ACCOUNT)"; SC_V="$(keep SOUNDCLOUD_CREDENTIALS)"; APNS_V="$(keep APNS_CREDENTIALS)"; mkdir -p deploy/secrets
 TURN_SECRET_V="$(keep TURN_SECRET)"; [ -n "$TURN_SECRET_V" ] || TURN_SECRET_V="$(openssl rand -hex 32)"
+# Shared secret of the Cloudflare reserve entrance (deploy/edge.sh).
+EDGE_SECRET_V="$(keep EDGE_SECRET)"; [ -n "$EDGE_SECRET_V" ] || EDGE_SECRET_V="$(openssl rand -hex 32)"
 # Settings written by deploy/relay.sh and deploy/attest.sh must survive every update.
 RELAY_MODE_V="$(keep FREELLMAPI_PROXY_MODE)"; RELAY_URL_V="$(keep FREELLMAPI_PROXY_URL)"; RELAY_TOKEN_V="$(keep FREELLMAPI_RELAY_TOKEN)"
 RELAY_HOST_V="$(keep FREELLMAPI_RELAY_HOST)"; RELAY_IP_V="$(keep FREELLMAPI_RELAY_IP)"
@@ -86,6 +88,7 @@ AI_MODEL=${AI_MODEL_V:-auto}
 FREELLMAPI_ENCRYPTION_KEY=$FLK
 AI_DASHBOARD_HOST=$DASH_HOST
 TURN_SECRET=$TURN_SECRET_V
+EDGE_SECRET=$EDGE_SECRET_V
 TURN_HOST=$HOST1
 TURN_EXTERNAL_IP=$MYIP
 FCM_SERVICE_ACCOUNT=$FCM_V
