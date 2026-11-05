@@ -67,7 +67,8 @@
       "createDesktopShortcut": true,
       "createStartMenuShortcut": true,
       "runAfterFinish": true,
-      "uninstallDisplayName": "Инвиз"
+      "uninstallDisplayName": "Инвиз",
+      "include": "build/installer.nsh"
     },
     "electronLanguages": [
       "en-US",
