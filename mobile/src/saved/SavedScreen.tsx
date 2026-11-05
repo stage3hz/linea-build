@@ -1,6 +1,7 @@
 import React, { useMemo, useRef, useState } from 'react';
 import { linkify } from '../linkify';
 import { RightClick } from '../RightClick';
+import { ContextMenu, MenuItem } from '../ContextMenu';
 import { ComposerInput } from '../ComposerInput';
 import { ActivityIndicator, FlatList, Keyboard, Platform, Pressable, View } from 'react-native';
 import * as Clipboard from 'expo-clipboard';
@@ -28,7 +29,7 @@ export function SavedScreen({ api, user, store, onBack, wide = false }: { api: A
   const t = useTheme(); const saved = store.saved;
   const [text, setText] = useState('');
   const [editing, setEditing] = useState<SavedItem | null>(null);
-  const [actions, setActions] = useState<SavedItem | null>(null);
+  const [actions, setActions] = useState<SavedItem | null>(null); const [at, setAt] = useState<{ x?: number; y: number }>({ y: 300 });
   const [forwarding, setForwarding] = useState<SavedItem | null>(null);
   const [preview, setPreview] = useState<Attachment | null>(null);
   const [attachMenu, setAttachMenu] = useState(false);
@@ -94,7 +95,7 @@ export function SavedScreen({ api, user, store, onBack, wide = false }: { api: A
           return <View>
             {showDay ? <View style={{ alignSelf: 'center', paddingVertical: 6, paddingHorizontal: 14, borderRadius: 14, marginTop: 15, marginBottom: 14, backgroundColor: t.dark ? 'rgba(30,36,53,0.68)' : 'rgba(255,255,255,0.52)' }}><Text style={{ color: t.muted, fontSize: 10, fontWeight: '600' }}>{formatDay(item.savedAt)}</Text></View> : null}
             <View style={{ alignItems: 'flex-end', marginBottom: 8 }}>
-              <RightClick onMenu={() => setActions(item)} style={{ maxWidth: wide ? '76%' : '85%', alignItems: 'flex-end' }}><Pressable onLongPress={() => setActions(item)} delayLongPress={400} accessibilityLabel={item.text || item.attachment?.name || 'Запись'} style={{ maxWidth: '100%', minWidth: 74, backgroundColor: t.bubble, borderRadius: 23, borderBottomRightRadius: 8, paddingHorizontal: 12, paddingTop: item.attachment ? 7 : 11, paddingBottom: 7, borderWidth: 1, borderColor: t.dark ? 'rgba(157,182,255,0.25)' : 'rgba(255,255,255,0.83)' }}>
+              <RightClick onMenu={(x, y) => { setAt({ x, y }); setActions(item); }} style={{ maxWidth: wide ? '76%' : '85%', alignItems: 'flex-end' }}><Pressable onLongPress={e => { setAt({ y: e.nativeEvent.pageY }); setActions(item); }} delayLongPress={400} accessibilityLabel={item.text || item.attachment?.name || 'Запись'} style={{ maxWidth: '100%', minWidth: 74, backgroundColor: t.bubble, borderRadius: 23, borderBottomRightRadius: 8, paddingHorizontal: 12, paddingTop: item.attachment ? 7 : 11, paddingBottom: 7, borderWidth: 1, borderColor: t.dark ? 'rgba(157,182,255,0.25)' : 'rgba(255,255,255,0.83)' }}>
                 {item.origin ? <Text style={{ color: t.accent, fontSize: 11, fontWeight: '600', marginBottom: 4 }}>{item.origin.author === user.displayName ? 'Твоё сообщение' : `От ${item.origin.author}`} · {formatDay(item.origin.sentAt)}</Text> : null}
                 {item.attachment ? <View style={{ marginBottom: item.text ? 7 : 1 }}>{isVoice(item.attachment) ? <VoiceBubble attachment={item.attachment} mine /> : <AttachmentCard api={api} attachment={item.attachment} onPress={() => open(item.attachment!)} />}</View> : null}
                 {item.text ? <Text selectable={false} style={{ color: t.text, fontSize: metrics.fontSize, lineHeight: metrics.lineHeight }}>{linkify(item.text, t.accent)}</Text> : null}
@@ -115,13 +116,14 @@ export function SavedScreen({ api, user, store, onBack, wide = false }: { api: A
         </View>}
     </GlassSurface>
     <AttachmentPanel visible={attachMenu} busy={busy} canAdd={signalAvailable} remainingSlots={1} onClose={() => setAttachMenu(false)} onAdd={item => uploadAndSave(item.file)} />
-    <Sheet visible={!!actions} title="Запись" onClose={() => setActions(null)}>
-      {actions?.text ? <SheetAction icon="copy-outline" label="Скопировать текст" onPress={() => void copy(actions.text)} /> : null}
-      {actions && !actions.origin && actions.text ? <SheetAction icon="create-outline" label="Изменить" onPress={() => { setEditing(actions); setText(actions.text); setActions(null); }} /> : null}
-      {actions ? <SheetAction icon="arrow-redo-outline" label="Переслать в чат" onPress={() => { setForwarding(actions); setActions(null); }} /> : null}
-      {actions?.attachment ? <SheetAction icon="download-outline" label="Сохранить файл" onPress={() => { const file = actions.attachment!; setActions(null); shareEncryptedAttachment(api, file).catch(e => fail(e, 'Не удалось открыть файл.')); }} /> : null}
-      {actions ? <SheetAction icon="trash-outline" label="Удалить из Избранного" danger onPress={() => { const id = actions.id; setActions(null); saved.remove(id).catch(e => fail(e, 'Не удалось удалить.')); }} /> : null}
-    </Sheet>
+    {/* Same menu as in chats: at the cursor on PC (Telegram Desktop), over the message on phones. */}
+    <ContextMenu visible={!!actions} x={at.x} y={at.y} mine preview={actions?.text || actions?.attachment?.name} onClose={() => setActions(null)}>
+      {actions?.text ? <MenuItem icon="copy-outline" label="Скопировать текст" onPress={() => void copy(actions.text)} /> : null}
+      {actions && !actions.origin && actions.text ? <MenuItem icon="create-outline" label="Изменить" onPress={() => { setEditing(actions); setText(actions.text); setActions(null); }} /> : null}
+      {actions ? <MenuItem icon="arrow-redo-outline" label="Переслать в чат" onPress={() => { setForwarding(actions); setActions(null); }} /> : null}
+      {actions?.attachment ? <MenuItem icon="download-outline" label="Сохранить файл" onPress={() => { const file = actions.attachment!; setActions(null); shareEncryptedAttachment(api, file).catch(e => fail(e, 'Не удалось открыть файл.')); }} /> : null}
+      {actions ? <MenuItem separated icon="trash-outline" label="Удалить из Избранного" danger onPress={() => { const id = actions.id; setActions(null); saved.remove(id).catch(e => fail(e, 'Не удалось удалить.')); }} /> : null}
+    </ContextMenu>
     <Sheet visible={!!forwarding} title="Переслать в чат" onClose={() => setForwarding(null)}>
       {store.chats.length ? store.chats.map(target => <SheetAction key={target.id} icon="chatbubble-outline" label={target.peer.displayName} description={`@${target.peer.username}`} onPress={() => {
         const item = forwarding!; setForwarding(null);

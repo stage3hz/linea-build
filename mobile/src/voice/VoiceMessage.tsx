@@ -21,8 +21,15 @@ const VOICE_RECORDING: RecordingOptions = {
   extension: '.m4a', sampleRate: 48000, numberOfChannels: 1, bitRate: 128000, isMeteringEnabled: true,
   android: { outputFormat: 'mpeg4', audioEncoder: 'aac' },
   ios: { outputFormat: IOSOutputFormat.MPEG4AAC, audioQuality: AudioQuality.MAX, linearPCMBitDepth: 16, linearPCMIsBigEndian: false, linearPCMIsFloat: false },
-  web: { mimeType: 'audio/webm', bitsPerSecond: 128000 },
+  // PC (Electron/Chromium): record straight to MP4/AAC — the same format the phones send and can
+  // play. WebM/Opus was rejected as a voice message («Выбери аудиофайл…») and iPhones cannot play it.
+  web: { mimeType: webVoiceMime(), bitsPerSecond: 128000 },
 };
+function webVoiceMime(): string {
+  const recorder = (globalThis as { MediaRecorder?: { isTypeSupported?: (type: string) => boolean } }).MediaRecorder;
+  for (const type of ['audio/mp4;codecs=mp4a.40.2', 'audio/mp4']) if (recorder?.isTypeSupported?.(type)) return type;
+  return 'audio/webm';
+}
 const PLAYBACK_MODE = { playsInSilentMode: true, shouldPlayInBackground: true, interruptionMode: 'doNotMix', allowsRecording: false } as const;
 
 export type VoiceTake = { uri: string; durationMs: number };
