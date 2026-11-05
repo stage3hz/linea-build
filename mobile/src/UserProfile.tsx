@@ -44,7 +44,7 @@ export function UserProfile({ api, user, onClose, chat, onMessage, onMute, onSea
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState('');
   const [notice, setNotice] = useState('');
-  const [menu, setMenu] = useState(false); const [sheet, setSheet] = useState<'ttl' | 'clear' | 'block' | 'report' | null>(null);
+  const [menu, setMenu] = useState(false); const [menuAt, setMenuAt] = useState<{ x?: number; y: number }>({ y: 90 }); const [sheet, setSheet] = useState<'ttl' | 'clear' | 'block' | 'report' | null>(null);
   const [blocked, setBlocked] = useState(false); const [reason, setReason] = useState<ReportReason | null>(null);
   useEffect(() => {
     setContact(null); setPendingRequest(null); setFresh(null); setError(''); setNotice('');
@@ -77,14 +77,14 @@ export function UserProfile({ api, user, onClose, chat, onMessage, onMute, onSea
     finally { setBusy(false); }
   };
   const copy = async () => { await Clipboard.setStringAsync(`@${shown.username}`); setNotice('Имя пользователя скопировано'); };
-  const actions: { icon: IconName; label: string; onPress: () => void; active?: boolean; loading?: boolean }[] = [
+  const actions: { icon: IconName; label: string; onPress: (e?: { nativeEvent?: { pageX?: number; pageY?: number } }) => void; active?: boolean; loading?: boolean }[] = [
     ...(onMessage ? [{ icon: 'chatbubble' as IconName, label: 'Написать', onPress: () => { onClose(); onMessage(shown); } }] : []),
     ...(chat && calls.available ? [{ icon: 'call' as IconName, label: 'Звонок', onPress: () => { onClose(); calls.start(chat, false); } }, { icon: 'videocam' as IconName, label: 'Видео', onPress: () => { onClose(); calls.start(chat, true); } }] : []),
     ...(chat ? [] : [{ icon: (contact ? 'person-remove' : pendingRequest === 'outgoing' ? 'time-outline' : pendingRequest === 'incoming' ? 'person-add' : 'person-add') as IconName, label: contact ? 'В друзьях' : pendingRequest === 'outgoing' ? 'Заявка' : pendingRequest === 'incoming' ? 'Принять' : 'В друзья', onPress: () => void toggleContact(), active: !!contact || pendingRequest === 'incoming', loading: contact === null }]),
     ...(onMute && chat ? [{ icon: (muted ? 'notifications-off' : 'notifications') as IconName, label: muted ? 'Без звука' : 'Звук', onPress: () => void toggleMute(), active: muted }] : []),
     // Telegram's row: call · video · sound · search · more.
     ...(onSearch ? [{ icon: 'search' as IconName, label: 'Поиск', onPress: () => { onClose(); onSearch(); } }] : []),
-    { icon: 'ellipsis-horizontal' as IconName, label: 'Ещё', onPress: () => { lightFeedback(); setMenu(true); } },
+    { icon: 'ellipsis-horizontal' as IconName, label: 'Ещё', onPress: e => { lightFeedback(); const n = e?.nativeEvent; setMenuAt(n?.pageY ? { x: n.pageX, y: n.pageY } : { y: 90 }); setMenu(true); } },
   ];
   const toggleBlock = async () => {
     setBusy(true); setError('');
@@ -104,7 +104,7 @@ export function UserProfile({ api, user, onClose, chat, onMessage, onMute, onSea
         <IconButton name="chevron-back" label="Назад" onPress={onClose} />
         {/* No title, as in Telegram: over a banner the dark «Профиль» was unreadable. */}
         <View style={{ flex: 1 }} />
-        <IconButton name="ellipsis-horizontal" label="Ещё" onPress={() => { lightFeedback(); setMenu(true); }} />
+        <IconButton name="ellipsis-horizontal" label="Ещё" onPress={() => { lightFeedback(); setMenuAt({ y: 90 }); setMenu(true); }} />
       </View>
       <ScrollView contentContainerStyle={{ padding: 18, paddingBottom: 18 + tabInset, gap: 16, alignItems: 'center', width: '100%', maxWidth: 680, alignSelf: 'center' }}>
         <DecoratedAvatar user={shown} api={api} size={128} animated />
@@ -114,7 +114,7 @@ export function UserProfile({ api, user, onClose, chat, onMessage, onMute, onSea
           {hasPlatina(shown) ? <PlatinaSeal owner={shown} /> : null}
         </View>
         <View style={{ flexDirection: 'row', gap: 10, alignSelf: 'stretch', justifyContent: 'center' }}>
-          {actions.map(action => <Pressable key={action.label} accessibilityRole="button" onPress={action.onPress} disabled={action.loading || busy} style={({ pressed }) => ({ flex: 1, maxWidth: 120, opacity: pressed ? .7 : 1 })}>
+          {actions.map(action => <Pressable key={action.label} accessibilityRole="button" onPress={e => action.onPress(e)} disabled={action.loading || busy} style={({ pressed }) => ({ flex: 1, maxWidth: 120, opacity: pressed ? .7 : 1 })}>
             <GlassSurface radius={18} shadow={false} contentStyle={{ alignItems: 'center', gap: 6, paddingVertical: 12 }}>
               {action.loading ? <ActivityIndicator size="small" color={t.accent} /> : <Icon name={action.icon} size={22} color={action.active ? t.accent : t.text} />}
               <Text style={{ color: action.active ? t.accent : t.text, fontSize: 12, fontWeight: '600' }}>{action.label}</Text>
@@ -131,7 +131,7 @@ export function UserProfile({ api, user, onClose, chat, onMessage, onMute, onSea
         {shared && onOpenAttachment ? <SharedMedia messages={shared} onOpen={attachment => { onClose(); setTimeout(() => onOpenAttachment(attachment), 250); }} /> : null}
       </ScrollView>
     </InsetView>{/* Discord-style profile effect over the top while the profile is open. */}<ProfileEffect effect={shown.profileEffect} width={width} height={420} /></GlassStage>
-    <ContextMenu visible={menu} y={90} mine onClose={() => setMenu(false)}>
+    <ContextMenu visible={menu} y={menuAt.y} x={menuAt.x} mine onClose={() => setMenu(false)}>
       {chat && contact !== null ? <MenuItem icon={contact ? 'person-remove-outline' : 'person-add-outline'} label={contact ? 'Удалить из друзей' : pendingRequest === 'outgoing' ? 'Отменить заявку' : pendingRequest === 'incoming' ? 'Принять в друзья' : 'Добавить в друзья'} onPress={() => { setMenu(false); void toggleContact(); }} /> : null}
       {chat && onRules ? <MenuItem icon="timer-outline" label={`Автоудаление · ${autoDeleteLabel(current.ttl)}`} onPress={() => { setMenu(false); setSheet('ttl'); }} /> : null}
       {chat && onRules ? <MenuItem icon={current.noCopy ? 'lock-closed' : 'lock-open-outline'} label={current.noCopy ? 'Разрешить пересылку и копирование' : 'Запретить пересылку и копирование'} onPress={() => { setMenu(false); lightFeedback(); onRules({ ...current, noCopy: !current.noCopy }); setNotice(current.noCopy ? 'Копирование снова разрешено' : 'Копировать и пересылать сообщения этого чата теперь нельзя обоим'); }} /> : null}

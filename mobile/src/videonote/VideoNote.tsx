@@ -101,6 +101,12 @@ export function VideoNoteRecorder({ visible, onClose, onDone, hold = null }: { v
   };
   const cancel = () => { cancelled.current = true; if (recording) void stop(); onClose(); };
   const allowed = !!camera?.granted && !!mic?.granted;
+  // No webcam (common on PCs) or a camera busy in another app: say so instead of a black circle forever.
+  useEffect(() => {
+    if (!visible || !allowed || ready || error) return;
+    const timer = setTimeout(() => setError('Камера не отвечает: проверь, что она подключена и не занята другой программой.'), 6000);
+    return () => clearTimeout(timer);
+  }, [visible, allowed, ready, error]);
   const autoStarted = useRef(false);
   useEffect(() => { if (!visible) autoStarted.current = false; }, [visible]);
   // iPhone reports «ready» a moment before the first video frames reach the file output; starting at once
