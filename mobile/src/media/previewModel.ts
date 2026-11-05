@@ -33,9 +33,11 @@ export function previewUri(value:unknown):string|null {
 
 export function validMedia(value:unknown):value is AttachmentMedia|undefined {
   if(value===undefined)return true;
-  if(!record(value)||!only(value,['width','height','durationMs','hdr']))return false;
+  if(!record(value)||!only(value,['width','height','durationMs','hdr','waveform']))return false;
   if(value.width!==undefined&&!dimension(value.width,20000))return false;
   if(value.height!==undefined&&!dimension(value.height,20000))return false;
   if(value.durationMs!==undefined&&(typeof value.durationMs!=='number'||!Number.isFinite(value.durationMs)||value.durationMs<0||value.durationMs>86400000))return false;
+  // Voice messages: loudness bars like Telegram's, 0…31 per bar as one letter (A–Z, a–f).
+  if(value.waveform!==undefined&&(typeof value.waveform!=='string'||!/^[A-Za-f]{8,100}$/.test(value.waveform)))return false;
   return value.hdr===undefined||['sdr','pq','hlg'].includes(String(value.hdr));
 }

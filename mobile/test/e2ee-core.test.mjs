@@ -29,6 +29,25 @@ test('embedded media preview and technical values travel only inside the authent
   for(const bad of [{...attachment,preview:{...attachment.preview,width:9999}},{...attachment,media:{gps:'private'}},{...attachment,preview:{...attachment.preview,url:'https://outside.example'}},{...attachment,extra:'unexpected payload'},{...attachment,encryption:{...attachment.encryption,extra:'unexpected payload'}}])await assert.rejects(alice.service.encrypt(chatId,bob.userId,randomUUID(),'bad',bad),/Некорректное/);
 });
 
+test('voice waveform rides beside the attachment so apps before 0.14.5 still accept the message',async t=>{
+  const {alice,bob,relay,chatId,approve}=await harness(t);await approve(alice,bob);await approve(bob,alice);
+  const {nodeSignalBridge}=await import('./support/signal-node.mjs');
+  const sent=[],original=nodeSignalBridge.encrypt;
+  nodeSignalBridge.encrypt=async(...args)=>{sent.push(JSON.parse(args[3]));return original.apply(nodeSignalBridge,args);};
+  t.after(()=>{nodeSignalBridge.encrypt=original;});
+  const waveform='ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefABCDEFGHIJKLMNOP';
+  const attachment={id:randomUUID(),name:'voice-20261105-120000.m4a',mimeType:'audio/mp4',size:300,encryption:{scheme:'aes-256-gcm-siv',key:Buffer.alloc(32,1).toString('base64'),nonce:Buffer.alloc(12,2).toString('base64'),fileKeyId:randomUUID()},media:{durationMs:4630,waveform}};
+  const id=randomUUID(),encrypted=await alice.service.encrypt(chatId,bob.userId,id,'',attachment);
+  assert.ok(sent.length>0);
+  for(const body of sent){
+    // What an older app checks: media keys strictly, without «waveform».
+    assert.deepEqual(Object.keys(body.attachment.media),['durationMs']);
+    assert.equal(body.voiceWaveform,waveform);
+  }
+  const message=relay.deliver(alice.userId,chatId,id,encrypted);await bob.service.syncChat(chatId);
+  assert.deepEqual((await bob.service.preview(message)).attachment,attachment);
+});
+
 test('sending and receiving remain blocked until each side approves the same safety code', async t => {
   const { alice, bob, relay, chatId, approve } = await harness(t);
   const id = randomUUID();

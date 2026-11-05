@@ -64,6 +64,21 @@ function validEncrypted(value: unknown): value is EncryptedMessage {
   if(new Set(envelopes.map(envelope=>envelope.deviceId.toLowerCase())).size!==envelopes.length)return false;
   return validAttachmentIds(value.attachmentIds??[]);
 }
+// Voice waveform travels next to the attachment, not inside attachment.media: apps before 0.14.5
+// check media keys strictly and would refuse the whole message, but ignore unknown top-level keys.
+const WAVEFORM = /^[A-Za-f]{8,100}$/;
+function wireBody(plain: PlainBody): Record<string, unknown> {
+  const media = plain.attachment?.media;
+  if (!plain.attachment || !media || media.waveform === undefined) return { ...plain };
+  const { waveform, ...rest } = media;
+  const attachment: Attachment = { ...plain.attachment };
+  if (Object.keys(rest).length) attachment.media = rest; else delete attachment.media;
+  return { ...plain, attachment, voiceWaveform: waveform };
+}
+function withWaveform(attachment: Attachment | null, waveform: unknown): Attachment | null {
+  if (!attachment || typeof waveform !== 'string' || !WAVEFORM.test(waveform) || attachment.media?.waveform !== undefined) return attachment;
+  return { ...attachment, media: { ...(attachment.media || {}), waveform } };
+}
 export function validAttachment(value: unknown): value is Attachment | null {
   if(value===null)return true;
   if(!hasOnlyKeys(value,['id','name','mimeType','size','encryption','media','preview']))return false;
@@ -206,7 +221,7 @@ export class CryptoService {
           if(claimed.device.id!==device.id||claimed.device.userId!==device.userId||!sameDevice(claimed.device,device)||!sameDevice(claimed.bundle,device))throw new UntrustedDeviceError();
           bundle=claimed.bundle;
         }
-        const payload=JSON.stringify({version:1,chatId,clientId,senderId:this.userId,senderDeviceId:this.local!.id,recipientId:device.userId,recipientDeviceId:device.id,...plain});
+        const payload=JSON.stringify({version:1,chatId,clientId,senderId:this.userId,senderDeviceId:this.local!.id,recipientId:device.userId,recipientDeviceId:device.id,...wireBody(plain)});
         const result=await this.bridge.encrypt(state,address(device.userId,device.id),1,payload,bundle);
         state=result.state;changes[sessionKey(device)]='1';encrypted.envelopes.push({userId:device.userId,deviceId:device.id,type:result.type,body:result.body});
       }
@@ -239,7 +254,7 @@ export class CryptoService {
     if(body.version!==1||body.chatId!==message.chatId||body.clientId!==message.clientId||body.senderId!==message.senderId||body.senderDeviceId!==encrypted.senderDeviceId||body.recipientId!==this.userId||body.recipientDeviceId!==this.local!.id||typeof body.text!=='string'||body.text.length>8000||!validAttachment(body.attachment)||typeof body.sentAt!=='string'||!Number.isFinite(Date.parse(body.sentAt))||!validMeta(body.meta))throw new Error('Содержимое не соответствует адресу сообщения.');
     const attachmentIds=body.attachment?[body.attachment.id]:[];
     if(JSON.stringify([...(encrypted.attachmentIds||[])].sort())!==JSON.stringify(attachmentIds))throw new Error('Неверная привязка зашифрованного вложения.');
-    const plain:PlainBody={text:body.text,attachment:body.attachment,sentAt:body.sentAt,...(body.meta?{meta:body.meta}:{})};
+    const plain:PlainBody={text:body.text,attachment:withWaveform(body.attachment,body.voiceWaveform),sentAt:body.sentAt,...(body.meta?{meta:body.meta}:{})};
     return {plain,protocol:result.state,sender};
   }
   private async decode(message:Message,cursorKey:string):Promise<void> {

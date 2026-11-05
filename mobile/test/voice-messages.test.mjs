@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
-import { isVoice, voiceFileName, formatVoiceTime, attachmentLabel, levelFromMetering, VOICE_MIME } from '../src/voice/voice.ts';
+import { isVoice, voiceFileName, formatVoiceTime, attachmentLabel, levelFromMetering, VOICE_MIME, formatVoiceTimeFine, encodeWaveform, decodeWaveform, WAVEFORM_BARS } from '../src/voice/voice.ts';
 import { replyPreview } from '../src/messageMeta.ts';
 
 test('voice messages are recognised only by the exact name and AAC container', () => {
@@ -35,4 +35,27 @@ test('video notes are recognised by name and labelled', async () => {
   assert.equal(isVideoNote({ name, mimeType: 'video/mp4' }), true);
   assert.equal(isVideoNote({ name: 'video.mp4', mimeType: 'video/mp4' }), false);
   assert.equal(attachmentLabel({ name, mimeType: 'video/mp4', media: { durationMs: 9000 } }), '⏺ Видеосообщение · 0:09');
+});
+
+test('recording timer shows hundredths like Telegram', () => {
+  assert.equal(formatVoiceTimeFine(4630), '0:04,63');
+  assert.equal(formatVoiceTimeFine(61005), '1:01,00');
+  assert.equal(formatVoiceTimeFine(-5), '0:00,00');
+  assert.equal(formatVoiceTimeFine(NaN), '0:00,00');
+});
+
+test('waveform: 48 bars relative to the loudest moment, no fake bars for silence', () => {
+  assert.equal(encodeWaveform([]), undefined);
+  assert.equal(encodeWaveform([0, 0, 0, 0, 0]), undefined);
+  const levels = Array.from({ length: 300 }, (_, i) => i < 150 ? 0.1 : 0.8);
+  const wave = encodeWaveform(levels);
+  assert.equal(wave.length, WAVEFORM_BARS);
+  assert.match(wave, /^[A-Za-f]+$/);
+  assert.equal(wave.at(-1), 'f'); // loudest = 31
+  const bars = decodeWaveform(wave);
+  assert.equal(bars.length, WAVEFORM_BARS);
+  assert.ok(bars[0] < bars.at(-1));
+  assert.equal(decodeWaveform('xyz12345'), null);
+  assert.equal(decodeWaveform('AB'), null);
+  assert.equal(decodeWaveform(undefined), null);
 });

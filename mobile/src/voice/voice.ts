@@ -14,6 +14,33 @@ export function isVoice(attachment: Pick<Attachment, 'name' | 'mimeType'> | null
   return !!attachment && attachment.mimeType === VOICE_MIME && VOICE_NAME.test(attachment.name);
 }
 
+/** Recording timer as in Telegram: 0:04,63. */
+export function formatVoiceTimeFine(ms: number): string {
+  const value = Math.max(0, Number.isFinite(ms) ? ms : 0), total = Math.floor(value / 1000);
+  return `${Math.floor(total / 60)}:${String(total % 60).padStart(2, '0')},${String(Math.floor(value % 1000 / 10)).padStart(2, '0')}`;
+}
+
+// Waveform of a voice message (Telegram shows the loudness of the whole take in the bubble). It is
+// measured while recording and travels inside the encrypted message: one letter per bar, 0…31.
+const WAVE = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdef';
+export const WAVEFORM_BARS = 48;
+export function encodeWaveform(levels: readonly number[]): string | undefined {
+  if (levels.length < 4) return undefined;
+  const peak = Math.max(...levels);
+  if (!(peak > 0.02)) return undefined; // no metering (silence or unsupported): no fake bars
+  let out = '';
+  for (let bar = 0; bar < WAVEFORM_BARS; bar++) {
+    const from = Math.floor(bar * levels.length / WAVEFORM_BARS), to = Math.max(from + 1, Math.floor((bar + 1) * levels.length / WAVEFORM_BARS));
+    let value = 0; for (let i = from; i < to && i < levels.length; i++) value = Math.max(value, levels[i]);
+    out += WAVE[Math.max(0, Math.min(31, Math.round(value / peak * 31)))];
+  }
+  return out;
+}
+export function decodeWaveform(value: string | undefined): number[] | null {
+  if (!value || !/^[A-Za-f]{8,100}$/.test(value)) return null;
+  return [...value].map(char => WAVE.indexOf(char) / 31);
+}
+
 export function formatVoiceTime(ms: number): string {
   const total = Math.max(0, Math.floor((Number.isFinite(ms) ? ms : 0) / 1000));
   return `${Math.floor(total / 60)}:${String(total % 60).padStart(2, '0')}`;

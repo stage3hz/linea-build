@@ -71,7 +71,7 @@ export function SavedScreen({ api, user, store, onBack, wide = false }: { api: A
     try {
       if (take.durationMs < VOICE_MIN_MS) { flash('Слишком короткая запись.'); return; }
       const name = voiceFileName();
-      await uploadAndSave({ uri: take.uri, name, mimeType: VOICE_MIME }, { name, mimeType: VOICE_MIME, media: { durationMs: Math.round(take.durationMs) } }).catch(() => {});
+      await uploadAndSave({ uri: take.uri, name, mimeType: VOICE_MIME }, { name, mimeType: VOICE_MIME, media: { durationMs: Math.round(take.durationMs), ...(take.waveform ? { waveform: take.waveform } : {}) } }).catch(() => {});
     } finally { await FileSystem.deleteAsync(take.uri, { idempotent: true }).catch(() => {}); }
   };
   const voice = useVoiceRecorder(() => void finishVoice(true));
