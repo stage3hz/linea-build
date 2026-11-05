@@ -13,6 +13,9 @@ css+='*:focus,*:focus-visible{outline:none!important}input,textarea{caret-color:
 // The window itself must never scroll: a sheet sliding in from below or focus() could scroll <html>
 // and shift the whole app (seen when opening attachments). `clip` also blocks programmatic scrolling.
 css+='html,body{overflow:clip!important;overscroll-behavior:none;height:100%}';
+// A dialog (profile, attachments, sheets) drawn over the title bar must stay clickable: Electron's drag
+// region otherwise swallows clicks on its back/close buttons. no-drag on the dialog carves the area out.
+css+='[aria-modal="true"],[aria-modal="true"] *,[role="dialog"],[role="dialog"] *{-webkit-app-region:no-drag}';
 const html=path.join(dist,'index.html');writeFileSync(html,readFileSync(html,'utf8').replace('</head>',`<style>${css}</style></head>`));
 
 for(const name of ['capture.html','capture-picker.js'])copyFileSync(fileURLToPath(new URL('./'+name,import.meta.url)),path.join(dist,name));
