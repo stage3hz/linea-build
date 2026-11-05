@@ -131,6 +131,16 @@ enum VideoFormat {
     }
     return (result,Int(length))
   }
+  /// Same coded stream: codec, size, NAL length and parameter sets. iPhone camera files can attach
+  /// a new, equivalent format description object (other extensions such as colour tags or atoms),
+  /// which a strict CMFormatDescriptionEqual rejected for every round video.
+  static func sameStream(_ a:CMFormatDescription,_ b:CMFormatDescription,hevc:Bool) -> Bool {
+    if CMFormatDescriptionEqual(a,otherFormatDescription:b) {return true}
+    guard CMFormatDescriptionGetMediaSubType(a)==CMFormatDescriptionGetMediaSubType(b) else {return false}
+    let da=CMVideoFormatDescriptionGetDimensions(a),db=CMVideoFormatDescriptionGetDimensions(b)
+    guard da.width==db.width,da.height==db.height,let pa=try? parameters(a,hevc:hevc),let pb=try? parameters(b,hevc:hevc) else {return false}
+    return pa.1==pb.1 && pa.0.count==pb.0.count && zip(pa.0,pb.0).allSatisfy {$0.isEqual(to:$1 as Data)}
+  }
   static func clean(_ source:CMFormatDescription,hevc:Bool,hdr:String) throws -> (CMFormatDescription,Int) {
     let (parameters,length)=try parameters(source,hevc:hevc)
     let sps=try parameters.filter{try VideoNal.type([UInt8]($0 as Data),hevc:hevc)==(hevc ? 33:7)}

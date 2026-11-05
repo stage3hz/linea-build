@@ -6,7 +6,7 @@ import AudioToolbox
 enum VideoSamples {
   static func video(_ source:CMSampleBuffer,track:VideoTrackInfo) throws -> CMSampleBuffer? {
     guard CMSampleBufferGetNumSamples(source)==1,
-      let format=CMSampleBufferGetFormatDescription(source),CMFormatDescriptionEqual(format,otherFormatDescription:track.original) else {throw VideoFailure("VIDEO_FORMAT_CHANGED")}
+      let format=CMSampleBufferGetFormatDescription(source),VideoFormat.sameStream(format,track.original,hevc:track.hevc) else {throw VideoFailure("VIDEO_FORMAT_CHANGED")}
     let clean=try VideoNal.clean(data(source),hevc:track.hevc,hdr:track.hdr,lengthBytes:track.lengthBytes)
     if clean.isEmpty {return nil}
     let result=try make(clean,format:track.format,source:source,sampleCount:1,sampleSize:clean.count)
