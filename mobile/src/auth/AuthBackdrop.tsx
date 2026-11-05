@@ -94,9 +94,12 @@ export function Wordmark({ size = 58 }: { size?: number }) {
   // iOS cuts a text shadow at the edges of the Text's own box, so a wide blur showed up as a
   // lighter rectangle around the word. Extra room (padding) lets the blur fade out completely;
   // the copies stay centred under the letters because the padding is the same on every side.
-  const room = (r: number) => ({ padding: Math.ceil(r * 2.2) });
-  const shadow = <Text pointerEvents="none" style={{ ...font, ...room(size * 0.23), position: 'absolute', color: metal[2], textShadowColor: t.dark ? 'rgba(0,0,0,0.85)' : 'rgba(20,28,45,0.28)', textShadowRadius: size * 0.16, textShadowOffset: { width: 0, height: size * 0.07 } }}>Инвиз</Text>;
-  const glow = <Text pointerEvents="none" style={{ ...font, ...room(size * 0.55), position: 'absolute', color: metal[2], textShadowColor: t.dark ? 'rgba(205,220,255,0.38)' : 'rgba(120,140,190,0.25)', textShadowRadius: size * 0.55, textShadowOffset: { width: 0, height: 0 } }}>Инвиз</Text>;
+  // The copies are absolute inside a box as wide as the word, so with that padding Android wrapped
+  // them onto extra lines («Инви / з» around the logo): they get the word's measured width plus the
+  // padding and never wrap; until the word is measured they are not drawn.
+  const room = (r: number) => { const pad = Math.ceil(r * 2.2); return { padding: pad, width: width + pad * 2 + 2, textAlign: 'center' as const }; };
+  const shadow = !width ? null : <Text numberOfLines={1} allowFontScaling={false} pointerEvents="none" style={{ ...font, ...room(size * 0.23), position: 'absolute', color: metal[2], textShadowColor: t.dark ? 'rgba(0,0,0,0.85)' : 'rgba(20,28,45,0.28)', textShadowRadius: size * 0.16, textShadowOffset: { width: 0, height: size * 0.07 } }}>Инвиз</Text>;
+  const glow = !width ? null : <Text numberOfLines={1} allowFontScaling={false} pointerEvents="none" style={{ ...font, ...room(size * 0.55), position: 'absolute', color: metal[2], textShadowColor: t.dark ? 'rgba(205,220,255,0.38)' : 'rgba(120,140,190,0.25)', textShadowRadius: size * 0.55, textShadowOffset: { width: 0, height: 0 } }}>Инвиз</Text>;
   let letters: React.ReactNode;
   if (Platform.OS === 'web') {
     // The PC app: CSS paints the moving metal inside the letters.
@@ -115,8 +118,8 @@ export function Wordmark({ size = 58 }: { size?: number }) {
       filter: t.dark ? `drop-shadow(0 ${size * 0.07}px ${size * 0.09}px rgba(0,0,0,0.85)) drop-shadow(0 0 ${size * 0.3}px rgba(205,220,255,0.35))` : `drop-shadow(0 ${size * 0.06}px ${size * 0.08}px rgba(20,28,45,0.3)) drop-shadow(0 0 ${size * 0.28}px rgba(120,140,190,0.25))`,
     } }, 'Инвиз');
   } else {
-    letters = <MaskedView maskElement={<Text style={{ ...font, color: '#000' }}>Инвиз</Text>}>
-      <Text onLayout={e => setWidth(e.nativeEvent.layout.width)} style={{ ...font, opacity: 0 }}>Инвиз</Text>
+    letters = <MaskedView maskElement={<Text numberOfLines={1} allowFontScaling={false} style={{ ...font, color: '#000' }}>Инвиз</Text>}>
+      <Text numberOfLines={1} allowFontScaling={false} onLayout={e => setWidth(e.nativeEvent.layout.width)} style={{ ...font, opacity: 0 }}>Инвиз</Text>
       <Animated.View pointerEvents="none" style={{ position: 'absolute', top: 0, bottom: 0, left: 0, width: (width || size * 4) * 3, transform: [{ translateX: sweep.interpolate({ inputRange: [0, 1], outputRange: [0, -(width || size * 4) * 2] }) }] }}>
         <LinearGradient colors={metal as [string, string, ...string[]]} start={{ x: 0, y: 0.35 }} end={{ x: 1, y: 0.65 }} style={StyleSheet.absoluteFill} />
       </Animated.View>
