@@ -5,8 +5,8 @@ export const AI_ANSWER_LIMIT = 16000;
 export type AIMessage = { role: 'user' | 'assistant'; content: string };
 export type AIProvider = 'openrouter' | 'freellmapi';
 export type AIReply = { text: string; model: string; provider: AIProvider; freeOnly: true; routedVia?: string };
-export type AIAskOptions = { model?: string; image?: string };
-export type AICapabilityName = 'text' | 'code' | 'image' | 'video' | 'threeD' | 'social' | 'speech' | 'transcribe' | 'vision' | 'models';
+export type AIAskOptions = { model?: string; image?: string | string[]; documents?: { name: string; text: string }[] };
+export type AICapabilityName = 'text' | 'code' | 'image' | 'video' | 'threeD' | 'social' | 'speech' | 'transcribe' | 'vision' | 'models' | 'documents';
 export type AICapability = { enabled: boolean; reason?: string };
 /** `platina`: full AI (model choice, code, photos, media). Without it — fast text answers only. Older servers: true. */
 export type AIStatus = { configured: boolean; model: string; provider: AIProvider; freeOnly: true; platina: boolean; capabilities: Record<AICapabilityName, AICapability> };
@@ -33,14 +33,14 @@ export function parseAIStatus(value: unknown): AIStatus {
   const source = record(status.capabilities);
   const capability = (name: AICapabilityName): AICapability => {
     // Newer tools are optional so an older server simply reports them as unavailable.
-    if (['speech', 'transcribe', 'vision', 'models'].includes(name) && source[name] === undefined) return { enabled: false, reason: 'Этот сервер пока не поддерживает инструмент.' };
+    if (['speech', 'transcribe', 'vision', 'models', 'documents'].includes(name) && source[name] === undefined) return { enabled: false, reason: 'Этот сервер пока не поддерживает инструмент.' };
     const entry = record(source[name]);
     if (typeof entry.enabled !== 'boolean' || (entry.reason !== undefined && typeof entry.reason !== 'string')) throw new Error('Сервер не подтвердил доступность AI-инструментов.');
     return { enabled: entry.enabled, reason: typeof entry.reason === 'string' ? entry.reason : undefined };
   };
   return { configured: status.configured, provider: status.provider as AIProvider, model: status.model as string, freeOnly: true, platina: status.platina !== false, capabilities: {
     text: capability('text'), code: capability('code'), image: capability('image'), video: capability('video'), threeD: capability('threeD'), social: capability('social'),
-    speech: capability('speech'), transcribe: capability('transcribe'), vision: capability('vision'), models: capability('models'),
+    speech: capability('speech'), transcribe: capability('transcribe'), vision: capability('vision'), models: capability('models'), documents: capability('documents'),
   } };
 }
 
@@ -110,7 +110,7 @@ export class AIConversation {
     let messages: AIMessage[];
     try { messages = historyForQuestion(this.state.turns, question); }
     catch (error) { this.publish({ ...this.state, error: failureText(error) }); return; }
-    const turn: AITurn = { id: ++this.nextId, question: question.trim(), status: 'pending', startedAt: Date.now(), ...(options && (options.model || options.image) ? { options } : {}) };
+    const turn: AITurn = { id: ++this.nextId, question: question.trim(), status: 'pending', startedAt: Date.now(), ...(options && (options.model || options.image || options.documents) ? { options } : {}) };
     this.publish({ ...this.state, pending: true, turns: [...this.state.turns, turn], error: '' });
     await this.run(turn.id, messages, turn.options);
   }

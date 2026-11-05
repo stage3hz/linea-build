@@ -6,7 +6,8 @@ export async function aiStatus(api: Api, signal: AbortSignal) {
 }
 
 export function aiQuestion(api: Api, messages: AIMessage[], signal: AbortSignal, options?: AIAskOptions) {
-  return api.request<unknown>('/ai/chat', { method: 'POST', signal, body: JSON.stringify({ messages, consent: true, ...(options?.model ? { model: options.model } : {}), ...(options?.image ? { image: options.image } : {}) }) });
+  const image = Array.isArray(options?.image) ? (options.image.length > 1 ? options.image : options.image[0]) : options?.image;
+  return api.request<unknown>('/ai/chat', { method: 'POST', signal, body: JSON.stringify({ messages, consent: true, ...(options?.model ? { model: options.model } : {}), ...(image ? { image } : {}), ...(options?.documents?.length ? { documents: options.documents } : {}) }) });
 }
 
 const record = (value: unknown) => typeof value === 'object' && value !== null && !Array.isArray(value) ? value as Record<string, unknown> : null;
@@ -42,4 +43,12 @@ export async function aiTranscribe(api: Api, audioBase64: string, signal: AbortS
 /** Video comes back as MP4 bytes; the caller writes them to a local file. */
 export async function aiVideo(api: Api, prompt: string, duration: number, signal: AbortSignal): Promise<ArrayBuffer> {
   return api.binary('/ai/video', { method: 'POST', signal, body: JSON.stringify({ prompt, duration, consent: true }) }, 'video/mp4');
+}
+
+export type AIDocument = { name: string; text: string; truncated?: boolean; pages?: number };
+/** The server reads a document into text (nothing is stored); the text then goes with the questions. */
+export async function aiDocument(api: Api, name: string, base64: string, signal?: AbortSignal): Promise<AIDocument> {
+  const data = record(await api.request<unknown>('/ai/document', { method: 'POST', signal, body: JSON.stringify({ name, data: base64, consent: true }) }));
+  if (typeof data?.text !== 'string' || !data.text.trim()) throw new Error('Сервер не вернул текст документа.');
+  return { name, text: data.text, ...(data.truncated === true ? { truncated: true } : {}), ...(typeof data.pages === 'number' ? { pages: data.pages } : {}) };
 }

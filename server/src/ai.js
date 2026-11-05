@@ -1,3 +1,4 @@
+import { documentText, MAX_DOCUMENT_BYTES, MAX_DOCUMENT_TEXT } from './documents.js';
 const OPENROUTER = { name: 'openrouter', endpoint: 'https://openrouter.ai/api/v1/chat/completions', model: 'openrouter/free' };
 
 /**
@@ -60,13 +61,35 @@ function historyFrom(messages) {
 }
 
 function messagesFrom(body) {
-  if (!onlyKeys(body, ['messages', 'consent', 'model', 'image'])) throw invalid();
+  if (!onlyKeys(body, ['messages', 'consent', 'model', 'image', 'documents'])) throw invalid();
   if (body.consent !== true) throw new AiFailure(400, 'AI_CONSENT_REQUIRED', 'Сначала подтвердите передачу этой AI-переписки внешнему провайдеру.');
   const messages = historyFrom(body.messages);
   const characters = messages.reduce((sum, message) => sum + message.content.length, 0);
   if (characters > 32_000) throw invalid();
   if (messages[0].role !== 'user' || messages.at(-1).role !== 'user') throw invalid();
   return messages;
+}
+
+const MAX_DOCUMENTS = 5, MAX_DOCUMENTS_TEXT = 200_000;
+/** Documents attached to the conversation travel with each question, ahead of its text. */
+function documentsFrom(body) {
+  if (body.documents === undefined) return null;
+  const list = body.documents;
+  if (!Array.isArray(list) || !list.length || list.length > MAX_DOCUMENTS) throw mediaInvalid(`К беседе — до ${MAX_DOCUMENTS} документов.`);
+  let total = 0;
+  const documents = list.map(item => {
+    if (!onlyKeys(item, ['name', 'text']) || typeof item.name !== 'string' || !item.name.trim() || item.name.length > 200 || !validText(item.text, MAX_DOCUMENT_TEXT)) throw mediaInvalid('Документ к вопросу повреждён или слишком большой.');
+    total += item.text.length;
+    return { name: item.name.replace(/[\r\n]+/g, ' ').trim(), text: item.text };
+  });
+  if (total > MAX_DOCUMENTS_TEXT) throw mediaInvalid('Документы вместе слишком большие. Начни новую беседу с меньшими файлами.');
+  return documents;
+}
+function withDocuments(messages, documents) {
+  if (!documents) return messages;
+  const last = messages.at(-1);
+  const block = documents.map(doc => `<документ name="${doc.name.replace(/"/g, "'")}">\n${doc.text}\n</документ>`).join('\n\n');
+  return [...messages.slice(0, -1), { role: 'user', content: `Пользователь приложил документы. Отвечай по их содержанию; если ответа в них нет — так и скажи.\n\n${block}\n\nВопрос: ${last.content}` }];
 }
 
 function capabilities(configured, provider = OPENROUTER) {
@@ -80,6 +103,7 @@ function capabilities(configured, provider = OPENROUTER) {
     video: media ? { enabled: true, reason: viaRouter } : { enabled: false, reason: 'AI-генерация и AI-монтаж видео не подключены.' },
     speech: media ? { enabled: true, reason: viaRouter } : { enabled: false, reason: 'Озвучка текста не подключена.' },
     transcribe: media ? { enabled: true, reason: viaRouter } : { enabled: false, reason: 'Расшифровка аудио не подключена.' },
+    documents: media ? { enabled: true } : { enabled: false, reason: 'Документы доступны, когда сервер подключён к FreeLLMAPI.' },
     vision: media ? { enabled: true, reason: viaRouter } : { enabled: false, reason: 'Вопросы по фото не подключены.' },
     models: media ? { enabled: true } : { enabled: false, reason: 'Выбор модели доступен с FreeLLMAPI.' },
     threeD: { enabled: false, reason: 'Генерация и редактирование 3D-моделей не подключены.' },
@@ -314,8 +338,11 @@ function chatHandler({ apiKey, configured, fetchImpl, now, timeoutMs, provider, 
     const abort = () => controller?.abort();
     const disconnected = () => { if (!reply.raw.writableEnded) abort(); };
     try {
-      const messages = messagesFrom(request.body);
+      const documents = documentsFrom(request.body);
+      const messages = withDocuments(messagesFrom(request.body), documents);
       const options = chatOptions(request.body, provider);
+      if (documents && !isPlatina(userId)) throw platinaRequired();
+      if (documents && provider.name !== 'freellmapi') throw featureOff();
       // Without Platina: fast answers only — no model choice, no photo questions.
       if (!isPlatina(userId)) {
         if (options.model !== undefined || options.image !== undefined) throw platinaRequired();
@@ -378,7 +405,8 @@ function platinaAccess(access, isPlatina) {
 // FreeLLMAPI surfaces: model choice, vision, images, speech, transcription, video.
 // Only the self-hosted router is called; clients never pick a URL or a key.
 // ---------------------------------------------------------------------------
-const MAX_IMAGE_BODY = 6 * 1024 * 1024;
+const MAX_IMAGE_BODY = 17 * 1024 * 1024;
+const MAX_IMAGES = 8;
 const MAX_AUDIO_BODY = 15 * 1024 * 1024;
 const MAX_IMAGE_BYTES = 4 * 1024 * 1024;
 const MAX_GENERATED_IMAGE = 10 * 1024 * 1024;
@@ -400,7 +428,14 @@ function chatOptions(body, provider) {
     if (typeof model !== 'string' || !(AI_STRATEGIES.includes(model) || /^[A-Za-z0-9_./:@+-]{1,200}$/.test(model))) throw mediaInvalid('Неизвестная модель.');
     options.model = model;
   }
-  if (image !== undefined) options.image = dataImage(image);
+  if (image !== undefined) {
+    // One photo, or several (photos and frames of a video) — up to MAX_IMAGES, 12 MB together.
+    const list = Array.isArray(image) ? image : [image];
+    if (!list.length || list.length > MAX_IMAGES) throw mediaInvalid(`К вопросу — до ${MAX_IMAGES} фото или кадров.`);
+    const checked = list.map(dataImage);
+    if (checked.reduce((sum, item) => sum + item.length, 0) > Math.ceil(12 * 1024 * 1024 / 3) * 4) throw mediaInvalid('Фото к вопросу вместе — до 12 МБ.');
+    options.image = checked;
+  }
   return options;
 }
 
@@ -413,9 +448,10 @@ function dataImage(value) {
 }
 
 function withImage(messages, image) {
-  if (!image) return messages;
+  if (!image || (Array.isArray(image) && !image.length)) return messages;
   const last = messages.at(-1);
-  return [...messages.slice(0, -1), { role: 'user', content: [{ type: 'text', text: last.content }, { type: 'image_url', image_url: { url: image } }] }];
+  const images = (Array.isArray(image) ? image : [image]).map(url => ({ type: 'image_url', image_url: { url } }));
+  return [...messages.slice(0, -1), { role: 'user', content: [{ type: 'text', text: last.content }, ...images] }];
 }
 
 function sniffImage(bytes) {
@@ -505,6 +541,22 @@ function mediaHandler({ budget, configured, provider, deadline }, work) {
 function registerMediaRoutes(app, { access, budget, apiKey, configured, fetchImpl, now, provider }) {
   const call = (controller, path, init) => routerCall(provider, apiKey, fetchImpl, controller, now, path, init);
   const json = body => ({ method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) });
+
+  // Text out of a PDF / Office / text file. Nothing leaves the server here and nothing is kept.
+  let reading = 0;
+  app.post('/ai/document', { preHandler: access, bodyLimit: Math.ceil(MAX_DOCUMENT_BYTES / 3) * 4 + 64 * 1024, logLevel: 'silent' }, async (request, reply) => {
+    try {
+      const body = request.body;
+      if (!onlyKeys(body, ['name', 'data', 'consent']) || body.consent !== true) throw invalid();
+      if (typeof body.name !== 'string' || !body.name.trim() || body.name.length > 200) throw mediaInvalid('Нет имени файла.');
+      if (typeof body.data !== 'string' || !/^[A-Za-z0-9+/]+={0,2}$/.test(body.data) || body.data.length > Math.ceil(MAX_DOCUMENT_BYTES / 3) * 4) throw mediaInvalid('Документ — до 15 МБ.');
+      if (reading >= 2) throw new AiFailure(429, 'AI_RATE_LIMIT', 'Сервер разбирает другие документы. Повтори через минуту.', 30);
+      reading++;
+      try { return await documentText(body.name.trim(), Buffer.from(body.data, 'base64')); }
+      catch (error) { if (error instanceof AiFailure) throw error; throw mediaInvalid(error instanceof Error && error.message ? error.message : 'Не удалось прочитать документ.'); }
+      finally { reading--; }
+    } catch (error) { return sendFailure(reply, error); }
+  });
 
   app.get('/ai/models', { preHandler: access, logLevel: 'silent' }, async (request, reply) => {
     try {

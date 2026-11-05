@@ -123,8 +123,17 @@ export function AttachmentCard({attachment,api,onPress,compact=false}:{attachmen
   </Pressable>;
 }
 
-export function Sheet({visible,title,onClose,children}:{visible:boolean;title:string;onClose:()=>void;children:React.ReactNode}) {
-  const t=useTheme();const insets=useSafeAreaInsets();return <Modal visible={visible} transparent animationType="fade" onRequestClose={onClose}>
+/** `onClosed` runs once the sheet is fully gone — open a picker or another modal from there:
+ * iOS silently refuses to present one while a sheet is still disappearing. */
+export function Sheet({visible,title,onClose,onClosed,children}:{visible:boolean;title:string;onClose:()=>void;onClosed?:()=>void;children:React.ReactNode}) {
+  const t=useTheme();const insets=useSafeAreaInsets();
+  const closed=React.useRef(onClosed);closed.current=onClosed;
+  const wasVisible=React.useRef(visible);
+  React.useEffect(()=>{
+    if(wasVisible.current&&!visible&&Platform.OS!=='ios'){const timer=setTimeout(()=>closed.current?.(),Platform.OS==='web'?0:250);wasVisible.current=visible;return()=>clearTimeout(timer);}
+    wasVisible.current=visible;return undefined;
+  },[visible]);
+  return <Modal visible={visible} transparent animationType="fade" onRequestClose={onClose} onDismiss={Platform.OS==='ios'?()=>closed.current?.():undefined}>
     {/* The screen stays visible under a dim (it used to be replaced by a plain background, so every sheet
         looked like a jump to another page), and the sheet itself is opaque like Telegram's. */}
     <KeyboardAvoidingView style={{flex:1}} behavior={Platform.OS==='ios'?'padding':undefined}><View style={{flex:1,justifyContent:'flex-end',backgroundColor:t.black?'rgba(0,0,0,0.55)':t.dark?'rgba(0,5,19,0.5)':'rgba(20,32,60,0.28)',paddingHorizontal:12,paddingBottom:Math.max(12,insets.bottom)}}>

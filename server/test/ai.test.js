@@ -436,6 +436,12 @@ test('FreeLLMAPI: status advertises media, models list strips router entries, ch
   assert.equal((await f.post({ ...body(), model: 'drop table' })).statusCode, 400);
   assert.equal((await f.post({ ...body(), image: 'data:image/png;base64,AAAA' })).statusCode, 400, 'bytes must really be an image');
   assert.equal((await f.post({ ...body(), image: `data:image/jpeg;base64,${PNG_1x1}` })).statusCode, 400, 'declared type must match bytes');
+  // Several photos (or frames of a video) go with one question.
+  const several = await f.post({ ...body('Сравни'), image: [image, image, image] });
+  assert.equal(several.statusCode, 200, several.body);
+  assert.equal(JSON.parse(f.calls.at(-1).init.body).messages.at(-1).content.filter(part => part.type === 'image_url').length, 3);
+  assert.equal((await f.post({ ...body(), image: Array(9).fill(image) })).statusCode, 400, 'at most 8 pictures');
+  assert.equal((await f.post({ ...body(), image: [] })).statusCode, 400);
 });
 
 test('FreeLLMAPI: image, speech, transcription and video are validated end to end', async t => {
@@ -496,4 +502,21 @@ test('without Platina: fast answers only — model choice, photos, media and the
   assert.equal((await f.app.inject({ method: 'GET', url: '/ai/models', headers: { authorization: 'Bearer test-session' } })).statusCode, 403);
   assert.equal((await f.app.inject({ method: 'POST', url: '/ai/image', headers: { authorization: 'Bearer test-session' }, payload: { prompt: 'кот', consent: true } })).statusCode, 403);
   assert.equal(sent.length, 1);
+});
+
+test('FreeLLMAPI: documents are read on the server and travel with the question', async t => {
+  const f = await freellmapiFixture(t, (url, init) => {
+    const body = JSON.parse(init.body);
+    return jsonResponse({ model: 'google/gemini-2.5-flash', choices: [{ message: { role: 'assistant', content: `ok ${body.messages.at(-1).content.length}` }, finish_reason: 'stop' }] });
+  });
+  const pdf = (await import('node:fs')).readFileSync(new URL('./fixtures/sample.pdf', import.meta.url));
+  const read = await f.call('POST', '/ai/document', { name: 'счёт.pdf', data: pdf.toString('base64'), consent: true });
+  assert.equal(read.statusCode, 200, read.body);
+  assert.match(read.json().text, /Invoice 42/);
+  const asked = await f.post({ ...body('Сколько к оплате?'), documents: [{ name: 'счёт.pdf', text: read.json().text }] });
+  assert.equal(asked.statusCode, 200, asked.body);
+  const sent = JSON.parse(f.calls.at(-1).init.body).messages.at(-1).content;
+  assert.match(sent, /<документ name="счёт.pdf">[\s\S]*Invoice 42[\s\S]*Вопрос: Сколько к оплате\?/);
+  assert.equal((await f.post({ ...body(), documents: [{ name: 'x', text: 'y', extra: 1 }] })).statusCode, 400);
+  assert.equal((await f.call('POST', '/ai/document', { name: 'x.heic', data: 'AAAA', consent: true })).statusCode, 400);
 });
