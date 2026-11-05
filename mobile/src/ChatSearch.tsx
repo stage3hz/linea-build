@@ -74,6 +74,13 @@ export function ChatSearch({ api, me, store, onClose, onSaved }: { api: Api; me:
     if (scope === 'chats') {
       const list: Row[] = 'избранное'.includes(needle) ? [{ key: 'saved', title: 'Избранное', sub: 'Заметки и сохранённое', saved: true, onPress: () => { onClose(); onSaved(); } }] : [];
       for (const chat of store.chats) if (`${chat.peer.displayName} ${chat.peer.username}`.toLocaleLowerCase().includes(needle)) list.push({ key: chat.id, title: chat.peer.displayName, sub: `@${chat.peer.username}`, user: chat.peer, onPress: () => void openUser(chat.peer) });
+      // Telegram also finds words in messages: the latest message of each chat and the notes in
+      // Избранное (both already decrypted on this device; nothing is sent to the server).
+      const snippet = (text: string) => { const at = text.toLocaleLowerCase().indexOf(needle); return (at > 24 ? '…' + text.slice(at - 20) : text).replace(/\s+/g, ' ').slice(0, 90); };
+      if (needle.length >= 2) {
+        for (const chat of store.chats) { const text = chat.lastMessage?.text; if (text && text.toLocaleLowerCase().includes(needle)) list.push({ key: `m:${chat.id}`, title: chat.peer.displayName, sub: snippet(text), user: chat.peer, onPress: () => void openUser(chat.peer) }); }
+        for (const item of [...store.saved.items].reverse()) { if (list.length > 60) break; if (item.text && item.text.toLocaleLowerCase().includes(needle)) list.push({ key: `s:${item.id}`, title: 'Избранное', sub: snippet(item.text), saved: true, onPress: () => { onClose(); onSaved(); } }); }
+      }
       return list;
     }
     if (scope === 'people') return (people || []).filter(user => user.id !== me.id).map(user => ({ key: user.id, title: user.displayName, sub: `@${user.username}`, user, onPress: () => void openUser(user) }));

@@ -87,6 +87,9 @@ export function PlatinaStudio({ api, user, active, onUser }: { api: Api; user: U
 
     <Section title="Украшение аватара" hint="Рисованные украшения в стиле коллекций. Видны всем; анимация играет в профиле.">
       <View style={{ gap: 14 }}>
+        <View style={{ alignSelf: 'flex-start', paddingHorizontal: 12 }}><Choice label="Без украшения" selected={!user.avatarFrame} disabled={!active || !!busy} onPress={() => void apply('frame', { avatarFrame: null }, 'Украшение убрано.')}>
+          <View style={{ width: 64, height: 64, alignItems: 'center', justifyContent: 'center' }}><DecoratedAvatar user={{ ...user, avatarFrame: null, avatarVideoId: null }} api={api} size={44} /></View>
+        </Choice></View>
         {DECORATION_COLLECTIONS.map(collection => <View key={collection} style={{ gap: 8 }}>
           <Text style={{ color: t.muted, fontSize: 12, fontWeight: '700', letterSpacing: .4, textTransform: 'uppercase' }}>{collection}</Text>
           <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ gap: 14, paddingVertical: 10, paddingHorizontal: 12 }}>
