@@ -25,9 +25,12 @@ export function TitleBar() {
     if (!shown || typeof document === 'undefined' || typeof MutationObserver === 'undefined') return;
     // Only the fixed, full-window layers of a dialog are moved (an invisible one would otherwise
     // swallow clicks on the window buttons); ordinary views inside keep their layout.
+    // Only the outermost fixed layer moves: inner fixed layers are positioned inside it (its
+    // animation transform makes it their containing block), so moving them too would double the gap.
     const lift = () => document.querySelectorAll('[aria-modal="true"]').forEach(node => {
-      for (let el: HTMLElement | null = node as HTMLElement; el && el !== document.body; el = el.parentElement)
-        if (getComputedStyle(el).position === 'fixed' && el.style.top !== `${TITLE_BAR_HEIGHT}px`) el.style.top = `${TITLE_BAR_HEIGHT}px`;
+      let outer: HTMLElement | null = null;
+      for (let el: HTMLElement | null = node as HTMLElement; el && el !== document.body; el = el.parentElement) if (getComputedStyle(el).position === 'fixed') outer = el;
+      if (outer && outer.style.top !== `${TITLE_BAR_HEIGHT}px`) outer.style.top = `${TITLE_BAR_HEIGHT}px`;
     });
     let queued = 0; const schedule = () => { if (!queued) queued = requestAnimationFrame(() => { queued = 0; lift(); }); };
     lift(); const observer = new MutationObserver(schedule); observer.observe(document.body, { childList: true, subtree: true });
