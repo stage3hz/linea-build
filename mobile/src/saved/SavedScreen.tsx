@@ -1,4 +1,4 @@
-import React, { useMemo, useRef, useState } from 'react';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { linkify } from '../linkify';
 import { RightClick } from '../RightClick';
 import { ContextMenu, MenuItem } from '../ContextMenu';
@@ -37,6 +37,12 @@ export function SavedScreen({ api, user, store, onBack, wide = false }: { api: A
   const [error, setError] = useState('');
   const [notice, setNotice] = useState('');
   const [searchOpen, setSearchOpen] = useState(false); const [query, setQuery] = useState('');
+  // PC: Ctrl+F opens the search, Esc closes it — as in chats.
+  useEffect(() => {
+    if (Platform.OS !== 'web' || typeof window === 'undefined') return;
+    const key = (e: KeyboardEvent) => { if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'f') { e.preventDefault(); setSearchOpen(true); } else if (e.key === 'Escape') { setSearchOpen(false); setQuery(''); } };
+    window.addEventListener('keydown', key); return () => window.removeEventListener('keydown', key);
+  }, []);
   const busyRef = useRef(false); const listRef = useRef<FlatList<SavedItem>>(null);
   const metrics = textMetrics(useChatPreferences().textSize);
   const rows = useMemo(() => [...(searchOpen ? searchSaved(saved.items, query) : saved.items)].reverse(), [saved.items, searchOpen, query]);

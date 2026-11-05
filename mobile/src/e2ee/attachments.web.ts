@@ -6,6 +6,7 @@ import { multipartFile, type Api } from '../api';
 import type { Attachment, LocalFile } from '../types';
 import { getSignalBridge } from './signal';
 import { prepareMediaForUpload } from '../media/pipeline.web';
+import { makeThumbnail } from '../media/thumbnail.web';
 const MAX_FILE=20*1024*1024;
 /** Above this size a file goes in encrypted chunks (Telegram-like, up to 5 GB with Platina), without media re-encoding. */
 export const LARGE_FILE=MAX_FILE;
@@ -40,7 +41,9 @@ export async function encryptAndUpload(api:Api,file:LocalFile,onProgress?:(sent:
     const part=multipartFile(toByteArray(cipher),'encrypted.bin','application/octet-stream');
     const result=await api.request<{id:string}>('/e2ee/files',{method:'POST',headers:{'Content-Type':part.contentType},body:part.body as unknown as BodyInit});
     onProgress?.(bytes.length,bytes.length);
-    return {id:result.id,name:file.name,mimeType:prepared.file.mimeType,size:bytes.length,encryption:{scheme:'aes-256-gcm-siv',key,nonce,fileKeyId},...(prepared.media?{media:prepared.media}:{})};
+    // Small preview inside the encrypted message, as on phones (was missing on PC: grey placeholders).
+    const preview=prepared.photo||prepared.video?await makeThumbnail(prepared).catch(()=>undefined):undefined;
+    return {id:result.id,name:file.name,mimeType:prepared.file.mimeType,size:bytes.length,encryption:{scheme:'aes-256-gcm-siv',key,nonce,fileKeyId},...(prepared.media?{media:prepared.media}:{}),...(preview?{preview}:{})};
   } finally {await prepared.dispose();}
 }
 export async function encryptAndUploadLarge(api:Api,file:LocalFile,options:{state?:LargeUploadState;onState?:(state:LargeUploadState)=>void;onProgress?:(sent:number,total:number)=>void;signal?:AbortSignal}={}):Promise<Attachment> {

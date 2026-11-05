@@ -22,7 +22,7 @@ export function TitleBar() {
   if (Platform.OS !== 'web' || !c || state.fullscreen) return null;
   const mac = c.platform === 'darwin';
   const light = (color: string, glyph: string, action: 'close' | 'minimize' | 'maximize', label: string) =>
-    <Pressable key={action} onPress={() => void c.action(action)} accessibilityRole="button" accessibilityLabel={label}
+    <Pressable key={action} hitSlop={4} onPress={() => void c.action(action)} accessibilityRole="button" accessibilityLabel={label}
       style={{ width: 13, height: 13, borderRadius: 6.5, alignItems: 'center', justifyContent: 'center', backgroundColor: state.focused || hover ? color : (t.dark ? 'rgba(255,255,255,0.16)' : 'rgba(0,0,0,0.14)'), borderWidth: 0.5, borderColor: 'rgba(0,0,0,0.18)'}} ref={noDrag}>
       {hover ? <Text style={{ fontSize: 10, lineHeight: 11, fontWeight: '800', color: 'rgba(0,0,0,0.55)', marginTop: -1 }}>{glyph}</Text> : null}
     </Pressable>;
