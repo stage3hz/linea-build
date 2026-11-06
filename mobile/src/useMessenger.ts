@@ -19,7 +19,7 @@ import type { TrustSnapshot } from './e2ee/types';
 import { ALBUM_SIZE, appendAttachments, messageAttachmentBatch } from './messageAttachments';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { getChatPreferences } from './chatPreferences';
-import { actionFallback, messageKey, pollFallback, type MessageAction, type MessageMeta, type Poll } from './messageMeta';
+import { actionFallback, isQuietAction, listPreviewMessage, messageKey, pollFallback, type MessageAction, type MessageMeta, type Poll } from './messageMeta';
 import { mediaPreviewKind } from './media/formats';
 import { isVideoNote, isVoice } from './voice/voice';
 const isAlbumMedia=(file:Attachment)=>{const kind=mediaPreviewKind(file);return (kind==='photo'||kind==='video')&&!isVoice(file)&&!isVideoNote(file);};
@@ -171,7 +171,7 @@ export function useMessenger(api: Api, user: User, onExpired: ()=>void) {
     setPending(prev=>prev.filter(p=>!(p.chatId===message.chatId&&p.clientId===message.clientId&&message.senderId===user.id)));
     setChats(prev=>sortedChats(prev.map(c=>{
       if(c.id!==message.chatId||(c.lastMessage&&c.lastMessage.id>=message.id))return c;
-      return {...c,lastMessage:message,updatedAt:message.createdAt,unreadCount:message.senderId===user.id||message.meta?.action?c.unreadCount:c.unreadCount+1};
+      return {...c,lastMessage:message,updatedAt:isQuietAction(message)?c.updatedAt:message.createdAt,unreadCount:message.senderId===user.id||message.meta?.action?c.unreadCount:c.unreadCount+1};
     })));
     if(message.senderId!==user.id&&message.cryptoState==='decrypted')void markRead(message.chatId,message.id);
   },[user.id,markRead,cryptoRuntime,hydrate,checkError]);
@@ -432,7 +432,26 @@ export function useMessenger(api: Api, user: User, onExpired: ()=>void) {
     setChats(prev=>prev.filter(c=>c.id!==chat.id));setMessages(prev=>{const next={...prev};delete next[chat.id];return next;});
     if(selectedRef.current===chat.id)selectChat(null);
   },[api,selectChat]);
-  const visibleChats=useMemo(()=>chats.filter(chat=>removed[chat.id]===undefined||(chat.lastMessage?.id||0)>removed[chat.id]),[chats,removed]);
+  // Chat list preview like Telegram: reactions, unpins, votes, edits and deletions are messages too
+  // (the server cannot tell, they are encrypted), but the list shows the last real message. For a
+  // chat never opened, its recent page is read quietly (no «read» mark) to find that message.
+  const [previewFill,setPreviewFill]=useState<Record<string,Message>>({});
+  const previewAsked=useRef(new Set<string>());
+  const filtered=useMemo(()=>chats.filter(chat=>removed[chat.id]===undefined||(chat.lastMessage?.id||0)>removed[chat.id]),[chats,removed]);
+  useEffect(()=>{
+    for(const chat of filtered){
+      const last=chat.lastMessage;
+      if(!last||!isQuietAction(last)||messages[chat.id]?.length||previewAsked.current.has(`${chat.id}:${last.id}`))continue;
+      previewAsked.current.add(`${chat.id}:${last.id}`);
+      void (async()=>{try{const page=await api.messages(chat.id);const shown=listPreviewMessage(await Promise.all(page.messages.map(hydrate)));if(shown&&aliveRef.current)setPreviewFill(prev=>({...prev,[chat.id]:shown}));}catch{/* the action text stays as a fallback */}})();
+    }
+  },[filtered,messages,api,hydrate]);
+  const visibleChats=useMemo(()=>filtered.map(chat=>{
+    const last=chat.lastMessage;if(!last)return chat;
+    const loaded=messages[chat.id];
+    const shown=loaded?.length?listPreviewMessage([...loaded,last]):isQuietAction(last)?previewFill[chat.id]??null:last;
+    return shown&&shown!==last?{...chat,lastMessage:shown}:chat;
+  }),[filtered,messages,previewFill]);
   // While it is being re-sent by itself, the bubble shows the clock, not «Не отправлено».
   const shownPending=useMemo(()=>pending.map(p=>p.state==='failed'&&p.offline&&(p.offline<=40||p.mesh)&&!p.upload?{...p,state:'sending' as const,error:undefined}:p),[pending]);
   return {onSocket,sendSocket,onCallSignal,readChat,presence,chats:visibleChats,removeChat,removeChatForEveryone,messages,hasMore,pending:shownPending,selectedId,selectChat,connection,listLoading,messageLoading,error,setError,typing,refreshChats,loadMessages,send,sendAction,hideForMe,hidden,forward,sendAttachments,sendLargeFile,cancelPending,retry:performSend,sendPoll,sendTyping,drafts,draftFiles,setDraft,setDraftFile,setDraftFiles,appendDraftFiles,removeDraftFile,recoveryRequests,recoveryError,refreshRecoveryRequests,cancelRecovery,cryptoError,trustSnapshot,approveDevices,uploadEncrypted,saved,aiHistory,updateChatSettings};

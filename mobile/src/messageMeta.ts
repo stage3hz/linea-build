@@ -90,6 +90,32 @@ export function actionFallback(action: MessageAction, targetText = ''): string {
 }
 
 export const messageKey = (message: Pick<Message, 'senderId' | 'clientId'>) => `${message.senderId}:${message.clientId}`;
+
+/** Telegram does not show these in the chat list: a reaction, an unpin, a poll vote, an edit or a
+ *  deletion changes another message — the list keeps showing the last real message instead. */
+export function isQuietAction(message: Pick<Message, 'meta'>): boolean {
+  const action = message.meta?.action;
+  if (!action) return false;
+  return action.type === 'react' || action.type === 'vote' || action.type === 'edit' || action.type === 'delete' || (action.type === 'pin' && !action.target);
+}
+
+/** The message the chat list should show: the newest one that is not a quiet action and was not
+ *  deleted, with its latest edit applied. Null when the given messages hold none. */
+export function listPreviewMessage<T extends Message>(list: readonly T[]): T | null {
+  const deleted = new Set<string>(), edits = new Map<string, string>();
+  const sorted = [...list].sort((a, b) => b.id - a.id);
+  for (const message of sorted) {
+    const action = message.meta?.action;
+    if (action?.type === 'delete') deleted.add(action.target);
+    if (action?.type === 'edit' && !edits.has(action.target)) edits.set(action.target, action.text);
+  }
+  for (const message of sorted) {
+    if (isQuietAction(message) || deleted.has(messageKey(message))) continue;
+    const edited = edits.get(messageKey(message));
+    return edited !== undefined && !message.meta?.action ? { ...message, text: edited } : message;
+  }
+  return null;
+}
 export const isAction = (message: Pick<Message, 'meta'>) => !!message.meta?.action;
 
 export type ReactionSummary = { emoji: Reaction; count: number; mine: boolean };
