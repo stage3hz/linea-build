@@ -190,7 +190,8 @@ export function MusicScreen({ onBack }: { onBack: () => void }) {
           </View> : null}
         </View>
 
-        <GlassSurface radius={21} shadow={false} contentStyle={{ minHeight: 51, flexDirection: 'row', alignItems: 'center', gap: 10, paddingHorizontal: 14 }}>
+        {/* Spotify search: a full pill (radius 500), #1F1F1F well on dark. */}
+        <GlassSurface radius={26} shadow={false} style={t.dark ? { backgroundColor: '#1F1F1F' } : undefined} contentStyle={{ minHeight: 48, flexDirection: 'row', alignItems: 'center', gap: 10, paddingHorizontal: 16 }}>
           <Icon name="search-outline" size={20} color={t.muted} />
           <TextInput accessibilityLabel="Поиск музыки" value={input} onChangeText={setInput} onSubmitEditing={() => setQuery(input.trim())} returnKeyType="search" autoCorrect={false} keyboardAppearance={t.dark ? 'dark' : 'light'} placeholder={section === 'saved' ? 'Поиск в моих файлах' : 'Трек или исполнитель'} placeholderTextColor={t.muted} selectionColor={t.accent} style={{ flex: 1, minWidth: 0, color: t.text, fontSize: 15, paddingVertical: 14 }} />
           {input ? <Pressable accessibilityRole="button" accessibilityLabel="Очистить поиск музыки" onPress={() => { setInput(''); setQuery(''); }} style={{ minHeight: 44, minWidth: 32, alignItems: 'center', justifyContent: 'center' }}><Icon name="close-circle" size={19} color={t.muted} /></Pressable> : null}
@@ -265,35 +266,38 @@ export function MusicScreen({ onBack }: { onBack: () => void }) {
   </View>;
 }
 
-/** A Spotify-style shelf: bold title, a row of covers scrolling sideways. */
+/** Spotify section header + shelf (DESIGN.md, ui.gradientdeck.com/styles/spotify): 24 pt bold title, 24 pt to the row of cards. */
+/** Spotify's Mist #B3B3B3 for artist names on dark surfaces; the theme's grey on light ones. */
+const spotifyMist = (t: { dark: boolean; muted: string }) => t.dark ? '#B3B3B3' : t.muted;
+
 function Shelf({ title, children }: { title: string; children: React.ReactNode }) {
   const t = useTheme();
-  return <View style={{ gap: 10 }}>
-    <Text style={{ color: t.text, fontSize: 20, fontWeight: '700', letterSpacing: -.3 }}>{title}</Text>
-    <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{ marginHorizontal: -18 }} contentContainerStyle={{ gap: 14, paddingHorizontal: 18 }}>{children}</ScrollView>
+  return <View style={{ gap: 14 }}>
+    <Text style={{ color: t.text, fontSize: 24, lineHeight: 29, fontWeight: '700' }}>{title}</Text>
+    <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{ marginHorizontal: -18 }} contentContainerStyle={{ gap: 12, paddingHorizontal: 18 }}>{children}</ScrollView>
   </View>;
 }
 
 /** «Covers come first»: a near-square cover (radius 6) with the title and artist under it. */
 function CoverCard({ track, onPress }: { track: MusicTrack; onPress: () => void }) {
   const t = useTheme(); const [failed, setFailed] = useState(false);
-  return <Pressable accessibilityRole="button" accessibilityLabel={`Слушать: ${track.title}, ${track.artist}`} onPress={onPress} style={({ pressed }) => ({ width: 132, gap: 6, opacity: pressed ? .75 : 1 })}>
-    <View style={{ width: 132, height: 132, borderRadius: 6, overflow: 'hidden', backgroundColor: t.surface2 }}>
+  return <Pressable accessibilityRole="button" accessibilityLabel={`Слушать: ${track.title}, ${track.artist}`} onPress={onPress} style={({ pressed }) => ({ width: 140, gap: 6, opacity: pressed ? .75 : 1 })}>
+    <View style={{ width: 140, height: 140, borderRadius: 6, overflow: 'hidden', backgroundColor: t.surface2 }}>
       {track.artworkUrl && !failed ? <Image source={{ uri: track.artworkUrl }} style={{ width: '100%', height: '100%' }} onError={() => setFailed(true)} /> : <LinearGradient colors={t.accentGradient} style={{ flex: 1, alignItems: 'center', justifyContent: 'center' }}><Icon name="musical-note" color={t.onAccent} size={34} /></LinearGradient>}
     </View>
-    <Text numberOfLines={1} style={{ color: t.text, fontSize: 13, fontWeight: '600' }}>{track.title}</Text>
-    <Text numberOfLines={1} style={{ color: t.muted, fontSize: 12 }}>{track.artist}</Text>
+    <Text numberOfLines={1} raw style={{ color: t.text, fontSize: 14, fontWeight: '600' }}>{track.title}</Text>
+    <Text numberOfLines={1} raw style={{ color: spotifyMist(t), fontSize: 13 }}>{track.artist}</Text>
   </Pressable>;
 }
 
 /** Artists are round, as in Spotify. */
 function ArtistCircle({ track, onPress }: { track: MusicTrack; onPress: () => void }) {
   const t = useTheme(); const [failed, setFailed] = useState(false);
-  return <Pressable accessibilityRole="button" accessibilityLabel={`Найти: ${track.artist}`} onPress={onPress} style={({ pressed }) => ({ width: 92, alignItems: 'center', gap: 7, opacity: pressed ? .75 : 1 })}>
-    <View style={{ width: 92, height: 92, borderRadius: 46, overflow: 'hidden', backgroundColor: t.surface2, alignItems: 'center', justifyContent: 'center' }}>
+  return <Pressable accessibilityRole="button" accessibilityLabel={`Найти: ${track.artist}`} onPress={onPress} style={({ pressed }) => ({ width: 120, alignItems: 'center', gap: 8, opacity: pressed ? .75 : 1 })}>
+    <View style={{ width: 120, height: 120, borderRadius: 60, overflow: 'hidden', backgroundColor: t.surface2, alignItems: 'center', justifyContent: 'center' }}>
       {track.artworkUrl && !failed ? <Image source={{ uri: track.artworkUrl }} style={{ width: '100%', height: '100%' }} onError={() => setFailed(true)} /> : <Text style={{ color: t.text, fontSize: 30, fontWeight: '700' }}>{track.artist.trim().slice(0, 1).toUpperCase()}</Text>}
     </View>
-    <Text numberOfLines={1} style={{ color: t.text, fontSize: 12, fontWeight: '600', textAlign: 'center' }}>{track.artist}</Text>
+    <View style={{ alignItems: 'center' }}><Text numberOfLines={1} raw style={{ color: t.text, fontSize: 14, fontWeight: '600', textAlign: 'center' }}>{track.artist}</Text><Text style={{ color: spotifyMist(t), fontSize: 12 }}>Артист</Text></View>
   </Pressable>;
 }
 

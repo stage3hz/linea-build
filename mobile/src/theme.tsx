@@ -32,11 +32,12 @@ const basePalette:Record<'light'|'dark'|'black',Theme> = {
     bgGradient:['#0A1529','#10192D','#070E1C'], ambientBlue:'rgba(56,112,224,0.23)', ambientLilac:'rgba(114,88,190,0.13)',
     accentGradient:['#BAD3FF','#85ADFF'],
   },
-  // «Чёрная» after Linear: steps of near-black instead of black on black held up only by white
-  // outlines — page #08090A, cards #0F1011, raised #161718, hairlines #23252A, quiet grey text.
+  // «Чёрная» by Linear's DESIGN.md (ui.gradientdeck.com/styles/linear): Void #08090A page, Carbon
+  // #0F1011 cards, Obsidian #161718 raised, Graphite #23252A hairlines, text in the Mist / Fog / Ash
+  // greys, white for emphasis, neutral Bone for actions (the acid-lime accent is Linear's own brand).
   black: {
-    dark:true, black:true, bg:'#08090A', surface:'rgba(15,16,17,0.96)', surface2:'rgba(22,23,24,0.92)', text:'#F7F8F8',
-    muted:'#8A8F98', border:'#23252A', accent:'#E6E6E6', accentSoft:'rgba(255,255,255,0.07)',
+    dark:true, black:true, bg:'#08090A', surface:'rgba(15,16,17,0.96)', surface2:'rgba(22,23,24,0.92)', text:'#E5E5E6',
+    muted:'#8A8F98', border:'#23252A', accent:'#E5E5E6', accentSoft:'rgba(255,255,255,0.07)',
     onAccent:'#08090A', bubble:'rgba(31,32,35,0.96)', incoming:'rgba(22,23,24,0.96)', danger:'#FF9CB0', dangerBg:'rgba(69,20,31,0.88)',
     chatBg:'transparent', subtle:'#62666D', shadow:'#000000',
     glass:'rgba(15,16,17,0.62)', glassClear:'rgba(15,16,17,0.26)', glassBorder:'rgba(255,255,255,0.08)',
