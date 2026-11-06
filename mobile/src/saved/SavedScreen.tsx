@@ -25,7 +25,7 @@ import { VoiceBubble, VoicePlaybackProvider, VoiceRecordingBar, useVoiceRecorder
 import { VOICE_MIME, VOICE_MIN_MS, attachmentLabel, isVideoNote, isVoice, videoNoteFileName, voiceFileName } from '../voice/voice';
 import { RecordButton, type RecordKind } from '../voice/RecordButton';
 import { VideoNoteBubble, VideoNoteRecorder, type VideoHold, type VideoNoteTake } from '../videonote/VideoNote';
-import { lightFeedback } from '../haptics';
+import { errorFeedback, lightFeedback } from '../haptics';
 import { searchSaved, type SavedItem } from './saved.ts';
 
 export function SavedScreen({ api, user, store, onBack, wide = false }: { api: Api; user: User; store: MessengerStore; onBack: () => void; wide?: boolean }) {
@@ -72,7 +72,7 @@ export function SavedScreen({ api, user, store, onBack, wide = false }: { api: A
     const take = await voice.finish(keep).catch(e => { fail(e, 'Не удалось остановить запись.'); return null; });
     if (!take) return;
     try {
-      if (take.durationMs < VOICE_MIN_MS) { flash('Слишком короткая запись.'); return; }
+      if (take.durationMs < VOICE_MIN_MS) { errorFeedback(); flash('Слишком короткая запись.'); return; }
       const name = voiceFileName();
       await uploadAndSave({ uri: take.uri, name, mimeType: VOICE_MIME }, { name, mimeType: VOICE_MIME, media: { durationMs: Math.round(take.durationMs), ...(take.waveform ? { waveform: take.waveform } : {}) } }).catch(() => {});
     } finally { await FileSystem.deleteAsync(take.uri, { idempotent: true }).catch(() => {}); }
@@ -84,7 +84,7 @@ export function SavedScreen({ api, user, store, onBack, wide = false }: { api: A
   const [recHold, setRecHold] = useState<{ kind: RecordKind; locked: boolean } | null>(null); const recHoldRef = useRef(recHold); recHoldRef.current = recHold;
   const [cancelProgress, setCancelProgress] = useState(0);
   const [videoHold, setVideoHold] = useState<VideoHold | null>(null); const [circleOpen, setCircleOpen] = useState(false);
-  const toggleRecordMode = () => { lightFeedback(); const next = recordModeRef.current === 'voice' ? 'video' : 'voice'; recordModeRef.current = next; setRecordMode(next); flash(next === 'video' ? 'Удерживай, чтобы записать видеосообщение' : 'Удерживай, чтобы записать голосовое'); };
+  const toggleRecordMode = () => { lightFeedback(); voice.unprepare(); const next = recordModeRef.current === 'voice' ? 'video' : 'voice'; recordModeRef.current = next; setRecordMode(next); flash(next === 'video' ? 'Удерживай, чтобы записать видеосообщение' : 'Удерживай, чтобы записать голосовое'); };
   const holdStart = () => {
     Keyboard.dismiss(); setError('');
     if (recordModeRef.current === 'voice') { setRecHold({ kind: 'voice', locked: false }); voice.start().catch(e => { setRecHold(null); fail(e, 'Не удалось начать запись.'); }); }
@@ -146,7 +146,7 @@ export function SavedScreen({ api, user, store, onBack, wide = false }: { api: A
           <IconButton name="add" label="Сохранить фото, видео или файл" onPress={() => { Keyboard.dismiss(); setAttachMenu(true); }} color={t.accent} disabled={busy || !!editing} style={{ width: 44, height: 44, borderRadius: 21 }} />
           <View style={{ flex: 1, minHeight: 44, maxHeight: 140, justifyContent: 'center' }}><ComposerInput focusKey={editing ? `edit:${editing.id}` : null} accessibilityLabel="Заметка" placeholder="Заметка…" value={text} onChangeText={setText} onKeyPress={e => { if (Platform.OS === 'web' && e.nativeEvent.key === 'Enter' && !(e.nativeEvent as unknown as { shiftKey?: boolean }).shiftKey) { e.preventDefault(); submit(); } }} placeholderTextColor={t.muted} selectionColor={t.accent} keyboardAppearance={t.dark ? 'dark' : 'light'} multiline maxLength={8000} style={{ fontSize: 15, lineHeight: 21, color: t.text, paddingHorizontal: 6, paddingTop: Platform.OS === 'ios' ? 11 : 10, paddingBottom: 11, maxHeight: 136 }} /></View>
           </>}
-          {!text.trim() && !editing && signalAvailable ? <View key="rec" style={{ zIndex: 5, height: 44, justifyContent: 'center' }}><RecordButton mode={recordMode} disabled={busy} level={recHold?.kind === 'voice' ? voice.levels.at(-1) || 0 : 0} onToggleMode={toggleRecordMode} onHoldStart={holdStart} onHoldEnd={holdEnd} onLock={holdLock} onSlide={setCancelProgress} /></View> :
+          {!text.trim() && !editing && signalAvailable ? <View key="rec" style={{ zIndex: 5, height: 44, justifyContent: 'center' }}><RecordButton mode={recordMode} disabled={busy} onTouchDown={() => { if (recordModeRef.current === 'voice') voice.prepare(); }} level={recHold?.kind === 'voice' ? voice.levels.at(-1) || 0 : 0} onToggleMode={toggleRecordMode} onHoldStart={holdStart} onHoldEnd={holdEnd} onLock={holdLock} onSlide={setCancelProgress} /></View> :
             <Pressable accessibilityRole="button" accessibilityLabel={editing ? 'Сохранить изменения' : 'Сохранить заметку'} disabled={!text.trim() || busy} onPress={submit} style={({ pressed }) => ({ height: 44, width: 44, borderRadius: 22, backgroundColor: t.accent, alignItems: 'center', justifyContent: 'center', opacity: !text.trim() || busy ? .4 : pressed ? .75 : 1 })}><Icon name={editing ? 'checkmark' : 'arrow-up'} color={t.onAccent} size={23} /></Pressable>}
         </View>}
     </GlassSurface>

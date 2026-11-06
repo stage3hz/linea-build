@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
-import { isVoice, voiceFileName, formatVoiceTime, attachmentLabel, levelFromMetering, VOICE_MIME, formatVoiceTimeFine, encodeWaveform, decodeWaveform, WAVEFORM_BARS } from '../src/voice/voice.ts';
+import { isVoice, voiceFileName, formatVoiceTime, attachmentLabel, levelFromMetering, VOICE_MIME, formatVoiceTimeFine, encodeWaveform, decodeWaveform, fitWaveform, WAVEFORM_BARS } from '../src/voice/voice.ts';
 import { replyPreview } from '../src/messageMeta.ts';
 
 test('voice messages are recognised only by the exact name and AAC container', () => {
@@ -66,4 +66,13 @@ test('waveform: room noise stays low next to speech (amplitude, not decibels)', 
   const bars = decodeWaveform(encodeWaveform(levels));
   assert.ok(bars[0] < 0.25, `noise bar ${bars[0]}`);
   assert.equal(bars.at(-1), 1);
+});
+
+test('waveform: 100 stored bars are fitted to the bubble width by peak', () => {
+  assert.equal(WAVEFORM_BARS, 100);
+  const bars = Array.from({ length: 100 }, (_, i) => i === 37 ? 1 : 0.1);
+  const fitted = fitWaveform(bars, 45);
+  assert.equal(fitted.length, 45);
+  assert.equal(Math.max(...fitted), 1); // a single loud moment is not lost
+  assert.deepEqual(fitWaveform([0.5, 0.2], 45), [0.5, 0.2]);
 });

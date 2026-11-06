@@ -4,7 +4,7 @@
 import type { Attachment } from '../types';
 
 export const VOICE_MIME = 'audio/mp4';
-export const VOICE_MIN_MS = 700;
+export const VOICE_MIN_MS = 500; // Telegram drops takes shorter than 0.5 s
 export const VOICE_MAX_MS = 15 * 60 * 1000; // ~14.4 MB at 128 kbit/s, under the 20 MB attachment limit
 const VOICE_NAME = /^voice-\d{1,16}\.m4a$/;
 
@@ -23,22 +23,31 @@ export function formatVoiceTimeFine(ms: number): string {
 // Waveform of a voice message (Telegram shows the loudness of the whole take in the bubble). It is
 // measured while recording and travels inside the encrypted message: one letter per bar, 0…31.
 const WAVE = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdef';
-export const WAVEFORM_BARS = 48;
+export const WAVEFORM_BARS = 100;
+// As Telegram (ManagedAudioRecorder / AudioWaveform, studied, not copied): 100 bins by peak; the
+// reference level is 1.8 × the mean (but not below a floor, so silence stays flat); each bin is
+// min(value, reference) / reference × 31. Our recorder gives dB every 100 ms, so dB → amplitude first.
+const WAVE_FLOOR = 2500 / 32767; // Telegram's floor on 16-bit peaks, as a fraction of full scale
 export function encodeWaveform(levels: readonly number[]): string | undefined {
   if (levels.length < 4) return undefined;
   if (!(Math.max(...levels) > 0.02)) return undefined; // no metering (silence or unsupported): no fake bars
-  // levels are dB mapped linearly to 0…1 (−60…0 dB): room noise is already ~0.35, speech ~0.8, so bars
-  // relative to the peak came out as one flat wall. Back to amplitude (10^(dB/20)), relative to the
-  // loudest moment, square root for the eye: noise stays low, speech stands out — as in Telegram.
   const amp = levels.map(level => Math.pow(10, (Math.min(1, Math.max(0, level)) * 60 - 60) / 20));
-  const peak = Math.max(...amp);
-  let out = '';
+  const bins: number[] = [];
   for (let bar = 0; bar < WAVEFORM_BARS; bar++) {
     const from = Math.floor(bar * amp.length / WAVEFORM_BARS), to = Math.max(from + 1, Math.floor((bar + 1) * amp.length / WAVEFORM_BARS));
     let value = 0; for (let i = from; i < to && i < amp.length; i++) value = Math.max(value, amp[i]);
-    out += WAVE[Math.max(0, Math.min(31, Math.round(Math.sqrt(value / peak) * 31)))];
+    bins.push(value);
   }
-  return out;
+  const reference = Math.max(WAVE_FLOOR, bins.reduce((sum, value) => sum + value, 0) / bins.length * 1.8);
+  return bins.map(value => WAVE[Math.max(0, Math.min(31, Math.round(Math.min(value, reference) / reference * 31)))]).join('');
+}
+/** Fits the stored bars into `count` bars for the bubble width (peak of each group). */
+export function fitWaveform(bars: readonly number[], count: number): number[] {
+  if (count <= 0 || bars.length <= count) return [...bars];
+  return Array.from({ length: count }, (_, i) => {
+    const from = Math.floor(i * bars.length / count), to = Math.max(from + 1, Math.floor((i + 1) * bars.length / count));
+    let value = 0; for (let k = from; k < to; k++) value = Math.max(value, bars[k]); return value;
+  });
 }
 export function decodeWaveform(value: string | undefined): number[] | null {
   if (!value || !/^[A-Za-f]{8,100}$/.test(value)) return null;

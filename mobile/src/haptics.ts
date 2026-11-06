@@ -6,3 +6,4 @@ const safe = (run: () => Promise<void>) => { if (Platform.OS !== 'web') run().ca
 export const tapFeedback = () => safe(() => Haptics.selectionAsync());
 export const impactFeedback = () => safe(() => Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium));
 export const lightFeedback = () => safe(() => Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light));
+export const errorFeedback = () => safe(() => Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error));

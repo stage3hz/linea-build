@@ -14,7 +14,7 @@ import type { Attachment } from '../types';
 import { decryptAttachment } from '../e2ee/attachments';
 import { useMusic } from '../music/MusicProvider';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { VOICE_MAX_MS, decodeWaveform, encodeWaveform, formatVoiceTime, formatVoiceTimeFine, levelFromMetering } from './voice';
+import { VOICE_MAX_MS, decodeWaveform, encodeWaveform, fitWaveform, formatVoiceTime, formatVoiceTimeFine, levelFromMetering } from './voice';
 
 // Mono AAC at 48 kHz / 128 kbit/s: full-band, very clear voice (about 0.95 MB per minute;
 // was 32 kHz / 48 kbit/s). Still encrypted before sending like any other attachment.
@@ -68,16 +68,34 @@ export function useVoiceRecorder(onLimit: () => void) {
   // (expo/expo#40531). The switch back to playback waits a little, so takes in a row skip it.
   const starting = useRef<Promise<void> | null>(null);
   const activeRef = useRef(false);
+  // Telegram starts the 0.19 s hold timer on touch-down; we use that time to switch the audio session
+  // and prepare the recorder, so record() is instant when the hold fires.
+  const prepared = useRef<Promise<void> | null>(null);
+  const warm = useCallback(async () => {
+    cancelPlaybackReset();
+    const permission = await requestRecordingPermissionsAsync();
+    if (!permission.granted) throw new Error(Platform.OS === 'web' ? 'Нет доступа к микрофону. Подключи микрофон и разреши его Инвизу в «Параметры Windows → Конфиденциальность → Микрофон».' : 'Нет доступа к микрофону. Разреши его для Инвиза в настройках телефона, чтобы записывать голосовые.');
+    await setAudioModeAsync({ ...PLAYBACK_MODE, allowsRecording: true, shouldPlayInBackground: false });
+    await recorder.prepareToRecordAsync();
+  }, [recorder]);
+  /** Touch-down on the record button: get the microphone ready (nothing is recorded yet). */
+  const prepare = useCallback(() => {
+    if (prepared.current || starting.current || activeRef.current) return;
+    const run = warm(); prepared.current = run;
+    run.catch(() => { if (prepared.current === run) prepared.current = null; });
+  }, [warm]);
+  /** A tap, not a hold: the warmed-up microphone is not needed. */
+  const unprepare = useCallback(() => { if (!prepared.current || starting.current || activeRef.current) return; prepared.current = null; schedulePlaybackReset(4000); }, []);
   const start = useCallback(async () => {
     if (starting.current || activeRef.current) return starting.current ?? undefined;
     const run = (async () => {
       cancelPlaybackReset();
       try {
-        const permission = await requestRecordingPermissionsAsync();
-        if (!permission.granted) throw new Error(Platform.OS === 'web' ? 'Нет доступа к микрофону. Подключи микрофон и разреши его Инвизу в «Параметры Windows → Конфиденциальность → Микрофон».' : 'Нет доступа к микрофону. Разреши его для Инвиза в настройках телефона, чтобы записывать голосовые.');
+        const ready = prepared.current; prepared.current = null;
+        let warmed = false;
+        if (ready) { try { await ready; warmed = true; } catch { /* warm up again below */ } }
+        if (!warmed) await warm();
         music.stop();
-        await setAudioModeAsync({ ...PLAYBACK_MODE, allowsRecording: true, shouldPlayInBackground: false });
-        await recorder.prepareToRecordAsync();
         recorder.record();
         samples.current = []; setLevels([]); setPaused(false); activeRef.current = true; setActive(true);
       } catch (error) {
@@ -87,7 +105,7 @@ export function useVoiceRecorder(onLimit: () => void) {
     })();
     starting.current = run;
     try { await run; } finally { starting.current = null; }
-  }, [music, recorder]);
+  }, [music, recorder, warm]);
 
   /** Stops the recording. Returns the file, or null when cancelled. Released while the microphone was
    *  still starting: waits for the start, then stops — the take is never left running on its own. */
@@ -113,7 +131,7 @@ export function useVoiceRecorder(onLimit: () => void) {
     if (!active || busy.current) return;
     try { if (paused) { recorder.record(); setPaused(false); } else { recorder.pause(); setPaused(true); } } catch { /* recorder released */ }
   }, [active, paused, recorder]);
-  return { active, paused, durationMs: active ? state.durationMillis : 0, levels, start, finish, togglePause };
+  return { active, paused, durationMs: active ? state.durationMillis : 0, levels, prepare, unprepare, start, finish, togglePause };
 }
 
 export function VoiceRecordingBar({ durationMs, levels, onCancel, onSend, holding = false, cancelProgress = 0, paused = false, onPause, floating = false }: { durationMs: number; levels: number[]; onCancel: () => void; onSend: () => void; holding?: boolean; cancelProgress?: number; paused?: boolean; onPause?: () => void; floating?: boolean }) {
@@ -157,6 +175,8 @@ type VoicePlayback = {
   activeId: string | null; loadingId: string | null; failedId: string | null; playing: boolean; position: number; duration: number; error: string;
   toggle: (attachment: Attachment) => void; seek: (attachment: Attachment, fraction: number) => void;
   rate: number; cycleRate: () => void;
+  /** Stops playback and forgets the active message (the mini player's ✕). */
+  stop: () => void;
 };
 const VoiceContext = createContext<VoicePlayback | null>(null);
 
@@ -211,8 +231,32 @@ export function VoicePlaybackProvider({ api, children }: { api: Api; children: R
     if (duration > 0) void player.seekTo(Math.max(0, Math.min(1, fraction)) * duration);
   }, [activeId, loadingId, status.duration, player]);
 
-  const value: VoicePlayback = { activeId, loadingId, failedId, playing: status.playing, position: status.currentTime || 0, duration: status.duration || 0, error, toggle, seek, rate, cycleRate };
+  const stop = useCallback(() => { request.current++; try { player.pause(); } catch { /* not loaded */ } setActiveId(null); setLoadingId(null); }, [player]);
+  const value: VoicePlayback = { activeId, loadingId, failedId, playing: status.playing, position: status.currentTime || 0, duration: status.duration || 0, error, toggle, seek, rate, cycleRate, stop };
   return <VoiceContext.Provider value={value}>{children}{toast ? <RateToast text={toast} rate={rate} /> : null}</VoiceContext.Provider>;
+}
+
+/** Telegram's strip under the chat header while a voice message plays: pause, author, «Голосовое
+ *  сообщение», speed and ✕. `find` maps the playing attachment id to its message (author, attachment). */
+export function VoiceMiniPlayer({ top, find }: { top: number; find: (attachmentId: string) => { author: string; attachment: Attachment } | null }) {
+  const t = useTheme();
+  const voice = useContext(VoiceContext);
+  if (!voice?.activeId) return null;
+  const item = find(voice.activeId);
+  if (!item) return null;
+  const progress = voice.duration > 0 ? Math.min(1, voice.position / voice.duration) : 0;
+  return <View style={{ position: 'absolute', top, left: 10, right: 10, zIndex: 6 }}>
+    <GlassSurface lens material="regular" radius={16} contentStyle={{ height: 42, flexDirection: 'row', alignItems: 'center', gap: 10, paddingHorizontal: 8, overflow: 'hidden' }}>
+      <Pressable accessibilityRole="button" accessibilityLabel={voice.playing ? 'Пауза' : 'Продолжить'} onPress={() => voice.toggle(item.attachment)} hitSlop={8} style={{ width: 30, height: 30, alignItems: 'center', justifyContent: 'center' }}><Icon name={voice.playing ? 'pause' : 'play'} size={20} color={t.accent} /></Pressable>
+      <View style={{ flex: 1 }}>
+        <Text numberOfLines={1} style={{ color: t.text, fontSize: 13, fontWeight: '600' }}>{item.author}</Text>
+        <Text numberOfLines={1} style={{ color: t.muted, fontSize: 11 }}>Голосовое сообщение</Text>
+      </View>
+      <Pressable accessibilityRole="button" accessibilityLabel={`Скорость ${voice.rate}×. Изменить`} onPress={voice.cycleRate} hitSlop={8} style={{ paddingHorizontal: 6, paddingVertical: 2, borderRadius: 6, borderWidth: 1.5, borderColor: voice.rate !== 1 ? t.accent : t.muted }}><Text style={{ color: voice.rate !== 1 ? t.accent : t.muted, fontSize: 11, fontWeight: '800' }}>{voice.rate === 1.5 ? '1,5×' : `${voice.rate}×`}</Text></Pressable>
+      <Pressable accessibilityRole="button" accessibilityLabel="Закрыть плеер" onPress={voice.stop} hitSlop={8} style={{ width: 28, height: 28, alignItems: 'center', justifyContent: 'center' }}><Icon name="close" size={16} color={t.muted} /></Pressable>
+      <View pointerEvents="none" style={{ position: 'absolute', left: 0, bottom: 0, height: 2, width: `${progress * 100}%`, backgroundColor: t.accent }} />
+    </GlassSurface>
+  </View>;
 }
 
 let voiceRate = 1;
@@ -236,7 +280,8 @@ export function VoiceBubble({ attachment, mine }: { attachment: Attachment; mine
   const t = useTheme();
   const voice = useContext(VoiceContext);
   const [width, setWidth] = useState(1);
-  const bars = React.useMemo(() => decodeWaveform(attachment.media?.waveform) || Array.from({ length: 48 }, () => .12), [attachment.media?.waveform]);
+  // Stored bars (100 now, 48 in 0.14.5–0.14.6) fitted to the bubble: one 2.5 pt bar per 4 pt.
+  const bars = React.useMemo(() => fitWaveform(decodeWaveform(attachment.media?.waveform) || Array.from({ length: 48 }, () => .12), Math.max(12, Math.floor(width / 4))), [attachment.media?.waveform, width]);
   if (!voice) return null;
   const active = voice.activeId === attachment.id;
   const loading = voice.loadingId === attachment.id;

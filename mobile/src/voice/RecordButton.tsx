@@ -9,14 +9,19 @@ import { Icon } from '../components';
 import { useTheme } from '../theme';
 import { impactFeedback, lightFeedback } from '../haptics';
 
-export const CANCEL_DISTANCE = 120, LOCK_DISTANCE = 90;
+// Telegram iOS: recording starts after 0.19 s; cancel at 150 pt left while moving (100 pt or a fast
+// flick on release), lock at 110 pt up (60 pt or a fast flick on release); a quicker tap switches mode.
+export const CANCEL_DISTANCE = 150, LOCK_DISTANCE = 110, HOLD_MS = 190;
+const CANCEL_ON_RELEASE = 100, LOCK_ON_RELEASE = 60, FLICK = 400;
 export type RecordKind = 'voice' | 'video';
 
-export function RecordButton({ mode, disabled, onToggleMode, onHoldStart, onHoldEnd, onLock, onSlide, level = 0 }: {
+export function RecordButton({ mode, disabled, onToggleMode, onTouchDown, onHoldStart, onHoldEnd, onLock, onSlide, level = 0 }: {
   mode: RecordKind; disabled?: boolean;
   /** 0…1 loudness right now: the halo around the big circle breathes with the voice (Telegram). */
   level?: number;
   onToggleMode: () => void;
+  /** Finger touched the button (before the hold delay): a chance to warm up the microphone. */
+  onTouchDown?: () => void;
   /** Recording should begin (finger is down long enough). */
   onHoldStart: () => void;
   /** Finger lifted: 'send' (normal release), 'cancel' (slid left). Not called after a lock. */
@@ -31,8 +36,9 @@ export function RecordButton({ mode, disabled, onToggleMode, onHoldStart, onHold
   const done = useRef(false);
   // The gesture worklets keep the functions of the render they were attached in; going through a ref
   // always reaches the current props (otherwise a hold right after «tap → video» still recorded voice).
-  const props = useRef({ onHoldStart, onHoldEnd, onLock, onSlide, onToggleMode });
-  props.current = { onHoldStart, onHoldEnd, onLock, onSlide, onToggleMode };
+  const props = useRef({ onHoldStart, onHoldEnd, onLock, onSlide, onToggleMode, onTouchDown });
+  props.current = { onHoldStart, onHoldEnd, onLock, onSlide, onToggleMode, onTouchDown };
+  const down = () => props.current.onTouchDown?.();
   const begin = () => { done.current = false; setHolding(true); impactFeedback(); props.current.onHoldStart(); };
   const finish = (result: 'send' | 'cancel' | 'lock') => {
     if (done.current) return; done.current = true; setHolding(false); props.current.onSlide?.(0);
@@ -42,7 +48,8 @@ export function RecordButton({ mode, disabled, onToggleMode, onHoldStart, onHold
   const toggle = () => props.current.onToggleMode();
   const reset = () => { 'worklet'; tx.value = withSpring(0, { damping: 18 }); ty.value = withSpring(0, { damping: 18 }); active.value = withSpring(0, { damping: 18 }); };
 
-  const hold = Gesture.Pan().enabled(!disabled).activateAfterLongPress(220)
+  const hold = Gesture.Pan().enabled(!disabled).activateAfterLongPress(HOLD_MS)
+    .onBegin(() => { runOnJS(down)(); })
     .onStart(() => { active.value = withSpring(1, { damping: 14 }); runOnJS(begin)(); })
     .onUpdate(e => {
       // One axis at a time, like Telegram: the larger movement wins.
@@ -52,9 +59,13 @@ export function RecordButton({ mode, disabled, onToggleMode, onHoldStart, onHold
       if (-tx.value >= CANCEL_DISTANCE) { reset(); runOnJS(finish)('cancel'); }
       else if (-ty.value >= LOCK_DISTANCE) { reset(); runOnJS(finish)('lock'); }
     })
-    .onEnd(() => { reset(); runOnJS(finish)('send'); })
+    .onEnd(e => {
+      const left = -Math.min(0, e.translationX), up = -Math.min(0, e.translationY);
+      const result = left >= CANCEL_ON_RELEASE || e.velocityX < -FLICK ? 'cancel' : up >= LOCK_ON_RELEASE || e.velocityY < -FLICK ? 'lock' : 'send';
+      reset(); runOnJS(finish)(result);
+    })
     .onFinalize(() => { reset(); });
-  const tap = Gesture.Tap().enabled(!disabled).maxDuration(220).onEnd((_e, ok) => { if (ok) runOnJS(toggle)(); });
+  const tap = Gesture.Tap().enabled(!disabled).maxDuration(HOLD_MS).onEnd((_e, ok) => { if (ok) runOnJS(toggle)(); });
   const gesture = Gesture.Exclusive(hold, tap);
 
   const button = useAnimatedStyle(() => ({

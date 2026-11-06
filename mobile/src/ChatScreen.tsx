@@ -37,7 +37,7 @@ import { PollComposer } from './PollBubble';
 import { StickerPanel } from './StickerPanel';
 import { Share } from 'react-native';
 import { presenceText } from './presence';
-import { VoicePlaybackProvider, VoiceRecordingBar, useVoiceRecorder } from './voice/VoiceMessage';
+import { VoiceMiniPlayer, VoicePlaybackProvider, VoiceRecordingBar, useVoiceRecorder } from './voice/VoiceMessage';
 import { RecordButton } from './voice/RecordButton';
 import { MessageRow, MissingRow, type AlbumPart, type Row, type RowHandlers } from './MessageRow';
 import { ContextMenu, ReadDateRow, MenuItem } from './ContextMenu';
@@ -48,7 +48,7 @@ import { TopPlayerBar } from './music/PlayerControls';
 import { useCalls } from './calls/CallProvider';
 import { UserProfile } from './UserProfile';
 import { MiniProfile } from './MiniProfile';
-import { impactFeedback, lightFeedback } from './haptics';
+import { errorFeedback, impactFeedback, lightFeedback } from './haptics';
 import { VideoNoteRecorder, type VideoHold, type VideoNoteTake } from './videonote/VideoNote';
 import { useCallback } from 'react';
 import { attachmentLabel, isVideoNote, isVoice } from './voice/voice';
@@ -202,7 +202,7 @@ export function ChatScreen({api,user,chat,store,onBack,wide=false,onOpenMusic}: 
   const finishVoice=async(keep:boolean)=>{
     const take=await voice.finish(keep).catch(e=>{setLocalError(e instanceof Error?e.message:'Не удалось остановить запись.');return null;});
     if(!take)return;
-    if(take.durationMs<VOICE_MIN_MS){await FileSystem.deleteAsync(take.uri,{idempotent:true}).catch(()=>{});setNotice('Слишком короткое голосовое — держи запись хотя бы секунду.');return;}
+    if(take.durationMs<VOICE_MIN_MS){errorFeedback();await FileSystem.deleteAsync(take.uri,{idempotent:true}).catch(()=>{});setNotice('Слишком короткое голосовое — держи запись хотя бы секунду.');return;}
     const chatId=chat.id,reply=replyTo?{clientId:replyTo.clientId,senderId:replyTo.senderId,preview:replyPreview(replyTo)}:undefined;
     uploadingRef.current=true;setUploading(true);setLocalError('');
     try{
@@ -220,7 +220,7 @@ export function ChatScreen({api,user,chat,store,onBack,wide=false,onOpenMusic}: 
   const [recHold,setRecHold]=useState<{kind:'voice'|'video';locked:boolean}|null>(null);
   const [cancelProgress,setCancelProgress]=useState(0);
   const [videoHold,setVideoHold]=useState<VideoHold|null>(null);
-  const toggleRecordMode=()=>{lightFeedback();const next=recordModeRef.current==='voice'?'video':'voice';recordModeRef.current=next;setRecordMode(next);setNotice(next==='video'?'Удерживай, чтобы записать видеосообщение':'Удерживай, чтобы записать голосовое');setTimeout(()=>setNotice(current=>current.startsWith('Удерживай')?'':current),1800);};
+  const toggleRecordMode=()=>{lightFeedback();voice.unprepare();const next=recordModeRef.current==='voice'?'video':'voice';recordModeRef.current=next;setRecordMode(next);setNotice(next==='video'?'Удерживай, чтобы записать видеосообщение':'Удерживай, чтобы записать голосовое');setTimeout(()=>setNotice(current=>current.startsWith('Удерживай')?'':current),1800);};
   // Latest values for the hold handlers (gesture callbacks can outlive the render they came from).
   const recordModeRef=useRef(recordMode);recordModeRef.current=recordMode;
   const recHoldRef=useRef(recHold);recHoldRef.current=recHold;
@@ -355,6 +355,7 @@ export function ChatScreen({api,user,chat,store,onBack,wide=false,onOpenMusic}: 
         instead of showing through sharp-edged behind the clock and the input field. */}
     {headerHeight?<LinearGradient pointerEvents="none" colors={[fade(edge.top,edge.alpha),fade(edge.top,edge.alpha*.85),fade(edge.top,0)]} locations={[0,.55,1]} style={{position:'absolute',top:0,left:0,right:0,height:headerHeight+22,zIndex:4}}/>:null}
     {footerHeight?<LinearGradient pointerEvents="none" colors={[fade(edge.bottom,0),fade(edge.bottom,edge.alpha*.85),fade(edge.bottom,edge.alpha)]} locations={[0,.45,1]} style={{position:'absolute',bottom:0,left:0,right:0,height:footerHeight+22,zIndex:3}}/>:null}
+    <VoiceMiniPlayer top={headerHeight+4} find={id=>{const m=view.messages.find(x=>x.attachment?.id===id);return m&&m.attachment?{author:originalAuthor(m),attachment:m.attachment}:null;}}/>
     <View pointerEvents="box-none" onLayout={e=>setHeaderHeight(e.nativeEvent.layout.height)} style={{position:'absolute',top:0,left:0,right:0,zIndex:5,paddingTop:8+(wide?0:insets.top),gap:6}}>
     {selection?<View style={{flexDirection:'row',alignItems:'center',gap:8,paddingHorizontal:12}}>
       <GlassSurface material="regular" radius={24} interactive contentStyle={{height:48,justifyContent:'center',paddingHorizontal:16}}><Pressable onPress={()=>setSelection(null)} accessibilityRole="button" hitSlop={8}><Text style={{color:t.accent,fontSize:16,fontWeight:'600'}}>Отмена</Text></Pressable></GlassSurface>
@@ -440,7 +441,7 @@ export function ChatScreen({api,user,chat,store,onBack,wide=false,onOpenMusic}: 
         </GlassSurface>
         {canSend||!signalAvailable||uploading?<Pressable accessibilityRole="button" accessibilityLabel="Отправить сообщение" disabled={!signalAvailable||uploading||(!text.trim()&&!attachments.length&&!editing)} onPress={send} style={({pressed})=>({height:40,width:40,borderRadius:20,backgroundColor:t.accent,alignItems:'center',justifyContent:'center',opacity:!signalAvailable||uploading||(!text.trim()&&!attachments.length&&!editing)?.4:pressed?.75:1})}><Icon name={editing?'checkmark':'arrow-up'} color={t.onAccent} size={25}/></Pressable>
         :null}</>}
-        {!(canSend||!signalAvailable||uploading)||recHold?<View key="rec" style={{zIndex:5}}><RecordButton mode={recordMode} disabled={uploading||!signalAvailable} onToggleMode={toggleRecordMode} onHoldStart={holdStart} onHoldEnd={holdEnd} onLock={holdLock} onSlide={setCancelProgress} level={recHold?.kind==='voice'?voice.levels.at(-1)||0:0}/></View>:null}
+        {!(canSend||!signalAvailable||uploading)||recHold?<View key="rec" style={{zIndex:5}}><RecordButton mode={recordMode} disabled={uploading||!signalAvailable} onToggleMode={toggleRecordMode} onTouchDown={()=>{if(recordModeRef.current==='voice')voice.prepare();}} onHoldStart={holdStart} onHoldEnd={holdEnd} onLock={holdLock} onSlide={setCancelProgress} level={recHold?.kind==='voice'?voice.levels.at(-1)||0:0}/></View>:null}
       </View>}
       {text.length>7500?<Text style={{fontSize:10,color:t.muted,textAlign:'right',paddingRight:8}}>{text.length} / 8000</Text>:null}
     </View>}

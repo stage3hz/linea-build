@@ -20,6 +20,8 @@ import { AndroidNoteCamera, androidNoteCameraAvailable, type AndroidNoteCameraHa
 import { useMusic } from '../music/MusicProvider';
 import { VIDEO_NOTE_MAX_MS, formatVoiceTime, formatVoiceTimeFine } from '../voice/voice';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import * as Brightness from 'expo-brightness';
+import { lightFeedback } from '../haptics';
 
 export type VideoNoteTake = { uri: string; durationMs: number };
 const BASE_CIRCLE = 300;
@@ -36,7 +38,8 @@ const FLIP_WHILE_RECORDING = androidNoteCameraAvailable;
  * `stop`/`cancel` counters come from that button, and the circle floats over the blurred chat
  * (no separate screen, so the finger's touch is not interrupted). After a lock the buttons appear.
  */
-let centerStageWanted = true;
+// Telegram turns Center Stage off for video messages; we start with it off and remember a change.
+let centerStageWanted = false;
 export type VideoHold = { stop: number; cancel: number; locked: boolean };
 export function VideoNoteRecorder({ visible, onClose, onDone, hold = null }: { visible: boolean; onClose: () => void; onDone: (take: VideoNoteTake) => void; hold?: VideoHold | null }) {
   const win = useWindowDimensions();
@@ -126,21 +129,33 @@ export function VideoNoteRecorder({ visible, onClose, onDone, hold = null }: { v
   useEffect(() => { if (!hold) return; if (hold.stop !== stopSeen.current) { stopSeen.current = hold.stop; if (recording) void stop(); else onClose(); } }, [hold?.stop]);
   useEffect(() => { if (!hold) return; if (hold.cancel !== cancelSeen.current) { cancelSeen.current = hold.cancel; cancel(); } }, [hold?.cancel]);
   const progress = Math.min(1, elapsed / VIDEO_NOTE_MAX_MS);
-  const CIRCLE = hold ? Math.round(Math.min(win.width * 0.8, win.height * 0.45, 360)) : BASE_CIRCLE;
+  // Telegram: side = min(369, width − 24), top ≈ 40 % of the height (not above the status bar + 24).
+  const CIRCLE = hold ? Math.round(Math.min(369, win.width - 24)) : BASE_CIRCLE;
 
   const showControls = !hold || hold.locked;
   const insets = useSafeAreaInsets();
-  const flip = () => { if (recording && !FLIP_WHILE_RECORDING) return; if (!recording && Platform.OS !== 'ios' && !androidNoteCameraAvailable) setReady(false); setError(''); setFacing(value => value === 'front' ? 'back' : 'front'); };
-  const preview = visible && allowed && androidNoteCameraAvailable ? <AndroidNoteCamera ref={nativeRef} facing={facing === 'back' ? 'back' : 'front'} style={{ position: 'absolute', left: 0, top: -CIRCLE / 6, width: CIRCLE, height: CIRCLE * 4 / 3 }} onReady={() => setReady(true)} onCameraError={event => setError(event.nativeEvent.message || 'Камера недоступна.')} /> : visible && allowed ? <CameraView key={Platform.OS === 'ios' ? 'camera' : facing} ref={ref} style={{ position: 'absolute', left: 0, top: -CIRCLE / 6, width: CIRCLE, height: CIRCLE * 4 / 3 }} facing={facing} mode="video" ratio="4:3" mirror={facing === 'front'} videoQuality="480p" onCameraReady={() => setReady(true)} onMountError={event => setError(event.message || 'Камера недоступна.')} /> : null;
+  const lastFlip = useRef(0);
+  const [flash, setFlash] = useState(false);
+  const brightness = useRef<number | null>(null);
+  // Front «flash» as in Telegram: the screen turns white and goes to full brightness while recording.
+  const screenFlash = flash && facing === 'front' && recording;
+  useEffect(() => {
+    if (!screenFlash) { if (brightness.current !== null) { const value = brightness.current; brightness.current = null; void Brightness.setBrightnessAsync(value).catch(() => {}); } return; }
+    void Brightness.getBrightnessAsync().then(value => { brightness.current = value; return Brightness.setBrightnessAsync(1); }).catch(() => {});
+  }, [screenFlash]);
+  useEffect(() => { if (!visible) setFlash(false); }, [visible]);
+  const flip = () => { const now = Date.now(); if (now - lastFlip.current < 1000) return; lastFlip.current = now; lightFeedback(); if (recording && !FLIP_WHILE_RECORDING) return; if (!recording && Platform.OS !== 'ios' && !androidNoteCameraAvailable) setReady(false); setError(''); setFacing(value => value === 'front' ? 'back' : 'front'); };
+  const preview = visible && allowed && androidNoteCameraAvailable ? <AndroidNoteCamera ref={nativeRef} facing={facing === 'back' ? 'back' : 'front'} style={{ position: 'absolute', left: 0, top: -CIRCLE / 6, width: CIRCLE, height: CIRCLE * 4 / 3 }} onReady={() => setReady(true)} onCameraError={event => setError(event.nativeEvent.message || 'Камера недоступна.')} /> : visible && allowed ? <CameraView key={Platform.OS === 'ios' ? 'camera' : facing} ref={ref} style={{ position: 'absolute', left: 0, top: -CIRCLE / 6, width: CIRCLE, height: CIRCLE * 4 / 3 }} facing={facing} mode="video" ratio="4:3" mirror={facing === 'front'} videoQuality="480p" enableTorch={flash && facing === 'back'} onCameraReady={() => setReady(true)} onMountError={event => setError(event.message || 'Камера недоступна.')} /> : null;
   // Telegram's way while the finger holds (and after a lock): the circle over the blurred chat with a
   // white progress arc around it; at the bottom the same strip as for voice — red dot, 0:04,63,
   // «‹ Влево — отмена» (after a lock: «Отмена»), the big circle on the right (under the finger; after
   // a lock it sends), and the switch-camera button above the strip on the left.
-  const RING = CIRCLE + 14;
+  const RING = CIRCLE + 12;
   const holdBody = <View pointerEvents="box-none" style={{ flex: 1 }}>
-    <View pointerEvents="box-none" style={{ alignItems: 'center', paddingTop: Math.max(insets.top + 40, win.height * 0.12), gap: 18 }}>
+    {screenFlash ? <View pointerEvents="none" style={[StyleSheet.absoluteFill, { backgroundColor: '#FFF6E8' }]} /> : null}
+    <View pointerEvents="box-none" style={{ alignItems: 'center', paddingTop: Math.max(insets.top + 24, win.height * 0.4 - RING / 2), gap: 18 }}>
       <View pointerEvents="none" style={{ width: RING, height: RING, alignItems: 'center', justifyContent: 'center' }}>
-        <ProgressRing progress={recording ? progress : 0} size={RING} width={3} color="#FFF" track="rgba(255,255,255,0.16)" />
+        <ProgressRing progress={recording ? progress : 0} size={RING} width={4} color="#FFF" track="rgba(255,255,255,0.16)" />
         <View style={{ width: CIRCLE, height: CIRCLE, borderRadius: CIRCLE / 2, overflow: 'hidden', backgroundColor: '#000' }}>{preview}</View>
       </View>
       {stage.supported && facing === 'front' && showControls ? <Pressable accessibilityRole="switch" accessibilityState={{ checked: stage.enabled }} accessibilityLabel="Слежение за лицом" onPress={toggleStage} style={{ flexDirection: 'row', alignItems: 'center', gap: 6, paddingHorizontal: 12, paddingVertical: 7, borderRadius: 16, backgroundColor: stage.enabled ? 'rgba(255,214,10,0.18)' : 'rgba(255,255,255,0.1)' }}><Icon name="scan-outline" size={16} color={stage.enabled ? '#FFD60A' : '#FFF'} /><Text style={{ color: stage.enabled ? '#FFD60A' : '#FFF', fontSize: 13, fontWeight: '600' }}>{stage.enabled ? 'В центре кадра' : 'Слежение выкл.'}</Text></Pressable> : null}
@@ -149,6 +164,7 @@ export function VideoNoteRecorder({ visible, onClose, onDone, hold = null }: { v
     <View pointerEvents="box-none" style={{ position: 'absolute', left: 8, right: 8, bottom: insets.bottom + 6, gap: 10 }}>
       <View pointerEvents="box-none" style={{ flexDirection: 'row' }}>
         <Pressable accessibilityRole="button" accessibilityLabel="Сменить камеру" disabled={!showControls} onPress={flip} style={[styles.small, { opacity: recording && !FLIP_WHILE_RECORDING ? .35 : 1 }]}><Icon name="camera-reverse-outline" color="#FFF" size={21} /></Pressable>
+        {facing === 'front' || !androidNoteCameraAvailable ? <Pressable accessibilityRole="switch" accessibilityState={{ checked: flash }} accessibilityLabel="Вспышка" disabled={!showControls} onPress={() => { lightFeedback(); setFlash(value => !value); }} style={[styles.small, { marginLeft: 11, backgroundColor: flash ? 'rgba(255,214,10,0.28)' : 'rgba(255,255,255,0.14)' }]}><Icon name={flash ? 'flash' : 'flash-off-outline'} color={flash ? '#FFD60A' : '#FFF'} size={20} /></Pressable> : null}
       </View>
       <View pointerEvents="box-none" style={{ flexDirection: 'row', alignItems: 'flex-end' }}>
         <View pointerEvents="box-none" style={{ flex: 1, minHeight: 48, marginBottom: 10, marginRight: -62, paddingRight: 70, borderRadius: 24, flexDirection: 'row', alignItems: 'center', gap: 8, paddingLeft: 14, backgroundColor: 'rgba(28,32,46,0.88)' }}>
@@ -219,7 +235,7 @@ export function VideoNoteBubble({ api, attachment }: { api: Api; attachment: Att
   // Circles are small, so they load by themselves (as in Telegram) and play silently in the chat.
   const media = useMedia(api, attachment, attachment.size <= 8 * 1024 * 1024);
   const [expanded, setExpanded] = useState(false);
-  const size = expanded ? Math.min(width - 36, 340) : 212; // Telegram: 212 pt circle
+  const size = expanded ? Math.min(width - 20, 404) : 212; // Telegram: grows to min(404, width − 20) while playing
   const thumb = useMemo(() => attachment.preview ? `data:${attachment.preview.mimeType};base64,${attachment.preview.base64}` : null, [attachment.preview]);
   const collapse = useCallback(() => setExpanded(false), []);
   const toggle = useCallback(() => setExpanded(value => { if (!value) music.stop(); return !value; }), [music]);
