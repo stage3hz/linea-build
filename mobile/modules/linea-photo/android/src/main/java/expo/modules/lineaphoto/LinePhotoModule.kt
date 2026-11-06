@@ -15,11 +15,18 @@ class LinePhotoModule:Module() {
     // Android 10+: with 3-button navigation the system lays a translucent white scrim under the buttons
     // «for contrast», so the app's own background never reaches the bottom edge (a white strip below the
     // input field, reported). The app draws edge to edge and keeps its controls clear of the bar itself.
+    // Expo may call this right when the module is created — on the JS thread (mqt_v_js) — and touching
+    // the window off the UI thread crashed the app at start («Only the original thread that created a
+    // view hierarchy can touch its views»). The window is changed on the UI thread only.
     OnActivityEntersForeground {
-      val window = appContext.currentActivity?.window ?: return@OnActivityEntersForeground
+      val activity = appContext.currentActivity ?: return@OnActivityEntersForeground
       if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.Q) {
-        window.isNavigationBarContrastEnforced = false
-        window.isStatusBarContrastEnforced = false
+        activity.runOnUiThread {
+          runCatching {
+            activity.window.isNavigationBarContrastEnforced = false
+            activity.window.isStatusBarContrastEnforced = false
+          }
+        }
       }
     }
     AsyncFunction("capabilities"){protect{PhotoBackground(context()).capabilities()}}
