@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { Modal, Platform, Pressable, ScrollView, StyleSheet, View, useWindowDimensions } from 'react-native';
-import Animated, { Easing, interpolate, runOnJS, useAnimatedStyle, useSharedValue, withDelay, withSpring, withTiming, type SharedValue } from 'react-native-reanimated';
+import Animated, { Easing, interpolate, runOnJS, useAnimatedProps, useAnimatedStyle, useSharedValue, withDelay, withSpring, withTiming, type SharedValue } from 'react-native-reanimated';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { BlurView } from 'expo-blur';
 import { Text } from './typography';
@@ -11,6 +11,10 @@ export type QuickReaction = { emoji: string; chosen: boolean };
 const QUICK = 7;
 // One spring for the whole menu so every part moves as one gesture (Telegram-like: fast, slight overshoot).
 const OPEN = { damping: 19, stiffness: 300, mass: 0.75 } as const;
+// iOS cannot fade a blur by the opacity of its parent (UIVisualEffectView pops in at once): the blur
+// strength itself is animated instead, so the chat blurs in gradually as in Telegram.
+const AnimatedBlurView = Animated.createAnimatedComponent(BlurView);
+const BLUR = 30;
 const CLOSE_MS = 170;
 
 /**
@@ -45,6 +49,7 @@ export function ContextMenu({ visible, y: liveY, x: liveX, onClose, reactions, o
   // How far the message travels: from the finger to its place under the reactions.
   const lift = size && !atCursor ? y - 20 - (top + reactionBlock) : 0;
   const backdrop = useAnimatedStyle(() => ({ opacity: interpolate(shown.value, [0, 1], [0, 1], 'clamp') }));
+  const blur = useAnimatedProps(() => ({ intensity: interpolate(shown.value, [0, 1], [0, BLUR], 'clamp') }));
   const bubble = useAnimatedStyle(() => ({ opacity: interpolate(shown.value, [0, 0.25], [0, 1], 'clamp'), transform: [{ translateY: lift * (1 - shown.value) }, { scale: interpolate(shown.value, [0, 1], [0.96, 1]) }] }));
   const menu = useAnimatedStyle(() => ({ opacity: interpolate(shown.value, [0, 0.35], [0, 1], 'clamp'), transform: [{ scale: interpolate(shown.value, [0, 1], [0.35, 1]) }] }));
   const pill = useAnimatedStyle(() => ({ opacity: interpolate(shown.value, [0, 0.3], [0, 1], 'clamp'), transform: [{ scale: interpolate(shown.value, [0, 1], [0.55, 1]) }] }));
@@ -55,7 +60,7 @@ export function ContextMenu({ visible, y: liveY, x: liveX, onClose, reactions, o
   if (!mounted) return null;
   return <Modal visible transparent animationType="none" onRequestClose={onClose} statusBarTranslucent>
     <Animated.View style={[StyleSheet.absoluteFill, backdrop]}>
-      {Platform.OS === 'web' || atCursor ? null : <BlurView intensity={30} tint={t.dark ? 'dark' : 'light'} style={StyleSheet.absoluteFill} />}
+      {Platform.OS === 'web' || atCursor ? null : <AnimatedBlurView animatedProps={blur} tint={t.dark ? 'dark' : 'light'} style={StyleSheet.absoluteFill} />}
       {atCursor ? null : <View style={[StyleSheet.absoluteFill, { backgroundColor: t.dark ? 'rgba(0,0,0,0.34)' : 'rgba(20,30,60,0.14)' }, Platform.OS === 'web' ? { backdropFilter: 'blur(14px)' } as object : null]} />}
       <Pressable accessibilityRole="button" accessibilityLabel="Закрыть меню" onPress={onClose} style={StyleSheet.absoluteFill} />
     </Animated.View>
