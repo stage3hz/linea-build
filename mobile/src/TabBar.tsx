@@ -3,11 +3,11 @@
 //   sparkles twinkle…) and the tab presses in under the finger;
 // • the selection is a pill that slides between tabs; hold the bar and drag to move the pill across the
 //   tabs, let go to open the one under it;
-// • «Обзор» is a folder: «Люди» and «Каналы» pop up above it.
+// • «Обзор» is a folder: «Люди» and «Каналы» fan out of it as round buttons.
 import React, { useRef, useState } from 'react';
-import { Modal, Pressable, StyleSheet, View, useWindowDimensions } from 'react-native';
+import { Modal, Pressable, StyleSheet, View } from 'react-native';
 import { Gesture, GestureDetector } from 'react-native-gesture-handler';
-import Animated, { Easing, FadeIn, FadeOut, ZoomIn, runOnJS, useAnimatedStyle, useSharedValue, withSpring, withTiming, type SharedValue } from 'react-native-reanimated';
+import Animated, { Easing, runOnJS, useAnimatedStyle, useSharedValue, withDelay, withSpring, withTiming, type SharedValue } from 'react-native-reanimated';
 import { Text } from './typography';
 import { Icon, type IconName } from './components';
 import { useTheme } from './theme';
@@ -39,7 +39,7 @@ function TabIcon({ item, active, kick, pressed, index }: { item: TabItem; active
 }
 
 export function TabBar({ items, active }: { items: TabItem[]; active: TabId }) {
-  const t = useTheme(); const { width: screen } = useWindowDimensions();
+  const t = useTheme();
   const [width, setWidth] = useState(0); const [folder, setFolder] = useState<{ x: number; y: number } | null>(null);
   const barRef = useRef<View>(null);
   const n = items.length; const cell = width / Math.max(1, n);
@@ -86,19 +86,26 @@ export function TabBar({ items, active }: { items: TabItem[]; active: TabId }) {
         </View>; })}
       </View>
     </GestureDetector>
-    {/* The «Обзор» folder: its two sections pop up above the tab. */}
+    {/* The «Обзор» folder: its sections fan out of the tab as round buttons, up-left and up-right. */}
     <Modal visible={!!folder} transparent animationType="none" onRequestClose={() => setFolder(null)} statusBarTranslucent>
       <Pressable accessibilityLabel="Закрыть" onPress={() => setFolder(null)} style={StyleSheet.absoluteFill} />
-      {folder && folderItem?.children ? <Animated.View entering={ZoomIn.springify().damping(16).stiffness(240)} exiting={FadeOut.duration(120)}
-        style={{ position: 'absolute', top: folder.y - 128, left: Math.max(12, Math.min(screen - 232, folder.x - 110)), width: 220, flexDirection: 'row', gap: 10 }}>
-        {folderItem.children.map((child, i) => <Animated.View key={child.id} entering={FadeIn.delay(40 + i * 50)} style={{ flex: 1 }}>
-          <Pressable accessibilityRole="button" accessibilityLabel={child.label} onPress={() => { setFolder(null); lightFeedback(); child.onPress(); }}
-            style={({ pressed: down }) => ({ height: 108, borderRadius: 26, alignItems: 'center', justifyContent: 'center', gap: 8, backgroundColor: t.glassOpaque, borderWidth: StyleSheet.hairlineWidth, borderColor: t.glassBorder, transform: [{ scale: down ? 0.94 : 1 }], shadowColor: '#000', shadowOpacity: .3, shadowRadius: 18, shadowOffset: { width: 0, height: 8 }, elevation: 10 })}>
-            <View><Icon name={child.icon} size={28} color={t.text} />{child.badge ? <View style={{ position: 'absolute', top: -6, right: -12, minWidth: 18, height: 18, paddingHorizontal: 5, borderRadius: 9, backgroundColor: t.accent, alignItems: 'center', justifyContent: 'center' }}><Text maxFontSizeMultiplier={1} style={{ color: t.onAccent, fontSize: 10, fontWeight: '800' }}>{badgeText(child.badge)}</Text></View> : null}</View>
-            <Text style={{ color: t.text, fontSize: 14, fontWeight: '600' }}>{child.label}</Text>
-          </Pressable>
-        </Animated.View>)}
-      </Animated.View> : null}
+      {folder && folderItem?.children ? folderItem.children.map((child, i) => <FanButton key={child.id} child={child} index={i} count={folderItem.children!.length} origin={folder} onPress={() => { setFolder(null); lightFeedback(); child.onPress(); }} />) : null}
     </Modal>
   </>;
+}
+
+/** One section of the folder: flies out of the tab on an arc and lands as a round glass button with a label. */
+function FanButton({ child, index, count, origin, onPress }: { child: TabChild; index: number; count: number; origin: { x: number; y: number }; onPress: () => void }) {
+  const t = useTheme(); const out = useSharedValue(0);
+  React.useEffect(() => { out.value = withDelay(index * 45, withSpring(1, { damping: 13, stiffness: 230, mass: 0.7 })); }, []);
+  const size = 56; const spread = count > 1 ? (index / (count - 1)) * 2 - 1 : 0; // -1 (left) … 1 (right)
+  const dx = spread * 46, dy = -(86 - Math.abs(spread) * 14); // an arc above the tab
+  const style = useAnimatedStyle(() => ({ opacity: Math.min(1, out.value * 1.5), transform: [{ translateX: dx * out.value }, { translateY: dy * out.value }, { scale: 0.3 + 0.7 * out.value }] }));
+  return <Animated.View style={[{ position: 'absolute', left: origin.x - size / 2, top: origin.y - size / 2 + 6, width: size, alignItems: 'center' }, style]}>
+    <Pressable accessibilityRole="button" accessibilityLabel={child.label} onPress={onPress} style={({ pressed }) => ({ width: size, height: size, borderRadius: size / 2, alignItems: 'center', justifyContent: 'center', backgroundColor: t.glassOpaque, borderWidth: StyleSheet.hairlineWidth, borderColor: t.glassBorder, transform: [{ scale: pressed ? 0.9 : 1 }], shadowColor: '#000', shadowOpacity: .35, shadowRadius: 14, shadowOffset: { width: 0, height: 6 }, elevation: 10 })}>
+      <Icon name={child.icon} size={24} color={t.text} />
+      {child.badge ? <View style={{ position: 'absolute', top: -2, right: -2, minWidth: 18, height: 18, paddingHorizontal: 5, borderRadius: 9, backgroundColor: t.accent, alignItems: 'center', justifyContent: 'center' }}><Text maxFontSizeMultiplier={1} style={{ color: t.onAccent, fontSize: 10, fontWeight: '800' }}>{badgeText(child.badge)}</Text></View> : null}
+    </Pressable>
+    <Text maxFontSizeMultiplier={1} style={{ color: t.text, fontSize: 11, fontWeight: '600', marginTop: 4, textShadowColor: 'rgba(0,0,0,0.5)', textShadowRadius: 4 }}>{child.label}</Text>
+  </Animated.View>;
 }
