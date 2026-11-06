@@ -78,3 +78,10 @@ https://github.com/expo/expo/tree/main/packages/expo-camera — MIT License. Use
 (`LICENSE.electron.txt`, `LICENSES.chromium.html`). Официальный Node SDK Signal
 сохраняет свой `dist/acknowledgments.md` и upstream-лицензии внутри пакета.
 Исходники клиента, IPC bridge и скрипты сборки доступны в этом репозитории.
+
+## expokit (компоненты интерфейса)
+
+Конфетти, скелетоны загрузки, анимированный текст и кнопка с состояниями взяты из
+[expokit](https://github.com/Anshkaran7/expokit) (commit 14ddb96), © 2025-2026 Karan
+(anshkaran7), лицензия MIT. Файлы — `mobile/src/kit/`, текст лицензии —
+`mobile/src/kit/LICENSE`.

@@ -8,7 +8,7 @@ import { useTheme } from './theme';
 import { isDevelopmentHttpAllowed, normalizeServer } from './storage';
 import type { RecoveryChallenge, Session } from './types';
 import { ManualField } from './auth/ManualField';
-import { AppearingText } from './effects';
+import { ActionButton, AppearingText } from './effects';
 import { Wordmark } from './auth/AuthBackdrop';
 import { clearRecovery, readRecovery, saveRecovery } from './auth/recoveryStorage';
 
@@ -24,7 +24,7 @@ export function ConnectScreen({initialUrl='',onConnect}: {initialUrl?:string;onC
           <View style={{flexDirection:'row',gap:10,alignItems:'center'}}><View style={{height:34,width:34,borderRadius:12,alignItems:'center',justifyContent:'center',backgroundColor:t.accentSoft}}><Icon name="link-outline" size={19} color={t.accent}/></View><Text style={{color:t.text,fontSize:17,fontWeight:'700'}}>Подключение</Text></View>
           <Field label="Адрес сервера" value={url} onChangeText={setUrl} placeholder="https://chat.example.com" autoCapitalize="none" autoCorrect={false} keyboardType="url" returnKeyType="go" onSubmitEditing={()=>void connect()} editable={!busy}/>
           {error?<Notice text={error} error/>:null}
-          <Button label="Продолжить" icon="arrow-forward" errorSignal={error} onPress={()=>void connect()} loading={busy} disabled={!url.trim()}/>
+          <ActionButton label="Продолжить" errorSignal={error} onPress={()=>void connect()} loading={busy} disabled={!url.trim()}/>
           <Text style={{color:t.muted,fontSize:12,lineHeight:19}}>{isDevelopmentHttpAllowed()?'Для локальной разработки введи адрес компьютера в Wi-Fi, например http://192.168.1.10:3001.':'Подключение к серверу защищено HTTPS. Введите адрес вашего сервера с действующим сертификатом.'}</Text>
         </GlassSurface>
         <Text style={{fontSize:12,lineHeight:19,color:t.subtle,textAlign:'center',marginTop:25}}>Твоя линия связи.</Text>
@@ -355,7 +355,7 @@ export function AuthScreen({api,onLogin,onChangeServer}: {api:Api;onLogin:(sessi
           {api.base.startsWith('http:')?<Notice text="Тестовое подключение без шифрования. Для настоящего аккаунта нужен HTTPS."/>:null}
           {notice?<Notice text={notice}/>:null}{error?<Notice text={error} error/>:null}
           {loginLocked?<Notice text={`Вход временно закрыт. Попробуй через ${lockText}.`} error/>:null}
-          <Button label={loginLocked?`Подожди ${lockText}`:buttonTitle} icon={mode==='waiting'?'refresh-outline':mode==='recover'?'key-outline':'arrow-forward'} successLabel="Готово" success={entered} errorSignal={error} onPress={()=>void submit()} loading={!entered&&(busy||checking&&mode==='waiting')} disabled={restoring||mode==='recover'&&locked||loginLocked}/>
+          <ActionButton label={loginLocked?`Подожди ${lockText}`:buttonTitle} successLabel="Готово" success={entered} errorSignal={error} onPress={()=>void submit()} loading={!entered&&(busy||checking&&mode==='waiting')} disabled={restoring||mode==='recover'&&locked||loginLocked}/>
           {isLogin?<Pressable disabled={disabled} accessibilityRole="button" onPress={()=>{generation.current++;clearSecrets();go('recover');}} style={{minHeight:44,alignItems:'center',justifyContent:'center'}}><Text style={{color:t.accent,fontSize:13,fontWeight:'700'}}>Забыл пароль?</Text></Pressable>:null}
           {mode!=='login-name'&&mode!=='register-name'?<Pressable disabled={disabled} accessibilityRole="button" onPress={back} style={{minHeight:44,flexDirection:'row',alignItems:'center',justifyContent:'center',gap:6}}><Icon name="chevron-back" color={t.muted} size={15}/><Text style={{color:t.muted,fontSize:13}}>{mode==='recover'||mode==='waiting'||mode==='reset'?'Вернуться ко входу':'Назад'}</Text></Pressable>:null}
         </GlassSurface>

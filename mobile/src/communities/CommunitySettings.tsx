@@ -8,6 +8,7 @@ import * as ImageManipulator from 'expo-image-manipulator';
 import * as FileSystem from 'expo-file-system/legacy';
 import type { Api } from '../api';
 import type { User } from '../types';
+import { ActionButton } from '../effects';
 import { Avatar, Button, Field, Icon, IconButton, Notice, Sheet, SheetAction, useSuccessFlash } from '../components';
 import { GlassSurface } from '../glass';
 import { Text } from '../typography';
@@ -68,7 +69,7 @@ export function CommunitySettings({ api, me, community, onBack, onChanged, onLef
         <Field label="Описание" value={description} onChangeText={setDescription} maxLength={500} multiline style={{ height: 80, textAlignVertical: 'top' }} />
         {community.kind === 'blog' ? <View style={{ gap: 8 }}><Text style={{ color: t.muted, fontSize: 12, fontWeight: '600' }}>О чём канал</Text><View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 7 }}>{CATEGORIES.map(item => <Pressable key={item.id} accessibilityRole="radio" accessibilityState={{ selected: community.category === item.id }} disabled={!!busy} onPress={() => void run('category', async () => onChanged((await api.updateCommunity(community.id, { category: item.id })).community))} style={{ paddingHorizontal: 12, paddingVertical: 8, borderRadius: 16, backgroundColor: community.category === item.id ? t.accent : t.surface2 }}><Text style={{ color: community.category === item.id ? t.onAccent : t.text, fontSize: 13, fontWeight: '600' }}>{item.label}</Text></Pressable>)}</View></View> : null}
         <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12 }}><View style={{ flex: 1, gap: 3 }}><Text style={{ color: t.text, fontSize: 15, fontWeight: '600' }}>{community.kind === 'blog' ? 'Закрытый канал' : 'Закрытый сервер'}</Text><Text style={{ color: t.muted, fontSize: 12, lineHeight: 17 }}>Баннер приглашения нельзя переслать дальше — попасть можно только по ссылке, которую дашь ты.</Text></View><Switch accessibilityLabel="Закрытый" value={!!community.closed} disabled={!!busy} onValueChange={closed => void run('closed', async () => onChanged((await api.updateCommunity(community.id, { closed })).community))} /></View>
-        <Button label="Сохранить" successLabel="Сохранено" success={saved} errorSignal={error} loading={busy === 'save'} disabled={!saved && (!name.trim() || (name === community.name && description === community.description))} onPress={() => void run('save', async () => onChanged((await api.updateCommunity(community.id, { name: name.trim(), description: description.trim() })).community), 'Сохранено.')} />
+        <ActionButton label="Сохранить" successLabel="Сохранено" success={saved} errorSignal={error} loading={busy === 'save'} disabled={!saved && (!name.trim() || (name === community.name && description === community.description))} onPress={() => void run('save', async () => onChanged((await api.updateCommunity(community.id, { name: name.trim(), description: description.trim() })).community), 'Сохранено.')} />
       </GlassSurface> : null}
       {can(community, PERM.INVITE) ? section('Приглашения', row('invite', 'link-outline', 'Ссылка-приглашение', undefined, onInvite)) : null}
       {!blog && can(community, PERM.MANAGE_CHANNELS) ? section('Каналы', <>

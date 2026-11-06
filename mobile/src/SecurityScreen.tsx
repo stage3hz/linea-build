@@ -1,3 +1,4 @@
+import { ActionButton } from './effects';
 import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { ActivityIndicator, KeyboardAvoidingView, Platform, Pressable, ScrollView, View } from 'react-native';
 import { Text } from './typography';
@@ -161,7 +162,7 @@ export function SecurityScreen({api,onBack,onCredentialsChanged,onSensitiveActio
           <SecretInput label="Повтори новое слово" value={confirmation} onChangeText={setConfirmation} placeholder="Введи то же слово вручную" disabled={busy} word onSubmit={()=>void sensitiveChange()}/>
         </>}
         {formError?<Notice text={formError} error/>:null}
-        <Button label="Сохранить изменения" icon="checkmark" errorSignal={formError} onPress={()=>void sensitiveChange()} loading={busy}/>
+        <ActionButton label="Сохранить изменения" errorSignal={formError} onPress={()=>void sensitiveChange()} loading={busy}/>
         <Pressable accessibilityRole="button" disabled={busy} onPress={closeForm} style={{minHeight:44,alignItems:'center',justifyContent:'center'}}><Text style={{color:t.muted,fontSize:13}}>Отмена</Text></Pressable>
       </View>
     </Sheet>

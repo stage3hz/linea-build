@@ -2,8 +2,6 @@ import React, { useEffect, useMemo, useState } from 'react';
 import { Image as CachedImage } from 'expo-image';
 import { ActivityIndicator, Image, KeyboardAvoidingView, Modal, Platform, Pressable, ScrollView, StyleSheet, View, type ImageStyle, type StyleProp, type TextInputProps, type ViewStyle } from 'react-native';
 import { Text, TextInput } from './typography';
-import Animated, { FadeIn, ZoomIn, useAnimatedStyle, useSharedValue, withSequence, withTiming } from 'react-native-reanimated';
-import { errorFeedback } from './haptics';
 import { Ionicons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
 import Svg, { Path } from 'react-native-svg';
@@ -40,29 +38,17 @@ export function IconButton({name,onPress,label,color,disabled=false,size=23,styl
   </Pressable>;
 }
 
-/**
- * The main button, with states (Telegram/iOS-like): busy shows a spinner, `success` turns the icon
- * into a check mark (and the label into `successLabel`), and every new truthy `errorSignal` (e.g. the
- * error text) shakes it once with an error haptic.
- */
-export function Button({label,onPress,loading=false,disabled=false,secondary=false,icon,danger=false,success=false,successLabel,errorSignal}:{label:string;onPress:()=>void;loading?:boolean;disabled?:boolean;secondary?:boolean;icon?:IconName;danger?:boolean;success?:boolean;successLabel?:string;errorSignal?:unknown}) {
+export function Button({label,onPress,loading=false,disabled=false,secondary=false,icon,danger=false}:{label:string;onPress:()=>void;loading?:boolean;disabled?:boolean;secondary?:boolean;icon?:IconName;danger?:boolean}) {
   const t=useTheme();const fg=danger?t.danger:secondary?t.text:t.onAccent;
-  const shake=useSharedValue(0);
-  useEffect(()=>{if(!errorSignal)return;errorFeedback();shake.value=withSequence(withTiming(-9,{duration:45}),withTiming(9,{duration:70}),withTiming(-6,{duration:60}),withTiming(5,{duration:55}),withTiming(0,{duration:50}));},[errorSignal]);
-  const shakeStyle=useAnimatedStyle(()=>({transform:[{translateX:shake.value}]}));
-  const state=loading?'busy':success?'done':'idle';const shown=success&&successLabel?successLabel:label;
-  return <Animated.View style={[{alignSelf:'stretch'},shakeStyle]}><Pressable accessibilityRole="button" accessibilityLabel={shown} accessibilityState={{disabled:disabled||loading||success,busy:loading}} disabled={disabled||loading||success} onPress={onPress} style={({pressed})=>({height:54,alignSelf:'stretch',borderRadius:21,opacity:disabled?.45:1,transform:[{scale:pressed?.985:1}]})}>
+  return <Pressable accessibilityRole="button" accessibilityLabel={label} accessibilityState={{disabled:disabled||loading,busy:loading}} disabled={disabled||loading} onPress={onPress} style={({pressed})=>({height:54,alignSelf:'stretch',borderRadius:21,opacity:disabled?.45:1,transform:[{scale:pressed?.985:1}]})}>
     {/* Fixed height: in a centred column the native iOS glass view otherwise grew into a tall empty box. */}
     <GlassSurface radius={21} material={secondary||danger?'regular':'clear'} interactive shadow={!secondary} style={{height:54}} contentStyle={{minHeight:54,paddingHorizontal:21,flexDirection:'row',gap:10,alignItems:'center',justifyContent:'center'}}>
       {!secondary&&!danger?<View pointerEvents="none" style={[StyleSheet.absoluteFill,{borderRadius:21,overflow:'hidden'}]}><LinearGradient colors={t.accentGradient} start={{x:0,y:0}} end={{x:.9,y:1}} style={[StyleSheet.absoluteFill,{opacity:.96}]}/><LinearGradient colors={['rgba(255,255,255,0.22)','transparent']} start={{x:0,y:0}} end={{x:.4,y:.65}} style={StyleSheet.absoluteFill}/><View style={[StyleSheet.absoluteFill,{borderRadius:21,borderWidth:1,borderColor:t.dark?'rgba(235,245,255,0.58)':'rgba(255,255,255,0.35)'}]}/></View>:danger?<View pointerEvents="none" style={[StyleSheet.absoluteFill,{borderRadius:21,backgroundColor:t.dangerBg}]}/>:null}
-      <Animated.View key={state} entering={FadeIn.duration(180)} style={{flexDirection:'row',gap:10,alignItems:'center'}}>
-        {state==='busy'?<ActivityIndicator color={fg}/>:state==='done'?<Animated.View entering={ZoomIn.springify().damping(14)}><Icon name="checkmark-circle" size={22} color={fg}/></Animated.View>:icon?<Icon name={icon} size={20} color={fg}/>:null}<Text style={{color:fg,fontSize:16,fontWeight:'700',letterSpacing:-.15}}>{shown}</Text>
-      </Animated.View>
+      {loading?<ActivityIndicator color={fg}/>:icon?<Icon name={icon} size={20} color={fg}/>:null}<Text style={{color:fg,fontSize:16,fontWeight:'700',letterSpacing:-.15}}>{label}</Text>
     </GlassSurface>
-  </Pressable></Animated.View>;
+  </Pressable>;
 }
 
-/** `[success, flash]`: flash() shows a Button's success state for a moment (after a save). */
 export function useSuccessFlash(ms=1600):[boolean,()=>void]{
   const [on,setOn]=useState(false);
   useEffect(()=>{if(!on)return;const timer=setTimeout(()=>setOn(false),ms);return()=>clearTimeout(timer);},[on,ms]);
