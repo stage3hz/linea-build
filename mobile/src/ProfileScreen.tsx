@@ -14,6 +14,8 @@ import { PlatinaWordmark } from './PlatinaWordmark';
 import { StatusEmoji } from './StatusEmoji';
 import { DecoratedAvatar, ProfileBanner } from './platina/Decor';
 import { PlatinaStudio } from './platina/PlatinaStudio';
+import { AvatarCropper } from './photo/AvatarCropper';
+import type { CropRect } from './photo/avatarCrop';
 import { AnimatedEmoji } from './platina/AnimatedEmoji';
 import { FloatingHeader, useBleed, useTabInset } from './tabInset';
 import { setPlatinaActive } from './platina/usePlatina';
@@ -89,18 +91,29 @@ export function ProfileScreen({ api, user, theme, darkTheme, onTheme, onDarkThem
     try { await Clipboard.setStringAsync(value); if (!live(version)) return; setCopied(label); if (copyTimer.current) clearTimeout(copyTimer.current); copyTimer.current = setTimeout(() => { if (live(version)) setCopied(''); }, 1800); }
     catch (failure) { if (live(version)) setError(errorMessage(failure, 'Не удалось скопировать.')); }
   };
+  // Like Telegram: pick any photo, then our own round cropper (move / zoom) shows exactly what the
+  // avatar will be. The system square cropper had no round preview and little control.
+  const [cropSource, setCropSource] = useState<{ uri: string; width: number; height: number } | null>(null);
   const pickAvatar = async () => {
+    setError('');
+    try {
+      if (Platform.OS !== 'web') { const permission = await ImagePicker.requestMediaLibraryPermissionsAsync(); if (!permission.granted) throw new Error('Разреши доступ к фотографиям в настройках телефона.'); }
+      const result = await ImagePicker.launchImageLibraryAsync({ mediaTypes: ['images'], allowsEditing: false, quality: 1, exif: false, preferredAssetRepresentationMode: ImagePicker.UIImagePickerPreferredAssetRepresentationMode.Compatible });
+      if (result.canceled) return;
+      const asset = result.assets[0]; if (!asset) return;
+      if (asset.width && asset.height) { setCropSource({ uri: asset.uri, width: asset.width, height: asset.height }); return; }
+      // Size unknown (rare): decode once to learn it.
+      const probe = await ImageManipulator.manipulateAsync(asset.uri, [], { format: ImageManipulator.SaveFormat.JPEG, compress: 0.95 });
+      setCropSource({ uri: probe.uri, width: probe.width, height: probe.height });
+    } catch (failure) { setError(errorMessage(failure, 'Не удалось выбрать фото.')); }
+  };
+  const applyAvatar = async (crop: CropRect) => {
+    const source = cropSource; setCropSource(null); if (!source) return;
     const version = begin('avatar'); if (version === null) return;
     try {
-      if (Platform.OS !== 'web') { const permission = await ImagePicker.requestMediaLibraryPermissionsAsync(); if (!live(version)) return; if (!permission.granted) throw new Error('Разреши доступ к фотографиям в настройках устройства.'); }
-      const result = await ImagePicker.launchImageLibraryAsync({ mediaTypes: ['images'], allowsEditing: true, aspect: [1, 1], quality: 1, exif: false, preferredAssetRepresentationMode: ImagePicker.UIImagePickerPreferredAssetRepresentationMode.Compatible });
-      if (!live(version) || result.canceled) return;
-      const asset = result.assets[0]; if (!asset) return;
-      // Camera photos are 12–48 MP; a full-size PNG exceeds the 4 MiB avatar limit.
-      // Downscale to an avatar-sized JPEG first (also decodes HEIC), then run the usual sanitizing pipeline.
-      const edge = Math.max(asset.width || 0, asset.height || 0);
-      const resize = edge > AVATAR_EDGE ? [{ resize: (asset.width || 0) >= (asset.height || 0) ? { width: AVATAR_EDGE } : { height: AVATAR_EDGE } }] : [];
-      const small = await ImageManipulator.manipulateAsync(asset.uri, resize, { format: ImageManipulator.SaveFormat.JPEG, compress: 0.86 });
+      // Crop to the circle's square, then an avatar-sized JPEG (also decodes HEIC); the usual sanitizing pipeline follows.
+      const edge = Math.min(AVATAR_EDGE, crop.width);
+      const small = await ImageManipulator.manipulateAsync(source.uri, [{ crop }, { resize: { width: edge, height: edge } }], { format: ImageManipulator.SaveFormat.JPEG, compress: 0.86 });
       let attachment;
       try { attachment = await api.upload({ uri: small.uri, name: 'avatar.jpg', mimeType: 'image/jpeg' }); }
       finally { await FileSystem.deleteAsync(small.uri, { idempotent: true }).catch(() => {}); }
@@ -111,7 +124,7 @@ export function ProfileScreen({ api, user, theme, darkTheme, onTheme, onDarkThem
       const saved = await api.profile({ displayName: (name.trim() || user.displayName), bio: bio.trim(), avatarColor: color, avatarId: attachment.id });
       if (!live(version)) return;
       setAvatarId(attachment.id); onUser(saved.user); setNotice('Фото профиля обновлено.');
-    } catch (failure) { if (live(version)) setError(errorMessage(failure, 'Не удалось выбрать фото.')); }
+    } catch (failure) { if (live(version)) setError(errorMessage(failure, 'Не удалось сохранить фото.')); }
     finally { finish(version); }
   };
   const save = async () => {
@@ -208,6 +221,7 @@ export function ProfileScreen({ api, user, theme, darkTheme, onTheme, onDarkThem
     <Sheet visible={emojiVisible} title="Статус рядом с именем" onClose={() => { if (!busy) setEmojiVisible(false); }}><View style={{ gap: 18 }}><Text style={{ color: t.muted, fontSize: 13, lineHeight: 20 }}>Выбранный эмодзи виден возле твоего имени в чатах. По умолчанию статус пустой. С Platina эмодзи анимированы.</Text>{!status?.canSetStatusEmoji ? <Notice text="Для выбора и замены статуса нужна активная Platina. Убрать статус можно в любой момент."/> : null}<View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 10 }}>{emojiChoices.map(emoji => <Pressable key={emoji} accessibilityRole="button" accessibilityLabel={`Выбрать статус ${emoji}`} accessibilityState={{ disabled: busy || !status?.canSetStatusEmoji, selected: status?.statusEmoji === emoji }} disabled={busy || !ready || !status?.canSetStatusEmoji} onPress={() => void applyEmoji(emoji)} style={{ width: 56, height: 56, borderRadius: 19, borderWidth: 1, borderColor: status?.statusEmoji === emoji ? t.accent : t.border, backgroundColor: status?.statusEmoji === emoji ? t.accentSoft : t.glassClear, opacity: status?.canSetStatusEmoji ? 1 : .45, alignItems: 'center', justifyContent: 'center' }}><AnimatedEmoji emoji={emoji} size={34} /></Pressable>)}</View><Button label="Убрать статус" secondary disabled={busy || !ready} loading={action === 'emoji'} onPress={() => void applyEmoji(null)}/></View></Sheet>
     <Sheet visible={platinaVisible} title="Что даёт Platina" onClose={() => setPlatinaVisible(false)}><View style={{ gap: 16 }}><Text style={{ color: t.text, fontSize: 14, lineHeight: 22 }}>Анимированный аватар (видео до 10 с), анимированные рамки, живой баннер профиля, анимированные эмодзи-статусы и большие эмодзи в чатах, семь цветовых тем, скрытие времени захода и отчётов о прочтении, дополнительные смены публичного имени. Доступ подтверждает сервер.</Text><Text style={{ color: t.muted, fontSize: 13, lineHeight: 21 }}>Покупка подписки в приложении пока не подключена: Platina выдаёт администратор сервера.</Text><Text style={{ color: t.muted, fontSize: 13, lineHeight: 21 }}>Анимации эмодзи — Noto Emoji Animation (Google), лицензия CC BY 4.0.</Text></View></Sheet>
     <Sheet visible={logoutVisible} title="Выйти из Инвиза?" onClose={() => { if (!busy) setLogoutVisible(false); }}><Text style={{ color: t.muted, fontSize: 15, lineHeight: 22, marginBottom: 22 }}>Сеанс на этом устройстве завершится. Для следующего входа понадобятся логин, пароль и слово подтверждения. Публичное имя может отличаться от логина.</Text><Button label="Выйти" danger onPress={() => void logout()} loading={action === 'logout'}/></Sheet>
+  {cropSource ? <AvatarCropper uri={cropSource.uri} width={cropSource.width} height={cropSource.height} onCancel={() => setCropSource(null)} onDone={crop => void applyAvatar(crop)} /> : null}
   </KeyboardAvoidingView>;
 }
 
