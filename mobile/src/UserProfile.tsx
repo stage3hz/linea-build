@@ -10,7 +10,7 @@ import { PlatinaName, PlatinaSeal, hasPlatina } from './platina/PlatinaMark';
 import React, { useEffect, useState } from 'react';
 import { useTabInset } from './tabInset';
 import { ActivityIndicator, Modal, Pressable, StyleSheet, View, useWindowDimensions } from 'react-native';
-import Animated, { interpolate, runOnJS, useAnimatedScrollHandler, useAnimatedStyle, useSharedValue } from 'react-native-reanimated';
+import Animated, { Easing, interpolate, runOnJS, useAnimatedScrollHandler, useAnimatedStyle, useSharedValue, withSpring, withTiming } from 'react-native-reanimated';
 import { ProfileMediaViewer, profileMedia } from './ProfileMediaViewer';
 import * as Clipboard from 'expo-clipboard';
 import { Text } from './typography';
@@ -63,6 +63,13 @@ export function UserProfile({ api, user, onClose, chat, onMessage, onMute, onSea
   const avatarStretch = useAnimatedStyle(() => ({ transform: [{ translateY: interpolate(scrollY.value, [-160, 0, 150], [-40, 0, -70], 'clamp') }, { scale: interpolate(scrollY.value, [-160, 0, 150], [1.6, 1, 0.22], 'clamp') }], opacity: interpolate(scrollY.value, [60, 150], [1, 0], 'clamp') }));
   const avatarDim = useAnimatedStyle(() => ({ opacity: interpolate(scrollY.value, [20, 130], [0, 0.85], 'clamp') }));
   const [viewer, setViewer] = useState<number | null>(null);
+  // Telegram: the profile pushes in from the right and the avatar grows out of the chat header; «Назад»
+  // slides it back out.
+  const slide = useSharedValue(width); const grow = useSharedValue(0.35);
+  useEffect(() => { slide.value = withTiming(0, { duration: 280, easing: Easing.out(Easing.cubic) }); grow.value = withSpring(1, { damping: 16, stiffness: 180 }); }, []);
+  const pushIn = useAnimatedStyle(() => ({ transform: [{ translateX: slide.value }] }));
+  const avatarIn = useAnimatedStyle(() => ({ transform: [{ scale: grow.value }], opacity: Math.min(1, grow.value * 1.6) }));
+  const back = () => { if (width >= 760) { onClose(); return; } slide.value = withTiming(width, { duration: 220, easing: Easing.in(Easing.cubic) }, done => { if (done) runOnJS(onClose)(); }); };
   const [menu, setMenu] = useState(false); const [menuAt, setMenuAt] = useState<{ x?: number; y: number }>({ y: 90 }); const [sheet, setSheet] = useState<'ttl' | 'clear' | 'block' | 'report' | null>(null);
   const [blocked, setBlocked] = useState(false); const [reason, setReason] = useState<ReportReason | null>(null);
   useEffect(() => {
@@ -126,25 +133,24 @@ export function UserProfile({ api, user, onClose, chat, onMessage, onMute, onSea
   // (a full-window page there looked like a different app). Phones keep the full-screen page.
   const card = width >= 760;
   const cardWidth = Math.min(560, width - 48);
-  return <Modal visible transparent={card} animationType={card ? 'fade' : 'slide'} presentationStyle={card ? 'overFullScreen' : 'fullScreen'} onRequestClose={onClose}>
+  return <Modal visible transparent animationType={card ? 'fade' : 'none'} presentationStyle="overFullScreen" onRequestClose={back} statusBarTranslucent>
     {card ? <Pressable accessibilityRole="button" accessibilityLabel="Закрыть профиль" onPress={onClose} style={[StyleSheet.absoluteFill, { backgroundColor: 'rgba(0,0,0,0.55)' }]} /> : null}
-    <View pointerEvents="box-none" style={card ? { flex: 1, alignItems: 'center', justifyContent: 'center', padding: 24 } : { flex: 1 }}>
+    <Animated.View pointerEvents="box-none" style={[card ? { flex: 1, alignItems: 'center', justifyContent: 'center', padding: 24 } : { flex: 1, backgroundColor: t.bg }, card ? null : pushIn]}>
     <View style={card ? { width: cardWidth, height: '88%', maxHeight: 860, borderRadius: 22, overflow: 'hidden', borderWidth: StyleSheet.hairlineWidth, borderColor: t.border, shadowColor: '#000', shadowOpacity: 0.4, shadowRadius: 30 } : { flex: 1 }}>
     <GlassStage>{tinted && heroBottom ? <Animated.View pointerEvents="none" style={[{ position: 'absolute', top: 0, left: 0, right: 0, overflow: 'hidden' }, heroColor]}><LinearGradient colors={birthdayToday ? [festive[0], festive[1]] : [shade(shown.avatarColor, 0.15), shade(shown.avatarColor, -0.12)]} style={StyleSheet.absoluteFill} /></Animated.View> : null}{shown.bannerId || shown.bannerPreset ? <View pointerEvents="none" style={{ position: 'absolute', top: 0, left: 0, right: 0, height: 260 }}><ProfileBanner user={shown} api={api} height={260} /></View> : null}<InsetView style={{ flex: 1 }}>
       <View style={{ flexDirection: 'row', alignItems: 'center', paddingHorizontal: 10, paddingVertical: 6 }}>
-        <IconButton name="chevron-back" label="Назад" onPress={onClose} />
+        <IconButton name="chevron-back" label="Назад" onPress={back} />
         {/* No title, as in Telegram: over a banner the dark «Профиль» was unreadable. */}
         <View style={{ flex: 1 }} />
         <IconButton name="ellipsis-horizontal" label="Ещё" onPress={() => { lightFeedback(); setMenuAt({ y: 90 }); setMenu(true); }} />
       </View>
       <Animated.ScrollView onScroll={onScroll} scrollEventThrottle={16} contentContainerStyle={{ padding: 18, paddingBottom: 18 + tabInset, gap: 16, alignItems: 'center', width: '100%', maxWidth: 680, alignSelf: 'center' }}>
         <View onLayout={e => setHeroBottom(Math.round(e.nativeEvent.layout.y + e.nativeEvent.layout.height))} style={{ alignSelf: 'stretch', alignItems: 'center', gap: 16 }}>
-        <Animated.View style={avatarStretch}><Pressable accessibilityRole="button" accessibilityLabel="Фото и видео профиля" disabled={!profileMedia(shown).length} onPress={openViewer}><DecoratedAvatar user={shown} api={api} size={128} animated /><Animated.View pointerEvents="none" style={[{ position: 'absolute', left: 0, top: 0, right: 0, bottom: 0, borderRadius: 128 * 0.36, backgroundColor: '#000' }, avatarDim]} /></Pressable></Animated.View>
+        <Animated.View style={avatarStretch}><Pressable accessibilityRole="button" accessibilityLabel="Фото и видео профиля" disabled={!profileMedia(shown).length} onPress={openViewer}><Animated.View style={avatarIn}><DecoratedAvatar user={shown} api={api} size={116} animated round /></Animated.View><Animated.View pointerEvents="none" style={[{ position: 'absolute', left: 0, top: 0, right: 0, bottom: 0, borderRadius: 58, backgroundColor: '#000' }, avatarDim]} /></Pressable></Animated.View>
         <View style={{ alignItems: 'center', gap: 6 }}>
           <View style={{ flexDirection: 'row', alignItems: 'center', gap: 7, maxWidth: '100%', paddingHorizontal: 16 }}><PlatinaName user={shown} style={{ flexShrink: 1, color: tinted ? '#FFFFFF' : t.text, fontSize: 26, fontWeight: '800', letterSpacing: -.6 }} /><StatusEmoji user={shown} size={22} animated /></View>
           {status ? <Text style={{ color: tinted ? 'rgba(255,255,255,0.78)' : status === 'в сети' ? t.accent : t.muted, fontSize: 14 }}>{status}</Text> : <Pressable onPress={() => void copy()} accessibilityRole="button" accessibilityLabel="Скопировать имя пользователя"><Text style={{ color: t.accent, fontSize: 15 }}>@{shown.username}</Text></Pressable>}
           {birthdayToday ? <View style={{ paddingHorizontal: 12, paddingVertical: 5, borderRadius: 14, backgroundColor: tinted ? 'rgba(255,255,255,0.22)' : t.accentSoft }}><Text style={{ color: tinted ? '#FFF' : t.text, fontSize: 13, fontWeight: '700' }}>🎉 Сегодня день рождения</Text></View> : null}
-          {hasPlatina(shown) ? <PlatinaSeal owner={shown} /> : null}
         </View>
         <View style={{ flexDirection: 'row', gap: 10, alignSelf: 'stretch', justifyContent: 'center' }}>
           {actions.map(action => <Pressable key={action.label} accessibilityRole="button" onPress={e => action.onPress(e)} disabled={action.loading || busy} style={({ pressed }) => ({ flex: 1, maxWidth: 120, opacity: pressed ? .7 : 1 })}>
@@ -160,16 +166,16 @@ export function UserProfile({ api, user, onClose, chat, onMessage, onMute, onSea
         </View>
         {notice ? <Text style={{ color: t.accent, fontSize: 13 }}>{notice}</Text> : null}
         {error ? <View style={{ alignSelf: 'stretch' }}><Notice text={error} error /></View> : null}
-        <GlassSurface radius={20} shadow={false} style={{ alignSelf: 'stretch' }} contentStyle={{ padding: 16, gap: 14 }}>
+        <View style={{ alignSelf: 'stretch', padding: 16, gap: 14, borderRadius: 20, backgroundColor: t.dark ? '#1C1C1E' : '#FFFFFF' }}>
           <Pressable onPress={() => void copy()} onLongPress={() => void copy()} accessibilityRole="button" accessibilityLabel={`Имя пользователя @${shown.username}. Нажми, чтобы скопировать`} style={({ pressed }) => ({ gap: 3, opacity: pressed ? .6 : 1 })}><Text style={{ color: t.muted, fontSize: 13 }}>имя пользователя</Text><Text raw style={{ color: t.accent, fontSize: 16 }}>@{shown.username}</Text></Pressable>
           {shown.bio ? <View style={{ gap: 3 }}><Text style={{ color: t.muted, fontSize: 13 }}>о себе</Text><Text raw style={{ color: t.text, fontSize: 16, lineHeight: 22 }}>{shown.bio}</Text></View> : null}
           {shown.birthday ? <View style={{ gap: 3 }}><Text style={{ color: t.muted, fontSize: 13 }}>день рождения</Text><Text raw style={{ color: t.text, fontSize: 16 }}>{formatBirthday(shown.birthday)}</Text></View> : null}
           <Pressable disabled={!onSecurity} onPress={() => { onClose(); onSecurity?.(); }} accessibilityRole="button" style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}><Icon name="lock-closed" size={14} color={t.accent} /><Text style={{ color: t.muted, fontSize: 12, flex: 1 }}>Переписка защищена сквозным шифрованием{onSecurity ? ' · проверить устройства' : ''}</Text>{onSecurity ? <Icon name="chevron-forward" size={14} color={t.muted} /> : null}</Pressable>
-        </GlassSurface>
+        </View>
         {shared && onOpenAttachment ? <SharedMedia messages={shared} onOpen={attachment => { onClose(); setTimeout(() => onOpenAttachment(attachment), 250); }} /> : null}
       </Animated.ScrollView>
     </InsetView>{/* Discord-style profile effect over the top while the profile is open. */}<ProfileEffect effect={shown.profileEffect} width={card ? cardWidth : width} height={420} /></GlassStage>
-    </View></View>
+    </View></Animated.View>
     <ContextMenu visible={menu} y={menuAt.y} x={menuAt.x} mine onClose={() => setMenu(false)}>
       {chat && contact !== null ? <MenuItem icon={contact ? 'person-remove-outline' : 'person-add-outline'} label={contact ? 'Удалить из друзей' : pendingRequest === 'outgoing' ? 'Отменить заявку' : pendingRequest === 'incoming' ? 'Принять в друзья' : 'Добавить в друзья'} onPress={() => { setMenu(false); void toggleContact(); }} /> : null}
       {chat && onRules ? <MenuItem icon="timer-outline" label={`Автоудаление · ${autoDeleteLabel(current.ttl)}`} onPress={() => { setMenu(false); setSheet('ttl'); }} /> : null}

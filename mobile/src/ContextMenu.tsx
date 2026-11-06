@@ -24,7 +24,7 @@ const CLOSE_MS = 170;
  * out of the corner next to it and the reactions pop in one after another. Closing plays
  * the same motion back. Reduce motion / energy saving turns all of it into a cut.
  */
-export function ContextMenu({ visible, y: liveY, x: liveX, onClose, reactions, onReact, preview, peek, mine: liveMine = false, children }: { visible: boolean; y: number; x?: number; onClose: () => void; reactions?: QuickReaction[]; onReact?: (emoji: string) => void; preview?: string; /** A card shown instead of the text copy (chat list: the chat itself, like Telegram). */ peek?: React.ReactNode; mine?: boolean; children: React.ReactNode }) {
+export function ContextMenu({ visible, y: liveY, x: liveX, onClose, reactions, onReact, preview, peek, peekRow = false, mine: liveMine = false, children }: { visible: boolean; y: number; x?: number; onClose: () => void; reactions?: QuickReaction[]; onReact?: (emoji: string) => void; preview?: string; /** A card shown instead of the text copy (chat list: the chat itself, like Telegram). */ peek?: React.ReactNode; /** The peek is a full-width message row (the real bubble, photo included), not a centred card. */ peekRow?: boolean; mine?: boolean; children: React.ReactNode }) {
   const t = useTheme(); const { height, width } = useWindowDimensions(); const insets = useSafeAreaInsets(); const preferences = useChatPreferences(); const metrics = textMetrics(preferences.textSize);
   const [size, setSize] = useState(0); const [all, setAll] = useState(false); const [mounted, setMounted] = useState(visible);
   const shown = useSharedValue(0);
@@ -42,9 +42,10 @@ export function ContextMenu({ visible, y: liveY, x: liveX, onClose, reactions, o
   useEffect(() => { if (!mounted) { setSize(0); setAll(false); shown.value = 0; } }, [mounted]);
   useEffect(() => { if (visible && size) shown.value = withSpring(1, OPEN); }, [visible, size]);
   const topLimit = insets.top + 8, bottomLimit = height - insets.bottom - 8;
-  const column = Math.min(atCursor ? 330 : 340, width - 24);
+  const row = !!held.peek && peekRow && !atCursor;
+  const column = row ? width : Math.min(atCursor ? 330 : 340, width - 24);
   const top = size ? Math.max(topLimit, Math.min(atCursor ? y - (held.reactions?.length ? 56 : 0) : y - 70, bottomLimit - size)) : topLimit;
-  const side = atCursor ? { left: Math.max(8, Math.min(x! - 20, width - column - 8)) } : held.peek ? { left: (width - column) / 2 } : mine ? { right: 9 } : { left: 9 }; // the chat list's side padding: the copy sits where the bubble was
+  const side = atCursor ? { left: Math.max(8, Math.min(x! - 20, width - column - 8)) } : row ? { left: 0 } : held.peek ? { left: (width - column) / 2 } : mine ? { right: 9 } : { left: 9 }; // the chat list's side padding: the copy sits where the bubble was
   const list = held.reactions || [];
   const reactionBlock = list.length ? 56 : 0;
   // How far the message travels: from the finger to its place under the reactions.
@@ -66,14 +67,14 @@ export function ContextMenu({ visible, y: liveY, x: liveX, onClose, reactions, o
       <Pressable accessibilityRole="button" accessibilityLabel="Закрыть меню" onPress={onClose} style={StyleSheet.absoluteFill} />
     </Animated.View>
     <View pointerEvents="box-none" onLayout={event => { const measured = Math.ceil(event.nativeEvent.layout.height); if (Math.abs(measured - size) > 1) setSize(measured); }}
-      style={{ position: 'absolute', top, ...side, width: column, alignItems: atCursor ? 'flex-start' : mine ? 'flex-end' : held.peek ? 'center' : 'flex-start', gap: 8, maxHeight: bottomLimit - topLimit, opacity: size ? 1 : 0 }}>
+      style={{ position: 'absolute', top, ...side, width: column, alignItems: atCursor ? 'flex-start' : mine ? 'flex-end' : held.peek && !row ? 'center' : 'flex-start', gap: 8, paddingHorizontal: row ? 9 : 0, maxHeight: bottomLimit - topLimit, opacity: size ? 1 : 0 }}>
       {list.length ? <Animated.View style={[{ transformOrigin: `${corner} bottom` } as object, pill]}>{all ? <View style={{ width: column, borderRadius: 22, backgroundColor: surface, padding: 8, flexDirection: 'row', flexWrap: 'wrap', ...shadow }}>
         {list.map((item, index) => <ReactionButton key={item.emoji} item={item} index={index % 14} shown={shown} size={(column - 16) / 7} onPress={() => onReact?.(item.emoji)} />)}
       </View> : <View style={{ flexDirection: 'row', alignItems: 'center', height: 48, borderRadius: 24, backgroundColor: surface, paddingHorizontal: 4, ...shadow }}>
         {list.slice(0, QUICK).map((item, index) => <ReactionButton key={item.emoji} item={item} index={index} shown={shown} size={40} onPress={() => onReact?.(item.emoji)} />)}
         {list.length > QUICK ? <Pressable accessibilityRole="button" accessibilityLabel="Все реакции" onPress={() => setAll(true)} style={{ width: 30, height: 40, alignItems: 'center', justifyContent: 'center' }}><Icon name="chevron-down" size={18} color={t.muted} /></Pressable> : null}
       </View>}</Animated.View> : null}
-      {held.peek && !atCursor ? <Animated.View style={[{ width: column, ...shadow }, bubble]}>{held.peek}</Animated.View> : held.preview && !atCursor ? <Animated.View style={[{ maxWidth: Math.min(column, (width - 18) * 0.85, 520), borderRadius: preferences.bubbleRadius, paddingHorizontal: 12, paddingVertical: 6, backgroundColor: mine ? t.bubble : t.incoming, ...shadow }, bubble]}><Text numberOfLines={6} style={{ color: t.text, fontSize: metrics.fontSize, lineHeight: metrics.lineHeight }}>{held.preview}</Text></Animated.View> : null}
+      {held.peek && !atCursor ? <Animated.View pointerEvents="none" style={[row ? { alignSelf: 'stretch', marginHorizontal: -9 } : { width: column, ...shadow }, bubble]}>{held.peek}</Animated.View> : held.preview && !atCursor ? <Animated.View style={[{ maxWidth: Math.min(column, (width - 18) * 0.85, 520), borderRadius: preferences.bubbleRadius, paddingHorizontal: 12, paddingVertical: 6, backgroundColor: mine ? t.bubble : t.incoming, ...shadow }, bubble]}><Text numberOfLines={6} style={{ color: t.text, fontSize: metrics.fontSize, lineHeight: metrics.lineHeight }}>{held.preview}</Text></Animated.View> : null}
       <Animated.View style={[{ width: 272, flexShrink: 1, minHeight: 0, borderRadius: 14, overflow: 'hidden', backgroundColor: surface, ...shadow, transformOrigin: `${corner} top` } as object, menu]}>
         <ScrollView bounces={false} style={{ flexGrow: 0 }}>{held.children}</ScrollView>
       </Animated.View>

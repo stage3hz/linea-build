@@ -80,7 +80,8 @@ function VideoAvatar({ api, id, size, radius }: { api: Api; id: string; size: nu
  * Avatar with Platina decoration. `animated` turns on the video avatar and the frame motion;
  * lists pass false and get the still photo with a still frame (cheap to scroll).
  */
-export function DecoratedAvatar({ user, api, size = 54, animated = false }: { user: User; api: Api; size?: number; animated?: boolean }) {
+/** `round`: a circle instead of the rounded square (profiles, like Telegram). */
+export function DecoratedAvatar({ user, api, size = 54, animated = false, round = false }: { user: User; api: Api; size?: number; animated?: boolean; round?: boolean }) {
   const t = useTheme(); const { enabled } = useMotion();
   // Platina without a chosen frame wears the platinum ring. On their birthday everyone wears a festive
   // ring — blue for «male», pink for «female», confetti colours otherwise — with a cake badge.
@@ -95,8 +96,8 @@ export function DecoratedAvatar({ user, api, size = 54, animated = false }: { us
   // neighbouring rows; the photo shrinks inside to keep filling the opening.
   const face = decoration && size < 64 && decoration.scale > 1.3 ? Math.round(size * 1.3 / decoration.scale) : size;
   const inner = <View style={{ width: face, height: face }}>
-    <Avatar user={user} api={api} size={face} round={!!decoration} />
-    {video ? Platform.OS === 'web' ? <View pointerEvents="none" style={[StyleSheet.absoluteFill, { borderRadius: decoration ? face / 2 : face * .36, overflow: 'hidden' }]}><WebLoopVideo api={api} id={video} style={{ width: face, height: face }} /></View> : <VideoAvatar api={api} id={video} size={face} radius={decoration ? face / 2 : face * .36} /> : null}
+    <Avatar user={user} api={api} size={face} round={round || !!decoration} />
+    {video ? Platform.OS === 'web' ? <View pointerEvents="none" style={[StyleSheet.absoluteFill, { borderRadius: decoration || round ? face / 2 : face * .36, overflow: 'hidden' }]}><WebLoopVideo api={api} id={video} style={{ width: face, height: face }} /></View> : <VideoAvatar api={api} id={video} size={face} radius={decoration ? face / 2 : face * .36} /> : null}
   </View>;
   // Art decorations draw outside the avatar box (overflow), so rows keep their layout.
   if (decoration) return <View style={{ width: size, height: size, alignItems: 'center', justifyContent: 'center' }}>
@@ -108,8 +109,8 @@ export function DecoratedAvatar({ user, api, size = 54, animated = false }: { us
   const outer = size + 2 * (ring + gap);
   // The frame grows outwards so lists keep their layout: negative margins cancel the extra size.
   return <View style={{ width: outer, height: outer, margin: -(ring + gap), alignItems: 'center', justifyContent: 'center' }}>
-    <Spin size={outer} radius={outer * .36} colors={frame.colors} still={!live} />
-    <View style={{ position: 'absolute', left: ring, top: ring, width: size + 2 * gap, height: size + 2 * gap, borderRadius: (size + 2 * gap) * .36, backgroundColor: t.bg }} />
+    <Spin size={outer} radius={round ? outer / 2 : outer * .36} colors={frame.colors} still={!live} />
+    <View style={{ position: 'absolute', left: ring, top: ring, width: size + 2 * gap, height: size + 2 * gap, borderRadius: round ? (size + 2 * gap) / 2 : (size + 2 * gap) * .36, backgroundColor: t.bg }} />
     {inner}
     {birthday ? <View pointerEvents="none" accessibilityLabel="День рождения" style={{ position: 'absolute', right: 0, bottom: 0, width: Math.max(16, size * .34), height: Math.max(16, size * .34), borderRadius: size, backgroundColor: t.bg, alignItems: 'center', justifyContent: 'center' }}><Text style={{ fontSize: Math.max(10, size * .22) }}>🎂</Text></View> : null}
   </View>;
