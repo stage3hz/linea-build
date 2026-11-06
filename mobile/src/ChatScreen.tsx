@@ -396,11 +396,11 @@ export function ChatScreen({api,user,chat,store,onBack,wide=false,onOpenMusic}: 
       {/* As in Telegram: the name in the middle, the avatar on the right; both open the full profile
           (calls, media, «Ещё» with no-copy, auto-delete, block). */}
       <View style={{maxWidth:'62%',alignItems:'center'}}>
-        <GlassSurface material="regular" radius={22} interactive style={{maxWidth:'100%',height:44,maxHeight:44,flexGrow:0,flexShrink:0}} contentStyle={{height:44,maxHeight:44,flexGrow:0,flexShrink:0,justifyContent:'center',paddingHorizontal:18,paddingVertical:3}}>
+        <GlassSurface material="regular" radius={22} interactive style={{maxWidth:'100%',height:44,maxHeight:44,flexGrow:0,flexShrink:0}} contentStyle={{height:44,maxHeight:44,flexGrow:0,flexShrink:0,justifyContent:'center',paddingHorizontal:18,paddingVertical:0}}>
           <Pressable onPress={()=>{Keyboard.dismiss();setPeerInfo(true);}} accessibilityRole="button" accessibilityLabel={`Профиль ${chat.peer.displayName}`} style={{alignItems:'center'}}>
             <View style={{flexShrink:1,alignItems:'center',gap:1}}>
-            <View style={{flexDirection:'row',gap:5,alignItems:'center'}}><PlatinaName user={chat.peer} style={{flexShrink:1,color:t.text,fontSize:16,fontWeight:'600',letterSpacing:-.25}}/>{hasPlatina(chat.peer)?<PlatinaGem size={11}/>:null}<StatusEmoji user={chat.peer} size={16} animated/></View>
-            <Text numberOfLines={1} style={{color:headerStatus.accent?t.accent:t.muted,fontSize:12}}>{headerStatus.text}</Text>
+            <View style={{flexDirection:'row',gap:5,alignItems:'center'}}><PlatinaName user={chat.peer} style={{flexShrink:1,color:t.text,fontSize:16,lineHeight:19,includeFontPadding:false,fontWeight:'600',letterSpacing:-.25}}/>{hasPlatina(chat.peer)?<PlatinaGem size={11}/>:null}<StatusEmoji user={chat.peer} size={16} animated/></View>
+            <Text numberOfLines={1} style={{color:headerStatus.accent?t.accent:t.muted,fontSize:12,lineHeight:15,includeFontPadding:false}}>{headerStatus.text}</Text>
             </View>
           </Pressable>
         </GlassSurface>
