@@ -12,6 +12,16 @@ class LinePhotoModule:Module() {
   private fun context()=appContext.reactContext ?: throw PhotoFailure("CONTEXT_UNAVAILABLE")
   override fun definition()=ModuleDefinition {
     Name("LineaPhoto")
+    // Android 10+: with 3-button navigation the system lays a translucent white scrim under the buttons
+    // «for contrast», so the app's own background never reaches the bottom edge (a white strip below the
+    // input field, reported). The app draws edge to edge and keeps its controls clear of the bar itself.
+    OnActivityEntersForeground {
+      val window = appContext.currentActivity?.window ?: return@OnActivityEntersForeground
+      if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.Q) {
+        window.isNavigationBarContrastEnforced = false
+        window.isStatusBarContrastEnforced = false
+      }
+    }
     AsyncFunction("capabilities"){protect{PhotoBackground(context()).capabilities()}}
     AsyncFunction("prepareBackground"){protect{PhotoBackground(context()).prepare()}}
     AsyncFunction("inspect"){uri:String->protect{PhotoFiles(context()).inspect(uri)}}
