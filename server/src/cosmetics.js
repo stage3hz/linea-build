@@ -5,7 +5,9 @@
 export const AVATAR_FRAMES = Object.freeze(['platinum', 'aurora', 'frost', 'ember', 'emerald', 'prism', 'orbit',
   // Hand-painted avatar decorations (mobile/assets/decorations), stored in the same field.
   'deco-black-roses', 'deco-white-roses', 'deco-chrome', 'deco-fangs', 'deco-eye', 'deco-ink',
-  'deco-skulls', 'deco-eclipse', 'deco-corona', 'deco-moon', 'deco-moths', 'deco-arch']);
+  'deco-skulls', 'deco-eclipse', 'deco-corona', 'deco-moon', 'deco-moths', 'deco-arch',
+  // Animated frames drawn in code (mobile/src/platina/CodeFrames.tsx).
+  'fx-neon', 'fx-flame', 'fx-stardust', 'fx-glitch', 'fx-aurora', 'fx-lightning', 'fx-hearts', 'fx-orbit']);
 export const BANNER_PRESETS = Object.freeze(['deep', 'glacier', 'aurora', 'ocean', 'mint', 'night']);
 export const MAX_PROFILE_VIDEO_BYTES = 8 * 1024 * 1024;
 

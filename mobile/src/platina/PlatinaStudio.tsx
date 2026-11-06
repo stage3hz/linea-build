@@ -1,3 +1,4 @@
+import { CODE_FRAMES, isCodeFrame } from './CodeFrames';
 import React, { forwardRef, useImperativeHandle, useState } from 'react';
 import { EffectSwatch, NAMEPLATES, Nameplate, PROFILE_EFFECTS } from './Effects';
 import { Platform, Pressable, ScrollView, View } from 'react-native';
@@ -10,7 +11,7 @@ import { Button, Icon, Notice, Sheet } from '../components';
 import { Text } from '../typography';
 import { useTheme } from '../theme';
 import { BANNERS, DecoratedAvatar, FRAMES, HERO_RATIO, ProfileBanner } from './Decor';
-import { DECORATIONS, DECORATION_COLLECTIONS } from './Decorations';
+import { DECORATIONS, DECORATION_COLLECTIONS, findDecoration } from './Decorations';
 import { PlatinaName, PlatinaSeal, hasPlatina } from './PlatinaMark';
 import { MusicAmbient, type AmbientTone } from '../music/MusicAmbient';
 import { StatusEmoji } from '../StatusEmoji';
@@ -92,31 +93,9 @@ export const PlatinaStudio = forwardRef<PlatinaStudioHandle, { api: Api; user: U
       </View>
     </Section>}
 
-    <Section title="Украшение аватара" hint="Рисованные украшения в стиле коллекций. Видны всем; анимация играет в профиле.">
-      <View style={{ gap: 14 }}>
-        <View style={{ alignSelf: 'flex-start', paddingHorizontal: 12 }}><Choice label="Без украшения" selected={!user.avatarFrame} disabled={!active || !!busy} onPress={() => void apply('frame', { avatarFrame: null }, 'Украшение убрано.')}>
-          <View style={{ width: 64, height: 64, alignItems: 'center', justifyContent: 'center' }}><DecoratedAvatar user={{ ...user, avatarFrame: null, avatarVideoId: null }} api={api} size={44} /></View>
-        </Choice></View>
-        {DECORATION_COLLECTIONS.map(collection => <View key={collection} style={{ gap: 8 }}>
-          <Text style={{ color: t.muted, fontSize: 12, fontWeight: '700', letterSpacing: .4, textTransform: 'uppercase' }}>{collection}</Text>
-          <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ gap: 14, paddingVertical: 10, paddingHorizontal: 12 }}>
-            {DECORATIONS.filter(item => item.collection === collection).map(item => <Choice key={item.id} label={item.label} selected={user.avatarFrame === item.id} disabled={!active || !!busy} onPress={() => void apply('frame', { avatarFrame: item.id }, `Украшение «${item.label}».`)}>
-              <View style={{ width: 64, height: 64, alignItems: 'center', justifyContent: 'center' }}><DecoratedAvatar user={{ ...user, avatarFrame: item.id, avatarVideoId: null }} api={api} size={44} animated={user.avatarFrame === item.id} /></View>
-            </Choice>)}
-          </ScrollView>
-        </View>)}
-      </View>
-    </Section>
-
-    <Section title="Рамка аватара" hint="Медленно переливается вокруг фото. Выбор рамки снимает украшение.">
-      <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ gap: 12, paddingVertical: 4, paddingHorizontal: 2 }}>
-        <Choice label="Нет" selected={!user.avatarFrame} disabled={!active || !!busy} onPress={() => void apply('frame', { avatarFrame: null }, 'Рамка убрана.')}>
-          <View style={{ width: 52, height: 52, borderRadius: 19, borderWidth: 1, borderStyle: 'dashed', borderColor: t.subtle }} />
-        </Choice>
-        {FRAMES.map(frame => <Choice key={frame.id} label={frame.label} selected={user.avatarFrame === frame.id} disabled={!active || !!busy} onPress={() => void apply('frame', { avatarFrame: frame.id }, `Рамка «${frame.label}».`)}>
-          <View style={{ padding: 4 }}><DecoratedAvatar user={{ ...user, avatarFrame: frame.id, avatarVideoId: null }} api={api} size={44} animated={user.avatarFrame === frame.id} /></View>
-        </Choice>)}
-      </ScrollView>
+    {/* One even grid (3 per row), grouped in tabs: frames drawn in code, the painted art, and the rings. */}
+    <Section title="Рамки и украшения" hint="Видны всем рядом с твоим фото; анимация играет в профиле и у выбранной.">
+      <FrameGrid api={api} user={user} active={active} busy={!!busy} onPick={(id, label) => void apply('frame', { avatarFrame: id }, id ? `Выбрано: «${label}».` : 'Рамка убрана.')} />
     </Section>
 
     <Section title="Баннер профиля" hint="Живой фон над аватаром — или своё фото или видео.">
@@ -167,6 +146,35 @@ function Section({ title, hint, children }: { title: string; hint: string; child
   return <View style={{ gap: 9 }}>
     <View style={{ gap: 3 }}><Text style={{ color: t.text, fontSize: 15, fontWeight: '600' }}>{title}</Text><Text style={{ color: t.muted, fontSize: 12, lineHeight: 17 }}>{hint}</Text></View>
     {children}
+  </View>;
+}
+
+const GRID_TABS = ['Анимация', ...DECORATION_COLLECTIONS, 'Кольца'] as const;
+
+/** Even 3-column grid of frame choices with tabs; the selected one wears a check mark and plays its motion. */
+function FrameGrid({ api, user, active, busy, onPick }: { api: Api; user: User; active: boolean; busy: boolean; onPick: (id: string | null, label: string) => void }) {
+  const t = useTheme(); const [width, setWidth] = useState(0);
+  const current = user.avatarFrame || null;
+  const initial = isCodeFrame(current) ? 'Анимация' : findDecoration(current)?.collection ?? (current ? 'Кольца' : 'Анимация');
+  const [tab, setTab] = useState<string>(initial);
+  const options: { id: string; label: string }[] = tab === 'Анимация' ? CODE_FRAMES : tab === 'Кольца' ? FRAMES.map(frame => ({ id: frame.id, label: frame.label })) : DECORATIONS.filter(item => item.collection === tab).map(item => ({ id: item.id, label: item.label }));
+  const cell = width ? Math.floor((width - 2 * 10) / 3) : 0;
+  const tile = (id: string | null, label: string) => { const selected = (current || null) === id; return <Pressable key={id ?? 'none'} accessibilityRole="radio" accessibilityLabel={label} accessibilityState={{ selected, disabled: !active || busy }} disabled={!active || busy} onPress={() => onPick(id, label)}
+    style={({ pressed }) => ({ width: cell, alignItems: 'center', gap: 6, paddingVertical: 10, borderRadius: 18, backgroundColor: selected ? t.accentSoft : 'transparent', borderWidth: 1.5, borderColor: selected ? t.accent : 'transparent', opacity: !active && !selected ? .55 : 1, transform: [{ scale: pressed ? .94 : 1 }] })}>
+    <View style={{ width: 76, height: 76, alignItems: 'center', justifyContent: 'center' }}>
+      {id === null ? <View style={{ width: 52, height: 52, borderRadius: 26, borderWidth: 1.5, borderStyle: 'dashed', borderColor: t.subtle }} /> : <DecoratedAvatar user={{ ...user, avatarFrame: id, avatarVideoId: null }} api={api} size={50} round animated={selected} />}
+    </View>
+    <Text numberOfLines={1} style={{ maxWidth: cell - 8, color: selected ? t.accent : t.muted, fontSize: 12, fontWeight: selected ? '700' : '500' }}>{label}</Text>
+    {selected ? <View style={{ position: 'absolute', top: 6, right: 8, width: 20, height: 20, borderRadius: 10, backgroundColor: t.accent, alignItems: 'center', justifyContent: 'center' }}><Icon name="checkmark" size={13} color={t.onAccent} /></View> : null}
+  </Pressable>; };
+  return <View style={{ gap: 12 }} onLayout={e => setWidth(Math.round(e.nativeEvent.layout.width))}>
+    <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ gap: 6 }}>
+      {GRID_TABS.map(name => { const on = tab === name; return <Pressable key={name} accessibilityRole="tab" accessibilityState={{ selected: on }} onPress={() => setTab(name)} style={{ paddingHorizontal: 14, height: 34, borderRadius: 17, justifyContent: 'center', backgroundColor: on ? t.accent : t.surface2 }}><Text style={{ color: on ? t.onAccent : t.text, fontSize: 13, fontWeight: on ? '700' : '500' }}>{name}</Text></Pressable>; })}
+    </ScrollView>
+    {cell ? <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 10 }}>
+      {tile(null, 'Без рамки')}
+      {options.map(option => tile(option.id, option.label))}
+    </View> : null}
   </View>;
 }
 

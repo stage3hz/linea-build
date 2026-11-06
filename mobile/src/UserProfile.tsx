@@ -1,3 +1,4 @@
+import { Gesture, GestureDetector, GestureHandlerRootView } from 'react-native-gesture-handler';
 import { isBirthdayToday } from './birthday';
 import { birthdayColors } from './platina/Decor';
 import { Confetti } from './effects';
@@ -69,6 +70,10 @@ export function UserProfile({ api, user, onClose, chat, onMessage, onMute, onSea
   useEffect(() => { slide.value = withTiming(0, { duration: 280, easing: Easing.out(Easing.cubic) }); grow.value = withSpring(1, { damping: 16, stiffness: 180 }); }, []);
   const pushIn = useAnimatedStyle(() => ({ transform: [{ translateX: slide.value }] }));
   const avatarIn = useAnimatedStyle(() => ({ transform: [{ scale: grow.value }], opacity: Math.min(1, grow.value * 1.6) }));
+  // Telegram: swipe right from the left edge to go back (the profile follows the finger).
+  const edgeSwipe = Gesture.Pan().enabled(width < 760).hitSlop({ left: 0, width: 28 }).activeOffsetX(12).failOffsetY([-14, 14])
+    .onUpdate(e => { slide.value = Math.max(0, e.translationX); })
+    .onEnd(e => { if (e.translationX > width * 0.33 || e.velocityX > 700) slide.value = withTiming(width, { duration: 180, easing: Easing.out(Easing.cubic) }, done => { if (done) runOnJS(onClose)(); }); else slide.value = withSpring(0, { damping: 20, stiffness: 260 }); });
   const back = () => { if (width >= 760) { onClose(); return; } slide.value = withTiming(width, { duration: 220, easing: Easing.in(Easing.cubic) }, done => { if (done) runOnJS(onClose)(); }); };
   const [menu, setMenu] = useState(false); const [menuAt, setMenuAt] = useState<{ x?: number; y: number }>({ y: 90 }); const [sheet, setSheet] = useState<'ttl' | 'clear' | 'block' | 'report' | null>(null);
   const [blocked, setBlocked] = useState(false); const [reason, setReason] = useState<ReportReason | null>(null);
@@ -135,7 +140,7 @@ export function UserProfile({ api, user, onClose, chat, onMessage, onMute, onSea
   const cardWidth = Math.min(560, width - 48);
   return <Modal visible transparent animationType={card ? 'fade' : 'none'} presentationStyle="overFullScreen" onRequestClose={back} statusBarTranslucent>
     {card ? <Pressable accessibilityRole="button" accessibilityLabel="Закрыть профиль" onPress={onClose} style={[StyleSheet.absoluteFill, { backgroundColor: 'rgba(0,0,0,0.55)' }]} /> : null}
-    <Animated.View pointerEvents="box-none" style={[card ? { flex: 1, alignItems: 'center', justifyContent: 'center', padding: 24 } : { flex: 1, backgroundColor: t.bg }, card ? null : pushIn]}>
+    <GestureHandlerRootView style={{ flex: 1 }}><GestureDetector gesture={edgeSwipe}><Animated.View pointerEvents="box-none" style={[card ? { flex: 1, alignItems: 'center', justifyContent: 'center', padding: 24 } : { flex: 1, backgroundColor: t.bg }, card ? null : pushIn]}>
     <View style={card ? { width: cardWidth, height: '88%', maxHeight: 860, borderRadius: 22, overflow: 'hidden', borderWidth: StyleSheet.hairlineWidth, borderColor: t.border, shadowColor: '#000', shadowOpacity: 0.4, shadowRadius: 30 } : { flex: 1 }}>
     <GlassStage>{tinted && heroBottom ? <Animated.View pointerEvents="none" style={[{ position: 'absolute', top: 0, left: 0, right: 0, overflow: 'hidden' }, heroColor]}><LinearGradient colors={birthdayToday ? [festive[0], festive[1]] : [shade(shown.avatarColor, 0.15), shade(shown.avatarColor, -0.12)]} style={StyleSheet.absoluteFill} /></Animated.View> : null}{shown.bannerId || shown.bannerPreset ? <View pointerEvents="none" style={{ position: 'absolute', top: 0, left: 0, right: 0, height: 260 }}><ProfileBanner user={shown} api={api} height={260} /></View> : null}<InsetView style={{ flex: 1 }}>
       <View style={{ flexDirection: 'row', alignItems: 'center', paddingHorizontal: 10, paddingVertical: 6 }}>
@@ -175,7 +180,7 @@ export function UserProfile({ api, user, onClose, chat, onMessage, onMute, onSea
         {shared && onOpenAttachment ? <SharedMedia messages={shared} onOpen={attachment => { onClose(); setTimeout(() => onOpenAttachment(attachment), 250); }} /> : null}
       </Animated.ScrollView>
     </InsetView>{/* Discord-style profile effect over the top while the profile is open. */}<ProfileEffect effect={shown.profileEffect} width={card ? cardWidth : width} height={420} /></GlassStage>
-    </View></Animated.View>
+    </View></Animated.View></GestureDetector></GestureHandlerRootView>
     <ContextMenu visible={menu} y={menuAt.y} x={menuAt.x} mine onClose={() => setMenu(false)}>
       {chat && contact !== null ? <MenuItem icon={contact ? 'person-remove-outline' : 'person-add-outline'} label={contact ? 'Удалить из друзей' : pendingRequest === 'outgoing' ? 'Отменить заявку' : pendingRequest === 'incoming' ? 'Принять в друзья' : 'Добавить в друзья'} onPress={() => { setMenu(false); void toggleContact(); }} /> : null}
       {chat && onRules ? <MenuItem icon="timer-outline" label={`Автоудаление · ${autoDeleteLabel(current.ttl)}`} onPress={() => { setMenu(false); setSheet('ttl'); }} /> : null}

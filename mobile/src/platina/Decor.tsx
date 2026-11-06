@@ -1,3 +1,4 @@
+import { CodeFrame, isCodeFrame } from './CodeFrames';
 import { Text } from '../typography';
 import { isBirthdayToday } from '../birthday';
 import { useNetworkTier } from '../network/useNetworkTier';
@@ -92,13 +93,16 @@ export function DecoratedAvatar({ user, api, size = 54, animated = false, round 
   const live = animated && enabled && autoload('animatedAvatar', tier);
   const video = live && user.avatarVideoId ? user.avatarVideoId : null;
   const decoration = birthday ? undefined : findDecoration(user.avatarFrame);
+  const coded = !birthday && isCodeFrame(user.avatarFrame) ? user.avatarFrame : null;
   // Small (list) sizes: the art may reach at most 1.3× the avatar box so it does not cover the
   // neighbouring rows; the photo shrinks inside to keep filling the opening.
   const face = decoration && size < 64 && decoration.scale > 1.3 ? Math.round(size * 1.3 / decoration.scale) : size;
   const inner = <View style={{ width: face, height: face }}>
-    <Avatar user={user} api={api} size={face} round={round || !!decoration} />
+    <Avatar user={user} api={api} size={face} round={round || !!decoration || !!coded} />
     {video ? Platform.OS === 'web' ? <View pointerEvents="none" style={[StyleSheet.absoluteFill, { borderRadius: decoration || round ? face / 2 : face * .36, overflow: 'hidden' }]}><WebLoopVideo api={api} id={video} style={{ width: face, height: face }} /></View> : <VideoAvatar api={api} id={video} size={face} radius={decoration ? face / 2 : face * .36} /> : null}
   </View>;
+  // Frames drawn in code (neon, flame, stardust…): around a round avatar, outside its box like the art.
+  if (coded) return <View style={{ width: size, height: size }}>{inner}<CodeFrame id={coded} size={size} live={live} /></View>;
   // Art decorations draw outside the avatar box (overflow), so rows keep their layout.
   if (decoration) return <View style={{ width: size, height: size, alignItems: 'center', justifyContent: 'center' }}>
     {inner}
