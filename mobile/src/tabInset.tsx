@@ -22,7 +22,8 @@ export function TabsOverlay({ tabs, children }: { tabs: React.ReactNode | null; 
 }
 
 // Telegram: rows passing behind the floating tab bar soften into the background — a progressive blur
-// (iOS) with a light tint that starts at the bar's top edge and is strongest at the screen bottom. It
+// (iOS) with a light tint that starts at the bar's top edge and is strongest at the screen bottom;
+// the rows stay recognisable behind the bar, as in Telegram's own chat list. It
 // starts at the bar, not above it: a fade from higher up darkened readable rows (reported earlier),
 // and none at all left the rows sharp and bright behind the bar (reported later).
 function TabsFade({ bar }: { bar: number }) {
@@ -31,7 +32,7 @@ function TabsFade({ bar }: { bar: number }) {
   const below = extra ? 22 : 10; // the bar's bottom edge sits ~21 pt above the screen bottom on iPhones with a home indicator
   return <>
     {Platform.OS === 'ios' ? <ScrollEdgeBlurView pointerEvents="none" edge="bottom" maxBlurRadius={20} falloff={1} style={{ position: 'absolute', left: 0, right: 0, bottom: -extra, height: bar + extra }} /> : null}
-    <LinearGradient pointerEvents="none" colors={[tint(t.bg, 0, t.dark), tint(t.bg, Platform.OS === 'ios' ? .45 : .7, t.dark), tint(t.bg, .9, t.dark)]} locations={[0, .55, 1]} style={{ position: 'absolute', left: 0, right: 0, bottom: -extra, height: bar + extra }} />
+    <LinearGradient pointerEvents="none" colors={[tint(t.bg, 0, t.dark), tint(t.bg, Platform.OS === 'ios' ? .22 : .45, t.dark), tint(t.bg, Platform.OS === 'ios' ? .55 : .75, t.dark)]} locations={[0, .55, 1]} style={{ position: 'absolute', left: 0, right: 0, bottom: -extra, height: bar + extra }} />
     <LinearGradient pointerEvents="none" colors={[tint(t.bg, 0, t.dark), tint(t.bg, .9, t.dark)]} style={{ position: 'absolute', left: 0, right: 0, bottom: -extra, height: below }} />
     {insets.top && Platform.OS === 'ios' ? <ScrollEdgeBlurView pointerEvents="none" edge="top" maxBlurRadius={20} falloff={1} style={{ position: 'absolute', left: 0, right: 0, top: -insets.top, height: insets.top + 10 }} /> : null}
     {insets.top && Platform.OS !== 'web' ? <LinearGradient pointerEvents="none" colors={[tint(t.bg, Platform.OS === 'ios' ? .5 : .75, t.dark), tint(t.bg, 0, t.dark)]} style={{ position: 'absolute', left: 0, right: 0, top: -insets.top, height: insets.top }} /> : null}
