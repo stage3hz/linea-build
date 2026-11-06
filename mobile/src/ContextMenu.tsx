@@ -57,6 +57,11 @@ export function ContextMenu({ visible, y: liveY, x: liveX, onClose, reactions, o
   const pill = useAnimatedStyle(() => ({ opacity: interpolate(shown.value, [0, 0.3], [0, 1], 'clamp'), transform: [{ scale: interpolate(shown.value, [0, 1], [0.55, 1]) }] }));
   // The menu follows the chat theme (black theme → near-black, coloured themes → their own tint).
   const surface = menuSurface(t);
+  // Telegram (iOS 26): the menu and the reactions bar are frosted glass — translucent, blurred, well rounded.
+  const glass = (radius: number) => <>
+    {Platform.OS === 'ios' ? <BlurView intensity={55} tint={t.dark ? 'dark' : 'light'} style={StyleSheet.absoluteFill} /> : null}
+    <View pointerEvents="none" style={[StyleSheet.absoluteFill, { borderRadius: radius, backgroundColor: Platform.OS === 'ios' ? (t.dark ? 'rgba(40,42,50,0.55)' : 'rgba(255,255,255,0.55)') : (t.dark ? 'rgba(36,38,46,0.92)' : 'rgba(255,255,255,0.94)'), borderWidth: StyleSheet.hairlineWidth, borderColor: t.dark ? 'rgba(255,255,255,0.14)' : 'rgba(0,0,0,0.08)' }]} />
+  </>;
   const shadow = { shadowColor: '#000', shadowOpacity: .28, shadowRadius: 18, shadowOffset: { width: 0, height: 8 }, elevation: 8 };
   const corner = atCursor ? 'left' : mine ? 'right' : 'left';
   if (!mounted) return null;
@@ -68,14 +73,15 @@ export function ContextMenu({ visible, y: liveY, x: liveX, onClose, reactions, o
     </Animated.View>
     <View pointerEvents="box-none" onLayout={event => { const measured = Math.ceil(event.nativeEvent.layout.height); if (Math.abs(measured - size) > 1) setSize(measured); }}
       style={{ position: 'absolute', top, ...side, width: column, alignItems: atCursor ? 'flex-start' : mine ? 'flex-end' : held.peek && !row ? 'center' : 'flex-start', gap: 8, paddingHorizontal: row ? 9 : 0, maxHeight: bottomLimit - topLimit, opacity: size ? 1 : 0 }}>
-      {list.length ? <Animated.View style={[{ transformOrigin: `${corner} bottom` } as object, pill]}>{all ? <View style={{ width: column, borderRadius: 22, backgroundColor: surface, padding: 8, flexDirection: 'row', flexWrap: 'wrap', ...shadow }}>
+      {list.length ? <Animated.View style={[{ transformOrigin: `${corner} bottom` } as object, pill]}>{all ? <View style={{ width: column, borderRadius: 26, overflow: 'hidden', padding: 8, flexDirection: 'row', flexWrap: 'wrap', ...shadow }}>{glass(26)}
         {list.map((item, index) => <ReactionButton key={item.emoji} item={item} index={index % 14} shown={shown} size={(column - 16) / 7} onPress={() => onReact?.(item.emoji)} />)}
-      </View> : <View style={{ flexDirection: 'row', alignItems: 'center', height: 48, borderRadius: 24, backgroundColor: surface, paddingHorizontal: 4, ...shadow }}>
+      </View> : <View style={{ flexDirection: 'row', alignItems: 'center', height: 48, borderRadius: 24, overflow: 'hidden', paddingHorizontal: 4, ...shadow }}>{glass(24)}
         {list.slice(0, QUICK).map((item, index) => <ReactionButton key={item.emoji} item={item} index={index} shown={shown} size={40} onPress={() => onReact?.(item.emoji)} />)}
         {list.length > QUICK ? <Pressable accessibilityRole="button" accessibilityLabel="Все реакции" onPress={() => setAll(true)} style={{ width: 30, height: 40, alignItems: 'center', justifyContent: 'center' }}><Icon name="chevron-down" size={18} color={t.muted} /></Pressable> : null}
       </View>}</Animated.View> : null}
       {held.peek && !atCursor ? <Animated.View pointerEvents="none" style={[row ? { alignSelf: 'stretch', marginHorizontal: -9 } : { width: column, ...shadow }, bubble]}>{held.peek}</Animated.View> : held.preview && !atCursor ? <Animated.View style={[{ maxWidth: Math.min(column, (width - 18) * 0.85, 520), borderRadius: preferences.bubbleRadius, paddingHorizontal: 12, paddingVertical: 6, backgroundColor: mine ? t.bubble : t.incoming, ...shadow }, bubble]}><Text numberOfLines={6} style={{ color: t.text, fontSize: metrics.fontSize, lineHeight: metrics.lineHeight }}>{held.preview}</Text></Animated.View> : null}
-      <Animated.View style={[{ width: 272, flexShrink: 1, minHeight: 0, borderRadius: 14, overflow: 'hidden', backgroundColor: surface, ...shadow, transformOrigin: `${corner} top` } as object, menu]}>
+      <Animated.View style={[{ width: 250, flexShrink: 1, minHeight: 0, borderRadius: 26, overflow: 'hidden', ...shadow, transformOrigin: `${corner} top` } as object, menu]}>
+        {glass(26)}
         <ScrollView bounces={false} style={{ flexGrow: 0 }}>{held.children}</ScrollView>
       </Animated.View>
     </View>
@@ -98,8 +104,8 @@ function ReactionButton({ item, size, index, shown, onPress }: { item: QuickReac
 export function MenuItem({ icon, label, onPress, danger = false, separated = false }: { icon: IconName; label: string; description?: string; onPress: () => void; danger?: boolean; separated?: boolean }) {
   const t = useTheme();
   return <View>
-    {separated ? <View style={{ height: 7, backgroundColor: t.dark ? 'rgba(0,0,0,0.28)' : 'rgba(0,0,0,0.06)' }} /> : null}
-    <Pressable accessibilityRole="menuitem" onPress={onPress} style={({ pressed }) => ({ flexDirection: 'row', alignItems: 'center', gap: 12, minHeight: 42, paddingHorizontal: 14, backgroundColor: pressed ? (t.dark ? 'rgba(255,255,255,0.08)' : 'rgba(0,0,0,0.05)') : 'transparent' })}>
+    {separated ? <View style={{ height: 6, backgroundColor: t.dark ? 'rgba(0,0,0,0.22)' : 'rgba(0,0,0,0.05)' }} /> : null}
+    <Pressable accessibilityRole="menuitem" onPress={onPress} style={({ pressed }) => ({ flexDirection: 'row', alignItems: 'center', gap: 13, minHeight: 44, paddingHorizontal: 16, backgroundColor: pressed ? (t.dark ? 'rgba(255,255,255,0.08)' : 'rgba(0,0,0,0.05)') : 'transparent' })}>
       <Icon name={icon} size={19} color={danger ? t.danger : t.text} />
       <Text style={{ flex: 1, color: danger ? t.danger : t.text, fontSize: 15.5 }}>{label}</Text>
     </Pressable>
