@@ -10,7 +10,6 @@ import { Avatar, Button, Field, Icon, IconButton, Notice, SectionLabel, Sheet } 
 import { useTheme } from './theme';
 import { GlassSurface } from './glass';
 import { ThemeSettings } from './ThemeSettings';
-import { PlatinaWordmark } from './PlatinaWordmark';
 import { StatusEmoji } from './StatusEmoji';
 import { DecoratedAvatar, ProfileBanner } from './platina/Decor';
 import { PlatinaStudio } from './platina/PlatinaStudio';
@@ -200,11 +199,6 @@ export function ProfileScreen({ api, user, theme, darkTheme, onTheme, onDarkThem
       {status ? <GlassSurface material="regular" radius={28} contentStyle={{ padding: 20, gap: 15 }}>
           <ReadOnlyValue label="ID аккаунта" value={status.accountId} onCopy={() => void copy(status.accountId, 'id')} copied={copied === 'id'} small/>
       </GlassSurface> : null}
-      <GlassSurface material="regular" radius={28} contentStyle={{ padding: 20, gap: 14 }}>
-        <View style={{ gap: 8, alignItems: 'flex-start' }}><View style={{ alignSelf: 'stretch', overflow: 'hidden' }}><PlatinaWordmark/></View><View style={{ paddingHorizontal: 10, paddingVertical: 4, borderRadius: 10, backgroundColor: ready && status.platina.active ? t.accentSoft : t.surface2 }}><Text style={{ color: ready && status.platina.active ? t.accent : t.muted, fontSize: 12, fontWeight: '700' }}>{!ready ? 'Проверяем…' : permanent ? 'Бессрочно' : status.platina.active ? 'Активна' : 'Не активна'}</Text></View></View>
-        <Text style={{ color: t.muted, fontSize: 13, lineHeight: 19 }}>{ready && status.platina.active ? `Анимированные аватар, рамка, баннер и эмодзи, скрытие «в сети» и прочтения, дополнительные смены имени.${permanent ? ' Для этого аккаунта Platina действует без срока окончания.' : expiry ? ` Действует до ${expiry}.` : ''}` : 'Анимированные аватар, рамки, баннер и эмодзи, скрытие времени захода и прочтения, дополнительные смены имени.'}</Text>
-        <Pressable onPress={() => setPlatinaVisible(true)} accessibilityRole="button" style={{ paddingVertical: 5 }}><Text style={{ color: t.accent, fontSize: 12, fontWeight: '600' }}>Что даёт Platina</Text></Pressable>
-      </GlassSurface>
       <GlassSurface material="regular" radius={28} contentStyle={{ padding: 20 }}><SectionLabel>Оформление</SectionLabel><ThemeSettings mode={theme} darkTheme={darkTheme} onChange={onTheme} onDarkTheme={onDarkTheme} platina={status?.platina.active === true} onLocked={() => setPlatinaVisible(true)}/></GlassSurface>
       <GlassSurface material="clear" radius={27} contentStyle={{ padding: 20, gap: 13 }}><SectionLabel>Аккаунт</SectionLabel><Button label="Безопасность и устройства" secondary icon="shield-checkmark-outline" onPress={onSecurity}/><Text style={{ color: t.muted, fontSize: 12, lineHeight: 18 }}>Пароль, два секретных слова и действующие сеансы.</Text><Button label="Выйти из аккаунта" danger icon="log-out-outline" disabled={busy} onPress={() => setLogoutVisible(true)}/></GlassSurface>
       <Text style={{ textAlign: 'center', color: t.subtle, fontSize: 11, lineHeight: 18, paddingTop: 5 }}>Инвиз{'\n'}Новые личные сообщения шифруются на устройстве.{'\n'}Сверяй коды устройств в разделе «Защита чата».</Text>
