@@ -18,7 +18,8 @@ import { currentVoiceRate } from '../voice/VoiceMessage';
 import * as FileSystem from 'expo-file-system/legacy';
 import { AndroidNoteCamera, androidNoteCameraAvailable, type AndroidNoteCameraHandle } from './androidCamera';
 import { useMusic } from '../music/MusicProvider';
-import { VIDEO_NOTE_MAX_MS, formatVoiceTime } from '../voice/voice';
+import { VIDEO_NOTE_MAX_MS, formatVoiceTime, formatVoiceTimeFine } from '../voice/voice';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 export type VideoNoteTake = { uri: string; durationMs: number };
 const BASE_CIRCLE = 300;
@@ -65,7 +66,7 @@ export function VideoNoteRecorder({ visible, onClose, onDone, hold = null }: { v
   }, [visible]);
   useEffect(() => {
     if (!recording) return;
-    const timer = setInterval(() => setElapsed(Date.now() - started.current), 200);
+    const timer = setInterval(() => setElapsed(Date.now() - started.current), hold ? 50 : 200); // hold: 0:04,63 like Telegram
     return () => clearInterval(timer);
   }, [recording]);
 
@@ -125,6 +126,40 @@ export function VideoNoteRecorder({ visible, onClose, onDone, hold = null }: { v
   const CIRCLE = hold ? Math.round(Math.min(win.width * 0.8, win.height * 0.45, 360)) : BASE_CIRCLE;
 
   const showControls = !hold || hold.locked;
+  const insets = useSafeAreaInsets();
+  const flip = () => { if (recording && !FLIP_WHILE_RECORDING) return; if (!recording && Platform.OS !== 'ios' && !androidNoteCameraAvailable) setReady(false); setError(''); setFacing(value => value === 'front' ? 'back' : 'front'); };
+  const preview = visible && allowed && androidNoteCameraAvailable ? <AndroidNoteCamera ref={nativeRef} facing={facing === 'back' ? 'back' : 'front'} style={{ position: 'absolute', left: 0, top: -CIRCLE / 6, width: CIRCLE, height: CIRCLE * 4 / 3 }} onReady={() => setReady(true)} onCameraError={event => setError(event.nativeEvent.message || 'Камера недоступна.')} /> : visible && allowed ? <CameraView key={Platform.OS === 'ios' ? 'camera' : facing} ref={ref} style={{ position: 'absolute', left: 0, top: -CIRCLE / 6, width: CIRCLE, height: CIRCLE * 4 / 3 }} facing={facing} mode="video" ratio="4:3" mirror={facing === 'front'} videoQuality="480p" onCameraReady={() => setReady(true)} onMountError={event => setError(event.message || 'Камера недоступна.')} /> : null;
+  // Telegram's way while the finger holds (and after a lock): the circle over the blurred chat with a
+  // white progress arc around it; at the bottom the same strip as for voice — red dot, 0:04,63,
+  // «‹ Влево — отмена» (after a lock: «Отмена»), the big circle on the right (under the finger; after
+  // a lock it sends), and the switch-camera button above the strip on the left.
+  const RING = CIRCLE + 14;
+  const holdBody = <View pointerEvents="box-none" style={{ flex: 1 }}>
+    <View pointerEvents="box-none" style={{ alignItems: 'center', paddingTop: Math.max(insets.top + 40, win.height * 0.12), gap: 18 }}>
+      <View pointerEvents="none" style={{ width: RING, height: RING, alignItems: 'center', justifyContent: 'center' }}>
+        <ProgressRing progress={recording ? progress : 0} size={RING} width={3} color="#FFF" track="rgba(255,255,255,0.16)" />
+        <View style={{ width: CIRCLE, height: CIRCLE, borderRadius: CIRCLE / 2, overflow: 'hidden', backgroundColor: '#000' }}>{preview}</View>
+      </View>
+      {stage.supported && facing === 'front' && showControls ? <Pressable disabled={recording} accessibilityRole="switch" accessibilityState={{ checked: stage.enabled, disabled: recording }} accessibilityLabel="Слежение за лицом" onPress={() => void setCenterStage(!stage.enabled).then(setStage)} style={{ flexDirection: 'row', alignItems: 'center', gap: 6, paddingHorizontal: 12, paddingVertical: 7, borderRadius: 16, backgroundColor: stage.enabled ? 'rgba(255,214,10,0.18)' : 'rgba(255,255,255,0.1)' }}><Icon name="scan-outline" size={16} color={stage.enabled ? '#FFD60A' : '#FFF'} /><Text style={{ color: stage.enabled ? '#FFD60A' : '#FFF', fontSize: 13, fontWeight: '600' }}>{stage.enabled ? 'В центре кадра' : 'Слежение выкл.'}</Text></Pressable> : null}
+      {error ? <Text style={{ color: '#FFB4B4', fontSize: 13, textAlign: 'center', maxWidth: 320 }}>{error}</Text> : null}
+    </View>
+    <View pointerEvents="box-none" style={{ position: 'absolute', left: 8, right: 8, bottom: insets.bottom + 6, gap: 10 }}>
+      <View pointerEvents="box-none" style={{ flexDirection: 'row' }}>
+        <Pressable accessibilityRole="button" accessibilityLabel="Сменить камеру" disabled={!showControls} onPress={flip} style={[styles.small, { opacity: recording && !FLIP_WHILE_RECORDING ? .35 : 1 }]}><Icon name="camera-reverse-outline" color="#FFF" size={21} /></Pressable>
+      </View>
+      <View pointerEvents="box-none" style={{ flexDirection: 'row', alignItems: 'flex-end' }}>
+        <View pointerEvents="box-none" style={{ flex: 1, minHeight: 48, marginBottom: 10, marginRight: -62, paddingRight: 70, borderRadius: 24, flexDirection: 'row', alignItems: 'center', gap: 8, paddingLeft: 14, backgroundColor: 'rgba(28,32,46,0.88)' }}>
+          <View style={{ width: 9, height: 9, borderRadius: 5, backgroundColor: t.danger, opacity: recording && Math.floor(elapsed / 600) % 2 ? .25 : 1 }} />
+          <Text style={{ color: '#FFF', fontSize: 15, fontWeight: '500', minWidth: 62, fontVariant: ['tabular-nums'] }}>{formatVoiceTimeFine(elapsed)}</Text>
+          {hold?.locked ? <Pressable accessibilityRole="button" accessibilityLabel="Отменить видеосообщение" onPress={cancel} hitSlop={8} style={({ pressed }) => ({ flex: 1, height: 44, alignItems: 'center', justifyContent: 'center', opacity: pressed ? .6 : 1 })}><Text style={{ color: t.accent, fontSize: 16, fontWeight: '600' }}>Отмена</Text></Pressable>
+            : <Text style={{ flex: 1, textAlign: 'center', color: 'rgba(255,255,255,0.6)', fontSize: 14 }}>‹ Влево — отмена</Text>}
+        </View>
+        <Pressable accessibilityRole="button" accessibilityLabel="Отправить видеосообщение" disabled={!hold?.locked || !recording} onPress={() => void stop()} style={({ pressed }) => ({ width: 68, height: 68, borderRadius: 34, backgroundColor: t.accent, alignItems: 'center', justifyContent: 'center', opacity: pressed ? .8 : 1 })}>
+          {!ready && allowed && !error ? <ActivityIndicator color={t.onAccent} /> : <Icon name={hold?.locked ? 'arrow-up' : 'videocam'} color={t.onAccent} size={hold?.locked ? 30 : 26} />}
+        </Pressable>
+      </View>
+    </View>
+  </View>;
   const body = <View pointerEvents={showControls ? 'auto' : 'none'} style={{ flex: 1, backgroundColor: hold ? 'transparent' : 'rgba(4,6,14,0.96)', alignItems: 'center', justifyContent: hold ? 'flex-start' : 'center', paddingTop: hold ? win.height * 0.12 : 20, gap: 26, padding: 20 }}>
       <Text style={{ color: '#FFF', fontSize: 17, fontWeight: '700' }}>{recording ? formatVoiceTime(elapsed) : 'Видеосообщение'}</Text>
       <View style={{ width: CIRCLE + 12, height: CIRCLE + 12, borderRadius: (CIRCLE + 12) / 2, padding: 6, borderWidth: 3, borderColor: recording ? t.danger : 'rgba(255,255,255,0.25)' }}>
@@ -146,12 +181,12 @@ export function VideoNoteRecorder({ visible, onClose, onDone, hold = null }: { v
   if (hold) return visible ? <View pointerEvents={showControls ? 'auto' : 'box-none'} style={[StyleSheet.absoluteFill, { zIndex: 50 }]}>
     <BlurView tint="dark" intensity={60} style={StyleSheet.absoluteFill} />
     <View pointerEvents="none" style={[StyleSheet.absoluteFill, { backgroundColor: 'rgba(0,0,0,0.25)' }]} />
-    {body}
+    {holdBody}
   </View> : null;
   return <Modal visible={visible} animationType="fade" onRequestClose={cancel} statusBarTranslucent>{body}</Modal>;
 }
 
-const styles = StyleSheet.create({ round: { width: 54, height: 54, borderRadius: 27, backgroundColor: 'rgba(255,255,255,0.12)', alignItems: 'center', justifyContent: 'center' } });
+const styles = StyleSheet.create({ round: { width: 54, height: 54, borderRadius: 27, backgroundColor: 'rgba(255,255,255,0.12)', alignItems: 'center', justifyContent: 'center' }, small: { width: 42, height: 42, borderRadius: 21, backgroundColor: 'rgba(255,255,255,0.14)', alignItems: 'center', justifyContent: 'center' } });
 
 /** Telegram circle: plays silently in a loop in the chat; a tap enlarges it and plays from the start with sound. */
 function CirclePlayer({ uri, size, expanded, onToggle, onEnd }: { uri: string; size: number; expanded: boolean; onToggle: () => void; onEnd: () => void }) {

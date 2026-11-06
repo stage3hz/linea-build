@@ -1,5 +1,6 @@
 import React, { createContext, useCallback, useContext, useEffect, useRef, useState } from 'react';
-import { ActivityIndicator, Platform, Pressable, View, type LayoutChangeEvent } from 'react-native';
+import { ActivityIndicator, Platform, Pressable, StyleSheet, View, type LayoutChangeEvent } from 'react-native';
+import { GlassSurface } from '../glass';
 import * as FileSystem from 'expo-file-system/legacy';
 import {
   AudioQuality, IOSOutputFormat, requestRecordingPermissionsAsync, setAudioModeAsync,
@@ -97,7 +98,7 @@ export function useVoiceRecorder(onLimit: () => void) {
   return { active, paused, durationMs: active ? state.durationMillis : 0, levels, start, finish, togglePause };
 }
 
-export function VoiceRecordingBar({ durationMs, levels, onCancel, onSend, holding = false, cancelProgress = 0, paused = false, onPause }: { durationMs: number; levels: number[]; onCancel: () => void; onSend: () => void; holding?: boolean; cancelProgress?: number; paused?: boolean; onPause?: () => void }) {
+export function VoiceRecordingBar({ durationMs, levels, onCancel, onSend, holding = false, cancelProgress = 0, paused = false, onPause, floating = false }: { durationMs: number; levels: number[]; onCancel: () => void; onSend: () => void; holding?: boolean; cancelProgress?: number; paused?: boolean; onPause?: () => void; floating?: boolean }) {
   const t = useTheme();
   const [blink, setBlink] = useState(true);
   useEffect(() => { const timer = setInterval(() => setBlink(value => !value), 600); return () => clearInterval(timer); }, []);
@@ -109,8 +110,23 @@ export function VoiceRecordingBar({ durationMs, levels, onCancel, onSend, holdin
     {dot}{time}
     <Text style={{ flex: 1, textAlign: 'center', color: t.muted, fontSize: 14, opacity: 1 - cancelProgress, transform: [{ translateX: -cancelProgress * 40 }] }}>‹ Влево — отмена</Text>
   </View>;
-  // Locked (hands free): dot and time, «Отмена» in the middle, pause, and a big send circle that
-  // breathes with the voice.
+  // Locked in a chat, as in Telegram: a glass strip with dot, 0:04,63 and «Отмена»; on the right a big
+  // send circle that breathes with the voice, the pause button above it. Everything stays inside this
+  // view's bounds (Android does not deliver touches outside the parent), so the composer grows a bit.
+  if (floating) return <View style={{ flexDirection: 'row', alignItems: 'flex-end', gap: 6 }}>
+    <GlassSurface lens material="regular" radius={24} style={{ flex: 1, marginBottom: 10 }} contentStyle={{ minHeight: 48, flexDirection: 'row', alignItems: 'center', gap: 8, paddingLeft: 14 }}>
+      {dot}{time}
+      <Pressable accessibilityRole="button" accessibilityLabel="Отменить запись" onPress={onCancel} hitSlop={8} style={({ pressed }) => ({ flex: 1, height: 44, alignItems: 'center', justifyContent: 'center', marginRight: 62, opacity: pressed ? .6 : 1 })}><Text style={{ color: t.accent, fontSize: 16, fontWeight: '600' }}>Отмена</Text></Pressable>
+    </GlassSurface>
+    <View style={{ width: 68, alignItems: 'center', gap: 12, marginLeft: -62 }}>
+      {onPause ? <Pressable accessibilityRole="button" accessibilityLabel={paused ? 'Продолжить запись' : 'Пауза'} onPress={onPause} style={({ pressed }) => ({ width: 42, height: 42, borderRadius: 21, alignItems: 'center', justifyContent: 'center', backgroundColor: t.glassOpaque, borderWidth: StyleSheet.hairlineWidth, borderColor: t.border, opacity: pressed ? .6 : 1 })}><Icon name={paused ? 'mic' : 'pause'} size={19} color={paused ? t.danger : t.text} /></Pressable> : null}
+      <View style={{ width: 68, height: 68, alignItems: 'center', justifyContent: 'center' }}>
+        <View pointerEvents="none" style={{ position: 'absolute', width: 68, height: 68, borderRadius: 34, backgroundColor: t.accent, opacity: paused ? 0 : .22, transform: [{ scale: 1 + level * .35 }] }} />
+        <Pressable accessibilityRole="button" accessibilityLabel="Отправить голосовое сообщение" onPress={onSend} style={({ pressed }) => ({ height: 64, width: 64, borderRadius: 32, backgroundColor: t.accent, alignItems: 'center', justifyContent: 'center', opacity: pressed ? .8 : 1 })}><Icon name="arrow-up" color={t.onAccent} size={30} /></Pressable>
+      </View>
+    </View>
+  </View>;
+  // Elsewhere (Saved): one row — dot, time, «Отмена», pause and the send circle.
   return <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8, minHeight: 50, paddingLeft: 10 }}>
     {dot}{time}
     <Pressable accessibilityRole="button" accessibilityLabel="Отменить запись" onPress={onCancel} style={({ pressed }) => ({ flex: 1, height: 44, alignItems: 'center', justifyContent: 'center', opacity: pressed ? .6 : 1 })}><Text style={{ color: t.accent, fontSize: 16, fontWeight: '600' }}>Отмена</Text></Pressable>
