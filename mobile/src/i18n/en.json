@@ -1880,5 +1880,7 @@
 "Отменить изменения": "Discard changes",
 "Вернуть значок Platina": "Restore the Platina badge",
 "Сменить статус рядом с именем": "Change the status next to your name",
-"С Platina по умолчанию там значок Platina 💎, его можно заменить любым эмодзи; эмодзи анимированы.": "With Platina the Platina badge 💎 is shown by default; replace it with any emoji. Emoji are animated."
+"С Platina по умолчанию там значок Platina 💎, его можно заменить любым эмодзи; эмодзи анимированы.": "With Platina the Platina badge 💎 is shown by default; replace it with any emoji. Emoji are animated.",
+"Статус меняется с активной Platina": "The status can be changed with an active Platina",
+"Значок Platina по умолчанию": "Default Platina badge"
 }

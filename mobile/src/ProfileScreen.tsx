@@ -1,3 +1,4 @@
+import { StatusPicker } from './StatusPicker';
 import { takeStatusPickerRequest } from './statusPicker';
 import React, { useEffect, useRef, useState } from 'react';
 import { ActivityIndicator, AppState, KeyboardAvoidingView, Platform, Pressable, ScrollView, View } from 'react-native';
@@ -130,7 +131,8 @@ export function ProfileScreen({ api, user, theme, darkTheme, onTheme, onDarkThem
   // Telegram: the profile is shown read-only; «Изм.» opens the editor (✕ discards the draft, ✓ saves).
   const [editing, setEditing] = useState(false);
   const wantsPicker = useRef(takeStatusPickerRequest());
-  useEffect(() => { if (wantsPicker.current && status) { wantsPicker.current = false; setEmojiVisible(true); } }, [status]);
+  const [pickerOpen, setPickerOpen] = useState(false), [pickerY, setPickerY] = useState(260);
+  useEffect(() => { if (wantsPicker.current && status) { wantsPicker.current = false; setPickerY(headerHeight + 230); setPickerOpen(true); } }, [status]);
   const save = async (): Promise<boolean> => {
     if (!name.trim()) { setError('Имя не может быть пустым.'); return false; }
     const version = begin('profile'); if (version === null) return false;
@@ -194,7 +196,7 @@ export function ProfileScreen({ api, user, theme, darkTheme, onTheme, onDarkThem
       <GlassSurface material="clear" radius={30} contentStyle={{ alignItems: 'center', gap: 11, paddingHorizontal: 20, paddingTop: 25, paddingBottom: 23 }}>
         {user.bannerId || user.bannerPreset ? <View pointerEvents="none" onLayout={event => setBannerWidth(Math.round(event.nativeEvent.layout.width))} style={{ position: 'absolute', top: 0, left: 0, right: 0, height: 120, overflow: 'hidden', borderTopLeftRadius: 30, borderTopRightRadius: 30 }}>{bannerWidth ? <ProfileBanner user={user} api={api} height={120} width={bannerWidth}/> : null}</View> : null}
         <Pressable disabled={busy} onPress={() => setEditing(true)} accessibilityRole="button" accessibilityLabel="Изменить профиль" style={{ position: 'relative', padding: 6, marginBottom: 5, borderRadius: 39, borderWidth: 1, borderColor: t.glassBorder, backgroundColor: t.glassClear }}><DecoratedAvatar user={previewUser} api={api} size={88} animated/></Pressable>
-        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 7, maxWidth: '100%' }}><Text style={{ color: t.text, fontSize: 24, fontWeight: '700', letterSpacing: -.6, textAlign: 'center', flexShrink: 1 }}>{user.displayName}</Text><Pressable accessibilityRole="button" accessibilityLabel="Сменить статус рядом с именем" hitSlop={10} disabled={!ready || !status?.platina.active && !status?.statusEmoji} onPress={() => setEmojiVisible(true)}><StatusEmoji user={previewUser} size={21} animated/></Pressable></View>
+        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 7, maxWidth: '100%' }}><Text style={{ color: t.text, fontSize: 24, fontWeight: '700', letterSpacing: -.6, textAlign: 'center', flexShrink: 1 }}>{user.displayName}</Text><Pressable accessibilityRole="button" accessibilityLabel="Сменить статус рядом с именем" hitSlop={10} disabled={!ready || !status?.platina.active && !status?.statusEmoji} onPress={event => { setPickerY(event.nativeEvent.pageY); setPickerOpen(true); }}><StatusEmoji user={previewUser} size={21} animated/></Pressable></View>
         <Pressable onPress={() => void copy(`@${publicName}`, 'username')} accessibilityRole="button" accessibilityLabel="Скопировать имя пользователя" style={{ flexDirection: 'row', gap: 7, alignItems: 'center', paddingHorizontal: 13, paddingVertical: 8, borderRadius: 16, backgroundColor: t.accentSoft }}><Text style={{ color: t.accent, fontSize: 13, fontWeight: '600' }}>{copied === 'username' ? 'Скопировано' : `@${publicName}`}</Text><Icon name={copied === 'username' ? 'checkmark' : 'copy-outline'} size={13} color={t.accent}/></Pressable>
         {user.bio ? <Text raw style={{ color: t.muted, fontSize: 14, lineHeight: 20, textAlign: 'center' }}>{user.bio}</Text> : null}
       </GlassSurface>
@@ -235,7 +237,7 @@ export function ProfileScreen({ api, user, theme, darkTheme, onTheme, onDarkThem
       </GlassSurface>
       <GlassSurface material="regular" radius={28} contentStyle={{ padding: 20, gap: 14 }}>
         <SectionLabel>Platina</SectionLabel>
-        <Button label="Статус рядом с именем" secondary icon="happy-outline" disabled={busy || !ready} onPress={() => setEmojiVisible(true)}/>
+        <Button label="Статус рядом с именем" secondary icon="happy-outline" disabled={busy || !ready} onPress={() => { setPickerY(headerHeight + 120); setPickerOpen(true); }}/>
         <PlatinaStudio api={api} user={user} active={ready && status.platina.active} onUser={onUser}/>
       </GlassSurface>
       </>}
@@ -244,6 +246,8 @@ export function ProfileScreen({ api, user, theme, darkTheme, onTheme, onDarkThem
     <Sheet visible={emojiVisible} title="Статус рядом с именем" onClose={() => { if (!busy) setEmojiVisible(false); }}><View style={{ gap: 18 }}><Text style={{ color: t.muted, fontSize: 13, lineHeight: 20 }}>Выбранный эмодзи виден возле твоего имени в чатах. С Platina по умолчанию там значок Platina 💎, его можно заменить любым эмодзи; эмодзи анимированы.</Text>{!status?.canSetStatusEmoji ? <Notice text="Для выбора и замены статуса нужна активная Platina. Убрать статус можно в любой момент."/> : null}<View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 10 }}>{emojiChoices.map(emoji => <Pressable key={emoji} accessibilityRole="button" accessibilityLabel={`Выбрать статус ${emoji}`} accessibilityState={{ disabled: busy || !status?.canSetStatusEmoji, selected: status?.statusEmoji === emoji }} disabled={busy || !ready || !status?.canSetStatusEmoji} onPress={() => void applyEmoji(emoji)} style={{ width: 56, height: 56, borderRadius: 19, borderWidth: 1, borderColor: status?.statusEmoji === emoji ? t.accent : t.border, backgroundColor: status?.statusEmoji === emoji ? t.accentSoft : t.glassClear, opacity: status?.canSetStatusEmoji ? 1 : .45, alignItems: 'center', justifyContent: 'center' }}><AnimatedEmoji emoji={emoji} size={34} /></Pressable>)}</View><Button label={status?.platina.active ? 'Вернуть значок Platina' : 'Убрать статус'} secondary disabled={busy || !ready || !status?.statusEmoji} loading={action === 'emoji'} onPress={() => void applyEmoji(null)}/></View></Sheet>
     <Sheet visible={platinaVisible} title="Что даёт Platina" onClose={() => setPlatinaVisible(false)}><View style={{ gap: 16 }}><Text style={{ color: t.text, fontSize: 14, lineHeight: 22 }}>Анимированный аватар (видео до 10 с), анимированные рамки, живой баннер профиля, анимированные эмодзи-статусы и большие эмодзи в чатах, семь цветовых тем, скрытие времени захода и отчётов о прочтении, дополнительные смены публичного имени. Доступ подтверждает сервер.</Text><Text style={{ color: t.muted, fontSize: 13, lineHeight: 21 }}>Покупка подписки в приложении пока не подключена: Platina выдаёт администратор сервера.</Text><Text style={{ color: t.muted, fontSize: 13, lineHeight: 21 }}>Анимации эмодзи — Noto Emoji Animation (Google), лицензия CC BY 4.0.</Text></View></Sheet>
     <Sheet visible={logoutVisible} title="Выйти из Инвиза?" onClose={() => { if (!busy) setLogoutVisible(false); }}><Text style={{ color: t.muted, fontSize: 15, lineHeight: 22, marginBottom: 22 }}>Сеанс на этом устройстве завершится. Для следующего входа понадобятся логин, пароль и слово подтверждения. Публичное имя может отличаться от логина.</Text><Button label="Выйти" danger onPress={() => void logout()} loading={action === 'logout'}/></Sheet>
+  <StatusPicker visible={pickerOpen} anchorY={pickerY} choices={emojiChoices} current={status?.statusEmoji ?? null} platina={!!status?.platina.active} canSet={!!status?.canSetStatusEmoji} busy={busy}
+    onPick={emoji => { setPickerOpen(false); void applyEmoji(emoji); }} onClose={() => setPickerOpen(false)} />
   {cropSource ? <AvatarCropper uri={cropSource.uri} width={cropSource.width} height={cropSource.height} onCancel={() => setCropSource(null)} onDone={crop => void applyAvatar(crop)} /> : null}
   </KeyboardAvoidingView>;
 }
