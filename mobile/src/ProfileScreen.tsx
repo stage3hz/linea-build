@@ -6,8 +6,7 @@ import * as Clipboard from 'expo-clipboard';
 import * as ImageManipulator from 'expo-image-manipulator';
 import * as FileSystem from 'expo-file-system/legacy';
 import type { Api } from './api';
-import { ActionButton } from './effects';
-import { Avatar, Button, Field, Icon, IconButton, Notice, SectionLabel, Sheet, useSuccessFlash } from './components';
+import { Avatar, Button, Field, Icon, IconButton, Notice, SectionLabel, Sheet } from './components';
 import { useTheme } from './theme';
 import { GlassSurface } from './glass';
 import { ThemeSettings } from './ThemeSettings';
@@ -128,13 +127,25 @@ export function ProfileScreen({ api, user, theme, darkTheme, onTheme, onDarkThem
     } catch (failure) { if (live(version)) setError(errorMessage(failure, 'Не удалось сохранить фото.')); }
     finally { finish(version); }
   };
-  const [saved, flashSaved] = useSuccessFlash();
-  const save = async () => {
-    if (!name.trim()) { setError('Имя не может быть пустым.'); return; }
-    const version = begin('profile'); if (version === null) return;
-    try { const result = await api.profile({ displayName: name.trim(), bio: bio.trim(), avatarColor: color, avatarId }); if (!live(version)) return; onUser(result.user); setNotice('Профиль сохранён.'); flashSaved(); }
-    catch (failure) { if (live(version)) setError(errorMessage(failure, 'Не удалось сохранить профиль.')); }
+  // Telegram: the profile is shown read-only; «Изм.» opens the editor (✕ discards the draft, ✓ saves).
+  const [editing, setEditing] = useState(false);
+  const save = async (): Promise<boolean> => {
+    if (!name.trim()) { setError('Имя не может быть пустым.'); return false; }
+    const version = begin('profile'); if (version === null) return false;
+    try { const result = await api.profile({ displayName: name.trim(), bio: bio.trim(), avatarColor: color, avatarId }); if (!live(version)) return false; onUser(result.user); setNotice('Профиль сохранён.'); return true; }
+    catch (failure) { if (live(version)) setError(errorMessage(failure, 'Не удалось сохранить профиль.')); return false; }
     finally { finish(version); }
+  };
+  const changed = name.trim() !== user.displayName || bio.trim() !== user.bio || avatarId !== user.avatarId || color !== user.avatarColor;
+  const cancelEdit = () => {
+    if (busy) return;
+    setName(user.displayName); setBio(user.bio); setAvatarId(user.avatarId); setColor(user.avatarColor); if (status) setUsername(status.username);
+    setError(''); setNotice(''); setEditing(false);
+  };
+  const finishEdit = async () => {
+    if (busy) return;
+    const unchanged = name.trim() === user.displayName && bio.trim() === user.bio && avatarId === user.avatarId && color === user.avatarColor;
+    if (unchanged || await save()) setEditing(false);
   };
   const reviewUsername = () => {
     const next = normalizedUsername(username); setError(''); setNotice('');
@@ -163,7 +174,6 @@ export function ProfileScreen({ api, user, theme, darkTheme, onTheme, onDarkThem
   const logout = async () => { const version = begin('logout'); if (version === null) return; try { await onLogout(); } catch (failure) { if (live(version)) { setLogoutVisible(false); setError(errorMessage(failure, 'Не удалось выйти.')); } } finally { finish(version); } };
 
   const busy = action !== null;
-  const changed = name.trim() !== user.displayName || bio.trim() !== user.bio || avatarId !== user.avatarId || color !== user.avatarColor;
   const publicName = status?.username || user.username;
   const permanent = status?.platina.active === true && status.platina.permanent === true && status.platina.expiresAt === null;
   const previewUser: User = { ...user, displayName: name || user.displayName, avatarId, avatarColor: color, ...(status ? { statusEmoji: status.statusEmoji, statusEmojiExpiresAt: status.statusEmoji ? status.platina.expiresAt : null, statusEmojiPermanent: Boolean(status.statusEmoji && permanent) } : {}) };
@@ -174,18 +184,46 @@ export function ProfileScreen({ api, user, theme, darkTheme, onTheme, onDarkThem
 
   return <KeyboardAvoidingView style={{ flex: 1, backgroundColor: 'transparent' }} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
     <FloatingHeader onHeight={setHeaderHeight}>
-    <GlassSurface material="regular" radius={27} style={{ marginHorizontal: 14, marginTop: 12, marginBottom: 2 }} contentStyle={{ flexDirection: 'row', alignItems: 'center', padding: 10, gap: 9, minHeight: 68 }}><IconButton name="chevron-back" label="Назад" onPress={onBack}/><Text style={{ fontSize: 20, fontWeight: '700', letterSpacing: -.5, color: t.text, flex: 1 }}>Твой Инвиз</Text><View style={{ paddingRight: 10 }}><Icon name="person-circle-outline" color={t.muted} size={24}/></View></GlassSurface>
+    {editing ? <GlassSurface material="regular" radius={27} style={{ marginHorizontal: 14, marginTop: 12, marginBottom: 2 }} contentStyle={{ flexDirection: 'row', alignItems: 'center', padding: 10, gap: 9, minHeight: 68 }}><IconButton name="close" label="Отменить изменения" onPress={cancelEdit}/><Text style={{ fontSize: 20, fontWeight: '700', letterSpacing: -.5, color: t.text, flex: 1, textAlign: 'center' }}>Изменить</Text><Pressable accessibilityRole="button" accessibilityLabel="Сохранить" disabled={busy} onPress={() => void finishEdit()} style={({ pressed }) => ({ width: 44, height: 44, borderRadius: 22, backgroundColor: t.accent, alignItems: 'center', justifyContent: 'center', opacity: busy ? .5 : pressed ? .8 : 1 })}>{action === 'profile' ? <ActivityIndicator color={t.onAccent}/> : <Icon name="checkmark" size={24} color={t.onAccent}/>}</Pressable></GlassSurface>
+    : <GlassSurface material="regular" radius={27} style={{ marginHorizontal: 14, marginTop: 12, marginBottom: 2 }} contentStyle={{ flexDirection: 'row', alignItems: 'center', padding: 10, gap: 9, minHeight: 68 }}><IconButton name="chevron-back" label="Назад" onPress={onBack}/><Text style={{ fontSize: 20, fontWeight: '700', letterSpacing: -.5, color: t.text, flex: 1 }}>Твой Инвиз</Text><Pressable accessibilityRole="button" accessibilityLabel="Изменить профиль" onPress={() => { setEditing(true); setNotice(''); setError(''); }} style={({ pressed }) => ({ height: 44, paddingHorizontal: 16, borderRadius: 22, backgroundColor: t.surface2, justifyContent: 'center', opacity: pressed ? .7 : 1 })}><Text style={{ color: t.text, fontSize: 15, fontWeight: '600' }}>Изм.</Text></Pressable></GlassSurface>}
     </FloatingHeader>
     <ScrollView keyboardShouldPersistTaps="handled" style={bleed.style} contentInsetAdjustmentBehavior="never" scrollIndicatorInsets={{ top: headerHeight, bottom: tabInset + bleed.bottom }} contentContainerStyle={{ padding: 17, paddingTop: headerHeight + 8, paddingBottom: 36 + tabInset + bleed.bottom, maxWidth: 600, width: '100%', alignSelf: 'center', gap: 17 }}>
+      {!editing ? <>
       <GlassSurface material="clear" radius={30} contentStyle={{ alignItems: 'center', gap: 11, paddingHorizontal: 20, paddingTop: 25, paddingBottom: 23 }}>
-        {/* Clipped to the card's top corners and sized to the card: a fixed 600 pt banner ran past its right edge. */}
         {user.bannerId || user.bannerPreset ? <View pointerEvents="none" onLayout={event => setBannerWidth(Math.round(event.nativeEvent.layout.width))} style={{ position: 'absolute', top: 0, left: 0, right: 0, height: 120, overflow: 'hidden', borderTopLeftRadius: 30, borderTopRightRadius: 30 }}>{bannerWidth ? <ProfileBanner user={user} api={api} height={120} width={bannerWidth}/> : null}</View> : null}
-        <Pressable disabled={busy} onPress={() => void pickAvatar()} accessibilityRole="button" accessibilityLabel="Изменить фото профиля" style={{ position: 'relative', padding: 6, marginBottom: 5, borderRadius: 39, borderWidth: 1, borderColor: t.glassBorder, backgroundColor: t.glassClear }}><DecoratedAvatar user={previewUser} api={api} size={88} animated/><View style={{ position: 'absolute', bottom: 0, right: -2, width: 33, height: 33, backgroundColor: t.accent, borderRadius: 15, alignItems: 'center', justifyContent: 'center', borderWidth: 2, borderColor: t.glassOpaque }}><Icon name="camera-outline" size={17} color={t.onAccent}/></View></Pressable>
+        <Pressable disabled={busy} onPress={() => setEditing(true)} accessibilityRole="button" accessibilityLabel="Изменить профиль" style={{ position: 'relative', padding: 6, marginBottom: 5, borderRadius: 39, borderWidth: 1, borderColor: t.glassBorder, backgroundColor: t.glassClear }}><DecoratedAvatar user={previewUser} api={api} size={88} animated/></Pressable>
         <View style={{ flexDirection: 'row', alignItems: 'center', gap: 7, maxWidth: '100%' }}><Text style={{ color: t.text, fontSize: 24, fontWeight: '700', letterSpacing: -.6, textAlign: 'center', flexShrink: 1 }}>{user.displayName}</Text><StatusEmoji user={previewUser} size={21} animated/></View>
         <Pressable onPress={() => void copy(`@${publicName}`, 'username')} accessibilityRole="button" accessibilityLabel="Скопировать имя пользователя" style={{ flexDirection: 'row', gap: 7, alignItems: 'center', paddingHorizontal: 13, paddingVertical: 8, borderRadius: 16, backgroundColor: t.accentSoft }}><Text style={{ color: t.accent, fontSize: 13, fontWeight: '600' }}>{copied === 'username' ? 'Скопировано' : `@${publicName}`}</Text><Icon name={copied === 'username' ? 'checkmark' : 'copy-outline'} size={13} color={t.accent}/></Pressable>
+        {user.bio ? <Text raw style={{ color: t.muted, fontSize: 14, lineHeight: 20, textAlign: 'center' }}>{user.bio}</Text> : null}
+      </GlassSurface>
+      {error ? <Notice text={error} error/> : null}{notice ? <Notice text={notice}/> : null}
+      {status ? <GlassSurface material="regular" radius={28} contentStyle={{ padding: 20, gap: 15 }}>
+          <ReadOnlyValue label="ID аккаунта" value={status.accountId} onCopy={() => void copy(status.accountId, 'id')} copied={copied === 'id'} small/>
+      </GlassSurface> : null}
+      <GlassSurface material="regular" radius={28} contentStyle={{ padding: 20, gap: 14 }}>
+        <View style={{ gap: 8, alignItems: 'flex-start' }}><View style={{ alignSelf: 'stretch', overflow: 'hidden' }}><PlatinaWordmark/></View><View style={{ paddingHorizontal: 10, paddingVertical: 4, borderRadius: 10, backgroundColor: ready && status.platina.active ? t.accentSoft : t.surface2 }}><Text style={{ color: ready && status.platina.active ? t.accent : t.muted, fontSize: 12, fontWeight: '700' }}>{!ready ? 'Проверяем…' : permanent ? 'Бессрочно' : status.platina.active ? 'Активна' : 'Не активна'}</Text></View></View>
+        <Text style={{ color: t.muted, fontSize: 13, lineHeight: 19 }}>{ready && status.platina.active ? `Анимированные аватар, рамка, баннер и эмодзи, скрытие «в сети» и прочтения, дополнительные смены имени.${permanent ? ' Для этого аккаунта Platina действует без срока окончания.' : expiry ? ` Действует до ${expiry}.` : ''}` : 'Анимированные аватар, рамки, баннер и эмодзи, скрытие времени захода и прочтения, дополнительные смены имени.'}</Text>
+        <Pressable onPress={() => setPlatinaVisible(true)} accessibilityRole="button" style={{ paddingVertical: 5 }}><Text style={{ color: t.accent, fontSize: 12, fontWeight: '600' }}>Что даёт Platina</Text></Pressable>
+      </GlassSurface>
+      <GlassSurface material="regular" radius={28} contentStyle={{ padding: 20 }}><SectionLabel>Оформление</SectionLabel><ThemeSettings mode={theme} darkTheme={darkTheme} onChange={onTheme} onDarkTheme={onDarkTheme} platina={status?.platina.active === true} onLocked={() => setPlatinaVisible(true)}/></GlassSurface>
+      <GlassSurface material="clear" radius={27} contentStyle={{ padding: 20, gap: 13 }}><SectionLabel>Аккаунт</SectionLabel><Button label="Безопасность и устройства" secondary icon="shield-checkmark-outline" onPress={onSecurity}/><Text style={{ color: t.muted, fontSize: 12, lineHeight: 18 }}>Пароль, два секретных слова и действующие сеансы.</Text><Button label="Выйти из аккаунта" danger icon="log-out-outline" disabled={busy} onPress={() => setLogoutVisible(true)}/></GlassSurface>
+      <Text style={{ textAlign: 'center', color: t.subtle, fontSize: 11, lineHeight: 18, paddingTop: 5 }}>Инвиз{'\n'}Новые личные сообщения шифруются на устройстве.{'\n'}Сверяй коды устройств в разделе «Защита чата».</Text>
+      </> : <>
+      {/* Edit, as Telegram's «Изм.»: everything that changes the profile lives here; ✓ saves, ✕ discards. */}
+      <GlassSurface material="clear" radius={30} contentStyle={{ alignItems: 'center', gap: 11, paddingHorizontal: 20, paddingTop: 25, paddingBottom: 23 }}>
+        <Pressable disabled={busy} onPress={() => void pickAvatar()} accessibilityRole="button" accessibilityLabel="Изменить фото профиля" style={{ position: 'relative', padding: 6, marginBottom: 5, borderRadius: 39, borderWidth: 1, borderColor: t.glassBorder, backgroundColor: t.glassClear }}><DecoratedAvatar user={previewUser} api={api} size={88} animated/><View style={{ position: 'absolute', bottom: 0, right: -2, width: 33, height: 33, backgroundColor: t.accent, borderRadius: 15, alignItems: 'center', justifyContent: 'center', borderWidth: 2, borderColor: t.glassOpaque }}><Icon name="camera-outline" size={17} color={t.onAccent}/></View></Pressable>
+        <Pressable disabled={busy} onPress={() => void pickAvatar()} accessibilityRole="button" style={{ padding: 4 }}><Text style={{ color: t.accent, fontSize: 15, fontWeight: '600' }}>Изменить фотографию</Text></Pressable>
         {action === 'avatar' ? <Text style={{ color: t.muted, fontSize: 12 }}>Подготавливаем фото…</Text> : avatarId ? <Pressable disabled={busy} onPress={() => { setAvatarId(null); setNotice(''); }} style={{ padding: 6 }}><Text style={{ color: t.muted, fontSize: 12 }}>Убрать фото</Text></Pressable> : null}
       </GlassSurface>
       {error ? <Notice text={error} error/> : null}{notice ? <Notice text={notice}/> : null}
+      <GlassSurface material="regular" radius={28} contentStyle={{ padding: 20 }}>
+        <SectionLabel>Личный профиль</SectionLabel><View style={{ gap: 18 }}>
+          <Field label="Имя" value={name} onChangeText={value => { setName(value); setNotice(''); }} editable={!busy} maxLength={50} placeholder="Твоё имя"/>
+          <Field label="О себе" value={bio} onChangeText={value => { setBio(value); setNotice(''); }} editable={!busy} maxLength={160} multiline placeholder="Несколько слов о тебе" style={{ height: 90, textAlignVertical: 'top' }}/>
+          {!avatarId ? <View style={{ gap: 11 }}><Text style={{ color: t.muted, fontSize: 12 }}>Цвет аватара</Text><View style={{ flexDirection: 'row', gap: 10, flexWrap: 'wrap' }}>{['#596FE8','#4088C7','#9271C3','#B78358','#AD6C8C','#667FA4'].map(value => <Pressable key={value} disabled={busy} onPress={() => { setColor(value); setNotice(''); }} accessibilityRole="radio" accessibilityState={{ selected: color === value }} accessibilityLabel={`Цвет ${value}`} style={{ width: 35, height: 35, borderRadius: 15, backgroundColor: value, alignItems: 'center', justifyContent: 'center', borderWidth: 1, borderColor: t.glassBorder }}>{color === value ? <Icon name="checkmark" size={20} color="#FFF"/> : null}</Pressable>)}</View></View> : null}
+          <Text style={{ color: t.muted, fontSize: 12, lineHeight: 18 }}>Фото профиля очищается от метаданных; итоговый размер — до 4 МБ. HDR-фото пока не поддерживается и не переводится незаметно в SDR.</Text>
+        </View>
+      </GlassSurface>
       <GlassSurface material="regular" radius={28} contentStyle={{ padding: 20, gap: 15 }}>
         {/* The login is private: it is not shown here and cannot be changed (it was shown and could be
             changed before). Only the public @name is edited on this screen. */}
@@ -193,31 +231,17 @@ export function ProfileScreen({ api, user, theme, darkTheme, onTheme, onDarkThem
         {statusLoading ? <View style={{ flexDirection: 'row', gap: 10, alignItems: 'center' }}><ActivityIndicator size="small" color={t.accent}/><Text style={{ color: t.muted, fontSize: 12 }}>Проверяем настройки аккаунта…</Text></View> : null}
         {statusError ? <Notice text={statusError} error onRetry={() => void loadStatus()}/> : null}
         {status ? <>
-          <ReadOnlyValue label="ID аккаунта" value={status.accountId} onCopy={() => void copy(status.accountId, 'id')} copied={copied === 'id'} small/>
           <Field label="Публичное имя пользователя" value={username} onChangeText={value => { setUsername(value); setNotice(''); }} autoCapitalize="none" autoCorrect={false} maxLength={25} editable={!busy && ready && status.canChangeUsername} placeholder="@username"/>
           <Text style={{ color: t.muted, fontSize: 12, lineHeight: 18 }}>{status.freeChangeAvailable ? (status.platina.active ? 'Доступна бесплатная смена имени, а с твоей Platina — и дополнительные.' : 'Доступна одна бесплатная смена имени. После неё дополнительные смены доступны с Platina.') : status.canChangeUsername ? 'Бесплатная смена уже использована. Сейчас дополнительные смены доступны с Platina.' : 'Бесплатная смена уже использована. Для новой смены нужна активная Platina.'}</Text>
           <Button label="Изменить публичное имя" secondary icon="at-outline" disabled={busy || !ready || !status.canChangeUsername || normalizedUsername(username) === status.username} onPress={reviewUsername}/>
         </> : null}
       </GlassSurface>
       <GlassSurface material="regular" radius={28} contentStyle={{ padding: 20, gap: 14 }}>
-        <View style={{ gap: 8, alignItems: 'flex-start' }}><View style={{ alignSelf: 'stretch', overflow: 'hidden' }}><PlatinaWordmark/></View><View style={{ paddingHorizontal: 10, paddingVertical: 4, borderRadius: 10, backgroundColor: ready && status.platina.active ? t.accentSoft : t.surface2 }}><Text style={{ color: ready && status.platina.active ? t.accent : t.muted, fontSize: 12, fontWeight: '700' }}>{!ready ? 'Проверяем…' : permanent ? 'Бессрочно' : status.platina.active ? 'Активна' : 'Не активна'}</Text></View></View>
-        <Text style={{ color: t.muted, fontSize: 13, lineHeight: 19 }}>{ready && status.platina.active ? `Анимированные аватар, рамка, баннер и эмодзи, скрытие «в сети» и прочтения, дополнительные смены имени.${permanent ? ' Для этого аккаунта Platina действует без срока окончания.' : expiry ? ` Действует до ${expiry}.` : ''}` : 'Анимированные аватар, рамки, баннер и эмодзи, скрытие времени захода и прочтения, дополнительные смены имени.'}</Text>
+        <SectionLabel>Platina</SectionLabel>
         <Button label="Статус рядом с именем" secondary icon="happy-outline" disabled={busy || !ready} onPress={() => setEmojiVisible(true)}/>
         <PlatinaStudio api={api} user={user} active={ready && status.platina.active} onUser={onUser}/>
-        <Pressable onPress={() => setPlatinaVisible(true)} accessibilityRole="button" style={{ paddingVertical: 5 }}><Text style={{ color: t.accent, fontSize: 12, fontWeight: '600' }}>Что даёт Platina</Text></Pressable>
       </GlassSurface>
-      <GlassSurface material="regular" radius={28} contentStyle={{ padding: 20 }}>
-        <SectionLabel>Личный профиль</SectionLabel><View style={{ gap: 18 }}>
-          <Field label="Имя" value={name} onChangeText={value => { setName(value); setNotice(''); }} editable={!busy} maxLength={50} placeholder="Твоё имя"/>
-          <Field label="О себе" value={bio} onChangeText={value => { setBio(value); setNotice(''); }} editable={!busy} maxLength={160} multiline placeholder="Несколько слов о тебе" style={{ height: 90, textAlignVertical: 'top' }}/>
-          {!avatarId ? <View style={{ gap: 11 }}><Text style={{ color: t.muted, fontSize: 12 }}>Цвет аватара</Text><View style={{ flexDirection: 'row', gap: 10, flexWrap: 'wrap' }}>{['#596FE8','#4088C7','#9271C3','#B78358','#AD6C8C','#667FA4'].map(value => <Pressable key={value} disabled={busy} onPress={() => { setColor(value); setNotice(''); }} accessibilityRole="radio" accessibilityState={{ selected: color === value }} accessibilityLabel={`Цвет ${value}`} style={{ width: 35, height: 35, borderRadius: 15, backgroundColor: value, alignItems: 'center', justifyContent: 'center', borderWidth: 1, borderColor: t.glassBorder }}>{color === value ? <Icon name="checkmark" size={20} color="#FFF"/> : null}</Pressable>)}</View></View> : null}
-          <Text style={{ color: t.muted, fontSize: 12, lineHeight: 18 }}>Фото профиля очищается от метаданных; итоговый размер — до 4 МБ. HDR-фото пока не поддерживается и не переводится незаметно в SDR.</Text>
-          <ActionButton label="Сохранить изменения" successLabel="Сохранено" success={saved} errorSignal={error} onPress={() => void save()} loading={action === 'profile'} disabled={!saved && (!changed || busy)}/>
-        </View>
-      </GlassSurface>
-      <GlassSurface material="regular" radius={28} contentStyle={{ padding: 20 }}><SectionLabel>Оформление</SectionLabel><ThemeSettings mode={theme} darkTheme={darkTheme} onChange={onTheme} onDarkTheme={onDarkTheme} platina={status?.platina.active === true} onLocked={() => setPlatinaVisible(true)}/></GlassSurface>
-      <GlassSurface material="clear" radius={27} contentStyle={{ padding: 20, gap: 13 }}><SectionLabel>Аккаунт</SectionLabel><Button label="Безопасность и устройства" secondary icon="shield-checkmark-outline" onPress={onSecurity}/><Text style={{ color: t.muted, fontSize: 12, lineHeight: 18 }}>Пароль, два секретных слова и действующие сеансы.</Text><Button label="Выйти из аккаунта" danger icon="log-out-outline" disabled={busy} onPress={() => setLogoutVisible(true)}/></GlassSurface>
-      <Text style={{ textAlign: 'center', color: t.subtle, fontSize: 11, lineHeight: 18, paddingTop: 5 }}>Инвиз{'\n'}Новые личные сообщения шифруются на устройстве.{'\n'}Сверяй коды устройств в разделе «Защита чата».</Text>
+      </>}
     </ScrollView>
     <Sheet visible={usernameReview !== null} title="Изменить публичное имя?" onClose={() => { if (!busy) setUsernameReview(null); }}><View style={{ gap: 18 }}><Text style={{ color: t.text, fontSize: 19, fontWeight: '600' }}>@{usernameReview?.previous} → @{usernameReview?.next}</Text><Text style={{ color: t.muted, fontSize: 14, lineHeight: 21 }}>Логин для входа «{status?.loginName}», ID аккаунта и ключи переписки останутся прежними. Старое публичное имя перестанет вести на твой профиль.</Text><Text style={{ color: t.muted, fontSize: 13, lineHeight: 20 }}>{status?.freeChangeAvailable ? 'Эта смена использует единственную бесплатную смену публичного имени.' : 'Эта смена доступна, пока Platina активна.'}</Text><Button label="Подтвердить смену имени" loading={action === 'username'} disabled={busy || !ready || !status?.canChangeUsername} onPress={() => void applyUsername()}/></View></Sheet>
     <Sheet visible={emojiVisible} title="Статус рядом с именем" onClose={() => { if (!busy) setEmojiVisible(false); }}><View style={{ gap: 18 }}><Text style={{ color: t.muted, fontSize: 13, lineHeight: 20 }}>Выбранный эмодзи виден возле твоего имени в чатах. По умолчанию статус пустой. С Platina эмодзи анимированы.</Text>{!status?.canSetStatusEmoji ? <Notice text="Для выбора и замены статуса нужна активная Platina. Убрать статус можно в любой момент."/> : null}<View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 10 }}>{emojiChoices.map(emoji => <Pressable key={emoji} accessibilityRole="button" accessibilityLabel={`Выбрать статус ${emoji}`} accessibilityState={{ disabled: busy || !status?.canSetStatusEmoji, selected: status?.statusEmoji === emoji }} disabled={busy || !ready || !status?.canSetStatusEmoji} onPress={() => void applyEmoji(emoji)} style={{ width: 56, height: 56, borderRadius: 19, borderWidth: 1, borderColor: status?.statusEmoji === emoji ? t.accent : t.border, backgroundColor: status?.statusEmoji === emoji ? t.accentSoft : t.glassClear, opacity: status?.canSetStatusEmoji ? 1 : .45, alignItems: 'center', justifyContent: 'center' }}><AnimatedEmoji emoji={emoji} size={34} /></Pressable>)}</View><Button label="Убрать статус" secondary disabled={busy || !ready} loading={action === 'emoji'} onPress={() => void applyEmoji(null)}/></View></Sheet>
