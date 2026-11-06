@@ -246,10 +246,6 @@ export function ProfileScreen({ api, user, theme, darkTheme, onTheme, onDarkThem
         {user.bio ? <Text raw style={{ color: t.muted, fontSize: 14, lineHeight: 20, textAlign: 'center' }}>{user.bio}</Text> : null}
       </GlassSurface>
       {error ? <Notice text={error} error/> : null}{notice ? <Notice text={notice}/> : null}
-      {status ? <GlassSurface material="regular" radius={28} contentStyle={{ padding: 20, gap: 15 }}>
-          <ReadOnlyValue label="ID аккаунта" value={status.accountId} onCopy={() => void copy(status.accountId, 'id')} copied={copied === 'id'} small/>
-        {user.birthday ? <View style={{ gap: 4 }}><Text style={{ color: t.muted, fontSize: 11, fontWeight: '600' }}>День рождения</Text><Text raw style={{ color: t.text, fontSize: 16 }}>{formatBirthday(user.birthday)}</Text></View> : null}
-      </GlassSurface> : null}
       <GlassSurface material="regular" radius={28} contentStyle={{ padding: 20 }}><SectionLabel>Оформление</SectionLabel><ThemeSettings mode={theme} darkTheme={darkTheme} onChange={onTheme} onDarkTheme={onDarkTheme} platina={status?.platina.active === true} onLocked={() => setPlatinaVisible(true)}/></GlassSurface>
       <GlassSurface material="clear" radius={27} contentStyle={{ padding: 20, gap: 13 }}><SectionLabel>Аккаунт</SectionLabel><Button label="Безопасность и устройства" secondary icon="shield-checkmark-outline" onPress={onSecurity}/><Text style={{ color: t.muted, fontSize: 12, lineHeight: 18 }}>Пароль, два секретных слова и действующие сеансы.</Text><Button label="Выйти из аккаунта" danger icon="log-out-outline" disabled={busy} onPress={() => setLogoutVisible(true)}/></GlassSurface>
       <Text style={{ textAlign: 'center', color: t.subtle, fontSize: 11, lineHeight: 18, paddingTop: 5 }}>Инвиз{'\n'}Новые личные сообщения шифруются на устройстве.{'\n'}Сверяй коды устройств в разделе «Защита чата».</Text>
@@ -288,7 +284,6 @@ export function ProfileScreen({ api, user, theme, darkTheme, onTheme, onDarkThem
       <View style={{ gap: 8 }}>
         <SectionLabel>Рамки и анимации</SectionLabel>
         <GlassSurface material="regular" radius={22} contentStyle={{ padding: 16, gap: 14 }}>
-          <Button label="Статус рядом с именем" secondary icon="happy-outline" disabled={busy || !ready} onPress={() => { setPickerY(headerHeight + 120); setPickerOpen(true); }}/>
           <PlatinaStudio ref={studio} compact api={api} user={user} active={ready && status.platina.active} onUser={onUser}/>
         </GlassSurface>
       </View>
