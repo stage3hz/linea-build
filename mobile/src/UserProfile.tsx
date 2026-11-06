@@ -7,7 +7,8 @@ import { PlatinaName, PlatinaSeal, hasPlatina } from './platina/PlatinaMark';
 import React, { useEffect, useState } from 'react';
 import { useTabInset } from './tabInset';
 import { ActivityIndicator, Modal, Pressable, StyleSheet, View, useWindowDimensions } from 'react-native';
-import Animated, { interpolate, useAnimatedScrollHandler, useAnimatedStyle, useSharedValue } from 'react-native-reanimated';
+import Animated, { interpolate, runOnJS, useAnimatedScrollHandler, useAnimatedStyle, useSharedValue } from 'react-native-reanimated';
+import { ProfileMediaViewer, profileMedia } from './ProfileMediaViewer';
 import * as Clipboard from 'expo-clipboard';
 import { Text } from './typography';
 import { Avatar, Button, Icon, InsetView, IconButton, Notice, Sheet, SheetAction, type IconName } from './components';
@@ -53,8 +54,12 @@ export function UserProfile({ api, user, onClose, chat, onMessage, onMute, onSea
   // Telegram: the top of the profile — avatar, name, status, buttons — sits on the person's own colour.
   const [heroBottom, setHeroBottom] = useState(0); const topInset = useSafeAreaInsets().top;
   const heroColor = useAnimatedStyle(() => ({ transform: [{ translateY: Math.min(0, -scrollY.value) }], height: topInset + 56 + heroBottom + 34 + Math.max(0, -scrollY.value) }));
-  const onScroll = useAnimatedScrollHandler(e => { scrollY.value = e.contentOffset.y; });
-  const avatarStretch = useAnimatedStyle(() => ({ transform: [{ scale: interpolate(scrollY.value, [-160, 0, 120], [1.6, 1, 0.75], 'clamp') }, { translateY: interpolate(scrollY.value, [-160, 0], [-40, 0], 'clamp') }], opacity: interpolate(scrollY.value, [0, 140], [1, 0.4], 'clamp') }));
+  const onScroll = useAnimatedScrollHandler({ onScroll: e => { scrollY.value = e.contentOffset.y; }, onEndDrag: e => { if (e.contentOffset.y < -110) runOnJS(openViewer)(); } });
+  // Scrolling up, the photo shrinks, rises towards the top edge (the Dynamic Island) and darkens away, as in
+  // Telegram; pulling down enlarges it, and a long pull opens the photos and videos full screen.
+  const avatarStretch = useAnimatedStyle(() => ({ transform: [{ translateY: interpolate(scrollY.value, [-160, 0, 150], [-40, 0, -70], 'clamp') }, { scale: interpolate(scrollY.value, [-160, 0, 150], [1.6, 1, 0.22], 'clamp') }], opacity: interpolate(scrollY.value, [60, 150], [1, 0], 'clamp') }));
+  const avatarDim = useAnimatedStyle(() => ({ opacity: interpolate(scrollY.value, [20, 130], [0, 0.85], 'clamp') }));
+  const [viewer, setViewer] = useState<number | null>(null);
   const [menu, setMenu] = useState(false); const [menuAt, setMenuAt] = useState<{ x?: number; y: number }>({ y: 90 }); const [sheet, setSheet] = useState<'ttl' | 'clear' | 'block' | 'report' | null>(null);
   const [blocked, setBlocked] = useState(false); const [reason, setReason] = useState<ReportReason | null>(null);
   useEffect(() => {
@@ -66,6 +71,7 @@ export function UserProfile({ api, user, onClose, chat, onMessage, onMute, onSea
   }, [api, user?.id]);
   if (!user) return null;
   const shown = fresh || user;
+  function openViewer() { if (profileMedia(shown).length) { lightFeedback(); setViewer(0); } }
   const tinted = !shown.bannerId && !shown.bannerPreset;
   const muted = !!chat?.settings?.muted;
   const toggleContact = async () => {
@@ -127,7 +133,7 @@ export function UserProfile({ api, user, onClose, chat, onMessage, onMute, onSea
       </View>
       <Animated.ScrollView onScroll={onScroll} scrollEventThrottle={16} contentContainerStyle={{ padding: 18, paddingBottom: 18 + tabInset, gap: 16, alignItems: 'center', width: '100%', maxWidth: 680, alignSelf: 'center' }}>
         <View onLayout={e => setHeroBottom(Math.round(e.nativeEvent.layout.y + e.nativeEvent.layout.height))} style={{ alignSelf: 'stretch', alignItems: 'center', gap: 16 }}>
-        <Animated.View style={avatarStretch}><DecoratedAvatar user={shown} api={api} size={128} animated /></Animated.View>
+        <Animated.View style={avatarStretch}><Pressable accessibilityRole="button" accessibilityLabel="Фото и видео профиля" disabled={!profileMedia(shown).length} onPress={openViewer}><DecoratedAvatar user={shown} api={api} size={128} animated /><Animated.View pointerEvents="none" style={[{ position: 'absolute', left: 0, top: 0, right: 0, bottom: 0, borderRadius: 128 * 0.36, backgroundColor: '#000' }, avatarDim]} /></Pressable></Animated.View>
         <View style={{ alignItems: 'center', gap: 6 }}>
           <View style={{ flexDirection: 'row', alignItems: 'center', gap: 7, maxWidth: '100%', paddingHorizontal: 16 }}><PlatinaName user={shown} style={{ flexShrink: 1, color: tinted ? '#FFFFFF' : t.text, fontSize: 26, fontWeight: '800', letterSpacing: -.6 }} /><StatusEmoji user={shown} size={22} animated /></View>
           {status ? <Text style={{ color: tinted ? 'rgba(255,255,255,0.78)' : status === 'в сети' ? t.accent : t.muted, fontSize: 14 }}>{status}</Text> : <Pressable onPress={() => void copy()} accessibilityRole="button" accessibilityLabel="Скопировать имя пользователя"><Text style={{ color: t.accent, fontSize: 15 }}>@{shown.username}</Text></Pressable>}
@@ -182,6 +188,7 @@ export function UserProfile({ api, user, onClose, chat, onMessage, onMute, onSea
       {REASONS.map(item => <SheetAction key={item.id} icon={reason === item.id ? 'checkmark-circle' : 'ellipse-outline'} label={item.label} selected={reason === item.id} onPress={() => setReason(item.id)} />)}
       <View style={{ marginTop: 8 }}><Button label="Отправить жалобу" disabled={!reason || busy} loading={busy} onPress={() => void sendReport()} /></View>
     </Sheet>
+    {viewer !== null ? <ProfileMediaViewer api={api} user={shown} start={viewer} onClose={() => setViewer(null)} /> : null}
   </Modal>;
 }
 
