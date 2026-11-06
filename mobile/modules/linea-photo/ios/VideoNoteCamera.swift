@@ -13,6 +13,7 @@ public class VideoNoteModule: Module {
       Events("onReady", "onCameraError")
       Prop("facing") { (view: VideoNoteView, facing: String) in view.setFacing(facing) }
       Prop("torch") { (view: VideoNoteView, on: Bool) in view.setTorch(on) }
+      Prop("zoom") { (view: VideoNoteView, zoom: Double) in view.setZoom(zoom) }
       AsyncFunction("startRecording") { (view: VideoNoteView, path: String, promise: Promise) in view.start(path: path, promise: promise) }
       AsyncFunction("stopRecording") { (view: VideoNoteView, promise: Promise) in view.stop(promise: promise) }
     }
@@ -32,6 +33,7 @@ final class VideoNoteView: ExpoView, AVCaptureVideoDataOutputSampleBufferDelegat
   private var videoInput: AVCaptureDeviceInput?
   private var facing = "front"
   private var torch = false
+  private var zoom = 0.0
   private var configured = false
   private var readySent = false
 
@@ -86,9 +88,16 @@ final class VideoNoteView: ExpoView, AVCaptureVideoDataOutputSampleBufferDelegat
       connection.automaticallyAdjustsVideoMirroring = false
       connection.isVideoMirrored = facing == "front"
     }
-    if let preview = previewLayer.connection, preview.isVideoMirroringSupported {
-      preview.automaticallyAdjustsVideoMirroring = false
-      preview.isVideoMirrored = facing == "front"
+    if let preview = previewLayer.connection {
+      if #available(iOS 17.0, *) {
+        if preview.isVideoRotationAngleSupported(90) { preview.videoRotationAngle = 90 }
+      } else if preview.isVideoOrientationSupported {
+        preview.videoOrientation = .portrait
+      }
+      if preview.isVideoMirroringSupported {
+        preview.automaticallyAdjustsVideoMirroring = false
+        preview.isVideoMirrored = facing == "front"
+      }
     }
   }
 
@@ -152,7 +161,20 @@ final class VideoNoteView: ExpoView, AVCaptureVideoDataOutputSampleBufferDelegat
       self.applyConnection()
       self.session.commitConfiguration()
       self.applyTorch()
+      self.applyZoom()
     }
+  }
+
+  /** Pinch zoom as in Telegram: 0 = widest, 1 = up to 6× (or the camera's limit). */
+  func setZoom(_ value: Double) {
+    sessionQueue.async { self.zoom = min(1, max(0, value)); self.applyZoom() }
+  }
+
+  private func applyZoom() {
+    guard let camera = videoInput?.device else { return }
+    let top = min(camera.activeFormat.videoMaxZoomFactor, 6)
+    let factor = max(camera.minAvailableVideoZoomFactor, min(top, 1 + CGFloat(zoom) * (top - 1)))
+    do { try camera.lockForConfiguration(); camera.videoZoomFactor = factor; camera.unlockForConfiguration() } catch { /* zoom is optional */ }
   }
 
   func setTorch(_ on: Bool) {
@@ -235,6 +257,9 @@ final class VideoNoteView: ExpoView, AVCaptureVideoDataOutputSampleBufferDelegat
     guard let writer = writer, !stopping, CMSampleBufferDataIsReady(sampleBuffer) else { return }
     let time = CMSampleBufferGetPresentationTimeStamp(sampleBuffer)
     if output === videoOutput {
+      // Right after a camera flip the new camera can deliver a few landscape frames before the
+      // rotation applies: they are skipped, the file simply holds the last good frame a moment.
+      if let pixels = CMSampleBufferGetImageBuffer(sampleBuffer), CVPixelBufferGetWidth(pixels) > CVPixelBufferGetHeight(pixels) { return }
       if !sessionStarted {
         guard writer.startWriting() else { fail("Не удалось начать запись видео."); return }
         writer.startSession(atSourceTime: time)

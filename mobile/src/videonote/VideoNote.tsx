@@ -6,6 +6,7 @@ import { CameraView, useCameraPermissions, useMicrophonePermissions, type Camera
 import { useVideoPlayer, VideoView } from 'expo-video';
 import { useEvent } from 'expo';
 import { BlurView } from 'expo-blur';
+import { Gesture, GestureDetector } from 'react-native-gesture-handler';
 import { Text } from '../typography';
 import { Icon } from '../components';
 import { useTheme } from '../theme';
@@ -135,6 +136,13 @@ export function VideoNoteRecorder({ visible, onClose, onDone, hold = null }: { v
   const showControls = !hold || hold.locked;
   const insets = useSafeAreaInsets();
   const lastFlip = useRef(0);
+  // Pinch to zoom while recording (Telegram); a short blur hides the jump when the camera flips.
+  const [zoom, setZoom] = useState(0); const zoomBase = useRef(0);
+  const [flipping, setFlipping] = useState(false);
+  useEffect(() => { if (!visible) setZoom(0); }, [visible]);
+  const pinch = Gesture.Pinch().runOnJS(true)
+    .onStart(() => { zoomBase.current = zoom; })
+    .onUpdate(e => { setZoom(Math.min(1, Math.max(0, zoomBase.current + (e.scale - 1) * 0.6))); });
   const [flash, setFlash] = useState(false);
   const brightness = useRef<number | null>(null);
   // Front «flash» as in Telegram: the screen turns white and goes to full brightness while recording.
@@ -144,8 +152,8 @@ export function VideoNoteRecorder({ visible, onClose, onDone, hold = null }: { v
     void Brightness.getBrightnessAsync().then(value => { brightness.current = value; return Brightness.setBrightnessAsync(1); }).catch(() => {});
   }, [screenFlash]);
   useEffect(() => { if (!visible) setFlash(false); }, [visible]);
-  const flip = () => { const now = Date.now(); if (now - lastFlip.current < 1000) return; lastFlip.current = now; lightFeedback(); if (recording && !FLIP_WHILE_RECORDING) return; if (!recording && Platform.OS !== 'ios' && !androidNoteCameraAvailable) setReady(false); setError(''); setFacing(value => value === 'front' ? 'back' : 'front'); };
-  const preview = visible && allowed && androidNoteCameraAvailable ? <AndroidNoteCamera ref={nativeRef} facing={facing === 'back' ? 'back' : 'front'} {...(Platform.OS === 'ios' ? { torch: flash && facing === 'back' } : {})} style={{ position: 'absolute', left: 0, top: -CIRCLE / 6, width: CIRCLE, height: CIRCLE * 4 / 3 }} onReady={() => setReady(true)} onCameraError={event => setError(event.nativeEvent.message || 'Камера недоступна.')} /> : visible && allowed ? <CameraView key={Platform.OS === 'ios' ? 'camera' : facing} ref={ref} style={{ position: 'absolute', left: 0, top: -CIRCLE / 6, width: CIRCLE, height: CIRCLE * 4 / 3 }} facing={facing} mode="video" ratio="4:3" mirror={facing === 'front'} videoQuality="480p" enableTorch={flash && facing === 'back'} onCameraReady={() => setReady(true)} onMountError={event => setError(event.message || 'Камера недоступна.')} /> : null;
+  const flip = () => { const now = Date.now(); if (now - lastFlip.current < 1000) return; lastFlip.current = now; lightFeedback(); if (recording && !FLIP_WHILE_RECORDING) return; setFlipping(true); setZoom(0); setTimeout(() => setFlipping(false), 450); if (!recording && Platform.OS !== 'ios' && !androidNoteCameraAvailable) setReady(false); setError(''); setFacing(value => value === 'front' ? 'back' : 'front'); };
+  const preview = visible && allowed && androidNoteCameraAvailable ? <AndroidNoteCamera ref={nativeRef} zoom={zoom} facing={facing === 'back' ? 'back' : 'front'} {...(Platform.OS === 'ios' ? { torch: flash && facing === 'back' } : {})} style={{ position: 'absolute', left: 0, top: -CIRCLE / 6, width: CIRCLE, height: CIRCLE * 4 / 3 }} onReady={() => setReady(true)} onCameraError={event => setError(event.nativeEvent.message || 'Камера недоступна.')} /> : visible && allowed ? <CameraView key={Platform.OS === 'ios' ? 'camera' : facing} ref={ref} style={{ position: 'absolute', left: 0, top: -CIRCLE / 6, width: CIRCLE, height: CIRCLE * 4 / 3 }} facing={facing} mode="video" ratio="4:3" mirror={facing === 'front'} videoQuality="480p" enableTorch={flash && facing === 'back'} onCameraReady={() => setReady(true)} onMountError={event => setError(event.message || 'Камера недоступна.')} /> : null;
   // Telegram's way while the finger holds (and after a lock): the circle over the blurred chat with a
   // white progress arc around it; at the bottom the same strip as for voice — red dot, 0:04,63,
   // «‹ Влево — отмена» (after a lock: «Отмена»), the big circle on the right (under the finger; after
@@ -154,10 +162,16 @@ export function VideoNoteRecorder({ visible, onClose, onDone, hold = null }: { v
   const holdBody = <View pointerEvents="box-none" style={{ flex: 1 }}>
     {screenFlash ? <View pointerEvents="none" style={[StyleSheet.absoluteFill, { backgroundColor: '#FFF6E8' }]} /> : null}
     <View pointerEvents="box-none" style={{ alignItems: 'center', paddingTop: Math.max(insets.top + 24, win.height * 0.4 - RING / 2), gap: 18 }}>
-      <View pointerEvents="none" style={{ width: RING, height: RING, alignItems: 'center', justifyContent: 'center' }}>
+      <GestureDetector gesture={pinch}>
+      <View style={{ width: RING, height: RING, alignItems: 'center', justifyContent: 'center' }}>
         <ProgressRing progress={recording ? progress : 0} size={RING} width={4} color="#FFF" track="rgba(255,255,255,0.16)" />
-        <View style={{ width: CIRCLE, height: CIRCLE, borderRadius: CIRCLE / 2, overflow: 'hidden', backgroundColor: '#000' }}>{preview}</View>
+        <View style={{ width: CIRCLE, height: CIRCLE, borderRadius: CIRCLE / 2, overflow: 'hidden', backgroundColor: '#000' }}>
+          {preview}
+          {flipping ? <BlurView pointerEvents="none" tint="dark" intensity={80} style={StyleSheet.absoluteFill} /> : null}
+          {zoom > 0.02 ? <View pointerEvents="none" style={{ position: 'absolute', bottom: 14, alignSelf: 'center', paddingHorizontal: 8, paddingVertical: 2, borderRadius: 10, backgroundColor: 'rgba(0,0,0,0.45)' }}><Text style={{ color: '#FFF', fontSize: 12, fontWeight: '700' }}>{(1 + zoom * 5).toFixed(1).replace('.', ',')}×</Text></View> : null}
+        </View>
       </View>
+      </GestureDetector>
       {stage.supported && facing === 'front' && showControls ? <Pressable accessibilityRole="switch" accessibilityState={{ checked: stage.enabled }} accessibilityLabel="Слежение за лицом" onPress={toggleStage} style={{ flexDirection: 'row', alignItems: 'center', gap: 6, paddingHorizontal: 12, paddingVertical: 7, borderRadius: 16, backgroundColor: stage.enabled ? 'rgba(255,214,10,0.18)' : 'rgba(255,255,255,0.1)' }}><Icon name="scan-outline" size={16} color={stage.enabled ? '#FFD60A' : '#FFF'} /><Text style={{ color: stage.enabled ? '#FFD60A' : '#FFF', fontSize: 13, fontWeight: '600' }}>{stage.enabled ? 'В центре кадра' : 'Слежение выкл.'}</Text></Pressable> : null}
       {error ? <Text style={{ color: '#FFB4B4', fontSize: 13, textAlign: 'center', maxWidth: 320 }}>{error}</Text> : null}
     </View>

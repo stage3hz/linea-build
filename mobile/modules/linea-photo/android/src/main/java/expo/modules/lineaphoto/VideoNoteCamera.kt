@@ -39,6 +39,7 @@ class VideoNoteModule : Module() {
     View(VideoNoteView::class) {
       Events("onReady", "onCameraError")
       Prop("facing") { view: VideoNoteView, facing: String -> view.setFacing(facing) }
+      Prop("zoom") { view: VideoNoteView, zoom: Float -> view.setZoom(zoom) }
       AsyncFunction("startRecording") { view: VideoNoteView, path: String, promise: Promise -> view.start(path, promise) }
       AsyncFunction("stopRecording") { view: VideoNoteView, promise: Promise -> view.stop(promise) }
     }
@@ -86,6 +87,14 @@ class VideoNoteView(context: Context, appContext: AppContext) : ExpoView(context
     provider?.unbindAll()
   }
 
+  private var bound: androidx.camera.core.Camera? = null
+  private var zoom = 0f
+  /** Pinch zoom (Telegram): 0 = widest, 1 = the camera's maximum. */
+  fun setZoom(value: Float) {
+    zoom = value.coerceIn(0f, 1f)
+    bound?.cameraControl?.setLinearZoom(zoom)
+  }
+
   fun setFacing(value: String) {
     if (value == facing) return
     facing = value
@@ -99,7 +108,8 @@ class VideoNoteView(context: Context, appContext: AppContext) : ExpoView(context
     val previewCase = Preview.Builder().build().also { it.surfaceProvider = preview.surfaceProvider }
     try {
       camera.unbindAll()
-      camera.bindToLifecycle(owner, selector, previewCase, videoCapture)
+      bound = camera.bindToLifecycle(owner, selector, previewCase, videoCapture)
+      bound?.cameraControl?.setLinearZoom(zoom)
       onReady(mapOf("facing" to facing))
     } catch (error: Exception) {
       onCameraError(mapOf("message" to (error.message ?: "Не удалось открыть камеру.")))
