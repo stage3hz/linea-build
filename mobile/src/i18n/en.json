@@ -253,7 +253,7 @@
 "Выбор модели": "Model choice",
 "Выбор модели доступен с FreeLLMAPI.": "Model choice is available with FreeLLMAPI.",
 "Выбранный сеанс завершён.": "The selected session has been ended.",
-"Выбранный эмодзи виден возле твоего имени в чатах. По умолчанию статус пустой. С Platina эмодзи анимированы.": "The selected emoji is shown next to your name in chats. The status is empty by default. With Platina the emoji are animated.",
+"Выбранный эмодзи виден возле твоего имени в чатах. С Platina по умолчанию там значок Platina 💎, его можно заменить любым эмодзи; эмодзи анимированы.": "The chosen emoji appears next to your name in chats. With Platina the Platina badge 💎 is shown by default; replace it with any emoji. Emoji are animated.",
 "Выбрано:": "Selected:",
 "Выбрать": "Choose",
 "Выбрать аудио и расшифровать": "Choose audio and transcribe",
@@ -1877,5 +1877,8 @@
 "Артист": "Artist",
 "Изменить фотографию": "Change photo",
 "Изменить профиль": "Edit profile",
-"Отменить изменения": "Discard changes"
+"Отменить изменения": "Discard changes",
+"Вернуть значок Platina": "Restore the Platina badge",
+"Сменить статус рядом с именем": "Change the status next to your name",
+"С Platina по умолчанию там значок Platina 💎, его можно заменить любым эмодзи; эмодзи анимированы.": "With Platina the Platina badge 💎 is shown by default; replace it with any emoji. Emoji are animated."
 }

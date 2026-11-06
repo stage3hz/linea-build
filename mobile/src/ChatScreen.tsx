@@ -363,7 +363,7 @@ export function ChatScreen({api,user,chat,store,onBack,wide=false,onOpenMusic}: 
     return <View style={{height:60,marginTop:-8,flexDirection:'row',alignItems:'center',gap:12,paddingHorizontal:16,backgroundColor:t.glassOpaque,borderBottomWidth:1,borderColor:t.border}}>
       <Pressable onPress={()=>setPeerInfo(true)} accessibilityRole="button" accessibilityLabel={`Полный профиль ${chat.peer.displayName}`}><DecoratedAvatar user={chat.peer} api={api} size={40} animated/></Pressable>
       <Pressable onPress={(e:any)=>setMini({x:e.nativeEvent.pageX,y:e.nativeEvent.pageY})} accessibilityRole="button" style={{flex:1,minWidth:0,gap:2}}>
-        <View style={{flexDirection:'row',gap:6,alignItems:'center'}}><PlatinaName user={chat.peer} numberOfLines={1} style={{flexShrink:1,color:t.text,fontSize:16,fontWeight:'700',letterSpacing:-.2}}/>{hasPlatina(chat.peer)?<PlatinaGem size={12}/>:null}<StatusEmoji user={chat.peer} size={16} animated/></View>
+        <View style={{flexDirection:'row',gap:6,alignItems:'center'}}><PlatinaName user={chat.peer} numberOfLines={1} style={{flexShrink:1,color:t.text,fontSize:16,fontWeight:'700',letterSpacing:-.2}}/><StatusEmoji user={chat.peer} size={16} animated/></View>
         <Text numberOfLines={1} style={{color:headerStatus.accent?t.accent:t.muted,fontSize:12.5}}>{headerStatus.text}</Text>
       </Pressable>
       <Pressable onPress={()=>{setSearchOpen(open=>!open);setQuery('');}} accessibilityRole="button" accessibilityLabel="Поиск в этом чате (Ctrl+F)" style={hover}><Icon name="search-outline" size={20} color={searchOpen?t.accent:t.muted}/></Pressable>
@@ -405,7 +405,7 @@ export function ChatScreen({api,user,chat,store,onBack,wide=false,onOpenMusic}: 
         <GlassSurface material="regular" radius={22} interactive style={{maxWidth:'100%',height:44,maxHeight:44,flexGrow:0,flexShrink:0,minWidth:0}} contentStyle={{maxWidth:'100%',height:44,maxHeight:44,flexGrow:0,flexShrink:0,minWidth:0,justifyContent:'center',paddingHorizontal:18,paddingVertical:0}}>
           <Pressable onPress={()=>{Keyboard.dismiss();setPeerInfo(true);}} accessibilityRole="button" accessibilityLabel={`Профиль ${chat.peer.displayName}`} style={{alignItems:'center',maxWidth:'100%'}}>
             <View style={{flexShrink:1,alignItems:'center',gap:1,maxWidth:'100%'}}>
-            <View style={{flexDirection:'row',gap:5,alignItems:'center',maxWidth:'100%'}}><PlatinaName user={chat.peer} style={{flexShrink:1,color:t.text,fontSize:16,lineHeight:19,includeFontPadding:false,fontWeight:'600',letterSpacing:-.25}}/>{hasPlatina(chat.peer)?<PlatinaGem size={11}/>:null}<StatusEmoji user={chat.peer} size={16} animated/></View>
+            <View style={{flexDirection:'row',gap:5,alignItems:'center',maxWidth:'100%'}}><PlatinaName user={chat.peer} style={{flexShrink:1,color:t.text,fontSize:16,lineHeight:19,includeFontPadding:false,fontWeight:'600',letterSpacing:-.25}}/><StatusEmoji user={chat.peer} size={16} animated/></View>
             <Text numberOfLines={1} style={{color:headerStatus.accent?t.accent:t.muted,fontSize:12,lineHeight:15,includeFontPadding:false}}>{headerStatus.text}</Text>
             </View>
           </Pressable>

@@ -2,6 +2,7 @@ import React, { useCallback, useEffect, useState } from 'react';
 import { ProfileEffect } from './platina/Effects';
 import { ActivityIndicator, Platform, Pressable, ScrollView, StyleSheet, Switch, View, useWindowDimensions, Linking } from 'react-native';
 import { MONO, Text } from './typography';
+import { requestStatusPicker } from './statusPicker';
 import * as FileSystem from 'expo-file-system/legacy';
 import Constants from 'expo-constants';
 import { Image } from 'expo-image';
@@ -162,7 +163,7 @@ function Root({ api, user, onBack, onProfile, onSecurity, onMusic, onLogout, ope
       </Pressable>
       <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8, marginTop: 12 }}>
         <PlatinaName user={user} numberOfLines={2} style={{ color: t.text, fontSize: 26, fontWeight: '800', letterSpacing: -0.5 }} />
-        <StatusEmoji user={user} size={22} animated />
+        <Pressable accessibilityRole="button" accessibilityLabel="Сменить статус рядом с именем" hitSlop={10} onPress={() => { requestStatusPicker(); onProfile(); }}><StatusEmoji user={user} size={22} animated /></Pressable>
       </View>
       <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8, marginTop: 5 }}>
         <Text style={{ color: t.muted, fontSize: 15 }}>@{user.username}</Text>
