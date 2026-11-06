@@ -4,12 +4,12 @@
 // • the selection is a pill; put a finger on the bar and slide (no need to lift or wait) — it becomes a
 //   larger lens that follows the finger, letting go opens the tab under it;
 // • one slot holds «Люди» or «Каналы»: swipe up on it to switch; the choice is remembered and stays
-//   in the bar until switched back. (Tablets and PC show both in their rail.)
+//   in the bar until switched back. It rolls like a carousel — the same quick roll however hard you swipe. (Tablets and PC show both in their rail.)
 import React, { useEffect, useState, useSyncExternalStore } from 'react';
 import { View } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { Gesture, GestureDetector } from 'react-native-gesture-handler';
-import Animated, { Easing, runOnJS, useAnimatedStyle, useSharedValue, withSequence, withSpring, withTiming, type SharedValue } from 'react-native-reanimated';
+import Animated, { Easing, runOnJS, useAnimatedStyle, useSharedValue, withSpring, withTiming, type SharedValue } from 'react-native-reanimated';
 import { Text } from './typography';
 import { Icon, type IconName } from './components';
 import { useTheme } from './theme';
@@ -29,16 +29,14 @@ const useSlot = () => useSyncExternalStore(l => { listeners.add(l); return () =>
 
 const SPRING = { damping: 20, stiffness: 320, mass: 0.7 };
 
-function TabIcon({ item, active, kick, pressed, index, flip }: { item: TabItem; active: boolean; kick: SharedValue<number>; pressed: SharedValue<number>; index: number; flip?: SharedValue<number> }) {
+function TabIcon({ item, active, kick, pressed, index }: { item: TabItem; active: boolean; kick: SharedValue<number>; pressed: SharedValue<number>; index: number }) {
   const t = useTheme();
   // `kick` grows by 1 on every tap of this tab; each icon plays its own motion from it.
   const style = useAnimatedStyle(() => {
     const k = kick.value % 1; const bump = Math.sin(k * Math.PI);
     const press = pressed.value === index ? 0.84 : 1;
-    const lift = flip ? flip.value : 0; // the slot switching: old icon slides up, the new one comes from below
-    const slide = [{ translateY: lift }];
     if (item.id === 'profile') return { transform: [{ scale: press }, { rotate: `${kick.value * 120}deg` }] };
-    if (item.id === 'people' || item.id === 'channels') return { opacity: 1 - Math.min(1, Math.abs(lift) / 14), transform: [...slide, { scale: press * (1 + bump * 0.2) }, { rotate: `${Math.sin(k * Math.PI * 2) * 10}deg` }] };
+    if (item.id === 'people' || item.id === 'channels') return { transform: [{ scale: press * (1 + bump * 0.2) }, { rotate: `${Math.sin(k * Math.PI * 2) * 10}deg` }] };
     if (item.id === 'chats') return { transform: [{ translateY: -bump * 4 }, { scale: press * (1 + bump * 0.22) }] };
     if (item.id === 'music') return { transform: [{ scale: press }, { rotate: `${Math.sin(k * Math.PI * 3) * 14 * (1 - k)}deg` }] };
     return { transform: [{ scale: press * (1 + bump * 0.3) }, { rotate: `${Math.sin(k * Math.PI * 2) * 18}deg` }] };
@@ -47,6 +45,21 @@ function TabIcon({ item, active, kick, pressed, index, flip }: { item: TabItem; 
     <Icon name={active ? item.activeIcon : item.icon} size={22} color={active ? t.accent : t.muted} />
     {item.badge ? <View style={{ position: 'absolute', top: -6, left: 13, minWidth: 18, height: 18, paddingHorizontal: 5, borderRadius: 9, borderWidth: 2, borderColor: t.dark ? '#15171D' : '#FFF', backgroundColor: t.accent, alignItems: 'center', justifyContent: 'center' }}><Text maxFontSizeMultiplier={1} style={{ color: t.onAccent, fontSize: 10, fontWeight: '800' }}>{badgeText(item.badge)}</Text></View> : null}
   </Animated.View>;
+}
+
+const REEL = 40; // one carousel row: icon + label
+
+/** «Люди» / «Каналы» as a vertical carousel: rows [Люди, Каналы, Люди] rolled by `reel` (0 → 1 → 2). */
+function SlotReel({ reel, people, channels, active, kick, pressed, index }: { reel: SharedValue<number>; people: TabItem; channels: TabItem; active: boolean; kick: SharedValue<number>; pressed: SharedValue<number>; index: number }) {
+  const t = useTheme();
+  const roll = useAnimatedStyle(() => ({ transform: [{ translateY: -reel.value * REEL }] }));
+  const row = (item: TabItem, key: string) => <View key={key} style={{ height: REEL, alignItems: 'center', justifyContent: 'center', gap: 4 }}>
+    <TabIcon item={item} active={active} kick={kick} pressed={pressed} index={index} />
+    <Text numberOfLines={1} maxFontSizeMultiplier={1} style={{ fontSize: 10, letterSpacing: -.1, color: active ? t.accent : t.muted, fontWeight: active ? '700' : '600' }}>{item.label}</Text>
+  </View>;
+  return <View style={{ height: REEL, overflow: 'hidden', alignSelf: 'stretch' }}>
+    <Animated.View style={roll}>{row(people, 'a')}{row(channels, 'b')}{row(people, 'c')}</Animated.View>
+  </View>;
 }
 
 /** `items`: AI, people, channels, chats, music, profile — people and channels share one slot. */
@@ -60,7 +73,10 @@ export function TabBar({ items, active }: { items: TabItem[]; active: TabId }) {
   const n = shown.length; const cell = width / Math.max(1, n);
   const slotIndex = shown.findIndex(item => item.id === 'people' || item.id === 'channels');
   const activeIndex = Math.max(0, shown.findIndex(item => item.id === (active === 'people' || active === 'channels' ? current : active)));
-  const pill = useSharedValue(activeIndex); const lens = useSharedValue(0); const pressed = useSharedValue(-1); const flip = useSharedValue(0);
+  const pill = useSharedValue(activeIndex); const lens = useSharedValue(0); const pressed = useSharedValue(-1);
+  // The slot is a vertical carousel [Люди, Каналы, Люди]: a swipe always plays the same quick roll up.
+  const reel = useSharedValue(current === 'channels' ? 1 : 0);
+  useEffect(() => { reel.value = current === 'channels' ? 1 : 0; }, [current]);
   const k0 = useSharedValue(0), k1 = useSharedValue(0), k2 = useSharedValue(0), k3 = useSharedValue(0), k4 = useSharedValue(0), k5 = useSharedValue(0);
   const kicks = [k0, k1, k2, k3, k4, k5];
   useEffect(() => { if (!lens.value) pill.value = withSpring(activeIndex, SPRING); }, [activeIndex]);
@@ -73,9 +89,11 @@ export function TabBar({ items, active }: { items: TabItem[]; active: TabId }) {
   };
   // Swipe up on the slot: «Люди» ⇄ «Каналы» (remembered), the icon flips like a slot machine.
   const switchSlot = () => {
-    flip.value = withSequence(withTiming(-16, { duration: 110, easing: Easing.in(Easing.quad) }), withTiming(16, { duration: 0 }), withSpring(0, { damping: 18, stiffness: 340, mass: 0.6 }));
+    const next = slot === 'people' ? 'channels' : 'people';
+    const from = slot === 'people' ? 0 : 1;
+    reel.value = from;
+    reel.value = withTiming(from + 1, { duration: 230, easing: Easing.out(Easing.cubic) }, done => { if (done) runOnJS(setSlot)(next); });
     impactFeedback();
-    setTimeout(() => setSlot(slot === 'people' ? 'channels' : 'people'), 110);
   };
   const at = (x: number) => { 'worklet'; return Math.max(0, Math.min(n - 1, Math.floor(x / Math.max(1, width / n)))); };
 
@@ -107,8 +125,10 @@ export function TabBar({ items, active }: { items: TabItem[]; active: TabId }) {
         accessibilityActions={slotted ? [{ name: 'activate' }, { name: 'magicTap', label: other?.label }] : undefined}
         onAccessibilityAction={slotted ? event => { if (event.nativeEvent.actionName === 'magicTap') switchSlot(); else open(index); } : undefined}
         onAccessibilityTap={() => open(index)} style={{ flex: 1, alignItems: 'center', justifyContent: 'center', gap: 4, paddingVertical: 6 }}>
-        <TabIcon item={item} active={on} kick={kicks[index]} pressed={pressed} index={index} flip={slotted ? flip : undefined} />
-        <Text numberOfLines={1} maxFontSizeMultiplier={1} style={{ fontSize: 10, letterSpacing: -.1, color: on ? t.accent : t.muted, fontWeight: on ? '700' : '600' }}>{item.label}</Text>
+        {slotted && other ? <SlotReel reel={reel} people={item.id === 'people' ? item : other} channels={item.id === 'channels' ? item : other} active={on} kick={kicks[index]} pressed={pressed} index={index} /> : <>
+          <TabIcon item={item} active={on} kick={kicks[index]} pressed={pressed} index={index} />
+          <Text numberOfLines={1} maxFontSizeMultiplier={1} style={{ fontSize: 10, letterSpacing: -.1, color: on ? t.accent : t.muted, fontWeight: on ? '700' : '600' }}>{item.label}</Text>
+        </>}
         {/* A small hint that the slot switches: a dot (with the other section's unread count) above it. */}
         {slotted && other ? <View pointerEvents="none" style={{ position: 'absolute', top: 1, width: 14, height: 3, borderRadius: 2, backgroundColor: other.badge ? t.accent : t.muted, opacity: other.badge ? 1 : .35 }} /> : null}
       </View>; })}
