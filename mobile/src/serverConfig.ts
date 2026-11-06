@@ -10,4 +10,4 @@ export const EDGE_SERVER_URLS = ['https://invizent-api.invizent-8165e2.workers.d
 // Version this build reports to the server (header X-Linea-Client). The server
 // may refuse clients it has retired (see server/src/clientgate.js). Bump this
 // together with app.config.js version at every release.
-export const APP_VERSION = '0.14.6';
+export const APP_VERSION = '0.14.7';

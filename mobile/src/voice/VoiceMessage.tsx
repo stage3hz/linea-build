@@ -33,6 +33,14 @@ function webVoiceMime(): string {
 }
 const PLAYBACK_MODE = { playsInSilentMode: true, shouldPlayInBackground: true, interruptionMode: 'doNotMix', allowsRecording: false } as const;
 
+let playbackReset: ReturnType<typeof setTimeout> | undefined;
+function cancelPlaybackReset() { if (playbackReset) { clearTimeout(playbackReset); playbackReset = undefined; } }
+function schedulePlaybackReset(delay: number) {
+  cancelPlaybackReset();
+  const reset = () => { playbackReset = undefined; void setAudioModeAsync(PLAYBACK_MODE).catch(() => {}); };
+  if (delay <= 0) reset(); else playbackReset = setTimeout(reset, delay);
+}
+
 export type VoiceTake = { uri: string; durationMs: number; waveform?: string };
 
 /** Microphone recorder for one chat composer. Nothing is recorded until start() and permission. */
@@ -53,29 +61,39 @@ export function useVoiceRecorder(onLimit: () => void) {
   const recordingRef = useRef(false); recordingRef.current = active;
   useEffect(() => () => {
     if (recordingRef.current) { try { void recorder.stop().catch(() => {}); } catch { /* already released */ } }
-    void setAudioModeAsync(PLAYBACK_MODE).catch(() => {});
+    schedulePlaybackReset(0);
   }, [recorder]);
 
+  // iOS: switching the audio session between playback and recording sometimes takes ~3 s
+  // (expo/expo#40531). The switch back to playback waits a little, so takes in a row skip it.
+  const starting = useRef<Promise<void> | null>(null);
+  const activeRef = useRef(false);
   const start = useCallback(async () => {
-    if (busy.current || active) return;
-    busy.current = true;
-    try {
-      const permission = await requestRecordingPermissionsAsync();
-      if (!permission.granted) throw new Error(Platform.OS === 'web' ? 'Нет доступа к микрофону. Подключи микрофон и разреши его Инвизу в «Параметры Windows → Конфиденциальность → Микрофон».' : 'Нет доступа к микрофону. Разреши его для Инвиза в настройках телефона, чтобы записывать голосовые.');
-      music.stop();
-      await setAudioModeAsync({ ...PLAYBACK_MODE, allowsRecording: true, shouldPlayInBackground: false });
-      await recorder.prepareToRecordAsync();
-      recorder.record();
-      samples.current = []; setLevels([]); setPaused(false); setActive(true);
-    } catch (error) {
-      await setAudioModeAsync(PLAYBACK_MODE).catch(() => {});
-      throw error;
-    } finally { busy.current = false; }
-  }, [active, music, recorder]);
+    if (starting.current || activeRef.current) return starting.current ?? undefined;
+    const run = (async () => {
+      cancelPlaybackReset();
+      try {
+        const permission = await requestRecordingPermissionsAsync();
+        if (!permission.granted) throw new Error(Platform.OS === 'web' ? 'Нет доступа к микрофону. Подключи микрофон и разреши его Инвизу в «Параметры Windows → Конфиденциальность → Микрофон».' : 'Нет доступа к микрофону. Разреши его для Инвиза в настройках телефона, чтобы записывать голосовые.');
+        music.stop();
+        await setAudioModeAsync({ ...PLAYBACK_MODE, allowsRecording: true, shouldPlayInBackground: false });
+        await recorder.prepareToRecordAsync();
+        recorder.record();
+        samples.current = []; setLevels([]); setPaused(false); activeRef.current = true; setActive(true);
+      } catch (error) {
+        schedulePlaybackReset(0);
+        throw error;
+      }
+    })();
+    starting.current = run;
+    try { await run; } finally { starting.current = null; }
+  }, [music, recorder]);
 
-  /** Stops the recording. Returns the file, or null when cancelled. */
+  /** Stops the recording. Returns the file, or null when cancelled. Released while the microphone was
+   *  still starting: waits for the start, then stops — the take is never left running on its own. */
   const finish = useCallback(async (keep: boolean): Promise<VoiceTake | null> => {
-    if (!active || busy.current) return null;
+    if (starting.current) { try { await starting.current; } catch { return null; } }
+    if (!activeRef.current || busy.current) return null;
     busy.current = true;
     const durationMs = Math.min(VOICE_MAX_MS, recorder.getStatus().durationMillis || state.durationMillis);
     try {
@@ -85,10 +103,10 @@ export function useVoiceRecorder(onLimit: () => void) {
       if (!keep) { await FileSystem.deleteAsync(uri, { idempotent: true }).catch(() => {}); return null; }
       return { uri, durationMs, waveform: encodeWaveform(samples.current) };
     } finally {
-      setActive(false); setPaused(false); setLevels([]); busy.current = false;
-      await setAudioModeAsync(PLAYBACK_MODE).catch(() => {});
+      activeRef.current = false; setActive(false); setPaused(false); setLevels([]); busy.current = false;
+      schedulePlaybackReset(4000);
     }
-  }, [active, recorder, state.durationMillis]);
+  }, [recorder, state.durationMillis]);
 
   /** Pause / continue the same file (Telegram's pause while recording hands-free). */
   const togglePause = useCallback(() => {
@@ -110,20 +128,17 @@ export function VoiceRecordingBar({ durationMs, levels, onCancel, onSend, holdin
     {dot}{time}
     <Text style={{ flex: 1, textAlign: 'center', color: t.muted, fontSize: 14, opacity: 1 - cancelProgress, transform: [{ translateX: -cancelProgress * 40 }] }}>‹ Влево — отмена</Text>
   </View>;
-  // Locked in a chat, as in Telegram: a glass strip with dot, 0:04,63 and «Отмена»; on the right a big
-  // send circle that breathes with the voice, the pause button above it. Everything stays inside this
-  // view's bounds (Android does not deliver touches outside the parent), so the composer grows a bit.
-  if (floating) return <View style={{ flexDirection: 'row', alignItems: 'flex-end', gap: 6 }}>
-    <GlassSurface lens material="regular" radius={24} style={{ flex: 1, marginBottom: 10 }} contentStyle={{ minHeight: 48, flexDirection: 'row', alignItems: 'center', gap: 8, paddingLeft: 14 }}>
+  // Locked in a chat, as in Telegram: a glass strip with dot, 0:04,63, «Отмена» and pause, the composer
+  // keeps its height; a big send circle (52) in the record button's place breathes with the voice.
+  if (floating) return <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+    <GlassSurface lens material="regular" radius={20} style={{ flex: 1 }} contentStyle={{ minHeight: 40, flexDirection: 'row', alignItems: 'center', gap: 8, paddingLeft: 14, paddingRight: 4 }}>
       {dot}{time}
-      <Pressable accessibilityRole="button" accessibilityLabel="Отменить запись" onPress={onCancel} hitSlop={8} style={({ pressed }) => ({ flex: 1, height: 44, alignItems: 'center', justifyContent: 'center', marginRight: 62, opacity: pressed ? .6 : 1 })}><Text style={{ color: t.accent, fontSize: 16, fontWeight: '600' }}>Отмена</Text></Pressable>
+      <Pressable accessibilityRole="button" accessibilityLabel="Отменить запись" onPress={onCancel} hitSlop={8} style={({ pressed }) => ({ flex: 1, height: 40, alignItems: 'center', justifyContent: 'center', opacity: pressed ? .6 : 1 })}><Text style={{ color: t.accent, fontSize: 16, fontWeight: '600' }}>Отмена</Text></Pressable>
+      {onPause ? <Pressable accessibilityRole="button" accessibilityLabel={paused ? 'Продолжить запись' : 'Пауза'} onPress={onPause} hitSlop={6} style={({ pressed }) => ({ width: 32, height: 32, borderRadius: 16, alignItems: 'center', justifyContent: 'center', backgroundColor: t.surface2, opacity: pressed ? .6 : 1 })}><Icon name={paused ? 'mic' : 'pause'} size={17} color={paused ? t.danger : t.text} /></Pressable> : null}
     </GlassSurface>
-    <View style={{ width: 68, alignItems: 'center', gap: 12, marginLeft: -62 }}>
-      {onPause ? <Pressable accessibilityRole="button" accessibilityLabel={paused ? 'Продолжить запись' : 'Пауза'} onPress={onPause} style={({ pressed }) => ({ width: 42, height: 42, borderRadius: 21, alignItems: 'center', justifyContent: 'center', backgroundColor: t.glassOpaque, borderWidth: StyleSheet.hairlineWidth, borderColor: t.border, opacity: pressed ? .6 : 1 })}><Icon name={paused ? 'mic' : 'pause'} size={19} color={paused ? t.danger : t.text} /></Pressable> : null}
-      <View style={{ width: 68, height: 68, alignItems: 'center', justifyContent: 'center' }}>
-        <View pointerEvents="none" style={{ position: 'absolute', width: 68, height: 68, borderRadius: 34, backgroundColor: t.accent, opacity: paused ? 0 : .22, transform: [{ scale: 1 + level * .35 }] }} />
-        <Pressable accessibilityRole="button" accessibilityLabel="Отправить голосовое сообщение" onPress={onSend} style={({ pressed }) => ({ height: 64, width: 64, borderRadius: 32, backgroundColor: t.accent, alignItems: 'center', justifyContent: 'center', opacity: pressed ? .8 : 1 })}><Icon name="arrow-up" color={t.onAccent} size={30} /></Pressable>
-      </View>
+    <View style={{ width: 40, height: 40, alignItems: 'center', justifyContent: 'center' }}>
+      <View pointerEvents="none" style={{ position: 'absolute', width: 52, height: 52, borderRadius: 26, backgroundColor: t.accent, opacity: paused ? 0 : .22, transform: [{ scale: 1 + level * .4 }] }} />
+      <Pressable accessibilityRole="button" accessibilityLabel="Отправить голосовое сообщение" onPress={onSend} hitSlop={6} style={({ pressed }) => ({ position: 'absolute', height: 52, width: 52, borderRadius: 26, backgroundColor: t.accent, alignItems: 'center', justifyContent: 'center', opacity: pressed ? .8 : 1 })}><Icon name="arrow-up" color={t.onAccent} size={27} /></Pressable>
     </View>
   </View>;
   // Elsewhere (Saved): one row — dot, time, «Отмена», pause and the send circle.
@@ -179,7 +194,7 @@ export function VoicePlaybackProvider({ api, children }: { api: Api; children: R
         let file = files.current.get(attachment.id);
         if (!file) { file = await decryptAttachment(api, attachment); files.current.set(attachment.id, file); }
         if (ticket !== request.current) return;
-        await setAudioModeAsync(PLAYBACK_MODE).catch(() => {});
+        cancelPlaybackReset(); await setAudioModeAsync(PLAYBACK_MODE).catch(() => {});
         music.stop();
         player.replace({ uri: file.uri });
         try { player.setPlaybackRate(voiceRate); } catch { /* applied by the effect */ }

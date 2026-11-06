@@ -36,6 +36,7 @@ const FLIP_WHILE_RECORDING = androidNoteCameraAvailable;
  * `stop`/`cancel` counters come from that button, and the circle floats over the blurred chat
  * (no separate screen, so the finger's touch is not interrupted). After a lock the buttons appear.
  */
+let centerStageWanted = true;
 export type VideoHold = { stop: number; cancel: number; locked: boolean };
 export function VideoNoteRecorder({ visible, onClose, onDone, hold = null }: { visible: boolean; onClose: () => void; onDone: (take: VideoNoteTake) => void; hold?: VideoHold | null }) {
   const win = useWindowDimensions();
@@ -52,7 +53,9 @@ export function VideoNoteRecorder({ visible, onClose, onDone, hold = null }: { v
   const limit = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
   // Center Stage (iPhone 17 family): the front camera keeps the face in frame while you move.
   const [stage, setStage] = useState<{ supported: boolean; enabled: boolean }>({ supported: false, enabled: false });
-  useEffect(() => { if (visible) void setCenterStage(true).then(setStage); }, [visible]);
+  // The user's choice is remembered (it used to be forced on every time the recorder opened).
+  useEffect(() => { if (visible) void setCenterStage(centerStageWanted).then(setStage); }, [visible]);
+  const toggleStage = () => { centerStageWanted = !stage.enabled; void setCenterStage(centerStageWanted).then(setStage); };
   const started = useRef(0); const cancelled = useRef(false);
 
   useEffect(() => {
@@ -140,7 +143,7 @@ export function VideoNoteRecorder({ visible, onClose, onDone, hold = null }: { v
         <ProgressRing progress={recording ? progress : 0} size={RING} width={3} color="#FFF" track="rgba(255,255,255,0.16)" />
         <View style={{ width: CIRCLE, height: CIRCLE, borderRadius: CIRCLE / 2, overflow: 'hidden', backgroundColor: '#000' }}>{preview}</View>
       </View>
-      {stage.supported && facing === 'front' && showControls ? <Pressable disabled={recording} accessibilityRole="switch" accessibilityState={{ checked: stage.enabled, disabled: recording }} accessibilityLabel="Слежение за лицом" onPress={() => void setCenterStage(!stage.enabled).then(setStage)} style={{ flexDirection: 'row', alignItems: 'center', gap: 6, paddingHorizontal: 12, paddingVertical: 7, borderRadius: 16, backgroundColor: stage.enabled ? 'rgba(255,214,10,0.18)' : 'rgba(255,255,255,0.1)' }}><Icon name="scan-outline" size={16} color={stage.enabled ? '#FFD60A' : '#FFF'} /><Text style={{ color: stage.enabled ? '#FFD60A' : '#FFF', fontSize: 13, fontWeight: '600' }}>{stage.enabled ? 'В центре кадра' : 'Слежение выкл.'}</Text></Pressable> : null}
+      {stage.supported && facing === 'front' && showControls ? <Pressable accessibilityRole="switch" accessibilityState={{ checked: stage.enabled }} accessibilityLabel="Слежение за лицом" onPress={toggleStage} style={{ flexDirection: 'row', alignItems: 'center', gap: 6, paddingHorizontal: 12, paddingVertical: 7, borderRadius: 16, backgroundColor: stage.enabled ? 'rgba(255,214,10,0.18)' : 'rgba(255,255,255,0.1)' }}><Icon name="scan-outline" size={16} color={stage.enabled ? '#FFD60A' : '#FFF'} /><Text style={{ color: stage.enabled ? '#FFD60A' : '#FFF', fontSize: 13, fontWeight: '600' }}>{stage.enabled ? 'В центре кадра' : 'Слежение выкл.'}</Text></Pressable> : null}
       {error ? <Text style={{ color: '#FFB4B4', fontSize: 13, textAlign: 'center', maxWidth: 320 }}>{error}</Text> : null}
     </View>
     <View pointerEvents="box-none" style={{ position: 'absolute', left: 8, right: 8, bottom: insets.bottom + 6, gap: 10 }}>
@@ -168,7 +171,7 @@ export function VideoNoteRecorder({ visible, onClose, onDone, hold = null }: { v
         </View>
         {recording ? <View pointerEvents="none" style={{ position: 'absolute', left: 6, right: 6, bottom: -14, height: 4, borderRadius: 2, backgroundColor: 'rgba(255,255,255,0.2)' }}><View style={{ width: `${progress * 100}%`, height: 4, borderRadius: 2, backgroundColor: t.danger }} /></View> : null}
       </View>
-      {stage.supported && facing === 'front' ? <Pressable disabled={recording} accessibilityRole="switch" accessibilityState={{ checked: stage.enabled, disabled: recording }} accessibilityLabel="Слежение за лицом" onPress={() => void setCenterStage(!stage.enabled).then(setStage)} style={{ flexDirection: 'row', alignItems: 'center', gap: 6, paddingHorizontal: 12, paddingVertical: 7, borderRadius: 16, backgroundColor: stage.enabled ? 'rgba(255,214,10,0.18)' : 'rgba(255,255,255,0.1)' }}><Icon name="scan-outline" size={16} color={stage.enabled ? '#FFD60A' : '#FFF'} /><Text style={{ color: stage.enabled ? '#FFD60A' : '#FFF', fontSize: 13, fontWeight: '600' }}>{stage.enabled ? 'В центре кадра' : 'Слежение выкл.'}</Text></Pressable> : null}
+      {stage.supported && facing === 'front' ? <Pressable accessibilityRole="switch" accessibilityState={{ checked: stage.enabled }} accessibilityLabel="Слежение за лицом" onPress={toggleStage} style={{ flexDirection: 'row', alignItems: 'center', gap: 6, paddingHorizontal: 12, paddingVertical: 7, borderRadius: 16, backgroundColor: stage.enabled ? 'rgba(255,214,10,0.18)' : 'rgba(255,255,255,0.1)' }}><Icon name="scan-outline" size={16} color={stage.enabled ? '#FFD60A' : '#FFF'} /><Text style={{ color: stage.enabled ? '#FFD60A' : '#FFF', fontSize: 13, fontWeight: '600' }}>{stage.enabled ? 'В центре кадра' : 'Слежение выкл.'}</Text></Pressable> : null}
       {error ? <Text style={{ color: '#FFB4B4', fontSize: 13, textAlign: 'center', maxWidth: 320 }}>{error}</Text> : <Text style={{ color: 'rgba(255,255,255,0.6)', fontSize: 12 }}>{recording ? (hold ? 'Нажми ■, чтобы отправить' : 'Нажми ещё раз, чтобы отправить') : 'До 60 секунд · шифруется перед отправкой'}</Text>}
       {showControls ? <View style={{ flexDirection: 'row', alignItems: 'center', gap: 34 }}>
         <Pressable accessibilityRole="button" accessibilityLabel="Отменить видеосообщение" onPress={cancel} style={styles.round}><Icon name="close" color="#FFF" size={26} /></Pressable>

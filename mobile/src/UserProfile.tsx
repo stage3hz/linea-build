@@ -81,7 +81,7 @@ export function UserProfile({ api, user, onClose, chat, onMessage, onMute, onSea
     catch (e) { setError(e instanceof Error ? e.message : 'Не удалось изменить уведомления.'); }
     finally { setBusy(false); }
   };
-  const copy = async () => { await Clipboard.setStringAsync(`@${shown.username}`); setNotice('Имя пользователя скопировано'); };
+  const copy = async () => { await Clipboard.setStringAsync(`@${shown.username}`); lightFeedback(); setNotice('Имя пользователя скопировано'); setTimeout(() => setNotice(current => current === 'Имя пользователя скопировано' ? '' : current), 2000); };
   const actions: { icon: IconName; label: string; onPress: (e?: { nativeEvent?: { pageX?: number; pageY?: number } }) => void; active?: boolean; loading?: boolean }[] = [
     ...(onMessage ? [{ icon: 'chatbubble' as IconName, label: 'Написать', onPress: () => { onClose(); onMessage(shown); } }] : []),
     ...(chat && calls.available ? [{ icon: 'call' as IconName, label: 'Звонок', onPress: () => { onClose(); calls.start(chat, false); } }, { icon: 'videocam' as IconName, label: 'Видео', onPress: () => { onClose(); calls.start(chat, true); } }] : []),
@@ -137,7 +137,7 @@ export function UserProfile({ api, user, onClose, chat, onMessage, onMute, onSea
         {error ? <View style={{ alignSelf: 'stretch' }}><Notice text={error} error /></View> : null}
         <GlassSurface radius={20} shadow={false} style={{ alignSelf: 'stretch' }} contentStyle={{ padding: 16, gap: 14 }}>
           {shown.bio ? <View style={{ gap: 4 }}><Text style={{ color: t.text, fontSize: 15, lineHeight: 21 }}>{shown.bio}</Text><Text style={{ color: t.muted, fontSize: 12 }}>О себе</Text></View> : null}
-          <View style={{ gap: 4 }}><Text style={{ color: t.accent, fontSize: 15 }}>@{shown.username}</Text><Text style={{ color: t.muted, fontSize: 12 }}>Имя пользователя</Text></View>
+          <Pressable onPress={() => void copy()} onLongPress={() => void copy()} accessibilityRole="button" accessibilityLabel={`Имя пользователя @${shown.username}. Нажми, чтобы скопировать`} style={({ pressed }) => ({ gap: 4, opacity: pressed ? .6 : 1 })}><Text style={{ color: t.accent, fontSize: 15 }}>@{shown.username}</Text><Text style={{ color: t.muted, fontSize: 12 }}>Имя пользователя</Text></Pressable>
           <Pressable disabled={!onSecurity} onPress={() => { onClose(); onSecurity?.(); }} accessibilityRole="button" style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}><Icon name="lock-closed" size={14} color={t.accent} /><Text style={{ color: t.muted, fontSize: 12, flex: 1 }}>Переписка защищена сквозным шифрованием{onSecurity ? ' · проверить устройства' : ''}</Text>{onSecurity ? <Icon name="chevron-forward" size={14} color={t.muted} /> : null}</Pressable>
         </GlassSurface>
         {shared && onOpenAttachment ? <SharedMedia messages={shared} onOpen={attachment => { onClose(); setTimeout(() => onOpenAttachment(attachment), 250); }} /> : null}
