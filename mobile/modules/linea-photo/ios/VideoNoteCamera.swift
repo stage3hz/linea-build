@@ -66,7 +66,13 @@ final class VideoNoteView: ExpoView, AVCaptureVideoDataOutputSampleBufferDelegat
 
   private func device(for facing: String) -> AVCaptureDevice? {
     let position: AVCaptureDevice.Position = facing == "back" ? .back : .front
-    return AVCaptureDevice.default(.builtInWideAngleCamera, for: .video, position: position)
+    guard let camera = AVCaptureDevice.default(.builtInWideAngleCamera, for: .video, position: position) else { return nil }
+    // Same SDR colour space on both cameras (no P3 / HDR switch when the camera flips).
+    if camera.activeFormat.supportedColorSpaces.contains(.sRGB), (try? camera.lockForConfiguration()) != nil {
+      camera.activeColorSpace = .sRGB
+      camera.unlockForConfiguration()
+    }
+    return camera
   }
 
   private func applyConnection() {
@@ -93,6 +99,7 @@ final class VideoNoteView: ExpoView, AVCaptureVideoDataOutputSampleBufferDelegat
   private func configure() -> Bool {
     session.beginConfiguration()
     defer { session.commitConfiguration() }
+    session.automaticallyConfiguresCaptureDeviceForWideColor = false
     if session.canSetSessionPreset(.vga640x480) { session.sessionPreset = .vga640x480 }
     guard let camera = device(for: facing), let input = try? AVCaptureDeviceInput(device: camera), session.canAddInput(input) else {
       fail("Камера недоступна."); return false
@@ -175,6 +182,14 @@ final class VideoNoteView: ExpoView, AVCaptureVideoDataOutputSampleBufferDelegat
           AVVideoWidthKey: 480,
           AVVideoHeightKey: 640,
           AVVideoScalingModeKey: AVVideoScalingModeResizeAspectFill,
+          // One fixed colour description for the whole take: the front and back cameras tag frames
+          // differently, and a mid-file format change is refused by the send-time check
+          // (linea-video, VIDEO_FORMAT_CHANGED). BT.709 SDR for both.
+          AVVideoColorPropertiesKey: [
+            AVVideoColorPrimariesKey: AVVideoColorPrimaries_ITU_R_709_2,
+            AVVideoTransferFunctionKey: AVVideoTransferFunction_ITU_R_709_2,
+            AVVideoYCbCrMatrixKey: AVVideoYCbCrMatrix_ITU_R_709_2,
+          ],
           AVVideoCompressionPropertiesKey: [AVVideoAverageBitRateKey: 1_200_000, AVVideoProfileLevelKey: AVVideoProfileLevelH264HighAutoLevel] as [String: Any],
         ])
         video.expectsMediaDataInRealTime = true
