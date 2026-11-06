@@ -22,6 +22,8 @@ import type { Api } from './api';
 import { AttachmentCard, Avatar, Empty, Icon, IconButton, Notice, Sheet, SheetAction } from './components';
 import { formatDay, formatSize, formatTime, useTheme } from './theme';
 import { GlassContentTarget, GlassStage, GlassSurface, GlassTargetScope } from './glass';
+import { ForwardPicker, type ForwardTarget } from './forward/ForwardPicker';
+import { setForwardDraft, useForwardDraft } from './forward/forwardDraft';
 import { SharedMedia } from './SharedMedia';
 import type { Attachment, Chat, LocalFile, Message, PendingMessage, User } from './types';
 import type { MessengerStore } from './useMessenger';
@@ -171,7 +173,12 @@ export function ChatScreen({api,user,chat,store,onBack,wide=false,onOpenMusic}: 
     if(typingTimer.current)clearTimeout(typingTimer.current);
     typingTimer.current=setTimeout(()=>store.sendTyping(chat.id,false),1800);
   };
+  const forwardDraft=useForwardDraft(chat.id);
+  const sendForward=()=>{const draft=forwardDraft;if(!draft)return false;setForwardDraft(null);const comment=text.trim();
+    if(comment)store.send(chat.id,comment,null);void (async()=>{for(const item of draft.items)await store.forward(chat.id,item.message,item.author);})().catch(e=>setLocalError(e instanceof Error?e.message:'Не удалось переслать.'));
+    store.setDraft(chat.id,'');store.sendTyping(chat.id,false);listRef.current?.scrollToOffset({offset:0,animated:true});return true;};
   const send=()=>{
+    if(forwardDraft&&!editing){lightFeedback();sendForward();return;}
     if(signalAvailable&&!uploadingRef.current&&(text.trim()||attachments.length))lightFeedback();
     if(!signalAvailable||uploadingRef.current||(!text.trim()&&!attachments.length))return;
     if(editing){
@@ -235,7 +242,7 @@ export function ChatScreen({api,user,chat,store,onBack,wide=false,onOpenMusic}: 
     if(kind==='voice')void finishVoice(result==='send');
     else setVideoHold(v=>v?{...v,stop:v.stop+(result==='send'?1:0),cancel:v.cancel+(result==='cancel'?1:0)}:v);};
   const holdLock=()=>{setCancelProgress(0);setRecHold(h=>h?{...h,locked:true}:h);setVideoHold(v=>v?{...v,locked:true}:v);};
-  const canSend=!!text.trim()||attachments.length>0||!!editing;
+  const canSend=!!text.trim()||attachments.length>0||!!editing||!!forwardDraft;
   const saveToFavorites=(m:ViewMessage)=>{
     store.saved.save(m.text,m.attachment,{chatId:chat.id,clientId:m.clientId,author:originalAuthor(m).slice(0,80)||'собеседник',sentAt:m.createdAt})
       .then(added=>setNotice(added?'Сохранено в Избранное':'Уже в Избранном')).catch(e=>setLocalError(e instanceof Error?e.message:'Не удалось сохранить.'));
@@ -435,7 +442,13 @@ export function ChatScreen({api,user,chat,store,onBack,wide=false,onOpenMusic}: 
         {icon:'trash-outline',label:'Удалить',on:()=>setDeleteAsk(true),ok:selectedMessages.length>0,danger:true},
       ] as const).map(item=><Pressable key={item.label} disabled={!item.ok} onPress={()=>{lightFeedback();item.on();}} accessibilityRole="button" style={({pressed})=>({alignItems:'center',gap:4,paddingHorizontal:8,paddingVertical:4,opacity:!item.ok?.35:pressed?.6:1})}><Icon name={item.icon} size={22} color={'danger' in item?t.danger:t.accent}/><Text style={{fontSize:10,color:'danger' in item?t.danger:t.accent,fontWeight:'600'}}>{item.label}</Text></Pressable>)}
     </GlassSurface>:<View style={{marginHorizontal:8,marginTop:4,marginBottom:8,gap:6}}>
-      {replyTo||editing||uploading||attachments.length?<GlassSurface lens material="regular" radius={22} contentStyle={{paddingHorizontal:8,paddingTop:8,paddingBottom:2}}>
+      {replyTo||editing||uploading||attachments.length||forwardDraft?<GlassSurface lens material="regular" radius={22} contentStyle={{paddingHorizontal:8,paddingTop:8,paddingBottom:2}}>
+      {forwardDraft&&!editing?<View style={{flexDirection:'row',alignItems:'center',gap:8,paddingLeft:8,paddingBottom:6}}>
+        <Icon name="arrow-redo-outline" size={18} color={t.accent}/>
+        <View style={{width:3,alignSelf:'stretch',borderRadius:2,backgroundColor:t.accent}}/>
+        <View style={{flex:1,gap:1}}><Text style={{color:t.accent,fontSize:11,fontWeight:'700'}}>{forwardDraft.items.length>1?`Переслать ${forwardDraft.items.length} ${forwardDraft.items.length<5?'сообщения':'сообщений'}`:'Переслать сообщение'}</Text><Text numberOfLines={1} style={{color:t.muted,fontSize:12}}>{`${forwardDraft.items[0]?.author||''}: ${forwardDraft.items[0]?.message.text||(forwardDraft.items[0]?.message.attachment?attachmentLabel(forwardDraft.items[0].message.attachment):'')}`}</Text></View>
+        <IconButton name="close" label="Не пересылать" size={18} color={t.muted} onPress={()=>setForwardDraft(null)} style={{width:36,height:36}}/>
+      </View>:null}
       {replyTo||editing?<View style={{flexDirection:'row',alignItems:'center',gap:8,paddingLeft:8,paddingBottom:6}}>
         <Icon name={editing?'create-outline':'arrow-undo-outline'} size={18} color={t.accent}/>
         <View style={{width:3,alignSelf:'stretch',borderRadius:2,backgroundColor:t.accent}}/>
@@ -455,7 +468,7 @@ export function ChatScreen({api,user,chat,store,onBack,wide=false,onOpenMusic}: 
           <View style={{flex:1,justifyContent:'center',minHeight:40}}><ComposerInput focusKey={editing?`edit:${editing.clientId}`:replyTo?`reply:${replyTo.clientId}`:keyboardAsk?`keyboard:${keyboardAsk}`:null} onFocus={()=>{if(stickers&&Platform.OS!=='web')stickersToKeyboard();}} minHeight={40} accessibilityLabel="Сообщение" placeholder={signalAvailable?'Сообщение':'Нужна мобильная версия'} editable={signalAvailable} value={text} onChangeText={changeText} onSelectionChange={e=>{caret.current=e.nativeEvent.selection;}} placeholderTextColor={t.muted} selectionColor={t.accent} keyboardAppearance={t.dark?'dark':'light'} multiline maxLength={8000} style={{fontSize:17,lineHeight:22,color:t.text,paddingHorizontal:14,paddingTop:Platform.OS==='ios'?9:7,paddingBottom:9,maxHeight:136}} onKeyPress={e=>{if(Platform.OS==='web'&&e.nativeEvent.key==='Enter'&&!(e.nativeEvent as unknown as {shiftKey?:boolean}).shiftKey){e.preventDefault();send();}}}/></View>
           <Pressable accessibilityRole="button" accessibilityLabel="Стикеры и эмодзи" onPress={toggleStickers} style={({pressed})=>({height:40,width:38,alignItems:'center',justifyContent:'center',opacity:pressed?.6:1})}><Icon name={stickers?'keypad-outline':'happy-outline'} color={stickers?t.accent:t.muted} size={22}/></Pressable>
         </GlassSurface>
-        {canSend||!signalAvailable||uploading?<Pressable accessibilityRole="button" accessibilityLabel="Отправить сообщение" disabled={!signalAvailable||uploading||(!text.trim()&&!attachments.length&&!editing)} onPress={send} style={({pressed})=>({height:40,width:40,borderRadius:20,backgroundColor:t.accent,alignItems:'center',justifyContent:'center',opacity:!signalAvailable||uploading||(!text.trim()&&!attachments.length&&!editing)?.4:pressed?.75:1})}><Icon name={editing?'checkmark':'arrow-up'} color={t.onAccent} size={25}/></Pressable>
+        {canSend||!signalAvailable||uploading?<Pressable accessibilityRole="button" accessibilityLabel="Отправить сообщение" disabled={!signalAvailable||uploading||(!text.trim()&&!attachments.length&&!editing&&!forwardDraft)} onPress={send} style={({pressed})=>({height:40,width:40,borderRadius:20,backgroundColor:t.accent,alignItems:'center',justifyContent:'center',opacity:!signalAvailable||uploading||(!text.trim()&&!attachments.length&&!editing&&!forwardDraft)?.4:pressed?.75:1})}><Icon name={editing?'checkmark':'arrow-up'} color={t.onAccent} size={25}/></Pressable>
         :null}</>}
         {!(canSend||!signalAvailable||uploading)||recHold?<View key="rec" style={{zIndex:5}}><RecordButton mode={recordMode} disabled={uploading||!signalAvailable} onToggleMode={toggleRecordMode} onTouchDown={()=>{if(recordModeRef.current==='voice')voice.prepare();}} onHoldStart={holdStart} onHoldEnd={holdEnd} onLock={holdLock} onSlide={setCancelProgress} level={recHold?.kind==='voice'?voice.levels.at(-1)||0:0}/></View>:null}
       </View>}
@@ -489,19 +502,22 @@ export function ChatScreen({api,user,chat,store,onBack,wide=false,onOpenMusic}: 
       {actions?.message?<MenuItem separated icon="eye-off-outline" label="Удалить у меня" description="Сообщение исчезнет только на этом устройстве" danger onPress={()=>{rowMessages(actions).forEach(m=>store.hideForMe(m));setActions(null);}}/>:null}
       {actions?.message&&actions.message.senderId===user.id&&actions.message.cryptoState==='decrypted'?<MenuItem icon="trash-outline" label="Удалить у всех" description="Собеседник перестанет видеть сообщение. Зашифрованная копия на сервере остаётся нечитаемой." danger onPress={()=>{rowMessages(actions).forEach(m=>store.sendAction(chat.id,{type:'delete',target:m.clientId}));setActions(null);}}/>:null}
     </ContextMenu>
-    <Sheet visible={!!forwarding} title="Переслать в чат" onClose={()=>setForwarding(null)}>
-      <SheetAction icon="bookmark-outline" label="Избранное" description="Только на этом устройстве" onPress={()=>{const m=forwarding!;setForwarding(null);saveToFavorites(m);}}/>
-      {store.chats.length?store.chats.map(target=><SheetAction key={target.id} icon="chatbubble-outline" label={target.peer.displayName} description={`@${target.peer.username}`} onPress={()=>{const m=forwarding!;setForwarding(null);store.forward(target.id,m,originalAuthor(m)).then(()=>setNotice(`Переслано: ${target.peer.displayName}`)).catch(e=>setLocalError(e instanceof Error?e.message:'Не удалось переслать.'));}}/>):<Text style={{color:t.muted,fontSize:13}}>Пока нет других чатов.</Text>}
-    </Sheet>
+    <ForwardPicker visible={!!forwarding||!!forwardMany} api={api} userId={user.id} chats={store.chats} count={forwarding?1:forwardMany?.length||0}
+      onClose={()=>{setForwarding(null);setForwardMany(null);}}
+      onPick={(target:ForwardTarget)=>{const list=forwarding?[forwarding]:forwardMany||[];setForwarding(null);setForwardMany(null);setSelection(null);
+        if(!target){list.forEach(m=>saveToFavorites(m));return;}
+        // Telegram: the chat opens with the forward waiting above the input (a comment can be added).
+        setForwardDraft({chatId:target.id,items:list.map(m=>({message:m,author:originalAuthor(m)}))});
+        if(target.id!==chat.id)store.selectChat(target);}}
+      onSendMany={(targets:ForwardTarget[],comment:string)=>{const list=forwarding?[forwarding]:forwardMany||[];setForwarding(null);setForwardMany(null);setSelection(null);
+        void (async()=>{for(const target of targets){if(!target){list.forEach(m=>saveToFavorites(m));continue;}if(comment)store.send(target.id,comment,null);for(const m of list)await store.forward(target.id,m,originalAuthor(m));}
+          setNotice(targets.length===1&&targets[0]?`Переслано: ${targets[0].peer.displayName}`:`Переслано в ${targets.length} ${targets.length<5?'чата':'чатов'}`);})().catch(e=>setLocalError(e instanceof Error?e.message:'Не удалось переслать.'));}}/>
     <AttachmentViewer api={api} attachment={preview} onClose={()=>setPreview(null)}/>
     {gallery?<MediaGallery api={api} items={gallery.items} index={gallery.index} onClose={()=>setGallery(null)}/>:null}
     <PollComposer visible={pollOpen} onClose={()=>setPollOpen(false)} onSend={poll=>{setPollOpen(false);lightFeedback();store.sendPoll(chat.id,poll);listRef.current?.scrollToOffset({offset:0,animated:true});}}/>
     <Sheet visible={deleteAsk} title={`Удалить ${selectedMessages.length} ${selectedMessages.length===1?'сообщение':selectedMessages.length<5?'сообщения':'сообщений'}?`} onClose={()=>setDeleteAsk(false)}>
       <SheetAction icon="eye-off-outline" label="Удалить у меня" description="Исчезнут только на этом устройстве" danger onPress={()=>{setDeleteAsk(false);deleteSelected(false);}}/>
       {selectedMessages.length&&selectedMessages.every(m=>m.senderId===user.id)?<SheetAction icon="trash-outline" label="Удалить у всех" description="Собеседник тоже перестанет их видеть" danger onPress={()=>{setDeleteAsk(false);deleteSelected(true);}}/>:null}
-    </Sheet>
-    <Sheet visible={!!forwardMany} title={`Переслать (${forwardMany?.length||0})`} onClose={()=>setForwardMany(null)}>
-      {store.chats.map(target=><SheetAction key={target.id} icon="chatbubble-outline" label={target.peer.displayName} description={`@${target.peer.username}`} onPress={()=>{const list=forwardMany||[];setForwardMany(null);setSelection(null);void (async()=>{for(const m of list)await store.forward(target.id,m,originalAuthor(m));})().then(()=>setNotice(`Переслано: ${target.peer.displayName}`)).catch(e=>setLocalError(e instanceof Error?e.message:'Не удалось переслать.'));}}/>)}
     </Sheet>
   </View></KeyboardSafeView></GlassTargetScope></VoicePlaybackProvider>;
 }
