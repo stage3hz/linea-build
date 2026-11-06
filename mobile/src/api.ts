@@ -191,7 +191,7 @@ export class Api {
   removeCallRule = (userId: string) => this.request<CallRules>(`/me/call-rules/${encodeURIComponent(userId)}`, {method: 'DELETE'});
   /** outgoing: may I call them; incoming: may they call me. */
   callPermission = (userId: string, direction: 'outgoing' | 'incoming' = 'outgoing') => this.request<{allowed: boolean}>(`/calls/permission/${encodeURIComponent(userId)}${direction === 'incoming' ? '?direction=incoming' : ''}`);
-  profile = (fields: Partial<Pick<User, 'displayName'|'bio'|'avatarColor'|'avatarId'|'avatarVideoId'|'avatarFrame'|'bannerId'|'bannerPreset'|'profileEffect'|'nameplate'>>) => this.request<{user: User}>('/me', {method: 'PATCH', body: JSON.stringify(fields)});
+  profile = (fields: Partial<Pick<User, 'displayName'|'bio'|'birthday'|'avatarColor'|'avatarId'|'avatarVideoId'|'avatarFrame'|'bannerId'|'bannerPreset'|'profileEffect'|'nameplate'>>) => this.request<{user: User}>('/me', {method: 'PATCH', body: JSON.stringify(fields)});
   changeLoginName = (newLogin: string, currentPassword: string, currentConfirmationWord?: string) => this.request<{ok: true; loginName: string}>('/auth/login-name', { method: 'POST', body: JSON.stringify({ newLogin, currentPassword, currentConfirmationWord }) });
   callIce = () => this.request<{iceServers: {urls: string[]; username?: string; credential?: string}[]; ttl: number}>('/calls/ice');
   usernameStatus = () => this.request<UsernameStatus>('/me/username');

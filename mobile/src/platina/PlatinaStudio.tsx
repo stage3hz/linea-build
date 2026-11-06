@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { forwardRef, useImperativeHandle, useState } from 'react';
 import { EffectSwatch, NAMEPLATES, Nameplate, PROFILE_EFFECTS } from './Effects';
 import { Platform, Pressable, ScrollView, View } from 'react-native';
 import * as ImagePicker from 'expo-image-picker';
@@ -22,7 +22,10 @@ const message = (error: unknown, fallback: string) => error instanceof Error ? e
  * Platina decoration editor: animated avatar (short video), frame and banner, with a live
  * preview. Without Platina everything is visible but locked; the server enforces the same.
  */
-export function PlatinaStudio({ api, user, active, onUser }: { api: Api; user: User; active: boolean; onUser: (user: User) => void }) {
+export type PlatinaStudioHandle = { upload: (kind: 'avatar' | 'banner', asset: ImagePicker.ImagePickerAsset) => Promise<void>; preview: (asset: ImagePicker.ImagePickerAsset) => void };
+
+/** `compact`: the profile editor already handles the photo/video of the avatar and banner at its top (Telegram-style), so only the decorations are listed. */
+export const PlatinaStudio = forwardRef<PlatinaStudioHandle, { api: Api; user: User; active: boolean; onUser: (user: User) => void; compact?: boolean }>(function PlatinaStudio({ api, user, active, onUser, compact = false }, ref) {
   const t = useTheme();
   const [busy, setBusy] = useState<string | null>(null); const [error, setError] = useState(''); const [done, setDone] = useState('');
   const apply = async (key: string, change: Parameters<Api['profile']>[0], ok: string) => {
@@ -57,9 +60,12 @@ export function PlatinaStudio({ api, user, active, onUser }: { api: Api; user: U
     setError(''); setDone('');
     try {
       const video = asset.type === 'video';
+      // A GIF stays a GIF (re-encoding to JPEG would freeze it).
+      const gif = !video && (asset.mimeType === 'image/gif' || /\.gif$/i.test(asset.fileName || asset.uri));
       setBusy(kind);
       let uploaded;
       if (video) uploaded = await api.upload({ uri: asset.uri, name: 'profile.mp4', mimeType: asset.mimeType || 'video/mp4', size: asset.fileSize });
+      else if (gif) uploaded = await api.upload({ uri: asset.uri, name: 'banner.gif', mimeType: 'image/gif', size: asset.fileSize });
       else {
         // A banner needs no more than ~1500 px across; this also keeps it under the 4 MB profile limit.
         const small = await ImageManipulator.manipulateAsync(asset.uri, (asset.width || 0) > 1500 ? [{ resize: { width: 1500 } }] : [], { format: ImageManipulator.SaveFormat.JPEG, compress: 0.85 });
@@ -72,18 +78,19 @@ export function PlatinaStudio({ api, user, active, onUser }: { api: Api; user: U
     } catch (failure) { setError(message(failure, 'Не удалось загрузить файл.')); }
     finally { setBusy(null); }
   };
+  useImperativeHandle(ref, () => ({ upload, preview: asset => setPending(asset) }));
   return <View style={{ gap: 16 }}>
     {/* Live preview: exactly the head of your profile (banner, avatar, name, @username). */}
-    <ProfileHero api={api} user={user} />
+    {compact ? null : <ProfileHero api={api} user={user} />}
     {!active ? <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8, padding: 12, borderRadius: 14, backgroundColor: t.accentSoft }}><Icon name="lock-closed" size={15} color={t.accent} /><Text style={{ flex: 1, color: t.text, fontSize: 13, lineHeight: 18 }}>Оформление доступно с Platina.</Text></View> : null}
     {error ? <Notice text={error} error /> : null}{done ? <Notice text={done} /> : null}
 
-    <Section title="Анимированный аватар" hint="Короткое видео до 10 секунд. Играет без звука в профиле и в шапке чата.">
+    {compact ? null : <Section title="Анимированный аватар" hint="Короткое видео до 10 секунд. Играет без звука в профиле и в шапке чата.">
       <View style={{ flexDirection: 'row', gap: 10 }}>
         <View style={{ flex: 1 }}><Button label={user.avatarVideoId ? 'Заменить видео' : 'Выбрать видео'} secondary icon="videocam-outline" loading={busy === 'avatar'} disabled={!active || !!busy} onPress={() => void pick('avatar')} /></View>
         {user.avatarVideoId ? <View style={{ flex: 1 }}><Button label="Убрать" secondary icon="trash-outline" disabled={!active || !!busy} onPress={() => void apply('avatar-off', { avatarVideoId: null }, 'Видео убрано.')} /></View> : null}
       </View>
-    </Section>
+    </Section>}
 
     <Section title="Украшение аватара" hint="Рисованные украшения в стиле коллекций. Видны всем; анимация играет в профиле.">
       <View style={{ gap: 14 }}>
@@ -121,7 +128,7 @@ export function PlatinaStudio({ api, user, active, onUser }: { api: Api; user: U
           <View style={{ width: 84, height: 46, borderRadius: 12, overflow: 'hidden' }}><MusicAmbient width={84} height={46} tone={banner.id as AmbientTone} still /></View>
         </Choice>)}
       </ScrollView>
-      <Button label={user.bannerId ? 'Заменить своё фото или видео' : 'Своё фото или видео'} secondary icon="image-outline" loading={busy === 'banner'} disabled={!active || !!busy} onPress={() => void pick('banner')} />
+      {compact ? null : <Button label={user.bannerId ? 'Заменить своё фото или видео' : 'Своё фото или видео'} secondary icon="image-outline" loading={busy === 'banner'} disabled={!active || !!busy} onPress={() => void pick('banner')} />}
     </Section>
 
     <Section title="Эффект профиля" hint="Играет поверх твоего профиля, когда его открывают.">
@@ -153,7 +160,7 @@ export function PlatinaStudio({ api, user, active, onUser }: { api: Api; user: U
       </View> : null}
     </Sheet>
   </View>;
-}
+});
 
 function Section({ title, hint, children }: { title: string; hint: string; children: React.ReactNode }) {
   const t = useTheme();

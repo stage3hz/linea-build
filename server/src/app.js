@@ -53,6 +53,19 @@ function isEndpointWebSocketOrigin(request, origin) {
   } catch { return false; }
 }
 
+/** «MM-DD» or «YYYY-MM-DD» (1900…this year), a real calendar day; null clears it. */
+export function birthdayValue(value, thisYear) {
+  if (value === null || value === '') return null;
+  if (typeof value !== 'string') fail(400, 'Некорректный день рождения.');
+  const m = /^(?:(\d{4})-)?(\d{2})-(\d{2})$/.exec(value);
+  if (!m) fail(400, 'День рождения: ММ-ДД или ГГГГ-ММ-ДД.');
+  const year = m[1] ? Number(m[1]) : 2000, month = Number(m[2]), day = Number(m[3]);
+  if (m[1] && (year < 1900 || year > thisYear)) fail(400, 'Год рождения указан неверно.');
+  const date = new Date(Date.UTC(year, month - 1, day));
+  if (month < 1 || month > 12 || date.getUTCMonth() !== month - 1 || date.getUTCDate() !== day) fail(400, 'Такого дня нет в календаре.');
+  return value;
+}
+
 /** An independent, ready Fastify instance; tests may inject requests without binding a port. */
 export async function buildApp({
   turn = null,
@@ -428,10 +441,11 @@ export async function buildApp({
   });
 
   app.patch('/me', authOptions, async request => {
-    const body = objectBody(request.body, ['displayName', 'bio', 'avatarColor', 'avatarId', 'avatarVideoId', 'avatarFrame', 'bannerId', 'bannerPreset', 'profileEffect', 'nameplate']);
+    const body = objectBody(request.body, ['displayName', 'bio', 'birthday', 'avatarColor', 'avatarId', 'avatarVideoId', 'avatarFrame', 'bannerId', 'bannerPreset', 'profileEffect', 'nameplate']);
     const current = db.prepare('SELECT * FROM users WHERE id=?').get(request.auth.user_id);
     const displayName = body.displayName === undefined ? current.display_name : publicName(body.displayName, 'Имя', 1, 50);
     const bio = body.bio === undefined ? current.bio : boundedText(body.bio, 'О себе', 0, 160);
+    const birthday = body.birthday === undefined ? current.birthday ?? null : birthdayValue(body.birthday, new Date(now()).getUTCFullYear());
     const avatarColor = body.avatarColor === undefined ? current.avatar_color : body.avatarColor;
     if (typeof avatarColor !== 'string' || !/^#[0-9a-fA-F]{6}$/.test(avatarColor)) fail(400, 'Цвет должен быть в формате #RRGGBB.');
     const avatarId = body.avatarId === undefined ? current.avatar_id : body.avatarId;
@@ -474,8 +488,8 @@ export async function buildApp({
         else fail(400, 'Баннер должен быть фото или видео.');
       }
     }
-    db.prepare('UPDATE users SET display_name=?,bio=?,avatar_color=?,avatar_id=?,avatar_video_id=?,avatar_frame=?,banner_id=?,banner_kind=?,banner_preset=?,profile_effect=?,nameplate=? WHERE id=?')
-      .run(displayName, bio, avatarColor.toUpperCase(), avatarId, avatarVideoId ?? null, avatarFrame ?? null, bannerId ?? null, bannerKind ?? null, bannerPreset ?? null, profileEffect ?? null, nameplate ?? null, current.id);
+    db.prepare('UPDATE users SET display_name=?,bio=?,birthday=?,avatar_color=?,avatar_id=?,avatar_video_id=?,avatar_frame=?,banner_id=?,banner_kind=?,banner_preset=?,profile_effect=?,nameplate=? WHERE id=?')
+      .run(displayName, bio, birthday, avatarColor.toUpperCase(), avatarId, avatarVideoId ?? null, avatarFrame ?? null, bannerId ?? null, bannerKind ?? null, bannerPreset ?? null, profileEffect ?? null, nameplate ?? null, current.id);
     const user = publicUser(db.prepare('SELECT * FROM users WHERE id=?').get(current.id));
     emitUser(current.id, { type: 'profile', user });
     const chats = db.prepare('SELECT chat_id FROM chat_members WHERE user_id=?').all(current.id);

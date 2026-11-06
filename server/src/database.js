@@ -44,6 +44,8 @@ export function openDatabase(dataDir) {
       if (!userColumns.has('username_change_used')) db.exec('ALTER TABLE users ADD COLUMN username_change_used INTEGER NOT NULL DEFAULT 0 CHECK(username_change_used IN (0,1))');
       if (!userColumns.has('status_emoji')) db.exec('ALTER TABLE users ADD COLUMN status_emoji TEXT');
       if (!userColumns.has('last_seen_at')) db.exec('ALTER TABLE users ADD COLUMN last_seen_at TEXT');
+      // Birthday, as in Telegram: «MM-DD» (day and month) or «YYYY-MM-DD» (full date).
+      if (!userColumns.has('birthday')) db.exec('ALTER TABLE users ADD COLUMN birthday TEXT');
       for (const column of ['avatar_video_id', 'avatar_frame', 'banner_id', 'banner_kind', 'banner_preset']) {
         if (!userColumns.has(column)) db.exec(`ALTER TABLE users ADD COLUMN ${column} TEXT`);
       }
@@ -120,6 +122,7 @@ export function publicUser(row, { db, now = Date.now } = {}) {
     username: row.username,
     displayName: row.display_name,
     bio: row.bio,
+    birthday: row.birthday ?? null,
     avatarColor: row.avatar_color,
     avatarId: row.avatar_id,
     createdAt: row.created_at,
