@@ -36,7 +36,7 @@ function mutateProfile(context, request, change) {
     const current = activeUser(db, now, request);
     const changed = change(current);
     const user = changed ? db.prepare('SELECT * FROM users WHERE id=?').get(current.id) : current;
-    return { changed, value: { user: publicUser(user, { db, now }), status: accountState(db, now, user) } };
+    return { changed, value: { user: publicUser(user, { db, now, own: true }), status: accountState(db, now, user) } };
   });
   if (result.changed) broadcastProfile(context, result.value.user);
   return result.value;

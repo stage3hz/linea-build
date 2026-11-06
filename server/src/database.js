@@ -117,15 +117,15 @@ export function transaction(db, work) {
   }
 }
 
-export function publicUser(row, { db, now = Date.now } = {}) {
+/** `own`: the account itself (birthday and gender included; others get them only as friends, see userForViewer). */
+export function publicUser(row, { db, now = Date.now, own = false } = {}) {
   const platina = db ? platinaState(db, row.id, now()) : { active: false, expiresAt: null };
   return {
     id: row.id,
     username: row.username,
     displayName: row.display_name,
     bio: row.bio,
-    birthday: row.birthday ?? null,
-    gender: row.gender === 'male' || row.gender === 'female' ? row.gender : null,
+    ...(own ? personal(row) : {}),
     avatarColor: row.avatar_color,
     avatarId: row.avatar_id,
     createdAt: row.created_at,
@@ -141,9 +141,15 @@ export function privacyOf(db, userId) {
 }
 
 /** A serialized user as another account may see it. The owner always sees everything. */
+const personal = row => ({ birthday: row.birthday ?? null, gender: row.gender === 'male' || row.gender === 'female' ? row.gender : null });
+
 export function userForViewer(db, user, viewerId) {
   if (!user || user.id === viewerId) return user;
-  return privacyOf(db, user.id).showAvatar ? user : { ...user, avatarId: null, avatarVideoId: null, bannerId: null, bannerKind: null };
+  const { birthday: _birthday, gender: _gender, ...rest } = user;
+  const visible = privacyOf(db, user.id).showAvatar ? rest : { ...rest, avatarId: null, avatarVideoId: null, bannerId: null, bannerKind: null };
+  // Birthday and gender (birthday reminders, the festive ring) are shown to friends only.
+  const friend = viewerId && db.prepare('SELECT 1 FROM contacts WHERE owner_id=? AND contact_id=?').get(user.id, viewerId);
+  return friend ? { ...visible, ...personal(db.prepare('SELECT birthday, gender FROM users WHERE id=?').get(user.id) || {}) } : visible;
 }
 
 /** Settings that only Platina may switch off; without an active Platina they count as on. */

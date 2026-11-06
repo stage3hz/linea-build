@@ -50,7 +50,7 @@ export function installAuthRoutes({
     }
   };
   const sessionResponse = (user, deviceName) => ({
-    token: newSession(user.id, deviceName), user: publicUser(user, { db, now }),
+    token: newSession(user.id, deviceName), user: publicUser(user, { db, now, own: true }),
     securitySetupRequired: !user.confirmation_hash || !user.recovery_hash,
   });
   const invalidateCredentials = (user, { password = user.password_hash, confirmation = user.confirmation_hash, recovery = user.recovery_hash }) => {

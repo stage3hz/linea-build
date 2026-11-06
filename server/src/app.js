@@ -145,7 +145,7 @@ export async function buildApp({
 
   const timestamp = () => new Date(now()).toISOString();
   const serializationOptions = { now };
-  const publicUser = row => serializePublicUser(row,{db,now});
+  const publicUser = (row, extra = {}) => serializePublicUser(row,{db,now,...extra});
   const sessionForToken = token => {
     if (!validToken(token)) return null;
     return db.prepare('SELECT token_hash,id,user_id,expires_at,last_active_at FROM sessions WHERE token_hash=? AND expires_at>?')
@@ -437,7 +437,7 @@ export async function buildApp({
 
   app.get('/me', authOptions, async request => {
     const user = db.prepare('SELECT * FROM users WHERE id=?').get(request.auth.user_id);
-    return { user: publicUser(user), securitySetupRequired: !user.confirmation_hash || !user.recovery_hash };
+    return { user: publicUser(user, { own: true }), securitySetupRequired: !user.confirmation_hash || !user.recovery_hash };
   });
 
   app.patch('/me', authOptions, async request => {
@@ -492,7 +492,7 @@ export async function buildApp({
     }
     db.prepare('UPDATE users SET display_name=?,bio=?,birthday=?,gender=?,avatar_color=?,avatar_id=?,avatar_video_id=?,avatar_frame=?,banner_id=?,banner_kind=?,banner_preset=?,profile_effect=?,nameplate=? WHERE id=?')
       .run(displayName, bio, birthday, gender, avatarColor.toUpperCase(), avatarId, avatarVideoId ?? null, avatarFrame ?? null, bannerId ?? null, bannerKind ?? null, bannerPreset ?? null, profileEffect ?? null, nameplate ?? null, current.id);
-    const user = publicUser(db.prepare('SELECT * FROM users WHERE id=?').get(current.id));
+    const user = publicUser(db.prepare('SELECT * FROM users WHERE id=?').get(current.id), { own: true });
     emitUser(current.id, { type: 'profile', user });
     const chats = db.prepare('SELECT chat_id FROM chat_members WHERE user_id=?').all(current.id);
     for (const { chat_id } of chats) {

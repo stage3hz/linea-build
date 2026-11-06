@@ -1,4 +1,4 @@
-// Birthday reminders for the people you chat with (Telegram-like): local notifications on this device —
+// Birthday reminders for your friends (Telegram-like; the server shares birthdays with friends only): local notifications on this device —
 // the day before at 10:00 and 20:00, on the day at 00:00 and 10:00. Tapping one opens that chat with
 // the person's profile. Nothing is sent to the server: birthdays come with the chats you already have.
 import { useEffect, useRef } from 'react';
