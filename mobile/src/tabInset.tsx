@@ -16,19 +16,22 @@ export function TabsOverlay({ tabs, children }: { tabs: React.ReactNode | null; 
   if (!tabs) return <>{children}</>;
   return <View style={{ flex: 1 }}>
     <TabInset.Provider value={height}>{children}</TabInset.Provider>
-    <TabsFade />
+    <TabsFade bar={height} />
     <View pointerEvents="box-none" onLayout={e => { const h = Math.round(e.nativeEvent.layout.height); if (h && Math.abs(h - height) > 1) setHeight(h); }} style={{ position: 'absolute', left: 0, right: 0, bottom: 0 }}>{tabs}</View>
   </View>;
 }
 
-// Telegram: the content stays clear under the floating glass tab bar (the glass itself blurs it) and
-// only fades into the background in the strip below the bar and under the status bar. It used to fade
-// from above the bar, which darkened the bottom rows (reported on iPhone with the edges marked).
-function TabsFade() {
+// Telegram: rows passing behind the floating tab bar soften into the background — a progressive blur
+// (iOS) with a light tint that starts at the bar's top edge and is strongest at the screen bottom. It
+// starts at the bar, not above it: a fade from higher up darkened readable rows (reported earlier),
+// and none at all left the rows sharp and bright behind the bar (reported later).
+function TabsFade({ bar }: { bar: number }) {
   // The overlay sits inside App's SafeAreaView: the status-bar strip is just above it, the home indicator just below.
   const t = useTheme(); const insets = useSafeAreaInsets(); const extra = Platform.OS === 'web' ? 0 : insets.bottom;
   const below = extra ? 22 : 10; // the bar's bottom edge sits ~21 pt above the screen bottom on iPhones with a home indicator
   return <>
+    {Platform.OS === 'ios' ? <ScrollEdgeBlurView pointerEvents="none" edge="bottom" maxBlurRadius={20} falloff={1} style={{ position: 'absolute', left: 0, right: 0, bottom: -extra, height: bar + extra }} /> : null}
+    <LinearGradient pointerEvents="none" colors={[tint(t.bg, 0, t.dark), tint(t.bg, Platform.OS === 'ios' ? .45 : .7, t.dark), tint(t.bg, .9, t.dark)]} locations={[0, .55, 1]} style={{ position: 'absolute', left: 0, right: 0, bottom: -extra, height: bar + extra }} />
     <LinearGradient pointerEvents="none" colors={[tint(t.bg, 0, t.dark), tint(t.bg, .9, t.dark)]} style={{ position: 'absolute', left: 0, right: 0, bottom: -extra, height: below }} />
     {insets.top && Platform.OS === 'ios' ? <ScrollEdgeBlurView pointerEvents="none" edge="top" maxBlurRadius={20} falloff={1} style={{ position: 'absolute', left: 0, right: 0, top: -insets.top, height: insets.top + 10 }} /> : null}
     {insets.top && Platform.OS !== 'web' ? <LinearGradient pointerEvents="none" colors={[tint(t.bg, Platform.OS === 'ios' ? .5 : .75, t.dark), tint(t.bg, 0, t.dark)]} style={{ position: 'absolute', left: 0, right: 0, top: -insets.top, height: insets.top }} /> : null}
