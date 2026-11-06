@@ -16,10 +16,12 @@ test('global user search does not list everyone from a few letters (Telegram-lik
   const find = async q => (await app.inject({ method: 'GET', url: `/users?q=${encodeURIComponent(q)}`, headers: { authorization: `Bearer ${me.token}` } })).json().users.map(user => user.id);
   assert.deepEqual(await find('an'), []);
   assert.deepEqual(await find('nab'), []);
-  assert.deepEqual(await find('anna'), []);
+  assert.deepEqual(await find('anna'), [anna.user.id]);
+  assert.deepEqual(await find('nabe'), []);
   assert.deepEqual(await find('ann'), [ann.user.id]);
   assert.deepEqual(await find('@ANN'), [ann.user.id]);
   assert.deepEqual(await find('annab'), [anna.user.id]);
+  assert.deepEqual(await find('ann'), [ann.user.id]); // a 3-character login is still found when typed in full
   assert.deepEqual(await find('annabelle'), [anna.user.id]);
   assert.deepEqual(await find('анна'), [anna.user.id]);
   assert.deepEqual(await find('@анна'), []);

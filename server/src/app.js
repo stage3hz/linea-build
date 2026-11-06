@@ -513,7 +513,7 @@ export async function buildApp({
   // Global search works like Telegram's: other users are not listed from one or two letters. A login
   // matches exactly; its beginning only from SEARCH_PREFIX_MIN characters; a display name only in full.
   // (People you already chat with are filtered on the device.)
-  const SEARCH_PREFIX_MIN = 5;
+  const SEARCH_PREFIX_MIN = 4;
   app.get('/users', authOptions, async request => {
     const query = boundedText(request.query.q, 'Поиск', 2, 100);
     const usernameOnly=query.startsWith('@');
