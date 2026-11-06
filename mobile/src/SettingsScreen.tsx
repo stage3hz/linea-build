@@ -172,7 +172,7 @@ function Root({ api, user, onBack, onProfile, onSecurity, onMusic, onLogout, ope
     </View>
     <View style={{ paddingHorizontal: 16, paddingTop: 18, gap: 14, width: '100%', maxWidth: 680, alignSelf: 'center' }}>
       {/* With Platina the seal next to the name already says it (tap it for details): no second banner here. */}
-      {active ? null : <PlatinaOffer />}
+      {active || hasPlatina(user) ? null : <PlatinaOffer />}
       {/* Grouped like Telegram: you, how it looks, privacy & data, the PC's sound, help. No duplicates
           (Музыка has its own tab; animations live only under Энергосбережение). */}
       <Group>
