@@ -8,7 +8,7 @@ import Animated, { Easing, cancelAnimation, useAnimatedStyle, useSharedValue, wi
 
 export type CodeFrameId = 'fx-neon' | 'fx-flame' | 'fx-stardust' | 'fx-glitch' | 'fx-aurora' | 'fx-lightning' | 'fx-hearts' | 'fx-orbit';
 export const CODE_FRAMES: { id: CodeFrameId; label: string }[] = [
-  { id: 'fx-neon', label: 'Неон' }, { id: 'fx-flame', label: 'Пламя' }, { id: 'fx-stardust', label: 'Звёздная пыль' },
+  { id: 'fx-neon', label: 'Неон' }, { id: 'fx-flame', label: 'Пламя' }, { id: 'fx-stardust', label: 'Звёзды' },
   { id: 'fx-glitch', label: 'Глитч' }, { id: 'fx-aurora', label: 'Сияние' }, { id: 'fx-lightning', label: 'Молнии' },
   { id: 'fx-hearts', label: 'Сердца' }, { id: 'fx-orbit', label: 'Орбиты' },
 ];

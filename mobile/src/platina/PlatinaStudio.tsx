@@ -162,7 +162,7 @@ function FrameGrid({ api, user, active, busy, onPick }: { api: Api; user: User; 
   const [tab, setTab] = useState<string>(initial);
   const options: { id: string; label: string }[] = tab === 'Анимация' ? CODE_FRAMES : tab === 'Кольца' ? FRAMES.map(frame => ({ id: frame.id, label: frame.label })) : DECORATIONS.filter(item => item.collection === tab).map(item => ({ id: item.id, label: item.label }));
   const cell = width ? Math.floor((width - 2 * 10) / 3) : 0;
-  const tile = (id: string | null, label: string) => { const selected = (current || null) === id; return <Pressable key={id ?? 'none'} accessibilityRole="radio" accessibilityLabel={label} accessibilityState={{ selected, disabled: !active || busy }} disabled={!active || busy} onPress={() => onPick(id, label)}
+  const tile = (id: string | null, label: string) => { const selected = (current || null) === id; return <Pressable key={id ?? 'none'} accessibilityRole="radio" accessibilityLabel={label} accessibilityState={{ checked: selected, disabled: !active || busy }} disabled={!active || busy} onPress={() => onPick(id, label)}
     style={({ pressed }) => ({ width: cell, alignItems: 'center', gap: 6, paddingVertical: 10, borderRadius: 18, backgroundColor: selected ? t.accentSoft : 'transparent', borderWidth: 1.5, borderColor: selected ? t.accent : 'transparent', opacity: !active && !selected ? .55 : 1, transform: [{ scale: pressed ? .94 : 1 }] })}>
     <View style={{ width: 76, height: 76, alignItems: 'center', justifyContent: 'center' }}>
       {id === null ? <View style={{ width: 52, height: 52, borderRadius: 26, borderWidth: 1.5, borderStyle: 'dashed', borderColor: t.subtle }} /> : <DecoratedAvatar user={{ ...user, avatarFrame: id, avatarVideoId: null }} api={api} size={50} round animated={selected} />}
@@ -183,7 +183,7 @@ function FrameGrid({ api, user, active, busy, onPick }: { api: Api; user: User; 
 
 function Choice({ label, selected, disabled, onPress, children }: { label: string; selected: boolean; disabled: boolean; onPress: () => void; children: React.ReactNode }) {
   const t = useTheme();
-  return <Pressable accessibilityRole="radio" accessibilityLabel={label} accessibilityState={{ selected, disabled }} disabled={disabled} onPress={onPress} style={({ pressed }) => ({ alignItems: 'center', gap: 6, opacity: pressed ? .7 : 1 })}>
+  return <Pressable accessibilityRole="radio" accessibilityLabel={label} accessibilityState={{ checked: selected, disabled }} disabled={disabled} onPress={onPress} style={({ pressed }) => ({ alignItems: 'center', gap: 6, opacity: pressed ? .7 : 1 })}>
     <View style={{ padding: 3, borderRadius: 18, borderWidth: 2, borderColor: selected ? t.accent : 'transparent' }}>{children}</View>
     <Text style={{ color: selected ? t.accent : t.muted, fontSize: 11, fontWeight: selected ? '700' : '500' }}>{label}</Text>
   </Pressable>;

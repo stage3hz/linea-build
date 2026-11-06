@@ -28,7 +28,7 @@ export const DECORATIONS: Decoration[] = [
   { id: 'deco-corona', label: 'Корона', collection: 'Пламя', image: require('../../assets/decorations/corona.webp'), scale: 1.5, motion: { glow: '#FFC13B', particles: { color: '#FFE08A', rise: true } } },
   { id: 'deco-moon', label: 'Лунная ночь', collection: 'Ночь', image: require('../../assets/decorations/lavender.webp'), scale: 1.482, motion: { glow: '#B48CFF', particles: { color: '#F0E6FF', rise: false } } },
   { id: 'deco-moths', label: 'Мотыльки', collection: 'Ночь', image: require('../../assets/decorations/moths.webp'), scale: 1.5, motion: { glow: '#C7A8FF', particles: { color: '#FFFFFF', rise: false } } },
-  { id: 'deco-arch', label: 'Небесная арка', collection: 'Ночь', image: require('../../assets/decorations/arch.webp'), scale: 1.335, motion: { sweep: true, particles: { color: '#FFE7A3', rise: false } } },
+  { id: 'deco-arch', label: 'Арка', collection: 'Ночь', image: require('../../assets/decorations/arch.webp'), scale: 1.335, motion: { sweep: true, particles: { color: '#FFE7A3', rise: false } } },
 ];
 
 export const findDecoration = (id?: string | null) => (id ? DECORATIONS.find(item => item.id === id) : undefined);

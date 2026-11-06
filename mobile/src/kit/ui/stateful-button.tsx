@@ -1,5 +1,6 @@
 // From expokit by Karan (anshkaran7), MIT License — see src/kit/LICENSE.
-// Source: https://github.com/Anshkaran7/expokit (commit 14ddb96), copied unchanged except the import path.
+// Source: https://github.com/Anshkaran7/expokit (commit 14ddb96), copied unchanged except the import path
+// and the error tone value (see «INVIZENT change» below).
 import React, { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import {
   AccessibilityInfo,
@@ -318,7 +319,8 @@ export function StatefulButton({
   const bw = variant === 'outline' ? StyleSheet.hairlineWidth * 2 : 0;
 
   // JS driver (layout + colour + SVG) — on the surface, the icon slot and the stroke.
-  const [tone] = useState(() => new Animated.Value(toneIndex));
+  // INVIZENT change: error sits at -1 (not 2) so idle→error never passes through the success colour.
+  const [tone] = useState(() => new Animated.Value(toneIndex === 2 ? -1 : toneIndex));
   const [slot] = useState(() => new Animated.Value(current === 'idle' ? 0 : s.icon + s.gap));
   const [draw] = useState(() => new Animated.Value(1));
   // Native driver — transforms and opacity on their own wrappers.
@@ -365,7 +367,7 @@ export function StatefulButton({
 
     if (still) slot.setValue(slotTo);
     else Animated.spring(slot, { toValue: slotTo, useNativeDriver: false, ...motion.snappy }).start();
-    Animated.timing(tone, { toValue: current === 'success' ? 1 : current === 'error' ? 2 : 0, duration: 220, useNativeDriver: false }).start();
+    Animated.timing(tone, { toValue: current === 'success' ? 1 : current === 'error' ? -1 : 0, duration: 220, useNativeDriver: false }).start();
 
     if (current === 'idle') {
       Animated.timing(pop, { toValue: 0, duration: 140, useNativeDriver: true }).start();
@@ -466,8 +468,8 @@ export function StatefulButton({
                 paddingHorizontal: s.px,
                 borderRadius: corner,
                 borderWidth: bw,
-                borderColor: tone.interpolate({ inputRange: [0, 1, 2], outputRange: [look[0].border, look[1].border, look[2].border] }),
-                backgroundColor: tone.interpolate({ inputRange: [0, 1, 2], outputRange: [look[0].bg, look[1].bg, look[2].bg] }),
+                borderColor: tone.interpolate({ inputRange: [-1, 0, 1], outputRange: [look[2].border, look[0].border, look[1].border] }),
+                backgroundColor: tone.interpolate({ inputRange: [-1, 0, 1], outputRange: [look[2].bg, look[0].bg, look[1].bg] }),
                 opacity: disabled ? 0.5 : 1,
               },
               !block && width ? { width } : null,
