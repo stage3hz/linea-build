@@ -1,13 +1,14 @@
-// Android round-video camera (CameraX persistent recording, see VideoNoteCamera.kt): the camera
-// can be switched while recording. Absent on iOS, web and older builds — the caller falls back.
+// Round-video camera that keeps recording while the camera is switched: Android — CameraX persistent
+// recording (VideoNoteCamera.kt), iPhone — AVCaptureSession + AVAssetWriter (VideoNoteCamera.swift).
+// Absent on web and older builds — the caller falls back to expo-camera.
 import React, { forwardRef } from 'react';
 import { Platform, type ViewStyle, type StyleProp } from 'react-native';
 import { requireNativeViewManager, requireOptionalNativeModule } from 'expo-modules-core';
 
 export type AndroidNoteCameraHandle = { startRecording: (path: string) => Promise<void>; stopRecording: () => Promise<string> };
-type Props = { facing: 'front' | 'back'; style?: StyleProp<ViewStyle>; onReady?: () => void; onCameraError?: (event: { nativeEvent: { message?: string } }) => void };
+type Props = { facing: 'front' | 'back'; torch?: boolean; style?: StyleProp<ViewStyle>; onReady?: () => void; onCameraError?: (event: { nativeEvent: { message?: string } }) => void };
 
-const available = Platform.OS === 'android' && !!requireOptionalNativeModule('LineaVideoNote');
+const available = (Platform.OS === 'android' || Platform.OS === 'ios') && !!requireOptionalNativeModule('LineaVideoNote');
 const NativeView: React.ComponentType<Props & { ref?: React.Ref<AndroidNoteCameraHandle> }> | null = available ? requireNativeViewManager('LineaVideoNote') : null;
 
 export const androidNoteCameraAvailable = !!NativeView;

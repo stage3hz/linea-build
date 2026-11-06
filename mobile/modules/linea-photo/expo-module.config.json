@@ -5,7 +5,8 @@
   ],
   "apple": {
     "modules": [
-      "LinePhotoModule"
+      "LinePhotoModule",
+      "VideoNoteModule"
     ]
   },
   "android": {
