@@ -197,11 +197,11 @@ test('registration, search and login use private sessions and validate input', a
   const profile = await request(app, 'GET', '/me', alice);
   assert.equal(profile.json().user.username, 'alice');
 
-  const search = await request(app, 'GET', '/users?q=al', bob);
+  const search = await request(app, 'GET', '/users?q=alice', bob);
   assert.equal(search.statusCode, 200, search.body);
   assert.deepEqual(search.json().users.map(user => user.id), [alice.user.id]);
   assert.equal(search.json().users[0].passwordHash, undefined);
-  const ownSearch = await request(app, 'GET', '/users?q=al', alice);
+  const ownSearch = await request(app, 'GET', '/users?q=alice', alice);
   assert.equal(ownSearch.json().users.length, 0);
 });
 

@@ -510,13 +510,18 @@ export async function buildApp({
     return privacyResponse(userId);
   });
 
+  // Global search works like Telegram's: other users are not listed from one or two letters. A login
+  // matches exactly; its beginning only from SEARCH_PREFIX_MIN characters; a display name only in full.
+  // (People you already chat with are filtered on the device.)
+  const SEARCH_PREFIX_MIN = 5;
   app.get('/users', authOptions, async request => {
     const query = boundedText(request.query.q, 'Поиск', 2, 100);
     const usernameOnly=query.startsWith('@');
+    const needle=(usernameOnly?query.slice(1):query).toLowerCase();
     // SQLite's built-in LOWER is ASCII-only; the registered function also handles Cyrillic names.
-    const escaped = (usernameOnly?query.slice(1):query).toLowerCase().replace(/[\\%_]/g, '\\$&');
-    const users = db.prepare("SELECT * FROM users WHERE id != ? AND (username LIKE ? ESCAPE '\\' OR (?=0 AND unicode_lower(display_name) LIKE ? ESCAPE '\\')) ORDER BY username LIMIT 30")
-      .all(request.auth.user_id, `%${escaped}%`, usernameOnly?1:0, `%${escaped}%`).map(row => userForViewer(db, publicUser(row), request.auth.user_id));
+    const prefix = needle.length >= SEARCH_PREFIX_MIN ? `${needle.replace(/[\\%_]/g, '\\$&')}%` : null;
+    const users = db.prepare("SELECT * FROM users WHERE id != ? AND (username = ? OR (? IS NOT NULL AND username LIKE ? ESCAPE '\\') OR (?=0 AND unicode_lower(display_name) = ?)) ORDER BY (username = ?) DESC, length(username), username LIMIT 20")
+      .all(request.auth.user_id, needle, prefix, prefix, usernameOnly?1:0, needle, needle).map(row => userForViewer(db, publicUser(row), request.auth.user_id));
     return { users };
   });
 
