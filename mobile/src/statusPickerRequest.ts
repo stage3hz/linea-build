@@ -3,3 +3,8 @@
 let pending = false;
 export const requestStatusPicker = () => { pending = true; };
 export const takeStatusPickerRequest = () => { const was = pending; pending = false; return was; };
+
+// Telegram: «Изм.» on the main Settings screen opens the profile editor directly (not the profile first).
+let editPending = false;
+export const requestProfileEdit = () => { editPending = true; };
+export const takeProfileEditRequest = () => { const was = editPending; editPending = false; return was; };

@@ -83,7 +83,8 @@ export function TabBar({ items, active }: { items: TabItem[]; active: TabId }) {
   const open = (index: number) => {
     const item = shown[index]; if (!item) return;
     const kick = kicks[index];
-    kick.value = withTiming(Math.floor(kick.value) + 1, { duration: item.id === 'profile' ? 520 : 460, easing: Easing.out(Easing.cubic) });
+    // Longer and smoother: the gear turns with a soft overshoot (~0.75 s), the others play over ~0.65 s.
+    kick.value = withTiming(Math.floor(kick.value) + 1, item.id === 'profile' ? { duration: 760, easing: Easing.out(Easing.back(1.7)) } : { duration: 650, easing: Easing.out(Easing.quad) });
     item.onPress();
   };
   // Swipe up on the slot: «Люди» ⇄ «Каналы» (remembered), the icon flips like a slot machine.
@@ -126,7 +127,8 @@ export function TabBar({ items, active }: { items: TabItem[]; active: TabId }) {
         onAccessibilityTap={() => open(index)} style={{ flex: 1, alignItems: 'center', justifyContent: 'center', gap: 4, paddingVertical: 6 }}>
         {slotted && other ? <SlotReel reel={reel} people={item.id === 'people' ? item : other} channels={item.id === 'channels' ? item : other} active={on} kick={kicks[index]} pressed={pressed} index={index} /> : <>
           <TabIcon item={item} active={on} kick={kicks[index]} pressed={pressed} index={index} />
-          <Text numberOfLines={1} maxFontSizeMultiplier={1} style={{ fontSize: 10, letterSpacing: -.1, color: on ? t.accent : t.muted, fontWeight: on ? '700' : '600' }}>{item.label}</Text>
+          {/* The gear has no caption (the user's choice); an invisible one keeps its icon on the same line as the others. */}
+          <Text numberOfLines={1} maxFontSizeMultiplier={1} accessibilityElementsHidden={item.id === 'profile'} style={{ fontSize: 10, letterSpacing: -.1, color: on ? t.accent : t.muted, fontWeight: on ? '700' : '600', opacity: item.id === 'profile' ? 0 : 1 }}>{item.label}</Text>
         </>}
         {/* A small hint that the slot switches: a dot (with the other section's unread count) above it. */}
         {slotted && other ? <View pointerEvents="none" style={{ position: 'absolute', top: 1, width: 14, height: 3, borderRadius: 2, backgroundColor: other.badge ? t.accent : t.muted, opacity: other.badge ? 1 : .35 }} /> : null}

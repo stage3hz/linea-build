@@ -90,8 +90,10 @@ export function DecoratedAvatar({ user, api, size = 54, animated = false, round 
   const frame = birthday ? { id: 'birthday', colors: birthdayColors(user.gender) } : FRAMES.find(item => item.id === (user.avatarFrame || (user.seal === 'platina' ? 'platinum' : '')));
   // On a slow link (EDGE/3G) a looping video avatar would eat the bandwidth messages need.
   const tier = useNetworkTier();
-  const live = animated && enabled && autoload('animatedAvatar', tier);
-  const video = live && user.avatarVideoId ? user.avatarVideoId : null;
+  // Frames and decorations are drawn locally, so they always move when animations are on; only the
+  // video avatar waits for a good enough connection (before, a weak link froze the frames after a moment).
+  const live = animated && enabled;
+  const video = live && autoload('animatedAvatar', tier) && user.avatarVideoId ? user.avatarVideoId : null;
   const decoration = birthday ? undefined : findDecoration(user.avatarFrame);
   const coded = !birthday && isCodeFrame(user.avatarFrame) ? user.avatarFrame : null;
   // Small (list) sizes: the art may reach at most 1.3× the avatar box so it does not cover the

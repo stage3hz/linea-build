@@ -1,5 +1,5 @@
 import { StatusPicker } from './StatusPicker';
-import { takeStatusPickerRequest } from './statusPickerRequest';
+import { takeProfileEditRequest, takeStatusPickerRequest } from './statusPickerRequest';
 import React, { useEffect, useRef, useState } from 'react';
 import { ActivityIndicator, AppState, KeyboardAvoidingView, Platform, Pressable, ScrollView, View } from 'react-native';
 import { Text } from './typography';
@@ -174,7 +174,7 @@ export function ProfileScreen({ api, user, theme, darkTheme, onTheme, onDarkThem
     finally { finish(version); }
   };
   // Telegram: the profile is shown read-only; «Изм.» opens the editor (✕ discards the draft, ✓ saves).
-  const [editing, setEditing] = useState(false);
+  const [editing, setEditing] = useState(takeProfileEditRequest);
   const wantsPicker = useRef(takeStatusPickerRequest());
   const [pickerOpen, setPickerOpen] = useState(false), [pickerY, setPickerY] = useState(260);
   useEffect(() => { if (wantsPicker.current && status) { wantsPicker.current = false; setPickerY(headerHeight + 230); setPickerOpen(true); } }, [status]);

@@ -2,7 +2,7 @@ import React, { useCallback, useEffect, useState } from 'react';
 import { ProfileEffect } from './platina/Effects';
 import { ActivityIndicator, Platform, Pressable, ScrollView, StyleSheet, Switch, View, useWindowDimensions, Linking } from 'react-native';
 import { MONO, Text } from './typography';
-import { requestStatusPicker } from './statusPickerRequest';
+import { requestProfileEdit, requestStatusPicker } from './statusPickerRequest';
 import * as FileSystem from 'expo-file-system/legacy';
 import Constants from 'expo-constants';
 import { Image } from 'expo-image';
@@ -155,7 +155,7 @@ function Root({ api, user, onBack, onProfile, onSecurity, onMusic, onLogout, ope
       <ProfileEffect effect={user.profileEffect} width={width} height={bannerHeight + 140} />
       <View style={{ position: 'absolute', top: insets.top + 6, left: 16, right: 16, flexDirection: 'row', justifyContent: 'space-between' }}>
         <GlassSurface radius={22} shadow={false} interactive contentStyle={{ width: 44, height: 44, alignItems: 'center', justifyContent: 'center' }}><Pressable accessibilityRole="button" accessibilityLabel="Назад" onPress={onBack} hitSlop={6} style={{ width: 44, height: 44, alignItems: 'center', justifyContent: 'center' }}><Icon name="chevron-back" size={22} color={t.text} /></Pressable></GlassSurface>
-        <GlassSurface radius={22} shadow={false} interactive contentStyle={{ height: 44, paddingHorizontal: 16, justifyContent: 'center' }}><Pressable accessibilityRole="button" onPress={onProfile} hitSlop={6}><Text style={{ color: t.text, fontSize: 16, fontWeight: '600' }}>Изм.</Text></Pressable></GlassSurface>
+        <GlassSurface radius={22} shadow={false} interactive contentStyle={{ height: 44, paddingHorizontal: 16, justifyContent: 'center' }}><Pressable accessibilityRole="button" onPress={() => { requestProfileEdit(); onProfile(); }} hitSlop={6}><Text style={{ color: t.text, fontSize: 16, fontWeight: '600' }}>Изм.</Text></Pressable></GlassSurface>
       </View>
     </View>
     {/* Same column as the list below (on a wide PC window the head used to hug the left edge). */}

@@ -26,14 +26,17 @@ const message = (error: unknown, fallback: string) => error instanceof Error ? e
 export type PlatinaStudioHandle = { upload: (kind: 'avatar' | 'banner', asset: ImagePicker.ImagePickerAsset) => Promise<void>; preview: (asset: ImagePicker.ImagePickerAsset) => void };
 
 /** `compact`: the profile editor already handles the photo/video of the avatar and banner at its top (Telegram-style), so only the decorations are listed. */
-export const PlatinaStudio = forwardRef<PlatinaStudioHandle, { api: Api; user: User; active: boolean; onUser: (user: User) => void; compact?: boolean }>(function PlatinaStudio({ api, user, active, onUser, compact = false }, ref) {
+export const PlatinaStudio = forwardRef<PlatinaStudioHandle, { api: Api; user: User; active: boolean; onUser: (user: User) => void; compact?: boolean }>(function PlatinaStudio({ api, user: saved, active, onUser, compact = false }, ref) {
   const t = useTheme();
+  // Optimistic: a choice shows as chosen at once (no dimmed, frozen list while the server answers).
+  const [optimistic, setOptimistic] = useState<Partial<User> | null>(null);
+  const user = optimistic ? { ...saved, ...optimistic } as User : saved;
   const [busy, setBusy] = useState<string | null>(null); const [error, setError] = useState(''); const [done, setDone] = useState('');
   const apply = async (key: string, change: Parameters<Api['profile']>[0], ok: string) => {
-    if (!active || busy) return; setBusy(key); setError(''); setDone('');
+    if (!active || busy) return; setBusy(key); setError(''); setDone(''); setOptimistic(change as Partial<User>);
     try { const result = await api.profile(change); onUser(result.user); setDone(ok); }
     catch (failure) { setError(message(failure, 'Не удалось сохранить оформление.')); }
-    finally { setBusy(null); }
+    finally { setBusy(null); setOptimistic(null); }
   };
   type Picked = ImagePicker.ImagePickerAsset;
   const [pending, setPending] = useState<Picked | null>(null);
@@ -88,34 +91,34 @@ export const PlatinaStudio = forwardRef<PlatinaStudioHandle, { api: Api; user: U
 
     {compact ? null : <Section title="Анимированный аватар" hint="Короткое видео до 10 секунд. Играет без звука в профиле и в шапке чата.">
       <View style={{ flexDirection: 'row', gap: 10 }}>
-        <View style={{ flex: 1 }}><Button label={user.avatarVideoId ? 'Заменить видео' : 'Выбрать видео'} secondary icon="videocam-outline" loading={busy === 'avatar'} disabled={!active || !!busy} onPress={() => void pick('avatar')} /></View>
-        {user.avatarVideoId ? <View style={{ flex: 1 }}><Button label="Убрать" secondary icon="trash-outline" disabled={!active || !!busy} onPress={() => void apply('avatar-off', { avatarVideoId: null }, 'Видео убрано.')} /></View> : null}
+        <View style={{ flex: 1 }}><Button label={user.avatarVideoId ? 'Заменить видео' : 'Выбрать видео'} secondary icon="videocam-outline" loading={busy === 'avatar'} disabled={!active} onPress={() => void pick('avatar')} /></View>
+        {user.avatarVideoId ? <View style={{ flex: 1 }}><Button label="Убрать" secondary icon="trash-outline" disabled={!active} onPress={() => void apply('avatar-off', { avatarVideoId: null }, 'Видео убрано.')} /></View> : null}
       </View>
     </Section>}
 
     {/* One even grid (3 per row), grouped in tabs: frames drawn in code, the painted art, and the rings. */}
     <Section title="Рамки и украшения" hint="Видны всем рядом с твоим фото; анимация играет в профиле и у выбранной.">
-      <FrameGrid api={api} user={user} active={active} busy={!!busy} onPick={(id, label) => void apply('frame', { avatarFrame: id }, id ? `Выбрано: «${label}».` : 'Рамка убрана.')} />
+      <FrameGrid api={api} user={user} active={active} busy={false} onPick={(id, label) => void apply('frame', { avatarFrame: id }, id ? `Выбрано: «${label}».` : 'Рамка убрана.')} />
     </Section>
 
     <Section title="Баннер профиля" hint="Живой фон над аватаром — или своё фото или видео.">
       <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ gap: 10, paddingVertical: 4, paddingHorizontal: 2 }}>
-        <Choice label="Нет" selected={!user.bannerId && !user.bannerPreset} disabled={!active || !!busy} onPress={() => void apply('banner', { bannerId: null, bannerPreset: null }, 'Баннер убран.')}>
+        <Choice label="Нет" selected={!user.bannerId && !user.bannerPreset} disabled={!active} onPress={() => void apply('banner', { bannerId: null, bannerPreset: null }, 'Баннер убран.')}>
           <View style={{ width: 84, height: 46, borderRadius: 12, borderWidth: 1, borderStyle: 'dashed', borderColor: t.subtle }} />
         </Choice>
-        {BANNERS.map(banner => <Choice key={banner.id} label={banner.label} selected={!user.bannerId && user.bannerPreset === banner.id} disabled={!active || !!busy} onPress={() => void apply('banner', { bannerId: null, bannerPreset: banner.id }, `Баннер «${banner.label}».`)}>
+        {BANNERS.map(banner => <Choice key={banner.id} label={banner.label} selected={!user.bannerId && user.bannerPreset === banner.id} disabled={!active} onPress={() => void apply('banner', { bannerId: null, bannerPreset: banner.id }, `Баннер «${banner.label}».`)}>
           <View style={{ width: 84, height: 46, borderRadius: 12, overflow: 'hidden' }}><MusicAmbient width={84} height={46} tone={banner.id as AmbientTone} still /></View>
         </Choice>)}
       </ScrollView>
-      {compact ? null : <Button label={user.bannerId ? 'Заменить своё фото или видео' : 'Своё фото или видео'} secondary icon="image-outline" loading={busy === 'banner'} disabled={!active || !!busy} onPress={() => void pick('banner')} />}
+      {compact ? null : <Button label={user.bannerId ? 'Заменить своё фото или видео' : 'Своё фото или видео'} secondary icon="image-outline" loading={busy === 'banner'} disabled={!active} onPress={() => void pick('banner')} />}
     </Section>
 
     <Section title="Эффект профиля" hint="Играет поверх твоего профиля, когда его открывают.">
       <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ gap: 10, paddingVertical: 4, paddingHorizontal: 2 }}>
-        <Choice label="Нет" selected={!user.profileEffect} disabled={!active || !!busy} onPress={() => void apply('effect', { profileEffect: null }, 'Эффект убран.')}>
+        <Choice label="Нет" selected={!user.profileEffect} disabled={!active} onPress={() => void apply('effect', { profileEffect: null }, 'Эффект убран.')}>
           <View style={{ width: 56, height: 56, borderRadius: 16, borderWidth: 1, borderStyle: 'dashed', borderColor: t.subtle }} />
         </Choice>
-        {PROFILE_EFFECTS.map(effect => <Choice key={effect.id} label={effect.label} selected={user.profileEffect === effect.id} disabled={!active || !!busy} onPress={() => void apply('effect', { profileEffect: effect.id }, `Эффект «${effect.label}».`)}>
+        {PROFILE_EFFECTS.map(effect => <Choice key={effect.id} label={effect.label} selected={user.profileEffect === effect.id} disabled={!active} onPress={() => void apply('effect', { profileEffect: effect.id }, `Эффект «${effect.label}».`)}>
           <EffectSwatch effect={effect.id} />
         </Choice>)}
       </ScrollView>
@@ -123,10 +126,10 @@ export const PlatinaStudio = forwardRef<PlatinaStudioHandle, { api: Api; user: U
 
     <Section title="Табличка" hint="Фон за твоим именем в списке чатов и участников серверов.">
       <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ gap: 10, paddingVertical: 4, paddingHorizontal: 2 }}>
-        <Choice label="Нет" selected={!user.nameplate} disabled={!active || !!busy} onPress={() => void apply('plate', { nameplate: null }, 'Табличка убрана.')}>
+        <Choice label="Нет" selected={!user.nameplate} disabled={!active} onPress={() => void apply('plate', { nameplate: null }, 'Табличка убрана.')}>
           <View style={{ width: 120, height: 40, borderRadius: 12, borderWidth: 1, borderStyle: 'dashed', borderColor: t.subtle }} />
         </Choice>
-        {NAMEPLATES.map(plate => <Choice key={plate.id} label={plate.label} selected={user.nameplate === plate.id} disabled={!active || !!busy} onPress={() => void apply('plate', { nameplate: plate.id }, `Табличка «${plate.label}».`)}>
+        {NAMEPLATES.map(plate => <Choice key={plate.id} label={plate.label} selected={user.nameplate === plate.id} disabled={!active} onPress={() => void apply('plate', { nameplate: plate.id }, `Табличка «${plate.label}».`)}>
           <View style={{ width: 120, height: 40, borderRadius: 12, overflow: 'hidden', backgroundColor: t.surface2, justifyContent: 'center', paddingLeft: 10 }}><Nameplate plate={plate.id} radius={12} /><Text numberOfLines={1} style={{ color: t.text, fontSize: 13, fontWeight: '600' }}>{user.displayName}</Text></View>
         </Choice>)}
       </ScrollView>
@@ -180,7 +183,7 @@ function FrameGrid({ api, user, active, busy, onPick }: { api: Api; user: User; 
 
 function Choice({ label, selected, disabled, onPress, children }: { label: string; selected: boolean; disabled: boolean; onPress: () => void; children: React.ReactNode }) {
   const t = useTheme();
-  return <Pressable accessibilityRole="radio" accessibilityLabel={label} accessibilityState={{ selected, disabled }} disabled={disabled} onPress={onPress} style={({ pressed }) => ({ alignItems: 'center', gap: 6, opacity: disabled && !selected ? .55 : pressed ? .7 : 1 })}>
+  return <Pressable accessibilityRole="radio" accessibilityLabel={label} accessibilityState={{ selected, disabled }} disabled={disabled} onPress={onPress} style={({ pressed }) => ({ alignItems: 'center', gap: 6, opacity: pressed ? .7 : 1 })}>
     <View style={{ padding: 3, borderRadius: 18, borderWidth: 2, borderColor: selected ? t.accent : 'transparent' }}>{children}</View>
     <Text style={{ color: selected ? t.accent : t.muted, fontSize: 11, fontWeight: selected ? '700' : '500' }}>{label}</Text>
   </Pressable>;
