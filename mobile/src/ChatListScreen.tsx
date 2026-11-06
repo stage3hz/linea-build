@@ -1,3 +1,4 @@
+import { TabBar } from './TabBar';
 import { badgeText, useUnreadTotal } from './unreadBadge';
 import { inviteCodeFrom, withoutInviteLink } from './communities/types';
 import React, { useEffect, useMemo, useRef, useState } from 'react';
@@ -12,7 +13,7 @@ import { Text, TextInput } from './typography';
 import { MiniPlayer } from './music/PlayerControls';
 import { ChatListSkeleton } from './effects';
 import { FloatingHeader, isWideLayout, useBleed } from './tabInset';
-import { Avatar, Button, Empty, Icon, IconButton, Notice, Sheet, SheetAction } from './components';
+import { Avatar, Bouncy, Button, Empty, Icon, IconButton, Notice, Sheet, SheetAction } from './components';
 import { GlassSurface } from './glass';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { StatusEmoji } from './StatusEmoji';
@@ -67,10 +68,10 @@ export function ChatListScreen({api,user,store,onProfile,onNewChat,onMusic,onAI,
   const header=<>
     {/* Telegram header: «Изм.» · title with connection state · AI and «new chat» buttons. */}
     <View style={{flexDirection:'row',alignItems:'center',gap:8,paddingHorizontal:16,paddingTop:6,paddingBottom:10}}>
-      <GlassSurface material="regular" radius={22} interactive contentStyle={{height:44,paddingHorizontal:16,justifyContent:'center'}}><Pressable onPress={()=>{lightFeedback();setEditing(current=>current?null:new Set());}} accessibilityRole="button" hitSlop={6}><Text style={{color:t.text,fontSize:16,fontWeight:'600'}}>{editing?'Готово':'Изм.'}</Text></Pressable></GlassSurface>
+      <Bouncy scaleTo={.88} onPress={()=>{lightFeedback();setEditing(current=>current?null:new Set());}} accessibilityRole="button" hitSlop={6}><GlassSurface material="regular" radius={22} interactive contentStyle={{height:44,paddingHorizontal:16,justifyContent:'center'}}><Text style={{color:t.text,fontSize:16,fontWeight:'600'}}>{editing?'Готово':'Изм.'}</Text></GlassSurface></Bouncy>
       <View style={{flex:1,alignItems:'center'}}>{store.connection==='connected'?<Text style={{color:t.text,fontSize:17,fontWeight:'700'}}>Чаты</Text>:mesh?<View accessibilityLabel="Связь через Mesh, без интернета" style={{flexDirection:'row',alignItems:'center',gap:6}}><Icon name="bluetooth" size={16} color={t.accent}/><Text style={{color:t.text,fontSize:17,fontWeight:'700'}}>Mesh</Text></View>:<View style={{flexDirection:'row',alignItems:'center',gap:6}}><ActivityIndicator size="small" color={t.muted}/><Text style={{color:t.text,fontSize:15,fontWeight:'600'}}>{store.connection==='connecting'?'Соединение…':'Ожидание сети…'}</Text></View>}</View>
-      <GlassSurface material="regular" radius={22} interactive contentStyle={{width:44,height:44,alignItems:'center',justifyContent:'center'}}><Pressable onPress={onQuickAI} accessibilityRole="button" accessibilityLabel="Быстрый вопрос AI" hitSlop={6}><Icon name="sparkles-outline" size={20} color={t.text}/></Pressable></GlassSurface>
-      <Pressable onPress={onNewChat} accessibilityRole="button" accessibilityLabel="Новый чат" hitSlop={6} style={({pressed})=>({width:44,height:44,borderRadius:22,backgroundColor:t.accent,alignItems:'center',justifyContent:'center',opacity:pressed?.8:1})}><Icon name="create-outline" size={20} color={t.onAccent}/></Pressable>
+      <Bouncy scaleTo={.84} onPress={onQuickAI} accessibilityRole="button" accessibilityLabel="Быстрый вопрос AI" hitSlop={6}><GlassSurface material="regular" radius={22} interactive contentStyle={{width:44,height:44,alignItems:'center',justifyContent:'center'}}><Icon name="sparkles-outline" size={20} color={t.text}/></GlassSurface></Bouncy>
+      <Bouncy scaleTo={.84} onPress={onNewChat} accessibilityRole="button" accessibilityLabel="Новый чат" hitSlop={6} style={{width:44,height:44,borderRadius:22,backgroundColor:t.accent,alignItems:'center',justifyContent:'center'}}><Icon name="create-outline" size={20} color={t.onAccent}/></Bouncy>
     </View>
     <GlassSurface lens material="regular" radius={22} shadow={false} style={{marginHorizontal:16,marginBottom:10}} contentStyle={{flexDirection:'row',alignItems:'center',gap:8,paddingHorizontal:14,minHeight:44}}>
       <Pressable onPress={()=>{lightFeedback();setSearching(true);}} accessibilityRole="search" accessibilityLabel="Поиск" style={{flex:1,flexDirection:'row',alignItems:'center',gap:8,minHeight:44}}><Icon name="search-outline" color={t.muted} size={19}/><Text style={{flex:1,fontSize:17,color:t.muted}}>Поиск</Text></Pressable>
@@ -111,8 +112,18 @@ export function MessengerTabs({onProfile,onNewChat,onMusic,onAI,onChats,activeTa
   const t=useTheme();const insets=useSafeAreaInsets();const tabBadges:Record<string,number>=useTabBadges(useUnreadTotal());
   const narrow=useWindowDimensions().width<350; // e.g. 320 pt phones, a folded Galaxy Fold cover screen
   // The music screen shows its own player above the same tab bar; everywhere else it sits here, above the tabs.
-  return <><VoiceBar onOpen={communityId=>navigate({to:'channels',communityId})}/>{activeTab!=='music'?<MiniPlayer onOpen={onMusic}/>:null}<GlassSurface lens material="regular" radius={30} style={{marginHorizontal:narrow?8:12,marginBottom:Platform.OS==='ios'&&insets.bottom?21-insets.bottom:10,marginTop:5}} contentStyle={{minHeight:60,flexDirection:'row',alignItems:'center',paddingHorizontal:narrow?4:8,paddingVertical:5}}>
-    {([{id:'ai',label:'AI',icon:'sparkles-outline',onPress:onAI},{id:'people',label:'Люди',icon:'people-outline',onPress:onNewChat},{id:'channels',label:'Каналы',icon:'planet-outline',onPress:()=>navigate({to:'channels'})},{id:'chats',label:'Чаты',icon:'chatbubbles-outline',onPress:onChats},{id:'music',label:'Музыка',icon:'headset-outline',onPress:onMusic},{id:'profile',label:'Настройки',icon:'settings-outline',onPress:onProfile}] as const).map(item=><Pressable key={item.id} onPress={item.onPress} accessibilityRole="tab" accessibilityLabel={tabBadges[item.id]?`${item.label}, ${badgeWord[item.id]}: ${tabBadges[item.id]}`:item.label} accessibilityState={{selected:activeTab===item.id}} style={({pressed})=>({flex:1,alignItems:'center',opacity:pressed?.6:1})}><View style={{alignSelf:'stretch',marginHorizontal:0,gap:5,alignItems:'center',justifyContent:'center',paddingVertical:6,paddingHorizontal:0,borderRadius:22,backgroundColor:activeTab===item.id?t.accentSoft:'transparent',borderWidth:1,borderColor:activeTab===item.id?t.glassBorder:'transparent'}}><View><Icon name={item.icon} color={activeTab===item.id?t.accent:t.muted} size={21}/>{tabBadges[item.id]?<View accessibilityElementsHidden importantForAccessibility="no" style={{position:'absolute',top:-6,left:13,minWidth:18,height:18,paddingHorizontal:5,borderRadius:9,borderWidth:2,borderColor:t.dark?'#15171D':'#FFF',backgroundColor:t.accent,alignItems:'center',justifyContent:'center'}}><Text style={{color:t.onAccent,fontSize:10,fontWeight:'800'}}>{badgeText(tabBadges[item.id])}</Text></View>:null}</View>{/* One size for every label, every tab labelled (Telegram: «Настройки» too). */}<Text numberOfLines={1} maxFontSizeMultiplier={1} adjustsFontSizeToFit minimumFontScale={0.9} style={{alignSelf:'stretch',textAlign:'center',fontSize:narrow?9:10,letterSpacing:-.25,color:activeTab===item.id?t.accent:t.muted,fontWeight:activeTab===item.id?'700':'600'}}>{item.label}</Text></View></Pressable>)}
+  return <><VoiceBar onOpen={communityId=>navigate({to:'channels',communityId})}/>{activeTab!=='music'?<MiniPlayer onOpen={onMusic}/>:null}<GlassSurface lens material="regular" radius={30} style={{marginHorizontal:narrow?8:12,marginBottom:Platform.OS==='ios'&&insets.bottom?21-insets.bottom:10,marginTop:5}} contentStyle={{paddingHorizontal:narrow?4:6,paddingVertical:3}}>
+    {/* «Люди» and «Каналы» live in one «Обзор» folder (they pop up above it); five tabs, each with its own tap animation. */}
+    <TabBar active={activeTab==='people'||activeTab==='channels'?'explore':activeTab==='profile'?'profile':activeTab==='music'?'music':activeTab==='ai'?'ai':'chats'} items={[
+      {id:'ai',label:'AI',icon:'sparkles-outline',activeIcon:'sparkles',badge:0,onPress:onAI},
+      {id:'explore',label:'Обзор',icon:'compass-outline',activeIcon:'compass',badge:(tabBadges.people||0)+(tabBadges.channels||0),children:[
+        {id:'people',label:'Люди',icon:'people-outline',badge:tabBadges.people||0,onPress:onNewChat},
+        {id:'channels',label:'Каналы',icon:'planet-outline',badge:tabBadges.channels||0,onPress:()=>navigate({to:'channels'})},
+      ]},
+      {id:'chats',label:'Чаты',icon:'chatbubbles-outline',activeIcon:'chatbubbles',badge:tabBadges.chats||0,onPress:onChats},
+      {id:'music',label:'Музыка',icon:'headset-outline',activeIcon:'headset',badge:0,onPress:onMusic},
+      {id:'profile',label:'Настройки',icon:'settings-outline',activeIcon:'settings',badge:0,onPress:onProfile},
+    ]}/>
   </GlassSurface></>;
 }
 

@@ -14,7 +14,7 @@ import Animated, { Easing, interpolate, runOnJS, useAnimatedScrollHandler, useAn
 import { ProfileMediaViewer, profileMedia } from './ProfileMediaViewer';
 import * as Clipboard from 'expo-clipboard';
 import { Text } from './typography';
-import { Avatar, Button, Icon, InsetView, IconButton, Notice, Sheet, SheetAction, type IconName } from './components';
+import { Avatar, Bouncy, Button, Icon, InsetView, IconButton, Notice, Sheet, SheetAction, type IconName } from './components';
 import { ContextMenu, MenuItem } from './ContextMenu';
 import { GlassStage, GlassSurface } from './glass';
 import { useTheme } from './theme';
@@ -153,7 +153,7 @@ export function UserProfile({ api, user, onClose, chat, onMessage, onMute, onSea
           {birthdayToday ? <View style={{ paddingHorizontal: 12, paddingVertical: 5, borderRadius: 14, backgroundColor: tinted ? 'rgba(255,255,255,0.22)' : t.accentSoft }}><Text style={{ color: tinted ? '#FFF' : t.text, fontSize: 13, fontWeight: '700' }}>🎉 Сегодня день рождения</Text></View> : null}
         </View>
         <View style={{ flexDirection: 'row', gap: 10, alignSelf: 'stretch', justifyContent: 'center' }}>
-          {actions.map(action => <Pressable key={action.label} accessibilityRole="button" onPress={e => action.onPress(e)} disabled={action.loading || busy} style={({ pressed }) => ({ flex: 1, maxWidth: 120, opacity: pressed ? .7 : 1 })}>
+          {actions.map(action => <Bouncy key={action.label} scaleTo={.9} accessibilityRole="button" onPress={e => action.onPress(e)} disabled={action.loading || busy} style={{ flex: 1, maxWidth: 120 }}>
             {tinted ? <View style={{ alignItems: 'center', gap: 6, paddingVertical: 12, borderRadius: 18, backgroundColor: 'rgba(0,0,0,0.18)' }}>
               {action.loading ? <ActivityIndicator size="small" color="#FFF" /> : <Icon name={action.icon} size={22} color="#FFF" />}
               <Text style={{ color: '#FFF', fontSize: 12, fontWeight: '600' }}>{action.label.toLowerCase()}</Text>
@@ -161,7 +161,7 @@ export function UserProfile({ api, user, onClose, chat, onMessage, onMute, onSea
               {action.loading ? <ActivityIndicator size="small" color={t.accent} /> : <Icon name={action.icon} size={22} color={action.active ? t.accent : t.text} />}
               <Text style={{ color: action.active ? t.accent : t.text, fontSize: 12, fontWeight: '600' }}>{action.label}</Text>
             </GlassSurface>}
-          </Pressable>)}
+          </Bouncy>)}
         </View>
         </View>
         {notice ? <Text style={{ color: t.accent, fontSize: 13 }}>{notice}</Text> : null}

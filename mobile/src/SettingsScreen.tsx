@@ -22,7 +22,7 @@ import { clearPhotoCache } from './photo/pipeline';
 import { clearVideoCache } from './media/pipeline';
 import type { Chat, DarkTheme, ThemeMode, User } from './types';
 import { FolderEditor, useChatFolders, type ChatFolder } from './ChatFolders';
-import Animated, { useAnimatedScrollHandler, useAnimatedStyle, useSharedValue } from 'react-native-reanimated';
+import Animated, { useAnimatedScrollHandler, useAnimatedStyle, useSharedValue, withSpring } from 'react-native-reanimated';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { StackBase, StackScreen } from './stack';
 import { currentEndpoint } from './servers/pool';
@@ -112,8 +112,10 @@ function Group({ children, label }: { children: React.ReactNode; label?: string 
 
 function Item({ icon, color, label, value, onPress, danger = false }: { icon: IconName; color: string; label: string; value?: string; onPress: () => void; danger?: boolean }) {
   const t = useTheme();
-  return <Pressable accessibilityRole="button" onPress={onPress} style={({ pressed }) => ({ flexDirection: 'row', alignItems: 'center', gap: 13, minHeight: 48, paddingHorizontal: 14, backgroundColor: pressed ? 'rgba(127,127,127,0.12)' : 'transparent' })}>
-    <View style={{ width: 30, height: 30, borderRadius: 8, backgroundColor: color, alignItems: 'center', justifyContent: 'center' }}><Icon name={icon} size={17} color="#FFF" /></View>
+  const iconScale = useSharedValue(1); const iconStyle = useAnimatedStyle(() => ({ transform: [{ scale: iconScale.value }] }));
+  return <Pressable accessibilityRole="button" onPress={onPress} onPressIn={() => { iconScale.value = withSpring(.82, { damping: 14, stiffness: 420 }); }} onPressOut={() => { iconScale.value = withSpring(1, { damping: 9, stiffness: 260 }); }} style={({ pressed }) => ({ flexDirection: 'row', alignItems: 'center', gap: 13, minHeight: 48, paddingHorizontal: 14, backgroundColor: pressed ? 'rgba(127,127,127,0.12)' : 'transparent' })}>
+    {/* Telegram: the coloured icon squishes under the finger and springs back. */}
+    <Animated.View style={[{ width: 30, height: 30, borderRadius: 8, backgroundColor: color, alignItems: 'center', justifyContent: 'center' }, iconStyle]}><Icon name={icon} size={17} color="#FFF" /></Animated.View>
     <Text style={{ flex: 1, color: danger ? t.danger : t.text, fontSize: 15 }}>{label}</Text>
     {value ? <Text style={{ color: t.muted, fontSize: 13 }}>{value}</Text> : null}
     {!danger ? <Icon name="chevron-forward" size={17} color={t.subtle} /> : null}

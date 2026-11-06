@@ -2,6 +2,7 @@ import React, { useEffect, useMemo, useState } from 'react';
 import { Image as CachedImage } from 'expo-image';
 import { ActivityIndicator, Image, KeyboardAvoidingView, Modal, Platform, Pressable, ScrollView, StyleSheet, View, type ImageStyle, type StyleProp, type TextInputProps, type ViewStyle } from 'react-native';
 import { Text, TextInput } from './typography';
+import Animated, { useAnimatedStyle, useSharedValue, withSpring } from 'react-native-reanimated';
 import { Ionicons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
 import Svg, { Path } from 'react-native-svg';
@@ -31,22 +32,33 @@ function BackChevron({size,color}:{size:number;color:string}) {
   </Svg>;
 }
 
+/**
+ * Pressable that presses in on touch and springs back, like Telegram's buttons (not an instant jump).
+ * `scaleTo`: how far it presses in.
+ */
+export function Bouncy({scaleTo=.9,style,children,onPressIn,onPressOut,...props}:React.ComponentProps<typeof Pressable>&{scaleTo?:number;style?:StyleProp<ViewStyle>;children?:React.ReactNode}) {
+  const scale=useSharedValue(1);
+  const animated=useAnimatedStyle(()=>({transform:[{scale:scale.value}]}));
+  return <AnimatedPressable {...props} onPressIn={e=>{scale.value=withSpring(scaleTo,{damping:15,stiffness:420,mass:.6});onPressIn?.(e);}} onPressOut={e=>{scale.value=withSpring(1,{damping:11,stiffness:300,mass:.6});onPressOut?.(e);}} style={[style,animated]}>{children}</AnimatedPressable>;
+}
+const AnimatedPressable=Animated.createAnimatedComponent(Pressable);
+
 export function IconButton({name,onPress,label,color,disabled=false,size=23,style}:{name:IconName;onPress:()=>void;label:string;color?:string;disabled?:boolean;size?:number;style?:StyleProp<ViewStyle>}) {
   const t=useTheme();const flattened=StyleSheet.flatten(style);const radius=typeof flattened?.borderRadius==='number'?flattened.borderRadius:22;
-  return <Pressable accessibilityRole="button" accessibilityLabel={label} accessibilityState={{disabled}} disabled={disabled} onPress={onPress} hitSlop={3} style={({pressed})=>[{width:44,height:44,minWidth:44,minHeight:44,borderRadius:radius,opacity:disabled?.45:1,transform:[{scale:pressed?.95:1}]},style]}>
+  return <Bouncy scaleTo={.86} accessibilityRole="button" accessibilityLabel={label} accessibilityState={{disabled}} disabled={disabled} onPress={onPress} hitSlop={3} style={[{width:44,height:44,minWidth:44,minHeight:44,borderRadius:radius,opacity:disabled?.45:1},style]}>
     <GlassSurface radius={radius} material="clear" interactive shadow={false} style={{width:'100%',height:'100%'}} contentStyle={{flex:1,alignItems:'center',justifyContent:'center'}}><Icon name={name} size={size} color={color||t.text}/></GlassSurface>
-  </Pressable>;
+  </Bouncy>;
 }
 
 export function Button({label,onPress,loading=false,disabled=false,secondary=false,icon,danger=false}:{label:string;onPress:()=>void;loading?:boolean;disabled?:boolean;secondary?:boolean;icon?:IconName;danger?:boolean}) {
   const t=useTheme();const fg=danger?t.danger:secondary?t.text:t.onAccent;
-  return <Pressable accessibilityRole="button" accessibilityLabel={label} accessibilityState={{disabled:disabled||loading,busy:loading}} disabled={disabled||loading} onPress={onPress} style={({pressed})=>({height:54,alignSelf:'stretch',borderRadius:21,opacity:disabled?.45:1,transform:[{scale:pressed?.985:1}]})}>
+  return <Bouncy scaleTo={.96} accessibilityRole="button" accessibilityLabel={label} accessibilityState={{disabled:disabled||loading,busy:loading}} disabled={disabled||loading} onPress={onPress} style={{height:54,alignSelf:'stretch',borderRadius:21,opacity:disabled?.45:1}}>
     {/* Fixed height: in a centred column the native iOS glass view otherwise grew into a tall empty box. */}
     <GlassSurface radius={21} material={secondary||danger?'regular':'clear'} interactive shadow={!secondary} style={{height:54}} contentStyle={{minHeight:54,paddingHorizontal:21,flexDirection:'row',gap:10,alignItems:'center',justifyContent:'center'}}>
       {!secondary&&!danger?<View pointerEvents="none" style={[StyleSheet.absoluteFill,{borderRadius:21,overflow:'hidden'}]}><LinearGradient colors={t.accentGradient} start={{x:0,y:0}} end={{x:.9,y:1}} style={[StyleSheet.absoluteFill,{opacity:.96}]}/><LinearGradient colors={['rgba(255,255,255,0.22)','transparent']} start={{x:0,y:0}} end={{x:.4,y:.65}} style={StyleSheet.absoluteFill}/><View style={[StyleSheet.absoluteFill,{borderRadius:21,borderWidth:1,borderColor:t.dark?'rgba(235,245,255,0.58)':'rgba(255,255,255,0.35)'}]}/></View>:danger?<View pointerEvents="none" style={[StyleSheet.absoluteFill,{borderRadius:21,backgroundColor:t.dangerBg}]}/>:null}
       {loading?<ActivityIndicator color={fg}/>:icon?<Icon name={icon} size={20} color={fg}/>:null}<Text style={{color:fg,fontSize:16,fontWeight:'700',letterSpacing:-.15}}>{label}</Text>
     </GlassSurface>
-  </Pressable>;
+  </Bouncy>;
 }
 
 export function useSuccessFlash(ms=1600):[boolean,()=>void]{
