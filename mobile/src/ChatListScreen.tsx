@@ -113,13 +113,11 @@ export function MessengerTabs({onProfile,onNewChat,onMusic,onAI,onChats,activeTa
   const narrow=useWindowDimensions().width<350; // e.g. 320 pt phones, a folded Galaxy Fold cover screen
   // The music screen shows its own player above the same tab bar; everywhere else it sits here, above the tabs.
   return <><VoiceBar onOpen={communityId=>navigate({to:'channels',communityId})}/>{activeTab!=='music'?<MiniPlayer onOpen={onMusic}/>:null}<GlassSurface lens material="regular" radius={30} style={{marginHorizontal:narrow?8:12,marginBottom:Platform.OS==='ios'&&insets.bottom?21-insets.bottom:10,marginTop:5}} contentStyle={{paddingHorizontal:narrow?4:6,paddingVertical:3}}>
-    {/* «Люди» and «Каналы» live in one «Обзор» folder (they pop up above it); five tabs, each with its own tap animation. */}
-    <TabBar active={activeTab==='people'||activeTab==='channels'?'explore':activeTab==='profile'?'profile':activeTab==='music'?'music':activeTab==='ai'?'ai':'chats'} items={[
+    {/* «Люди» and «Каналы» share one slot (swipe up on it to switch, remembered); five tabs, each with its own tap animation. */}
+    <TabBar active={activeTab==='people'?'people':activeTab==='channels'?'channels':activeTab==='profile'?'profile':activeTab==='music'?'music':activeTab==='ai'?'ai':'chats'} items={[
       {id:'ai',label:'AI',icon:'sparkles-outline',activeIcon:'sparkles',badge:0,onPress:onAI},
-      {id:'explore',label:'Обзор',icon:'compass-outline',activeIcon:'compass',badge:(tabBadges.people||0)+(tabBadges.channels||0),children:[
-        {id:'people',label:'Люди',icon:'people-outline',badge:tabBadges.people||0,onPress:onNewChat},
-        {id:'channels',label:'Каналы',icon:'planet-outline',badge:tabBadges.channels||0,onPress:()=>navigate({to:'channels'})},
-      ]},
+      {id:'people',label:'Люди',icon:'people-outline',activeIcon:'people',badge:tabBadges.people||0,onPress:onNewChat},
+      {id:'channels',label:'Каналы',icon:'planet-outline',activeIcon:'planet',badge:tabBadges.channels||0,onPress:()=>navigate({to:'channels'})},
       {id:'chats',label:'Чаты',icon:'chatbubbles-outline',activeIcon:'chatbubbles',badge:tabBadges.chats||0,onPress:onChats},
       {id:'music',label:'Музыка',icon:'headset-outline',activeIcon:'headset',badge:0,onPress:onMusic},
       {id:'profile',label:'Настройки',icon:'settings-outline',activeIcon:'settings',badge:0,onPress:onProfile},

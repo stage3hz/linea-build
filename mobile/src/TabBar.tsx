@@ -1,36 +1,47 @@
 // The phone tab bar, Telegram-style:
 // • every tab has its own little icon animation on tap (the gear turns, the chat bubble bounces, the
 //   sparkles twinkle…) and the tab presses in under the finger;
-// • the selection is a pill that slides between tabs; hold the bar and drag to move the pill across the
-//   tabs, let go to open the one under it;
-// • «Обзор» is a folder: «Люди» and «Каналы» fan out of it as round buttons.
-import React, { useRef, useState } from 'react';
-import { Modal, Pressable, StyleSheet, View } from 'react-native';
+// • the selection is a pill; put a finger on the bar and slide (no need to lift or wait) — it becomes a
+//   larger lens that follows the finger, letting go opens the tab under it;
+// • one slot holds «Люди» or «Каналы»: swipe up on it to switch; the choice is remembered and stays
+//   in the bar until switched back. (Tablets and PC show both in their rail.)
+import React, { useEffect, useState, useSyncExternalStore } from 'react';
+import { View } from 'react-native';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import { Gesture, GestureDetector } from 'react-native-gesture-handler';
-import Animated, { Easing, runOnJS, useAnimatedStyle, useSharedValue, withDelay, withSpring, withTiming, type SharedValue } from 'react-native-reanimated';
+import Animated, { Easing, runOnJS, useAnimatedStyle, useSharedValue, withSequence, withSpring, withTiming, type SharedValue } from 'react-native-reanimated';
 import { Text } from './typography';
 import { Icon, type IconName } from './components';
 import { useTheme } from './theme';
-import { lightFeedback, tapFeedback } from './haptics';
+import { impactFeedback, lightFeedback, tapFeedback } from './haptics';
 import { badgeText } from './unreadBadge';
 
-export type TabId = 'ai' | 'explore' | 'chats' | 'music' | 'profile';
-export type TabChild = { id: 'people' | 'channels'; label: string; icon: IconName; badge: number; onPress: () => void };
-export type TabItem = { id: TabId; label: string; icon: IconName; activeIcon: IconName; badge: number; onPress?: () => void; children?: TabChild[] };
+export type TabId = 'ai' | 'people' | 'channels' | 'chats' | 'music' | 'profile';
+export type TabItem = { id: TabId; label: string; icon: IconName; activeIcon: IconName; badge: number; onPress: () => void };
 
-const SPRING = { damping: 18, stiffness: 260, mass: 0.8 };
+// Which of «Люди» / «Каналы» the slot shows: remembered on this device.
+const SLOT_KEY = 'linea.tabs.slot';
+let slot: 'people' | 'channels' = 'people';
+const listeners = new Set<() => void>();
+void AsyncStorage.getItem(SLOT_KEY).then(value => { if (value === 'channels') { slot = 'channels'; listeners.forEach(l => l()); } }).catch(() => {});
+function setSlot(next: 'people' | 'channels') { slot = next; listeners.forEach(l => l()); void AsyncStorage.setItem(SLOT_KEY, next).catch(() => {}); }
+const useSlot = () => useSyncExternalStore(l => { listeners.add(l); return () => { listeners.delete(l); }; }, () => slot, () => slot);
 
-function TabIcon({ item, active, kick, pressed, index }: { item: TabItem; active: boolean; kick: SharedValue<number>; pressed: SharedValue<number>; index: number }) {
+const SPRING = { damping: 20, stiffness: 320, mass: 0.7 };
+
+function TabIcon({ item, active, kick, pressed, index, flip }: { item: TabItem; active: boolean; kick: SharedValue<number>; pressed: SharedValue<number>; index: number; flip?: SharedValue<number> }) {
   const t = useTheme();
   // `kick` grows by 1 on every tap of this tab; each icon plays its own motion from it.
   const style = useAnimatedStyle(() => {
     const k = kick.value % 1; const bump = Math.sin(k * Math.PI);
     const press = pressed.value === index ? 0.84 : 1;
-    if (item.id === 'profile') return { transform: [{ scale: press }, { rotate: `${kick.value * 120}deg` }] }; // the gear turns a third
-    if (item.id === 'explore') return { transform: [{ scale: press }, { rotate: `${kick.value * 360}deg` }] }; // the compass spins
-    if (item.id === 'chats') return { transform: [{ translateY: -bump * 4 }, { scale: press * (1 + bump * 0.22) }] }; // bounce
-    if (item.id === 'music') return { transform: [{ scale: press }, { rotate: `${Math.sin(k * Math.PI * 3) * 14 * (1 - k)}deg` }] }; // headphones wiggle
-    return { transform: [{ scale: press * (1 + bump * 0.3) }, { rotate: `${Math.sin(k * Math.PI * 2) * 18}deg` }] }; // sparkles twinkle
+    const lift = flip ? flip.value : 0; // the slot switching: old icon slides up, the new one comes from below
+    const slide = [{ translateY: lift }];
+    if (item.id === 'profile') return { transform: [{ scale: press }, { rotate: `${kick.value * 120}deg` }] };
+    if (item.id === 'people' || item.id === 'channels') return { opacity: 1 - Math.min(1, Math.abs(lift) / 14), transform: [...slide, { scale: press * (1 + bump * 0.2) }, { rotate: `${Math.sin(k * Math.PI * 2) * 10}deg` }] };
+    if (item.id === 'chats') return { transform: [{ translateY: -bump * 4 }, { scale: press * (1 + bump * 0.22) }] };
+    if (item.id === 'music') return { transform: [{ scale: press }, { rotate: `${Math.sin(k * Math.PI * 3) * 14 * (1 - k)}deg` }] };
+    return { transform: [{ scale: press * (1 + bump * 0.3) }, { rotate: `${Math.sin(k * Math.PI * 2) * 18}deg` }] };
   });
   return <Animated.View style={style}>
     <Icon name={active ? item.activeIcon : item.icon} size={22} color={active ? t.accent : t.muted} />
@@ -38,74 +49,69 @@ function TabIcon({ item, active, kick, pressed, index }: { item: TabItem; active
   </Animated.View>;
 }
 
+/** `items`: AI, people, channels, chats, music, profile — people and channels share one slot. */
 export function TabBar({ items, active }: { items: TabItem[]; active: TabId }) {
-  const t = useTheme();
-  const [width, setWidth] = useState(0); const [folder, setFolder] = useState<{ x: number; y: number } | null>(null);
-  const barRef = useRef<View>(null);
-  const n = items.length; const cell = width / Math.max(1, n);
-  const activeIndex = Math.max(0, items.findIndex(item => item.id === active));
-  const pill = useSharedValue(activeIndex); const dragging = useSharedValue(0); const pressed = useSharedValue(-1);
+  const t = useTheme(); const current = useSlot();
+  // Opening «Каналы» or «Люди» from elsewhere also turns the slot to it.
+  useEffect(() => { if ((active === 'people' || active === 'channels') && active !== slot) setSlot(active); }, [active]);
+  const shown = items.filter(item => item.id !== (current === 'people' ? 'channels' : 'people'));
+  const other = items.find(item => item.id === (current === 'people' ? 'channels' : 'people'));
+  const [width, setWidth] = useState(0);
+  const n = shown.length; const cell = width / Math.max(1, n);
+  const slotIndex = shown.findIndex(item => item.id === 'people' || item.id === 'channels');
+  const activeIndex = Math.max(0, shown.findIndex(item => item.id === (active === 'people' || active === 'channels' ? current : active)));
+  const pill = useSharedValue(activeIndex); const lens = useSharedValue(0); const pressed = useSharedValue(-1); const flip = useSharedValue(0);
   const k0 = useSharedValue(0), k1 = useSharedValue(0), k2 = useSharedValue(0), k3 = useSharedValue(0), k4 = useSharedValue(0), k5 = useSharedValue(0);
   const kicks = [k0, k1, k2, k3, k4, k5];
-  React.useEffect(() => { if (!dragging.value) pill.value = withSpring(activeIndex, SPRING); }, [activeIndex]);
+  useEffect(() => { if (!lens.value) pill.value = withSpring(activeIndex, SPRING); }, [activeIndex]);
 
   const open = (index: number) => {
-    const item = items[index]; if (!item) return;
+    const item = shown[index]; if (!item) return;
     const kick = kicks[index];
-    kick.value = withTiming(Math.floor(kick.value) + 1, { duration: item.id === 'profile' || item.id === 'explore' ? 520 : 460, easing: Easing.out(Easing.cubic) });
-    tapFeedback();
-    if (item.children) { barRef.current?.measureInWindow((x, y) => setFolder({ x: x + (width / n) * (index + 0.5), y })); return; }
-    item.onPress?.();
+    kick.value = withTiming(Math.floor(kick.value) + 1, { duration: item.id === 'profile' ? 520 : 460, easing: Easing.out(Easing.cubic) });
+    tapFeedback(); item.onPress();
   };
+  // Swipe up on the slot: «Люди» ⇄ «Каналы» (remembered), the icon flips like a slot machine.
+  const switchSlot = () => {
+    flip.value = withSequence(withTiming(-16, { duration: 110, easing: Easing.in(Easing.quad) }), withTiming(16, { duration: 0 }), withSpring(0, { damping: 18, stiffness: 340, mass: 0.6 }));
+    impactFeedback();
+    setTimeout(() => setSlot(slot === 'people' ? 'channels' : 'people'), 110);
+  };
+  const at = (x: number) => { 'worklet'; return Math.max(0, Math.min(n - 1, Math.floor(x / Math.max(1, width / n)))); };
 
-  const tap = Gesture.Tap().maxDuration(450)
-    .onBegin(e => { pressed.value = Math.max(0, Math.min(n - 1, Math.floor(e.x / Math.max(1, width / n)))); })
-    .onEnd(e => { runOnJS(open)(Math.max(0, Math.min(n - 1, Math.floor(e.x / Math.max(1, width / n))))); })
+  const tap = Gesture.Tap().maxDuration(500)
+    .onBegin(e => { pressed.value = at(e.x); })
+    .onEnd(e => { runOnJS(open)(at(e.x)); })
     .onFinalize(() => { pressed.value = -1; });
-  // Telegram: hold the bar and slide — the pill follows the finger; letting go opens that tab.
-  const drag = Gesture.Pan().activateAfterLongPress(220)
-    .onStart(e => { dragging.value = 1; pressed.value = -1; pill.value = withSpring(Math.max(0, Math.min(n - 1, Math.floor(e.x / Math.max(1, width / n)))), SPRING); runOnJS(lightFeedback)(); })
+  // Telegram: put a finger down and slide — no waiting; the pill turns into a bigger lens under the finger.
+  const slide = Gesture.Pan().activeOffsetX([-8, 8]).failOffsetY([-24, 24])
+    .onStart(() => { lens.value = withSpring(1, SPRING); pressed.value = -1; runOnJS(lightFeedback)(); })
     .onUpdate(e => { pill.value = Math.max(0, Math.min(n - 1, e.x / Math.max(1, width / n) - 0.5)); })
-    .onEnd(e => { const index = Math.max(0, Math.min(n - 1, Math.floor(e.x / Math.max(1, width / n)))); pill.value = withSpring(index, SPRING); runOnJS(open)(index); })
-    .onFinalize(() => { dragging.value = 0; });
-  const gesture = Gesture.Exclusive(drag, tap);
+    .onEnd(e => { const index = at(e.x); pill.value = withSpring(index, SPRING); runOnJS(open)(index); })
+    .onFinalize(() => { lens.value = withSpring(0, SPRING); });
+  const swipeUp = Gesture.Pan().activeOffsetY([-14, 1000]).failOffsetX([-20, 20])
+    .onEnd(e => { if (e.translationY < -14 && at(e.x - e.translationX) === slotIndex) runOnJS(switchSlot)(); })
+    .onFinalize(() => { pressed.value = -1; });
+  const gesture = Gesture.Exclusive(swipeUp, slide, tap);
 
-  const pillStyle = useAnimatedStyle(() => ({ transform: [{ translateX: pill.value * cell }, { scale: withSpring(dragging.value ? 1.08 : 1, SPRING) }] }));
-  const folderItem = items.find(item => item.children);
+  const pillStyle = useAnimatedStyle(() => ({ top: 2 - lens.value * 9, bottom: 2 - lens.value * 9, transform: [{ translateX: pill.value * cell }, { scale: 1 + lens.value * 0.12 }] }));
+  const pillInner = useAnimatedStyle(() => ({ backgroundColor: lens.value > 0.5 ? (t.dark ? 'rgba(255,255,255,0.16)' : 'rgba(255,255,255,0.75)') : t.accentSoft, borderRadius: 22 + lens.value * 10 }));
 
-  return <>
-    <GestureDetector gesture={gesture}>
-      <View ref={barRef} collapsable={false} onLayout={e => setWidth(e.nativeEvent.layout.width)} accessibilityRole="tablist" style={{ flexDirection: 'row', alignItems: 'center', minHeight: 54 }}>
-        {width ? <Animated.View pointerEvents="none" style={[{ position: 'absolute', left: 0, top: 0, bottom: 0, width: cell, padding: 2 }, pillStyle]}>
-          <View style={{ flex: 1, borderRadius: 22, backgroundColor: t.accentSoft, borderWidth: StyleSheet.hairlineWidth, borderColor: t.glassBorder }} />
-        </Animated.View> : null}
-        {items.map((item, index) => { const on = index === activeIndex; return <View key={item.id} accessible accessibilityRole="tab" accessibilityLabel={item.badge ? `${item.label}, ${item.badge}` : item.label} accessibilityState={{ selected: on }}
-          onAccessibilityTap={() => open(index)} style={{ flex: 1, alignItems: 'center', justifyContent: 'center', gap: 4, paddingVertical: 6 }}>
-          <TabIcon item={item} active={on} kick={kicks[index]} pressed={pressed} index={index} />
-          <Text numberOfLines={1} maxFontSizeMultiplier={1} style={{ fontSize: 10, letterSpacing: -.1, color: on ? t.accent : t.muted, fontWeight: on ? '700' : '600' }}>{item.label}</Text>
-        </View>; })}
-      </View>
-    </GestureDetector>
-    {/* The «Обзор» folder: its sections fan out of the tab as round buttons, up-left and up-right. */}
-    <Modal visible={!!folder} transparent animationType="none" onRequestClose={() => setFolder(null)} statusBarTranslucent>
-      <Pressable accessibilityLabel="Закрыть" onPress={() => setFolder(null)} style={StyleSheet.absoluteFill} />
-      {folder && folderItem?.children ? folderItem.children.map((child, i) => <FanButton key={child.id} child={child} index={i} count={folderItem.children!.length} origin={folder} onPress={() => { setFolder(null); lightFeedback(); child.onPress(); }} />) : null}
-    </Modal>
-  </>;
-}
-
-/** One section of the folder: flies out of the tab on an arc and lands as a round glass button with a label. */
-function FanButton({ child, index, count, origin, onPress }: { child: TabChild; index: number; count: number; origin: { x: number; y: number }; onPress: () => void }) {
-  const t = useTheme(); const out = useSharedValue(0);
-  React.useEffect(() => { out.value = withDelay(index * 45, withSpring(1, { damping: 13, stiffness: 230, mass: 0.7 })); }, []);
-  const size = 56; const spread = count > 1 ? (index / (count - 1)) * 2 - 1 : 0; // -1 (left) … 1 (right)
-  const dx = spread * 46, dy = -(86 - Math.abs(spread) * 14); // an arc above the tab
-  const style = useAnimatedStyle(() => ({ opacity: Math.min(1, out.value * 1.5), transform: [{ translateX: dx * out.value }, { translateY: dy * out.value }, { scale: 0.3 + 0.7 * out.value }] }));
-  return <Animated.View style={[{ position: 'absolute', left: origin.x - size / 2, top: origin.y - size / 2 + 6, width: size, alignItems: 'center' }, style]}>
-    <Pressable accessibilityRole="button" accessibilityLabel={child.label} onPress={onPress} style={({ pressed }) => ({ width: size, height: size, borderRadius: size / 2, alignItems: 'center', justifyContent: 'center', backgroundColor: t.glassOpaque, borderWidth: StyleSheet.hairlineWidth, borderColor: t.glassBorder, transform: [{ scale: pressed ? 0.9 : 1 }], shadowColor: '#000', shadowOpacity: .35, shadowRadius: 14, shadowOffset: { width: 0, height: 6 }, elevation: 10 })}>
-      <Icon name={child.icon} size={24} color={t.text} />
-      {child.badge ? <View style={{ position: 'absolute', top: -2, right: -2, minWidth: 18, height: 18, paddingHorizontal: 5, borderRadius: 9, backgroundColor: t.accent, alignItems: 'center', justifyContent: 'center' }}><Text maxFontSizeMultiplier={1} style={{ color: t.onAccent, fontSize: 10, fontWeight: '800' }}>{badgeText(child.badge)}</Text></View> : null}
-    </Pressable>
-    <Text maxFontSizeMultiplier={1} style={{ color: t.text, fontSize: 11, fontWeight: '600', marginTop: 4, textShadowColor: 'rgba(0,0,0,0.5)', textShadowRadius: 4 }}>{child.label}</Text>
-  </Animated.View>;
+  return <GestureDetector gesture={gesture}>
+    <View collapsable={false} onLayout={e => setWidth(e.nativeEvent.layout.width)} accessibilityRole="tablist" style={{ flexDirection: 'row', alignItems: 'center', minHeight: 54 }}>
+      {width ? <Animated.View pointerEvents="none" style={[{ position: 'absolute', left: 0, width: cell, padding: 2 }, pillStyle]}>
+        <Animated.View style={[{ flex: 1, borderWidth: 0.5, borderColor: t.glassBorder }, pillInner]} />
+      </Animated.View> : null}
+      {shown.map((item, index) => { const on = index === activeIndex; const slotted = index === slotIndex; return <View key={slotted ? 'slot' : item.id} accessible accessibilityRole="tab"
+        accessibilityLabel={`${item.label}${item.badge ? `, ${item.badge}` : ''}${slotted && other ? `. Смахни вверх — ${other.label}` : ''}`} accessibilityState={{ selected: on }}
+        accessibilityActions={slotted ? [{ name: 'activate' }, { name: 'magicTap', label: other?.label }] : undefined}
+        onAccessibilityAction={slotted ? event => { if (event.nativeEvent.actionName === 'magicTap') switchSlot(); else open(index); } : undefined}
+        onAccessibilityTap={() => open(index)} style={{ flex: 1, alignItems: 'center', justifyContent: 'center', gap: 4, paddingVertical: 6 }}>
+        <TabIcon item={item} active={on} kick={kicks[index]} pressed={pressed} index={index} flip={slotted ? flip : undefined} />
+        <Text numberOfLines={1} maxFontSizeMultiplier={1} style={{ fontSize: 10, letterSpacing: -.1, color: on ? t.accent : t.muted, fontWeight: on ? '700' : '600' }}>{item.label}</Text>
+        {/* A small hint that the slot switches: a dot (with the other section's unread count) above it. */}
+        {slotted && other ? <View pointerEvents="none" style={{ position: 'absolute', top: 1, width: 14, height: 3, borderRadius: 2, backgroundColor: other.badge ? t.accent : t.muted, opacity: other.badge ? 1 : .35 }} /> : null}
+      </View>; })}
+    </View>
+  </GestureDetector>;
 }
