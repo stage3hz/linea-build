@@ -66,3 +66,12 @@ export function useBleed() {
   const top = Platform.OS === 'web' ? 0 : insets.top, bottom = Platform.OS === 'web' ? 0 : insets.bottom;
   return { style: { marginTop: -top, marginBottom: -bottom }, bottom };
 }
+
+/**
+ * Two-pane layout (rail, chat list, chat) or the phone layout. Tablets and unfolded foldables get two
+ * panes from 700 pt wide; a phone turned sideways (wide but low, e.g. 852×393) keeps the phone layout,
+ * whose screens fit its height. The desktop/web app keeps its 850 px breakpoint.
+ */
+export function isWideLayout(width: number, height: number): boolean {
+  return Platform.OS === 'web' ? width >= 850 : width >= 700 && height >= 500;
+}

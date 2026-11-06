@@ -121,7 +121,7 @@ export function UserProfile({ api, user, onClose, chat, onMessage, onMute, onSea
       <Animated.ScrollView onScroll={onScroll} scrollEventThrottle={16} contentContainerStyle={{ padding: 18, paddingBottom: 18 + tabInset, gap: 16, alignItems: 'center', width: '100%', maxWidth: 680, alignSelf: 'center' }}>
         <Animated.View style={avatarStretch}><DecoratedAvatar user={shown} api={api} size={128} animated /></Animated.View>
         <View style={{ alignItems: 'center', gap: 6 }}>
-          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 7 }}><PlatinaName user={shown} style={{ color: t.text, fontSize: 26, fontWeight: '800', letterSpacing: -.6 }} /><StatusEmoji user={shown} size={22} animated /></View>
+          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 7, maxWidth: '100%', paddingHorizontal: 16 }}><PlatinaName user={shown} style={{ flexShrink: 1, color: t.text, fontSize: 26, fontWeight: '800', letterSpacing: -.6 }} /><StatusEmoji user={shown} size={22} animated /></View>
           {status ? <Text style={{ color: status === 'в сети' ? t.accent : t.muted, fontSize: 14 }}>{status}</Text> : <Pressable onPress={() => void copy()} accessibilityRole="button" accessibilityLabel="Скопировать имя пользователя"><Text style={{ color: t.accent, fontSize: 15 }}>@{shown.username}</Text></Pressable>}
           {hasPlatina(shown) ? <PlatinaSeal owner={shown} /> : null}
         </View>

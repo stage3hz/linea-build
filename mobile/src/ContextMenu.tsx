@@ -6,6 +6,7 @@ import { BlurView } from 'expo-blur';
 import { Text } from './typography';
 import { Icon, type IconName } from './components';
 import { useTheme } from './theme';
+import { textMetrics, useChatPreferences } from './chatPreferences';
 
 export type QuickReaction = { emoji: string; chosen: boolean };
 const QUICK = 7;
@@ -24,7 +25,7 @@ const CLOSE_MS = 170;
  * the same motion back. Reduce motion / energy saving turns all of it into a cut.
  */
 export function ContextMenu({ visible, y: liveY, x: liveX, onClose, reactions, onReact, preview, mine: liveMine = false, children }: { visible: boolean; y: number; x?: number; onClose: () => void; reactions?: QuickReaction[]; onReact?: (emoji: string) => void; preview?: string; mine?: boolean; children: React.ReactNode }) {
-  const t = useTheme(); const { height, width } = useWindowDimensions(); const insets = useSafeAreaInsets();
+  const t = useTheme(); const { height, width } = useWindowDimensions(); const insets = useSafeAreaInsets(); const preferences = useChatPreferences(); const metrics = textMetrics(preferences.textSize);
   const [size, setSize] = useState(0); const [all, setAll] = useState(false); const [mounted, setMounted] = useState(visible);
   const shown = useSharedValue(0);
   // Keep the last content while the close animation plays (the caller clears it at once).
@@ -43,7 +44,7 @@ export function ContextMenu({ visible, y: liveY, x: liveX, onClose, reactions, o
   const topLimit = insets.top + 8, bottomLimit = height - insets.bottom - 8;
   const column = Math.min(atCursor ? 330 : 340, width - 24);
   const top = size ? Math.max(topLimit, Math.min(atCursor ? y - (held.reactions?.length ? 56 : 0) : y - 70, bottomLimit - size)) : topLimit;
-  const side = atCursor ? { left: Math.max(8, Math.min(x! - 20, width - column - 8)) } : mine ? { right: 12 } : { left: 12 };
+  const side = atCursor ? { left: Math.max(8, Math.min(x! - 20, width - column - 8)) } : mine ? { right: 9 } : { left: 9 }; // the chat list's side padding: the copy sits where the bubble was
   const list = held.reactions || [];
   const reactionBlock = list.length ? 56 : 0;
   // How far the message travels: from the finger to its place under the reactions.
@@ -72,7 +73,7 @@ export function ContextMenu({ visible, y: liveY, x: liveX, onClose, reactions, o
         {list.slice(0, QUICK).map((item, index) => <ReactionButton key={item.emoji} item={item} index={index} shown={shown} size={40} onPress={() => onReact?.(item.emoji)} />)}
         {list.length > QUICK ? <Pressable accessibilityRole="button" accessibilityLabel="Все реакции" onPress={() => setAll(true)} style={{ width: 30, height: 40, alignItems: 'center', justifyContent: 'center' }}><Icon name="chevron-down" size={18} color={t.muted} /></Pressable> : null}
       </View>}</Animated.View> : null}
-      {held.preview && !atCursor ? <Animated.View style={[{ maxWidth: column, borderRadius: 18, paddingHorizontal: 13, paddingVertical: 9, backgroundColor: mine ? t.bubble : t.incoming, ...shadow }, bubble]}><Text numberOfLines={6} style={{ color: t.text, fontSize: 16, lineHeight: 21 }}>{held.preview}</Text></Animated.View> : null}
+      {held.preview && !atCursor ? <Animated.View style={[{ maxWidth: column, borderRadius: preferences.bubbleRadius, paddingHorizontal: 12, paddingVertical: 6, backgroundColor: mine ? t.bubble : t.incoming, ...shadow }, bubble]}><Text numberOfLines={6} style={{ color: t.text, fontSize: metrics.fontSize, lineHeight: metrics.lineHeight }}>{held.preview}</Text></Animated.View> : null}
       <Animated.View style={[{ width: 272, flexShrink: 1, minHeight: 0, borderRadius: 14, overflow: 'hidden', backgroundColor: surface, ...shadow, transformOrigin: `${corner} top` } as object, menu]}>
         <ScrollView bounces={false} style={{ flexGrow: 0 }}>{held.children}</ScrollView>
       </Animated.View>

@@ -1,5 +1,6 @@
 import React, { useEffect, useRef, useState } from 'react';
-import { type TextInput as RNTextInput, type TextInputProps } from 'react-native';
+import { Platform, type TextInput as RNTextInput, type TextInputProps } from 'react-native';
+// Web/PC: a browser <textarea> is two rows tall by default; numberOfLines → rows=1 keeps the empty field one line.
 import { TextInput } from './typography';
 
 /**
@@ -31,7 +32,7 @@ export function ComposerInput({ minHeight = 44, maxHeight = 136, style, value, f
   }, [value]);
   useEffect(() => { if (!pin) return; const id = requestAnimationFrame(() => setPin(false)); return () => cancelAnimationFrame(id); }, [pin]);
   // A remount after sending keeps the keyboard up: the new field takes focus again.
-  return <TextInput ref={input} key={generation} {...props} value={value} multiline scrollEnabled autoFocus={generation > 0 && focused.current}
+  return <TextInput ref={input} key={generation} {...props} value={value} multiline scrollEnabled numberOfLines={Platform.OS === 'web' ? 1 : undefined} autoFocus={generation > 0 && focused.current}
     onFocus={event => { focused.current = true; props.onFocus?.(event); }}
     onContentSizeChange={event => { if (event.nativeEvent.contentSize.height > minHeight + 4) grown.current = true; props.onContentSizeChange?.(event); }} onBlur={event => { focused.current = false; props.onBlur?.(event); }}
     style={[style, { minHeight, maxHeight }, pin ? { height: minHeight } : null]} />;

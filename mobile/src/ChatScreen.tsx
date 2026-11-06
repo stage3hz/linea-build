@@ -8,7 +8,8 @@ import { usePlatina } from './platina/usePlatina';
 import { ComposerInput } from './ComposerInput';
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { ActivityIndicator, FlatList, Image, Keyboard, Modal, Platform, Pressable, ScrollView, StyleSheet, View } from 'react-native';
-import Animated, { ZoomIn } from 'react-native-reanimated';
+import Animated, { ZoomIn, useAnimatedStyle } from 'react-native-reanimated';
+import { useReanimatedKeyboardAnimation } from 'react-native-keyboard-controller';
 import * as VideoThumbnails from 'expo-video-thumbnails';
 import { ProgressRing } from './media/MediaBubble';
 import { Text, TextInput } from './typography';
@@ -66,6 +67,11 @@ const fade=(hex:string,alpha:number)=>{const m=/^#([0-9a-f]{6})$/i.exec(hex);if(
 export function ChatScreen({api,user,chat,store,onBack,wide=false,onOpenMusic}: {api:Api;user:User;chat:Chat;store:MessengerStore;onBack:()=>void;wide?:boolean;onOpenMusic?:()=>void}) {
   const mesh=useMeshActive();
   const calls=useCalls();const insets=useSafeAreaInsets();const platina=usePlatina(api,user.id);
+  // The chat (wallpaper, messages, fade) runs under the system navigation bar — gesture strip or the
+  // 3 buttons — like Telegram; the composer alone stays above it, and above the keyboard when open.
+  const keyboardMotion=Platform.OS==='web'?null:useReanimatedKeyboardAnimation();
+  const navInset=wide?0:insets.bottom;
+  const footerInset=useAnimatedStyle(()=>({paddingBottom:navInset*(1-(keyboardMotion?keyboardMotion.progress.value:0))}));
   const t=useTheme();const [attachMenu,setAttachMenu]=useState(false);const [uploading,setUploading]=useState(false);const [downloadId,setDownloadId]=useState<string|null>(null);const [localError,setLocalError]=useState('');const [preview,setPreview]=useState<Attachment|null>(null);const [peerInfo,setPeerInfo]=useState(false);const [actions,setActions]=useState<Row|null>(null);const [menuX,setMenuX]=useState<number|undefined>(undefined);const [menuY,setMenuY]=useState(0);const [copied,setCopied]=useState(false);
   const [securityOpen,setSecurityOpen]=useState(false);
   const photoContext=`${user.id}:${chat.id}`;const currentPhotoContext=useRef(photoContext);currentPhotoContext.current=photoContext;
@@ -367,7 +373,7 @@ export function ChatScreen({api,user,chat,store,onBack,wide=false,onOpenMusic}: 
       <Pressable onPress={()=>setPeerInfo(true)} accessibilityRole="button" accessibilityLabel="Информация" style={hover}><Icon name="information-circle-outline" size={22} color={t.muted}/></Pressable>
     </View>;};
 
-  return <VoicePlaybackProvider api={api}><GlassTargetScope targetRef={glassTarget}><KeyboardSafeView style={{flex:1,backgroundColor:'transparent',marginTop:wide?0:-insets.top}}><View style={{flex:1}}>
+  return <VoicePlaybackProvider api={api}><GlassTargetScope targetRef={glassTarget}><KeyboardSafeView style={{flex:1,backgroundColor:'transparent',marginTop:wide?0:-insets.top,marginBottom:wide?0:-insets.bottom}}><View style={{flex:1}}>
     {/* Android: header and composer glass blur this (wallpaper + messages) on the GPU. */}
     <GlassContentTarget targetRef={glassTarget} style={{flex:1}}>
     <ChatWallpaper choice={wallpaper} style={{top:-80,bottom:-60}}/>
@@ -396,10 +402,10 @@ export function ChatScreen({api,user,chat,store,onBack,wide=false,onOpenMusic}: 
       {/* As in Telegram: the name in the middle, the avatar on the right; both open the full profile
           (calls, media, «Ещё» with no-copy, auto-delete, block). */}
       <View style={{maxWidth:'62%',alignItems:'center'}}>
-        <GlassSurface material="regular" radius={22} interactive style={{maxWidth:'100%',height:44,maxHeight:44,flexGrow:0,flexShrink:0}} contentStyle={{height:44,maxHeight:44,flexGrow:0,flexShrink:0,justifyContent:'center',paddingHorizontal:18,paddingVertical:0}}>
-          <Pressable onPress={()=>{Keyboard.dismiss();setPeerInfo(true);}} accessibilityRole="button" accessibilityLabel={`Профиль ${chat.peer.displayName}`} style={{alignItems:'center'}}>
-            <View style={{flexShrink:1,alignItems:'center',gap:1}}>
-            <View style={{flexDirection:'row',gap:5,alignItems:'center'}}><PlatinaName user={chat.peer} style={{flexShrink:1,color:t.text,fontSize:16,lineHeight:19,includeFontPadding:false,fontWeight:'600',letterSpacing:-.25}}/>{hasPlatina(chat.peer)?<PlatinaGem size={11}/>:null}<StatusEmoji user={chat.peer} size={16} animated/></View>
+        <GlassSurface material="regular" radius={22} interactive style={{maxWidth:'100%',height:44,maxHeight:44,flexGrow:0,flexShrink:1,minWidth:0}} contentStyle={{height:44,maxHeight:44,flexGrow:0,flexShrink:1,minWidth:0,justifyContent:'center',paddingHorizontal:18,paddingVertical:0}}>
+          <Pressable onPress={()=>{Keyboard.dismiss();setPeerInfo(true);}} accessibilityRole="button" accessibilityLabel={`Профиль ${chat.peer.displayName}`} style={{alignItems:'center',maxWidth:'100%'}}>
+            <View style={{flexShrink:1,alignItems:'center',gap:1,maxWidth:'100%'}}>
+            <View style={{flexDirection:'row',gap:5,alignItems:'center',maxWidth:'100%'}}><PlatinaName user={chat.peer} style={{flexShrink:1,color:t.text,fontSize:16,lineHeight:19,includeFontPadding:false,fontWeight:'600',letterSpacing:-.25}}/>{hasPlatina(chat.peer)?<PlatinaGem size={11}/>:null}<StatusEmoji user={chat.peer} size={16} animated/></View>
             <Text numberOfLines={1} style={{color:headerStatus.accent?t.accent:t.muted,fontSize:12,lineHeight:15,includeFontPadding:false}}>{headerStatus.text}</Text>
             </View>
           </Pressable>
@@ -434,7 +440,7 @@ export function ChatScreen({api,user,chat,store,onBack,wide=false,onOpenMusic}: 
     {copied?<View style={{alignSelf:'center',marginTop:6,paddingVertical:7,paddingHorizontal:14,backgroundColor:t.accentSoft,borderRadius:16,borderWidth:1,borderColor:t.border}}><Text style={{color:t.accent,fontSize:12}}>Скопировано</Text></View>:null}
     </View>
     {/* Like Telegram: the composer floats over the messages, which scroll underneath it. */}
-    <View pointerEvents="box-none" onLayout={e=>setFooterHeight(e.nativeEvent.layout.height)} style={{position:'absolute',left:0,right:0,bottom:0,zIndex:4}}>
+    <Animated.View pointerEvents="box-none" onLayout={e=>setFooterHeight(e.nativeEvent.layout.height)} style={[{position:'absolute',left:0,right:0,bottom:0,zIndex:4},footerInset]}>
     {showDown&&!selection?<View pointerEvents="box-none" style={{height:0}}><View style={{position:'absolute',right:14,bottom:10}}><GlassSurface material="regular" radius={20} interactive contentStyle={{width:40,height:40,alignItems:'center',justifyContent:'center'}}><Pressable onPress={()=>{lightFeedback();listRef.current?.scrollToOffset({offset:0,animated:true});}} accessibilityRole="button" accessibilityLabel="Вниз к новым сообщениям" hitSlop={6}><Icon name="chevron-down" size={26} color={t.text}/></Pressable></GlassSurface></View></View>:null}
     {selection?<GlassSurface lens material="regular" radius={28} style={{marginHorizontal:12,marginTop:5,marginBottom:10}} contentStyle={{flexDirection:'row',justifyContent:'space-around',alignItems:'center',paddingVertical:8}}>
       {([
@@ -443,7 +449,7 @@ export function ChatScreen({api,user,chat,store,onBack,wide=false,onOpenMusic}: 
         {icon:'bookmark-outline',label:'В Избранное',on:()=>{selectedMessages.forEach(saveToFavorites);setSelection(null);},ok:selectedMessages.length>0},
         {icon:'trash-outline',label:'Удалить',on:()=>setDeleteAsk(true),ok:selectedMessages.length>0,danger:true},
       ] as const).map(item=><Pressable key={item.label} disabled={!item.ok} onPress={()=>{lightFeedback();item.on();}} accessibilityRole="button" style={({pressed})=>({alignItems:'center',gap:4,paddingHorizontal:8,paddingVertical:4,opacity:!item.ok?.35:pressed?.6:1})}><Icon name={item.icon} size={22} color={'danger' in item?t.danger:t.accent}/><Text style={{fontSize:10,color:'danger' in item?t.danger:t.accent,fontWeight:'600'}}>{item.label}</Text></Pressable>)}
-    </GlassSurface>:<View style={{marginHorizontal:8,marginTop:4,marginBottom:8,gap:6}}>
+    </GlassSurface>:<View style={{marginHorizontal:wide?20:8,marginTop:4,marginBottom:8,gap:6}}>
       {replyTo||editing||uploading||attachments.length||forwardDraft?<GlassSurface lens material="regular" radius={22} contentStyle={{paddingHorizontal:8,paddingTop:8,paddingBottom:2}}>
       {forwardDraft&&!editing?<View style={{flexDirection:'row',alignItems:'center',gap:8,paddingLeft:8,paddingBottom:6}}>
         <Icon name="arrow-redo-outline" size={18} color={t.accent}/>
@@ -477,7 +483,7 @@ export function ChatScreen({api,user,chat,store,onBack,wide=false,onOpenMusic}: 
       {text.length>7500?<Text style={{fontSize:10,color:t.muted,textAlign:'right',paddingRight:8}}>{text.length} / 8000</Text>:null}
     </View>}
     {stickers&&!selection?<StickerPanel bottomInset={insets.bottom} onPick={insertEmoji} onErase={eraseBack} onClose={()=>setStickers(false)}/>:null}
-    </View>
+    </Animated.View>
     <VideoNoteRecorder visible={circleOpen} hold={videoHold} onClose={()=>{setCircleOpen(false);setVideoHold(null);setRecHold(null);}} onDone={take=>{setCircleOpen(false);setVideoHold(null);setRecHold(null);void sendVideoNote(take);}}/>
     <AttachmentPanel key={photoContext} onPoll={()=>{setAttachMenu(false);setTimeout(()=>setPollOpen(true),350);}} visible={attachMenu} busy={uploading} canAdd={signalAvailable} remainingSlots={Math.max(0,MAX_DRAFT_ATTACHMENTS-attachments.length)} onClose={()=>setAttachMenu(false)} onAdd={item=>upload(item.file)}/>
     <TrustSheet visible={securityOpen} onClose={()=>setSecurityOpen(false)} peerId={chat.peer.id} store={store}/>

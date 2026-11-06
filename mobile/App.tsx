@@ -2,7 +2,7 @@ import { UpdateGate } from './src/update/UpdateScreen';
 import { AuthBackdrop } from './src/auth/AuthBackdrop';
 import { appBecameActive, checkForUpdate } from './src/update/store';
 import { TitleBar } from './src/TitleBar';
-import { TabsOverlay } from './src/tabInset';
+import { TabsOverlay, isWideLayout } from './src/tabInset';
 import { DesktopWelcome } from './src/DesktopWelcome';
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { ActivityIndicator, AppState, BackHandler, Linking, Platform, Pressable, View, useColorScheme, useWindowDimensions } from 'react-native';
@@ -156,7 +156,7 @@ function ThemeAccess({mode,darkTheme,onChange,onDarkTheme,onMusic}:{mode:ThemeMo
 }
 
 function Messenger({api,session,onUser,themeMode,darkTheme,onTheme,onDarkTheme,onLogout,onExpired,onCredentialsChanged,onSensitiveActionPending}: {api:Api;session:Session;onUser:(user:User)=>void;themeMode:ThemeMode;darkTheme:DarkTheme;onTheme:(mode:ThemeMode)=>void;onDarkTheme:(mode:DarkTheme)=>void;onLogout:()=>Promise<void>;onExpired:()=>void;onCredentialsChanged:(message:string)=>Promise<void>;onSensitiveActionPending:(pending:boolean)=>void}) {
-  const t=useTheme();const {width}=useWindowDimensions();const wide=width>=850;const store=useMessenger(api,session.user,onExpired);usePlatina(api,session.user.id);const [page,setPage]=useState<'chats'|'saved'|'people'|'channels'|'music'|'ai'|'profile'|'security'|'settings'>(session.securitySetupRequired?'security':'chats');
+  const t=useTheme();const {width,height}=useWindowDimensions();const wide=isWideLayout(width,height);const store=useMessenger(api,session.user,onExpired);usePlatina(api,session.user.id);const [page,setPage]=useState<'chats'|'saved'|'people'|'channels'|'music'|'ai'|'profile'|'security'|'settings'>(session.securitySetupRequired?'security':'chats');
   const [openCommunity,setOpenCommunity]=useState<string|null>(null);const [inviteCode,setInviteCode]=useState<string|null>(null);
   const [quickAI,setQuickAI]=useState(false);
   const chat=store.chats.find(c=>c.id===store.selectedId);
