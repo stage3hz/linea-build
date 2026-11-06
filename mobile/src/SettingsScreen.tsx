@@ -2,7 +2,7 @@ import React, { useCallback, useEffect, useState } from 'react';
 import { ProfileEffect } from './platina/Effects';
 import { ActivityIndicator, Platform, Pressable, ScrollView, StyleSheet, Switch, View, useWindowDimensions, Linking } from 'react-native';
 import { MONO, Text } from './typography';
-import { requestStatusPicker } from './statusPicker';
+import { requestStatusPicker } from './statusPickerRequest';
 import * as FileSystem from 'expo-file-system/legacy';
 import Constants from 'expo-constants';
 import { Image } from 'expo-image';

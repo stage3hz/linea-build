@@ -1,5 +1,5 @@
 import { StatusPicker } from './StatusPicker';
-import { takeStatusPickerRequest } from './statusPicker';
+import { takeStatusPickerRequest } from './statusPickerRequest';
 import React, { useEffect, useRef, useState } from 'react';
 import { ActivityIndicator, AppState, KeyboardAvoidingView, Platform, Pressable, ScrollView, View } from 'react-native';
 import { Text } from './typography';
