@@ -34,8 +34,8 @@ export function ChatListSkeleton({ rows = 9 }: { rows?: number }) {
   return <AppKit><SkeletonGroup style={{ paddingTop: 4 }}>
     <View accessibilityLabel={tr('Загрузка чатов')} accessibilityRole="progressbar">
       {Array.from({ length: rows }, (_, i) => <View key={i} style={{ flexDirection: 'row', gap: 12, paddingHorizontal: 16, paddingVertical: 8, alignItems: 'center' }}>
-        <Skeleton width={60} height={60} radius="full" variant={variant} />
-        <View style={{ flex: 1, minHeight: 68, justifyContent: 'center', gap: 9 }}>
+        <Skeleton width={60} height={60} radius={21.6} variant={variant} />
+        <View style={{ flex: 1, minHeight: 60, justifyContent: 'center', gap: 9 }}>
           <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12 }}>
             <Skeleton width={NAME_WIDTHS[i % NAME_WIDTHS.length]} height={14} radius="full" variant={variant} />
             <View style={{ flex: 1 }} />
@@ -70,5 +70,5 @@ export function ActionButton({ label, onPress, loading = false, success = false,
   useEffect(() => { if (!errorSignal) return; setFailed(true); const timer = setTimeout(() => setFailed(false), 1400); return () => clearTimeout(timer); }, [errorSignal]);
   const state: StatefulButtonState = loading ? 'loading' : success ? 'success' : failed ? 'error' : 'idle';
   return <AppKit><StatefulButton state={state} onPress={onPress} disabled={disabled && state === 'idle'} size="lg" block pill color={t.accent}
-    successText={tr(successLabel, language)} errorText={tr('Ошибка', language)} accessibilityLabel={tr(label, language)}>{tr(label, language)}</StatefulButton></AppKit>;
+    textStyle={{ fontWeight: '700' }} successText={tr(successLabel, language)} errorText={tr('Ошибка', language)} accessibilityLabel={tr(label, language)}>{tr(label, language)}</StatefulButton></AppKit>;
 }
