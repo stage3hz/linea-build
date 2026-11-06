@@ -201,15 +201,19 @@ export function VideoNoteRecorder({ visible, onClose, onDone, hold = null }: { v
         {hold?.locked && recording && androidNoteCameraAvailable ? <Pressable accessibilityRole="button" accessibilityLabel={notePaused ? 'Продолжить запись' : 'Пауза'} onPress={() => void togglePause()} style={[styles.small, { marginRight: 13 }]}><Icon name={notePaused ? 'videocam' : 'pause'} color={notePaused ? t.danger : '#FFF'} size={20} /></Pressable> : null}
       </View>
       <View pointerEvents="box-none" style={{ flexDirection: 'row', alignItems: 'flex-end' }}>
-        <View pointerEvents="box-none" style={{ flex: 1, minHeight: 48, marginBottom: 10, marginRight: -62, paddingRight: 70, borderRadius: 24, flexDirection: 'row', alignItems: 'center', gap: 8, paddingLeft: 14, backgroundColor: 'rgba(28,32,46,0.88)' }}>
+        <View pointerEvents="box-none" style={{ flex: 1, minHeight: 48, marginBottom: 16, marginRight: -68, paddingRight: 76, borderRadius: 24, flexDirection: 'row', alignItems: 'center', gap: 8, paddingLeft: 14, backgroundColor: 'rgba(28,32,46,0.88)' }}>
           <View style={{ width: 9, height: 9, borderRadius: 5, backgroundColor: t.danger, opacity: recording && Math.floor(elapsed / 600) % 2 ? .25 : 1 }} />
           <Text style={{ color: '#FFF', fontSize: 15, fontWeight: '500', minWidth: 62, fontVariant: ['tabular-nums'] }}>{formatVoiceTimeFine(elapsed)}</Text>
           {hold?.locked ? <Pressable accessibilityRole="button" accessibilityLabel="Отменить видеосообщение" onPress={cancel} hitSlop={8} style={({ pressed }) => ({ flex: 1, height: 44, alignItems: 'center', justifyContent: 'center', opacity: pressed ? .6 : 1 })}><Text style={{ color: t.accent, fontSize: 16, fontWeight: '600' }}>Отмена</Text></Pressable>
             : <Text style={{ flex: 1, textAlign: 'center', color: 'rgba(255,255,255,0.6)', fontSize: 14 }}>‹ Влево — отмена</Text>}
         </View>
-        <Pressable accessibilityRole="button" accessibilityLabel="Отправить видеосообщение" disabled={!hold?.locked || !recording} onPress={() => void stop()} style={({ pressed }) => ({ width: 68, height: 68, borderRadius: 34, backgroundColor: t.accent, alignItems: 'center', justifyContent: 'center', opacity: pressed ? .8 : 1 })}>
-          {!ready && allowed && !error ? <ActivityIndicator color={t.onAccent} /> : <Icon name={hold?.locked ? 'arrow-up' : 'videocam'} color={t.onAccent} size={hold?.locked ? 30 : 26} />}
-        </Pressable>
+        {/* Telegram: a big accent circle with a light ring, the icon at once (no spinner while the camera starts). */}
+        <View style={{ width: 80, height: 80, alignItems: 'center', justifyContent: 'center', marginRight: -6, marginBottom: -6 }}>
+          <View pointerEvents="none" style={{ position: 'absolute', width: 108, height: 108, borderRadius: 54, backgroundColor: t.accent, opacity: .22 }} />
+          <Pressable accessibilityRole="button" accessibilityLabel="Отправить видеосообщение" disabled={!hold?.locked || !recording} onPress={() => void stop()} style={({ pressed }) => ({ width: 80, height: 80, borderRadius: 40, backgroundColor: t.accent, alignItems: 'center', justifyContent: 'center', opacity: pressed ? .85 : 1 })}>
+            <Icon name={hold?.locked ? 'arrow-up' : 'videocam'} color={t.onAccent} size={hold?.locked ? 34 : 30} />
+          </Pressable>
+        </View>
       </View>
     </View>
   </View>;

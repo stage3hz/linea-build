@@ -71,19 +71,22 @@ export function RecordButton({ mode, disabled, onToggleMode, onTouchDown, onHold
   const gesture = Gesture.Exclusive(hold, tap);
 
   const button = useAnimatedStyle(() => ({
-    transform: [{ translateX: tx.value * 0.9 }, { translateY: ty.value * 0.9 }, { scale: 1 + active.value * 1.05 }],
-    backgroundColor: active.value > 0.05 ? t.accent : t.glassOpaque,
+    // Telegram: at rest just the icon; while held a big accent circle (~2.3×) that reaches past the edge.
+    transform: [{ translateX: tx.value * 0.9 }, { translateY: ty.value * 0.9 }, { scale: 1 + active.value * 1.3 }],
+    backgroundColor: active.value > 0.05 ? t.accent : 'transparent',
   }));
+  // The light ring around the big circle, breathing with the voice (Telegram's halo).
+  const halo = useAnimatedStyle(() => ({ opacity: active.value * 0.32, transform: [{ translateX: tx.value * 0.9 }, { translateY: ty.value * 0.9 }, { scale: active.value * (1.85 + Math.min(1, level) * 0.5) }] }));
   const lockPill = useAnimatedStyle(() => ({ opacity: active.value, transform: [{ translateY: -70 + ty.value * 0.5 }, { scale: 0.8 + active.value * 0.2 }] }));
 
   return <View style={{ width: 40, height: 40, alignItems: 'center', justifyContent: 'center' }}>
     {holding ? <Animated.View pointerEvents="none" style={[{ position: 'absolute', width: 36, height: 64, borderRadius: 18, alignItems: 'center', justifyContent: 'space-evenly', backgroundColor: t.glassOpaque, borderWidth: 1, borderColor: t.border }, lockPill]}>
       <Icon name="lock-open-outline" size={17} color={t.text} /><Icon name="chevron-up" size={14} color={t.muted} />
     </Animated.View> : null}
+    <Animated.View pointerEvents="none" style={[{ position: 'absolute', width: 40, height: 40, borderRadius: 20, backgroundColor: t.accent }, halo]} />
     <GestureDetector gesture={gesture}>
       <Animated.View accessible accessibilityRole="button" accessibilityLabel={mode === 'voice' ? 'Голосовое: удерживай для записи, свайп влево — отмена, вверх — без рук. Нажми — переключить на видео' : 'Видеосообщение: удерживай для записи, свайп влево — отмена, вверх — без рук. Нажми — переключить на голосовое'}
-        style={[{ width: 40, height: 40, borderRadius: 20, alignItems: 'center', justifyContent: 'center', borderWidth: StyleSheet.hairlineWidth, borderColor: t.border }, button]}>
-        {holding ? <View pointerEvents="none" style={{ position: 'absolute', width: 40, height: 40, borderRadius: 20, backgroundColor: t.accent, opacity: .28, transform: [{ scale: 1 + Math.min(1, level) * .5 }] }} /> : null}
+        style={[{ width: 40, height: 40, borderRadius: 20, alignItems: 'center', justifyContent: 'center' }, button]}>
         <Icon name={mode === 'voice' ? (holding ? 'mic' : 'mic-outline') : (holding ? 'videocam' : 'videocam-outline')} color={holding ? t.onAccent : t.text} size={holding ? 20 : 25} />
       </Animated.View>
     </GestureDetector>
