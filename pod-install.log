@@ -1,0 +1,418 @@
+Using Expo modules
+[Expo] Enabling modular headers for pod ExpoModulesCore
+[Expo] Enabling modular headers for pod ExpoModulesJSI
+[Expo] Enabling modular headers for pod React-RCTAppDelegate
+[Expo] Enabling modular headers for pod React-RCTFabric
+[Expo] Enabling modular headers for pod ReactAppDependencyProvider
+[Expo] Enabling modular headers for pod React-Core
+[Expo] Enabling modular headers for pod ReactCodegen
+[Expo] Enabling modular headers for pod RCTRequired
+[Expo] Enabling modular headers for pod RCTTypeSafety
+[Expo] Enabling modular headers for pod ReactCommon
+[Expo] Enabling modular headers for pod React-NativeModulesApple
+[Expo] Enabling modular headers for pod Yoga
+[Expo] Enabling modular headers for pod React-Fabric
+[Expo] Enabling modular headers for pod React-graphics
+[Expo] Enabling modular headers for pod React-utils
+[Expo] Enabling modular headers for pod React-featureflags
+[Expo] Enabling modular headers for pod React-debug
+[Expo] Enabling modular headers for pod React-ImageManager
+[Expo] Enabling modular headers for pod React-rendererdebug
+[Expo] Enabling modular headers for pod React-jsi
+[Expo] Enabling modular headers for pod React-renderercss
+[Expo] Enabling modular headers for pod hermes-engine
+[Expo] Enabling modular headers for pod glog
+[Expo] Enabling modular headers for pod boost
+[Expo] Enabling modular headers for pod DoubleConversion
+[Expo] Enabling modular headers for pod fast_float
+[Expo] Enabling modular headers for pod fmt
+[Expo] Enabling modular headers for pod RCT-Folly
+[Expo] Enabling modular headers for pod SocketRocket
+[Expo] Enabling modular headers for pod SDWebImage
+[Expo] Enabling modular headers for pod SDWebImageAVIFCoder
+[Expo] Enabling modular headers for pod SDWebImageSVGCoder
+[Expo] Enabling modular headers for pod SDWebImageWebPCoder
+[Expo] Enabling modular headers for pod libavif
+[Expo] Enabling modular headers for pod LibSignalClient
+[Expo-precompiled] RNReanimated: building from source (prebuilt tarball not found)
+[Expo-precompiled]   Expected tarball: /Users/runner/work/linea-build/linea-build/mobile/packages/precompile/.build/react-native-reanimated/output/4.5.1/0.86.3/250829098.0.17/debug/xcframeworks/RNReanimated.tar.gz
+[Expo-precompiled] react-native-safe-area-context: building from source (prebuilt tarball not found)
+[Expo-precompiled]   Expected tarball: /Users/runner/work/linea-build/linea-build/mobile/packages/precompile/.build/react-native-safe-area-context/output/5.7.0/0.86.3/250829098.0.17/debug/xcframeworks/RNCSafeAreaContext.tar.gz
+[Expo-precompiled] RNSVG: building from source (prebuilt tarball not found)
+[Expo-precompiled]   Expected tarball: /Users/runner/work/linea-build/linea-build/mobile/packages/precompile/.build/react-native-svg/output/15.15.4/0.86.3/250829098.0.17/debug/xcframeworks/RNSVG.tar.gz
+[Expo-precompiled] RNWorklets: building from source (prebuilt tarball not found)
+[Expo-precompiled]   Expected tarball: /Users/runner/work/linea-build/linea-build/mobile/packages/precompile/.build/react-native-worklets/output/0.10.1/0.86.3/250829098.0.17/debug/xcframeworks/RNWorklets.tar.gz
+[Expo-precompiled] RNCAsyncStorage: building from source (prebuilt tarball not found)
+[Expo-precompiled]   Expected tarball: /Users/runner/work/linea-build/linea-build/mobile/packages/precompile/.build/@react-native-async-storage/async-storage/output/2.2.0/0.86.3/250829098.0.17/debug/xcframeworks/RNCAsyncStorage.tar.gz
+[Lottie React Native] Using install_modules_dependencies
+Found 13 modules for target `INVIZENT`
+link_native_modules! {:ios_packages=>[{:configurations=>[], :name=>"@react-native-async-storage/async-storage", :root=>"/Users/runner/work/linea-build/linea-build/mobile/node_modules/@react-native-async-storage/async-storage", :path=>"../node_modules/@react-native-async-storage/async-storage", :podspec_path=>"/Users/runner/work/linea-build/linea-build/mobile/node_modules/@react-native-async-storage/async-storage/RNCAsyncStorage.podspec", :script_phases=>[]}, {:configurations=>[], :name=>"@react-native-masked-view/masked-view", :root=>"/Users/runner/work/linea-build/linea-build/mobile/node_modules/@react-native-masked-view/masked-view", :path=>"../node_modules/@react-native-masked-view/masked-view", :podspec_path=>"/Users/runner/work/linea-build/linea-build/mobile/node_modules/@react-native-masked-view/masked-view/RNCMaskedView.podspec", :script_phases=>[]}, {:configurations=>[], :name=>"expo", :root=>"/Users/runner/work/linea-build/linea-build/mobile/node_modules/expo", :path=>"../node_modules/expo", :podspec_path=>"/Users/runner/work/linea-build/linea-build/mobile/node_modules/expo/Expo.podspec", :script_phases=>[]}, {:configurations=>[], :name=>"lottie-react-native", :root=>"/Users/runner/work/linea-build/linea-build/mobile/node_modules/lottie-react-native", :path=>"../node_modules/lottie-react-native", :podspec_path=>"/Users/runner/work/linea-build/linea-build/mobile/node_modules/lottie-react-native/lottie-react-native.podspec", :script_phases=>[]}, {:configurations=>[], :name=>"react-native-gesture-handler", :root=>"/Users/runner/work/linea-build/linea-build/mobile/node_modules/react-native-gesture-handler", :path=>"../node_modules/react-native-gesture-handler", :podspec_path=>"/Users/runner/work/linea-build/linea-build/mobile/node_modules/react-native-gesture-handler/RNGestureHandler.podspec", :script_phases=>[]}, {:configurations=>[], :name=>"react-native-incall-manager", :root=>"/Users/runner/work/linea-build/linea-build/mobile/node_modules/react-native-incall-manager", :path=>"../node_modules/react-native-incall-manager", :podspec_path=>"/Users/runner/work/linea-build/linea-build/mobile/node_modules/react-native-incall-manager/ReactNativeIncallManager.podspec", :script_phases=>[]}, {:configurations=>[], :name=>"react-native-keyboard-controller", :root=>"/Users/runner/work/linea-build/linea-build/mobile/node_modules/react-native-keyboard-controller", :path=>"../node_modules/react-native-keyboard-controller", :podspec_path=>"/Users/runner/work/linea-build/linea-build/mobile/node_modules/react-native-keyboard-controller/react-native-keyboard-controller.podspec", :script_phases=>[]}, {:configurations=>[], :name=>"react-native-liquid-glassmorphism", :root=>"/Users/runner/work/linea-build/linea-build/mobile/node_modules/react-native-liquid-glassmorphism", :path=>"../node_modules/react-native-liquid-glassmorphism", :podspec_path=>"/Users/runner/work/linea-build/linea-build/mobile/node_modules/react-native-liquid-glassmorphism/LiquidGlassmorphism.podspec", :script_phases=>[]}, {:configurations=>[], :name=>"react-native-reanimated", :root=>"/Users/runner/work/linea-build/linea-build/mobile/node_modules/react-native-reanimated", :path=>"../node_modules/react-native-reanimated", :podspec_path=>"/Users/runner/work/linea-build/linea-build/mobile/node_modules/react-native-reanimated/RNReanimated.podspec", :script_phases=>[]}, {:configurations=>[], :name=>"react-native-safe-area-context", :root=>"/Users/runner/work/linea-build/linea-build/mobile/node_modules/react-native-safe-area-context", :path=>"../node_modules/react-native-safe-area-context", :podspec_path=>"/Users/runner/work/linea-build/linea-build/mobile/node_modules/react-native-safe-area-context/react-native-safe-area-context.podspec", :script_phases=>[]}, {:configurations=>[], :name=>"react-native-svg", :root=>"/Users/runner/work/linea-build/linea-build/mobile/node_modules/react-native-svg", :path=>"../node_modules/react-native-svg", :podspec_path=>"/Users/runner/work/linea-build/linea-build/mobile/node_modules/react-native-svg/RNSVG.podspec", :script_phases=>[]}, {:configurations=>[], :name=>"react-native-webrtc", :root=>"/Users/runner/work/linea-build/linea-build/mobile/node_modules/react-native-webrtc", :path=>"../node_modules/react-native-webrtc", :podspec_path=>"/Users/runner/work/linea-build/linea-build/mobile/node_modules/react-native-webrtc/react-native-webrtc.podspec", :script_phases=>[]}, {:configurations=>[], :name=>"react-native-worklets", :root=>"/Users/runner/work/linea-build/linea-build/mobile/node_modules/react-native-worklets", :path=>"../node_modules/react-native-worklets", :podspec_path=>"/Users/runner/work/linea-build/linea-build/mobile/node_modules/react-native-worklets/RNWorklets.podspec", :script_phases=>[]}], :ios_project_root_path=>"/Users/runner/work/linea-build/linea-build/mobile/ios", :react_native_path=>"../node_modules/react-native"}
+[Lottie React Native] Using install_modules_dependencies
+Auto-linking React Native modules for target `INVIZENT`: LiquidGlassmorphism, RNCAsyncStorage, RNCMaskedView, RNGestureHandler, RNReanimated, RNSVG, RNWorklets, ReactNativeIncallManager, lottie-react-native, react-native-keyboard-controller, react-native-safe-area-context, and react-native-webrtc
+Framework build type is static framework
+[ReactNativeDependencies] Setting up ReactNativeDependencies...
+[ReactNativeDependencies] Building from source: false
+[ReactNativeDependencies] Using tarball from URL: https://repo1.maven.org/maven2/com/facebook/react/react-native-artifacts/0.86.3/react-native-artifacts-0.86.3-reactnative-dependencies-debug.tar.gz
+[ReactNativeDependencies] Cache miss: downloading reactnative-dependencies-0.86.3-debug.tar.gz from https://repo1.maven.org/maven2/com/facebook/react/react-native-artifacts/0.86.3/react-native-artifacts-0.86.3-reactnative-dependencies-debug.tar.gz
+  % Total    % Received % Xferd  Average Speed  Time    Time    Time   Current
+                                 Dload  Upload  Total   Spent   Left   Speed
+  0      0   0      0   0      0      0      0                              0100    167   0    167   0      0   2974      0                              0100    167   0    167   0      0   2965      0                              0
+  0      0   0      0   0      0      0      0                              0100 17.87M 100 17.87M   0      0 32.45M      0                              0100 17.87M 100 17.87M   0      0 30.54M      0                              0100 17.87M 100 17.87M   0      0 30.11M      0                              0
+[ReactNativeDependencies] Verifying checksum for downloaded reactnative-dependencies-0.86.3-debug.tar.gz...
+[Cache] SHA1 verified for reactnative-dependencies-0.86.3-debug.tar.gz
+[ReactNativeDependencies] Saved reactnative-dependencies-0.86.3-debug.tar.gz to shared cache (/Users/runner/Library/Caches/ReactNative)
+[ReactNativeDependencies] Cache miss: downloading reactnative-dependencies-0.86.3-release.tar.gz from https://repo1.maven.org/maven2/com/facebook/react/react-native-artifacts/0.86.3/react-native-artifacts-0.86.3-reactnative-dependencies-release.tar.gz
+  % Total    % Received % Xferd  Average Speed  Time    Time    Time   Current
+                                 Dload  Upload  Total   Spent   Left   Speed
+  0      0   0      0   0      0      0      0                              0100    167   0    167   0      0   3481      0                              0100    167   0    167   0      0   3462      0                              0
+  0      0   0      0   0      0      0      0                              0100  9.93M 100  9.93M   0      0 24.34M      0                              0100  9.93M 100  9.93M   0      0 24.32M      0                              0100  9.93M 100  9.93M   0      0 24.30M      0                              0
+[ReactNativeDependencies] Verifying checksum for downloaded reactnative-dependencies-0.86.3-release.tar.gz...
+[Cache] SHA1 verified for reactnative-dependencies-0.86.3-release.tar.gz
+[ReactNativeDependencies] Saved reactnative-dependencies-0.86.3-release.tar.gz to shared cache (/Users/runner/Library/Caches/ReactNative)
+[ReactNativeDependencies] Source: {:http=>"https://repo1.maven.org/maven2/com/facebook/react/react-native-artifacts/0.86.3/react-native-artifacts-0.86.3-reactnative-dependencies-debug.tar.gz"}
+[ReactNativeCore] Setting up ReactNativeCore...
+[ReactNativeCore] Building from source: false
+Configuring the target with the New Architecture
+[ReactNativeCore] Using React Native Core and React Native Dependencies prebuilt versions.
+[36m[1m[Codegen][0m Analyzing /Users/runner/work/linea-build/linea-build/mobile/package.json[0m
+[36m[1m[Codegen][0m [33mSearching for codegen-enabled libraries in the app.[0m
+[36m[1m[Codegen][0m [33mThe "codegenConfig" field is not defined in package.json. Assuming there is nothing to generate at the app level.[0m
+[36m[1m[Codegen][0m [33mSearching for codegen-enabled libraries in react-native.config.js[0m
+[36m[1m[Codegen][0m Found @react-native-async-storage/async-storage[0m
+[36m[1m[Codegen][0m Found lottie-react-native[0m
+[36m[1m[Codegen][0m Found react-native-gesture-handler[0m
+[36m[1m[Codegen][0m Found react-native-keyboard-controller[0m
+[36m[1m[Codegen][0m Found react-native-liquid-glassmorphism[0m
+[36m[1m[Codegen][0m Found react-native-reanimated[0m
+[36m[1m[Codegen][0m Found react-native-safe-area-context[0m
+[36m[1m[Codegen][0m Found react-native-svg[0m
+[36m[1m[Codegen][0m Found react-native-worklets[0m
+[36m[1m[Codegen][0m Processing rnasyncstorage[0m
+[36m[1m[Codegen][0m [33mSearching for podspec in the project dependencies.[0m
+[36m[1m[Codegen][0m Supported Apple platforms: ios, macos, tvos, visionos for rnasyncstorage[0m
+[36m[1m[Codegen][0m Processing lottiereactnative[0m
+[36m[1m[Codegen][0m [33mSearching for podspec in the project dependencies.[0m
+[36m[1m[Codegen][0m Supported Apple platforms: ios, macos, tvos, visionos for lottiereactnative[0m
+[36m[1m[Codegen][0m Processing rngesturehandler_codegen[0m
+[36m[1m[Codegen][0m [33mSearching for podspec in the project dependencies.[0m
+[36m[1m[Codegen][0m Supported Apple platforms: ios, macos, tvos, visionos for rngesturehandler_codegen[0m
+[36m[1m[Codegen][0m Processing RNKC[0m
+[36m[1m[Codegen][0m [33mSearching for podspec in the project dependencies.[0m
+[36m[1m[Codegen][0m Supported Apple platforms: ios for RNKC[0m
+[36m[1m[Codegen][0m Processing LiquidGlassmorphismViewSpec[0m
+[36m[1m[Codegen][0m [33mSearching for podspec in the project dependencies.[0m
+[36m[1m[Codegen][0m Supported Apple platforms: ios for LiquidGlassmorphismViewSpec[0m
+[36m[1m[Codegen][0m Processing rnreanimated[0m
+[36m[1m[Codegen][0m [33mSearching for podspec in the project dependencies.[0m
+[36m[1m[Codegen][0m Supported Apple platforms: ios, macos, tvos, visionos for rnreanimated[0m
+[36m[1m[Codegen][0m Processing safeareacontext[0m
+[36m[1m[Codegen][0m [33mSearching for podspec in the project dependencies.[0m
+[36m[1m[Codegen][0m Supported Apple platforms: ios, macos, tvos, visionos for safeareacontext[0m
+[36m[1m[Codegen][0m Processing rnsvg[0m
+[36m[1m[Codegen][0m [33mSearching for podspec in the project dependencies.[0m
+[36m[1m[Codegen][0m Supported Apple platforms: ios, macos, tvos, visionos for rnsvg[0m
+[36m[1m[Codegen][0m Processing rnworklets[0m
+[36m[1m[Codegen][0m [33mSearching for podspec in the project dependencies.[0m
+[36m[1m[Codegen][0m Supported Apple platforms: ios, macos, tvos, visionos for rnworklets[0m
+[36m[1m[Codegen][0m Generating Native Code for rnasyncstorage - ios[0m
+[36m[1m[Codegen][0m Generated artifacts: /Users/runner/work/linea-build/linea-build/mobile/ios/build/generated/ios/ReactCodegen[0m
+[36m[1m[Codegen][0m Generating Native Code for lottiereactnative - ios[0m
+[36m[1m[Codegen][0m Generated artifacts: /Users/runner/work/linea-build/linea-build/mobile/ios/build/generated/ios/ReactCodegen[0m
+[36m[1m[Codegen][0m Generating Native Code for rngesturehandler_codegen - ios[0m
+[36m[1m[Codegen][0m Generated artifacts: /Users/runner/work/linea-build/linea-build/mobile/ios/build/generated/ios/ReactCodegen[0m
+[36m[1m[Codegen][0m Generating Native Code for RNKC - ios[0m
+[36m[1m[Codegen][0m Generated artifacts: /Users/runner/work/linea-build/linea-build/mobile/ios/build/generated/ios/ReactCodegen[0m
+[36m[1m[Codegen][0m Generating Native Code for LiquidGlassmorphismViewSpec - ios[0m
+[36m[1m[Codegen][0m Generated artifacts: /Users/runner/work/linea-build/linea-build/mobile/ios/build/generated/ios/ReactCodegen[0m
+[36m[1m[Codegen][0m Generating Native Code for rnreanimated - ios[0m
+[36m[1m[Codegen][0m Generated artifacts: /Users/runner/work/linea-build/linea-build/mobile/ios/build/generated/ios/ReactCodegen[0m
+[36m[1m[Codegen][0m Generating Native Code for safeareacontext - ios[0m
+[36m[1m[Codegen][0m Generated artifacts: /Users/runner/work/linea-build/linea-build/mobile/ios/build/generated/ios/ReactCodegen[0m
+[36m[1m[Codegen][0m Generating Native Code for rnsvg - ios[0m
+[36m[1m[Codegen][0m Generated artifacts: /Users/runner/work/linea-build/linea-build/mobile/ios/build/generated/ios/ReactCodegen[0m
+[36m[1m[Codegen][0m Generating Native Code for rnworklets - ios[0m
+[36m[1m[Codegen][0m Generated artifacts: /Users/runner/work/linea-build/linea-build/mobile/ios/build/generated/ios/ReactCodegen[0m
+[36m[1m[Codegen][0m Generating RCTThirdPartyComponentsProvider.h[0m
+[36m[1m[Codegen][0m Generated artifact: /Users/runner/work/linea-build/linea-build/mobile/ios/build/generated/ios/ReactCodegen/RCTThirdPartyComponentsProvider.h[0m
+[36m[1m[Codegen][0m Generating RCTThirdPartyComponentsProvider.mm[0m
+[36m[1m[Codegen][0m Generated artifact: /Users/runner/work/linea-build/linea-build/mobile/ios/build/generated/ios/ReactCodegen/RCTThirdPartyComponentsProvider.mm[0m
+[36m[1m[Codegen][0m Generating RCTModulesProvider.h[0m
+[36m[1m[Codegen][0m Generated artifact: /Users/runner/work/linea-build/linea-build/mobile/ios/build/generated/ios/ReactCodegen/RCTModuleProviders.h[0m
+[36m[1m[Codegen][0m Generating RCTModuleProviders.mm[0m
+[36m[1m[Codegen][0m Generated artifact: /Users/runner/work/linea-build/linea-build/mobile/ios/build/generated/ios/ReactCodegen/RCTModuleProviders.mm[0m
+[36m[1m[Codegen][0m Generating RCTAppDependencyProvider[0m
+[36m[1m[Codegen][0m Generated artifact: /Users/runner/work/linea-build/linea-build/mobile/ios/build/generated/ios/ReactAppDependencyProvider/RCTAppDependencyProvider.h[0m
+[36m[1m[Codegen][0m Generated artifact: /Users/runner/work/linea-build/linea-build/mobile/ios/build/generated/ios/ReactAppDependencyProvider/RCTAppDependencyProvider.mm[0m
+[36m[1m[Codegen][0m Generated podspec: /Users/runner/work/linea-build/linea-build/mobile/ios/build/generated/ios/ReactAppDependencyProvider/ReactAppDependencyProvider.podspec[0m
+[36m[1m[Codegen][0m Generated podspec: /Users/runner/work/linea-build/linea-build/mobile/ios/build/generated/ios/ReactCodegen/ReactCodegen.podspec[0m
+[36m[1m[Codegen][0m Generating Package.swift[0m
+[36m[1m[Codegen][0m Generated artifact: /Users/runner/work/linea-build/linea-build/mobile/ios/build/generated/ios/Package.swift[0m
+[36m[1m[Codegen][0m [33mDone.[0m
+Updating local specs repositories
+Adding spec repo `trunk` with CDN `https://cdn.cocoapods.org/`
+Analyzing dependencies
+[Expo-precompiled] Bundled SPM frameworks: ZXingObjC, SDWebImage, SDWebImageAVIFCoder, SDWebImageSVGCoder, SDWebImageWebPCoder, libavif
+Fetching podspec for `ExpoCamera` from `../node_modules/expo-camera/ios/ExpoCamera.podspec`
+Fetching podspec for `ExpoCameraBarcodeScanning` from `../node_modules/expo-camera/ios/ExpoCameraBarcodeScanning.podspec`
+[Expo-precompiled] Stripping bundled dependency 'ZXingObjC/PDF417' from ExpoCameraBarcodeScanning
+[Expo-precompiled] Stripping bundled dependency 'ZXingObjC/OneD' from ExpoCameraBarcodeScanning
+Fetching podspec for `ExpoFileSystem` from `../node_modules/expo-file-system/ios/ExpoFileSystem.podspec`
+Fetching podspec for `ExpoFont` from `../node_modules/expo-font/ios/ExpoFont.podspec`
+Fetching podspec for `ExpoImage` from `../node_modules/expo-image/ios/ExpoImage.podspec`
+[Expo-precompiled] Stripping bundled dependency 'SDWebImage' from ExpoImage
+[Expo-precompiled] Stripping bundled dependency 'SDWebImageAVIFCoder' from ExpoImage
+[Expo-precompiled] Stripping bundled dependency 'SDWebImageSVGCoder' from ExpoImage
+[Expo-precompiled] Stripping bundled dependency 'SDWebImageWebPCoder' from ExpoImage
+[Expo-precompiled] Stripping bundled dependency 'libavif/libdav1d' from ExpoImage
+Fetching podspec for `ExpoImageManipulator` from `../node_modules/expo-image-manipulator/ios/ExpoImageManipulator.podspec`
+[Expo-precompiled] Skipping SDWebImage.xcframework from ExpoImageManipulator — already vendored by ExpoImage
+[Expo-precompiled] Skipping SDWebImageWebPCoder.xcframework from ExpoImageManipulator — already vendored by ExpoImage
+[Expo-precompiled] Stripping bundled dependency 'SDWebImageWebPCoder' from ExpoImageManipulator
+Fetching podspec for `ExpoMediaLibrary` from `../node_modules/expo-media-library/ios/ExpoMediaLibrary.podspec`
+Fetching podspec for `ExpoModulesCore` from `../node_modules/expo-modules-core/ExpoModulesCore.podspec`
+Fetching podspec for `ExpoModulesWorklets` from `../node_modules/expo-modules-core/ExpoModulesWorklets.podspec`
+Fetching podspec for `ExpoVideo` from `../node_modules/expo-video/ios/ExpoVideo.podspec`
+Pre-downloading: `LibSignalClient` from `https://github.com/signalapp/libsignal.git`, tag `v0.106.0`
+Fetching podspec for `React-Core-prebuilt` from `../node_modules/react-native/React-Core-prebuilt.podspec`
+[ReactNativeCore] Cache miss: downloading reactnative-core-0.86.3-debug.tar.gz from https://repo1.maven.org/maven2/com/facebook/react/react-native-artifacts/0.86.3/react-native-artifacts-0.86.3-reactnative-core-debug.tar.gz
+  % Total    % Received % Xferd  Average Speed  Time    Time    Time   Current
+                                 Dload  Upload  Total   Spent   Left   Speed
+  0      0   0      0   0      0      0      0                              0100    167   0    167   0      0   3660      0                              0100    167   0    167   0      0   3652      0                              0
+  0      0   0      0   0      0      0      0                              0 77 94.20M  77 73.27M   0      0 68.08M      0   00:01   00:01         73.33M100 94.20M 100 94.20M   0      0 72.69M      0   00:01   00:01         73.33M100 94.20M 100 94.20M   0      0 72.67M      0   00:01   00:01         73.33M100 94.20M 100 94.20M   0      0 72.66M      0   00:01   00:01         73.33M
+[ReactNativeCore] Verifying checksum for downloaded reactnative-core-0.86.3-debug.tar.gz...
+[Cache] SHA1 verified for reactnative-core-0.86.3-debug.tar.gz
+[ReactNativeCore] Saved reactnative-core-0.86.3-debug.tar.gz to shared cache (/Users/runner/Library/Caches/ReactNative)
+[ReactNativeCore] Cache miss: downloading reactnative-core-0.86.3-release.tar.gz from https://repo1.maven.org/maven2/com/facebook/react/react-native-artifacts/0.86.3/react-native-artifacts-0.86.3-reactnative-core-release.tar.gz
+  % Total    % Received % Xferd  Average Speed  Time    Time    Time   Current
+                                 Dload  Upload  Total   Spent   Left   Speed
+  0      0   0      0   0      0      0      0                              0100    167   0    167   0      0   3758      0                              0100    167   0    167   0      0   3740      0                              0
+  0      0   0      0   0      0      0      0                              0100 29.56M 100 29.56M   0      0 51.62M      0                              0100 29.56M 100 29.56M   0      0 51.60M      0                              0100 29.56M 100 29.56M   0      0 51.57M      0                              0
+[ReactNativeCore] Verifying checksum for downloaded reactnative-core-0.86.3-release.tar.gz...
+[Cache] SHA1 verified for reactnative-core-0.86.3-release.tar.gz
+[ReactNativeCore] Saved reactnative-core-0.86.3-release.tar.gz to shared cache (/Users/runner/Library/Caches/ReactNative)
+[ReactNativeCore] Resolved stable ReactNativeCore-prebuilt version:
+[ReactNativeCore]   ../../ios/Pods/ReactNativeCore-artifacts/reactnative-core-0.86.3-debug.tar.gz
+[ReactNativeCore]   ../../ios/Pods/ReactNativeCore-artifacts/reactnative-core-0.86.3-release.tar.gz
+Fetching podspec for `ReactNativeDependencies` from `../node_modules/react-native/third-party-podspecs/ReactNativeDependencies.podspec`
+[ReactNativeDependencies] Using tarball from URL: https://repo1.maven.org/maven2/com/facebook/react/react-native-artifacts/0.86.3/react-native-artifacts-0.86.3-reactnative-dependencies-debug.tar.gz
+[ReactNativeDependencies] Tarball reactnative-dependencies-0.86.3-debug.tar.gz already exists in Pods. Skipping download.
+[ReactNativeDependencies] Tarball reactnative-dependencies-0.86.3-release.tar.gz already exists in Pods. Skipping download.
+Fetching podspec for `hermes-engine` from `../node_modules/react-native/sdks/hermes-engine/hermes-engine.podspec`
+[Hermes] Using release tarball from URL: https://repo1.maven.org/maven2/com/facebook/hermes/hermes-ios/250829098.0.17/hermes-ios-250829098.0.17-hermes-ios-debug.tar.gz
+[Hermes] Cache miss: downloading hermes-ios-250829098.0.17-debug.tar.gz from https://repo1.maven.org/maven2/com/facebook/hermes/hermes-ios/250829098.0.17/hermes-ios-250829098.0.17-hermes-ios-debug.tar.gz
+  % Total    % Received % Xferd  Average Speed  Time    Time    Time   Current
+                                 Dload  Upload  Total   Spent   Left   Speed
+  0      0   0      0   0      0      0      0                              0100    167   0    167   0      0   2571      0                              0100    167   0    167   0      0   2567      0                              0
+  0      0   0      0   0      0      0      0                              0100 31.23M 100 31.23M   0      0 30.86M      0   00:01   00:01              0100 31.23M 100 31.23M   0      0 30.85M      0   00:01   00:01              0100 31.23M 100 31.23M   0      0 30.84M      0   00:01   00:01              0
+[Hermes] Verifying checksum for downloaded hermes-ios-250829098.0.17-debug.tar.gz...
+[Hermes] SHA1 verified for hermes-ios-250829098.0.17-debug.tar.gz
+
+...[cut]...
+Using Expo modules
+[Expo] Enabling modular headers for pod ExpoModulesCore
+[Expo] Enabling modular headers for pod ExpoModulesJSI
+[Expo] Enabling modular headers for pod React-RCTAppDelegate
+[Expo] Enabling modular headers for pod React-RCTFabric
+[Expo] Enabling modular headers for pod ReactAppDependencyProvider
+[Expo] Enabling modular headers for pod React-Core
+[Expo] Enabling modular headers for pod ReactCodegen
+[Expo] Enabling modular headers for pod RCTRequired
+[Expo] Enabling modular headers for pod RCTTypeSafety
+[Expo] Enabling modular headers for pod ReactCommon
+[Expo] Enabling modular headers for pod React-NativeModulesApple
+[Expo] Enabling modular headers for pod Yoga
+[Expo] Enabling modular headers for pod React-Fabric
+[Expo] Enabling modular headers for pod React-graphics
+[Expo] Enabling modular headers for pod React-utils
+[Expo] Enabling modular headers for pod React-featureflags
+[Expo] Enabling modular headers for pod React-debug
+[Expo] Enabling modular headers for pod React-ImageManager
+[Expo] Enabling modular headers for pod React-rendererdebug
+[Expo] Enabling modular headers for pod React-jsi
+[Expo] Enabling modular headers for pod React-renderercss
+[Expo] Enabling modular headers for pod hermes-engine
+[Expo] Enabling modular headers for pod glog
+[Expo] Enabling modular headers for pod boost
+[Expo] Enabling modular headers for pod DoubleConversion
+[Expo] Enabling modular headers for pod fast_float
+[Expo] Enabling modular headers for pod fmt
+[Expo] Enabling modular headers for pod RCT-Folly
+[Expo] Enabling modular headers for pod SocketRocket
+[Expo] Enabling modular headers for pod SDWebImage
+[Expo] Enabling modular headers for pod SDWebImageAVIFCoder
+[Expo] Enabling modular headers for pod SDWebImageSVGCoder
+[Expo] Enabling modular headers for pod SDWebImageWebPCoder
+[Expo] Enabling modular headers for pod libavif
+[Expo] Enabling modular headers for pod LibSignalClient
+[Expo-precompiled] RNReanimated: building from source (prebuilt tarball not found)
+[Expo-precompiled]   Expected tarball: /Users/runner/work/linea-build/linea-build/mobile/packages/precompile/.build/react-native-reanimated/output/4.5.1/0.86.3/250829098.0.17/debug/xcframeworks/RNReanimated.tar.gz
+[Expo-precompiled] react-native-safe-area-context: building from source (prebuilt tarball not found)
+[Expo-precompiled]   Expected tarball: /Users/runner/work/linea-build/linea-build/mobile/packages/precompile/.build/react-native-safe-area-context/output/5.7.0/0.86.3/250829098.0.17/debug/xcframeworks/RNCSafeAreaContext.tar.gz
+[Expo-precompiled] RNSVG: building from source (prebuilt tarball not found)
+[Expo-precompiled]   Expected tarball: /Users/runner/work/linea-build/linea-build/mobile/packages/precompile/.build/react-native-svg/output/15.15.4/0.86.3/250829098.0.17/debug/xcframeworks/RNSVG.tar.gz
+[Expo-precompiled] RNWorklets: building from source (prebuilt tarball not found)
+[Expo-precompiled]   Expected tarball: /Users/runner/work/linea-build/linea-build/mobile/packages/precompile/.build/react-native-worklets/output/0.10.1/0.86.3/250829098.0.17/debug/xcframeworks/RNWorklets.tar.gz
+[Expo-precompiled] RNCAsyncStorage: building from source (prebuilt tarball not found)
+[Expo-precompiled]   Expected tarball: /Users/runner/work/linea-build/linea-build/mobile/packages/precompile/.build/@react-native-async-storage/async-storage/output/2.2.0/0.86.3/250829098.0.17/debug/xcframeworks/RNCAsyncStorage.tar.gz
+[Lottie React Native] Using install_modules_dependencies
+Found 13 modules for target `INVIZENT`
+link_native_modules! {:ios_packages=>[{:configurations=>[], :name=>"@react-native-async-storage/async-storage", :root=>"/Users/runner/work/linea-build/linea-build/mobile/node_modules/@react-native-async-storage/async-storage", :path=>"../node_modules/@react-native-async-storage/async-storage", :podspec_path=>"/Users/runner/work/linea-build/linea-build/mobile/node_modules/@react-native-async-storage/async-storage/RNCAsyncStorage.podspec", :script_phases=>[]}, {:configurations=>[], :name=>"@react-native-masked-view/masked-view", :root=>"/Users/runner/work/linea-build/linea-build/mobile/node_modules/@react-native-masked-view/masked-view", :path=>"../node_modules/@react-native-masked-view/masked-view", :podspec_path=>"/Users/runner/work/linea-build/linea-build/mobile/node_modules/@react-native-masked-view/masked-view/RNCMaskedView.podspec", :script_phases=>[]}, {:configurations=>[], :name=>"expo", :root=>"/Users/runner/work/linea-build/linea-build/mobile/node_modules/expo", :path=>"../node_modules/expo", :podspec_path=>"/Users/runner/work/linea-build/linea-build/mobile/node_modules/expo/Expo.podspec", :script_phases=>[]}, {:configurations=>[], :name=>"lottie-react-native", :root=>"/Users/runner/work/linea-build/linea-build/mobile/node_modules/lottie-react-native", :path=>"../node_modules/lottie-react-native", :podspec_path=>"/Users/runner/work/linea-build/linea-build/mobile/node_modules/lottie-react-native/lottie-react-native.podspec", :script_phases=>[]}, {:configurations=>[], :name=>"react-native-gesture-handler", :root=>"/Users/runner/work/linea-build/linea-build/mobile/node_modules/react-native-gesture-handler", :path=>"../node_modules/react-native-gesture-handler", :podspec_path=>"/Users/runner/work/linea-build/linea-build/mobile/node_modules/react-native-gesture-handler/RNGestureHandler.podspec", :script_phases=>[]}, {:configurations=>[], :name=>"react-native-incall-manager", :root=>"/Users/runner/work/linea-build/linea-build/mobile/node_modules/react-native-incall-manager", :path=>"../node_modules/react-native-incall-manager", :podspec_path=>"/Users/runner/work/linea-build/linea-build/mobile/node_modules/react-native-incall-manager/ReactNativeIncallManager.podspec", :script_phases=>[]}, {:configurations=>[], :name=>"react-native-keyboard-controller", :root=>"/Users/runner/work/linea-build/linea-build/mobile/node_modules/react-native-keyboard-controller", :path=>"../node_modules/react-native-keyboard-controller", :podspec_path=>"/Users/runner/work/linea-build/linea-build/mobile/node_modules/react-native-keyboard-controller/react-native-keyboard-controller.podspec", :script_phases=>[]}, {:configurations=>[], :name=>"react-native-liquid-glassmorphism", :root=>"/Users/runner/work/linea-build/linea-build/mobile/node_modules/react-native-liquid-glassmorphism", :path=>"../node_modules/react-native-liquid-glassmorphism", :podspec_path=>"/Users/runner/work/linea-build/linea-build/mobile/node_modules/react-native-liquid-glassmorphism/LiquidGlassmorphism.podspec", :script_phases=>[]}, {:configurations=>[], :name=>"react-native-reanimated", :root=>"/Users/runner/work/linea-build/linea-build/mobile/node_modules/react-native-reanimated", :path=>"../node_modules/react-native-reanimated", :podspec_path=>"/Users/runner/work/linea-build/linea-build/mobile/node_modules/react-native-reanimated/RNReanimated.podspec", :script_phases=>[]}, {:configurations=>[], :name=>"react-native-safe-area-context", :root=>"/Users/runner/work/linea-build/linea-build/mobile/node_modules/react-native-safe-area-context", :path=>"../node_modules/react-native-safe-area-context", :podspec_path=>"/Users/runner/work/linea-build/linea-build/mobile/node_modules/react-native-safe-area-context/react-native-safe-area-context.podspec", :script_phases=>[]}, {:configurations=>[], :name=>"react-native-svg", :root=>"/Users/runner/work/linea-build/linea-build/mobile/node_modules/react-native-svg", :path=>"../node_modules/react-native-svg", :podspec_path=>"/Users/runner/work/linea-build/linea-build/mobile/node_modules/react-native-svg/RNSVG.podspec", :script_phases=>[]}, {:configurations=>[], :name=>"react-native-webrtc", :root=>"/Users/runner/work/linea-build/linea-build/mobile/node_modules/react-native-webrtc", :path=>"../node_modules/react-native-webrtc", :podspec_path=>"/Users/runner/work/linea-build/linea-build/mobile/node_modules/react-native-webrtc/react-native-webrtc.podspec", :script_phases=>[]}, {:configurations=>[], :name=>"react-native-worklets", :root=>"/Users/runner/work/linea-build/linea-build/mobile/node_modules/react-native-worklets", :path=>"../node_modules/react-native-worklets", :podspec_path=>"/Users/runner/work/linea-build/linea-build/mobile/node_modules/react-native-worklets/RNWorklets.podspec", :script_phases=>[]}], :ios_project_root_path=>"/Users/runner/work/linea-build/linea-build/mobile/ios", :react_native_path=>"../node_modules/react-native"}
+[Lottie React Native] Using install_modules_dependencies
+Auto-linking React Native modules for target `INVIZENT`: LiquidGlassmorphism, RNCAsyncStorage, RNCMaskedView, RNGestureHandler, RNReanimated, RNSVG, RNWorklets, ReactNativeIncallManager, lottie-react-native, react-native-keyboard-controller, react-native-safe-area-context, and react-native-webrtc
+Framework build type is static framework
+[ReactNativeDependencies] Setting up ReactNativeDependencies...
+[ReactNativeDependencies] Building from source: false
+[ReactNativeDependencies] Using tarball from URL: https://repo1.maven.org/maven2/com/facebook/react/react-native-artifacts/0.86.3/react-native-artifacts-0.86.3-reactnative-dependencies-debug.tar.gz
+[ReactNativeDependencies] Cache miss: downloading reactnative-dependencies-0.86.3-debug.tar.gz from https://repo1.maven.org/maven2/com/facebook/react/react-native-artifacts/0.86.3/react-native-artifacts-0.86.3-reactnative-dependencies-debug.tar.gz
+  % Total    % Received % Xferd  Average Speed  Time    Time    Time   Current
+                                 Dload  Upload  Total   Spent   Left   Speed
+  0      0   0      0   0      0      0      0                              0100    167   0    167   0      0   2974      0                              0100    167   0    167   0      0   2965      0                              0
+  0      0   0      0   0      0      0      0                              0100 17.87M 100 17.87M   0      0 32.45M      0                              0100 17.87M 100 17.87M   0      0 30.54M      0                              0100 17.87M 100 17.87M   0      0 30.11M      0                              0
+[ReactNativeDependencies] Verifying checksum for downloaded reactnative-dependencies-0.86.3-debug.tar.gz...
+[Cache] SHA1 verified for reactnative-dependencies-0.86.3-debug.tar.gz
+[ReactNativeDependencies] Saved reactnative-dependencies-0.86.3-debug.tar.gz to shared cache (/Users/runner/Library/Caches/ReactNative)
+[ReactNativeDependencies] Cache miss: downloading reactnative-dependencies-0.86.3-release.tar.gz from https://repo1.maven.org/maven2/com/facebook/react/react-native-artifacts/0.86.3/react-native-artifacts-0.86.3-reactnative-dependencies-release.tar.gz
+  % Total    % Received % Xferd  Average Speed  Time    Time    Time   Current
+                                 Dload  Upload  Total   Spent   Left   Speed
+  0      0   0      0   0      0      0      0                              0100    167   0    167   0      0   3481      0                              0100    167   0    167   0      0   3462      0                              0
+  0      0   0      0   0      0      0      0                              0100  9.93M 100  9.93M   0      0 24.34M      0                              0100  9.93M 100  9.93M   0      0 24.32M      0                              0100  9.93M 100  9.93M   0      0 24.30M      0                              0
+[ReactNativeDependencies] Verifying checksum for downloaded reactnative-dependencies-0.86.3-release.tar.gz...
+[Cache] SHA1 verified for reactnative-dependencies-0.86.3-release.tar.gz
+[ReactNativeDependencies] Saved reactnative-dependencies-0.86.3-release.tar.gz to shared cache (/Users/runner/Library/Caches/ReactNative)
+[ReactNativeDependencies] Source: {:http=>"https://repo1.maven.org/maven2/com/facebook/react/react-native-artifacts/0.86.3/react-native-artifacts-0.86.3-reactnative-dependencies-debug.tar.gz"}
+[ReactNativeCore] Setting up ReactNativeCore...
+[ReactNativeCore] Building from source: false
+Configuring the target with the New Architecture
+[ReactNativeCore] Using React Native Core and React Native Dependencies prebuilt versions.
+[36m[1m[Codegen][0m Analyzing /Users/runner/work/linea-build/linea-build/mobile/package.json[0m
+[36m[1m[Codegen][0m [33mSearching for codegen-enabled libraries in the app.[0m
+[36m[1m[Codegen][0m [33mThe "codegenConfig" field is not defined in package.json. Assuming there is nothing to generate at the app level.[0m
+[36m[1m[Codegen][0m [33mSearching for codegen-enabled libraries in react-native.config.js[0m
+[36m[1m[Codegen][0m Found @react-native-async-storage/async-storage[0m
+[36m[1m[Codegen][0m Found lottie-react-native[0m
+[36m[1m[Codegen][0m Found react-native-gesture-handler[0m
+[36m[1m[Codegen][0m Found react-native-keyboard-controller[0m
+[36m[1m[Codegen][0m Found react-native-liquid-glassmorphism[0m
+[36m[1m[Codegen][0m Found react-native-reanimated[0m
+[36m[1m[Codegen][0m Found react-native-safe-area-context[0m
+[36m[1m[Codegen][0m Found react-native-svg[0m
+[36m[1m[Codegen][0m Found react-native-worklets[0m
+[36m[1m[Codegen][0m Processing rnasyncstorage[0m
+[36m[1m[Codegen][0m [33mSearching for podspec in the project dependencies.[0m
+[36m[1m[Codegen][0m Supported Apple platforms: ios, macos, tvos, visionos for rnasyncstorage[0m
+[36m[1m[Codegen][0m Processing lottiereactnative[0m
+[36m[1m[Codegen][0m [33mSearching for podspec in the project dependencies.[0m
+[36m[1m[Codegen][0m Supported Apple platforms: ios, macos, tvos, visionos for lottiereactnative[0m
+[36m[1m[Codegen][0m Processing rngesturehandler_codegen[0m
+[36m[1m[Codegen][0m [33mSearching for podspec in the project dependencies.[0m
+[36m[1m[Codegen][0m Supported Apple platforms: ios, macos, tvos, visionos for rngesturehandler_codegen[0m
+[36m[1m[Codegen][0m Processing RNKC[0m
+[36m[1m[Codegen][0m [33mSearching for podspec in the project dependencies.[0m
+[36m[1m[Codegen][0m Supported Apple platforms: ios for RNKC[0m
+[36m[1m[Codegen][0m Processing LiquidGlassmorphismViewSpec[0m
+[36m[1m[Codegen][0m [33mSearching for podspec in the project dependencies.[0m
+[36m[1m[Codegen][0m Supported Apple platforms: ios for LiquidGlassmorphismViewSpec[0m
+[36m[1m[Codegen][0m Processing rnreanimated[0m
+[36m[1m[Codegen][0m [33mSearching for podspec in the project dependencies.[0m
+[36m[1m[Codegen][0m Supported Apple platforms: ios, macos, tvos, visionos for rnreanimated[0m
+[36m[1m[Codegen][0m Processing safeareacontext[0m
+[36m[1m[Codegen][0m [33mSearching for podspec in the project dependencies.[0m
+[36m[1m[Codegen][0m Supported Apple platforms: ios, macos, tvos, visionos for safeareacontext[0m
+[36m[1m[Codegen][0m Processing rnsvg[0m
+[36m[1m[Codegen][0m [33mSearching for podspec in the project dependencies.[0m
+[36m[1m[Codegen][0m Supported Apple platforms: ios, macos, tvos, visionos for rnsvg[0m
+[36m[1m[Codegen][0m Processing rnworklets[0m
+[36m[1m[Codegen][0m [33mSearching for podspec in the project dependencies.[0m
+[36m[1m[Codegen][0m Supported Apple platforms: ios, macos, tvos, visionos for rnworklets[0m
+[36m[1m[Codegen][0m Generating Native Code for rnasyncstorage - ios[0m
+[36m[1m[Codegen][0m Generated artifacts: /Users/runner/work/linea-build/linea-build/mobile/ios/build/generated/ios/ReactCodegen[0m
+[36m[1m[Codegen][0m Generating Native Code for lottiereactnative - ios[0m
+[36m[1m[Codegen][0m Generated artifacts: /Users/runner/work/linea-build/linea-build/mobile/ios/build/generated/ios/ReactCodegen[0m
+[36m[1m[Codegen][0m Generating Native Code for rngesturehandler_codegen - ios[0m
+[36m[1m[Codegen][0m Generated artifacts: /Users/runner/work/linea-build/linea-build/mobile/ios/build/generated/ios/ReactCodegen[0m
+[36m[1m[Codegen][0m Generating Native Code for RNKC - ios[0m
+[36m[1m[Codegen][0m Generated artifacts: /Users/runner/work/linea-build/linea-build/mobile/ios/build/generated/ios/ReactCodegen[0m
+[36m[1m[Codegen][0m Generating Native Code for LiquidGlassmorphismViewSpec - ios[0m
+[36m[1m[Codegen][0m Generated artifacts: /Users/runner/work/linea-build/linea-build/mobile/ios/build/generated/ios/ReactCodegen[0m
+[36m[1m[Codegen][0m Generating Native Code for rnreanimated - ios[0m
+[36m[1m[Codegen][0m Generated artifacts: /Users/runner/work/linea-build/linea-build/mobile/ios/build/generated/ios/ReactCodegen[0m
+[36m[1m[Codegen][0m Generating Native Code for safeareacontext - ios[0m
+[36m[1m[Codegen][0m Generated artifacts: /Users/runner/work/linea-build/linea-build/mobile/ios/build/generated/ios/ReactCodegen[0m
+[36m[1m[Codegen][0m Generating Native Code for rnsvg - ios[0m
+[36m[1m[Codegen][0m Generated artifacts: /Users/runner/work/linea-build/linea-build/mobile/ios/build/generated/ios/ReactCodegen[0m
+[36m[1m[Codegen][0m Generating Native Code for rnworklets - ios[0m
+[36m[1m[Codegen][0m Generated artifacts: /Users/runner/work/linea-build/linea-build/mobile/ios/build/generated/ios/ReactCodegen[0m
+[36m[1m[Codegen][0m Generating RCTThirdPartyComponentsProvider.h[0m
+[36m[1m[Codegen][0m Generated artifact: /Users/runner/work/linea-build/linea-build/mobile/ios/build/generated/ios/ReactCodegen/RCTThirdPartyComponentsProvider.h[0m
+[36m[1m[Codegen][0m Generating RCTThirdPartyComponentsProvider.mm[0m
+[36m[1m[Codegen][0m Generated artifact: /Users/runner/work/linea-build/linea-build/mobile/ios/build/generated/ios/ReactCodegen/RCTThirdPartyComponentsProvider.mm[0m
+[36m[1m[Codegen][0m Generating RCTModulesProvider.h[0m
+[36m[1m[Codegen][0m Generated artifact: /Users/runner/work/linea-build/linea-build/mobile/ios/build/generated/ios/ReactCodegen/RCTModuleProviders.h[0m
+[36m[1m[Codegen][0m Generating RCTModuleProviders.mm[0m
+[36m[1m[Codegen][0m Generated artifact: /Users/runner/work/linea-build/linea-build/mobile/ios/build/generated/ios/ReactCodegen/RCTModuleProviders.mm[0m
+[36m[1m[Codegen][0m Generating RCTAppDependencyProvider[0m
+[36m[1m[Codegen][0m Generated artifact: /Users/runner/work/linea-build/linea-build/mobile/ios/build/generated/ios/ReactAppDependencyProvider/RCTAppDependencyProvider.h[0m
+[36m[1m[Codegen][0m Generated artifact: /Users/runner/work/linea-build/linea-build/mobile/ios/build/generated/ios/ReactAppDependencyProvider/RCTAppDependencyProvider.mm[0m
+[36m[1m[Codegen][0m Generated podspec: /Users/runner/work/linea-build/linea-build/mobile/ios/build/generated/ios/ReactAppDependencyProvider/ReactAppDependencyProvider.podspec[0m
+[36m[1m[Codegen][0m Generated podspec: /Users/runner/work/linea-build/linea-build/mobile/ios/build/generated/ios/ReactCodegen/ReactCodegen.podspec[0m
+[36m[1m[Codegen][0m Generating Package.swift[0m
+[36m[1m[Codegen][0m Generated artifact: /Users/runner/work/linea-build/linea-build/mobile/ios/build/generated/ios/Package.swift[0m
+[36m[1m[Codegen][0m [33mDone.[0m
+Updating local specs repositories
+Adding spec repo `trunk` with CDN `https://cdn.cocoapods.org/`
+Analyzing dependencies
+[Expo-precompiled] Bundled SPM frameworks: ZXingObjC, SDWebImage, SDWebImageAVIFCoder, SDWebImageSVGCoder, SDWebImageWebPCoder, libavif
+Fetching podspec for `ExpoCamera` from `../node_modules/expo-camera/ios/ExpoCamera.podspec`
+Fetching podspec for `ExpoCameraBarcodeScanning` from `../node_modules/expo-camera/ios/ExpoCameraBarcodeScanning.podspec`
+[Expo-precompiled] Stripping bundled dependency 'ZXingObjC/PDF417' from ExpoCameraBarcodeScanning
+[Expo-precompiled] Stripping bundled dependency 'ZXingObjC/OneD' from ExpoCameraBarcodeScanning
+Fetching podspec for `ExpoFileSystem` from `../node_modules/expo-file-system/ios/ExpoFileSystem.podspec`
+Fetching podspec for `ExpoFont` from `../node_modules/expo-font/ios/ExpoFont.podspec`
+Fetching podspec for `ExpoImage` from `../node_modules/expo-image/ios/ExpoImage.podspec`
+[Expo-precompiled] Stripping bundled dependency 'SDWebImage' from ExpoImage
+[Expo-precompiled] Stripping bundled dependency 'SDWebImageAVIFCoder' from ExpoImage
+[Expo-precompiled] Stripping bundled dependency 'SDWebImageSVGCoder' from ExpoImage
+[Expo-precompiled] Stripping bundled dependency 'SDWebImageWebPCoder' from ExpoImage
+[Expo-precompiled] Stripping bundled dependency 'libavif/libdav1d' from ExpoImage
+Fetching podspec for `ExpoImageManipulator` from `../node_modules/expo-image-manipulator/ios/ExpoImageManipulator.podspec`
+[Expo-precompiled] Skipping SDWebImage.xcframework from ExpoImageManipulator — already vendored by ExpoImage
+[Expo-precompiled] Skipping SDWebImageWebPCoder.xcframework from ExpoImageManipulator — already vendored by ExpoImage
+[Expo-precompiled] Stripping bundled dependency 'SDWebImageWebPCoder' from ExpoImageManipulator
+Fetching podspec for `ExpoMediaLibrary` from `../node_modules/expo-media-library/ios/ExpoMediaLibrary.podspec`
+Fetching podspec for `ExpoModulesCore` from `../node_modules/expo-modules-core/ExpoModulesCore.podspec`
+Fetching podspec for `ExpoModulesWorklets` from `../node_modules/expo-modules-core/ExpoModulesWorklets.podspec`
+Fetching podspec for `ExpoVideo` from `../node_modules/expo-video/ios/ExpoVideo.podspec`
+Pre-downloading: `LibSignalClient` from `https://github.com/signalapp/libsignal.git`, tag `v0.106.0`
+Fetching podspec for `React-Core-prebuilt` from `../node_modules/react-native/React-Core-prebuilt.podspec`
+[ReactNativeCore] Cache miss: downloading reactnative-core-0.86.3-debug.tar.gz from https://repo1.maven.org/maven2/com/facebook/react/react-native-artifacts/0.86.3/react-native-artifacts-0.86.3-reactnative-core-debug.tar.gz
+  % Total    % Received % Xferd  Average Speed  Time    Time    Time   Current
+                                 Dload  Upload  Total   Spent   Left   Speed
+  0      0   0      0   0      0      0      0                              0100    167   0    167   0      0   3660      0                              0100    167   0    167   0      0   3652      0                              0
+  0      0   0      0   0      0      0      0                              0 77 94.20M  77 73.27M   0      0 68.08M      0   00:01   00:01         73.33M100 94.20M 100 94.20M   0      0 72.69M      0   00:01   00:01         73.33M100 94.20M 100 94.20M   0      0 72.67M      0   00:01   00:01         73.33M100 94.20M 100 94.20M   0      0 72.66M      0   00:01   00:01         73.33M
+[ReactNativeCore] Verifying checksum for downloaded reactnative-core-0.86.3-debug.tar.gz...
+[Cache] SHA1 verified for reactnative-core-0.86.3-debug.tar.gz
+[ReactNativeCore] Saved reactnative-core-0.86.3-debug.tar.gz to shared cache (/Users/runner/Library/Caches/ReactNative)
+[ReactNativeCore] Cache miss: downloading reactnative-core-0.86.3-release.tar.gz from https://repo1.maven.org/maven2/com/facebook/react/react-native-artifacts/0.86.3/react-native-artifacts-0.86.3-reactnative-core-release.tar.gz
+  % Total    % Received % Xferd  Average Speed  Time    Time    Time   Current
+                                 Dload  Upload  Total   Spent   Left   Speed
+  0      0   0      0   0      0      0      0                              0100    167   0    167   0      0   3758      0                              0100    167   0    167   0      0   3740      0                              0
+  0      0   0      0   0      0      0      0                              0100 29.56M 100 29.56M   0      0 51.62M      0                              0100 29.56M 100 29.56M   0      0 51.60M      0                              0100 29.56M 100 29.56M   0      0 51.57M      0                              0
+[ReactNativeCore] Verifying checksum for downloaded reactnative-core-0.86.3-release.tar.gz...
+[Cache] SHA1 verified for reactnative-core-0.86.3-release.tar.gz
+[ReactNativeCore] Saved reactnative-core-0.86.3-release.tar.gz to shared cache (/Users/runner/Library/Caches/ReactNative)
+[ReactNativeCore] Resolved stable ReactNativeCore-prebuilt version:
+[ReactNativeCore]   ../../ios/Pods/ReactNativeCore-artifacts/reactnative-core-0.86.3-debug.tar.gz
+[ReactNativeCore]   ../../ios/Pods/ReactNativeCore-artifacts/reactnative-core-0.86.3-release.tar.gz
+Fetching podspec for `ReactNativeDependencies` from `../node_modules/react-native/third-party-podspecs/ReactNativeDependencies.podspec`
+[ReactNativeDependencies] Using tarball from URL: https://repo1.maven.org/maven2/com/facebook/react/react-native-artifacts/0.86.3/react-native-artifacts-0.86.3-reactnative-dependencies-debug.tar.gz
+[ReactNativeDependencies] Tarball reactnative-dependencies-0.86.3-debug.tar.gz already exists in Pods. Skipping download.
+[ReactNativeDependencies] Tarball reactnative-dependencies-0.86.3-release.tar.gz already exists in Pods. Skipping download.
+Fetching podspec for `hermes-engine` from `../node_modules/react-native/sdks/hermes-engine/hermes-engine.podspec`
+[Hermes] Using release tarball from URL: https://repo1.maven.org/maven2/com/facebook/hermes/hermes-ios/250829098.0.17/hermes-ios-250829098.0.17-hermes-ios-debug.tar.gz
+[Hermes] Cache miss: downloading hermes-ios-250829098.0.17-debug.tar.gz from https://repo1.maven.org/maven2/com/facebook/hermes/hermes-ios/250829098.0.17/hermes-ios-250829098.0.17-hermes-ios-debug.tar.gz
+  % Total    % Received % Xferd  Average Speed  Time    Time    Time   Current
+                                 Dload  Upload  Total   Spent   Left   Speed
+  0      0   0      0   0      0      0      0                              0100    167   0    167   0      0   2571      0                              0100    167   0    167   0      0   2567      0                              0
+  0      0   0      0   0      0      0      0                              0100 31.23M 100 31.23M   0      0 30.86M      0   00:01   00:01              0100 31.23M 100 31.23M   0      0 30.85M      0   00:01   00:01              0100 31.23M 100 31.23M   0      0 30.84M      0   00:01   00:01              0
+[Hermes] Verifying checksum for downloaded hermes-ios-250829098.0.17-debug.tar.gz...
+[Hermes] SHA1 verified for hermes-ios-250829098.0.17-debug.tar.gz
