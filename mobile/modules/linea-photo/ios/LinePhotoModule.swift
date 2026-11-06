@@ -13,6 +13,8 @@ public final class LinePhotoModule: Module {
   private var routeObserver:NSObjectProtocol?
   public func definition() -> ModuleDefinition {
     Name("LineaPhoto")
+    // iOS 26: no system dimming band at the top/bottom of scroll views (see ScrollEdgeEffects.swift).
+    OnCreate { ScrollEdgeEffects.disable() }
     AsyncFunction("capabilities"){PhotoBackground.capabilities()}
     AsyncFunction("prepareBackground"){PhotoBackground.capabilities()}
     AsyncFunction("inspect"){(uri:String) in try self.protect{try PhotoFiles().inspect(uri)}}
