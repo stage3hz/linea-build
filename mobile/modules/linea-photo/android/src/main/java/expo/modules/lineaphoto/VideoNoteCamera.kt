@@ -42,6 +42,7 @@ class VideoNoteModule : Module() {
       Prop("zoom") { view: VideoNoteView, zoom: Float -> view.setZoom(zoom) }
       AsyncFunction("startRecording") { view: VideoNoteView, path: String, promise: Promise -> view.start(path, promise) }
       AsyncFunction("stopRecording") { view: VideoNoteView, promise: Promise -> view.stop(promise) }
+      AsyncFunction("pauseRecording") { view: VideoNoteView, paused: Boolean -> view.setPaused(paused) }
     }
   }
 }
@@ -145,6 +146,11 @@ class VideoNoteView(context: Context, appContext: AppContext) : ExpoView(context
       }
   }
 
+  /** Pause / continue the same file (Telegram's pause while recording a video message hands-free). */
+  fun setPaused(paused: Boolean) {
+    val current = recording ?: return
+    if (paused) current.pause() else current.resume()
+  }
   fun stop(promise: Promise) {
     val current = recording ?: run { promise.reject("IDLE", "Запись не идёт.", null); return }
     stopped = promise

@@ -1,6 +1,6 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { ActivityIndicator, Image, Modal, Platform, Pressable, StyleSheet, View, useWindowDimensions } from 'react-native';
-import Animated, { LinearTransition } from 'react-native-reanimated';
+import Animated, { LinearTransition, useAnimatedStyle, useSharedValue, withSpring, withTiming } from 'react-native-reanimated';
 import { motionEnabled } from '../motion';
 import { CameraView, useCameraPermissions, useMicrophonePermissions, type CameraType } from 'expo-camera';
 import { useVideoPlayer, VideoView } from 'expo-video';
@@ -61,6 +61,9 @@ export function VideoNoteRecorder({ visible, onClose, onDone, hold = null }: { v
   useEffect(() => { if (visible) void setCenterStage(centerStageWanted).then(setStage); }, [visible]);
   const toggleStage = () => { centerStageWanted = !stage.enabled; void setCenterStage(centerStageWanted).then(setStage); };
   const started = useRef(0); const cancelled = useRef(false);
+  // Pause (Telegram, hands-free): paused time is not counted in the timer, the ring or the 60 s limit.
+  const [notePaused, setNotePaused] = useState(false); const pausedAt = useRef(0); const pausedTotal = useRef(0);
+  const activeMs = () => Date.now() - started.current - pausedTotal.current - (pausedAt.current ? Date.now() - pausedAt.current : 0);
 
   useEffect(() => {
     if (!visible) { setReady(false); setRecording(false); setElapsed(0); setError(''); return; }
@@ -73,12 +76,13 @@ export function VideoNoteRecorder({ visible, onClose, onDone, hold = null }: { v
   }, [visible]);
   useEffect(() => {
     if (!recording) return;
-    const timer = setInterval(() => setElapsed(Date.now() - started.current), hold ? 50 : 200); // hold: 0:04,63 like Telegram
+    if (notePaused) return;
+    const timer = setInterval(() => setElapsed(activeMs()), hold ? 50 : 200); // hold: 0:04,63 like Telegram
     return () => clearInterval(timer);
-  }, [recording]);
+  }, [recording, notePaused]);
 
   const finishTake = (uri: string | undefined) => {
-    const durationMs = Math.min(VIDEO_NOTE_MAX_MS, Date.now() - started.current);
+    const durationMs = Math.min(VIDEO_NOTE_MAX_MS, activeMs());
     setRecording(false);
     if (cancelled.current || !uri) return;
     if (durationMs < 1000) { if (hold) { onClose(); return; } setError('Слишком короткое видео — запиши хотя бы секунду.'); return; }
@@ -86,7 +90,7 @@ export function VideoNoteRecorder({ visible, onClose, onDone, hold = null }: { v
   };
   const start = async () => {
     if (recording || !ready) return;
-    cancelled.current = false; setError(''); started.current = Date.now(); setElapsed(0); setRecording(true);
+    cancelled.current = false; setError(''); started.current = Date.now(); pausedAt.current = 0; pausedTotal.current = 0; setNotePaused(false); setElapsed(0); setRecording(true);
     if (androidNoteCameraAvailable) {
       try {
         await nativeRef.current?.startRecording(`${FileSystem.cacheDirectory}videonote-${Date.now()}.mp4`);
@@ -108,6 +112,15 @@ export function VideoNoteRecorder({ visible, onClose, onDone, hold = null }: { v
       return;
     }
     if (recording) ref.current?.stopRecording();
+  };
+  const togglePause = async () => {
+    if (!recording || !androidNoteCameraAvailable || !nativeRef.current?.pauseRecording) return;
+    const next = !notePaused;
+    try { await nativeRef.current.pauseRecording(next); } catch { return; }
+    lightFeedback();
+    if (next) { pausedAt.current = Date.now(); if (limit.current) { clearTimeout(limit.current); limit.current = undefined; } }
+    else { pausedTotal.current += Date.now() - pausedAt.current; pausedAt.current = 0; limit.current = setTimeout(() => void stop(), Math.max(0, VIDEO_NOTE_MAX_MS - activeMs())); }
+    setNotePaused(next);
   };
   const cancel = () => { cancelled.current = true; if (recording) void stop(); onClose(); };
   const allowed = !!camera?.granted && !!mic?.granted;
@@ -159,18 +172,22 @@ export function VideoNoteRecorder({ visible, onClose, onDone, hold = null }: { v
   // «‹ Влево — отмена» (after a lock: «Отмена»), the big circle on the right (under the finger; after
   // a lock it sends), and the switch-camera button above the strip on the left.
   const RING = CIRCLE + 12;
+  // Telegram: the circle grows out of the record button (bottom right) into place.
+  const appear = useSharedValue(0);
+  useEffect(() => { appear.value = visible && hold ? (motionEnabled() ? withSpring(1, { damping: 17, stiffness: 190 }) : withTiming(1, { duration: 0 })) : 0; }, [visible, !!hold]);
+  const grow = useAnimatedStyle(() => ({ opacity: Math.min(1, appear.value * 2), transform: [{ translateX: (1 - appear.value) * win.width * 0.38 }, { translateY: (1 - appear.value) * win.height * 0.42 }, { scale: 0.12 + 0.88 * appear.value }] }));
   const holdBody = <View pointerEvents="box-none" style={{ flex: 1 }}>
     {screenFlash ? <View pointerEvents="none" style={[StyleSheet.absoluteFill, { backgroundColor: '#FFF6E8' }]} /> : null}
     <View pointerEvents="box-none" style={{ alignItems: 'center', paddingTop: Math.max(insets.top + 24, win.height * 0.4 - RING / 2), gap: 18 }}>
       <GestureDetector gesture={pinch}>
-      <View style={{ width: RING, height: RING, alignItems: 'center', justifyContent: 'center' }}>
+      <Animated.View style={[{ width: RING, height: RING, alignItems: 'center', justifyContent: 'center' }, grow]}>
         <ProgressRing progress={recording ? progress : 0} size={RING} width={4} color="#FFF" track="rgba(255,255,255,0.16)" />
         <View style={{ width: CIRCLE, height: CIRCLE, borderRadius: CIRCLE / 2, overflow: 'hidden', backgroundColor: '#000' }}>
           {preview}
           {flipping ? <BlurView pointerEvents="none" tint="dark" intensity={80} style={StyleSheet.absoluteFill} /> : null}
           {zoom > 0.02 ? <View pointerEvents="none" style={{ position: 'absolute', bottom: 14, alignSelf: 'center', paddingHorizontal: 8, paddingVertical: 2, borderRadius: 10, backgroundColor: 'rgba(0,0,0,0.45)' }}><Text style={{ color: '#FFF', fontSize: 12, fontWeight: '700' }}>{(1 + zoom * 5).toFixed(1).replace('.', ',')}×</Text></View> : null}
         </View>
-      </View>
+      </Animated.View>
       </GestureDetector>
       {stage.supported && facing === 'front' && showControls ? <Pressable accessibilityRole="switch" accessibilityState={{ checked: stage.enabled }} accessibilityLabel="Слежение за лицом" onPress={toggleStage} style={{ flexDirection: 'row', alignItems: 'center', gap: 6, paddingHorizontal: 12, paddingVertical: 7, borderRadius: 16, backgroundColor: stage.enabled ? 'rgba(255,214,10,0.18)' : 'rgba(255,255,255,0.1)' }}><Icon name="scan-outline" size={16} color={stage.enabled ? '#FFD60A' : '#FFF'} /><Text style={{ color: stage.enabled ? '#FFD60A' : '#FFF', fontSize: 13, fontWeight: '600' }}>{stage.enabled ? 'В центре кадра' : 'Слежение выкл.'}</Text></Pressable> : null}
       {error ? <Text style={{ color: '#FFB4B4', fontSize: 13, textAlign: 'center', maxWidth: 320 }}>{error}</Text> : null}
@@ -179,6 +196,8 @@ export function VideoNoteRecorder({ visible, onClose, onDone, hold = null }: { v
       <View pointerEvents="box-none" style={{ flexDirection: 'row' }}>
         <Pressable accessibilityRole="button" accessibilityLabel="Сменить камеру" disabled={!showControls} onPress={flip} style={[styles.small, { opacity: recording && !FLIP_WHILE_RECORDING ? .35 : 1 }]}><Icon name="camera-reverse-outline" color="#FFF" size={21} /></Pressable>
         {facing === 'front' || Platform.OS === 'ios' ? <Pressable accessibilityRole="switch" accessibilityState={{ checked: flash }} accessibilityLabel="Вспышка" disabled={!showControls} onPress={() => { lightFeedback(); setFlash(value => !value); }} style={[styles.small, { marginLeft: 11, backgroundColor: flash ? 'rgba(255,214,10,0.28)' : 'rgba(255,255,255,0.14)' }]}><Icon name={flash ? 'flash' : 'flash-off-outline'} color={flash ? '#FFD60A' : '#FFF'} size={20} /></Pressable> : null}
+              <View style={{ flex: 1 }} />
+        {hold?.locked && recording && androidNoteCameraAvailable ? <Pressable accessibilityRole="button" accessibilityLabel={notePaused ? 'Продолжить запись' : 'Пауза'} onPress={() => void togglePause()} style={[styles.small, { marginRight: 13 }]}><Icon name={notePaused ? 'videocam' : 'pause'} color={notePaused ? t.danger : '#FFF'} size={20} /></Pressable> : null}
       </View>
       <View pointerEvents="box-none" style={{ flexDirection: 'row', alignItems: 'flex-end' }}>
         <View pointerEvents="box-none" style={{ flex: 1, minHeight: 48, marginBottom: 10, marginRight: -62, paddingRight: 70, borderRadius: 24, flexDirection: 'row', alignItems: 'center', gap: 8, paddingLeft: 14, backgroundColor: 'rgba(28,32,46,0.88)' }}>

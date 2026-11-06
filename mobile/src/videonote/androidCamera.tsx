@@ -5,7 +5,7 @@ import React, { forwardRef } from 'react';
 import { Platform, type ViewStyle, type StyleProp } from 'react-native';
 import { requireNativeViewManager, requireOptionalNativeModule } from 'expo-modules-core';
 
-export type AndroidNoteCameraHandle = { startRecording: (path: string) => Promise<void>; stopRecording: () => Promise<string> };
+export type AndroidNoteCameraHandle = { startRecording: (path: string) => Promise<void>; stopRecording: () => Promise<string>; pauseRecording?: (paused: boolean) => Promise<void> };
 type Props = { facing: 'front' | 'back'; torch?: boolean; zoom?: number; style?: StyleProp<ViewStyle>; onReady?: () => void; onCameraError?: (event: { nativeEvent: { message?: string } }) => void };
 
 const available = (Platform.OS === 'android' || Platform.OS === 'ios') && !!requireOptionalNativeModule('LineaVideoNote');

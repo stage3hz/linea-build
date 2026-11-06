@@ -7,7 +7,10 @@ import { useWallpaper } from './wallpapers';
 import { usePlatina } from './platina/usePlatina';
 import { ComposerInput } from './ComposerInput';
 import React, { useEffect, useMemo, useRef, useState } from 'react';
-import { ActivityIndicator, FlatList, Keyboard, Modal, Platform, Pressable, ScrollView, View } from 'react-native';
+import { ActivityIndicator, FlatList, Image, Keyboard, Modal, Platform, Pressable, ScrollView, StyleSheet, View } from 'react-native';
+import Animated, { ZoomIn } from 'react-native-reanimated';
+import * as VideoThumbnails from 'expo-video-thumbnails';
+import { ProgressRing } from './media/MediaBubble';
 import { Text, TextInput } from './typography';
 import { KeyboardSafeView } from './keyboard';
 import { shareText } from './share';
@@ -292,18 +295,23 @@ export function ChatScreen({api,user,chat,store,onBack,wide=false,onOpenMusic}: 
     return <MessageRow animatedEmoji={platina} groupNext={groupNext} row={item} selecting={!!selection} selected={!!selection?.has(item.key)} fresh={fresh(item.key)} olderCreatedAt={rows[index+1]?.createdAt} mine={mine} author={mine?'Ты':peerName} peerLastRead={peerLastRead} wide={wide} fontSize={metrics.fontSize} lineHeight={metrics.lineHeight} radius={preferences.bubbleRadius} downloading={!!downloadId&&file?.id===downloadId} replyAuthor={reply?(reply.senderId===user.id?'Ты':peerName):undefined} replyText={reply?(original?replyPreview(original):reply.preview||'Сообщение удалено'):undefined} api={api} handlers={handlers}/>;
   },[rows,user.id,peerName,peerLastRead,wide,metrics,downloadId,view.byClientId,api,selection,preferences.bubbleRadius,platina]);
   const [circleOpen,setCircleOpen]=useState(false);
+  // Telegram: the sent circle appears in the chat at once (frame from the take, upload ring, ✕).
+  // Uploads cannot be aborted, so ✕ means «do not send» once the upload ends.
+  const [pendingNote,setPendingNote]=useState<{thumb?:string;progress:number}|null>(null);const noteCancelled=useRef(false);
   const sendVideoNote=async(take:VideoNoteTake)=>{
-    setCircleOpen(false);
+    setCircleOpen(false);noteCancelled.current=false;setPendingNote({progress:0});
+    void VideoThumbnails.getThumbnailAsync(take.uri,{time:0,quality:.6}).then(frame=>setPendingNote(p=>p?{...p,thumb:frame.uri}:p)).catch(()=>{});
     const chatId=chat.id,reply=replyTo?{clientId:replyTo.clientId,senderId:replyTo.senderId,preview:replyPreview(replyTo)}:undefined;
     uploadingRef.current=true;setUploading(true);setLocalError('');
     try{
       const name=videoNoteFileName();
-      const uploaded=await store.uploadEncrypted({uri:take.uri,name:'video.mp4',mimeType:'video/mp4'});
+      const uploaded=await store.uploadEncrypted({uri:take.uri,name:'video.mp4',mimeType:'video/mp4'},(sent,total)=>{if(total>0)setPendingNote(p=>p?{...p,progress:sent/total}:p);});
+      if(noteCancelled.current)return;
       store.send(chatId,'',{...uploaded,name,mimeType:'video/mp4',media:{...(uploaded.media||{}),durationMs:uploaded.media?.durationMs||Math.round(take.durationMs)}},reply?{reply}:undefined);
       if(reply)setReplyTo(null);
       listRef.current?.scrollToOffset({offset:0,animated:true});
     }catch(e){if(alive.current)setLocalError(e instanceof Error?e.message:'Не удалось отправить видеосообщение.');}
-    finally{uploadingRef.current=false;if(alive.current)setUploading(false);await FileSystem.deleteAsync(take.uri,{idempotent:true}).catch(()=>{});}
+    finally{if(alive.current)setPendingNote(null);uploadingRef.current=false;if(alive.current)setUploading(false);await FileSystem.deleteAsync(take.uri,{idempotent:true}).catch(()=>{});}
   };
   // Telegram: messages scroll under the status bar (no hard edge at the safe area); the header sits below it.
   // Edge fades take the wallpaper's own colour (top / bottom of the gradient), so they never show as a
@@ -405,6 +413,10 @@ export function ChatScreen({api,user,chat,store,onBack,wide=false,onOpenMusic}: 
     {copied?<View style={{alignSelf:'center',marginTop:6,paddingVertical:7,paddingHorizontal:14,backgroundColor:t.accentSoft,borderRadius:16,borderWidth:1,borderColor:t.border}}><Text style={{color:t.accent,fontSize:12}}>Скопировано</Text></View>:null}
     </View>
     {rows.length===0?<View style={{flex:1,justifyContent:'center',paddingTop:headerHeight,paddingBottom:footerHeight}}>{store.messageLoading?<ActivityIndicator color={t.accent}/>:<Empty icon="hand-left-outline" title="Скажи «привет»" description={`Это начало вашей переписки с ${chat.peer.displayName}.`}/>}</View>:<FlatList ref={listRef} inverted data={rows} keyExtractor={row=>row.key} keyboardShouldPersistTaps="handled" keyboardDismissMode={Platform.OS==='ios'?'interactive':'on-drag'} contentContainerStyle={{paddingHorizontal:wide?28:9,paddingTop:footerHeight+8,paddingBottom:headerHeight+14}} onScroll={e=>{const down=e.nativeEvent.contentOffset.y>350;if(down!==showDown)setShowDown(down);}} scrollEventThrottle={100} initialNumToRender={25} windowSize={11} onScrollToIndexFailed={info=>{listRef.current?.scrollToOffset({offset:info.averageItemLength*info.index,animated:true});setTimeout(()=>listRef.current?.scrollToIndex({index:info.index,animated:true,viewPosition:.5}),250);}}
+      ListHeaderComponent={pendingNote?<Animated.View entering={ZoomIn.springify().damping(16)} style={{alignSelf:'flex-end',marginVertical:6,width:212,height:212,borderRadius:106,overflow:'hidden',backgroundColor:'#11162A',alignItems:'center',justifyContent:'center'}}>
+        {pendingNote.thumb?<Image source={{uri:pendingNote.thumb}} style={StyleSheet.absoluteFill} resizeMode="cover"/>:null}
+        <View style={{width:56,height:56,borderRadius:28,backgroundColor:'rgba(10,20,35,0.6)',alignItems:'center',justifyContent:'center'}}><ProgressRing progress={pendingNote.progress} size={56}/><Pressable accessibilityRole="button" accessibilityLabel="Не отправлять видеосообщение" onPress={()=>{noteCancelled.current=true;setPendingNote(null);}} hitSlop={8}><Icon name="close" size={24} color="#FFF"/></Pressable></View>
+      </Animated.View>:null}
       ListFooterComponent={store.hasMore[chat.id]?<View style={{alignItems:'center',padding:18}}><GlassSurface material="clear" radius={19} shadow={false}><Pressable onPress={()=>void store.loadMessages(chat.id,true)} disabled={store.messageLoading} accessibilityRole="button" style={{paddingVertical:11,paddingHorizontal:17}}>{store.messageLoading?<ActivityIndicator size="small" color={t.accent}/>:<Text style={{fontSize:12,color:t.accent,fontWeight:'600'}}>Более ранние сообщения</Text>}</Pressable></GlassSurface></View>:null}
       renderItem={renderRow} removeClippedSubviews={Platform.OS==='android'} maxToRenderPerBatch={12} updateCellsBatchingPeriod={40}/>
     }
@@ -426,7 +438,7 @@ export function ChatScreen({api,user,chat,store,onBack,wide=false,onOpenMusic}: 
         <View style={{flex:1,gap:1}}><Text style={{color:t.accent,fontSize:11,fontWeight:'700'}}>{editing?'Редактирование':`Ответ ${nameOf((replyTo as ViewMessage).senderId)==='Ты'?'себе':nameOf((replyTo as ViewMessage).senderId)}`}</Text><Text numberOfLines={1} style={{color:t.muted,fontSize:12}}>{replyPreview((editing||replyTo)!)}</Text></View>
         <IconButton name="close" label={editing?'Отменить редактирование':'Отменить ответ'} size={18} color={t.muted} onPress={()=>{if(editing)store.setDraft(chat.id,'');setEditing(null);setReplyTo(null);}} style={{width:36,height:36}}/>
       </View>:null}
-      {uploading?<View style={{flexDirection:'row',alignItems:'center',gap:9,padding:12,paddingTop:4}}><ActivityIndicator size="small" color={t.accent}/><Text style={{fontSize:12,color:t.muted}}>Обрабатываем и шифруем вложение…</Text></View>:null}
+      {uploading&&!pendingNote?<View style={{flexDirection:'row',alignItems:'center',gap:9,padding:12,paddingTop:4}}><ActivityIndicator size="small" color={t.accent}/><Text style={{fontSize:12,color:t.muted}}>Обрабатываем и шифруем вложение…</Text></View>:null}
       {attachments.length?<ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{gap:7,paddingBottom:7}}>{attachments.map((attachment,index)=>{
         const kind=mediaPreviewKind(attachment);
         return <View key={attachment.id} style={{width:230,flexDirection:'row',alignItems:'center',gap:8,padding:10,borderRadius:19,backgroundColor:t.accentSoft,borderWidth:1,borderColor:t.border}}><Icon name={kind==='photo'?'image-outline':kind==='video'?'videocam-outline':kind==='audio'?'musical-note-outline':'document-outline'} color={t.accent} size={21}/><View style={{flex:1,gap:3}}><Text numberOfLines={1} style={{color:t.text,fontSize:12,fontWeight:'600'}}>{attachment.name}</Text><Text style={{color:t.muted,fontSize:10}}>{index+1} · {formatSize(attachment.size)}</Text></View><IconButton name="close" label={`Убрать ${attachment.name}`} onPress={()=>{store.removeDraftFile(chat.id,attachment.id);draftCount.current=Math.max(0,draftCount.current-1);}} disabled={uploading} size={18} style={{width:30,height:32}}/></View>;

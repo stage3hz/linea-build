@@ -16,6 +16,7 @@ public class VideoNoteModule: Module {
       Prop("zoom") { (view: VideoNoteView, zoom: Double) in view.setZoom(zoom) }
       AsyncFunction("startRecording") { (view: VideoNoteView, path: String, promise: Promise) in view.start(path: path, promise: promise) }
       AsyncFunction("stopRecording") { (view: VideoNoteView, promise: Promise) in view.stop(promise: promise) }
+      AsyncFunction("pauseRecording") { (view: VideoNoteView, paused: Bool) in view.setPaused(paused) }
     }
   }
 }
@@ -44,6 +45,12 @@ final class VideoNoteView: ExpoView, AVCaptureVideoDataOutputSampleBufferDelegat
   private var sessionStarted = false
   private var stopping = false
   private var fileURL: URL?
+  // Pause: nothing is written while paused; afterwards every timestamp is shifted back by the
+  // paused time so the file has no gap (offset grows with each pause).
+  private var paused = false
+  private var resumePending = false
+  private var timeOffset = CMTime.zero
+  private var lastVideoTime = CMTime.invalid
 
   required init(appContext: AppContext? = nil) {
     super.init(appContext: appContext)
@@ -223,11 +230,35 @@ final class VideoNoteView: ExpoView, AVCaptureVideoDataOutputSampleBufferDelegat
         writer.add(video); writer.add(audio)
         self.writer = writer; self.writerVideo = video; self.writerAudio = audio
         self.sessionStarted = false; self.stopping = false; self.fileURL = url
+        self.paused = false; self.resumePending = false; self.timeOffset = .zero; self.lastVideoTime = .invalid
         promise.resolve(nil)
       } catch {
         promise.reject("E_WRITER", "Не удалось начать запись: \(error.localizedDescription)")
       }
     }
+  }
+
+  func setPaused(_ value: Bool) {
+    dataQueue.async {
+      guard self.writer != nil, value != self.paused else { return }
+      self.paused = value
+      if !value { self.resumePending = true }
+    }
+  }
+
+  private func shifted(_ buffer: CMSampleBuffer) -> CMSampleBuffer? {
+    if timeOffset == .zero { return buffer }
+    var count: CMItemCount = 0
+    CMSampleBufferGetSampleTimingInfoArray(buffer, entryCount: 0, arrayToFill: nil, entriesNeededOut: &count)
+    var timing = [CMSampleTimingInfo](repeating: CMSampleTimingInfo(), count: max(1, count))
+    CMSampleBufferGetSampleTimingInfoArray(buffer, entryCount: count, arrayToFill: &timing, entriesNeededOut: &count)
+    for i in 0..<timing.count {
+      timing[i].presentationTimeStamp = CMTimeSubtract(timing[i].presentationTimeStamp, timeOffset)
+      if timing[i].decodeTimeStamp.isValid { timing[i].decodeTimeStamp = CMTimeSubtract(timing[i].decodeTimeStamp, timeOffset) }
+    }
+    var out: CMSampleBuffer?
+    CMSampleBufferCreateCopyWithNewTiming(allocator: kCFAllocatorDefault, sampleBuffer: buffer, sampleTimingEntryCount: timing.count, sampleTimingArray: &timing, sampleBufferOut: &out)
+    return out
   }
 
   func stop(promise: Promise) {
@@ -260,16 +291,23 @@ final class VideoNoteView: ExpoView, AVCaptureVideoDataOutputSampleBufferDelegat
       // Right after a camera flip the new camera can deliver a few landscape frames before the
       // rotation applies: they are skipped, the file simply holds the last good frame a moment.
       if let pixels = CMSampleBufferGetImageBuffer(sampleBuffer), CVPixelBufferGetWidth(pixels) > CVPixelBufferGetHeight(pixels) { return }
+      if paused { return }
       if !sessionStarted {
         guard writer.startWriting() else { fail("Не удалось начать запись видео."); return }
         writer.startSession(atSourceTime: time)
         sessionStarted = true
       }
-      if let input = writerVideo, input.isReadyForMoreMediaData { input.append(sampleBuffer) }
+      if resumePending {
+        // First frame after a pause: the gap since the last written frame (minus one frame) is removed.
+        if lastVideoTime.isValid { timeOffset = CMTimeAdd(timeOffset, CMTimeSubtract(CMTimeSubtract(time, lastVideoTime), CMTime(value: 1, timescale: 30))) }
+        resumePending = false
+      }
+      lastVideoTime = time
+      if let input = writerVideo, input.isReadyForMoreMediaData, let buffer = shifted(sampleBuffer) { input.append(buffer) }
     } else if output === audioOutput {
-      // Audio before the first video frame is dropped: the file starts with a picture.
-      guard sessionStarted, let input = writerAudio, input.isReadyForMoreMediaData else { return }
-      input.append(sampleBuffer)
+      // Audio before the first video frame (and while paused / until video resumes) is dropped.
+      guard sessionStarted, !paused, !resumePending, let input = writerAudio, input.isReadyForMoreMediaData, let buffer = shifted(sampleBuffer) else { return }
+      input.append(buffer)
     }
   }
 }
