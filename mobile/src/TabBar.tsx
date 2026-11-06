@@ -13,7 +13,6 @@ import Animated, { Easing, runOnJS, useAnimatedStyle, useSharedValue, withSpring
 import { Text } from './typography';
 import { Icon, type IconName } from './components';
 import { useTheme } from './theme';
-import { impactFeedback, lightFeedback, tapFeedback } from './haptics';
 import { badgeText } from './unreadBadge';
 
 export type TabId = 'ai' | 'people' | 'channels' | 'chats' | 'music' | 'profile';
@@ -85,7 +84,7 @@ export function TabBar({ items, active }: { items: TabItem[]; active: TabId }) {
     const item = shown[index]; if (!item) return;
     const kick = kicks[index];
     kick.value = withTiming(Math.floor(kick.value) + 1, { duration: item.id === 'profile' ? 520 : 460, easing: Easing.out(Easing.cubic) });
-    tapFeedback(); item.onPress();
+    item.onPress();
   };
   // Swipe up on the slot: «Люди» ⇄ «Каналы» (remembered), the icon flips like a slot machine.
   const switchSlot = () => {
@@ -93,7 +92,7 @@ export function TabBar({ items, active }: { items: TabItem[]; active: TabId }) {
     const from = slot === 'people' ? 0 : 1;
     reel.value = from;
     reel.value = withTiming(from + 1, { duration: 230, easing: Easing.out(Easing.cubic) }, done => { if (done) runOnJS(setSlot)(next); });
-    impactFeedback();
+
   };
   const at = (x: number) => { 'worklet'; return Math.max(0, Math.min(n - 1, Math.floor(x / Math.max(1, width / n)))); };
 
@@ -103,7 +102,7 @@ export function TabBar({ items, active }: { items: TabItem[]; active: TabId }) {
     .onFinalize(() => { pressed.value = -1; });
   // Telegram: put a finger down and slide — no waiting; the pill turns into a bigger lens under the finger.
   const slide = Gesture.Pan().activeOffsetX([-8, 8]).failOffsetY([-24, 24])
-    .onStart(() => { lens.value = withSpring(1, SPRING); pressed.value = -1; runOnJS(lightFeedback)(); })
+    .onStart(() => { lens.value = withSpring(1, SPRING); pressed.value = -1; })
     .onUpdate(e => { pill.value = Math.max(0, Math.min(n - 1, e.x / Math.max(1, width / n) - 0.5)); })
     .onEnd(e => { const index = at(e.x); pill.value = withSpring(index, SPRING); runOnJS(open)(index); })
     .onFinalize(() => { lens.value = withSpring(0, SPRING); });
