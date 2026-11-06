@@ -4,6 +4,7 @@
 import React, { createContext, useContext, useState } from 'react';
 import { Platform, View } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
+import { ScrollEdgeBlurView } from 'react-native-liquid-glassmorphism';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useTheme } from './theme';
 
@@ -29,7 +30,8 @@ function TabsFade() {
   const below = extra ? 22 : 10; // the bar's bottom edge sits ~21 pt above the screen bottom on iPhones with a home indicator
   return <>
     <LinearGradient pointerEvents="none" colors={[tint(t.bg, 0, t.dark), tint(t.bg, .9, t.dark)]} style={{ position: 'absolute', left: 0, right: 0, bottom: -extra, height: below }} />
-    {insets.top && Platform.OS !== 'web' ? <LinearGradient pointerEvents="none" colors={[tint(t.bg, .75, t.dark), tint(t.bg, 0, t.dark)]} style={{ position: 'absolute', left: 0, right: 0, top: -insets.top, height: insets.top }} /> : null}
+    {insets.top && Platform.OS === 'ios' ? <ScrollEdgeBlurView pointerEvents="none" edge="top" maxBlurRadius={20} falloff={1} style={{ position: 'absolute', left: 0, right: 0, top: -insets.top, height: insets.top + 10 }} /> : null}
+    {insets.top && Platform.OS !== 'web' ? <LinearGradient pointerEvents="none" colors={[tint(t.bg, Platform.OS === 'ios' ? .5 : .75, t.dark), tint(t.bg, 0, t.dark)]} style={{ position: 'absolute', left: 0, right: 0, top: -insets.top, height: insets.top }} /> : null}
   </>;
 }
 const tint = (color: string, alpha: number, dark: boolean) => {
@@ -47,7 +49,13 @@ export function FloatingHeader({ children, onHeight }: { children: React.ReactNo
   const insets = useSafeAreaInsets(); const t = useTheme();
   const top = Platform.OS === 'web' ? 0 : insets.top;
   return <View pointerEvents="box-none" onLayout={e => onHeight(Math.round(e.nativeEvent.layout.height))} style={{ position: 'absolute', top: -top, left: 0, right: 0, zIndex: 10, paddingTop: top }}>
-    <LinearGradient pointerEvents="none" colors={[tint(t.bg, .97, t.dark), tint(t.bg, .93, t.dark), tint(t.bg, 0, t.dark)]} locations={[0, .86, 1]} style={{ position: 'absolute', top: 0, left: 0, right: 0, bottom: -26 }} />
+    {/* iOS, like Telegram: a progressive system blur (strongest at the top, dissolving below the header)
+        with a light tint, instead of a near-opaque slab. Android keeps the gradient: its progressive
+        blur reads a software capture of the whole screen every frame, which is what made it stutter. */}
+    {Platform.OS === 'ios' ? <>
+      <ScrollEdgeBlurView pointerEvents="none" edge="top" maxBlurRadius={24} falloff={1} style={{ position: 'absolute', top: 0, left: 0, right: 0, bottom: -30 }} />
+      <LinearGradient pointerEvents="none" colors={[tint(t.bg, .62, t.dark), tint(t.bg, .38, t.dark), tint(t.bg, 0, t.dark)]} locations={[0, .6, 1]} style={{ position: 'absolute', top: 0, left: 0, right: 0, bottom: -30 }} />
+    </> : <LinearGradient pointerEvents="none" colors={[tint(t.bg, .97, t.dark), tint(t.bg, .93, t.dark), tint(t.bg, 0, t.dark)]} locations={[0, .86, 1]} style={{ position: 'absolute', top: 0, left: 0, right: 0, bottom: -26 }} />}
     {children}
   </View>;
 }
