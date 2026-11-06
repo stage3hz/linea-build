@@ -184,7 +184,8 @@ export function VideoNoteRecorder({ visible, onClose, onDone, hold = null }: { v
         <ProgressRing progress={recording ? progress : 0} size={RING} width={4} color="#FFF" track="rgba(255,255,255,0.16)" />
         <View style={{ width: CIRCLE, height: CIRCLE, borderRadius: CIRCLE / 2, overflow: 'hidden', backgroundColor: '#000' }}>
           {preview}
-          {flipping ? <BlurView pointerEvents="none" tint="dark" intensity={80} style={StyleSheet.absoluteFill} /> : null}
+          {/* Telegram: a dark blurred circle while the camera starts, sharp once recording runs. */}
+          {flipping || !recording ? <BlurView pointerEvents="none" tint="dark" intensity={flipping ? 80 : ready ? 55 : 90} style={StyleSheet.absoluteFill} /> : null}
           {zoom > 0.02 ? <View pointerEvents="none" style={{ position: 'absolute', bottom: 14, alignSelf: 'center', paddingHorizontal: 8, paddingVertical: 2, borderRadius: 10, backgroundColor: 'rgba(0,0,0,0.45)' }}><Text style={{ color: '#FFF', fontSize: 12, fontWeight: '700' }}>{(1 + zoom * 5).toFixed(1).replace('.', ',')}×</Text></View> : null}
         </View>
       </Animated.View>
