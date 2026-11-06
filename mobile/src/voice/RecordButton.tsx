@@ -29,12 +29,17 @@ export function RecordButton({ mode, disabled, onToggleMode, onHoldStart, onHold
   const tx = useSharedValue(0), ty = useSharedValue(0), active = useSharedValue(0);
   const [holding, setHolding] = useState(false);
   const done = useRef(false);
-  const begin = () => { done.current = false; setHolding(true); impactFeedback(); onHoldStart(); };
+  // The gesture worklets keep the functions of the render they were attached in; going through a ref
+  // always reaches the current props (otherwise a hold right after «tap → video» still recorded voice).
+  const props = useRef({ onHoldStart, onHoldEnd, onLock, onSlide, onToggleMode });
+  props.current = { onHoldStart, onHoldEnd, onLock, onSlide, onToggleMode };
+  const begin = () => { done.current = false; setHolding(true); impactFeedback(); props.current.onHoldStart(); };
   const finish = (result: 'send' | 'cancel' | 'lock') => {
-    if (done.current) return; done.current = true; setHolding(false); onSlide?.(0);
-    if (result === 'lock') { lightFeedback(); onLock(); } else onHoldEnd(result);
+    if (done.current) return; done.current = true; setHolding(false); props.current.onSlide?.(0);
+    if (result === 'lock') { lightFeedback(); props.current.onLock(); } else props.current.onHoldEnd(result);
   };
-  const slide = (x: number) => onSlide?.(Math.min(1, Math.max(0, -x / CANCEL_DISTANCE)));
+  const slide = (x: number) => props.current.onSlide?.(Math.min(1, Math.max(0, -x / CANCEL_DISTANCE)));
+  const toggle = () => props.current.onToggleMode();
   const reset = () => { 'worklet'; tx.value = withSpring(0, { damping: 18 }); ty.value = withSpring(0, { damping: 18 }); active.value = withSpring(0, { damping: 18 }); };
 
   const hold = Gesture.Pan().enabled(!disabled).activateAfterLongPress(220)
@@ -49,7 +54,7 @@ export function RecordButton({ mode, disabled, onToggleMode, onHoldStart, onHold
     })
     .onEnd(() => { reset(); runOnJS(finish)('send'); })
     .onFinalize(() => { reset(); });
-  const tap = Gesture.Tap().enabled(!disabled).maxDuration(220).onEnd((_e, ok) => { if (ok) runOnJS(onToggleMode)(); });
+  const tap = Gesture.Tap().enabled(!disabled).maxDuration(220).onEnd((_e, ok) => { if (ok) runOnJS(toggle)(); });
   const gesture = Gesture.Exclusive(hold, tap);
 
   const button = useAnimatedStyle(() => ({

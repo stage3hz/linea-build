@@ -22,7 +22,7 @@ import { openDocument } from '../media/documentPreview';
 import { mediaPreviewKind } from '../media/formats';
 import { textMetrics, useChatPreferences } from '../chatPreferences';
 import { VoiceBubble, VoicePlaybackProvider, VoiceRecordingBar, useVoiceRecorder } from '../voice/VoiceMessage';
-import { VOICE_MIME, VOICE_MIN_MS, isVoice, voiceFileName } from '../voice/voice';
+import { VOICE_MIME, VOICE_MIN_MS, attachmentLabel, isVoice, voiceFileName } from '../voice/voice';
 import { searchSaved, type SavedItem } from './saved.ts';
 
 export function SavedScreen({ api, user, store, onBack, wide = false }: { api: Api; user: User; store: MessengerStore; onBack: () => void; wide?: boolean }) {
@@ -123,7 +123,7 @@ export function SavedScreen({ api, user, store, onBack, wide = false }: { api: A
     </GlassSurface>
     <AttachmentPanel visible={attachMenu} busy={busy} canAdd={signalAvailable} remainingSlots={1} onClose={() => setAttachMenu(false)} onAdd={item => uploadAndSave(item.file)} />
     {/* Same menu as in chats: at the cursor on PC (Telegram Desktop), over the message on phones. */}
-    <ContextMenu visible={!!actions} x={at.x} y={at.y} mine preview={actions?.text || actions?.attachment?.name} onClose={() => setActions(null)}>
+    <ContextMenu visible={!!actions} x={at.x} y={at.y} mine preview={actions?.text || (actions?.attachment ? attachmentLabel(actions.attachment) : undefined)} onClose={() => setActions(null)}>
       {actions?.text ? <MenuItem icon="copy-outline" label="Скопировать текст" onPress={() => void copy(actions.text)} /> : null}
       {actions && !actions.origin && actions.text ? <MenuItem icon="create-outline" label="Изменить" onPress={() => { setEditing(actions); setText(actions.text); setActions(null); }} /> : null}
       {actions ? <MenuItem icon="arrow-redo-outline" label="Переслать в чат" onPress={() => { setForwarding(actions); setActions(null); }} /> : null}

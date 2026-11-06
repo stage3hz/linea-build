@@ -59,3 +59,11 @@ test('waveform: 48 bars relative to the loudest moment, no fake bars for silence
   assert.equal(decodeWaveform('AB'), null);
   assert.equal(decodeWaveform(undefined), null);
 });
+
+test('waveform: room noise stays low next to speech (amplitude, not decibels)', () => {
+  // −40 dB noise (level 0.33) and −10 dB speech (level 0.83), as the recorder reports them.
+  const levels = [...Array(100).fill(20 / 60), ...Array(100).fill(50 / 60)];
+  const bars = decodeWaveform(encodeWaveform(levels));
+  assert.ok(bars[0] < 0.25, `noise bar ${bars[0]}`);
+  assert.equal(bars.at(-1), 1);
+});

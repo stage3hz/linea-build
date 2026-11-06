@@ -26,13 +26,17 @@ const WAVE = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdef';
 export const WAVEFORM_BARS = 48;
 export function encodeWaveform(levels: readonly number[]): string | undefined {
   if (levels.length < 4) return undefined;
-  const peak = Math.max(...levels);
-  if (!(peak > 0.02)) return undefined; // no metering (silence or unsupported): no fake bars
+  if (!(Math.max(...levels) > 0.02)) return undefined; // no metering (silence or unsupported): no fake bars
+  // levels are dB mapped linearly to 0…1 (−60…0 dB): room noise is already ~0.35, speech ~0.8, so bars
+  // relative to the peak came out as one flat wall. Back to amplitude (10^(dB/20)), relative to the
+  // loudest moment, square root for the eye: noise stays low, speech stands out — as in Telegram.
+  const amp = levels.map(level => Math.pow(10, (Math.min(1, Math.max(0, level)) * 60 - 60) / 20));
+  const peak = Math.max(...amp);
   let out = '';
   for (let bar = 0; bar < WAVEFORM_BARS; bar++) {
-    const from = Math.floor(bar * levels.length / WAVEFORM_BARS), to = Math.max(from + 1, Math.floor((bar + 1) * levels.length / WAVEFORM_BARS));
-    let value = 0; for (let i = from; i < to && i < levels.length; i++) value = Math.max(value, levels[i]);
-    out += WAVE[Math.max(0, Math.min(31, Math.round(value / peak * 31)))];
+    const from = Math.floor(bar * amp.length / WAVEFORM_BARS), to = Math.max(from + 1, Math.floor((bar + 1) * amp.length / WAVEFORM_BARS));
+    let value = 0; for (let i = from; i < to && i < amp.length; i++) value = Math.max(value, amp[i]);
+    out += WAVE[Math.max(0, Math.min(31, Math.round(Math.sqrt(value / peak) * 31)))];
   }
   return out;
 }

@@ -220,11 +220,14 @@ export function ChatScreen({api,user,chat,store,onBack,wide=false,onOpenMusic}: 
   const [recHold,setRecHold]=useState<{kind:'voice'|'video';locked:boolean}|null>(null);
   const [cancelProgress,setCancelProgress]=useState(0);
   const [videoHold,setVideoHold]=useState<VideoHold|null>(null);
-  const toggleRecordMode=()=>{lightFeedback();const next=recordMode==='voice'?'video':'voice';setRecordMode(next);setNotice(next==='video'?'Удерживай, чтобы записать видеосообщение':'Удерживай, чтобы записать голосовое');setTimeout(()=>setNotice(current=>current.startsWith('Удерживай')?'':current),1800);};
+  const toggleRecordMode=()=>{lightFeedback();const next=recordModeRef.current==='voice'?'video':'voice';recordModeRef.current=next;setRecordMode(next);setNotice(next==='video'?'Удерживай, чтобы записать видеосообщение':'Удерживай, чтобы записать голосовое');setTimeout(()=>setNotice(current=>current.startsWith('Удерживай')?'':current),1800);};
+  // Latest values for the hold handlers (gesture callbacks can outlive the render they came from).
+  const recordModeRef=useRef(recordMode);recordModeRef.current=recordMode;
+  const recHoldRef=useRef(recHold);recHoldRef.current=recHold;
   const holdStart=()=>{setNotice('');setStickers(false);
-    if(recordMode==='voice'){setRecHold({kind:'voice',locked:false});startVoice(()=>setRecHold(null));}
+    if(recordModeRef.current==='voice'){setRecHold({kind:'voice',locked:false});startVoice(()=>setRecHold(null));}
     else{Keyboard.dismiss();setLocalError('');setVideoHold({stop:0,cancel:0,locked:false});setCircleOpen(true);setRecHold({kind:'video',locked:false});}};
-  const holdEnd=(result:'send'|'cancel')=>{const kind=recHold?.kind??recordMode;setRecHold(null);setCancelProgress(0);
+  const holdEnd=(result:'send'|'cancel')=>{const kind=recHoldRef.current?.kind??recordModeRef.current;setRecHold(null);setCancelProgress(0);
     if(kind==='voice')void finishVoice(result==='send');
     else setVideoHold(v=>v?{...v,stop:v.stop+(result==='send'?1:0),cancel:v.cancel+(result==='cancel'?1:0)}:v);};
   const holdLock=()=>{setCancelProgress(0);setRecHold(h=>h?{...h,locked:true}:h);setVideoHold(v=>v?{...v,locked:true}:v);};
