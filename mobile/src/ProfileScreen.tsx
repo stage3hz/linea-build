@@ -246,9 +246,6 @@ export function ProfileScreen({ api, user, theme, darkTheme, onTheme, onDarkThem
         {user.bio ? <Text raw style={{ color: t.muted, fontSize: 14, lineHeight: 20, textAlign: 'center' }}>{user.bio}</Text> : null}
       </GlassSurface>
       {error ? <Notice text={error} error/> : null}{notice ? <Notice text={notice}/> : null}
-      <GlassSurface material="regular" radius={28} contentStyle={{ padding: 20 }}><SectionLabel>Оформление</SectionLabel><ThemeSettings mode={theme} darkTheme={darkTheme} onChange={onTheme} onDarkTheme={onDarkTheme} platina={status?.platina.active === true} onLocked={() => setPlatinaVisible(true)}/></GlassSurface>
-      <GlassSurface material="clear" radius={27} contentStyle={{ padding: 20, gap: 13 }}><SectionLabel>Аккаунт</SectionLabel><Button label="Безопасность и устройства" secondary icon="shield-checkmark-outline" onPress={onSecurity}/><Text style={{ color: t.muted, fontSize: 12, lineHeight: 18 }}>Пароль, два секретных слова и действующие сеансы.</Text><Button label="Выйти из аккаунта" danger icon="log-out-outline" disabled={busy} onPress={() => setLogoutVisible(true)}/></GlassSurface>
-      <Text style={{ textAlign: 'center', color: t.subtle, fontSize: 11, lineHeight: 18, paddingTop: 5 }}>Инвиз{'\n'}Новые личные сообщения шифруются на устройстве.{'\n'}Сверяй коды устройств в разделе «Защита чата».</Text>
       </> : <>
       {/* Edit, as Telegram's «Изм.»: ✓ saves, ✕ discards. The banner and the avatar are tapped to change
           (photo, GIF or a video up to 10 s); below — about, name and @username, birthday, colour, decorations. */}
