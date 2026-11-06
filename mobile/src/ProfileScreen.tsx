@@ -6,7 +6,7 @@ import * as Clipboard from 'expo-clipboard';
 import * as ImageManipulator from 'expo-image-manipulator';
 import * as FileSystem from 'expo-file-system/legacy';
 import type { Api } from './api';
-import { Avatar, Button, Field, Icon, IconButton, Notice, SectionLabel, Sheet } from './components';
+import { Avatar, Button, Field, Icon, IconButton, Notice, SectionLabel, Sheet, useSuccessFlash } from './components';
 import { useTheme } from './theme';
 import { GlassSurface } from './glass';
 import { ThemeSettings } from './ThemeSettings';
@@ -127,10 +127,11 @@ export function ProfileScreen({ api, user, theme, darkTheme, onTheme, onDarkThem
     } catch (failure) { if (live(version)) setError(errorMessage(failure, 'Не удалось сохранить фото.')); }
     finally { finish(version); }
   };
+  const [saved, flashSaved] = useSuccessFlash();
   const save = async () => {
     if (!name.trim()) { setError('Имя не может быть пустым.'); return; }
     const version = begin('profile'); if (version === null) return;
-    try { const result = await api.profile({ displayName: name.trim(), bio: bio.trim(), avatarColor: color, avatarId }); if (!live(version)) return; onUser(result.user); setNotice('Профиль сохранён.'); }
+    try { const result = await api.profile({ displayName: name.trim(), bio: bio.trim(), avatarColor: color, avatarId }); if (!live(version)) return; onUser(result.user); setNotice('Профиль сохранён.'); flashSaved(); }
     catch (failure) { if (live(version)) setError(errorMessage(failure, 'Не удалось сохранить профиль.')); }
     finally { finish(version); }
   };
@@ -210,7 +211,7 @@ export function ProfileScreen({ api, user, theme, darkTheme, onTheme, onDarkThem
           <Field label="О себе" value={bio} onChangeText={value => { setBio(value); setNotice(''); }} editable={!busy} maxLength={160} multiline placeholder="Несколько слов о тебе" style={{ height: 90, textAlignVertical: 'top' }}/>
           {!avatarId ? <View style={{ gap: 11 }}><Text style={{ color: t.muted, fontSize: 12 }}>Цвет аватара</Text><View style={{ flexDirection: 'row', gap: 10, flexWrap: 'wrap' }}>{['#596FE8','#4088C7','#9271C3','#B78358','#AD6C8C','#667FA4'].map(value => <Pressable key={value} disabled={busy} onPress={() => { setColor(value); setNotice(''); }} accessibilityRole="radio" accessibilityState={{ selected: color === value }} accessibilityLabel={`Цвет ${value}`} style={{ width: 35, height: 35, borderRadius: 15, backgroundColor: value, alignItems: 'center', justifyContent: 'center', borderWidth: 1, borderColor: t.glassBorder }}>{color === value ? <Icon name="checkmark" size={20} color="#FFF"/> : null}</Pressable>)}</View></View> : null}
           <Text style={{ color: t.muted, fontSize: 12, lineHeight: 18 }}>Фото профиля очищается от метаданных; итоговый размер — до 4 МБ. HDR-фото пока не поддерживается и не переводится незаметно в SDR.</Text>
-          <Button label="Сохранить изменения" onPress={() => void save()} loading={action === 'profile'} disabled={!changed || busy}/>
+          <Button label="Сохранить изменения" successLabel="Сохранено" success={saved} errorSignal={error} onPress={() => void save()} loading={action === 'profile'} disabled={!saved && (!changed || busy)}/>
         </View>
       </GlassSurface>
       <GlassSurface material="regular" radius={28} contentStyle={{ padding: 20 }}><SectionLabel>Оформление</SectionLabel><ThemeSettings mode={theme} darkTheme={darkTheme} onChange={onTheme} onDarkTheme={onDarkTheme} platina={status?.platina.active === true} onLocked={() => setPlatinaVisible(true)}/></GlassSurface>

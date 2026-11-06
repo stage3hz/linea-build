@@ -61,6 +61,7 @@ import { inviteCodeFrom } from './src/communities/types';
 import { onNavigate } from './src/navigation';
 import { usePush, stopPush } from './src/push';
 import { PlatinaShowcaseHost } from './src/platina/PlatinaShowcase';
+import { PlatinaConfettiHost } from './src/platina/PlatinaConfetti';
 import { CallProvider } from './src/calls/CallProvider';
 import { GlassBackdrop } from './src/glass';
 import { loadLanguage } from './src/i18n';
@@ -145,6 +146,7 @@ export default function App() {
     {themeError?<View style={{padding:12}}><Notice text={themeError} error/></View>:null}
     {booting?<View style={{flex:1}}/>:guestMusicOpen&&!session?<MusicScreen onBack={()=>setGuestMusicOpen(false)}/>:bootError?<View style={{flex:1}}><ThemeAccess mode={shownMode} darkTheme={shownDark} onChange={changeTheme} onDarkTheme={changeDarkTheme} onMusic={()=>setGuestMusicOpen(true)}/><View style={{flex:1,justifyContent:'center',padding:28}}><View style={{maxWidth:420,width:'100%',alignSelf:'center',gap:17}}><Empty icon="cloud-offline-outline" title="Не получилось подключиться" description={bootError}/><Button label="Повторить" onPress={()=>void initialize()} icon="refresh-outline"/></View></View></View>:!server?<View style={{flex:1}}><ThemeAccess mode={shownMode} darkTheme={shownDark} onChange={changeTheme} onDarkTheme={changeDarkTheme} onMusic={()=>setGuestMusicOpen(true)}/><ConnectScreen onConnect={connect}/></View>:!session?<View style={{flex:1}}><AuthBackdrop/><ThemeAccess mode={shownMode} darkTheme={shownDark} onChange={changeTheme} onDarkTheme={changeDarkTheme} onMusic={()=>setGuestMusicOpen(true)}/>{authNotice?<View style={{padding:14,paddingBottom:0}}><Notice text={authNotice}/></View>:null}<AuthScreen key={server} api={api} onLogin={login} onChangeServer={()=>void changeServer()}/></View>:<Messenger key={`${server}:${session.user.id}`} api={api} session={session} onUser={user=>setSession(current=>current?.token===session.token&&current.user.id===user.id?{...current,user}:current)} themeMode={shownMode} darkTheme={shownDark} onTheme={changeTheme} onDarkTheme={changeDarkTheme} onLogout={logout} onExpired={()=>expired(session.token)} onCredentialsChanged={credentialsChanged} onSensitiveActionPending={securityPending}/>}
     {!booting&&!session&&!guestMusicOpen?<MiniPlayer onOpen={()=>setGuestMusicOpen(true)}/>:null}
+    <PlatinaConfettiHost owner={session?.user.id??null}/>
   </UpdateGate><DesktopWelcome/></SafeAreaView><FullPlayerHost onSource={(url:string)=>{void Linking.openURL(url).catch(()=>{});}}/></MusicProvider></GlassStage></ThemeContext.Provider></SafeAreaProvider></KeyboardProvider></GestureHandlerRootView>;
 }
 

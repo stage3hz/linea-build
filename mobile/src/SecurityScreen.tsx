@@ -161,7 +161,7 @@ export function SecurityScreen({api,onBack,onCredentialsChanged,onSensitiveActio
           <SecretInput label="Повтори новое слово" value={confirmation} onChangeText={setConfirmation} placeholder="Введи то же слово вручную" disabled={busy} word onSubmit={()=>void sensitiveChange()}/>
         </>}
         {formError?<Notice text={formError} error/>:null}
-        <Button label="Сохранить изменения" icon="checkmark" onPress={()=>void sensitiveChange()} loading={busy}/>
+        <Button label="Сохранить изменения" icon="checkmark" errorSignal={formError} onPress={()=>void sensitiveChange()} loading={busy}/>
         <Pressable accessibilityRole="button" disabled={busy} onPress={closeForm} style={{minHeight:44,alignItems:'center',justifyContent:'center'}}><Text style={{color:t.muted,fontSize:13}}>Отмена</Text></Pressable>
       </View>
     </Sheet>

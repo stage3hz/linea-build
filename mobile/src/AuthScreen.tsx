@@ -8,6 +8,7 @@ import { useTheme } from './theme';
 import { isDevelopmentHttpAllowed, normalizeServer } from './storage';
 import type { RecoveryChallenge, Session } from './types';
 import { ManualField } from './auth/ManualField';
+import { AppearingText } from './effects';
 import { Wordmark } from './auth/AuthBackdrop';
 import { clearRecovery, readRecovery, saveRecovery } from './auth/recoveryStorage';
 
@@ -18,12 +19,12 @@ export function ConnectScreen({initialUrl='',onConnect}: {initialUrl?:string;onC
     <ScrollView keyboardShouldPersistTaps="handled" contentContainerStyle={{flexGrow:1,justifyContent:'center',paddingHorizontal:22,paddingVertical:32}}>
       <View style={{width:'100%',maxWidth:440,alignSelf:'center'}}>
         <View style={{flexDirection:'row',alignItems:'center',gap:12,paddingHorizontal:6,marginBottom:32}}><Logo size={43}/><Text style={{color:t.text,fontSize:25,fontWeight:'800',letterSpacing:-1}}>Инвиз</Text></View>
-        <View style={{paddingHorizontal:6,marginBottom:26,gap:13}}><Text style={{fontSize:39,lineHeight:45,fontWeight:'800',letterSpacing:-1.7,color:t.text}}>Ближе.{ '\n' }Даже на расстоянии.</Text><Text style={{color:t.muted,fontSize:15,lineHeight:23,maxWidth:340}}>Место для твоих разговоров. Подключись, чтобы войти или создать аккаунт.</Text></View>
+        <View style={{paddingHorizontal:6,marginBottom:26,gap:13}}><AppearingText delay={150} style={{fontSize:39,lineHeight:45,fontWeight:'800',letterSpacing:-1.7,color:t.text}}>{'Ближе.\nДаже на расстоянии.'}</AppearingText><Text style={{color:t.muted,fontSize:15,lineHeight:23,maxWidth:340}}>Место для твоих разговоров. Подключись, чтобы войти или создать аккаунт.</Text></View>
         <GlassSurface material="regular" radius={30} contentStyle={{padding:23,gap:18}}>
           <View style={{flexDirection:'row',gap:10,alignItems:'center'}}><View style={{height:34,width:34,borderRadius:12,alignItems:'center',justifyContent:'center',backgroundColor:t.accentSoft}}><Icon name="link-outline" size={19} color={t.accent}/></View><Text style={{color:t.text,fontSize:17,fontWeight:'700'}}>Подключение</Text></View>
           <Field label="Адрес сервера" value={url} onChangeText={setUrl} placeholder="https://chat.example.com" autoCapitalize="none" autoCorrect={false} keyboardType="url" returnKeyType="go" onSubmitEditing={()=>void connect()} editable={!busy}/>
           {error?<Notice text={error} error/>:null}
-          <Button label="Продолжить" icon="arrow-forward" onPress={()=>void connect()} loading={busy} disabled={!url.trim()}/>
+          <Button label="Продолжить" icon="arrow-forward" errorSignal={error} onPress={()=>void connect()} loading={busy} disabled={!url.trim()}/>
           <Text style={{color:t.muted,fontSize:12,lineHeight:19}}>{isDevelopmentHttpAllowed()?'Для локальной разработки введи адрес компьютера в Wi-Fi, например http://192.168.1.10:3001.':'Подключение к серверу защищено HTTPS. Введите адрес вашего сервера с действующим сертификатом.'}</Text>
         </GlassSurface>
         <Text style={{fontSize:12,lineHeight:19,color:t.subtle,textAlign:'center',marginTop:25}}>Твоя линия связи.</Text>
@@ -82,6 +83,7 @@ export function AuthScreen({api,onLogin,onChangeServer}: {api:Api;onLogin:(sessi
   const [confirmationWord,setConfirmationWord]=useState(''),[confirmationRepeat,setConfirmationRepeat]=useState('');
   const [recoveryWord,setRecoveryWord]=useState(''),[recoveryRepeat,setRecoveryRepeat]=useState('');
   const [challenge,setChallenge]=useState<RecoveryChallenge|null>(null),[serverOffset,setServerOffset]=useState(0);
+  const [entered,setEntered]=useState(false);
   const [busy,setBusy]=useState(false),[restoring,setRestoring]=useState(true),[checking,setChecking]=useState(false);
   const [loginLockUntil,setLoginLockUntil]=useState(0);
   const [error,setError]=useState(''),[notice,setNotice]=useState(''),[feedback,setFeedback]=useState<RecoveryFeedback|null>(null),[clock,setClock]=useState(Date.now);
@@ -126,8 +128,10 @@ export function AuthScreen({api,onLogin,onChangeServer}: {api:Api;onLogin:(sessi
   };
   const acceptSession=async(session:Session,id:number)=>{
     if(!current(id)){void new Api(api.base,session.token).logout().catch(()=>{});return;}
+    // The button shows «Готово» with a check mark for a moment before the chats open.
+    setEntered(true);await new Promise(resolve=>setTimeout(resolve,550));
     try{await onLogin(session);}
-    catch(reason){void new Api(api.base,session.token).logout().catch(()=>{});throw reason;}
+    catch(reason){setEntered(false);void new Api(api.base,session.token).logout().catch(()=>{});throw reason;}
   };
   const signIn=async()=>{
     if(!usernameCheck())return;
@@ -313,7 +317,7 @@ export function AuthScreen({api,onLogin,onChangeServer}: {api:Api;onLogin:(sessi
         <View style={{alignItems:'center',marginBottom:26,gap:16}}>
           <Wordmark size={isLogin||isRegister?60:46}/>
         </View>
-        <View style={{paddingHorizontal:4,marginBottom:24,alignItems:'center'}}><Text style={{color:t.text,fontSize:24,lineHeight:30,fontWeight:'700',letterSpacing:-0.6,textAlign:'center'}}>{titles[mode]}</Text><Text style={{color:t.muted,fontSize:14,lineHeight:21,marginTop:12,textAlign:'center',maxWidth:340}}>{descriptions[mode]}</Text></View>
+        <View style={{paddingHorizontal:4,marginBottom:24,alignItems:'center'}}><AppearingText style={{color:t.text,fontSize:24,lineHeight:30,fontWeight:'700',letterSpacing:-0.6,textAlign:'center'}}>{titles[mode]}</AppearingText><Text style={{color:t.muted,fontSize:14,lineHeight:21,marginTop:12,textAlign:'center',maxWidth:340}}>{descriptions[mode]}</Text></View>
         <GlassSurface material="regular" radius={32} contentStyle={{padding:22,gap:18}}>
           {isLogin||isRegister?<View style={{flexDirection:'row',padding:4,backgroundColor:t.dark?'rgba(0,0,0,0.18)':'rgba(97,113,149,0.08)',borderRadius:19,borderWidth:1,borderColor:t.border}}>
             {[{title:'Войти',register:false},{title:'Создать аккаунт',register:true}].map(tab=><Pressable key={tab.title} disabled={disabled} onPress={()=>switchFlow(tab.register)} accessibilityRole="tab" accessibilityState={{selected:isRegister===tab.register}} style={{flex:1,minHeight:43,alignItems:'center',justifyContent:'center',borderRadius:15,borderWidth:1,borderColor:isRegister===tab.register?t.glassBorder:'transparent',backgroundColor:isRegister===tab.register?(t.dark?'rgba(255,255,255,0.12)':'rgba(255,255,255,0.82)'):'transparent'}}><Text style={{color:isRegister===tab.register?t.text:t.muted,fontWeight:isRegister===tab.register?'700':'500',fontSize:12}}>{tab.title}</Text></Pressable>)}
@@ -351,7 +355,7 @@ export function AuthScreen({api,onLogin,onChangeServer}: {api:Api;onLogin:(sessi
           {api.base.startsWith('http:')?<Notice text="Тестовое подключение без шифрования. Для настоящего аккаунта нужен HTTPS."/>:null}
           {notice?<Notice text={notice}/>:null}{error?<Notice text={error} error/>:null}
           {loginLocked?<Notice text={`Вход временно закрыт. Попробуй через ${lockText}.`} error/>:null}
-          <Button label={loginLocked?`Подожди ${lockText}`:buttonTitle} icon={mode==='waiting'?'refresh-outline':mode==='recover'?'key-outline':'arrow-forward'} onPress={()=>void submit()} loading={busy||checking&&mode==='waiting'} disabled={restoring||mode==='recover'&&locked||loginLocked}/>
+          <Button label={loginLocked?`Подожди ${lockText}`:buttonTitle} icon={mode==='waiting'?'refresh-outline':mode==='recover'?'key-outline':'arrow-forward'} successLabel="Готово" success={entered} errorSignal={error} onPress={()=>void submit()} loading={!entered&&(busy||checking&&mode==='waiting')} disabled={restoring||mode==='recover'&&locked||loginLocked}/>
           {isLogin?<Pressable disabled={disabled} accessibilityRole="button" onPress={()=>{generation.current++;clearSecrets();go('recover');}} style={{minHeight:44,alignItems:'center',justifyContent:'center'}}><Text style={{color:t.accent,fontSize:13,fontWeight:'700'}}>Забыл пароль?</Text></Pressable>:null}
           {mode!=='login-name'&&mode!=='register-name'?<Pressable disabled={disabled} accessibilityRole="button" onPress={back} style={{minHeight:44,flexDirection:'row',alignItems:'center',justifyContent:'center',gap:6}}><Icon name="chevron-back" color={t.muted} size={15}/><Text style={{color:t.muted,fontSize:13}}>{mode==='recover'||mode==='waiting'||mode==='reset'?'Вернуться ко входу':'Назад'}</Text></Pressable>:null}
         </GlassSurface>

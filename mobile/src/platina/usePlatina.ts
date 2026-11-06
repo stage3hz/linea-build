@@ -1,4 +1,5 @@
 import { useEffect, useSyncExternalStore } from 'react';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import type { Api } from '../api';
 
 /**
@@ -14,6 +15,25 @@ const emit = () => listeners.forEach(listener => listener());
 export function setPlatinaActive(owner: string, active: boolean) {
   if (state.owner === owner && state.active === active) return;
   state = { owner, active }; emit();
+  void noteGrant(owner, active);
+}
+
+// «Платина выдана» moment (confetti): the last state seen on this device is kept per account, so a
+// grant is noticed whether it happens while the app is open or between launches. The first time an
+// account is seen nothing is celebrated (it may have had Platina for long).
+const SEEN_KEY = (owner: string) => `linea.platina.seen.${owner}`;
+const grantListeners = new Set<(owner: string) => void>();
+async function noteGrant(owner: string, active: boolean) {
+  try {
+    const before = await AsyncStorage.getItem(SEEN_KEY(owner));
+    const now = active ? '1' : '0';
+    if (before === now) return;
+    await AsyncStorage.setItem(SEEN_KEY(owner), now);
+    if (before === '0' && active) grantListeners.forEach(listener => listener(owner));
+  } catch {}
+}
+export function onPlatinaGranted(listener: (owner: string) => void): () => void {
+  grantListeners.add(listener); return () => { grantListeners.delete(listener); };
 }
 
 export function usePlatina(api: Api, owner: string): boolean {
