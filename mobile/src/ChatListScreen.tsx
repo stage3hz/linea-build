@@ -1,4 +1,5 @@
 import { badgeText, useUnreadTotal } from './unreadBadge';
+import { inviteCodeFrom, withoutInviteLink } from './communities/types';
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { useMeshActive } from './nearby/meshState';
 import { PlatinaGem, PlatinaName, hasPlatina } from './platina/PlatinaMark';
@@ -105,19 +106,26 @@ export function MessengerTabs({onProfile,onNewChat,onMusic,onAI,onChats,activeTa
   </GlassSurface></>;
 }
 
+/** The list shows an invite as words, as the chat shows it as a card (not the raw https://…/i/… link). */
+function listText(text: string | undefined): string {
+  if (!text) return '';
+  if (!inviteCodeFrom(text)) return text;
+  return withoutInviteLink(text).trim() || '🔗 Приглашение на сервер';
+}
+
 function ChatRow({chat,api,userId,selected,typing,checked,onPress,onLongPress}: {chat:Chat;api:Api;userId:string;selected:boolean;typing:boolean;checked?:boolean;onPress:()=>void;onLongPress:(y:number,x?:number)=>void}) {
   const t=useTheme();const last=chat.lastMessage;
   // Desktop: right click opens the chat menu at the cursor.
   const ref=useRef<View>(null);const longRef=useRef(onLongPress);longRef.current=onLongPress;
   useEffect(()=>{const node=ref.current as unknown as HTMLElement|null;if(Platform.OS!=='web'||!node?.addEventListener)return;const menu=(e:MouseEvent)=>{e.preventDefault();longRef.current(e.clientY,e.clientX);};node.addEventListener('contextmenu',menu);return()=>node.removeEventListener('contextmenu',menu);},[]);
-  const preview=typing?'Печатает…':last?`${last.senderId===userId?'Ты: ':''}${last.text|| (last.attachment?attachmentLabel(last.attachment):'Сообщение')}`:'Напиши первое сообщение';
+  const preview=typing?'Печатает…':last?`${last.senderId===userId?'Ты: ':''}${listText(last.text)|| (last.attachment?attachmentLabel(last.attachment):'Сообщение')}`:'Напиши первое сообщение';
   const muted=!!chat.settings?.muted,pinned=!!chat.settings?.pinnedAt;
   return <View ref={ref}><Pressable onPress={onPress} onLongPress={event=>onLongPress(event.nativeEvent.pageY)} delayLongPress={450} accessibilityRole="button" accessibilityLabel={`${chat.peer.displayName}${chat.unreadCount?`, непрочитанных ${chat.unreadCount}`:''}`} style={({pressed})=>({flexDirection:'row',gap:12,paddingLeft:16,paddingRight:16,paddingVertical:8,backgroundColor:selected?t.accentSoft:pressed?(t.dark?'rgba(255,255,255,0.07)':'rgba(0,0,0,0.05)'):'transparent'})}>{checked!==undefined?<View style={{justifyContent:'center'}}><Icon name={checked?'checkmark-circle':'ellipse-outline'} size={24} color={checked?t.accent:t.subtle}/></View>:null}{chat.peer.nameplate?<View pointerEvents="none" style={{position:'absolute',left:6,right:6,top:3,bottom:3}}><Nameplate plate={chat.peer.nameplate} radius={20}/></View>:null}<DecoratedAvatar user={chat.peer} api={api} size={60}/><View style={{flex:1,justifyContent:'center',gap:3,borderBottomWidth:StyleSheet.hairlineWidth,borderBottomColor:t.border,paddingBottom:8,marginBottom:-8,minHeight:68}}><View style={{flexDirection:'row',gap:5,alignItems:'center'}}><View style={{flex:1,flexDirection:'row',alignItems:'center',gap:5}}><PlatinaName user={chat.peer} animated={false} style={{flexShrink:1,color:t.text,fontSize:16,fontWeight:'600',letterSpacing:-.2}}/>{hasPlatina(chat.peer)?<PlatinaGem size={11}/>:null}<StatusEmoji user={chat.peer} size={15}/>{muted?<Icon name="volume-mute" size={13} color={t.subtle}/>:null}</View>{last?<Text style={{color:chat.unreadCount&&!muted?t.accent:t.muted,fontSize:14}}>{formatListTime(last.createdAt)}</Text>:null}</View><View style={{flexDirection:'row',alignItems:'center',gap:6}}><Text numberOfLines={2} style={{flex:1,color:typing?t.accent:t.muted,fontSize:15,lineHeight:19,fontWeight:typing?'600':'400'}}>{preview}</Text>{chat.unreadCount>0?<View style={{minWidth:21,height:21,borderRadius:11,backgroundColor:muted?t.subtle:t.accent,alignItems:'center',justifyContent:'center',paddingHorizontal:6}}><Text style={{color:t.onAccent,fontSize:10,fontWeight:'700'}}>{badgeText(chat.unreadCount)}</Text></View>:pinned?<Icon name="pin" size={14} color={t.subtle}/>:last?.senderId===userId?<Icon name={chat.peerLastReadMessageId>=last.id?'checkmark-done':'checkmark'} size={16} color={chat.peerLastReadMessageId>=last.id?t.accent:t.subtle}/>:null}</View></View></Pressable></View>;
 }
 
 function SavedRow({count,last,selected,onPress}:{count:number;last?:SavedItem;selected:boolean;onPress:()=>void}) {
   const t=useTheme();
-  const preview=last?(last.text||(last.attachment?attachmentLabel(last.attachment):'Запись')):'Заметки, файлы и сохранённые сообщения';
+  const preview=last?(listText(last.text)||(last.attachment?attachmentLabel(last.attachment):'Запись')):'Заметки, файлы и сохранённые сообщения';
   return <Pressable onPress={onPress} accessibilityRole="button" accessibilityLabel={`Избранное, записей: ${count}`} style={({pressed})=>({flexDirection:'row',gap:12,paddingLeft:16,paddingRight:16,paddingVertical:8,backgroundColor:selected?t.accentSoft:pressed?(t.dark?'rgba(255,255,255,0.07)':'rgba(0,0,0,0.05)'):'transparent'})}><View style={{width:60,height:60,borderRadius:30,backgroundColor:t.accent,alignItems:'center',justifyContent:'center'}}><Icon name="bookmark" color={t.onAccent} size={26}/></View><View style={{flex:1,justifyContent:'center',gap:3,borderBottomWidth:StyleSheet.hairlineWidth,borderBottomColor:t.border,paddingBottom:8,marginBottom:-8,minHeight:68}}><View style={{flexDirection:'row',alignItems:'center',gap:6}}><Text numberOfLines={1} style={{flex:1,color:t.text,fontSize:16,fontWeight:'600',letterSpacing:-.2}}>Избранное</Text>{last?<Text style={{color:t.muted,fontSize:14}}>{formatListTime(last.savedAt)}</Text>:null}</View><Text numberOfLines={2} style={{color:t.muted,fontSize:15,lineHeight:19}}>{preview}</Text></View></Pressable>;
 }
 

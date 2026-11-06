@@ -22,8 +22,11 @@ function exclusive<T>(action:()=>Promise<T>):Promise<T>{const result=tail.then(a
 function requireLocal(uri:string):void {if(!/^(?:file|content):\/\//.test(uri))throw new Error('Выбери локальный файл на устройстве.');}
 function cache():string {if(!FileSystem.cacheDirectory)throw new Error('Кэш видео недоступен.');return FileSystem.cacheDirectory;}
 
+// Android: /data/user/0/<app> is a link to /data/data/<app>. Expo reports the cache under the first,
+// the native module (canonical path) under the second — the same folder, so both are compared in one form.
+const sameAppData=(path:string)=>path.replace(/^\/data\/user\/0\//,'/data/data/');
 function requireOwnedNativeUri(uri:string,pattern:RegExp):void {
-  const base=new URL(cache()),file=new URL(uri),prefix=`${decodeURIComponent(base.pathname)}linea-video/`,path=decodeURIComponent(file.pathname);
+  const base=new URL(cache()),file=new URL(uri),prefix=sameAppData(`${decodeURIComponent(base.pathname)}linea-video/`),path=sameAppData(decodeURIComponent(file.pathname));
   if(file.protocol!=='file:'||file.hostname!==base.hostname||file.search||file.hash||!path.startsWith(prefix)||!pattern.test(path.slice(prefix.length)))throw new Error('Модуль видео вернул недопустимый путь кэша.');
 }
 
