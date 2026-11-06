@@ -16,6 +16,12 @@ type TrustRecord = { identityKey: string; registrationId: number; checkedAt: str
 type PlainBody = { text: string; attachment: Attachment | null; sentAt: string; meta?: MessageMeta };
 /** `mesh`: received over Mesh (Bluetooth) before the server copy; the server copy may be a re-encryption of the same text. */
 type CachedMessage = { fingerprint: string; plain: PlainBody; mesh?: boolean };
+/** A message Signal could not open on this device (session out of step, e.g. after signing in again). */
+type FailedMessage = { fingerprint: string; failed: true };
+const FAILED_TEXT='Не удалось расшифровать на этом устройстве. Напиши собеседнику — шифрование восстановится — и попроси отправить сообщение ещё раз.';
+const FAILED_AFTER=3;
+const rekeyKey=(device:{userId:string;id:string})=>`rekey:${device.userId}:${device.id}`;
+const isFailed=(value:unknown):value is FailedMessage=>!!value&&typeof value==='object'&&(value as {failed?:unknown}).failed===true;
 export type MeshEnvelope = { chatId: string; clientId: string; senderId: string; encrypted: EncryptedMessage };
 type Outbox = { encrypted: EncryptedMessage; plain: PlainBody; peerId: string };
 const uuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
@@ -203,7 +209,7 @@ export class CryptoService {
       let offline=false;let targets:CryptoDevice[];
       try{targets=await this.targets(peerId);}catch(error){if(!isNetwork(error))throw error;targets=await this.cachedTargets(peerId);offline=true;}
       let state=(await this.vault.get('protocol'))!;
-      const plain:PlainBody={text,attachment,sentAt:new Date().toISOString(),...(meta?{meta}:{})};const changes:Record<string,string>={};
+      const plain:PlainBody={text,attachment,sentAt:new Date().toISOString(),...(meta?{meta}:{})};const changes:Record<string,string|null>={};
       const encrypted:EncryptedMessage={scheme:'signal-v1',senderDeviceId:this.local!.id,envelopes:[],attachmentIds:attachment?[attachment.id]:[]};
       for(const device of targets){
         const trusted=parse<TrustRecord>(await this.vault.get(trustKey(device)));
@@ -216,6 +222,7 @@ export class CryptoService {
           rekey=!!trusted; // a changed key needs a fresh session
         }
         let bundle:ClaimedBundle|null=null;
+        if(await this.vault.get(rekeyKey(device))){rekey=true;changes[rekeyKey(device)]=null;}
         if(rekey||!(await this.vault.get(sessionKey(device)))){
           const claimed=await this.transport.claimPreKey(device.userId,device.id);
           if(claimed.device.id!==device.id||claimed.device.userId!==device.userId||!sameDevice(claimed.device,device)||!sameDevice(claimed.bundle,device))throw new UntrustedDeviceError();
@@ -268,7 +275,21 @@ export class CryptoService {
       if(cached.fingerprint!==fingerprint)throw new Error('Сервер изменил сохранённое сообщение.');
       await this.vault.commit({[cursorKey]:String(message.id)});return;
     }
-    const opened=await this.open(message,encrypted);
+    if(isFailed(cached)&&cached.fingerprint===fingerprint){await this.vault.commit({[cursorKey]:String(message.id)});return;}
+    let opened;
+    try{opened=await this.open(message,encrypted);}
+    catch(error){
+      if(isNetwork(error)||error instanceof UntrustedDeviceError)throw error;
+      // A damaged copy may be a passing glitch, so the chat first stops and retries (the server's
+      // next copy may be fine). But one message that never opens must not block the chat forever
+      // (before, every later message stayed «Открой чат для расшифровки»): after a few attempts it
+      // is marked as failed and skipped, and our next message to the sender's device starts a fresh
+      // Signal session (PreKey message), which puts their side back in step too.
+      const attemptsKey=`attempts:${messageKey(message)}`,attempts=Number(await this.vault.get(attemptsKey)||0)+1;
+      if(attempts<FAILED_AFTER){await this.vault.commit({[attemptsKey]:String(attempts)});throw error;}
+      await this.vault.commit({[attemptsKey]:null,[rekeyKey({userId:message.senderId,id:encrypted.senderDeviceId})]:'1',[messageKey(message)]:JSON.stringify({fingerprint,failed:true} satisfies FailedMessage),[cursorKey]:String(message.id)});
+      return;
+    }
     if(!opened){await this.vault.commit({[cursorKey]:String(message.id)});return;}
     // Already got it over Mesh, then the sender re-encrypted it for the server: the text must match.
     if(cached?.mesh&&!samePlain(cached.plain,opened.plain))throw new Error('Сообщение по Mesh и с сервера не совпадают.');
@@ -318,13 +339,17 @@ export class CryptoService {
       if(!message.encrypted&&message.lean){
         // Lean list: our own envelope was already opened from /e2ee/inbox (authenticated by Signal);
         // the text shown is only ever that decrypted copy, never anything from the list itself.
-        const cached=parse<CachedMessage>(await this.vault.get(messageKey(message)));
+        const stored=parse<CachedMessage|FailedMessage>(await this.vault.get(messageKey(message)));
+        if(isFailed(stored))return {...message,text:FAILED_TEXT,attachment:null,cryptoState:'failed'};
+        const cached=stored as CachedMessage|null;
         if(cached)return {...message,text:cached.plain.text,attachment:cached.plain.attachment,createdAt:cached.plain.sentAt,cryptoState:'decrypted',...(cached.plain.meta?{meta:cached.plain.meta}:{})};
         return {...message,text:'Зашифрованное сообщение. Открой чат для расшифровки.',attachment:null,cryptoState:'no-key'};
       }
       if(!message.encrypted)return {...message,text:'Сообщение из старой версии без сквозного шифрования.',attachment:null,cryptoState:'legacy'};
       if(!validEncrypted(message.encrypted))return {...message,text:'Проверка сообщения не пройдена.',attachment:null,cryptoState:'invalid'};
-      const cached=parse<CachedMessage>(await this.vault.get(messageKey(message)));
+      const stored=parse<CachedMessage|FailedMessage>(await this.vault.get(messageKey(message)));
+      if(isFailed(stored))return {...message,text:FAILED_TEXT,attachment:null,cryptoState:'failed'};
+      const cached=stored as CachedMessage|null;
       if(cached){
         if(cached.fingerprint!==await this.sha256(canonicalEncrypted(message.encrypted)))return {...message,text:'Проверка сообщения не пройдена.',attachment:null,cryptoState:'invalid'};
         return {...message,text:cached.plain.text,attachment:cached.plain.attachment,createdAt:cached.plain.sentAt,cryptoState:'decrypted',...(cached.plain.meta?{meta:cached.plain.meta}:{})};

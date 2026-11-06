@@ -21,7 +21,7 @@ export type Message = {
   attachment: Attachment | null; createdAt: string;
   encrypted?: import('./e2ee/types').EncryptedMessage;
   legacy?: boolean;
-  cryptoState?: 'decrypted' | 'unverified' | 'no-key' | 'legacy' | 'invalid';
+  cryptoState?: 'decrypted' | 'unverified' | 'no-key' | 'legacy' | 'invalid' | 'failed';
   meta?: import('./messageMeta').MessageMeta;
   /** Arrived over Mesh (Bluetooth); replaced by the server copy when the internet is back. */
   mesh?: boolean;

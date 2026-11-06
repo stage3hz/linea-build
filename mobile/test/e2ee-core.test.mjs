@@ -227,3 +227,36 @@ test('autoTrust (app default): first contact and new devices work without a code
   const fan = await alice.service.encrypt(chatId, bob.userId, randomUUID(), 'Второе устройство', null);
   assert.equal(fan.envelopes.length, 2);
 });
+
+test('a message Signal cannot open is marked failed and never blocks the rest of the chat; our reply restarts the session', async t => {
+  const { alice, bob, relay, chatId, approve } = await harness(t);
+  await approve(alice, bob); await approve(bob, alice);
+  const send = async (from, to, text, mutate) => { const id = randomUUID(); let encrypted = await from.service.encrypt(chatId, to.userId, id, text, null); if (mutate) encrypted = mutate(encrypted); return relay.deliver(from.userId, chatId, id, encrypted); };
+  const first = await send(alice, bob, 'Первое');
+  await bob.service.syncChat(chatId);
+  // The second one arrives broken for Bob's device (as after signing in again with a stale session).
+  const broken = await send(alice, bob, 'Не откроется');
+  // Only Bob's copy is damaged (Alice's own copy stays intact).
+  relay.inboxTransform = result => ({ ...result, messages: result.messages.map(value => value.id !== broken.id ? value : { ...value, encrypted: { ...value.encrypted, envelopes: value.encrypted.envelopes.map(item => item.userId !== bob.userId ? item : { ...item, body: Buffer.from(Buffer.from(item.body, 'base64').map((byte, index) => index === 20 ? byte ^ 0xff : byte)).toString('base64') }) } }) });
+  const third = await send(alice, bob, 'Третье');
+  const before = relay.inboxTransform;
+  // A damaged copy is retried first (it may be a passing glitch)…
+  await assert.rejects(bob.service.syncChat(chatId)); await assert.rejects(bob.service.syncChat(chatId));
+  await bob.service.syncChat(chatId); // …then skipped: the chat keeps decrypting
+  assert.equal((await bob.service.preview(first)).text, 'Первое');
+  assert.equal((await bob.service.preview(broken)).cryptoState, 'failed');
+  assert.match((await bob.service.preview(broken)).text, /Не удалось расшифровать/);
+  assert.equal((await bob.service.preview(third)).text, 'Третье');
+  assert.equal(Number(await bob.vault.get(`cursor:${chatId}`)), third.id);
+  relay.inboxTransform = null; void before;
+  // Bob's next message to Alice starts a fresh session (a new pre-key is claimed) and Alice reads it.
+  const claims = relay.claims.length;
+  const reply = await send(bob, alice, 'Ответ');
+  assert.equal(relay.claims.length, claims + 1);
+  await alice.service.syncChat(chatId);
+  assert.equal((await alice.service.preview(reply)).text, 'Ответ');
+  // …and Alice's messages after that open on Bob's side again.
+  const after = await send(alice, bob, 'Снова работает');
+  await bob.service.syncChat(chatId);
+  assert.equal((await bob.service.preview(after)).text, 'Снова работает');
+});

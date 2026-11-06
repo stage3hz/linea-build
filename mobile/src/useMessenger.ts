@@ -74,6 +74,9 @@ export function useMessenger(api: Api, user: User, onExpired: ()=>void) {
   const onExpiredRef=useRef(onExpired);onExpiredRef.current=onExpired;
   const checkError=useCallback((e:unknown)=>{
     if(aliveRef.current&&e instanceof ApiError&&e.status===401)onExpiredRef.current();
+    // Native Signal errors («Call to function 'LineaSignal.decrypt' has been rejected… CRYPTO_FAILED») are
+    // not for people: say what happens instead.
+    if(e instanceof Error&&/LineaSignal|CRYPTO_FAILED|Signal operation/i.test(e.message))return 'Не удалось расшифровать сообщение. Нажми «Повторить»: если не выйдет, оно будет пропущено, а остальные откроются.';
     return e instanceof Error?e.message:'Произошла ошибка. Попробуй ещё раз.';
   },[]);
 
