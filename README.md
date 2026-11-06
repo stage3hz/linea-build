@@ -1,0 +1,2 @@
+INVIZENT Android APK (arm64). SHA-256:
+7c18b8e042ef9e46737cfb489a66866c1ce3bd20cd52c2ee6c9fd6edfc3802f5
