@@ -1,6 +1,6 @@
 {
   "name": "linea-mobile",
-  "version": "0.14.11",
+  "version": "0.14.12",
   "private": true,
   "main": "index.ts",
   "scripts": {

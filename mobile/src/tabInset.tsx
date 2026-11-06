@@ -15,16 +15,22 @@ export function TabsOverlay({ tabs, children }: { tabs: React.ReactNode | null; 
   if (!tabs) return <>{children}</>;
   return <View style={{ flex: 1 }}>
     <TabInset.Provider value={height}>{children}</TabInset.Provider>
-    <TabsFade height={height} />
+    <TabsFade />
     <View pointerEvents="box-none" onLayout={e => { const h = Math.round(e.nativeEvent.layout.height); if (h && Math.abs(h - height) > 1) setHeight(h); }} style={{ position: 'absolute', left: 0, right: 0, bottom: 0 }}>{tabs}</View>
   </View>;
 }
 
-// Telegram: rows passing under the floating tab bar fade into the background, so the glass never shows
-// readable text or a sharp picture through it.
-function TabsFade({ height }: { height: number }) {
+// Telegram: the content stays clear under the floating glass tab bar (the glass itself blurs it) and
+// only fades into the background in the strip below the bar and under the status bar. It used to fade
+// from above the bar, which darkened the bottom rows (reported on iPhone with the edges marked).
+function TabsFade() {
+  // The overlay sits inside App's SafeAreaView: the status-bar strip is just above it, the home indicator just below.
   const t = useTheme(); const insets = useSafeAreaInsets(); const extra = Platform.OS === 'web' ? 0 : insets.bottom;
-  return <LinearGradient pointerEvents="none" colors={[tint(t.bg, 0, t.dark), tint(t.bg, .95, t.dark), tint(t.bg, 1, t.dark)]} locations={[0, .35, 1]} style={{ position: 'absolute', left: 0, right: 0, bottom: -extra, height: height + extra + 18 }} />;
+  const below = extra ? 22 : 10; // the bar's bottom edge sits ~21 pt above the screen bottom on iPhones with a home indicator
+  return <>
+    <LinearGradient pointerEvents="none" colors={[tint(t.bg, 0, t.dark), tint(t.bg, .9, t.dark)]} style={{ position: 'absolute', left: 0, right: 0, bottom: -extra, height: below }} />
+    {insets.top && Platform.OS !== 'web' ? <LinearGradient pointerEvents="none" colors={[tint(t.bg, .75, t.dark), tint(t.bg, 0, t.dark)]} style={{ position: 'absolute', left: 0, right: 0, top: -insets.top, height: insets.top }} /> : null}
+  </>;
 }
 const tint = (color: string, alpha: number, dark: boolean) => {
   const m = /^#([0-9a-f]{6})$/i.exec(color); if (!m) return dark ? `rgba(0,0,0,${alpha})` : `rgba(255,255,255,${alpha})`;
