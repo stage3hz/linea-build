@@ -2,10 +2,12 @@
 // by the expo-font config plugin in app.config.js with weights 400–800, so the
 // usual fontWeight values keep working on iOS and Android.
 import React, { forwardRef } from 'react';
-import { Text as RNText, TextInput as RNTextInput, StyleSheet, type TextInputProps, type TextProps } from 'react-native';
+import { Platform, Text as RNText, TextInput as RNTextInput, StyleSheet, type TextInputProps, type TextProps } from 'react-native';
 import { tr, trChildren, useLanguage } from './i18n';
 
 export const FONT_FAMILY = 'Montserrat';
+/** The system monospaced face (technical lines, key hints). */
+export const MONO = Platform.select({ ios: 'Menlo', android: 'monospace', default: 'ui-monospace, SFMono-Regular, Menlo, Consolas, monospace' })!;
 const base = StyleSheet.create({ font: { fontFamily: FONT_FAMILY } });
 
 // System "larger text" is honoured, but capped: without a cap a 2x system font blew past the

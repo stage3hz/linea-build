@@ -5,11 +5,9 @@ import { Modal, Pressable, View } from 'react-native';
 import type { Api } from './api';
 import type { Chat } from './types';
 import { Avatar, Icon } from './components';
-import { Text, TextInput } from './typography';
-import { useTheme } from './theme';
+import { MONO, Text, TextInput } from './typography';
 
 export function QuickSwitcher({ api, chats, visible, onClose, onOpen }: { api: Api; chats: Chat[]; visible: boolean; onClose: () => void; onOpen: (chat: Chat) => void }) {
-  const t = useTheme();
   const [query, setQuery] = useState(''), [index, setIndex] = useState(0);
   useEffect(() => { if (visible) { setQuery(''); setIndex(0); } }, [visible]);
   const found = useMemo(() => {
@@ -18,23 +16,35 @@ export function QuickSwitcher({ api, chats, visible, onClose, onOpen }: { api: A
     return list.slice(0, 8);
   }, [chats, query]);
   const pick = (chat?: Chat) => { if (!chat) return; onClose(); onOpen(chat); };
+  // Raycast look: its own near-black palette in any theme, a large regular-weight field, a grey
+  // selected row and key hints in a monospaced face. Ctrl/⌘ + 1…8 opens that row directly.
+  const mac = typeof navigator !== 'undefined' && /Mac|iPhone|iPad/.test(navigator.platform || '');
+  const mod = mac ? '⌘' : 'Ctrl ';
+  const C = { panel: '#07080A', field: '#111214', selected: '#1B1C1E', line: '#1E1F22', text: '#EDEEF0', muted: '#8B8D93', hint: '#5E6066' };
+  const Hint = ({ label }: { label: string }) => <View style={{ paddingHorizontal: 6, paddingVertical: 2, borderRadius: 5, backgroundColor: '#18191C', borderWidth: 1, borderColor: '#26272B' }}><Text raw style={{ color: C.hint, fontSize: 11, fontFamily: MONO }}>{label}</Text></View>;
   return <Modal visible={visible} transparent animationType="fade" onRequestClose={onClose}>
-    <Pressable accessibilityLabel="Закрыть" onPress={onClose} style={{ flex: 1, backgroundColor: 'rgba(0,0,0,0.38)', alignItems: 'center', paddingTop: 110 }}>
-      <Pressable onPress={() => {}} style={{ width: 560, maxWidth: '92%', borderRadius: 18, backgroundColor: t.glassOpaque, borderWidth: 1, borderColor: t.border, overflow: 'hidden', shadowColor: '#000', shadowOpacity: .3, shadowRadius: 30, shadowOffset: { width: 0, height: 14 } }}>
-        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10, paddingHorizontal: 16, borderBottomWidth: 1, borderColor: t.border }}>
-          <Icon name="search-outline" size={19} color={t.muted} />
-          <TextInput autoFocus value={query} onChangeText={value => { setQuery(value); setIndex(0); }} placeholder="Куда перейти? Имя или @имя" placeholderTextColor={t.muted} accessibilityLabel="Быстрый переход к чату"
-            onKeyPress={event => { const key = event.nativeEvent.key; if (key === 'ArrowDown') setIndex(i => Math.min(found.length - 1, i + 1)); else if (key === 'ArrowUp') setIndex(i => Math.max(0, i - 1)); else if (key === 'Escape') onClose(); }}
-            onSubmitEditing={() => pick(found[index])} style={{ flex: 1, color: t.text, fontSize: 17, paddingVertical: 16 }} />
-          <Text style={{ color: t.muted, fontSize: 11, fontWeight: '700' }}>ESC</Text>
+    <Pressable accessibilityLabel="Закрыть" onPress={onClose} style={{ flex: 1, backgroundColor: 'rgba(0,0,0,0.45)', alignItems: 'center', paddingTop: 110 }}>
+      <Pressable onPress={() => {}} style={{ width: 600, maxWidth: '92%', borderRadius: 14, backgroundColor: C.panel, borderWidth: 1, borderColor: C.line, overflow: 'hidden', shadowColor: '#000', shadowOpacity: .5, shadowRadius: 40, shadowOffset: { width: 0, height: 18 } }}>
+        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10, margin: 8, paddingHorizontal: 12, borderRadius: 10, backgroundColor: C.field }}>
+          <Icon name="search-outline" size={18} color={C.muted} />
+          <TextInput autoFocus value={query} onChangeText={value => { setQuery(value); setIndex(0); }} placeholder="Найти чат…" placeholderTextColor={C.hint} accessibilityLabel="Быстрый переход к чату"
+            onKeyPress={event => {
+              const native = event.nativeEvent as { key: string; ctrlKey?: boolean; metaKey?: boolean }; const key = native.key;
+              if ((native.ctrlKey || native.metaKey) && /^[1-8]$/.test(key)) { (event as unknown as { preventDefault?: () => void }).preventDefault?.(); pick(found[Number(key) - 1]); return; }
+              if (key === 'ArrowDown') setIndex(i => Math.min(found.length - 1, i + 1)); else if (key === 'ArrowUp') setIndex(i => Math.max(0, i - 1)); else if (key === 'Escape') onClose();
+            }}
+            onSubmitEditing={() => pick(found[index])} style={{ flex: 1, color: C.text, fontSize: 18, fontWeight: '400', paddingVertical: 13 }} />
+          <Hint label="esc" />
         </View>
-        {found.length ? found.map((chat, i) => <Pressable key={chat.id} onPress={() => pick(chat)} onHoverIn={() => setIndex(i)} accessibilityRole="button" accessibilityLabel={`Открыть чат ${chat.peer.displayName}`}
-          style={{ flexDirection: 'row', alignItems: 'center', gap: 12, paddingHorizontal: 14, paddingVertical: 9, backgroundColor: i === index ? t.accentSoft : 'transparent' }}>
-          <Avatar user={chat.peer} api={api} size={34} round />
-          <View style={{ flex: 1, minWidth: 0 }}><Text numberOfLines={1} style={{ color: t.text, fontSize: 15, fontWeight: '600' }}>{chat.peer.displayName}</Text>{chat.peer.username ? <Text numberOfLines={1} style={{ color: t.muted, fontSize: 12 }}>@{chat.peer.username}</Text> : null}</View>
-          {chat.unreadCount ? <View style={{ minWidth: 20, height: 20, paddingHorizontal: 6, borderRadius: 10, backgroundColor: t.accent, alignItems: 'center', justifyContent: 'center' }}><Text style={{ color: t.onAccent, fontSize: 11, fontWeight: '800' }}>{badgeText(chat.unreadCount)}</Text></View> : null}
-          {i === index ? <Text style={{ color: t.muted, fontSize: 11, fontWeight: '700' }}>ENTER</Text> : null}
-        </Pressable>) : <Text style={{ color: t.muted, fontSize: 14, padding: 18 }}>Ничего не нашли</Text>}
+        <View style={{ paddingHorizontal: 8, paddingBottom: 8 }}>
+          {found.length ? found.map((chat, i) => <Pressable key={chat.id} onPress={() => pick(chat)} onHoverIn={() => setIndex(i)} accessibilityRole="button" accessibilityLabel={`Открыть чат ${chat.peer.displayName}`}
+            style={{ flexDirection: 'row', alignItems: 'center', gap: 12, paddingHorizontal: 10, paddingVertical: 8, borderRadius: 8, backgroundColor: i === index ? C.selected : 'transparent' }}>
+            <Avatar user={chat.peer} api={api} size={30} round />
+            <View style={{ flex: 1, minWidth: 0, flexDirection: 'row', alignItems: 'baseline', gap: 8 }}><Text numberOfLines={1} raw style={{ flexShrink: 1, color: C.text, fontSize: 15, fontWeight: '500' }}>{chat.peer.displayName}</Text>{chat.peer.username ? <Text numberOfLines={1} raw style={{ color: C.muted, fontSize: 13 }}>@{chat.peer.username}</Text> : null}</View>
+            {chat.unreadCount ? <Text raw style={{ color: C.muted, fontSize: 12, fontFamily: MONO }}>{badgeText(chat.unreadCount)}</Text> : null}
+            <Hint label={i === index ? '↵' : `${mod}${i + 1}`} />
+          </Pressable>) : <Text style={{ color: C.muted, fontSize: 14, padding: 14 }}>Ничего не нашли</Text>}
+        </View>
       </Pressable>
     </Pressable>
   </Modal>;

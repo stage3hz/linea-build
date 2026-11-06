@@ -25,7 +25,7 @@ function PaletteCard({ id, selected, locked, onPress }: { id: (typeof PALETTES)[
 const appearances = [
   { value: 'light', label: 'Светлая', color: '#EDF3FB', line: '#CEDAF0' },
   { value: 'dark', label: 'Тёмная', color: '#080F1E', line: '#31415B' },
-  { value: 'black', label: 'Чёрная', color: '#000000', line: '#3C3C3C' },
+  { value: 'black', label: 'Чёрная', color: '#08090A', line: '#23252A' },
 ] as const;
 
 /**

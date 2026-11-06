@@ -32,15 +32,17 @@ const basePalette:Record<'light'|'dark'|'black',Theme> = {
     bgGradient:['#0A1529','#10192D','#070E1C'], ambientBlue:'rgba(56,112,224,0.23)', ambientLilac:'rgba(114,88,190,0.13)',
     accentGradient:['#BAD3FF','#85ADFF'],
   },
+  // «Чёрная» after Linear: steps of near-black instead of black on black held up only by white
+  // outlines — page #08090A, cards #0F1011, raised #161718, hairlines #23252A, quiet grey text.
   black: {
-    dark:true, black:true, bg:'#000000', surface:'rgba(0,0,0,0.91)', surface2:'rgba(0,0,0,0.67)', text:'#F3F3F3',
-    muted:'#B9B9B9', border:'rgba(255,255,255,0.18)', accent:'#E5E5E5', accentSoft:'rgba(255,255,255,0.09)',
-    onAccent:'#000000', bubble:'rgba(0,0,0,0.75)', incoming:'rgba(0,0,0,0.53)', danger:'#FF9CB0', dangerBg:'rgba(69,20,31,0.88)',
-    chatBg:'transparent', subtle:'#8E8E8E', shadow:'#000000',
-    glass:'rgba(0,0,0,0.52)', glassClear:'rgba(0,0,0,0.22)', glassBorder:'rgba(255,255,255,0.22)',
-    glassHighlight:'rgba(255,255,255,0.20)', glassTint:'rgba(0,0,0,0.28)', glassOpaque:'#000000',
-    bgGradient:['#000000','#000000','#000000'], ambientBlue:'rgba(255,255,255,0.045)', ambientLilac:'rgba(255,255,255,0.025)',
-    accentGradient:['#F2F2F2','#BFBFBF'],
+    dark:true, black:true, bg:'#08090A', surface:'rgba(15,16,17,0.96)', surface2:'rgba(22,23,24,0.92)', text:'#F7F8F8',
+    muted:'#8A8F98', border:'#23252A', accent:'#E6E6E6', accentSoft:'rgba(255,255,255,0.07)',
+    onAccent:'#08090A', bubble:'rgba(31,32,35,0.96)', incoming:'rgba(22,23,24,0.96)', danger:'#FF9CB0', dangerBg:'rgba(69,20,31,0.88)',
+    chatBg:'transparent', subtle:'#62666D', shadow:'#000000',
+    glass:'rgba(15,16,17,0.62)', glassClear:'rgba(15,16,17,0.26)', glassBorder:'rgba(255,255,255,0.08)',
+    glassHighlight:'rgba(255,255,255,0.10)', glassTint:'rgba(8,9,10,0.30)', glassOpaque:'#0F1011',
+    bgGradient:['#08090A','#08090A','#08090A'], ambientBlue:'rgba(255,255,255,0.03)', ambientLilac:'rgba(255,255,255,0.02)',
+    accentGradient:['#F2F2F2','#C8C8C8'],
   },
 };
 /** Built-in themes plus the colour palettes (Аметист, Кофе, …). */

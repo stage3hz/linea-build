@@ -134,6 +134,8 @@ export function MusicScreen({ onBack }: { onBack: () => void }) {
     });
   };
   const begin = (track: MusicTrack) => { void music.play(track, rows); };
+  // Spotify-style «Артисты»: the first track of each artist in the current list gives the round picture.
+  const artists = useMemo(() => { const seen = new Set<string>(); return rows.filter(track => { const key = track.artist.trim().toLocaleLowerCase(); if (!key || seen.has(key)) return false; seen.add(key); return true; }).slice(0, 12); }, [rows]);
   const favoriteIds = new Set(music.favorites.map(track => track.id));
   const emptyTitle = section === 'saved' ? 'Свой звук' : section === 'favorites' ? 'Любимое будет здесь' : nextOffset !== null ? 'Посмотрим следующую страницу' : 'Попробуем другой запрос';
   const emptyDescription = section === 'saved'
@@ -179,8 +181,9 @@ export function MusicScreen({ onBack }: { onBack: () => void }) {
             </Pressable>; })}
           </View> : null}
           {section === 'catalog' && !query ? <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center', gap: 9, paddingBottom: 10 }}>
-            <Pressable accessibilityRole="button" accessibilityLabel="Слушать микс" disabled={!rows.length} onPress={() => rows[0] && begin(rows[0])} style={({ pressed }) => ({ width: 80, height: 80, borderRadius: 22, backgroundColor: t.dark ? 'rgba(255,255,255,0.14)' : 'rgba(20,36,61,0.08)', alignItems: 'center', justifyContent: 'center', transform: [{ scale: pressed ? .96 : 1 }], opacity: rows.length ? 1 : .6 })}>
-              <View style={{ width: 58, height: 58, borderRadius: 29, backgroundColor: t.dark ? '#FFFFFF' : '#14243D', alignItems: 'center', justifyContent: 'center' }}><View style={{ marginLeft: 3 }}><Icon name="play" size={26} color={t.dark ? "#0A1529" : "#FFFFFF"} /></View></View>
+            <Pressable accessibilityRole="button" accessibilityLabel="Слушать микс" disabled={!rows.length} onPress={() => rows[0] && begin(rows[0])} style={({ pressed }) => ({ width: 66, height: 66, borderRadius: 33, backgroundColor: t.dark ? '#FFFFFF' : '#14243D', alignItems: 'center', justifyContent: 'center', transform: [{ scale: pressed ? .94 : 1 }], opacity: rows.length ? 1 : .5, shadowColor: '#000', shadowOpacity: .3, shadowRadius: 12, shadowOffset: { width: 0, height: 6 }, elevation: 6 })}>
+              {/* Spotify: one plain white play button, no frame around it. */}
+              <View style={{ marginLeft: 4 }}><Icon name="play" size={30} color={t.dark ? '#000000' : '#FFFFFF'} /></View>
             </Pressable>
             <Text style={{ color: ink, fontSize: 21, fontWeight: '700' }}>Слушать микс</Text>
             <Text style={{ color: soft, fontSize: 14 }}>{mood ? `Настроение: ${MUSIC_MOODS.find(item => item.apiMood === mood)?.label || ''}` : 'Новые имена и любимый звук'}</Text>
@@ -193,6 +196,12 @@ export function MusicScreen({ onBack }: { onBack: () => void }) {
           {input ? <Pressable accessibilityRole="button" accessibilityLabel="Очистить поиск музыки" onPress={() => { setInput(''); setQuery(''); }} style={{ minHeight: 44, minWidth: 32, alignItems: 'center', justifyContent: 'center' }}><Icon name="close-circle" size={19} color={t.muted} /></Pressable> : null}
         </GlassSurface>
 
+        {section === 'catalog' && !query && music.favorites.length ? <Shelf title="Любимое">
+          {music.favorites.slice(0, 12).map(track => <CoverCard key={track.id} track={track} onPress={() => void music.play(track, music.favorites)} />)}
+        </Shelf> : null}
+        {section === 'catalog' && !query && artists.length > 1 ? <Shelf title="Артисты">
+          {artists.map(track => <ArtistCircle key={track.artist} track={track} onPress={() => { setInput(track.artist); setQuery(track.artist); }} />)}
+        </Shelf> : null}
         {section === 'catalog' ? <>
           <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{ marginHorizontal: -18 }} contentContainerStyle={{ gap: 8, paddingBottom: 2, paddingHorizontal: 18 }}>
             <MoodChip label="Любое" icon="sparkles-outline" selected={!mood} onPress={() => setMood(undefined)} />
@@ -256,6 +265,38 @@ export function MusicScreen({ onBack }: { onBack: () => void }) {
   </View>;
 }
 
+/** A Spotify-style shelf: bold title, a row of covers scrolling sideways. */
+function Shelf({ title, children }: { title: string; children: React.ReactNode }) {
+  const t = useTheme();
+  return <View style={{ gap: 10 }}>
+    <Text style={{ color: t.text, fontSize: 20, fontWeight: '700', letterSpacing: -.3 }}>{title}</Text>
+    <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{ marginHorizontal: -18 }} contentContainerStyle={{ gap: 14, paddingHorizontal: 18 }}>{children}</ScrollView>
+  </View>;
+}
+
+/** «Covers come first»: a near-square cover (radius 6) with the title and artist under it. */
+function CoverCard({ track, onPress }: { track: MusicTrack; onPress: () => void }) {
+  const t = useTheme(); const [failed, setFailed] = useState(false);
+  return <Pressable accessibilityRole="button" accessibilityLabel={`Слушать: ${track.title}, ${track.artist}`} onPress={onPress} style={({ pressed }) => ({ width: 132, gap: 6, opacity: pressed ? .75 : 1 })}>
+    <View style={{ width: 132, height: 132, borderRadius: 6, overflow: 'hidden', backgroundColor: t.surface2 }}>
+      {track.artworkUrl && !failed ? <Image source={{ uri: track.artworkUrl }} style={{ width: '100%', height: '100%' }} onError={() => setFailed(true)} /> : <LinearGradient colors={t.accentGradient} style={{ flex: 1, alignItems: 'center', justifyContent: 'center' }}><Icon name="musical-note" color={t.onAccent} size={34} /></LinearGradient>}
+    </View>
+    <Text numberOfLines={1} style={{ color: t.text, fontSize: 13, fontWeight: '600' }}>{track.title}</Text>
+    <Text numberOfLines={1} style={{ color: t.muted, fontSize: 12 }}>{track.artist}</Text>
+  </Pressable>;
+}
+
+/** Artists are round, as in Spotify. */
+function ArtistCircle({ track, onPress }: { track: MusicTrack; onPress: () => void }) {
+  const t = useTheme(); const [failed, setFailed] = useState(false);
+  return <Pressable accessibilityRole="button" accessibilityLabel={`Найти: ${track.artist}`} onPress={onPress} style={({ pressed }) => ({ width: 92, alignItems: 'center', gap: 7, opacity: pressed ? .75 : 1 })}>
+    <View style={{ width: 92, height: 92, borderRadius: 46, overflow: 'hidden', backgroundColor: t.surface2, alignItems: 'center', justifyContent: 'center' }}>
+      {track.artworkUrl && !failed ? <Image source={{ uri: track.artworkUrl }} style={{ width: '100%', height: '100%' }} onError={() => setFailed(true)} /> : <Text style={{ color: t.text, fontSize: 30, fontWeight: '700' }}>{track.artist.trim().slice(0, 1).toUpperCase()}</Text>}
+    </View>
+    <Text numberOfLines={1} style={{ color: t.text, fontSize: 12, fontWeight: '600', textAlign: 'center' }}>{track.artist}</Text>
+  </Pressable>;
+}
+
 function MoodChip({ label, icon, selected, onPress }: { label: string; icon: IconName; selected: boolean; onPress: () => void }) {
   const t = useTheme();
   return <Pressable accessibilityRole="button" accessibilityState={{ selected }} onPress={onPress} style={{ minHeight: 62, minWidth: 100, paddingHorizontal: 16, paddingVertical: 11, gap: 5, justifyContent: 'center', borderRadius: 21, borderWidth: 1, borderColor: selected ? t.accent : t.glassBorder, backgroundColor: selected ? t.accentSoft : t.glassClear }}>
@@ -267,7 +308,7 @@ function MoodChip({ label, icon, selected, onPress }: { label: string; icon: Ico
 function TrackArtwork({ track }: { track: MusicTrack }) {
   const t = useTheme(); const [failed, setFailed] = useState(false);
   useEffect(() => setFailed(false), [track.artworkUrl]);
-  return <View style={{ width: 53, height: 53, borderRadius: 17, overflow: 'hidden', borderWidth: 1, borderColor: t.glassBorder }}>
+  return <View style={{ width: 52, height: 52, borderRadius: 6, overflow: 'hidden', backgroundColor: t.surface2 }}>
     {track.artworkUrl && !failed ? <Image source={{ uri: track.artworkUrl }} style={{ width: '100%', height: '100%' }} onError={() => setFailed(true)} accessibilityLabel={`Обложка ${track.title}`} /> : <LinearGradient colors={t.accentGradient} style={{ flex: 1, alignItems: 'center', justifyContent: 'center' }}><Icon name="musical-note" color={t.onAccent} size={25} /></LinearGradient>}
   </View>;
 }
@@ -275,11 +316,11 @@ function TrackArtwork({ track }: { track: MusicTrack }) {
 function TrackRow({ track, active, playing, favorite, onPlay, onFavorite, onMore }: { track: MusicTrack; active: boolean; playing: boolean; favorite: boolean; onPlay: () => void; onFavorite: () => void; onMore: () => void }) {
   const t = useTheme();
   // marginHorizontal −7 puts the artwork and the buttons on the same 18 pt edge as the search field and chips.
-  return <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4, paddingVertical: 9, paddingHorizontal: 7, marginHorizontal: -7, marginBottom: 4, borderRadius: 22, backgroundColor: active ? t.accentSoft : 'transparent', borderWidth: 1, borderColor: active ? t.glassBorder : 'transparent' }}>
+  return <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4, paddingVertical: 9, paddingHorizontal: 7, marginHorizontal: -7, marginBottom: 4, borderRadius: 8 }}>
     <Pressable accessibilityRole="button" accessibilityLabel={`${playing ? 'Пауза' : 'Слушать'}: ${track.title}, ${track.artist}`} onPress={onPlay} style={{ flex: 1, minWidth: 0, flexDirection: 'row', alignItems: 'center', gap: 12, minHeight: 55 }}>
-      <View><TrackArtwork track={track} />{active ? <View style={{ position: 'absolute', bottom: -2, right: -2, width: 23, height: 23, borderRadius: 12, backgroundColor: t.accent, alignItems: 'center', justifyContent: 'center', borderWidth: 2, borderColor: t.bg }}><Icon name={playing ? 'pause' : 'play'} size={11} color={t.onAccent} /></View> : null}</View>
+      <TrackArtwork track={track} />
       <View style={{ flex: 1, minWidth: 0, gap: 5 }}>
-        <Text numberOfLines={1} style={{ color: active ? t.accent : t.text, fontSize: 14, fontWeight: '700' }}>{track.title}</Text>
+        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 5 }}>{active ? <Icon name={playing ? 'stats-chart' : 'pause'} size={12} color={t.accent} /> : null}<Text numberOfLines={1} style={{ flex: 1, color: active ? t.accent : t.text, fontSize: 15, fontWeight: '600' }}>{track.title}</Text></View>
         <Text numberOfLines={1} style={{ color: t.muted, fontSize: 12 }}>{track.artist}</Text>
         <Text style={{ color: t.subtle, fontSize: 9, fontWeight: '600', letterSpacing: .2 }}>{track.source === 'local' ? 'НА УСТРОЙСТВЕ' : track.source === 'soundcloud' ? 'SOUNDCLOUD' : 'AUDIUS'}{track.duration > 0 ? ` · ${Math.floor(track.duration / 60)}:${String(Math.floor(track.duration % 60)).padStart(2, '0')}` : ''}</Text>
       </View>

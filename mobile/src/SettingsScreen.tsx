@@ -1,7 +1,7 @@
 import React, { useCallback, useEffect, useState } from 'react';
 import { ProfileEffect } from './platina/Effects';
 import { ActivityIndicator, Platform, Pressable, ScrollView, StyleSheet, Switch, View, useWindowDimensions, Linking } from 'react-native';
-import { Text } from './typography';
+import { MONO, Text } from './typography';
 import * as FileSystem from 'expo-file-system/legacy';
 import Constants from 'expo-constants';
 import { Image } from 'expo-image';
@@ -102,7 +102,10 @@ function Group({ children, label }: { children: React.ReactNode; label?: string 
   const t = useTheme(); const language = useLanguage();
   return <View style={{ gap: 7 }}>
     {label ? <Text raw style={{ color: t.muted, fontSize: 11, fontWeight: '700', letterSpacing: 1.2, paddingHorizontal: 8 }}>{tr(label, language).toUpperCase()}</Text> : null}
-    <GlassSurface radius={20} shadow={false} contentStyle={{ paddingVertical: 2, overflow: 'hidden', borderRadius: 20 }}>{children}</GlassSurface>
+    {/* «Чёрная» (Linear): a flat card one step lighter than the page, hairline rows — no glass, no white outline. */}
+    {t.black ? <View style={{ borderRadius: 14, overflow: 'hidden', backgroundColor: t.glassOpaque, borderWidth: StyleSheet.hairlineWidth, borderColor: t.border }}>
+      {React.Children.toArray(children).filter(Boolean).map((child, index) => <View key={index} style={index ? { borderTopWidth: StyleSheet.hairlineWidth, borderTopColor: t.border, marginLeft: 57 } : null}><View style={index ? { marginLeft: -57 } : null}>{child}</View></View>)}
+    </View> : <GlassSurface radius={20} shadow={false} contentStyle={{ paddingVertical: 2, overflow: 'hidden', borderRadius: 20 }}>{children}</GlassSurface>}
   </View>;
 }
 
@@ -195,7 +198,9 @@ function Root({ api, user, onBack, onProfile, onSecurity, onMusic, onLogout, ope
       <Group>
         <Item icon="log-out-outline" color="#D9534F" label="Выйти из аккаунта" danger onPress={() => void onLogout()} />
       </Group>
-      <Text style={{ color: t.muted, fontSize: 11, textAlign: 'center' }}>Инвиз {version} · переписка защищена сквозным шифрованием</Text>
+      {/* «Чёрная» (Linear): the technical line in a monospaced face, quiet grey. */}
+      {t.black ? <Text raw style={{ color: t.subtle, fontSize: 11, textAlign: 'center', fontFamily: MONO, letterSpacing: 0.2 }}>INVIZENT {version} · e2ee · signal</Text>
+        : <Text style={{ color: t.muted, fontSize: 11, textAlign: 'center' }}>Инвиз {version} · переписка защищена сквозным шифрованием</Text>}
     </View>
   </Animated.ScrollView>;
 }

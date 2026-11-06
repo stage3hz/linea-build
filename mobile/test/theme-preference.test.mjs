@@ -59,12 +59,17 @@ test('rapid preference writes are ordered and a rejected save does not block lat
   assert.deepEqual(calls, [['linea.theme.v1', 'light'], ['linea.theme.v1', 'black']]);
 });
 
-test('black has an RGB-zero base and neutral glass; the existing navy palette is retained', () => {
+test('black follows Linear: near-black steps (page, card, raised), hairline separators; the navy palette is retained', () => {
   const { palette } = loadTs(new URL('../src/theme.tsx', import.meta.url), { './i18n': { getLanguage: () => 'ru' } });
   assert.equal(palette.dark.bg, '#080F1E');
   assert.equal(palette.dark.glass, 'rgba(19,31,53,0.52)');
-  assert.equal(palette.black.bg, '#000000');
-  assert.equal(palette.black.glassOpaque, '#000000');
-  for (const key of ['glass', 'glassClear', 'glassTint', 'surface', 'surface2']) assert.match(palette.black[key], /^rgba\(0,0,0,/);
-  assert.deepEqual(palette.black.bgGradient, ['#000000', '#000000', '#000000']);
+  assert.equal(palette.black.bg, '#08090A');
+  assert.equal(palette.black.glassOpaque, '#0F1011');
+  assert.equal(palette.black.border, '#23252A');
+  // Neutral greys only (no tint): every glass/surface colour has R≈G≈B.
+  for (const key of ['glass', 'glassClear', 'glassTint', 'surface', 'surface2']) {
+    const [r, g, b] = palette.black[key].match(/\d+/g).map(Number);
+    assert.ok(Math.max(r, g, b) - Math.min(r, g, b) <= 2 && Math.max(r, g, b) <= 24, key);
+  }
+  assert.deepEqual(palette.black.bgGradient, ['#08090A', '#08090A', '#08090A']);
 });
