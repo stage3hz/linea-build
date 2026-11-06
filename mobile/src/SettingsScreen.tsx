@@ -21,7 +21,7 @@ import { clearPhotoCache } from './photo/pipeline';
 import { clearVideoCache } from './media/pipeline';
 import type { Chat, DarkTheme, ThemeMode, User } from './types';
 import { FolderEditor, useChatFolders, type ChatFolder } from './ChatFolders';
-import { useSharedValue } from 'react-native-reanimated';
+import Animated, { useAnimatedScrollHandler, useAnimatedStyle, useSharedValue } from 'react-native-reanimated';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { StackBase, StackScreen } from './stack';
 import { currentEndpoint } from './servers/pool';
@@ -135,12 +135,17 @@ function Root({ api, user, onBack, onProfile, onSecurity, onMusic, onLogout, ope
   useEffect(() => { let alive = true; api.usernameStatus().then(status => { if (!alive) return; const p = status.platina; setUntil(p.permanent ? 'Бессрочно' : p.expiresAt ? `Активна до ${new Date(p.expiresAt).toLocaleDateString('ru-RU', { day: 'numeric', month: 'long' })}` : 'Активна'); }).catch(() => {}); return () => { alive = false; }; }, [api, user.id]);
   const bannerHeight = 200 + insets.top;
   const hasBanner = !!(user.bannerId || user.bannerPreset);
+  // Telegram: pulling the list down stretches the header picture and keeps it at the top of the screen
+  // (no empty strip above it). Grows by the pull distance, scaled around its centre, shifted up by half.
+  const pull = useSharedValue(0);
+  const onScroll = useAnimatedScrollHandler(e => { pull.value = Math.min(0, e.contentOffset.y); });
+  const stretch = useAnimatedStyle(() => ({ transform: [{ translateY: pull.value / 2 }, { scale: 1 - pull.value / bannerHeight }] }));
   // The scroll view itself starts under the status bar (the screen sits in a SafeAreaView): a negative
   // margin on its content was clipped by the scroll view, leaving a strip above the banner on iPhone.
-  return <ScrollView style={{ marginTop: -insets.top, marginBottom: Platform.OS === 'web' ? 0 : -insets.bottom }} contentContainerStyle={{ paddingBottom: 30 + tabInset + (Platform.OS === 'web' ? 0 : insets.bottom) }} showsVerticalScrollIndicator={false} contentInsetAdjustmentBehavior="never">
+  return <Animated.ScrollView onScroll={onScroll} scrollEventThrottle={16} style={{ marginTop: -insets.top, marginBottom: Platform.OS === 'web' ? 0 : -insets.bottom }} contentContainerStyle={{ paddingBottom: 30 + tabInset + (Platform.OS === 'web' ? 0 : insets.bottom) }} showsVerticalScrollIndicator={false} contentInsetAdjustmentBehavior="never">
     {/* Telegram's settings head with Discord's banner: the banner runs under the status bar. */}
     <View style={{ height: bannerHeight }}>
-      {hasBanner ? <ProfileBanner user={user} api={api} height={bannerHeight} width={width} /> : <LinearGradient colors={t.dark ? ['rgba(96,124,190,0.34)', 'rgba(150,120,200,0.14)', 'transparent'] : ['rgba(120,150,230,0.30)', 'rgba(190,170,240,0.16)', 'transparent']} start={{ x: 0.1, y: 0 }} end={{ x: 0.7, y: 1 }} style={StyleSheet.absoluteFill} />}
+      <Animated.View pointerEvents="none" style={[StyleSheet.absoluteFill, stretch]}>{hasBanner ? <ProfileBanner user={user} api={api} height={bannerHeight} width={width} /> : <LinearGradient colors={t.dark ? ['rgba(96,124,190,0.34)', 'rgba(150,120,200,0.14)', 'transparent'] : ['rgba(120,150,230,0.30)', 'rgba(190,170,240,0.16)', 'transparent']} start={{ x: 0.1, y: 0 }} end={{ x: 0.7, y: 1 }} style={StyleSheet.absoluteFill} />}</Animated.View>
       <ProfileEffect effect={user.profileEffect} width={width} height={bannerHeight + 140} />
       <View style={{ position: 'absolute', top: insets.top + 6, left: 16, right: 16, flexDirection: 'row', justifyContent: 'space-between' }}>
         <GlassSurface radius={22} shadow={false} interactive contentStyle={{ width: 44, height: 44, alignItems: 'center', justifyContent: 'center' }}><Pressable accessibilityRole="button" accessibilityLabel="Назад" onPress={onBack} hitSlop={6} style={{ width: 44, height: 44, alignItems: 'center', justifyContent: 'center' }}><Icon name="chevron-back" size={22} color={t.text} /></Pressable></GlassSurface>
@@ -192,7 +197,7 @@ function Root({ api, user, onBack, onProfile, onSecurity, onMusic, onLogout, ope
       </Group>
       <Text style={{ color: t.muted, fontSize: 11, textAlign: 'center' }}>Инвиз {version} · переписка защищена сквозным шифрованием</Text>
     </View>
-  </ScrollView>;
+  </Animated.ScrollView>;
 }
 
 /** For accounts without Platina: one calm card, never a shouting banner. */
