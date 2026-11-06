@@ -23,7 +23,8 @@ import { Nameplate } from './platina/Effects';
 import { VoiceBar } from './communities/VoiceBar';
 import { formatListTime, useTheme } from './theme';
 import type { Api } from './api';
-import type { Chat, User } from './types';
+import type { Chat, Message, User } from './types';
+import { isQuietAction } from './messageMeta';
 import type { MessengerStore } from './useMessenger';
 import type { SavedItem } from './saved/saved.ts';
 import { ContextMenu, MenuItem } from './ContextMenu';
@@ -31,7 +32,7 @@ import { incomingCount, useFriendRequests } from './friendRequests';
 import { useChannelsBadge } from './communities/unread';
 import { impactFeedback, lightFeedback } from './haptics';
 import { Gesture, GestureDetector } from 'react-native-gesture-handler';
-import Animated, { runOnJS, useAnimatedStyle, useSharedValue, withSpring } from 'react-native-reanimated';
+import Animated, { runOnJS, useAnimatedStyle, useSharedValue, withSpring, type SharedValue } from 'react-native-reanimated';
 
 export type MessengerTab = 'chats' | 'people' | 'channels' | 'music' | 'ai' | 'profile';
 type Navigation = { onProfile:()=>void;onNewChat:()=>void;onMusic:()=>void;onAI:()=>void;onChats:()=>void;activeTab?:MessengerTab };
@@ -83,7 +84,7 @@ export function ChatListScreen({api,user,store,onProfile,onNewChat,onMusic,onAI,
         and fades/blurs out there instead of being cut at a hard edge. Desktop keeps it in the flow. */}
     {float?<FloatingHeader onHeight={setHeaderHeight}>{header}</FloatingHeader>:header}
     {store.listLoading?<View style={{flex:1,overflow:'hidden',paddingTop:float?headerHeight:0,...(float?bleed.style:null)}}><ChatListSkeleton/></View>:<FlatList style={float?bleed.style:undefined} scrollIndicatorInsets={float?{top:headerHeight,bottom:tabsHeight}:undefined} progressViewOffset={float?headerHeight:undefined} data={chats} keyExtractor={item=>item.id} keyboardShouldPersistTaps="handled" keyboardDismissMode="on-drag" alwaysBounceVertical contentContainerStyle={{paddingTop:float?headerHeight:0,paddingBottom:(rail||editing?12:tabsHeight+12)+(float?bleed.bottom:0),flexGrow:1}} ListHeaderComponent={archive?<Pressable onPress={()=>setArchive(false)} accessibilityRole="button" style={{flexDirection:'row',alignItems:'center',gap:8,padding:12}}><Icon name="chevron-back" size={18} color={t.accent}/><Text style={{color:t.accent,fontSize:15,fontWeight:'700'}}>Архив</Text></Pressable>:<>{menuError?<View style={{paddingBottom:8}}><Notice text={menuError} error/></View>:null}{filter==='all'&&(!query||'избранное'.includes(query.toLowerCase()))?<SavedRow count={store.saved.items.length} last={store.saved.items[store.saved.items.length-1]} selected={savedActive} onPress={onSaved}/>:null}{archivedCount&&!query&&filter==='all'?<Pressable onPress={()=>setArchive(true)} accessibilityRole="button" accessibilityLabel={`Архив, чатов: ${archivedCount}`} style={({pressed})=>({flexDirection:'row',gap:13,alignItems:'center',paddingHorizontal:16,paddingVertical:12,borderRadius:24,marginBottom:6,backgroundColor:pressed?(t.dark?'rgba(255,255,255,0.09)':'rgba(255,255,255,0.62)'):'transparent'})}><View style={{width:54,height:54,borderRadius:19,backgroundColor:t.surface2,alignItems:'center',justifyContent:'center'}}><Icon name="archive" color={t.muted} size={24}/></View><View style={{flex:1}}><Text style={{color:t.text,fontSize:15,fontWeight:'700'}}>Архив</Text><Text style={{color:t.muted,fontSize:12}}>{archivedCount} {archivedCount===1?'чат':archivedCount<5?'чата':'чатов'}</Text></View></Pressable>:null}</>} refreshControl={<RefreshControl refreshing={refreshing} onRefresh={()=>void refresh()} tintColor={t.accent}/>} ListEmptyComponent={<View style={{flex:1,justifyContent:'center',paddingBottom:20}}><Empty icon={query?'search-outline':'chatbubbles-outline'} title={query?'Чат не найден':'Начни разговор'} description={query?'Попробуй другое имя или найди человека по @имени.':'Найди своего человека по @имени. Всё начинается с простого «привет».'} action={<Button label="Найти собеседника" onPress={onNewChat} icon="add"/>}/></View>}
-      renderItem={({item})=><SwipeRow enabled={!editing} archived={!!item.settings?.archived} unread={item.unreadCount>0} onArchive={()=>change(item,{archived:!item.settings?.archived})} onRead={()=>readChat(item)}><ChatRow key={store.selectedId?'open':'idle'} chat={item} api={api} userId={user.id} selected={wideLayout&&store.selectedId===item.id} typing={!!store.typing[item.id]} checked={editing?editing.has(item.id):undefined} onPress={()=>editing?toggleEdit(item):store.selectChat(item)} onLongPress={(y,x)=>{impactFeedback();setMenu({chat:item,y,x});}}/></SwipeRow>}/>}
+      renderItem={({item})=><SwipeRow enabled={!editing} muted={!!item.settings?.muted} unread={item.unreadCount>0} onMute={()=>change(item,{muted:!item.settings?.muted})} onDelete={()=>setRemoveAsk([item])} onRead={()=>readChat(item)}><ChatRow key={store.selectedId?'open':'idle'} chat={item} api={api} userId={user.id} selected={wideLayout&&store.selectedId===item.id} typing={!!store.typing[item.id]} checked={editing?editing.has(item.id):undefined} onPress={()=>editing?toggleEdit(item):store.selectChat(item)} onLongPress={(y,x)=>{impactFeedback();setMenu({chat:item,y,x});}}/></SwipeRow>}/>}
     {editing?<GlassSurface lens material="regular" radius={26} style={{marginHorizontal:16,marginBottom:6}} contentStyle={{flexDirection:'row',justifyContent:'space-around',alignItems:'center',minHeight:52}}>
       <Pressable onPress={()=>bulk(readChat)} accessibilityRole="button" style={{padding:10}}><Text style={{color:t.accent,fontSize:14,fontWeight:'600'}}>{selectedChats.length?'Прочитать':'Прочитать все'}</Text></Pressable>
       <Pressable disabled={!selectedChats.length} onPress={()=>bulk(chat=>change(chat,{archived:!archive}))} accessibilityRole="button" style={{padding:10,opacity:selectedChats.length?1:.4}}><Text style={{color:t.accent,fontSize:14,fontWeight:'600'}}>{archive?'Из архива':'В архив'}</Text></Pressable>
@@ -94,7 +95,7 @@ export function ChatListScreen({api,user,store,onProfile,onNewChat,onMusic,onAI,
       <SheetAction icon="trash-outline" label="Удалить у меня" description="Чат и загруженные сообщения исчезнут на этом устройстве. Если собеседник напишет снова, чат вернётся." danger onPress={()=>{const list=removeAsk||[];setRemoveAsk(null);setEditing(null);lightFeedback();list.forEach(chat=>store.removeChat(chat));}}/>
       <SheetAction icon="people-outline" label="Удалить у меня и у собеседника" description="Чат, все сообщения и файлы будут удалены на сервере и у обоих. Отменить нельзя." danger onPress={()=>{const list=removeAsk||[];setRemoveAsk(null);setEditing(null);lightFeedback();void Promise.all(list.map(chat=>store.removeChatForEveryone(chat))).catch(e=>store.setError(e instanceof Error?e.message:'Не удалось удалить чат. Попробуй ещё раз.'));}}/>
     </Sheet>
-    <ContextMenu visible={!!menu} y={menu?.y||0} x={menu?.x} onClose={()=>setMenu(null)} preview={menu?.chat.peer.displayName}>
+    <ContextMenu visible={!!menu} y={menu?.y||0} x={menu?.x} onClose={()=>setMenu(null)} preview={menu?.chat.peer.displayName} peek={menu?<ChatPeek chat={menu.chat} api={api} userId={user.id} messages={store.messages[menu.chat.id]}/>:undefined}>
       {menu?<>
         <MenuItem icon={menu.chat.settings?.pinnedAt?'pin':'pin-outline'} label={menu.chat.settings?.pinnedAt?'Открепить':'Закрепить'} onPress={()=>change(menu.chat,{pinned:!menu.chat.settings?.pinnedAt})}/>
         <MenuItem icon={menu.chat.settings?.muted?'notifications-outline':'notifications-off-outline'} label={menu.chat.settings?.muted?'Включить звук':'Выключить звук'} onPress={()=>change(menu.chat,{muted:!menu.chat.settings?.muted})}/>
@@ -138,21 +139,73 @@ function SavedRow({count,last,selected,onPress}:{count:number;last?:SavedItem;se
   return <Pressable onPress={onPress} accessibilityRole="button" accessibilityLabel={`Избранное, записей: ${count}`} style={({pressed})=>({flexDirection:'row',gap:12,paddingLeft:16,paddingRight:16,paddingVertical:8,backgroundColor:selected?t.accentSoft:pressed?(t.dark?'rgba(255,255,255,0.07)':'rgba(0,0,0,0.05)'):'transparent'})}><View style={{width:60,height:60,borderRadius:Math.round(60*0.36),backgroundColor:t.accent,alignItems:'center',justifyContent:'center'}}><Icon name="bookmark" color={t.onAccent} size={26}/></View><View style={{flex:1,justifyContent:'center',gap:3,borderBottomWidth:StyleSheet.hairlineWidth,borderBottomColor:t.border,paddingBottom:8,marginBottom:-8,minHeight:68}}><View style={{flexDirection:'row',alignItems:'center',gap:6}}><Text numberOfLines={1} style={{flex:1,color:t.text,fontSize:16,fontWeight:'600',letterSpacing:-.2}}>Избранное</Text>{last?<Text style={{color:t.muted,fontSize:14}}>{formatListTime(last.savedAt)}</Text>:null}</View><Text numberOfLines={2} style={{color:t.muted,fontSize:15,lineHeight:19}}>{preview}</Text></View></Pressable>;
 }
 
-/** Telegram swipes on a chat: left — archive, right — mark as read. UI thread. */
-function SwipeRow({enabled,archived,unread,onArchive,onRead,children}:{enabled:boolean;archived:boolean;unread:boolean;onArchive:()=>void;onRead:()=>void;children:React.ReactNode}) {
-  const t=useTheme();const x=useSharedValue(0);const armed=useSharedValue(0);
-  const archiveRef=useRef(onArchive);archiveRef.current=onArchive;const readRef=useRef(onRead);readRef.current=onRead;
-  const fire=(side:number)=>{if(side<0)archiveRef.current();else readRef.current();};
+/** Long-press on a chat, as in Telegram: a card with the chat itself (header and the latest messages) above the menu. */
+function ChatPeek({chat,api,userId,messages}:{chat:Chat;api:Api;userId:string;messages?:Message[]}) {
+  const t=useTheme();const {height}=useWindowDimensions();
+  const shown=(messages?.length?messages:chat.lastMessage?[chat.lastMessage]:[]).filter(m=>!isQuietAction(m)).slice(-14);
+  return <View style={{height:Math.min(440,Math.round(height*0.5)),borderRadius:24,overflow:'hidden',backgroundColor:t.bg,borderWidth:StyleSheet.hairlineWidth,borderColor:t.border}}>
+    <View style={{flexDirection:'row',alignItems:'center',gap:10,paddingHorizontal:14,paddingVertical:10,borderBottomWidth:StyleSheet.hairlineWidth,borderBottomColor:t.border}}>
+      <Avatar user={chat.peer} api={api} size={36}/>
+      <View style={{flex:1}}><Text numberOfLines={1} style={{color:t.text,fontSize:15,fontWeight:'700'}}>{chat.peer.displayName}</Text><Text numberOfLines={1} style={{color:t.muted,fontSize:12}}>@{chat.peer.username}</Text></View>
+    </View>
+    <View style={{flex:1,justifyContent:'flex-end',paddingHorizontal:10,paddingBottom:10,gap:4}}>
+      {shown.length?shown.map(m=>{const mine=m.senderId===userId;return <View key={m.clientId||m.id} style={{alignSelf:mine?'flex-end':'flex-start',maxWidth:'82%',borderRadius:16,paddingHorizontal:10,paddingVertical:6,backgroundColor:mine?t.bubble:t.incoming}}>
+        <Text numberOfLines={4} raw style={{color:t.text,fontSize:14,lineHeight:19}}>{listText(m.text)||(m.attachment?attachmentLabel(m.attachment):'Сообщение')}</Text>
+      </View>;}):<Text style={{color:t.muted,textAlign:'center',marginBottom:20}}>Сообщений пока нет</Text>}
+    </View>
+  </View>;
+}
+
+/** The row whose swipe buttons are open (one at a time, as in Telegram): opening another closes it. */
+let closeOpenRow:(()=>void)|null=null;
+const SWIPE_BUTTON=64,SWIPE_GAP=8,SWIPE_OPEN=2*SWIPE_BUTTON+3*SWIPE_GAP;
+
+/** A Telegram swipe button: a coloured capsule with its label under it, growing in as the row slides. */
+function SwipeButton({icon,label,color,x,index,onPress}:{icon:React.ComponentProps<typeof Icon>['name'];label:string;color:string;x:SharedValue<number>;index:number;onPress:()=>void}) {
+  const style=useAnimatedStyle(()=>{const p=Math.min(1,Math.max(0,(-x.value-index*SWIPE_GAP*2)/(SWIPE_OPEN*0.75)));return {opacity:p,transform:[{scale:0.5+0.5*p}]};});
+  return <Animated.View style={[{width:SWIPE_BUTTON,alignItems:'center',gap:4},style]}>
+    <Pressable accessibilityRole="button" accessibilityLabel={label} onPress={onPress} hitSlop={4} style={({pressed})=>({width:SWIPE_BUTTON,height:42,borderRadius:21,backgroundColor:color,alignItems:'center',justifyContent:'center',opacity:pressed?.75:1})}><Icon name={icon} size={21} color="#FFF"/></Pressable>
+    <Text numberOfLines={1} maxFontSizeMultiplier={1} style={{color:'#9A9AA1',fontSize:10,fontWeight:'600'}}>{label}</Text>
+  </Animated.View>;
+}
+
+/**
+ * Telegram swipes on a chat: left slides the row to reveal «Убрать звук» and «Удалить» (it stays open
+ * until you tap one, tap the row or swipe back); right marks an unread chat as read.
+ */
+function SwipeRow({enabled,muted,unread,onMute,onDelete,onRead,children}:{enabled:boolean;muted:boolean;unread:boolean;onMute:()=>void;onDelete:()=>void;onRead:()=>void;children:React.ReactNode}) {
+  const t=useTheme();const x=useSharedValue(0);const start=useSharedValue(0);const armed=useSharedValue(0);const [open,setOpen]=useState(false);
+  const refs=useRef({onMute,onDelete,onRead});refs.current={onMute,onDelete,onRead};
+  const SPRING={damping:24,stiffness:300,mass:0.8};
+  const close=()=>{x.value=withSpring(0,SPRING);setOpen(false);if(closeOpenRow===closeSelf.current)closeOpenRow=null;};
+  const closeSelf=useRef(close);closeSelf.current=close;
+  const opened=()=>{if(closeOpenRow&&closeOpenRow!==closeSelf.current)closeOpenRow();closeOpenRow=()=>closeSelf.current();setOpen(true);};
+  const read=()=>refs.current.onRead();
   const pan=Gesture.Pan().enabled(enabled).activeOffsetX([-12,12]).failOffsetY([-14,14])
-    .onUpdate(e=>{const v=Math.max(-150,Math.min(unread?120:0,e.translationX));x.value=v;const side=v<-90?-1:v>70?1:0;if(side!==armed.value){armed.value=side;if(side)runOnJS(lightFeedback)();}})
-    .onEnd(()=>{if(armed.value)runOnJS(fire)(armed.value);})
-    .onFinalize(()=>{armed.value=0;x.value=withSpring(0,{damping:20,stiffness:280});});
+    .onStart(()=>{start.value=x.value;})
+    .onUpdate(e=>{
+      let v=start.value+e.translationX;
+      // Past the buttons the row moves with resistance; to the right only for an unread chat.
+      if(v<-SWIPE_OPEN)v=-SWIPE_OPEN+(v+SWIPE_OPEN)*0.3;
+      if(v>0)v=unread&&start.value===0?Math.min(110,v):0;
+      x.value=v;const side=v>70?1:0;if(side!==armed.value){armed.value=side;if(side)runOnJS(lightFeedback)();}
+    })
+    .onEnd(e=>{
+      if(armed.value){armed.value=0;x.value=withSpring(0,SPRING);runOnJS(read)();return;}
+      const goOpen=x.value<-SWIPE_OPEN*0.4&&e.velocityX<400||e.velocityX<-500;
+      x.value=withSpring(goOpen?-SWIPE_OPEN:0,{...SPRING,velocity:e.velocityX});
+      if(goOpen)runOnJS(opened)();else runOnJS(close)();
+    });
   const row=useAnimatedStyle(()=>({transform:[{translateX:x.value}]}));
-  const left=useAnimatedStyle(()=>({opacity:x.value<-20?1:0}));const right=useAnimatedStyle(()=>({opacity:x.value>20?1:0}));
+  const readStyle=useAnimatedStyle(()=>({opacity:Math.min(1,Math.max(0,x.value/60)),transform:[{scale:0.5+0.5*Math.min(1,Math.max(0,x.value/70))}]}));
+  const act=(fn:()=>void)=>()=>{close();fn();};
   return <GestureDetector gesture={pan}><View>
-    <Animated.View pointerEvents="none" style={[{position:'absolute',top:0,bottom:6,right:0,left:0,borderRadius:24,backgroundColor:t.subtle,alignItems:'flex-end',justifyContent:'center',paddingRight:24},left]}><Icon name={archived?'arrow-undo-outline':'archive'} size={22} color="#FFF"/><Text style={{color:'#FFF',fontSize:10,fontWeight:'600',marginTop:3}}>{archived?'Вернуть':'В архив'}</Text></Animated.View>
-    <Animated.View pointerEvents="none" style={[{position:'absolute',top:0,bottom:6,right:0,left:0,borderRadius:24,backgroundColor:t.accent,alignItems:'flex-start',justifyContent:'center',paddingLeft:24},right]}><Icon name="chatbubble" size={22} color={t.onAccent}/><Text style={{color:t.onAccent,fontSize:10,fontWeight:'600',marginTop:3}}>Прочитано</Text></Animated.View>
-    <Animated.View style={[{backgroundColor:'transparent'},row]}>{children}</Animated.View>
+    <View style={{position:'absolute',top:0,bottom:0,right:0,flexDirection:'row',alignItems:'center',gap:SWIPE_GAP,paddingRight:SWIPE_GAP}}>
+      <SwipeButton icon={muted?'volume-high':'volume-mute'} label={muted?'Включить звук':'Убрать звук'} color="#FF9500" x={x} index={1} onPress={act(()=>refs.current.onMute())}/>
+      <SwipeButton icon="trash" label="Удалить" color="#FF3B30" x={x} index={0} onPress={act(()=>refs.current.onDelete())}/>
+    </View>
+    {unread?<Animated.View pointerEvents="none" style={[{position:'absolute',top:0,bottom:0,left:16,justifyContent:'center',alignItems:'center',gap:4},readStyle]}><View style={{width:SWIPE_BUTTON,height:42,borderRadius:21,backgroundColor:t.accent,alignItems:'center',justifyContent:'center'}}><Icon name="chatbubble" size={20} color={t.onAccent}/></View><Text style={{color:'#9A9AA1',fontSize:10,fontWeight:'600'}}>Прочитано</Text></Animated.View>:null}
+    <Animated.View style={row}>{children}{open?<Pressable accessibilityLabel="Закрыть кнопки" onPress={close} style={StyleSheet.absoluteFill}/>:null}</Animated.View>
   </View></GestureDetector>;
 }
 
