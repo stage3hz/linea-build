@@ -1,6 +1,7 @@
 // Telegram's record button: tap switches microphone ↔ round video; press and hold records; while
 // holding, slide left to cancel or up to lock (then the hands are free); releasing sends.
-// The button keeps following the finger a little, a lock pill shows above it.
+// The button stays in place vertically (Telegram): only a slide left moves it; dragging up
+// pulls the lock pill down towards the button.
 import React, { useRef, useState } from 'react';
 import { StyleSheet, View } from 'react-native';
 import { Gesture, GestureDetector } from 'react-native-gesture-handler';
@@ -72,12 +73,12 @@ export function RecordButton({ mode, disabled, onToggleMode, onTouchDown, onHold
 
   const button = useAnimatedStyle(() => ({
     // Telegram: at rest just the icon; while held a big accent circle (~2.3×) that reaches past the edge.
-    transform: [{ translateX: tx.value * 0.9 }, { translateY: ty.value * 0.9 }, { scale: 1 + active.value * 1.3 }],
+    transform: [{ translateX: tx.value * 0.9 }, { scale: 1 + active.value * 1.3 }],
     backgroundColor: active.value > 0.05 ? t.accent : 'transparent',
   }));
   // The light ring around the big circle, breathing with the voice (Telegram's halo).
-  const halo = useAnimatedStyle(() => ({ opacity: active.value * 0.32, transform: [{ translateX: tx.value * 0.9 }, { translateY: ty.value * 0.9 }, { scale: active.value * (1.85 + Math.min(1, level) * 0.5) }] }));
-  const lockPill = useAnimatedStyle(() => ({ opacity: active.value, transform: [{ translateY: -70 + ty.value * 0.5 }, { scale: 0.8 + active.value * 0.2 }] }));
+  const halo = useAnimatedStyle(() => ({ opacity: active.value * 0.32, transform: [{ translateX: tx.value * 0.9 }, { scale: active.value * (1.85 + Math.min(1, level) * 0.5) }] }));
+  const lockPill = useAnimatedStyle(() => ({ opacity: active.value, transform: [{ translateY: -70 - ty.value * 0.15 }, { scale: 0.8 + active.value * 0.2 }] }));
 
   return <View style={{ width: 40, height: 40, alignItems: 'center', justifyContent: 'center' }}>
     {holding ? <Animated.View pointerEvents="none" style={[{ position: 'absolute', width: 36, height: 64, borderRadius: 18, alignItems: 'center', justifyContent: 'space-evenly', backgroundColor: t.glassOpaque, borderWidth: 1, borderColor: t.border }, lockPill]}>
