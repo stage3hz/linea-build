@@ -1,5 +1,0 @@
-7286:PhaseScriptExecution [CP-User]\ Download\ libsignal-ffi\ if\ not\ in\ cache /Users/runner/work/linea-build/linea-build/mobile/ios/build/Build/Intermediates.noindex/Pods.build/Release-iphoneos/LibSignalClient.build/Script-46EB2E00025750.sh (in target 'LibSignalClient' from project 'Pods')
-7289:downloading libsignal-client-ios-build-v0.106.0.tar.gz...
-7294:curl failed to download https://build-artifacts.signal.org/libraries/libsignal-client-ios-build-v0.106.0.tar.gz (exit 6)
-9176:note: Run script build phase '[CP-User] Download libsignal-ffi if not in cache' will be run during every build because the option to run the script phase "Based on dependency analysis" is unchecked. (in target 'LibSignalClient' from project 'Pods')
-9182:	PhaseScriptExecution [CP-User]\ Download\ libsignal-ffi\ if\ not\ in\ cache /Users/runner/work/linea-build/linea-build/mobile/ios/build/Build/Intermediates.noindex/Pods.build/Release-iphoneos/LibSignalClient.build/Script-46EB2E00025750.sh (in target 'LibSignalClient' from project 'Pods')
