@@ -21,7 +21,7 @@ import * as FileSystem from 'expo-file-system/legacy';
 import type { Api } from './api';
 import { AttachmentCard, Avatar, Empty, Icon, IconButton, Notice, Sheet, SheetAction } from './components';
 import { formatDay, formatSize, formatTime, useTheme } from './theme';
-import { GlassStage, GlassSurface } from './glass';
+import { GlassContentTarget, GlassStage, GlassSurface, GlassTargetScope } from './glass';
 import { SharedMedia } from './SharedMedia';
 import type { Attachment, Chat, LocalFile, Message, PendingMessage, User } from './types';
 import type { MessengerStore } from './useMessenger';
@@ -69,6 +69,7 @@ export function ChatScreen({api,user,chat,store,onBack,wide=false,onOpenMusic}: 
   const photoContext=`${user.id}:${chat.id}`;const currentPhotoContext=useRef(photoContext);currentPhotoContext.current=photoContext;
   const text=store.drafts[chat.id]||'';const attachments=store.draftFiles[chat.id]||[];
   const uploadingRef=useRef(false),draftCount=useRef(attachments.length);draftCount.current=attachments.length;
+  const glassTarget=useRef<View|null>(null);
   const listRef=useRef<FlatList<Row>>(null);const typingAt=useRef(0);const typingTimer=useRef<ReturnType<typeof setTimeout>|undefined>(undefined);const alive=useRef(true);
   const messages=store.messages[chat.id]||[];
   const pendingAll=store.pending.filter(p=>p.chatId===chat.id);
@@ -357,8 +358,19 @@ export function ChatScreen({api,user,chat,store,onBack,wide=false,onOpenMusic}: 
       <Pressable onPress={()=>setPeerInfo(true)} accessibilityRole="button" accessibilityLabel="Информация" style={hover}><Icon name="information-circle-outline" size={22} color={t.muted}/></Pressable>
     </View>;};
 
-  return <VoicePlaybackProvider api={api}><KeyboardSafeView style={{flex:1,backgroundColor:'transparent',marginTop:wide?0:-insets.top}}><View style={{flex:1}}>
+  return <VoicePlaybackProvider api={api}><GlassTargetScope targetRef={glassTarget}><KeyboardSafeView style={{flex:1,backgroundColor:'transparent',marginTop:wide?0:-insets.top}}><View style={{flex:1}}>
+    {/* Android: header and composer glass blur this (wallpaper + messages) on the GPU. */}
+    <GlassContentTarget targetRef={glassTarget} style={{flex:1}}>
     <ChatWallpaper choice={wallpaper} style={{top:-80,bottom:-60}}/>
+    {rows.length===0?<View style={{flex:1,justifyContent:'center',paddingTop:headerHeight,paddingBottom:footerHeight}}>{store.messageLoading?<ActivityIndicator color={t.accent}/>:<Empty icon="hand-left-outline" title="Скажи «привет»" description={`Это начало вашей переписки с ${chat.peer.displayName}.`}/>}</View>:<FlatList ref={listRef} inverted data={rows} keyExtractor={row=>row.key} keyboardShouldPersistTaps="handled" keyboardDismissMode={Platform.OS==='ios'?'interactive':'on-drag'} contentContainerStyle={{paddingHorizontal:wide?28:9,paddingTop:footerHeight+8,paddingBottom:headerHeight+14}} onScroll={e=>{const down=e.nativeEvent.contentOffset.y>350;if(down!==showDown)setShowDown(down);}} scrollEventThrottle={100} initialNumToRender={25} windowSize={11} onScrollToIndexFailed={info=>{listRef.current?.scrollToOffset({offset:info.averageItemLength*info.index,animated:true});setTimeout(()=>listRef.current?.scrollToIndex({index:info.index,animated:true,viewPosition:.5}),250);}}
+      ListHeaderComponent={pendingNote?<Animated.View entering={ZoomIn.springify().damping(16)} style={{alignSelf:'flex-end',marginVertical:6,width:212,height:212,borderRadius:106,overflow:'hidden',backgroundColor:'#11162A',alignItems:'center',justifyContent:'center'}}>
+        {pendingNote.thumb?<Image source={{uri:pendingNote.thumb}} style={StyleSheet.absoluteFill} resizeMode="cover"/>:null}
+        <View style={{width:56,height:56,borderRadius:28,backgroundColor:'rgba(10,20,35,0.6)',alignItems:'center',justifyContent:'center'}}><ProgressRing progress={pendingNote.progress} size={56}/><Pressable accessibilityRole="button" accessibilityLabel="Не отправлять видеосообщение" onPress={()=>{noteCancelled.current=true;setPendingNote(null);}} hitSlop={8}><Icon name="close" size={24} color="#FFF"/></Pressable></View>
+      </Animated.View>:null}
+      ListFooterComponent={store.hasMore[chat.id]?<View style={{alignItems:'center',padding:18}}><GlassSurface material="clear" radius={19} shadow={false}><Pressable onPress={()=>void store.loadMessages(chat.id,true)} disabled={store.messageLoading} accessibilityRole="button" style={{paddingVertical:11,paddingHorizontal:17}}>{store.messageLoading?<ActivityIndicator size="small" color={t.accent}/>:<Text style={{fontSize:12,color:t.accent,fontWeight:'600'}}>Более ранние сообщения</Text>}</Pressable></GlassSurface></View>:null}
+      renderItem={renderRow} removeClippedSubviews={Platform.OS==='android'} maxToRenderPerBatch={12} updateCellsBatchingPeriod={40}/>
+    }
+    </GlassContentTarget>
     {/* Like Telegram: messages fade out under the status bar + header and under the composer
         instead of showing through sharp-edged behind the clock and the input field. */}
     {headerHeight?<LinearGradient pointerEvents="none" colors={[fade(edge.top,edge.alpha),fade(edge.top,edge.alpha*.85),fade(edge.top,0)]} locations={[0,.55,1]} style={{position:'absolute',top:0,left:0,right:0,height:headerHeight+22,zIndex:4}}/>:null}
@@ -412,14 +424,6 @@ export function ChatScreen({api,user,chat,store,onBack,wide=false,onOpenMusic}: 
     {store.error||localError?<View style={{paddingHorizontal:13,paddingVertical:8}}><Notice text={localError||store.error} error onRetry={()=>{setLocalError('');void store.loadMessages(chat.id);}}/></View>:null}
     {copied?<View style={{alignSelf:'center',marginTop:6,paddingVertical:7,paddingHorizontal:14,backgroundColor:t.accentSoft,borderRadius:16,borderWidth:1,borderColor:t.border}}><Text style={{color:t.accent,fontSize:12}}>Скопировано</Text></View>:null}
     </View>
-    {rows.length===0?<View style={{flex:1,justifyContent:'center',paddingTop:headerHeight,paddingBottom:footerHeight}}>{store.messageLoading?<ActivityIndicator color={t.accent}/>:<Empty icon="hand-left-outline" title="Скажи «привет»" description={`Это начало вашей переписки с ${chat.peer.displayName}.`}/>}</View>:<FlatList ref={listRef} inverted data={rows} keyExtractor={row=>row.key} keyboardShouldPersistTaps="handled" keyboardDismissMode={Platform.OS==='ios'?'interactive':'on-drag'} contentContainerStyle={{paddingHorizontal:wide?28:9,paddingTop:footerHeight+8,paddingBottom:headerHeight+14}} onScroll={e=>{const down=e.nativeEvent.contentOffset.y>350;if(down!==showDown)setShowDown(down);}} scrollEventThrottle={100} initialNumToRender={25} windowSize={11} onScrollToIndexFailed={info=>{listRef.current?.scrollToOffset({offset:info.averageItemLength*info.index,animated:true});setTimeout(()=>listRef.current?.scrollToIndex({index:info.index,animated:true,viewPosition:.5}),250);}}
-      ListHeaderComponent={pendingNote?<Animated.View entering={ZoomIn.springify().damping(16)} style={{alignSelf:'flex-end',marginVertical:6,width:212,height:212,borderRadius:106,overflow:'hidden',backgroundColor:'#11162A',alignItems:'center',justifyContent:'center'}}>
-        {pendingNote.thumb?<Image source={{uri:pendingNote.thumb}} style={StyleSheet.absoluteFill} resizeMode="cover"/>:null}
-        <View style={{width:56,height:56,borderRadius:28,backgroundColor:'rgba(10,20,35,0.6)',alignItems:'center',justifyContent:'center'}}><ProgressRing progress={pendingNote.progress} size={56}/><Pressable accessibilityRole="button" accessibilityLabel="Не отправлять видеосообщение" onPress={()=>{noteCancelled.current=true;setPendingNote(null);}} hitSlop={8}><Icon name="close" size={24} color="#FFF"/></Pressable></View>
-      </Animated.View>:null}
-      ListFooterComponent={store.hasMore[chat.id]?<View style={{alignItems:'center',padding:18}}><GlassSurface material="clear" radius={19} shadow={false}><Pressable onPress={()=>void store.loadMessages(chat.id,true)} disabled={store.messageLoading} accessibilityRole="button" style={{paddingVertical:11,paddingHorizontal:17}}>{store.messageLoading?<ActivityIndicator size="small" color={t.accent}/>:<Text style={{fontSize:12,color:t.accent,fontWeight:'600'}}>Более ранние сообщения</Text>}</Pressable></GlassSurface></View>:null}
-      renderItem={renderRow} removeClippedSubviews={Platform.OS==='android'} maxToRenderPerBatch={12} updateCellsBatchingPeriod={40}/>
-    }
     {/* Like Telegram: the composer floats over the messages, which scroll underneath it. */}
     <View pointerEvents="box-none" onLayout={e=>setFooterHeight(e.nativeEvent.layout.height)} style={{position:'absolute',left:0,right:0,bottom:0,zIndex:4}}>
     {showDown&&!selection?<View pointerEvents="box-none" style={{height:0}}><View style={{position:'absolute',right:14,bottom:10}}><GlassSurface material="regular" radius={20} interactive contentStyle={{width:40,height:40,alignItems:'center',justifyContent:'center'}}><Pressable onPress={()=>{lightFeedback();listRef.current?.scrollToOffset({offset:0,animated:true});}} accessibilityRole="button" accessibilityLabel="Вниз к новым сообщениям" hitSlop={6}><Icon name="chevron-down" size={26} color={t.text}/></Pressable></GlassSurface></View></View>:null}
@@ -499,5 +503,5 @@ export function ChatScreen({api,user,chat,store,onBack,wide=false,onOpenMusic}: 
     <Sheet visible={!!forwardMany} title={`Переслать (${forwardMany?.length||0})`} onClose={()=>setForwardMany(null)}>
       {store.chats.map(target=><SheetAction key={target.id} icon="chatbubble-outline" label={target.peer.displayName} description={`@${target.peer.username}`} onPress={()=>{const list=forwardMany||[];setForwardMany(null);setSelection(null);void (async()=>{for(const m of list)await store.forward(target.id,m,originalAuthor(m));})().then(()=>setNotice(`Переслано: ${target.peer.displayName}`)).catch(e=>setLocalError(e instanceof Error?e.message:'Не удалось переслать.'));}}/>)}
     </Sheet>
-  </View></KeyboardSafeView></VoicePlaybackProvider>;
+  </View></KeyboardSafeView></GlassTargetScope></VoicePlaybackProvider>;
 }

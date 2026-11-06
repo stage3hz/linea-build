@@ -6,7 +6,11 @@ import { GlassView, isGlassEffectAPIAvailable, isLiquidGlassAvailable } from 'ex
 import { LiquidGlassView } from 'react-native-liquid-glassmorphism';
 
 /** Android 13+ can run the refraction shader (AGSL); older Android keeps the blur fallback. */
-const androidLiquid=Platform.OS==='android'&&typeof Platform.Version==='number'&&Platform.Version>=33;
+// Android: the shader Liquid Glass (react-native-liquid-glassmorphism) redraws the whole screen in
+// software once per frame to get its backdrop (SharedBackdrop.kt: root.draw into a bitmap) — that made
+// the app stutter on Android. Off: Android uses the GPU blur of expo-blur (Dimezis BlurView,
+// RenderNode on Android 12+) against a BlurTargetView instead; no lens refraction, smooth scrolling.
+const androidLiquid=false;
 import { useTheme } from './theme';
 import { useRenderActive } from './renderActivity';
 
@@ -63,6 +67,20 @@ export function GlassStage({children}:{children:React.ReactNode}) {
     {Platform.OS==='android'&&!androidLiquid?<BlurTargetView ref={targetRef} collapsable={false} pointerEvents="none" style={StyleSheet.absoluteFill}><GlassBackdrop/></BlurTargetView>:<GlassBackdrop/>}
     {children}
   </View></GlassContext.Provider>;
+}
+
+/** Screen-level scope: glass surfaces inside it (header, composer…) blur the content of the
+ *  GlassContentTarget that receives the same ref (Android). Elsewhere it changes nothing. */
+export function GlassTargetScope({targetRef,children}:{targetRef:RefObject<View|null>;children:React.ReactNode}) {
+  const parent=useContext(GlassContext);
+  const value=useMemo(()=>Platform.OS==='android'?{targetRef,reduceTransparency:parent.reduceTransparency}:parent,[parent,targetRef]);
+  return <GlassContext.Provider value={value}>{children}</GlassContext.Provider>;
+}
+/** The content that floating glass blurs (e.g. a chat's wallpaper and messages). Glass inside it is
+ *  drawn flat: a surface cannot blur a target it is part of. */
+export function GlassContentTarget({targetRef,style,children}:{targetRef:RefObject<View|null>;style?:StyleProp<ViewStyle>;children:React.ReactNode}) {
+  if(Platform.OS!=='android')return <View style={style}>{children}</View>;
+  return <BlurTargetView ref={targetRef} collapsable={false} style={style}><GlassBackdrop/><NestedGlass.Provider value={true}>{children}</NestedGlass.Provider></BlurTargetView>;
 }
 
 export type GlassSurfaceProps = {
