@@ -8,7 +8,7 @@ import * as Clipboard from 'expo-clipboard';
 import * as ImageManipulator from 'expo-image-manipulator';
 import * as FileSystem from 'expo-file-system/legacy';
 import type { Api } from './api';
-import { Avatar, Button, Field, Icon, IconButton, Notice, SectionLabel, Sheet } from './components';
+import { Avatar, Button, Field, Icon, IconButton, Notice, SectionLabel, Sheet, SheetAction } from './components';
 import { useTheme } from './theme';
 import { GlassSurface } from './glass';
 import { ThemeSettings } from './ThemeSettings';
@@ -39,7 +39,7 @@ const statusCache = new Map<string, UsernameStatus>();
 
 export function ProfileScreen({ api, user, theme, darkTheme, onTheme, onDarkTheme, onUser, onBack, onLogout, onSecurity }: Props) {
   const t = useTheme(); const [bannerWidth, setBannerWidth] = useState(0);
-  const [name, setName] = useState(user.displayName), [bio, setBio] = useState(user.bio), [birthday, setBirthday] = useState<string | null>(user.birthday ?? null);
+  const [name, setName] = useState(user.displayName), [bio, setBio] = useState(user.bio), [birthday, setBirthday] = useState<string | null>(user.birthday ?? null), [gender, setGender] = useState<'male' | 'female' | null>(user.gender ?? null), [genderSheet, setGenderSheet] = useState(false);
   const [mediaSheet, setMediaSheet] = useState<'avatar' | 'banner' | null>(null), [usernameSheet, setUsernameSheet] = useState(false), [birthdaySheet, setBirthdaySheet] = useState(false), [colorSheet, setColorSheet] = useState(false);
   const studio = useRef<PlatinaStudioHandle>(null);
   const [avatarId, setAvatarId] = useState(user.avatarId), [color, setColor] = useState(user.avatarColor);
@@ -181,14 +181,14 @@ export function ProfileScreen({ api, user, theme, darkTheme, onTheme, onDarkThem
   const save = async (): Promise<boolean> => {
     if (!name.trim()) { setError('Имя не может быть пустым.'); return false; }
     const version = begin('profile'); if (version === null) return false;
-    try { const result = await api.profile({ displayName: name.trim(), bio: bio.trim(), birthday, avatarColor: color, avatarId }); if (!live(version)) return false; onUser(result.user); setNotice('Профиль сохранён.'); return true; }
+    try { const result = await api.profile({ displayName: name.trim(), bio: bio.trim(), birthday, gender, avatarColor: color, avatarId }); if (!live(version)) return false; onUser(result.user); setNotice('Профиль сохранён.'); return true; }
     catch (failure) { if (live(version)) setError(errorMessage(failure, 'Не удалось сохранить профиль.')); return false; }
     finally { finish(version); }
   };
-  const changed = name.trim() !== user.displayName || bio.trim() !== user.bio || birthday !== (user.birthday ?? null) || avatarId !== user.avatarId || color !== user.avatarColor;
+  const changed = name.trim() !== user.displayName || bio.trim() !== user.bio || birthday !== (user.birthday ?? null) || gender !== (user.gender ?? null) || avatarId !== user.avatarId || color !== user.avatarColor;
   const cancelEdit = () => {
     if (busy) return;
-    setName(user.displayName); setBio(user.bio); setBirthday(user.birthday ?? null); setAvatarId(user.avatarId); setColor(user.avatarColor); if (status) setUsername(status.username);
+    setName(user.displayName); setBio(user.bio); setBirthday(user.birthday ?? null); setGender(user.gender ?? null); setAvatarId(user.avatarId); setColor(user.avatarColor); if (status) setUsername(status.username);
     setError(''); setNotice(''); setEditing(false);
   };
   const finishEdit = async () => {
@@ -282,6 +282,7 @@ export function ProfileScreen({ api, user, theme, darkTheme, onTheme, onDarkThem
       </View>
       <GlassSurface material="regular" radius={22} contentStyle={{ paddingVertical: 2 }}>
         <EditRow icon="gift" color="#3D8EF2" label="День рождения" value={formatBirthday(birthday) || 'Не указан'} onPress={() => setBirthdaySheet(true)}/>
+        <EditRow icon="person" color="#8E6CE0" label="Пол" value={gender === 'male' ? 'Мужской' : gender === 'female' ? 'Женский' : 'Не указан'} onPress={() => setGenderSheet(true)}/>
         <EditRow icon="color-palette" color="#22A6A0" label="Персональный цвет" swatch={color} onPress={() => setColorSheet(true)}/>
       </GlassSurface>
       <View style={{ gap: 8 }}>
@@ -308,6 +309,10 @@ export function ProfileScreen({ api, user, theme, darkTheme, onTheme, onDarkThem
     <Text style={{ color: t.muted, fontSize: 12, lineHeight: 18 }}>{status.freeChangeAvailable ? (status.platina.active ? 'Доступна бесплатная смена имени, а с твоей Platina — и дополнительные.' : 'Доступна одна бесплатная смена имени. После неё дополнительные смены доступны с Platina.') : status.canChangeUsername ? 'Бесплатная смена уже использована. Сейчас дополнительные смены доступны с Platina.' : 'Бесплатная смена уже использована. Для новой смены нужна активная Platina.'}</Text>
     <Button label="Изменить публичное имя" secondary icon="at-outline" disabled={busy || !ready || !status.canChangeUsername || normalizedUsername(username) === status.username} onPress={reviewUsername}/>
   </View> : null}</Sheet>
+  <Sheet visible={genderSheet} title="Пол" onClose={() => setGenderSheet(false)}><View style={{ gap: 4 }}>
+    <Text style={{ color: t.muted, fontSize: 13, lineHeight: 19, marginBottom: 8 }}>Нужен только для оформления в день рождения: синее или розовое. Можно не указывать.</Text>
+    {([['male', 'Мужской'], ['female', 'Женский'], [null, 'Не указан']] as const).map(([value, label]) => <SheetAction key={label} icon={gender === value ? 'checkmark-circle' : 'ellipse-outline'} label={label} selected={gender === value} onPress={() => { setGender(value); setGenderSheet(false); }}/>)}
+  </View></Sheet>
   <BirthdaySheet visible={birthdaySheet} value={birthday} onClose={() => setBirthdaySheet(false)} onDone={value => { setBirthday(value); setBirthdaySheet(false); setNotice(''); }}/>
   <Sheet visible={colorSheet} title="Персональный цвет" onClose={() => setColorSheet(false)}><View style={{ gap: 14 }}>
     <Text style={{ color: t.muted, fontSize: 13, lineHeight: 19 }}>Этим цветом тебя видят в чатах у других, пока нет фото.</Text>

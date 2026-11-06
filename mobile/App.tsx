@@ -62,6 +62,7 @@ import { onNavigate } from './src/navigation';
 import { usePush, stopPush } from './src/push';
 import { PlatinaShowcaseHost } from './src/platina/PlatinaShowcase';
 import { PlatinaConfettiHost } from './src/platina/PlatinaConfetti';
+import { useBirthdayReminders } from './src/birthdayNotifications';
 import { CallProvider } from './src/calls/CallProvider';
 import { GlassBackdrop } from './src/glass';
 import { loadLanguage } from './src/i18n';
@@ -165,6 +166,8 @@ function Messenger({api,session,onUser,themeMode,darkTheme,onTheme,onDarkTheme,o
   // Tapping a push opens that chat (as soon as the chat list has it).
   const [pushChat,setPushChat]=useState<string|null>(null);
   usePush(api,setPushChat);
+  // Birthday reminders (local notifications) for the people you chat with; a tap opens their profile.
+  useBirthdayReminders(store.chats,setPushChat);
   useEffect(()=>{if(!pushChat)return;const target=store.chats.find(c=>c.id===pushChat);if(target){setPushChat(null);setPage('chats');store.selectChat(target);}},[pushChat,store.chats,store.selectChat]);
   const newChat=()=>{store.selectChat(null);setPage('people');};
   // Channels: open a community, or an invite from a banner / a linea://invite/… link.

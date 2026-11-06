@@ -2,6 +2,8 @@ export type User = {
   id: string; username: string; displayName: string; bio: string;
   /** «MM-DD» or «YYYY-MM-DD»; null/absent when not set. */
   birthday?: string | null;
+  /** Only colours birthday greetings: blue (male) or pink (female). */
+  gender?: 'male' | 'female' | null;
   avatarColor: string; avatarId: string | null; createdAt: string; statusEmoji?:string|null;statusEmojiExpiresAt?:string|null;statusEmojiPermanent?:boolean;
   /** Platina decoration, present only while the owner's Platina is active. */
   avatarVideoId?:string|null;avatarFrame?:string|null;bannerId?:string|null;bannerKind?:'image'|'video'|null;bannerPreset?:string|null;

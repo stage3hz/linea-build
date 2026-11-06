@@ -1,3 +1,5 @@
+import { Text } from '../typography';
+import { isBirthdayToday } from '../birthday';
 import { useNetworkTier } from '../network/useNetworkTier';
 import { autoload } from '../network/quality';
 import React, { useEffect, useState } from 'react';
@@ -80,13 +82,15 @@ function VideoAvatar({ api, id, size, radius }: { api: Api; id: string; size: nu
  */
 export function DecoratedAvatar({ user, api, size = 54, animated = false }: { user: User; api: Api; size?: number; animated?: boolean }) {
   const t = useTheme(); const { enabled } = useMotion();
-  // Platina without a chosen frame wears the platinum ring.
-  const frame = FRAMES.find(item => item.id === (user.avatarFrame || (user.seal === 'platina' ? 'platinum' : '')));
+  // Platina without a chosen frame wears the platinum ring. On their birthday everyone wears a festive
+  // ring — blue for «male», pink for «female», confetti colours otherwise — with a cake badge.
+  const birthday = isBirthdayToday(user.birthday);
+  const frame = birthday ? { id: 'birthday', colors: birthdayColors(user.gender) } : FRAMES.find(item => item.id === (user.avatarFrame || (user.seal === 'platina' ? 'platinum' : '')));
   // On a slow link (EDGE/3G) a looping video avatar would eat the bandwidth messages need.
   const tier = useNetworkTier();
   const live = animated && enabled && autoload('animatedAvatar', tier);
   const video = live && user.avatarVideoId ? user.avatarVideoId : null;
-  const decoration = findDecoration(user.avatarFrame);
+  const decoration = birthday ? undefined : findDecoration(user.avatarFrame);
   // Small (list) sizes: the art may reach at most 1.3× the avatar box so it does not cover the
   // neighbouring rows; the photo shrinks inside to keep filling the opening.
   const face = decoration && size < 64 && decoration.scale > 1.3 ? Math.round(size * 1.3 / decoration.scale) : size;
@@ -107,6 +111,7 @@ export function DecoratedAvatar({ user, api, size = 54, animated = false }: { us
     <Spin size={outer} radius={outer * .36} colors={frame.colors} still={!live} />
     <View style={{ position: 'absolute', left: ring, top: ring, width: size + 2 * gap, height: size + 2 * gap, borderRadius: (size + 2 * gap) * .36, backgroundColor: t.bg }} />
     {inner}
+    {birthday ? <View pointerEvents="none" accessibilityLabel="День рождения" style={{ position: 'absolute', right: 0, bottom: 0, width: Math.max(16, size * .34), height: Math.max(16, size * .34), borderRadius: size, backgroundColor: t.bg, alignItems: 'center', justifyContent: 'center' }}><Text style={{ fontSize: Math.max(10, size * .22) }}>🎂</Text></View> : null}
   </View>;
 }
 
@@ -157,4 +162,11 @@ export function ProfileBanner({ user, api, height, width: fixedWidth, preview, l
   // so fading «to t.bg» left a visible seam where the banner ended (iPhone, dark theme).
   if (Platform.OS !== 'web') return <MaskedView pointerEvents="none" style={{ width, height }} maskElement={<LinearGradient colors={['#000', '#000', 'transparent']} locations={[0, 0.5, 1]} style={{ width, height }} />}>{body}</MaskedView>;
   return <View pointerEvents="none" style={{ width, height }}>{body}<LinearGradient colors={['transparent', t.bg]} locations={[0.55, 1]} style={StyleSheet.absoluteFill} /></View>;
+}
+
+/** Festive ring colours for a birthday: blue (male), pink (female), or bright confetti. */
+export function birthdayColors(gender: string | null | undefined): string[] {
+  if (gender === 'male') return ['#2F7BFF', '#7CC4FF', '#BFE6FF', '#4A8CFF', '#2F7BFF'];
+  if (gender === 'female') return ['#FF5FA2', '#FFB3D6', '#FFD6E9', '#FF7EB8', '#FF5FA2'];
+  return ['#FF5F6D', '#FFC371', '#7CE38B', '#5FA8FF', '#C38BFF', '#FF5F6D'];
 }

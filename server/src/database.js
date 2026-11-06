@@ -46,6 +46,8 @@ export function openDatabase(dataDir) {
       if (!userColumns.has('last_seen_at')) db.exec('ALTER TABLE users ADD COLUMN last_seen_at TEXT');
       // Birthday, as in Telegram: «MM-DD» (day and month) or «YYYY-MM-DD» (full date).
       if (!userColumns.has('birthday')) db.exec('ALTER TABLE users ADD COLUMN birthday TEXT');
+      // Optional, shown only as the colour of birthday greetings: «male» (blue) or «female» (pink).
+      if (!userColumns.has('gender')) db.exec('ALTER TABLE users ADD COLUMN gender TEXT');
       for (const column of ['avatar_video_id', 'avatar_frame', 'banner_id', 'banner_kind', 'banner_preset']) {
         if (!userColumns.has(column)) db.exec(`ALTER TABLE users ADD COLUMN ${column} TEXT`);
       }
@@ -123,6 +125,7 @@ export function publicUser(row, { db, now = Date.now } = {}) {
     displayName: row.display_name,
     bio: row.bio,
     birthday: row.birthday ?? null,
+    gender: row.gender === 'male' || row.gender === 'female' ? row.gender : null,
     avatarColor: row.avatar_color,
     avatarId: row.avatar_id,
     createdAt: row.created_at,

@@ -19,4 +19,8 @@ test('birthday: day and month or a full date, real calendar days only, cleared w
   assert.equal((await patch('1850-01-01')).statusCode, 400);
   assert.equal((await patch('3 мар')).statusCode, 400);
   assert.equal((await patch(null)).json().user.birthday, null);
+  const gender = value => app.inject({ method: 'PATCH', url: '/me', headers, payload: { gender: value } });
+  assert.equal((await gender('female')).json().user.gender, 'female');
+  assert.equal((await gender('robot')).statusCode, 400);
+  assert.equal((await gender(null)).json().user.gender, null);
 });

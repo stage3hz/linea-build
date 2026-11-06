@@ -1,3 +1,6 @@
+import { isBirthdayToday } from './birthday';
+import { birthdayColors } from './platina/Decor';
+import { Confetti } from './effects';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { LinearGradient } from 'expo-linear-gradient';
 import { formatBirthday } from './birthday';
@@ -73,6 +76,9 @@ export function UserProfile({ api, user, onClose, chat, onMessage, onMute, onSea
   const shown = fresh || user;
   function openViewer() { if (profileMedia(shown).length) { lightFeedback(); setViewer(0); } }
   const tinted = !shown.bannerId && !shown.bannerPreset;
+  // Their birthday: a festive header — blue (male), pink (female) or bright — a greeting line and confetti.
+  const birthdayToday = isBirthdayToday(shown.birthday);
+  const festive = birthdayColors(shown.gender);
   const muted = !!chat?.settings?.muted;
   const toggleContact = async () => {
     if (contact === null || busy) return;
@@ -124,7 +130,7 @@ export function UserProfile({ api, user, onClose, chat, onMessage, onMute, onSea
     {card ? <Pressable accessibilityRole="button" accessibilityLabel="Закрыть профиль" onPress={onClose} style={[StyleSheet.absoluteFill, { backgroundColor: 'rgba(0,0,0,0.55)' }]} /> : null}
     <View pointerEvents="box-none" style={card ? { flex: 1, alignItems: 'center', justifyContent: 'center', padding: 24 } : { flex: 1 }}>
     <View style={card ? { width: cardWidth, height: '88%', maxHeight: 860, borderRadius: 22, overflow: 'hidden', borderWidth: StyleSheet.hairlineWidth, borderColor: t.border, shadowColor: '#000', shadowOpacity: 0.4, shadowRadius: 30 } : { flex: 1 }}>
-    <GlassStage>{tinted && heroBottom ? <Animated.View pointerEvents="none" style={[{ position: 'absolute', top: 0, left: 0, right: 0, overflow: 'hidden' }, heroColor]}><LinearGradient colors={[shade(shown.avatarColor, 0.15), shade(shown.avatarColor, -0.12)]} style={StyleSheet.absoluteFill} /></Animated.View> : null}{shown.bannerId || shown.bannerPreset ? <View pointerEvents="none" style={{ position: 'absolute', top: 0, left: 0, right: 0, height: 260 }}><ProfileBanner user={shown} api={api} height={260} /></View> : null}<InsetView style={{ flex: 1 }}>
+    <GlassStage>{tinted && heroBottom ? <Animated.View pointerEvents="none" style={[{ position: 'absolute', top: 0, left: 0, right: 0, overflow: 'hidden' }, heroColor]}><LinearGradient colors={birthdayToday ? [festive[0], festive[1]] : [shade(shown.avatarColor, 0.15), shade(shown.avatarColor, -0.12)]} style={StyleSheet.absoluteFill} /></Animated.View> : null}{shown.bannerId || shown.bannerPreset ? <View pointerEvents="none" style={{ position: 'absolute', top: 0, left: 0, right: 0, height: 260 }}><ProfileBanner user={shown} api={api} height={260} /></View> : null}<InsetView style={{ flex: 1 }}>
       <View style={{ flexDirection: 'row', alignItems: 'center', paddingHorizontal: 10, paddingVertical: 6 }}>
         <IconButton name="chevron-back" label="Назад" onPress={onClose} />
         {/* No title, as in Telegram: over a banner the dark «Профиль» was unreadable. */}
@@ -137,6 +143,7 @@ export function UserProfile({ api, user, onClose, chat, onMessage, onMute, onSea
         <View style={{ alignItems: 'center', gap: 6 }}>
           <View style={{ flexDirection: 'row', alignItems: 'center', gap: 7, maxWidth: '100%', paddingHorizontal: 16 }}><PlatinaName user={shown} style={{ flexShrink: 1, color: tinted ? '#FFFFFF' : t.text, fontSize: 26, fontWeight: '800', letterSpacing: -.6 }} /><StatusEmoji user={shown} size={22} animated /></View>
           {status ? <Text style={{ color: tinted ? 'rgba(255,255,255,0.78)' : status === 'в сети' ? t.accent : t.muted, fontSize: 14 }}>{status}</Text> : <Pressable onPress={() => void copy()} accessibilityRole="button" accessibilityLabel="Скопировать имя пользователя"><Text style={{ color: t.accent, fontSize: 15 }}>@{shown.username}</Text></Pressable>}
+          {birthdayToday ? <View style={{ paddingHorizontal: 12, paddingVertical: 5, borderRadius: 14, backgroundColor: tinted ? 'rgba(255,255,255,0.22)' : t.accentSoft }}><Text style={{ color: tinted ? '#FFF' : t.text, fontSize: 13, fontWeight: '700' }}>🎉 Сегодня день рождения</Text></View> : null}
           {hasPlatina(shown) ? <PlatinaSeal owner={shown} /> : null}
         </View>
         <View style={{ flexDirection: 'row', gap: 10, alignSelf: 'stretch', justifyContent: 'center' }}>
@@ -188,6 +195,7 @@ export function UserProfile({ api, user, onClose, chat, onMessage, onMute, onSea
       {REASONS.map(item => <SheetAction key={item.id} icon={reason === item.id ? 'checkmark-circle' : 'ellipse-outline'} label={item.label} selected={reason === item.id} onPress={() => setReason(item.id)} />)}
       <View style={{ marginTop: 8 }}><Button label="Отправить жалобу" disabled={!reason || busy} loading={busy} onPress={() => void sendReport()} /></View>
     </Sheet>
+    {birthdayToday ? <View pointerEvents="none" style={StyleSheet.absoluteFill}><Confetti colors={[...festive, '#FFFFFF', '#FFD86B']} /></View> : null}
     {viewer !== null ? <ProfileMediaViewer api={api} user={shown} start={viewer} onClose={() => setViewer(null)} /> : null}
   </Modal>;
 }
