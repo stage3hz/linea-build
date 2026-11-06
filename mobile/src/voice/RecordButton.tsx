@@ -4,7 +4,7 @@
 import React, { useRef, useState } from 'react';
 import { StyleSheet, View } from 'react-native';
 import { Gesture, GestureDetector } from 'react-native-gesture-handler';
-import Animated, { runOnJS, useAnimatedStyle, useSharedValue, withSpring } from 'react-native-reanimated';
+import Animated, { Easing, runOnJS, useAnimatedStyle, useSharedValue, withSpring, withTiming } from 'react-native-reanimated';
 import { Icon } from '../components';
 import { useTheme } from '../theme';
 import { impactFeedback, lightFeedback } from '../haptics';
@@ -46,11 +46,13 @@ export function RecordButton({ mode, disabled, onToggleMode, onTouchDown, onHold
   };
   const slide = (x: number) => props.current.onSlide?.(Math.min(1, Math.max(0, -x / CANCEL_DISTANCE)));
   const toggle = () => props.current.onToggleMode();
-  const reset = () => { 'worklet'; tx.value = withSpring(0, { damping: 18 }); ty.value = withSpring(0, { damping: 18 }); active.value = withSpring(0, { damping: 18 }); };
+  // Release: the button settles back without bouncing (a spring here wobbled after a sharp release).
+  const SETTLE = { duration: 180, easing: Easing.out(Easing.cubic) };
+  const reset = () => { 'worklet'; tx.value = withTiming(0, SETTLE); ty.value = withTiming(0, SETTLE); active.value = withTiming(0, SETTLE); };
 
   const hold = Gesture.Pan().enabled(!disabled).activateAfterLongPress(HOLD_MS)
     .onBegin(() => { runOnJS(down)(); })
-    .onStart(() => { active.value = withSpring(1, { damping: 14 }); runOnJS(begin)(); })
+    .onStart(() => { active.value = withSpring(1, { damping: 20, stiffness: 260, overshootClamping: true }); runOnJS(begin)(); })
     .onUpdate(e => {
       // One axis at a time, like Telegram: the larger movement wins.
       const left = Math.min(0, e.translationX), up = Math.min(0, e.translationY);
