@@ -107,14 +107,19 @@ export function GlassSurface({children,style,contentStyle,radius=26,material='re
   // a milky white tint and a small lift instead — closer to iOS 26. Dark themes: a deep navy/black
   // tint, otherwise the library's frost turned dark cards into a light grey slab that stood out. Small round buttons (clear)
   // get a thinner lens: full refraction bent the text behind them and made the circle look uneven.
-  if(androidLiquid&&!nested&&!reduceTransparency)return <LiquidGlassView paused={!renderActive} variant={material} refraction={lens??interactive} borderRadius={radius} tintColor={t.black?'rgba(0,0,0,0.5)':t.dark?'rgba(10,18,36,0.42)':regular?'rgba(255,255,255,0.34)':'rgba(255,255,255,0.18)'} brightness={t.dark?0.92:1.06} blurRadius={regular?14:10} thickness={regular?1:.45} edgeReflectionStrength={regular?1:.6} legibilityFloor={t.dark?.12:0} interactive={false} tilt={false} style={[{borderRadius:radius},style]}>
+  // Performance: on Android every LiquidGlassView captures and blurs its backdrop once per frame
+  // (library README, «Performance»: ten on screen = ten captures per frame) — chats had up to 14 and
+  // stuttered. The live glass is kept for the main bars only (`lens`: input, search, pinned…); buttons
+  // and small pills get a static glass below.
+  if(androidLiquid&&lens&&!nested&&!reduceTransparency)return <LiquidGlassView paused={!renderActive} variant={material} refraction={lens??interactive} borderRadius={radius} tintColor={t.black?'rgba(0,0,0,0.5)':t.dark?'rgba(10,18,36,0.42)':regular?'rgba(255,255,255,0.34)':'rgba(255,255,255,0.18)'} brightness={t.dark?0.92:1.06} blurRadius={regular?14:10} thickness={regular?1:.45} edgeReflectionStrength={regular?1:.6} legibilityFloor={t.dark?.12:0} interactive={false} tilt={false} style={[{borderRadius:radius},style]}>
     {/* Content lives inside the glass: the shader excludes it from the backdrop, so icons do not bleed into the blur. */}
     <NestedGlass.Provider value={true}><View collapsable={false} style={[{flexGrow:1},contentStyle]}>{children}</View></NestedGlass.Provider>
   </LiquidGlassView>;
   return <View collapsable={false} style={[{borderRadius:radius},shadowStyle,style]}>
     <View pointerEvents="none" style={[StyleSheet.absoluteFill,{borderRadius:radius,overflow:'hidden'}]}>
       {hasBlur?<BlurView tint={t.dark?'dark':'light'} intensity={regular?64:35} blurMethod="dimezisBlurViewSdk31Plus" blurTarget={target} style={StyleSheet.absoluteFill}/>:null}
-      <View style={[StyleSheet.absoluteFill,{backgroundColor:fill}]}/>
+      {/* Android without a live blur: a dense tint so text scrolling underneath does not show through. */}
+      {Platform.OS==='android'&&!hasBlur&&!reduceTransparency?<View style={[StyleSheet.absoluteFill,{backgroundColor:t.glassOpaque,opacity:regular?.86:.78}]}/>:<View style={[StyleSheet.absoluteFill,{backgroundColor:fill}]}/>}
       {!reduceTransparency?<LinearGradient colors={[t.glassHighlight,'transparent',t.black?'rgba(255,255,255,0.025)':t.dark?'rgba(129,172,255,0.025)':'rgba(255,255,255,0.08)']} locations={[0,.36,1]} start={{x:.1,y:0}} end={{x:.65,y:1}} style={[StyleSheet.absoluteFill,{opacity:regular?.48:.66}]}/>:null}
       <View style={[StyleSheet.absoluteFill,{borderRadius:radius,borderWidth:1,borderColor:t.glassBorder,borderBottomColor:t.black?'rgba(255,255,255,0.10)':t.dark?'rgba(129,167,230,0.10)':'rgba(139,162,204,0.23)'}]}/>
       <View style={{position:'absolute',top:1,left:radius*.58,right:radius*.58,height:1,borderRadius:1,backgroundColor:t.glassHighlight,opacity:.7}}/>
