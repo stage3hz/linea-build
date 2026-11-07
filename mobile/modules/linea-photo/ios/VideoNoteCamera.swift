@@ -84,10 +84,29 @@ final class VideoNoteView: ExpoView, AVCaptureVideoDataOutputSampleBufferDelegat
     return camera
   }
 
+  /// The rotation each connection had before we touched it. The angle for an upright portrait frame is
+  /// that default + 90°: 0 + 90 = 90 on earlier iPhones, but the iPhone 17 front camera (square
+  /// Center Stage sensor) is mounted turned — its default is 270°, so upright is 0°. A fixed 90° gave
+  /// sideways 1280×720 frames there, which were then all dropped as "landscape" (no video note).
+  /// Apple: «The difference in rotation angle is expected on iPhone 17 due to a different sensor rotation»
+  /// (developer.apple.com/forums/thread/813548).
+  /// Kept per camera and per connection kind (recording / preview), read once before the first change.
+  private var defaultAngles: [String: CGFloat] = [:]
+
+  @available(iOS 17.0, *)
+  private func setPortrait(_ connection: AVCaptureConnection, kind: String) {
+    let key = "\(kind)|\(videoInput?.device.uniqueID ?? facing)"
+    let base = defaultAngles[key] ?? connection.videoRotationAngle
+    defaultAngles[key] = base
+    let upright = (base + 90).truncatingRemainder(dividingBy: 360)
+    if connection.isVideoRotationAngleSupported(upright) { connection.videoRotationAngle = upright }
+    else if connection.isVideoRotationAngleSupported(90) { connection.videoRotationAngle = 90 }
+  }
+
   private func applyConnection() {
     guard let connection = videoOutput.connection(with: .video) else { return }
     if #available(iOS 17.0, *) {
-      if connection.isVideoRotationAngleSupported(90) { connection.videoRotationAngle = 90 }
+      setPortrait(connection, kind: "output")
     } else if connection.isVideoOrientationSupported {
       connection.videoOrientation = .portrait
     }
@@ -97,7 +116,7 @@ final class VideoNoteView: ExpoView, AVCaptureVideoDataOutputSampleBufferDelegat
     }
     if let preview = previewLayer.connection {
       if #available(iOS 17.0, *) {
-        if preview.isVideoRotationAngleSupported(90) { preview.videoRotationAngle = 90 }
+        setPortrait(preview, kind: "preview")
       } else if preview.isVideoOrientationSupported {
         preview.videoOrientation = .portrait
       }
@@ -130,13 +149,13 @@ final class VideoNoteView: ExpoView, AVCaptureVideoDataOutputSampleBufferDelegat
     if session.canAddOutput(videoOutput) { session.addOutput(videoOutput) }
     audioOutput.setSampleBufferDelegate(self, queue: dataQueue)
     if session.canAddOutput(audioOutput) { session.addOutput(audioOutput) }
-    applyConnection()
+    // The rotation is set after the configuration is committed (startSession), on the final connections.
     return true
   }
 
   private func startSession() {
     sessionQueue.async {
-      if !self.configured { self.configured = self.configure() }
+      if !self.configured { self.configured = self.configure(); if self.configured { self.applyConnection() } }
       guard self.configured else { return }
       if !self.session.isRunning { self.session.startRunning() }
       self.applyTorch()
@@ -165,8 +184,9 @@ final class VideoNoteView: ExpoView, AVCaptureVideoDataOutputSampleBufferDelegat
       if let old = self.videoInput { self.session.removeInput(old) }
       if self.session.canAddInput(input) { self.session.addInput(input); self.videoInput = input }
       else if let old = self.videoInput, self.session.canAddInput(old) { self.session.addInput(old) }
-      self.applyConnection()
       self.session.commitConfiguration()
+      // After the commit: the new camera's connections exist and still hold their own default rotation.
+      self.applyConnection()
       self.applyTorch()
       self.applyZoom()
     }
