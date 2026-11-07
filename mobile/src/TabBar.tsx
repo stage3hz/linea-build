@@ -11,7 +11,10 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import { Gesture, GestureDetector } from 'react-native-gesture-handler';
 import Animated, { Easing, runOnJS, useAnimatedStyle, useSharedValue, withSpring, withTiming, type SharedValue } from 'react-native-reanimated';
 import { Text } from './typography';
-import { Icon, type IconName } from './components';
+import { type IconName } from './components';
+import { Ionicons } from '@expo/vector-icons';
+// Every tab icon sits in the same 22×22 box with a 22-pt line: an icon-font glyph otherwise gets a
+// taller line on iOS and is drawn lower than its box, so the drawn gear looked higher than the rest.
 import { useTheme } from './theme';
 import { badgeText } from './unreadBadge';
 import Svg, { Circle, Defs, LinearGradient as SvgGradient, Path, Stop } from 'react-native-svg';
@@ -67,7 +70,7 @@ function TabIcon({ item, active, kick, pressed, index }: { item: TabItem; active
     return { transform: [{ scale: press * (1 + bump * 0.3) }, { rotate: `${Math.sin(k * Math.PI * 2) * 18}deg` }] };
   });
   return <Animated.View style={style}>
-    {item.id === 'profile' ? <View style={{ width: 22, height: 22, alignItems: 'center', justifyContent: 'center' }}><GearIcon size={24} active={active} accent={t.accent} muted={t.muted} /></View> : <Icon name={active ? item.activeIcon : item.icon} size={22} color={active ? t.accent : t.muted} />}
+    {item.id === 'profile' ? <View style={{ width: 22, height: 22, alignItems: 'center', justifyContent: 'center' }}><GearIcon size={22} active={active} accent={t.accent} muted={t.muted} /></View> : <Ionicons name={active ? item.activeIcon : item.icon} size={22} color={active ? t.accent : t.muted} style={{ width: 22, height: 22, lineHeight: 22, textAlign: 'center' }} />}
     {item.badge ? <View style={{ position: 'absolute', top: -6, left: 13, minWidth: 18, height: 18, paddingHorizontal: 5, borderRadius: 9, borderWidth: 2, borderColor: t.dark ? '#15171D' : '#FFF', backgroundColor: t.accent, alignItems: 'center', justifyContent: 'center' }}><Text maxFontSizeMultiplier={1} style={{ color: t.onAccent, fontSize: 10, fontWeight: '800' }}>{badgeText(item.badge)}</Text></View> : null}
   </Animated.View>;
 }
