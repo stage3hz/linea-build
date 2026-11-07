@@ -179,7 +179,7 @@ export function UserProfile({ api, user, onClose, chat, onMessage, onMute, onSea
         </View>
         {notice ? <Text style={{ color: t.accent, fontSize: 13 }}>{notice}</Text> : null}
         {error ? <View style={{ alignSelf: 'stretch' }}><Notice text={error} error /></View> : null}
-        <View style={{ alignSelf: 'stretch', padding: 16, gap: 14, borderRadius: 20, backgroundColor: t.dark ? '#1C1C1E' : '#FFFFFF' }}>
+        <View style={{ alignSelf: 'stretch', padding: 16, gap: 14, borderRadius: 20, backgroundColor: t.dark ? t.surface : '#FFFFFF' }}>
           <Pressable onPress={() => void copy()} onLongPress={() => void copy()} accessibilityRole="button" accessibilityLabel={`Имя пользователя @${shown.username}. Нажми, чтобы скопировать`} style={({ pressed }) => ({ gap: 3, opacity: pressed ? .6 : 1 })}><Text style={{ color: t.muted, fontSize: 13 }}>имя пользователя</Text><Text raw style={{ color: t.accent, fontSize: 16 }}>@{shown.username}</Text></Pressable>
           {shown.bio ? <View style={{ gap: 3 }}><Text style={{ color: t.muted, fontSize: 13 }}>о себе</Text><Text raw style={{ color: t.text, fontSize: 16, lineHeight: 22 }}>{shown.bio}</Text></View> : null}
           {shown.birthday ? <View style={{ gap: 3 }}><Text style={{ color: t.muted, fontSize: 13 }}>день рождения</Text><Text raw style={{ color: t.text, fontSize: 16 }}>{formatBirthday(shown.birthday)}</Text></View> : null}

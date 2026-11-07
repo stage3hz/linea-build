@@ -92,7 +92,7 @@ function Page({ title, backLabel, onBack, children }: { title: string; backLabel
   const t = useTheme(); const tabInset = useTabInset(); const [headerHeight, setHeaderHeight] = useState(84); const bleed = useBleed();
   // The list scrolls under the glass header and tab bar (blurred), as in Telegram — no hard cut edges.
   return <View style={{ flex: 1 }}>
-    <ScrollView style={bleed.style} contentInsetAdjustmentBehavior="never" scrollIndicatorInsets={{ top: headerHeight, bottom: tabInset + bleed.bottom }} contentContainerStyle={{ padding: 14, paddingTop: headerHeight + 4, gap: 16, paddingBottom: 30 + tabInset + bleed.bottom, width: '100%', maxWidth: 680, alignSelf: 'center' }}>{children}</ScrollView>
+    <ScrollView style={bleed.style} contentInsetAdjustmentBehavior="never" scrollIndicatorInsets={{ top: headerHeight, bottom: tabInset + bleed.bottom }} contentContainerStyle={{ padding: 14, paddingTop: headerHeight + 16, gap: 16, paddingBottom: 30 + tabInset + bleed.bottom, width: '100%', maxWidth: 680, alignSelf: 'center' }}>{children}</ScrollView>
     <FloatingHeader onHeight={setHeaderHeight}>
     <GlassSurface lens radius={27} style={{ margin: 12, marginBottom: 7 }} contentStyle={{ padding: 8, flexDirection: 'row', alignItems: 'center', gap: 9, minHeight: 60 }}>
       <IconButton name="chevron-back" label={backLabel} onPress={onBack} />
@@ -129,11 +129,11 @@ function Toggle({ label, description, value, onChange, disabled = false, badge }
   const t = useTheme();
   return <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12, paddingHorizontal: 14, paddingVertical: 11 }}>
     <View style={{ flex: 1, gap: 3 }}><View style={{ flexDirection: 'row', alignItems: 'center', gap: 7 }}><Text style={{ color: t.text, fontSize: 15 }}>{label}</Text>{badge ? <View style={{ flexDirection: 'row', alignItems: 'center', gap: 3, paddingHorizontal: 7, paddingVertical: 2, borderRadius: 8, backgroundColor: t.accentSoft }}><Icon name="lock-closed" size={10} color={t.accent} /><Text style={{ color: t.accent, fontSize: 11, fontWeight: '700' }}>{badge}</Text></View> : null}</View><Text style={{ color: t.muted, fontSize: 12, lineHeight: 17 }}>{description}</Text></View>
-    <Switch accessibilityLabel={label} value={value} disabled={disabled} onValueChange={onChange} trackColor={{ false: t.subtle, true: t.accent }} thumbColor="#FFF" />
+    <Switch {...({ activeThumbColor: '#FFFFFF' } as object)} accessibilityLabel={label} value={value} disabled={disabled} onValueChange={onChange} trackColor={{ false: t.subtle, true: t.accent }} thumbColor="#FFF" />
   </View>;
 }
 
-function Root({ api, user, onBack, onProfile, onSecurity, onMusic, onLogout, open }: Props & { open: (section: Section) => void }) {
+function Root({ api, user, theme, onBack, onProfile, onSecurity, onMusic, onLogout, open }: Props & { open: (section: Section) => void }) {
   const tabInset = useTabInset();
   const language = useLanguage();
   const folders = useChatFolders(user.id);
@@ -184,7 +184,7 @@ function Root({ api, user, onBack, onProfile, onSecurity, onMusic, onLogout, ope
         <Item icon="person" color="#E2574C" label="Мой профиль" onPress={onProfile} />
       </Group>
       <Group>
-        <Item icon="color-palette" color="#25A69A" label="Оформление" value={textMetrics(preferences.textSize).label} onPress={() => open('appearance')} />
+        <Item icon="color-palette" color="#25A69A" label="Оформление" value={THEME_NAMES[theme === 'system' ? 'light' : theme]} onPress={() => open('appearance')} />
         <Item icon="folder" color="#3D8BFD" label="Папки с чатами" value={folders.folders.length ? String(folders.folders.length) : undefined} onPress={() => open('folders')} />
         <Item icon="battery-half" color="#F0A030" label="Энергосбережение и анимации" onPress={() => open('power')} />
         <Item icon="language" color="#7B61FF" label="Язык" value={LANGUAGES.find(item => item.id === language)?.native} onPress={() => open('language')} />
@@ -235,7 +235,7 @@ function Appearance({ api, user, theme, darkTheme, onTheme, onDarkTheme, open }:
     <Group>
       <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12, paddingHorizontal: 14, paddingVertical: 11 }}>
         <Text style={{ flex: 1, color: t.text, fontSize: 15 }}>Ночной режим</Text>
-        <Switch accessibilityLabel="Ночной режим" value={nightState.night} onValueChange={value => setChatPreferences({ nightForced: value, nightForcedAt: nightState.auto })} trackColor={{ false: t.subtle, true: t.accent }} thumbColor="#FFF" />
+        <Switch {...({ activeThumbColor: '#FFFFFF' } as object)} accessibilityLabel="Ночной режим" value={nightState.night} onValueChange={value => setChatPreferences({ nightForced: value, nightForcedAt: nightState.auto })} trackColor={{ false: t.subtle, true: t.accent }} thumbColor="#FFF" />
       </View>
       <Item icon="moon" color="#5856D6" label="Ночная тема" value={NIGHT_LABELS[effectiveNightMode({ mode: preferences.nightMode, from: preferences.nightFrom, to: preferences.nightTo, brightness: preferences.nightBrightness }, theme)]} onPress={() => open?.('night')} />
     </Group>
@@ -482,6 +482,6 @@ function PowerRow({ icon, color, title, text, value, onChange }: { icon: IconNam
   return <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12, paddingHorizontal: 14, paddingVertical: 10 }}>
     <View style={{ width: 30, height: 30, borderRadius: 8, backgroundColor: color, alignItems: 'center', justifyContent: 'center' }}><Icon name={icon} size={17} color="#FFF" /></View>
     <View style={{ flex: 1, gap: 2 }}><Text style={{ color: t.text, fontSize: 15 }}>{title}</Text><Text style={{ color: t.muted, fontSize: 12, lineHeight: 16 }}>{text}</Text></View>
-    <Switch accessibilityLabel={title} value={value} onValueChange={onChange} trackColor={{ false: t.subtle, true: t.accent }} thumbColor="#FFF" />
+    <Switch {...({ activeThumbColor: '#FFFFFF' } as object)} accessibilityLabel={title} value={value} onValueChange={onChange} trackColor={{ false: t.subtle, true: t.accent }} thumbColor="#FFF" />
   </View>;
 }

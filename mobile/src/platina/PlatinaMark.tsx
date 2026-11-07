@@ -40,7 +40,7 @@ function Sheen({ width, still, colors, duration = 3600 }: { width: number; still
  * (no masking), it is ordinary text.
  */
 export function PlatinaName({ user, style, numberOfLines = 1, animated = true, onDark }: { user: Pick<User, 'displayName' | 'seal'>; style?: StyleProp<TextStyle>; numberOfLines?: number; animated?: boolean; /** Force the light metal (always-dark surfaces like the showcase). */ onDark?: boolean }) {
-  const { enabled } = useMotion(); const [width, setWidth] = useState(0); const t = useTheme(); const dark = onDark ?? t.dark;
+  const { enabled } = useMotion(); const [width, setWidth] = useState(0); const t = useTheme(); const dark = onDark || t.dark; // `onDark` only forces light text (over a tinted header / nameplate); false keeps the theme
   if (!hasPlatina(user) || Platform.OS === 'web') return <Text numberOfLines={numberOfLines} style={[style, hasPlatina(user) ? { color: dark ? '#E9EDF4' : '#3B4352' } : null]}>{user.displayName}</Text>;
   return <MaskedView style={{ flexShrink: 1 }} maskElement={<Text numberOfLines={numberOfLines} style={[style, { color: '#000' }]}>{user.displayName}</Text>}>
     <Text numberOfLines={numberOfLines} onLayout={event => setWidth(event.nativeEvent.layout.width)} style={[style, { opacity: 0 }]}>{user.displayName}</Text>

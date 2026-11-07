@@ -151,12 +151,12 @@ export function PostsSection({ api, own, data, onChanged, width, userId }: { api
   </View>;
 
   return <View style={{ gap: 14 }}>
-    <View accessibilityRole="tablist" style={{ flexDirection: 'row', alignSelf: 'center', width: Math.min(420, width), padding: 4, borderRadius: 23, backgroundColor: t.dark ? '#1C1C1E' : 'rgba(127,127,127,0.12)' }}>
+    <View accessibilityRole="tablist" style={{ flexDirection: 'row', alignSelf: 'center', width: Math.min(420, width), padding: 4, borderRadius: 23, backgroundColor: t.dark ? t.surface : 'rgba(127,127,127,0.12)' }}>
       {tabButton('post', 'Публикации', data?.posts.length ?? 0)}{tabButton('story', 'Истории', data?.stories.length ?? 0)}{tabButton('gift', 'Подарки', gifts.length)}
     </View>
     {error ? <Notice text={error} error /> : null}
     {tab === 'gift' && data ? <View style={{ gap: 12 }}>
-      {!own && userId ? <Bouncy scaleTo={.96} accessibilityRole="button" onPress={() => setGiftSheet(true)} style={{ alignSelf: 'center', flexDirection: 'row', alignItems: 'center', gap: 6, paddingHorizontal: 16, height: 38, borderRadius: 19, backgroundColor: t.dark ? '#1C1C1E' : 'rgba(127,127,127,0.12)' }}>
+      {!own && userId ? <Bouncy scaleTo={.96} accessibilityRole="button" onPress={() => setGiftSheet(true)} style={{ alignSelf: 'center', flexDirection: 'row', alignItems: 'center', gap: 6, paddingHorizontal: 16, height: 38, borderRadius: 19, backgroundColor: t.dark ? t.surface : 'rgba(127,127,127,0.12)' }}>
         <Text style={{ fontSize: 17 }}>🎁</Text><Text style={{ color: t.accent, fontSize: 15, fontWeight: '600' }}>Отправить подарок</Text>
       </Bouncy> : null}
       {own && gifts.length ? <Text style={{ color: t.muted, fontSize: 12, textAlign: 'center' }}>Удержи подарок, чтобы удалить его.</Text> : null}
@@ -172,7 +172,7 @@ export function PostsSection({ api, own, data, onChanged, width, userId }: { api
         <Text style={{ color: t.muted, fontSize: 14, textAlign: 'center' }}>{own ? 'Здесь появятся подарки от друзей.' : 'Подари первым — подарок появится в профиле.'}</Text>
       </View>}
     </View> : !data ? <ActivityIndicator color={t.muted} style={{ paddingVertical: 24 }} /> : items.length ? <View style={{ gap: 10 }}>
-      {own ? <Bouncy scaleTo={.96} accessibilityRole="button" disabled={busy} onPress={() => void add(postTab)} style={{ alignSelf: 'center', flexDirection: 'row', alignItems: 'center', gap: 6, paddingHorizontal: 16, height: 38, borderRadius: 19, backgroundColor: t.dark ? '#1C1C1E' : 'rgba(127,127,127,0.12)' }}>
+      {own ? <Bouncy scaleTo={.96} accessibilityRole="button" disabled={busy} onPress={() => void add(postTab)} style={{ alignSelf: 'center', flexDirection: 'row', alignItems: 'center', gap: 6, paddingHorizontal: 16, height: 38, borderRadius: 19, backgroundColor: t.dark ? t.surface : 'rgba(127,127,127,0.12)' }}>
         {busy ? <ActivityIndicator size="small" color={t.accent} /> : <Icon name="add" size={18} color={t.accent} />}
         <Text style={{ color: t.accent, fontSize: 15, fontWeight: '600' }}>{tab === 'post' ? 'Добавить публикацию' : 'Добавить историю'}</Text>
       </Bouncy> : null}
@@ -182,7 +182,7 @@ export function PostsSection({ api, own, data, onChanged, width, userId }: { api
     </View> : <View style={{ alignItems: 'center', gap: 8, paddingVertical: 18, paddingHorizontal: 12 }}>
       <Text style={{ fontSize: 54 }}>{tab === 'post' ? '🖼️' : '✨'}</Text>
       <Text style={{ color: t.text, fontSize: 19, fontWeight: '700', textAlign: 'center' }}>{tab === 'post' ? 'Публикаций пока нет…' : 'Историй пока нет…'}</Text>
-      <Text style={{ color: t.muted, fontSize: 14, lineHeight: 20, textAlign: 'center' }}>{own ? (tab === 'post' ? 'Публикуйте фотографии и видео в своём профиле. Их видят друзья.' : 'История видна друзьям 24 часа, потом исчезает.') : (tab === 'post' ? 'Здесь появятся фото и видео.' : 'Сейчас историй нет.')}</Text>
+      <Text style={{ color: t.muted, fontSize: 14, lineHeight: 20, textAlign: 'center' }}>{own ? (tab === 'post' ? 'Публикуй фото и видео в своём профиле — их увидят друзья.' : 'История видна друзьям 24 часа, потом исчезает.') : (tab === 'post' ? 'Здесь появятся фото и видео.' : 'Сейчас историй нет.')}</Text>
       {own ? <View style={{ alignSelf: 'stretch', marginTop: 8, paddingHorizontal: 30 }}><Button label={tab === 'post' ? 'Добавить публикацию' : 'Добавить историю'} loading={busy} onPress={() => void add(postTab)} /></View> : null}
     </View>}
     {userId ? <GiftSheet api={api} userId={userId} visible={giftSheet} onClose={() => setGiftSheet(false)} onSent={() => { setGiftSheet(false); onChanged(); }} /> : null}

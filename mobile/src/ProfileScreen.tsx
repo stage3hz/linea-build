@@ -291,7 +291,7 @@ export function ProfileScreen({ api, user, theme, darkTheme, onTheme, onDarkThem
         <Text style={{ color: tinted ? 'rgba(255,255,255,0.78)' : t.muted, fontSize: 15 }}>в сети</Text>
         {birthdayToday ? <View style={{ marginTop: 4, paddingHorizontal: 12, paddingVertical: 5, borderRadius: 14, backgroundColor: tinted ? 'rgba(255,255,255,0.22)' : t.accentSoft }}><Text style={{ color: tinted ? '#FFF' : t.text, fontSize: 13, fontWeight: '700' }}>🎉 Сегодня день рождения</Text></View> : null}
       </View>
-      <View style={{ marginTop: 14, borderRadius: 22, backgroundColor: t.dark ? '#1C1C1E' : '#FFFFFF', overflow: 'hidden' }}>
+      <View style={{ marginTop: 14, borderRadius: 22, backgroundColor: t.dark ? t.surface : '#FFFFFF', overflow: 'hidden' }}>
         <InfoRow label="имя пользователя" value={copied === 'username' ? 'Скопировано' : `@${publicName}`} accent onPress={() => void copy(`@${publicName}`, 'username')} hint="Нажми, чтобы скопировать"/>
         {user.birthday ? <InfoRow label="день рождения" value={formatBirthday(user.birthday)} divider/> : null}
         {user.bio ? <InfoRow label="о себе" value={user.bio} divider/> : null}

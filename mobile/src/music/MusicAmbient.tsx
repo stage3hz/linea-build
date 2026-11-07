@@ -44,8 +44,9 @@ function Layer({ phase, index, children }: { phase: SharedValue<number>; index: 
   return <Animated.View style={[StyleSheet.absoluteFill, style]}>{children}</Animated.View>;
 }
 
-function Patch({ x, y, size, offset, drift, strength, tone, still }: { x: number; y: number; size: number; offset: number; drift: number; strength: number; tone: AmbientTone; still?: boolean }) {
-  const palette = PALETTES[tone];
+type Custom = { base: string; colors: readonly string[]; accent: number; green: number };
+function Patch({ x, y, size, offset, drift, strength, tone, still, custom }: { x: number; y: number; size: number; offset: number; drift: number; strength: number; tone: AmbientTone; still?: boolean; custom?: Custom }) {
+  const palette = custom ?? PALETTES[tone];
   const phase = useSharedValue(offset); const dx = useSharedValue(0); const dy = useSharedValue(0);
   useEffect(() => {
     const stop = () => { cancelAnimation(phase); cancelAnimation(dx); cancelAnimation(dy); };
@@ -64,19 +65,28 @@ function Patch({ x, y, size, offset, drift, strength, tone, still }: { x: number
 }
 
 /** `fadeTo` blends the bottom edge into the screen background below (the track list). */
-export function MusicAmbient({ width, height, tone = 'dark', fadeTo, still = false }: { width: number; height: number; tone?: AmbientTone; fadeTo?: string; still?: boolean }) {
+/** `custom`: colours of the current theme (Графит and the palettes), so the music screen is not navy there. */
+export function MusicAmbient({ width, height, tone = 'dark', fadeTo, still = false, custom }: { width: number; height: number; tone?: AmbientTone; fadeTo?: string; still?: boolean; custom?: Custom }) {
   const { enabled } = useMotion();
   const paused = still || !enabled;
-  const palette = PALETTES[tone];
+  const palette = custom ?? PALETTES[tone];
   const strength = tone === 'light' ? .75 : 1;
   return <View pointerEvents="none" style={[StyleSheet.absoluteFill, { backgroundColor: palette.base, overflow: 'hidden' }]}>
-    <Patch still={paused} tone={tone} x={width * .25} y={height * .35} size={width * 1.3} offset={0} drift={50} strength={.55 * strength} />
-    <Patch still={paused} tone={tone} x={width * .85} y={height * .55} size={width * 1.2} offset={1.7} drift={45} strength={.45 * strength} />
-    <Patch still={paused} tone={tone} x={width * .5} y={height * .85} size={width * 1.3} offset={3.1} drift={40} strength={.5 * strength} />
-    <Patch still={paused} tone={tone} x={width * .55} y={height * .3} size={width * .8} offset={4.2} drift={55} strength={.3 * strength} />
+    <Patch still={paused} tone={tone} custom={custom} x={width * .25} y={height * .35} size={width * 1.3} offset={0} drift={50} strength={.55 * strength} />
+    <Patch still={paused} tone={tone} custom={custom} x={width * .85} y={height * .55} size={width * 1.2} offset={1.7} drift={45} strength={.45 * strength} />
+    <Patch still={paused} tone={tone} custom={custom} x={width * .5} y={height * .85} size={width * 1.3} offset={3.1} drift={40} strength={.5 * strength} />
+    <Patch still={paused} tone={tone} custom={custom} x={width * .55} y={height * .3} size={width * .8} offset={4.2} drift={55} strength={.3 * strength} />
     {fadeTo ? <Svg width={width} height={height} style={StyleSheet.absoluteFill}>
       <Defs><LinearGradient id="fade" x1="0" y1="0" x2="0" y2="1"><Stop offset="0.62" stopColor={fadeTo} stopOpacity={0} /><Stop offset="1" stopColor={fadeTo} stopOpacity={1} /></LinearGradient></Defs>
       <Rect width={width} height={height} fill="url(#fade)" />
     </Svg> : null}
   </View>;
+}
+
+/** Ambient colours from a theme: its page colour as the base, its accent and two blends as the light. */
+export function themeAmbient(bg: string, accent: string): Custom | undefined {
+  const hex = /^#[0-9a-f]{6}$/i;
+  if (!hex.test(bg) || !hex.test(accent)) return undefined;
+  const mix = (a: string, b: string, k: number) => '#' + [1, 3, 5].map(i => Math.round(parseInt(a.slice(i, i + 2), 16) * (1 - k) + parseInt(b.slice(i, i + 2), 16) * k).toString(16).padStart(2, '0')).join('');
+  return { base: bg, colors: [mix(bg, accent, .55), mix(bg, accent, .35), mix(bg, accent, .7), mix(bg, accent, .45), mix(accent, '#ffffff', .5)], accent: 4, green: 1 };
 }

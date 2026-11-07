@@ -1,7 +1,7 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { ActivityIndicator, Animated, Image, Modal, PanResponder, Platform, Pressable, ScrollView, StyleSheet, View, type GestureResponderEvent, useWindowDimensions, Linking } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { MusicAmbient, type AmbientTone } from './MusicAmbient';
+import { MusicAmbient, themeAmbient, type AmbientTone } from './MusicAmbient';
 import { Image as BlurImage } from 'expo-image';
 import { EqualizerScreen } from './EqualizerScreen';
 import { Text } from '../typography';
@@ -212,7 +212,7 @@ export function FullPlayer({ visible, onClose, onSource }: { visible: boolean; o
   const cover = Math.round(Math.min(width - 56, height * 0.44, 460));
   // One side inset for everything: the top buttons, title, chips and controls line up with the cover's edges.
   const side = Math.max(16, Math.round((width - cover) / 2));
-  const tone: AmbientTone = t.black ? 'black' : t.dark ? 'dark' : 'light';
+  const tone: AmbientTone = t.black ? 'black' : t.dark ? 'dark' : 'light'; const custom = t.dark && !t.black && t.bg !== '#080F1E' ? themeAmbient(t.bg, t.accent) : undefined;
   const soft = t.dark ? 'rgba(255,255,255,0.12)' : 'rgba(0,0,0,0.07)';
   const chip = (icon: React.ComponentProps<typeof Icon>['name'], label: string | null, onPress: () => void, disabled = false, loading = false) => <Pressable key={icon + (label || '')} accessibilityRole="button" accessibilityLabel={label || icon} disabled={disabled || loading} onPress={onPress} style={({ pressed }) => ({ flexDirection: 'row', alignItems: 'center', gap: 7, height: 40, paddingHorizontal: label ? 14 : 0, width: label ? undefined : 48, justifyContent: 'center', borderRadius: 12, backgroundColor: soft, opacity: disabled ? .4 : pressed ? .6 : 1 })}>
     {loading ? <ActivityIndicator size="small" color={t.text} /> : <Icon name={icon} size={19} color={t.text} />}{label ? <Text style={{ color: t.text, fontSize: 15, fontWeight: '500' }}>{label}</Text> : null}
@@ -224,7 +224,7 @@ export function FullPlayer({ visible, onClose, onSource }: { visible: boolean; o
         {track.artworkUrl ? <View pointerEvents="none" style={StyleSheet.absoluteFill}>
           <BlurImage source={{ uri: track.artworkUrl }} blurRadius={70} contentFit="cover" style={[StyleSheet.absoluteFill, { transform: [{ scale: 1.3 }] }]} transition={250} />
           <View style={[StyleSheet.absoluteFill, { backgroundColor: t.dark ? 'rgba(0,0,0,0.5)' : 'rgba(255,255,255,0.4)' }]} />
-        </View> : <MusicAmbient width={width} height={height} tone={tone} />}
+        </View> : <MusicAmbient width={width} height={height} tone={tone} custom={custom} />}
         <View style={{ flex: 1, paddingTop: insets.top }}>
           <GestureDetector gesture={collapseTop}>
             <View style={{ flexDirection: 'row', alignItems: 'center', height: 52, paddingHorizontal: side }}>
