@@ -84,3 +84,14 @@ test('gifts: only friends send and see them, unknown gifts and self-gifts are re
   assert.equal((await app.inject({ method: 'GET', url: `/users/${a.user.id}`, headers: as(c) })).json().user.profilePattern, '🌸');
   assert.equal((await pattern(null)).json().user.profilePattern, null);
 });
+
+test('rate limiter: a full table drops its oldest windows instead of refusing every new key', async () => {
+  const { createLimiter } = await import('../src/security.js');
+  let clock = 0; const limiter = createLimiter(() => clock, 100);
+  for (let i = 0; i < 100; i++) assert.equal(limiter.allow(`flood:${i}`, 1, 60_000), true);
+  // Table full of live windows: a real user still gets through.
+  assert.equal(limiter.allow('user:real', 5, 60_000), true);
+  // The user's own limit still works.
+  for (let i = 0; i < 4; i++) limiter.allow('user:real', 5, 60_000);
+  assert.equal(limiter.allow('user:real', 5, 60_000), false);
+});

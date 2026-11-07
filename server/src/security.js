@@ -155,7 +155,10 @@ export function safeFilename(name) {
 }
 
 // Fixed windows are intentionally process-local; multi-instance deployments need a shared limiter.
-export function createLimiter(now, maxEntries = 10000) {
+// The table is bounded. When it is full of live windows, the oldest tenth is dropped instead of refusing
+// every new key: refusing turned a flood from ~10 000 addresses into a refusal for every real user
+// (load test, scenario 5). Dropping only forgets counters of the oldest keys.
+export function createLimiter(now, maxEntries = 100000) {
   const windows = new Map();
   return {
     allow(key, limit, periodMs) {
@@ -165,7 +168,10 @@ export function createLimiter(now, maxEntries = 10000) {
       if (!bucket || bucket.expires <= time) {
         if (windows.size >= maxEntries) {
           for (const [k, value] of windows) if (value.expires <= time) windows.delete(k);
-          if (windows.size >= maxEntries) return false;
+          if (windows.size >= maxEntries) {
+            let drop = Math.max(1, Math.ceil(maxEntries / 10));
+            for (const k of windows.keys()) { windows.delete(k); if (--drop <= 0) break; }
+          }
         }
         bucket = { count: 0, expires: time + periodMs };
         windows.set(key, bucket);

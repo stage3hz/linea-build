@@ -205,7 +205,9 @@ export function publicChat(db, chatId, userId, options) {
   const peerMember = db.prepare('SELECT * FROM chat_members WHERE chat_id=? AND user_id != ?').get(chatId, userId);
   const peer = db.prepare('SELECT * FROM users WHERE id=?').get(peerMember.user_id);
   const lastMessage = db.prepare('SELECT * FROM messages WHERE chat_id=? ORDER BY id DESC LIMIT 1').get(chatId);
-  const unread = db.prepare('SELECT COUNT(*) AS count FROM messages WHERE chat_id=? AND sender_id != ? AND id>?').get(chatId, userId, self.last_read_message_id);
+  // Capped at 9 999 (the badge shows «9999+» anyway): a full count made every message slower as the
+  // receiver's unread pile grew (load test F5: 110 ms at 100 000 unread).
+  const unread = db.prepare('SELECT COUNT(*) AS count FROM (SELECT 1 FROM messages WHERE chat_id=? AND sender_id != ? AND id>? LIMIT 9999)').get(chatId, userId, self.last_read_message_id);
   return {
     id: chat.id,
     peer: userForViewer(db, publicUser(peer, { db, now: options?.now || Date.now }), userId),

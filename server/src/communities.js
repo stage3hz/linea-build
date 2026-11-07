@@ -139,7 +139,7 @@ const ALPHABET = 'ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz23456789';
 function inviteCode() { return Array.from(randomBytes(10), byte => ALPHABET[byte % ALPHABET.length]).join(''); }
 export const isInviteCode = value => typeof value === 'string' && /^[A-Za-z0-9]{6,16}$/.test(value);
 
-export function installCommunityRoutes({ app, db, authOptions, publicUser, timestamp, now, emitUser, limiter, voice }) {
+export function installCommunityRoutes({ app, db, authOptions, publicUser, timestamp, now, emitUser, limiter, voice, isOnline = () => true }) {
   const community = id => {
     if (typeof id !== 'string' || !uuid.test(id)) fail(404, 'Сообщество не найдено.');
     const row = db.prepare('SELECT * FROM communities WHERE id=?').get(id);
@@ -219,13 +219,14 @@ export function installCommunityRoutes({ app, db, authOptions, publicUser, times
     lastMessageId: db.prepare('SELECT MAX(id) AS id FROM community_messages WHERE channel_id=?').get(item.id).id || 0,
     ...(viewer ? counters(item, viewer) : {}),
   });
-  const summary = (row, viewer) => {
+  // `shared`: the parts that are the same for every member (count, last message), computed once by refresh().
+  const summary = (row, viewer, shared = null) => {
     const mine = member(row.id, viewer);
-    const last = db.prepare('SELECT m.* FROM community_messages m JOIN community_channels c ON c.id=m.channel_id WHERE c.community_id=? ORDER BY m.id DESC LIMIT 1').get(row.id);
+    const last = shared ? shared.last : db.prepare('SELECT m.* FROM community_messages m JOIN community_channels c ON c.id=m.channel_id WHERE c.community_id=? ORDER BY m.id DESC LIMIT 1').get(row.id);
     return {
       id: row.id, kind: row.kind, name: row.name, description: row.description, avatarId: row.avatar_id, ownerId: row.owner_id, category: row.category || null, closed: row.closed === 1,
-      createdAt: row.created_at, memberCount: memberCount(row.id), isMember: !!mine, perms: perms(row, viewer),
-      lastMessage: last ? publicMessage(last) : null, muted: mine?.muted === 1,
+      createdAt: row.created_at, memberCount: shared ? shared.count : memberCount(row.id), isMember: !!mine, perms: perms(row, viewer),
+      lastMessage: shared ? shared.lastPublic : last ? publicMessage(last) : null, muted: mine?.muted === 1,
       ...(mine ? totals(row, viewer) : { unreadCount: 0, mentionCount: 0 }),
     };
   };
@@ -257,11 +258,22 @@ export function installCommunityRoutes({ app, db, authOptions, publicUser, times
   /** Pushes an event to every member who can see the channel (or the whole community). */
   const emitCommunity = (row, payload, channelItem = null) => {
     for (const { user_id } of db.prepare('SELECT user_id FROM community_members WHERE community_id=?').all(row.id)) {
+      // Offline members get nothing pushed: skip the visibility check for them (it ran ~5 queries each).
+      if (!isOnline(user_id)) continue;
       if (channelItem && !canSee(row, channelItem, user_id)) continue;
       emitUser(user_id, payload);
     }
   };
-  const refresh = row => { for (const { user_id } of db.prepare('SELECT user_id FROM community_members WHERE community_id=?').all(row.id)) emitUser(user_id, { type: 'community', community: summary(row, user_id) }); };
+  // Every member who is online gets their fresh summary. It used to be built for every member, each
+  // with its own COUNT(*): joining a 20 000-member community froze the server for 21 s (load test F2).
+  // Offline members read it when they open the app; the shared parts are computed once.
+  const refresh = row => {
+    const online = db.prepare('SELECT user_id FROM community_members WHERE community_id=?').all(row.id).map(item => item.user_id).filter(id => isOnline(id));
+    if (!online.length) return;
+    const last = db.prepare('SELECT m.* FROM community_messages m JOIN community_channels c ON c.id=m.channel_id WHERE c.community_id=? ORDER BY m.id DESC LIMIT 1').get(row.id);
+    const shared = { count: memberCount(row.id), last, lastPublic: last ? publicMessage(last) : null };
+    for (const userId of online) emitUser(userId, { type: 'community', community: summary(row, userId, shared) });
+  };
   const join = (row, userId) => {
     if (member(row.id, userId)) return false;
     if (db.prepare('SELECT 1 FROM community_bans WHERE community_id=? AND user_id=?').get(row.id, userId)) fail(403, 'Тебя заблокировали в этом сообществе.', { code: 'BANNED' });

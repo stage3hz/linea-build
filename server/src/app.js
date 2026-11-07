@@ -118,6 +118,10 @@ export async function buildApp({
   const release = createRelease({ manifestPath: releaseManifest, minClientVersion, now, log: error => app.log.warn({ err: error }, 'release manifest is invalid') });
   const limiter = createLimiter(now);
   const sockets = new Set();
+  // Signed-in sockets by user: emitting to one user no longer walks every open socket (load test F3).
+  const socketsByUser = new Map();
+  const indexSocket = state => { const set = socketsByUser.get(state.auth.user_id) || new Set(); set.add(state); socketsByUser.set(state.auth.user_id, set); };
+  const unindexSocket = state => { const userId = state.auth?.user_id; const set = userId && socketsByUser.get(userId); if (!set) return; set.delete(state); if (!set.size) socketsByUser.delete(userId); };
   let passwordJobs = 0;
   let databaseClosed = false;
   let expireEncryptionDevices = () => {};
@@ -170,8 +174,9 @@ export async function buildApp({
     : payload.type === 'chat' && payload.chat?.lastMessage ? { ...payload, chat: { ...payload.chat, lastMessage: leanMessage(payload.chat.lastMessage) } } : payload;
   // `exceptSession`: the device that made the change already has the result from its HTTP answer.
   const emitUser = (userId, payload, exceptSession = null) => {
-    for (const state of sockets) {
-      if (state.auth?.user_id !== userId) continue;
+    const own = socketsByUser.get(userId);
+    if (!own) return;
+    for (const state of [...own]) {
       if (exceptSession && state.auth.id === exceptSession) continue;
       if (!sessionStillValid(state)) {
         state.socket.close(4401, 'Session expired');
@@ -192,7 +197,7 @@ export async function buildApp({
   };
   const memberIds = chatId => db.prepare('SELECT user_id FROM chat_members WHERE chat_id=?').all(chatId).map(row => row.user_id);
   // Presence ("в сети" / "был(а) …"): online while any authenticated socket is open.
-  const isOnline = userId => [...sockets].some(state => state.auth?.user_id === userId && state.socket.readyState === 1);
+  const isOnline = userId => { const own = socketsByUser.get(userId); if (!own) return false; for (const state of own) if (state.socket.readyState === 1) return true; return false; };
   const peersOf = userId => db.prepare('SELECT DISTINCT b.user_id FROM chat_members a JOIN chat_members b ON a.chat_id=b.chat_id WHERE a.user_id=? AND b.user_id<>?').all(userId, userId).map(row => row.user_id);
   const presenceFor = (userId, viewerId) => {
     if (!presenceVisible(db, userId, viewerId, now())) return { userId, online: false, lastSeenAt: null, hidden: true };
@@ -422,7 +427,7 @@ export async function buildApp({
     moderated: (userId, communityId) => { for (const state of sockets) if (state.auth?.user_id === userId && state.voice?.communityId === communityId) communityApi?.emitCommunity(communityApi.community(communityId), { type: 'voice.state', communityId, channelId: state.voice.channelId, members: voiceMembers(state.voice.channelId) }); },
     close: channelId => { for (const item of [...(voiceRooms.get(channelId)?.values() || [])]) { sendSocket(item.state, { type: 'voice.kicked', channelId }); leaveVoice(item.state); } },
   };
-  const communityApi = installCommunityRoutes({ app, db, authOptions, publicUser, timestamp, now, emitUser, limiter, voice });
+  const communityApi = installCommunityRoutes({ app, db, authOptions, publicUser, timestamp, now, emitUser, limiter, voice, isOnline: userId => isOnline(userId) });
   // Storage per account depends on Platina (2 GB without, 15 GB with); big files reserve their size while uploading.
   const isPlatinaActive = userId => platinaState(db, userId, now()).active;
   const tierTotal = userId => (isPlatinaActive(userId) ? fileLimits.platina.total : fileLimits.free.total);
@@ -805,9 +810,11 @@ export async function buildApp({
     websocket: true,
     preValidation: async request => {
       if (!limiter.allow(`ws-connect:${request.clientIp}`, 60, 60_000)) fail(429, 'Слишком много подключений.');
-      let sameIp = 0;
-      for (const state of sockets) if (state.ip === request.clientIp) sameIp++;
-      if (sameIp >= 100 || sockets.size >= 1000) fail(503, 'Достигнут лимит подключений.');
+      let sameIp = 0, pending = 0;
+      for (const state of sockets) { if (state.ip === request.clientIp) sameIp++; if (!state.auth) pending++; }
+      // Sockets that have not signed in yet have their own small budget, so unauthenticated
+      // connections cannot fill the whole table and lock real users out (load test F8).
+      if (sameIp >= 100 || pending >= 200 || sockets.size >= 3000) fail(503, 'Достигнут лимит подключений.');
     },
   }, (socket, request) => {
     const state = { socket, ip: request.clientIp, auth: null, id: randomUUID(), alive: true };
@@ -824,6 +831,7 @@ export async function buildApp({
       clearTimeout(authDeadline);
       if (state.voice && !databaseClosed) leaveVoice(state);
       sockets.delete(state);
+      unindexSocket(state);
       const userId = state.auth?.user_id;
       if (userId && !databaseClosed && !isOnline(userId)) {
         db.prepare('UPDATE users SET last_seen_at=? WHERE id=?').run(timestamp(), userId);
@@ -841,10 +849,11 @@ export async function buildApp({
           if (data.type !== 'auth') { socket.close(4401, 'Authentication required'); return; }
           const session = sessionForToken(data.token);
           if (!session) { socket.close(4401, 'Invalid session'); return; }
-          const sameUser = [...sockets].filter(item => item.auth?.user_id === session.user_id).length;
+          const sameUser = socketsByUser.get(session.user_id)?.size || 0;
           if (sameUser >= 10) { socket.close(4429, 'Connection limit'); return; }
           const wasOnline = isOnline(session.user_id);
           state.auth = session;
+          indexSocket(state);
           state.lean = data.lean === true;
           clearTimeout(authDeadline);
           sendSocket(state, { type: 'ready', userId: session.user_id });
