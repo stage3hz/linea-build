@@ -2,29 +2,29 @@
 Xcode 26.3
 Build version 17C529
 == IPA
--rw-r--r--  1 runner  staff  35763444 Nov  7 14:02 INVIZENT-iOS-arm64-unsigned.ipa
-d76317cfdb3e6dfb086d9b143e175d5e3406ec5d079962ccb7908ce4132ac4e2  INVIZENT-iOS-arm64-unsigned.ipa
+-rw-r--r--  1 runner  staff  35771605 Nov  7 14:45 INVIZENT-iOS-arm64-unsigned.ipa
+95c9b477d3eea53bcbf8eeeb8d1d3fb9b0f48084a9eceb86aca4c893d56667ec  INVIZENT-iOS-arm64-unsigned.ipa
 == zip listing (top)
 Archive:  INVIZENT-iOS-arm64-unsigned.ipa
   Length      Date    Time    Name
 ---------  ---------- -----   ----
-        0  11-07-2026 14:02   Payload/
-        0  11-07-2026 14:02   Payload/INVIZENT.app/
- 40204088  11-07-2026 14:01   Payload/INVIZENT.app/INVIZENT
-        0  11-07-2026 13:43   Payload/INVIZENT.app/React-timing_privacy.bundle/
-      553  11-07-2026 13:43   Payload/INVIZENT.app/React-timing_privacy.bundle/PrivacyInfo.xcprivacy
-      788  11-07-2026 13:43   Payload/INVIZENT.app/React-timing_privacy.bundle/Info.plist
-        0  11-07-2026 14:00   Payload/INVIZENT.app/SplashScreen.storyboardc/
-     2143  11-07-2026 14:00   Payload/INVIZENT.app/SplashScreen.storyboardc/EXPO-VIEWCONTROLLER-1-view-EXPO-ContainerView.nib
-     1004  11-07-2026 14:00   Payload/INVIZENT.app/SplashScreen.storyboardc/SplashScreenViewController.nib
-      225  11-07-2026 14:00   Payload/INVIZENT.app/SplashScreen.storyboardc/Info.plist
-   330872  11-07-2026 14:00   Payload/INVIZENT.app/Montserrat-Medium.ttf
-        0  11-07-2026 13:59   Payload/INVIZENT.app/ExpoSystemUI_privacy.bundle/
-      607  11-07-2026 13:58   Payload/INVIZENT.app/ExpoSystemUI_privacy.bundle/PrivacyInfo.xcprivacy
-      788  11-07-2026 13:58   Payload/INVIZENT.app/ExpoSystemUI_privacy.bundle/Info.plist
-        0  11-07-2026 13:43   Payload/INVIZENT.app/LottiePrivacyInfo.bundle/
-      599  11-07-2026 13:43   Payload/INVIZENT.app/LottiePrivacyInfo.bundle/PrivacyInfo.xcprivacy
-      781  11-07-2026 13:43   Payload/INVIZENT.app/LottiePrivacyInfo.bundle/Info.plist
+        0  11-07-2026 14:45   Payload/
+        0  11-07-2026 14:45   Payload/INVIZENT.app/
+ 40204088  11-07-2026 14:44   Payload/INVIZENT.app/INVIZENT
+        0  11-07-2026 14:22   Payload/INVIZENT.app/React-timing_privacy.bundle/
+      553  11-07-2026 14:22   Payload/INVIZENT.app/React-timing_privacy.bundle/PrivacyInfo.xcprivacy
+      788  11-07-2026 14:22   Payload/INVIZENT.app/React-timing_privacy.bundle/Info.plist
+        0  11-07-2026 14:42   Payload/INVIZENT.app/SplashScreen.storyboardc/
+     2143  11-07-2026 14:42   Payload/INVIZENT.app/SplashScreen.storyboardc/EXPO-VIEWCONTROLLER-1-view-EXPO-ContainerView.nib
+     1004  11-07-2026 14:42   Payload/INVIZENT.app/SplashScreen.storyboardc/SplashScreenViewController.nib
+      225  11-07-2026 14:42   Payload/INVIZENT.app/SplashScreen.storyboardc/Info.plist
+   330872  11-07-2026 14:41   Payload/INVIZENT.app/Montserrat-Medium.ttf
+        0  11-07-2026 14:38   Payload/INVIZENT.app/ExpoSystemUI_privacy.bundle/
+      607  11-07-2026 14:26   Payload/INVIZENT.app/ExpoSystemUI_privacy.bundle/PrivacyInfo.xcprivacy
+      788  11-07-2026 14:26   Payload/INVIZENT.app/ExpoSystemUI_privacy.bundle/Info.plist
+        0  11-07-2026 14:22   Payload/INVIZENT.app/LottiePrivacyInfo.bundle/
+      599  11-07-2026 14:22   Payload/INVIZENT.app/LottiePrivacyInfo.bundle/PrivacyInfo.xcprivacy
+      781  11-07-2026 14:22   Payload/INVIZENT.app/LottiePrivacyInfo.bundle/Info.plist
 == Info.plist keys
 CFBundleIdentifier = com.linea.messenger.preview
 CFBundleExecutable = INVIZENT
@@ -146,8 +146,8 @@ chk/Payload/INVIZENT.app/INVIZENT:
 	/usr/lib/swift/libswiftUIKit.dylib (compatibility version 1.0.0, current version 1.0.0)
 == Frameworks dir
 total 0
-drwxr-xr-x  23 runner  staff   736 Nov  7 14:02 .
-drwxr-xr-x  34 runner  staff  1088 Nov  7 14:02 ..
+drwxr-xr-x  23 runner  staff   736 Nov  7 14:45 .
+drwxr-xr-x  34 runner  staff  1088 Nov  7 14:45 ..
 drwxr-xr-x   4 runner  staff   128 Sep 29 10:54 ExpoCamera.framework
 drwxr-xr-x   4 runner  staff   128 Sep 29 10:54 ExpoCameraBarcodeScanning.framework
 drwxr-xr-x   4 runner  staff   128 Sep 11 11:23 ExpoFileSystem.framework
@@ -156,21 +156,21 @@ drwxr-xr-x   4 runner  staff   128 Sep 11 11:23 ExpoImage.framework
 drwxr-xr-x   4 runner  staff   128 Oct  6 12:05 ExpoImageManipulator.framework
 drwxr-xr-x   4 runner  staff   128 Sep 11 11:25 ExpoMediaLibrary.framework
 drwxr-xr-x   4 runner  staff   128 Oct 21 14:23 ExpoModulesCore.framework
-drwxr-xr-x   4 runner  staff   128 Nov  7 13:45 ExpoModulesJSI.framework
+drwxr-xr-x   4 runner  staff   128 Nov  7 14:24 ExpoModulesJSI.framework
 drwxr-xr-x   4 runner  staff   128 Oct 21 14:23 ExpoModulesWorklets.framework
 drwxr-xr-x   4 runner  staff   128 Sep 24 10:10 ExpoVideo.framework
 drwxr-xr-x   4 runner  staff   128 Aug 21 10:10 hermesvm.framework
-drwxr-xr-x   4 runner  staff   128 Nov  7 13:37 libavif.framework
+drwxr-xr-x   4 runner  staff   128 Nov  7 14:18 libavif.framework
 drwxr-xr-x   4 runner  staff   128 Aug 24 14:28 React.framework
 drwxr-xr-x   7 runner  staff   224 Aug 24 14:07 ReactNativeDependencies.framework
-drwxr-xr-x   4 runner  staff   128 Nov  7 13:37 SDWebImage.framework
-drwxr-xr-x   4 runner  staff   128 Nov  7 13:37 SDWebImageAVIFCoder.framework
-drwxr-xr-x   4 runner  staff   128 Nov  7 13:37 SDWebImageSVGCoder.framework
-drwxr-xr-x   4 runner  staff   128 Nov  7 13:37 SDWebImageWebPCoder.framework
-drwxr-xr-x   5 runner  staff   160 Nov  7 13:39 WebRTC.framework
-drwxr-xr-x   4 runner  staff   128 Nov  7 13:37 ZXingObjC.framework
+drwxr-xr-x   4 runner  staff   128 Nov  7 14:18 SDWebImage.framework
+drwxr-xr-x   4 runner  staff   128 Nov  7 14:18 SDWebImageAVIFCoder.framework
+drwxr-xr-x   4 runner  staff   128 Nov  7 14:18 SDWebImageSVGCoder.framework
+drwxr-xr-x   4 runner  staff   128 Nov  7 14:18 SDWebImageWebPCoder.framework
+drwxr-xr-x   5 runner  staff   160 Nov  7 14:19 WebRTC.framework
+drwxr-xr-x   4 runner  staff   128 Nov  7 14:18 ZXingObjC.framework
 == JS bundle
--rw-r--r--  1 runner  staff  6770543 Nov  7 14:02 chk/Payload/INVIZENT.app/main.jsbundle
+-rw-r--r--  1 runner  staff  6787435 Nov  7 14:44 chk/Payload/INVIZENT.app/main.jsbundle
 chk/Payload/INVIZENT.app/main.jsbundle: Hermes JavaScript bytecode, version 98
 == Bundles/resources
 AppIcon60x60@2x.png
