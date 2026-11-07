@@ -70,7 +70,7 @@ function TabIcon({ item, active, kick, pressed, index }: { item: TabItem; active
     return { transform: [{ scale: press * (1 + bump * 0.3) }, { rotate: `${Math.sin(k * Math.PI * 2) * 18}deg` }] };
   });
   return <Animated.View style={style}>
-    {item.id === 'profile' ? <View style={{ width: 22, height: 22, alignItems: 'center', justifyContent: 'center' }}><GearIcon size={22} active={active} accent={t.accent} muted={t.muted} /></View> : <Ionicons name={active ? item.activeIcon : item.icon} size={22} color={active ? t.accent : t.muted} style={{ width: 22, height: 22, lineHeight: 22, textAlign: 'center' }} />}
+    {item.id === 'profile' ? <View style={{ width: 28, height: 28, alignItems: 'center', justifyContent: 'center' }}><GearIcon size={28} active={active} accent={t.accent} muted={t.muted} /></View> : <Ionicons name={active ? item.activeIcon : item.icon} size={22} color={active ? t.accent : t.muted} style={{ width: 22, height: 22, lineHeight: 22, textAlign: 'center' }} />}
     {item.badge ? <View style={{ position: 'absolute', top: -6, left: 13, minWidth: 18, height: 18, paddingHorizontal: 5, borderRadius: 9, borderWidth: 2, borderColor: t.dark ? '#15171D' : '#FFF', backgroundColor: t.accent, alignItems: 'center', justifyContent: 'center' }}><Text maxFontSizeMultiplier={1} style={{ color: t.onAccent, fontSize: 10, fontWeight: '800' }}>{badgeText(item.badge)}</Text></View> : null}
   </Animated.View>;
 }
@@ -156,8 +156,8 @@ export function TabBar({ items, active }: { items: TabItem[]; active: TabId }) {
         onAccessibilityTap={() => open(index)} style={{ flex: 1, alignItems: 'center', justifyContent: 'center', gap: 4, paddingVertical: 6 }}>
         {slotted && other ? <SlotReel reel={reel} people={item.id === 'people' ? item : other} channels={item.id === 'channels' ? item : other} active={on} kick={kicks[index]} pressed={pressed} index={index} /> : <>
           <TabIcon item={item} active={on} kick={kicks[index]} pressed={pressed} index={index} />
-          {/* The gear has no caption; an empty 12-pt slot (the labels' exact line height) keeps it on the icons' line. */}
-          {item.id === 'profile' ? <View style={{ height: 12 }} /> : <Text numberOfLines={1} maxFontSizeMultiplier={1} style={{ fontSize: 10, lineHeight: 12, letterSpacing: -.1, color: on ? t.accent : t.muted, fontWeight: on ? '700' : '600' }}>{item.label}</Text>}
+          {/* The gear has no caption: it stands in the middle of the bar, a little larger than the captioned icons. */}
+          {item.id === 'profile' ? null : <Text numberOfLines={1} maxFontSizeMultiplier={1} style={{ fontSize: 10, lineHeight: 12, letterSpacing: -.1, color: on ? t.accent : t.muted, fontWeight: on ? '700' : '600' }}>{item.label}</Text>}
         </>}
         {/* A small hint that the slot switches: a dot (with the other section's unread count) above it. */}
         {slotted && other ? other.badge ? <View pointerEvents="none" accessibilityElementsHidden style={{ position: 'absolute', top: -2, minWidth: 18, height: 14, paddingHorizontal: 4, borderRadius: 7, backgroundColor: t.accent, alignItems: 'center', justifyContent: 'center' }}><Text maxFontSizeMultiplier={1} style={{ color: t.onAccent, fontSize: 9, fontWeight: '800' }}>{badgeText(other.badge)}</Text></View>
