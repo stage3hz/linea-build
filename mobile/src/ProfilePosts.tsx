@@ -253,7 +253,7 @@ function GiftSheet({ api, userId, visible, onClose, onSent }: { api: Api; userId
   const send = async () => { if (busy) return; setBusy(true); setError(''); try { await api.sendGift(userId, picked, note.trim()); setNote(''); onSent(); } catch (failure) { setError(message(failure, 'Не удалось отправить подарок.')); } finally { setBusy(false); } };
   return <Sheet visible={visible} title="Подарок" onClose={onClose}><View style={{ gap: 14 }}>
     <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 8, justifyContent: 'center' }}>{GIFTS.map(g => { const on = g.id === picked; return <Pressable key={g.id} accessibilityRole="radio" accessibilityLabel={g.label} accessibilityState={{ checked: on }} onPress={() => setPicked(g.id)} style={{ width: 70, borderRadius: 16, overflow: 'hidden', borderWidth: 2, borderColor: on ? t.accent : 'transparent' }}>
-      <LinearGradient colors={g.colors} style={{ alignItems: 'center', paddingVertical: 8, gap: 2 }}><Text style={{ fontSize: 30, lineHeight: 36 }}>{g.emoji}</Text><Text style={{ color: '#FFF', fontSize: 10, fontWeight: '700' }}>{g.label}</Text></LinearGradient>
+      <LinearGradient colors={g.colors} style={{ alignItems: 'center', paddingVertical: 8, gap: 2 }}><Text style={{ fontSize: 30, lineHeight: 36 }}>{g.emoji}</Text><Text numberOfLines={1} adjustsFontSizeToFit minimumFontScale={0.75} style={{ color: '#FFF', fontSize: 10, fontWeight: '700', paddingHorizontal: 3 }}>{g.label}</Text></LinearGradient>
     </Pressable>; })}</View>
     <Field label="Подпись" value={note} onChangeText={setNote} placeholder="Необязательно" maxLength={120} />
     {error ? <Notice text={error} error /> : null}

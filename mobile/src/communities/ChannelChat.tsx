@@ -205,7 +205,7 @@ export function ChannelChat({ api, me, store, community, channel, onOpenInvite }
       <View style={{ flexDirection: 'row', alignItems: 'flex-end', gap: 6 }}>
         {!editing ? <IconButton name="add-circle" label="Прикрепить" color={t.muted} onPress={() => setAttach(true)} /> : null}
         <View style={{ flex: 1, minHeight: 40, borderRadius: 20, backgroundColor: t.surface2, borderWidth: 1, borderColor: t.border, paddingHorizontal: 14, justifyContent: 'center' }}>
-          <TextInput ref={input} value={text} onChangeText={setText} multiline onKeyPress={e => { if (Platform.OS === 'web' && e.nativeEvent.key === 'Enter' && !(e.nativeEvent as unknown as { shiftKey?: boolean }).shiftKey) { e.preventDefault(); void send(); } }} placeholder={blog ? 'Новая публикация' : `Написать в #${channel.name}`} placeholderTextColor={t.subtle} style={{ color: t.text, fontSize: 16, maxHeight: 140, paddingVertical: 9 }} />
+          <TextInput ref={input} value={text} onChangeText={setText} multiline onKeyPress={e => { if (Platform.OS === 'web' && e.nativeEvent.key === 'Enter' && !(e.nativeEvent as unknown as { shiftKey?: boolean }).shiftKey) { e.preventDefault(); void send(); } }} placeholder={blog ? 'Новая публикация' : `Написать в #${channel.name}`} placeholderTextColor={t.subtle} {...(Platform.OS === 'web' ? { numberOfLines: 1 } : {})} style={{ color: t.text, fontSize: 16, maxHeight: 140, paddingVertical: 9, textAlignVertical: 'center' }} />
         </View>
         {sending ? <ActivityIndicator color={t.accent} style={{ width: 40, height: 40 }} /> : <IconButton name="arrow-up-circle" label="Отправить" color={text.trim() ? t.accent : t.subtle} size={34} disabled={!text.trim()} onPress={() => void send()} />}
       </View>

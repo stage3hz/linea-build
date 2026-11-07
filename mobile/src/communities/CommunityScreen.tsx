@@ -147,7 +147,8 @@ export function CommunityScreen({ api, me, store, communityId, onBack, onOpenInv
     <ChannelChat api={api} me={me} store={store} community={community} channel={community.channels.find(item => item.id === pushed.channel.id) || pushed.channel} onOpenInvite={onOpenInvite} />
   </View> : pushed?.kind === 'settings' ? <CommunitySettings api={api} me={me} community={community} onBack={() => setPushed(null)} onChanged={setCommunity} onLeft={onLeft} onInvite={() => void invite()} /> : null;
 
-  return <View style={{ flex: 1 }}>
+  // overflow hidden: the root slides left under a pushed channel; on PC it showed under the nav rail.
+  return <View style={{ flex: 1, overflow: Platform.OS === 'web' ? 'hidden' : 'visible' }}>
     <StackBase progress={progress} covered={!!pushed}>{root}</StackBase>
     {pushed ? <StackScreen key={pushed.kind === 'channel' ? pushed.channel.id : 'settings'} progress={progress} onBack={() => setPushed(null)}>{() => <View style={{ flex: 1 }}><Backdrop />{child}</View>}</StackScreen> : null}
     {community ? <ContextMenu visible={!!memberMenu} y={memberMenu?.y || 0} x={memberMenu?.x} onClose={() => setMemberMenu(null)} preview={memberMenu?.name}>

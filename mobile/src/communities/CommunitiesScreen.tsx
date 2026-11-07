@@ -1,5 +1,5 @@
 import React, { useCallback, useEffect, useState } from 'react';
-import { ActivityIndicator, FlatList, Pressable, View } from 'react-native';
+import { ActivityIndicator, FlatList, Pressable, View, Platform } from 'react-native';
 import { useSharedValue } from 'react-native-reanimated';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import type { Api } from '../api';
@@ -40,7 +40,8 @@ export function CommunitiesScreen({ api, me, store, openId, onOpenInvite, onOpen
   const servers = (list || []).filter(item => item.kind === 'server'), blogs = (list || []).filter(item => item.kind === 'blog');
   const rows: ({ header: string } | CommunitySummary)[] = [...(servers.length ? [{ header: 'Игровые серверы' }, ...servers] : []), ...(blogs.length ? [{ header: 'Каналы' }, ...blogs] : [])];
 
-  return <View style={{ flex: 1 }}>
+  // PC/browser: the list slides aside under an opened community and must not paint over the nav rail.
+  return <View style={{ flex: 1, overflow: Platform.OS === 'web' ? 'hidden' : 'visible' }}>
     <StackBase progress={progress} covered={!!openId}>
       <View style={{ flex: 1 }}>
         <GlassSurface lens material="clear" radius={27} style={{ marginHorizontal: 14, marginTop: 12 }} contentStyle={{ flexDirection: 'row', alignItems: 'center', padding: 10, gap: 9, minHeight: 64 }}>
