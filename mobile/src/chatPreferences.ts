@@ -22,9 +22,20 @@ export const WALLPAPERS = [
 ] as const;
 export type Wallpaper = typeof WALLPAPERS[number]['id'];
 export type { AnimationMode };
-export type ChatPreferences = { textSize: TextSize; sendTyping: boolean; animations: AnimationMode; lowBattery: number; bubbleRadius: number; wallpaper: Wallpaper };
+export type NightMode = 'system' | 'off' | 'schedule' | 'auto';
+/** Telegram «Энергосбережение»: what keeps playing while power saving is not active. */
+export type PowerFeature = 'video' | 'gif' | 'stickers' | 'emoji';
+export type ChatPreferences = {
+  textSize: TextSize; sendTyping: boolean; animations: AnimationMode; lowBattery: number; bubbleRadius: number; wallpaper: Wallpaper;
+  /** Night theme switching (Telegram «Ночная тема»); null = as before: follow the system when the theme is «Как в системе». */
+  nightMode: NightMode | null; nightFrom: string; nightTo: string; nightBrightness: number;
+  /** «Ночной режим» switched by hand: overrides the automatic choice until it changes by itself. */
+  nightForced: boolean | null; nightForcedAt: boolean | null;
+  /** Power saving: 0 = never by battery, 1 = always on, otherwise the battery level (0..1) below which it turns on. */
+  autoplayVideo: boolean; autoplayGif: boolean; animatedStickers: boolean; animatedEmoji: boolean;
+};
 const KEY = 'linea.chat-preferences.v1';
-const DEFAULTS: ChatPreferences = { textSize: 'medium', sendTyping: true, animations: 'auto', lowBattery: 0.27, bubbleRadius: 20, wallpaper: 'none' };
+const DEFAULTS: ChatPreferences = { textSize: 'medium', sendTyping: true, animations: 'auto', lowBattery: 0.25, bubbleRadius: 20, wallpaper: 'none', nightMode: null, nightFrom: '22:00', nightTo: '07:00', nightBrightness: 0.25, nightForced: null, nightForcedAt: null, autoplayVideo: true, autoplayGif: true, animatedStickers: true, animatedEmoji: true };
 
 let current: ChatPreferences = DEFAULTS;
 const listeners = new Set<() => void>();
@@ -38,9 +49,20 @@ export function parsePreferences(raw: string | null): ChatPreferences {
       textSize: TEXT_SIZES.some(size => size.id === value?.textSize) ? value.textSize : DEFAULTS.textSize,
       sendTyping: typeof value?.sendTyping === 'boolean' ? value.sendTyping : DEFAULTS.sendTyping,
       animations: value?.animations === 'on' || value?.animations === 'off' ? value.animations : 'auto',
-      lowBattery: [0, 0.15, 0.27, 0.4].includes(value?.lowBattery) ? value.lowBattery : DEFAULTS.lowBattery,
+      // 0 (never), 1 (always) or a level 0.05..0.95; the older stepped values are kept as they are.
+      lowBattery: typeof value?.lowBattery === 'number' && value.lowBattery >= 0 && value.lowBattery <= 1 ? Math.round(value.lowBattery * 100) / 100 : DEFAULTS.lowBattery,
       bubbleRadius: [8, 14, 20].includes(value?.bubbleRadius) ? value.bubbleRadius : DEFAULTS.bubbleRadius,
       wallpaper: WALLPAPERS.some(item => item.id === value?.wallpaper) ? value.wallpaper : DEFAULTS.wallpaper,
+      nightMode: ['system', 'off', 'schedule', 'auto'].includes(value?.nightMode) ? value.nightMode : null,
+      nightFrom: typeof value?.nightFrom === 'string' && /^([01]\d|2[0-3]):[0-5]\d$/.test(value.nightFrom) ? value.nightFrom : DEFAULTS.nightFrom,
+      nightTo: typeof value?.nightTo === 'string' && /^([01]\d|2[0-3]):[0-5]\d$/.test(value.nightTo) ? value.nightTo : DEFAULTS.nightTo,
+      nightBrightness: typeof value?.nightBrightness === 'number' && value.nightBrightness > 0 && value.nightBrightness < 1 ? value.nightBrightness : DEFAULTS.nightBrightness,
+      nightForced: typeof value?.nightForced === 'boolean' ? value.nightForced : null,
+      nightForcedAt: typeof value?.nightForcedAt === 'boolean' ? value.nightForcedAt : null,
+      autoplayVideo: typeof value?.autoplayVideo === 'boolean' ? value.autoplayVideo : true,
+      autoplayGif: typeof value?.autoplayGif === 'boolean' ? value.autoplayGif : true,
+      animatedStickers: typeof value?.animatedStickers === 'boolean' ? value.animatedStickers : true,
+      animatedEmoji: typeof value?.animatedEmoji === 'boolean' ? value.animatedEmoji : true,
     };
   } catch { return DEFAULTS; }
 }

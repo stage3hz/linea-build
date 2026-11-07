@@ -1,7 +1,7 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { ActivityIndicator, Image, Modal, Platform, Pressable, StyleSheet, View, useWindowDimensions } from 'react-native';
 import Animated, { Easing, LinearTransition, useAnimatedStyle, useSharedValue, withSpring, withTiming } from 'react-native-reanimated';
-import { motionEnabled } from '../motion';
+import { motionEnabled, powerFeature, usePowerFeatures } from '../motion';
 import { CameraView, useCameraPermissions, useMicrophonePermissions, type CameraType } from 'expo-camera';
 import { useVideoPlayer, VideoView } from 'expo-video';
 import { useEvent } from 'expo';
@@ -253,7 +253,7 @@ function CirclePlayer({ uri, size, expanded, onToggle, onEnd }: { uri: string; s
   useEffect(() => {
     try {
       if (expanded) { player.muted = false; player.loop = false; player.audioMixingMode = 'doNotMix'; player.playbackRate = currentVoiceRate(); player.currentTime = 0; player.play(); }
-      else { player.playbackRate = 1; player.muted = true; player.loop = true; player.audioMixingMode = 'mixWithOthers'; if (motionEnabled()) player.play(); else player.pause(); }
+      else { player.playbackRate = 1; player.muted = true; player.loop = true; player.audioMixingMode = 'mixWithOthers'; if (motionEnabled() && powerFeature('video')) player.play(); else player.pause(); }
     } catch { /* released */ }
   }, [player, expanded]);
   useEffect(() => () => { try { player.pause(); } catch { /* released */ } }, [player]);
@@ -272,7 +272,8 @@ function CirclePlayer({ uri, size, expanded, onToggle, onEnd }: { uri: string; s
 export function VideoNoteBubble({ api, attachment }: { api: Api; attachment: Attachment }) {
   const music = useMusic(); const { width } = useWindowDimensions();
   // Circles are small, so they load by themselves (as in Telegram) and play silently in the chat.
-  const media = useMedia(api, attachment, attachment.size <= 8 * 1024 * 1024);
+  const features = usePowerFeatures();
+  const media = useMedia(api, attachment, features.video && attachment.size <= 8 * 1024 * 1024);
   const [expanded, setExpanded] = useState(false);
   const size = expanded ? Math.min(width - 20, 404) : 212; // Telegram: grows to min(404, width − 20) while playing
   const thumb = useMemo(() => attachment.preview ? `data:${attachment.preview.mimeType};base64,${attachment.preview.base64}` : null, [attachment.preview]);

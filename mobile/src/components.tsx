@@ -8,6 +8,7 @@ import { LinearGradient } from 'expo-linear-gradient';
 import Svg, { Path } from 'react-native-svg';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useTheme, formatSize } from './theme';
+import { usePowerFeatures } from './motion';
 import { FlatGlassScope, GlassStage, GlassSurface } from './glass';
 import type { Attachment, User } from './types';
 import type { Api } from './api';
@@ -98,7 +99,7 @@ export function Empty({icon,title,description,action}:{icon:IconName;title:strin
 }
 
 export function AuthImage({api,id,style,resizeMode='cover',blurRadius}:{api:Api;id:string;style:StyleProp<ImageStyle>;resizeMode?:'cover'|'contain';blurRadius?:number}) {
-  const t=useTheme();const [uri,setUri]=useState<string|null>(Platform.OS==='web'?null:api.fileUrl(id));const [failed,setFailed]=useState(false);
+  const t=useTheme();const gif=usePowerFeatures().gif;const [uri,setUri]=useState<string|null>(Platform.OS==='web'?null:api.fileUrl(id));const [failed,setFailed]=useState(false);
   useEffect(()=>{
     let active=true,objectUrl:string|undefined;const abort=new AbortController();setUri(Platform.OS==='web'?null:api.fileUrl(id));setFailed(false);
     if(Platform.OS==='web'){
@@ -110,7 +111,7 @@ export function AuthImage({api,id,style,resizeMode='cover',blurRadius}:{api:Api;
   if(!uri)return <View style={[style as StyleProp<ViewStyle>,{backgroundColor:t.surface2,alignItems:'center',justifyContent:'center'}]}><ActivityIndicator size="small" color={t.accent}/></View>;
   // Uploaded files never change, so the id is a stable cache key: avatars come from
   // memory/disk instantly instead of being downloaded again on every screen.
-  if(Platform.OS!=='web')return <CachedImage source={{uri,headers:{Authorization:`Bearer ${api.token}`},cacheKey:`invizent-file-${id}`}} cachePolicy="memory-disk" style={style as StyleProp<ImageStyle>} contentFit={resizeMode} blurRadius={blurRadius} transition={0} onError={()=>setFailed(true)} accessibilityLabel="Изображение"/>;
+  if(Platform.OS!=='web')return <CachedImage source={{uri,headers:{Authorization:`Bearer ${api.token}`},cacheKey:`invizent-file-${id}`}} cachePolicy="memory-disk" autoplay={gif} style={style as StyleProp<ImageStyle>} contentFit={resizeMode} blurRadius={blurRadius} transition={0} onError={()=>setFailed(true)} accessibilityLabel="Изображение"/>;
   return <Image source={{uri}} style={style} resizeMode={resizeMode} onError={()=>setFailed(true)} accessibilityLabel="Изображение"/>;
 }
 

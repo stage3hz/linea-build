@@ -1,17 +1,20 @@
-import React, { useCallback, useEffect, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { ProfileEffect } from './platina/Effects';
-import { ActivityIndicator, Platform, Pressable, ScrollView, StyleSheet, Switch, View, useWindowDimensions, Linking } from 'react-native';
+import { ActivityIndicator, PanResponder, Platform, Pressable, ScrollView, StyleSheet, Switch, View, useWindowDimensions, Linking } from 'react-native';
 import { MONO, Text } from './typography';
 import { requestProfileEdit, requestStatusPicker } from './statusPickerRequest';
 import * as FileSystem from 'expo-file-system/legacy';
 import Constants from 'expo-constants';
 import { Image } from 'expo-image';
 import type { Api, Privacy } from './api';
-import { Avatar, Icon, IconButton, Notice, type IconName } from './components';
+import { Avatar, Button, Icon, IconButton, Notice, Sheet, type IconName } from './components';
 import { GlassBackdrop, GlassSurface } from './glass';
-import { useTheme, formatSize } from './theme';
-import { ThemeSettings } from './ThemeSettings';
-import { useMotion } from './motion';
+import { useTheme, formatSize, palette } from './theme';
+import { useNightState } from './nightTheme';
+import { effectiveNightMode, type NightMode } from './themePreference';
+import { PALETTES } from './themes/palettes';
+import { THEME_NAMES, ThemeSettings } from './ThemeSettings';
+import { useMotion, usePowerFeatures, usePowerState } from './motion';
 import type { AnimationMode } from './motionPolicy';
 import { AppIconPicker } from './AppIconPicker';
 import { StatusEmoji } from './StatusEmoji';
@@ -38,7 +41,7 @@ import { lightFeedback } from './haptics';
 import { LANGUAGES, getLanguage, setLanguage, tr, useLanguage } from './i18n';
 import { fileLimits, type FileLimits } from './e2ee/attachments';
 
-type Section = 'root' | 'appearance' | 'privacy' | 'data' | 'language' | 'folders' | 'power' | 'audio' | 'overlay';
+type Section = 'root' | 'appearance' | 'night' | 'privacy' | 'data' | 'language' | 'folders' | 'power' | 'audio' | 'overlay';
 type Props = {
   api: Api; user: User; theme: ThemeMode; darkTheme: DarkTheme;
   onTheme: (mode: ThemeMode) => void; onDarkTheme: (mode: DarkTheme) => void;
@@ -56,10 +59,10 @@ export function SettingsScreen(props: Props) {
   const p0 = useSharedValue(1), p1 = useSharedValue(1), p2 = useSharedValue(1);
   const levels = [p0, p1, p2];
   const page = (current: Section, onBack: () => void) => {
-    const title = current === 'overlay' ? 'Оверлей' : current === 'audio' ? 'Звук и микрофон' : current === 'appearance' ? 'Оформление' : current === 'privacy' ? 'Конфиденциальность' : current === 'data' ? 'Данные и память' : current === 'language' ? 'Язык' : current === 'folders' ? 'Папки с чатами' : current === 'power' ? 'Энергосбережение' : 'Настройки';
+    const title = current === 'night' ? 'Ночная тема' : current === 'overlay' ? 'Оверлей' : current === 'audio' ? 'Звук и микрофон' : current === 'appearance' ? 'Оформление' : current === 'privacy' ? 'Конфиденциальность' : current === 'data' ? 'Данные и память' : current === 'language' ? 'Язык' : current === 'folders' ? 'Папки с чатами' : current === 'power' ? 'Энергосбережение' : 'Настройки';
     if (current === 'root') return <Root {...props} onBack={onBack} open={open} />;
     return <Page title={title} backLabel="Назад" onBack={onBack}>
-      {current === 'appearance' ? <Appearance {...props} open={open} /> : current === 'privacy' ? <PrivacySection api={props.api} /> : current === 'language' ? <LanguageSection /> : current === 'folders' ? <FoldersSection api={props.api} user={props.user} chats={props.chats || []} /> : current === 'power' ? <Group label="Анимации"><MotionSettings /></Group> : current === 'audio' ? <AudioSettings /> : current === 'overlay' ? <OverlaySettings /> : <DataSection api={props.api} />}
+      {current === 'appearance' ? <Appearance {...props} open={open} /> : current === 'night' ? <NightSettings {...props} /> : current === 'privacy' ? <PrivacySection api={props.api} /> : current === 'language' ? <LanguageSection /> : current === 'folders' ? <FoldersSection api={props.api} user={props.user} chats={props.chats || []} /> : current === 'power' ? <Group><MotionSettings /></Group> : current === 'audio' ? <AudioSettings /> : current === 'overlay' ? <OverlaySettings /> : <DataSection api={props.api} />}
     </Page>;
   };
   // Each level slides in over the previous one, which shifts aside and dims (StackBase) and closes
@@ -223,10 +226,18 @@ function PlatinaOffer() {
 }
 
 function Appearance({ api, user, theme, darkTheme, onTheme, onDarkTheme, open }: Props & { open?: (section: Section) => void }) {
-  const t = useTheme(); const active = usePlatina(api, user.id); const preferences = useChatPreferences(); const metrics = textMetrics(preferences.textSize);
+  const t = useTheme(); const active = usePlatina(api, user.id); const preferences = useChatPreferences(); const metrics = textMetrics(preferences.textSize); const nightState = useNightState(theme);
   const [wallpaperOpen, setWallpaperOpen] = useState(false);
   return <>
-    <Group label="Тема"><View style={{ padding: 14 }}><ThemeSettings mode={theme} darkTheme={darkTheme} onChange={onTheme} onDarkTheme={onDarkTheme} platina={active} onLocked={() => openPlatinaShowcase()} /></View></Group>
+    <Group label="Тема"><View style={{ padding: 14 }}><ThemeSettings mode={theme} darkTheme={darkTheme} onChange={value => { if (preferences.nightMode === null) setChatPreferences({ nightMode: theme === 'system' ? 'system' : 'off' }); onTheme(value); }} onDarkTheme={onDarkTheme} platina={active} onLocked={() => openPlatinaShowcase()} /></View></Group>
+    {/* Telegram: «Ночной режим» switches now; «Ночная тема» — when it switches by itself and which theme. */}
+    <Group>
+      <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12, paddingHorizontal: 14, paddingVertical: 11 }}>
+        <Text style={{ flex: 1, color: t.text, fontSize: 15 }}>Ночной режим</Text>
+        <Switch accessibilityLabel="Ночной режим" value={nightState.night} onValueChange={value => setChatPreferences({ nightForced: value, nightForcedAt: nightState.auto })} trackColor={{ false: t.subtle, true: t.accent }} thumbColor="#FFF" />
+      </View>
+      <Item icon="moon" color="#5856D6" label="Ночная тема" value={NIGHT_LABELS[effectiveNightMode({ mode: preferences.nightMode, from: preferences.nightFrom, to: preferences.nightTo, brightness: preferences.nightBrightness }, theme)]} onPress={() => open?.('night')} />
+    </Group>
     {Platform.OS === 'ios' ? <Group label="Иконка приложения"><AppIconPicker /></Group> : null}
     <Group label="Обои чатов"><Item icon="image" color="#2EA37A" label="Обои чатов" value="Выбрать" onPress={() => setWallpaperOpen(true)} /></Group>
     <WallpaperPicker visible={wallpaperOpen} onClose={() => setWallpaperOpen(false)} />
@@ -244,6 +255,60 @@ function Appearance({ api, user, theme, darkTheme, onTheme, onDarkTheme, open }:
       </View>
     </Group>
   </>;
+}
+
+const NIGHT_LABELS: Record<NightMode, string> = { system: 'Системная', off: 'Выключена', schedule: 'По расписанию', auto: 'Автоматически' };
+const NIGHT_THEMES: DarkTheme[] = ['dark', 'black', 'graphite'];
+
+/** Telegram «Смена темы ночью»: when (system / never / by schedule / by screen brightness) and which night theme.
+ *  «От заката до восхода» is left out: it needs the location, which the app does not ask for. */
+function NightSettings({ api, user, theme, darkTheme, onDarkTheme }: Props) {
+  const t = useTheme(); const preferences = useChatPreferences(); const platina = usePlatina(api, user.id);
+  const settings = { mode: preferences.nightMode, from: preferences.nightFrom, to: preferences.nightTo, brightness: preferences.nightBrightness };
+  const kind = effectiveNightMode(settings, theme);
+  const [editing, setEditing] = useState<'nightFrom' | 'nightTo' | null>(null);
+  const choose = (mode: NightMode) => setChatPreferences({ nightMode: mode, nightForced: null, nightForcedAt: null });
+  const themes = [...NIGHT_THEMES, ...(platina ? PALETTES.map(p => p.id) : [])] as DarkTheme[];
+  return <>
+    <Group>{(['system', 'off', 'schedule', 'auto'] as NightMode[]).map(mode => <Pressable key={mode} accessibilityRole="radio" accessibilityState={{ selected: kind === mode }} onPress={() => choose(mode)} style={({ pressed }) => ({ flexDirection: 'row', alignItems: 'center', gap: 12, paddingHorizontal: 14, minHeight: 50, backgroundColor: pressed ? 'rgba(127,127,127,0.1)' : 'transparent' })}>
+      <View style={{ width: 22 }}>{kind === mode ? <Icon name="checkmark" size={20} color={t.accent} /> : null}</View>
+      <Text style={{ flex: 1, color: t.text, fontSize: 16 }}>{NIGHT_LABELS[mode]}</Text>
+    </Pressable>)}</Group>
+    {kind === 'schedule' ? <Group label="Время использования">
+      <Item icon="moon" color="#5856D6" label="Начало" value={preferences.nightFrom} onPress={() => setEditing('nightFrom')} />
+      <Item icon="sunny" color="#F5A623" label="Конец" value={preferences.nightTo} onPress={() => setEditing('nightTo')} />
+    </Group> : null}
+    {kind === 'auto' ? <Group label="Порог яркости"><View style={{ padding: 14, gap: 10 }}>
+      <View style={{ flexDirection: 'row', gap: 7 }}>{[0.1, 0.25, 0.4, 0.6].map(level => { const on = Math.abs(preferences.nightBrightness - level) < 0.01; return <Pressable key={level} accessibilityRole="radio" accessibilityState={{ selected: on }} onPress={() => setChatPreferences({ nightBrightness: level })} style={{ flex: 1, alignItems: 'center', paddingVertical: 9, borderRadius: 13, backgroundColor: on ? t.accentSoft : t.surface2, borderWidth: 1, borderColor: on ? t.accent : t.border }}><Text style={{ color: on ? t.accent : t.text, fontSize: 14, fontWeight: on ? '700' : '500' }}>{`${Math.round(level * 100)}%`}</Text></Pressable>; })}</View>
+      <Text style={{ color: t.muted, fontSize: 12, lineHeight: 17 }}>{`Ночная тема включится, когда яркость экрана опустится до ${Math.round(preferences.nightBrightness * 100)}% и ниже.`}</Text>
+    </View></Group> : null}
+    {kind === 'system' ? <Text style={{ color: t.muted, fontSize: 12, lineHeight: 17, paddingHorizontal: 8 }}>Ночная тема включается вместе с тёмным оформлением iPhone или Android.</Text> : null}
+    <Group label="Выбранная ночная тема"><ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ padding: 14, gap: 12 }}>
+      {themes.map(id => { const p = palette[id]; const on = darkTheme === id; return <Pressable key={id} accessibilityRole="radio" accessibilityLabel={THEME_NAMES[id]} accessibilityState={{ selected: on }} onPress={() => onDarkTheme(id)} style={{ alignItems: 'center', gap: 8 }}>
+        <View style={{ width: 112, height: 72, borderRadius: 16, padding: 10, gap: 8, backgroundColor: p.bg, borderWidth: on ? 2.5 : 1, borderColor: on ? t.accent : t.border, justifyContent: 'center' }}>
+          <View style={{ width: '62%', height: 13, borderRadius: 7, backgroundColor: p.incoming }} />
+          <View style={{ alignSelf: 'flex-end', width: '58%', height: 13, borderRadius: 7, backgroundColor: p.bubble }} />
+        </View>
+        <Text style={{ color: on ? t.accent : t.text, fontSize: 13, fontWeight: on ? '700' : '500' }}>{THEME_NAMES[id]}</Text>
+      </Pressable>; })}
+    </ScrollView></Group>
+    <Sheet visible={editing !== null} title={editing === 'nightTo' ? 'Конец' : 'Начало'} onClose={() => setEditing(null)}>
+      {editing ? <TimePicker value={preferences[editing]} onDone={value => { setChatPreferences({ [editing]: value, nightForced: null, nightForcedAt: null }); setEditing(null); }} /> : null}
+    </Sheet>
+  </>;
+}
+
+function TimePicker({ value, onDone }: { value: string; onDone: (value: string) => void }) {
+  const t = useTheme(); const [h, m] = value.split(':'); const [hour, setHour] = useState(h); const [minute, setMinute] = useState(m);
+  const chip = (label: string, on: boolean, press: () => void) => <Pressable key={label} accessibilityRole="radio" accessibilityState={{ selected: on }} onPress={press} style={{ width: 52, height: 40, borderRadius: 12, alignItems: 'center', justifyContent: 'center', backgroundColor: on ? t.accent : t.surface2 }}><Text style={{ color: on ? t.onAccent : t.text, fontSize: 15, fontWeight: on ? '700' : '500' }}>{label}</Text></Pressable>;
+  return <View style={{ gap: 14 }}>
+    <Text style={{ color: t.text, fontSize: 28, fontWeight: '700', textAlign: 'center' }}>{`${hour}:${minute}`}</Text>
+    <Text style={{ color: t.muted, fontSize: 12 }}>Часы</Text>
+    <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 6 }}>{Array.from({ length: 24 }, (_, i) => String(i).padStart(2, '0')).map(x => chip(x, x === hour, () => setHour(x)))}</View>
+    <Text style={{ color: t.muted, fontSize: 12 }}>Минуты</Text>
+    <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 6 }}>{['00', '15', '30', '45'].map(x => chip(x, x === minute, () => setMinute(x)))}</View>
+    <Button label="Готово" onPress={() => onDone(`${hour}:${minute}`)} />
+  </View>;
 }
 
 function PrivacySection({ api }: { api: Api }) {
@@ -369,18 +434,53 @@ function DataSection({ api }: { api: Api }) {
   </>;
 }
 
+const POWER_STEPS = [0, ...Array.from({ length: 19 }, (_, i) => (i + 1) / 20), 1];
+
+/** Telegram «Энергосбережение»: a slider Выкл. … «При заряде менее N%» … Вкл., then the heavy processes. */
 function MotionSettings() {
-  const t = useTheme(); const preferences = useChatPreferences(); const motion = useMotion();
-  const options: { id: AnimationMode; label: string }[] = [{ id: 'auto', label: 'Авто' }, { id: 'on', label: 'Всегда' }, { id: 'off', label: 'Выкл' }];
-  return <View style={{ padding: 14, gap: 10 }}>
-    <View style={{ flexDirection: 'row', gap: 7 }}>{options.map(option => {
-      const selected = preferences.animations === option.id;
-      return <Pressable key={option.id} accessibilityRole="radio" accessibilityState={{ selected }} onPress={() => setChatPreferences({ animations: option.id })} style={{ flex: 1, alignItems: 'center', paddingVertical: 10, borderRadius: 15, backgroundColor: selected ? t.accentSoft : t.surface2, borderWidth: 1, borderColor: selected ? t.accent : t.border }}><Text style={{ color: selected ? t.accent : t.text, fontSize: 13, fontWeight: '600' }}>{option.label}</Text></Pressable>;
-    })}</View>
-    {preferences.animations === 'auto' ? <View style={{ gap: 7 }}><Text style={{ color: t.muted, fontSize: 12 }}>Энергосбережение: выключать при заряде</Text><View style={{ flexDirection: 'row', gap: 7 }}>{[0, 0.15, 0.27, 0.4].map(level => {
-      const selected = preferences.lowBattery === level;
-      return <Pressable key={level} accessibilityRole="radio" accessibilityState={{ selected }} onPress={() => setChatPreferences({ lowBattery: level })} style={{ flex: 1, alignItems: 'center', paddingVertical: 8, borderRadius: 13, backgroundColor: selected ? t.accentSoft : t.surface2, borderWidth: 1, borderColor: selected ? t.accent : t.border }}><Text style={{ color: selected ? t.accent : t.text, fontSize: 12, fontWeight: '600' }}>{level ? `≤ ${Math.round(level * 100)}%` : 'Никогда'}</Text></Pressable>;
-    })}</View></View> : null}
-    <Text style={{ color: t.muted, fontSize: 12, lineHeight: 17 }}>{motion.reason}</Text>
+  const t = useTheme(); const preferences = useChatPreferences(); const motion = useMotion(); const features = usePowerFeatures(); const power = usePowerState();
+  const [width, setWidth] = useState(0);
+  const index = Math.max(0, POWER_STEPS.findIndex(step => Math.abs(step - preferences.lowBattery) < 0.026));
+  const value = POWER_STEPS[index];
+  const at = (x: number) => { const i = Math.round(Math.max(0, Math.min(1, x / Math.max(1, width))) * (POWER_STEPS.length - 1)); if (POWER_STEPS[i] !== preferences.lowBattery) setChatPreferences({ lowBattery: POWER_STEPS[i] }); };
+  const pan = useMemo(() => PanResponder.create({ onStartShouldSetPanResponder: () => true, onMoveShouldSetPanResponder: () => true, onPanResponderGrant: e => at(e.nativeEvent.locationX), onPanResponderMove: e => at(e.nativeEvent.locationX) }), [width, preferences.lowBattery]);
+  const share = index / (POWER_STEPS.length - 1);
+  const label = value <= 0 ? 'Выключен' : value >= 1 ? 'Включён всегда' : `При заряде менее ${Math.round(value * 100)}%`;
+  const rows: { key: 'autoplayVideo' | 'autoplayGif' | 'animatedStickers' | 'animatedEmoji'; icon: IconName; color: string; title: string; text: string }[] = [
+    { key: 'autoplayVideo', icon: 'videocam', color: '#F0544F', title: 'Автозапуск видео', text: 'Кружки и видео в чатах сами играют без звука, видео-аватары двигаются.' },
+    { key: 'autoplayGif', icon: 'images', color: '#F5A623', title: 'Автозапуск GIF', text: 'GIF в чатах, на аватарах и баннерах проигрываются сами.' },
+    { key: 'animatedStickers', icon: 'happy', color: '#34C759', title: 'Анимированные стикеры', text: 'Большие эмодзи в сообщениях двигаются.' },
+    { key: 'animatedEmoji', icon: 'sparkles', color: '#2BB5B8', title: 'Анимированные эмодзи', text: 'Эмодзи-статусы рядом с именем двигаются.' },
+  ];
+  return <View style={{ paddingVertical: 6 }}>
+    <View style={{ paddingHorizontal: 14, paddingTop: 8, gap: 10 }}>
+      <Text style={{ color: t.muted, fontSize: 12 }}>{`Режим энергосбережения (${features.saving ? 'вкл.' : 'выкл.'})`}</Text>
+      <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+        <Text style={{ color: t.muted, fontSize: 13 }}>Выкл.</Text>
+        <Text style={{ flex: 1, textAlign: 'center', color: t.text, fontSize: 15, fontWeight: '600' }}>{label}</Text>
+        <Text style={{ color: t.muted, fontSize: 13 }}>Вкл.</Text>
+      </View>
+      <View accessibilityRole="adjustable" accessibilityLabel="Режим энергосбережения" accessibilityValue={{ text: label }}
+        accessibilityActions={[{ name: 'increment' }, { name: 'decrement' }]}
+        onAccessibilityAction={e => { const i = Math.max(0, Math.min(POWER_STEPS.length - 1, index + (e.nativeEvent.actionName === 'increment' ? 1 : -1))); setChatPreferences({ lowBattery: POWER_STEPS[i] }); }}
+        onLayout={e => setWidth(e.nativeEvent.layout.width)} {...pan.panHandlers} style={{ height: 34, justifyContent: 'center' }}>
+        <View pointerEvents="none" style={{ height: 4, borderRadius: 2, backgroundColor: t.border }}><View style={{ width: `${share * 100}%`, height: 4, borderRadius: 2, backgroundColor: t.accent }} /></View>
+        <View pointerEvents="none" style={{ position: 'absolute', left: Math.max(0, share * width - 14), width: 28, height: 28, borderRadius: 14, backgroundColor: '#FFF', shadowColor: '#000', shadowOpacity: .2, shadowRadius: 4, shadowOffset: { width: 0, height: 1 }, elevation: 3 }} />
+      </View>
+      <Text style={{ color: t.muted, fontSize: 12, lineHeight: 17 }}>{value <= 0 ? 'Не включается сам по заряду (только в системном режиме энергосбережения).' : value >= 1 ? 'Все ресурсоёмкие процессы выключены.' : `Автоматически отключать все ресурсоёмкие процессы при заряде менее ${Math.round(value * 100)}%${power.level !== null ? ` (сейчас ${Math.round(power.level * 100)}%)` : ''}.`}</Text>
+    </View>
+    <Text style={{ color: t.muted, fontSize: 11, fontWeight: '700', letterSpacing: 1.2, paddingHorizontal: 14, paddingTop: 18, paddingBottom: 4 }}>РЕСУРСОЁМКИЕ ПРОЦЕССЫ</Text>
+    {rows.map(row => <PowerRow key={row.key} icon={row.icon} color={row.color} title={row.title} text={row.text} value={preferences[row.key]} onChange={v => setChatPreferences({ [row.key]: v })} />)}
+    <PowerRow icon="color-wand" color="#3E8BFF" title="Анимации интерфейса" text="Плавные переходы, рамки и эффекты профиля." value={preferences.animations !== 'off'} onChange={v => setChatPreferences({ animations: v ? 'auto' : 'off' })} />
+    <Text style={{ color: t.muted, fontSize: 12, lineHeight: 17, paddingHorizontal: 14, paddingTop: 6, paddingBottom: 8 }}>{motion.reason}</Text>
+  </View>;
+}
+
+function PowerRow({ icon, color, title, text, value, onChange }: { icon: IconName; color: string; title: string; text: string; value: boolean; onChange: (value: boolean) => void }) {
+  const t = useTheme();
+  return <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12, paddingHorizontal: 14, paddingVertical: 10 }}>
+    <View style={{ width: 30, height: 30, borderRadius: 8, backgroundColor: color, alignItems: 'center', justifyContent: 'center' }}><Icon name={icon} size={17} color="#FFF" /></View>
+    <View style={{ flex: 1, gap: 2 }}><Text style={{ color: t.text, fontSize: 15 }}>{title}</Text><Text style={{ color: t.muted, fontSize: 12, lineHeight: 16 }}>{text}</Text></View>
+    <Switch accessibilityLabel={title} value={value} onValueChange={onChange} trackColor={{ false: t.subtle, true: t.accent }} thumbColor="#FFF" />
   </View>;
 }

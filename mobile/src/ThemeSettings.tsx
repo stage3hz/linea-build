@@ -39,27 +39,24 @@ export function ThemeSettings({ mode, darkTheme, onChange, onDarkTheme, platina 
 }) {
   const t = useTheme();
   const [lockedHint, setLockedHint] = useState(false);
+  // «Как в системе» (from before night settings) shows as the light day theme.
+  const isDay = (value: ThemeMode) => mode === value || (mode === 'system' && value === 'light');
   const pick = (id: (typeof PALETTES)[number]['id']) => {
     if (!platina) { if (onLocked) onLocked(); else setLockedHint(true); return; }
-    if (mode === 'system') onDarkTheme(id); else onChange(id);
+    onChange(id);
   };
   return <View style={{ gap: 16 }}>
-    <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12 }}>
-      <Icon name="phone-portrait-outline" color={t.muted} size={23}/>
-      <View style={{ flex: 1, gap: 5 }}><Text style={{ color: t.text, fontSize: 15, fontWeight: '700' }}>Автоматически</Text><Text style={{ color: t.muted, fontSize: 12, lineHeight: 17 }}>Следовать светлой или тёмной теме устройства.</Text></View>
-      <Switch accessibilityLabel="Автоматически менять тему вместе с системой" value={mode === 'system'} onValueChange={enabled => onChange(enabled ? 'system' : (PALETTES.some(p => p.id === darkTheme) || darkTheme === 'graphite') && t.dark ? darkTheme : t.black ? 'black' : t.dark ? 'dark' : 'light')} trackColor={{ false: t.surface2, true: t.accent }} thumbColor={mode === 'system' ? t.onAccent : t.muted}/>
-    </View>
-    <View style={{ flexDirection: 'row', gap: 9 }}>{appearances.map(item => <Pressable key={item.value} onPress={() => onChange(item.value)} accessibilityRole="radio" accessibilityLabel={`${item.label} тема`} accessibilityState={{ selected: mode === item.value }} style={{ flex: 1, minHeight: 110, gap: 10, padding: 10, borderRadius: 20, borderWidth: 1, borderColor: mode === item.value ? t.accent : t.border, backgroundColor: mode === item.value ? t.accentSoft : 'transparent' }}>
+    {/* The day theme; when the night theme turns on is set in «Ночной режим» below (Telegram). */}
+    <View style={{ flexDirection: 'row', gap: 9 }}>{appearances.map(item => <Pressable key={item.value} onPress={() => onChange(item.value)} accessibilityRole="radio" accessibilityLabel={`${item.label} тема`} accessibilityState={{ selected: isDay(item.value) }} style={{ flex: 1, minHeight: 110, gap: 10, padding: 10, borderRadius: 20, borderWidth: 1, borderColor: isDay(item.value) ? t.accent : t.border, backgroundColor: mode === item.value ? t.accentSoft : 'transparent' }}>
       <View style={{ height: 51, borderRadius: 12, backgroundColor: item.color, borderWidth: 1, borderColor: item.line, padding: 8, gap: 5 }}><View style={{ width: '68%', height: 7, borderRadius: 4, backgroundColor: item.line }}/><View style={{ width: '48%', height: 7, borderRadius: 4, backgroundColor: item.line }}/><View style={{ alignSelf: 'flex-end', width: '52%', height: 7, borderRadius: 4, backgroundColor: item.line }}/></View>
-      <View style={{ flexDirection: 'row', justifyContent: 'center', alignItems: 'center', gap: 4 }}><Text style={{ color: mode === item.value ? t.text : t.muted, fontSize: 12, fontWeight: '600' }}>{item.label}</Text>{mode === item.value ? <Icon name="checkmark-circle" color={t.accent} size={15}/> : null}</View>
+      <View style={{ flexDirection: 'row', justifyContent: 'center', alignItems: 'center', gap: 4 }}><Text style={{ color: isDay(item.value) ? t.text : t.muted, fontSize: 12, fontWeight: '600' }}>{item.label}</Text>{isDay(item.value) ? <Icon name="checkmark-circle" color={t.accent} size={15}/> : null}</View>
     </Pressable>)}</View>
     <View style={{ gap: 9 }}>
       <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}><Text style={{ color: t.muted, fontSize: 11, fontWeight: '700', letterSpacing: 1.2 }}>ПАЛИТРЫ</Text>{platina ? null : <Text style={{ color: t.muted, fontSize: 11 }}>· с Platina</Text>}</View>
       <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ gap: 9, paddingRight: 4 }}>
-        {PALETTES.map(p => <PaletteCard key={p.id} id={p.id} locked={!platina} selected={platina && (mode === p.id || (mode === 'system' && darkTheme === p.id))} onPress={() => pick(p.id)} />)}
+        {PALETTES.map(p => <PaletteCard key={p.id} id={p.id} locked={!platina} selected={platina && mode === p.id} onPress={() => pick(p.id)} />)}
       </ScrollView>
       {lockedHint && !platina ? <Text style={{ color: t.muted, fontSize: 12, lineHeight: 17 }}>Палитры входят в Инвиз Platina. Войди в аккаунт с Platina, чтобы их включить.</Text> : null}
     </View>
-    {mode === 'system' ? <View style={{ gap: 9 }}><Text style={{ color: t.muted, fontSize: 12 }}>Когда система переключается на тёмную тему (или выбери палитру выше):</Text><View style={{ flexDirection: 'row', gap: 8 }}>{(['dark', 'black', 'graphite'] as const).map(value => <Pressable key={value} accessibilityRole="radio" accessibilityState={{ selected: darkTheme === value }} onPress={() => onDarkTheme(value)} style={{ flex: 1, minHeight: 44, borderRadius: 15, borderWidth: 1, borderColor: darkTheme === value ? t.accent : t.border, backgroundColor: darkTheme === value ? t.accentSoft : 'transparent', flexDirection: 'row', justifyContent: 'center', alignItems: 'center', gap: 6 }}><Text style={{ color: darkTheme === value ? t.text : t.muted, fontSize: 12 }}>{THEME_NAMES[value]}</Text>{darkTheme === value ? <Icon name="checkmark" size={15} color={t.accent}/> : null}</Pressable>)}</View></View> : <Text style={{ color: t.muted, fontSize: 12, lineHeight: 18 }}>Ручной выбор сохраняется после перезапуска и не зависит от темы устройства.</Text>}
   </View>;
 }

@@ -15,7 +15,7 @@ import type { Api } from '../api';
 import type { User } from '../types';
 import { AuthImage, Avatar } from '../components';
 import { MusicAmbient, type AmbientTone } from '../music/MusicAmbient';
-import { useMotion } from '../motion';
+import { useMotion, usePowerFeatures } from '../motion';
 import { useTheme } from '../theme';
 import { DecorationArt, findDecoration } from './Decorations';
 
@@ -93,7 +93,8 @@ export function DecoratedAvatar({ user, api, size = 54, animated = false, round 
   // Frames and decorations are drawn locally, so they always move when animations are on; only the
   // video avatar waits for a good enough connection (before, a weak link froze the frames after a moment).
   const live = animated && enabled;
-  const video = live && autoload('animatedAvatar', tier) && user.avatarVideoId ? user.avatarVideoId : null;
+  const features = usePowerFeatures();
+  const video = live && features.video && autoload('animatedAvatar', tier) && user.avatarVideoId ? user.avatarVideoId : null;
   const decoration = birthday ? undefined : findDecoration(user.avatarFrame);
   const coded = !birthday && isCodeFrame(user.avatarFrame) ? user.avatarFrame : null;
   // Small (list) sizes: the art may reach at most 1.3× the avatar box so it does not cover the

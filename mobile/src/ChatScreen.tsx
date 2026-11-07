@@ -3,6 +3,7 @@ import { StatusEmoji } from './StatusEmoji';
 import { useMeshActive } from './nearby/meshState';
 import { PlatinaGem, PlatinaName, hasPlatina } from './platina/PlatinaMark';
 import { DecoratedAvatar } from './platina/Decor';
+import { usePowerFeatures } from './motion';
 import { ChatWallpaper, WallpaperPicker } from './WallpaperPicker';
 import { useWallpaper } from './wallpapers';
 import { usePlatina } from './platina/usePlatina';
@@ -73,7 +74,7 @@ export function ChatScreen({api,user,chat,store,onBack,wide=false,onOpenMusic}: 
   const keyboardMotion=Platform.OS==='web'?null:useReanimatedKeyboardAnimation();
   const navInset=wide?0:insets.bottom;
   const footerInset=useAnimatedStyle(()=>({paddingBottom:navInset*(1-(keyboardMotion?keyboardMotion.progress.value:0))}));
-  const t=useTheme();const [attachMenu,setAttachMenu]=useState(false);const [uploading,setUploading]=useState(false);const [downloadId,setDownloadId]=useState<string|null>(null);const [localError,setLocalError]=useState('');const [preview,setPreview]=useState<Attachment|null>(null);const [peerInfo,setPeerInfo]=useState(()=>takeProfileRequest(chat.id));const [avatarMenu,setAvatarMenu]=useState(false);const [actions,setActions]=useState<Row|null>(null);const [menuX,setMenuX]=useState<number|undefined>(undefined);const [menuY,setMenuY]=useState(0);const [copied,setCopied]=useState(false);
+  const powerFeatures=usePowerFeatures();const t=useTheme();const [attachMenu,setAttachMenu]=useState(false);const [uploading,setUploading]=useState(false);const [downloadId,setDownloadId]=useState<string|null>(null);const [localError,setLocalError]=useState('');const [preview,setPreview]=useState<Attachment|null>(null);const [peerInfo,setPeerInfo]=useState(()=>takeProfileRequest(chat.id));const [avatarMenu,setAvatarMenu]=useState(false);const [actions,setActions]=useState<Row|null>(null);const [menuX,setMenuX]=useState<number|undefined>(undefined);const [menuY,setMenuY]=useState(0);const [copied,setCopied]=useState(false);
   const [securityOpen,setSecurityOpen]=useState(false);
   const photoContext=`${user.id}:${chat.id}`;const currentPhotoContext=useRef(photoContext);currentPhotoContext.current=photoContext;
   const text=store.drafts[chat.id]||'';const attachments=store.draftFiles[chat.id]||[];
@@ -309,7 +310,7 @@ export function ChatScreen({api,user,chat,store,onBack,wide=false,onOpenMusic}: 
     const newerSender=newer?.pending?user.id:newer?.message?.senderId;
     const groupNext=!!newer&&newerSender===(p?user.id:message?.senderId)&&new Date(newer.createdAt).toDateString()===new Date(item.createdAt).toDateString()&&Date.parse(newer.createdAt)-Date.parse(item.createdAt)<5*60_000;
     if(item.missing)return <MissingRow count={item.missing}/>;
-    return <MessageRow animatedEmoji={platina} groupNext={groupNext} row={item} selecting={!!selection} selected={!!selection?.has(item.key)} fresh={fresh(item.key)} olderCreatedAt={rows[index+1]?.createdAt} mine={mine} author={mine?'Ты':peerName} peerLastRead={peerLastRead} wide={wide} fontSize={metrics.fontSize} lineHeight={metrics.lineHeight} radius={preferences.bubbleRadius} downloading={!!downloadId&&file?.id===downloadId} replyAuthor={reply?(reply.senderId===user.id?'Ты':peerName):undefined} replyText={reply?(original?replyPreview(original):reply.preview||'Сообщение удалено'):undefined} api={api} handlers={handlers}/>;
+    return <MessageRow animatedEmoji={platina&&powerFeatures.stickers} groupNext={groupNext} row={item} selecting={!!selection} selected={!!selection?.has(item.key)} fresh={fresh(item.key)} olderCreatedAt={rows[index+1]?.createdAt} mine={mine} author={mine?'Ты':peerName} peerLastRead={peerLastRead} wide={wide} fontSize={metrics.fontSize} lineHeight={metrics.lineHeight} radius={preferences.bubbleRadius} downloading={!!downloadId&&file?.id===downloadId} replyAuthor={reply?(reply.senderId===user.id?'Ты':peerName):undefined} replyText={reply?(original?replyPreview(original):reply.preview||'Сообщение удалено'):undefined} api={api} handlers={handlers}/>;
   },[rows,user.id,peerName,peerLastRead,wide,metrics,downloadId,view.byClientId,api,selection,preferences.bubbleRadius,platina]);
   const [circleOpen,setCircleOpen]=useState(false);
   // Telegram: the sent circle appears in the chat at once (frame from the take, upload ring, ✕).

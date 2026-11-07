@@ -33,7 +33,8 @@ import { Button, Empty, Icon, Logo, Notice, Sheet, SheetAction } from './src/com
 import { clearServer, normalizeServer, readCachedUser, readDarkTheme, readServer, readTheme, readToken, writeCachedUser, writeDarkTheme, writeServer, writeTheme, writeToken } from './src/storage';
 import { ThemeContext, palette, useTheme } from './src/theme';
 import type { DarkTheme, Session, ThemeMode, User } from './src/types';
-import { resolveTheme, withPlatina } from './src/themePreference';
+import {resolveTheme,withPlatina,themeFor} from './src/themePreference';
+import { useNightState } from './src/nightTheme';
 import { useKnownPlatina, usePlatina } from './src/platina/usePlatina';
 import { hasPlatina } from './src/platina/PlatinaMark';
 import { THEME_NAMES, ThemeSettings } from './src/ThemeSettings';
@@ -79,7 +80,8 @@ export default function App() {
   // Palettes are a Platina feature: the server's answer wins, the account's seal is the instant hint.
   const knownPlatina=useKnownPlatina(session?.user.id??null);const platina=!!session&&(knownPlatina??hasPlatina(session.user));
   const shownMode=withPlatina(mode,platina) as ThemeMode,shownDark=withPlatina(darkTheme,platina) as DarkTheme;
-  const theme=palette[resolveTheme(shownMode,shownDark,system)];
+  // Night theme (schedule, brightness, system or by hand) over the chosen day theme.
+  const {night}=useNightState(shownMode);const theme=palette[themeFor(shownMode,shownDark,night)];
   const api=useMemo(()=>new Api(server||'',session?.token),[server,session?.token]);
   // SoundCloud is fetched through our server, so it needs the signed-in session (guests get Audius only).
   useEffect(()=>{setSoundCloudApi(session?.token&&server?api:null);},[api,session?.token,server]);

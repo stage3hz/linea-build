@@ -4,7 +4,7 @@ import { useRenderActive } from './renderActivity';
 import { ReduceMotion, ReducedMotionConfig } from 'react-native-reanimated';
 import * as Battery from 'expo-battery';
 import { getChatPreferences, useChatPreferences } from './chatPreferences';
-import { motionAllowed, motionReason, type PowerState } from './motionPolicy';
+import { motionAllowed, motionReason, powerSaving, type PowerState } from './motionPolicy';
 
 let power: PowerState = { level: null, charging: false, lowPower: false, reduceMotion: false };
 const listeners = new Set<() => void>();
@@ -49,3 +49,18 @@ export function MotionRoot() {
   useEffect(() => { start(); }, []);
   return <ReducedMotionConfig mode={enabled ? ReduceMotion.Never : ReduceMotion.Always} />;
 }
+
+/** Telegram «Ресурсоёмкие процессы»: a process plays when its switch is on and power saving is not active. */
+export function usePowerFeatures(): { saving: boolean; video: boolean; gif: boolean; stickers: boolean; emoji: boolean } {
+  const preferences = useChatPreferences();
+  const state = useSyncExternalStore(subscribe, snapshot, snapshot);
+  const saving = powerSaving(state, preferences.lowBattery);
+  return { saving, video: preferences.autoplayVideo && !saving, gif: preferences.autoplayGif && !saving, stickers: preferences.animatedStickers && !saving, emoji: preferences.animatedEmoji && !saving };
+}
+/** The same outside React. */
+export function powerFeature(kind: 'video' | 'gif' | 'stickers' | 'emoji'): boolean {
+  start(); const p = getChatPreferences(); if (powerSaving(power, p.lowBattery)) return false;
+  return kind === 'video' ? p.autoplayVideo : kind === 'gif' ? p.autoplayGif : kind === 'stickers' ? p.animatedStickers : p.animatedEmoji;
+}
+/** Current battery state (for the settings screen). */
+export function usePowerState(): PowerState { return useSyncExternalStore(subscribe, snapshot, snapshot); }
