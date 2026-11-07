@@ -67,7 +67,7 @@ function TabIcon({ item, active, kick, pressed, index }: { item: TabItem; active
     return { transform: [{ scale: press * (1 + bump * 0.3) }, { rotate: `${Math.sin(k * Math.PI * 2) * 18}deg` }] };
   });
   return <Animated.View style={style}>
-    {item.id === 'profile' ? <View style={{ width: 22, height: 22, alignItems: 'center', justifyContent: 'center' }}><GearIcon size={26} active={active} accent={t.accent} muted={t.muted} /></View> : <Icon name={active ? item.activeIcon : item.icon} size={22} color={active ? t.accent : t.muted} />}
+    {item.id === 'profile' ? <View style={{ width: 22, height: 22, alignItems: 'center', justifyContent: 'center' }}><GearIcon size={24} active={active} accent={t.accent} muted={t.muted} /></View> : <Icon name={active ? item.activeIcon : item.icon} size={22} color={active ? t.accent : t.muted} />}
     {item.badge ? <View style={{ position: 'absolute', top: -6, left: 13, minWidth: 18, height: 18, paddingHorizontal: 5, borderRadius: 9, borderWidth: 2, borderColor: t.dark ? '#15171D' : '#FFF', backgroundColor: t.accent, alignItems: 'center', justifyContent: 'center' }}><Text maxFontSizeMultiplier={1} style={{ color: t.onAccent, fontSize: 10, fontWeight: '800' }}>{badgeText(item.badge)}</Text></View> : null}
   </Animated.View>;
 }

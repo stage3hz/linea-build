@@ -98,16 +98,19 @@ export type GlassSurfaceProps = {
    *  floating bars opt in. Content cards stay flat frosted glass — a lens there pulled neighbouring
    *  text into smears at the edges (Apple keeps Liquid Glass for the navigation layer too). */
   lens?:boolean;
+  /** false: never the system Liquid Glass / refracting shader — an even frosted blur with a thin rim
+   *  (the tab bar: the refraction bent the rows behind it at the edges and the bar looked uneven). */
+  systemGlass?:boolean;
 };
 
-export function GlassSurface({children,style,contentStyle,radius=26,material='regular',interactive=false,shadow=true,targetRef,lens}:GlassSurfaceProps) {
+export function GlassSurface({children,style,contentStyle,radius=26,material='regular',interactive=false,shadow=true,targetRef,lens,systemGlass=true}:GlassSurfaceProps) {
   const t=useTheme();const context=useContext(GlassContext);const target=targetRef||context.targetRef;
   const nested=useContext(NestedGlass);
   const renderActive=useRenderActive();
   const nativeGlass=useMemo(()=>{
-    if(Platform.OS!=='ios'||nested)return false;
+    if(Platform.OS!=='ios'||nested||!systemGlass)return false;
     try{return isGlassEffectAPIAvailable()&&isLiquidGlassAvailable();}catch{return false;}
-  },[nested]);
+  },[nested,systemGlass]);
   const reduceTransparency=context.reduceTransparency;
   const hasBlur=!nested&&!reduceTransparency&&(Platform.OS!=='android'||!!target);
   const regular=material==='regular';
@@ -131,7 +134,7 @@ export function GlassSurface({children,style,contentStyle,radius=26,material='re
   // (library README, «Performance»: ten on screen = ten captures per frame) — chats had up to 14 and
   // stuttered. The live glass is kept for the main bars only (`lens`: input, search, pinned…); buttons
   // and small pills get a static glass below.
-  if(androidLiquid&&lens&&!nested&&!reduceTransparency)return <LiquidGlassView paused={!renderActive} variant={material} refraction={lens??interactive} borderRadius={radius} tintColor={t.black?'rgba(0,0,0,0.5)':t.dark?'rgba(10,18,36,0.42)':regular?'rgba(255,255,255,0.34)':'rgba(255,255,255,0.18)'} brightness={t.dark?0.92:1.06} blurRadius={regular?14:10} thickness={regular?1:.45} edgeReflectionStrength={regular?1:.6} legibilityFloor={t.dark?.12:0} interactive={false} tilt={false} style={[{borderRadius:radius},style]}>
+  if(androidLiquid&&lens&&systemGlass&&!nested&&!reduceTransparency)return <LiquidGlassView paused={!renderActive} variant={material} refraction={lens??interactive} borderRadius={radius} tintColor={t.black?'rgba(0,0,0,0.5)':t.dark?'rgba(10,18,36,0.42)':regular?'rgba(255,255,255,0.34)':'rgba(255,255,255,0.18)'} brightness={t.dark?0.92:1.06} blurRadius={regular?14:10} thickness={regular?1:.45} edgeReflectionStrength={regular?1:.6} legibilityFloor={t.dark?.12:0} interactive={false} tilt={false} style={[{borderRadius:radius},style]}>
     {/* Content lives inside the glass: the shader excludes it from the backdrop, so icons do not bleed into the blur. */}
     <NestedGlass.Provider value={true}><View collapsable={false} style={[{flexGrow:1},contentStyle]}>{children}</View></NestedGlass.Provider>
   </LiquidGlassView>;
