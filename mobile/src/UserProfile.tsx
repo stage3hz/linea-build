@@ -87,10 +87,11 @@ export function UserProfile({ api, user, onClose, chat, onMessage, onMute, onSea
   if (!user) return null;
   const shown = fresh || user;
   function openViewer() { if (profileMedia(shown).length) { lightFeedback(); setViewer(0); } }
-  const tinted = !shown.bannerId && !shown.bannerPreset;
   // Their birthday: a festive header — blue (male), pink (female) or bright — a greeting line and confetti.
   const birthdayToday = isBirthdayToday(shown.birthday);
   const festive = birthdayColors(shown.gender);
+  // Telegram: the header is the plain background (or the banner); coloured only on the birthday.
+  const tinted = !shown.bannerId && !shown.bannerPreset && birthdayToday;
   const muted = !!chat?.settings?.muted;
   const toggleContact = async () => {
     if (contact === null || busy) return;

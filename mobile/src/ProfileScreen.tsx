@@ -243,8 +243,11 @@ export function ProfileScreen({ api, user, theme, darkTheme, onTheme, onDarkThem
   const titleFade = useAnimatedStyle(() => ({ opacity: interpolate(scrollY.value, [heroBottom - 70, heroBottom - 20], [0, 1], 'clamp'), transform: [{ translateY: interpolate(scrollY.value, [heroBottom - 70, heroBottom - 20], [8, 0], 'clamp') }] }));
   const barFade = useAnimatedStyle(() => ({ opacity: interpolate(scrollY.value, [heroBottom - 40, heroBottom], [0, 0.94], 'clamp') }));
   function pullOpen() { if (!editing && profileMedia(previewUser).length) setViewer(0); }
-  const tinted = !user.bannerId && !user.bannerPreset;
+  // Telegram: the top of the profile is the plain background (or the banner); only on the birthday it
+  // turns festive (blue / pink / bright).
+  const hasBanner = Boolean(user.bannerId || user.bannerPreset);
   const birthdayToday = isBirthdayToday(user.birthday ?? null); const festive = birthdayColors(user.gender ?? null);
+  const tinted = !hasBanner && birthdayToday;
   const emojiChoices = status?.statusEmojiChoices.filter(emoji => (STATIC_STATUS_EMOJI as readonly string[]).includes(emoji)) || [];
   const expiry = status?.platina.expiresAt && Number.isFinite(Date.parse(status.platina.expiresAt)) ? new Date(status.platina.expiresAt).toLocaleDateString('ru-RU', { day: 'numeric', month: 'long', year: 'numeric' }) : null;
 
@@ -269,7 +272,7 @@ export function ProfileScreen({ api, user, theme, darkTheme, onTheme, onDarkThem
       {/* The top sits on the profile's colour (or banner), as others see it; it stretches when pulled down. */}
       <View pointerEvents="none" style={{ position: 'absolute', top: -700, left: 0, right: 0, height: 700 + 68 + heroBottom + 14, overflow: 'hidden' }}>
         {tinted ? <LinearGradient colors={birthdayToday ? [festive[0], festive[1]] : [shade(user.avatarColor, 0.15), shade(user.avatarColor, -0.12)]} style={StyleSheet.absoluteFill}/> : null}
-        {!tinted ? <View onLayout={event => setBannerWidth(Math.round(event.nativeEvent.layout.width))} style={{ position: 'absolute', left: 0, right: 0, bottom: 0, height: 68 + heroBottom + 14 }}>{bannerWidth ? <ProfileBanner user={user} api={api} height={68 + heroBottom + 14} width={bannerWidth}/> : null}</View> : null}
+        {hasBanner ? <View onLayout={event => setBannerWidth(Math.round(event.nativeEvent.layout.width))} style={{ position: 'absolute', left: 0, right: 0, bottom: 0, height: 68 + heroBottom + 14 }}>{bannerWidth ? <ProfileBanner user={user} api={api} height={68 + heroBottom + 14} width={bannerWidth}/> : null}</View> : null}
       </View>
       <View onLayout={event => setHeroBottom(Math.round(event.nativeEvent.layout.height))} style={{ alignItems: 'center', gap: 6, paddingBottom: 6 }}>
         <Animated.View style={avatarShrink}><Pressable disabled={!profileMedia(previewUser).length} onPress={() => setViewer(0)} accessibilityRole="button" accessibilityLabel="Фото и видео профиля"><DecoratedAvatar user={previewUser} api={api} size={116} animated round/></Pressable></Animated.View>
