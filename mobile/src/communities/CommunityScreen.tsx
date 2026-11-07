@@ -155,12 +155,16 @@ export function CommunityScreen({ api, me, store, communityId, onBack, onOpenInv
     </ContextMenu> : null}
     <Sheet visible={inviteOpen} title="Пригласить" onClose={() => { setInviteOpen(false); setCopied(false); }}>
       <View style={{ gap: 12 }}>
-        <Text style={{ color: t.muted, fontSize: 13, lineHeight: 19 }}>Ссылка открывается и вне мессенджера: в браузере появится страница с кнопкой «Открыть в Инвиз». В чатах Инвиза ссылка показывается баннером с кнопкой «Принять приглашение».</Text>
-        <Pressable onPress={() => { void Clipboard.setStringAsync(inviteLink); setCopied(true); }} style={{ padding: 13, borderRadius: 14, backgroundColor: t.surface2, borderWidth: 1, borderColor: t.border }}><Text selectable style={{ color: t.accent, fontSize: 14 }}>{inviteLink}</Text></Pressable>
+        {/* The link itself is not shown: it is copied, shared or sent to a chat (in Инвиз chats it appears as a banner). */}
         <SheetAction icon={copied ? 'checkmark' : 'copy-outline'} label={copied ? 'Скопировано' : 'Скопировать ссылку'} onPress={() => { void Clipboard.setStringAsync(inviteLink); setCopied(true); }} />
         <SheetAction icon="share-outline" label="Поделиться…" onPress={() => { void shareText(inviteLink).then(r => { if (r === 'copied') setCopied(true); }); }} />
         <Text style={{ color: t.muted, fontSize: 11, fontWeight: '700', letterSpacing: 1, marginTop: 4 }}>ОТПРАВИТЬ В ЧАТ</Text>
-        {store.chats.slice(0, 8).map(chat => <SheetAction key={chat.id} icon="paper-plane-outline" label={chat.peer.displayName} onPress={() => { store.send(chat.id, inviteLink, null); setInviteOpen(false); }} />)}
+        {store.chats.slice(0, 20).map(chat => <Pressable key={chat.id} accessibilityRole="button" accessibilityLabel={`Отправить приглашение: ${chat.peer.displayName}`} onPress={() => { store.send(chat.id, inviteLink, null); setInviteOpen(false); }}
+          style={({ pressed }) => ({ flexDirection: 'row', alignItems: 'center', gap: 12, paddingVertical: 6, paddingHorizontal: 4, borderRadius: 14, backgroundColor: pressed ? 'rgba(127,127,127,0.12)' : 'transparent' })}>
+          <Avatar user={chat.peer} api={api} size={44} />
+          <Text raw numberOfLines={1} style={{ flex: 1, color: t.text, fontSize: 16, fontWeight: '600' }}>{chat.peer.displayName}</Text>
+          <Icon name="paper-plane-outline" size={20} color={t.accent} />
+        </Pressable>)}
       </View>
     </Sheet>
   </View>;
