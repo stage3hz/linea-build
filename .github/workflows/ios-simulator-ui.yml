@@ -31,6 +31,7 @@ jobs:
       EXPO_PUBLIC_SIMULATOR_SERVER: https://localhost:8443
       EXPO_NO_TELEMETRY: '1'
       CI: '1'
+      MAESTRO_DRIVER_STARTUP_TIMEOUT: '600000'  # the Intel runner needs ~150 s to start the driver; the 120 s default killed the walk
     steps:
       - uses: actions/checkout@v4
       - name: Select newest Xcode
