@@ -38,7 +38,7 @@ export function EqualizerScreen({ visible, onClose }: { visible: boolean; onClos
         <View style={{ borderRadius: 22, backgroundColor: card, overflow: 'hidden' }}>
           {(['recommended', 'custom'] as const).map((mode, index) => <Pressable key={mode} accessibilityRole="radio" accessibilityState={{ selected: profile.mode === mode }} onPress={() => update({ mode })} style={({ pressed }) => ({ flexDirection: 'row', alignItems: 'center', minHeight: 56, paddingHorizontal: 18, borderTopWidth: index ? 0.5 : 0, borderTopColor: t.border, backgroundColor: pressed ? t.accentSoft : 'transparent' })}>
             <Text style={{ flex: 1, color: t.text, fontSize: 17 }}>{mode === 'recommended' ? 'Рекомендованный' : 'Пользовательский'}</Text>
-            {profile.mode === mode ? <Icon name="checkmark" size={22} color="#0A84FF" /> : null}
+            {profile.mode === mode ? <Icon name="checkmark" size={22} color={t.accent} /> : null}
           </Pressable>)}
         </View>
         <Text style={{ color: t.muted, fontSize: 13, lineHeight: 18, paddingHorizontal: 4 }}>«Рекомендованный» — звук трека без изменений. В «Пользовательском» потяни точки НЧ, СЧ и ВЧ вверх или вниз. Настройка одна для динамика, проводных и Bluetooth-наушников.</Text>
@@ -51,7 +51,7 @@ export function EqualizerScreen({ visible, onClose }: { visible: boolean; onClos
           <View style={{ height: 0.5, backgroundColor: t.border }} />
           <Curve width={width - 68} profile={profile} disabled={profile.mode !== 'custom'} onChange={(key, value) => update({ [key]: value })} />
         </View>
-        <Pressable accessibilityRole="button" onPress={() => { lightFeedback(); update({ low: 0, mid: 0, high: 0 }); }} style={({ pressed }) => ({ height: 54, borderRadius: 27, backgroundColor: card, alignItems: 'center', justifyContent: 'center', opacity: pressed ? .6 : 1 })}><Text style={{ color: '#0A84FF', fontSize: 17 }}>Сбросить</Text></Pressable>
+        <Pressable accessibilityRole="button" onPress={() => { lightFeedback(); update({ low: 0, mid: 0, high: 0 }); }} style={({ pressed }) => ({ height: 54, borderRadius: 27, backgroundColor: card, alignItems: 'center', justifyContent: 'center', opacity: pressed ? .6 : 1 })}><Text style={{ color: t.accent, fontSize: 17 }}>Сбросить</Text></Pressable>
         {!equalizerAvailable ? <Text style={{ color: t.muted, fontSize: 12, textAlign: 'center' }}>Эквалайзер заработает в новой сборке приложения.</Text> : null}
       </ScrollView>
     </GestureHandlerRootView>
@@ -83,7 +83,7 @@ function Curve({ width, profile, disabled, onChange }: { width: number; profile:
       </Defs>
       {active !== null ? <Rect x={xs[active] - width * 0.165} y={0} width={width * 0.33} height={height} fill="url(#eqfocus)" /> : null}
       {xs.map(x => <Line key={x} x1={x} y1={8} x2={x} y2={height - 8} stroke={t.muted} strokeOpacity={0.5} strokeDasharray="4 5" strokeWidth={1} />)}
-      <Line x1={0} y1={yOf(0)} x2={width} y2={yOf(0)} stroke="#0A84FF" strokeWidth={3} strokeDasharray="0.1 7" strokeLinecap="round" />
+      <Line x1={0} y1={yOf(0)} x2={width} y2={yOf(0)} stroke={t.accent} strokeWidth={3} strokeDasharray="0.1 7" strokeLinecap="round" />
       <Path d={path} stroke="url(#eqline)" strokeWidth={5} fill="none" strokeLinecap="round" />
       {xs.map((x, index) => <Circle key={index} cx={x} cy={ys[index]} r={active === index ? 15 : 13} fill={colour(values[index])} />)}
     </Svg>

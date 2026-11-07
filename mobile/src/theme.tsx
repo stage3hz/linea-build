@@ -47,16 +47,17 @@ const basePalette:Record<'light'|'dark'|'black'|'graphite',Theme> = {
     bgGradient:['#08090A','#08090A','#08090A'], ambientBlue:'rgba(255,255,255,0.03)', ambientLilac:'rgba(255,255,255,0.02)',
     accentGradient:['#F2F2F2','#C8C8C8'], plain:true,
   },
-  // «Графит»: the iPhone's dark grey — #1C1C1E page, #2C2C2E panels, #3A3A3C raised, system-blue accent.
+  // «Графит»: the iPhone's dark grey — #1C1C1E page, #2C2C2E panels, #3A3A3C raised. Selected and active
+  // controls are in the theme's own light graphite (as «Чёрная» uses white), not a foreign blue.
   graphite: {
     dark:true, black:false, bg:'#1C1C1E', surface:'rgba(44,44,46,0.96)', surface2:'rgba(58,58,60,0.9)', text:'#F2F2F7',
-    muted:'#A1A1A8', border:'rgba(255,255,255,0.10)', accent:'#4A9DFF', accentSoft:'rgba(74,157,255,0.15)',
-    onAccent:'#FFFFFF', bubble:'rgba(46,92,160,0.96)', incoming:'rgba(44,44,46,0.96)', danger:'#FF8A8A', dangerBg:'rgba(84,32,36,0.88)',
+    muted:'#A1A1A8', border:'rgba(255,255,255,0.10)', accent:'#D1D1D6', accentSoft:'rgba(209,209,214,0.13)',
+    onAccent:'#1C1C1E', bubble:'rgba(72,72,76,0.97)', incoming:'rgba(44,44,46,0.96)', danger:'#FF8A8A', dangerBg:'rgba(84,32,36,0.88)',
     chatBg:'transparent', subtle:'#7C7C83', shadow:'#000000',
     glass:'rgba(44,44,46,0.62)', glassClear:'rgba(44,44,46,0.28)', glassBorder:'rgba(255,255,255,0.10)',
     glassHighlight:'rgba(255,255,255,0.12)', glassTint:'rgba(28,28,30,0.30)', glassOpaque:'#2C2C2E',
     bgGradient:['#1C1C1E','#1C1C1E','#1C1C1E'], ambientBlue:'rgba(255,255,255,0.02)', ambientLilac:'rgba(255,255,255,0.01)',
-    accentGradient:['#5AA7FF','#2F86F0'], plain:true,
+    accentGradient:['#E5E5EA','#AEAEB2'], plain:true,
   },
 };
 /** Built-in themes plus the colour palettes (Аметист, Кофе, …). */
