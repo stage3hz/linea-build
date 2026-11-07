@@ -1,0 +1,129 @@
+# The app in the iPhone Simulator, checked by a robot before a build goes to the phone.
+# A local test server runs on the same Mac behind HTTPS (a test CA trusted inside this simulator only;
+# TLS stays on), the app is built for the simulator with that server baked in (EXPO_PUBLIC_SIMULATOR_SERVER,
+# accepted by the app only as https://localhost:<port>; release builds never set it), Maestro registers a
+# test account and walks the main screens in the dark and light appearance, and the screenshots are
+# uploaded. Nothing here touches the real server or real accounts. No camera in the simulator: round
+# videos still need a device.
+name: iOS Simulator UI check
+on:
+  push:
+    branches: [main]
+    paths: ['mobile/src/**', 'mobile/modules/**', 'tools/maestro/**', 'tools/sim-tls-proxy.mjs', '.github/workflows/ios-simulator-ui.yml', '!mobile/src/**/*.web.ts', '!mobile/src/**/*.web.tsx']
+  workflow_dispatch:
+    inputs:
+      runner:
+        description: macOS runner label
+        required: false
+        default: macos-15-intel
+permissions:
+  contents: read
+concurrency:
+  group: ios-simulator-ui
+  cancel-in-progress: true
+jobs:
+  ui:
+    runs-on: ${{ inputs.runner || 'macos-15-intel' }}
+    timeout-minutes: 120
+    env:
+      APP_ENV: development
+      EXPO_PUBLIC_ALLOW_LOCAL_HTTP: '0'
+      EXPO_PUBLIC_SIMULATOR_SERVER: https://localhost:8443
+      EXPO_NO_TELEMETRY: '1'
+      CI: '1'
+    steps:
+      - uses: actions/checkout@v4
+      - name: Select newest Xcode
+        run: |
+          XC=$(ls -d /Applications/Xcode_*.app | grep -v -i beta | sort -V | tail -1)
+          sudo xcode-select -s "$XC/Contents/Developer"
+          xcodebuild -version
+          pod --version || sudo gem install cocoapods
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+      - name: Pick the newest iPhone Pro simulator
+        run: |
+          xcrun simctl list devices available --json > simulators.json
+          python3 - <<'PY'
+          import json,os,re
+          devices=json.load(open('simulators.json'))['devices']
+          phones=[(tuple(map(int,re.findall(r'\d+',runtime))),d) for runtime,items in devices.items() if 'iOS' in runtime for d in items if 'iPhone' in d['name']]
+          if not phones: raise SystemExit('No iPhone simulator runtime installed')
+          latest=max(v for v,_ in phones)
+          pros=[d for v,d in phones if v==latest and 'Pro' in d['name'] and 'Max' not in d['name']] or [d for v,d in phones if v==latest]
+          phone=sorted(pros,key=lambda d:d['name'])[-1]
+          with open(os.environ['GITHUB_ENV'],'a') as out: out.write('SIMULATOR_UDID='+phone['udid']+'\n')
+          print('Simulator:',phone['name'],latest)
+          PY
+          ARCH=$(uname -m); echo "SIM_ARCH=$ARCH" >> "$GITHUB_ENV"
+          if [ "$ARCH" = arm64 ]; then echo "SIM_RUST=aarch64-apple-ios-sim" >> "$GITHUB_ENV"; else echo "SIM_RUST=x86_64-apple-ios" >> "$GITHUB_ENV"; fi
+      - name: Install dependencies
+        run: |
+          (cd mobile && npm ci --no-audit --no-fund)
+          (cd server && npm ci --no-audit --no-fund)
+      - name: Test CA and localhost certificate (this run only)
+        run: |
+          OSSL=$(brew --prefix openssl@3 2>/dev/null)/bin/openssl; [ -x "$OSSL" ] || OSSL=openssl
+          mkdir -p tls && cd tls
+          "$OSSL" req -x509 -newkey rsa:2048 -nodes -days 2 -subj "/CN=INVIZENT Simulator Test CA" -keyout ca.key -out ca.pem -addext "basicConstraints=critical,CA:TRUE" -addext "keyUsage=critical,keyCertSign,cRLSign"
+          "$OSSL" req -newkey rsa:2048 -nodes -subj "/CN=localhost" -keyout leaf.key -out leaf.csr
+          printf "subjectAltName=DNS:localhost,IP:127.0.0.1\nextendedKeyUsage=serverAuth\nbasicConstraints=CA:FALSE\nkeyUsage=digitalSignature,keyEncipherment\n" > ext.cnf
+          "$OSSL" x509 -req -in leaf.csr -CA ca.pem -CAkey ca.key -CAcreateserial -days 2 -sha256 -extfile ext.cnf -out leaf.pem
+      - name: Start the local test server behind HTTPS
+        run: |
+          mkdir -p srvdata
+          (cd server && DATA_DIR="$GITHUB_WORKSPACE/srvdata" PORT=3999 HOST=127.0.0.1 nohup node src/index.js > ../server.log 2>&1 &)
+          nohup node tools/sim-tls-proxy.mjs tls/leaf.pem tls/leaf.key 8443 3999 > proxy.log 2>&1 &
+          for i in $(seq 1 30); do curl -fsS --cacert tls/ca.pem https://localhost:8443/health && break; sleep 1; done
+      - name: Build the app for the simulator
+        run: |
+          set -o pipefail
+          cd mobile
+          npx expo prebuild --platform ios --clean --no-install
+          cd ios && pod install
+          SCHEME=$(basename *.xcworkspace .xcworkspace); echo "SCHEME=$SCHEME" >> "$GITHUB_ENV"
+          xcodebuild -workspace "$SCHEME.xcworkspace" -scheme "$SCHEME" -configuration Release -sdk iphonesimulator \
+            -destination 'generic/platform=iOS Simulator' -derivedDataPath simbuild ARCHS="$SIM_ARCH" ONLY_ACTIVE_ARCH=YES \
+            CARGO_BUILD_TARGET="$SIM_RUST" LINEA_SIGNAL_FFI_TARGET="$SIM_RUST" \
+            CODE_SIGNING_ALLOWED=YES CODE_SIGNING_REQUIRED=YES CODE_SIGN_STYLE=Manual CODE_SIGN_IDENTITY='-' CODE_SIGN_ENTITLEMENTS='' CODE_SIGN_INJECT_BASE_ENTITLEMENTS=YES \
+            build > ../../simulator-build.log 2>&1 || { tail -120 ../../simulator-build.log; exit 1; }
+      - name: Boot the simulator, trust the test CA, install the app
+        run: |
+          set -euo pipefail
+          APP="mobile/ios/simbuild/Build/Products/Release-iphonesimulator/$SCHEME.app"
+          xcrun simctl boot "$SIMULATOR_UDID"
+          xcrun simctl bootstatus "$SIMULATOR_UDID" -b
+          xcrun simctl keychain "$SIMULATOR_UDID" add-root-cert tls/ca.pem
+          xcrun simctl status_bar "$SIMULATOR_UDID" override --time 9:41 --batteryState charged --batteryLevel 100 || true
+          xcrun simctl install "$SIMULATOR_UDID" "$APP"
+      - name: Install Maestro
+        run: |
+          curl -fsSL "https://get.maestro.mobile.dev" | bash
+          echo "$HOME/.maestro/bin" >> "$GITHUB_PATH"
+      - name: Walk the screens (dark, then light)
+        timeout-minutes: 40
+        run: |
+          mkdir -p shots && cd shots
+          xcrun simctl ui "$SIMULATOR_UDID" appearance dark
+          maestro --device "$SIMULATOR_UDID" test -e THEME=dark "$GITHUB_WORKSPACE/tools/maestro/register-and-screens.yaml" || echo "DARK_FAILED=1" >> "$GITHUB_ENV"
+          xcrun simctl ui "$SIMULATOR_UDID" appearance light
+          maestro --device "$SIMULATOR_UDID" test -e THEME=light "$GITHUB_WORKSPACE/tools/maestro/screens-again.yaml" || echo "LIGHT_FAILED=1" >> "$GITHUB_ENV"
+          xcrun simctl io "$SIMULATOR_UDID" screenshot zz-last-state.png || true
+      - name: Collect logs
+        if: always()
+        run: |
+          mkdir -p shots
+          cp server.log proxy.log simulators.json shots/ 2>/dev/null || true
+          tail -300 simulator-build.log > shots/simulator-build-tail.log 2>/dev/null || true
+          cp -R "$HOME/.maestro/tests" shots/maestro-tests 2>/dev/null || true
+          xcrun simctl spawn "$SIMULATOR_UDID" log show --last 5m --style compact --predicate 'process == "INVIZENT"' > shots/app.log 2>/dev/null || true
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: ios-simulator-ui
+          path: shots
+          if-no-files-found: ignore
+      - name: Fail if a walk failed
+        if: env.DARK_FAILED == '1' || env.LIGHT_FAILED == '1'
+        run: exit 1

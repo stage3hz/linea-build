@@ -1,0 +1,209 @@
+appId: com.linea.messenger.preview
+---
+- launchApp:
+    clearState: true
+- extendedWaitUntil:
+    visible: "Создать аккаунт"
+    timeout: 90000
+- takeScreenshot: 00-auth
+- tapOn: "Создать аккаунт"
+- tapOn:
+    id: "field-Логин"
+- inputText: "s"
+- inputText: "i"
+- inputText: "m"
+- inputText: "t"
+- inputText: "e"
+- inputText: "s"
+- inputText: "t"
+- inputText: "e"
+- inputText: "r"
+- inputText: "1"
+- tapOn:
+    id: "field-Повтори логин"
+- inputText: "s"
+- inputText: "i"
+- inputText: "m"
+- inputText: "t"
+- inputText: "e"
+- inputText: "s"
+- inputText: "t"
+- inputText: "e"
+- inputText: "r"
+- inputText: "1"
+- hideKeyboard
+- tapOn:
+    id: "auth-submit"
+- extendedWaitUntil:
+    visible:
+      id: "field-Имя"
+    timeout: 20000
+- tapOn:
+    id: "field-Имя"
+- inputText: "S"
+- inputText: "i"
+- inputText: "m"
+- inputText: " "
+- inputText: "T"
+- inputText: "e"
+- inputText: "s"
+- inputText: "t"
+- inputText: "e"
+- inputText: "r"
+- tapOn:
+    id: "field-Публичный @юзернейм"
+- inputText: "s"
+- inputText: "i"
+- inputText: "m"
+- inputText: "u"
+- inputText: "i"
+- inputText: "_"
+- inputText: "c"
+- inputText: "h"
+- inputText: "e"
+- inputText: "c"
+- inputText: "k"
+- hideKeyboard
+- tapOn:
+    id: "auth-submit"
+- extendedWaitUntil:
+    visible:
+      id: "field-Пароль"
+    timeout: 20000
+- tapOn:
+    id: "field-Пароль"
+- inputText: "c"
+- inputText: "o"
+- inputText: "r"
+- inputText: "r"
+- inputText: "e"
+- inputText: "c"
+- inputText: "t"
+- inputText: " "
+- inputText: "h"
+- inputText: "o"
+- inputText: "r"
+- inputText: "s"
+- inputText: "e"
+- inputText: " "
+- inputText: "b"
+- inputText: "a"
+- inputText: "t"
+- inputText: "t"
+- inputText: "e"
+- inputText: "r"
+- inputText: "y"
+- inputText: " "
+- inputText: "s"
+- inputText: "t"
+- inputText: "a"
+- inputText: "p"
+- inputText: "l"
+- inputText: "e"
+- inputText: " "
+- inputText: "4"
+- inputText: "2"
+- tapOn:
+    id: "field-Повтори пароль"
+- inputText: "c"
+- inputText: "o"
+- inputText: "r"
+- inputText: "r"
+- inputText: "e"
+- inputText: "c"
+- inputText: "t"
+- inputText: " "
+- inputText: "h"
+- inputText: "o"
+- inputText: "r"
+- inputText: "s"
+- inputText: "e"
+- inputText: " "
+- inputText: "b"
+- inputText: "a"
+- inputText: "t"
+- inputText: "t"
+- inputText: "e"
+- inputText: "r"
+- inputText: "y"
+- inputText: " "
+- inputText: "s"
+- inputText: "t"
+- inputText: "a"
+- inputText: "p"
+- inputText: "l"
+- inputText: "e"
+- inputText: " "
+- inputText: "4"
+- inputText: "2"
+- hideKeyboard
+- tapOn:
+    id: "auth-submit"
+- extendedWaitUntil:
+    visible:
+      id: "field-Слово подтверждения"
+    timeout: 20000
+- tapOn:
+    id: "field-Слово подтверждения"
+- inputText: "l"
+- inputText: "u"
+- inputText: "d"
+- inputText: "w"
+- inputText: "i"
+- inputText: "g"
+- inputText: "s"
+- inputText: "a"
+- inputText: "l"
+- inputText: "t"
+- tapOn:
+    id: "field-Повтори слово подтверждения"
+- inputText: "l"
+- inputText: "u"
+- inputText: "d"
+- inputText: "w"
+- inputText: "i"
+- inputText: "g"
+- inputText: "s"
+- inputText: "a"
+- inputText: "l"
+- inputText: "t"
+- hideKeyboard
+- tapOn:
+    id: "auth-submit"
+- extendedWaitUntil:
+    visible:
+      id: "field-Слово восстановления"
+    timeout: 20000
+- tapOn:
+    id: "field-Слово восстановления"
+- inputText: "m"
+- inputText: "a"
+- inputText: "r"
+- inputText: "i"
+- inputText: "p"
+- inputText: "o"
+- inputText: "s"
+- inputText: "a"
+- tapOn:
+    id: "field-Повтори слово восстановления"
+- inputText: "m"
+- inputText: "a"
+- inputText: "r"
+- inputText: "i"
+- inputText: "p"
+- inputText: "o"
+- inputText: "s"
+- inputText: "a"
+- hideKeyboard
+- tapOn:
+    id: "auth-submit"
+- tapOn:
+    text: "Allow"
+    optional: true
+- tapOn:
+    text: "Разрешить"
+    optional: true
+- extendedWaitUntil:
+    visible: "Избранное"
+    timeout: 60000
+- runFlow: screens.yaml

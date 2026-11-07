@@ -1,11 +1,17 @@
 // INVIZENT always connects to its own server; the address cannot be changed in the app.
-export const SERVER_URL = 'https://api.invizent.com';
+// The one exception is the iOS Simulator check in CI (.github/workflows/ios-simulator-ui.yml): it bakes
+// EXPO_PUBLIC_SIMULATOR_SERVER into that build only, and only an HTTPS address on localhost is
+// accepted, so a test build talks to a local test server (with a certificate trusted in that
+// simulator only) and never to the real one. Release builds do not set it.
+const SIMULATOR_SERVER = typeof process !== 'undefined' ? process.env.EXPO_PUBLIC_SIMULATOR_SERVER : undefined;
+const SIMULATOR = typeof SIMULATOR_SERVER === 'string' && /^https:\/\/localhost:\d{2,5}$/.test(SIMULATOR_SERVER) ? SIMULATOR_SERVER : null;
+export const SERVER_URL = SIMULATOR ?? 'https://api.invizent.com';
 // Earlier builds connected through this address. Encrypted local data (keys, history,
 // Избранное, AI history) created there is reused so nothing is lost after the switch.
-export const LEGACY_SERVER_URLS = ['https://141-133-194-51.nip.io'];
+export const LEGACY_SERVER_URLS: string[] = SIMULATOR ? [] : ['https://141-133-194-51.nip.io'];
 // Reserve entrance through Cloudflare (deploy/edge.sh): used only when no direct address
 // answers — e.g. a VPN that cannot reach the server. Messages stay end-to-end encrypted.
-export const EDGE_SERVER_URLS = ['https://invizent-api.invizent-8165e2.workers.dev'];
+export const EDGE_SERVER_URLS: string[] = SIMULATOR ? [] : ['https://invizent-api.invizent-8165e2.workers.dev'];
 
 // Version this build reports to the server (header X-Linea-Client). The server
 // may refuse clients it has retired (see server/src/clientgate.js). Bump this

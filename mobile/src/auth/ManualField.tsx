@@ -45,7 +45,7 @@ export function ManualField({value,onChangeText,label,style,onFocus,onBlur,onSel
     {label?<Text style={{fontSize:11,fontWeight:'700',letterSpacing:1,color:t.muted,textTransform:'uppercase',paddingLeft:2}}>{label}</Text>:null}
     <GlassSurface radius={18} material="regular" shadow={false}>
       <View pointerEvents="none" style={[StyleSheet.absoluteFill,{borderRadius:18,borderWidth:focused?1.4:0,borderColor:t.accent}]}/>
-      <TextInput {...props} ref={input} value={value} accessibilityLabel={props.accessibilityLabel||label}
+      <TextInput {...props} ref={input} value={value} accessibilityLabel={props.accessibilityLabel||label} testID={props.testID||`field-${props.accessibilityLabel||label||''}`}
         onChangeText={next=>{if(!isManualEdit(accepted.current,next)){restore();return;}accepted.current=next;setRejected(false);onChangeText(next);}}
         onSelectionChange={event=>{selection.current=event.nativeEvent.selection;onSelectionChange?.(event);}}
         autoComplete="off" textContentType="none" importantForAutofill="noExcludeDescendants" contextMenuHidden

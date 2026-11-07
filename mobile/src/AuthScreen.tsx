@@ -355,7 +355,8 @@ export function AuthScreen({api,onLogin,onChangeServer}: {api:Api;onLogin:(sessi
           {api.base.startsWith('http:')?<Notice text="Тестовое подключение без шифрования. Для настоящего аккаунта нужен HTTPS."/>:null}
           {notice?<Notice text={notice}/>:null}{error?<Notice text={error} error/>:null}
           {loginLocked?<Notice text={`Вход временно закрыт. Попробуй через ${lockText}.`} error/>:null}
-          <ActionButton label={loginLocked?`Подожди ${lockText}`:buttonTitle} successLabel="Готово" success={entered} errorSignal={error} onPress={()=>void submit()} loading={!entered&&(busy||checking&&mode==='waiting')} disabled={restoring||mode==='recover'&&locked||loginLocked}/>
+          {/* testID: the iOS Simulator check (Maestro) presses this button. */}
+          <View testID="auth-submit"><ActionButton label={loginLocked?`Подожди ${lockText}`:buttonTitle} successLabel="Готово" success={entered} errorSignal={error} onPress={()=>void submit()} loading={!entered&&(busy||checking&&mode==='waiting')} disabled={restoring||mode==='recover'&&locked||loginLocked}/></View>
           {isLogin?<Pressable disabled={disabled} accessibilityRole="button" onPress={()=>{generation.current++;clearSecrets();go('recover');}} style={{minHeight:44,alignItems:'center',justifyContent:'center'}}><Text style={{color:t.accent,fontSize:13,fontWeight:'700'}}>Забыл пароль?</Text></Pressable>:null}
           {mode!=='login-name'&&mode!=='register-name'?<Pressable disabled={disabled} accessibilityRole="button" onPress={back} style={{minHeight:44,flexDirection:'row',alignItems:'center',justifyContent:'center',gap:6}}><Icon name="chevron-back" color={t.muted} size={15}/><Text style={{color:t.muted,fontSize:13}}>{mode==='recover'||mode==='waiting'||mode==='reset'?'Вернуться ко входу':'Назад'}</Text></Pressable>:null}
         </GlassSurface>

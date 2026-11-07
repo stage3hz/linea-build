@@ -1,0 +1,25 @@
+appId: com.linea.messenger.preview
+---
+# Screens checked in the simulator. Screenshots carry the theme prefix set by the workflow (THEME).
+- waitForAnimationToEnd
+- takeScreenshot: ${THEME}-01-chats
+- tapOn: "Настройки"
+- waitForAnimationToEnd
+- takeScreenshot: ${THEME}-02-settings
+- tapOn: "Мой профиль"
+- waitForAnimationToEnd
+- takeScreenshot: ${THEME}-03-profile
+- tapOn: "Назад"
+- waitForAnimationToEnd
+- tapOn: "Оформление"
+- waitForAnimationToEnd
+- takeScreenshot: ${THEME}-04-appearance
+- tapOn: "Назад"
+- tapOn: "Чаты"
+- waitForAnimationToEnd
+- tapOn:
+    text: "Избранное.*"
+- waitForAnimationToEnd
+- takeScreenshot: ${THEME}-05-saved
+- tapOn: "Назад к чатам"
+- waitForAnimationToEnd
