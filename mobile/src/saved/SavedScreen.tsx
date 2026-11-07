@@ -163,7 +163,7 @@ export function SavedScreen({ api, user, store, onBack, wide = false }: { api: A
       {actions?.text ? <MenuItem icon="copy-outline" label="Скопировать текст" onPress={() => void copy(actions.text)} /> : null}
       {actions && !actions.origin && actions.text ? <MenuItem icon="create-outline" label="Изменить" onPress={() => { setEditing(actions); setText(actions.text); setActions(null); }} /> : null}
       {actions ? <MenuItem icon="arrow-redo-outline" label="Переслать в чат" onPress={() => { setForwarding(actions); setActions(null); }} /> : null}
-      {actions?.attachment ? <MenuItem icon="download-outline" label="Сохранить файл" onPress={() => { const file = actions.attachment!; setActions(null); shareEncryptedAttachment(api, file).catch(e => fail(e, 'Не удалось открыть файл.')); }} /> : null}
+      {actions?.attachment ? <MenuItem icon="download-outline" label={isVideoNote(actions.attachment) ? "Сохранить видео" : "Сохранить файл"} onPress={() => { const file = actions.attachment!; setActions(null); shareEncryptedAttachment(api, file).catch(e => fail(e, 'Не удалось открыть файл.')); }} /> : null}
       {actions ? <MenuItem separated icon="trash-outline" label="Удалить из Избранного" danger onPress={() => { const id = actions.id; setActions(null); saved.remove(id).catch(e => fail(e, 'Не удалось удалить.')); }} /> : null}
     </ContextMenu>
     <Sheet visible={!!forwarding} title="Переслать в чат" onClose={() => setForwarding(null)}>

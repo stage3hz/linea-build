@@ -259,8 +259,9 @@ function CirclePlayer({ uri, size, expanded, onToggle, onEnd }: { uri: string; s
   useEffect(() => () => { try { player.pause(); } catch { /* released */ } }, [player]);
   useEffect(() => { const sub = player.addListener('playToEnd', onEnd); return () => sub.remove(); }, [player, onEnd]);
   useEffect(() => { if (!expanded) return; const timer = setInterval(() => { try { if (player.duration > 0) setProgress(player.currentTime / player.duration); } catch { /* released */ } }, 200); return () => clearInterval(timer); }, [player, expanded]);
-  return <Pressable onPress={() => { if (!expanded) onToggle(); else if (isPlaying) player.pause(); else player.play(); }} onLongPress={expanded ? onToggle : undefined} accessibilityRole="button" accessibilityLabel={expanded ? 'Пауза или продолжить' : 'Смотреть видеосообщение со звуком'} style={{ width: size, height: size }}>
-    <VideoView player={player} style={{ width: size, height: size }} contentFit="cover" nativeControls={false} allowsPictureInPicture={false} />
+  return <Pressable onPress={() => { if (!expanded) onToggle(); else if (isPlaying) player.pause(); else player.play(); }} onLongPress={expanded ? onToggle : undefined} accessibilityRole="button" accessibilityLabel={expanded ? 'Пауза или продолжить' : 'Смотреть видеосообщение со звуком'} style={{ flex: 1 }}>
+    {/* Fills the round container (which animates its size); a fixed size jumped ahead of the clip and showed a square. */}
+    <VideoView player={player} style={[StyleSheet.absoluteFill, { borderRadius: size / 2 }]} contentFit="cover" nativeControls={false} allowsPictureInPicture={false} />
     {expanded ? <View pointerEvents="none" style={[StyleSheet.absoluteFill, { borderRadius: size / 2, borderWidth: 3, borderColor: 'rgba(255,255,255,0.18)' }]}><View style={{ position: 'absolute', left: 0, right: 0, bottom: 14, alignItems: 'center' }}><View style={{ width: size * .45, height: 3, borderRadius: 2, backgroundColor: 'rgba(255,255,255,0.35)' }}><View style={{ width: `${progress * 100}%`, height: 3, borderRadius: 2, backgroundColor: '#FFF' }} /></View></View></View>
       : <View pointerEvents="none" style={{ position: 'absolute', right: 18, bottom: 18, width: 26, height: 26, borderRadius: 13, backgroundColor: 'rgba(10,20,35,0.6)', alignItems: 'center', justifyContent: 'center' }}><Icon name="volume-mute" color="#FFF" size={14} /></View>}
     {expanded && !isPlaying ? <View pointerEvents="none" style={[StyleSheet.absoluteFill, { alignItems: 'center', justifyContent: 'center' }]}><Icon name="play" color="#FFF" size={40} /></View> : null}
@@ -281,14 +282,19 @@ export function VideoNoteBubble({ api, attachment }: { api: Api; attachment: Att
     if (media.status === 'loading') { media.cancel(); return; }
     void media.start().then(() => { music.stop(); setExpanded(true); }).catch(() => {});
   };
-  return <View style={{ alignItems: 'center', gap: 5 }}>
-    <Animated.View layout={LinearTransition.duration(220)} style={{ width: size, height: size, borderRadius: size / 2, overflow: 'hidden', backgroundColor: '#11162A' }}>
+  // The circle's size and corner animate together (Telegram), so the video never shows outside the circle.
+  const side = useSharedValue(size);
+  useEffect(() => { side.value = motionEnabled() ? withTiming(size, { duration: 220, easing: Easing.out(Easing.cubic) }) : size; }, [size]);
+  const round = useAnimatedStyle(() => ({ width: side.value, height: side.value, borderRadius: side.value / 2 }));
+  return <View style={{ alignItems: 'flex-start' }}>
+    <Animated.View style={[{ overflow: 'hidden', backgroundColor: '#11162A' }, round]}>
       {media.status === 'ready' && media.uri ? <CirclePlayer uri={media.uri} size={size} expanded={expanded} onToggle={toggle} onEnd={collapse} /> : <Pressable accessibilityRole="button" accessibilityLabel="Воспроизвести видеосообщение" onPress={load} style={{ flex: 1, alignItems: 'center', justifyContent: 'center' }}>
         {thumb ? <Image source={{ uri: thumb }} style={StyleSheet.absoluteFill} resizeMode="cover" /> : null}
         <View style={{ width: 52, height: 52, borderRadius: 26, backgroundColor: 'rgba(10,20,35,0.6)', alignItems: 'center', justifyContent: 'center' }}>{media.status === 'loading' ? <><ProgressRing progress={media.progress} size={52} /><Icon name="close" size={22} color="#FFF" /></> : <Icon name={media.status === 'error' ? 'refresh' : 'play'} size={24} color="#FFF" />}</View>
       </Pressable>}
     </Animated.View>
-    <Text style={{ color: 'rgba(160,170,200,0.9)', fontSize: 11 }}>{formatVoiceTime(attachment.media?.durationMs || 0)}</Text>
+    {/* Telegram: the length sits in a small dark pill on the circle's lower-left edge. */}
+    {!expanded ? <View pointerEvents="none" style={{ position: 'absolute', left: 6, bottom: 6, paddingHorizontal: 7, paddingVertical: 2, borderRadius: 9, backgroundColor: 'rgba(0,0,0,0.42)' }}><Text style={{ color: '#FFFFFF', fontSize: 11 }}>{formatVoiceTime(attachment.media?.durationMs || 0)}</Text></View> : null}
     {media.status === 'error' && media.error ? <Text style={{ color: '#FF8A8A', fontSize: 11, maxWidth: size }}>{media.error}</Text> : null}
   </View>;
 }
