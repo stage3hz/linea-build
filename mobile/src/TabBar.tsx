@@ -19,39 +19,41 @@ import { useTheme } from './theme';
 import { badgeText } from './unreadBadge';
 import Svg, { Circle, Path } from 'react-native-svg';
 
-// The settings gear in the manner of the iPhone «Settings» icon, drawn here: a ring with fine teeth, a
-// darker gear inside it and three curved spokes to the hub. In the theme colours (see GearIcon).
-//
+// The settings gear in Telegram's manner, drawn here: a ring with 15 broad teeth and, inside, a disk split by
+// a Y (three spokes). A tap turns it one full turn, so it always comes to rest exactly as drawn, centred
+// (a 120° turn left it measurably off-centre on screen). Outlined when not selected, filled when selected — like the Ionicons next to it.
 const GEAR = (() => {
-  const c = 12; const at = (r: number, deg: number) => { const a = (deg - 90) * Math.PI / 180; return `${(c + r * Math.cos(a)).toFixed(3)} ${(c + r * Math.sin(a)).toFixed(3)}`; };
+  const c = 12; const pt = (r: number, deg: number) => { const a = (deg - 90) * Math.PI / 180; return `${(c + r * Math.cos(a)).toFixed(3)} ${(c + r * Math.sin(a)).toFixed(3)}`; };
   const teeth = (n: number, outer: number, root: number) => { const step = 360 / n; const points: string[] = [];
-    for (let i = 0; i < n; i++) { const a = i * step; points.push(at(root, a - step / 4), at(outer, a - step * 0.16), at(outer, a + step * 0.16), at(root, a + step / 4)); }
+    for (let i = 0; i < n; i++) { const a = i * step; points.push(pt(root, a - step * 0.3), pt(outer, a - step * 0.17), pt(outer, a + step * 0.17), pt(root, a + step * 0.3)); }
     return `M${points.join(' L')} Z`; };
   const circle = (r: number) => `M${c + r} ${c} A${r} ${r} 0 1 0 ${c - r} ${c} A${r} ${r} 0 1 0 ${c + r} ${c} Z`;
-  const spokes = [0, 120, 240].map(a => `M${at(1.4, a + 20)} Q${at(5.2, a + 35)} ${at(9.2, a + 18)}`).join(' ');
-  return { ring: `${teeth(32, 11.6, 10.5)} ${circle(8.7)}`, inner: `${teeth(22, 7.6, 6.8)} ${circle(5.4)}`, spokes,
-    outline: teeth(32, 11.2, 10.1), innerOutline: teeth(22, 7.4, 6.6) };
+  const Y = [60, 180, 300];
+  // The disk as three wedges with parallel gaps `gap` wide along the Y.
+  const wedges = (r: number, gap: number) => { const d = (gap / 2) / Math.sin(Math.PI / 3); const da = Math.asin(gap / 2 / r) * 180 / Math.PI;
+    return Y.map((g, i) => { const g2 = Y[(i + 1) % 3] + (i === 2 ? 360 : 0); const mid = (g + g2) / 2;
+      return `M${pt(d, mid)} L${pt(r, g + da)} A${r} ${r} 0 0 1 ${pt(r, g2 - da)} Z`; }).join(' '); };
+  const outer = teeth(15, 11.6, 9.7);
+  return { body: `${outer} ${circle(7.3)}`, disk: wedges(5.9, 1.5), outline: outer, innerCircle: 6.2, spokes: Y.map(g => `M${pt(0, g)} L${pt(6.2, g)}`).join(' ') };
 })();
 // Ionicons glyphs fill their box differently: at one size the sparkles stand taller and the people lower
 // than the chat bubbles and headset. Sized so each looks as big as the others (measured on screen).
-const OPTICAL: Partial<Record<string, { size: number; dy: number }>> = { 'sparkles-outline': { size: 19, dy: -1 }, 'people-outline': { size: 25, dy: -0.75 } };
-const iconSize = (name: string) => OPTICAL[name]?.size ?? 22;
+// Telegram proportions (measured on its iPhone tab bar): icons ≈23 pt tall, the gear ≈25 pt, a caption under each.
+const BOX = 26;
+const OPTICAL: Partial<Record<string, { size: number; dy: number }>> = { 'sparkles-outline': { size: 22, dy: 0.3 }, 'people-outline': { size: 30, dy: 0.6 } };
+const iconSize = (name: string) => OPTICAL[name]?.size ?? BOX;
 const iconShift = (name: string) => OPTICAL[name]?.dy ?? 0;
 function GearIcon({ size, active, accent, muted }: { size: number; active: boolean; accent: string; muted: string }) {
-  // Like the other tab icons: an outline in the muted colour when not selected, filled in the accent when
-  // selected. The line is as thick on screen as the Ionicons outlines next to it (1.375 pt at 22 pt).
-  const color = active ? accent : muted; const line = 1.375 * 24 / size;
+  // The line is as thick on screen as the Ionicons outlines next to it (32/512 of their box).
+  const color = active ? accent : muted; const line = (32 / 512) * BOX * 24 / size;
   if (active) return <Svg width={size} height={size} viewBox="0 0 24 24">
-    <Path d={GEAR.inner} fill={color} fillRule="evenodd" />
-    <Path d={GEAR.ring} fill={color} fillRule="evenodd" />
-    <Path d={GEAR.spokes} fill="none" stroke={color} strokeWidth={1.3} strokeLinecap="round" />
-    <Circle cx={12} cy={12} r={1.9} fill={color} />
+    <Path d={GEAR.body} fill={color} fillRule="evenodd" />
+    <Path d={GEAR.disk} fill={color} />
   </Svg>;
   return <Svg width={size} height={size} viewBox="0 0 24 24">
     <Path d={GEAR.outline} fill="none" stroke={color} strokeWidth={line} strokeLinejoin="round" />
-    <Path d={GEAR.innerOutline} fill="none" stroke={color} strokeWidth={line} strokeLinejoin="round" />
+    <Circle cx={12} cy={12} r={GEAR.innerCircle} fill="none" stroke={color} strokeWidth={line} />
     <Path d={GEAR.spokes} fill="none" stroke={color} strokeWidth={line} strokeLinecap="round" />
-    <Circle cx={12} cy={12} r={1.5} fill="none" stroke={color} strokeWidth={line} />
   </Svg>;
 }
 
@@ -74,19 +76,19 @@ function TabIcon({ item, active, kick, pressed, index }: { item: TabItem; active
   const style = useAnimatedStyle(() => {
     const k = kick.value % 1; const bump = Math.sin(k * Math.PI);
     const press = pressed.value === index ? 0.84 : 1;
-    if (item.id === 'profile') return { transform: [{ scale: press }, { rotate: `${kick.value * 120}deg` }] };
+    if (item.id === 'profile') return { transform: [{ scale: press }, { rotate: `${kick.value * 360}deg` }] };
     if (item.id === 'people' || item.id === 'channels') return { transform: [{ scale: press * (1 + bump * 0.2) }, { rotate: `${Math.sin(k * Math.PI * 2) * 10}deg` }] };
     if (item.id === 'chats') return { transform: [{ translateY: -bump * 4 }, { scale: press * (1 + bump * 0.22) }] };
     if (item.id === 'music') return { transform: [{ scale: press }, { rotate: `${Math.sin(k * Math.PI * 3) * 14 * (1 - k)}deg` }] };
     return { transform: [{ scale: press * (1 + bump * 0.3) }, { rotate: `${Math.sin(k * Math.PI * 2) * 18}deg` }] };
   });
   return <Animated.View style={style}>
-    {item.id === 'profile' ? <View style={{ width: 36, height: 36, alignItems: 'center', justifyContent: 'center' }}><GearIcon size={36} active={active} accent={t.accent} muted={t.muted} /></View> : <View style={{ width: 22, height: 22, alignItems: 'center', justifyContent: 'center', overflow: 'visible' }}><Ionicons name={active ? item.activeIcon : item.icon} size={iconSize(item.icon)} color={active ? t.accent : t.muted} style={{ width: iconSize(item.icon), height: iconSize(item.icon), lineHeight: iconSize(item.icon), textAlign: 'center', transform: [{ translateY: iconShift(item.icon) }] }} /></View>}
-    {item.badge ? <View style={{ position: 'absolute', top: -6, left: 13, minWidth: 18, height: 18, paddingHorizontal: 5, borderRadius: 9, borderWidth: 2, borderColor: t.dark ? '#15171D' : '#FFF', backgroundColor: t.accent, alignItems: 'center', justifyContent: 'center' }}><Text maxFontSizeMultiplier={1} style={{ color: t.onAccent, fontSize: 10, fontWeight: '800' }}>{badgeText(item.badge)}</Text></View> : null}
+    {item.id === 'profile' ? <View style={{ width: BOX, height: BOX, alignItems: 'center', justifyContent: 'center' }}><GearIcon size={25} active={active} accent={t.accent} muted={t.muted} /></View> : <View style={{ width: BOX, height: BOX, alignItems: 'center', justifyContent: 'center', overflow: 'visible' }}><Ionicons name={active ? item.activeIcon : item.icon} size={iconSize(item.icon)} color={active ? t.accent : t.muted} style={{ width: iconSize(item.icon), height: iconSize(item.icon), lineHeight: iconSize(item.icon), textAlign: 'center', transform: [{ translateY: iconShift(item.icon) }] }} /></View>}
+    {item.badge ? <View style={{ position: 'absolute', top: -6, left: 15, minWidth: 18, height: 18, paddingHorizontal: 5, borderRadius: 9, borderWidth: 2, borderColor: t.dark ? '#15171D' : '#FFF', backgroundColor: t.accent, alignItems: 'center', justifyContent: 'center' }}><Text maxFontSizeMultiplier={1} style={{ color: t.onAccent, fontSize: 10, fontWeight: '800' }}>{badgeText(item.badge)}</Text></View> : null}
   </Animated.View>;
 }
 
-const REEL = 40; // one carousel row: icon + label
+const REEL = 42; // one carousel row: icon (26) + gap (4) + label (12)
 
 /** «Люди» / «Каналы» as a vertical carousel: rows [Люди, Каналы, Люди] rolled by `reel` (0 → 1 → 2). */
 function SlotReel({ reel, people, channels, active, kick, pressed, index }: { reel: SharedValue<number>; people: TabItem; channels: TabItem; active: boolean; kick: SharedValue<number>; pressed: SharedValue<number>; index: number }) {
@@ -94,7 +96,7 @@ function SlotReel({ reel, people, channels, active, kick, pressed, index }: { re
   const roll = useAnimatedStyle(() => ({ transform: [{ translateY: -reel.value * REEL }] }));
   const row = (item: TabItem, key: string) => <View key={key} style={{ height: REEL, alignItems: 'center', justifyContent: 'center', gap: 4 }}>
     <TabIcon item={item} active={active} kick={kick} pressed={pressed} index={index} />
-    <Text numberOfLines={1} maxFontSizeMultiplier={1} style={{ fontSize: 10, lineHeight: 12, letterSpacing: -.1, color: active ? t.accent : t.muted, fontWeight: active ? '700' : '600' }}>{item.label}</Text>
+    <Text numberOfLines={1} maxFontSizeMultiplier={1} style={{ fontSize: 10, lineHeight: 12, letterSpacing: -.1, color: active ? t.accent : t.muted, fontWeight: '600' }}>{item.label}</Text>
   </View>;
   return <View style={{ height: REEL, overflow: 'hidden', alignSelf: 'stretch' }}>
     <Animated.View style={roll}>{row(people, 'a')}{row(channels, 'b')}{row(people, 'c')}</Animated.View>
@@ -156,7 +158,7 @@ export function TabBar({ items, active }: { items: TabItem[]; active: TabId }) {
   const pillInner = useAnimatedStyle(() => ({ backgroundColor: lens.value > 0.5 ? (t.dark ? 'rgba(255,255,255,0.16)' : 'rgba(255,255,255,0.75)') : t.accentSoft, borderRadius: 22 + lens.value * 10 }));
 
   return <GestureDetector gesture={gesture}>
-    <View collapsable={false} onLayout={e => setWidth(e.nativeEvent.layout.width)} accessibilityRole="tablist" style={{ flexDirection: 'row', alignItems: 'center', minHeight: 54 }}>
+    <View collapsable={false} onLayout={e => setWidth(e.nativeEvent.layout.width)} accessibilityRole="tablist" style={{ flexDirection: 'row', alignItems: 'center', minHeight: 56 }}>
       {width ? <Animated.View pointerEvents="none" style={[{ position: 'absolute', left: 0, width: cell, padding: 2 }, pillStyle]}>
         <Animated.View style={[{ flex: 1, borderWidth: 0.5, borderColor: t.glassBorder }, pillInner]} />
       </Animated.View> : null}
@@ -164,11 +166,10 @@ export function TabBar({ items, active }: { items: TabItem[]; active: TabId }) {
         accessibilityLabel={`${item.label}${item.badge ? `, ${item.badge}` : ''}${slotted && other ? `. Смахни вверх — ${other.label}` : ''}`} accessibilityState={{ selected: on }}
         accessibilityActions={slotted ? [{ name: 'activate' }, { name: 'magicTap', label: other?.label }] : undefined}
         onAccessibilityAction={slotted ? event => { if (event.nativeEvent.actionName === 'magicTap') switchSlot(); else open(index); } : undefined}
-        onAccessibilityTap={() => open(index)} style={{ flex: 1, alignItems: 'center', justifyContent: 'center', gap: 4, paddingVertical: 6 }}>
+        onAccessibilityTap={() => open(index)} style={{ flex: 1, alignItems: 'center', justifyContent: 'center', gap: 4, paddingVertical: 7 }}>
         {slotted && other ? <SlotReel reel={reel} people={item.id === 'people' ? item : other} channels={item.id === 'channels' ? item : other} active={on} kick={kicks[index]} pressed={pressed} index={index} /> : <>
           <TabIcon item={item} active={on} kick={kicks[index]} pressed={pressed} index={index} />
-          {/* The gear has no caption: it spans from the icons' top to the captions' bottom (measured ≈34 pt), so it stands level with them and in the middle of the bar. */}
-          {item.id === 'profile' ? null : <Text numberOfLines={1} maxFontSizeMultiplier={1} style={{ fontSize: 10, lineHeight: 12, letterSpacing: -.1, color: on ? t.accent : t.muted, fontWeight: on ? '700' : '600' }}>{item.label}</Text>}
+          <Text numberOfLines={1} maxFontSizeMultiplier={1} style={{ fontSize: 10, lineHeight: 12, letterSpacing: -.1, color: on ? t.accent : t.muted, fontWeight: '600' }}>{item.label}</Text>
         </>}
         {/* A small hint that the slot switches: a dot (with the other section's unread count) above it. */}
         {slotted && other ? other.badge ? <View pointerEvents="none" accessibilityElementsHidden style={{ position: 'absolute', top: -2, minWidth: 18, height: 14, paddingHorizontal: 4, borderRadius: 7, backgroundColor: t.accent, alignItems: 'center', justifyContent: 'center' }}><Text maxFontSizeMultiplier={1} style={{ color: t.onAccent, fontSize: 9, fontWeight: '800' }}>{badgeText(other.badge)}</Text></View>
