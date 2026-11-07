@@ -1,7 +1,7 @@
 import React, { useEffect, useMemo } from 'react';
 import { StyleSheet, View } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
-import Animated, { Easing, cancelAnimation, useAnimatedStyle, useSharedValue, withDelay, withRepeat, withTiming } from 'react-native-reanimated';
+import Animated, { Easing, cancelAnimation, useAnimatedStyle, useSharedValue, withRepeat, withSequence, withTiming } from 'react-native-reanimated';
 import { useMotion } from '../motion';
 
 /** Discord-style profile effects: particles over the top of a profile while it is open. */
@@ -30,8 +30,11 @@ function Particle({ kind, index, width, height, still }: { kind: Kind; index: nu
   const progress = useSharedValue(still ? r(6) : 0);
   useEffect(() => {
     if (still) { cancelAnimation(progress); return; }
-    progress.value = 0;
-    progress.value = withDelay(Math.round(r(6) * duration), withRepeat(withTiming(1, { duration, easing: Easing.linear }), -1, false));
+    // Every particle is already on its way (each at its own point of the loop), so the effect — and the
+    // small preview in the picker — is full at once instead of filling up over several seconds.
+    const phase = r(6);
+    progress.value = phase;
+    progress.value = withSequence(withTiming(1, { duration: Math.max(1, Math.round((1 - phase) * duration)), easing: Easing.linear }), withRepeat(withSequence(withTiming(0, { duration: 0 }), withTiming(1, { duration, easing: Easing.linear })), -1, false));
     return () => cancelAnimation(progress);
   }, [still]);
   const style = useAnimatedStyle(() => {
@@ -50,19 +53,19 @@ function Particle({ kind, index, width, height, still }: { kind: Kind; index: nu
 }
 
 /** Plays over the top part of an open profile. Off when motion is reduced. */
-export function ProfileEffect({ effect, width, height }: { effect?: string | null; width: number; height: number }) {
+export function ProfileEffect({ effect, width, height, preview = false }: { effect?: string | null; width: number; height: number; preview?: boolean }) {
   const { enabled } = useMotion();
   const kind = effect ? KINDS[effect] : undefined;
   const items = useMemo(() => kind ? Array.from({ length: kind.count }, (_, index) => index) : [], [kind]);
-  if (!kind || !enabled || !width) return null;
+  if (!kind || (!enabled && !preview) || !width) return null;
   return <View pointerEvents="none" style={{ position: 'absolute', left: 0, top: 0, width, height, overflow: 'hidden' }}>
-    {items.map(index => <Particle key={`${effect}-${index}`} kind={kind} index={index} width={width} height={height} still={false} />)}
+    {items.map(index => <Particle key={`${effect}-${index}`} kind={kind} index={index} width={width} height={height} still={!enabled} />)}
   </View>;
 }
 
 /** A small preview for the picker (still frame when motion is reduced). */
 export function EffectSwatch({ effect, size = 56 }: { effect: string; size?: number }) {
-  return <View style={{ width: size, height: size, borderRadius: 16, overflow: 'hidden', backgroundColor: '#11141C' }}><ProfileEffect effect={effect} width={size} height={size} /></View>;
+  return <View style={{ width: size, height: size, borderRadius: 16, overflow: 'hidden', backgroundColor: '#11141C' }}><ProfileEffect effect={effect} width={size} height={size} preview /></View>;
 }
 
 export { NAMEPLATES, Nameplate } from './Nameplates';

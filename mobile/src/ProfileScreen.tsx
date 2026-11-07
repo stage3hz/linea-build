@@ -1,7 +1,13 @@
 import { StatusPicker } from './StatusPicker';
 import { takeProfileEditRequest, takeStatusPickerRequest } from './statusPickerRequest';
 import React, { useEffect, useRef, useState } from 'react';
-import { ActivityIndicator, AppState, KeyboardAvoidingView, Platform, Pressable, ScrollView, View } from 'react-native';
+import Animated, { interpolate, runOnJS, useAnimatedScrollHandler, useAnimatedStyle, useSharedValue } from 'react-native-reanimated';
+import { LinearGradient } from 'expo-linear-gradient';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { ProfileMediaViewer, profileMedia } from './ProfileMediaViewer';
+import { PlatinaName } from './platina/PlatinaMark';
+import { isBirthdayToday } from './birthday';
+import { ActivityIndicator, AppState, KeyboardAvoidingView, Platform, Pressable, ScrollView, StyleSheet, View } from 'react-native';
 import { Text } from './typography';
 import * as ImagePicker from 'expo-image-picker';
 import * as Clipboard from 'expo-clipboard';
@@ -13,7 +19,7 @@ import { useTheme } from './theme';
 import { GlassSurface } from './glass';
 import { ThemeSettings } from './ThemeSettings';
 import { StatusEmoji } from './StatusEmoji';
-import { DecoratedAvatar, ProfileBanner } from './platina/Decor';
+import { DecoratedAvatar, ProfileBanner, birthdayColors } from './platina/Decor';
 import { PlatinaStudio, type PlatinaStudioHandle } from './platina/PlatinaStudio';
 import { MONTHS, daysInMonth, formatBirthday, parseBirthday, birthdayValue as toBirthday } from './birthday';
 import { AvatarCropper } from './photo/AvatarCropper';
@@ -228,23 +234,54 @@ export function ProfileScreen({ api, user, theme, darkTheme, onTheme, onDarkThem
   const previewUser: User = { ...user, displayName: name || user.displayName, avatarId, avatarColor: color, ...(status ? { statusEmoji: status.statusEmoji, statusEmojiExpiresAt: status.statusEmoji ? status.platina.expiresAt : null, statusEmojiPermanent: Boolean(status.statusEmoji && permanent) } : {}) };
   const ready = status !== null && !statusLoading && !statusError;
   const [headerHeight, setHeaderHeight] = useState(92); const tabInset = useTabInset(); const bleed = useBleed();
+  // Telegram «Мой профиль»: scrolling up, the photo shrinks towards the top and fades; the name settles
+  // small in the middle of the top row.
+  const topInset = useSafeAreaInsets().top; const [heroBottom, setHeroBottom] = useState(220); const [viewer, setViewer] = useState<number | null>(null);
+  const scrollY = useSharedValue(0);
+  const onScroll = useAnimatedScrollHandler({ onScroll: e => { scrollY.value = e.contentOffset.y; }, onEndDrag: e => { if (e.contentOffset.y < -110) runOnJS(pullOpen)(); } });
+  const avatarShrink = useAnimatedStyle(() => ({ transform: [{ translateY: interpolate(scrollY.value, [-160, 0, 150], [-40, 0, -70], 'clamp') }, { scale: interpolate(scrollY.value, [-160, 0, 150], [1.5, 1, 0.3], 'clamp') }], opacity: interpolate(scrollY.value, [50, 140], [1, 0], 'clamp') }));
+  const titleFade = useAnimatedStyle(() => ({ opacity: interpolate(scrollY.value, [heroBottom - 70, heroBottom - 20], [0, 1], 'clamp'), transform: [{ translateY: interpolate(scrollY.value, [heroBottom - 70, heroBottom - 20], [8, 0], 'clamp') }] }));
+  const barFade = useAnimatedStyle(() => ({ opacity: interpolate(scrollY.value, [heroBottom - 40, heroBottom], [0, 0.94], 'clamp') }));
+  function pullOpen() { if (!editing && profileMedia(previewUser).length) setViewer(0); }
+  const tinted = !user.bannerId && !user.bannerPreset;
+  const birthdayToday = isBirthdayToday(user.birthday ?? null); const festive = birthdayColors(user.gender ?? null);
   const emojiChoices = status?.statusEmojiChoices.filter(emoji => (STATIC_STATUS_EMOJI as readonly string[]).includes(emoji)) || [];
   const expiry = status?.platina.expiresAt && Number.isFinite(Date.parse(status.platina.expiresAt)) ? new Date(status.platina.expiresAt).toLocaleDateString('ru-RU', { day: 'numeric', month: 'long', year: 'numeric' }) : null;
 
   return <KeyboardAvoidingView style={{ flex: 1, backgroundColor: 'transparent' }} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
-    <FloatingHeader onHeight={setHeaderHeight}>
-    {editing ? <GlassSurface material="regular" radius={27} style={{ marginHorizontal: 14, marginTop: 12, marginBottom: 2 }} contentStyle={{ flexDirection: 'row', alignItems: 'center', padding: 10, gap: 9, minHeight: 68 }}><IconButton name="close" label="Отменить изменения" onPress={cancelEdit}/><Text style={{ fontSize: 20, fontWeight: '700', letterSpacing: -.5, color: t.text, flex: 1, textAlign: 'center' }}>Изменить</Text><Pressable accessibilityRole="button" accessibilityLabel="Сохранить" disabled={busy} onPress={() => void finishEdit()} style={({ pressed }) => ({ width: 44, height: 44, borderRadius: 22, backgroundColor: t.accent, alignItems: 'center', justifyContent: 'center', opacity: busy ? .5 : pressed ? .8 : 1 })}>{action === 'profile' ? <ActivityIndicator color={t.onAccent}/> : <Icon name="checkmark" size={24} color={t.onAccent}/>}</Pressable></GlassSurface>
-    : <GlassSurface material="regular" radius={27} style={{ marginHorizontal: 14, marginTop: 12, marginBottom: 2 }} contentStyle={{ flexDirection: 'row', alignItems: 'center', padding: 10, gap: 9, minHeight: 68 }}><IconButton name="chevron-back" label="Назад" onPress={onBack}/><Text style={{ fontSize: 20, fontWeight: '700', letterSpacing: -.5, color: t.text, flex: 1 }}>Твой Инвиз</Text><Pressable accessibilityRole="button" accessibilityLabel="Изменить профиль" onPress={() => { setEditing(true); setNotice(''); setError(''); }} style={({ pressed }) => ({ height: 44, paddingHorizontal: 16, borderRadius: 22, backgroundColor: t.surface2, justifyContent: 'center', opacity: pressed ? .7 : 1 })}><Text style={{ color: t.text, fontSize: 15, fontWeight: '600' }}>Изм.</Text></Pressable></GlassSurface>}
-    </FloatingHeader>
-    <ScrollView keyboardShouldPersistTaps="handled" style={bleed.style} contentInsetAdjustmentBehavior="never" scrollIndicatorInsets={{ top: headerHeight, bottom: tabInset + bleed.bottom }} contentContainerStyle={{ padding: 17, paddingTop: headerHeight + 8, paddingBottom: 36 + tabInset + bleed.bottom, maxWidth: 600, width: '100%', alignSelf: 'center', gap: 17 }}>
+    {editing ? <FloatingHeader onHeight={setHeaderHeight}>
+    <GlassSurface material="regular" radius={27} style={{ marginHorizontal: 14, marginTop: 12, marginBottom: 2 }} contentStyle={{ flexDirection: 'row', alignItems: 'center', padding: 10, gap: 9, minHeight: 68 }}><IconButton name="close" label="Отменить изменения" onPress={cancelEdit}/><Text style={{ fontSize: 20, fontWeight: '700', letterSpacing: -.5, color: t.text, flex: 1, textAlign: 'center' }}>Изменить</Text><Pressable accessibilityRole="button" accessibilityLabel="Сохранить" disabled={busy} onPress={() => void finishEdit()} style={({ pressed }) => ({ width: 44, height: 44, borderRadius: 22, backgroundColor: t.accent, alignItems: 'center', justifyContent: 'center', opacity: busy ? .5 : pressed ? .8 : 1 })}>{action === 'profile' ? <ActivityIndicator color={t.onAccent}/> : <Icon name="checkmark" size={24} color={t.onAccent}/>}</Pressable></GlassSurface>
+    </FloatingHeader> : <View pointerEvents="box-none" style={{ position: 'absolute', top: Platform.OS === 'web' ? 0 : -topInset, left: 0, right: 0, zIndex: 10, paddingTop: (Platform.OS === 'web' ? 0 : topInset) + 8 }}>
+      {/* Telegram «Мой профиль»: no bar — a round back button, «Изм.» on the right; scrolled up, the name
+          and «в сети» settle small in the middle on a fading backdrop. */}
+      <Animated.View pointerEvents="none" style={[{ position: 'absolute', top: 0, left: 0, right: 0, bottom: -12, backgroundColor: t.bg }, barFade]} />
+      <View style={{ flexDirection: 'row', alignItems: 'center', paddingHorizontal: 12, gap: 10, minHeight: 52 }}>
+        <IconButton name="chevron-back" label="Назад" onPress={onBack}/>
+        <Animated.View pointerEvents="none" style={[{ flex: 1, alignItems: 'center' }, titleFade]}>
+          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 5, maxWidth: '100%' }}><Text raw numberOfLines={1} style={{ color: t.text, fontSize: 16, fontWeight: '700', flexShrink: 1 }}>{user.displayName}</Text><StatusEmoji user={previewUser} size={15}/></View>
+          <Text style={{ color: t.muted, fontSize: 12 }}>в сети</Text>
+        </Animated.View>
+        <Pressable accessibilityRole="button" accessibilityLabel="Изменить профиль" onPress={() => { setEditing(true); setNotice(''); setError(''); }} style={({ pressed }) => ({ height: 44, paddingHorizontal: 17, borderRadius: 22, backgroundColor: tinted ? 'rgba(0,0,0,0.28)' : t.surface2, borderWidth: StyleSheet.hairlineWidth, borderColor: tinted ? 'rgba(255,255,255,0.18)' : t.glassBorder, justifyContent: 'center', opacity: pressed ? .7 : 1 })}><Text style={{ color: tinted ? '#FFF' : t.text, fontSize: 16, fontWeight: '600' }}>Изм.</Text></Pressable>
+      </View>
+    </View>}
+    <Animated.ScrollView onScroll={onScroll} scrollEventThrottle={16} keyboardShouldPersistTaps="handled" style={bleed.style} contentInsetAdjustmentBehavior="never" scrollIndicatorInsets={{ top: editing ? headerHeight : 0, bottom: tabInset + bleed.bottom }} contentContainerStyle={{ padding: 17, paddingTop: editing ? headerHeight + 8 : 60 + 8, paddingBottom: 36 + tabInset + bleed.bottom, maxWidth: 600, width: '100%', alignSelf: 'center', gap: 17 }}>
       {!editing ? <>
-      <GlassSurface material="clear" radius={30} contentStyle={{ alignItems: 'center', gap: 11, paddingHorizontal: 20, paddingTop: 25, paddingBottom: 23 }}>
-        {user.bannerId || user.bannerPreset ? <View pointerEvents="none" onLayout={event => setBannerWidth(Math.round(event.nativeEvent.layout.width))} style={{ position: 'absolute', top: 0, left: 0, right: 0, height: 120, overflow: 'hidden', borderTopLeftRadius: 30, borderTopRightRadius: 30 }}>{bannerWidth ? <ProfileBanner user={user} api={api} height={120} width={bannerWidth}/> : null}</View> : null}
-        <Pressable disabled={busy} onPress={() => setEditing(true)} accessibilityRole="button" accessibilityLabel="Изменить профиль" style={{ position: 'relative', padding: 6, marginBottom: 5, borderRadius: 39, borderWidth: 1, borderColor: t.glassBorder, backgroundColor: t.glassClear }}><DecoratedAvatar user={previewUser} api={api} size={88} animated/></Pressable>
-        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 7, maxWidth: '100%' }}><Text style={{ color: t.text, fontSize: 24, fontWeight: '700', letterSpacing: -.6, textAlign: 'center', flexShrink: 1 }}>{user.displayName}</Text><Pressable accessibilityRole="button" accessibilityLabel="Сменить статус рядом с именем" hitSlop={10} disabled={!ready || !status?.platina.active && !status?.statusEmoji} onPress={event => { setPickerY(event.nativeEvent.pageY); setPickerOpen(true); }}><StatusEmoji user={previewUser} size={21} animated/></Pressable></View>
-        <Pressable onPress={() => void copy(`@${publicName}`, 'username')} accessibilityRole="button" accessibilityLabel="Скопировать имя пользователя" style={{ flexDirection: 'row', gap: 7, alignItems: 'center', paddingHorizontal: 13, paddingVertical: 8, borderRadius: 16, backgroundColor: t.accentSoft }}><Text style={{ color: t.accent, fontSize: 13, fontWeight: '600' }}>{copied === 'username' ? 'Скопировано' : `@${publicName}`}</Text><Icon name={copied === 'username' ? 'checkmark' : 'copy-outline'} size={13} color={t.accent}/></Pressable>
-        {user.bio ? <Text raw style={{ color: t.muted, fontSize: 14, lineHeight: 20, textAlign: 'center' }}>{user.bio}</Text> : null}
-      </GlassSurface>
+      {/* The top sits on the profile's colour (or banner), as others see it; it stretches when pulled down. */}
+      <View pointerEvents="none" style={{ position: 'absolute', top: -700, left: 0, right: 0, height: 700 + 68 + heroBottom + 14, overflow: 'hidden' }}>
+        {tinted ? <LinearGradient colors={birthdayToday ? [festive[0], festive[1]] : [shade(user.avatarColor, 0.15), shade(user.avatarColor, -0.12)]} style={StyleSheet.absoluteFill}/> : null}
+        {!tinted ? <View onLayout={event => setBannerWidth(Math.round(event.nativeEvent.layout.width))} style={{ position: 'absolute', left: 0, right: 0, bottom: 0, height: 68 + heroBottom + 14 }}>{bannerWidth ? <ProfileBanner user={user} api={api} height={68 + heroBottom + 14} width={bannerWidth}/> : null}</View> : null}
+      </View>
+      <View onLayout={event => setHeroBottom(Math.round(event.nativeEvent.layout.height))} style={{ alignItems: 'center', gap: 6, paddingBottom: 6 }}>
+        <Animated.View style={avatarShrink}><Pressable disabled={!profileMedia(previewUser).length} onPress={() => setViewer(0)} accessibilityRole="button" accessibilityLabel="Фото и видео профиля"><DecoratedAvatar user={previewUser} api={api} size={116} animated round/></Pressable></Animated.View>
+        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 7, maxWidth: '100%', marginTop: 10, paddingHorizontal: 16 }}><PlatinaName user={previewUser} onDark={tinted} style={{ flexShrink: 1, color: tinted ? '#FFFFFF' : t.text, fontSize: 26, fontWeight: '800', letterSpacing: -.6, textAlign: 'center' }}/><Pressable accessibilityRole="button" accessibilityLabel="Сменить статус рядом с именем" hitSlop={10} disabled={!ready || !status?.platina.active && !status?.statusEmoji} onPress={event => { setPickerY(event.nativeEvent.pageY); setPickerOpen(true); }}><StatusEmoji user={previewUser} size={22} animated/></Pressable></View>
+        <Text style={{ color: tinted ? 'rgba(255,255,255,0.78)' : t.muted, fontSize: 15 }}>в сети</Text>
+        {birthdayToday ? <View style={{ marginTop: 4, paddingHorizontal: 12, paddingVertical: 5, borderRadius: 14, backgroundColor: tinted ? 'rgba(255,255,255,0.22)' : t.accentSoft }}><Text style={{ color: tinted ? '#FFF' : t.text, fontSize: 13, fontWeight: '700' }}>🎉 Сегодня день рождения</Text></View> : null}
+      </View>
+      <View style={{ marginTop: 14, borderRadius: 22, backgroundColor: t.dark ? '#1C1C1E' : '#FFFFFF', overflow: 'hidden' }}>
+        <InfoRow label="имя пользователя" value={copied === 'username' ? 'Скопировано' : `@${publicName}`} accent onPress={() => void copy(`@${publicName}`, 'username')} hint="Нажми, чтобы скопировать"/>
+        {user.birthday ? <InfoRow label="день рождения" value={formatBirthday(user.birthday)} divider/> : null}
+        {user.bio ? <InfoRow label="о себе" value={user.bio} divider/> : null}
+      </View>
       {error ? <Notice text={error} error/> : null}{notice ? <Notice text={notice}/> : null}
       </> : <>
       {/* Edit, as Telegram's «Изм.»: ✓ saves, ✕ discards. The banner and the avatar are tapped to change
@@ -285,7 +322,7 @@ export function ProfileScreen({ api, user, theme, darkTheme, onTheme, onDarkThem
         </GlassSurface>
       </View>
       </>}
-    </ScrollView>
+    </Animated.ScrollView>
     <Sheet visible={usernameReview !== null} title="Изменить публичное имя?" onClose={() => { if (!busy) setUsernameReview(null); }}><View style={{ gap: 18 }}><Text style={{ color: t.text, fontSize: 19, fontWeight: '600' }}>@{usernameReview?.previous} → @{usernameReview?.next}</Text><Text style={{ color: t.muted, fontSize: 14, lineHeight: 21 }}>Логин для входа «{status?.loginName}», ID аккаунта и ключи переписки останутся прежними. Старое публичное имя перестанет вести на твой профиль.</Text><Text style={{ color: t.muted, fontSize: 13, lineHeight: 20 }}>{status?.freeChangeAvailable ? 'Эта смена использует единственную бесплатную смену публичного имени.' : 'Эта смена доступна, пока Platina активна.'}</Text><Button label="Подтвердить смену имени" loading={action === 'username'} disabled={busy || !ready || !status?.canChangeUsername} onPress={() => void applyUsername()}/></View></Sheet>
     <Sheet visible={emojiVisible} title="Статус рядом с именем" onClose={() => { if (!busy) setEmojiVisible(false); }}><View style={{ gap: 18 }}><Text style={{ color: t.muted, fontSize: 13, lineHeight: 20 }}>Выбранный эмодзи виден возле твоего имени в чатах. С Platina по умолчанию там значок Platina 💎, его можно заменить любым эмодзи; эмодзи анимированы.</Text>{!status?.canSetStatusEmoji ? <Notice text="Для выбора и замены статуса нужна активная Platina. Убрать статус можно в любой момент."/> : null}<View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 10 }}>{emojiChoices.map(emoji => <Pressable key={emoji} accessibilityRole="button" accessibilityLabel={`Выбрать статус ${emoji}`} accessibilityState={{ disabled: busy || !status?.canSetStatusEmoji, selected: status?.statusEmoji === emoji }} disabled={busy || !ready || !status?.canSetStatusEmoji} onPress={() => void applyEmoji(emoji)} style={{ width: 56, height: 56, borderRadius: 19, borderWidth: 1, borderColor: status?.statusEmoji === emoji ? t.accent : t.border, backgroundColor: status?.statusEmoji === emoji ? t.accentSoft : t.glassClear, opacity: status?.canSetStatusEmoji ? 1 : .45, alignItems: 'center', justifyContent: 'center' }}><AnimatedEmoji emoji={emoji} size={34} /></Pressable>)}</View><Button label={status?.platina.active ? 'Вернуть значок Platina' : 'Убрать статус'} secondary disabled={busy || !ready || !status?.statusEmoji} loading={action === 'emoji'} onPress={() => void applyEmoji(null)}/></View></Sheet>
     <Sheet visible={platinaVisible} title="Что даёт Platina" onClose={() => setPlatinaVisible(false)}><View style={{ gap: 16 }}><Text style={{ color: t.text, fontSize: 14, lineHeight: 22 }}>Анимированный аватар (видео до 10 с), анимированные рамки, живой баннер профиля, анимированные эмодзи-статусы и большие эмодзи в чатах, семь цветовых тем, скрытие времени захода и отчётов о прочтении, дополнительные смены публичного имени. Доступ подтверждает сервер.</Text><Text style={{ color: t.muted, fontSize: 13, lineHeight: 21 }}>Покупка подписки в приложении пока не подключена: Platina выдаёт администратор сервера.</Text><Text style={{ color: t.muted, fontSize: 13, lineHeight: 21 }}>Анимации эмодзи — Noto Emoji Animation (Google), лицензия CC BY 4.0.</Text></View></Sheet>
@@ -314,6 +351,7 @@ export function ProfileScreen({ api, user, theme, darkTheme, onTheme, onDarkThem
   <StatusPicker visible={pickerOpen} anchorY={pickerY} choices={emojiChoices} current={status?.statusEmoji ?? null} platina={!!status?.platina.active} canSet={!!status?.canSetStatusEmoji} busy={busy}
     onPick={emoji => { setPickerOpen(false); void applyEmoji(emoji); }} onClose={() => setPickerOpen(false)} />
   {cropSource ? <AvatarCropper uri={cropSource.uri} width={cropSource.width} height={cropSource.height} onCancel={() => setCropSource(null)} onDone={crop => void applyAvatar(crop)} /> : null}
+    {viewer !== null ? <ProfileMediaViewer api={api} user={previewUser} start={viewer} onClose={() => setViewer(null)}/> : null}
   </KeyboardAvoidingView>;
 }
 
@@ -352,4 +390,20 @@ function BirthdaySheet({ visible, value, onClose, onDone }: { visible: boolean; 
     <Button label="Готово" disabled={!!yearError} onPress={() => onDone(toBirthday({ day: shownDay, month, year: y }))}/>
     {value ? <Button label="Убрать день рождения" secondary danger onPress={() => onDone(null)}/> : null}
   </View></Sheet>;
+}
+
+/** A Telegram profile info row: a small grey label above the value. */
+function InfoRow({ label, value, accent = false, divider = false, onPress, hint }: { label: string; value: string; accent?: boolean; divider?: boolean; onPress?: () => void; hint?: string }) {
+  const t = useTheme();
+  return <Pressable disabled={!onPress} onPress={onPress} accessibilityRole={onPress ? 'button' : 'text'} accessibilityLabel={`${label}: ${value}`} accessibilityHint={hint} style={({ pressed }) => ({ paddingHorizontal: 16, backgroundColor: pressed ? 'rgba(127,127,127,0.12)' : 'transparent' })}>
+    {divider ? <View style={{ height: StyleSheet.hairlineWidth, backgroundColor: t.border }}/> : null}
+    <View style={{ paddingVertical: 11, gap: 2 }}><Text style={{ color: t.muted, fontSize: 14 }}>{label}</Text><Text raw selectable={!onPress} style={{ color: accent ? t.accent : t.text, fontSize: 17, lineHeight: 23 }}>{value}</Text></View>
+  </Pressable>;
+}
+
+/** Lighter (amount > 0) or darker (< 0) version of a #RRGGBB colour, for the profile header tint. */
+function shade(hex: string, amount: number): string {
+  const m = /^#([0-9a-f]{6})$/i.exec(hex || ''); if (!m) return '#596FE8';
+  const n = parseInt(m[1], 16); const mix = (c: number) => Math.round(amount >= 0 ? c + (255 - c) * amount : c * (1 + amount));
+  return `rgb(${mix(n >> 16)},${mix((n >> 8) & 255)},${mix(n & 255)})`;
 }

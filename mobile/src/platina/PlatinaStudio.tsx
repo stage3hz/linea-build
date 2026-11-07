@@ -1,5 +1,5 @@
 import { CODE_FRAMES, isCodeFrame } from './CodeFrames';
-import React, { forwardRef, useImperativeHandle, useState } from 'react';
+import React, { forwardRef, useImperativeHandle, useRef, useState } from 'react';
 import { EffectSwatch, NAMEPLATES, Nameplate, PROFILE_EFFECTS } from './Effects';
 import { Platform, Pressable, ScrollView, View } from 'react-native';
 import * as ImagePicker from 'expo-image-picker';
@@ -32,11 +32,22 @@ export const PlatinaStudio = forwardRef<PlatinaStudioHandle, { api: Api; user: U
   const [optimistic, setOptimistic] = useState<Partial<User> | null>(null);
   const user = optimistic ? { ...saved, ...optimistic } as User : saved;
   const [busy, setBusy] = useState<string | null>(null); const [error, setError] = useState(''); const [done, setDone] = useState('');
+  // The last choice wins: tapping another frame while the previous one is still saving is not ignored
+  // (that made the selection jump back); only the newest answer is shown.
+  const applySeq = useRef(0); const chain = useRef<Promise<void>>(Promise.resolve());
   const apply = async (key: string, change: Parameters<Api['profile']>[0], ok: string) => {
-    if (!active || busy) return; setBusy(key); setError(''); setDone(''); setOptimistic(change as Partial<User>);
-    try { const result = await api.profile(change); onUser(result.user); setDone(ok); }
-    catch (failure) { setError(message(failure, 'Не удалось сохранить оформление.')); }
-    finally { setBusy(null); setOptimistic(null); }
+    if (!active) return; const seq = ++applySeq.current;
+    setBusy(key); setError(''); setDone(''); setOptimistic(previous => ({ ...previous, ...change } as Partial<User>));
+    // Requests go one after another, so the server ends on the same choice as the screen.
+    const run = chain.current.then(() => api.profile(change)); chain.current = run.then(() => undefined, () => undefined);
+    try { const result = await run; if (seq !== applySeq.current) return; onUser(result.user); setDone(ok); }
+    catch (failure) {
+      if (seq !== applySeq.current) return;
+      const text = message(failure, 'Не удалось сохранить оформление.');
+      // An older server does not know the newest frames yet.
+      setError(text === 'Неизвестная рамка.' ? 'Эта рамка пока недоступна: сервер ещё не обновлён.' : text);
+    }
+    finally { if (seq === applySeq.current) { setBusy(null); setOptimistic(null); } }
   };
   type Picked = ImagePicker.ImagePickerAsset;
   const [pending, setPending] = useState<Picked | null>(null);

@@ -1921,5 +1921,10 @@
 "Кольца": "Rings",
 "Без рамки": "No frame",
 "Рамки и украшения": "Frames and decorations",
-"Видны всем рядом с твоим фото; анимация играет в профиле и у выбранной.": "Seen by everyone around your photo; the animation plays in the profile and on the selected one."
+"Видны всем рядом с твоим фото; анимация играет в профиле и у выбранной.": "Seen by everyone around your photo; the animation plays in the profile and on the selected one.",
+"Эта рамка пока недоступна: сервер ещё не обновлён.": "This frame is not available yet: the server has not been updated.",
+"имя пользователя": "username",
+"день рождения": "birthday",
+"о себе": "bio",
+"Нажми, чтобы скопировать": "Tap to copy"
 }
