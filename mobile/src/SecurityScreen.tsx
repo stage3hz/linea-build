@@ -108,7 +108,7 @@ export function SecurityScreen({api,onBack,onCredentialsChanged,onSensitiveActio
     <ScrollView keyboardShouldPersistTaps="handled" contentContainerStyle={{padding:17,paddingBottom:36+tabInset,maxWidth:620,width:'100%',alignSelf:'center',gap:16}}>
       <GlassSurface material="clear" radius={28} contentStyle={{padding:22,gap:11}}>
         <Text style={{color:t.text,fontSize:23,lineHeight:28,fontWeight:'800',letterSpacing:-.7}}>Твой доступ.{ '\n' }Твои устройства.</Text>
-        <Text style={{color:t.muted,fontSize:13,lineHeight:20}}>Вход по @имени, паролю и слову подтверждения. Для восстановления — другое слово. Почта и номер телефона не нужны.</Text>
+        <Text style={{color:t.muted,fontSize:13,lineHeight:20}}>Вход по логину (тайному, не @имени), паролю и слову подтверждения. Для восстановления — другое слово. Почта и номер телефона не нужны.</Text>
       </GlassSurface>
       {api.base.startsWith('http:')?<Notice text="Тестовое подключение без шифрования. Для настоящего аккаунта нужен HTTPS."/>:null}
       {error?<Notice text={error} error onRetry={()=>{if(!pending.current)void refresh();}}/>:null}
@@ -167,7 +167,7 @@ export function SecurityScreen({api,onBack,onCredentialsChanged,onSensitiveActio
       </View>
     </Sheet>
     <Sheet visible={action!==null} title={action?.kind==='others'?'Завершить другие сеансы?':'Завершить этот сеанс?'} onClose={()=>{if(!busy)setAction(null);}}>
-      <View style={{gap:18,paddingBottom:8}}><Text style={{color:t.muted,fontSize:14,lineHeight:22}}>{action?.kind==='others'?'Этот сеанс останется открытым. На остальных устройствах понадобится снова ввести ник и пароль.':action?.session.isCurrent?'Ты выйдешь из аккаунта на этом устройстве. Переписка останется на сервере.':`На устройстве «${action?.session.deviceName||'Устройство'}» понадобится снова войти с паролем.`}</Text><Button label={action?.kind==='one'&&action.session.isCurrent?'Выйти на этом устройстве':'Завершить'} danger onPress={()=>void revoke()} loading={busy}/></View>
+      <View style={{gap:18,paddingBottom:8}}><Text style={{color:t.muted,fontSize:14,lineHeight:22}}>{action?.kind==='others'?'Этот сеанс останется открытым. На остальных устройствах понадобится снова ввести логин, пароль и слово подтверждения.':action?.session.isCurrent?'Ты выйдешь из аккаунта на этом устройстве. Переписка останется на сервере.':`На устройстве «${action?.session.deviceName||'Устройство'}» понадобится снова войти с паролем.`}</Text><Button label={action?.kind==='one'&&action.session.isCurrent?'Выйти на этом устройстве':'Завершить'} danger onPress={()=>void revoke()} loading={busy}/></View>
     </Sheet>
   </KeyboardAvoidingView>;
 }

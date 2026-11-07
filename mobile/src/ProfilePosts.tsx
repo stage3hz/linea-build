@@ -159,6 +159,7 @@ export function PostsSection({ api, own, data, onChanged, width, userId }: { api
       {!own && userId ? <Bouncy scaleTo={.96} accessibilityRole="button" onPress={() => setGiftSheet(true)} style={{ alignSelf: 'center', flexDirection: 'row', alignItems: 'center', gap: 6, paddingHorizontal: 16, height: 38, borderRadius: 19, backgroundColor: t.dark ? '#1C1C1E' : 'rgba(127,127,127,0.12)' }}>
         <Text style={{ fontSize: 17 }}>🎁</Text><Text style={{ color: t.accent, fontSize: 15, fontWeight: '600' }}>Отправить подарок</Text>
       </Bouncy> : null}
+      {own && gifts.length ? <Text style={{ color: t.muted, fontSize: 12, textAlign: 'center' }}>Удержи подарок, чтобы удалить его.</Text> : null}
       {gifts.length ? <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 8 }}>{gifts.map(item => { const g = giftOf(item.gift); const w = Math.floor((width - 16) / 3); return <Pressable key={item.id} accessibilityRole="button" accessibilityLabel={`${g.label}${item.sender ? ` от ${item.sender.displayName}` : ''}`} onLongPress={own ? () => setHiding(item) : undefined} delayLongPress={350} style={{ width: w, borderRadius: 16, overflow: 'hidden' }}>
         <LinearGradient colors={g.colors} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={{ alignItems: 'center', paddingVertical: 14, paddingHorizontal: 6, gap: 6 }}>
           <Text style={{ fontSize: 42, lineHeight: 50 }}>{g.emoji}</Text>
@@ -186,7 +187,7 @@ export function PostsSection({ api, own, data, onChanged, width, userId }: { api
     </View>}
     {userId ? <GiftSheet api={api} userId={userId} visible={giftSheet} onClose={() => setGiftSheet(false)} onSent={() => { setGiftSheet(false); onChanged(); }} /> : null}
     <Sheet visible={!!hiding} title="Подарок" onClose={() => setHiding(null)}>
-      <SheetAction icon="eye-off-outline" label="Убрать из профиля" description="Подарок исчезнет из профиля." danger onPress={() => { const item = hiding; setHiding(null); if (item) api.removeGift(item.id).then(onChanged, failure => setError(message(failure, 'Не удалось убрать подарок.'))); }} />
+      <SheetAction icon="trash-outline" label="Удалить подарок" description="Подарок удалится из профиля навсегда, вернуть его будет нельзя." danger onPress={() => { const item = hiding; setHiding(null); if (item) api.removeGift(item.id).then(onChanged, failure => setError(message(failure, 'Не удалось убрать подарок.'))); }} />
     </Sheet>
     <Sheet visible={!!removing} title={removing?.kind === 'story' ? 'История' : 'Публикация'} onClose={() => setRemoving(null)}>
       <SheetAction icon="trash-outline" label="Удалить" description="Исчезнет из профиля у всех." danger onPress={() => { if (removing) void remove(removing); }} />

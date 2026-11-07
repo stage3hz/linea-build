@@ -5,7 +5,23 @@ import React, { forwardRef } from 'react';
 import { Platform, Text as RNText, TextInput as RNTextInput, StyleSheet, type TextInputProps, type TextProps } from 'react-native';
 import { tr, trChildren, useLanguage } from './i18n';
 
-export const FONT_FAMILY = 'Montserrat';
+// In a browser the native font plugin does nothing: the faces are registered here with @font-face, and
+// the family list falls back to the system sans-serif (it fell back to Times New Roman before).
+export const FONT_FAMILY = Platform.OS === 'web' ? 'Montserrat, system-ui, -apple-system, "Segoe UI", Roboto, sans-serif' : 'Montserrat';
+if (Platform.OS === 'web' && typeof document !== 'undefined' && !document.getElementById('invizent-montserrat')) {
+  try {
+    // eslint-disable-next-line @typescript-eslint/no-require-imports
+    const { Asset } = require('expo-asset') as typeof import('expo-asset');
+    const faces: [number, number][] = [
+      [require('../assets/fonts/Montserrat-Regular.ttf'), 400], [require('../assets/fonts/Montserrat-Medium.ttf'), 500],
+      [require('../assets/fonts/Montserrat-SemiBold.ttf'), 600], [require('../assets/fonts/Montserrat-Bold.ttf'), 700],
+      [require('../assets/fonts/Montserrat-ExtraBold.ttf'), 800],
+    ];
+    const style = document.createElement('style'); style.id = 'invizent-montserrat';
+    style.textContent = faces.map(([module, weight]) => `@font-face{font-family:'Montserrat';src:url('${Asset.fromModule(module).uri}') format('truetype');font-weight:${weight};font-style:normal;font-display:swap}`).join('');
+    document.head.appendChild(style);
+  } catch { /* the system font stays */ }
+}
 /** The system monospaced face (technical lines, key hints). */
 export const MONO = Platform.select({ ios: 'Menlo', android: 'monospace', default: 'ui-monospace, SFMono-Regular, Menlo, Consolas, monospace' })!;
 const base = StyleSheet.create({ font: { fontFamily: FONT_FAMILY } });

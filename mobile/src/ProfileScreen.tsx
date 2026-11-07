@@ -52,6 +52,8 @@ export function ProfileScreen({ api, user, theme, darkTheme, onTheme, onDarkThem
   const studio = useRef<PlatinaStudioHandle>(null);
   const [avatarId, setAvatarId] = useState(user.avatarId), [color, setColor] = useState(user.avatarColor);
   const [error, setError] = useState(''), [notice, setNotice] = useState('');
+  // «Профиль сохранён» and the like go away by themselves (they stayed at the page end under the tab bar).
+  useEffect(() => { if (!notice) return; const timer = setTimeout(() => setNotice(''), 3500); return () => clearTimeout(timer); }, [notice]);
   const cached = statusCache.get(user.id) ?? null;
   const [status, setStatus] = useState<UsernameStatus | null>(cached), [statusError, setStatusError] = useState(''), [statusLoading, setStatusLoading] = useState(!cached);
   const [username, setUsername] = useState(user.username), [usernameReview, setUsernameReview] = useState<{ previous: string; next: string } | null>(null);
@@ -209,7 +211,8 @@ export function ProfileScreen({ api, user, theme, darkTheme, onTheme, onDarkThem
     const next = normalizedUsername(username); setError(''); setNotice('');
     if (!/^[a-z0-9_]{3,24}$/.test(next)) { setError('Имя пользователя: от 3 до 24 символов a–z, 0–9 и подчёркивание.'); return; }
     if (!status || !status.canChangeUsername || statusLoading || statusError || next === status.username) return;
-    setUsernameReview({ previous: status.username, next });
+    // The input sheet closes first: the confirmation opened underneath it and could not be pressed.
+    setUsernameSheet(false); setTimeout(() => setUsernameReview({ previous: status.username, next }), 350);
   };
   const applyUsername = async () => {
     const review = usernameReview;
@@ -243,8 +246,9 @@ export function ProfileScreen({ api, user, theme, darkTheme, onTheme, onDarkThem
   const scrollY = useSharedValue(0);
   const onScroll = useAnimatedScrollHandler({ onScroll: e => { scrollY.value = e.contentOffset.y; }, onEndDrag: e => { if (e.contentOffset.y < -110) runOnJS(pullOpen)(); } });
   const avatarShrink = useAnimatedStyle(() => ({ transform: [{ translateY: interpolate(scrollY.value, [-160, 0, 150], [-40, 0, -70], 'clamp') }, { scale: interpolate(scrollY.value, [-160, 0, 150], [1.5, 1, 0.3], 'clamp') }], opacity: interpolate(scrollY.value, [50, 140], [1, 0], 'clamp') }));
-  const titleFade = useAnimatedStyle(() => ({ opacity: interpolate(scrollY.value, [heroBottom - 70, heroBottom - 20], [0, 1], 'clamp'), transform: [{ translateY: interpolate(scrollY.value, [heroBottom - 70, heroBottom - 20], [8, 0], 'clamp') }] }));
-  const barFade = useAnimatedStyle(() => ({ opacity: interpolate(scrollY.value, [heroBottom - 40, heroBottom], [0, 0.94], 'clamp') }));
+  const titleFade = useAnimatedStyle(() => ({ opacity: interpolate(scrollY.value, [heroBottom - 60, heroBottom - 30], [0, 1], 'clamp'), transform: [{ translateY: interpolate(scrollY.value, [heroBottom - 60, heroBottom - 30], [8, 0], 'clamp') }] }));
+  // The backdrop comes up together with the small title (it lagged and the title sat on the big name).
+  const barFade = useAnimatedStyle(() => ({ opacity: interpolate(scrollY.value, [heroBottom - 80, heroBottom - 40], [0, 0.96], 'clamp') }));
   function pullOpen() { if (!editing && profileMedia(previewUser).length) setViewer(0); }
   // Telegram: the top of the profile is the plain background (or the banner); only on the birthday it
   // turns festive (blue / pink / bright).
@@ -283,7 +287,7 @@ export function ProfileScreen({ api, user, theme, darkTheme, onTheme, onDarkThem
       </View>
       <View onLayout={event => setHeroBottom(Math.round(event.nativeEvent.layout.height))} style={{ alignItems: 'center', gap: 6, paddingBottom: 6 }}>
         <Animated.View style={avatarShrink}><Pressable disabled={!stories.length && !profileMedia(previewUser).length} onPress={() => stories.length ? setStoryOpen(true) : setViewer(0)} accessibilityRole="button" accessibilityLabel={stories.length ? 'Истории' : 'Фото и видео профиля'}><StoryRing active={stories.length > 0} size={116}><DecoratedAvatar user={previewUser} api={api} size={116} animated round/></StoryRing></Pressable></Animated.View>
-        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 7, maxWidth: '100%', marginTop: 10, paddingHorizontal: 16 }}><PlatinaName user={previewUser} onDark={tinted} style={{ flexShrink: 1, color: tinted ? '#FFFFFF' : t.text, fontSize: 26, fontWeight: '800', letterSpacing: -.6, textAlign: 'center' }}/><Pressable accessibilityRole="button" accessibilityLabel="Сменить статус рядом с именем" hitSlop={10} disabled={!ready || !status?.platina.active && !status?.statusEmoji} onPress={event => { setPickerY(event.nativeEvent.pageY); setPickerOpen(true); }}><StatusEmoji user={previewUser} size={22} animated/></Pressable></View>
+        <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 7, alignSelf: 'stretch', marginTop: 10, paddingHorizontal: 16 }}><PlatinaName user={previewUser} onDark={tinted} numberOfLines={2} style={{ flexShrink: 1, color: tinted ? '#FFFFFF' : t.text, fontSize: 26, fontWeight: '800', letterSpacing: -.6, textAlign: 'center' }}/><Pressable accessibilityRole="button" accessibilityLabel="Сменить статус рядом с именем" hitSlop={10} disabled={!ready || !status?.platina.active && !status?.statusEmoji} onPress={event => { setPickerY(event.nativeEvent.pageY); setPickerOpen(true); }}><StatusEmoji user={previewUser} size={22} animated/></Pressable></View>
         <Text style={{ color: tinted ? 'rgba(255,255,255,0.78)' : t.muted, fontSize: 15 }}>в сети</Text>
         {birthdayToday ? <View style={{ marginTop: 4, paddingHorizontal: 12, paddingVertical: 5, borderRadius: 14, backgroundColor: tinted ? 'rgba(255,255,255,0.22)' : t.accentSoft }}><Text style={{ color: tinted ? '#FFF' : t.text, fontSize: 13, fontWeight: '700' }}>🎉 Сегодня день рождения</Text></View> : null}
       </View>

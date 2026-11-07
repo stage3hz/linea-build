@@ -124,7 +124,8 @@ export function Avatar({user,api,size=54,round=false}:{user:User;api:Api;size?:n
   // `round`: a circle under an avatar decoration (their openings are round, Discord-style).
   const t=useTheme();const radius=round?size/2:size*.36;
   if(user.avatarId)return <View style={{width:size,height:size,borderRadius:radius,borderWidth:1,borderColor:t.glassBorder,overflow:'hidden'}}><AuthImage api={api} id={user.avatarId} style={{width:size,height:size,borderRadius:radius}}/></View>;
-  const initials=user.displayName.trim().split(/\s+/).slice(0,2).map(word=>word[0]||'').join('').toUpperCase();const color=user.avatarColor||'#4B73BB';
+  // Whole characters (Array.from): word[0] cut an emoji in half and showed «А�».
+  const initials=user.displayName.trim().split(/\s+/).slice(0,2).map(word=>Array.from(word)[0]||'').join('').toUpperCase();const color=user.avatarColor||'#4B73BB';
   return <View accessibilityLabel={user.displayName} style={{width:size,height:size,borderRadius:radius,backgroundColor:color,overflow:'hidden',alignItems:'center',justifyContent:'center',borderWidth:1,borderColor:t.glassBorder}}><LinearGradient colors={['rgba(255,255,255,0.27)','rgba(255,255,255,0.02)','rgba(4,15,50,0.12)']} start={{x:0,y:0}} end={{x:1,y:1}} style={StyleSheet.absoluteFill}/><Text style={{fontSize:size*.32,fontWeight:'700',letterSpacing:-.5,color:avatarTextColor(color)}}>{initials}</Text></View>;
 }
 

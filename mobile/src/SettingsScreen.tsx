@@ -230,6 +230,7 @@ function Appearance({ api, user, theme, darkTheme, onTheme, onDarkTheme, open }:
   const [wallpaperOpen, setWallpaperOpen] = useState(false);
   return <>
     <Group label="Тема"><View style={{ padding: 14 }}><ThemeSettings mode={theme} darkTheme={darkTheme} onChange={value => { if (preferences.nightMode === null) setChatPreferences({ nightMode: theme === 'system' ? 'system' : 'off' }); onTheme(value); }} onDarkTheme={onDarkTheme} platina={active} onLocked={() => openPlatinaShowcase()} /></View></Group>
+    {nightState.night ? <Text style={{ color: t.muted, fontSize: 12, lineHeight: 17, paddingHorizontal: 8, marginTop: -6 }}>{`Сейчас включена ночная тема «${THEME_NAMES[darkTheme]}». Выбранная выше тема — дневная: она вернётся, когда ночной режим выключится.`}</Text> : null}
     {/* Telegram: «Ночной режим» switches now; «Ночная тема» — when it switches by itself and which theme. */}
     <Group>
       <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12, paddingHorizontal: 14, paddingVertical: 11 }}>
@@ -438,14 +439,14 @@ const POWER_STEPS = [0, ...Array.from({ length: 19 }, (_, i) => (i + 1) / 20), 1
 
 /** Telegram «Энергосбережение»: a slider Выкл. … «При заряде менее N%» … Вкл., then the heavy processes. */
 function MotionSettings() {
-  const t = useTheme(); const preferences = useChatPreferences(); const motion = useMotion(); const features = usePowerFeatures(); const power = usePowerState();
+  const t = useTheme(); const preferences = useChatPreferences(); const motion = useMotion(); const features = usePowerFeatures(); const power = usePowerState(); const en = useLanguage() === 'en';
   const [width, setWidth] = useState(0);
   const index = Math.max(0, POWER_STEPS.findIndex(step => Math.abs(step - preferences.lowBattery) < 0.026));
   const value = POWER_STEPS[index];
   const at = (x: number) => { const i = Math.round(Math.max(0, Math.min(1, x / Math.max(1, width))) * (POWER_STEPS.length - 1)); if (POWER_STEPS[i] !== preferences.lowBattery) setChatPreferences({ lowBattery: POWER_STEPS[i] }); };
-  const pan = useMemo(() => PanResponder.create({ onStartShouldSetPanResponder: () => true, onMoveShouldSetPanResponder: () => true, onPanResponderGrant: e => at(e.nativeEvent.locationX), onPanResponderMove: e => at(e.nativeEvent.locationX) }), [width, preferences.lowBattery]);
+  const pan = useMemo(() => PanResponder.create({ onStartShouldSetPanResponder: () => true, onMoveShouldSetPanResponder: () => true, onStartShouldSetPanResponderCapture: () => true, onPanResponderTerminationRequest: () => false, onPanResponderGrant: e => at(e.nativeEvent.locationX), onPanResponderMove: e => at(e.nativeEvent.locationX) }), [width, preferences.lowBattery]);
   const share = index / (POWER_STEPS.length - 1);
-  const label = value <= 0 ? 'Выключен' : value >= 1 ? 'Включён всегда' : `При заряде менее ${Math.round(value * 100)}%`;
+  const label = value <= 0 ? 'Выключен' : value >= 1 ? 'Включён всегда' : en ? `Below ${Math.round(value * 100)}% battery` : `При заряде менее ${Math.round(value * 100)}%`;
   const rows: { key: 'autoplayVideo' | 'autoplayGif' | 'animatedStickers' | 'animatedEmoji'; icon: IconName; color: string; title: string; text: string }[] = [
     { key: 'autoplayVideo', icon: 'videocam', color: '#F0544F', title: 'Автозапуск видео', text: 'Кружки и видео в чатах сами играют без звука, видео-аватары двигаются.' },
     { key: 'autoplayGif', icon: 'images', color: '#F5A623', title: 'Автозапуск GIF', text: 'GIF в чатах, на аватарах и баннерах проигрываются сами.' },
@@ -454,7 +455,7 @@ function MotionSettings() {
   ];
   return <View style={{ paddingVertical: 6 }}>
     <View style={{ paddingHorizontal: 14, paddingTop: 8, gap: 10 }}>
-      <Text style={{ color: t.muted, fontSize: 12 }}>{`Режим энергосбережения (${features.saving ? 'вкл.' : 'выкл.'})`}</Text>
+      <Text style={{ color: t.muted, fontSize: 12 }}>{en ? `Power saving (${features.saving ? 'on' : 'off'})` : `Режим энергосбережения (${features.saving ? 'вкл.' : 'выкл.'})`}</Text>
       <View style={{ flexDirection: 'row', alignItems: 'center' }}>
         <Text style={{ color: t.muted, fontSize: 13 }}>Выкл.</Text>
         <Text style={{ flex: 1, textAlign: 'center', color: t.text, fontSize: 15, fontWeight: '600' }}>{label}</Text>
@@ -467,7 +468,7 @@ function MotionSettings() {
         <View pointerEvents="none" style={{ height: 4, borderRadius: 2, backgroundColor: t.border }}><View style={{ width: `${share * 100}%`, height: 4, borderRadius: 2, backgroundColor: t.accent }} /></View>
         <View pointerEvents="none" style={{ position: 'absolute', left: Math.max(0, share * width - 14), width: 28, height: 28, borderRadius: 14, backgroundColor: '#FFF', shadowColor: '#000', shadowOpacity: .2, shadowRadius: 4, shadowOffset: { width: 0, height: 1 }, elevation: 3 }} />
       </View>
-      <Text style={{ color: t.muted, fontSize: 12, lineHeight: 17 }}>{value <= 0 ? 'Не включается сам по заряду (только в системном режиме энергосбережения).' : value >= 1 ? 'Все ресурсоёмкие процессы выключены.' : `Автоматически отключать все ресурсоёмкие процессы при заряде менее ${Math.round(value * 100)}%${power.level !== null ? ` (сейчас ${Math.round(power.level * 100)}%)` : ''}.`}</Text>
+      <Text style={{ color: t.muted, fontSize: 12, lineHeight: 17 }}>{value <= 0 ? 'Не включается сам по заряду (только в системном режиме энергосбережения).' : value >= 1 ? 'Все ресурсоёмкие процессы выключены.' : en ? `Turn all resource-intensive processes off below ${Math.round(value * 100)}% battery${power.level !== null ? ` (now ${Math.round(power.level * 100)}%)` : ''}.` : `Автоматически отключать все ресурсоёмкие процессы при заряде менее ${Math.round(value * 100)}%${power.level !== null ? ` (сейчас ${Math.round(power.level * 100)}%)` : ''}.`}</Text>
     </View>
     <Text style={{ color: t.muted, fontSize: 11, fontWeight: '700', letterSpacing: 1.2, paddingHorizontal: 14, paddingTop: 18, paddingBottom: 4 }}>РЕСУРСОЁМКИЕ ПРОЦЕССЫ</Text>
     {rows.map(row => <PowerRow key={row.key} icon={row.icon} color={row.color} title={row.title} text={row.text} value={preferences[row.key]} onChange={v => setChatPreferences({ [row.key]: v })} />)}

@@ -185,6 +185,9 @@ export function AuthScreen({api,onLogin,onChangeServer}: {api:Api;onLogin:(sessi
     catch(reason){if(current(id)){const message=reason instanceof Error?reason.message:'Не удалось создать аккаунт.';
       // A taken @username is fixed on the profile step, not by re-entering every secret.
       if(/@юзернейм/.test(message))setMode('register-profile');
+      // A taken login: back to the first step with the password and words kept (they were wiped by going back by hand).
+      // There is no early «is it free» check on purpose: the login is secret and must not be probed.
+      else if(/логин уже занят/.test(message)){setMode('register-name');setUsernameRepeat('');}
       setError(message);}}
     finally{finish(id);}
   };
@@ -345,7 +348,7 @@ export function AuthScreen({api,onLogin,onChangeServer}: {api:Api;onLogin:(sessi
             {mode==='register-recovery'?<><SecretInput label="Повтори слово восстановления" value={recoveryRepeat} onChangeText={setRecoveryRepeat} placeholder="Введи то же слово вручную" disabled={disabled} word onSubmit={()=>void submit()}/><Text style={{color:t.muted,fontSize:12,lineHeight:18}}>Запомни оба слова и храни их отдельно. В приложении их нельзя будет посмотреть повторно.</Text></>:<Text style={{color:t.muted,fontSize:12,lineHeight:18}}>Всего 3 неверные попытки, затем восстановление блокируется на 24 часа. Вход с паролем и словом подтверждения остаётся доступен.</Text>}
           </>:null}
           {mode==='waiting'&&challenge?<View style={{gap:14}}>
-            <View style={{alignItems:'center',paddingVertical:16,gap:10}}><Icon name="time-outline" size={30} color={t.accent}/><Text accessibilityLabel="Осталось до проверки сервером" style={{color:t.text,fontSize:43,fontWeight:'700',letterSpacing:1,fontVariant:['tabular-nums']}}>{formatCountdown(Date.parse(challenge.readyAt),clock+serverOffset)}</Text><Text style={{color:t.muted,fontSize:12,textAlign:'center'}}>Запрос для @{login}</Text></View>
+            <View style={{alignItems:'center',paddingVertical:16,gap:10}}><Icon name="time-outline" size={30} color={t.accent}/><Text accessibilityLabel="Осталось до проверки сервером" style={{color:t.text,fontSize:43,fontWeight:'700',letterSpacing:1,fontVariant:['tabular-nums']}}>{formatCountdown(Date.parse(challenge.readyAt),clock+serverOffset)}</Text><Text style={{color:t.muted,fontSize:12,textAlign:'center'}}>Запрос для логина {login}</Text></View>
             <Text style={{color:t.muted,fontSize:12,lineHeight:19}}>На устройствах с открытым аккаунтом этот запрос можно отменить. Если запрос сохранён, можно закрыть приложение и вернуться. Готовность проверяется на сервере каждые 10 секунд.</Text>
             <Text style={{color:t.muted,fontSize:12,lineHeight:18}}>Переход ко входу удалит запрос с этого устройства. Продолжить его здесь после этого не получится.</Text>
           </View>:null}

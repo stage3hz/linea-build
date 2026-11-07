@@ -22,7 +22,7 @@ export function RecoveryNotice({requests,error,onRefresh,onCancel}:{requests:Rec
         {error?<Notice text="Список запросов не удалось обновить. Проверь подключение." error onRetry={()=>void onRefresh()}/>:null}
         {requests.map(request=><View key={request.id} style={{gap:10,padding:14,borderWidth:1,borderColor:t.border,borderRadius:18}}>
           <Text style={{color:t.text,fontWeight:'700',fontSize:16}}>{request.deviceName||'Новое устройство'}</Text>
-          <Text style={{color:t.muted,fontSize:13,lineHeight:20}}>Запрошено: {new Date(request.createdAt).toLocaleString()}{'\n'}Смена пароля разрешится после: {new Date(request.readyAt).toLocaleTimeString()}</Text>
+          <Text style={{color:t.muted,fontSize:13,lineHeight:20}}>Запрошено: {new Date(request.createdAt).toLocaleString('ru-RU', { day: 'numeric', month: 'long', hour: '2-digit', minute: '2-digit' })}{'\n'}Смена пароля разрешится после: {new Date(request.readyAt).toLocaleTimeString('ru-RU', { hour: '2-digit', minute: '2-digit' })}</Text>
           <Button label="Это не я — отменить" danger icon="close-circle-outline" loading={busy===request.id} disabled={!!busy} onPress={()=>void cancel(request.id)}/>
         </View>)}
         {!requests.length?<Notice text="Активных запросов на восстановление нет."/>:null}

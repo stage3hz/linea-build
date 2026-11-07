@@ -78,7 +78,7 @@ export function UserProfile({ api, user, onClose, chat, onMessage, onMute, onSea
     .onUpdate(e => { slide.value = Math.max(0, e.translationX); })
     .onEnd(e => { if (e.translationX > width * 0.33 || e.velocityX > 700) slide.value = withTiming(width, { duration: 180, easing: Easing.out(Easing.cubic) }, done => { if (done) runOnJS(onClose)(); }); else slide.value = withSpring(0, { damping: 20, stiffness: 260 }); });
   const back = () => { if (width >= 760) { onClose(); return; } slide.value = withTiming(width, { duration: 220, easing: Easing.in(Easing.cubic) }, done => { if (done) runOnJS(onClose)(); }); };
-  const [menu, setMenu] = useState(false); const [menuAt, setMenuAt] = useState<{ x?: number; y: number }>({ y: 90 }); const [sheet, setSheet] = useState<'ttl' | 'clear' | 'block' | 'report' | null>(null);
+  const [menu, setMenu] = useState(false); const [menuAt, setMenuAt] = useState<{ x?: number; y: number }>({ y: 90 }); const [sheet, setSheet] = useState<'ttl' | 'clear' | 'block' | 'report' | 'unfriend' | null>(null);
   const [blocked, setBlocked] = useState(false); const [reason, setReason] = useState<ReportReason | null>(null);
   useEffect(() => {
     setContact(null); setPendingRequest(null); setFresh(null); setError(''); setNotice('');
@@ -105,6 +105,8 @@ export function UserProfile({ api, user, onClose, chat, onMessage, onMute, onSea
       else if (pendingRequest === 'incoming') { await api.acceptFriend(shown.id); setPendingRequest(null); setContact(true); setNotice('Теперь вы друзья'); }
       else { const r = await api.addContact(shown.id); if (r.status === 'requested') { setPendingRequest('outgoing'); setNotice('Заявка отправлена'); } else { setContact(true); setNotice('Теперь вы друзья'); } }
       void refreshFriendRequests(api);
+      // Posts, stories and gifts are for friends: their visibility changes with this.
+      void posts.reload();
     }
     catch (e) { setError(e instanceof Error ? e.message : 'Не удалось изменить список друзей.'); }
     finally { setBusy(false); }
@@ -120,7 +122,7 @@ export function UserProfile({ api, user, onClose, chat, onMessage, onMute, onSea
   const actions: { icon: IconName; label: string; onPress: (e?: { nativeEvent?: { pageX?: number; pageY?: number } }) => void; active?: boolean; loading?: boolean }[] = [
     ...(onMessage ? [{ icon: 'chatbubble' as IconName, label: 'Написать', onPress: () => { onClose(); onMessage(shown); } }] : []),
     ...(chat && calls.available ? [{ icon: 'call' as IconName, label: 'Звонок', onPress: () => { onClose(); calls.start(chat, false); } }, { icon: 'videocam' as IconName, label: 'Видео', onPress: () => { onClose(); calls.start(chat, true); } }] : []),
-    ...(chat ? [] : [{ icon: (contact ? 'person-remove' : pendingRequest === 'outgoing' ? 'time-outline' : pendingRequest === 'incoming' ? 'person-add' : 'person-add') as IconName, label: contact ? 'В друзьях' : pendingRequest === 'outgoing' ? 'Заявка' : pendingRequest === 'incoming' ? 'Принять' : 'В друзья', onPress: () => void toggleContact(), active: !!contact || pendingRequest === 'incoming', loading: contact === null }]),
+    ...(chat ? [] : [{ icon: (contact ? 'person-remove' : pendingRequest === 'outgoing' ? 'time-outline' : pendingRequest === 'incoming' ? 'person-add' : 'person-add') as IconName, label: contact ? 'В друзьях' : pendingRequest === 'outgoing' ? 'Заявка' : pendingRequest === 'incoming' ? 'Принять' : 'В друзья', onPress: () => { if (contact) setSheet('unfriend'); else void toggleContact(); }, active: !!contact || pendingRequest === 'incoming', loading: contact === null }]),
     ...(onMute && chat ? [{ icon: (muted ? 'notifications-off' : 'notifications') as IconName, label: muted ? 'Без звука' : 'Звук', onPress: () => void toggleMute(), active: muted }] : []),
     // Telegram's row: call · video · sound · search · more.
     ...(onSearch ? [{ icon: 'search' as IconName, label: 'Поиск', onPress: () => { onClose(); onSearch(); } }] : []),
@@ -159,7 +161,7 @@ export function UserProfile({ api, user, onClose, chat, onMessage, onMute, onSea
         {shown.profilePattern ? <View pointerEvents="none" style={{ position: 'absolute', left: -18, right: -18, top: -90, height: 90 + Math.max(220, heroBottom) }}><ProfilePattern emoji={shown.profilePattern} width={(card ? cardWidth : Math.min(680, width))} height={90 + Math.max(220, heroBottom)} cx={(card ? cardWidth : Math.min(680, width)) / 2} cy={90 + (stories.length ? 64 : 58)} /></View> : null}
         <Animated.View style={avatarStretch}><Pressable accessibilityRole="button" accessibilityLabel={stories.length ? 'Истории' : 'Фото и видео профиля'} disabled={!stories.length && !profileMedia(shown).length} onPress={openViewer}><Animated.View style={avatarIn}><StoryRing active={stories.length > 0} size={116}><DecoratedAvatar user={shown} api={api} size={116} animated round /></StoryRing></Animated.View><Animated.View pointerEvents="none" style={[{ position: 'absolute', left: 0, top: 0, right: 0, bottom: 0, borderRadius: 58, backgroundColor: '#000' }, avatarDim]} /></Pressable></Animated.View>
         <View style={{ alignItems: 'center', gap: 6 }}>
-          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 7, maxWidth: '100%', paddingHorizontal: 16 }}><PlatinaName user={shown} onDark={tinted} style={{ flexShrink: 1, color: tinted ? '#FFFFFF' : t.text, fontSize: 26, fontWeight: '800', letterSpacing: -.6 }} /><StatusEmoji user={shown} size={22} animated /></View>
+          <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 7, alignSelf: 'stretch', paddingHorizontal: 16 }}><PlatinaName user={shown} onDark={tinted} numberOfLines={2} style={{ flexShrink: 1, textAlign: 'center', color: tinted ? '#FFFFFF' : t.text, fontSize: 26, fontWeight: '800', letterSpacing: -.6 }} /><StatusEmoji user={shown} size={22} animated /></View>
           {status ? <Text style={{ color: tinted ? 'rgba(255,255,255,0.78)' : status === 'в сети' ? t.accent : t.muted, fontSize: 14 }}>{status}</Text> : <Pressable onPress={() => void copy()} accessibilityRole="button" accessibilityLabel="Скопировать имя пользователя"><Text style={{ color: tinted ? 'rgba(255,255,255,0.85)' : t.accent, fontSize: 15 }}>@{shown.username}</Text></Pressable>}
           {birthdayToday ? <View style={{ paddingHorizontal: 12, paddingVertical: 5, borderRadius: 14, backgroundColor: tinted ? 'rgba(255,255,255,0.22)' : t.accentSoft }}><Text style={{ color: tinted ? '#FFF' : t.text, fontSize: 13, fontWeight: '700' }}>🎉 Сегодня день рождения</Text></View> : null}
         </View>
@@ -189,7 +191,7 @@ export function UserProfile({ api, user, onClose, chat, onMessage, onMute, onSea
     </InsetView>{/* Discord-style profile effect over the top while the profile is open. */}<ProfileEffect effect={shown.profileEffect} width={card ? cardWidth : width} height={420} /></GlassStage>
     </View></Animated.View></GestureDetector></GestureHandlerRootView>
     <ContextMenu visible={menu} y={menuAt.y} x={menuAt.x} mine onClose={() => setMenu(false)}>
-      {chat && contact !== null ? <MenuItem icon={contact ? 'person-remove-outline' : 'person-add-outline'} label={contact ? 'Удалить из друзей' : pendingRequest === 'outgoing' ? 'Отменить заявку' : pendingRequest === 'incoming' ? 'Принять в друзья' : 'Добавить в друзья'} onPress={() => { setMenu(false); void toggleContact(); }} /> : null}
+      {chat && contact !== null ? <MenuItem icon={contact ? 'person-remove-outline' : 'person-add-outline'} label={contact ? 'Удалить из друзей' : pendingRequest === 'outgoing' ? 'Отменить заявку' : pendingRequest === 'incoming' ? 'Принять в друзья' : 'Добавить в друзья'} onPress={() => { setMenu(false); if (contact) setSheet('unfriend'); else void toggleContact(); }} /> : null}
       {chat && onRules ? <MenuItem icon="timer-outline" label={`Автоудаление · ${autoDeleteLabel(current.ttl)}`} onPress={() => { setMenu(false); setSheet('ttl'); }} /> : null}
       {chat && onRules ? <MenuItem icon={current.noCopy ? 'lock-closed' : 'lock-open-outline'} label={current.noCopy ? 'Разрешить пересылку и копирование' : 'Запретить пересылку и копирование'} onPress={() => { setMenu(false); lightFeedback(); onRules({ ...current, noCopy: !current.noCopy }); setNotice(current.noCopy ? 'Копирование снова разрешено' : 'Копировать и пересылать сообщения этого чата теперь нельзя обоим'); }} /> : null}
       {onWallpaper ? <MenuItem icon="image-outline" label="Обои" onPress={() => { setMenu(false); onClose(); onWallpaper(); }} /> : null}
@@ -204,6 +206,10 @@ export function UserProfile({ api, user, onClose, chat, onMessage, onMute, onSea
     </Sheet>
     <Sheet visible={sheet === 'clear'} title="Очистить историю?" onClose={() => setSheet(null)}>
       <SheetAction icon="trash-outline" label="Удалить у обоих" description={`Все сообщения исчезнут у тебя и у ${shown.displayName}. Вернуть не получится.`} danger onPress={() => { setSheet(null); onClear?.(); setNotice('История очищена у обоих'); }} />
+    </Sheet>
+    {/* Removing a friend was one tap on «В друзьях»; now it asks first. */}
+    <Sheet visible={sheet === 'unfriend'} title={`Удалить ${shown.displayName} из друзей?`} onClose={() => setSheet(null)}>
+      <SheetAction icon="person-remove-outline" label="Удалить из друзей" description="Публикации, истории и подарки друг друга вы больше не увидите. Заявку можно отправить снова." danger onPress={() => { setSheet(null); void toggleContact(); }} />
     </Sheet>
     <Sheet visible={sheet === 'block'} title={`Заблокировать ${shown.displayName}?`} onClose={() => setSheet(null)}>
       <SheetAction icon="remove-circle-outline" label="Заблокировать" description="Он не сможет писать и звонить тебе, пока ты не разблокируешь. Список — в Безопасности." danger onPress={() => void toggleBlock()} />

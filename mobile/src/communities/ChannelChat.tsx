@@ -42,6 +42,8 @@ export function ChannelChat({ api, me, store, community, channel, onOpenInvite }
   const canWrite = can(community, blog ? PERM.POST : PERM.SEND);
   const canModerate = can(community, PERM.MANAGE_MESSAGES);
   const loadingMore = useRef(false);
+  // «Ответить» / «Изменить» put the cursor in the input right away.
+  const input = useRef<React.ElementRef<typeof TextInput>>(null);
 
   const absorb = (list: User[]) => setUsers(current => { const next = { ...current }; for (const user of list) next[user.id] = user; return next; });
   const load = useCallback(async () => {
@@ -51,6 +53,33 @@ export function ChannelChat({ api, me, store, community, channel, onOpenInvite }
     finally { setLoading(false); }
   }, [api, community.id, channel.id]);
   useEffect(() => { void load(); }, [load]);
+  useEffect(() => { if (reply || editing) setTimeout(() => input.current?.focus(), 250); }, [reply?.id, editing?.id]);
+  // After the connection comes back: fetch what arrived meanwhile (merged, no duplicates), clear the
+  // «no connection» notice and send what was queued offline. Before, the channel kept the gap until reopened.
+  const [queued, setQueued] = useState<{ key: string; text: string; replyTo?: number }[]>([]);
+  const queuedRef = useRef(queued); queuedRef.current = queued;
+  const flushing = useRef(false);
+  const flush = useCallback(async () => {
+    if (flushing.current) return; flushing.current = true;
+    try {
+      while (queuedRef.current.length) {
+        const item = queuedRef.current[0];
+        const result = await api.sendChannelMessage(community.id, channel.id, { text: item.text, ...(item.replyTo ? { replyTo: item.replyTo } : {}) });
+        setMessages(current => current.some(m => m.id === result.message.id) ? current : [...current, result.message]);
+        queuedRef.current = queuedRef.current.slice(1); setQueued(queuedRef.current);
+      }
+    } catch { /* still offline: tried again on the next reconnect */ } finally { flushing.current = false; }
+  }, [api, community.id, channel.id]);
+  const lastConnection = useRef(store.connection);
+  useEffect(() => {
+    const was = lastConnection.current; lastConnection.current = store.connection;
+    if (store.connection !== 'connected' || was === 'connected') return;
+    api.channelMessages(community.id, channel.id).then(result => {
+      absorb(result.users); setError('');
+      setMessages(current => { const all = new Map(current.map(m => [m.id, m])); for (const m of result.messages) all.set(m.id, m); return [...all.values()].sort((a, b) => a.id - b.id); });
+    }).catch(() => {});
+    void flush();
+  }, [store.connection, api, community.id, channel.id, flush]);
   // While this channel is open its new messages are read as they arrive (no badge bump).
   useEffect(() => { setViewingChannel(channel.id); return () => setViewingChannel(null); }, [channel.id]);
   // Role colours for author names (Discord: the highest coloured role).
@@ -83,6 +112,11 @@ export function ChannelChat({ api, me, store, community, channel, onOpenInvite }
     setSending(true); setError('');
     try {
       if (editing) { const result = await api.editChannelMessage(community.id, channel.id, editing.id, value); setMessages(current => current.map(item => item.id === result.message.id ? result.message : item)); setEditing(null); }
+      else if (store.connection !== 'connected') {
+        // Offline: queue it (shown as «ожидает отправки») instead of leaving it in the field.
+        const item = { key: `${Date.now()}-${Math.random()}`, text: value, ...(reply ? { replyTo: reply.id } : {}) };
+        queuedRef.current = [...queuedRef.current, item]; setQueued(queuedRef.current); setReply(null);
+      }
       else { const result = await api.sendChannelMessage(community.id, channel.id, { text: value, ...(reply ? { replyTo: reply.id } : {}) }); setMessages(current => current.some(item => item.id === result.message.id) ? current : [...current, result.message]); setReply(null); }
       setText(''); lightFeedback();
     } catch (failure) { setError(failure instanceof Error ? failure.message : 'Не удалось отправить.'); }
@@ -166,11 +200,12 @@ export function ChannelChat({ api, me, store, community, channel, onOpenInvite }
       <FlatList keyboardDismissMode={Platform.OS === 'ios' ? 'interactive' : 'on-drag'} keyboardShouldPersistTaps="handled" inverted data={data} keyExtractor={item => String(item.id)} renderItem={render} onEndReached={() => void older()} onEndReachedThreshold={0.4} contentContainerStyle={{ paddingVertical: 8, flexGrow: 1 }}
         ListEmptyComponent={<View style={{ flex: 1, alignItems: 'center', justifyContent: 'center', padding: 30, transform: [{ scaleY: -1 }] }}><Icon name={blog ? 'megaphone-outline' : 'chatbubbles-outline'} size={40} color={t.subtle} /><Text style={{ color: t.text, fontSize: 18, fontWeight: '700', marginTop: 10 }}>{blog ? 'Пока нет публикаций' : `Это начало #${channel.name}`}</Text><Text style={{ color: t.muted, fontSize: 14, textAlign: 'center', marginTop: 4 }}>{blog ? (canWrite ? 'Напиши первый пост — его увидят все подписчики.' : 'Новые посты появятся здесь.') : 'Напиши что-нибудь, чтобы начать разговор.'}</Text></View>} />}
     {canWrite ? <View style={{ paddingHorizontal: 10, paddingTop: 6, paddingBottom: 8, gap: 6 }}>
+      {queued.map(item => <View key={item.key} style={{ flexDirection: 'row', alignItems: 'center', gap: 8, alignSelf: 'flex-end', maxWidth: '85%', paddingHorizontal: 12, paddingVertical: 7, borderRadius: 16, backgroundColor: t.surface2, opacity: .75 }}><Icon name="time-outline" size={14} color={t.muted} /><Text numberOfLines={2} style={{ flexShrink: 1, color: t.text, fontSize: 14 }}>{item.text}</Text><Text style={{ color: t.muted, fontSize: 11 }}>ожидает отправки</Text></View>)}
       {reply || editing ? <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8, paddingHorizontal: 8 }}><Icon name={editing ? 'create-outline' : 'return-down-forward'} size={16} color={t.accent} /><Text numberOfLines={1} style={{ flex: 1, color: t.muted, fontSize: 13 }}>{editing ? 'Редактирование' : `Ответ ${users[reply!.senderId]?.displayName || ''}: ${reply!.text || 'вложение'}`}</Text><IconButton name="close" label="Отменить" size={18} onPress={() => { setReply(null); if (editing) { setEditing(null); setText(''); } }} /></View> : null}
       <View style={{ flexDirection: 'row', alignItems: 'flex-end', gap: 6 }}>
         {!editing ? <IconButton name="add-circle" label="Прикрепить" color={t.muted} onPress={() => setAttach(true)} /> : null}
         <View style={{ flex: 1, minHeight: 40, borderRadius: 20, backgroundColor: t.surface2, borderWidth: 1, borderColor: t.border, paddingHorizontal: 14, justifyContent: 'center' }}>
-          <TextInput value={text} onChangeText={setText} multiline onKeyPress={e => { if (Platform.OS === 'web' && e.nativeEvent.key === 'Enter' && !(e.nativeEvent as unknown as { shiftKey?: boolean }).shiftKey) { e.preventDefault(); void send(); } }} placeholder={blog ? 'Новая публикация' : `Написать в #${channel.name}`} placeholderTextColor={t.subtle} style={{ color: t.text, fontSize: 16, maxHeight: 140, paddingVertical: 9 }} />
+          <TextInput ref={input} value={text} onChangeText={setText} multiline onKeyPress={e => { if (Platform.OS === 'web' && e.nativeEvent.key === 'Enter' && !(e.nativeEvent as unknown as { shiftKey?: boolean }).shiftKey) { e.preventDefault(); void send(); } }} placeholder={blog ? 'Новая публикация' : `Написать в #${channel.name}`} placeholderTextColor={t.subtle} style={{ color: t.text, fontSize: 16, maxHeight: 140, paddingVertical: 9 }} />
         </View>
         {sending ? <ActivityIndicator color={t.accent} style={{ width: 40, height: 40 }} /> : <IconButton name="arrow-up-circle" label="Отправить" color={text.trim() ? t.accent : t.subtle} size={34} disabled={!text.trim()} onPress={() => void send()} />}
       </View>

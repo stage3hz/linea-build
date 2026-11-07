@@ -57,6 +57,8 @@ export function SavedScreen({ api, user, store, onBack, wide = false }: { api: A
 
   const submit = () => {
     const value = text.trim(); if (!value) return;
+    // In a browser there are no device keys to encrypt notes with: say so instead of doing nothing.
+    if (!signalAvailable) { fail(new Error('Заметки в Избранном шифруются на устройстве и сохраняются в приложении для iPhone, Android или ПК.'), ''); return; }
     if (editing) { saved.edit(editing.id, value).then(() => { setEditing(null); setText(''); }).catch(e => fail(e, 'Не удалось изменить заметку.')); return; }
     saved.save(value, null).then(() => { setText(''); listRef.current?.scrollToOffset({ offset: 0, animated: true }); }).catch(e => fail(e, 'Не удалось сохранить заметку.'));
   };

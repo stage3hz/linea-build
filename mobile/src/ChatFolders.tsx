@@ -56,7 +56,8 @@ export function FolderTabs({ folders, filter, unread, onChange, onCreate, onEdit
   const t = useTheme();
   const tabs: { id: FolderFilter; label: string; folder?: ChatFolder; badge?: number }[] = [{ id: 'all', label: 'Все' }, { id: 'unread', label: 'Непрочитанные', badge: unread }, ...folders.map(folder => ({ id: folder.id, label: folder.name, folder }))];
   // Telegram: one glass bar across the screen; tabs share it equally while they fit, then scroll.
-  const fits = tabs.length <= 3;
+  // …only when the names are short too: a long folder name squeezed «Все» down to «В..».
+  const fits = tabs.length <= 3 && tabs.reduce((sum, tab) => sum + Array.from(tab.label).length, 0) <= 24;
   const items = <>
     {tabs.map(tab => { const active = filter === tab.id; return <Pressable key={tab.id} onPress={() => { lightFeedback(); onChange(tab.id); }} onLongPress={tab.folder ? () => onEdit(tab.folder!) : undefined} accessibilityRole="tab" accessibilityState={{ selected: active }} style={{ flexGrow: fits ? 1 : 0, flexShrink: fits ? 1 : 0, flexBasis: 'auto', minWidth: 0, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6, paddingHorizontal: 12, height: 32, borderRadius: 16, backgroundColor: active ? (t.dark ? 'rgba(255,255,255,0.14)' : 'rgba(255,255,255,0.85)') : 'transparent' }}>
       <Text numberOfLines={1} maxFontSizeMultiplier={1.15} style={{ flexShrink: 1, color: t.text, fontSize: 14, fontWeight: active ? '700' : '500' }}>{tab.label}</Text>
