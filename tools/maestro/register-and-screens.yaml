@@ -1,5 +1,14 @@
 appId: com.linea.messenger.preview
 ---
+# Registers a fresh test account on the local test server and walks the screens (screens.yaml).
+#
+# Typing: ManualField accepts one code point per change, which is exactly what XCUITest typing does,
+# so a whole string per inputText is fine (the "по одному символу" hint would appear otherwise — asserted).
+# Keyboard: Maestro's hideKeyboard is unreliable on iOS and a tap while the keyboard is up landed on the
+# wrong field (the KeyboardAvoidingView had shifted the card). So the first field of every step is left
+# with the Return key — returnKeyType "next" without onSubmitEditing blurs it and the keyboard closes —
+# and the second field is submitted with Return ("go" → submit). If Return did not advance the step, the
+# fallback taps the submit button.
 - launchApp:
     clearState: true
 - extendedWaitUntil:
@@ -7,196 +16,138 @@ appId: com.linea.messenger.preview
     timeout: 90000
 - takeScreenshot: 00-auth
 - tapOn: "Создать аккаунт"
+
+# Step 1/5: login twice
 - tapOn:
     id: "field-Логин"
-- inputText: "s"
-- inputText: "i"
-- inputText: "m"
-- inputText: "t"
-- inputText: "e"
-- inputText: "s"
-- inputText: "t"
-- inputText: "e"
-- inputText: "r"
-- inputText: "1"
+- inputText: "simtester1"
+- assertNotVisible: "Введи по одному символу.*"
+- pressKey: enter
 - tapOn:
     id: "field-Повтори логин"
-- inputText: "s"
-- inputText: "i"
-- inputText: "m"
-- inputText: "t"
-- inputText: "e"
-- inputText: "s"
-- inputText: "t"
-- inputText: "e"
-- inputText: "r"
-- inputText: "1"
-- hideKeyboard
-- tapOn:
-    id: "auth-submit"
+- inputText: "simtester1"
+- assertNotVisible: "Введи по одному символу.*"
+- takeScreenshot: 01-register-login
+- pressKey: enter
+- runFlow:
+    when:
+      notVisible:
+        id: "field-Имя"
+    commands:
+      - scrollUntilVisible:
+          element:
+            id: "auth-submit"
+          direction: DOWN
+      - tapOn:
+          id: "auth-submit"
 - extendedWaitUntil:
     visible:
       id: "field-Имя"
     timeout: 20000
+
+# Step 2/5: display name and public username
 - tapOn:
     id: "field-Имя"
-- inputText: "S"
-- inputText: "i"
-- inputText: "m"
-- inputText: " "
-- inputText: "T"
-- inputText: "e"
-- inputText: "s"
-- inputText: "t"
-- inputText: "e"
-- inputText: "r"
+- inputText: "Sim Tester"
+- assertNotVisible: "Введи по одному символу.*"
+- pressKey: enter
 - tapOn:
     id: "field-Публичный @юзернейм"
-- inputText: "s"
-- inputText: "i"
-- inputText: "m"
-- inputText: "u"
-- inputText: "i"
-- inputText: "_"
-- inputText: "c"
-- inputText: "h"
-- inputText: "e"
-- inputText: "c"
-- inputText: "k"
-- hideKeyboard
-- tapOn:
-    id: "auth-submit"
+- inputText: "simui_check"
+- assertNotVisible: "Введи по одному символу.*"
+- pressKey: enter
+- runFlow:
+    when:
+      notVisible:
+        id: "field-Пароль"
+    commands:
+      - scrollUntilVisible:
+          element:
+            id: "auth-submit"
+          direction: DOWN
+      - tapOn:
+          id: "auth-submit"
 - extendedWaitUntil:
     visible:
       id: "field-Пароль"
     timeout: 20000
+
+# Step 3/5: password twice
 - tapOn:
     id: "field-Пароль"
-- inputText: "c"
-- inputText: "o"
-- inputText: "r"
-- inputText: "r"
-- inputText: "e"
-- inputText: "c"
-- inputText: "t"
-- inputText: " "
-- inputText: "h"
-- inputText: "o"
-- inputText: "r"
-- inputText: "s"
-- inputText: "e"
-- inputText: " "
-- inputText: "b"
-- inputText: "a"
-- inputText: "t"
-- inputText: "t"
-- inputText: "e"
-- inputText: "r"
-- inputText: "y"
-- inputText: " "
-- inputText: "s"
-- inputText: "t"
-- inputText: "a"
-- inputText: "p"
-- inputText: "l"
-- inputText: "e"
-- inputText: " "
-- inputText: "4"
-- inputText: "2"
+- inputText: "correct horse battery staple 42"
+- assertNotVisible: "Введи по одному символу.*"
+- pressKey: enter
 - tapOn:
     id: "field-Повтори пароль"
-- inputText: "c"
-- inputText: "o"
-- inputText: "r"
-- inputText: "r"
-- inputText: "e"
-- inputText: "c"
-- inputText: "t"
-- inputText: " "
-- inputText: "h"
-- inputText: "o"
-- inputText: "r"
-- inputText: "s"
-- inputText: "e"
-- inputText: " "
-- inputText: "b"
-- inputText: "a"
-- inputText: "t"
-- inputText: "t"
-- inputText: "e"
-- inputText: "r"
-- inputText: "y"
-- inputText: " "
-- inputText: "s"
-- inputText: "t"
-- inputText: "a"
-- inputText: "p"
-- inputText: "l"
-- inputText: "e"
-- inputText: " "
-- inputText: "4"
-- inputText: "2"
-- hideKeyboard
-- tapOn:
-    id: "auth-submit"
+- inputText: "correct horse battery staple 42"
+- assertNotVisible: "Введи по одному символу.*"
+- pressKey: enter
+- runFlow:
+    when:
+      notVisible:
+        id: "field-Слово подтверждения"
+    commands:
+      - scrollUntilVisible:
+          element:
+            id: "auth-submit"
+          direction: DOWN
+      - tapOn:
+          id: "auth-submit"
 - extendedWaitUntil:
     visible:
       id: "field-Слово подтверждения"
     timeout: 20000
+
+# Step 4/5: confirmation word twice
 - tapOn:
     id: "field-Слово подтверждения"
-- inputText: "l"
-- inputText: "u"
-- inputText: "d"
-- inputText: "w"
-- inputText: "i"
-- inputText: "g"
-- inputText: "s"
-- inputText: "a"
-- inputText: "l"
-- inputText: "t"
+- inputText: "ludwigsalt"
+- assertNotVisible: "Введи по одному символу.*"
+- pressKey: enter
 - tapOn:
     id: "field-Повтори слово подтверждения"
-- inputText: "l"
-- inputText: "u"
-- inputText: "d"
-- inputText: "w"
-- inputText: "i"
-- inputText: "g"
-- inputText: "s"
-- inputText: "a"
-- inputText: "l"
-- inputText: "t"
-- hideKeyboard
-- tapOn:
-    id: "auth-submit"
+- inputText: "ludwigsalt"
+- assertNotVisible: "Введи по одному символу.*"
+- pressKey: enter
+- runFlow:
+    when:
+      notVisible:
+        id: "field-Слово восстановления"
+    commands:
+      - scrollUntilVisible:
+          element:
+            id: "auth-submit"
+          direction: DOWN
+      - tapOn:
+          id: "auth-submit"
 - extendedWaitUntil:
     visible:
       id: "field-Слово восстановления"
     timeout: 20000
+
+# Step 5/5: recovery word twice
 - tapOn:
     id: "field-Слово восстановления"
-- inputText: "m"
-- inputText: "a"
-- inputText: "r"
-- inputText: "i"
-- inputText: "p"
-- inputText: "o"
-- inputText: "s"
-- inputText: "a"
+- inputText: "mariposa"
+- assertNotVisible: "Введи по одному символу.*"
+- pressKey: enter
 - tapOn:
     id: "field-Повтори слово восстановления"
-- inputText: "m"
-- inputText: "a"
-- inputText: "r"
-- inputText: "i"
-- inputText: "p"
-- inputText: "o"
-- inputText: "s"
-- inputText: "a"
-- hideKeyboard
-- tapOn:
-    id: "auth-submit"
+- inputText: "mariposa"
+- assertNotVisible: "Введи по одному символу.*"
+- takeScreenshot: 02-register-last-step
+- pressKey: enter
+- runFlow:
+    when:
+      notVisible: "Избранное.*"
+    commands:
+      - scrollUntilVisible:
+          element:
+            id: "auth-submit"
+          direction: DOWN
+      - tapOn:
+          id: "auth-submit"
 - tapOn:
     text: "Allow"
     optional: true
@@ -204,6 +155,6 @@ appId: com.linea.messenger.preview
     text: "Разрешить"
     optional: true
 - extendedWaitUntil:
-    visible: "Избранное"
+    visible: "Избранное.*"
     timeout: 60000
 - runFlow: screens.yaml

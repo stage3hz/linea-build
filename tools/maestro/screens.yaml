@@ -1,8 +1,18 @@
 appId: com.linea.messenger.preview
 ---
 # Screens checked in the simulator. Screenshots carry the theme prefix set by the workflow (THEME).
+# The tab bar is photographed with every tab selected, so its pill and icons can be measured.
 - waitForAnimationToEnd
 - takeScreenshot: ${THEME}-01-chats
+- tapOn: "Люди"
+- waitForAnimationToEnd
+- takeScreenshot: ${THEME}-06-people
+- tapOn: "Музыка"
+- waitForAnimationToEnd
+- takeScreenshot: ${THEME}-07-music
+- tapOn: "AI"
+- waitForAnimationToEnd
+- takeScreenshot: ${THEME}-08-ai
 - tapOn: "Настройки"
 - waitForAnimationToEnd
 - takeScreenshot: ${THEME}-02-settings
