@@ -162,7 +162,14 @@ function aacConfig(bytes: Uint8Array, config: Descriptor): void {
 }
 
 function decoderConfig(bytes: Uint8Array, item: Descriptor): void {
-  if (item.tag !== 4 || item.end - item.data < 13 || bytes[item.data] !== 0x40 || bytes[item.data + 1] !== 0x15) fail('неподдерживаемый AAC decoder descriptor.');
+  // objectTypeIndication: 0x40 MPEG-4 audio, or 0x66–0x68 MPEG-2 AAC (Main / LC / SSR); the AAC config
+  // below still has to be AAC-LC. streamType byte: streamType 5 (audio) in the top 6 bits, upStream 0;
+  // the last (reserved) bit is not checked — encoders differ there. The real bytes are shown on failure.
+  const hex = (value: number | undefined) => `0x${(value ?? 0).toString(16).padStart(2, '0')}`;
+  const object = bytes[item.data], stream = bytes[item.data + 1];
+  if (item.tag !== 4 || item.end - item.data < 13 || ![0x40, 0x66, 0x67, 0x68].includes(object) || (stream >> 2) !== 5 || (stream & 2) !== 0) {
+    fail(`неподдерживаемый AAC decoder descriptor (tag ${hex(item.tag)}, ${item.end - item.data} B, object ${hex(object)}, stream ${hex(stream)}).`);
+  }
   const config = descriptor(bytes, item.data + 13, item.end);
   if (config.end !== item.end) fail('лишние AAC decoder descriptors.');
   aacConfig(bytes, config);

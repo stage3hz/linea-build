@@ -56,10 +56,13 @@ final class VideoNoteView: ExpoView, AVCaptureVideoDataOutputSampleBufferDelegat
     super.init(appContext: appContext)
     clipsToBounds = true
     backgroundColor = .black
+    UIDevice.current.beginGeneratingDeviceOrientationNotifications()
     previewLayer.session = session
     previewLayer.videoGravity = .resizeAspectFill
     layer.addSublayer(previewLayer)
   }
+
+  deinit { UIDevice.current.endGeneratingDeviceOrientationNotifications() }
 
   override func layoutSubviews() {
     super.layoutSubviews()
@@ -103,6 +106,41 @@ final class VideoNoteView: ExpoView, AVCaptureVideoDataOutputSampleBufferDelegat
     else if connection.isVideoRotationAngleSupported(90) { connection.videoRotationAngle = 90 }
   }
 
+  // Apple's RotationCoordinator knows each camera's sensor rotation (the iPhone 17 front camera is
+  // mounted turned) and gives the angle for an upright picture, for recording and for the preview
+  // separately. Its angles are applied while the phone is held upright (or lies flat), so the circle
+  // stays portrait when the phone is tilted. The «default + 90°» rule above is only the first guess.
+  private var rotationCoordinator: AnyObject?
+  private var rotationObservations: [NSKeyValueObservation] = []
+
+  @available(iOS 17.0, *)
+  private func followRotationCoordinator() {
+    guard let device = videoInput?.device else { return }
+    DispatchQueue.main.async {
+      self.rotationObservations.removeAll()
+      let coordinator = AVCaptureDevice.RotationCoordinator(device: device, previewLayer: self.previewLayer)
+      self.rotationCoordinator = coordinator
+      self.rotationObservations = [
+        coordinator.observe(\.videoRotationAngleForHorizonLevelCapture, options: [.initial, .new]) { [weak self] value, _ in
+          self?.useCoordinator(capture: value.videoRotationAngleForHorizonLevelCapture, preview: nil) },
+        coordinator.observe(\.videoRotationAngleForHorizonLevelPreview, options: [.initial, .new]) { [weak self] value, _ in
+          self?.useCoordinator(capture: nil, preview: value.videoRotationAngleForHorizonLevelPreview) },
+      ]
+    }
+  }
+
+  @available(iOS 17.0, *)
+  private func useCoordinator(capture: CGFloat?, preview: CGFloat?) {
+    DispatchQueue.main.async {
+      let held = UIDevice.current.orientation
+      guard held == .portrait || held == .unknown || held == .faceUp || held == .faceDown else { return }
+      self.sessionQueue.async {
+        if let angle = capture, let connection = self.videoOutput.connection(with: .video), connection.isVideoRotationAngleSupported(angle) { connection.videoRotationAngle = angle }
+        if let angle = preview, let connection = self.previewLayer.connection, connection.isVideoRotationAngleSupported(angle) { connection.videoRotationAngle = angle }
+      }
+    }
+  }
+
   private func applyConnection() {
     guard let connection = videoOutput.connection(with: .video) else { return }
     if #available(iOS 17.0, *) {
@@ -125,6 +163,7 @@ final class VideoNoteView: ExpoView, AVCaptureVideoDataOutputSampleBufferDelegat
         preview.isVideoMirrored = facing == "front"
       }
     }
+    if #available(iOS 17.0, *) { followRotationCoordinator() }
   }
 
   private func fail(_ message: String) {

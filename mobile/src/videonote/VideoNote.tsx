@@ -1,6 +1,6 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { ActivityIndicator, Image, Modal, Platform, Pressable, StyleSheet, View, useWindowDimensions } from 'react-native';
-import Animated, { LinearTransition, useAnimatedStyle, useSharedValue, withSpring, withTiming } from 'react-native-reanimated';
+import Animated, { Easing, LinearTransition, useAnimatedStyle, useSharedValue, withSpring, withTiming } from 'react-native-reanimated';
 import { motionEnabled } from '../motion';
 import { CameraView, useCameraPermissions, useMicrophonePermissions, type CameraType } from 'expo-camera';
 import { useVideoPlayer, VideoView } from 'expo-video';
@@ -172,10 +172,10 @@ export function VideoNoteRecorder({ visible, onClose, onDone, hold = null }: { v
   // «‹ Влево — отмена» (after a lock: «Отмена»), the big circle on the right (under the finger; after
   // a lock it sends), and the switch-camera button above the strip on the left.
   const RING = CIRCLE + 12;
-  // Telegram: the circle grows out of the record button (bottom right) into place.
+  // The circle appears in place: a short scale-up with a fade, no flight across the screen (Telegram).
   const appear = useSharedValue(0);
-  useEffect(() => { appear.value = visible && hold ? (motionEnabled() ? withSpring(1, { damping: 17, stiffness: 190 }) : withTiming(1, { duration: 0 })) : 0; }, [visible, !!hold]);
-  const grow = useAnimatedStyle(() => ({ opacity: Math.min(1, appear.value * 2), transform: [{ translateX: (1 - appear.value) * win.width * 0.38 }, { translateY: (1 - appear.value) * win.height * 0.42 }, { scale: 0.12 + 0.88 * appear.value }] }));
+  useEffect(() => { appear.value = visible && hold ? (motionEnabled() ? withTiming(1, { duration: 200, easing: Easing.out(Easing.cubic) }) : withTiming(1, { duration: 0 })) : 0; }, [visible, !!hold]);
+  const grow = useAnimatedStyle(() => ({ opacity: Math.min(1, appear.value * 2), transform: [{ scale: 0.7 + 0.3 * appear.value }] }));
   const holdBody = <View pointerEvents="box-none" style={{ flex: 1 }}>
     {screenFlash ? <View pointerEvents="none" style={[StyleSheet.absoluteFill, { backgroundColor: '#FFF6E8' }]} /> : null}
     <View pointerEvents="box-none" style={{ alignItems: 'center', paddingTop: Math.max(insets.top + 24, win.height * 0.4 - RING / 2), gap: 18 }}>

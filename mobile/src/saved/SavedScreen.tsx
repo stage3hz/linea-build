@@ -8,7 +8,7 @@ import * as Clipboard from 'expo-clipboard';
 import * as FileSystem from 'expo-file-system/legacy';
 import { Text, TextInput } from '../typography';
 import { KeyboardSafeView } from '../keyboard';
-import { AttachmentCard, Empty, Icon, IconButton, Notice, Sheet, SheetAction } from '../components';
+import { AttachmentCard, Empty, Icon, IconButton, Notice, RecordHint, Sheet, SheetAction } from '../components';
 import { GlassSurface } from '../glass';
 import { formatDay, formatTime, useTheme } from '../theme';
 import type { Api } from '../api';
@@ -143,9 +143,10 @@ export function SavedScreen({ api, user, store, onBack, wide = false }: { api: A
       {voice.active && !(recHold?.kind === 'voice' && !recHold.locked) ? <VoiceRecordingBar durationMs={voice.durationMs} levels={voice.levels} paused={voice.paused} onPause={voice.togglePause} onCancel={() => { setRecHold(null); void finishVoice(false); }} onSend={() => { setRecHold(null); void finishVoice(true); }} /> :
 
         <View style={{ flexDirection: 'row', gap: 6, alignItems: 'flex-end' }}>
+          <RecordHint text={recordHint} bottom={52} />
           {recHold?.kind === 'voice' && !recHold.locked ? <View key="strip" style={{ flex: 1, minHeight: 44, justifyContent: 'center' }}><VoiceRecordingBar holding cancelProgress={cancelProgress} durationMs={voice.durationMs} levels={voice.levels} onCancel={() => {}} onSend={() => {}} /></View> : <>
           <IconButton name="add" label="Сохранить фото, видео или файл" onPress={() => { Keyboard.dismiss(); setAttachMenu(true); }} color={t.accent} disabled={busy || !!editing} style={{ width: 44, height: 44, borderRadius: 21 }} />
-          <View style={{ flex: 1, minHeight: 44, maxHeight: 140, justifyContent: 'center' }}><ComposerInput focusKey={editing ? `edit:${editing.id}` : null} accessibilityLabel="Заметка" placeholder={recordHint || 'Заметка…'} value={text} onChangeText={setText} onKeyPress={e => { if (Platform.OS === 'web' && e.nativeEvent.key === 'Enter' && !(e.nativeEvent as unknown as { shiftKey?: boolean }).shiftKey) { e.preventDefault(); submit(); } }} placeholderTextColor={t.muted} selectionColor={t.accent} keyboardAppearance={t.dark ? 'dark' : 'light'} multiline maxLength={8000} style={{ fontSize: 15, lineHeight: 21, color: t.text, paddingHorizontal: 6, paddingTop: Platform.OS === 'ios' ? 11 : 10, paddingBottom: 11, maxHeight: 136 }} /></View>
+          <View style={{ flex: 1, minHeight: 44, maxHeight: 140, justifyContent: 'center' }}><ComposerInput focusKey={editing ? `edit:${editing.id}` : null} accessibilityLabel="Заметка" placeholder="Заметка…" value={text} onChangeText={setText} onKeyPress={e => { if (Platform.OS === 'web' && e.nativeEvent.key === 'Enter' && !(e.nativeEvent as unknown as { shiftKey?: boolean }).shiftKey) { e.preventDefault(); submit(); } }} placeholderTextColor={t.muted} selectionColor={t.accent} keyboardAppearance={t.dark ? 'dark' : 'light'} multiline maxLength={8000} style={{ fontSize: 15, lineHeight: 21, color: t.text, paddingHorizontal: 6, paddingTop: Platform.OS === 'ios' ? 11 : 10, paddingBottom: 11, maxHeight: 136 }} /></View>
           </>}
           {!text.trim() && !editing && signalAvailable ? <View key="rec" style={{ zIndex: 5, height: 44, justifyContent: 'center' }}><RecordButton mode={recordMode} disabled={busy} onTouchDown={() => { if (recordModeRef.current === 'voice') voice.prepare(); }} level={recHold?.kind === 'voice' ? voice.levels.at(-1) || 0 : 0} onToggleMode={toggleRecordMode} onHoldStart={holdStart} onHoldEnd={holdEnd} onLock={holdLock} onSlide={setCancelProgress} /></View> :
             <Pressable accessibilityRole="button" accessibilityLabel={editing ? 'Сохранить изменения' : 'Сохранить заметку'} disabled={!text.trim() || busy} onPress={submit} style={({ pressed }) => ({ height: 44, width: 44, borderRadius: 22, backgroundColor: t.accent, alignItems: 'center', justifyContent: 'center', opacity: !text.trim() || busy ? .4 : pressed ? .75 : 1 })}><Icon name={editing ? 'checkmark' : 'arrow-up'} color={t.onAccent} size={23} /></Pressable>}

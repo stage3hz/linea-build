@@ -88,9 +88,9 @@ test('static HDR payload has bounded chromaticity and luminance fields',()=>{
   assert.throws(()=>sanitizeMp4(bytes,'pq'),/HDR|цвет|ярк/i);
 });
 
-function aacDescription(config,{duplicate=false,wrongStream=false}={}) {
+function aacDescription(config,{duplicate=false,wrongStream=false,stream=null,object=0x40}={}) {
   const descriptor=(tag,data)=>Buffer.concat([Buffer.from([tag,data.length]),data]);
-  const decoder=Buffer.alloc(13);decoder[0]=0x40;decoder[1]=wrongStream?0x17:0x15;
+  const decoder=Buffer.alloc(13);decoder[0]=object;decoder[1]=stream??(wrongStream?0x17:0x15);
   const asc=descriptor(5,config);
   const nested=descriptor(4,Buffer.concat([decoder,asc,...(duplicate?[asc]:[])]));
   const root=descriptor(3,Buffer.concat([Buffer.from([0,1,0]),nested,descriptor(6,Buffer.from([2]))]));
@@ -110,6 +110,11 @@ test('AAC config permits only defined LC fields and cannot retain private traili
   }
   assert.throws(()=>sanitizeMp4(replace(Buffer.from([0x11,0x88]),{duplicate:true})),/AAC|аудио|descriptor/i);
   assert.throws(()=>sanitizeMp4(replace(Buffer.from([0x11,0x88]),{wrongStream:true})),/AAC|аудио|descriptor/i);
+  // Spec-valid encoder variants: reserved bit clear (0x14) and MPEG-2 AAC LC (0x67); the error names the bytes.
+  assert.equal(sanitizeMp4(replace(Buffer.from([0x11,0x88]),{stream:0x14})).width,64);
+  assert.equal(sanitizeMp4(replace(Buffer.from([0x11,0x88]),{object:0x67})).width,64);
+  assert.throws(()=>sanitizeMp4(replace(Buffer.from([0x11,0x88]),{stream:0x11})),/stream 0x11/);
+  assert.throws(()=>sanitizeMp4(replace(Buffer.from([0x11,0x88]),{object:0x6b})),/object 0x6b/);
 });
 
 const integers=(...values)=>{

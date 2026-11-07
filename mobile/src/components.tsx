@@ -2,7 +2,7 @@ import React, { useEffect, useMemo, useState } from 'react';
 import { Image as CachedImage } from 'expo-image';
 import { ActivityIndicator, Image, KeyboardAvoidingView, Modal, Platform, Pressable, ScrollView, StyleSheet, View, type ImageStyle, type StyleProp, type TextInputProps, type ViewStyle } from 'react-native';
 import { Text, TextInput } from './typography';
-import Animated, { useAnimatedStyle, useSharedValue, withSpring } from 'react-native-reanimated';
+import Animated, { FadeIn, FadeOut, useAnimatedStyle, useSharedValue, withSpring } from 'react-native-reanimated';
 import { Ionicons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
 import Svg, { Path } from 'react-native-svg';
@@ -181,4 +181,20 @@ export function SectionLabel({children}:{children:React.ReactNode}) {
 export function InsetView({style,children,pointerEvents,bottom=true}:{style?:StyleProp<ViewStyle>;children:React.ReactNode;pointerEvents?:'box-none'|'auto';bottom?:boolean}) {
   const insets=useSafeAreaInsets();
   return <View pointerEvents={pointerEvents} style={[{paddingTop:insets.top,paddingBottom:bottom?insets.bottom:0,paddingLeft:insets.left,paddingRight:insets.right},style]}>{children}</View>;
+}
+
+/**
+ * Telegram's record hint («Видео — удерживайте. Звук — нажмите.»): a small dark bubble above the
+ * composer's right edge with a tail toward the record button. The input keeps its own placeholder.
+ * Place it inside the composer row (it is positioned absolutely above it).
+ */
+export function RecordHint({ text, bottom = 48 }: { text: string; bottom?: number }) {
+  if (!text) return null;
+  return <Animated.View key={text} entering={FadeIn.duration(160)} exiting={FadeOut.duration(160)} pointerEvents="none" accessibilityLiveRegion="polite"
+    style={{ position: 'absolute', right: 0, bottom, zIndex: 20, alignItems: 'flex-end' }}>
+    <View style={{ paddingHorizontal: 11, paddingVertical: 7, borderRadius: 11, backgroundColor: 'rgba(22,22,24,0.94)' }}>
+      <Text numberOfLines={1} style={{ color: '#FFFFFF', fontSize: 14 }}>{text}</Text>
+    </View>
+    <View style={{ width: 0, height: 0, marginRight: 13, borderLeftWidth: 7, borderRightWidth: 7, borderTopWidth: 7, borderLeftColor: 'transparent', borderRightColor: 'transparent', borderTopColor: 'rgba(22,22,24,0.94)' }}/>
+  </Animated.View>;
 }

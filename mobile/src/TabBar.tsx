@@ -67,7 +67,7 @@ function TabIcon({ item, active, kick, pressed, index }: { item: TabItem; active
     return { transform: [{ scale: press * (1 + bump * 0.3) }, { rotate: `${Math.sin(k * Math.PI * 2) * 18}deg` }] };
   });
   return <Animated.View style={style}>
-    {item.id === 'profile' ? <GearIcon size={29} active={active} accent={t.accent} dark={t.dark} /> : <Icon name={active ? item.activeIcon : item.icon} size={22} color={active ? t.accent : t.muted} />}
+    {item.id === 'profile' ? <View style={{ width: 22, height: 22, alignItems: 'center', justifyContent: 'center' }}><GearIcon size={26} active={active} accent={t.accent} dark={t.dark} /></View> : <Icon name={active ? item.activeIcon : item.icon} size={22} color={active ? t.accent : t.muted} />}
     {item.badge ? <View style={{ position: 'absolute', top: -6, left: 13, minWidth: 18, height: 18, paddingHorizontal: 5, borderRadius: 9, borderWidth: 2, borderColor: t.dark ? '#15171D' : '#FFF', backgroundColor: t.accent, alignItems: 'center', justifyContent: 'center' }}><Text maxFontSizeMultiplier={1} style={{ color: t.onAccent, fontSize: 10, fontWeight: '800' }}>{badgeText(item.badge)}</Text></View> : null}
   </Animated.View>;
 }
@@ -153,8 +153,9 @@ export function TabBar({ items, active }: { items: TabItem[]; active: TabId }) {
         onAccessibilityTap={() => open(index)} style={{ flex: 1, alignItems: 'center', justifyContent: 'center', gap: 4, paddingVertical: 6 }}>
         {slotted && other ? <SlotReel reel={reel} people={item.id === 'people' ? item : other} channels={item.id === 'channels' ? item : other} active={on} kick={kicks[index]} pressed={pressed} index={index} /> : <>
           <TabIcon item={item} active={on} kick={kicks[index]} pressed={pressed} index={index} />
-          {/* The gear has no caption (the user's choice): it sits larger, in the middle of the bar. */}
-          {item.id === 'profile' ? null : <Text numberOfLines={1} maxFontSizeMultiplier={1} style={{ fontSize: 10, letterSpacing: -.1, color: on ? t.accent : t.muted, fontWeight: on ? '700' : '600' }}>{item.label}</Text>}
+          {/* The gear has no caption (the user's choice), but an invisible one keeps it on the same line as
+              the other icons, so the bar reads level. */}
+          <Text numberOfLines={1} maxFontSizeMultiplier={1} accessibilityElementsHidden={item.id === 'profile'} importantForAccessibility={item.id === 'profile' ? 'no-hide-descendants' : 'auto'} style={{ fontSize: 10, letterSpacing: -.1, color: on ? t.accent : t.muted, fontWeight: on ? '700' : '600', opacity: item.id === 'profile' ? 0 : 1 }}>{item.label}</Text>
         </>}
         {/* A small hint that the slot switches: a dot (with the other section's unread count) above it. */}
         {slotted && other ? <View pointerEvents="none" style={{ position: 'absolute', top: 1, width: 14, height: 3, borderRadius: 2, backgroundColor: other.badge ? t.accent : t.muted, opacity: other.badge ? 1 : .35 }} /> : null}
