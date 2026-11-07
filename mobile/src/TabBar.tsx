@@ -14,22 +14,30 @@ import { Text } from './typography';
 import { Icon, type IconName } from './components';
 import { useTheme } from './theme';
 import { badgeText } from './unreadBadge';
-import Svg, { Path } from 'react-native-svg';
+import Svg, { Circle, Defs, LinearGradient as SvgGradient, Path, Stop } from 'react-native-svg';
 
-// The settings gear, drawn here in the iOS manner (eight soft, rounded teeth and a round hole) instead of
-// the stock icon: an outline when not selected, filled when selected.
-const GEAR_PATH = (() => {
-  const c = 12, outer = 10.4, inner = 8.1, hole = 3.6; const at = (r: number, deg: number) => { const a = (deg - 90) * Math.PI / 180; return `${(c + r * Math.cos(a)).toFixed(2)} ${(c + r * Math.sin(a)).toFixed(2)}`; };
-  const points: string[] = [];
-  for (let i = 0; i < 8; i++) { const a = i * 45; points.push(at(inner, a - 15), at(outer, a - 9), at(outer, a + 9), at(inner, a + 15)); }
-  const ring = `M${points.join(' L')} Z`;
-  const circle = `M${c + hole} ${c} A${hole} ${hole} 0 1 0 ${c - hole} ${c} A${hole} ${hole} 0 1 0 ${c + hole} ${c} Z`;
-  return { ring, circle };
+// The settings gear in the manner of the iPhone «Settings» icon, drawn here: a ring with fine teeth, a
+// darker gear inside it and three curved spokes to the hub. Silver when not selected, the accent
+// colour when selected.
+const GEAR = (() => {
+  const c = 12; const at = (r: number, deg: number) => { const a = (deg - 90) * Math.PI / 180; return `${(c + r * Math.cos(a)).toFixed(3)} ${(c + r * Math.sin(a)).toFixed(3)}`; };
+  const teeth = (n: number, outer: number, root: number) => { const step = 360 / n; const points: string[] = [];
+    for (let i = 0; i < n; i++) { const a = i * step; points.push(at(root, a - step / 4), at(outer, a - step * 0.16), at(outer, a + step * 0.16), at(root, a + step / 4)); }
+    return `M${points.join(' L')} Z`; };
+  const circle = (r: number) => `M${c + r} ${c} A${r} ${r} 0 1 0 ${c - r} ${c} A${r} ${r} 0 1 0 ${c + r} ${c} Z`;
+  const spokes = [0, 120, 240].map(a => `M${at(1.4, a + 20)} Q${at(5.2, a + 35)} ${at(9.2, a + 18)}`).join(' ');
+  return { ring: `${teeth(32, 11.6, 10.5)} ${circle(8.7)}`, inner: `${teeth(22, 7.6, 6.8)} ${circle(5.4)}`, spokes };
 })();
-function GearIcon({ size, color, filled }: { size: number; color: string; filled: boolean }) {
+function GearIcon({ size, active, accent, dark }: { size: number; active: boolean; accent: string; dark: boolean }) {
+  const id = active ? 'gearOn' : 'gearOff';
+  // Silver on the dark bar, graphite on the light one.
+  const [top, bottom, inner] = active ? [accent, accent, accent] : dark ? ['#F2F2F5', '#9A9AA0', '#6B6B70'] : ['#8E8E93', '#3A3A3F', '#B4B4B9'];
   return <Svg width={size} height={size} viewBox="0 0 24 24">
-    {filled ? <Path d={`${GEAR_PATH.ring} ${GEAR_PATH.circle}`} fill={color} fillRule="evenodd" stroke={color} strokeWidth={1.6} strokeLinejoin="round" />
-      : <><Path d={GEAR_PATH.ring} fill="none" stroke={color} strokeWidth={1.7} strokeLinejoin="round" /><Path d={GEAR_PATH.circle} fill="none" stroke={color} strokeWidth={1.7} /></>}
+    <Defs><SvgGradient id={id} x1="0" y1="0" x2="0" y2="1"><Stop offset="0" stopColor={top} stopOpacity={1} /><Stop offset="1" stopColor={bottom} stopOpacity={active ? 0.8 : 1} /></SvgGradient></Defs>
+    <Path d={GEAR.inner} fill={inner} fillOpacity={active ? 0.45 : 1} fillRule="evenodd" />
+    <Path d={GEAR.ring} fill={`url(#${id})`} fillRule="evenodd" />
+    <Path d={GEAR.spokes} fill="none" stroke={`url(#${id})`} strokeWidth={1.3} strokeLinecap="round" />
+    <Circle cx={12} cy={12} r={1.9} fill={`url(#${id})`} />
   </Svg>;
 }
 
@@ -59,7 +67,7 @@ function TabIcon({ item, active, kick, pressed, index }: { item: TabItem; active
     return { transform: [{ scale: press * (1 + bump * 0.3) }, { rotate: `${Math.sin(k * Math.PI * 2) * 18}deg` }] };
   });
   return <Animated.View style={style}>
-    {item.id === 'profile' ? <GearIcon size={28} color={active ? t.accent : t.muted} filled={active} /> : <Icon name={active ? item.activeIcon : item.icon} size={22} color={active ? t.accent : t.muted} />}
+    {item.id === 'profile' ? <GearIcon size={29} active={active} accent={t.accent} dark={t.dark} /> : <Icon name={active ? item.activeIcon : item.icon} size={22} color={active ? t.accent : t.muted} />}
     {item.badge ? <View style={{ position: 'absolute', top: -6, left: 13, minWidth: 18, height: 18, paddingHorizontal: 5, borderRadius: 9, borderWidth: 2, borderColor: t.dark ? '#15171D' : '#FFF', backgroundColor: t.accent, alignItems: 'center', justifyContent: 'center' }}><Text maxFontSizeMultiplier={1} style={{ color: t.onAccent, fontSize: 10, fontWeight: '800' }}>{badgeText(item.badge)}</Text></View> : null}
   </Animated.View>;
 }
