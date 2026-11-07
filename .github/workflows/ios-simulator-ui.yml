@@ -20,7 +20,7 @@ permissions:
   contents: read
 concurrency:
   group: ios-simulator-ui
-  cancel-in-progress: true
+  cancel-in-progress: false  # a walk takes ~1 h; a new push waits instead of killing it before the screenshots upload
 jobs:
   ui:
     runs-on: ${{ inputs.runner || 'macos-15-intel' }}
