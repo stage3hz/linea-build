@@ -83,7 +83,7 @@ function SlotReel({ reel, people, channels, active, kick, pressed, index }: { re
   const roll = useAnimatedStyle(() => ({ transform: [{ translateY: -reel.value * REEL }] }));
   const row = (item: TabItem, key: string) => <View key={key} style={{ height: REEL, alignItems: 'center', justifyContent: 'center', gap: 4 }}>
     <TabIcon item={item} active={active} kick={kick} pressed={pressed} index={index} />
-    <Text numberOfLines={1} maxFontSizeMultiplier={1} style={{ fontSize: 10, letterSpacing: -.1, color: active ? t.accent : t.muted, fontWeight: active ? '700' : '600' }}>{item.label}</Text>
+    <Text numberOfLines={1} maxFontSizeMultiplier={1} style={{ fontSize: 10, lineHeight: 12, letterSpacing: -.1, color: active ? t.accent : t.muted, fontWeight: active ? '700' : '600' }}>{item.label}</Text>
   </View>;
   return <View style={{ height: REEL, overflow: 'hidden', alignSelf: 'stretch' }}>
     <Animated.View style={roll}>{row(people, 'a')}{row(channels, 'b')}{row(people, 'c')}</Animated.View>
@@ -156,9 +156,8 @@ export function TabBar({ items, active }: { items: TabItem[]; active: TabId }) {
         onAccessibilityTap={() => open(index)} style={{ flex: 1, alignItems: 'center', justifyContent: 'center', gap: 4, paddingVertical: 6 }}>
         {slotted && other ? <SlotReel reel={reel} people={item.id === 'people' ? item : other} channels={item.id === 'channels' ? item : other} active={on} kick={kicks[index]} pressed={pressed} index={index} /> : <>
           <TabIcon item={item} active={on} kick={kicks[index]} pressed={pressed} index={index} />
-          {/* The gear has no caption (the user's choice), but an invisible one keeps it on the same line as
-              the other icons, so the bar reads level. */}
-          <Text numberOfLines={1} maxFontSizeMultiplier={1} accessibilityElementsHidden={item.id === 'profile'} importantForAccessibility={item.id === 'profile' ? 'no-hide-descendants' : 'auto'} style={{ fontSize: 10, letterSpacing: -.1, color: on ? t.accent : t.muted, fontWeight: on ? '700' : '600', opacity: item.id === 'profile' ? 0 : 1 }}>{item.label}</Text>
+          {/* The gear has no caption; an empty 12-pt slot (the labels' exact line height) keeps it on the icons' line. */}
+          {item.id === 'profile' ? <View style={{ height: 12 }} /> : <Text numberOfLines={1} maxFontSizeMultiplier={1} style={{ fontSize: 10, lineHeight: 12, letterSpacing: -.1, color: on ? t.accent : t.muted, fontWeight: on ? '700' : '600' }}>{item.label}</Text>}
         </>}
         {/* A small hint that the slot switches: a dot (with the other section's unread count) above it. */}
         {slotted && other ? other.badge ? <View pointerEvents="none" accessibilityElementsHidden style={{ position: 'absolute', top: -2, minWidth: 18, height: 14, paddingHorizontal: 4, borderRadius: 7, backgroundColor: t.accent, alignItems: 'center', justifyContent: 'center' }}><Text maxFontSizeMultiplier={1} style={{ color: t.onAccent, fontSize: 9, fontWeight: '800' }}>{badgeText(other.badge)}</Text></View>
