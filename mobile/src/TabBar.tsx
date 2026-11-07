@@ -17,7 +17,7 @@ import { Ionicons } from '@expo/vector-icons';
 // taller line on iOS and is drawn lower than its box, so the drawn gear looked higher than the rest.
 import { useTheme } from './theme';
 import { badgeText } from './unreadBadge';
-import Svg, { Circle, Defs, LinearGradient as SvgGradient, Path, Stop } from 'react-native-svg';
+import Svg, { Circle, Path } from 'react-native-svg';
 
 // The settings gear in the manner of the iPhone «Settings» icon, drawn here: a ring with fine teeth, a
 // darker gear inside it and three curved spokes to the hub. In the theme colours (see GearIcon).
@@ -32,15 +32,14 @@ const GEAR = (() => {
   return { ring: `${teeth(32, 11.6, 10.5)} ${circle(8.7)}`, inner: `${teeth(22, 7.6, 6.8)} ${circle(5.4)}`, spokes };
 })();
 function GearIcon({ size, active, accent, muted }: { size: number; active: boolean; accent: string; muted: string }) {
-  // In the theme's own colours like the other tab icons: the muted tone when not selected (it was a fixed
-  // silver that clashed with the coloured palettes), the accent when selected; the inner gear is fainter.
-  const id = active ? 'gearOn' : 'gearOff'; const color = active ? accent : muted;
+  // Exactly the colour of the other tab icons and captions: one flat fill, no gradient or faded parts,
+  // the muted tone when not selected and the accent when selected.
+  const color = active ? accent : muted;
   return <Svg width={size} height={size} viewBox="0 0 24 24">
-    <Defs><SvgGradient id={id} x1="0" y1="0" x2="0" y2="1"><Stop offset="0" stopColor={color} stopOpacity={1} /><Stop offset="1" stopColor={color} stopOpacity={0.78} /></SvgGradient></Defs>
-    <Path d={GEAR.inner} fill={color} fillOpacity={0.45} fillRule="evenodd" />
-    <Path d={GEAR.ring} fill={`url(#${id})`} fillRule="evenodd" />
-    <Path d={GEAR.spokes} fill="none" stroke={`url(#${id})`} strokeWidth={1.3} strokeLinecap="round" />
-    <Circle cx={12} cy={12} r={1.9} fill={`url(#${id})`} />
+    <Path d={GEAR.inner} fill={color} fillRule="evenodd" />
+    <Path d={GEAR.ring} fill={color} fillRule="evenodd" />
+    <Path d={GEAR.spokes} fill="none" stroke={color} strokeWidth={1.3} strokeLinecap="round" />
+    <Circle cx={12} cy={12} r={1.9} fill={color} />
   </Svg>;
 }
 
