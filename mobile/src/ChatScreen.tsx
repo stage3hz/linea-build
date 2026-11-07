@@ -423,12 +423,14 @@ export function ChatScreen({api,user,chat,store,onBack,wide=false,onOpenMusic}: 
       {needle?<Text style={{color:t.muted,fontSize:11}}>{rows.length?`Найдено: ${rows.length}`:'Ничего'}</Text>:null}
       <IconButton name="close" label="Закрыть поиск" size={18} color={t.muted} onPress={()=>{setSearchOpen(false);setQuery('');}} style={{width:34,height:38}}/>
     </GlassSurface>:null}
-    {view.pinned&&!searchOpen?<GlassSurface lens material="regular" radius={18} shadow={false} style={{marginHorizontal:12}} contentStyle={{flexDirection:'row',alignItems:'center',gap:8,paddingLeft:12,paddingRight:4,minHeight:44}}>
-      <Pressable accessibilityRole="button" accessibilityLabel="Перейти к закреплённому сообщению" onPress={()=>jumpTo(view.pinned!.clientId)} style={{flex:1,flexDirection:'row',alignItems:'center',gap:9}}>
-        <View style={{width:3,alignSelf:'stretch',marginVertical:8,borderRadius:2,backgroundColor:t.accent}}/>
-        <View style={{flex:1,gap:2,paddingVertical:6}}><Text style={{color:t.accent,fontSize:11,fontWeight:'700'}}>Закреплённое сообщение</Text><Text numberOfLines={1} style={{color:t.text,fontSize:13}}>{replyPreview(view.pinned)||'Вложение'}</Text></View>
+    {/* Telegram's pinned bar: a tall glass pill, a thin light line on the left, «Закреплённое сообщение»
+        in regular weight over the grey preview, and a plain icon (no circle) on the right to unpin. */}
+    {view.pinned&&!searchOpen?<GlassSurface lens material="regular" radius={26} shadow={false} style={{marginHorizontal:12}} contentStyle={{flexDirection:'row',alignItems:'center',paddingLeft:16,paddingRight:6,minHeight:56}}>
+      <Pressable accessibilityRole="button" accessibilityLabel="Перейти к закреплённому сообщению" onPress={()=>jumpTo(view.pinned!.clientId)} style={{flex:1,flexDirection:'row',alignItems:'center',gap:12}}>
+        <View style={{width:2.5,height:34,borderRadius:2,backgroundColor:t.text,opacity:.9}}/>
+        <View style={{flex:1,gap:1,paddingVertical:8}}><Text numberOfLines={1} style={{color:t.text,fontSize:15,fontWeight:'500'}}>Закреплённое сообщение</Text><Text numberOfLines={1} style={{color:t.muted,fontSize:15}}>{replyPreview(view.pinned)||'Вложение'}</Text></View>
       </Pressable>
-      <IconButton name="close" label="Открепить" size={18} color={t.muted} onPress={()=>store.sendAction(chat.id,{type:'pin',target:null})} style={{width:38,height:40}}/>
+      <Pressable accessibilityRole="button" accessibilityLabel="Открепить" hitSlop={8} onPress={()=>store.sendAction(chat.id,{type:'pin',target:null})} style={({pressed})=>({width:44,height:44,alignItems:'center',justifyContent:'center',opacity:pressed?.5:1})}><Icon name="close" size={22} color={t.muted}/></Pressable>
     </GlassSurface>:null}
     </View>
     {/* Notices sit in their own layer under the header: when they lived inside the header container
