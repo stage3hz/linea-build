@@ -47,6 +47,8 @@ function useTransparencyPreference() {
 /** Ambient content only. Never put a glass surface inside this target. */
 export function GlassBackdrop() {
   const t=useTheme();
+  // The built-in themes (Светлая, Тёмная, Чёрная, Графит) are a plain colour: no gradient bands or arcs.
+  if(t.plain)return <View pointerEvents="none" style={[StyleSheet.absoluteFill,{backgroundColor:t.bg}]}/>;
   return <View pointerEvents="none" style={[StyleSheet.absoluteFill,{backgroundColor:t.bg}]}>
     <LinearGradient colors={t.bgGradient} start={{x:0,y:0}} end={{x:.8,y:1}} style={StyleSheet.absoluteFill}/>
     <LinearGradient colors={[t.ambientBlue,'transparent','transparent']} locations={[0,.62,1]} start={{x:1,y:0}} end={{x:0,y:.85}} style={StyleSheet.absoluteFill}/>

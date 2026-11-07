@@ -28,6 +28,6 @@ test('palettes need Platina: without it a saved palette shows as dark, others un
   const pref = loadTs(new URL('../src/themePreference.ts', import.meta.url));
   assert.equal(pref.withPlatina('amethyst', false), 'dark');
   assert.equal(pref.withPlatina('amethyst', true), 'amethyst');
-  for (const plain of ['system', 'light', 'dark', 'black']) assert.equal(pref.withPlatina(plain, false), plain);
+  for (const plain of ['system', 'light', 'dark', 'black', 'graphite']) assert.equal(pref.withPlatina(plain, false), plain);
   assert.equal(pref.resolveTheme(pref.withPlatina('system', false), pref.withPlatina('neon', false), 'dark'), 'dark');
 });

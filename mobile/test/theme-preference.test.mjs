@@ -19,12 +19,14 @@ test('first launch follows the system and preserves the previous navy dark defau
 
 test('all manual modes survive storage round trips; black does not revert to system', async () => {
   const { storage, values } = preferences();
-  for (const mode of ['light', 'dark', 'black', 'system']) {
+  for (const mode of ['light', 'dark', 'black', 'graphite', 'system']) {
     await storage.writeTheme(mode);
     assert.equal(await preferences(Object.fromEntries(values)).storage.readTheme(), mode);
   }
   await storage.writeDarkTheme('black');
   assert.equal(await preferences(Object.fromEntries(values)).storage.readDarkTheme(), 'black');
+  await storage.writeDarkTheme('graphite');
+  assert.equal(await preferences(Object.fromEntries(values)).storage.readDarkTheme(), 'graphite');
 });
 
 test('invalid preferences recover to system with navy rather than an unknown palette', async () => {

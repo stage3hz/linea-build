@@ -6,7 +6,7 @@ import { Icon } from './components';
 import { useTheme } from './theme';
 import type { DarkTheme, ThemeMode } from './types';
 
-export const THEME_NAMES = { system: 'Как в системе', light: 'Светлая', dark: 'Тёмная', black: 'Чёрная', ...Object.fromEntries(PALETTES.map(p => [p.id, p.name])) } as Record<ThemeMode, string>;
+export const THEME_NAMES = { system: 'Как в системе', light: 'Светлая', dark: 'Тёмная', black: 'Чёрная', graphite: 'Графит', ...Object.fromEntries(PALETTES.map(p => [p.id, p.name])) } as Record<ThemeMode, string>;
 
 /** A small chat preview in the theme's own colours. */
 function PaletteCard({ id, selected, locked, onPress }: { id: (typeof PALETTES)[number]['id']; selected: boolean; locked: boolean; onPress: () => void }) {
@@ -26,6 +26,7 @@ const appearances = [
   { value: 'light', label: 'Светлая', color: '#EDF3FB', line: '#CEDAF0' },
   { value: 'dark', label: 'Тёмная', color: '#080F1E', line: '#31415B' },
   { value: 'black', label: 'Чёрная', color: '#08090A', line: '#23252A' },
+  { value: 'graphite', label: 'Графит', color: '#1C1C1E', line: '#3A3A3C' },
 ] as const;
 
 /**
@@ -46,7 +47,7 @@ export function ThemeSettings({ mode, darkTheme, onChange, onDarkTheme, platina 
     <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12 }}>
       <Icon name="phone-portrait-outline" color={t.muted} size={23}/>
       <View style={{ flex: 1, gap: 5 }}><Text style={{ color: t.text, fontSize: 15, fontWeight: '700' }}>Автоматически</Text><Text style={{ color: t.muted, fontSize: 12, lineHeight: 17 }}>Следовать светлой или тёмной теме устройства.</Text></View>
-      <Switch accessibilityLabel="Автоматически менять тему вместе с системой" value={mode === 'system'} onValueChange={enabled => onChange(enabled ? 'system' : PALETTES.some(p => p.id === darkTheme) && t.dark ? darkTheme : t.black ? 'black' : t.dark ? 'dark' : 'light')} trackColor={{ false: t.surface2, true: t.accent }} thumbColor={mode === 'system' ? t.onAccent : t.muted}/>
+      <Switch accessibilityLabel="Автоматически менять тему вместе с системой" value={mode === 'system'} onValueChange={enabled => onChange(enabled ? 'system' : (PALETTES.some(p => p.id === darkTheme) || darkTheme === 'graphite') && t.dark ? darkTheme : t.black ? 'black' : t.dark ? 'dark' : 'light')} trackColor={{ false: t.surface2, true: t.accent }} thumbColor={mode === 'system' ? t.onAccent : t.muted}/>
     </View>
     <View style={{ flexDirection: 'row', gap: 9 }}>{appearances.map(item => <Pressable key={item.value} onPress={() => onChange(item.value)} accessibilityRole="radio" accessibilityLabel={`${item.label} тема`} accessibilityState={{ selected: mode === item.value }} style={{ flex: 1, minHeight: 110, gap: 10, padding: 10, borderRadius: 20, borderWidth: 1, borderColor: mode === item.value ? t.accent : t.border, backgroundColor: mode === item.value ? t.accentSoft : 'transparent' }}>
       <View style={{ height: 51, borderRadius: 12, backgroundColor: item.color, borderWidth: 1, borderColor: item.line, padding: 8, gap: 5 }}><View style={{ width: '68%', height: 7, borderRadius: 4, backgroundColor: item.line }}/><View style={{ width: '48%', height: 7, borderRadius: 4, backgroundColor: item.line }}/><View style={{ alignSelf: 'flex-end', width: '52%', height: 7, borderRadius: 4, backgroundColor: item.line }}/></View>
@@ -59,6 +60,6 @@ export function ThemeSettings({ mode, darkTheme, onChange, onDarkTheme, platina 
       </ScrollView>
       {lockedHint && !platina ? <Text style={{ color: t.muted, fontSize: 12, lineHeight: 17 }}>Палитры входят в Инвиз Platina. Войди в аккаунт с Platina, чтобы их включить.</Text> : null}
     </View>
-    {mode === 'system' ? <View style={{ gap: 9 }}><Text style={{ color: t.muted, fontSize: 12 }}>Когда система переключается на тёмную тему (или выбери палитру выше):</Text><View style={{ flexDirection: 'row', gap: 8 }}>{(['dark', 'black'] as const).map(value => <Pressable key={value} accessibilityRole="radio" accessibilityState={{ selected: darkTheme === value }} onPress={() => onDarkTheme(value)} style={{ flex: 1, minHeight: 44, borderRadius: 15, borderWidth: 1, borderColor: darkTheme === value ? t.accent : t.border, backgroundColor: darkTheme === value ? t.accentSoft : 'transparent', flexDirection: 'row', justifyContent: 'center', alignItems: 'center', gap: 6 }}><Text style={{ color: darkTheme === value ? t.text : t.muted, fontSize: 12 }}>{THEME_NAMES[value]}</Text>{darkTheme === value ? <Icon name="checkmark" size={15} color={t.accent}/> : null}</Pressable>)}</View></View> : <Text style={{ color: t.muted, fontSize: 12, lineHeight: 18 }}>Ручной выбор сохраняется после перезапуска и не зависит от темы устройства.</Text>}
+    {mode === 'system' ? <View style={{ gap: 9 }}><Text style={{ color: t.muted, fontSize: 12 }}>Когда система переключается на тёмную тему (или выбери палитру выше):</Text><View style={{ flexDirection: 'row', gap: 8 }}>{(['dark', 'black', 'graphite'] as const).map(value => <Pressable key={value} accessibilityRole="radio" accessibilityState={{ selected: darkTheme === value }} onPress={() => onDarkTheme(value)} style={{ flex: 1, minHeight: 44, borderRadius: 15, borderWidth: 1, borderColor: darkTheme === value ? t.accent : t.border, backgroundColor: darkTheme === value ? t.accentSoft : 'transparent', flexDirection: 'row', justifyContent: 'center', alignItems: 'center', gap: 6 }}><Text style={{ color: darkTheme === value ? t.text : t.muted, fontSize: 12 }}>{THEME_NAMES[value]}</Text>{darkTheme === value ? <Icon name="checkmark" size={15} color={t.accent}/> : null}</Pressable>)}</View></View> : <Text style={{ color: t.muted, fontSize: 12, lineHeight: 18 }}>Ручной выбор сохраняется после перезапуска и не зависит от темы устройства.</Text>}
   </View>;
 }

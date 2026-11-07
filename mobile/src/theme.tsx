@@ -9,9 +9,11 @@ export type Theme = {
   glass:string; glassClear:string; glassBorder:string; glassHighlight:string; glassTint:string;
   glassOpaque:string; bgGradient:readonly [string,string,string]; ambientBlue:string; ambientLilac:string;
   accentGradient:readonly [string,string];
+  /** A plain background with no gradients or arcs (the built-in themes). */
+  plain?:boolean;
 };
 
-const basePalette:Record<'light'|'dark'|'black',Theme> = {
+const basePalette:Record<'light'|'dark'|'black'|'graphite',Theme> = {
   light: {
     dark:false, black:false, bg:'#EDF3FB', surface:'rgba(250,252,255,0.88)', surface2:'rgba(225,233,247,0.62)', text:'#14243D',
     muted:'#5C6E88', border:'rgba(81,109,154,0.17)', accent:'#3568E7', accentSoft:'rgba(70,113,239,0.11)',
@@ -20,7 +22,7 @@ const basePalette:Record<'light'|'dark'|'black',Theme> = {
     glass:'rgba(255,255,255,0.44)', glassClear:'rgba(255,255,255,0.16)', glassBorder:'rgba(255,255,255,0.85)',
     glassHighlight:'rgba(255,255,255,0.82)', glassTint:'rgba(230,239,255,0.15)', glassOpaque:'#F6F8FD',
     bgGradient:['#E7EFFC','#F5F7FD','#E8EEF9'], ambientBlue:'rgba(117,166,255,0.25)', ambientLilac:'rgba(172,151,239,0.17)',
-    accentGradient:['#4F7CEC','#315BCF'],
+    accentGradient:['#4F7CEC','#315BCF'], plain:true,
   },
   dark: {
     dark:true, black:false, bg:'#080F1E', surface:'rgba(24,35,57,0.91)', surface2:'rgba(43,59,87,0.67)', text:'#F0F5FF',
@@ -30,7 +32,7 @@ const basePalette:Record<'light'|'dark'|'black',Theme> = {
     glass:'rgba(19,31,53,0.52)', glassClear:'rgba(26,42,70,0.22)', glassBorder:'rgba(199,219,255,0.23)',
     glassHighlight:'rgba(221,234,255,0.22)', glassTint:'rgba(58,88,141,0.12)', glassOpaque:'#17243A',
     bgGradient:['#0A1529','#10192D','#070E1C'], ambientBlue:'rgba(56,112,224,0.23)', ambientLilac:'rgba(114,88,190,0.13)',
-    accentGradient:['#BAD3FF','#85ADFF'],
+    accentGradient:['#BAD3FF','#85ADFF'], plain:true,
   },
   // «Чёрная» by Linear's DESIGN.md (ui.gradientdeck.com/styles/linear): Void #08090A page, Carbon
   // #0F1011 cards, Obsidian #161718 raised, Graphite #23252A hairlines, text in the Mist / Fog / Ash
@@ -43,11 +45,22 @@ const basePalette:Record<'light'|'dark'|'black',Theme> = {
     glass:'rgba(15,16,17,0.62)', glassClear:'rgba(15,16,17,0.26)', glassBorder:'rgba(255,255,255,0.08)',
     glassHighlight:'rgba(255,255,255,0.10)', glassTint:'rgba(8,9,10,0.30)', glassOpaque:'#0F1011',
     bgGradient:['#08090A','#08090A','#08090A'], ambientBlue:'rgba(255,255,255,0.03)', ambientLilac:'rgba(255,255,255,0.02)',
-    accentGradient:['#F2F2F2','#C8C8C8'],
+    accentGradient:['#F2F2F2','#C8C8C8'], plain:true,
+  },
+  // «Графит»: the iPhone's dark grey — #1C1C1E page, #2C2C2E panels, #3A3A3C raised, system-blue accent.
+  graphite: {
+    dark:true, black:false, bg:'#1C1C1E', surface:'rgba(44,44,46,0.96)', surface2:'rgba(58,58,60,0.9)', text:'#F2F2F7',
+    muted:'#A1A1A8', border:'rgba(255,255,255,0.10)', accent:'#4A9DFF', accentSoft:'rgba(74,157,255,0.15)',
+    onAccent:'#FFFFFF', bubble:'rgba(46,92,160,0.96)', incoming:'rgba(44,44,46,0.96)', danger:'#FF8A8A', dangerBg:'rgba(84,32,36,0.88)',
+    chatBg:'transparent', subtle:'#7C7C83', shadow:'#000000',
+    glass:'rgba(44,44,46,0.62)', glassClear:'rgba(44,44,46,0.28)', glassBorder:'rgba(255,255,255,0.10)',
+    glassHighlight:'rgba(255,255,255,0.12)', glassTint:'rgba(28,28,30,0.30)', glassOpaque:'#2C2C2E',
+    bgGradient:['#1C1C1E','#1C1C1E','#1C1C1E'], ambientBlue:'rgba(255,255,255,0.02)', ambientLilac:'rgba(255,255,255,0.01)',
+    accentGradient:['#5AA7FF','#2F86F0'], plain:true,
   },
 };
 /** Built-in themes plus the colour palettes (Аметист, Кофе, …). */
-export const palette:Record<'light'|'dark'|'black'|PaletteId,Theme> = { ...basePalette, ...paletteThemes };
+export const palette:Record<'light'|'dark'|'black'|'graphite'|PaletteId,Theme> = { ...basePalette, ...paletteThemes };
 export const ThemeContext = createContext<Theme>(palette.light);
 export const useTheme = () => useContext(ThemeContext);
 
