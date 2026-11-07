@@ -13,7 +13,7 @@ import { useTabInset } from './tabInset';
 import { ActivityIndicator, Modal, Pressable, StyleSheet, View, useWindowDimensions } from 'react-native';
 import Animated, { Easing, interpolate, runOnJS, useAnimatedScrollHandler, useAnimatedStyle, useSharedValue, withSpring, withTiming } from 'react-native-reanimated';
 import { ProfileMediaViewer, profileMedia } from './ProfileMediaViewer';
-import { PostViewer, PostsSection, StoryRing, useProfilePosts } from './ProfilePosts';
+import { PostViewer, PostsSection, ProfilePattern, StoryRing, useProfilePosts } from './ProfilePosts';
 import * as Clipboard from 'expo-clipboard';
 import { Text } from './typography';
 import { Avatar, Bouncy, Button, Icon, InsetView, IconButton, Notice, Sheet, SheetAction, type IconName } from './components';
@@ -155,6 +155,8 @@ export function UserProfile({ api, user, onClose, chat, onMessage, onMute, onSea
       </View>
       <Animated.ScrollView onScroll={onScroll} scrollEventThrottle={16} contentContainerStyle={{ padding: 18, paddingBottom: 18 + tabInset, gap: 16, alignItems: 'center', width: '100%', maxWidth: 680, alignSelf: 'center' }}>
         <View onLayout={e => setHeroBottom(Math.round(e.nativeEvent.layout.y + e.nativeEvent.layout.height))} style={{ alignSelf: 'stretch', alignItems: 'center', gap: 16 }}>
+        {/* Telegram: the chosen emoji pattern around the photo. */}
+        {shown.profilePattern ? <View pointerEvents="none" style={{ position: 'absolute', left: -18, right: -18, top: -90, height: 90 + Math.max(220, heroBottom) }}><ProfilePattern emoji={shown.profilePattern} width={(card ? cardWidth : Math.min(680, width))} height={90 + Math.max(220, heroBottom)} cx={(card ? cardWidth : Math.min(680, width)) / 2} cy={90 + (stories.length ? 64 : 58)} /></View> : null}
         <Animated.View style={avatarStretch}><Pressable accessibilityRole="button" accessibilityLabel={stories.length ? 'Истории' : 'Фото и видео профиля'} disabled={!stories.length && !profileMedia(shown).length} onPress={openViewer}><Animated.View style={avatarIn}><StoryRing active={stories.length > 0} size={116}><DecoratedAvatar user={shown} api={api} size={116} animated round /></StoryRing></Animated.View><Animated.View pointerEvents="none" style={[{ position: 'absolute', left: 0, top: 0, right: 0, bottom: 0, borderRadius: 58, backgroundColor: '#000' }, avatarDim]} /></Pressable></Animated.View>
         <View style={{ alignItems: 'center', gap: 6 }}>
           <View style={{ flexDirection: 'row', alignItems: 'center', gap: 7, maxWidth: '100%', paddingHorizontal: 16 }}><PlatinaName user={shown} onDark={tinted} style={{ flexShrink: 1, color: tinted ? '#FFFFFF' : t.text, fontSize: 26, fontWeight: '800', letterSpacing: -.6 }} /><StatusEmoji user={shown} size={22} animated /></View>
@@ -181,7 +183,7 @@ export function UserProfile({ api, user, onClose, chat, onMessage, onMute, onSea
           {shown.birthday ? <View style={{ gap: 3 }}><Text style={{ color: t.muted, fontSize: 13 }}>день рождения</Text><Text raw style={{ color: t.text, fontSize: 16 }}>{formatBirthday(shown.birthday)}</Text></View> : null}
           <Pressable disabled={!onSecurity} onPress={() => { onClose(); onSecurity?.(); }} accessibilityRole="button" style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}><Icon name="lock-closed" size={14} color={t.accent} /><Text style={{ color: t.muted, fontSize: 12, flex: 1 }}>Переписка защищена сквозным шифрованием{onSecurity ? ' · проверить устройства' : ''}</Text>{onSecurity ? <Icon name="chevron-forward" size={14} color={t.muted} /> : null}</Pressable>
         </View>
-        <View style={{ alignSelf: 'stretch' }}><PostsSection api={api} own={false} data={posts.data} onChanged={() => void posts.reload()} width={(card ? cardWidth : Math.min(680, width)) - 36} /></View>
+        <View style={{ alignSelf: 'stretch' }}><PostsSection api={api} own={false} userId={shown.id} data={posts.data} onChanged={() => void posts.reload()} width={(card ? cardWidth : Math.min(680, width)) - 36} /></View>
         {shared && onOpenAttachment ? <SharedMedia messages={shared} onOpen={attachment => { onClose(); setTimeout(() => onOpenAttachment(attachment), 250); }} /> : null}
       </Animated.ScrollView>
     </InsetView>{/* Discord-style profile effect over the top while the profile is open. */}<ProfileEffect effect={shown.profileEffect} width={card ? cardWidth : width} height={420} /></GlassStage>

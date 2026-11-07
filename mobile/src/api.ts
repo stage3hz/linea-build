@@ -157,6 +157,10 @@ export class Api {
   profilePosts = (userId: string) => this.request<ProfilePosts>(`/users/${encodeURIComponent(userId)}/posts`);
   publishPost = (uploadId: string, kind: 'post' | 'story', caption = '') => this.request<{post: ProfilePost}>('/me/posts', {method: 'POST', body: JSON.stringify({uploadId, kind, caption})});
   deletePost = (id: string) => this.request<{ok: true}>(`/me/posts/${encodeURIComponent(id)}`, {method: 'DELETE'});
+  // Gifts friends send each other, shown on the profile (friends only).
+  profileGifts = (userId: string) => this.request<{visible: boolean; gifts: ProfileGift[]}>(`/users/${encodeURIComponent(userId)}/gifts`);
+  sendGift = (userId: string, gift: string, message = '') => this.request<{gift: ProfileGift}>(`/users/${encodeURIComponent(userId)}/gifts`, {method: 'POST', body: JSON.stringify({gift, message})});
+  removeGift = (id: string) => this.request<{ok: true}>(`/me/gifts/${encodeURIComponent(id)}`, {method: 'DELETE'});
   blocks = () => this.request<{users: User[]}>('/blocks');
   block = (userId: string) => this.request<{ok: true}>(`/blocks/${encodeURIComponent(userId)}`, {method: 'PUT'});
   unblock = (userId: string) => this.request<{ok: true}>(`/blocks/${encodeURIComponent(userId)}`, {method: 'DELETE'});
@@ -195,7 +199,7 @@ export class Api {
   removeCallRule = (userId: string) => this.request<CallRules>(`/me/call-rules/${encodeURIComponent(userId)}`, {method: 'DELETE'});
   /** outgoing: may I call them; incoming: may they call me. */
   callPermission = (userId: string, direction: 'outgoing' | 'incoming' = 'outgoing') => this.request<{allowed: boolean}>(`/calls/permission/${encodeURIComponent(userId)}${direction === 'incoming' ? '?direction=incoming' : ''}`);
-  profile = (fields: Partial<Pick<User, 'displayName'|'bio'|'birthday'|'gender'|'avatarColor'|'avatarId'|'avatarVideoId'|'avatarFrame'|'bannerId'|'bannerPreset'|'profileEffect'|'nameplate'>>) => this.request<{user: User}>('/me', {method: 'PATCH', body: JSON.stringify(fields)});
+  profile = (fields: Partial<Pick<User, 'displayName'|'bio'|'birthday'|'gender'|'avatarColor'|'avatarId'|'avatarVideoId'|'avatarFrame'|'bannerId'|'bannerPreset'|'profileEffect'|'nameplate'|'profilePattern'>>) => this.request<{user: User}>('/me', {method: 'PATCH', body: JSON.stringify(fields)});
   changeLoginName = (newLogin: string, currentPassword: string, currentConfirmationWord?: string) => this.request<{ok: true; loginName: string}>('/auth/login-name', { method: 'POST', body: JSON.stringify({ newLogin, currentPassword, currentConfirmationWord }) });
   callIce = () => this.request<{iceServers: {urls: string[]; username?: string; credential?: string}[]; ttl: number}>('/calls/ice');
   usernameStatus = () => this.request<UsernameStatus>('/me/username');
@@ -292,3 +296,4 @@ export function multipartFile(bytes: Uint8Array, filename: string, mimeType: str
 
 export type ProfilePost = { id: string; kind: 'post' | 'story'; caption: string; createdAt: string; expiresAt: string | null; media: { id: string; mimeType: string; isImage: boolean; isVideo: boolean; size: number } };
 export type ProfilePosts = { visible: boolean; posts: ProfilePost[]; stories: ProfilePost[] };
+export type ProfileGift = { id: string; gift: string; message: string; createdAt: string; sender: { id: string; username: string; displayName: string; avatarColor: string } | null };

@@ -10,7 +10,7 @@ export type User = {
   /** 'platina' while the owner's Platina is active: platinum name and seal, seen by everyone. */
   seal?:'platina'|null;
   /** Platina: particles over the profile when someone opens it; a backdrop behind the name in lists. */
-  profileEffect?:string|null;nameplate?:string|null;
+  profileEffect?:string|null;nameplate?:string|null;profilePattern?:string|null;
 };
 export type UsernameStatus={accountId:string;loginName:string;username:string;freeChangeAvailable:boolean;canChangeUsername:boolean;platina:{active:boolean;expiresAt:string|null;permanent?:boolean};canSetStatusEmoji:boolean;statusEmoji:string|null;statusEmojiChoices:string[]};
 export type AttachmentMedia = {width?:number;height?:number;durationMs?:number;hdr?:'sdr'|'pq'|'hlg';waveform?:string};

@@ -9,6 +9,14 @@ export const AVATAR_FRAMES = Object.freeze(['platinum', 'aurora', 'frost', 'embe
   // Animated frames drawn in code (mobile/src/platina/CodeFrames.tsx).
   'fx-neon', 'fx-flame', 'fx-stardust', 'fx-glitch', 'fx-aurora', 'fx-lightning', 'fx-hearts', 'fx-orbit']);
 export const BANNER_PRESETS = Object.freeze(['deep', 'glacier', 'aurora', 'ocean', 'mint', 'night']);
+// The background pattern of a profile header (free, like the colour): an emoji repeated around the avatar.
+export const PROFILE_PATTERNS = Object.freeze(['⭐', '❤️', '🌸', '🔥', '🌙', '⚡', '🍀', '🎵', '👑', '💎', '🦋', '🐾', '☁️', '❄️', '🌊', '🍒', '👻', '💀', '🎮', '🚀', '🌈', '🍕', '🐱', '🦊']);
+const PATTERNS = new Set(PROFILE_PATTERNS);
+export const isProfilePattern = value => typeof value === 'string' && PATTERNS.has(value);
+// Gifts friends send each other (shown on the profile, «Подарки»). Free; limited per day.
+export const GIFTS = Object.freeze(['bear', 'rose', 'cake', 'bouquet', 'rocket', 'trophy', 'diamond', 'champagne', 'present', 'ring', 'unicorn', 'star', 'heart', 'crown', 'fire', 'balloon']);
+const GIFT_SET = new Set(GIFTS);
+export const isGift = value => typeof value === 'string' && GIFT_SET.has(value);
 export const MAX_PROFILE_VIDEO_BYTES = 8 * 1024 * 1024;
 
 export const PROFILE_EFFECTS = Object.freeze(['snow', 'sparks', 'petals', 'bubbles', 'stars', 'embers']);

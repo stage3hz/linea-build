@@ -48,6 +48,8 @@ export function openDatabase(dataDir) {
       if (!userColumns.has('birthday')) db.exec('ALTER TABLE users ADD COLUMN birthday TEXT');
       // Optional, shown only as the colour of birthday greetings: «male» (blue) or «female» (pink).
       if (!userColumns.has('gender')) db.exec('ALTER TABLE users ADD COLUMN gender TEXT');
+      // Telegram-style background pattern of the profile header: one emoji from PROFILE_PATTERNS (cosmetics.js).
+      if (!userColumns.has('profile_pattern')) db.exec('ALTER TABLE users ADD COLUMN profile_pattern TEXT');
       for (const column of ['avatar_video_id', 'avatar_frame', 'banner_id', 'banner_kind', 'banner_preset']) {
         if (!userColumns.has(column)) db.exec(`ALTER TABLE users ADD COLUMN ${column} TEXT`);
       }
@@ -128,6 +130,7 @@ export function publicUser(row, { db, now = Date.now, own = false } = {}) {
     ...(own ? personal(row) : {}),
     avatarColor: row.avatar_color,
     avatarId: row.avatar_id,
+    profilePattern: row.profile_pattern ?? null,
     createdAt: row.created_at,
     ...visibleStatus(row, platina),
     ...visibleCosmetics(row, platina),

@@ -54,3 +54,33 @@ test('posts and stories: friends see them and their files, strangers do not; sto
   assert.equal((await list(owner)).posts.length, 0);
   assert.equal(await file(owner, photo), 404);
 });
+
+test('gifts: only friends send and see them, unknown gifts and self-gifts are refused, the recipient can remove one; the profile pattern is a known emoji', async t => {
+  const dataDir = await mkdtemp(join(tmpdir(), 'linea-gifts-')), app = await buildApp({ dataDir, authRateLimit: false });
+  t.after(async () => { await app.close(); await rm(dataDir, { recursive: true, force: true }); });
+  const register = async username => (await app.inject({ method: 'POST', url: '/auth/register', payload: { username, displayName: username, password: 'Solid-test-passphrase_2026!', confirmationWord: 'корабль', recoveryWord: 'астра' } })).json();
+  const a = await register('gift_a'), b = await register('gift_b'), c = await register('gift_c');
+  const as = u => ({ authorization: `Bearer ${u.token}` });
+  const send = (from, to, payload) => app.inject({ method: 'POST', url: `/users/${to.user.id}/gifts`, headers: as(from), payload });
+  const gifts = (viewer, of) => app.inject({ method: 'GET', url: `/users/${of.user.id}/gifts`, headers: as(viewer) }).then(r => r.json());
+  assert.equal((await send(a, b, { gift: 'bear' })).statusCode, 403);
+  await app.inject({ method: 'PUT', url: `/contacts/${b.user.id}`, headers: as(a) });
+  await app.inject({ method: 'PUT', url: `/contacts/${a.user.id}`, headers: as(b) });
+  const sent = await send(a, b, { gift: 'bear', message: ' с днём! ' });
+  assert.equal(sent.statusCode, 201, sent.body); assert.equal(sent.json().gift.message, 'с днём!'); assert.equal(sent.json().gift.sender.id, a.user.id);
+  assert.equal((await send(a, b, { gift: 'yacht' })).statusCode, 400);
+  assert.equal((await send(a, a, { gift: 'bear' })).statusCode, 400);
+  assert.equal((await gifts(a, b)).gifts.length, 1);
+  assert.equal((await gifts(b, b)).gifts.length, 1);
+  assert.deepEqual(await gifts(c, b), { visible: false, gifts: [] });
+  const id = (await gifts(b, b)).gifts[0].id;
+  assert.equal((await app.inject({ method: 'DELETE', url: `/me/gifts/${id}`, headers: as(a) })).statusCode, 404);
+  assert.equal((await app.inject({ method: 'DELETE', url: `/me/gifts/${id}`, headers: as(b) })).statusCode, 200);
+  assert.equal((await gifts(b, b)).gifts.length, 0);
+
+  const pattern = value => app.inject({ method: 'PATCH', url: '/me', headers: as(a), payload: { profilePattern: value } });
+  assert.equal((await pattern('🌸')).json().user.profilePattern, '🌸');
+  assert.equal((await pattern('<script>')).statusCode, 400);
+  assert.equal((await app.inject({ method: 'GET', url: `/users/${a.user.id}`, headers: as(c) })).json().user.profilePattern, '🌸');
+  assert.equal((await pattern(null)).json().user.profilePattern, null);
+});

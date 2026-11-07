@@ -5,7 +5,7 @@ import Animated, { interpolate, runOnJS, useAnimatedScrollHandler, useAnimatedSt
 import { LinearGradient } from 'expo-linear-gradient';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { ProfileMediaViewer, profileMedia } from './ProfileMediaViewer';
-import { PostViewer, PostsSection, StoryRing, useProfilePosts } from './ProfilePosts';
+import { PROFILE_PATTERNS, PostViewer, PostsSection, ProfilePattern, StoryRing, useProfilePosts } from './ProfilePosts';
 import { PlatinaName } from './platina/PlatinaMark';
 import { isBirthdayToday } from './birthday';
 import { ActivityIndicator, AppState, KeyboardAvoidingView, Platform, Pressable, ScrollView, StyleSheet, View, useWindowDimensions } from 'react-native';
@@ -47,6 +47,7 @@ const statusCache = new Map<string, UsernameStatus>();
 export function ProfileScreen({ api, user, theme, darkTheme, onTheme, onDarkTheme, onUser, onBack, onLogout, onSecurity }: Props) {
   const t = useTheme(); const [bannerWidth, setBannerWidth] = useState(0);
   const [name, setName] = useState(user.displayName), [bio, setBio] = useState(user.bio), [birthday, setBirthday] = useState<string | null>(user.birthday ?? null), [gender, setGender] = useState<'male' | 'female' | null>(user.gender ?? null), [genderSheet, setGenderSheet] = useState(false);
+  const [pattern, setPattern] = useState<string | null>(user.profilePattern ?? null); const [patternSheet, setPatternSheet] = useState(false);
   const [mediaSheet, setMediaSheet] = useState<'avatar' | 'banner' | null>(null), [usernameSheet, setUsernameSheet] = useState(false), [birthdaySheet, setBirthdaySheet] = useState(false), [colorSheet, setColorSheet] = useState(false);
   const studio = useRef<PlatinaStudioHandle>(null);
   const [avatarId, setAvatarId] = useState(user.avatarId), [color, setColor] = useState(user.avatarColor);
@@ -188,19 +189,20 @@ export function ProfileScreen({ api, user, theme, darkTheme, onTheme, onDarkThem
   const save = async (): Promise<boolean> => {
     if (!name.trim()) { setError('Имя не может быть пустым.'); return false; }
     const version = begin('profile'); if (version === null) return false;
-    try { const result = await api.profile({ displayName: name.trim(), bio: bio.trim(), birthday, gender, avatarColor: color, avatarId }); if (!live(version)) return false; onUser(result.user); setNotice('Профиль сохранён.'); return true; }
+    try { const result = await api.profile({ displayName: name.trim(), bio: bio.trim(), birthday, gender, avatarColor: color, avatarId, profilePattern: pattern }); if (!live(version)) return false; onUser(result.user); setNotice('Профиль сохранён.'); return true; }
     catch (failure) { if (live(version)) setError(errorMessage(failure, 'Не удалось сохранить профиль.')); return false; }
     finally { finish(version); }
   };
-  const changed = name.trim() !== user.displayName || bio.trim() !== user.bio || birthday !== (user.birthday ?? null) || gender !== (user.gender ?? null) || avatarId !== user.avatarId || color !== user.avatarColor;
+  const changed = name.trim() !== user.displayName || bio.trim() !== user.bio || birthday !== (user.birthday ?? null) || gender !== (user.gender ?? null) || avatarId !== user.avatarId || color !== user.avatarColor || pattern !== (user.profilePattern ?? null);
   const cancelEdit = () => {
     if (busy) return;
-    setName(user.displayName); setBio(user.bio); setBirthday(user.birthday ?? null); setGender(user.gender ?? null); setAvatarId(user.avatarId); setColor(user.avatarColor); if (status) setUsername(status.username);
+    setName(user.displayName); setBio(user.bio); setBirthday(user.birthday ?? null); setGender(user.gender ?? null); setAvatarId(user.avatarId); setColor(user.avatarColor); setPattern(user.profilePattern ?? null); if (status) setUsername(status.username);
     setError(''); setNotice(''); setEditing(false);
   };
   const finishEdit = async () => {
     if (busy) return;
-    const unchanged = name.trim() === user.displayName && bio.trim() === user.bio && avatarId === user.avatarId && color === user.avatarColor;
+    // Every field counts (birthday, gender and the pattern were missed before: changing only them did not save).
+    const unchanged = !changed;
     if (unchanged || await save()) setEditing(false);
   };
   const reviewUsername = () => {
@@ -277,6 +279,7 @@ export function ProfileScreen({ api, user, theme, darkTheme, onTheme, onDarkThem
       <View pointerEvents="none" style={{ position: 'absolute', top: -700, left: 0, right: 0, height: 700 + 68 + heroBottom + 14, overflow: 'hidden' }}>
         {tinted ? <LinearGradient colors={birthdayToday ? [festive[0], festive[1]] : [shade(user.avatarColor, 0.15), shade(user.avatarColor, -0.12)]} style={StyleSheet.absoluteFill}/> : null}
         {hasBanner ? <View onLayout={event => setBannerWidth(Math.round(event.nativeEvent.layout.width))} style={{ position: 'absolute', left: 0, right: 0, bottom: 0, height: 68 + heroBottom + 14 }}>{bannerWidth ? <ProfileBanner user={user} api={api} height={68 + heroBottom + 14} width={bannerWidth}/> : null}</View> : null}
+        <ProfilePattern emoji={user.profilePattern} width={Math.min(600, screenWidth)} height={700 + 68 + heroBottom + 14} cx={Math.min(600, screenWidth) / 2} cy={700 + 68 + (stories.length ? 64 : 58)}/>
       </View>
       <View onLayout={event => setHeroBottom(Math.round(event.nativeEvent.layout.height))} style={{ alignItems: 'center', gap: 6, paddingBottom: 6 }}>
         <Animated.View style={avatarShrink}><Pressable disabled={!stories.length && !profileMedia(previewUser).length} onPress={() => stories.length ? setStoryOpen(true) : setViewer(0)} accessibilityRole="button" accessibilityLabel={stories.length ? 'Истории' : 'Фото и видео профиля'}><StoryRing active={stories.length > 0} size={116}><DecoratedAvatar user={previewUser} api={api} size={116} animated round/></StoryRing></Pressable></Animated.View>
@@ -322,6 +325,7 @@ export function ProfileScreen({ api, user, theme, darkTheme, onTheme, onDarkThem
         <EditRow icon="gift" color="#3D8EF2" label="День рождения" value={formatBirthday(birthday) || 'Не указан'} onPress={() => setBirthdaySheet(true)}/>
         <EditRow icon="person" color="#8E6CE0" label="Пол" value={gender === 'male' ? 'Мужской' : gender === 'female' ? 'Женский' : 'Не указан'} onPress={() => setGenderSheet(true)}/>
         <EditRow icon="color-palette" color="#22A6A0" label="Персональный цвет" swatch={color} onPress={() => setColorSheet(true)}/>
+        <EditRow icon="sparkles" color="#E0791E" label="Узор фона" value={pattern ?? "Нет"} onPress={() => setPatternSheet(true)}/>
       </GlassSurface>
       <View style={{ gap: 8 }}>
         <SectionLabel>Рамки и анимации</SectionLabel>
@@ -351,6 +355,14 @@ export function ProfileScreen({ api, user, theme, darkTheme, onTheme, onDarkThem
     {([['male', 'Мужской'], ['female', 'Женский'], [null, 'Не указан']] as const).map(([value, label]) => <SheetAction key={label} icon={gender === value ? 'checkmark-circle' : 'ellipse-outline'} label={label} selected={gender === value} onPress={() => { setGender(value); setGenderSheet(false); }}/>)}
   </View></Sheet>
   <BirthdaySheet visible={birthdaySheet} value={birthday} onClose={() => setBirthdaySheet(false)} onDone={value => { setBirthday(value); setBirthdaySheet(false); setNotice(''); }}/>
+  <Sheet visible={patternSheet} title="Узор фона" onClose={() => setPatternSheet(false)}><View style={{ gap: 14 }}>
+    <Text style={{ color: t.muted, fontSize: 13, lineHeight: 19 }}>Значок, которым усыпан фон вокруг твоего фото в профиле, как в Telegram.</Text>
+    <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 8, justifyContent: 'center' }}>
+      <Pressable accessibilityRole="radio" accessibilityLabel="Без узора" accessibilityState={{ checked: pattern === null }} onPress={() => setPattern(null)} style={{ width: 48, height: 48, borderRadius: 14, alignItems: 'center', justifyContent: 'center', backgroundColor: t.surface2, borderWidth: 2, borderColor: pattern === null ? t.accent : 'transparent' }}><Icon name="close" size={20} color={t.muted}/></Pressable>
+      {PROFILE_PATTERNS.map(value => <Pressable key={value} accessibilityRole="radio" accessibilityLabel={value} accessibilityState={{ checked: pattern === value }} onPress={() => setPattern(value)} style={{ width: 48, height: 48, borderRadius: 14, alignItems: 'center', justifyContent: 'center', backgroundColor: t.surface2, borderWidth: 2, borderColor: pattern === value ? t.accent : 'transparent' }}><Text style={{ fontSize: 24 }}>{value}</Text></Pressable>)}
+    </View>
+    <Button label="Готово" onPress={() => setPatternSheet(false)}/>
+  </View></Sheet>
   <Sheet visible={colorSheet} title="Персональный цвет" onClose={() => setColorSheet(false)}><View style={{ gap: 14 }}>
     <Text style={{ color: t.muted, fontSize: 13, lineHeight: 19 }}>Этим цветом тебя видят в чатах у других, пока нет фото.</Text>
     <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 12 }}>{['#596FE8','#4088C7','#9271C3','#B78358','#AD6C8C','#667FA4','#3FA37C','#D0644E'].map(value => <Pressable key={value} accessibilityRole="radio" accessibilityState={{ selected: color.toUpperCase() === value.toUpperCase() }} onPress={() => setColor(value)} style={{ width: 46, height: 46, borderRadius: 23, backgroundColor: value, alignItems: 'center', justifyContent: 'center', borderWidth: color.toUpperCase() === value.toUpperCase() ? 3 : 0, borderColor: t.text }}>{color.toUpperCase() === value.toUpperCase() ? <Icon name="checkmark" size={20} color="#FFF"/> : null}</Pressable>)}</View>

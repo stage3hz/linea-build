@@ -19,7 +19,7 @@ import { Transform } from 'node:stream';
 import { pipeline } from 'node:stream/promises';
 import { CALL_MODES, canCall, installCallPrivacyRoutes, migrateCallPrivacy } from './callprivacy.js';
 import { openDatabase, transaction, publicUser as serializePublicUser, publicChat, publicMessage, publicAttachment, privacyOf, effectivePrivacy, PLATINA_PRIVACY, userForViewer, receiptsVisible, presenceVisible, chatSettings } from './database.js';
-import { isAvatarFrame, isBannerPreset, isProfileEffect, isNameplate, MAX_PROFILE_VIDEO_BYTES, videoMime } from './cosmetics.js';
+import { isAvatarFrame, isBannerPreset, isProfileEffect, isNameplate, isProfilePattern, MAX_PROFILE_VIDEO_BYTES, videoMime } from './cosmetics.js';
 import { platinaState } from './entitlements.js';
 import { DEFAULT_FILE_LIMITS, installBigFileRoutes } from './bigfiles.js';
 import { installAuthRoutes, RECOVERY_LOCK_MS } from './auth.js';
@@ -348,7 +348,7 @@ export async function buildApp({
   installUsernameRoutes({app,db,now,authOptions,emitUser,emitChat});
   installCallRoutes({app,authOptions,now,turn});
   installSocialRoutes({app,db,authOptions,publicUser,timestamp,serializationOptions,emitUser});
-  installPostRoutes({ app, db, authOptions, now, timestamp, limiter, uploadDir });
+  installPostRoutes({ app, db, authOptions, now, timestamp, limiter, uploadDir, emitUser });
   migratePushTokens(db);
   db.exec(PUSH_SCHEMA);
   { const columns = new Set(db.prepare('PRAGMA table_info(users)').all().map(column => column.name)); for (const column of ['profile_effect', 'nameplate']) if (!columns.has(column)) db.exec(`ALTER TABLE users ADD COLUMN ${column} TEXT`); }
@@ -443,7 +443,7 @@ export async function buildApp({
   });
 
   app.patch('/me', authOptions, async request => {
-    const body = objectBody(request.body, ['displayName', 'bio', 'birthday', 'gender', 'avatarColor', 'avatarId', 'avatarVideoId', 'avatarFrame', 'bannerId', 'bannerPreset', 'profileEffect', 'nameplate']);
+    const body = objectBody(request.body, ['displayName', 'bio', 'birthday', 'gender', 'avatarColor', 'avatarId', 'avatarVideoId', 'avatarFrame', 'bannerId', 'bannerPreset', 'profileEffect', 'nameplate', 'profilePattern']);
     const current = db.prepare('SELECT * FROM users WHERE id=?').get(request.auth.user_id);
     const displayName = body.displayName === undefined ? current.display_name : publicName(body.displayName, 'Имя', 1, 50);
     const bio = body.bio === undefined ? current.bio : boundedText(body.bio, 'О себе', 0, 160);
@@ -492,8 +492,10 @@ export async function buildApp({
         else fail(400, 'Баннер должен быть фото или видео.');
       }
     }
-    db.prepare('UPDATE users SET display_name=?,bio=?,birthday=?,gender=?,avatar_color=?,avatar_id=?,avatar_video_id=?,avatar_frame=?,banner_id=?,banner_kind=?,banner_preset=?,profile_effect=?,nameplate=? WHERE id=?')
-      .run(displayName, bio, birthday, gender, avatarColor.toUpperCase(), avatarId, avatarVideoId ?? null, avatarFrame ?? null, bannerId ?? null, bannerKind ?? null, bannerPreset ?? null, profileEffect ?? null, nameplate ?? null, current.id);
+    const profilePattern = body.profilePattern === undefined ? current.profile_pattern ?? null : body.profilePattern;
+    if (profilePattern !== null && !isProfilePattern(profilePattern)) fail(400, 'Неизвестный узор.');
+    db.prepare('UPDATE users SET display_name=?,bio=?,birthday=?,gender=?,avatar_color=?,avatar_id=?,avatar_video_id=?,avatar_frame=?,banner_id=?,banner_kind=?,banner_preset=?,profile_effect=?,nameplate=?,profile_pattern=? WHERE id=?')
+      .run(displayName, bio, birthday, gender, avatarColor.toUpperCase(), avatarId, avatarVideoId ?? null, avatarFrame ?? null, bannerId ?? null, bannerKind ?? null, bannerPreset ?? null, profileEffect ?? null, nameplate ?? null, profilePattern, current.id);
     const user = publicUser(db.prepare('SELECT * FROM users WHERE id=?').get(current.id), { own: true });
     emitUser(current.id, { type: 'profile', user });
     const chats = db.prepare('SELECT chat_id FROM chat_members WHERE user_id=?').all(current.id);

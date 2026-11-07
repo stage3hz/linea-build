@@ -7,6 +7,7 @@ import { unlink } from 'node:fs/promises';
 import { join } from 'node:path';
 import { fail, objectBody } from './security.js';
 import { blockedByMe } from './moderation.js';
+import { isGift } from './cosmetics.js';
 
 const uuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 export const STORY_TTL_MS = 24 * 60 * 60 * 1000;
@@ -32,7 +33,48 @@ const publicPost = row => ({
   media: { id: row.upload_id, mimeType: row.mime_type, isImage: Boolean(row.is_image), isVideo: Boolean(row.is_video), size: row.size },
 });
 
-export function installPostRoutes({ app, db, authOptions, now, timestamp, limiter, uploadDir }) {
+export const MAX_GIFTS_PER_DAY = 20;
+const MAX_GIFT_MESSAGE = 120;
+
+export function installPostRoutes({ app, db, authOptions, now, timestamp, limiter, uploadDir, emitUser }) {
+  // Gifts (Telegram «Подарки»): a friend sends one of GIFTS with a short note; the profile shows them to
+  // the owner and friends, like posts. Free, up to MAX_GIFTS_PER_DAY a day from one person.
+  const giftRows = id => db.prepare('SELECT g.*, u.id AS s_id FROM profile_gifts g JOIN users u ON u.id=g.sender_id WHERE g.recipient_id=? ORDER BY g.created_ms DESC LIMIT 500').all(id);
+  const publicGift = row => {
+    const sender = db.prepare('SELECT * FROM users WHERE id=?').get(row.sender_id);
+    return { id: row.id, gift: row.gift, message: row.message || '', createdAt: row.created_at, sender: sender ? { id: sender.id, username: sender.username, displayName: sender.display_name, avatarColor: sender.avatar_color } : null };
+  };
+  app.get('/users/:id/gifts', authOptions, async request => {
+    const id = request.params.id; if (typeof id !== 'string' || !uuid.test(id)) fail(400, 'Некорректный пользователь.');
+    if (!db.prepare('SELECT 1 FROM users WHERE id=?').get(id)) fail(404, 'Пользователь не найден.');
+    if (!canSeePosts(db, id, request.auth.user_id)) return { visible: false, gifts: [] };
+    return { visible: true, gifts: giftRows(id).map(publicGift) };
+  });
+  app.post('/users/:id/gifts', authOptions, async (request, reply) => {
+    const me = request.auth.user_id; const id = request.params.id;
+    if (typeof id !== 'string' || !uuid.test(id)) fail(400, 'Некорректный пользователь.');
+    if (id === me) fail(400, 'Себе подарок не отправить.');
+    if (!db.prepare('SELECT 1 FROM users WHERE id=?').get(id)) fail(404, 'Пользователь не найден.');
+    if (!canSeePosts(db, id, me) || !db.prepare('SELECT 1 FROM contacts WHERE owner_id=? AND contact_id=?').get(me, id)) fail(403, 'Подарки можно дарить только друзьям.');
+    const body = objectBody(request.body, ['gift', 'message']);
+    if (!isGift(body.gift)) fail(400, 'Неизвестный подарок.');
+    const note = body.message === undefined || body.message === null ? '' : body.message;
+    if (typeof note !== 'string' || note.length > MAX_GIFT_MESSAGE) fail(400, `Подпись — до ${MAX_GIFT_MESSAGE} символов.`);
+    const time = now();
+    if (db.prepare('SELECT COUNT(*) AS n FROM profile_gifts WHERE sender_id=? AND created_ms > ?').get(me, time - 24 * 60 * 60 * 1000).n >= MAX_GIFTS_PER_DAY) fail(429, `Не больше ${MAX_GIFTS_PER_DAY} подарков в сутки.`);
+    const giftId = randomUUID();
+    db.prepare('INSERT INTO profile_gifts(id,sender_id,recipient_id,gift,message,created_at,created_ms) VALUES(?,?,?,?,?,?,?)').run(giftId, me, id, body.gift, note.trim(), timestamp(), time);
+    const gift = publicGift(db.prepare('SELECT * FROM profile_gifts WHERE id=?').get(giftId));
+    emitUser?.(id, { type: 'gift', gift });
+    return reply.code(201).send({ gift });
+  });
+  app.delete('/me/gifts/:id', authOptions, async request => {
+    const id = request.params.id; if (typeof id !== 'string' || !uuid.test(id)) fail(400, 'Некорректный подарок.');
+    const removed = db.prepare('DELETE FROM profile_gifts WHERE id=? AND recipient_id=?').run(id, request.auth.user_id);
+    if (!removed.changes) fail(404, 'Подарок не найден.');
+    return { ok: true };
+  });
+
   const list = (ownerId, kind) => db.prepare(`SELECT p.*, u.mime_type, u.is_image, u.is_video, u.size FROM profile_posts p JOIN uploads u ON u.id=p.upload_id
     WHERE p.owner_id=? AND p.kind=? AND (p.expires_at IS NULL OR p.expires_at > ?) ORDER BY p.created_at DESC, p.id DESC`).all(ownerId, kind, now()).map(publicPost);
 

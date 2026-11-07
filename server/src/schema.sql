@@ -211,3 +211,16 @@ CREATE TABLE IF NOT EXISTS profile_posts (
   expires_at INTEGER
 );
 CREATE INDEX IF NOT EXISTS profile_posts_owner ON profile_posts(owner_id, kind, created_at);
+
+-- Gifts friends send each other, shown on the recipient's profile («Подарки»). The recipient may hide one.
+CREATE TABLE IF NOT EXISTS profile_gifts (
+  id TEXT PRIMARY KEY,
+  sender_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+  recipient_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+  gift TEXT NOT NULL,
+  message TEXT NOT NULL DEFAULT '',
+  created_at TEXT NOT NULL,
+  created_ms INTEGER NOT NULL
+);
+CREATE INDEX IF NOT EXISTS profile_gifts_recipient ON profile_gifts(recipient_id, created_ms);
+CREATE INDEX IF NOT EXISTS profile_gifts_sender ON profile_gifts(sender_id, created_ms);
