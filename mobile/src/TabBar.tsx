@@ -29,17 +29,29 @@ const GEAR = (() => {
     return `M${points.join(' L')} Z`; };
   const circle = (r: number) => `M${c + r} ${c} A${r} ${r} 0 1 0 ${c - r} ${c} A${r} ${r} 0 1 0 ${c + r} ${c} Z`;
   const spokes = [0, 120, 240].map(a => `M${at(1.4, a + 20)} Q${at(5.2, a + 35)} ${at(9.2, a + 18)}`).join(' ');
-  return { ring: `${teeth(32, 11.6, 10.5)} ${circle(8.7)}`, inner: `${teeth(22, 7.6, 6.8)} ${circle(5.4)}`, spokes };
+  return { ring: `${teeth(32, 11.6, 10.5)} ${circle(8.7)}`, inner: `${teeth(22, 7.6, 6.8)} ${circle(5.4)}`, spokes,
+    outline: teeth(32, 11.2, 10.1), innerOutline: teeth(22, 7.4, 6.6) };
 })();
+// Ionicons glyphs fill their box differently: at one size the sparkles stand taller and the people lower
+// than the chat bubbles and headset. Sized so each looks as big as the others (measured on screen).
+const OPTICAL: Partial<Record<string, { size: number; dy: number }>> = { 'sparkles-outline': { size: 19, dy: -1 }, 'people-outline': { size: 25, dy: -0.75 } };
+const iconSize = (name: string) => OPTICAL[name]?.size ?? 22;
+const iconShift = (name: string) => OPTICAL[name]?.dy ?? 0;
 function GearIcon({ size, active, accent, muted }: { size: number; active: boolean; accent: string; muted: string }) {
-  // Exactly the colour of the other tab icons and captions: one flat fill, no gradient or faded parts,
-  // the muted tone when not selected and the accent when selected.
-  const color = active ? accent : muted;
-  return <Svg width={size} height={size} viewBox="0 0 24 24">
+  // Like the other tab icons: an outline in the muted colour when not selected, filled in the accent when
+  // selected. The line is as thick on screen as the Ionicons outlines next to it (1.375 pt at 22 pt).
+  const color = active ? accent : muted; const line = 1.375 * 24 / size;
+  if (active) return <Svg width={size} height={size} viewBox="0 0 24 24">
     <Path d={GEAR.inner} fill={color} fillRule="evenodd" />
     <Path d={GEAR.ring} fill={color} fillRule="evenodd" />
     <Path d={GEAR.spokes} fill="none" stroke={color} strokeWidth={1.3} strokeLinecap="round" />
     <Circle cx={12} cy={12} r={1.9} fill={color} />
+  </Svg>;
+  return <Svg width={size} height={size} viewBox="0 0 24 24">
+    <Path d={GEAR.outline} fill="none" stroke={color} strokeWidth={line} strokeLinejoin="round" />
+    <Path d={GEAR.innerOutline} fill="none" stroke={color} strokeWidth={line} strokeLinejoin="round" />
+    <Path d={GEAR.spokes} fill="none" stroke={color} strokeWidth={line} strokeLinecap="round" />
+    <Circle cx={12} cy={12} r={1.5} fill="none" stroke={color} strokeWidth={line} />
   </Svg>;
 }
 
@@ -69,7 +81,7 @@ function TabIcon({ item, active, kick, pressed, index }: { item: TabItem; active
     return { transform: [{ scale: press * (1 + bump * 0.3) }, { rotate: `${Math.sin(k * Math.PI * 2) * 18}deg` }] };
   });
   return <Animated.View style={style}>
-    {item.id === 'profile' ? <View style={{ width: 36, height: 36, alignItems: 'center', justifyContent: 'center' }}><GearIcon size={36} active={active} accent={t.accent} muted={t.muted} /></View> : <Ionicons name={active ? item.activeIcon : item.icon} size={22} color={active ? t.accent : t.muted} style={{ width: 22, height: 22, lineHeight: 22, textAlign: 'center' }} />}
+    {item.id === 'profile' ? <View style={{ width: 36, height: 36, alignItems: 'center', justifyContent: 'center' }}><GearIcon size={36} active={active} accent={t.accent} muted={t.muted} /></View> : <View style={{ width: 22, height: 22, alignItems: 'center', justifyContent: 'center', overflow: 'visible' }}><Ionicons name={active ? item.activeIcon : item.icon} size={iconSize(item.icon)} color={active ? t.accent : t.muted} style={{ width: iconSize(item.icon), height: iconSize(item.icon), lineHeight: iconSize(item.icon), textAlign: 'center', transform: [{ translateY: iconShift(item.icon) }] }} /></View>}
     {item.badge ? <View style={{ position: 'absolute', top: -6, left: 13, minWidth: 18, height: 18, paddingHorizontal: 5, borderRadius: 9, borderWidth: 2, borderColor: t.dark ? '#15171D' : '#FFF', backgroundColor: t.accent, alignItems: 'center', justifyContent: 'center' }}><Text maxFontSizeMultiplier={1} style={{ color: t.onAccent, fontSize: 10, fontWeight: '800' }}>{badgeText(item.badge)}</Text></View> : null}
   </Animated.View>;
 }
