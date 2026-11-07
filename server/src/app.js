@@ -204,9 +204,10 @@ export async function buildApp({
     const online = isOnline(userId);
     return { userId, online, lastSeenAt: online ? null : db.prepare('SELECT last_seen_at FROM users WHERE id=?').get(userId)?.last_seen_at || null, hidden: false };
   };
-  const broadcastPresence = userId => { for (const peerId of peersOf(userId)) emitUser(peerId, { type: 'presence', presence: presenceFor(userId, peerId) }); };
+  // Only peers who are online get pushes; offline ones read the state when they connect (load test F4).
+  const broadcastPresence = userId => { for (const peerId of peersOf(userId)) if (isOnline(peerId)) emitUser(peerId, { type: 'presence', presence: presenceFor(userId, peerId) }); };
   const emitChat = chatId => {
-    for (const userId of memberIds(chatId)) emitUser(userId, { type: 'chat', chat: publicChat(db, chatId, userId, serializationOptions) });
+    for (const userId of memberIds(chatId)) if (isOnline(userId)) emitUser(userId, { type: 'chat', chat: publicChat(db, chatId, userId, serializationOptions) });
   };
   const requireMembership = (chatId, userId) => {
     const member = db.prepare('SELECT * FROM chat_members WHERE chat_id=? AND user_id=?').get(chatId, userId);
@@ -504,9 +505,14 @@ export async function buildApp({
     const user = publicUser(db.prepare('SELECT * FROM users WHERE id=?').get(current.id), { own: true });
     emitUser(current.id, { type: 'profile', user });
     const chats = db.prepare('SELECT chat_id FROM chat_members WHERE user_id=?').all(current.id);
+    // Peers see the new profile; the editor's own chat cards do not change (they show the peer), so they
+    // are not rebuilt — that cost ~1 s for an account with 2 000 chats (load test F4).
     for (const { chat_id } of chats) {
-      for (const peerId of memberIds(chat_id)) if (peerId !== current.id) emitUser(peerId, { type: 'profile', user: userForViewer(db, user, peerId) });
-      emitChat(chat_id);
+      for (const peerId of memberIds(chat_id)) {
+        if (peerId === current.id || !isOnline(peerId)) continue;
+        emitUser(peerId, { type: 'profile', user: userForViewer(db, user, peerId) });
+        emitUser(peerId, { type: 'chat', chat: publicChat(db, chat_id, peerId, serializationOptions) });
+      }
     }
     return { user };
   });
