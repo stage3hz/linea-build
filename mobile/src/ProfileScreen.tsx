@@ -5,9 +5,10 @@ import Animated, { interpolate, runOnJS, useAnimatedScrollHandler, useAnimatedSt
 import { LinearGradient } from 'expo-linear-gradient';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { ProfileMediaViewer, profileMedia } from './ProfileMediaViewer';
+import { PostViewer, PostsSection, StoryRing, useProfilePosts } from './ProfilePosts';
 import { PlatinaName } from './platina/PlatinaMark';
 import { isBirthdayToday } from './birthday';
-import { ActivityIndicator, AppState, KeyboardAvoidingView, Platform, Pressable, ScrollView, StyleSheet, View } from 'react-native';
+import { ActivityIndicator, AppState, KeyboardAvoidingView, Platform, Pressable, ScrollView, StyleSheet, View, useWindowDimensions } from 'react-native';
 import { Text } from './typography';
 import * as ImagePicker from 'expo-image-picker';
 import * as Clipboard from 'expo-clipboard';
@@ -248,6 +249,9 @@ export function ProfileScreen({ api, user, theme, darkTheme, onTheme, onDarkThem
   const hasBanner = Boolean(user.bannerId || user.bannerPreset);
   const birthdayToday = isBirthdayToday(user.birthday ?? null); const festive = birthdayColors(user.gender ?? null);
   const tinted = !hasBanner && birthdayToday;
+  // Telegram «Публикации» / «Истории»; the avatar gets the story ring and opens the stories.
+  const posts = useProfilePosts(api, user.id); const stories = posts.data?.stories ?? [];
+  const [storyOpen, setStoryOpen] = useState(false); const { width: screenWidth } = useWindowDimensions();
   const emojiChoices = status?.statusEmojiChoices.filter(emoji => (STATIC_STATUS_EMOJI as readonly string[]).includes(emoji)) || [];
   const expiry = status?.platina.expiresAt && Number.isFinite(Date.parse(status.platina.expiresAt)) ? new Date(status.platina.expiresAt).toLocaleDateString('ru-RU', { day: 'numeric', month: 'long', year: 'numeric' }) : null;
 
@@ -275,7 +279,7 @@ export function ProfileScreen({ api, user, theme, darkTheme, onTheme, onDarkThem
         {hasBanner ? <View onLayout={event => setBannerWidth(Math.round(event.nativeEvent.layout.width))} style={{ position: 'absolute', left: 0, right: 0, bottom: 0, height: 68 + heroBottom + 14 }}>{bannerWidth ? <ProfileBanner user={user} api={api} height={68 + heroBottom + 14} width={bannerWidth}/> : null}</View> : null}
       </View>
       <View onLayout={event => setHeroBottom(Math.round(event.nativeEvent.layout.height))} style={{ alignItems: 'center', gap: 6, paddingBottom: 6 }}>
-        <Animated.View style={avatarShrink}><Pressable disabled={!profileMedia(previewUser).length} onPress={() => setViewer(0)} accessibilityRole="button" accessibilityLabel="Фото и видео профиля"><DecoratedAvatar user={previewUser} api={api} size={116} animated round/></Pressable></Animated.View>
+        <Animated.View style={avatarShrink}><Pressable disabled={!stories.length && !profileMedia(previewUser).length} onPress={() => stories.length ? setStoryOpen(true) : setViewer(0)} accessibilityRole="button" accessibilityLabel={stories.length ? 'Истории' : 'Фото и видео профиля'}><StoryRing active={stories.length > 0} size={116}><DecoratedAvatar user={previewUser} api={api} size={116} animated round/></StoryRing></Pressable></Animated.View>
         <View style={{ flexDirection: 'row', alignItems: 'center', gap: 7, maxWidth: '100%', marginTop: 10, paddingHorizontal: 16 }}><PlatinaName user={previewUser} onDark={tinted} style={{ flexShrink: 1, color: tinted ? '#FFFFFF' : t.text, fontSize: 26, fontWeight: '800', letterSpacing: -.6, textAlign: 'center' }}/><Pressable accessibilityRole="button" accessibilityLabel="Сменить статус рядом с именем" hitSlop={10} disabled={!ready || !status?.platina.active && !status?.statusEmoji} onPress={event => { setPickerY(event.nativeEvent.pageY); setPickerOpen(true); }}><StatusEmoji user={previewUser} size={22} animated/></Pressable></View>
         <Text style={{ color: tinted ? 'rgba(255,255,255,0.78)' : t.muted, fontSize: 15 }}>в сети</Text>
         {birthdayToday ? <View style={{ marginTop: 4, paddingHorizontal: 12, paddingVertical: 5, borderRadius: 14, backgroundColor: tinted ? 'rgba(255,255,255,0.22)' : t.accentSoft }}><Text style={{ color: tinted ? '#FFF' : t.text, fontSize: 13, fontWeight: '700' }}>🎉 Сегодня день рождения</Text></View> : null}
@@ -285,6 +289,7 @@ export function ProfileScreen({ api, user, theme, darkTheme, onTheme, onDarkThem
         {user.birthday ? <InfoRow label="день рождения" value={formatBirthday(user.birthday)} divider/> : null}
         {user.bio ? <InfoRow label="о себе" value={user.bio} divider/> : null}
       </View>
+      <PostsSection api={api} own data={posts.data} onChanged={() => void posts.reload()} width={Math.min(600, screenWidth) - 34}/>
       {error ? <Notice text={error} error/> : null}{notice ? <Notice text={notice}/> : null}
       </> : <>
       {/* Edit, as Telegram's «Изм.»: ✓ saves, ✕ discards. The banner and the avatar are tapped to change
@@ -354,6 +359,7 @@ export function ProfileScreen({ api, user, theme, darkTheme, onTheme, onDarkThem
   <StatusPicker visible={pickerOpen} anchorY={pickerY} choices={emojiChoices} current={status?.statusEmoji ?? null} platina={!!status?.platina.active} canSet={!!status?.canSetStatusEmoji} busy={busy}
     onPick={emoji => { setPickerOpen(false); void applyEmoji(emoji); }} onClose={() => setPickerOpen(false)} />
   {cropSource ? <AvatarCropper uri={cropSource.uri} width={cropSource.width} height={cropSource.height} onCancel={() => setCropSource(null)} onDone={crop => void applyAvatar(crop)} /> : null}
+    {storyOpen && stories.length ? <PostViewer api={api} items={stories} start={0} story onClose={() => setStoryOpen(false)}/> : null}
     {viewer !== null ? <ProfileMediaViewer api={api} user={previewUser} start={viewer} onClose={() => setViewer(null)}/> : null}
   </KeyboardAvoidingView>;
 }

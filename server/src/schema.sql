@@ -199,3 +199,15 @@ CREATE TABLE IF NOT EXISTS read_marks (
   read_at INTEGER NOT NULL,
   PRIMARY KEY (chat_id, user_id, message_id)
 );
+
+-- Profile posts and stories (photos/videos on the profile, seen by friends). A story expires after 24 h.
+CREATE TABLE IF NOT EXISTS profile_posts (
+  id TEXT PRIMARY KEY,
+  owner_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+  upload_id TEXT NOT NULL UNIQUE REFERENCES uploads(id) ON DELETE CASCADE,
+  kind TEXT NOT NULL CHECK(kind IN ('post','story')),
+  caption TEXT NOT NULL DEFAULT '',
+  created_at TEXT NOT NULL,
+  expires_at INTEGER
+);
+CREATE INDEX IF NOT EXISTS profile_posts_owner ON profile_posts(owner_id, kind, created_at);

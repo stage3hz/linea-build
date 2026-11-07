@@ -14,6 +14,24 @@ import { Text } from './typography';
 import { Icon, type IconName } from './components';
 import { useTheme } from './theme';
 import { badgeText } from './unreadBadge';
+import Svg, { Path } from 'react-native-svg';
+
+// The settings gear, drawn here in the iOS manner (eight soft, rounded teeth and a round hole) instead of
+// the stock icon: an outline when not selected, filled when selected.
+const GEAR_PATH = (() => {
+  const c = 12, outer = 10.4, inner = 8.1, hole = 3.6; const at = (r: number, deg: number) => { const a = (deg - 90) * Math.PI / 180; return `${(c + r * Math.cos(a)).toFixed(2)} ${(c + r * Math.sin(a)).toFixed(2)}`; };
+  const points: string[] = [];
+  for (let i = 0; i < 8; i++) { const a = i * 45; points.push(at(inner, a - 15), at(outer, a - 9), at(outer, a + 9), at(inner, a + 15)); }
+  const ring = `M${points.join(' L')} Z`;
+  const circle = `M${c + hole} ${c} A${hole} ${hole} 0 1 0 ${c - hole} ${c} A${hole} ${hole} 0 1 0 ${c + hole} ${c} Z`;
+  return { ring, circle };
+})();
+function GearIcon({ size, color, filled }: { size: number; color: string; filled: boolean }) {
+  return <Svg width={size} height={size} viewBox="0 0 24 24">
+    {filled ? <Path d={`${GEAR_PATH.ring} ${GEAR_PATH.circle}`} fill={color} fillRule="evenodd" stroke={color} strokeWidth={1.6} strokeLinejoin="round" />
+      : <><Path d={GEAR_PATH.ring} fill="none" stroke={color} strokeWidth={1.7} strokeLinejoin="round" /><Path d={GEAR_PATH.circle} fill="none" stroke={color} strokeWidth={1.7} /></>}
+  </Svg>;
+}
 
 export type TabId = 'ai' | 'people' | 'channels' | 'chats' | 'music' | 'profile';
 export type TabItem = { id: TabId; label: string; icon: IconName; activeIcon: IconName; badge: number; onPress: () => void };
@@ -41,7 +59,7 @@ function TabIcon({ item, active, kick, pressed, index }: { item: TabItem; active
     return { transform: [{ scale: press * (1 + bump * 0.3) }, { rotate: `${Math.sin(k * Math.PI * 2) * 18}deg` }] };
   });
   return <Animated.View style={style}>
-    <Icon name={active ? item.activeIcon : item.icon} size={item.id === 'profile' ? 27 : 22} color={active ? t.accent : t.muted} />
+    {item.id === 'profile' ? <GearIcon size={28} color={active ? t.accent : t.muted} filled={active} /> : <Icon name={active ? item.activeIcon : item.icon} size={22} color={active ? t.accent : t.muted} />}
     {item.badge ? <View style={{ position: 'absolute', top: -6, left: 13, minWidth: 18, height: 18, paddingHorizontal: 5, borderRadius: 9, borderWidth: 2, borderColor: t.dark ? '#15171D' : '#FFF', backgroundColor: t.accent, alignItems: 'center', justifyContent: 'center' }}><Text maxFontSizeMultiplier={1} style={{ color: t.onAccent, fontSize: 10, fontWeight: '800' }}>{badgeText(item.badge)}</Text></View> : null}
   </Animated.View>;
 }

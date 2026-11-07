@@ -153,6 +153,10 @@ export class Api {
   users = (query: string) => this.request<{users: User[]}>(`/users?q=${encodeURIComponent(query)}`);
   createChat = (userId: string) => this.request<{chat: Chat}>('/chats', {method: 'POST', body: JSON.stringify({userId})});
   userProfile = (userId: string) => this.request<UserProfile>(`/users/${encodeURIComponent(userId)}`);
+  // Profile posts and stories (friends only; a story lives 24 h).
+  profilePosts = (userId: string) => this.request<ProfilePosts>(`/users/${encodeURIComponent(userId)}/posts`);
+  publishPost = (uploadId: string, kind: 'post' | 'story', caption = '') => this.request<{post: ProfilePost}>('/me/posts', {method: 'POST', body: JSON.stringify({uploadId, kind, caption})});
+  deletePost = (id: string) => this.request<{ok: true}>(`/me/posts/${encodeURIComponent(id)}`, {method: 'DELETE'});
   blocks = () => this.request<{users: User[]}>('/blocks');
   block = (userId: string) => this.request<{ok: true}>(`/blocks/${encodeURIComponent(userId)}`, {method: 'PUT'});
   unblock = (userId: string) => this.request<{ok: true}>(`/blocks/${encodeURIComponent(userId)}`, {method: 'DELETE'});
@@ -285,3 +289,6 @@ export function multipartFile(bytes: Uint8Array, filename: string, mimeType: str
   body.set(head, 0); body.set(bytes, head.length); body.set(tail, head.length + bytes.length);
   return { body, contentType: `multipart/form-data; boundary=${boundary}` };
 }
+
+export type ProfilePost = { id: string; kind: 'post' | 'story'; caption: string; createdAt: string; expiresAt: string | null; media: { id: string; mimeType: string; isImage: boolean; isVideo: boolean; size: number } };
+export type ProfilePosts = { visible: boolean; posts: ProfilePost[]; stories: ProfilePost[] };

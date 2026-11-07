@@ -119,6 +119,7 @@ export async function deleteAccount(db, uploadDir, userId) {
     db.prepare('DELETE FROM communities WHERE owner_id=?').run(userId);
     db.prepare('DELETE FROM community_messages WHERE sender_id=?').run(userId);
     db.prepare('DELETE FROM community_invites WHERE creator_id=?').run(userId);
+    db.prepare('DELETE FROM profile_posts WHERE owner_id=?').run(userId);
     for (const row of db.prepare('SELECT id FROM uploads WHERE owner_id=?').all(userId)) files.push(row.id);
     const unique = [...new Set(files)];
     for (const uploadId of unique) {

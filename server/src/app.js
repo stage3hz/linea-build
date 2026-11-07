@@ -27,6 +27,7 @@ import { installE2eeRoutes, parseEncryptedMessage } from './e2ee.js';
 import { registerAiRoutes, aiProvider } from './ai.js';
 import { installUsernameRoutes } from './username.js';
 import { installSocialRoutes } from './social.js';
+import { installPostRoutes, canSeePosts, postOwnerOfUpload } from './posts.js';
 import { privacyHtml, supportHtml } from './legal.js';
 import {
   HttpError, fail, passwordHash, tokenHash, newToken, validToken,
@@ -347,6 +348,7 @@ export async function buildApp({
   installUsernameRoutes({app,db,now,authOptions,emitUser,emitChat});
   installCallRoutes({app,authOptions,now,turn});
   installSocialRoutes({app,db,authOptions,publicUser,timestamp,serializationOptions,emitUser});
+  installPostRoutes({ app, db, authOptions, now, timestamp, limiter, uploadDir });
   migratePushTokens(db);
   db.exec(PUSH_SCHEMA);
   { const columns = new Set(db.prepare('PRAGMA table_info(users)').all().map(column => column.name)); for (const column of ['profile_effect', 'nameplate']) if (!columns.has(column)) db.exec(`ALTER TABLE users ADD COLUMN ${column} TEXT`); }
@@ -768,6 +770,8 @@ export async function buildApp({
     const publicAvatar = Boolean(avatarOwner) && (avatarOwner.id === userId || privacyOf(db, avatarOwner.id).showAvatar);
     if (!upload.is_encrypted && upload.attached_message_id && !publicAvatar) fail(404, 'Файл не найден.');
     let permitted = upload.owner_id === userId || publicAvatar;
+    // A profile post or a live story: its owner's friends may open it.
+    if (!permitted && !upload.is_encrypted && !upload.attached_message_id) { const owner = postOwnerOfUpload(db, upload.id, now()); permitted = Boolean(owner) && canSeePosts(db, owner, userId); }
     if (!permitted && upload.is_encrypted) {
       permitted = Boolean(db.prepare('SELECT 1 FROM e2ee_message_attachments a JOIN messages m ON m.id=a.message_id JOIN chat_members c ON c.chat_id=m.chat_id WHERE a.upload_id=? AND c.user_id=?')
         .get(upload.id, userId));
