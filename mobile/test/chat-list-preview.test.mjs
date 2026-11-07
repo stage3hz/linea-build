@@ -19,3 +19,11 @@ test('chat list: a deleted last message falls back to the one before, an edit sh
   assert.equal(listPreviewMessage(list).text, 'первое (изм.)');
   assert.equal(listPreviewMessage([msg(5, '❤️', { type: 'react', target: 'u:k9', emoji: '❤️' })]), null);
 });
+
+test('a pin reads like Telegram in the chat list: «Вы закрепили «…»» / «Имя закрепил(а) «…»», no emoji', async () => {
+  const { loadTs } = await import('./support/load-ts.mjs');
+  const meta = loadTs(new URL('../src/messageMeta.ts', import.meta.url), {});
+  assert.equal(meta.pinPreview('📌 Закреплено сообщение «Слышь»', true, 'Ира'), 'Вы закрепили «Слышь»');
+  assert.equal(meta.pinPreview('Закреплено сообщение «Чеза ник у тебя»', false, 'Ира'), 'Ира закрепил(а) «Чеза ник у тебя»');
+  assert.equal(meta.pinPreview('Закреплено сообщение', false, 'Ира'), 'Ира закрепил(а) сообщение');
+});

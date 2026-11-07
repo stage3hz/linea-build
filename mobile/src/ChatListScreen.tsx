@@ -25,7 +25,7 @@ import { VoiceBar } from './communities/VoiceBar';
 import { formatListTime, useTheme } from './theme';
 import type { Api } from './api';
 import type { Chat, Message, User } from './types';
-import { isQuietAction } from './messageMeta';
+import { isQuietAction, pinPreview } from './messageMeta';
 import type { MessengerStore } from './useMessenger';
 import type { SavedItem } from './saved/saved.ts';
 import { ContextMenu, MenuItem } from './ContextMenu';
@@ -137,7 +137,7 @@ function ChatRow({chat,api,userId,selected,typing,checked,onPress,onLongPress}: 
   // Desktop: right click opens the chat menu at the cursor.
   const ref=useRef<View>(null);const longRef=useRef(onLongPress);longRef.current=onLongPress;
   useEffect(()=>{const node=ref.current as unknown as HTMLElement|null;if(Platform.OS!=='web'||!node?.addEventListener)return;const menu=(e:MouseEvent)=>{e.preventDefault();longRef.current(e.clientY,e.clientX);};node.addEventListener('contextmenu',menu);return()=>node.removeEventListener('contextmenu',menu);},[]);
-  const preview=typing?'Печатает…':last?`${listText(last.text)|| (last.attachment?attachmentLabel(last.attachment):'Сообщение')}`:'Напиши первое сообщение';
+  const preview=typing?'Печатает…':last?(last.meta?.action?.type==='pin'&&last.meta.action.target?pinPreview(listText(last.text)||'',last.senderId===userId,chat.peer.displayName):`${listText(last.text)|| (last.attachment?attachmentLabel(last.attachment):'Сообщение')}`):'Напиши первое сообщение';
   const muted=!!chat.settings?.muted,pinned=!!chat.settings?.pinnedAt;
   // On a nameplate (dark art) the row's text is light, also in the light theme (it was dark on dark).
   const onPlate=!!chat.peer.nameplate&&!t.dark;

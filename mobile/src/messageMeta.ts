@@ -81,7 +81,7 @@ export function actionFallback(action: MessageAction, targetText = ''): string {
     case 'edit': return `✏️ Изменено: ${action.text}`.slice(0, 8000);
     case 'delete': return '🗑 Сообщение удалено';
     case 'react': return action.emoji ? `${action.emoji} Реакция на сообщение${quote}` : `Реакция убрана${quote}`;
-    case 'pin': return action.target ? `📌 Закреплено сообщение${quote}` : '📌 Сообщение откреплено';
+    case 'pin': return action.target ? `Закреплено сообщение${quote}` : 'Сообщение откреплено';
     case 'vote': return action.options.length ? `🗳 Голос в опросе${quote}` : `Голос отменён${quote}`;
     case 'settings': return action.ttl ? `⏱ Автоудаление: ${autoDeleteLabel(action.ttl)}` : action.noCopy ? '🚫 Копирование запрещено' : '⏱ Автоудаление выключено';
     case 'clear': return '🧹 История очищена';
@@ -235,4 +235,10 @@ export function bigEmojiCount(value: string): number {
   const parts = Segmenter ? [...new Segmenter(undefined, { granularity: 'grapheme' }).segment(trimmed.replace(/\s+/g, ''))].map(part => part.segment) : Array.from(trimmed.replace(/\s+/g, ''));
   if (!parts.length || parts.length > 3) return 0;
   return parts.every(part => /\p{Extended_Pictographic}|\p{Regional_Indicator}/u.test(part) && !/[\p{L}\p{N}]/u.test(part.replace(/[\u{FE0F}\u{20E3}]/gu, ''))) ? parts.length : 0;
+}
+
+/** Telegram's chat-list line for a pin: «Вы закрепили «…»» / «Имя закрепил(а) «…»» (no emoji). */
+export function pinPreview(text: string, mine: boolean, name: string): string {
+  const quote = /«[^]*»\s*$/.exec(text.trim())?.[0] ?? '';
+  return `${mine ? 'Вы закрепили' : `${name} закрепил(а)`}${quote ? ` ${quote}` : ' сообщение'}`;
 }
