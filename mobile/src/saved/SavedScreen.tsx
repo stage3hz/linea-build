@@ -28,6 +28,9 @@ import { VideoNoteBubble, VideoNoteRecorder, type VideoHold, type VideoNoteTake 
 import { errorFeedback, lightFeedback } from '../haptics';
 import { searchSaved, type SavedItem } from './saved.ts';
 
+/** A round video with no text or origin is shown alone, without a bubble (Telegram). */
+const circleOnly = (item: { text?: string; origin?: unknown; attachment?: Parameters<typeof isVideoNote>[0] | null }) => !!item.attachment && isVideoNote(item.attachment) && !item.text && !item.origin;
+
 export function SavedScreen({ api, user, store, onBack, wide = false }: { api: Api; user: User; store: MessengerStore; onBack: () => void; wide?: boolean }) {
   const t = useTheme(); const saved = store.saved;
   const [text, setText] = useState('');
@@ -128,11 +131,12 @@ export function SavedScreen({ api, user, store, onBack, wide = false }: { api: A
           return <View>
             {showDay ? <View style={{ alignSelf: 'center', paddingVertical: 6, paddingHorizontal: 14, borderRadius: 14, marginTop: 15, marginBottom: 14, backgroundColor: t.dark ? 'rgba(30,36,53,0.68)' : 'rgba(255,255,255,0.52)' }}><Text style={{ color: t.muted, fontSize: 10, fontWeight: '600' }}>{formatDay(item.savedAt)}</Text></View> : null}
             <View style={{ alignItems: 'flex-end', marginBottom: 8 }}>
-              <RightClick onMenu={(x, y) => { setAt({ x, y }); setActions(item); }} style={{ maxWidth: wide ? '76%' : '85%', alignItems: 'flex-end' }}><Pressable onLongPress={e => { setAt({ y: e.nativeEvent.pageY }); setActions(item); }} delayLongPress={400} accessibilityLabel={item.text || item.attachment?.name || 'Запись'} style={{ maxWidth: '100%', minWidth: 74, backgroundColor: t.bubble, borderRadius: 23, borderBottomRightRadius: 8, paddingHorizontal: 12, paddingTop: item.attachment ? 7 : 11, paddingBottom: 7, borderWidth: 1, borderColor: t.dark ? 'rgba(157,182,255,0.25)' : 'rgba(255,255,255,0.83)' }}>
+              <RightClick onMenu={(x, y) => { setAt({ x, y }); setActions(item); }} style={{ maxWidth: wide ? '76%' : '85%', alignItems: 'flex-end' }}><Pressable onLongPress={e => { setAt({ y: e.nativeEvent.pageY }); setActions(item); }} delayLongPress={400} accessibilityLabel={item.text || item.attachment?.name || 'Запись'} style={circleOnly(item) ? { maxWidth: '100%', alignItems: 'flex-end' } : { maxWidth: '100%', minWidth: 74, backgroundColor: t.bubble, borderRadius: 23, borderBottomRightRadius: 8, paddingHorizontal: 12, paddingTop: item.attachment ? 7 : 11, paddingBottom: 7, borderWidth: 1, borderColor: t.dark ? 'rgba(157,182,255,0.25)' : 'rgba(255,255,255,0.83)' }}>
                 {item.origin ? <Text style={{ color: t.accent, fontSize: 11, fontWeight: '600', marginBottom: 4 }}>{item.origin.author === user.displayName ? 'Твоё сообщение' : `От ${item.origin.author}`} · {formatDay(item.origin.sentAt)}</Text> : null}
                 {item.attachment ? <View style={{ marginBottom: item.text ? 7 : 1 }}>{isVoice(item.attachment) ? <VoiceBubble attachment={item.attachment} mine /> : isVideoNote(item.attachment) ? <VideoNoteBubble api={api} attachment={item.attachment} /> : <AttachmentCard api={api} attachment={item.attachment} onPress={() => open(item.attachment!)} />}</View> : null}
                 {item.text ? <Text selectable={false} style={{ color: t.text, fontSize: metrics.fontSize, lineHeight: metrics.lineHeight }}>{linkify(item.text, t.accent)}</Text> : null}
-                <Text style={{ color: t.muted, fontSize: 9, alignSelf: 'flex-end', marginTop: 4 }}>{item.editedAt ? 'изм. ' : ''}{formatTime(item.savedAt)}</Text>
+                {circleOnly(item) ? <View style={{ alignSelf: 'flex-end', marginTop: 4, paddingHorizontal: 8, paddingVertical: 3, borderRadius: 10, backgroundColor: t.dark ? 'rgba(0,0,0,0.45)' : 'rgba(0,0,0,0.32)' }}><Text style={{ color: '#FFFFFF', fontSize: 11 }}>{formatTime(item.savedAt)}</Text></View>
+                  : <Text style={{ color: t.muted, fontSize: 9, alignSelf: 'flex-end', marginTop: 4 }}>{item.editedAt ? 'изм. ' : ''}{formatTime(item.savedAt)}</Text>}
               </Pressable></RightClick>
             </View>
           </View>;

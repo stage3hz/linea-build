@@ -112,6 +112,17 @@ export function DecoratedAvatar({ user, api, size = 54, animated = false, round 
   </View>;
   if (!frame) return inner;
   const ring = Math.max(2, Math.round(size * .045)); const gap = Math.max(1.5, Math.round(size * .035));
+  // List sizes: the ring is drawn inside the same box (the photo shrinks a little) so a framed avatar
+  // keeps the column and the spacing of plain ones (it grew outwards and nearly touched the screen edge).
+  if (size < 64) {
+    const photo = size - 2 * (ring + gap);
+    return <View style={{ width: size, height: size, alignItems: 'center', justifyContent: 'center' }}>
+      <Spin size={size} radius={round ? size / 2 : size * .36} colors={frame.colors} still={!live} />
+      <View style={{ position: 'absolute', left: ring, top: ring, width: size - 2 * ring, height: size - 2 * ring, borderRadius: round ? size / 2 : (size - 2 * ring) * .36, backgroundColor: t.bg }} />
+      <Avatar user={user} api={api} size={photo} round={round} />
+      {birthday ? <View pointerEvents="none" accessibilityLabel="День рождения" style={{ position: 'absolute', right: -2, bottom: -2, width: Math.max(16, size * .34), height: Math.max(16, size * .34), borderRadius: size, backgroundColor: t.bg, alignItems: 'center', justifyContent: 'center' }}><Text style={{ fontSize: Math.max(10, size * .22) }}>🎂</Text></View> : null}
+    </View>;
+  }
   const outer = size + 2 * (ring + gap);
   // The frame grows outwards so lists keep their layout: negative margins cancel the extra size.
   return <View style={{ width: outer, height: outer, margin: -(ring + gap), alignItems: 'center', justifyContent: 'center' }}>

@@ -160,7 +160,7 @@ function Root({ api, user, onBack, onProfile, onSecurity, onMusic, onLogout, ope
     </View>
     {/* Same column as the list below (on a wide PC window the head used to hug the left edge). */}
     <View style={{ marginTop: -58, paddingHorizontal: 20, width: '100%', maxWidth: 680, alignSelf: 'center' }}>
-      <Pressable accessibilityRole="button" accessibilityLabel="Мой профиль" onPress={onProfile} style={{ alignSelf: 'flex-start', padding: 5, borderRadius: 40, backgroundColor: t.bg }}>
+      <Pressable accessibilityRole="button" accessibilityLabel="Мой профиль" onPress={onProfile} style={{ alignSelf: 'flex-start', padding: 5 }}>
         <DecoratedAvatar user={user} api={api} size={100} animated />
       </Pressable>
       <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8, marginTop: 12 }}>
