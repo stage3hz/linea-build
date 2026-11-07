@@ -161,7 +161,8 @@ export function TabBar({ items, active }: { items: TabItem[]; active: TabId }) {
           <Text numberOfLines={1} maxFontSizeMultiplier={1} accessibilityElementsHidden={item.id === 'profile'} importantForAccessibility={item.id === 'profile' ? 'no-hide-descendants' : 'auto'} style={{ fontSize: 10, letterSpacing: -.1, color: on ? t.accent : t.muted, fontWeight: on ? '700' : '600', opacity: item.id === 'profile' ? 0 : 1 }}>{item.label}</Text>
         </>}
         {/* A small hint that the slot switches: a dot (with the other section's unread count) above it. */}
-        {slotted && other ? <View pointerEvents="none" style={{ position: 'absolute', top: 1, width: 14, height: 3, borderRadius: 2, backgroundColor: other.badge ? t.accent : t.muted, opacity: other.badge ? 1 : .35 }} /> : null}
+        {slotted && other ? other.badge ? <View pointerEvents="none" accessibilityElementsHidden style={{ position: 'absolute', top: -2, minWidth: 18, height: 14, paddingHorizontal: 4, borderRadius: 7, backgroundColor: t.accent, alignItems: 'center', justifyContent: 'center' }}><Text maxFontSizeMultiplier={1} style={{ color: t.onAccent, fontSize: 9, fontWeight: '800' }}>{badgeText(other.badge)}</Text></View>
+          : <View pointerEvents="none" style={{ position: 'absolute', top: 1, width: 14, height: 3, borderRadius: 2, backgroundColor: t.muted, opacity: .35 }} /> : null}
       </View>; })}
     </View>
   </GestureDetector>;

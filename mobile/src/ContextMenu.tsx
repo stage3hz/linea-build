@@ -68,7 +68,9 @@ export function ContextMenu({ visible, y: liveY, x: liveX, onClose, reactions, o
   return <Modal visible transparent animationType="none" onRequestClose={onClose} statusBarTranslucent>
     <Animated.View style={[StyleSheet.absoluteFill, backdrop]}>
       {Platform.OS === 'web' || atCursor ? null : <AnimatedBlurView animatedProps={blur} tint={t.dark ? 'dark' : 'light'} style={StyleSheet.absoluteFill} />}
-      {atCursor ? null : <View style={[StyleSheet.absoluteFill, { backgroundColor: t.dark ? 'rgba(0,0,0,0.34)' : 'rgba(20,30,60,0.14)' }, Platform.OS === 'web' ? { backdropFilter: 'blur(14px)' } as object : null]} />}
+      {/* No live blur in a browser (react-native-web drops backdropFilter): a deeper dim instead, so the original
+          message does not show through next to its lifted copy. */}
+      {atCursor ? null : <View style={[StyleSheet.absoluteFill, { backgroundColor: Platform.OS === 'web' ? (t.dark ? 'rgba(0,0,0,0.72)' : 'rgba(20,30,60,0.42)') : t.dark ? 'rgba(0,0,0,0.34)' : 'rgba(20,30,60,0.14)' }]} />}
       <Pressable accessibilityRole="button" accessibilityLabel="Закрыть меню" onPress={onClose} style={StyleSheet.absoluteFill} />
     </Animated.View>
     <View pointerEvents="box-none" onLayout={event => { const measured = Math.ceil(event.nativeEvent.layout.height); if (Math.abs(measured - size) > 1) setSize(measured); }}

@@ -28,7 +28,8 @@ const sections: { id: Section; label: string }[] = [
 const CATALOG_TTL = 10 * 60 * 1000;
 const catalogCache = new Map<string, { at: number; tracks: MusicTrack[]; nextOffset: number | null }>();
 
-export function MusicScreen({ onBack }: { onBack: () => void }) {
+/** `guest`: opened from the sign-in screen (no tab bar), so it needs its own way back. */
+export function MusicScreen({ onBack, guest = false }: { onBack: () => void; guest?: boolean }) {
   const tabInset = useTabInset();
   const screen = useWindowDimensions();
   const tt = useTheme(); const tone: AmbientTone = tt.black ? 'black' : tt.dark ? 'dark' : 'light'; const custom = tt.dark && !tt.black && tt.bg !== '#080F1E' ? themeAmbient(tt.bg, tt.accent) : undefined;
@@ -165,7 +166,7 @@ export function MusicScreen({ onBack }: { onBack: () => void }) {
             ? <MusicAmbient width={screen.width} height={headHeight} tone={tone} custom={custom} fadeTo={t.bg} />
             : <MaskedView pointerEvents="none" style={[StyleSheet.absoluteFill, { width: screen.width, height: headHeight }]} maskElement={<LinearGradient colors={['#000', '#000', 'transparent']} locations={[0, 0.6, 1]} style={{ width: screen.width, height: headHeight }} />}><MusicAmbient width={screen.width} height={headHeight} tone={tone} /></MaskedView>}
           <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10, paddingHorizontal: 18 }}>
-            <IconButton name="chevron-back" label="Вернуться к мессенджеру" onPress={onBack} color={ink} />
+            {guest ? <IconButton name="chevron-back" label="Вернуться ко входу" onPress={onBack} color={ink} /> : null}
             <Text style={{ flex: 1, color: ink, fontSize: 22, fontWeight: '700', letterSpacing: -.4 }}>Музыка</Text>
             <IconButton name="add" label="Добавить аудиофайлы" disabled={music.importing} onPress={() => void music.importFiles()} color={ink} />
             <IconButton name="information-outline" label="О музыкальном разделе" onPress={() => setInfoOpen(true)} color={ink} />

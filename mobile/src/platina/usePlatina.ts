@@ -9,6 +9,7 @@ import type { Api } from '../api';
  */
 let state: { owner: string | null; active: boolean } = { owner: null, active: false };
 let loading: string | null = null;
+let checkedAt = 0;
 const listeners = new Set<() => void>();
 const emit = () => listeners.forEach(listener => listener());
 
@@ -39,9 +40,11 @@ export function onPlatinaGranted(listener: (owner: string) => void): () => void 
 export function usePlatina(api: Api, owner: string): boolean {
   const snapshot = useSyncExternalStore(listener => { listeners.add(listener); return () => { listeners.delete(listener); }; }, () => state, () => state);
   useEffect(() => {
-    if (state.owner === owner || loading === owner) return;
+    // Asked again when a screen using it opens, at most once a minute: a Platina granted while the app was
+    // open showed «Попробовать Platina» in Settings until the profile was opened.
+    if ((state.owner === owner && Date.now() - checkedAt < 60_000) || loading === owner) return;
     loading = owner;
-    api.usernameStatus().then(status => { if (status.accountId === owner) setPlatinaActive(owner, status.platina.active); }).catch(() => {}).finally(() => { if (loading === owner) loading = null; });
+    api.usernameStatus().then(status => { if (status.accountId === owner) { checkedAt = Date.now(); setPlatinaActive(owner, status.platina.active); } }).catch(() => {}).finally(() => { if (loading === owner) loading = null; });
   }, [api, owner]);
   return snapshot.owner === owner && snapshot.active;
 }

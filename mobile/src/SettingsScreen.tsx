@@ -157,7 +157,8 @@ function Root({ api, user, theme, onBack, onProfile, onSecurity, onMusic, onLogo
       <Animated.View pointerEvents="none" style={[StyleSheet.absoluteFill, stretch]}>{hasBanner ? <ProfileBanner user={user} api={api} height={bannerHeight} width={width} /> : <LinearGradient colors={t.dark ? ['rgba(96,124,190,0.34)', 'rgba(150,120,200,0.14)', 'transparent'] : ['rgba(120,150,230,0.30)', 'rgba(190,170,240,0.16)', 'transparent']} start={{ x: 0.1, y: 0 }} end={{ x: 0.7, y: 1 }} style={StyleSheet.absoluteFill} />}</Animated.View>
       <ProfileEffect effect={user.profileEffect} width={width} height={bannerHeight + 140} />
       <View style={{ position: 'absolute', top: insets.top + 6, left: 16, right: 16, flexDirection: 'row', justifyContent: 'space-between' }}>
-        <GlassSurface radius={22} shadow={false} interactive contentStyle={{ width: 44, height: 44, alignItems: 'center', justifyContent: 'center' }}><Pressable accessibilityRole="button" accessibilityLabel="Назад" onPress={onBack} hitSlop={6} style={{ width: 44, height: 44, alignItems: 'center', justifyContent: 'center' }}><Icon name="chevron-back" size={22} color={t.text} /></Pressable></GlassSurface>
+        {/* Settings is a tab root (Telegram): no back button; the space keeps «Изм.» on the right. */}
+        <View style={{ width: 44, height: 44 }} />
         <GlassSurface radius={22} shadow={false} interactive contentStyle={{ height: 44, paddingHorizontal: 16, justifyContent: 'center' }}><Pressable accessibilityRole="button" onPress={() => { requestProfileEdit(); onProfile(); }} hitSlop={6}><Text style={{ color: t.text, fontSize: 16, fontWeight: '600' }}>Изм.</Text></Pressable></GlassSurface>
       </View>
     </View>
