@@ -14,7 +14,14 @@ final class VideoProcessor {
     let source=try files.snapshot(uri);var output:URL?
     do {
       let track=try VideoTrackInfo(source);let destination=try files.newFile("video","mp4");output=destination
-      try write(track,to:destination)
+      do {try write(track,to:destination)}
+      catch let failure as VideoFailure where failure.reason=="VIDEO_FORMAT_CHANGED" && track.hdr=="sdr" {
+        // A camera recording whose encoder changed its stream settings mid-file (seen on iPhone 17 Pro
+        // round videos with a camera flip) cannot be copied sample by sample. It is decoded and encoded
+        // again into one constant H.264 stream instead of being refused.
+        try? FileManager.default.removeItem(at:destination)
+        try reencode(track,to:destination)
+      }
       let bytes=try files.finish(destination)
       var result=track.info(inputBytes:try files.bytes(source))
       result["uri"]=destination.absoluteString;result["mimeType"]="video/mp4"
@@ -43,6 +50,36 @@ final class VideoProcessor {
       guard finished.wait(timeout:.now()+30) == .success,writer.status == .completed else {throw VideoFailure("WRITE_FAILED")}
     }catch{reader.cancelReading();writer.cancelWriting();throw error}
   }
+  /// Full re-encode (SDR only): every frame is decoded and encoded again with fixed H.264 settings, so the
+  /// output has a single, constant format. Same metadata policy as the copy path (none kept).
+  private func reencode(_ track:VideoTrackInfo,to output:URL) throws {
+    let reader=try AVAssetReader(asset:track.asset),writer=try AVAssetWriter(outputURL:output,fileType:.mp4)
+    writer.metadata=[];writer.shouldOptimizeForNetworkUse=true
+    let videoOutput=AVAssetReaderTrackOutput(track:track.video,outputSettings:[kCVPixelBufferPixelFormatTypeKey as String:kCVPixelFormatType_420YpCbCr8BiPlanarVideoRange])
+    videoOutput.alwaysCopiesSampleData=false
+    let width=track.width - track.width % 2,height=track.height - track.height % 2
+    let settings:[String:Any]=[
+      AVVideoCodecKey:AVVideoCodecType.h264,AVVideoWidthKey:width,AVVideoHeightKey:height,
+      AVVideoColorPropertiesKey:[AVVideoColorPrimariesKey:AVVideoColorPrimaries_ITU_R_709_2,AVVideoTransferFunctionKey:AVVideoTransferFunction_ITU_R_709_2,AVVideoYCbCrMatrixKey:AVVideoYCbCrMatrix_ITU_R_709_2],
+      AVVideoCompressionPropertiesKey:[AVVideoAverageBitRateKey:min(8_000_000,max(1_200_000,width*height*4)),AVVideoProfileLevelKey:AVVideoProfileLevelH264HighAutoLevel] as [String:Any],
+    ]
+    guard writer.canApply(outputSettings:settings,forMediaType:.video) else {throw VideoFailure("VIDEO_ENCODER_UNAVAILABLE")}
+    let videoInput=AVAssetWriterInput(mediaType:.video,outputSettings:settings)
+    videoInput.metadata=[];videoInput.expectsMediaDataInRealTime=false;videoInput.transform=track.transform
+    guard reader.canAdd(videoOutput),writer.canAdd(videoInput) else {throw VideoFailure("UNSUPPORTED_VIDEO_CODEC")}
+    reader.add(videoOutput);writer.add(videoInput)
+    var paths=[Path(output:videoOutput,input:videoInput,video:true)]
+    if let audio=track.audio {paths.append(try audioPath(audio,reader:reader,writer:writer))}
+    do {
+      guard writer.startWriting(),reader.startReading() else {throw VideoFailure("PROCESSING_FAILED")}
+      writer.startSession(atSourceTime:.zero)
+      try pump(paths,track:track,reader:reader,writer:writer,destination:output,decoded:true)
+      guard reader.status == .completed else {throw VideoFailure("READ_FAILED")}
+      let finished=DispatchSemaphore(value:0)
+      writer.finishWriting{finished.signal()}
+      guard finished.wait(timeout:.now()+30) == .success,writer.status == .completed else {throw VideoFailure("WRITE_FAILED")}
+    }catch{reader.cancelReading();writer.cancelWriting();throw error}
+  }
   private func audioPath(_ track:AVAssetTrack,reader:AVAssetReader,writer:AVAssetWriter) throws -> Path {
     guard let formats=track.formatDescriptions as? [CMFormatDescription],formats.count==1,
       let asbd=CMAudioFormatDescriptionGetStreamBasicDescription(formats[0])?.pointee else {throw VideoFailure("UNSUPPORTED_AUDIO_FORMAT")}
@@ -57,7 +94,7 @@ final class VideoProcessor {
     guard reader.canAdd(output),writer.canAdd(input) else {throw VideoFailure("AUDIO_DECODER_UNAVAILABLE")}
     reader.add(output);writer.add(input);return Path(output:output,input:input,video:false)
   }
-  private func pump(_ paths:[Path],track:VideoTrackInfo,reader:AVAssetReader,writer:AVAssetWriter,destination:URL) throws {
+  private func pump(_ paths:[Path],track:VideoTrackInfo,reader:AVAssetReader,writer:AVAssetWriter,destination:URL,decoded:Bool=false) throws {
     let started=Date();var progress=started;var samples=0;var videos=0
     while paths.contains(where:{!$0.ended}) {
       var moved=false
@@ -65,7 +102,8 @@ final class VideoProcessor {
         guard let sample=path.output.copyNextSampleBuffer() else {path.ended=true;path.input.markAsFinished();moved=true;continue}
         samples+=1;if samples>1000000 {throw VideoFailure("TOO_MANY_SAMPLES")}
         let clean:CMSampleBuffer?
-        if path.video {clean=try VideoSamples.video(sample,track:track)} else {clean=try VideoSamples.audio(sample)}
+        // Decoded frames (re-encode path) go straight to the encoder; copied samples are checked and cleaned.
+        if path.video {clean=decoded ? (CMSampleBufferGetImageBuffer(sample) != nil ? sample : nil) : try VideoSamples.video(sample,track:track)} else {clean=try VideoSamples.audio(sample)}
         if let clean=clean {guard path.input.append(clean) else {throw VideoFailure("WRITE_FAILED")};if path.video {videos+=1}}
         moved=true
       }
