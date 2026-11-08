@@ -1,7 +1,8 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import { Image as CachedImage } from 'expo-image';
-import { ActivityIndicator, Image, KeyboardAvoidingView, Modal, Platform, Pressable, ScrollView, StyleSheet, Switch, View, type ImageStyle, type StyleProp, type TextInputProps, type ViewStyle } from 'react-native';
-import { Text, TextInput } from './typography';
+import { ActivityIndicator, Image, KeyboardAvoidingView, Modal, Platform, Pressable as RNPressable, ScrollView, StyleSheet, Switch, View, type ImageStyle, type StyleProp, type TextInputProps, type ViewStyle } from 'react-native';
+import { Pressable, Text, TextInput } from './typography';
+import { tr, trA11y, useLanguage } from './i18n';
 import Animated, { FadeIn, FadeOut, useAnimatedStyle, useSharedValue, withSpring } from 'react-native-reanimated';
 import { Ionicons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
@@ -41,12 +42,13 @@ function BackChevron({size,color}:{size:number;color:string}) {
  * Pressable that presses in on touch and springs back, like Telegram's buttons (not an instant jump).
  * `scaleTo`: how far it presses in.
  */
-export function Bouncy({scaleTo=.9,style,children,onPressIn,onPressOut,...props}:React.ComponentProps<typeof Pressable>&{scaleTo?:number;style?:StyleProp<ViewStyle>;children?:React.ReactNode}) {
+export function Bouncy({scaleTo=.9,style,children,onPressIn,onPressOut,...props}:React.ComponentProps<typeof RNPressable>&{scaleTo?:number;style?:StyleProp<ViewStyle>;children?:React.ReactNode}) {
+  const language=useLanguage();
   const scale=useSharedValue(1);
   const animated=useAnimatedStyle(()=>({transform:[{scale:scale.value}]}));
-  return <AnimatedPressable {...props} onPressIn={e=>{scale.value=withSpring(scaleTo,{damping:15,stiffness:420,mass:.6});onPressIn?.(e);}} onPressOut={e=>{scale.value=withSpring(1,{damping:11,stiffness:300,mass:.6});onPressOut?.(e);}} style={[style,animated]}>{children}</AnimatedPressable>;
+  return <AnimatedPressable {...props} {...trA11y(props,language)} onPressIn={e=>{scale.value=withSpring(scaleTo,{damping:15,stiffness:420,mass:.6});onPressIn?.(e);}} onPressOut={e=>{scale.value=withSpring(1,{damping:11,stiffness:300,mass:.6});onPressOut?.(e);}} style={[style,animated]}>{children}</AnimatedPressable>;
 }
-const AnimatedPressable=Animated.createAnimatedComponent(Pressable);
+const AnimatedPressable=Animated.createAnimatedComponent(RNPressable);
 
 export function IconButton({name,onPress,label,color,disabled=false,size=23,style}:{name:IconName;onPress:()=>void;label:string;color?:string;disabled?:boolean;size?:number;style?:StyleProp<ViewStyle>}) {
   const t=useTheme();const flattened=StyleSheet.flatten(style);const radius=typeof flattened?.borderRadius==='number'?flattened.borderRadius:22;
@@ -72,9 +74,9 @@ export function Button({label,onPress,loading=false,disabled=false,secondary=fal
  * the knob's shadow on web.
  */
 export function ThemeSwitch({ value, onValueChange, disabled = false, accessibilityLabel }: { value: boolean; onValueChange: (value: boolean) => void; disabled?: boolean; accessibilityLabel?: string }) {
-  const t = useTheme();
+  const t = useTheme(); const language = useLanguage();
   const thumb = value ? t.onAccent : '#FFFFFF';
-  return <Switch {...({ activeThumbColor: thumb } as object)} accessibilityLabel={accessibilityLabel} value={value} disabled={disabled} onValueChange={onValueChange} trackColor={{ false: t.subtle, true: t.accent }} thumbColor={thumb} ios_backgroundColor={t.subtle} />;
+  return <Switch {...({ activeThumbColor: thumb } as object)} accessibilityLabel={accessibilityLabel ? tr(accessibilityLabel, language) : accessibilityLabel} value={value} disabled={disabled} onValueChange={onValueChange} trackColor={{ false: t.subtle, true: t.accent }} thumbColor={thumb} ios_backgroundColor={t.subtle} />;
 }
 export function useSuccessFlash(ms=1600):[boolean,()=>void]{
   const [on,setOn]=useState(false);
@@ -125,8 +127,8 @@ export function AuthImage({api,id,style,resizeMode='cover',blurRadius}:{api:Api;
   if(!uri)return <View style={[style as StyleProp<ViewStyle>,{backgroundColor:t.surface2,alignItems:'center',justifyContent:'center'}]}><ActivityIndicator size="small" color={t.accent}/></View>;
   // Uploaded files never change, so the id is a stable cache key: avatars come from
   // memory/disk instantly instead of being downloaded again on every screen.
-  if(Platform.OS!=='web')return <CachedImage source={{uri,headers:{Authorization:`Bearer ${api.token}`},cacheKey:`invizent-file-${id}`}} cachePolicy="memory-disk" autoplay={gif} style={style as StyleProp<ImageStyle>} contentFit={resizeMode} blurRadius={blurRadius} transition={0} onError={()=>setFailed(true)} accessibilityLabel="Изображение"/>;
-  return <Image source={{uri}} style={style} resizeMode={resizeMode} onError={()=>setFailed(true)} accessibilityLabel="Изображение"/>;
+  if(Platform.OS!=='web')return <CachedImage source={{uri,headers:{Authorization:`Bearer ${api.token}`},cacheKey:`invizent-file-${id}`}} cachePolicy="memory-disk" autoplay={gif} style={style as StyleProp<ImageStyle>} contentFit={resizeMode} blurRadius={blurRadius} transition={0} onError={()=>setFailed(true)} accessibilityLabel={tr('Изображение')}/>;
+  return <Image source={{uri}} style={style} resizeMode={resizeMode} onError={()=>setFailed(true)} accessibilityLabel={tr('Изображение')}/>;
 }
 
 function avatarTextColor(color:string) {

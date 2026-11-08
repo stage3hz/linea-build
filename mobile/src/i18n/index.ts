@@ -57,3 +57,14 @@ export function trChildren(children: unknown, language: Language): unknown {
   if (Array.isArray(children)) return children.map(child => typeof child === 'string' ? tr(child, language) : child);
   return children;
 }
+
+/** The spoken accessibility props in the current language (only the ones that are set, so spreading the
+ * result never adds props). Like Text children, an exact interface string is replaced and anything else
+ * (names, numbers, already translated text) is left as is. */
+export function trA11y(props: { accessibilityLabel?: string; accessibilityHint?: string }, language: Language = current): { accessibilityLabel?: string; accessibilityHint?: string } {
+  if (language === 'ru') return {};
+  const out: { accessibilityLabel?: string; accessibilityHint?: string } = {};
+  if (typeof props.accessibilityLabel === 'string') out.accessibilityLabel = tr(props.accessibilityLabel, language);
+  if (typeof props.accessibilityHint === 'string') out.accessibilityHint = tr(props.accessibilityHint, language);
+  return out;
+}

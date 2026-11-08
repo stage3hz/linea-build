@@ -18,6 +18,13 @@ test('Russian stays as written; English replaces interface strings and keeps spa
   assert.deepEqual(i18n.trChildren(['Твой профиль —', '\n', 'заметнее любого другого'], 'en'), ['Your profile —', '\n', 'stands out more than any other']);
 });
 
+test('accessibility labels and hints are translated like Text, and only the props that are set', () => {
+  assert.deepEqual(i18n.trA11y({ accessibilityLabel: 'Закрыть', accessibilityHint: 'Открыть чат' }, 'en'), { accessibilityLabel: 'Close', accessibilityHint: 'Open chat' });
+  assert.deepEqual(i18n.trA11y({ accessibilityLabel: 'Анна' }, 'en'), { accessibilityLabel: 'Анна' }, 'a name is not an interface string');
+  assert.deepEqual(i18n.trA11y({}, 'en'), {});
+  assert.deepEqual(i18n.trA11y({ accessibilityLabel: 'Закрыть' }, 'ru'), {});
+});
+
 test('the language choice is saved and survives a restart', async () => {
   i18n.setLanguage('en');
   assert.equal(i18n.getLanguage(), 'en');

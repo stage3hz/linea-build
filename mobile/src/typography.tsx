@@ -2,8 +2,8 @@
 // by the expo-font config plugin in app.config.js with weights 400–800, so the
 // usual fontWeight values keep working on iOS and Android.
 import React, { forwardRef } from 'react';
-import { Platform, Text as RNText, TextInput as RNTextInput, StyleSheet, type TextInputProps, type TextProps } from 'react-native';
-import { tr, trChildren, useLanguage } from './i18n';
+import { Platform, Pressable as RNPressable, Text as RNText, TextInput as RNTextInput, StyleSheet, type PressableProps, type TextInputProps, type TextProps, type View } from 'react-native';
+import { tr, trA11y, trChildren, useLanguage } from './i18n';
 
 // In a browser the native font plugin does nothing: the faces are registered here with @font-face, and
 // the family list falls back to the system sans-serif (it fell back to Times New Roman before).
@@ -34,14 +34,23 @@ const MAX_FONT_SCALE = 1.25;
 // The base family comes first, so an explicit fontFamily (e.g. monospace for code) still wins.
 // Interface strings are shown in the chosen language (src/i18n). `raw` marks user content
 // (message text, names): it is never translated, even if it happens to equal an interface string.
+// The spoken accessibilityLabel / accessibilityHint are interface text too and go through the same
+// dictionary (a raw Text keeps its label as given: it describes user content).
 export const Text = forwardRef<RNText, TextProps & { raw?: boolean }>(function Text({ style, maxFontSizeMultiplier = MAX_FONT_SCALE, children, raw = false, ...props }, ref) {
   const language = useLanguage();
-  return <RNText ref={ref} maxFontSizeMultiplier={maxFontSizeMultiplier} {...props} style={[base.font, style]}>{raw ? children : trChildren(children, language) as React.ReactNode}</RNText>;
+  return <RNText ref={ref} maxFontSizeMultiplier={maxFontSizeMultiplier} {...props} {...(raw ? null : trA11y(props, language))} style={[base.font, style]}>{raw ? children : trChildren(children, language) as React.ReactNode}</RNText>;
 });
 export type Text = RNText;
 
 export const TextInput = forwardRef<RNTextInput, TextInputProps>(function TextInput({ style, maxFontSizeMultiplier = MAX_FONT_SCALE, placeholder, ...props }, ref) {
   const language = useLanguage();
-  return <RNTextInput ref={ref} maxFontSizeMultiplier={maxFontSizeMultiplier} {...props} placeholder={placeholder ? tr(placeholder, language) : placeholder} style={[base.font, style]} />;
+  return <RNTextInput ref={ref} maxFontSizeMultiplier={maxFontSizeMultiplier} {...props} {...trA11y(props, language)} placeholder={placeholder ? tr(placeholder, language) : placeholder} style={[base.font, style]} />;
 });
 export type TextInput = RNTextInput;
+
+/** Drop-in for react-native's Pressable whose accessibilityLabel / accessibilityHint are translated like Text. */
+export const Pressable = forwardRef<View, PressableProps>(function Pressable(props, ref) {
+  const language = useLanguage();
+  return <RNPressable ref={ref} {...props} {...trA11y(props, language)} />;
+});
+export type Pressable = View;
