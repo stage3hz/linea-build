@@ -29,6 +29,16 @@ function migratePlatinaExpiry(db) {
 export function openDatabase(dataDir) {
   const db = new DatabaseSync(join(dataDir, 'linea.sqlite'));
   try {
+    // WAL: readers (cluster.js position checks, platina-admin, backup snapshots) no longer wait on
+    // the writer, and a commit is one sequential append instead of a journal rewrite. It is also the
+    // mode Litestream (Dockerfile, deploy/cluster.md) replicates from; the delete-mode default made
+    // it fall back to converting the file itself. synchronous=NORMAL in WAL is durable against the
+    // process crashing (the WAL is fsynced at checkpoint); only a power loss can lose the very last
+    // commits, which Litestream's second-by-second copy already bounds. busy_timeout: a concurrent
+    // reader (backup, admin tools) gets a wait instead of SQLITE_BUSY.
+    db.exec('PRAGMA busy_timeout = 10000');
+    if (db.prepare('PRAGMA journal_mode = WAL').get().journal_mode !== 'wal') throw new Error('SQLite could not switch the database to WAL mode');
+    db.exec('PRAGMA synchronous = NORMAL');
     const version = db.prepare('PRAGMA user_version').get().user_version;
     if (version > 5) throw new Error('This database requires a newer Linea server.');
     db.function('unicode_lower', { deterministic: true }, value => typeof value === 'string' ? value.toLowerCase() : value);
@@ -97,6 +107,8 @@ export function openDatabase(dataDir) {
       db.exec('CREATE UNIQUE INDEX IF NOT EXISTS recovery_grants_id ON recovery_grants(id)');
       const messageColumns = new Set(db.prepare('PRAGMA table_info(messages)').all().map(column => column.name));
       if (!messageColumns.has('encrypted_json')) db.exec('ALTER TABLE messages ADD COLUMN encrypted_json TEXT');
+      // silent=1: a reaction, an edit, a vote (push:'none') — changes another message, never unread (Telegram).
+      if (!messageColumns.has('silent')) db.exec('ALTER TABLE messages ADD COLUMN silent INTEGER NOT NULL DEFAULT 0');
       const uploadColumns = new Set(db.prepare('PRAGMA table_info(uploads)').all().map(column => column.name));
       if (!uploadColumns.has('is_encrypted')) db.exec('ALTER TABLE uploads ADD COLUMN is_encrypted INTEGER NOT NULL DEFAULT 0');
       if (!uploadColumns.has('is_video')) db.exec('ALTER TABLE uploads ADD COLUMN is_video INTEGER NOT NULL DEFAULT 0');
@@ -146,10 +158,19 @@ export function privacyOf(db, userId) {
 /** A serialized user as another account may see it. The owner always sees everything. */
 const personal = row => ({ birthday: row.birthday ?? null, gender: row.gender === 'male' || row.gender === 'female' ? row.gender : null });
 
+/** True when either side blocked the other (table from moderation.js, created at start-up). */
+export function blockedEitherWay(db, a, b) {
+  if (!a || !b || a === b) return false;
+  return !!db.prepare('SELECT 1 FROM blocks WHERE (blocker_id=? AND blocked_id=?) OR (blocker_id=? AND blocked_id=?)').get(a, b, b, a);
+}
+const blockedBy = (db, blockerId, blockedId) => !!db.prepare('SELECT 1 FROM blocks WHERE blocker_id=? AND blocked_id=?').get(blockerId, blockedId);
+
 export function userForViewer(db, user, viewerId) {
   if (!user || user.id === viewerId) return user;
   const { birthday: _birthday, gender: _gender, ...rest } = user;
-  const visible = privacyOf(db, user.id).showAvatar ? rest : { ...rest, avatarId: null, avatarVideoId: null, bannerId: null, bannerKind: null };
+  // Someone this account blocked sees no avatar or banner either (like an avatar hidden by privacy).
+  const hideMedia = !privacyOf(db, user.id).showAvatar || (viewerId && blockedBy(db, user.id, viewerId));
+  const visible = hideMedia ? { ...rest, avatarId: null, avatarVideoId: null, bannerId: null, bannerKind: null } : rest;
   // Birthday and gender (birthday reminders, the festive ring) are shown to friends only.
   const friend = viewerId && db.prepare('SELECT 1 FROM contacts WHERE owner_id=? AND contact_id=?').get(user.id, viewerId);
   return friend ? { ...visible, ...personal(db.prepare('SELECT birthday, gender FROM users WHERE id=?').get(user.id) || {}) } : visible;
@@ -165,13 +186,15 @@ export function effectivePrivacy(db, userId, time = Date.now()) {
   return effective;
 }
 
-/** "Online / last seen" is mutual: whoever hides it (Platina) does not see it either. */
+/** "Online / last seen" is mutual: whoever hides it (Platina) does not see it either; a block hides it both ways. */
 export function presenceVisible(db, a, b, time = Date.now()) {
+  if (blockedEitherWay(db, a, b)) return false;
   return effectivePrivacy(db, a, time).showLastSeen && effectivePrivacy(db, b, time).showLastSeen;
 }
 
-/** Read receipts are mutual: hidden if either side (with Platina) turned them off. */
+/** Read receipts are mutual: hidden if either side (with Platina) turned them off or blocked the other. */
 export function receiptsVisible(db, a, b, time = Date.now()) {
+  if (blockedEitherWay(db, a, b)) return false;
   return effectivePrivacy(db, a, time).readReceipts && effectivePrivacy(db, b, time).readReceipts;
 }
 
@@ -206,8 +229,9 @@ export function publicChat(db, chatId, userId, options) {
   const peer = db.prepare('SELECT * FROM users WHERE id=?').get(peerMember.user_id);
   const lastMessage = db.prepare('SELECT * FROM messages WHERE chat_id=? ORDER BY id DESC LIMIT 1').get(chatId);
   // Capped at 9 999 (the badge shows «9999+» anyway): a full count made every message slower as the
-  // receiver's unread pile grew (load test F5: 110 ms at 100 000 unread).
-  const unread = db.prepare('SELECT COUNT(*) AS count FROM (SELECT 1 FROM messages WHERE chat_id=? AND sender_id != ? AND id>? LIMIT 9999)').get(chatId, userId, self.last_read_message_id);
+  // receiver's unread pile grew (load test F5: 110 ms at 100 000 unread). Silent rows (reactions,
+  // edits, votes — the sender asked for no push) change another message and are not unread.
+  const unread = db.prepare('SELECT COUNT(*) AS count FROM (SELECT 1 FROM messages WHERE chat_id=? AND sender_id != ? AND id>? AND silent=0 LIMIT 9999)').get(chatId, userId, self.last_read_message_id);
   return {
     id: chat.id,
     peer: userForViewer(db, publicUser(peer, { db, now: options?.now || Date.now }), userId),

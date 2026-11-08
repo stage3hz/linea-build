@@ -433,3 +433,29 @@ test('registration with a separate public @username keeps the login private', as
     assert.equal(taken.statusCode, 409);
   } finally { await app.close(); }
 });
+
+test('reserved private logins cannot be probed through renames: the rename right is checked first and attempts are budgeted', async t => {
+  const f = await fixture(t);
+  const alice = await register(f.app), bob = await register(f.app, 'bob');
+  assert.equal((await rename(f.app, alice, 'renamed_alice')).statusCode, 200);
+  assert.equal((await rename(f.app, bob, 'renamed_bob')).statusCode, 200);
+  // Without the right to rename, a reserved login and a free name answer alike.
+  const [reserved, free] = await Promise.all([rename(f.app, bob, 'alice'), rename(f.app, bob, 'nobody_here')]);
+  assert.equal(reserved.statusCode, 403, reserved.body);
+  assert.equal(free.statusCode, 403, free.body);
+  assert.equal(reserved.json().code, free.json().code);
+  assert.equal((await rename(f.app, bob, 'renamed_bob')).statusCode, 200, 'an idempotent retry is never counted');
+  // With Platina the login stays reserved, but attempts (conflicts included) are capped per account per hour.
+  await grant(f, bob, 24 * 60 * 60_000);
+  const results = [];
+  for (let i = 0; i < 8; i++) results.push((await rename(f.app, bob, 'alice')).statusCode);
+  assert.deepEqual(results, [409, 409, 409, 409, 409, 409, 409, 429], JSON.stringify(results));
+  const limited = await rename(f.app, bob, 'alice');
+  assert.equal(limited.json().code, 'USERNAME_RATE_LIMITED');
+  assert.ok(limited.json().retryAfterSeconds > 0 && limited.json().retryAfterSeconds <= 3600);
+  assert.equal((await rename(f.app, bob, 'bob_fresh')).statusCode, 429, 'the budget also covers names that would succeed');
+  assert.equal((await status(f.app, bob)).json().username, 'renamed_bob');
+  f.advance(60 * 60_000);
+  assert.equal((await rename(f.app, bob, 'bob_fresh')).statusCode, 200);
+  assert.equal((await login(f.app, 'alice')).statusCode, 200, 'the probed login still signs in');
+});

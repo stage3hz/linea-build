@@ -2,6 +2,22 @@
 const development = process.env.APP_ENV !== 'production';
 const allowDevelopmentHttp = development && process.env.EXPO_PUBLIC_ALLOW_LOCAL_HTTP === '1';
 const apiUrl = process.env.EXPO_PUBLIC_API_URL || '';
+const androidPackage = development ? 'com.linea.messenger.preview' : 'com.linea.messenger';
+
+// Firebase Cloud Messaging (Android push). One google-services.json may list several Android apps;
+// the Gradle plugin picks the client whose package_name matches, so the release package must be
+// registered in the same Firebase project as the preview one. GOOGLE_SERVICES_FILE points CI at a
+// file outside the repository; ANDROID_PUSH=0 knowingly builds an APK without push.
+const googleServicesFile = process.env.GOOGLE_SERVICES_FILE || './google-services.json';
+const androidPush = process.env.ANDROID_PUSH !== '0';
+if (androidPush) {
+  const file = require('node:path').resolve(__dirname, googleServicesFile);
+  let packages = [];
+  try { packages = (JSON.parse(require('node:fs').readFileSync(file, 'utf8')).client || []).map(client => client.client_info?.android_client_info?.package_name); } catch { /* reported below */ }
+  // Only a warning here (this config is also evaluated for iOS builds); the Android Gradle build then stops with
+  // «No matching client found for package name», instead of shipping an APK whose push silently never works.
+  if (!packages.includes(androidPackage)) console.warn(`[push] ${googleServicesFile} не содержит Android-приложение ${androidPackage}: Android-сборка упадёт. Добавь этот package в проект Firebase и обнови файл, либо ANDROID_PUSH=0 для сборки без уведомлений (см. docs/BUILD.md).`);
+}
 
 if (!development && !/^https:\/\//i.test(apiUrl)) {
   throw new Error('Production requires an HTTPS EXPO_PUBLIC_API_URL. Set the API address before building.');
@@ -34,22 +50,24 @@ module.exports = {
         NSBluetoothAlwaysUsageDescription: 'Bluetooth нужен, чтобы писать без интернета тем, кто рядом. Сообщения остаются зашифрованными, местоположение не определяется.',
         // Music keeps playing and a call keeps its audio when the app goes to the background.
         // bluetooth-*: Mesh keeps passing messages with the app in the background (no internet only).
-        UIBackgroundModes: ['audio', 'voip', 'bluetooth-central', 'bluetooth-peripheral'],
+        // No 'voip': since iOS 13 it requires PushKit + CallKit, which the app does not have yet (App Review
+        // rejects an unused mode). Incoming calls with the app closed arrive as a regular APNs alert.
+        UIBackgroundModes: ['audio', 'bluetooth-central', 'bluetooth-peripheral'],
         ...(allowDevelopmentHttp ? { NSAppTransportSecurity: { NSAllowsArbitraryLoads: true, NSAllowsLocalNetworking: true } } : {}),
       },
     },
     android: {
-      package: development ? 'com.linea.messenger.preview' : 'com.linea.messenger',
+      package: androidPackage,
       versionCode: 39,
       softwareKeyboardLayoutMode: 'resize',
-      // Firebase Cloud Messaging (push). The file lists only the preview package for now.
-      ...(development ? { googleServicesFile: './google-services.json' } : {}),
+      // Firebase Cloud Messaging (push) in every build, see the check above.
+      ...(androidPush ? { googleServicesFile } : {}),
       allowBackup: false,
       adaptiveIcon: {
         foregroundImage: './assets/icons/outline-android.png',
         backgroundColor: '#0C0C0E',
       },
-      blockedPermissions: ["android.permission.ACCESS_MEDIA_LOCATION","android.permission.WRITE_EXTERNAL_STORAGE","android.permission.READ_MEDIA_AUDIO","android.permission.ACCESS_COARSE_LOCATION","android.permission.ACCESS_FINE_LOCATION","android.permission.ACCESS_BACKGROUND_LOCATION","android.permission.SYSTEM_ALERT_WINDOW","android.permission.QUERY_ALL_PACKAGES","android.permission.PACKAGE_USAGE_STATS","android.permission.MANAGE_EXTERNAL_STORAGE","android.permission.READ_CONTACTS","android.permission.WRITE_CONTACTS","android.permission.READ_CALENDAR","android.permission.WRITE_CALENDAR"],
+      blockedPermissions: ["android.permission.ACCESS_MEDIA_LOCATION","android.permission.WRITE_EXTERNAL_STORAGE","android.permission.READ_MEDIA_AUDIO","android.permission.ACCESS_COARSE_LOCATION","android.permission.ACCESS_FINE_LOCATION","android.permission.ACCESS_BACKGROUND_LOCATION","android.permission.SYSTEM_ALERT_WINDOW","android.permission.QUERY_ALL_PACKAGES","android.permission.PACKAGE_USAGE_STATS","android.permission.MANAGE_EXTERNAL_STORAGE","android.permission.READ_CONTACTS","android.permission.WRITE_CONTACTS","android.permission.READ_CALENDAR","android.permission.WRITE_CALENDAR","android.permission.ACTIVITY_RECOGNITION"],
     },
     web: { bundler: 'metro', favicon: './assets/favicon.png', name: 'INVIZENT' },
     plugins: [
@@ -71,10 +89,14 @@ module.exports = {
         enableBackgroundPlayback: true,
         enableBackgroundRecording: false,
       }],
-      ['expo-notifications', { icon: './assets/notification-icon.png', color: '#4C7DFF', defaultChannel: 'messages' }],
-      // Sideloaded builds have no Push entitlement; the App Store build keeps it (APNs on the server).
+      // Sideloaded builds have no Push entitlement; the App Store build (IOS_PUSH=1) keeps it (APNs on the server).
+      // Listed BEFORE expo-notifications on purpose: a mod added later runs earlier, so this plugin only
+      // sees (and removes) the entitlement when expo-notifications' mod has already run.
       ...(process.env.IOS_PUSH === '1' ? [] : ['./plugins/withNoIosPush']),
+      // iOS: «aps-environment» entitlement (APNs); Xcode sets production for App Store exports anyway.
+      ['expo-notifications', { icon: './assets/notification-icon.png', color: '#4C7DFF', defaultChannel: 'messages', mode: development ? 'development' : 'production' }],
       './plugins/withSelfUpdate',
+      // Only DeviceMotion (wallpaper parallax); the pedometer's ACTIVITY_RECOGNITION is in blockedPermissions.
       ['expo-sensors', { motionPermission: 'Инвиз использует наклон телефона только для лёгкого движения обоев в чатах.' }],
       ['expo-camera', { cameraPermission: 'Камера нужна для видеосообщений. Видео шифруется до отправки.', microphonePermission: 'Инвиз использует микрофон только во время записи голосового или видеосообщения. Запись шифруется до отправки.', recordAudioAndroid: true }],
       ['expo-secure-store', { configureAndroidBackup: true }],

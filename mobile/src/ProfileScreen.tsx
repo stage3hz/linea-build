@@ -6,6 +6,7 @@ import { LinearGradient } from 'expo-linear-gradient';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { ProfileMediaViewer, profileMedia } from './ProfileMediaViewer';
 import { PROFILE_PATTERNS, PostViewer, PostsSection, ProfilePattern, StoryRing, useProfilePosts } from './ProfilePosts';
+import { ProfileInfoCard } from './ProfileInfo';
 import { PlatinaName } from './platina/PlatinaMark';
 import { isBirthdayToday } from './birthday';
 import { ActivityIndicator, AppState, KeyboardAvoidingView, Platform, Pressable, ScrollView, StyleSheet, View, useWindowDimensions } from 'react-native';
@@ -176,8 +177,9 @@ export function ProfileScreen({ api, user, theme, darkTheme, onTheme, onDarkThem
       if (!live(version)) return;
       if (!attachment.mimeType.startsWith('image/')) throw new Error('Для профиля нужна фотография.');
       if (attachment.size > 4 * 1024 * 1024) throw new Error('После обработки фото больше 4 МБ. Выбери изображение меньшего размера.');
-      // Like Telegram: the new photo is applied right away, no separate «Сохранить».
-      const saved = await api.profile({ displayName: (name.trim() || user.displayName), bio: bio.trim(), avatarColor: color, avatarId: attachment.id });
+      // Like Telegram: the new photo is applied right away, no separate «Сохранить» — but only the photo:
+      // the name / bio / colour draft stays a draft, so ✓ saves it and ✕ still discards it (as promised).
+      const saved = await api.profile({ avatarId: attachment.id });
       if (!live(version)) return;
       setAvatarId(attachment.id); onUser(saved.user); setNotice('Фото профиля обновлено.');
     } catch (failure) { if (live(version)) setError(errorMessage(failure, 'Не удалось сохранить фото.')); }
@@ -288,14 +290,11 @@ export function ProfileScreen({ api, user, theme, darkTheme, onTheme, onDarkThem
       <View onLayout={event => setHeroBottom(Math.round(event.nativeEvent.layout.height))} style={{ alignItems: 'center', gap: 6, paddingBottom: 6 }}>
         <Animated.View style={avatarShrink}><Pressable disabled={!stories.length && !profileMedia(previewUser).length} onPress={() => stories.length ? setStoryOpen(true) : setViewer(0)} accessibilityRole="button" accessibilityLabel={stories.length ? 'Истории' : 'Фото и видео профиля'}><StoryRing active={stories.length > 0} size={116}><DecoratedAvatar user={previewUser} api={api} size={116} animated round/></StoryRing></Pressable></Animated.View>
         <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 7, alignSelf: 'stretch', marginTop: 10, paddingHorizontal: 16 }}><PlatinaName user={previewUser} onDark={tinted} numberOfLines={2} style={{ flexShrink: 1, color: tinted ? '#FFFFFF' : t.text, fontSize: 26, fontWeight: '800', letterSpacing: -.6, textAlign: 'center' }}/><Pressable accessibilityRole="button" accessibilityLabel="Сменить статус рядом с именем" hitSlop={10} disabled={!ready || !status?.platina.active && !status?.statusEmoji} onPress={event => { setPickerY(event.nativeEvent.pageY); setPickerOpen(true); }}><StatusEmoji user={previewUser} size={22} animated/></Pressable></View>
-        <Text style={{ color: tinted ? 'rgba(255,255,255,0.78)' : t.muted, fontSize: 15 }}>в сети</Text>
+        <Text style={{ color: tinted ? 'rgba(255,255,255,0.78)' : t.accent, fontSize: 15 }}>в сети</Text>
         {birthdayToday ? <View style={{ marginTop: 4, paddingHorizontal: 12, paddingVertical: 5, borderRadius: 14, backgroundColor: tinted ? 'rgba(255,255,255,0.22)' : t.accentSoft }}><Text style={{ color: tinted ? '#FFF' : t.text, fontSize: 13, fontWeight: '700' }}>🎉 Сегодня день рождения</Text></View> : null}
       </View>
-      <View style={{ marginTop: 14, borderRadius: 22, backgroundColor: t.dark ? t.surface : '#FFFFFF', overflow: 'hidden' }}>
-        <InfoRow label="имя пользователя" value={copied === 'username' ? 'Скопировано' : `@${publicName}`} accent onPress={() => void copy(`@${publicName}`, 'username')} hint="Нажми, чтобы скопировать"/>
-        {user.birthday ? <InfoRow label="день рождения" value={formatBirthday(user.birthday)} divider/> : null}
-        {user.bio ? <InfoRow label="о себе" value={user.bio} divider/> : null}
-      </View>
+      {/* The same card as on other people's profiles (ProfileInfo.tsx). */}
+      <ProfileInfoCard username={publicName} birthday={user.birthday} bio={user.bio} copied={copied === 'username'} onCopy={() => void copy(`@${publicName}`, 'username')} style={{ marginTop: 14 }}/>
       <PostsSection api={api} own data={posts.data} onChanged={() => void posts.reload()} width={Math.min(600, screenWidth) - 34}/>
       {error ? <Notice text={error} error/> : null}{notice ? <Notice text={notice}/> : null}
       </> : <>
@@ -415,15 +414,6 @@ function BirthdaySheet({ visible, value, onClose, onDone }: { visible: boolean; 
     <Button label="Готово" disabled={!!yearError} onPress={() => onDone(toBirthday({ day: shownDay, month, year: y }))}/>
     {value ? <Button label="Убрать день рождения" secondary danger onPress={() => onDone(null)}/> : null}
   </View></Sheet>;
-}
-
-/** A Telegram profile info row: a small grey label above the value. */
-function InfoRow({ label, value, accent = false, divider = false, onPress, hint }: { label: string; value: string; accent?: boolean; divider?: boolean; onPress?: () => void; hint?: string }) {
-  const t = useTheme();
-  return <Pressable disabled={!onPress} onPress={onPress} accessibilityRole={onPress ? 'button' : 'text'} accessibilityLabel={`${label}: ${value}`} accessibilityHint={hint} style={({ pressed }) => ({ paddingHorizontal: 16, backgroundColor: pressed ? 'rgba(127,127,127,0.12)' : 'transparent' })}>
-    {divider ? <View style={{ height: StyleSheet.hairlineWidth, backgroundColor: t.border }}/> : null}
-    <View style={{ paddingVertical: 11, gap: 2 }}><Text style={{ color: t.muted, fontSize: 14 }}>{label}</Text><Text raw selectable={!onPress} style={{ color: accent ? t.accent : t.text, fontSize: 17, lineHeight: 23 }}>{value}</Text></View>
-  </Pressable>;
 }
 
 /** Lighter (amount > 0) or darker (< 0) version of a #RRGGBB colour, for the profile header tint. */

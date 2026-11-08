@@ -25,17 +25,16 @@ import { isVideoNote, isVoice } from './voice/voice';
 const isAlbumMedia=(file:Attachment)=>{const kind=mediaPreviewKind(file);return (kind==='photo'||kind==='video')&&!isVoice(file)&&!isVideoNote(file);};
 import { decryptAttachment } from './e2ee/attachments';
 import { resetMediaCache } from './media/mediaCache';
+import { applyPage, mergeMessages } from './messagePages';
+import { coversUnread, readUpTo, readWatermark, reconcileUnread } from './chatUnread';
+import { connectionHeld, holdConnection, socketTick } from './connectionHold';
+import { useVoice } from './communities/voice';
+import { attachChannelOutbox, resetChannelOutbox } from './communities/channelOutbox';
 
 const HIDDEN_LIMIT = 5000;
 
 const sortedChats = (chats: Chat[]) => [...chats].sort((a,b)=>b.updatedAt.localeCompare(a.updatedAt));
 const MESH_ID_BASE = 9e15; // local ids for messages that came over Mesh, after every server id
-const mergeMessages = (a: Message[], b: Message[]) => {
-  const all = Array.from(new Map([...a,...b].map(m=>[m.id,m])).values());
-  // When the server copy arrives, the Mesh copy of the same message disappears.
-  const fromServer = new Set(all.filter(m=>!m.mesh).map(m=>`${m.senderId}:${m.clientId}`));
-  return all.filter(m=>!m.mesh||!fromServer.has(`${m.senderId}:${m.clientId}`)).sort((x,y)=>x.id-y.id);
-};
 export type Connection = 'connecting'|'connected'|'offline';
 
 export function useMessenger(api: Api, user: User, onExpired: ()=>void) {
@@ -68,6 +67,9 @@ export function useMessenger(api: Api, user: User, onExpired: ()=>void) {
   const selectedRef=useRef(selectedId);selectedRef.current=selectedId;
   const appState=useRef(AppState.currentState);
   const messagesRef=useRef(messages);messagesRef.current=messages;
+  const hasMoreRef=useRef(hasMore);hasMoreRef.current=hasMore;
+  // Recent pages read quietly for the list preview (chat not opened): used to count unread ourselves.
+  const quietPages=useRef<Record<string,{messages:Message[];hasMore:boolean}>>({});
   const chatsRef=useRef(chats);chatsRef.current=chats;
   const readRef=useRef<Record<string,number>>({});
   const aliveRef=useRef(true);
@@ -120,12 +122,20 @@ export function useMessenger(api: Api, user: User, onExpired: ()=>void) {
   },[api,checkError,refreshRecoveryRequests]);
 
   const refreshChats=useCallback(async()=>{
-    try {const result=await api.chats();const next=await Promise.all(result.chats.map(async chat=>({...chat,lastMessage:chat.lastMessage?await hydrate(chat.lastMessage):null})));if(aliveRef.current){setChats(sortedChats(next));setError('');}}
+    try {
+      const result=await api.chats();const next=await Promise.all(result.chats.map(async chat=>({...chat,lastMessage:chat.lastMessage?await hydrate(chat.lastMessage):null})));
+      // The server counts reactions and edits of the peer as unread (it cannot see inside); our count wins where the messages are here.
+      // A chat not opened in this session may hold only a socket message or two (a reaction): that set does not cover the watermark, so the quiet page speaks instead.
+      const counted=next.map(chat=>{const loaded=messagesRef.current[chat.id];const quiet=quietPages.current[chat.id];return coversUnread(chat,loaded,hasMoreRef.current[chat.id])?reconcileUnread(chat,loaded,user.id,hasMoreRef.current[chat.id]):quiet?reconcileUnread(chat,quiet.messages,user.id,quiet.hasMore):chat;});
+      if(aliveRef.current){setChats(sortedChats(counted));setError('');}
+    }
     catch(e){if(aliveRef.current)setError(checkError(e));}
     finally {if(aliveRef.current)setListLoading(false);}
-  },[api,checkError,hydrate]);
-  // «Прочитать» from the chat list (swipe or edit mode): no need to have the chat open.
-  const readChat=useCallback(async(chatId:string,messageId:number)=>{
+  },[api,checkError,hydrate,user.id]);
+  // «Прочитать» from the chat list (swipe or edit mode): no need to have the chat open. The list
+  // shows the last real message, so the newest server message (a reaction, an edit) is read from here.
+  const readChat=useCallback(async(chatId:string,shownId:number)=>{
+    const messageId=readUpTo(chatsRef.current.find(c=>c.id===chatId),shownId);
     if(!messageId||(readRef.current[chatId]||0)>=messageId)return;
     readRef.current[chatId]=messageId;
     try { const result=await api.read(chatId,messageId);if(aliveRef.current)setChats(prev=>prev.map(c=>c.id===chatId?{...c,unreadCount:0,lastReadMessageId:result.lastReadMessageId}:c)); }
@@ -143,17 +153,24 @@ export function useMessenger(api: Api, user: User, onExpired: ()=>void) {
     if(older&&!current.length)return;
     setMessageLoading(true);
     try {
-      try {await(await cryptoRuntime.get()).syncChat(chatId);if(aliveRef.current)setCryptoError('');}
+      let deviceId:string|null=null,synced=false;
+      try {const crypto=await cryptoRuntime.get();deviceId=crypto.deviceId;await crypto.syncChat(chatId);synced=true;if(aliveRef.current)setCryptoError('');}
       catch(e){if(aliveRef.current)setCryptoError(checkError(e));}
       const result=await api.messages(chatId,older?current[0].id:undefined);
       result.messages=await Promise.all(result.messages.map(hydrate));
       if(!aliveRef.current)return;
-      const maxId=result.messages[result.messages.length-1]?.id||0;
-      setMessages(prev=>({...prev,[chatId]:older?mergeMessages(result.messages,prev[chatId]||[]):mergeMessages(result.messages,(prev[chatId]||[]).filter(m=>m.id>maxId))}));
+      // The latest page replaces only its own range: history scrolled up earlier survives a reconnect.
+      const applied=applyPage(messagesRef.current[chatId]||[],result.messages,{older,hasMore:result.hasMore,prevHasMore:hasMoreRef.current[chatId]});
+      setMessages(prev=>({...prev,[chatId]:applied.messages}));
       const confirmed = new Set(result.messages.filter(message=>message.senderId===user.id).map(message=>message.clientId));
       setPending(prev=>prev.filter(item=>item.chatId!==chatId||!confirmed.has(item.clientId)));
-      setHasMore(prev=>({...prev,[chatId]:result.hasMore}));
-      if(!older&&maxId&&result.messages.every(message=>message.cryptoState==='decrypted'||message.cryptoState==='legacy'))void markRead(chatId,maxId);
+      setHasMore(prev=>({...prev,[chatId]:applied.hasMore}));
+      // Read up to the last message that is not still waiting for keys: a message sent before this
+      // device signed in (no envelope for it) or a damaged one never changes and must not keep the chat
+      // unread. The page is lean (no envelopes), so a no-key message counts as permanent only once the
+      // inbox sync of this chat went through (`synced`).
+      const watermark=older?0:readWatermark(result.messages,user.id,deviceId,synced);
+      if(watermark)void markRead(chatId,watermark);
       setError('');
     }catch(e){if(aliveRef.current)setError(checkError(e));}
     finally {if(aliveRef.current)setMessageLoading(false);}
@@ -181,6 +198,8 @@ export function useMessenger(api: Api, user: User, onExpired: ()=>void) {
 
   useEffect(()=>{
     aliveRef.current=true;void refreshChats();void refreshRecoveryRequests();
+    // The channel outbox (messages typed offline) sends through this account whichever screen is open; it is flushed on every «ready».
+    attachChannelOutbox({userId:user.id,send:item=>api.sendChannelMessage(item.communityId,item.channelId,{text:item.text,clientKey:item.key,...(item.replyTo?{replyTo:item.replyTo}:{})}).then(r=>r.message),onSocket});
     let stopped=false, paused=false, retry:ReturnType<typeof setTimeout>|undefined, attempts=0, lastReceive=Date.now();
     const connect=()=>{
       if(stopped||paused)return;
@@ -226,22 +245,31 @@ export function useMessenger(api: Api, user: User, onExpired: ()=>void) {
       previous?.close();if(retry)clearTimeout(retry);connect();
     };
     connect();
+    // In the background the connection is closed, so peers see "был(а) только что" as in Telegram —
+    // unless a voice room or a call holds it: the server would otherwise drop us from the room on close.
+    const sleep=()=>{paused=true;if(retry)clearTimeout(retry);const previous=socketRef.current;socketRef.current=null;previous?.close();setConnection('offline');};
     const heartbeat=setInterval(()=>{
-      if(appState.current==='active'){
-        if(Date.now()-lastReceive>15000)reconnect();
-        else if(socketRef.current?.readyState===WebSocket.OPEN)socketRef.current.send(JSON.stringify({type:'ping'}));
-      }
+      const socket=socketRef.current;
+      // 'inactive' (iOS app switcher, a system call sheet) is not the background: the socket stays.
+      const tick=socketTick({foreground:appState.current!=='background',held:connectionHeld(),open:socket?.readyState===WebSocket.OPEN,sinceReceive:Date.now()-lastReceive});
+      if(tick==='sleep')sleep();
+      else if(tick==='reconnect'){paused=false;reconnect();}
+      else if(tick==='ping')socket!.send(JSON.stringify({type:'ping'}));
+      else if(paused&&connectionHeld()){paused=false;connect();}
       setTyping(prev=>{const now=Date.now();return Object.values(prev).some(exp=>exp>0&&exp<now)?Object.fromEntries(Object.entries(prev).map(([id,exp])=>[id,exp<now?0:exp])):prev;});
     },3000);
     const subscription=AppState.addEventListener('change',state=>{
       appState.current=state;
-      if(state==='active'){paused=false;void refreshChats();void refreshRecoveryRequests();if(selectedRef.current)void loadMessages(selectedRef.current);reconnect();}
-      // In the background the connection is closed, so peers see "был(а) только что" as in Telegram.
-      else if(state==='background'){paused=true;if(retry)clearTimeout(retry);const previous=socketRef.current;socketRef.current=null;previous?.close();setConnection('offline');}
+      if(state==='active'){
+        paused=false;void refreshChats();void refreshRecoveryRequests();if(selectedRef.current)void loadMessages(selectedRef.current);
+        // A socket kept alive through the background (call, voice room) is not torn down: that would leave the room.
+        if(socketRef.current?.readyState===WebSocket.OPEN&&Date.now()-lastReceive<=15000)connect();else reconnect();
+      }
+      else if(state==='background'&&!connectionHeld())sleep();
     });
     const recoveryPoll=setInterval(()=>{if(appState.current==='active')void refreshRecoveryRequests();},30000);
-    return ()=>{stopped=true;aliveRef.current=false;++recoveryFetchRef.current;if(retry)clearTimeout(retry);clearInterval(heartbeat);clearInterval(recoveryPoll);subscription.remove();socketRef.current?.close();socketRef.current=null;};
-  },[api,user.id,refreshChats,loadMessages,acceptMessage,refreshRecoveryRequests]);
+    return ()=>{stopped=true;aliveRef.current=false;++recoveryFetchRef.current;if(retry)clearTimeout(retry);clearInterval(heartbeat);clearInterval(recoveryPoll);subscription.remove();socketRef.current?.close();socketRef.current=null;resetChannelOutbox();};
+  },[api,user.id,refreshChats,loadMessages,acceptMessage,refreshRecoveryRequests,onSocket]);
 
   const selectChat=useCallback((chat:Chat|null)=>{
     if(selectedRef.current&&socketRef.current?.readyState===WebSocket.OPEN)socketRef.current.send(JSON.stringify({type:'typing',chatId:selectedRef.current,isTyping:false}));
@@ -444,11 +472,21 @@ export function useMessenger(api: Api, user: User, onExpired: ()=>void) {
   useEffect(()=>{
     for(const chat of filtered){
       const last=chat.lastMessage;
-      if(!last||!isQuietAction(last)||messages[chat.id]?.length||previewAsked.current.has(`${chat.id}:${last.id}`))continue;
+      // A chat never opened may still hold a socket message or two (a reaction that just arrived): that set does not cover the watermark, so the page is read anyway.
+      if(!last||!isQuietAction(last)||coversUnread(chat,messages[chat.id],hasMore[chat.id])||previewAsked.current.has(`${chat.id}:${last.id}`))continue;
       previewAsked.current.add(`${chat.id}:${last.id}`);
-      void (async()=>{try{const page=await api.messages(chat.id);const shown=listPreviewMessage(await Promise.all(page.messages.map(hydrate)));if(shown&&aliveRef.current)setPreviewFill(prev=>({...prev,[chat.id]:shown}));}catch{/* the action text stays as a fallback */}})();
+      void (async()=>{try{
+        const page=await api.messages(chat.id);const hydrated=await Promise.all(page.messages.map(hydrate));if(!aliveRef.current)return;
+        quietPages.current[chat.id]={messages:hydrated,hasMore:page.hasMore};
+        // A reaction or an edit by the peer is not unread (Telegram): the server's count is corrected here.
+        setChats(prev=>{const next=prev.map(c=>c.id===chat.id?reconcileUnread(c,hydrated,user.id,page.hasMore):c);return next.some((c,i)=>c!==prev[i])?next:prev;});
+        const shown=listPreviewMessage(hydrated);if(shown)setPreviewFill(prev=>({...prev,[chat.id]:shown}));
+      }catch{/* the action text stays as a fallback */}})();
     }
-  },[filtered,messages,api,hydrate]);
+  },[filtered,messages,hasMore,api,hydrate,user.id]);
+  // A voice room keeps the socket alive in the background (see connectionHold); a call does the same from CallProvider.
+  const inVoice=!!useVoice();
+  useEffect(()=>inVoice?holdConnection('voice'):undefined,[inVoice]);
   const visibleChats=useMemo(()=>filtered.map(chat=>{
     const last=chat.lastMessage;if(!last)return chat;
     const loaded=messages[chat.id];

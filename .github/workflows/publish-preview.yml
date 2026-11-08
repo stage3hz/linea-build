@@ -3,13 +3,12 @@ on:
   workflow_dispatch:
     inputs:
       release_tag:
-        description: Preview release tag
+        description: Preview release tag (vX.Y.Z, must match desktop/package.json of the Windows run)
         required: true
-        default: v0.14.2
       mobile_version:
-        description: Version inside the verified APK and IPA
-        required: true
-        default: '0.14.2'
+        description: Version inside the verified APK and IPA (empty = taken from mobile/package.json of the Windows run)
+        required: false
+        default: ''
       windows_run_id:
         description: Successful Windows desktop run
         required: true
@@ -29,7 +28,7 @@ jobs:
     env:
       GH_TOKEN: ${{ github.token }}
       GH_REPO: ${{ github.repository }}
-      MOBILE_VERSION: ${{ inputs.mobile_version }}
+      MOBILE_VERSION_INPUT: ${{ inputs.mobile_version }}
       RELEASE_TAG: ${{ inputs.release_tag }}
       WINDOWS_RUN: ${{ inputs.windows_run_id }}
       IOS_RUN: ${{ inputs.ios_run_id }}
@@ -41,12 +40,18 @@ jobs:
         id: validate
         run: |
           set -euo pipefail
-          [[ "$RELEASE_TAG" == v0.14.0 || "$RELEASE_TAG" == v0.14.1 || "$RELEASE_TAG" == v0.14.2 ]]
-          [[ "$MOBILE_VERSION" == 0.14.0 || "$MOBILE_VERSION" == 0.14.2 ]]
+          [[ "$RELEASE_TAG" =~ ^v[0-9]+\.[0-9]+\.[0-9]+$ ]]
           [[ "$WINDOWS_RUN" =~ ^[0-9]+$ ]]
           test "$(gh api repos/$GH_REPO/actions/runs/$WINDOWS_RUN --jq .conclusion)" = success
           SOURCE=$(gh api repos/$GH_REPO/actions/runs/$WINDOWS_RUN --jq .head_sha)
           test "$(git show "$SOURCE:desktop/package.json" | jq -r .version)" = "${RELEASE_TAG#v}"
+          # The mobile version comes from mobile/package.json at the verified commit;
+          # an explicit input must match it (no hard-coded version list).
+          MOBILE_VERSION=$(git show "$SOURCE:mobile/package.json" | jq -r .version)
+          [[ "$MOBILE_VERSION" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]]
+          if [ -n "$MOBILE_VERSION_INPUT" ]; then test "$MOBILE_VERSION_INPUT" = "$MOBILE_VERSION"; fi
+          echo "MOBILE_VERSION=$MOBILE_VERSION" >> "$GITHUB_ENV"
+          test -f "docs/RELEASE-${RELEASE_TAG#v}.md"
           if [ -n "$IOS_RUN" ]; then
             [[ "$IOS_RUN" =~ ^[0-9]+$ ]]
             test "$(gh api repos/$GH_REPO/actions/runs/$IOS_RUN --jq .conclusion)" = success

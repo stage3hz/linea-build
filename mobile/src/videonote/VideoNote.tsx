@@ -18,6 +18,7 @@ import { setCenterStage } from '../media/centerStage';
 import { currentVoiceRate } from '../voice/VoiceMessage';
 import * as FileSystem from 'expo-file-system/legacy';
 import { AndroidNoteCamera, androidNoteCameraAvailable, type AndroidNoteCameraHandle } from './androidCamera';
+import { resolveTake } from './take';
 import { useMusic } from '../music/MusicProvider';
 import { VIDEO_NOTE_MAX_MS, formatVoiceTime, formatVoiceTimeFine } from '../voice/voice';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -81,34 +82,45 @@ export function VideoNoteRecorder({ visible, onClose, onDone, hold = null }: { v
     return () => clearInterval(timer);
   }, [recording, notePaused]);
 
-  const finishTake = (uri: string | undefined) => {
+  // The file our native recorder writes to: removed when the take is cancelled, too short or failed.
+  const notePath = useRef<string | null>(null);
+  const discard = (uri: string | null) => { if (uri) void FileSystem.deleteAsync(uri, { idempotent: true }).catch(() => {}); };
+  /** Ends a take: sends it, or drops it (deleting the file) — in hold mode a short or failed take simply closes the circle. */
+  const finishTake = (uri: string | null | undefined, failed?: string | null) => {
     const durationMs = Math.min(VIDEO_NOTE_MAX_MS, activeMs());
     setRecording(false);
-    if (cancelled.current || !uri) return;
-    if (durationMs < 1000) { if (hold) { onClose(); return; } setError('Слишком короткое видео — запиши хотя бы секунду.'); return; }
-    onDone({ uri, durationMs });
+    const outcome = resolveTake({ uri: uri || notePath.current, durationMs, cancelled: cancelled.current, hold: !!hold, locked: !!hold?.locked, failed });
+    notePath.current = null;
+    if (outcome.action === 'send') { onDone({ uri: outcome.uri, durationMs }); return; }
+    discard(outcome.deleteUri);
+    if (outcome.action === 'error') setError(outcome.message); else if (outcome.close) onClose();
   };
+  const failure = (e: unknown, fallback: string) => e instanceof Error && e.message ? e.message : fallback;
   const start = async () => {
     if (recording || !ready) return;
     cancelled.current = false; setError(''); started.current = Date.now(); pausedAt.current = 0; pausedTotal.current = 0; setNotePaused(false); setElapsed(0); setRecording(true);
     if (androidNoteCameraAvailable) {
+      const path = `${FileSystem.cacheDirectory}videonote-${Date.now()}.mp4`;
+      notePath.current = path;
       try {
-        await nativeRef.current?.startRecording(`${FileSystem.cacheDirectory}videonote-${Date.now()}.mp4`);
+        await nativeRef.current?.startRecording(path);
         limit.current = setTimeout(() => void stop(), VIDEO_NOTE_MAX_MS);
-      } catch (e) { setRecording(false); setError(e instanceof Error ? e.message : 'Не удалось начать запись.'); }
+      } catch (e) { finishTake(null, failure(e, 'Не удалось начать запись.')); }
       return;
     }
     if (!ref.current) { setRecording(false); return; }
     try {
       const result = await ref.current.recordAsync({ maxDuration: VIDEO_NOTE_MAX_MS / 1000 });
       finishTake(result?.uri);
-    } catch (e) { setRecording(false); if (!cancelled.current) setError(e instanceof Error ? e.message : 'Не удалось записать видео.'); }
+    } catch (e) { finishTake(null, failure(e, 'Не удалось записать видео.')); }
   };
   const stop = async () => {
     if (limit.current) { clearTimeout(limit.current); limit.current = undefined; }
     if (androidNoteCameraAvailable) {
+      // A stop before the first frame is rejected by the native recorder (E_EMPTY / no valid data):
+      // in hold mode that is a too-short take — the circle closes instead of freezing behind a blur.
       try { finishTake(await nativeRef.current?.stopRecording()); }
-      catch (e) { setRecording(false); if (!cancelled.current) setError(e instanceof Error ? e.message : 'Не удалось записать видео.'); }
+      catch (e) { finishTake(null, failure(e, 'Не удалось записать видео.')); }
       return;
     }
     if (recording) ref.current?.stopRecording();
@@ -236,7 +248,8 @@ export function VideoNoteRecorder({ visible, onClose, onDone, hold = null }: { v
       </View> : <Text style={{ color: 'rgba(255,255,255,0.7)', fontSize: 13 }}>‹ Влево — отмена · вверх — без рук</Text>}
     </View>;
   if (hold) return visible ? <View pointerEvents={showControls ? 'auto' : 'box-none'} style={[StyleSheet.absoluteFill, { zIndex: 50 }]}>
-    <BlurView tint="dark" intensity={60} style={StyleSheet.absoluteFill} />
+    {/* Never a touch target: while the finger holds the button the chat below must keep receiving it. */}
+    <BlurView pointerEvents="none" tint="dark" intensity={60} style={StyleSheet.absoluteFill} />
     <View pointerEvents="none" style={[StyleSheet.absoluteFill, { backgroundColor: 'rgba(0,0,0,0.25)' }]} />
     {holdBody}
   </View> : null;
@@ -270,7 +283,7 @@ function CirclePlayer({ uri, size, expanded, onToggle, onEnd }: { uri: string; s
 
 /** Round bubble: shows the encrypted thumbnail; a tap decrypts and plays with sound. */
 export function VideoNoteBubble({ api, attachment }: { api: Api; attachment: Attachment }) {
-  const music = useMusic(); const { width } = useWindowDimensions();
+  const t = useTheme(); const music = useMusic(); const { width } = useWindowDimensions();
   // Circles are small, so they load by themselves (as in Telegram) and play silently in the chat.
   const features = usePowerFeatures();
   const media = useMedia(api, attachment, features.video && attachment.size <= 8 * 1024 * 1024);
@@ -288,7 +301,7 @@ export function VideoNoteBubble({ api, attachment }: { api: Api; attachment: Att
   useEffect(() => { side.value = motionEnabled() ? withTiming(size, { duration: 220, easing: Easing.out(Easing.cubic) }) : size; }, [size]);
   const round = useAnimatedStyle(() => ({ width: side.value, height: side.value, borderRadius: side.value / 2 }));
   return <View style={{ alignItems: 'flex-start' }}>
-    <Animated.View style={[{ overflow: 'hidden', backgroundColor: '#11162A' }, round]}>
+    <Animated.View style={[{ overflow: 'hidden', backgroundColor: t.surface2 }, round]}>
       {media.status === 'ready' && media.uri ? <CirclePlayer uri={media.uri} size={size} expanded={expanded} onToggle={toggle} onEnd={collapse} /> : <Pressable accessibilityRole="button" accessibilityLabel="Воспроизвести видеосообщение" onPress={load} style={{ flex: 1, alignItems: 'center', justifyContent: 'center' }}>
         {thumb ? <Image source={{ uri: thumb }} style={StyleSheet.absoluteFill} resizeMode="cover" /> : null}
         <View style={{ width: 52, height: 52, borderRadius: 26, backgroundColor: 'rgba(10,20,35,0.6)', alignItems: 'center', justifyContent: 'center' }}>{media.status === 'loading' ? <><ProgressRing progress={media.progress} size={52} /><Icon name="close" size={22} color="#FFF" /></> : <Icon name={media.status === 'error' ? 'refresh' : 'play'} size={24} color="#FFF" />}</View>
@@ -296,6 +309,6 @@ export function VideoNoteBubble({ api, attachment }: { api: Api; attachment: Att
     </Animated.View>
     {/* Telegram: the length sits in a small dark pill on the circle's lower-left edge. */}
     {!expanded ? <View pointerEvents="none" style={{ position: 'absolute', left: 6, bottom: 6, paddingHorizontal: 7, paddingVertical: 2, borderRadius: 9, backgroundColor: 'rgba(0,0,0,0.42)' }}><Text style={{ color: '#FFFFFF', fontSize: 11 }}>{formatVoiceTime(attachment.media?.durationMs || 0)}</Text></View> : null}
-    {media.status === 'error' && media.error ? <Text style={{ color: '#FF8A8A', fontSize: 11, maxWidth: size }}>{media.error}</Text> : null}
+    {media.status === 'error' && media.error ? <Text style={{ color: t.danger, fontSize: 11, maxWidth: size }}>{media.error}</Text> : null}
   </View>;
 }

@@ -163,18 +163,24 @@ export function installAuthRoutes({
     return reply.code(201).send(result);
   });
 
-  // 5 wrong logins (login, password or confirmation word) → this account rests for 5 minutes.
-  // Kept per server in memory; the per-IP and per-account rate limits above still apply.
-  const LOGIN_TRIES = 5, LOGIN_LOCK_MS = 5 * 60_000;
-  const loginFails = new Map(); // username -> { fails, until }
-  const lockedFor = username => { const e = loginFails.get(username); const left = e?.until ? e.until - now() : 0; return left > 0 ? left : 0; };
+  // 5 wrong logins (login, password or confirmation word) → this address rests 5 minutes for this
+  // account. The lock is keyed by client address + login, not by login alone: a stranger who knows
+  // (or guesses) a login cannot keep the owner out from another address. Kept per server in memory.
+  // The per-IP authThrottle still applies, and the per-account limiter stays as a backstop against
+  // distributed guessing, but is spent only by addresses that already failed on this account
+  // recently, so a correct sign-in from a clean address is never refused by it.
+  const LOGIN_TRIES = 5, LOGIN_LOCK_MS = 5 * 60_000, LOGIN_FAIL_MEMORY_MS = 15 * 60_000;
+  const loginFails = new Map(); // `${clientIp}\n${username}` -> { fails, until, at }
+  const loginKey = (request, username) => `${request.clientIp}\n${username}`;
+  const lockedFor = key => { const e = loginFails.get(key); const left = e?.until ? e.until - now() : 0; return left > 0 ? left : 0; };
+  const recentlyFailed = key => { const e = loginFails.get(key); return Boolean(e && now() - e.at < LOGIN_FAIL_MEMORY_MS); };
   const lockedFail = ms => fail(429, `Слишком много неверных попыток. Попробуй через ${Math.floor(ms / 60000)}:${String(Math.ceil(ms / 1000) % 60).padStart(2, '0')}.`, { code: 'LOGIN_LOCKED', retryAfterSeconds: Math.ceil(ms / 1000), attemptsLeft: 0 });
-  const noteLoginFail = username => {
-    const e = loginFails.get(username) || { fails: 0, until: 0 };
+  const noteLoginFail = key => {
+    const e = loginFails.get(key) || { fails: 0, until: 0, at: 0 };
     if (e.until && e.until <= now()) { e.fails = 0; e.until = 0; }
-    e.fails += 1;
+    e.fails += 1; e.at = now();
     if (e.fails >= LOGIN_TRIES) { e.fails = 0; e.until = now() + LOGIN_LOCK_MS; }
-    loginFails.delete(username); loginFails.set(username, e);
+    loginFails.delete(key); loginFails.set(key, e);
     if (loginFails.size > 50_000) loginFails.delete(loginFails.keys().next().value);
     return e;
   };
@@ -187,16 +193,17 @@ export function installAuthRoutes({
     const confirmationWord = normalizeRecoveryWord(body.confirmationWord ?? '');
     const deviceName = deviceNameValue(body.deviceName);
     // This limiter is independent of the recovery attempt budget.
-    const locked = lockedFor(username); if (locked) lockedFail(locked);
-    if (!allowAccountLogin(username)) fail(429, 'Слишком много попыток входа в этот аккаунт. Повторите позже.');
+    const key = loginKey(request, username);
+    const locked = lockedFor(key); if (locked) lockedFail(locked);
+    if (recentlyFailed(key) && !allowAccountLogin(username)) fail(429, 'Слишком много попыток входа в этот аккаунт. Повторите позже.');
     const snapshot = db.prepare('SELECT * FROM users WHERE login_name=?').get(username);
     const matches = await withPasswordJob(() => checkCredentials(snapshot, password, confirmationWord));
     if (!matches) {
-      const e = noteLoginFail(username);
+      const e = noteLoginFail(key);
       if (e.until) lockedFail(e.until - now());
       fail(401, 'Неверный логин, пароль или подтверждающее слово.', { code: 'LOGIN_FAILED', attemptsLeft: LOGIN_TRIES - e.fails });
     }
-    loginFails.delete(username);
+    loginFails.delete(key);
     // Internal scheduling hook for deterministic race regression tests; not
     // exposed through HTTP, environment variables, or a production endpoint.
     if (authTestHooks?.beforeSessionCreate) await authTestHooks.beforeSessionCreate({ userId: snapshot.id });

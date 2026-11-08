@@ -16,6 +16,7 @@ import { Text } from './typography';
 import { AuthImage, Bouncy, Button, Field, Icon, Notice, Sheet, SheetAction } from './components';
 import { useTheme } from './theme';
 import type { Api, ProfileGift, ProfilePost, ProfilePosts } from './api';
+import { webVideoUrl } from './platina/Decor';
 
 type PostsData = ProfilePosts & { gifts: ProfileGift[] };
 
@@ -96,13 +97,36 @@ async function pickAndUpload(api: Api): Promise<string | null> {
   return (await api.upload({ uri: small.uri, name: 'post.jpg', mimeType: 'image/jpeg' })).id;
 }
 
+/**
+ * PC (Electron / browser): a plain <video> cannot send the account token, so the file is fetched through
+ * the app's own authenticated channel and played from memory — the shared bounded cache of the video
+ * avatar and banner (platina/Decor.tsx webVideoUrl).
+ */
+/** The first frame of a video on PC (expo-video-thumbnails has no web build): drawn from a <video> onto a canvas. */
+function webVideoThumbnail(api: Api, id: string): Promise<string> {
+  return webVideoUrl(api, id).then(src => new Promise<string>((resolve, reject) => {
+    const video = document.createElement('video'); video.muted = true; video.preload = 'auto'; video.src = src;
+    const done = () => { video.onloadeddata = null; video.onerror = null; video.removeAttribute('src'); video.load(); };
+    video.onerror = () => { done(); reject(new Error('thumbnail')); };
+    video.onloadeddata = () => {
+      try {
+        const scale = Math.min(1, 640 / Math.max(video.videoWidth, video.videoHeight, 1));
+        const canvas = document.createElement('canvas'); canvas.width = Math.max(1, Math.round(video.videoWidth * scale)); canvas.height = Math.max(1, Math.round(video.videoHeight * scale));
+        const ctx = canvas.getContext('2d'); if (!ctx) throw new Error('canvas');
+        ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+        resolve(canvas.toDataURL('image/jpeg', .8));
+      } catch (failure) { reject(failure); } finally { done(); }
+    };
+  }));
+}
+
 const thumbs = new Map<string, string>();
 function VideoThumb({ api, id, size }: { api: Api; id: string; size: number }) {
   const [uri, setUri] = useState(thumbs.get(id) ?? null);
   useEffect(() => {
-    if (uri || Platform.OS === 'web') return; let live = true;
-    VideoThumbnails.getThumbnailAsync(api.fileUrl(id), { time: 0, headers: { Authorization: `Bearer ${api.token}` } })
-      .then(result => { thumbs.set(id, result.uri); if (live) setUri(result.uri); }).catch(() => {});
+    if (uri) return; let live = true;
+    const frame = Platform.OS === 'web' ? webVideoThumbnail(api, id) : VideoThumbnails.getThumbnailAsync(api.fileUrl(id), { time: 0, headers: { Authorization: `Bearer ${api.token}` } }).then(result => result.uri);
+    frame.then(result => { thumbs.set(id, result); if (live) setUri(result); }).catch(() => {});
     return () => { live = false; };
   }, [id]);
   return uri ? <Image source={{ uri }} style={{ width: size, height: size }} contentFit="cover" /> : <View style={{ width: size, height: size, backgroundColor: '#1A1D24' }} />;
@@ -197,13 +221,31 @@ export function PostsSection({ api, own, data, onChanged, width, userId }: { api
 }
 
 function Media({ api, post, active, width, height, onEnd }: { api: Api; post: ProfilePost; active: boolean; width: number; height: number; onEnd?: () => void }) {
-  if (post.media.isVideo && Platform.OS !== 'web') return <VideoMedia api={api} id={post.media.id} active={active} width={width} height={height} onEnd={onEnd} />;
+  if (post.media.isVideo) return <VideoMedia api={api} id={post.media.id} active={active} width={width} height={height} onEnd={onEnd} />;
   return <AuthImage api={api} id={post.media.id} style={{ width, height }} resizeMode="contain" />;
 }
+const VIDEO_FAILED_MS = 1500; // «Видео недоступно» shows this long, then a story moves on
+/**
+ * The same expo-video player everywhere; on PC it plays the authenticated in-memory copy (see webVideoUrl).
+ * A video that cannot load (fetch on PC, a player error anywhere) never fires `playToEnd`, so it reports
+ * itself as finished: the viewer shows a short placeholder and a story advances instead of hanging.
+ */
 function VideoMedia({ api, id, active, width, height, onEnd }: { api: Api; id: string; active: boolean; width: number; height: number; onEnd?: () => void }) {
-  const player = useVideoPlayer({ uri: api.fileUrl(id), headers: { Authorization: `Bearer ${api.token}` } }, value => { value.loop = !onEnd; });
+  const web = Platform.OS === 'web';
+  const [webSrc, setWebSrc] = useState<string | null>(null);
+  const [failed, setFailed] = useState(false);
+  useEffect(() => {
+    if (!web) return; let live = true; setWebSrc(null); setFailed(false);
+    webVideoUrl(api, id).then(url => { if (live) setWebSrc(url); }).catch(() => { if (live) setFailed(true); });
+    return () => { live = false; };
+  }, [web, api.base, api.token, id]);
+  const player = useVideoPlayer(web ? (webSrc ? { uri: webSrc } : null) : { uri: api.fileUrl(id), headers: { Authorization: `Bearer ${api.token}` } }, value => { value.loop = !onEnd; });
   useEffect(() => { if (active) { player.currentTime = 0; player.play(); } else player.pause(); }, [active, player]);
   useEffect(() => { if (!onEnd) return; const sub = player.addListener('playToEnd', () => onEnd()); return () => sub.remove(); }, [player, onEnd]);
+  useEffect(() => { const sub = player.addListener('statusChange', ({ status }) => { if (status === 'error') setFailed(true); }); return () => sub.remove(); }, [player]);
+  useEffect(() => { if (!failed || !onEnd || !active) return; const timer = setTimeout(onEnd, VIDEO_FAILED_MS); return () => clearTimeout(timer); }, [failed, onEnd, active]);
+  if (failed) return <View style={{ width, height, alignItems: 'center', justifyContent: 'center', gap: 10 }}><Icon name="videocam-off-outline" color="#FFF" size={34} /><Text style={{ color: '#FFF', fontSize: 15 }}>Видео недоступно</Text></View>;
+  if (web && !webSrc) return <View style={{ width, height, alignItems: 'center', justifyContent: 'center' }}><ActivityIndicator color="#FFF" /></View>;
   return <VideoView player={player} style={{ width, height }} contentFit="contain" nativeControls={false} allowsPictureInPicture={false} />;
 }
 
@@ -218,7 +260,7 @@ export function PostViewer({ api, items, start, story, onClose }: { api: Api; it
   useEffect(() => {
     if (!story || !current) return;
     cancelAnimation(progress); progress.value = 0;
-    if (current.media.isVideo && Platform.OS !== 'web') return; // a video moves on when it ends
+    if (current.media.isVideo) return; // a video moves on when it ends (PC too: the same player, see VideoMedia)
     progress.value = withTiming(1, { duration: STORY_PHOTO_MS, easing: Easing.linear }, done => { if (done) runOnJS(next)(); });
     return () => cancelAnimation(progress);
   }, [index, story]);

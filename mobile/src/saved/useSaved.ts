@@ -2,7 +2,11 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import * as Crypto from 'expo-crypto';
 import type { CryptoRuntime } from '../e2ee/runtime';
 import type { Attachment } from '../types';
+import { signalAvailable } from '../e2ee/signal';
 import { addSaved, editSaved, parseSaved, removeSaved, type SavedItem, type SavedOrigin } from './saved.ts';
+
+/** The vault is encrypted with device keys, which a browser does not have: the message Saved shows there instead of the generic E2EE one. */
+export const SAVED_UNAVAILABLE = 'Заметки в Избранном шифруются на устройстве и сохраняются в приложении для iPhone, Android или ПК.';
 
 /** Saved messages for the signed-in account; every change is committed to the encrypted vault in order. */
 export function useSaved(runtime: CryptoRuntime) {
@@ -13,6 +17,8 @@ export function useSaved(runtime: CryptoRuntime) {
   const queue = useRef<Promise<void>>(Promise.resolve());
 
   useEffect(() => {
+    // Web: say right away why the list is empty, without touching the crypto runtime (its error talks about sending messages).
+    if (!signalAvailable) { setError(SAVED_UNAVAILABLE); setLoaded(true); return; }
     let live = true;
     runtime.get().then(service => service.loadSaved()).then(raw => {
       if (!live) return;
@@ -35,6 +41,7 @@ export function useSaved(runtime: CryptoRuntime) {
   }, [runtime]);
 
   const save = useCallback(async (text: string, attachment: Attachment | null, origin?: SavedOrigin): Promise<boolean> => {
+    if (!signalAvailable) throw new Error(SAVED_UNAVAILABLE);
     if (!loaded) throw new Error('Избранное ещё загружается. Попробуй через секунду.');
     const item: SavedItem = { id: Crypto.randomUUID(), savedAt: new Date().toISOString(), text: text.trim().slice(0, 8000), attachment, ...(origin ? { origin } : {}) };
     let added = false;

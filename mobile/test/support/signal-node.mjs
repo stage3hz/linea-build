@@ -161,6 +161,8 @@ export const nodeSignalBridge = {
     if (typeof plaintext !== 'string' || Buffer.byteLength(plaintext) > MAX_MESSAGE_BYTES) throw new Error('Invalid plaintext');
     const state = unpack(serialized), stores = new Stores(state);
     const address = signal.ProtocolAddress.new(addressName, deviceId);
+    // A bundle means «start a fresh session» (first contact or a rekey): libsignal archives the live
+    // chain and the message leaves as a PreKey message (type 3). The Kotlin/Swift cores do the same.
     if (bundle) await signal.processPreKeyBundle(remoteBundle(bundle, deviceId), address, localAddress(state), stores, stores);
     const encrypted = await signal.signalEncrypt(Buffer.from(plaintext, 'utf8'), address, localAddress(state), stores, stores);
     const type = encrypted.type();

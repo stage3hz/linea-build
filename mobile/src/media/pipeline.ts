@@ -13,6 +13,9 @@ import type {NativeVideoResult} from '../../modules/linea-video';
 export type PreparedMedia=PreparedUpload&{video?:boolean};
 const MAX_OUTPUT=20*1024*1024;
 const EXPORT_NAME=/^linea-video-export-[0-9a-f-]{36}\.mp4$/i;
+// Round video messages recorded by the native camera (videonote/VideoNote.tsx); a sent take is deleted at once,
+// this sweep catches whatever an interrupted recorder left behind.
+export const VIDEO_NOTE_NAME=/^videonote-\d{1,16}\.mp4$/i;
 const NATIVE_OUTPUT=/^linea-native-video-[0-9a-f-]{36}\.mp4$/i;
 const NATIVE_SOURCE=/^linea-native-video-source-[0-9a-f-]{36}\.bin$/i;
 const ownedExports=new Set<string>(),ownedSources=new Set<string>();
@@ -120,6 +123,6 @@ export async function resolveVideoLibraryAsset(id:string):Promise<{fileUri:strin
 export function clearVideoCache():Promise<void>{return exclusive(async()=>{
   if(!FileSystem.cacheDirectory)return;
   const directory=FileSystem.cacheDirectory,names=await FileSystem.readDirectoryAsync(directory);
-  await Promise.all(names.filter(name=>EXPORT_NAME.test(name)&&!ownedExports.has(`${directory}${name}`)).map(name=>FileSystem.deleteAsync(`${directory}${name}`,{idempotent:true})));
+  await Promise.all(names.filter(name=>(EXPORT_NAME.test(name)&&!ownedExports.has(`${directory}${name}`))||VIDEO_NOTE_NAME.test(name)).map(name=>FileSystem.deleteAsync(`${directory}${name}`,{idempotent:true})));
   if(!ownedSources.size)await getVideoBridge().clearCache();
 });}

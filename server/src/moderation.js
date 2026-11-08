@@ -30,7 +30,8 @@ const uuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 export const blockedBetween = (db, a, b) => !!db.prepare('SELECT 1 FROM blocks WHERE (blocker_id=? AND blocked_id=?) OR (blocker_id=? AND blocked_id=?)').get(a, b, b, a);
 export const blockedByMe = (db, me, other) => !!db.prepare('SELECT 1 FROM blocks WHERE blocker_id=? AND blocked_id=?').get(me, other);
 
-export function installModerationRoutes({ app, db, authOptions, publicUser, timestamp, limiter }) {
+/** `blocksChanged(a, b)`: app.js pushes the new presence and chat state to both accounts at once. */
+export function installModerationRoutes({ app, db, authOptions, publicUser, timestamp, limiter, blocksChanged = () => {} }) {
   const id = value => { if (typeof value !== 'string' || !uuid.test(value)) fail(400, 'Некорректный пользователь.'); return value; };
   app.get('/blocks', authOptions, async request => {
     const rows = db.prepare('SELECT u.* FROM blocks b JOIN users u ON u.id=b.blocked_id WHERE b.blocker_id=? ORDER BY b.created_at DESC').all(request.auth.user_id);
@@ -44,10 +45,13 @@ export function installModerationRoutes({ app, db, authOptions, publicUser, time
     // As in Discord: blocking ends the friendship and any request between the two.
     db.prepare('DELETE FROM friend_requests WHERE (from_id=? AND to_id=?) OR (from_id=? AND to_id=?)').run(me, target, target, me);
     db.prepare('DELETE FROM contacts WHERE (owner_id=? AND contact_id=?) OR (owner_id=? AND contact_id=?)').run(me, target, target, me);
+    blocksChanged(me, target);
     return { ok: true, blocked: true };
   });
   app.delete('/blocks/:id', authOptions, async request => {
-    db.prepare('DELETE FROM blocks WHERE blocker_id=? AND blocked_id=?').run(request.auth.user_id, id(request.params.id));
+    const target = id(request.params.id), me = request.auth.user_id;
+    const removed = db.prepare('DELETE FROM blocks WHERE blocker_id=? AND blocked_id=?').run(me, target).changes;
+    if (removed) blocksChanged(me, target);
     return { ok: true, blocked: false };
   });
   app.post('/reports', authOptions, async (request, reply) => {

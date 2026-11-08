@@ -1,9 +1,11 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { mkdtemp, rm } from 'node:fs/promises';
+import { mkdtemp, rm, access } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
+import { DatabaseSync } from 'node:sqlite';
 import { buildApp } from '../src/app.js';
+import { purgeExpiredStories } from '../src/posts.js';
 
 const PNG = Buffer.from('iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+jWZkAAAAASUVORK5CYII=', 'base64');
 function multipart(bytes) {
@@ -53,6 +55,40 @@ test('posts and stories: friends see them and their files, strangers do not; sto
   assert.equal((await app.inject({ method: 'DELETE', url: `/me/posts/${postId}`, headers: as(owner) })).statusCode, 200);
   assert.equal((await list(owner)).posts.length, 0);
   assert.equal(await file(owner, photo), 404);
+});
+
+test('B30: expired stories are removed with their files and give the storage quota back', async t => {
+  let clock = Date.parse('2026-11-07T10:00:00Z');
+  // The quota fits one small picture: a second upload is refused until the first one is gone.
+  const dataDir = await mkdtemp(join(tmpdir(), 'linea-stories-')), app = await buildApp({ dataDir, authRateLimit: false, now: () => clock, maxStoredBytesPerUser: PNG.length });
+  t.after(async () => { await app.close(); await rm(dataDir, { recursive: true, force: true }); });
+  const owner = (await app.inject({ method: 'POST', url: '/auth/register', payload: { username: 'story_owner', displayName: 'o', password: 'Solid-test-passphrase_2026!', confirmationWord: 'корабль', recoveryWord: 'астра' } })).json();
+  const as = { authorization: `Bearer ${owner.token}` };
+  const upload = async () => { const form = multipart(PNG); return app.inject({ method: 'POST', url: '/uploads', payload: form.payload, headers: { ...form.headers, ...as } }); };
+  const exists = id => access(join(dataDir, 'uploads', id)).then(() => true, () => false);
+  const first = await upload(); assert.equal(first.statusCode, 201, first.body);
+  const storyFile = first.json().attachment.id;
+  assert.equal((await app.inject({ method: 'POST', url: '/me/posts', headers: as, payload: { uploadId: storyFile, kind: 'story' } })).statusCode, 201);
+  assert.equal((await upload()).statusCode, 413, 'quota is full while the story lives');
+  assert.equal(await exists(storyFile), true);
+
+  clock += 24 * 60 * 60 * 1000 + 1;
+  const mine = (await app.inject({ method: 'GET', url: `/users/${owner.user.id}/posts`, headers: as })).json();
+  assert.equal(mine.stories.length, 0);
+  assert.equal(await exists(storyFile), false, 'the file is gone from the disk');
+  assert.equal((await app.inject({ method: 'GET', url: `/files/${storyFile}`, headers: as })).statusCode, 404);
+  assert.equal((await app.inject({ method: 'DELETE', url: `/me/posts/${mine.stories[0]?.id ?? storyFile}`, headers: as })).statusCode, 404, 'nothing is left to delete');
+  const again = await upload(); assert.equal(again.statusCode, 201, 'the quota is free again');
+  // The timer path: the sweep runs with nobody reading the profile (here called directly, on its own connection).
+  assert.equal((await app.inject({ method: 'POST', url: '/me/posts', headers: as, payload: { uploadId: again.json().attachment.id, kind: 'story' } })).statusCode, 201);
+  clock += 24 * 60 * 60 * 1000 + 1;
+  assert.equal((await upload()).statusCode, 413, 'nothing has swept yet');
+  const db = new DatabaseSync(join(dataDir, 'linea.sqlite'));
+  t.after(() => db.close());
+  assert.equal(await purgeExpiredStories(db, { uploadDir: join(dataDir, 'uploads'), now: () => clock }), 1);
+  assert.equal(await purgeExpiredStories(db, { uploadDir: join(dataDir, 'uploads'), now: () => clock }), 0);
+  assert.equal(await exists(again.json().attachment.id), false);
+  assert.equal((await upload()).statusCode, 201);
 });
 
 test('gifts: only friends send and see them, unknown gifts and self-gifts are refused, the recipient can remove one; the profile pattern is a known emoji', async t => {

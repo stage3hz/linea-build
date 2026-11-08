@@ -14,8 +14,10 @@ import { matchesFolder, useChatFolders, type FolderFilter } from '../ChatFolders
 /** null = «Избранное» (Saved Messages, stored only on this device). */
 export type ForwardTarget = Chat | null;
 
-export function ForwardPicker({ visible, api, userId, chats, count, onClose, onPick, onSendMany }: {
+export function ForwardPicker({ visible, api, userId, chats, count, hideSaved = false, onClose, onPick, onSendMany }: {
   visible: boolean; api: Api; userId: string; chats: Chat[]; count: number;
+  /** Leaves «Избранное» out of the list (forwarding from Saved Messages themselves). */
+  hideSaved?: boolean;
   onClose: () => void; onPick: (target: ForwardTarget) => void; onSendMany: (targets: ForwardTarget[], comment: string) => void;
 }) {
   const t = useTheme(); const insets = useSafeAreaInsets();
@@ -26,9 +28,9 @@ export function ForwardPicker({ visible, api, userId, chats, count, onClose, onP
   const q = query.trim().toLowerCase();
   const rows = useMemo(() => {
     const list = chats.filter(chat => matchesFolder(chat, filter, folders) && (!q || chat.peer.displayName.toLowerCase().includes(q) || chat.peer.username.toLowerCase().includes(q)));
-    const saved = filter === 'all' && (!q || 'избранное'.includes(q));
+    const saved = !hideSaved && filter === 'all' && (!q || 'избранное'.includes(q));
     return [...(saved ? ['saved' as const] : []), ...list];
-  }, [chats, filter, folders, q]);
+  }, [chats, filter, folders, q, hideSaved]);
   const key = (row: 'saved' | Chat) => row === 'saved' ? 'saved' : row.id;
   const toggle = (id: string) => setPicked(prev => { const next = new Set(prev); if (next.has(id)) next.delete(id); else next.add(id); return next; });
   const tap = (row: 'saved' | Chat) => { if (selecting) { toggle(key(row)); return; } const target = row === 'saved' ? null : row; close(); onPick(target); };

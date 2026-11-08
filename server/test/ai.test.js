@@ -504,6 +504,57 @@ test('without Platina: fast answers only — model choice, photos, media and the
   assert.equal(sent.length, 1);
 });
 
+test('B25: media generation has its own pool and day cap, so videos never block text answers; documents and the model list are rate limited', async t => {
+  const { aiProvider, AI_LIMITS } = await import('../src/ai.js');
+  const mp3 = Buffer.concat([Buffer.from('ID3'), Buffer.alloc(64, 1)]);
+  let now = 1_000; const videoSignals = [];
+  const f = await fixture(t, {
+    now: () => now,
+    provider: aiProvider({ provider: 'freellmapi', baseUrl: 'http://freellmapi:3001/v1' }),
+    authenticate: async request => { request.auth = { user_id: request.headers['x-user'] || 'u0' }; },
+    fetchImpl: async (url, init) => {
+      if (String(url).endsWith('/videos/generations')) { videoSignals.push(init.signal); return new Promise(() => {}); }
+      if (String(url).endsWith('/audio/speech')) return new Response(mp3, { headers: { 'Content-Type': 'audio/mpeg' } });
+      if (String(url).endsWith('/models?execution_status=ready')) return jsonResponse({ data: [{ id: 'groq/llama-3.3-70b' }] });
+      return good();
+    },
+  });
+  const call = (method, url, payload, user) => f.app.inject({ method, url, ...(payload ? { payload } : {}), headers: { authorization: 'Bearer test-session', 'x-user': user } });
+  // A day cap on generations per person; the per-minute window still applies inside it.
+  for (let i = 0; i < AI_LIMITS.media.perDay; i++) {
+    if (i && i % AI_LIMITS.media.perMinute === 0) now += 60_000;
+    const speech = await call('POST', '/ai/speech', { text: 'Привет', consent: true }, 'talker');
+    assert.equal(speech.statusCode, 200, `generation ${i}: ${speech.body}`);
+  }
+  now += 60_000;
+  const capped = await call('POST', '/ai/speech', { text: 'Привет', consent: true }, 'talker');
+  assert.equal(capped.statusCode, 429); assert.equal(capped.json().code, 'AI_RATE_LIMIT');
+  assert.ok(Number(capped.headers['retry-after']) > 3600, 'the cap lifts tomorrow, not in a minute');
+  assert.equal((await f.post(body(), { 'x-user': 'talker' })).statusCode, 200, 'the day cap is for media only');
+  now += 24 * 60 * 60 * 1000;
+  assert.equal((await call('POST', '/ai/speech', { text: 'Привет', consent: true }, 'talker')).statusCode, 200);
+
+  // The model list and the document reader are per-user limited too (they used to be unmetered).
+  for (let i = 0; i < AI_LIMITS.light.perMinute; i++) assert.equal((await call('GET', '/ai/models', undefined, 'lister')).statusCode, 200);
+  assert.equal((await call('GET', '/ai/models', undefined, 'lister')).json().code, 'AI_RATE_LIMIT');
+  assert.equal((await call('POST', '/ai/document', { name: 'a.txt', data: Buffer.from('текст').toString('base64'), consent: true }, 'lister')).json().code, 'AI_RATE_LIMIT');
+  assert.equal((await call('GET', '/ai/models', undefined, 'other')).statusCode, 200, 'another person is not affected');
+
+  // Four Platina accounts hold every media slot with videos that never finish…
+  const videos = Array.from({ length: AI_LIMITS.media.concurrent }, (_, i) => call('POST', '/ai/video', { prompt: 'закат', consent: true }, `video-${i}`));
+  while (videoSignals.length < AI_LIMITS.media.concurrent) await new Promise(resolve => setImmediate(resolve));
+  const busy = await call('POST', '/ai/image', { prompt: 'кот', consent: true }, 'fifth');
+  assert.equal(busy.statusCode, 503); assert.equal(busy.json().code, 'AI_BUSY');
+  // …and text answers keep flowing, for everyone else and for the people waiting on a video.
+  assert.equal((await f.post(body(), { 'x-user': 'fifth' })).statusCode, 200);
+  assert.equal((await f.post(body(), { 'x-user': 'video-0' })).statusCode, 200);
+  assert.equal((await call('POST', '/ai/video', { prompt: 'ещё', consent: true }, 'video-0')).json().code, 'AI_BUSY', 'one media job per person at a time');
+
+  await f.app.close();
+  for (const response of await Promise.all(videos)) assert.equal(response.statusCode, 503);
+  assert.ok(videoSignals.every(signal => signal.aborted));
+});
+
 test('FreeLLMAPI: documents are read on the server and travel with the question', async t => {
   const f = await freellmapiFixture(t, (url, init) => {
     const body = JSON.parse(init.body);

@@ -15,7 +15,6 @@ import org.signal.libsignal.protocol.state.*
 import org.signal.libsignal.protocol.util.KeyHelper
 import java.nio.ByteBuffer
 import java.nio.charset.CodingErrorAction
-import java.time.Instant
 import java.util.Base64
 import java.util.UUID
 
@@ -95,9 +94,12 @@ object SignalCore {
     if (bundle != null) {
       val preKeyBundle = remoteBundle(JSONObject(bundle), deviceId)
       check(store.isTrustedIdentity(remote, preKeyBundle.identityKey, IdentityKeyStore.Direction.SENDING), "IDENTITY_CHANGED")
-      if (store.loadSession(remote)?.hasSenderChain(Instant.now()) != true) {
-        SessionBuilder(store, remote, store.localAddress).process(preKeyBundle)
-      }
+      // The caller passes a bundle only when it wants a fresh session: there is none yet, or it
+      // decided to rekey (the peer's device could not open our messages, or its identity changed).
+      // A live session must not swallow the bundle: archive its chain first, then start the new
+      // session, so this message leaves as a PreKey message (type 3). Same contract as the Node bridges.
+      store.loadSession(remote)?.let { current -> current.archiveCurrentState(); store.storeSession(remote, current) }
+      SessionBuilder(store, remote, store.localAddress).process(preKeyBundle)
     }
     val cipher = SessionCipher(store, store.localAddress, remote).encrypt(bytes)
     check(cipher.type == 2 || cipher.type == 3, "UNSUPPORTED_MESSAGE_TYPE")

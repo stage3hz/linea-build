@@ -672,3 +672,33 @@ test('a password login already verified before recovery cannot create a fresh se
   assert.equal(readDatabase(dataDir, database => database.prepare('SELECT count(*) AS count FROM sessions').get().count), 0);
   assert.equal((await login(app, 'alice', NEW_PASSWORD)).statusCode, 200);
 });
+
+test('wrong sign-ins from one address lock only that address; the owner signs in from elsewhere', async t => {
+  // authRateLimit 4 → per-address 4 per 15 min, per-account backstop 8 per 15 min.
+  const { app } = await fixture(t, { authRateLimit: 4 });
+  await register(app, 'victim');
+  const attempt = (address, password = 'Wrong!Guess.00.Nope') => request(app, 'POST', '/auth/login', null,
+    { username: 'victim', password, confirmationWord: CONFIRMATION_WORD }, address);
+  const { app: wide } = await fixture(t);
+  await register(wide, 'victim');
+  const guess = (address, password = 'Wrong!Guess.00.Nope') => request(wide, 'POST', '/auth/login', null,
+    { username: 'victim', password, confirmationWord: CONFIRMATION_WORD }, address);
+  // Five wrong attempts lock the attacker's address for this account only.
+  const codes = [];
+  for (let i = 0; i < 5; i++) codes.push((await guess('203.0.113.7')).json().code);
+  assert.deepEqual(codes, ['LOGIN_FAILED', 'LOGIN_FAILED', 'LOGIN_FAILED', 'LOGIN_FAILED', 'LOGIN_LOCKED']);
+  assert.equal((await guess('203.0.113.7', PASSWORD)).json().code, 'LOGIN_LOCKED', 'the locked address stays locked even with the right password');
+  const owner = await guess('198.51.100.20', PASSWORD);
+  assert.equal(owner.statusCode, 200, owner.body);
+  assert.equal((await guess('198.51.100.20')).json().attemptsLeft, 4, 'a fresh address has its own budget');
+  // The per-account backstop still bites addresses that already failed on this account, never clean ones.
+  assert.equal((await attempt('192.0.2.50')).statusCode, 401, 'a single failure marks the address');
+  const flood = [];
+  for (const address of ['192.0.2.1', '192.0.2.2', '192.0.2.3']) for (let i = 0; i < 4; i++) flood.push((await attempt(address)).json());
+  assert.ok(flood.some(body => /в этот аккаунт/.test(body.error)), JSON.stringify(flood.at(-1)));
+  const marked = await attempt('192.0.2.50', PASSWORD);
+  assert.equal(marked.statusCode, 429, marked.body);
+  assert.equal(marked.json().code, undefined);
+  const clean = await attempt('198.51.100.99', PASSWORD);
+  assert.equal(clean.statusCode, 200, clean.body);
+});

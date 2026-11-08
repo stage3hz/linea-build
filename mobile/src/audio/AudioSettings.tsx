@@ -30,7 +30,7 @@ function Switch({ label, description, value, onChange }: { label: string; descri
   const t = useTheme();
   return <Pressable accessibilityRole="switch" accessibilityState={{ checked: value }} onPress={() => onChange(!value)} style={({ pressed }) => ({ flexDirection: 'row', alignItems: 'center', gap: 12, paddingHorizontal: 14, paddingVertical: 11, backgroundColor: pressed ? 'rgba(127,127,127,0.12)' : 'transparent' })}>
     <View style={{ flex: 1, gap: 2 }}><Text style={{ color: t.text, fontSize: 14.5 }}>{label}</Text><Text style={{ color: t.muted, fontSize: 12 }}>{description}</Text></View>
-    <View style={{ width: 44, height: 26, borderRadius: 13, padding: 3, backgroundColor: value ? t.accent : 'rgba(127,127,127,0.35)', alignItems: value ? 'flex-end' : 'flex-start' }}><View style={{ width: 20, height: 20, borderRadius: 10, backgroundColor: '#FFF' }} /></View>
+    <View style={{ width: 44, height: 26, borderRadius: 13, padding: 3, backgroundColor: value ? t.accent : 'rgba(127,127,127,0.35)', alignItems: value ? 'flex-end' : 'flex-start' }}><View style={{ width: 20, height: 20, borderRadius: 10, backgroundColor: value ? t.onAccent : '#FFF' }} /></View>
   </Pressable>;
 }
 

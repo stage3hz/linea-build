@@ -77,6 +77,7 @@ jobs:
           (cd server && DATA_DIR="$GITHUB_WORKSPACE/srvdata" PORT=3999 HOST=127.0.0.1 nohup node src/index.js > ../server.log 2>&1 &)
           nohup node tools/sim-tls-proxy.mjs tls/leaf.pem tls/leaf.key 8443 3999 > proxy.log 2>&1 &
           for i in $(seq 1 30); do curl -fsS --cacert tls/ca.pem https://localhost:8443/health && break; sleep 1; done
+          curl -fsS --cacert tls/ca.pem https://localhost:8443/health || { echo "::error::server never answered /health"; cat server.log proxy.log; exit 1; }
       - name: Build the app for the simulator
         run: |
           set -o pipefail

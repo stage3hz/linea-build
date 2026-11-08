@@ -14,6 +14,8 @@ export type MeshEvents = {
 export class MeshSession {
   readonly store: MeshStore;
   private peers = new Set<string>();
+  /** Ids of the messages this phone wrote itself: the only ones a receipt may refer to here. */
+  private ownMessages = new Set<string>();
 
   constructor(myTags: () => readonly string[], private readonly send: (peer: string, text: string) => void, private readonly events: MeshEvents, private readonly now: () => number = Date.now) {
     this.store = new MeshStore(myTags);
@@ -21,6 +23,10 @@ export class MeshSession {
 
   /** Our own packet: keep it and tell everyone nearby that we have something new. */
   publish(packet: MeshPacket) {
+    if (packet.kind === 'msg') {
+      this.ownMessages.add(packet.id);
+      while (this.ownMessages.size > MESH_LIMITS.maxSeen) this.ownMessages.delete(this.ownMessages.keys().next().value as string);
+    }
     this.store.addOwn(packet, this.now());
     for (const peer of this.peers) this.offer(peer);
   }
@@ -45,10 +51,16 @@ export class MeshSession {
     } else if (wire.t === 'pkt') {
       const raw = (wire as { p: unknown }).p;
       const { deliver, stored } = this.store.receive(raw, now);
-      // A delivery receipt passing through lets every relay drop the message it confirms.
-      const ackOf = ackTarget(deliver ?? (stored ? (raw as MeshPacket) : null));
-      if (ackOf) this.store.forget(ackOf, now);
-      if (deliver) this.events.deliver(deliver);
+      // Receipts are not authenticated on the radio: any phone nearby can write «ack <id>» for an id
+      // it heard in an inventory. So a receipt never changes what is kept or counted as seen — not
+      // here, not on relays (a forged ack used to make every relay drop the message and the
+      // recipient skip the real one later). A message leaves the store only by its own expiry.
+      // A receipt is shown only to the sender, and only for a message this very phone wrote; the
+      // tick it produces is informational (Signal already authenticates the message itself).
+      if (deliver) {
+        const receiptOf = receiptTarget(deliver);
+        if (deliver.kind === 'msg' || (receiptOf !== null && this.ownMessages.has(receiptOf))) this.events.deliver(deliver);
+      }
       if (stored) for (const other of this.peers) if (other !== peer) this.offer(other);
     }
   }
@@ -62,9 +74,10 @@ export class MeshSession {
 
 /** Receipts carry the id of the message they confirm, in the clear (nothing else). */
 export function ackBody(messageId: string) { return JSON.stringify({ ack: messageId }); }
-function ackTarget(packet: MeshPacket | null): string | null {
-  if (!packet || packet.kind !== 'ack') return null;
-  try { const id = JSON.parse(packet.body)?.ack; return typeof id === 'string' && /^[0-9a-f]{32}$/.test(id) ? id : null; } catch { return null; }
+/** The message id a receipt («ack» or «read») refers to, or null for anything malformed. */
+export function receiptTarget(packet: MeshPacket | null): string | null {
+  if (!packet || (packet.kind !== 'ack' && packet.kind !== 'read')) return null;
+  try { const id = JSON.parse(packet.body)?.[packet.kind]; return typeof id === 'string' && /^[0-9a-f]{32}$/.test(id) ? id : null; } catch { return null; }
 }
 
 export function newPacketId(random: (n: number) => Uint8Array): string {

@@ -61,7 +61,7 @@ test('storage is bounded and our own messages are kept longest', () => {
   assert.ok(B.inventory(NOW + 1000).includes(own.id));
 });
 
-const { MeshSession, ackBody, packetFor, newPacketId } = loadTs(new URL('../src/nearby/session.ts', import.meta.url));
+const { MeshSession, ackBody, packetFor, newPacketId, receiptTarget } = loadTs(new URL('../src/nearby/session.ts', import.meta.url));
 
 // Phones linked in memory; `link(a,b)` = they came into Bluetooth range.
 function town() {
@@ -77,7 +77,7 @@ function town() {
   return { make, link, unlink, flush };
 }
 
-test('session: Alice → (Bob walks over) → Carol, then the receipt clears Bob', () => {
+test('session: Alice → (Bob walks over) → Carol, then the receipt reaches Alice through Bob', () => {
   const t = town(); const A = t.make('alice'), B = t.make('bob'), C = t.make('carol');
   const id = newPacketId(n => randomBytes(n));
   A.s.publish(packetFor('msg', recipientTag('carol'), '{"scheme":"signal-v1"}', id, NOW));
@@ -86,12 +86,55 @@ test('session: Alice → (Bob walks over) → Carol, then the receipt clears Bob
   t.unlink('alice', 'bob');
   t.link('bob', 'carol');
   assert.equal(C.log.delivered.length, 1); assert.equal(C.log.delivered[0].id, id);
-  // Carol answers with a receipt; Bob drops the message as soon as the receipt passes.
+  // Carol answers with a receipt. Bob passes it on but keeps the message: a receipt on the radio is
+  // not authenticated, so it must never decide what a relay drops (see the forgery tests below).
   C.s.publish(packetFor('ack', recipientTag('alice'), ackBody(id), newPacketId(n => randomBytes(n)), NOW));
   t.flush();
-  assert.equal(B.s.store.inventory(NOW).includes(id), false, 'Bob forgot the delivered message');
+  assert.equal(B.s.store.inventory(NOW).includes(id), true, 'Bob keeps the message until it expires');
   t.unlink('bob', 'carol'); t.link('bob', 'alice');
   assert.equal(A.log.delivered.filter(p => p.kind === 'ack').length, 1, 'Alice gets «доставлено»');
+  assert.equal(receiptTarget(A.log.delivered.find(p => p.kind === 'ack')), id);
+  assert.equal(B.s.store.inventory(NOW + MESH_LIMITS.ttlMs + 1).includes(id), false, 'expiry is what clears a relay');
+});
+
+test('session: a forged ack from a nearby phone drops nothing and is shown to nobody', () => {
+  const t = town(); const A = t.make('alice'), B = t.make('bob'), C = t.make('carol'), E = t.make('eve');
+  const id = newPacketId(n => randomBytes(n));
+  A.s.publish(packetFor('msg', recipientTag('carol'), '{"scheme":"signal-v1"}', id, NOW));
+  t.link('alice', 'bob'); t.unlink('alice', 'bob');
+  assert.equal(B.s.store.inventory(NOW).includes(id), true, 'Bob relays Alice\'s message');
+  // Eve walks up to Bob, learns the id from his inventory and forges receipts for it, addressed
+  // to the recipient, to the sender and to a random tag (she can compute any tag she likes).
+  t.link('eve', 'bob');
+  for (const to of [recipientTag('carol'), recipientTag('alice'), recipientTag('nobody')]) {
+    E.s.publish(packetFor('ack', to, ackBody(id), newPacketId(n => randomBytes(n)), NOW));
+    E.s.publish(packetFor('read', to, JSON.stringify({ read: id }), newPacketId(n => randomBytes(n)), NOW));
+  }
+  t.flush();
+  assert.equal(B.s.store.inventory(NOW).includes(id), true, 'the relay still holds the message');
+  // Carol meets Eve (who relays both the forged receipts and the real message, taken from Bob),
+  // then Bob: the real message must arrive exactly once and no forged receipt is shown to Carol.
+  t.link('eve', 'carol'); t.unlink('eve', 'carol'); t.link('bob', 'carol');
+  assert.equal(C.log.delivered.filter(p => p.kind === 'msg' && p.id === id).length, 1, 'Carol receives the real message');
+  assert.deepEqual(C.log.delivered.filter(p => p.kind !== 'msg'), [], 'a receipt for a message Carol never sent is not shown to her');
+  // Alice hears the forged receipts: her own copy stays available for other phones.
+  t.link('eve', 'alice'); t.flush();
+  assert.equal(A.s.store.inventory(NOW).includes(id), true, 'Alice keeps offering her own message');
+  // A receipt for someone else\'s message is never shown as «доставлено»/«прочитано».
+  const other = newPacketId(n => randomBytes(n));
+  E.s.publish(packetFor('ack', recipientTag('alice'), ackBody(other), newPacketId(n => randomBytes(n)), NOW));
+  E.s.publish(packetFor('read', recipientTag('alice'), JSON.stringify({ read: other }), newPacketId(n => randomBytes(n)), NOW));
+  t.flush();
+  assert.deepEqual(A.log.delivered.filter(p => receiptTarget(p) === other), []);
+});
+
+test('receiptTarget accepts only well-formed ack/read bodies', () => {
+  const id = 'ab'.repeat(16);
+  assert.equal(receiptTarget(packetFor('ack', 'x'.repeat(22), ackBody(id), id, NOW)), id);
+  assert.equal(receiptTarget(packetFor('read', 'x'.repeat(22), JSON.stringify({ read: id }), id, NOW)), id);
+  assert.equal(receiptTarget(packetFor('ack', 'x'.repeat(22), JSON.stringify({ read: id }), id, NOW)), null, 'kind and body must agree');
+  assert.equal(receiptTarget(packetFor('msg', 'x'.repeat(22), ackBody(id), id, NOW)), null);
+  for (const body of ['', 'nope', '{"ack":5}', '{"ack":"../x"}', JSON.stringify({ ack: id.slice(1) })]) assert.equal(receiptTarget(packetFor('ack', 'x'.repeat(22), body, id, NOW)), null);
 });
 
 test('session ignores garbage from a nearby phone', () => {

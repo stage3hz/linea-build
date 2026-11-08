@@ -1,17 +1,17 @@
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { ProfileEffect } from './platina/Effects';
-import { ActivityIndicator, PanResponder, Platform, Pressable, ScrollView, StyleSheet, Switch, View, useWindowDimensions, Linking } from 'react-native';
+import { ActivityIndicator, PanResponder, Platform, Pressable, ScrollView, StyleSheet, View, useWindowDimensions, Linking } from 'react-native';
 import { MONO, Text } from './typography';
 import { requestProfileEdit, requestStatusPicker } from './statusPickerRequest';
 import * as FileSystem from 'expo-file-system/legacy';
 import Constants from 'expo-constants';
 import { Image } from 'expo-image';
 import type { Api, Privacy } from './api';
-import { Avatar, Button, Icon, IconButton, Notice, Sheet, type IconName } from './components';
+import { Avatar, Button, Icon, IconButton, Notice, Sheet, ThemeSwitch, type IconName } from './components';
 import { GlassBackdrop, GlassSurface } from './glass';
 import { useTheme, formatSize, palette } from './theme';
-import { useNightState } from './nightTheme';
-import { effectiveNightMode, type NightMode } from './themePreference';
+import { DAY_STATE, type NightState } from './nightTheme';
+import { effectiveNightMode, nightModesFor, themeFor, type NightMode } from './themePreference';
 import { PALETTES } from './themes/palettes';
 import { THEME_NAMES, ThemeSettings } from './ThemeSettings';
 import { useMotion, usePowerFeatures, usePowerState } from './motion';
@@ -44,6 +44,8 @@ import { fileLimits, type FileLimits } from './e2ee/attachments';
 type Section = 'root' | 'appearance' | 'night' | 'privacy' | 'data' | 'language' | 'folders' | 'power' | 'audio' | 'overlay';
 type Props = {
   api: Api; user: User; theme: ThemeMode; darkTheme: DarkTheme;
+  /** From the one `useNightState` in App: the night theme on screen, the rule's own verdict and whether it is known yet (dev previews leave it out: day). */
+  nightState?: NightState;
   onTheme: (mode: ThemeMode) => void; onDarkTheme: (mode: DarkTheme) => void;
   onBack: () => void; onProfile: () => void; onSecurity: () => void; onMusic: () => void; onLogout: () => Promise<void>;
   chats?: Chat[];
@@ -129,12 +131,14 @@ function Toggle({ label, description, value, onChange, disabled = false, badge }
   const t = useTheme();
   return <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12, paddingHorizontal: 14, paddingVertical: 11 }}>
     <View style={{ flex: 1, gap: 3 }}><View style={{ flexDirection: 'row', alignItems: 'center', gap: 7 }}><Text style={{ color: t.text, fontSize: 15 }}>{label}</Text>{badge ? <View style={{ flexDirection: 'row', alignItems: 'center', gap: 3, paddingHorizontal: 7, paddingVertical: 2, borderRadius: 8, backgroundColor: t.accentSoft }}><Icon name="lock-closed" size={10} color={t.accent} /><Text style={{ color: t.accent, fontSize: 11, fontWeight: '700' }}>{badge}</Text></View> : null}</View><Text style={{ color: t.muted, fontSize: 12, lineHeight: 17 }}>{description}</Text></View>
-    <Switch {...({ activeThumbColor: '#FFFFFF' } as object)} accessibilityLabel={label} value={value} disabled={disabled} onValueChange={onChange} trackColor={{ false: t.subtle, true: t.accent }} thumbColor="#FFF" />
+    <ThemeSwitch accessibilityLabel={label} value={value} disabled={disabled} onValueChange={onChange} />
   </View>;
 }
 
-function Root({ api, user, theme, onBack, onProfile, onSecurity, onMusic, onLogout, open }: Props & { open: (section: Section) => void }) {
+function Root({ api, user, theme, darkTheme, nightState = DAY_STATE, onBack, onProfile, onSecurity, onMusic, onLogout, open }: Props & { open: (section: Section) => void }) {
   const tabInset = useTabInset();
+  // The row names the theme on screen (the night theme at night), not the day choice behind it.
+  const { night } = nightState;
   const language = useLanguage();
   const folders = useChatFolders(user.id);
   const t = useTheme(); const preferences = useChatPreferences(); const insets = useSafeAreaInsets(); const { width } = useWindowDimensions();
@@ -185,7 +189,7 @@ function Root({ api, user, theme, onBack, onProfile, onSecurity, onMusic, onLogo
         <Item icon="person" color="#E2574C" label="Мой профиль" onPress={onProfile} />
       </Group>
       <Group>
-        <Item icon="color-palette" color="#25A69A" label="Оформление" value={THEME_NAMES[theme === 'system' ? 'light' : theme]} onPress={() => open('appearance')} />
+        <Item icon="color-palette" color="#25A69A" label="Оформление" value={THEME_NAMES[themeFor(theme, darkTheme, night)]} onPress={() => open('appearance')} />
         <Item icon="folder" color="#3D8BFD" label="Папки с чатами" value={folders.folders.length ? String(folders.folders.length) : undefined} onPress={() => open('folders')} />
         <Item icon="battery-half" color="#F0A030" label="Энергосбережение и анимации" onPress={() => open('power')} />
         <Item icon="language" color="#7B61FF" label="Язык" value={LANGUAGES.find(item => item.id === language)?.native} onPress={() => open('language')} />
@@ -226,19 +230,20 @@ function PlatinaOffer() {
   </GlassSurface>;
 }
 
-function Appearance({ api, user, theme, darkTheme, onTheme, onDarkTheme, open }: Props & { open?: (section: Section) => void }) {
-  const t = useTheme(); const active = usePlatina(api, user.id); const preferences = useChatPreferences(); const metrics = textMetrics(preferences.textSize); const nightState = useNightState(theme);
+function Appearance({ api, user, theme, darkTheme, nightState = DAY_STATE, onTheme, onDarkTheme, open }: Props & { open?: (section: Section) => void }) {
+  const t = useTheme(); const active = usePlatina(api, user.id); const preferences = useChatPreferences(); const metrics = textMetrics(preferences.textSize);
   const [wallpaperOpen, setWallpaperOpen] = useState(false);
   return <>
-    <Group label="Тема"><View style={{ padding: 14 }}><ThemeSettings mode={theme} darkTheme={darkTheme} onChange={value => { if (preferences.nightMode === null) setChatPreferences({ nightMode: theme === 'system' ? 'system' : 'off' }); onTheme(value); }} onDarkTheme={onDarkTheme} platina={active} onLocked={() => openPlatinaShowcase()} /></View></Group>
-    {nightState.night ? <Text style={{ color: t.muted, fontSize: 12, lineHeight: 17, paddingHorizontal: 8, marginTop: -6 }}>{`Сейчас включена ночная тема «${THEME_NAMES[darkTheme]}». Выбранная выше тема — дневная: она вернётся, когда ночной режим выключится.`}</Text> : null}
+    <Group label="Тема"><View style={{ padding: 14 }}><ThemeSettings mode={theme} darkTheme={darkTheme} nightState={nightState} onChange={value => { if (preferences.nightMode === null) setChatPreferences({ nightMode: theme === 'system' ? 'system' : 'off' }); onTheme(value); }} onDarkTheme={onDarkTheme} platina={active} onLocked={() => openPlatinaShowcase()} /></View></Group>
+    {nightState.night && themeFor(theme, darkTheme, false) !== darkTheme ? <Text style={{ color: t.muted, fontSize: 12, lineHeight: 17, paddingHorizontal: 8, marginTop: -6 }}>{`Включён ночной режим. Дневная тема «${THEME_NAMES[themeFor(theme, darkTheme, false)]}» вернётся, когда он выключится.`}</Text> : null}
     {/* Telegram: «Ночной режим» switches now; «Ночная тема» — when it switches by itself and which theme. */}
     <Group>
       <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12, paddingHorizontal: 14, paddingVertical: 11 }}>
         <Text style={{ flex: 1, color: t.text, fontSize: 15 }}>Ночной режим</Text>
-        <Switch {...({ activeThumbColor: '#FFFFFF' } as object)} accessibilityLabel="Ночной режим" value={nightState.night} onValueChange={value => setChatPreferences({ nightForced: value, nightForcedAt: nightState.auto })} trackColor={{ false: t.subtle, true: t.accent }} thumbColor="#FFF" />
+        {/* Disabled until the rule has its input (the brightness is read a moment after mount): a tap then would stamp a premature `nightForcedAt`. */}
+        <ThemeSwitch accessibilityLabel="Ночной режим" value={nightState.night} disabled={!nightState.known} onValueChange={value => setChatPreferences({ nightForced: value, nightForcedAt: nightState.auto })} />
       </View>
-      <Item icon="moon" color="#5856D6" label="Ночная тема" value={NIGHT_LABELS[effectiveNightMode({ mode: preferences.nightMode, from: preferences.nightFrom, to: preferences.nightTo, brightness: preferences.nightBrightness }, theme)]} onPress={() => open?.('night')} />
+      <Item icon="moon" color="#5856D6" label="Ночная тема" value={NIGHT_LABELS[effectiveNightMode({ mode: preferences.nightMode, from: preferences.nightFrom, to: preferences.nightTo, brightness: preferences.nightBrightness }, theme, Platform.OS)]} onPress={() => open?.('night')} />
     </Group>
     {Platform.OS === 'ios' ? <Group label="Иконка приложения"><AppIconPicker /></Group> : null}
     <Group label="Обои чатов"><Item icon="image" color="#2EA37A" label="Обои чатов" value="Выбрать" onPress={() => setWallpaperOpen(true)} /></Group>
@@ -267,12 +272,13 @@ const NIGHT_THEMES: DarkTheme[] = ['dark', 'black', 'graphite'];
 function NightSettings({ api, user, theme, darkTheme, onDarkTheme }: Props) {
   const t = useTheme(); const preferences = useChatPreferences(); const platina = usePlatina(api, user.id);
   const settings = { mode: preferences.nightMode, from: preferences.nightFrom, to: preferences.nightTo, brightness: preferences.nightBrightness };
-  const kind = effectiveNightMode(settings, theme);
+  const kind = effectiveNightMode(settings, theme, Platform.OS);
   const [editing, setEditing] = useState<'nightFrom' | 'nightTo' | null>(null);
   const choose = (mode: NightMode) => setChatPreferences({ nightMode: mode, nightForced: null, nightForcedAt: null });
   const themes = [...NIGHT_THEMES, ...(platina ? PALETTES.map(p => p.id) : [])] as DarkTheme[];
   return <>
-    <Group>{(['system', 'off', 'schedule', 'auto'] as NightMode[]).map(mode => <Pressable key={mode} accessibilityRole="radio" accessibilityState={{ selected: kind === mode }} onPress={() => choose(mode)} style={({ pressed }) => ({ flexDirection: 'row', alignItems: 'center', gap: 12, paddingHorizontal: 14, minHeight: 50, backgroundColor: pressed ? 'rgba(127,127,127,0.1)' : 'transparent' })}>
+    {/* «Автоматически» (by the screen brightness) is offered only where the brightness can be read: not on the PC. */}
+    <Group>{nightModesFor(Platform.OS).map(mode => <Pressable key={mode} accessibilityRole="radio" accessibilityState={{ selected: kind === mode }} onPress={() => choose(mode)} style={({ pressed }) => ({ flexDirection: 'row', alignItems: 'center', gap: 12, paddingHorizontal: 14, minHeight: 50, backgroundColor: pressed ? 'rgba(127,127,127,0.1)' : 'transparent' })}>
       <View style={{ width: 22 }}>{kind === mode ? <Icon name="checkmark" size={20} color={t.accent} /> : null}</View>
       <Text style={{ flex: 1, color: t.text, fontSize: 16 }}>{NIGHT_LABELS[mode]}</Text>
     </Pressable>)}</Group>
@@ -483,6 +489,6 @@ function PowerRow({ icon, color, title, text, value, onChange }: { icon: IconNam
   return <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12, paddingHorizontal: 14, paddingVertical: 10 }}>
     <View style={{ width: 30, height: 30, borderRadius: 8, backgroundColor: color, alignItems: 'center', justifyContent: 'center' }}><Icon name={icon} size={17} color="#FFF" /></View>
     <View style={{ flex: 1, gap: 2 }}><Text style={{ color: t.text, fontSize: 15 }}>{title}</Text><Text style={{ color: t.muted, fontSize: 12, lineHeight: 16 }}>{text}</Text></View>
-    <Switch {...({ activeThumbColor: '#FFFFFF' } as object)} accessibilityLabel={title} value={value} onValueChange={onChange} trackColor={{ false: t.subtle, true: t.accent }} thumbColor="#FFF" />
+    <ThemeSwitch accessibilityLabel={title} value={value} onValueChange={onChange} />
   </View>;
 }

@@ -57,10 +57,15 @@ function Spin({ size, radius, colors, still }: { size: number; radius: number; c
  * PC (Electron): a plain <video> cannot send the account token, so the file is fetched through the
  * app's own authenticated channel (as AuthImage does for pictures) and played from memory.
  */
+const WEB_VIDEO_CACHE_MAX = 6; // a bounded LRU: a story video is tens of MB, so the oldest object URLs are revoked
 const webVideoCache = new Map<string, Promise<string>>();
-function webVideoUrl(api: Api, id: string) {
-  let url = webVideoCache.get(id);
-  if (!url) { url = fetch(api.fileUrl(id), { headers: { Authorization: `Bearer ${api.token}` } }).then(r => { if (!r.ok) throw new Error('video'); return r.blob(); }).then(blob => URL.createObjectURL(blob)); url.catch(() => webVideoCache.delete(id)); webVideoCache.set(id, url); }
+export function webVideoUrl(api: Api, id: string): Promise<string> {
+  const key = `${api.base}\n${id}`;
+  let url = webVideoCache.get(key);
+  if (url) { webVideoCache.delete(key); webVideoCache.set(key, url); return url; } // the most recent goes last
+  url = fetch(api.fileUrl(id), { headers: { Authorization: `Bearer ${api.token}` } }).then(r => { if (!r.ok) throw new Error('video'); return r.blob(); }).then(blob => URL.createObjectURL(blob));
+  url.catch(() => { if (webVideoCache.get(key) === url) webVideoCache.delete(key); }); webVideoCache.set(key, url);
+  for (const [oldest, stale] of webVideoCache) { if (webVideoCache.size <= WEB_VIDEO_CACHE_MAX) break; webVideoCache.delete(oldest); stale.then(u => URL.revokeObjectURL(u)).catch(() => {}); }
   return url;
 }
 function WebLoopVideo({ api, id, uri, style }: { api?: Api; id?: string; uri?: string; style: Record<string, unknown> }) {

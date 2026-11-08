@@ -5,7 +5,6 @@ import * as FileSystem from 'expo-file-system/legacy';
 import * as Sharing from 'expo-sharing';
 import * as Clipboard from 'expo-clipboard';
 import * as DocumentPicker from 'expo-document-picker';
-import * as Crypto from 'expo-crypto';
 import { fromByteArray } from 'base64-js';
 import { useAudioPlayer, useAudioPlayerStatus } from 'expo-audio';
 import { useVideoPlayer, VideoView } from 'expo-video';
@@ -14,27 +13,21 @@ import { Button, Icon, Notice } from '../components';
 import { GlassSurface } from '../glass';
 import { useTheme } from '../theme';
 import { aiImage, aiSpeech, aiTranscribe, aiVideo } from './client';
+import { deleteAIMedia, writeAIMedia } from './mediaCache';
 
 export type MediaMode = 'image' | 'video' | 'speech' | 'transcribe';
 const VOICES = [{ id: 'nova', label: 'Нова' }, { id: 'alloy', label: 'Альт' }, { id: 'echo', label: 'Эхо' }, { id: 'onyx', label: 'Оникс' }, { id: 'shimmer', label: 'Шиммер' }, { id: 'fable', label: 'Фейбл' }];
 const MAX_TRANSCRIBE = 10 * 1024 * 1024;
 const EXT: Record<string, string> = { 'image/png': 'png', 'image/jpeg': 'jpg', 'image/webp': 'webp', 'audio/mpeg': 'mp3', 'audio/wav': 'wav', 'audio/ogg': 'ogg', 'audio/flac': 'flac', 'audio/mp4': 'm4a', 'audio/webm': 'webm', 'video/mp4': 'mp4' };
 
-/** Writes AI output to the app cache; the screen deletes it when replaced or closed. */
-export async function writeCache(base64: string, mimeType: string): Promise<string> {
-  // PC app (web): no file cache — the result stays in memory as a data URI.
-  if (Platform.OS === 'web') return `data:${mimeType};base64,${base64}`;
-  const dir = FileSystem.cacheDirectory; if (!dir) throw new Error('Кэш недоступен на этом устройстве.');
-  const uri = `${dir}linea-ai-${Crypto.randomUUID()}.${EXT[mimeType] || 'bin'}`;
-  await FileSystem.writeAsStringAsync(uri, base64, { encoding: FileSystem.EncodingType.Base64 });
-  return uri;
-}
+/** Writes AI output to the AI cache (mediaCache.ts); the panel deletes it when replaced or closed. */
+export const writeCache = (base64: string, mimeType: string, conversationId = 'panel') => writeAIMedia(conversationId, base64, mimeType);
 
 function useCachedFile() {
   const [file, setFile] = useState<{ uri: string; mimeType: string } | null>(null);
   const ref = useRef(file); ref.current = file;
-  useEffect(() => () => { if (ref.current) void FileSystem.deleteAsync(ref.current.uri, { idempotent: true }).catch(() => {}); }, []);
-  const replace = (next: { uri: string; mimeType: string } | null) => { if (ref.current) void FileSystem.deleteAsync(ref.current.uri, { idempotent: true }).catch(() => {}); setFile(next); };
+  useEffect(() => () => { if (ref.current) void deleteAIMedia([ref.current.uri]); }, []);
+  const replace = (next: { uri: string; mimeType: string } | null) => { if (ref.current) void deleteAIMedia([ref.current.uri]); setFile(next); };
   return [file, replace] as const;
 }
 

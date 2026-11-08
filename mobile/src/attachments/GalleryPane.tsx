@@ -43,7 +43,7 @@ const CAMERA = '__camera__';
 function CameraCell({ disabled, onPress }: { disabled: boolean; onPress: () => void }) {
   const t = useTheme();
   return <View style={{ width: '25%', aspectRatio: 1, padding: 1.5 }}>
-    <Pressable disabled={disabled} onPress={onPress} accessibilityRole="button" accessibilityLabel="Снять фото или видео" style={({ pressed }) => ({ flex: 1, borderRadius: 9, backgroundColor: t.dark ? '#0B0D14' : '#1A1D27', alignItems: 'center', justifyContent: 'center', opacity: pressed ? .7 : 1 })}><Icon name="camera-outline" size={28} color="#FFF" /></Pressable>
+    <Pressable disabled={disabled} onPress={onPress} accessibilityRole="button" accessibilityLabel="Снять фото или видео" style={({ pressed }) => ({ flex: 1, borderRadius: 9, backgroundColor: t.dark ? t.bg : t.text, alignItems: 'center', justifyContent: 'center', opacity: pressed ? .7 : 1 })}><Icon name="camera-outline" size={28} color={t.dark ? t.text : t.bg} /></Pressable>
   </View>;
 }
 

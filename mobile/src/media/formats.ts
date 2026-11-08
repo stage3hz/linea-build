@@ -41,6 +41,11 @@ export function sniffVideoFormat(bytes:Uint8Array):string|null {
   return null;
 }
 
+/** GIFs travel as photos; the chat decides whether they animate («Автозапуск GIF», power saving). */
+export function isGif(file:FileHint):boolean {
+  return /^image\/gif$/i.test(file.mimeType)||/\.gif$/i.test(file.name);
+}
+
 export function mediaPreviewKind(file:FileHint):'photo'|'video'|'audio'|'file' {
   if(isPhotoCandidate(file))return 'photo';
   if(isVideoCandidate(file))return 'video';

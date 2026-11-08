@@ -14,13 +14,17 @@ const validModel = (value: unknown): value is string => typeof value === 'string
 // OpenRouter is pinned to its zero-price route; FreeLLMAPI is the administrator's self-hosted router of free-tier keys.
 const validProvider = (provider: unknown, model: unknown): provider is AIProvider => (provider === 'openrouter' && model === 'openrouter/free') || (provider === 'freellmapi' && validModel(model));
 export type AITurn = { id: number; question: string; status: 'pending' | 'complete' | 'failed' | 'cancelled'; answer?: AIReply; error?: string; options?: AIAskOptions; startedAt?: number; ms?: number;
-  /** Picture / video / speech made in the same chat (not a text answer). The file lives in the cache only. */
-  kind?: AITaskKind; media?: { uri: string; mimeType: string }; stage?: string };
+  /** Picture / video / speech made in the same chat (not a text answer). The file lives in the AI cache (see mediaCache.ts). */
+  kind?: AITaskKind; media?: { uri: string; mimeType: string }; stage?: string;
+  /** Asked while «Приватная беседа» was on: never written to the history, even if it is switched off later. */
+  private?: true };
 export type AITaskKind = 'image' | 'video' | 'speech' | 'transcribe';
 export type AITaskResult = { text: string; model: string; routedVia?: string; media?: { uri: string; mimeType: string } };
 export type AITaskWork = (signal: AbortSignal, stage: (text: string) => void) => Promise<AITaskResult>;
 export type AIState = { consent: boolean; pending: boolean; turns: AITurn[]; error: string };
 type Transport = (messages: AIMessage[], signal: AbortSignal, options?: AIAskOptions) => Promise<unknown>;
+/** `discardMedia`: a file was produced for a turn that is gone (cancelled, consent revoked, screen closed) — delete it. */
+export type AIConversationOptions = { discardMedia?: (media: NonNullable<AITaskResult['media']>) => void };
 
 function record(value: unknown): Record<string, unknown> {
   if (!value || typeof value !== 'object' || Array.isArray(value)) throw new Error('AI-сервис вернул некорректный ответ.');
@@ -88,16 +92,21 @@ const failureText = (error: unknown) => error instanceof Error ? error.message :
 /** Memory only. The owner creates one instance per mounted screen/account. */
 export class AIConversation {
   private transport: Transport;
+  private discardMedia: AIConversationOptions['discardMedia'];
   private state = initial();
   private listeners = new Set<() => void>();
   private revision = 0;
   private nextId = 0;
   private closed = false;
+  private privateTurns = false;
   private active: { revision: number; controller: AbortController; turnId: number } | null = null;
 
-  constructor(transport: Transport) { this.transport = transport; }
+  constructor(transport: Transport, options: AIConversationOptions = {}) { this.transport = transport; this.discardMedia = options.discardMedia; }
   getSnapshot = () => this.state;
   subscribe = (listener: () => void) => { this.listeners.add(listener); return () => { this.listeners.delete(listener); }; };
+
+  /** While on, new turns are marked private and stay out of the stored history. */
+  setPrivate(value: boolean) { this.privateTurns = value; }
 
   setConsent(consent: boolean) {
     if (this.closed) return;
@@ -110,7 +119,7 @@ export class AIConversation {
     let messages: AIMessage[];
     try { messages = historyForQuestion(this.state.turns, question); }
     catch (error) { this.publish({ ...this.state, error: failureText(error) }); return; }
-    const turn: AITurn = { id: ++this.nextId, question: question.trim(), status: 'pending', startedAt: Date.now(), ...(options && (options.model || options.image || options.documents) ? { options } : {}) };
+    const turn: AITurn = { id: ++this.nextId, question: question.trim(), status: 'pending', startedAt: Date.now(), ...(options && (options.model || options.image || options.documents) ? { options } : {}), ...(this.privateTurns ? { private: true } : {}) };
     this.publish({ ...this.state, pending: true, turns: [...this.state.turns, turn], error: '' });
     await this.run(turn.id, messages, turn.options);
   }
@@ -120,7 +129,7 @@ export class AIConversation {
     if (!this.canStart()) return;
     const text = question.trim();
     if (!text) { this.publish({ ...this.state, error: 'Напиши, что сделать.' }); return; }
-    const turn: AITurn = { id: ++this.nextId, question: text, status: 'pending', startedAt: Date.now(), kind };
+    const turn: AITurn = { id: ++this.nextId, question: text, status: 'pending', startedAt: Date.now(), kind, ...(this.privateTurns ? { private: true } : {}) };
     this.tasks.set(turn.id, work);
     this.publish({ ...this.state, pending: true, turns: [...this.state.turns, turn], error: '' });
     await this.run(turn.id, [], undefined, work);
@@ -151,6 +160,15 @@ export class AIConversation {
     this.cancel();
     this.nextId = turns.reduce((max, turn) => Math.max(max, turn.id), 0);
     this.publish({ consent, pending: false, error: '', turns: storedTurns(turns) });
+  }
+
+  /** Forgets media whose cache files are gone (evicted or wiped), so no broken picture is shown or stored. Matched by file name: the stored form and a full URI name the same file. */
+  dropMedia(uris: readonly string[]) {
+    if (this.closed || !uris.length) return;
+    const gone = new Set(uris.map(aiMediaName));
+    const lost = (turn: AITurn) => !!turn.media && gone.has(aiMediaName(turn.media.uri));
+    if (!this.state.turns.some(lost)) return;
+    this.publish({ ...this.state, turns: this.state.turns.map(turn => lost(turn) ? { ...turn, media: undefined } : turn) });
   }
 
   clear() {
@@ -185,7 +203,8 @@ export class AIConversation {
         media = result.media;
         answer = { text: result.text, model: result.model, provider: 'freellmapi', freeOnly: true, ...(result.routedVia ? { routedVia: result.routedVia } : {}) };
       } else answer = parseAIReply(await this.transport(messages, controller.signal, options));
-      if (!current()) return;
+      // The turn is gone (cancelled, consent revoked or the screen closed) while the work went on: nothing shows the file any more.
+      if (!current()) { if (media) this.discardMedia?.(media); return; }
       this.active = null;
       this.publish({ ...this.state, pending: false, error: '', turns: this.state.turns.map(turn => turn.id === turnId ? { ...turn, status: 'complete', answer, error: undefined, stage: undefined, ...(media ? { media } : {}), ...(turn.startedAt ? { ms: Date.now() - turn.startedAt } : {}) } : turn) });
     } catch (error) {
@@ -199,11 +218,26 @@ export class AIConversation {
   private publish(state: AIState) { this.state = state; for (const listener of this.listeners) listener(); }
 }
 
-// Stored history: turns without attached photos (they are large and already answered).
+export const AI_MEDIA_PREFIX = 'linea-ai-';
+// Exactly what aiMediaFileName (mediaCache.ts) produces: prefix, sanitized conversation id, uuid, extension.
+const AI_MEDIA_NAME = /^linea-ai-[A-Za-z0-9_-]+\.[a-z0-9]{1,5}$/;
+/** The cache file's name — the only part the history keeps: on iOS the cache folder moves with every app update. */
+export const aiMediaName = (uri: string) => uri.slice(uri.lastIndexOf('/') + 1);
+/**
+ * Only files of the AI cache are stored and shown again later — never data: URIs (web) or foreign paths.
+ * Accepted: a bare file name (the stored form) or a file: URI of the cache (fresh output, older history);
+ * never anything with `..`, `?` or `#`.
+ */
+export const isAIMediaUri = (uri: string) => !/[?#]|\.\./.test(uri) && (uri.startsWith('file:') || !uri.includes('/')) && AI_MEDIA_NAME.test(aiMediaName(uri));
+
+// Stored history: turns without attached photos (they are large and already answered) and without
+// private turns; generated media stay as a reference to the cache file — by name, resolved against the
+// current cache folder when shown (see mediaCache.ts).
 export function storedTurns(turns: readonly AITurn[]): AITurn[] {
-  return turns.map(turn => {
+  return turns.filter(turn => !turn.private).map(turn => {
     const model = turn.options?.model;
-    const base: AITurn = { id: turn.id, question: turn.question, status: turn.status === 'pending' ? 'cancelled' : turn.status, ...(turn.answer ? { answer: turn.answer } : {}), ...(turn.error ? { error: turn.error } : {}), ...(model ? { options: { model } } : {}), ...(typeof turn.ms === 'number' && Number.isFinite(turn.ms) ? { ms: turn.ms } : {}), ...(turn.kind ? { kind: turn.kind } : {}) };
+    const media = turn.media && isAIMediaUri(turn.media.uri) ? { uri: aiMediaName(turn.media.uri), mimeType: turn.media.mimeType } : undefined;
+    const base: AITurn = { id: turn.id, question: turn.question, status: turn.status === 'pending' ? 'cancelled' : turn.status, ...(turn.answer ? { answer: turn.answer } : {}), ...(turn.error ? { error: turn.error } : {}), ...(model ? { options: { model } } : {}), ...(typeof turn.ms === 'number' && Number.isFinite(turn.ms) ? { ms: turn.ms } : {}), ...(turn.kind ? { kind: turn.kind } : {}), ...(media ? { media } : {}) };
     return base;
   });
 }

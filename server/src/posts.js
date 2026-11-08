@@ -14,6 +14,8 @@ export const STORY_TTL_MS = 24 * 60 * 60 * 1000;
 export const MAX_POSTS = 300;
 export const MAX_ACTIVE_STORIES = 50;
 const MAX_CAPTION = 300;
+// How often expired stories are swept from the database and the disk (B30).
+export const STORY_SWEEP_MS = 60_000;
 
 /** True when `viewerId` may see `ownerId`'s posts and stories: the owner, or a friend who is not blocked. */
 export function canSeePosts(db, ownerId, viewerId) {
@@ -26,6 +28,27 @@ export function canSeePosts(db, ownerId, viewerId) {
 export function postOwnerOfUpload(db, uploadId, time) {
   const row = db.prepare('SELECT owner_id FROM profile_posts WHERE upload_id=? AND (expires_at IS NULL OR expires_at > ?)').get(uploadId, time);
   return row ? row.owner_id : null;
+}
+
+/** Removes a post or story row and its file, unless the file is also the avatar or the banner. */
+async function removePost(db, post, uploadDir) {
+  db.prepare('DELETE FROM profile_posts WHERE id=?').run(post.id);
+  // The file goes too (frees the storage quota) unless it is also the avatar or the banner.
+  const inUse = db.prepare('SELECT 1 FROM users WHERE avatar_id=? OR avatar_video_id=? OR banner_id=?').get(post.upload_id, post.upload_id, post.upload_id);
+  if (!inUse && uploadDir) { db.prepare('DELETE FROM uploads WHERE id=? AND owner_id=?').run(post.upload_id, post.owner_id); await unlink(join(uploadDir, post.upload_id)).catch(() => {}); }
+}
+
+/**
+ * Deletes stories whose 24 h have passed, together with their files: an expired story is invisible to
+ * everyone, its owner included, so nothing but this sweep would ever free the storage quota it takes.
+ * With `ownerId` only that person's stories are swept (done when their profile is read or extended).
+ */
+export async function purgeExpiredStories(db, { uploadDir, now, ownerId, limit = 500 }) {
+  const rows = ownerId
+    ? db.prepare('SELECT id, owner_id, upload_id FROM profile_posts WHERE owner_id=? AND expires_at IS NOT NULL AND expires_at <= ?').all(ownerId, now())
+    : db.prepare('SELECT id, owner_id, upload_id FROM profile_posts WHERE expires_at IS NOT NULL AND expires_at <= ? LIMIT ?').all(now(), limit);
+  for (const row of rows) await removePost(db, row, uploadDir);
+  return rows.length;
 }
 
 const publicPost = row => ({
@@ -75,6 +98,17 @@ export function installPostRoutes({ app, db, authOptions, now, timestamp, limite
     return { ok: true };
   });
 
+  // Expired stories are removed on a timer (one run at a time), and right away for the profile being read or extended.
+  let sweeping = null;
+  const sweep = ownerId => {
+    if (ownerId) return purgeExpiredStories(db, { uploadDir, now, ownerId }).catch(() => 0);
+    if (!sweeping) sweeping = purgeExpiredStories(db, { uploadDir, now }).catch(() => 0).finally(() => { sweeping = null; });
+    return sweeping;
+  };
+  const timer = setInterval(() => { sweep(); }, STORY_SWEEP_MS);
+  timer.unref();
+  app.addHook('onClose', async () => clearInterval(timer));
+
   const list = (ownerId, kind) => db.prepare(`SELECT p.*, u.mime_type, u.is_image, u.is_video, u.size FROM profile_posts p JOIN uploads u ON u.id=p.upload_id
     WHERE p.owner_id=? AND p.kind=? AND (p.expires_at IS NULL OR p.expires_at > ?) ORDER BY p.created_at DESC, p.id DESC`).all(ownerId, kind, now()).map(publicPost);
 
@@ -82,6 +116,7 @@ export function installPostRoutes({ app, db, authOptions, now, timestamp, limite
     const id = request.params.id; if (typeof id !== 'string' || !uuid.test(id)) fail(400, 'Некорректный пользователь.');
     if (!db.prepare('SELECT 1 FROM users WHERE id=?').get(id)) fail(404, 'Пользователь не найден.');
     if (!canSeePosts(db, id, request.auth.user_id)) return { visible: false, posts: [], stories: [] };
+    await sweep(id);
     return { visible: true, posts: list(id, 'post'), stories: list(id, 'story') };
   });
 
@@ -98,6 +133,7 @@ export function installPostRoutes({ app, db, authOptions, now, timestamp, limite
     if (!upload || upload.purpose === 'channel') fail(404, 'Файл не найден.');
     if (!upload.is_image && !upload.is_video) fail(400, 'Публикация — фото или видео.');
     if (db.prepare('SELECT 1 FROM profile_posts WHERE upload_id=?').get(upload.id)) fail(409, 'Этот файл уже опубликован.');
+    await sweep(me);
     const time = now();
     if (kind === 'post' && db.prepare("SELECT COUNT(*) AS n FROM profile_posts WHERE owner_id=? AND kind='post'").get(me).n >= MAX_POSTS) fail(409, `Не больше ${MAX_POSTS} публикаций.`);
     if (kind === 'story' && db.prepare("SELECT COUNT(*) AS n FROM profile_posts WHERE owner_id=? AND kind='story' AND expires_at > ?").get(me, time).n >= MAX_ACTIVE_STORIES) fail(409, `Не больше ${MAX_ACTIVE_STORIES} историй за сутки.`);
@@ -111,12 +147,9 @@ export function installPostRoutes({ app, db, authOptions, now, timestamp, limite
   app.delete('/me/posts/:id', authOptions, async request => {
     const id = request.params.id; if (typeof id !== 'string' || !uuid.test(id)) fail(400, 'Некорректная публикация.');
     const me = request.auth.user_id;
-    const post = db.prepare('SELECT upload_id FROM profile_posts WHERE id=? AND owner_id=?').get(id, me);
+    const post = db.prepare('SELECT id, owner_id, upload_id FROM profile_posts WHERE id=? AND owner_id=?').get(id, me);
     if (!post) fail(404, 'Публикация не найдена.');
-    db.prepare('DELETE FROM profile_posts WHERE id=?').run(id);
-    // The file goes too (frees the storage quota) unless it is also the avatar or the banner.
-    const inUse = db.prepare('SELECT 1 FROM users WHERE avatar_id=? OR avatar_video_id=? OR banner_id=?').get(post.upload_id, post.upload_id, post.upload_id);
-    if (!inUse && uploadDir) { db.prepare('DELETE FROM uploads WHERE id=? AND owner_id=?').run(post.upload_id, me); await unlink(join(uploadDir, post.upload_id)).catch(() => {}); }
+    await removePost(db, post, uploadDir);
     return { ok: true };
   });
 }

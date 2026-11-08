@@ -86,6 +86,10 @@ export async function buildApp({
   diskReserveBytes = 5 * 1024 * MiB,
   freeDisk,
   maxConcurrentPasswordJobs = 4,
+  /** How long a voice-room member survives its socket closing before the room is told it left. */
+  voiceGraceMs = 25_000,
+  /** Period of the housekeeping tick (socket pings, expired rows, last seen, session touch). */
+  maintenanceIntervalMs = 30_000,
   /** SFU for screen sharing (src/sfu.js); undefined = from the environment, null = off. */
   sfu: sfuOption,
   authTestHooks,
@@ -118,6 +122,8 @@ export async function buildApp({
   const release = createRelease({ manifestPath: releaseManifest, minClientVersion, now, log: error => app.log.warn({ err: error }, 'release manifest is invalid') });
   const limiter = createLimiter(now);
   const sockets = new Set();
+  const PUBLIC_PATHS = new Set(['/health', '/app/update', '/servers', '/privacy', '/support']);
+  const publicPath = url => { const path = url.split('?')[0]; return PUBLIC_PATHS.has(path) || path.startsWith('/i/'); };
   // Signed-in sockets by user: emitting to one user no longer walks every open socket (load test F3).
   const socketsByUser = new Map();
   const indexSocket = state => { const set = socketsByUser.get(state.auth.user_id) || new Set(); set.add(state); socketsByUser.set(state.auth.user_id, set); };
@@ -199,13 +205,39 @@ export async function buildApp({
   // Presence ("в сети" / "был(а) …"): online while any authenticated socket is open.
   const isOnline = userId => { const own = socketsByUser.get(userId); if (!own) return false; for (const state of own) if (state.socket.readyState === 1) return true; return false; };
   const peersOf = userId => db.prepare('SELECT DISTINCT b.user_id FROM chat_members a JOIN chat_members b ON a.chat_id=b.chat_id WHERE a.user_id=? AND b.user_id<>?').all(userId, userId).map(row => row.user_id);
+  // «был(а) …» is written when the last socket closes, but also at sign-in, every maintenance
+  // tick and at shutdown: after a crash or restart the close handlers never run, and the time
+  // would otherwise be hours stale.
+  // One statement for all of them: a row per online user every tick as separate autocommits took
+  // seconds at a thousand users (each commit is an fsync), one write takes milliseconds.
+  const recordSeen = userIds => {
+    const ids = [...new Set(userIds)];
+    if (ids.length) db.prepare('UPDATE users SET last_seen_at=? WHERE id IN (SELECT value FROM json_each(?))').run(timestamp(), JSON.stringify(ids));
+  };
   const presenceFor = (userId, viewerId) => {
     if (!presenceVisible(db, userId, viewerId, now())) return { userId, online: false, lastSeenAt: null, hidden: true };
     const online = isOnline(userId);
     return { userId, online, lastSeenAt: online ? null : db.prepare('SELECT last_seen_at FROM users WHERE id=?').get(userId)?.last_seen_at || null, hidden: false };
   };
   // Only peers who are online get pushes; offline ones read the state when they connect (load test F4).
-  const broadcastPresence = userId => { for (const peerId of peersOf(userId)) if (isOnline(peerId)) emitUser(peerId, { type: 'presence', presence: presenceFor(userId, peerId) }); };
+  // A peer for whom the presence is hidden (a block, hidden «last seen») gets nothing at all: even a
+  // {hidden:true} packet at socket open and close would tell them when the person comes and goes.
+  // `includeHidden` is for the moment the visibility itself changes, so the peer's cached state is replaced.
+  const broadcastPresence = (userId, { includeHidden = false } = {}) => {
+    for (const peerId of peersOf(userId)) {
+      if (!isOnline(peerId)) continue;
+      const presence = presenceFor(userId, peerId);
+      if (presence.hidden && !includeHidden) continue;
+      emitUser(peerId, { type: 'presence', presence });
+    }
+  };
+  // Blocking or unblocking: both sides see the other's presence change at once ({hidden:true} in a
+  // block) and their shared chats are re-sent, so a cached «в сети» or avatar does not linger.
+  const blocksChanged = (a, b) => {
+    if (isOnline(a)) emitUser(a, { type: 'presence', presence: presenceFor(b, a) });
+    if (isOnline(b)) emitUser(b, { type: 'presence', presence: presenceFor(a, b) });
+    for (const { chat_id } of db.prepare('SELECT a.chat_id FROM chat_members a JOIN chat_members b ON a.chat_id=b.chat_id WHERE a.user_id=? AND b.user_id=?').all(a, b)) emitChat(chat_id);
+  };
   const emitChat = chatId => {
     for (const userId of memberIds(chatId)) if (isOnline(userId)) emitUser(userId, { type: 'chat', chat: publicChat(db, chatId, userId, serializationOptions) });
   };
@@ -221,9 +253,18 @@ export async function buildApp({
     if (!session) fail(401, 'Войдите в аккаунт заново.');
     request.auth = session;
     if (!limiter.allow(`api:${session.user_id}`, 600, 60_000)) fail(429, 'Слишком много запросов. Попробуйте через минуту.');
-    if (now() - Date.parse(session.last_active_at) >= 60_000) {
-      db.prepare('UPDATE sessions SET last_active_at=? WHERE token_hash=? AND expires_at>?').run(timestamp(), session.token_hash, now());
-    }
+    touchSession(session);
+  };
+  // Sliding expiry: a device in use stays signed in; one idle for sessionTtlMs (SESSION_TTL_DAYS) is signed out.
+  // Written at most once a minute per session (every request would otherwise be a write).
+  const touchSession = session => touchSessions([session]);
+  const touchSessions = sessions => {
+    const due = sessions.filter(session => now() - Date.parse(session.last_active_at) >= 60_000);
+    if (!due.length) return;
+    const touched = timestamp(), expiry = now() + sessionTtlMs;
+    const update = db.prepare('UPDATE sessions SET last_active_at=?, expires_at=? WHERE token_hash=? AND expires_at>?');
+    const run = () => { for (const session of due) { update.run(touched, expiry, session.token_hash, now()); session.last_active_at = touched; } };
+    if (due.length === 1) run(); else transaction(db, run);
   };
   const authOptions = { preHandler: requireAuth };
   const newSession = (userId, deviceName) => {
@@ -279,8 +320,9 @@ export async function buildApp({
     if (request.query && ('token' in request.query || 'access_token' in request.query)) {
       fail(400, 'Передавайте токен только в заголовке Authorization или первом сообщении WebSocket.');
     }
-    // Version gate: health check and CORS preflight always pass.
-    if (request.method !== 'OPTIONS' && request.url !== '/health' && request.url !== '/app/update' && request.url !== '/servers') {
+    // Version gate: health check, CORS preflight and pages opened in a browser (which never sends
+    // X-Linea-Client: invite landing, privacy policy, support) always pass.
+    if (request.method !== 'OPTIONS' && !publicPath(request.url)) {
       request.clientInfo = parseClientInfo(request.headers['x-linea-client']);
       const refusal = clientGateDecision(request.clientInfo, { minVersion: release.currentMinimum(), requireHeader: requireClientHeader });
       if (refusal) fail(426, refusal.message, { code: refusal.code });
@@ -361,7 +403,7 @@ export async function buildApp({
   db.exec(MODERATION_SCHEMA);
   migrateCallPrivacy(db);
   installCallPrivacyRoutes({ app, db, authOptions, publicUser, timestamp });
-  installModerationRoutes({ app, db, authOptions, publicUser, timestamp, limiter });
+  installModerationRoutes({ app, db, authOptions, publicUser, timestamp, limiter, blocksChanged });
   installSoundCloudRoutes({ app, authOptions, soundcloud, limiter });
   // Push token of this signed-in device. It lives as long as the session: a revoked or
   // expired session stops receiving pushes.
@@ -381,7 +423,9 @@ export async function buildApp({
   // The number on the app icon: unread chats (not muted or archived), community counters and
   // waiting friend requests — the same total the app shows once it is open.
   const badgeTotal = userId => {
-    const chats = db.prepare(`SELECT COALESCE(SUM((SELECT COUNT(*) FROM messages m WHERE m.chat_id=cm.chat_id AND m.sender_id<>cm.user_id AND m.id>cm.last_read_message_id)),0) AS n
+    // Each chat is capped at 9 999 like publicChat (the badge shows «9999+» anyway): a full count per
+    // push grew with the receiver's unread pile in every chat.
+    const chats = db.prepare(`SELECT COALESCE(SUM((SELECT COUNT(*) FROM (SELECT 1 FROM messages m WHERE m.chat_id=cm.chat_id AND m.sender_id<>cm.user_id AND m.id>cm.last_read_message_id AND m.silent=0 LIMIT 9999))),0) AS n
       FROM chat_members cm LEFT JOIN chat_settings s ON s.user_id=cm.user_id AND s.chat_id=cm.chat_id
       WHERE cm.user_id=? AND COALESCE(s.muted,0)=0 AND COALESCE(s.archived,0)=0`).get(userId).n;
     const friends = db.prepare('SELECT COUNT(*) AS n FROM friend_requests r WHERE r.to_id=? AND NOT EXISTS (SELECT 1 FROM blocks b WHERE b.blocker_id=r.to_id AND b.blocked_id=r.from_id)').get(userId).n;
@@ -397,7 +441,7 @@ export async function buildApp({
       const tokens = db.prepare('SELECT p.token, p.platform FROM push_tokens p JOIN sessions s ON s.token_hash=p.session_hash WHERE p.user_id=? AND s.expires_at>?').all(userId, now());
       if (!tokens.length) continue;
       const member = db.prepare('SELECT last_read_message_id FROM chat_members WHERE chat_id=? AND user_id=?').get(chatId, userId);
-      const unread = db.prepare('SELECT COUNT(*) AS count FROM messages WHERE chat_id=? AND sender_id<>? AND id>?').get(chatId, userId, member?.last_read_message_id ?? 0).count;
+      const unread = db.prepare('SELECT COUNT(*) AS count FROM (SELECT 1 FROM messages WHERE chat_id=? AND sender_id<>? AND id>? AND silent=0 LIMIT 9999)').get(chatId, userId, member?.last_read_message_id ?? 0).count;
       const message = chatNotification({ chatId, senderName: sender?.display_name || 'Инвиз', kind, unread, badge: kind === 'call' ? undefined : badgeTotal(userId) });
       for (const { token, platform } of tokens) {
         push(token, message, platform).then(result => { if (result === 'gone' && !databaseClosed) db.prepare('DELETE FROM push_tokens WHERE token=?').run(token); })
@@ -414,12 +458,27 @@ export async function buildApp({
   const voiceRooms = new Map(); // channelId -> Map(socketId -> { state, userId, muted })
   const voiceMembers = channelId => [...(voiceRooms.get(channelId)?.values() || [])].map(item => ({ userId: item.userId, muted: item.muted, ...(communityApi?.serverVoice(item.state.voice?.communityId, item.userId) || {}) }));
   const leaveVoice = state => {
+    clearTimeout(state.voiceGrace); state.voiceGrace = undefined;
     const channelId = state.voice?.channelId; if (!channelId) return;
     const room = voiceRooms.get(channelId); const communityId = state.voice.communityId; state.voice = null;
     sfu?.leave(channelId, state.id);
     if (room) { room.delete(state.id); if (!room.size) voiceRooms.delete(channelId); }
     for (const item of room?.values() || []) sendSocket(item.state, { type: 'voice.left', channelId, peer: state.id });
     communityApi?.emitCommunity(communityApi.community(communityId), { type: 'voice.state', communityId, channelId, members: voiceMembers(channelId) });
+  };
+  // The socket dropped (a tunnel, a network change, the app sent to the background for a moment):
+  // the member stays in the room for a grace period instead of leaving at once, so the peers keep
+  // their RTC connection to it. A `voice.join` by the same user within the period takes the place
+  // of the ghost; otherwise it leaves when the period ends.
+  const graceVoice = state => {
+    if (!state.voice || state.voiceGrace) return;
+    state.voiceGrace = setTimeout(() => { state.voiceGrace = undefined; if (!databaseClosed) leaveVoice(state); }, voiceGraceMs);
+    state.voiceGrace.unref?.();
+  };
+  const dropGhosts = userId => {
+    const ghosts = [];
+    for (const room of voiceRooms.values()) for (const item of room.values()) if (item.userId === userId && item.state.voiceGrace) ghosts.push(item.state);
+    for (const ghost of ghosts) leaveVoice(ghost);
   };
   const voice = {
     members: voiceMembers,
@@ -535,7 +594,10 @@ export async function buildApp({
     db.prepare(`INSERT INTO user_privacy(user_id,allow_new_chats,show_avatar,read_receipts,show_last_seen,calls,updated_at) VALUES(?,?,?,?,?,?,?)
       ON CONFLICT(user_id) DO UPDATE SET allow_new_chats=excluded.allow_new_chats,show_avatar=excluded.show_avatar,read_receipts=excluded.read_receipts,show_last_seen=excluded.show_last_seen,calls=excluded.calls,updated_at=excluded.updated_at`)
       .run(userId, next.allowNewChats ? 1 : 0, next.showAvatar ? 1 : 0, next.readReceipts ? 1 : 0, next.showLastSeen ? 1 : 0, next.calls, timestamp());
-    broadcastPresence(userId);
+    // Peers learn the new visibility even when it is now hidden; «last seen» is mutual, so this
+    // account's own view of its peers changes too.
+    broadcastPresence(userId, { includeHidden: true });
+    if (isOnline(userId)) emitUser(userId, { type: 'presence.snapshot', items: peersOf(userId).map(peerId => presenceFor(peerId, userId)) });
     // Peers get a fresh view of the avatar and of read receipts.
     for (const { chat_id } of db.prepare('SELECT chat_id FROM chat_members WHERE user_id=?').all(userId)) emitChat(chat_id);
     return privacyResponse(userId);
@@ -632,8 +694,10 @@ export async function buildApp({
     const date = timestamp();
     const id = transaction(db, () => {
       e2ee.validateMessage(request, chatId, encrypted);
-      const result = db.prepare('INSERT INTO messages(chat_id,sender_id,client_id,text,attachment_id,encrypted_json,created_at) VALUES(?,?,?,?,?,?,?)')
-        .run(chatId, senderId, clientId, '', null, encryptedJson, date);
+      // push:'none' — a reaction, an edit, a vote: the server cannot see inside, but the sender says it is
+      // not news, so the row stays out of the unread counts (publicChat, pushes, the icon badge).
+      const result = db.prepare('INSERT INTO messages(chat_id,sender_id,client_id,text,attachment_id,encrypted_json,silent,created_at) VALUES(?,?,?,?,?,?,?,?)')
+        .run(chatId, senderId, clientId, '', null, encryptedJson, body.push === 'none' ? 1 : 0, date);
       const messageId = Number(result.lastInsertRowid);
       e2ee.linkAttachments(messageId, encrypted.attachmentIds);
       db.prepare('UPDATE chats SET updated_at=? WHERE id=?').run(date, chatId);
@@ -835,12 +899,12 @@ export async function buildApp({
     socket.on('pong', () => { state.alive = true; });
     socket.on('close', () => {
       clearTimeout(authDeadline);
-      if (state.voice && !databaseClosed) leaveVoice(state);
+      if (state.voice && !databaseClosed) graceVoice(state);
       sockets.delete(state);
       unindexSocket(state);
       const userId = state.auth?.user_id;
       if (userId && !databaseClosed && !isOnline(userId)) {
-        db.prepare('UPDATE users SET last_seen_at=? WHERE id=?').run(timestamp(), userId);
+        recordSeen([userId]);
         broadcastPresence(userId);
       }
     });
@@ -859,7 +923,9 @@ export async function buildApp({
           if (sameUser >= 10) { socket.close(4429, 'Connection limit'); return; }
           const wasOnline = isOnline(session.user_id);
           state.auth = session;
+          touchSession(session);
           indexSocket(state);
+          recordSeen([session.user_id]);
           state.lean = data.lean === true;
           clearTimeout(authDeadline);
           sendSocket(state, { type: 'ready', userId: session.user_id });
@@ -873,7 +939,8 @@ export async function buildApp({
           if (typeof data.chatId !== 'string' || typeof data.isTyping !== 'boolean') fail(400, 'Некорректное событие набора текста.');
           requireMembership(data.chatId, state.auth.user_id);
           if (!limiter.allow(`typing:${state.auth.user_id}`, 30, 10_000)) fail(429, 'Слишком много событий набора текста.');
-          for (const userId of memberIds(data.chatId)) if (userId !== state.auth.user_id) {
+          // Blocked either way: no activity leaks in either direction (messages are refused too).
+          for (const userId of memberIds(data.chatId)) if (userId !== state.auth.user_id && !blockedBetween(db, state.auth.user_id, userId)) {
             emitUser(userId, { type: 'typing', chatId: data.chatId, userId: state.auth.user_id, isTyping: data.isTyping });
           }
           return;
@@ -883,10 +950,14 @@ export async function buildApp({
           if (!allowed) fail(403, 'Нет доступа к голосовому каналу.');
           if (state.voice) leaveVoice(state);
           const room = voiceRooms.get(data.channelId) || new Map();
-          if (room.size >= VOICE_LIMIT) fail(403, `В голосовом канале максимум ${VOICE_LIMIT} человек.`);
-          const peers = [...room.values()].map(item => ({ peer: item.state.id, userId: item.userId, muted: item.muted }));
+          // This user's own dropped sockets still in their grace period are not peers and take no seat; they leave once the new socket is seated, so the member list never loses the person.
+          const ghost = item => item.userId === state.auth.user_id && item.state.voiceGrace;
+          const live = [...room.values()].filter(item => !ghost(item));
+          if (live.length >= VOICE_LIMIT) fail(403, `В голосовом канале максимум ${VOICE_LIMIT} человек.`);
+          const peers = live.map(item => ({ peer: item.state.id, userId: item.userId, muted: item.muted }));
           room.set(state.id, { state, userId: state.auth.user_id, muted: data.muted === true }); voiceRooms.set(data.channelId, room);
           state.voice = { channelId: data.channelId, communityId: data.communityId };
+          dropGhosts(state.auth.user_id);
           sendSocket(state, { type: 'voice.joined', channelId: data.channelId, self: state.id, peers, sfu: !!sfu });
           communityApi.emitCommunity(allowed.row, { type: 'voice.state', communityId: data.communityId, channelId: data.channelId, members: voiceMembers(data.channelId) });
           return;
@@ -935,18 +1006,23 @@ export async function buildApp({
       .run(now() - RECOVERY_LOCK_MS, now());
     expireEncryptionDevices();
     limiter.sweep();
+    recordSeen([...socketsByUser.keys()].filter(isOnline));
+    // A client that only keeps its socket open (no HTTP requests for days) is in use too: its
+    // session slides like one that makes requests.
+    touchSessions([...sockets].filter(state => state.auth && state.socket.readyState === 1).map(state => state.auth));
     for (const state of sockets) {
       if (state.auth && !sessionStillValid(state)) { state.socket.close(4401, 'Session expired'); continue; }
       if (!state.alive) { state.socket.terminate(); continue; }
       state.alive = false;
       if (state.socket.readyState === 1) state.socket.ping();
     }
-  }, 30_000);
+  }, maintenanceIntervalMs);
   maintenance.unref();
   app.addHook('onClose', async () => {
     sfu?.close();
     clearInterval(maintenance);
-    if (!databaseClosed) { databaseClosed = true; db.close(); }
+    for (const room of voiceRooms.values()) for (const item of room.values()) clearTimeout(item.state.voiceGrace);
+    if (!databaseClosed) { recordSeen(socketsByUser.keys()); databaseClosed = true; db.close(); }
   });
   try { await app.ready(); } catch (error) { await app.close(); throw error; }
   return app;

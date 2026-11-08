@@ -727,14 +727,20 @@ test('presence: chat peers see online / last seen; hiding it is mutual; stranger
   assert.equal(locked.statusCode, 403);
   assert.equal(locked.json().code, 'PLATINA_REQUIRED');
   platina(dataDir, bob);
+  const beforeHide = bobSocket.packets.length;
   const hide = await request(app, 'PATCH', '/me/privacy', bob, { showLastSeen: false });
   assert.equal(hide.statusCode, 200);
   assert.equal(hide.json().privacy.showLastSeen, false);
+  // Mutual: Bob's own view of his peers is re-sent as hidden the moment he hides himself.
+  const hidden = (await bobSocket.next(packet => packet.type === 'presence.snapshot', { from: beforeHide })).items.find(item => item.userId === alice.user.id);
+  assert.deepEqual([hidden.hidden, hidden.online, hidden.lastSeenAt], [true, false, null]);
+  // Alice coming back online is not announced to Bob at all (a {hidden:true} packet would still time her arrival).
+  const marker = bobSocket.packets.length;
   const again = await socketFor(t, app, alice);
-  const hidden = await bobSocket.next(packet => packet.type === 'presence' && packet.presence.userId === alice.user.id && packet.presence.hidden);
-  assert.equal(hidden.presence.online, false);
-  assert.equal(hidden.presence.lastSeenAt, null);
   const aliceView = await again.next(packet => packet.type === 'presence.snapshot');
+  // A ping/pong round trip: anything Alice's sign-in sent to Bob has arrived before the pong.
+  bobSocket.socket.send(JSON.stringify({ type: 'ping' })); await bobSocket.next(packet => packet.type === 'pong', { from: marker });
+  assert.equal(bobSocket.packets.slice(marker).some(packet => packet.type === 'presence' && packet.presence.userId === alice.user.id), false);
   assert.deepEqual(aliceView.items.map(item => [item.userId, item.hidden, item.lastSeenAt]), [[bob.user.id, true, null]]);
   assert.equal(eveSocket.packets.some(packet => packet.type === 'presence'), false, 'no presence to non-contacts');
 });

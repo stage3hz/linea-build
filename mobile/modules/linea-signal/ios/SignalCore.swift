@@ -105,9 +105,15 @@ enum SignalCore {
     if let bundle = bundle {
       let preKeys = try remoteBundle(bundle, deviceId)
       try require(try store.isTrustedIdentity(preKeys.identityKey, for: remote, direction: .sending, context: context), "IDENTITY_CHANGED")
-      if try store.loadSession(for: remote, context: context)?.hasCurrentState != true {
-        try processPreKeyBundle(preKeys, for: remote, ourAddress: store.localAddress, sessionStore: store, identityStore: store, context: context)
+      // The caller passes a bundle only when it wants a fresh session: there is none yet, or it
+      // decided to rekey (the peer's device could not open our messages, or its identity changed).
+      // A live session must not swallow the bundle: archive its chain first, then start the new
+      // session, so this message leaves as a PreKey message (type 3). Same contract as the Node bridges.
+      if let current = try store.loadSession(for: remote, context: context) {
+        current.archiveCurrentState()
+        try store.storeSession(current, for: remote, context: context)
       }
+      try processPreKeyBundle(preKeys, for: remote, ourAddress: store.localAddress, sessionStore: store, identityStore: store, context: context)
     }
     let cipher = try signalEncrypt(message: bytes, for: remote, localAddress: store.localAddress, sessionStore: store, identityStore: store, context: context)
     let type = Int(cipher.messageType.rawValue)

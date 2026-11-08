@@ -43,6 +43,25 @@ export function clusterConfig(env = process.env) {
 export const majority = size => Math.floor(size / 2) + 1;
 
 /**
+ * The client's address as the supervisor sees it (unit-tested). A request another supervisor
+ * forwarded (`peer`: its cluster token checked) names the client in X-Cluster-Client-Ip, because
+ * the web front in between rewrites X-Forwarded-For to the peer's own address. Behind the trusted
+ * web front (`front`) the client is the last address the front appended to X-Forwarded-For. Any
+ * other connection is the client itself: headers it sent are never believed.
+ */
+export function forwardedClientIp({ headers = {}, remoteAddress = '', front = false, peer = false }) {
+  const from = String(remoteAddress || '').replace(/^::ffff:/, '');
+  const given = String(headers['x-cluster-client-ip'] || '').trim();
+  if (peer && net.isIP(given)) return given;
+  if (front) {
+    const chain = String(headers['x-forwarded-for'] || '').split(',').map(x => x.trim()).filter(Boolean);
+    const last = chain[chain.length - 1];
+    if (last && net.isIP(last)) return last;
+  }
+  return from;
+}
+
+/**
  * Pure vote rule (unit-tested): grant only a newer epoch, once per epoch, only if this server
  * has not heard a live primary recently, and only to a candidate whose copy is at least as fresh.
  */
@@ -109,8 +128,7 @@ export async function startWitness({ port, host, cfg = clusterConfig() }) {
   return server;
 }
 
-export async function startCluster({ port, host }) {
-  const cfg = clusterConfig();
+export async function startCluster({ port, host, cfg = clusterConfig() }) {
   if (cfg.witness) return startWitness({ port, host, cfg });
   const size = cfg.peers.length + 1;
   const dbPath = join(cfg.dataDir, 'linea.sqlite');
@@ -289,6 +307,17 @@ export async function startCluster({ port, host }) {
   const json = (res, code, value) => { res.writeHead(code, { 'content-type': 'application/json', 'cache-control': 'no-store' }); res.end(JSON.stringify(value)); };
   const writable = () => role === 'leader' && Date.now() < leaseUntil && !!app;
   const target = () => (role === 'leader' ? (app ? { url: `http://127.0.0.1:${appPort}`, local: true } : null) : leader?.url ? { url: leader.url, local: false } : null);
+  // Headers for the app (trusts only this supervisor at 127.0.0.1, so X-Forwarded-For is exactly
+  // the client) or for the primary's supervisor (the client travels in X-Cluster-Client-Ip next
+  // to the token). Same for plain requests and WebSocket upgrades.
+  const proxyHeaders = (req, t) => {
+    const from = req.socket.remoteAddress || '';
+    const ip = forwardedClientIp({ headers: req.headers, remoteAddress: from, front: isFront(from), peer: authOk(req) });
+    const headers = { ...req.headers, 'x-forwarded-for': ip };
+    if (t.local) { delete headers['x-cluster-token']; delete headers['x-cluster-client-ip']; }
+    else { headers['x-cluster-token'] = cfg.token; headers['x-cluster-client-ip'] = ip; }
+    return headers;
+  };
 
   const server = http.createServer(async (req, res) => {
     const path = (req.url || '').split('?')[0];
@@ -320,6 +349,10 @@ export async function startCluster({ port, host }) {
     }
     if (path === '/health') {
       const ok = role === 'leader' ? writable() : !!leader && Date.now() - heardLeaderAt < 2 * cfg.leaseMs;
+      // Docker's own health check asks /health?local=1 from inside the container: it only says the
+      // process is alive, as on a witness. A standby that hears no primary yet must still count as
+      // healthy, or Caddy in front of it never starts and the primary can never reach it.
+      if (/[?&]local=1(&|$)/.test(req.url || '') && !req.headers['x-forwarded-for']) return json(res, 200, { status: 'ok', role, epoch: saved.epoch, cluster: ok ? 'ok' : 'unavailable' });
       return json(res, ok ? 200 : 503, { status: ok ? 'ok' : 'unavailable', role, epoch: saved.epoch });
     }
     const method = (req.method || 'GET').toUpperCase();
@@ -339,13 +372,8 @@ export async function startCluster({ port, host }) {
       const t = await waitReady(avoid);
       if (!t) { if (!res.headersSent) res.writeHead(503, { 'retry-after': '1' }); return res.end(); }
       const u = new URL(req.url || '/', t.url); const lib = u.protocol === 'https:' ? https : http;
-      const headers = { ...req.headers };
-      const from = req.socket.remoteAddress || '';
-      if (authOk(req)) { /* a peer forwarded it: keep its X-Forwarded-For */ }
-      else if (isFront(from)) headers['x-forwarded-for'] = [req.headers['x-forwarded-for'], from].filter(Boolean).join(', ');
-      else headers['x-forwarded-for'] = from;
-      if (t.local) delete headers['x-cluster-token'];
-      else { headers.host = u.host; headers['x-cluster-token'] = cfg.token; }
+      const headers = proxyHeaders(req, t);
+      if (!t.local) headers.host = u.host;
       let connected = false;
       const up = lib.request(u, { method, headers, timeout: 120000 }, r => { res.writeHead(r.statusCode || 502, r.headers); r.pipe(res); });
       up.on('socket', sock => sock.once(u.protocol === 'https:' ? 'secureConnect' : 'connect', () => { connected = true; }));
@@ -362,7 +390,7 @@ export async function startCluster({ port, host }) {
   server.on('upgrade', (req, socket, head) => {
     const t = target(); if (!t || (role === 'leader' && !writable())) return socket.destroy();
     const u = new URL(req.url || '/', t.url); const secure = u.protocol === 'https:';
-    const headers = { ...req.headers, host: u.host }; if (!t.local) headers['x-cluster-token'] = cfg.token; else delete headers['x-cluster-token'];
+    const headers = { ...proxyHeaders(req, t), host: u.host };
     const up = secure ? tls.connect({ host: u.hostname, port: Number(u.port || 443), servername: u.hostname }) : net.connect(Number(u.port), u.hostname);
     up.on(secure ? 'secureConnect' : 'connect', () => {
       up.write(`${req.method} ${u.pathname}${u.search} HTTP/1.1\r\n` + Object.entries(headers).map(([k, v]) => `${k}: ${v}`).join('\r\n') + '\r\n\r\n');
@@ -377,7 +405,7 @@ export async function startCluster({ port, host }) {
   if (cfg.bootstrap && saved.epoch === 0) { saved.epoch = 1; saved.votedEpoch = 1; persist(); await becomeLeader(1); }
   else heardLeaderAt = Date.now();
 
-  setInterval(() => void tick(), 1000);
-  setInterval(() => void mirror(), 5000);
+  const timers = [setInterval(() => void tick(), 1000), setInterval(() => void mirror(), 5000)];
   for (const signal of ['SIGINT', 'SIGTERM']) process.once(signal, async () => { await stopApp(); await stopChild(); server.close(); process.exit(0); });
+  return { server, close: async () => { for (const t of timers) clearInterval(t); await stopApp(); await stopChild(); server.closeAllConnections(); await new Promise(r => server.close(() => r())); } };
 }

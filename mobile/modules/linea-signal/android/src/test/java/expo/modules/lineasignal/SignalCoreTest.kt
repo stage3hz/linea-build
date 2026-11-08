@@ -41,6 +41,37 @@ class SignalCoreTest {
     assertEquals("Следующий шаг ratchet", SignalCore.decrypt(bState, alice, 1, next["type"] as Int, next["body"] as String)["plaintext"])
   }
 
+  @Test fun bundleWithLiveSessionArchivesItAndStartsAFreshOne() {
+    val a = SignalCore.createState(alice, 1);val b = SignalCore.createState(bob, 1)
+    var aState = pin(state(a), bob, b);var bState = pin(state(b), alice, a)
+    val first = SignalCore.encrypt(aState, bob, 1, "Первое", remote(b));aState = state(first)
+    bState = state(SignalCore.decrypt(bState, alice, 1, first["type"] as Int, first["body"] as String))
+    val reply = SignalCore.encrypt(bState, alice, 1, "Ответ", null);bState = state(reply)
+    aState = state(SignalCore.decrypt(aState, bob, 1, reply["type"] as Int, reply["body"] as String))
+    // Bob loses his session with Alice (stale backup); Alice's live session keeps producing type 2.
+    val lost = JSONObject(bState);lost.put("sessions", JSONObject());bState = lost.toString()
+    val stale = SignalCore.encrypt(aState, bob, 1, "Старая цепочка", null);aState = state(stale)
+    assertEquals(2, stale["type"])
+    rejects { SignalCore.decrypt(bState, alice, 1, stale["type"] as Int, stale["body"] as String) }
+    // A rekey hands a freshly claimed bundle to encrypt: it must win over the live session.
+    @Suppress("UNCHECKED_CAST")
+    val second = bundle(b).toMutableMap().also { it["preKey"] = (it.remove("preKeys") as List<Map<String, Any>>)[1] }
+    val rekeyed = SignalCore.encrypt(aState, bob, 1, "Новая сессия", second);aState = state(rekeyed)
+    assertEquals(3, rekeyed["type"])
+    val received = SignalCore.decrypt(bState, alice, 1, 3, rekeyed["body"] as String);bState = state(received)
+    assertEquals("Новая сессия", received["plaintext"])
+    val next = SignalCore.encrypt(aState, bob, 1, "Следующее", null);aState = state(next)
+    assertEquals(3, next["type"]) // still PreKey messages until Bob answers on the new session
+    bState = state(SignalCore.decrypt(bState, alice, 1, 3, next["body"] as String))
+    val back = SignalCore.encrypt(bState, alice, 1, "Ответ по новой сессии", null);bState = state(back)
+    assertEquals(2, back["type"])
+    val opened = SignalCore.decrypt(aState, bob, 1, 2, back["body"] as String);aState = state(opened)
+    assertEquals("Ответ по новой сессии", opened["plaintext"])
+    val settled = SignalCore.encrypt(aState, bob, 1, "Обычное сообщение", null)
+    assertEquals(2, settled["type"])
+    assertEquals("Обычное сообщение", SignalCore.decrypt(bState, alice, 1, 2, settled["body"] as String)["plaintext"])
+  }
+
   @Test fun tamperedMessageDoesNotConsumeValidState() {
     val a = SignalCore.createState(alice, 1);val b = SignalCore.createState(bob, 1)
     val aState = pin(state(a), bob, b);val bState = pin(state(b), alice, a)

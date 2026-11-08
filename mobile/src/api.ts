@@ -55,6 +55,8 @@ function requestTimeout(path: string, method = 'GET') {
 
 /** No answer at all (as opposed to an error the server returned). */
 export class NetworkError extends Error { constructor(message: string, readonly notDelivered = false) { super(message); this.name = 'NetworkError'; } }
+/** The server did not answer in time: the request may or may not have arrived (only idempotent sends retry on it). */
+export class RequestTimeoutError extends Error { constructor(message: string) { super(message); this.name = 'TimeoutError'; } }
 
 export class Api {
   /** `base` is the account's realm (fixed: keys and history on the device are tied to it). */
@@ -102,7 +104,7 @@ export class Api {
     } catch (error) {
       if (error instanceof ApiError || error instanceof NetworkError) throw error;
       if(caller?.aborted)throw abortError();
-      if (error instanceof Error && error.name === 'AbortError') throw new Error('Сервер не ответил вовремя. Проверь подключение.');
+      if (error instanceof Error && error.name === 'AbortError') throw new RequestTimeoutError('Сервер не ответил вовремя. Проверь подключение.');
       throw new NetworkError('Нет связи с сервером. Проверь интернет и адрес подключения.');
     } finally { clearTimeout(timeout);caller?.removeEventListener('abort',cancel); }
   }
@@ -189,7 +191,8 @@ export class Api {
     try { return await post(true); }
     catch (error) { if (error instanceof ApiError && error.status === 400 && /неизвестные поля/.test(error.message)) { this.pushField = false; return post(false); } throw error; }
   };
-  registerPush = (token: string, platform: 'android') => this.request<{ok: true; enabled: boolean}>('/me/push', {method: 'PUT', body: JSON.stringify({token, platform})});
+  /** android: FCM registration token; ios: APNs device token as hex. */
+  registerPush = (token: string, platform: 'android' | 'ios') => this.request<{ok: true; enabled: boolean}>('/me/push', {method: 'PUT', body: JSON.stringify({token, platform})});
   unregisterPush = () => this.request<{ok: true}>('/me/push', {method: 'DELETE'});
   read = (chatId: string, messageId: number) => this.request<{ok: boolean; lastReadMessageId: number}>(`/chats/${encodeURIComponent(chatId)}/read`, {method: 'POST', body: JSON.stringify({messageId})});
   privacy = () => this.request<PrivacyResponse>('/me/privacy');
@@ -239,7 +242,8 @@ export class Api {
   updateChannel = (id: string, channelId: string, fields: {name?: string; topic?: string; category?: string; roleIds?: string[]}) => this.request<{channel: import('./communities/types').CommunityChannel}>(`/communities/${encodeURIComponent(id)}/channels/${encodeURIComponent(channelId)}`, {method: 'PATCH', body: JSON.stringify(fields)});
   deleteChannel = (id: string, channelId: string) => this.request<{ok: true}>(`/communities/${encodeURIComponent(id)}/channels/${encodeURIComponent(channelId)}`, {method: 'DELETE'});
   channelMessages = (id: string, channelId: string, before?: number) => this.request<{messages: import('./communities/types').CommunityMessage[]; users: User[]; hasMore: boolean}>(`/communities/${encodeURIComponent(id)}/channels/${encodeURIComponent(channelId)}/messages${before ? `?before=${before}` : ''}`);
-  sendChannelMessage = (id: string, channelId: string, fields: {text?: string; attachmentId?: string; replyTo?: number}) => this.request<{message: import('./communities/types').CommunityMessage}>(`/communities/${encodeURIComponent(id)}/channels/${encodeURIComponent(channelId)}/messages`, {method: 'POST', body: JSON.stringify(fields)});
+  /** `clientKey` (≤ 64 chars) makes the send idempotent: the same key from the same sender returns the message already stored. */
+  sendChannelMessage = (id: string, channelId: string, fields: {text?: string; attachmentId?: string; replyTo?: number; clientKey?: string}) => this.request<{message: import('./communities/types').CommunityMessage}>(`/communities/${encodeURIComponent(id)}/channels/${encodeURIComponent(channelId)}/messages`, {method: 'POST', body: JSON.stringify(fields)});
   editChannelMessage = (id: string, channelId: string, messageId: number, text: string) => this.request<{message: import('./communities/types').CommunityMessage}>(`/communities/${encodeURIComponent(id)}/channels/${encodeURIComponent(channelId)}/messages/${messageId}`, {method: 'PATCH', body: JSON.stringify({text})});
   reactChannelMessage = (id: string, channelId: string, messageId: number, emoji: string) => this.request<{message: import('./communities/types').CommunityMessage}>(`/communities/${encodeURIComponent(id)}/channels/${encodeURIComponent(channelId)}/messages/${messageId}/reactions`, {method: 'POST', body: JSON.stringify({emoji})});
   deleteChannelMessage = (id: string, channelId: string, messageId: number) => this.request<{ok: true}>(`/communities/${encodeURIComponent(id)}/channels/${encodeURIComponent(channelId)}/messages/${messageId}`, {method: 'DELETE'});

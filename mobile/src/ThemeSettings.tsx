@@ -1,9 +1,12 @@
 import React, { useState } from 'react';
-import { Pressable, ScrollView, Switch, View } from 'react-native';
+import { Pressable, ScrollView, View } from 'react-native';
 import { PALETTES, paletteThemes } from './themes/palettes';
 import { Text } from './typography';
 import { Icon } from './components';
 import { useTheme } from './theme';
+import { setChatPreferences } from './chatPreferences';
+import { DAY_STATE, type NightState } from './nightTheme';
+import { themeFor, themeTapPlan } from './themePreference';
 import type { DarkTheme, ThemeMode } from './types';
 
 export const THEME_NAMES = { system: 'Как в системе', light: 'Светлая', dark: 'Тёмная', black: 'Чёрная', graphite: 'Графит', ...Object.fromEntries(PALETTES.map(p => [p.id, p.name])) } as Record<ThemeMode, string>;
@@ -32,29 +35,44 @@ const appearances = [
 /**
  * `platina` unlocks the colour palettes. Without it the cards stay visible with a
  * lock; a tap opens the Platina showcase (`onLocked`) or, for guests, explains why.
+ *
+ * The checked card is the theme on screen right now (Telegram), and a tap always shows the
+ * tapped theme: at night a dark card becomes the night theme, «Светлая» turns the night mode
+ * off by hand; by day the card is the day theme (`themeTapPlan`).
  */
-export function ThemeSettings({ mode, darkTheme, onChange, onDarkTheme, platina = false, onLocked }: {
-  mode: ThemeMode; darkTheme: DarkTheme; onChange: (mode: ThemeMode) => void; onDarkTheme: (mode: DarkTheme) => void;
+export function ThemeSettings({ mode, darkTheme, nightState = DAY_STATE, onChange, onDarkTheme, platina = false, onLocked }: {
+  mode: ThemeMode; darkTheme: DarkTheme; nightState?: NightState; onChange: (mode: ThemeMode) => void; onDarkTheme: (mode: DarkTheme) => void;
   platina?: boolean; onLocked?: () => void;
 }) {
   const t = useTheme();
   const [lockedHint, setLockedHint] = useState(false);
-  // «Как в системе» (from before night settings) shows as the light day theme.
-  const isDay = (value: ThemeMode) => mode === value || (mode === 'system' && value === 'light');
+  // The night state comes from the one hook instance in App (no second brightness poller, no
+  // frame where this screen and the rest of the app disagree about the night).
+  const { night, auto, known } = nightState;
+  const shown = themeFor(mode, darkTheme, night);
+  const choose = (value: ThemeMode) => {
+    const plan = themeTapPlan(value, night);
+    // Before the brightness is read the rule is unknown; the night can be on here only by hand, so
+    // «the rule said night» is the safe stamp: if the rule turns out to say day, the switch simply
+    // expires into the day the person asked for, instead of snapping back to night.
+    if (plan.nightOff) setChatPreferences({ nightForced: false, nightForcedAt: known ? auto : true });
+    if (plan.darkTheme) onDarkTheme(plan.darkTheme);
+    if (plan.mode) onChange(plan.mode);
+  };
   const pick = (id: (typeof PALETTES)[number]['id']) => {
     if (!platina) { if (onLocked) onLocked(); else setLockedHint(true); return; }
-    onChange(id);
+    choose(id);
   };
   return <View style={{ gap: 16 }}>
-    {/* The day theme; when the night theme turns on is set in «Ночной режим» below (Telegram). */}
-    <View style={{ flexDirection: 'row', gap: 9 }}>{appearances.map(item => <Pressable key={item.value} onPress={() => onChange(item.value)} accessibilityRole="radio" accessibilityLabel={`${item.label} тема`} accessibilityState={{ selected: isDay(item.value) }} style={{ flex: 1, minHeight: 110, gap: 10, padding: 10, borderRadius: 20, borderWidth: 1, borderColor: isDay(item.value) ? t.accent : t.border, backgroundColor: mode === item.value ? t.accentSoft : 'transparent' }}>
+    {/* When the night theme turns on by itself is set in «Ночной режим» below (Telegram). */}
+    <View style={{ flexDirection: 'row', gap: 9 }}>{appearances.map(item => { const selected = shown === item.value; return <Pressable key={item.value} onPress={() => choose(item.value)} accessibilityRole="radio" accessibilityLabel={`${item.label} тема`} accessibilityState={{ selected }} style={{ flex: 1, minHeight: 110, gap: 10, padding: 10, borderRadius: 20, borderWidth: 1, borderColor: selected ? t.accent : t.border, backgroundColor: selected ? t.accentSoft : 'transparent' }}>
       <View style={{ height: 51, borderRadius: 12, backgroundColor: item.color, borderWidth: 1, borderColor: item.line, padding: 8, gap: 5 }}><View style={{ width: '68%', height: 7, borderRadius: 4, backgroundColor: item.line }}/><View style={{ width: '48%', height: 7, borderRadius: 4, backgroundColor: item.line }}/><View style={{ alignSelf: 'flex-end', width: '52%', height: 7, borderRadius: 4, backgroundColor: item.line }}/></View>
-      <View style={{ flexDirection: 'row', justifyContent: 'center', alignItems: 'center', gap: 4 }}><Text style={{ color: isDay(item.value) ? t.text : t.muted, fontSize: 12, fontWeight: '600' }}>{item.label}</Text>{isDay(item.value) ? <Icon name="checkmark-circle" color={t.accent} size={15}/> : null}</View>
-    </Pressable>)}</View>
+      <View style={{ flexDirection: 'row', justifyContent: 'center', alignItems: 'center', gap: 4 }}><Text style={{ color: selected ? t.text : t.muted, fontSize: 12, fontWeight: '600' }}>{item.label}</Text>{selected ? <Icon name="checkmark-circle" color={t.accent} size={15}/> : null}</View>
+    </Pressable>; })}</View>
     <View style={{ gap: 9 }}>
       <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}><Text style={{ color: t.muted, fontSize: 11, fontWeight: '700', letterSpacing: 1.2 }}>ПАЛИТРЫ</Text>{platina ? null : <Text style={{ color: t.muted, fontSize: 11 }}>· с Platina</Text>}</View>
       <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ gap: 9, paddingRight: 4 }}>
-        {PALETTES.map(p => <PaletteCard key={p.id} id={p.id} locked={!platina} selected={platina && mode === p.id} onPress={() => pick(p.id)} />)}
+        {PALETTES.map(p => <PaletteCard key={p.id} id={p.id} locked={!platina} selected={platina && shown === p.id} onPress={() => pick(p.id)} />)}
       </ScrollView>
       {lockedHint && !platina ? <Text style={{ color: t.muted, fontSize: 12, lineHeight: 17 }}>Палитры входят в Инвиз Platina. Войди в аккаунт с Platina, чтобы их включить.</Text> : null}
     </View>

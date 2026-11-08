@@ -1,7 +1,7 @@
 // AI chat history: kept only on this device, inside the encrypted vault.
 import { useCallback, useEffect, useRef, useState } from 'react';
 import type { CryptoRuntime } from '../e2ee/runtime';
-import { AI_ANSWER_LIMIT, AI_MESSAGE_LIMIT, storedTurns, type AITurn } from './conversation.ts';
+import { AI_ANSWER_LIMIT, AI_MESSAGE_LIMIT, isAIMediaUri, storedTurns, type AITurn } from './conversation.ts';
 
 export const AI_HISTORY_MAX = 60;
 export type AIStoredConversation = { id: string; title: string; updatedAt: string; consent: boolean; turns: AITurn[] };
@@ -11,6 +11,8 @@ function validTurn(value: unknown): value is AITurn {
   if (!record(value) || !Number.isSafeInteger(value.id) || typeof value.question !== 'string' || value.question.length > AI_MESSAGE_LIMIT) return false;
   if (!['complete', 'failed', 'cancelled'].includes(String(value.status))) return false;
   if (value.answer !== undefined && (!record(value.answer) || typeof value.answer.text !== 'string' || value.answer.text.length > AI_ANSWER_LIMIT || typeof value.answer.model !== 'string')) return false;
+  // Media: a cache file name (or an absolute cache URI from an older history) — isAIMediaUri rejects foreign paths, `..`, `?` and `#`.
+  if (value.media !== undefined && (!record(value.media) || typeof value.media.uri !== 'string' || value.media.uri.length > 1024 || !isAIMediaUri(value.media.uri) || typeof value.media.mimeType !== 'string' || value.media.mimeType.length > 80)) return false;
   return value.error === undefined || typeof value.error === 'string';
 }
 function validConversation(value: unknown): value is AIStoredConversation {
@@ -32,11 +34,12 @@ export function conversationTitle(turns: readonly AITurn[]): string {
   return first.length > 60 ? `${first.slice(0, 59)}…` : first;
 }
 
-/** Inserts or replaces a conversation and keeps the newest first. Empty conversations are not stored. */
+/** Inserts or replaces a conversation and keeps the newest first. Empty (or fully private) conversations are not stored. */
 export function upsertConversation(list: AIStoredConversation[], id: string, turns: readonly AITurn[], consent: boolean, now: string): AIStoredConversation[] {
   const rest = list.filter(item => item.id !== id);
-  if (!turns.length) return rest;
-  const entry: AIStoredConversation = { id, title: conversationTitle(turns), updatedAt: now, consent, turns: storedTurns(turns).slice(-40) };
+  const stored = storedTurns(turns);
+  if (!stored.length) return rest;
+  const entry: AIStoredConversation = { id, title: conversationTitle(stored), updatedAt: now, consent, turns: stored.slice(-40) };
   return [entry, ...rest].slice(0, AI_HISTORY_MAX);
 }
 

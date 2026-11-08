@@ -99,6 +99,28 @@ npm run check
 
 Web export проверяет JavaScript/UI-сборку, но не нативный media path. В web нет E2EE-переписки и нативного редактора; открытая отправка не подставляется вместо них. Попытка получить актуальные скриншоты через браузер была отклонена политикой доступа к локальному URL; обход не выполнялся. Скриншотов этой версии нет, визуальный gate не пройден. Подробнее: [PROFILE_THEME_UI_REPORT.md](PROFILE_THEME_UI_REPORT.md).
 
+## Push-уведомления
+
+Сервер отправляет только имя отправителя и «Новое сообщение» / «Входящий звонок»: текст сообщений зашифрован end-to-end и в push не попадает. Пока приложение открыто, всё приходит по WebSocket. Чтобы уведомления приходили при закрытом приложении, владелец настраивает две вещи: ключи на сервере и файлы конфигурации в сборке.
+
+### Android (Firebase Cloud Messaging)
+
+1. В консоли Firebase (проект `invizent`) → Project settings → Your apps → Add app → Android: зарегистрируйте **оба** package — `com.linea.messenger.preview` (уже есть) и `com.linea.messenger` (release). Скачайте обновлённый `google-services.json`: один файл содержит оба клиента, Gradle-плагин сам выбирает запись по `package_name`.
+2. Положите файл в `mobile/google-services.json` (или укажите путь в `GOOGLE_SERVICES_FILE`, например из секрета CI). Файл не содержит секретов, но его всё равно не стоит публиковать шире репозитория.
+3. На сервере: Project settings → Service accounts → Generate new private key, затем `bash deploy/push.sh /путь/к/ключу.json`. Ключ остаётся в `deploy/secrets/fcm.json`, переменная `FCM_SERVICE_ACCOUNT` выставляется автоматически.
+
+Как сборка использует файл: `app.config.js` подключает `googleServicesFile` **во всех** сборках (раньше — только в preview, и релизный APK молча оставался без push). Если файл не содержит package текущей сборки, `expo prebuild` печатает предупреждение `[push] …`, а `./gradlew assembleRelease` останавливается с ошибкой «No matching client found for package name» — это намеренно. Сборка без уведомлений делается осознанно: `ANDROID_PUSH=0 npx expo prebuild --platform android`.
+
+### iPhone (APNs, напрямую через Apple)
+
+1. developer.apple.com → Certificates, Identifiers & Profiles → Keys → «+» → включите Apple Push Notifications service (APNs), скачайте `AuthKey_XXXXXXXXXX.p8` (скачивается один раз). Там же проверьте, что у App ID (`com.invizent.app` или ваш `IOS_BUNDLE_ID`) включена capability Push Notifications.
+2. На сервере: `bash deploy/apns.sh /путь/к/AuthKey_XXXXXXXXXX.p8` — скрипт спросит Team ID (Membership) и Bundle ID; **Bundle ID должен совпадать с тем, что подписан в сборке** (для App Store — значение `bundle_id` из workflow `ios-appstore.yml`, по умолчанию `com.invizent.app`). Ключ сохраняется в `deploy/secrets/apns.json`, переменная `APNS_CREDENTIALS` выставляется автоматически. Выключить: `bash deploy/apns.sh off`.
+3. Сборка: workflow `ios-appstore.yml` задаёт `IOS_PUSH=1`, поэтому entitlement `aps-environment` остаётся в приложении (`mode: production` при `APP_ENV=production`; Xcode при экспорте в App Store всё равно ставит production). Сборки без `IOS_PUSH` (sideload, симулятор, `ios-unsigned-ipa.yml`) убирают entitlement плагином `plugins/withNoIosPush.js` — там push недоступен, и приложение показывает это в статусе, а не падает. Токен, который production-шлюз Apple отвергает, сервер автоматически пробует через sandbox (сборки с development-профилем, TestFlight через production).
+
+В приложении (`mobile/src/push.ts`) iPhone регистрирует hex-токен APNs через `PUT /me/push` с `platform: "ios"`, Android — токен FCM с `platform: "android"`. Ответ `enabled:false` означает, что на сервере нет ключа для этой платформы; статус (`usePushStatus()` / `pushStatusText()`) доступен для экрана настроек. Проверка сервера: `cd server && node --test test/push*.test.js`.
+
+Режим `voip` в `UIBackgroundModes` не объявлен: он требует PushKit + CallKit, которых в приложении пока нет; входящий звонок при закрытом приложении приходит обычным уведомлением с `interruption-level: time-sensitive`.
+
 ## Публичный выпуск
 
 ```bash

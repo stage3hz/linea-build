@@ -95,6 +95,32 @@ test('two restored device stores exchange real Signal messages in both direction
   assert.notEqual(bob.state, oldBob);
 });
 
+test('a rekey with a claimed bundle replaces a live session: the next message is a PreKey message the peer can open', async () => {
+  const { alice, bob } = await establishedPair();
+  // Bob loses his session with Alice (as after signing in again from a stale backup); his keys stay.
+  const lost = JSON.parse(bob.state);
+  assert.equal(Object.keys(lost.sessions).length, 1);
+  lost.sessions = {};
+  bob.state = JSON.stringify(lost);
+  const stale = await encrypt(alice, bob, 'Старая цепочка');
+  assert.equal(stale.type, 2, 'Alice still has a live session and keeps using it');
+  await assert.rejects(decrypt(bob, alice, stale), 'Bob cannot open messages on the lost session');
+  // Alice decides to rekey: a freshly claimed pre-key bundle must win over the live session.
+  const rekeyed = await encrypt(alice, bob, 'Новая сессия', claimedBundle(bob.bundle, 1));
+  assert.equal(rekeyed.type, 3, 'the bundle is honoured even though a session exists');
+  assert.equal(await decrypt(bob, alice, rekeyed), 'Новая сессия');
+  const next = await encrypt(alice, bob, 'Следующее сообщение');
+  assert.equal(next.type, 3, 'until Bob answers, Alice keeps sending PreKey messages on the new session');
+  assert.equal(await decrypt(bob, alice, next), 'Следующее сообщение');
+  const reply = await encrypt(bob, alice, 'Ответ по новой сессии');
+  assert.equal(reply.type, 2);
+  assert.equal(await decrypt(alice, bob, reply), 'Ответ по новой сессии');
+  const settled = await encrypt(alice, bob, 'Обычное сообщение');
+  assert.equal(settled.type, 2, 'the new session is acknowledged and ratchets normally');
+  assert.equal(await decrypt(bob, alice, settled), 'Обычное сообщение');
+  await assert.rejects(decrypt(bob, alice, stale), 'the message from the lost chain stays unreadable');
+});
+
 test('Signal accepts out-of-order messages and rejects replay after the stored state advances', async () => {
   const { alice, bob } = await establishedPair();
   const packets = [];

@@ -9,7 +9,7 @@ import * as FileSystem from 'expo-file-system/legacy';
 import type { Api } from '../api';
 import type { User } from '../types';
 import { ActionButton } from '../effects';
-import { Avatar, Button, Field, Icon, IconButton, Notice, Sheet, SheetAction, useSuccessFlash } from '../components';
+import { Avatar, Button, Field, Icon, IconButton, Notice, Sheet, SheetAction, ThemeSwitch, useSuccessFlash } from '../components';
 import { GlassSurface } from '../glass';
 import { Text } from '../typography';
 import { useTheme } from '../theme';
@@ -17,6 +17,8 @@ import { CommunityAvatar, KindBadge } from './parts';
 import { CATEGORIES, PERM, PERM_LABELS, can, type Community, type CommunityChannel, type CommunityMember, type CommunityRole } from './types';
 
 const ROLE_COLORS = ['#3FA9F5', '#2EE6C8', '#2FD27A', '#F5C542', '#FF7A45', '#FF4D6A', '#B18CFF', '#8A9BB8'];
+/** Spoken names of the role colours: a swatch carries no text, so the screen reader reads this. */
+const ROLE_COLOR_NAMES: Record<string, string> = { '#3FA9F5': 'голубой', '#2EE6C8': 'бирюзовый', '#2FD27A': 'зелёный', '#F5C542': 'жёлтый', '#FF7A45': 'оранжевый', '#FF4D6A': 'красный', '#B18CFF': 'сиреневый', '#8A9BB8': 'серый' };
 const message = (error: unknown, fallback: string) => error instanceof Error ? error.message : fallback;
 
 /** Community settings: profile, channels and who sees them, roles and their rights, members. */
@@ -68,7 +70,7 @@ export function CommunitySettings({ api, me, community, onBack, onChanged, onLef
         <Field label="Название" value={name} onChangeText={setName} maxLength={60} />
         <Field label="Описание" value={description} onChangeText={setDescription} maxLength={500} multiline style={{ height: 80, textAlignVertical: 'top' }} />
         {community.kind === 'blog' ? <View style={{ gap: 8 }}><Text style={{ color: t.muted, fontSize: 12, fontWeight: '600' }}>О чём канал</Text><View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 7 }}>{CATEGORIES.map(item => <Pressable key={item.id} accessibilityRole="radio" accessibilityState={{ selected: community.category === item.id }} disabled={!!busy} onPress={() => void run('category', async () => onChanged((await api.updateCommunity(community.id, { category: item.id })).community))} style={{ paddingHorizontal: 12, paddingVertical: 8, borderRadius: 16, backgroundColor: community.category === item.id ? t.accent : t.surface2 }}><Text style={{ color: community.category === item.id ? t.onAccent : t.text, fontSize: 13, fontWeight: '600' }}>{item.label}</Text></Pressable>)}</View></View> : null}
-        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12 }}><View style={{ flex: 1, gap: 3 }}><Text style={{ color: t.text, fontSize: 15, fontWeight: '600' }}>{community.kind === 'blog' ? 'Закрытый канал' : 'Закрытый сервер'}</Text><Text style={{ color: t.muted, fontSize: 12, lineHeight: 17 }}>Баннер приглашения нельзя переслать дальше — попасть можно только по ссылке, которую дашь ты.</Text></View><Switch accessibilityLabel="Закрытый" value={!!community.closed} disabled={!!busy} onValueChange={closed => void run('closed', async () => onChanged((await api.updateCommunity(community.id, { closed })).community))} /></View>
+        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12 }}><View style={{ flex: 1, gap: 3 }}><Text style={{ color: t.text, fontSize: 15, fontWeight: '600' }}>{community.kind === 'blog' ? 'Закрытый канал' : 'Закрытый сервер'}</Text><Text style={{ color: t.muted, fontSize: 12, lineHeight: 17 }}>Ссылки-приглашения создаёшь только ты и те, у кого есть право «Менять название и фото»; ссылки остальных участников не действуют, а баннер приглашения нельзя переслать внутри Инвиза.</Text></View><Switch accessibilityLabel="Закрытый" value={!!community.closed} disabled={!!busy} onValueChange={closed => void run('closed', async () => onChanged((await api.updateCommunity(community.id, { closed })).community))} /></View>
         <ActionButton label="Сохранить" successLabel="Сохранено" success={saved} errorSignal={error} loading={busy === 'save'} disabled={!saved && (!name.trim() || (name === community.name && description === community.description))} onPress={() => void run('save', async () => onChanged((await api.updateCommunity(community.id, { name: name.trim(), description: description.trim() })).community), 'Сохранено.')} />
       </GlassSurface> : null}
       {can(community, PERM.INVITE) ? section('Приглашения', row('invite', 'link-outline', 'Ссылка-приглашение', undefined, onInvite)) : null}
@@ -99,11 +101,11 @@ export function CommunitySettings({ api, me, community, onBack, onChanged, onLef
           const on = member.roleIds.includes(item.id);
           return <View key={item.id} style={{ flexDirection: 'row', alignItems: 'center', gap: 10, minHeight: 46 }}>
             <View style={{ width: 12, height: 12, borderRadius: 6, backgroundColor: item.color }} /><Text style={{ flex: 1, color: t.text, fontSize: 15 }}>{item.name}</Text>
-            <Switch value={on} disabled={!!busy} onValueChange={value => void run('roles', async () => {
+            <ThemeSwitch value={on} disabled={!!busy} onValueChange={value => void run('roles', async () => {
               const next = value ? [...member.roleIds, item.id] : member.roleIds.filter(id => id !== item.id);
               const result = await api.setMemberRoles(community.id, member.user.id, next);
               setMember({ ...member, roleIds: result.roleIds }); loadMembers();
-            })} trackColor={{ false: t.subtle, true: t.accent }} thumbColor="#FFF" />
+            })} />
           </View>;
         }) : null}
         {can(community, PERM.KICK) && !member.owner && member.user.id !== me.id ? <SheetAction icon="person-remove-outline" label="Исключить" danger onPress={() => void run('kick', async () => { await api.kickMember(community.id, member.user.id); setMember(null); loadMembers(); }, 'Участник исключён.')} /> : null}
@@ -134,10 +136,10 @@ function RoleSheet({ api, community, role, owner, onClose, onSaved }: { api: Api
   return <Sheet visible={role !== null} title={current ? (current.isDefault ? `Права: ${current.name}` : 'Роль') : 'Новая роль'} onClose={onClose}>
     <View style={{ gap: 12 }}>
       {!current?.isDefault ? <><Field label="Название" value={name} onChangeText={setName} maxLength={32} placeholder="Например, Ветераны" />
-        <View style={{ flexDirection: 'row', gap: 9, flexWrap: 'wrap' }}>{ROLE_COLORS.map(value => <Pressable key={value} accessibilityRole="radio" accessibilityState={{ selected: color === value }} onPress={() => setColor(value)} style={{ width: 32, height: 32, borderRadius: 16, backgroundColor: value, borderWidth: 3, borderColor: color === value ? t.text : 'transparent' }} />)}</View></> : <Text style={{ color: t.muted, fontSize: 13 }}>Эти права есть у всех участников.</Text>}
+        <View style={{ flexDirection: 'row', gap: 9, flexWrap: 'wrap' }}>{ROLE_COLORS.map(value => <Pressable key={value} accessibilityRole="radio" accessibilityLabel={`Цвет роли: ${ROLE_COLOR_NAMES[value] || value}`} accessibilityState={{ selected: color === value }} onPress={() => setColor(value)} style={{ width: 32, height: 32, borderRadius: 16, alignItems: 'center', justifyContent: 'center', backgroundColor: value, borderWidth: 3, borderColor: color === value ? t.text : 'transparent' }}>{color === value ? <Icon name="checkmark" size={16} color="#FFF" /> : null}</Pressable>)}</View></> : <Text style={{ color: t.muted, fontSize: 13 }}>Эти права есть у всех участников.</Text>}
       {labels.map(item => <View key={item.bit} style={{ flexDirection: 'row', alignItems: 'center', minHeight: 44, gap: 10 }}>
         <Text style={{ flex: 1, color: t.text, fontSize: 15 }}>{item.label}</Text>
-        <Switch value={(perms & item.bit) !== 0} onValueChange={value => setPerms(current => value ? current | item.bit : current & ~item.bit)} trackColor={{ false: t.subtle, true: t.accent }} thumbColor="#FFF" />
+        <ThemeSwitch value={(perms & item.bit) !== 0} onValueChange={value => setPerms(current => value ? current | item.bit : current & ~item.bit)} />
       </View>)}
       {error ? <Notice text={error} error /> : null}
       <Button label="Сохранить" loading={busy} onPress={() => void save()} />
@@ -163,7 +165,7 @@ function ChannelSheet({ api, community, channel, onClose, onSaved }: { api: Api;
       <Text style={{ color: t.muted, fontSize: 12, lineHeight: 17 }}>Ничего не выбрано — канал видят все участники. Выбери роли, чтобы сделать канал закрытым.</Text>
       {community.roles.filter(item => !item.isDefault).map(item => <View key={item.id} style={{ flexDirection: 'row', alignItems: 'center', gap: 10, minHeight: 44 }}>
         <View style={{ width: 12, height: 12, borderRadius: 6, backgroundColor: item.color }} /><Text style={{ flex: 1, color: t.text, fontSize: 15 }}>{item.name}</Text>
-        <Switch value={roleIds.includes(item.id)} onValueChange={value => setRoleIds(current => value ? [...current, item.id] : current.filter(id => id !== item.id))} trackColor={{ false: t.subtle, true: t.accent }} thumbColor="#FFF" />
+        <ThemeSwitch value={roleIds.includes(item.id)} onValueChange={value => setRoleIds(current => value ? [...current, item.id] : current.filter(id => id !== item.id))} />
       </View>)}
       {error ? <Notice text={error} error /> : null}
       <Button label={current ? 'Сохранить' : 'Создать'} loading={busy} disabled={!name.trim()} onPress={() => void save()} />

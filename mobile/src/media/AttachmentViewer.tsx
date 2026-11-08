@@ -1,5 +1,5 @@
 import React,{useEffect,useRef,useState} from 'react';
-import { ActivityIndicator, Animated, AppState, FlatList, Modal, PanResponder, Pressable, ScrollView, StyleSheet, View, useWindowDimensions } from 'react-native';
+import { ActivityIndicator, AppState, FlatList, Modal, Pressable, StyleSheet, View, useWindowDimensions } from 'react-native';
 import { Text } from '../typography';
 import {Image} from 'expo-image';
 import {useEvent} from 'expo';
@@ -15,6 +15,7 @@ import {useMusic} from '../music/MusicProvider';
 import {mediaPreviewKind} from './formats';
 import {loadMedia,useMedia} from './mediaCache';
 import {ProgressRing} from './MediaBubble';
+import {ZoomableImage} from './ZoomableImage';
 import {Gesture,GestureDetector,GestureHandlerRootView} from 'react-native-gesture-handler';
 import Reanimated,{interpolate,runOnJS,useAnimatedStyle,useSharedValue,withSpring,withTiming} from 'react-native-reanimated';
 
@@ -63,7 +64,9 @@ function AudioPlayer({uri,name}:{uri:string;name:string}){
 
 function PhotoPlayer({uri,name}:{uri:string;name:string}){
   const t=useTheme(),[failed,setFailed]=useState(false);
-  return <View style={{flex:1}}><ScrollView contentContainerStyle={{flexGrow:1}} maximumZoomScale={4} minimumZoomScale={1} centerContent><Image source={{uri}} style={{flex:1,minHeight:300,width:'100%'}} contentFit="contain" accessibilityLabel={name} onError={()=>setFailed(true)}/></ScrollView>{failed?<Notice error text="Устройство не смогло показать изображение. Файл можно сохранить."/>:null}<Text style={{color:t.muted,fontSize:11,textAlign:'center',padding:8}}>Файл расшифрован только на этом устройстве.</Text></View>;
+  // Pinch / double tap zoom on every platform (the ScrollView zoom props are iOS-only); the Modal is a
+  // separate native root on Android, so the gesture detector gets a root view of its own.
+  return <GestureHandlerRootView style={{flex:1}}><ZoomableImage uri={uri} style={{flex:1,minHeight:300,width:'100%'}} accessibilityLabel={name} onError={()=>setFailed(true)}/>{failed?<Notice error text="Устройство не смогло показать изображение. Файл можно сохранить."/>:null}<Text style={{color:t.muted,fontSize:11,textAlign:'center',padding:8}}>Файл расшифрован только на этом устройстве.</Text></GestureHandlerRootView>;
 }
 
 /** Audio files and documents: opened from the local cache once loaded (no second download). */
@@ -91,15 +94,17 @@ export function AttachmentViewer({api,attachment,onClose}:{api:Api;attachment:At
   </Modal>;
 }
 
-function GalleryPage({api,attachment,width,height,active}:{api:Api;attachment:Attachment;width:number;height:number;active:boolean}){
+function GalleryPage({api,attachment,width,height,active,onTap,onZoom}:{api:Api;attachment:Attachment;width:number;height:number;active:boolean;onTap:()=>void;onZoom:(zoomed:boolean)=>void}){
   const kind=mediaPreviewKind(attachment),media=useMedia(api,attachment,active||kind==='photo');
   const thumb=attachment.preview?`data:${attachment.preview.mimeType};base64,${attachment.preview.base64}`:null;
-  return <View style={{width,height,alignItems:'center',justifyContent:'center'}}>
+  const photo=media.status==='ready'&&!!media.uri&&kind==='photo';
+  // A ready photo handles its own taps (single: chrome, double: zoom); everything else toggles the chrome on a tap.
+  return <Pressable onPress={photo?undefined:onTap} disabled={photo} style={{width,height,alignItems:'center',justifyContent:'center'}}>
     {media.status!=='ready'&&thumb?<Image source={{uri:thumb}} style={{position:'absolute',width,height:height*0.8}} contentFit="contain" blurRadius={kind==='photo'?16:0}/>:null}
-    {media.status==='ready'&&media.uri?(kind==='photo'?<ScrollView style={{width,height}} contentContainerStyle={{width,height,alignItems:'center',justifyContent:'center'}} maximumZoomScale={5} minimumZoomScale={1} centerContent showsHorizontalScrollIndicator={false} showsVerticalScrollIndicator={false} bouncesZoom><Image source={{uri:media.uri}} style={{width,height}} contentFit="contain" transition={150}/></ScrollView>:active?<View style={{width,height}}><VideoPlayer uri={media.uri}/></View>:<Icon name="play-circle" size={64} color="#FFF"/>):null}
+    {media.status==='ready'&&media.uri?(kind==='photo'?<ZoomableImage uri={media.uri} style={{width,height}} transition={150} onTap={onTap} onZoomChange={onZoom}/>:active?<View style={{width,height}}><VideoPlayer uri={media.uri}/></View>:<Icon name="play-circle" size={64} color="#FFF"/>):null}
     {media.status==='loading'||media.status==='idle'?<Pressable onPress={()=>media.status==='loading'?media.cancel():void media.start().catch(()=>{})} accessibilityRole="button" accessibilityLabel={media.status==='loading'?'Отменить загрузку':'Загрузить'} style={{width:60,height:60,borderRadius:30,backgroundColor:'rgba(0,0,0,0.5)',alignItems:'center',justifyContent:'center'}}>{media.status==='loading'?<><ProgressRing progress={media.progress} size={60}/><Icon name="close" color="#FFF" size={24}/></>:<Icon name="arrow-down" color="#FFF" size={26}/>}</Pressable>:null}
     {media.status==='error'?<Pressable onPress={()=>void media.start().catch(()=>{})} style={{padding:16,alignItems:'center',gap:8}}><Icon name="refresh" color="#FFF" size={30}/><Text style={{color:'#FFF',textAlign:'center'}}>{media.error||'Не удалось загрузить.'} Нажми, чтобы повторить.</Text></Pressable>:null}
-  </View>;
+  </Pressable>;
 }
 
 /** Telegram-style full-screen media: black background, swipe left/right between
@@ -107,16 +112,18 @@ function GalleryPage({api,attachment,width,height,active}:{api:Api;attachment:At
 export function MediaGallery({api,items,index,onClose}:{api:Api;items:Attachment[];index:number;onClose:()=>void}){
   const {width,height}=useWindowDimensions();
   const [current,setCurrent]=useState(index);const [chrome,setChrome]=useState(true);const [saving,setSaving]=useState(false);
+  // While a photo is zoomed in, its own pan moves the picture: no album paging and no swipe-to-close.
+  const [zoomed,setZoomed]=useState(false);
   const music=useMusic();
   const y=useSharedValue(0);
-  useEffect(()=>{setCurrent(index);y.value=0;},[index,items]);
+  useEffect(()=>{setCurrent(index);y.value=0;setZoomed(false);},[index,items]);
   const visible=items.length>0;
   const item=items[current];
   useEffect(()=>{if(item&&mediaPreviewKind(item)==='video')music.stop();},[item?.id]);
   const close=useRef(onClose);close.current=onClose;
   const finish=()=>close.current();
   // Swipe up or down to close (UI thread); horizontal swipes page through the album.
-  const pan=Gesture.Pan().activeOffsetY([-14,14]).failOffsetX([-16,16])
+  const pan=Gesture.Pan().enabled(!zoomed).activeOffsetY([-14,14]).failOffsetX([-16,16])
     .onUpdate(event=>{y.value=event.translationY;})
     .onEnd(event=>{
       if(Math.abs(event.translationY)>120||Math.abs(event.velocityY)>900){y.value=withTiming(event.translationY>0?height:-height,{duration:170},done=>{if(done)runOnJS(finish)();});}
@@ -136,9 +143,9 @@ export function MediaGallery({api,items,index,onClose}:{api:Api;items:Attachment
     <GestureHandlerRootView style={{flex:1}}>
     <Reanimated.View style={[StyleSheet.absoluteFill,{backgroundColor:'#000'},backdropStyle]}/>
     <GestureDetector gesture={pan}><Reanimated.View style={[{flex:1},pageStyle]}>
-      <FlatList data={items} horizontal pagingEnabled keyExtractor={a=>a.id} initialScrollIndex={Math.min(index,Math.max(0,items.length-1))} getItemLayout={(_d,i)=>({length:width,offset:width*i,index:i})} showsHorizontalScrollIndicator={false} windowSize={3} initialNumToRender={1} maxToRenderPerBatch={2}
+      <FlatList data={items} horizontal pagingEnabled scrollEnabled={!zoomed} keyExtractor={a=>a.id} initialScrollIndex={Math.min(index,Math.max(0,items.length-1))} getItemLayout={(_d,i)=>({length:width,offset:width*i,index:i})} showsHorizontalScrollIndicator={false} windowSize={3} initialNumToRender={1} maxToRenderPerBatch={2}
         onMomentumScrollEnd={e=>setCurrent(Math.round(e.nativeEvent.contentOffset.x/width))}
-        renderItem={({item:page,index:i})=><Pressable onPress={()=>setChrome(v=>!v)} style={{width,height}}><GalleryPage api={api} attachment={page} width={width} height={height} active={i===current}/></Pressable>}/>
+        renderItem={({item:page,index:i})=><GalleryPage api={api} attachment={page} width={width} height={height} active={i===current} onTap={()=>setChrome(v=>!v)} onZoom={setZoomed}/>}/>
     </Reanimated.View></GestureDetector>
     {chrome?<Reanimated.View pointerEvents="box-none" style={[{position:'absolute',top:0,left:0,right:0},chromeStyle]}><InsetView bottom={false} pointerEvents="box-none">
       {/* Telegram-style floating controls: back, title pill, share. */}

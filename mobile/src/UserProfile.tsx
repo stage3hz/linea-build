@@ -4,16 +4,16 @@ import { birthdayColors } from './platina/Decor';
 import { Confetti } from './effects';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { LinearGradient } from 'expo-linear-gradient';
-import { formatBirthday } from './birthday';
 import { useCalls } from './calls/CallProvider';
 import { ProfileEffect } from './platina/Effects';
 import { PlatinaName, PlatinaSeal, hasPlatina } from './platina/PlatinaMark';
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import { useTabInset } from './tabInset';
 import { ActivityIndicator, Modal, Pressable, StyleSheet, View, useWindowDimensions } from 'react-native';
 import Animated, { Easing, interpolate, runOnJS, useAnimatedScrollHandler, useAnimatedStyle, useSharedValue, withSpring, withTiming } from 'react-native-reanimated';
 import { ProfileMediaViewer, profileMedia } from './ProfileMediaViewer';
 import { PostViewer, PostsSection, ProfilePattern, StoryRing, useProfilePosts } from './ProfilePosts';
+import { ProfileInfoCard } from './ProfileInfo';
 import * as Clipboard from 'expo-clipboard';
 import { Text } from './typography';
 import { Avatar, Bouncy, Button, Icon, InsetView, IconButton, Notice, Sheet, SheetAction, type IconName } from './components';
@@ -80,6 +80,8 @@ export function UserProfile({ api, user, onClose, chat, onMessage, onMute, onSea
   const back = () => { if (width >= 760) { onClose(); return; } slide.value = withTiming(width, { duration: 220, easing: Easing.in(Easing.cubic) }, done => { if (done) runOnJS(onClose)(); }); };
   const [menu, setMenu] = useState(false); const [menuAt, setMenuAt] = useState<{ x?: number; y: number }>({ y: 90 }); const [sheet, setSheet] = useState<'ttl' | 'clear' | 'block' | 'report' | 'unfriend' | null>(null);
   const [blocked, setBlocked] = useState(false); const [reason, setReason] = useState<ReportReason | null>(null);
+  const [copied, setCopied] = useState(false); const copyTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  useEffect(() => () => { if (copyTimer.current) clearTimeout(copyTimer.current); }, []);
   useEffect(() => {
     setContact(null); setPendingRequest(null); setFresh(null); setError(''); setNotice('');
     if (!user) return;
@@ -118,7 +120,8 @@ export function UserProfile({ api, user, onClose, chat, onMessage, onMute, onSea
     catch (e) { setError(e instanceof Error ? e.message : 'Не удалось изменить уведомления.'); }
     finally { setBusy(false); }
   };
-  const copy = async () => { await Clipboard.setStringAsync(`@${shown.username}`); lightFeedback(); setNotice('Имя пользователя скопировано'); setTimeout(() => setNotice(current => current === 'Имя пользователя скопировано' ? '' : current), 2000); };
+  // As on the own profile: the row itself reads «Скопировано» for a moment.
+  const copy = async () => { await Clipboard.setStringAsync(`@${shown.username}`); lightFeedback(); setCopied(true); if (copyTimer.current) clearTimeout(copyTimer.current); copyTimer.current = setTimeout(() => setCopied(false), 1800); };
   const actions: { icon: IconName; label: string; onPress: (e?: { nativeEvent?: { pageX?: number; pageY?: number } }) => void; active?: boolean; loading?: boolean }[] = [
     ...(onMessage ? [{ icon: 'chatbubble' as IconName, label: 'Написать', onPress: () => { onClose(); onMessage(shown); } }] : []),
     ...(chat && calls.available ? [{ icon: 'call' as IconName, label: 'Звонок', onPress: () => { onClose(); calls.start(chat, false); } }, { icon: 'videocam' as IconName, label: 'Видео', onPress: () => { onClose(); calls.start(chat, true); } }] : []),
@@ -148,7 +151,7 @@ export function UserProfile({ api, user, onClose, chat, onMessage, onMute, onSea
     {card ? <Pressable accessibilityRole="button" accessibilityLabel="Закрыть профиль" onPress={onClose} style={[StyleSheet.absoluteFill, { backgroundColor: 'rgba(0,0,0,0.55)' }]} /> : null}
     <GestureHandlerRootView style={{ flex: 1 }}><GestureDetector gesture={edgeSwipe}><Animated.View pointerEvents="box-none" style={[card ? { flex: 1, alignItems: 'center', justifyContent: 'center', padding: 24 } : { flex: 1, backgroundColor: t.bg }, card ? null : pushIn]}>
     <View style={card ? { width: cardWidth, height: '88%', maxHeight: 860, borderRadius: 22, overflow: 'hidden', borderWidth: StyleSheet.hairlineWidth, borderColor: t.border, shadowColor: '#000', shadowOpacity: 0.4, shadowRadius: 30 } : { flex: 1 }}>
-    <GlassStage>{tinted && heroBottom ? <Animated.View pointerEvents="none" style={[{ position: 'absolute', top: 0, left: 0, right: 0, overflow: 'hidden' }, heroColor]}><LinearGradient colors={birthdayToday ? [festive[0], festive[1]] : [shade(shown.avatarColor, 0.15), shade(shown.avatarColor, -0.12)]} style={StyleSheet.absoluteFill} /></Animated.View> : null}{shown.bannerId || shown.bannerPreset ? <View pointerEvents="none" style={{ position: 'absolute', top: 0, left: 0, right: 0, height: 260 }}><ProfileBanner user={shown} api={api} height={260} /></View> : null}<InsetView style={{ flex: 1 }}>
+    <GlassStage>{tinted && heroBottom ? <Animated.View pointerEvents="none" style={[{ position: 'absolute', top: 0, left: 0, right: 0, overflow: 'hidden' }, heroColor]}><LinearGradient colors={birthdayToday ? [festive[0], festive[1]] : [shade(shown.avatarColor, 0.15), shade(shown.avatarColor, -0.12)]} style={StyleSheet.absoluteFill} /></Animated.View> : null}{/* PC: the banner is as wide as the card, not the window (it was cut off at the card's edge). */}{shown.bannerId || shown.bannerPreset ? <View pointerEvents="none" style={{ position: 'absolute', top: 0, left: 0, right: 0, height: 260 }}><ProfileBanner user={shown} api={api} height={260} width={card ? cardWidth : width} /></View> : null}<InsetView style={{ flex: 1 }}>
       <View style={{ flexDirection: 'row', alignItems: 'center', paddingHorizontal: 10, paddingVertical: 6 }}>
         <IconButton name="chevron-back" label="Назад" onPress={back} />
         {/* No title, as in Telegram: over a banner the dark «Профиль» was unreadable. */}
@@ -162,7 +165,8 @@ export function UserProfile({ api, user, onClose, chat, onMessage, onMute, onSea
         <Animated.View style={avatarStretch}><Pressable accessibilityRole="button" accessibilityLabel={stories.length ? 'Истории' : 'Фото и видео профиля'} disabled={!stories.length && !profileMedia(shown).length} onPress={openViewer}><Animated.View style={avatarIn}><StoryRing active={stories.length > 0} size={116}><DecoratedAvatar user={shown} api={api} size={116} animated round /></StoryRing></Animated.View><Animated.View pointerEvents="none" style={[{ position: 'absolute', left: 0, top: 0, right: 0, bottom: 0, borderRadius: 58, backgroundColor: '#000' }, avatarDim]} /></Pressable></Animated.View>
         <View style={{ alignItems: 'center', gap: 6 }}>
           <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 7, alignSelf: 'stretch', paddingHorizontal: 16 }}><PlatinaName user={shown} onDark={tinted} numberOfLines={2} style={{ flexShrink: 1, textAlign: 'center', color: tinted ? '#FFFFFF' : t.text, fontSize: 26, fontWeight: '800', letterSpacing: -.6 }} /><StatusEmoji user={shown} size={22} animated /></View>
-          {status ? <Text style={{ color: tinted ? 'rgba(255,255,255,0.78)' : status === 'в сети' ? t.accent : t.muted, fontSize: 14 }}>{status}</Text> : <Pressable onPress={() => void copy()} accessibilityRole="button" accessibilityLabel="Скопировать имя пользователя"><Text style={{ color: tinted ? 'rgba(255,255,255,0.85)' : t.accent, fontSize: 15 }}>@{shown.username}</Text></Pressable>}
+          {/* Telegram: only the presence under the name; @username lives in the card below (it was shown twice). */}
+          {status ? <Text style={{ color: tinted ? 'rgba(255,255,255,0.78)' : status === 'в сети' ? t.accent : t.muted, fontSize: 15 }}>{status}</Text> : null}
           {birthdayToday ? <View style={{ paddingHorizontal: 12, paddingVertical: 5, borderRadius: 14, backgroundColor: tinted ? 'rgba(255,255,255,0.22)' : t.accentSoft }}><Text style={{ color: tinted ? '#FFF' : t.text, fontSize: 13, fontWeight: '700' }}>🎉 Сегодня день рождения</Text></View> : null}
         </View>
         <View style={{ flexDirection: 'row', gap: 10, alignSelf: 'stretch', justifyContent: 'center' }}>
@@ -179,12 +183,10 @@ export function UserProfile({ api, user, onClose, chat, onMessage, onMute, onSea
         </View>
         {notice ? <Text style={{ color: t.accent, fontSize: 13 }}>{notice}</Text> : null}
         {error ? <View style={{ alignSelf: 'stretch' }}><Notice text={error} error /></View> : null}
-        <View style={{ alignSelf: 'stretch', padding: 16, gap: 14, borderRadius: 20, backgroundColor: t.dark ? t.surface : '#FFFFFF' }}>
-          <Pressable onPress={() => void copy()} onLongPress={() => void copy()} accessibilityRole="button" accessibilityLabel={`Имя пользователя @${shown.username}. Нажми, чтобы скопировать`} style={({ pressed }) => ({ gap: 3, opacity: pressed ? .6 : 1 })}><Text style={{ color: t.muted, fontSize: 13 }}>имя пользователя</Text><Text raw style={{ color: t.accent, fontSize: 16 }}>@{shown.username}</Text></Pressable>
-          {shown.bio ? <View style={{ gap: 3 }}><Text style={{ color: t.muted, fontSize: 13 }}>о себе</Text><Text raw style={{ color: t.text, fontSize: 16, lineHeight: 22 }}>{shown.bio}</Text></View> : null}
-          {shown.birthday ? <View style={{ gap: 3 }}><Text style={{ color: t.muted, fontSize: 13 }}>день рождения</Text><Text raw style={{ color: t.text, fontSize: 16 }}>{formatBirthday(shown.birthday)}</Text></View> : null}
+        {/* The same card as on the person's own profile (ProfileInfo.tsx). */}
+        <ProfileInfoCard username={shown.username} birthday={shown.birthday} bio={shown.bio} copied={copied} onCopy={() => void copy()} style={{ alignSelf: 'stretch' }}>
           <Pressable disabled={!onSecurity} onPress={() => { onClose(); onSecurity?.(); }} accessibilityRole="button" style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}><Icon name="lock-closed" size={14} color={t.accent} /><Text style={{ color: t.muted, fontSize: 12, flex: 1 }}>Переписка защищена сквозным шифрованием{onSecurity ? ' · проверить устройства' : ''}</Text>{onSecurity ? <Icon name="chevron-forward" size={14} color={t.muted} /> : null}</Pressable>
-        </View>
+        </ProfileInfoCard>
         <View style={{ alignSelf: 'stretch' }}><PostsSection api={api} own={false} userId={shown.id} data={posts.data} onChanged={() => void posts.reload()} width={(card ? cardWidth : Math.min(680, width)) - 36} /></View>
         {shared && onOpenAttachment ? <SharedMedia messages={shared} onOpen={attachment => { onClose(); setTimeout(() => onOpenAttachment(attachment), 250); }} /> : null}
       </Animated.ScrollView>

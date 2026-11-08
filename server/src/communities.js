@@ -81,7 +81,9 @@ CREATE TABLE IF NOT EXISTS community_messages (
   attachment_id TEXT,
   reply_to INTEGER,
   created_at TEXT NOT NULL,
-  edited_at TEXT
+  edited_at TEXT,
+  -- Idempotency key chosen by the sending device: the same (sender, key) again returns this row.
+  client_key TEXT
 );
 CREATE INDEX IF NOT EXISTS community_messages_channel ON community_messages(channel_id, id);
 CREATE TABLE IF NOT EXISTS community_bans (
@@ -139,7 +141,14 @@ const ALPHABET = 'ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz23456789';
 function inviteCode() { return Array.from(randomBytes(10), byte => ALPHABET[byte % ALPHABET.length]).join(''); }
 export const isInviteCode = value => typeof value === 'string' && /^[A-Za-z0-9]{6,16}$/.test(value);
 
+/** Idempotency key of a channel send (mobile outbox): what the device may choose. */
+const CLIENT_KEY = /^[A-Za-z0-9_.:-]{1,64}$/;
+
 export function installCommunityRoutes({ app, db, authOptions, publicUser, timestamp, now, emitUser, limiter, voice, isOnline = () => true }) {
+  // Idempotent migration (databases made before client keys existed): the column, then the uniqueness
+  // per (sender, key). Rows without a key stay out of the index.
+  if (!db.prepare('PRAGMA table_info(community_messages)').all().some(column => column.name === 'client_key')) db.exec('ALTER TABLE community_messages ADD COLUMN client_key TEXT');
+  db.exec('CREATE UNIQUE INDEX IF NOT EXISTS community_messages_client_key ON community_messages(sender_id, client_key) WHERE client_key IS NOT NULL');
   const community = id => {
     if (typeof id !== 'string' || !uuid.test(id)) fail(404, 'Сообщество не найдено.');
     const row = db.prepare('SELECT * FROM communities WHERE id=?').get(id);
@@ -155,18 +164,27 @@ export function installCommunityRoutes({ app, db, authOptions, publicUser, times
     if (!member(row.id, userId)) return 0;
     let value = defaultRole(row.id)?.perms || 0;
     for (const role of db.prepare('SELECT r.perms FROM community_member_roles m JOIN community_roles r ON r.id=m.role_id WHERE m.community_id=? AND m.user_id=?').all(row.id, userId)) value |= role.perms;
-    return value & PERM.ADMIN ? ALL : value;
+    if (value & PERM.ADMIN) return ALL;
+    // A closed community keeps its promise «only a link from the owner lets people in»: the
+    // invite right stays with the owner and those who manage the community, whatever the roles say.
+    if (row.closed === 1 && !(value & PERM.MANAGE_COMMUNITY)) value &= ~PERM.INVITE;
+    return value;
   };
   const need = (row, userId, bit, message = 'Недостаточно прав.') => { requireMember(row.id, userId); if (!(perms(row, userId) & bit)) fail(403, message, { code: 'FORBIDDEN' }); };
-  const canSee = (row, channel, userId) => {
+  // One viewer's channel visibility: their rights and roles are looked up once, then asked per channel.
+  const visibilityOf = (row, userId) => {
     const value = perms(row, userId);
-    if (!member(row.id, userId) && row.owner_id !== userId) return false;
-    if (value & PERM.ADMIN || value & PERM.MANAGE_CHANNELS) return true;
-    const allowed = db.prepare('SELECT role_id FROM community_channel_roles WHERE channel_id=?').all(channel.id).map(item => item.role_id);
-    if (!allowed.length) return true;
-    const mine = new Set(roleIds(row.id, userId));
-    return allowed.some(id => mine.has(id));
+    if (!member(row.id, userId) && row.owner_id !== userId) return () => false;
+    if (value & PERM.ADMIN || value & PERM.MANAGE_CHANNELS) return () => true;
+    let mine = null;
+    return channel => {
+      const allowed = db.prepare('SELECT role_id FROM community_channel_roles WHERE channel_id=?').all(channel.id).map(item => item.role_id);
+      if (!allowed.length) return true;
+      mine ??= new Set(roleIds(row.id, userId));
+      return allowed.some(id => mine.has(id));
+    };
   };
+  const canSee = (row, channel, userId) => visibilityOf(row, userId)(channel);
   const channel = (row, id) => {
     if (typeof id !== 'string' || !uuid.test(id)) fail(404, 'Канал не найден.');
     const item = db.prepare('SELECT * FROM community_channels WHERE id=? AND community_id=?').get(id, row.id);
@@ -190,10 +208,10 @@ export function installCommunityRoutes({ app, db, authOptions, publicUser, times
       mentions: db.prepare(`SELECT COUNT(*) AS n FROM (SELECT 1 FROM community_mentions WHERE user_id=? AND channel_id=? AND message_id>? LIMIT ${COUNT_CAP})`).get(userId, item.id, after).n,
     };
   };
-  const totals = (row, userId) => {
+  const totals = (row, userId, sees = visibilityOf(row, userId)) => {
     let unread = 0, mentions = 0;
     for (const item of db.prepare("SELECT * FROM community_channels WHERE community_id=? AND kind='text'").all(row.id)) {
-      if (!canSee(row, item, userId)) continue;
+      if (!sees(item)) continue;
       const c = counters(item, userId); unread += c.unread; mentions += c.mentions;
     }
     return { unreadCount: Math.min(unread, COUNT_CAP), mentionCount: Math.min(mentions, COUNT_CAP) };
@@ -219,15 +237,26 @@ export function installCommunityRoutes({ app, db, authOptions, publicUser, times
     lastMessageId: db.prepare('SELECT MAX(id) AS id FROM community_messages WHERE channel_id=?').get(item.id).id || 0,
     ...(viewer ? counters(item, viewer) : {}),
   });
-  // `shared`: the parts that are the same for every member (count, last message), computed once by refresh().
+  // The newest message of every channel, newest first. The «last message» of a community is the
+  // first of these in a channel the viewer may see: a role-restricted channel's text never reaches
+  // members outside those roles, in the list, in the detail or in the pushed «community» event.
+  const latestPerChannel = communityId => db.prepare('SELECT m.* FROM community_messages m WHERE m.id IN (SELECT MAX(id) FROM community_messages WHERE channel_id IN (SELECT id FROM community_channels WHERE community_id=?) GROUP BY channel_id) ORDER BY m.id DESC').all(communityId);
+  const lastVisible = (sees, latest, cache) => {
+    const last = latest.find(message => sees({ id: message.channel_id }));
+    if (!last) return null;
+    if (!cache) return publicMessage(last);
+    if (!cache.has(last.id)) cache.set(last.id, publicMessage(last));
+    return cache.get(last.id);
+  };
+  // `shared`: the parts that are the same for every member (count, newest message per channel), computed once by refresh().
   const summary = (row, viewer, shared = null) => {
     const mine = member(row.id, viewer);
-    const last = shared ? shared.last : db.prepare('SELECT m.* FROM community_messages m JOIN community_channels c ON c.id=m.channel_id WHERE c.community_id=? ORDER BY m.id DESC LIMIT 1').get(row.id);
+    const sees = visibilityOf(row, viewer);
     return {
       id: row.id, kind: row.kind, name: row.name, description: row.description, avatarId: row.avatar_id, ownerId: row.owner_id, category: row.category || null, closed: row.closed === 1,
       createdAt: row.created_at, memberCount: shared ? shared.count : memberCount(row.id), isMember: !!mine, perms: perms(row, viewer),
-      lastMessage: shared ? shared.lastPublic : last ? publicMessage(last) : null, muted: mine?.muted === 1,
-      ...(mine ? totals(row, viewer) : { unreadCount: 0, mentionCount: 0 }),
+      lastMessage: mine || row.owner_id === viewer ? lastVisible(sees, shared ? shared.latest : latestPerChannel(row.id), shared?.public) : null, muted: mine?.muted === 1,
+      ...(mine ? totals(row, viewer, sees) : { unreadCount: 0, mentionCount: 0 }),
     };
   };
   const detail = (row, viewer) => ({
@@ -270,8 +299,7 @@ export function installCommunityRoutes({ app, db, authOptions, publicUser, times
   const refresh = row => {
     const online = db.prepare('SELECT user_id FROM community_members WHERE community_id=?').all(row.id).map(item => item.user_id).filter(id => isOnline(id));
     if (!online.length) return;
-    const last = db.prepare('SELECT m.* FROM community_messages m JOIN community_channels c ON c.id=m.channel_id WHERE c.community_id=? ORDER BY m.id DESC LIMIT 1').get(row.id);
-    const shared = { count: memberCount(row.id), last, lastPublic: last ? publicMessage(last) : null };
+    const shared = { count: memberCount(row.id), latest: latestPerChannel(row.id), public: new Map() };
     for (const userId of online) emitUser(userId, { type: 'community', community: summary(row, userId, shared) });
   };
   const join = (row, userId) => {
@@ -397,6 +425,9 @@ export function installCommunityRoutes({ app, db, authOptions, publicUser, times
   // target's highest role, can kick or ban them.
   const topPosition = (row, userId) => userId === row.owner_id ? Infinity : (db.prepare('SELECT MAX(r.position) AS p FROM community_member_roles mr JOIN community_roles r ON r.id=mr.role_id WHERE mr.community_id=? AND mr.user_id=?').get(row.id, userId)?.p ?? 0);
   const outranks = (row, viewer, target) => viewer === row.owner_id || topPosition(row, viewer) > topPosition(row, target);
+  // The same hierarchy for roles themselves: whoever is not the owner hands out, edits and deletes
+  // only roles that sit below their own highest role.
+  const manageable = (row, viewer, role) => viewer === row.owner_id || role.position < topPosition(row, viewer);
   const removeMember = (row, target) => {
     db.prepare('DELETE FROM community_member_roles WHERE community_id=? AND user_id=?').run(row.id, target);
     db.prepare('DELETE FROM community_members WHERE community_id=? AND user_id=?').run(row.id, target);
@@ -448,8 +479,12 @@ export function installCommunityRoutes({ app, db, authOptions, publicUser, times
   };
   app.put('/communities/:id/members/:userId/voice', authOptions, async request => {
     const viewer = request.auth.user_id, row = community(request.params.id);
+    // Membership and rights come first: an outsider learns nothing (404 for the community itself),
+    // and an empty body is a bad request, never a free «who is in here and are they muted» probe.
+    requireMember(row.id, viewer);
     const target = request.params.userId;
     const body = objectBody(request.body, ['muted', 'deafened']);
+    if (body.muted === undefined && body.deafened === undefined) fail(400, 'Укажи muted или deafened.');
     if (body.muted !== undefined && typeof body.muted !== 'boolean') fail(400, 'muted: да или нет.');
     if (body.deafened !== undefined && typeof body.deafened !== 'boolean') fail(400, 'deafened: да или нет.');
     if (body.muted !== undefined) need(row, viewer, PERM.MUTE_MEMBERS);
@@ -470,11 +505,18 @@ export function installCommunityRoutes({ app, db, authOptions, publicUser, times
     if (!member(row.id, target)) fail(404, 'Участник не найден.');
     const body = objectBody(request.body, ['roleIds']);
     if (!Array.isArray(body.roleIds) || body.roleIds.length > MAX_ROLES) fail(400, 'Некорректный список ролей.');
-    const valid = new Set(db.prepare('SELECT id FROM community_roles WHERE community_id=? AND is_default=0').all(row.id).map(item => item.id));
-    if (!body.roleIds.every(id => valid.has(id))) fail(400, 'Неизвестная роль.');
-    // Only the owner hands out the administrator role.
-    const adminRoles = new Set(db.prepare('SELECT id FROM community_roles WHERE community_id=? AND (perms & ?)<>0').all(row.id, PERM.ADMIN).map(item => item.id));
-    if (row.owner_id !== viewer && [...new Set([...roleIds(row.id, target), ...body.roleIds])].some(id => adminRoles.has(id) && (body.roleIds.includes(id) !== roleIds(row.id, target).includes(id)))) fail(403, 'Роль администратора выдаёт только владелец.');
+    const roles = new Map(db.prepare('SELECT * FROM community_roles WHERE community_id=? AND is_default=0').all(row.id).map(item => [item.id, item]));
+    if (!body.roleIds.every(id => roles.has(id))) fail(400, 'Неизвестная роль.');
+    // Nobody but the owner escapes the hierarchy: no changing one's own roles, no touching someone
+    // ranked the same or higher, only roles below one's own, and the administrator role never.
+    const before = new Set(roleIds(row.id, target)), after = new Set(body.roleIds);
+    const changed = [...new Set([...before, ...after])].filter(id => before.has(id) !== after.has(id));
+    if (row.owner_id !== viewer && changed.length) {
+      if (target === viewer) fail(403, 'Свои роли меняет только владелец.');
+      if (!outranks(row, viewer, target)) fail(403, 'Нельзя менять роли участника с такой же или более высокой ролью.');
+      if (changed.some(id => roles.get(id).perms & PERM.ADMIN)) fail(403, 'Роль администратора выдаёт только владелец.');
+      if (changed.some(id => !manageable(row, viewer, roles.get(id)))) fail(403, 'Выдавать и снимать можно только роли ниже своей.');
+    }
     db.prepare('DELETE FROM community_member_roles WHERE community_id=? AND user_id=?').run(row.id, target);
     for (const id of new Set(body.roleIds)) db.prepare('INSERT INTO community_member_roles(community_id,user_id,role_id) VALUES(?,?,?)').run(row.id, target, id);
     emitUser(target, { type: 'community', community: summary(row, target) });
@@ -486,9 +528,12 @@ export function installCommunityRoutes({ app, db, authOptions, publicUser, times
     need(row, viewer, PERM.MANAGE_ROLES);
     const body = objectBody(request.body, ['name', 'color', 'perms']);
     if (db.prepare('SELECT COUNT(*) AS n FROM community_roles WHERE community_id=?').get(row.id).n >= MAX_ROLES) fail(400, 'Слишком много ролей.');
-    const role = roleFields(body, { name: 'Новая роль', color: '#3FA9F5', perms: PERM.SEND | PERM.VOICE }, row.owner_id === viewer);
+    const owner = row.owner_id === viewer, top = topPosition(row, viewer);
+    if (!owner && top <= 0) fail(403, 'Создавать роли может только участник, у которого есть своя роль.');
+    const role = roleFields(body, { name: 'Новая роль', color: '#3FA9F5', perms: PERM.SEND | PERM.VOICE }, { owner, allowed: perms(row, viewer), base: 0 });
     const id = randomUUID();
-    const position = (db.prepare('SELECT MAX(position) AS p FROM community_roles WHERE community_id=?').get(row.id).p || 0) + 1;
+    // The owner's new role goes on top; anyone else's sits right under their own highest role, so it stays theirs to manage.
+    const position = owner ? (db.prepare('SELECT MAX(position) AS p FROM community_roles WHERE community_id=?').get(row.id).p || 0) + 1 : top - 1;
     db.prepare('INSERT INTO community_roles(id,community_id,name,color,position,perms,is_default) VALUES(?,?,?,?,?,?,0)').run(id, row.id, role.name, role.color, position, role.perms);
     return { role: publicRole(db.prepare('SELECT * FROM community_roles WHERE id=?').get(id)) };
   });
@@ -499,7 +544,8 @@ export function installCommunityRoutes({ app, db, authOptions, publicUser, times
     const current = db.prepare('SELECT * FROM community_roles WHERE id=? AND community_id=?').get(request.params.roleId, row.id);
     if (!current) fail(404, 'Роль не найдена.');
     if (current.perms & PERM.ADMIN && row.owner_id !== viewer) fail(403, 'Роль администратора меняет только владелец.');
-    const role = roleFields(objectBody(request.body, ['name', 'color', 'perms']), { name: current.name, color: current.color, perms: current.perms }, row.owner_id === viewer);
+    if (!manageable(row, viewer, current)) fail(403, 'Менять можно только роли ниже своей.');
+    const role = roleFields(objectBody(request.body, ['name', 'color', 'perms']), { name: current.name, color: current.color, perms: current.perms }, { owner: row.owner_id === viewer, allowed: perms(row, viewer), base: current.perms });
     db.prepare('UPDATE community_roles SET name=?,color=?,perms=? WHERE id=?').run(role.name, role.color, role.perms, current.id);
     refresh(row);
     return { role: publicRole(db.prepare('SELECT * FROM community_roles WHERE id=?').get(current.id)) };
@@ -512,18 +558,22 @@ export function installCommunityRoutes({ app, db, authOptions, publicUser, times
     if (!current) fail(404, 'Роль не найдена.');
     if (current.is_default) fail(400, 'Базовую роль удалить нельзя.');
     if (current.perms & PERM.ADMIN && row.owner_id !== viewer) fail(403, 'Роль администратора удаляет только владелец.');
+    if (!manageable(row, viewer, current)) fail(403, 'Удалять можно только роли ниже своей.');
     db.prepare('DELETE FROM community_roles WHERE id=?').run(current.id);
     refresh(row);
     return { ok: true };
   });
 
-  function roleFields(body, fallback, owner) {
+  // Rights only travel downhill: whoever is not the owner can grant, or take away, just the rights
+  // they hold themselves (`allowed`); `base` is what the role had before, so an edit is judged by what changes.
+  function roleFields(body, fallback, { owner, allowed, base }) {
     const name = body.name === undefined ? fallback.name : text(body.name, 'Название роли', 1, 32);
     const color = body.color === undefined ? fallback.color : body.color;
     if (typeof color !== 'string' || !COLOR.test(color)) fail(400, 'Цвет роли — в формате #RRGGBB.');
     const value = body.perms === undefined ? fallback.perms : body.perms;
     if (!Number.isSafeInteger(value) || value < 0 || (value & ~ALL)) fail(400, 'Некорректные права роли.');
     if (value & PERM.ADMIN && !owner) fail(403, 'Права администратора выдаёт только владелец.');
+    if (!owner && ((value ^ base) & ~allowed)) fail(403, 'Нельзя выдать права, которых нет у тебя самого.');
     return { name, color: color.toUpperCase(), perms: value };
   }
 
@@ -620,8 +670,21 @@ export function installCommunityRoutes({ app, db, authOptions, publicUser, times
 
   app.post('/communities/:id/channels/:channelId/messages', authOptions, async request => {
     const { row, item, viewer } = visibleChannel(request, { write: true });
+    const body = objectBody(request.body, ['text', 'attachmentId', 'replyTo', 'clientKey']);
+    // Idempotency: a retry of a send whose answer was lost (timeout, reconnect) returns the stored
+    // message instead of a second one. Checked before the limiter and the attachment check: the retry
+    // is the very same request, and its attachment is already attached to the first row.
+    let clientKey = null;
+    if (body.clientKey !== undefined && body.clientKey !== null) {
+      if (typeof body.clientKey !== 'string' || !CLIENT_KEY.test(body.clientKey)) fail(400, 'Некорректный ключ сообщения.');
+      clientKey = body.clientKey;
+      const existing = db.prepare('SELECT * FROM community_messages WHERE sender_id=? AND client_key=?').get(viewer, clientKey);
+      if (existing) {
+        if (existing.channel_id !== item.id) fail(409, 'Этот ключ уже использован для другого сообщения.');
+        return { message: publicMessage(existing) };
+      }
+    }
     if (!limiter.allow(`community-send:${viewer}`, 30, 10_000)) fail(429, 'Слишком часто. Подожди немного.');
-    const body = objectBody(request.body, ['text', 'attachmentId', 'replyTo']);
     const value = body.text === undefined ? '' : boundedText(body.text, 'Сообщение', 0, 4000, { trim: false });
     let attachmentId = null;
     if (body.attachmentId !== undefined && body.attachmentId !== null) {
@@ -636,7 +699,15 @@ export function installCommunityRoutes({ app, db, authOptions, publicUser, times
       if (!Number.isSafeInteger(body.replyTo) || !db.prepare('SELECT 1 FROM community_messages WHERE id=? AND channel_id=?').get(body.replyTo, item.id)) fail(400, 'Сообщение для ответа не найдено.');
       replyTo = body.replyTo;
     }
-    const result = db.prepare('INSERT INTO community_messages(channel_id,sender_id,text,attachment_id,reply_to,created_at) VALUES(?,?,?,?,?,?)').run(item.id, viewer, value, attachmentId, replyTo, timestamp());
+    let result;
+    try { result = db.prepare('INSERT INTO community_messages(channel_id,sender_id,text,attachment_id,reply_to,created_at,client_key) VALUES(?,?,?,?,?,?,?)').run(item.id, viewer, value, attachmentId, replyTo, timestamp(), clientKey); }
+    catch (error) {
+      // Two retries raced: the first one won, this one answers with its row.
+      const raced = clientKey ? db.prepare('SELECT * FROM community_messages WHERE sender_id=? AND client_key=?').get(viewer, clientKey) : null;
+      if (!raced) throw error;
+      if (raced.channel_id !== item.id) fail(409, 'Этот ключ уже использован для другого сообщения.');
+      return { message: publicMessage(raced) };
+    }
     const messageId = Number(result.lastInsertRowid);
     const mentions = mentionTargets(row, item, viewer, value, replyTo); saveMentions(messageId, item, mentions);
     // The sender has read everything up to their own message.
@@ -718,6 +789,12 @@ export function installCommunityRoutes({ app, db, authOptions, publicUser, times
     if (!invite) return null;
     if (invite.expires_at !== null && invite.expires_at <= now()) return null;
     if (invite.max_uses !== null && invite.uses >= invite.max_uses) return null;
+    // A closed community: only links from people who may invite right now (the owner, those who
+    // manage the community) let anyone in. A link made before it was closed, or by someone who
+    // has left or lost that right, is as dead as an expired one.
+    const row = db.prepare('SELECT * FROM communities WHERE id=?').get(invite.community_id);
+    if (!row) return null;
+    if (row.closed === 1 && !(perms(row, invite.creator_id) & PERM.INVITE)) return null;
     return invite;
   };
   const invitePreview = invite => {

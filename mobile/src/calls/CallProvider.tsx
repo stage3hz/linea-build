@@ -19,6 +19,7 @@ import type { Chat, Message, User } from '../types';
 import type { MessengerStore } from '../useMessenger';
 import { useMusic } from '../music/MusicProvider';
 import { setCenterStage } from '../media/centerStage';
+import { holdConnection } from '../connectionHold';
 import { impactFeedback, lightFeedback } from '../haptics';
 import { GATHER_TIMEOUT_MS, RING_TIMEOUT_MS, SEND_BITRATE, callClock, economySdp, keyEmoji, keyMaterial, offerIsFresh, type CallStatus } from './callModel';
 
@@ -60,6 +61,9 @@ export function CallProvider({ api, store, me, children }: { api: Api; store: Me
   const music = useMusic();
   const [call, setCall] = useState<CallState | null>(null);
   const callRef = useRef<CallState | null>(null); callRef.current = call;
+  // A live call keeps the messenger socket open in the background (connectionHold): its signalling and the server's presence go through it.
+  const live = !!call && call.status !== 'ended';
+  useEffect(() => (live ? holdConnection('call') : undefined), [live]);
   const pc = useRef<any>(null); const local = useRef<any>(null); const stopGate = useRef<() => void>(() => {}); const hookOn = useRef(false);
   const seen = useRef(new Set<string>());
   const ringTimer = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);

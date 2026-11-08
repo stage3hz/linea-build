@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
-import { AIConversation, historyForQuestion, parseAIReply, parseAIStatus } from '../src/ai/conversation.ts';
+import { AIConversation, historyForQuestion, parseAIReply, parseAIStatus, storedTurns } from '../src/ai/conversation.ts';
 
 const reply = text => ({ text, model: 'example/free-model:free', provider: 'openrouter', freeOnly: true });
 const capabilities = Object.fromEntries(['text', 'code', 'image', 'video', 'threeD', 'social'].map(key => [key, { enabled: false, reason: 'Not configured' }]));
@@ -115,4 +115,76 @@ test('a self-hosted FreeLLMAPI provider is accepted with its own model id, unkno
   assert.throws(() => parseAIStatus({ configured: true, provider: 'someone-else', model: 'auto', freeOnly: true, capabilities }));
   assert.equal(parseAIReply({ text: 'Ответ', model: 'groq/llama-3.3-70b', provider: 'freellmapi', freeOnly: true }).provider, 'freellmapi');
   assert.throws(() => parseAIReply({ text: 'Ответ', model: 'x', provider: 'paid', freeOnly: true }));
+});
+
+test('private mode marks only the turns asked while it is on', async () => {
+  const session = new AIConversation(async () => reply('ok'));
+  session.setConsent(true);
+  await session.ask('public'); session.setPrivate(true); await session.ask('secret');
+  await session.askTask('нарисуй', 'image', async () => ({ text: 'done', model: 'image' }));
+  session.setPrivate(false); await session.ask('public again');
+  assert.deepEqual(session.getSnapshot().turns.map(turn => turn.private === true), [false, true, true, false]);
+});
+
+test('media whose cache files are gone is forgotten, other turns are untouched', async () => {
+  const session = new AIConversation(async () => reply('ok'));
+  session.setConsent(true);
+  await session.askTask('нарисуй', 'image', async () => ({ text: 'done', model: 'image', media: { uri: 'file:///cache/linea-ai-c-1.png', mimeType: 'image/png' } }));
+  await session.askTask('озвучь', 'speech', async () => ({ text: 'done', model: 'speech', media: { uri: 'file:///cache/linea-ai-c-2.mp3', mimeType: 'audio/mpeg' } }));
+  const before = session.getSnapshot();
+  session.dropMedia([]); assert.equal(session.getSnapshot(), before);
+  session.dropMedia(['file:///cache/linea-ai-c-1.png']);
+  assert.equal(session.getSnapshot().turns[0].media, undefined);
+  assert.deepEqual(session.getSnapshot().turns[1].media, { uri: 'file:///cache/linea-ai-c-2.mp3', mimeType: 'audio/mpeg' });
+  assert.equal(session.getSnapshot().turns[0].status, 'complete');
+});
+
+test('restore keeps generated media (by cache file name), drops private turns and cancels unfinished ones', () => {
+  const session = new AIConversation(async () => reply('ok'));
+  const image = { uri: 'file:///cache/linea-ai-c-pic.png', mimeType: 'image/png' };
+  session.restore([
+    { ...complete(1, 'нарисуй', 'готово'), kind: 'image', media: image },
+    { ...complete(2, 'секрет', 'тайна'), private: true, kind: 'image', media: { uri: 'file:///cache/linea-ai-c-secret.png', mimeType: 'image/png' } },
+    { id: 3, question: 'ждём', status: 'pending', startedAt: 1 },
+    { ...complete(4, 'озвучь', 'текст'), kind: 'speech', media: { uri: 'data:audio/mpeg;base64,AAAA', mimeType: 'audio/mpeg' } },
+  ], true);
+  const { turns, consent, pending } = session.getSnapshot();
+  assert.equal(consent, true); assert.equal(pending, false);
+  assert.deepEqual(turns.map(turn => turn.id), [1, 3, 4]);
+  assert.deepEqual(turns[0].media, { uri: 'linea-ai-c-pic.png', mimeType: 'image/png' });
+  assert.equal(turns[1].status, 'cancelled');
+  assert.equal(turns[2].media, undefined, 'a data: URI (web) is not a cache file and is not restored');
+  assert.ok(!JSON.stringify(turns).includes('secret'));
+  // The stored name and the old absolute URI name the same file for dropMedia.
+  session.dropMedia(['file:///other-container/linea-ai-c-pic.png']);
+  assert.equal(session.getSnapshot().turns[0].media, undefined);
+});
+
+test('a private turn with media is never part of the stored turns', () => {
+  const stored = storedTurns([{ ...complete(1, 'нарисуй тайну', 'готово'), private: true, kind: 'image', media: { uri: 'file:///cache/linea-ai-c-secret.png', mimeType: 'image/png' } }, complete(2, 'вопрос', 'ответ')]);
+  assert.deepEqual(stored.map(turn => turn.id), [2]);
+  assert.ok(!JSON.stringify(stored).includes('linea-ai-c-secret'));
+});
+
+test('a file finished for a turn that was cancelled or lost consent meanwhile is discarded, not kept', async () => {
+  const discarded = [];
+  const session = new AIConversation(async () => reply('ok'), { discardMedia: media => discarded.push(media.uri) });
+  session.setConsent(true);
+  const first = deferred();
+  const run = session.askTask('нарисуй', 'image', () => first.promise);
+  session.cancel();
+  first.resolve({ text: 'done', model: 'image', media: { uri: 'file:///cache/linea-ai-c-late.png', mimeType: 'image/png' } });
+  await run;
+  assert.deepEqual(discarded, ['file:///cache/linea-ai-c-late.png']);
+  assert.equal(session.getSnapshot().turns[0].status, 'cancelled'); assert.equal(session.getSnapshot().turns[0].media, undefined);
+  const second = deferred();
+  const run2 = session.askTask('озвучь', 'speech', () => second.promise);
+  session.setConsent(false);
+  second.resolve({ text: 'done', model: 'speech', media: { uri: 'file:///cache/linea-ai-c-late.mp3', mimeType: 'audio/mpeg' } });
+  await run2;
+  assert.deepEqual(discarded, ['file:///cache/linea-ai-c-late.png', 'file:///cache/linea-ai-c-late.mp3']);
+  // A file that arrives in time is kept and never discarded.
+  session.setConsent(true);
+  await session.askTask('нарисуй ещё', 'image', async () => ({ text: 'done', model: 'image', media: { uri: 'file:///cache/linea-ai-c-ok.png', mimeType: 'image/png' } }));
+  assert.equal(discarded.length, 2); assert.equal(session.getSnapshot().turns.at(-1).media.uri, 'file:///cache/linea-ai-c-ok.png');
 });

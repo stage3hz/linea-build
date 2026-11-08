@@ -1,7 +1,7 @@
 import React, { useCallback, useEffect, useState } from 'react';
 import { ActivityIndicator, Pressable, View } from 'react-native';
 import { Text } from './typography';
-import { Avatar, Button, Icon, Notice, Sheet } from './components';
+import { Avatar, Button, Icon, Notice, SectionLabel, Sheet } from './components';
 import { GlassSurface } from './glass';
 import { useTheme } from './theme';
 import { SecretInput } from './AuthScreen';
@@ -27,7 +27,8 @@ export function AccountZone({ api, confirmationConfigured, onDeleted }: { api: A
   };
   return <>
     <GlassSurface material="regular" radius={28} contentStyle={{ padding: 20, gap: 12 }}>
-      <Text style={{ color: t.muted, fontSize: 11, fontWeight: '700', letterSpacing: 1.2 }}>ЗАБЛОКИРОВАННЫЕ</Text>
+      {/* The same section heading as the cards above it in «Безопасность». */}
+      <SectionLabel>Заблокированные</SectionLabel>
       {blocked === null ? <ActivityIndicator color={t.accent} /> : blocked.length ? blocked.map(user => <View key={user.id} style={{ flexDirection: 'row', alignItems: 'center', gap: 12 }}>
         <Avatar user={user} api={api} size={40} />
         <View style={{ flex: 1 }}><Text numberOfLines={1} style={{ color: t.text, fontSize: 15, fontWeight: '600' }}>{user.displayName}</Text><Text style={{ color: t.muted, fontSize: 12 }}>@{user.username}</Text></View>
@@ -35,7 +36,7 @@ export function AccountZone({ api, confirmationConfigured, onDeleted }: { api: A
       </View>) : <Text style={{ color: t.muted, fontSize: 13 }}>Никого нет. Заблокировать можно в профиле собеседника через «⋯».</Text>}
     </GlassSurface>
     <GlassSurface material="regular" radius={28} contentStyle={{ padding: 6 }}>
-      <Pressable accessibilityRole="button" onPress={() => { setError(''); setAsking(true); }} style={({ pressed }) => ({ flexDirection: 'row', alignItems: 'center', gap: 12, padding: 14, borderRadius: 22, backgroundColor: pressed ? 'rgba(229,72,77,0.12)' : 'transparent' })}>
+      <Pressable accessibilityRole="button" onPress={() => { setError(''); setAsking(true); }} style={({ pressed }) => ({ flexDirection: 'row', alignItems: 'center', gap: 12, padding: 14, borderRadius: 22, backgroundColor: pressed ? t.dangerBg : 'transparent' })}>
         <Icon name="trash-outline" size={20} color={t.danger} /><Text style={{ color: t.danger, fontSize: 15, fontWeight: '600' }}>Удалить аккаунт</Text>
       </Pressable>
     </GlassSurface>

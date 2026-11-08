@@ -8,7 +8,7 @@ import * as Clipboard from 'expo-clipboard';
 import * as FileSystem from 'expo-file-system/legacy';
 import { Text, TextInput } from '../typography';
 import { KeyboardSafeView } from '../keyboard';
-import { AttachmentCard, Empty, Icon, IconButton, Notice, RecordHint, Sheet, SheetAction } from '../components';
+import { AttachmentCard, Empty, Icon, IconButton, Notice, RecordHint } from '../components';
 import { GlassSurface } from '../glass';
 import { formatDay, formatTime, useTheme } from '../theme';
 import type { Api } from '../api';
@@ -27,6 +27,9 @@ import { RecordButton, type RecordKind } from '../voice/RecordButton';
 import { VideoNoteBubble, VideoNoteRecorder, type VideoHold, type VideoNoteTake } from '../videonote/VideoNote';
 import { errorFeedback, lightFeedback } from '../haptics';
 import { searchSaved, type SavedItem } from './saved.ts';
+import { SAVED_UNAVAILABLE } from './useSaved';
+import { ForwardPicker, type ForwardTarget } from '../forward/ForwardPicker';
+import { countChats } from '../plural';
 
 /** A round video with no text or origin is shown alone, without a bubble (Telegram). */
 const circleOnly = (item: { text?: string; origin?: unknown; attachment?: Parameters<typeof isVideoNote>[0] | null }) => !!item.attachment && isVideoNote(item.attachment) && !item.text && !item.origin;
@@ -58,7 +61,7 @@ export function SavedScreen({ api, user, store, onBack, wide = false }: { api: A
   const submit = () => {
     const value = text.trim(); if (!value) return;
     // In a browser there are no device keys to encrypt notes with: say so instead of doing nothing.
-    if (!signalAvailable) { fail(new Error('Заметки в Избранном шифруются на устройстве и сохраняются в приложении для iPhone, Android или ПК.'), ''); return; }
+    if (!signalAvailable) { fail(new Error(SAVED_UNAVAILABLE), ''); return; }
     if (editing) { saved.edit(editing.id, value).then(() => { setEditing(null); setText(''); }).catch(e => fail(e, 'Не удалось изменить заметку.')); return; }
     saved.save(value, null).then(() => { setText(''); listRef.current?.scrollToOffset({ offset: 0, animated: true }); }).catch(e => fail(e, 'Не удалось сохранить заметку.'));
   };
@@ -112,6 +115,17 @@ export function SavedScreen({ api, user, store, onBack, wide = false }: { api: A
     else openDocument(api, file).then(shown => { if (!shown) setPreview(file); }).catch(e => fail(e, 'Не удалось открыть файл.'));
   };
   const copy = async (value: string) => { await Clipboard.setStringAsync(value); setActions(null); flash('Скопировано'); };
+  // «Переслать» — the same picker as in chats (search, folders, «Выбрать», comment, «Избранное»).
+  const forwardTo = async (item: SavedItem, targets: ForwardTarget[], comment: string) => {
+    for (const target of targets) {
+      if (!target) continue; // already in Saved
+      if (comment) store.send(target.id, comment, null);
+      await store.forward(target.id, { text: item.text, attachment: item.attachment, senderId: user.id }, item.origin?.author || user.displayName);
+    }
+    const chats = targets.filter((target): target is NonNullable<ForwardTarget> => !!target);
+    if (chats.length) flash(chats.length === 1 ? `Переслано: ${chats[0].peer.displayName}` : `Переслано в ${countChats(chats.length)}`);
+    else if (targets.length) flash('Уже в Избранном');
+  };
 
   return <VoicePlaybackProvider api={api}><KeyboardSafeView style={{ flex: 1, backgroundColor: 'transparent' }}>
     <GlassSurface material="regular" radius={27} style={{ marginHorizontal: 12, marginTop: 12, marginBottom: 8 }} contentStyle={{ minHeight: 70, flexDirection: 'row', alignItems: 'center', gap: 10, paddingHorizontal: wide ? 17 : 8, paddingVertical: 10 }}>
@@ -151,11 +165,11 @@ export function SavedScreen({ api, user, store, onBack, wide = false }: { api: A
         <View style={{ flexDirection: 'row', gap: 6, alignItems: 'flex-end' }}>
           <RecordHint text={recordHint} bottom={52} />
           {recHold?.kind === 'voice' && !recHold.locked ? <View key="strip" style={{ flex: 1, minHeight: 44, justifyContent: 'center' }}><VoiceRecordingBar holding cancelProgress={cancelProgress} durationMs={voice.durationMs} levels={voice.levels} onCancel={() => {}} onSend={() => {}} /></View> : <>
-          <IconButton name="add" label="Сохранить фото, видео или файл" onPress={() => { Keyboard.dismiss(); setAttachMenu(true); }} color={t.accent} disabled={busy || !!editing} style={{ width: 44, height: 44, borderRadius: 21 }} />
-          <View style={{ flex: 1, minHeight: 44, maxHeight: 140, justifyContent: 'center' }}><ComposerInput focusKey={editing ? `edit:${editing.id}` : null} accessibilityLabel="Заметка" placeholder="Заметка…" value={text} onChangeText={setText} onKeyPress={e => { if (Platform.OS === 'web' && e.nativeEvent.key === 'Enter' && !(e.nativeEvent as unknown as { shiftKey?: boolean }).shiftKey) { e.preventDefault(); submit(); } }} placeholderTextColor={t.muted} selectionColor={t.accent} keyboardAppearance={t.dark ? 'dark' : 'light'} multiline maxLength={8000} style={{ fontSize: 15, lineHeight: 21, color: t.text, paddingHorizontal: 6, paddingTop: Platform.OS === 'ios' ? 11 : 10, paddingBottom: 11, maxHeight: 136 }} /></View>
+          <IconButton name="add" label="Сохранить фото, видео или файл" onPress={() => { Keyboard.dismiss(); setAttachMenu(true); }} color={t.accent} disabled={busy || !!editing || !signalAvailable} style={{ width: 44, height: 44, borderRadius: 21 }} />
+          <View style={{ flex: 1, minHeight: 44, maxHeight: 140, justifyContent: 'center' }}><ComposerInput focusKey={editing ? `edit:${editing.id}` : null} accessibilityLabel="Заметка" placeholder={signalAvailable ? 'Заметка…' : 'Заметки доступны в приложении'} editable={signalAvailable} value={text} onChangeText={setText} onKeyPress={e => { if (Platform.OS === 'web' && e.nativeEvent.key === 'Enter' && !(e.nativeEvent as unknown as { shiftKey?: boolean }).shiftKey) { e.preventDefault(); submit(); } }} placeholderTextColor={t.muted} selectionColor={t.accent} keyboardAppearance={t.dark ? 'dark' : 'light'} multiline maxLength={8000} style={{ fontSize: 15, lineHeight: 21, color: t.text, paddingHorizontal: 6, paddingTop: Platform.OS === 'ios' ? 11 : 10, paddingBottom: 11, maxHeight: 136 }} /></View>
           </>}
           {!text.trim() && !editing && signalAvailable ? <View key="rec" style={{ zIndex: 5, height: 44, justifyContent: 'center' }}><RecordButton mode={recordMode} disabled={busy} onTouchDown={() => { if (recordModeRef.current === 'voice') voice.prepare(); }} level={recHold?.kind === 'voice' ? voice.levels.at(-1) || 0 : 0} onToggleMode={toggleRecordMode} onHoldStart={holdStart} onHoldEnd={holdEnd} onLock={holdLock} onSlide={setCancelProgress} /></View> :
-            <Pressable accessibilityRole="button" accessibilityLabel={editing ? 'Сохранить изменения' : 'Сохранить заметку'} disabled={!text.trim() || busy} onPress={submit} style={({ pressed }) => ({ height: 44, width: 44, borderRadius: 22, backgroundColor: t.accent, alignItems: 'center', justifyContent: 'center', opacity: !text.trim() || busy ? .4 : pressed ? .75 : 1 })}><Icon name={editing ? 'checkmark' : 'arrow-up'} color={t.onAccent} size={23} /></Pressable>}
+            <Pressable accessibilityRole="button" accessibilityLabel={editing ? 'Сохранить изменения' : 'Сохранить заметку'} disabled={!text.trim() || busy || !signalAvailable} onPress={submit} style={({ pressed }) => ({ height: 44, width: 44, borderRadius: 22, backgroundColor: t.accent, alignItems: 'center', justifyContent: 'center', opacity: !text.trim() || busy || !signalAvailable ? .4 : pressed ? .75 : 1 })}><Icon name={editing ? 'checkmark' : 'arrow-up'} color={t.onAccent} size={23} /></Pressable>}
         </View>}
     </GlassSurface>
     <VideoNoteRecorder visible={circleOpen} hold={videoHold} onClose={() => { setCircleOpen(false); setVideoHold(null); setRecHold(null); }} onDone={take => void saveVideoNote(take)} />
@@ -168,12 +182,9 @@ export function SavedScreen({ api, user, store, onBack, wide = false }: { api: A
       {actions?.attachment ? <MenuItem icon="download-outline" label={isVideoNote(actions.attachment) ? "Сохранить видео" : "Сохранить файл"} onPress={() => { const file = actions.attachment!; setActions(null); shareEncryptedAttachment(api, file).catch(e => fail(e, 'Не удалось открыть файл.')); }} /> : null}
       {actions ? <MenuItem separated icon="trash-outline" label="Удалить из Избранного" danger onPress={() => { const id = actions.id; setActions(null); saved.remove(id).catch(e => fail(e, 'Не удалось удалить.')); }} /> : null}
     </ContextMenu>
-    <Sheet visible={!!forwarding} title="Переслать в чат" onClose={() => setForwarding(null)}>
-      {store.chats.length ? store.chats.map(target => <SheetAction key={target.id} icon="chatbubble-outline" label={target.peer.displayName} description={`@${target.peer.username}`} onPress={() => {
-        const item = forwarding!; setForwarding(null);
-        store.forward(target.id, { text: item.text, attachment: item.attachment, senderId: user.id }, item.origin?.author || user.displayName).then(() => flash(`Переслано: ${target.peer.displayName}`)).catch(e => fail(e, 'Не удалось переслать.'));
-      }} />) : <Text style={{ color: t.muted, fontSize: 13 }}>Пока нет чатов.</Text>}
-    </Sheet>
+    <ForwardPicker visible={!!forwarding} api={api} userId={user.id} chats={store.chats} count={1} hideSaved onClose={() => setForwarding(null)}
+      onPick={(target: ForwardTarget) => { const item = forwarding; setForwarding(null); if (item) void forwardTo(item, [target], '').catch(e => fail(e, 'Не удалось переслать.')); }}
+      onSendMany={(targets: ForwardTarget[], comment: string) => { const item = forwarding; setForwarding(null); if (item) void forwardTo(item, targets, comment).catch(e => fail(e, 'Не удалось переслать.')); }} />
     <AttachmentViewer api={api} attachment={preview} onClose={() => setPreview(null)} />
   </KeyboardSafeView></VoicePlaybackProvider>;
 }

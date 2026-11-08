@@ -1,6 +1,6 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import { Image as CachedImage } from 'expo-image';
-import { ActivityIndicator, Image, KeyboardAvoidingView, Modal, Platform, Pressable, ScrollView, StyleSheet, View, type ImageStyle, type StyleProp, type TextInputProps, type ViewStyle } from 'react-native';
+import { ActivityIndicator, Image, KeyboardAvoidingView, Modal, Platform, Pressable, ScrollView, StyleSheet, Switch, View, type ImageStyle, type StyleProp, type TextInputProps, type ViewStyle } from 'react-native';
 import { Text, TextInput } from './typography';
 import Animated, { FadeIn, FadeOut, useAnimatedStyle, useSharedValue, withSpring } from 'react-native-reanimated';
 import { Ionicons } from '@expo/vector-icons';
@@ -62,6 +62,16 @@ export function Button({label,onPress,loading=false,disabled=false,secondary=fal
   </Bouncy>;
 }
 
+/**
+ * A switch in the theme's colours. The knob is `onAccent` when on: in «Чёрная» and «Графит» the
+ * accent track is nearly white, so a white knob would vanish on it (1.3:1), as it would on iOS without
+ * the knob's shadow on web.
+ */
+export function ThemeSwitch({ value, onValueChange, disabled = false, accessibilityLabel }: { value: boolean; onValueChange: (value: boolean) => void; disabled?: boolean; accessibilityLabel?: string }) {
+  const t = useTheme();
+  const thumb = value ? t.onAccent : '#FFFFFF';
+  return <Switch {...({ activeThumbColor: thumb } as object)} accessibilityLabel={accessibilityLabel} value={value} disabled={disabled} onValueChange={onValueChange} trackColor={{ false: t.subtle, true: t.accent }} thumbColor={thumb} ios_backgroundColor={t.subtle} />;
+}
 export function useSuccessFlash(ms=1600):[boolean,()=>void]{
   const [on,setOn]=useState(false);
   useEffect(()=>{if(!on)return;const timer=setTimeout(()=>setOn(false),ms);return()=>clearTimeout(timer);},[on,ms]);

@@ -75,3 +75,20 @@ test('black follows Linear: near-black steps (page, card, raised), hairline sepa
   }
   assert.deepEqual(palette.black.bgGradient, ['#08090A', '#08090A', '#08090A']);
 });
+
+test('the «Оформление» row names the theme on screen: the night theme at night, the day theme otherwise', () => {
+  const { themeFor } = loadTs(new URL('../src/themePreference.ts', import.meta.url));
+  assert.equal(themeFor('black', 'dark', true), 'dark');
+  assert.equal(themeFor('black', 'dark', false), 'black');
+  assert.equal(themeFor('system', 'black', true), 'black');
+  assert.equal(themeFor('system', 'black', false), 'light');
+});
+
+test('switch knob: onAccent reads on the accent track in every built-in theme (white would vanish in «Чёрная»/«Графит»)', () => {
+  const { palette } = loadTs(new URL('../src/theme.tsx', import.meta.url), { './i18n': { getLanguage: () => 'ru' } });
+  const channel = v => { const c = v / 255; return c <= 0.03928 ? c / 12.92 : ((c + 0.055) / 1.055) ** 2.4; };
+  const luminance = hex => { const [r, g, b] = hex.match(/[0-9a-f]{2}/gi).map(x => parseInt(x, 16)); return 0.2126 * channel(r) + 0.7152 * channel(g) + 0.0722 * channel(b); };
+  const contrast = (a, b) => { const [x, y] = [luminance(a), luminance(b)].sort((p, q) => q - p); return (x + 0.05) / (y + 0.05); };
+  for (const id of ['light', 'dark', 'black', 'graphite']) assert.ok(contrast(palette[id].onAccent, palette[id].accent) >= 3, `${id}: ${contrast(palette[id].onAccent, palette[id].accent)}`);
+  assert.ok(contrast('#FFFFFF', palette.black.accent) < 1.5);
+});

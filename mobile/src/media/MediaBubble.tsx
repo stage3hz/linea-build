@@ -3,7 +3,7 @@
 // open instantly once loaded. Tapping during a download cancels it.
 import { useNetworkTier } from '../network/useNetworkTier';
 import { autoload } from '../network/quality';
-import React, { useMemo } from 'react';
+import React, { useMemo, useState } from 'react';
 import { Pressable, StyleSheet, View } from 'react-native';
 import { Image } from 'expo-image';
 import Svg, { Circle } from 'react-native-svg';
@@ -13,7 +13,8 @@ import { formatSize, useTheme } from '../theme';
 import type { Api } from '../api';
 import type { Attachment } from '../types';
 import { albumLayout } from './albumLayout';
-import { mediaPreviewKind } from './formats';
+import { isGif, mediaPreviewKind } from './formats';
+import { usePowerFeatures } from '../motion';
 import { previewUri } from './previewModel';
 import { useMedia } from './mediaCache';
 import { lightFeedback } from '../haptics';
@@ -55,16 +56,22 @@ export function MediaTile({ api, attachment, width, height, radius = 16, onOpen,
   const tier = useNetworkTier();
   const media = useMedia(api, attachment, photo && attachment.size <= (tier === 'medium' ? 1024 * 1024 : AUTO_PHOTO_BYTES) && autoload('photo', tier));
   const thumb = useMemo(() => previewUri(attachment.preview), [attachment.preview]);
+  // Telegram «Автозапуск GIF»: off (or power saving) — the first frame with a GIF badge, a tap plays it
+  // in place, the next tap opens it; on — it animates by itself.
+  const gif = isGif(attachment), features = usePowerFeatures();
+  const [played, setPlayed] = useState(false);
+  const animate = !gif || features.gif || played;
   const press = () => {
     if (media.status === 'loading') { lightFeedback(); media.cancel(); return; }
-    if (media.status === 'ready') { onOpen(); return; }
+    if (media.status === 'ready') { if (!animate) { lightFeedback(); setPlayed(true); return; } onOpen(); return; }
     lightFeedback();
     // A video opens by itself once loaded; a photo simply appears in the bubble.
     void media.start().then(() => { if (!photo) onOpen(); }).catch(() => {});
   };
   return <Pressable onPress={press} onLongPress={onLongPress} delayLongPress={450} accessibilityRole="button" accessibilityLabel={`${photo ? 'Фото' : 'Видео'}${media.status === 'loading' ? `, загрузка ${Math.round(media.progress * 100)}%` : ''}`} style={{ width, height, borderRadius: radius, overflow: 'hidden', backgroundColor: 'rgba(120,130,160,0.18)' }}>
     {thumb ? <Image source={{ uri: thumb }} style={StyleSheet.absoluteFill} contentFit="cover" blurRadius={photo ? 12 : 0} /> : null}
-    {photo && media.status === 'ready' && media.uri ? <Image source={{ uri: media.uri }} style={StyleSheet.absoluteFill} contentFit="cover" transition={180} /> : null}
+    {photo && media.status === 'ready' && media.uri ? <Image key={animate ? 'gif' : 'still'} source={{ uri: media.uri }} style={StyleSheet.absoluteFill} contentFit="cover" transition={180} autoplay={animate} /> : null}
+    {gif && media.status === 'ready' && !animate ? <View pointerEvents="none" style={[StyleSheet.absoluteFill, { alignItems: 'center', justifyContent: 'center' }]}><View style={{ paddingHorizontal: 12, paddingVertical: 6, borderRadius: 14, backgroundColor: 'rgba(10,15,30,0.55)' }}><Text style={{ color: '#FFF', fontSize: 13, fontWeight: '800', letterSpacing: .5 }}>GIF</Text></View></View> : null}
     {!photo || media.status !== 'ready' ? <View style={[StyleSheet.absoluteFill, { alignItems: 'center', justifyContent: 'center' }]}>
       <View style={{ width: 48, height: 48, borderRadius: 24, backgroundColor: 'rgba(10,15,30,0.55)', alignItems: 'center', justifyContent: 'center' }}>
         {media.status === 'loading' ? <><ProgressRing progress={media.progress} size={48} /><Icon name="close" size={22} color="#FFF" /></> : <Icon name={media.status === 'error' ? 'refresh' : photo ? 'arrow-down' : 'play'} size={24} color="#FFF" />}

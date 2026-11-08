@@ -24,7 +24,17 @@ const MAX_RESPONSE = 128 * 1024;
 const WINDOW_MS = 60_000;
 const MAX_REQUESTS = 6;
 const MAX_USERS = 10_000;
-const MAX_CONCURRENT = 4;
+const DAY_MS = 24 * 60 * 60 * 1000;
+/**
+ * Text answers and media generation are separate pools (B25): a video holds its slot for up to 330 s,
+ * so four people rendering videos must not turn every text answer into AI_BUSY. Media is also capped
+ * per person per day, and the document reader and the model list count against a per-user window.
+ */
+export const AI_LIMITS = Object.freeze({
+  chat: { concurrent: 4, perMinute: MAX_REQUESTS },
+  media: { concurrent: 4, perMinute: MAX_REQUESTS, perDay: 40 },
+  light: { perMinute: 20 },
+});
 
 class AiFailure extends Error {
   constructor(status, code, message, retryAfterSeconds) {
@@ -286,45 +296,62 @@ function accessGuard(authenticate, origins) {
   };
 }
 
+const retryIn = (until, time) => Math.max(1, Math.ceil((until - time) / 1000));
+
 class AiBudget {
   constructor(now) {
     this.now = now;
+    // Rate windows keyed by `${lane}:${userId}` (and `day:${userId}` for the media day cap).
     this.windows = new Map();
-    this.inFlight = new Map();
+    // One pool of in-flight requests per lane: media never starves text.
+    this.inFlight = { chat: new Map(), media: new Map() };
   }
 
   sweep(time) {
     for (const [id, entry] of this.windows) if (entry.until <= time) this.windows.delete(id);
   }
 
-  bucketFor(userId, time) {
-    const current = this.windows.get(userId);
+  bucketFor(key, time, windowMs = WINDOW_MS) {
+    const current = this.windows.get(key);
     if (current && current.until > time) return current;
     if (this.windows.size >= MAX_USERS) this.sweep(time);
-    if (this.windows.size >= MAX_USERS && !this.windows.has(userId)) throw new AiFailure(503, 'AI_BUSY', 'AI-сервер занят. Повторите позже.', 60);
-    const bucket = { count: 0, until: time + WINDOW_MS };
-    this.windows.set(userId, bucket);
+    if (this.windows.size >= MAX_USERS && !this.windows.has(key)) throw new AiFailure(503, 'AI_BUSY', 'AI-сервер занят. Повторите позже.', 60);
+    const bucket = { count: 0, until: time + windowMs };
+    this.windows.set(key, bucket);
     return bucket;
   }
 
-  reserve(userId) {
-    if (this.inFlight.has(userId)) throw new AiFailure(429, 'AI_BUSY', 'Дождитесь ответа на предыдущий AI-запрос.', 5);
-    if (this.inFlight.size >= MAX_CONCURRENT) throw new AiFailure(503, 'AI_BUSY', 'AI-сервер занят. Повторите через несколько секунд.', 5);
+  /** The per-minute window of one lane, without taking an in-flight slot (documents, model list). */
+  count(userId, lane = 'light') {
     const time = this.now();
-    const bucket = this.bucketFor(userId, time);
-    if (bucket.count >= MAX_REQUESTS) throw new AiFailure(429, 'AI_RATE_LIMIT', 'Не более шести AI-запросов в минуту. Повторите позже.', Math.max(1, Math.ceil((bucket.until - time) / 1000)));
+    const bucket = this.bucketFor(`${lane}:${userId}`, time);
+    if (bucket.count >= AI_LIMITS[lane].perMinute) throw new AiFailure(429, 'AI_RATE_LIMIT', 'Слишком много AI-запросов. Повторите через минуту.', retryIn(bucket.until, time));
     bucket.count++;
+  }
+
+  reserve(userId, lane = 'chat') {
+    const limits = AI_LIMITS[lane], pool = this.inFlight[lane];
+    if (pool.has(userId)) throw new AiFailure(429, 'AI_BUSY', 'Дождитесь ответа на предыдущий AI-запрос.', 5);
+    if (pool.size >= limits.concurrent) throw new AiFailure(503, 'AI_BUSY', 'AI-сервер занят. Повторите через несколько секунд.', 5);
+    const time = this.now();
+    const bucket = this.bucketFor(`${lane}:${userId}`, time);
+    if (bucket.count >= limits.perMinute) throw new AiFailure(429, 'AI_RATE_LIMIT', 'Не более шести AI-запросов в минуту. Повторите позже.', retryIn(bucket.until, time));
+    const day = limits.perDay ? this.bucketFor(`day:${userId}`, time, DAY_MS) : null;
+    if (day && day.count >= limits.perDay) throw new AiFailure(429, 'AI_RATE_LIMIT', `Не более ${limits.perDay} AI-генераций в сутки. Попробуйте завтра.`, retryIn(day.until, time));
+    bucket.count++;
+    if (day) day.count++;
     const controller = new AbortController();
-    this.inFlight.set(userId, controller);
+    pool.set(userId, controller);
     return controller;
   }
 
-  release(userId, controller) {
-    if (controller && this.inFlight.get(userId) === controller) this.inFlight.delete(userId);
+  release(userId, controller, lane = 'chat') {
+    const pool = this.inFlight[lane];
+    if (controller && pool.get(userId) === controller) pool.delete(userId);
   }
 
   abortAll() {
-    for (const controller of this.inFlight.values()) controller.abort();
+    for (const pool of Object.values(this.inFlight)) for (const controller of pool.values()) controller.abort();
     this.windows.clear();
   }
 }
@@ -521,7 +548,7 @@ function mediaHandler({ budget, configured, provider, deadline }, work) {
       consentRequired(request.body);
       const input = work.parse(request.body);
       if (!configured) throw notConfigured();
-      controller = budget.reserve(userId);
+      controller = budget.reserve(userId, 'media');
       request.raw.once('aborted', abort);
       reply.raw.once('close', disconnected);
       const result = await withDeadline(() => work.run(input, controller), controller, deadline);
@@ -533,7 +560,7 @@ function mediaHandler({ budget, configured, provider, deadline }, work) {
     } finally {
       request.raw.removeListener('aborted', abort);
       reply.raw.removeListener('close', disconnected);
-      budget.release(userId, controller);
+      budget.release(userId, controller, 'media');
     }
   };
 }
@@ -550,6 +577,7 @@ function registerMediaRoutes(app, { access, budget, apiKey, configured, fetchImp
       if (!onlyKeys(body, ['name', 'data', 'consent']) || body.consent !== true) throw invalid();
       if (typeof body.name !== 'string' || !body.name.trim() || body.name.length > 200) throw mediaInvalid('Нет имени файла.');
       if (typeof body.data !== 'string' || !/^[A-Za-z0-9+/]+={0,2}$/.test(body.data) || body.data.length > Math.ceil(MAX_DOCUMENT_BYTES / 3) * 4) throw mediaInvalid('Документ — до 15 МБ.');
+      budget.count(String(request.auth.user_id));
       if (reading >= 2) throw new AiFailure(429, 'AI_RATE_LIMIT', 'Сервер разбирает другие документы. Повтори через минуту.', 30);
       reading++;
       try { return await documentText(body.name.trim(), Buffer.from(body.data, 'base64')); }
@@ -562,6 +590,7 @@ function registerMediaRoutes(app, { access, budget, apiKey, configured, fetchImp
     try {
       if (provider.name !== 'freellmapi') throw featureOff();
       if (!configured) throw notConfigured();
+      budget.count(String(request.auth.user_id));
       const controller = new AbortController();
       const response = await withDeadline(() => call(controller, '/models?execution_status=ready', { method: 'GET', headers: { Accept: 'application/json' } }), controller, 15_000);
       const data = await boundedJson(response, 4 * 1024 * 1024);

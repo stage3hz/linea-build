@@ -13,7 +13,8 @@ import { GlassStage, GlassSurface } from '../glass';
 import { PlatinaGem, openPlatinaShowcase } from '../platina/PlatinaMark';
 import { formatListTime, useTheme } from '../theme';
 import { aiDocument, aiImage, aiModels, aiQuestion, aiSpeech, aiStatus, aiTranscribe, aiVideo, type AIDocument } from './client';
-import { AudioResult, VideoResult, share, writeCache, type MediaMode } from './AIMedia';
+import { AudioResult, VideoResult, share, type MediaMode } from './AIMedia';
+import { deleteAIMedia, holdAIMedia, mediaUris, missingAIMedia, pruneAIMedia, resolveAIMediaUri, writeAIMedia } from './mediaCache';
 import { detectIntent, speechText } from './intent';
 import { fromByteArray } from 'base64-js';
 import { ModelMenu } from './ModelMenu';
@@ -28,7 +29,8 @@ function useAI(api: Api) {
   const [statusError, setStatusError] = useState(''), [checking, setChecking] = useState(true), [refreshKey, setRefreshKey] = useState(0);
   const conversation = useRef<AIConversation | null>(null);
   useEffect(() => {
-    const owner = new AIConversation((messages, signal, options) => aiQuestion(api, messages, signal, options));
+    // A picture/video/speech file finished for a turn that is gone (cancelled, consent revoked, screen closed) is deleted at once.
+    const owner = new AIConversation((messages, signal, options) => aiQuestion(api, messages, signal, options), { discardMedia: media => void deleteAIMedia([media.uri]) });
     conversation.current = owner; setState(owner.getSnapshot());
     const unsubscribe = owner.subscribe(() => setState(owner.getSnapshot()));
     return () => { unsubscribe(); if (conversation.current === owner) conversation.current = null; owner.close(); };
@@ -73,6 +75,10 @@ function AITurnView({ turn, retryable, canRetry, onRetry, router = false }: { tu
   const timer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const code = turn.question.startsWith(CODE_TASK_PREFIX);
   const [details, setDetails] = useState(false);
+  // The history keeps the file's name; the cache folder itself can move between app updates (iOS).
+  const mediaUri = turn.media ? resolveAIMediaUri(turn.media.uri) : '';
+  // A made picture/video/speech whose cache file is gone (evicted, wiped or dropped): say so instead of the orphaned caption.
+  const mediaGone = !!turn.answer && !turn.media && (turn.kind === 'image' || turn.kind === 'video' || turn.kind === 'speech');
   useEffect(() => () => { if (timer.current) clearTimeout(timer.current); }, []);
   const copy = async () => {
     if (!turn.answer) return;
@@ -88,10 +94,11 @@ function AITurnView({ turn, retryable, canRetry, onRetry, router = false }: { tu
         <Text selectable style={{ color: t.muted, fontSize: 12 }}>Ответила модель: {turn.answer.model}</Text>
         {turn.answer.routedVia ? <Text selectable style={{ color: t.muted, fontSize: 12 }}>Через: {turn.answer.routedVia}</Text> : null}
       </View> : null}
-      {turn.media?.mimeType.startsWith('image/') ? <Pressable accessibilityRole="button" accessibilityLabel="Сохранить или отправить картинку" onPress={() => void share(turn.media!.uri, turn.media!.mimeType).catch(() => {})}><Image source={{ uri: turn.media.uri }} style={{ width: '100%', aspectRatio: 1, borderRadius: 16, backgroundColor: t.surface2 }} resizeMode="cover" /></Pressable>
-        : turn.media?.mimeType === 'video/mp4' ? <VideoResult uri={turn.media.uri} onShare={() => void share(turn.media!.uri, turn.media!.mimeType).catch(() => {})} />
-        : turn.media?.mimeType.startsWith('audio/') ? <AudioResult uri={turn.media.uri} onShare={() => void share(turn.media!.uri, turn.media!.mimeType).catch(() => {})} /> : null}
-      <Text selectable style={{ color: turn.media ? t.muted : t.text, fontSize: turn.media ? 13 : 15, lineHeight: turn.media ? 19 : 23 }}>{turn.answer.text}</Text>
+      {turn.media?.mimeType.startsWith('image/') ? <Pressable accessibilityRole="button" accessibilityLabel="Сохранить или отправить картинку" onPress={() => void share(mediaUri, turn.media!.mimeType).catch(() => {})}><Image source={{ uri: mediaUri }} style={{ width: '100%', aspectRatio: 1, borderRadius: 16, backgroundColor: t.surface2 }} resizeMode="cover" /></Pressable>
+        : turn.media?.mimeType === 'video/mp4' ? <VideoResult uri={mediaUri} onShare={() => void share(mediaUri, turn.media!.mimeType).catch(() => {})} />
+        : turn.media?.mimeType.startsWith('audio/') ? <AudioResult uri={mediaUri} onShare={() => void share(mediaUri, turn.media!.mimeType).catch(() => {})} /> : null}
+      {mediaGone ? <View style={{ flexDirection: 'row', alignItems: 'center', gap: 7 }}><Icon name="trash-outline" size={15} color={t.muted} /><Text style={{ color: t.muted, fontSize: 12, lineHeight: 18 }}>Файл удалён из кэша</Text></View> : null}
+      {mediaGone && turn.kind !== 'speech' ? null : <Text selectable style={{ color: turn.media || mediaGone ? t.muted : t.text, fontSize: turn.media || mediaGone ? 13 : 15, lineHeight: turn.media || mediaGone ? 19 : 23 }}>{turn.answer.text}</Text>}
       <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}><View style={{ flex: 1 }} /><Pressable accessibilityRole="button" accessibilityLabel="Скопировать ответ AI" onPress={() => void copy()} style={{ padding: 8 }}><Icon name={copied ? 'checkmark' : 'copy-outline'} size={17} color={t.accent} /></Pressable></View>
     </GlassSurface> : turn.status === 'pending' ? <AIProgress turn={turn} router={router} /> : <View style={{ paddingHorizontal: 8, gap: 8 }}>
       <Text style={{ color: turn.status === 'failed' ? t.danger : t.muted, fontSize: 12, lineHeight: 18 }}>{turn.status === 'cancelled' ? 'Ожидание ответа отменено.' : turn.error || 'Ответ не получен.'}</Text>
@@ -143,7 +150,9 @@ const modelLabel = (id: string) => ({ auto: 'Авто', 'auto:smart': 'Умна�
 export function AIScreen({ api, onBack, quick = false, history, name }: { api: Api; onBack: () => void; quick?: boolean; history?: AIHistoryStore; name?: string }) {
   const tabInset = useTabInset();
   const t = useTheme(), ai = useAI(api);
-  const [conversationId, setConversationId] = useState(() => Crypto.randomUUID());
+  // Quick-dialog conversations are told apart by their id prefix (it ends up in the cache file names too).
+  const newConversationId = () => `${quick ? 'quick-' : ''}${Crypto.randomUUID()}`;
+  const [conversationId, setConversationId] = useState(newConversationId);
   const [historySheet, setHistorySheet] = useState(false);
   const restored = useRef(false);
   const [toolsSheet, setToolsSheet] = useState(false), [consentSheet, setConsentSheet] = useState(false), [focused, setFocused] = useState(false), [incognito, setIncognito] = useState(false);
@@ -152,9 +161,26 @@ export function AIScreen({ api, onBack, quick = false, history, name }: { api: A
     if (restored.current || !history?.loaded || !ai.conversation.current) return;
     restored.current = true;
     const latest = history.items[0];
-    if (!quick && latest && !ai.conversation.current.getSnapshot().turns.length) { setConversationId(latest.id); ai.conversation.current.restore(latest.turns, latest.consent); }
+    if (!quick && latest && !ai.conversation.current.getSnapshot().turns.length) { setConversationId(latest.id); reopen(ai.conversation.current, latest.turns, latest.consent); }
   }, [history?.loaded, history?.items, quick, ai.conversation, ai.state]);
+  // Turns asked while «Приватная беседа» is on are marked private and never reach the history — even
+  // when the mode is switched off later (storedTurns drops them).
+  useEffect(() => { ai.conversation.current?.setPrivate(incognito); }, [incognito, api, ai.conversation]);
   useEffect(() => { if (history && !incognito && !ai.state.pending && ai.state.turns.length) history.save(conversationId, ai.state.turns, ai.state.consent); }, [ai.state, conversationId, history?.save, incognito]);
+  // The files on this screen are held while it is mounted: a prune from the other AI screen (quick dialog
+  // over the main one, or the other way round) never removes them. The hold is set before the prune below runs.
+  useEffect(() => holdAIMedia(mediaUris(ai.state.turns)), [ai.state.turns]);
+  // Generated pictures/videos/speech live in the cache: files no stored or open conversation shows any
+  // more are removed, and the whole set is capped (see mediaCache.ts). Not for the quick dialog: it has
+  // no history and must not touch the files of stored conversations.
+  useEffect(() => {
+    if (!history?.loaded || ai.state.pending) return;
+    const open = mediaUris(ai.state.turns);
+    void pruneAIMedia([...history.items.flatMap(item => mediaUris(item.turns)), ...open], open).catch(() => {});
+  }, [history?.loaded, history?.items, ai.state.pending, ai.state.turns, conversationId]);
+  // Once the screen closes nothing refers to the files of private turns — nor to any file of the quick dialog (no history).
+  const turnsRef = useRef(ai.state.turns), persistent = !!history; turnsRef.current = ai.state.turns;
+  useEffect(() => () => { void deleteAIMedia(mediaUris(turnsRef.current.filter(turn => turn.private || !persistent))); }, [persistent]);
   // One chat for everything: the request itself decides (see intent.ts) — no separate modes to pick.
   const [draft, setDraft] = useState(''), [taskError, setTaskError] = useState('');
   const mode = 'text' as 'text' | 'code' | MediaMode;
@@ -220,17 +246,17 @@ export function AIScreen({ api, onBack, quick = false, history, name }: { api: A
         }
         stage('Рисую картинку');
         const result = await aiImage(api, prompt, signal);
-        const uri = await writeCache(result.base64, result.mimeType);
+        const uri = await writeAIMedia(conversationId, result.base64, result.mimeType);
         return { text: image ? 'Новая картинка по мотивам твоего фото (провайдер рисует заново по описанию, само фото не меняется). Нажми на картинку, чтобы сохранить или отправить.' : 'Готово. Нажми на картинку, чтобы сохранить или отправить.', model: result.routedVia || 'генерация картинок', routedVia: result.routedVia, media: { uri, mimeType: result.mimeType } };
       } : intent === 'video' ? async signal => {
         const bytes = await aiVideo(api, question, 5, signal);
-        const uri = await writeCache(fromByteArray(new Uint8Array(bytes)), 'video/mp4');
+        const uri = await writeAIMedia(conversationId, fromByteArray(new Uint8Array(bytes)), 'video/mp4');
         return { text: 'Видео готово.', model: 'генерация видео', media: { uri, mimeType: 'video/mp4' } };
       } : async signal => {
         const spoken = speechText(question);
         if (!spoken) throw new Error('Напиши после «озвучь», что именно сказать.');
         const result = await aiSpeech(api, spoken, 'nova', signal);
-        const uri = await writeCache(result.base64, result.mimeType);
+        const uri = await writeAIMedia(conversationId, result.base64, result.mimeType);
         return { text: spoken, model: 'озвучка', media: { uri, mimeType: result.mimeType } };
       };
       void owner.askTask(question, intent, work);
@@ -243,7 +269,9 @@ export function AIScreen({ api, onBack, quick = false, history, name }: { api: A
   async function transcribeFile() {
     const owner = ai.conversation.current;
     if (!owner || !ready) return;
-    if (!ai.state.consent) { afterConsent.current = () => void transcribeFile(); setConsentSheet(true); return; }
+    // Read consent from the live conversation, not from this render's snapshot: the continuation stored in
+    // afterConsent is the closure of the render where consent was still false.
+    if (!owner.getSnapshot().consent) { afterConsent.current = () => void transcribeFile(); setConsentSheet(true); return; }
     let file: Awaited<ReturnType<typeof pickAudio>> = null;
     try { file = await pickAudio(); } catch (error) { setTaskError(error instanceof Error ? error.message : 'Не удалось открыть аудио.'); return; }
     if (!file) return;
@@ -258,8 +286,18 @@ export function AIScreen({ api, onBack, quick = false, history, name }: { api: A
     void owner.ask(approval.preview.prompt, askOptions());
     if (owner.getSnapshot().pending) { setDraft(''); setApproval(null); setTaskError(''); }
   }
-  function clear() { setDocuments([]); setPictures([]); ai.conversation.current?.clear(); setConversationId(Crypto.randomUUID()); setDraft(''); setApproval(null); setTaskError(''); }
-  function openConversation(item: AIStoredConversation) { ai.conversation.current?.restore(item.turns, item.consent); setConversationId(item.id); setDraft(''); setApproval(null); setTaskError(''); setHistorySheet(false); }
+  // Reopens a stored conversation; pictures whose cache files are gone are forgotten instead of shown broken.
+  function reopen(owner: AIConversation, turns: AITurn[], consent: boolean) {
+    owner.restore(turns, consent);
+    void missingAIMedia(owner.getSnapshot().turns).then(missing => owner.dropMedia(missing)).catch(() => {});
+  }
+  function clear() {
+    // Files nothing will show again: private turns, and every turn of a conversation without history.
+    const turns = ai.conversation.current?.getSnapshot().turns || [];
+    void deleteAIMedia(mediaUris(turns.filter(turn => turn.private || !history)));
+    setDocuments([]); setPictures([]); ai.conversation.current?.clear(); setConversationId(newConversationId()); setDraft(''); setApproval(null); setTaskError('');
+  }
+  function openConversation(item: AIStoredConversation) { if (ai.conversation.current) reopen(ai.conversation.current, item.turns, item.consent); setConversationId(item.id); setDraft(''); setApproval(null); setTaskError(''); setHistorySheet(false); }
   const modes = ([{ id: 'text', label: 'Вопрос', icon: 'chatbubble-ellipses-outline' }, { id: 'code', label: 'Код', icon: 'code-slash-outline' }, ...(router ? [{ id: 'image', label: 'Картинка', icon: 'image-outline' }, { id: 'video', label: 'Видео', icon: 'videocam-outline' }, { id: 'speech', label: 'Озвучка', icon: 'volume-high-outline' }, { id: 'transcribe', label: 'Аудио → текст', icon: 'mic-outline' }] : [])] as { id: 'text' | 'code' | MediaMode; label: string; icon: IconName }[]);
   const modeItem = modes.find(item => item.id === mode);
   const hour = new Date().getHours();
@@ -351,7 +389,7 @@ export function AIScreen({ api, onBack, quick = false, history, name }: { api: A
           <Text numberOfLines={1} style={{ color: t.text, fontSize: 14, fontWeight: '600' }}>{item.title}</Text>
           <Text style={{ color: t.muted, fontSize: 11 }}>{formatListTime(item.updatedAt)} · {item.turns.length} {item.turns.length === 1 ? 'вопрос' : item.turns.length < 5 ? 'вопроса' : 'вопросов'}</Text>
         </Pressable>
-        <IconButton name="trash-outline" label={`Удалить беседу ${item.title}`} color={t.danger} size={19} onPress={() => { history.remove(item.id); if (item.id === conversationId) clear(); }} />
+        <IconButton name="trash-outline" label={`Удалить беседу ${item.title}`} color={t.danger} size={19} onPress={() => { history.remove(item.id); void deleteAIMedia(mediaUris(item.turns)); if (item.id === conversationId) clear(); }} />
       </View>) : <Text style={{ color: t.muted, fontSize: 13 }}>Пока нет сохранённых бесед.</Text>}
     </Sheet>
     <CodeApproval preview={approval?.preview || null} allowed={ready && ai.state.consent && !ai.state.pending} onCancel={() => setApproval(null)} onApprove={approveCode} />
