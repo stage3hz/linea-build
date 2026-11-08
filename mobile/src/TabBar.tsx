@@ -11,7 +11,7 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import { Gesture, GestureDetector } from 'react-native-gesture-handler';
 import Animated, { Easing, runOnJS, useAnimatedStyle, useSharedValue, withSpring, withTiming, type SharedValue } from 'react-native-reanimated';
 import { Text } from './typography';
-import { type IconName } from './components';
+import { type IconName, HIDDEN_ICON } from './components';
 import { Ionicons } from '@expo/vector-icons';
 // Every tab icon sits in the same 22×22 box with a 22-pt line: an icon-font glyph otherwise gets a
 // taller line on iOS and is drawn lower than its box, so the drawn gear looked higher than the rest.
@@ -85,7 +85,7 @@ function TabIcon({ item, active, kick, pressed, index }: { item: TabItem; active
     return { transform: [{ scale: press * (1 + bump * 0.3) }, { rotate: `${Math.sin(k * Math.PI * 2) * 18}deg` }] };
   });
   return <Animated.View style={style}>
-    {item.id === 'profile' ? <View style={{ width: BOX, height: BOX, alignItems: 'center', justifyContent: 'center' }}><GearIcon size={25.5} active={active} accent={t.accent} muted={t.muted} /></View> : <View style={{ width: BOX, height: BOX, alignItems: 'center', justifyContent: 'center', overflow: 'visible' }}><Ionicons name={active ? item.activeIcon : item.icon} size={iconSize(item.icon)} color={active ? t.accent : t.muted} style={{ width: iconSize(item.icon), height: iconSize(item.icon), lineHeight: iconSize(item.icon), textAlign: 'center', transform: [{ translateY: iconShift(item.icon) }] }} /></View>}
+    {item.id === 'profile' ? <View style={{ width: BOX, height: BOX, alignItems: 'center', justifyContent: 'center' }}><GearIcon size={25.5} active={active} accent={t.accent} muted={t.muted} /></View> : <View style={{ width: BOX, height: BOX, alignItems: 'center', justifyContent: 'center', overflow: 'visible' }}><Ionicons name={active ? item.activeIcon : item.icon} size={iconSize(item.icon)} color={active ? t.accent : t.muted} style={{ width: iconSize(item.icon), height: iconSize(item.icon), lineHeight: iconSize(item.icon), textAlign: 'center', transform: [{ translateY: iconShift(item.icon) }] }} {...HIDDEN_ICON} /></View>}
     {item.badge ? <View style={{ position: 'absolute', top: -6, left: 16, minWidth: 18, height: 18, paddingHorizontal: 5, borderRadius: 9, borderWidth: 2, borderColor: t.dark ? '#15171D' : '#FFF', backgroundColor: t.accent, alignItems: 'center', justifyContent: 'center' }}><Text maxFontSizeMultiplier={1} style={{ color: t.onAccent, fontSize: 10, fontWeight: '800' }}>{badgeText(item.badge)}</Text></View> : null}
   </Animated.View>;
 }

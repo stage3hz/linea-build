@@ -1,4 +1,5 @@
 import React, { useEffect, useState } from 'react';
+import { HIDDEN_ICON } from '../components';
 import { ActivityIndicator, Image, View, type ImageStyle, type StyleProp, type ViewStyle } from 'react-native';
 import type { Api } from '../api';
 import type { Attachment } from '../types';
@@ -17,6 +18,6 @@ export function EncryptedImage({api,attachment,style,resizeMode='cover'}:{api:Ap
     }).catch(()=>{if(live)setFailed(true);});
     return()=>{live=false;if(dispose)void dispose().catch(()=>{});};
   },[api,attachment.id,attachment.encryption?.key,attachment.encryption?.nonce]);
-  if(!uri||failed)return <View accessibilityLabel={failed?'Не удалось проверить и расшифровать изображение':'Расшифровка изображения'} style={[style as StyleProp<ViewStyle>,{backgroundColor:t.surface2,alignItems:'center',justifyContent:'center'}]}>{failed?<Ionicons name="shield-outline" size={24} color={t.danger}/>:<ActivityIndicator color={t.accent}/>}</View>;
+  if(!uri||failed)return <View accessibilityLabel={failed?'Не удалось проверить и расшифровать изображение':'Расшифровка изображения'} style={[style as StyleProp<ViewStyle>,{backgroundColor:t.surface2,alignItems:'center',justifyContent:'center'}]}>{failed?<Ionicons name="shield-outline" size={24} color={t.danger} {...HIDDEN_ICON} />:<ActivityIndicator color={t.accent}/>}</View>;
   return <Image source={{uri}} style={style} resizeMode={resizeMode} accessibilityLabel={attachment.name} onError={()=>setFailed(true)}/>;
 }

@@ -105,7 +105,7 @@ export function MenuItem({ icon, label, onPress, danger = false, separated = fal
   const t = useTheme();
   return <View>
     {separated ? <View style={{ height: 6, backgroundColor: t.dark ? 'rgba(0,0,0,0.22)' : 'rgba(0,0,0,0.05)' }} /> : null}
-    <Pressable accessibilityRole="menuitem" onPress={onPress} style={({ pressed }) => ({ flexDirection: 'row', alignItems: 'center', gap: 13, minHeight: 44, paddingHorizontal: 16, backgroundColor: pressed ? (t.dark ? 'rgba(255,255,255,0.08)' : 'rgba(0,0,0,0.05)') : 'transparent' })}>
+    <Pressable accessibilityRole="menuitem" accessibilityLabel={label} onPress={onPress} style={({ pressed }) => ({ flexDirection: 'row', alignItems: 'center', gap: 13, minHeight: 44, paddingHorizontal: 16, backgroundColor: pressed ? (t.dark ? 'rgba(255,255,255,0.08)' : 'rgba(0,0,0,0.05)') : 'transparent' })}>
       <Icon name={icon} size={19} color={danger ? t.danger : t.text} />
       <Text style={{ flex: 1, color: danger ? t.danger : t.text, fontSize: 15.5 }}>{label}</Text>
     </Pressable>

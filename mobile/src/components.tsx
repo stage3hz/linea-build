@@ -19,8 +19,12 @@ export type IconName = React.ComponentProps<typeof Ionicons>['name'];
 export function Icon({name, size=22, color}:{name:IconName;size?:number;color?:string}) {
   const t=useTheme();
   if(name==='chevron-back')return <BackChevron size={size} color={color||t.text}/>;
-  return <Ionicons name={name} size={size} color={color||t.text}/>;
+  // The glyph is a private-use character of the icon font: never part of a button's spoken label (VoiceOver
+  // read «\uf290, Скопировать текст»). The control around the icon carries the words.
+  return <Ionicons name={name} size={size} color={color||t.text} {...HIDDEN_ICON}/>;
 }
+/** Hidden from VoiceOver/TalkBack and from the parent's merged accessibility label. */
+export const HIDDEN_ICON={accessible:false,accessibilityElementsHidden:true,importantForAccessibility:'no-hide-descendants'} as const;
 
 /**
  * The back chevron, drawn like Telegram's: taller and thinner than the Ionicons glyph, round caps,
