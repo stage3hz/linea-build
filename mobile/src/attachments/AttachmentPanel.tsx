@@ -19,6 +19,7 @@ import { GalleryPane } from './GalleryPane';
 import { resolveSelection } from './gallery';
 import { addSelections, toggleSelection, type AttachmentSelection } from './selection';
 import { addSelectionQueue } from './uploadQueue';
+import { allowSdr, isHdrConsentError, pendingHdrConsent, type HdrConsentError } from '../photo/hdrConsent';
 
 type Tab = 'gallery' | 'audio' | 'files';
 type Phase = 'picking' | 'opening' | 'adding' | null;
@@ -35,6 +36,8 @@ export function AttachmentPanel({ visible, busy, canAdd, remainingSlots, onClose
   const [tab, setTab] = useState<Tab>('gallery'), [selected, setSelected] = useState<AttachmentSelection[]>([]);
   const [editing, setEditing] = useState<AttachmentSelection | null>(null), [phase, setPhase] = useState<Phase>(null);
   const [error, setError] = useState(''), [notice, setNotice] = useState('');
+  // Files whose HDR cannot be kept here: sending waits for «Отправить без HDR» (never a silent SDR).
+  const [hdrUris, setHdrUris] = useState<string[]>([]);
   const selectedRef = useRef(selected), visibleRef = useRef(visible), alive = useRef(true), operation = useRef(0), working = useRef(false);
   visibleRef.current = visible;
   const locked = busy || phase !== null;
@@ -91,8 +94,20 @@ export function AttachmentPanel({ visible, busy, canAdd, remainingSlots, onClose
         setNotice(`Добавлено в сообщение: ${completed} из ${batch.length}`);
       } });
       if (valid(ticket)) { setNotice(''); onClose(); }
-    } catch (failure) { if (valid(ticket)) setError(errorText(failure)); }
+    } catch (failure) { if (valid(ticket)) { setError(errorText(failure)); askHdr(failure); } }
     finally { finish(ticket); }
+  }
+
+  function askHdr(failure: unknown) {
+    if (!isHdrConsentError(failure)) return;
+    const uri = (failure as Partial<HdrConsentError>).uri;
+    setHdrUris(uri ? [uri] : pendingHdrConsent().slice(-1));
+  }
+
+  function sendWithoutHdr() {
+    for (const uri of hdrUris) allowSdr(uri);
+    setHdrUris([]); setError('');
+    void addSelected();
   }
 
   async function pickDocuments(audio: boolean, media = false) {
@@ -198,6 +213,7 @@ export function AttachmentPanel({ visible, busy, canAdd, remainingSlots, onClose
           </View> : <View key={item.id} style={{ maxWidth: 200, flexDirection: 'row', alignItems: 'center', gap: 5, borderRadius: 14, backgroundColor: t.accentSoft, paddingLeft: 9, paddingVertical: 3, borderWidth: 1, borderColor: t.border }}><Text style={{ color: t.accent, fontSize: 10, fontWeight: '700' }}>{index + 1}</Text><Icon name={kindIcon(item.kind)} color={t.accent} size={15} /><Text numberOfLines={1} style={{ flexShrink: 1, paddingVertical: 7, color: t.text, fontSize: 11 }}>{item.file.name}</Text><IconButton name="close" size={15} label={`Убрать ${item.file.name}`} disabled={locked} onPress={() => choose(item)} style={{ height: 30, width: 30 }} /></View>)}
         </ScrollView> : null}
         {error ? <Notice text={error} error /> : null}
+        {error && hdrUris.length ? <Button secondary icon="sunny-outline" label="Отправить без HDR" disabled={locked} onPress={sendWithoutHdr} /> : null}
         {phase || notice ? <View accessibilityLiveRegion="polite" style={{ flexDirection: 'row', alignItems: 'center', gap: 8, paddingHorizontal: 5 }}>{phase ? <ActivityIndicator color={t.accent} size="small" /> : <Icon name="checkmark-circle" color={t.accent} size={16} />}<Text style={[help, { flex: 1, fontSize: 11 }]}>{notice || (phase === 'opening' ? 'Открываем оригинал; файл из iCloud может загружаться…' : phase === 'picking' ? 'Выбери файлы в системном окне…' : 'Обрабатываем, шифруем и добавляем…')}</Text></View> : null}
         {!canAdd ? <Text style={{ color: t.muted, fontSize: 11, lineHeight: 16, textAlign: 'center' }}>Отправка со сквозным шифрованием доступна в приложении Android или iPhone.</Text> : null}
         {selected.length || phase === 'adding' ? <Button icon="arrow-up" label={`Добавить · ${selected.length}`} loading={phase === 'adding'} disabled={locked || !canAdd || !selected.length} onPress={() => void addSelected()} /> : null}

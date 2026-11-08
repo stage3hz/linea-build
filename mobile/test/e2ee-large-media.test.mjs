@@ -31,6 +31,7 @@ function harness({ limits = { platina: false, maxFileBytes: 2 * GiB, maxVideoByt
     './signal': { getSignalBridge: () => bridge },
     '../media/pipeline': { prepareMediaForUpload: async file => { calls.prepared++; if (passthrough) return { file, photo: false, video: false, dispose: async () => {} }; if (!photo) throw new Error('unsupported codec'); files.set('file:///cache/clean.jpg', photo); return { file: { uri: 'file:///cache/clean.jpg', name: 'photo.jpg', mimeType: 'image/jpeg', size: photo.length }, photo: true, media: { width: 2, height: 2 }, dispose: async () => {} }; } },
     '../photo/jpeg': { sanitizeJpeg: bytes => ({ bytes }) },
+    '../photo/jpegHdr': { sanitizePhotoJpeg: bytes => ({ bytes }) },
     '../media/thumbnail': { makeThumbnail: async () => { calls.thumbnails++; return undefined; } },
     '../api': { CLIENT_HEADER: 'test', multipartFile: bytes => ({ body: bytes, contentType: 'application/octet-stream' }) },
     '../attest/index': { attestHeaders: () => ({}) },

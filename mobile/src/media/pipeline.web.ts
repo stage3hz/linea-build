@@ -1,6 +1,8 @@
 import type { LocalFile } from '../types';
 import type { PreparedUpload } from '../photo/pipeline';
 import { sanitizeJpeg } from '../photo/jpeg';
+import { announcesGainmap, sanitizeGainmapJpeg } from '../photo/jpegHdr';
+import { requestHdrConsent, sdrAllowed } from '../photo/hdrConsent';
 import { sanitizePng } from '../photo/png';
 import { sanitizeGif } from '../photo/gif';
 import { sanitizeMp4 } from './mp4';
@@ -34,7 +36,15 @@ export async function prepareMediaForUpload(file: LocalFile): Promise<PreparedMe
   const image=sniffPhotoFormat(bytes), video=sniffVideoFormat(bytes);
   if(file.mimeType==='audio/mp4' && video!=='mp4')throw new Error('Выбери аудиофайл: MP3, M4A, WAV, FLAC или другой поддерживаемый формат.');
   let mime=file.mimeType, photo=false, movie=false;
-  if(image==='jpeg') {if(jpegOrientation(bytes)>1)bytes=(await transcode(bytes,false)).bytes;else try{bytes=sanitizeJpeg(bytes).bytes;}catch{bytes=(await transcode(bytes,false)).bytes;}mime='image/jpeg';photo=true;}
+  let hdrMedia:{width:number;height:number;hdr:'gainmap'}|undefined;
+  if(image==='jpeg'&&announcesGainmap(bytes)) {
+    // HDR with a gain map: rebuilt by the gate (both images kept, metadata regenerated). Never converted to SDR
+    // silently: if the gate refuses (rotated photo, unknown profile, trailer data…) the user decides.
+    try{const clean=sanitizeGainmapJpeg(bytes);bytes=clean.bytes;hdrMedia={width:clean.width,height:clean.height,hdr:'gainmap'};}
+    catch{if(!sdrAllowed(file.uri))throw requestHdrConsent(file.uri);bytes=(await transcode(bytes,false)).bytes;}
+    mime='image/jpeg';photo=true;
+  }
+  else if(image==='jpeg') {if(jpegOrientation(bytes)>1)bytes=(await transcode(bytes,false)).bytes;else try{bytes=sanitizeJpeg(bytes).bytes;}catch{bytes=(await transcode(bytes,false)).bytes;}mime='image/jpeg';photo=true;}
   else if(image==='png') {try{bytes=sanitizePng(bytes).bytes;mime='image/png';}catch{const out=await transcode(bytes,true);bytes=out.bytes;mime=out.mime;}photo=true;}
   else if(image==='gif') {bytes=sanitizeGif(bytes).bytes;mime='image/gif';}
   else if(image) {const out=await transcode(bytes,image==='webp'||image==='bmp'||image==='tiff'||image==='avif');bytes=out.bytes;mime=out.mime;photo=true;}
@@ -42,7 +52,7 @@ export async function prepareMediaForUpload(file: LocalFile): Promise<PreparedMe
   else if(video && !file.mimeType.startsWith('audio/')) throw new Error('На ПК отправляй видео в формате MP4.');
   const uri=URL.createObjectURL(new Blob([bytes as BlobPart],{type:mime}));
   // Videos: size and length for the bubble (the «0:12» badge and the right aspect before download).
-  const media=movie?await probeVideo(uri):undefined;
+  const media=movie?await probeVideo(uri):hdrMedia;
   return {file:{...file,uri,mimeType:mime,size:bytes.length},photo,video:movie,...(media?{media}:{}),dispose:async()=>URL.revokeObjectURL(uri)};
 }
 /**
@@ -54,6 +64,8 @@ export async function prepareBigPhoto(file: LocalFile, blob: Blob): Promise<Prep
   try { bitmap = await createImageBitmap(blob, { imageOrientation: 'from-image' } as ImageBitmapOptions); }
   catch { throw new Error('Это фото повреждено или в формате, который не открывается на ПК. Пересохрани его как JPEG или PNG и отправь снова.'); }
   const header = new Uint8Array(await blob.slice(0, 64).arrayBuffer()), format = sniffPhotoFormat(header);
+  // Above 20 MB the picture is re-encoded through a canvas, which cannot carry a gain map: ask first.
+  if (format === 'jpeg' && !sdrAllowed(file.uri) && announcesGainmap(new Uint8Array(await blob.slice(0, 512 * 1024).arrayBuffer()))) { bitmap.close(); throw requestHdrConsent(file.uri); }
   const alpha = format === 'png' || format === 'webp' || format === 'avif' || format === 'bmp' || format === 'tiff';
   const mime = alpha ? 'image/png' : 'image/jpeg';
   let scale = Math.min(1, Math.sqrt(MAX_PIXELS / (bitmap.width * bitmap.height)), 8192 / Math.max(bitmap.width, bitmap.height));

@@ -25,6 +25,7 @@ import { mentionsUser, setViewingChannel } from './unread';
 import { dismissChannelFailure, enqueueChannelMessage, flushChannelOutbox, newOutboxKey, onChannelOutbox, removeChannelMessage, useChannelOutbox, useChannelOutboxFailures } from './channelOutbox';
 import { NetworkError, RequestTimeoutError } from '../api';
 import { inviteCodeFrom, withoutInviteLink } from './types';
+import { withUncleanedConsent } from '../attachments/uncleanedConsent';
 
 const time = (iso: string) => new Date(iso).toLocaleTimeString('ru-RU', { hour: '2-digit', minute: '2-digit' });
 const day = (iso: string) => new Date(iso).toLocaleDateString('ru-RU', { day: 'numeric', month: 'long' });
@@ -129,17 +130,20 @@ export function ChannelChat({ api, me, store, community, channel, onOpenInvite }
   const upload = async (kind: 'media' | 'file') => {
     setAttach(false); setError('');
     try {
-      let file: { uri: string; name: string; mimeType: string; size?: number } | null = null;
+      let file: { uri: string; name: string; mimeType: string; size?: number; file?: File } | null = null;
       if (kind === 'media') {
         if (Platform.OS !== 'web') { const permission = await ImagePicker.requestMediaLibraryPermissionsAsync(); if (!permission.granted) throw new Error('Разреши доступ к фото в настройках устройства.'); }
         const result = await ImagePicker.launchImageLibraryAsync({ mediaTypes: ['images', 'videos'], quality: 0.9, exif: false, videoExportPreset: ImagePicker.VideoExportPreset.H264_1280x720, preferredAssetRepresentationMode: ImagePicker.UIImagePickerPreferredAssetRepresentationMode.Compatible });
         const asset = result.canceled ? null : result.assets[0];
-        if (asset) file = { uri: asset.uri, name: asset.fileName || (asset.type === 'video' ? 'video.mp4' : 'photo.jpg'), mimeType: asset.mimeType || (asset.type === 'video' ? 'video/mp4' : 'image/jpeg'), size: asset.fileSize };
+        // On the PC the picker also gives the File itself: a big file is then read in slices, never copied whole.
+        if (asset) file = { uri: asset.uri, name: asset.fileName || (asset.type === 'video' ? 'video.mp4' : 'photo.jpg'), mimeType: asset.mimeType || (asset.type === 'video' ? 'video/mp4' : 'image/jpeg'), size: asset.fileSize, ...(asset.file ? { file: asset.file } : {}) };
       } else {
         const result = await DocumentPicker.getDocumentAsync({ copyToCacheDirectory: true, multiple: false });
         const asset = result.canceled ? null : result.assets[0];
-        if (asset) file = { uri: asset.uri, name: asset.name, mimeType: asset.mimeType || 'application/octet-stream', size: asset.size };
+        if (asset) file = { uri: asset.uri, name: asset.name, mimeType: asset.mimeType || 'application/octet-stream', size: asset.size, ...(asset.file ? { file: asset.file } : {}) };
       }
+      // A video the app cannot clean is sent only after «Отправить без очистки?» (the same question as in chats).
+      if (file) file = await withUncleanedConsent(file);
       if (!file) return;
       setSending(true);
       const uploaded = await api.uploadChannelFile(file);

@@ -5,6 +5,8 @@ import kotlin.math.*
 data class PixelImage(val width: Int, val height: Int, val pixels: IntArray)
 data class PhotoPoint(val x: Double, val y: Double)
 data class PhotoStroke(val radius: Double, val points: List<PhotoPoint>)
+/** Pen line: ARGB colour, full width as a share of min(width,height). */
+data class PhotoDrawing(val color: Int, val width: Double, val points: List<PhotoPoint>)
 class PhotoFailure(val reason: String) : RuntimeException(reason)
 
 object PhotoPixels {
@@ -120,15 +122,17 @@ object PhotoPixels {
     return image.copy(pixels=output)
   }
 
-  private fun strokeMask(width:Int,height:Int,strokes:List<PhotoStroke>):BooleanArray {
+  /** Pixels within `radius` (share of min side) plus `extra` pixels of each polyline. */
+  internal fun strokeMask(width:Int,height:Int,strokes:List<PhotoStroke>,extra:Double=0.0):BooleanArray {
     val mask=BooleanArray(width*height);var budget=0L
     for(stroke in strokes) {
-      val radius=max(1.0,stroke.radius*min(width,height))
+      val radius=max(1.0,stroke.radius*min(width,height))+extra
       val pairs=if(stroke.points.size==1)listOf(stroke.points[0] to stroke.points[0])else stroke.points.zipWithNext()
       for((start,end) in pairs) {
         val ax=start.x*(width-1);val ay=start.y*(height-1);val bx=end.x*(width-1);val by=end.y*(height-1)
         val x0=max(0,floor(min(ax,bx)-radius).toInt());val x1=min(width-1,ceil(max(ax,bx)+radius).toInt())
         val y0=max(0,floor(min(ay,by)-radius).toInt());val y1=min(height-1,ceil(max(ay,by)+radius).toInt())
+        if(x0>x1||y0>y1)continue // Entirely outside this image (a stroke beyond the crop edge).
         budget+=(x1-x0+1).toLong()*(y1-y0+1)
         if(budget>60_000_000L)throw PhotoFailure("MASK_TOO_COMPLEX")
         val dx=bx-ax;val dy=by-ay;val squared=dx*dx+dy*dy

@@ -1,15 +1,20 @@
 import Foundation
 import zlib
 
+/// kind: "gainmap" (SDR base + gain map) or "pq"/"hlg" (HDR base). Mirrors PhotoSource.kt.
 struct PhotoRange {
   let value:String
   var reason:String?=nil
+  var kind:String?=nil
   func merge(_ other:PhotoRange) -> PhotoRange {
     if value=="hdr" { return self };if other.value=="hdr" { return other }
-    return value=="unknown" ? self : other
+    if value=="unknown" { return self };if other.value=="unknown" { return other }
+    return reason != nil ? self : other
   }
-  static func hdr() -> PhotoRange { PhotoRange(value:"hdr",reason:"В файле найдены HDR-данные или карта яркости. Этот редактор пока не сохраняет их при обработке.") }
-  static func unknown() -> PhotoRange { PhotoRange(value:"unknown",reason:"Динамический диапазон или точность этого файла нельзя безопасно сохранить в 8-битном редакторе.") }
+  static func gainmap() -> PhotoRange { PhotoRange(value:"hdr",reason:"HDR-фото с картой яркости.",kind:"gainmap") }
+  static func hdrBase(_ kind:String) -> PhotoRange { PhotoRange(value:"hdr",reason:"HDR-фото без SDR-версии: для обычной яркости нужен тон-маппинг.",kind:kind) }
+  static func unknown() -> PhotoRange { PhotoRange(value:"unknown",reason:"Динамический диапазон этого файла не удалось определить.") }
+  static func deepSdr() -> PhotoRange { PhotoRange(value:"sdr",reason:"Фото будет сохранено с точностью 8 бит на канал.") }
 }
 
 /// Inspect the container before ImageIO can select its backward-compatible SDR look.
@@ -24,11 +29,12 @@ enum PhotoSource {
     if photoText(first,0,4)=="RIFF" && photoText(first,8,4)=="WEBP" { return try webp(input) }
     if photoText(first,4,4)=="ftyp" {
       try input.seek(0);let state=BoxState();try boxes(input,end:input.size,depth:0,state:state)
-      let associated=state.associations[state.primary] ?? []
-      let known=state.images.contains(state.primary) && associated.contains(where:{state.colors.contains($0)}) && associated.contains(where:{state.depths.contains($0)}) && state.codec
-      return known ? state.range : state.range.merge(.unknown())
+      // Unknown non-HDR boxes do not make a photo HDR; 10-bit SDR is sent with 8 bits.
+      return state.deep && state.range.value=="sdr" ? state.range.merge(.deepSdr()) : state.range
     }
-    if photoText(first,0,2)=="BM" { let data=try input.take(42);let dib=Int(data[2])|Int(data[3])<<8|Int(data[4])<<16|Int(data[5])<<24;return dib==40 ? PhotoRange(value:"sdr") : .unknown() }
+    if photoText(first,0,2)=="BM" { let data=try input.take(42);let dib=Int(data[2])|Int(data[3])<<8|Int(data[4])<<16|Int(data[5])<<24;return [12,40,52,56,108,124].contains(dib) ? PhotoRange(value:"sdr") : .unknown() }
+    // TIFF/DNG: ImageIO renders a normal SDR picture; there is no gain map to lose.
+    if photoText(first,0,4)=="II*\0" || photoText(first,0,4)=="MM\0*" { return PhotoRange(value:"sdr") }
     return .unknown()
   }
   private static func png(_ input:PhotoCursor,length:Int) throws -> PhotoRange {
@@ -40,12 +46,12 @@ enum PhotoSource {
       switch type {
       case "acTL":throw PhotoFailure("ANIMATED_IMAGE")
       case "IHDR":
-        let data=try input.metadata(length);if data.count != 13 { throw PhotoFailure("UNSUPPORTED_IMAGE") };if data[8]>8 { result=result.merge(.unknown()) }
+        let data=try input.metadata(length);if data.count != 13 { throw PhotoFailure("UNSUPPORTED_IMAGE") };if data[8]>8 { result=result.merge(.deepSdr()) }
       case "cICP":
         let data=try input.metadata(length);if data.count != 4 { throw PhotoFailure("UNSUPPORTED_IMAGE") };result=result.merge(transfer(Int(data[1])))
-      case "mDCV","cLLI":try input.skip(length);result=result.merge(.unknown())
+      case "mDCV","cLLI":try input.skip(length) // Mastering data alone is not an HDR transfer.
       case "iCCP":result=result.merge(iccPng(try input.metadata(length)))
-      case "iTXt","tEXt","zTXt":let data=try input.metadata(length);if hasHdr(data) { result=result.merge(.hdr()) }
+      case "iTXt","tEXt","zTXt":let data=try input.metadata(length);if hasHdr(data) { result=result.merge(.gainmap()) }
       default:try input.skip(length)
       }
       try input.skip(4)
@@ -54,12 +60,12 @@ enum PhotoSource {
     }
   }
   private static func iccPng(_ data:[UInt8]) -> PhotoRange {
-    guard let end=data.firstIndex(of:0),(1...79).contains(end),end+2<data.count,data[end+1]==0 else { return .unknown() }
+    guard let end=data.firstIndex(of:0),(1...79).contains(end),end+2<data.count,data[end+1]==0 else { return PhotoRange(value:"sdr") }
     let compressed=Array(data[(end+2)...]);var output=[UInt8](repeating:0,count:maximumMetadata+1);var length=uLongf(output.count)
     let status=output.withUnsafeMutableBufferPointer { destination in
       compressed.withUnsafeBufferPointer { source in uncompress(destination.baseAddress!,&length,source.baseAddress!,uLong(source.count)) }
     }
-    if status != Z_OK || length>uLongf(maximumMetadata) { return .unknown() }
+    if status != Z_OK || length>uLongf(maximumMetadata) { return PhotoRange(value:"sdr") }
     return PhotoIcc.inspect(Array(output.prefix(Int(length))))
   }
   private static func jpeg(_ input:PhotoCursor) throws -> PhotoRange {
@@ -69,8 +75,8 @@ enum PhotoSource {
       var marker=try input.byte();while marker==255 { marker=try input.byte() }
       if marker==0xda || marker==0xd9 {
         if !profiles.isEmpty {
-          if total != profiles.count || total==0 || (1...max(1,total)).contains(where:{profiles[$0]==nil}) { result=result.merge(.unknown()) }
-          else { result=result.merge(PhotoIcc.inspect((1...total).flatMap{profiles[$0] ?? []})) }
+          // A broken ICC sequence is not HDR: the decoder falls back to sRGB.
+          if total == profiles.count && total>0 && !(1...total).contains(where:{profiles[$0]==nil}) { result=result.merge(PhotoIcc.inspect((1...total).flatMap{profiles[$0] ?? []})) }
         }
         return result
       }
@@ -78,16 +84,16 @@ enum PhotoSource {
       let length=try input.short()-2
       if length<0 { throw PhotoFailure("UNSUPPORTED_IMAGE") }
       let data=try input.metadata(length)
-      if (0xc0...0xcf).contains(marker) && ![0xc4,0xc8,0xcc].contains(marker) && (data.isEmpty || data[0] != 8) { result=result.merge(.unknown()) }
-      if marker==0xe1 && !photoStarts(data,"Exif\0\0") { result=result.merge(hasHdr(data) ? .hdr() : .unknown()) }
+      if (0xc0...0xcf).contains(marker) && ![0xc4,0xc8,0xcc].contains(marker) && (data.isEmpty || data[0] != 8) { result=result.merge(.deepSdr()) }
+      // XMP without gain-map data (Lightroom, Photoshop, Google Photos) is removed, not HDR.
+      if marker==0xe1 && !photoStarts(data,"Exif\0\0") && hasHdr(data) { result=result.merge(.gainmap()) }
       if marker==0xe2 {
-        if photoStarts(data,"urn:iso:std:iso:ts:21496:") { result=result.merge(.hdr()) }
-        else if photoStarts(data,"MPF\0") { result=result.merge(.unknown()) }
+        if photoStarts(data,"urn:iso:std:iso:ts:21496:") { result=result.merge(.gainmap()) }
+        else if photoStarts(data,"MPF\0") { /* previews only: dropped, the photo is SDR */ }
         else if photoStarts(data,"ICC_PROFILE\0") {
           if data.count<14 { throw PhotoFailure("UNSUPPORTED_IMAGE") }
           let order=Int(data[12]);let count=Int(data[13])
-          if order==0 || count==0 || order>count || profiles[order] != nil || (total != 0 && count != total) { result=result.merge(.unknown()) }
-          total=count;profiles[order]=Array(data.dropFirst(14))
+          if !(order==0 || count==0 || order>count || profiles[order] != nil || (total != 0 && count != total)) { total=count;profiles[order]=Array(data.dropFirst(14)) }
         }
       }
     }
@@ -102,7 +108,7 @@ enum PhotoSource {
       case "ANIM","ANMF":throw PhotoFailure("ANIMATED_IMAGE")
       case "VP8X":let header=try input.metadata(length);if header.isEmpty { throw PhotoFailure("UNSUPPORTED_IMAGE") };if header[0]&2 != 0 { throw PhotoFailure("ANIMATED_IMAGE") }
       case "ICCP":result=result.merge(PhotoIcc.inspect(try input.metadata(length)))
-      case "XMP ":let data=try input.metadata(length);result=result.merge(hasHdr(data) ? .hdr() : .unknown())
+      case "XMP ":let data=try input.metadata(length);if hasHdr(data) { result=result.merge(.gainmap()) }
       default:try input.skip(length)
       }
       if length&1 != 0 { try input.skip(1) }
@@ -110,7 +116,7 @@ enum PhotoSource {
     return result
   }
   private final class BoxState {
-    var range=PhotoRange(value:"sdr");var count=0;var propertyCount=0;var containers=0;var primary = -1;var codec=false
+    var range=PhotoRange(value:"sdr");var count=0;var propertyCount=0;var containers=0;var primary = -1;var codec=false;var deep=false
     var colors=Set<Int>();var depths=Set<Int>();var images=Set<Int>();var associations=[Int:[Int]]()
   }
   private static func boxes(_ input:PhotoCursor,end:Int,depth:Int,state:BoxState,properties:Bool=false) throws {
@@ -123,49 +129,47 @@ enum PhotoSource {
       let next=start+size;let length=size-header
       if properties { state.propertyCount += 1 };let property=properties ? state.propertyCount : 0
       switch name {
-      case "meta":if photoU32(try input.take(4),0) != 0 { state.range=state.range.merge(.unknown()) };try boxes(input,end:next,depth:depth+1,state:state)
+      case "meta":_=try input.take(4);try boxes(input,end:next,depth:depth+1,state:state)
       case "iprp":try boxes(input,end:next,depth:depth+1,state:state)
-      case "ipco":state.containers += 1;if state.containers>1 { state.range=state.range.merge(.unknown()) };try boxes(input,end:next,depth:depth+1,state:state,properties:true)
+      case "ipco":state.containers += 1;try boxes(input,end:next,depth:depth+1,state:state,properties:true)
       case "iinf":let version=try input.byte();try input.skip(3);try input.skip(version==0 ? 2 : 4);try boxes(input,end:next,depth:depth+1,state:state)
       case "infe":
         let data=try input.metadata(length);let version=data.first.map{Int($0)} ?? -1;let at=version==2 ? 8 : (version==3 ? 10 : -1)
-        if at<0 || data.count<at+4 { state.range=state.range.merge(.unknown()) }
-        else {
+        if at>=0 && data.count>=at+4 {
           switch photoText(data,at,4) {
-          case "tmap":state.range=state.range.merge(.hdr())
+          case "tmap":state.range=state.range.merge(.gainmap())
           case "hvc1","av01","grid":state.images.insert(version==2 ? Int(data[4])*256+Int(data[5]) : photoU32(data,4))
-          case "Exif":break
-          default:state.range=state.range.merge(.unknown())
+          default:break
           }
         }
       case "colr":
         let data=try input.metadata(length);let range:PhotoRange
         if photoStarts(data,"nclx") && data.count>=11 { range=transfer(Int(data[6])*256+Int(data[7])) }
         else if photoStarts(data,"prof") || photoStarts(data,"rICC") { range=PhotoIcc.inspect(Array(data.dropFirst(4))) }
-        else { range = .unknown() }
+        else { range = PhotoRange(value:"sdr") }
         if property>0 && range.value=="sdr" { state.colors.insert(property) };state.range=state.range.merge(range)
       case "pixi":
         let data=try input.metadata(length);let count=data.count>=5 ? Int(data[4]) : 0
-        if count==0 || data.count != 5+count || data.dropFirst(5).contains(where:{$0==0 || $0>8}) { state.range=state.range.merge(.unknown()) } else if property>0 { state.depths.insert(property) }
+        if count==0 || data.count != 5+count || data.dropFirst(5).contains(where:{$0==0 || $0>8}) { state.deep=true } else if property>0 { state.depths.insert(property) }
       case "hvcC","av1C":
         let data=try input.metadata(length)
         let eight=name=="hvcC" ? (data.count>=23 && data[0]==1 && data[17]&7==0 && data[18]&7==0) : (data.count>=4 && data[0]==129 && data[2]&0x60==0)
-        if !eight { state.range=state.range.merge(.unknown()) } else { state.codec=true }
+        if !eight { state.deep=true } else { state.codec=true }
       case "pitm":
         let data=try input.metadata(length);let version=data.first.map{Int($0)} ?? -1;let id:Int
         if version==0 && data.count==6 { id=Int(data[4])*256+Int(data[5]) }
         else if version==1 && data.count==8 { id=photoU32(data,4) } else { id = -1 }
-        if id<0 || state.primary>=0 { state.range=state.range.merge(.unknown()) } else { state.primary=id }
+        if id>=0 && state.primary<0 { state.primary=id }
       case "ipma":try associations(input.metadata(length),state:state)
       case "auxC":
-        let data=try input.metadata(length);let text=photoText(data)
-        if hasHdr(data) { state.range=state.range.merge(.hdr()) }
-        else if !text.contains("auxiliary:alpha") && !text.contains("auxiliary:depth") && !text.contains("aux:disparity") { state.range=state.range.merge(.unknown()) }
-      case "mdcv","clli","amve","cclv","grpl":try input.skip(length);state.range=state.range.merge(.unknown())
+        let data=try input.metadata(length)
+        if hasHdr(data) { state.range=state.range.merge(.gainmap()) }
+      // Mastering/ambient metadata without a PQ/HLG transfer describes an SDR picture.
+      case "mdcv","clli","amve","cclv","grpl":try input.skip(length)
       case "ftyp":let data=try input.metadata(length);let text=photoText(data);if text.contains("avis") || text.contains("msf1") { throw PhotoFailure("ANIMATED_IMAGE") }
       case "moov":throw PhotoFailure("ANIMATED_IMAGE")
       case "ispe","irot","imir","clap","pasp","iloc","iref","hdlr","dinf","mdat","idat","free","skip":try input.skip(length)
-      default:try input.skip(length);state.range=state.range.merge(.unknown())
+      default:try input.skip(length)
       }
       if input.position != next { throw PhotoFailure("UNSUPPORTED_IMAGE") }
     }
@@ -186,13 +190,14 @@ enum PhotoSource {
         if wide { index=(Int(data[at])*256+Int(data[at+1]))&0x7fff;at += 2 } else { index=Int(data[at])&0x7f;at += 1 }
         if index>0 { indices.append(index) }
       }
-      if state.associations[id] != nil { state.range=state.range.merge(.unknown()) };state.associations[id]=indices
+      state.associations[id]=indices
     }
     if at != data.count { throw PhotoFailure("UNSUPPORTED_IMAGE") }
   }
   static func transfer(_ value:Int) -> PhotoRange {
-    if [16,18].contains(value) { return .hdr() }
-    return [1,4,5,6,7,13,14,15].contains(value) ? PhotoRange(value:"sdr") : .unknown()
+    if value==16 { return .hdrBase("pq") }
+    if value==18 { return .hdrBase("hlg") }
+    return PhotoRange(value:"sdr")
   }
   private static func hasHdr(_ data:[UInt8]) -> Bool {
     let value=photoText(data).lowercased();return ["hdr-gain-map","hdrgainmap","hdrgm:","gainmap","21496:","hdrheadroom"].contains{value.contains($0)}
@@ -223,25 +228,26 @@ private final class PhotoCursor {
   func skip(_ count:Int) throws {if count<0 { throw PhotoFailure("UNSUPPORTED_IMAGE") };try seek(position+count)}
 }
 
+/// Only an ICC `cicp` tag with a PQ/HLG transfer makes a photo HDR; other profiles describe gamut, not range.
 private enum PhotoIcc {
   private static let ignored:Set<String>=["desc","cprt","dmnd","dmdd","tech","view","meas","targ","chad","chrm","bkpt"]
   static func inspect(_ data:[UInt8]) -> PhotoRange {
-    if data.count<132 || photoU32(data,0) != data.count || photoText(data,36,4) != "acsp" || photoText(data,16,4) != "RGB " || photoText(data,20,4) != "XYZ " || !(2...4).contains(data[8]) { return .unknown() }
-    let count=photoU32(data,128);if count>256 || 132+count*12>data.count { return .unknown() }
+    if data.count<132 || photoU32(data,0) != data.count || photoText(data,36,4) != "acsp" || photoText(data,16,4) != "RGB " || photoText(data,20,4) != "XYZ " || !(2...4).contains(data[8]) { return PhotoRange(value:"sdr") }
+    let count=photoU32(data,128);if count>256 || 132+count*12>data.count { return PhotoRange(value:"sdr") }
     var tags=[String:[UInt8]]()
     for i in 0..<count {
       let at=132+i*12;let name=photoText(data,at,4);let start=photoU32(data,at+4);let size=photoU32(data,at+8)
-      if start<132+count*12 || size<8 || start+size>data.count || tags[name] != nil { return .unknown() }
+      if start<132+count*12 || size<8 || start+size>data.count || tags[name] != nil { return PhotoRange(value:"sdr") }
       tags[name]=Array(data[start..<(start+size)])
     }
-    if let tag=tags["cicp"] {if tag.count<12 { return .unknown() };let range=PhotoSource.transfer(Int(tag[9]));if range.value != "sdr" { return range }}
+    if let tag=tags["cicp"] {if tag.count<12 { return PhotoRange(value:"sdr") };let range=PhotoSource.transfer(Int(tag[9]));if range.value != "sdr" { return range }}
     let transforms:Set<String>=["rXYZ","gXYZ","bXYZ","wtpt","rTRC","gTRC","bTRC","cicp","lumi"]
-    if tags.keys.contains(where:{!ignored.contains($0) && !transforms.contains($0)}) { return .unknown() }
-    if let tag=tags["lumi"],tag.count<20 || photoText(tag,0,4) != "XYZ " || fixed(tag,12)>203 { return .unknown() }
+    if tags.keys.contains(where:{!ignored.contains($0) && !transforms.contains($0)}) { return PhotoRange(value:"sdr") }
+    if let tag=tags["lumi"],tag.count<20 || photoText(tag,0,4) != "XYZ " || fixed(tag,12)>203 { return PhotoRange(value:"sdr") }
     var y=0.0
-    for name in ["rXYZ","gXYZ","bXYZ"] {guard let tag=tags[name],tag.count==20,photoText(tag,0,4)=="XYZ " else { return .unknown() };y += fixed(tag,12)}
-    if abs(y-1)>0.03 { return .unknown() }
-    for name in ["rTRC","gTRC","bTRC"] {guard let curve=tags[name],standardCurve(curve) else { return .unknown() }}
+    for name in ["rXYZ","gXYZ","bXYZ"] {guard let tag=tags[name],tag.count==20,photoText(tag,0,4)=="XYZ " else { return PhotoRange(value:"sdr") };y += fixed(tag,12)}
+    if abs(y-1)>0.03 { return PhotoRange(value:"sdr") }
+    for name in ["rTRC","gTRC","bTRC"] {guard let curve=tags[name],standardCurve(curve) else { return PhotoRange(value:"sdr") }}
     return PhotoRange(value:"sdr")
   }
   private static func standardCurve(_ data:[UInt8]) -> Bool {

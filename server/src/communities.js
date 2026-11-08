@@ -705,7 +705,8 @@ export function installCommunityRoutes({ app, db, authOptions, publicUser, times
     let attachmentId = null;
     if (body.attachmentId !== undefined && body.attachmentId !== null) {
       if (typeof body.attachmentId !== 'string') fail(400, 'Некорректный файл.');
-      const upload = db.prepare('SELECT * FROM uploads WHERE id=? AND owner_id=? AND is_encrypted=0 AND attached_message_id IS NULL').get(body.attachmentId, viewer);
+      // Only a channel upload (one request or chunked): a profile post or an avatar is not posted to a channel.
+      const upload = db.prepare("SELECT * FROM uploads WHERE id=? AND owner_id=? AND is_encrypted=0 AND attached_message_id IS NULL AND purpose='channel'").get(body.attachmentId, viewer);
       if (!upload || db.prepare('SELECT 1 FROM community_messages WHERE attachment_id=?').get(upload.id)) fail(404, 'Файл не найден.');
       attachmentId = upload.id;
     }

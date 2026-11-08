@@ -22,6 +22,7 @@ import { openDatabase, transaction, publicUser as serializePublicUser, publicCha
 import { isAvatarFrame, isBannerPreset, isProfileEffect, isNameplate, isProfilePattern, MAX_PROFILE_VIDEO_BYTES, videoMime } from './cosmetics.js';
 import { platinaState } from './entitlements.js';
 import { DEFAULT_FILE_LIMITS, installBigFileRoutes } from './bigfiles.js';
+import { installPlainUploadRoutes } from './plainuploads.js';
 import { installAuthRoutes, RECOVERY_LOCK_MS, rateLimitIp } from './auth.js';
 import { installE2eeRoutes, installScheduledRoutes, parseEncryptedMessage } from './e2ee.js';
 import { registerAiRoutes, aiProvider } from './ai.js';
@@ -514,10 +515,15 @@ export async function buildApp({
   const storageLimit = userId => Math.min(tierTotal(userId), maxStoredBytesPerUser ?? Infinity);
   const e2ee = installE2eeRoutes({
     app, db, now, timestamp, authOptions, emitUser, limiter, uploadDir,
-    maxUploadBytes, storageLimit, closeRevokedSockets,
+    maxUploadBytes, storageLimit, closeRevokedSockets, usage: userId => bigFiles.usage(userId),
   });
-  const bigFiles = installBigFileRoutes({ app, db, uploadDir, authOptions, limiter, isPlatina: isPlatinaActive, now, timestamp, assertSession: e2ee.assertSession,
+  let plainUploads = null;
+  const bigFiles = installBigFileRoutes({ app, db, uploadDir, authOptions, limiter, isPlatina: isPlatinaActive, now, timestamp, assertSession: e2ee.assertSession, writable,
     limits: { free: { ...fileLimits.free, total: Math.min(fileLimits.free.total, maxStoredBytesPerUser ?? Infinity) }, platina: { ...fileLimits.platina, total: Math.min(fileLimits.platina.total, maxStoredBytesPerUser ?? Infinity) } },
+    extraReserved: userId => plainUploads?.reserved(userId) ?? 0,
+    diskReserveBytes, ...(freeDisk ? { freeDisk } : {}) });
+  // Big channel files, posts and stories: chunked and resumable, counted in the same storage (plainuploads.js).
+  plainUploads = installPlainUploadRoutes({ app, db, uploadDir, authOptions, limiter, bigFiles, now, timestamp, sessionStillValid, writable,
     diskReserveBytes, ...(freeDisk ? { freeDisk } : {}) });
   expireEncryptionDevices = e2ee.expireDevices;
   expireEncryptionDevices();
@@ -557,7 +563,8 @@ export async function buildApp({
     let avatarVideoId = current.avatar_video_id;
     if (body.avatarVideoId !== undefined) {
       avatarVideoId = body.avatarVideoId;
-      if (avatarVideoId !== null && !ownUpload(avatarVideoId, 'видео профиля').is_video) fail(400, 'Анимированный аватар должен быть видео MP4 или MOV до 8 МиБ.');
+      // The animated avatar stays a short video up to 8 MiB, even when the file was a bigger post.
+      if (avatarVideoId !== null && (u => !u.is_video || u.size > MAX_PROFILE_VIDEO_BYTES)(ownUpload(avatarVideoId, 'видео профиля'))) fail(400, 'Анимированный аватар должен быть видео MP4 или MOV до 8 МиБ.');
     }
     const avatarFrame = body.avatarFrame === undefined ? current.avatar_frame : body.avatarFrame;
     if (avatarFrame !== null && avatarFrame !== undefined && !isAvatarFrame(avatarFrame)) fail(400, 'Неизвестная рамка.');
@@ -572,8 +579,8 @@ export async function buildApp({
       bannerId = body.bannerId; bannerKind = null;
       if (bannerId !== null) {
         const upload = ownUpload(bannerId, 'изображение баннера');
-        if (upload.is_video) bannerKind = 'video';
-        else if (upload.is_image) bannerKind = 'image';
+        if (upload.is_video) { if (upload.size > MAX_PROFILE_VIDEO_BYTES) fail(400, 'Видео для баннера — до 8 МиБ.'); bannerKind = 'video'; }
+        else if (upload.is_image) { if (upload.size > MAX_AVATAR_BYTES) fail(400, 'Фото для баннера — до 4 МиБ.'); bannerKind = 'image'; }
         else fail(400, 'Баннер должен быть фото или видео.');
       }
     }
@@ -793,9 +800,13 @@ export async function buildApp({
   app.post('/uploads', authOptions, async (request, reply) => {
     const ownerId = request.auth.user_id;
     const channelUpload = request.query?.purpose === 'channel';
+    // A profile post or story (posts.js): a photo or an MP4/MOV up to the upload limit. Bigger ones go in chunks
+    // (POST /uploads/sessions); the avatar and the banner keep their own small limits.
+    const postUpload = request.query?.purpose === 'post' || request.query?.purpose === 'story';
     if (!request.isMultipart()) fail(400, 'Отправьте файл как multipart/form-data.');
     if (!limiter.allow(`upload:${ownerId}`, 20, 60_000)) fail(429, 'Слишком много загрузок. Попробуйте через минуту.');
-    const used = db.prepare('SELECT COALESCE(SUM(size),0) AS bytes FROM uploads WHERE owner_id=?').get(ownerId).bytes;
+    // Stored files plus the unfinished chunked uploads that already reserved their size.
+    const used = bigFiles.usage(ownerId);
     if (used >= storageLimit(ownerId)) fail(413, 'Достигнут лимит хранения файлов для аккаунта.');
     let attachment = null;
     let filePath = null;
@@ -830,6 +841,11 @@ export async function buildApp({
           attachment = { id, name: safeFilename(part.filename), mime_type: mime || video || safeMime(part.mimetype), size, is_image: mime ? 1 : 0, is_video: video ? 1 : 0 };
           continue;
         }
+        if (postUpload) {
+          if (!mime && !video) fail(400, 'Публикация — фото или видео MP4/MOV.');
+          attachment = { id, name: safeFilename(part.filename), mime_type: mime || video, size, is_image: mime ? 1 : 0, is_video: video ? 1 : 0 };
+          continue;
+        }
         if (video) {
           if (size > MAX_PROFILE_VIDEO_BYTES) fail(400, 'Видео для профиля — до 8 МиБ.');
         } else if (!mime || size > MAX_AVATAR_BYTES) fail(400, 'Для профиля допустимо изображение PNG, JPEG, GIF или WebP до 4 МиБ или видео MP4/MOV до 8 МиБ. Отправка файлов в чат требует шифрования.');
@@ -838,10 +854,10 @@ export async function buildApp({
       if (!attachment) fail(400, 'Выберите файл для загрузки.');
       if (!sessionStillValid({ auth: request.auth })) fail(401, 'Войдите в аккаунт заново.');
       // Recheck after async streaming: parallel uploads must not bypass the account quota.
-      const finalUsed = db.prepare('SELECT COALESCE(SUM(size),0) AS bytes FROM uploads WHERE owner_id=?').get(ownerId).bytes;
+      const finalUsed = bigFiles.usage(ownerId);
       if (finalUsed + attachment.size > storageLimit(ownerId)) fail(413, 'Достигнут лимит хранения файлов для аккаунта.');
       db.prepare('INSERT INTO uploads(id,owner_id,name,mime_type,size,is_image,is_video,purpose,created_at) VALUES(?,?,?,?,?,?,?,?,?)')
-        .run(attachment.id, ownerId, attachment.name, attachment.mime_type, attachment.size, attachment.is_image, attachment.is_video, channelUpload ? 'channel' : 'profile', timestamp());
+        .run(attachment.id, ownerId, attachment.name, attachment.mime_type, attachment.size, attachment.is_image, attachment.is_video, channelUpload ? 'channel' : postUpload ? 'post' : 'profile', timestamp());
       persisted = true;
       return reply.code(201).send({ attachment: publicAttachment(attachment) });
     } finally {

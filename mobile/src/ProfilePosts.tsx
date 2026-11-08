@@ -93,11 +93,11 @@ export async function pickAndUpload(api: Api): Promise<string | null> {
   const asset = result.assets[0];
   if (asset.type === 'video') {
     if ((asset.duration || 0) > 60_500) throw new Error('Видео — не длиннее минуты.');
-    return (await api.upload({ uri: asset.uri, name: 'post.mp4', mimeType: asset.mimeType || 'video/mp4', size: asset.fileSize })).id;
+    return (await api.upload({ uri: asset.uri, name: 'post.mp4', mimeType: asset.mimeType || 'video/mp4', size: asset.fileSize }, { purpose: 'post' })).id;
   }
   // A photo is kept up to 1600 px across: sharp on any phone and under the 4 MB profile limit.
   const small = await ImageManipulator.manipulateAsync(asset.uri, (asset.width || 0) > 1600 ? [{ resize: { width: 1600 } }] : [], { format: ImageManipulator.SaveFormat.JPEG, compress: 0.85 });
-  return (await api.upload({ uri: small.uri, name: 'post.jpg', mimeType: 'image/jpeg' })).id;
+  return (await api.upload({ uri: small.uri, name: 'post.jpg', mimeType: 'image/jpeg' }, { purpose: 'post' })).id;
 }
 
 /**

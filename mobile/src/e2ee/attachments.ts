@@ -10,7 +10,8 @@ import type { Attachment, LocalFile } from '../types';
 import { getSignalBridge } from './signal';
 import { prepareMediaForUpload, type PreparedMedia } from '../media/pipeline';
 import { sanitizePng } from '../photo/png';
-import { sanitizeJpeg } from '../photo/jpeg';
+import { sanitizePhotoJpeg } from '../photo/jpegHdr';
+import { wireMedia } from '../media/previewModel';
 import { sanitizeMp4 } from '../media/mp4';
 import { makeThumbnail } from '../media/thumbnail';
 import { planUpload, planForUpload, readClean, UncleanableMedia, VIDEO_MIME, type ByteSource, type CleanPlan, type UploadRoute } from '../media/stream/index';
@@ -87,9 +88,10 @@ async function uploadBytes(prepared:PreparedMedia):Promise<Uint8Array> {
   if(info.size>MAX_FILE)throw new Error('Файл слишком большой. Максимум — 20 МБ.');
   const bytes=toByteArray(await FileSystem.readAsStringAsync(file.uri,{encoding:FileSystem.EncodingType.Base64}));
   if(bytes.length>MAX_FILE)throw new Error('Файл слишком большой. Максимум — 20 МБ.');
-  if(prepared.video)return sanitizeMp4(bytes,prepared.media?.hdr).bytes;
+  if(prepared.video)return sanitizeMp4(bytes,prepared.media?.hdr==='gainmap'?undefined:prepared.media?.hdr).bytes;
   if(!prepared.photo)return bytes;
-  if(file.mimeType==='image/jpeg')return sanitizeJpeg(bytes).bytes;
+  // Gain-map JPEG is rebuilt by the HDR gate (two compressed images + regenerated numbers), others by the SDR gate.
+  if(file.mimeType==='image/jpeg')return sanitizePhotoJpeg(bytes).bytes;
   if(file.mimeType==='image/png')return sanitizePng(bytes).bytes;
   throw new Error('Обработка фото вернула неподдерживаемый формат.');
 }
@@ -101,7 +103,7 @@ async function encryptPrepared(api:Api,prepared:PreparedMedia,bridge:ReturnType<
   const ciphertext=await bridge.seal(fromByteArray(bytes),key,nonce,associatedData(fileKeyId));
   const part=multipartFile(toByteArray(ciphertext),'encrypted.bin','application/octet-stream');
   const result=await api.request<{id:string;size:number}>('/e2ee/files',{method:'POST',body:part.body as unknown as BodyInit,headers:{'Content-Type':part.contentType}});
-  return {id:result.id,name:file.name.slice(0,240)||'file',mimeType:file.mimeType.slice(0,150)||'application/octet-stream',size:bytes.length,encryption:{scheme:'aes-256-gcm-siv',key,nonce,fileKeyId},...(prepared.media?{media:prepared.media}:{}),...(preview?{preview}:{})};
+  return {id:result.id,name:file.name.slice(0,240)||'file',mimeType:file.mimeType.slice(0,150)||'application/octet-stream',size:bytes.length,encryption:{scheme:'aes-256-gcm-siv',key,nonce,fileKeyId},...(prepared.media?{media:wireMedia(prepared.media)}:{}),...(preview?{preview}:{})};
 }
 
 export type FileLimits={platina:boolean;maxFileBytes:number;maxVideoBytes?:number;storageBytes:number;usedBytes:number;chunkBytes:number};
@@ -182,19 +184,22 @@ async function uploadBigPhoto(api:Api,file:LocalFile,onProgress?:(sent:number,to
   }finally{await prepared.dispose().catch(()=>{});}
 }
 
-async function uploadChunks(api:Api,bridge:ReturnType<typeof getSignalBridge>,file:LocalFile,source:ByteSource,kind:'video'|'file',options:{state?:LargeUploadState;onState?:(state:LargeUploadState)=>void;onProgress?:(sent:number,total:number)=>void;signal?:AbortSignal}):Promise<Attachment>{
+async function uploadChunks(api:Api,bridge:ReturnType<typeof getSignalBridge>,file:LocalFile,source:ByteSource,kind:'video'|'file',options:{state?:LargeUploadState;onState?:(state:LargeUploadState)=>void;onProgress?:(sent:number,total:number)=>void;signal?:AbortSignal},restarted=false):Promise<Attachment>{
   const size=source.size;
   if(!Number.isSafeInteger(size)||size<=0)throw new Error('Не удалось определить размер файла.');
   const limits=await fileLimits(api).catch(()=>null);
   const tooBig=limits&&limitError(limits,kind,size);
   if(tooBig)throw new Error(tooBig);
-  let state:LargeUploadState=options.state||{key:fromByteArray(await Crypto.getRandomBytesAsync(32)),nonce:fromByteArray(await Crypto.getRandomBytesAsync(12)),fileKeyId:Crypto.randomUUID()};
+  // Fresh key material whenever the upload starts from byte 0: the file may have changed since an earlier
+  // attempt, and different plaintext must never be sealed under the same key and nonce.
+  const freshKeys=async():Promise<LargeUploadState>=>({key:fromByteArray(await Crypto.getRandomBytesAsync(32)),nonce:fromByteArray(await Crypto.getRandomBytesAsync(12)),fileKeyId:Crypto.randomUUID()});
+  let state:LargeUploadState=options.state||await freshKeys();
   options.onState?.(state);
   const count=chunkCount(size),full=CHUNK_PLAIN+TAG,total=chunkedCipherSize(size);
   let received=0;
   if(state.sessionId){
     try{received=(await api.request<{received:number}>(`/e2ee/uploads/${state.sessionId}`)).received;}
-    catch{state={...state,sessionId:undefined};}
+    catch{state=await freshKeys();options.onState?.(state);}
   }
   if(!state.sessionId){
     const started=await api.request<{id:string}>('/e2ee/uploads',{method:'POST',body:JSON.stringify({size,kind})});
@@ -211,14 +216,21 @@ async function uploadChunks(api:Api,bridge:ReturnType<typeof getSignalBridge>,fi
       const cipher=await bridge.seal(fromByteArray(plain),state.key,chunkNonce(state.nonce,index),chunkAd(state.fileKeyId,index,count));
       await FileSystem.writeAsStringAsync(temp,cipher,{encoding:FileSystem.EncodingType.Base64});
       const at=index*full,next=Math.min(total,at+full);
-      for(let attempt=0;;attempt++){
+      for(let attempt=0,busyFor=0;;attempt++){
         checkAbort(options.signal);
         const chunkPath=`/e2ee/uploads/${sessionId}?offset=${at}`;
         const result=await FileSystem.uploadAsync(`${api.endpoint}${chunkPath}`,temp,{httpMethod:'PUT',uploadType:FileSystem.FileSystemUploadType.BINARY_CONTENT,headers:{Authorization:`Bearer ${api.token}`,'Content-Type':'application/octet-stream','X-Linea-Client':CLIENT_HEADER,...attestHeaders('PUT',chunkPath)}}).catch(()=>null);
         if(result?.status===200)break;
-        const body=(()=>{try{return JSON.parse(result?.body||'{}');}catch{return {};}})() as {received?:number;error?:string};
+        const body=(()=>{try{return JSON.parse(result?.body||'{}');}catch{return {};}})() as {received?:number;error?:string;code?:string};
         // The chunk got through but the reply was lost: the server already has it.
         if(result?.status===409&&body.received===next)break;
+        // An earlier request of this upload still runs on the server: wait without spending the retries (≈ 90 s at most).
+        if(result?.status===409&&body.code==='UPLOAD_BUSY'&&busyFor<90_000){await wait(5000);busyFor+=5000;attempt--;continue;}
+        // The server lost the part file (e.g. after a failover): drop the session and start over once, with a new key.
+        if(result?.status===409&&body.code==='UPLOAD_LOST'&&!restarted){
+          await api.request(`/e2ee/uploads/${sessionId}`,{method:'DELETE'}).catch(()=>{});
+          return await uploadChunks(api,bridge,file,source,kind,{...options,state:undefined},true);
+        }
         if(result&&[401,403,404,413,507].includes(result.status))throw new Error(body.error||'Сервер отклонил файл.');
         if(attempt>=5)throw new Error('Связь прервалась. Нажми «повторить» — отправка продолжится с того же места.');
         await wait(800*2**attempt);

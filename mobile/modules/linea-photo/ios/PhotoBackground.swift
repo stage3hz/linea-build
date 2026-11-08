@@ -6,8 +6,13 @@ import Vision
 enum PhotoBackground {
   static func capabilities() -> [String:Any] {
     var result:[String:Any]=["backgroundRemoval":false,"backgroundReady":false,"objectRemoval":"diffusion","upscale":"bicubic","maxPlainPixels":16_000_000,"maxProcessingPixels":4_000_000,"maxOutputPixels":8_000_000]
-    result["hdrPreservation"]=false
-    result["hdrReason"]="Эффекты редактора работают с SDR в 8 бит. HDR и неподтверждённый диапазон блокируются до преобразования пикселей."
+    if #available(iOS 18.0, *) {
+      result["hdrPreservation"]=true
+      result["hdrReason"]="HDR-фото с картой яркости ISO сохраняются при обрезке, повороте, рисовании и удалении объектов."
+    } else {
+      result["hdrPreservation"]=false
+      result["hdrReason"]="HDR сохраняется при правках на iOS 18 и новее. Здесь HDR-фото можно отправить с обычной яркостью."
+    }
     if #available(iOS 17.0, *) {
       result["backgroundRemoval"]=true;result["backgroundReady"]=true
     }else { result["backgroundReason"]="Удаление фона на iPhone требует iOS 17 или новее." }

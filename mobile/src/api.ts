@@ -12,8 +12,12 @@ import type { SessionDetails } from './sessionAlerts';
 import type { Attachment, Chat, DeviceSession, LocalFile, Message, RecoveryChallenge, RecoveryRequest, RecoveryStatus, SecurityStatus, Session, User, UsernameStatus } from './types';
 import type { ClaimedBundle, CryptoDevice, EncryptedMessage, PublicBundle } from './e2ee/types';
 import type { ScheduledMessage } from './scheduled/model';
+import type { PlainUploadState } from './media/plainUploadCore';
 
-type ApiErrorDetails = { code?: string; attemptsRemaining?: number; attemptsLeft?: number; retryAfterSeconds?: number; readyAt?: string; serverTime?: string; expiresAt?: string };
+/** Progress and resume of a chunked plaintext upload (a channel file, a post or a story above 20 MB). */
+export type PlainUploadExtras = { state?: PlainUploadState; onState?: (state: PlainUploadState) => void; onProgress?: (sent: number, total: number) => void; signal?: AbortSignal };
+
+type ApiErrorDetails = { code?: string; received?: number; attemptsRemaining?: number; attemptsLeft?: number; retryAfterSeconds?: number; readyAt?: string; serverTime?: string; expiresAt?: string };
 // «iPhone», «Pixel 8», «Windows», «Chrome»: the session name shown on every device (deviceInfo.ts).
 const deviceName = deviceInfo().deviceName;
 // Announce the real build to the server so retired versions can be turned away.
@@ -35,6 +39,8 @@ export class ApiError extends Error {
   readonly readyAt?: string;
   readonly serverTime?: string;
   readonly expiresAt?: string;
+  /** Chunked uploads: how many bytes the server already has (409 OFFSET_MISMATCH), to resume from there. */
+  readonly received?: number;
   constructor(message: string, public status: number, details: ApiErrorDetails = {}) {
     super(message);
     this.name = 'ApiError';
@@ -45,6 +51,7 @@ export class ApiError extends Error {
     this.readyAt = typeof details.readyAt === 'string' ? details.readyAt : undefined;
     this.serverTime = typeof details.serverTime === 'string' ? details.serverTime : undefined;
     this.expiresAt = typeof details.expiresAt === 'string' ? details.expiresAt : undefined;
+    this.received = typeof details.received === 'number' && Number.isSafeInteger(details.received) && details.received >= 0 ? details.received : undefined;
   }
 }
 
@@ -53,7 +60,9 @@ const AI_TIMEOUTS: Record<string, number> = { '/ai/chat': 70000, '/ai/image': 13
 // Ordinary limits grow on slow links (EDGE/3G), so a message is not cut off half-way.
 function requestTimeout(path: string, method = 'GET') {
   if (AI_TIMEOUTS[path]) return AI_TIMEOUTS[path];
-  const kind = path === '/uploads' || path === '/e2ee/files' ? 'upload' : method !== 'GET' && /\/messages(\?|$)/.test(path) ? 'send' : 'read';
+  const bare = path.split('?')[0];
+  // One-request uploads and the chunks of big ones (PUT /uploads/sessions/…, /e2ee/uploads/…) get the upload time.
+  const kind = bare === '/uploads' || bare === '/e2ee/files' || (method === 'PUT' && /^\/(?:e2ee\/)?uploads\//.test(bare)) ? 'upload' : method !== 'GET' && /\/messages(\?|$)/.test(path) ? 'send' : 'read';
   return timeoutFor(kind, networkTier());
 }
 
@@ -290,36 +299,66 @@ export class Api {
   invite = (code: string) => this.request<import('./communities/types').InvitePreview>(`/invites/${encodeURIComponent(code)}`);
   acceptInvite = (code: string) => this.request<{community: import('./communities/types').Community}>(`/invites/${encodeURIComponent(code)}/accept`, {method: 'POST', body: '{}'});
   inviteUrl = (code: string) => `${this.base}/i/${encodeURIComponent(code)}`;
-  /** A file for a channel: metadata is cleaned like any upload, but the file is stored as is (no E2EE). */
-  async uploadChannelFile(file: LocalFile): Promise<Attachment> {
+  /**
+   * A file for a channel: metadata is cleaned like any upload, but the file is stored as is (no E2EE). Never refused
+   * for its size below the account limits: above 20 MB it is cleaned by the streamed cleaner and sent in resumable chunks.
+   */
+  async uploadChannelFile(file: LocalFile, options: PlainUploadExtras = {}): Promise<Attachment> {
     if(Platform.OS==='web'&&!desktopBridge())throw new Error('Файлы в каналах отправляются из приложения Android/iPhone.');
-    // Channel files are stored in one piece (no chunked upload on the server): say so before copying a huge video.
-    if((file.size||0)>20*1024*1024&&!(await import('./photo/formats')).isPhotoCandidate(file))throw new Error('В канал можно отправить видео или файл до 20 МБ. Большое видео отправь в личный чат — там до 10 ГБ.');
-    const {prepareMediaForUpload}=await import('./media/pipeline');
-    const prepared=await prepareMediaForUpload(file);
-    try{
-      const clean=prepared.file;
-      if(clean.size&&clean.size>20*1024*1024)throw new Error('Файл слишком большой. Максимум — 20 МБ.');
-      const FileSystem=await import('expo-file-system/legacy');
-      const bytes=toByteArray(await FileSystem.readAsStringAsync(clean.uri,{encoding:FileSystem.EncodingType.Base64}));
-      const part=multipartFile(bytes,clean.name,clean.mimeType);
-      return (await this.request<{attachment:Attachment}>('/uploads?purpose=channel',{method:'POST',body:part.body as unknown as BodyInit,headers:{'Content-Type':part.contentType}})).attachment;
-    }finally{await prepared.dispose().catch(()=>{});}
+    return this.uploadPlain(file,'channel',options);
   }
 
-  async upload(file: LocalFile): Promise<Attachment> {
+  /**
+   * A profile file. `purpose: 'post'` — a post or a story (photo or MP4/MOV of any size up to the account limits, sent in
+   * chunks above 20 MB); without it — the avatar, the banner, a community picture, which keep their small limits.
+   */
+  async upload(file: LocalFile, options: PlainUploadExtras & {purpose?: 'post'} = {}): Promise<Attachment> {
     if(Platform.OS==='web'&&!desktopBridge())throw new Error('Обработка и загрузка фото профиля доступны в приложении Android/iPhone.');
+    if(options.purpose==='post')return this.uploadPlain(file,'post',options);
     if((file.size||0)>20*1024*1024&&!(await import('./photo/formats')).isPhotoCandidate(file))throw new Error('Для профиля подойдёт видео или файл до 20 МБ.');
     const {prepareMediaForUpload}=await import('./media/pipeline');
     const prepared=await prepareMediaForUpload(file);
     try{
       const clean=prepared.file;
       if(clean.size&&clean.size>20*1024*1024)throw new Error('Файл слишком большой. Максимум — 20 МБ.');
-      const FileSystem=await import('expo-file-system/legacy');
-      const bytes=toByteArray(await FileSystem.readAsStringAsync(clean.uri,{encoding:FileSystem.EncodingType.Base64}));
-      const part=multipartFile(bytes,clean.name,clean.mimeType);
-      return (await this.request<{attachment:Attachment}>('/uploads',{method:'POST',body:part.body as unknown as BodyInit,headers:{'Content-Type':part.contentType}})).attachment;
+      return await this.sendMultipart(clean,'/uploads');
     }finally{await prepared.dispose().catch(()=>{});}
+  }
+
+  /**
+   * Channel files, posts and stories. Up to 20 MB: the usual pipeline cleans the file and it goes in one request. Bigger
+   * (or media the pipeline cannot take, or content it did not recognise as media but the streamed sniffing does): the
+   * streamed cleaner, chunked and resumable. A photo above 20 MB is re-encoded by the pipeline as before.
+   */
+  private async uploadPlain(file: LocalFile, purpose: 'channel'|'post', options: PlainUploadExtras): Promise<Attachment> {
+    const plain=await import('./media/plainUpload');
+    // A caller that does not keep the state for a later resume gets the server's reservation freed on failure.
+    const large=async()=>{
+      let state=options.state;
+      try{return await plain.uploadPlainLarge(this,file,{purpose,...options,onState:next=>{state=next;options.onState?.(next);}});}
+      catch(error){if(!options.onState)await plain.cancelPlainUpload(this,state);throw error;}
+    };
+    const {isPhotoCandidate}=await import('./photo/formats');
+    // The real size (content:// included) decides, not only what the picker reported.
+    const size=(await import('./e2ee/attachments')).localFileSize(file);
+    if(size>plain.SMALL_UPLOAD&&!isPhotoCandidate(file))return large();
+    const {prepareMediaForUpload}=await import('./media/pipeline');
+    let prepared:import('./media/pipeline').PreparedMedia;
+    try{prepared=await prepareMediaForUpload(file);}
+    catch(error){if(await plain.streamRouteNeeded(file).catch(()=>false))return large();throw error;}
+    try{
+      const clean=prepared.file,big=(clean.size||0)>plain.SMALL_UPLOAD,path=purpose==='channel'?'/uploads?purpose=channel':'/uploads?purpose=post';
+      if(prepared.photo){if(big)throw new Error('Не удалось уменьшить фото до 20 МБ.');return await this.sendMultipart(clean,path);}
+      if(!big&&(prepared.video||clean.mimeType==='image/gif'||!(await plain.streamRouteNeeded(file).catch(()=>false))))return await this.sendMultipart(clean,path);
+    }finally{await prepared.dispose().catch(()=>{});}
+    return large();
+  }
+
+  private async sendMultipart(clean: LocalFile, path: string): Promise<Attachment> {
+    const FileSystem=await import('expo-file-system/legacy');
+    const bytes=toByteArray(await FileSystem.readAsStringAsync(clean.uri,{encoding:FileSystem.EncodingType.Base64}));
+    const part=multipartFile(bytes,clean.name,clean.mimeType);
+    return (await this.request<{attachment:Attachment}>(path,{method:'POST',body:part.body as unknown as BodyInit,headers:{'Content-Type':part.contentType}})).attachment;
   }
 
 }

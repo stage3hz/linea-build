@@ -1,4 +1,5 @@
 import type { PhotoCapabilities, PhotoCrop, PhotoOptions } from '../../modules/linea-photo';
+import { cropPixelBounds as pixelBounds, orientedSize } from './geometry.ts';
 
 export type Size = { width: number; height: number };
 export type Point = { x: number; y: number };
@@ -32,15 +33,8 @@ export function cropFromDrag(start: Point, end: Point): PhotoCrop | null {
   return { x, y, width, height };
 }
 
-/** Matches native outward rounding in the oriented original. */
-export function cropPixelBounds(size: Size, crop?: PhotoCrop): Rect {
-  if (!crop) return { x: 0, y: 0, ...size };
-  const x = Math.max(0, Math.min(size.width - 1, Math.floor(crop.x * size.width)));
-  const y = Math.max(0, Math.min(size.height - 1, Math.floor(crop.y * size.height)));
-  const right = Math.max(x + 1, Math.min(size.width, Math.ceil((crop.x + crop.width) * size.width)));
-  const bottom = Math.max(y + 1, Math.min(size.height, Math.ceil((crop.y + crop.height) * size.height)));
-  return { x, y, width: right - x, height: bottom - y };
-}
+/** Matches native outward rounding in the oriented original (see geometry.ts). */
+export const cropPixelBounds = pixelBounds;
 
 export function centeredCrop(size: Size, aspect: number): PhotoCrop {
   const sourceAspect = size.width / size.height;
@@ -49,12 +43,12 @@ export function centeredCrop(size: Size, aspect: number): PhotoCrop {
 }
 
 export function photoSizePlan(size: Size, options: PhotoOptions, caps: Pick<PhotoCapabilities, 'maxPlainPixels' | 'maxProcessingPixels' | 'maxOutputPixels'>) {
-  const crop = cropPixelBounds(size, options.crop);
+  const crop = cropPixelBounds(orientedSize(size, options.rotation ?? 0), options.crop);
   const resolution = options.resolution ?? 1;
   const width = Math.max(1, Math.floor(crop.width * resolution));
   const height = Math.max(1, Math.floor(crop.height * resolution));
   const isPlain = options.background === 'keep' && options.document === 'none' && options.scale === 1 && options.strokes.length === 0;
-  const budget = isPlain ? caps.maxPlainPixels : Math.min(caps.maxProcessingPixels, caps.maxOutputPixels / (options.scale * options.scale));
+  const budget = isPlain ? caps.maxPlainPixels : Math.min(caps.maxProcessingPixels, Math.floor(caps.maxOutputPixels / (options.scale * options.scale)));
   const ratio = Math.min(1, Math.sqrt(budget / (width * height)));
   const baseWidth = Math.max(1, Math.floor(width * ratio));
   const baseHeight = Math.max(1, Math.floor(height * ratio));

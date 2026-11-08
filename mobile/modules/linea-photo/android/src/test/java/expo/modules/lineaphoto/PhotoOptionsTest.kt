@@ -31,7 +31,7 @@ class PhotoOptionsTest {
   }
   @Test fun strokeWorkIsBoundedBeforeBuildingHugeGeometry() {
     val stroke=mapOf("radius" to .01,"points" to listOf(mapOf("x" to .5,"y" to .5)))
-    rejected("MASK_TOO_COMPLEX"){PhotoOptions.parse(options("strokes" to List(65){stroke}))}
+    rejected("MASK_TOO_COMPLEX"){PhotoOptions.parse(options("strokes" to List(PhotoOptions.MAX_STROKES+1){stroke}))}
     val manyPoints=List(4097){mapOf("x" to .5,"y" to .5)}
     rejected("MASK_TOO_COMPLEX"){PhotoOptions.parse(options("strokes" to listOf(mapOf("radius" to .01,"points" to manyPoints))))}
   }
@@ -80,5 +80,36 @@ class PhotoOptionsTest {
     assertEquals(4000 to 3000,PhotoDimensions.decodeSize(4000,3000,normal))
     val huge=PhotoDimensions.plan(6000,4000,options)
     rejected("CROP_SOURCE_TOO_LARGE"){PhotoDimensions.decodeSize(6000,4000,huge)}
+  }
+  @Test fun rotationMirrorDrawingsConsentAndPreviewAreParsedStrictly() {
+    val parsed=PhotoOptions.parse(options("rotation" to 90,"flip" to true,"dynamicRange" to "sdr","drawings" to listOf(mapOf("color" to "#FF3B30","width" to .012,"points" to listOf(mapOf("x" to -.2,"y" to 1.1))))))
+    assertEquals(90,parsed.rotation);assertTrue(parsed.flip);assertTrue(parsed.sdr)
+    assertEquals(0xFFFF3B30.toInt(),parsed.drawings[0].color);assertEquals(-.2,parsed.drawings[0].points[0].x,0.0)
+    assertFalse(PhotoOptions.parse(options()).sdr)
+    for(value in listOf(45,360,-90,true,"90"))rejected("INVALID_OPTIONS"){PhotoOptions.parse(options("rotation" to value))}
+    rejected("INVALID_OPTIONS"){PhotoOptions.parse(options("flip" to 1))}
+    rejected("INVALID_OPTIONS"){PhotoOptions.parse(options("dynamicRange" to "hdr"))}
+    for(color in listOf("red","#FFF","#GG0000",null))rejected("INVALID_OPTIONS"){PhotoOptions.parse(options("drawings" to listOf(mapOf("color" to color,"width" to .01,"points" to listOf(mapOf("x" to .5,"y" to .5))))))}
+    rejected("INVALID_OPTIONS"){PhotoOptions.parse(options("drawings" to listOf(mapOf("color" to "#000000","width" to 3,"points" to listOf(mapOf("x" to .5,"y" to .5))))))}
+    rejected("INVALID_OPTIONS"){PhotoOptions.parse(options("strokes" to listOf(mapOf("radius" to .02,"points" to listOf(mapOf("x" to 18,"y" to .5))))))}
+    // A preview is reduced without consent and is always SDR; it is bounded.
+    val preview=PhotoOptions.parse(options("scale" to 4,"preview" to mapOf("maxPixels" to 1_000_000)))
+    assertTrue(preview.sdr);assertTrue(preview.downsampleAllowed);assertEquals(500_000,preview.pixelLimit)
+    assertEquals(1_000_000,PhotoOptions.parse(options("preview" to mapOf("maxPixels" to 1_000_000))).pixelLimit)
+    assertTrue(PhotoDimensions.plan(4000,3000,PhotoOptions.parse(options("preview" to mapOf("maxPixels" to 1_000_000)))).downsampled)
+    for(value in listOf(mapOf("maxPixels" to 10),mapOf("maxPixels" to 9e9),mapOf("pixels" to 100_000),null))rejected("INVALID_OPTIONS"){PhotoOptions.parse(options("preview" to value))}
+  }
+  @Test fun rotationSwapsTheFrameBeforeTheCropAndTheDecodeSize() {
+    val turned=PhotoDimensions.plan(4000,3000,PhotoOptions.parse(options("rotation" to 270,"crop" to mapOf("x" to 0,"y" to 0,"width" to .5,"height" to 1))))
+    assertEquals(PhotoRect(0,0,1500,4000),turned.crop)
+    assertEquals(3000 to 4000,PhotoDimensions.decodeSize(4000,3000,turned,270))
+    val whole=PhotoDimensions.plan(4000,3000,PhotoOptions.parse(options("rotation" to 90)))
+    assertEquals(3000,whole.width);assertEquals(4000,whole.height)
+    assertEquals(3000 to 4000,PhotoDimensions.decodeSize(4000,3000,whole,90))
+  }
+  @Test fun sdrOnlyModesAreTheOnesThatCannotCarryAGainMap() {
+    assertTrue(PhotoOptions.parse(options()).sdrOnly) // PNG is the default format.
+    assertFalse(PhotoOptions.parse(options("format" to "jpeg","background" to "white")).sdrOnly)
+    assertTrue(PhotoOptions.parse(options("format" to "jpeg","document" to "bw")).sdrOnly)
   }
 }

@@ -7,9 +7,10 @@ sourceSets {
     include '**/PhotoPixels.kt'
     include '**/PhotoOptions.kt'
     include '**/PhotoSource.kt'
+    include '**/PhotoGainmap.kt'
   }
   test.kotlin.srcDirs '../android/src/test/java'
   test.resources.srcDirs '../android/src/test/resources'
 }
 dependencies { testImplementation 'junit:junit:4.13.2' }
-test { testLogging { events 'passed', 'failed', 'skipped'; exceptionFormat 'short' } }
+test { systemProperty 'geometry.golden', file('../../../test/fixtures/geometry-cases.json').absolutePath; testLogging { events 'passed', 'failed', 'skipped'; exceptionFormat 'short' } }

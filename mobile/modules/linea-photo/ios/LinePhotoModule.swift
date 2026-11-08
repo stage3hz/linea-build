@@ -42,21 +42,38 @@ public final class LinePhotoModule: Module {
   }
   private func render(_ uri: String, options: PhotoOptions) throws -> [String:Any] {
     let files=PhotoFiles();let header=try files.header(uri)
-    if header.range.value != "sdr" { throw PhotoFailure("HDR_UNSUPPORTED") }
+    // A mode that cannot carry HDR (transparent PNG, document, PNG) needs the explicit, labelled SDR choice.
+    if header.range.value != "sdr" && options.sdrOnly && !options.sdr { throw PhotoFailure("HDR_NEEDS_CONSENT") }
     let plan=try PhotoDimensions.plan(width:header.width,height:header.height,options:options)
-    var current=try files.decode(header,plan:plan)
+    var current=try files.decode(header,plan:plan,options:options)
+    // The gain map follows the same geometry; pixel effects edit it explicitly (iOS 18, ISO 21496-1).
+    var gain: PhotoGainMap? = options.sdr || options.sdrOnly ? nil : files.gainMap(header,plan:plan,options:options)
     if !options.strokes.isEmpty {
       current=try files.image(PhotoPixels.inpaint(files.pixels(current),strokes:options.strokes))
+      if let map=gain { gain?.image=try PhotoGainmap.inpaintMap(map.image,strokes:options.strokes,neutral:map.neutral) }
     }
-    if options.background != "keep" { current=try PhotoBackground.foreground(current) }
+    if options.background != "keep" {
+      current=try PhotoBackground.foreground(current)
+      if options.background=="transparent" { gain=nil }
+    }
     if options.background=="white" || options.document != "none" || options.scale>1 {
       var pixels=try files.pixels(current)
-      if options.background=="white" { pixels=PhotoPixels.whiteBackground(pixels) }
-      if options.document != "none" { pixels=PhotoPixels.document(pixels,monochrome:options.document=="bw") }
-      if options.scale>1 { pixels=try PhotoPixels.upscale(pixels,scale:options.scale) }
+      if options.background=="white" {
+        if let map=gain { gain?.image=PhotoGainmap.compositeOnWhite(map.image,alpha:PhotoGainmap.sampleAlpha(pixels,width:map.image.width,height:map.image.height),neutral:map.neutral) }
+        pixels=PhotoPixels.whiteBackground(pixels)
+      }
+      if options.document != "none" { pixels=PhotoPixels.document(pixels,monochrome:options.document=="bw");gain=nil }
+      if options.scale>1 {
+        pixels=try PhotoPixels.upscale(pixels,scale:options.scale)
+        if let map=gain { gain?.image=try PhotoPixels.upscale(map.image,scale:options.scale) }
+      }
       current=try files.image(pixels)
     }
-    var output=try files.save(current,allowDownsample:options.allowDownsample,format:options.format)
+    if !options.drawings.isEmpty {
+      current=try files.drawLines(current,drawings:options.drawings)
+      if let map=gain { gain?.image=try PhotoGainmap.neutralUnderDrawings(map.image,drawings:options.drawings,neutral:map.neutral) }
+    }
+    var output=try files.save(current,allowDownsample:options.downsampleAllowed,format:options.format,gain:gain)
     output["downsampled"]=plan.downsampled || (output["downsampled"] as? Bool == true)
     return output
   }
@@ -77,6 +94,7 @@ public final class LinePhotoModule: Module {
       case "OUT_OF_MEMORY":message="Для обработки фото не хватает памяти. Выберите меньшее изображение."
       case "INCOMPATIBLE_OPTIONS":message="Прозрачный фон требует PNG. Режим документа и замена фона применяются отдельно."
       case "HDR_UNSUPPORTED":message="Редактор не может сохранить HDR или точность этого файла при обработке. Преобразование в SDR не выполнено."
+      case "HDR_NEEDS_CONSENT":message="Это HDR-фото. На этом устройстве HDR при такой обработке не сохраняется. Отправьте его без HDR — с обычной яркостью."
       case "CROP_SOURCE_TOO_LARGE":message="Для точной обрезки нужен исходник до 16 Мп. Сначала сохраните уменьшенную копию без обрезки."
       default:message="Не удалось обработать фото. Исходное изображение не отправлено."
       }

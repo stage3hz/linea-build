@@ -11,6 +11,7 @@ import kotlin.math.roundToInt
 class PhotoSourceTest {
   private fun bytes(write:DataOutputStream.()->Unit):ByteArray {val out=ByteArrayOutputStream();DataOutputStream(out).use(write);return out.toByteArray()}
   private fun range(data:ByteArray)=PhotoSource.inspect(data.inputStream()).value
+  private fun kind(data:ByteArray)=PhotoSource.inspect(data.inputStream()).kind
   private fun chunk(type:String,payload:ByteArray)=bytes {writeInt(payload.size);writeBytes(type);write(payload);val crc=CRC32();crc.update(type.toByteArray());crc.update(payload);writeInt(crc.value.toInt())}
   private fun png(vararg extra:ByteArray,depth:Int=8):ByteArray {
     val header=bytes{writeInt(2);writeInt(2);writeByte(depth);writeByte(2);write(byteArrayOf(0,0,0))}
@@ -40,21 +41,32 @@ class PhotoSourceTest {
     return box("ftyp","heic".toByteArray()+byteArrayOf(0,0,0,0)+"mif1heic".toByteArray())+box("meta",byteArrayOf(0,0,0,0)+primary+info+box("iprp",box("ipco",color+depth+box("hvcC",codec)+extra)+association))
   }
   @Test fun untaggedEightBitPngAndBaselineJpegAreSdr() {assertEquals("sdr",range(png()));assertEquals("sdr",range(jpeg()))}
-  @Test fun pqHlgAndMasteringMetadataNeverReachTheEightBitPipeline() {
+  @Test fun pqAndHlgAreAnHdrBaseWhileMasteringDataAndDepthAloneAreSdr() {
+    assertEquals("pq",kind(png(chunk("cICP",byteArrayOf(9,16,0,1)))))
+    assertEquals("hlg",kind(png(chunk("cICP",byteArrayOf(9,18,0,1)))))
     for(transfer in listOf(16,18))assertEquals("hdr",range(png(chunk("cICP",byteArrayOf(9,transfer.toByte(),0,1)))))
-    assertEquals("unknown",range(png(chunk("mDCV",ByteArray(24)))))
-    assertEquals("unknown",range(png(depth=16)))
+    assertEquals("sdr",range(png(chunk("mDCV",ByteArray(24)))))
+    // 16-bit PNG without an HDR transfer: SDR, sent with 8-bit precision (noted for the user).
+    val deep=PhotoSource.inspect(png(depth=16).inputStream())
+    assertEquals("sdr",deep.value);assertTrue(deep.reason!!.contains("8 бит"))
   }
-  @Test fun jpegGainMapIsoAndUnresolvedMultiPictureAreNotMistakenForSdr() {
-    assertEquals("hdr",range(jpeg(app(0xe1,"http://ns.adobe.com/xap/1.0/\u0000http://ns.adobe.com/hdr-gain-map/1.0/".toByteArray()))))
-    assertEquals("hdr",range(jpeg(app(0xe2,"urn:iso:std:iso:ts:21496:-1\u0000".toByteArray()))))
-    assertEquals("unknown",range(jpeg(app(0xe2,"MPF\u0000more".toByteArray()))))
+  @Test fun jpegGainMapAndIsoAreHdrGainmapsWhilePlainXmpAndPreviewsAreSdr() {
+    val gainmap=jpeg(app(0xe1,"http://ns.adobe.com/xap/1.0/\u0000http://ns.adobe.com/hdr-gain-map/1.0/".toByteArray()))
+    assertEquals("hdr",range(gainmap));assertEquals("gainmap",kind(gainmap))
+    assertEquals("gainmap",kind(jpeg(app(0xe2,"urn:iso:std:iso:ts:21496:-1\u0000".toByteArray()))))
+    // MPF that only lists previews, and XMP written by Lightroom/Photoshop/Snapseed, are removed, not HDR.
+    assertEquals("sdr",range(jpeg(app(0xe2,"MPF\u0000more".toByteArray()))))
+    assertEquals("sdr",range(jpeg(app(0xe1,"http://ns.adobe.com/xap/1.0/\u0000<x:xmpmeta xmp:CreatorTool=\"Adobe Lightroom\"/>".toByteArray()))))
+    assertNull(kind(jpeg(app(0xe2,"MPF\u0000more".toByteArray()))))
   }
   @Test fun heifSdrRequiresKnownColorAndRejectsAuxiliaryHdrOrToneMap() {
     assertEquals("sdr",range(heif(13)))
     assertEquals("hdr",range(heif(16)))
     assertEquals("hdr",range(heif(13,box("auxC",byteArrayOf(0,0,0,0)+"urn:com:apple:photo:2020:aux:hdrgainmap\u0000".toByteArray()))))
-    assertEquals("unknown",range(heif(2)))
+    assertEquals("gainmap",kind(heif(13,box("auxC",byteArrayOf(0,0,0,0)+"urn:com:apple:photo:2020:aux:hdrgainmap\u0000".toByteArray()))))
+    // Unspecified transfer and unknown non-HDR boxes do not make a photo HDR.
+    assertEquals("sdr",range(heif(2)))
+    assertEquals("sdr",range(heif(13,box("zzzz",byteArrayOf(1,2,3)))))
   }
   @Test fun unknownFilesAndTruncatedMetadataCannotBeAssumedSdr() {
     assertEquals("unknown",range("not an image header".toByteArray()))
@@ -63,7 +75,8 @@ class PhotoSourceTest {
   @Test fun numericSrgbTransferAllowsP3StyleIccButNamesCannotBlessUnknownProfiles() {
     fun jpegProfile(profile:ByteArray)=jpeg(app(0xe2,"ICC_PROFILE\u0000".toByteArray()+byteArrayOf(1,1)+profile))
     assertEquals("sdr",range(jpegProfile(icc())))
-    assertEquals("unknown",range(jpegProfile(icc(gamma=9.0))))
+    // An unusual curve is a colour property (gamut/tone of the profile), not dynamic range.
+    assertEquals("sdr",range(jpegProfile(icc(gamma=9.0))))
     assertEquals("hdr",range(jpegProfile(icc(hdrTransfer=16))))
     val compressed=ByteArrayOutputStream();DeflaterOutputStream(compressed).use{it.write(icc())}
     assertEquals("sdr",range(png(chunk("iCCP","arbitrary label\u0000".toByteArray()+byteArrayOf(0)+compressed.toByteArray()))))
@@ -72,10 +85,20 @@ class PhotoSourceTest {
     val profile=javaClass.getResourceAsStream("/srgb-lcms.icc")!!.use{it.readBytes()}
     assertEquals("sdr",range(jpeg(app(0xe2,"ICC_PROFILE\u0000".toByteArray()+byteArrayOf(1,1)+profile))))
   }
-  @Test fun auxiliarySdrPropertiesCannotBlessUnknownPrimaryOrTenBitCodec() {
-    assertEquals("unknown",range(heif(13,primaryAssociation=false)))
+  @Test fun tenBitSdrHeifIsSdrWithAnEightBitNoteAndAnHdrTransferStillWins() {
+    assertEquals("sdr",range(heif(13,primaryAssociation=false)))
     val hevc=ByteArray(23);hevc[0]=1;hevc[17]=2;hevc[18]=2
-    assertEquals("unknown",range(heif(13,box("hvcC",hevc))))
-    assertEquals("unknown",range(heif(13,box("av1C",byteArrayOf(0x81.toByte(),0,0x40,0)))))
+    val deep=PhotoSource.inspect(heif(13,box("hvcC",hevc)).inputStream())
+    assertEquals("sdr",deep.value);assertTrue(deep.reason!!.contains("8 бит"))
+    assertEquals("sdr",range(heif(13,box("av1C",byteArrayOf(0x81.toByte(),0,0x40,0)))))
+    assertEquals("hdr",range(heif(16,box("hvcC",hevc))))
+  }
+  @Test fun webpXmpWithoutGainMapAndBmpV5AreSdr() {
+    fun riff(vararg chunks:ByteArray):ByteArray {val body="WEBP".toByteArray()+chunks.fold(byteArrayOf()){a,b->a+b};return "RIFF".toByteArray()+bytes{writeInt(Integer.reverseBytes(body.size))}+body}
+    fun webpChunk(type:String,payload:ByteArray)=type.toByteArray()+bytes{writeInt(Integer.reverseBytes(payload.size))}+payload+(if(payload.size%2==1)byteArrayOf(0) else byteArrayOf())
+    assertEquals("sdr",range(riff(webpChunk("XMP ","<x:xmpmeta photoshop:City=\"x\"/>".toByteArray()))))
+    assertEquals("hdr",range(riff(webpChunk("XMP ","hdrgm:Version=\"1.0\"".toByteArray()))))
+    val bmp=ByteArray(60);bmp[0]='B'.code.toByte();bmp[1]='M'.code.toByte();bmp[14]=124
+    assertEquals("sdr",range(bmp))
   }
 }

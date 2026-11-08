@@ -4,6 +4,8 @@ struct PhotoFailure: Error { let reason: String; init(_ reason: String) { self.r
 struct PixelImage { let width: Int; let height: Int; let pixels: [UInt32] }
 struct PhotoPoint { let x: Double; let y: Double }
 struct PhotoStroke { let radius: Double; let points: [PhotoPoint] }
+/// Pen line: RGB colour (0xRRGGBB), full width as a share of min(width,height).
+struct PhotoDrawing { let color: UInt32; let width: Double; let points: [PhotoPoint] }
 
 enum PhotoPixels {
   private static func channel(_ p: UInt32, _ shift: UInt32) -> Int { Int((p >> shift) & 255) }
@@ -121,10 +123,11 @@ enum PhotoPixels {
     }
     return PixelImage(width:image.width,height:image.height,pixels:output)
   }
-  private static func strokeMask(width: Int, height: Int, strokes: [PhotoStroke]) throws -> [Bool] {
+  /// Pixels within `radius` (share of min side) plus `extra` pixels of each polyline.
+  static func strokeMask(width: Int, height: Int, strokes: [PhotoStroke], extra: Double = 0) throws -> [Bool] {
     var mask = [Bool](repeating:false,count:width*height); var budget = 0
     for stroke in strokes {
-      let radius = max(1,stroke.radius*Double(min(width,height)))
+      let radius = max(1,stroke.radius*Double(min(width,height)))+extra
       let segments = max(1,stroke.points.count-1)
       for index in 0..<segments {
         let start = stroke.points[index]; let end = stroke.points[min(index+1,stroke.points.count-1)]
@@ -132,6 +135,7 @@ enum PhotoPixels {
         let bx = end.x*Double(width-1); let by = end.y*Double(height-1)
         let x0 = max(0,Int(floor(min(ax,bx)-radius))); let x1 = min(width-1,Int(ceil(max(ax,bx)+radius)))
         let y0 = max(0,Int(floor(min(ay,by)-radius))); let y1 = min(height-1,Int(ceil(max(ay,by)+radius)))
+        if x0 > x1 || y0 > y1 { continue } // Entirely outside (a stroke beyond the crop edge); x0...x1 would trap.
         budget += (x1-x0+1)*(y1-y0+1)
         if budget > 60_000_000 { throw PhotoFailure("MASK_TOO_COMPLEX") }
         let dx = bx-ax; let dy = by-ay; let squared = dx*dx+dy*dy

@@ -79,6 +79,8 @@ export function parseEncryptedMessage(value) {
 export function installE2eeRoutes({
   app, db, now, timestamp, authOptions, emitUser, limiter, uploadDir,
   maxUploadBytes, storageLimit, closeRevokedSockets,
+  // Stored files plus the reservations of unfinished chunked uploads (bigfiles.js, plainuploads.js).
+  usage = userId => db.prepare('SELECT COALESCE(SUM(size),0) AS bytes FROM uploads WHERE owner_id=?').get(userId).bytes,
 }) {
   const assertSession = request => {
     const session = db.prepare('SELECT id,user_id FROM sessions WHERE token_hash=? AND expires_at>?')
@@ -279,7 +281,7 @@ export function installE2eeRoutes({
     if (!request.isMultipart()) fail(400, 'Отправьте зашифрованный файл как multipart/form-data.');
     if (!limiter.allow(`upload:${ownerId}`, 20, 60_000)) fail(429, 'Слишком много загрузок. Повторите через минуту.');
     const maxCipherBytes = maxUploadBytes + 64;
-    const used = db.prepare('SELECT COALESCE(SUM(size),0) AS bytes FROM uploads WHERE owner_id=?').get(ownerId).bytes;
+    const used = usage(ownerId);
     if (used >= storageLimit(ownerId)) fail(413, 'Достигнут лимит хранения файлов для аккаунта.');
     let attachment = null, filePath = null, persisted = false;
     try {
@@ -309,7 +311,7 @@ export function installE2eeRoutes({
       if (!attachment) fail(400, 'Выберите зашифрованный файл.');
       transaction(db, () => {
         assertSession(request);
-        const finalUsed = db.prepare('SELECT COALESCE(SUM(size),0) AS bytes FROM uploads WHERE owner_id=?').get(ownerId).bytes;
+        const finalUsed = usage(ownerId);
         if (finalUsed + attachment.size > storageLimit(ownerId)) fail(413, 'Достигнут лимит хранения файлов для аккаунта.');
         db.prepare("INSERT INTO uploads(id,owner_id,name,mime_type,size,is_image,is_encrypted,created_at) VALUES(?,?,'encrypted.bin','application/octet-stream',?,0,1,?)")
           .run(attachment.id, ownerId, attachment.size, timestamp());

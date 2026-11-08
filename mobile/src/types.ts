@@ -13,7 +13,7 @@ export type User = {
   profileEffect?:string|null;nameplate?:string|null;profilePattern?:string|null;
 };
 export type UsernameStatus={accountId:string;loginName:string;username:string;freeChangeAvailable:boolean;canChangeUsername:boolean;platina:{active:boolean;expiresAt:string|null;permanent?:boolean};canSetStatusEmoji:boolean;statusEmoji:string|null;statusEmojiChoices:string[]};
-export type AttachmentMedia = {width?:number;height?:number;durationMs?:number;hdr?:'sdr'|'pq'|'hlg';waveform?:string};
+export type AttachmentMedia = {width?:number;height?:number;durationMs?:number;hdr?:'sdr'|'pq'|'hlg'|'gainmap';waveform?:string};
 export type AttachmentPreview = {mimeType:'image/jpeg';base64:string;width:number;height:number};
 export type Attachment = { id: string; name: string; mimeType: string; size: number; encryption?: import('./e2ee/types').FileEncryption; media?:AttachmentMedia; preview?:AttachmentPreview };
 export type Message = {

@@ -20,8 +20,8 @@ class PhotoBackground(private val context:Context) {
   private fun googleAvailable()=GoogleApiAvailability.getInstance().isGooglePlayServicesAvailable(context)==ConnectionResult.SUCCESS
   fun capabilities():Map<String,Any> {
     val result=mutableMapOf<String,Any>("backgroundRemoval" to googleAvailable(),"backgroundReady" to false,"objectRemoval" to "diffusion","upscale" to "bicubic","maxPlainPixels" to 16_000_000,"maxProcessingPixels" to 4_000_000,"maxOutputPixels" to 8_000_000)
-    result["hdrPreservation"]=false
-    result["hdrReason"]="Эффекты редактора работают с SDR в 8 бит. HDR и неподтверждённый диапазон блокируются до преобразования пикселей."
+    result["hdrPreservation"]=android.os.Build.VERSION.SDK_INT>=34
+    result["hdrReason"]=if(android.os.Build.VERSION.SDK_INT>=34)"HDR-фото с картой яркости сохраняются при обрезке, повороте, рисовании и удалении объектов." else "HDR сохраняется при правках на Android 14 и новее. Здесь HDR-фото можно отправить без изменений или с обычной яркостью."
     if(!googleAvailable()){result["backgroundReason"]="Для удаления фона нужны доступные сервисы Google Play.";return result}
     val client=client()
     try {

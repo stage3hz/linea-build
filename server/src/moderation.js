@@ -113,7 +113,7 @@ export async function deleteChatForEveryone(db, uploadDir, chatId) {
 }
 
 export async function deleteAccount(db, uploadDir, userId) {
-  const files = [];
+  const files = [], parts = [];
   const removed = transaction(db, () => {
     const chats = db.prepare('SELECT chat_id FROM chat_members WHERE user_id=?').all(userId).map(row => row.chat_id);
     const peers = [];
@@ -145,9 +145,16 @@ export async function deleteAccount(db, uploadDir, userId) {
       db.prepare('DELETE FROM uploads WHERE id=?').run(uploadId);
     }
     files.length = 0; files.push(...unique);
+    // Unfinished chunked uploads (plaintext and encrypted): their rows go now, their `<id>.part` files below.
+    for (const table of ['plain_upload_sessions', 'e2ee_upload_sessions']) {
+      if (!db.prepare("SELECT 1 FROM sqlite_master WHERE type='table' AND name=?").get(table)) continue;
+      for (const row of db.prepare(`SELECT id FROM ${table} WHERE owner_id=?`).all(userId)) parts.push(row.id);
+      db.prepare(`DELETE FROM ${table} WHERE owner_id=?`).run(userId);
+    }
     db.prepare('DELETE FROM users WHERE id=?').run(userId);
     return peers;
   });
   for (const uploadId of files) await unlink(join(uploadDir, uploadId)).catch(() => {});
+  for (const id of parts) await unlink(join(uploadDir, `${id}.part`)).catch(() => {});
   return removed;
 }

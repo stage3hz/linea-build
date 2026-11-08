@@ -281,7 +281,8 @@ export async function startCluster({ port, host, cfg = clusterConfig() }) {
     const out = [];
     const walk = dir => { for (const name of readdirSync(dir, { withFileTypes: true })) { const full = join(dir, name.name); const rel = relative(filesRoot, full);
       if (name.isDirectory()) { if (!rel.startsWith('.') && !rel.startsWith('litestream') && !/^linea\.sqlite/.test(rel)) walk(full); }
-      else if (/^(uploads|files|bigfiles|avatars)\//.test(rel) || rel.startsWith('uploads')) out.push([rel, statSync(full).size]); } };
+      // Unfinished chunked uploads (`<id>.part`) change every few seconds and become real files only on completion.
+      else if ((/^(uploads|files|bigfiles|avatars)\//.test(rel) || rel.startsWith('uploads')) && !rel.endsWith('.part')) out.push([rel, statSync(full).size]); } };
     try { walk(filesRoot); } catch { /* empty */ }
     return out;
   };

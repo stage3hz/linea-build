@@ -4,6 +4,7 @@ import { randomUUID } from 'node:crypto';
 import { loadTs } from './support/load-ts.mjs';
 import { pngChunk,pngFixture,readPngChunks } from './support/png-fixture.mjs';
 import { jpegSegment,withJpegMetadata } from './support/jpeg-fixture.mjs';
+import { ultraHdrFixture } from './support/jpeg-hdr-fixture.mjs';
 
 const source={uri:'file:///user/holiday.jpg',name:'private-camera-location.jpg',mimeType:'image/jpeg'};
 const options=()=>({background:'keep',document:'none',scale:1,strokes:[],allowDownsample:false});
@@ -12,16 +13,18 @@ function harness(config={}) {
   let active=0;
   const bridge={
     capabilities:async()=>({backgroundRemoval:true,backgroundReady:true,objectRemoval:'diffusion',upscale:'bicubic',maxPlainPixels:16000000,maxProcessingPixels:4000000,maxOutputPixels:8000000}),
-    inspect:async()=>({width:1,height:1,processingWidth:1,processingHeight:1,downsampled:false}),
+    inspect:async()=>config.inspect?config.inspect():({width:1,height:1,processingWidth:1,processingHeight:1,downsampled:false}),
     prepareBackground:async()=>bridge.capabilities(),
     async render(uri,parameters){
       calls.render.push({uri,parameters});active++;calls.maxActive=Math.max(active,calls.maxActive);
       try{
         if(config.beforeRender)await config.beforeRender(calls.render.length);
         if(config.renderError)throw new Error('native render unavailable');
+        if(config.consent&&parameters.dynamicRange!=='sdr')throw Object.assign(new Error('native consent'),{code:'ERR_LINEA_PHOTO_HDR_NEEDS_CONSENT'});
+        if(config.followFormat){config.format=parameters.format;config.png=parameters.format==='jpeg'?withJpegMetadata([]):undefined;config.width=config.height=parameters.format==='jpeg'?2:1;}
         const resultUri=config.resultUri||`file:///cache/linea-photo/linea-native-photo-${randomUUID()}.${config.format==='jpeg'?'jpg':'png'}`;
         files.set(resultUri,config.png||pngFixture({before:[pngChunk('eXIf',Buffer.from('private GPS metadata'))]}));
-        return {uri:resultUri,width:config.width||1,height:config.height||1,downsampled:false,format:config.format||'png',mimeType:config.format==='jpeg'?'image/jpeg':'image/png'};
+        return {uri:resultUri,width:config.width||1,height:config.height||1,downsampled:false,format:config.format||'png',mimeType:config.format==='jpeg'?'image/jpeg':'image/png',...(config.hdr?{hdr:config.hdr}:{})};
       }finally{active--;}
     },
     async dispose(uri){calls.dispose.push(uri);files.delete(uri);},clearCache:async()=>{},
@@ -34,12 +37,14 @@ function harness(config={}) {
     async deleteAsync(uri){calls.deletes.push(uri);files.delete(uri);},
     async readDirectoryAsync(){return [...files.keys()].filter(uri=>uri.startsWith('file:///cache/')).map(uri=>uri.slice('file:///cache/'.length));},
   };
+  const consent=loadTs(new URL('../src/photo/hdrConsent.ts',import.meta.url));
   const pipeline=loadTs(new URL('../src/photo/pipeline.ts',import.meta.url),{
+    './hdrConsent':consent,
     'expo-file-system/legacy':fs,'expo-crypto':{randomUUID},
     './bridge':{getPhotoBridge:()=>{if(config.noNative)throw new Error('native unavailable');return bridge;}},
     'base64-js':{fromByteArray:bytes=>Buffer.from(bytes).toString('base64'),toByteArray:value=>new Uint8Array(Buffer.from(value,'base64'))},
   });
-  return {pipeline,files,calls,bridge};
+  return {pipeline,files,calls,bridge,consent};
 }
 
 test('render exports a real sanitized PNG with a neutral name and disposes only its own files',async()=>{
@@ -151,4 +156,54 @@ test('the queued render snapshots crop coordinates as well as brush points',asyn
   const first=h.pipeline.renderPhoto(source,options());const parameters={...options(),crop:{x:.1,y:.1,width:.5,height:.5}};
   const second=h.pipeline.renderPhoto(source,parameters);parameters.crop.x=.9;release();
   const results=await Promise.all([first,second]);assert.equal(h.calls.render[1].parameters.crop.x,.1);await Promise.all(results.map(result=>result.dispose()));
+});
+
+test('an unedited gain-map JPEG is sent as HDR without the native renderer, with every personal segment removed',async()=>{
+  const {pipeline,files,calls}=harness({noNative:true});files.set(source.uri,ultraHdrFixture());
+  const prepared=await pipeline.preparePhotoForUpload(source);const data=files.get(prepared.file.uri);
+  assert.equal(prepared.media.hdr,'gainmap');assert.equal(prepared.file.mimeType,'image/jpeg');assert.equal(calls.render.length,0);
+  for(const word of ['private','Pixel 8','Exif'])assert.equal(data.includes(Buffer.from(word)),false,word);
+  assert.ok(data.includes(Buffer.from('hdrgm:GainMapMax')));await prepared.dispose();
+});
+test('a native HDR refusal asks for consent; after «Отправить без HDR» the photo is rendered as explicit SDR',async()=>{
+  const {pipeline,calls,consent}=harness({consent:true,followFormat:true,inspect:async()=>({width:2,height:2,processingWidth:2,processingHeight:2,downsampled:false,dynamicRange:'hdr',hdrKind:'gainmap'})});
+  const error=await pipeline.preparePhotoForUpload(source).then(()=>null,value=>value);
+  assert.ok(consent.isHdrConsentError(error));assert.equal(error.uri,source.uri);assert.deepEqual(consent.pendingHdrConsent().slice(-1),[source.uri]);
+  assert.equal(calls.render[0].parameters.format,'jpeg','a gain-map photo is tried as JPEG, never silently as PNG');
+  consent.allowSdr(source.uri);
+  const prepared=await pipeline.preparePhotoForUpload(source);
+  assert.equal(calls.render.at(-1).parameters.dynamicRange,'sdr');assert.equal(prepared.media.hdr,'sdr');await prepared.dispose();
+  assert.equal(consent.pendingHdrConsent().includes(source.uri),false);
+});
+test('a native gain-map result passes the HDR gate and is labelled gainmap; a lost map is an error, not a silent SDR',async()=>{
+  const ok=harness({format:'jpeg',png:ultraHdrFixture(),width:2,height:2,hdr:'gainmap'});
+  const rendered=await ok.pipeline.renderPhoto(source,{...options(),format:'jpeg',rotation:90});
+  assert.equal(rendered.media.hdr,'gainmap');await rendered.dispose();
+  const lost=harness({format:'jpeg',png:withJpegMetadata([]),width:2,height:2,hdr:'gainmap'});
+  await assert.rejects(lost.pipeline.renderPhoto(source,{...options(),format:'jpeg',rotation:90}),/HDR/);
+});
+test('an effect preview is never an uploadable export and is released through the native module',async()=>{
+  const {pipeline,calls,files}=harness();
+  const preview=await pipeline.renderPreview(source,{...options(),background:'white',preview:{maxPixels:1000000}});
+  assert.equal(calls.render[0].parameters.dynamicRange,'sdr');assert.ok(files.has(preview.uri));
+  await assert.rejects(pipeline.preparePhotoForUpload({uri:preview.uri,name:'p.png',mimeType:'image/png'}),/./).catch(()=>{});
+  await preview.dispose();await preview.dispose();assert.equal(calls.dispose.filter(uri=>uri===preview.uri).length,1);
+  await assert.rejects(pipeline.renderPreview(source,options()),/Предпросмотр/);
+});
+test('media.hdr gainmap is valid on receipt but is not put on the wire (older clients refuse unknown values)',async()=>{
+  const preview=loadTs(new URL('../src/media/previewModel.ts',import.meta.url),{'base64-js':{fromByteArray:b=>Buffer.from(b).toString('base64'),toByteArray:v=>new Uint8Array(Buffer.from(v,'base64'))}});
+  assert.equal(preview.validMedia({width:2,height:2,hdr:'gainmap'}),true);
+  assert.deepEqual(preview.wireMedia({width:2,height:2,hdr:'gainmap'}),{width:2,height:2});
+  assert.deepEqual(preview.wireMedia({width:2,height:2,hdr:'pq'}),{width:2,height:2,hdr:'pq'});
+  // What a 0.14 client checks: hdr must be sdr/pq/hlg or absent.
+  const old=media=>media.hdr===undefined||['sdr','pq','hlg'].includes(media.hdr);
+  assert.equal(old(preview.wireMedia({width:2,height:2,hdr:'gainmap'})),true);
+});
+
+test('a native gain map the gate cannot rebuild asks for consent and then renders SDR instead of getting stuck',async()=>{
+  const h=harness({format:'jpeg',png:ultraHdrFixture({orientation:6}),width:2,height:2,hdr:'gainmap'});
+  const error=await h.pipeline.renderPhoto(source,{...options(),format:'jpeg',rotation:90}).then(()=>null,value=>value);
+  assert.ok(h.consent.isHdrConsentError(error),String(error));assert.equal(error.uri,source.uri);
+  assert.equal(h.calls.writes.length,0,'nothing is exported');
+  assert.equal(h.calls.dispose.length,1,'the refused native output is released');
 });

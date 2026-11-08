@@ -7,6 +7,7 @@ import type { Attachment, LocalFile } from '../types';
 import { getSignalBridge } from './signal';
 import { prepareMediaForUpload, prepareBigPhoto, type PreparedMedia } from '../media/pipeline.web';
 import { makeThumbnail } from '../media/thumbnail.web';
+import { wireMedia } from '../media/previewModel';
 import { planUpload, planForUpload, readClean, UncleanableMedia, VIDEO_MIME, type ByteSource, type CleanPlan, type UploadRoute } from '../media/stream/index';
 const MAX_FILE=20*1024*1024;
 /**
@@ -73,7 +74,7 @@ async function sealSmall(api:Api,name:string,prepared:PreparedMedia,onProgress?:
   onProgress?.(bytes.length,bytes.length);
   // Small preview inside the encrypted message, as on phones (was missing on PC: grey placeholders).
   const gif=prepared.file.mimeType==='image/gif',preview=prepared.photo||prepared.video||gif?await makeThumbnail(gif?{...prepared,photo:true}:prepared).catch(()=>undefined):undefined;
-  return {id:result.id,name,mimeType:prepared.file.mimeType,size:bytes.length,encryption:{scheme:'aes-256-gcm-siv',key,nonce,fileKeyId},...(prepared.media?{media:prepared.media}:{}),...(preview?{preview}:{})};
+  return {id:result.id,name,mimeType:prepared.file.mimeType,size:bytes.length,encryption:{scheme:'aes-256-gcm-siv',key,nonce,fileKeyId},...(prepared.media?{media:wireMedia(prepared.media)}:{}),...(preview?{preview}:{})};
 }
 const sizeLabel=(bytes:number)=>bytes>=1024**3?`${(bytes/1024**3).toFixed(1).replace('.0','')} ГБ`:`${Math.round(bytes/1024**2)} МБ`;
 /** Platina raises only the limit for non-video files (videos go up to the same size for everyone). */
