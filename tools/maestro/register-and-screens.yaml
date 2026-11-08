@@ -11,9 +11,12 @@ appId: com.linea.messenger.preview
 # fallback taps the submit button.
 - launchApp:
     clearState: true
+# The first launch after clearState on the CI runner is slow (Release JS bundle, cold simulator), and one
+# hierarchy snapshot can take 30 s there: 90 s once covered only four snapshots and the screen was not up yet.
 - extendedWaitUntil:
     visible: "Создать аккаунт"
-    timeout: 90000
+    timeout: 300000
+- waitForAnimationToEnd
 - takeScreenshot: 00-auth
 - tapOn: "Создать аккаунт"
 

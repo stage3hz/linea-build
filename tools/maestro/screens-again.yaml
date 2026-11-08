@@ -2,6 +2,6 @@ appId: com.linea.messenger.preview
 ---
 - launchApp
 - extendedWaitUntil:
-    visible: "Избранное"
-    timeout: 60000
+    visible: "Избранное.*"
+    timeout: 300000
 - runFlow: screens.yaml
