@@ -8,18 +8,44 @@ import { GlassSurface } from './glass';
 import { useTheme } from './theme';
 import { AccountZone } from './AccountZone';
 import { SecretInput, newPasswordError, normalizeRecoveryWord, recoveryWordError } from './AuthScreen';
-import type { DeviceSession, SecurityStatus } from './types';
+import type { SecurityStatus } from './types';
 import { useTabInset } from './tabInset';
+import { loginLabel, type SessionDetails } from './sessionAlerts';
 
 type Form = 'password' | 'confirmation' | 'word' | null;
-type SessionAction = {kind:'one';session:DeviceSession}|{kind:'others'}|null;
+type SessionAction = {kind:'one';session:SessionDetails}|{kind:'others'}|null;
 const readable = (reason:unknown,fallback:string) => reason instanceof Error?reason.message:fallback;
 function sessionDate(value:string) {
   const date=new Date(value);
   return Number.isFinite(date.getTime())?date.toLocaleString('ru-RU',{day:'numeric',month:'short',hour:'2-digit',minute:'2-digit'}):'Неизвестно';
 }
-function deviceIcon(name:string) {
-  return /android|iphone|ipad|ios/i.test(name)?'phone-portrait-outline':'desktop-outline';
+/** Ionicons name for a session's device kind (also the «Новый вход» notice icon). */
+export function deviceIcon(session:SessionDetails) {
+  const platform=session.platform||'';
+  if(platform==='ios'||platform==='android')return /ipad|tablet/i.test(session.deviceModel||'')?'tablet-portrait-outline':'phone-portrait-outline';
+  if(platform==='web')return 'globe-outline';
+  if(platform==='windows')return 'desktop-outline';
+  return /android|iphone|ipad|ios|pixel|galaxy/i.test(session.deviceName)?'phone-portrait-outline':'desktop-outline';
+}
+/** Current device first (the server already does this; older servers do not), then newest sign-ins. */
+export function orderSessions<T extends {isCurrent:boolean;createdAt:string}>(sessions:T[]):T[] {
+  return [...sessions].sort((a,b)=>Number(b.isCurrent)-Number(a.isCurrent)||(Date.parse(b.createdAt)||0)-(Date.parse(a.createdAt)||0));
+}
+/** «iOS 18.1 · Инвиз 0.14.13», without the parts the server has no data for (older apps). */
+export function sessionSubtitle(session:SessionDetails):string {
+  return [session.osVersion,session.appVersion?`Инвиз ${session.appVersion}`:null].filter(Boolean).join(' · ');
+}
+/** One session in the list: device icon, model, OS and app version, address and last activity. */
+function SessionRow({session,first,busy,onPress}:{session:SessionDetails;first:boolean;busy:boolean;onPress:()=>void}) {
+  const t=useTheme();
+  const name=session.deviceModel||session.deviceName||'Устройство',subtitle=sessionSubtitle(session);
+  return <Pressable accessibilityRole="button" accessibilityLabel={`Сеанс: ${loginLabel(session)}${session.isCurrent?', это устройство':''}. Подробности`} disabled={busy} onPress={onPress} style={({pressed})=>({paddingVertical:13,borderTopWidth:first?0:1,borderColor:t.border,opacity:pressed?.7:1})}>
+    <View style={{flexDirection:'row',gap:12,alignItems:'center'}}><View style={{width:42,height:42,borderRadius:16,backgroundColor:t.accentSoft,alignItems:'center',justifyContent:'center'}}><Icon name={deviceIcon(session)} color={t.accent} size={23}/></View><View style={{flex:1,gap:3}}><View style={{flexDirection:'row',alignItems:'center',gap:8}}><Text style={{color:t.text,fontSize:14,fontWeight:'700',flexShrink:1}} numberOfLines={1}>{name}</Text>{session.isCurrent?<View style={{paddingHorizontal:7,paddingVertical:2,borderRadius:8,backgroundColor:t.accentSoft}}><Text style={{color:t.accent,fontSize:10,fontWeight:'700'}}>Это устройство</Text></View>:null}</View>{subtitle?<Text style={{color:t.muted,fontSize:12,lineHeight:17}} numberOfLines={1}>{subtitle}</Text>:null}<Text style={{color:t.subtle,fontSize:11,lineHeight:16}} numberOfLines={1}>{session.ip?`${session.ip} · `:''}{session.isCurrent?'в сети':sessionDate(session.lastActiveAt)}</Text></View><Icon name="chevron-forward" size={18} color={t.subtle}/></View>
+  </Pressable>;
+}
+function DetailRow({label,value}:{label:string;value:string}) {
+  const t=useTheme();
+  return <View style={{flexDirection:'row',gap:12,alignItems:'flex-start'}}><Text style={{color:t.muted,fontSize:13,lineHeight:19,width:120}}>{label}</Text><Text style={{color:t.text,fontSize:13,lineHeight:19,flex:1}} selectable>{value}</Text></View>;
 }
 
 export function SecurityScreen({api,onBack,onCredentialsChanged,onSensitiveActionPending}: {
@@ -27,7 +53,8 @@ export function SecurityScreen({api,onBack,onCredentialsChanged,onSensitiveActio
   onSensitiveActionPending:(pending:boolean)=>void;
 }) {
   const t=useTheme(); const tabInset = useTabInset();
-  const [status,setStatus]=useState<SecurityStatus|null>(null),[sessions,setSessions]=useState<DeviceSession[]>([]);
+  const [status,setStatus]=useState<SecurityStatus|null>(null),[sessions,setSessions]=useState<SessionDetails[]>([]);
+  const [details,setDetails]=useState<SessionDetails|null>(null);
   const [loading,setLoading]=useState(true),[busy,setBusy]=useState(false),[error,setError]=useState(''),[notice,setNotice]=useState('');
   const [form,setForm]=useState<Form>(null),[action,setAction]=useState<SessionAction>(null),[formError,setFormError]=useState('');
   const [currentPassword,setCurrentPassword]=useState(''),[currentConfirmation,setCurrentConfirmation]=useState(''),[newPassword,setNewPassword]=useState(''),[confirmation,setConfirmation]=useState(''),[word,setWord]=useState('');
@@ -42,7 +69,7 @@ export function SecurityScreen({api,onBack,onCredentialsChanged,onSensitiveActio
     try{
       const [security,result]=await Promise.all([api.security(),api.sessions()]);
       if(!valid(life)||request!==loadVersion.current)return;
-      setStatus(security);setSessions(result.sessions);
+      setStatus(security);setSessions(orderSessions(result.sessions));
     }catch(reason){
       if(!valid(life)||request!==loadVersion.current)return;
       setError(reason instanceof ApiError&&reason.status===404?'Сервер ещё не поддерживает настройки безопасности. Обнови сервер Инвиза до версии 0.3.0.':readable(reason,'Не удалось загрузить настройки безопасности.'));
@@ -50,7 +77,7 @@ export function SecurityScreen({api,onBack,onCredentialsChanged,onSensitiveActio
     }finally{if(valid(life)&&request===loadVersion.current)setLoading(false);}
   },[api,valid]);
   useEffect(()=>{
-    alive.current=true;epoch.current++;clearSecrets();setStatus(null);setSessions([]);setForm(null);setAction(null);setFormError('');setNotice('');setBusy(false);pending.current=false;void refresh();
+    alive.current=true;epoch.current++;clearSecrets();setStatus(null);setSessions([]);setForm(null);setAction(null);setDetails(null);setFormError('');setNotice('');setBusy(false);pending.current=false;void refresh();
     return()=>{alive.current=false;epoch.current++;loadVersion.current++;};
   },[refresh]);
 
@@ -82,9 +109,9 @@ export function SecurityScreen({api,onBack,onCredentialsChanged,onSensitiveActio
       if(valid(life)){pending.current=false;setBusy(false);}
     }
   };
-  const revoke=async()=>{
-    if(pending.current||!action)return;
-    const selected=action,life=epoch.current;
+  const revoke=async(target:SessionAction=action)=>{
+    if(pending.current||!target)return;
+    const selected=target,life=epoch.current;
     const currentSession=selected.kind==='one'&&selected.session.isCurrent;
     pending.current=true;setBusy(true);setError('');setNotice('');
     if(currentSession)onSensitiveActionPending(true);
@@ -92,14 +119,14 @@ export function SecurityScreen({api,onBack,onCredentialsChanged,onSensitiveActio
       if(selected.kind==='others')await api.revokeOtherSessions();
       else await api.revokeSession(selected.session.id);
       if(!valid(life))return;
-      setAction(null);
+      setAction(null);setDetails(null);
       if(currentSession){await onCredentialsChanged('Сеанс на этом устройстве завершён. Войди снова, чтобы продолжить.');return;}
       setNotice(selected.kind==='others'?'Все другие сеансы завершены.':'Выбранный сеанс завершён.');
       await refresh();
-    }catch(reason){if(valid(life)){setAction(null);setError(readable(reason,'Не удалось завершить сеанс.'));}}
+    }catch(reason){if(valid(life)){setAction(null);setDetails(null);setError(readable(reason,'Не удалось завершить сеанс.'));}}
     finally{if(currentSession)onSensitiveActionPending(false);if(valid(life)){pending.current=false;setBusy(false);}}
   };
-  const otherCount=sessions.filter(session=>!session.isCurrent).length;
+  const current=sessions.filter(session=>session.isCurrent),others=sessions.filter(session=>!session.isCurrent),otherCount=others.length;
 
   return <KeyboardAvoidingView style={{flex:1,backgroundColor:'transparent'}} behavior={Platform.OS==='ios'?'padding':undefined}>
     <GlassSurface lens material="clear" radius={27} style={{marginHorizontal:14,marginTop:12,marginBottom:2}} contentStyle={{flexDirection:'row',alignItems:'center',padding:10,gap:9,minHeight:68}}>
@@ -136,13 +163,15 @@ export function SecurityScreen({api,onBack,onCredentialsChanged,onSensitiveActio
         </GlassSurface>
         <GlassSurface material="regular" radius={28} contentStyle={{padding:20,gap:15}}>
           <View style={{flexDirection:'row',alignItems:'center',gap:8}}><View style={{flex:1}}><SectionLabel>Сеансы и устройства</SectionLabel></View><IconButton name="refresh-outline" label="Обновить список сеансов" size={19} disabled={busy||loading} onPress={()=>void refresh()}/></View>
-          <Text style={{color:t.muted,fontSize:12,lineHeight:18}}>Здесь показаны действующие входы. Одна платформа может отображаться несколько раз, если ты входил в неё повторно.</Text>
-          {sessions.map(session=><View key={session.id} style={{paddingVertical:13,borderTopWidth:1,borderColor:t.border,gap:10}}>
-            <View style={{flexDirection:'row',gap:12,alignItems:'flex-start'}}><View style={{width:42,height:42,borderRadius:16,backgroundColor:t.accentSoft,alignItems:'center',justifyContent:'center'}}><Icon name={deviceIcon(session.deviceName)} color={t.accent} size={23}/></View><View style={{flex:1,gap:5}}><Text style={{color:t.text,fontSize:14,fontWeight:'700'}}>{session.deviceName||'Устройство'}</Text>{session.isCurrent?<Text style={{color:t.accent,fontSize:11,fontWeight:'700'}}>Этот сеанс</Text>:null}<Text style={{color:t.muted,fontSize:11,lineHeight:17}}>Активность: {sessionDate(session.lastActiveAt)}{ '\n' }Вход: {sessionDate(session.createdAt)}{ '\n' }Действует до: {sessionDate(session.expiresAt)}</Text></View><IconButton name="log-out-outline" label={`Завершить сеанс: ${session.deviceName}${session.isCurrent?', текущий':''}`} color={t.muted} size={20} disabled={busy} onPress={()=>setAction({kind:'one',session})}/></View>
-          </View>)}
+          <Text style={{color:t.muted,fontSize:12,lineHeight:18}}>Здесь показаны действующие входы: устройство, система, версия приложения и IP-адрес, с которого выполнен вход. Нажми на сеанс, чтобы увидеть подробности или завершить его.</Text>
+          {current.map(session=><SessionRow key={session.id} session={session} first busy={busy} onPress={()=>setDetails(session)}/>)}
+          {/* Like Telegram: «Завершить все другие сеансы» sits between «Это устройство» and the other sessions. */}
+          <Button label="Завершить все другие сеансы" danger icon="log-out-outline" disabled={busy||!otherCount} onPress={()=>setAction({kind:'others'})}/>
+          {others.length?<SectionLabel>Другие устройства</SectionLabel>:null}
+          {others.map((session,index)=><SessionRow key={session.id} session={session} first={index===0} busy={busy} onPress={()=>setDetails(session)}/>)}
           {!sessions.length&&!loading?<Text style={{color:t.muted,fontSize:13}}>Действующие сеансы не найдены.</Text>:null}
           {loading&&status?<ActivityIndicator color={t.accent}/>:null}
-          <Button label="Завершить другие сеансы" danger icon="log-out-outline" disabled={busy||!otherCount} onPress={()=>setAction({kind:'others'})}/>
+          <Text style={{color:t.subtle,fontSize:11,lineHeight:16}}>Если ты видишь вход, которого не делал, заверши его и смени пароль. IP-адрес показан как есть, местоположение по нему не определяется.</Text>
         </GlassSurface>
         <AccountZone api={api} confirmationConfigured={status.confirmationConfigured} onDeleted={()=>changedCallback.current('Аккаунт удалён.')}/>
       </>:null}
@@ -166,8 +195,24 @@ export function SecurityScreen({api,onBack,onCredentialsChanged,onSensitiveActio
         <Pressable accessibilityRole="button" disabled={busy} onPress={closeForm} style={{minHeight:44,alignItems:'center',justifyContent:'center'}}><Text style={{color:t.muted,fontSize:13}}>Отмена</Text></Pressable>
       </View>
     </Sheet>
-    <Sheet visible={action!==null} title={action?.kind==='others'?'Завершить другие сеансы?':'Завершить этот сеанс?'} onClose={()=>{if(!busy)setAction(null);}}>
-      <View style={{gap:18,paddingBottom:8}}><Text style={{color:t.muted,fontSize:14,lineHeight:22}}>{action?.kind==='others'?'Этот сеанс останется открытым. На остальных устройствах понадобится снова ввести логин, пароль и слово подтверждения.':action?.session.isCurrent?'Ты выйдешь из аккаунта на этом устройстве. Переписка останется на сервере.':`На устройстве «${action?.session.deviceName||'Устройство'}» понадобится снова войти с паролем.`}</Text><Button label={action?.kind==='one'&&action.session.isCurrent?'Выйти на этом устройстве':'Завершить'} danger onPress={()=>void revoke()} loading={busy}/></View>
+    <Sheet visible={details!==null} title={details?.isCurrent?'Это устройство':'Сеанс'} onClose={()=>{if(!busy)setDetails(null);}}>
+      {details?<View style={{gap:16,paddingBottom:8}}>
+        <View style={{flexDirection:'row',gap:12,alignItems:'center'}}><View style={{width:48,height:48,borderRadius:18,backgroundColor:t.accentSoft,alignItems:'center',justifyContent:'center'}}><Icon name={deviceIcon(details)} color={t.accent} size={26}/></View><View style={{flex:1,gap:3}}><Text style={{color:t.text,fontSize:17,fontWeight:'800',letterSpacing:-.3}}>{details.deviceModel||details.deviceName||'Устройство'}</Text><Text style={{color:t.muted,fontSize:12}}>{details.isCurrent?'Текущий сеанс на этом устройстве':'Действующий сеанс на другом устройстве'}</Text></View></View>
+        <View style={{gap:9,padding:14,borderWidth:1,borderColor:t.border,borderRadius:18}}>
+          <DetailRow label="Устройство" value={details.deviceModel||details.deviceName||'—'}/>
+          <DetailRow label="Система" value={details.osVersion||'—'}/>
+          <DetailRow label="Приложение" value={details.appVersion?`Инвиз ${details.appVersion}`:'—'}/>
+          <DetailRow label="IP-адрес" value={details.ip||'—'}/>
+          <DetailRow label="Первый вход" value={sessionDate(details.createdAt)}/>
+          <DetailRow label="Последняя активность" value={details.isCurrent?'Сейчас':sessionDate(details.lastActiveAt)}/>
+          <DetailRow label="Действует до" value={sessionDate(details.expiresAt)}/>
+        </View>
+        <Text style={{color:t.muted,fontSize:12,lineHeight:18}}>{details.isCurrent?'Выход завершит сеанс на этом устройстве. Переписка останется на сервере.':'После завершения на том устройстве понадобится снова ввести логин, пароль и слово подтверждения. Название и версии сообщает само приложение; IP-адрес показан как есть.'}</Text>
+        <Button label={details.isCurrent?'Выйти на этом устройстве':'Завершить сеанс'} danger icon="log-out-outline" loading={busy} onPress={()=>void revoke({kind:'one',session:details})}/>
+      </View>:null}
+    </Sheet>
+    <Sheet visible={action!==null} title={action?.kind==='others'?'Завершить все другие сеансы?':'Завершить этот сеанс?'} onClose={()=>{if(!busy)setAction(null);}}>
+      <View style={{gap:18,paddingBottom:8}}><Text style={{color:t.muted,fontSize:14,lineHeight:22}}>{action?.kind==='others'?'Этот сеанс останется открытым. На остальных устройствах понадобится снова ввести логин, пароль и слово подтверждения.':action?.session.isCurrent?'Ты выйдешь из аккаунта на этом устройстве. Переписка останется на сервере.':`На устройстве «${action?.session?loginLabel(action.session):'Устройство'}» понадобится снова войти с паролем.`}</Text><Button label={action?.kind==='one'&&action.session.isCurrent?'Выйти на этом устройстве':'Завершить'} danger onPress={()=>void revoke()} loading={busy}/></View>
     </Sheet>
   </KeyboardAvoidingView>;
 }

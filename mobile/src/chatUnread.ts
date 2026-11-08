@@ -6,10 +6,10 @@ import type { Chat, Message } from './types';
  */
 const missedCall = (message: Message, userId: string) => { const action = message.meta?.action; return action?.type === 'call' && action.step === 'end' && action.reason === 'missed' && message.senderId !== userId; };
 /** Reactions, edits, votes, pins and the like change another message and never count as unread (Telegram); a missed call does. */
-const counts = (message: Message, userId: string) => !message.mesh && message.senderId !== userId && (!message.meta?.action || missedCall(message, userId));
+export const countsAsUnread = (message: Message, userId: string) => !message.mesh && message.senderId !== userId && (!message.meta?.action || missedCall(message, userId));
 
 /** Unread messages among `messages` after the read watermark, by the client's rule. */
-export const countUnread = (messages: readonly Message[], lastReadId: number, userId: string) => messages.filter(m => m.id > lastReadId && counts(m, userId)).length;
+export const countUnread = (messages: readonly Message[], lastReadId: number, userId: string) => messages.filter(m => m.id > lastReadId && countsAsUnread(m, userId)).length;
 
 /**
  * The server counts every row of the peer after last_read, actions included (it cannot see inside

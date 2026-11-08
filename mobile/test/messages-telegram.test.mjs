@@ -20,6 +20,18 @@ test('poll and vote meta are validated strictly', () => {
   assert.match(pollFallback(poll), /📊 Куда идём\?\n1\. Кино\n2\. Парк/);
 });
 
+test('F8: a story reference in the meta is two uuids and never travels with a reply quote', () => {
+  const id = randomUUID(), ownerId = randomUUID();
+  assert.equal(validMeta({ story: { id, ownerId } }), true);
+  assert.equal(validMeta({ story: { id, ownerId }, entities: [{ type: 'bold', offset: 0, length: 1 }] }), true, 'formatting rides along');
+  assert.equal(validMeta({ story: { id: 'story-1', ownerId } }), false, 'the story id is a uuid');
+  assert.equal(validMeta({ story: { id, ownerId: 'me' } }), false, 'the owner id is a uuid');
+  assert.equal(validMeta({ story: { id } }), false, 'both fields are required');
+  assert.equal(validMeta({ story: { id, ownerId, preview: 'История' } }), false, 'no unknown keys');
+  assert.equal(validMeta({ story: { id, ownerId }, reply: { clientId: id, senderId: ownerId, preview: '' } }), false, 'one quote only');
+  assert.equal(validMeta({ story: { id, ownerId }, action: { type: 'pin', target: null } }), false, 'an action is alone');
+});
+
 test('votes fold into results; one live vote per person; invalid votes ignored', () => {
   const alice = randomUUID(), bob = randomUUID();
   const poll = msg(1, alice, { text: 'p', meta: { poll: { question: 'Q', options: ['A', 'B', 'C'], multiple: false } } });

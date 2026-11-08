@@ -166,8 +166,9 @@ export function installCommunityRoutes({ app, db, authOptions, publicUser, times
     for (const role of db.prepare('SELECT r.perms FROM community_member_roles m JOIN community_roles r ON r.id=m.role_id WHERE m.community_id=? AND m.user_id=?').all(row.id, userId)) value |= role.perms;
     if (value & PERM.ADMIN) return ALL;
     // A closed community keeps its promise «only a link from the owner lets people in»: the
-    // invite right stays with the owner and those who manage the community, whatever the roles say.
-    if (row.closed === 1 && !(value & PERM.MANAGE_COMMUNITY)) value &= ~PERM.INVITE;
+    // invite right belongs to the owner and those who manage the community (as the setting says),
+    // whatever the roles say — managers get it, everyone else loses it.
+    if (row.closed === 1) value = value & PERM.MANAGE_COMMUNITY ? value | PERM.INVITE : value & ~PERM.INVITE;
     return value;
   };
   const need = (row, userId, bit, message = 'Недостаточно прав.') => { requireMember(row.id, userId); if (!(perms(row, userId) & bit)) fail(403, message, { code: 'FORBIDDEN' }); };
@@ -532,8 +533,10 @@ export function installCommunityRoutes({ app, db, authOptions, publicUser, times
     if (!owner && top <= 0) fail(403, 'Создавать роли может только участник, у которого есть своя роль.');
     const role = roleFields(body, { name: 'Новая роль', color: '#3FA9F5', perms: PERM.SEND | PERM.VOICE }, { owner, allowed: perms(row, viewer), base: 0 });
     const id = randomUUID();
-    // The owner's new role goes on top; anyone else's sits right under their own highest role, so it stays theirs to manage.
-    const position = owner ? (db.prepare('SELECT MAX(position) AS p FROM community_roles WHERE community_id=?').get(row.id).p || 0) + 1 : top - 1;
+    // The owner's new role goes on top; anyone else's takes the highest free position under their
+    // own highest role, so it stays theirs to manage and never shares a position with another role
+    // (nor with the base role at 0, which would put it out of everyone's reach).
+    const position = owner ? (db.prepare('SELECT MAX(position) AS p FROM community_roles WHERE community_id=?').get(row.id).p || 0) + 1 : freePositionBelow(row, top);
     db.prepare('INSERT INTO community_roles(id,community_id,name,color,position,perms,is_default) VALUES(?,?,?,?,?,?,0)').run(id, row.id, role.name, role.color, position, role.perms);
     return { role: publicRole(db.prepare('SELECT * FROM community_roles WHERE id=?').get(id)) };
   });
@@ -559,10 +562,23 @@ export function installCommunityRoutes({ app, db, authOptions, publicUser, times
     if (current.is_default) fail(400, 'Базовую роль удалить нельзя.');
     if (current.perms & PERM.ADMIN && row.owner_id !== viewer) fail(403, 'Роль администратора удаляет только владелец.');
     if (!manageable(row, viewer, current)) fail(403, 'Удалять можно только роли ниже своей.');
+    // Deleting the only role that gates a channel opens that channel to everyone: whoever cannot
+    // see the channel themselves may not open it this way.
+    if (row.owner_id !== viewer) {
+      const gated = db.prepare('SELECT c.* FROM community_channels c JOIN community_channel_roles cr ON cr.channel_id=c.id WHERE c.community_id=? GROUP BY c.id HAVING COUNT(*)=1 AND MAX(cr.role_id)=?').all(row.id, current.id);
+      if (gated.some(item => !canSee(row, item, viewer))) fail(403, 'Эта роль закрывает канал, который вам не виден.');
+    }
     db.prepare('DELETE FROM community_roles WHERE id=?').run(current.id);
     refresh(row);
     return { ok: true };
   });
+
+  /** The highest position in (0, top) no role of this community holds yet. */
+  function freePositionBelow(row, top) {
+    const taken = new Set(db.prepare('SELECT position FROM community_roles WHERE community_id=?').all(row.id).map(item => item.position));
+    for (let position = top - 1; position > 0; position--) if (!taken.has(position)) return position;
+    fail(400, 'Под вашей ролью не осталось свободных позиций.');
+  }
 
   // Rights only travel downhill: whoever is not the owner can grant, or take away, just the rights
   // they hold themselves (`allowed`); `base` is what the role had before, so an edit is judged by what changes.

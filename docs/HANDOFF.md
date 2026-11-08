@@ -51,7 +51,7 @@ cd android && ./gradlew assembleRelease
 
 **Тесты.**
 - Нужен Node 24 (`--test-isolation`). Для e2ee-тестов: `/tmp/linea-signal-tests` с `@signalapp/libsignal-client@0.106.0`; для relay-теста — `npm ci` в `server`.
-- Клиент: `node --test --test-isolation=none test/*.test.mjs`. Тест `e2ee-native-interop` пропустить, ему нужен Gradle. Сейчас проходят 328 из 328.
+- Клиент: `node --test --test-isolation=none test/*.test.mjs`. Тест `e2ee-native-interop` пропускается сам, когда нет Gradle/JDK (ничего отключать не нужно). Сейчас проходят 328 из 328.
 - Сервер: `npm test` в папке `server`, проходят 101 из 101.
 - Kotlin-фильтры фото (PhotoPixelsTest) можно прогнать без Android SDK: отдельный gradle-проект с kotlin("jvm"), исходники PhotoPixels.kt + тест (9 из 9).
 
@@ -132,7 +132,7 @@ cd android && ./gradlew assembleRelease
 
 - 0.9.1: реакции внутри пузыря; в чате плеер — полоска под шапкой (`TopPlayerBar`); крестик в мини-плеере; «Сейчас играет» без стеклянной обёртки; кэш подборок музыки; затухание сообщений под статус-баром.
 - 0.10.0:
-  - **звонки и видеозвонки** (`src/calls/`): react-native-webrtc 124.0.8 + react-native-incall-manager 4.3.0. Сигналинг — действие `{type:'call',call,step:'offer'|'answer'|'end',sdp,video,reason}` внутри Signal-шифротекста (SDP с DTLS-отпечатком защищён E2EE; non-trickle ICE, ждём сбор кандидатов до 3 с). Эмодзи-ключ из обоих отпечатков (как в Telegram). Звонки работают, пока приложение открыто (нет CallKit/VoIP-push — нужен платный Apple Developer и FCM).
+  - **звонки и видеозвонки** (`src/calls/`): react-native-webrtc 124.0.8 + react-native-incall-manager 4.3.0. Сигналинг — действие `{type:'call',call,step:'offer'|'answer'|'end',sdp,video,reason}` внутри Signal-шифротекста (SDP с DTLS-отпечатком защищён E2EE; non-trickle ICE, ждём сбор кандидатов до 3 с). Эмодзи-ключ из обоих отпечатков (как в Telegram). Push-уведомления о звонке поддержаны: APNs (`deploy/apns.sh`, `IOS_PUSH=1`) и FCM (`deploy/push.sh`); CallKit/VoIP-push нет — входящий звонок приходит обычным push, а разговор идёт, пока приложение открыто.
   - сервер: `GET /calls/ice` — временные TURN-учётки (HMAC, 6 ч); coturn в `deploy/compose.turn.yml` (host-сеть, порты 3478 udp/tcp и 49160–49200/udp, запрет релея в частные сети). `install.sh` сам создаёт `TURN_SECRET` и открывает порты в ufw; **в панели Beget тоже открыть эти порты**, если там включён фаервол.
   - список чатов: «Изм.» (выбор, «Прочитать все», «В архив», «Звук»), свайп влево — архив, вправо — прочитано;
   - кружки: в чате играют без звука по кругу, по нажатию увеличиваются и играют со звуком;

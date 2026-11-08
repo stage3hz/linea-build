@@ -98,6 +98,8 @@ module.exports = {
       './plugins/withSelfUpdate',
       // Only DeviceMotion (wallpaper parallax); the pedometer's ACTIVITY_RECOGNITION is in blockedPermissions.
       ['expo-sensors', { motionPermission: 'Инвиз использует наклон телефона только для лёгкого движения обоев в чатах.' }],
+      // Face ID / Touch ID for the passcode lock (src/lock); the code itself never leaves the device.
+      ['expo-local-authentication', { faceIDPermission: 'Face ID открывает Инвиз без ввода код-пароля.' }],
       ['expo-camera', { cameraPermission: 'Камера нужна для видеосообщений. Видео шифруется до отправки.', microphonePermission: 'Инвиз использует микрофон только во время записи голосового или видеосообщения. Запись шифруется до отправки.', recordAudioAndroid: true }],
       ['expo-secure-store', { configureAndroidBackup: true }],
       ['expo-sqlite', { useSQLCipher: true, enableFTS: false }],

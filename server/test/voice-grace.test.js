@@ -89,3 +89,50 @@ test('B12: the same user re-joining within the grace period takes the place of t
   assert.equal(states.some(p => p.members.length === 1 && states.indexOf(p) > 0), false, 'members never fell to one');
   await ownerSocket.next(p => p.type === 'voice.state' && p.members.length === 2 && p.members.some(m => m.userId === bob.user.id));
 });
+
+test('review: who is in a role-gated voice channel is told only to members who can see it', async t => {
+  const { app, owner, bob, community, channel, join } = await fixture(t, 400);
+  const carl = await register(app, 'carl_v');
+  const code = (await request(app, 'POST', `/communities/${community.id}/invites`, owner, {})).json().invite.code;
+  assert.equal((await request(app, 'POST', `/invites/${code}/accept`, carl)).statusCode, 200);
+  const moderator = community.roles.find(r => r.name === 'Модератор');
+  assert.equal((await request(app, 'PUT', `/communities/${community.id}/members/${bob.user.id}/roles`, owner, { roleIds: [moderator.id] })).statusCode, 200);
+  assert.equal((await request(app, 'PATCH', `/communities/${community.id}/channels/${channel.id}`, owner, { roleIds: [moderator.id] })).statusCode, 200);
+  const ownerSocket = await socketFor(t, app, owner), bobSocket = await socketFor(t, app, bob), carlSocket = await socketFor(t, app, carl);
+  join(ownerSocket); await ownerSocket.next(p => p.type === 'voice.joined');
+  join(bobSocket); await bobSocket.next(p => p.type === 'voice.joined');
+  await ownerSocket.next(p => p.type === 'voice.state' && p.members.length === 2);
+  // Bob leaves by closing the socket: after the grace period the room shrinks and only those who see it hear of it.
+  bobSocket.socket.terminate();
+  await ownerSocket.next(p => p.type === 'voice.state' && p.members.length === 1);
+  // Mute from the owner: another voice.state, again only for those who see the channel.
+  ownerSocket.socket.send(JSON.stringify({ type: 'voice.mute', muted: true }));
+  await ownerSocket.next(p => p.type === 'voice.state' && p.members[0]?.muted === true);
+  await sleep(100);
+  assert.equal(carlSocket.packets.some(p => p.type === 'voice.state'), false, `Carl never learns who sits in the gated room: ${JSON.stringify(carlSocket.packets)}`);
+});
+
+test('review: a kick during the grace period removes the ghost at once; a deleted community leaves no timer that throws', async t => {
+  const { app, owner, bob, community, channel, join } = await fixture(t, 600);
+  const ownerSocket = await socketFor(t, app, owner), bobSocket = await socketFor(t, app, bob);
+  join(ownerSocket); await ownerSocket.next(p => p.type === 'voice.joined');
+  join(bobSocket); await bobSocket.next(p => p.type === 'voice.joined');
+  await ownerSocket.next(p => p.type === 'voice.state' && p.members.length === 2);
+  bobSocket.socket.terminate();
+  await sleep(100);
+  assert.equal((await request(app, 'DELETE', `/communities/${community.id}/members/${bob.user.id}`, owner)).statusCode, 200);
+  const state = await ownerSocket.next(p => p.type === 'voice.state' && p.members.length === 1, 300);
+  assert.deepEqual(state.members.map(m => m.userId), [owner.user.id], 'the kicked ghost is gone before its grace period ends');
+  assert.equal(state.channelId, channel.id);
+  // The owner's socket drops, then the community is deleted while the owner is still in grace: the
+  // timer fires against a community that no longer exists and must not take the process down.
+  const ownerAgain = await socketFor(t, app, owner);
+  join(ownerAgain); await ownerAgain.next(p => p.type === 'voice.joined');
+  ownerAgain.socket.terminate();
+  await sleep(100);
+  const deleted = await request(app, 'DELETE', `/communities/${community.id}`, owner, {});
+  assert.equal(deleted.statusCode, 200, deleted.body);
+  const crashed = new Promise(resolve => { const handler = error => { process.off('uncaughtException', handler); resolve(error); }; process.once('uncaughtException', handler); setTimeout(() => { process.off('uncaughtException', handler); resolve(null); }, 900); });
+  assert.equal(await crashed, null, 'no uncaught exception from the grace timer');
+  assert.equal((await request(app, 'GET', '/communities', owner)).statusCode, 200, 'the server is still alive');
+});

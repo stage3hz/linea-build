@@ -1,10 +1,11 @@
 import { randomUUID } from 'node:crypto';
+import { isIPv6 } from 'node:net';
 import { transaction, publicUser } from './database.js';
 import {
   fail, objectBody, boundedText, usernameValue, passwordValue, passwordHash,
   passwordMatches, recoveryWordValue, normalizeRecoveryWord, deviceNameValue,
   tokenHash, newToken, validToken,
-  publicName,
+  publicName, visibleText,
 } from './security.js';
 
 export const RECOVERY_LOCK_MS = 24 * 60 * 60 * 1000;
@@ -13,6 +14,54 @@ export const RECOVERY_GRANT_MS = 20 * 60 * 1000;
 const MAX_UNKNOWN_RECOVERY_NAMES = 10000;
 const COLORS = ['#6C5CE7', '#2E8B83', '#BA6A43', '#566BC2', '#A44A7C', '#3C859F'];
 const iso = time => new Date(time).toISOString();
+// F6 «Активные сеансы»: fields the app reports about itself at sign-in (all optional).
+const DEVICE_FIELDS = ['platform', 'deviceModel', 'osVersion', 'appVersion'];
+const DEVICE_LABELS = { platform: 'Платформа', deviceModel: 'Модель устройства', osVersion: 'Версия системы', appVersion: 'Версия приложения' };
+function deviceInfoValue(body) {
+  const info = {};
+  for (const field of DEVICE_FIELDS) {
+    if (body[field] === undefined || body[field] === null) { info[field] = null; continue; }
+    const raw = boundedText(body[field], DEVICE_LABELS[field], 1, 80);
+    // Control (C0, C1), invisible and direction-changing characters are refused, as in the device
+    // name: visibleText() strips them, so a change other than collapsed spaces means one was there.
+    const value = visibleText(raw);
+    if (value !== raw.replace(/\s+/g, ' ')) fail(400, `${DEVICE_LABELS[field]}: недопустимые символы.`);
+    info[field] = value;
+  }
+  return info;
+}
+/** The one-line device name shown in the sign-in notice («Новый вход: …»). */
+export function sessionLabel(session) {
+  const model = session.device_model ?? session.deviceModel, os = session.os_version ?? session.osVersion;
+  const name = model || session.device_name || session.deviceName || 'Неизвестное устройство';
+  return os ? `${name} · ${os}` : name;
+}
+const publicSession = (session, currentTokenHash) => ({
+  id: session.id, deviceName: session.device_name, createdAt: session.created_at,
+  lastActiveAt: session.last_active_at, expiresAt: iso(session.expires_at),
+  isCurrent: session.token_hash === currentTokenHash,
+  platform: session.platform ?? null, deviceModel: session.device_model ?? null,
+  osVersion: session.os_version ?? null, appVersion: session.app_version ?? null,
+  // The address as text only; it is never geolocated.
+  ip: session.ip ?? null,
+});
+
+/**
+ * The address a rate-limit key counts: IPv4 as is (an IPv4-mapped IPv6 address becomes its IPv4),
+ * IPv6 by its /64 prefix — one subscriber gets a whole /64, so counting single IPv6 addresses
+ * would hand them 2^64 fresh keys. Anything that is not an address is kept verbatim.
+ */
+export function rateLimitIp(ip) {
+  if (typeof ip !== 'string') return '';
+  const mapped = /^::ffff:(\d{1,3}(?:\.\d{1,3}){3})$/i.exec(ip);
+  if (mapped) return mapped[1];
+  if (!isIPv6(ip)) return ip;
+  const [head, tail = ''] = ip.replace(/%.*$/, '').split('::');
+  const groups = head ? head.split(':') : [];
+  const rest = tail ? tail.split(':') : [];
+  while (groups.length + rest.length < 8) groups.push('0');
+  return groups.concat(rest).slice(0, 4).map(group => parseInt(group, 16).toString(16)).join(':') + '::/64';
+}
 
 export function installAuthRoutes({
   app, db, now, timestamp, authOptions, authThrottle, recoveryStatusThrottle,
@@ -49,10 +98,28 @@ export function installAuthRoutes({
       fail(401, 'Неверный текущий пароль или подтверждающее слово.');
     }
   };
-  const sessionResponse = (user, deviceName) => ({
-    token: newSession(user.id, deviceName), user: publicUser(user, { db, now, own: true }),
-    securitySetupRequired: !user.confirmation_hash || !user.recovery_hash,
-  });
+  // `request`: the sign-in request; its device fields and address (request.clientIp honours
+  // trustProxy and the edge key, see app.js) are stored with the new session. Must run inside the
+  // caller's transaction so the row is written with its details or not at all.
+  const sessionResponse = (user, deviceName, request, device) => {
+    const token = newSession(user.id, deviceName);
+    if (request) {
+      db.prepare('UPDATE sessions SET platform=?,device_model=?,os_version=?,app_version=?,ip=? WHERE token_hash=?')
+        .run(device?.platform ?? null, device?.deviceModel ?? null, device?.osVersion ?? null, device?.appVersion ?? null,
+          typeof request.clientIp === 'string' && request.clientIp ? request.clientIp.slice(0, 64) : null, tokenHash(token));
+    }
+    return {
+      token, user: publicUser(user, { db, now, own: true }),
+      securitySetupRequired: !user.confirmation_hash || !user.recovery_hash,
+    };
+  };
+  // «Новый вход»: the account's other devices learn about a new sign-in (public metadata only,
+  // never the token) and may end it from the notice.
+  const announceNewSession = (userId, token) => {
+    const session = db.prepare('SELECT * FROM sessions WHERE token_hash=?').get(tokenHash(token));
+    if (!session) return;
+    emitUser(userId, { type: 'session.new', session: publicSession(session, null), label: sessionLabel(session) }, session.id);
+  };
   const invalidateCredentials = (user, { password = user.password_hash, confirmation = user.confirmation_hash, recovery = user.recovery_hash }) => {
     const updated = db.prepare('UPDATE users SET password_hash=?,confirmation_hash=?,recovery_hash=?,credential_version=credential_version+1 WHERE id=? AND credential_version=? AND password_hash=?')
       .run(password, confirmation, recovery, user.id, user.credential_version, user.password_hash);
@@ -131,7 +198,7 @@ export function installAuthRoutes({
 
   app.post('/auth/register', async (request, reply) => {
     authThrottle(request);
-    const body = objectBody(request.body, ['username', 'publicUsername', 'password', 'displayName', 'confirmationWord', 'recoveryWord', 'deviceName']);
+    const body = objectBody(request.body, ['username', 'publicUsername', 'password', 'displayName', 'confirmationWord', 'recoveryWord', 'deviceName', ...DEVICE_FIELDS]);
     const username = usernameValue(body.username);
     // The login stays secret: current apps send a separate public @username (it must differ).
     // Older apps send none and keep the old behaviour (public name = login) until they update.
@@ -143,6 +210,7 @@ export function installAuthRoutes({
     if (confirmationWord === recoveryWord) fail(400, 'Подтверждающее слово и слово для восстановления должны отличаться.');
     const displayName = publicName(body.displayName, 'Имя', 1, 50);
     const deviceName = deviceNameValue(body.deviceName);
+    const device = deviceInfoValue(body);
     const taken = name => !!db.prepare('SELECT 1 FROM users WHERE username=? OR login_name=?').get(name, name);
     if (taken(username)) fail(409, 'Этот логин уже занят.', { code: 'USERNAME_TAKEN' });
     if (publicUsername && taken(publicUsername)) fail(409, 'Этот @юзернейм уже занят.', { code: 'PUBLIC_USERNAME_TAKEN' });
@@ -158,7 +226,7 @@ export function installAuthRoutes({
       db.prepare('INSERT INTO users(id,username,login_name,display_name,password_hash,confirmation_hash,recovery_hash,avatar_color,created_at) VALUES(?,?,?,?,?,?,?,?,?)')
         .run(id, handle, username, displayName, hashes.password, hashes.confirmation, hashes.recovery, color, timestamp());
       db.prepare('DELETE FROM recovery_attempts WHERE name_key=?').run(tokenHash(username));
-      return sessionResponse(db.prepare('SELECT * FROM users WHERE id=?').get(id), deviceName);
+      return sessionResponse(db.prepare('SELECT * FROM users WHERE id=?').get(id), deviceName, request, device);
     });
     return reply.code(201).send(result);
   });
@@ -171,7 +239,7 @@ export function installAuthRoutes({
   // recently, so a correct sign-in from a clean address is never refused by it.
   const LOGIN_TRIES = 5, LOGIN_LOCK_MS = 5 * 60_000, LOGIN_FAIL_MEMORY_MS = 15 * 60_000;
   const loginFails = new Map(); // `${clientIp}\n${username}` -> { fails, until, at }
-  const loginKey = (request, username) => `${request.clientIp}\n${username}`;
+  const loginKey = (request, username) => `${rateLimitIp(request.clientIp)}\n${username}`;
   const lockedFor = key => { const e = loginFails.get(key); const left = e?.until ? e.until - now() : 0; return left > 0 ? left : 0; };
   const recentlyFailed = key => { const e = loginFails.get(key); return Boolean(e && now() - e.at < LOGIN_FAIL_MEMORY_MS); };
   const lockedFail = ms => fail(429, `Слишком много неверных попыток. Попробуй через ${Math.floor(ms / 60000)}:${String(Math.ceil(ms / 1000) % 60).padStart(2, '0')}.`, { code: 'LOGIN_LOCKED', retryAfterSeconds: Math.ceil(ms / 1000), attemptsLeft: 0 });
@@ -187,18 +255,24 @@ export function installAuthRoutes({
 
   app.post('/auth/login', async request => {
     authThrottle(request);
-    const body = objectBody(request.body, ['username', 'password', 'confirmationWord', 'deviceName']);
+    const body = objectBody(request.body, ['username', 'password', 'confirmationWord', 'deviceName', ...DEVICE_FIELDS]);
     const username = usernameValue(body.username);
     const password = passwordValue(body.password, { existing: true });
     const confirmationWord = normalizeRecoveryWord(body.confirmationWord ?? '');
     const deviceName = deviceNameValue(body.deviceName);
+    const device = deviceInfoValue(body);
     // This limiter is independent of the recovery attempt budget.
     const key = loginKey(request, username);
     const locked = lockedFor(key); if (locked) lockedFail(locked);
-    if (recentlyFailed(key) && !allowAccountLogin(username)) fail(429, 'Слишком много попыток входа в этот аккаунт. Повторите позже.');
+    const spent = recentlyFailed(key);
+    if (spent && !allowAccountLogin(username)) fail(429, 'Слишком много попыток входа в этот аккаунт. Повторите позже.');
     const snapshot = db.prepare('SELECT * FROM users WHERE login_name=?').get(username);
     const matches = await withPasswordJob(() => checkCredentials(snapshot, password, confirmationWord));
     if (!matches) {
+      // Every failure spends the account's shared budget (once per attempt), from whichever address it
+      // came: a stranger rotating addresses runs it down, so the backstop above fires for them while a
+      // clean owner is untouched.
+      if (!spent) allowAccountLogin(username);
       const e = noteLoginFail(key);
       if (e.until) lockedFail(e.until - now());
       fail(401, 'Неверный логин, пароль или подтверждающее слово.', { code: 'LOGIN_FAILED', attemptsLeft: LOGIN_TRIES - e.fails });
@@ -207,11 +281,13 @@ export function installAuthRoutes({
     // Internal scheduling hook for deterministic race regression tests; not
     // exposed through HTTP, environment variables, or a production endpoint.
     if (authTestHooks?.beforeSessionCreate) await authTestHooks.beforeSessionCreate({ userId: snapshot.id });
-    return transaction(db, () => {
+    const result = transaction(db, () => {
       const current = db.prepare('SELECT * FROM users WHERE id=?').get(snapshot.id);
       if (!sameCredentials(current, snapshot)) fail(401, 'Учётные данные изменились. Войдите снова.');
-      return sessionResponse(current, deviceName);
+      return sessionResponse(current, deviceName, request, device);
     });
+    announceNewSession(snapshot.id, result.token);
+    return result;
   });
 
   app.post('/auth/logout', authOptions, async request => {
@@ -371,12 +447,9 @@ export function installAuthRoutes({
 
   app.get('/auth/sessions', authOptions, async request => {
     activeUser(request);
-    const sessions = db.prepare('SELECT id,token_hash,device_name,created_at,last_active_at,expires_at FROM sessions WHERE user_id=? AND expires_at>? ORDER BY created_at DESC,id DESC')
-      .all(request.auth.user_id, now()).map(session => ({
-        id: session.id, deviceName: session.device_name, createdAt: session.created_at,
-        lastActiveAt: session.last_active_at, expiresAt: iso(session.expires_at),
-        isCurrent: session.token_hash === request.auth.token_hash,
-      }));
+    // The current device first (Telegram «Это устройство»), then the most recent sign-ins.
+    const sessions = db.prepare('SELECT * FROM sessions WHERE user_id=? AND expires_at>? ORDER BY CASE WHEN token_hash=? THEN 0 ELSE 1 END,created_at DESC,id DESC')
+      .all(request.auth.user_id, now(), request.auth.token_hash).map(session => publicSession(session, request.auth.token_hash));
     return { sessions };
   });
 

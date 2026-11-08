@@ -22,7 +22,7 @@ import { openDatabase, transaction, publicUser as serializePublicUser, publicCha
 import { isAvatarFrame, isBannerPreset, isProfileEffect, isNameplate, isProfilePattern, MAX_PROFILE_VIDEO_BYTES, videoMime } from './cosmetics.js';
 import { platinaState } from './entitlements.js';
 import { DEFAULT_FILE_LIMITS, installBigFileRoutes } from './bigfiles.js';
-import { installAuthRoutes, RECOVERY_LOCK_MS } from './auth.js';
+import { installAuthRoutes, RECOVERY_LOCK_MS, rateLimitIp } from './auth.js';
 import { installE2eeRoutes, parseEncryptedMessage } from './e2ee.js';
 import { registerAiRoutes, aiProvider } from './ai.js';
 import { installUsernameRoutes } from './username.js';
@@ -275,7 +275,8 @@ export async function buildApp({
     return token;
   };
   const authThrottle = request => {
-    if (!limiter.allow(`auth:${request.clientIp}`, authRateLimit, 15 * 60_000)) fail(429, 'Слишком много попыток входа. Повторите через 15 минут.');
+    // IPv6 is counted per /64 (one subscriber's prefix), or a single host would hold 2^64 fresh keys.
+    if (!limiter.allow(`auth:${rateLimitIp(request.clientIp)}`, authRateLimit, 15 * 60_000)) fail(429, 'Слишком много попыток входа. Повторите через 15 минут.');
   };
   const recoveryStatusThrottle = request => {
     if (!limiter.allow(`recovery-status:${request.clientIp}`, 120, 60_000)) fail(429, 'Слишком много запросов статуса. Повторите через минуту.');
@@ -457,6 +458,14 @@ export async function buildApp({
   // DTLS-SRTP, through TURN when needed); the server only relays signalling between members.
   const voiceRooms = new Map(); // channelId -> Map(socketId -> { state, userId, muted })
   const voiceMembers = channelId => [...(voiceRooms.get(channelId)?.values() || [])].map(item => ({ userId: item.userId, muted: item.muted, ...(communityApi?.serverVoice(item.state.voice?.communityId, item.userId) || {}) }));
+  // Who is in a voice channel goes only to members who can see that channel (a role-gated room is
+  // not listed to the rest). A community or channel that is already gone has nobody left to tell.
+  const emitVoiceState = (communityId, channelId) => {
+    const row = db.prepare('SELECT * FROM communities WHERE id=?').get(communityId);
+    const item = row && db.prepare('SELECT * FROM community_channels WHERE id=? AND community_id=?').get(channelId, row.id);
+    if (!item) return;
+    communityApi?.emitCommunity(row, { type: 'voice.state', communityId, channelId, members: voiceMembers(channelId) }, item);
+  };
   const leaveVoice = state => {
     clearTimeout(state.voiceGrace); state.voiceGrace = undefined;
     const channelId = state.voice?.channelId; if (!channelId) return;
@@ -464,7 +473,7 @@ export async function buildApp({
     sfu?.leave(channelId, state.id);
     if (room) { room.delete(state.id); if (!room.size) voiceRooms.delete(channelId); }
     for (const item of room?.values() || []) sendSocket(item.state, { type: 'voice.left', channelId, peer: state.id });
-    communityApi?.emitCommunity(communityApi.community(communityId), { type: 'voice.state', communityId, channelId, members: voiceMembers(channelId) });
+    emitVoiceState(communityId, channelId);
   };
   // The socket dropped (a tunnel, a network change, the app sent to the background for a moment):
   // the member stays in the room for a grace period instead of leaving at once, so the peers keep
@@ -472,19 +481,27 @@ export async function buildApp({
   // of the ghost; otherwise it leaves when the period ends.
   const graceVoice = state => {
     if (!state.voice || state.voiceGrace) return;
-    state.voiceGrace = setTimeout(() => { state.voiceGrace = undefined; if (!databaseClosed) leaveVoice(state); }, voiceGraceMs);
+    // An exception here would be uncaught (a timer has no request to answer) and would take the process down.
+    state.voiceGrace = setTimeout(() => {
+      state.voiceGrace = undefined;
+      if (databaseClosed) return;
+      try { leaveVoice(state); } catch (error) { app.log.error({ err: error }, 'voice grace: leave failed'); }
+    }, voiceGraceMs);
     state.voiceGrace.unref?.();
   };
-  const dropGhosts = userId => {
-    const ghosts = [];
-    for (const room of voiceRooms.values()) for (const item of room.values()) if (item.userId === userId && item.state.voiceGrace) ghosts.push(item.state);
-    for (const ghost of ghosts) leaveVoice(ghost);
+  // Every seat this user holds in the community's voice rooms, sockets in their grace period included
+  // (those are no longer in `sockets`, yet still listed to everyone until the period ends).
+  const seatsOf = (userId, communityId) => {
+    const seats = [];
+    for (const room of voiceRooms.values()) for (const item of room.values()) if (item.userId === userId && (communityId === undefined || item.state.voice?.communityId === communityId)) seats.push(item.state);
+    return seats;
   };
+  const dropGhosts = userId => { for (const ghost of seatsOf(userId)) if (ghost.voiceGrace) leaveVoice(ghost); };
   const voice = {
     members: voiceMembers,
-    kick: (userId, communityId) => { for (const state of sockets) if (state.auth?.user_id === userId && state.voice?.communityId === communityId) { sendSocket(state, { type: 'voice.kicked', channelId: state.voice.channelId }); leaveVoice(state); } },
+    kick: (userId, communityId) => { for (const state of seatsOf(userId, communityId)) { sendSocket(state, { type: 'voice.kicked', channelId: state.voice.channelId }); leaveVoice(state); } },
     // A moderator changed someone's server mute/deafen: everyone in that person's voice room gets the new state.
-    moderated: (userId, communityId) => { for (const state of sockets) if (state.auth?.user_id === userId && state.voice?.communityId === communityId) communityApi?.emitCommunity(communityApi.community(communityId), { type: 'voice.state', communityId, channelId: state.voice.channelId, members: voiceMembers(state.voice.channelId) }); },
+    moderated: (userId, communityId) => { for (const channelId of new Set(seatsOf(userId, communityId).map(state => state.voice.channelId))) emitVoiceState(communityId, channelId); },
     close: channelId => { for (const item of [...(voiceRooms.get(channelId)?.values() || [])]) { sendSocket(item.state, { type: 'voice.kicked', channelId }); leaveVoice(item.state); } },
   };
   const communityApi = installCommunityRoutes({ app, db, authOptions, publicUser, timestamp, now, emitUser, limiter, voice, isOnline: userId => isOnline(userId) });
@@ -959,7 +976,7 @@ export async function buildApp({
           state.voice = { channelId: data.channelId, communityId: data.communityId };
           dropGhosts(state.auth.user_id);
           sendSocket(state, { type: 'voice.joined', channelId: data.channelId, self: state.id, peers, sfu: !!sfu });
-          communityApi.emitCommunity(allowed.row, { type: 'voice.state', communityId: data.communityId, channelId: data.channelId, members: voiceMembers(data.channelId) });
+          communityApi.emitCommunity(allowed.row, { type: 'voice.state', communityId: data.communityId, channelId: data.channelId, members: voiceMembers(data.channelId) }, allowed.item);
           return;
         }
         if (data.type === 'voice.leave') { leaveVoice(state); return; }
@@ -978,7 +995,7 @@ export async function buildApp({
           const item = state.voice && voiceRooms.get(state.voice.channelId)?.get(state.id);
           if (!item || typeof data.muted !== 'boolean') return;
           item.muted = data.muted;
-          communityApi.emitCommunity(communityApi.community(state.voice.communityId), { type: 'voice.state', communityId: state.voice.communityId, channelId: state.voice.channelId, members: voiceMembers(state.voice.channelId) });
+          emitVoiceState(state.voice.communityId, state.voice.channelId);
           return;
         }
         if (data.type === 'voice.signal') {

@@ -7,11 +7,14 @@ import { currentEndpoint, markServerOk, reportFailure } from './servers/pool';
 import { networkTier, reportRequest, timeoutFor } from './network/quality';
 import { attestHeaders } from './attest/index';
 import { markUpdateRequired } from './update/store';
+import { deviceFields, deviceInfo } from './deviceInfo';
+import type { SessionDetails } from './sessionAlerts';
 import type { Attachment, Chat, DeviceSession, LocalFile, Message, RecoveryChallenge, RecoveryRequest, RecoveryStatus, SecurityStatus, Session, User, UsernameStatus } from './types';
 import type { ClaimedBundle, CryptoDevice, EncryptedMessage, PublicBundle } from './e2ee/types';
 
 type ApiErrorDetails = { code?: string; attemptsRemaining?: number; attemptsLeft?: number; retryAfterSeconds?: number; readyAt?: string; serverTime?: string; expiresAt?: string };
-const deviceName = desktopBridge() ? 'Windows' : Platform.OS === 'ios' ? 'iPhone / iPad' : Platform.OS === 'android' ? 'Android' : 'Браузер';
+// «iPhone», «Pixel 8», «Windows», «Chrome»: the session name shown on every device (deviceInfo.ts).
+const deviceName = deviceInfo().deviceName;
 // Announce the real build to the server so retired versions can be turned away.
 const clientPlatform = desktopBridge() ? 'windows' : Platform.OS;
 export const CLIENT_HEADER = `invizent; v=${APP_VERSION}; p=${clientPlatform}`;
@@ -130,8 +133,8 @@ export class Api {
   }
   health = () => this.request<{status: string}>('/health');
   me = () => this.request<{user: User; securitySetupRequired?: boolean}>('/me');
-  login = (username: string, password: string, confirmationWord: string) => this.request<Session>('/auth/login', { method: 'POST', body: JSON.stringify({ username, password, confirmationWord, deviceName }) });
-  register = (username: string, password: string, displayName: string, confirmationWord: string, recoveryWord: string, publicUsername?: string) => this.request<Session>('/auth/register', { method: 'POST', body: JSON.stringify({ username, ...(publicUsername ? { publicUsername } : {}), password, displayName, confirmationWord, recoveryWord, deviceName }) });
+  login = (username: string, password: string, confirmationWord: string) => this.request<Session>('/auth/login', { method: 'POST', body: JSON.stringify({ username, password, confirmationWord, ...deviceFields() }) });
+  register = (username: string, password: string, displayName: string, confirmationWord: string, recoveryWord: string, publicUsername?: string) => this.request<Session>('/auth/register', { method: 'POST', body: JSON.stringify({ username, ...(publicUsername ? { publicUsername } : {}), password, displayName, confirmationWord, recoveryWord, ...deviceFields() }) });
   verifyRecovery = (username: string, recoveryWord: string) => this.request<RecoveryChallenge>('/auth/recovery/verify', { method: 'POST', body: JSON.stringify({ username, recoveryWord, deviceName }) });
   recoveryStatus = (resetToken: string) => this.request<RecoveryStatus>('/auth/recovery/status', { method: 'POST', body: JSON.stringify({ resetToken }) });
   resetPassword = (resetToken: string, newPassword: string) => this.request<{ok: true}>('/auth/recovery/reset', { method: 'POST', body: JSON.stringify({ resetToken, newPassword }) });
@@ -141,7 +144,8 @@ export class Api {
   changePassword = (currentPassword: string, newPassword: string, currentConfirmationWord?: string) => this.request<{ok: true}>('/auth/password', { method: 'POST', body: JSON.stringify({ currentPassword, newPassword, currentConfirmationWord }) });
   changeConfirmationWord = (currentPassword: string, confirmationWord: string, currentConfirmationWord?: string) => this.request<{ok: true}>('/auth/confirmation-word', { method: 'POST', body: JSON.stringify({ currentPassword, confirmationWord, currentConfirmationWord }) });
   changeRecoveryWord = (currentPassword: string, recoveryWord: string, currentConfirmationWord?: string) => this.request<{ok: true}>('/auth/recovery-word', { method: 'POST', body: JSON.stringify({ currentPassword, recoveryWord, currentConfirmationWord }) });
-  sessions = () => this.request<{sessions: DeviceSession[]}>('/auth/sessions');
+  /** Current device first; each with model, OS, app version and the sign-in address as text (F6). */
+  sessions = () => this.request<{sessions: SessionDetails[]}>('/auth/sessions');
   revokeSession = (sessionId: string) => this.request<{ok: true}>('/auth/sessions/revoke', { method: 'POST', body: JSON.stringify({ sessionId }) });
   revokeOtherSessions = () => this.request<{ok: true}>('/auth/sessions/revoke-others', { method: 'POST', body: JSON.stringify({}) });
   registerCryptoDevice = (deviceId: string, bundle: PublicBundle) => this.request<{device: CryptoDevice; preKeyCount: number}>('/e2ee/devices', {method: 'POST', body: JSON.stringify({deviceId, deviceName, ...bundle})});
@@ -159,6 +163,12 @@ export class Api {
   profilePosts = (userId: string) => this.request<ProfilePosts>(`/users/${encodeURIComponent(userId)}/posts`);
   publishPost = (uploadId: string, kind: 'post' | 'story', caption = '') => this.request<{post: ProfilePost}>('/me/posts', {method: 'POST', body: JSON.stringify({uploadId, kind, caption})});
   deletePost = (id: string) => this.request<{ok: true}>(`/me/posts/${encodeURIComponent(id)}`, {method: 'DELETE'});
+  // The stories strip above the chat list: friends with a live story (unseen first) and my own stories.
+  storiesFeed = () => this.request<StoriesFeed>('/stories/feed');
+  /** Marks a story watched (idempotent; the server ignores the owner's own view). */
+  viewStory = (id: string) => this.request<{ok: true; seen: true}>(`/stories/${encodeURIComponent(id)}/view`, {method: 'POST', body: '{}'});
+  /** Who watched my story — the owner only. */
+  storyViewers = (id: string) => this.request<StoryViewers>(`/stories/${encodeURIComponent(id)}/viewers`);
   // Gifts friends send each other, shown on the profile (friends only).
   profileGifts = (userId: string) => this.request<{visible: boolean; gifts: ProfileGift[]}>(`/users/${encodeURIComponent(userId)}/gifts`);
   sendGift = (userId: string, gift: string, message = '') => this.request<{gift: ProfileGift}>(`/users/${encodeURIComponent(userId)}/gifts`, {method: 'POST', body: JSON.stringify({gift, message})});
@@ -298,6 +308,11 @@ export function multipartFile(bytes: Uint8Array, filename: string, mimeType: str
   return { body, contentType: `multipart/form-data; boundary=${boundary}` };
 }
 
-export type ProfilePost = { id: string; kind: 'post' | 'story'; caption: string; createdAt: string; expiresAt: string | null; media: { id: string; mimeType: string; isImage: boolean; isVideo: boolean; size: number } };
+/** `views`: how many people watched a story (the owner only); `seen`: whether I have watched it (a friend's story). */
+export type ProfilePost = { id: string; kind: 'post' | 'story'; caption: string; createdAt: string; expiresAt: string | null; media: { id: string; mimeType: string; isImage: boolean; isVideo: boolean; size: number }; views?: number; seen?: boolean };
 export type ProfilePosts = { visible: boolean; posts: ProfilePost[]; stories: ProfilePost[] };
+/** One friend in the stories strip: their live stories oldest first, and how many I have not seen. */
+export type StoryFeedItem = { user: User; stories: ProfilePost[]; unseen: number };
+export type StoriesFeed = { items: StoryFeedItem[]; mine: ProfilePost[] };
+export type StoryViewers = { count: number; viewers: { user: User; viewedAt: string }[] };
 export type ProfileGift = { id: string; gift: string; message: string; createdAt: string; sender: { id: string; username: string; displayName: string; avatarColor: string } | null };

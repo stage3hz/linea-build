@@ -3,7 +3,7 @@
 // gallery and removes one by holding it. Tapping opens it full screen; stories play one after another
 // with bars at the top, like Telegram.
 import React, { useCallback, useEffect, useRef, useState } from 'react';
-import { ActivityIndicator, Modal, Platform, Pressable, StyleSheet, View, useWindowDimensions } from 'react-native';
+import { ActivityIndicator, KeyboardAvoidingView, Modal, Platform, Pressable, ScrollView, StyleSheet, View, useWindowDimensions } from 'react-native';
 import * as ImagePicker from 'expo-image-picker';
 import * as ImageManipulator from 'expo-image-manipulator';
 import * as VideoThumbnails from 'expo-video-thumbnails';
@@ -12,10 +12,11 @@ import { useVideoPlayer, VideoView } from 'expo-video';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import Animated, { Easing, cancelAnimation, useAnimatedStyle, useSharedValue, withTiming, runOnJS } from 'react-native-reanimated';
-import { Text } from './typography';
-import { AuthImage, Bouncy, Button, Field, Icon, Notice, Sheet, SheetAction } from './components';
-import { useTheme } from './theme';
-import type { Api, ProfileGift, ProfilePost, ProfilePosts } from './api';
+import { Text, TextInput } from './typography';
+import { AuthImage, Avatar, Bouncy, Button, Field, Icon, Notice, Sheet, SheetAction } from './components';
+import { formatListTime, useTheme } from './theme';
+import type { Api, ProfileGift, ProfilePost, ProfilePosts, StoryViewers } from './api';
+import type { User } from './types';
 import { webVideoUrl } from './platina/Decor';
 
 type PostsData = ProfilePosts & { gifts: ProfileGift[] };
@@ -71,18 +72,20 @@ export function useProfilePosts(api: Api, userId: string | null | undefined) {
   return { data, reload, setData };
 }
 
-/** Round avatar ring of Telegram stories: a bright gradient when there are stories to watch. */
-export function StoryRing({ active, size, children }: { active: boolean; size: number; children: React.ReactNode }) {
+/** Round avatar ring of Telegram stories: a bright gradient when there are stories to watch, grey (`seen`) once all are watched. */
+export function StoryRing({ active, seen = false, size, children }: { active: boolean; seen?: boolean; size: number; children: React.ReactNode }) {
   const t = useTheme();
   if (!active) return <>{children}</>;
+  const grey = t.dark ? 'rgba(171,188,214,0.45)' : 'rgba(92,110,136,0.4)';
   return <View style={{ width: size + 12, height: size + 12, alignItems: 'center', justifyContent: 'center' }}>
-    <LinearGradient colors={['#5EE0A0', '#3BA4F5', '#8B5CF6']} start={{ x: 0, y: 1 }} end={{ x: 1, y: 0 }} style={[StyleSheet.absoluteFill, { borderRadius: (size + 12) / 2 }]} />
+    <LinearGradient colors={seen ? [grey, grey] : ['#5EE0A0', '#3BA4F5', '#8B5CF6']} start={{ x: 0, y: 1 }} end={{ x: 1, y: 0 }} style={[StyleSheet.absoluteFill, { borderRadius: (size + 12) / 2 }]} />
     <View style={{ position: 'absolute', width: size + 6, height: size + 6, borderRadius: (size + 6) / 2, backgroundColor: t.bg }} />
     {children}
   </View>;
 }
 
-async function pickAndUpload(api: Api): Promise<string | null> {
+/** Picks a photo or video from the gallery and uploads it as a profile file; null when cancelled. */
+export async function pickAndUpload(api: Api): Promise<string | null> {
   if (Platform.OS !== 'web') { const permission = await ImagePicker.requestMediaLibraryPermissionsAsync(); if (!permission.granted) throw new Error('Разреши доступ к фото и видео в настройках телефона.'); }
   const result = await ImagePicker.launchImageLibraryAsync({ mediaTypes: ['images', 'videos'], allowsEditing: false, quality: 1, exif: false, videoMaxDuration: 60,
     videoExportPreset: ImagePicker.VideoExportPreset.H264_960x540, preferredAssetRepresentationMode: ImagePicker.UIImagePickerPreferredAssetRepresentationMode.Compatible });
@@ -216,7 +219,7 @@ export function PostsSection({ api, own, data, onChanged, width, userId }: { api
     <Sheet visible={!!removing} title={removing?.kind === 'story' ? 'История' : 'Публикация'} onClose={() => setRemoving(null)}>
       <SheetAction icon="trash-outline" label="Удалить" description="Исчезнет из профиля у всех." danger onPress={() => { if (removing) void remove(removing); }} />
     </Sheet>
-    {viewer && data ? <PostViewer api={api} items={viewer.kind === 'post' ? data.posts : data.stories} start={viewer.index} story={viewer.kind === 'story'} onClose={() => setViewer(null)} /> : null}
+    {viewer && data ? <PostViewer api={api} items={viewer.kind === 'post' ? data.posts : data.stories} start={viewer.index} story={viewer.kind === 'story'} own={own} onView={own ? undefined : post => void api.viewStory(post.id).catch(() => {})} onClose={() => setViewer(null)} /> : null}
   </View>;
 }
 
@@ -240,7 +243,9 @@ function VideoMedia({ api, id, active, width, height, onEnd }: { api: Api; id: s
     return () => { live = false; };
   }, [web, api.base, api.token, id]);
   const player = useVideoPlayer(web ? (webSrc ? { uri: webSrc } : null) : { uri: api.fileUrl(id), headers: { Authorization: `Bearer ${api.token}` } }, value => { value.loop = !onEnd; });
-  useEffect(() => { if (active) { player.currentTime = 0; player.play(); } else player.pause(); }, [active, player]);
+  // Starts from the beginning the first time it plays; a later pause/resume (the viewer paused while typing a reply) continues.
+  const started = useRef(false);
+  useEffect(() => { if (active) { if (!started.current) { started.current = true; player.currentTime = 0; } player.play(); } else player.pause(); }, [active, player]);
   useEffect(() => { if (!onEnd) return; const sub = player.addListener('playToEnd', () => onEnd()); return () => sub.remove(); }, [player, onEnd]);
   useEffect(() => { const sub = player.addListener('statusChange', ({ status }) => { if (status === 'error') setFailed(true); }); return () => sub.remove(); }, [player]);
   useEffect(() => { if (!failed || !onEnd || !active) return; const timer = setTimeout(onEnd, VIDEO_FAILED_MS); return () => clearTimeout(timer); }, [failed, onEnd, active]);
@@ -249,27 +254,61 @@ function VideoMedia({ api, id, active, width, height, onEnd }: { api: Api; id: s
   return <VideoView player={player} style={{ width, height }} contentFit="contain" nativeControls={false} allowsPictureInPicture={false} />;
 }
 
-/** Full screen: posts swipe sideways; stories play in turn (5 s a photo, a video to its end), tap the right side for the next, the left for the previous. */
-export function PostViewer({ api, items, start, story, onClose }: { api: Api; items: ProfilePost[]; start: number; story: boolean; onClose: () => void }) {
+/**
+ * Full screen: posts swipe sideways; stories play in turn (5 s a photo, a video to its end), tap the right
+ * side for the next, the left for the previous. In the strip (F8) the viewer also shows whose stories these
+ * are (`owner`), reports each story watched (`onView`), continues to the next friend at the end
+ * (`onFinished`), lets a friend answer a story (`onReply`: an ordinary end-to-end encrypted message to the
+ * author) and shows the owner «👁 N» with the list of viewers (`own`).
+ */
+export function PostViewer({ api, items, start, story, onClose, onFinished, onView, owner, own = false, onReply }: {
+  api: Api; items: ProfilePost[]; start: number; story: boolean; onClose: () => void;
+  onFinished?: () => void; onView?: (post: ProfilePost) => void; owner?: User; own?: boolean; onReply?: (text: string, post: ProfilePost) => Promise<void>;
+}) {
+  const t = useTheme();
   const { width, height } = useWindowDimensions(); const insets = useSafeAreaInsets();
   const [index, setIndex] = useState(Math.min(start, Math.max(0, items.length - 1)));
   const progress = useSharedValue(0); const closing = useRef(false);
   const current = items[index];
-  const next = useCallback(() => { setIndex(i => { if (i + 1 >= items.length) { if (!closing.current) { closing.current = true; setTimeout(onClose, 0); } return i; } return i + 1; }); }, [items.length, onClose]);
+  // The story clock stops while the viewers sheet is open or a reply is being typed (Telegram).
+  const [viewersOpen, setViewersOpen] = useState(false); const [typing, setTyping] = useState(false);
+  const [reply, setReply] = useState(''); const [sending, setSending] = useState(false); const [sent, setSent] = useState(false); const [error, setError] = useState('');
+  const [viewers, setViewers] = useState<StoryViewers | null>(null); const [views, setViews] = useState<number | null>(null);
+  const paused = viewersOpen || typing || sending;
+  const finish = useCallback(() => { if (!closing.current) { closing.current = true; setTimeout(onFinished ?? onClose, 0); } }, [onFinished, onClose]);
+  const next = useCallback(() => { setIndex(i => { if (i + 1 >= items.length) { finish(); return i; } return i + 1; }); }, [items.length, finish]);
   const previous = () => setIndex(i => Math.max(0, i - 1));
+  const onViewRef = useRef(onView); onViewRef.current = onView;
+  useEffect(() => { if (story && current) onViewRef.current?.(current); }, [story, current?.id]);
+  useEffect(() => { cancelAnimation(progress); progress.value = 0; setReply(''); setError(''); setSent(false); setViewers(null); setViews(current?.views ?? null); }, [index]);
   useEffect(() => {
-    if (!story || !current) return;
-    cancelAnimation(progress); progress.value = 0;
+    if (!story || !current || paused) return;
     if (current.media.isVideo) return; // a video moves on when it ends (PC too: the same player, see VideoMedia)
-    progress.value = withTiming(1, { duration: STORY_PHOTO_MS, easing: Easing.linear }, done => { if (done) runOnJS(next)(); });
+    const left = Math.max(60, (1 - progress.value) * STORY_PHOTO_MS);
+    progress.value = withTiming(1, { duration: left, easing: Easing.linear }, done => { if (done) runOnJS(next)(); });
     return () => cancelAnimation(progress);
-  }, [index, story]);
+  }, [index, story, paused]);
+  // The owner's counter is kept fresh: views made while the story is on screen.
+  useEffect(() => {
+    if (!own || !story || !current) return; let live = true;
+    api.storyViewers(current.id).then(result => { if (live) { setViews(result.count); setViewers(result); } }).catch(() => {});
+    return () => { live = false; };
+  }, [own, story, current?.id]);
   const bar = useAnimatedStyle(() => ({ width: `${progress.value * 100}%` }));
   if (!current) return null;
   const when = new Date(current.createdAt); const ago = Math.max(0, Math.round((Date.now() - when.getTime()) / 3_600_000));
+  const send = async () => {
+    const text = reply.trim(); if (!text || !onReply || sending) return;
+    setSending(true); setError('');
+    try { await onReply(text, current); setReply(''); setSent(true); setTimeout(() => setSent(false), 1600); }
+    catch (failure) { setError(message(failure, 'Не удалось отправить ответ.')); }
+    finally { setSending(false); }
+  };
+  const bottom = insets.bottom + 12;
   return <Modal visible animationType="fade" onRequestClose={onClose} statusBarTranslucent supportedOrientations={['portrait']}>
-    <View style={{ flex: 1, backgroundColor: '#000', alignItems: 'center', justifyContent: 'center' }}>
-      <Media key={current.id} api={api} post={current} active width={width} height={height * 0.82} onEnd={story ? next : undefined} />
+    <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : undefined} style={{ flex: 1, backgroundColor: '#000' }}>
+    <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center' }}>
+      <Media key={current.id} api={api} post={current} active={!paused} width={width} height={height * 0.82} onEnd={story ? next : undefined} />
       {/* Tap zones: left third back, the rest forward (stories and posts alike). */}
       <View style={[StyleSheet.absoluteFill, { flexDirection: 'row' }]}>
         <Pressable accessibilityRole="button" accessibilityLabel="Предыдущее" style={{ flex: 1 }} onPress={previous} />
@@ -279,13 +318,44 @@ export function PostViewer({ api, items, start, story, onClose }: { api: Api; it
         {story || items.length > 1 ? <View style={{ flexDirection: 'row', gap: 4 }}>{items.map((item, i) => <View key={item.id} style={{ flex: 1, height: 3, borderRadius: 2, overflow: 'hidden', backgroundColor: 'rgba(255,255,255,0.3)' }}>
           {i < index ? <View style={{ flex: 1, backgroundColor: '#FFF' }} /> : i === index ? (story ? <Animated.View style={[{ height: 3, backgroundColor: '#FFF' }, bar]} /> : <View style={{ flex: 1, backgroundColor: '#FFF' }} />) : null}
         </View>)}</View> : null}
-        <View style={{ flexDirection: 'row', alignItems: 'center' }}>
-          <Text style={{ flex: 1, color: 'rgba(255,255,255,0.85)', fontSize: 13 }}>{story ? (ago < 1 ? 'только что' : `${ago} ч назад`) : `${index + 1} из ${items.length}`}</Text>
+        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10 }}>
+          {owner ? <Avatar user={owner} api={api} size={34} round /> : null}
+          <View style={{ flex: 1 }}>
+            {owner ? <Text raw numberOfLines={1} style={{ color: '#FFF', fontSize: 15, fontWeight: '700' }}>{owner.displayName}</Text> : null}
+            <Text style={{ color: 'rgba(255,255,255,0.85)', fontSize: 13 }}>{story ? (ago < 1 ? 'только что' : `${ago} ч назад`) : `${index + 1} из ${items.length}`}</Text>
+          </View>
           <Pressable accessibilityRole="button" accessibilityLabel="Закрыть" onPress={onClose} hitSlop={10} style={{ width: 40, height: 40, borderRadius: 20, alignItems: 'center', justifyContent: 'center', backgroundColor: 'rgba(255,255,255,0.14)' }}><Icon name="close" size={22} color="#FFF" /></Pressable>
         </View>
       </View>
-      {current.caption ? <View pointerEvents="none" style={{ position: 'absolute', left: 16, right: 16, bottom: insets.bottom + 24 }}><Text raw style={{ color: '#FFF', fontSize: 16, lineHeight: 22, textAlign: 'center' }}>{current.caption}</Text></View> : null}
+      <View pointerEvents="box-none" style={{ position: 'absolute', left: 16, right: 16, bottom, gap: 12 }}>
+        {current.caption ? <Text raw style={{ color: '#FFF', fontSize: 16, lineHeight: 22, textAlign: 'center' }}>{current.caption}</Text> : null}
+        {error ? <Notice text={error} error /> : null}
+        {own && story ? <Pressable accessibilityRole="button" accessibilityLabel={`Просмотры: ${views ?? 0}`} onPress={() => setViewersOpen(true)} style={{ alignSelf: 'flex-start', flexDirection: 'row', alignItems: 'center', gap: 6, paddingHorizontal: 12, height: 34, borderRadius: 17, backgroundColor: 'rgba(255,255,255,0.14)' }}>
+          <Icon name="eye-outline" size={18} color="#FFF" /><Text style={{ color: '#FFF', fontSize: 14, fontWeight: '600' }}>{views ?? 0}</Text>
+        </Pressable> : null}
+        {onReply && story && !own ? <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+          <TextInput value={reply} onChangeText={setReply} onFocus={() => setTyping(true)} onBlur={() => setTyping(false)} onSubmitEditing={() => void send()} returnKeyType="send" blurOnSubmit={false} placeholder="Ответить…" placeholderTextColor="rgba(255,255,255,0.6)" maxLength={4000} accessibilityLabel="Ответ на историю"
+            style={{ flex: 1, minHeight: 44, borderRadius: 22, paddingHorizontal: 16, color: '#FFF', fontSize: 16, backgroundColor: 'rgba(255,255,255,0.14)', borderWidth: 1, borderColor: 'rgba(255,255,255,0.25)' }} />
+          <Pressable accessibilityRole="button" accessibilityLabel="Отправить ответ" disabled={!reply.trim() || sending} onPress={() => void send()} style={{ width: 44, height: 44, borderRadius: 22, alignItems: 'center', justifyContent: 'center', backgroundColor: reply.trim() ? t.accent : 'rgba(255,255,255,0.14)' }}>
+            {sending ? <ActivityIndicator size="small" color="#FFF" /> : sent ? <Icon name="checkmark" size={22} color="#FFF" /> : <Icon name="arrow-up" size={22} color={reply.trim() ? t.onAccent : '#FFF'} />}
+          </Pressable>
+        </View> : null}
+        {sent ? <Text style={{ color: 'rgba(255,255,255,0.85)', fontSize: 13, textAlign: 'center' }}>Ответ отправлен в чат</Text> : null}
+      </View>
     </View>
+    </KeyboardAvoidingView>
+    <Sheet visible={viewersOpen} title="Просмотры" onClose={() => setViewersOpen(false)}>
+      {!viewers ? <ActivityIndicator color={t.muted} style={{ paddingVertical: 20 }} /> : !viewers.viewers.length ? <View style={{ alignItems: 'center', gap: 6, paddingVertical: 16 }}>
+        <Icon name="eye-outline" size={26} color={t.muted} /><Text style={{ color: t.muted, fontSize: 14, textAlign: 'center' }}>Пока никто не смотрел</Text>
+      </View> : <ScrollView style={{ maxHeight: Math.round(height * 0.5) }} contentContainerStyle={{ gap: 4 }}>
+        <Text style={{ color: t.muted, fontSize: 13, paddingHorizontal: 4, paddingBottom: 4 }}>{`Просмотров: ${viewers.count}`}</Text>
+        {viewers.viewers.map(entry => <View key={entry.user.id} style={{ flexDirection: 'row', alignItems: 'center', gap: 12, paddingVertical: 6, paddingHorizontal: 4 }}>
+          <Avatar user={entry.user} api={api} size={42} round />
+          <View style={{ flex: 1 }}><Text raw numberOfLines={1} style={{ color: t.text, fontSize: 15, fontWeight: '600' }}>{entry.user.displayName}</Text><Text numberOfLines={1} style={{ color: t.muted, fontSize: 12 }}>@{entry.user.username}</Text></View>
+          <Text style={{ color: t.muted, fontSize: 13 }}>{formatListTime(entry.viewedAt)}</Text>
+        </View>)}
+      </ScrollView>}
+    </Sheet>
   </Modal>;
 }
 

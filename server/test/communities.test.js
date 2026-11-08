@@ -228,3 +228,43 @@ test('B41: a channel send with the same clientKey twice stores one row and answe
   assert.equal((await request(app, 'POST', url, bob, { text: 'без ключа' })).statusCode, 200);
   assert.equal((await request(app, 'GET', url, bob)).json().messages.length, 5);
 });
+
+test('roles after review: a closed community grants INVITE to its managers; a gate role of an unseen channel is not deletable; new role positions never collide', async t => {
+  const app = await fixture(t);
+  const owner = await register(app, 'rv_owner'), bob = await register(app, 'rv_bob'), dan = await register(app, 'rv_dan');
+  const { server } = await serverWith(app, owner, [bob, dan]);
+  const path = `/communities/${server.id}`;
+  const moderator = server.roles.find(r => r.name === 'Модератор');
+  // (2) A manager role without INVITE: once the community is closed, the manager invites all the same.
+  const manager = (await request(app, 'POST', `${path}/roles`, owner, { name: 'Управляющий', perms: PERM.MANAGE_COMMUNITY | PERM.MANAGE_ROLES | PERM.SEND })).json().role;
+  assert.equal((await request(app, 'PUT', `${path}/members/${bob.user.id}/roles`, owner, { roleIds: [manager.id] })).statusCode, 200);
+  assert.equal((await detailOf(app, server.id, bob)).perms & PERM.INVITE, PERM.INVITE, 'open: INVITE from the base role');
+  assert.equal((await request(app, 'PATCH', path, owner, { closed: true })).statusCode, 200);
+  assert.equal((await detailOf(app, server.id, bob)).perms & PERM.INVITE, PERM.INVITE, 'closed: a manager still invites');
+  assert.equal((await detailOf(app, server.id, dan)).perms & PERM.INVITE, 0, 'closed: a plain member does not');
+  assert.equal((await request(app, 'POST', `${path}/invites`, bob, {})).statusCode, 200);
+  assert.equal((await request(app, 'POST', `${path}/invites`, dan, {})).statusCode, 403);
+  // (3) Bob's new roles take free positions under his own (manager sits at 11, moderator at 10): 9, 8, ... never 10 and never 0.
+  const positions = [];
+  for (let i = 0; i < 4; i++) {
+    const made = await request(app, 'POST', `${path}/roles`, bob, { name: `Р${i}`, perms: PERM.SEND });
+    assert.equal(made.statusCode, 200, made.body);
+    positions.push(made.json().role.position);
+  }
+  const all = (await detailOf(app, server.id, owner)).roles.map(r => r.position);
+  assert.equal(new Set(all).size, all.length, `no two roles share a position: ${all}`);
+  assert.ok(positions.every(p => p > 0 && p < manager.position && p !== moderator.position), `positions ${positions}`);
+  // (1) A channel only the moderator role may see: Bob (no MANAGE_CHANNELS, not a moderator) cannot see it and so may not delete its only gate.
+  const secret = (await request(app, 'POST', `${path}/channels`, owner, { kind: 'text', name: 'штаб' })).json().channel;
+  assert.equal((await request(app, 'PATCH', `${path}/channels/${secret.id}`, owner, { roleIds: [moderator.id] })).statusCode, 200);
+  assert.equal((await detailOf(app, server.id, bob)).channels.some(c => c.id === secret.id), false, 'Bob does not see the gated channel');
+  const refused = await request(app, 'DELETE', `${path}/roles/${moderator.id}`, bob);
+  assert.equal(refused.statusCode, 403, refused.body);
+  assert.equal((await detailOf(app, server.id, bob)).channels.some(c => c.id === secret.id), false, 'the channel stayed closed');
+  // A second gate on the channel: deleting the moderator role no longer opens it, so Bob may.
+  assert.equal((await request(app, 'PATCH', `${path}/channels/${secret.id}`, owner, { roleIds: [moderator.id, manager.id] })).statusCode, 200);
+  assert.equal((await request(app, 'DELETE', `${path}/roles/${moderator.id}`, bob)).statusCode, 200);
+  // The owner deletes any gate; the channel then opens up.
+  assert.equal((await request(app, 'DELETE', `${path}/roles/${manager.id}`, owner)).statusCode, 200);
+  assert.equal((await detailOf(app, server.id, dan)).channels.some(c => c.id === secret.id), true);
+});

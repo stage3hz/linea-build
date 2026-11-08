@@ -29,6 +29,26 @@ const address = (userId: string, deviceId: string) => `${userId}.${deviceId}`;
 const trustKey = (device: Pick<CryptoDevice,'userId'|'id'>) => `trust:${device.userId}:${device.id}`;
 const messageKey = (message: Pick<Message,'chatId'|'senderId'|'clientId'>) => `message:${message.chatId}:${message.senderId}:${message.clientId}`;
 const outboxKey = (chatId: string, clientId: string) => `outbox:${chatId}:${clientId}`;
+/** The vault cannot list its keys, so the outbox entries still to send are also named in one list (G001). */
+const OUTBOX_INDEX = 'outbox:index';
+const OUTBOX_LIMIT = 500;
+type OutboxRef = { chatId: string; clientId: string };
+export type OutboxItem = OutboxRef & { peerId: string; text: string; attachment: Attachment | null; sentAt: string; meta?: MessageMeta };
+/**
+ * Names of the decrypted messages cached per chat, in pages, so the local search index (G029) can
+ * be rebuilt from the vault at startup: `history:<chat>` = {first,last} page numbers,
+ * `history:<chat>:<n>` = [[senderId, clientId], …]. Oldest pages are dropped past HISTORY_PAGES.
+ * Every cached message rewrites the chat's last page, so pages are small (50 names ≈ 5 KB).
+ */
+const HISTORY_CHATS = 'history:chats';
+const HISTORY_PAGE = 50;
+const HISTORY_PAGES = 40;
+const historyMetaKey = (chatId: string) => `history:${chatId}`;
+const historyPageKey = (chatId: string, page: number) => `history:${chatId}:${page}`;
+type HistoryMeta = { first: number; last: number };
+export type HistoryItem = { chatId: string; senderId: string; clientId: string; text: string; attachment: Attachment | null; sentAt: string; meta?: MessageMeta };
+/** One page of a chat's cached history, newest first; `previous` names the older page, null past the oldest kept. */
+export type HistoryPage = { items: HistoryItem[]; page: number; previous: number | null };
 const sessionKey = (device: Pick<CryptoDevice,'userId'|'id'>) => `session:${device.userId}:${device.id}`;
 /** Last device list seen from the server, so messages can still be encrypted without internet (Mesh). */
 const devicesKey = (userId: string) => `devices:${userId}`;
@@ -183,6 +203,95 @@ export class CryptoService {
     }));
     return {peerId,ownDeviceId:local.id,devices,fingerprint:await this.sha256(JSON.stringify(devices.map(device=>[device.userId,device.id,device.identityKey,device.registrationId])))};
   }
+  private async outboxRefs():Promise<OutboxRef[]> {
+    try{const list=parse<unknown>(await this.vault.get(OUTBOX_INDEX));return Array.isArray(list)?list.filter((item):item is OutboxRef=>!!item&&typeof item==='object'&&uuid.test((item as OutboxRef).chatId)&&uuid.test((item as OutboxRef).clientId)):[];}catch{return [];}
+  }
+  /** Vault changes that add (or drop) one entry of the outbox list; part of the caller's atomic commit. */
+  private async outboxIndexChange(ref:OutboxRef,present:boolean):Promise<Record<string,string|null>> {
+    const refs=await this.outboxRefs();const rest=refs.filter(item=>item.chatId!==ref.chatId||item.clientId!==ref.clientId);
+    if(!present)return rest.length===refs.length?{}:{[OUTBOX_INDEX]:rest.length?JSON.stringify(rest):null};
+    if(rest.length!==refs.length)return {};
+    return {[OUTBOX_INDEX]:JSON.stringify([...rest,ref].slice(-OUTBOX_LIMIT))};
+  }
+  /** Vault changes that name a newly cached decrypted message in the chat's history pages; part of the caller's atomic commit. */
+  private async historyChange(chatId:string,senderId:string,clientId:string):Promise<Record<string,string|null>> {
+    const changes:Record<string,string|null>={};
+    let meta=parse<HistoryMeta>(await this.vault.get(historyMetaKey(chatId)));
+    if(!meta||!Number.isSafeInteger(meta.first)||!Number.isSafeInteger(meta.last)||meta.first>meta.last){
+      meta={first:0,last:0};changes[historyMetaKey(chatId)]=JSON.stringify(meta);
+      const chats=await this.historyChats();if(!chats.includes(chatId))changes[HISTORY_CHATS]=JSON.stringify([...chats,chatId]);
+    }
+    let page:unknown[]=[];try{const raw=parse<unknown>(await this.vault.get(historyPageKey(chatId,meta.last)));if(Array.isArray(raw))page=raw;}catch{page=[];}
+    if(page.length>=HISTORY_PAGE){
+      const next={first:meta.first,last:meta.last+1};
+      if(next.last-next.first>=HISTORY_PAGES){changes[historyPageKey(chatId,next.first)]=null;next.first++;}
+      changes[historyMetaKey(chatId)]=JSON.stringify(next);meta=next;page=[];
+    }
+    changes[historyPageKey(chatId,meta.last)]=JSON.stringify([...page,[senderId,clientId]]);
+    return changes;
+  }
+  /** Messages encrypted and committed but not confirmed by the server yet, oldest first (G001). Safe to send again: the same clientId reuses the same ciphertext. */
+  async pendingOutbox():Promise<OutboxItem[]> {
+    // Vault only, no initialize(): the list must be readable without internet (initialize publishes keys).
+    return this.exclusive(async()=>{
+      const refs=await this.outboxRefs();const items:OutboxItem[]=[];const kept:OutboxRef[]=[];
+      for(const ref of refs){
+        const stored=parse<Outbox>(await this.vault.get(outboxKey(ref.chatId,ref.clientId)));
+        if(!stored||!stored.plain||!uuid.test(stored.peerId))continue; // delivered or dropped since: forget the name too
+        kept.push(ref);items.push({chatId:ref.chatId,clientId:ref.clientId,peerId:stored.peerId,text:stored.plain.text,attachment:stored.plain.attachment,sentAt:stored.plain.sentAt,...(stored.plain.meta?{meta:stored.plain.meta}:{})});
+      }
+      if(kept.length!==refs.length)await this.vault.commit({[OUTBOX_INDEX]:kept.length?JSON.stringify(kept):null});
+      return items;
+    });
+  }
+  /** Chats with decrypted history cached on this device. */
+  async historyChats():Promise<string[]> {
+    try{const list=parse<unknown>(await this.vault.get(HISTORY_CHATS));return Array.isArray(list)?list.filter((id):id is string=>typeof id==='string'&&uuid.test(id)):[];}catch{return [];}
+  }
+  /**
+   * One page of the decrypted messages cached for a chat, newest first (G029: the search index is
+   * built from these, on the device only). `page` omitted = the newest page. Each page is read
+   * under its own turn of the crypto queue, so a startup fill never blocks sending or decrypting.
+   */
+  async historyPage(chatId:string,page?:number):Promise<HistoryPage> {
+    return this.exclusive(async()=>{
+      const meta=parse<HistoryMeta>(await this.vault.get(historyMetaKey(chatId)));
+      if(!meta||!Number.isSafeInteger(meta.first)||!Number.isSafeInteger(meta.last)||meta.first>meta.last)return {items:[],page:page??0,previous:null};
+      const current=page===undefined?meta.last:page;
+      const previous=current-1>=meta.first?current-1:null;
+      if(current>meta.last||current<meta.first)return {items:[],page:current,previous};
+      const items:HistoryItem[]=[];
+      let list:unknown[]=[];try{const raw=parse<unknown>(await this.vault.get(historyPageKey(chatId,current)));if(Array.isArray(raw))list=raw;}catch{list=[];}
+      for(let index=list.length-1;index>=0;index--){
+        const item=list[index];if(!Array.isArray(item)||typeof item[0]!=='string'||typeof item[1]!=='string')continue;
+        const [senderId,clientId]=item as [string,string];
+        let cached:CachedMessage|FailedMessage|null=null;try{cached=parse<CachedMessage|FailedMessage>(await this.vault.get(messageKey({chatId,senderId,clientId})));}catch{cached=null;}
+        if(!cached||isFailed(cached)||!cached.plain)continue;
+        items.push({chatId,senderId,clientId,text:cached.plain.text,attachment:cached.plain.attachment,sentAt:cached.plain.sentAt,...(cached.plain.meta?{meta:cached.plain.meta}:{})});
+      }
+      return {items,page:current,previous};
+    });
+  }
+  /** All cached pages of a chat, newest first, up to `limit`; page by page (see historyPage), starting at `fromPage` when given. */
+  async history(chatId:string,limit=HISTORY_PAGE*HISTORY_PAGES,fromPage?:number):Promise<HistoryItem[]> {
+    const out:HistoryItem[]=[];let page=fromPage;
+    while(out.length<limit){
+      const result=await this.historyPage(chatId,page);
+      for(const item of result.items){if(out.length>=limit)break;out.push(item);}
+      if(result.previous===null)break;
+      page=result.previous;
+    }
+    return out;
+  }
+  /** Vault changes that drop every history page of a chat and its name in the chat list. */
+  private async historyForget(chatId:string):Promise<Record<string,string|null>> {
+    const changes:Record<string,string|null>={};
+    const meta=parse<HistoryMeta>(await this.vault.get(historyMetaKey(chatId)));
+    if(meta&&Number.isSafeInteger(meta.first)&&Number.isSafeInteger(meta.last)&&meta.last-meta.first<HISTORY_PAGES*2)for(let page=meta.first;page<=meta.last;page++)changes[historyPageKey(chatId,page)]=null;
+    if(meta)changes[historyMetaKey(chatId)]=null;
+    const chats=await this.historyChats();if(chats.includes(chatId))changes[HISTORY_CHATS]=chats.length>1?JSON.stringify(chats.filter(id=>id!==chatId)):null;
+    return changes;
+  }
   async trustSnapshot(peerId:string):Promise<TrustSnapshot> {await this.initialize();return this.exclusive(()=>this.snapshot(peerId));}
   async approveDevices(snapshot:TrustSnapshot):Promise<void> {
     await this.initialize();return this.exclusive(async()=>{
@@ -235,13 +344,33 @@ export class CryptoService {
       const fingerprint=await this.sha256(canonicalEncrypted(encrypted));
       changes[key]=JSON.stringify({encrypted,plain,peerId});
       changes[messageKey({chatId,clientId,senderId:this.userId})]=JSON.stringify({fingerprint,plain});
+      Object.assign(changes,await this.outboxIndexChange({chatId,clientId},true),await this.historyChange(chatId,this.userId,clientId));
       // Atomic ratchet + outbox + local history commit BEFORE the network send.
       await this.vault.commit({...changes,protocol:state});return encrypted;
     });
   }
-  async delivered(chatId:string,clientId:string):Promise<void> {await this.initialize();return this.exclusive(()=>this.vault.commit({[outboxKey(chatId,clientId)]:null}));}
-  async rejectedDeviceSet(chatId:string,clientId:string):Promise<void> {
-    await this.initialize();return this.exclusive(()=>this.vault.commit({[outboxKey(chatId,clientId)]:null,[messageKey({chatId,clientId,senderId:this.userId})]:null}));
+  async delivered(chatId:string,clientId:string):Promise<void> {await this.initialize();return this.exclusive(async()=>this.vault.commit({...(await this.outboxIndexChange({chatId,clientId},false)),[outboxKey(chatId,clientId)]:null}));}
+  /**
+   * A message the server will never take (rejected for good: the device list changed, the chat is
+   * gone, the content was refused): its ciphertext, its place in the outbox list and our cached copy
+   * go, so it is not sent again after a restart. The next encrypt() with the same clientId starts
+   * afresh (new device list, new ciphertext). Vault only: works without internet.
+   */
+  async forget(chatId:string,clientId:string):Promise<void> {
+    return this.exclusive(async()=>this.vault.commit({...(await this.outboxIndexChange({chatId,clientId},false)),[outboxKey(chatId,clientId)]:null,[messageKey({chatId,clientId,senderId:this.userId})]:null}));
+  }
+  async rejectedDeviceSet(chatId:string,clientId:string):Promise<void> {return this.forget(chatId,clientId);}
+  /** A chat deleted here: its history names (G029) and every unsent message of it leave the vault. */
+  async forgetChat(chatId:string):Promise<void> {
+    return this.exclusive(async()=>{
+      const changes=await this.historyForget(chatId);
+      const refs=await this.outboxRefs();const rest=refs.filter(ref=>ref.chatId!==chatId);
+      if(rest.length!==refs.length){
+        for(const ref of refs)if(ref.chatId===chatId){changes[outboxKey(chatId,ref.clientId)]=null;changes[messageKey({chatId,clientId:ref.clientId,senderId:this.userId})]=null;}
+        changes[OUTBOX_INDEX]=rest.length?JSON.stringify(rest):null;
+      }
+      if(Object.keys(changes).length)await this.vault.commit(changes);
+    });
   }
   /** Decrypts our envelope of a message (from the server or from Mesh) and checks it is addressed exactly as claimed. */
   private async open(message:Pick<Message,'chatId'|'clientId'|'senderId'>,encrypted:EncryptedMessage):Promise<{plain:PlainBody;protocol:string;sender:{userId:string;id:string}}|null> {
@@ -294,7 +423,9 @@ export class CryptoService {
     // Already got it over Mesh, then the sender re-encrypted it for the server: the text must match.
     if(cached?.mesh&&!samePlain(cached.plain,opened.plain))throw new Error('Сообщение по Mesh и с сервера не совпадают.');
     const {plain,sender}=opened;
-    await this.vault.commit({protocol:opened.protocol,[sessionKey(sender)]:'1',[messageKey(message)]:JSON.stringify({fingerprint,plain}),[cursorKey]:String(message.id)});
+    // First time this message is cached here (a Mesh copy was already named): name it for the local search index.
+    const named=cached&&!isFailed(cached)?{}:await this.historyChange(message.chatId,message.senderId,message.clientId);
+    await this.vault.commit({...named,protocol:opened.protocol,[sessionKey(sender)]:'1',[messageKey(message)]:JSON.stringify({fingerprint,plain}),[cursorKey]:String(message.id)});
   }
   /**
    * A message that came over Mesh (Bluetooth) instead of the server. Returns the text to show, or
@@ -309,7 +440,7 @@ export class CryptoService {
       let opened;
       try{opened=await this.open(input,input.encrypted);}catch(error){if(isNetwork(error))return null;throw error;}
       if(!opened)return null;
-      await this.vault.commit({protocol:opened.protocol,[sessionKey(opened.sender)]:'1',[key]:JSON.stringify({fingerprint,plain:opened.plain,mesh:true})});
+      await this.vault.commit({...(await this.historyChange(input.chatId,input.senderId,input.clientId)),protocol:opened.protocol,[sessionKey(opened.sender)]:'1',[key]:JSON.stringify({fingerprint,plain:opened.plain,mesh:true})});
       return opened.plain;
     });
   }

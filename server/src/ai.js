@@ -301,23 +301,25 @@ const retryIn = (until, time) => Math.max(1, Math.ceil((until - time) / 1000));
 class AiBudget {
   constructor(now) {
     this.now = now;
-    // Rate windows keyed by `${lane}:${userId}` (and `day:${userId}` for the media day cap).
+    // Rate windows keyed by `${lane}:${userId}`; the media day caps (`userId`, a day long) live in
+    // their own map with its own cap, so a day's worth of users never crowds out the minute windows.
     this.windows = new Map();
+    this.days = new Map();
     // One pool of in-flight requests per lane: media never starves text.
     this.inFlight = { chat: new Map(), media: new Map() };
   }
 
-  sweep(time) {
-    for (const [id, entry] of this.windows) if (entry.until <= time) this.windows.delete(id);
+  sweep(time, map = this.windows) {
+    for (const [id, entry] of map) if (entry.until <= time) map.delete(id);
   }
 
-  bucketFor(key, time, windowMs = WINDOW_MS) {
-    const current = this.windows.get(key);
+  bucketFor(key, time, windowMs = WINDOW_MS, map = this.windows) {
+    const current = map.get(key);
     if (current && current.until > time) return current;
-    if (this.windows.size >= MAX_USERS) this.sweep(time);
-    if (this.windows.size >= MAX_USERS && !this.windows.has(key)) throw new AiFailure(503, 'AI_BUSY', 'AI-сервер занят. Повторите позже.', 60);
+    if (map.size >= MAX_USERS) this.sweep(time, map);
+    if (map.size >= MAX_USERS && !map.has(key)) throw new AiFailure(503, 'AI_BUSY', 'AI-сервер занят. Повторите позже.', 60);
     const bucket = { count: 0, until: time + windowMs };
-    this.windows.set(key, bucket);
+    map.set(key, bucket);
     return bucket;
   }
 
@@ -335,8 +337,8 @@ class AiBudget {
     if (pool.size >= limits.concurrent) throw new AiFailure(503, 'AI_BUSY', 'AI-сервер занят. Повторите через несколько секунд.', 5);
     const time = this.now();
     const bucket = this.bucketFor(`${lane}:${userId}`, time);
-    if (bucket.count >= limits.perMinute) throw new AiFailure(429, 'AI_RATE_LIMIT', 'Не более шести AI-запросов в минуту. Повторите позже.', retryIn(bucket.until, time));
-    const day = limits.perDay ? this.bucketFor(`day:${userId}`, time, DAY_MS) : null;
+    if (bucket.count >= limits.perMinute) throw new AiFailure(429, 'AI_RATE_LIMIT', `Не более ${limits.perMinute} AI-запросов в минуту. Повторите позже.`, retryIn(bucket.until, time));
+    const day = limits.perDay ? this.bucketFor(userId, time, DAY_MS, this.days) : null;
     if (day && day.count >= limits.perDay) throw new AiFailure(429, 'AI_RATE_LIMIT', `Не более ${limits.perDay} AI-генераций в сутки. Попробуйте завтра.`, retryIn(day.until, time));
     bucket.count++;
     if (day) day.count++;
@@ -353,6 +355,7 @@ class AiBudget {
   abortAll() {
     for (const pool of Object.values(this.inFlight)) for (const controller of pool.values()) controller.abort();
     this.windows.clear();
+    this.days.clear();
   }
 }
 
@@ -577,8 +580,9 @@ function registerMediaRoutes(app, { access, budget, apiKey, configured, fetchImp
       if (!onlyKeys(body, ['name', 'data', 'consent']) || body.consent !== true) throw invalid();
       if (typeof body.name !== 'string' || !body.name.trim() || body.name.length > 200) throw mediaInvalid('Нет имени файла.');
       if (typeof body.data !== 'string' || !/^[A-Za-z0-9+/]+={0,2}$/.test(body.data) || body.data.length > Math.ceil(MAX_DOCUMENT_BYTES / 3) * 4) throw mediaInvalid('Документ — до 15 МБ.');
-      budget.count(String(request.auth.user_id));
+      // A request turned away because the server is busy costs nothing from the per-minute window.
       if (reading >= 2) throw new AiFailure(429, 'AI_RATE_LIMIT', 'Сервер разбирает другие документы. Повтори через минуту.', 30);
+      budget.count(String(request.auth.user_id));
       reading++;
       try { return await documentText(body.name.trim(), Buffer.from(body.data, 'base64')); }
       catch (error) { if (error instanceof AiFailure) throw error; throw mediaInvalid(error instanceof Error && error.message ? error.message : 'Не удалось прочитать документ.'); }

@@ -1,5 +1,6 @@
 import { takeProfileRequest } from './birthdayNotifications';
 import { StatusEmoji } from './StatusEmoji';
+import { isLocked } from './lock/LockGate';
 import { useMeshActive } from './nearby/meshState';
 import { PlatinaGem, PlatinaName, hasPlatina } from './platina/PlatinaMark';
 import { DecoratedAvatar } from './platina/Decor';
@@ -8,6 +9,9 @@ import { ChatWallpaper, WallpaperPicker } from './WallpaperPicker';
 import { useWallpaper } from './wallpapers';
 import { usePlatina } from './platina/usePlatina';
 import { ComposerInput } from './ComposerInput';
+import { FormatToolbar } from './format/FormatToolbar';
+import { clearFormatting, normalizeEntities, packEntities, parseMarkdown, shiftEntities, sliceEntities, toggleEntity, type Entity, type EntityType } from './format';
+import { activeTypes } from './format/entities';
 import { countChats } from './plural';
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { ActivityIndicator, FlatList, Image, Keyboard, Modal, Platform, Pressable, ScrollView, StyleSheet, View } from 'react-native';
@@ -40,7 +44,9 @@ import { mediaPreviewKind } from './media/formats';
 import { AttachmentViewer } from './media/AttachmentViewer';
 import { openDocument } from './media/documentPreview';
 import { WALLPAPERS, textMetrics, useChatPreferences } from './chatPreferences';
-import { REACTIONS, foldChat, groupAlbums, replyPreview, type Reaction, type ViewMessage } from './messageMeta';
+import { REACTIONS, foldChat, groupAlbums, replyPreview, type Reaction, type StoryRef, type ViewMessage } from './messageMeta';
+import { PostViewer } from './ProfilePosts';
+import type { ProfilePost } from './api';
 import { MediaGallery } from './media/AttachmentViewer';
 import { PollComposer } from './PollBubble';
 import { StickerPanel } from './StickerPanel';
@@ -64,6 +70,9 @@ import { attachmentLabel, isVideoNote, isVoice } from './voice/voice';
 import { VOICE_MIME, VOICE_MIN_MS, videoNoteFileName, voiceFileName } from './voice/voice';
 
 
+/** Formatting of the unsent text per chat (the draft text itself lives in the store as a plain string). */
+const draftEntities=new Map<string,Entity[]>();
+
 /** #RRGGBB + alpha → rgba(), for the edge fades. */
 const fade=(hex:string,alpha:number)=>{const m=/^#([0-9a-f]{6})$/i.exec(hex);if(!m)return `rgba(0,0,0,${alpha})`;const n=parseInt(m[1],16);return `rgba(${n>>16},${(n>>8)&255},${n&255},${alpha})`;};
 
@@ -79,6 +88,18 @@ export function ChatScreen({api,user,chat,store,onBack,wide=false,onOpenMusic}: 
   const [securityOpen,setSecurityOpen]=useState(false);
   const photoContext=`${user.id}:${chat.id}`;const currentPhotoContext=useRef(photoContext);currentPhotoContext.current=photoContext;
   const text=store.drafts[chat.id]||'';const attachments=store.draftFiles[chat.id]||[];
+  // Formatting (bold, spoiler, …) of the draft: entities over `text`, moved along as the user types.
+  const [entities,setEntitiesState]=useState<Entity[]>(()=>draftEntities.get(chat.id)||[]);const entitiesRef=useRef(entities);
+  const setEntities=(next:Entity[])=>{entitiesRef.current=next;draftEntities.set(chat.id,next);setEntitiesState(next);};
+  const lastPlain=useRef(text);
+  useEffect(()=>{const saved=draftEntities.get(chat.id)||[];entitiesRef.current=saved;setEntitiesState(saved);setSel(null);},[chat.id]);
+  // The text changed from outside the field (sent, edit cancelled): an empty field has no formatting left.
+  useEffect(()=>{if(text!==lastPlain.current){lastPlain.current=text;if(!text&&entitiesRef.current.length)setEntities([]);}},[text]);
+  // The selection in the field; non-empty → the formatting bar is shown.
+  const [sel,setSel]=useState<{start:number;end:number}|null>(null);
+  const applyFormat=(type:EntityType|'clear',url?:string,at?:{start:number;end:number})=>{const range=at||sel;if(!range||range.start===range.end)return;setEntities(type==='clear'?clearFormatting(entitiesRef.current,text,range):toggleEntity(entitiesRef.current,text,range,type,url));lightFeedback();};
+  /** What goes out: markdown shortcuts turned into entities, text trimmed with the offsets kept. */
+  const composed=()=>{const parsed=parseMarkdown(text,entitiesRef.current);const lead=parsed.text.length-parsed.text.trimStart().length;const plain=parsed.text.trim();const packed=packEntities(sliceEntities(parsed.entities,parsed.text,{start:lead,end:lead+plain.length}),plain);return {text:plain,entities:packed};};
   const uploadingRef=useRef(false),draftCount=useRef(attachments.length);draftCount.current=attachments.length;
   const glassTarget=useRef<View|null>(null);
   const listRef=useRef<FlatList<Row>>(null);const typingAt=useRef(0);const typingTimer=useRef<ReturnType<typeof setTimeout>|undefined>(undefined);const alive=useRef(true);
@@ -104,6 +125,17 @@ export function ChatScreen({api,user,chat,store,onBack,wide=false,onOpenMusic}: 
   const [forwarding,setForwarding]=useState<ViewMessage|null>(null);
   const [searchOpen,setSearchOpen]=useState(false);const [query,setQuery]=useState('');
   const [notice,setNotice]=useState('');
+  // The story an answer quotes, opened from its «История» quote (F8). The stories are read afresh: a
+  // story lives 24 h, so an old answer says «История недоступна» instead of jumping anywhere.
+  const [storyView,setStoryView]=useState<{owner:User|undefined;items:ProfilePost[];start:number}|null>(null);
+  const openStory=async(ref:StoryRef)=>{
+    try{
+      const data=await api.profilePosts(ref.ownerId);
+      const start=data.visible?data.stories.findIndex(story=>story.id===ref.id):-1;
+      if(start<0){setNotice('История недоступна');return;}
+      setStoryView({owner:ref.ownerId===user.id?user:ref.ownerId===chat.peer.id?chat.peer:undefined,items:data.stories,start});
+    }catch{setNotice('История недоступна');}
+  };
   const [selection,setSelection]=useState<Set<string>|null>(null);
   // Desktop: Esc leaves multi-select (as in every desktop messenger).
   useEffect(()=>{if(Platform.OS!=='web'||!selection||typeof window==='undefined')return;const onKey=(event:KeyboardEvent)=>{if(event.key==='Escape'){event.preventDefault();setSelection(null);}};window.addEventListener('keydown',onKey);return()=>window.removeEventListener('keydown',onKey);},[selection]);
@@ -158,6 +190,20 @@ export function ChatScreen({api,user,chat,store,onBack,wide=false,onOpenMusic}: 
     if(searchOpen){setSearchOpen(false);setQuery('');}
     setTimeout(()=>{const index=rows.findIndex(row=>row.message?.clientId===clientId);if(index>=0)listRef.current?.scrollToIndex({index,animated:true,viewPosition:.5});else setNotice('Сообщение выше в истории. Загрузи более ранние сообщения.');},searchOpen?60:0);
   };
+  // A result of the global search («Сообщения»): once the page is here, scroll to that message; when it
+  // is further up, earlier pages are loaded while the oldest loaded message is still newer than the hit
+  // (the index knows when it was sent), up to a cap, before giving up with the usual notice.
+  const focus=store.focus;const focusTries=useRef(0);
+  useEffect(()=>{
+    if(!focus||focus.chatId!==chat.id||store.messageLoading)return;
+    if(!messages.length&&focusTries.current<1){focusTries.current++;return;} // the first page is still on its way
+    const index=rows.findIndex(row=>row.message?.clientId===focus.clientId);
+    if(index>=0){store.clearFocus();focusTries.current=0;setTimeout(()=>listRef.current?.scrollToIndex({index,animated:true,viewPosition:.5}),80);return;}
+    const oldest=messages[0]?.createdAt;const further=!focus.sentAt||!oldest||oldest>focus.sentAt; // past the hit's time and still not there: it is hidden or gone
+    if(store.hasMore[chat.id]&&further&&focusTries.current<20){focusTries.current++;void store.loadMessages(chat.id,true);return;}
+    store.clearFocus();focusTries.current=0;setNotice('Сообщение выше в истории. Загрузи более ранние сообщения.');
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  },[focus,chat.id,store.messageLoading,rows]);
   const react=(message:ViewMessage,emoji:Reaction)=>{
     const mine=message.reactions.find(item=>item.mine);
     store.sendAction(chat.id,{type:'react',target:message.clientId,emoji:mine?.emoji===emoji?null:emoji},message.text);
@@ -181,30 +227,35 @@ export function ChatScreen({api,user,chat,store,onBack,wide=false,onOpenMusic}: 
     const cut=start-(parts[parts.length-1]||'').length;caret.current={start:cut,end:cut};draftNow.current=value.slice(0,cut)+value.slice(start);changeText(draftNow.current);
   };
   const changeText=(value:string)=>{
+    const previous=lastPlain.current;lastPlain.current=value;
+    if(entitiesRef.current.length)setEntities(shiftEntities(entitiesRef.current,previous,value));
     store.setDraft(chat.id,value);
     if(Date.now()-typingAt.current>1500){store.sendTyping(chat.id,!!value);typingAt.current=Date.now();}
     if(typingTimer.current)clearTimeout(typingTimer.current);
     typingTimer.current=setTimeout(()=>store.sendTyping(chat.id,false),1800);
   };
   const forwardDraft=useForwardDraft(chat.id);
-  const sendForward=()=>{const draft=forwardDraft;if(!draft)return false;setForwardDraft(null);const comment=text.trim();
-    if(comment)store.send(chat.id,comment,null);void (async()=>{for(const item of draft.items)await store.forward(chat.id,item.message,item.author);})().catch(e=>setLocalError(e instanceof Error?e.message:'Не удалось переслать.'));
+  const sendForward=()=>{const draft=forwardDraft;if(!draft)return false;setForwardDraft(null);const comment=composed();
+    if(comment.text)store.send(chat.id,comment.text,null,comment.entities?{entities:comment.entities}:undefined);void (async()=>{for(const item of draft.items)await store.forward(chat.id,item.message,item.author);})().catch(e=>setLocalError(e instanceof Error?e.message:'Не удалось переслать.'));
     store.setDraft(chat.id,'');store.sendTyping(chat.id,false);listRef.current?.scrollToOffset({offset:0,animated:true});return true;};
   const send=()=>{
     if(forwardDraft&&!editing){lightFeedback();sendForward();return;}
     if(signalAvailable&&!uploadingRef.current&&(text.trim()||attachments.length))lightFeedback();
     if(!signalAvailable||uploadingRef.current||(!text.trim()&&!attachments.length))return;
+    const out=composed();
     if(editing){
-      const next=text.trim();
-      if(next&&next!==editing.text)store.sendAction(chat.id,{type:'edit',target:editing.clientId,text:next});
+      // The edit carries its own formatting; the old one is replaced (also when only the formatting changed).
+      // Both sides compared in canonical form: a no-op edit (same text, same formatting) sends nothing.
+      if(out.text&&(out.text!==editing.text||JSON.stringify(out.entities??[])!==JSON.stringify(normalizeEntities(editing.meta?.entities,editing.text))))store.sendAction(chat.id,{type:'edit',target:editing.clientId,text:out.text,...(out.entities?{entities:out.entities}:{})});
       setEditing(null);store.setDraft(chat.id,'');store.sendTyping(chat.id,false);return;
     }
     if(replyTo){
       const reply={clientId:replyTo.clientId,senderId:replyTo.senderId,preview:replyPreview(replyTo)};
-      if(text.trim())store.send(chat.id,text.trim(),null,{reply});
+      if(out.text)store.send(chat.id,out.text,null,{reply,...(out.entities?{entities:out.entities}:{})});
       if(attachments.length)store.sendAttachments(chat.id,'',attachments);
       setReplyTo(null);
-    }else store.sendAttachments(chat.id,text.trim(),attachments);store.setDraft(chat.id,'');store.setDraftFiles(chat.id,[]);draftCount.current=0;store.sendTyping(chat.id,false);setLocalError('');listRef.current?.scrollToOffset({offset:0,animated:true});
+    }else if(out.entities&&!attachments.length)store.send(chat.id,out.text,null,{entities:out.entities});
+    else store.sendAttachments(chat.id,out.text,attachments,out.entities);store.setDraft(chat.id,'');store.setDraftFiles(chat.id,[]);draftCount.current=0;store.sendTyping(chat.id,false);setLocalError('');listRef.current?.scrollToOffset({offset:0,animated:true});
   };
   const upload=async(file:LocalFile)=>{
     const selectedFor=photoContext;
@@ -309,20 +360,23 @@ export function ChatScreen({api,user,chat,store,onBack,wide=false,onOpenMusic}: 
   };
 
   const handlers=useRef<RowHandlers>(null as unknown as RowHandlers);
-  handlers.current={actions:(row,y,x)=>{setMenuY(y);setMenuX(x);setActions(row);},jumpTo,open:openAttachment,react,retry:pending=>void store.retry(pending),cancel:pending=>store.cancelPending(pending),reply:message=>{setEditing(null);setReplyTo(message);},vote:(message,options)=>store.sendAction(chat.id,{type:'vote',target:message.clientId,options},replyPreview(message)),toggleSelect};
+  handlers.current={actions:(row,y,x)=>{setMenuY(y);setMenuX(x);setActions(row);},jumpTo,open:openAttachment,react,retry:pending=>void store.retry(pending),cancel:pending=>store.cancelPending(pending),reply:message=>{setEditing(null);setReplyTo(message);},vote:(message,options)=>store.sendAction(chat.id,{type:'vote',target:message.clientId,options},replyPreview(message)),toggleSelect,openStory:ref=>void openStory(ref)};
   if(seen.current===null&&rows.length)seen.current=new Set(rows.map(row=>row.key));
   const fresh=(key:string)=>{if(!seen.current)return false;if(seen.current.has(key))return false;seen.current.add(key);return true;};
   const peerLastRead=chat.peerLastReadMessageId,peerName=chat.peer.displayName;
   const renderRow=useCallback(({item,index}:{item:Row;index:number})=>{
     const message=item.message,p=item.pending,mine=!!p||message?.senderId===user.id;
-    const file=message?.attachment||p?.attachment,reply=message?.meta?.reply||p?.meta?.reply;
+    const file=message?.attachment||p?.attachment,reply=message?.meta?.reply||p?.meta?.reply,storyRef=message?.meta?.story||p?.meta?.story;
     const original=reply?view.byClientId.get(reply.clientId):undefined;
+    // The quote above the bubble: the replied-to message, or «История» for an answer to a story.
+    const quoteAuthor=reply?(reply.senderId===user.id?'Ты':peerName):storyRef?(storyRef.ownerId===user.id?'Ты':peerName):undefined;
+    const quoteText=reply?(original?replyPreview(original):reply.preview||'Сообщение удалено'):storyRef?'История':undefined;
     // Telegram groups consecutive messages of one author: 2 pt apart, the tail only on the last one.
     const newer=index>0?rows[index-1]:undefined;
     const newerSender=newer?.pending?user.id:newer?.message?.senderId;
     const groupNext=!!newer&&newerSender===(p?user.id:message?.senderId)&&new Date(newer.createdAt).toDateString()===new Date(item.createdAt).toDateString()&&Date.parse(newer.createdAt)-Date.parse(item.createdAt)<5*60_000;
     if(item.missing)return <MissingRow count={item.missing}/>;
-    return <MessageRow animatedEmoji={platina&&powerFeatures.stickers} groupNext={groupNext} row={item} selecting={!!selection} selected={!!selection?.has(item.key)} fresh={fresh(item.key)} olderCreatedAt={rows[index+1]?.createdAt} mine={mine} author={mine?'Ты':peerName} peerLastRead={peerLastRead} wide={wide} fontSize={metrics.fontSize} lineHeight={metrics.lineHeight} radius={preferences.bubbleRadius} downloading={!!downloadId&&file?.id===downloadId} replyAuthor={reply?(reply.senderId===user.id?'Ты':peerName):undefined} replyText={reply?(original?replyPreview(original):reply.preview||'Сообщение удалено'):undefined} api={api} handlers={handlers}/>;
+    return <MessageRow animatedEmoji={platina&&powerFeatures.stickers} groupNext={groupNext} row={item} selecting={!!selection} selected={!!selection?.has(item.key)} fresh={fresh(item.key)} olderCreatedAt={rows[index+1]?.createdAt} mine={mine} author={mine?'Ты':peerName} peerLastRead={peerLastRead} wide={wide} fontSize={metrics.fontSize} lineHeight={metrics.lineHeight} radius={preferences.bubbleRadius} downloading={!!downloadId&&file?.id===downloadId} replyAuthor={quoteAuthor} replyText={quoteText} api={api} handlers={handlers}/>;
   },[rows,user.id,peerName,peerLastRead,wide,metrics,downloadId,view.byClientId,api,selection,preferences.bubbleRadius,platina]);
   const [circleOpen,setCircleOpen]=useState(false);
   // Telegram: the sent circle appears in the chat at once (frame from the take, upload ring, ✕).
@@ -351,24 +405,30 @@ export function ChatScreen({api,user,chat,store,onBack,wide=false,onOpenMusic}: 
   // Desktop (Telegram Desktop / Discord): a full-width bar — who, status, and the actions at hand.
   // Desktop: drop or paste files into the chat; keyboard as in Telegram Desktop / Discord.
   const [dropping,setDropping]=useState(false);
-  const desktopRef=useRef({upload,text,editing,replyTo,searchOpen,messages:view.messages});desktopRef.current={upload,text,editing,replyTo,searchOpen,messages:view.messages};
+  const desktopRef=useRef({upload,text,editing,replyTo,searchOpen,messages:view.messages,applyFormat});desktopRef.current={upload,text,editing,replyTo,searchOpen,messages:view.messages,applyFormat};
   useEffect(()=>{
     if(Platform.OS!=='web'||!wide||typeof window==='undefined')return;
     const take=async(files:File[])=>{for(const file of files){try{await desktopRef.current.upload({uri:URL.createObjectURL(file),name:file.name||'файл',mimeType:file.type||'application/octet-stream',size:file.size,file});}catch(e){setLocalError(e instanceof Error?e.message:'Не удалось добавить файл.');break;}}};
     let depth=0;
     const hasFiles=(e:DragEvent)=>!!e.dataTransfer&&Array.from(e.dataTransfer.types||[]).includes('Files');
-    const enter=(e:DragEvent)=>{if(!hasFiles(e))return;e.preventDefault();depth++;setDropping(true);};
-    const over=(e:DragEvent)=>{if(hasFiles(e))e.preventDefault();};
+    // Код-пароль: the chat is still in the DOM under the lock screen — files and keys must not reach it while locked.
+    const enter=(e:DragEvent)=>{if(isLocked()||!hasFiles(e))return;e.preventDefault();depth++;setDropping(true);};
+    const over=(e:DragEvent)=>{if(!isLocked()&&hasFiles(e))e.preventDefault();};
     const leave=(e:DragEvent)=>{if(!hasFiles(e))return;depth=Math.max(0,depth-1);if(!depth)setDropping(false);};
-    const drop=(e:DragEvent)=>{if(!hasFiles(e))return;e.preventDefault();depth=0;setDropping(false);void take(Array.from(e.dataTransfer!.files));};
-    const paste=(e:ClipboardEvent)=>{const files=Array.from(e.clipboardData?.files||[]);if(!files.length)return;e.preventDefault();void take(files);};
+    const drop=(e:DragEvent)=>{if(isLocked()||!hasFiles(e))return;e.preventDefault();depth=0;setDropping(false);void take(Array.from(e.dataTransfer!.files));};
+    const paste=(e:ClipboardEvent)=>{if(isLocked())return;const files=Array.from(e.clipboardData?.files||[]);if(!files.length)return;e.preventDefault();void take(files);};
     const key=(e:KeyboardEvent)=>{
+      if(isLocked())return;
       const d=desktopRef.current;const mod=e.ctrlKey||e.metaKey;
       if(mod&&!e.shiftKey&&(e.key==='f'||e.key==='F'||e.key==='а'||e.key==='А')){e.preventDefault();setSearchOpen(true);return;}
+      // Telegram Desktop: Ctrl+B / I / U, Ctrl+Shift+X (strike), +M (mono), +P (spoiler), +N (clear) on the selected text.
+      // By the physical key (e.code), so Ctrl+B is bold on the Russian layout too (e.key would be «и»).
+      if(mod&&!e.altKey){const target=e.target as HTMLElement|null;const code=e.code||`Key${e.key.toUpperCase()}`;const type=!e.shiftKey?({KeyB:'bold',KeyI:'italic',KeyU:'underline'} as const)[code as 'KeyB'|'KeyI'|'KeyU']:({KeyX:'strikethrough',KeyM:'code',KeyP:'spoiler',KeyN:'clear'} as const)[code as 'KeyX'|'KeyM'|'KeyP'|'KeyN'];
+        if(type&&target?.tagName==='TEXTAREA'&&caret.current&&caret.current.start!==caret.current.end){e.preventDefault();d.applyFormat(type,undefined,caret.current);return;}}
       if(e.key==='Escape'){if(d.searchOpen){setSearchOpen(false);setQuery('');return;}if(d.editing){setEditing(null);store.setDraft(chat.id,'');return;}if(d.replyTo){setReplyTo(null);return;}}
       // ↑ in an empty field edits your last message.
       if(e.key==='ArrowUp'&&!mod&&!e.altKey&&!d.text&&!d.editing){const target=e.target as HTMLElement|null;if(target?.tagName!=='TEXTAREA'&&target?.tagName!=='INPUT')return;
-        const last=[...d.messages].reverse().find(editable);if(!last)return;e.preventDefault();setReplyTo(null);setEditing(last);store.setDraft(chat.id,last.text);}
+        const last=[...d.messages].reverse().find(editable);if(!last)return;e.preventDefault();setReplyTo(null);setEditing(last);const saved=last.meta?.entities||[];entitiesRef.current=saved;draftEntities.set(chat.id,saved);setEntitiesState(saved);store.setDraft(chat.id,last.text);}
     };
     window.addEventListener('dragenter',enter);window.addEventListener('dragover',over);window.addEventListener('dragleave',leave);window.addEventListener('drop',drop);window.addEventListener('paste',paste);window.addEventListener('keydown',key,true);
     return()=>{window.removeEventListener('dragenter',enter);window.removeEventListener('dragover',over);window.removeEventListener('dragleave',leave);window.removeEventListener('drop',drop);window.removeEventListener('paste',paste);window.removeEventListener('keydown',key,true);};
@@ -485,6 +545,8 @@ export function ChatScreen({api,user,chat,store,onBack,wide=false,onOpenMusic}: 
         return <View key={attachment.id} style={{width:230,flexDirection:'row',alignItems:'center',gap:8,padding:10,borderRadius:19,backgroundColor:t.accentSoft,borderWidth:1,borderColor:t.border}}><Icon name={kind==='photo'?'image-outline':kind==='video'?'videocam-outline':kind==='audio'?'musical-note-outline':'document-outline'} color={t.accent} size={21}/><View style={{flex:1,gap:3}}><Text numberOfLines={1} style={{color:t.text,fontSize:12,fontWeight:'600'}}>{attachment.name}</Text><Text style={{color:t.muted,fontSize:10}}>{index+1} · {formatSize(attachment.size)}</Text></View><IconButton name="close" label={`Убрать ${attachment.name}`} onPress={()=>{store.removeDraftFile(chat.id,attachment.id);draftCount.current=Math.max(0,draftCount.current-1);}} disabled={uploading} size={18} style={{width:30,height:32}}/></View>;
       })}</ScrollView>:null}
       </GlassSurface>:null}
+      {/* Telegram: selected text in the field → «Жирный, Курсив, …» bar above it. */}
+      {sel&&signalAvailable&&!voice.active&&!recHold?<FormatToolbar compact={!wide} active={activeTypes(entities,sel)} onAction={type=>applyFormat(type)} onLink={url=>applyFormat('text_link',url)}/>:null}
       {voice.active&&!(recHold?.kind==='voice'&&!recHold.locked)?<VoiceRecordingBar floating durationMs={voice.durationMs} levels={voice.levels} paused={voice.paused} onPause={voice.togglePause} onCancel={()=>{setRecHold(null);void finishVoice(false);}} onSend={()=>{setRecHold(null);void finishVoice(true);}}/>:<View style={{flexDirection:'row',gap:8,alignItems:'flex-end'}}>
         <RecordHint text={recordHint}/>
         {recHold?.kind==='voice'&&!recHold.locked?<GlassSurface key="holdstrip" lens material="regular" radius={20} style={{flex:1}} contentStyle={{minHeight:40,justifyContent:'center'}}><VoiceRecordingBar holding cancelProgress={cancelProgress} durationMs={voice.durationMs} levels={voice.levels} onCancel={()=>{}} onSend={()=>{}}/></GlassSurface>:<>
@@ -492,7 +554,7 @@ export function ChatScreen({api,user,chat,store,onBack,wide=false,onOpenMusic}: 
         <GlassSurface lens material="regular" radius={20} style={{flex:1}} contentStyle={{minHeight:40,maxHeight:140,flexDirection:'row',alignItems:'flex-end'}}>
           {/* A browser cannot send in a 1:1 chat (no Signal): a one-line hint stands in for the field — a
               read-only <textarea> wrapped its long placeholder onto a hidden second line. */}
-          <View style={{flex:1,justifyContent:'center',minHeight:40}}>{!signalAvailable?<Text numberOfLines={1} style={{fontSize:17,lineHeight:22,color:t.muted,paddingHorizontal:14,paddingVertical:9}}>Только в приложении</Text>:<ComposerInput focusKey={editing?`edit:${editing.clientId}`:replyTo?`reply:${replyTo.clientId}`:keyboardAsk?`keyboard:${keyboardAsk}`:null} onFocus={()=>{if(stickers&&Platform.OS!=='web')stickersToKeyboard();}} minHeight={40} accessibilityLabel="Сообщение" placeholder="Сообщение" value={text} onChangeText={changeText} onSelectionChange={e=>{caret.current=e.nativeEvent.selection;}} placeholderTextColor={t.muted} selectionColor={t.accent} keyboardAppearance={t.dark?'dark':'light'} multiline maxLength={8000} style={{fontSize:17,lineHeight:22,color:t.text,paddingHorizontal:14,paddingTop:Platform.OS==='ios'?9:7,paddingBottom:9,maxHeight:136}} onKeyPress={e=>{if(Platform.OS==='web'&&e.nativeEvent.key==='Enter'&&!(e.nativeEvent as unknown as {shiftKey?:boolean}).shiftKey){e.preventDefault();send();}}}/>}</View>
+          <View style={{flex:1,justifyContent:'center',minHeight:40}}>{!signalAvailable?<Text numberOfLines={1} style={{fontSize:17,lineHeight:22,color:t.muted,paddingHorizontal:14,paddingVertical:9}}>Только в приложении</Text>:<ComposerInput focusKey={editing?`edit:${editing.clientId}`:replyTo?`reply:${replyTo.clientId}`:keyboardAsk?`keyboard:${keyboardAsk}`:null} onFocus={()=>{if(stickers&&Platform.OS!=='web')stickersToKeyboard();}} minHeight={40} accessibilityLabel="Сообщение" placeholder="Сообщение" value={text} onChangeText={changeText} onSelectionChange={e=>{const next=e.nativeEvent.selection;caret.current=next;setSel(prev=>next.start!==next.end?(prev&&prev.start===next.start&&prev.end===next.end?prev:{start:next.start,end:next.end}):prev?null:prev);}} placeholderTextColor={t.muted} selectionColor={t.accent} keyboardAppearance={t.dark?'dark':'light'} multiline maxLength={8000} style={{fontSize:17,lineHeight:22,color:t.text,paddingHorizontal:14,paddingTop:Platform.OS==='ios'?9:7,paddingBottom:9,maxHeight:136}} onKeyPress={e=>{if(Platform.OS==='web'&&e.nativeEvent.key==='Enter'&&!(e.nativeEvent as unknown as {shiftKey?:boolean}).shiftKey){e.preventDefault();send();}}}/>}</View>
           <Pressable accessibilityRole="button" accessibilityLabel="Стикеры и эмодзи" onPress={toggleStickers} style={({pressed})=>({height:40,width:38,alignItems:'center',justifyContent:'center',opacity:pressed?.6:1})}><Icon name={stickers?'keypad-outline':'happy-outline'} color={stickers?t.accent:t.muted} size={22}/></Pressable>
         </GlassSurface>
         {canSend||!signalAvailable||uploading?<Pressable accessibilityRole="button" accessibilityLabel="Отправить сообщение" disabled={sendDisabled} onPress={send} style={({pressed})=>({height:40,width:40,borderRadius:20,backgroundColor:t.accent,alignItems:'center',justifyContent:'center',opacity:sendDisabled?.4:pressed?.75:1})}><Icon name={editing?'checkmark':'arrow-up'} color={t.onAccent} size={25}/></Pressable>
@@ -526,7 +588,7 @@ export function ChatScreen({api,user,chat,store,onBack,wide=false,onOpenMusic}: 
       {!locked&&(actions?.message?.attachment||actions?.pending?.attachment)?<MenuItem icon="download-outline" label={(()=>{const a=actions?.message?.attachment||actions?.pending?.attachment;const kind=a?mediaPreviewKind(a):'file';return kind==='video'?'Сохранить видео':kind==='photo'?'Сохранить фото':'Сохранить';})()} onPress={()=>{const a=actions?.message?.attachment||actions?.pending?.attachment;setActions(null);if(a)void download(a);}}/>:null}
       {actions?.message&&actions.message.cryptoState==='decrypted'?<MenuItem icon={view.pinned?.clientId===actions.message.clientId?'pin':'pin-outline'} label={view.pinned?.clientId===actions.message.clientId?'Открепить':'Закрепить'} onPress={()=>{const m=actions.message!;store.sendAction(chat.id,{type:'pin',target:view.pinned?.clientId===m.clientId?null:m.clientId},m.text);setActions(null);}}/>:null}
       {!locked&&actions?.message&&actions.message.cryptoState==='decrypted'?<MenuItem icon="arrow-redo-outline" label="Переслать" onPress={()=>{const item=actions.message!;void forwardable([item]).then(ok=>{if(ok)setForwarding(item);});setActions(null);}}/>:null}
-      {actions?.message&&editable(actions.message)?<MenuItem icon="create-outline" label="Изменить" onPress={()=>{setReplyTo(null);setEditing(actions.message!);store.setDraft(chat.id,actions.message!.text);setActions(null);}}/>:null}
+      {actions?.message&&editable(actions.message)?<MenuItem icon="create-outline" label="Изменить" onPress={()=>{setReplyTo(null);setEditing(actions.message!);setEntities(actions.message!.meta?.entities||[]);store.setDraft(chat.id,actions.message!.text);setActions(null);}}/>:null}
       {actions?.pending?.state==='failed'?<MenuItem icon="refresh-outline" label="Повторить отправку" onPress={()=>{if(actions.pending)void store.retry(actions.pending);setActions(null);}}/>:null}
        {actions?.message?<MenuItem icon="trash-outline" label="Удалить" danger onPress={()=>{const list=rowMessages(actions);const mineAll=list.every(m=>m.senderId===user.id&&m.cryptoState==='decrypted');setActions(null);setDeleteOne({list,everyone:mineAll});}}/>:null}
       {actions?.message?<MenuItem separated icon="checkmark-circle-outline" label="Выбрать" onPress={()=>startSelect(actions)}/>:null}
@@ -542,6 +604,7 @@ export function ChatScreen({api,user,chat,store,onBack,wide=false,onOpenMusic}: 
         void (async()=>{for(const target of targets){if(!target){list.forEach(m=>saveToFavorites(m));continue;}if(comment)store.send(target.id,comment,null);for(const m of list)await store.forward(target.id,m,originalAuthor(m));}
           setNotice(targets.length===1&&targets[0]?`Переслано: ${targets[0].peer.displayName}`:`Переслано в ${countChats(targets.length)}`);})().catch(e=>setLocalError(e instanceof Error?e.message:'Не удалось переслать.'));}}/>
     <AttachmentViewer api={api} attachment={preview} onClose={()=>setPreview(null)}/>
+    {storyView?<PostViewer api={api} items={storyView.items} start={storyView.start} story owner={storyView.owner} own={storyView.owner?.id===user.id} onClose={()=>setStoryView(null)} onView={storyView.owner?.id===user.id?undefined:post=>void api.viewStory(post.id).catch(()=>{})}/>:null}
     {gallery?<MediaGallery api={api} items={gallery.items} index={gallery.index} onClose={()=>setGallery(null)}/>:null}
     <PollComposer visible={pollOpen} onClose={()=>setPollOpen(false)} onSend={poll=>{setPollOpen(false);lightFeedback();store.sendPoll(chat.id,poll);listRef.current?.scrollToOffset({offset:0,animated:true});}}/>
     {/* Telegram: the menu has one «Удалить»; the choice comes after it. */}

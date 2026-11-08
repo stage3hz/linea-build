@@ -10,15 +10,17 @@ import { DecoratedAvatar } from './platina/Decor';
 import { StatusEmoji } from './StatusEmoji';
 import { CommunityAvatar } from './communities/parts';
 import { navigate } from './navigation';
-import { useTheme } from './theme';
+import { formatListTime, useTheme } from './theme';
 import { lightFeedback } from './haptics';
 import type { Api } from './api';
-import type { User } from './types';
+import type { Chat, User } from './types';
+import { chatListText, messageKey } from './messageMeta';
+import { snippet as searchSnippet } from './search/messageIndex';
 import type { MessengerStore } from './useMessenger';
 import type { CommunitySummary } from './communities/types';
 
-type Scope = 'chats' | 'people' | 'channels';
-const SCOPES: { id: Scope; label: string }[] = [{ id: 'chats', label: 'Чаты' }, { id: 'people', label: 'Люди' }, { id: 'channels', label: 'Каналы' }];
+type Scope = 'chats' | 'messages' | 'people' | 'channels';
+const SCOPES: { id: Scope; label: string }[] = [{ id: 'chats', label: 'Чаты' }, { id: 'messages', label: 'Сообщения' }, { id: 'people', label: 'Люди' }, { id: 'channels', label: 'Каналы' }];
 type Recent = { kind: 'user'; user: User } | { kind: 'community'; community: Pick<CommunitySummary, 'id' | 'name' | 'kind' | 'avatarId'> };
 const RECENT_LIMIT = 15;
 const recentKey = (userId: string) => `linea.recent-search.v1:${userId}`;
@@ -66,7 +68,9 @@ export function ChatSearch({ api, me, store, onClose, onSaved }: { api: Api; me:
     onClose(); navigate({ to: 'channels', communityId: community.id });
   };
 
-  type Row = { key: string; title: string; sub: string; user?: User; community?: Pick<CommunitySummary, 'id' | 'name' | 'kind' | 'avatarId'>; saved?: boolean; onPress: () => void };
+  // «Сообщения»: the decrypted history kept on this device (G029), grouped by chat, newest first; a tap opens the chat at that message.
+  const openMessage = (chat: Chat, clientId: string, sentAt: string) => { remember({ kind: 'user', user: chat.peer }); onClose(); store.focusMessage(chat.id, clientId, sentAt); store.selectChat(chat); };
+  type Row = { key: string; title: string; sub: string; user?: User; community?: Pick<CommunitySummary, 'id' | 'name' | 'kind' | 'avatarId'>; saved?: boolean; header?: boolean; date?: string; onPress: () => void };
   const rows: Row[] = useMemo(() => {
     if (!needle) return recent.map(item => item.kind === 'user'
       ? { key: recentId(item), title: item.user.displayName, sub: `@${item.user.username}`, user: item.user, onPress: () => void openUser(item.user) }
@@ -78,18 +82,35 @@ export function ChatSearch({ api, me, store, onClose, onSaved }: { api: Api; me:
       // Избранное (both already decrypted on this device; nothing is sent to the server).
       const snippet = (text: string) => { const at = text.toLocaleLowerCase().indexOf(needle); return (at > 24 ? '…' + text.slice(at - 20) : text).replace(/\s+/g, ' ').slice(0, 90); };
       if (needle.length >= 2) {
-        for (const chat of store.chats) { const text = chat.lastMessage?.text; if (text && text.toLocaleLowerCase().includes(needle)) list.push({ key: `m:${chat.id}`, title: chat.peer.displayName, sub: snippet(text), user: chat.peer, onPress: () => void openUser(chat.peer) }); }
+        for (const chat of store.chats) { const text = chat.lastMessage && chatListText(chat.lastMessage); if (text && text.toLocaleLowerCase().includes(needle)) list.push({ key: `m:${chat.id}`, title: chat.peer.displayName, sub: snippet(text), user: chat.peer, onPress: () => void openUser(chat.peer) }); }
         for (const item of [...store.saved.items].reverse()) { if (list.length > 60) break; if (item.text && item.text.toLocaleLowerCase().includes(needle)) list.push({ key: `s:${item.id}`, title: 'Избранное', sub: snippet(item.text), saved: true, onPress: () => { onClose(); onSaved(); } }); }
+      }
+      return list;
+    }
+    if (scope === 'messages') {
+      const byId = new Map(store.chats.map(chat => [chat.id, chat]));
+      const names = (senderId: string, chatId: string) => senderId === me.id ? me.displayName : byId.get(chatId)?.peer.displayName || '';
+      const list: Row[] = [];
+      for (const group of store.searchMessages(query, { names, chats: new Set(byId.keys()), limit: 150, perChat: 30 })) {
+        const chat = byId.get(group.chatId); if (!chat) continue;
+        const hits = group.hits.filter(hit => !store.hidden.has(messageKey(hit)));
+        if (!hits.length) continue;
+        list.push({ key: `h:${chat.id}`, title: chat.peer.displayName, sub: `@${chat.peer.username}`, user: chat.peer, header: true, onPress: () => void openUser(chat.peer) });
+        for (const hit of hits) {
+          const who = hit.senderId === me.id ? 'Ты' : chat.peer.displayName;
+          const text = hit.text.trim() || hit.attachmentName || '';
+          list.push({ key: `g:${hit.key}`, title: who, sub: searchSnippet(text, query), date: formatListTime(hit.sentAt), onPress: () => openMessage(chat, hit.clientId, hit.sentAt) });
+        }
       }
       return list;
     }
     if (scope === 'people') return (people || []).filter(user => user.id !== me.id).map(user => ({ key: user.id, title: user.displayName, sub: `@${user.username}`, user, onPress: () => void openUser(user) }));
     return (communities || []).filter(item => item.name.toLocaleLowerCase().includes(needle)).map(item => ({ key: item.id, title: item.name, sub: item.kind === 'blog' ? `канал · ${item.memberCount} подписч.` : `сервер · ${item.memberCount} участн.`, community: item, onPress: () => openCommunity(item) }));
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [needle, scope, recent, store.chats, people, communities, me.id]);
+  }, [needle, scope, recent, store.chats, people, communities, me.id, store.searchVersion, store.hidden]);
 
   const loading = !!needle && ((scope === 'people' && needle.length >= 2 && people === null) || (scope === 'channels' && communities === null));
-  const empty = needle ? (scope === 'people' && needle.length < 2 ? 'Введи хотя бы 2 буквы @имени.' : 'Ничего не нашли.') : 'Здесь появятся чаты и каналы, которые ты открывал из поиска.';
+  const empty = needle ? (scope === 'people' && needle.length < 2 ? 'Введи хотя бы 2 буквы @имени.' : scope === 'messages' ? 'В сохранённой на этом устройстве переписке такого нет.' : 'Ничего не нашли.') : scope === 'messages' ? 'Поиск по тексту сообщений и имени отправителя. История хранится только на этом устройстве.' : 'Здесь появятся чаты и каналы, которые ты открывал из поиска.';
 
   return <View style={{ flex: 1 }}>
     <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10, paddingHorizontal: 16, paddingTop: 6, paddingBottom: 10 }}>
@@ -109,10 +130,13 @@ export function ChatSearch({ api, me, store, onClose, onSaved }: { api: Api; me:
         <Pressable onPress={clearRecent} accessibilityRole="button" hitSlop={8}><Text style={{ color: t.accent, fontSize: 14 }}>Очистить</Text></Pressable>
       </View> : null}
       ListEmptyComponent={loading ? <ActivityIndicator color={t.accent} style={{ marginTop: 30 }} /> : <Text style={{ color: t.muted, textAlign: 'center', marginTop: 40, paddingHorizontal: 40, fontSize: 14, lineHeight: 20 }}>{empty}</Text>}
-      renderItem={({ item }) => <Pressable onPress={item.onPress} disabled={!!busy} style={({ pressed }) => ({ flexDirection: 'row', alignItems: 'center', gap: 12, paddingHorizontal: 16, paddingVertical: 7, backgroundColor: pressed ? t.accentSoft : 'transparent' })}>
-        {item.user ? <DecoratedAvatar user={item.user} api={api} size={44} /> : item.community ? <CommunityAvatar api={api} community={item.community} size={44} /> : <View style={{ width: 44, height: 44, borderRadius: 22, backgroundColor: t.accent, alignItems: 'center', justifyContent: 'center' }}><Icon name="bookmark" size={20} color={t.onAccent} /></View>}
+      renderItem={({ item }) => item.header ? <Pressable onPress={item.onPress} disabled={!!busy} accessibilityRole="header" style={{ flexDirection: 'row', alignItems: 'center', gap: 10, paddingHorizontal: 16, paddingTop: 12, paddingBottom: 4 }}>
+        {item.user ? <DecoratedAvatar user={item.user} api={api} size={28} /> : null}
+        <Text numberOfLines={1} style={{ flex: 1, color: t.text, fontSize: 15, fontWeight: '700' }}>{item.title}</Text>
+      </Pressable> : <Pressable onPress={item.onPress} disabled={!!busy} style={({ pressed }) => ({ flexDirection: 'row', alignItems: 'center', gap: 12, paddingHorizontal: 16, paddingVertical: 7, backgroundColor: pressed ? t.accentSoft : 'transparent' })}>
+        {item.date !== undefined ? <View style={{ width: 44, height: 44, borderRadius: 22, backgroundColor: t.accentSoft, alignItems: 'center', justifyContent: 'center' }}><Icon name="chatbubble-ellipses-outline" size={20} color={t.accent} /></View> : item.user ? <DecoratedAvatar user={item.user} api={api} size={44} /> : item.community ? <CommunityAvatar api={api} community={item.community} size={44} /> : <View style={{ width: 44, height: 44, borderRadius: 22, backgroundColor: t.accent, alignItems: 'center', justifyContent: 'center' }}><Icon name="bookmark" size={20} color={t.onAccent} /></View>}
         <View style={{ flex: 1 }}>
-          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 5 }}><Text numberOfLines={1} style={{ color: t.text, fontSize: 16, fontWeight: '600', flexShrink: 1 }}>{item.title}</Text>{item.user ? <StatusEmoji user={item.user} size={14} /> : null}</View>
+          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 5 }}><Text numberOfLines={1} style={{ color: t.text, fontSize: 16, fontWeight: '600', flexShrink: 1 }}>{item.title}</Text>{item.user ? <StatusEmoji user={item.user} size={14} /> : null}{item.date !== undefined ? <Text style={{ marginLeft: 'auto', color: t.muted, fontSize: 12 }}>{item.date}</Text> : null}</View>
           <Text numberOfLines={1} style={{ color: t.muted, fontSize: 13 }}>{item.sub}</Text>
         </View>
         {busy && item.user && busy === item.user.id ? <ActivityIndicator color={t.accent} /> : null}

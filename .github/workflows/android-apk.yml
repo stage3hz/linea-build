@@ -1,0 +1,348 @@
+name: Android APK
+
+# Release APK (assembleRelease) of INVIZENT built from sources on a GitHub-hosted Linux runner, the same
+# toolchain as docs/BUILD.md «Android из исходников»: JDK 21, Android SDK platform / Build Tools 36,
+# NDK 27.1.12297006, CMake 3.22.1, Node 24, `expo prebuild` + Gradle wrapper of the generated project.
+#
+# Runs on every push to main that touches mobile/ (preview package com.linea.messenger.preview, arm64-v8a,
+# push on) and by hand with inputs for the production package, universal ABIs and a no-push build.
+#
+# Signing. Gradle signs the release APK with the Expo template debug key; this job then re-signs it with
+# apksigner (v2+v3), so the Gradle project needs no signing patches:
+#   * secrets ANDROID_KEYSTORE_B64 / ANDROID_KEYSTORE_PASSWORD / ANDROID_KEY_ALIAS / ANDROID_KEY_PASSWORD
+#     all set  -> the owner's stable key: the APK installs over earlier builds with the same key;
+#   * none set -> a throw-away keystore generated in this job; the artifact name ends in -debugsigned,
+#     every run has a new key (uninstall the previous CI APK before installing the next one);
+#   * some set -> the job fails early instead of silently producing a debug-signed APK.
+#
+# Push (FCM). google-services.json comes from the GOOGLE_SERVICES_JSON_B64 secret when present, otherwise
+# from the committed mobile/google-services.json (preview package only). app.config.js and the
+# google-services Gradle plugin stop the build when the package is missing from the file (BUILD.md, «Push»);
+# the job checks this before the long build. A build without push must be asked for explicitly
+# (input push=false -> ANDROID_PUSH=0) and is flagged in the job summary.
+#
+# A second job runs the Kotlin JVM tests of mobile/modules/*/jvm-tests (plain Gradle, no Android SDK).
+
+on:
+  push:
+    branches: [main]
+    paths: ['mobile/**', '.github/workflows/android-apk.yml', '!mobile/test/**', '!mobile/src/**/*.web.ts', '!mobile/src/**/*.web.tsx']
+  workflow_dispatch:
+    inputs:
+      app_env:
+        description: 'APP_ENV: development = com.linea.messenger.preview, production = com.linea.messenger (HTTPS api_url)'
+        type: choice
+        options: [development, production]
+        default: development
+      architectures:
+        description: 'ABIs: arm64 (arm64-v8a only, smaller APK) or universal (armeabi-v7a, arm64-v8a, x86, x86_64)'
+        type: choice
+        options: [arm64, universal]
+        default: arm64
+      push:
+        description: 'Firebase push (package must be in google-services.json); off = ANDROID_PUSH=0, APK without notifications'
+        type: boolean
+        default: true
+      api_url:
+        description: 'EXPO_PUBLIC_API_URL baked into the app (empty: development = chosen in the app, production = https://api.invizent.com)'
+        default: ''
+
+permissions:
+  contents: read
+
+concurrency:
+  group: android-apk-${{ github.event_name }}-${{ github.ref }}-${{ inputs.app_env || 'development' }}
+  cancel-in-progress: true
+
+env:
+  # docs/BUILD.md «Подготовка». Kept in one place so a toolchain bump is a one-line change.
+  ANDROID_PLATFORM: '36'
+  ANDROID_BUILD_TOOLS: '36.0.0'
+  ANDROID_NDK: '27.1.12297006'
+  ANDROID_CMAKE: '3.22.1'
+
+jobs:
+  apk:
+    name: APK (${{ inputs.app_env || 'development' }}, ${{ inputs.architectures || 'arm64' }})
+    runs-on: ubuntu-latest
+    timeout-minutes: 120
+    env:
+      EXPO_NO_TELEMETRY: '1'
+      CI: '1'
+      EXPO_PUBLIC_ALLOW_LOCAL_HTTP: '0'   # never allow cleartext HTTP in a distributed build
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: npm
+          cache-dependency-path: mobile/package-lock.json
+
+      # Everything that depends on inputs and secrets is decided here, before any slow step, and
+      # exported through GITHUB_ENV / GITHUB_OUTPUT. On `push` the inputs are empty -> defaults.
+      - name: Resolve build parameters
+        id: params
+        env:
+          APP_ENV_INPUT: ${{ inputs.app_env }}
+          ARCH_INPUT: ${{ inputs.architectures }}
+          PUSH_INPUT: ${{ inputs.push }}
+          API_URL_INPUT: ${{ inputs.api_url }}
+          KS_B64: ${{ secrets.ANDROID_KEYSTORE_B64 }}
+          KS_PASSWORD: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
+          KEY_ALIAS: ${{ secrets.ANDROID_KEY_ALIAS }}
+          KEY_PASSWORD: ${{ secrets.ANDROID_KEY_PASSWORD }}
+          GS_B64: ${{ secrets.GOOGLE_SERVICES_JSON_B64 }}
+        run: |
+          set -euo pipefail
+          APP_ENV="${APP_ENV_INPUT:-development}"
+          ARCH="${ARCH_INPUT:-arm64}"
+          case "$ARCH" in
+            arm64) ABIS=arm64-v8a ;;
+            universal) ABIS=armeabi-v7a,arm64-v8a,x86,x86_64 ;;
+            *) echo "::error::Unknown architectures input: $ARCH"; exit 1 ;;
+          esac
+          # Boolean input arrives as the string "false"/"true"; empty (push event) means on.
+          if [ "$PUSH_INPUT" = "false" ]; then ANDROID_PUSH=0; else ANDROID_PUSH=1; fi
+
+          if [ "$APP_ENV" = production ]; then
+            PACKAGE=com.linea.messenger
+            API_URL="${API_URL_INPUT:-https://api.invizent.com}"
+            case "$API_URL" in
+              https://*) ;;
+              *) echo "::error::APP_ENV=production requires an https:// api_url (app.config.js refuses anything else)"; exit 1 ;;
+            esac
+          else
+            PACKAGE=com.linea.messenger.preview
+            API_URL="$API_URL_INPUT"
+          fi
+
+          # Signing mode: all four secrets or none.
+          set_count=0
+          for v in KS_B64 KS_PASSWORD KEY_ALIAS KEY_PASSWORD; do
+            if [ -n "${!v}" ]; then set_count=$((set_count + 1)); fi
+          done
+          if [ "$set_count" = 4 ]; then
+            SIGNING=release; SUFFIX=''
+          elif [ "$set_count" = 0 ]; then
+            SIGNING=debug; SUFFIX=-debugsigned
+            echo "::warning::No ANDROID_KEYSTORE_* secrets: the APK will be signed with a throw-away debug key (-debugsigned)."
+          else
+            echo "::error::Only $set_count of 4 signing secrets are set (ANDROID_KEYSTORE_B64, ANDROID_KEYSTORE_PASSWORD, ANDROID_KEY_ALIAS, ANDROID_KEY_PASSWORD). Set all of them or none."
+            exit 1
+          fi
+
+          # google-services.json: secret (outside the checkout) or the committed file.
+          GS_SOURCE='committed mobile/google-services.json'
+          if [ -n "$GS_B64" ]; then
+            GS_FILE="$RUNNER_TEMP/google-services.json"
+            printf '%s' "$GS_B64" | base64 -d > "$GS_FILE"
+            echo "GOOGLE_SERVICES_FILE=$GS_FILE" >> "$GITHUB_ENV"
+            GS_SOURCE='secret GOOGLE_SERVICES_JSON_B64'
+          else
+            GS_FILE="$GITHUB_WORKSPACE/mobile/google-services.json"
+          fi
+          if [ "$ANDROID_PUSH" = 1 ]; then
+            # Same check as app.config.js, but fatal here: Gradle would fail ~30 minutes later with
+            # «No matching client found for package name».
+            if ! node -e 'const [file, pkg] = process.argv.slice(1); const clients = JSON.parse(require("node:fs").readFileSync(file, "utf8")).client || []; const packages = clients.map(c => c.client_info && c.client_info.android_client_info && c.client_info.android_client_info.package_name).filter(Boolean); console.log("google-services.json packages: " + packages.join(", ")); process.exit(packages.includes(pkg) ? 0 : 1);' "$GS_FILE" "$PACKAGE"; then
+              echo "::error::$GS_SOURCE has no Android client for $PACKAGE. Register the package in Firebase and update the file (secret GOOGLE_SERVICES_JSON_B64), or run with push=false for an APK without notifications (docs/BUILD.md, «Push-уведомления»)."
+              exit 1
+            fi
+          else
+            echo "::warning::push=false: building with ANDROID_PUSH=0, this APK has no push notifications."
+          fi
+
+          {
+            echo "APP_ENV=$APP_ENV"
+            echo "ANDROID_PUSH=$ANDROID_PUSH"
+            echo "EXPO_PUBLIC_API_URL=$API_URL"
+            echo "PACKAGE=$PACKAGE"
+            echo "ARCH=$ARCH"
+            echo "ABIS=$ABIS"
+            echo "SIGNING=$SIGNING"
+            echo "SUFFIX=$SUFFIX"
+            echo "GS_SOURCE=$GS_SOURCE"
+          } >> "$GITHUB_ENV"
+          {
+            echo "arch=$ARCH"
+            echo "suffix=$SUFFIX"
+          } >> "$GITHUB_OUTPUT"
+          echo "APP_ENV=$APP_ENV package=$PACKAGE abis=$ABIS push=$ANDROID_PUSH signing=$SIGNING google-services=$GS_SOURCE"
+
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '21'
+
+      # Pre-installs exactly the SDK components the Gradle project asks for (AGP would otherwise download
+      # them mid-build, slower and without a visible version). Licences are accepted by the action.
+      - uses: android-actions/setup-android@v3
+        with:
+          packages: platform-tools platforms;android-${{ env.ANDROID_PLATFORM }} build-tools;${{ env.ANDROID_BUILD_TOOLS }} ndk;${{ env.ANDROID_NDK }} cmake;${{ env.ANDROID_CMAKE }}
+
+      # Gradle dependency / wrapper caches (~/.gradle); written on main, read-only on other refs.
+      - uses: gradle/actions/setup-gradle@v4
+
+      - name: Install JS dependencies
+        working-directory: mobile
+        run: npm ci --no-audit --no-fund
+
+      - name: Inject request-signing key (empty secret = signing off)
+        working-directory: mobile
+        env:
+          ATTEST_KEY: ${{ secrets.ATTEST_KEY }}
+        run: node scripts/inject-attest-key.mjs
+
+      - name: Expo prebuild (Android)
+        working-directory: mobile
+        run: |
+          set -euo pipefail
+          npx expo prebuild --platform android --no-install
+          # The generated project must carry the package we decided on (APP_ENV reached app.config.js).
+          grep -q "applicationId '$PACKAGE'" android/app/build.gradle
+          if [ "$ANDROID_PUSH" = 1 ]; then test -s android/app/google-services.json; fi
+
+      - name: Gradle assembleRelease
+        working-directory: mobile/android
+        run: ./gradlew :app:assembleRelease "-PreactNativeArchitectures=$ABIS" --console=plain
+
+      # apksigner replaces the template debug signature with the chosen key. Passwords only via env.
+      - name: Sign APK
+        env:
+          KS_B64: ${{ secrets.ANDROID_KEYSTORE_B64 }}
+          KS_PASSWORD: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
+          KEY_ALIAS: ${{ secrets.ANDROID_KEY_ALIAS }}
+          KEY_PASSWORD: ${{ secrets.ANDROID_KEY_PASSWORD }}
+        run: |
+          set -euo pipefail
+          BT="$ANDROID_HOME/build-tools/$ANDROID_BUILD_TOOLS"
+          test -x "$BT/apksigner"
+          IN=mobile/android/app/build/outputs/apk/release/app-release.apk
+          test -s "$IN"
+
+          # versionName / versionCode / package from the APK itself (not from the config).
+          BADGING=$("$BT/aapt2" dump badging "$IN" | grep '^package:')
+          VERSION_NAME=$(sed -n "s/.*versionName='\([^']*\)'.*/\1/p" <<<"$BADGING")
+          VERSION_CODE=$(sed -n "s/.*versionCode='\([^']*\)'.*/\1/p" <<<"$BADGING")
+          # Anchored: a greedy `.*name='` would match compileSdkVersionCodename='…' further on the line.
+          APK_PACKAGE=$(sed -n "s/^package: name='\([^']*\)'.*/\1/p" <<<"$BADGING")
+          test -n "$VERSION_NAME"
+          test -n "$VERSION_CODE"
+          test "$APK_PACKAGE" = "$PACKAGE"
+
+          # The keystore lives only for this step: removed on success, failure or cancellation.
+          KS=''
+          trap 'rm -f "$KS"' EXIT
+          if [ "$SIGNING" = release ]; then
+            KS="$RUNNER_TEMP/release.keystore"
+            printf '%s' "$KS_B64" | base64 -d > "$KS"
+          else
+            KS="$RUNNER_TEMP/ci-debug.keystore"
+            KS_PASSWORD=android; KEY_PASSWORD=android; KEY_ALIAS=cidebug
+            keytool -genkeypair -keystore "$KS" -storetype PKCS12 -storepass "$KS_PASSWORD" -keypass "$KEY_PASSWORD" \
+              -alias "$KEY_ALIAS" -keyalg RSA -keysize 2048 -validity 10000 -dname "CN=INVIZENT CI debug, O=INVIZENT, C=RU"
+          fi
+          export KS_PASSWORD KEY_PASSWORD
+
+          APK="INVIZENT-$VERSION_NAME-Android-$ARCH$SUFFIX.apk"
+          mkdir -p out
+          "$BT/apksigner" sign --ks "$KS" --ks-pass env:KS_PASSWORD --key-pass env:KEY_PASSWORD --ks-key-alias "$KEY_ALIAS" --out "out/$APK" "$IN"
+          rm -f "$KS"
+          "$BT/apksigner" verify --print-certs "out/$APK" | tee out/signer.txt
+          "$BT/zipalign" -c 4 "out/$APK"
+          # 16 KB page alignment of uncompressed .so files (required for Android 15+ targets). Build Tools
+          # older than 35 lack -P; then only warn instead of failing the build.
+          if "$BT/zipalign" -c -P 16 4 "out/$APK"; then
+            echo "zipalign: 16 KB page alignment OK"
+          else
+            echo "::warning::zipalign -c -P 16 4 failed or is unsupported by Build Tools $ANDROID_BUILD_TOOLS: shared libraries may not be 16 KB page-aligned."
+          fi
+          (cd out && sha256sum "$APK" > SHA256SUMS)
+          CERT_SHA256=$(sed -n 's/^Signer #1 certificate SHA-256 digest: //p' out/signer.txt)
+
+          if [ "$ANDROID_PUSH" = 1 ]; then PUSH_JSON=true; else PUSH_JSON=false; fi
+          jq -n --arg version "$VERSION_NAME" --argjson versionCode "$VERSION_CODE" --arg package "$APK_PACKAGE" \
+            --arg appEnv "$APP_ENV" --arg abis "$ABIS" --arg signing "$SIGNING" --arg certSha256 "$CERT_SHA256" \
+            --argjson push "$PUSH_JSON" --arg googleServices "$GS_SOURCE" --arg apiUrl "$EXPO_PUBLIC_API_URL" \
+            --arg commit "$GITHUB_SHA" --arg run "$GITHUB_SERVER_URL/$GITHUB_REPOSITORY/actions/runs/$GITHUB_RUN_ID" \
+            '$ARGS.named' > out/BUILD.json
+
+          {
+            echo "APK=$APK"
+            echo "VERSION_NAME=$VERSION_NAME"
+            echo "VERSION_CODE=$VERSION_CODE"
+            echo "CERT_SHA256=$CERT_SHA256"
+          } >> "$GITHUB_ENV"
+
+      - name: Job summary
+        run: |
+          set -euo pipefail
+          {
+            echo "## Android APK"
+            echo
+            echo "| | |"
+            echo "|---|---|"
+            echo "| APK | \`$APK\` |"
+            echo "| SHA-256 | \`$(cut -d' ' -f1 out/SHA256SUMS)\` |"
+            echo "| package | \`$PACKAGE\` (APP_ENV=$APP_ENV) |"
+            echo "| versionName / versionCode | $VERSION_NAME / $VERSION_CODE |"
+            echo "| ABIs | $ABIS |"
+            if [ "$SIGNING" = release ]; then
+              echo "| signing | owner keystore from secrets (stable key) |"
+            else
+              echo "| signing | **debug key generated in this run** (-debugsigned): test installs only, every run has a new key |"
+            fi
+            echo "| signer certificate SHA-256 | \`$CERT_SHA256\` |"
+            if [ "$ANDROID_PUSH" = 1 ]; then
+              echo "| push | FCM on, $GS_SOURCE |"
+            else
+              echo "| push | **off (ANDROID_PUSH=0)**: this APK never receives notifications |"
+            fi
+            echo "| EXPO_PUBLIC_API_URL | ${EXPO_PUBLIC_API_URL:-(empty: chosen in the app)} |"
+          } >> "$GITHUB_STEP_SUMMARY"
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: invizent-android-${{ steps.params.outputs.arch }}${{ steps.params.outputs.suffix }}
+          path: |
+            out/*.apk
+            out/SHA256SUMS
+            out/BUILD.json
+            out/signer.txt
+          if-no-files-found: error
+
+  # Pure-JVM Kotlin tests of the native modules (docs/BUILD.md «Проверки»). They need JDK 21 and plain
+  # Gradle only, so they run without prebuild or the Android SDK. Gradle 8.14.3 is the version these
+  # projects were last run with (the generated app project uses its own wrapper, 9.x).
+  kotlin-jvm-tests:
+    name: Kotlin JVM tests (${{ matrix.module }})
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    strategy:
+      fail-fast: false
+      matrix:
+        module: [linea-photo, linea-signal, linea-video]
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '21'
+
+      - uses: gradle/actions/setup-gradle@v4
+        with:
+          gradle-version: '8.14.3'
+
+      - name: gradle test
+        env:
+          MODULE: ${{ matrix.module }}
+        run: gradle -p "mobile/modules/$MODULE/jvm-tests" test --console=plain
+
+      - uses: actions/upload-artifact@v4
+        if: failure()
+        with:
+          name: jvm-test-reports-${{ matrix.module }}
+          path: mobile/modules/${{ matrix.module }}/jvm-tests/build/reports/tests
+          if-no-files-found: ignore

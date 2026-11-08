@@ -25,11 +25,12 @@ import { VoiceBar } from './communities/VoiceBar';
 import { formatListTime, useTheme } from './theme';
 import type { Api } from './api';
 import type { Chat, Message, User } from './types';
-import { isQuietAction, pinPreview } from './messageMeta';
+import { chatListText, isQuietAction, pinPreview } from './messageMeta';
 import { countChats } from './plural';
 import type { MessengerStore } from './useMessenger';
 import type { SavedItem } from './saved/saved.ts';
 import { ContextMenu, MenuItem } from './ContextMenu';
+import { StoriesStrip } from './stories/StoriesStrip';
 import { incomingCount, useFriendRequests } from './friendRequests';
 import { useChannelsBadge } from './communities/unread';
 import { impactFeedback, lightFeedback } from './haptics';
@@ -78,6 +79,8 @@ export function ChatListScreen({api,user,store,onProfile,onNewChat,onMusic,onAI,
     <GlassSurface lens material="regular" radius={22} shadow={false} style={{marginHorizontal:16,marginBottom:10}} contentStyle={{flexDirection:'row',alignItems:'center',gap:8,paddingHorizontal:14,minHeight:44}}>
       <Pressable onPress={()=>{lightFeedback();setSearching(true);}} accessibilityRole="search" accessibilityLabel="Поиск" style={{flex:1,flexDirection:'row',alignItems:'center',gap:8,minHeight:44}}><Icon name="search-outline" color={t.muted} size={19}/><Text style={{flex:1,fontSize:17,color:t.muted}}>Поиск</Text></Pressable>
     </GlassSurface>
+    {/* F8: friends' stories above the chats (hidden while nobody has one); not in the archive or while editing. */}
+    {!archive&&!editing?<StoriesStrip api={api} user={user} store={store}/>:null}
     {!archive?<FolderTabs folders={folders.folders} filter={filter} unread={unread} onChange={setFilter} onCreate={()=>setEditor({folder:null})} onEdit={folder=>setEditor({folder})}/>:null}
     <FolderEditor visible={!!editor} folder={editor?.folder||null} chats={store.chats} api={api} onClose={()=>setEditor(null)} onSave={folder=>{folders.upsert(folder);setFilter(folder.id);setEditor(null);}} onDelete={id=>{folders.remove(id);setEditor(null);}}/>
     {store.error?<View style={{paddingHorizontal:17,paddingBottom:12}}><Notice text={store.error} error onRetry={()=>void refresh()}/></View>:null}
@@ -139,7 +142,8 @@ function ChatRow({chat,api,userId,selected,typing,checked,onPress,onLongPress}: 
   // Desktop: right click opens the chat menu at the cursor.
   const ref=useRef<View>(null);const longRef=useRef(onLongPress);longRef.current=onLongPress;
   useEffect(()=>{const node=ref.current as unknown as HTMLElement|null;if(Platform.OS!=='web'||!node?.addEventListener)return;const menu=(e:MouseEvent)=>{e.preventDefault();longRef.current(e.clientY,e.clientX);};node.addEventListener('contextmenu',menu);return()=>node.removeEventListener('contextmenu',menu);},[]);
-  const preview=typing?'Печатает…':last?(last.meta?.action?.type==='pin'&&last.meta.action.target?pinPreview(listText(last.text)||'',last.senderId===userId,chat.peer.displayName):`${listText(last.text)|| (last.attachment?attachmentLabel(last.attachment):'Сообщение')}`):'Напиши первое сообщение';
+  // chatListText hides spoilers (▒) also for a chat whose page is not loaded (the server's lastMessage).
+  const preview=typing?'Печатает…':last?(last.meta?.action?.type==='pin'&&last.meta.action.target?pinPreview(listText(chatListText(last))||'',last.senderId===userId,chat.peer.displayName):`${listText(chatListText(last))|| (last.attachment?attachmentLabel(last.attachment):'Сообщение')}`):'Напиши первое сообщение';
   const muted=!!chat.settings?.muted,pinned=!!chat.settings?.pinnedAt;
   // On a nameplate (dark art) the row's text is light, also in the light theme (it was dark on dark).
   const onPlate=!!chat.peer.nameplate&&!t.dark;
@@ -164,7 +168,7 @@ function ChatPeek({chat,api,userId,messages}:{chat:Chat;api:Api;userId:string;me
     </View>
     <View style={{flex:1,justifyContent:'flex-end',paddingHorizontal:10,paddingBottom:10,gap:4}}>
       {shown.length?shown.map(m=>{const mine=m.senderId===userId;return <View key={m.clientId||m.id} style={{alignSelf:mine?'flex-end':'flex-start',maxWidth:'82%',borderRadius:16,paddingHorizontal:10,paddingVertical:6,backgroundColor:mine?t.bubble:t.incoming}}>
-        <Text numberOfLines={4} raw style={{color:t.text,fontSize:14,lineHeight:19}}>{listText(m.text)||(m.attachment?attachmentLabel(m.attachment):'Сообщение')}</Text>
+        <Text numberOfLines={4} raw style={{color:t.text,fontSize:14,lineHeight:19}}>{listText(chatListText(m))||(m.attachment?attachmentLabel(m.attachment):'Сообщение')}</Text>
       </View>;}):<Text style={{color:t.muted,textAlign:'center',marginBottom:20}}>Сообщений пока нет</Text>}
     </View>
   </View>;

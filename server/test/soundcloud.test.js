@@ -62,11 +62,27 @@ test('stream: HLS address, daily cap enforced, bad URN rejected', async () => {
 });
 
 test('expired token is renewed once on 401', async () => {
-  let first = true;
-  const { fetch, calls } = fakeSoundCloud([['/tracks/', () => { if (first) { first = false; return new Response('{}', { status: 401 }); } return new Response(JSON.stringify(playable(3)), { status: 200 }); }]]);
-  const sc = createSoundCloud({ clientId: 'id', clientSecret: 'secret' }, { fetch });
+  let first = true, clock = 1_000_000;
+  // The token has been around for a while when SoundCloud rejects it: an ordinary expiry.
+  const { fetch, calls } = fakeSoundCloud([['/tracks/', () => { if (first) { first = false; clock += TOKEN_RETRY_MS; return new Response('{}', { status: 401 }); } return new Response(JSON.stringify(playable(3)), { status: 200 }); }]]);
+  const sc = createSoundCloud({ clientId: 'id', clientSecret: 'secret' }, { fetch, now: () => clock });
   assert.equal((await sc.track('soundcloud:tracks:3')).title, 'Track 3');
   assert.equal(calls.filter(c => c.url.includes('oauth/token')).length, 2);
+});
+
+test('a token SoundCloud rejects right after issuing it is not renewed: 502 with the status kept, no token burnt', async () => {
+  let clock = 1_000_000;
+  const { fetch, calls } = fakeSoundCloud([['/tracks/', () => new Response('{}', { status: 401 })]]);
+  const sc = createSoundCloud({ clientId: 'id', clientSecret: 'secret' }, { fetch, now: () => clock });
+  await assert.rejects(sc.track('soundcloud:tracks:3'), error => error.statusCode === 502 && error.status === 401 && error.message === 'SoundCloud сейчас недоступен.');
+  assert.equal(calls.filter(c => c.url.includes('oauth/token')).length, 1, 'the fresh token is kept, not replaced');
+  assert.equal(calls.filter(c => c.url.includes('/tracks/')).length, 1, 'no retry with the same token');
+  clock += TOKEN_RETRY_MS;
+  await assert.rejects(sc.track('soundcloud:tracks:3'), error => error.statusCode === 502);
+  assert.equal(calls.filter(c => c.url.includes('oauth/token')).length, 2, 'once the token is old enough a 401 renews it as before');
+  // A broken token endpoint keeps what failed on the error for the log.
+  const sc2 = createSoundCloud({ clientId: 'id', clientSecret: 'secret' }, { fetch: async () => { throw new TypeError('fetch failed'); } });
+  await assert.rejects(sc2.track('soundcloud:tracks:3'), error => error.statusCode === 502 && error.cause instanceof TypeError);
 });
 
 test('B24: concurrent requests without a token share one /oauth/token call', async t => {
@@ -77,12 +93,12 @@ test('B24: concurrent requests without a token share one /oauth/token call', asy
   assert.equal(calls.filter(c => c.url.includes('oauth/token')).length, 1, 'sixty searches at start-up are one token request');
   assert.ok(calls.filter(c => c.url.includes('/tracks/')).every(c => c.options.headers.authorization === 'OAuth tok1'));
   // The token expires for everybody at once: the whole burst still shares one renewal (via the refresh token).
-  let rejected = 0;
+  let rejected = 0, clock = 1_000_000;
   const { fetch: fetch2, calls: calls2 } = fakeSoundCloud([['/tracks/', (path, options) => {
-    if (options.headers.authorization === 'OAuth tok1' && rejected++ < 100) return new Response('{}', { status: 401 });
+    if (options.headers.authorization === 'OAuth tok1' && rejected++ < 100) { clock += TOKEN_RETRY_MS; return new Response('{}', { status: 401 }); }
     return new Response(JSON.stringify(playable(1)), { status: 200 });
   }]]);
-  const sc2 = createSoundCloud({ clientId: 'id', clientSecret: 'secret' }, { fetch: fetch2 });
+  const sc2 = createSoundCloud({ clientId: 'id', clientSecret: 'secret' }, { fetch: fetch2, now: () => clock });
   await sc2.track('soundcloud:tracks:1').catch(() => {});
   await Promise.all(Array.from({ length: 30 }, () => sc2.track('soundcloud:tracks:1')));
   const tokenCalls = calls2.filter(c => c.url.includes('oauth/token'));

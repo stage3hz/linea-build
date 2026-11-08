@@ -3,13 +3,15 @@
 // reply, an edit, a reaction or a pin from a normal message.
 import type { Message } from './types';
 import { attachmentLabel } from './voice/voice.ts';
+import { maskSpoilers, validEntities, type Entity } from './format/entities.ts';
 
 export const REACTIONS = ['👍', '❤️', '😂', '😮', '😢', '🔥', '👎', '🎉', '🙏', '👏', '🤔', '💯', '😍', '🥰', '😁', '🤣', '😎', '🤯', '😱', '🤬', '🥺', '😭', '🤡', '💩', '👀', '💀', '🫡', '🤝', '✍️', '🙈', '😴', '🤗', '🍾', '💔', '⚡', '🏆', '🥶', '😈', '🫶', '✅', '❌', '👌'] as const;
 export type Reaction = typeof REACTIONS[number];
 
 export type ReplyRef = { clientId: string; senderId: string; preview: string };
 export type MessageAction =
-  | { type: 'edit'; target: string; text: string }
+  // `entities` (bold, spoiler, …) ride along with the new text, as with a normal message.
+  | { type: 'edit'; target: string; text: string; entities?: Entity[] }
   | { type: 'delete'; target: string }
   | { type: 'react'; target: string; emoji: Reaction | null }
   | { type: 'pin'; target: string | null }
@@ -27,7 +29,11 @@ export type ChatRules = { ttl: number; noCopy: boolean };
 export type AlbumRef = { id: string; index: number; count: number };
 export type Poll = { question: string; options: string[]; multiple: boolean };
 export const POLL_LIMITS = { question: 255, option: 100, minOptions: 2, maxOptions: 10 } as const;
-export type MessageMeta = { reply?: ReplyRef; forward?: { from: string }; action?: MessageAction; album?: AlbumRef; poll?: Poll };
+/** Formatting of `text` (Telegram entities, offsets in UTF-16 code units). The plain text stays readable for a client that ignores it. */
+export type { Entity } from './format/entities.ts';
+/** An answer to a friend's story (F8): the chat shows a quote «История», a tap opens the author's stories. */
+export type StoryRef = { id: string; ownerId: string };
+export type MessageMeta = { reply?: ReplyRef; forward?: { from: string }; action?: MessageAction; album?: AlbumRef; poll?: Poll; entities?: Entity[]; story?: StoryRef };
 
 const uuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 const record = (value: unknown): value is Record<string, unknown> => typeof value === 'object' && value !== null && !Array.isArray(value);
@@ -37,7 +43,7 @@ const text = (value: unknown, max: number, allowEmpty = false) => typeof value =
 function validAction(value: unknown): value is MessageAction {
   if (!record(value)) return false;
   switch (value.type) {
-    case 'edit': return only(value, ['type', 'target', 'text']) && typeof value.target === 'string' && uuid.test(value.target) && text(value.text, 8000);
+    case 'edit': return only(value, ['type', 'target', 'text', 'entities']) && typeof value.target === 'string' && uuid.test(value.target) && text(value.text, 8000) && (value.entities === undefined || (validEntities(value.entities, (value.text as string).length) && value.entities.length > 0));
     case 'delete': return only(value, ['type', 'target']) && typeof value.target === 'string' && uuid.test(value.target);
     case 'react': return only(value, ['type', 'target', 'emoji']) && typeof value.target === 'string' && uuid.test(value.target) && (value.emoji === null || (REACTIONS as readonly unknown[]).includes(value.emoji));
     case 'pin': return only(value, ['type', 'target']) && (value.target === null || (typeof value.target === 'string' && uuid.test(value.target)));
@@ -56,7 +62,13 @@ function validAction(value: unknown): value is MessageAction {
 
 export function validMeta(value: unknown): value is MessageMeta {
   if (value === undefined) return true;
-  if (!record(value) || !only(value, ['reply', 'forward', 'action', 'album', 'poll']) || !Object.keys(value).length) return false;
+  if (!record(value) || !only(value, ['reply', 'forward', 'action', 'album', 'poll', 'entities', 'story']) || !Object.keys(value).length) return false;
+  if (value.story !== undefined) {
+    const story = value.story;
+    // A story reference is a quote of its own: never together with a reply quote.
+    if (!record(story) || !only(story, ['id', 'ownerId']) || typeof story.id !== 'string' || !uuid.test(story.id) || typeof story.ownerId !== 'string' || !uuid.test(story.ownerId) || value.reply !== undefined) return false;
+  }
+  if (value.entities !== undefined && (!validEntities(value.entities) || !value.entities.length)) return false;
   if (value.reply !== undefined) {
     const reply = value.reply;
     if (!record(reply) || !only(reply, ['clientId', 'senderId', 'preview']) || typeof reply.clientId !== 'string' || !uuid.test(reply.clientId) || typeof reply.senderId !== 'string' || !uuid.test(reply.senderId) || !text(reply.preview, 200, true)) return false;
@@ -102,21 +114,35 @@ export function isQuietAction(message: Pick<Message, 'meta'>): boolean {
 /** The message the chat list should show: the newest one that is not a quiet action and was not
  *  deleted, with its latest edit applied. Null when the given messages hold none. */
 export function listPreviewMessage<T extends Message>(list: readonly T[]): T | null {
-  const deleted = new Set<string>(), edits = new Map<string, string>();
+  const deleted = new Set<string>(), edits = new Map<string, Edit>();
   const sorted = [...list].sort((a, b) => b.id - a.id);
   for (const message of sorted) {
     const action = message.meta?.action;
     if (action?.type === 'delete') deleted.add(action.target);
-    if (action?.type === 'edit' && !edits.has(action.target)) edits.set(action.target, action.text);
+    if (action?.type === 'edit' && !edits.has(action.target)) edits.set(action.target, { text: action.text, entities: action.entities });
   }
   for (const message of sorted) {
     if (isQuietAction(message) || deleted.has(messageKey(message))) continue;
     const edited = edits.get(messageKey(message));
-    return edited !== undefined && !message.meta?.action ? { ...message, text: edited } : message;
+    const shown = edited !== undefined && !message.meta?.action ? withEdit(message, edited) : message;
+    // The list must not give a spoiler away.
+    const masked = chatListText(shown);
+    return masked === shown.text ? shown : { ...shown, text: masked };
   }
   return null;
 }
 export const isAction = (message: Pick<Message, 'meta'>) => !!message.meta?.action;
+
+type Edit = { text: string; entities?: Entity[] };
+/** The message with an edit applied: new text, and the edit's formatting replaces the old one. */
+function withEdit<T extends Message>(message: T, edit: Edit): T {
+  const meta = { ...message.meta };
+  delete meta.entities;
+  if (edit.entities?.length) meta.entities = edit.entities;
+  return { ...message, text: edit.text, ...(Object.keys(meta).length ? { meta } : { meta: undefined }) };
+}
+/** Chat-list line for a message: plain text with spoilers hidden (▒), formatting dropped. */
+export const chatListText = (message: Pick<Message, 'text' | 'meta'>) => maskSpoilers(message.text, message.meta?.entities);
 
 export type ReactionSummary = { emoji: Reaction; count: number; mine: boolean };
 export type PollResults = { counts: number[]; mine: number[]; voters: number };
@@ -133,7 +159,7 @@ export function foldChat(messages: Message[], userId: string, hiddenForMe: Reado
   const content = new Map<string, Message>();
   const authorOf = new Map<string, string>();
   for (const message of ordered) if (!isAction(message)) { content.set(message.clientId, message); authorOf.set(message.clientId, message.senderId); }
-  const edits = new Map<string, string>(), deleted = new Set<string>(), reactions = new Map<string, Map<string, Reaction>>();
+  const edits = new Map<string, Edit>(), deleted = new Set<string>(), reactions = new Map<string, Map<string, Reaction>>();
   const votes = new Map<string, Map<string, number[]>>();
   let pin: string | null = null;
   // Rules in force at each moment: a message keeps the auto-delete that applied when it was sent.
@@ -154,7 +180,7 @@ export function foldChat(messages: Message[], userId: string, hiddenForMe: Reado
     const author = authorOf.get(action.target);
     if (action.type === 'edit' || action.type === 'delete') {
       if (author !== message.senderId) continue; // only the author; unknown targets are ignored
-      if (action.type === 'edit') edits.set(action.target, action.text); else deleted.add(action.target);
+      if (action.type === 'edit') edits.set(action.target, { text: action.text, entities: action.entities }); else deleted.add(action.target);
       continue;
     }
     if (!author) continue;
@@ -189,7 +215,7 @@ export function foldChat(messages: Message[], userId: string, hiddenForMe: Reado
       item.count++; if (reactor === userId) item.mine = true; summary.set(emoji, item);
     }
     const edit = edits.get(message.clientId);
-    const item: ViewMessage = { ...message, ...(edit !== undefined ? { text: edit } : {}), edited: edit !== undefined, reactions: [...summary.values()].sort((a, b) => REACTIONS.indexOf(a.emoji) - REACTIONS.indexOf(b.emoji)) };
+    const item: ViewMessage = { ...(edit !== undefined ? withEdit(message, edit) : message), edited: edit !== undefined, reactions: [...summary.values()].sort((a, b) => REACTIONS.indexOf(a.emoji) - REACTIONS.indexOf(b.emoji)) };
     const poll = message.meta?.poll;
     if (poll) {
       const counts = poll.options.map(() => 0); let mine: number[] = [];
@@ -206,7 +232,8 @@ export function foldChat(messages: Message[], userId: string, hiddenForMe: Reado
 /** Plain-text one-line quote for a reply. */
 export function replyPreview(message: Pick<Message, 'text' | 'attachment' | 'meta'>): string {
   if (message.meta?.poll) return `📊 ${message.meta.poll.question}`.slice(0, 200);
-  const body = message.text.trim().replace(/\s+/g, ' ');
+  // Formatting is dropped in a quote; a spoiler stays hidden (the preview is plain text).
+  const body = maskSpoilers(message.text, message.meta?.entities).trim().replace(/\s+/g, ' ');
   if (body) return body.slice(0, 200);
   return message.attachment ? attachmentLabel(message.attachment).slice(0, 200) : '';
 }

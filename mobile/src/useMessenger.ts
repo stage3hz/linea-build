@@ -1,4 +1,4 @@
-import { UntrustedDeviceError } from './e2ee/core';
+import { UntrustedDeviceError, type HistoryItem } from './e2ee/core';
 import { reportFailure } from './servers/pool';
 import { networkTier } from './network/quality';
 import { meshActive, useMeshActive } from './nearby/meshState';
@@ -19,17 +19,20 @@ import type { TrustSnapshot } from './e2ee/types';
 import { ALBUM_SIZE, appendAttachments, messageAttachmentBatch } from './messageAttachments';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { getChatPreferences } from './chatPreferences';
-import { actionFallback, isQuietAction, listPreviewMessage, messageKey, pollFallback, type MessageAction, type MessageMeta, type Poll } from './messageMeta';
+import { actionFallback, chatListText, isQuietAction, listPreviewMessage, messageKey, pollFallback, type MessageAction, type MessageMeta, type Poll } from './messageMeta';
+import { packEntities, sliceEntities, type Entity } from './format/entities';
 import { mediaPreviewKind } from './media/formats';
 import { isVideoNote, isVoice } from './voice/voice';
 const isAlbumMedia=(file:Attachment)=>{const kind=mediaPreviewKind(file);return (kind==='photo'||kind==='video')&&!isVoice(file)&&!isVideoNote(file);};
 import { decryptAttachment } from './e2ee/attachments';
 import { resetMediaCache } from './media/mediaCache';
 import { applyPage, mergeMessages } from './messagePages';
-import { coversUnread, readUpTo, readWatermark, reconcileUnread } from './chatUnread';
+import { countsAsUnread, coversUnread, readUpTo, readWatermark, reconcileUnread } from './chatUnread';
+import { MessageIndex, type SearchGroup, type SearchOptions } from './search/messageIndex';
 import { connectionHeld, holdConnection, socketTick } from './connectionHold';
 import { useVoice } from './communities/voice';
 import { attachChannelOutbox, resetChannelOutbox } from './communities/channelOutbox';
+import { clearLogins, noteSocketEvent } from './sessionAlerts';
 
 const HIDDEN_LIMIT = 5000;
 
@@ -97,10 +100,35 @@ export function useMessenger(api: Api, user: User, onExpired: ()=>void) {
     return()=>{current=false;void cryptoRuntime.close();resetMediaCache();};
   },[cryptoRuntime,checkError]);
 
+  // G029: local search over the decrypted history. The index lives in memory only and is fed by every
+  // message decrypted here (hydrate) and, at startup, by the vault's cache (CryptoService.history).
+  const searchIndex=useRef(new MessageIndex());const [searchVersion,setSearchVersion]=useState(0);const searchBump=useRef<ReturnType<typeof setTimeout>|null>(null);
+  const bumpSearch=useCallback(()=>{if(searchBump.current)return;searchBump.current=setTimeout(()=>{searchBump.current=null;if(aliveRef.current)setSearchVersion(v=>v+1);},300);},[]);
+  useEffect(()=>()=>{if(searchBump.current)clearTimeout(searchBump.current);},[]);
+  // The first chat list is on screen: only then is the index filled from the vault (see the startup effect).
+  const listReady=useRef<{promise:Promise<void>;resolve:()=>void}|null>(null);
+  if(!listReady.current){let resolve=()=>{};const promise=new Promise<void>(done=>{resolve=done;});listReady.current={promise,resolve};}
+  const indexMessage=useCallback((message:Pick<Message,'chatId'|'senderId'|'clientId'|'text'|'attachment'|'createdAt'|'cryptoState'|'meta'>)=>{
+    if(message.cryptoState!=='decrypted')return;
+    const action=message.meta?.action;
+    if(action){
+      // Only the author deletes for everyone or edits, so the target is their own message (same senderId).
+      if(action.type==='delete'){if(searchIndex.current.tombstone({chatId:message.chatId,senderId:message.senderId,clientId:action.target}))bumpSearch();}
+      else if(action.type==='edit'){if(searchIndex.current.edit({chatId:message.chatId,senderId:message.senderId,clientId:action.target},action.text,message.createdAt))bumpSearch();}
+      return; // reactions, pins, votes, calls: nothing to search in
+    }
+    if(searchIndex.current.add({chatId:message.chatId,senderId:message.senderId,clientId:message.clientId,text:message.text,sentAt:message.createdAt,...(message.attachment?{attachmentName:message.attachment.name}:{})}))bumpSearch();
+  },[bumpSearch]);
+  const searchMessages=useCallback((query:string,options?:SearchOptions):SearchGroup[]=>searchIndex.current.search(query,options),[]);
+  // A result tapped in the global search: the chat opens and scrolls to that message (ChatScreen watches `focus`).
+  const [focus,setFocus]=useState<{chatId:string;clientId:string;sentAt?:string;at:number}|null>(null);
+  /** `sentAt`: when the message was sent, so the chat knows how far back to load before giving up. */
+  const focusMessage=useCallback((chatId:string,clientId:string,sentAt?:string)=>setFocus({chatId,clientId,...(sentAt?{sentAt}:{}),at:Date.now()}),[]);
+  const clearFocus=useCallback(()=>setFocus(null),[]);
   const hydrate=useCallback(async(message:Message):Promise<Message>=>{
-    try{return cleanShown(await(await cryptoRuntime.get()).preview(message));}
+    try{const shown=cleanShown(await(await cryptoRuntime.get()).preview(message));indexMessage(shown);return shown;}
     catch(e){if(aliveRef.current)setCryptoError(checkError(e));return {...message,text:message.legacy?'Сообщение из старой версии без сквозного шифрования.':'Зашифрованное сообщение недоступно на этом устройстве.',attachment:null,cryptoState:message.legacy?'legacy':'no-key'};}
-  },[cryptoRuntime,checkError]);
+  },[cryptoRuntime,checkError,indexMessage]);
 
   const refreshRecoveryRequests=useCallback(async()=>{
     const revision=++recoveryFetchRef.current;
@@ -130,7 +158,7 @@ export function useMessenger(api: Api, user: User, onExpired: ()=>void) {
       if(aliveRef.current){setChats(sortedChats(counted));setError('');}
     }
     catch(e){if(aliveRef.current)setError(checkError(e));}
-    finally {if(aliveRef.current)setListLoading(false);}
+    finally {if(aliveRef.current)setListLoading(false);listReady.current?.resolve();}
   },[api,checkError,hydrate,user.id]);
   // «Прочитать» from the chat list (swipe or edit mode): no need to have the chat open. The list
   // shows the last real message, so the newest server message (a reaction, an edit) is read from here.
@@ -191,7 +219,7 @@ export function useMessenger(api: Api, user: User, onExpired: ()=>void) {
     setPending(prev=>prev.filter(p=>!(p.chatId===message.chatId&&p.clientId===message.clientId&&message.senderId===user.id)));
     setChats(prev=>sortedChats(prev.map(c=>{
       if(c.id!==message.chatId||(c.lastMessage&&c.lastMessage.id>=message.id))return c;
-      return {...c,lastMessage:message,updatedAt:isQuietAction(message)?c.updatedAt:message.createdAt,unreadCount:message.senderId===user.id||message.meta?.action?c.unreadCount:c.unreadCount+1};
+      return {...c,lastMessage:message,updatedAt:isQuietAction(message)?c.updatedAt:message.createdAt,unreadCount:countsAsUnread(message,user.id)?c.unreadCount+1:c.unreadCount};
     })));
     if(message.senderId!==user.id&&message.cryptoState==='decrypted')void markRead(message.chatId,message.id);
   },[user.id,markRead,cryptoRuntime,hydrate,checkError]);
@@ -213,7 +241,8 @@ export function useMessenger(api: Api, user: User, onExpired: ()=>void) {
         if(stopped||socketRef.current!==socket)return;
         lastReceive=Date.now();
         let data:any;try{data=JSON.parse(String(event.data));}catch{return;}
-        if(typeof data.type==='string'&&(data.type.startsWith('community')||data.type.startsWith('voice')||data.type.startsWith('sfu')||data.type==='friends'||data.type==='ready'||data.type==='error'))socketListeners.current.forEach(listener=>{try{listener(data);}catch{/* keep other listeners */}});
+        // `story` / `story.view` reach the stories strip above the chat list (StoriesStrip).
+        if(typeof data.type==='string'&&(data.type.startsWith('community')||data.type.startsWith('voice')||data.type.startsWith('sfu')||data.type.startsWith('story')||data.type==='friends'||data.type==='ready'||data.type==='error'))socketListeners.current.forEach(listener=>{try{listener(data);}catch{/* keep other listeners */}});
         if(data.type==='ready'){
           attempts=0;setConnection('connected');void refreshChats();void refreshRecoveryRequests();
           if(selectedRef.current)void loadMessages(selectedRef.current);
@@ -227,6 +256,7 @@ export function useMessenger(api: Api, user: User, onExpired: ()=>void) {
         else if(data.type==='presence.snapshot'&&Array.isArray(data.items)){setPresence(Object.fromEntries(data.items.filter((p:any)=>p&&typeof p.userId==='string').map((p:any)=>[p.userId,p])));}
         else if(data.type==='presence'&&data.presence&&typeof data.presence.userId==='string'){setPresence(prev=>({...prev,[data.presence.userId]:data.presence}));}
         else if(data.type==='recovery.requested'||data.type==='recovery.updated'){void refreshRecoveryRequests();}
+        else if(data.type==='session.new'){noteSocketEvent(data);}
         else if(data.type==='e2ee.devices'){if(selectedRef.current)void loadMessages(selectedRef.current);void refreshChats();}
       };
       socket.onclose=event=>{
@@ -268,7 +298,7 @@ export function useMessenger(api: Api, user: User, onExpired: ()=>void) {
       else if(state==='background'&&!connectionHeld())sleep();
     });
     const recoveryPoll=setInterval(()=>{if(appState.current==='active')void refreshRecoveryRequests();},30000);
-    return ()=>{stopped=true;aliveRef.current=false;++recoveryFetchRef.current;if(retry)clearTimeout(retry);clearInterval(heartbeat);clearInterval(recoveryPoll);subscription.remove();socketRef.current?.close();socketRef.current=null;resetChannelOutbox();};
+    return ()=>{stopped=true;aliveRef.current=false;++recoveryFetchRef.current;if(retry)clearTimeout(retry);clearInterval(heartbeat);clearInterval(recoveryPoll);subscription.remove();socketRef.current?.close();socketRef.current=null;resetChannelOutbox();clearLogins();};
   },[api,user.id,refreshChats,loadMessages,acceptMessage,refreshRecoveryRequests,onSocket]);
 
   const selectChat=useCallback((chat:Chat|null)=>{
@@ -278,6 +308,8 @@ export function useMessenger(api: Api, user: User, onExpired: ()=>void) {
   },[loadMessages]);
 
   const uploadsRef=useRef(new Map<string,AbortController>());
+  /** Peers of the messages restored from the vault outbox (G001), until each is delivered or forgotten; `reencrypted`: the one automatic retry after a device-list change. */
+  const restoredPeers=useRef(new Map<string,string>());const reencrypted=useRef(new Set<string>());
   // After a send the list is already updated locally; a full reload is only a check, so several
   // sends share one, and on a slow link (EDGE) it waits longer so it never competes with messages.
   const refreshTimer=useRef<ReturnType<typeof setTimeout>|null>(null);
@@ -290,8 +322,9 @@ export function useMessenger(api: Api, user: User, onExpired: ()=>void) {
     let meshBody:string|null=null;let meshPeer='';
     setPending(prev=>[...prev.filter(p=>p.clientId!==item.clientId),{...item,state:'sending',error:undefined}]);
     try {
-      const peer=chatsRef.current.find(chat=>chat.id===item.chatId)?.peer;
-      if(!peer)throw new Error('Сначала открой разговор.');
+      // A message restored from the vault outbox (G001) knows its peer even before the chat list has loaded.
+      const peerId=chatsRef.current.find(chat=>chat.id===item.chatId)?.peer.id??restoredPeers.current.get(item.clientId);
+      if(!peerId)throw new Error('Сначала открой разговор.');
       if(item.upload&&!item.attachment?.encryption){
         // Big file: upload in chunks first, with progress in the bubble. «Повторить» continues where it stopped.
         const abort=new AbortController();uploadsRef.current.set(item.clientId,abort);
@@ -303,14 +336,23 @@ export function useMessenger(api: Api, user: User, onExpired: ()=>void) {
           setPending(prev=>prev.map(p=>p.clientId===item.clientId?item:p));
         }finally{uploadsRef.current.delete(item.clientId);}
       }
-      const crypto=await cryptoRuntime.get();const encrypted=await crypto.encrypt(item.chatId,peer.id,item.clientId,item.text,item.attachment,item.meta);
-      meshPeer=peer.id;meshBody=!item.attachment&&!item.meta?.action?JSON.stringify({chatId:item.chatId,clientId:item.clientId,senderId:user.id,encrypted}):null;
+      const crypto=await cryptoRuntime.get();const encrypted=await crypto.encrypt(item.chatId,peerId,item.clientId,item.text,item.attachment,item.meta);
+      meshPeer=peerId;meshBody=!item.attachment&&!item.meta?.action?JSON.stringify({chatId:item.chatId,clientId:item.clientId,senderId:user.id,encrypted}):null;
       const action=item.meta?.action;const result=await api.sendEncrypted(item.chatId,item.clientId,encrypted,!action?undefined:action.type==='call'&&action.step==='offer'?'call':'none');
       await crypto.delivered(item.chatId,item.clientId).catch(()=>{});
+      restoredPeers.current.delete(item.clientId);
       if(aliveRef.current){await acceptMessage(result.message);softRefresh();}
     }
     catch(e){
-      if(e instanceof ApiError&&e.code==='E2EE_DEVICES_CHANGED')await cryptoRuntime.get().then(crypto=>crypto.rejectedDeviceSet(item.chatId,item.clientId)).catch(()=>{});
+      if(e instanceof ApiError&&e.code==='E2EE_DEVICES_CHANGED'){
+        // The committed ciphertext is for a device list that is no longer current: the next attempt encrypts afresh.
+        await cryptoRuntime.get().then(crypto=>crypto.rejectedDeviceSet(item.chatId,item.clientId)).catch(()=>{});
+        // A message restored from the vault (G001) gets that one attempt by itself; a live send shows «Повторить».
+        if(restoredPeers.current.has(item.clientId)&&!reencrypted.current.has(item.clientId)&&aliveRef.current){reencrypted.current.add(item.clientId);void performSendRef.current(item);return;}
+      }
+      // Refused for good (not «try later» 429, not a dead session 401, not a device-list change handled above):
+      // the vault forgets the message, or it would come back as «часики» after every restart (G001).
+      else if(e instanceof ApiError&&e.status>=400&&e.status<500&&e.status!==401&&e.status!==408&&e.status!==429){restoredPeers.current.delete(item.clientId);await cryptoRuntime.get().then(crypto=>crypto.forget(item.chatId,item.clientId)).catch(()=>{});}
       if(e instanceof Error&&e.name==='AbortError')return;
       if(aliveRef.current){const message=checkError(e);if(e instanceof Error&&e.name==='UntrustedDeviceError')setCryptoError(message);setPending(prev=>prev.map(p=>p.clientId===item.clientId?{...p,...(item.upload?{upload:item.upload}:{}),state:'failed',error:message,offline:e instanceof NetworkError?(item.offline||0)+1:undefined,mesh:p.mesh}:p));}
       // No internet but Mesh is on: hand the same encrypted message to phones nearby. The server
@@ -338,11 +380,12 @@ export function useMessenger(api: Api, user: User, onExpired: ()=>void) {
       void cryptoRuntime.get().then(crypto=>crypto.receiveMesh(input as Parameters<typeof crypto.receiveMesh>[0])).then(plain=>{
         if(!plain||!aliveRef.current)return;
         const message=cleanShown({id:MESH_ID_BASE+(++meshSeq.current),chatId:chat.id,senderId:chat.peer.id,clientId:input.clientId as string,text:plain.text,attachment:plain.attachment,createdAt:plain.sentAt,cryptoState:'decrypted',mesh:true,...(plain.meta?{meta:plain.meta}:{})});
+        indexMessage(message);
         setMessages(prev=>({...prev,[chat.id]:mergeMessages(prev[chat.id]||[],[message])}));
         publishReceipt('ack',chat.peer.id,packet.id);
       }).catch(()=>{});
     },
-  }),[cryptoRuntime]);
+  }),[cryptoRuntime,indexMessage]);
   // «Прочитано» over Mesh for messages that came over Mesh, once the chat is open.
   useEffect(()=>{
     if(!selectedId||!meshActive())return;
@@ -363,6 +406,45 @@ export function useMessenger(api: Api, user: User, onExpired: ()=>void) {
     },1000);
     return()=>clearInterval(timer);
   },[performSend]);
+  // G001: messages encrypted and committed to the vault but never confirmed by the server (the app was
+  // closed or crashed mid-send) come back as «часики» bubbles and go out again through the same path:
+  // encrypt() returns the committed ciphertext for the same clientId and the server drops duplicates by
+  // clientId, so a message that did reach the server just gets confirmed. Then, once the chat list is on
+  // screen, the search index is filled from the vault's decrypted cache: newest chats first, one history
+  // page per turn of the crypto queue (sending and decrypting are never kept waiting), until the index is
+  // full and what is left is older than everything it keeps. Deletions and edits in the cache are applied
+  // the same way as live ones (indexMessage), so deleted text never shows up in results.
+  const performSendRef=useRef(performSend);performSendRef.current=performSend;
+  useEffect(()=>{
+    let live=true;
+    void (async()=>{
+      const service=await cryptoRuntime.get();
+      const items=await service.pendingOutbox();if(!live)return;
+      for(const item of items)restoredPeers.current.set(item.clientId,item.peerId);
+      const restored:PendingMessage[]=items.filter(item=>!pendingRef.current.some(p=>p.clientId===item.clientId)).map(item=>({clientId:item.clientId,chatId:item.chatId,text:item.text,attachment:item.attachment,state:'sending' as const,createdAt:item.sentAt,...(item.meta?{meta:item.meta}:{})}));
+      if(restored.length)setPending(prev=>[...prev.filter(p=>!restored.some(item=>item.clientId===p.clientId)),...restored]);
+      for(const item of restored){if(!live)return;await performSendRef.current(item);}
+      await listReady.current?.promise;await new Promise(resolve=>setTimeout(resolve,50));if(!live)return;
+      const cached=new Set(await service.historyChats());if(!live)return;
+      const order=[...chatsRef.current.map(chat=>chat.id).filter(id=>cached.has(id)),...[...cached].filter(id=>!chatsRef.current.some(chat=>chat.id===id))];
+      const index=searchIndex.current;const newest=(list:{sentAt:string}[])=>list.reduce((max,item)=>Math.max(max,Date.parse(item.sentAt)||0),0);
+      const feed=(item:HistoryItem)=>indexMessage({chatId:item.chatId,senderId:item.senderId,clientId:item.clientId,text:item.text,attachment:item.attachment,createdAt:item.sentAt,cryptoState:'decrypted',...(item.meta?{meta:item.meta}:{})});
+      for(const chatId of order){
+        const last=chatsRef.current.find(chat=>chat.id===chatId)?.lastMessage;
+        if(index.full&&last&&(Date.parse(last.createdAt)||0)<index.oldestTime)continue; // the whole chat is older than what the index keeps
+        let page:number|undefined;
+        while(live){
+          const result=await service.historyPage(chatId,page);if(!live)return;
+          // Newest first within the page: a deletion is seen before the message it deletes, an edit before the original.
+          for(const item of result.items)feed(item);
+          if(result.previous===null||(index.full&&newest(result.items)<index.oldestTime))break;
+          page=result.previous;
+          await new Promise(resolve=>setTimeout(resolve,0));
+        }
+      }
+    })().catch(()=>{/* no vault (browser) or the session ended: nothing to restore */});
+    return()=>{live=false;};
+  },[cryptoRuntime,indexMessage]);
   /** Sends a big file at once as a bubble with upload progress (the draft flow is for small files). */
   const sendLargeFile=useCallback((chatId:string,file:LocalFile,text='')=>{
     const placeholder:Attachment={id:'00000000-0000-4000-8000-000000000000',name:file.name.slice(0,240)||'file',mimeType:(file.mimeType||'application/octet-stream').slice(0,150),size:file.size||0};
@@ -390,7 +472,7 @@ export function useMessenger(api: Api, user: User, onExpired: ()=>void) {
     });
   },[hiddenKey]);
   /** Forwarding re-encrypts for the new chat; a file is decrypted locally and uploaded again as a new encrypted file. */
-  const forward=useCallback(async(targetChatId:string,message:Pick<Message,'text'|'attachment'|'senderId'>,fromName:string)=>{
+  const forward=useCallback(async(targetChatId:string,message:Pick<Message,'text'|'attachment'|'senderId'|'meta'>,fromName:string)=>{
     let attachment:Attachment|null=null;
     if(message.attachment){
       const local=await decryptAttachment(api,message.attachment);
@@ -399,11 +481,16 @@ export function useMessenger(api: Api, user: User, onExpired: ()=>void) {
     }
     const text=message.text||'';
     if(!text.trim()&&!attachment)throw new Error('Пустое сообщение нельзя переслать.');
-    send(targetChatId,text,attachment,{forward:{from:fromName.slice(0,80)||'собеседник'}});
+    // The formatting (bold, spoiler, …) travels with the forwarded text; a reply quote, reactions or an album do not.
+    const entities=packEntities(message.meta?.entities,text);
+    send(targetChatId,text,attachment,{forward:{from:fromName.slice(0,80)||'собеседник'},...(entities?{entities}:{})});
   },[api,send]);
-  const sendAttachments=useCallback((chatId:string,text:string,attachments:Attachment[])=>{
+  /** `entities` format the caption (offsets over `text`); they go with the first part, which carries the caption. */
+  const sendAttachments=useCallback((chatId:string,text:string,attachments:Attachment[],entities?:readonly Entity[])=>{
     const started=Date.now();
     const parts=messageAttachmentBatch(text,attachments);
+    const lead=text.length-text.trimStart().length;
+    const captionEntities=entities?.length?packEntities(sliceEntities(entities,text,{start:lead,end:lead+text.trim().length}),text.trim()):undefined;
     // Two or more photos/videos go out as one album (Telegram groups them into a grid).
     // Up to 10 per album (Telegram): 25 photos become albums of 10 + 10 + 5; the caption goes with the first.
     const visual=parts.filter(part=>part.attachment&&isAlbumMedia(part.attachment));
@@ -415,7 +502,7 @@ export function useMessenger(api: Api, user: User, onExpired: ()=>void) {
       return count>=2?{group,index:index-start,count}:null;
     };
     const albumIds=Array.from({length:Math.ceil(visual.length/ALBUM_SIZE)},()=>Crypto.randomUUID());
-    const items:PendingMessage[]=ordered.map((part,index)=>{const album=albumOf(index);return {...part,clientId:Crypto.randomUUID(),chatId,state:'sending',createdAt:new Date(started+index).toISOString(),...(album?{meta:{album:{id:albumIds[album.group],index:album.index,count:album.count}}}:{})};});
+    const items:PendingMessage[]=ordered.map((part,index)=>{const album=albumOf(index);const meta:MessageMeta={...(album?{album:{id:albumIds[album.group],index:album.index,count:album.count}}:{}),...(captionEntities&&part.text===text.trim()?{entities:captionEntities}:{})};return {...part,clientId:Crypto.randomUUID(),chatId,state:'sending',createdAt:new Date(started+index).toISOString(),...(Object.keys(meta).length?{meta}:{})};});
     setPending(previous=>[...previous,...items]);
     void (async()=>{for(const item of items){if(!aliveRef.current)return;await performSend(item);}})();
   },[performSend]);
@@ -452,17 +539,23 @@ export function useMessenger(api: Api, user: User, onExpired: ()=>void) {
   // «Удалить чат» (for me): the chat leaves the list until a newer message arrives; stored on this device.
   const removedKey=`linea.removed-chats.v1:${user.id}`;
   const [removed,setRemoved]=useState<Record<string,number>>({});
+  /** What a deleted chat leaves on this device goes too: its search entries, its unsent messages and the vault's history names (G029/G001). */
+  const forgetChatLocally=useCallback((chatId:string)=>{
+    searchIndex.current.removeChat(chatId);bumpSearch();
+    setPending(prev=>prev.some(p=>p.chatId===chatId)?prev.filter(p=>p.chatId!==chatId):prev);
+    void cryptoRuntime.get().then(crypto=>crypto.forgetChat(chatId)).catch(()=>{});
+  },[bumpSearch,cryptoRuntime]);
   useEffect(()=>{let live=true;AsyncStorage.getItem(removedKey).then(raw=>{if(live&&raw)try{const value=JSON.parse(raw);if(value&&typeof value==='object')setRemoved(value);}catch{/* ignore */}}).catch(()=>{});return()=>{live=false;};},[removedKey]);
   const removeChat=useCallback((chat:Chat)=>{
     setRemoved(previous=>{const next={...previous,[chat.id]:chat.lastMessage?.id||0};void AsyncStorage.setItem(removedKey,JSON.stringify(next)).catch(()=>{});return next;});
-    (messages[chat.id]||[]).forEach(message=>hideForMe(message));
+    (messages[chat.id]||[]).forEach(message=>hideForMe(message));forgetChatLocally(chat.id);
     if(selectedRef.current===chat.id)selectChat(null);
-  },[removedKey,messages,hideForMe,selectChat]);
+  },[removedKey,messages,hideForMe,selectChat,forgetChatLocally]);
   const removeChatForEveryone=useCallback(async(chat:Chat)=>{
     await api.deleteChatForEveryone(chat.id);
-    setChats(prev=>prev.filter(c=>c.id!==chat.id));setMessages(prev=>{const next={...prev};delete next[chat.id];return next;});
+    setChats(prev=>prev.filter(c=>c.id!==chat.id));setMessages(prev=>{const next={...prev};delete next[chat.id];return next;});forgetChatLocally(chat.id);
     if(selectedRef.current===chat.id)selectChat(null);
-  },[api,selectChat]);
+  },[api,selectChat,forgetChatLocally]);
   // Chat list preview like Telegram: reactions, unpins, votes, edits and deletions are messages too
   // (the server cannot tell, they are encrypted), but the list shows the last real message. For a
   // chat never opened, its recent page is read quietly (no «read» mark) to find that message.
@@ -491,10 +584,13 @@ export function useMessenger(api: Api, user: User, onExpired: ()=>void) {
     const last=chat.lastMessage;if(!last)return chat;
     const loaded=messages[chat.id];
     const shown=loaded?.length?listPreviewMessage([...loaded,last]):isQuietAction(last)?previewFill[chat.id]??null:last;
-    return shown&&shown!==last?{...chat,lastMessage:shown}:chat;
+    // The server's lastMessage is shown as is when no page is loaded: a spoiler in it must still be hidden.
+    const masked=shown&&shown===last?chatListText(shown):null;
+    const final=masked!==null&&masked!==last.text?{...last,text:masked}:shown;
+    return final&&final!==last?{...chat,lastMessage:final}:chat;
   }),[filtered,messages,previewFill]);
   // While it is being re-sent by itself, the bubble shows the clock, not «Не отправлено».
   const shownPending=useMemo(()=>pending.map(p=>p.state==='failed'&&p.offline&&(p.offline<=40||p.mesh)&&!p.upload?{...p,state:'sending' as const,error:undefined}:p),[pending]);
-  return {onSocket,sendSocket,onCallSignal,readChat,presence,chats:visibleChats,removeChat,removeChatForEveryone,messages,hasMore,pending:shownPending,selectedId,selectChat,connection,listLoading,messageLoading,error,setError,typing,refreshChats,loadMessages,send,sendAction,hideForMe,hidden,forward,sendAttachments,sendLargeFile,cancelPending,retry:performSend,sendPoll,sendTyping,drafts,draftFiles,setDraft,setDraftFile,setDraftFiles,appendDraftFiles,removeDraftFile,recoveryRequests,recoveryError,refreshRecoveryRequests,cancelRecovery,cryptoError,trustSnapshot,approveDevices,uploadEncrypted,saved,aiHistory,updateChatSettings};
+  return {onSocket,sendSocket,onCallSignal,readChat,presence,chats:visibleChats,removeChat,removeChatForEveryone,messages,hasMore,pending:shownPending,selectedId,selectChat,connection,listLoading,messageLoading,error,setError,typing,refreshChats,loadMessages,send,sendAction,hideForMe,hidden,forward,sendAttachments,sendLargeFile,cancelPending,retry:performSend,sendPoll,sendTyping,drafts,draftFiles,setDraft,setDraftFile,setDraftFiles,appendDraftFiles,removeDraftFile,recoveryRequests,recoveryError,refreshRecoveryRequests,cancelRecovery,cryptoError,trustSnapshot,approveDevices,uploadEncrypted,saved,aiHistory,updateChatSettings,searchMessages,searchVersion,focus,focusMessage,clearFocus};
 }
 export type MessengerStore = ReturnType<typeof useMessenger>;

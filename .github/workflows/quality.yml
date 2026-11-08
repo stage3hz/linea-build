@@ -1,0 +1,122 @@
+name: Quality gate
+
+# Fast regression gate for every pull request and every push to main: server, mobile and desktop tests
+# run as independent jobs (parallel, each with its own npm cache), and the final `gate` job fails when any
+# of them did not succeed. Mark «Quality gate / gate» as a required status check in branch protection:
+# it is the one name that covers all three, and it fails on skipped or cancelled jobs as well.
+#
+# Commands mirror the package.json scripts (`npm test`) so local and CI results match:
+# `--test-isolation=none` is what the repository already uses (shared fixtures, one Node process).
+# Builds, Electron smoke tests and the APK/IPA/EXE packaging stay in their own workflows.
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+
+permissions:
+  contents: read
+
+concurrency:
+  # One run per PR / branch; a newer push cancels the older run.
+  group: quality-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
+env:
+  CI: '1'
+  EXPO_NO_TELEMETRY: '1'
+
+jobs:
+  server:
+    name: Server tests (Node 24)
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: npm
+          cache-dependency-path: server/package-lock.json
+      - run: npm ci --no-audit --no-fund
+        working-directory: server
+      - name: Syntax check of entry points
+        run: npm run check
+        working-directory: server
+      - name: node --test test/*.test.js
+        run: node --test --test-isolation=none test/*.test.js
+        working-directory: server
+
+  mobile:
+    name: Mobile typecheck + tests (Node 24)
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: npm
+          cache-dependency-path: |
+            mobile/package-lock.json
+            server/package-lock.json
+      - run: npm ci --no-audit --no-fund
+        working-directory: mobile
+      # mobile/test/e2ee-relay-integration.test.mjs imports ../../server/src/app.js, so the server tree
+      # must be installed as well.
+      - run: npm ci --no-audit --no-fund
+        working-directory: server
+      - name: tsc --noEmit
+        run: npx tsc --noEmit -p .
+        working-directory: mobile
+      # All mobile Node tests, including E2EE. e2ee-native-interop skips itself when the JVM interop
+      # driver is not built (that needs Gradle; the Kotlin tests run in android-apk.yml).
+      - name: node --test test/*.test.mjs
+        run: node --test --test-isolation=none test/*.test.mjs
+        working-directory: mobile
+
+  desktop:
+    name: Desktop tests (Node 24)
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    env:
+      # `npm test` runs plain Node tests; the Electron binary is not needed (Electron smoke tests live in
+      # windows-desktop.yml), so skip its ~100 MB download.
+      ELECTRON_SKIP_BINARY_DOWNLOAD: '1'
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: npm
+          cache-dependency-path: |
+            desktop/package-lock.json
+            mobile/package-lock.json
+      # desktop `npm test` also runs ../mobile/test/desktop-*.test.mjs, which load TypeScript sources
+      # through mobile/node_modules/typescript, so both trees are installed.
+      - run: npm ci --no-audit --no-fund
+        working-directory: mobile
+      - run: npm ci --no-audit --no-fund
+        working-directory: desktop
+      # = node --test test/*.test.mjs && node --test --test-isolation=none ../mobile/test/desktop-*.test.mjs
+      # (desktop/test has only .mjs files; there are no .cjs tests).
+      - name: npm test
+        run: npm test
+        working-directory: desktop
+
+  # Single required check. `if: always()` makes it run even when a job failed, so the result is
+  # explicit (a skipped required check would block merging forever).
+  gate:
+    name: gate
+    needs: [server, mobile, desktop]
+    if: always()
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: All jobs must have succeeded
+        env:
+          NEEDS: ${{ toJSON(needs) }}
+        run: |
+          set -euo pipefail
+          echo "$NEEDS"
+          jq -e 'all(.[]; .result == "success")' <<<"$NEEDS" >/dev/null || { echo "::error::At least one quality job did not succeed"; exit 1; }

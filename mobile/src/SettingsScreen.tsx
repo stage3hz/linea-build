@@ -40,8 +40,9 @@ import { OverlaySettings } from './overlay/OverlaySettings';
 import { lightFeedback } from './haptics';
 import { LANGUAGES, getLanguage, setLanguage, tr, useLanguage } from './i18n';
 import { fileLimits, type FileLimits } from './e2ee/attachments';
+import { PasscodeRow, PasscodeSection } from './lock/PasscodeSettings';
 
-type Section = 'root' | 'appearance' | 'night' | 'privacy' | 'data' | 'language' | 'folders' | 'power' | 'audio' | 'overlay';
+type Section = 'root' | 'appearance' | 'night' | 'privacy' | 'passcode' | 'data' | 'language' | 'folders' | 'power' | 'audio' | 'overlay';
 type Props = {
   api: Api; user: User; theme: ThemeMode; darkTheme: DarkTheme;
   /** From the one `useNightState` in App: the night theme on screen, the rule's own verdict and whether it is known yet (dev previews leave it out: day). */
@@ -61,10 +62,10 @@ export function SettingsScreen(props: Props) {
   const p0 = useSharedValue(1), p1 = useSharedValue(1), p2 = useSharedValue(1);
   const levels = [p0, p1, p2];
   const page = (current: Section, onBack: () => void) => {
-    const title = current === 'night' ? 'Ночная тема' : current === 'overlay' ? 'Оверлей' : current === 'audio' ? 'Звук и микрофон' : current === 'appearance' ? 'Оформление' : current === 'privacy' ? 'Конфиденциальность' : current === 'data' ? 'Данные и память' : current === 'language' ? 'Язык' : current === 'folders' ? 'Папки с чатами' : current === 'power' ? 'Энергосбережение' : 'Настройки';
+    const title = current === 'night' ? 'Ночная тема' : current === 'overlay' ? 'Оверлей' : current === 'audio' ? 'Звук и микрофон' : current === 'appearance' ? 'Оформление' : current === 'privacy' ? 'Конфиденциальность' : current === 'passcode' ? 'Код-пароль' : current === 'data' ? 'Данные и память' : current === 'language' ? 'Язык' : current === 'folders' ? 'Папки с чатами' : current === 'power' ? 'Энергосбережение' : 'Настройки';
     if (current === 'root') return <Root {...props} onBack={onBack} open={open} />;
     return <Page title={title} backLabel="Назад" onBack={onBack}>
-      {current === 'appearance' ? <Appearance {...props} open={open} /> : current === 'night' ? <NightSettings {...props} /> : current === 'privacy' ? <PrivacySection api={props.api} /> : current === 'language' ? <LanguageSection /> : current === 'folders' ? <FoldersSection api={props.api} user={props.user} chats={props.chats || []} /> : current === 'power' ? <Group><MotionSettings /></Group> : current === 'audio' ? <AudioSettings /> : current === 'overlay' ? <OverlaySettings /> : <DataSection api={props.api} />}
+      {current === 'appearance' ? <Appearance {...props} open={open} /> : current === 'night' ? <NightSettings {...props} /> : current === 'privacy' ? <PrivacySection api={props.api} open={open} /> : current === 'passcode' ? <PasscodeSection /> : current === 'language' ? <LanguageSection /> : current === 'folders' ? <FoldersSection api={props.api} user={props.user} chats={props.chats || []} /> : current === 'power' ? <Group><MotionSettings /></Group> : current === 'audio' ? <AudioSettings /> : current === 'overlay' ? <OverlaySettings /> : <DataSection api={props.api} />}
     </Page>;
   };
   // Each level slides in over the previous one, which shifts aside and dims (StackBase) and closes
@@ -104,7 +105,7 @@ function Page({ title, backLabel, onBack, children }: { title: string; backLabel
   </View>;
 }
 
-function Group({ children, label }: { children: React.ReactNode; label?: string }) {
+export function Group({ children, label }: { children: React.ReactNode; label?: string }) {
   const t = useTheme(); const language = useLanguage();
   return <View style={{ gap: 7 }}>
     {label ? <Text raw style={{ color: t.muted, fontSize: 11, fontWeight: t.black ? '500' : '700', letterSpacing: 1.2, paddingHorizontal: 8 }}>{tr(label, language).toUpperCase()}</Text> : null}
@@ -115,7 +116,7 @@ function Group({ children, label }: { children: React.ReactNode; label?: string 
   </View>;
 }
 
-function Item({ icon, color, label, value, onPress, danger = false }: { icon: IconName; color: string; label: string; value?: string; onPress: () => void; danger?: boolean }) {
+export function Item({ icon, color, label, value, onPress, danger = false }: { icon: IconName; color: string; label: string; value?: string; onPress: () => void; danger?: boolean }) {
   const t = useTheme();
   const iconScale = useSharedValue(1); const iconStyle = useAnimatedStyle(() => ({ transform: [{ scale: iconScale.value }] }));
   return <Pressable accessibilityRole="button" onPress={onPress} onPressIn={() => { iconScale.value = withSpring(.82, { damping: 14, stiffness: 420 }); }} onPressOut={() => { iconScale.value = withSpring(1, { damping: 9, stiffness: 260 }); }} style={({ pressed }) => ({ flexDirection: 'row', alignItems: 'center', gap: 13, minHeight: 48, paddingHorizontal: 14, backgroundColor: pressed ? 'rgba(127,127,127,0.12)' : 'transparent' })}>
@@ -127,7 +128,7 @@ function Item({ icon, color, label, value, onPress, danger = false }: { icon: Ic
   </Pressable>;
 }
 
-function Toggle({ label, description, value, onChange, disabled = false, badge }: { label: string; description: string; value: boolean; onChange: (value: boolean) => void; disabled?: boolean; badge?: string }) {
+export function Toggle({ label, description, value, onChange, disabled = false, badge }: { label: string; description: string; value: boolean; onChange: (value: boolean) => void; disabled?: boolean; badge?: string }) {
   const t = useTheme();
   return <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12, paddingHorizontal: 14, paddingVertical: 11 }}>
     <View style={{ flex: 1, gap: 3 }}><View style={{ flexDirection: 'row', alignItems: 'center', gap: 7 }}><Text style={{ color: t.text, fontSize: 15 }}>{label}</Text>{badge ? <View style={{ flexDirection: 'row', alignItems: 'center', gap: 3, paddingHorizontal: 7, paddingVertical: 2, borderRadius: 8, backgroundColor: t.accentSoft }}><Icon name="lock-closed" size={10} color={t.accent} /><Text style={{ color: t.accent, fontSize: 11, fontWeight: '700' }}>{badge}</Text></View> : null}</View><Text style={{ color: t.muted, fontSize: 12, lineHeight: 17 }}>{description}</Text></View>
@@ -319,7 +320,7 @@ function TimePicker({ value, onDone }: { value: string; onDone: (value: string) 
   </View>;
 }
 
-function PrivacySection({ api }: { api: Api }) {
+function PrivacySection({ api, open }: { api: Api; open: (section: Section) => void }) {
   const t = useTheme(); const preferences = useChatPreferences();
   const [privacy, setPrivacy] = useState<Privacy | null>(null); const [error, setError] = useState(''); const [saving, setSaving] = useState(false);
   const [platina, setPlatina] = useState(false);
@@ -334,6 +335,8 @@ function PrivacySection({ api }: { api: Api }) {
   };
   return <>
     {error ? <Notice text={error} error onRetry={privacy ? undefined : load} /> : null}
+    {/* Telegram: the device lock sits first on the privacy screen. */}
+    <Group label="Безопасность"><PasscodeRow onPress={() => open('passcode')} /></Group>
     <Group label="На сервере">
       {!privacy ? <ActivityIndicator color={t.accent} style={{ padding: 20 }} /> : <>
         <Toggle label="Новые разговоры" description="Кто ещё не писал тебе, сможет начать чат. Выключи, чтобы писали только те, с кем переписка уже есть." value={privacy.allowNewChats} disabled={saving} onChange={value => void change({ allowNewChats: value })} />

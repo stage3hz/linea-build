@@ -70,7 +70,9 @@ export function createSoundCloud(credentials, { fetch: fetchImpl = globalThis.fe
   // instead of making its own — sixty searches at start-up are one /oauth/token call, not sixty.
   let pending = null;
   let failedAt = 0;
-  const authFailed = () => Object.assign(new Error('SoundCloud сейчас недоступен.'), { statusCode: 502 });
+  // Errors keep what SoundCloud answered (`status`) or what broke (`cause`) for the log; the app sees only the message and 502.
+  const unavailable = extra => Object.assign(new Error('SoundCloud сейчас недоступен.'), { statusCode: 502, ...extra });
+  const authFailed = response => unavailable(response ? { status: response.status } : {});
   const requestToken = async () => {
     if (failedAt && now() - failedAt < TOKEN_RETRY_MS) throw authFailed();
     const post = body => fetchImpl(TOKEN_URL, { method: 'POST', headers: { authorization: `Basic ${basic}`, 'content-type': 'application/x-www-form-urlencoded', accept: 'application/json' }, body: new URLSearchParams(body) });
@@ -79,15 +81,15 @@ export function createSoundCloud(credentials, { fetch: fetchImpl = globalThis.fe
       // against the client_credentials quota); only when that fails is a fresh token requested.
       let response = await post(token?.refresh ? { grant_type: 'refresh_token', refresh_token: token.refresh } : { grant_type: 'client_credentials' });
       if (!response.ok && token?.refresh) response = await post({ grant_type: 'client_credentials' });
-      if (!response.ok) throw authFailed();
+      if (!response.ok) throw authFailed(response);
       const result = await response.json();
-      if (typeof result?.access_token !== 'string' || !result.access_token) throw authFailed();
-      token = { value: result.access_token, refresh: typeof result.refresh_token === 'string' && result.refresh_token ? result.refresh_token : null, expires: now() + (Number(result.expires_in) || 3600) * 1000 };
+      if (typeof result?.access_token !== 'string' || !result.access_token) throw authFailed(response);
+      token = { value: result.access_token, refresh: typeof result.refresh_token === 'string' && result.refresh_token ? result.refresh_token : null, issuedAt: now(), expires: now() + (Number(result.expires_in) || 3600) * 1000 };
       failedAt = 0;
       return token.value;
     } catch (error) {
       failedAt = now();
-      throw error.statusCode ? error : authFailed();
+      throw error.statusCode ? error : unavailable({ cause: error });
     }
   };
   const accessToken = () => {
@@ -101,13 +103,18 @@ export function createSoundCloud(credentials, { fetch: fetchImpl = globalThis.fe
     const response = await fetchImpl(`${API}${path}`, { headers: { authorization: `OAuth ${used}`, accept: 'application/json; charset=utf-8' } });
     if (response.status === 401 && retry) {
       // Only the token that was just rejected is retired (a neighbour may already hold a newer one);
-      // the retry then shares the single renewal with everyone else who got the same 401.
-      if (token && token.value === used) token = { ...token, expires: 0 };
+      // the retry then shares the single renewal with everyone else who got the same 401. A token
+      // SoundCloud rejects right after issuing it is not retired: renewing it would only burn the
+      // 50-per-12h token quota on an account that is broken anyway, so the request fails instead.
+      if (token && token.value === used) {
+        if (now() - token.issuedAt < TOKEN_RETRY_MS) throw unavailable({ status: 401 });
+        token = { ...token, expires: 0 };
+      }
       return get(path, false);
     }
     if (response.status === 404) throw Object.assign(new Error('Трек больше недоступен в SoundCloud.'), { statusCode: 404 });
     if (response.status === 429) throw Object.assign(new Error('SoundCloud временно ограничил запросы. Попробуй позже.'), { statusCode: 429 });
-    if (!response.ok) throw Object.assign(new Error('SoundCloud сейчас недоступен.'), { statusCode: 502 });
+    if (!response.ok) throw unavailable({ status: response.status });
     return response.json();
   };
 

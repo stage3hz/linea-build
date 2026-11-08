@@ -48,7 +48,14 @@ CREATE TABLE IF NOT EXISTS sessions (
   expires_at INTEGER NOT NULL,
   created_at TEXT NOT NULL,
   device_name TEXT NOT NULL DEFAULT 'Неизвестное устройство',
-  last_active_at TEXT NOT NULL DEFAULT ''
+  last_active_at TEXT NOT NULL DEFAULT '',
+  -- F6 «Активные сеансы»: what the app reported at sign-in (model, OS, app build, platform) and
+  -- the address the request came from (text only, never geolocated).
+  platform TEXT,
+  device_model TEXT,
+  os_version TEXT,
+  app_version TEXT,
+  ip TEXT
 );
 CREATE INDEX IF NOT EXISTS sessions_user ON sessions(user_id);
 CREATE INDEX IF NOT EXISTS sessions_expiry ON sessions(expires_at);
@@ -212,6 +219,17 @@ CREATE TABLE IF NOT EXISTS profile_posts (
   expires_at INTEGER
 );
 CREATE INDEX IF NOT EXISTS profile_posts_owner ON profile_posts(owner_id, kind, created_at);
+-- Expired stories are swept by expires_at (posts.js purgeExpiredStories); posts (NULL) stay out of the index.
+CREATE INDEX IF NOT EXISTS profile_posts_expires ON profile_posts(expires_at) WHERE expires_at IS NOT NULL;
+
+-- Who watched a story and when (Telegram «Просмотры»): one row a viewer, shown to the owner only.
+CREATE TABLE IF NOT EXISTS story_views (
+  story_id TEXT NOT NULL REFERENCES profile_posts(id) ON DELETE CASCADE,
+  viewer_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+  viewed_at INTEGER NOT NULL,
+  PRIMARY KEY(story_id, viewer_id)
+);
+CREATE INDEX IF NOT EXISTS story_views_story ON story_views(story_id, viewed_at);
 
 -- Gifts friends send each other, shown on the recipient's profile («Подарки»). The recipient may hide one.
 CREATE TABLE IF NOT EXISTS profile_gifts (

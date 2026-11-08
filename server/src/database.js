@@ -89,6 +89,10 @@ export function openDatabase(dataDir) {
       if (!sessionColumns.has('id')) db.exec('ALTER TABLE sessions ADD COLUMN id TEXT');
       if (!sessionColumns.has('device_name')) db.exec("ALTER TABLE sessions ADD COLUMN device_name TEXT NOT NULL DEFAULT 'Неизвестное устройство'");
       if (!sessionColumns.has('last_active_at')) db.exec("ALTER TABLE sessions ADD COLUMN last_active_at TEXT NOT NULL DEFAULT ''");
+      // F6 «Активные сеансы»: device details reported by the app and the sign-in address (text only).
+      for (const column of ['platform', 'device_model', 'os_version', 'app_version', 'ip']) {
+        if (!sessionColumns.has(column)) db.exec(`ALTER TABLE sessions ADD COLUMN ${column} TEXT`);
+      }
       // The encryption-device foreign key references this unique public id.
       // Establish the parent key before updating legacy session rows.
       db.exec('CREATE UNIQUE INDEX IF NOT EXISTS sessions_id ON sessions(id)');
@@ -112,6 +116,15 @@ export function openDatabase(dataDir) {
       const uploadColumns = new Set(db.prepare('PRAGMA table_info(uploads)').all().map(column => column.name));
       if (!uploadColumns.has('is_encrypted')) db.exec('ALTER TABLE uploads ADD COLUMN is_encrypted INTEGER NOT NULL DEFAULT 0');
       if (!uploadColumns.has('is_video')) db.exec('ALTER TABLE uploads ADD COLUMN is_video INTEGER NOT NULL DEFAULT 0');
+      // F8 stories: views table and the partial index of the expiry sweep (schema.sql has them for a fresh
+      // database; here for one created before they existed). user_version stays 5.
+      db.exec(`CREATE TABLE IF NOT EXISTS story_views (
+        story_id TEXT NOT NULL REFERENCES profile_posts(id) ON DELETE CASCADE,
+        viewer_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+        viewed_at INTEGER NOT NULL,
+        PRIMARY KEY(story_id, viewer_id))`);
+      db.exec('CREATE INDEX IF NOT EXISTS story_views_story ON story_views(story_id, viewed_at)');
+      db.exec('CREATE INDEX IF NOT EXISTS profile_posts_expires ON profile_posts(expires_at) WHERE expires_at IS NOT NULL');
       if (version < 5) migratePlatinaExpiry(db);
       db.exec('PRAGMA user_version = 5');
     });

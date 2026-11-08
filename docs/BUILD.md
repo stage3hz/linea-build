@@ -44,6 +44,37 @@ cd android
 
 Сетевые ошибки сертификатов следует исправлять правильным доверенным CA/truststore среды, без отключения TLS. В нашей среде потребовалось явно выбрать системное хранилище Java CA для новых Maven-зависимостей. Это настройка build-среды; в распространяемый APK она не включается.
 
+### APK из CI (GitHub Actions)
+
+Workflow `.github/workflows/android-apk.yml` собирает тот же `assembleRelease` на `ubuntu-latest` (JDK 21, platform/Build Tools 36, NDK 27.1.12297006, Node 24) при каждом push в `main`, затрагивающем `mobile/` (кроме `mobile/test/**` и web-адаптеров `*.web.ts(x)`), и вручную (Actions → «Android APK» → Run workflow). По умолчанию — preview-package `com.linea.messenger.preview`, только `arm64-v8a`, push включён; ручной запуск позволяет выбрать `production` (`com.linea.messenger`, обязателен HTTPS `api_url`), `universal` (все четыре ABI) и `push=false` (`ANDROID_PUSH=0`, APK без уведомлений — факт отмечается в summary). Второй job того же workflow прогоняет Kotlin JVM-тесты `mobile/modules/*/jvm-tests`.
+
+Версии Gradle. Сам APK собирается wrapper'ом сгенерированного `expo prebuild` проекта `mobile/android` — Gradle 9.3.1, тот же, что и локально. Job Kotlin JVM-тестов использует `gradle/actions/setup-gradle` с Gradle 8.14.3 (версия, с которой эти проекты прогонялись в последний раз; у них нет своего wrapper'а). Локально `./gradlew -p ../modules/<module>/jvm-tests test` из `mobile/android` запускает те же тесты на 9.3.1 — расхождение версий намеренное и на результат не влияет.
+
+Скачать: страница запуска → Artifacts → `invizent-android-arm64` (или `-universal`; суффикс `-debugsigned` см. ниже). Внутри `INVIZENT-<versionName>-Android-<arm64|universal>[-debugsigned].apk`, `SHA256SUMS`, `BUILD.json` (версия, versionCode, package, режим подписи, отпечаток сертификата, commit) и `signer.txt`. Те же SHA-256, versionName/versionCode и режим подписи печатаются в job summary. После подписи job проверяет `zipalign -c 4` и 16 KB page alignment нативных библиотек (`zipalign -c -P 16 4`; если Build Tools не знают `-P`, выдаётся предупреждение, сборка не падает).
+
+Публикация preview (`publish-preview.yml`) не скачивает APK из Actions: она делает `checkout` коммита из input `apk_commit` и ожидает в его корне проверенные `INVIZENT-<version>-Android-arm64.apk`, `SHA256SUMS` и `BUILD.json` (сверяет `sha256sum -c` и `.version` с `mobile/package.json`). Поэтому после удачного запуска содержимое артефакта (`out/*`, кроме APK с суффиксом `-debugsigned`) коммитят в отдельную ветку `apk`:
+
+```bash
+git switch --orphan apk        # или git switch apk, если ветка уже есть
+unzip -o invizent-android-arm64.zip      # скачанный артефакт
+sha256sum -c SHA256SUMS
+git add INVIZENT-*.apk SHA256SUMS BUILD.json signer.txt
+git commit -m "APK $(jq -r .version BUILD.json) from $(jq -r .commit BUILD.json)"
+git push origin apk
+```
+
+SHA этого коммита и передаётся в `apk_commit` при запуске «Publish … preview downloads». В ветке `apk` нет исходников, поэтому её не нужно держать в синхроне с `main`.
+
+Подпись. Gradle подписывает APK шаблонным debug-ключом Expo, после чего job переподписывает его `apksigner` (v2+v3):
+
+- Есть все четыре секрета `ANDROID_KEYSTORE_B64` (keystore в base64: `base64 -w0 release.keystore`), `ANDROID_KEYSTORE_PASSWORD`, `ANDROID_KEY_ALIAS`, `ANDROID_KEY_PASSWORD` — APK подписан ключом владельца, обновление ставится поверх предыдущих сборок с тем же ключом. Ключ создаётся один раз: `keytool -genkeypair -v -keystore release.keystore -alias invizent -keyalg RSA -keysize 4096 -validity 10000`; keystore хранится только у владельца и в секретах, в репозиторий не попадает (`*.keystore` в `.gitignore`).
+- Секретов нет — job генерирует одноразовый debug-keystore, артефакт получает суффикс `-debugsigned`. Такой APK только для проверки: у каждого запуска новый ключ, перед установкой следующего CI-APK предыдущий нужно удалить. Для публикации он не годится.
+- Заданы не все секреты — job останавливается сразу, чтобы случайно не выпустить debug-подписанный APK.
+
+Push и `google-services.json`: при наличии секрета `GOOGLE_SERVICES_JSON_B64` (файл в base64) он записывается во временный файл и передаётся через `GOOGLE_SERVICES_FILE`; иначе берётся закоммиченный `mobile/google-services.json`, в котором есть только preview-package. Для `production` без секрета job падает ещё до Gradle с указанием, что package не зарегистрирован (см. «Push-уведомления»); сборка без push требует явного `push=false`. Дополнительно, как и в остальных workflow, используется `ATTEST_KEY` (пустой = подпись запросов выключена).
+
+Гейт качества — `.github/workflows/quality.yml`: на каждый pull request и push в `main` отдельными job выполняются серверные тесты (`node --test test/*.test.js`), мобильные `tsc --noEmit` + `node --test test/*.test.mjs` и desktop `npm test`; завершающий job `gate` красный при любой неудаче — его и стоит сделать required check в branch protection.
+
 ### Локальная разработка
 
 HTTP для одноразовых тестовых аккаунтов разрешается только при **одновременном** выполнении двух условий: dev runtime `__DEV__` и явная переменная `EXPO_PUBLIC_ALLOW_LOCAL_HTTP=1`. Допускаются только локальные адреса. Изменение native network config требует нового prebuild/dev build:
