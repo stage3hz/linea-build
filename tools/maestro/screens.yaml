@@ -81,7 +81,7 @@ appId: com.linea.messenger.preview
 - waitForAnimationToEnd
 
 # The tabs.
-- tapOn: "Люди"
+- tapOn: "Люди.*"
 - waitForAnimationToEnd
 - takeScreenshot: ${THEME}-06-people
 - tapOn: "Музыка"
@@ -191,4 +191,29 @@ appId: com.linea.messenger.preview
 - extendedWaitUntil:
     visible: "Избранное.*"
     timeout: 15000
+- waitForAnimationToEnd
+
+# The «Люди» slot of the tab bar turns into «Каналы» with a swipe up on it (and back with another one).
+# Photographed so the bar is checked in every state; optional, so a missed swipe cannot hide the rest.
+- swipe:
+    start: "31%,93%"
+    end: "31%,80%"
+    duration: 400
+- extendedWaitUntil:
+    visible: "Каналы.*"
+    timeout: 10000
+    optional: true
+- waitForAnimationToEnd
+- takeScreenshot: ${THEME}-16-tabs-channels
+- tapOn:
+    text: "Каналы.*"
+    optional: true
+- waitForAnimationToEnd
+- takeScreenshot: ${THEME}-17-channels
+- swipe:
+    start: "31%,93%"
+    end: "31%,80%"
+    duration: 400
+- waitForAnimationToEnd
+- tapOn: "Чаты"
 - waitForAnimationToEnd
