@@ -134,7 +134,13 @@ jobs:
           cp server.log proxy.log simulators.json shots/ 2>/dev/null || true
           tail -300 simulator-build.log > shots/simulator-build-tail.log 2>/dev/null || true
           cp -R "$HOME/.maestro/tests" shots/maestro-tests 2>/dev/null || true
-          xcrun simctl spawn "$SIMULATOR_UDID" log show --last 5m --style compact --predicate 'process == "INVIZENT"' > shots/app.log 2>/dev/null || true
+          # The whole walk (it takes up to two hours), not the last minutes: a launch crash happens early.
+          xcrun simctl spawn "$SIMULATOR_UDID" log show --last 3h --style compact --predicate 'process == "INVIZENT"' > shots/app.log 2>/dev/null || true
+          xcrun simctl spawn "$SIMULATOR_UDID" log show --last 3h --style compact --predicate 'eventMessage CONTAINS[c] "INVIZENT" OR eventMessage CONTAINS[c] "linea.messenger"' > shots/system-about-app.log 2>/dev/null || true
+          # Crash reports of the app (simulator crashes land in the host's DiagnosticReports).
+          mkdir -p shots/crashes
+          find "$HOME/Library/Logs/DiagnosticReports" -maxdepth 2 \( -name 'INVIZENT*' -o -name '*linea*' \) -mmin -240 -exec cp {} shots/crashes/ \; 2>/dev/null || true
+          ls -la shots/crashes || true
       - uses: actions/upload-artifact@v4
         if: always()
         with:
