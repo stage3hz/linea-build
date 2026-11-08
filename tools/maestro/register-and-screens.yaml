@@ -87,6 +87,11 @@ appId: com.linea.messenger.preview
 - inputText: "correct horse battery staple 42"
 - assertNotVisible: "Введи по одному символу.*"
 - pressKey: enter
+# iOS Password AutoFill offers to save the just-typed secret («Save Password?») once the secure field
+# is gone; the alert covers the next step, so it is dismissed when it shows (optional: not every run gets it).
+- tapOn:
+    text: "Not Now|Не сейчас"
+    optional: true
 - runFlow:
     when:
       notVisible:
@@ -118,6 +123,11 @@ appId: com.linea.messenger.preview
 - inputText: "ludwigsalt"
 - assertNotVisible: "Введи по одному символу.*"
 - pressKey: enter
+# iOS Password AutoFill offers to save the just-typed secret («Save Password?») once the secure field
+# is gone; the alert covers the next step, so it is dismissed when it shows (optional: not every run gets it).
+- tapOn:
+    text: "Not Now|Не сейчас"
+    optional: true
 - runFlow:
     when:
       notVisible:
@@ -150,6 +160,11 @@ appId: com.linea.messenger.preview
 - assertNotVisible: "Введи по одному символу.*"
 - takeScreenshot: 02-register-last-step
 - pressKey: enter
+# iOS Password AutoFill offers to save the just-typed secret («Save Password?») once the secure field
+# is gone; the alert covers the next step, so it is dismissed when it shows (optional: not every run gets it).
+- tapOn:
+    text: "Not Now|Не сейчас"
+    optional: true
 - runFlow:
     when:
       notVisible: "Избранное.*"
