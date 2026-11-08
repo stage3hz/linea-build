@@ -24,7 +24,7 @@ concurrency:
 jobs:
   ui:
     runs-on: ${{ inputs.runner || 'macos-15-intel' }}
-    timeout-minutes: 120
+    timeout-minutes: 150
     env:
       APP_ENV: development
       EXPO_PUBLIC_ALLOW_LOCAL_HTTP: '0'
@@ -103,7 +103,7 @@ jobs:
           curl -fsSL "https://get.maestro.mobile.dev" | bash
           echo "$HOME/.maestro/bin" >> "$GITHUB_PATH"
       - name: Walk the screens (dark, then light)
-        timeout-minutes: 40
+        timeout-minutes: 60
         run: |
           mkdir -p shots && cd shots
           xcrun simctl ui "$SIMULATOR_UDID" appearance dark

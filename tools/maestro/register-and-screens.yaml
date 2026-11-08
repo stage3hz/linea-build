@@ -73,11 +73,15 @@ appId: com.linea.messenger.preview
     timeout: 20000
 
 # Step 3/5: password twice
+# The simulator cannot type into a secure field (iOS Password AutoFill); show it first.
+- tapOn: "Показать: пароль"
 - tapOn:
     id: "field-Пароль"
 - inputText: "correct horse battery staple 42"
 - assertNotVisible: "Введи по одному символу.*"
 - pressKey: enter
+# The simulator cannot type into a secure field (iOS Password AutoFill); show it first.
+- tapOn: "Показать: повтори пароль"
 - tapOn:
     id: "field-Повтори пароль"
 - inputText: "correct horse battery staple 42"
@@ -100,11 +104,15 @@ appId: com.linea.messenger.preview
     timeout: 20000
 
 # Step 4/5: confirmation word twice
+# The simulator cannot type into a secure field (iOS Password AutoFill); show it first.
+- tapOn: "Показать: слово подтверждения"
 - tapOn:
     id: "field-Слово подтверждения"
 - inputText: "ludwigsalt"
 - assertNotVisible: "Введи по одному символу.*"
 - pressKey: enter
+# The simulator cannot type into a secure field (iOS Password AutoFill); show it first.
+- tapOn: "Показать: повтори слово подтверждения"
 - tapOn:
     id: "field-Повтори слово подтверждения"
 - inputText: "ludwigsalt"
@@ -127,11 +135,15 @@ appId: com.linea.messenger.preview
     timeout: 20000
 
 # Step 5/5: recovery word twice
+# The simulator cannot type into a secure field (iOS Password AutoFill); show it first.
+- tapOn: "Показать: слово восстановления"
 - tapOn:
     id: "field-Слово восстановления"
 - inputText: "mariposa"
 - assertNotVisible: "Введи по одному символу.*"
 - pressKey: enter
+# The simulator cannot type into a secure field (iOS Password AutoFill); show it first.
+- tapOn: "Показать: повтори слово восстановления"
 - tapOn:
     id: "field-Повтори слово восстановления"
 - inputText: "mariposa"
