@@ -24,7 +24,7 @@ concurrency:
 jobs:
   ui:
     runs-on: ${{ inputs.runner || 'macos-15-intel' }}
-    timeout-minutes: 150
+    timeout-minutes: 240
     env:
       APP_ENV: development
       EXPO_PUBLIC_ALLOW_LOCAL_HTTP: '0'
@@ -112,11 +112,18 @@ jobs:
           done
           echo "$HOME/.maestro/bin" >> "$GITHUB_PATH"
       - name: Walk the screens (dark, then light)
-        timeout-minutes: 60
+        timeout-minutes: 130
         run: |
           mkdir -p shots && cd shots
           xcrun simctl ui "$SIMULATOR_UDID" appearance dark
-          maestro --device "$SIMULATOR_UDID" test -e THEME=dark "$GITHUB_WORKSPACE/tools/maestro/register-and-screens.yaml" || echo "DARK_FAILED=1" >> "$GITHUB_ENV"
+          # Two attempts: on a slow runner the very first XCTest tap once took 377 s (34 s on a normal run, 0.4 s
+          # afterwards) and the driver gave up. Each attempt registers its own account (ATTEMPT in login/username).
+          dark_ok=0
+          for attempt in 1 2; do
+            if maestro --device "$SIMULATOR_UDID" test -e THEME=dark -e ATTEMPT="$attempt" "$GITHUB_WORKSPACE/tools/maestro/register-and-screens.yaml"; then dark_ok=1; break; fi
+            echo "Dark walk attempt $attempt failed"
+          done
+          [ "$dark_ok" = 1 ] || echo "DARK_FAILED=1" >> "$GITHUB_ENV"
           xcrun simctl ui "$SIMULATOR_UDID" appearance light
           maestro --device "$SIMULATOR_UDID" test -e THEME=light "$GITHUB_WORKSPACE/tools/maestro/screens-again.yaml" || echo "LIGHT_FAILED=1" >> "$GITHUB_ENV"
           xcrun simctl io "$SIMULATOR_UDID" screenshot zz-last-state.png || true

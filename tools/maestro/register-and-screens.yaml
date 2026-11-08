@@ -23,12 +23,12 @@ appId: com.linea.messenger.preview
 # Step 1/5: login twice
 - tapOn:
     id: "field-Логин"
-- inputText: "simtester1"
+- inputText: "simtester${ATTEMPT}"
 - assertNotVisible: "Введи по одному символу.*"
 - pressKey: enter
 - tapOn:
     id: "field-Повтори логин"
-- inputText: "simtester1"
+- inputText: "simtester${ATTEMPT}"
 - assertNotVisible: "Введи по одному символу.*"
 - takeScreenshot: 01-register-login
 - pressKey: enter
@@ -56,7 +56,7 @@ appId: com.linea.messenger.preview
 - pressKey: enter
 - tapOn:
     id: "field-Публичный @юзернейм"
-- inputText: "simui_check"
+- inputText: "simui_check${ATTEMPT}"
 - assertNotVisible: "Введи по одному символу.*"
 - pressKey: enter
 - runFlow:
