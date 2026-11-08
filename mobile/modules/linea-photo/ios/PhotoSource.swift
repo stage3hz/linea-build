@@ -35,7 +35,7 @@ enum PhotoSource {
     var length=length;var result=PhotoRange(value:"sdr");var chunks=0
     while true {
       chunks += 1
-      if chunks>100_000 || length>100*1024*1024 { throw PhotoFailure("UNSUPPORTED_IMAGE") }
+      if chunks>100_000 || length>2048*1024*1024 { throw PhotoFailure("UNSUPPORTED_IMAGE") }
       let type=photoText(try input.take(4))
       switch type {
       case "acTL":throw PhotoFailure("ANIMATED_IMAGE")
@@ -119,7 +119,7 @@ enum PhotoSource {
       let start=input.position;var size=photoU32(try input.take(4),0);let name=photoText(try input.take(4));var header=8
       if size==1 { let high=photoU32(try input.take(4),0);let low=photoU32(try input.take(4),0);if high != 0 { throw PhotoFailure("UNSUPPORTED_IMAGE") };size=low;header=16 }
       state.count += 1
-      if size<header || size>100*1024*1024 || start+size>end || state.count>100_000 { throw PhotoFailure("UNSUPPORTED_IMAGE") }
+      if size<header || size>2048*1024*1024 || start+size>end || state.count>100_000 { throw PhotoFailure("UNSUPPORTED_IMAGE") }
       let next=start+size;let length=size-header
       if properties { state.propertyCount += 1 };let property=properties ? state.propertyCount : 0
       switch name {
@@ -206,7 +206,7 @@ private final class PhotoCursor {
   private var metadataBytes=0
   init(_ url:URL) throws {
     let opened=try FileHandle(forReadingFrom:url)
-    do {let length=try opened.seekToEnd();if length>100*1024*1024 { throw PhotoFailure("IMAGE_TOO_LARGE") };size=Int(length);try opened.seek(toOffset:0);handle=opened}
+    do {let length=try opened.seekToEnd();if length>2048*1024*1024 { throw PhotoFailure("IMAGE_TOO_LARGE") };size=Int(length);try opened.seek(toOffset:0);handle=opened}
     catch {try? opened.close();throw error}
   }
   func close() throws {try handle.close()}

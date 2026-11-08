@@ -2,10 +2,12 @@ package expo.modules.lineavideo
 
 class VideoFailure(val reason:String):Exception(reason)
 object VideoPolicy {
-  const val MAX_INPUT=100L*1024*1024
-  const val MAX_OUTPUT=20L*1024*1024
+  /** Big media goes through the JS streaming cleaner; the native remux only needs a sanity bound (Platina video: 10 GB). */
+  const val MAX_INPUT=10L*1024*1024*1024
+  const val MAX_SAMPLES=50_000_000
+  const val MAX_OUTPUT=10L*1024*1024*1024
   const val MAX_SAMPLE=16*1024*1024
-  const val MAX_DURATION_US=12L*60*60*1000000
+  const val MAX_DURATION_US=48L*60*60*1000000
   fun dimensions(width:Int,height:Int) {
     if(width<=0||height<=0||width>16384||height>16384)throw VideoFailure("VIDEO_DIMENSIONS")
   }

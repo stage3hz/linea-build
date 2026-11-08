@@ -100,7 +100,7 @@ final class VideoProcessor {
       var moved=false
       for path in paths where !path.ended && path.input.isReadyForMoreMediaData {
         guard let sample=path.output.copyNextSampleBuffer() else {path.ended=true;path.input.markAsFinished();moved=true;continue}
-        samples+=1;if samples>1000000 {throw VideoFailure("TOO_MANY_SAMPLES")}
+        samples+=1;if samples>VideoPolicy.maxSamples {throw VideoFailure("TOO_MANY_SAMPLES")}
         let clean:CMSampleBuffer?
         // Decoded frames (re-encode path) go straight to the encoder; copied samples are checked and cleaned.
         if path.video {clean=decoded ? (CMSampleBufferGetImageBuffer(sample) != nil ? sample : nil) : try VideoSamples.video(sample,track:track)} else {clean=try VideoSamples.audio(sample)}

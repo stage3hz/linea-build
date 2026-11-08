@@ -13,9 +13,13 @@ import { sanitizePng } from '../photo/png';
 import { sanitizeJpeg } from '../photo/jpeg';
 import { sanitizeMp4 } from '../media/mp4';
 import { makeThumbnail } from '../media/thumbnail';
+import { planUpload, planForUpload, readClean, UncleanableMedia, VIDEO_MIME, type ByteSource, type CleanPlan, type UploadRoute } from '../media/stream/index';
 
 const MAX_FILE=20*1024*1024;
-/** Above this size a file goes in encrypted chunks (Telegram-like, up to 5 GB with Platina), without media re-encoding. */
+/**
+ * Above this size a file goes in encrypted chunks (Telegram-like: videos up to 10 GB for everyone, other files up to
+ * 2 GB, 4 GB with Platina). Photos and videos are still cleaned of metadata first, whatever their size (see encryptAndUploadLarge).
+ */
 export const LARGE_FILE=MAX_FILE;
 export const CHUNK_PLAIN=4*1024*1024;
 const TAG=16;
@@ -39,13 +43,41 @@ export function localFileSize(file:LocalFile):number{
 
 export async function encryptAndUpload(api:Api,file:LocalFile,onProgress?:(sent:number,total:number)=>void):Promise<Attachment> {
   if(Platform.OS==='web')throw new Error('Зашифрованные вложения доступны в приложении Android/iPhone.');
-  // Big files skip photo/video re-encoding and go in chunks (sent as a file, like Telegram's «send as file»).
+  // Big files go in chunks; photos and videos among them are cleaned there too (never sent with metadata).
   const size=localFileSize(file);
   if(size>LARGE_FILE)return encryptAndUploadLarge(api,{...file,size},{onProgress});
   const bridge=getSignalBridge();
-  const prepared=await prepareMediaForUpload(file);
+  let prepared:PreparedMedia;
+  try{prepared=await prepareMediaForUpload(file);}
+  catch(error){
+    // The native remux handles H.264/HEVC + AAC only (and caps the cleaned output). Any other video (ProRes, AV1,
+    // VP9, several video tracks, Matroska, AVI…) is cleaned at the container level by the streamed cleaner instead.
+    const route=await sniffRoute(file).catch(()=>null);
+    if(route?.kind!=='video'&&route?.kind!=='opaque')throw error;
+    return encryptAndUploadLarge(api,file,{onProgress});
+  }
+  // The 20 MB pipeline recognises media by the classic signatures and names only. Content our streamed sniffing
+  // still sees as photo/video (a MOV with leading free boxes, a camera RAW, MPEG-TS…) must not go out unchanged.
+  if(!prepared.photo&&!prepared.video&&prepared.file.mimeType!=='image/gif'){
+    const route=await sniffRoute(file).catch(()=>null);
+    if(route&&route.kind!=='raw'&&!(route.kind==='video'&&isAudioHint(file))){await prepared.dispose().catch(()=>{});return encryptAndUploadLarge(api,file,{onProgress});}
+  }
   try{return await encryptPrepared(api,prepared,bridge);}
   finally{await prepared.dispose().catch(()=>{});}
+}
+const isAudioHint=(file:LocalFile)=>/^audio\//i.test(file.mimeType||'')||/\.(?:m4a|m4b|aac|mp3|wav|flac|ogg|oga|opus|caf|amr|alac|aiff?)$/i.test(file.name||'');
+
+type OpenSource=ByteSource&{close:()=>void};
+function openSource(file:LocalFile):OpenSource{
+  const source=new File(file.uri);
+  const size=typeof source.size==='number'&&source.size>0?source.size:file.size||0;
+  if(!Number.isSafeInteger(size)||size<=0)throw new Error('Не удалось определить размер файла.');
+  const handle=source.open();
+  return {size,read:async(offset,length)=>{handle.offset=offset;return handle.readBytes(length);},close:()=>handle.close()};
+}
+async function sniffRoute(file:LocalFile):Promise<UploadRoute>{
+  const source=openSource(file);
+  try{return planUpload(await source.read(0,Math.min(768,source.size)),file);}finally{source.close();}
 }
 
 async function uploadBytes(prepared:PreparedMedia):Promise<Uint8Array> {
@@ -72,12 +104,12 @@ async function encryptPrepared(api:Api,prepared:PreparedMedia,bridge:ReturnType<
   return {id:result.id,name:file.name.slice(0,240)||'file',mimeType:file.mimeType.slice(0,150)||'application/octet-stream',size:bytes.length,encryption:{scheme:'aes-256-gcm-siv',key,nonce,fileKeyId},...(prepared.media?{media:prepared.media}:{}),...(preview?{preview}:{})};
 }
 
-export type FileLimits={platina:boolean;maxFileBytes:number;storageBytes:number;usedBytes:number;chunkBytes:number};
+export type FileLimits={platina:boolean;maxFileBytes:number;maxVideoBytes?:number;storageBytes:number;usedBytes:number;chunkBytes:number};
 export const fileLimits=(api:Api)=>api.request<FileLimits>('/e2ee/limits');
 
 /** What a big upload needs to continue after a lost connection: the same key and the server's upload id. */
 export type LargeUploadState={key:string;nonce:string;fileKeyId:string;sessionId?:string};
-const sizeLabel=(bytes:number)=>bytes>=1024**3?`${(bytes/1024**3).toFixed(1).replace('.0','')} ГБ`:`${Math.round(bytes/1024**2)} МБ`;
+export const sizeLabel=(bytes:number)=>bytes>=1024**3?`${(bytes/1024**3).toFixed(1).replace('.0','')} ГБ`:`${Math.round(bytes/1024**2)} МБ`;
 const wait=(ms:number)=>new Promise(resolve=>setTimeout(resolve,ms));
 
 /**
@@ -88,11 +120,74 @@ export async function encryptAndUploadLarge(api:Api,file:LocalFile,options:{stat
   if(Platform.OS==='web')throw new Error('Зашифрованные вложения доступны в приложении Android/iPhone.');
   const bridge=getSignalBridge();
   if(!api.token)throw new Error('Нужно войти в аккаунт.');
-  const source=new File(file.uri);
-  const size=typeof source.size==='number'&&source.size>0?source.size:file.size||0;
+  const opened=openSource(file);
+  let route:UploadRoute,plan:CleanPlan|null=null;
+  try{
+    route=planUpload(await opened.read(0,Math.min(768,opened.size)),file);
+    if(route.kind==='opaque'&&!sendsUncleaned(file))throw new UncleanableMedia();
+    if(route.kind==='photo'){opened.close();return await uploadBigPhoto(api,file,options.onProgress);}
+    options.onProgress?.(0,opened.size);
+    // Deterministic: a resumed upload plans the same file again and gets byte-for-byte the same stream.
+    plan=await planForUpload(route,opened,file.mimeType||'');
+  }catch(error){opened.close();throw error;}
+  const meta=uploadMeta(file,route,plan);
+  const source:OpenSource=plan?{size:plan.size,read:(offset,length)=>readClean(plan!,opened,offset,length),close:opened.close}:opened;
+  try{
+    const attachment=await uploadChunks(api,bridge,file,source,meta.kind,options);
+    const preview=meta.kind==='video'?await makeThumbnail({file:{...file},photo:false,video:true,...(plan?.media?{media:plan.media}:{}),dispose:async()=>{}}).catch(()=>undefined):undefined;
+    return {...attachment,mimeType:meta.mimeType,...(meta.media?{media:meta.media}:{}),...(preview?{preview}:{})};
+  }finally{source.close();}
+}
+
+/** Video limit for a cleaned video, file limit for everything else (including video we could not clean). */
+/**
+ * A video the app cannot clean (unknown container) is sent only after the user confirmed it: the confirmation rides
+ * on the LocalFile itself (`sendUncleaned`), so a retried or resumed upload keeps it.
+ */
+export type UncleanedFile=LocalFile&{sendUncleaned?:true};
+const sendsUncleaned=(file:LocalFile)=>(file as UncleanedFile).sendUncleaned===true;
+/** For the UI, before sending: true when the file needs the «Отправить без очистки?» confirmation. */
+export async function needsUncleanedConsent(file:LocalFile):Promise<boolean>{
+  if(sendsUncleaned(file))return false;
+  try{return (await sniffRoute(file)).kind==='opaque';}catch{return false;}
+}
+export { UNCLEANABLE_QUESTION } from '../media/stream/index';
+
+export function uploadMeta(file:LocalFile,route:UploadRoute,plan:CleanPlan|null):{kind:'video'|'file';mimeType:string;media?:CleanPlan['media']}{
+  const original=(file.mimeType||'application/octet-stream').slice(0,150);
+  if(route.kind==='video'&&plan)return {kind:'video',mimeType:/^video\//i.test(original)?original:VIDEO_MIME[route.container],media:plan.media};
+  if(route.kind==='gif'&&plan)return {kind:'file',mimeType:'image/gif',media:plan.media};
+  // Only after the user confirmed «Отправить без очистки?»: unchanged, and only as a file (never played as media).
+  if(route.kind==='opaque')return {kind:'file',mimeType:'application/octet-stream'};
+  return {kind:'file',mimeType:original};
+}
+
+/** Platina raises only the limit for non-video files (videos go up to the same size for everyone). */
+const PLATINA_FILE=4*1024**3;
+export function limitError(limits:FileLimits,kind:'video'|'file',size:number):string|null{
+  const max=kind==='video'?limits.maxVideoBytes??limits.maxFileBytes:limits.maxFileBytes;
+  if(size>0&&size<=max)return null;
+  if(kind==='video')return `Видео больше ${sizeLabel(max)}.`;
+  return !limits.platina&&PLATINA_FILE>max?`Файл больше ${sizeLabel(max)}. С Platina можно отправлять файлы до ${sizeLabel(PLATINA_FILE)}.`:`Файл больше ${sizeLabel(max)}.`;
+}
+
+/** A photo of any size is re-encoded by the platform (≤ 20 MiB, no metadata) and sent as a normal photo. */
+async function uploadBigPhoto(api:Api,file:LocalFile,onProgress?:(sent:number,total:number)=>void):Promise<Attachment>{
+  const prepared=await prepareMediaForUpload(file);
+  try{
+    if(!prepared.photo)throw new Error('Не удалось обработать фото. Файл не отправлен.');
+    const attachment=await encryptPrepared(api,prepared,getSignalBridge());
+    onProgress?.(attachment.size,attachment.size);
+    return attachment;
+  }finally{await prepared.dispose().catch(()=>{});}
+}
+
+async function uploadChunks(api:Api,bridge:ReturnType<typeof getSignalBridge>,file:LocalFile,source:ByteSource,kind:'video'|'file',options:{state?:LargeUploadState;onState?:(state:LargeUploadState)=>void;onProgress?:(sent:number,total:number)=>void;signal?:AbortSignal}):Promise<Attachment>{
+  const size=source.size;
   if(!Number.isSafeInteger(size)||size<=0)throw new Error('Не удалось определить размер файла.');
   const limits=await fileLimits(api).catch(()=>null);
-  if(limits&&size>limits.maxFileBytes)throw new Error(limits.platina?`Файл больше ${sizeLabel(limits.maxFileBytes)}.`:`Файл больше ${sizeLabel(limits.maxFileBytes)}. С Platina можно отправлять файлы до 5 ГБ.`);
+  const tooBig=limits&&limitError(limits,kind,size);
+  if(tooBig)throw new Error(tooBig);
   let state:LargeUploadState=options.state||{key:fromByteArray(await Crypto.getRandomBytesAsync(32)),nonce:fromByteArray(await Crypto.getRandomBytesAsync(12)),fileKeyId:Crypto.randomUUID()};
   options.onState?.(state);
   const count=chunkCount(size),full=CHUNK_PLAIN+TAG,total=chunkedCipherSize(size);
@@ -102,18 +197,16 @@ export async function encryptAndUploadLarge(api:Api,file:LocalFile,options:{stat
     catch{state={...state,sessionId:undefined};}
   }
   if(!state.sessionId){
-    const started=await api.request<{id:string}>('/e2ee/uploads',{method:'POST',body:JSON.stringify({size})});
+    const started=await api.request<{id:string}>('/e2ee/uploads',{method:'POST',body:JSON.stringify({size,kind})});
     state={...state,sessionId:started.id};options.onState?.(state);received=0;
   }
   const sessionId=state.sessionId!;
   const temp=`${FileSystem.cacheDirectory}linea-up-${Crypto.randomUUID()}.bin`;
-  const handle=source.open();
   try{
     for(let index=Math.floor(received/full);index<count;index++){
       checkAbort(options.signal);
       const offset=index*CHUNK_PLAIN,length=Math.min(CHUNK_PLAIN,size-offset);
-      handle.offset=offset;
-      const plain=handle.readBytes(length);
+      const plain=await source.read(offset,length);
       if(plain.length!==length)throw new Error('Файл изменился во время отправки.');
       const cipher=await bridge.seal(fromByteArray(plain),state.key,chunkNonce(state.nonce,index),chunkAd(state.fileKeyId,index,count));
       await FileSystem.writeAsStringAsync(temp,cipher,{encoding:FileSystem.EncodingType.Base64});
@@ -137,7 +230,6 @@ export async function encryptAndUploadLarge(api:Api,file:LocalFile,options:{stat
     if(done.size!==total)throw new Error('Размер загруженного файла не совпадает.');
     return {id:done.id,name:file.name.slice(0,240)||'file',mimeType:(file.mimeType||'application/octet-stream').slice(0,150),size,encryption:{scheme:'aes-256-gcm-siv-chunked',key:state.key,nonce:state.nonce,fileKeyId:state.fileKeyId,chunkSize:CHUNK_PLAIN}};
   }finally{
-    handle.close();
     await FileSystem.deleteAsync(temp,{idempotent:true}).catch(()=>{});
   }
 }

@@ -30,8 +30,19 @@ export function sniffPhotoFormat(bytes:Uint8Array):string|null {
   if(/^GIF8[79]a$/.test(ascii(bytes,0,6)))return 'gif';
   if(ascii(bytes,0,4)==='RIFF'&&ascii(bytes,8,12)==='WEBP')return 'webp';
   if(isBitmap(bytes))return 'bmp';
-  if(matches(bytes,[73,73,42,0])||matches(bytes,[77,77,0,42]))return 'tiff';
+  if(matches(bytes,[73,73,42,0])||matches(bytes,[77,77,0,42]))return 'tiff'; // also DNG, CR2, NEF, ARW, SRW, 3FR, KDC, DCR, PEF
+  const raw=cameraRaw(bytes);if(raw)return raw;
   return isHeif(bytes)?'heif':otherImage(bytes);
+}
+
+/** Camera RAW files with their own signatures (the TIFF-based ones are recognised as TIFF above). */
+function cameraRaw(bytes:Uint8Array):string|null {
+  if(matches(bytes,[73,73,85,0]))return 'rw2'; // Panasonic
+  if(['IIRO','IIRS','MMOR'].includes(ascii(bytes,0,4)))return 'orf'; // Olympus
+  if(ascii(bytes,0,15)==='FUJIFILMCCD-RAW')return 'raf'; // Fujifilm
+  if(ascii(bytes,0,4)==='FOVb')return 'x3f'; // Sigma
+  if(matches(bytes,[0,77,82,77]))return 'mrw'; // Minolta
+  return null;
 }
 
 function otherImage(bytes:Uint8Array):string|null {

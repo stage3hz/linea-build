@@ -14,7 +14,7 @@ import java.io.*
 import java.util.UUID
 import kotlin.math.*
 
-private const val MAX_SOURCE_BYTES=100L*1024*1024
+private const val MAX_SOURCE_BYTES=2048L*1024*1024
 data class PhotoHeader(val width:Int,val height:Int,val rotation:Int,val flipped:Boolean,val range:PhotoRange)
 
 class PhotoFiles(private val context:Context) {

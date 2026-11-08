@@ -2,10 +2,11 @@ import Foundation
 
 struct VideoFailure: Error { let reason:String;init(_ reason:String){self.reason=reason} }
 enum VideoPolicy {
-  static let maxInput=100*1024*1024
-  static let maxOutput=20*1024*1024
+  static let maxInput=10*1024*1024*1024
+  static let maxSamples=50_000_000
+  static let maxOutput=10*1024*1024*1024
   static let maxSample=16*1024*1024
-  static let maxDuration=12.0*60*60
+  static let maxDuration=48.0*60*60
 }
 
 final class VideoFiles {

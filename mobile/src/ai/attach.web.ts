@@ -1,5 +1,7 @@
 // Attachments of the AI chat (PC): the same as on the phone, with the browser's file dialog and a
 // canvas for resizing photos and taking three frames of a video.
+import { planUpload } from '../media/stream/index';
+const MEDIA_AS_DOCUMENT = 'Фото и видео прикрепляй кнопкой «Фото и видео»: модель получит копию без метаданных (места съёмки, даты, модели камеры).';
 export type AIPicture = { id: string; uri: string; data: string; video?: boolean };
 export type PickedFile = { name: string; base64: string };
 export const MAX_PICTURES = 8;
@@ -48,7 +50,7 @@ export async function pickPictures(room: number): Promise<AIPicture[]> {
 export async function pickDocuments(): Promise<PickedFile[]> {
   const files = await choose('.pdf,.docx,.pptx,.xlsx,.odt,.odp,.ods,.txt,.md,.csv,.json,.xml,.html,.htm,.log,.yaml,.yml,.srt,.js,.ts,.py,.java,.kt,.swift,.c,.cpp,.h,.cs,.go,.rs,.rb,.php,.sql,.css,.sh', true);
   const out: PickedFile[] = [];
-  for (const file of files) { if (file.size > MAX_DOCUMENT) throw new Error(`«${file.name}» больше 15 МБ.`); out.push({ name: file.name, base64: await toBase64(file) }); }
+  for (const file of files) { if (file.size > MAX_DOCUMENT) throw new Error(`«${file.name}» больше 15 МБ.`); if (planUpload(new Uint8Array(await file.slice(0, 768).arrayBuffer()), { name: file.name, mimeType: file.type }).kind !== 'raw') throw new Error(MEDIA_AS_DOCUMENT); out.push({ name: file.name, base64: await toBase64(file) }); }
   return out;
 }
 

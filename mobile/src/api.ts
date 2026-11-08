@@ -293,6 +293,8 @@ export class Api {
   /** A file for a channel: metadata is cleaned like any upload, but the file is stored as is (no E2EE). */
   async uploadChannelFile(file: LocalFile): Promise<Attachment> {
     if(Platform.OS==='web'&&!desktopBridge())throw new Error('Файлы в каналах отправляются из приложения Android/iPhone.');
+    // Channel files are stored in one piece (no chunked upload on the server): say so before copying a huge video.
+    if((file.size||0)>20*1024*1024&&!(await import('./photo/formats')).isPhotoCandidate(file))throw new Error('В канал можно отправить видео или файл до 20 МБ. Большое видео отправь в личный чат — там до 10 ГБ.');
     const {prepareMediaForUpload}=await import('./media/pipeline');
     const prepared=await prepareMediaForUpload(file);
     try{
@@ -307,6 +309,7 @@ export class Api {
 
   async upload(file: LocalFile): Promise<Attachment> {
     if(Platform.OS==='web'&&!desktopBridge())throw new Error('Обработка и загрузка фото профиля доступны в приложении Android/iPhone.');
+    if((file.size||0)>20*1024*1024&&!(await import('./photo/formats')).isPhotoCandidate(file))throw new Error('Для профиля подойдёт видео или файл до 20 МБ.');
     const {prepareMediaForUpload}=await import('./media/pipeline');
     const prepared=await prepareMediaForUpload(file);
     try{

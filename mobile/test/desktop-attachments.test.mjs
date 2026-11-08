@@ -39,3 +39,41 @@ test('desktop chunked upload resumes after a lost completion and removes corrupt
   corrupt=true;await assert.rejects(model.decryptAttachmentWithProgress(api,attachment,()=>{},'invizent-cache://local/corrupt'));assert.equal(cache.has('invizent-cache://local/corrupt'),false);
  }finally{globalThis.fetch=original;}
 });
+
+test('desktop: a small MP4 with a video track named and typed as audio is cleaned, never sent raw', async () => {
+ const { bigMp4 } = await import('./support/stream-fixtures.mjs');
+ const { bytes } = bigMp4({ gap: 4096 });
+ assert.ok(bytes.includes(Buffer.from('GPS-SECRET')), 'the fixture carries a location');
+ const original = globalThis.fetch, cache = new Map(), parts = []; let received = 0, small = null;
+ const fs = { cacheDirectory: 'invizent-cache://local/', deleteAsync: async uri => cache.delete(uri), makeDirectoryAsync: async () => {} };
+ const files = async (method, [target, data]) => { if (method === 'write') cache.set(target, Buffer.from(data)); else if (method === 'append') cache.set(target, Buffer.concat([cache.get(target) || Buffer.alloc(0), data])); else throw new Error('Unexpected file method ' + method); };
+ globalThis.fetch = async url => {
+  if (url === 'blob:clip') return new Response(bytes);
+  if (url === 'https://file.test/upload') return new Response(Buffer.concat(parts), { status: 200 });
+  throw new Error('Unexpected fetch ' + url);
+ };
+ try {
+  const model = loadTs(new URL('../src/e2ee/attachments.web.ts', import.meta.url), {
+   'expo-crypto': { getRandomBytesAsync: async size => randomBytes(size), randomUUID },
+   '../desktopFs.web': fs, '../desktop': { desktopBridge: () => ({ files }) },
+   '../api': { multipartFile: body => { small = Buffer.from(body); return { body, contentType: 'application/octet-stream' }; } },
+   './signal': { getSignalBridge: () => desktopSignalBridge },
+   // The 20 MB pipeline does not treat an audio-typed file as video: it hands the bytes back unchanged.
+   '../media/pipeline.web': { prepareMediaForUpload: async file => ({ file: { ...file, size: bytes.length }, photo: false, video: false, dispose: async () => {} }) },
+  });
+  const api = { token: 'test-token', fileUrl: () => 'https://file.test/upload', async request(url, options) {
+   if (url === '/e2ee/limits') return { maxFileBytes: 100 * 1024 * 1024, maxVideoBytes: 100 * 1024 * 1024 };
+   if (url === '/e2ee/uploads') return { id: 'session' };
+   if (url.startsWith('/e2ee/uploads/session?offset=')) { parts.push(Buffer.from(options.body)); received += options.body.length; return {}; }
+   if (url === '/e2ee/uploads/session/complete') return { id: 'upload', size: received };
+   if (url === '/e2ee/files') return { id: 'small', size: small?.length ?? 0 };
+   throw new Error('Unexpected URL ' + url);
+  } };
+  const attachment = await model.encryptAndUpload(api, { uri: 'blob:clip', name: 'clip.m4a', mimeType: 'audio/mp4', size: bytes.length });
+  assert.equal(small, null, 'not sealed as a raw small file');
+  await model.decryptAttachmentWithProgress(api, attachment, () => {}, 'invizent-cache://local/out');
+  const out = cache.get('invizent-cache://local/out');
+  assert.equal(out.length, bytes.length);
+  assert.equal(out.includes(Buffer.from('GPS-SECRET')), false, 'location removed');
+ } finally { globalThis.fetch = original; }
+});

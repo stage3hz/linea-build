@@ -45,6 +45,33 @@ export async function prepareMediaForUpload(file: LocalFile): Promise<PreparedMe
   const media=movie?await probeVideo(uri):undefined;
   return {file:{...file,uri,mimeType:mime,size:bytes.length},photo,video:movie,...(media?{media}:{}),dispose:async()=>URL.revokeObjectURL(uri)};
 }
+/**
+ * A photo above 20 MB (any format the engine decodes: JPEG, PNG, WebP, AVIF, BMP, big panoramas): decoded from
+ * the Blob and re-encoded, which drops every metadata block; scaled down until it fits in 20 MiB.
+ */
+export async function prepareBigPhoto(file: LocalFile, blob: Blob): Promise<PreparedMedia> {
+  let bitmap: ImageBitmap;
+  try { bitmap = await createImageBitmap(blob, { imageOrientation: 'from-image' } as ImageBitmapOptions); }
+  catch { throw new Error('Это фото повреждено или в формате, который не открывается на ПК. Пересохрани его как JPEG или PNG и отправь снова.'); }
+  const header = new Uint8Array(await blob.slice(0, 64).arrayBuffer()), format = sniffPhotoFormat(header);
+  const alpha = format === 'png' || format === 'webp' || format === 'avif' || format === 'bmp' || format === 'tiff';
+  const mime = alpha ? 'image/png' : 'image/jpeg';
+  let scale = Math.min(1, Math.sqrt(MAX_PIXELS / (bitmap.width * bitmap.height)), 8192 / Math.max(bitmap.width, bitmap.height));
+  try {
+    for (let attempt = 0; attempt < 8; attempt++, scale *= 0.75) {
+      const canvas = document.createElement('canvas');
+      canvas.width = Math.max(1, Math.round(bitmap.width * scale)); canvas.height = Math.max(1, Math.round(bitmap.height * scale));
+      const ctx = canvas.getContext('2d'); if (!ctx) throw new Error('Не удалось обработать фото.');
+      if (!alpha) { ctx.fillStyle = '#FFFFFF'; ctx.fillRect(0, 0, canvas.width, canvas.height); }
+      ctx.imageSmoothingQuality = 'high'; ctx.drawImage(bitmap, 0, 0, canvas.width, canvas.height);
+      const out = await new Promise<Blob>((resolve, reject) => canvas.toBlob(b => b ? resolve(b) : reject(new Error('Не удалось обработать фото.')), mime, 0.9));
+      if (out.size > 20 * 1024 * 1024) continue;
+      const uri = URL.createObjectURL(out);
+      return { file: { ...file, uri, mimeType: mime, size: out.size, name: (file.name.replace(/\.[^.]*$/, '') || 'photo') + (alpha ? '.png' : '.jpg') }, photo: true, video: false, media: { width: canvas.width, height: canvas.height }, dispose: async () => URL.revokeObjectURL(uri) };
+    }
+  } finally { bitmap.close(); }
+  throw new Error('Не удалось уменьшить фото до 20 МБ.');
+}
 export async function resolveVideoLibraryAsset(_id:string):Promise<{fileUri:string;dispose:()=>Promise<void>}>{throw new Error('Выбери видео через диалог файлов.');}
 export async function clearVideoCache(){}
 

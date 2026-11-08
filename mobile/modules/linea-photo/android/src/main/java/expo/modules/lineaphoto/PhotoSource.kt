@@ -38,7 +38,7 @@ object PhotoSource {
   private fun png(input:Cursor,firstLength:Long):PhotoRange {
     var length=firstLength;var result=PhotoRange("sdr");var chunks=0
     while(true) {
-      if(++chunks>100_000 || length>100L*1024*1024)throw PhotoFailure("UNSUPPORTED_IMAGE")
+      if(++chunks>100_000 || length>2048L*1024*1024)throw PhotoFailure("UNSUPPORTED_IMAGE")
       val type=text(input.take(4))
       when(type) {
         "acTL"->throw PhotoFailure("ANIMATED_IMAGE")
@@ -120,7 +120,7 @@ object PhotoSource {
     return if(dib==40)PhotoRange("sdr") else PhotoRange.unknown()
   }
   private fun bmff(input:Cursor):PhotoRange {
-    val state=BoxState();boxes(input,100L*1024*1024,0,state,true)
+    val state=BoxState();boxes(input,2048L*1024*1024,0,state,true)
     val associated=state.associations[state.primary] ?: emptyList()
     val primaryKnown=state.primary in state.images && associated.any{it in state.colors} && associated.any{it in state.depths} && state.codec
     return if(primaryKnown)state.range else state.range.merge(PhotoRange.unknown())
@@ -137,7 +137,7 @@ object PhotoSource {
       val start=input.position-1;var size=u32(byteArrayOf(first.toByte())+input.take(3),0)
       val name=text(input.take(4));var header=8
       if(size==1L){val high=input.uint();val low=input.uint();if(high!=0L)throw PhotoFailure("UNSUPPORTED_IMAGE");size=low;header=16}
-      if(size<header || size>100L*1024*1024 || start+size>end || ++state.count>100_000)throw PhotoFailure("UNSUPPORTED_IMAGE")
+      if(size<header || size>2048L*1024*1024 || start+size>end || ++state.count>100_000)throw PhotoFailure("UNSUPPORTED_IMAGE")
       val next=start+size;val length=size-header
       val property=if(properties)++state.propertyCount else 0
       when(name) {
@@ -194,14 +194,14 @@ object PhotoSource {
   private fun hasHdr(data:ByteArray):Boolean {val value=text(data).lowercase();return listOf("hdr-gain-map","hdrgainmap","hdrgm:","gainmap","21496:","hdrheadroom").any{it in value}}
   private class Cursor(val input:InputStream) {
     var position=0L;private var metadata=0L
-    fun optionalByte():Int? {val result=input.read();if(result<0)return null;position++;if(position>100L*1024*1024)throw PhotoFailure("IMAGE_TOO_LARGE");return result}
+    fun optionalByte():Int? {val result=input.read();if(result<0)return null;position++;if(position>2048L*1024*1024)throw PhotoFailure("IMAGE_TOO_LARGE");return result}
     fun byte()=optionalByte() ?: throw EOFException()
     fun short()=byte()*256+byte()
     fun uint()=u32(take(4),0)
     fun take(count:Int):ByteArray {if(count<0||count>MAX_META)throw PhotoFailure("UNSUPPORTED_IMAGE");val result=ByteArray(count);var offset=0;while(offset<count){val amount=input.read(result,offset,count-offset);if(amount<0)throw EOFException();if(amount==0){result[offset++]=byte().toByte()}else{offset+=amount;position+=amount}}
-      if(position>100L*1024*1024)throw PhotoFailure("IMAGE_TOO_LARGE");return result}
+      if(position>2048L*1024*1024)throw PhotoFailure("IMAGE_TOO_LARGE");return result}
     fun metadata(count:Long):ByteArray {metadata+=count;if(count<0||metadata>MAX_META)throw PhotoFailure("UNSUPPORTED_IMAGE");return take(count.toInt())}
-    fun skip(count:Long){if(count<0||position+count>100L*1024*1024)throw PhotoFailure("UNSUPPORTED_IMAGE");var remaining=count;while(remaining>0){val amount=input.skip(remaining);if(amount>0){position+=amount;remaining-=amount}else{byte();remaining--}}}
+    fun skip(count:Long){if(count<0||position+count>2048L*1024*1024)throw PhotoFailure("UNSUPPORTED_IMAGE");var remaining=count;while(remaining>0){val amount=input.skip(remaining);if(amount>0){position+=amount;remaining-=amount}else{byte();remaining--}}}
   }
 }
 

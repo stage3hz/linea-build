@@ -50,19 +50,19 @@ function harness({ loseReplyAt = -1, maxFileBytes = 5 * 1024 * MiB, platina = tr
   return { mod, api, files, server };
 }
 
-test('files over 20 MB skip photo/video processing and go in chunks', async () => {
+test('documents over 20 MB (content is not a photo or video) go in chunks unchanged', async () => {
   const h = harness();
-  h.files.set('file:///user/huge.mov', Buffer.alloc(21 * MiB, 7));
-  const attachment = await h.mod.encryptAndUpload(h.api, { uri: 'file:///user/huge.mov', name: 'huge.mov', mimeType: 'video/quicktime' });
+  h.files.set('file:///user/huge.bin', Buffer.alloc(21 * MiB, 7));
+  const attachment = await h.mod.encryptAndUpload(h.api, { uri: 'file:///user/huge.bin', name: 'huge.bin', mimeType: 'application/octet-stream' });
   assert.equal(attachment.encryption.scheme, 'aes-256-gcm-siv-chunked');
   assert.equal(attachment.size, 21 * MiB);
 });
 
 test('a big file is encrypted in 4 MiB chunks, survives a lost reply and decrypts back byte for byte', async () => {
   const h = harness({ loseReplyAt: 1 });
-  const data = randomBytes(9 * MiB + 5); h.files.set('file:///user/movie.mkv', data);
+  const data = randomBytes(9 * MiB + 5); h.files.set('file:///user/movie.mkv', data); // random bytes: needs the explicit «send uncleaned» consent
   const progress = [];
-  const attachment = await h.mod.encryptAndUploadLarge(h.api, { uri: 'file:///user/movie.mkv', name: 'movie.mkv', mimeType: 'video/x-matroska' }, { onProgress: (sent, total) => progress.push([sent, total]) });
+  const attachment = await h.mod.encryptAndUploadLarge(h.api, { uri: 'file:///user/movie.mkv', name: 'movie.mkv', mimeType: 'video/x-matroska', sendUncleaned: true }, { onProgress: (sent, total) => progress.push([sent, total]) });
   assert.equal(attachment.size, data.length);
   assert.equal(attachment.encryption.scheme, 'aes-256-gcm-siv-chunked');
   assert.equal(attachment.encryption.chunkSize, 4 * MiB);

@@ -11,7 +11,7 @@ struct PhotoHeader {
 }
 
 final class PhotoFiles {
-  private let maximumSourceBytes: UInt64 = 100*1024*1024
+  private let maximumSourceBytes: UInt64 = 2048*1024*1024
   private func sourceURL(_ uri: String) throws -> URL {
     guard let url=URL(string:uri),url.isFileURL,(url.host==nil||url.host==""),url.query==nil,url.fragment==nil else { throw PhotoFailure("LOCAL_FILE_REQUIRED") }
     let attributes=try FileManager.default.attributesOfItem(atPath:url.path)

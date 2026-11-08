@@ -114,6 +114,7 @@ export function renderPhoto(file:LocalFile,options:PhotoOptions):Promise<Prepare
 }
 
 const noCleanup=async()=>{};
+const isRawName=(file:LocalFile)=>/\.(?:dng|nef|nrw|arw|srf|sr2|cr2|srw|3fr|kdc|dcr|pef|erf|mef|mos|iiq|rwl)$/i.test(file.name)||/raw|dng|nikon|sony|canon|pentax/i.test(file.mimeType);
 
 export async function preparePhotoForUpload(input:LocalFile):Promise<PreparedUpload> {
   requireLocal(input.uri);
@@ -131,7 +132,13 @@ async function prepareLocalPhoto(file:LocalFile):Promise<PreparedUpload> {
   if(owned)return {file:{...owned.file},photo:true,media:{...owned.media},dispose:noCleanup};
   const header=toByteArray(await FileSystem.readAsStringAsync(file.uri,{encoding:FileSystem.EncodingType.Base64,position:0,length:64}));
   if(!isPhotoCandidate(file)&&!sniffPhotoFormat(header))return {file,photo:false,dispose:noCleanup};
-  const prepared=await renderPhoto(file,plainPhotoOptions());
+  // Sending never fails on size: a photo whose clean re-encode is over 20 MiB is scaled down natively
+  // (RAW/DNG/HEIC/ProRAW of any size are decoded by the platform and re-encoded without metadata).
+  // Big photos without transparency (camera JPEG/HEIC/RAW) become JPEG, so they stay sharp within 20 MiB;
+  // formats that may carry an alpha channel stay PNG.
+  const format=sniffPhotoFormat(header),info=await FileSystem.getInfoAsync(file.uri);
+  const big=info.exists&&!info.isDirectory&&info.size>MAX_OUTPUT_BYTES,opaque=!!format&&!['png','webp','gif','bmp','avif','psd','svg','ico','exr','jpegxl','jpeg2000','tiff'].includes(format);
+  const prepared=await renderPhoto(file,{...plainPhotoOptions(),allowDownsample:true,...(big&&(opaque||format==='tiff'&&isRawName(file))?{format:'jpeg' as const}:{})});
   return {file:prepared.file,photo:true,media:prepared.media,dispose:prepared.dispose};
 }
 

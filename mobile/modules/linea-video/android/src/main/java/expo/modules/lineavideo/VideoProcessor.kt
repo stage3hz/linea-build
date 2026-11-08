@@ -51,7 +51,7 @@ class VideoProcessor(private val files:VideoFiles) {
     var written=0L;var samples=0;val started=SystemClock.elapsedRealtime()
     while(true) {
       buffer.clear();val size=extractor.readSampleData(buffer,0);if(size<0)break
-      if(size<=0||size>VideoPolicy.MAX_SAMPLE||++samples>1000000)throw VideoFailure("MALFORMED_VIDEO")
+      if(size<=0||size>VideoPolicy.MAX_SAMPLE||++samples>VideoPolicy.MAX_SAMPLES)throw VideoFailure("MALFORMED_VIDEO")
       if(extractor.sampleFlags and (MediaExtractor.SAMPLE_FLAG_ENCRYPTED or MediaExtractor.SAMPLE_FLAG_PARTIAL_FRAME)!=0)throw VideoFailure("UNSUPPORTED_SAMPLE")
       val timestamp=extractor.sampleTime
       if(timestamp<0||timestamp>VideoPolicy.MAX_DURATION_US)throw VideoFailure("UNSUPPORTED_TIMESTAMP")

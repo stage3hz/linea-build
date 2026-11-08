@@ -6,6 +6,14 @@ import * as ImageManipulator from 'expo-image-manipulator';
 import * as ImagePicker from 'expo-image-picker';
 import * as VideoThumbnails from 'expo-video-thumbnails';
 import * as DocumentPicker from 'expo-document-picker';
+import { toByteArray } from 'base64-js';
+import { planUpload } from '../media/stream/index';
+
+/** Photos and videos never go to the model as documents (with EXIF/GPS): only as cleaned pictures or frames. */
+export const MEDIA_AS_DOCUMENT='Фото и видео прикрепляй кнопкой «Фото и видео»: модель получит копию без метаданных (места съёмки, даты, модели камеры).';
+export function refuseMediaDocument(header: Uint8Array, name: string, mimeType: string): void {
+  if (planUpload(header, { name, mimeType }).kind !== 'raw') throw new Error(MEDIA_AS_DOCUMENT);
+}
 
 export type AIPicture = { id: string; uri: string; data: string; video?: boolean };
 export type PickedFile = { name: string; base64: string };
@@ -48,6 +56,7 @@ export async function pickDocuments(): Promise<PickedFile[]> {
   for (const asset of picked.assets) {
     try {
       if (asset.size && asset.size > MAX_DOCUMENT) throw new Error(`«${asset.name}» больше 15 МБ.`);
+      refuseMediaDocument(toByteArray(await FileSystem.readAsStringAsync(asset.uri, { encoding: FileSystem.EncodingType.Base64, position: 0, length: 768 })), asset.name, asset.mimeType || '');
       out.push({ name: asset.name, base64: await FileSystem.readAsStringAsync(asset.uri, { encoding: FileSystem.EncodingType.Base64 }) });
     } finally { await FileSystem.deleteAsync(asset.uri, { idempotent: true }).catch(() => {}); }
   }
