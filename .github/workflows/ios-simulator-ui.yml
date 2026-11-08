@@ -102,8 +102,14 @@ jobs:
           xcrun simctl status_bar "$SIMULATOR_UDID" override --time 9:41 --batteryState charged --batteryLevel 100 || true
           xcrun simctl install "$SIMULATOR_UDID" "$APP"
       - name: Install Maestro
+        # The installer once got a 504 and exited 0 (curl | bash), so the walk ran without Maestro.
+        # Three attempts, and the step fails unless the binary really works.
         run: |
-          curl -fsSL "https://get.maestro.mobile.dev" | bash
+          for attempt in 1 2 3; do
+            curl -fsSL "https://get.maestro.mobile.dev" | bash && "$HOME/.maestro/bin/maestro" --version && break
+            [ "$attempt" = 3 ] && { echo "::error::Maestro did not install"; exit 1; }
+            echo "Maestro install failed, retry $attempt"; rm -rf "$HOME/.maestro"; sleep 30
+          done
           echo "$HOME/.maestro/bin" >> "$GITHUB_PATH"
       - name: Walk the screens (dark, then light)
         timeout-minutes: 60
