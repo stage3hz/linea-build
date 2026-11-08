@@ -93,14 +93,25 @@ jobs:
             CODE_SIGNING_ALLOWED=YES CODE_SIGNING_REQUIRED=YES CODE_SIGN_STYLE=Manual CODE_SIGN_IDENTITY='-' CODE_SIGN_ENTITLEMENTS='' CODE_SIGN_INJECT_BASE_ENTITLEMENTS=YES \
             build > ../../simulator-build.log 2>&1 || { tail -120 ../../simulator-build.log; exit 1; }
       - name: Boot the simulator, trust the test CA, install the app
+        # Usually 4–6 min. Once it hung for 35 min with no output: every simctl call now has a time limit
+        # (macOS has no `timeout`, perl's alarm does the job) and a failed boot is retried on an erased device.
+        timeout-minutes: 30
         run: |
           set -euo pipefail
           APP="mobile/ios/simbuild/Build/Products/Release-iphonesimulator/$SCHEME.app"
-          xcrun simctl boot "$SIMULATOR_UDID"
-          xcrun simctl bootstatus "$SIMULATOR_UDID" -b
-          xcrun simctl keychain "$SIMULATOR_UDID" add-root-cert tls/ca.pem
-          xcrun simctl status_bar "$SIMULATOR_UDID" override --time 9:41 --batteryState charged --batteryLevel 100 || true
-          xcrun simctl install "$SIMULATOR_UDID" "$APP"
+          limit() { local s="$1"; shift; perl -e 'alarm shift; exec @ARGV' "$s" "$@"; }
+          booted=0
+          for attempt in 1 2 3; do
+            limit 120 xcrun simctl boot "$SIMULATOR_UDID" || true   # «already booted» on a retry is fine
+            if limit 420 xcrun simctl bootstatus "$SIMULATOR_UDID" -b; then booted=1; break; fi
+            echo "Boot attempt $attempt did not finish; erasing the simulator and trying again"
+            limit 120 xcrun simctl shutdown "$SIMULATOR_UDID" || true
+            limit 180 xcrun simctl erase "$SIMULATOR_UDID" || true
+          done
+          [ "$booted" = 1 ] || { echo "::error::The simulator never finished booting"; exit 1; }
+          limit 120 xcrun simctl keychain "$SIMULATOR_UDID" add-root-cert tls/ca.pem
+          limit 60 xcrun simctl status_bar "$SIMULATOR_UDID" override --time 9:41 --batteryState charged --batteryLevel 100 || true
+          for attempt in 1 2; do limit 600 xcrun simctl install "$SIMULATOR_UDID" "$APP" && break; [ "$attempt" = 2 ] && exit 1; echo "Install attempt $attempt failed"; done
       - name: Install Maestro
         # The installer once got a 504 and exited 0 (curl | bash), so the walk ran without Maestro.
         # Three attempts, and the step fails unless the binary really works.
