@@ -72,7 +72,8 @@ jobs:
         working-directory: mobile/ios
         run: |
           set -o pipefail
-          pod install --repo-update 2>&1 | tee ../../pod-install.log
+          # Three attempts: the prebuilt React-Core download (Maven Central) failed once on a runner DNS hiccup.
+          for attempt in 1 2 3; do pod install --repo-update 2>&1 | tee -a ../../pod-install.log && break; [ "$attempt" = 3 ] && exit 1; echo "pod install failed, retry $attempt"; sleep 30; done
           grep -n "LIBRARY_SEARCH_PATHS" "Pods/Target Support Files/Pods-$(basename *.xcworkspace .xcworkspace)/"*.release.xcconfig | tee -a ../../pod-install.log
 
       - name: Build Release for iphoneos (no signing)

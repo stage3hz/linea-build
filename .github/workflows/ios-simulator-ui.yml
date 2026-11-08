@@ -83,7 +83,9 @@ jobs:
           set -o pipefail
           cd mobile
           npx expo prebuild --platform ios --clean --no-install
-          cd ios && pod install
+          # Prebuilt React-Core comes from Maven Central; the runner's DNS flaked once («Could not resolve host»),
+          # so the download gets three attempts before the walk is given up.
+          cd ios && for attempt in 1 2 3; do pod install && break; [ "$attempt" = 3 ] && exit 1; echo "pod install failed, retry $attempt"; sleep 30; done
           SCHEME=$(basename *.xcworkspace .xcworkspace); echo "SCHEME=$SCHEME" >> "$GITHUB_ENV"
           xcodebuild -workspace "$SCHEME.xcworkspace" -scheme "$SCHEME" -configuration Release -sdk iphonesimulator \
             -destination 'generic/platform=iOS Simulator' -derivedDataPath simbuild ARCHS="$SIM_ARCH" ONLY_ACTIVE_ARCH=YES \
