@@ -38,3 +38,36 @@ test('both sides derive the same key emoji from the two DTLS fingerprints', () =
   assert.deepEqual(model.keyEmoji('0123456789abcdef0123'), emoji);
   assert.equal(model.callClock(65_400), '1:05');
 });
+
+// F9 review: every `end` this phone sends is built by one function and carries the same fields as a hang-up.
+const source = (over = {}) => ({ id, video: false, incoming: false, startedAt: null, ...over });
+
+test('the `end` builder: outcome, video, caller, and the duration only once the media connected', () => {
+  const t0 = Date.UTC(2026, 10, 7, 10, 0, 0);
+  assert.deepEqual(model.callEndMeta(source({ video: true, startedAt: t0 }), 'hangup', t0 + 192_400), { type: 'call', call: id, step: 'end', reason: 'hangup', video: true, caller: true, duration: 192 });
+  assert.deepEqual(model.callEndMeta(source({ incoming: true }), 'busy'), { type: 'call', call: id, step: 'end', reason: 'busy', video: false, caller: false }, 'busy / privacy ends: no duration key at all, but video and caller are there');
+  assert.deepEqual(model.callEndMeta(source({ incoming: true, video: true }), 'declined'), { type: 'call', call: id, step: 'end', reason: 'declined', video: true, caller: false });
+  assert.equal(model.callEndMeta(source({ startedAt: t0 }), 'hangup', t0 - 5000).duration, 0, 'a clock that went backwards never yields a negative duration');
+  assert.equal(model.callEndMeta(source({ startedAt: t0 }), 'hangup', t0 + 30 * 86400_000).duration, 7 * 86400, 'capped at the week validMeta accepts');
+  for (const reason of ['hangup', 'declined', 'busy', 'missed', 'failed']) {
+    assert.equal(meta.validMeta({ action: model.callEndMeta(source({ startedAt: t0 }), reason, t0 + 1000) }), true, `${reason} passes validMeta`);
+    assert.equal(meta.validMeta({ action: model.callEndMeta(source({ incoming: true }), reason) }), true, `${reason} without duration passes validMeta`);
+  }
+});
+
+test('hanging up by status: a call that never connected is never an answered call', () => {
+  assert.deepEqual(model.hangupOutcome('incoming', true), { text: 'Звонок отклонён', reason: 'declined' });
+  assert.deepEqual(model.hangupOutcome('requesting', false), { text: 'Звонок отменён', reason: null }, 'nothing was sent yet: no trace in either chat');
+  assert.deepEqual(model.hangupOutcome('ringing', false), { text: 'Звонок отменён', reason: 'missed' });
+  assert.deepEqual(model.hangupOutcome('connecting', false), { text: 'Звонок отменён', reason: 'missed' }, 'the answer arrived but the media did not: the other person missed it, not «Исходящий звонок»');
+  assert.deepEqual(model.hangupOutcome('connecting', true), { text: 'Звонок отклонён', reason: 'declined' });
+  assert.deepEqual(model.hangupOutcome('active', false), { text: 'Звонок завершён', reason: 'hangup' });
+  assert.deepEqual(model.hangupOutcome('active', true), { text: 'Звонок завершён', reason: 'hangup' });
+});
+
+test('the incoming alert follows Настройки › Звонки: «Без мелодии» rings silently, vibration can be off', () => {
+  assert.deepEqual(model.incomingAlert({ ringtone: 'neon', vibration: true }), { sound: true, vibrate: true });
+  assert.deepEqual(model.incomingAlert({ ringtone: 'pulse', vibration: false }), { sound: true, vibrate: false });
+  assert.deepEqual(model.incomingAlert({ ringtone: 'none', vibration: true }), { sound: false, vibrate: true });
+  assert.deepEqual(model.incomingAlert({ ringtone: 'none', vibration: false }), { sound: false, vibrate: false });
+});

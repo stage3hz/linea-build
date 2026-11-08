@@ -158,20 +158,23 @@ const plural = (n, one, few, many) => { const a = n % 10, b = n % 100; return a 
 export function chatNotification({ chatId, senderName, kind, unread, badge }) {
   const count = Number.isSafeInteger(badge) && badge >= 0 ? badge : null;
   const call = kind === 'call';
+  // F4 «Отправить без звука»: the same notification, delivered quietly (Android: the app's `silent`
+  // channel has no sound or vibration; iPhone: no `sound` key — the banner and the badge still show).
+  const silent = kind === 'silent';
   const body = call ? '📞 Входящий звонок' : unread > 1 ? `${unread} ${plural(unread, 'новое сообщение', 'новых сообщения', 'новых сообщений')}` : 'Новое сообщение';
   return {
     data: { chatId, kind },
     android: {
       priority: 'high',
       ...(call ? { ttl: '45s' } : { collapse_key: chatId }),
-      notification: { title: senderName, body, tag: call ? `call:${chatId}` : chatId, channel_id: call ? 'calls' : 'messages', icon: 'notification_icon', color: '#4C7DFF', sound: 'default', ...(count !== null ? { notification_count: count } : {}) },
+      notification: { title: senderName, body, tag: call ? `call:${chatId}` : chatId, channel_id: call ? 'calls' : silent ? 'silent' : 'messages', icon: 'notification_icon', color: '#4C7DFF', ...(silent ? { notification_priority: 'PRIORITY_LOW' } : { sound: 'default' }), ...(count !== null ? { notification_count: count } : {}) },
     },
     // iPhone: the same shape FCM v1 uses for its `apns` field, sent to Apple directly.
     apns: {
       headers: { ...(call ? { 'apns-expiration': String(Math.floor(Date.now() / 1000) + 45) } : { 'apns-collapse-id': chatId.slice(0, 64) }) },
-      payload: { aps: { alert: { title: senderName, body }, sound: 'default', 'thread-id': chatId, ...(count !== null ? { badge: count } : {}), ...(call ? { 'interruption-level': 'time-sensitive' } : {}) }, chatId, kind },
+      payload: { aps: { alert: { title: senderName, body }, ...(silent ? { 'interruption-level': 'passive' } : { sound: 'default' }), 'thread-id': chatId, ...(count !== null ? { badge: count } : {}), ...(call ? { 'interruption-level': 'time-sensitive' } : {}) }, chatId, kind },
     },
   };
 }
 
-export const PUSH_KINDS = new Set(['message', 'call', 'none']);
+export const PUSH_KINDS = new Set(['message', 'call', 'none', 'silent']);

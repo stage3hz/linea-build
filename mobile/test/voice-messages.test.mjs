@@ -76,3 +76,23 @@ test('waveform: 100 stored bars are fitted to the bubble width by peak', () => {
   assert.equal(Math.max(...fitted), 1); // a single loud moment is not lost
   assert.deepEqual(fitWaveform([0.5, 0.2], 45), [0.5, 0.2]);
 });
+
+test('voice: one take stays under 1 GB at 128 kbit/s, like Telegram there is no short duration cap', async () => {
+  const { VOICE_MAX_MS } = await import('../src/voice/voice.ts');
+  const bytes = VOICE_MAX_MS / 1000 * 128000 / 8;
+  assert.ok(bytes < 1024 ** 3, `${bytes} bytes`);
+  assert.ok(VOICE_MAX_MS >= 60 * 60 * 1000, 'at least an hour');
+});
+
+test('voice: the recording waveform is compacted and still spans the whole take', async () => {
+  const { pushVoiceSample, voiceSamples } = await import('../src/voice/voice.ts');
+  const state = { samples: [], stride: 1, pending: 0, count: 0 };
+  const total = 100_000;
+  for (let i = 0; i < total; i++) pushVoiceSample(state, i === total - 10 ? 1 : 0.1, 1000);
+  const wave = voiceSamples(state);
+  assert.ok(wave.length <= 1001 && wave.length >= 250, String(wave.length));
+  assert.ok(wave.slice(-5).includes(1), 'a loud moment at the very end is still in the waveform');
+  const short = { samples: [], stride: 1, pending: 0, count: 0 };
+  [0.2, 0.5, 0.3].forEach(level => pushVoiceSample(short, level, 1000));
+  assert.deepEqual(short.samples, [0.2, 0.5, 0.3], 'short takes are kept sample by sample');
+});

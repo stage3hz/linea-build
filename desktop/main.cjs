@@ -1,4 +1,4 @@
-const { app, BrowserWindow, ipcMain, protocol, net, session, safeStorage, desktopCapturer, dialog, shell, globalShortcut, screen, nativeImage, Tray, Menu } = require('electron');
+const { app, BrowserWindow, ipcMain, protocol, net, session, safeStorage, desktopCapturer, dialog, shell, globalShortcut, screen, nativeImage, Tray, Menu, Notification } = require('electron');
 // Our servers only (same rule as mobile/src/servers/list.ts): any number of them, all under our domains.
 const TRUSTED_HOST = /^(?:[a-z0-9-]+\.)*invizent\.(?:com|ru)$|^141-133-194-51\.nip\.io$|^invizent-api\.invizent-8165e2\.workers\.dev$/;
 if (!app.requestSingleInstanceLock()) { app.quit(); } else {
@@ -6,6 +6,7 @@ const path = require('node:path');
 const fs = require('node:fs/promises');
 const { randomUUID } = require('node:crypto');
 const { createUpdater } = require('./update.cjs');
+const { notificationPayload, applyTrayBadge } = require('./notify.cjs');
 const { pathToFileURL } = require('node:url');
 protocol.registerSchemesAsPrivileged([{ scheme: 'invizent', privileges: { standard: true, secure: true, supportFetchAPI: true, stream: true } }, { scheme: 'invizent-cache', privileges: { standard: true, secure: true, supportFetchAPI: true, stream: true, corsEnabled: true } }]);
 let window, cacheRoot, picker = null, capture = null;
@@ -152,10 +153,35 @@ ipcMain.handle('invizent', async (event, method, ...args) => {
   if (method === 'badge') {
     const count = Number.isSafeInteger(args[0]) ? Math.min(Math.max(args[0], 0), 99999) : 0;
     const picture = typeof args[1] === 'string' && args[1].length < 65536 && args[1].startsWith('data:image/png;base64,') ? args[1] : null;
-    if (process.platform === 'win32') {
-      const image = count && picture ? nativeImage.createFromDataURL(picture) : null;
-      window?.setOverlayIcon(image && !image.isEmpty() ? image : null, count ? `Непрочитанных: ${count}` : '');
-    } else app.setBadgeCount(count);
+    const drawn = count && picture ? nativeImage.createFromDataURL(picture) : null;
+    const image = drawn && !drawn.isEmpty() ? drawn : null;
+    if (process.platform === 'win32') window?.setOverlayIcon(image, count ? `Непрочитанных: ${count}` : '');
+    else app.setBadgeCount(count); // macOS dock; Linux launchers that support counters
+    lastBadge = { count, image }; refreshTray();
+    return;
+  }
+  // System notifications (see notifications/desktopNotify.ts): the page already decided whether to
+  // show one and what it says, so this only bounds the strings and shows them. Nothing is logged.
+  if (method === 'notifyShow') {
+    const payload = notificationPayload(args[0]);
+    if (!payload || !Notification.isSupported()) return false;
+    notices.get(payload.tag)?.close();
+    if (notices.size >= 20) { const oldest = notices.keys().next().value; notices.get(oldest)?.close(); notices.delete(oldest); }
+    const notice = new Notification({ title: payload.title, body: payload.body, silent: payload.silent, timeoutType: payload.kind === 'call' ? 'never' : 'default', urgency: payload.kind === 'call' ? 'critical' : 'normal',
+      // Buttons on a notification exist on macOS only (Electron); elsewhere the click answers from the call screen.
+      ...(payload.answer && process.platform === 'darwin' ? { actions: [{ type: 'button', text: 'Ответить' }] } : {}) });
+    const report = kind => { showWindow(); if (window && !window.isDestroyed()) window.webContents.send('invizent-notify', { kind, chatId: payload.chatId }); };
+    notice.on('click', () => report('open'));
+    notice.on('action', () => report(payload.answer ? 'answer' : 'open'));
+    notice.on('close', () => { if (notices.get(payload.tag) === notice) notices.delete(payload.tag); });
+    notices.set(payload.tag, notice);
+    try { notice.show(); } catch { notices.delete(payload.tag); return false; }
+    return true;
+  }
+  if (method === 'notifyClose') {
+    if (typeof args[0] !== 'string') return;
+    const notice = notices.get(args[0]); notices.delete(args[0]);
+    try { notice?.close(); } catch { /* already gone */ }
     return;
   }
   if (method === 'overlayConfigure') {
@@ -307,7 +333,11 @@ app.on('window-all-closed', () => app.quit());
 
 // Closing the window keeps Инвиз running in the tray (messages and calls still arrive), as in
 // Telegram / Discord on Windows. «Выйти» in the tray menu (or the updater) really quits.
-let tray = null, quitting = false, trayHintShown = false;
+let tray = null, quitting = false, trayHintShown = false, trayIcon = null, lastBadge = { count: 0, image: null };
+const notices = new Map();
+// Tray: the tooltip carries the count (the only badge Linux trays have); on Windows/Linux the counter is
+// drawn over the app icon while something is unread, like Telegram Desktop's tray counter (notify.cjs).
+const refreshTray = () => applyTrayBadge({ tray, icon: trayIcon, badge: lastBadge, nativeImage });
 app.on('before-quit', () => { quitting = true; });
 function showWindow() { if (!window || window.isDestroyed()) return; if (window.isMinimized()) window.restore(); window.show(); window.focus(); }
 async function setupTray() {
@@ -315,8 +345,8 @@ async function setupTray() {
   try {
     let icon = await app.getFileIcon(process.execPath, { size: 'small' }).catch(() => null);
     if (!icon || icon.isEmpty()) icon = nativeImage.createEmpty();
-    tray = new Tray(icon);
-    tray.setToolTip('Инвиз');
+    tray = new Tray(icon); trayIcon = icon;
+    refreshTray();
     tray.setContextMenu(Menu.buildFromTemplate([
       { label: 'Открыть Инвиз', click: showWindow },
       { type: 'separator' },

@@ -22,6 +22,8 @@ import { AnimatedEmoji, bigEmoji } from './platina/AnimatedEmoji';
 import { InviteCard } from './communities/InviteCard';
 import { inviteCodeFrom, withoutInviteLink } from './communities/types';
 import { navigate } from './navigation';
+import { useCalls } from './calls/CallProvider';
+import { callServiceText, classifyCall, isCallEnd, type CallEndAction } from './calls/callHistory';
 
 export type AlbumPart = { attachment: Attachment; message?: ViewMessage; pending?: PendingMessage };
 export type Row = { key: string; message?: ViewMessage; pending?: PendingMessage; createdAt: string; album?: AlbumPart[]; missing?: number };
@@ -135,6 +137,9 @@ function MessageRowView({ row, olderCreatedAt, mine, author, peerLastRead, wide,
   // An answer to a story carries the same quote block; a tap opens the story instead of jumping in the chat.
   const storyRef = message?.meta?.story || p?.meta?.story;
   const read = peerLastRead >= (message?.id || 0);
+  // F4 «Отправить без звука»: a small crossed bell beside the time of your own message (the peer sees a plain message).
+  const silent = mine && !!(message?.meta?.silent || p?.meta?.silent);
+  const silentMark = silent ? <Icon name="notifications-off" size={11} color={bare && !body ? '#FFF' : t.subtle} /> : null;
   // Telegram: a tap on a message (or next to it) opens reactions and actions, a double tap puts ❤️.
   const tapTimer = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
   useEffect(() => () => { if (tapTimer.current) clearTimeout(tapTimer.current); }, []);
@@ -163,7 +168,7 @@ function MessageRowView({ row, olderCreatedAt, mine, author, peerLastRead, wide,
   }, [desktop, row, message, p, selecting, decrypted]);
   const longPress = (pageY: number) => { if (tapTimer.current) { clearTimeout(tapTimer.current); tapTimer.current = undefined; } if (selecting) { handlers.current.toggleSelect(row); return; } impactFeedback(); handlers.current.actions(row, pageY); };
   return <Animated.View entering={fresh ? FadeInDown.duration(220) : undefined}>
-    {showDay ? <View style={{ alignSelf: 'center', backgroundColor: t.black ? 'rgba(0,0,0,0.68)' : t.dark ? 'rgba(30,36,53,0.68)' : 'rgba(255,255,255,0.52)', borderWidth: 1, borderColor: t.dark ? 'rgba(255,255,255,0.08)' : 'rgba(255,255,255,0.88)', paddingVertical: 6, paddingHorizontal: 14, borderRadius: 14, marginTop: 15, marginBottom: 18 }}><Text style={{ color: t.muted, fontSize: 10, fontWeight: '600' }}>{formatDay(row.createdAt)}</Text></View> : null}
+    {showDay ? <DayChip at={row.createdAt} /> : null}
     <View ref={rootRef}>
     <Pressable onPress={event => desktop ? (selecting ? press() : undefined) : press(event.nativeEvent.pageY)} onLongPress={desktop ? undefined : event => longPress(event.nativeEvent.pageY)} delayLongPress={400} accessible={false} style={{ flexDirection: 'row', alignItems: 'center', backgroundColor: selected ? t.accentSoft : desktop && hovered ? (t.dark ? 'rgba(255,255,255,0.03)' : 'rgba(0,0,0,0.025)') : 'transparent', borderRadius: 14, marginHorizontal: -6, paddingHorizontal: 6 }}>
     {selecting ? <View style={{ width: 30, alignItems: 'flex-start' }}><Icon name={selected ? 'checkmark-circle' : 'ellipse-outline'} size={24} color={selected ? t.accent : t.subtle} /></View> : null}
@@ -180,9 +185,9 @@ function MessageRowView({ row, olderCreatedAt, mine, author, peerLastRead, wide,
           {row.album ? <View style={{ marginBottom: body ? 7 : 0 }}><AlbumGrid api={api} items={row.album.map(part => part.attachment)} width={albumWidth} onOpen={attachment => selecting ? press() : handlers.current.open(attachment)} onLongPress={() => longPress(0)} /></View> : null}
           {file ? <View style={{ marginBottom: body ? 7 : bare ? 0 : 1, marginTop: bare || flush ? 0 : 1 }}>{p?.upload ? <UploadBubble pending={p} onCancel={() => handlers.current.cancel?.(p)} /> : isVoice(file) ? <VoiceBubble attachment={file} mine={mine} /> : isVideoNote(file) ? <VideoNoteBubble api={api} attachment={file} /> : visual && box ? <MediaTile api={api} attachment={file} width={box.width} height={box.height} radius={bare ? 15 : flush ? Math.max(4, radius - 3) : 14} onOpen={() => selecting ? press() : handlers.current.open(file)} onLongPress={() => longPress(0)} /> : file.encryption ? <FileBubble api={api} attachment={file} onOpen={() => handlers.current.open(file)} /> : <AttachmentCard api={api} attachment={file} onPress={() => handlers.current.open(file)} />}</View> : null}
           {poll ? <PollBubble poll={poll} results={message?.poll} disabled={!message || message.cryptoState !== 'decrypted' || selecting} onVote={options => message && handlers.current.vote(message, options)} /> : null}
-          {animatedParts ? <View accessible accessibilityLabel={body} style={{ flexDirection: 'row', gap: 2 }}>{animatedParts.map((part, index) => <AnimatedEmoji key={`${index}${part}`} emoji={part} size={emoji === 1 ? 112 : emoji === 2 ? 84 : 68} mode="once" />)}</View> : body ? emoji ? <Text raw style={{ fontSize: emoji === 1 ? 64 : emoji === 2 ? 52 : 44, lineHeight: emoji === 1 ? 76 : emoji === 2 ? 62 : 54 }}>{body}</Text> : <FormattedText text={body} entities={entities} color={t.text} linkColor={mine ? t.text : t.accent} fontSize={fontSize} lineHeight={lineHeight} selectable={desktop} style={{ paddingHorizontal: flush ? 9 : 1 }} trailing={inlineTime ? <Text selectable={false} style={{ fontSize: 11, color: '#00000001', userSelect: 'none' } as any}>{`\u00A0\u00A0\u00A0${message?.edited ? 'изм. ' : ''}${formatTime(row.createdAt)}${mine ? '\u00A0\u00A0\u00A0\u00A0\u00A0\u00A0\u00A0' : ''}\u00A0`}</Text> : null} /> : null}
+          {animatedParts ? <View accessible accessibilityLabel={body} style={{ flexDirection: 'row', gap: 2 }}>{animatedParts.map((part, index) => <AnimatedEmoji key={`${index}${part}`} emoji={part} size={emoji === 1 ? 112 : emoji === 2 ? 84 : 68} mode="once" />)}</View> : body ? emoji ? <Text raw style={{ fontSize: emoji === 1 ? 64 : emoji === 2 ? 52 : 44, lineHeight: emoji === 1 ? 76 : emoji === 2 ? 62 : 54 }}>{body}</Text> : <FormattedText text={body} entities={entities} color={t.text} linkColor={mine ? t.text : t.accent} fontSize={fontSize} lineHeight={lineHeight} selectable={desktop} style={{ paddingHorizontal: flush ? 9 : 1 }} trailing={inlineTime ? <Text selectable={false} style={{ fontSize: 11, color: '#00000001', userSelect: 'none' } as any}>{`\u00A0\u00A0\u00A0${silent ? '\u00A0\u00A0\u00A0\u00A0\u00A0' : ''}${message?.edited ? 'изм. ' : ''}${formatTime(row.createdAt)}${mine ? '\u00A0\u00A0\u00A0\u00A0\u00A0\u00A0\u00A0' : ''}\u00A0`}</Text> : null} /> : null}
           {invite ? <View style={{ marginTop: 6, marginBottom: 2 }}><InviteCard api={api} code={invite} onOpen={code => navigate({ to: 'invite', code })} /></View> : null}
-          {reactionsInside ? <View style={{ flexDirection: 'row', alignItems: 'flex-end', gap: 10, marginTop: 6, paddingHorizontal: flush ? 12 : 0 }}><View style={{ flexShrink: 1, flexDirection: 'row', flexWrap: 'wrap', gap: 5 }}>{reactionChips(true)}</View><View style={{ marginLeft: 'auto', flexDirection: 'row', alignItems: 'center', gap: 4, paddingBottom: 1 }}>{downloading ? <ActivityIndicator color={t.accent} size="small" /> : null}<Text style={{ color: bare && !body ? '#FFF' : t.muted, fontSize: 11 }}>{message?.edited ? 'изм. ' : ''}{formatTime(row.createdAt)}</Text>{p || row.album?.some(part => part.pending) ? (p?.state === 'failed' || row.album?.some(part => part.pending?.state === 'failed')) ? <Icon name="alert-circle" size={13} color={t.danger} /> : (meshMark ?? <Icon name="time-outline" size={12} color={bare && !body ? '#FFF' : t.muted} />) : mine ? <Icon name={read ? 'checkmark-done' : 'checkmark'} size={15} color={bare && !body ? '#FFF' : read ? t.accent : t.muted} /> : null}</View></View> : <View style={inlineTime ? { position: 'absolute', right: 10, bottom: 6, flexDirection: 'row', alignItems: 'center', gap: 4 } : bare && !body ? { position: 'absolute', right: 8, bottom: 8, flexDirection: 'row', alignItems: 'center', gap: 4, paddingHorizontal: 7, paddingVertical: 2, borderRadius: 10, backgroundColor: 'rgba(10,15,30,0.5)' } : emoji ? { alignSelf: 'flex-end', marginTop: 2, flexDirection: 'row', alignItems: 'center', gap: 4, paddingHorizontal: 7, paddingVertical: 2, borderRadius: 10, backgroundColor: t.dark ? 'rgba(0,0,0,0.42)' : 'rgba(255,255,255,0.85)' } : { flexDirection: 'row', justifyContent: 'flex-end', alignItems: 'center', gap: 5, marginTop: 4 }}>{downloading ? <ActivityIndicator color={t.accent} size="small" /> : null}<Text style={{ color: bare && !body ? '#FFF' : t.muted, fontSize: 11 }}>{message?.edited ? 'изм. ' : ''}{formatTime(row.createdAt)}</Text>{p || row.album?.some(part => part.pending) ? (p?.state === 'failed' || row.album?.some(part => part.pending?.state === 'failed')) ? <Icon name="alert-circle" size={13} color={t.danger} /> : (meshMark ?? <Icon name="time-outline" size={12} color={bare && !body ? '#FFF' : t.muted} />) : mine ? <Icon name={read ? 'checkmark-done' : 'checkmark'} size={15} color={bare && !body ? '#FFF' : read ? t.accent : t.muted} /> : null}</View>}
+          {reactionsInside ? <View style={{ flexDirection: 'row', alignItems: 'flex-end', gap: 10, marginTop: 6, paddingHorizontal: flush ? 12 : 0 }}><View style={{ flexShrink: 1, flexDirection: 'row', flexWrap: 'wrap', gap: 5 }}>{reactionChips(true)}</View><View style={{ marginLeft: 'auto', flexDirection: 'row', alignItems: 'center', gap: 4, paddingBottom: 1 }}>{downloading ? <ActivityIndicator color={t.accent} size="small" /> : null}{silentMark}<Text style={{ color: bare && !body ? '#FFF' : t.muted, fontSize: 11 }}>{message?.edited ? 'изм. ' : ''}{formatTime(row.createdAt)}</Text>{p || row.album?.some(part => part.pending) ? (p?.state === 'failed' || row.album?.some(part => part.pending?.state === 'failed')) ? <Icon name="alert-circle" size={13} color={t.danger} /> : (meshMark ?? <Icon name="time-outline" size={12} color={bare && !body ? '#FFF' : t.muted} />) : mine ? <Icon name={read ? 'checkmark-done' : 'checkmark'} size={15} color={bare && !body ? '#FFF' : read ? t.accent : t.muted} /> : null}</View></View> : <View style={inlineTime ? { position: 'absolute', right: 10, bottom: 6, flexDirection: 'row', alignItems: 'center', gap: 4 } : bare && !body ? { position: 'absolute', right: 8, bottom: 8, flexDirection: 'row', alignItems: 'center', gap: 4, paddingHorizontal: 7, paddingVertical: 2, borderRadius: 10, backgroundColor: 'rgba(10,15,30,0.5)' } : emoji ? { alignSelf: 'flex-end', marginTop: 2, flexDirection: 'row', alignItems: 'center', gap: 4, paddingHorizontal: 7, paddingVertical: 2, borderRadius: 10, backgroundColor: t.dark ? 'rgba(0,0,0,0.42)' : 'rgba(255,255,255,0.85)' } : { flexDirection: 'row', justifyContent: 'flex-end', alignItems: 'center', gap: 5, marginTop: 4 }}>{downloading ? <ActivityIndicator color={t.accent} size="small" /> : null}{silentMark}<Text style={{ color: bare && !body ? '#FFF' : t.muted, fontSize: 11 }}>{message?.edited ? 'изм. ' : ''}{formatTime(row.createdAt)}</Text>{p || row.album?.some(part => part.pending) ? (p?.state === 'failed' || row.album?.some(part => part.pending?.state === 'failed')) ? <Icon name="alert-circle" size={13} color={t.danger} /> : (meshMark ?? <Icon name="time-outline" size={12} color={bare && !body ? '#FFF' : t.muted} />) : mine ? <Icon name={read ? 'checkmark-done' : 'checkmark'} size={15} color={bare && !body ? '#FFF' : read ? t.accent : t.muted} /> : null}</View>}
         </Pressable>
         {desktop && hovered && !selecting && (message || p) ? <View style={{ flexDirection: 'row', borderRadius: 12, padding: 2, backgroundColor: t.glassOpaque, borderWidth: 1, borderColor: t.border, shadowColor: '#000', shadowOpacity: .18, shadowRadius: 8, shadowOffset: { width: 0, height: 3 } }}>
       {decrypted ? <HoverButton icon="happy-outline" label="Реакция" onPress={(x, y) => handlers.current.actions(row, y, x)} /> : null}
@@ -200,8 +205,61 @@ function MessageRowView({ row, olderCreatedAt, mine, author, peerLastRead, wide,
   </Animated.View>;
 }
 
+/** Telegram's date pill between days. */
+function DayChip({ at }: { at: string }) {
+  const t = useTheme();
+  return <View style={{ alignSelf: 'center', backgroundColor: t.black ? 'rgba(0,0,0,0.68)' : t.dark ? 'rgba(30,36,53,0.68)' : 'rgba(255,255,255,0.52)', borderWidth: 1, borderColor: t.dark ? 'rgba(255,255,255,0.08)' : 'rgba(255,255,255,0.88)', paddingVertical: 6, paddingHorizontal: 14, borderRadius: 14, marginTop: 15, marginBottom: 18 }}><Text style={{ color: t.muted, fontSize: 10, fontWeight: '600' }}>{formatDay(at)}</Text></View>;
+}
+
+/**
+ * A finished call (F9): a centred service row «Исходящий звонок · 3:12» / «Пропущенный звонок» with
+ * the time, as in Telegram. A tap calls the person back; a long press opens the usual menu (delete).
+ * The outcome comes from the encrypted `end` action, so both phones show the same row.
+ */
+function CallServiceRow({ row, olderCreatedAt, mine, wide, handlers, selecting, selected, fresh }: Props) {
+  const t = useTheme(); const calls = useCalls();
+  const message = row.message!; const action = message.meta!.action as CallEndAction;
+  // Only «mine» is known here, not the user id: a stand-in id keeps the classification honest.
+  const senderId = mine ? 'me' : 'peer';
+  const kind = classifyCall(action, senderId, 'me');
+  const text = callServiceText(action, senderId, 'me');
+  const red = kind === 'missed' || kind === 'declined';
+  const showDay = !olderCreatedAt || new Date(olderCreatedAt).toDateString() !== new Date(row.createdAt).toDateString();
+  const press = () => { if (selecting) { lightFeedback(); handlers.current.toggleSelect(row); return; } if (!calls.available || calls.busy) return; lightFeedback(); calls.callBack(message.chatId, !!action.video); };
+  const longPress = (pageY: number) => { if (selecting) { handlers.current.toggleSelect(row); return; } impactFeedback(); handlers.current.actions(row, pageY); };
+  // Desktop: the right button opens the same menu («Удалить») at the cursor, as on an ordinary message.
+  const desktop = Platform.OS === 'web' && wide;
+  const rootRef = useRef<View>(null);
+  useEffect(() => {
+    const node = rootRef.current as unknown as HTMLElement | null;
+    if (!desktop || !node?.addEventListener) return;
+    const onMenu = (event: MouseEvent) => { event.preventDefault(); handlers.current.actions(row, event.clientY, event.clientX); };
+    node.addEventListener('contextmenu', onMenu);
+    return () => node.removeEventListener('contextmenu', onMenu);
+  }, [desktop, row]);
+  return <Animated.View entering={fresh ? FadeInDown.duration(220) : undefined}>
+    {showDay ? <DayChip at={row.createdAt} /> : null}
+    <View ref={rootRef} style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 6 }}>
+      {selecting ? <View style={{ width: 30, alignItems: 'flex-start' }}><Icon name={selected ? 'checkmark-circle' : 'ellipse-outline'} size={24} color={selected ? t.accent : t.subtle} /></View> : null}
+      <View style={{ flex: 1, alignItems: 'center' }}>
+        <Pressable onPress={press} onLongPress={event => longPress(event.nativeEvent.pageY)} delayLongPress={400} accessibilityRole="button" accessibilityLabel={`${text}, ${formatTime(row.createdAt)}`} accessibilityHint={calls.available ? 'Перезвонить' : undefined}
+          style={({ pressed }) => ({ flexDirection: 'row', alignItems: 'center', gap: 10, maxWidth: 360, paddingLeft: 8, paddingRight: 14, paddingVertical: 7, borderRadius: 20, backgroundColor: selected ? t.accentSoft : pressed ? (t.dark ? 'rgba(255,255,255,0.10)' : 'rgba(255,255,255,0.78)') : t.dark ? 'rgba(12,15,24,0.60)' : 'rgba(255,255,255,0.62)', borderWidth: 1, borderColor: t.dark ? 'rgba(255,255,255,0.08)' : 'rgba(255,255,255,0.88)' })}>
+          <View style={{ width: 34, height: 34, borderRadius: 17, alignItems: 'center', justifyContent: 'center', backgroundColor: red ? t.dangerBg : t.accentSoft }}><Icon name={action.video ? 'videocam' : 'call'} size={17} color={red ? t.danger : t.accent} /></View>
+          <View style={{ flexShrink: 1, gap: 1 }}>
+            <Text numberOfLines={1} style={{ color: red ? t.danger : t.text, fontSize: 14, fontWeight: '600' }}>{text}</Text>
+            <Text style={{ color: t.muted, fontSize: 11, fontVariant: ['tabular-nums'] }}>{formatTime(row.createdAt)}</Text>
+          </View>
+        </Pressable>
+      </View>
+    </View>
+  </Animated.View>;
+}
+
 /** Re-renders only when this row's own data changes, not on every keystroke in the composer. */
-export const MessageRow = memo(MessageRowView);
+export const MessageRow = memo(function MessageRow(props: Props) {
+  const message = props.row.message;
+  return message && isCallEnd(message) && !props.row.album ? <CallServiceRow {...props} /> : <MessageRowView {...props} />;
+});
 
 function HoverButton({ icon, label, onPress }: { icon: React.ComponentProps<typeof Icon>['name']; label: string; onPress: (x: number, y: number) => void }) {
   const t = useTheme();

@@ -2,8 +2,85 @@ appId: com.linea.messenger.preview
 ---
 # Screens checked in the simulator. Screenshots carry the theme prefix set by the workflow (THEME).
 # The tab bar is photographed with every tab selected, so its pill and icons can be measured.
+#
+# Runs twice: first in the dark appearance (after register-and-screens.yaml), then in the light one
+# (screens-again.yaml, same install, no clearState). So every step must work with the notes and the
+# Photos permission left over from the previous run, and the flow must end on the chat list with the
+# appearance following the system again (see the end of the theme walk).
+#
+# Keyboard: no hideKeyboard (unreliable here). Modals (context menu, attachment sheet) are closed by a tap
+# on their backdrop near the top of the screen — the centre of the backdrop lies under the sheet/menu.
 - waitForAnimationToEnd
 - takeScreenshot: ${THEME}-01-chats
+
+# Избранное: a note, its context menu, the attachment sheet.
+- tapOn:
+    text: "Избранное.*"
+- extendedWaitUntil:
+    visible:
+      id: "chat-composer"
+    timeout: 15000
+- waitForAnimationToEnd
+- takeScreenshot: ${THEME}-05-saved
+- tapOn:
+    id: "chat-composer"
+- inputText: "Привет, это тест"
+- waitForAnimationToEnd
+- tapOn:
+    id: "chat-send"
+- extendedWaitUntil:
+    visible: "Привет, это тест"
+    timeout: 15000
+- waitForAnimationToEnd
+- takeScreenshot: ${THEME}-09-saved-note
+- longPressOn: "Привет, это тест"
+- extendedWaitUntil:
+    visible: "Удалить из Избранного"
+    timeout: 15000
+- waitForAnimationToEnd
+- takeScreenshot: ${THEME}-10-saved-menu
+# The backdrop («Закрыть меню») fills the screen; its centre is under the menu, so tap it up top.
+- tapOn:
+    point: "50%,12%"
+- extendedWaitUntil:
+    notVisible: "Удалить из Избранного"
+    timeout: 15000
+- tapOn: "Сохранить фото, видео или файл"
+- extendedWaitUntil:
+    visible: "Галерея"
+    timeout: 15000
+# First open on a fresh simulator: iOS asks for the Photos permission (the gallery tab lists recent
+# photos). The dark run is the fresh install (clearState), so the alert is awaited and allowed there;
+# the light run finds the permission granted and only guards against a stray alert.
+- runFlow:
+    when:
+      true: ${THEME == 'dark'}
+    commands:
+      - extendedWaitUntil:
+          visible: "Allow Full Access|Allow Access to All Photos|Разрешить доступ ко всем фото"
+          timeout: 20000
+      - tapOn: "Allow Full Access|Allow Access to All Photos|Разрешить доступ ко всем фото"
+- runFlow:
+    when:
+      true: ${THEME != 'dark'}
+      visible: "Allow Full Access|Allow Access to All Photos|Разрешить доступ ко всем фото"
+    commands:
+      - tapOn: "Allow Full Access|Allow Access to All Photos|Разрешить доступ ко всем фото"
+- waitForAnimationToEnd
+- takeScreenshot: ${THEME}-11-saved-attach
+# The backdrop («Закрыть выбор вложений») above the sheet (the sheet takes the lower ~56 %).
+- tapOn:
+    point: "50%,20%"
+- extendedWaitUntil:
+    notVisible: "Галерея"
+    timeout: 15000
+- tapOn: "Назад к чатам"
+- extendedWaitUntil:
+    visible: "Избранное.*"
+    timeout: 15000
+- waitForAnimationToEnd
+
+# The tabs.
 - tapOn: "Люди"
 - waitForAnimationToEnd
 - takeScreenshot: ${THEME}-06-people
@@ -21,15 +98,97 @@ appId: com.linea.messenger.preview
 - takeScreenshot: ${THEME}-03-profile
 - tapOn: "Назад"
 - waitForAnimationToEnd
-- tapOn: "Оформление"
+- tapOn:
+    text: "Оформление.*"
+- extendedWaitUntil:
+    visible: "Светлая тема"
+    timeout: 15000
 - waitForAnimationToEnd
 - takeScreenshot: ${THEME}-04-appearance
-- tapOn: "Назад"
+
+# Оформление: each theme card, then the chat list in that theme. The Settings tab unmounts when
+# Чаты is opened, so the way back is Настройки → Оформление every time.
+- tapOn: "Светлая тема"
+- waitForAnimationToEnd
 - tapOn: "Чаты"
+- extendedWaitUntil:
+    visible: "Избранное.*"
+    timeout: 15000
 - waitForAnimationToEnd
+- takeScreenshot: ${THEME}-12-chats-light
+- tapOn: "Настройки"
+- extendedWaitUntil:
+    visible: "Оформление.*"
+    timeout: 15000
 - tapOn:
-    text: "Избранное.*"
+    text: "Оформление.*"
+- extendedWaitUntil:
+    visible: "Тёмная тема"
+    timeout: 15000
+
+- tapOn: "Тёмная тема"
 - waitForAnimationToEnd
-- takeScreenshot: ${THEME}-05-saved
-- tapOn: "Назад к чатам"
+- tapOn: "Чаты"
+- extendedWaitUntil:
+    visible: "Избранное.*"
+    timeout: 15000
+- waitForAnimationToEnd
+- takeScreenshot: ${THEME}-13-chats-dark
+- tapOn: "Настройки"
+- extendedWaitUntil:
+    visible: "Оформление.*"
+    timeout: 15000
+- tapOn:
+    text: "Оформление.*"
+- extendedWaitUntil:
+    visible: "Чёрная тема"
+    timeout: 15000
+
+- tapOn: "Чёрная тема"
+- waitForAnimationToEnd
+- tapOn: "Чаты"
+- extendedWaitUntil:
+    visible: "Избранное.*"
+    timeout: 15000
+- waitForAnimationToEnd
+- takeScreenshot: ${THEME}-14-chats-black
+- tapOn: "Настройки"
+- extendedWaitUntil:
+    visible: "Оформление.*"
+    timeout: 15000
+- tapOn:
+    text: "Оформление.*"
+- extendedWaitUntil:
+    visible: "Графит тема"
+    timeout: 15000
+
+- tapOn: "Графит тема"
+- waitForAnimationToEnd
+- tapOn: "Чаты"
+- extendedWaitUntil:
+    visible: "Избранное.*"
+    timeout: 15000
+- waitForAnimationToEnd
+- takeScreenshot: ${THEME}-15-chats-graphite
+- tapOn: "Настройки"
+- extendedWaitUntil:
+    visible: "Оформление.*"
+    timeout: 15000
+- tapOn:
+    text: "Оформление.*"
+- extendedWaitUntil:
+    visible: "Светлая тема"
+    timeout: 15000
+
+# Back to «following the system». There is no «Как в системе» card: «Светлая» is the day theme, and the
+# first tap on it (at night, i.e. in the dark run) set the night rule to «как в системе» — so with
+# «Светлая» chosen the app is light by day and the dark theme when the system is dark. The light run
+# therefore starts light. (In the dark run the app stays light until the appearance changes: the manual
+# «night off» holds until the system rule flips, which is what the light run does.)
+- tapOn: "Светлая тема"
+- waitForAnimationToEnd
+- tapOn: "Чаты"
+- extendedWaitUntil:
+    visible: "Избранное.*"
+    timeout: 15000
 - waitForAnimationToEnd

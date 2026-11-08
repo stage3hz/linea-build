@@ -18,6 +18,8 @@ import { setOverlaySelf } from './src/overlay/sync';
 import { setUnreadTotal } from './src/unreadBadge';
 import { refreshFriendRequests, resetFriendRequests, useFriendRequests } from './src/friendRequests';
 import { setAppBadge } from './src/appBadge';
+import { useNotificationPrefs } from './src/notifications/prefs';
+import { isMuted } from './src/notifications/model';
 import { applyCommunityEvent, resetCommunityCounts, setCommunitySummaries, useChannelsBadge } from './src/communities/unread';
 // PC: hot keys for mute / deafen / рация (Настройки → Звук и микрофон).
 startBinds();
@@ -223,12 +225,14 @@ function Messenger({api,session,onUser,themeMode,darkTheme,nightState,onTheme,on
     };
     window.addEventListener('keydown',key);return()=>window.removeEventListener('keydown',key);
   },[wide,store.selectChat]);
-  // Unread (not muted, not archived): rail and phone tab bar badges.
-  const unreadTotal=store.chats.reduce((sum,item)=>sum+(item.settings?.muted||item.settings?.archived?0:item.unreadCount||0),0);
+  // Unread (not muted, not archived): rail and phone tab bar badges. An expired mute counts again (isMuted compares the clock).
+  const notif=useNotificationPrefs();
+  const unreadTotal=store.chats.reduce((sum,item)=>sum+(item.settings?.archived||isMuted(item.settings)?0:item.unreadCount||0),0);
   useEffect(()=>{setUnreadTotal(unreadTotal);},[unreadTotal]);
-  // App icon / taskbar badge: chats + channels + friend requests.
+  // App icon / taskbar badge: chats + channels + friend requests — «Бейдж на иконке» decides whether at all and whether muted chats count.
+  const badgeTotal=store.chats.reduce((sum,item)=>sum+(item.settings?.archived||(!notif.badge.countMuted&&isMuted(item.settings))?0:item.unreadCount||0),0);
   const channelsBadge=useChannelsBadge();const friendRequestCount=useFriendRequests().incoming.length;
-  useEffect(()=>{void setAppBadge(unreadTotal+channelsBadge+friendRequestCount);},[unreadTotal,channelsBadge,friendRequestCount]);
+  useEffect(()=>{void setAppBadge(notif.badge.enabled?badgeTotal+channelsBadge+friendRequestCount:0);},[notif.badge.enabled,badgeTotal,channelsBadge,friendRequestCount]);
   useEffect(()=>()=>{void setAppBadge(0);},[]);
   // Server/channel counters (the «Каналы» badge) stay current without opening the tab.
   useEffect(()=>{const load=()=>{api.communities().then(r=>setCommunitySummaries(r.communities)).catch(()=>{});};load();const off=store.onSocket(data=>{if(data?.type==='ready')load();else applyCommunityEvent(data,session.user.id);});return()=>{off();resetCommunityCounts();};},[api,store.onSocket,session.user.id]);

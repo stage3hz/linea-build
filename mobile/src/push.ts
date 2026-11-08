@@ -2,6 +2,7 @@ import { useEffect, useRef, useSyncExternalStore } from 'react';
 import { AppState, Platform } from 'react-native';
 import * as Notifications from 'expo-notifications';
 import type { Api } from './api';
+import { getNotificationPrefs, loadNotificationPrefs } from './notifications/prefs';
 
 /**
  * Push notifications: Android through Firebase Cloud Messaging, iPhone straight through Apple (APNs).
@@ -35,17 +36,33 @@ export function pushStatusText(value: PushStatus): string {
   }
 }
 
+// The saved switches are read at import, so the first notification of a cold start already sees them
+// (the handler below runs before any screen has asked for the preferences).
+void loadNotificationPrefs();
+
 if (pushSupported) {
+  // Настройки › Уведомления и звуки (local, this device): whether a banner is shown and whether it sounds,
+  // per kind — a call always rings; a community message follows «Сообщества», everything else «Личные чаты».
+  // «Отправить без звука» (kind 'silent', F4) is shown but never plays a sound, whatever the switches say.
   Notifications.setNotificationHandler({
-    handleNotification: async () => ({ shouldShowBanner: AppState.currentState !== 'active', shouldShowList: AppState.currentState !== 'active', shouldPlaySound: AppState.currentState !== 'active', shouldSetBadge: false }),
+    handleNotification: async notification => {
+      const background = AppState.currentState !== 'active';
+      const kind = notification?.request?.content?.data?.kind;
+      const prefs = getNotificationPrefs();
+      const group = kind === 'call' ? null : kind === 'community' ? prefs.communities : prefs.chats;
+      const show = background && (group ? group.show : true);
+      return { shouldShowBanner: show, shouldShowList: show, shouldPlaySound: show && kind !== 'silent' && (group ? group.sound : true), shouldSetBadge: false };
+    },
   });
 }
 
-/** Android notification channels (the server names them in the FCM message); iOS has none. */
-async function channels() {
+/** Android notification channels (the server names them in the FCM message: channel_id 'messages' / 'calls' /
+ *  'silent' for «Отправить без звука»); iOS has none. Exported for the tests only. */
+export async function channels() {
   if (Platform.OS !== 'android') return;
   await Notifications.setNotificationChannelAsync('messages', { name: 'Сообщения', importance: Notifications.AndroidImportance.HIGH, sound: 'default', vibrationPattern: [0, 180, 120, 180], lockscreenVisibility: Notifications.AndroidNotificationVisibility.PRIVATE });
   await Notifications.setNotificationChannelAsync('calls', { name: 'Звонки', importance: Notifications.AndroidImportance.MAX, sound: 'default', vibrationPattern: [0, 600, 400, 600, 400, 600], lockscreenVisibility: Notifications.AndroidNotificationVisibility.PUBLIC, bypassDnd: false });
+  await Notifications.setNotificationChannelAsync('silent', { name: 'Без звука', importance: Notifications.AndroidImportance.LOW, sound: null, vibrationPattern: [0], enableVibrate: false });
 }
 
 /** The raw device token as the server expects it: FCM registration token, or the APNs token as lowercase hex. */

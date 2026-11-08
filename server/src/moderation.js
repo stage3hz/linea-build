@@ -77,6 +77,15 @@ export function installModerationRoutes({ app, db, authOptions, publicUser, time
  * servers it owns, its messages in other channels, its files, sessions, devices and settings.
  * Returns the chats that disappeared and their other members, so they can be told.
  */
+/** F4: scheduled messages of a chat or an account go with it (PRAGMA foreign_keys is off); returns their attachment uploads to remove. */
+function dropScheduled(db, column, value) {
+  const ids = [];
+  for (const row of db.prepare(`SELECT encrypted_json FROM scheduled_messages WHERE ${column}=?`).all(value)) {
+    try { const list = JSON.parse(row.encrypted_json).attachmentIds; if (Array.isArray(list)) ids.push(...list.filter(id => typeof id === 'string')); } catch { /* opaque ciphertext without attachments */ }
+  }
+  db.prepare(`DELETE FROM scheduled_messages WHERE ${column}=?`).run(value);
+  return ids;
+}
 /** Removes one private chat with all its messages and attached files, for both participants. */
 export async function deleteChatForEveryone(db, uploadDir, chatId) {
   const files = [];
@@ -85,6 +94,7 @@ export async function deleteChatForEveryone(db, uploadDir, chatId) {
     for (const row of db.prepare('SELECT a.upload_id FROM e2ee_message_attachments a JOIN messages m ON m.id=a.message_id WHERE m.chat_id=?').all(chatId)) files.push(row.upload_id);
     for (const row of db.prepare('SELECT u.id FROM uploads u JOIN messages m ON m.id=u.attached_message_id WHERE m.chat_id=?').all(chatId)) files.push(row.id);
     for (const row of db.prepare('SELECT attachment_id FROM messages WHERE chat_id=? AND attachment_id IS NOT NULL').all(chatId)) files.push(row.attachment_id);
+    files.push(...dropScheduled(db, 'chat_id', chatId));
     const unique = [...new Set(files)];
     db.prepare('DELETE FROM e2ee_message_attachments WHERE message_id IN (SELECT id FROM messages WHERE chat_id=?)').run(chatId);
     db.prepare('UPDATE uploads SET attached_message_id=NULL WHERE attached_message_id IN (SELECT id FROM messages WHERE chat_id=?)').run(chatId);
@@ -109,6 +119,8 @@ export async function deleteAccount(db, uploadDir, userId) {
     const peers = [];
     for (const chatId of chats) {
       for (const row of db.prepare('SELECT user_id FROM chat_members WHERE chat_id=? AND user_id<>?').all(chatId, userId)) peers.push({ chatId, userId: row.user_id });
+      // The peer's scheduled messages in this chat go too (their files are the peer's uploads).
+      files.push(...dropScheduled(db, 'chat_id', chatId));
       const messageIds = db.prepare('SELECT id FROM messages WHERE chat_id=?').all(chatId).map(row => row.id);
       for (const messageId of messageIds) {
         for (const row of db.prepare('SELECT upload_id FROM e2ee_message_attachments WHERE message_id=?').all(messageId)) files.push(row.upload_id);
@@ -124,6 +136,7 @@ export async function deleteAccount(db, uploadDir, userId) {
     db.prepare('DELETE FROM community_messages WHERE sender_id=?').run(userId);
     db.prepare('DELETE FROM community_invites WHERE creator_id=?').run(userId);
     db.prepare('DELETE FROM profile_posts WHERE owner_id=?').run(userId);
+    files.push(...dropScheduled(db, 'owner_id', userId));
     for (const row of db.prepare('SELECT id FROM uploads WHERE owner_id=?').all(userId)) files.push(row.id);
     const unique = [...new Set(files)];
     for (const uploadId of unique) {

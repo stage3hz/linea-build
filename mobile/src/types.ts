@@ -33,7 +33,8 @@ export type Chat = {
   lastReadMessageId: number; peerLastReadMessageId: number; createdAt: string; updatedAt: string;
   settings?: ChatSettings;
 };
-export type ChatSettings = { pinnedAt: string | null; archived: boolean; muted: boolean };
+/** mutedUntil (ISO) comes only with a mute that ends; `muted: true` alone is «навсегда». Compare with the clock (notifications/model.ts isMuted). */
+export type ChatSettings = { pinnedAt: string | null; archived: boolean; muted: boolean; mutedUntil?: string | null };
 export type UserProfile = { user: User; isContact: boolean; friendRequest?: 'incoming' | 'outgoing' | null; chatId: string | null; blocked?: boolean };
 export type FriendRequest = { user: User; createdAt: string };
 export type ReportReason = 'spam' | 'abuse' | 'violence' | 'sexual' | 'illegal' | 'scam' | 'other';

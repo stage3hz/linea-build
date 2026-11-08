@@ -40,7 +40,7 @@ export function appOptions(overrides = {}) {
   edgeSecret: process.env.EDGE_SECRET || '',
   sessionTtlMs: ttlDays * 24 * 60 * 60 * 1000,
   authRateLimit: integerEnv('AUTH_RATE_LIMIT', 20, 1, 1000),
-  // Storage: 2 GB per account, 15 GB with Platina (src/bigfiles.js). USER_STORAGE_MIB only adds a lower cap.
+  // Storage: 20 GB per account, 40 GB with Platina (src/bigfiles.js). USER_STORAGE_MIB only adds a lower cap.
   maxStoredBytesPerUser: process.env.USER_STORAGE_MIB ? integerEnv('USER_STORAGE_MIB', 512, 20, 102400) * 1024 * 1024 : null,
   diskReserveBytes: integerEnv('DISK_RESERVE_MIB', 5120, 0, 1048576) * 1024 * 1024,
   // AI_PROVIDER=freellmapi uses a self-hosted FreeLLMAPI router; default stays OpenRouter.

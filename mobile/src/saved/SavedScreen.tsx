@@ -30,6 +30,7 @@ import { searchSaved, type SavedItem } from './saved.ts';
 import { SAVED_UNAVAILABLE } from './useSaved';
 import { ForwardPicker, type ForwardTarget } from '../forward/ForwardPicker';
 import { countChats } from '../plural';
+import { withUncleanedConsent } from '../attachments/uncleanedConsent';
 
 /** A round video with no text or origin is shown alone, without a bubble (Telegram). */
 const circleOnly = (item: { text?: string; origin?: unknown; attachment?: Parameters<typeof isVideoNote>[0] | null }) => !!item.attachment && isVideoNote(item.attachment) && !item.text && !item.origin;
@@ -65,8 +66,9 @@ export function SavedScreen({ api, user, store, onBack, wide = false }: { api: A
     if (editing) { saved.edit(editing.id, value).then(() => { setEditing(null); setText(''); }).catch(e => fail(e, 'Не удалось изменить заметку.')); return; }
     saved.save(value, null).then(() => { setText(''); listRef.current?.scrollToOffset({ offset: 0, animated: true }); }).catch(e => fail(e, 'Не удалось сохранить заметку.'));
   };
-  const uploadAndSave = async (file: { uri: string; name: string; mimeType: string; size?: number }, extra?: Partial<Attachment>) => {
+  const uploadAndSave = async (picked: { uri: string; name: string; mimeType: string; size?: number }, extra?: Partial<Attachment>) => {
     if (!signalAvailable) throw new Error('Файлы в Избранном доступны в приложении Android или iPhone.');
+    const file = await withUncleanedConsent(picked); if (!file) return;
     if (busyRef.current) throw new Error('Дождись завершения текущей загрузки.');
     busyRef.current = true; setBusy(true); setError('');
     try {
@@ -166,10 +168,10 @@ export function SavedScreen({ api, user, store, onBack, wide = false }: { api: A
           <RecordHint text={recordHint} bottom={52} />
           {recHold?.kind === 'voice' && !recHold.locked ? <View key="strip" style={{ flex: 1, minHeight: 44, justifyContent: 'center' }}><VoiceRecordingBar holding cancelProgress={cancelProgress} durationMs={voice.durationMs} levels={voice.levels} onCancel={() => {}} onSend={() => {}} /></View> : <>
           <IconButton name="add" label="Сохранить фото, видео или файл" onPress={() => { Keyboard.dismiss(); setAttachMenu(true); }} color={t.accent} disabled={busy || !!editing || !signalAvailable} style={{ width: 44, height: 44, borderRadius: 21 }} />
-          <View style={{ flex: 1, minHeight: 44, maxHeight: 140, justifyContent: 'center' }}><ComposerInput focusKey={editing ? `edit:${editing.id}` : null} accessibilityLabel="Заметка" placeholder={signalAvailable ? 'Заметка…' : 'Заметки доступны в приложении'} editable={signalAvailable} value={text} onChangeText={setText} onKeyPress={e => { if (Platform.OS === 'web' && e.nativeEvent.key === 'Enter' && !(e.nativeEvent as unknown as { shiftKey?: boolean }).shiftKey) { e.preventDefault(); submit(); } }} placeholderTextColor={t.muted} selectionColor={t.accent} keyboardAppearance={t.dark ? 'dark' : 'light'} multiline maxLength={8000} style={{ fontSize: 15, lineHeight: 21, color: t.text, paddingHorizontal: 6, paddingTop: Platform.OS === 'ios' ? 11 : 10, paddingBottom: 11, maxHeight: 136 }} /></View>
+          <View style={{ flex: 1, minHeight: 44, maxHeight: 140, justifyContent: 'center' }}><ComposerInput focusKey={editing ? `edit:${editing.id}` : null} testID="chat-composer" accessibilityLabel="Заметка" placeholder={signalAvailable ? 'Заметка…' : 'Заметки доступны в приложении'} editable={signalAvailable} value={text} onChangeText={setText} onKeyPress={e => { if (Platform.OS === 'web' && e.nativeEvent.key === 'Enter' && !(e.nativeEvent as unknown as { shiftKey?: boolean }).shiftKey) { e.preventDefault(); submit(); } }} placeholderTextColor={t.muted} selectionColor={t.accent} keyboardAppearance={t.dark ? 'dark' : 'light'} multiline maxLength={8000} style={{ fontSize: 15, lineHeight: 21, color: t.text, paddingHorizontal: 6, paddingTop: Platform.OS === 'ios' ? 11 : 10, paddingBottom: 11, maxHeight: 136 }} /></View>
           </>}
           {!text.trim() && !editing && signalAvailable ? <View key="rec" style={{ zIndex: 5, height: 44, justifyContent: 'center' }}><RecordButton mode={recordMode} disabled={busy} onTouchDown={() => { if (recordModeRef.current === 'voice') voice.prepare(); }} level={recHold?.kind === 'voice' ? voice.levels.at(-1) || 0 : 0} onToggleMode={toggleRecordMode} onHoldStart={holdStart} onHoldEnd={holdEnd} onLock={holdLock} onSlide={setCancelProgress} /></View> :
-            <Pressable accessibilityRole="button" accessibilityLabel={editing ? 'Сохранить изменения' : 'Сохранить заметку'} disabled={!text.trim() || busy || !signalAvailable} onPress={submit} style={({ pressed }) => ({ height: 44, width: 44, borderRadius: 22, backgroundColor: t.accent, alignItems: 'center', justifyContent: 'center', opacity: !text.trim() || busy || !signalAvailable ? .4 : pressed ? .75 : 1 })}><Icon name={editing ? 'checkmark' : 'arrow-up'} color={t.onAccent} size={23} /></Pressable>}
+            <Pressable accessibilityRole="button" testID="chat-send" accessibilityLabel={editing ? 'Сохранить изменения' : 'Сохранить заметку'} disabled={!text.trim() || busy || !signalAvailable} onPress={submit} style={({ pressed }) => ({ height: 44, width: 44, borderRadius: 22, backgroundColor: t.accent, alignItems: 'center', justifyContent: 'center', opacity: !text.trim() || busy || !signalAvailable ? .4 : pressed ? .75 : 1 })}><Icon name={editing ? 'checkmark' : 'arrow-up'} color={t.onAccent} size={23} /></Pressable>}
         </View>}
     </GlassSurface>
     <VideoNoteRecorder visible={circleOpen} hold={videoHold} onClose={() => { setCircleOpen(false); setVideoHold(null); setRecHold(null); }} onDone={take => void saveVideoNote(take)} />

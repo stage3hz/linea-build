@@ -5,7 +5,31 @@ import type { Attachment } from '../types';
 
 export const VOICE_MIME = 'audio/mp4';
 export const VOICE_MIN_MS = 500; // Telegram drops takes shorter than 0.5 s
-export const VOICE_MAX_MS = 15 * 60 * 1000; // ~14.4 MB at 128 kbit/s, under the 20 MB attachment limit
+// Telegram has no separate limit for voice messages. Here one take stays under 1 GB:
+// 18 h × 128 kbit/s ≈ 1.04 × 10⁹ bytes (≈ 0.97 GiB). Takes over 20 MB go as a chunked encrypted file.
+export const VOICE_MAX_MS = 18 * 60 * 60 * 1000;
+/** Waveform samples kept while recording; a long take is compacted, so the waveform covers the whole take. */
+export const VOICE_SAMPLE_CAP = 20000;
+
+/**
+ * Adds one meter level to the recording waveform. When the buffer is full, neighbouring samples are merged
+ * (the louder one wins) and from then on every `stride` levels become one sample, so memory stays bounded
+ * and the waveform still spans the whole recording instead of only its first minutes.
+ */
+export function pushVoiceSample(state: { samples: number[]; stride: number; pending: number; count: number }, level: number, cap = VOICE_SAMPLE_CAP): void {
+  state.pending = state.count === 0 ? level : Math.max(state.pending, level);
+  state.count += 1;
+  if (state.count < state.stride) return;
+  state.samples.push(state.pending); state.count = 0; state.pending = 0;
+  if (state.samples.length < cap) return;
+  const merged: number[] = [];
+  for (let i = 0; i < state.samples.length; i += 2) merged.push(Math.max(state.samples[i], state.samples[i + 1] ?? 0));
+  state.samples = merged; state.stride *= 2;
+}
+
+/** The waveform of a finished take: the collected samples plus the last, not yet full group. */
+export const voiceSamples = (state: { samples: number[]; pending: number; count: number }): number[] =>
+  state.count > 0 ? [...state.samples, state.pending] : state.samples;
 const VOICE_NAME = /^voice-\d{1,16}\.m4a$/;
 
 export const voiceFileName = (now = Date.now()) => `voice-${Math.max(0, Math.floor(now))}.m4a`;

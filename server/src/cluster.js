@@ -210,7 +210,8 @@ export async function startCluster({ port, host, cfg = clusterConfig() }) {
   // ---- the app (primary only) ----
   const startApp = async () => {
     const [{ buildApp }, { appOptions }] = await Promise.all([import('./app.js'), import('./options.js')]);
-    app = await buildApp(appOptions({ trustProxy: ['127.0.0.1'] }));
+    // The app's own timed writes (scheduled messages) run only while this process holds the lease.
+    app = await buildApp(appOptions({ trustProxy: ['127.0.0.1'], writable: () => role === 'leader' && Date.now() < leaseUntil }));
     await app.listen({ host: '127.0.0.1', port: appPort });
   };
   const stopApp = async () => { const a = app; app = null; if (a) await a.close().catch(() => {}); };

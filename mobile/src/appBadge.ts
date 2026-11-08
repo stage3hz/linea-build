@@ -1,12 +1,13 @@
-// Number on the app icon (phones), the taskbar button (Windows) or the dock (macOS/Linux):
-// unread chats + server/channel counters + waiting friend requests — the same total the
-// server sends in pushes while the app is closed.
+// Number on the app icon (phones), the taskbar button (Windows), the dock (macOS) or the tray icon
+// and its tooltip (Windows/Linux): unread chats + server/channel counters + waiting friend requests —
+// the same total the server sends in pushes while the app is closed.
 import { Platform } from 'react-native';
+import { desktopBridge } from './desktop';
 
 let last = -1;
 const short = (n: number) => (n > 99 ? '99+' : String(n));
 
-/** Windows shows a 16×16 overlay on the taskbar button; drawn at 32 px for sharp high-DPI screens. */
+/** Windows shows a 16×16 overlay on the taskbar button (and the tray counter on Windows/Linux); drawn at 32 px for sharp high-DPI screens. */
 export function badgePicture(n: number): string | null {
   if (typeof document === 'undefined' || n < 1) return null;
   const canvas = document.createElement('canvas'); canvas.width = 32; canvas.height = 32;
@@ -24,7 +25,7 @@ export async function setAppBadge(total: number) {
   if (n === last) return; last = n;
   try {
     if (Platform.OS === 'web') {
-      const desktop = (globalThis as { invizentDesktop?: { badge?: (count: number, picture: string | null) => Promise<void> } }).invizentDesktop;
+      const desktop = desktopBridge();
       if (desktop?.badge) { await desktop.badge(n, badgePicture(n)); return; }
       const nav = globalThis.navigator as Navigator & { setAppBadge?: (n?: number) => Promise<void>; clearAppBadge?: () => Promise<void> };
       if (n) await nav?.setAppBadge?.(n); else await nav?.clearAppBadge?.();

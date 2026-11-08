@@ -14,7 +14,7 @@ import type { Attachment } from '../types';
 import { decryptAttachment } from '../e2ee/attachments';
 import { useMusic } from '../music/MusicProvider';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { VOICE_MAX_MS, decodeWaveform, encodeWaveform, fitWaveform, formatVoiceTime, formatVoiceTimeFine, levelFromMetering } from './voice';
+import { VOICE_MAX_MS, pushVoiceSample, voiceSamples, decodeWaveform, encodeWaveform, fitWaveform, formatVoiceTime, formatVoiceTimeFine, levelFromMetering } from './voice';
 
 // Mono AAC at 48 kHz / 128 kbit/s: full-band, very clear voice (about 0.95 MB per minute;
 // was 32 kHz / 48 kbit/s). Still encrypted before sending like any other attachment.
@@ -50,11 +50,11 @@ export function useVoiceRecorder(onLimit: () => void) {
   const music = useMusic();
   const [active, setActive] = useState(false); const [paused, setPaused] = useState(false);
   const [levels, setLevels] = useState<number[]>([]);
-  const samples = useRef<number[]>([]); // the whole take, for the bubble's waveform
+  const samples = useRef({ samples: [] as number[], stride: 1, pending: 0, count: 0 }); // the whole take, for the bubble's waveform
   const limitRef = useRef(onLimit); limitRef.current = onLimit;
   const busy = useRef(false);
 
-  useEffect(() => { if (!active || !state.isRecording) return; const level = levelFromMetering(state.metering); if (samples.current.length < 20000) samples.current.push(level); setLevels(previous => [...previous.slice(-39), level]); }, [active, state.isRecording, state.durationMillis, state.metering]);
+  useEffect(() => { if (!active || !state.isRecording) return; const level = levelFromMetering(state.metering); pushVoiceSample(samples.current, level); setLevels(previous => [...previous.slice(-39), level]); }, [active, state.isRecording, state.durationMillis, state.metering]);
   useEffect(() => { if (active && state.durationMillis >= VOICE_MAX_MS) limitRef.current(); }, [active, state.durationMillis]);
   // By the time this cleanup runs, useAudioRecorder may already have released the native
   // recorder; touching a released shared object throws and would crash the app on «Назад».
@@ -97,7 +97,7 @@ export function useVoiceRecorder(onLimit: () => void) {
         if (!warmed) await warm();
         music.stop();
         recorder.record();
-        samples.current = []; setLevels([]); setPaused(false); activeRef.current = true; setActive(true);
+        samples.current = { samples: [], stride: 1, pending: 0, count: 0 }; setLevels([]); setPaused(false); activeRef.current = true; setActive(true);
       } catch (error) {
         schedulePlaybackReset(0);
         throw error;
@@ -119,7 +119,7 @@ export function useVoiceRecorder(onLimit: () => void) {
       const uri = recorder.uri;
       if (!uri) return null;
       if (!keep) { await FileSystem.deleteAsync(uri, { idempotent: true }).catch(() => {}); return null; }
-      return { uri, durationMs, waveform: encodeWaveform(samples.current) };
+      return { uri, durationMs, waveform: encodeWaveform(voiceSamples(samples.current)) };
     } finally {
       activeRef.current = false; setActive(false); setPaused(false); setLevels([]); busy.current = false;
       schedulePlaybackReset(4000);

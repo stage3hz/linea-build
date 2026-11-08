@@ -13,6 +13,8 @@ export type CryptoDevice = {
 export type SignalEnvelope = { userId: string; deviceId: string; type: 2 | 3; body: string };
 export type EncryptedMessage = {
   scheme: 'signal-v1'; senderDeviceId: string; envelopes: SignalEnvelope[]; attachmentIds?: string[];
+  /** F4: encrypted in the sender's separate «scheduled» Signal session (core.ts Lane); the recipient decrypts at the lane address. */
+  lane?: 'scheduled';
 };
 export type FileEncryption = {
   scheme: 'aes-256-gcm-siv'; key: string; nonce: string; fileKeyId: string;

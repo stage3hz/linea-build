@@ -158,6 +158,29 @@ CREATE TABLE IF NOT EXISTS e2ee_message_attachments (
 );
 CREATE INDEX IF NOT EXISTS e2ee_attachments_message ON e2ee_message_attachments(message_id);
 
+-- F4 «Отправить позже»: the same end-to-end encrypted envelopes a message is sent with, kept until
+-- deliver_at (ms since the epoch) and then moved into `messages` unchanged. The server never sees
+-- the text. push: 'message' or 'silent' (no sound on the peer's phone). status 'failed' (+ failure
+-- code, e.g. E2EE_DEVICES_CHANGED) when the peer's devices changed meanwhile: the sender's app
+-- re-encrypts and sends when it is online.
+CREATE TABLE IF NOT EXISTS scheduled_messages (
+  id TEXT PRIMARY KEY,
+  owner_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+  chat_id TEXT NOT NULL REFERENCES chats(id) ON DELETE CASCADE,
+  client_id TEXT NOT NULL,
+  encrypted_json TEXT NOT NULL,
+  push TEXT NOT NULL DEFAULT 'message' CHECK(push IN ('message','silent')),
+  deliver_at INTEGER NOT NULL,
+  status TEXT NOT NULL DEFAULT 'scheduled' CHECK(status IN ('scheduled','failed')),
+  failure TEXT,
+  created_at TEXT NOT NULL,
+  -- ms when the row became «не удалось»: failed rows are purged 30 days after it (and capped per owner).
+  failed_at INTEGER,
+  UNIQUE(owner_id, client_id)
+);
+CREATE INDEX IF NOT EXISTS scheduled_messages_due ON scheduled_messages(status, deliver_at);
+CREATE INDEX IF NOT EXISTS scheduled_messages_owner ON scheduled_messages(owner_id, chat_id);
+
 -- Per-user privacy. Absent row = defaults (everything allowed/visible).
 CREATE TABLE IF NOT EXISTS user_privacy (
   user_id TEXT PRIMARY KEY REFERENCES users(id) ON DELETE CASCADE,
@@ -189,12 +212,16 @@ CREATE TABLE IF NOT EXISTS friend_requests (
 CREATE INDEX IF NOT EXISTS friend_requests_to ON friend_requests(to_id, created_at);
 
 -- Per-user chat list settings: pinned chats, archive, mute. Never visible to the peer.
+-- muted_until (F2, Telegram «Выкл. звук на время»): ms since the epoch; NULL = sound on, 0 = forever,
+-- otherwise sound returns by itself once the clock passes it (compared on read, no sweep). The older
+-- boolean `muted` is kept in step (1 whenever muted_until is set) for readers that predate it.
 CREATE TABLE IF NOT EXISTS chat_settings (
   user_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
   chat_id TEXT NOT NULL REFERENCES chats(id) ON DELETE CASCADE,
   pinned_at TEXT,
   archived INTEGER NOT NULL DEFAULT 0 CHECK(archived IN (0,1)),
   muted INTEGER NOT NULL DEFAULT 0 CHECK(muted IN (0,1)),
+  muted_until INTEGER,
   PRIMARY KEY(user_id, chat_id)
 );
 

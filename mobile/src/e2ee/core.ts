@@ -25,7 +25,36 @@ const isFailed=(value:unknown):value is FailedMessage=>!!value&&typeof value==='
 export type MeshEnvelope = { chatId: string; clientId: string; senderId: string; encrypted: EncryptedMessage };
 type Outbox = { encrypted: EncryptedMessage; plain: PlainBody; peerId: string };
 const uuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
-const address = (userId: string, deviceId: string) => `${userId}.${deviceId}`;
+/**
+ * F4 «Отправить позже»: a scheduled message is encrypted now and delivered later. In the ordinary
+ * Double Ratchet session every reply in between is a DH step, and libsignal keeps only the 5 latest
+ * receiver chains — after ≥6 exchanges the recipient could not open the old ciphertext any more.
+ * So scheduled messages travel in their own Signal session per recipient device («lane»): the same
+ * identity and prekey bundle, but a distinct protocol address the recipient never replies to, so
+ * that session never ratchets and in-lane ordering is covered by skipped message keys (2000).
+ * The envelope carries `lane:'scheduled'` so the recipient decrypts with the lane address; routing
+ * stays by the real deviceId. Nobody ever encrypts *to* a lane address except through encrypt(…, deliverAt).
+ * «Отправить сейчас» on a lane message is fine (the lane works for immediate delivery too); a
+ * message re-encrypted after E2EE_DEVICES_CHANGED goes out at once through the normal session.
+ */
+export type Lane = 'scheduled';
+const LANE_SUFFIX: Record<Lane, string> = { scheduled: '.scheduled' };
+/** Native/desktop cores accept `[A-Za-z0-9._:-]{1,160}` as an address name: uuid.uuid.scheduled is 83 chars. */
+const address = (userId: string, deviceId: string, lane?: Lane) => `${userId}.${deviceId}${lane ? LANE_SUFFIX[lane] : ''}`;
+/**
+ * The recipient never answers in the lane, so for libsignal the lane session stays an
+ * «unacknowledged pre-key session»; it refuses to encrypt in one older than 30 days. The lane is
+ * therefore started afresh (a new prekey bundle, the old chain is archived and still decrypts) once
+ * it is this old. Retention check (SignalCore.kt/.swift, desktop/signal.mjs): the signed prekey (id 1)
+ * and the last-resort Kyber prekey are never rotated or purged, one-time prekeys are removed only when
+ * their PreKey message is opened — so a lane PreKey message still opens after the full year horizon.
+ */
+const LANE_SESSION_MAX_AGE_MS = 20 * 86_400_000;
+/** libsignal's «no usable session» (SessionNotFound / NoSessionException, an expired unacknowledged session), not IDENTITY_CHANGED / TRUST_REQUIRED. */
+const laneSessionError = (error: unknown) => {
+  const text = `${(error as {name?:unknown})?.name ?? ''} ${(error as {code?:unknown})?.code ?? ''} ${error instanceof Error ? error.message : String(error)}`;
+  return /session|unacknowledged/i.test(text) && !/identity|trust/i.test(text);
+};
 const trustKey = (device: Pick<CryptoDevice,'userId'|'id'>) => `trust:${device.userId}:${device.id}`;
 const messageKey = (message: Pick<Message,'chatId'|'senderId'|'clientId'>) => `message:${message.chatId}:${message.senderId}:${message.clientId}`;
 const outboxKey = (chatId: string, clientId: string) => `outbox:${chatId}:${clientId}`;
@@ -33,7 +62,8 @@ const outboxKey = (chatId: string, clientId: string) => `outbox:${chatId}:${clie
 const OUTBOX_INDEX = 'outbox:index';
 const OUTBOX_LIMIT = 500;
 type OutboxRef = { chatId: string; clientId: string };
-export type OutboxItem = OutboxRef & { peerId: string; text: string; attachment: Attachment | null; sentAt: string; meta?: MessageMeta };
+/** `deliverAt`: a scheduled (lane) message — its committed ciphertext is for the server's «Отправить позже», dated at that time. */
+export type OutboxItem = OutboxRef & { peerId: string; text: string; attachment: Attachment | null; sentAt: string; meta?: MessageMeta; deliverAt?: string };
 /**
  * Names of the decrypted messages cached per chat, in pages, so the local search index (G029) can
  * be rebuilt from the vault at startup: `history:<chat>` = {first,last} page numbers,
@@ -49,7 +79,8 @@ type HistoryMeta = { first: number; last: number };
 export type HistoryItem = { chatId: string; senderId: string; clientId: string; text: string; attachment: Attachment | null; sentAt: string; meta?: MessageMeta };
 /** One page of a chat's cached history, newest first; `previous` names the older page, null past the oldest kept. */
 export type HistoryPage = { items: HistoryItem[]; page: number; previous: number | null };
-const sessionKey = (device: Pick<CryptoDevice,'userId'|'id'>) => `session:${device.userId}:${device.id}`;
+/** '1' for a normal session; for a lane session the ISO time it was started (see LANE_SESSION_MAX_AGE_MS). */
+const sessionKey = (device: Pick<CryptoDevice,'userId'|'id'>, lane?: Lane) => `session:${device.userId}:${device.id}${lane ? `:${lane}` : ''}`;
 /** Last device list seen from the server, so messages can still be encrypted without internet (Mesh). */
 const devicesKey = (userId: string) => `devices:${userId}`;
 const isNetwork = (error: unknown) => error instanceof Error && error.name === 'NetworkError';
@@ -59,7 +90,7 @@ export class UntrustedDeviceError extends Error {
   constructor() { super('Проверь коды устройств в разделе «Защита чата». Новые ключи не принимаются автоматически.'); this.name='UntrustedDeviceError'; }
 }
 export function canonicalEncrypted(value: EncryptedMessage): string {
-  return JSON.stringify({scheme:value.scheme,senderDeviceId:value.senderDeviceId,envelopes:[...value.envelopes].sort((a,b)=>`${a.userId}:${a.deviceId}`.localeCompare(`${b.userId}:${b.deviceId}`)).map(item=>({userId:item.userId,deviceId:item.deviceId,type:item.type,body:item.body})),attachmentIds:[...(value.attachmentIds||[])].sort()});
+  return JSON.stringify({scheme:value.scheme,senderDeviceId:value.senderDeviceId,envelopes:[...value.envelopes].sort((a,b)=>`${a.userId}:${a.deviceId}`.localeCompare(`${b.userId}:${b.deviceId}`)).map(item=>({userId:item.userId,deviceId:item.deviceId,type:item.type,body:item.body})),attachmentIds:[...(value.attachmentIds||[])].sort(),...(value.lane?{lane:value.lane}:{})});
 }
 function sameDevice(a: Pick<CryptoDevice,'identityKey'|'registrationId'>, b: Pick<CryptoDevice,'identityKey'|'registrationId'>) {
   return a.identityKey===b.identityKey&&a.registrationId===b.registrationId;
@@ -83,8 +114,8 @@ function validAttachmentIds(value: unknown): boolean {
   return new Set(value.map(id=>id.toLowerCase())).size===value.length;
 }
 function validEncrypted(value: unknown): value is EncryptedMessage {
-  if(!hasOnlyKeys(value,['scheme','senderDeviceId','envelopes','attachmentIds']))return false;
-  if(value.scheme!=='signal-v1'||typeof value.senderDeviceId!=='string'||!uuid.test(value.senderDeviceId))return false;
+  if(!hasOnlyKeys(value,['scheme','senderDeviceId','envelopes','attachmentIds','lane']))return false;
+  if(value.scheme!=='signal-v1'||typeof value.senderDeviceId!=='string'||!uuid.test(value.senderDeviceId)||(value.lane!==undefined&&value.lane!=='scheduled'))return false;
   const envelopes=value.envelopes;
   if(!Array.isArray(envelopes)||envelopes.length<1||envelopes.length>10||!envelopes.every(validEnvelope))return false;
   if(new Set(envelopes.map(envelope=>envelope.deviceId.toLowerCase())).size!==envelopes.length)return false;
@@ -109,11 +140,11 @@ export function validAttachment(value: unknown): value is Attachment | null {
   if(value===null)return true;
   if(!hasOnlyKeys(value,['id','name','mimeType','size','encryption','media','preview']))return false;
   const a=value as Attachment;const e=a.encryption;
-  // Small files: one AES-256-GCM-SIV block up to 20 MB. Big files (up to 5 GB): the same cipher per 4 MiB chunk.
+  // Small files: one AES-256-GCM-SIV block up to 20 MB. Big files (up to 10 GB, a Platina video): the same cipher per 4 MiB chunk.
   const chunked=!!e&&e.scheme==='aes-256-gcm-siv-chunked';
   if(!hasOnlyKeys(e,chunked?['scheme','key','nonce','fileKeyId','chunkSize']:['scheme','key','nonce','fileKeyId']))return false;
   if(chunked&&e.chunkSize!==4*1024*1024)return false;
-  return uuid.test(a.id)&&typeof a.name==='string'&&a.name.length>0&&a.name.length<=240&&typeof a.mimeType==='string'&&a.mimeType.length<=150&&Number.isSafeInteger(a.size)&&a.size>=0&&a.size<=(chunked?5*1024*1024*1024:20*1024*1024)&&!!e&&(e.scheme==='aes-256-gcm-siv'||chunked)&&/^[A-Za-z0-9+/]{43}=$/.test(e.key)&&/^[A-Za-z0-9+/]{16}$/.test(e.nonce)&&uuid.test(e.fileKeyId)&&validMedia(a.media)&&validPreview(a.preview);
+  return uuid.test(a.id)&&typeof a.name==='string'&&a.name.length>0&&a.name.length<=240&&typeof a.mimeType==='string'&&a.mimeType.length<=150&&Number.isSafeInteger(a.size)&&a.size>=0&&a.size<=(chunked?10*1024*1024*1024:20*1024*1024)&&!!e&&(e.scheme==='aes-256-gcm-siv'||chunked)&&/^[A-Za-z0-9+/]{43}=$/.test(e.key)&&/^[A-Za-z0-9+/]{16}$/.test(e.nonce)&&uuid.test(e.fileKeyId)&&validMedia(a.media)&&validPreview(a.preview);
 }
 
 /** Application integration of the official native Signal library, not a new cipher. */
@@ -238,7 +269,7 @@ export class CryptoService {
       for(const ref of refs){
         const stored=parse<Outbox>(await this.vault.get(outboxKey(ref.chatId,ref.clientId)));
         if(!stored||!stored.plain||!uuid.test(stored.peerId))continue; // delivered or dropped since: forget the name too
-        kept.push(ref);items.push({chatId:ref.chatId,clientId:ref.clientId,peerId:stored.peerId,text:stored.plain.text,attachment:stored.plain.attachment,sentAt:stored.plain.sentAt,...(stored.plain.meta?{meta:stored.plain.meta}:{})});
+        kept.push(ref);items.push({chatId:ref.chatId,clientId:ref.clientId,peerId:stored.peerId,text:stored.plain.text,attachment:stored.plain.attachment,sentAt:stored.plain.sentAt,...(stored.plain.meta?{meta:stored.plain.meta}:{}),...(stored.encrypted?.lane?{deliverAt:stored.plain.sentAt}:{})});
       }
       if(kept.length!==refs.length)await this.vault.commit({[OUTBOX_INDEX]:kept.length?JSON.stringify(kept):null});
       return items;
@@ -307,19 +338,28 @@ export class CryptoService {
       await this.vault.commit({...changes,protocol:state});
     });
   }
-  async encrypt(chatId:string,peerId:string,clientId:string,text:string,attachment:Attachment|null,meta?:MessageMeta):Promise<EncryptedMessage> {
+  /**
+   * `deliverAt` (F4 «Отправить позже»): the message is dated at that time inside the ciphertext and
+   * encrypted in the scheduled lane (see Lane) — a session per device that never ratchets, so the
+   * envelopes still open whatever is exchanged in the chat before the server releases them. Needs
+   * the server (a lane is started from a fresh prekey bundle); without a time the normal session is used.
+   */
+  async encrypt(chatId:string,peerId:string,clientId:string,text:string,attachment:Attachment|null,meta?:MessageMeta,deliverAt?:string):Promise<EncryptedMessage> {
     await this.initialize();return this.exclusive(async()=>{
-      if(!uuid.test(chatId)||!uuid.test(clientId)||typeof text!=='string'||text.length>8000||(!text.trim()&&!attachment)||!validAttachment(attachment)||!validMeta(meta))throw new Error('Некорректное содержимое сообщения.');
+      if(!uuid.test(chatId)||!uuid.test(clientId)||typeof text!=='string'||text.length>8000||(!text.trim()&&!attachment)||!validAttachment(attachment)||!validMeta(meta)||(deliverAt!==undefined&&(typeof deliverAt!=='string'||!Number.isFinite(Date.parse(deliverAt)))))throw new Error('Некорректное содержимое сообщения.');
+      const lane:Lane|undefined=deliverAt===undefined?undefined:'scheduled';
       const key=outboxKey(chatId,clientId);const previous=parse<Outbox>(await this.vault.get(key));
       if(previous){
-        if(previous.peerId!==peerId||previous.plain.text!==text||JSON.stringify(previous.plain.attachment)!==JSON.stringify(attachment)||JSON.stringify(previous.plain.meta)!==JSON.stringify(meta))throw new Error('Идентификатор сообщения уже использован.');
+        if(previous.peerId!==peerId||previous.plain.text!==text||JSON.stringify(previous.plain.attachment)!==JSON.stringify(attachment)||JSON.stringify(previous.plain.meta)!==JSON.stringify(meta)||previous.encrypted.lane!==lane)throw new Error('Идентификатор сообщения уже использован.');
         return previous.encrypted; // Retries reuse exactly the committed ciphertext.
       }
       let offline=false;let targets:CryptoDevice[];
-      try{targets=await this.targets(peerId);}catch(error){if(!isNetwork(error))throw error;targets=await this.cachedTargets(peerId);offline=true;}
+      // A lane may need a prekey bundle, which only the server has: scheduling waits for the internet.
+      try{targets=await this.targets(peerId);}catch(error){if(!isNetwork(error)||lane)throw error;targets=await this.cachedTargets(peerId);offline=true;}
       let state=(await this.vault.get('protocol'))!;
-      const plain:PlainBody={text,attachment,sentAt:new Date().toISOString(),...(meta?{meta}:{})};const changes:Record<string,string|null>={};
-      const encrypted:EncryptedMessage={scheme:'signal-v1',senderDeviceId:this.local!.id,envelopes:[],attachmentIds:attachment?[attachment.id]:[]};
+      const now=new Date().toISOString();
+      const plain:PlainBody={text,attachment,sentAt:deliverAt??now,...(meta?{meta}:{})};const changes:Record<string,string|null>={};
+      const encrypted:EncryptedMessage={scheme:'signal-v1',senderDeviceId:this.local!.id,envelopes:[],attachmentIds:attachment?[attachment.id]:[],...(lane?{lane}:{})};
       for(const device of targets){
         const trusted=parse<TrustRecord>(await this.vault.get(trustKey(device)));
         let rekey=false;
@@ -328,18 +368,31 @@ export class CryptoService {
           if(!this.options.autoTrust)throw new UntrustedDeviceError();
           state=(await this.bridge.trustIdentity(state,address(device.userId,device.id),1,device.identityKey)).state;
           changes[trustKey(device)]=this.autoRecord(device);
-          rekey=!!trusted; // a changed key needs a fresh session
+          rekey=!!trusted; // a changed key needs a fresh session (in the lane too: the pin below then starts afresh)
         }
+        // The lane address is pinned to the same identity (idempotent); the native cores refuse to encrypt to an unpinned address.
+        if(lane)state=(await this.bridge.trustIdentity(state,address(device.userId,device.id,lane),1,device.identityKey)).state;
         let bundle:ClaimedBundle|null=null;
-        if(await this.vault.get(rekeyKey(device))){rekey=true;changes[rekeyKey(device)]=null;}
-        if(rekey||!(await this.vault.get(sessionKey(device)))){
+        // The rekey mark (our decrypt of their message failed) is about the normal session; the lane is not affected by it.
+        if(!lane&&await this.vault.get(rekeyKey(device))){rekey=true;changes[rekeyKey(device)]=null;}
+        const session=await this.vault.get(sessionKey(device,lane));
+        const stale=!!lane&&!!session&&!(Date.parse(session)>Date.parse(now)-LANE_SESSION_MAX_AGE_MS);
+        const claim=async()=>{
           const claimed=await this.transport.claimPreKey(device.userId,device.id);
           if(claimed.device.id!==device.id||claimed.device.userId!==device.userId||!sameDevice(claimed.device,device)||!sameDevice(claimed.bundle,device))throw new UntrustedDeviceError();
-          bundle=claimed.bundle;
+          return claimed.bundle;
+        };
+        if(rekey||!session||stale)bundle=await claim();
+        const payload=JSON.stringify({version:1,chatId,clientId,senderId:this.userId,senderDeviceId:this.local!.id,recipientId:device.userId,recipientDeviceId:device.id,...(lane?{lane}:{}),...wireBody(plain)});
+        let result;
+        try{result=await this.bridge.encrypt(state,address(device.userId,device.id,lane),1,payload,bundle);}
+        catch(error){
+          // A lane libsignal no longer accepts (an unacknowledged session past its age, a lost session record): start it afresh once.
+          // Only for session errors — a trust/identity refusal would just burn the peer's one-time prekeys.
+          if(!lane||bundle||isNetwork(error)||!laneSessionError(error))throw error;
+          bundle=await claim();result=await this.bridge.encrypt(state,address(device.userId,device.id,lane),1,payload,bundle);
         }
-        const payload=JSON.stringify({version:1,chatId,clientId,senderId:this.userId,senderDeviceId:this.local!.id,recipientId:device.userId,recipientDeviceId:device.id,...wireBody(plain)});
-        const result=await this.bridge.encrypt(state,address(device.userId,device.id),1,payload,bundle);
-        state=result.state;changes[sessionKey(device)]='1';encrypted.envelopes.push({userId:device.userId,deviceId:device.id,type:result.type,body:result.body});
+        state=result.state;changes[sessionKey(device,lane)]=lane?(bundle?now:session!):'1';encrypted.envelopes.push({userId:device.userId,deviceId:device.id,type:result.type,body:result.body});
       }
       const fingerprint=await this.sha256(canonicalEncrypted(encrypted));
       changes[key]=JSON.stringify({encrypted,plain,peerId});
@@ -384,10 +437,15 @@ export class CryptoService {
     }
     if(!trusted)throw new UntrustedDeviceError();
     let state=(await this.vault.get('protocol'))!;
-    state=(await this.bridge.trustIdentity(state,address(sender.userId,sender.id),1,trusted.identityKey)).state;
-    const result=await this.bridge.decrypt(state,address(sender.userId,sender.id),1,envelope.type,envelope.body);
+    // A scheduled message (lane) was encrypted in the sender's separate lane session. It is opened at a
+    // receive-only address (`….scheduled.in`): if it were the address we send our own scheduled messages
+    // to, an incoming lane PreKey would become our sending session there and the lane would ratchet.
+    const from=encrypted.lane?`${address(sender.userId,sender.id,encrypted.lane)}.in`:address(sender.userId,sender.id);
+    state=(await this.bridge.trustIdentity(state,from,1,trusted.identityKey)).state;
+    const result=await this.bridge.decrypt(state,from,1,envelope.type,envelope.body);
     const body=JSON.parse(result.plaintext);
-    if(body.version!==1||body.chatId!==message.chatId||body.clientId!==message.clientId||body.senderId!==message.senderId||body.senderDeviceId!==encrypted.senderDeviceId||body.recipientId!==this.userId||body.recipientDeviceId!==this.local!.id||typeof body.text!=='string'||body.text.length>8000||!validAttachment(body.attachment)||typeof body.sentAt!=='string'||!Number.isFinite(Date.parse(body.sentAt))||!validMeta(body.meta))throw new Error('Содержимое не соответствует адресу сообщения.');
+    // `lane` is also inside the ciphertext: a server that adds or strips the flag is refused here, before any protocol state is committed (the bridges only return a new state; decode() commits it after this check).
+    if((body.lane??undefined)!==encrypted.lane||body.version!==1||body.chatId!==message.chatId||body.clientId!==message.clientId||body.senderId!==message.senderId||body.senderDeviceId!==encrypted.senderDeviceId||body.recipientId!==this.userId||body.recipientDeviceId!==this.local!.id||typeof body.text!=='string'||body.text.length>8000||!validAttachment(body.attachment)||typeof body.sentAt!=='string'||!Number.isFinite(Date.parse(body.sentAt))||!validMeta(body.meta))throw new Error('Содержимое не соответствует адресу сообщения.');
     const attachmentIds=body.attachment?[body.attachment.id]:[];
     if(JSON.stringify([...(encrypted.attachmentIds||[])].sort())!==JSON.stringify(attachmentIds))throw new Error('Неверная привязка зашифрованного вложения.');
     const plain:PlainBody={text:body.text,attachment:withWaveform(body.attachment,body.voiceWaveform),sentAt:body.sentAt,...(body.meta?{meta:body.meta}:{})};
@@ -416,7 +474,8 @@ export class CryptoService {
       // Signal session (PreKey message), which puts their side back in step too.
       const attemptsKey=`attempts:${messageKey(message)}`,attempts=Number(await this.vault.get(attemptsKey)||0)+1;
       if(attempts<FAILED_AFTER){await this.vault.commit({[attemptsKey]:String(attempts)});throw error;}
-      await this.vault.commit({[attemptsKey]:null,[rekeyKey({userId:message.senderId,id:encrypted.senderDeviceId})]:'1',[messageKey(message)]:JSON.stringify({fingerprint,failed:true} satisfies FailedMessage),[cursorKey]:String(message.id)});
+      // A broken lane message says nothing about the normal session: no rekey of it (the sender restarts its lane by age).
+      await this.vault.commit({[attemptsKey]:null,...(encrypted.lane?{}:{[rekeyKey({userId:message.senderId,id:encrypted.senderDeviceId})]:'1'}),[messageKey(message)]:JSON.stringify({fingerprint,failed:true} satisfies FailedMessage),[cursorKey]:String(message.id)});
       return;
     }
     if(!opened){await this.vault.commit({[cursorKey]:String(message.id)});return;}
@@ -425,7 +484,8 @@ export class CryptoService {
     const {plain,sender}=opened;
     // First time this message is cached here (a Mesh copy was already named): name it for the local search index.
     const named=cached&&!isFailed(cached)?{}:await this.historyChange(message.chatId,message.senderId,message.clientId);
-    await this.vault.commit({...named,protocol:opened.protocol,[sessionKey(sender)]:'1',[messageKey(message)]:JSON.stringify({fingerprint,plain}),[cursorKey]:String(message.id)});
+    // A lane message says nothing about the normal session with that device (we never answer in the lane): only a normal one marks it.
+    await this.vault.commit({...named,protocol:opened.protocol,...(encrypted.lane?{}:{[sessionKey(sender)]:'1'}),[messageKey(message)]:JSON.stringify({fingerprint,plain}),[cursorKey]:String(message.id)});
   }
   /**
    * A message that came over Mesh (Bluetooth) instead of the server. Returns the text to show, or
@@ -440,7 +500,7 @@ export class CryptoService {
       let opened;
       try{opened=await this.open(input,input.encrypted);}catch(error){if(isNetwork(error))return null;throw error;}
       if(!opened)return null;
-      await this.vault.commit({...(await this.historyChange(input.chatId,input.senderId,input.clientId)),protocol:opened.protocol,[sessionKey(opened.sender)]:'1',[key]:JSON.stringify({fingerprint,plain:opened.plain,mesh:true})});
+      await this.vault.commit({...(await this.historyChange(input.chatId,input.senderId,input.clientId)),protocol:opened.protocol,...(input.encrypted.lane?{}:{[sessionKey(opened.sender)]:'1'}),[key]:JSON.stringify({fingerprint,plain:opened.plain,mesh:true})});
       return opened.plain;
     });
   }

@@ -19,6 +19,7 @@ import type { TrustSnapshot } from './e2ee/types';
 import { ALBUM_SIZE, appendAttachments, messageAttachmentBatch } from './messageAttachments';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { getChatPreferences } from './chatPreferences';
+import { useDesktopNotifications } from './notifications/desktopNotify';
 import { actionFallback, chatListText, isQuietAction, listPreviewMessage, messageKey, pollFallback, type MessageAction, type MessageMeta, type Poll } from './messageMeta';
 import { packEntities, sliceEntities, type Entity } from './format/entities';
 import { mediaPreviewKind } from './media/formats';
@@ -33,6 +34,7 @@ import { connectionHeld, holdConnection, socketTick } from './connectionHold';
 import { useVoice } from './communities/voice';
 import { attachChannelOutbox, resetChannelOutbox } from './communities/channelOutbox';
 import { clearLogins, noteSocketEvent } from './sessionAlerts';
+import { canResend, pushKind, scheduledIntentKey, withSendOptions, type ScheduledItem, type SendOptions } from './scheduled/model';
 
 const HIDDEN_LIMIT = 5000;
 
@@ -160,6 +162,32 @@ export function useMessenger(api: Api, user: User, onExpired: ()=>void) {
     catch(e){if(aliveRef.current)setError(checkError(e));}
     finally {if(aliveRef.current)setListLoading(false);listReady.current?.resolve();}
   },[api,checkError,hydrate,user.id]);
+  // ---- F4 «Отправить позже» ----
+  // Which pending messages the server is to keep until a time (clientId → ISO). Kept per account outside
+  // the vault (no text in it) so a message restored from the vault outbox after a restart is scheduled
+  // again instead of going out at once; performSend waits for it to load.
+  const intentKey=scheduledIntentKey(user.id);
+  const scheduledIntent=useRef(new Map<string,string>());const intentReady=useRef<Promise<void>>(Promise.resolve());
+  useEffect(()=>{let live=true;intentReady.current=AsyncStorage.getItem(intentKey).then(raw=>{if(!live||!raw)return;try{const value=JSON.parse(raw);if(value&&typeof value==='object')for(const [key,at] of Object.entries(value))if(typeof at==='string')scheduledIntent.current.set(key,at);}catch{/* a fresh account */}}).catch(()=>{});return()=>{live=false;};},[intentKey]);
+  const saveIntent=useCallback(()=>{void AsyncStorage.setItem(intentKey,JSON.stringify(Object.fromEntries(scheduledIntent.current))).catch(()=>{});},[intentKey]);
+  const [scheduled,setScheduled]=useState<ScheduledItem[]>([]);
+  const [scheduledBusy,setScheduledBusy]=useState<ReadonlySet<string>>(new Set());
+  const scheduledFetch=useRef(0);
+  /** The server's list (ciphertext + time) opened with this device's vault: a message encrypted here is cached under its clientId, so its text shows; one scheduled from another device stays closed. */
+  const refreshScheduled=useCallback(async()=>{
+    const revision=++scheduledFetch.current;
+    try{
+      // lean: no ciphertext over the wire on every refresh — our copy of the text is in the vault under the clientId (preview of a lean message).
+      const {items}=await api.scheduled({lean:true});
+      const crypto=await cryptoRuntime.get().catch(()=>null);
+      const opened:ScheduledItem[]=await Promise.all(items.map(async item=>{
+        const probe:Message={id:0,chatId:item.chatId,senderId:user.id,clientId:item.clientId,text:'',attachment:null,createdAt:item.createdAt,...(item.encrypted?{encrypted:item.encrypted}:{lean:true})};
+        try{const shown=crypto?cleanShown(await crypto.preview(probe)):probe;const open=shown.cryptoState==='decrypted';return {...item,text:open?shown.text:'',attachment:open?shown.attachment:null,cryptoState:shown.cryptoState,...(open&&shown.meta?{meta:shown.meta}:{})};}
+        catch{return {...item,text:'',attachment:null,cryptoState:'no-key' as const};}
+      }));
+      if(aliveRef.current&&revision===scheduledFetch.current)setScheduled(opened);
+    }catch(e){checkError(e);}
+  },[api,cryptoRuntime,user.id,checkError]);
   // «Прочитать» from the chat list (swipe or edit mode): no need to have the chat open. The list
   // shows the last real message, so the newest server message (a reaction, an edit) is read from here.
   const readChat=useCallback(async(chatId:string,shownId:number)=>{
@@ -244,7 +272,7 @@ export function useMessenger(api: Api, user: User, onExpired: ()=>void) {
         // `story` / `story.view` reach the stories strip above the chat list (StoriesStrip).
         if(typeof data.type==='string'&&(data.type.startsWith('community')||data.type.startsWith('voice')||data.type.startsWith('sfu')||data.type.startsWith('story')||data.type==='friends'||data.type==='ready'||data.type==='error'))socketListeners.current.forEach(listener=>{try{listener(data);}catch{/* keep other listeners */}});
         if(data.type==='ready'){
-          attempts=0;setConnection('connected');void refreshChats();void refreshRecoveryRequests();
+          attempts=0;setConnection('connected');void refreshChats();void refreshRecoveryRequests();void refreshScheduled();
           if(selectedRef.current)void loadMessages(selectedRef.current);
         }else if(data.type==='message'&&data.message){void acceptMessage(data.message);}
         else if(data.type==='chat'&&data.chat){void refreshChats();}
@@ -258,6 +286,7 @@ export function useMessenger(api: Api, user: User, onExpired: ()=>void) {
         else if(data.type==='recovery.requested'||data.type==='recovery.updated'){void refreshRecoveryRequests();}
         else if(data.type==='session.new'){noteSocketEvent(data);}
         else if(data.type==='e2ee.devices'){if(selectedRef.current)void loadMessages(selectedRef.current);void refreshChats();}
+        else if(data.type==='scheduled'){void refreshScheduled();}
       };
       socket.onclose=event=>{
         if(stopped||socketRef.current!==socket)return;setConnection('offline');
@@ -291,7 +320,7 @@ export function useMessenger(api: Api, user: User, onExpired: ()=>void) {
     const subscription=AppState.addEventListener('change',state=>{
       appState.current=state;
       if(state==='active'){
-        paused=false;void refreshChats();void refreshRecoveryRequests();if(selectedRef.current)void loadMessages(selectedRef.current);
+        paused=false;void refreshChats();void refreshRecoveryRequests();void refreshScheduled();if(selectedRef.current)void loadMessages(selectedRef.current);
         // A socket kept alive through the background (call, voice room) is not torn down: that would leave the room.
         if(socketRef.current?.readyState===WebSocket.OPEN&&Date.now()-lastReceive<=15000)connect();else reconnect();
       }
@@ -299,7 +328,7 @@ export function useMessenger(api: Api, user: User, onExpired: ()=>void) {
     });
     const recoveryPoll=setInterval(()=>{if(appState.current==='active')void refreshRecoveryRequests();},30000);
     return ()=>{stopped=true;aliveRef.current=false;++recoveryFetchRef.current;if(retry)clearTimeout(retry);clearInterval(heartbeat);clearInterval(recoveryPoll);subscription.remove();socketRef.current?.close();socketRef.current=null;resetChannelOutbox();clearLogins();};
-  },[api,user.id,refreshChats,loadMessages,acceptMessage,refreshRecoveryRequests,onSocket]);
+  },[api,user.id,refreshChats,loadMessages,acceptMessage,refreshRecoveryRequests,onSocket,refreshScheduled]);
 
   const selectChat=useCallback((chat:Chat|null)=>{
     if(selectedRef.current&&socketRef.current?.readyState===WebSocket.OPEN)socketRef.current.send(JSON.stringify({type:'typing',chatId:selectedRef.current,isTyping:false}));
@@ -336,11 +365,22 @@ export function useMessenger(api: Api, user: User, onExpired: ()=>void) {
           setPending(prev=>prev.map(p=>p.clientId===item.clientId?item:p));
         }finally{uploadsRef.current.delete(item.clientId);}
       }
-      const crypto=await cryptoRuntime.get();const encrypted=await crypto.encrypt(item.chatId,peerId,item.clientId,item.text,item.attachment,item.meta);
-      meshPeer=peerId;meshBody=!item.attachment&&!item.meta?.action?JSON.stringify({chatId:item.chatId,clientId:item.clientId,senderId:user.id,encrypted}):null;
-      const action=item.meta?.action;const result=await api.sendEncrypted(item.chatId,item.clientId,encrypted,!action?undefined:action.type==='call'&&action.step==='offer'?'call':'none');
+      // F4 «Отправить позже»: encrypted now, for the devices of now, and dated at the chosen time inside the ciphertext;
+      // the server keeps the envelopes (never decrypted) and releases them then. Not for Mesh: a phone nearby would deliver it at once.
+      await intentReady.current;let deliverAt=scheduledIntent.current.get(item.clientId);
+      const crypto=await cryptoRuntime.get();const encrypted=await crypto.encrypt(item.chatId,peerId,item.clientId,item.text,item.attachment,item.meta,deliverAt);
+      meshPeer=peerId;meshBody=!item.attachment&&!item.meta?.action&&!deliverAt?JSON.stringify({chatId:item.chatId,clientId:item.clientId,senderId:user.id,encrypted}):null;
+      const kind=pushKind(item.meta);let result:{message:Message}|null=null;
+      if(deliverAt){
+        // A time that passed while the phone was offline is not an error: the message goes out now (Telegram).
+        try{await api.scheduleEncrypted(item.chatId,item.clientId,encrypted,deliverAt,kind==='silent'?'silent':undefined);}
+        catch(e){if(e instanceof ApiError&&e.code==='SCHEDULE_IN_PAST')deliverAt=undefined;else throw e;}
+      }
+      if(!deliverAt)result=await api.sendEncrypted(item.chatId,item.clientId,encrypted,kind);
       await crypto.delivered(item.chatId,item.clientId).catch(()=>{});
       restoredPeers.current.delete(item.clientId);
+      if(scheduledIntent.current.delete(item.clientId))saveIntent();
+      if(!result){if(aliveRef.current){setPending(prev=>prev.filter(p=>p.clientId!==item.clientId));void refreshScheduled();}return;}
       if(aliveRef.current){await acceptMessage(result.message);softRefresh();}
     }
     catch(e){
@@ -352,14 +392,14 @@ export function useMessenger(api: Api, user: User, onExpired: ()=>void) {
       }
       // Refused for good (not «try later» 429, not a dead session 401, not a device-list change handled above):
       // the vault forgets the message, or it would come back as «часики» after every restart (G001).
-      else if(e instanceof ApiError&&e.status>=400&&e.status<500&&e.status!==401&&e.status!==408&&e.status!==429){restoredPeers.current.delete(item.clientId);await cryptoRuntime.get().then(crypto=>crypto.forget(item.chatId,item.clientId)).catch(()=>{});}
+      else if(e instanceof ApiError&&e.status>=400&&e.status<500&&e.status!==401&&e.status!==408&&e.status!==429){restoredPeers.current.delete(item.clientId);if(scheduledIntent.current.delete(item.clientId))saveIntent();await cryptoRuntime.get().then(crypto=>crypto.forget(item.chatId,item.clientId)).catch(()=>{});}
       if(e instanceof Error&&e.name==='AbortError')return;
       if(aliveRef.current){const message=checkError(e);if(e instanceof Error&&e.name==='UntrustedDeviceError')setCryptoError(message);setPending(prev=>prev.map(p=>p.clientId===item.clientId?{...p,...(item.upload?{upload:item.upload}:{}),state:'failed',error:message,offline:e instanceof NetworkError?(item.offline||0)+1:undefined,mesh:p.mesh}:p));}
       // No internet but Mesh is on: hand the same encrypted message to phones nearby. The server
       // still gets it when the internet is back (retries below), and drops the duplicate by clientId.
       if(e instanceof NetworkError&&meshBody&&meshActive()){publishMessage(meshPeer,meshBody,item.clientId);setPending(prev=>prev.map(p=>p.clientId===item.clientId&&!p.mesh?{...p,mesh:'queued'}:p));}
     }
-  },[api,acceptMessage,checkError,softRefresh,cryptoRuntime,user.id]);
+  },[api,acceptMessage,checkError,softRefresh,cryptoRuntime,user.id,saveIntent,refreshScheduled]);
   // ---- Mesh (no internet): radio on/off, messages and receipts from phones nearby ----
   const mesh=useMeshActive();
   useEffect(()=>{if(mesh)void startMesh(user.id);else void stopMesh();},[mesh,user.id]);
@@ -421,6 +461,11 @@ export function useMessenger(api: Api, user: User, onExpired: ()=>void) {
       const service=await cryptoRuntime.get();
       const items=await service.pendingOutbox();if(!live)return;
       for(const item of items)restoredPeers.current.set(item.clientId,item.peerId);
+      // F4: a scheduled message's committed ciphertext (lane) only goes out as «Отправить позже». Its time is in the vault
+      // (dated at delivery), so a lost intent (cleared app storage) is rebuilt here instead of ending in «Идентификатор уже использован».
+      await intentReady.current;let rebuilt=false;
+      for(const item of items)if(item.deliverAt&&!scheduledIntent.current.has(item.clientId)){scheduledIntent.current.set(item.clientId,item.deliverAt);rebuilt=true;}
+      if(rebuilt)saveIntent();
       const restored:PendingMessage[]=items.filter(item=>!pendingRef.current.some(p=>p.clientId===item.clientId)).map(item=>({clientId:item.clientId,chatId:item.chatId,text:item.text,attachment:item.attachment,state:'sending' as const,createdAt:item.sentAt,...(item.meta?{meta:item.meta}:{})}));
       if(restored.length)setPending(prev=>[...prev.filter(p=>!restored.some(item=>item.clientId===p.clientId)),...restored]);
       for(const item of restored){if(!live)return;await performSendRef.current(item);}
@@ -444,7 +489,7 @@ export function useMessenger(api: Api, user: User, onExpired: ()=>void) {
       }
     })().catch(()=>{/* no vault (browser) or the session ended: nothing to restore */});
     return()=>{live=false;};
-  },[cryptoRuntime,indexMessage]);
+  },[cryptoRuntime,indexMessage,saveIntent]);
   /** Sends a big file at once as a bubble with upload progress (the draft flow is for small files). */
   const sendLargeFile=useCallback((chatId:string,file:LocalFile,text='')=>{
     const placeholder:Attachment={id:'00000000-0000-4000-8000-000000000000',name:file.name.slice(0,240)||'file',mimeType:(file.mimeType||'application/octet-stream').slice(0,150),size:file.size||0};
@@ -454,12 +499,50 @@ export function useMessenger(api: Api, user: User, onExpired: ()=>void) {
   /** Stops a big upload and removes its bubble; the unfinished file is deleted from the server. */
   const cancelPending=useCallback((item:PendingMessage)=>{
     uploadsRef.current.get(item.clientId)?.abort();uploadsRef.current.delete(item.clientId);
+    if(scheduledIntent.current.delete(item.clientId))saveIntent();
     setPending(prev=>{const current=prev.find(p=>p.clientId===item.clientId);void cancelLargeUpload(api,current?.upload?.state??item.upload?.state);return prev.filter(p=>p.clientId!==item.clientId);});
-  },[api]);
-  const send=useCallback((chatId:string,text:string,attachment:Attachment|null,meta?:MessageMeta)=>{
-    const item:PendingMessage={clientId:Crypto.randomUUID(),chatId,text,attachment,state:'sending',createdAt:new Date().toISOString(),...(meta?{meta}:{})};
+  },[api,saveIntent]);
+  /** `options` (long-press on Send, F4): `silent` rides inside the ciphertext and makes the push quiet; `deliverAt` hands the envelopes to the server until that time. */
+  const send=useCallback((chatId:string,text:string,attachment:Attachment|null,meta?:MessageMeta,options?:SendOptions)=>{
+    const clientId=Crypto.randomUUID();const shown=withSendOptions(meta,options);
+    if(options?.deliverAt){scheduledIntent.current.set(clientId,options.deliverAt);saveIntent();}
+    const item:PendingMessage={clientId,chatId,text,attachment,state:'sending',createdAt:new Date().toISOString(),...(shown?{meta:shown}:{})};
     void performSend(item);
-  },[performSend]);
+  },[performSend,saveIntent]);
+  // F4: a scheduled message the server could not release (the peer's devices changed) is encrypted afresh
+  // here — only this device holds the text — and sent through the normal route; the stale row is dropped.
+  const resending=useRef(new Set<string>());
+  const resendScheduled=useCallback(async(item:ScheduledItem)=>{
+    if(resending.current.has(item.id)||item.cryptoState!=='decrypted')return;
+    resending.current.add(item.id);
+    try{
+      await cryptoRuntime.get().then(crypto=>crypto.rejectedDeviceSet(item.chatId,item.clientId)).catch(()=>{});
+      await api.deleteScheduled(item.id).catch(e=>{if(!(e instanceof ApiError&&e.status===404))throw e;});
+      if(aliveRef.current)setScheduled(prev=>prev.filter(s=>s.id!==item.id));
+      await performSend({clientId:item.clientId,chatId:item.chatId,text:item.text,attachment:item.attachment,state:'sending',createdAt:new Date().toISOString(),...(item.meta?{meta:item.meta}:{})});
+    }finally{resending.current.delete(item.id);}
+  },[api,cryptoRuntime,performSend]);
+  useEffect(()=>{for(const item of scheduled)if(canResend(item))void resendScheduled(item).catch(e=>{if(aliveRef.current)setError(checkError(e));});},[scheduled,resendScheduled,checkError]);
+  /** «Отправить сейчас»: the server releases the stored envelopes; when they no longer fit the peer's devices (409), this device re-encrypts. */
+  const sendScheduledNow=useCallback(async(item:ScheduledItem)=>{
+    setScheduledBusy(prev=>new Set(prev).add(item.id));
+    try{
+      if(item.status==='scheduled'){
+        try{const result=await api.sendScheduledNow(item.id);if(aliveRef.current){setScheduled(prev=>prev.filter(s=>s.id!==item.id));await acceptMessage({...result.message,...(item.encrypted?{encrypted:item.encrypted}:{lean:true})});softRefresh();}return;}
+        catch(e){if(!(e instanceof ApiError&&e.status===409))throw e;}
+      }
+      const stale:ScheduledItem={...item,status:'failed',failure:'E2EE_DEVICES_CHANGED'};
+      if(!canResend(stale))throw new Error('Отправить заново можно только с устройства, где сообщение написано.');
+      await resendScheduled(stale);
+    }catch(e){throw new Error(checkError(e));}
+    finally{if(aliveRef.current)setScheduledBusy(prev=>{const next=new Set(prev);next.delete(item.id);return next;});}
+  },[api,acceptMessage,softRefresh,resendScheduled,checkError]);
+  const deleteScheduled=useCallback(async(item:ScheduledItem)=>{
+    try{await api.deleteScheduled(item.id);}catch(e){if(!(e instanceof ApiError&&e.status===404))throw new Error(checkError(e));}
+    if(aliveRef.current)setScheduled(prev=>prev.filter(s=>s.id!==item.id));
+    // The text is going nowhere any more: its copy in this device's vault goes too.
+    void cryptoRuntime.get().then(crypto=>crypto.forget(item.chatId,item.clientId)).catch(()=>{});
+  },[api,cryptoRuntime,checkError]);
   /** Edit, delete for everyone, react or pin — sent as an ordinary end-to-end encrypted message. */
   const sendAction=useCallback((chatId:string,action:MessageAction,targetText='')=>{
     send(chatId,actionFallback(action,targetText),null,{action});
@@ -486,7 +569,7 @@ export function useMessenger(api: Api, user: User, onExpired: ()=>void) {
     send(targetChatId,text,attachment,{forward:{from:fromName.slice(0,80)||'собеседник'},...(entities?{entities}:{})});
   },[api,send]);
   /** `entities` format the caption (offsets over `text`); they go with the first part, which carries the caption. */
-  const sendAttachments=useCallback((chatId:string,text:string,attachments:Attachment[],entities?:readonly Entity[])=>{
+  const sendAttachments=useCallback((chatId:string,text:string,attachments:Attachment[],entities?:readonly Entity[],options?:SendOptions)=>{
     const started=Date.now();
     const parts=messageAttachmentBatch(text,attachments);
     const lead=text.length-text.trimStart().length;
@@ -502,10 +585,11 @@ export function useMessenger(api: Api, user: User, onExpired: ()=>void) {
       return count>=2?{group,index:index-start,count}:null;
     };
     const albumIds=Array.from({length:Math.ceil(visual.length/ALBUM_SIZE)},()=>Crypto.randomUUID());
-    const items:PendingMessage[]=ordered.map((part,index)=>{const album=albumOf(index);const meta:MessageMeta={...(album?{album:{id:albumIds[album.group],index:album.index,count:album.count}}:{}),...(captionEntities&&part.text===text.trim()?{entities:captionEntities}:{})};return {...part,clientId:Crypto.randomUUID(),chatId,state:'sending',createdAt:new Date(started+index).toISOString(),...(Object.keys(meta).length?{meta}:{})};});
+    const items:PendingMessage[]=ordered.map((part,index)=>{const album=albumOf(index);const meta:MessageMeta={...(album?{album:{id:albumIds[album.group],index:album.index,count:album.count}}:{}),...(captionEntities&&part.text===text.trim()?{entities:captionEntities}:{}),...(options?.silent?{silent:true as const}:{})};return {...part,clientId:Crypto.randomUUID(),chatId,state:'sending',createdAt:new Date(started+index).toISOString(),...(Object.keys(meta).length?{meta}:{})};});
+    if(options?.deliverAt){for(const item of items)scheduledIntent.current.set(item.clientId,options.deliverAt);saveIntent();}
     setPending(previous=>[...previous,...items]);
     void (async()=>{for(const item of items){if(!aliveRef.current)return;await performSend(item);}})();
-  },[performSend]);
+  },[performSend,saveIntent]);
   const sendPoll=useCallback((chatId:string,poll:Poll)=>{send(chatId,pollFallback(poll),null,{poll});},[send]);
   const sendTyping=useCallback((chatId:string,isTyping:boolean)=>{
     // Privacy: the user may hide "печатает…". A stop signal is still allowed.
@@ -591,6 +675,8 @@ export function useMessenger(api: Api, user: User, onExpired: ()=>void) {
   }),[filtered,messages,previewFill]);
   // While it is being re-sent by itself, the bubble shows the clock, not «Не отправлено».
   const shownPending=useMemo(()=>pending.map(p=>p.state==='failed'&&p.offline&&(p.offline<=40||p.mesh)&&!p.upload?{...p,state:'sending' as const,error:undefined}:p),[pending]);
-  return {onSocket,sendSocket,onCallSignal,readChat,presence,chats:visibleChats,removeChat,removeChatForEveryone,messages,hasMore,pending:shownPending,selectedId,selectChat,connection,listLoading,messageLoading,error,setError,typing,refreshChats,loadMessages,send,sendAction,hideForMe,hidden,forward,sendAttachments,sendLargeFile,cancelPending,retry:performSend,sendPoll,sendTyping,drafts,draftFiles,setDraft,setDraftFile,setDraftFiles,appendDraftFiles,removeDraftFile,recoveryRequests,recoveryError,refreshRecoveryRequests,cancelRecovery,cryptoError,trustSnapshot,approveDevices,uploadEncrypted,saved,aiHistory,updateChatSettings,searchMessages,searchVersion,focus,focusMessage,clearFocus};
+  // F11: system notifications on PC / in the browser when the window is not in front (one hook, decisions in notifications/desktopNotify.ts).
+  useDesktopNotifications({user,chats:visibleChats,selectedId,onCallSignal,ready:!listLoading});
+  return {onSocket,sendSocket,onCallSignal,readChat,presence,chats:visibleChats,removeChat,removeChatForEveryone,messages,hasMore,pending:shownPending,selectedId,selectChat,connection,listLoading,messageLoading,error,setError,typing,refreshChats,loadMessages,send,sendAction,hideForMe,hidden,forward,sendAttachments,sendLargeFile,cancelPending,retry:performSend,sendPoll,sendTyping,drafts,draftFiles,setDraft,setDraftFile,setDraftFiles,appendDraftFiles,removeDraftFile,recoveryRequests,recoveryError,refreshRecoveryRequests,cancelRecovery,cryptoError,trustSnapshot,approveDevices,uploadEncrypted,saved,aiHistory,updateChatSettings,searchMessages,searchVersion,focus,focusMessage,clearFocus,scheduled,scheduledBusy,refreshScheduled,sendScheduledNow,deleteScheduled};
 }
 export type MessengerStore = ReturnType<typeof useMessenger>;

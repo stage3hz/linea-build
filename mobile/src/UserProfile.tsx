@@ -28,6 +28,8 @@ import type { Attachment, Chat, ReportReason, User } from './types';
 import { AUTO_DELETE, autoDeleteLabel, type ChatRules, type ViewMessage } from './messageMeta';
 import { refreshFriendRequests } from './friendRequests';
 import { SharedMedia } from './SharedMedia';
+import { MuteSheet } from './notifications/MuteSheet';
+import { isMuted, muteUntilLabel } from './notifications/model';
 
 type Props = {
   api: Api; user: User | null; onClose: () => void;
@@ -78,7 +80,7 @@ export function UserProfile({ api, user, onClose, chat, onMessage, onMute, onSea
     .onUpdate(e => { slide.value = Math.max(0, e.translationX); })
     .onEnd(e => { if (e.translationX > width * 0.33 || e.velocityX > 700) slide.value = withTiming(width, { duration: 180, easing: Easing.out(Easing.cubic) }, done => { if (done) runOnJS(onClose)(); }); else slide.value = withSpring(0, { damping: 20, stiffness: 260 }); });
   const back = () => { if (width >= 760) { onClose(); return; } slide.value = withTiming(width, { duration: 220, easing: Easing.in(Easing.cubic) }, done => { if (done) runOnJS(onClose)(); }); };
-  const [menu, setMenu] = useState(false); const [menuAt, setMenuAt] = useState<{ x?: number; y: number }>({ y: 90 }); const [sheet, setSheet] = useState<'ttl' | 'clear' | 'block' | 'report' | 'unfriend' | null>(null);
+  const [menu, setMenu] = useState(false); const [menuAt, setMenuAt] = useState<{ x?: number; y: number }>({ y: 90 }); const [sheet, setSheet] = useState<'ttl' | 'clear' | 'block' | 'report' | 'unfriend' | 'mute' | null>(null);
   const [blocked, setBlocked] = useState(false); const [reason, setReason] = useState<ReportReason | null>(null);
   const [copied, setCopied] = useState(false); const copyTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   useEffect(() => () => { if (copyTimer.current) clearTimeout(copyTimer.current); }, []);
@@ -97,7 +99,8 @@ export function UserProfile({ api, user, onClose, chat, onMessage, onMute, onSea
   const festive = birthdayColors(shown.gender);
   // Telegram: the header is the plain background (or the banner); coloured only on the birthday.
   const tinted = !shown.bannerId && !shown.bannerPreset && birthdayToday;
-  const muted = !!chat?.settings?.muted;
+  // Compared with the clock: a mute «до 18:30» is over at 18:30 even before the chat list refreshed.
+  const muted = isMuted(chat?.settings);
   const toggleContact = async () => {
     if (contact === null || busy) return;
     setBusy(true); setError(''); lightFeedback();
@@ -116,17 +119,28 @@ export function UserProfile({ api, user, onClose, chat, onMessage, onMute, onSea
   const toggleMute = async () => {
     if (!onMute || busy) return;
     setBusy(true); setError(''); lightFeedback();
-    try { await onMute(!muted); setNotice(muted ? 'Звук включён' : 'Уведомления выключены'); }
+    try { await onMute(!muted); setNotice(muted ? 'Звук включён' : 'Звук выключен навсегда'); }
     catch (e) { setError(e instanceof Error ? e.message : 'Не удалось изменить уведомления.'); }
+    finally { setBusy(false); }
+  };
+  // Telegram «Выкл. звук»: the sheet's choice. «Навсегда» goes through onMute (the store updates at once);
+  // a timed mute goes to the chat settings route, and the server tells this and every other device over the socket.
+  const muteFor = async (until: string | null) => {
+    if (!chat || busy) return;
+    setSheet(null); setBusy(true); setError(''); lightFeedback();
+    try {
+      if (until === null && onMute) await onMute(true); else await api.chatSettings(chat.id, until === null ? { muted: true } : { mutedUntil: until });
+      setNotice(`Звук выключен ${muteUntilLabel(until)}`);
+    } catch (e) { setError(e instanceof Error ? e.message : 'Не удалось изменить уведомления.'); }
     finally { setBusy(false); }
   };
   // As on the own profile: the row itself reads «Скопировано» for a moment.
   const copy = async () => { await Clipboard.setStringAsync(`@${shown.username}`); lightFeedback(); setCopied(true); if (copyTimer.current) clearTimeout(copyTimer.current); copyTimer.current = setTimeout(() => setCopied(false), 1800); };
-  const actions: { icon: IconName; label: string; onPress: (e?: { nativeEvent?: { pageX?: number; pageY?: number } }) => void; active?: boolean; loading?: boolean }[] = [
+  const actions: { icon: IconName; label: string; sublabel?: string; onPress: (e?: { nativeEvent?: { pageX?: number; pageY?: number } }) => void; active?: boolean; loading?: boolean }[] = [
     ...(onMessage ? [{ icon: 'chatbubble' as IconName, label: 'Написать', onPress: () => { onClose(); onMessage(shown); } }] : []),
     ...(chat && calls.available ? [{ icon: 'call' as IconName, label: 'Звонок', onPress: () => { onClose(); calls.start(chat, false); } }, { icon: 'videocam' as IconName, label: 'Видео', onPress: () => { onClose(); calls.start(chat, true); } }] : []),
     ...(chat ? [] : [{ icon: (contact ? 'person-remove' : pendingRequest === 'outgoing' ? 'time-outline' : pendingRequest === 'incoming' ? 'person-add' : 'person-add') as IconName, label: contact ? 'В друзьях' : pendingRequest === 'outgoing' ? 'Заявка' : pendingRequest === 'incoming' ? 'Принять' : 'В друзья', onPress: () => { if (contact) setSheet('unfriend'); else void toggleContact(); }, active: !!contact || pendingRequest === 'incoming', loading: contact === null }]),
-    ...(onMute && chat ? [{ icon: (muted ? 'notifications-off' : 'notifications') as IconName, label: muted ? 'Без звука' : 'Звук', onPress: () => void toggleMute(), active: muted }] : []),
+    ...(onMute && chat ? [{ icon: (muted ? 'notifications-off' : 'notifications') as IconName, label: muted ? 'Без звука' : 'Звук', sublabel: muted ? muteUntilLabel(chat.settings?.mutedUntil) : undefined, onPress: () => { if (muted) void toggleMute(); else { lightFeedback(); setSheet('mute'); } }, active: muted }] : []),
     // Telegram's row: call · video · sound · search · more.
     ...(onSearch ? [{ icon: 'search' as IconName, label: 'Поиск', onPress: () => { onClose(); onSearch(); } }] : []),
     { icon: 'ellipsis-horizontal' as IconName, label: 'Ещё', onPress: e => { lightFeedback(); const n = e?.nativeEvent; setMenuAt(n?.pageY ? { x: n.pageX, y: n.pageY } : { y: 90 }); setMenu(true); } },
@@ -174,9 +188,11 @@ export function UserProfile({ api, user, onClose, chat, onMessage, onMute, onSea
             {tinted ? <View style={{ alignItems: 'center', gap: 6, paddingVertical: 12, borderRadius: 18, backgroundColor: 'rgba(0,0,0,0.18)' }}>
               {action.loading ? <ActivityIndicator size="small" color="#FFF" /> : <Icon name={action.icon} size={22} color="#FFF" />}
               <Text style={{ color: '#FFF', fontSize: 12, fontWeight: '600' }}>{action.label.toLowerCase()}</Text>
+              {action.sublabel ? <Text numberOfLines={1} maxFontSizeMultiplier={1.2} style={{ color: 'rgba(255,255,255,0.8)', fontSize: 10, marginTop: -3 }}>{action.sublabel}</Text> : null}
             </View> : <GlassSurface radius={18} shadow={false} contentStyle={{ alignItems: 'center', gap: 6, paddingVertical: 12 }}>
               {action.loading ? <ActivityIndicator size="small" color={t.accent} /> : <Icon name={action.icon} size={22} color={action.active ? t.accent : t.text} />}
               <Text style={{ color: action.active ? t.accent : t.text, fontSize: 12, fontWeight: '600' }}>{action.label}</Text>
+              {action.sublabel ? <Text numberOfLines={1} maxFontSizeMultiplier={1.2} style={{ color: t.muted, fontSize: 10, marginTop: -3 }}>{action.sublabel}</Text> : null}
             </GlassSurface>}
           </Bouncy>)}
         </View>
@@ -206,6 +222,7 @@ export function UserProfile({ api, user, onClose, chat, onMessage, onMute, onSea
       <Text style={{ color: t.muted, fontSize: 13, lineHeight: 19, marginBottom: 6 }}>Новые сообщения в этом чате удалятся у вас обоих через выбранное время. Собеседник увидит, что автоудаление включено.</Text>
       {AUTO_DELETE.map(ttl => <SheetAction key={ttl} icon={current.ttl === ttl ? 'checkmark-circle' : 'ellipse-outline'} label={ttl ? autoDeleteLabel(ttl) : 'Выключено'} selected={current.ttl === ttl} onPress={() => { setSheet(null); if (ttl !== current.ttl && onRules) { lightFeedback(); onRules({ ...current, ttl }); setNotice(ttl ? `Автоудаление: ${autoDeleteLabel(ttl)}` : 'Автоудаление выключено'); } }} />)}
     </Sheet>
+    <MuteSheet visible={sheet === 'mute'} title={shown.displayName} current={chat?.settings} onClose={() => setSheet(null)} onMute={until => void muteFor(until)} onUnmute={() => { setSheet(null); void toggleMute(); }} />
     <Sheet visible={sheet === 'clear'} title="Очистить историю?" onClose={() => setSheet(null)}>
       <SheetAction icon="trash-outline" label="Удалить у обоих" description={`Все сообщения исчезнут у тебя и у ${shown.displayName}. Вернуть не получится.`} danger onPress={() => { setSheet(null); onClear?.(); setNotice('История очищена у обоих'); }} />
     </Sheet>

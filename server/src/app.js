@@ -23,7 +23,7 @@ import { isAvatarFrame, isBannerPreset, isProfileEffect, isNameplate, isProfileP
 import { platinaState } from './entitlements.js';
 import { DEFAULT_FILE_LIMITS, installBigFileRoutes } from './bigfiles.js';
 import { installAuthRoutes, RECOVERY_LOCK_MS, rateLimitIp } from './auth.js';
-import { installE2eeRoutes, parseEncryptedMessage } from './e2ee.js';
+import { installE2eeRoutes, installScheduledRoutes, parseEncryptedMessage } from './e2ee.js';
 import { registerAiRoutes, aiProvider } from './ai.js';
 import { installUsernameRoutes } from './username.js';
 import { installSocialRoutes } from './social.js';
@@ -90,6 +90,8 @@ export async function buildApp({
   voiceGraceMs = 25_000,
   /** Period of the housekeeping tick (socket pings, expired rows, last seen, session touch). */
   maintenanceIntervalMs = 30_000,
+  /** Cluster (src/cluster.js): false while this process is not the primary with a live lease — timed work that writes (scheduled messages) waits. */
+  writable = () => true,
   /** SFU for screen sharing (src/sfu.js); undefined = from the environment, null = off. */
   sfu: sfuOption,
   authTestHooks,
@@ -428,7 +430,7 @@ export async function buildApp({
     // push grew with the receiver's unread pile in every chat.
     const chats = db.prepare(`SELECT COALESCE(SUM((SELECT COUNT(*) FROM (SELECT 1 FROM messages m WHERE m.chat_id=cm.chat_id AND m.sender_id<>cm.user_id AND m.id>cm.last_read_message_id AND m.silent=0 LIMIT 9999))),0) AS n
       FROM chat_members cm LEFT JOIN chat_settings s ON s.user_id=cm.user_id AND s.chat_id=cm.chat_id
-      WHERE cm.user_id=? AND COALESCE(s.muted,0)=0 AND COALESCE(s.archived,0)=0`).get(userId).n;
+      WHERE cm.user_id=? AND (s.muted_until IS NULL OR (s.muted_until<>0 AND s.muted_until<=?)) AND COALESCE(s.archived,0)=0`).get(userId, now()).n;
     const friends = db.prepare('SELECT COUNT(*) AS n FROM friend_requests r WHERE r.to_id=? AND NOT EXISTS (SELECT 1 FROM blocks b WHERE b.blocker_id=r.to_id AND b.blocked_id=r.from_id)').get(userId).n;
     let communities = 0; try { communities = communityApi.badge(userId); } catch { /* counters are best effort */ }
     return Math.min(chats + friends + communities, 99999);
@@ -438,7 +440,8 @@ export async function buildApp({
     const sender = db.prepare('SELECT display_name FROM users WHERE id=?').get(senderId);
     for (const userId of memberIds(chatId)) {
       if (userId === senderId) continue;
-      if (kind !== 'call' && chatSettings(db, userId, chatId).muted) continue;
+      // A timed mute (F2) ends by comparison with the clock: no sweep, the next message simply rings again.
+      if (kind !== 'call' && chatSettings(db, userId, chatId, now()).muted) continue;
       const tokens = db.prepare('SELECT p.token, p.platform FROM push_tokens p JOIN sessions s ON s.token_hash=p.session_hash WHERE p.user_id=? AND s.expires_at>?').all(userId, now());
       if (!tokens.length) continue;
       const member = db.prepare('SELECT last_read_message_id FROM chat_members WHERE chat_id=? AND user_id=?').get(chatId, userId);
@@ -505,7 +508,7 @@ export async function buildApp({
     close: channelId => { for (const item of [...(voiceRooms.get(channelId)?.values() || [])]) { sendSocket(item.state, { type: 'voice.kicked', channelId }); leaveVoice(item.state); } },
   };
   const communityApi = installCommunityRoutes({ app, db, authOptions, publicUser, timestamp, now, emitUser, limiter, voice, isOnline: userId => isOnline(userId) });
-  // Storage per account depends on Platina (2 GB without, 15 GB with); big files reserve their size while uploading.
+  // Storage per account depends on Platina (20 GB without, 40 GB with); big files reserve their size while uploading.
   const isPlatinaActive = userId => platinaState(db, userId, now()).active;
   const tierTotal = userId => (isPlatinaActive(userId) ? fileLimits.platina.total : fileLimits.free.total);
   const storageLimit = userId => Math.min(tierTotal(userId), maxStoredBytesPerUser ?? Infinity);
@@ -692,7 +695,7 @@ export async function buildApp({
     requireMembership(chatId, senderId);
     const peerMember = db.prepare('SELECT user_id FROM chat_members WHERE chat_id=? AND user_id<>?').get(chatId, senderId);
     if (peerMember && blockedBetween(db, senderId, peerMember.user_id)) fail(403, 'Переписка с этим пользователем недоступна.', { code: 'BLOCKED' });
-    const body = objectBody(request.body, ['text', 'attachmentId', 'clientId', 'encrypted', 'push']);
+    const body = objectBody(request.body, ['text', 'attachmentId', 'clientId', 'encrypted', 'push', 'deliverAt']);
     if (body.push !== undefined && !PUSH_KINDS.has(body.push)) fail(400, 'Некорректный вид уведомления.');
     if (body.push === 'call' && peerMember && !canCall(db, senderId, peerMember.user_id)) fail(403, 'Этот человек ограничил, кто может ему звонить.', { code: 'CALLS_RESTRICTED' });
     if (body.text !== undefined || body.attachmentId !== undefined || !body.encrypted) {
@@ -708,6 +711,12 @@ export async function buildApp({
       return reply.code(200).send({ message: lean(request, publicMessage(db, previous, serializationOptions)) });
     }
     if (!limiter.allow(`send:${senderId}`, 120, 60_000)) fail(429, 'Слишком много сообщений. Подождите минуту.');
+    // F4 «Отправить позже»: the same envelopes, kept by the server until deliverAt (e2ee.js, scheduled_messages).
+    // push:'silent' (F4 «Отправить без звука») is an ordinary message for the unread counts — silent=0 below —
+    // only its push arrives without sound; silent=1 stays for reactions and edits (push:'none').
+    if (body.deliverAt !== undefined) {
+      return reply.code(202).send({ scheduled: scheduled.create(request, chatId, { clientId, encrypted, encryptedJson, push: body.push || 'message', deliverAt: body.deliverAt }) });
+    }
     const date = timestamp();
     const id = transaction(db, () => {
       e2ee.validateMessage(request, chatId, encrypted);
@@ -728,6 +737,10 @@ export async function buildApp({
     notify(chatId, senderId, body.push || 'message');
     return reply.code(201).send({ message: lean(request, message) });
   });
+  // F4: scheduled envelopes are released by a timer for the next due item, by the housekeeping tick and
+  // on demand (startup, GET /scheduled); the release goes through the same emit/notify path as a send.
+  const scheduled = installScheduledRoutes({ app, db, now, timestamp, authOptions, emitUser, emitChat, memberIds, blockedBetween, e2ee, serializationOptions, uploadDir, writable,
+    notify: (chatId, senderId, kind) => notify(chatId, senderId, kind), log: (error, note) => app.log.warn({ err: error?.message }, note) });
 
   // «Прочитано сегодня в 18:36» for the sender's own message, like Telegram: only within 7 days,
   // and only when both sides share read receipts (otherwise `hidden`, the time is not revealed).
@@ -1022,6 +1035,7 @@ export async function buildApp({
     db.prepare('DELETE FROM recovery_attempts WHERE updated_at<=? AND locked_until<=?')
       .run(now() - RECOVERY_LOCK_MS, now());
     expireEncryptionDevices();
+    scheduled.releaseDue();
     limiter.sweep();
     recordSeen([...socketsByUser.keys()].filter(isOnline));
     // A client that only keeps its socket open (no HTTP requests for days) is in use too: its
@@ -1038,6 +1052,7 @@ export async function buildApp({
   app.addHook('onClose', async () => {
     sfu?.close();
     clearInterval(maintenance);
+    scheduled.close();
     for (const room of voiceRooms.values()) for (const item of room.values()) clearTimeout(item.state.voiceGrace);
     if (!databaseClosed) { recordSeen(socketsByUser.keys()); databaseClosed = true; db.close(); }
   });

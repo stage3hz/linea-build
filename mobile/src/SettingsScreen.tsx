@@ -41,8 +41,10 @@ import { lightFeedback } from './haptics';
 import { LANGUAGES, getLanguage, setLanguage, tr, useLanguage } from './i18n';
 import { fileLimits, type FileLimits } from './e2ee/attachments';
 import { PasscodeRow, PasscodeSection } from './lock/PasscodeSettings';
+import { NotificationsSection } from './notifications/NotificationsSection';
+import { isMuted } from './notifications/model';
 
-type Section = 'root' | 'appearance' | 'night' | 'privacy' | 'passcode' | 'data' | 'language' | 'folders' | 'power' | 'audio' | 'overlay';
+type Section = 'root' | 'appearance' | 'night' | 'privacy' | 'passcode' | 'data' | 'language' | 'folders' | 'power' | 'audio' | 'overlay' | 'notifications';
 type Props = {
   api: Api; user: User; theme: ThemeMode; darkTheme: DarkTheme;
   /** From the one `useNightState` in App: the night theme on screen, the rule's own verdict and whether it is known yet (dev previews leave it out: day). */
@@ -62,10 +64,10 @@ export function SettingsScreen(props: Props) {
   const p0 = useSharedValue(1), p1 = useSharedValue(1), p2 = useSharedValue(1);
   const levels = [p0, p1, p2];
   const page = (current: Section, onBack: () => void) => {
-    const title = current === 'night' ? 'Ночная тема' : current === 'overlay' ? 'Оверлей' : current === 'audio' ? 'Звук и микрофон' : current === 'appearance' ? 'Оформление' : current === 'privacy' ? 'Конфиденциальность' : current === 'passcode' ? 'Код-пароль' : current === 'data' ? 'Данные и память' : current === 'language' ? 'Язык' : current === 'folders' ? 'Папки с чатами' : current === 'power' ? 'Энергосбережение' : 'Настройки';
+    const title = current === 'night' ? 'Ночная тема' : current === 'overlay' ? 'Оверлей' : current === 'audio' ? 'Звук и микрофон' : current === 'appearance' ? 'Оформление' : current === 'privacy' ? 'Конфиденциальность' : current === 'passcode' ? 'Код-пароль' : current === 'data' ? 'Данные и память' : current === 'language' ? 'Язык' : current === 'folders' ? 'Папки с чатами' : current === 'power' ? 'Энергосбережение' : current === 'notifications' ? 'Уведомления и звуки' : 'Настройки';
     if (current === 'root') return <Root {...props} onBack={onBack} open={open} />;
     return <Page title={title} backLabel="Назад" onBack={onBack}>
-      {current === 'appearance' ? <Appearance {...props} open={open} /> : current === 'night' ? <NightSettings {...props} /> : current === 'privacy' ? <PrivacySection api={props.api} open={open} /> : current === 'passcode' ? <PasscodeSection /> : current === 'language' ? <LanguageSection /> : current === 'folders' ? <FoldersSection api={props.api} user={props.user} chats={props.chats || []} /> : current === 'power' ? <Group><MotionSettings /></Group> : current === 'audio' ? <AudioSettings /> : current === 'overlay' ? <OverlaySettings /> : <DataSection api={props.api} />}
+      {current === 'appearance' ? <Appearance {...props} open={open} /> : current === 'night' ? <NightSettings {...props} /> : current === 'privacy' ? <PrivacySection api={props.api} open={open} /> : current === 'passcode' ? <PasscodeSection /> : current === 'language' ? <LanguageSection /> : current === 'folders' ? <FoldersSection api={props.api} user={props.user} chats={props.chats || []} /> : current === 'power' ? <Group><MotionSettings /></Group> : current === 'audio' ? <AudioSettings /> : current === 'overlay' ? <OverlaySettings /> : current === 'notifications' ? <NotificationsSection api={props.api} chats={props.chats || []} /> : <DataSection api={props.api} />}
     </Page>;
   };
   // Each level slides in over the previous one, which shifts aside and dims (StackBase) and closes
@@ -136,8 +138,9 @@ export function Toggle({ label, description, value, onChange, disabled = false, 
   </View>;
 }
 
-function Root({ api, user, theme, darkTheme, nightState = DAY_STATE, onBack, onProfile, onSecurity, onMusic, onLogout, open }: Props & { open: (section: Section) => void }) {
+function Root({ api, user, theme, darkTheme, nightState = DAY_STATE, onBack, onProfile, onSecurity, onMusic, onLogout, open, chats }: Props & { open: (section: Section) => void }) {
   const tabInset = useTabInset();
+  const mutedChats = (chats || []).filter(chat => isMuted(chat.settings)).length;
   // The row names the theme on screen (the night theme at night), not the day choice behind it.
   const { night } = nightState;
   const language = useLanguage();
@@ -190,6 +193,8 @@ function Root({ api, user, theme, darkTheme, nightState = DAY_STATE, onBack, onP
         <Item icon="person" color="#E2574C" label="Мой профиль" onPress={onProfile} />
       </Group>
       <Group>
+        {/* Telegram's red bell, right after the profile; the row says how many chats are quiet right now. */}
+        <Item icon="notifications" color="#E0453A" label="Уведомления и звуки" value={mutedChats ? `Без звука: ${mutedChats}` : undefined} onPress={() => open('notifications')} />
         <Item icon="color-palette" color="#25A69A" label="Оформление" value={THEME_NAMES[themeFor(theme, darkTheme, night)]} onPress={() => open('appearance')} />
         <Item icon="folder" color="#3D8BFD" label="Папки с чатами" value={folders.folders.length ? String(folders.folders.length) : undefined} onPress={() => open('folders')} />
         <Item icon="battery-half" color="#F0A030" label="Энергосбережение и анимации" onPress={() => open('power')} />
@@ -406,7 +411,7 @@ function LanguageSection() {
 const GB = 1024 ** 3;
 const storageLabel = (bytes: number) => bytes >= GB ? `${(bytes / GB).toFixed(bytes >= 10 * GB ? 0 : 1).replace('.0', '')} ${getLanguage() === 'en' ? 'GB' : 'ГБ'}` : formatSize(bytes);
 
-/** Files on the server: how much of the account's storage is used (2 GB, 15 GB with Platina). */
+/** Files on the server: how much of the account's storage is used (20 GB, 40 GB with Platina). */
 function ServerStorage({ api }: { api: Api }) {
   const t = useTheme(); const [limits, setLimits] = useState<FileLimits | null>(null); const [failed, setFailed] = useState(false);
   useEffect(() => { let alive = true; fileLimits(api).then(value => { if (alive) setLimits(value); }).catch(() => { if (alive) setFailed(true); }); return () => { alive = false; }; }, [api]);
@@ -415,7 +420,7 @@ function ServerStorage({ api }: { api: Api }) {
     <View style={{ padding: 16, gap: 10 }}>
       <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10 }}><Icon name="cloud-outline" size={22} color={t.accent} /><Text style={{ flex: 1, color: t.text, fontSize: 15 }}>Использовано</Text>{limits ? <Text raw style={{ color: t.text, fontSize: 15, fontWeight: '700' }}>{storageLabel(limits.usedBytes)} / {storageLabel(limits.storageBytes)}</Text> : failed ? <Text style={{ color: t.muted, fontSize: 13 }}>Недоступно</Text> : <ActivityIndicator color={t.accent} size="small" />}</View>
       <View style={{ height: 6, borderRadius: 3, backgroundColor: t.dark ? 'rgba(255,255,255,0.10)' : 'rgba(0,0,0,0.07)', overflow: 'hidden' }}><View style={{ width: `${Math.round(fraction * 100)}%`, height: 6, borderRadius: 3, backgroundColor: fraction > .9 ? t.danger : t.accent }} /></View>
-      {limits ? <Text style={{ color: t.muted, fontSize: 12, lineHeight: 18 }}>{limits.platina ? 'С Platina: файлы до 5 ГБ, всего 15 ГБ.' : 'Без Platina: файлы до 100 МБ, всего 2 ГБ. С Platina — до 5 ГБ на файл и 15 ГБ всего.'}</Text> : null}
+      {limits ? <Text style={{ color: t.muted, fontSize: 12, lineHeight: 18 }}>{limits.platina ? 'Видео до 10 ГБ, файлы до 4 ГБ (Platina), всего 40 ГБ.' : 'Видео до 10 ГБ, файлы до 2 ГБ, всего 20 ГБ. С Platina — файлы до 4 ГБ и 40 ГБ всего.'}</Text> : null}
       <Text style={{ color: t.muted, fontSize: 12, lineHeight: 18 }}>Зашифрованные вложения из личных чатов. Сервер не может их прочитать.</Text>
     </View>
   </Group>;

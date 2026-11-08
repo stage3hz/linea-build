@@ -28,6 +28,9 @@ import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context'
 import * as FileSystem from 'expo-file-system/legacy';
 import type { Api } from './api';
 import { AttachmentCard, Avatar, Empty, Icon, IconButton, Notice, RecordHint, Sheet, SheetAction } from './components';
+import { SchedulePicker } from './scheduled/SchedulePicker';
+import { ScheduledScreen } from './scheduled/ScheduledScreen';
+import type { SendOptions } from './scheduled/model';
 import { formatDay, formatSize, formatTime, useTheme } from './theme';
 import { GlassContentTarget, GlassStage, GlassSurface, GlassTargetScope } from './glass';
 import { ForwardPicker, type ForwardTarget } from './forward/ForwardPicker';
@@ -36,6 +39,7 @@ import { SharedMedia } from './SharedMedia';
 import type { Attachment, Chat, LocalFile, Message, PendingMessage, User } from './types';
 import type { MessengerStore } from './useMessenger';
 import { LARGE_FILE, localFileSize, shareEncryptedAttachment } from './e2ee/attachments';
+import { withUncleanedConsent } from './attachments/uncleanedConsent';
 import { TrustSheet } from './e2ee/TrustSheet';
 import { signalAvailable } from './e2ee/signal';
 import { AttachmentPanel } from './attachments/AttachmentPanel';
@@ -61,6 +65,8 @@ import { inviteCodeFrom } from './communities/types';
 import { inviteForwardable } from './communities/InviteCard';
 import { TopPlayerBar } from './music/PlayerControls';
 import { useCalls } from './calls/CallProvider';
+import { callServiceText } from './calls/callHistory';
+import { isMuted } from './notifications/model';
 import { UserProfile } from './UserProfile';
 import { MiniProfile } from './MiniProfile';
 import { errorFeedback, impactFeedback, lightFeedback } from './haptics';
@@ -119,7 +125,8 @@ export function ChatScreen({api,user,chat,store,onBack,wide=false,onOpenMusic}: 
   const locked=view.rules.noCopy;
   // Telegram: the author edits any own message — its text or the caption of a photo/video/file, with
   // or without a caption yet. A poll, a voice or a video message has nothing to edit.
-  const editable=(m:ViewMessage)=>m.senderId===user.id&&m.cryptoState==='decrypted'&&!m.meta?.poll&&(!!m.text||!!m.attachment)&&!(m.attachment&&(isVoice(m.attachment)||isVideoNote(m.attachment)));
+  // A service row (a finished call) is not a message of yours to edit either.
+  const editable=(m:ViewMessage)=>m.senderId===user.id&&m.cryptoState==='decrypted'&&!m.meta?.action&&!m.meta?.poll&&(!!m.text||!!m.attachment)&&!(m.attachment&&(isVoice(m.attachment)||isVideoNote(m.attachment)));
   const [replyTo,setReplyTo]=useState<ViewMessage|null>(null);
   const [editing,setEditing]=useState<ViewMessage|null>(null);
   const [forwarding,setForwarding]=useState<ViewMessage|null>(null);
@@ -145,7 +152,7 @@ export function ChatScreen({api,user,chat,store,onBack,wide=false,onOpenMusic}: 
   // A banner of a closed channel/server is not forwarded (the owner chose who gets in).
   const forwardable=async(list:ViewMessage[])=>{for(const item of list){const code=item.text?inviteCodeFrom(item.text):null;if(code&&!(await inviteForwardable(api,code))){setNotice('Приглашение в закрытый канал или на закрытый сервер переслать нельзя.');return false;}}return true;};
   const [gallery,setGallery]=useState<{items:Attachment[];index:number}|null>(null);
-  const [mediaOpen,setMediaOpen]=useState(false);const [headerHeight,setHeaderHeight]=useState(76);const [footerHeight,setFooterHeight]=useState(60);const [showDown,setShowDown]=useState(false);const [recordMode,setRecordMode]=useState<'voice'|'video'>('voice');
+  const [mediaOpen,setMediaOpen]=useState(false);const [sendMenu,setSendMenu]=useState(false);const [schedulePick,setSchedulePick]=useState(false);const scheduleAsk=useRef(false);const [scheduledOpen,setScheduledOpen]=useState(false);const chatScheduled=useMemo(()=>store.scheduled.filter(item=>item.chatId===chat.id),[store.scheduled,chat.id]);const [headerHeight,setHeaderHeight]=useState(76);const [footerHeight,setFooterHeight]=useState(60);const [showDown,setShowDown]=useState(false);const [recordMode,setRecordMode]=useState<'voice'|'video'>('voice');
   // Emoji panel <-> keyboard like Telegram: the panel appears first (at keyboard height) and the
   // keyboard goes down under it; back to the keyboard, the panel stays until the keyboard is fully up.
   const [keyboardAsk,setKeyboardAsk]=useState(0);const closeStickersOnKeyboard=useRef(false);
@@ -238,7 +245,7 @@ export function ChatScreen({api,user,chat,store,onBack,wide=false,onOpenMusic}: 
   const sendForward=()=>{const draft=forwardDraft;if(!draft)return false;setForwardDraft(null);const comment=composed();
     if(comment.text)store.send(chat.id,comment.text,null,comment.entities?{entities:comment.entities}:undefined);void (async()=>{for(const item of draft.items)await store.forward(chat.id,item.message,item.author);})().catch(e=>setLocalError(e instanceof Error?e.message:'Не удалось переслать.'));
     store.setDraft(chat.id,'');store.sendTyping(chat.id,false);listRef.current?.scrollToOffset({offset:0,animated:true});return true;};
-  const send=()=>{
+  const send=(options?:SendOptions)=>{
     if(forwardDraft&&!editing){lightFeedback();sendForward();return;}
     if(signalAvailable&&!uploadingRef.current&&(text.trim()||attachments.length))lightFeedback();
     if(!signalAvailable||uploadingRef.current||(!text.trim()&&!attachments.length))return;
@@ -251,13 +258,14 @@ export function ChatScreen({api,user,chat,store,onBack,wide=false,onOpenMusic}: 
     }
     if(replyTo){
       const reply={clientId:replyTo.clientId,senderId:replyTo.senderId,preview:replyPreview(replyTo)};
-      if(out.text)store.send(chat.id,out.text,null,{reply,...(out.entities?{entities:out.entities}:{})});
-      if(attachments.length)store.sendAttachments(chat.id,'',attachments);
+      if(out.text)store.send(chat.id,out.text,null,{reply,...(out.entities?{entities:out.entities}:{})},options);
+      if(attachments.length)store.sendAttachments(chat.id,'',attachments,undefined,options);
       setReplyTo(null);
-    }else if(out.entities&&!attachments.length)store.send(chat.id,out.text,null,{entities:out.entities});
-    else store.sendAttachments(chat.id,out.text,attachments,out.entities);store.setDraft(chat.id,'');store.setDraftFiles(chat.id,[]);draftCount.current=0;store.sendTyping(chat.id,false);setLocalError('');listRef.current?.scrollToOffset({offset:0,animated:true});
+    }else if(out.entities&&!attachments.length)store.send(chat.id,out.text,null,{entities:out.entities},options);
+    else store.sendAttachments(chat.id,out.text,attachments,out.entities,options);store.setDraft(chat.id,'');store.setDraftFiles(chat.id,[]);draftCount.current=0;store.sendTyping(chat.id,false);setLocalError('');listRef.current?.scrollToOffset({offset:0,animated:true});
   };
-  const upload=async(file:LocalFile)=>{
+  const upload=async(picked:LocalFile)=>{
+    const file=await withUncleanedConsent(picked);if(!file)return;
     const selectedFor=photoContext;
     const current=()=>alive.current&&currentPhotoContext.current===selectedFor;
     if(!current())throw new Error('Чат сменился. Выбери вложение в нужном разговоре.');
@@ -326,7 +334,8 @@ export function ChatScreen({api,user,chat,store,onBack,wide=false,onOpenMusic}: 
   };
   const copy=async(value:string)=>{await Clipboard.setStringAsync(value);setActions(null);setCopied(true);setTimeout(()=>setCopied(false),2000);};
   const isTyping=(store.typing[chat.id]||0)>Date.now();
-  const otherUnread=store.chats.reduce((sum,c)=>c.id===chat.id||c.settings?.muted||c.settings?.archived?sum:sum+c.unreadCount,0);
+  // A timed mute that has run out counts again, as in the list (isMuted reads the clock, not the flag alone).
+  const otherUnread=store.chats.reduce((sum,c)=>c.id===chat.id||isMuted(c.settings)||c.settings?.archived?sum:sum+c.unreadCount,0);
   const [clock,setClock]=useState(0);useEffect(()=>{const timer=setInterval(()=>setClock(v=>v+1),30000);return()=>clearInterval(timer);},[]);
   const headerStatus=useMemo(()=>{
     if(store.connection!=='connected'&&mesh)return {text:'Mesh · без интернета',accent:true};
@@ -337,12 +346,16 @@ export function ChatScreen({api,user,chat,store,onBack,wide=false,onOpenMusic}: 
     return text?{text,accent:text==='в сети'}:{text:`@${chat.peer.username}`,accent:false};
   },[store.connection,isTyping,store.presence,chat.peer.id,chat.peer.username,clock,mesh]);
   const rowMessages=(row:Row):ViewMessage[]=>row.album?row.album.map(part=>part.message).filter((m):m is ViewMessage=>!!m):row.message?[row.message]:[];
+  // The menu of a call service row (F9) holds only «Удалить»: no reactions, reply, copy, pin, forward or select.
+  const serviceAction=actions?.message?.meta?.action;const serviceRow=!!serviceAction;
   const selectedRows=selection?rows.filter(row=>selection.has(row.key)):[];
   const selectedMessages=selectedRows.flatMap(rowMessages).sort((a,b)=>a.id-b.id);
   // «Копирование запрещено» (noCopy) binds multi-select too: nothing leaves the chat — no copy,
   // forward, share or saving to Favourites; deleting stays available.
-  const canCopySelected=!locked&&selectedMessages.some(m=>m.text);
-  const canExportSelected=!locked&&selectedMessages.length>0;
+  // A call service row can only be deleted: it is not copied, forwarded, shared or saved.
+  const exportable=selectedMessages.filter(m=>!m.meta?.action);
+  const canCopySelected=!locked&&exportable.some(m=>m.text);
+  const canExportSelected=!locked&&exportable.length>0;
   const toggleSelect=(row:Row)=>{if(!rowMessages(row).length)return;setSelection(current=>{const next=new Set(current||[]);if(next.has(row.key))next.delete(row.key);else next.add(row.key);return next.size?next:null;});};
   const startSelect=(row:Row)=>{setActions(null);impactFeedback();if(rowMessages(row).length)setSelection(new Set([row.key]));};
   const shareMessages=async(list:ViewMessage[])=>{
@@ -372,9 +385,10 @@ export function ChatScreen({api,user,chat,store,onBack,wide=false,onOpenMusic}: 
     const quoteAuthor=reply?(reply.senderId===user.id?'Ты':peerName):storyRef?(storyRef.ownerId===user.id?'Ты':peerName):undefined;
     const quoteText=reply?(original?replyPreview(original):reply.preview||'Сообщение удалено'):storyRef?'История':undefined;
     // Telegram groups consecutive messages of one author: 2 pt apart, the tail only on the last one.
+    // A service row (a finished call) belongs to no author's run: it neither continues a group nor is grouped.
     const newer=index>0?rows[index-1]:undefined;
-    const newerSender=newer?.pending?user.id:newer?.message?.senderId;
-    const groupNext=!!newer&&newerSender===(p?user.id:message?.senderId)&&new Date(newer.createdAt).toDateString()===new Date(item.createdAt).toDateString()&&Date.parse(newer.createdAt)-Date.parse(item.createdAt)<5*60_000;
+    const newerSender=newer?.pending?user.id:newer?.message&&!newer.message.meta?.action?newer.message.senderId:undefined;
+    const groupNext=!!newer&&newerSender!==undefined&&!message?.meta?.action&&newerSender===(p?user.id:message?.senderId)&&new Date(newer.createdAt).toDateString()===new Date(item.createdAt).toDateString()&&Date.parse(newer.createdAt)-Date.parse(item.createdAt)<5*60_000;
     if(item.missing)return <MissingRow count={item.missing}/>;
     return <MessageRow animatedEmoji={platina&&powerFeatures.stickers} groupNext={groupNext} row={item} selecting={!!selection} selected={!!selection?.has(item.key)} fresh={fresh(item.key)} olderCreatedAt={rows[index+1]?.createdAt} mine={mine} author={mine?'Ты':peerName} peerLastRead={peerLastRead} wide={wide} fontSize={metrics.fontSize} lineHeight={metrics.lineHeight} radius={preferences.bubbleRadius} downloading={!!downloadId&&file?.id===downloadId} replyAuthor={quoteAuthor} replyText={quoteText} api={api} handlers={handlers}/>;
   },[rows,user.id,peerName,peerLastRead,wide,metrics,downloadId,view.byClientId,api,selection,preferences.bubbleRadius,platina]);
@@ -433,6 +447,8 @@ export function ChatScreen({api,user,chat,store,onBack,wide=false,onOpenMusic}: 
     window.addEventListener('dragenter',enter);window.addEventListener('dragover',over);window.addEventListener('dragleave',leave);window.addEventListener('drop',drop);window.addEventListener('paste',paste);window.addEventListener('keydown',key,true);
     return()=>{window.removeEventListener('dragenter',enter);window.removeEventListener('dragover',over);window.removeEventListener('dragleave',leave);window.removeEventListener('drop',drop);window.removeEventListener('paste',paste);window.removeEventListener('keydown',key,true);};
   },[wide,chat.id,user.id]);
+  // F4 (Telegram): a clock with the count of «Отложенные сообщения» of this chat in the header; it opens their list.
+  const scheduledPill=()=>chatScheduled.length?<GlassSurface material="regular" radius={22} interactive style={{height:44,maxHeight:44,flexGrow:0,flexShrink:0}} contentStyle={{height:44,maxHeight:44,justifyContent:'center'}}><Pressable testID="chat-scheduled" onPress={()=>{Keyboard.dismiss();setScheduledOpen(true);}} accessibilityRole="button" accessibilityLabel={`Отложенные сообщения: ${chatScheduled.length}`} hitSlop={6} style={({pressed})=>({flexDirection:'row',alignItems:'center',gap:4,paddingHorizontal:11,height:44,opacity:pressed?.7:1})}><Icon name="time-outline" size={21} color={chatScheduled.some(item=>item.status==='failed')?t.danger:t.accent}/><Text style={{color:t.accent,fontSize:13,fontWeight:'700'}}>{chatScheduled.length}</Text></Pressable></GlassSurface>:null;
   const desktopHeader=()=>{const hover=(state:{pressed:boolean})=>{const h=(state as {hovered?:boolean}).hovered;return {width:40,height:40,borderRadius:12,alignItems:'center' as const,justifyContent:'center' as const,backgroundColor:h?(t.dark?'rgba(255,255,255,0.08)':'rgba(0,0,0,0.05)'):'transparent',opacity:state.pressed?.6:1};};
     return <View style={{height:60,marginTop:-8,flexDirection:'row',alignItems:'center',gap:12,paddingHorizontal:16,backgroundColor:t.glassOpaque,borderBottomWidth:1,borderColor:t.border}}>
       <Pressable onPress={()=>setPeerInfo(true)} accessibilityRole="button" accessibilityLabel={`Полный профиль ${chat.peer.displayName}`}><DecoratedAvatar user={chat.peer} api={api} size={40} animated/></Pressable>
@@ -443,6 +459,7 @@ export function ChatScreen({api,user,chat,store,onBack,wide=false,onOpenMusic}: 
       <Pressable onPress={()=>{setSearchOpen(open=>!open);setQuery('');}} accessibilityRole="button" accessibilityLabel="Поиск в этом чате (Ctrl+F)" style={hover}><Icon name="search-outline" size={20} color={searchOpen?t.accent:t.muted}/></Pressable>
       {calls.available?<Pressable onPress={()=>calls.start(chat,false)} accessibilityRole="button" accessibilityLabel="Позвонить" style={hover}><Icon name="call-outline" size={20} color={t.muted}/></Pressable>:null}
       {calls.available?<Pressable onPress={()=>calls.start(chat,true)} accessibilityRole="button" accessibilityLabel="Видеозвонок" style={hover}><Icon name="videocam-outline" size={21} color={t.muted}/></Pressable>:null}
+      {chatScheduled.length?<Pressable testID="chat-scheduled" onPress={()=>setScheduledOpen(true)} accessibilityRole="button" accessibilityLabel={`Отложенные сообщения: ${chatScheduled.length}`} style={hover}><Icon name="time-outline" size={20} color={chatScheduled.some(item=>item.status==='failed')?t.danger:t.accent}/><View style={{position:'absolute',top:3,right:3,minWidth:16,height:16,borderRadius:8,paddingHorizontal:4,backgroundColor:t.accent,alignItems:'center',justifyContent:'center'}}><Text style={{color:t.onAccent,fontSize:10,fontWeight:'700'}}>{chatScheduled.length}</Text></View></Pressable>:null}
       <Pressable onPress={()=>setMediaOpen(true)} accessibilityRole="button" accessibilityLabel="Медиа и файлы чата" style={hover}><Icon name="images-outline" size={20} color={t.muted}/></Pressable>
       <Pressable onPress={()=>setPeerInfo(true)} accessibilityRole="button" accessibilityLabel="Информация" style={hover}><Icon name="information-circle-outline" size={22} color={t.muted}/></Pressable>
     </View>;};
@@ -469,7 +486,7 @@ export function ChatScreen({api,user,chat,store,onBack,wide=false,onOpenMusic}: 
     {selection?<View style={{flexDirection:'row',alignItems:'center',gap:8,paddingHorizontal:12}}>
       <GlassSurface material="regular" radius={24} interactive contentStyle={{height:48,justifyContent:'center',paddingHorizontal:16}}><Pressable onPress={()=>setSelection(null)} accessibilityRole="button" hitSlop={8}><Text style={{color:t.accent,fontSize:16,fontWeight:'600'}}>Отмена</Text></Pressable></GlassSurface>
       <View style={{flex:1,alignItems:'center'}}><GlassSurface material="regular" radius={24} contentStyle={{height:48,justifyContent:'center',paddingHorizontal:18}}><Text style={{color:t.text,fontSize:16,fontWeight:'700'}}>Выбрано: {selectedMessages.length}</Text></GlassSurface></View>
-      <GlassSurface material="regular" radius={24} interactive contentStyle={{height:48,width:48,alignItems:'center',justifyContent:'center'}}><Pressable onPress={()=>void copy(selectedMessages.map(m=>m.meta?.poll?replyPreview(m):m.text).filter(Boolean).join('\n\n')).then(()=>setSelection(null))} disabled={!canCopySelected} accessibilityRole="button" accessibilityLabel="Скопировать выбранные" style={{opacity:canCopySelected?1:.4}}><Icon name="copy-outline" size={21} color={t.accent}/></Pressable></GlassSurface>
+      <GlassSurface material="regular" radius={24} interactive contentStyle={{height:48,width:48,alignItems:'center',justifyContent:'center'}}><Pressable onPress={()=>void copy(exportable.map(m=>m.meta?.poll?replyPreview(m):m.text).filter(Boolean).join('\n\n')).then(()=>setSelection(null))} disabled={!canCopySelected} accessibilityRole="button" accessibilityLabel="Скопировать выбранные" style={{opacity:canCopySelected?1:.4}}><Icon name="copy-outline" size={21} color={t.accent}/></Pressable></GlassSurface>
     </View>:wide?desktopHeader():<View style={{flexDirection:'row',alignItems:'center',gap:8,paddingHorizontal:12}}>
       {/* Telegram: the name sits exactly in the middle of the screen — equal side columns, not «what is left». */}
       <View style={{flex:1,alignItems:'flex-start'}}>{!wide?<GlassSurface material="regular" radius={26} interactive style={{height:44,maxHeight:44,flexGrow:0,flexShrink:0}} contentStyle={{height:44,maxHeight:44,flexGrow:0,flexShrink:0,minWidth:44,flexDirection:'row',alignItems:'center',justifyContent:'center',paddingHorizontal:otherUnread?10:0,gap:4}}><Pressable onPress={onBack} accessibilityRole="button" accessibilityLabel={`Назад к чатам${otherUnread?`, непрочитанных ${otherUnread}`:''}`} hitSlop={6} style={{flexDirection:'row',alignItems:'center',gap:4}}><Icon name="chevron-back" size={26} color={t.text}/>{otherUnread?<View style={{minWidth:22,height:22,borderRadius:11,paddingHorizontal:6,backgroundColor:t.text,alignItems:'center',justifyContent:'center'}}><Text style={{color:t.dark?'#000':'#FFF',fontSize:12,fontWeight:'700'}}>{otherUnread>99?'99+':otherUnread}</Text></View>:null}</Pressable></GlassSurface>:null}</View>
@@ -485,7 +502,8 @@ export function ChatScreen({api,user,chat,store,onBack,wide=false,onOpenMusic}: 
           </Pressable>
         </GlassSurface>
       </View>
-      <View style={{flex:1,alignItems:'flex-end'}}>
+      <View style={{flex:1,flexDirection:'row',alignItems:'center',justifyContent:'flex-end',gap:8}}>
+        {scheduledPill()}
         <Pressable onPress={()=>{Keyboard.dismiss();setPeerInfo(true);}} onLongPress={()=>{Keyboard.dismiss();impactFeedback();setAvatarMenu(true);}} delayLongPress={350} accessibilityRole="button" accessibilityLabel={`Полный профиль ${chat.peer.displayName}`} hitSlop={4} style={({pressed})=>({opacity:pressed?.75:1})}><DecoratedAvatar user={chat.peer} api={api} size={44} animated/></Pressable>
       </View>
     </View>}
@@ -520,9 +538,9 @@ export function ChatScreen({api,user,chat,store,onBack,wide=false,onOpenMusic}: 
     {showDown&&!selection?<View pointerEvents="box-none" style={{height:0}}><View style={{position:'absolute',right:14,bottom:10}}><GlassSurface material="regular" radius={20} interactive contentStyle={{width:40,height:40,alignItems:'center',justifyContent:'center'}}><Pressable onPress={()=>{lightFeedback();listRef.current?.scrollToOffset({offset:0,animated:true});}} accessibilityRole="button" accessibilityLabel="Вниз к новым сообщениям" hitSlop={6}><Icon name="chevron-down" size={26} color={t.text}/></Pressable></GlassSurface></View></View>:null}
     {selection?<GlassSurface lens material="regular" radius={28} style={{marginHorizontal:12,marginTop:5,marginBottom:10}} contentStyle={{flexDirection:'row',justifyContent:'space-around',alignItems:'center',paddingVertical:8}}>
       {([
-        {icon:'arrow-redo-outline',label:'Переслать',on:()=>{const list=selectedMessages;void forwardable(list).then(ok=>{if(ok)setForwardMany(list);});},ok:canExportSelected},
-        {icon:'share-outline',label:'Поделиться',on:()=>{void shareMessages(selectedMessages);setSelection(null);},ok:canExportSelected},
-        {icon:'bookmark-outline',label:'В Избранное',on:()=>{selectedMessages.forEach(saveToFavorites);setSelection(null);},ok:canExportSelected},
+        {icon:'arrow-redo-outline',label:'Переслать',on:()=>{const list=exportable;void forwardable(list).then(ok=>{if(ok)setForwardMany(list);});},ok:canExportSelected},
+        {icon:'share-outline',label:'Поделиться',on:()=>{void shareMessages(exportable);setSelection(null);},ok:canExportSelected},
+        {icon:'bookmark-outline',label:'В Избранное',on:()=>{exportable.forEach(saveToFavorites);setSelection(null);},ok:canExportSelected},
         {icon:'trash-outline',label:'Удалить',on:()=>setDeleteAsk(true),ok:selectedMessages.length>0,danger:true},
       ] as const).map(item=><Pressable key={item.label} disabled={!item.ok} onPress={()=>{lightFeedback();item.on();}} accessibilityRole="button" style={({pressed})=>({alignItems:'center',gap:4,paddingHorizontal:8,paddingVertical:4,opacity:!item.ok?.35:pressed?.6:1})}><Icon name={item.icon} size={22} color={'danger' in item?t.danger:t.accent}/><Text style={{fontSize:10,color:'danger' in item?t.danger:t.accent,fontWeight:'600'}}>{item.label}</Text></Pressable>)}
     </GlassSurface>:<View style={{marginHorizontal:wide?20:8,marginTop:4,marginBottom:8,gap:6}}>
@@ -550,14 +568,14 @@ export function ChatScreen({api,user,chat,store,onBack,wide=false,onOpenMusic}: 
       {voice.active&&!(recHold?.kind==='voice'&&!recHold.locked)?<VoiceRecordingBar floating durationMs={voice.durationMs} levels={voice.levels} paused={voice.paused} onPause={voice.togglePause} onCancel={()=>{setRecHold(null);void finishVoice(false);}} onSend={()=>{setRecHold(null);void finishVoice(true);}}/>:<View style={{flexDirection:'row',gap:8,alignItems:'flex-end'}}>
         <RecordHint text={recordHint}/>
         {recHold?.kind==='voice'&&!recHold.locked?<GlassSurface key="holdstrip" lens material="regular" radius={20} style={{flex:1}} contentStyle={{minHeight:40,justifyContent:'center'}}><VoiceRecordingBar holding cancelProgress={cancelProgress} durationMs={voice.durationMs} levels={voice.levels} onCancel={()=>{}} onSend={()=>{}}/></GlassSurface>:<>
-        <GlassSurface material="regular" radius={20} interactive contentStyle={{width:40,height:40,alignItems:'center',justifyContent:'center'}}><Pressable accessibilityRole="button" accessibilityLabel="Вложения: галерея, файлы, опрос" disabled={uploading} onPress={()=>{Keyboard.dismiss();setStickers(false);setAttachMenu(true);}} hitSlop={6} style={{opacity:uploading?.4:1}}><Icon name="attach" size={24} color={t.text}/></Pressable></GlassSurface>
+        <GlassSurface material="regular" radius={20} interactive contentStyle={{width:40,height:40,alignItems:'center',justifyContent:'center'}}><Pressable accessibilityRole="button" testID="chat-attach" accessibilityLabel="Вложения: галерея, файлы, опрос" disabled={uploading} onPress={()=>{Keyboard.dismiss();setStickers(false);setAttachMenu(true);}} hitSlop={6} style={{opacity:uploading?.4:1}}><Icon name="attach" size={24} color={t.text}/></Pressable></GlassSurface>
         <GlassSurface lens material="regular" radius={20} style={{flex:1}} contentStyle={{minHeight:40,maxHeight:140,flexDirection:'row',alignItems:'flex-end'}}>
           {/* A browser cannot send in a 1:1 chat (no Signal): a one-line hint stands in for the field — a
               read-only <textarea> wrapped its long placeholder onto a hidden second line. */}
-          <View style={{flex:1,justifyContent:'center',minHeight:40}}>{!signalAvailable?<Text numberOfLines={1} style={{fontSize:17,lineHeight:22,color:t.muted,paddingHorizontal:14,paddingVertical:9}}>Только в приложении</Text>:<ComposerInput focusKey={editing?`edit:${editing.clientId}`:replyTo?`reply:${replyTo.clientId}`:keyboardAsk?`keyboard:${keyboardAsk}`:null} onFocus={()=>{if(stickers&&Platform.OS!=='web')stickersToKeyboard();}} minHeight={40} accessibilityLabel="Сообщение" placeholder="Сообщение" value={text} onChangeText={changeText} onSelectionChange={e=>{const next=e.nativeEvent.selection;caret.current=next;setSel(prev=>next.start!==next.end?(prev&&prev.start===next.start&&prev.end===next.end?prev:{start:next.start,end:next.end}):prev?null:prev);}} placeholderTextColor={t.muted} selectionColor={t.accent} keyboardAppearance={t.dark?'dark':'light'} multiline maxLength={8000} style={{fontSize:17,lineHeight:22,color:t.text,paddingHorizontal:14,paddingTop:Platform.OS==='ios'?9:7,paddingBottom:9,maxHeight:136}} onKeyPress={e=>{if(Platform.OS==='web'&&e.nativeEvent.key==='Enter'&&!(e.nativeEvent as unknown as {shiftKey?:boolean}).shiftKey){e.preventDefault();send();}}}/>}</View>
+          <View style={{flex:1,justifyContent:'center',minHeight:40}}>{!signalAvailable?<Text numberOfLines={1} style={{fontSize:17,lineHeight:22,color:t.muted,paddingHorizontal:14,paddingVertical:9}}>Только в приложении</Text>:<ComposerInput focusKey={editing?`edit:${editing.clientId}`:replyTo?`reply:${replyTo.clientId}`:keyboardAsk?`keyboard:${keyboardAsk}`:null} onFocus={()=>{if(stickers&&Platform.OS!=='web')stickersToKeyboard();}} minHeight={40} testID="chat-composer" accessibilityLabel="Сообщение" placeholder="Сообщение" value={text} onChangeText={changeText} onSelectionChange={e=>{const next=e.nativeEvent.selection;caret.current=next;setSel(prev=>next.start!==next.end?(prev&&prev.start===next.start&&prev.end===next.end?prev:{start:next.start,end:next.end}):prev?null:prev);}} placeholderTextColor={t.muted} selectionColor={t.accent} keyboardAppearance={t.dark?'dark':'light'} multiline maxLength={8000} style={{fontSize:17,lineHeight:22,color:t.text,paddingHorizontal:14,paddingTop:Platform.OS==='ios'?9:7,paddingBottom:9,maxHeight:136}} onKeyPress={e=>{if(Platform.OS==='web'&&e.nativeEvent.key==='Enter'&&!(e.nativeEvent as unknown as {shiftKey?:boolean}).shiftKey){e.preventDefault();send();}}}/>}</View>
           <Pressable accessibilityRole="button" accessibilityLabel="Стикеры и эмодзи" onPress={toggleStickers} style={({pressed})=>({height:40,width:38,alignItems:'center',justifyContent:'center',opacity:pressed?.6:1})}><Icon name={stickers?'keypad-outline':'happy-outline'} color={stickers?t.accent:t.muted} size={22}/></Pressable>
         </GlassSurface>
-        {canSend||!signalAvailable||uploading?<Pressable accessibilityRole="button" accessibilityLabel="Отправить сообщение" disabled={sendDisabled} onPress={send} style={({pressed})=>({height:40,width:40,borderRadius:20,backgroundColor:t.accent,alignItems:'center',justifyContent:'center',opacity:sendDisabled?.4:pressed?.75:1})}><Icon name={editing?'checkmark':'arrow-up'} color={t.onAccent} size={25}/></Pressable>
+        {canSend||!signalAvailable||uploading?<Pressable accessibilityRole="button" testID="chat-send" accessibilityLabel="Отправить сообщение" accessibilityHint="Удержи: без звука или отправить позже" disabled={sendDisabled} onPress={()=>send()} onLongPress={()=>{if(editing||forwardDraft||sendDisabled)return;impactFeedback();Keyboard.dismiss();setSendMenu(true);}} delayLongPress={350} style={({pressed})=>({height:40,width:40,borderRadius:20,backgroundColor:t.accent,alignItems:'center',justifyContent:'center',opacity:sendDisabled?.4:pressed?.75:1})}><Icon name={editing?'checkmark':'arrow-up'} color={t.onAccent} size={25}/></Pressable>
         :null}</>}
         {!(canSend||!signalAvailable||uploading)||recHold?<View key="rec" style={{zIndex:5}}><RecordButton mode={recordMode} disabled={uploading||!signalAvailable} onToggleMode={toggleRecordMode} onTouchDown={()=>{if(recordModeRef.current==='voice')voice.prepare();}} onHoldStart={holdStart} onHoldEnd={holdEnd} onLock={holdLock} onSlide={setCancelProgress} level={recHold?.kind==='voice'?voice.levels.at(-1)||0:0}/></View>:null}
       </View>}
@@ -581,17 +599,17 @@ export function ChatScreen({api,user,chat,store,onBack,wide=false,onOpenMusic}: 
       <MenuItem icon="person-circle-outline" label="Открыть профиль" onPress={()=>{setAvatarMenu(false);setTimeout(()=>setPeerInfo(true),Platform.OS==='ios'?250:0);}}/>
       <MenuItem icon="search-outline" label="Поиск" onPress={()=>{setAvatarMenu(false);setTimeout(()=>setSearchOpen(true),250);}}/>
     </ContextMenu>
-    <ContextMenu visible={!!actions} y={menuY} x={menuX} onClose={()=>setActions(null)} peekRow peek={actions&&menuX===undefined?renderRow({item:actions,index:Math.max(0,rows.indexOf(actions))}):undefined} preview={actions?(actions.message?.text||actions.pending?.text||(actions.message?.attachment||actions.pending?.attachment?attachmentLabel((actions.message?.attachment||actions.pending?.attachment)!):'')):''} mine={!!actions&&(!!actions.pending||actions.message?.senderId===user.id)} reactions={actions?.message&&actions.message.cryptoState==='decrypted'?REACTIONS.map(emoji=>({emoji,chosen:actions.message!.reactions.some(r=>r.mine&&r.emoji===emoji)})):undefined} onReact={emoji=>{if(actions?.message){react(actions.message,emoji as Reaction);setActions(null);}}}>
-      {actions?.message&&actions.message.senderId===user.id&&actions.message.id<=chat.peerLastReadMessageId&&Date.now()-Date.parse(actions.message.createdAt)<7*864e5?<ReadDateRow key={actions.message.id} load={()=>api.readDate(chat.id,actions.message!.id)}/>:null}
-      {actions?.message&&actions.message.cryptoState==='decrypted'?<MenuItem icon="arrow-undo-outline" label="Ответить" onPress={()=>{setEditing(null);setReplyTo(actions.message!);setActions(null);}}/>:null}
-      {!locked&&(actions?.message?.text||actions?.pending?.text)?<MenuItem icon="copy-outline" label="Скопировать" onPress={()=>void copy(actions?.message?.text||actions?.pending?.text||'')}/>:null}
-      {!locked&&(actions?.message?.attachment||actions?.pending?.attachment)?<MenuItem icon="download-outline" label={(()=>{const a=actions?.message?.attachment||actions?.pending?.attachment;const kind=a?mediaPreviewKind(a):'file';return kind==='video'?'Сохранить видео':kind==='photo'?'Сохранить фото':'Сохранить';})()} onPress={()=>{const a=actions?.message?.attachment||actions?.pending?.attachment;setActions(null);if(a)void download(a);}}/>:null}
-      {actions?.message&&actions.message.cryptoState==='decrypted'?<MenuItem icon={view.pinned?.clientId===actions.message.clientId?'pin':'pin-outline'} label={view.pinned?.clientId===actions.message.clientId?'Открепить':'Закрепить'} onPress={()=>{const m=actions.message!;store.sendAction(chat.id,{type:'pin',target:view.pinned?.clientId===m.clientId?null:m.clientId},m.text);setActions(null);}}/>:null}
-      {!locked&&actions?.message&&actions.message.cryptoState==='decrypted'?<MenuItem icon="arrow-redo-outline" label="Переслать" onPress={()=>{const item=actions.message!;void forwardable([item]).then(ok=>{if(ok)setForwarding(item);});setActions(null);}}/>:null}
+    <ContextMenu visible={!!actions} y={menuY} x={menuX} onClose={()=>setActions(null)} peekRow peek={actions&&menuX===undefined?renderRow({item:actions,index:Math.max(0,rows.indexOf(actions))}):undefined} preview={actions?(serviceAction?.type==='call'&&serviceAction.step==='end'&&actions.message?callServiceText(serviceAction,actions.message.senderId,user.id):actions.message?.text||actions.pending?.text||(actions.message?.attachment||actions.pending?.attachment?attachmentLabel((actions.message?.attachment||actions.pending?.attachment)!):'')):''} mine={!!actions&&(!!actions.pending||actions.message?.senderId===user.id)} reactions={actions?.message&&!serviceRow&&actions.message.cryptoState==='decrypted'?REACTIONS.map(emoji=>({emoji,chosen:actions.message!.reactions.some(r=>r.mine&&r.emoji===emoji)})):undefined} onReact={emoji=>{if(actions?.message&&!serviceRow){react(actions.message,emoji as Reaction);setActions(null);}}}>
+      {actions?.message&&!serviceRow&&actions.message.senderId===user.id&&actions.message.id<=chat.peerLastReadMessageId&&Date.now()-Date.parse(actions.message.createdAt)<7*864e5?<ReadDateRow key={actions.message.id} load={()=>api.readDate(chat.id,actions.message!.id)}/>:null}
+      {actions?.message&&!serviceRow&&actions.message.cryptoState==='decrypted'?<MenuItem icon="arrow-undo-outline" label="Ответить" onPress={()=>{setEditing(null);setReplyTo(actions.message!);setActions(null);}}/>:null}
+      {!locked&&!serviceRow&&(actions?.message?.text||actions?.pending?.text)?<MenuItem icon="copy-outline" label="Скопировать" onPress={()=>void copy(actions?.message?.text||actions?.pending?.text||'')}/>:null}
+      {!locked&&!serviceRow&&(actions?.message?.attachment||actions?.pending?.attachment)?<MenuItem icon="download-outline" label={(()=>{const a=actions?.message?.attachment||actions?.pending?.attachment;const kind=a?mediaPreviewKind(a):'file';return kind==='video'?'Сохранить видео':kind==='photo'?'Сохранить фото':'Сохранить';})()} onPress={()=>{const a=actions?.message?.attachment||actions?.pending?.attachment;setActions(null);if(a)void download(a);}}/>:null}
+      {actions?.message&&!serviceRow&&actions.message.cryptoState==='decrypted'?<MenuItem icon={view.pinned?.clientId===actions.message.clientId?'pin':'pin-outline'} label={view.pinned?.clientId===actions.message.clientId?'Открепить':'Закрепить'} onPress={()=>{const m=actions.message!;store.sendAction(chat.id,{type:'pin',target:view.pinned?.clientId===m.clientId?null:m.clientId},m.text);setActions(null);}}/>:null}
+      {!locked&&actions?.message&&!serviceRow&&actions.message.cryptoState==='decrypted'?<MenuItem icon="arrow-redo-outline" label="Переслать" onPress={()=>{const item=actions.message!;void forwardable([item]).then(ok=>{if(ok)setForwarding(item);});setActions(null);}}/>:null}
       {actions?.message&&editable(actions.message)?<MenuItem icon="create-outline" label="Изменить" onPress={()=>{setReplyTo(null);setEditing(actions.message!);setEntities(actions.message!.meta?.entities||[]);store.setDraft(chat.id,actions.message!.text);setActions(null);}}/>:null}
       {actions?.pending?.state==='failed'?<MenuItem icon="refresh-outline" label="Повторить отправку" onPress={()=>{if(actions.pending)void store.retry(actions.pending);setActions(null);}}/>:null}
        {actions?.message?<MenuItem icon="trash-outline" label="Удалить" danger onPress={()=>{const list=rowMessages(actions);const mineAll=list.every(m=>m.senderId===user.id&&m.cryptoState==='decrypted');setActions(null);setDeleteOne({list,everyone:mineAll});}}/>:null}
-      {actions?.message?<MenuItem separated icon="checkmark-circle-outline" label="Выбрать" onPress={()=>startSelect(actions)}/>:null}
+      {actions?.message&&!serviceRow?<MenuItem separated icon="checkmark-circle-outline" label="Выбрать" onPress={()=>startSelect(actions)}/>:null}
     </ContextMenu>
     <ForwardPicker visible={!!forwarding||!!forwardMany} api={api} userId={user.id} chats={store.chats} count={forwarding?1:forwardMany?.length||0}
       onClose={()=>{setForwarding(null);setForwardMany(null);}}
@@ -607,6 +625,13 @@ export function ChatScreen({api,user,chat,store,onBack,wide=false,onOpenMusic}: 
     {storyView?<PostViewer api={api} items={storyView.items} start={storyView.start} story owner={storyView.owner} own={storyView.owner?.id===user.id} onClose={()=>setStoryView(null)} onView={storyView.owner?.id===user.id?undefined:post=>void api.viewStory(post.id).catch(()=>{})}/>:null}
     {gallery?<MediaGallery api={api} items={gallery.items} index={gallery.index} onClose={()=>setGallery(null)}/>:null}
     <PollComposer visible={pollOpen} onClose={()=>setPollOpen(false)} onSend={poll=>{setPollOpen(false);lightFeedback();store.sendPoll(chat.id,poll);listRef.current?.scrollToOffset({offset:0,animated:true});}}/>
+    {/* F4, Telegram: long-press on Send — «Отправить без звука» and «Отправить позже» (the picker opens once this sheet is gone). */}
+    <Sheet visible={sendMenu} title="Отправить" onClose={()=>setSendMenu(false)} onClosed={()=>{if(scheduleAsk.current){scheduleAsk.current=false;setSchedulePick(true);}}}>
+      <SheetAction icon="volume-mute-outline" label="Отправить без звука" description="Собеседник получит сообщение без звука и вибрации" onPress={()=>{setSendMenu(false);lightFeedback();send({silent:true});}}/>
+      <SheetAction icon="time-outline" label="Отправить позже" description="Выбери день и время — сообщение уйдёт само" onPress={()=>{scheduleAsk.current=true;setSendMenu(false);}}/>
+    </Sheet>
+    <SchedulePicker visible={schedulePick} onClose={()=>setSchedulePick(false)} onPick={deliverAt=>{setSchedulePick(false);lightFeedback();send({deliverAt});}}/>
+    <ScheduledScreen visible={scheduledOpen} items={chatScheduled} peerName={chat.peer.displayName} busy={store.scheduledBusy} onClose={()=>setScheduledOpen(false)} onSendNow={item=>void store.sendScheduledNow(item).catch(e=>setLocalError(e instanceof Error?e.message:'Не удалось отправить.'))} onDelete={item=>void store.deleteScheduled(item).catch(e=>setLocalError(e instanceof Error?e.message:'Не удалось удалить.'))}/>
     {/* Telegram: the menu has one «Удалить»; the choice comes after it. */}
     <Sheet visible={!!deleteOne} title={deleteOne&&deleteOne.list.length>1?`Удалить ${deleteOne.list.length} ${deleteOne.list.length<5?'сообщения':'сообщений'}?`:'Удалить сообщение?'} onClose={()=>setDeleteOne(null)}>
       <SheetAction icon="eye-off-outline" label="Удалить у меня" description="Исчезнет только на этом устройстве" danger onPress={()=>{const d=deleteOne;setDeleteOne(null);d?.list.forEach(m=>store.hideForMe(m));}}/>

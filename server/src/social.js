@@ -9,6 +9,7 @@ const MAX_CONTACTS = 2000;
 const MAX_PINNED = 5;
 const MAX_OUTGOING = 100;  // unanswered requests one person may have sent
 const MAX_INCOMING = 500;  // waiting requests one person may receive
+const MAX_MUTE_MS = 366 * 24 * 3600 * 1000;  // a timed mute runs at most a year; «Навсегда» is 0
 
 
 export function installSocialRoutes({ app, db, authOptions, publicUser, timestamp, serializationOptions, emitUser }) {
@@ -104,9 +105,23 @@ export function installSocialRoutes({ app, db, authOptions, publicUser, timestam
   app.patch('/chats/:chatId/settings', authOptions, async request => {
     const chatId = request.params.chatId, viewer = request.auth.user_id;
     if (typeof chatId !== 'string' || !uuid.test(chatId) || !db.prepare('SELECT 1 FROM chat_members WHERE chat_id=? AND user_id=?').get(chatId, viewer)) fail(404, 'Чат не найден.');
-    const body = objectBody(request.body, ['pinned', 'archived', 'muted']);
+    const body = objectBody(request.body, ['pinned', 'archived', 'muted', 'mutedUntil']);
     for (const key of ['pinned', 'archived', 'muted']) if (body[key] !== undefined && typeof body[key] !== 'boolean') fail(400, 'Некорректная настройка чата.');
-    const current = chatSettings(db, viewer, chatId);
+    const time = (serializationOptions?.now || Date.now)();
+    const current = chatSettings(db, viewer, chatId, time);
+    // Telegram «Выкл. звук»: `muted: true` is forever (0), `mutedUntil` (ISO, in the future, at most a year)
+    // mutes until then; `muted: false` or `mutedUntil: null` turns the sound back on. An expired mute is gone.
+    const stored = db.prepare('SELECT muted_until FROM chat_settings WHERE user_id=? AND chat_id=?').get(viewer, chatId)?.muted_until ?? null;
+    let mutedUntil = current.muted ? stored ?? 0 : null;
+    if (body.muted !== undefined) mutedUntil = body.muted ? 0 : null;
+    if (body.mutedUntil !== undefined) {
+      if (body.mutedUntil === null) mutedUntil = null;
+      else {
+        const at = typeof body.mutedUntil === 'string' ? Date.parse(body.mutedUntil) : NaN;
+        if (!Number.isFinite(at) || at <= time || at > time + MAX_MUTE_MS) fail(400, 'Некорректный срок отключения звука.');
+        mutedUntil = Math.round(at);
+      }
+    }
     let pinnedAt = current.pinnedAt;
     if (body.pinned === true && !pinnedAt) {
       const count = db.prepare('SELECT COUNT(*) AS n FROM chat_settings WHERE user_id=? AND pinned_at IS NOT NULL').get(viewer).n;
@@ -114,12 +129,12 @@ export function installSocialRoutes({ app, db, authOptions, publicUser, timestam
       pinnedAt = timestamp();
     }
     if (body.pinned === false) pinnedAt = null;
-    const archived = body.archived ?? current.archived, muted = body.muted ?? current.muted;
+    const archived = body.archived ?? current.archived;
     // An archived chat is not pinned in the main list (as in Telegram).
     if (body.archived === true) pinnedAt = null;
-    db.prepare(`INSERT INTO chat_settings(user_id,chat_id,pinned_at,archived,muted) VALUES(?,?,?,?,?)
-      ON CONFLICT(user_id,chat_id) DO UPDATE SET pinned_at=excluded.pinned_at,archived=excluded.archived,muted=excluded.muted`)
-      .run(viewer, chatId, pinnedAt, archived ? 1 : 0, muted ? 1 : 0);
+    db.prepare(`INSERT INTO chat_settings(user_id,chat_id,pinned_at,archived,muted,muted_until) VALUES(?,?,?,?,?,?)
+      ON CONFLICT(user_id,chat_id) DO UPDATE SET pinned_at=excluded.pinned_at,archived=excluded.archived,muted=excluded.muted,muted_until=excluded.muted_until`)
+      .run(viewer, chatId, pinnedAt, archived ? 1 : 0, mutedUntil === null ? 0 : 1, mutedUntil);
     const chat = publicChat(db, chatId, viewer, serializationOptions);
     emitUser(viewer, { type: 'chat', chat });
     return { chat };

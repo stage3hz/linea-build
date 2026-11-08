@@ -16,6 +16,13 @@ contextBridge.exposeInMainWorld('invizentDesktop', Object.freeze({
     onAction: listener => { const handler = (_event, action) => { if (typeof action === 'string' && /^[a-z0-9]{1,16}$/.test(action)) listener(action); }; ipcRenderer.on('invizent-shortcut', handler); return () => ipcRenderer.removeListener('invizent-shortcut', handler); },
   }),
   badge: (count, picture) => invoke('badge', count, picture),
+  // System notifications: the page decides what to show (never message text unless the user allowed previews);
+  // the main process shows it and reports a click back as {kind:'open'|'answer', chatId}.
+  notifications: Object.freeze({
+    show: payload => invoke('notifyShow', payload),
+    close: tag => invoke('notifyClose', tag),
+    onAction: listener => { const handler = (_event, action) => { if (action && typeof action === 'object' && (action.kind === 'open' || action.kind === 'answer') && (action.chatId === null || (typeof action.chatId === 'string' && action.chatId.length <= 128))) listener({ kind: action.kind, chatId: action.chatId }); }; ipcRenderer.on('invizent-notify', handler); return () => ipcRenderer.removeListener('invizent-notify', handler); },
+  }),
   windowControls: Object.freeze({
     platform: process.platform,
     action: action => ['minimize', 'maximize', 'close', 'state'].includes(action) ? ipcRenderer.invoke('window-control', action) : Promise.resolve(null),

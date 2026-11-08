@@ -8,17 +8,20 @@ import { HttpError, fail } from './security.js';
 
 /**
  * Large end-to-end encrypted files (Telegram-like): the client encrypts the file in chunks and
- * uploads them one by one, so a 5 GB video never has to fit in memory and an interrupted
+ * uploads them one by one, so a 10 GB video never has to fit in memory and an interrupted
  * upload continues from the last stored byte. The server only ever sees ciphertext.
  *
- * Limits: without Platina 100 MB per file and 2 GB in total; with Platina 5 GB per file and
- * 15 GB in total. An upload is also refused while the disk would drop under a reserve, so
+ * Limits (Telegram-like: 2 GB per file, 4 GB with Premium): a video up to 10 GB for everyone;
+ * other files up to 2 GB, 4 GB with Platina. Storage per account: 20 GB, 40 GB with Platina
+ * (Telegram has no such quota, but this server is one machine). The server cannot see that a file is a video (it is
+ * encrypted): the app declares `kind: 'video'` for files whose content it recognised as video and
+ * cleaned of metadata. A dishonest client gains nothing beyond its own quota. An upload is also refused while the disk would drop under a reserve, so
  * one big file cannot fill the server.
  */
 const MiB = 1024 * 1024, GiB = 1024 * MiB;
 export const DEFAULT_FILE_LIMITS = Object.freeze({
-  free: Object.freeze({ file: 100 * MiB, total: 2 * GiB }),
-  platina: Object.freeze({ file: 5 * GiB, total: 15 * GiB }),
+  free: Object.freeze({ file: 2 * GiB, video: 10 * GiB, total: 20 * GiB }),
+  platina: Object.freeze({ file: 4 * GiB, video: 10 * GiB, total: 40 * GiB }),
 });
 /** Plain bytes per encrypted chunk; each chunk adds a 16-byte authentication tag. */
 export const CHUNK_PLAIN = 4 * MiB;
@@ -44,6 +47,8 @@ export function installBigFileRoutes({ app, db, uploadDir, authOptions, limiter,
   limits = DEFAULT_FILE_LIMITS, diskReserveBytes = 5 * GiB, freeDisk = async dir => { const s = await statfs(dir); return s.bavail * s.bsize; } }) {
   db.exec(BIG_UPLOAD_SCHEMA);
   const tier = userId => (isPlatina(userId) ? limits.platina : limits.free);
+  const videoLimit = t => Math.max(t.file, t.video ?? t.file);
+  const sizeLabel = bytes => bytes >= GiB ? `${+(bytes / GiB).toFixed(1)} ГБ` : `${Math.round(bytes / MiB)} МБ`;
   const partPath = id => join(uploadDir, `${id}.part`);
   const stored = userId => db.prepare('SELECT COALESCE(SUM(size),0) AS bytes FROM uploads WHERE owner_id=?').get(userId).bytes;
   // Unfinished uploads hold their full size so parallel uploads cannot overrun the quota.
@@ -55,7 +60,7 @@ export function installBigFileRoutes({ app, db, uploadDir, authOptions, limiter,
     for (const { id } of stale) { db.prepare('DELETE FROM e2ee_upload_sessions WHERE id=?').run(id); await unlink(partPath(id)).catch(() => {}); }
   };
 
-  const limitsFor = userId => { const t = tier(userId); return { platina: isPlatina(userId), maxFileBytes: t.file, storageBytes: t.total, usedBytes: usage(userId), chunkBytes: CHUNK_PLAIN }; };
+  const limitsFor = userId => { const t = tier(userId); return { platina: isPlatina(userId), maxFileBytes: t.file, maxVideoBytes: videoLimit(t), storageBytes: t.total, usedBytes: usage(userId), chunkBytes: CHUNK_PLAIN }; };
   app.get('/e2ee/limits', authOptions, async request => limitsFor(request.auth.user_id));
 
   // Raw ciphertext chunks arrive as application/octet-stream and are streamed to disk.
@@ -66,8 +71,17 @@ export function installBigFileRoutes({ app, db, uploadDir, authOptions, limiter,
     if (!limiter.allow(`upload:${ownerId}`, 20, 60_000)) fail(429, 'Слишком много загрузок. Повторите через минуту.');
     const plain = request.body?.size;
     if (!Number.isSafeInteger(plain) || plain <= 0) fail(400, 'Укажите размер файла.');
-    const t = tier(ownerId);
-    if (plain > t.file) fail(413, isPlatina(ownerId) ? 'Файл больше 5 ГБ.' : 'Файл больше 100 МБ. С Platina можно отправлять файлы до 5 ГБ.', { code: isPlatina(ownerId) ? 'FILE_TOO_LARGE' : 'PLATINA_REQUIRED' });
+    const kind = request.body?.kind;
+    if (kind !== undefined && kind !== 'video' && kind !== 'file') fail(400, 'Неизвестный тип файла.');
+    const t = tier(ownerId), video = kind === 'video', max = video ? videoLimit(t) : t.file;
+    if (plain > max) {
+      // Platina only raises the limit of ordinary files; videos have one limit for everyone.
+      const platina = isPlatina(ownerId), upgrade = !video && !platina && limits.platina.file > max;
+      fail(413, upgrade
+        ? `Файл больше ${sizeLabel(max)}. С Platina можно отправлять файлы до ${sizeLabel(limits.platina.file)}.`
+        : `${video ? 'Видео' : 'Файл'} больше ${sizeLabel(max)}.`,
+        { code: upgrade ? 'PLATINA_REQUIRED' : 'FILE_TOO_LARGE' });
+    }
     await sweep();
     const total = cipherSize(plain);
     if (usage(ownerId) + total > t.total) fail(413, `Достигнут лимит хранения (${Math.round(t.total / GiB)} ГБ). Удали старые файлы из чатов.`, { code: 'STORAGE_FULL' });

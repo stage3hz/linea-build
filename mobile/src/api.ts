@@ -11,6 +11,7 @@ import { deviceFields, deviceInfo } from './deviceInfo';
 import type { SessionDetails } from './sessionAlerts';
 import type { Attachment, Chat, DeviceSession, LocalFile, Message, RecoveryChallenge, RecoveryRequest, RecoveryStatus, SecurityStatus, Session, User, UsernameStatus } from './types';
 import type { ClaimedBundle, CryptoDevice, EncryptedMessage, PublicBundle } from './e2ee/types';
+import type { ScheduledMessage } from './scheduled/model';
 
 type ApiErrorDetails = { code?: string; attemptsRemaining?: number; attemptsLeft?: number; retryAfterSeconds?: number; readyAt?: string; serverTime?: string; expiresAt?: string };
 // «iPhone», «Pixel 8», «Windows», «Chrome»: the session name shown on every device (deviceInfo.ts).
@@ -186,11 +187,12 @@ export class Api {
   /** Declines an incoming request or cancels our own. */
   dropFriendRequest = (userId: string) => this.request<{ok: true}>(`/friends/requests/${encodeURIComponent(userId)}`, {method: 'DELETE'});
   removeContact = (userId: string) => this.request<{ok: true}>(`/contacts/${encodeURIComponent(userId)}`, {method: 'DELETE'});
-  chatSettings = (chatId: string, change: Partial<{pinned: boolean; archived: boolean; muted: boolean}>) => this.request<{chat: Chat}>(`/chats/${encodeURIComponent(chatId)}/settings`, {method: 'PATCH', body: JSON.stringify(change)});
+  /** muted: true = «Навсегда»; mutedUntil (ISO, in the future, up to a year) = «на время»; muted: false or mutedUntil: null = sound on. */
+  chatSettings = (chatId: string, change: Partial<{pinned: boolean; archived: boolean; muted: boolean; mutedUntil: string | null}>) => this.request<{chat: Chat}>(`/chats/${encodeURIComponent(chatId)}/settings`, {method: 'PATCH', body: JSON.stringify(change)});
   messages = (chatId: string, before?: number) => this.request<{messages: Message[]; hasMore: boolean}>(`/chats/${encodeURIComponent(chatId)}/messages?lean=1&limit=${networkTier() === 'slow' ? 15 : networkTier() === 'medium' ? 30 : 50}${before ? `&before=${before}` : ''}`);
   /** push: what the recipient's phone shows ('call' rings, 'none' for reactions/edits); an older server without push gets no field. */
   private pushField = true;
-  sendEncrypted = async (chatId: string, clientId: string, encrypted: EncryptedMessage, push?: 'message' | 'call' | 'none') => {
+  sendEncrypted = async (chatId: string, clientId: string, encrypted: EncryptedMessage, push?: 'message' | 'call' | 'none' | 'silent') => {
     // lean=1: the server does not echo our own (large) ciphertext back; we put it in from here.
     const post = async (withPush: boolean) => {
       const result = await this.request<{message: Message}>(`/chats/${encodeURIComponent(chatId)}/messages?lean=1`, {method: 'POST', body: JSON.stringify(withPush && push ? {clientId, encrypted, push} : {clientId, encrypted})});
@@ -199,8 +201,35 @@ export class Api {
     };
     if (!push || !this.pushField) return post(false);
     try { return await post(true); }
-    catch (error) { if (error instanceof ApiError && error.status === 400 && /неизвестные поля/.test(error.message)) { this.pushField = false; return post(false); } throw error; }
+    catch (error) {
+      if (error instanceof ApiError && error.status === 400 && /неизвестные поля/.test(error.message)) { this.pushField = false; return post(false); }
+      // An older server knows no quiet push: the message still goes, with an ordinary notification.
+      if (error instanceof ApiError && error.status === 400 && push === 'silent' && /вид уведомления/.test(error.message)) return post(false);
+      throw error;
+    }
   };
+  // F4 «Отправить позже»: the same envelopes with `deliverAt`; the server keeps them (never decrypted) and releases them at that time.
+  // A server without F4 answers 400 «неизвестные поля» (deliverAt) or 404 on /scheduled: remembered for the session, no more requests.
+  private scheduledSupported = true;
+  get supportsScheduled() { return this.scheduledSupported; }
+  scheduleEncrypted = async (chatId: string, clientId: string, encrypted: EncryptedMessage, deliverAt: string, push?: 'silent') => {
+    if (!this.scheduledSupported) throw new ApiError('Сервер не поддерживает отложенные сообщения.', 400, {code: 'SCHEDULE_UNSUPPORTED'});
+    try { return await this.request<{scheduled: ScheduledMessage}>(`/chats/${encodeURIComponent(chatId)}/messages?lean=1`, {method: 'POST', body: JSON.stringify({clientId, encrypted, deliverAt, ...(push ? {push} : {})})}); }
+    catch (error) {
+      if (error instanceof ApiError && error.status === 400 && /неизвестные поля/.test(error.message)) { this.scheduledSupported = false; throw new ApiError('Сервер не поддерживает отложенные сообщения.', 400, {code: 'SCHEDULE_UNSUPPORTED'}); }
+      throw error;
+    }
+  };
+  /** Own scheduled items; the server releases whatever is due before answering. `lean`: ids, times and states without the ciphertext (the periodic refresh). */
+  scheduled = async (options: {chatId?: string; lean?: boolean} = {}) => {
+    if (!this.scheduledSupported) return {items: [] as ScheduledMessage[]};
+    const query = [options.chatId ? `chatId=${encodeURIComponent(options.chatId)}` : '', options.lean ? 'lean=1' : ''].filter(Boolean).join('&');
+    try { return await this.request<{items: ScheduledMessage[]}>(`/scheduled${query ? `?${query}` : ''}`); }
+    catch (error) { if (error instanceof ApiError && error.status === 404 && !error.code) { this.scheduledSupported = false; return {items: [] as ScheduledMessage[]}; } throw error; }
+  };
+  deleteScheduled = (id: string) => this.request<{ok: true}>(`/scheduled/${encodeURIComponent(id)}`, {method: 'DELETE'});
+  /** «Отправить сейчас»; 409 E2EE_DEVICES_CHANGED when the stored envelopes no longer fit the peer's devices (the app re-encrypts). */
+  sendScheduledNow = (id: string) => this.request<{message: Message}>(`/scheduled/${encodeURIComponent(id)}/send?lean=1`, {method: 'POST'});
   /** android: FCM registration token; ios: APNs device token as hex. */
   registerPush = (token: string, platform: 'android' | 'ios') => this.request<{ok: true; enabled: boolean}>('/me/push', {method: 'PUT', body: JSON.stringify({token, platform})});
   unregisterPush = () => this.request<{ok: true}>('/me/push', {method: 'DELETE'});

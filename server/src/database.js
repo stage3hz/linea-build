@@ -116,6 +116,35 @@ export function openDatabase(dataDir) {
       const uploadColumns = new Set(db.prepare('PRAGMA table_info(uploads)').all().map(column => column.name));
       if (!uploadColumns.has('is_encrypted')) db.exec('ALTER TABLE uploads ADD COLUMN is_encrypted INTEGER NOT NULL DEFAULT 0');
       if (!uploadColumns.has('is_video')) db.exec('ALTER TABLE uploads ADD COLUMN is_video INTEGER NOT NULL DEFAULT 0');
+      // F2 «Mute на время»: muted_until (ms; NULL = sound on, 0 = forever, else until that moment).
+      // A chat muted with the old boolean stays muted forever. user_version stays 5.
+      const settingColumns = new Set(db.prepare('PRAGMA table_info(chat_settings)').all().map(column => column.name));
+      if (!settingColumns.has('muted_until')) {
+        db.exec('ALTER TABLE chat_settings ADD COLUMN muted_until INTEGER');
+        db.exec('UPDATE chat_settings SET muted_until=0 WHERE muted=1');
+      }
+      // F4 «Отправить позже»: encrypted envelopes waiting for their time (schema.sql has the table for a fresh
+      // database; here for one created before it existed). user_version stays 5.
+      db.exec(`CREATE TABLE IF NOT EXISTS scheduled_messages (
+        id TEXT PRIMARY KEY,
+        owner_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+        chat_id TEXT NOT NULL REFERENCES chats(id) ON DELETE CASCADE,
+        client_id TEXT NOT NULL,
+        encrypted_json TEXT NOT NULL,
+        push TEXT NOT NULL DEFAULT 'message' CHECK(push IN ('message','silent')),
+        deliver_at INTEGER NOT NULL,
+        status TEXT NOT NULL DEFAULT 'scheduled' CHECK(status IN ('scheduled','failed')),
+        failure TEXT,
+        created_at TEXT NOT NULL,
+        failed_at INTEGER,
+        UNIQUE(owner_id, client_id))`);
+      // failed_at came after the first F4 build: added where missing (rows already failed count from now).
+      if (!new Set(db.prepare('PRAGMA table_info(scheduled_messages)').all().map(column => column.name)).has('failed_at')) {
+        db.exec('ALTER TABLE scheduled_messages ADD COLUMN failed_at INTEGER');
+        db.prepare("UPDATE scheduled_messages SET failed_at=? WHERE status='failed'").run(Date.now());
+      }
+      db.exec('CREATE INDEX IF NOT EXISTS scheduled_messages_due ON scheduled_messages(status, deliver_at)');
+      db.exec('CREATE INDEX IF NOT EXISTS scheduled_messages_owner ON scheduled_messages(owner_id, chat_id)');
       // F8 stories: views table and the partial index of the expiry sweep (schema.sql has them for a fresh
       // database; here for one created before they existed). user_version stays 5.
       db.exec(`CREATE TABLE IF NOT EXISTS story_views (
@@ -229,9 +258,19 @@ export function publicMessage(_db, row) {
   };
 }
 
-export function chatSettings(db, userId, chatId) {
-  const row = db.prepare('SELECT pinned_at,archived,muted FROM chat_settings WHERE user_id=? AND chat_id=?').get(userId, chatId);
-  return { pinnedAt: row?.pinned_at ?? null, archived: !!row?.archived, muted: !!row?.muted };
+/** Sound is off while muted_until is 0 (forever) or still ahead of `time`; an expired mute reads as sound on. */
+export function mutedAt(mutedUntil, time) {
+  return mutedUntil === 0 || (typeof mutedUntil === 'number' && mutedUntil > time);
+}
+
+/** `mutedUntil` (ISO) is present only for a mute with an end; a chat muted forever has `muted: true` alone. */
+export function chatSettings(db, userId, chatId, time) {
+  if (typeof time !== 'number') throw new TypeError('chatSettings: time (ms) is required — pass now()');
+  const row = db.prepare('SELECT pinned_at,archived,muted,muted_until FROM chat_settings WHERE user_id=? AND chat_id=?').get(userId, chatId);
+  // Rows written before muted_until existed and not yet migrated keep their boolean.
+  const until = row?.muted_until ?? (row?.muted ? 0 : null);
+  const muted = mutedAt(until, time);
+  return { pinnedAt: row?.pinned_at ?? null, archived: !!row?.archived, muted, ...(muted && until ? { mutedUntil: new Date(until).toISOString() } : {}) };
 }
 
 export function publicChat(db, chatId, userId, options) {
@@ -254,6 +293,6 @@ export function publicChat(db, chatId, userId, options) {
     peerLastReadMessageId: receiptsVisible(db, userId, peerMember.user_id) ? peerMember.last_read_message_id : 0,
     createdAt: chat.created_at,
     updatedAt: chat.updated_at,
-    settings: chatSettings(db, userId, chatId),
+    settings: chatSettings(db, userId, chatId, (options?.now || Date.now)()),
   };
 }

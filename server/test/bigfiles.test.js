@@ -90,3 +90,29 @@ test('big files: storage quota, server disk reserve, cancel frees the reservatio
   const bob = await register(f.app, 'bob_quota');
   assert.equal((await put(f.app, bob, a.id, 0, randomBytes(10))).statusCode, 404, 'someone else cannot write into an upload');
 });
+
+test('big files: a video may be bigger than other files; Platina raises only files', async t => {
+  const f = await fixture(t, { fileLimits: { free: { file: 5 * MiB, video: 12 * MiB, total: 40 * MiB }, platina: { file: 8 * MiB, video: 12 * MiB, total: 40 * MiB } } });
+  const alice = await register(f.app, 'alice_video');
+  let limits = (await call(f.app, 'GET', '/e2ee/limits', alice)).json();
+  assert.equal(limits.maxFileBytes, 5 * MiB); assert.equal(limits.maxVideoBytes, 12 * MiB);
+  const file = await call(f.app, 'POST', '/e2ee/uploads', alice, { size: 6 * MiB });
+  assert.equal(file.statusCode, 413); assert.equal(file.json().code, 'PLATINA_REQUIRED');
+  assert.equal((await call(f.app, 'POST', '/e2ee/uploads', alice, { size: 10 * MiB, kind: 'video' })).statusCode, 201, 'a video needs no Platina');
+  const huge = await call(f.app, 'POST', '/e2ee/uploads', alice, { size: 13 * MiB, kind: 'video' });
+  assert.equal(huge.statusCode, 413); assert.equal(huge.json().code, 'FILE_TOO_LARGE'); assert.match(huge.body, /Видео больше 12 МБ/);
+  grant(f.sql, alice.user.id);
+  limits = (await call(f.app, 'GET', '/e2ee/limits', alice)).json();
+  assert.equal(limits.maxFileBytes, 8 * MiB); assert.equal(limits.maxVideoBytes, 12 * MiB);
+  assert.equal((await call(f.app, 'POST', '/e2ee/uploads', alice, { size: 7 * MiB })).statusCode, 201);
+  const big = await call(f.app, 'POST', '/e2ee/uploads', alice, { size: 9 * MiB });
+  assert.equal(big.json().code, 'FILE_TOO_LARGE'); assert.match(big.body, /Файл больше 8 МБ\./);
+  assert.equal((await call(f.app, 'POST', '/e2ee/uploads', alice, { size: MiB, kind: 'audio' })).statusCode, 400);
+});
+
+test('big files: default limits — video 10 GB for everyone, files 2 GB (4 GB with Platina)', async () => {
+  const { DEFAULT_FILE_LIMITS: L } = await import('../src/bigfiles.js');
+  const GiB = 1024 * MiB;
+  assert.deepEqual([L.free.file, L.free.video, L.platina.file, L.platina.video], [2 * GiB, 10 * GiB, 4 * GiB, 10 * GiB]);
+  for (const tier of [L.free, L.platina]) assert.ok(tier.total >= tier.video, 'one video fits the storage');
+});

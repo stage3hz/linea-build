@@ -26,6 +26,7 @@ import { formatListTime, useTheme } from './theme';
 import type { Api } from './api';
 import type { Chat, Message, User } from './types';
 import { chatListText, isQuietAction, pinPreview } from './messageMeta';
+import { callListText } from './calls/callHistory';
 import { countChats } from './plural';
 import type { MessengerStore } from './useMessenger';
 import type { SavedItem } from './saved/saved.ts';
@@ -34,6 +35,8 @@ import { StoriesStrip } from './stories/StoriesStrip';
 import { incomingCount, useFriendRequests } from './friendRequests';
 import { useChannelsBadge } from './communities/unread';
 import { impactFeedback, lightFeedback } from './haptics';
+import { MuteSheet } from './notifications/MuteSheet';
+import { isMuted, muteUntilLabel } from './notifications/model';
 import { Gesture, GestureDetector } from 'react-native-gesture-handler';
 import Animated, { runOnJS, useAnimatedStyle, useSharedValue, withSpring, type SharedValue } from 'react-native-reanimated';
 
@@ -50,10 +53,11 @@ export function ChatListScreen({api,user,store,onProfile,onNewChat,onMusic,onAI,
   // Rows remount when a chat closes: a press interrupted by opening the chat otherwise left the
   // row stuck in its pressed (highlighted) colour after coming back.
   const t=useTheme();const [searching,setSearching]=useState(false);const query:string='';const [refreshing,setRefreshing]=useState(false);
-  const [archive,setArchive]=useState(false);const [editing,setEditing]=useState<Set<string>|null>(null);const [removeAsk,setRemoveAsk]=useState<Chat[]|null>(null);const [menu,setMenu]=useState<{chat:Chat;y:number;x?:number}|null>(null);const [menuError,setMenuError]=useState('');
+  const [archive,setArchive]=useState(false);const [editing,setEditing]=useState<Set<string>|null>(null);const [removeAsk,setRemoveAsk]=useState<Chat[]|null>(null);const [menu,setMenu]=useState<{chat:Chat;y:number;x?:number}|null>(null);const [menuError,setMenuError]=useState('');const [muteAsk,setMuteAsk]=useState<Chat[]|null>(null);
   const archivedCount=store.chats.filter(c=>c.settings?.archived).length;
   const folders=useChatFolders(user.id);const [filter,setFilter]=useState<FolderFilter>('all');const [editor,setEditor]=useState<{folder:ChatFolder|null}|null>(null);
-  const unread=store.chats.filter(c=>!c.settings?.archived&&c.unreadCount>0).length;
+  // «Непрочитанные» badge: not archived, not muted — an expired mute counts again (isMuted compares the clock).
+  const unread=store.chats.filter(c=>!c.settings?.archived&&!isMuted(c.settings)&&c.unreadCount>0).length;
   useEffect(()=>{if(filter!=='all'&&filter!=='unread'&&!folders.folders.some(f=>f.id===filter))setFilter('all');},[folders.folders,filter]);
   // Telegram moves rows smoothly when a chat jumps to the top or gets pinned.
   const order=store.chats.map(c=>`${c.id}${c.settings?.pinnedAt||''}${c.settings?.archived?1:0}`).join(',');const lastOrder=useRef(order);
@@ -61,6 +65,10 @@ export function ChatListScreen({api,user,store,onProfile,onNewChat,onMusic,onAI,
   // Pinned chats first (newest pin on top), archived chats only inside «Архив», as in Telegram.
   const chats=useMemo(()=>store.chats.filter(c=>!!c.settings?.archived===archive&&(archive||matchesFolder(c,filter,folders.folders))&&`${c.peer.displayName} ${c.peer.username}`.toLowerCase().includes(query.toLowerCase())).map((c,i)=>({c,i})).sort((a,b)=>{const pa=a.c.settings?.pinnedAt||'',pb=b.c.settings?.pinnedAt||'';if(pa||pb)return pa&&pb?pb.localeCompare(pa):pa?-1:1;return a.i-b.i;}).map(x=>x.c),[store.chats,query,archive,filter,folders.folders]);
   const change=(chat:Chat,update:Partial<{pinned:boolean;archived:boolean;muted:boolean}>)=>{setMenu(null);setMenuError('');lightFeedback();store.updateChatSettings(chat.id,update).catch(e=>setMenuError(e instanceof Error?e.message:'Не удалось изменить чат.'));};
+  // Telegram «Выкл. звук»: a muted chat gets its sound back in one tap; otherwise the sheet asks for how long
+  // (1 hour / 8 hours / 2 days / forever / custom). The server answers with the chat and tells every device over the socket.
+  const askMute=(list:Chat[])=>{if(!list.length)return;if(list.every(c=>isMuted(c.settings))){list.forEach(c=>change(c,{muted:false}));setEditing(null);return;}setMenu(null);setMuteAsk(list);};
+  const mute=(list:Chat[],until:string|null)=>{setMuteAsk(null);setMenuError('');setEditing(null);lightFeedback();void Promise.all(list.map(chat=>api.chatSettings(chat.id,until===null?{muted:true}:{mutedUntil:until}))).then(()=>store.refreshChats()).catch(e=>setMenuError(e instanceof Error?e.message:'Не удалось изменить чат.'));};
   // The store reads up to the newest server message, not only the one the list shows (reactions and edits are hidden here).
   const readChat=(chat:Chat)=>{if(chat.unreadCount)void store.readChat(chat.id,chat.lastMessage?.id||0);};
   const toggleEdit=(chat:Chat)=>{lightFeedback();setEditing(current=>{const next=new Set(current||[]);if(next.has(chat.id))next.delete(chat.id);else next.add(chat.id);return next;});};
@@ -90,21 +98,22 @@ export function ChatListScreen({api,user,store,onProfile,onNewChat,onMusic,onAI,
         and fades/blurs out there instead of being cut at a hard edge. Desktop keeps it in the flow. */}
     {float?<FloatingHeader onHeight={setHeaderHeight}>{header}</FloatingHeader>:header}
     {store.listLoading?<View style={{flex:1,overflow:'hidden',paddingTop:float?headerHeight:0,...(float?bleed.style:null)}}>{filter==='all'&&!archive?<SavedRow count={store.saved.items.length} last={store.saved.items[store.saved.items.length-1]} selected={savedActive} onPress={onSaved}/>:null}<ChatListSkeleton/></View>:<FlatList style={float?bleed.style:undefined} scrollIndicatorInsets={float?{top:headerHeight,bottom:tabsHeight}:undefined} progressViewOffset={float?headerHeight:undefined} data={chats} keyExtractor={item=>item.id} keyboardShouldPersistTaps="handled" keyboardDismissMode="on-drag" alwaysBounceVertical contentContainerStyle={{paddingTop:float?headerHeight:0,paddingBottom:(rail||editing?12:tabsHeight+12)+(float?bleed.bottom:0),flexGrow:1}} ListHeaderComponent={archive?<Pressable onPress={()=>setArchive(false)} accessibilityRole="button" style={{flexDirection:'row',alignItems:'center',gap:8,padding:12}}><Icon name="chevron-back" size={18} color={t.accent}/><Text style={{color:t.accent,fontSize:15,fontWeight:'700'}}>Архив</Text></Pressable>:<>{menuError?<View style={{paddingBottom:8}}><Notice text={menuError} error/></View>:null}{filter==='all'&&(!query||'избранное'.includes(query.toLowerCase()))?<SavedRow count={store.saved.items.length} last={store.saved.items[store.saved.items.length-1]} selected={savedActive} onPress={onSaved}/>:null}{archivedCount&&!query&&filter==='all'?<Pressable onPress={()=>setArchive(true)} accessibilityRole="button" accessibilityLabel={`Архив, чатов: ${archivedCount}`} style={({pressed})=>({flexDirection:'row',gap:13,alignItems:'center',paddingHorizontal:16,paddingVertical:12,borderRadius:24,marginBottom:6,backgroundColor:pressed?(t.dark?'rgba(255,255,255,0.09)':'rgba(255,255,255,0.62)'):'transparent'})}><View style={{width:54,height:54,borderRadius:19,backgroundColor:t.surface2,alignItems:'center',justifyContent:'center'}}><Icon name="archive" color={t.muted} size={24}/></View><View style={{flex:1}}><Text style={{color:t.text,fontSize:15,fontWeight:'700'}}>Архив</Text><Text style={{color:t.muted,fontSize:12}}>{countChats(archivedCount)}</Text></View></Pressable>:null}</>} refreshControl={<RefreshControl refreshing={refreshing} onRefresh={()=>void refresh()} tintColor={t.accent}/>} ListEmptyComponent={<View style={{flex:1,justifyContent:'center',paddingBottom:20}}><Empty icon={query?'search-outline':'chatbubbles-outline'} title={query?'Чат не найден':'Начни разговор'} description={query?'Попробуй другое имя или найди человека по @имени.':'Найди своего человека по @имени. Всё начинается с простого «привет».'} action={<Button label="Найти собеседника" onPress={onNewChat} icon="add"/>}/></View>}
-      renderItem={({item})=><SwipeRow enabled={!editing} muted={!!item.settings?.muted} unread={item.unreadCount>0} onMute={()=>change(item,{muted:!item.settings?.muted})} onDelete={()=>setRemoveAsk([item])} onRead={()=>readChat(item)}><ChatRow key={store.selectedId?'open':'idle'} chat={item} api={api} userId={user.id} selected={wideLayout&&store.selectedId===item.id} typing={!!store.typing[item.id]} checked={editing?editing.has(item.id):undefined} onPress={()=>editing?toggleEdit(item):store.selectChat(item)} onLongPress={(y,x)=>{impactFeedback();setMenu({chat:item,y,x});}}/></SwipeRow>}/>}
+      renderItem={({item})=><SwipeRow enabled={!editing} muted={isMuted(item.settings)} unread={item.unreadCount>0} onMute={()=>askMute([item])} onDelete={()=>setRemoveAsk([item])} onRead={()=>readChat(item)}><ChatRow key={store.selectedId?'open':'idle'} chat={item} api={api} userId={user.id} selected={wideLayout&&store.selectedId===item.id} typing={!!store.typing[item.id]} checked={editing?editing.has(item.id):undefined} onPress={()=>editing?toggleEdit(item):store.selectChat(item)} onLongPress={(y,x)=>{impactFeedback();setMenu({chat:item,y,x});}}/></SwipeRow>}/>}
     {editing?<GlassSurface lens material="regular" radius={26} style={{marginHorizontal:16,marginBottom:6}} contentStyle={{flexDirection:'row',justifyContent:'space-around',alignItems:'center',minHeight:52}}>
       <Pressable onPress={()=>bulk(readChat)} accessibilityRole="button" style={{padding:10}}><Text style={{color:t.accent,fontSize:14,fontWeight:'600'}}>{selectedChats.length?'Прочитать':'Прочитать все'}</Text></Pressable>
       <Pressable disabled={!selectedChats.length} onPress={()=>bulk(chat=>change(chat,{archived:!archive}))} accessibilityRole="button" style={{padding:10,opacity:selectedChats.length?1:.4}}><Text style={{color:t.accent,fontSize:14,fontWeight:'600'}}>{archive?'Из архива':'В архив'}</Text></Pressable>
-      <Pressable disabled={!selectedChats.length} onPress={()=>bulk(chat=>change(chat,{muted:!chat.settings?.muted}))} accessibilityRole="button" style={{padding:10,opacity:selectedChats.length?1:.4}}><Text style={{color:t.accent,fontSize:14,fontWeight:'600'}}>Звук</Text></Pressable>
+      <Pressable disabled={!selectedChats.length} onPress={()=>askMute(selectedChats)} accessibilityRole="button" style={{padding:10,opacity:selectedChats.length?1:.4}}><Text style={{color:t.accent,fontSize:14,fontWeight:'600'}}>{selectedChats.length&&selectedChats.every(c=>isMuted(c.settings))?'Включить звук':'Звук'}</Text></Pressable>
       <Pressable disabled={!selectedChats.length} onPress={()=>setRemoveAsk(selectedChats)} accessibilityRole="button" style={{padding:10,opacity:selectedChats.length?1:.4}}><Text style={{color:t.danger,fontSize:14,fontWeight:'600'}}>Удалить</Text></Pressable>
     </GlassSurface>:null}
     <Sheet visible={!!removeAsk} title={removeAsk&&removeAsk.length>1?`Удалить чаты (${removeAsk.length})?`:'Удалить чат?'} onClose={()=>setRemoveAsk(null)}>
       <SheetAction icon="trash-outline" label="Удалить у меня" description="Чат и загруженные сообщения исчезнут на этом устройстве. Если собеседник напишет снова, чат вернётся." danger onPress={()=>{const list=removeAsk||[];setRemoveAsk(null);setEditing(null);lightFeedback();list.forEach(chat=>store.removeChat(chat));}}/>
       <SheetAction icon="people-outline" label="Удалить у меня и у собеседника" description="Чат, все сообщения и файлы будут удалены на сервере и у обоих. Отменить нельзя." danger onPress={()=>{const list=removeAsk||[];setRemoveAsk(null);setEditing(null);lightFeedback();void Promise.all(list.map(chat=>store.removeChatForEveryone(chat))).catch(e=>store.setError(e instanceof Error?e.message:'Не удалось удалить чат. Попробуй ещё раз.'));}}/>
     </Sheet>
+    <MuteSheet visible={!!muteAsk} title={muteAsk&&muteAsk.length>1?countChats(muteAsk.length):muteAsk?.[0]?.peer.displayName||''} current={muteAsk&&muteAsk.length===1?muteAsk[0].settings:null} onClose={()=>setMuteAsk(null)} onMute={until=>{if(muteAsk)mute(muteAsk,until);}} onUnmute={()=>{const list=muteAsk||[];setMuteAsk(null);list.forEach(c=>change(c,{muted:false}));}}/>
     <ContextMenu visible={!!menu} y={menu?.y||0} x={menu?.x} onClose={()=>setMenu(null)} preview={menu?.chat.peer.displayName} peek={menu?<ChatPeek chat={menu.chat} api={api} userId={user.id} messages={store.messages[menu.chat.id]}/>:undefined}>
       {menu?<>
         <MenuItem icon={menu.chat.settings?.pinnedAt?'pin':'pin-outline'} label={menu.chat.settings?.pinnedAt?'Открепить':'Закрепить'} onPress={()=>change(menu.chat,{pinned:!menu.chat.settings?.pinnedAt})}/>
-        <MenuItem icon={menu.chat.settings?.muted?'notifications-outline':'notifications-off-outline'} label={menu.chat.settings?.muted?'Включить звук':'Выключить звук'} onPress={()=>change(menu.chat,{muted:!menu.chat.settings?.muted})}/>
+        <MenuItem icon={isMuted(menu.chat.settings)?'notifications-outline':'notifications-off-outline'} label={isMuted(menu.chat.settings)?'Включить звук':'Выключить звук'} onPress={()=>askMute([menu.chat])}/>
         <MenuItem icon="archive-outline" label={menu.chat.settings?.archived?'Вернуть из архива':'В архив'} onPress={()=>change(menu.chat,{archived:!menu.chat.settings?.archived})}/>
         <MenuItem icon="trash-outline" label="Удалить чат" danger onPress={()=>{const chat=menu.chat;setMenu(null);setRemoveAsk([chat]);}}/>
       </>:null}
@@ -143,12 +152,16 @@ function ChatRow({chat,api,userId,selected,typing,checked,onPress,onLongPress}: 
   const ref=useRef<View>(null);const longRef=useRef(onLongPress);longRef.current=onLongPress;
   useEffect(()=>{const node=ref.current as unknown as HTMLElement|null;if(Platform.OS!=='web'||!node?.addEventListener)return;const menu=(e:MouseEvent)=>{e.preventDefault();longRef.current(e.clientY,e.clientX);};node.addEventListener('contextmenu',menu);return()=>node.removeEventListener('contextmenu',menu);},[]);
   // chatListText hides spoilers (▒) also for a chat whose page is not loaded (the server's lastMessage).
-  const preview=typing?'Печатает…':last?(last.meta?.action?.type==='pin'&&last.meta.action.target?pinPreview(listText(chatListText(last))||'',last.senderId===userId,chat.peer.displayName):`${listText(chatListText(last))|| (last.attachment?attachmentLabel(last.attachment):'Сообщение')}`):'Напиши первое сообщение';
-  const muted=!!chat.settings?.muted,pinned=!!chat.settings?.pinnedAt;
+  // A finished call (F9) reads with its direction, as the chat shows it: «Пропущенный звонок», «Исходящий звонок · 3:12».
+  const preview=typing?'Печатает…':last?(callListText(last,userId)??(last.meta?.action?.type==='pin'&&last.meta.action.target?pinPreview(listText(chatListText(last))||'',last.senderId===userId,chat.peer.displayName):`${listText(chatListText(last))|| (last.attachment?attachmentLabel(last.attachment):'Сообщение')}`)):'Напиши первое сообщение';
+  // A timed mute ends by the clock, not by a refresh. As in Telegram the row shows only the crossed bell;
+  // when the sound comes back is said in the profile («Без звука · до 18:30») and to the screen reader here.
+  const muted=isMuted(chat.settings),pinned=!!chat.settings?.pinnedAt;
+  const quietLabel=muted?`, без звука${chat.settings?.mutedUntil?` ${muteUntilLabel(chat.settings.mutedUntil)}`:''}`:'';
   // On a nameplate (dark art) the row's text is light, also in the light theme (it was dark on dark).
   const onPlate=!!chat.peer.nameplate&&!t.dark;
   const c=onPlate?{text:'#FFFFFF',muted:'rgba(255,255,255,0.8)',subtle:'rgba(255,255,255,0.62)'}:{text:t.text,muted:t.muted,subtle:t.subtle};
-  return <View ref={ref}><Pressable onPress={onPress} onLongPress={event=>onLongPress(event.nativeEvent.pageY)} delayLongPress={450} accessibilityRole="button" accessibilityLabel={`${chat.peer.displayName}${chat.unreadCount?`, непрочитанных ${chat.unreadCount}`:''}`} style={({pressed})=>({flexDirection:'row',gap:12,paddingLeft:16,paddingRight:16,paddingVertical:8,backgroundColor:selected?t.accentSoft:pressed?(t.dark?'rgba(255,255,255,0.07)':'rgba(0,0,0,0.05)'):'transparent'})}>{checked!==undefined?<View style={{justifyContent:'center'}}><Icon name={checked?'checkmark-circle':'ellipse-outline'} size={24} color={checked?t.accent:c.subtle}/></View>:null}{chat.peer.nameplate?<View pointerEvents="none" style={{position:'absolute',left:10,right:10,top:3,bottom:3}}><Nameplate plate={chat.peer.nameplate} radius={20}/></View>:null}<DecoratedAvatar user={chat.peer} api={api} size={60}/><View style={{flex:1,justifyContent:'center',gap:3,borderBottomWidth:StyleSheet.hairlineWidth,borderBottomColor:t.border,paddingBottom:8,marginBottom:-8,minHeight:68}}><View style={{flexDirection:'row',gap:5,alignItems:'center'}}><View style={{flex:1,flexDirection:'row',alignItems:'center',gap:5}}><PlatinaName user={chat.peer} animated={false} onDark={onPlate} style={{flexShrink:1,color:c.text,fontSize:16,fontWeight:'600',letterSpacing:-.2}}/><StatusEmoji user={chat.peer} size={15}/>{muted?<Icon name="volume-mute" size={13} color={c.subtle}/>:null}</View>{last?<Text style={{color:chat.unreadCount&&!muted?t.accent:c.muted,fontSize:14}}>{formatListTime(last.createdAt)}</Text>:null}</View><View style={{flexDirection:'row',alignItems:'center',gap:6}}><Text numberOfLines={2} style={{flex:1,color:typing?t.accent:c.muted,fontSize:15,lineHeight:19,fontWeight:typing?'600':'400'}}>{preview}</Text>{chat.unreadCount>0?<View style={{minWidth:22,height:22,borderRadius:11,backgroundColor:muted?c.subtle:t.accent,alignItems:'center',justifyContent:'center',paddingHorizontal:6}}><Text maxFontSizeMultiplier={1} style={{color:t.onAccent,fontSize:12,fontWeight:'700'}}>{badgeText(chat.unreadCount)}</Text></View>:pinned?<Icon name="pin" size={14} color={c.subtle}/>:last?.senderId===userId?<Icon name={chat.peerLastReadMessageId>=last.id?'checkmark-done':'checkmark'} size={16} color={chat.peerLastReadMessageId>=last.id?t.accent:c.subtle}/>:null}</View></View></Pressable></View>;
+  return <View ref={ref}><Pressable onPress={onPress} onLongPress={event=>onLongPress(event.nativeEvent.pageY)} delayLongPress={450} accessibilityRole="button" accessibilityLabel={`${chat.peer.displayName}${chat.unreadCount?`, непрочитанных ${chat.unreadCount}`:''}${quietLabel}`} style={({pressed})=>({flexDirection:'row',gap:12,paddingLeft:16,paddingRight:16,paddingVertical:8,backgroundColor:selected?t.accentSoft:pressed?(t.dark?'rgba(255,255,255,0.07)':'rgba(0,0,0,0.05)'):'transparent'})}>{checked!==undefined?<View style={{justifyContent:'center'}}><Icon name={checked?'checkmark-circle':'ellipse-outline'} size={24} color={checked?t.accent:c.subtle}/></View>:null}{chat.peer.nameplate?<View pointerEvents="none" style={{position:'absolute',left:10,right:10,top:3,bottom:3}}><Nameplate plate={chat.peer.nameplate} radius={20}/></View>:null}<DecoratedAvatar user={chat.peer} api={api} size={60}/><View style={{flex:1,justifyContent:'center',gap:3,borderBottomWidth:StyleSheet.hairlineWidth,borderBottomColor:t.border,paddingBottom:8,marginBottom:-8,minHeight:68}}><View style={{flexDirection:'row',gap:5,alignItems:'center'}}><View style={{flex:1,flexDirection:'row',alignItems:'center',gap:5}}><PlatinaName user={chat.peer} animated={false} onDark={onPlate} style={{flexShrink:1,color:c.text,fontSize:16,fontWeight:'600',letterSpacing:-.2}}/><StatusEmoji user={chat.peer} size={15}/>{muted?<Icon name="notifications-off" size={13} color={c.subtle}/>:null}</View>{last?<Text style={{color:chat.unreadCount&&!muted?t.accent:c.muted,fontSize:14}}>{formatListTime(last.createdAt)}</Text>:null}</View><View style={{flexDirection:'row',alignItems:'center',gap:6}}><Text numberOfLines={2} style={{flex:1,color:typing?t.accent:c.muted,fontSize:15,lineHeight:19,fontWeight:typing?'600':'400'}}>{preview}</Text>{chat.unreadCount>0?<View style={{minWidth:22,height:22,borderRadius:11,backgroundColor:muted?c.subtle:t.accent,alignItems:'center',justifyContent:'center',paddingHorizontal:6}}><Text maxFontSizeMultiplier={1} style={{color:t.onAccent,fontSize:12,fontWeight:'700'}}>{badgeText(chat.unreadCount)}</Text></View>:pinned?<Icon name="pin" size={14} color={c.subtle}/>:last?.senderId===userId?<Icon name={chat.peerLastReadMessageId>=last.id?'checkmark-done':'checkmark'} size={16} color={chat.peerLastReadMessageId>=last.id?t.accent:c.subtle}/>:null}</View></View></Pressable></View>;
 }
 
 function SavedRow({count,last,selected,onPress}:{count:number;last?:SavedItem;selected:boolean;onPress:()=>void}) {
@@ -168,7 +181,7 @@ function ChatPeek({chat,api,userId,messages}:{chat:Chat;api:Api;userId:string;me
     </View>
     <View style={{flex:1,justifyContent:'flex-end',paddingHorizontal:10,paddingBottom:10,gap:4}}>
       {shown.length?shown.map(m=>{const mine=m.senderId===userId;return <View key={m.clientId||m.id} style={{alignSelf:mine?'flex-end':'flex-start',maxWidth:'82%',borderRadius:16,paddingHorizontal:10,paddingVertical:6,backgroundColor:mine?t.bubble:t.incoming}}>
-        <Text numberOfLines={4} raw style={{color:t.text,fontSize:14,lineHeight:19}}>{listText(chatListText(m))||(m.attachment?attachmentLabel(m.attachment):'Сообщение')}</Text>
+        <Text numberOfLines={4} raw style={{color:t.text,fontSize:14,lineHeight:19}}>{callListText(m,userId)??(listText(chatListText(m))||(m.attachment?attachmentLabel(m.attachment):'Сообщение'))}</Text>
       </View>;}):<Text style={{color:t.muted,textAlign:'center',marginBottom:20}}>Сообщений пока нет</Text>}
     </View>
   </View>;
@@ -185,14 +198,14 @@ function SwipeButton({icon,label,color,iconColor,x,index,onPress}:{icon:React.Co
   return <Animated.View style={[{width:SWIPE_BUTTON,alignItems:'center',gap:4},style]}>
     <Pressable accessibilityRole="button" accessibilityLabel={label} onPress={onPress} hitSlop={4} style={({pressed})=>({width:SWIPE_BUTTON,height:42,borderRadius:21,backgroundColor:color,alignItems:'center',justifyContent:'center',opacity:pressed?.75:1})}><Icon name={icon} size={21} color={iconColor}/></Pressable>
     {/* The label sits on the row background, so it takes the theme's secondary text (a fixed grey read at 2.5:1 on the light theme). */}
-    <Text numberOfLines={1} maxFontSizeMultiplier={1} style={{color:t.muted,fontSize:10,fontWeight:'600'}}>{label}</Text>
+    <Text numberOfLines={1} adjustsFontSizeToFit minimumFontScale={0.8} maxFontSizeMultiplier={1} style={{width:SWIPE_BUTTON+SWIPE_GAP,textAlign:'center',color:t.muted,fontSize:10,fontWeight:'600'}}>{label}</Text>
   </Animated.View>;
 }
-/** Telegram's orange for «Убрать звук»; the theme has no warning token, and the icon on it is white as there. */
+/** Telegram's orange for «Выключить звук»; the theme has no warning token, and the icon on it is white as there. */
 const MUTE_ORANGE='#FF9500';
 
 /**
- * Telegram swipes on a chat: left slides the row to reveal «Убрать звук» and «Удалить» (it stays open
+ * Telegram swipes on a chat: left slides the row to reveal «Выключить звук» and «Удалить» (it stays open
  * until you tap one, tap the row or swipe back); right marks an unread chat as read.
  */
 function SwipeRow({enabled,muted,unread,onMute,onDelete,onRead,children}:{enabled:boolean;muted:boolean;unread:boolean;onMute:()=>void;onDelete:()=>void;onRead:()=>void;children:React.ReactNode}) {
@@ -223,7 +236,7 @@ function SwipeRow({enabled,muted,unread,onMute,onDelete,onRead,children}:{enable
   const act=(fn:()=>void)=>()=>{close();fn();};
   return <GestureDetector gesture={pan}><View>
     <View style={{position:'absolute',top:0,bottom:0,right:0,flexDirection:'row',alignItems:'center',gap:SWIPE_GAP,paddingRight:SWIPE_GAP}}>
-      <SwipeButton icon={muted?'volume-high':'volume-mute'} label={muted?'Включить звук':'Убрать звук'} color={MUTE_ORANGE} iconColor="#FFF" x={x} index={1} onPress={act(()=>refs.current.onMute())}/>
+      <SwipeButton icon={muted?'notifications':'notifications-off'} label={muted?'Включить звук':'Выключить звук'} color={MUTE_ORANGE} iconColor="#FFF" x={x} index={1} onPress={act(()=>refs.current.onMute())}/>
       {/* Dark themes have a light danger tone: the icon on it is dark, as text on the accent. */}
       <SwipeButton icon="trash" label="Удалить" color={t.danger} iconColor={t.dark?t.bg:'#FFF'} x={x} index={0} onPress={act(()=>refs.current.onDelete())}/>
     </View>

@@ -50,8 +50,11 @@ function signedPreKey(value, kyber = false) {
 }
 
 export function parseEncryptedMessage(value) {
-  const encrypted = objectBody(value, ['scheme', 'senderDeviceId', 'envelopes', 'attachmentIds']);
+  const encrypted = objectBody(value, ['scheme', 'senderDeviceId', 'envelopes', 'attachmentIds', 'lane']);
   if (encrypted.scheme !== 'signal-v1') fail(400, 'Неподдерживаемая схема шифрования.');
+  // F4: `lane:'scheduled'` = encrypted in the sender's separate Signal session for scheduled messages (the
+  // app's core.ts Lane); the recipient opens it there. Opaque to the server, passed through unchanged.
+  if (encrypted.lane !== undefined && encrypted.lane !== 'scheduled') fail(400, 'Некорректный признак сессии шифрования.');
   const senderDeviceId = uuid(encrypted.senderDeviceId, 'senderDeviceId');
   if (!Array.isArray(encrypted.envelopes) || encrypted.envelopes.length < 1 || encrypted.envelopes.length > MAX_ENVELOPES) {
     fail(400, 'Допустимо от 1 до 10 зашифрованных конвертов.');
@@ -69,7 +72,7 @@ export function parseEncryptedMessage(value) {
   if (!Array.isArray(ids) || ids.length > MAX_ATTACHMENTS) fail(400, 'Допустимо не более 10 зашифрованных вложений.');
   const attachmentIds = ids.map(id => uuid(id, 'attachmentId')).sort();
   if (new Set(attachmentIds).size !== attachmentIds.length) fail(400, 'Вложения не должны повторяться.');
-  return { scheme: 'signal-v1', senderDeviceId, envelopes, attachmentIds };
+  return { scheme: 'signal-v1', senderDeviceId, envelopes, attachmentIds, ...(encrypted.lane ? { lane: encrypted.lane } : {}) };
 }
 
 /** Public-key and opaque-ciphertext relay only. All Signal operations occur on clients. */
@@ -343,5 +346,218 @@ export function installE2eeRoutes({
   const linkAttachments = (messageId, attachmentIds) => {
     for (const id of attachmentIds) db.prepare('INSERT INTO e2ee_message_attachments(upload_id,message_id) VALUES(?,?)').run(id, messageId);
   };
-  return { expireDevices, validateMessage, linkAttachments, assertSession };
+  // F4: a scheduled message is released without its sender's request or session (the device may be
+  // offline or signed out by then). The ciphertext was encrypted for the device set of the moment it
+  // was scheduled. The peer's devices must still be exactly those (a new phone of the peer would miss
+  // the message; a removed one is a session the server knows nothing about). The sender's own other
+  // devices are only required to be the sender's: a device added since does not get the copy (it was
+  // not there when the text was encrypted), one signed out since is simply never read. Returns null
+  // when the envelopes can be delivered as they are, otherwise the reason.
+  const releaseCheck = (ownerId, chatId, encrypted, blocked = () => false) => {
+    const members = db.prepare('SELECT user_id FROM chat_members WHERE chat_id=?').all(chatId).map(row => row.user_id);
+    if (members.length !== 2 || !members.includes(ownerId)) return { code: 'CHAT_GONE', message: 'Чат не найден.' };
+    const peerId = members.find(id => id !== ownerId);
+    if (blocked(ownerId, peerId)) return { code: 'BLOCKED', message: 'Переписка с этим пользователем недоступна.' };
+    const peerDevices = activeDevices(peerId);
+    const expected = new Set(peerDevices.map(device => `${device.user_id}:${device.id}`));
+    const toPeer = encrypted.envelopes.filter(envelope => envelope.userId === peerId);
+    if (!peerDevices.length || expected.size !== toPeer.length || toPeer.some(envelope => !expected.has(`${envelope.userId}:${envelope.deviceId}`)) ||
+        encrypted.envelopes.some(envelope => envelope.userId !== peerId && (envelope.userId !== ownerId || envelope.deviceId === encrypted.senderDeviceId))) {
+      return { code: 'E2EE_DEVICES_CHANGED', message: 'Список устройств изменился. Обновите ключи получателей и зашифруйте сообщение заново.' };
+    }
+    for (const id of encrypted.attachmentIds) {
+      if (!db.prepare('SELECT 1 FROM uploads WHERE id=? AND owner_id=? AND is_encrypted=1').get(id, ownerId)) return { code: 'ATTACHMENT_GONE', message: 'Зашифрованное вложение не найдено.' };
+      if (db.prepare('SELECT 1 FROM e2ee_message_attachments WHERE upload_id=?').get(id)) return { code: 'ATTACHMENT_USED', message: 'Это зашифрованное вложение уже прикреплено к сообщению.' };
+    }
+    return null;
+  };
+  return { expireDevices, validateMessage, linkAttachments, assertSession, releaseCheck };
+}
+
+// ---- F4 «Отправить позже»: encrypted envelopes kept until their time ---------------------------
+// The client encrypts the message now, for the devices of now, and uploads the same envelopes it
+// would send at once, plus `deliverAt`. The server keeps them as opaque ciphertext in
+// scheduled_messages and moves them into `messages` when the clock passes deliverAt (a timer for the
+// next due item, the housekeeping tick and an on-demand check at startup and on every list request,
+// so a server that slept through the time catches up). Nothing is ever decrypted here.
+export const MAX_SCHEDULED_PER_USER = 100;
+export const MAX_SCHEDULE_AHEAD_MS = 366 * 86_400_000;
+export const MIN_SCHEDULE_AHEAD_MS = 10_000;
+const ISO_DATE = /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}(?::\d{2}(?:\.\d{1,3})?)?(?:Z|[+-]\d{2}:\d{2})$/;
+
+/** `deliverAt` (ISO 8601 with a zone) → epoch ms; it must lie ahead of `nowMs`, at most a year. */
+export function parseDeliverAt(value, nowMs) {
+  if (typeof value !== 'string' || !ISO_DATE.test(value)) fail(400, 'Некорректное время отправки.');
+  const at = Date.parse(value);
+  if (!Number.isFinite(at)) fail(400, 'Некорректное время отправки.');
+  if (at < nowMs + MIN_SCHEDULE_AHEAD_MS) fail(400, 'Время отправки уже прошло.', { code: 'SCHEDULE_IN_PAST' });
+  if (at > nowMs + MAX_SCHEDULE_AHEAD_MS) fail(400, 'Отложить можно не больше чем на год.');
+  return at;
+}
+
+/** Failed rows are purged (with their attachments) this long after they failed: the owner has seen «не удалось» by then. */
+export const FAILED_SCHEDULED_TTL_MS = 30 * 86_400_000;
+/** At most this many «не удалось» rows per owner (a separate limit from the 100 waiting ones); the oldest go first. */
+export const MAX_FAILED_SCHEDULED_PER_USER = 100;
+
+export function installScheduledRoutes({ app, db, now, timestamp, authOptions, emitUser, emitChat, notify, memberIds, blockedBetween, e2ee, serializationOptions, uploadDir, writable = () => true, log = () => {} }) {
+  const blocked = (a, b) => blockedBetween(db, a, b);
+  const publicScheduled = (row, lean = false) => ({
+    id: row.id, chatId: row.chat_id, clientId: row.client_id, deliverAt: new Date(row.deliver_at).toISOString(),
+    status: row.status, failure: row.failure ?? null, push: row.push, createdAt: row.created_at, ...(lean ? {} : { encrypted: JSON.parse(row.encrypted_json) }),
+  });
+  const ownRow = (request, id) => {
+    const row = db.prepare('SELECT * FROM scheduled_messages WHERE id=? AND owner_id=?').get(uuid(id, 'id'), request.auth.user_id);
+    if (!row) fail(404, 'Отложенное сообщение не найдено.');
+    return row;
+  };
+  // The encrypted attachments of a scheduled message are uploads of the owner that no message links yet
+  // (PRAGMA foreign_keys is off: nothing cascades). When the message is dropped for good they go too;
+  // after E2EE_DEVICES_CHANGED they stay: the app re-encrypts the same text with the same attachment.
+  const attachmentIds = row => { try { const ids = JSON.parse(row.encrypted_json).attachmentIds; return Array.isArray(ids) ? ids : []; } catch { return []; } };
+  const dropUploads = (row, keepOnDevicesChanged = true) => {
+    if (keepOnDevicesChanged && row.status === 'failed' && row.failure === 'E2EE_DEVICES_CHANGED') return;
+    for (const id of attachmentIds(row)) {
+      const upload = db.prepare('SELECT id FROM uploads WHERE id=? AND owner_id=? AND is_encrypted=1 AND NOT EXISTS (SELECT 1 FROM e2ee_message_attachments a WHERE a.upload_id=uploads.id)').get(id, row.owner_id);
+      if (!upload) continue;
+      db.prepare('DELETE FROM uploads WHERE id=?').run(id);
+      if (uploadDir) unlink(join(uploadDir, id)).catch(() => {});
+    }
+  };
+  const purge = row => transaction(db, () => { dropUploads(row, false); db.prepare('DELETE FROM scheduled_messages WHERE id=?').run(row.id); });
+  const markFailed = (row, code) => {
+    db.prepare('UPDATE scheduled_messages SET status=?,failure=?,failed_at=? WHERE id=? AND status=?').run('failed', code, now(), row.id, 'scheduled');
+    dropUploads({ ...row, status: 'failed', failure: code });
+    for (const old of db.prepare('SELECT * FROM scheduled_messages WHERE owner_id=? AND status=? ORDER BY failed_at DESC,id LIMIT -1 OFFSET ?').all(row.owner_id, 'failed', MAX_FAILED_SCHEDULED_PER_USER)) purge(old);
+    emitUser(row.owner_id, { type: 'scheduled', chatId: row.chat_id, reason: 'failed', id: row.id });
+  };
+
+  /** Moves one scheduled row into the chat (or marks it «не удалось»); returns { message } or { failure, scheduled }. `exceptSession`: the owner's session that asked (it has the HTTP answer). */
+  const release = (row, exceptSession = null) => {
+    const encrypted = JSON.parse(row.encrypted_json);
+    const outcome = transaction(db, () => {
+      const current = db.prepare('SELECT 1 FROM scheduled_messages WHERE id=? AND status=?').get(row.id, 'scheduled');
+      if (!current) return null; // released or deleted meanwhile
+      let problem = e2ee.releaseCheck(row.owner_id, row.chat_id, encrypted, blocked);
+      if (!problem && db.prepare('SELECT 1 FROM messages WHERE sender_id=? AND client_id=?').get(row.owner_id, row.client_id)) problem = { code: 'CLIENT_ID_USED', message: 'Этот ключ сообщения уже использован.' };
+      if (problem) return { failure: problem };
+      const date = timestamp();
+      // Never `silent`: a scheduled message is news for the peer (silent=1 marks reactions and edits).
+      const result = db.prepare('INSERT INTO messages(chat_id,sender_id,client_id,text,attachment_id,encrypted_json,silent,created_at) VALUES(?,?,?,?,?,?,0,?)')
+        .run(row.chat_id, row.owner_id, row.client_id, '', null, row.encrypted_json, date);
+      const messageId = Number(result.lastInsertRowid);
+      e2ee.linkAttachments(messageId, encrypted.attachmentIds);
+      db.prepare('UPDATE chats SET updated_at=? WHERE id=?').run(date, row.chat_id);
+      db.prepare('DELETE FROM scheduled_messages WHERE id=?').run(row.id);
+      return { messageId };
+    });
+    if (!outcome) return null;
+    if (outcome.failure) {
+      markFailed(row, outcome.failure.code);
+      return { failure: outcome.failure, scheduled: publicScheduled(db.prepare('SELECT * FROM scheduled_messages WHERE id=?').get(row.id)) };
+    }
+    const message = publicMessage(db, db.prepare('SELECT * FROM messages WHERE id=?').get(outcome.messageId), serializationOptions);
+    for (const userId of memberIds(row.chat_id)) emitUser(userId, { type: 'message', chatId: row.chat_id, message }, userId === row.owner_id ? exceptSession : null);
+    emitChat(row.chat_id);
+    emitUser(row.owner_id, { type: 'scheduled', chatId: row.chat_id, reason: 'sent', id: row.id }, exceptSession);
+    notify(row.chat_id, row.owner_id, row.push);
+    return { message };
+  };
+
+  let timer = null, closed = false;
+  // In a cluster only the primary with a live lease writes (cluster.js writable()); a replica leaves
+  // the rows alone — the housekeeping tick asks again, and a new primary releases at its start.
+  const releaseDue = () => {
+    if (closed || !writable()) return 0;
+    const due = db.prepare('SELECT * FROM scheduled_messages WHERE status=? AND deliver_at<=? ORDER BY deliver_at,created_at,id').all('scheduled', now());
+    let released = 0;
+    for (const row of due) {
+      try { if (release(row)) released++; }
+      catch (error) {
+        // A row that cannot be released (a corrupt envelope, a database error) is marked «не удалось»
+        // instead of being retried every few milliseconds by the timer below.
+        log(error, 'scheduled release failed');
+        try { markFailed(row, 'RELEASE_ERROR'); } catch (inner) { log(inner, 'scheduled row could not be marked failed'); }
+      }
+    }
+    try {
+      for (const row of db.prepare('SELECT * FROM scheduled_messages WHERE status=? AND COALESCE(failed_at,deliver_at)<=?').all('failed', now() - FAILED_SCHEDULED_TTL_MS)) purge(row);
+    } catch (error) { log(error, 'scheduled purge failed'); }
+    arm();
+    return released;
+  };
+  // The timer is set from the real clock delta so a message due in two days does not wait for a
+  // tick; the housekeeping tick and the list request cover a clock that jumps (tests, suspend).
+  const arm = () => {
+    if (timer) { clearTimeout(timer); timer = null; }
+    if (closed) return;
+    const next = db.prepare('SELECT MIN(deliver_at) AS at FROM scheduled_messages WHERE status=?').get('scheduled').at;
+    if (next === null || next === undefined) return;
+    timer = setTimeout(() => { timer = null; releaseDue(); }, Math.min(Math.max(next - now(), 0) + 5, 0x7fffffff));
+    timer.unref();
+  };
+  const close = () => { closed = true; if (timer) clearTimeout(timer); timer = null; };
+
+  /** POST /chats/:chatId/messages with deliverAt: runs inside the send route after parsing (session, rate limit done there). */
+  const create = (request, chatId, { clientId, encrypted, encryptedJson, push, deliverAt }) => {
+    const at = parseDeliverAt(deliverAt, now());
+    if (!['message', 'silent'].includes(push)) fail(400, 'Отложить можно только обычное сообщение.');
+    const ownerId = request.auth.user_id;
+    const row = transaction(db, () => {
+      const previous = db.prepare('SELECT * FROM scheduled_messages WHERE owner_id=? AND client_id=?').get(ownerId, clientId);
+      if (previous) {
+        if (previous.chat_id !== chatId || previous.encrypted_json !== encryptedJson) fail(409, 'Этот ключ сообщения уже использован с другим зашифрованным содержимым.');
+        return previous;
+      }
+      // Only what is still waiting counts: «не удалось» rows wait for the owner (or the purge above), not for the limit.
+      if (db.prepare('SELECT COUNT(*) AS n FROM scheduled_messages WHERE owner_id=? AND status=?').get(ownerId, 'scheduled').n >= MAX_SCHEDULED_PER_USER) fail(409, 'Отложить можно не больше 100 сообщений.', { code: 'SCHEDULE_LIMIT' });
+      e2ee.validateMessage(request, chatId, encrypted);
+      for (const id of encrypted.attachmentIds) {
+        if (db.prepare("SELECT 1 FROM scheduled_messages s, json_each(s.encrypted_json,'$.attachmentIds') a WHERE a.value=?").get(id)) fail(409, 'Это зашифрованное вложение уже прикреплено к сообщению.');
+      }
+      const id = randomUUID(), date = timestamp();
+      db.prepare('INSERT INTO scheduled_messages(id,owner_id,chat_id,client_id,encrypted_json,push,deliver_at,status,failure,created_at) VALUES(?,?,?,?,?,?,?,?,NULL,?)')
+        .run(id, ownerId, chatId, clientId, encryptedJson, push, at, 'scheduled', date);
+      return db.prepare('SELECT * FROM scheduled_messages WHERE id=?').get(id);
+    });
+    arm();
+    emitUser(ownerId, { type: 'scheduled', chatId, reason: 'added', id: row.id }, request.auth.id);
+    return publicScheduled(row);
+  };
+
+  // ?lean=1: without the ciphertext (the app's periodic refresh only needs ids, times and states; its
+  // own copy of the text is in the vault under the clientId).
+  app.get('/scheduled', authOptions, async request => {
+    e2ee.assertSession(request);
+    releaseDue(); // on-demand check: whatever is due goes out before the list is answered
+    const chatId = request.query.chatId === undefined ? null : uuid(request.query.chatId, 'chatId');
+    const rows = db.prepare('SELECT * FROM scheduled_messages WHERE owner_id=? AND (? IS NULL OR chat_id=?) ORDER BY deliver_at,created_at,id')
+      .all(request.auth.user_id, chatId, chatId);
+    const lean = request.query.lean === '1';
+    return { items: rows.map(row => publicScheduled(row, lean)) };
+  });
+  app.delete('/scheduled/:id', authOptions, async request => {
+    e2ee.assertSession(request);
+    const row = ownRow(request, request.params.id);
+    transaction(db, () => { dropUploads(row); db.prepare('DELETE FROM scheduled_messages WHERE id=?').run(row.id); });
+    arm();
+    emitUser(row.owner_id, { type: 'scheduled', chatId: row.chat_id, reason: 'deleted', id: row.id }, request.auth.id);
+    return { ok: true };
+  });
+  // «Отправить сейчас»: the stored envelopes go out at once. A device-set change since scheduling
+  // is answered with 409 E2EE_DEVICES_CHANGED (the row is marked «не удалось»): only the sender's
+  // device can encrypt afresh, so the app re-encrypts and sends through the normal route.
+  app.post('/scheduled/:id/send', authOptions, async (request, reply) => {
+    e2ee.assertSession(request);
+    const row = ownRow(request, request.params.id);
+    if (row.status !== 'scheduled') fail(409, 'Сообщение не удалось отправить: зашифруйте его заново.', { code: row.failure || 'E2EE_DEVICES_CHANGED' });
+    // The asking device gets the message from this answer, like a normal send (lean: without its own ciphertext).
+    const outcome = release(row, request.query?.lean === '1' ? request.auth.id : null);
+    if (!outcome) fail(404, 'Отложенное сообщение не найдено.');
+    if (outcome.failure) fail(409, outcome.failure.message, { code: outcome.failure.code });
+    return reply.code(201).send({ message: request.query?.lean === '1' ? { ...outcome.message, encrypted: undefined } : outcome.message });
+  });
+
+  releaseDue();
+  return { releaseDue, create, close };
 }

@@ -21,7 +21,10 @@ import { useMusic } from '../music/MusicProvider';
 import { setCenterStage } from '../media/centerStage';
 import { holdConnection } from '../connectionHold';
 import { impactFeedback, lightFeedback } from '../haptics';
-import { GATHER_TIMEOUT_MS, RING_TIMEOUT_MS, SEND_BITRATE, callClock, economySdp, keyEmoji, keyMaterial, offerIsFresh, type CallStatus } from './callModel';
+import { GATHER_TIMEOUT_MS, RING_TIMEOUT_MS, SEND_BITRATE, callClock, callEndMeta, economySdp, hangupOutcome, incomingAlert, keyEmoji, keyMaterial, offerIsFresh, type CallEndReason, type CallStatus } from './callModel';
+import { buildCallHistory, type CallRecord } from './callHistory';
+import { onAnswerFromNotification } from '../notifications/desktopNotify';
+import { getNotificationPrefs } from '../notifications/prefs';
 
 // Native modules are loaded lazily: the web build and old builds without them keep working.
 type WebRTC = typeof import('react-native-webrtc');
@@ -33,9 +36,14 @@ type CallState = {
   muted: boolean; speaker: boolean; cameraOff: boolean; startedAt: number | null; endedText: string; key: string[] | null;
   localUrl: string | null; remoteUrl: string | null; remoteSdp?: string; minimized?: boolean;
 };
-type CallApi = { start: (chat: Chat, video: boolean) => void; available: boolean; busy: boolean };
-const CallContext = createContext<CallApi>({ start: () => {}, available: false, busy: false });
+type CallApi = { start: (chat: Chat, video: boolean) => void; available: boolean; busy: boolean;
+  /** «Перезвонить» from a call row: the chat is looked up by id (the row knows no Chat object). */
+  callBack: (chatId: string, video: boolean) => void };
+const CallContext = createContext<CallApi>({ start: () => {}, available: false, busy: false, callBack: () => {} });
 export const useCalls = () => useContext(CallContext);
+/** История звонков (F9): every finished call this device knows of, from the decrypted message cache, newest first. */
+const CallHistoryContext = createContext<CallRecord[]>([]);
+export const useCallHistory = () => useContext(CallHistoryContext);
 
 /**
  * Sets our SDP with economy voice on slow links (EDGE/3G): the other phone sends us less, and our
@@ -78,6 +86,11 @@ export function CallProvider({ api, store, me, children }: { api: Api; store: Me
     if (action === 'endCall') hangupRef.current?.();
   }), []);
   const acceptRef = useRef<(() => Promise<void>) | null>(null); const hangupRef = useRef<(() => void) | null>(null);
+  // PC: «Ответить» on the system notification (F11) accepts the call that is ringing in that chat, nothing else.
+  useEffect(() => onAnswerFromNotification(chatId => {
+    const c = callRef.current;
+    if (c?.status === 'incoming' && c.chat.id === chatId) void acceptRef.current?.();
+  }), []);
   // PC: a microphone picked in Настройки → Звук и микрофон during a call takes effect at once.
   useEffect(() => {
     if (Platform.OS !== 'web') return;
@@ -113,9 +126,12 @@ export function CallProvider({ api, store, me, children }: { api: Api; store: Me
     pc.current = null; local.current = null;
   }, []);
 
-  const finish = useCallback((text: string, notify?: 'hangup' | 'declined' | 'busy' | 'missed' | 'failed') => {
+  const finish = useCallback((text: string, notify?: CallEndReason) => {
     const current = callRef.current; if (!current) return;
-    if (notify) signal(current.chat.id, { type: 'call', call: current.id, step: 'end', reason: notify });
+    // The `end` carries what both chats show as the service row (F9): how long the call lasted (from the
+    // moment the media connected), whether it was video, and whether this phone placed it — all inside the ciphertext.
+    // Every `end` this phone sends (here, busy, privacy) goes through the same builder (callModel.callEndMeta).
+    if (notify) signal(current.chat.id, callEndMeta(current, notify));
     cleanup();
     setCall({ ...current, status: 'ended', endedText: text, localUrl: null, remoteUrl: null });
     setTimeout(() => setCall(value => value?.id === current.id && value.status === 'ended' ? null : value), 1600);
@@ -200,9 +216,13 @@ export function CallProvider({ api, store, me, children }: { api: Api; store: Me
 
   // Incoming signals from the encrypted message stream.
   const ring = (chat: Chat, action: { call: string; video?: boolean; sdp?: string }, _message: Message) => {
-    if (callRef.current) { signal(chat.id, { type: 'call', call: action.call, step: 'end', reason: 'busy' }); return; }
+    // Busy: the same `end` as a hang-up (video, caller: false), so the caller's chat says «Собеседник занят» and ours a missed call.
+    if (callRef.current) { signal(chat.id, callEndMeta({ id: action.call, video: !!action.video, incoming: true, startedAt: null }, 'busy')); return; }
     setCall({ id: action.call, chat, peer: chat.peer, incoming: true, video: !!action.video, status: 'incoming', muted: false, speaker: !!action.video, cameraOff: false, startedAt: null, endedText: '', key: null, localUrl: null, remoteUrl: null, remoteSdp: action.sdp });
-    void playCallSound('incoming'); Vibration.vibrate([0, 600, 900], true);
+    // Настройки › Уведомления и звуки › Звонки (F2): «Без мелодии» rings silently, «Вибрация» off keeps the phone still.
+    const alert = incomingAlert(getNotificationPrefs().calls);
+    if (alert.sound) void playCallSound('incoming');
+    if (alert.vibrate) Vibration.vibrate([0, 600, 900], true);
     ringTimer.current = setTimeout(() => { if (callRef.current?.id === action.call && callRef.current.status === 'incoming') finish('Пропущенный звонок'); }, RING_TIMEOUT_MS);
   };
   useEffect(() => store.onCallSignal((message: Message) => {
@@ -228,7 +248,7 @@ export function CallProvider({ api, store, me, children }: { api: Api; store: Me
       const chat = storeRef.current.chats.find(c => c.id === message.chatId); if (!chat) return;
       // A modified client could skip the server check; this phone still never rings for a caller it must not.
       void api.callPermission(message.senderId, 'incoming').then(({ allowed }) => {
-        if (!allowed) signal(chat.id, { type: 'call', call: action.call, step: 'end', reason: 'declined' });
+        if (!allowed) signal(chat.id, callEndMeta({ id: action.call, video: !!action.video, incoming: true, startedAt: null }, 'declined'));
         else ring(chat, action, message);
       }).catch(() => ring(chat, action, message));
       return;
@@ -274,7 +294,14 @@ export function CallProvider({ api, store, me, children }: { api: Api; store: Me
   const controls = {
     minimize: () => patch({ minimized: true }),
     restore: () => patch({ minimized: false }),
-    hangup: () => { const c = callRef.current; if (!c) return; finish(c.status === 'incoming' ? 'Звонок отклонён' : 'Звонок завершён', c.status === 'incoming' ? 'declined' : 'hangup'); },
+    hangup: () => {
+      const c = callRef.current; if (!c) return;
+      // The reason by status (callModel.hangupOutcome): a call that never connected — ringing, or connecting after the
+      // answer — is «missed» for the caller (this chat shows «Отменённый звонок»), not an answered call with no duration;
+      // while requesting nothing was sent yet, so no trace is left in either chat.
+      const outcome = hangupOutcome(c.status, c.incoming);
+      finish(outcome.text, outcome.reason ?? undefined);
+    },
     accept: () => void accept(),
     mute: () => { const c = callRef.current; if (!c) return; local.current?.getAudioTracks().forEach((t: any) => { t.enabled = c.muted; }); patch({ muted: !c.muted }); lightFeedback(); },
     speaker: () => { const c = callRef.current; if (!c) return; try { inCall.current?.setForceSpeakerphoneOn?.(!c.speaker); } catch { /* optional */ } patch({ speaker: !c.speaker }); lightFeedback(); },
@@ -285,9 +312,13 @@ export function CallProvider({ api, store, me, children }: { api: Api; store: Me
     flip: () => { local.current?.getVideoTracks().forEach((t: any) => { try { t._switchCamera(); } catch { /* single camera */ } }); lightFeedback(); },
   };
   acceptRef.current = accept; hangupRef.current = controls.hangup;
+  const callBack = useCallback((chatId: string, video: boolean) => { const chat = storeRef.current.chats.find(c => c.id === chatId); if (chat) start(chat, video); }, [start]);
+  // Люди › Звонки and the service rows read the history from the local cache only: loaded pages plus each chat's last message.
+  const history = React.useMemo(() => buildCallHistory(store.chats, store.messages, me.id), [store.chats, store.messages, me.id]);
+  const value = React.useMemo<CallApi>(() => ({ start, available: !!rtc.current, busy: !!call, callBack }), [start, call, callBack]);
 
-  return <CallContext.Provider value={{ start, available: !!rtc.current, busy: !!call }}>
-    {children}
+  return <CallContext.Provider value={value}>
+    <CallHistoryContext.Provider value={history}>{children}</CallHistoryContext.Provider>
     {call && !call.minimized ? <CallScreen call={call} api={api} rtc={rtc.current} {...controls} /> : null}
     {call && call.minimized ? <CallBanner call={call} onPress={controls.restore} onHangup={controls.hangup} /> : null}
   </CallContext.Provider>;
