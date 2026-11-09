@@ -6,6 +6,8 @@
 const SIMULATOR_SERVER = typeof process !== 'undefined' ? process.env.EXPO_PUBLIC_SIMULATOR_SERVER : undefined;
 const SIMULATOR = typeof SIMULATOR_SERVER === 'string' && /^https:\/\/localhost:\d{2,5}$/.test(SIMULATOR_SERVER) ? SIMULATOR_SERVER : null;
 export const SERVER_URL = SIMULATOR ?? 'https://api.invizent.com';
+/** The CI simulator build only (talks to a local test server on a busy runner). Never true in a release build. */
+export const SIMULATOR_TEST_BUILD = SIMULATOR !== null;
 // Earlier builds connected through this address. Encrypted local data (keys, history,
 // Избранное, AI history) created there is reused so nothing is lost after the switch.
 export const LEGACY_SERVER_URLS: string[] = SIMULATOR ? [] : ['https://141-133-194-51.nip.io'];

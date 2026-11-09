@@ -2,7 +2,7 @@ import { desktopBridge } from './desktop';
 import { Platform } from 'react-native';
 import { toByteArray } from 'base64-js';
 import type { UserProfile } from './types';
-import { APP_VERSION, SERVER_URL } from './serverConfig';
+import { APP_VERSION, SERVER_URL, SIMULATOR_TEST_BUILD } from './serverConfig';
 import { currentEndpoint, markServerOk, reportFailure } from './servers/pool';
 import { networkTier, reportRequest, timeoutFor } from './network/quality';
 import { attestHeaders } from './attest/index';
@@ -65,7 +65,9 @@ function requestTimeout(path: string, method = 'GET') {
   // Sign-in, sign-up, recovery and secret changes hash up to three secrets with scrypt on the server and
   // queue behind other password jobs: under load an 18 s limit cut off a sign-up the server then completed,
   // and the retry met «Этот логин уже занят». Those POSTs get 45 s (×1.5 / ×3 on slow links).
-  if (method === 'POST' && /^\/auth\/(?:login|register|recovery\/(?:verify|reset)|password|confirmation-word|recovery-word)$/.test(bare)) return Math.round(45_000 * timeoutFor('read', networkTier()) / timeoutFor('read', 'fast'));
+  // The CI simulator build waits up to 4 min: on that runner the local server took 82 s for one sign-up
+  // (scrypt starved by the simulator), measured by the test proxy. Release builds keep 45 s.
+  if (method === 'POST' && /^\/auth\/(?:login|register|recovery\/(?:verify|reset)|password|confirmation-word|recovery-word)$/.test(bare)) return SIMULATOR_TEST_BUILD ? 240_000 : Math.round(45_000 * timeoutFor('read', networkTier()) / timeoutFor('read', 'fast'));
   const kind = bare === '/uploads' || bare === '/e2ee/files' || (method === 'PUT' && /^\/(?:e2ee\/)?uploads\//.test(bare)) ? 'upload' : method !== 'GET' && /\/messages(\?|$)/.test(path) ? 'send' : 'read';
   return timeoutFor(kind, networkTier());
 }

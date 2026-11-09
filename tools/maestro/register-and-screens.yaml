@@ -177,7 +177,7 @@ appId: com.linea.messenger.preview
 # the chat list, iOS's «Save Password?» (it may come only after the screen changes) or an error.
 - extendedWaitUntil:
     visible: "Избранное.*|Not Now|Не сейчас|Сервер не ответил.*|Нет связи.*"
-    timeout: 120000
+    timeout: 300000
 - tapOn:
     text: "Not Now|Не сейчас"
     optional: true
@@ -198,7 +198,7 @@ appId: com.linea.messenger.preview
     optional: true
 - extendedWaitUntil:
     visible: "Избранное.*|Not Now|Не сейчас"
-    timeout: 120000
+    timeout: 300000
 - tapOn:
     text: "Not Now|Не сейчас"
     optional: true
