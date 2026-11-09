@@ -1,4 +1,4 @@
-import React, { createContext, useCallback, useContext, useEffect, useRef, useState } from 'react';
+import React, { createContext, useCallback, useContext, useEffect, useRef, useState, useSyncExternalStore } from 'react';
 import { ActivityIndicator, Platform, Pressable, StyleSheet, View, type LayoutChangeEvent } from 'react-native';
 import { GlassSurface } from '../glass';
 import * as FileSystem from 'expo-file-system/legacy';
@@ -13,7 +13,7 @@ import type { Api } from '../api';
 import type { Attachment } from '../types';
 import { decryptAttachment } from '../e2ee/attachments';
 import { useMusic } from '../music/MusicProvider';
-import { interruptNoteAudio, onNoteSound } from '../videonote/playback';
+import { getNoteBar, interruptNoteAudio, onNoteSound, subscribeNoteBar } from '../videonote/playback';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { VOICE_MAX_MS, pushVoiceSample, voiceSamples, decodeWaveform, encodeWaveform, fitWaveform, formatVoiceTime, formatVoiceTimeFine, levelFromMetering } from './voice';
 
@@ -244,6 +244,23 @@ export function VoicePlaybackProvider({ api, children }: { api: Api; children: R
 export function VoiceMiniPlayer({ top, find }: { top: number; find: (attachmentId: string) => { author: string; attachment: Attachment } | null }) {
   const t = useTheme();
   const voice = useContext(VoiceContext);
+  // A circle listened to with sound takes the strip (Telegram: «Видеосообщение»), the same speed setting.
+  const note = useSyncExternalStore(subscribeNoteBar, getNoteBar, getNoteBar);
+  if (note && voice) {
+    const author = find(note.attachmentId)?.author;
+    const rateLabel = voice.rate === 1.5 ? '1,5×' : `${voice.rate}×`;
+    return <View style={{ position: 'absolute', top, left: 10, right: 10, zIndex: 6 }}>
+      <GlassSurface lens material="regular" radius={16} contentStyle={{ height: 42, flexDirection: 'row', alignItems: 'center', gap: 10, paddingHorizontal: 8, overflow: 'hidden' }}>
+        <Pressable accessibilityRole="button" accessibilityLabel={note.playing ? 'Пауза' : 'Продолжить'} onPress={note.toggle} hitSlop={8} style={{ width: 30, height: 30, alignItems: 'center', justifyContent: 'center' }}><Icon name={note.playing ? 'pause' : 'play'} size={20} color={t.accent} /></Pressable>
+        <View style={{ flex: 1 }}>
+          {author ? <Text numberOfLines={1} style={{ color: t.text, fontSize: 13, fontWeight: '600' }}>{author}</Text> : null}
+          <Text numberOfLines={1} style={{ color: t.muted, fontSize: 11 }}>Видеосообщение</Text>
+        </View>
+        <Pressable accessibilityRole="button" accessibilityLabel={`Скорость ${voice.rate}×. Изменить`} onPress={() => { voice.cycleRate(); note.applyRate(currentVoiceRate()); }} hitSlop={8} style={{ paddingHorizontal: 6, paddingVertical: 2, borderRadius: 6, borderWidth: 1.5, borderColor: voice.rate !== 1 ? t.accent : t.muted }}><Text style={{ color: voice.rate !== 1 ? t.accent : t.muted, fontSize: 11, fontWeight: '800' }}>{rateLabel}</Text></Pressable>
+        <Pressable accessibilityRole="button" accessibilityLabel="Закрыть плеер" onPress={note.close} hitSlop={8} style={{ width: 28, height: 28, alignItems: 'center', justifyContent: 'center' }}><Icon name="close" size={16} color={t.muted} /></Pressable>
+      </GlassSurface>
+    </View>;
+  }
   if (!voice?.activeId) return null;
   const item = find(voice.activeId);
   if (!item) return null;

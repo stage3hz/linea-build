@@ -124,3 +124,24 @@ test('ring geometry: dash offset shrinks clockwise from 12 o\'clock', () => {
   assert.equal(at(1).offset, 0);
   assert.equal(at(1.4).offset, 0); assert.equal(at(-1).offset, c); assert.equal(at(NaN).offset, c);
 });
+
+test('the header strip belongs to the circle that set it; others cannot clear it, unchanged updates stay quiet', () => {
+  const { setNoteBar, getNoteBar, subscribeNoteBar } = loadTs(new URL('../src/videonote/playback.ts', import.meta.url));
+  let calls = 0; const off = subscribeNoteBar(() => { calls++; });
+  const bar = (key, playing) => ({ key, attachmentId: 'a', playing, toggle() {}, close() {}, applyRate() {} });
+  setNoteBar('n1', bar('n1', true)); assert.equal(getNoteBar().key, 'n1'); assert.equal(calls, 1);
+  setNoteBar('n1', bar('n1', true)); assert.equal(calls, 1);
+  setNoteBar('n1', bar('n1', false)); assert.equal(getNoteBar().playing, false); assert.equal(calls, 2);
+  setNoteBar('n2', null); assert.equal(getNoteBar().key, 'n1'); assert.equal(calls, 2);
+  setNoteBar('n1', null); assert.equal(getNoteBar(), null); assert.equal(calls, 3);
+  off();
+});
+
+test('seconds played count whole seconds and never pass the length', () => {
+  const { playedSeconds } = loadTs(new URL('../src/videonote/playback.ts', import.meta.url));
+  assert.equal(playedSeconds(0.2, 7.4), 0);
+  assert.equal(playedSeconds(3.99, 7.4), 3);
+  assert.equal(playedSeconds(9, 7.4), 7);
+  assert.equal(playedSeconds(-1, 7), 0);
+  assert.equal(playedSeconds(2.5, 0), 2);
+});

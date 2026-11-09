@@ -125,3 +125,22 @@ export function noteSizes(available: number): { collapsed: number; big: number; 
   const big = Math.max(collapsed, Math.min(NOTE_EXPANDED_MAX, room));
   return { collapsed, big, scale: collapsed / big };
 }
+
+/**
+ * The strip under the chat header while a circle plays with sound (Telegram: pause, «Видеосообщение»,
+ * speed, ✕). The playing bubble publishes its controls here; only the bubble that set it can clear it.
+ */
+export type NoteBar = { key: string; attachmentId: string; playing: boolean; toggle: () => void; close: () => void; applyRate: (rate: number) => void };
+let noteBar: NoteBar | null = null;
+const barListeners = new Set<() => void>();
+export function setNoteBar(key: string, next: NoteBar | null) {
+  if (!next && noteBar?.key !== key) return;
+  if (next && noteBar && noteBar.key === next.key && noteBar.playing === next.playing && noteBar.attachmentId === next.attachmentId) { noteBar = next; return; }
+  noteBar = next;
+  for (const listener of [...barListeners]) listener();
+}
+export const getNoteBar = () => noteBar;
+export function subscribeNoteBar(listener: () => void) { barListeners.add(listener); return () => { barListeners.delete(listener); }; }
+
+/** Whole seconds played, for the counter under a circle that is being listened to (changes once a second). */
+export const playedSeconds = (currentSec: number, durationSec: number) => Math.max(0, Math.floor(Math.min(currentSec, durationSec > 0 ? durationSec : currentSec)));

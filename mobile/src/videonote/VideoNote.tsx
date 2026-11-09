@@ -16,7 +16,7 @@ import { ProgressRing } from '../media/MediaBubble';
 import { useNetworkTier } from '../network/useNetworkTier';
 import * as VideoThumbnails from 'expo-video-thumbnails';
 import { NoteRing } from './NoteRing';
-import { claimNoteAudio, freshTick, isExpanded, isNoteVisible, keepsSoundRequest, noteAutoload, noteSizes, progressStep, reduceNote, releaseNoteAudio, restState, subscribeVisibleNotes, timeUpdateInterval, type NoteEvent, type NoteState } from './playback';
+import { claimNoteAudio, freshTick, playedSeconds, setNoteBar, isExpanded, isNoteVisible, keepsSoundRequest, noteAutoload, noteSizes, progressStep, reduceNote, releaseNoteAudio, restState, subscribeVisibleNotes, timeUpdateInterval, type NoteEvent, type NoteState } from './playback';
 import { setCenterStage } from '../media/centerStage';
 import { currentVoiceRate } from '../voice/VoiceMessage';
 import * as FileSystem from 'expo-file-system/legacy';
@@ -305,9 +305,9 @@ let instances = 0;
 
 /** The decoded video. It fills the large circle, which is only ever scaled (a transform), so the surface is never re-laid-out or recreated. */
 /** How long a circle takes to grow or shrink (Telegram-like); a listen starts its sound when it has grown. */
-const NOTE_GROW_MS = 240;
+const NOTE_GROW_MS = 200;
 
-function NoteVideo({ uri, state, progress, onFirstFrame, onEnd }: { uri: string; state: NoteState; progress: SharedValue<number>; onFirstFrame: () => void; onEnd: () => void }) {
+function NoteVideo({ uri, state, progress, onFirstFrame, onEnd, onSecond, rateHandle }: { uri: string; state: NoteState; progress: SharedValue<number>; onFirstFrame: () => void; onEnd: () => void; onSecond: (sec: number) => void; rateHandle: React.MutableRefObject<((rate: number) => void) | null> }) {
   // No progress events while it loops silently: they are switched on only for a listen (applyState).
   const player = useVideoPlayer(uri, value => { value.loop = true; value.muted = true; value.audioMixingMode = 'mixWithOthers'; value.timeUpdateEventInterval = 0; });
   const stateRef = useRef(state); const previous = useRef<NoteState | null>(null);
@@ -329,6 +329,9 @@ function NoteVideo({ uri, state, progress, onFirstFrame, onEnd }: { uri: string;
     try { applyState(player, state, before); } catch { /* released */ }
   }, [player, state]);
   useEffect(() => () => { try { player.pause(); } catch { /* released */ } }, [player]);
+  // The speed button in the strip under the header changes a listen that is already playing.
+  useEffect(() => { rateHandle.current = rate => { try { if (stateRef.current === 'sound' || stateRef.current === 'paused') player.playbackRate = rate; } catch { /* released */ } }; return () => { rateHandle.current = null; }; }, [player]);
+  const second = useRef(-1);
   useEffect(() => {
     const end = player.addListener('playToEnd', () => { if (stateRef.current === 'sound') { progress.value = withTiming(1, { duration: 80 }); onEnd(); } });
     // Progress goes to a shared value (throttled): the ring moves, React does not re-render.
@@ -337,13 +340,15 @@ function NoteVideo({ uri, state, progress, onFirstFrame, onEnd }: { uri: string;
       const now = Date.now();
       if (!freshTick(restartAt.current, currentTime, now, player.playbackRate || 1)) return;
       restartAt.current = null;
+      const whole = playedSeconds(currentTime, player.duration);
+      if (whole !== second.current) { second.current = whole; onSecond(whole); }
       const next = progressStep(last.current, currentTime, player.duration, now);
       if (next === null) return;
       last.current = { value: next, at: now };
       progress.value = withTiming(next, { duration: 110, easing: Easing.linear });
     });
     return () => { end.remove(); tick.remove(); };
-  }, [player, onEnd]);
+  }, [player, onEnd, onSecond]);
   return <VideoView player={player} pointerEvents="none" style={StyleSheet.absoluteFill} contentFit="cover" nativeControls={false} allowsPictureInPicture={false} allowsVideoFrameAnalysis={false}
     surfaceType="textureView" useExoShutter={false} onFirstFrameRender={onFirstFrame} />;
 }
@@ -398,6 +403,16 @@ export function VideoNoteBubble({ api, attachment, onLongPress, scope = null, si
   const expanded = isExpanded(state);
   const interrupt = useCallback(() => dispatch({ type: 'interrupt' }), [dispatch]);
   const ended = useCallback(() => dispatch({ type: 'end' }), [dispatch]);
+  // Seconds played, under the circle while it is listened to (Telegram); a new listen counts from 0.
+  const [elapsed, setElapsed] = useState(0);
+  const rateHandle = useRef<((rate: number) => void) | null>(null);
+  const toggleListen = useCallback(() => dispatch({ type: 'tap' }), [dispatch]);
+  const applyRate = useCallback((rate: number) => rateHandle.current?.(rate), []);
+  useEffect(() => {
+    if (state === 'sound' || state === 'paused') setNoteBar(key, { key, attachmentId: attachment.id, playing: state === 'sound', toggle: toggleListen, close: interrupt, applyRate });
+    else { setNoteBar(key, null); setElapsed(0); }
+  }, [state]);
+  useEffect(() => () => setNoteBar(key, null), []);
   // One circle with sound at a time; voice messages call interruptNoteAudio() before they play.
   useEffect(() => { if (state === 'sound') claimNoteAudio(key, interrupt); else if (!expanded) releaseNoteAudio(key); }, [state]);
   useEffect(() => () => releaseNoteAudio(key), []);
@@ -466,14 +481,14 @@ export function VideoNoteBubble({ api, attachment, onLongPress, scope = null, si
       accessibilityRole="button" accessibilityLabel={state === 'sound' ? 'Пауза' : state === 'paused' ? 'Продолжить' : 'Смотреть видеосообщение со звуком'}>
       <Animated.View pointerEvents="none" style={[{ position: 'absolute', bottom: 0, [right ? 'right' : 'left']: 0, width: big, height: big, transformOrigin: right ? 'right bottom' : 'left bottom' } as object, visualStyle]}>
         <View style={[StyleSheet.absoluteFill, { borderRadius: big / 2, overflow: 'hidden', backgroundColor: t.surface2 }]}>
-          {mountVideo && media.uri ? <NoteVideo uri={media.uri} state={state} progress={progress} onFirstFrame={firstFrame} onEnd={ended} /> : null}
+          {mountVideo && media.uri ? <NoteVideo uri={media.uri} state={state} progress={progress} onFirstFrame={firstFrame} onEnd={ended} onSecond={setElapsed} rateHandle={rateHandle} /> : null}
           <Animated.View pointerEvents="none" style={[StyleSheet.absoluteFill, posterStyle]}>
             {thumb ? <Image source={{ uri: thumb }} style={StyleSheet.absoluteFill} resizeMode="cover" fadeDuration={0} />
               : <View style={[StyleSheet.absoluteFill, { backgroundColor: t.surface2, alignItems: 'center', justifyContent: 'center' }]}><Icon name="videocam" size={Math.round(big * .14)} color={t.muted} /></View>}
           </Animated.View>
         </View>
         {/* Thin ring at the circle's edge, clockwise from 12 o'clock: mounted only while open or shrinking back. */}
-        {open ? <NoteRing progress={progress} size={big} stroke={3.5} color="#FFF" track="transparent" style={ringStyle} /> : null}
+        {open ? <NoteRing progress={progress} size={big} stroke={3} color={t.accent} track="transparent" style={ringStyle} /> : null}
       </Animated.View>
       {!ready ? <View pointerEvents="none" style={[StyleSheet.absoluteFill, { alignItems: 'center', justifyContent: 'center' }]}>
         <View style={{ width: 44, height: 44, borderRadius: 22, backgroundColor: 'rgba(10,20,35,0.55)', alignItems: 'center', justifyContent: 'center' }}>
@@ -482,6 +497,9 @@ export function VideoNoteBubble({ api, attachment, onLongPress, scope = null, si
       </View> : null}
       {state === 'paused' ? <View pointerEvents="none" style={[StyleSheet.absoluteFill, { alignItems: 'center', justifyContent: 'center' }]}><View style={{ width: 52, height: 52, borderRadius: 26, backgroundColor: 'rgba(10,20,35,0.45)', alignItems: 'center', justifyContent: 'center' }}><Icon name="play" size={26} color="#FFF" /></View></View> : null}
       {/* Telegram: the length in a small pill at the lower left, a small speaker-off mark while it loops silently. */}
+      {open && expanded ? <View pointerEvents="none" style={{ position: 'absolute', left: 6, bottom: 6, paddingHorizontal: 7, paddingVertical: 2, borderRadius: 9, backgroundColor: 'rgba(0,0,0,0.42)' }}>
+        <Text style={{ color: '#FFFFFF', fontSize: 12, fontVariant: ['tabular-nums'] }}>{formatVoiceTime(elapsed * 1000)}</Text>
+      </View> : null}
       {!open ? <View pointerEvents="none" style={{ position: 'absolute', left: 6, bottom: 6, flexDirection: 'row', alignItems: 'center', gap: 4, paddingHorizontal: 7, paddingVertical: 2, borderRadius: 9, backgroundColor: 'rgba(0,0,0,0.42)' }}>
         <Text style={{ color: '#FFFFFF', fontSize: 11 }}>{formatVoiceTime(attachment.media?.durationMs || 0)}</Text>
         {ready ? <Icon name="volume-mute" color="#FFF" size={11} /> : null}
