@@ -83,6 +83,9 @@ function PanelBody({ onPick, onClose, onErase, fill = false }: { onPick: (emoji:
       <Pressable onPress={onClose} accessibilityRole="button" accessibilityLabel="Скрыть эмодзи" style={{ width: 36, height: 36, alignItems: 'center', justifyContent: 'center' }}><Icon name="chevron-down" size={20} color={t.muted} /></Pressable>
     </View>
     {items.length ? <FlatList key={`${set}-${columns}`} data={items} numColumns={columns} keyExtractor={(item, index) => `${item}-${index}`} contentContainerStyle={{ padding: 8 }} keyboardShouldPersistTaps="handled" scrollEventThrottle={32} onScroll={event => { atTop.current = event.nativeEvent.contentOffset.y <= 2; }}
+      // On iOS the grid's own scroll view wins the pan, so the swipe above never starts there: pulling the
+      // grid down past its top (the bounce) and letting go closes the panel instead, as in Telegram.
+      onScrollEndDrag={event => { if (!wide && event.nativeEvent.contentOffset.y < -36) Animated.timing(drag, { toValue: 320, duration: 160, useNativeDriver: true }).start(() => closeRef.current()); }}
       renderItem={({ item }) => <Pressable onPress={() => pick(item)} accessibilityRole="button" accessibilityLabel={`Вставить ${item}`} style={({ pressed, hovered }: { pressed: boolean; hovered?: boolean }) => ({ flex: 1 / columns, aspectRatio: 1, borderRadius: 10, backgroundColor: hovered ? t.accentSoft : 'transparent', alignItems: 'center', justifyContent: 'center', transform: [{ scale: pressed ? 1.25 : 1 }] })}><Text style={{ fontSize: wide ? 27 : 34 }}>{item}</Text></Pressable>} />
       : <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center' }}><Text style={{ color: t.muted, fontSize: 13 }}>Здесь появятся недавние</Text></View>}
   </Animated.View>;
