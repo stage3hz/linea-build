@@ -63,7 +63,7 @@ import { presenceText } from './presence';
 import { VoiceMiniPlayer, VoicePlaybackProvider, VoiceRecordingBar, useVoiceRecorder } from './voice/VoiceMessage';
 import { RecordButton } from './voice/RecordButton';
 import { MessageRow, MissingRow, type AlbumPart, type Row, type RowHandlers } from './MessageRow';
-import { ContextMenu, ReadDateRow, MenuItem } from './ContextMenu';
+import { ContextMenu, ReadDateRow, MenuItem, CLOSE_MS as MENU_ANIMATION_MS } from './ContextMenu';
 import { navigate } from './navigation';
 import { inviteCodeFrom } from './communities/types';
 import { inviteForwardable } from './communities/InviteCard';
@@ -355,6 +355,10 @@ export function ChatScreen({api,user,chat,store,onBack,wide=false,onOpenMusic}: 
     if(kind==='file'){setDownloadId(file.id);void openDocument(api,file).then(shown=>{if(!shown&&alive.current)setPreview(file);}).catch(e=>{if(alive.current)setLocalError(e instanceof Error?e.message:'Не удалось открыть файл.');}).finally(()=>{if(alive.current)setDownloadId(null);});return;}
     setPreview(file);
   };
+  // iOS presents one modal at a time: a sheet opened while the message menu is still closing never shows
+  // («Удалить» from the menu did nothing). Open it once the menu has gone.
+  const MENU_CLOSE_MS=MENU_ANIMATION_MS+180; // the menu's own fade, then UIKit dismissing its Modal
+  const afterMenu=(open:()=>void)=>{setTimeout(open,Platform.OS==='ios'?MENU_CLOSE_MS:0);};
   const copy=async(value:string)=>{await Clipboard.setStringAsync(value);setActions(null);setCopied(true);setTimeout(()=>setCopied(false),2000);};
   const isTyping=(store.typing[chat.id]||0)>Date.now();
   // A timed mute that has run out counts again, as in the list (isMuted reads the clock, not the flag alone).
@@ -630,10 +634,10 @@ export function ChatScreen({api,user,chat,store,onBack,wide=false,onOpenMusic}: 
       {!locked&&!serviceRow&&(actions?.message?.text||actions?.pending?.text)?<MenuItem icon="copy-outline" label="Скопировать" onPress={()=>void copy(actions?.message?.text||actions?.pending?.text||'')}/>:null}
       {!locked&&!serviceRow&&(actions?.message?.attachment||actions?.pending?.attachment)?<MenuItem icon="download-outline" label={(()=>{const a=actions?.message?.attachment||actions?.pending?.attachment;const kind=a?mediaPreviewKind(a):'file';return kind==='video'?'Сохранить видео':kind==='photo'?'Сохранить фото':'Сохранить';})()} onPress={()=>{const a=actions?.message?.attachment||actions?.pending?.attachment;setActions(null);if(a)void download(a);}}/>:null}
       {actions?.message&&!serviceRow&&actions.message.cryptoState==='decrypted'?<MenuItem icon={view.pinned?.clientId===actions.message.clientId?'pin':'pin-outline'} label={view.pinned?.clientId===actions.message.clientId?'Открепить':'Закрепить'} onPress={()=>{const m=actions.message!;store.sendAction(chat.id,{type:'pin',target:view.pinned?.clientId===m.clientId?null:m.clientId},m.text);setActions(null);}}/>:null}
-      {!locked&&actions?.message&&!serviceRow&&actions.message.cryptoState==='decrypted'?<MenuItem icon="arrow-redo-outline" label="Переслать" onPress={()=>{const item=actions.message!;void forwardable([item]).then(ok=>{if(ok)setForwarding(item);});setActions(null);}}/>:null}
+      {!locked&&actions?.message&&!serviceRow&&actions.message.cryptoState==='decrypted'?<MenuItem icon="arrow-redo-outline" label="Переслать" onPress={()=>{const item=actions.message!;setActions(null);void forwardable([item]).then(ok=>{if(ok)afterMenu(()=>setForwarding(item));});}}/>:null}
       {actions?.message&&editable(actions.message)?<MenuItem icon="create-outline" label="Изменить" onPress={()=>{startEdit(actions.message!);setActions(null);}}/>:null}
       {actions?.pending?.state==='failed'?<MenuItem icon="refresh-outline" label="Повторить отправку" onPress={()=>{if(actions.pending)void store.retry(actions.pending);setActions(null);}}/>:null}
-       {actions?.message?<MenuItem icon="trash-outline" label="Удалить" danger onPress={()=>{const list=rowMessages(actions);const mineAll=list.every(m=>m.senderId===user.id&&m.cryptoState==='decrypted');setActions(null);setDeleteOne({list,everyone:mineAll});}}/>:null}
+       {actions?.message?<MenuItem icon="trash-outline" label="Удалить" danger onPress={()=>{const list=rowMessages(actions);const mineAll=list.every(m=>m.senderId===user.id&&m.cryptoState==='decrypted');setActions(null);afterMenu(()=>setDeleteOne({list,everyone:mineAll}));}}/>:null}
       {actions?.message&&!serviceRow?<MenuItem separated icon="checkmark-circle-outline" label="Выбрать" onPress={()=>startSelect(actions)}/>:null}
     </ContextMenu>
     <ForwardPicker visible={!!forwarding||!!forwardMany} api={api} userId={user.id} chats={store.chats} count={forwarding?1:forwardMany?.length||0}

@@ -18,7 +18,8 @@ const OPEN = { damping: 19, stiffness: 300, mass: 0.75 } as const;
 // strength itself is animated instead, so the chat blurs in gradually as in Telegram.
 const AnimatedBlurView = Animated.createAnimatedComponent(BlurView);
 const BLUR = 30;
-const CLOSE_MS = 170;
+/** The menu animates out over this long and then unmounts its Modal; a sheet may be presented after it. */
+export const CLOSE_MS = 170;
 
 /**
  * Message menu in the Telegram-for-iPhone layout. Opening: the chat blurs and dims, the
