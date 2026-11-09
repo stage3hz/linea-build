@@ -1,7 +1,8 @@
 import React, { useRef, useState } from 'react';
-import { Modal, Pressable, ScrollView, View, useWindowDimensions } from 'react-native';
+import { Modal, Pressable, View, useWindowDimensions } from 'react-native';
 import Svg, { Circle, Defs, Line, LinearGradient, Path, Rect, Stop } from 'react-native-svg';
-import { Gesture, GestureDetector, GestureHandlerRootView } from 'react-native-gesture-handler';
+import { Gesture, GestureDetector, GestureHandlerRootView, type PanGesture } from 'react-native-gesture-handler';
+import { SwipeDismissScrollView, SwipeDismissView, useSwipeDismiss } from '../swipeDismiss';
 import { runOnJS } from 'react-native-reanimated';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Text } from '../typography';
@@ -26,15 +27,19 @@ export function EqualizerScreen({ visible, onClose }: { visible: boolean; onClos
   const music = useMusic(); const profile = useEqualizer();
   const card = t.dark ? 'rgba(20,24,36,0.72)' : 'rgba(255,255,255,0.78)';
   const update = (change: Partial<EqProfile>) => setEqProfile({ ...profile, ...change });
-  return <Modal visible={visible} animationType="slide" onRequestClose={onClose} statusBarTranslucent>
-    <GestureHandlerRootView style={{ flex: 1, backgroundColor: t.bg }}>
+  // It slides up over the player, so it also closes like Telegram's full-screen sheets: pull it down
+  // (from the header at any time, from the page once it is scrolled to the top). Transparent so the
+  // player shows underneath while it is pulled.
+  const swipe = useSwipeDismiss({ onDismiss: onClose, visible, scrollable: true });
+  return <Modal visible={visible} transparent animationType="slide" onRequestClose={onClose} statusBarTranslucent>
+    <GestureHandlerRootView style={{ flex: 1 }}><SwipeDismissView swipe={swipe} style={{ flex: 1, overflow: 'hidden', backgroundColor: t.bg }}>
       {/* Same living background as the music home screen, in the current theme's colours. */}
       <MusicAmbient width={width} height={screenHeight} tone={t.black ? 'black' : t.dark ? 'dark' : 'light'} />
       <View style={{ paddingTop: insets.top + 6, flexDirection: 'row', alignItems: 'center', paddingHorizontal: 12, height: insets.top + 60 }}>
         <IconButton name="chevron-back" label="Назад" onPress={onClose} />
         <Text style={{ flex: 1, textAlign: 'center', color: t.text, fontSize: 17, fontWeight: '600', marginRight: 44 }}>Эквалайзер</Text>
       </View>
-      <ScrollView contentContainerStyle={{ padding: 16, paddingBottom: insets.bottom + 24, gap: 14 }}>
+      <SwipeDismissScrollView swipe={swipe} contentContainerStyle={{ padding: 16, paddingBottom: insets.bottom + 24, gap: 14 }}>
         <View style={{ borderRadius: 22, backgroundColor: card, overflow: 'hidden' }}>
           {(['recommended', 'custom'] as const).map((mode, index) => <Pressable key={mode} accessibilityRole="radio" accessibilityState={{ selected: profile.mode === mode }} onPress={() => update({ mode })} style={({ pressed }) => ({ flexDirection: 'row', alignItems: 'center', minHeight: 56, paddingHorizontal: 18, borderTopWidth: index ? 0.5 : 0, borderTopColor: t.border, backgroundColor: pressed ? t.accentSoft : 'transparent' })}>
             <Text style={{ flex: 1, color: t.text, fontSize: 17 }}>{mode === 'recommended' ? 'Рекомендованный' : 'Пользовательский'}</Text>
@@ -49,17 +54,18 @@ export function EqualizerScreen({ visible, onClose }: { visible: boolean; onClos
             <Pressable accessibilityRole="button" accessibilityLabel={music.playing ? 'Пауза' : 'Слушать'} disabled={!music.current} onPress={() => void music.togglePlayback()} style={{ width: 52, height: 52, borderRadius: 26, backgroundColor: t.dark ? 'rgba(255,255,255,0.12)' : 'rgba(0,0,0,0.07)', alignItems: 'center', justifyContent: 'center', opacity: music.current ? 1 : .5 }}><Icon name={music.playing ? 'pause' : 'play'} size={24} color={t.text} /></Pressable>
           </View>
           <View style={{ height: 0.5, backgroundColor: t.border }} />
-          <Curve width={width - 68} profile={profile} disabled={profile.mode !== 'custom'} onChange={(key, value) => update({ [key]: value })} />
+          <Curve width={width - 68} profile={profile} disabled={profile.mode !== 'custom'} onChange={(key, value) => update({ [key]: value })} dismiss={swipe.gesture} />
         </View>
         <Pressable accessibilityRole="button" onPress={() => { lightFeedback(); update({ low: 0, mid: 0, high: 0 }); }} style={({ pressed }) => ({ height: 54, borderRadius: 27, backgroundColor: card, alignItems: 'center', justifyContent: 'center', opacity: pressed ? .6 : 1 })}><Text style={{ color: t.accent, fontSize: 17 }}>Сбросить</Text></Pressable>
         {!equalizerAvailable ? <Text style={{ color: t.muted, fontSize: 12, textAlign: 'center' }}>Эквалайзер заработает в новой сборке приложения.</Text> : null}
-      </ScrollView>
-    </GestureHandlerRootView>
+      </SwipeDismissScrollView>
+    </SwipeDismissView></GestureHandlerRootView>
   </Modal>;
 }
 
 /** The curve: flat ends, smooth S-shapes through three draggable points, dotted zero line. */
-function Curve({ width, profile, disabled, onChange }: { width: number; profile: EqProfile; disabled: boolean; onChange: (key: Key, value: number) => void }) {
+/** `dismiss`: the screen's swipe-down; a drag that starts on a point moves the point, never the screen. */
+function Curve({ width, profile, disabled, onChange, dismiss }: { width: number; profile: EqProfile; disabled: boolean; onChange: (key: Key, value: number) => void; dismiss?: PanGesture }) {
   const t = useTheme(); const height = 250, pad = 28, labels = 34;
   const xs = [width * 0.17, width * 0.5, width * 0.83];
   const yOf = (db: number) => pad + (EQ_LIMIT - db) / (2 * EQ_LIMIT) * (height - 2 * pad);
@@ -73,8 +79,11 @@ function Curve({ width, profile, disabled, onChange }: { width: number; profile:
   const startY = useRef(0); const last = useRef(values); last.current = values;
   const begin = (index: number) => { setActive(index); startY.current = yOf(last.current[index]); lightFeedback(); };
   const move = (index: number, dy: number) => { const value = dbOf(startY.current + dy); if (value !== last.current[index]) onChange(EQ_BANDS[index].key, value); };
-  const gesture = (index: number) => Gesture.Pan().enabled(!disabled).hitSlop({ left: 30, right: 30, top: 40, bottom: 40 })
-    .onBegin(() => runOnJS(begin)(index)).onUpdate(event => runOnJS(move)(index, event.translationY)).onFinalize(() => runOnJS(setActive)(null));
+  const gesture = (index: number) => {
+    const pan = Gesture.Pan().enabled(!disabled).hitSlop({ left: 30, right: 30, top: 40, bottom: 40 })
+      .onBegin(() => runOnJS(begin)(index)).onUpdate(event => runOnJS(move)(index, event.translationY)).onFinalize(() => runOnJS(setActive)(null));
+    return dismiss && !disabled ? pan.blocksExternalGesture(dismiss) : pan;
+  };
   return <View style={{ width, height: height + labels }}>
     <Svg width={width} height={height}>
       <Defs>

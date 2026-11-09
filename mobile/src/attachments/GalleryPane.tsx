@@ -8,6 +8,7 @@ import { createVideoThumbnails } from './gallery';
 import { durationLabel, type GalleryItem } from './selection';
 import type { ThumbnailSession } from './ThumbnailSession';
 import { useGallery } from './useGallery';
+import { useSwipeDismissEdge } from '../swipeDismiss';
 
 function GalleryCell({ item, number, disabled, thumbnails, onToggle, onEdit }: {
   item: GalleryItem; number: number; disabled: boolean; thumbnails: ThumbnailSession | null;
@@ -51,6 +52,8 @@ export function GalleryPane({ active, selectedIds, disabled, onToggle, onEdit, o
   active: boolean; selectedIds: string[]; disabled: boolean; onToggle: (item: GalleryItem) => void; onEdit: (item: GalleryItem) => void; onFallback: () => void; onCamera?: () => void;
 }) {
   const t = useTheme(), gallery = useGallery(active);
+  // Pulling the grid down from its top closes the attachment sheet (Telegram).
+  const dismissEdge = useSwipeDismissEdge();
   const [thumbnails, setThumbnails] = useState<ThumbnailSession | null>(null);
   const numbers = useMemo(() => new Map(selectedIds.map((id, index) => [id, index + 1])), [selectedIds]);
   useEffect(() => {
@@ -72,7 +75,7 @@ export function GalleryPane({ active, selectedIds, disabled, onToggle, onEdit, o
     {gallery.permission?.accessPrivileges === 'limited' ? <View style={{ flexDirection: 'row', gap: 8, alignItems: 'center', paddingHorizontal: 7 }}><Text style={[help, { flex: 1, fontSize: 11 }]}>Показаны только разрешённые фото и видео.</Text><Pressable accessibilityRole="button" disabled={disabled} onPress={() => void gallery.addAccess()} style={{ padding: 10 }}><Text style={{ color: t.accent, fontWeight: '600', fontSize: 12 }}>Добавить доступ</Text></Pressable></View> : null}
     {gallery.error ? <View style={{ paddingHorizontal: 5, gap: 8 }}><Notice text={gallery.error} error onRetry={() => void gallery.refresh()} /><Button secondary label="Системный выбор фото и видео" onPress={onFallback} disabled={disabled} /></View> : null}
     {permissionDenied ? <View style={{ padding: 18, gap: 14 }}><Icon name="images-outline" color={t.accent} size={34} /><Text style={{ color: t.text, fontSize: 16, fontWeight: '700' }}>Открой доступ к галерее</Text><Text style={help}>Можно разрешить только выбранные фото и видео. Остальные файлы останутся недоступны приложению.</Text><Button label={gallery.permission?.canAskAgain ? 'Разрешить доступ' : 'Открыть настройки'} onPress={() => { if (gallery.permission?.canAskAgain) void gallery.refresh('request'); else void Linking.openSettings(); }} disabled={disabled} /><Button secondary label="Выбрать через системное окно" onPress={onFallback} disabled={disabled} /></View> : <>
-      <FlatList data={onCamera ? [{ id: CAMERA } as unknown as GalleryItem, ...gallery.items] : gallery.items} numColumns={4} keyExtractor={item => item.id} extraData={numbers} initialNumToRender={24} maxToRenderPerBatch={16} windowSize={5} removeClippedSubviews showsVerticalScrollIndicator={false}
+      <FlatList {...dismissEdge} data={onCamera ? [{ id: CAMERA } as unknown as GalleryItem, ...gallery.items] : gallery.items} numColumns={4} keyExtractor={item => item.id} extraData={numbers} initialNumToRender={24} maxToRenderPerBatch={16} windowSize={5} removeClippedSubviews showsVerticalScrollIndicator={false}
         contentContainerStyle={{ paddingBottom: 72, flexGrow: gallery.items.length ? 0 : 1 }} onEndReachedThreshold={.5} onEndReached={() => { if (gallery.hasMore) void gallery.more(); }}
         ListEmptyComponent={<View style={{ flex: 1, minHeight: 145, alignItems: 'center', justifyContent: 'center', gap: 12 }}>{gallery.loading ? <ActivityIndicator color={t.accent} /> : <><Icon name="images-outline" color={t.subtle} size={35} /><Text style={help}>{gallery.error ? 'Галерея пока недоступна' : 'В разрешённой галерее пока нет фото или видео'}</Text></>}</View>}
         ListFooterComponent={gallery.loading && gallery.items.length ? <ActivityIndicator color={t.accent} style={{ padding: 14 }} /> : gallery.hasMore && gallery.error ? <Button secondary label="Повторить загрузку" onPress={() => void gallery.more()} /> : null}

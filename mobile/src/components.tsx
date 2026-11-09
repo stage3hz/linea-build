@@ -8,6 +8,8 @@ import { Ionicons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
 import Svg, { Path } from 'react-native-svg';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { GestureHandlerRootView } from 'react-native-gesture-handler';
+import { SwipeDismissScrollView, SwipeDismissView, useSwipeDismiss } from './swipeDismiss';
 import { useTheme, formatSize } from './theme';
 import { usePowerFeatures } from './motion';
 import { FlatGlassScope, GlassStage, GlassSurface } from './glass';
@@ -169,15 +171,19 @@ export function Sheet({visible,title,onClose,onClosed,children}:{visible:boolean
     if(wasVisible.current&&!visible&&Platform.OS!=='ios'){const timer=setTimeout(()=>closed.current?.(),Platform.OS==='web'?0:250);wasVisible.current=visible;return()=>clearTimeout(timer);}
     wasVisible.current=visible;return undefined;
   },[visible]);
+  // Telegram: pull the sheet down to close it — from the handle and header at any time, from the content
+  // once it is scrolled to the top (see swipeDismiss.tsx). The dim fades with it; release short of a
+  // quarter of the height (and without a flick) and it springs back.
+  const swipe=useSwipeDismiss({onDismiss:onClose,visible,scrollable:true});
   return <Modal visible={visible} transparent animationType="fade" onRequestClose={onClose} onDismiss={Platform.OS==='ios'?()=>closed.current?.():undefined}>
     {/* The screen stays visible under a dim (it used to be replaced by a plain background, so every sheet
         looked like a jump to another page), and the sheet itself is opaque like Telegram's. */}
-    <KeyboardAvoidingView style={{flex:1}} behavior={Platform.OS==='ios'?'padding':undefined}><View style={{flex:1,justifyContent:'flex-end',backgroundColor:t.black?'rgba(0,0,0,0.55)':t.dark?'rgba(0,5,19,0.5)':'rgba(20,32,60,0.28)',paddingHorizontal:12,paddingBottom:Math.max(12,insets.bottom)}}>
-      <Pressable style={StyleSheet.absoluteFill} onPress={onClose} accessibilityRole="button" accessibilityLabel="Закрыть"/>
-      <View style={{width:'100%',maxWidth:580,maxHeight:'88%',alignSelf:'center',borderRadius:32,backgroundColor:t.glassOpaque,borderWidth:StyleSheet.hairlineWidth,borderColor:t.border,padding:22,paddingBottom:25,flexShrink:1,shadowColor:'#000',shadowOpacity:.18,shadowRadius:24,shadowOffset:{width:0,height:-4},elevation:12}}><FlatGlassScope>
-        <View style={{width:36,height:4,backgroundColor:t.subtle,opacity:.45,borderRadius:2,alignSelf:'center',marginBottom:17}}/><View style={{flexDirection:'row',alignItems:'center',justifyContent:'space-between',gap:12,marginBottom:13}}><Text style={{fontSize:21,fontWeight:'700',letterSpacing:-.45,color:t.text,flex:1}}>{title}</Text><IconButton name="close" label="Закрыть" onPress={onClose}/></View><ScrollView style={{flexGrow:0,flexShrink:1}} keyboardShouldPersistTaps="handled" showsVerticalScrollIndicator={false}>{children}</ScrollView>
-      </FlatGlassScope></View>
-    </View></KeyboardAvoidingView>
+    <GestureHandlerRootView style={{flex:1}}><KeyboardAvoidingView style={{flex:1}} behavior={Platform.OS==='ios'?'padding':undefined}><View style={{flex:1,justifyContent:'flex-end',paddingHorizontal:12,paddingBottom:Math.max(12,insets.bottom)}}>
+      <Animated.View style={[StyleSheet.absoluteFill,{backgroundColor:t.black?'rgba(0,0,0,0.55)':t.dark?'rgba(0,5,19,0.5)':'rgba(20,32,60,0.28)'},swipe.backdropStyle]}><Pressable style={StyleSheet.absoluteFill} onPress={onClose} accessibilityRole="button" accessibilityLabel="Закрыть"/></Animated.View>
+      <SwipeDismissView swipe={swipe} style={{width:'100%',maxWidth:580,maxHeight:'88%',alignSelf:'center',borderRadius:32,backgroundColor:t.glassOpaque,borderWidth:StyleSheet.hairlineWidth,borderColor:t.border,padding:22,paddingBottom:25,flexShrink:1,shadowColor:'#000',shadowOpacity:.18,shadowRadius:24,shadowOffset:{width:0,height:-4},elevation:12}}><FlatGlassScope>
+        <View style={{width:36,height:4,backgroundColor:t.subtle,opacity:.45,borderRadius:2,alignSelf:'center',marginBottom:17}}/><View style={{flexDirection:'row',alignItems:'center',justifyContent:'space-between',gap:12,marginBottom:13}}><Text style={{fontSize:21,fontWeight:'700',letterSpacing:-.45,color:t.text,flex:1}}>{title}</Text><IconButton name="close" label="Закрыть" onPress={onClose}/></View><SwipeDismissScrollView swipe={swipe} style={{flexGrow:0,flexShrink:1}} keyboardShouldPersistTaps="handled" showsVerticalScrollIndicator={false}>{children}</SwipeDismissScrollView>
+      </FlatGlassScope></SwipeDismissView>
+    </View></KeyboardAvoidingView></GestureHandlerRootView>
   </Modal>;
 }
 

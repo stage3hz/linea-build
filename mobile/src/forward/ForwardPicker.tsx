@@ -40,7 +40,7 @@ export function ForwardPicker({ visible, api, userId, chats, count, hideSaved = 
   };
   const tabs: { id: FolderFilter; label: string }[] = [{ id: 'all', label: 'Все чаты' }, ...folders.map(folder => ({ id: folder.id, label: folder.name }))];
 
-  return <Modal visible={visible} animationType="slide" presentationStyle="pageSheet" onRequestClose={close}>
+  return <Modal visible={visible} animationType="slide" presentationStyle="pageSheet" allowSwipeDismissal onRequestClose={close}>
     <View style={{ flex: 1, backgroundColor: t.bg, paddingTop: 12 }}>
       <View style={{ flexDirection: 'row', alignItems: 'center', paddingHorizontal: 16, height: 52 }}>
         <View style={{ flex: 1, alignItems: 'flex-start' }}><Pressable accessibilityRole="button" accessibilityLabel="Закрыть" onPress={close} hitSlop={8} style={({ pressed }) => ({ width: 44, height: 44, borderRadius: 22, alignItems: 'center', justifyContent: 'center', backgroundColor: t.surface2, opacity: pressed ? .7 : 1 })}><Icon name="close" size={24} color={t.text} /></Pressable></View>

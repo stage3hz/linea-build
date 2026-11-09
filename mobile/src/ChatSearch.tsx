@@ -1,5 +1,9 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
-import { ActivityIndicator, BackHandler, FlatList, Keyboard, Pressable, ScrollView, View } from 'react-native';
+import { ActivityIndicator, BackHandler, FlatList, Keyboard, Pressable, ScrollView, View, useWindowDimensions } from 'react-native';
+import { Gesture, GestureDetector } from 'react-native-gesture-handler';
+import Animated, { Easing, runOnJS, useAnimatedStyle, useSharedValue, withTiming } from 'react-native-reanimated';
+import { axisLock, shouldClose } from './listSwipes';
+import { motionEnabled } from './motion';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { KeyboardStickyView } from 'react-native-keyboard-controller';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -42,6 +46,29 @@ export function ChatSearch({ api, me, store, onClose, onSaved }: { api: Api; me:
 
   useEffect(() => { AsyncStorage.getItem(recentKey(me.id)).then(raw => { try { const list = JSON.parse(raw || '[]'); if (Array.isArray(list)) setRecent(list.slice(0, RECENT_LIMIT)); } catch { /* ignore a damaged list */ } }).catch(() => {}); }, [me.id]);
   useEffect(() => { const sub = BackHandler.addEventListener('hardwareBackPress', () => { onClose(); return true; }); return () => sub.remove(); }, [onClose]);
+  // Search replaces the list instead of being pushed, so it has its own swipe back: a rightward,
+  // mostly sideways drag anywhere drags it away (same thresholds as src/stack.tsx) and closes it
+  // exactly as the ✕ and the hardware back do.
+  const { width } = useWindowDimensions();
+  const slide = useSharedValue(0); const start = useSharedValue({ x: 0, y: 0 });
+  const motion = motionEnabled();
+  const leave = () => { Keyboard.dismiss(); onClose(); };
+  const swipeBack = Gesture.Pan().manualActivation(true)
+    .onTouchesDown((e, manager) => { const touch = e.changedTouches[0]; if (!touch) { manager.fail(); return; } start.value = { x: touch.absoluteX, y: touch.absoluteY }; })
+    .onTouchesMove((e, manager) => {
+      const touch = e.changedTouches[0]; if (!touch) return;
+      const lock = axisLock(touch.absoluteX - start.value.x, touch.absoluteY - start.value.y, 1);
+      if (lock === 'horizontal') manager.activate(); else if (lock) manager.fail();
+    })
+    .onUpdate(e => { slide.value = Math.max(0, e.translationX); })
+    .onEnd(e => {
+      if (shouldClose(e.translationX, e.velocityX, width)) {
+        runOnJS(lightFeedback)();
+        if (!motion) { runOnJS(leave)(); return; }
+        slide.value = withTiming(width, { duration: Math.max(90, 220 * (1 - slide.value / width)), easing: Easing.out(Easing.quad) }, done => { if (done) runOnJS(leave)(); });
+      } else slide.value = motion ? withTiming(0, { duration: 200, easing: Easing.out(Easing.quad) }) : 0;
+    });
+  const slideStyle = useAnimatedStyle(() => ({ transform: [{ translateX: slide.value }], opacity: 1 - Math.min(0.5, slide.value / (width || 1)) }));
   useEffect(() => {
     if (scope !== 'people' || needle.length < 2) { setPeople(null); return; }
     let alive = true; const timer = setTimeout(() => { api.users(needle).then(result => { if (alive) setPeople(result.users); }).catch(() => { if (alive) setPeople([]); }); }, 300);
@@ -112,7 +139,7 @@ export function ChatSearch({ api, me, store, onClose, onSaved }: { api: Api; me:
   const loading = !!needle && ((scope === 'people' && needle.length >= 2 && people === null) || (scope === 'channels' && communities === null));
   const empty = needle ? (scope === 'people' && needle.length < 2 ? 'Введи хотя бы 2 буквы @имени.' : scope === 'messages' ? 'В сохранённой на этом устройстве переписке такого нет.' : 'Ничего не нашли.') : scope === 'messages' ? 'Поиск по тексту сообщений и имени отправителя. История хранится только на этом устройстве.' : 'Здесь появятся чаты и каналы, которые ты открывал из поиска.';
 
-  return <View style={{ flex: 1 }}>
+  return <GestureDetector gesture={swipeBack}><Animated.View style={[{ flex: 1 }, slideStyle]}>
     <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10, paddingHorizontal: 16, paddingTop: 6, paddingBottom: 10 }}>
       <GlassSurface lens material="regular" radius={22} shadow={false} style={{ flex: 1 }} contentStyle={{ height: 44, flexDirection: 'row', alignItems: 'center', gap: 8, paddingHorizontal: 13 }}>
         <Icon name="search-outline" size={19} color={t.muted} />
@@ -153,5 +180,5 @@ export function ChatSearch({ api, me, store, onClose, onSaved }: { api: Api; me:
         </GlassSurface>
       </View>
     </KeyboardStickyView>
-  </View>;
+  </Animated.View></GestureDetector>;
 }

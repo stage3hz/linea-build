@@ -19,7 +19,7 @@ export function ScheduledScreen({ visible, items, peerName, busy, onClose, onSen
 }) {
   const t = useTheme();
   if (!visible) return null;
-  return <Modal visible animationType="slide" presentationStyle="pageSheet" onRequestClose={onClose}><GlassStage><SafeAreaView style={{ flex: 1 }}>
+  return <Modal visible animationType="slide" presentationStyle="pageSheet" allowSwipeDismissal onRequestClose={onClose}><GlassStage><SafeAreaView style={{ flex: 1 }}>
     <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10, paddingHorizontal: 14, paddingVertical: 10 }}>
       <IconButton name="close" label="Закрыть" onPress={onClose} />
       <View style={{ flex: 1, minWidth: 0 }}>

@@ -8,6 +8,9 @@ import type { User } from './types';
 import { Text } from './typography';
 import { Icon, type IconName } from './components';
 import { useTheme } from './theme';
+import Animated from 'react-native-reanimated';
+import { GestureHandlerRootView } from 'react-native-gesture-handler';
+import { SwipeDismissView, useSwipeDismiss } from './swipeDismiss';
 import { menuSurface } from './ContextMenu';
 import { DecoratedAvatar, ProfileBanner } from './platina/Decor';
 import { PlatinaName, PlatinaSeal, hasPlatina } from './platina/PlatinaMark';
@@ -37,6 +40,8 @@ export function MiniProfile({ api, user, me, at, status, onClose, onOpenProfile,
     api.userProfile(user.id).then(r => { if (live) { setContact(r.isContact); setRequest(r.friendRequest ?? null); setBlocked(!!r.blocked); } }).catch(() => { if (live) setContact(false); });
     return () => { live = false; };
   }, [api, user?.id, !!quick]);
+  // On a phone the card rises from the bottom like a Telegram sheet: pull it down to close.
+  const swipe = useSwipeDismiss({ onDismiss: onClose, enabled: win.width < 700 });
   if (!user) return null;
   const run = async (job: () => Promise<string>) => { if (busy) return; setBusy(true); setNote(''); lightFeedback(); try { setNote(await job()); } catch (e) { setNote(e instanceof Error ? e.message : 'Не получилось.'); } finally { setBusy(false); } };
   const friend = () => run(async () => {
@@ -108,9 +113,9 @@ export function MiniProfile({ api, user, me, at, status, onClose, onOpenProfile,
       </> : actions.length ? <View style={{ flexDirection: 'row', gap: 8, marginTop: 14 }}>{actions}</View> : null}
     </View>
   </View>;
-  return <Modal visible transparent animationType="fade" onRequestClose={onClose}>
-    <Pressable style={[StyleSheet.absoluteFill, { backgroundColor: wide ? 'transparent' : 'rgba(0,0,0,0.45)' }]} onPress={onClose} accessibilityRole="button" accessibilityLabel="Закрыть" />
+  return <Modal visible transparent animationType="fade" onRequestClose={onClose}><GestureHandlerRootView style={{ flex: 1 }}>
+    <Animated.View style={[StyleSheet.absoluteFill, swipe.backdropStyle]}><Pressable style={[StyleSheet.absoluteFill, { backgroundColor: wide ? 'transparent' : 'rgba(0,0,0,0.45)' }]} onPress={onClose} accessibilityRole="button" accessibilityLabel="Закрыть" /></Animated.View>
     {wide && at ? <View style={{ position: 'absolute', left, top }}>{card}</View>
-      : <View pointerEvents="box-none" style={{ flex: 1, justifyContent: wide ? 'center' : 'flex-end', alignItems: 'center', padding: 12 }}>{card}</View>}
-  </Modal>;
+      : <View pointerEvents="box-none" style={{ flex: 1, justifyContent: wide ? 'center' : 'flex-end', alignItems: 'center', padding: 12 }}><SwipeDismissView swipe={swipe} style={{ width: '100%', alignItems: 'center' }}>{card}</SwipeDismissView></View>}
+  </GestureHandlerRootView></Modal>;
 }

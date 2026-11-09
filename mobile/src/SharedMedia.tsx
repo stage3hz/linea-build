@@ -1,5 +1,10 @@
 import React, { useMemo, useState } from 'react';
 import { Image, Linking, Pressable, ScrollView, View, useWindowDimensions } from 'react-native';
+import { Gesture, GestureDetector } from 'react-native-gesture-handler';
+import Animated, { runOnJS, useAnimatedStyle, useSharedValue, withTiming } from 'react-native-reanimated';
+import { axisLock, pageRelease } from './listSwipes';
+import { motionEnabled } from './motion';
+import { tapFeedback } from './haptics';
 import { Text } from './typography';
 import { Icon } from './components';
 import { formatSize, useTheme } from './theme';
@@ -38,6 +43,25 @@ export function SharedMedia({ messages, onOpen, emptyText }: { messages: ViewMes
   ] as const).filter(tab => tab.count > 0);
   const [tab, setTab] = useState<Tab | null>(null);
   const active = tab && tabs.some(item => item.id === tab) ? tab : tabs[0]?.id;
+  // Telegram: swipe sideways over the shared media to move between its tabs. The content follows the
+  // finger a little; the first tab lets a rightward swipe go (the screen's own swipe-back keeps it).
+  const index = Math.max(0, tabs.findIndex(item => item.id === active));
+  const ids = tabs.map(item => item.id);
+  const shift = useSharedValue(0); const startX = useSharedValue(0); const startY = useSharedValue(0);
+  const motion = motionEnabled();
+  const turn = (to: number) => { const id = ids[to]; if (id && to !== index) { tapFeedback(); setTab(id); } };
+  const pan = Gesture.Pan().manualActivation(true).enabled(tabs.length > 1)
+    .onTouchesDown((e, manager) => { const touch = e.changedTouches[0]; if (!touch) { manager.fail(); return; } startX.value = touch.absoluteX; startY.value = touch.absoluteY; })
+    .onTouchesMove((e, manager) => {
+      const touch = e.changedTouches[0]; if (!touch) return;
+      const dx = touch.absoluteX - startX.value;
+      // Right on the first tab and left on the last have nowhere to go: leave them to the screen.
+      const lock = axisLock(dx, touch.absoluteY - startY.value, index === 0 ? -1 : index === ids.length - 1 ? 1 : 0, 8);
+      if (lock === 'horizontal') manager.activate(); else if (lock) manager.fail();
+    })
+    .onUpdate(e => { shift.value = motion ? e.translationX * 0.35 : 0; })
+    .onEnd(e => { const to = pageRelease(index, ids.length, e.translationX, e.velocityX, width); shift.value = motion ? withTiming(0, { duration: 180 }) : 0; runOnJS(turn)(to); });
+  const follow = useAnimatedStyle(() => ({ transform: [{ translateX: shift.value }], opacity: 1 - Math.min(0.4, Math.abs(shift.value) / 300) }));
   if (!active) return emptyText ? <View style={{ alignItems: 'center', gap: 10, paddingVertical: 48 }}><Icon name="images-outline" size={40} color={t.muted} /><Text style={{ color: t.muted, fontSize: 15, textAlign: 'center' }}>{emptyText}</Text></View> : null;
   const cell = Math.floor((Math.min(width, 600) - 36 - 4) / 3);
   return <View style={{ alignSelf: 'stretch', gap: 10 }}>
@@ -46,6 +70,7 @@ export function SharedMedia({ messages, onOpen, emptyText }: { messages: ViewMes
         <Text style={{ color: item.id === active ? t.accent : t.text, fontSize: 14, fontWeight: '600' }}>{item.label}</Text>
       </Pressable>)}
     </ScrollView>
+    <View style={{ alignSelf: 'stretch' }}><GestureDetector gesture={pan}><Animated.View style={[{ gap: 10 }, follow]}>
     {active === 'photos' || active === 'videos' ? <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 2, borderRadius: 14, overflow: 'hidden' }}>
       {(active === 'photos' ? groups.photos : groups.videos).map(({ a }) => { const thumb = previewUri(a.preview); const seconds = Math.floor((a.media?.durationMs || 0) / 1000);
         return <Pressable key={a.id} onPress={() => onOpen(a)} style={{ width: cell, height: cell, backgroundColor: t.surface2 }}>
@@ -65,5 +90,6 @@ export function SharedMedia({ messages, onOpen, emptyText }: { messages: ViewMes
         <View style={{ flex: 1, minWidth: 0 }}><Text numberOfLines={1} style={{ color: t.accent, fontSize: 14 }}>{url.replace(/^https?:\/\//, '')}</Text><Text numberOfLines={1} style={{ color: t.muted, fontSize: 12 }}>{m.text}</Text></View>
       </Pressable>)}
     </View> : null}
+    </Animated.View></GestureDetector></View>
   </View>;
 }

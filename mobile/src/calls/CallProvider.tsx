@@ -13,6 +13,8 @@ import { useTheme } from '../theme';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import Animated, { Easing, useAnimatedStyle, useSharedValue, withRepeat, withTiming } from 'react-native-reanimated';
 import { Text } from '../typography';
+import { GestureHandlerRootView } from 'react-native-gesture-handler';
+import { SwipeDismissView, useSwipeDismiss } from '../swipeDismiss';
 import { Avatar, Icon, type IconName } from '../components';
 import type { Api } from '../api';
 import type { Chat, Message, User } from '../types';
@@ -345,7 +347,12 @@ function CallScreen({ call, api, rtc, hangup, accept, mute, speaker, camera, fli
   const status = call.status === 'requesting' ? 'Запрос…' : call.status === 'ringing' ? 'Вызов…' : call.status === 'incoming' ? (call.video ? 'Входящий видеозвонок' : 'Входящий звонок') : call.status === 'connecting' ? 'Соединение…' : call.status === 'active' ? callClock(Date.now() - (call.startedAt || Date.now())) : call.endedText;
   const View_ = rtc?.RTCView as any;
   const showVideo = call.video && call.remoteUrl && View_;
-  return <Modal visible transparent={false} animationType="slide" onRequestClose={() => {}} statusBarTranslucent supportedOrientations={['portrait']}>
+  // Telegram: pull the call screen down to minimise it (the same as the chevron); not while it rings in
+  // or has ended. Transparent so the chat shows underneath while it is pulled.
+  const canMinimize = call.status !== 'incoming' && call.status !== 'ended';
+  const swipe = useSwipeDismiss({ onDismiss: minimize, enabled: canMinimize });
+  return <Modal visible transparent animationType="slide" onRequestClose={() => {}} statusBarTranslucent supportedOrientations={['portrait']}>
+    <GestureHandlerRootView style={{ flex: 1 }}><SwipeDismissView swipe={swipe} style={{ flex: 1, overflow: 'hidden', backgroundColor: '#000' }}>
     {/* Like Telegram / iOS: the background is the other person's avatar, heavily blurred and dimmed.
         Without a photo — their avatar colour over the app's deep-blue background. */}
     <MusicAmbient width={width} height={height} tone={t.black ? 'black' : 'dark'} still />
@@ -354,7 +361,7 @@ function CallScreen({ call, api, rtc, hangup, accept, mute, speaker, camera, fli
     <View pointerEvents="none" style={[StyleSheet.absoluteFill, { backgroundColor: 'rgba(0,0,0,0.32)' }]} />
     {showVideo ? <View_ streamURL={call.remoteUrl} objectFit="cover" style={StyleSheet.absoluteFill} /> : null}
     <View style={{ flex: 1, paddingTop: insets.top + 10, paddingBottom: insets.bottom + 24 }}>
-      {call.status !== 'incoming' && call.status !== 'ended' ? <Pressable onPress={minimize} accessibilityRole="button" accessibilityLabel="Свернуть звонок" hitSlop={10} style={{ position: 'absolute', left: 16, top: insets.top + 6, zIndex: 3, width: 40, height: 40, borderRadius: 20, backgroundColor: 'rgba(0,0,0,0.2)', alignItems: 'center', justifyContent: 'center' }}><Icon name="chevron-down" size={24} color="#FFF" /></Pressable> : null}
+      {canMinimize ? <Pressable onPress={minimize} accessibilityRole="button" accessibilityLabel="Свернуть звонок" hitSlop={10} style={{ position: 'absolute', left: 16, top: insets.top + 6, zIndex: 3, width: 40, height: 40, borderRadius: 20, backgroundColor: 'rgba(0,0,0,0.2)', alignItems: 'center', justifyContent: 'center' }}><Icon name="chevron-down" size={24} color="#FFF" /></Pressable> : null}
       <View style={{ alignItems: 'center', minHeight: 34 }}>
         {call.key ? <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, paddingHorizontal: 12, paddingVertical: 6, borderRadius: 16, backgroundColor: 'rgba(0,0,0,0.18)' }}><Icon name="lock-closed" size={13} color="#FFF" /><Text style={{ color: '#FFF', fontSize: 15, letterSpacing: 2 }}>{call.key.join(' ')}</Text></View> : <Text style={{ color: 'rgba(255,255,255,0.8)', fontSize: 12 }}>🔒 Звонок защищён сквозным шифрованием</Text>}
       </View>
@@ -376,6 +383,7 @@ function CallScreen({ call, api, rtc, hangup, accept, mute, speaker, camera, fli
         <CallButton icon="close" label="Завершить" onPress={hangup} color="#FF3B30" />
       </View>}
     </View>
+    </SwipeDismissView></GestureHandlerRootView>
   </Modal>;
 }
 

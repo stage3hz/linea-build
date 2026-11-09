@@ -1,7 +1,7 @@
 import { networkTier } from '../network/quality';
 // On a slow link photos are re-compressed when picked (like Telegram), so they go faster.
 const pickQuality = () => (networkTier() === 'slow' ? 0.55 : networkTier() === 'medium' ? 0.8 : 1);
-import React, { useEffect, useRef, useState } from 'react';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { ActivityIndicator, Image, Modal, Platform, Pressable, ScrollView, StyleSheet, View, useWindowDimensions } from 'react-native';
 import { Text } from '../typography';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -21,6 +21,8 @@ import { addSelections, toggleSelection, type AttachmentSelection } from './sele
 import { addSelectionQueue } from './uploadQueue';
 import { allowSdr, isHdrConsentError, pendingHdrConsent, type HdrConsentError } from '../photo/hdrConsent';
 import { nativeErrorMessage } from '../media/nativeError';
+import { SwipeDismissEdgeProvider } from '../swipeDismiss';
+import { motionEnabled } from '../motion';
 
 type Tab = 'gallery' | 'audio' | 'files';
 type Phase = 'picking' | 'opening' | 'adding' | null;
@@ -159,7 +161,7 @@ export function AttachmentPanel({ visible, busy, canAdd, remainingSlots, onClose
 
   // Two heights like Telegram: half and almost full screen.
   const half = Platform.OS === 'web' ? Math.min(440, window.height * .7) : Math.min(520, Math.max(360, window.height * .56)), full = window.height - insets.top - Math.max(8, insets.bottom) - 12;
-  const sheetHeight = useSharedValue(half), dragStart = useSharedValue(half);
+  const sheetHeight = useSharedValue(half), dragStart = useSharedValue(half), motion = motionEnabled();
   useEffect(() => { if (visible) { sheetHeight.value = half; } }, [visible, half]);
   const sheetStyle = useAnimatedStyle(() => ({ height: sheetHeight.value }));
   const drag = Gesture.Pan()
@@ -169,7 +171,33 @@ export function AttachmentPanel({ visible, busy, canAdd, remainingSlots, onClose
       const goingUp = event.velocityY < -500, goingDown = event.velocityY > 500;
       if ((goingDown || sheetHeight.value < half * .8) && dragStart.value <= half + 1) { runOnJS(close)(); return; }
       const target = goingUp ? full : goingDown ? half : sheetHeight.value > (half + full) / 2 ? full : half;
-      sheetHeight.value = withTiming(target, { duration: 240, easing: Easing.bezier(0.2, 0.9, 0.25, 1) });
+      sheetHeight.value = motion ? withTiming(target, { duration: 240, easing: Easing.bezier(0.2, 0.9, 0.25, 1) }) : target;
+    });
+  // The same pull from the gallery grid, Telegram-style, but only once the grid is scrolled to its top
+  // (it reports that through SwipeDismissEdgeProvider): the grid's own scroll recognises together with
+  // this pan, a scrolled grid first scrolls back up, then the sheet follows and collapses or closes.
+  const galleryNative = useMemo(() => Gesture.Native(), []);
+  const galleryTop = useSharedValue(false), galleryAnchor = useSharedValue(0), galleryDragging = useSharedValue(false);
+  const [galleryWired, setGalleryWired] = useState(false);
+  const galleryEdge = useMemo(() => ({ native: galleryNative, atTop: galleryTop, connect: setGalleryWired }), [galleryNative, galleryTop]);
+  const galleryDrag = Gesture.Pan()
+    .enabled(Platform.OS !== 'web' && galleryWired)
+    .activeOffsetY(10)
+    .failOffsetX([-20, 20])
+    .simultaneousWithExternalGesture(galleryNative)
+    .onStart(event => { dragStart.value = sheetHeight.value; galleryAnchor.value = event.translationY; galleryDragging.value = false; })
+    .onUpdate(event => {
+      if (!galleryDragging.value) { if (!galleryTop.value) { galleryAnchor.value = event.translationY; return; } galleryDragging.value = true; }
+      // Only down from here (pulling up scrolls the grid; the handle expands the sheet).
+      sheetHeight.value = Math.max(half * .5, Math.min(dragStart.value, dragStart.value - (event.translationY - galleryAnchor.value)));
+    })
+    .onEnd(event => {
+      if (!galleryDragging.value) return;
+      galleryDragging.value = false;
+      const goingDown = event.velocityY > 500;
+      if ((goingDown || sheetHeight.value < half * .8) && dragStart.value <= half + 1) { runOnJS(close)(); return; }
+      const target = goingDown || sheetHeight.value < (half + full) / 2 ? half : full;
+      sheetHeight.value = motion ? withTiming(target, { duration: 240, easing: Easing.bezier(0.2, 0.9, 0.25, 1) }) : target;
     });
   const localTracks = music.saved.filter(track => track.source === 'local' && track.localUri?.startsWith('file://'));
   // Telegram-like: a compact sheet over the half of the screen; it slides up while the backdrop fades.
@@ -191,7 +219,7 @@ export function AttachmentPanel({ visible, busy, canAdd, remainingSlots, onClose
         </View>
         </View></GestureDetector>
         <View style={{ flex: 1, minHeight: 0 }}>
-          {tab === 'gallery' ? <GalleryPane onCamera={() => void camera()} active={visible && !editing} selectedIds={selected.map(item => item.id)} disabled={locked} onToggle={choose} onEdit={item => void edit(item)} onFallback={() => void systemGallery()} /> : tab === 'audio' ? <ScrollView contentContainerStyle={{ padding: 7, gap: 12 }}>
+          {tab === 'gallery' ? <SwipeDismissEdgeProvider value={galleryEdge}><GestureDetector gesture={galleryDrag}><View style={{ flex: 1 }}><GalleryPane onCamera={() => void camera()} active={visible && !editing} selectedIds={selected.map(item => item.id)} disabled={locked} onToggle={choose} onEdit={item => void edit(item)} onFallback={() => void systemGallery()} /></View></GestureDetector></SwipeDismissEdgeProvider> : tab === 'audio' ? <ScrollView contentContainerStyle={{ padding: 7, gap: 12 }}>
             <Button secondary icon="musical-notes-outline" label="Выбрать аудио на устройстве" disabled={locked} onPress={() => void pickDocuments(true)} />
             <Text style={help}>Прикрепи локальный аудиофайл или трек, который ты импортировал в музыку.</Text>
             {localTracks.length ? <Text style={{ color: t.text, fontSize: 13, fontWeight: '700', paddingTop: 6 }}>Из моей музыки</Text> : <View style={{ paddingVertical: 16, alignItems: 'center', gap: 10 }}><Icon name="headset-outline" color={t.subtle} size={38} /><Text style={help}>Импортированных треков пока нет</Text></View>}

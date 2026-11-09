@@ -1,7 +1,9 @@
 import React, { useEffect, useState } from 'react';
-import { Modal, Platform, ScrollView, StyleSheet, View, useWindowDimensions } from 'react-native';
+import { Modal, Platform, StyleSheet, View, useWindowDimensions } from 'react-native';
 import Animated, { Easing, interpolate, runOnJS, useAnimatedProps, useAnimatedStyle, useSharedValue, withDelay, withSpring, withTiming, type SharedValue } from 'react-native-reanimated';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { GestureDetector, GestureHandlerRootView } from 'react-native-gesture-handler';
+import { SwipeDismissScrollView, useSwipeDismiss } from './swipeDismiss';
 import { BlurView } from 'expo-blur';
 import { Pressable, Text } from './typography';
 import { Icon, type IconName } from './components';
@@ -64,15 +66,18 @@ export function ContextMenu({ visible, y: liveY, x: liveX, onClose, reactions, o
   </>;
   const shadow = { shadowColor: '#000', shadowOpacity: .28, shadowRadius: 18, shadowOffset: { width: 0, height: 8 }, elevation: 8 };
   const corner = atCursor ? 'left' : mine ? 'right' : 'left';
+  // Telegram: pull the menu, the preview or the dim around them down and it lets go, as a tap outside
+  // would; the menu and preview follow the finger. Not at the mouse cursor (desktop).
+  const swipe = useSwipeDismiss({ onDismiss: onClose, visible, enabled: !atCursor, scrollable: true });
   if (!mounted) return null;
-  return <Modal visible transparent animationType="none" onRequestClose={onClose} statusBarTranslucent>
-    <Animated.View style={[StyleSheet.absoluteFill, backdrop]}>
+  return <Modal visible transparent animationType="none" onRequestClose={onClose} statusBarTranslucent><GestureHandlerRootView style={{ flex: 1 }}><GestureDetector gesture={swipe.gesture}><View style={{ flex: 1 }}>
+    <Animated.View style={[StyleSheet.absoluteFill, backdrop]}><Animated.View style={[StyleSheet.absoluteFill, swipe.backdropStyle]}>
       {Platform.OS === 'web' || atCursor ? null : <AnimatedBlurView animatedProps={blur} tint={t.dark ? 'dark' : 'light'} style={StyleSheet.absoluteFill} />}
       {atCursor ? null : <View style={[StyleSheet.absoluteFill, { backgroundColor: t.dark ? 'rgba(0,0,0,0.34)' : 'rgba(20,30,60,0.14)' }, Platform.OS === 'web' ? { backdropFilter: 'blur(14px)' } as object : null]} />}
       <Pressable accessibilityRole="button" accessibilityLabel="Закрыть меню" onPress={onClose} style={StyleSheet.absoluteFill} />
-    </Animated.View>
-    <View pointerEvents="box-none" onLayout={event => { const measured = Math.ceil(event.nativeEvent.layout.height); if (Math.abs(measured - size) > 1) setSize(measured); }}
-      style={{ position: 'absolute', top, ...side, width: column, alignItems: atCursor ? 'flex-start' : mine ? 'flex-end' : held.peek && !row ? 'center' : 'flex-start', gap: 8, paddingHorizontal: row ? 9 : 0, maxHeight: bottomLimit - topLimit, opacity: size ? 1 : 0 }}>
+    </Animated.View></Animated.View>
+    <Animated.View pointerEvents="box-none" onLayout={event => { swipe.onLayout(event); const measured = Math.ceil(event.nativeEvent.layout.height); if (Math.abs(measured - size) > 1) setSize(measured); }}
+      style={[{ position: 'absolute', top, ...side, width: column, alignItems: atCursor ? 'flex-start' : mine ? 'flex-end' : held.peek && !row ? 'center' : 'flex-start', gap: 8, paddingHorizontal: row ? 9 : 0, maxHeight: bottomLimit - topLimit, opacity: size ? 1 : 0 }, swipe.style]}>
       {list.length ? <Animated.View style={[{ transformOrigin: `${corner} bottom` } as object, pill]}>{all ? <View style={{ width: column, borderRadius: 26, overflow: 'hidden', padding: 8, flexDirection: 'row', flexWrap: 'wrap', ...shadow }}>{glass(26)}
         {list.map((item, index) => <ReactionButton key={item.emoji} item={item} index={index % 14} shown={shown} size={(column - 16) / 7} onPress={() => onReact?.(item.emoji)} />)}
       </View> : <View style={{ flexDirection: 'row', alignItems: 'center', height: 48, borderRadius: 24, overflow: 'hidden', paddingHorizontal: 4, ...shadow }}>{glass(24)}
@@ -82,10 +87,10 @@ export function ContextMenu({ visible, y: liveY, x: liveX, onClose, reactions, o
       {held.peek && !atCursor ? <Animated.View pointerEvents="none" style={[row ? { alignSelf: 'stretch', marginHorizontal: -9 } : { width: column, ...shadow }, bubble]}>{held.peek}</Animated.View> : held.preview && !atCursor ? <Animated.View style={[{ maxWidth: Math.min(column, (width - 18) * 0.85, 520), borderRadius: preferences.bubbleRadius, paddingHorizontal: 12, paddingVertical: 6, backgroundColor: mine ? t.bubble : t.incoming, ...shadow }, bubble]}><Text numberOfLines={6} style={{ color: t.text, fontSize: metrics.fontSize, lineHeight: metrics.lineHeight }}>{held.preview}</Text></Animated.View> : null}
       <Animated.View style={[{ width: 250, flexShrink: 1, minHeight: 0, borderRadius: 26, overflow: 'hidden', ...shadow, transformOrigin: `${corner} top` } as object, menu]}>
         {glass(26)}
-        <ScrollView bounces={false} style={{ flexGrow: 0 }}>{held.children}</ScrollView>
+        <SwipeDismissScrollView swipe={swipe} style={{ flexGrow: 0 }}>{held.children}</SwipeDismissScrollView>
       </Animated.View>
-    </View>
-  </Modal>;
+    </Animated.View>
+  </View></GestureDetector></GestureHandlerRootView></Modal>;
 }
 
 /** Each reaction pops in a beat after its left neighbour, with a small overshoot. */

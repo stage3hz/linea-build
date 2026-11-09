@@ -1,3 +1,4 @@
+import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import { takeProfileRequest } from './birthdayNotifications';
 import { StatusEmoji } from './StatusEmoji';
 import { isLocked } from './lock/LockGate';
@@ -610,10 +611,10 @@ export function ChatScreen({api,user,chat,store,onBack,wide=false,onOpenMusic}: 
     <VideoNoteRecorder visible={circleOpen} hold={videoHold} onClose={()=>{setCircleOpen(false);setVideoHold(null);setRecHold(null);}} onDone={take=>{setCircleOpen(false);setVideoHold(null);setRecHold(null);void sendVideoNote(take);}}/>
     <AttachmentPanel key={photoContext} onPoll={()=>{setAttachMenu(false);setTimeout(()=>setPollOpen(true),350);}} visible={attachMenu} busy={uploading} canAdd={signalAvailable} remainingSlots={Math.max(0,MAX_DRAFT_ATTACHMENTS-attachments.length)} onClose={()=>setAttachMenu(false)} onAdd={item=>upload(item.file)}/>
     <TrustSheet visible={securityOpen} onClose={()=>setSecurityOpen(false)} peerId={chat.peer.id} store={store}/>
-    {mediaOpen?<Modal visible animationType="slide" presentationStyle="pageSheet" onRequestClose={()=>setMediaOpen(false)}><GlassStage><SafeAreaView style={{flex:1}}>
+    {mediaOpen?<Modal visible animationType="slide" presentationStyle="pageSheet" allowSwipeDismissal onRequestClose={()=>setMediaOpen(false)}><GestureHandlerRootView style={{flex:1}}><GlassStage><SafeAreaView style={{flex:1}}>
       <View style={{flexDirection:'row',alignItems:'center',gap:10,paddingHorizontal:14,paddingVertical:10}}><IconButton name="close" label="Закрыть" onPress={()=>setMediaOpen(false)}/><Text style={{flex:1,color:t.text,fontSize:17,fontWeight:'700'}} numberOfLines={1}>Вложения · {chat.peer.displayName}</Text></View>
       <ScrollView contentContainerStyle={{padding:16,paddingBottom:40}}><SharedMedia messages={view.messages} emptyText="Здесь появятся фото, видео, файлы, голосовые и ссылки из этого чата." onOpen={attachment=>{setMediaOpen(false);setTimeout(()=>openAttachment(attachment),250);}}/></ScrollView>
-    </SafeAreaView></GlassStage></Modal>:null}
+    </SafeAreaView></GlassStage></GestureHandlerRootView></Modal>:null}
     {mini?<MiniProfile api={api} user={chat.peer} me={user.id} at={mini} inChat status={headerStatus.text} onClose={()=>setMini(null)} onOpenProfile={()=>setTimeout(()=>setPeerInfo(true),Platform.OS==='ios'?300:0)} quick={{onCall:calls.available?video=>setTimeout(()=>calls.start(chat,video),Platform.OS==='ios'?300:0):undefined,onAttachments:()=>setTimeout(()=>setMediaOpen(true),Platform.OS==='ios'?300:0),rules:view.rules||{ttl:0,noCopy:false},onRules:rules=>store.sendAction(chat.id,{type:'settings',ttl:rules.ttl,noCopy:rules.noCopy})}}/>:null}
     {peerInfo?<UserProfile api={api} user={chat.peer} chat={chat} shared={view.messages} onOpenAttachment={openAttachment} status={headerStatus.text.startsWith('@')||headerStatus.text.endsWith('…')?undefined:headerStatus.text} onClose={()=>setPeerInfo(false)} onMute={muted=>store.updateChatSettings(chat.id,{muted})} onSearch={()=>{setSearchOpen(true);setQuery('');}} onSecurity={()=>setTimeout(()=>setSecurityOpen(true),350)} onWallpaper={()=>setTimeout(()=>setWallpaperOpen(true),350)} rules={view.rules} onRules={signalAvailable?rules=>store.sendAction(chat.id,{type:'settings',ttl:rules.ttl,noCopy:rules.noCopy}):undefined} onClear={()=>store.sendAction(chat.id,{type:'clear'})}/>:null}
     <WallpaperPicker visible={wallpaperOpen} onClose={()=>setWallpaperOpen(false)} chatId={chat.id}/>

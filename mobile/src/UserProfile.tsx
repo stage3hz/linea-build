@@ -23,6 +23,8 @@ import { useTheme } from './theme';
 import { StatusEmoji } from './StatusEmoji';
 import { DecoratedAvatar, ProfileBanner } from './platina/Decor';
 import { lightFeedback } from './haptics';
+import { motionEnabled } from './motion';
+import { backSwipeIntent, shouldGoBack } from './media/swipeMath';
 import type { Api } from './api';
 import type { Attachment, Chat, ReportReason, User } from './types';
 import { AUTO_DELETE, autoDeleteLabel, type ChatRules, type ViewMessage } from './messageMeta';
@@ -75,10 +77,27 @@ export function UserProfile({ api, user, onClose, chat, onMessage, onMute, onSea
   useEffect(() => { slide.value = withTiming(0, { duration: 280, easing: Easing.out(Easing.cubic) }); grow.value = withSpring(1, { damping: 16, stiffness: 180 }); }, []);
   const pushIn = useAnimatedStyle(() => ({ transform: [{ translateX: slide.value }] }));
   const avatarIn = useAnimatedStyle(() => ({ transform: [{ scale: grow.value }], opacity: Math.min(1, grow.value * 1.6) }));
-  // Telegram: swipe right from the left edge to go back (the profile follows the finger).
-  const edgeSwipe = Gesture.Pan().enabled(width < 760).hitSlop({ left: 0, width: 28 }).activeOffsetX(12).failOffsetY([-14, 14])
+  // Telegram: swipe right anywhere on the profile to go back (it follows the finger), with the same
+  // direction lock as the chat stack (src/stack.tsx): it takes over once the move is right and mostly
+  // sideways (2:1), and lets go of a vertical one so the profile still scrolls. Wide windows show a
+  // centred card that closes with a tap outside it, so no swipe there.
+  const swipeStart = useSharedValue({ x: 0, y: 0 });
+  const motion = motionEnabled();
+  const edgeSwipe = Gesture.Pan().enabled(width < 760).manualActivation(true)
+    .onTouchesDown((event, manager) => { const touch = event.changedTouches[0]; if (!touch || event.numberOfTouches > 1) { manager.fail(); return; } swipeStart.value = { x: touch.absoluteX, y: touch.absoluteY }; })
+    .onTouchesMove((event, manager) => {
+      const touch = event.changedTouches[0]; if (!touch) return;
+      const intent = backSwipeIntent(touch.absoluteX - swipeStart.value.x, touch.absoluteY - swipeStart.value.y);
+      if (intent === 'activate') manager.activate(); else if (intent === 'fail') manager.fail();
+    })
     .onUpdate(e => { slide.value = Math.max(0, e.translationX); })
-    .onEnd(e => { if (e.translationX > width * 0.33 || e.velocityX > 700) slide.value = withTiming(width, { duration: 180, easing: Easing.out(Easing.cubic) }, done => { if (done) runOnJS(onClose)(); }); else slide.value = withSpring(0, { damping: 20, stiffness: 260 }); });
+    .onEnd(e => {
+      if (shouldGoBack(e.translationX, e.velocityX, width)) {
+        runOnJS(lightFeedback)();
+        if (!motion) { slide.value = width; runOnJS(onClose)(); return; }
+        slide.value = withTiming(width, { duration: Math.max(90, 200 * (1 - slide.value / width)), easing: Easing.out(Easing.cubic) }, done => { if (done) runOnJS(onClose)(); });
+      } else slide.value = motion ? withSpring(0, { damping: 20, stiffness: 260 }) : 0;
+    });
   const back = () => { if (width >= 760) { onClose(); return; } slide.value = withTiming(width, { duration: 220, easing: Easing.in(Easing.cubic) }, done => { if (done) runOnJS(onClose)(); }); };
   const [menu, setMenu] = useState(false); const [menuAt, setMenuAt] = useState<{ x?: number; y: number }>({ y: 90 }); const [sheet, setSheet] = useState<'ttl' | 'clear' | 'block' | 'report' | 'unfriend' | 'mute' | null>(null);
   const [blocked, setBlocked] = useState(false); const [reason, setReason] = useState<ReportReason | null>(null);

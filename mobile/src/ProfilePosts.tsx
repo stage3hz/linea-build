@@ -3,7 +3,7 @@
 // gallery and removes one by holding it. Tapping opens it full screen; stories play one after another
 // with bars at the top, like Telegram.
 import React, { useCallback, useEffect, useRef, useState } from 'react';
-import { ActivityIndicator, KeyboardAvoidingView, Modal, Platform, Pressable, ScrollView, StyleSheet, View, useWindowDimensions } from 'react-native';
+import { ActivityIndicator, Keyboard, KeyboardAvoidingView, Modal, Platform, Pressable, ScrollView, StyleSheet, View, useWindowDimensions } from 'react-native';
 import * as ImagePicker from 'expo-image-picker';
 import * as ImageManipulator from 'expo-image-manipulator';
 import * as VideoThumbnails from 'expo-video-thumbnails';
@@ -11,7 +11,10 @@ import { Image } from 'expo-image';
 import { useVideoPlayer, VideoView } from 'expo-video';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import Animated, { Easing, cancelAnimation, useAnimatedStyle, useSharedValue, withTiming, runOnJS } from 'react-native-reanimated';
+import Animated, { Easing, cancelAnimation, interpolate, useAnimatedStyle, useSharedValue, withSequence, withSpring, withTiming, runOnJS } from 'react-native-reanimated';
+import { Gesture, GestureDetector, GestureHandlerRootView } from 'react-native-gesture-handler';
+import { motionEnabled } from './motion';
+import { dismissProgress, rubberBand, storyAxis, storySwipe } from './media/swipeMath';
 import { Text, TextInput } from './typography';
 import { AuthImage, Avatar, Bouncy, Button, Field, Icon, Notice, Sheet, SheetAction } from './components';
 import { formatListTime, useTheme } from './theme';
@@ -255,15 +258,20 @@ function VideoMedia({ api, id, active, width, height, onEnd }: { api: Api; id: s
 }
 
 /**
- * Full screen: posts swipe sideways; stories play in turn (5 s a photo, a video to its end), tap the right
- * side for the next, the left for the previous. In the strip (F8) the viewer also shows whose stories these
+ * Full screen, Telegram stories: stories play in turn (5 s a photo, a video to its end); tap the right side
+ * for the next, the left for the previous; swipe left / right for the next / previous story or post (past
+ * the last story it runs on as at its end; before the first, `onPrevious` if given); swipe down to close;
+ * swipe up to reply (the owner: to see the viewers); hold to pause (the bars and captions hide).
+ * In the strip (F8) the viewer also shows whose stories these
  * are (`owner`), reports each story watched (`onView`), continues to the next friend at the end
  * (`onFinished`), lets a friend answer a story (`onReply`: an ordinary end-to-end encrypted message to the
  * author) and shows the owner «👁 N» with the list of viewers (`own`).
  */
-export function PostViewer({ api, items, start, story, onClose, onFinished, onView, owner, own = false, onReply }: {
+export function PostViewer({ api, items, start, story, onClose, onFinished, onPrevious, onView, owner, own = false, onReply }: {
   api: Api; items: ProfilePost[]; start: number; story: boolean; onClose: () => void;
-  onFinished?: () => void; onView?: (post: ProfilePost) => void; owner?: User; own?: boolean; onReply?: (text: string, post: ProfilePost) => Promise<void>;
+  onFinished?: () => void;
+  /** A swipe right on the first item (e.g. the previous friend in the stories strip). Without it the page springs back. */
+  onPrevious?: () => void; onView?: (post: ProfilePost) => void; owner?: User; own?: boolean; onReply?: (text: string, post: ProfilePost) => Promise<void>;
 }) {
   const t = useTheme();
   const { width, height } = useWindowDimensions(); const insets = useSafeAreaInsets();
@@ -274,13 +282,25 @@ export function PostViewer({ api, items, start, story, onClose, onFinished, onVi
   const [viewersOpen, setViewersOpen] = useState(false); const [typing, setTyping] = useState(false);
   const [reply, setReply] = useState(''); const [sending, setSending] = useState(false); const [sent, setSent] = useState(false); const [error, setError] = useState('');
   const [viewers, setViewers] = useState<StoryViewers | null>(null); const [views, setViews] = useState<number | null>(null);
-  const paused = viewersOpen || typing || sending;
+  // Held (long press) or being dragged: the clock and a video stop, as in Telegram.
+  const [hold, setHold] = useState<'press' | 'drag' | null>(null);
+  const paused = viewersOpen || typing || sending || hold !== null;
+  const replyInput = useRef<React.ElementRef<typeof TextInput>>(null);
   const finish = useCallback(() => { if (!closing.current) { closing.current = true; setTimeout(onFinished ?? onClose, 0); } }, [onFinished, onClose]);
   const next = useCallback(() => { setIndex(i => { if (i + 1 >= items.length) { finish(); return i; } return i + 1; }); }, [items.length, finish]);
   const previous = () => setIndex(i => Math.max(0, i - 1));
   const onViewRef = useRef(onView); onViewRef.current = onView;
   useEffect(() => { if (story && current) onViewRef.current?.(current); }, [story, current?.id]);
-  useEffect(() => { cancelAnimation(progress); progress.value = 0; setReply(''); setError(''); setSent(false); setViewers(null); setViews(current?.views ?? null); }, [index]);
+  // Swipes: the page follows the finger sideways (to the next / previous) or down (to close).
+  const motion = motionEnabled();
+  const x = useSharedValue(0), y = useSharedValue(0), axis = useSharedValue<0 | 1 | 2>(0);
+  const entering = useRef(0);
+  useEffect(() => {
+    cancelAnimation(progress); progress.value = 0; setReply(''); setError(''); setSent(false); setViewers(null); setViews(current?.views ?? null);
+    // After a swipe the new page comes in from the side the finger pushed towards.
+    y.value = 0; const from = entering.current; entering.current = 0;
+    x.value = from && motion ? withSequence(withTiming(from * width, { duration: 0 }), withTiming(0, { duration: 200, easing: Easing.out(Easing.cubic) })) : 0;
+  }, [index]);
   useEffect(() => {
     if (!story || !current || paused) return;
     if (current.media.isVideo) return; // a video moves on when it ends (PC too: the same player, see VideoMedia)
@@ -295,6 +315,42 @@ export function PostViewer({ api, items, start, story, onClose, onFinished, onVi
     return () => { live = false; };
   }, [own, story, current?.id]);
   const bar = useAnimatedStyle(() => ({ width: `${progress.value * 100}%` }));
+  const hasNext = index + 1 < items.length || story; const hasPrevious = index > 0 || !!onPrevious;
+  const step = (direction: 1 | -1) => {
+    if (direction > 0) { if (index + 1 < items.length) { entering.current = 1; setIndex(index + 1); } else if (story) finish(); return; }
+    if (index > 0) { entering.current = -1; setIndex(index - 1); } else if (onPrevious && !closing.current) onPrevious();
+  };
+  const goNext = () => step(1), goPrevious = () => step(-1);
+  const dismissKeyboard = () => Keyboard.dismiss();
+  const swipeUp = () => { if (own && story) setViewersOpen(true); else if (onReply && story) replyInput.current?.focus(); };
+  const release = (value: 'press' | 'drag') => setHold(held => held === value ? null : held);
+  const SPRING = { damping: 20, stiffness: 260 };
+  const drag = Gesture.Pan().maxPointers(1).activeOffsetX([-12, 12]).activeOffsetY([-12, 12])
+    .onStart(event => { axis.value = storyAxis(event.translationX, event.translationY) === 'x' ? 1 : 2; runOnJS(setHold)('drag'); })
+    .onUpdate(event => {
+      if (axis.value === 1) x.value = rubberBand(event.translationX, event.translationX < 0 ? hasNext : hasPrevious);
+      else if (axis.value === 2) y.value = event.translationY > 0 ? event.translationY : event.translationY / 4;
+    })
+    .onEnd(event => {
+      const action = storySwipe({ axis: axis.value === 1 ? 'x' : 'y', tx: event.translationX, ty: event.translationY, vx: event.velocityX, vy: event.velocityY, width });
+      if ((action === 'next' && hasNext) || (action === 'previous' && hasPrevious)) {
+        const after = action === 'next' ? goNext : goPrevious, target = action === 'next' ? -width : width;
+        if (!motion) { x.value = 0; runOnJS(after)(); }
+        else x.value = withTiming(target, { duration: 170, easing: Easing.out(Easing.quad) }, done => { if (done) runOnJS(after)(); });
+      } else if (action === 'close' && typing) {
+        // The first pull down only puts the keyboard away (Telegram).
+        runOnJS(dismissKeyboard)(); y.value = motion ? withSpring(0, SPRING) : 0;
+      } else if (action === 'close') {
+        if (!motion) runOnJS(onClose)();
+        else y.value = withTiming(height, { duration: 180 }, done => { if (done) runOnJS(onClose)(); });
+      } else {
+        if (action === 'up') runOnJS(swipeUp)();
+        x.value = motion ? withSpring(0, SPRING) : 0; y.value = motion ? withSpring(0, SPRING) : 0;
+      }
+    })
+    .onFinalize(() => { axis.value = 0; runOnJS(release)('drag'); });
+  const pageStyle = useAnimatedStyle(() => ({ transform: [{ translateX: x.value }, { translateY: y.value }, { scale: interpolate(dismissProgress(Math.max(0, y.value), height), [0, 1], [1, 0.86], 'clamp') }] }));
+  const backdropStyle = useAnimatedStyle(() => ({ opacity: interpolate(dismissProgress(Math.max(0, y.value), height), [0, 1], [1, 0.15], 'clamp') }));
   if (!current) return null;
   const when = new Date(current.createdAt); const ago = Math.max(0, Math.round((Date.now() - when.getTime()) / 3_600_000));
   const send = async () => {
@@ -305,16 +361,22 @@ export function PostViewer({ api, items, start, story, onClose, onFinished, onVi
     finally { setSending(false); }
   };
   const bottom = insets.bottom + 12;
-  return <Modal visible animationType="fade" onRequestClose={onClose} statusBarTranslucent supportedOrientations={['portrait']}>
-    <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : undefined} style={{ flex: 1, backgroundColor: '#000' }}>
-    <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center' }}>
+  const held = hold === 'press';
+  // Transparent: pulled down, the story shrinks and what is behind shows through the fading black.
+  return <Modal visible transparent animationType="fade" onRequestClose={onClose} statusBarTranslucent supportedOrientations={['portrait']}>
+    <GestureHandlerRootView style={{ flex: 1 }}>
+    <Animated.View pointerEvents="none" style={[StyleSheet.absoluteFill, { backgroundColor: '#000' }, backdropStyle]} />
+    <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : undefined} style={{ flex: 1 }}>
+    <GestureDetector gesture={drag}>
+    <Animated.View style={[{ flex: 1, alignItems: 'center', justifyContent: 'center', backgroundColor: '#000', overflow: 'hidden' }, pageStyle]}>
       <Media key={current.id} api={api} post={current} active={!paused} width={width} height={height * 0.82} onEnd={story ? next : undefined} />
-      {/* Tap zones: left third back, the rest forward (stories and posts alike). */}
+      {/* Tap zones: left third back, the rest forward (stories and posts alike). Holding either pauses
+          (with onLongPress set, letting go after a hold does not also count as a tap). */}
       <View style={[StyleSheet.absoluteFill, { flexDirection: 'row' }]}>
-        <Pressable accessibilityRole="button" accessibilityLabel="Предыдущее" style={{ flex: 1 }} onPress={previous} />
-        <Pressable accessibilityRole="button" accessibilityLabel="Следующее" style={{ flex: 2 }} onPress={() => { if (index + 1 < items.length) setIndex(index + 1); else if (story) next(); }} />
+        <Pressable accessibilityRole="button" accessibilityLabel="Предыдущее" style={{ flex: 1 }} onPress={previous} delayLongPress={220} onLongPress={() => setHold('press')} onPressOut={() => release('press')} />
+        <Pressable accessibilityRole="button" accessibilityLabel="Следующее" style={{ flex: 2 }} onPress={() => { if (index + 1 < items.length) setIndex(index + 1); else if (story) next(); }} delayLongPress={220} onLongPress={() => setHold('press')} onPressOut={() => release('press')} />
       </View>
-      <View pointerEvents="box-none" style={{ position: 'absolute', top: insets.top + 8, left: 10, right: 10, gap: 10 }}>
+      <View pointerEvents="box-none" style={{ position: 'absolute', top: insets.top + 8, left: 10, right: 10, gap: 10, opacity: held ? 0 : 1 }}>
         {story || items.length > 1 ? <View style={{ flexDirection: 'row', gap: 4 }}>{items.map((item, i) => <View key={item.id} style={{ flex: 1, height: 3, borderRadius: 2, overflow: 'hidden', backgroundColor: 'rgba(255,255,255,0.3)' }}>
           {i < index ? <View style={{ flex: 1, backgroundColor: '#FFF' }} /> : i === index ? (story ? <Animated.View style={[{ height: 3, backgroundColor: '#FFF' }, bar]} /> : <View style={{ flex: 1, backgroundColor: '#FFF' }} />) : null}
         </View>)}</View> : null}
@@ -327,14 +389,14 @@ export function PostViewer({ api, items, start, story, onClose, onFinished, onVi
           <Pressable accessibilityRole="button" accessibilityLabel="Закрыть" onPress={onClose} hitSlop={10} style={{ width: 40, height: 40, borderRadius: 20, alignItems: 'center', justifyContent: 'center', backgroundColor: 'rgba(255,255,255,0.14)' }}><Icon name="close" size={22} color="#FFF" /></Pressable>
         </View>
       </View>
-      <View pointerEvents="box-none" style={{ position: 'absolute', left: 16, right: 16, bottom, gap: 12 }}>
+      <View pointerEvents="box-none" style={{ position: 'absolute', left: 16, right: 16, bottom, gap: 12, opacity: held ? 0 : 1 }}>
         {current.caption ? <Text raw style={{ color: '#FFF', fontSize: 16, lineHeight: 22, textAlign: 'center' }}>{current.caption}</Text> : null}
         {error ? <Notice text={error} error /> : null}
         {own && story ? <Pressable accessibilityRole="button" accessibilityLabel={`Просмотры: ${views ?? 0}`} onPress={() => setViewersOpen(true)} style={{ alignSelf: 'flex-start', flexDirection: 'row', alignItems: 'center', gap: 6, paddingHorizontal: 12, height: 34, borderRadius: 17, backgroundColor: 'rgba(255,255,255,0.14)' }}>
           <Icon name="eye-outline" size={18} color="#FFF" /><Text style={{ color: '#FFF', fontSize: 14, fontWeight: '600' }}>{views ?? 0}</Text>
         </Pressable> : null}
         {onReply && story && !own ? <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
-          <TextInput value={reply} onChangeText={setReply} onFocus={() => setTyping(true)} onBlur={() => setTyping(false)} onSubmitEditing={() => void send()} returnKeyType="send" blurOnSubmit={false} placeholder="Ответить…" placeholderTextColor="rgba(255,255,255,0.6)" maxLength={4000} accessibilityLabel="Ответ на историю"
+          <TextInput ref={replyInput} value={reply} onChangeText={setReply} onFocus={() => setTyping(true)} onBlur={() => setTyping(false)} onSubmitEditing={() => void send()} returnKeyType="send" blurOnSubmit={false} placeholder="Ответить…" placeholderTextColor="rgba(255,255,255,0.6)" maxLength={4000} accessibilityLabel="Ответ на историю"
             style={{ flex: 1, minHeight: 44, borderRadius: 22, paddingHorizontal: 16, color: '#FFF', fontSize: 16, backgroundColor: 'rgba(255,255,255,0.14)', borderWidth: 1, borderColor: 'rgba(255,255,255,0.25)' }} />
           <Pressable accessibilityRole="button" accessibilityLabel="Отправить ответ" disabled={!reply.trim() || sending} onPress={() => void send()} style={{ width: 44, height: 44, borderRadius: 22, alignItems: 'center', justifyContent: 'center', backgroundColor: reply.trim() ? t.accent : 'rgba(255,255,255,0.14)' }}>
             {sending ? <ActivityIndicator size="small" color="#FFF" /> : sent ? <Icon name="checkmark" size={22} color="#FFF" /> : <Icon name="arrow-up" size={22} color={reply.trim() ? t.onAccent : '#FFF'} />}
@@ -342,8 +404,10 @@ export function PostViewer({ api, items, start, story, onClose, onFinished, onVi
         </View> : null}
         {sent ? <Text style={{ color: 'rgba(255,255,255,0.85)', fontSize: 13, textAlign: 'center' }}>Ответ отправлен в чат</Text> : null}
       </View>
-    </View>
+    </Animated.View>
+    </GestureDetector>
     </KeyboardAvoidingView>
+    </GestureHandlerRootView>
     <Sheet visible={viewersOpen} title="Просмотры" onClose={() => setViewersOpen(false)}>
       {!viewers ? <ActivityIndicator color={t.muted} style={{ paddingVertical: 20 }} /> : !viewers.viewers.length ? <View style={{ alignItems: 'center', gap: 6, paddingVertical: 16 }}>
         <Icon name="eye-outline" size={26} color={t.muted} /><Text style={{ color: t.muted, fontSize: 14, textAlign: 'center' }}>Пока никто не смотрел</Text>

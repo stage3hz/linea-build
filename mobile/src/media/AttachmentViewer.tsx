@@ -1,4 +1,4 @@
-import React,{useEffect,useRef,useState} from 'react';
+import React,{useEffect,useState} from 'react';
 import { ActivityIndicator, AppState, FlatList, Modal, Pressable, StyleSheet, View, useWindowDimensions } from 'react-native';
 import { Text } from '../typography';
 import {Image} from 'expo-image';
@@ -16,8 +16,9 @@ import {mediaPreviewKind} from './formats';
 import {loadMedia,useMedia} from './mediaCache';
 import {ProgressRing} from './MediaBubble';
 import {ZoomableImage} from './ZoomableImage';
+import {useSwipeDismiss} from './useSwipeDismiss';
 import {Gesture,GestureDetector,GestureHandlerRootView} from 'react-native-gesture-handler';
-import Reanimated,{interpolate,runOnJS,useAnimatedStyle,useSharedValue,withSpring,withTiming} from 'react-native-reanimated';
+import Reanimated from 'react-native-reanimated';
 
 const clock=(seconds:number)=>{const value=Math.max(0,Math.floor(Number.isFinite(seconds)?seconds:0));return `${Math.floor(value/60)}:${String(value%60).padStart(2,'0')}`;};
 
@@ -62,18 +63,27 @@ function AudioPlayer({uri,name}:{uri:string;name:string}){
   </View>;
 }
 
-function PhotoPlayer({uri,name}:{uri:string;name:string}){
+function PhotoPlayer({uri,name,onZoomChange}:{uri:string;name:string;onZoomChange:(zoomed:boolean)=>void}){
   const t=useTheme(),[failed,setFailed]=useState(false);
-  // Pinch / double tap zoom on every platform (the ScrollView zoom props are iOS-only); the Modal is a
-  // separate native root on Android, so the gesture detector gets a root view of its own.
-  return <GestureHandlerRootView style={{flex:1}}><ZoomableImage uri={uri} style={{flex:1,minHeight:300,width:'100%'}} accessibilityLabel={name} onError={()=>setFailed(true)}/>{failed?<Notice error text="Устройство не смогло показать изображение. Файл можно сохранить."/>:null}<Text style={{color:t.muted,fontSize:11,textAlign:'center',padding:8}}>Файл расшифрован только на этом устройстве.</Text></GestureHandlerRootView>;
+  // Pinch / double tap zoom on every platform (the ScrollView zoom props are iOS-only). The Modal's own
+  // GestureHandlerRootView (AttachmentViewer) serves it; while zoomed, swipe-to-close is off.
+  return <View style={{flex:1}}><ZoomableImage uri={uri} style={{flex:1,minHeight:300,width:'100%'}} accessibilityLabel={name} onError={()=>setFailed(true)} onZoomChange={onZoomChange}/>{failed?<Notice error text="Устройство не смогло показать изображение. Файл можно сохранить."/>:null}<Text style={{color:t.muted,fontSize:11,textAlign:'center',padding:8}}>Файл расшифрован только на этом устройстве.</Text></View>;
 }
 
-/** Audio files and documents: opened from the local cache once loaded (no second download). */
+/**
+ * Audio files and documents: opened from the local cache once loaded (no second download).
+ * Telegram: the whole page follows the finger up or down and closes when let go far enough (the chat
+ * shows through as it goes); a photo pinches and double-taps to zoom, and while zoomed its pan wins.
+ */
 export function AttachmentViewer({api,attachment,onClose}:{api:Api;attachment:Attachment|null;onClose:()=>void}){
   const t=useTheme(),music=useMusic();
   const media=useMedia(api,attachment,true);
   const [saveError,setSaveError]=useState(''),[saving,setSaving]=useState(false);
+  const [zoomed,setZoomed]=useState(false);
+  const swipe=useSwipeDismiss({onDismiss:onClose,enabled:!zoomed,minScale:0.9});
+  // A new file opens in place (the page may have flown off with the previous one); reset only on open,
+  // so a swiped-away page does not jump back while the Modal fades out.
+  useEffect(()=>{if(attachment)swipe.reset();setZoomed(false);},[attachment?.id]);
   useEffect(()=>{if(attachment&&mediaPreviewKind(attachment)==='audio')music.stop();setSaveError('');},[attachment?.id]);
   const save=async()=>{
     if(!media.uri||!attachment)return;setSaving(true);setSaveError('');
@@ -81,16 +91,22 @@ export function AttachmentViewer({api,attachment,onClose}:{api:Api;attachment:At
     catch(error){setSaveError(error instanceof Error?error.message:'Не удалось сохранить файл.');}finally{setSaving(false);}
   };
   const kind=attachment?mediaPreviewKind(attachment):'file';
-  return <Modal visible={!!attachment} animationType="slide" onRequestClose={onClose} presentationStyle="fullScreen">
+  // Transparent so the chat shows behind a page being swiped away; the dim behind it fades with the drag.
+  return <Modal visible={!!attachment} transparent animationType="slide" onRequestClose={onClose} statusBarTranslucent>
+    <GestureHandlerRootView style={{flex:1}}>
+    <Reanimated.View pointerEvents="none" style={[StyleSheet.absoluteFill,{backgroundColor:'rgba(0,0,0,0.6)'},swipe.backdropStyle]}/>
+    <GestureDetector gesture={swipe.gesture}><Reanimated.View style={[{flex:1,overflow:'hidden'},swipe.contentStyle]}>
     <GlassStage><InsetView style={{flex:1,paddingHorizontal:16}}>
       <View style={{flexDirection:'row',gap:12,alignItems:'center',paddingVertical:12}}><IconButton name="close" label="Закрыть просмотр" onPress={onClose}/><View style={{flex:1,gap:4}}><Text numberOfLines={1} style={{color:t.text,fontWeight:'700',fontSize:16}}>{attachment?.name}</Text><Text style={{color:t.muted,fontSize:12}}>{attachment?formatSize(attachment.size):''}</Text></View><IconButton name="share-outline" label="Сохранить или поделиться файлом" disabled={media.status!=='ready'||saving} onPress={()=>void save()}/></View>
       {media.status==='loading'||media.status==='idle'?<View style={{flex:1,justifyContent:'center',alignItems:'center',gap:18}}><View style={{width:64,height:64,alignItems:'center',justifyContent:'center'}}><ProgressRing progress={media.progress} size={64} color={t.accent} track={t.surface2}/><Text style={{color:t.text,fontSize:13,fontWeight:'700'}}>{Math.round(media.progress*100)}%</Text></View><Text style={{color:t.muted}}>Загрузка и проверка…</Text></View>:null}
       {media.status==='error'?<View style={{flex:1,justifyContent:'center',gap:18}}><Notice error text={media.error||'Не удалось открыть файл.'}/><Button label="Повторить загрузку" onPress={()=>void media.start().catch(()=>{})}/></View>:null}
       {media.status==='ready'&&media.uri&&attachment?<React.Fragment key={media.uri}>
-        {kind==='photo'?<PhotoPlayer uri={media.uri} name={attachment.name}/>:kind==='video'?<VideoPlayer uri={media.uri}/>:kind==='audio'?<AudioPlayer uri={media.uri} name={attachment.name}/>:<View style={{flex:1,justifyContent:'center',gap:16,alignItems:'center'}}><Icon name="document-text-outline" size={64} color={t.accent}/><Text style={{color:t.muted,fontSize:13,textAlign:'center'}}>Файл загружен и проверен. Открой его в подходящем приложении или сохрани.</Text><View style={{alignSelf:'stretch'}}><Button label="Открыть в…" icon="open-outline" onPress={()=>void save()} loading={saving}/></View></View>}
+        {kind==='photo'?<PhotoPlayer uri={media.uri} name={attachment.name} onZoomChange={setZoomed}/>:kind==='video'?<VideoPlayer uri={media.uri}/>:kind==='audio'?<AudioPlayer uri={media.uri} name={attachment.name}/>:<View style={{flex:1,justifyContent:'center',gap:16,alignItems:'center'}}><Icon name="document-text-outline" size={64} color={t.accent}/><Text style={{color:t.muted,fontSize:13,textAlign:'center'}}>Файл загружен и проверен. Открой его в подходящем приложении или сохрани.</Text><View style={{alignSelf:'stretch'}}><Button label="Открыть в…" icon="open-outline" onPress={()=>void save()} loading={saving}/></View></View>}
       </React.Fragment>:null}
       {saveError?<Notice error text={saveError}/>:null}
     </InsetView></GlassStage>
+    </Reanimated.View></GestureDetector>
+    </GestureHandlerRootView>
   </Modal>;
 }
 
@@ -115,23 +131,13 @@ export function MediaGallery({api,items,index,onClose}:{api:Api;items:Attachment
   // While a photo is zoomed in, its own pan moves the picture: no album paging and no swipe-to-close.
   const [zoomed,setZoomed]=useState(false);
   const music=useMusic();
-  const y=useSharedValue(0);
-  useEffect(()=>{setCurrent(index);y.value=0;setZoomed(false);},[index,items]);
+  // Swipe up or down to close (UI thread, shared with AttachmentViewer); horizontal swipes page through the album.
+  const swipe=useSwipeDismiss({onDismiss:onClose,enabled:!zoomed});
+  useEffect(()=>{setCurrent(index);swipe.reset();setZoomed(false);},[index,items]);
   const visible=items.length>0;
   const item=items[current];
   useEffect(()=>{if(item&&mediaPreviewKind(item)==='video')music.stop();},[item?.id]);
-  const close=useRef(onClose);close.current=onClose;
-  const finish=()=>close.current();
-  // Swipe up or down to close (UI thread); horizontal swipes page through the album.
-  const pan=Gesture.Pan().enabled(!zoomed).activeOffsetY([-14,14]).failOffsetX([-16,16])
-    .onUpdate(event=>{y.value=event.translationY;})
-    .onEnd(event=>{
-      if(Math.abs(event.translationY)>120||Math.abs(event.velocityY)>900){y.value=withTiming(event.translationY>0?height:-height,{duration:170},done=>{if(done)runOnJS(finish)();});}
-      else y.value=withSpring(0,{damping:20,stiffness:260});
-    });
-  const pageStyle=useAnimatedStyle(()=>({transform:[{translateY:y.value},{scale:interpolate(Math.abs(y.value),[0,height/2],[1,0.86],'clamp')}]}));
-  const backdropStyle=useAnimatedStyle(()=>({opacity:interpolate(Math.abs(y.value),[0,height/2],[1,0.15],'clamp')}));
-  const chromeStyle=useAnimatedStyle(()=>({opacity:interpolate(Math.abs(y.value),[0,90],[1,0],'clamp')}));
+  const pan=swipe.gesture,pageStyle=swipe.contentStyle,backdropStyle=swipe.backdropStyle,chromeStyle=swipe.chromeStyle;
   const share=async()=>{
     if(!item)return;setSaving(true);
     try{const uri=await loadMedia(api,item);if(await Sharing.isAvailableAsync())await Sharing.shareAsync(uri,{mimeType:item.mimeType,dialogTitle:item.name});}catch{}finally{setSaving(false);}

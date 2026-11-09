@@ -10,8 +10,11 @@ import { MIN_SCALE, clampOffset, clampScale, doubleTapTarget, pinchTransform } f
 
 const SPRING = { damping: 22, stiffness: 240 };
 
-export function ZoomableImage({ uri, style, contentFit = 'contain', transition, accessibilityLabel, onTap, onZoomChange, onError }: {
-  uri: string; style?: StyleProp<ViewStyle>; contentFit?: ImageContentFit; transition?: number; accessibilityLabel?: string;
+export function ZoomableImage({ uri, headers, cacheKey, style, contentFit = 'contain', transition, accessibilityLabel, onTap, onZoomChange, onError }: {
+  uri: string;
+  /** For a server file (profile photos): the Authorization header and a stable disk-cache key, as AuthImage sends. */
+  headers?: Record<string, string>; cacheKey?: string;
+  style?: StyleProp<ViewStyle>; contentFit?: ImageContentFit; transition?: number; accessibilityLabel?: string;
   /** A single tap (fires only when no double tap follows). */
   onTap?: () => void;
   /** `true` while the picture is larger than the box — the parent then stops paging and swipe-to-close. */
@@ -58,7 +61,7 @@ export function ZoomableImage({ uri, style, contentFit = 'contain', transition, 
   return <GestureDetector gesture={gesture}>
     <Animated.View style={[{ overflow: 'hidden' }, style]} onLayout={event => { width.value = event.nativeEvent.layout.width; height.value = event.nativeEvent.layout.height; }}>
       <Animated.View style={[StyleSheet.absoluteFill, transform]}>
-        <Image source={{ uri }} style={StyleSheet.absoluteFill} contentFit={contentFit} transition={transition} accessibilityLabel={accessibilityLabel} onError={onError} />
+        <Image source={headers || cacheKey ? { uri, headers, cacheKey } : { uri }} cachePolicy={cacheKey ? 'memory-disk' : undefined} style={StyleSheet.absoluteFill} contentFit={contentFit} transition={transition} accessibilityLabel={accessibilityLabel} onError={onError} />
       </Animated.View>
     </Animated.View>
   </GestureDetector>;

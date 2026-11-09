@@ -13,6 +13,8 @@ import { useTheme } from './theme';
 import { WALLPAPERS } from './chatPreferences';
 import { keepPicture, setWallpaper, useWallpaper, type WallpaperChoice } from './wallpapers';
 import { useMotion } from './motion';
+import { GestureHandlerRootView } from 'react-native-gesture-handler';
+import { SwipeDismissView, useSwipeDismiss } from './swipeDismiss';
 
 /** Draws a chat's wallpaper behind the messages (gradient preset or picture with blur, dim and motion). */
 export function ChatWallpaper({ choice, style }: { choice: WallpaperChoice; style?: object }) {
@@ -104,8 +106,11 @@ function WallpaperPreview({ draft, onChange, onCancel, onSet }: { draft: Wallpap
   const t = useTheme(); const insets = useSafeAreaInsets(); const { width } = useWindowDimensions();
   const bubble = (text: string, mine: boolean) => <View style={{ alignSelf: mine ? 'flex-end' : 'flex-start', maxWidth: width * 0.72, paddingHorizontal: 13, paddingVertical: 8, borderRadius: 18, backgroundColor: mine ? t.bubble : t.incoming }}><Text style={{ color: t.text, fontSize: 16, lineHeight: 21 }}>{text}</Text></View>;
   const toggle = (label: string, icon: React.ComponentProps<typeof Icon>['name'], on: boolean, flip: () => void) => <Pressable accessibilityRole="switch" accessibilityState={{ checked: on }} onPress={flip} style={{ flex: 1, height: 42, borderRadius: 21, flexDirection: 'row', gap: 7, alignItems: 'center', justifyContent: 'center', backgroundColor: on ? 'rgba(255,255,255,0.28)' : 'rgba(0,0,0,0.35)' }}><Icon name={icon} size={17} color="#FFF" /><Text style={{ color: '#FFF', fontSize: 14, fontWeight: '600' }}>{label}</Text></Pressable>;
-  return <Modal visible animationType="slide" onRequestClose={onCancel} statusBarTranslucent>
-    <View style={{ flex: 1, backgroundColor: t.bg }}>
+  // The preview slides up full screen: pull it down to cancel, like Telegram's. Transparent so the
+  // screen underneath shows while it is pulled.
+  const swipe = useSwipeDismiss({ onDismiss: onCancel });
+  return <Modal visible transparent animationType="slide" onRequestClose={onCancel} statusBarTranslucent>
+    <GestureHandlerRootView style={{ flex: 1 }}><SwipeDismissView swipe={swipe} style={{ flex: 1, overflow: 'hidden', backgroundColor: t.bg }}>
       <ChatWallpaper choice={draft} />
       <View style={{ paddingTop: insets.top + 8, alignItems: 'center' }}><View style={{ paddingHorizontal: 16, paddingVertical: 7, borderRadius: 16, backgroundColor: 'rgba(0,0,0,0.35)' }}><Text style={{ color: '#FFF', fontSize: 15, fontWeight: '600' }}>Предпросмотр</Text></View></View>
       <View style={{ padding: 14, gap: 8, marginTop: 24 }}>
@@ -127,7 +132,7 @@ function WallpaperPreview({ draft, onChange, onCancel, onSet }: { draft: Wallpap
           <Pressable accessibilityRole="button" onPress={onSet} style={{ flex: 1.4, height: 48, borderRadius: 14, alignItems: 'center', justifyContent: 'center', backgroundColor: t.accent }}><Text style={{ color: t.onAccent, fontSize: 16, fontWeight: '700' }}>Установить</Text></Pressable>
         </View>
       </View>
-    </View>
+    </SwipeDismissView></GestureHandlerRootView>
   </Modal>;
 }
 

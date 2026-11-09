@@ -4,9 +4,9 @@ import { inviteCodeFrom, withoutInviteLink } from './communities/types';
 import React, { memo, useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useMeshActive } from './nearby/meshState';
 import { PlatinaGem, PlatinaName, hasPlatina } from './platina/PlatinaMark';
-import { FolderEditor, FolderTabs, matchesFolder, useChatFolders, type ChatFolder, type FolderFilter } from './ChatFolders';
+import { FolderEditor, FolderTabs, folderTabIds, matchesFolder, useChatFolders, type ChatFolder, type FolderFilter } from './ChatFolders';
 import { attachmentLabel } from './voice/voice';
-import { motionEnabled } from './motion';
+import { animMs, motionEnabled } from './motion';
 import { ActivityIndicator, FlatList, LayoutAnimation, Platform, Pressable, RefreshControl, StyleSheet, UIManager, View, useWindowDimensions } from 'react-native';
 if (Platform.OS === 'android' && UIManager.setLayoutAnimationEnabledExperimental) UIManager.setLayoutAnimationEnabledExperimental(true);
 import { Text, TextInput } from './typography';
@@ -38,7 +38,8 @@ import { impactFeedback, lightFeedback } from './haptics';
 import { MuteSheet } from './notifications/MuteSheet';
 import { isMuted, muteUntilLabel } from './notifications/model';
 import { Gesture, GestureDetector } from 'react-native-gesture-handler';
-import Animated, { runOnJS, useAnimatedStyle, useSharedValue, withSpring, type SharedValue } from 'react-native-reanimated';
+import Animated, { Easing, makeMutable, runOnJS, useAnimatedStyle, useSharedValue, withSpring, withTiming, type SharedValue } from 'react-native-reanimated';
+import { ROW_BUTTON, ROW_GAP, archiveSnap, axisLock, fullSwipeDistance, openWidth, pageRelease, pagePosition, rowActions, rowDrag, rowRelease, type RowAction, type RowSupport } from './listSwipes';
 
 export type MessengerTab = 'chats' | 'people' | 'channels' | 'music' | 'ai' | 'profile';
 type Navigation = { onProfile:()=>void;onNewChat:()=>void;onMusic:()=>void;onAI:()=>void;onChats:()=>void;activeTab?:MessengerTab };
@@ -59,6 +60,34 @@ export function ChatListScreen({api,user,store,onProfile,onNewChat,onMusic,onAI,
   // «Непрочитанные» badge: not archived, not muted — an expired mute counts again (isMuted compares the clock).
   const unread=store.chats.filter(c=>!c.settings?.archived&&!isMuted(c.settings)&&c.unreadCount>0).length;
   useEffect(()=>{if(filter!=='all'&&filter!=='unread'&&!folders.folders.some(f=>f.id===filter))setFilter('all');},[folders.folders,filter]);
+  // Telegram: a sideways swipe over the list moves to the next / previous folder, the tab highlight
+  // following the finger. Rows keep their own swipes: a pan that starts on a chat row belongs to the
+  // row (rowTouch), so this one takes drags over the rest of the list (gaps, «Избранное», «Архив»,
+  // an empty or short folder) and, in edit mode, the rows too. Logic in src/listSwipes.ts.
+  const tabIds=folderTabIds(folders.folders);const folderIndex=Math.max(0,tabIds.indexOf(filter));
+  const folderPos=useSharedValue(folderIndex);const listShift=useSharedValue(0);const panStart=useSharedValue({x:0,y:0});
+  useEffect(()=>{folderPos.value=withTiming(folderIndex,{duration:animMs(220),easing:Easing.out(Easing.cubic)});closeOpenSwipeRow();},[folderIndex,folderPos]);
+  const goFolder=(to:number)=>{const id=tabIds[to];if(id!==undefined&&id!==filter){lightFeedback();setFilter(id);}};
+  const motion=motionEnabled();
+  // The list's own width (narrower than the window beside the rail / an open chat), measured on layout.
+  const listWidth=useSharedValue(windowSize.width);
+  const folderSwipe=Gesture.Pan().manualActivation(true).enabled(Platform.OS!=='web'&&!archive&&tabIds.length>1)
+    .onTouchesDown((e,manager)=>{const touch=e.changedTouches[0];if(!touch){manager.fail();return;}panStart.value={x:touch.absoluteX,y:touch.absoluteY};})
+    .onTouchesMove((e,manager)=>{
+      const touch=e.changedTouches[0];if(!touch)return;
+      if(rowTouch.value){manager.fail();return;}
+      // Nothing before «Все» or after the last folder: such a drag is left alone.
+      const lock=axisLock(touch.absoluteX-panStart.value.x,touch.absoluteY-panStart.value.y,folderIndex===0?-1:folderIndex===tabIds.length-1?1:0,14);
+      if(lock==='horizontal')manager.activate();else if(lock)manager.fail();
+    })
+    .onUpdate(e=>{folderPos.value=pagePosition(folderIndex,tabIds.length,e.translationX,listWidth.value);listShift.value=motion?e.translationX*0.3:0;})
+    .onEnd(e=>{
+      const to=pageRelease(folderIndex,tabIds.length,e.translationX,e.velocityX,listWidth.value);
+      folderPos.value=motion?withTiming(to,{duration:200,easing:Easing.out(Easing.cubic)}):to;
+      listShift.value=motion?withTiming(0,{duration:200,easing:Easing.out(Easing.cubic)}):0;
+      runOnJS(goFolder)(to);
+    });
+  const listFollow=useAnimatedStyle(()=>({flex:1,transform:[{translateX:listShift.value}],opacity:1-Math.min(0.35,Math.abs(listShift.value)/400)}));
   // Telegram moves rows smoothly when a chat jumps to the top or gets pinned.
   const order=store.chats.map(c=>`${c.id}${c.settings?.pinnedAt||''}${c.settings?.archived?1:0}`).join(',');const lastOrder=useRef(order);
   if(lastOrder.current!==order){lastOrder.current=order;if(motionEnabled())LayoutAnimation.configureNext(LayoutAnimation.create(220,LayoutAnimation.Types.easeInEaseOut,LayoutAnimation.Properties.opacity));}
@@ -73,10 +102,33 @@ export function ChatListScreen({api,user,store,onProfile,onNewChat,onMusic,onAI,
   const readChat=(chat:Chat)=>{if(chat.unreadCount)void store.readChat(chat.id,chat.lastMessage?.id||0);};
   const toggleEdit=(chat:Chat)=>{lightFeedback();setEditing(current=>{const next=new Set(current||[]);if(next.has(chat.id))next.delete(chat.id);else next.add(chat.id);return next;});};
   // Row callbacks read through a ref: ChatListItem stays memoized, so one chat updating re-renders one row, not the list.
-  const rowActions=useRef<RowActions>(null as unknown as RowActions);rowActions.current={editing:!!editing,askMute,remove:list=>setRemoveAsk(list),readChat,toggleEdit,select:chat=>store.selectChat(chat),menu:(chat,y,x)=>{impactFeedback();setMenu({chat,y,x});}};
+  const rowActionsRef=useRef<RowActions>(null as unknown as RowActions);rowActionsRef.current={editing:!!editing,swipe:(chat,action)=>{switch(action){case 'read':readChat(chat);break;case 'unread':break;case 'pin':case 'unpin':change(chat,{pinned:action==='pin'});break;case 'mute':case 'unmute':askMute([chat]);break;case 'delete':setRemoveAsk([chat]);break;case 'archive':case 'unarchive':change(chat,{archived:action==='archive'});break;}},toggleEdit,select:chat=>store.selectChat(chat),menu:(chat,y,x)=>{impactFeedback();setMenu({chat,y,x});}};
   const selectedChats=editing?chats.filter(c=>editing.has(c.id)):[];
   const bulk=(fn:(chat:Chat)=>void)=>{const list=selectedChats.length?selectedChats:chats;list.forEach(fn);setEditing(null);lightFeedback();};
   const refresh=async()=>{setRefreshing(true);await store.refreshChats();setRefreshing(false);};
+  // Telegram keeps «Архив» above the first chat, out of sight until the list is pulled down: the list
+  // opens scrolled just past it (its content is made at least that much taller than the screen) and a
+  // drag that ends with it half shown settles open or shut. A further pull still refreshes.
+  const archiveRow=!archive&&!!archivedCount&&!query&&filter==='all';
+  const listRef=useRef<FlatList<Chat>>(null);const [archiveH,setArchiveH]=useState(0);const [listH,setListH]=useState(0);
+  const hideArchive=useRef(true);const listOffset=useRef(0);const contentH=useRef(0);
+  const tryHideArchive=()=>{
+    if(!hideArchive.current||!archiveRow||!archiveH||!listH)return;
+    // Scrolled down into the chats: leave the position alone (the row is out of sight anyway).
+    if(listOffset.current>1){hideArchive.current=false;return;}
+    if(contentH.current<listH+archiveH-1)return;
+    hideArchive.current=false;listOffset.current=archiveH;listRef.current?.scrollToOffset({offset:archiveH,animated:false});
+  };
+  const tryHideRef=useRef(tryHideArchive);tryHideRef.current=tryHideArchive;
+  // The list remounts after search and the first load, at the top; the row hides again then, as when it (re)appears.
+  const listMounted=!searching&&!store.listLoading;
+  useEffect(()=>{if(listMounted)listOffset.current=0;},[listMounted]);
+  // A folder change shows another list from the top: forget the old offset (only then — archiving a chat
+  // while scrolled down must not jump the list to the top).
+  const lastFilter=useRef(filter);if(lastFilter.current!==filter){lastFilter.current=filter;listOffset.current=0;}
+  useEffect(()=>{if(archiveRow&&listMounted){hideArchive.current=true;tryHideRef.current();}},[archiveRow,listMounted]);
+  useEffect(()=>{tryHideRef.current();},[archiveH,listH]);
+  const settleArchive=(y:number)=>{listOffset.current=y;if(!archiveRow||hideArchive.current)return;const to=archiveSnap(y,archiveH);if(to!==null){listOffset.current=to;listRef.current?.scrollToOffset({offset:to,animated:motion});}};
   if(searching)return <View style={{flex:1,backgroundColor:'transparent'}}><ChatSearch api={api} me={user} store={store} onClose={()=>setSearching(false)} onSaved={onSaved}/></View>;
   const header=<>
     {/* Telegram header: «Изм.» · title with connection state · AI and «new chat» buttons. */}
@@ -91,7 +143,7 @@ export function ChatListScreen({api,user,store,onProfile,onNewChat,onMusic,onAI,
     </GlassSurface>
     {/* F8: friends' stories above the chats (hidden while nobody has one); not in the archive or while editing. */}
     {!archive&&!editing?<StoriesStrip api={api} user={user} store={store}/>:null}
-    {!archive?<FolderTabs folders={folders.folders} filter={filter} unread={unread} onChange={setFilter} onCreate={()=>setEditor({folder:null})} onEdit={folder=>setEditor({folder})}/>:null}
+    {!archive?<FolderTabs position={folderPos} folders={folders.folders} filter={filter} unread={unread} onChange={setFilter} onCreate={()=>setEditor({folder:null})} onEdit={folder=>setEditor({folder})}/>:null}
     <FolderEditor visible={!!editor} folder={editor?.folder||null} chats={store.chats} api={api} onClose={()=>setEditor(null)} onSave={folder=>{folders.upsert(folder);setFilter(folder.id);setEditor(null);}} onDelete={id=>{folders.remove(id);setEditor(null);}}/>
     {store.error?<View style={{paddingHorizontal:17,paddingBottom:12}}><Notice text={store.error} error onRetry={()=>void refresh()}/></View>:null}
   </>;
@@ -99,8 +151,8 @@ export function ChatListScreen({api,user,store,onProfile,onNewChat,onMusic,onAI,
     {/* Phone, like Telegram: the header (title, search, folders) floats over the list, which scrolls under it
         and fades/blurs out there instead of being cut at a hard edge. Desktop keeps it in the flow. */}
     {float?<FloatingHeader onHeight={setHeaderHeight}>{header}</FloatingHeader>:header}
-    {store.listLoading?<View style={{flex:1,overflow:'hidden',paddingTop:float?headerHeight:0,...(float?bleed.style:null)}}>{filter==='all'&&!archive?<SavedRow count={store.saved.items.length} last={store.saved.items[store.saved.items.length-1]} selected={savedActive} onPress={onSaved}/>:null}<ChatListSkeleton/></View>:<FlatList style={float?bleed.style:undefined} scrollIndicatorInsets={float?{top:headerHeight,bottom:tabsHeight}:undefined} progressViewOffset={float?headerHeight:undefined} data={chats} keyExtractor={item=>item.id} keyboardShouldPersistTaps="handled" keyboardDismissMode="on-drag" alwaysBounceVertical contentContainerStyle={{paddingTop:float?headerHeight:0,paddingBottom:(rail||editing?12:tabsHeight+12)+(float?bleed.bottom:0),flexGrow:1}} ListHeaderComponent={archive?<Pressable onPress={()=>setArchive(false)} accessibilityRole="button" style={{flexDirection:'row',alignItems:'center',gap:8,padding:12}}><Icon name="chevron-back" size={18} color={t.accent}/><Text style={{color:t.accent,fontSize:15,fontWeight:'700'}}>Архив</Text></Pressable>:<>{menuError?<View style={{paddingBottom:8}}><Notice text={menuError} error/></View>:null}{filter==='all'&&(!query||'избранное'.includes(query.toLowerCase()))?<SavedRow count={store.saved.items.length} last={store.saved.items[store.saved.items.length-1]} selected={savedActive} onPress={onSaved}/>:null}{archivedCount&&!query&&filter==='all'?<Pressable onPress={()=>setArchive(true)} accessibilityRole="button" accessibilityLabel={`Архив, чатов: ${archivedCount}`} style={({pressed})=>({flexDirection:'row',gap:13,alignItems:'center',paddingHorizontal:16,paddingVertical:12,borderRadius:24,marginBottom:6,backgroundColor:pressed?(t.dark?'rgba(255,255,255,0.09)':'rgba(255,255,255,0.62)'):'transparent'})}><View style={{width:54,height:54,borderRadius:19,backgroundColor:t.surface2,alignItems:'center',justifyContent:'center'}}><Icon name="archive" color={t.muted} size={24}/></View><View style={{flex:1}}><Text style={{color:t.text,fontSize:15,fontWeight:'700'}}>Архив</Text><Text style={{color:t.muted,fontSize:12}}>{countChats(archivedCount)}</Text></View></Pressable>:null}</>} refreshControl={<RefreshControl refreshing={refreshing} onRefresh={()=>void refresh()} tintColor={t.accent}/>} ListEmptyComponent={<View style={{flex:1,justifyContent:'center',paddingBottom:20}}><Empty icon={query?'search-outline':'chatbubbles-outline'} title={query?'Чат не найден':'Начни разговор'} description={query?'Попробуй другое имя или найди человека по @имени.':'Найди своего человека по @имени. Всё начинается с простого «привет».'} action={<Button label="Найти собеседника" onPress={onNewChat} icon="add"/>}/></View>}
-      renderItem={({item})=><ChatListItem chat={item} api={api} userId={user.id} editable={!editing} selected={wideLayout&&store.selectedId===item.id} idle={!store.selectedId} typing={!!store.typing[item.id]} muted={isMuted(item.settings)} checked={editing?editing.has(item.id):undefined} actions={rowActions}/>}/>}
+    {store.listLoading?<View style={{flex:1,overflow:'hidden',paddingTop:float?headerHeight:0,...(float?bleed.style:null)}}>{filter==='all'&&!archive?<SavedRow count={store.saved.items.length} last={store.saved.items[store.saved.items.length-1]} selected={savedActive} onPress={onSaved}/>:null}<ChatListSkeleton/></View>:<GestureDetector gesture={folderSwipe}><Animated.View style={[listFollow,float?bleed.style:null]}><FlatList ref={listRef} onLayout={e=>{const {width:w,height}=e.nativeEvent.layout;if(w>0)listWidth.value=w;const h=Math.round(height);if(h&&h!==listH)setListH(h);}} onContentSizeChange={(_w,h)=>{contentH.current=h;tryHideArchive();}} onScrollBeginDrag={()=>{closeOpenSwipeRow();}} onScrollEndDrag={e=>{const v=e.nativeEvent.velocity?.y||0;if(Math.abs(v)>0.3){listOffset.current=e.nativeEvent.contentOffset.y;return;}settleArchive(e.nativeEvent.contentOffset.y);}} onMomentumScrollEnd={e=>settleArchive(e.nativeEvent.contentOffset.y)} style={{flex:1}} scrollIndicatorInsets={float?{top:headerHeight,bottom:tabsHeight}:undefined} progressViewOffset={float?headerHeight:undefined} data={chats} keyExtractor={item=>item.id} keyboardShouldPersistTaps="handled" keyboardDismissMode="on-drag" alwaysBounceVertical contentContainerStyle={{paddingTop:float?headerHeight:0,paddingBottom:(rail||editing?12:tabsHeight+12)+(float?bleed.bottom:0),flexGrow:1,minHeight:archiveRow&&archiveH&&listH?listH+archiveH:undefined}} ListHeaderComponent={archive?<Pressable onPress={()=>setArchive(false)} accessibilityRole="button" style={{flexDirection:'row',alignItems:'center',gap:8,padding:12}}><Icon name="chevron-back" size={18} color={t.accent}/><Text style={{color:t.accent,fontSize:15,fontWeight:'700'}}>Архив</Text></Pressable>:<>{archiveRow?<View onLayout={e=>{const h=Math.round(e.nativeEvent.layout.height);if(h&&h!==archiveH)setArchiveH(h);}}><Pressable onPress={()=>{closeOpenSwipeRow();setArchive(true);}} accessibilityRole="button" accessibilityLabel={`Архив, чатов: ${archivedCount}`} style={({pressed})=>({flexDirection:'row',gap:13,alignItems:'center',paddingHorizontal:16,paddingVertical:12,borderRadius:24,backgroundColor:pressed?(t.dark?'rgba(255,255,255,0.09)':'rgba(255,255,255,0.62)'):'transparent'})}><View style={{width:54,height:54,borderRadius:19,backgroundColor:t.surface2,alignItems:'center',justifyContent:'center'}}><Icon name="archive" color={t.muted} size={24}/></View><View style={{flex:1}}><Text style={{color:t.text,fontSize:15,fontWeight:'700'}}>Архив</Text><Text style={{color:t.muted,fontSize:12}}>{countChats(archivedCount)}</Text></View></Pressable></View>:null}{menuError?<View style={{paddingBottom:8}}><Notice text={menuError} error/></View>:null}{filter==='all'&&(!query||'избранное'.includes(query.toLowerCase()))?<SavedRow count={store.saved.items.length} last={store.saved.items[store.saved.items.length-1]} selected={savedActive} onPress={onSaved}/>:null}</>} refreshControl={<RefreshControl refreshing={refreshing} onRefresh={()=>void refresh()} tintColor={t.accent}/>} ListEmptyComponent={<View style={{flex:1,justifyContent:'center',paddingBottom:20}}><Empty icon={query?'search-outline':'chatbubbles-outline'} title={query?'Чат не найден':'Начни разговор'} description={query?'Попробуй другое имя или найди человека по @имени.':'Найди своего человека по @имени. Всё начинается с простого «привет».'} action={<Button label="Найти собеседника" onPress={onNewChat} icon="add"/>}/></View>}
+      renderItem={({item})=><ChatListItem chat={item} api={api} userId={user.id} editable={!editing} selected={wideLayout&&store.selectedId===item.id} idle={!store.selectedId} typing={!!store.typing[item.id]} muted={isMuted(item.settings)} checked={editing?editing.has(item.id):undefined} actions={rowActionsRef}/>}/></Animated.View></GestureDetector>}
     {editing?<GlassSurface lens material="regular" radius={26} style={{marginHorizontal:16,marginBottom:6}} contentStyle={{flexDirection:'row',justifyContent:'space-around',alignItems:'center',minHeight:52}}>
       <Pressable onPress={()=>bulk(readChat)} accessibilityRole="button" style={{padding:10}}><Text style={{color:t.accent,fontSize:14,fontWeight:'600'}}>{selectedChats.length?'Прочитать':'Прочитать все'}</Text></Pressable>
       <Pressable disabled={!selectedChats.length} onPress={()=>bulk(chat=>change(chat,{archived:!archive}))} accessibilityRole="button" style={{padding:10,opacity:selectedChats.length?1:.4}}><Text style={{color:t.accent,fontSize:14,fontWeight:'600'}}>{archive?'Из архива':'В архив'}</Text></Pressable>
@@ -148,15 +200,14 @@ function listText(text: string | undefined): string {
   return withoutInviteLink(text).trim() || '🔗 Приглашение на сервер';
 }
 
-type RowActions={editing:boolean;askMute:(list:Chat[])=>void;remove:(list:Chat[])=>void;readChat:(chat:Chat)=>void;toggleEdit:(chat:Chat)=>void;select:(chat:Chat)=>void;menu:(chat:Chat,y:number,x?:number)=>void};
+type RowActions={editing:boolean;swipe:(chat:Chat,action:RowAction)=>void;toggleEdit:(chat:Chat)=>void;select:(chat:Chat)=>void;menu:(chat:Chat,y:number,x?:number)=>void};
 /** One list row with stable props (primitives, the chat object and a ref): memo skips it when another chat changes. */
 const ChatListItem=memo(function ChatListItem({chat,api,userId,editable,selected,idle,typing,muted,checked,actions}:{chat:Chat;api:Api;userId:string;editable:boolean;selected:boolean;idle:boolean;typing:boolean;muted:boolean;checked?:boolean;actions:React.MutableRefObject<RowActions>}) {
-  const onMute=useCallback(()=>actions.current.askMute([chat]),[actions,chat]);
-  const onDelete=useCallback(()=>actions.current.remove([chat]),[actions,chat]);
-  const onRead=useCallback(()=>actions.current.readChat(chat),[actions,chat]);
-  const onPress=useCallback(()=>{const a=actions.current;if(a.editing)a.toggleEdit(chat);else a.select(chat);},[actions,chat]);
-  const onLongPress=useCallback((y:number,x?:number)=>actions.current.menu(chat,y,x),[actions,chat]);
-  return <SwipeRow enabled={editable} muted={muted} unread={chat.unreadCount>0} onMute={onMute} onDelete={onDelete} onRead={onRead}><ChatRow key={idle?'idle':'open'} chat={chat} api={api} userId={userId} selected={selected} typing={typing} muted={muted} checked={checked} onPress={onPress} onLongPress={onLongPress}/></SwipeRow>;
+  const onAction=useCallback((action:RowAction)=>actions.current.swipe(chat,action),[actions,chat]);
+  // Telegram: with another row's buttons open, a tap on a chat only closes them.
+  const onPress=useCallback(()=>{if(closeOpenSwipeRow())return;const a=actions.current;if(a.editing)a.toggleEdit(chat);else a.select(chat);},[actions,chat]);
+  const onLongPress=useCallback((y:number,x?:number)=>{closeOpenSwipeRow();actions.current.menu(chat,y,x);},[actions,chat]);
+  return <SwipeRow enabled={editable} muted={muted} unread={chat.unreadCount>0} pinned={!!chat.settings?.pinnedAt} archived={!!chat.settings?.archived} onAction={onAction}><ChatRow key={idle?'idle':'open'} chat={chat} api={api} userId={userId} selected={selected} typing={typing} muted={muted} checked={checked} onPress={onPress} onLongPress={onLongPress}/></SwipeRow>;
 });
 
 function ChatRow({chat,api,userId,selected,typing,muted,checked,onPress,onLongPress}: {chat:Chat;api:Api;userId:string;selected:boolean;typing:boolean;muted:boolean;checked?:boolean;onPress:()=>void;onLongPress:(y:number,x?:number)=>void}) {
@@ -203,58 +254,98 @@ function ChatPeek({chat,api,userId,messages}:{chat:Chat;api:Api;userId:string;me
 
 /** The row whose swipe buttons are open (one at a time, as in Telegram): opening another closes it. */
 let closeOpenRow:(()=>void)|null=null;
-const SWIPE_BUTTON=64,SWIPE_GAP=8,SWIPE_OPEN=2*SWIPE_BUTTON+3*SWIPE_GAP;
-
-/** A Telegram swipe button: a coloured capsule with its label under it, growing in as the row slides. */
-function SwipeButton({icon,label,color,iconColor,x,index,onPress}:{icon:React.ComponentProps<typeof Icon>['name'];label:string;color:string;iconColor:string;x:SharedValue<number>;index:number;onPress:()=>void}) {
-  const t=useTheme();
-  const style=useAnimatedStyle(()=>{const p=Math.min(1,Math.max(0,(-x.value-index*SWIPE_GAP*2)/(SWIPE_OPEN*0.75)));return {opacity:p,transform:[{scale:0.5+0.5*p}]};});
-  return <Animated.View style={[{width:SWIPE_BUTTON,alignItems:'center',gap:4},style]}>
-    <Pressable accessibilityRole="button" accessibilityLabel={label} onPress={onPress} hitSlop={4} style={({pressed})=>({width:SWIPE_BUTTON,height:42,borderRadius:21,backgroundColor:color,alignItems:'center',justifyContent:'center',opacity:pressed?.75:1})}><Icon name={icon} size={21} color={iconColor}/></Pressable>
-    {/* The label sits on the row background, so it takes the theme's secondary text (a fixed grey read at 2.5:1 on the light theme). */}
-    <Text numberOfLines={1} adjustsFontSizeToFit minimumFontScale={0.8} maxFontSizeMultiplier={1} style={{width:SWIPE_BUTTON+SWIPE_GAP,textAlign:'center',color:t.muted,fontSize:10,fontWeight:'600'}}>{label}</Text>
-  </Animated.View>;
+/** Close the open row, if any (a tap on another row, a scroll, a folder change). True when one was open. */
+function closeOpenSwipeRow():boolean{const close=closeOpenRow;if(!close)return false;close();return true;}
+/** 1 while a finger is down on a chat row that can swipe: the folder swipe on the list then stands aside. */
+const rowTouch=makeMutable(0);
+/** What this app's server can do from a swipe: there is no «mark as unread» endpoint (see README of the report). */
+const ROW_SUPPORT:RowSupport={markUnread:false,pin:true,archive:true};
+const MUTE_ORANGE='#FF9500',PIN_GREEN='#34C759',ARCHIVE_GREY='#8E8E93';
+type ButtonLook={icon:React.ComponentProps<typeof Icon>['name'];label:string;color:string;iconColor:string};
+function buttonLook(action:RowAction,t:ReturnType<typeof useTheme>):ButtonLook{
+  // Telegram's orange for «Выключить звук», green for «Закрепить», grey for «Архив»; the icon on them is white as there.
+  // Dark themes have a light danger tone and accent: the icon on those is dark, as text on the accent.
+  switch(action){
+    case 'read':return {icon:'chatbubble',label:'Прочитано',color:t.accent,iconColor:t.onAccent};
+    case 'unread':return {icon:'chatbubble-outline',label:'Непрочитанные',color:t.accent,iconColor:t.onAccent};
+    case 'pin':return {icon:'pin',label:'Закрепить',color:PIN_GREEN,iconColor:'#FFF'};
+    case 'unpin':return {icon:'pin-outline',label:'Открепить',color:PIN_GREEN,iconColor:'#FFF'};
+    case 'mute':return {icon:'notifications-off',label:'Выключить звук',color:MUTE_ORANGE,iconColor:'#FFF'};
+    case 'unmute':return {icon:'notifications',label:'Включить звук',color:MUTE_ORANGE,iconColor:'#FFF'};
+    case 'delete':return {icon:'trash',label:'Удалить',color:t.danger,iconColor:t.dark?t.bg:'#FFF'};
+    case 'archive':return {icon:'archive',label:'В архив',color:ARCHIVE_GREY,iconColor:'#FFF'};
+    case 'unarchive':return {icon:'archive-outline',label:'Вернуть',color:ARCHIVE_GREY,iconColor:'#FFF'};
+  }
 }
-/** Telegram's orange for «Выключить звук»; the theme has no warning token, and the icon on it is white as there. */
-const MUTE_ORANGE='#FF9500';
 
 /**
- * Telegram swipes on a chat: left slides the row to reveal «Выключить звук» and «Удалить» (it stays open
- * until you tap one, tap the row or swipe back); right marks an unread chat as read.
+ * A Telegram swipe button: a coloured capsule with its label under it, growing in as the row slides.
+ * `side` is -1 for the buttons a left swipe shows, 1 for a right swipe; `order` 0 is the leading
+ * (outermost) button, which a full swipe performs: the others then fade and it grows.
  */
-function SwipeRow({enabled,muted,unread,onMute,onDelete,onRead,children}:{enabled:boolean;muted:boolean;unread:boolean;onMute:()=>void;onDelete:()=>void;onRead:()=>void;children:React.ReactNode}) {
-  const t=useTheme();const x=useSharedValue(0);const start=useSharedValue(0);const armed=useSharedValue(0);const [open,setOpen]=useState(false);
-  const refs=useRef({onMute,onDelete,onRead});refs.current={onMute,onDelete,onRead};
+function SwipeButton({action,x,side,order,open,armed,onPress}:{action:RowAction;x:SharedValue<number>;side:-1|1;order:number;open:number;armed:SharedValue<number>;onPress:()=>void}) {
+  const t=useTheme();const look=buttonLook(action,t);
+  const style=useAnimatedStyle(()=>{
+    const d=side*x.value;const p=Math.min(1,Math.max(0,(d-order*ROW_GAP*2)/(Math.max(open,1)*0.75)));
+    const on=armed.value===side;
+    return {opacity:on&&order>0?0:p,transform:[{scale:(0.5+0.5*p)*(on&&order===0?1.12:1)}]};
+  });
+  return <Animated.View style={[{width:ROW_BUTTON,alignItems:'center',gap:4},style]}>
+    <Pressable accessibilityRole="button" accessibilityLabel={look.label} onPress={onPress} hitSlop={4} style={({pressed})=>({width:ROW_BUTTON,height:42,borderRadius:21,backgroundColor:look.color,alignItems:'center',justifyContent:'center',opacity:pressed?.75:1})}><Icon name={look.icon} size={21} color={look.iconColor}/></Pressable>
+    {/* The label sits on the row background, so it takes the theme's secondary text (a fixed grey read at 2.5:1 on the light theme). */}
+    <Text numberOfLines={1} adjustsFontSizeToFit minimumFontScale={0.8} maxFontSizeMultiplier={1} style={{width:ROW_BUTTON+ROW_GAP,textAlign:'center',color:t.muted,fontSize:10,fontWeight:'600'}}>{look.label}</Text>
+  </Animated.View>;
+}
+
+/**
+ * Telegram swipes on a chat (logic in src/listSwipes.ts). Left slides the row to reveal «Выключить
+ * звук · Удалить · В архив»; right reveals «Прочитано» (unread chats) and «Закрепить». The row stays
+ * open until a button, a tap on it or elsewhere, a scroll or a swipe back closes it; one row is open
+ * at a time. Dragging on past ~60% of the row performs the outermost button (with a haptic tick),
+ * as a full swipe does in Telegram.
+ */
+function SwipeRow({enabled,unread,pinned,muted,archived,onAction,children}:{enabled:boolean;unread:boolean;pinned:boolean;muted:boolean;archived:boolean;onAction:(action:RowAction)=>void;children:React.ReactNode}) {
+  const {width:windowWidth}=useWindowDimensions();
+  const x=useSharedValue(0);const start=useSharedValue(0);const armed=useSharedValue(0);const rowWidth=useSharedValue(windowWidth);const [open,setOpen]=useState(false);
+  const {left,right}=rowActions({unread,pinned,muted,archived},ROW_SUPPORT);
+  const leftOpen=openWidth(left.length),rightOpen=openWidth(right.length);
+  const actionRef=useRef(onAction);actionRef.current=onAction;
+  const leadRef=useRef({left:left[0],right:right[0]});leadRef.current={left:left[0],right:right[0]};
+  const motion=motionEnabled();
   const SPRING={damping:24,stiffness:300,mass:0.8};
-  const close=()=>{x.value=withSpring(0,SPRING);setOpen(false);if(closeOpenRow===closeSelf.current)closeOpenRow=null;};
+  const close=()=>{x.value=motion?withSpring(0,SPRING):0;setOpen(false);if(closeOpenRow===closeSelf.current)closeOpenRow=null;};
   const closeSelf=useRef(close);closeSelf.current=close;
-  const opened=()=>{if(closeOpenRow&&closeOpenRow!==closeSelf.current)closeOpenRow();closeOpenRow=()=>closeSelf.current();setOpen(true);};
-  const read=()=>refs.current.onRead();
+  useEffect(()=>()=>{if(closeOpenRow===closeSelf.current)closeOpenRow=null;},[]);
+  const claim=()=>{if(closeOpenRow&&closeOpenRow!==closeSelf.current)closeOpenRow();};
+  const opened=()=>{claim();closeOpenRow=()=>closeSelf.current();setOpen(true);};
+  const full=(side:-1|1)=>{const action=side<0?leadRef.current.left:leadRef.current.right;close();if(action)actionRef.current(action);};
   const pan=Gesture.Pan().enabled(enabled).activeOffsetX([-12,12]).failOffsetY([-14,14])
-    .onStart(()=>{start.value=x.value;})
+    .onBegin(()=>{rowTouch.value=1;})
+    .onFinalize(()=>{rowTouch.value=0;})
+    .onStart(()=>{start.value=x.value;runOnJS(claim)();})
     .onUpdate(e=>{
-      let v=start.value+e.translationX;
-      // Past the buttons the row moves with resistance; to the right only for an unread chat.
-      if(v<-SWIPE_OPEN)v=-SWIPE_OPEN+(v+SWIPE_OPEN)*0.3;
-      if(v>0)v=unread&&start.value===0?Math.min(110,v):0;
-      x.value=v;const side=v>70?1:0;if(side!==armed.value){armed.value=side;if(side)runOnJS(lightFeedback)();}
+      const v=rowDrag(start.value+e.translationX,leftOpen,rightOpen,rowWidth.value);x.value=v;
+      const side=v<0&&v<=-fullSwipeDistance(rowWidth.value,leftOpen)?-1:v>0&&v>=fullSwipeDistance(rowWidth.value,rightOpen)?1:0;
+      if(side!==armed.value){armed.value=side;if(side)runOnJS(impactFeedback)();}
     })
     .onEnd(e=>{
-      if(armed.value){armed.value=0;x.value=withSpring(0,SPRING);runOnJS(read)();return;}
-      const goOpen=x.value<-SWIPE_OPEN*0.4&&e.velocityX<400||e.velocityX<-500;
-      x.value=withSpring(goOpen?-SWIPE_OPEN:0,{...SPRING,velocity:e.velocityX});
-      if(goOpen)runOnJS(opened)();else runOnJS(close)();
+      const release=rowRelease(x.value,e.velocityX,leftOpen,rightOpen,fullSwipeDistance(rowWidth.value,leftOpen),fullSwipeDistance(rowWidth.value,rightOpen));
+      armed.value=0;
+      if(release==='full-left'||release==='full-right'){runOnJS(full)(release==='full-left'?-1:1);return;}
+      const to=release==='open-left'?-leftOpen:release==='open-right'?rightOpen:0;
+      x.value=motion?withSpring(to,{...SPRING,velocity:e.velocityX}):to;
+      if(to)runOnJS(opened)();else runOnJS(close)();
     });
   const row=useAnimatedStyle(()=>({transform:[{translateX:x.value}]}));
-  const readStyle=useAnimatedStyle(()=>({opacity:Math.min(1,Math.max(0,x.value/60)),transform:[{scale:0.5+0.5*Math.min(1,Math.max(0,x.value/70))}]}));
-  const act=(fn:()=>void)=>()=>{close();fn();};
-  return <GestureDetector gesture={pan}><View>
-    <View style={{position:'absolute',top:0,bottom:0,right:0,flexDirection:'row',alignItems:'center',gap:SWIPE_GAP,paddingRight:SWIPE_GAP}}>
-      <SwipeButton icon={muted?'notifications':'notifications-off'} label={muted?'Включить звук':'Выключить звук'} color={MUTE_ORANGE} iconColor="#FFF" x={x} index={1} onPress={act(()=>refs.current.onMute())}/>
-      {/* Dark themes have a light danger tone: the icon on it is dark, as text on the accent. */}
-      <SwipeButton icon="trash" label="Удалить" color={t.danger} iconColor={t.dark?t.bg:'#FFF'} x={x} index={0} onPress={act(()=>refs.current.onDelete())}/>
-    </View>
-    {unread?<Animated.View pointerEvents="none" style={[{position:'absolute',top:0,bottom:0,left:16,justifyContent:'center',alignItems:'center',gap:4},readStyle]}><View style={{width:SWIPE_BUTTON,height:42,borderRadius:21,backgroundColor:t.accent,alignItems:'center',justifyContent:'center'}}><Icon name="chatbubble" size={20} color={t.onAccent}/></View><Text style={{color:t.muted,fontSize:10,fontWeight:'600'}}>Прочитано</Text></Animated.View>:null}
+  const act=(action:RowAction)=>()=>{close();actionRef.current(action);};
+  return <GestureDetector gesture={pan}><View onLayout={e=>{const w=e.nativeEvent.layout.width;if(w>0)rowWidth.value=w;}}>
+    {left.length?<View style={{position:'absolute',top:0,bottom:0,right:0,flexDirection:'row',alignItems:'center',gap:ROW_GAP,paddingRight:ROW_GAP}}>
+      {/* Leading button at the edge: «Выключить звук · Удалить · В архив». */}
+      {left.map((action,order)=>({action,order})).reverse().map(({action,order})=><SwipeButton key={action} action={action} x={x} side={-1} order={order} open={leftOpen} armed={armed} onPress={act(action)}/>)}
+    </View>:null}
+    {right.length?<View style={{position:'absolute',top:0,bottom:0,left:0,flexDirection:'row',alignItems:'center',gap:ROW_GAP,paddingLeft:ROW_GAP}}>
+      {right.map((action,order)=><SwipeButton key={action} action={action} x={x} side={1} order={order} open={rightOpen} armed={armed} onPress={act(action)}/>)}
+    </View>:null}
     <Animated.View style={row}>{children}{open?<Pressable accessibilityLabel="Закрыть кнопки" onPress={close} style={StyleSheet.absoluteFill}/>:null}</Animated.View>
   </View></GestureDetector>;
 }

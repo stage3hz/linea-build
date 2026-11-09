@@ -398,5 +398,5 @@ export function AIScreen({ api, onBack, quick = false, history, name }: { api: A
 
 export function AIQuickDialog({ api, visible, onClose }: { api: Api; visible: boolean; onClose: () => void }) {
   if (!visible) return null;
-  return <Modal visible animationType="slide" presentationStyle="pageSheet" onRequestClose={onClose}><GlassStage><SafeAreaView style={{ flex: 1 }}><AIScreen api={api} onBack={onClose} quick /></SafeAreaView></GlassStage></Modal>;
+  return <Modal visible animationType="slide" presentationStyle="pageSheet" allowSwipeDismissal onRequestClose={onClose}><GlassStage><SafeAreaView style={{ flex: 1 }}><AIScreen api={api} onBack={onClose} quick /></SafeAreaView></GlassStage></Modal>;
 }

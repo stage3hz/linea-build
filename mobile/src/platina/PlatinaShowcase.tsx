@@ -1,5 +1,7 @@
 import React, { useEffect, useState } from 'react';
-import { Modal, Pressable, ScrollView, StyleSheet, View, useWindowDimensions } from 'react-native';
+import { Modal, Pressable, StyleSheet, View, useWindowDimensions } from 'react-native';
+import { GestureHandlerRootView } from 'react-native-gesture-handler';
+import { SwipeDismissScrollView, SwipeDismissView, useSwipeDismiss } from '../swipeDismiss';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Text } from '../typography';
@@ -42,9 +44,12 @@ export function PlatinaShowcaseHost({ api, me, onCustomize }: { api: Api; me: Us
   const dressed: User = { ...me, seal: 'platina', avatarFrame: me.avatarFrame || 'platinum', profileEffect: me.profileEffect || 'sparks' };
   const other = open?.owner && open.owner.id !== me.id ? open.owner : null;
   const cardWidth = Math.min(width - 32, 520);
-  return <Modal visible={!!open} animationType="slide" presentationStyle="fullScreen" onRequestClose={() => setOpen(null)} statusBarTranslucent>
-    <View style={{ flex: 1, backgroundColor: '#06070A' }}>
-      <ScrollView contentContainerStyle={{ paddingTop: insets.top + 60, paddingBottom: insets.bottom + 40, alignItems: 'center' }}>
+  // Telegram's Premium page closes the same way: pull it down (from the top of the page). Transparent so
+  // the app shows underneath while it is pulled.
+  const swipe = useSwipeDismiss({ onDismiss: () => setOpen(null), visible: !!open, scrollable: true });
+  return <Modal visible={!!open} transparent animationType="slide" onRequestClose={() => setOpen(null)} statusBarTranslucent>
+    <GestureHandlerRootView style={{ flex: 1 }}><SwipeDismissView swipe={swipe} style={{ flex: 1, overflow: 'hidden', backgroundColor: '#06070A' }}>
+      <SwipeDismissScrollView swipe={swipe} contentContainerStyle={{ paddingTop: insets.top + 60, paddingBottom: insets.bottom + 40, alignItems: 'center' }}>
         {other ? <Text style={{ color: t.muted, fontSize: 13, marginBottom: 12 }}>У {other.displayName} — Platina. А вот так будешь выглядеть ты:</Text> : <Text style={{ color: t.muted, fontSize: 13, marginBottom: 12 }}>Так твой профиль увидят другие</Text>}
         {/* The preview: the viewer's own profile in Platina. */}
         <View style={{ width: cardWidth, borderRadius: 26, overflow: 'hidden', backgroundColor: '#101217' }}>
@@ -78,12 +83,12 @@ export function PlatinaShowcaseHost({ api, me, onCustomize }: { api: Api; me: Us
         </Pressable>
         {note ? <Text style={{ color: t.muted, fontSize: 13, lineHeight: 19, textAlign: 'center', marginTop: 12, width: cardWidth }}>Покупка в приложении скоро появится. Сейчас Platina выдаёт администратор сервера.</Text>
           : <Text style={{ color: t.muted, fontSize: 12, textAlign: 'center', marginTop: 10 }}>{active ? 'Platina уже активна' : 'Отменить можно в любой момент'}</Text>}
-      </ScrollView>
+      </SwipeDismissScrollView>
       <View style={{ position: 'absolute', top: insets.top + 8, right: 16 }}>
         <GlassSurface radius={22} shadow={false} interactive contentStyle={{ width: 44, height: 44, alignItems: 'center', justifyContent: 'center' }}>
           <Pressable accessibilityRole="button" accessibilityLabel="Закрыть" onPress={() => setOpen(null)} hitSlop={6} style={{ width: 44, height: 44, alignItems: 'center', justifyContent: 'center' }}><Icon name="close" size={22} color="#FFF" /></Pressable>
         </GlassSurface>
       </View>
-    </View>
+    </SwipeDismissView></GestureHandlerRootView>
   </Modal>;
 }
