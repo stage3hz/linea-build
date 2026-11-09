@@ -49,20 +49,10 @@ appId: com.linea.messenger.preview
 - extendedWaitUntil:
     visible: "Галерея"
     timeout: 15000
-# First open on a fresh simulator: iOS asks for the Photos permission (the gallery tab lists recent
-# photos). The dark run is the fresh install (clearState), so the alert is awaited and allowed there;
-# the light run finds the permission granted and only guards against a stray alert.
+# iOS asks for the Photos permission only if the simulator has not granted it yet (on the Apple-silicon
+# runner the gallery opened at once), so the alert is handled when it shows, in either run.
 - runFlow:
     when:
-      true: ${THEME == 'dark'}
-    commands:
-      - extendedWaitUntil:
-          visible: "Allow Full Access|Allow Access to All Photos|Разрешить доступ ко всем фото"
-          timeout: 20000
-      - tapOn: "Allow Full Access|Allow Access to All Photos|Разрешить доступ ко всем фото"
-- runFlow:
-    when:
-      true: ${THEME != 'dark'}
       visible: "Allow Full Access|Allow Access to All Photos|Разрешить доступ ко всем фото"
     commands:
       - tapOn: "Allow Full Access|Allow Access to All Photos|Разрешить доступ ко всем фото"
