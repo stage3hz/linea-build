@@ -276,10 +276,13 @@ function RateToast({ text, rate }: { text: string; rate: number }) {
 
 // Telegram's voice bubble: play button, the take's waveform (played part bright, tap or drag to seek),
 // time under it, speed while playing. Messages without a waveform (older apps) show even low bars.
-export function VoiceBubble({ attachment, mine }: { attachment: Attachment; mine: boolean }) {
+export function VoiceBubble({ attachment, mine, selecting = false, onLongPress }: { attachment: Attachment; mine: boolean; selecting?: boolean; onLongPress?: (pageY: number) => void }) {
   const t = useTheme();
   const voice = useContext(VoiceContext);
   const [width, setWidth] = useState(1);
+  const touch = useRef<{ x: number; long: boolean; moved: boolean } | null>(null);
+  const hold = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
+  useEffect(() => () => { if (hold.current) clearTimeout(hold.current); }, []);
   // Stored bars (100 now, 48 in 0.14.5–0.14.6) fitted to the bubble: one 2.5 pt bar per 4 pt.
   const bars = React.useMemo(() => fitWaveform(decodeWaveform(attachment.media?.waveform) || Array.from({ length: 48 }, () => .12), Math.max(12, Math.floor(width / 4))), [attachment.media?.waveform, width]);
   if (!voice) return null;
@@ -289,15 +292,33 @@ export function VoiceBubble({ attachment, mine }: { attachment: Attachment; mine
   const position = active ? voice.position * 1000 : 0;
   const progress = total > 0 ? Math.min(1, position / total) : 0;
   const playing = active && voice.playing;
+  // The whole right part (waveform and time) belongs to the player, as in Telegram: a tap there plays (or seeks
+  // when playing), a drag scrubs, a long press opens the message menu. Only the 24-pt waveform used to take the
+  // touch, so a tap a little above or below it went to the message and opened its menu instead of playing;
+  // and a touch on a bar measured x from that bar, so seeking jumped to the start. The bars ignore touches now.
   // Not playing yet: start on release, so a scroll that begins on the bubble does not start playback.
-  const seekAt = (x: number) => { if (active) voice.seek(attachment, x / width); };
+  const seekAt = (x: number) => { if (active) voice.seek(attachment, Math.max(0, Math.min(1, x / width))); };
   return <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10, paddingVertical: 4, width: 240 }}>
     <Pressable accessibilityRole="button" accessibilityLabel={playing ? 'Пауза' : 'Прослушать голосовое сообщение'} onPress={() => voice.toggle(attachment)} style={({ pressed }) => ({ width: 44, height: 44, borderRadius: 22, backgroundColor: t.accent, alignItems: 'center', justifyContent: 'center', opacity: pressed ? .75 : 1 })}>
       {loading ? <ActivityIndicator size="small" color={t.onAccent} /> : <Icon name={playing ? 'pause' : 'play'} color={t.onAccent} size={21} />}
     </Pressable>
-    <View style={{ flex: 1, gap: 4 }}>
-      <View accessibilityRole="adjustable" accessibilityLabel="Перемотка голосового" onLayout={(event: LayoutChangeEvent) => setWidth(Math.max(1, event.nativeEvent.layout.width))}
-        onStartShouldSetResponder={() => true} onMoveShouldSetResponder={() => active} onResponderGrant={event => seekAt(event.nativeEvent.locationX)} onResponderRelease={() => { if (!active) voice.toggle(attachment); }} onResponderMove={event => { if (active) voice.seek(attachment, event.nativeEvent.locationX / width); }}
+    <View style={{ flex: 1, gap: 4, paddingVertical: 6, marginVertical: -6 }} onLayout={(event: LayoutChangeEvent) => setWidth(Math.max(1, event.nativeEvent.layout.width))}
+      onStartShouldSetResponder={() => !selecting} onMoveShouldSetResponder={() => !selecting && active}
+      onResponderTerminationRequest={() => !active}
+      onResponderGrant={event => {
+        const { locationX, pageX, pageY } = event.nativeEvent; touch.current = { x: pageX, long: false, moved: false };
+        if (hold.current) clearTimeout(hold.current);
+        if (onLongPress) hold.current = setTimeout(() => { hold.current = undefined; if (touch.current && !touch.current.moved) { touch.current.long = true; onLongPress(pageY); } }, 400);
+        seekAt(locationX);
+      }}
+      onResponderMove={event => {
+        const { locationX, pageX } = event.nativeEvent; const at = touch.current;
+        if (at && Math.abs(pageX - at.x) > 6) { at.moved = true; if (hold.current) { clearTimeout(hold.current); hold.current = undefined; } }
+        if (active) seekAt(locationX);
+      }}
+      onResponderRelease={() => { if (hold.current) { clearTimeout(hold.current); hold.current = undefined; } const at = touch.current; touch.current = null; if (!at?.long && !active) voice.toggle(attachment); }}
+      onResponderTerminate={() => { if (hold.current) { clearTimeout(hold.current); hold.current = undefined; } touch.current = null; }}>
+      <View pointerEvents="none" accessibilityRole="adjustable" accessibilityLabel="Перемотка голосового"
         style={{ height: 24, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
         {bars.map((value, index) => <View key={index} style={{ width: 2.5, borderRadius: 2, height: Math.max(2.5, value * 22), backgroundColor: (index + .5) / bars.length <= progress ? t.accent : (mine ? 'rgba(127,140,170,0.45)' : t.muted), opacity: (index + .5) / bars.length <= progress ? 1 : .55 }} />)}
       </View>
