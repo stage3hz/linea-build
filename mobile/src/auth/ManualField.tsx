@@ -13,7 +13,7 @@ type Props = Omit<TextInputProps, 'value'|'onChangeText'> & {
  * security control and cannot prove how text was produced by an input method. */
 export function ManualField({value,onChangeText,label,style,onFocus,onBlur,onSelectionChange,...props}:Props) {
   const t=useTheme();
-  const input=useRef<TextInput>(null),accepted=useRef(value),selection=useRef({start:0,end:0});
+  const input=useRef<TextInput>(null),accepted=useRef(value),selection=useRef({start:0,end:0}),typed=useRef(0);
   const [focused,setFocused]=useState(false),[rejected,setRejected]=useState(false);
   accepted.current=value;
   useEffect(()=>{if(!value)setRejected(false);},[value]);
@@ -46,7 +46,10 @@ export function ManualField({value,onChangeText,label,style,onFocus,onBlur,onSel
     <GlassSurface radius={18} material="regular" shadow={false}>
       <View pointerEvents="none" style={[StyleSheet.absoluteFill,{borderRadius:18,borderWidth:focused?1.4:0,borderColor:t.accent}]}/>
       <TextInput {...props} ref={input} value={value} accessibilityLabel={props.accessibilityLabel||label} testID={props.testID||`field-${props.accessibilityLabel||label||''}`}
-        onChangeText={next=>{if(!isManualEdit(accepted.current,next)){restore();return;}accepted.current=next;setRejected(false);onChangeText(next);}}
+        // Key presses since the last accepted change: lets a burst of typed characters through when the app
+        // was busy and iOS merged them into one event, while a paste (no key press) is still turned back.
+        onKeyPress={event=>{const key=event.nativeEvent.key;if(key&&key!=='Backspace'&&key!=='Enter'&&key!=='Tab')typed.current++;props.onKeyPress?.(event);}}
+        onChangeText={next=>{const keys=typed.current;typed.current=0;if(!isManualEdit(accepted.current,next,keys)){restore();return;}accepted.current=next;setRejected(false);onChangeText(next);}}
         onSelectionChange={event=>{selection.current=event.nativeEvent.selection;onSelectionChange?.(event);}}
         autoComplete="off" textContentType="none" importantForAutofill="noExcludeDescendants" contextMenuHidden
         autoCapitalize="none" autoCorrect={false} spellCheck={false} smartInsertDelete={false}

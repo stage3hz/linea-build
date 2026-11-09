@@ -110,6 +110,11 @@ appId: com.linea.messenger.preview
     visible:
       id: "field-Слово подтверждения"
     timeout: 20000
+# «Save Password?» can appear only after the next step has opened and cover its fields.
+- tapOn:
+    text: "Not Now|Не сейчас"
+    optional: true
+- waitForAnimationToEnd
 
 # Step 4/5: confirmation word twice
 # The simulator cannot type into a secure field (iOS Password AutoFill); show it first.
@@ -146,6 +151,11 @@ appId: com.linea.messenger.preview
     visible:
       id: "field-Слово восстановления"
     timeout: 20000
+# «Save Password?» can appear only after the next step has opened and cover its fields.
+- tapOn:
+    text: "Not Now|Не сейчас"
+    optional: true
+- waitForAnimationToEnd
 
 # Step 5/5: recovery word twice
 # The simulator cannot type into a secure field (iOS Password AutoFill); show it first.

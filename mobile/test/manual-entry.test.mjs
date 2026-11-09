@@ -27,3 +27,15 @@ test('text-change events alone cannot distinguish a one-character paste', () => 
   // contains only the resulting text, so the product makes no stronger claim.
   assert.equal(isManualEdit('', 'a'), true);
 });
+
+test('typed burst: characters merged into one change by a busy app pass when each came with a key press', () => {
+  assert.equal(isManualEdit('s', 'simt', 3), true, 'three key presses, three characters');
+  assert.equal(isManualEdit('', 'simtester1', 10), true);
+  assert.equal(isManualEdit('s', 'simt', 2), false, 'more characters than key presses: something was pasted');
+});
+
+test('a paste or autofill (no key press) is still refused, also right after typing', () => {
+  assert.equal(isManualEdit('s', 'simtester1', 0), false);
+  assert.equal(isManualEdit('', 'correct horse battery staple', 0), false);
+  assert.equal(isManualEdit('ab', 'abc', 0), true, 'one character is always allowed (a single key press may come without the event)');
+});
