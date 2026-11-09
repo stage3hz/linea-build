@@ -143,8 +143,13 @@ export function GlassSurface({children,style,contentStyle,radius=26,material='re
       {hasBlur?<BlurView tint={t.dark?'dark':'light'} intensity={regular?64:35} blurMethod="dimezisBlurViewSdk31Plus" blurTarget={target} style={StyleSheet.absoluteFill}/>:null}
       {/* Android without a live blur: a dense tint so text scrolling underneath does not show through. */}
       {Platform.OS==='android'&&!hasBlur&&!reduceTransparency?<View style={[StyleSheet.absoluteFill,{backgroundColor:t.glassOpaque,opacity:regular?.86:.78}]}/>:<View style={[StyleSheet.absoluteFill,{backgroundColor:fill}]}/>}
-      {!reduceTransparency?<LinearGradient colors={[t.glassHighlight,'transparent',t.black?'rgba(255,255,255,0.025)':t.dark?'rgba(129,172,255,0.025)':'rgba(255,255,255,0.08)']} locations={[0,.36,1]} start={{x:.1,y:0}} end={{x:.65,y:1}} style={[StyleSheet.absoluteFill,{opacity:regular?.48:.66}]}/>:null}
-      <View style={[StyleSheet.absoluteFill,{borderRadius:radius,borderWidth:1,borderColor:t.glassBorder,borderBottomColor:t.black?'rgba(255,255,255,0.10)':t.dark?'rgba(129,167,230,0.10)':'rgba(139,162,204,0.23)'}]}/>
+      {/* The diagonal sheen is left out of the even glass (the tab bar): on a wide, low bar it is nearly
+          horizontal and its fade-out read as a grey smudge between «AI» and «Люди» in every state
+          (simulator screenshots, light theme: 252 → 226 → 250 luminance across the bar). */}
+      {!reduceTransparency&&systemGlass?<LinearGradient colors={[t.glassHighlight,'transparent',t.black?'rgba(255,255,255,0.025)':t.dark?'rgba(129,172,255,0.025)':'rgba(255,255,255,0.08)']} locations={[0,.36,1]} start={{x:.1,y:0}} end={{x:.65,y:1}} style={[StyleSheet.absoluteFill,{opacity:regular?.48:.66}]}/>:null}
+      {/* Even glass (the tab bar): one rim colour. A different bottom colour is joined at 45° inside the rounded
+          corners and showed as a visible step in both lower corners of the bar. */}
+      <View style={[StyleSheet.absoluteFill,{borderRadius:radius,borderWidth:1,borderColor:t.glassBorder,...(systemGlass?{borderBottomColor:t.black?'rgba(255,255,255,0.10)':t.dark?'rgba(129,167,230,0.10)':'rgba(139,162,204,0.23)'}:null)}]}/>
       <View style={{position:'absolute',top:1,left:radius*.58,right:radius*.58,height:1,borderRadius:1,backgroundColor:t.glassHighlight,opacity:.7}}/>
     </View>
     <NestedGlass.Provider value={true}><View collapsable={false} style={[{flexGrow:1},contentStyle]}>{children}</View></NestedGlass.Provider>
