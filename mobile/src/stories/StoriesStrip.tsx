@@ -1,6 +1,7 @@
 // The stories strip above the chat list (Telegram): «Моя история» first (a «+» adds one), then friends who
 // have a live story — those with something unseen first, a bright ring; all watched, a grey ring. A tap
-// opens the viewer, which runs on to the next friend when one person's stories end. The strip is hidden
+// opens the viewer, which runs on to the next friend when one person's stories end; a swipe sideways moves
+// between people (back from someone's first story goes to the previous person's last). The strip is hidden
 // while nobody (me included) has a story: only the «+» would be left. Stories stay friends-only: the server
 // builds the feed with canSeePosts. A reply is an ordinary end-to-end encrypted message to the author with
 // a story reference (meta.story) inside the encrypted payload (the server sees ciphertext only).
@@ -35,6 +36,10 @@ export function StoriesStrip({ api, user, store }: { api: Api; user: User; store
   // Whose stories are open: my own (user.id) or a friend's (their user id). An id, not an index: the feed
   // may be re-read (socket, timer) while the viewer is open, and the order changes as stories are watched.
   const [viewing, setViewing] = useState<string | null>(null);
+  // Which way the viewer moved to the person shown: forward starts at their first unseen story, back
+  // (a swipe right or a tap on the left of someone's first story) at their last one, as in Telegram.
+  const [entered, setEntered] = useState<1 | -1>(1);
+  const open = (id: string | null, from: 1 | -1 = 1) => { setEntered(from); setViewing(id); };
   const [busy, setBusy] = useState(false); const [error, setError] = useState('');
   const alive = useRef(true);
   // The latest store state for the reply flow, which awaits across renders.
@@ -86,11 +91,16 @@ export function StoriesStrip({ api, user, store }: { api: Api; user: User; store
   const mineSeen = feed.mine.length > 0;
   const own = viewing === user.id;
   const current = viewing === null ? null : own ? { user, stories: feed.mine, unseen: 0 } : feed.items.find(item => item.user.id === viewing) ?? null;
+  // The people in the strip's order: «Моя история» (when there is one), then friends.
+  const order = [...(feed.mine.length ? [user.id] : []), ...feed.items.map(item => item.user.id)];
+  const at = viewing === null ? -1 : order.indexOf(viewing);
+  const before = at > 0 ? order[at - 1] : null, after = at >= 0 && at + 1 < order.length ? order[at + 1] : null;
+  const start = !current ? 0 : entered < 0 ? current.stories.length - 1 : own ? 0 : Math.max(0, current.stories.findIndex(story => !story.seen));
   const label = (text: string) => <Text numberOfLines={1} style={{ color: t.text, fontSize: 12, fontWeight: '600', maxWidth: AVATAR + 16, textAlign: 'center' }}>{text}</Text>;
   return <View style={{ paddingBottom: 6 }}>
     {error ? <View style={{ paddingHorizontal: 16, paddingBottom: 8 }}><Notice text={error} error /></View> : null}
     <ScrollView horizontal showsHorizontalScrollIndicator={false} keyboardShouldPersistTaps="handled" contentContainerStyle={{ paddingHorizontal: 12, gap: 6, alignItems: 'flex-start' }}>
-      <Pressable accessibilityRole="button" accessibilityLabel={mineSeen ? 'Моя история' : 'Добавить историю'} disabled={busy} onPress={() => { lightFeedback(); if (mineSeen) setViewing(user.id); else void add(); }} onLongPress={() => void add()} delayLongPress={350}
+      <Pressable accessibilityRole="button" accessibilityLabel={mineSeen ? 'Моя история' : 'Добавить историю'} disabled={busy} onPress={() => { lightFeedback(); if (mineSeen) open(user.id); else void add(); }} onLongPress={() => void add()} delayLongPress={350}
         style={({ pressed }) => ({ alignItems: 'center', gap: 5, width: AVATAR + 24, opacity: pressed ? .75 : 1 })}>
         <View style={{ width: AVATAR + 12, height: AVATAR + 12, alignItems: 'center', justifyContent: 'center' }}>
           <StoryRing active={mineSeen} size={AVATAR}><Avatar user={user} api={api} size={AVATAR} round /></StoryRing>
@@ -100,17 +110,21 @@ export function StoriesStrip({ api, user, store }: { api: Api; user: User; store
         </View>
         {label('Моя история')}
       </Pressable>
-      {feed.items.map(item => <Pressable key={item.user.id} accessibilityRole="button" accessibilityLabel={`${item.user.displayName}${item.unseen ? `, новых историй: ${item.unseen}` : ', истории просмотрены'}`} onPress={() => { lightFeedback(); setViewing(item.user.id); }}
+      {feed.items.map(item => <Pressable key={item.user.id} accessibilityRole="button" accessibilityLabel={`${item.user.displayName}${item.unseen ? `, новых историй: ${item.unseen}` : ', истории просмотрены'}`} onPress={() => { lightFeedback(); open(item.user.id); }}
         style={({ pressed }) => ({ alignItems: 'center', gap: 5, width: AVATAR + 24, opacity: pressed ? .75 : 1 })}>
         <StoryRing active seen={item.unseen === 0} size={AVATAR}><Avatar user={item.user} api={api} size={AVATAR} round /></StoryRing>
         {label(item.user.displayName.trim().split(/\s+/)[0] || item.user.displayName)}
       </Pressable>)}
     </ScrollView>
-    {current && current.stories.length ? <PostViewer key={current.user.id} api={api} items={current.stories} start={own ? 0 : Math.max(0, current.stories.findIndex(story => !story.seen))} story
+    {/* One viewer for the whole strip: moving to another person swaps its stories in place (`group`), with
+        the page sliding in from the side the finger pushed towards, instead of closing and reopening the modal. */}
+    {current && current.stories.length ? <PostViewer api={api} items={current.stories} start={start} story group={current.user.id} enterFrom={entered}
       owner={current.user} own={own} onClose={() => setViewing(null)}
       onView={own ? undefined : post => viewed(current, post)}
       onReply={own ? undefined : (text, post) => reply(current.user, text, post)}
-      // At the end of one person's stories the viewer runs on to the next friend; after the last one it closes.
-      onFinished={() => setViewing(id => { if (id === null || id === user.id) return null; const index = feed.items.findIndex(item => item.user.id === id); return index < 0 || index + 1 >= feed.items.length ? null : feed.items[index + 1].user.id; })} /> : null}
+      // At the end of one person's stories the viewer runs on to the next (from mine to the first friend);
+      // after the last one it closes. A swipe right on someone's first story goes back to the previous person.
+      onFinished={() => open(after, 1)}
+      onPrevious={before ? () => open(before, -1) : undefined} /> : null}
   </View>;
 }

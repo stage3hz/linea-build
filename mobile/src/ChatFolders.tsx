@@ -48,9 +48,10 @@ export function useChatFolders(userId: string) {
   };
 }
 
-export function matchesFolder(chat: Chat, filter: FolderFilter, folders: ChatFolder[]) {
+/** `marked`: chats marked unread by hand on this device (src/markedUnread.ts); Telegram lists them in «Непрочитанные». */
+export function matchesFolder(chat: Chat, filter: FolderFilter, folders: ChatFolder[], marked?: ReadonlySet<string>) {
   if (filter === 'all') return true;
-  if (filter === 'unread') return chat.unreadCount > 0;
+  if (filter === 'unread') return chat.unreadCount > 0 || !!marked?.has(chat.id);
   return !!folders.find(folder => folder.id === filter)?.chatIds.includes(chat.id);
 }
 

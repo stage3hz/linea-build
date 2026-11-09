@@ -92,3 +92,18 @@ test('archive row settles shown or hidden when a drag ends half way', () => {
   assert.equal(s.archiveSnap(20, 80, 1), 80);
   assert.equal(s.archiveSnap(30, 0), null);
 });
+
+test('the chat list offers «Непрочитано» on a read chat (a device-local mark) and «Прочитано» on an unread one', () => {
+  const LIST = { markUnread: true, pin: true, archive: true };
+  assert.deepEqual(s.rowActions({ unread: false, pinned: false, muted: false, archived: false }, LIST).right, ['unread', 'pin']);
+  assert.deepEqual(s.rowActions({ unread: true, pinned: true, muted: false, archived: false }, LIST).right, ['read', 'unpin']);
+});
+
+test('back swipe over a strip: a scrolled strip keeps a rightward drag, its start or the edge does not', () => {
+  assert.equal(s.stripBlocksBack(true, 120, 200), true, 'scrolled strip, finger in the middle');
+  assert.equal(s.stripBlocksBack(true, 0, 200), false, 'the strip at its start: nothing to scroll back');
+  assert.equal(s.stripBlocksBack(true, 0.5, 200), false, 'sub-point offsets count as the start');
+  assert.equal(s.stripBlocksBack(true, 120, 10), false, 'from the edge the back swipe always wins');
+  assert.equal(s.stripBlocksBack(true, 120, s.BACK_EDGE), false);
+  assert.equal(s.stripBlocksBack(false, 120, 200), false, 'the finger is not on the strip');
+});

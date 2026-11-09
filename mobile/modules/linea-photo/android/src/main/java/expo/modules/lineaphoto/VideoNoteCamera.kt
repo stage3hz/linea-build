@@ -134,7 +134,11 @@ class VideoNoteView(context: Context, appContext: AppContext) : ExpoView(context
           is VideoRecordEvent.Finalize -> {
             recording = null
             val error = event.error
-            if (error != VideoRecordEvent.Finalize.ERROR_NONE && error != VideoRecordEvent.Finalize.ERROR_DURATION_LIMIT_REACHED) {
+            // CameraX documents these endings as leaving a valid, playable file (the camera was taken away
+            // mid-take, e.g. a call or the app went to the background; a size limit): the take is kept.
+            val usable = error == VideoRecordEvent.Finalize.ERROR_NONE || error == VideoRecordEvent.Finalize.ERROR_DURATION_LIMIT_REACHED ||
+              error == VideoRecordEvent.Finalize.ERROR_FILE_SIZE_LIMIT_REACHED || error == VideoRecordEvent.Finalize.ERROR_SOURCE_INACTIVE
+            if (!usable || (file?.length() ?: 0L) <= 0L) {
               started?.reject("RECORDING", "Не удалось записать видео.", null); started = null
               stopped?.reject("RECORDING", "Не удалось записать видео (код $error).", null); stopped = null
             } else {

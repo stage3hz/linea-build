@@ -30,6 +30,8 @@ import type { Attachment, Chat, ReportReason, User } from './types';
 import { AUTO_DELETE, autoDeleteLabel, type ChatRules, type ViewMessage } from './messageMeta';
 import { refreshFriendRequests } from './friendRequests';
 import { SharedMedia } from './SharedMedia';
+import { useBackStrip } from './backStrip';
+import { stripBlocksBack } from './listSwipes';
 import { MuteSheet } from './notifications/MuteSheet';
 import { isMuted, muteUntilLabel } from './notifications/model';
 
@@ -81,12 +83,15 @@ export function UserProfile({ api, user, onClose, chat, onMessage, onMute, onSea
   // direction lock as the chat stack (src/stack.tsx): it takes over once the move is right and mostly
   // sideways (2:1), and lets go of a vertical one so the profile still scrolls. Wide windows show a
   // centred card that closes with a tap outside it, so no swipe there.
-  const swipeStart = useSharedValue({ x: 0, y: 0 });
+  // A drag that starts on the shared media tab strip while it is scrolled away from its start scrolls the
+  // strip back instead (from the very edge the back swipe still wins), see stripBlocksBack.
+  const swipeStart = useSharedValue({ x: 0, y: 0, local: 0 }); const mediaStrip = useBackStrip();
   const motion = motionEnabled();
   const edgeSwipe = Gesture.Pan().enabled(width < 760).manualActivation(true)
-    .onTouchesDown((event, manager) => { const touch = event.changedTouches[0]; if (!touch || event.numberOfTouches > 1) { manager.fail(); return; } swipeStart.value = { x: touch.absoluteX, y: touch.absoluteY }; })
+    .onTouchesDown((event, manager) => { const touch = event.changedTouches[0]; if (!touch || event.numberOfTouches > 1) { manager.fail(); return; } swipeStart.value = { x: touch.absoluteX, y: touch.absoluteY, local: touch.x }; })
     .onTouchesMove((event, manager) => {
       const touch = event.changedTouches[0]; if (!touch) return;
+      if (stripBlocksBack(mediaStrip.touching.value === 1, mediaStrip.offset.value, swipeStart.value.local)) { manager.fail(); return; }
       const intent = backSwipeIntent(touch.absoluteX - swipeStart.value.x, touch.absoluteY - swipeStart.value.y);
       if (intent === 'activate') manager.activate(); else if (intent === 'fail') manager.fail();
     })
@@ -97,7 +102,8 @@ export function UserProfile({ api, user, onClose, chat, onMessage, onMute, onSea
         if (!motion) { slide.value = width; runOnJS(onClose)(); return; }
         slide.value = withTiming(width, { duration: Math.max(90, 200 * (1 - slide.value / width)), easing: Easing.out(Easing.cubic) }, done => { if (done) runOnJS(onClose)(); });
       } else slide.value = motion ? withSpring(0, { damping: 20, stiffness: 260 }) : 0;
-    });
+    })
+    .onFinalize(() => { mediaStrip.touching.value = 0; });
   const back = () => { if (width >= 760) { onClose(); return; } slide.value = withTiming(width, { duration: 220, easing: Easing.in(Easing.cubic) }, done => { if (done) runOnJS(onClose)(); }); };
   const [menu, setMenu] = useState(false); const [menuAt, setMenuAt] = useState<{ x?: number; y: number }>({ y: 90 }); const [sheet, setSheet] = useState<'ttl' | 'clear' | 'block' | 'report' | 'unfriend' | 'mute' | null>(null);
   const [blocked, setBlocked] = useState(false); const [reason, setReason] = useState<ReportReason | null>(null);
@@ -223,7 +229,7 @@ export function UserProfile({ api, user, onClose, chat, onMessage, onMute, onSea
           <Pressable disabled={!onSecurity} onPress={() => { onClose(); onSecurity?.(); }} accessibilityRole="button" style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}><Icon name="lock-closed" size={14} color={t.accent} /><Text style={{ color: t.muted, fontSize: 12, flex: 1 }}>Переписка защищена сквозным шифрованием{onSecurity ? ' · проверить устройства' : ''}</Text>{onSecurity ? <Icon name="chevron-forward" size={14} color={t.muted} /> : null}</Pressable>
         </ProfileInfoCard>
         <View style={{ alignSelf: 'stretch' }}><PostsSection api={api} own={false} userId={shown.id} data={posts.data} onChanged={() => void posts.reload()} width={(card ? cardWidth : Math.min(680, width)) - 36} /></View>
-        {shared && onOpenAttachment ? <SharedMedia messages={shared} onOpen={attachment => { onClose(); setTimeout(() => onOpenAttachment(attachment), 250); }} /> : null}
+        {shared && onOpenAttachment ? <SharedMedia messages={shared} backStrip={mediaStrip} onOpen={attachment => { onClose(); setTimeout(() => onOpenAttachment(attachment), 250); }} /> : null}
       </Animated.ScrollView>
     </InsetView>{/* Discord-style profile effect over the top while the profile is open. */}<ProfileEffect effect={shown.profileEffect} width={card ? cardWidth : width} height={420} /></GlassStage>
     </View></Animated.View></GestureDetector></GestureHandlerRootView>

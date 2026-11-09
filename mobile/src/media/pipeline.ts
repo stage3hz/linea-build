@@ -10,6 +10,7 @@ import {sanitizeMp4} from './mp4';
 import {ensureFileUri} from './localCopy';
 import {sanitizeGif} from '../photo/gif';
 import type {NativeVideoResult} from '../../modules/linea-video';
+import {getNotes} from '../videonote/noteOutbox';
 export type PreparedMedia=PreparedUpload&{video?:boolean};
 const MAX_OUTPUT=20*1024*1024;
 const EXPORT_NAME=/^linea-video-export-[0-9a-f-]{36}\.mp4$/i;
@@ -123,6 +124,8 @@ export async function resolveVideoLibraryAsset(id:string):Promise<{fileUri:strin
 export function clearVideoCache():Promise<void>{return exclusive(async()=>{
   if(!FileSystem.cacheDirectory)return;
   const directory=FileSystem.cacheDirectory,names=await FileSystem.readDirectoryAsync(directory);
-  await Promise.all(names.filter(name=>(EXPORT_NAME.test(name)&&!ownedExports.has(`${directory}${name}`))||VIDEO_NOTE_NAME.test(name)).map(name=>FileSystem.deleteAsync(`${directory}${name}`,{idempotent:true})));
+  // A circle that is still uploading, or failed and waits for «Повторить отправку», keeps its recording.
+  const notesInUse=new Set(getNotes().map(note=>{const name=note.uri.split('/').pop()||'';try{return decodeURIComponent(name);}catch{return name;}}));
+  await Promise.all(names.filter(name=>(EXPORT_NAME.test(name)&&!ownedExports.has(`${directory}${name}`))||(VIDEO_NOTE_NAME.test(name)&&!notesInUse.has(name))).map(name=>FileSystem.deleteAsync(`${directory}${name}`,{idempotent:true})));
   if(!ownedSources.size)await getVideoBridge().clearCache();
 });}

@@ -267,15 +267,23 @@ function VideoMedia({ api, id, active, width, height, onEnd }: { api: Api; id: s
  * (`onFinished`), lets a friend answer a story (`onReply`: an ordinary end-to-end encrypted message to the
  * author) and shows the owner «👁 N» with the list of viewers (`own`).
  */
-export function PostViewer({ api, items, start, story, onClose, onFinished, onPrevious, onView, owner, own = false, onReply }: {
+export function PostViewer({ api, items, start, story, onClose, onFinished, onPrevious, onView, owner, own = false, onReply, group, enterFrom = 1 }: {
   api: Api; items: ProfilePost[]; start: number; story: boolean; onClose: () => void;
   onFinished?: () => void;
   /** A swipe right on the first item (e.g. the previous friend in the stories strip). Without it the page springs back. */
   onPrevious?: () => void; onView?: (post: ProfilePost) => void; owner?: User; own?: boolean; onReply?: (text: string, post: ProfilePost) => Promise<void>;
+  /**
+   * Whose items these are (the stories strip: a person's id). When it changes the viewer stays open and
+   * starts over at `start` with the new items, the page coming in from `enterFrom` (1 = from the right,
+   * after moving forward; -1 = from the left, after going back) — Telegram moves between people in place.
+   */
+  group?: string; enterFrom?: 1 | -1;
 }) {
   const t = useTheme();
   const { width, height } = useWindowDimensions(); const insets = useSafeAreaInsets();
   const [index, setIndex] = useState(Math.min(start, Math.max(0, items.length - 1)));
+  // Bumped when `group` changes, so the page effects below run even when the index stays the same.
+  const [page, setPage] = useState(0);
   const progress = useSharedValue(0); const closing = useRef(false);
   const current = items[index];
   // The story clock stops while the viewers sheet is open or a reply is being typed (Telegram).
@@ -288,26 +296,34 @@ export function PostViewer({ api, items, start, story, onClose, onFinished, onPr
   const replyInput = useRef<React.ElementRef<typeof TextInput>>(null);
   const finish = useCallback(() => { if (!closing.current) { closing.current = true; setTimeout(onFinished ?? onClose, 0); } }, [onFinished, onClose]);
   const next = useCallback(() => { setIndex(i => { if (i + 1 >= items.length) { finish(); return i; } return i + 1; }); }, [items.length, finish]);
-  const previous = () => setIndex(i => Math.max(0, i - 1));
+  // A tap on the left of the first story goes back to the previous person (Telegram), like a swipe right.
+  const previous = () => { if (index > 0) setIndex(index - 1); else if (onPrevious && !closing.current) { closing.current = true; onPrevious(); } };
   const onViewRef = useRef(onView); onViewRef.current = onView;
   useEffect(() => { if (story && current) onViewRef.current?.(current); }, [story, current?.id]);
   // Swipes: the page follows the finger sideways (to the next / previous) or down (to close).
   const motion = motionEnabled();
   const x = useSharedValue(0), y = useSharedValue(0), axis = useSharedValue<0 | 1 | 2>(0);
   const entering = useRef(0);
+  const lastGroup = useRef(group);
+  useEffect(() => {
+    if (lastGroup.current === group) return;
+    lastGroup.current = group;
+    closing.current = false; entering.current = enterFrom;
+    setIndex(Math.min(Math.max(0, start), Math.max(0, items.length - 1))); setPage(n => n + 1);
+  }, [group]);
   useEffect(() => {
     cancelAnimation(progress); progress.value = 0; setReply(''); setError(''); setSent(false); setViewers(null); setViews(current?.views ?? null);
     // After a swipe the new page comes in from the side the finger pushed towards.
     y.value = 0; const from = entering.current; entering.current = 0;
     x.value = from && motion ? withSequence(withTiming(from * width, { duration: 0 }), withTiming(0, { duration: 200, easing: Easing.out(Easing.cubic) })) : 0;
-  }, [index]);
+  }, [index, page]);
   useEffect(() => {
     if (!story || !current || paused) return;
     if (current.media.isVideo) return; // a video moves on when it ends (PC too: the same player, see VideoMedia)
     const left = Math.max(60, (1 - progress.value) * STORY_PHOTO_MS);
     progress.value = withTiming(1, { duration: left, easing: Easing.linear }, done => { if (done) runOnJS(next)(); });
     return () => cancelAnimation(progress);
-  }, [index, story, paused]);
+  }, [index, page, story, paused]);
   // The owner's counter is kept fresh: views made while the story is on screen.
   useEffect(() => {
     if (!own || !story || !current) return; let live = true;
@@ -318,7 +334,7 @@ export function PostViewer({ api, items, start, story, onClose, onFinished, onPr
   const hasNext = index + 1 < items.length || story; const hasPrevious = index > 0 || !!onPrevious;
   const step = (direction: 1 | -1) => {
     if (direction > 0) { if (index + 1 < items.length) { entering.current = 1; setIndex(index + 1); } else if (story) finish(); return; }
-    if (index > 0) { entering.current = -1; setIndex(index - 1); } else if (onPrevious && !closing.current) onPrevious();
+    if (index > 0) { entering.current = -1; setIndex(index - 1); } else if (onPrevious && !closing.current) { closing.current = true; onPrevious(); }
   };
   const goNext = () => step(1), goPrevious = () => step(-1);
   const dismissKeyboard = () => Keyboard.dismiss();

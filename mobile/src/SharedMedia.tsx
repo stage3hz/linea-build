@@ -13,6 +13,7 @@ import type { ViewMessage } from './messageMeta';
 import { mediaPreviewKind } from './media/formats';
 import { previewUri } from './media/previewModel';
 import { isVideoNote, isVoice } from './voice/voice';
+import { BackStripTouch, stripScrollProps, type BackStrip } from './backStrip';
 
 type Tab = 'photos' | 'videos' | 'files' | 'voice' | 'links';
 const URL = /https?:\/\/[^\s<>"']+/gi;
@@ -22,7 +23,8 @@ const when = (iso: string) => new Date(iso).toLocaleDateString('ru-RU', { day: '
  * Profile tabs with everything shared in the chat (Медиа · Файлы · Голосовые · Ссылки), from
  * the decrypted history on this device — nothing is asked from the server.
  */
-export function SharedMedia({ messages, onOpen, emptyText }: { messages: ViewMessage[]; onOpen: (attachment: Attachment) => void; emptyText?: string }) {
+/** `backStrip`: the screen closes with a swipe right (the profile); the tab strip then tells it when a drag is its own. */
+export function SharedMedia({ messages, onOpen, emptyText, backStrip }: { messages: ViewMessage[]; onOpen: (attachment: Attachment) => void; emptyText?: string; backStrip?: BackStrip }) {
   const t = useTheme(); const { width } = useWindowDimensions();
   const groups = useMemo(() => {
     const media: { a: Attachment; m: ViewMessage }[] = [], files: typeof media = [], voice: typeof media = [], links: { url: string; m: ViewMessage }[] = [];
@@ -65,11 +67,11 @@ export function SharedMedia({ messages, onOpen, emptyText }: { messages: ViewMes
   if (!active) return emptyText ? <View style={{ alignItems: 'center', gap: 10, paddingVertical: 48 }}><Icon name="images-outline" size={40} color={t.muted} /><Text style={{ color: t.muted, fontSize: 15, textAlign: 'center' }}>{emptyText}</Text></View> : null;
   const cell = Math.floor((Math.min(width, 600) - 36 - 4) / 3);
   return <View style={{ alignSelf: 'stretch', gap: 10 }}>
-    <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ gap: 6, padding: 4, borderRadius: 18, backgroundColor: t.surface2 }}>
+    <BackStripTouch strip={backStrip}><ScrollView horizontal showsHorizontalScrollIndicator={false} {...stripScrollProps(backStrip)} contentContainerStyle={{ gap: 6, padding: 4, borderRadius: 18, backgroundColor: t.surface2 }}>
       {tabs.map(item => <Pressable key={item.id} accessibilityRole="tab" accessibilityState={{ selected: item.id === active }} onPress={() => setTab(item.id)} style={{ paddingHorizontal: 14, paddingVertical: 8, borderRadius: 14, backgroundColor: item.id === active ? t.accentSoft : 'transparent' }}>
         <Text style={{ color: item.id === active ? t.accent : t.text, fontSize: 14, fontWeight: '600' }}>{item.label}</Text>
       </Pressable>)}
-    </ScrollView>
+    </ScrollView></BackStripTouch>
     <View style={{ alignSelf: 'stretch' }}><GestureDetector gesture={pan}><Animated.View style={[{ gap: 10 }, follow]}>
     {active === 'photos' || active === 'videos' ? <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 2, borderRadius: 14, overflow: 'hidden' }}>
       {(active === 'photos' ? groups.photos : groups.videos).map(({ a }) => { const thumb = previewUri(a.preview); const seconds = Math.floor((a.media?.durationMs || 0) / 1000);

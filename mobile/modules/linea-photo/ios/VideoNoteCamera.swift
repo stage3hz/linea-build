@@ -93,17 +93,41 @@ final class VideoNoteView: ExpoView, AVCaptureVideoDataOutputSampleBufferDelegat
   /// sideways 1280×720 frames there, which were then all dropped as "landscape" (no video note).
   /// Apple: «The difference in rotation angle is expected on iPhone 17 due to a different sensor rotation»
   /// (developer.apple.com/forums/thread/813548).
-  /// Kept per camera and per connection kind (recording / preview), read once before the first change.
+  /// Kept per camera (recording connection), read once before the first change.
   private var defaultAngles: [String: CGFloat] = [:]
 
+  /// Upright angles the RotationCoordinator reported for each camera while the phone was held upright
+  /// (key: device uniqueID). A camera seen once is set straight from this on every later flip, so the
+  /// picture is upright at once even if the phone is tilted at the moment of the flip.
+  private var portraitAngles: [String: CGFloat] = [:]
+  private let anglesLock = NSLock()
+  private func rememberedAngle(_ id: String) -> CGFloat? { anglesLock.lock(); defer { anglesLock.unlock() }; return portraitAngles[id] }
+  private func rememberAngle(_ id: String, _ angle: CGFloat) { anglesLock.lock(); portraitAngles[id] = angle; anglesLock.unlock() }
+
+  /// The recording connection's upright angle (remembered, else «default + 90°»). Returns the angle applied.
   @available(iOS 17.0, *)
-  private func setPortrait(_ connection: AVCaptureConnection, kind: String) {
-    let key = "\(kind)|\(videoInput?.device.uniqueID ?? facing)"
+  @discardableResult
+  private func setPortrait(_ connection: AVCaptureConnection) -> CGFloat? {
+    let id = videoInput?.device.uniqueID ?? facing
+    let key = "output|\(id)"
     let base = defaultAngles[key] ?? connection.videoRotationAngle
     defaultAngles[key] = base
-    let upright = (base + 90).truncatingRemainder(dividingBy: 360)
-    if connection.isVideoRotationAngleSupported(upright) { connection.videoRotationAngle = upright }
-    else if connection.isVideoRotationAngleSupported(90) { connection.videoRotationAngle = 90 }
+    let guess = (base + 90).truncatingRemainder(dividingBy: 360)
+    for angle in [rememberedAngle(id), guess, 90] {
+      if let angle = angle, connection.isVideoRotationAngleSupported(angle) { connection.videoRotationAngle = angle; return angle }
+    }
+    return nil
+  }
+
+  /// The preview gets the recording's upright angle: both are «sensor → portrait» rotations. The preview
+  /// connection's own default is already portrait-ish on many iPhones (90°; 0° on the turned iPhone 17 front
+  /// camera), so «preview default + 90°» showed the picture 90° sideways after a camera flip until the
+  /// coordinator corrected it — and never, when the phone was tilted at that moment.
+  @available(iOS 17.0, *)
+  private func setPreviewPortrait(_ connection: AVCaptureConnection, upright: CGFloat?) {
+    for angle in [upright, 90] {
+      if let angle = angle, connection.isVideoRotationAngleSupported(angle) { connection.videoRotationAngle = angle; return }
+    }
   }
 
   // Apple's RotationCoordinator knows each camera's sensor rotation (the iPhone 17 front camera is
@@ -116,26 +140,32 @@ final class VideoNoteView: ExpoView, AVCaptureVideoDataOutputSampleBufferDelegat
   @available(iOS 17.0, *)
   private func followRotationCoordinator() {
     guard let device = videoInput?.device else { return }
+    let id = device.uniqueID
     DispatchQueue.main.async {
       self.rotationObservations.removeAll()
       let coordinator = AVCaptureDevice.RotationCoordinator(device: device, previewLayer: self.previewLayer)
       self.rotationCoordinator = coordinator
       self.rotationObservations = [
         coordinator.observe(\.videoRotationAngleForHorizonLevelCapture, options: [.initial, .new]) { [weak self] value, _ in
-          self?.useCoordinator(capture: value.videoRotationAngleForHorizonLevelCapture, preview: nil) },
+          self?.useCoordinator(capture: value.videoRotationAngleForHorizonLevelCapture, preview: nil, device: id) },
         coordinator.observe(\.videoRotationAngleForHorizonLevelPreview, options: [.initial, .new]) { [weak self] value, _ in
-          self?.useCoordinator(capture: nil, preview: value.videoRotationAngleForHorizonLevelPreview) },
+          self?.useCoordinator(capture: nil, preview: value.videoRotationAngleForHorizonLevelPreview, device: id) },
       ]
     }
   }
 
   @available(iOS 17.0, *)
-  private func useCoordinator(capture: CGFloat?, preview: CGFloat?) {
+  private func useCoordinator(capture: CGFloat?, preview: CGFloat?, device: String) {
     DispatchQueue.main.async {
       let held = UIDevice.current.orientation
       guard held == .portrait || held == .unknown || held == .faceUp || held == .faceDown else { return }
       self.sessionQueue.async {
-        if let angle = capture, let connection = self.videoOutput.connection(with: .video), connection.isVideoRotationAngleSupported(angle) { connection.videoRotationAngle = angle }
+        // A late value from the previous camera's coordinator must not turn the current camera.
+        guard self.videoInput?.device.uniqueID == device else { return }
+        if let angle = capture, let connection = self.videoOutput.connection(with: .video), connection.isVideoRotationAngleSupported(angle) {
+          connection.videoRotationAngle = angle
+          if held == .portrait { self.rememberAngle(device, angle) }
+        }
         if let angle = preview, let connection = self.previewLayer.connection, connection.isVideoRotationAngleSupported(angle) { connection.videoRotationAngle = angle }
       }
     }
@@ -143,8 +173,9 @@ final class VideoNoteView: ExpoView, AVCaptureVideoDataOutputSampleBufferDelegat
 
   private func applyConnection() {
     guard let connection = videoOutput.connection(with: .video) else { return }
+    var upright: CGFloat?
     if #available(iOS 17.0, *) {
-      setPortrait(connection, kind: "output")
+      upright = setPortrait(connection)
     } else if connection.isVideoOrientationSupported {
       connection.videoOrientation = .portrait
     }
@@ -154,7 +185,7 @@ final class VideoNoteView: ExpoView, AVCaptureVideoDataOutputSampleBufferDelegat
     }
     if let preview = previewLayer.connection {
       if #available(iOS 17.0, *) {
-        setPortrait(preview, kind: "preview")
+        setPreviewPortrait(preview, upright: upright)
       } else if preview.isVideoOrientationSupported {
         preview.videoOrientation = .portrait
       }

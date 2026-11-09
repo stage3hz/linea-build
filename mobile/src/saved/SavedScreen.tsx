@@ -104,7 +104,8 @@ export function SavedScreen({ api, user, store, onBack, wide = false }: { api: A
   const [cancelProgress, setCancelProgress] = useState(0);
   const [videoHold, setVideoHold] = useState<VideoHold | null>(null); const [circleOpen, setCircleOpen] = useState(false);
   const [recordHint, setRecordHint] = useState(''); const recordHintTimer = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
-  const toggleRecordMode = () => { lightFeedback(); voice.unprepare(); const next = recordModeRef.current === 'voice' ? 'video' : 'voice'; recordModeRef.current = next; setRecordMode(next); setRecordHint(next === 'video' ? 'Видео — удерживайте. Звук — нажмите.' : 'Звук — удерживайте. Видео — нажмите.'); if (recordHintTimer.current) clearTimeout(recordHintTimer.current); recordHintTimer.current = setTimeout(() => setRecordHint(''), 2200); };
+  // PC (web/Electron): voice only, no round videos (the camera recorder is a phone feature).
+  const toggleRecordMode = () => { if (Platform.OS === 'web') return; lightFeedback(); voice.unprepare(); const next = recordModeRef.current === 'voice' ? 'video' : 'voice'; recordModeRef.current = next; setRecordMode(next); setRecordHint(next === 'video' ? 'Видео — удерживайте. Звук — нажмите.' : 'Звук — удерживайте. Видео — нажмите.'); if (recordHintTimer.current) clearTimeout(recordHintTimer.current); recordHintTimer.current = setTimeout(() => setRecordHint(''), 2200); };
   const holdStart = () => {
     Keyboard.dismiss(); setError('');
     if (recordModeRef.current === 'voice') { setRecHold({ kind: 'voice', locked: false }); voice.start().catch(e => { setRecHold(null); fail(e, 'Не удалось начать запись.'); }); }

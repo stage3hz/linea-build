@@ -1081,6 +1081,8 @@
 "Повторить": "Retry",
 "Повторить загрузку": "Retry download",
 "Повторить отправку": "Retry sending",
+"Видеосообщение не отправлено": "Video message not sent",
+"Нет связи с сервером. Видеосообщение не отправлено — повтори, когда появится интернет.": "No connection to the server. The video message was not sent — retry when you're back online.",
 "Повторить этот вопрос": "Repeat this question",
 "Повторить эту задачу": "Repeat this task",
 "Подготавливаем удаление фона…": "Preparing background removal…",
@@ -2744,5 +2746,9 @@
 "‹ Влево — отмена": "‹ Left — cancel",
 "‹ Влево — отмена · вверх — без рук": "‹ Left — cancel · up — hands-free",
 "🔗 Приглашение на сервер": "🔗 Server invite",
-"Изменить сообщение можно в течение 48 часов после отправки.": "Messages can be edited within 48 hours of sending."
+"Изменить сообщение можно в течение 48 часов после отправки.": "Messages can be edited within 48 hours of sending.",
+"Пометить как прочитанное": "Mark as Read",
+"Пометить как непрочитанное": "Mark as Unread",
+", помечен как непрочитанный": ", marked as unread",
+"Непрочитано": "Unread"
 }

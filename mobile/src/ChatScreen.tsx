@@ -15,13 +15,12 @@ import { clearFormatting, normalizeEntities, packEntities, parseMarkdown, shiftE
 import { activeTypes } from './format/entities';
 import { countChats } from './plural';
 import React, { useEffect, useMemo, useRef, useState } from 'react';
-import { ActivityIndicator, FlatList, Image, Keyboard, Modal, Platform, Pressable, ScrollView, StyleSheet, View } from 'react-native';
-import Animated, { FadeIn, useAnimatedStyle } from 'react-native-reanimated';
+import { ActivityIndicator, FlatList, Keyboard, Modal, Platform, Pressable, ScrollView, View } from 'react-native';
+import Animated, { useAnimatedStyle } from 'react-native-reanimated';
 import { setVisibleNotes } from './videonote/playback';
 import { composerValue, typedInto } from './editDraft';
 import { useReanimatedKeyboardAnimation } from 'react-native-keyboard-controller';
 import * as VideoThumbnails from 'expo-video-thumbnails';
-import { ProgressRing } from './media/MediaBubble';
 import { Text, TextInput } from './typography';
 import { KeyboardSafeView } from './keyboard';
 import { shareText } from './share';
@@ -75,6 +74,8 @@ import { UserProfile } from './UserProfile';
 import { MiniProfile } from './MiniProfile';
 import { errorFeedback, impactFeedback, lightFeedback } from './haptics';
 import { VideoNoteRecorder, type VideoHold, type VideoNoteTake } from './videonote/VideoNote';
+import { PendingNotes, useNoteUploads } from './videonote/PendingNotes';
+import { discardNote, queueNote, runNote, type NoteDeps } from './videonote/noteSender';
 import { useCallback } from 'react';
 import { attachmentLabel, isVideoNote, isVoice } from './voice/voice';
 import { VOICE_MIME, VOICE_MIN_MS, videoNoteFileName, voiceFileName } from './voice/voice';
@@ -328,7 +329,8 @@ export function ChatScreen({api,user,chat,store,onBack,wide=false,onOpenMusic}: 
   const [videoHold,setVideoHold]=useState<VideoHold|null>(null);
   // Telegram: a tap on the record button shows the hint right in the input field, not as a toast.
   const [recordHint,setRecordHint]=useState('');const recordHintTimer=useRef<ReturnType<typeof setTimeout>|undefined>(undefined);
-  const toggleRecordMode=()=>{lightFeedback();voice.unprepare();const next=recordModeRef.current==='voice'?'video':'voice';recordModeRef.current=next;setRecordMode(next);setRecordHint(next==='video'?'Видео — удерживайте. Звук — нажмите.':'Звук — удерживайте. Видео — нажмите.');if(recordHintTimer.current)clearTimeout(recordHintTimer.current);recordHintTimer.current=setTimeout(()=>setRecordHint(''),2200);};
+  // PC (web/Electron): no round videos — the camera recorder is a phone feature; the mic records voice only.
+  const toggleRecordMode=()=>{if(Platform.OS==='web')return;lightFeedback();voice.unprepare();const next=recordModeRef.current==='voice'?'video':'voice';recordModeRef.current=next;setRecordMode(next);setRecordHint(next==='video'?'Видео — удерживайте. Звук — нажмите.':'Звук — удерживайте. Видео — нажмите.');if(recordHintTimer.current)clearTimeout(recordHintTimer.current);recordHintTimer.current=setTimeout(()=>setRecordHint(''),2200);};
   // Latest values for the hold handlers (gesture callbacks can outlive the render they came from).
   const recordModeRef=useRef(recordMode);recordModeRef.current=recordMode;
   const recHoldRef=useRef(recHold);recHoldRef.current=recHold;
@@ -425,24 +427,27 @@ export function ChatScreen({api,user,chat,store,onBack,wide=false,onOpenMusic}: 
     return <MessageRow animatedEmoji={platina&&powerFeatures.stickers} groupNext={groupNext} row={item} selecting={!!selection} selected={!!selection?.has(item.key)} fresh={fresh(item.key)} olderCreatedAt={rows[index+1]?.createdAt} mine={mine} author={mine?'Ты':peerName} peerLastRead={peerLastRead} wide={wide} fontSize={metrics.fontSize} lineHeight={metrics.lineHeight} radius={preferences.bubbleRadius} downloading={!!downloadId&&file?.id===downloadId} replyAuthor={quoteAuthor} replyText={quoteText} api={api} handlers={handlers}/>;
   },[rows,user.id,peerName,peerLastRead,wide,metrics.fontSize,metrics.lineHeight,downloadId,view.byClientId,api,selection,preferences.bubbleRadius,platina,powerFeatures.stickers]);
   const [circleOpen,setCircleOpen]=useState(false);
-  // Telegram: the sent circle appears in the chat at once (frame from the take, upload ring, ✕).
+  // Telegram: the sent circle appears in the chat at once (frame from the take, upload ring, ✕). It lives in
+  // the circle outbox (videonote/noteOutbox), not in this screen: leaving the chat mid-upload loses nothing,
+  // and a failed upload stays as «не отправлено» with «Повторить отправку» and the reason — never vanishes.
   // Uploads cannot be aborted, so ✕ means «do not send» once the upload ends.
-  const [pendingNote,setPendingNote]=useState<{thumb?:string;progress:number}|null>(null);const noteCancelled=useRef(false);
-  const sendVideoNote=async(take:VideoNoteTake)=>{
-    setCircleOpen(false);noteCancelled.current=false;setPendingNote({progress:0});
-    void VideoThumbnails.getThumbnailAsync(take.uri,{time:0,quality:.6}).then(frame=>setPendingNote(p=>p?{...p,thumb:frame.uri}:p)).catch(()=>{});
-    const chatId=chat.id,reply=replyTo?{clientId:replyTo.clientId,senderId:replyTo.senderId,preview:replyPreview(replyTo)}:undefined;
-    uploadingRef.current=true;setUploading(true);setLocalError('');
-    try{
-      const name=videoNoteFileName();
-      const uploaded=await store.uploadEncrypted({uri:take.uri,name:'video.mp4',mimeType:'video/mp4'},(sent,total)=>{if(total>0)setPendingNote(p=>p?{...p,progress:sent/total}:p);});
-      if(noteCancelled.current)return;
-      store.send(chatId,'',{...uploaded,name,mimeType:'video/mp4',media:{...(uploaded.media||{}),durationMs:uploaded.media?.durationMs||Math.round(take.durationMs)}},reply?{reply}:undefined);
-      if(reply)setReplyTo(null);
-      listRef.current?.scrollToOffset({offset:0,animated:true});
-    }catch(e){if(alive.current)setLocalError(e instanceof Error?e.message:'Не удалось отправить видеосообщение.');}
-    finally{if(alive.current)setPendingNote(null);uploadingRef.current=false;if(alive.current)setUploading(false);await FileSystem.deleteAsync(take.uri,{idempotent:true}).catch(()=>{});}
+  const chatNotes=useNoteUploads(chat.id);
+  const noteDeps=():NoteDeps=>({
+    upload:(file,onProgress)=>store.uploadEncrypted(file,onProgress),
+    send:(chatId,attachment,reply)=>store.send(chatId,'',attachment,reply?{reply}:undefined),
+    deleteFile:uri=>FileSystem.deleteAsync(uri,{idempotent:true}),
+    fileName:()=>videoNoteFileName(),
+    thumbnail:uri=>VideoThumbnails.getThumbnailAsync(uri,{time:0,quality:.6}).then(frame=>frame.uri),
+  });
+  const sendVideoNote=(take:VideoNoteTake)=>{
+    setCircleOpen(false);setLocalError('');
+    const reply=replyTo?{clientId:replyTo.clientId,senderId:replyTo.senderId,preview:replyPreview(replyTo)}:undefined;
+    if(reply)setReplyTo(null);
+    listRef.current?.scrollToOffset({offset:0,animated:true});
+    void queueNote(noteDeps(),{id:`note-${Date.now()}-${Math.random().toString(36).slice(2)}`,chatId:chat.id,uri:take.uri,durationMs:take.durationMs,...(reply?{reply}:{})});
   };
+  const retryVideoNote=(id:string)=>{lightFeedback();void runNote(noteDeps(),id);};
+  const discardVideoNote=(id:string)=>{lightFeedback();discardNote(noteDeps(),id);};
   // Telegram: messages scroll under the status bar (no hard edge at the safe area); the header sits below it.
   // Edge fades take the wallpaper's own colour (top / bottom of the gradient), so they never show as a
   // light band over a dark wallpaper; a photo wallpaper gets a soft dark fade.
@@ -500,11 +505,8 @@ export function ChatScreen({api,user,chat,store,onBack,wide=false,onOpenMusic}: 
     {/* Android: header and composer glass blur this (wallpaper + messages) on the GPU. */}
     <GlassContentTarget targetRef={glassTarget} style={{flex:1}}>
     <ChatWallpaper choice={wallpaper} style={{top:-80,bottom:-60}}/>
-    {rows.length===0?<View style={{flex:1,justifyContent:'center',paddingTop:headerHeight,paddingBottom:footerHeight}}>{store.messageLoading?<ActivityIndicator color={t.accent}/>:<Empty icon="hand-left-outline" title="Скажи «привет»" description={`Это начало вашей переписки с ${chat.peer.displayName}.`}/>}</View>:<FlatList ref={listRef} inverted data={rows} onViewableItemsChanged={onViewableRows.current} viewabilityConfig={viewability.current} keyExtractor={row=>row.key} keyboardShouldPersistTaps="handled" keyboardDismissMode={Platform.OS==='ios'?'interactive':'on-drag'} onScrollBeginDrag={()=>{if(stickers)setStickers(false);}} contentContainerStyle={{paddingHorizontal:wide?28:9,paddingTop:footerHeight+8,paddingBottom:headerHeight+14}} onScroll={e=>{const down=e.nativeEvent.contentOffset.y>350;if(down!==showDown)setShowDown(down);}} scrollEventThrottle={100} initialNumToRender={25} windowSize={11} onScrollToIndexFailed={info=>{listRef.current?.scrollToOffset({offset:info.averageItemLength*info.index,animated:true});setTimeout(()=>listRef.current?.scrollToIndex({index:info.index,animated:true,viewPosition:.5}),250);}}
-      ListHeaderComponent={pendingNote?<Animated.View entering={FadeIn.duration(150)} style={{alignSelf:'flex-end',marginVertical:6,width:212,height:212,borderRadius:106,overflow:'hidden',backgroundColor:'#11162A',alignItems:'center',justifyContent:'center'}}>
-        {pendingNote.thumb?<Image source={{uri:pendingNote.thumb}} style={StyleSheet.absoluteFill} resizeMode="cover"/>:null}
-        <View style={{width:56,height:56,borderRadius:28,backgroundColor:'rgba(10,20,35,0.6)',alignItems:'center',justifyContent:'center'}}><ProgressRing progress={pendingNote.progress} size={56}/><Pressable accessibilityRole="button" accessibilityLabel="Не отправлять видеосообщение" onPress={()=>{noteCancelled.current=true;setPendingNote(null);}} hitSlop={8}><Icon name="close" size={24} color="#FFF"/></Pressable></View>
-      </Animated.View>:null}
+    {rows.length===0&&!chatNotes.length?<View style={{flex:1,justifyContent:'center',paddingTop:headerHeight,paddingBottom:footerHeight}}>{store.messageLoading?<ActivityIndicator color={t.accent}/>:<Empty icon="hand-left-outline" title="Скажи «привет»" description={`Это начало вашей переписки с ${chat.peer.displayName}.`}/>}</View>:<FlatList ref={listRef} inverted data={rows} onViewableItemsChanged={onViewableRows.current} viewabilityConfig={viewability.current} keyExtractor={row=>row.key} keyboardShouldPersistTaps="handled" keyboardDismissMode={Platform.OS==='ios'?'interactive':'on-drag'} onScrollBeginDrag={()=>{if(stickers)setStickers(false);}} contentContainerStyle={{paddingHorizontal:wide?28:9,paddingTop:footerHeight+8,paddingBottom:headerHeight+14}} onScroll={e=>{const down=e.nativeEvent.contentOffset.y>350;if(down!==showDown)setShowDown(down);}} scrollEventThrottle={100} initialNumToRender={25} windowSize={11} onScrollToIndexFailed={info=>{listRef.current?.scrollToOffset({offset:info.averageItemLength*info.index,animated:true});setTimeout(()=>listRef.current?.scrollToIndex({index:info.index,animated:true,viewPosition:.5}),250);}}
+      ListHeaderComponent={chatNotes.length?<PendingNotes notes={chatNotes} onRetry={retryVideoNote} onDiscard={discardVideoNote}/>:null}
       ListFooterComponent={store.hasMore[chat.id]?<View style={{alignItems:'center',padding:18}}><GlassSurface material="clear" radius={19} shadow={false}><Pressable onPress={()=>void store.loadMessages(chat.id,true)} disabled={store.messageLoading} accessibilityRole="button" style={{paddingVertical:11,paddingHorizontal:17}}>{store.messageLoading?<ActivityIndicator size="small" color={t.accent}/>:<Text style={{fontSize:12,color:t.accent,fontWeight:'600'}}>Более ранние сообщения</Text>}</Pressable></GlassSurface></View>:null}
       renderItem={renderRow} removeClippedSubviews={Platform.OS==='android'} maxToRenderPerBatch={12} updateCellsBatchingPeriod={40}/>
     }
@@ -591,7 +593,7 @@ export function ChatScreen({api,user,chat,store,onBack,wide=false,onOpenMusic}: 
         <View style={{flex:1,gap:1}}><Text style={{color:t.accent,fontSize:11,fontWeight:'700'}}>{editing?'Редактирование':`Ответ ${nameOf((replyTo as ViewMessage).senderId)==='Ты'?'себе':nameOf((replyTo as ViewMessage).senderId)}`}</Text><Text numberOfLines={1} style={{color:t.muted,fontSize:12}}>{replyPreview((editing||replyTo)!)}</Text></View>
         <IconButton name="close" label={editing?'Отменить редактирование':'Отменить ответ'} size={18} color={t.muted} onPress={()=>{if(editing)endEdit();setReplyTo(null);}} style={{width:36,height:36}}/>
       </View>:null}
-      {uploading&&!pendingNote?<View style={{flexDirection:'row',alignItems:'center',gap:9,padding:12,paddingTop:4}}><ActivityIndicator size="small" color={t.accent}/><Text style={{fontSize:12,color:t.muted}}>Обрабатываем и шифруем вложение…</Text></View>:null}
+      {uploading?<View style={{flexDirection:'row',alignItems:'center',gap:9,padding:12,paddingTop:4}}><ActivityIndicator size="small" color={t.accent}/><Text style={{fontSize:12,color:t.muted}}>Обрабатываем и шифруем вложение…</Text></View>:null}
       {attachments.length?<ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{gap:7,paddingBottom:7}}>{attachments.map((attachment,index)=>{
         const kind=mediaPreviewKind(attachment);
         return <View key={attachment.id} style={{width:230,flexDirection:'row',alignItems:'center',gap:8,padding:10,borderRadius:19,backgroundColor:t.accentSoft,borderWidth:1,borderColor:t.border}}><Icon name={kind==='photo'?'image-outline':kind==='video'?'videocam-outline':kind==='audio'?'musical-note-outline':'document-outline'} color={t.accent} size={21}/><View style={{flex:1,gap:3}}><Text numberOfLines={1} style={{color:t.text,fontSize:12,fontWeight:'600'}}>{attachment.name}</Text><Text style={{color:t.muted,fontSize:10}}>{index+1} · {formatSize(attachment.size)}</Text></View><IconButton name="close" label={`Убрать ${attachment.name}`} onPress={()=>{store.removeDraftFile(chat.id,attachment.id);draftCount.current=Math.max(0,draftCount.current-1);}} disabled={uploading} size={18} style={{width:30,height:32}}/></View>;

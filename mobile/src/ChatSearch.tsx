@@ -2,7 +2,8 @@ import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { ActivityIndicator, BackHandler, FlatList, Keyboard, Pressable, ScrollView, View, useWindowDimensions } from 'react-native';
 import { Gesture, GestureDetector } from 'react-native-gesture-handler';
 import Animated, { Easing, runOnJS, useAnimatedStyle, useSharedValue, withTiming } from 'react-native-reanimated';
-import { axisLock, shouldClose } from './listSwipes';
+import { axisLock, shouldClose, stripBlocksBack } from './listSwipes';
+import { BackStripTouch, stripScrollProps, useBackStrip } from './backStrip';
 import { motionEnabled } from './motion';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { KeyboardStickyView } from 'react-native-keyboard-controller';
@@ -53,10 +54,14 @@ export function ChatSearch({ api, me, store, onClose, onSaved }: { api: Api; me:
   const slide = useSharedValue(0); const start = useSharedValue({ x: 0, y: 0 });
   const motion = motionEnabled();
   const leave = () => { Keyboard.dismiss(); onClose(); };
+  // The scope chips scroll sideways: a rightward drag on them while they are scrolled away from the
+  // start scrolls them back, not the screen away (from the very edge the swipe still closes).
+  const scopeStrip = useBackStrip(); const startLocal = useSharedValue(0);
   const swipeBack = Gesture.Pan().manualActivation(true)
-    .onTouchesDown((e, manager) => { const touch = e.changedTouches[0]; if (!touch) { manager.fail(); return; } start.value = { x: touch.absoluteX, y: touch.absoluteY }; })
+    .onTouchesDown((e, manager) => { const touch = e.changedTouches[0]; if (!touch) { manager.fail(); return; } start.value = { x: touch.absoluteX, y: touch.absoluteY }; startLocal.value = touch.x; })
     .onTouchesMove((e, manager) => {
       const touch = e.changedTouches[0]; if (!touch) return;
+      if (stripBlocksBack(scopeStrip.touching.value === 1, scopeStrip.offset.value, startLocal.value)) { manager.fail(); return; }
       const lock = axisLock(touch.absoluteX - start.value.x, touch.absoluteY - start.value.y, 1);
       if (lock === 'horizontal') manager.activate(); else if (lock) manager.fail();
     })
@@ -67,7 +72,8 @@ export function ChatSearch({ api, me, store, onClose, onSaved }: { api: Api; me:
         if (!motion) { runOnJS(leave)(); return; }
         slide.value = withTiming(width, { duration: Math.max(90, 220 * (1 - slide.value / width)), easing: Easing.out(Easing.quad) }, done => { if (done) runOnJS(leave)(); });
       } else slide.value = motion ? withTiming(0, { duration: 200, easing: Easing.out(Easing.quad) }) : 0;
-    });
+    })
+    .onFinalize(() => { scopeStrip.touching.value = 0; });
   const slideStyle = useAnimatedStyle(() => ({ transform: [{ translateX: slide.value }], opacity: 1 - Math.min(0.5, slide.value / (width || 1)) }));
   useEffect(() => {
     if (scope !== 'people' || needle.length < 2) { setPeople(null); return; }
@@ -172,11 +178,11 @@ export function ChatSearch({ api, me, store, onClose, onSaved }: { api: Api; me:
     <KeyboardStickyView offset={{ closed: 0, opened: insets.bottom }} style={{ position: 'absolute', left: 0, right: 0, bottom: insets.bottom + 8 }}>
       <View style={{ alignItems: 'center' }}>
         <GlassSurface lens material="regular" radius={21} contentStyle={{ flexDirection: 'row', padding: 4 }}>
-          <ScrollView horizontal showsHorizontalScrollIndicator={false} keyboardShouldPersistTaps="always" contentContainerStyle={{ gap: 2 }}>
+          <BackStripTouch strip={scopeStrip}><ScrollView horizontal showsHorizontalScrollIndicator={false} keyboardShouldPersistTaps="always" {...stripScrollProps(scopeStrip)} contentContainerStyle={{ gap: 2 }}>
             {SCOPES.map(item => <Pressable key={item.id} onPress={() => { lightFeedback(); setScope(item.id); }} accessibilityRole="tab" accessibilityState={{ selected: scope === item.id }} style={{ paddingHorizontal: 16, height: 34, borderRadius: 17, justifyContent: 'center', backgroundColor: scope === item.id ? t.accentSoft : 'transparent' }}>
               <Text style={{ color: scope === item.id ? t.text : t.muted, fontSize: 14, fontWeight: scope === item.id ? '700' : '500' }}>{item.label}</Text>
             </Pressable>)}
-          </ScrollView>
+          </ScrollView></BackStripTouch>
         </GlassSurface>
       </View>
     </KeyboardStickyView>

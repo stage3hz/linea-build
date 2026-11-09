@@ -124,6 +124,23 @@ export function shouldClose(translation: number, velocity: number, width: number
   return translation > width * 0.33 || velocity > 700;
 }
 
+// ─── Back swipe over a horizontal strip ──────────────────────────────────────────────────────────
+
+/** Touches this close to the left edge always start the back swipe, as the system edge gesture does. */
+export const BACK_EDGE = 28;
+
+/**
+ * A full-width back swipe (profile, search) must not take a rightward drag that starts on a
+ * horizontal strip (shared media tabs, search scopes) still scrolled away from its start: that drag
+ * scrolls the strip back. At the strip's start, or from the screen edge, the back swipe goes ahead
+ * (Telegram). `touching`: the finger went down on the strip; `offset`: its scroll position;
+ * `startX`: where the finger went down, from the screen's left edge.
+ */
+export function stripBlocksBack(touching: boolean, offset: number, startX: number, edge = BACK_EDGE): boolean {
+  'worklet';
+  return touching && offset > 1 && startX > edge;
+}
+
 // ─── Archive row hidden above the list ───────────────────────────────────────────────────────────
 
 /**
