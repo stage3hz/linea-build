@@ -2,7 +2,7 @@ import assert from 'node:assert/strict';
 import { randomUUID } from 'node:crypto';
 import test from 'node:test';
 import { harness } from './support/crypto-harness.mjs';
-import { foldChat, validMeta, actionFallback, REACTIONS } from '../src/messageMeta.ts';
+import { foldChat, validMeta, actionFallback, REACTIONS, listPreviewMessage } from '../src/messageMeta.ts';
 
 test('replies, edits, reactions and pins travel only inside the Signal ciphertext and fold correctly', async t => {
   const { alice, bob, relay, chatId, approve } = await harness(t);
@@ -22,9 +22,8 @@ test('replies, edits, reactions and pins travel only inside the Signal ciphertex
   await send(alice, bob, actionFallback(edit), { action: edit });
   await send(bob, alice, actionFallback({ type: 'react', target: original.id, emoji: '👍' }), { action: { type: 'react', target: original.id, emoji: '👍' } });
   await send(alice, bob, '📌', { action: { type: 'pin', target: reply.id } });
-  // Bob may not edit or delete Alice's message.
+  // Bob may not edit Alice's message (deleting it for both is allowed in a one-to-one chat, see below).
   await send(bob, alice, 'x', { action: { type: 'edit', target: original.id, text: 'подделка' } });
-  await send(bob, alice, 'x', { action: { type: 'delete', target: original.id } });
 
   await bob.service.syncChat(chatId);
   const decrypted = await Promise.all(sent.map(message => bob.service.preview(message)));
@@ -74,4 +73,28 @@ test('hidden-for-me messages disappear only from the local view', () => {
   const messages = [{ ...base, id: 1, senderId: alice, clientId: a, text: 'one' }, { ...base, id: 2, senderId: alice, clientId: b, text: 'two' }];
   const view = foldChat(messages, alice, new Set([`${alice}:${a}`]));
   assert.deepEqual(view.messages.map(message => message.text), ['two']);
+});
+
+test('in a one-to-one chat either side deletes any message for both (Telegram); edits stay author-only', async t => {
+  const { alice, bob, relay, chatId, approve } = await harness(t);
+  await approve(alice, bob); await approve(bob, alice);
+  const sent = [];
+  const send = async (from, to, text, meta) => {
+    const id = randomUUID();
+    const encrypted = await from.service.encrypt(chatId, to.userId, id, text, null, meta);
+    if (meta) assert.equal(JSON.stringify(encrypted).includes('"action"'), false, 'action type is not visible to the server');
+    sent.push(relay.deliver(from.userId, chatId, id, encrypted)); return id;
+  };
+  const fromAlice = await send(alice, bob, 'Сообщение Алисы');
+  const fromBob = await send(bob, alice, 'Сообщение Боба');
+  await send(bob, alice, 'x', { action: { type: 'delete', target: fromAlice } });
+  await send(bob, alice, 'x', { action: { type: 'edit', target: fromBob, text: 'Боб изменил своё' } });
+  await bob.service.syncChat(chatId); await alice.service.syncChat(chatId);
+  for (const reader of [alice, bob]) {
+    const decrypted = await Promise.all(sent.map(message => reader.service.preview(message)));
+    const view = foldChat(decrypted, reader.userId);
+    assert.equal(view.byClientId.has(fromAlice), false, 'Alice\'s message deleted by Bob is gone for both');
+    assert.equal(view.byClientId.get(fromBob).text, 'Боб изменил своё');
+    assert.equal(listPreviewMessage(decrypted).clientId, fromBob, 'the chat list does not show the deleted message');
+  }
 });

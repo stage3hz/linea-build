@@ -131,18 +131,19 @@ export function isQuietAction(message: Pick<Message, 'meta'>): boolean {
 /** The message the chat list should show: the newest one that is not a quiet action and was not
  *  deleted, with its latest edit applied. Null when the given messages hold none. */
 export function listPreviewMessage<T extends Message>(list: readonly T[]): T | null {
-  const deleted = new Set<string>(), edits = new Map<string, (Edit & { at: string })[]>();
+  const deletedIds = new Set<string>(), edits = new Map<string, (Edit & { at: string })[]>();
   const sorted = [...list].sort((a, b) => b.id - a.id);
   for (const message of sorted) {
     const action = message.meta?.action;
-    // An action names its target by clientId; only the author edits or deletes, so the target is the
-    // action sender's own message (senderId:clientId — the same key as the message below).
+    // An action names its target by clientId. Only the author edits, so an edit's target is the action
+    // sender's own message (senderId:clientId); a delete may name either side's message (1:1 chat), so it
+    // is matched by clientId alone (random UUIDs).
     if (message.cryptoState !== undefined && message.cryptoState !== 'decrypted') continue;
-    if (action?.type === 'delete') deleted.add(messageKey({ senderId: message.senderId, clientId: action.target }));
+    if (action?.type === 'delete') deletedIds.add(action.target);
     if (action?.type === 'edit') { const key = messageKey({ senderId: message.senderId, clientId: action.target }); edits.set(key, [...(edits.get(key) ?? []), { text: action.text, entities: action.entities, at: message.createdAt }]); }
   }
   for (const message of sorted) {
-    if (isQuietAction(message) || isCallSignal(message) || deleted.has(messageKey(message))) continue;
+    if (isQuietAction(message) || isCallSignal(message) || deletedIds.has(message.clientId)) continue;
     // The newest edit made within the window (a later one, past 48 h, is ignored).
     const edited = edits.get(messageKey(message))?.find(edit => editInTime(message.createdAt, edit.at));
     const shown = edited !== undefined && !message.meta?.action ? withEdit(message, edited) : message;
@@ -244,7 +245,9 @@ export function foldChat(messages: Message[], userId: string, hiddenForMe: Reado
     if (action.type === 'pin') { pin = action.target; continue; }
     const author = authorOf.get(action.target);
     if (action.type === 'edit' || action.type === 'delete') {
-      if (author !== message.senderId) continue; // only the author; unknown targets are ignored
+      // Edits: only the author. Deletes: in a one-to-one chat either side may delete any message for both
+      // (Telegram). Unknown targets are ignored.
+      if (!author || (action.type === 'edit' && author !== message.senderId)) continue;
       if (action.type === 'edit') { if (editInTime(content.get(action.target)!.createdAt, message.createdAt)) edits.set(action.target, { text: action.text, entities: action.entities }); }
       else deleted.add(action.target);
       continue;

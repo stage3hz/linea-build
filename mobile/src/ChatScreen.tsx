@@ -394,9 +394,9 @@ export function ChatScreen({api,user,chat,store,onBack,wide=false,onOpenMusic}: 
       else if(files.length)await download(files[0]);
     }catch(e){setLocalError(e instanceof Error?e.message:'Не удалось поделиться.');}
   };
-  // Telegram: «Удалить у меня и у <имя>» (only for our own messages — the other side's copies are theirs) and «Удалить у меня».
+  // Telegram: «Удалить у меня и у <имя>» (either side's messages in a one-to-one chat) and «Удалить у меня».
   const deleteChoice=(list:ViewMessage[],done:()=>void)=>{
-    const everyone=list.length>0&&list.every(m=>m.senderId===user.id&&m.cryptoState==='decrypted');
+    const everyone=list.length>0&&list.every(m=>m.cryptoState==='decrypted');
     return <>
       {everyone?<MenuItem icon="trash-outline" label={`Удалить у меня и у ${chat.peer.displayName}`} danger onPress={()=>{done();lightFeedback();list.forEach(m=>store.sendAction(chat.id,{type:'delete',target:m.clientId}));}}/>:null}
       <MenuItem icon="eye-off-outline" label="Удалить у меня" danger onPress={()=>{done();lightFeedback();list.forEach(m=>store.hideForMe(m));}}/>
@@ -643,7 +643,7 @@ export function ChatScreen({api,user,chat,store,onBack,wide=false,onOpenMusic}: 
       {!locked&&actions?.message&&!serviceRow&&actions.message.cryptoState==='decrypted'?<MenuItem icon="arrow-redo-outline" label="Переслать" onPress={()=>{const item=actions.message!;setActions(null);void forwardable([item]).then(ok=>{if(ok)afterMenu(()=>setForwarding(item));});}}/>:null}
       {actions?.message&&editable(actions.message)?<MenuItem icon="create-outline" label="Изменить" onPress={()=>{startEdit(actions.message!);setActions(null);}}/>:null}
       {actions?.pending?.state==='failed'?<MenuItem icon="refresh-outline" label="Повторить отправку" onPress={()=>{if(actions.pending)void store.retry(actions.pending);setActions(null);}}/>:null}
-       {actions?.message?<MenuItem icon="trash-outline" label="Удалить" danger onPress={()=>{const list=rowMessages(actions);const mineAll=list.every(m=>m.senderId===user.id&&m.cryptoState==='decrypted');lightFeedback();setMenuDelete(true);}}/>:null}
+       {actions?.message?<MenuItem icon="trash-outline" label="Удалить" danger onPress={()=>{lightFeedback();setMenuDelete(true);}}/>:null}
       {actions?.message&&!serviceRow?<MenuItem separated icon="checkmark-circle-outline" label="Выбрать" onPress={()=>startSelect(actions)}/>:null}
       </>}
     </ContextMenu>

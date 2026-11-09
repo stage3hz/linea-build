@@ -116,13 +116,20 @@ export function useMessenger(api: Api, user: User, onExpired: ()=>void) {
     if(message.cryptoState!=='decrypted')return;
     const action=message.meta?.action;
     if(action){
-      // Only the author deletes for everyone or edits, so the target is their own message (same senderId).
-      if(action.type==='delete'){if(searchIndex.current.tombstone({chatId:message.chatId,senderId:message.senderId,clientId:action.target}))bumpSearch();}
+      // Only the author edits (same senderId). A delete for both may name either side's message in a
+      // one-to-one chat (Telegram), so both participants' keys are tombstoned.
+      if(action.type==='delete'){
+        const peerId=chatsRef.current.find(chat=>chat.id===message.chatId)?.peer?.id;
+        const other=message.senderId===user.id?peerId:user.id;
+        let changed=searchIndex.current.tombstone({chatId:message.chatId,senderId:message.senderId,clientId:action.target});
+        if(other&&other!==message.senderId&&searchIndex.current.tombstone({chatId:message.chatId,senderId:other,clientId:action.target}))changed=true;
+        if(changed)bumpSearch();
+      }
       else if(action.type==='edit'){if(searchIndex.current.edit({chatId:message.chatId,senderId:message.senderId,clientId:action.target},action.text,message.createdAt))bumpSearch();}
       return; // reactions, pins, votes, calls: nothing to search in
     }
     if(searchIndex.current.add({chatId:message.chatId,senderId:message.senderId,clientId:message.clientId,text:message.text,sentAt:message.createdAt,...(message.attachment?{attachmentName:message.attachment.name}:{})}))bumpSearch();
-  },[bumpSearch]);
+  },[bumpSearch,user.id]);
   const searchMessages=useCallback((query:string,options?:SearchOptions):SearchGroup[]=>searchIndex.current.search(query,options),[]);
   // A result tapped in the global search: the chat opens and scrolls to that message (ChatScreen watches `focus`).
   const [focus,setFocus]=useState<{chatId:string;clientId:string;sentAt?:string;at:number}|null>(null);
