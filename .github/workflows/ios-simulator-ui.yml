@@ -15,7 +15,7 @@ on:
       runner:
         description: macOS runner label
         required: false
-        default: macos-15-intel
+        default: macos-26
 permissions:
   contents: read
 concurrency:
@@ -23,7 +23,9 @@ concurrency:
   cancel-in-progress: false  # a walk takes ~1 h; a new push waits instead of killing it before the screenshots upload
 jobs:
   ui:
-    runs-on: ${{ inputs.runner || 'macos-15-intel' }}
+    # Apple silicon: on the Intel runner one walk saw 100 s per tap and a 30 s blocked main thread, and the
+    # local server missed the 18 s register timeout. The simulator architecture is detected below.
+    runs-on: ${{ inputs.runner || 'macos-26' }}
     timeout-minutes: 240
     env:
       APP_ENV: development

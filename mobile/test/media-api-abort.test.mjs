@@ -24,3 +24,22 @@ test('AI has time for the bounded server request while ordinary requests retain 
   t.mock.timers.tick(18001);assert.equal(signal.aborted,false);
   t.mock.timers.tick(52000);await rejected;
 });
+test('a timeout is reported as a timeout even when fetch rejects with a TypeError (React Native), and still fails over',async t=>{
+  const api=loadTs(new URL('../src/api.ts',import.meta.url),{'react-native':{Platform:{OS:'android'}}});
+  t.mock.timers.enable({apis:['setTimeout']});let signal;
+  // React Native's fetch: an aborted request fails like a dropped connection.
+  t.mock.method(globalThis,'fetch',(_url,options)=>new Promise((resolve,reject)=>{signal=options.signal;signal.addEventListener('abort',()=>reject(new TypeError('Network request failed')),{once:true});}));
+  const request=new api.Api('https://example.invalid').request('/auth/register',{method:'POST',body:'{}'});
+  const rejected=request.then(()=>assert.fail('resolved'),error=>error);
+  t.mock.timers.tick(18001);
+  const error=await rejected;
+  assert.equal(signal.aborted,true);
+  assert.match(error.message,/вовремя/,'not «Нет связи с сервером»');
+  assert.equal(error.name,'TimeoutError');
+  assert.ok(error instanceof api.RequestTimeoutError);
+  assert.ok(error instanceof api.NetworkError,'a silent server still counts as a network failure (failover, Mesh)');
+});
+test('a real connection failure is still «Нет связи с сервером»',async t=>{
+  t.mock.method(globalThis,'fetch',async()=>{throw new TypeError('Network request failed');});
+  await assert.rejects(new Api('https://example.invalid').request('/chats'),/Нет связи с сервером/);
+});

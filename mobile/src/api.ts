@@ -69,7 +69,9 @@ function requestTimeout(path: string, method = 'GET') {
 /** No answer at all (as opposed to an error the server returned). */
 export class NetworkError extends Error { constructor(message: string, readonly notDelivered = false) { super(message); this.name = 'NetworkError'; } }
 /** The server did not answer in time: the request may or may not have arrived (only idempotent sends retry on it). */
-export class RequestTimeoutError extends Error { constructor(message: string) { super(message); this.name = 'TimeoutError'; } }
+/** No answer in time. A kind of NetworkError on purpose: a silent server (a typical block) still fails over
+ *  to the next server and lets messages go by Mesh; only the text tells it apart from «no connection». */
+export class RequestTimeoutError extends NetworkError { constructor(message: string) { super(message); this.name = 'TimeoutError'; } }
 
 export class Api {
   /** `base` is the account's realm (fixed: keys and history on the device are tied to it). */
@@ -97,7 +99,10 @@ export class Api {
     caller?.addEventListener('abort',cancel,{once:true});
     if(caller?.aborted)cancel();
     const timeoutMs=requestTimeout(path,(options.method||'GET').toUpperCase());const started=Date.now();
-    const timeout = setTimeout(cancel,timeoutMs);
+    // Our own timer, not the caller: React Native's fetch rejects an aborted request with a TypeError
+    // («Network request failed»), not an AbortError, so the timeout was reported as «Нет связи с сервером».
+    let timedOut=false;
+    const timeout = setTimeout(()=>{timedOut=true;cancel();},timeoutMs);
     const abortError=()=>{const error=new Error('Запрос отменён.');error.name='AbortError';return error;};
     try {
       if(abort.signal.aborted)throw abortError();
@@ -117,7 +122,7 @@ export class Api {
     } catch (error) {
       if (error instanceof ApiError || error instanceof NetworkError) throw error;
       if(caller?.aborted)throw abortError();
-      if (error instanceof Error && error.name === 'AbortError') throw new RequestTimeoutError('Сервер не ответил вовремя. Проверь подключение.');
+      if (timedOut || (error instanceof Error && error.name === 'AbortError')) throw new RequestTimeoutError('Сервер не ответил вовремя. Проверь подключение.');
       throw new NetworkError('Нет связи с сервером. Проверь интернет и адрес подключения.');
     } finally { clearTimeout(timeout);caller?.removeEventListener('abort',cancel); }
   }
@@ -125,7 +130,8 @@ export class Api {
   async binary(path: string, options: RequestInit, expectedType: string): Promise<ArrayBuffer> {
     const abort = new AbortController(); const caller = options.signal;
     const cancel = () => abort.abort(); caller?.addEventListener('abort', cancel, { once: true });
-    const timeout = setTimeout(cancel, requestTimeout(path));
+    let timedOut = false;
+    const timeout = setTimeout(() => { timedOut = true; cancel(); }, requestTimeout(path));
     try {
       const response = await fetch(this.endpoint + path, { credentials: 'omit', cache: 'no-store', redirect: 'error', ...options, headers: { 'X-Linea-Client': CLIENT_HEADER, ...attestHeaders(options.method || 'GET', path), 'Content-Type': 'application/json', ...(this.token ? { Authorization: `Bearer ${this.token}` } : {}) }, signal: abort.signal });
       if (!response.ok) {
@@ -137,7 +143,7 @@ export class Api {
     } catch (error) {
       if (error instanceof ApiError) throw error;
       if (caller?.aborted) { const e = new Error('Запрос отменён.'); e.name = 'AbortError'; throw e; }
-      if (error instanceof Error && error.name === 'AbortError') throw new Error('Сервер не ответил вовремя. Попробуй ещё раз.');
+      if (timedOut || (error instanceof Error && error.name === 'AbortError')) throw new Error('Сервер не ответил вовремя. Попробуй ещё раз.');
       throw error instanceof Error ? error : new Error('Нет связи с сервером.');
     } finally { clearTimeout(timeout); caller?.removeEventListener('abort', cancel); }
   }
