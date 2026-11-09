@@ -1,7 +1,8 @@
 import React, { useEffect, useRef, useState } from 'react';
-import { Platform, type TextInput as RNTextInput, type TextInputProps } from 'react-native';
+import { Keyboard, Platform, type TextInput as RNTextInput, type TextInputProps } from 'react-native';
 // Web/PC: a browser <textarea> is two rows tall by default; numberOfLines → rows=1 keeps the empty field one line.
 import { TextInput } from './typography';
+import { retryFocus, type FocusRetry } from './focusRetry';
 
 /**
  * Multiline composer that grows with the text and shrinks back after sending.
@@ -15,7 +16,16 @@ export function ComposerInput({ minHeight = 44, maxHeight = 136, style, value, f
   const [generation, setGeneration] = useState(0);
   const input = useRef<RNTextInput>(null);
   // «Ответить» / «Изменить»: the cursor goes straight into the field, so typing just works.
-  useEffect(() => { if (focusKey) { const id = setTimeout(() => input.current?.focus(), 60); return () => clearTimeout(id); } }, [focusKey]);
+  // On iPhone the message menu is a Modal still closing when «Изменить» is tapped: focus is asked again
+  // until the field has it, and never again after that or once the keyboard was put away (focusRetry.ts).
+  const retry = useRef<FocusRetry | null>(null);
+  useEffect(() => {
+    if (!focusKey) return;
+    const current = retryFocus({ isFocused: () => !!input.current?.isFocused?.(), focus: () => input.current?.focus() });
+    retry.current = current;
+    const hide = Platform.OS === 'web' ? null : Keyboard.addListener('keyboardDidHide', current.keyboardHidden);
+    return () => { current.stop(); hide?.remove(); if (retry.current === current) retry.current = null; };
+  }, [focusKey]);
   const had = useRef(!!value), focused = useRef(false), grown = useRef(false);
   // When the text empties, a grown field has to shrink. Remounting it used to blur the field: the
   // keyboard dropped and came back (the composer "closed and reopened by itself") on every
@@ -33,7 +43,7 @@ export function ComposerInput({ minHeight = 44, maxHeight = 136, style, value, f
   useEffect(() => { if (!pin) return; const id = requestAnimationFrame(() => setPin(false)); return () => cancelAnimationFrame(id); }, [pin]);
   // A remount after sending keeps the keyboard up: the new field takes focus again.
   return <TextInput ref={input} key={generation} {...props} value={value} multiline scrollEnabled numberOfLines={Platform.OS === 'web' ? 1 : undefined} autoFocus={generation > 0 && focused.current}
-    onFocus={event => { focused.current = true; props.onFocus?.(event); }}
+    onFocus={event => { focused.current = true; retry.current?.focused(); props.onFocus?.(event); }}
     onContentSizeChange={event => { if (event.nativeEvent.contentSize.height > minHeight + 4) grown.current = true; props.onContentSizeChange?.(event); }} onBlur={event => { focused.current = false; props.onBlur?.(event); }}
     style={[style, { minHeight, maxHeight }, pin ? { height: minHeight } : null]} />;
 }

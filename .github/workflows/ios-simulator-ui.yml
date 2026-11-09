@@ -15,7 +15,7 @@ on:
       runner:
         description: macOS runner label
         required: false
-        default: macos-26
+        default: macos-15
 permissions:
   contents: read
 concurrency:
@@ -25,7 +25,9 @@ jobs:
   ui:
     # Apple silicon: on the Intel runner one walk saw 100 s per tap and a 30 s blocked main thread, and the
     # local server missed the 18 s register timeout. The simulator architecture is detected below.
-    runs-on: ${{ inputs.runner || 'macos-26' }}
+    # macos-15 (Apple silicon): macos-26 arm64 runners were short twice in a row («The job was not acquired by
+    # Runner of type hosted even after multiple attempts»), and the job was dropped after 15 min in the queue.
+    runs-on: ${{ inputs.runner || 'macos-15' }}
     timeout-minutes: 240
     env:
       APP_ENV: development

@@ -15,7 +15,8 @@ test('chat list: a pin with a target is shown (Telegram shows «pinned …»)', 
 });
 
 test('chat list: a deleted last message falls back to the one before, an edit shows the new text', () => {
-  const list = [msg(1, 'первое'), msg(2, 'второе'), msg(3, '🗑', { type: 'delete', target: 'u:k2' }), msg(4, '✏️', { type: 'edit', target: 'u:k1', text: 'первое (изм.)' })];
+  // The target is the clientId, as on the wire; the author is the action's sender.
+  const list = [msg(1, 'первое'), msg(2, 'второе'), msg(3, '🗑', { type: 'delete', target: 'k2' }), msg(4, '✏️', { type: 'edit', target: 'k1', text: 'первое (изм.)' })];
   assert.equal(listPreviewMessage(list).text, 'первое (изм.)');
   assert.equal(listPreviewMessage([msg(5, '❤️', { type: 'react', target: 'u:k9', emoji: '❤️' })]), null);
 });

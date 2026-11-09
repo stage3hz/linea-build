@@ -20,7 +20,7 @@ import { ALBUM_SIZE, appendAttachments, messageAttachmentBatch } from './message
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { getChatPreferences } from './chatPreferences';
 import { useDesktopNotifications } from './notifications/desktopNotify';
-import { actionFallback, chatListText, isQuietAction, listPreviewMessage, messageKey, pollFallback, type MessageAction, type MessageMeta, type Poll } from './messageMeta';
+import { actionFallback, chatListText, isQuietAction, listPreviewMessage, messageKey, pollFallback, skippedInList, type MessageAction, type MessageMeta, type Poll } from './messageMeta';
 import { packEntities, sliceEntities, type Entity } from './format/entities';
 import { mediaPreviewKind } from './media/formats';
 import { isVideoNote, isVoice } from './voice/voice';
@@ -30,6 +30,7 @@ import { resetMediaCache } from './media/mediaCache';
 import { applyPage, mergeMessages } from './messagePages';
 import { countsAsUnread, coversUnread, readUpTo, readWatermark, reconcileUnread } from './chatUnread';
 import { MessageIndex, type SearchGroup, type SearchOptions } from './search/messageIndex';
+import { awaitsInbox, catchUpTargets, CATCH_UP_DEEP, CATCH_UP_PAGES, keepOpened, recentlyTried, settled, syncForList, afterSync, type Tried } from './listCatchUp';
 import { connectionHeld, holdConnection, socketTick } from './connectionHold';
 import { useVoice } from './communities/voice';
 import { attachChannelOutbox, resetChannelOutbox } from './communities/channelOutbox';
@@ -127,10 +128,12 @@ export function useMessenger(api: Api, user: User, onExpired: ()=>void) {
   /** `sentAt`: when the message was sent, so the chat knows how far back to load before giving up. */
   const focusMessage=useCallback((chatId:string,clientId:string,sentAt?:string)=>setFocus({chatId,clientId,...(sentAt?{sentAt}:{}),at:Date.now()}),[]);
   const clearFocus=useCallback(()=>setFocus(null),[]);
-  const hydrate=useCallback(async(message:Message):Promise<Message>=>{
-    try{const shown=cleanShown(await(await cryptoRuntime.get()).preview(message));indexMessage(shown);return shown;}
-    catch(e){if(aliveRef.current)setCryptoError(checkError(e));return {...message,text:message.legacy?'Сообщение из старой версии без сквозного шифрования.':'Зашифрованное сообщение недоступно на этом устройстве.',attachment:null,cryptoState:message.legacy?'legacy':'no-key'};}
+  /** `opened: false` — the vault or Signal threw: the placeholder is not this device's verdict on the message. */
+  const hydrateChecked=useCallback(async(message:Message):Promise<{message:Message;opened:boolean}>=>{
+    try{const shown=cleanShown(await(await cryptoRuntime.get()).preview(message));indexMessage(shown);return {message:shown,opened:true};}
+    catch(e){if(aliveRef.current)setCryptoError(checkError(e));return {message:{...message,text:message.legacy?'Сообщение из старой версии без сквозного шифрования.':'Зашифрованное сообщение недоступно на этом устройстве.',attachment:null,cryptoState:message.legacy?'legacy':'no-key'},opened:false};}
   },[cryptoRuntime,checkError,indexMessage]);
+  const hydrate=useCallback(async(message:Message):Promise<Message>=>(await hydrateChecked(message)).message,[hydrateChecked]);
 
   const refreshRecoveryRequests=useCallback(async()=>{
     const revision=++recoveryFetchRef.current;
@@ -151,17 +154,63 @@ export function useMessenger(api: Api, user: User, onExpired: ()=>void) {
     }catch(e){throw new Error(checkError(e));}
   },[api,checkError,refreshRecoveryRequests]);
 
+  // The list line of a chat not opened yet: its last message is opened in the background (listCatchUp.ts).
+  // `caughtUp`: chat → last message id whose inbox went through (never tried again); `tried`: the last
+  // try per chat — a try that did not get through waits RETRY_AFTER_MS for that message (no retry storm).
+  const caughtUp=useRef(new Map<string,number>());const tried=useRef(new Map<string,Tried>());
+  const catchUpBusy=useRef(false);const catchUpAgain=useRef<Chat[]|null>(null);
+  const catchUp=useCallback(async(list:Chat[])=>{
+    if(catchUpBusy.current){catchUpAgain.current=list;return;}
+    catchUpBusy.current=true;
+    try{
+      let current:Chat[]|null=list;
+      while(current&&aliveRef.current){
+        catchUpAgain.current=null;
+        const now=Date.now();
+        const targets=catchUpTargets(current,(chatId,id)=>caughtUp.current.get(chatId)===id||recentlyTried(tried.current.get(chatId),id,now));
+        if(!targets.length)break;
+        const crypto=await cryptoRuntime.get();let deep=CATCH_UP_DEEP;
+        for(const chatId of targets){
+          if(!aliveRef.current)return;
+          const last=(chatsRef.current.find(c=>c.id===chatId)??current.find(c=>c.id===chatId))?.lastMessage;
+          if(!awaitsInbox(last))continue;
+          tried.current.set(chatId,{id:last.id,at:Date.now()});
+          // Shared with a sync already running for this chat (socket, opened chat): never decrypted twice.
+          // A long queue (PartialSync) goes on from the cursor for a couple of chats per round.
+          const outcome=await syncForList(()=>crypto.syncChat(chatId,CATCH_UP_PAGES),deep>0);
+          if(outcome==='network')return;
+          if(outcome!=='synced'&&deep>0)deep--;
+          const {message:opened,opened:ok}=await hydrateChecked(last);
+          // Only this device's real verdict (preview without an exception) after a full sync says «недоступно».
+          const {line:shown,caughtUp:done}=afterSync(opened,outcome,ok);
+          if(done)caughtUp.current.set(chatId,last.id);
+          if(!aliveRef.current)return;
+          if(shown!==last)setChats(prev=>prev.map(c=>c.id===chatId&&c.lastMessage?.id===last.id?{...c,lastMessage:shown}:c));
+        }
+        current=catchUpAgain.current;
+      }
+    }catch{/* no vault here (browser) or the session ended */}
+    finally{catchUpBusy.current=false;}
+  },[cryptoRuntime,hydrateChecked]);
   const refreshChats=useCallback(async()=>{
     try {
-      const result=await api.chats();const next=await Promise.all(result.chats.map(async chat=>({...chat,lastMessage:chat.lastMessage?await hydrate(chat.lastMessage):null})));
+      const result=await api.chats();const next=await Promise.all(result.chats.map(async chat=>{
+        if(!chat.lastMessage)return {...chat,lastMessage:null};
+        const {message:last,opened}=await hydrateChecked(chat.lastMessage);
+        return {...chat,lastMessage:opened&&caughtUp.current.get(chat.id)===last.id?settled(last):last};
+      }));
       // The server counts reactions and edits of the peer as unread (it cannot see inside); our count wins where the messages are here.
       // A chat not opened in this session may hold only a socket message or two (a reaction): that set does not cover the watermark, so the quiet page speaks instead.
       const counted=next.map(chat=>{const loaded=messagesRef.current[chat.id];const quiet=quietPages.current[chat.id];return coversUnread(chat,loaded,hasMoreRef.current[chat.id])?reconcileUnread(chat,loaded,user.id,hasMoreRef.current[chat.id]):quiet?reconcileUnread(chat,quiet.messages,user.id,quiet.hasMore):chat;});
-      if(aliveRef.current){setChats(sortedChats(counted));setError('');}
+      if(aliveRef.current){
+        const merged=keepOpened(counted,chatsRef.current);
+        setChats(prev=>sortedChats(keepOpened(counted,prev)));setError('');
+        void catchUp(merged);
+      }
     }
     catch(e){if(aliveRef.current)setError(checkError(e));}
     finally {if(aliveRef.current)setListLoading(false);listReady.current?.resolve();}
-  },[api,checkError,hydrate,user.id]);
+  },[api,checkError,hydrateChecked,user.id,catchUp]);
   // ---- F4 «Отправить позже» ----
   // Which pending messages the server is to keep until a time (clientId → ISO). Kept per account outside
   // the vault (no text in it) so a message restored from the vault outbox after a restart is scheduled
@@ -246,7 +295,10 @@ export function useMessenger(api: Api, user: User, onExpired: ()=>void) {
     setMessages(prev=>({...prev,[message.chatId]:mergeMessages(prev[message.chatId]||[],[message])}));
     setPending(prev=>prev.filter(p=>!(p.chatId===message.chatId&&p.clientId===message.clientId&&message.senderId===user.id)));
     setChats(prev=>sortedChats(prev.map(c=>{
-      if(c.id!==message.chatId||(c.lastMessage&&c.lastMessage.id>=message.id))return c;
+      if(c.id!==message.chatId)return c;
+      // The same message, now opened here, replaces a closed line a list refresh put up in the meantime.
+      if(c.lastMessage&&c.lastMessage.id===message.id)return awaitsInbox(c.lastMessage)&&!awaitsInbox(message)?{...c,lastMessage:message}:c;
+      if(c.lastMessage&&c.lastMessage.id>message.id)return c;
       return {...c,lastMessage:message,updatedAt:isQuietAction(message)?c.updatedAt:message.createdAt,unreadCount:countsAsUnread(message,user.id)?c.unreadCount+1:c.unreadCount};
     })));
     if(message.senderId!==user.id&&message.cryptoState==='decrypted')void markRead(message.chatId,message.id);
@@ -650,7 +702,7 @@ export function useMessenger(api: Api, user: User, onExpired: ()=>void) {
     for(const chat of filtered){
       const last=chat.lastMessage;
       // A chat never opened may still hold a socket message or two (a reaction that just arrived): that set does not cover the watermark, so the page is read anyway.
-      if(!last||!isQuietAction(last)||coversUnread(chat,messages[chat.id],hasMore[chat.id])||previewAsked.current.has(`${chat.id}:${last.id}`))continue;
+      if(!last||!skippedInList(last)||coversUnread(chat,messages[chat.id],hasMore[chat.id])||previewAsked.current.has(`${chat.id}:${last.id}`))continue;
       previewAsked.current.add(`${chat.id}:${last.id}`);
       void (async()=>{try{
         const page=await api.messages(chat.id);const hydrated=await Promise.all(page.messages.map(hydrate));if(!aliveRef.current)return;
@@ -667,7 +719,7 @@ export function useMessenger(api: Api, user: User, onExpired: ()=>void) {
   const visibleChats=useMemo(()=>filtered.map(chat=>{
     const last=chat.lastMessage;if(!last)return chat;
     const loaded=messages[chat.id];
-    const shown=loaded?.length?listPreviewMessage([...loaded,last]):isQuietAction(last)?previewFill[chat.id]??null:last;
+    const shown=loaded?.length?listPreviewMessage([...loaded,last]):skippedInList(last)?previewFill[chat.id]??null:last;
     // The server's lastMessage is shown as is when no page is loaded: a spoiler in it must still be hidden.
     const masked=shown&&shown===last?chatListText(shown):null;
     const final=masked!==null&&masked!==last.text?{...last,text:masked}:shown;

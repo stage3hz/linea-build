@@ -10,10 +10,11 @@ import { Icon } from '../components';
 import { useTheme } from '../theme';
 import { impactFeedback, lightFeedback } from '../haptics';
 
+import { HOLD_MS, holdAxis, holdMove, holdRelease, slideStep } from '../videonote/recordGesture';
 // Telegram iOS: recording starts after 0.19 s; cancel at 150 pt left while moving (100 pt or a fast
 // flick on release), lock at 110 pt up (60 pt or a fast flick on release); a quicker tap switches mode.
-export const CANCEL_DISTANCE = 150, LOCK_DISTANCE = 110, HOLD_MS = 190;
-const CANCEL_ON_RELEASE = 100, LOCK_ON_RELEASE = 60, FLICK = 400;
+// The rules live in videonote/recordGesture.ts (pure, tested).
+export { CANCEL_DISTANCE, LOCK_DISTANCE, HOLD_MS } from '../videonote/recordGesture';
 export type RecordKind = 'voice' | 'video';
 
 export function RecordButton({ mode, disabled, onToggleMode, onTouchDown, onHoldStart, onHoldEnd, onLock, onSlide, level = 0 }: {
@@ -33,6 +34,8 @@ export function RecordButton({ mode, disabled, onToggleMode, onTouchDown, onHold
 }) {
   const t = useTheme();
   const tx = useSharedValue(0), ty = useSharedValue(0), active = useSharedValue(0);
+  // Last cancel-slide step sent to JS: the chat screen re-renders on a 5 % step, not on every touch move.
+  const sentSlide = useSharedValue(0);
   const [holding, setHolding] = useState(false);
   const done = useRef(false);
   // The gesture worklets keep the functions of the render they were attached in; going through a ref
@@ -45,7 +48,7 @@ export function RecordButton({ mode, disabled, onToggleMode, onTouchDown, onHold
     if (done.current) return; done.current = true; setHolding(false); props.current.onSlide?.(0);
     if (result === 'lock') { lightFeedback(); props.current.onLock(); } else props.current.onHoldEnd(result);
   };
-  const slide = (x: number) => props.current.onSlide?.(Math.min(1, Math.max(0, -x / CANCEL_DISTANCE)));
+  const slide = (step: number) => props.current.onSlide?.(step);
   const toggle = () => props.current.onToggleMode();
   // Release: the button settles back without bouncing (a spring here wobbled after a sharp release).
   const SETTLE = { duration: 180, easing: Easing.out(Easing.cubic) };
@@ -56,16 +59,16 @@ export function RecordButton({ mode, disabled, onToggleMode, onTouchDown, onHold
     .onStart(() => { active.value = withSpring(1, { damping: 20, stiffness: 260, overshootClamping: true }); runOnJS(begin)(); })
     .onUpdate(e => {
       // One axis at a time, like Telegram: the larger movement wins.
-      const left = Math.min(0, e.translationX), up = Math.min(0, e.translationY);
-      if (-left > -up) { tx.value = left; ty.value = 0; } else { ty.value = up; tx.value = 0; }
-      runOnJS(slide)(tx.value);
-      if (-tx.value >= CANCEL_DISTANCE) { reset(); runOnJS(finish)('cancel'); }
-      else if (-ty.value >= LOCK_DISTANCE) { reset(); runOnJS(finish)('lock'); }
+      const axis = holdAxis(e.translationX, e.translationY);
+      tx.value = axis.x; ty.value = axis.y;
+      const step = slideStep(axis.x);
+      if (step !== sentSlide.value) { sentSlide.value = step; runOnJS(slide)(step); }
+      const result = holdMove(axis.x, axis.y);
+      if (result) { sentSlide.value = 0; reset(); runOnJS(finish)(result); }
     })
     .onEnd(e => {
-      const left = -Math.min(0, e.translationX), up = -Math.min(0, e.translationY);
-      const result = left >= CANCEL_ON_RELEASE || e.velocityX < -FLICK ? 'cancel' : up >= LOCK_ON_RELEASE || e.velocityY < -FLICK ? 'lock' : 'send';
-      reset(); runOnJS(finish)(result);
+      const result = holdRelease(e.translationX, e.translationY, e.velocityX, e.velocityY);
+      sentSlide.value = 0; reset(); runOnJS(finish)(result);
     })
     .onFinalize(() => { reset(); });
   const tap = Gesture.Tap().enabled(!disabled).maxDuration(HOLD_MS).onEnd((_e, ok) => { if (ok) runOnJS(toggle)(); });

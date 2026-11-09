@@ -20,6 +20,8 @@ type CachedMessage = { fingerprint: string; plain: PlainBody; mesh?: boolean };
 type FailedMessage = { fingerprint: string; failed: true };
 const FAILED_TEXT='Не удалось расшифровать на этом устройстве. Напиши собеседнику — шифрование восстановится — и попроси отправить сообщение ещё раз.';
 const FAILED_AFTER=3;
+const SYNC_PAGES=100;
+const PARTIAL_TEXT='Загружена часть истории. Открой чат ещё раз, чтобы продолжить безопасную расшифровку.';
 const rekeyKey=(device:{userId:string;id:string})=>`rekey:${device.userId}:${device.id}`;
 const isFailed=(value:unknown):value is FailedMessage=>!!value&&typeof value==='object'&&(value as {failed?:unknown}).failed===true;
 export type MeshEnvelope = { chatId: string; clientId: string; senderId: string; encrypted: EncryptedMessage };
@@ -153,7 +155,7 @@ export class CryptoService {
   private initializing: Promise<void> | null = null;
   private local: LocalDevice | null = null;
   private closed = false;
-  private syncing = new Map<string,Promise<void>>();
+  private syncing = new Map<string,{task:Promise<void>;pages:number}>();
   constructor(
     readonly userId: string, private readonly transport: CryptoTransport,
     private readonly bridge: SignalBridge, private readonly vault: PrivateVault,
@@ -505,12 +507,24 @@ export class CryptoService {
     });
   }
 
-  async syncChat(chatId:string):Promise<void> {
-    if(this.syncing.has(chatId))return this.syncing.get(chatId)!;
+  /**
+   * Opens this device's envelopes of a chat in server order, each exactly once: the ratchet, the
+   * decrypted copy and the cursor are committed together per message, so a message already opened
+   * (or marked failed) is never handed to Signal again. One sync per chat at a time: a second caller
+   * shares the running one. `maxPages` (100 messages each) bounds a background catch-up (the chat
+   * list at start/resume); it stops with PARTIAL_SYNC and the next sync goes on from the cursor.
+   */
+  async syncChat(chatId:string,maxPages=SYNC_PAGES):Promise<void> {
+    const running=this.syncing.get(chatId);
+    if(running){
+      if(running.pages>=maxPages)return running.task;
+      // A short background catch-up is running and the chat itself is opened: go on after it.
+      await running.task.catch(()=>{});return this.syncChat(chatId,maxPages);
+    }
     const task=(async()=>{
       await this.initialize();await this.exclusive(async()=>{
         const cursorKey=`cursor:${chatId}`;let after=Number(await this.vault.get(cursorKey)||0);
-        for(let page=0;page<100;page++){
+        for(let page=0;page<maxPages;page++){
           const result=await this.transport.cryptoInbox(this.local!.id,chatId,after);
           if(this.closed)throw new Error('Сессия шифрования завершена.');
           for(const message of result.messages){
@@ -520,10 +534,11 @@ export class CryptoService {
           if(!result.hasMore)return;
           if(!result.messages.length||result.nextCursor!==after)throw new Error('Сервер вернул неверную страницу сообщений.');
         }
-        throw new Error('Загружена часть истории. Открой чат ещё раз, чтобы продолжить безопасную расшифровку.');
+        if(maxPages<SYNC_PAGES){const partial=new Error(PARTIAL_TEXT);partial.name='PartialSync';throw partial;}
+        throw new Error(PARTIAL_TEXT);
       });
     })();
-    this.syncing.set(chatId,task);try{await task;}finally{this.syncing.delete(chatId);}
+    const entry={task,pages:maxPages};this.syncing.set(chatId,entry);try{await task;}finally{if(this.syncing.get(chatId)===entry)this.syncing.delete(chatId);}
   }
   async preview(message:Message):Promise<Message> {
     await this.initialize();return this.exclusive(async()=>{

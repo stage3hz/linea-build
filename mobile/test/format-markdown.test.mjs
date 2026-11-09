@@ -96,8 +96,8 @@ test('messageMeta: entities travel inside the payload and edits keep them', asyn
   const plainEdit = { ...edit, id: 3, clientId: '44444444-4444-4444-8444-444444444444', meta: { action: { type: 'edit', target: original.clientId, text: 'Просто' } } };
   assert.equal(meta.foldChat([original, edit, plainEdit], 'u').messages[0].meta, undefined);
   // Chat list and reply previews hide spoilers and strip formatting.
-  const listEdit = { ...edit, meta: { action: { ...edit.meta.action, target: `u:${original.clientId}` } } }; // the list keys edits by sender:clientId
-  assert.equal(meta.listPreviewMessage([original, listEdit]).text, 'Пока ▒▒▒');
+  // The action names its target by clientId, as on the wire (the list matches it to the author's message).
+  assert.equal(meta.listPreviewMessage([original, edit]).text, 'Пока ▒▒▒');
   assert.equal(meta.replyPreview({ text: 'Финал: Джон умер', attachment: null, meta: { entities: [{ type: 'spoiler', offset: 7, length: 9 }] } }), 'Финал: ▒▒▒▒▒▒▒▒');
   assert.equal(meta.chatListText(original), 'Привет мир');
 });

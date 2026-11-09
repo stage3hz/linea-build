@@ -15,7 +15,9 @@ import { activeTypes } from './format/entities';
 import { countChats } from './plural';
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { ActivityIndicator, FlatList, Image, Keyboard, Modal, Platform, Pressable, ScrollView, StyleSheet, View } from 'react-native';
-import Animated, { ZoomIn, useAnimatedStyle } from 'react-native-reanimated';
+import Animated, { FadeIn, useAnimatedStyle } from 'react-native-reanimated';
+import { setVisibleNotes } from './videonote/playback';
+import { composerValue, typedInto } from './editDraft';
 import { useReanimatedKeyboardAnimation } from 'react-native-keyboard-controller';
 import * as VideoThumbnails from 'expo-video-thumbnails';
 import { ProgressRing } from './media/MediaBubble';
@@ -48,7 +50,7 @@ import { mediaPreviewKind } from './media/formats';
 import { AttachmentViewer } from './media/AttachmentViewer';
 import { openDocument } from './media/documentPreview';
 import { WALLPAPERS, textMetrics, useChatPreferences } from './chatPreferences';
-import { REACTIONS, foldChat, groupAlbums, replyPreview, type Reaction, type StoryRef, type ViewMessage } from './messageMeta';
+import { EDIT_WINDOW_CLOSED, REACTIONS, editWindowOpen, foldChat, groupAlbums, replyPreview, type Reaction, type StoryRef, type ViewMessage } from './messageMeta';
 import { PostViewer } from './ProfilePosts';
 import type { ProfilePost } from './api';
 import { MediaGallery } from './media/AttachmentViewer';
@@ -93,10 +95,15 @@ export function ChatScreen({api,user,chat,store,onBack,wide=false,onOpenMusic}: 
   const powerFeatures=usePowerFeatures();const t=useTheme();const [attachMenu,setAttachMenu]=useState(false);const [uploading,setUploading]=useState(false);const [downloadId,setDownloadId]=useState<string|null>(null);const [localError,setLocalError]=useState('');const [preview,setPreview]=useState<Attachment|null>(null);const [peerInfo,setPeerInfo]=useState(()=>takeProfileRequest(chat.id));const [avatarMenu,setAvatarMenu]=useState(false);const [actions,setActions]=useState<Row|null>(null);const [menuX,setMenuX]=useState<number|undefined>(undefined);const [menuY,setMenuY]=useState(0);const [copied,setCopied]=useState(false);
   const [securityOpen,setSecurityOpen]=useState(false);
   const photoContext=`${user.id}:${chat.id}`;const currentPhotoContext=useRef(photoContext);currentPhotoContext.current=photoContext;
-  const text=store.drafts[chat.id]||'';const attachments=store.draftFiles[chat.id]||[];
+  // «Изменить» (Telegram): the message's text is edited in a field of its own, never in the chat's draft
+  // (store.drafts): leaving the chat mid-edit keeps whatever was typed before, and nothing of the edit
+  // can later go out as a new message.
+  const [editing,setEditing]=useState<ViewMessage|null>(null);const editingRef=useRef(editing);editingRef.current=editing;
+  const [editText,setEditText]=useState('');
+  const text=composerValue(!!editing,editText,store.drafts[chat.id]);const attachments=store.draftFiles[chat.id]||[];
   // Formatting (bold, spoiler, …) of the draft: entities over `text`, moved along as the user types.
   const [entities,setEntitiesState]=useState<Entity[]>(()=>draftEntities.get(chat.id)||[]);const entitiesRef=useRef(entities);
-  const setEntities=(next:Entity[])=>{entitiesRef.current=next;draftEntities.set(chat.id,next);setEntitiesState(next);};
+  const setEntities=(next:Entity[])=>{entitiesRef.current=next;if(!editingRef.current)draftEntities.set(chat.id,next);setEntitiesState(next);};
   const lastPlain=useRef(text);
   useEffect(()=>{const saved=draftEntities.get(chat.id)||[];entitiesRef.current=saved;setEntitiesState(saved);setSel(null);},[chat.id]);
   // The text changed from outside the field (sent, edit cancelled): an empty field has no formatting left.
@@ -108,6 +115,10 @@ export function ChatScreen({api,user,chat,store,onBack,wide=false,onOpenMusic}: 
   const composed=()=>{const parsed=parseMarkdown(text,entitiesRef.current);const lead=parsed.text.length-parsed.text.trimStart().length;const plain=parsed.text.trim();const packed=packEntities(sliceEntities(parsed.entities,parsed.text,{start:lead,end:lead+plain.length}),plain);return {text:plain,entities:packed};};
   const uploadingRef=useRef(false),draftCount=useRef(attachments.length);draftCount.current=attachments.length;
   const glassTarget=useRef<View|null>(null);
+  // Video notes off screen unload their players (videonote/playback): the list says which rows are visible.
+  const onViewableRows=useRef(({viewableItems}:{viewableItems:{item:Row}[]})=>setVisibleNotes(viewableItems.map(v=>v.item.message?.attachment?.id??v.item.pending?.attachment?.id).filter((id):id is string=>!!id)));
+  const viewability=useRef({itemVisiblePercentThreshold:1});
+  useEffect(()=>()=>setVisibleNotes(null),[]);
   const listRef=useRef<FlatList<Row>>(null);const typingAt=useRef(0);const typingTimer=useRef<ReturnType<typeof setTimeout>|undefined>(undefined);const alive=useRef(true);
   const messages=store.messages[chat.id]||[];
   const pendingAll=store.pending.filter(p=>p.chatId===chat.id);
@@ -126,9 +137,18 @@ export function ChatScreen({api,user,chat,store,onBack,wide=false,onOpenMusic}: 
   // Telegram: the author edits any own message — its text or the caption of a photo/video/file, with
   // or without a caption yet. A poll, a voice or a video message has nothing to edit.
   // A service row (a finished call) is not a message of yours to edit either.
-  const editable=(m:ViewMessage)=>m.senderId===user.id&&m.cryptoState==='decrypted'&&!m.meta?.action&&!m.meta?.poll&&(!!m.text||!!m.attachment)&&!(m.attachment&&(isVoice(m.attachment)||isVideoNote(m.attachment)));
+  // As in Telegram, for 48 hours after sending (editWindowOpen).
+  const editable=(m:ViewMessage)=>m.senderId===user.id&&m.cryptoState==='decrypted'&&!m.meta?.action&&!m.meta?.poll&&(!!m.text||!!m.attachment)&&!(m.attachment&&(isVoice(m.attachment)||isVideoNote(m.attachment)))&&editWindowOpen(m.createdAt);
   const [replyTo,setReplyTo]=useState<ViewMessage|null>(null);
-  const [editing,setEditing]=useState<ViewMessage|null>(null);
+  // The «Редактирование» bar: the draft and its formatting stay where they are and come back after it.
+  const startEdit=(message:ViewMessage)=>{
+    setReplyTo(null);editingRef.current=message;setEditing(message);setEditText(message.text);
+    lastPlain.current=message.text;setEntities(message.meta?.entities||[]);
+  };
+  const endEdit=()=>{
+    editingRef.current=null;setEditing(null);setEditText('');
+    const draft=store.drafts[chat.id]||'';lastPlain.current=draft;setEntities(draft?draftEntities.get(chat.id)||[]:[]);
+  };
   const [forwarding,setForwarding]=useState<ViewMessage|null>(null);
   const [searchOpen,setSearchOpen]=useState(false);const [query,setQuery]=useState('');
   const [notice,setNotice]=useState('');
@@ -165,7 +185,7 @@ export function ChatScreen({api,user,chat,store,onBack,wide=false,onOpenMusic}: 
     stickersToKeyboard();setKeyboardAsk(n=>n+1);
   };
   const [mini,setMini]=useState<{x:number;y:number}|null>(null);const [pollOpen,setPollOpen]=useState(false);const [deleteAsk,setDeleteAsk]=useState(false);const [deleteOne,setDeleteOne]=useState<{list:ViewMessage[];everyone:boolean}|null>(null);const [stickers,setStickers]=useState(false);
-  useEffect(()=>{setReplyTo(null);setEditing(null);setForwarding(null);setSearchOpen(false);setQuery('');setSelection(null);setGallery(null);seen.current=null;},[chat.id]);
+  useEffect(()=>{editingRef.current=null;setEditText('');setReplyTo(null);setEditing(null);setForwarding(null);setSearchOpen(false);setQuery('');setSelection(null);setGallery(null);seen.current=null;},[chat.id]);
 
   const needle=query.trim().toLocaleLowerCase('ru');
   const rows=useMemo<Row[]>(()=>{
@@ -236,7 +256,7 @@ export function ChatScreen({api,user,chat,store,onBack,wide=false,onOpenMusic}: 
   const changeText=(value:string)=>{
     const previous=lastPlain.current;lastPlain.current=value;
     if(entitiesRef.current.length)setEntities(shiftEntities(entitiesRef.current,previous,value));
-    store.setDraft(chat.id,value);
+    typedInto(!!editingRef.current,value,{edit:setEditText,draft:next=>store.setDraft(chat.id,next)});
     if(Date.now()-typingAt.current>1500){store.sendTyping(chat.id,!!value);typingAt.current=Date.now();}
     if(typingTimer.current)clearTimeout(typingTimer.current);
     typingTimer.current=setTimeout(()=>store.sendTyping(chat.id,false),1800);
@@ -253,8 +273,10 @@ export function ChatScreen({api,user,chat,store,onBack,wide=false,onOpenMusic}: 
     if(editing){
       // The edit carries its own formatting; the old one is replaced (also when only the formatting changed).
       // Both sides compared in canonical form: a no-op edit (same text, same formatting) sends nothing.
-      if(out.text&&(out.text!==editing.text||JSON.stringify(out.entities??[])!==JSON.stringify(normalizeEntities(editing.meta?.entities,editing.text))))store.sendAction(chat.id,{type:'edit',target:editing.clientId,text:out.text,...(out.entities?{entities:out.entities}:{})});
-      setEditing(null);store.setDraft(chat.id,'');store.sendTyping(chat.id,false);return;
+      const changed=!!out.text&&(out.text!==editing.text||JSON.stringify(out.entities??[])!==JSON.stringify(normalizeEntities(editing.meta?.entities,editing.text)));
+      if(changed&&!editWindowOpen(editing.createdAt)){setNotice(EDIT_WINDOW_CLOSED);endEdit();store.sendTyping(chat.id,false);return;}
+      if(changed)store.sendAction(chat.id,{type:'edit',target:editing.clientId,text:out.text,...(out.entities?{entities:out.entities}:{})});
+      endEdit();store.sendTyping(chat.id,false);return;
     }
     if(replyTo){
       const reply={clientId:replyTo.clientId,senderId:replyTo.senderId,preview:replyPreview(replyTo)};
@@ -373,7 +395,7 @@ export function ChatScreen({api,user,chat,store,onBack,wide=false,onOpenMusic}: 
   };
 
   const handlers=useRef<RowHandlers>(null as unknown as RowHandlers);
-  handlers.current={actions:(row,y,x)=>{setMenuY(y);setMenuX(x);setActions(row);},jumpTo,open:openAttachment,react,retry:pending=>void store.retry(pending),cancel:pending=>store.cancelPending(pending),reply:message=>{setEditing(null);setReplyTo(message);},vote:(message,options)=>store.sendAction(chat.id,{type:'vote',target:message.clientId,options},replyPreview(message)),toggleSelect,openStory:ref=>void openStory(ref)};
+  handlers.current={actions:(row,y,x)=>{setMenuY(y);setMenuX(x);setActions(row);},jumpTo,open:openAttachment,react,retry:pending=>void store.retry(pending),cancel:pending=>store.cancelPending(pending),reply:message=>{if(editing)endEdit();setReplyTo(message);},vote:(message,options)=>store.sendAction(chat.id,{type:'vote',target:message.clientId,options},replyPreview(message)),toggleSelect,openStory:ref=>void openStory(ref)};
   if(seen.current===null&&rows.length)seen.current=new Set(rows.map(row=>row.key));
   const fresh=(key:string)=>{if(!seen.current)return false;if(seen.current.has(key))return false;seen.current.add(key);return true;};
   const peerLastRead=chat.peerLastReadMessageId,peerName=chat.peer.displayName;
@@ -419,7 +441,7 @@ export function ChatScreen({api,user,chat,store,onBack,wide=false,onOpenMusic}: 
   // Desktop (Telegram Desktop / Discord): a full-width bar — who, status, and the actions at hand.
   // Desktop: drop or paste files into the chat; keyboard as in Telegram Desktop / Discord.
   const [dropping,setDropping]=useState(false);
-  const desktopRef=useRef({upload,text,editing,replyTo,searchOpen,messages:view.messages,applyFormat});desktopRef.current={upload,text,editing,replyTo,searchOpen,messages:view.messages,applyFormat};
+  const desktopRef=useRef({upload,text,editing,replyTo,searchOpen,messages:view.messages,applyFormat,startEdit,endEdit});desktopRef.current={upload,text,editing,replyTo,searchOpen,messages:view.messages,applyFormat,startEdit,endEdit};
   useEffect(()=>{
     if(Platform.OS!=='web'||!wide||typeof window==='undefined')return;
     const take=async(files:File[])=>{for(const file of files){try{await desktopRef.current.upload({uri:URL.createObjectURL(file),name:file.name||'файл',mimeType:file.type||'application/octet-stream',size:file.size,file});}catch(e){setLocalError(e instanceof Error?e.message:'Не удалось добавить файл.');break;}}};
@@ -439,10 +461,10 @@ export function ChatScreen({api,user,chat,store,onBack,wide=false,onOpenMusic}: 
       // By the physical key (e.code), so Ctrl+B is bold on the Russian layout too (e.key would be «и»).
       if(mod&&!e.altKey){const target=e.target as HTMLElement|null;const code=e.code||`Key${e.key.toUpperCase()}`;const type=!e.shiftKey?({KeyB:'bold',KeyI:'italic',KeyU:'underline'} as const)[code as 'KeyB'|'KeyI'|'KeyU']:({KeyX:'strikethrough',KeyM:'code',KeyP:'spoiler',KeyN:'clear'} as const)[code as 'KeyX'|'KeyM'|'KeyP'|'KeyN'];
         if(type&&target?.tagName==='TEXTAREA'&&caret.current&&caret.current.start!==caret.current.end){e.preventDefault();d.applyFormat(type,undefined,caret.current);return;}}
-      if(e.key==='Escape'){if(d.searchOpen){setSearchOpen(false);setQuery('');return;}if(d.editing){setEditing(null);store.setDraft(chat.id,'');return;}if(d.replyTo){setReplyTo(null);return;}}
+      if(e.key==='Escape'){if(d.searchOpen){setSearchOpen(false);setQuery('');return;}if(d.editing){d.endEdit();return;}if(d.replyTo){setReplyTo(null);return;}}
       // ↑ in an empty field edits your last message.
       if(e.key==='ArrowUp'&&!mod&&!e.altKey&&!d.text&&!d.editing){const target=e.target as HTMLElement|null;if(target?.tagName!=='TEXTAREA'&&target?.tagName!=='INPUT')return;
-        const last=[...d.messages].reverse().find(editable);if(!last)return;e.preventDefault();setReplyTo(null);setEditing(last);const saved=last.meta?.entities||[];entitiesRef.current=saved;draftEntities.set(chat.id,saved);setEntitiesState(saved);store.setDraft(chat.id,last.text);}
+        const last=[...d.messages].reverse().find(editable);if(!last)return;e.preventDefault();d.startEdit(last);}
     };
     window.addEventListener('dragenter',enter);window.addEventListener('dragover',over);window.addEventListener('dragleave',leave);window.addEventListener('drop',drop);window.addEventListener('paste',paste);window.addEventListener('keydown',key,true);
     return()=>{window.removeEventListener('dragenter',enter);window.removeEventListener('dragover',over);window.removeEventListener('dragleave',leave);window.removeEventListener('drop',drop);window.removeEventListener('paste',paste);window.removeEventListener('keydown',key,true);};
@@ -468,8 +490,8 @@ export function ChatScreen({api,user,chat,store,onBack,wide=false,onOpenMusic}: 
     {/* Android: header and composer glass blur this (wallpaper + messages) on the GPU. */}
     <GlassContentTarget targetRef={glassTarget} style={{flex:1}}>
     <ChatWallpaper choice={wallpaper} style={{top:-80,bottom:-60}}/>
-    {rows.length===0?<View style={{flex:1,justifyContent:'center',paddingTop:headerHeight,paddingBottom:footerHeight}}>{store.messageLoading?<ActivityIndicator color={t.accent}/>:<Empty icon="hand-left-outline" title="Скажи «привет»" description={`Это начало вашей переписки с ${chat.peer.displayName}.`}/>}</View>:<FlatList ref={listRef} inverted data={rows} keyExtractor={row=>row.key} keyboardShouldPersistTaps="handled" keyboardDismissMode={Platform.OS==='ios'?'interactive':'on-drag'} contentContainerStyle={{paddingHorizontal:wide?28:9,paddingTop:footerHeight+8,paddingBottom:headerHeight+14}} onScroll={e=>{const down=e.nativeEvent.contentOffset.y>350;if(down!==showDown)setShowDown(down);}} scrollEventThrottle={100} initialNumToRender={25} windowSize={11} onScrollToIndexFailed={info=>{listRef.current?.scrollToOffset({offset:info.averageItemLength*info.index,animated:true});setTimeout(()=>listRef.current?.scrollToIndex({index:info.index,animated:true,viewPosition:.5}),250);}}
-      ListHeaderComponent={pendingNote?<Animated.View entering={ZoomIn.springify().damping(16)} style={{alignSelf:'flex-end',marginVertical:6,width:212,height:212,borderRadius:106,overflow:'hidden',backgroundColor:'#11162A',alignItems:'center',justifyContent:'center'}}>
+    {rows.length===0?<View style={{flex:1,justifyContent:'center',paddingTop:headerHeight,paddingBottom:footerHeight}}>{store.messageLoading?<ActivityIndicator color={t.accent}/>:<Empty icon="hand-left-outline" title="Скажи «привет»" description={`Это начало вашей переписки с ${chat.peer.displayName}.`}/>}</View>:<FlatList ref={listRef} inverted data={rows} onViewableItemsChanged={onViewableRows.current} viewabilityConfig={viewability.current} keyExtractor={row=>row.key} keyboardShouldPersistTaps="handled" keyboardDismissMode={Platform.OS==='ios'?'interactive':'on-drag'} contentContainerStyle={{paddingHorizontal:wide?28:9,paddingTop:footerHeight+8,paddingBottom:headerHeight+14}} onScroll={e=>{const down=e.nativeEvent.contentOffset.y>350;if(down!==showDown)setShowDown(down);}} scrollEventThrottle={100} initialNumToRender={25} windowSize={11} onScrollToIndexFailed={info=>{listRef.current?.scrollToOffset({offset:info.averageItemLength*info.index,animated:true});setTimeout(()=>listRef.current?.scrollToIndex({index:info.index,animated:true,viewPosition:.5}),250);}}
+      ListHeaderComponent={pendingNote?<Animated.View entering={FadeIn.duration(150)} style={{alignSelf:'flex-end',marginVertical:6,width:212,height:212,borderRadius:106,overflow:'hidden',backgroundColor:'#11162A',alignItems:'center',justifyContent:'center'}}>
         {pendingNote.thumb?<Image source={{uri:pendingNote.thumb}} style={StyleSheet.absoluteFill} resizeMode="cover"/>:null}
         <View style={{width:56,height:56,borderRadius:28,backgroundColor:'rgba(10,20,35,0.6)',alignItems:'center',justifyContent:'center'}}><ProgressRing progress={pendingNote.progress} size={56}/><Pressable accessibilityRole="button" accessibilityLabel="Не отправлять видеосообщение" onPress={()=>{noteCancelled.current=true;setPendingNote(null);}} hitSlop={8}><Icon name="close" size={24} color="#FFF"/></Pressable></View>
       </Animated.View>:null}
@@ -555,7 +577,7 @@ export function ChatScreen({api,user,chat,store,onBack,wide=false,onOpenMusic}: 
         <Icon name={editing?'create-outline':'arrow-undo-outline'} size={18} color={t.accent}/>
         <View style={{width:3,alignSelf:'stretch',borderRadius:2,backgroundColor:t.accent}}/>
         <View style={{flex:1,gap:1}}><Text style={{color:t.accent,fontSize:11,fontWeight:'700'}}>{editing?'Редактирование':`Ответ ${nameOf((replyTo as ViewMessage).senderId)==='Ты'?'себе':nameOf((replyTo as ViewMessage).senderId)}`}</Text><Text numberOfLines={1} style={{color:t.muted,fontSize:12}}>{replyPreview((editing||replyTo)!)}</Text></View>
-        <IconButton name="close" label={editing?'Отменить редактирование':'Отменить ответ'} size={18} color={t.muted} onPress={()=>{if(editing)store.setDraft(chat.id,'');setEditing(null);setReplyTo(null);}} style={{width:36,height:36}}/>
+        <IconButton name="close" label={editing?'Отменить редактирование':'Отменить ответ'} size={18} color={t.muted} onPress={()=>{if(editing)endEdit();setReplyTo(null);}} style={{width:36,height:36}}/>
       </View>:null}
       {uploading&&!pendingNote?<View style={{flexDirection:'row',alignItems:'center',gap:9,padding:12,paddingTop:4}}><ActivityIndicator size="small" color={t.accent}/><Text style={{fontSize:12,color:t.muted}}>Обрабатываем и шифруем вложение…</Text></View>:null}
       {attachments.length?<ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{gap:7,paddingBottom:7}}>{attachments.map((attachment,index)=>{
@@ -601,12 +623,12 @@ export function ChatScreen({api,user,chat,store,onBack,wide=false,onOpenMusic}: 
     </ContextMenu>
     <ContextMenu visible={!!actions} y={menuY} x={menuX} onClose={()=>setActions(null)} peekRow peek={actions&&menuX===undefined?renderRow({item:actions,index:Math.max(0,rows.indexOf(actions))}):undefined} preview={actions?(serviceAction?.type==='call'&&serviceAction.step==='end'&&actions.message?callServiceText(serviceAction,actions.message.senderId,user.id):actions.message?.text||actions.pending?.text||(actions.message?.attachment||actions.pending?.attachment?attachmentLabel((actions.message?.attachment||actions.pending?.attachment)!):'')):''} mine={!!actions&&(!!actions.pending||actions.message?.senderId===user.id)} reactions={actions?.message&&!serviceRow&&actions.message.cryptoState==='decrypted'?REACTIONS.map(emoji=>({emoji,chosen:actions.message!.reactions.some(r=>r.mine&&r.emoji===emoji)})):undefined} onReact={emoji=>{if(actions?.message&&!serviceRow){react(actions.message,emoji as Reaction);setActions(null);}}}>
       {actions?.message&&!serviceRow&&actions.message.senderId===user.id&&actions.message.id<=chat.peerLastReadMessageId&&Date.now()-Date.parse(actions.message.createdAt)<7*864e5?<ReadDateRow key={actions.message.id} load={()=>api.readDate(chat.id,actions.message!.id)}/>:null}
-      {actions?.message&&!serviceRow&&actions.message.cryptoState==='decrypted'?<MenuItem icon="arrow-undo-outline" label="Ответить" onPress={()=>{setEditing(null);setReplyTo(actions.message!);setActions(null);}}/>:null}
+      {actions?.message&&!serviceRow&&actions.message.cryptoState==='decrypted'?<MenuItem icon="arrow-undo-outline" label="Ответить" onPress={()=>{if(editing)endEdit();setReplyTo(actions.message!);setActions(null);}}/>:null}
       {!locked&&!serviceRow&&(actions?.message?.text||actions?.pending?.text)?<MenuItem icon="copy-outline" label="Скопировать" onPress={()=>void copy(actions?.message?.text||actions?.pending?.text||'')}/>:null}
       {!locked&&!serviceRow&&(actions?.message?.attachment||actions?.pending?.attachment)?<MenuItem icon="download-outline" label={(()=>{const a=actions?.message?.attachment||actions?.pending?.attachment;const kind=a?mediaPreviewKind(a):'file';return kind==='video'?'Сохранить видео':kind==='photo'?'Сохранить фото':'Сохранить';})()} onPress={()=>{const a=actions?.message?.attachment||actions?.pending?.attachment;setActions(null);if(a)void download(a);}}/>:null}
       {actions?.message&&!serviceRow&&actions.message.cryptoState==='decrypted'?<MenuItem icon={view.pinned?.clientId===actions.message.clientId?'pin':'pin-outline'} label={view.pinned?.clientId===actions.message.clientId?'Открепить':'Закрепить'} onPress={()=>{const m=actions.message!;store.sendAction(chat.id,{type:'pin',target:view.pinned?.clientId===m.clientId?null:m.clientId},m.text);setActions(null);}}/>:null}
       {!locked&&actions?.message&&!serviceRow&&actions.message.cryptoState==='decrypted'?<MenuItem icon="arrow-redo-outline" label="Переслать" onPress={()=>{const item=actions.message!;void forwardable([item]).then(ok=>{if(ok)setForwarding(item);});setActions(null);}}/>:null}
-      {actions?.message&&editable(actions.message)?<MenuItem icon="create-outline" label="Изменить" onPress={()=>{setReplyTo(null);setEditing(actions.message!);setEntities(actions.message!.meta?.entities||[]);store.setDraft(chat.id,actions.message!.text);setActions(null);}}/>:null}
+      {actions?.message&&editable(actions.message)?<MenuItem icon="create-outline" label="Изменить" onPress={()=>{startEdit(actions.message!);setActions(null);}}/>:null}
       {actions?.pending?.state==='failed'?<MenuItem icon="refresh-outline" label="Повторить отправку" onPress={()=>{if(actions.pending)void store.retry(actions.pending);setActions(null);}}/>:null}
        {actions?.message?<MenuItem icon="trash-outline" label="Удалить" danger onPress={()=>{const list=rowMessages(actions);const mineAll=list.every(m=>m.senderId===user.id&&m.cryptoState==='decrypted');setActions(null);setDeleteOne({list,everyone:mineAll});}}/>:null}
       {actions?.message&&!serviceRow?<MenuItem separated icon="checkmark-circle-outline" label="Выбрать" onPress={()=>startSelect(actions)}/>:null}

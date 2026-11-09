@@ -25,12 +25,15 @@ import { VoiceBubble, VoicePlaybackProvider, VoiceRecordingBar, useVoiceRecorder
 import { VOICE_MIME, VOICE_MIN_MS, attachmentLabel, isVideoNote, isVoice, videoNoteFileName, voiceFileName } from '../voice/voice';
 import { RecordButton, type RecordKind } from '../voice/RecordButton';
 import { VideoNoteBubble, VideoNoteRecorder, type VideoHold, type VideoNoteTake } from '../videonote/VideoNote';
+import { setVisibleNotes } from '../videonote/playback';
 import { errorFeedback, lightFeedback } from '../haptics';
 import { searchSaved, type SavedItem } from './saved.ts';
 import { SAVED_UNAVAILABLE } from './useSaved';
 import { ForwardPicker, type ForwardTarget } from '../forward/ForwardPicker';
 import { countChats } from '../plural';
 import { withUncleanedConsent } from '../attachments/uncleanedConsent';
+
+const SAVED_NOTES = 'saved';
 
 /** A round video with no text or origin is shown alone, without a bubble (Telegram). */
 const circleOnly = (item: { text?: string; origin?: unknown; attachment?: Parameters<typeof isVideoNote>[0] | null }) => !!item.attachment && isVideoNote(item.attachment) && !item.text && !item.origin;
@@ -54,6 +57,12 @@ export function SavedScreen({ api, user, store, onBack, wide = false }: { api: A
     window.addEventListener('keydown', key); return () => window.removeEventListener('keydown', key);
   }, []);
   const busyRef = useRef(false); const listRef = useRef<FlatList<SavedItem>>(null);
+  // Round videos loop only while on screen; «Избранное» is its own scope, so a chat list never hides them.
+  const onViewableNotes = useRef(({ viewableItems }: { viewableItems: { item: SavedItem }[] }) => setVisibleNotes(viewableItems.map(v => v.item.attachment?.id).filter((id): id is string => !!id), SAVED_NOTES));
+  const noteViewability = useRef({ itemVisiblePercentThreshold: 1 });
+  useEffect(() => () => setVisibleNotes(null, SAVED_NOTES), []);
+  // The width the bubbles get (85 % / 76 % of the list), so a playing circle grows without overflowing.
+  const [listWidth, setListWidth] = useState(0);
   const metrics = textMetrics(useChatPreferences().textSize);
   const rows = useMemo(() => [...(searchOpen ? searchSaved(saved.items, query) : saved.items)].reverse(), [saved.items, searchOpen, query]);
   const flash = (value: string) => { setNotice(value); setTimeout(() => setNotice(current => current === value ? '' : current), 2200); };
@@ -143,7 +152,7 @@ export function SavedScreen({ api, user, store, onBack, wide = false }: { api: A
     {notice ? <View style={{ alignSelf: 'center', marginVertical: 4, paddingVertical: 7, paddingHorizontal: 14, backgroundColor: t.accentSoft, borderRadius: 16, borderWidth: 1, borderColor: t.border }}><Text style={{ color: t.accent, fontSize: 12 }}>{notice}</Text></View> : null}
     {error || saved.error ? <View style={{ paddingHorizontal: 13, paddingVertical: 6 }}><Notice text={error || saved.error} error /></View> : null}
     {!saved.loaded ? <View style={{ flex: 1, justifyContent: 'center' }}><ActivityIndicator color={t.accent} /></View> : rows.length === 0 ? <View style={{ flex: 1, justifyContent: 'center' }}><Empty icon={searchOpen ? 'search-outline' : 'bookmark-outline'} title={searchOpen ? 'Ничего не найдено' : 'Здесь пока пусто'} description={searchOpen ? 'Попробуй другое слово.' : 'Пиши заметки, сохраняй файлы и голосовые. Любое сообщение из чата можно отправить сюда через долгое нажатие → «В Избранное».'} /></View> :
-      <FlatList ref={listRef} inverted data={rows} keyExtractor={item => item.id} keyboardShouldPersistTaps="handled" keyboardDismissMode={Platform.OS === 'ios' ? 'interactive' : 'on-drag'} contentContainerStyle={{ paddingHorizontal: wide ? 28 : 15, paddingVertical: 14 }}
+      <FlatList ref={listRef} inverted data={rows} keyExtractor={item => item.id} onViewableItemsChanged={onViewableNotes.current} viewabilityConfig={noteViewability.current} onLayout={event => setListWidth(Math.round(event.nativeEvent.layout.width))} keyboardShouldPersistTaps="handled" keyboardDismissMode={Platform.OS === 'ios' ? 'interactive' : 'on-drag'} contentContainerStyle={{ paddingHorizontal: wide ? 28 : 15, paddingVertical: 14 }}
         renderItem={({ item, index }) => {
           const older = rows[index + 1]; const showDay = !older || new Date(older.savedAt).toDateString() !== new Date(item.savedAt).toDateString();
           return <View>
@@ -151,7 +160,7 @@ export function SavedScreen({ api, user, store, onBack, wide = false }: { api: A
             <View style={{ alignItems: 'flex-end', marginBottom: 8 }}>
               <RightClick onMenu={(x, y) => { setAt({ x, y }); setActions(item); }} style={{ maxWidth: wide ? '76%' : '85%', alignItems: 'flex-end' }}><Pressable onLongPress={e => { setAt({ y: e.nativeEvent.pageY }); setActions(item); }} delayLongPress={400} accessibilityLabel={item.text || item.attachment?.name || 'Запись'} style={circleOnly(item) ? { maxWidth: '100%', alignItems: 'flex-end' } : { maxWidth: '100%', minWidth: 74, backgroundColor: t.bubble, borderRadius: 23, borderBottomRightRadius: 8, paddingHorizontal: 12, paddingTop: item.attachment ? 7 : 11, paddingBottom: 7, borderWidth: 1, borderColor: t.dark ? 'rgba(157,182,255,0.25)' : 'rgba(255,255,255,0.83)' }}>
                 {item.origin ? <Text style={{ color: t.accent, fontSize: 11, fontWeight: '600', marginBottom: 4 }}>{item.origin.author === user.displayName ? 'Твоё сообщение' : `От ${item.origin.author}`} · {formatDay(item.origin.sentAt)}</Text> : null}
-                {item.attachment ? <View style={{ marginBottom: item.text ? 7 : 1 }}>{isVoice(item.attachment) ? <VoiceBubble attachment={item.attachment} mine /> : isVideoNote(item.attachment) ? <VideoNoteBubble api={api} attachment={item.attachment} /> : <AttachmentCard api={api} attachment={item.attachment} onPress={() => open(item.attachment!)} />}</View> : null}
+                {item.attachment ? <View style={{ marginBottom: item.text ? 7 : 1 }}>{isVoice(item.attachment) ? <VoiceBubble attachment={item.attachment} mine /> : isVideoNote(item.attachment) ? <VideoNoteBubble api={api} attachment={item.attachment} scope={SAVED_NOTES} side="right" maxSide={listWidth ? Math.floor((listWidth - (wide ? 56 : 30)) * (wide ? .76 : .85)) : undefined} /> : <AttachmentCard api={api} attachment={item.attachment} onPress={() => open(item.attachment!)} />}</View> : null}
                 {item.text ? <Text selectable={false} style={{ color: t.text, fontSize: metrics.fontSize, lineHeight: metrics.lineHeight }}>{linkify(item.text, t.text)}</Text> : null}
                 {circleOnly(item) ? <View style={{ alignSelf: 'flex-end', marginTop: 4, paddingHorizontal: 8, paddingVertical: 3, borderRadius: 10, backgroundColor: t.dark ? 'rgba(0,0,0,0.45)' : 'rgba(0,0,0,0.32)' }}><Text style={{ color: '#FFFFFF', fontSize: 11 }}>{formatTime(item.savedAt)}</Text></View>
                   : <Text style={{ color: t.muted, fontSize: 9, alignSelf: 'flex-end', marginTop: 4 }}>{item.editedAt ? 'изм. ' : ''}{formatTime(item.savedAt)}</Text>}

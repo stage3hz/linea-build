@@ -25,7 +25,7 @@ import { VoiceBar } from './communities/VoiceBar';
 import { formatListTime, useTheme } from './theme';
 import type { Api } from './api';
 import type { Chat, Message, User } from './types';
-import { chatListText, isQuietAction, pinPreview } from './messageMeta';
+import { chatListText, foldChat, pinPreview, skippedInList } from './messageMeta';
 import { callListText } from './calls/callLog';
 import { countChats } from './plural';
 import type { MessengerStore } from './useMessenger';
@@ -173,7 +173,8 @@ function SavedRow({count,last,selected,onPress}:{count:number;last?:SavedItem;se
 /** Long-press on a chat, as in Telegram: a card with the chat itself (header and the latest messages) above the menu. */
 function ChatPeek({chat,api,userId,messages}:{chat:Chat;api:Api;userId:string;messages?:Message[]}) {
   const t=useTheme();const {height}=useWindowDimensions();
-  const shown=(messages?.length?messages:chat.lastMessage?[chat.lastMessage]:[]).filter(m=>!isQuietAction(m)).slice(-14);
+  // Edits and deletions applied as in the chat itself (actions and call signalling are not bubbles).
+  const shown=(messages?.length?foldChat(messages,userId).messages:chat.lastMessage?[chat.lastMessage].filter(m=>!skippedInList(m)):[]).slice(-14);
   return <View style={{height:Math.min(440,Math.round(height*0.5)),borderRadius:24,overflow:'hidden',backgroundColor:t.bg,borderWidth:StyleSheet.hairlineWidth,borderColor:t.border}}>
     <View style={{flexDirection:'row',alignItems:'center',gap:10,paddingHorizontal:14,paddingVertical:10,borderBottomWidth:StyleSheet.hairlineWidth,borderBottomColor:t.border}}>
       <Avatar user={chat.peer} api={api} size={36}/>

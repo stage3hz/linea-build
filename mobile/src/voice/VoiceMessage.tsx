@@ -13,6 +13,7 @@ import type { Api } from '../api';
 import type { Attachment } from '../types';
 import { decryptAttachment } from '../e2ee/attachments';
 import { useMusic } from '../music/MusicProvider';
+import { interruptNoteAudio, onNoteSound } from '../videonote/playback';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { VOICE_MAX_MS, pushVoiceSample, voiceSamples, decodeWaveform, encodeWaveform, fitWaveform, formatVoiceTime, formatVoiceTimeFine, levelFromMetering } from './voice';
 
@@ -202,10 +203,12 @@ export function VoicePlaybackProvider({ api, children }: { api: Api; children: R
   }, [rate]);
 
   useEffect(() => () => { request.current++; try { player.pause(); } catch { /* released with the hook */ } for (const file of files.current.values()) void file.dispose().catch(() => {}); files.current.clear(); }, [player]);
+  // A round video message started with sound: the voice message pauses (one sound at a time).
+  useEffect(() => onNoteSound(() => { try { player.pause(); } catch { /* not loaded */ } }), [player]);
   useEffect(() => { if (status.didJustFinish) { try { player.pause(); void player.seekTo(0); } catch { /* ignore */ } } }, [status.didJustFinish, player]);
 
   const toggle = useCallback((attachment: Attachment) => {
-    if (activeId === attachment.id && !loadingId && failedId !== attachment.id) { if (status.playing) player.pause(); else { music.stop(); player.play(); } return; }
+    if (activeId === attachment.id && !loadingId && failedId !== attachment.id) { if (status.playing) player.pause(); else { music.stop(); interruptNoteAudio(); player.play(); } return; }
     const ticket = ++request.current;
     setError(''); setFailedId(null); setLoadingId(attachment.id); setActiveId(attachment.id);
     try { player.pause(); } catch { /* nothing playing */ }
@@ -215,7 +218,7 @@ export function VoicePlaybackProvider({ api, children }: { api: Api; children: R
         if (!file) { file = await decryptAttachment(api, attachment); files.current.set(attachment.id, file); }
         if (ticket !== request.current) return;
         cancelPlaybackReset(); await setAudioModeAsync(PLAYBACK_MODE).catch(() => {});
-        music.stop();
+        music.stop(); interruptNoteAudio();
         player.replace({ uri: file.uri });
         try { player.setPlaybackRate(voiceRate); } catch { /* applied by the effect */ }
         player.play();

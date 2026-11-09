@@ -111,6 +111,15 @@ export function actionFallback(action: MessageAction, targetText = ''): string {
 
 export const messageKey = (message: Pick<Message, 'senderId' | 'clientId'>) => `${message.senderId}:${message.clientId}`;
 
+/** Telegram: a message can be edited for 48 hours after it was sent. */
+export const EDIT_WINDOW_MS = 48 * 3600_000;
+/** Clocks of two phones differ: an edit up to this much past the window is still taken. */
+export const EDIT_CLOCK_SKEW_MS = 10 * 60_000;
+/** Whether an edit sent at `editAt` applies to a message sent at `sentAt` (both from the author's clock). Unknown times are not held against it. */
+export const editInTime = (sentAt: string, editAt: string) => { const sent = Date.parse(sentAt), edit = Date.parse(editAt); return !Number.isFinite(sent) || !Number.isFinite(edit) || edit - sent <= EDIT_WINDOW_MS + EDIT_CLOCK_SKEW_MS; };
+export const EDIT_WINDOW_CLOSED = 'Изменить сообщение можно в течение 48 часов после отправки.';
+export const editWindowOpen = (createdAt: string, now = Date.now()) => { const sent = Date.parse(createdAt); return Number.isFinite(sent) && now - sent < EDIT_WINDOW_MS; };
+
 /** Telegram does not show these in the chat list: a reaction, an unpin, a poll vote, an edit or a
  *  deletion changes another message — the list keeps showing the last real message instead. */
 export function isQuietAction(message: Pick<Message, 'meta'>): boolean {
@@ -122,16 +131,20 @@ export function isQuietAction(message: Pick<Message, 'meta'>): boolean {
 /** The message the chat list should show: the newest one that is not a quiet action and was not
  *  deleted, with its latest edit applied. Null when the given messages hold none. */
 export function listPreviewMessage<T extends Message>(list: readonly T[]): T | null {
-  const deleted = new Set<string>(), edits = new Map<string, Edit>();
+  const deleted = new Set<string>(), edits = new Map<string, (Edit & { at: string })[]>();
   const sorted = [...list].sort((a, b) => b.id - a.id);
   for (const message of sorted) {
     const action = message.meta?.action;
-    if (action?.type === 'delete') deleted.add(action.target);
-    if (action?.type === 'edit' && !edits.has(action.target)) edits.set(action.target, { text: action.text, entities: action.entities });
+    // An action names its target by clientId; only the author edits or deletes, so the target is the
+    // action sender's own message (senderId:clientId — the same key as the message below).
+    if (message.cryptoState !== undefined && message.cryptoState !== 'decrypted') continue;
+    if (action?.type === 'delete') deleted.add(messageKey({ senderId: message.senderId, clientId: action.target }));
+    if (action?.type === 'edit') { const key = messageKey({ senderId: message.senderId, clientId: action.target }); edits.set(key, [...(edits.get(key) ?? []), { text: action.text, entities: action.entities, at: message.createdAt }]); }
   }
   for (const message of sorted) {
-    if (isQuietAction(message) || deleted.has(messageKey(message))) continue;
-    const edited = edits.get(messageKey(message));
+    if (isQuietAction(message) || isCallSignal(message) || deleted.has(messageKey(message))) continue;
+    // The newest edit made within the window (a later one, past 48 h, is ignored).
+    const edited = edits.get(messageKey(message))?.find(edit => editInTime(message.createdAt, edit.at));
     const shown = edited !== undefined && !message.meta?.action ? withEdit(message, edited) : message;
     // The list must not give a spoiler away.
     const masked = chatListText(shown);
@@ -140,6 +153,10 @@ export function listPreviewMessage<T extends Message>(list: readonly T[]): T | n
   return null;
 }
 export const isAction = (message: Pick<Message, 'meta'>) => !!message.meta?.action;
+/** A call offer or answer only carries the SDP: invisible in the chat, so not the list line either (the `end` is). */
+export const isCallSignal = (message: Pick<Message, 'meta'>) => message.meta?.action?.type === 'call' && message.meta.action.step !== 'end';
+/** The chat list looks past this message for the line to show (an action on another message, a call's signalling). */
+export const skippedInList = (message: Pick<Message, 'meta'>) => isQuietAction(message) || isCallSignal(message);
 
 /** The encrypted `end` of a call (F9): the one trace a call leaves in the chat and in Люди › Звонки. */
 export type CallEndAction = Extract<MessageAction, { type: 'call' }> & { step: 'end' };
@@ -228,7 +245,8 @@ export function foldChat(messages: Message[], userId: string, hiddenForMe: Reado
     const author = authorOf.get(action.target);
     if (action.type === 'edit' || action.type === 'delete') {
       if (author !== message.senderId) continue; // only the author; unknown targets are ignored
-      if (action.type === 'edit') edits.set(action.target, { text: action.text, entities: action.entities }); else deleted.add(action.target);
+      if (action.type === 'edit') { if (editInTime(content.get(action.target)!.createdAt, message.createdAt)) edits.set(action.target, { text: action.text, entities: action.entities }); }
+      else deleted.add(action.target);
       continue;
     }
     if (!author) continue;

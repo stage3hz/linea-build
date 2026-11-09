@@ -1,19 +1,22 @@
-import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { ActivityIndicator, Image, Modal, Platform, Pressable, StyleSheet, View, useWindowDimensions } from 'react-native';
-import Animated, { Easing, LinearTransition, useAnimatedStyle, useSharedValue, withSpring, withTiming } from 'react-native-reanimated';
-import { motionEnabled, powerFeature, usePowerFeatures } from '../motion';
+import React, { useCallback, useEffect, useMemo, useRef, useState, useSyncExternalStore } from 'react';
+import { ActivityIndicator, Image, Modal, Platform, StyleSheet, View, useWindowDimensions } from 'react-native';
+import Animated, { Easing, cancelAnimation, interpolate, runOnJS, useAnimatedStyle, useSharedValue, withTiming, type SharedValue } from 'react-native-reanimated';
+import { motionEnabled, usePowerFeatures } from '../motion';
 import { CameraView, useCameraPermissions, useMicrophonePermissions, type CameraType } from 'expo-camera';
-import { useVideoPlayer, VideoView } from 'expo-video';
-import { useEvent } from 'expo';
+import { useVideoPlayer, VideoView, type VideoPlayer } from 'expo-video';
 import { BlurView } from 'expo-blur';
 import { Gesture, GestureDetector } from 'react-native-gesture-handler';
-import { Text } from '../typography';
+import { Pressable, Text } from '../typography';
 import { Icon } from '../components';
 import { useTheme } from '../theme';
 import type { Api } from '../api';
 import type { Attachment } from '../types';
 import { useMedia } from '../media/mediaCache';
 import { ProgressRing } from '../media/MediaBubble';
+import { useNetworkTier } from '../network/useNetworkTier';
+import * as VideoThumbnails from 'expo-video-thumbnails';
+import { NoteRing } from './NoteRing';
+import { claimNoteAudio, freshTick, isExpanded, isNoteVisible, keepsSoundRequest, noteAutoload, noteSizes, progressStep, reduceNote, releaseNoteAudio, restState, subscribeVisibleNotes, timeUpdateInterval, type NoteEvent, type NoteState } from './playback';
 import { setCenterStage } from '../media/centerStage';
 import { currentVoiceRate } from '../voice/VoiceMessage';
 import * as FileSystem from 'expo-file-system/legacy';
@@ -40,8 +43,6 @@ const FLIP_WHILE_RECORDING = androidNoteCameraAvailable;
  * `stop`/`cancel` counters come from that button, and the circle floats over the blurred chat
  * (no separate screen, so the finger's touch is not interrupted). After a lock the buttons appear.
  */
-// Telegram turns Center Stage off for video messages; we start with it off and remember a change.
-let centerStageWanted = false;
 export type VideoHold = { stop: number; cancel: number; locked: boolean };
 export function VideoNoteRecorder({ visible, onClose, onDone, hold = null }: { visible: boolean; onClose: () => void; onDone: (take: VideoNoteTake) => void; hold?: VideoHold | null }) {
   const win = useWindowDimensions();
@@ -51,23 +52,24 @@ export function VideoNoteRecorder({ visible, onClose, onDone, hold = null }: { v
   const [facing, setFacing] = useState<CameraType>('front');
   const [ready, setReady] = useState(false);
   const [recording, setRecording] = useState(false);
-  const [elapsed, setElapsed] = useState(0);
   const [error, setError] = useState('');
   const ref = useRef<CameraView>(null);
   const nativeRef = useRef<AndroidNoteCameraHandle>(null);
   const limit = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
-  // Center Stage (iPhone 17 family): the front camera keeps the face in frame while you move.
-  const [stage, setStage] = useState<{ supported: boolean; enabled: boolean }>({ supported: false, enabled: false });
-  // The user's choice is remembered (it used to be forced on every time the recorder opened).
-  useEffect(() => { if (visible) void setCenterStage(centerStageWanted).then(setStage); }, [visible]);
-  const toggleStage = () => { centerStageWanted = !stage.enabled; void setCenterStage(centerStageWanted).then(setStage); };
+  const flipTimer = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
+  // Unmounted (the chat closed mid-take): timers are cleared and a late result never reaches onDone/onClose.
+  const alive = useRef(true);
+  useEffect(() => { alive.current = true; return () => { alive.current = false; if (limit.current) clearTimeout(limit.current); if (flipTimer.current) clearTimeout(flipTimer.current); limit.current = flipTimer.current = undefined; }; }, []);
+  // Center Stage (iPhone front camera auto-framing) pans the crop inside the circle, so the picture
+  // floats sideways; Telegram turns it off for video messages and so do we (no toggle).
+  useEffect(() => { if (visible) void setCenterStage(false); }, [visible]);
   const started = useRef(0); const cancelled = useRef(false);
   // Pause (Telegram, hands-free): paused time is not counted in the timer, the ring or the 60 s limit.
   const [notePaused, setNotePaused] = useState(false); const pausedAt = useRef(0); const pausedTotal = useRef(0);
   const activeMs = () => Date.now() - started.current - pausedTotal.current - (pausedAt.current ? Date.now() - pausedAt.current : 0);
 
   useEffect(() => {
-    if (!visible) { setReady(false); setRecording(false); setElapsed(0); setError(''); return; }
+    if (!visible) { setReady(false); setRecording(false); setError(''); return; }
     music.stop();
     (async () => {
       const c = camera?.granted ? camera : await requestCamera();
@@ -75,11 +77,14 @@ export function VideoNoteRecorder({ visible, onClose, onDone, hold = null }: { v
       if (!c.granted || !m.granted) setError('Нужен доступ к камере и микрофону. Разреши их для Инвиза в настройках телефона.');
     })().catch(() => setError('Не удалось запросить доступ к камере.'));
   }, [visible]);
+  // The 60-s ring runs as one linear animation on the UI thread (paused with the take): no per-tick renders.
+  const recProgress = useSharedValue(0);
   useEffect(() => {
-    if (!recording) return;
-    if (notePaused) return;
-    const timer = setInterval(() => setElapsed(activeMs()), hold ? 50 : 200); // hold: 0:04,63 like Telegram
-    return () => clearInterval(timer);
+    if (!recording) { cancelAnimation(recProgress); recProgress.value = 0; return; }
+    if (notePaused) { cancelAnimation(recProgress); return; }
+    const done = Math.min(1, activeMs() / VIDEO_NOTE_MAX_MS);
+    recProgress.value = done;
+    recProgress.value = withTiming(1, { duration: Math.max(0, VIDEO_NOTE_MAX_MS - activeMs()), easing: Easing.linear });
   }, [recording, notePaused]);
 
   // The file our native recorder writes to: removed when the take is cancelled, too short or failed.
@@ -88,6 +93,7 @@ export function VideoNoteRecorder({ visible, onClose, onDone, hold = null }: { v
   /** Ends a take: sends it, or drops it (deleting the file) — in hold mode a short or failed take simply closes the circle. */
   const finishTake = (uri: string | null | undefined, failed?: string | null) => {
     const durationMs = Math.min(VIDEO_NOTE_MAX_MS, activeMs());
+    if (!alive.current) { discard(uri || notePath.current); notePath.current = null; return; }
     setRecording(false);
     const outcome = resolveTake({ uri: uri || notePath.current, durationMs, cancelled: cancelled.current, hold: !!hold, locked: !!hold?.locked, failed });
     notePath.current = null;
@@ -98,13 +104,15 @@ export function VideoNoteRecorder({ visible, onClose, onDone, hold = null }: { v
   const failure = (e: unknown, fallback: string) => e instanceof Error && e.message ? e.message : fallback;
   const start = async () => {
     if (recording || !ready) return;
-    cancelled.current = false; setError(''); started.current = Date.now(); pausedAt.current = 0; pausedTotal.current = 0; setNotePaused(false); setElapsed(0); setRecording(true);
+    cancelled.current = false; setError(''); started.current = Date.now(); pausedAt.current = 0; pausedTotal.current = 0; setNotePaused(false); setRecording(true);
     if (androidNoteCameraAvailable) {
       const path = `${FileSystem.cacheDirectory}videonote-${Date.now()}.mp4`;
       notePath.current = path;
       try {
         await nativeRef.current?.startRecording(path);
-        limit.current = setTimeout(() => void stop(), VIDEO_NOTE_MAX_MS);
+        // Count from the moment the recorder really runs (the writer takes the next camera frame).
+        started.current = Date.now();
+        limit.current = setTimeout(() => { if (alive.current) void stop(); }, VIDEO_NOTE_MAX_MS);
       } catch (e) { finishTake(null, failure(e, 'Не удалось начать запись.')); }
       return;
     }
@@ -131,7 +139,7 @@ export function VideoNoteRecorder({ visible, onClose, onDone, hold = null }: { v
     try { await nativeRef.current.pauseRecording(next); } catch { return; }
     lightFeedback();
     if (next) { pausedAt.current = Date.now(); if (limit.current) { clearTimeout(limit.current); limit.current = undefined; } }
-    else { pausedTotal.current += Date.now() - pausedAt.current; pausedAt.current = 0; limit.current = setTimeout(() => void stop(), Math.max(0, VIDEO_NOTE_MAX_MS - activeMs())); }
+    else { pausedTotal.current += Date.now() - pausedAt.current; pausedAt.current = 0; limit.current = setTimeout(() => { if (alive.current) void stop(); }, Math.max(0, VIDEO_NOTE_MAX_MS - activeMs())); }
     setNotePaused(next);
   };
   const cancel = () => { cancelled.current = true; if (recording) void stop(); onClose(); };
@@ -154,7 +162,19 @@ export function VideoNoteRecorder({ visible, onClose, onDone, hold = null }: { v
   const stopSeen = useRef(hold?.stop ?? 0), cancelSeen = useRef(hold?.cancel ?? 0);
   useEffect(() => { if (!hold) return; if (hold.stop !== stopSeen.current) { stopSeen.current = hold.stop; if (recording) void stop(); else onClose(); } }, [hold?.stop]);
   useEffect(() => { if (!hold) return; if (hold.cancel !== cancelSeen.current) { cancelSeen.current = hold.cancel; cancel(); } }, [hold?.cancel]);
-  const progress = Math.min(1, elapsed / VIDEO_NOTE_MAX_MS);
+  // No black first frame: a dark cover with a spinner stays until the camera reports ready plus a short
+  // grace (its «ready» comes a moment before frames reach the preview), then fades out.
+  const [live, setLive] = useState(false);
+  useEffect(() => {
+    if (!ready) { setLive(false); return; }
+    const timer = setTimeout(() => setLive(true), Platform.OS === 'ios' ? 250 : 200);
+    return () => clearTimeout(timer);
+  }, [ready]);
+  const cover = useSharedValue(1);
+  useEffect(() => { cover.value = live ? withTiming(0, { duration: motionEnabled() ? 180 : 0 }) : 1; }, [live]);
+  const coverStyle = useAnimatedStyle(() => ({ opacity: cover.value }));
+  const cameraCover = <Animated.View pointerEvents="none" style={[StyleSheet.absoluteFill, { backgroundColor: '#1A1E2B', alignItems: 'center', justifyContent: 'center' }, coverStyle]}>{!live && allowed && !error ? <ActivityIndicator color="rgba(255,255,255,0.75)" /> : null}</Animated.View>;
+  const getMs = () => recording ? activeMs() : 0;
   // Telegram: side = min(369, width − 24), top ≈ 40 % of the height (not above the status bar + 24).
   const CIRCLE = hold ? Math.round(Math.min(369, win.width - 24)) : BASE_CIRCLE;
 
@@ -177,7 +197,7 @@ export function VideoNoteRecorder({ visible, onClose, onDone, hold = null }: { v
     void Brightness.getBrightnessAsync().then(value => { brightness.current = value; return Brightness.setBrightnessAsync(1); }).catch(() => {});
   }, [screenFlash]);
   useEffect(() => { if (!visible) setFlash(false); }, [visible]);
-  const flip = () => { const now = Date.now(); if (now - lastFlip.current < 1000) return; lastFlip.current = now; lightFeedback(); if (recording && !FLIP_WHILE_RECORDING) return; setFlipping(true); setZoom(0); setTimeout(() => setFlipping(false), 450); if (!recording && Platform.OS !== 'ios' && !androidNoteCameraAvailable) setReady(false); setError(''); setFacing(value => value === 'front' ? 'back' : 'front'); };
+  const flip = () => { const now = Date.now(); if (now - lastFlip.current < 1000) return; lastFlip.current = now; lightFeedback(); if (recording && !FLIP_WHILE_RECORDING) return; setFlipping(true); setZoom(0); if (flipTimer.current) clearTimeout(flipTimer.current); flipTimer.current = setTimeout(() => { flipTimer.current = undefined; setFlipping(false); }, 450); if (!recording && Platform.OS !== 'ios' && !androidNoteCameraAvailable) setReady(false); setError(''); setFacing(value => value === 'front' ? 'back' : 'front'); };
   const preview = visible && allowed && androidNoteCameraAvailable ? <AndroidNoteCamera ref={nativeRef} zoom={zoom} facing={facing === 'back' ? 'back' : 'front'} {...(Platform.OS === 'ios' ? { torch: flash && facing === 'back' } : {})} style={{ position: 'absolute', left: 0, top: -CIRCLE / 6, width: CIRCLE, height: CIRCLE * 4 / 3 }} onReady={() => setReady(true)} onCameraError={event => setError(event.nativeEvent.message || 'Камера недоступна.')} /> : visible && allowed ? <CameraView key={Platform.OS === 'ios' ? 'camera' : facing} ref={ref} style={{ position: 'absolute', left: 0, top: -CIRCLE / 6, width: CIRCLE, height: CIRCLE * 4 / 3 }} facing={facing} mode="video" ratio="4:3" mirror={facing === 'front'} videoQuality="480p" enableTorch={flash && facing === 'back'} onCameraReady={() => setReady(true)} onMountError={event => setError(event.message || 'Камера недоступна.')} /> : null;
   // Telegram's way while the finger holds (and after a lock): the circle over the blurred chat with a
   // white progress arc around it; at the bottom the same strip as for voice — red dot, 0:04,63,
@@ -188,21 +208,22 @@ export function VideoNoteRecorder({ visible, onClose, onDone, hold = null }: { v
   const appear = useSharedValue(0);
   useEffect(() => { appear.value = visible && hold ? (motionEnabled() ? withTiming(1, { duration: 200, easing: Easing.out(Easing.cubic) }) : withTiming(1, { duration: 0 })) : 0; }, [visible, !!hold]);
   const grow = useAnimatedStyle(() => ({ opacity: Math.min(1, appear.value * 2), transform: [{ scale: 0.7 + 0.3 * appear.value }] }));
+  const dim = useAnimatedStyle(() => ({ opacity: appear.value }));
   const holdBody = <View pointerEvents="box-none" style={{ flex: 1 }}>
     {screenFlash ? <View pointerEvents="none" style={[StyleSheet.absoluteFill, { backgroundColor: '#FFF6E8' }]} /> : null}
     <View pointerEvents="box-none" style={{ alignItems: 'center', paddingTop: Math.max(insets.top + 24, win.height * 0.4 - RING / 2), gap: 18 }}>
       <GestureDetector gesture={pinch}>
       <Animated.View style={[{ width: RING, height: RING, alignItems: 'center', justifyContent: 'center' }, grow]}>
-        <ProgressRing progress={recording ? progress : 0} size={RING} width={4} color="#FFF" track="rgba(255,255,255,0.16)" />
-        <View style={{ width: CIRCLE, height: CIRCLE, borderRadius: CIRCLE / 2, overflow: 'hidden', backgroundColor: '#000' }}>
+        <NoteRing progress={recProgress} size={RING} stroke={4} color="#FFF" track="rgba(255,255,255,0.16)" />
+        <View style={{ width: CIRCLE, height: CIRCLE, borderRadius: CIRCLE / 2, overflow: 'hidden', backgroundColor: '#1A1E2B' }}>
           {preview}
-          {/* Telegram: a dark blurred circle while the camera starts, sharp once recording runs. */}
-          {flipping || !recording ? <BlurView pointerEvents="none" tint="dark" intensity={flipping ? 80 : ready ? 55 : 90} style={StyleSheet.absoluteFill} /> : null}
+          {/* Telegram: the live picture is sharp at once; only a camera flip hides the jump behind a short blur. */}
+          {flipping ? <BlurView pointerEvents="none" tint="dark" intensity={80} style={StyleSheet.absoluteFill} /> : null}
+          {cameraCover}
           {zoom > 0.02 ? <View pointerEvents="none" style={{ position: 'absolute', bottom: 14, alignSelf: 'center', paddingHorizontal: 8, paddingVertical: 2, borderRadius: 10, backgroundColor: 'rgba(0,0,0,0.45)' }}><Text style={{ color: '#FFF', fontSize: 12, fontWeight: '700' }}>{(1 + zoom * 5).toFixed(1).replace('.', ',')}×</Text></View> : null}
         </View>
       </Animated.View>
       </GestureDetector>
-      {stage.supported && facing === 'front' && showControls ? <Pressable accessibilityRole="switch" accessibilityState={{ checked: stage.enabled }} accessibilityLabel="Слежение за лицом" onPress={toggleStage} style={{ flexDirection: 'row', alignItems: 'center', gap: 6, paddingHorizontal: 12, paddingVertical: 7, borderRadius: 16, backgroundColor: stage.enabled ? 'rgba(255,214,10,0.18)' : 'rgba(255,255,255,0.1)' }}><Icon name="scan-outline" size={16} color={stage.enabled ? '#FFD60A' : '#FFF'} /><Text style={{ color: stage.enabled ? '#FFD60A' : '#FFF', fontSize: 13, fontWeight: '600' }}>{stage.enabled ? 'В центре кадра' : 'Слежение выкл.'}</Text></Pressable> : null}
       {error ? <Text style={{ color: '#FFB4B4', fontSize: 13, textAlign: 'center', maxWidth: 320 }}>{error}</Text> : null}
     </View>
     <View pointerEvents="box-none" style={{ position: 'absolute', left: 8, right: 8, bottom: insets.bottom + 6, gap: 10 }}>
@@ -214,8 +235,7 @@ export function VideoNoteRecorder({ visible, onClose, onDone, hold = null }: { v
       </View>
       <View pointerEvents="box-none" style={{ flexDirection: 'row', alignItems: 'flex-end' }}>
         <View pointerEvents="box-none" style={{ flex: 1, minHeight: 48, marginBottom: 16, marginRight: -68, paddingRight: 76, borderRadius: 24, flexDirection: 'row', alignItems: 'center', gap: 8, paddingLeft: 14, backgroundColor: 'rgba(28,32,46,0.88)' }}>
-          <View style={{ width: 9, height: 9, borderRadius: 5, backgroundColor: t.danger, opacity: recording && Math.floor(elapsed / 600) % 2 ? .25 : 1 }} />
-          <Text style={{ color: '#FFF', fontSize: 15, fontWeight: '500', minWidth: 62, fontVariant: ['tabular-nums'] }}>{formatVoiceTimeFine(elapsed)}</Text>
+          <RecTimer running={recording && !notePaused} getMs={getMs} dot={t.danger} fine />
           {hold?.locked ? <Pressable accessibilityRole="button" accessibilityLabel="Отменить видеосообщение" onPress={cancel} hitSlop={8} style={({ pressed }) => ({ flex: 1, height: 44, alignItems: 'center', justifyContent: 'center', opacity: pressed ? .6 : 1 })}><Text style={{ color: t.accent, fontSize: 16, fontWeight: '600' }}>Отмена</Text></Pressable>
             : <Text style={{ flex: 1, textAlign: 'center', color: 'rgba(255,255,255,0.6)', fontSize: 14 }}>‹ Влево — отмена</Text>}
         </View>
@@ -230,14 +250,14 @@ export function VideoNoteRecorder({ visible, onClose, onDone, hold = null }: { v
     </View>
   </View>;
   const body = <View pointerEvents={showControls ? 'auto' : 'none'} style={{ flex: 1, backgroundColor: hold ? 'transparent' : 'rgba(4,6,14,0.96)', alignItems: 'center', justifyContent: hold ? 'flex-start' : 'center', paddingTop: hold ? win.height * 0.12 : 20, gap: 26, padding: 20 }}>
-      <Text style={{ color: '#FFF', fontSize: 17, fontWeight: '700' }}>{recording ? formatVoiceTime(elapsed) : 'Видеосообщение'}</Text>
-      <View style={{ width: CIRCLE + 12, height: CIRCLE + 12, borderRadius: (CIRCLE + 12) / 2, padding: 6, borderWidth: 3, borderColor: recording ? t.danger : 'rgba(255,255,255,0.25)' }}>
-        <View style={{ width: CIRCLE, height: CIRCLE, borderRadius: CIRCLE / 2, overflow: 'hidden', backgroundColor: '#000' }}>
+      {recording ? <RecTimer running={!notePaused} getMs={getMs} /> : <Text style={{ color: '#FFF', fontSize: 17, fontWeight: '700' }}>Видеосообщение</Text>}
+      <View style={{ width: CIRCLE + 12, height: CIRCLE + 12, borderRadius: (CIRCLE + 12) / 2, padding: 6 }}>
+        <NoteRing progress={recProgress} size={CIRCLE + 12} stroke={3} color={t.danger} track="rgba(255,255,255,0.25)" />
+        <View style={{ width: CIRCLE, height: CIRCLE, borderRadius: CIRCLE / 2, overflow: 'hidden', backgroundColor: '#1A1E2B' }}>
           {visible && allowed && androidNoteCameraAvailable ? <AndroidNoteCamera ref={nativeRef} facing={facing === 'back' ? 'back' : 'front'} style={{ position: 'absolute', left: 0, top: -CIRCLE / 6, width: CIRCLE, height: CIRCLE * 4 / 3 }} onReady={() => setReady(true)} onCameraError={event => setError(event.nativeEvent.message || 'Камера недоступна.')} /> : visible && allowed ? <CameraView key={Platform.OS === 'ios' ? 'camera' : facing} ref={ref} style={{ position: 'absolute', left: 0, top: -CIRCLE / 6, width: CIRCLE, height: CIRCLE * 4 / 3 }} facing={facing} mode="video" ratio="4:3" mirror={facing === 'front'} videoQuality="480p" onCameraReady={() => setReady(true)} onMountError={event => setError(event.message || 'Камера недоступна.')} /> : null}
+          {cameraCover}
         </View>
-        {recording ? <View pointerEvents="none" style={{ position: 'absolute', left: 6, right: 6, bottom: -14, height: 4, borderRadius: 2, backgroundColor: 'rgba(255,255,255,0.2)' }}><View style={{ width: `${progress * 100}%`, height: 4, borderRadius: 2, backgroundColor: t.danger }} /></View> : null}
       </View>
-      {stage.supported && facing === 'front' ? <Pressable accessibilityRole="switch" accessibilityState={{ checked: stage.enabled }} accessibilityLabel="Слежение за лицом" onPress={toggleStage} style={{ flexDirection: 'row', alignItems: 'center', gap: 6, paddingHorizontal: 12, paddingVertical: 7, borderRadius: 16, backgroundColor: stage.enabled ? 'rgba(255,214,10,0.18)' : 'rgba(255,255,255,0.1)' }}><Icon name="scan-outline" size={16} color={stage.enabled ? '#FFD60A' : '#FFF'} /><Text style={{ color: stage.enabled ? '#FFD60A' : '#FFF', fontSize: 13, fontWeight: '600' }}>{stage.enabled ? 'В центре кадра' : 'Слежение выкл.'}</Text></Pressable> : null}
       {error ? <Text style={{ color: '#FFB4B4', fontSize: 13, textAlign: 'center', maxWidth: 320 }}>{error}</Text> : <Text style={{ color: 'rgba(255,255,255,0.6)', fontSize: 12 }}>{recording ? (hold ? 'Нажми ■, чтобы отправить' : 'Нажми ещё раз, чтобы отправить') : 'До 60 секунд · шифруется перед отправкой'}</Text>}
       {showControls ? <View style={{ flexDirection: 'row', alignItems: 'center', gap: 34 }}>
         <Pressable accessibilityRole="button" accessibilityLabel="Отменить видеосообщение" onPress={cancel} style={styles.round}><Icon name="close" color="#FFF" size={26} /></Pressable>
@@ -248,9 +268,9 @@ export function VideoNoteRecorder({ visible, onClose, onDone, hold = null }: { v
       </View> : <Text style={{ color: 'rgba(255,255,255,0.7)', fontSize: 13 }}>‹ Влево — отмена · вверх — без рук</Text>}
     </View>;
   if (hold) return visible ? <View pointerEvents={showControls ? 'auto' : 'box-none'} style={[StyleSheet.absoluteFill, { zIndex: 50 }]}>
-    {/* Never a touch target: while the finger holds the button the chat below must keep receiving it. */}
-    <BlurView pointerEvents="none" tint="dark" intensity={60} style={StyleSheet.absoluteFill} />
-    <View pointerEvents="none" style={[StyleSheet.absoluteFill, { backgroundColor: 'rgba(0,0,0,0.25)' }]} />
+    {/* Never a touch target: while the finger holds the button the chat below must keep receiving it.
+        Telegram dims the chat (no heavy blur), fading in with the circle. */}
+    <Animated.View pointerEvents="none" style={[StyleSheet.absoluteFill, { backgroundColor: 'rgba(0,0,0,0.55)' }, dim]} />
     {holdBody}
   </View> : null;
   return <Modal visible={visible} animationType="fade" onRequestClose={cancel} statusBarTranslucent>{body}</Modal>;
@@ -258,57 +278,205 @@ export function VideoNoteRecorder({ visible, onClose, onDone, hold = null }: { v
 
 const styles = StyleSheet.create({ round: { width: 54, height: 54, borderRadius: 27, backgroundColor: 'rgba(255,255,255,0.12)', alignItems: 'center', justifyContent: 'center' }, small: { width: 42, height: 42, borderRadius: 21, backgroundColor: 'rgba(255,255,255,0.14)', alignItems: 'center', justifyContent: 'center' } });
 
-/** Telegram circle: plays silently in a loop in the chat; a tap enlarges it and plays from the start with sound. */
-function CirclePlayer({ uri, size, expanded, onToggle, onEnd }: { uri: string; size: number; expanded: boolean; onToggle: () => void; onEnd: () => void }) {
-  const player = useVideoPlayer(uri, value => { value.loop = true; value.muted = true; value.audioMixingMode = 'mixWithOthers'; });
-  const { isPlaying } = useEvent(player, 'playingChange', { isPlaying: player.playing });
-  const [progress, setProgress] = useState(0);
+/** Recording time: its own small component ticking by itself, so the camera view and the circle do not re-render. */
+function RecTimer({ running, getMs, dot, fine = false }: { running: boolean; getMs: () => number; dot?: string; fine?: boolean }) {
+  const [ms, setMs] = useState(() => getMs());
+  const read = useRef(getMs); read.current = getMs;
   useEffect(() => {
-    try {
-      if (expanded) { player.muted = false; player.loop = false; player.audioMixingMode = 'doNotMix'; player.playbackRate = currentVoiceRate(); player.currentTime = 0; player.play(); }
-      else { player.playbackRate = 1; player.muted = true; player.loop = true; player.audioMixingMode = 'mixWithOthers'; if (motionEnabled() && powerFeature('video')) player.play(); else player.pause(); }
-    } catch { /* released */ }
-  }, [player, expanded]);
-  useEffect(() => () => { try { player.pause(); } catch { /* released */ } }, [player]);
-  useEffect(() => { const sub = player.addListener('playToEnd', onEnd); return () => sub.remove(); }, [player, onEnd]);
-  useEffect(() => { if (!expanded) return; const timer = setInterval(() => { try { if (player.duration > 0) setProgress(player.currentTime / player.duration); } catch { /* released */ } }, 200); return () => clearInterval(timer); }, [player, expanded]);
-  return <Pressable onPress={() => { if (!expanded) onToggle(); else if (isPlaying) player.pause(); else player.play(); }} onLongPress={expanded ? onToggle : undefined} accessibilityRole="button" accessibilityLabel={expanded ? 'Пауза или продолжить' : 'Смотреть видеосообщение со звуком'} style={{ flex: 1 }}>
-    {/* Fills the round container (which animates its size); a fixed size jumped ahead of the clip and showed a square. */}
-    <VideoView player={player} style={[StyleSheet.absoluteFill, { borderRadius: size / 2 }]} contentFit="cover" nativeControls={false} allowsPictureInPicture={false} />
-    {expanded ? <View pointerEvents="none" style={[StyleSheet.absoluteFill, { borderRadius: size / 2, borderWidth: 3, borderColor: 'rgba(255,255,255,0.18)' }]}><View style={{ position: 'absolute', left: 0, right: 0, bottom: 14, alignItems: 'center' }}><View style={{ width: size * .45, height: 3, borderRadius: 2, backgroundColor: 'rgba(255,255,255,0.35)' }}><View style={{ width: `${progress * 100}%`, height: 3, borderRadius: 2, backgroundColor: '#FFF' }} /></View></View></View>
-      : <View pointerEvents="none" style={{ position: 'absolute', right: 18, bottom: 18, width: 26, height: 26, borderRadius: 13, backgroundColor: 'rgba(10,20,35,0.6)', alignItems: 'center', justifyContent: 'center' }}><Icon name="volume-mute" color="#FFF" size={14} /></View>}
-    {expanded && !isPlaying ? <View pointerEvents="none" style={[StyleSheet.absoluteFill, { alignItems: 'center', justifyContent: 'center' }]}><Icon name="play" color="#FFF" size={40} /></View> : null}
-  </Pressable>;
+    setMs(read.current());
+    if (!running) return;
+    const timer = setInterval(() => setMs(read.current()), fine ? 50 : 250); // 0:04,63 like Telegram
+    return () => clearInterval(timer);
+  }, [running, fine]);
+  if (!fine) return <Text style={{ color: '#FFF', fontSize: 17, fontWeight: '700' }}>{formatVoiceTime(ms)}</Text>;
+  return <>
+    {dot ? <View style={{ width: 9, height: 9, borderRadius: 5, backgroundColor: dot, opacity: running && Math.floor(ms / 600) % 2 ? .25 : 1 }} /> : null}
+    <Text style={{ color: '#FFF', fontSize: 15, fontWeight: '500', minWidth: 62, fontVariant: ['tabular-nums'] }}>{formatVoiceTimeFine(ms)}</Text>
+  </>;
 }
 
-/** Round bubble: shows the encrypted thumbnail; a tap decrypts and plays with sound. */
-export function VideoNoteBubble({ api, attachment }: { api: Api; attachment: Attachment }) {
-  const t = useTheme(); const music = useMusic(); const { width } = useWindowDimensions();
-  // Circles are small, so they load by themselves (as in Telegram) and play silently in the chat.
-  const features = usePowerFeatures();
-  const media = useMedia(api, attachment, features.video && attachment.size <= 8 * 1024 * 1024);
-  const [expanded, setExpanded] = useState(false);
-  const size = expanded ? Math.min(width - 20, 404) : 212; // Telegram: grows to min(404, width − 20) while playing
-  const thumb = useMemo(() => attachment.preview ? `data:${attachment.preview.mimeType};base64,${attachment.preview.base64}` : null, [attachment.preview]);
-  const collapse = useCallback(() => setExpanded(false), []);
-  const toggle = useCallback(() => setExpanded(value => { if (!value) music.stop(); return !value; }), [music]);
-  const load = () => {
-    if (media.status === 'loading') { media.cancel(); return; }
-    void media.start().then(() => { music.stop(); setExpanded(true); }).catch(() => {});
+// ---------------------------------------------------------------------------------------------
+// Round video message in the chat (Telegram): the first frame at once, a silent loop while on screen,
+// a tap plays from the start with sound and the circle grows in place with a thin ring around it.
+
+/** Poster frames made from the decrypted file when the message carried no thumbnail. */
+const posters = new Map<string, string>();
+let instances = 0;
+
+/** The decoded video. It fills the large circle, which is only ever scaled (a transform), so the surface is never re-laid-out or recreated. */
+function NoteVideo({ uri, state, progress, onFirstFrame, onEnd }: { uri: string; state: NoteState; progress: SharedValue<number>; onFirstFrame: () => void; onEnd: () => void }) {
+  // No progress events while it loops silently: they are switched on only for a listen (applyState).
+  const player = useVideoPlayer(uri, value => { value.loop = true; value.muted = true; value.audioMixingMode = 'mixWithOthers'; value.timeUpdateEventInterval = 0; });
+  const stateRef = useRef(state); const previous = useRef<NoteState | null>(null);
+  stateRef.current = state;
+  const last = useRef({ value: 0, at: 0 });
+  // Set when a listen restarts from 0: ticks still carrying the old loop position are dropped until a fresh one arrives.
+  const restartAt = useRef<number | null>(null);
+  useEffect(() => {
+    const before = previous.current; previous.current = state;
+    if (state === 'sound' && before !== 'paused') { progress.value = 0; last.current = { value: 0, at: 0 }; restartAt.current = Date.now(); }
+    try { applyState(player, state, before); } catch { /* released */ }
+  }, [player, state]);
+  useEffect(() => () => { try { player.pause(); } catch { /* released */ } }, [player]);
+  useEffect(() => {
+    const end = player.addListener('playToEnd', () => { if (stateRef.current === 'sound') { progress.value = withTiming(1, { duration: 80 }); onEnd(); } });
+    // Progress goes to a shared value (throttled): the ring moves, React does not re-render.
+    const tick = player.addListener('timeUpdate', ({ currentTime }) => {
+      if (stateRef.current !== 'sound') return;
+      const now = Date.now();
+      if (!freshTick(restartAt.current, currentTime, now, player.playbackRate || 1)) return;
+      restartAt.current = null;
+      const next = progressStep(last.current, currentTime, player.duration, now);
+      if (next === null) return;
+      last.current = { value: next, at: now };
+      progress.value = withTiming(next, { duration: 110, easing: Easing.linear });
+    });
+    return () => { end.remove(); tick.remove(); };
+  }, [player, onEnd]);
+  return <VideoView player={player} pointerEvents="none" style={StyleSheet.absoluteFill} contentFit="cover" nativeControls={false} allowsPictureInPicture={false} allowsVideoFrameAnalysis={false}
+    surfaceType="textureView" useExoShutter={false} onFirstFrameRender={onFirstFrame} />;
+}
+
+function applyState(player: VideoPlayer, state: NoteState, before: NoteState | null) {
+  player.timeUpdateEventInterval = timeUpdateInterval(state);
+  if (state === 'sound') {
+    player.muted = false; player.loop = false; player.audioMixingMode = 'doNotMix'; player.playbackRate = currentVoiceRate();
+    if (before !== 'paused') player.currentTime = 0;
+    player.play(); return;
+  }
+  if (state === 'paused') { player.pause(); return; }
+  // Back in the chat: silent, looping, from the first frame (after a listen) — or still on the first frame.
+  player.playbackRate = 1; player.muted = true; player.loop = true; player.audioMixingMode = 'mixWithOthers';
+  if (before === 'sound' || before === 'paused') player.currentTime = 0;
+  if (state === 'muted') player.play(); else player.pause();
+}
+
+/** Mounted only while a circle plays with sound: music stops, and music that starts again takes the sound back. */
+function MusicGuard({ onInterrupt }: { onInterrupt: () => void }) {
+  const music = useMusic();
+  const stop = useRef(music.stop); stop.current = music.stop;
+  useEffect(() => { stop.current(); }, []);
+  // Music that starts after the circle took the sound (stopped → playing) takes it back.
+  const stopped = useRef(!music.playing);
+  useEffect(() => { if (!music.playing) stopped.current = true; else if (stopped.current) onInterrupt(); }, [music.playing, onInterrupt]);
+  return null;
+}
+
+const noSubscription = () => () => {};
+
+/**
+ * Round bubble: the encrypted thumbnail at once; downloads by itself (network/power tiers), loops silently
+ * while its list reports it on screen; a tap plays with sound.
+ * `scope` — the list it lives in (videonote/playback: setVisibleNotes); without one it counts as on screen.
+ * `side` — the edge it is anchored to (own messages on the right): it grows away from that edge and the
+ * bottom, never sideways. `maxSide` — the real width of its row, so the large circle never overflows it.
+ */
+export function VideoNoteBubble({ api, attachment, onLongPress, scope = null, side = 'left', maxSide }: { api: Api; attachment: Attachment; onLongPress?: (pageY: number) => void; scope?: string | null; side?: 'left' | 'right'; maxSide?: number }) {
+  const t = useTheme(); const { width } = useWindowDimensions();
+  const features = usePowerFeatures(); const tier = useNetworkTier();
+  const media = useMedia(api, attachment, noteAutoload(attachment.size, tier, features.video));
+  const key = useRef(`note${++instances}`).current; // the context-menu preview is a second copy of the same message
+  const subscribe = useCallback((listener: () => void) => scope ? subscribeVisibleNotes(listener, scope) : noSubscription(), [scope]);
+  const visible = useSyncExternalStore(subscribe, () => isNoteVisible(attachment.id, scope), () => !scope);
+  const ready = media.status === 'ready' && !!media.uri;
+  const ctx = { ready, autoplay: features.video && motionEnabled(), visible };
+  const ctxRef = useRef(ctx); ctxRef.current = ctx;
+  const [state, setState] = useState<NoteState>(() => restState(ctx));
+  const dispatch = useCallback((event: NoteEvent) => setState(value => reduceNote(value, event, ctxRef.current)), []);
+  useEffect(() => { dispatch({ type: 'sync' }); }, [ready, ctx.autoplay, visible]);
+  const expanded = isExpanded(state);
+  const interrupt = useCallback(() => dispatch({ type: 'interrupt' }), [dispatch]);
+  const ended = useCallback(() => dispatch({ type: 'end' }), [dispatch]);
+  // One circle with sound at a time; voice messages call interruptNoteAudio() before they play.
+  useEffect(() => { if (state === 'sound') claimNoteAudio(key, interrupt); else if (!expanded) releaseNoteAudio(key); }, [state]);
+  useEffect(() => () => releaseNoteAudio(key), []);
+
+  // A tap before the file is there: download and decrypt first, then play with sound from the start.
+  const wantSound = useRef(false);
+  useEffect(() => { if (ready && wantSound.current) { wantSound.current = false; dispatch({ type: 'tap' }); } }, [ready]);
+  // A download that failed or was cancelled (here or elsewhere) drops the wish: a later automatic load stays silent.
+  useEffect(() => { if (!keepsSoundRequest(media.status)) wantSound.current = false; }, [media.status]);
+  const tap = () => {
+    if (!ready) {
+      // Telegram: a tap while it loads asks to play when ready; a second tap cancels the download.
+      if (media.status === 'loading' && wantSound.current) { wantSound.current = false; media.cancel(); return; }
+      wantSound.current = true;
+      if (media.status !== 'loading') void media.start().catch(() => { wantSound.current = false; });
+      return;
+    }
+    dispatch({ type: 'tap' });
   };
-  // The circle's size and corner animate together (Telegram), so the video never shows outside the circle.
-  const side = useSharedValue(size);
-  useEffect(() => { side.value = motionEnabled() ? withTiming(size, { duration: 220, easing: Easing.out(Easing.cubic) }) : size; }, [size]);
-  const round = useAnimatedStyle(() => ({ width: side.value, height: side.value, borderRadius: side.value / 2 }));
-  return <View style={{ alignItems: 'flex-start' }}>
-    <Animated.View style={[{ overflow: 'hidden', backgroundColor: t.surface2 }, round]}>
-      {media.status === 'ready' && media.uri ? <CirclePlayer uri={media.uri} size={size} expanded={expanded} onToggle={toggle} onEnd={collapse} /> : <Pressable accessibilityRole="button" accessibilityLabel="Воспроизвести видеосообщение" onPress={load} style={{ flex: 1, alignItems: 'center', justifyContent: 'center' }}>
-        {thumb ? <Image source={{ uri: thumb }} style={StyleSheet.absoluteFill} resizeMode="cover" /> : null}
-        <View style={{ width: 52, height: 52, borderRadius: 26, backgroundColor: 'rgba(10,20,35,0.6)', alignItems: 'center', justifyContent: 'center' }}>{media.status === 'loading' ? <><ProgressRing progress={media.progress} size={52} /><Icon name="close" size={22} color="#FFF" /></> : <Icon name={media.status === 'error' ? 'refresh' : 'play'} size={24} color="#FFF" />}</View>
-      </Pressable>}
-    </Animated.View>
-    {/* Telegram: the length sits in a small dark pill on the circle's lower-left edge. */}
-    {!expanded ? <View pointerEvents="none" style={{ position: 'absolute', left: 6, bottom: 6, paddingHorizontal: 7, paddingVertical: 2, borderRadius: 9, backgroundColor: 'rgba(0,0,0,0.42)' }}><Text style={{ color: '#FFFFFF', fontSize: 11 }}>{formatVoiceTime(attachment.media?.durationMs || 0)}</Text></View> : null}
-    {media.status === 'error' && media.error ? <Text style={{ color: t.danger, fontSize: 11, maxWidth: size }}>{media.error}</Text> : null}
+
+  // Poster: the thumbnail that came inside the encrypted message, else a frame from the decrypted file.
+  const [made, setMade] = useState(() => posters.get(attachment.id) ?? null);
+  const thumb = useMemo(() => attachment.preview ? `data:${attachment.preview.mimeType};base64,${attachment.preview.base64}` : made, [attachment.preview, made]);
+  useEffect(() => {
+    if (attachment.preview || made || !ready || !media.uri || Platform.OS === 'web') return;
+    let alive = true;
+    void VideoThumbnails.getThumbnailAsync(media.uri, { time: 0, quality: .6 }).then(frame => { posters.set(attachment.id, frame.uri); if (alive) setMade(frame.uri); }).catch(() => {});
+    return () => { alive = false; };
+  }, [ready, media.uri]);
+
+  // The cover (poster, or a neutral placeholder when there is none — web, no thumbnail) stays above the
+  // video until the player has drawn its first frame, after every mount: a circle is never black.
+  const [frame, setFrame] = useState(false);
+  const mountVideo = ready && (visible || expanded);
+  useEffect(() => { if (!mountVideo) setFrame(false); }, [mountVideo]);
+  const covered = !(frame && mountVideo);
+  const posterOpacity = useSharedValue(1);
+  useEffect(() => { posterOpacity.value = covered ? 1 : withTiming(0, { duration: motionEnabled() ? 120 : 0 }); }, [covered]);
+  const posterStyle = useAnimatedStyle(() => ({ opacity: posterOpacity.value }));
+  const firstFrame = useCallback(() => setFrame(true), []);
+
+  // Telegram: grows in place to min(404, row width). The layout changes once per transition (the slot
+  // takes the large size when it opens and gives it back after it has shrunk); in between only a
+  // transform runs on the UI thread, anchored at the bottom corner on the message's side, so the circle
+  // never moves sideways and the inverted list is not re-laid-out every frame.
+  const { collapsed, big, scale: small } = noteSizes(maxSide ?? width - 20);
+  const [open, setOpen] = useState(expanded); // the slot is large (and the ring mounted) while expanded or shrinking back
+  if (expanded && !open) setOpen(true);
+  const expandedRef = useRef(expanded); expandedRef.current = expanded;
+  const closed = useCallback(() => { if (!expandedRef.current) setOpen(false); }, []);
+  const grow = useSharedValue(expanded ? 1 : 0);
+  useEffect(() => {
+    const target = expanded ? 1 : 0;
+    if (!motionEnabled() || grow.value === target) { cancelAnimation(grow); grow.value = target; if (!expanded) setOpen(false); return; }
+    grow.value = withTiming(target, { duration: 260, easing: Easing.out(Easing.cubic) }, finished => { if (finished && target === 0) runOnJS(closed)(); });
+  }, [expanded]);
+  const visualStyle = useAnimatedStyle(() => ({ transform: [{ scale: interpolate(grow.value, [0, 1], [small, 1]) }] }));
+  const ringStyle = useAnimatedStyle(() => ({ opacity: grow.value }));
+  const progress = useSharedValue(0);
+  const slot = open ? big : collapsed;
+  const right = side === 'right';
+
+  const loading = media.status === 'loading';
+  return <View style={{ alignSelf: right ? 'flex-end' : 'flex-start', alignItems: right ? 'flex-end' : 'flex-start' }}>
+    <Pressable onPress={tap} onLongPress={onLongPress ? event => onLongPress(event.nativeEvent.pageY) : undefined} delayLongPress={400} style={{ width: slot, height: slot }}
+      accessibilityRole="button" accessibilityLabel={state === 'sound' ? 'Пауза' : state === 'paused' ? 'Продолжить' : 'Смотреть видеосообщение со звуком'}>
+      <Animated.View pointerEvents="none" style={[{ position: 'absolute', bottom: 0, [right ? 'right' : 'left']: 0, width: big, height: big, transformOrigin: right ? 'right bottom' : 'left bottom' } as object, visualStyle]}>
+        <View style={[StyleSheet.absoluteFill, { borderRadius: big / 2, overflow: 'hidden', backgroundColor: t.surface2 }]}>
+          {mountVideo && media.uri ? <NoteVideo uri={media.uri} state={state} progress={progress} onFirstFrame={firstFrame} onEnd={ended} /> : null}
+          <Animated.View pointerEvents="none" style={[StyleSheet.absoluteFill, posterStyle]}>
+            {thumb ? <Image source={{ uri: thumb }} style={StyleSheet.absoluteFill} resizeMode="cover" fadeDuration={0} />
+              : <View style={[StyleSheet.absoluteFill, { backgroundColor: t.surface2, alignItems: 'center', justifyContent: 'center' }]}><Icon name="videocam" size={Math.round(big * .14)} color={t.muted} /></View>}
+          </Animated.View>
+        </View>
+        {/* Thin ring at the circle's edge, clockwise from 12 o'clock: mounted only while open or shrinking back. */}
+        {open ? <NoteRing progress={progress} size={big} stroke={3.5} color="#FFF" track="transparent" style={ringStyle} /> : null}
+      </Animated.View>
+      {!ready ? <View pointerEvents="none" style={[StyleSheet.absoluteFill, { alignItems: 'center', justifyContent: 'center' }]}>
+        <View style={{ width: 44, height: 44, borderRadius: 22, backgroundColor: 'rgba(10,20,35,0.55)', alignItems: 'center', justifyContent: 'center' }}>
+          {loading ? <><ProgressRing progress={media.progress} size={44} /><Icon name="close" size={20} color="#FFF" /></> : <Icon name={media.status === 'error' ? 'refresh' : 'arrow-down'} size={22} color="#FFF" />}
+        </View>
+      </View> : null}
+      {state === 'paused' ? <View pointerEvents="none" style={[StyleSheet.absoluteFill, { alignItems: 'center', justifyContent: 'center' }]}><View style={{ width: 52, height: 52, borderRadius: 26, backgroundColor: 'rgba(10,20,35,0.45)', alignItems: 'center', justifyContent: 'center' }}><Icon name="play" size={26} color="#FFF" /></View></View> : null}
+      {/* Telegram: the length in a small pill at the lower left, a small speaker-off mark while it loops silently. */}
+      {!open ? <View pointerEvents="none" style={{ position: 'absolute', left: 6, bottom: 6, flexDirection: 'row', alignItems: 'center', gap: 4, paddingHorizontal: 7, paddingVertical: 2, borderRadius: 9, backgroundColor: 'rgba(0,0,0,0.42)' }}>
+        <Text style={{ color: '#FFFFFF', fontSize: 11 }}>{formatVoiceTime(attachment.media?.durationMs || 0)}</Text>
+        {ready ? <Icon name="volume-mute" color="#FFF" size={11} /> : null}
+      </View> : null}
+    </Pressable>
+    {expanded ? <MusicGuard onInterrupt={interrupt} /> : null}
+    {media.status === 'error' && media.error ? <Text style={{ color: t.danger, fontSize: 11, maxWidth: collapsed }}>{media.error}</Text> : null}
   </View>;
 }
