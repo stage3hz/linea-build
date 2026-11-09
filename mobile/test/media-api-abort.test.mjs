@@ -31,7 +31,10 @@ test('a timeout is reported as a timeout even when fetch rejects with a TypeErro
   t.mock.method(globalThis,'fetch',(_url,options)=>new Promise((resolve,reject)=>{signal=options.signal;signal.addEventListener('abort',()=>reject(new TypeError('Network request failed')),{once:true});}));
   const request=new api.Api('https://example.invalid').request('/auth/register',{method:'POST',body:'{}'});
   const rejected=request.then(()=>assert.fail('resolved'),error=>error);
+  // Sign-up hashes three secrets on the server: it is not cut off at the ordinary 18 s, only at 45 s.
   t.mock.timers.tick(18001);
+  assert.equal(signal.aborted,false,'sign-up survives the ordinary limit');
+  t.mock.timers.tick(27000);
   const error=await rejected;
   assert.equal(signal.aborted,true);
   assert.match(error.message,/вовремя/,'not «Нет связи с сервером»');

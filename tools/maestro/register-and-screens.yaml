@@ -163,19 +163,21 @@ appId: com.linea.messenger.preview
 - assertNotVisible: "Введи по одному символу.*"
 - takeScreenshot: 02-register-last-step
 - pressKey: enter
-# iOS Password AutoFill offers to save the just-typed secret («Save Password?») once the secure field
-# is gone; the alert covers the next step, so it is dismissed when it shows (optional: not every run gets it).
+# Sign-up runs now (three secrets hashed on the server). Wait for an outcome instead of acting at once:
+# the chat list, iOS's «Save Password?» (it may come only after the screen changes) or an error.
+- extendedWaitUntil:
+    visible: "Избранное.*|Not Now|Не сейчас|Сервер не ответил.*|Нет связи.*"
+    timeout: 120000
 - tapOn:
     text: "Not Now|Не сейчас"
     optional: true
+# Still on the form (Return did not submit, or the request failed): press the button once more.
 - runFlow:
     when:
       notVisible: "Избранное.*"
+      visible:
+        id: "auth-submit"
     commands:
-      - scrollUntilVisible:
-          element:
-            id: "auth-submit"
-          direction: DOWN
       - tapOn:
           id: "auth-submit"
 - tapOn:
@@ -183,6 +185,12 @@ appId: com.linea.messenger.preview
     optional: true
 - tapOn:
     text: "Разрешить"
+    optional: true
+- extendedWaitUntil:
+    visible: "Избранное.*|Not Now|Не сейчас"
+    timeout: 120000
+- tapOn:
+    text: "Not Now|Не сейчас"
     optional: true
 - extendedWaitUntil:
     visible: "Избранное.*"

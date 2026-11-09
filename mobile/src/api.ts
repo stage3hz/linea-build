@@ -62,6 +62,10 @@ function requestTimeout(path: string, method = 'GET') {
   if (AI_TIMEOUTS[path]) return AI_TIMEOUTS[path];
   const bare = path.split('?')[0];
   // One-request uploads and the chunks of big ones (PUT /uploads/sessions/…, /e2ee/uploads/…) get the upload time.
+  // Sign-in, sign-up, recovery and secret changes hash up to three secrets with scrypt on the server and
+  // queue behind other password jobs: under load an 18 s limit cut off a sign-up the server then completed,
+  // and the retry met «Этот логин уже занят». Those POSTs get 45 s (×1.5 / ×3 on slow links).
+  if (method === 'POST' && /^\/auth\/(?:login|register|recovery\/(?:verify|reset)|password|confirmation-word|recovery-word)$/.test(bare)) return Math.round(45_000 * timeoutFor('read', networkTier()) / timeoutFor('read', 'fast'));
   const kind = bare === '/uploads' || bare === '/e2ee/files' || (method === 'PUT' && /^\/(?:e2ee\/)?uploads\//.test(bare)) ? 'upload' : method !== 'GET' && /\/messages(\?|$)/.test(path) ? 'send' : 'read';
   return timeoutFor(kind, networkTier());
 }
