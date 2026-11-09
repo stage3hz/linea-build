@@ -45,9 +45,14 @@ const BOX = 27.5;
 const OPTICAL: Partial<Record<string, { size: number; dy: number }>> = { 'sparkles-outline': { size: 23.3, dy: 0.3 }, 'people-outline': { size: 31.7, dy: 0.6 } };
 const iconSize = (name: string) => OPTICAL[name]?.size ?? BOX;
 const iconShift = (name: string) => OPTICAL[name]?.dy ?? 0;
+// 24.5 pt: the drawn gear (teeth to teeth) is then 24 pt like the chat bubble and the headset; at 25.5 it measured
+// 25 pt on the simulator and looked bigger than its neighbours.
+const GEAR_SIZE = 24.5;
 function GearIcon({ size, active, accent, muted }: { size: number; active: boolean; accent: string; muted: string }) {
-  // The line is as thick on screen as the Ionicons outlines next to it (32/512 of their box).
-  const color = active ? accent : muted; const line = (32 / 512) * BOX * 24 / size;
+  // The line is a little thinner than the Ionicons outlines next to it (32/512 of their box): 15 teeth, a ring
+  // and three spokes at the same weight drew 56 % more ink than the headset of the same size and read as bold
+  // (simulator screenshot). At 0.78 the gear carries about as much ink as its neighbours.
+  const color = active ? accent : muted; const line = (32 / 512) * BOX * 24 / size * 0.78;
   if (active) return <Svg width={size} height={size} viewBox="0 0 24 24">
     <Path d={GEAR.body} fill={color} fillRule="evenodd" />
     <Path d={GEAR.disk} fill={color} />
@@ -71,6 +76,12 @@ function setSlot(next: 'people' | 'channels') { slot = next; listeners.forEach(l
 const useSlot = () => useSyncExternalStore(l => { listeners.add(l); return () => { listeners.delete(l); }; }, () => slot, () => slot);
 
 const SPRING = { damping: 20, stiffness: 320, mass: 0.7 };
+// The chat list draws its own bar and the other pages share another, so a tap that moves from «Чаты» to another
+// tab (or back) mounts a new bar: its icon animation and the pill's slide were lost (the gear turned only on a
+// second tap). The tap is remembered for a moment and the new bar plays it; the pill starts where it was.
+let pendingKick: { id: TabId; at: number } | null = null;
+let lastPill: number | null = null;
+const kickTiming = (id: TabId) => id === 'profile' ? { duration: 760, easing: Easing.out(Easing.back(1.7)) } : { duration: 650, easing: Easing.out(Easing.quad) };
 
 function TabIcon({ item, active, kick, pressed, index }: { item: TabItem; active: boolean; kick: SharedValue<number>; pressed: SharedValue<number>; index: number }) {
   const t = useTheme();
@@ -85,7 +96,7 @@ function TabIcon({ item, active, kick, pressed, index }: { item: TabItem; active
     return { transform: [{ scale: press * (1 + bump * 0.3) }, { rotate: `${Math.sin(k * Math.PI * 2) * 18}deg` }] };
   });
   return <Animated.View style={style}>
-    {item.id === 'profile' ? <View style={{ width: BOX, height: BOX, alignItems: 'center', justifyContent: 'center' }}><GearIcon size={25.5} active={active} accent={t.accent} muted={t.muted} /></View> : <View style={{ width: BOX, height: BOX, alignItems: 'center', justifyContent: 'center', overflow: 'visible' }}><Ionicons name={active ? item.activeIcon : item.icon} size={iconSize(item.icon)} color={active ? t.accent : t.muted} style={{ width: iconSize(item.icon), height: iconSize(item.icon), lineHeight: iconSize(item.icon), textAlign: 'center', transform: [{ translateY: iconShift(item.icon) }] }} {...HIDDEN_ICON} /></View>}
+    {item.id === 'profile' ? <View style={{ width: BOX, height: BOX, alignItems: 'center', justifyContent: 'center' }}><GearIcon size={GEAR_SIZE} active={active} accent={t.accent} muted={t.muted} /></View> : <View style={{ width: BOX, height: BOX, alignItems: 'center', justifyContent: 'center', overflow: 'visible' }}><Ionicons name={active ? item.activeIcon : item.icon} size={iconSize(item.icon)} color={active ? t.accent : t.muted} style={{ width: iconSize(item.icon), height: iconSize(item.icon), lineHeight: iconSize(item.icon), textAlign: 'center', transform: [{ translateY: iconShift(item.icon) }] }} {...HIDDEN_ICON} /></View>}
     {item.badge ? <View style={{ position: 'absolute', top: -6, left: 16, minWidth: 18, height: 18, paddingHorizontal: 5, borderRadius: 9, borderWidth: 2, borderColor: t.dark ? '#15171D' : '#FFF', backgroundColor: t.accent, alignItems: 'center', justifyContent: 'center' }}><Text maxFontSizeMultiplier={1} style={{ color: t.onAccent, fontSize: 10, fontWeight: '800' }}>{badgeText(item.badge)}</Text></View> : null}
   </Animated.View>;
 }
@@ -116,19 +127,27 @@ export function TabBar({ items, active }: { items: TabItem[]; active: TabId }) {
   const n = shown.length; const cell = width / Math.max(1, n);
   const slotIndex = shown.findIndex(item => item.id === 'people' || item.id === 'channels');
   const activeIndex = Math.max(0, shown.findIndex(item => item.id === (active === 'people' || active === 'channels' ? current : active)));
-  const pill = useSharedValue(activeIndex); const lens = useSharedValue(0); const pressed = useSharedValue(-1);
+  const pill = useSharedValue(lastPill ?? activeIndex); const lens = useSharedValue(0); const pressed = useSharedValue(-1);
   // The slot is a vertical carousel [Люди, Каналы, Люди]: a swipe always plays the same quick roll up.
   const reel = useSharedValue(current === 'channels' ? 1 : 0);
   useEffect(() => { reel.value = current === 'channels' ? 1 : 0; }, [current]);
   const k0 = useSharedValue(0), k1 = useSharedValue(0), k2 = useSharedValue(0), k3 = useSharedValue(0), k4 = useSharedValue(0), k5 = useSharedValue(0);
   const kicks = [k0, k1, k2, k3, k4, k5];
-  useEffect(() => { if (!lens.value) pill.value = withSpring(activeIndex, SPRING); }, [activeIndex]);
+  useEffect(() => { lastPill = activeIndex; if (!lens.value) pill.value = withSpring(activeIndex, SPRING); }, [activeIndex]);
+  // A bar mounted by the tap that opened its page plays that tap's icon animation.
+  useEffect(() => {
+    const pending = pendingKick; pendingKick = null;
+    if (!pending || Date.now() - pending.at > 800) return;
+    const index = shown.findIndex(item => item.id === pending.id);
+    if (index >= 0) kicks[index].value = withTiming(Math.floor(kicks[index].value) + 1, kickTiming(pending.id));
+  }, []);
 
   const open = (index: number) => {
     const item = shown[index]; if (!item) return;
     const kick = kicks[index];
     // Longer and smoother: the gear turns with a soft overshoot (~0.75 s), the others play over ~0.65 s.
-    kick.value = withTiming(Math.floor(kick.value) + 1, item.id === 'profile' ? { duration: 760, easing: Easing.out(Easing.back(1.7)) } : { duration: 650, easing: Easing.out(Easing.quad) });
+    kick.value = withTiming(Math.floor(kick.value) + 1, kickTiming(item.id));
+    pendingKick = { id: item.id, at: Date.now() };
     item.onPress();
   };
   // Swipe up on the slot: «Люди» ⇄ «Каналы» (remembered), the icon flips like a slot machine.
