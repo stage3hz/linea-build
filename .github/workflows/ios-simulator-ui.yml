@@ -27,7 +27,10 @@ jobs:
     # local server missed the 18 s register timeout. The simulator architecture is detected below.
     # macos-15 (Apple silicon): macos-26 arm64 runners were short twice in a row («The job was not acquired by
     # Runner of type hosted even after multiple attempts»), and the job was dropped after 15 min in the queue.
-    runs-on: ${{ inputs.runner || 'macos-15' }}
+    # macos-15 arm64 then failed the same way four times («Due to capacity constraints, jobs targeting macOS
+    # arm64 runners may experience longer queue times»), so the default is the Intel runner, which the IPA
+    # build gets reliably; pass runner=macos-15 by hand when arm64 capacity is back.
+    runs-on: ${{ inputs.runner || 'macos-15-intel' }}
     timeout-minutes: 240
     env:
       APP_ENV: development

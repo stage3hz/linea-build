@@ -60,12 +60,20 @@ jobs:
           cache-dependency-path: |
             mobile/package-lock.json
             server/package-lock.json
+            desktop/package-lock.json
       - run: npm ci --no-audit --no-fund
         working-directory: mobile
       # mobile/test/e2ee-relay-integration.test.mjs imports ../../server/src/app.js, so the server tree
       # must be installed as well.
       - run: npm ci --no-audit --no-fund
         working-directory: server
+      # The E2EE tests run against the official libsignal SDK, which desktop pins at 0.106.0
+      # (test/support/signal-node.mjs checks the version); desktop-*.test.mjs also import desktop/signal.mjs.
+      # Electron itself is not needed here.
+      - run: npm ci --no-audit --no-fund
+        working-directory: desktop
+        env:
+          ELECTRON_SKIP_BINARY_DOWNLOAD: '1'
       - name: tsc --noEmit
         run: npx tsc --noEmit -p .
         working-directory: mobile
@@ -74,6 +82,8 @@ jobs:
       - name: node --test test/*.test.mjs
         run: node --test --test-isolation=none test/*.test.mjs
         working-directory: mobile
+        env:
+          LINEA_SIGNAL_TEST_TOOLS: ${{ github.workspace }}/desktop
 
   desktop:
     name: Desktop tests (Node 24)
