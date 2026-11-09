@@ -1,7 +1,7 @@
 import { TabBar } from './TabBar';
 import { badgeText, useUnreadTotal } from './unreadBadge';
 import { inviteCodeFrom, withoutInviteLink } from './communities/types';
-import React, { useEffect, useMemo, useRef, useState } from 'react';
+import React, { memo, useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useMeshActive } from './nearby/meshState';
 import { PlatinaGem, PlatinaName, hasPlatina } from './platina/PlatinaMark';
 import { FolderEditor, FolderTabs, matchesFolder, useChatFolders, type ChatFolder, type FolderFilter } from './ChatFolders';
@@ -72,6 +72,8 @@ export function ChatListScreen({api,user,store,onProfile,onNewChat,onMusic,onAI,
   // The store reads up to the newest server message, not only the one the list shows (reactions and edits are hidden here).
   const readChat=(chat:Chat)=>{if(chat.unreadCount)void store.readChat(chat.id,chat.lastMessage?.id||0);};
   const toggleEdit=(chat:Chat)=>{lightFeedback();setEditing(current=>{const next=new Set(current||[]);if(next.has(chat.id))next.delete(chat.id);else next.add(chat.id);return next;});};
+  // Row callbacks read through a ref: ChatListItem stays memoized, so one chat updating re-renders one row, not the list.
+  const rowActions=useRef<RowActions>(null as unknown as RowActions);rowActions.current={editing:!!editing,askMute,remove:list=>setRemoveAsk(list),readChat,toggleEdit,select:chat=>store.selectChat(chat),menu:(chat,y,x)=>{impactFeedback();setMenu({chat,y,x});}};
   const selectedChats=editing?chats.filter(c=>editing.has(c.id)):[];
   const bulk=(fn:(chat:Chat)=>void)=>{const list=selectedChats.length?selectedChats:chats;list.forEach(fn);setEditing(null);lightFeedback();};
   const refresh=async()=>{setRefreshing(true);await store.refreshChats();setRefreshing(false);};
@@ -98,7 +100,7 @@ export function ChatListScreen({api,user,store,onProfile,onNewChat,onMusic,onAI,
         and fades/blurs out there instead of being cut at a hard edge. Desktop keeps it in the flow. */}
     {float?<FloatingHeader onHeight={setHeaderHeight}>{header}</FloatingHeader>:header}
     {store.listLoading?<View style={{flex:1,overflow:'hidden',paddingTop:float?headerHeight:0,...(float?bleed.style:null)}}>{filter==='all'&&!archive?<SavedRow count={store.saved.items.length} last={store.saved.items[store.saved.items.length-1]} selected={savedActive} onPress={onSaved}/>:null}<ChatListSkeleton/></View>:<FlatList style={float?bleed.style:undefined} scrollIndicatorInsets={float?{top:headerHeight,bottom:tabsHeight}:undefined} progressViewOffset={float?headerHeight:undefined} data={chats} keyExtractor={item=>item.id} keyboardShouldPersistTaps="handled" keyboardDismissMode="on-drag" alwaysBounceVertical contentContainerStyle={{paddingTop:float?headerHeight:0,paddingBottom:(rail||editing?12:tabsHeight+12)+(float?bleed.bottom:0),flexGrow:1}} ListHeaderComponent={archive?<Pressable onPress={()=>setArchive(false)} accessibilityRole="button" style={{flexDirection:'row',alignItems:'center',gap:8,padding:12}}><Icon name="chevron-back" size={18} color={t.accent}/><Text style={{color:t.accent,fontSize:15,fontWeight:'700'}}>Архив</Text></Pressable>:<>{menuError?<View style={{paddingBottom:8}}><Notice text={menuError} error/></View>:null}{filter==='all'&&(!query||'избранное'.includes(query.toLowerCase()))?<SavedRow count={store.saved.items.length} last={store.saved.items[store.saved.items.length-1]} selected={savedActive} onPress={onSaved}/>:null}{archivedCount&&!query&&filter==='all'?<Pressable onPress={()=>setArchive(true)} accessibilityRole="button" accessibilityLabel={`Архив, чатов: ${archivedCount}`} style={({pressed})=>({flexDirection:'row',gap:13,alignItems:'center',paddingHorizontal:16,paddingVertical:12,borderRadius:24,marginBottom:6,backgroundColor:pressed?(t.dark?'rgba(255,255,255,0.09)':'rgba(255,255,255,0.62)'):'transparent'})}><View style={{width:54,height:54,borderRadius:19,backgroundColor:t.surface2,alignItems:'center',justifyContent:'center'}}><Icon name="archive" color={t.muted} size={24}/></View><View style={{flex:1}}><Text style={{color:t.text,fontSize:15,fontWeight:'700'}}>Архив</Text><Text style={{color:t.muted,fontSize:12}}>{countChats(archivedCount)}</Text></View></Pressable>:null}</>} refreshControl={<RefreshControl refreshing={refreshing} onRefresh={()=>void refresh()} tintColor={t.accent}/>} ListEmptyComponent={<View style={{flex:1,justifyContent:'center',paddingBottom:20}}><Empty icon={query?'search-outline':'chatbubbles-outline'} title={query?'Чат не найден':'Начни разговор'} description={query?'Попробуй другое имя или найди человека по @имени.':'Найди своего человека по @имени. Всё начинается с простого «привет».'} action={<Button label="Найти собеседника" onPress={onNewChat} icon="add"/>}/></View>}
-      renderItem={({item})=><SwipeRow enabled={!editing} muted={isMuted(item.settings)} unread={item.unreadCount>0} onMute={()=>askMute([item])} onDelete={()=>setRemoveAsk([item])} onRead={()=>readChat(item)}><ChatRow key={store.selectedId?'open':'idle'} chat={item} api={api} userId={user.id} selected={wideLayout&&store.selectedId===item.id} typing={!!store.typing[item.id]} checked={editing?editing.has(item.id):undefined} onPress={()=>editing?toggleEdit(item):store.selectChat(item)} onLongPress={(y,x)=>{impactFeedback();setMenu({chat:item,y,x});}}/></SwipeRow>}/>}
+      renderItem={({item})=><ChatListItem chat={item} api={api} userId={user.id} editable={!editing} selected={wideLayout&&store.selectedId===item.id} idle={!store.selectedId} typing={!!store.typing[item.id]} muted={isMuted(item.settings)} checked={editing?editing.has(item.id):undefined} actions={rowActions}/>}/>}
     {editing?<GlassSurface lens material="regular" radius={26} style={{marginHorizontal:16,marginBottom:6}} contentStyle={{flexDirection:'row',justifyContent:'space-around',alignItems:'center',minHeight:52}}>
       <Pressable onPress={()=>bulk(readChat)} accessibilityRole="button" style={{padding:10}}><Text style={{color:t.accent,fontSize:14,fontWeight:'600'}}>{selectedChats.length?'Прочитать':'Прочитать все'}</Text></Pressable>
       <Pressable disabled={!selectedChats.length} onPress={()=>bulk(chat=>change(chat,{archived:!archive}))} accessibilityRole="button" style={{padding:10,opacity:selectedChats.length?1:.4}}><Text style={{color:t.accent,fontSize:14,fontWeight:'600'}}>{archive?'Из архива':'В архив'}</Text></Pressable>
@@ -146,7 +148,18 @@ function listText(text: string | undefined): string {
   return withoutInviteLink(text).trim() || '🔗 Приглашение на сервер';
 }
 
-function ChatRow({chat,api,userId,selected,typing,checked,onPress,onLongPress}: {chat:Chat;api:Api;userId:string;selected:boolean;typing:boolean;checked?:boolean;onPress:()=>void;onLongPress:(y:number,x?:number)=>void}) {
+type RowActions={editing:boolean;askMute:(list:Chat[])=>void;remove:(list:Chat[])=>void;readChat:(chat:Chat)=>void;toggleEdit:(chat:Chat)=>void;select:(chat:Chat)=>void;menu:(chat:Chat,y:number,x?:number)=>void};
+/** One list row with stable props (primitives, the chat object and a ref): memo skips it when another chat changes. */
+const ChatListItem=memo(function ChatListItem({chat,api,userId,editable,selected,idle,typing,muted,checked,actions}:{chat:Chat;api:Api;userId:string;editable:boolean;selected:boolean;idle:boolean;typing:boolean;muted:boolean;checked?:boolean;actions:React.MutableRefObject<RowActions>}) {
+  const onMute=useCallback(()=>actions.current.askMute([chat]),[actions,chat]);
+  const onDelete=useCallback(()=>actions.current.remove([chat]),[actions,chat]);
+  const onRead=useCallback(()=>actions.current.readChat(chat),[actions,chat]);
+  const onPress=useCallback(()=>{const a=actions.current;if(a.editing)a.toggleEdit(chat);else a.select(chat);},[actions,chat]);
+  const onLongPress=useCallback((y:number,x?:number)=>actions.current.menu(chat,y,x),[actions,chat]);
+  return <SwipeRow enabled={editable} muted={muted} unread={chat.unreadCount>0} onMute={onMute} onDelete={onDelete} onRead={onRead}><ChatRow key={idle?'idle':'open'} chat={chat} api={api} userId={userId} selected={selected} typing={typing} muted={muted} checked={checked} onPress={onPress} onLongPress={onLongPress}/></SwipeRow>;
+});
+
+function ChatRow({chat,api,userId,selected,typing,muted,checked,onPress,onLongPress}: {chat:Chat;api:Api;userId:string;selected:boolean;typing:boolean;muted:boolean;checked?:boolean;onPress:()=>void;onLongPress:(y:number,x?:number)=>void}) {
   const t=useTheme();const last=chat.lastMessage;
   // Desktop: right click opens the chat menu at the cursor.
   const ref=useRef<View>(null);const longRef=useRef(onLongPress);longRef.current=onLongPress;
@@ -156,7 +169,7 @@ function ChatRow({chat,api,userId,selected,typing,checked,onPress,onLongPress}: 
   const preview=typing?'Печатает…':last?(callListText(last,userId)??(last.meta?.action?.type==='pin'&&last.meta.action.target?pinPreview(listText(chatListText(last))||'',last.senderId===userId,chat.peer.displayName):`${listText(chatListText(last))|| (last.attachment?attachmentLabel(last.attachment):'Сообщение')}`)):'Напиши первое сообщение';
   // A timed mute ends by the clock, not by a refresh. As in Telegram the row shows only the crossed bell;
   // when the sound comes back is said in the profile («Без звука · до 18:30») and to the screen reader here.
-  const muted=isMuted(chat.settings),pinned=!!chat.settings?.pinnedAt;
+  const pinned=!!chat.settings?.pinnedAt;
   const quietLabel=muted?`, без звука${chat.settings?.mutedUntil?` ${muteUntilLabel(chat.settings.mutedUntil)}`:''}`:'';
   // On a nameplate (dark art) the row's text is light, also in the light theme (it was dark on dark).
   const onPlate=!!chat.peer.nameplate&&!t.dark;

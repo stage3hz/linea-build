@@ -41,6 +41,9 @@ export function ComposerInput({ minHeight = 44, maxHeight = 136, style, value, f
     had.current = !!value;
   }, [value]);
   useEffect(() => { if (!pin) return; const id = requestAnimationFrame(() => setPin(false)); return () => cancelAnimationFrame(id); }, [pin]);
+  // Leaving the chat with the field focused: let go of the keyboard. A focused field that is simply
+  // unmounted can keep the keyboard up on iOS over the chat list (the stack also dismisses it on back).
+  useEffect(() => () => { if (focused.current && Platform.OS !== 'web') Keyboard.dismiss(); }, []);
   // A remount after sending keeps the keyboard up: the new field takes focus again.
   return <TextInput ref={input} key={generation} {...props} value={value} multiline scrollEnabled numberOfLines={Platform.OS === 'web' ? 1 : undefined} autoFocus={generation > 0 && focused.current}
     onFocus={event => { focused.current = true; retry.current?.focused(); props.onFocus?.(event); }}

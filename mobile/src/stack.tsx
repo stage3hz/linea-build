@@ -1,9 +1,10 @@
 import React, { memo, useCallback, useEffect, useRef } from 'react';
-import { StyleSheet, View, useWindowDimensions, BackHandler } from 'react-native';
+import { Keyboard, StyleSheet, View, useWindowDimensions, BackHandler } from 'react-native';
 import { Gesture, GestureDetector } from 'react-native-gesture-handler';
 import Animated, { Easing, interpolate, runOnJS, useAnimatedStyle, useSharedValue, withTiming, type SharedValue } from 'react-native-reanimated';
 import { lightFeedback } from './haptics';
 import { RenderActivity } from './renderActivity';
+import { stopFocusRetries } from './focusRetry';
 
 /**
  * Telegram-style screen stack: the pushed screen (a chat, Избранное) slides in over
@@ -14,6 +15,14 @@ import { RenderActivity } from './renderActivity';
  */
 const OPEN = { duration: 300, easing: Easing.bezier(0.2, 0.9, 0.25, 1) };
 const CLOSE = { duration: 240, easing: Easing.bezier(0.3, 0.1, 0.3, 1) };
+/**
+ * Telegram: the keyboard leaves together with the screen. Put it away as soon as leaving is decided
+ * (back button, hardware back, a swipe released past the threshold), not after the slide: a focused
+ * field of a screen that is removed does not always take the keyboard down with it on iOS, and it
+ * stayed up over the chat list. Pending «Ответить»/«Изменить» focus retries are stopped first so
+ * none of them raises it again during the slide. A swipe that springs back keeps the keyboard.
+ */
+export function dismissForLeave() { stopFocusRetries(); Keyboard.dismiss(); }
 
 export function StackScreen({ progress, onBack, children }: { progress: SharedValue<number>; onBack: () => void; children: (back: () => void) => React.ReactNode }) {
   const { width } = useWindowDimensions();
@@ -24,6 +33,7 @@ export function StackScreen({ progress, onBack, children }: { progress: SharedVa
   // Back button / hardware back: animate out, then actually leave the screen.
   const back = useCallback(() => {
     if (closing.current) return; closing.current = true;
+    dismissForLeave();
     progress.value = withTiming(1, CLOSE, done => { if (done) runOnJS(finish)(); });
   }, [progress, finish]);
   // Android system back closes the top pushed screen first (e.g. Settings › Оформление returns to
@@ -46,6 +56,7 @@ export function StackScreen({ progress, onBack, children }: { progress: SharedVa
     .onEnd(event => {
       const leave = event.translationX > width * 0.33 || event.velocityX > 700;
       if (leave) {
+        runOnJS(dismissForLeave)();
         runOnJS(lightFeedback)();
         progress.value = withTiming(1, { duration: Math.max(90, 220 * (1 - progress.value)), easing: Easing.out(Easing.quad) }, done => { if (done) runOnJS(finish)(); });
       } else progress.value = withTiming(0, { duration: 200, easing: Easing.out(Easing.quad) });

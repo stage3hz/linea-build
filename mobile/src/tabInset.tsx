@@ -4,7 +4,10 @@
 import React, { createContext, useContext, useState } from 'react';
 import { Platform, View } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
+import { BlurView } from 'expo-blur';
+import MaskedView from '@react-native-masked-view/masked-view';
 import { ScrollEdgeBlurView } from 'react-native-liquid-glassmorphism';
+import { useReducedTransparency } from './glass';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useTheme } from './theme';
 
@@ -38,6 +41,10 @@ function TabsFade({ bar }: { bar: number }) {
     {insets.top && Platform.OS !== 'web' ? <LinearGradient pointerEvents="none" colors={[tint(t.bg, Platform.OS === 'ios' ? .5 : .75, t.dark), tint(t.bg, 0, t.dark)]} style={{ position: 'absolute', left: 0, right: 0, top: -insets.top, height: insets.top }} /> : null}
   </>;
 }
+const isDarkColor = (color: string): boolean | null => {
+  const m = /^#([0-9a-f]{6})$/i.exec(color); if (!m) return null;
+  const n = parseInt(m[1], 16); return (0.299 * (n >> 16) + 0.587 * ((n >> 8) & 255) + 0.114 * (n & 255)) / 255 < .5;
+};
 const tint = (color: string, alpha: number, dark: boolean) => {
   const m = /^#([0-9a-f]{6})$/i.exec(color); if (!m) return dark ? `rgba(0,0,0,${alpha})` : `rgba(255,255,255,${alpha})`;
   const n = parseInt(m[1], 16); return `rgba(${n >> 16},${(n >> 8) & 255},${n & 255},${alpha})`;
@@ -50,17 +57,47 @@ const tint = (color: string, alpha: number, dark: boolean) => {
  * itself starts under the status bar (`useBleed`) pads its content by exactly this height.
  */
 export function FloatingHeader({ children, onHeight }: { children: React.ReactNode; onHeight: (h: number) => void }) {
-  const insets = useSafeAreaInsets(); const t = useTheme();
+  const insets = useSafeAreaInsets(); const t = useTheme(); const [height, setHeight] = useState(0);
   const top = Platform.OS === 'web' ? 0 : insets.top;
-  return <View pointerEvents="box-none" onLayout={e => onHeight(Math.round(e.nativeEvent.layout.height))} style={{ position: 'absolute', top: -top, left: 0, right: 0, zIndex: 10, paddingTop: top }}>
-    {/* iOS, like Telegram: a progressive system blur (strongest at the top, dissolving below the header)
-        with a light tint, instead of a near-opaque slab. Android keeps the gradient: its progressive
-        blur reads a software capture of the whole screen every frame, which is what made it stutter. */}
-    {Platform.OS === 'ios' ? <>
-      <ScrollEdgeBlurView pointerEvents="none" edge="top" maxBlurRadius={24} falloff={1} style={{ position: 'absolute', top: 0, left: 0, right: 0, bottom: -30 }} />
-      <LinearGradient pointerEvents="none" colors={[tint(t.bg, .62, t.dark), tint(t.bg, .38, t.dark), tint(t.bg, 0, t.dark)]} locations={[0, .6, 1]} style={{ position: 'absolute', top: 0, left: 0, right: 0, bottom: -30 }} />
-    </> : <LinearGradient pointerEvents="none" colors={[tint(t.bg, .97, t.dark), tint(t.bg, .93, t.dark), tint(t.bg, 0, t.dark)]} locations={[0, .86, 1]} style={{ position: 'absolute', top: 0, left: 0, right: 0, bottom: -26 }} />}
+  return <View pointerEvents="box-none" onLayout={e => { const h = Math.round(e.nativeEvent.layout.height); setHeight(h); onHeight(h); }} style={{ position: 'absolute', top: -top, left: 0, right: 0, zIndex: 10, paddingTop: top }}>
+    {/* Telegram / iOS 26 scroll-edge effect: rows passing under the status bar, the title, «Поиск» and the
+        folder bar are blurred and covered by the background colour, then dissolve just below the header.
+        The old progressive blur faded out linearly over the whole header, so behind «Поиск» it was almost
+        gone and a scrolled-under row («Избранное») read through the clear glass as ghost text. */}
+    {height ? <ScrollEdgeEffect edge="top" size={height} color={t.bg} alpha={Platform.OS === 'ios' ? .78 : .97} /> : null}
     {children}
+  </View>;
+}
+
+/**
+ * The scroll-edge effect of iOS 26 / Telegram behind floating bars (header pills, composer): content
+ * under the bar is blurred (iOS) and covered by `color`, evenly over the bar, then dissolves across its
+ * inner edge (14 pt inside to `fade` pt past it) — no hard line and no crisp text next to the glass.
+ * Static native views only (a masked UIVisualEffectView and a gradient): nothing runs per frame.
+ * `size`: the bar's height from the screen edge (status bar / home indicator included).
+ * Android has no live blur here (a progressive blur re-captures the screen every frame and stuttered),
+ * so the colour carries it; Reduce Transparency gets a solid band.
+ */
+export function ScrollEdgeEffect({ edge, size, color, alpha, fade = 8, zIndex }: { edge: 'top' | 'bottom'; size: number; color: string; alpha: number; fade?: number; zIndex?: number }) {
+  const t = useTheme(); const reduced = useReducedTransparency();
+  if (size <= 0) return null;
+  const total = size + fade;
+  // Fully covered up to 14 pt short of the bar's inner edge, then a soft ramp that ends `fade` pt past
+  // it — inside the space the lists keep there, so at rest the first row / message is never covered.
+  const solid = Math.max(0, Math.min(1, (size - 14) / total));
+  const peak = reduced ? 1 : alpha;
+  const colors = [tint(color, peak, t.dark), tint(color, peak * .9, t.dark), tint(color, peak * .45, t.dark), tint(color, 0, t.dark)] as const;
+  const locations = [0, solid, solid + (1 - solid) * .45, 1] as const;
+  const vertical = edge === 'top' ? { start: { x: 0, y: 0 }, end: { x: 0, y: 1 } } : { start: { x: 0, y: 1 }, end: { x: 0, y: 0 } };
+  const box = { position: 'absolute' as const, left: 0, right: 0, height: total, zIndex, ...(edge === 'top' ? { top: 0 } : { bottom: 0 }) };
+  const blur = Platform.OS === 'ios' && !reduced;
+  // The material follows the edge colour, not only the theme: a dark wallpaper in the light theme gets a dark blur.
+  const darkEdge = isDarkColor(color) ?? t.dark;
+  return <View pointerEvents="none" style={box}>
+    {blur ? <MaskedView pointerEvents="none" style={{ position: 'absolute', top: 0, left: 0, right: 0, bottom: 0 }} maskElement={<LinearGradient colors={['#000', '#000', 'transparent']} locations={[0, solid, Math.min(1, solid + (1 - solid) * .8)]} {...vertical} style={{ flex: 1 }} />}>
+      <BlurView intensity={darkEdge ? 70 : 80} tint={darkEdge ? 'systemUltraThinMaterialDark' : 'systemUltraThinMaterialLight'} style={{ flex: 1 }} />
+    </MaskedView> : null}
+    <LinearGradient pointerEvents="none" colors={colors} locations={locations} {...vertical} style={{ position: 'absolute', top: 0, left: 0, right: 0, bottom: 0 }} />
   </View>;
 }
 

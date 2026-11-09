@@ -25,7 +25,6 @@ import { Text, TextInput } from './typography';
 import { KeyboardSafeView } from './keyboard';
 import { shareText } from './share';
 import * as Clipboard from 'expo-clipboard';
-import { LinearGradient } from 'expo-linear-gradient';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import * as FileSystem from 'expo-file-system/legacy';
 import type { Api } from './api';
@@ -35,6 +34,7 @@ import { ScheduledScreen } from './scheduled/ScheduledScreen';
 import type { SendOptions } from './scheduled/model';
 import { formatDay, formatSize, formatTime, useTheme } from './theme';
 import { GlassContentTarget, GlassStage, GlassSurface, GlassTargetScope } from './glass';
+import { ScrollEdgeEffect } from './tabInset';
 import { ForwardPicker, type ForwardTarget } from './forward/ForwardPicker';
 import { setForwardDraft, useForwardDraft } from './forward/forwardDraft';
 import { SharedMedia } from './SharedMedia';
@@ -51,6 +51,7 @@ import { AttachmentViewer } from './media/AttachmentViewer';
 import { openDocument } from './media/documentPreview';
 import { WALLPAPERS, textMetrics, useChatPreferences } from './chatPreferences';
 import { EDIT_WINDOW_CLOSED, REACTIONS, editWindowOpen, foldChat, groupAlbums, replyPreview, type Reaction, type StoryRef, type ViewMessage } from './messageMeta';
+import { stabilizeById } from './stable';
 import { PostViewer } from './ProfilePosts';
 import type { ProfilePost } from './api';
 import { MediaGallery } from './media/AttachmentViewer';
@@ -80,9 +81,6 @@ import { VOICE_MIME, VOICE_MIN_MS, videoNoteFileName, voiceFileName } from './vo
 
 /** Formatting of the unsent text per chat (the draft text itself lives in the store as a plain string). */
 const draftEntities=new Map<string,Entity[]>();
-
-/** #RRGGBB + alpha → rgba(), for the edge fades. */
-const fade=(hex:string,alpha:number)=>{const m=/^#([0-9a-f]{6})$/i.exec(hex);if(!m)return `rgba(0,0,0,${alpha})`;const n=parseInt(m[1],16);return `rgba(${n>>16},${(n>>8)&255},${n&255},${alpha})`;};
 
 export function ChatScreen({api,user,chat,store,onBack,wide=false,onOpenMusic}: {api:Api;user:User;chat:Chat;store:MessengerStore;onBack:()=>void;wide?:boolean;onOpenMusic?:()=>void}) {
   const mesh=useMeshActive();
@@ -188,6 +186,7 @@ export function ChatScreen({api,user,chat,store,onBack,wide=false,onOpenMusic}: 
   useEffect(()=>{editingRef.current=null;setEditText('');setReplyTo(null);setEditing(null);setForwarding(null);setSearchOpen(false);setQuery('');setSelection(null);setGallery(null);seen.current=null;},[chat.id]);
 
   const needle=query.trim().toLocaleLowerCase('ru');
+  const rowCache=useRef(new Map<string,Row>());
   const rows=useMemo<Row[]>(()=>{
     type Item={senderId:string;meta?:ViewMessage['meta'];row:Row};
     const items:Item[]=[
@@ -206,7 +205,8 @@ export function ChatScreen({api,user,chat,store,onBack,wide=false,onOpenMusic}: 
     const folded:Row[]=[];
     for(const row of all){const last=folded[folded.length-1];if(row.message?.cryptoState==='no-key'&&!row.album){if(last?.missing){last.missing++;last.createdAt=row.createdAt;continue;}folded.push({key:`x${row.key}`,createdAt:row.createdAt,missing:1});continue;}folded.push(row);}
     const visible=searchOpen&&needle?folded.filter(row=>!row.missing&&((row.message?.text||row.pending?.text||'').toLocaleLowerCase('ru').includes(needle)||(row.message?.attachment?.name||'').toLocaleLowerCase('ru').includes(needle))):folded;
-    return visible.reverse();
+    // foldChat/groupAlbums rebuild every object: equal rows keep their previous identity so memo(MessageRow) skips them.
+    return stabilizeById(rowCache.current,visible.reverse(),row=>row.key);
   },[view,pending,searchOpen,needle,user.id]);
   const preferences=useChatPreferences();const metrics=textMetrics(preferences.textSize);
   const wallpaper=useWallpaper(chat.id);const [wallpaperOpen,setWallpaperOpen]=useState(false);
@@ -413,7 +413,7 @@ export function ChatScreen({api,user,chat,store,onBack,wide=false,onOpenMusic}: 
     const groupNext=!!newer&&newerSender!==undefined&&!message?.meta?.action&&newerSender===(p?user.id:message?.senderId)&&new Date(newer.createdAt).toDateString()===new Date(item.createdAt).toDateString()&&Date.parse(newer.createdAt)-Date.parse(item.createdAt)<5*60_000;
     if(item.missing)return <MissingRow count={item.missing}/>;
     return <MessageRow animatedEmoji={platina&&powerFeatures.stickers} groupNext={groupNext} row={item} selecting={!!selection} selected={!!selection?.has(item.key)} fresh={fresh(item.key)} olderCreatedAt={rows[index+1]?.createdAt} mine={mine} author={mine?'Ты':peerName} peerLastRead={peerLastRead} wide={wide} fontSize={metrics.fontSize} lineHeight={metrics.lineHeight} radius={preferences.bubbleRadius} downloading={!!downloadId&&file?.id===downloadId} replyAuthor={quoteAuthor} replyText={quoteText} api={api} handlers={handlers}/>;
-  },[rows,user.id,peerName,peerLastRead,wide,metrics,downloadId,view.byClientId,api,selection,preferences.bubbleRadius,platina]);
+  },[rows,user.id,peerName,peerLastRead,wide,metrics.fontSize,metrics.lineHeight,downloadId,view.byClientId,api,selection,preferences.bubbleRadius,platina,powerFeatures.stickers]);
   const [circleOpen,setCircleOpen]=useState(false);
   // Telegram: the sent circle appears in the chat at once (frame from the take, upload ring, ✕).
   // Uploads cannot be aborted, so ✕ means «do not send» once the upload ends.
@@ -499,10 +499,12 @@ export function ChatScreen({api,user,chat,store,onBack,wide=false,onOpenMusic}: 
       renderItem={renderRow} removeClippedSubviews={Platform.OS==='android'} maxToRenderPerBatch={12} updateCellsBatchingPeriod={40}/>
     }
     </GlassContentTarget>
-    {/* Like Telegram: messages fade out under the status bar + header and under the composer
-        instead of showing through sharp-edged behind the clock and the input field. */}
-    {headerHeight?<LinearGradient pointerEvents="none" colors={[fade(edge.top,edge.alpha),fade(edge.top,edge.alpha*.85),fade(edge.top,0)]} locations={[0,.55,1]} style={{position:'absolute',top:0,left:0,right:0,height:headerHeight+22,zIndex:4}}/>:null}
-    {footerHeight?<LinearGradient pointerEvents="none" colors={[fade(edge.bottom,0),fade(edge.bottom,edge.alpha*.85),fade(edge.bottom,edge.alpha)]} locations={[0,.45,1]} style={{position:'absolute',bottom:0,left:0,right:0,height:footerHeight+22,zIndex:3}}/>:null}
+    {/* iOS 26 scroll-edge effect: blurred (iOS) and covered by the wallpaper's edge colour evenly behind
+        the status bar + header pills and behind the composer, dissolving just past them. A colour ramp
+        alone over the header left messages crisp and half-readable next to the back button and the
+        name pill. The first message still clears it: the list pads by headerHeight+14 / footerHeight+8. */}
+    {headerHeight?<ScrollEdgeEffect edge="top" size={headerHeight} color={edge.top} alpha={Platform.OS==='ios'?Math.min(.85,edge.alpha):edge.alpha} fade={10} zIndex={4}/>:null}
+    {footerHeight?<ScrollEdgeEffect edge="bottom" size={footerHeight} color={edge.bottom} alpha={Platform.OS==='ios'?Math.min(.85,edge.alpha):edge.alpha} fade={6} zIndex={3}/>:null}
     <VoiceMiniPlayer top={headerHeight+4} find={id=>{const m=view.messages.find(x=>x.attachment?.id===id);return m&&m.attachment?{author:originalAuthor(m),attachment:m.attachment}:null;}}/>
     <View pointerEvents="box-none" onLayout={e=>setHeaderHeight(e.nativeEvent.layout.height)} style={{position:'absolute',top:0,left:0,right:0,zIndex:5,paddingTop:8+(wide?0:insets.top),gap:6}}>
     {selection?<View style={{flexDirection:'row',alignItems:'center',gap:8,paddingHorizontal:12}}>

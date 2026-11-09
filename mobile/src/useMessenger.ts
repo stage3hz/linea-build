@@ -17,6 +17,7 @@ import { CryptoRuntime } from './e2ee/runtime';
 import { cancelLargeUpload, clearDecryptedAttachmentCache, encryptAndUpload, encryptAndUploadLarge } from './e2ee/attachments';
 import type { TrustSnapshot } from './e2ee/types';
 import { ALBUM_SIZE, appendAttachments, messageAttachmentBatch } from './messageAttachments';
+import { stabilizeById } from './stable';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { getChatPreferences } from './chatPreferences';
 import { useDesktopNotifications } from './notifications/desktopNotify';
@@ -258,10 +259,13 @@ export function useMessenger(api: Api, user: User, onExpired: ()=>void) {
     if(older&&!current.length)return;
     setMessageLoading(true);
     try {
+      // The page request goes out together with the inbox sync (one network round trip saved before the chat shows);
+      // decryption stays sequential: hydrate runs only after the sync has consumed the envelopes.
+      const pageRequest=api.messages(chatId,older?current[0].id:undefined);pageRequest.catch(()=>{});
       let deviceId:string|null=null,synced=false;
       try {const crypto=await cryptoRuntime.get();deviceId=crypto.deviceId;await crypto.syncChat(chatId);synced=true;if(aliveRef.current)setCryptoError('');}
       catch(e){if(aliveRef.current)setCryptoError(checkError(e));}
-      const result=await api.messages(chatId,older?current[0].id:undefined);
+      const result=await pageRequest;
       result.messages=await Promise.all(result.messages.map(hydrate));
       if(!aliveRef.current)return;
       // The latest page replaces only its own range: history scrolled up earlier survives a reconnect.
@@ -716,7 +720,9 @@ export function useMessenger(api: Api, user: User, onExpired: ()=>void) {
   // A voice room keeps the socket alive in the background (see connectionHold); a call does the same from CallProvider.
   const inVoice=!!useVoice();
   useEffect(()=>inVoice?holdConnection('voice'):undefined,[inVoice]);
-  const visibleChats=useMemo(()=>filtered.map(chat=>{
+  // Chats keep their identity while nothing in them changed, so memoized list rows skip re-rendering.
+  const chatCache=useRef(new Map<string,Chat>());
+  const visibleChats=useMemo(()=>stabilizeById(chatCache.current,filtered.map(chat=>{
     const last=chat.lastMessage;if(!last)return chat;
     const loaded=messages[chat.id];
     const shown=loaded?.length?listPreviewMessage([...loaded,last]):skippedInList(last)?previewFill[chat.id]??null:last;
@@ -724,7 +730,7 @@ export function useMessenger(api: Api, user: User, onExpired: ()=>void) {
     const masked=shown&&shown===last?chatListText(shown):null;
     const final=masked!==null&&masked!==last.text?{...last,text:masked}:shown;
     return final&&final!==last?{...chat,lastMessage:final}:chat;
-  }),[filtered,messages,previewFill]);
+  }),c=>c.id),[filtered,messages,previewFill]);
   // While it is being re-sent by itself, the bubble shows the clock, not «Не отправлено».
   const shownPending=useMemo(()=>pending.map(p=>p.state==='failed'&&p.offline&&(p.offline<=40||p.mesh)&&!p.upload?{...p,state:'sending' as const,error:undefined}:p),[pending]);
   // F11: system notifications on PC / in the browser when the window is not in front (one hook, decisions in notifications/desktopNotify.ts).
