@@ -58,7 +58,7 @@ import type { ProfilePost } from './api';
 import { MediaGallery } from './media/AttachmentViewer';
 import { PollComposer } from './PollBubble';
 import { StickerPanel } from './StickerPanel';
-import { Share } from 'react-native';
+import { Share, type GestureResponderEvent } from 'react-native';
 import { presenceText } from './presence';
 import { VoiceMiniPlayer, VoicePlaybackProvider, VoiceRecordingBar, useVoiceRecorder } from './voice/VoiceMessage';
 import { RecordButton } from './voice/RecordButton';
@@ -183,7 +183,7 @@ export function ChatScreen({api,user,chat,store,onBack,wide=false,onOpenMusic}: 
     if(!stickers){setStickers(true);requestAnimationFrame(()=>Keyboard.dismiss());return;}
     stickersToKeyboard();setKeyboardAsk(n=>n+1);
   };
-  const [mini,setMini]=useState<{x:number;y:number}|null>(null);const [pollOpen,setPollOpen]=useState(false);const [deleteAsk,setDeleteAsk]=useState(false);const [deleteOne,setDeleteOne]=useState<{list:ViewMessage[];everyone:boolean}|null>(null);const [stickers,setStickers]=useState(false);
+  const [mini,setMini]=useState<{x:number;y:number}|null>(null);const [pollOpen,setPollOpen]=useState(false);const [menuDelete,setMenuDelete]=useState(false);const [trashAt,setTrashAt]=useState<{x:number;y:number}|null>(null);const [stickers,setStickers]=useState(false);
   useEffect(()=>{editingRef.current=null;setEditText('');setReplyTo(null);setEditing(null);setForwarding(null);setSearchOpen(false);setQuery('');setSelection(null);setGallery(null);seen.current=null;},[chat.id]);
 
   const needle=query.trim().toLocaleLowerCase('ru');
@@ -394,10 +394,15 @@ export function ChatScreen({api,user,chat,store,onBack,wide=false,onOpenMusic}: 
       else if(files.length)await download(files[0]);
     }catch(e){setLocalError(e instanceof Error?e.message:'Не удалось поделиться.');}
   };
-  const deleteSelected=(everyone:boolean)=>{
-    for(const m of selectedMessages){if(everyone&&m.senderId===user.id)store.sendAction(chat.id,{type:'delete',target:m.clientId});else store.hideForMe(m);}
-    setSelection(null);lightFeedback();
+  // Telegram: «Удалить у меня и у <имя>» (only for our own messages — the other side's copies are theirs) and «Удалить у меня».
+  const deleteChoice=(list:ViewMessage[],done:()=>void)=>{
+    const everyone=list.length>0&&list.every(m=>m.senderId===user.id&&m.cryptoState==='decrypted');
+    return <>
+      {everyone?<MenuItem icon="trash-outline" label={`Удалить у меня и у ${chat.peer.displayName}`} danger onPress={()=>{done();lightFeedback();list.forEach(m=>store.sendAction(chat.id,{type:'delete',target:m.clientId}));}}/>:null}
+      <MenuItem icon="eye-off-outline" label="Удалить у меня" danger onPress={()=>{done();lightFeedback();list.forEach(m=>store.hideForMe(m));}}/>
+    </>;
   };
+  useEffect(()=>{if(!actions)setMenuDelete(false);},[actions]);
 
   const handlers=useRef<RowHandlers>(null as unknown as RowHandlers);
   handlers.current={actions:(row,y,x)=>{setMenuY(y);setMenuX(x);setActions(row);},jumpTo,open:openAttachment,react,retry:pending=>void store.retry(pending),cancel:pending=>store.cancelPending(pending),reply:message=>{if(editing)endEdit();setReplyTo(message);},vote:(message,options)=>store.sendAction(chat.id,{type:'vote',target:message.clientId,options},replyPreview(message)),toggleSelect,openStory:ref=>void openStory(ref)};
@@ -570,8 +575,8 @@ export function ChatScreen({api,user,chat,store,onBack,wide=false,onOpenMusic}: 
         {icon:'arrow-redo-outline',label:'Переслать',on:()=>{const list=exportable;void forwardable(list).then(ok=>{if(ok)setForwardMany(list);});},ok:canExportSelected},
         {icon:'share-outline',label:'Поделиться',on:()=>{void shareMessages(exportable);setSelection(null);},ok:canExportSelected},
         {icon:'bookmark-outline',label:'В Избранное',on:()=>{exportable.forEach(saveToFavorites);setSelection(null);},ok:canExportSelected},
-        {icon:'trash-outline',label:'Удалить',on:()=>setDeleteAsk(true),ok:selectedMessages.length>0,danger:true},
-      ] as const).map(item=><Pressable key={item.label} disabled={!item.ok} onPress={()=>{lightFeedback();item.on();}} accessibilityRole="button" style={({pressed})=>({alignItems:'center',gap:4,paddingHorizontal:8,paddingVertical:4,opacity:!item.ok?.35:pressed?.6:1})}><Icon name={item.icon} size={22} color={'danger' in item?t.danger:t.accent}/><Text style={{fontSize:10,color:'danger' in item?t.danger:t.accent,fontWeight:'600'}}>{item.label}</Text></Pressable>)}
+        {icon:'trash-outline',label:'Удалить',on:(e?:GestureResponderEvent)=>setTrashAt({x:e?.nativeEvent.pageX??0,y:(e?.nativeEvent.pageY??0)-24}),ok:selectedMessages.length>0,danger:true},
+      ] as const).map(item=><Pressable key={item.label} disabled={!item.ok} onPress={e=>{lightFeedback();item.on(e);}} accessibilityRole="button" style={({pressed})=>({alignItems:'center',gap:4,paddingHorizontal:8,paddingVertical:4,opacity:!item.ok?.35:pressed?.6:1})}><Icon name={item.icon} size={22} color={'danger' in item?t.danger:t.accent}/><Text style={{fontSize:10,color:'danger' in item?t.danger:t.accent,fontWeight:'600'}}>{item.label}</Text></Pressable>)}
     </GlassSurface>:<View style={{marginHorizontal:wide?20:8,marginTop:4,marginBottom:8,gap:6}}>
       {replyTo||editing||uploading||attachments.length||forwardDraft?<GlassSurface lens material="regular" radius={22} contentStyle={{paddingHorizontal:8,paddingTop:8,paddingBottom:2}}>
       {forwardDraft&&!editing?<View style={{flexDirection:'row',alignItems:'center',gap:8,paddingLeft:8,paddingBottom:6}}>
@@ -628,7 +633,8 @@ export function ChatScreen({api,user,chat,store,onBack,wide=false,onOpenMusic}: 
       <MenuItem icon="person-circle-outline" label="Открыть профиль" onPress={()=>{setAvatarMenu(false);setTimeout(()=>setPeerInfo(true),Platform.OS==='ios'?250:0);}}/>
       <MenuItem icon="search-outline" label="Поиск" onPress={()=>{setAvatarMenu(false);setTimeout(()=>setSearchOpen(true),250);}}/>
     </ContextMenu>
-    <ContextMenu visible={!!actions} y={menuY} x={menuX} onClose={()=>setActions(null)} peekRow peek={actions&&menuX===undefined?renderRow({item:actions,index:Math.max(0,rows.indexOf(actions))}):undefined} preview={actions?(serviceAction?.type==='call'&&serviceAction.step==='end'&&actions.message?callServiceText(serviceAction,actions.message.senderId,user.id):actions.message?.text||actions.pending?.text||(actions.message?.attachment||actions.pending?.attachment?attachmentLabel((actions.message?.attachment||actions.pending?.attachment)!):'')):''} mine={!!actions&&(!!actions.pending||actions.message?.senderId===user.id)} reactions={actions?.message&&!serviceRow&&actions.message.cryptoState==='decrypted'?REACTIONS.map(emoji=>({emoji,chosen:actions.message!.reactions.some(r=>r.mine&&r.emoji===emoji)})):undefined} onReact={emoji=>{if(actions?.message&&!serviceRow){react(actions.message,emoji as Reaction);setActions(null);}}}>
+    <ContextMenu visible={!!actions} y={menuY} x={menuX} onClose={()=>setActions(null)} reactionsHidden={menuDelete} peekRow peek={actions&&menuX===undefined?renderRow({item:actions,index:Math.max(0,rows.indexOf(actions))}):undefined} preview={actions?(serviceAction?.type==='call'&&serviceAction.step==='end'&&actions.message?callServiceText(serviceAction,actions.message.senderId,user.id):actions.message?.text||actions.pending?.text||(actions.message?.attachment||actions.pending?.attachment?attachmentLabel((actions.message?.attachment||actions.pending?.attachment)!):'')):''} mine={!!actions&&(!!actions.pending||actions.message?.senderId===user.id)} reactions={actions?.message&&!serviceRow&&actions.message.cryptoState==='decrypted'?REACTIONS.map(emoji=>({emoji,chosen:actions.message!.reactions.some(r=>r.mine&&r.emoji===emoji)})):undefined} onReact={emoji=>{if(actions?.message&&!serviceRow){react(actions.message,emoji as Reaction);setActions(null);}}}>
+      {menuDelete&&actions?.message?deleteChoice(rowMessages(actions),()=>setActions(null)):<>
       {actions?.message&&!serviceRow&&actions.message.senderId===user.id&&actions.message.id<=chat.peerLastReadMessageId&&Date.now()-Date.parse(actions.message.createdAt)<7*864e5?<ReadDateRow key={actions.message.id} load={()=>api.readDate(chat.id,actions.message!.id)}/>:null}
       {actions?.message&&!serviceRow&&actions.message.cryptoState==='decrypted'?<MenuItem icon="arrow-undo-outline" label="Ответить" onPress={()=>{if(editing)endEdit();setReplyTo(actions.message!);setActions(null);}}/>:null}
       {!locked&&!serviceRow&&(actions?.message?.text||actions?.pending?.text)?<MenuItem icon="copy-outline" label="Скопировать" onPress={()=>void copy(actions?.message?.text||actions?.pending?.text||'')}/>:null}
@@ -637,8 +643,9 @@ export function ChatScreen({api,user,chat,store,onBack,wide=false,onOpenMusic}: 
       {!locked&&actions?.message&&!serviceRow&&actions.message.cryptoState==='decrypted'?<MenuItem icon="arrow-redo-outline" label="Переслать" onPress={()=>{const item=actions.message!;setActions(null);void forwardable([item]).then(ok=>{if(ok)afterMenu(()=>setForwarding(item));});}}/>:null}
       {actions?.message&&editable(actions.message)?<MenuItem icon="create-outline" label="Изменить" onPress={()=>{startEdit(actions.message!);setActions(null);}}/>:null}
       {actions?.pending?.state==='failed'?<MenuItem icon="refresh-outline" label="Повторить отправку" onPress={()=>{if(actions.pending)void store.retry(actions.pending);setActions(null);}}/>:null}
-       {actions?.message?<MenuItem icon="trash-outline" label="Удалить" danger onPress={()=>{const list=rowMessages(actions);const mineAll=list.every(m=>m.senderId===user.id&&m.cryptoState==='decrypted');setActions(null);afterMenu(()=>setDeleteOne({list,everyone:mineAll}));}}/>:null}
+       {actions?.message?<MenuItem icon="trash-outline" label="Удалить" danger onPress={()=>{const list=rowMessages(actions);const mineAll=list.every(m=>m.senderId===user.id&&m.cryptoState==='decrypted');lightFeedback();setMenuDelete(true);}}/>:null}
       {actions?.message&&!serviceRow?<MenuItem separated icon="checkmark-circle-outline" label="Выбрать" onPress={()=>startSelect(actions)}/>:null}
+      </>}
     </ContextMenu>
     <ForwardPicker visible={!!forwarding||!!forwardMany} api={api} userId={user.id} chats={store.chats} count={forwarding?1:forwardMany?.length||0}
       onClose={()=>{setForwarding(null);setForwardMany(null);}}
@@ -661,14 +668,9 @@ export function ChatScreen({api,user,chat,store,onBack,wide=false,onOpenMusic}: 
     </Sheet>
     <SchedulePicker visible={schedulePick} onClose={()=>setSchedulePick(false)} onPick={deliverAt=>{setSchedulePick(false);lightFeedback();send({deliverAt});}}/>
     <ScheduledScreen visible={scheduledOpen} items={chatScheduled} peerName={chat.peer.displayName} busy={store.scheduledBusy} onClose={()=>setScheduledOpen(false)} onSendNow={item=>void store.sendScheduledNow(item).catch(e=>setLocalError(e instanceof Error?e.message:'Не удалось отправить.'))} onDelete={item=>void store.deleteScheduled(item).catch(e=>setLocalError(e instanceof Error?e.message:'Не удалось удалить.'))}/>
-    {/* Telegram: the menu has one «Удалить»; the choice comes after it. */}
-    <Sheet visible={!!deleteOne} title={deleteOne&&deleteOne.list.length>1?`Удалить ${deleteOne.list.length} ${deleteOne.list.length<5?'сообщения':'сообщений'}?`:'Удалить сообщение?'} onClose={()=>setDeleteOne(null)}>
-      <SheetAction icon="eye-off-outline" label="Удалить у меня" description="Исчезнет только на этом устройстве" danger onPress={()=>{const d=deleteOne;setDeleteOne(null);d?.list.forEach(m=>store.hideForMe(m));}}/>
-      {deleteOne?.everyone?<SheetAction icon="trash-outline" label="Удалить у всех" description="Собеседник тоже перестанет видеть. Зашифрованная копия на сервере остаётся нечитаемой." danger onPress={()=>{const d=deleteOne;setDeleteOne(null);d?.list.forEach(m=>store.sendAction(chat.id,{type:'delete',target:m.clientId}));}}/>:null}
-    </Sheet>
-    <Sheet visible={deleteAsk} title={`Удалить ${selectedMessages.length} ${selectedMessages.length===1?'сообщение':selectedMessages.length<5?'сообщения':'сообщений'}?`} onClose={()=>setDeleteAsk(false)}>
-      <SheetAction icon="eye-off-outline" label="Удалить у меня" description="Исчезнут только на этом устройстве" danger onPress={()=>{setDeleteAsk(false);deleteSelected(false);}}/>
-      {selectedMessages.length&&selectedMessages.every(m=>m.senderId===user.id)?<SheetAction icon="trash-outline" label="Удалить у всех" description="Собеседник тоже перестанет их видеть" danger onPress={()=>{setDeleteAsk(false);deleteSelected(true);}}/>:null}
-    </Sheet>
+    {/* Selecting: the bin opens the same two-line choice just above itself (Telegram). */}
+    <ContextMenu visible={!!trashAt} y={trashAt?.y??0} x={trashAt?.x} onClose={()=>setTrashAt(null)}>
+      {trashAt?deleteChoice(selectedMessages,()=>{setTrashAt(null);setSelection(null);}):null}
+    </ContextMenu>
   </View></KeyboardSafeView></GlassTargetScope></VoicePlaybackProvider>;
 }

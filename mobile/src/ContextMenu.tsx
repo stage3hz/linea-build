@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { Modal, Platform, StyleSheet, View, useWindowDimensions } from 'react-native';
 import Animated, { Easing, interpolate, runOnJS, useAnimatedProps, useAnimatedStyle, useSharedValue, withDelay, withSpring, withTiming, type SharedValue } from 'react-native-reanimated';
+import { motionEnabled } from './motion';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { GestureDetector, GestureHandlerRootView } from 'react-native-gesture-handler';
 import { SwipeDismissScrollView, useSwipeDismiss } from './swipeDismiss';
@@ -27,7 +28,7 @@ export const CLOSE_MS = 170;
  * out of the corner next to it and the reactions pop in one after another. Closing plays
  * the same motion back. Reduce motion / energy saving turns all of it into a cut.
  */
-export function ContextMenu({ visible, y: liveY, x: liveX, onClose, reactions, onReact, preview, peek, peekRow = false, mine: liveMine = false, children }: { visible: boolean; y: number; x?: number; onClose: () => void; reactions?: QuickReaction[]; onReact?: (emoji: string) => void; preview?: string; /** A card shown instead of the text copy (chat list: the chat itself, like Telegram). */ peek?: React.ReactNode; /** The peek is a full-width message row (the real bubble, photo included), not a centred card. */ peekRow?: boolean; mine?: boolean; children: React.ReactNode }) {
+export function ContextMenu({ visible, y: liveY, x: liveX, onClose, reactions, onReact, preview, peek, peekRow = false, mine: liveMine = false, reactionsHidden = false, children }: { visible: boolean; y: number; x?: number; onClose: () => void; reactions?: QuickReaction[]; onReact?: (emoji: string) => void; preview?: string; /** A card shown instead of the text copy (chat list: the chat itself, like Telegram). */ peek?: React.ReactNode; /** The peek is a full-width message row (the real bubble, photo included), not a centred card. */ peekRow?: boolean; mine?: boolean; /** Telegram: a second step (the delete choice) fades the reactions out but keeps their place, so the message does not move. */ reactionsHidden?: boolean; children: React.ReactNode }) {
   const t = useTheme(); const { height, width } = useWindowDimensions(); const insets = useSafeAreaInsets(); const preferences = useChatPreferences(); const metrics = textMetrics(preferences.textSize);
   const [size, setSize] = useState(0); const [all, setAll] = useState(false); const [mounted, setMounted] = useState(visible);
   const shown = useSharedValue(0);
@@ -57,7 +58,9 @@ export function ContextMenu({ visible, y: liveY, x: liveX, onClose, reactions, o
   const blur = useAnimatedProps(() => ({ intensity: interpolate(shown.value, [0, 1], [0, BLUR], 'clamp') }));
   const bubble = useAnimatedStyle(() => ({ opacity: interpolate(shown.value, [0, 0.25], [0, 1], 'clamp'), transform: [{ translateY: lift * (1 - shown.value) }, { scale: interpolate(shown.value, [0, 1], [0.96, 1]) }] }));
   const menu = useAnimatedStyle(() => ({ opacity: interpolate(shown.value, [0, 0.35], [0, 1], 'clamp'), transform: [{ scale: interpolate(shown.value, [0, 1], [0.35, 1]) }] }));
-  const pill = useAnimatedStyle(() => ({ opacity: interpolate(shown.value, [0, 0.3], [0, 1], 'clamp'), transform: [{ scale: interpolate(shown.value, [0, 1], [0.55, 1]) }] }));
+  const gone = useSharedValue(0);
+  useEffect(() => { gone.value = motionEnabled() ? withTiming(reactionsHidden ? 1 : 0, { duration: 140 }) : reactionsHidden ? 1 : 0; }, [reactionsHidden]);
+  const pill = useAnimatedStyle(() => ({ opacity: interpolate(shown.value, [0, 0.3], [0, 1], 'clamp') * (1 - gone.value), transform: [{ scale: interpolate(shown.value, [0, 1], [0.55, 1]) }] }));
   // The menu follows the chat theme (black theme → near-black, coloured themes → their own tint).
   const surface = menuSurface(t);
   // Telegram (iOS 26): the menu and the reactions bar are frosted glass — translucent, blurred, well rounded.
@@ -79,7 +82,7 @@ export function ContextMenu({ visible, y: liveY, x: liveX, onClose, reactions, o
     </Animated.View></Animated.View>
     <Animated.View pointerEvents="box-none" onLayout={event => { swipe.onLayout(event); const measured = Math.ceil(event.nativeEvent.layout.height); if (Math.abs(measured - size) > 1) setSize(measured); }}
       style={[{ position: 'absolute', top, ...side, width: column, alignItems: atCursor ? 'flex-start' : mine ? 'flex-end' : held.peek && !row ? 'center' : 'flex-start', gap: 8, paddingHorizontal: row ? 9 : 0, maxHeight: bottomLimit - topLimit, opacity: size ? 1 : 0 }, swipe.style]}>
-      {list.length ? <Animated.View style={[{ transformOrigin: `${corner} bottom` } as object, pill]}>{all ? <View style={{ width: column, borderRadius: 26, overflow: 'hidden', padding: 8, flexDirection: 'row', flexWrap: 'wrap', ...shadow }}>{glass(26)}
+      {list.length ? <Animated.View pointerEvents={reactionsHidden ? 'none' : 'auto'} style={[{ transformOrigin: `${corner} bottom` } as object, pill]}>{all ? <View style={{ width: column, borderRadius: 26, overflow: 'hidden', padding: 8, flexDirection: 'row', flexWrap: 'wrap', ...shadow }}>{glass(26)}
         {list.map((item, index) => <ReactionButton key={item.emoji} item={item} index={index % 14} shown={shown} size={(column - 16) / 7} onPress={() => onReact?.(item.emoji)} />)}
       </View> : <View style={{ flexDirection: 'row', alignItems: 'center', height: 48, borderRadius: 24, overflow: 'hidden', paddingHorizontal: 4, ...shadow }}>{glass(24)}
         {list.slice(0, QUICK).map((item, index) => <ReactionButton key={item.emoji} item={item} index={index} shown={shown} size={40} onPress={() => onReact?.(item.emoji)} />)}
