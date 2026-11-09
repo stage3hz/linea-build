@@ -48,7 +48,7 @@ on:
         default: ''
 
 permissions:
-  contents: read
+  contents: write
 
 concurrency:
   group: android-apk-${{ github.event_name }}-${{ github.ref }}-${{ inputs.app_env || 'development' }}
@@ -301,6 +301,22 @@ jobs:
             fi
             echo "| EXPO_PUBLIC_API_URL | ${EXPO_PUBLIC_API_URL:-(empty: chosen in the app)} |"
           } >> "$GITHUB_STEP_SUMMARY"
+
+      # The APK also goes to branch apk-output (one fresh commit, split into <50 MB parts so git accepts it):
+      # the session that builds the app can then fetch it with plain git, without the Actions API.
+      - name: Publish APK to branch apk-output
+        if: github.event_name == 'push'
+        run: |
+          set -e
+          rm -rf pub && mkdir pub
+          for f in out/*.apk; do split -b 45m -d "$f" "pub/$(basename "$f").part"; done
+          cp out/SHA256SUMS out/BUILD.json pub/ 2>/dev/null || true
+          echo "$GITHUB_SHA $(date -u)" > pub/STATUS.txt
+          cd pub
+          git init -q -b apk-output
+          git config user.name "linea-ci"; git config user.email "ci@localhost"
+          git add -A && git commit -qm "APK for $GITHUB_SHA"
+          git push -f "https://x-access-token:${{ github.token }}@github.com/${{ github.repository }}.git" HEAD:apk-output
 
       - uses: actions/upload-artifact@v4
         with:

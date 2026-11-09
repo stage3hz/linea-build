@@ -17,7 +17,7 @@ on:
         required: false
         default: macos-15
 permissions:
-  contents: read
+  contents: write
 concurrency:
   group: ios-simulator-ui
   cancel-in-progress: false  # a walk takes ~1 h; a new push waits instead of killing it before the screenshots upload
@@ -162,6 +162,19 @@ jobs:
           name: ios-simulator-ui
           path: shots
           if-no-files-found: ignore
+      # Screenshots also go to branch sim-output (one fresh commit), readable with plain git.
+      - name: Publish screenshots to branch sim-output
+        if: always() && github.event_name != 'pull_request'
+        run: |
+          set -e
+          [ -d shots ] || exit 0
+          rm -rf pub && cp -R shots pub
+          echo "${{ job.status }} $GITHUB_SHA $(date -u)" > pub/STATUS.txt
+          cd pub
+          git init -q -b sim-output
+          git config user.name "linea-ci"; git config user.email "ci@localhost"
+          git add -A && git commit -qm "Simulator shots for $GITHUB_SHA"
+          git push -f "https://x-access-token:${{ github.token }}@github.com/${{ github.repository }}.git" HEAD:sim-output
       - name: Fail if a walk failed
         if: env.DARK_FAILED == '1' || env.LIGHT_FAILED == '1'
         run: exit 1
