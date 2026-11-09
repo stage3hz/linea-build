@@ -23,7 +23,7 @@ import { InviteCard } from './communities/InviteCard';
 import { inviteCodeFrom, withoutInviteLink } from './communities/types';
 import { navigate } from './navigation';
 import { useCalls } from './calls/CallProvider';
-import { callServiceText, classifyCall, isCallEnd, type CallEndAction } from './calls/callHistory';
+import { callServiceText, classifyCall, isCallEnd, type CallEndAction } from './calls/callLog';
 
 export type AlbumPart = { attachment: Attachment; message?: ViewMessage; pending?: PendingMessage };
 export type Row = { key: string; message?: ViewMessage; pending?: PendingMessage; createdAt: string; album?: AlbumPart[]; missing?: number };

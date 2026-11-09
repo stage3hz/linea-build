@@ -8,7 +8,7 @@ import { formatTime, useTheme } from '../theme';
 import type { Api } from '../api';
 import type { Chat } from '../types';
 import { useCallHistory, useCalls } from './CallProvider';
-import { callAnswered, callLabel, groupCallsByDay, type CallHistoryRow, type CallKind } from './callHistory';
+import { callAnswered, callLabel, groupCallsByDay, type CallHistoryRow, type CallKind } from './callLog';
 import { formatCallDuration } from './callModel';
 
 const kindIcon = (kind: CallKind): IconName => kind === 'outgoing' || kind === 'cancelled' || kind === 'busy' ? 'arrow-up-outline' : kind === 'incoming' || kind === 'missed' ? 'arrow-down-outline' : kind === 'declined' ? 'ban-outline' : 'alert-circle-outline';

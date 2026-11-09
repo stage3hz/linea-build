@@ -26,7 +26,7 @@ import { formatListTime, useTheme } from './theme';
 import type { Api } from './api';
 import type { Chat, Message, User } from './types';
 import { chatListText, isQuietAction, pinPreview } from './messageMeta';
-import { callListText } from './calls/callHistory';
+import { callListText } from './calls/callLog';
 import { countChats } from './plural';
 import type { MessengerStore } from './useMessenger';
 import type { SavedItem } from './saved/saved.ts';

@@ -14,7 +14,7 @@ import type { FriendRequest } from './types';
 import { useTabInset } from './tabInset';
 import { CallHistory } from './calls/CallHistory';
 import { useCallHistory } from './calls/CallProvider';
-import { unseenMissedCount } from './calls/callHistory';
+import { unseenMissedCount } from './calls/callLog';
 
 export function PeopleScreen({api,onBack,onOpen}: {api:Api;onBack:()=>void;onOpen:(chat:Chat)=>void}) {
   const tabInset = useTabInset();

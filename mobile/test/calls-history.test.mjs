@@ -4,7 +4,7 @@ import test from 'node:test';
 import { loadTs } from './support/load-ts.mjs';
 
 const model = loadTs(new URL('../src/calls/callModel.ts', import.meta.url), {});
-const history = loadTs(new URL('../src/calls/callHistory.ts', import.meta.url), {});
+const history = loadTs(new URL('../src/calls/callLog.ts', import.meta.url), {});
 const meta = loadTs(new URL('../src/messageMeta.ts', import.meta.url), {});
 
 const me = '11111111-1111-4111-8111-111111111111', peer = '22222222-2222-4222-8222-222222222222';

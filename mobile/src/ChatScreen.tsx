@@ -65,7 +65,7 @@ import { inviteCodeFrom } from './communities/types';
 import { inviteForwardable } from './communities/InviteCard';
 import { TopPlayerBar } from './music/PlayerControls';
 import { useCalls } from './calls/CallProvider';
-import { callServiceText } from './calls/callHistory';
+import { callServiceText } from './calls/callLog';
 import { isMuted } from './notifications/model';
 import { UserProfile } from './UserProfile';
 import { MiniProfile } from './MiniProfile';

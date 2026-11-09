@@ -22,7 +22,7 @@ import { setCenterStage } from '../media/centerStage';
 import { holdConnection } from '../connectionHold';
 import { impactFeedback, lightFeedback } from '../haptics';
 import { GATHER_TIMEOUT_MS, RING_TIMEOUT_MS, SEND_BITRATE, callClock, callEndMeta, economySdp, hangupOutcome, incomingAlert, keyEmoji, keyMaterial, offerIsFresh, type CallEndReason, type CallStatus } from './callModel';
-import { buildCallHistory, type CallRecord } from './callHistory';
+import { buildCallHistory, type CallRecord } from './callLog';
 import { onAnswerFromNotification } from '../notifications/desktopNotify';
 import { getNotificationPrefs } from '../notifications/prefs';
 
