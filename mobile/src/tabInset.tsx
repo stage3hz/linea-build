@@ -78,6 +78,9 @@ export function FloatingHeader({ children, onHeight }: { children: React.ReactNo
  * Android has no live blur here (a progressive blur re-captures the screen every frame and stuttered),
  * so the colour carries it; Reduce Transparency gets a solid band.
  */
+/** How strong the edge effect is: 1 was the first cut, which read too dense under the bars on device. */
+export const EDGE_STRENGTH = .5;
+
 export function ScrollEdgeEffect({ edge, size, color, alpha, fade = 8, zIndex }: { edge: 'top' | 'bottom'; size: number; color: string; alpha: number; fade?: number; zIndex?: number }) {
   const t = useTheme(); const reduced = useReducedTransparency();
   if (size <= 0) return null;
@@ -85,7 +88,7 @@ export function ScrollEdgeEffect({ edge, size, color, alpha, fade = 8, zIndex }:
   // Fully covered up to 14 pt short of the bar's inner edge, then a soft ramp that ends `fade` pt past
   // it — inside the space the lists keep there, so at rest the first row / message is never covered.
   const solid = Math.max(0, Math.min(1, (size - 14) / total));
-  const peak = reduced ? 1 : alpha;
+  const peak = reduced ? 1 : alpha * EDGE_STRENGTH;
   const colors = [tint(color, peak, t.dark), tint(color, peak * .9, t.dark), tint(color, peak * .45, t.dark), tint(color, 0, t.dark)] as const;
   const locations = [0, solid, solid + (1 - solid) * .45, 1] as const;
   const vertical = edge === 'top' ? { start: { x: 0, y: 0 }, end: { x: 0, y: 1 } } : { start: { x: 0, y: 1 }, end: { x: 0, y: 0 } };
@@ -95,7 +98,7 @@ export function ScrollEdgeEffect({ edge, size, color, alpha, fade = 8, zIndex }:
   const darkEdge = isDarkColor(color) ?? t.dark;
   return <View pointerEvents="none" style={box}>
     {blur ? <MaskedView pointerEvents="none" style={{ position: 'absolute', top: 0, left: 0, right: 0, bottom: 0 }} maskElement={<LinearGradient colors={['#000', '#000', 'transparent']} locations={[0, solid, Math.min(1, solid + (1 - solid) * .8)]} {...vertical} style={{ flex: 1 }} />}>
-      <BlurView intensity={darkEdge ? 70 : 80} tint={darkEdge ? 'systemUltraThinMaterialDark' : 'systemUltraThinMaterialLight'} style={{ flex: 1 }} />
+      <BlurView intensity={Math.round((darkEdge ? 70 : 80) * EDGE_STRENGTH)} tint={darkEdge ? 'systemUltraThinMaterialDark' : 'systemUltraThinMaterialLight'} style={{ flex: 1 }} />
     </MaskedView> : null}
     <LinearGradient pointerEvents="none" colors={colors} locations={locations} {...vertical} style={{ position: 'absolute', top: 0, left: 0, right: 0, bottom: 0 }} />
   </View>;
