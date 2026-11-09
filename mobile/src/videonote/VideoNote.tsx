@@ -304,6 +304,9 @@ const posters = new Map<string, string>();
 let instances = 0;
 
 /** The decoded video. It fills the large circle, which is only ever scaled (a transform), so the surface is never re-laid-out or recreated. */
+/** How long a circle takes to grow or shrink (Telegram-like); a listen starts its sound when it has grown. */
+const NOTE_GROW_MS = 240;
+
 function NoteVideo({ uri, state, progress, onFirstFrame, onEnd }: { uri: string; state: NoteState; progress: SharedValue<number>; onFirstFrame: () => void; onEnd: () => void }) {
   // No progress events while it loops silently: they are switched on only for a listen (applyState).
   const player = useVideoPlayer(uri, value => { value.loop = true; value.muted = true; value.audioMixingMode = 'mixWithOthers'; value.timeUpdateEventInterval = 0; });
@@ -315,6 +318,14 @@ function NoteVideo({ uri, state, progress, onFirstFrame, onEnd }: { uri: string;
   useEffect(() => {
     const before = previous.current; previous.current = state;
     if (state === 'sound' && before !== 'paused') { progress.value = 0; last.current = { value: 0, at: 0 }; restartAt.current = Date.now(); }
+    // Switching the audio session to playback (doNotMix) blocks the main thread on iOS, which is also where
+    // the grow animation runs: done together, the circle stalled small and then jumped. So a listen first
+    // holds the first frame while the circle grows, and turns the sound on once it has grown.
+    if (state === 'sound' && before !== 'paused' && motionEnabled()) {
+      try { player.pause(); player.currentTime = 0; } catch { /* released */ }
+      const timer = setTimeout(() => { if (stateRef.current === 'sound') { try { applyState(player, 'sound', before); } catch { /* released */ } } }, NOTE_GROW_MS);
+      return () => clearTimeout(timer);
+    }
     try { applyState(player, state, before); } catch { /* released */ }
   }, [player, state]);
   useEffect(() => () => { try { player.pause(); } catch { /* released */ } }, [player]);
@@ -441,7 +452,7 @@ export function VideoNoteBubble({ api, attachment, onLongPress, scope = null, si
   useEffect(() => {
     const target = expanded ? 1 : 0;
     if (!motionEnabled() || grow.value === target) { cancelAnimation(grow); grow.value = target; if (!expanded) setOpen(false); return; }
-    grow.value = withTiming(target, { duration: 260, easing: Easing.out(Easing.cubic) }, finished => { if (finished && target === 0) runOnJS(closed)(); });
+    grow.value = withTiming(target, { duration: NOTE_GROW_MS, easing: Easing.out(Easing.cubic) }, finished => { if (finished && target === 0) runOnJS(closed)(); });
   }, [expanded]);
   const visualStyle = useAnimatedStyle(() => ({ transform: [{ scale: interpolate(grow.value, [0, 1], [small, 1]) }] }));
   const ringStyle = useAnimatedStyle(() => ({ opacity: grow.value }));
