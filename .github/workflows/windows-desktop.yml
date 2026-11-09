@@ -5,7 +5,7 @@ on:
     paths: ['desktop/**', 'mobile/**', '.github/workflows/windows-desktop.yml']
   workflow_dispatch:
 permissions:
-  contents: read
+  contents: write  # publishes the EXE to the exe-output branch (as android-apk.yml does for the APK)
 concurrency:
   group: windows-desktop
   cancel-in-progress: true
@@ -56,3 +56,19 @@ jobs:
           name: invizent-windows
           path: desktop/release/*.exe
           if-no-files-found: error
+      # The EXE also goes to the exe-output branch (split into 45 MB parts: cat *.part* > file.exe), so it
+      # can be fetched with plain git, without the artifacts API.
+      - name: Publish EXE to branch exe-output
+        if: github.event_name == 'push'
+        shell: bash
+        run: |
+          set -e
+          rm -rf pub && mkdir pub
+          for f in desktop/release/*.exe; do split -b 45m -d "$f" "pub/$(basename "$f").part"; done
+          (cd desktop/release && sha256sum *.exe) > pub/SHA256SUMS
+          echo "$GITHUB_SHA $(date -u)" > pub/STATUS.txt
+          cd pub
+          git init -q -b exe-output
+          git config user.name "linea-ci"; git config user.email "ci@localhost"
+          git add -A && git commit -qm "EXE for $GITHUB_SHA"
+          git push -f "https://x-access-token:${{ github.token }}@github.com/${{ github.repository }}.git" HEAD:exe-output
