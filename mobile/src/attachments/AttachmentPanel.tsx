@@ -20,11 +20,12 @@ import { resolveSelection } from './gallery';
 import { addSelections, toggleSelection, type AttachmentSelection } from './selection';
 import { addSelectionQueue } from './uploadQueue';
 import { allowSdr, isHdrConsentError, pendingHdrConsent, type HdrConsentError } from '../photo/hdrConsent';
+import { nativeErrorMessage } from '../media/nativeError';
 
 type Tab = 'gallery' | 'audio' | 'files';
 type Phase = 'picking' | 'opening' | 'adding' | null;
 const kindIcon = (kind: AttachmentSelection['kind']): IconName => ({ photo: 'image-outline', video: 'videocam-outline', audio: 'musical-note-outline', file: 'document-outline' } as const)[kind];
-const errorText = (error: unknown) => error instanceof Error ? error.message : 'Не удалось добавить вложение.';
+const errorText = (error: unknown) => nativeErrorMessage(error, 'Не удалось добавить вложение.');
 const fromFile = (file: LocalFile): AttachmentSelection => ({ id: `file:${file.uri}`, file, kind: mediaPreviewKind(file) });
 
 /** Editor output is uploaded while its lease is alive; only unprocessed originals

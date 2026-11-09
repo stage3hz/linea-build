@@ -27,6 +27,9 @@ public final class LineVideoModule:Module {
       case "OUTPUT_TOO_LARGE":message="Очищенное видео превышает 20 МиБ. Сократите видео перед отправкой."
       case "UNKNOWN_HDR","DYNAMIC_HDR_UNSUPPORTED","DYNAMIC_HDR_OR_REGISTERED_DATA_UNSUPPORTED","HDR_CONTAINER_UNSUPPORTED":message="Этот вариант HDR или дополнительных видеоданных пока нельзя сохранить безопасно. Видео не преобразовано в SDR и не отправлено."
       case "DRM_UNSUPPORTED":message="Защищённое видео не поддерживается."
+      case "LIBRARY_ASSET_UNAVAILABLE","INVALID_LIBRARY_ASSET":message="Видео не найдено в медиатеке. Возможно, оно удалено или у приложения нет доступа к нему."
+      case "LIBRARY_TIMEOUT":message="Видео из iCloud не загрузилось за 10 минут. Проверьте интернет и попробуйте снова."
+      case "UNSUPPORTED_LIBRARY_RESOURCE":message="У этого видео в медиатеке нет единого исходного файла. Выберите его через «Файл»."
       case "CODEC_TIMEOUT":message="Обработка видео не завершилась вовремя. Исходник не отправлен."
       default:message="Этот файл или его кодек не удалось безопасно обработать. Исходное видео не отправлено."
       }

@@ -19,8 +19,9 @@ import {
 import { EditorCanvas, type CanvasTool } from './EditorCanvas';
 import { TabBar, ToolPanel, type EditorTab } from './EditorPanels';
 import { useEffectPreview } from './useEffectPreview';
+import { nativeErrorMessage } from '../../media/nativeError';
 
-const errorText = (error: unknown) => error instanceof Error ? error.message : 'Не удалось обработать фото. Попробуй ещё раз.';
+const errorText = (error: unknown) => nativeErrorMessage(error, 'Не удалось обработать фото. Попробуй ещё раз.');
 const ask = (title: string, message: string, confirm: string) => new Promise<boolean>(resolve =>
   Alert.alert(title, message, [{ text: 'Отмена', style: 'cancel', onPress: () => resolve(false) }, { text: confirm, onPress: () => resolve(true) }], { cancelable: true, onDismiss: () => resolve(false) }));
 const TOOL: Record<EditorTab, CanvasTool> = { crop: 'crop', draw: 'draw', remove: 'remove', background: 'view', enhance: 'view', size: 'view' };

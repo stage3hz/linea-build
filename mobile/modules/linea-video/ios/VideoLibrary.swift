@@ -4,7 +4,9 @@ import Photos
 /// Copies the original resource, never AVAssetExportSession's rendered edit.
 /// The UI must call this only after Add: network access may download from iCloud.
 enum VideoLibrary {
-  static func resolve(_ assetId:String) throws -> [String:Any] {
+  static func resolve(_ id:String) throws -> [String:Any] {
+    // expo-media-library's Query API returns ids as «ph://<localIdentifier>»; PhotoKit wants the bare identifier.
+    let assetId=id.hasPrefix("ph://") ? String(id.dropFirst(5)):id
     guard !assetId.isEmpty,assetId.count<=1024 else {throw VideoFailure("INVALID_LIBRARY_ASSET")}
     let assets=PHAsset.fetchAssets(withLocalIdentifiers:[assetId],options:nil)
     guard let asset=assets.firstObject,asset.mediaType == .video else {throw VideoFailure("LIBRARY_ASSET_UNAVAILABLE")}
