@@ -2755,5 +2755,7 @@
 "Здесь появятся чаты с новыми сообщениями и отмеченные как непрочитанные.": "Chats with new messages and chats marked as unread will appear here.",
 "В архиве нет чатов.": "There are no chats in the archive.",
 "В этой папке нет чатов. Добавь их в настройках папки.": "There are no chats in this folder. Add them in the folder settings.",
-"Фотография": "Photo"
+"Фотография": "Photo",
+"Микрофон записал тишину — голосовое не отправлено. Запиши ещё раз.": "The microphone recorded silence — the voice message was not sent. Record it again.",
+"Микрофон записал тишину. Если в голосовом нет звука — запиши ещё раз.": "The microphone recorded silence. If the voice message has no sound, record it again."
 }

@@ -28,6 +28,8 @@ module.exports = {
     name: 'INVIZENT',
     slug: 'linea-messenger',
     version: "0.14.13",
+    // The commit this build was made from (CI sets GITHUB_SHA): shown in Settings next to the version.
+    extra: { commit: (process.env.GITHUB_SHA || "").slice(0, 7) },
     orientation: 'portrait',
     // Default icon: white outline N on black («Контур»). The blue one is an alternate.
     icon: './assets/icons/outline.png',

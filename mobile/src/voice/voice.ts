@@ -109,3 +109,46 @@ export const videoNoteFileName = (now = Date.now()) => `circle-${Math.max(0, Mat
 export function isVideoNote(attachment: Pick<Attachment, 'name' | 'mimeType'> | null | undefined): boolean {
   return !!attachment && attachment.mimeType === 'video/mp4' && VIDEO_NOTE_NAME.test(attachment.name);
 }
+
+// Is the microphone really recording? expo-audio's status (isRecording, durationMillis) comes from its own clock and
+// keeps running after the audio session under it was switched off; on iOS `recorder.isRecording` and
+// `recorder.currentTime` read AVAudioRecorder itself, and its meter reads −160 dB (digital zero) once it went deaf.
+export const VOICE_PROBE_MS = 450;
+export type VoiceProbe = { nativeRecording: boolean; nativeMs: number; statusMs: number; metering?: number };
+/** True when the take's timer runs but the microphone is not capturing (the take should be restarted). */
+export function voiceRecorderStalled(probe: VoiceProbe): boolean {
+  if (!probe.nativeRecording) return true;
+  if (probe.statusMs >= 300 && probe.nativeMs < probe.statusMs * 0.4) return true;
+  return typeof probe.metering === 'number' && probe.metering <= -159;
+}
+
+/** What is known about a finished take; native fields are null where the platform can't tell (or after a pause). */
+export type VoiceTakeFacts = {
+  durationMs: number; bytes: number | null; nativeMs: number | null; nativeRecording: boolean | null;
+  metering?: number; meteringSeen: boolean; maxLevel: number; restarts: number; mediaReset?: boolean; platform: string;
+};
+export type VoiceTakeDiagnosis = {
+  /** The file is not the take (the microphone stopped): don't send it. */
+  broken: boolean;
+  /** The take has no sound above the waveform threshold (sent, but the user is told). */
+  silent: boolean;
+  /** Compact numbers for a screenshot: no content, no names. */
+  code: string;
+};
+const VOICE_BYTES_PER_MS = 128000 / 8 / 1000; // the recording bit rate
+/** Checks a finished take (≥ 1 s); null when it looks fine. */
+export function diagnoseVoiceTake(facts: VoiceTakeFacts): VoiceTakeDiagnosis | null {
+  const { durationMs, bytes, nativeMs, nativeRecording } = facts;
+  if (!(durationMs >= 1000)) return null;
+  const stopped = nativeRecording === false || (nativeMs !== null && nativeMs < durationMs * 0.5);
+  const tiny = bytes !== null && bytes < durationMs * VOICE_BYTES_PER_MS / 8;
+  const silent = !(facts.maxLevel > 0.02);
+  if (!stopped && !tiny && !silent) return null;
+  const num = (value: number | null | undefined, digits = 0) => typeof value === 'number' && Number.isFinite(value) ? value.toFixed(digits) : '-';
+  const flag = (value: boolean | null | undefined) => value === null || value === undefined ? '-' : value ? '1' : '0';
+  const code = [
+    'VR1', facts.platform, `dur=${num(durationMs)}`, `nat=${num(nativeMs)}`, `rec=${flag(nativeRecording)}`, `size=${num(bytes)}`,
+    `met=${facts.meteringSeen ? num(facts.metering) : 'none'}`, `max=${num(facts.maxLevel, 2)}`, `rst=${facts.restarts}`, `msr=${flag(facts.mediaReset)}`,
+  ].join(' ');
+  return { broken: stopped || tiny, silent, code };
+}

@@ -3,8 +3,8 @@ import { ActivityIndicator, Platform, Pressable, StyleSheet, View, type LayoutCh
 import { GlassSurface } from '../glass';
 import * as FileSystem from 'expo-file-system/legacy';
 import {
-  AudioQuality, IOSOutputFormat, requestRecordingPermissionsAsync, setAudioModeAsync,
-  useAudioPlayer, useAudioPlayerStatus, useAudioRecorder, useAudioRecorderState, type RecordingOptions,
+  AudioQuality, IOSOutputFormat, requestRecordingPermissionsAsync, setAudioModeAsync, setIsAudioActiveAsync,
+  useAudioPlayer, useAudioPlayerStatus, useAudioRecorder, useAudioRecorderState, type AudioRecorder, type RecordingOptions,
 } from 'expo-audio';
 import { Text } from '../typography';
 import { Icon } from '../components';
@@ -15,7 +15,7 @@ import { decryptAttachment } from '../e2ee/attachments';
 import { useMusic } from '../music/MusicProvider';
 import { getNoteBar, interruptNoteAudio, onNoteSound, subscribeNoteBar } from '../videonote/playback';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { VOICE_MAX_MS, pushVoiceSample, voiceSamples, decodeWaveform, encodeWaveform, fitWaveform, formatVoiceTime, formatVoiceTimeFine, levelFromMetering } from './voice';
+import { VOICE_MAX_MS, pushVoiceSample, voiceSamples, decodeWaveform, encodeWaveform, fitWaveform, formatVoiceTime, formatVoiceTimeFine, levelFromMetering, diagnoseVoiceTake, voiceRecorderStalled, VOICE_PROBE_MS, type VoiceTakeDiagnosis } from './voice';
 
 // Mono AAC at 48 kHz / 128 kbit/s: full-band, very clear voice (about 0.95 MB per minute;
 // was 32 kHz / 48 kbit/s). Still encrypted before sending like any other attachment.
@@ -33,47 +33,78 @@ function webVoiceMime(): string {
   return 'audio/webm';
 }
 const PLAYBACK_MODE = { playsInSilentMode: true, shouldPlayInBackground: true, interruptionMode: 'doNotMix', allowsRecording: false } as const;
+const RECORDING_MODE = { ...PLAYBACK_MODE, allowsRecording: true, shouldPlayInBackground: false } as const;
 
+// While a take records, nothing may switch the session back to playback: setAudioModeAsync with
+// allowsRecording: false stops every recorder natively (expo-audio AudioModule.setAudioMode).
+let recordingLive = false;
 let playbackReset: ReturnType<typeof setTimeout> | undefined;
 function cancelPlaybackReset() { if (playbackReset) { clearTimeout(playbackReset); playbackReset = undefined; } }
 function schedulePlaybackReset(delay: number) {
   cancelPlaybackReset();
-  const reset = () => { playbackReset = undefined; void setAudioModeAsync(PLAYBACK_MODE).catch(() => {}); };
+  if (recordingLive) return;
+  const reset = () => { playbackReset = undefined; if (!recordingLive) void setAudioModeAsync(PLAYBACK_MODE).catch(() => {}); };
   if (delay <= 0) reset(); else playbackReset = setTimeout(reset, delay);
 }
 
 /**
  * A round video about to play with sound: the session goes back to playback now, not 4 s after the last
  * voice take (expo-video leaves a recording session alone, and in it the sound would go to the earpiece).
+ * Never while a voice take records.
  */
 export function restorePlaybackSession() { schedulePlaybackReset(0); }
 
-export type VoiceTake = { uri: string; durationMs: number; waveform?: string };
+export type VoiceTake = { uri: string; durationMs: number; waveform?: string; diagnosis?: VoiceTakeDiagnosis };
+
+const sleep = (ms: number) => new Promise<void>(resolve => setTimeout(resolve, ms));
+/** iOS: AVAudioRecorder's own state (the status's isRecording/durationMillis are expo-audio's clock). */
+function nativeProbe(recorder: AudioRecorder): { nativeRecording: boolean; nativeMs: number } | null {
+  if (Platform.OS !== 'ios') return null;
+  try { const seconds = Number(recorder.currentTime); return { nativeRecording: recorder.isRecording === true, nativeMs: Number.isFinite(seconds) ? seconds * 1000 : 0 }; }
+  catch { return null; }
+}
+function safeStatus(recorder: AudioRecorder): ReturnType<AudioRecorder['getStatus']> | null {
+  try { return recorder.getStatus(); } catch { return null; }
+}
+const freshSamples = () => ({ samples: [] as number[], stride: 1, pending: 0, count: 0 });
 
 /** Microphone recorder for one chat composer. Nothing is recorded until start() and permission. */
 export function useVoiceRecorder(onLimit: () => void) {
   const recorder = useAudioRecorder(VOICE_RECORDING);
   const state = useAudioRecorderState(recorder, 100);
-  const music = useMusic();
+  const music = useMusic(); const musicRef = useRef(music); musicRef.current = music;
   const [active, setActive] = useState(false); const [paused, setPaused] = useState(false);
   const [levels, setLevels] = useState<number[]>([]);
-  const samples = useRef({ samples: [] as number[], stride: 1, pending: 0, count: 0 }); // the whole take, for the bubble's waveform
+  const samples = useRef(freshSamples()); // the whole take, for the bubble's waveform
+  const meter = useRef<{ seen: boolean; last?: number }>({ seen: false });
+  // Restarts of this take after the microphone was found deaf, and whether it was ever paused (then the
+  // native clock is not comparable with the status's).
+  const take = useRef({ restarts: 0, everPaused: false });
   const limitRef = useRef(onLimit); limitRef.current = onLimit;
   const busy = useRef(false);
+  const pausedRef = useRef(false); pausedRef.current = paused;
 
-  useEffect(() => { if (!active || !state.isRecording) return; const level = levelFromMetering(state.metering); pushVoiceSample(samples.current, level); setLevels(previous => [...previous.slice(-39), level]); }, [active, state.isRecording, state.durationMillis, state.metering]);
+  useEffect(() => {
+    if (!active || !state.isRecording) return;
+    if (typeof state.metering === 'number' && Number.isFinite(state.metering)) meter.current = { seen: true, last: state.metering };
+    const level = levelFromMetering(state.metering); pushVoiceSample(samples.current, level); setLevels(previous => [...previous.slice(-39), level]);
+  }, [active, state.isRecording, state.durationMillis, state.metering]);
   useEffect(() => { if (active && state.durationMillis >= VOICE_MAX_MS) limitRef.current(); }, [active, state.durationMillis]);
   // By the time this cleanup runs, useAudioRecorder may already have released the native
   // recorder; touching a released shared object throws and would crash the app on «Назад».
   const recordingRef = useRef(false); recordingRef.current = active;
+  const probeTimer = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
   useEffect(() => () => {
+    if (probeTimer.current) clearTimeout(probeTimer.current);
     if (recordingRef.current) { try { void recorder.stop().catch(() => {}); } catch { /* already released */ } }
+    recordingLive = false;
     schedulePlaybackReset(0);
   }, [recorder]);
 
   // iOS: switching the audio session between playback and recording sometimes takes ~3 s
   // (expo/expo#40531). The switch back to playback waits a little, so takes in a row skip it.
   const starting = useRef<Promise<void> | null>(null);
+  const restarting = useRef<Promise<void> | null>(null);
   const activeRef = useRef(false);
   // Telegram starts the 0.19 s hold timer on touch-down; we use that time to switch the audio session
   // and prepare the recorder, so record() is instant when the hold fires.
@@ -82,7 +113,7 @@ export function useVoiceRecorder(onLimit: () => void) {
     cancelPlaybackReset();
     const permission = await requestRecordingPermissionsAsync();
     if (!permission.granted) throw new Error(Platform.OS === 'web' ? 'Нет доступа к микрофону. Подключи микрофон и разреши его Инвизу в «Параметры Windows → Конфиденциальность → Микрофон».' : 'Нет доступа к микрофону. Разреши его для Инвиза в настройках телефона, чтобы записывать голосовые.');
-    await setAudioModeAsync({ ...PLAYBACK_MODE, allowsRecording: true, shouldPlayInBackground: false });
+    await setAudioModeAsync(RECORDING_MODE);
     await recorder.prepareToRecordAsync();
   }, [recorder]);
   /** Touch-down on the record button: get the microphone ready (nothing is recorded yet). */
@@ -93,50 +124,108 @@ export function useVoiceRecorder(onLimit: () => void) {
   }, [warm]);
   /** A tap, not a hold: the warmed-up microphone is not needed. */
   const unprepare = useCallback(() => { if (!prepared.current || starting.current || activeRef.current) return; prepared.current = null; schedulePlaybackReset(4000); }, []);
+
+  /** Arms the session for recording and starts the recorder (also used to restart a deaf take). */
+  const arm = useCallback(async () => {
+    // Stopping the music pauses an expo-audio player, and expo-audio switches the whole audio session off
+    // 100 ms after any pause (AudioModule.deactivateSession; recorders don't count). Called right before
+    // record() it made every take deaf. So: stop it first, let that pass, then prepare the microphone again.
+    if (musicRef.current.current) { musicRef.current.stop(); await sleep(250); await recorder.prepareToRecordAsync(); }
+    if (Platform.OS === 'ios') { await setAudioModeAsync(RECORDING_MODE); await setIsAudioActiveAsync(true); }
+    recorder.record();
+  }, [recorder]);
+
+  /** ~0.45 s into a take (iOS): is AVAudioRecorder really capturing? If not, the take restarts once. */
+  const verify = useCallback(() => {
+    if (!activeRef.current || busy.current || restarting.current || pausedRef.current || take.current.restarts >= 1) return;
+    const status = safeStatus(recorder), native = nativeProbe(recorder);
+    if (!status || !native) return;
+    if (!voiceRecorderStalled({ ...native, statusMs: status.durationMillis, metering: status.metering })) return;
+    take.current.restarts += 1;
+    const run = (async () => {
+      try { await recorder.stop(); } catch { /* not running */ }
+      await setAudioModeAsync(RECORDING_MODE);
+      await recorder.prepareToRecordAsync();
+      await arm();
+      samples.current = freshSamples(); meter.current = { seen: false }; setLevels([]);
+    })();
+    restarting.current = run;
+    run.catch(() => { /* the take ends with a diagnosis */ }).finally(() => { if (restarting.current === run) restarting.current = null; });
+  }, [arm, recorder]);
+  const scheduleVerify = useCallback(() => {
+    if (probeTimer.current) clearTimeout(probeTimer.current);
+    if (Platform.OS !== 'ios') return;
+    probeTimer.current = setTimeout(() => { probeTimer.current = undefined; verify(); }, VOICE_PROBE_MS);
+  }, [verify]);
+
   const start = useCallback(async () => {
     if (starting.current || activeRef.current) return starting.current ?? undefined;
     const run = (async () => {
       cancelPlaybackReset();
+      recordingLive = true;
       try {
         const ready = prepared.current; prepared.current = null;
         let warmed = false;
         if (ready) { try { await ready; warmed = true; } catch { /* warm up again below */ } }
         if (!warmed) await warm();
-        music.stop();
-        recorder.record();
-        samples.current = { samples: [], stride: 1, pending: 0, count: 0 }; setLevels([]); setPaused(false); activeRef.current = true; setActive(true);
+        await arm();
+        samples.current = freshSamples(); meter.current = { seen: false }; take.current = { restarts: 0, everPaused: false };
+        setLevels([]); setPaused(false); activeRef.current = true; setActive(true);
+        scheduleVerify();
       } catch (error) {
+        recordingLive = false;
         schedulePlaybackReset(0);
         throw error;
       }
     })();
     starting.current = run;
     try { await run; } finally { starting.current = null; }
-  }, [music, recorder, warm]);
+  }, [arm, scheduleVerify, warm]);
 
   /** Stops the recording. Returns the file, or null when cancelled. Released while the microphone was
    *  still starting: waits for the start, then stops — the take is never left running on its own. */
   const finish = useCallback(async (keep: boolean): Promise<VoiceTake | null> => {
     if (starting.current) { try { await starting.current; } catch { return null; } }
+    if (restarting.current) await restarting.current.catch(() => {});
     if (!activeRef.current || busy.current) return null;
     busy.current = true;
-    const durationMs = Math.min(VOICE_MAX_MS, recorder.getStatus().durationMillis || state.durationMillis);
+    if (probeTimer.current) { clearTimeout(probeTimer.current); probeTimer.current = undefined; }
+    const status = safeStatus(recorder);
+    // Read before stop(): afterwards AVAudioRecorder reports 0. Not comparable after a pause.
+    const native = take.current.everPaused || pausedRef.current ? null : nativeProbe(recorder);
+    const durationMs = Math.min(VOICE_MAX_MS, status?.durationMillis || state.durationMillis);
     try {
       await recorder.stop();
       const uri = recorder.uri;
       if (!uri) return null;
       if (!keep) { await FileSystem.deleteAsync(uri, { idempotent: true }).catch(() => {}); return null; }
-      return { uri, durationMs, waveform: encodeWaveform(voiceSamples(samples.current)) };
+      const levels = voiceSamples(samples.current);
+      let diagnosis: VoiceTakeDiagnosis | null = null;
+      if (Platform.OS === 'ios' || Platform.OS === 'android') {
+        let bytes: number | null = null;
+        try { const info = await FileSystem.getInfoAsync(uri); bytes = info.exists && !info.isDirectory ? info.size : null; } catch { /* unknown */ }
+        diagnosis = diagnoseVoiceTake({
+          durationMs, bytes, nativeMs: native?.nativeMs ?? null, nativeRecording: native?.nativeRecording ?? null,
+          metering: meter.current.last, meteringSeen: meter.current.seen, maxLevel: levels.reduce((max, level) => Math.max(max, level), 0),
+          restarts: take.current.restarts, mediaReset: status?.mediaServicesDidReset, platform: Platform.OS,
+        });
+        if (diagnosis) console.warn(`[voice] ${diagnosis.code}`);
+      }
+      return { uri, durationMs, waveform: encodeWaveform(levels), ...(diagnosis ? { diagnosis } : {}) };
     } finally {
       activeRef.current = false; setActive(false); setPaused(false); setLevels([]); busy.current = false;
+      recordingLive = false;
       schedulePlaybackReset(4000);
     }
   }, [recorder, state.durationMillis]);
 
   /** Pause / continue the same file (Telegram's pause while recording hands-free). */
   const togglePause = useCallback(() => {
-    if (!active || busy.current) return;
-    try { if (paused) { recorder.record(); setPaused(false); } else { recorder.pause(); setPaused(true); } } catch { /* recorder released */ }
+    if (!active || busy.current || restarting.current) return;
+    try {
+      if (paused) { recorder.record(); setPaused(false); }
+      else { recorder.pause(); take.current.everPaused = true; setPaused(true); }
+    } catch { /* recorder released */ }
   }, [active, paused, recorder]);
   return { active, paused, durationMs: active ? state.durationMillis : 0, levels, prepare, unprepare, start, finish, togglePause };
 }
@@ -223,7 +312,8 @@ export function VoicePlaybackProvider({ api, children }: { api: Api; children: R
         let file = files.current.get(attachment.id);
         if (!file) { file = await decryptAttachment(api, attachment); files.current.set(attachment.id, file); }
         if (ticket !== request.current) return;
-        cancelPlaybackReset(); await setAudioModeAsync(PLAYBACK_MODE).catch(() => {});
+        // Not while a take records: switching to playback stops the recorder (expo-audio setAudioMode).
+        if (!recordingLive) { cancelPlaybackReset(); await setAudioModeAsync(PLAYBACK_MODE).catch(() => {}); }
         music.stop(); interruptNoteAudio();
         player.replace({ uri: file.uri });
         try { player.setPlaybackRate(voiceRate); } catch { /* applied by the effect */ }

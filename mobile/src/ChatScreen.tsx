@@ -152,7 +152,7 @@ export function ChatScreen({api,user,chat,store,onBack,wide=false,onOpenMusic}: 
   };
   const [forwarding,setForwarding]=useState<ViewMessage|null>(null);
   const [searchOpen,setSearchOpen]=useState(false);const [query,setQuery]=useState('');
-  const [notice,setNotice]=useState('');
+  const [notice,setNotice]=useState('');const [noticeDetail,setNoticeDetail]=useState<{notice:string;code:string}|null>(null);
   // The story an answer quotes, opened from its «История» quote (F8). The stories are read afresh: a
   // story lives 24 h, so an old answer says «История недоступна» instead of jumping anywhere.
   const [storyView,setStoryView]=useState<{owner:User|undefined;items:ProfilePost[];start:number}|null>(null);
@@ -311,6 +311,9 @@ export function ChatScreen({api,user,chat,store,onBack,wide=false,onOpenMusic}: 
     const take=await voice.finish(keep).catch(e=>{setLocalError(e instanceof Error?e.message:'Не удалось остановить запись.');return null;});
     if(!take)return;
     if(take.durationMs<VOICE_MIN_MS){errorFeedback();await FileSystem.deleteAsync(take.uri,{idempotent:true}).catch(()=>{});setNotice('Слишком короткое голосовое — держи запись хотя бы секунду.');return;}
+    // The microphone stopped or heard nothing: say so, with numbers the user can screenshot (no audio, no names).
+    if(take.diagnosis?.broken){errorFeedback();await FileSystem.deleteAsync(take.uri,{idempotent:true}).catch(()=>{});const text='Микрофон записал тишину — голосовое не отправлено. Запиши ещё раз.';setNotice(text);setNoticeDetail({notice:text,code:take.diagnosis.code});return;}
+    if(take.diagnosis?.silent){const text='Микрофон записал тишину. Если в голосовом нет звука — запиши ещё раз.';setNotice(text);setNoticeDetail({notice:text,code:take.diagnosis.code});}
     const chatId=chat.id,reply=replyTo?{clientId:replyTo.clientId,senderId:replyTo.senderId,preview:replyPreview(replyTo)}:undefined;
     uploadingRef.current=true;setUploading(true);setLocalError('');
     try{
@@ -335,7 +338,7 @@ export function ChatScreen({api,user,chat,store,onBack,wide=false,onOpenMusic}: 
   // Latest values for the hold handlers (gesture callbacks can outlive the render they came from).
   const recordModeRef=useRef(recordMode);recordModeRef.current=recordMode;
   const recHoldRef=useRef(recHold);recHoldRef.current=recHold;
-  const holdStart=()=>{setNotice('');setStickers(false);
+  const holdStart=()=>{setNotice('');setNoticeDetail(null);setStickers(false);
     if(recordModeRef.current==='voice'){setRecHold({kind:'voice',locked:false});startVoice(()=>setRecHold(null));}
     else{Keyboard.dismiss();setLocalError('');setVideoHold({stop:0,cancel:0,locked:false});setCircleOpen(true);setRecHold({kind:'video',locked:false});}};
   const holdEnd=(result:'send'|'cancel')=>{const kind=recHoldRef.current?.kind??recordModeRef.current;setRecHold(null);setCancelProgress(0);
@@ -565,7 +568,7 @@ export function ChatScreen({api,user,chat,store,onBack,wide=false,onOpenMusic}: 
     {/* Notices sit in their own layer under the header: when they lived inside the header container
         and appeared, iOS 26 glass buttons of the header stretched to the container's new height. */}
     <View pointerEvents="box-none" style={{position:'absolute',top:headerHeight,left:0,right:0,zIndex:5}}>
-    {notice?<Pressable onPress={()=>setNotice('')} style={{alignSelf:'center',marginVertical:4,paddingVertical:7,paddingHorizontal:14,backgroundColor:t.accentSoft,borderRadius:16,borderWidth:1,borderColor:t.border}}><Text style={{color:t.accent,fontSize:12}}>{notice}</Text></Pressable>:null}
+    {notice?<Pressable onPress={()=>{setNotice('');setNoticeDetail(null);}} style={{alignSelf:'center',marginVertical:4,paddingVertical:7,paddingHorizontal:14,backgroundColor:t.accentSoft,borderRadius:16,borderWidth:1,borderColor:t.border}}><Text style={{color:t.accent,fontSize:12}}>{notice}</Text>{noticeDetail?.notice===notice?<Text style={{color:t.muted,fontSize:10,marginTop:2,fontVariant:['tabular-nums']}}>{noticeDetail.code}</Text>:null}</Pressable>:null}
     {failedActions.length?<Pressable onPress={()=>failedActions.forEach(item=>void store.retry(item))} style={{alignSelf:'center',marginVertical:4,paddingVertical:7,paddingHorizontal:14,borderRadius:16,borderWidth:1,borderColor:t.danger}}><Text style={{color:t.danger,fontSize:12}}>Действие не отправлено · повторить</Text></Pressable>:null}
     {store.cryptoError?<View style={{paddingHorizontal:13,paddingVertical:8}}><Notice text={store.cryptoError} error onRetry={()=>/устройств/i.test(store.cryptoError)&&/Безопасность/.test(store.cryptoError)?navigate({to:'security'}):setSecurityOpen(true)} actionLabel={/Безопасность/.test(store.cryptoError)?'Устройства':'Сверить коды'}/></View>:null}
     {store.error||localError?<View style={{paddingHorizontal:13,paddingVertical:8}}><Notice text={localError||store.error} error onRetry={()=>{setLocalError('');void store.loadMessages(chat.id);}}/></View>:null}

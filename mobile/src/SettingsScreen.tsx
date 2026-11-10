@@ -146,7 +146,8 @@ function Root({ api, user, theme, darkTheme, nightState = DAY_STATE, onBack, onP
   const language = useLanguage();
   const folders = useChatFolders(user.id);
   const t = useTheme(); const preferences = useChatPreferences(); const insets = useSafeAreaInsets(); const { width } = useWindowDimensions();
-  const version = Constants.expoConfig?.version || '';
+  const commit = String((Constants.expoConfig?.extra as { commit?: string } | undefined)?.commit || '');
+  const version = `${Constants.expoConfig?.version || ''}${commit ? ` (${commit})` : ''}`;
   const active = usePlatina(api, user.id);
   const [until, setUntil] = useState<string | null>(null);
   useEffect(() => { let alive = true; api.usernameStatus().then(status => { if (!alive) return; const p = status.platina; setUntil(p.permanent ? 'Бессрочно' : p.expiresAt ? `Активна до ${new Date(p.expiresAt).toLocaleDateString('ru-RU', { day: 'numeric', month: 'long' })}` : 'Активна'); }).catch(() => {}); return () => { alive = false; }; }, [api, user.id]);
