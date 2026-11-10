@@ -2,7 +2,7 @@
 // and folders the user makes from chosen chats). Folders are kept on this
 // device only; the server does not learn how chats are grouped.
 import React, { useEffect, useRef, useState } from 'react';
-import { Pressable, ScrollView, View, type LayoutChangeEvent } from 'react-native';
+import { Pressable, ScrollView, StyleSheet, View, type LayoutChangeEvent } from 'react-native';
 import Animated, { Easing, useAnimatedStyle, useSharedValue, withTiming, type SharedValue } from 'react-native-reanimated';
 import { animMs } from './motion';
 import { GlassSurface } from './glass';
@@ -90,7 +90,9 @@ export function FolderTabs({ folders, filter, unread, onChange, onCreate, onEdit
   // …only when the names are short too: a long folder name squeezed «Все» down to «В..».
   const fits = tabs.length <= 3 && tabs.reduce((sum, tab) => sum + Array.from(tab.label).length, 0) <= 24;
   const items = <>
-    <Animated.View pointerEvents="none" style={[{ position: 'absolute', left: 0, top: 4, height: 32, borderRadius: 16, backgroundColor: t.dark ? 'rgba(255,255,255,0.14)' : 'rgba(255,255,255,0.85)' }, highlight]} />
+    {/* Telegram: the selected folder is a grey capsule on the bar. A white one on the light glass merged
+        into it on the phone's screen (it read only on screenshots). */}
+    <Animated.View pointerEvents="none" style={[{ position: 'absolute', left: 0, top: 4, height: 32, borderRadius: 16, backgroundColor: t.dark ? 'rgba(255,255,255,0.16)' : 'rgba(20,30,60,0.08)', borderWidth: StyleSheet.hairlineWidth, borderColor: t.dark ? 'rgba(255,255,255,0.10)' : 'rgba(20,30,60,0.08)' }, highlight]} />
     {tabs.map((tab, index) => { const active = filter === tab.id; return <Pressable key={tab.id} onLayout={onTabLayout(index)} onPress={() => { lightFeedback(); onChange(tab.id); }} onLongPress={tab.folder ? () => onEdit(tab.folder!) : undefined} accessibilityRole="tab" accessibilityState={{ selected: active }} style={{ flexGrow: fits ? 1 : 0, flexShrink: fits ? 1 : 0, flexBasis: 'auto', minWidth: 0, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6, paddingHorizontal: 12, height: 32, borderRadius: 16 }}>
       <Text numberOfLines={1} maxFontSizeMultiplier={1.15} style={{ flexShrink: 1, color: t.text, fontSize: 14, fontWeight: '600' }}>{tab.label}</Text>
       {tab.badge ? <View style={{ minWidth: 18, height: 18, borderRadius: 9, paddingHorizontal: 5, alignItems: 'center', justifyContent: 'center', backgroundColor: t.accent }}><Text maxFontSizeMultiplier={1} style={{ color: t.onAccent, fontSize: 11, fontWeight: '700' }}>{tab.badge > 99 ? '99+' : tab.badge}</Text></View> : null}
