@@ -440,7 +440,7 @@ export function PostViewer({ api, items, start, story, onClose, onFinished, onPr
 }
 
 /** Choose a gift for a friend, add a short note, send. */
-function GiftSheet({ api, userId, visible, onClose, onSent }: { api: Api; userId: string; visible: boolean; onClose: () => void; onSent: () => void }) {
+export function GiftSheet({ api, userId, visible, onClose, onSent }: { api: Api; userId: string; visible: boolean; onClose: () => void; onSent: () => void }) {
   const t = useTheme(); const [picked, setPicked] = useState('bear'); const [note, setNote] = useState(''); const [busy, setBusy] = useState(false); const [error, setError] = useState('');
   const send = async () => { if (busy) return; setBusy(true); setError(''); try { await api.sendGift(userId, picked, note.trim()); setNote(''); onSent(); } catch (failure) { setError(message(failure, 'Не удалось отправить подарок.')); } finally { setBusy(false); } };
   return <Sheet visible={visible} title="Подарок" onClose={onClose}><View style={{ gap: 14 }}>

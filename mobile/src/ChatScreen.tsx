@@ -50,9 +50,11 @@ import { mediaPreviewKind } from './media/formats';
 import { AttachmentViewer } from './media/AttachmentViewer';
 import { openDocument } from './media/documentPreview';
 import { WALLPAPERS, textMetrics, useChatPreferences } from './chatPreferences';
-import { EDIT_WINDOW_CLOSED, REACTIONS, editWindowOpen, foldChat, groupAlbums, replyPreview, type Reaction, type StoryRef, type ViewMessage } from './messageMeta';
+import { EDIT_WINDOW_CLOSED, REACTIONS, autoDeleteLabel, editWindowOpen, foldChat, groupAlbums, replyPreview, type ChatRules, type Reaction, type StoryRef, type ViewMessage } from './messageMeta';
+import { AutoDeleteSheet, BlockSheet, RemoveChatSheet, autoDeleteNotice, noCopyItem, noCopyNotice, setUserBlocked } from './ChatSheets';
+import { MuteSheet } from './notifications/MuteSheet';
 import { stabilizeById } from './stable';
-import { PostViewer } from './ProfilePosts';
+import { GiftSheet, PostViewer } from './ProfilePosts';
 import type { ProfilePost } from './api';
 import { MediaGallery } from './media/AttachmentViewer';
 import { PollComposer } from './PollBubble';
@@ -69,7 +71,7 @@ import { inviteForwardable } from './communities/InviteCard';
 import { TopPlayerBar } from './music/PlayerControls';
 import { useCalls } from './calls/CallProvider';
 import { callServiceText } from './calls/callLog';
-import { isMuted } from './notifications/model';
+import { isMuted, muteUntilLabel } from './notifications/model';
 import { UserProfile } from './UserProfile';
 import { MiniProfile } from './MiniProfile';
 import { errorFeedback, impactFeedback, lightFeedback } from './haptics';
@@ -95,6 +97,17 @@ export function ChatScreen({api,user,chat,store,onBack,wide=false,onOpenMusic}: 
   const footerInset=useAnimatedStyle(()=>({paddingBottom:navInset*(1-(keyboardMotion?keyboardMotion.progress.value:0))}));
   const [headerMenu,setHeaderMenu]=useState<{x:number;y:number}|null>(null);const powerFeatures=usePowerFeatures();const t=useTheme();const [attachMenu,setAttachMenu]=useState(false);const [uploading,setUploading]=useState(false);const [downloadId,setDownloadId]=useState<string|null>(null);const [localError,setLocalError]=useState('');const [preview,setPreview]=useState<Attachment|null>(null);const [peerInfo,setPeerInfo]=useState(()=>takeProfileRequest(chat.id));const [avatarMenu,setAvatarMenu]=useState(false);const [actions,setActions]=useState<Row|null>(null);const [menuX,setMenuX]=useState<number|undefined>(undefined);const [menuY,setMenuY]=useState(0);const [copied,setCopied]=useState(false);
   const [securityOpen,setSecurityOpen]=useState(false);
+  // PC ⋮ menu (Telegram Web, HeaderMenuContainer for a private chat): its choosers and confirmations, and
+  // whether the person is blocked (asked from the server when the chat opens and each time the menu opens).
+  const [headerSheet,setHeaderSheet]=useState<'mute'|'ttl'|'gift'|'block'|'remove'|null>(null);const [peerBlocked,setPeerBlocked]=useState<boolean|null>(null);
+  const loadBlocked=useCallback(()=>{api.userProfile(chat.peer.id).then(result=>setPeerBlocked(!!result.blocked)).catch(()=>{});},[api,chat.peer.id]);
+  useEffect(()=>{if(wide)loadBlocked();},[wide,loadBlocked]);
+  // As in the profile: «Навсегда» through the store (the list updates at once), a timed mute through the chat settings route.
+  const muteChat=(until:string|null)=>{setHeaderSheet(null);setLocalError('');lightFeedback();
+    void (until===null?store.updateChatSettings(chat.id,{muted:true}):api.chatSettings(chat.id,{mutedUntil:until}).then(()=>store.refreshChats()))
+      .then(()=>setNotice(`Звук выключен ${muteUntilLabel(until)}`)).catch(e=>setLocalError(e instanceof Error?e.message:'Не удалось изменить уведомления.'));};
+  const unmuteChat=()=>{setHeaderSheet(null);setLocalError('');lightFeedback();void store.updateChatSettings(chat.id,{muted:false}).then(()=>setNotice('Звук включён')).catch(e=>setLocalError(e instanceof Error?e.message:'Не удалось изменить уведомления.'));};
+  const toggleBlocked=(block:boolean)=>{setHeaderSheet(null);setLocalError('');void setUserBlocked(api,chat.peer.id,block).then(text=>{setPeerBlocked(block);setNotice(text);}).catch(e=>setLocalError(e instanceof Error?e.message:'Не получилось.'));};
   const photoContext=`${user.id}:${chat.id}`;const currentPhotoContext=useRef(photoContext);currentPhotoContext.current=photoContext;
   // «Изменить» (Telegram): the message's text is edited in a field of its own, never in the chat's draft
   // (store.drafts): leaving the chat mid-edit keeps whatever was typed before, and nothing of the edit
@@ -133,6 +146,9 @@ export function ChatScreen({api,user,chat,store,onBack,wide=false,onOpenMusic}: 
   // Auto-deleted messages vanish on time: the clock ticks at the next expiry.
   const [expiryClock,setExpiryClock]=useState(()=>Date.now());
   const view=useMemo(()=>foldChat(optimistic.length?[...messages,...optimistic]:messages,user.id,store.hidden,expiryClock),[messages,optimistic,user.id,store.hidden,expiryClock]);
+  // The encrypted chat rules (auto-delete, no copying), as the profile shows and changes them.
+  const chatRules:ChatRules=view.rules||{ttl:0,noCopy:false};
+  const setChatRules=(rules:ChatRules)=>store.sendAction(chat.id,{type:'settings',ttl:rules.ttl,noCopy:rules.noCopy});
   useEffect(()=>{if(!view.nextExpiry)return;const id=setTimeout(()=>setExpiryClock(Date.now()),Math.min(Math.max(500,view.nextExpiry-Date.now()+100),2147483000));return()=>clearTimeout(id);},[view.nextExpiry]);
   const locked=view.rules.noCopy;
   // Telegram: the author edits any own message — its text or the caption of a photo/video/file, with
@@ -391,6 +407,8 @@ export function ChatScreen({api,user,chat,store,onBack,wide=false,onOpenMusic}: 
   const canExportSelected=!locked&&exportable.length>0;
   const toggleSelect=(row:Row)=>{if(!rowMessages(row).length)return;setSelection(current=>{const next=new Set(current||[]);if(next.has(row.key))next.delete(row.key);else next.add(row.key);return next.size?next:null;});};
   const startSelect=(row:Row)=>{setActions(null);impactFeedback();if(rowMessages(row).length)setSelection(new Set([row.key]));};
+  // PC ⋮ «Выбрать сообщения» (Telegram Web): the selection mode with nothing picked yet; clicks on messages pick them.
+  const startEmptySelect=()=>{setActions(null);impactFeedback();setSelection(new Set());};
   const shareMessages=async(list:ViewMessage[])=>{
     const files=list.map(m=>m.attachment).filter((a):a is Attachment=>!!a);
     const text=list.map(m=>m.meta?.poll?replyPreview(m):m.text).filter(Boolean).join('\n\n');
@@ -502,11 +520,11 @@ export function ChatScreen({api,user,chat,store,onBack,wide=false,onOpenMusic}: 
         <View style={{flexDirection:'row',gap:6,alignItems:'center'}}><PlatinaName user={chat.peer} numberOfLines={1} style={{flexShrink:1,color:t.text,fontSize:18,lineHeight:24,fontWeight:'500'}}/><StatusEmoji user={chat.peer} size={18} animated/></View>
         <Text numberOfLines={1} style={{color:headerStatus.accent?t.accent:t.muted,fontSize:14,lineHeight:18}}>{headerStatus.text}</Text>
       </Pressable>
-      {/* Telegram Web: call, search, ⋮ — the rest (video, media, info) in the ⋮ menu. */}
+      {/* Telegram Web: call, search, ⋮ — the rest in the ⋮ menu; the name and the avatar open the profile. */}
       {calls.available?<Pressable onPress={()=>calls.start(chat,false)} accessibilityRole="button" accessibilityLabel="Позвонить" style={hover}><Icon name="call-outline" size={21} color={t.muted}/></Pressable>:null}
       <Pressable onPress={()=>{setSearchOpen(open=>!open);setQuery('');}} accessibilityRole="button" accessibilityLabel="Поиск в этом чате (Ctrl+F)" style={hover}><Icon name="search-outline" size={21} color={searchOpen?t.accent:t.muted}/></Pressable>
       {chatScheduled.length?<Pressable testID="chat-scheduled" onPress={()=>setScheduledOpen(true)} accessibilityRole="button" accessibilityLabel={`Отложенные сообщения: ${chatScheduled.length}`} style={hover}><Icon name="time-outline" size={20} color={chatScheduled.some(item=>item.status==='failed')?t.danger:t.accent}/><View style={{position:'absolute',top:3,right:3,minWidth:16,height:16,borderRadius:8,paddingHorizontal:4,backgroundColor:t.accent,alignItems:'center',justifyContent:'center'}}><Text style={{color:t.onAccent,fontSize:10,fontWeight:'700'}}>{chatScheduled.length}</Text></View></Pressable>:null}
-      <Pressable onPress={(e:any)=>setHeaderMenu({x:e.nativeEvent.pageX,y:headerHeight+4})} accessibilityRole="button" accessibilityLabel="Ещё" style={hover}><Icon name="ellipsis-vertical" size={20} color={t.muted}/></Pressable>
+      <Pressable onPress={(e:any)=>{setHeaderMenu({x:e.nativeEvent.pageX,y:headerHeight+4});loadBlocked();}} accessibilityRole="button" accessibilityLabel="Ещё" style={hover}><Icon name="ellipsis-vertical" size={20} color={t.muted}/></Pressable>
     </View></View>;};
 
   return <VoicePlaybackProvider api={api}><GlassTargetScope targetRef={glassTarget}><KeyboardSafeView style={{flex:1,backgroundColor:'transparent',marginTop:wide?0:-insets.top,marginBottom:wide?0:-insets.bottom}}><View style={{flex:1}}>
@@ -680,10 +698,23 @@ export function ChatScreen({api,user,chat,store,onBack,wide=false,onOpenMusic}: 
     <ScheduledScreen visible={scheduledOpen} items={chatScheduled} peerName={chat.peer.displayName} busy={store.scheduledBusy} onClose={()=>setScheduledOpen(false)} onSendNow={item=>void store.sendScheduledNow(item).catch(e=>setLocalError(e instanceof Error?e.message:'Не удалось отправить.'))} onDelete={item=>void store.deleteScheduled(item).catch(e=>setLocalError(e instanceof Error?e.message:'Не удалось удалить.'))}/>
     {/* Selecting: the bin opens the same two-line choice just above itself (Telegram). */}
     <ContextMenu visible={!!headerMenu} y={headerMenu?.y??0} x={headerMenu?.x} onClose={()=>setHeaderMenu(null)}>
+      {/* Telegram Web's order for a private chat: video call, mute, auto-delete, select, gift, (no copying), block, delete. */}
       {calls.available?<MenuItem icon="videocam-outline" label="Видеозвонок" onPress={()=>{setHeaderMenu(null);calls.start(chat,true);}}/>:null}
-      <MenuItem icon="images-outline" label="Медиа и файлы" onPress={()=>{setHeaderMenu(null);setMediaOpen(true);}}/>
-      <MenuItem icon="information-circle-outline" label="Информация" onPress={()=>{setHeaderMenu(null);setPeerInfo(true);}}/>
+      {isMuted(chat.settings)?<MenuItem icon="notifications-outline" label="Включить уведомления" onPress={()=>{setHeaderMenu(null);unmuteChat();}}/>
+        :<MenuItem icon="notifications-off-outline" label="Выключить уведомления…" onPress={()=>{setHeaderMenu(null);setHeaderSheet('mute');}}/>}
+      {signalAvailable?<MenuItem icon="timer-outline" label={`Автоудаление · ${autoDeleteLabel(chatRules.ttl)}`} onPress={()=>{setHeaderMenu(null);setHeaderSheet('ttl');}}/>:null}
+      <MenuItem icon="checkmark-circle-outline" label="Выбрать сообщения" onPress={()=>{setHeaderMenu(null);startEmptySelect();}}/>
+      <MenuItem icon="gift-outline" label="Отправить подарок" onPress={()=>{setHeaderMenu(null);setHeaderSheet('gift');}}/>
+      {signalAvailable?<MenuItem {...noCopyItem(chatRules.noCopy)} onPress={()=>{setHeaderMenu(null);lightFeedback();setChatRules({...chatRules,noCopy:!chatRules.noCopy});setNotice(noCopyNotice(chatRules.noCopy));}}/>:null}
+      {peerBlocked===null?null:peerBlocked?<MenuItem separated icon="hand-left-outline" label="Разблокировать" onPress={()=>{setHeaderMenu(null);toggleBlocked(false);}}/>
+        :<MenuItem separated icon="remove-circle-outline" label="Заблокировать" danger onPress={()=>{setHeaderMenu(null);setHeaderSheet('block');}}/>}
+      <MenuItem separated={peerBlocked===null} icon="trash-outline" label="Удалить чат" danger onPress={()=>{setHeaderMenu(null);setHeaderSheet('remove');}}/>
     </ContextMenu>
+    <MuteSheet visible={headerSheet==='mute'} title={chat.peer.displayName} current={chat.settings} onClose={()=>setHeaderSheet(null)} onMute={muteChat} onUnmute={unmuteChat}/>
+    <AutoDeleteSheet visible={headerSheet==='ttl'} rules={chatRules} onClose={()=>setHeaderSheet(null)} onPick={ttl=>{setChatRules({...chatRules,ttl});setNotice(autoDeleteNotice(ttl));}}/>
+    <GiftSheet api={api} userId={chat.peer.id} visible={headerSheet==='gift'} onClose={()=>setHeaderSheet(null)} onSent={()=>{setHeaderSheet(null);setNotice('Подарок отправлен');}}/>
+    <BlockSheet visible={headerSheet==='block'} name={chat.peer.displayName} onClose={()=>setHeaderSheet(null)} onConfirm={()=>toggleBlocked(true)}/>
+    <RemoveChatSheet chats={headerSheet==='remove'?[chat]:null} onClose={()=>setHeaderSheet(null)} onRemove={list=>list.forEach(item=>store.removeChat(item))} onRemoveForEveryone={list=>void Promise.all(list.map(item=>store.removeChatForEveryone(item))).catch(e=>store.setError(e instanceof Error?e.message:'Не удалось удалить чат. Попробуй ещё раз.'))}/>
     <ContextMenu visible={!!trashAt} y={trashAt?.y??0} x={trashAt?.x} onClose={()=>setTrashAt(null)}>
       {trashAt?deleteChoice(selectedMessages,()=>{setTrashAt(null);setSelection(null);}):null}
     </ContextMenu>

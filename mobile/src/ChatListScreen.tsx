@@ -13,7 +13,7 @@ import { Text, TextInput } from './typography';
 import { MiniPlayer } from './music/PlayerControls';
 import { ChatListSkeleton } from './effects';
 import { FloatingHeader, isWideLayout, useBleed } from './tabInset';
-import { Avatar, Bouncy, Button, Empty, Icon, IconButton, Notice, Sheet, SheetAction } from './components';
+import { Avatar, Bouncy, Button, Empty, Icon, IconButton, Notice } from './components';
 import { GlassSurface } from './glass';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { StatusEmoji } from './StatusEmoji';
@@ -36,6 +36,7 @@ import { incomingCount, useFriendRequests } from './friendRequests';
 import { useChannelsBadge } from './communities/unread';
 import { impactFeedback, lightFeedback } from './haptics';
 import { MuteSheet } from './notifications/MuteSheet';
+import { RemoveChatSheet } from './ChatSheets';
 import { isMuted, muteUntilLabel } from './notifications/model';
 import { Gesture, GestureDetector } from 'react-native-gesture-handler';
 import Animated, { Easing, makeMutable, runOnJS, useAnimatedStyle, useSharedValue, withSpring, withTiming, type SharedValue } from 'react-native-reanimated';
@@ -175,10 +176,7 @@ export function ChatListScreen({api,user,store,onProfile,onNewChat,onMusic,onAI,
       <Pressable disabled={!selectedChats.length} onPress={()=>askMute(selectedChats)} accessibilityRole="button" style={{padding:10,opacity:selectedChats.length?1:.4}}><Text style={{color:t.accent,fontSize:14,fontWeight:'600'}}>{selectedChats.length&&selectedChats.every(c=>isMuted(c.settings))?'Включить звук':'Звук'}</Text></Pressable>
       <Pressable disabled={!selectedChats.length} onPress={()=>setRemoveAsk(selectedChats)} accessibilityRole="button" style={{padding:10,opacity:selectedChats.length?1:.4}}><Text style={{color:t.danger,fontSize:14,fontWeight:'600'}}>Удалить</Text></Pressable>
     </GlassSurface>:null}
-    <Sheet visible={!!removeAsk} title={removeAsk&&removeAsk.length>1?`Удалить чаты (${removeAsk.length})?`:'Удалить чат?'} onClose={()=>setRemoveAsk(null)}>
-      <SheetAction icon="trash-outline" label="Удалить у меня" description="Чат и загруженные сообщения исчезнут на этом устройстве. Если собеседник напишет снова, чат вернётся." danger onPress={()=>{const list=removeAsk||[];setRemoveAsk(null);setEditing(null);lightFeedback();list.forEach(chat=>store.removeChat(chat));}}/>
-      <SheetAction icon="people-outline" label="Удалить у меня и у собеседника" description="Чат, все сообщения и файлы будут удалены на сервере и у обоих. Отменить нельзя." danger onPress={()=>{const list=removeAsk||[];setRemoveAsk(null);setEditing(null);lightFeedback();void Promise.all(list.map(chat=>store.removeChatForEveryone(chat))).catch(e=>store.setError(e instanceof Error?e.message:'Не удалось удалить чат. Попробуй ещё раз.'));}}/>
-    </Sheet>
+    <RemoveChatSheet chats={removeAsk} onClose={()=>setRemoveAsk(null)} onRemove={list=>{setEditing(null);list.forEach(chat=>store.removeChat(chat));}} onRemoveForEveryone={list=>{setEditing(null);void Promise.all(list.map(chat=>store.removeChatForEveryone(chat))).catch(e=>store.setError(e instanceof Error?e.message:'Не удалось удалить чат. Попробуй ещё раз.'));}}/>
     <MuteSheet visible={!!muteAsk} title={muteAsk&&muteAsk.length>1?countChats(muteAsk.length):muteAsk?.[0]?.peer.displayName||''} current={muteAsk&&muteAsk.length===1?muteAsk[0].settings:null} onClose={()=>setMuteAsk(null)} onMute={until=>{if(muteAsk)mute(muteAsk,until);}} onUnmute={()=>{const list=muteAsk||[];setMuteAsk(null);list.forEach(c=>change(c,{muted:false}));}}/>
     <ContextMenu visible={!!menu} y={menu?.y||0} x={menu?.x} onClose={()=>setMenu(null)} preview={menu?.chat.peer.displayName} peek={menu?<ChatPeek chat={menu.chat} api={api} userId={user.id} messages={store.messages[menu.chat.id]}/>:undefined}>
       {menu?<>

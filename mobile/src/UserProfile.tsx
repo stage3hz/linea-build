@@ -27,7 +27,8 @@ import { motionEnabled } from './motion';
 import { backSwipeIntent, shouldGoBack } from './media/swipeMath';
 import type { Api } from './api';
 import type { Attachment, Chat, ReportReason, User } from './types';
-import { AUTO_DELETE, autoDeleteLabel, type ChatRules, type ViewMessage } from './messageMeta';
+import { autoDeleteLabel, type ChatRules, type ViewMessage } from './messageMeta';
+import { AutoDeleteSheet, BlockSheet, autoDeleteNotice, noCopyItem, noCopyNotice, setUserBlocked } from './ChatSheets';
 import { refreshFriendRequests } from './friendRequests';
 import { SharedMedia } from './SharedMedia';
 import { useBackStrip } from './backStrip';
@@ -172,7 +173,7 @@ export function UserProfile({ api, user, onClose, chat, onMessage, onMute, onSea
   ];
   const toggleBlock = async () => {
     setBusy(true); setError('');
-    try { if (blocked) await api.unblock(shown.id); else { await api.block(shown.id); setContact(false); setPendingRequest(null); void refreshFriendRequests(api); } setBlocked(!blocked); setNotice(blocked ? 'Разблокирован' : 'Заблокирован: он не сможет тебе писать и звонить'); }
+    try { const text = await setUserBlocked(api, shown.id, !blocked); if (!blocked) { setContact(false); setPendingRequest(null); } setBlocked(!blocked); setNotice(text); }
     catch (e) { setError(e instanceof Error ? e.message : 'Не получилось.'); } finally { setBusy(false); setSheet(null); }
   };
   const sendReport = async () => {
@@ -236,17 +237,14 @@ export function UserProfile({ api, user, onClose, chat, onMessage, onMute, onSea
     <ContextMenu visible={menu} y={menuAt.y} x={menuAt.x} mine onClose={() => setMenu(false)}>
       {chat && contact !== null ? <MenuItem icon={contact ? 'person-remove-outline' : 'person-add-outline'} label={contact ? 'Удалить из друзей' : pendingRequest === 'outgoing' ? 'Отменить заявку' : pendingRequest === 'incoming' ? 'Принять в друзья' : 'Добавить в друзья'} onPress={() => { setMenu(false); if (contact) setSheet('unfriend'); else void toggleContact(); }} /> : null}
       {chat && onRules ? <MenuItem icon="timer-outline" label={`Автоудаление · ${autoDeleteLabel(current.ttl)}`} onPress={() => { setMenu(false); setSheet('ttl'); }} /> : null}
-      {chat && onRules ? <MenuItem icon={current.noCopy ? 'lock-closed' : 'lock-open-outline'} label={current.noCopy ? 'Разрешить пересылку и копирование' : 'Запретить пересылку и копирование'} onPress={() => { setMenu(false); lightFeedback(); onRules({ ...current, noCopy: !current.noCopy }); setNotice(current.noCopy ? 'Копирование снова разрешено' : 'Копировать и пересылать сообщения этого чата теперь нельзя обоим'); }} /> : null}
+      {chat && onRules ? <MenuItem {...noCopyItem(current.noCopy)} onPress={() => { setMenu(false); lightFeedback(); onRules({ ...current, noCopy: !current.noCopy }); setNotice(noCopyNotice(current.noCopy)); }} /> : null}
       {onWallpaper ? <MenuItem icon="image-outline" label="Обои" onPress={() => { setMenu(false); onClose(); onWallpaper(); }} /> : null}
       {onSearch ? <MenuItem icon="search-outline" label="Поиск" onPress={() => { setMenu(false); onClose(); onSearch(); }} /> : null}
       {chat && onClear ? <MenuItem separated icon="trash-bin-outline" label="Очистить историю" onPress={() => { setMenu(false); setSheet('clear'); }} /> : null}
       <MenuItem separated={!(chat && onClear)} icon={blocked ? 'hand-left-outline' : 'remove-circle-outline'} label={blocked ? 'Разблокировать' : 'Заблокировать'} danger={!blocked} onPress={() => { setMenu(false); if (blocked) void toggleBlock(); else setSheet('block'); }} />
       <MenuItem icon="warning-outline" label="Пожаловаться" danger onPress={() => { setMenu(false); setSheet('report'); }} />
     </ContextMenu>
-    <Sheet visible={sheet === 'ttl'} title="Автоудаление" onClose={() => setSheet(null)}>
-      <Text style={{ color: t.muted, fontSize: 13, lineHeight: 19, marginBottom: 6 }}>Новые сообщения в этом чате удалятся у вас обоих через выбранное время. Собеседник увидит, что автоудаление включено.</Text>
-      {AUTO_DELETE.map(ttl => <SheetAction key={ttl} icon={current.ttl === ttl ? 'checkmark-circle' : 'ellipse-outline'} label={ttl ? autoDeleteLabel(ttl) : 'Выключено'} selected={current.ttl === ttl} onPress={() => { setSheet(null); if (ttl !== current.ttl && onRules) { lightFeedback(); onRules({ ...current, ttl }); setNotice(ttl ? `Автоудаление: ${autoDeleteLabel(ttl)}` : 'Автоудаление выключено'); } }} />)}
-    </Sheet>
+    <AutoDeleteSheet visible={sheet === 'ttl'} rules={current} onClose={() => setSheet(null)} onPick={ttl => { if (onRules) { onRules({ ...current, ttl }); setNotice(autoDeleteNotice(ttl)); } }} />
     <MuteSheet visible={sheet === 'mute'} title={shown.displayName} current={chat?.settings} onClose={() => setSheet(null)} onMute={until => void muteFor(until)} onUnmute={() => { setSheet(null); void toggleMute(); }} />
     <Sheet visible={sheet === 'clear'} title="Очистить историю?" onClose={() => setSheet(null)}>
       <SheetAction icon="trash-outline" label="Удалить у обоих" description={`Все сообщения исчезнут у тебя и у ${shown.displayName}. Вернуть не получится.`} danger onPress={() => { setSheet(null); onClear?.(); setNotice('История очищена у обоих'); }} />
@@ -255,9 +253,7 @@ export function UserProfile({ api, user, onClose, chat, onMessage, onMute, onSea
     <Sheet visible={sheet === 'unfriend'} title={`Удалить ${shown.displayName} из друзей?`} onClose={() => setSheet(null)}>
       <SheetAction icon="person-remove-outline" label="Удалить из друзей" description="Публикации, истории и подарки друг друга вы больше не увидите. Заявку можно отправить снова." danger onPress={() => { setSheet(null); void toggleContact(); }} />
     </Sheet>
-    <Sheet visible={sheet === 'block'} title={`Заблокировать ${shown.displayName}?`} onClose={() => setSheet(null)}>
-      <SheetAction icon="remove-circle-outline" label="Заблокировать" description="Он не сможет писать и звонить тебе, пока ты не разблокируешь. Список — в Безопасности." danger onPress={() => void toggleBlock()} />
-    </Sheet>
+    <BlockSheet visible={sheet === 'block'} name={shown.displayName} onClose={() => setSheet(null)} onConfirm={() => void toggleBlock()} />
     <Sheet visible={sheet === 'report'} title="Пожаловаться" onClose={() => { setSheet(null); setReason(null); }}>
       <Text style={{ color: t.muted, fontSize: 13, lineHeight: 19, marginBottom: 6 }}>Переписка зашифрована: модератор увидит только причину и профиль, но не сообщения.</Text>
       {REASONS.map(item => <SheetAction key={item.id} icon={reason === item.id ? 'checkmark-circle' : 'ellipse-outline'} label={item.label} selected={reason === item.id} onPress={() => setReason(item.id)} />)}

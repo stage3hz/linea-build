@@ -2468,7 +2468,9 @@
 "После завершения на том устройстве понадобится снова ввести логин, пароль и слово подтверждения. Название и версии сообщает само приложение; IP-адрес показан как есть.": "After it ends, the login, password and confirmation word will need to be entered again on that device. The name and versions come from the app itself; the IP address is shown as is.",
 "После пяти неверных попыток следующая разрешается с нарастающей задержкой.": "After five wrong attempts, the next one is allowed with an increasing delay.",
 "Последняя активность": "Last active",
-"Появляется, только пока ты в голосовом канале и окно Инвиза не активно. Не перехватывает мышь и клавиатуру. Работает поверх игр в оконном и «полноэкранном оконном» режиме; в эксклюзивном полноэкранном режиме игра закрывает любые окна — Инвиз не встраивается в чужие программы.": "Appears only while you're in a voice channel and the Invizent window isn't active. Doesn't capture the mouse or keyboard. Works over games in windowed and “borderless fullscreen” mode; in exclusive fullscreen the game covers all windows — Invizent doesn't inject into other programs.",
+"Появляется, только пока ты в голосовом канале и окно Инвиза не активно. Не перехватывает мышь и клавиатуру. Работает поверх игр в оконном и «полноэкранном оконном» режиме. На Windows с включённым внедрением полноэкранная игра (в том числе эксклюзивный режим) рисует оверлей сама; если игра или античит не дают этого сделать, остаётся обычный оверлей поверх окон.": "Appears only while you're in a voice channel and the Invizent window isn't active. Doesn't capture the mouse or keyboard. Works over games in windowed and “borderless fullscreen” mode. On Windows, with injection on, a fullscreen game (exclusive mode included) draws the overlay itself; if the game or its anti-cheat doesn't allow that, the regular overlay over windows stays.",
+"Показывать в полноэкранных играх (внедрение в игру)": "Show in fullscreen games (in-game injection)",
+"Как в Discord: оверлей рисуется внутри игры, поэтому виден и в эксклюзивном полноэкранном режиме. Некоторые античиты могут заблокировать это или отметить.": "Like Discord: the overlay is drawn inside the game, so it is visible in exclusive fullscreen too. Some anti-cheats may block or flag this.",
 "Предпросмотр считается по всему фото, а при отправке — по обрезанному кадру: у края кадра заполнение может немного отличаться.": "The preview is calculated over the whole photo, and when sending — over the cropped frame: the fill near the frame edge may differ slightly.",
 "Предпросмотр требует ограничения размера.": "The preview requires a size limit.",
 "Приватная беседа включена: не сохраняется": "Private conversation on: not saved",
@@ -2794,5 +2796,9 @@
 "Студийный звук (тест)": "Studio sound (test)",
 "Эквалайзер для твоего микрофона: плотнее низ, меньше «коробки», ярче голос. Слышат собеседники; включается сразу.": "An equalizer for your microphone: fuller lows, less boxiness, a brighter voice. Others hear it; takes effect at once.",
 "Эквалайзер для твоего микрофона — пока только на компьютере.": "An equalizer for your microphone — computer only for now.",
-"Эквалайзер для твоего микрофона в звонках и голосовых каналах: плотнее низ, меньше «коробки», ярче голос": "An equalizer for your microphone in calls and voice channels: fuller lows, less boxiness, a brighter voice"
+"Эквалайзер для твоего микрофона в звонках и голосовых каналах: плотнее низ, меньше «коробки», ярче голос": "An equalizer for your microphone in calls and voice channels: fuller lows, less boxiness, a brighter voice",
+"Включить уведомления": "Unmute",
+"Выключить уведомления…": "Mute…",
+"Выбрать сообщения": "Select messages",
+"Подарок отправлен": "Gift sent"
 }

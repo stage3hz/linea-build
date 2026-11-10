@@ -16,7 +16,7 @@ const en = require('../src/i18n/en.json');
 const SCREENS = [
   'AuthScreen.tsx', 'ChatListScreen.tsx', 'ChatScreen.tsx', 'MessageRow.tsx', 'SettingsScreen.tsx', 'SecurityScreen.tsx',
   'NewLoginNotice.tsx', 'UserProfile.tsx', 'MiniProfile.tsx', 'PeopleScreen.tsx', 'components.tsx', 'ContextMenu.tsx',
-  'notifications/NotificationsSection.tsx', 'notifications/MuteSheet.tsx', 'lock/PasscodeSettings.tsx', 'lock/LockGate.tsx',
+  'ChatSheets.tsx', 'notifications/NotificationsSection.tsx', 'notifications/MuteSheet.tsx', 'lock/PasscodeSettings.tsx', 'lock/LockGate.tsx',
   'scheduled/ScheduledScreen.tsx', 'scheduled/SchedulePicker.tsx', 'calls/CallHistory.tsx', 'audio/AudioSettings.tsx',
   'format/FormatToolbar.tsx', 'photo/editor/PhotoEditorScreen.tsx', 'photo/editor/EditorPanels.tsx',
   'privacy/lastSeenModel.ts', 'privacy/privacyStore.ts', 'presence.ts',
