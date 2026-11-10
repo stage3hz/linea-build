@@ -104,6 +104,8 @@ function TabIcon({ item, active, kick, pressed, index }: { item: TabItem; active
 // The bar is a capsule: at caption height its ends curve in by ~6.5 pt, so the long caption of the last tab
 // («Настройки») touched the glass edge. The first and last tabs sit this much closer to the middle.
 const EDGE_SHIFT = 5;
+// Captions: 9 pt, slightly tightened, and never wider than this — a longer one shrinks instead of sticking out.
+const CAPTION_MAX = 46;
 const REEL = 40.5; // one carousel row: icon (27.5) + gap (1) + label (12)
 
 /** «Люди» / «Каналы» as a vertical carousel: rows [Люди, Каналы, Люди] rolled by `reel` (0 → 1 → 2). */
@@ -112,7 +114,7 @@ function SlotReel({ reel, people, channels, active, kick, pressed, index }: { re
   const roll = useAnimatedStyle(() => ({ transform: [{ translateY: -reel.value * REEL }] }));
   const row = (item: TabItem, key: string) => <View key={key} style={{ height: REEL, alignItems: 'center', justifyContent: 'center', gap: 1 }}>
     <TabIcon item={item} active={active} kick={kick} pressed={pressed} index={index} />
-    <Text numberOfLines={1} maxFontSizeMultiplier={1} style={{ fontSize: 10, lineHeight: 12, letterSpacing: -.1, color: active ? t.accent : t.muted, fontWeight: '600' }}>{item.label}</Text>
+    <Text numberOfLines={1} adjustsFontSizeToFit minimumFontScale={.8} maxFontSizeMultiplier={1} style={{ maxWidth: CAPTION_MAX, fontSize: 9, lineHeight: 12, letterSpacing: -.25, color: active ? t.accent : t.muted, fontWeight: '600' }}>{item.label}</Text>
   </View>;
   return <View style={{ height: REEL, overflow: 'hidden', alignSelf: 'stretch' }}>
     <Animated.View style={roll}>{row(people, 'a')}{row(channels, 'b')}{row(people, 'c')}</Animated.View>
@@ -193,7 +195,7 @@ export function TabBar({ items, active }: { items: TabItem[]; active: TabId }) {
         onAccessibilityTap={() => open(index)} style={{ flex: 1, alignItems: 'center', justifyContent: 'center', gap: 1, paddingVertical: 7, transform: [{ translateX: index === 0 ? EDGE_SHIFT : index === n - 1 ? -EDGE_SHIFT : 0 }] }}>
         {slotted && other ? <SlotReel reel={reel} people={item.id === 'people' ? item : other} channels={item.id === 'channels' ? item : other} active={on} kick={kicks[index]} pressed={pressed} index={index} /> : <>
           <TabIcon item={item} active={on} kick={kicks[index]} pressed={pressed} index={index} />
-          <Text numberOfLines={1} maxFontSizeMultiplier={1} style={{ fontSize: 10, lineHeight: 12, letterSpacing: -.1, color: on ? t.accent : t.muted, fontWeight: '600' }}>{item.label}</Text>
+          <Text numberOfLines={1} adjustsFontSizeToFit minimumFontScale={.8} maxFontSizeMultiplier={1} style={{ maxWidth: CAPTION_MAX, fontSize: 9, lineHeight: 12, letterSpacing: -.25, color: on ? t.accent : t.muted, fontWeight: '600' }}>{item.label}</Text>
         </>}
         {/* A small hint that the slot switches: a dot (with the other section's unread count) above it. */}
         {slotted && other ? other.badge ? <View pointerEvents="none" accessibilityElementsHidden style={{ position: 'absolute', top: -2, minWidth: 18, height: 14, paddingHorizontal: 4, borderRadius: 7, backgroundColor: t.accent, alignItems: 'center', justifyContent: 'center' }}><Text maxFontSizeMultiplier={1} style={{ color: t.onAccent, fontSize: 9, fontWeight: '800' }}>{badgeText(other.badge)}</Text></View>
