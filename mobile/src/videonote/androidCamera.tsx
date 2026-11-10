@@ -12,4 +12,7 @@ const available = (Platform.OS === 'android' || Platform.OS === 'ios') && !!requ
 const NativeView: React.ComponentType<Props & { ref?: React.Ref<AndroidNoteCameraHandle> }> | null = available ? requireNativeViewManager('LineaVideoNote') : null;
 
 export const androidNoteCameraAvailable = !!NativeView;
+const nativeModule = available ? requireOptionalNativeModule<{ prewarm?: () => void }>('LineaVideoNote') : null;
+/** Android: initialises CameraX ahead of the first press (no-op where the native side has no `prewarm`). */
+export function prewarmNoteCamera() { try { nativeModule?.prewarm?.(); } catch { /* optional */ } }
 export const AndroidNoteCamera = forwardRef<AndroidNoteCameraHandle, Props>((props, ref) => NativeView ? <NativeView ref={ref} {...props} /> : null);

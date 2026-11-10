@@ -20,6 +20,7 @@ import androidx.camera.video.VideoRecordEvent
 import androidx.camera.view.PreviewView
 import androidx.core.content.ContextCompat
 import androidx.lifecycle.LifecycleOwner
+import androidx.lifecycle.Observer
 import expo.modules.kotlin.AppContext
 import expo.modules.kotlin.Promise
 import expo.modules.kotlin.modules.Module
@@ -36,6 +37,9 @@ import java.io.File
 class VideoNoteModule : Module() {
   override fun definition() = ModuleDefinition {
     Name("LineaVideoNote")
+    // Called when a chat opens: CameraX's first initialisation (camera list, characteristics) is done
+    // ahead of time, so the first press of the video-note button only has to open the camera.
+    Function("prewarm") { appContext.reactContext?.let { ProcessCameraProvider.getInstance(it) }; Unit }
     View(VideoNoteView::class) {
       Events("onReady", "onCameraError")
       Prop("facing") { view: VideoNoteView, facing: String -> view.setFacing(facing) }
@@ -85,7 +89,29 @@ class VideoNoteView(context: Context, appContext: AppContext) : ExpoView(context
     super.onDetachedFromWindow()
     try { recording?.stop() } catch (_: Exception) {}
     recording = null
+    bindCount++ // cancels a pending ready fallback
+    streamObserver?.let { preview.previewStreamState.removeObserver(it) }
+    streamObserver = null
     provider?.unbindAll()
+  }
+
+  // onReady is sent when the preview really shows frames (PreviewView STREAMING), not when bindToLifecycle
+  // returns (the camera is still opening then): JS uncovers the circle and starts the take at once.
+  private var streamObserver: Observer<PreviewView.StreamState>? = null
+  private var readySent = false
+  private var bindCount = 0
+
+  private fun sendReady() {
+    if (readySent) return
+    readySent = true
+    onReady(mapOf("facing" to facing))
+  }
+
+  private fun watchStream(owner: LifecycleOwner) {
+    if (streamObserver != null) return
+    val observer = Observer<PreviewView.StreamState> { state -> if (state == PreviewView.StreamState.STREAMING) sendReady() }
+    streamObserver = observer
+    preview.previewStreamState.observe(owner, observer)
   }
 
   private var bound: androidx.camera.core.Camera? = null
@@ -109,9 +135,13 @@ class VideoNoteView(context: Context, appContext: AppContext) : ExpoView(context
     val previewCase = Preview.Builder().build().also { it.surfaceProvider = preview.surfaceProvider }
     try {
       camera.unbindAll()
+      readySent = false
+      watchStream(owner)
       bound = camera.bindToLifecycle(owner, selector, previewCase, videoCapture)
       bound?.cameraControl?.setLinearZoom(zoom)
-      onReady(mapOf("facing" to facing))
+      // Fallback if a device never reports STREAMING: ready a little later anyway (as before, only late).
+      val generation = ++bindCount
+      postDelayed({ if (generation == bindCount) sendReady() }, 1500)
     } catch (error: Exception) {
       onCameraError(mapOf("message" to (error.message ?: "Не удалось открыть камеру.")))
     }

@@ -37,7 +37,11 @@ final class VideoNoteView: ExpoView, AVCaptureVideoDataOutputSampleBufferDelegat
   private var torch = false
   private var zoom = 0.0
   private var configured = false
-  private var readySent = false
+  // dataQueue: the first upright frame of this session was shown (onReady sent, placeholder faded out).
+  private var firstFrameSent = false
+  /// The last picture of the previous recorder, lightly blurred (main thread only). A new recorder shows it
+  /// at once while the camera starts, as Telegram does, instead of an empty circle.
+  private static var placeholder: UIImage?
 
   // Writer state: touched only on dataQueue.
   private var writer: AVAssetWriter?
@@ -73,21 +77,27 @@ final class VideoNoteView: ExpoView, AVCaptureVideoDataOutputSampleBufferDelegat
   required init(appContext: AppContext? = nil) {
     super.init(appContext: appContext)
     clipsToBounds = true
-    backgroundColor = .black
+    // Transparent until the first frame: the circle's own background (the app's colour) shows through.
+    backgroundColor = .clear
     UIDevice.current.beginGeneratingDeviceOrientationNotifications()
     previewLayer.session = session
     previewLayer.videoGravity = .resizeAspectFill
+    previewLayer.backgroundColor = UIColor.clear.cgColor
     layer.addSublayer(previewLayer)
     cover.contentMode = .scaleAspectFill
     cover.clipsToBounds = true
     cover.backgroundColor = .black
     cover.isHidden = true
-    let blur = UIVisualEffectView(effect: UIBlurEffect(style: .dark))
-    blur.alpha = 0.6
-    blur.frame = cover.bounds
-    blur.autoresizingMask = [.flexibleWidth, .flexibleHeight]
-    cover.addSubview(blur)
     addSubview(cover)
+    // While the camera starts: the previous recorder's last picture (blurred), else nothing until the
+    // first frame fades in (reveal()).
+    if let image = VideoNoteView.placeholder {
+      cover.image = image
+      cover.alpha = 1
+      cover.isHidden = false
+    } else {
+      previewLayer.opacity = 0
+    }
   }
 
   deinit { UIDevice.current.endGeneratingDeviceOrientationNotifications() }
@@ -269,10 +279,12 @@ final class VideoNoteView: ExpoView, AVCaptureVideoDataOutputSampleBufferDelegat
       self.holdDevice = nil; self.holdNeedsCoordinator = false; self.holdCoordinatorSeen = false
       let image = self.lastFrame.flatMap { self.snapshot($0) }
       DispatchQueue.main.async {
+        // A quick crossfade to the last frame, lightly blurred (Telegram), not a dark tint. The swap and
+        // the new camera's start take longer than the fade, so no turned frame shows through meanwhile.
         self.cover.layer.removeAllAnimations()
-        self.cover.image = image
-        self.cover.alpha = 1
-        self.cover.isHidden = false
+        self.cover.image = image ?? VideoNoteView.placeholder
+        if self.cover.isHidden { self.cover.alpha = 0; self.cover.isHidden = false }
+        UIView.animate(withDuration: 0.1, delay: 0, options: [.beginFromCurrentState]) { self.cover.alpha = 1 }
       }
     }
   }
@@ -307,24 +319,46 @@ final class VideoNoteView: ExpoView, AVCaptureVideoDataOutputSampleBufferDelegat
     guard holdAngleTime.isValid, CMTimeCompare(time, holdAngleTime) >= 0 else { return false }
     // Hard cap: never freeze longer than this, even if no upright-sized frame comes (landscape frames are
     // still dropped by the caller, as before).
-    if CMTimeGetSeconds(CMTimeSubtract(time, holdAngleTime)) >= 1.5 { endHold(); return true }
+    if CMTimeGetSeconds(CMTimeSubtract(time, holdAngleTime)) >= 0.7 { endHold(); return true }
     guard portrait else { return false }
     if !holdFirstFrame.isValid { holdFirstFrame = time }
     let waited = CMTimeGetSeconds(CMTimeSubtract(time, holdFirstFrame))
-    if waited >= 1.0 { endHold(); return true }
+    if waited >= 0.5 { endHold(); return true }
     // A camera never seen upright: its angle was only a guess, wait for the coordinator's answer.
     if holdNeedsCoordinator && !holdCoordinatorSeen { return false }
-    // The new camera's first frames are out of focus / exposure: wait for it to settle, at most ~350 ms.
+    // The very first frame of the new camera is often dark: skip it. Focus / exposure are not waited for
+    // beyond ~120 ms (Telegram goes live at once; the new camera settles while it is already shown).
     let settling = holdDevice.map { $0.isAdjustingFocus || $0.isAdjustingExposure } ?? false
-    if waited < 0.1 || (settling && waited < 0.35) { return false }
+    if waited < 0.03 || (settling && waited < 0.12) { return false }
     endHold()
     return true
   }
 
+  /// The frame at half size with a light Gaussian blur (no tint): the cover for a flip and the next
+  /// recorder's placeholder.
   private func snapshot(_ pixels: CVPixelBuffer) -> UIImage? {
-    let image = CIImage(cvPixelBuffer: pixels)
-    guard let cg = ciContext.createCGImage(image, from: image.extent) else { return nil }
+    let small = CIImage(cvPixelBuffer: pixels).transformed(by: CGAffineTransform(scaleX: 0.5, y: 0.5))
+    let extent = small.extent
+    let image = small.clampedToExtent().applyingGaussianBlur(sigma: 5).cropped(to: extent)
+    guard let cg = ciContext.createCGImage(image, from: extent) else { return nil }
     return UIImage(cgImage: cg)
+  }
+
+  /// dataQueue, the session's first upright frame: the camera really shows a picture now. Only now is
+  /// onReady sent (JS starts the take at once, so the timer starts with the first written frame), and
+  /// the placeholder crossfades to the live preview.
+  private func reveal() {
+    DispatchQueue.main.async {
+      self.onReady([:])
+      CATransaction.begin()
+      CATransaction.setAnimationDuration(0.15)
+      self.previewLayer.opacity = 1
+      CATransaction.commit()
+      guard !self.cover.isHidden else { return }
+      UIView.animate(withDuration: 0.15, delay: 0, options: [.beginFromCurrentState], animations: { self.cover.alpha = 0 }) { finished in
+        if finished { self.cover.isHidden = true; self.cover.image = nil }
+      }
+    }
   }
 
   private func fail(_ message: String) {
@@ -355,22 +389,34 @@ final class VideoNoteView: ExpoView, AVCaptureVideoDataOutputSampleBufferDelegat
 
   private func startSession() {
     sessionQueue.async {
-      if !self.configured { self.configured = self.configure(); if self.configured { self.applyConnection() } }
+      if !self.configured {
+        // Center Stage off before the camera is added (it pans the crop inside the circle). Turning it
+        // off from JS while the session was starting could reconfigure the camera mid-start.
+        if AVCaptureDevice.isCenterStageEnabled {
+          AVCaptureDevice.centerStageControlMode = .cooperative
+          AVCaptureDevice.isCenterStageEnabled = false
+        }
+        self.configured = self.configure(); if self.configured { self.applyConnection() }
+      }
       guard self.configured else { return }
       if !self.session.isRunning { self.session.startRunning() }
       self.applyTorch()
-      if self.session.isRunning && !self.readySent {
-        self.readySent = true
-        DispatchQueue.main.async { self.onReady([:]) }
-      }
+      // onReady is sent with the first upright frame (reveal), not here: startRunning returns before
+      // frames reach the preview and the writer.
     }
   }
 
   private func stopSession() {
     sessionQueue.async {
       if self.session.isRunning { self.session.stopRunning() }
-      self.readySent = false
-      self.dataQueue.async { self.lastFrame = nil }
+      self.dataQueue.async {
+        // The last picture becomes the next recorder's placeholder.
+        if let pixels = self.lastFrame, let image = self.snapshot(pixels) {
+          DispatchQueue.main.async { VideoNoteView.placeholder = image }
+        }
+        self.lastFrame = nil
+        self.firstFrameSent = false
+      }
     }
   }
 
@@ -521,6 +567,7 @@ final class VideoNoteView: ExpoView, AVCaptureVideoDataOutputSampleBufferDelegat
       let portrait = pixels.map { CVPixelBufferGetWidth($0) <= CVPixelBufferGetHeight($0) } ?? false
       guard frameAllowed(portrait: portrait, at: time), portrait else { return }
       lastFrame = pixels
+      if !firstFrameSent { firstFrameSent = true; reveal() }
     }
     guard let writer = writer, !stopping, CMSampleBufferDataIsReady(sampleBuffer) else { return }
     if output === videoOutput {

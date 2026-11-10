@@ -18,9 +18,9 @@ import * as VideoThumbnails from 'expo-video-thumbnails';
 import { NoteRing } from './NoteRing';
 import { claimNoteAudio, freshTick, playedSeconds, setNoteBar, isExpanded, isNoteVisible, keepsSoundRequest, noteAutoload, noteSizes, progressStep, reduceNote, scrubFraction, onScrubBand, releaseNoteAudio, restState, subscribeVisibleNotes, timeUpdateInterval, type NoteEvent, type NoteState } from './playback';
 import { setCenterStage } from '../media/centerStage';
-import { currentVoiceRate } from '../voice/VoiceMessage';
+import { currentVoiceRate, restorePlaybackSession } from '../voice/VoiceMessage';
 import * as FileSystem from 'expo-file-system/legacy';
-import { AndroidNoteCamera, androidNoteCameraAvailable, type AndroidNoteCameraHandle } from './androidCamera';
+import { AndroidNoteCamera, androidNoteCameraAvailable, prewarmNoteCamera, type AndroidNoteCameraHandle } from './androidCamera';
 import { resolveTake } from './take';
 import { useMusic } from '../music/MusicProvider';
 import { VIDEO_NOTE_MAX_MS, formatVoiceTime, formatVoiceTimeFine } from '../voice/voice';
@@ -36,6 +36,9 @@ const BASE_CIRCLE = 300;
 // iPhone: switching cameras mid-take ended the recording (the circle closed) and mixed two different
 // video formats in one file, which the encryption step rejects. Switch before recording instead.
 const FLIP_WHILE_RECORDING = androidNoteCameraAvailable;
+// iPhone with our native camera: the view itself shows the previous take's blurred last frame while the
+// camera starts and covers a flip with a short crossfade, so no JS cover or blur is drawn over it.
+const NATIVE_COVER = androidNoteCameraAvailable && Platform.OS === 'ios';
 
 /** Full-screen recorder for a round video message. Camera and microphone are used only while it is open. */
 /**
@@ -62,7 +65,11 @@ export function VideoNoteRecorder({ visible, onClose, onDone, hold = null }: { v
   useEffect(() => { alive.current = true; return () => { alive.current = false; if (limit.current) clearTimeout(limit.current); if (flipTimer.current) clearTimeout(flipTimer.current); limit.current = flipTimer.current = undefined; }; }, []);
   // Center Stage (iPhone front camera auto-framing) pans the crop inside the circle, so the picture
   // floats sideways; Telegram turns it off for video messages and so do we (no toggle).
-  useEffect(() => { if (visible) void setCenterStage(false); }, [visible]);
+  // Our native iPhone camera turns it off itself before the camera is added (doing it here, while the
+  // session starts, could reconfigure the camera mid-start); only the expo-camera fallback needs this.
+  useEffect(() => { if (visible && !androidNoteCameraAvailable) void setCenterStage(false); }, [visible]);
+  // Android: CameraX initialised while the chat is open, before the first press.
+  useEffect(() => { prewarmNoteCamera(); }, []);
   const started = useRef(0); const cancelled = useRef(false);
   // Pause (Telegram, hands-free): paused time is not counted in the timer, the ring or the 60 s limit.
   const [notePaused, setNotePaused] = useState(false); const pausedAt = useRef(0); const pausedTotal = useRef(0);
@@ -152,28 +159,31 @@ export function VideoNoteRecorder({ visible, onClose, onDone, hold = null }: { v
   }, [visible, allowed, ready, error]);
   const autoStarted = useRef(false);
   useEffect(() => { if (!visible) autoStarted.current = false; }, [visible]);
-  // iPhone reports «ready» a moment before the first video frames reach the file output; starting at once
-  // could produce a take with a black picture (audio only). A short pause, as the finger is still down anyway.
+  // Our native camera reports «ready» with its first real frame (iPhone: first upright frame; Android:
+  // preview streaming), so the take starts at once and the timer runs from the first written frame.
+  // expo-camera's «ready» comes a moment before frames reach the file: a short pause there.
   useEffect(() => {
     if (!(visible && hold && ready && allowed && !recording && !autoStarted.current)) return;
-    const timer = setTimeout(() => { if (!autoStarted.current) { autoStarted.current = true; void start(); } }, Platform.OS === 'ios' ? 450 : 150);
+    const timer = setTimeout(() => { if (!autoStarted.current) { autoStarted.current = true; void start(); } }, androidNoteCameraAvailable ? 0 : Platform.OS === 'ios' ? 450 : 150);
     return () => clearTimeout(timer);
   }, [visible, hold, ready, allowed, recording]);
   const stopSeen = useRef(hold?.stop ?? 0), cancelSeen = useRef(hold?.cancel ?? 0);
   useEffect(() => { if (!hold) return; if (hold.stop !== stopSeen.current) { stopSeen.current = hold.stop; if (recording) void stop(); else onClose(); } }, [hold?.stop]);
   useEffect(() => { if (!hold) return; if (hold.cancel !== cancelSeen.current) { cancelSeen.current = hold.cancel; cancel(); } }, [hold?.cancel]);
-  // No black first frame: a dark cover with a spinner stays until the camera reports ready plus a short
-  // grace (its «ready» comes a moment before frames reach the preview), then fades out.
+  // No black first frame: a cover in the app's background colour until the camera shows a picture. Our
+  // native camera reports ready with its first frame (no grace needed, no spinner); expo-camera's «ready»
+  // comes a moment before frames reach the preview, so it keeps a short grace and a spinner.
   const [live, setLive] = useState(false);
   useEffect(() => {
     if (!ready) { setLive(false); return; }
+    if (androidNoteCameraAvailable) { setLive(true); return; }
     const timer = setTimeout(() => setLive(true), Platform.OS === 'ios' ? 250 : 200);
     return () => clearTimeout(timer);
   }, [ready]);
   const cover = useSharedValue(1);
-  useEffect(() => { cover.value = live ? withTiming(0, { duration: motionEnabled() ? 180 : 0 }) : 1; }, [live]);
+  useEffect(() => { cover.value = live ? withTiming(0, { duration: motionEnabled() ? (androidNoteCameraAvailable ? 120 : 180) : 0 }) : 1; }, [live]);
   const coverStyle = useAnimatedStyle(() => ({ opacity: cover.value }));
-  const cameraCover = <Animated.View pointerEvents="none" style={[StyleSheet.absoluteFill, { backgroundColor: '#1A1E2B', alignItems: 'center', justifyContent: 'center' }, coverStyle]}>{!live && allowed && !error ? <ActivityIndicator color="rgba(255,255,255,0.75)" /> : null}</Animated.View>;
+  const cameraCover = NATIVE_COVER ? null : <Animated.View pointerEvents="none" style={[StyleSheet.absoluteFill, { backgroundColor: t.bg, alignItems: 'center', justifyContent: 'center' }, coverStyle]}>{!live && allowed && !error && !androidNoteCameraAvailable ? <ActivityIndicator color="rgba(255,255,255,0.75)" /> : null}</Animated.View>;
   const getMs = () => recording ? activeMs() : 0;
   // Telegram: side = min(369, width − 24), top ≈ 40 % of the height (not above the status bar + 24).
   const CIRCLE = hold ? Math.round(Math.min(369, win.width - 24)) : BASE_CIRCLE;
@@ -197,8 +207,11 @@ export function VideoNoteRecorder({ visible, onClose, onDone, hold = null }: { v
     void Brightness.getBrightnessAsync().then(value => { brightness.current = value; return Brightness.setBrightnessAsync(1); }).catch(() => {});
   }, [screenFlash]);
   useEffect(() => { if (!visible) setFlash(false); }, [visible]);
-  const flip = () => { const now = Date.now(); if (now - lastFlip.current < 1000) return; lastFlip.current = now; lightFeedback(); if (recording && !FLIP_WHILE_RECORDING) return; setFlipping(true); setZoom(0); if (flipTimer.current) clearTimeout(flipTimer.current); flipTimer.current = setTimeout(() => { flipTimer.current = undefined; setFlipping(false); }, 450); if (!recording && Platform.OS !== 'ios' && !androidNoteCameraAvailable) setReady(false); setError(''); setFacing(value => value === 'front' ? 'back' : 'front'); };
-  const preview = visible && allowed && androidNoteCameraAvailable ? <AndroidNoteCamera ref={nativeRef} zoom={zoom} facing={facing === 'back' ? 'back' : 'front'} {...(Platform.OS === 'ios' ? { torch: flash && facing === 'back' } : {})} style={{ position: 'absolute', left: 0, top: -CIRCLE / 6, width: CIRCLE, height: CIRCLE * 4 / 3 }} onReady={() => setReady(true)} onCameraError={event => setError(event.nativeEvent.message || 'Камера недоступна.')} /> : visible && allowed ? <CameraView key={Platform.OS === 'ios' ? 'camera' : facing} ref={ref} style={{ position: 'absolute', left: 0, top: -CIRCLE / 6, width: CIRCLE, height: CIRCLE * 4 / 3 }} facing={facing} mode="video" ratio="4:3" mirror={facing === 'front'} videoQuality="480p" enableTorch={flash && facing === 'back'} onCameraReady={() => setReady(true)} onMountError={event => setError(event.message || 'Камера недоступна.')} /> : null;
+  // A flip's blur: none on iPhone with our native camera (it crossfades the last frame itself); on Android
+  // it ends when the new camera streams (onNativeReady), at most 700 ms; expo-camera keeps a fixed 450 ms.
+  const flip = () => { const now = Date.now(); if (now - lastFlip.current < 1000) return; lastFlip.current = now; lightFeedback(); if (recording && !FLIP_WHILE_RECORDING) return; setZoom(0); if (flipTimer.current) clearTimeout(flipTimer.current); flipTimer.current = undefined; if (!NATIVE_COVER) { setFlipping(true); flipTimer.current = setTimeout(() => { flipTimer.current = undefined; setFlipping(false); }, androidNoteCameraAvailable ? 700 : 450); } if (!recording && Platform.OS !== 'ios' && !androidNoteCameraAvailable) setReady(false); setError(''); setFacing(value => value === 'front' ? 'back' : 'front'); };
+  const onNativeReady = () => { setReady(true); if (flipTimer.current) { clearTimeout(flipTimer.current); flipTimer.current = undefined; setFlipping(false); } };
+  const preview = visible && allowed && androidNoteCameraAvailable ? <AndroidNoteCamera ref={nativeRef} zoom={zoom} facing={facing === 'back' ? 'back' : 'front'} {...(Platform.OS === 'ios' ? { torch: flash && facing === 'back' } : {})} style={{ position: 'absolute', left: 0, top: -CIRCLE / 6, width: CIRCLE, height: CIRCLE * 4 / 3 }} onReady={onNativeReady} onCameraError={event => setError(event.nativeEvent.message || 'Камера недоступна.')} /> : visible && allowed ? <CameraView key={Platform.OS === 'ios' ? 'camera' : facing} ref={ref} style={{ position: 'absolute', left: 0, top: -CIRCLE / 6, width: CIRCLE, height: CIRCLE * 4 / 3 }} facing={facing} mode="video" ratio="4:3" mirror={facing === 'front'} videoQuality="480p" enableTorch={flash && facing === 'back'} onCameraReady={() => setReady(true)} onMountError={event => setError(event.message || 'Камера недоступна.')} /> : null;
   // Telegram's way while the finger holds (and after a lock): the circle over the blurred chat with a
   // white progress arc around it; at the bottom the same strip as for voice — red dot, 0:04,63,
   // «‹ Влево — отмена» (after a lock: «Отмена»), the big circle on the right (under the finger; after
@@ -215,7 +228,7 @@ export function VideoNoteRecorder({ visible, onClose, onDone, hold = null }: { v
       <GestureDetector gesture={pinch}>
       <Animated.View style={[{ width: RING, height: RING, alignItems: 'center', justifyContent: 'center' }, grow]}>
         <NoteRing progress={recProgress} size={RING} stroke={4} color="#FFF" track="rgba(255,255,255,0.16)" />
-        <View style={{ width: CIRCLE, height: CIRCLE, borderRadius: CIRCLE / 2, overflow: 'hidden', backgroundColor: '#1A1E2B' }}>
+        <View style={{ width: CIRCLE, height: CIRCLE, borderRadius: CIRCLE / 2, overflow: 'hidden', backgroundColor: t.bg }}>
           {preview}
           {/* Telegram: the live picture is sharp at once; only a camera flip hides the jump behind a short blur. */}
           {flipping ? <BlurView pointerEvents="none" tint="dark" intensity={80} style={StyleSheet.absoluteFill} /> : null}
@@ -253,8 +266,8 @@ export function VideoNoteRecorder({ visible, onClose, onDone, hold = null }: { v
       {recording ? <RecTimer running={!notePaused} getMs={getMs} /> : <Text style={{ color: '#FFF', fontSize: 17, fontWeight: '700' }}>Видеосообщение</Text>}
       <View style={{ width: CIRCLE + 12, height: CIRCLE + 12, borderRadius: (CIRCLE + 12) / 2, padding: 6 }}>
         <NoteRing progress={recProgress} size={CIRCLE + 12} stroke={3} color={t.danger} track="rgba(255,255,255,0.25)" />
-        <View style={{ width: CIRCLE, height: CIRCLE, borderRadius: CIRCLE / 2, overflow: 'hidden', backgroundColor: '#1A1E2B' }}>
-          {visible && allowed && androidNoteCameraAvailable ? <AndroidNoteCamera ref={nativeRef} facing={facing === 'back' ? 'back' : 'front'} style={{ position: 'absolute', left: 0, top: -CIRCLE / 6, width: CIRCLE, height: CIRCLE * 4 / 3 }} onReady={() => setReady(true)} onCameraError={event => setError(event.nativeEvent.message || 'Камера недоступна.')} /> : visible && allowed ? <CameraView key={Platform.OS === 'ios' ? 'camera' : facing} ref={ref} style={{ position: 'absolute', left: 0, top: -CIRCLE / 6, width: CIRCLE, height: CIRCLE * 4 / 3 }} facing={facing} mode="video" ratio="4:3" mirror={facing === 'front'} videoQuality="480p" onCameraReady={() => setReady(true)} onMountError={event => setError(event.message || 'Камера недоступна.')} /> : null}
+        <View style={{ width: CIRCLE, height: CIRCLE, borderRadius: CIRCLE / 2, overflow: 'hidden', backgroundColor: t.bg }}>
+          {visible && allowed && androidNoteCameraAvailable ? <AndroidNoteCamera ref={nativeRef} facing={facing === 'back' ? 'back' : 'front'} style={{ position: 'absolute', left: 0, top: -CIRCLE / 6, width: CIRCLE, height: CIRCLE * 4 / 3 }} onReady={onNativeReady} onCameraError={event => setError(event.nativeEvent.message || 'Камера недоступна.')} /> : visible && allowed ? <CameraView key={Platform.OS === 'ios' ? 'camera' : facing} ref={ref} style={{ position: 'absolute', left: 0, top: -CIRCLE / 6, width: CIRCLE, height: CIRCLE * 4 / 3 }} facing={facing} mode="video" ratio="4:3" mirror={facing === 'front'} videoQuality="480p" onCameraReady={() => setReady(true)} onMountError={event => setError(event.message || 'Камера недоступна.')} /> : null}
           {cameraCover}
         </View>
       </View>
@@ -437,7 +450,7 @@ export function VideoNoteBubble({ api, attachment, onLongPress, scope = null, si
   }, [state]);
   useEffect(() => () => setNoteBar(key, null), []);
   // One circle with sound at a time; voice messages call interruptNoteAudio() before they play.
-  useEffect(() => { if (state === 'sound') claimNoteAudio(key, interrupt); else if (!expanded) releaseNoteAudio(key); }, [state]);
+  useEffect(() => { if (state === 'sound') { restorePlaybackSession(); claimNoteAudio(key, interrupt); } else if (!expanded) releaseNoteAudio(key); }, [state]);
   useEffect(() => () => releaseNoteAudio(key), []);
 
   // A tap before the file is there: download and decrypt first, then play with sound from the start.
