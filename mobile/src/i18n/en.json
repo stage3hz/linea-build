@@ -2750,5 +2750,9 @@
 "Пометить как прочитанное": "Mark as Read",
 "Пометить как непрочитанное": "Mark as Unread",
 ", помечен как непрочитанный": ", marked as unread",
-"Непрочитано": "Unread"
+"Непрочитано": "Unread",
+"Всё прочитано": "All read",
+"Здесь появятся чаты с новыми сообщениями и отмеченные как непрочитанные.": "Chats with new messages and chats marked as unread will appear here.",
+"В архиве нет чатов.": "There are no chats in the archive.",
+"В этой папке нет чатов. Добавь их в настройках папки.": "There are no chats in this folder. Add them in the folder settings."
 }
