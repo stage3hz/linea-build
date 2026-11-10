@@ -34,7 +34,7 @@ function TabsFade({ bar }: { bar: number }) {
   const t = useTheme(); const insets = useSafeAreaInsets(); const extra = Platform.OS === 'web' ? 0 : insets.bottom;
   const below = extra ? 22 : 10; // the bar's bottom edge sits ~21 pt above the screen bottom on iPhones with a home indicator
   return <>
-    {Platform.OS === 'ios' ? <ScrollEdgeBlurView pointerEvents="none" edge="bottom" maxBlurRadius={12} falloff={1} style={{ position: 'absolute', left: 0, right: 0, bottom: -extra, height: bar + extra }} /> : null}
+    {Platform.OS === 'ios' ? <ScrollEdgeBlurView pointerEvents="none" edge="bottom" maxBlurRadius={20} falloff={1} style={{ position: 'absolute', left: 0, right: 0, bottom: -extra, height: bar + extra }} /> : null}
     <LinearGradient pointerEvents="none" colors={[tint(t.bg, 0, t.dark), tint(t.bg, Platform.OS === 'ios' ? .12 : .3, t.dark), tint(t.bg, Platform.OS === 'ios' ? .3 : .5, t.dark)]} locations={[0, .55, 1]} style={{ position: 'absolute', left: 0, right: 0, bottom: -extra, height: bar + extra }} />
     <LinearGradient pointerEvents="none" colors={[tint(t.bg, 0, t.dark), tint(t.bg, .5, t.dark)]} style={{ position: 'absolute', left: 0, right: 0, bottom: -extra, height: below }} />
     {insets.top && Platform.OS === 'ios' ? <ScrollEdgeBlurView pointerEvents="none" edge="top" maxBlurRadius={20} falloff={1} style={{ position: 'absolute', left: 0, right: 0, top: -insets.top, height: insets.top + 10 }} /> : null}
@@ -78,7 +78,7 @@ export function FloatingHeader({ children, onHeight }: { children: React.ReactNo
  * Android has no live blur here (a progressive blur re-captures the screen every frame and stuttered),
  * so the colour carries it; Reduce Transparency gets a solid band.
  */
-/** How strong the edge effect is: 1 was the first cut, which read too dense under the bars on device. */
+/** How strong the colour cover of the edge effect is (the blur keeps its own strength, as in Telegram: blurred, barely tinted): 1 was the first cut, which read too dense under the bars on device. */
 export const EDGE_STRENGTH = .3;
 
 export function ScrollEdgeEffect({ edge, size, color, alpha, fade = 8, zIndex }: { edge: 'top' | 'bottom'; size: number; color: string; alpha: number; fade?: number; zIndex?: number }) {
@@ -98,7 +98,7 @@ export function ScrollEdgeEffect({ edge, size, color, alpha, fade = 8, zIndex }:
   const darkEdge = isDarkColor(color) ?? t.dark;
   return <View pointerEvents="none" style={box}>
     {blur ? <MaskedView pointerEvents="none" style={{ position: 'absolute', top: 0, left: 0, right: 0, bottom: 0 }} maskElement={<LinearGradient colors={['#000', '#000', 'transparent']} locations={[0, solid, Math.min(1, solid + (1 - solid) * .8)]} {...vertical} style={{ flex: 1 }} />}>
-      <BlurView intensity={Math.round((darkEdge ? 70 : 80) * EDGE_STRENGTH)} tint={darkEdge ? 'systemUltraThinMaterialDark' : 'systemUltraThinMaterialLight'} style={{ flex: 1 }} />
+      <BlurView intensity={darkEdge ? 35 : 40} tint={darkEdge ? 'systemUltraThinMaterialDark' : 'systemUltraThinMaterialLight'} style={{ flex: 1 }} />
     </MaskedView> : null}
     <LinearGradient pointerEvents="none" colors={colors} locations={locations} {...vertical} style={{ position: 'absolute', top: 0, left: 0, right: 0, bottom: 0 }} />
   </View>;

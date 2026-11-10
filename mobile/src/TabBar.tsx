@@ -101,6 +101,9 @@ function TabIcon({ item, active, kick, pressed, index }: { item: TabItem; active
   </Animated.View>;
 }
 
+// The bar is a capsule: at caption height its ends curve in by ~6.5 pt, so the long caption of the last tab
+// («Настройки») touched the glass edge. The first and last tabs sit this much closer to the middle.
+const EDGE_SHIFT = 5;
 const REEL = 40.5; // one carousel row: icon (27.5) + gap (1) + label (12)
 
 /** «Люди» / «Каналы» as a vertical carousel: rows [Люди, Каналы, Люди] rolled by `reel` (0 → 1 → 2). */
@@ -175,7 +178,7 @@ export function TabBar({ items, active }: { items: TabItem[]; active: TabId }) {
     .onFinalize(() => { pressed.value = -1; });
   const gesture = Gesture.Exclusive(swipeUp, slide, tap);
 
-  const pillStyle = useAnimatedStyle(() => ({ top: 1 - lens.value * 9, bottom: 1 - lens.value * 9, transform: [{ translateX: pill.value * cell }, { scale: 1 + lens.value * 0.12 }] }));
+  const pillStyle = useAnimatedStyle(() => ({ top: 1 - lens.value * 9, bottom: 1 - lens.value * 9, transform: [{ translateX: pill.value * cell + EDGE_SHIFT * (Math.max(0, 1 - pill.value) - Math.max(0, pill.value - (n - 2))) }, { scale: 1 + lens.value * 0.12 }] }));
   const pillInner = useAnimatedStyle(() => ({ backgroundColor: lens.value > 0.5 ? (t.dark ? 'rgba(255,255,255,0.16)' : 'rgba(255,255,255,0.75)') : t.accentSoft, borderRadius: 25 + lens.value * 10 /* a capsule, concentric with the bar: 31 − 6 */ }));
 
   return <GestureDetector gesture={gesture}>
@@ -187,7 +190,7 @@ export function TabBar({ items, active }: { items: TabItem[]; active: TabId }) {
         accessibilityLabel={`${item.label}${item.badge ? `, ${item.badge}` : ''}${slotted && other ? `. Смахни вверх — ${other.label}` : ''}`} accessibilityState={{ selected: on }}
         accessibilityActions={slotted ? [{ name: 'activate' }, { name: 'magicTap', label: other?.label }] : undefined}
         onAccessibilityAction={slotted ? event => { if (event.nativeEvent.actionName === 'magicTap') switchSlot(); else open(index); } : undefined}
-        onAccessibilityTap={() => open(index)} style={{ flex: 1, alignItems: 'center', justifyContent: 'center', gap: 1, paddingVertical: 7 }}>
+        onAccessibilityTap={() => open(index)} style={{ flex: 1, alignItems: 'center', justifyContent: 'center', gap: 1, paddingVertical: 7, transform: [{ translateX: index === 0 ? EDGE_SHIFT : index === n - 1 ? -EDGE_SHIFT : 0 }] }}>
         {slotted && other ? <SlotReel reel={reel} people={item.id === 'people' ? item : other} channels={item.id === 'channels' ? item : other} active={on} kick={kicks[index]} pressed={pressed} index={index} /> : <>
           <TabIcon item={item} active={on} kick={kicks[index]} pressed={pressed} index={index} />
           <Text numberOfLines={1} maxFontSizeMultiplier={1} style={{ fontSize: 10, lineHeight: 12, letterSpacing: -.1, color: on ? t.accent : t.muted, fontWeight: '600' }}>{item.label}</Text>
