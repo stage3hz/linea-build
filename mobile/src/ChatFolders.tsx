@@ -99,7 +99,7 @@ export function FolderTabs({ folders, filter, unread, onChange, onCreate, onEdit
     </Pressable>; })}
     <Pressable onPress={onCreate} accessibilityRole="button" accessibilityLabel="Новая папка" hitSlop={4} style={{ width: 32, height: 32, borderRadius: 16, alignItems: 'center', justifyContent: 'center' }}><Icon name="add" size={18} color={t.muted} /></Pressable>
   </>;
-  return <GlassSurface lens material="regular" radius={20} shadow={false} style={{ marginHorizontal: 16, marginBottom: 8 }} contentStyle={{ height: 40, justifyContent: 'center' }}>
+  return <GlassSurface lens material="regular" radius={20} shadow={false} style={{ marginHorizontal: 16, marginBottom: 8 }} contentStyle={{ height: 40, justifyContent: 'center', borderRadius: 20, backgroundColor: t.dark ? 'rgba(255,255,255,0.04)' : 'rgba(255,255,255,0.72)' }}>
     {fits ? <View style={{ flexDirection: 'row', alignItems: 'center', paddingHorizontal: 4, gap: 2, height: 40 }}>{items}</View>
       : <ScrollView ref={scroll} horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ paddingHorizontal: 4, gap: 2, alignItems: 'center', height: 40 }}>{items}</ScrollView>}
   </GlassSurface>;
