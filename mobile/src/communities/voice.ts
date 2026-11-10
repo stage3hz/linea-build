@@ -507,7 +507,9 @@ export async function startVoiceScreen(quality: ScreenQuality) {
     // PC: the sound of the whole computer, whatever is shown (a screen, a window or a game) —
     // not only the shared window. restrictOwnAudio (Chromium 140+, Windows/macOS) leaves out
     // Инвиз's own sound, so the channel never hears itself back. Phones: picture only for now.
-    stream = await rtc!.mediaDevices.getDisplayMedia({
+    // The LiveKit build's getDisplayMedia() declares no parameters (phones ignore them; size and fps
+    // are set by applyConstraints below); browsers need them, so the call keeps passing them.
+    stream = await (rtc!.mediaDevices as any).getDisplayMedia({
       video: { width: { ideal: preset.width }, height: { ideal: preset.height }, frameRate: { ideal: 60, max: 60 } },
       audio: Platform.OS === 'web' ? { channelCount: 2, restrictOwnAudio: true, suppressLocalAudioPlayback: false, echoCancellation: false, noiseSuppression: false, autoGainControl: false } : false,
       ...(Platform.OS === 'web' ? { systemAudio: 'include', windowAudio: 'system' } : {}),

@@ -1,7 +1,7 @@
 const fs = require('node:fs');
 const path = require('node:path');
 const root = path.resolve(__dirname, '../node_modules/react-native-webrtc');
-if (JSON.parse(fs.readFileSync(path.join(root,'package.json'),'utf8')).version !== '124.0.8') throw new Error('Review screen capture patch for the new WebRTC version');
+if (JSON.parse(fs.readFileSync(path.join(root,'package.json'),'utf8')).version !== '150.1.1') throw new Error('Review screen capture patch for the new WebRTC version');
 function edit(file, before, after) {
   const p = path.join(root,file), s = fs.readFileSync(p,'utf8');
   if (s.includes(after)) return;
@@ -33,21 +33,23 @@ edit(android+'ScreenCaptureController.java','    @Override\n    public String ge
     @Override
     public String getDeviceId()`);
 const ios='ios/RCTWebRTC/ScreenCaptureController.m';
-edit(ios,'#import "SocketConnection.h"','#import "SocketConnection.h"\n#import <WebRTC/RTCVideoSource.h>');
+edit(ios,'#import "SocketConnection.h"','#import "SocketConnection.h"\n#import <LiveKitWebRTC/RTCVideoSource.h>');
 edit(ios,'- (NSDictionary *)getSettings {',`- (void)applyConstraints:(NSDictionary *)constraints error:(NSError **)outError {
     int width = [constraints[@"width"] intValue];
     int height = [constraints[@"height"] intValue];
     id source = self.capturer.delegate;
-    if (width > 0 && height > 0 && [source isKindOfClass:[RTCVideoSource class]]) {
+    if (width > 0 && height > 0 && [source isKindOfClass:[LKRTCVideoSource class]]) {
         (void)source; // Linea ReplayKit extension owns dimensions; sender limits output FPS.
     }
 }
 
 - (NSDictionary *)getSettings {`);
 edit(ios,'@"frameRate" : @(30)', '@"frameRate" : @(60)');
+// On rotation keep the size reserved by applyConstraints (same downscale and even rounding), so the
+// listener compares like with like and does not jump back to full display resolution.
 edit(android+'ScreenCaptureController.java',
- 'final int width = (int)(displayMetrics.widthPixels * resolutionScale);\n                final int height = (int)(displayMetrics.heightPixels * resolutionScale);',
- 'double scale = Math.min(resolutionScale, (double)Math.max(targetWidth, targetHeight) / Math.max(displayMetrics.widthPixels, displayMetrics.heightPixels));\n                final int width = (int)(displayMetrics.widthPixels * scale);\n                final int height = (int)(displayMetrics.heightPixels * scale);');
+ 'final int width = displayMetrics.widthPixels;\n                final int height = displayMetrics.heightPixels;',
+ 'double scale = Math.min(1.0, (double)Math.max(targetWidth, targetHeight) / Math.max(displayMetrics.widthPixels, displayMetrics.heightPixels));\n                final int width = Math.max(2, ((int)(displayMetrics.widthPixels * scale) / 2) * 2);\n                final int height = Math.max(2, ((int)(displayMetrics.heightPixels * scale) / 2) * 2);');
 
 // Cancelling before ReplayKit connects must not wait on an NSThread that has never started.
 edit('ios/RCTWebRTC/SocketConnection.m',
