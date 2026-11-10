@@ -90,6 +90,7 @@ final class VideoNoteView: ExpoView, AVCaptureVideoDataOutputSampleBufferDelegat
   private let multiHost = CALayer()           // holds both cameras' preview layers (main thread)
   private var multiOn = false                 // sessionQueue: the rig is the running session
   private var mainMulti = false               // main thread copy of multiOn (no flip cover then)
+  private var mainDegraded = false            // main thread copy of degraded (no immediate preview switch then)
   private var degraded = false                // sessionQueue: system pressure — only the shown camera runs
   private var handoffPending = false          // sessionQueue: degraded flip waiting for the new camera
   private var pressureObservations: [NSKeyValueObservation] = []
@@ -101,6 +102,15 @@ final class VideoNoteView: ExpoView, AVCaptureVideoDataOutputSampleBufferDelegat
   private var multiPendingSince = CMTime.invalid
   private var multiPendingFirst = CMTime.invalid
   private var multiDropBefore: [ObjectIdentifier: CMTime] = [:]
+
+  /// Which recorder runs and, for one camera, why two could not (sent with onReady, logged once per start):
+  /// a device check that the two-camera path is really used (also in the device log: «[videonote]»).
+  private var cameraPathValue = "one camera"
+  private let cameraPathLock = NSLock()
+  private var cameraPath: String {
+    get { cameraPathLock.lock(); defer { cameraPathLock.unlock() }; return cameraPathValue }
+    set { cameraPathLock.lock(); cameraPathValue = newValue; cameraPathLock.unlock(); NSLog("[videonote] %@", newValue) }
+  }
 
   /// sessionQueue: the session that runs (the rig's while two cameras are used).
   private var activeSession: AVCaptureSession {
@@ -188,13 +198,27 @@ final class VideoNoteView: ExpoView, AVCaptureVideoDataOutputSampleBufferDelegat
   /// Kept per camera (recording connection), read once before the first change.
   private var defaultAngles: [String: CGFloat] = [:]
 
-  /// Upright angles the RotationCoordinator reported for each camera while the phone was held upright
-  /// (key: device uniqueID for the recording connection, «preview|uniqueID» for the preview). A camera seen once is set straight from this on every later flip, so the
-  /// picture is upright at once even if the phone is tilted at the moment of the flip.
-  private var portraitAngles: [String: CGFloat] = [:]
-  private let anglesLock = NSLock()
-  private func rememberedAngle(_ id: String) -> CGFloat? { anglesLock.lock(); defer { anglesLock.unlock() }; return portraitAngles[id] }
-  private func rememberAngle(_ id: String, _ angle: CGFloat) { anglesLock.lock(); portraitAngles[id] = angle; anglesLock.unlock() }
+  /// Upright angles the RotationCoordinator reported for each camera while the phone was held in portrait
+  /// (key: device uniqueID for the recording connection, «preview|uniqueID» for the preview). Kept for the
+  /// whole app (and across launches): every later recorder sets each camera straight from this at
+  /// configuration, and a camera with a remembered angle is never turned again while a recorder is open.
+  private static var portraitAngles: [String: CGFloat] = {
+    let stored = UserDefaults.standard.dictionary(forKey: VideoNoteView.anglesKey) as? [String: Double] ?? [:]
+    return stored.mapValues { CGFloat($0) }
+  }()
+  private static let anglesKey = "linea.videonote.portraitAngles.v1"
+  private static let anglesLock = NSLock()
+  private func rememberedAngle(_ id: String) -> CGFloat? {
+    VideoNoteView.anglesLock.lock(); defer { VideoNoteView.anglesLock.unlock() }
+    return VideoNoteView.portraitAngles[id]
+  }
+  private func rememberAngle(_ id: String, _ angle: CGFloat) {
+    VideoNoteView.anglesLock.lock()
+    VideoNoteView.portraitAngles[id] = angle
+    let stored = VideoNoteView.portraitAngles.mapValues { Double($0) }
+    VideoNoteView.anglesLock.unlock()
+    UserDefaults.standard.set(stored, forKey: VideoNoteView.anglesKey)
+  }
 
   /// The recording connection's upright angle (remembered, else «default + 90°»). Returns the angle applied.
   @available(iOS 17.0, *)
@@ -225,8 +249,12 @@ final class VideoNoteView: ExpoView, AVCaptureVideoDataOutputSampleBufferDelegat
 
   // Apple's RotationCoordinator knows each camera's sensor rotation (the iPhone 17 front camera is
   // mounted turned) and gives the angle for an upright picture, for recording and for the preview
-  // separately. Its angles are applied while the phone is held upright (or lies flat), so the circle
-  // stays portrait when the phone is tilted. The «default + 90°» rule above is only the first guess.
+  // separately. A round video is locked upright relative to the phone held in portrait (Telegram), so the
+  // coordinator only confirms a camera's portrait angle: its value is used only while the phone is held in
+  // portrait (flat on a table or pointed at the floor its «horizon» angle swings by 90°, which turned the
+  // picture mid-take), and only for a camera whose angle is not known yet. Once known (remembered) the
+  // angle is locked: set at configuration, never changed while a recorder is open. The «default + 90°»
+  // rule above is only the first guess for a camera never seen in portrait.
   private var rotationCoordinator: AnyObject?
   private var rotationObservations: [NSKeyValueObservation] = []
 
@@ -251,29 +279,30 @@ final class VideoNoteView: ExpoView, AVCaptureVideoDataOutputSampleBufferDelegat
   @available(iOS 17.0, *)
   private func useCoordinator(capture: CGFloat?, preview: CGFloat?, device: String, initial: Bool) {
     DispatchQueue.main.async {
-      let held = UIDevice.current.orientation
-      guard held == .portrait || held == .unknown || held == .faceUp || held == .faceDown else { return }
+      let portrait = UIDevice.current.orientation == .portrait
       self.sessionQueue.async {
         // A late value from the previous camera's coordinator must not turn the current camera.
         guard self.videoInput?.device.uniqueID == device else { return }
-        // A camera already seen upright was set from its remembered angle inside the flip's configuration.
-        // The first value of a freshly made coordinator is not trusted for it: applying it is what turned
-        // the picture (and the file) sideways for about a second after each flip, until the next value came.
-        // The same for the preview, with its own remembered angle.
-        if let angle = capture, !(initial && self.rememberedAngle(device) != nil),
+        // The flip hold waits for the coordinator's answer only for a camera never seen; any report ends that
+        // wait (outside portrait the guess stays — the hold's caps apply as before).
+        if capture != nil { self.dataQueue.async { if self.holding { self.holdCoordinatorSeen = true } } }
+        guard portrait else { return }
+        // Locked: a camera whose portrait angle is known keeps the angle it was set to (configuration / flip).
+        // The first value of a freshly made coordinator is applied but not remembered (it can be stale after
+        // a flip); the next portrait value confirms it.
+        if let angle = capture, self.rememberedAngle(device) == nil,
            let connection = self.videoOutput.connection(with: .video), connection.isVideoRotationAngleSupported(angle) {
           if connection.videoRotationAngle != angle {
             connection.videoRotationAngle = angle
             self.rotationChanged()
           }
-          if held == .portrait { self.rememberAngle(device, angle) }
-          self.dataQueue.async { if self.holding { self.holdCoordinatorSeen = true } }
+          if !initial { self.rememberAngle(device, angle) }
         }
         let previewKey = "preview|\(device)"
-        if let angle = preview, !(initial && self.rememberedAngle(previewKey) != nil),
+        if let angle = preview, self.rememberedAngle(previewKey) == nil,
            let connection = self.previewLayer.connection, connection.isVideoRotationAngleSupported(angle) {
           connection.videoRotationAngle = angle
-          if held == .portrait { self.rememberAngle(previewKey, angle) }
+          if !initial { self.rememberAngle(previewKey, angle) }
         }
       }
     }
@@ -432,8 +461,9 @@ final class VideoNoteView: ExpoView, AVCaptureVideoDataOutputSampleBufferDelegat
   /// onReady sent (JS starts the take at once, so the timer starts with the first written frame), and
   /// the placeholder crossfades to the live preview.
   private func reveal() {
+    let path = cameraPath
     DispatchQueue.main.async {
-      self.onReady([:])
+      self.onReady(["camera": path])
       self.revealed = true
       CATransaction.begin()
       CATransaction.setAnimationDuration(0.15)
@@ -482,7 +512,9 @@ final class VideoNoteView: ExpoView, AVCaptureVideoDataOutputSampleBufferDelegat
           AVCaptureDevice.centerStageControlMode = .cooperative
           AVCaptureDevice.isCenterStageEnabled = false
         }
+        if self.rig == nil { self.cameraPath = "one camera: multi-cam not supported on this device" }
         if let rig = self.rig, self.configureMulti(rig) {
+          self.cameraPath = "two cameras"
           self.multiOn = true; self.configured = true
           DispatchQueue.main.async { self.mainMulti = true }
         } else {
@@ -495,6 +527,7 @@ final class VideoNoteView: ExpoView, AVCaptureVideoDataOutputSampleBufferDelegat
         if !rig.session.isRunning { rig.session.startRunning() }
         if rig.session.isRunning { self.applyTorch(); return }
         // Could not run both cameras: the single-session recorder from here on.
+        self.cameraPath = "one camera: the two-camera session did not start"
         self.abandonMulti(rig)
         self.configured = self.configure(); if self.configured { self.applyConnection() }
         guard self.configured else { return }
@@ -531,6 +564,11 @@ final class VideoNoteView: ExpoView, AVCaptureVideoDataOutputSampleBufferDelegat
     if next != shownFacing {
       shownFacing = next
       if revealed && !mainMulti { covered = coverForFlip() }
+      // Both cameras streaming: the other camera's preview (already live, upright, under the shown one) comes
+      // on top in this very frame, without waiting for the session and data queues. The writer follows on
+      // its next frame (multiFlip). Degraded (one camera running): the new camera is shown on its first
+      // settled frame instead.
+      if mainMulti && !mainDegraded { showMulti(next) }
     }
     let token = covered
     let release = { if token != 0 { DispatchQueue.main.async { self.uncover(token) } } }
@@ -605,15 +643,21 @@ final class VideoNoteView: ExpoView, AVCaptureVideoDataOutputSampleBufferDelegat
   /// sessionQueue, first start: both cameras and the microphone in the rig, each camera with its own upright
   /// angle and mirroring set once here. False (the rig emptied again) sends the caller to the single path.
   private func configureMulti(_ rig: VideoNoteMultiCam) -> Bool {
-    guard rig.findDevices() else { return false }
+    guard rig.findDevices() else { cameraPath = "one camera: front and back cannot stream together"; return false }
     let multi = rig.session
     multi.beginConfiguration()
     multi.automaticallyConfiguresCaptureDeviceForWideColor = false
     var ok = rig.addOutputsAndMicrophone(delegate: self, queue: dataQueue)
-    if ok { ok = rig.attach(rig.front) && rig.attach(rig.back) }
+    if !ok { cameraPath = "one camera: outputs could not be added" }
+    if ok { ok = rig.attach(rig.front); if !ok { cameraPath = "one camera: front camera could not be attached (\(rig.front.device.map { VideoNoteMultiCam.formats($0).count } ?? 0) formats)" } }
+    if ok { ok = rig.attach(rig.back); if !ok { cameraPath = "one camera: back camera could not be attached (\(rig.back.device.map { VideoNoteMultiCam.formats($0).count } ?? 0) formats)" } }
     if ok { orientMulti(rig.front); orientMulti(rig.back) }
     multi.commitConfiguration()
-    guard ok, rig.fitCost() else { abandonMulti(rig); return false }
+    if ok && !rig.fitCost() {
+      ok = false
+      cameraPath = String(format: "one camera: too costly (hardware %.2f, pressure %.2f)", rig.session.hardwareCost, rig.session.systemPressureCost)
+    }
+    guard ok else { abandonMulti(rig); return false }
     let shown = rig.camera(facing)
     dataQueue.async {
       self.multiActive = shown.output; self.multiPending = nil; self.multiDropBefore = [:]
@@ -634,6 +678,7 @@ final class VideoNoteView: ExpoView, AVCaptureVideoDataOutputSampleBufferDelegat
     dataQueue.async { self.multiActive = nil; self.multiPending = nil; self.multiDropBefore = [:] }
     DispatchQueue.main.async {
       self.mainMulti = false
+      self.mainDegraded = false
       self.multiRotationObservations.removeAll()
       self.multiCoordinators = []
       CATransaction.begin()
@@ -708,13 +753,14 @@ final class VideoNoteView: ExpoView, AVCaptureVideoDataOutputSampleBufferDelegat
 
   @available(iOS 17.0, *)
   private func useMultiCoordinator(capture: CGFloat?, preview: CGFloat?, camera: VideoNoteMultiCam.Camera, device: String, initial: Bool) {
+    // As on the single path: only while the phone is held in portrait, and only for a camera whose angle is
+    // not locked yet. Both coordinators are made once at configuration (no camera swap), so their first
+    // value is not stale and is remembered too: from then on that camera's angles are locked.
     DispatchQueue.main.async {
-      let held = UIDevice.current.orientation
-      guard held == .portrait || held == .unknown || held == .faceUp || held == .faceDown else { return }
+      guard UIDevice.current.orientation == .portrait else { return }
       self.sessionQueue.async {
         guard self.multiOn, camera.device?.uniqueID == device else { return }
-        // As on the single path: a camera already seen upright does not take a fresh coordinator's first value.
-        if let angle = capture, !(initial && self.rememberedAngle(device) != nil),
+        if let angle = capture, self.rememberedAngle(device) == nil,
            let connection = camera.dataConnection, connection.isVideoRotationAngleSupported(angle) {
           if connection.videoRotationAngle != angle {
             connection.videoRotationAngle = angle
@@ -722,25 +768,30 @@ final class VideoNoteView: ExpoView, AVCaptureVideoDataOutputSampleBufferDelegat
             let now = self.clockNow(), key = ObjectIdentifier(camera.output)
             self.dataQueue.async { self.multiDropBefore[key] = now }
           }
-          if held == .portrait { self.rememberAngle(device, angle) }
+          self.rememberAngle(device, angle)
         }
         let previewKey = "preview|\(device)"
-        if let angle = preview, !(initial && self.rememberedAngle(previewKey) != nil),
+        if let angle = preview, self.rememberedAngle(previewKey) == nil,
            let connection = camera.previewConnection, connection.isVideoRotationAngleSupported(angle) {
           connection.videoRotationAngle = angle
-          if held == .portrait { self.rememberAngle(previewKey, angle) }
+          self.rememberAngle(previewKey, angle)
         }
       }
     }
   }
 
-  /// Main thread: only the shown camera's preview layer is visible; the switch is not animated.
+  /// Main thread: the shown camera's preview layer goes on top; the switch is not animated. Both layers stay
+  /// visible (the other one under it, fully covered), so each keeps drawing its camera's latest frame: a
+  /// layer un-hidden at a flip had no picture yet and showed a near-black frame first. A late switch from
+  /// the queues for a facing that is no longer wanted (a quick second flip) is ignored.
   private func showMulti(_ facing: String) {
-    guard let rig = rig else { return }
+    guard let rig = rig, facing == shownFacing else { return }
     CATransaction.begin()
     CATransaction.setDisableActions(true)
-    rig.front.preview.isHidden = facing != "front"
-    rig.back.preview.isHidden = facing != "back"
+    rig.front.preview.isHidden = false
+    rig.back.preview.isHidden = false
+    rig.front.preview.zPosition = facing == "front" ? 1 : 0
+    rig.back.preview.zPosition = facing == "back" ? 1 : 0
     CATransaction.commit()
   }
 
@@ -809,6 +860,7 @@ final class VideoNoteView: ExpoView, AVCaptureVideoDataOutputSampleBufferDelegat
   private func degradeMulti() {
     guard multiOn, !degraded, let rig = rig else { return }
     degraded = true
+    DispatchQueue.main.async { self.mainDegraded = true }
     if !handoffPending { detachMulti(rig.other(rig.camera(facing))) }
   }
 
@@ -825,7 +877,7 @@ final class VideoNoteView: ExpoView, AVCaptureVideoDataOutputSampleBufferDelegat
     let ok = rig.attach(other)
     if ok { orientMulti(other) }
     rig.session.commitConfiguration()
-    if ok { degraded = false }
+    if ok { degraded = false; DispatchQueue.main.async { self.mainDegraded = false } }
   }
 
   /// dataQueue: whether a frame of one of the rig's cameras is shown / written. Only the active camera's

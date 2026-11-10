@@ -83,7 +83,17 @@ final class VideoNoteMultiCam {
       let videoRange = CMFormatDescriptionGetMediaSubType(format.formatDescription) == kCVPixelFormatType_420YpCbCr8BiPlanarVideoRange ? 0 : 1
       return (bigEnough, fourThree, long * short, videoRange)
     }
-    return candidates.sorted { rank($0) < rank($1) }
+    if !candidates.isEmpty { return candidates.sorted { rank($0) < rank($1) } }
+    // A camera with no small multi-cam format (a new sensor's format list) would send the whole recorder to
+    // the slow single-session path: any multi-cam 4:2:0 format at 30 fps then, smallest first (the writer
+    // scales to 480×640 anyway; fitCost steps down further if needed).
+    let relaxed = device.formats.filter { format in
+      guard format.isMultiCamSupported else { return false }
+      let subtype = CMFormatDescriptionGetMediaSubType(format.formatDescription)
+      guard subtype == kCVPixelFormatType_420YpCbCr8BiPlanarVideoRange || subtype == kCVPixelFormatType_420YpCbCr8BiPlanarFullRange else { return false }
+      return format.videoSupportedFrameRateRanges.contains { $0.minFrameRate <= 30 && 30 <= $0.maxFrameRate }
+    }
+    return relaxed.sorted { rank($0) < rank($1) }
   }
 
   /// The smallest multi-cam format (by area) — the step down when the session costs too much.

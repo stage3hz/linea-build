@@ -241,7 +241,9 @@ export function VideoNoteRecorder({ visible, onClose, onDone, hold = null }: { v
       withTiming(0, { duration: TURN_HALF_MS, easing: Easing.out(Easing.cubic) }),
     );
   };
-  const onNativeReady = () => { setReady(true); if (flipTimer.current) { clearTimeout(flipTimer.current); flipTimer.current = undefined; setFlipping(false); } };
+  // iPhone: which recorder runs («two cameras», or «one camera: <why>») — a device check that flips use both
+  // running cameras; logged once per recorder start.
+  const onNativeReady = (event?: { nativeEvent?: { camera?: string } }) => { const path = event?.nativeEvent?.camera; if (path && Platform.OS === 'ios') console.info(`[videonote] ${path}`); setReady(true); if (flipTimer.current) { clearTimeout(flipTimer.current); flipTimer.current = undefined; setFlipping(false); } };
   const preview = visible && allowed && androidNoteCameraAvailable ? <AndroidNoteCamera ref={nativeRef} zoom={zoom} facing={facing === 'back' ? 'back' : 'front'} {...(Platform.OS === 'ios' ? { torch: flash && facing === 'back' } : {})} style={{ position: 'absolute', left: 0, top: -CIRCLE / 6, width: CIRCLE, height: CIRCLE * 4 / 3 }} onReady={onNativeReady} onCameraError={event => setError(event.nativeEvent.message || 'Камера недоступна.')} /> : visible && allowed ? <CameraView key={Platform.OS === 'ios' ? 'camera' : facing} ref={ref} style={{ position: 'absolute', left: 0, top: -CIRCLE / 6, width: CIRCLE, height: CIRCLE * 4 / 3 }} facing={facing} mode="video" ratio="4:3" mirror={facing === 'front'} videoQuality="480p" enableTorch={flash && facing === 'back'} onCameraReady={() => setReady(true)} onMountError={event => setError(event.message || 'Камера недоступна.')} /> : null;
   // Telegram's way while the finger holds (and after a lock): the circle over the blurred chat with a
   // white progress arc around it; at the bottom the same strip as for voice — red dot, 0:04,63,
