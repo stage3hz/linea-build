@@ -42,7 +42,8 @@ jobs:
       - name: Build in-game overlay (native)
         shell: pwsh
         run: |
-          cmake -S desktop/native/overlay -B desktop/native/overlay/build -G "Visual Studio 17 2022" -A x64
+          # No -G: CMake picks the newest Visual Studio on the runner (windows-latest no longer has VS 2022).
+          cmake -S desktop/native/overlay -B desktop/native/overlay/build -A x64
           cmake --build desktop/native/overlay/build --config Release --parallel
           $out = "desktop/native/overlay/out"
           foreach ($f in "invizent-overlay-hook.dll", "invizent-overlay-injector.exe", "MinHook-LICENSE.txt") {
