@@ -20,6 +20,8 @@ function animationModule(emoji: string): number | undefined {
 
 
 const cache = new Map<string, Promise<object | null>>();
+/** Animations already parsed, so a view mounting later starts on the animation instead of the glyph. */
+const ready = new Map<string, object>();
 function load(emoji: string): Promise<object | null> {
   const module = animationModule(emoji);
   if (!module || Platform.OS === 'web') return Promise.resolve(null);
@@ -29,11 +31,18 @@ function load(emoji: string): Promise<object | null> {
       const asset = Asset.fromModule(module);
       if (!asset.localUri) await asset.downloadAsync();
       const uri = asset.localUri || asset.uri;
-      return JSON.parse(await FileSystem.readAsStringAsync(uri)) as object;
+      const json = JSON.parse(await FileSystem.readAsStringAsync(uri)) as object;
+      ready.set(emoji, json);
+      return json;
     })().catch(() => { cache.delete(emoji); return null; });
     cache.set(emoji, pending);
   }
   return pending;
+}
+
+/** Starts loading these animations ahead of time (e.g. the status picker's grid while the profile opens). */
+export function preloadAnimatedEmoji(emojis: readonly string[]): void {
+  for (const emoji of emojis) void load(emoji);
 }
 
 export const hasAnimatedEmoji = (emoji: string) => Platform.OS !== 'web' && (NATIVE_GLYPHS ? isEmojiCluster(emoji) : Boolean(animationModule(emoji)));
@@ -44,8 +53,15 @@ const lottie = () => LottieView;
 /**
  * One emoji. With an animation available it plays as Lottie (`loop`, or `once` and then on tap);
  * otherwise, or while animations are off, it is the ordinary system glyph.
+ * `still` (pickers/grids): the iPhone glyph is drawn at its final size from the first frame, with no
+ * scale transform — Core Animation scales the glyph's already-rendered bitmap, so a pop from 0.6 with
+ * spring overshoot and a 1.08 "breath" looked pixelated until the spring settled. Lottie (vector) loops.
  */
-export function AnimatedEmoji({ emoji, size, mode = 'loop', tapToReplay = false }: { emoji: string; size: number; mode?: 'loop' | 'once'; tapToReplay?: boolean }) {
+export function AnimatedEmoji({ emoji, size, mode = 'loop', tapToReplay = false }: { emoji: string; size: number; mode?: 'loop' | 'once' | 'still'; tapToReplay?: boolean }) {
+  if (mode === 'still' && NATIVE_GLYPHS) return <View accessible accessibilityLabel={emoji} style={{ width: size, height: size, alignItems: 'center', justifyContent: 'center' }}>
+    <Text raw style={{ fontSize: size * 0.86, lineHeight: size, textAlign: 'center' }}>{emoji}</Text>
+  </View>;
+  if (mode === 'still') mode = 'loop';
   if (NATIVE_GLYPHS) return <NativeEmoji emoji={emoji} size={size} mode={mode} tapToReplay={tapToReplay} />;
   return <LottieEmoji emoji={emoji} size={size} mode={mode} tapToReplay={tapToReplay} />;
 }
@@ -74,7 +90,7 @@ function NativeEmoji({ emoji, size, mode, tapToReplay }: { emoji: string; size: 
 
 function LottieEmoji({ emoji, size, mode, tapToReplay }: { emoji: string; size: number; mode: 'loop' | 'once'; tapToReplay: boolean }) {
   const { enabled } = useMotion();
-  const [source, setSource] = useState<object | null>(null);
+  const [source, setSource] = useState<object | null>(() => (enabled ? ready.get(emoji) ?? null : null));
   const ref = useRef<{ play: () => void; reset: () => void } | null>(null);
   useEffect(() => { let alive = true; if (enabled) void load(emoji).then(json => { if (alive) setSource(json); }); else setSource(null); return () => { alive = false; }; }, [emoji, enabled]);
   const Lottie = source ? lottie() : null;

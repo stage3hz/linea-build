@@ -250,7 +250,7 @@ export function VoiceMiniPlayer({ top, find }: { top: number; find: (attachmentI
     const author = find(note.attachmentId)?.author;
     const rateLabel = voice.rate === 1.5 ? '1,5×' : `${voice.rate}×`;
     return <View style={{ position: 'absolute', top, left: 10, right: 10, zIndex: 6 }}>
-      <GlassSurface lens material="regular" radius={16} contentStyle={{ height: 42, flexDirection: 'row', alignItems: 'center', gap: 10, paddingHorizontal: 8, overflow: 'hidden' }}>
+      <GlassSurface systemGlass={false} lens material="regular" radius={16} contentStyle={{ height: 42, flexDirection: 'row', alignItems: 'center', gap: 10, paddingHorizontal: 8, overflow: 'hidden', borderRadius: 16, backgroundColor: t.dark ? 'rgba(28,32,40,0.94)' : 'rgba(255,255,255,0.94)' }}>
         <Pressable accessibilityRole="button" accessibilityLabel={note.playing ? 'Пауза' : 'Продолжить'} onPress={note.toggle} hitSlop={8} style={{ width: 30, height: 30, alignItems: 'center', justifyContent: 'center' }}><Icon name={note.playing ? 'pause' : 'play'} size={20} color={t.accent} /></Pressable>
         <View style={{ flex: 1 }}>
           {author ? <Text numberOfLines={1} style={{ color: t.text, fontSize: 13, fontWeight: '600' }}>{author}</Text> : null}
@@ -266,7 +266,7 @@ export function VoiceMiniPlayer({ top, find }: { top: number; find: (attachmentI
   if (!item) return null;
   const progress = voice.duration > 0 ? Math.min(1, voice.position / voice.duration) : 0;
   return <View style={{ position: 'absolute', top, left: 10, right: 10, zIndex: 6 }}>
-    <GlassSurface lens material="regular" radius={16} contentStyle={{ height: 42, flexDirection: 'row', alignItems: 'center', gap: 10, paddingHorizontal: 8, overflow: 'hidden' }}>
+    <GlassSurface systemGlass={false} lens material="regular" radius={16} contentStyle={{ height: 42, flexDirection: 'row', alignItems: 'center', gap: 10, paddingHorizontal: 8, overflow: 'hidden', borderRadius: 16, backgroundColor: t.dark ? 'rgba(28,32,40,0.94)' : 'rgba(255,255,255,0.94)' }}>
       <Pressable accessibilityRole="button" accessibilityLabel={voice.playing ? 'Пауза' : 'Продолжить'} onPress={() => voice.toggle(item.attachment)} hitSlop={8} style={{ width: 30, height: 30, alignItems: 'center', justifyContent: 'center' }}><Icon name={voice.playing ? 'pause' : 'play'} size={20} color={t.accent} /></Pressable>
       <View style={{ flex: 1 }}>
         <Text numberOfLines={1} style={{ color: t.text, fontSize: 13, fontWeight: '600' }}>{item.author}</Text>

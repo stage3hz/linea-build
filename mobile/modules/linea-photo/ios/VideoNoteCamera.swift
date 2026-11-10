@@ -1,4 +1,5 @@
 import AVFoundation
+import CoreImage
 import ExpoModulesCore
 import UIKit
 
@@ -52,6 +53,23 @@ final class VideoNoteView: ExpoView, AVCaptureVideoDataOutputSampleBufferDelegat
   private var timeOffset = CMTime.zero
   private var lastVideoTime = CMTime.invalid
 
+  // Camera flip hold: touched only on dataQueue. From the flip until the new camera gives an upright,
+  // settled frame nothing new is written (the file holds the last good frame; an MP4 frame simply lasts
+  // until the next one) and the preview is covered by that frame. Frames are judged by their capture
+  // time against the moment the new rotation was set, not by their size: the iPhone 17 front camera
+  // (square sensor) gives portrait-sized buffers even when they are turned, so «width > height» alone
+  // let sideways frames into the file.
+  private var holding = false
+  private var holdAngleTime = CMTime.invalid  // frames captured before this are dropped
+  private var holdFirstFrame = CMTime.invalid // first upright-sized frame after holdAngleTime
+  private var holdDevice: AVCaptureDevice?
+  private var holdNeedsCoordinator = false    // camera never seen upright: wait for the RotationCoordinator
+  private var holdCoordinatorSeen = false
+  private var dropBefore = CMTime.invalid     // outside a flip: frames captured before a rotation change
+  private var lastFrame: CVPixelBuffer?        // last frame shown/written, for the cover
+  private lazy var ciContext = CIContext()
+  private let cover = UIImageView()
+
   required init(appContext: AppContext? = nil) {
     super.init(appContext: appContext)
     clipsToBounds = true
@@ -60,6 +78,16 @@ final class VideoNoteView: ExpoView, AVCaptureVideoDataOutputSampleBufferDelegat
     previewLayer.session = session
     previewLayer.videoGravity = .resizeAspectFill
     layer.addSublayer(previewLayer)
+    cover.contentMode = .scaleAspectFill
+    cover.clipsToBounds = true
+    cover.backgroundColor = .black
+    cover.isHidden = true
+    let blur = UIVisualEffectView(effect: UIBlurEffect(style: .dark))
+    blur.alpha = 0.6
+    blur.frame = cover.bounds
+    blur.autoresizingMask = [.flexibleWidth, .flexibleHeight]
+    cover.addSubview(blur)
+    addSubview(cover)
   }
 
   deinit { UIDevice.current.endGeneratingDeviceOrientationNotifications() }
@@ -67,6 +95,7 @@ final class VideoNoteView: ExpoView, AVCaptureVideoDataOutputSampleBufferDelegat
   override func layoutSubviews() {
     super.layoutSubviews()
     previewLayer.frame = bounds
+    cover.frame = bounds
   }
 
   override func didMoveToWindow() {
@@ -97,7 +126,7 @@ final class VideoNoteView: ExpoView, AVCaptureVideoDataOutputSampleBufferDelegat
   private var defaultAngles: [String: CGFloat] = [:]
 
   /// Upright angles the RotationCoordinator reported for each camera while the phone was held upright
-  /// (key: device uniqueID). A camera seen once is set straight from this on every later flip, so the
+  /// (key: device uniqueID for the recording connection, «preview|uniqueID» for the preview). A camera seen once is set straight from this on every later flip, so the
   /// picture is upright at once even if the phone is tilted at the moment of the flip.
   private var portraitAngles: [String: CGFloat] = [:]
   private let anglesLock = NSLock()
@@ -125,7 +154,8 @@ final class VideoNoteView: ExpoView, AVCaptureVideoDataOutputSampleBufferDelegat
   /// coordinator corrected it — and never, when the phone was tilted at that moment.
   @available(iOS 17.0, *)
   private func setPreviewPortrait(_ connection: AVCaptureConnection, upright: CGFloat?) {
-    for angle in [upright, 90] {
+    let id = videoInput?.device.uniqueID ?? facing
+    for angle in [rememberedAngle("preview|\(id)"), upright, 90] {
       if let angle = angle, connection.isVideoRotationAngleSupported(angle) { connection.videoRotationAngle = angle; return }
     }
   }
@@ -146,32 +176,53 @@ final class VideoNoteView: ExpoView, AVCaptureVideoDataOutputSampleBufferDelegat
       let coordinator = AVCaptureDevice.RotationCoordinator(device: device, previewLayer: self.previewLayer)
       self.rotationCoordinator = coordinator
       self.rotationObservations = [
-        coordinator.observe(\.videoRotationAngleForHorizonLevelCapture, options: [.initial, .new]) { [weak self] value, _ in
-          self?.useCoordinator(capture: value.videoRotationAngleForHorizonLevelCapture, preview: nil, device: id) },
-        coordinator.observe(\.videoRotationAngleForHorizonLevelPreview, options: [.initial, .new]) { [weak self] value, _ in
-          self?.useCoordinator(capture: nil, preview: value.videoRotationAngleForHorizonLevelPreview, device: id) },
+        // `.old` only so the first (initial) report is recognisable: it has no old value.
+        coordinator.observe(\.videoRotationAngleForHorizonLevelCapture, options: [.initial, .old, .new]) { [weak self] value, change in
+          self?.useCoordinator(capture: value.videoRotationAngleForHorizonLevelCapture, preview: nil, device: id, initial: change.oldValue == nil) },
+        coordinator.observe(\.videoRotationAngleForHorizonLevelPreview, options: [.initial, .old, .new]) { [weak self] value, change in
+          self?.useCoordinator(capture: nil, preview: value.videoRotationAngleForHorizonLevelPreview, device: id, initial: change.oldValue == nil) },
       ]
     }
   }
 
   @available(iOS 17.0, *)
-  private func useCoordinator(capture: CGFloat?, preview: CGFloat?, device: String) {
+  private func useCoordinator(capture: CGFloat?, preview: CGFloat?, device: String, initial: Bool) {
     DispatchQueue.main.async {
       let held = UIDevice.current.orientation
       guard held == .portrait || held == .unknown || held == .faceUp || held == .faceDown else { return }
       self.sessionQueue.async {
         // A late value from the previous camera's coordinator must not turn the current camera.
         guard self.videoInput?.device.uniqueID == device else { return }
-        if let angle = capture, let connection = self.videoOutput.connection(with: .video), connection.isVideoRotationAngleSupported(angle) {
-          connection.videoRotationAngle = angle
+        // A camera already seen upright was set from its remembered angle inside the flip's configuration.
+        // The first value of a freshly made coordinator is not trusted for it: applying it is what turned
+        // the picture (and the file) sideways for about a second after each flip, until the next value came.
+        // The same for the preview, with its own remembered angle.
+        if let angle = capture, !(initial && self.rememberedAngle(device) != nil),
+           let connection = self.videoOutput.connection(with: .video), connection.isVideoRotationAngleSupported(angle) {
+          if connection.videoRotationAngle != angle {
+            connection.videoRotationAngle = angle
+            self.rotationChanged()
+          }
           if held == .portrait { self.rememberAngle(device, angle) }
+          self.dataQueue.async { if self.holding { self.holdCoordinatorSeen = true } }
         }
-        if let angle = preview, let connection = self.previewLayer.connection, connection.isVideoRotationAngleSupported(angle) { connection.videoRotationAngle = angle }
+        let previewKey = "preview|\(device)"
+        if let angle = preview, !(initial && self.rememberedAngle(previewKey) != nil),
+           let connection = self.previewLayer.connection, connection.isVideoRotationAngleSupported(angle) {
+          connection.videoRotationAngle = angle
+          if held == .portrait { self.rememberAngle(previewKey, angle) }
+        }
       }
     }
   }
 
   private func applyConnection() {
+    setAngles()
+    if #available(iOS 17.0, *) { followRotationCoordinator() }
+  }
+
+  /// Upright rotation and mirroring on the current recording and preview connections, synchronously.
+  private func setAngles() {
     guard let connection = videoOutput.connection(with: .video) else { return }
     var upright: CGFloat?
     if #available(iOS 17.0, *) {
@@ -194,7 +245,86 @@ final class VideoNoteView: ExpoView, AVCaptureVideoDataOutputSampleBufferDelegat
         preview.isVideoMirrored = facing == "front"
       }
     }
-    if #available(iOS 17.0, *) { followRotationCoordinator() }
+  }
+
+  // MARK: flip hold
+
+  private func clockNow() -> CMTime { CMClockGetTime(session.synchronizationClock ?? CMClockGetHostTimeClock()) }
+
+  /// Called on sessionQueue right after the recording connection's rotation changed: frames captured
+  /// before now carry the old rotation and are never written.
+  private func rotationChanged() {
+    let now = clockNow()
+    dataQueue.async {
+      if self.holding { self.holdAngleTime = now; self.holdFirstFrame = .invalid } else { self.dropBefore = now }
+    }
+  }
+
+  /// Start of a flip (sessionQueue, before the input swap): from here no frame is shown or written
+  /// until `frameAllowed` releases the hold; the preview is covered with the last good frame.
+  private func beginHold() {
+    dataQueue.async {
+      self.holding = true
+      self.holdAngleTime = .invalid; self.holdFirstFrame = .invalid
+      self.holdDevice = nil; self.holdNeedsCoordinator = false; self.holdCoordinatorSeen = false
+      let image = self.lastFrame.flatMap { self.snapshot($0) }
+      DispatchQueue.main.async {
+        self.cover.layer.removeAllAnimations()
+        self.cover.image = image
+        self.cover.alpha = 1
+        self.cover.isHidden = false
+      }
+    }
+  }
+
+  /// After the swap is committed and the new connection's rotation is set (sessionQueue).
+  private func armHold(device: AVCaptureDevice?, needsCoordinator: Bool) {
+    let now = clockNow()
+    dataQueue.async {
+      guard self.holding else { return }
+      self.holdDevice = device; self.holdNeedsCoordinator = needsCoordinator
+      self.holdAngleTime = now; self.holdFirstFrame = .invalid
+    }
+  }
+
+  private func endHold() {
+    holding = false; holdDevice = nil
+    DispatchQueue.main.async {
+      UIView.animate(withDuration: 0.15, animations: { self.cover.alpha = 0 }) { finished in
+        if finished { self.cover.isHidden = true; self.cover.image = nil }
+      }
+    }
+  }
+
+  /// dataQueue: whether a video frame captured at `time` may be shown in the cover / written.
+  private func frameAllowed(portrait: Bool, at time: CMTime) -> Bool {
+    if dropBefore.isValid {
+      if CMTimeCompare(time, dropBefore) < 0 { return false }
+      dropBefore = .invalid
+    }
+    guard holding else { return true }
+    // Not armed yet (swap still running) or captured before the new rotation was set.
+    guard holdAngleTime.isValid, CMTimeCompare(time, holdAngleTime) >= 0 else { return false }
+    // Hard cap: never freeze longer than this, even if no upright-sized frame comes (landscape frames are
+    // still dropped by the caller, as before).
+    if CMTimeGetSeconds(CMTimeSubtract(time, holdAngleTime)) >= 1.5 { endHold(); return true }
+    guard portrait else { return false }
+    if !holdFirstFrame.isValid { holdFirstFrame = time }
+    let waited = CMTimeGetSeconds(CMTimeSubtract(time, holdFirstFrame))
+    if waited >= 1.0 { endHold(); return true }
+    // A camera never seen upright: its angle was only a guess, wait for the coordinator's answer.
+    if holdNeedsCoordinator && !holdCoordinatorSeen { return false }
+    // The new camera's first frames are out of focus / exposure: wait for it to settle, at most ~350 ms.
+    let settling = holdDevice.map { $0.isAdjustingFocus || $0.isAdjustingExposure } ?? false
+    if waited < 0.1 || (settling && waited < 0.35) { return false }
+    endHold()
+    return true
+  }
+
+  private func snapshot(_ pixels: CVPixelBuffer) -> UIImage? {
+    let image = CIImage(cvPixelBuffer: pixels)
+    guard let cg = ciContext.createCGImage(image, from: image.extent) else { return nil }
+    return UIImage(cgImage: cg)
   }
 
   private func fail(_ message: String) {
@@ -240,6 +370,7 @@ final class VideoNoteView: ExpoView, AVCaptureVideoDataOutputSampleBufferDelegat
     sessionQueue.async {
       if self.session.isRunning { self.session.stopRunning() }
       self.readySent = false
+      self.dataQueue.async { self.lastFrame = nil }
     }
   }
 
@@ -250,15 +381,22 @@ final class VideoNoteView: ExpoView, AVCaptureVideoDataOutputSampleBufferDelegat
       guard next != self.facing else { return }
       self.facing = next
       guard self.configured, let camera = self.device(for: next), let input = try? AVCaptureDeviceInput(device: camera) else { return }
+      self.beginHold()
       self.session.beginConfiguration()
       if let old = self.videoInput { self.session.removeInput(old) }
       if self.session.canAddInput(input) { self.session.addInput(input); self.videoInput = input }
       else if let old = self.videoInput, self.session.canAddInput(old) { self.session.addInput(old) }
+      // The new connections exist once the input is added: they get the upright angle before the commit,
+      // so the camera's first frame already carries it (not a moment later, nor from the coordinator).
+      self.setAngles()
       self.session.commitConfiguration()
-      // After the commit: the new camera's connections exist and still hold their own default rotation.
+      // Again after the commit (idempotent), in case the commit replaced a connection; then the coordinator.
       self.applyConnection()
       self.applyTorch()
       self.applyZoom()
+      var needsCoordinator = false
+      if #available(iOS 17.0, *), let id = self.videoInput?.device.uniqueID { needsCoordinator = self.rememberedAngle(id) == nil }
+      self.armHold(device: self.videoInput?.device, needsCoordinator: needsCoordinator)
     }
   }
 
@@ -375,12 +513,17 @@ final class VideoNoteView: ExpoView, AVCaptureVideoDataOutputSampleBufferDelegat
   }
 
   func captureOutput(_ output: AVCaptureOutput, didOutput sampleBuffer: CMSampleBuffer, from connection: AVCaptureConnection) {
-    guard let writer = writer, !stopping, CMSampleBufferDataIsReady(sampleBuffer) else { return }
     let time = CMSampleBufferGetPresentationTimeStamp(sampleBuffer)
     if output === videoOutput {
-      // Right after a camera flip the new camera can deliver a few landscape frames before the
-      // rotation applies: they are skipped, the file simply holds the last good frame a moment.
-      if let pixels = CMSampleBufferGetImageBuffer(sampleBuffer), CVPixelBufferGetWidth(pixels) > CVPixelBufferGetHeight(pixels) { return }
+      // Flip hold first (also while not recording: it releases the preview cover). Landscape buffers are
+      // never shown or written; the file simply holds the last good frame a moment.
+      let pixels = CMSampleBufferGetImageBuffer(sampleBuffer)
+      let portrait = pixels.map { CVPixelBufferGetWidth($0) <= CVPixelBufferGetHeight($0) } ?? false
+      guard frameAllowed(portrait: portrait, at: time), portrait else { return }
+      lastFrame = pixels
+    }
+    guard let writer = writer, !stopping, CMSampleBufferDataIsReady(sampleBuffer) else { return }
+    if output === videoOutput {
       if paused { return }
       if !sessionStarted {
         guard writer.startWriting() else { fail("Не удалось начать запись видео."); return }
