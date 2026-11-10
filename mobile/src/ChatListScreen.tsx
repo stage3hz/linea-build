@@ -73,7 +73,7 @@ export function ChatListScreen({api,user,store,onProfile,onNewChat,onMusic,onAI,
   // A marked chat adds one to the «Чаты» tab badge, as in Telegram (the total itself counts messages, see App).
   const extra=markedExtra(store.chats,marked,c=>counted(c as Chat));
   useEffect(()=>{setMarkedExtra(extra);},[extra]);
-  useEffect(()=>{if(filter!=='all'&&filter!=='unread'&&!folders.folders.some(f=>f.id===filter))setFilter('all');},[folders.folders,filter]);
+  useEffect(()=>{if(filter!=='all'&&!folders.folders.some(f=>f.id===filter))setFilter('all');},[folders.folders,filter]);
   // Telegram: a sideways swipe over the list moves to the next / previous folder, the tab highlight
   // following the finger. Rows keep their own swipes: a pan that starts on a chat row belongs to the
   // row (rowTouch), so this one takes drags over the rest of the list (gaps, «Избранное», «Архив»,
@@ -159,7 +159,7 @@ export function ChatListScreen({api,user,store,onProfile,onNewChat,onMusic,onAI,
     </GlassSurface>
     {/* F8: friends' stories above the chats (hidden while nobody has one); not in the archive or while editing. */}
     {!archive&&!editing?<StoriesStrip api={api} user={user} store={store}/>:null}
-    {!archive?<FolderTabs position={folderPos} folders={folders.folders} filter={filter} unread={unread} onChange={setFilter} onCreate={()=>setEditor({folder:null})} onEdit={folder=>setEditor({folder})}/>:null}
+    {!archive&&folders.folders.length?<FolderTabs position={folderPos} folders={folders.folders} filter={filter} unread={unread} onChange={setFilter} onCreate={()=>setEditor({folder:null})} onEdit={folder=>setEditor({folder})}/>:null}
     <FolderEditor visible={!!editor} folder={editor?.folder||null} chats={store.chats} api={api} onClose={()=>setEditor(null)} onSave={folder=>{folders.upsert(folder);setFilter(folder.id);setEditor(null);}} onDelete={id=>{folders.remove(id);setEditor(null);}}/>
     {store.error?<View style={{paddingHorizontal:17,paddingBottom:12}}><Notice text={store.error} error onRetry={()=>void refresh()}/></View>:null}
   </>;

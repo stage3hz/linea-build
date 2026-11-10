@@ -55,9 +55,12 @@ export function matchesFolder(chat: Chat, filter: FolderFilter, folders: ChatFol
   return !!folders.find(folder => folder.id === filter)?.chatIds.includes(chat.id);
 }
 
-/** The tabs in order: «Все», «Непрочитанные», then the user's folders (a swipe on the list walks them). */
+/**
+ * The tabs in order: «Все», then the user's folders (a swipe on the list walks them). Telegram shows no
+ * built-in «Непрочитанные» tab, and no bar at all until the user has a folder (made in Settings → Папки с чатами).
+ */
 export function folderTabIds(folders: ChatFolder[]): FolderFilter[] {
-  return ['all', 'unread', ...folders.map(folder => folder.id)];
+  return ['all', ...folders.map(folder => folder.id)];
 }
 
 /**
@@ -67,7 +70,7 @@ export function folderTabIds(folders: ChatFolder[]): FolderFilter[] {
  */
 export function FolderTabs({ folders, filter, unread, onChange, onCreate, onEdit, position }: { folders: ChatFolder[]; filter: FolderFilter; unread: number; onChange: (filter: FolderFilter) => void; onCreate: () => void; onEdit: (folder: ChatFolder) => void; position?: SharedValue<number> }) {
   const t = useTheme();
-  const tabs: { id: FolderFilter; label: string; folder?: ChatFolder; badge?: number }[] = [{ id: 'all', label: 'Все' }, { id: 'unread', label: 'Непрочитанные', badge: unread }, ...folders.map(folder => ({ id: folder.id, label: folder.name, folder }))];
+  const tabs: { id: FolderFilter; label: string; folder?: ChatFolder; badge?: number }[] = [{ id: 'all', label: 'Все' }, ...folders.map(folder => ({ id: folder.id, label: folder.name, folder }))];
   const activeIndex = Math.max(0, tabs.findIndex(tab => tab.id === filter));
   const own = useSharedValue(activeIndex);
   const pos = position || own;
@@ -88,16 +91,15 @@ export function FolderTabs({ folders, filter, unread, onChange, onCreate, onEdit
   });
   // Telegram: one glass bar across the screen; tabs share it equally while they fit, then scroll.
   // …only when the names are short too: a long folder name squeezed «Все» down to «В..».
-  const fits = tabs.length <= 3 && tabs.reduce((sum, tab) => sum + Array.from(tab.label).length, 0) <= 24;
+  const fits = tabs.length <= 4 && tabs.reduce((sum, tab) => sum + Array.from(tab.label).length, 0) <= 28;
   const items = <>
     {/* Telegram: the selected folder is a grey capsule on the bar. A white one on the light glass merged
         into it on the phone's screen (it read only on screenshots). */}
     <Animated.View pointerEvents="none" style={[{ position: 'absolute', left: 0, top: 4, height: 32, borderRadius: 16, backgroundColor: t.dark ? 'rgba(255,255,255,0.16)' : 'rgba(20,30,60,0.08)', borderWidth: StyleSheet.hairlineWidth, borderColor: t.dark ? 'rgba(255,255,255,0.10)' : 'rgba(20,30,60,0.08)' }, highlight]} />
-    {tabs.map((tab, index) => { const active = filter === tab.id; return <Pressable key={tab.id} onLayout={onTabLayout(index)} onPress={() => { lightFeedback(); onChange(tab.id); }} onLongPress={tab.folder ? () => onEdit(tab.folder!) : undefined} accessibilityRole="tab" accessibilityState={{ selected: active }} style={{ flexGrow: fits ? 1 : 0, flexShrink: fits ? 1 : 0, flexBasis: 'auto', minWidth: 0, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6, paddingHorizontal: 12, height: 32, borderRadius: 16 }}>
+    {tabs.map((tab, index) => { const active = filter === tab.id; return <Pressable key={tab.id} onLayout={onTabLayout(index)} onPress={() => { lightFeedback(); onChange(tab.id); }} onLongPress={tab.folder ? () => onEdit(tab.folder!) : undefined} accessibilityRole="tab" accessibilityState={{ selected: active }} style={{ flexGrow: fits ? 1 : 0, flexShrink: fits ? 1 : 0, flexBasis: fits ? 0 : 'auto', minWidth: 0, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6, paddingHorizontal: 12, height: 32, borderRadius: 16 }}>
       <Text numberOfLines={1} maxFontSizeMultiplier={1.15} style={{ flexShrink: 1, color: t.text, fontSize: 14, fontWeight: '600' }}>{tab.label}</Text>
       {tab.badge ? <View style={{ minWidth: 18, height: 18, borderRadius: 9, paddingHorizontal: 5, alignItems: 'center', justifyContent: 'center', backgroundColor: t.accent }}><Text maxFontSizeMultiplier={1} style={{ color: t.onAccent, fontSize: 11, fontWeight: '700' }}>{tab.badge > 99 ? '99+' : tab.badge}</Text></View> : null}
     </Pressable>; })}
-    <Pressable onPress={onCreate} accessibilityRole="button" accessibilityLabel="Новая папка" hitSlop={4} style={{ width: 32, height: 32, borderRadius: 16, alignItems: 'center', justifyContent: 'center' }}><Icon name="add" size={18} color={t.muted} /></Pressable>
   </>;
   return <GlassSurface lens material="regular" radius={20} shadow={false} style={{ marginHorizontal: 16, marginBottom: 8 }} contentStyle={{ height: 40, justifyContent: 'center', borderRadius: 20, backgroundColor: t.dark ? 'rgba(255,255,255,0.04)' : 'rgba(255,255,255,0.72)' }}>
     {fits ? <View style={{ flexDirection: 'row', alignItems: 'center', paddingHorizontal: 4, gap: 2, height: 40 }}>{items}</View>
