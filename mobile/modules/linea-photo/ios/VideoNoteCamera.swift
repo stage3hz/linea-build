@@ -71,8 +71,15 @@ final class VideoNoteView: ExpoView, AVCaptureVideoDataOutputSampleBufferDelegat
   private var holdCoordinatorSeen = false
   private var dropBefore = CMTime.invalid     // outside a flip: frames captured before a rotation change
   private var lastFrame: CVPixelBuffer?        // last frame shown/written, for the cover
-  private lazy var ciContext = CIContext()
+  private var holdToken = 0                    // the flip (flipToken) this hold belongs to
+  // Thread-safe; used on dataQueue and, at a flip tap, on the main thread.
+  private let ciContext = CIContext()
   private let cover = UIImageView()
+  // Main thread: the facing the circle shows, the number of the latest flip (a late release of an earlier
+  // flip must not uncover a newer one), and whether the session's first frame was revealed.
+  private var shownFacing = "front"
+  private var flipToken = 0
+  private var revealed = false
 
   required init(appContext: AppContext? = nil) {
     super.init(appContext: appContext)
@@ -86,7 +93,8 @@ final class VideoNoteView: ExpoView, AVCaptureVideoDataOutputSampleBufferDelegat
     layer.addSublayer(previewLayer)
     cover.contentMode = .scaleAspectFill
     cover.clipsToBounds = true
-    cover.backgroundColor = .black
+    // No dark backdrop: without a picture the circle's own background shows, never a black frame.
+    cover.backgroundColor = .clear
     cover.isHidden = true
     addSubview(cover)
     // While the camera starts: the previous recorder's last picture (blurred), else nothing until the
@@ -270,22 +278,56 @@ final class VideoNoteView: ExpoView, AVCaptureVideoDataOutputSampleBufferDelegat
     }
   }
 
+  /// Main thread, at the flip tap, before the session is touched: the last upright frame (lightly blurred,
+  /// no tint) covers the circle at full opacity at once (no fade-in), and the preview layer is hidden under
+  /// it until the new camera's first upright frame (`uncover`). The preview layer keeps showing the old
+  /// camera's last picture while the swap runs, and the new connection's angle turned that picture 90°.
+  private func coverForFlip() -> Int {
+    flipToken += 1
+    let frame = dataQueue.sync { self.lastFrame }
+    let image = frame.flatMap { snapshot($0) } ?? VideoNoteView.placeholder
+    cover.layer.removeAllAnimations()
+    CATransaction.begin()
+    CATransaction.setDisableActions(true)
+    previewLayer.removeAllAnimations()
+    previewLayer.opacity = 0
+    CATransaction.commit()
+    cover.image = image
+    cover.alpha = 1
+    cover.isHidden = image == nil
+    // To the screen now, before the session queue starts the swap.
+    CATransaction.flush()
+    return flipToken
+  }
+
+  /// Main thread: the live preview comes back under the cover, then the cover crossfades out (~150 ms).
+  /// Ignored when a newer flip has covered the circle since.
+  private func uncover(_ token: Int) {
+    guard token == flipToken else { return }
+    if cover.isHidden {
+      CATransaction.begin()
+      CATransaction.setAnimationDuration(0.15)
+      previewLayer.opacity = 1
+      CATransaction.commit()
+      return
+    }
+    CATransaction.begin()
+    CATransaction.setDisableActions(true)
+    previewLayer.opacity = 1
+    CATransaction.commit()
+    UIView.animate(withDuration: 0.15, delay: 0, options: [.beginFromCurrentState], animations: { self.cover.alpha = 0 }) { finished in
+      if finished && token == self.flipToken { self.cover.isHidden = true; self.cover.image = nil }
+    }
+  }
+
   /// Start of a flip (sessionQueue, before the input swap): from here no frame is shown or written
-  /// until `frameAllowed` releases the hold; the preview is covered with the last good frame.
-  private func beginHold() {
+  /// until `frameAllowed` releases the hold. The cover was already put up on the main thread (coverForFlip).
+  private func beginHold(token: Int) {
     dataQueue.async {
       self.holding = true
+      self.holdToken = token
       self.holdAngleTime = .invalid; self.holdFirstFrame = .invalid
       self.holdDevice = nil; self.holdNeedsCoordinator = false; self.holdCoordinatorSeen = false
-      let image = self.lastFrame.flatMap { self.snapshot($0) }
-      DispatchQueue.main.async {
-        // A quick crossfade to the last frame, lightly blurred (Telegram), not a dark tint. The swap and
-        // the new camera's start take longer than the fade, so no turned frame shows through meanwhile.
-        self.cover.layer.removeAllAnimations()
-        self.cover.image = image ?? VideoNoteView.placeholder
-        if self.cover.isHidden { self.cover.alpha = 0; self.cover.isHidden = false }
-        UIView.animate(withDuration: 0.1, delay: 0, options: [.beginFromCurrentState]) { self.cover.alpha = 1 }
-      }
     }
   }
 
@@ -301,11 +343,8 @@ final class VideoNoteView: ExpoView, AVCaptureVideoDataOutputSampleBufferDelegat
 
   private func endHold() {
     holding = false; holdDevice = nil
-    DispatchQueue.main.async {
-      UIView.animate(withDuration: 0.15, animations: { self.cover.alpha = 0 }) { finished in
-        if finished { self.cover.isHidden = true; self.cover.image = nil }
-      }
-    }
+    let token = holdToken
+    DispatchQueue.main.async { self.uncover(token) }
   }
 
   /// dataQueue: whether a video frame captured at `time` may be shown in the cover / written.
@@ -350,6 +389,7 @@ final class VideoNoteView: ExpoView, AVCaptureVideoDataOutputSampleBufferDelegat
   private func reveal() {
     DispatchQueue.main.async {
       self.onReady([:])
+      self.revealed = true
       CATransaction.begin()
       CATransaction.setAnimationDuration(0.15)
       self.previewLayer.opacity = 1
@@ -422,17 +462,29 @@ final class VideoNoteView: ExpoView, AVCaptureVideoDataOutputSampleBufferDelegat
 
   /** Swaps only the camera input: the writer and the microphone keep going, so a flip does not stop the take. */
   func setFacing(_ value: String) {
+    // Props arrive on the main thread; the cover must go up there, synchronously, before the swap.
+    guard Thread.isMainThread else { DispatchQueue.main.async { self.setFacing(value) }; return }
     let next = value == "back" ? "back" : "front"
+    var covered = 0
+    // Before the first frame the start placeholder (or the hidden preview) already covers the circle.
+    if next != shownFacing {
+      shownFacing = next
+      if revealed { covered = coverForFlip() }
+    }
+    let token = covered
+    let release = { if token != 0 { DispatchQueue.main.async { self.uncover(token) } } }
     sessionQueue.async {
-      guard next != self.facing else { return }
+      guard next != self.facing else { release(); return }
+      let previous = self.facing
       self.facing = next
-      guard self.configured, let camera = self.device(for: next), let input = try? AVCaptureDeviceInput(device: camera) else { return }
-      self.beginHold()
+      guard self.configured, let camera = self.device(for: next), let input = try? AVCaptureDeviceInput(device: camera) else { release(); return }
+      self.beginHold(token: token)
       self.session.beginConfiguration()
       if let old = self.videoInput { self.session.removeInput(old) }
       if self.session.canAddInput(input) { self.session.addInput(input); self.videoInput = input }
-      else if let old = self.videoInput, self.session.canAddInput(old) { self.session.addInput(old) }
-      // The new connections exist once the input is added: they get the upright angle before the commit,
+      else if let old = self.videoInput, self.session.canAddInput(old) { self.session.addInput(old); self.facing = previous }
+      // Only the connections made by addInput above are touched (the old ones went with removeInput), and
+      // only after the preview was hidden under the cover. They get the upright angle before the commit,
       // so the camera's first frame already carries it (not a moment later, nor from the coordinator).
       self.setAngles()
       self.session.commitConfiguration()
