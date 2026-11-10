@@ -1,7 +1,7 @@
 // Настройки › Уведомления и звуки (Telegram): the push state of this device, «Личные чаты», «Сообщества»,
 // «Звонки», «Бейдж на иконке», the chats whose sound is off, «Сбросить настройки». The switches are kept on
 // this device (prefs.ts); a chat's mute is a server setting (chat_settings.muted_until) changed through the API.
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useSyncExternalStore } from 'react';
 import { Platform, Pressable, View } from 'react-native';
 import { Text } from '../typography';
 import { Avatar, Button, Icon, Notice, Sheet, SheetAction } from '../components';
@@ -14,6 +14,7 @@ import type { Chat } from '../types';
 import { RINGTONES, isMuted, mutedStatusText, notificationPrefsChanged } from './model';
 import { resetNotificationPrefs, setNotificationPrefs, useNotificationPrefs } from './prefs';
 import { MuteSheet } from './MuteSheet';
+import { audioPrefs, setAudioPrefs, subscribeAudio } from '../audio/devices';
 import { dndLabel, requestWebNotificationPermission, setDesktopPrefs, useDesktopPrefs, webNotificationPermission, type WebPermission } from './desktopNotify';
 
 /** «Не беспокоить» on PC / in the browser: system notifications stay off for this long (ms), forever (null) or come back (0). */
@@ -49,7 +50,7 @@ function DesktopNotifications({ enabled }: { enabled: boolean }) {
 }
 
 export function NotificationsSection({ api, chats, onChatsChanged }: { api: Api; chats: Chat[]; onChatsChanged?: () => void }) {
-  const t = useTheme(); const prefs = useNotificationPrefs(); const status = usePushStatus();
+  const t = useTheme(); const prefs = useNotificationPrefs(); const noiseSuppression = useSyncExternalStore(subscribeAudio, () => audioPrefs().noiseSuppression, () => true); const studioSound = useSyncExternalStore(subscribeAudio, () => audioPrefs().studioSound, () => false); const status = usePushStatus();
   const [sheet, setSheet] = useState<'ringtone' | 'reset' | null>(null);
   const statusText = pushStatusText(status);
   const [muteFor, setMuteFor] = useState<Chat | null>(null);
@@ -77,6 +78,10 @@ export function NotificationsSection({ api, chats, onChatsChanged }: { api: Api;
     <Group label="Звонки">
       <Item icon="musical-notes" color="#34C759" label="Мелодия" value={RINGTONES.find(item => item.id === prefs.calls.ringtone)?.label} onPress={() => setSheet('ringtone')} />
       <Toggle label="Вибрация" description="Телефон вибрирует при входящем звонке, пока приложение запущено." value={prefs.calls.vibration} onChange={value => setNotificationPrefs({ calls: { vibration: value } })} />
+      {/* Telegram's «Шумоподавление» in call settings: the same switch as Звук и микрофон on the PC; a live call picks it up at once. */}
+      <Toggle label="Шумоподавление" description="Убирает фоновый шум в звонках: улицу, вентилятор, клавиатуру. Меняется сразу, даже во время разговора." value={noiseSuppression} onChange={value => { lightFeedback(); setAudioPrefs({ noiseSuppression: value }); }} />
+      {/* Test preset (studioSound.ts): Web Audio EQ on the PC; the phone WebRTC build has no JS hook for it yet. */}
+      <Toggle label="Студийный звук (тест)" description={Platform.OS === 'web' ? 'Эквалайзер для твоего микрофона: плотнее низ, меньше «коробки», ярче голос. Слышат собеседники; включается сразу.' : 'Эквалайзер для твоего микрофона — пока только на компьютере.'} value={Platform.OS === 'web' && studioSound} disabled={Platform.OS !== 'web'} onChange={value => { lightFeedback(); setAudioPrefs({ studioSound: value }); }} />
     </Group>
     <Group label="Бейдж на иконке">
       <Toggle label="Считать непрочитанные" description="Число непрочитанных сообщений на иконке приложения." value={prefs.badge.enabled} onChange={value => setNotificationPrefs({ badge: { enabled: value } })} />

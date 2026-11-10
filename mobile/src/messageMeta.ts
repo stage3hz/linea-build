@@ -20,7 +20,8 @@ export type MessageAction =
   // Call signalling travels inside the Signal ciphertext, so the SDP (with its DTLS fingerprint) is authenticated end to end.
   // The `end` also carries the outcome both phones render as the service row «Исходящий звонок · 3:12» (F9):
   // `duration` in whole seconds (answered calls), `caller` — the sender of this `end` placed the call.
-  | { type: 'call'; call: string; step: 'offer' | 'answer' | 'end'; video?: boolean; sdp?: string; reason?: 'hangup' | 'declined' | 'busy' | 'missed' | 'failed'; duration?: number; caller?: boolean }
+  // `restart` / `restart-answer`: an ICE restart mid-call («Восстановление связи…»), numbered by `gen` so a late one is ignored.
+  | { type: 'call'; call: string; step: 'offer' | 'answer' | 'end' | 'restart' | 'restart-answer'; video?: boolean; sdp?: string; reason?: 'hangup' | 'declined' | 'busy' | 'missed' | 'failed'; duration?: number; caller?: boolean; gen?: number }
   // Chat rules both sides follow: auto-delete after `ttl` seconds (0 = off) and no copying/forwarding.
   | { type: 'settings'; ttl: number; noCopy: boolean }
   // «Очистить историю» for both: everything sent before this action disappears on both phones.
@@ -52,8 +53,10 @@ function validAction(value: unknown): value is MessageAction {
     case 'react': return only(value, ['type', 'target', 'emoji']) && typeof value.target === 'string' && uuid.test(value.target) && (value.emoji === null || (REACTIONS as readonly unknown[]).includes(value.emoji));
     case 'pin': return only(value, ['type', 'target']) && (value.target === null || (typeof value.target === 'string' && uuid.test(value.target)));
     case 'vote': return only(value, ['type', 'target', 'options']) && typeof value.target === 'string' && uuid.test(value.target) && Array.isArray(value.options) && value.options.length <= POLL_LIMITS.maxOptions && value.options.every(index => Number.isInteger(index) && index >= 0 && index < POLL_LIMITS.maxOptions) && new Set(value.options).size === value.options.length;
-    case 'call': return only(value, ['type', 'call', 'step', 'video', 'sdp', 'reason', 'duration', 'caller']) && typeof value.call === 'string' && uuid.test(value.call)
-      && (value.step === 'offer' || value.step === 'answer' || value.step === 'end')
+    case 'call': return only(value, ['type', 'call', 'step', 'video', 'sdp', 'reason', 'duration', 'caller', 'gen']) && typeof value.call === 'string' && uuid.test(value.call)
+      && (value.step === 'offer' || value.step === 'answer' || value.step === 'end' || value.step === 'restart' || value.step === 'restart-answer')
+      // An ICE restart is numbered (gen ≥ 1); nothing else carries a number.
+      && ((value.step === 'restart' || value.step === 'restart-answer') ? Number.isInteger(value.gen) && (value.gen as number) >= 1 && (value.gen as number) <= 100_000 : value.gen === undefined)
       && (value.video === undefined || typeof value.video === 'boolean')
       && (value.sdp === undefined || (typeof value.sdp === 'string' && value.sdp.length <= 60000 && value.sdp.startsWith('v=0')))
       && (value.step === 'end' ? value.sdp === undefined : typeof value.sdp === 'string')
@@ -105,7 +108,7 @@ export function actionFallback(action: MessageAction, targetText = ''): string {
     case 'vote': return action.options.length ? `🗳 Голос в опросе${quote}` : `Голос отменён${quote}`;
     case 'settings': return action.ttl ? `⏱ Автоудаление: ${autoDeleteLabel(action.ttl)}` : action.noCopy ? '🚫 Копирование запрещено' : '⏱ Автоудаление выключено';
     case 'clear': return '🧹 История очищена';
-    case 'call': return action.step === 'offer' ? (action.video ? '📹 Видеозвонок' : '📞 Звонок') : action.step === 'answer' ? '📞 Звонок принят' : callPreview(action);
+    case 'call': return action.step === 'offer' ? (action.video ? '📹 Видеозвонок' : '📞 Звонок') : action.step === 'answer' ? '📞 Звонок принят' : action.step === 'restart' || action.step === 'restart-answer' ? '📞 Восстановление связи' : callPreview(action);
   }
 }
 

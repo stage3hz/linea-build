@@ -2786,5 +2786,13 @@
 "был(а) в этом месяце": "last seen within a month",
 "был(а) давно": "last seen a long time ago",
 "Неизвестная настройка времени захода.": "Unknown last seen setting.",
-"Правило должно быть «всегда» или «никогда».": "The rule must be «always» or «never»."
+"Правило должно быть «всегда» или «никогда».": "The rule must be «always» or «never».",
+"Восстановление связи…": "Reconnecting…",
+"Связь потеряна": "Connection lost",
+"📞 Восстановление связи": "📞 Reconnecting",
+"Убирает фоновый шум в звонках: улицу, вентилятор, клавиатуру. Меняется сразу, даже во время разговора.": "Removes background noise in calls: street, fans, keyboard. Takes effect at once, even during a call.",
+"Студийный звук (тест)": "Studio sound (test)",
+"Эквалайзер для твоего микрофона: плотнее низ, меньше «коробки», ярче голос. Слышат собеседники; включается сразу.": "An equalizer for your microphone: fuller lows, less boxiness, a brighter voice. Others hear it; takes effect at once.",
+"Эквалайзер для твоего микрофона — пока только на компьютере.": "An equalizer for your microphone — computer only for now.",
+"Эквалайзер для твоего микрофона в звонках и голосовых каналах: плотнее низ, меньше «коробки», ярче голос": "An equalizer for your microphone in calls and voice channels: fuller lows, less boxiness, a brighter voice"
 }

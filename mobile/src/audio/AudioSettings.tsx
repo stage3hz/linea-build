@@ -196,6 +196,7 @@ export function AudioSettings() {
       <DevicePicker icon="mic" value={prefs.input} devices={devices.inputs} defaultName={devices.defaultInput} onChange={id => setAudioPrefs({ input: id })} />
       <Switch label="Шумоподавление" description="Убирает постоянный фон: вентилятор, клавиатуру, улицу" value={prefs.noiseSuppression} onChange={v => setAudioPrefs({ noiseSuppression: v })} />
       <Switch label="Эхоподавление" description="Включи, если говоришь через колонки, а не наушники" value={prefs.echoCancellation} onChange={v => setAudioPrefs({ echoCancellation: v })} />
+      <Switch label="Студийный звук (тест)" description="Эквалайзер для твоего микрофона в звонках и голосовых каналах: плотнее низ, меньше «коробки», ярче голос" value={prefs.studioSound} onChange={v => setAudioPrefs({ studioSound: v })} />
     </Section>
     <Section title="Режим микрофона">
       <ModePicker value={prefs.inputMode} onChange={v => setAudioPrefs({ inputMode: v })} />

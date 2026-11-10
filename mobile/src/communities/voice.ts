@@ -1,6 +1,7 @@
 import { Platform } from 'react-native';
-import { audioPrefs, setAudioPrefs, subscribeAudio } from '../audio/devices';
+import { audioPrefs, callAudio, callAudioKey, setAudioPrefs, subscribeAudio } from '../audio/devices';
 import { gateTrack } from '../audio/gate';
+import { applyStudio } from '../audio/studioSound';
 import { onBindAction, setVoiceActive } from '../audio/binds';
 import { playVoiceSound } from './voiceSounds';
 import { connectOverlay, overlayTrack, overlayVoiceChanged } from '../overlay/sync';
@@ -13,6 +14,8 @@ import type { Api } from '../api';
 import type { MessengerStore } from '../useMessenger';
 import { SCREEN_QUALITIES, screenControl, screenQuality, stereoScreenAudio, type ScreenQuality } from './screenShareModel';
 import { GATHER_TIMEOUT_MS } from '../calls/callModel';
+import { DISCONNECT_GRACE_MS, LINK_UP, POLITE_EXTRA_MS, linkNext, markRestartCapable, remoteRestart, restartCapable, sameFingerprints, stripRestartMarker, voiceRestartOfferer, type Link, type LinkInput } from '../calls/reconnect';
+import { onNetworkChange } from '../network/netChange';
 
 /**
  * Voice channels (up to 12 people): a full mesh of WebRTC audio connections. Every pair has
@@ -170,6 +173,7 @@ async function serveScreen(peer: string) {
 }
 
 function unverify(peer: string) {
+  forgetLink(peer);
   verified.delete(peer); authSdp.delete(peer); pendingNotes.delete(peer); pendingKeys.delete(peer); micSenders.delete(peer);
   const timer = authTimers.get(peer); if (timer) clearTimeout(timer); authTimers.delete(peer);
 }
@@ -232,6 +236,74 @@ function onVerified(peer: string) {
   }
 }
 
+// ---- Automatic reconnection of a verified peer (calls/reconnect.ts) ---------------------------------------
+// A verified connection that drops gets an ICE restart through the same voice.signal path. The server strips
+// every field but kind/sdp, so a restart is recognised by its DTLS fingerprints: an offer with exactly the
+// fingerprints this connection was verified with (voiceAuth) is a restart of it; anything else is a new
+// connection and goes through the full check again. The certificate of a connection does not change on an
+// ICE restart, so the verification stays valid; a restart answer with other fingerprints is refused. Only
+// peers whose SDP says they understand restarts get one (older apps would start over and be refused).
+const links = new Map<string, { link: Link; timer?: ReturnType<typeof setTimeout>; pendingAt?: number }>();
+function forgetLink(peer: string) { const entry = links.get(peer); if (entry?.timer) clearTimeout(entry.timer); links.delete(peer); }
+
+const gatheredAgain = (connection: any) => new Promise<string>(resolve => {
+  const onChange = () => { if (connection.iceGatheringState === 'complete') done(); };
+  const done = () => { clearTimeout(timer); connection.removeEventListener?.('icegatheringstatechange', onChange); resolve(connection.localDescription?.sdp || ''); };
+  const timer = setTimeout(done, GATHER_TIMEOUT_MS);
+  connection.addEventListener('icegatheringstatechange', onChange);
+});
+
+function feedLink(peer: string, connection: any, input: LinkInput) {
+  if (!state || !selfPeer || connections.get(peer) !== connection || !verified.has(peer)) return;
+  const entry = links.get(peer) || { link: LINK_UP };
+  const polite = !voiceRestartOfferer(selfPeer, peer);
+  const step = linkNext(entry.link, input, Date.now(), { graceMs: DISCONNECT_GRACE_MS + (polite ? POLITE_EXTRA_MS : 0) });
+  if (entry.timer) clearTimeout(entry.timer);
+  entry.link = step.link;
+  entry.timer = step.wakeAt === null ? undefined : setTimeout(() => feedLink(peer, connection, { kind: 'timer' }), Math.max(0, step.wakeAt - Date.now()));
+  links.set(peer, entry);
+  if (step.end) peerUpdate(peer, { connected: false }); // as before: shown as not connected, still in the room
+  if (step.restart) void restartPeer(peer, connection);
+}
+
+async function restartPeer(peer: string, connection: any) {
+  const auth = authSdp.get(peer), entry = links.get(peer);
+  if (!auth || !entry || !restartCapable(auth.remote) || (connection.signalingState !== 'stable' && connection.signalingState !== 'have-local-offer')) return;
+  entry.pendingAt = Date.now();
+  try {
+    const fresh = gatheredAgain(connection);
+    const offer = await connection.createOffer({ iceRestart: true } as any);
+    await connection.setLocalDescription({ type: offer.type, sdp: stereoScreenAudio(offer.sdp) });
+    const sdp = await fresh;
+    if (connections.get(peer) !== connection) return;
+    storeRef?.sendSocket({ type: 'voice.signal', to: peer, data: { kind: 'offer', sdp: markRestartCapable(sdp) } });
+  } catch { /* the next attempt is on the timer */ }
+}
+
+/** An offer for a verified connection with the same fingerprints: answer it on that connection. True if handled. */
+async function acceptRestart(from: string, sdp: string): Promise<boolean> {
+  const connection = connections.get(from), auth = authSdp.get(from);
+  if (!connection || !auth || !verified.has(from) || !selfPeer || !sameFingerprints(sdp, auth.remote)) return false;
+  const decision = remoteRestart({ gen: 1, lastRemoteGen: 0, signalingState: connection.signalingState, polite: !voiceRestartOfferer(selfPeer, from), fingerprintsMatch: true, pendingAgeMs: Date.now() - (links.get(from)?.pendingAt ?? 0) });
+  if (decision === 'ignore-glare') return true; // ours wins: they answer it
+  try {
+    if (decision === 'rollback-and-answer') await connection.setLocalDescription({ type: 'rollback', sdp: '' });
+    await connection.setRemoteDescription(new rtc!.RTCSessionDescription({ type: 'offer', sdp: stripRestartMarker(sdp) }));
+    const fresh = gatheredAgain(connection);
+    const answer = await connection.createAnswer();
+    await connection.setLocalDescription({ type: answer.type, sdp: stereoScreenAudio(answer.sdp) });
+    const local = await fresh;
+    if (connections.get(from) !== connection) return true;
+    // Our certificate did not change either; if it somehow did, the verification no longer holds.
+    if (!sameFingerprints(local, auth.local)) { refuse(from); return true; }
+    storeRef?.sendSocket({ type: 'voice.signal', to: from, data: { kind: 'answer', sdp: markRestartCapable(local) } });
+  } catch { /* they retry */ }
+  return true;
+}
+
+// Wi-Fi ↔ LTE or a new IP while in a room: restart ICE with every verified peer at once.
+let stopNetwork: (() => void) | null = null;
+
 export const voiceAvailable = () => { if (!rtc) rtc = loadRtc(); return !!rtc; };
 export function useVoice(): VoiceState {
   return useSyncExternalStore(listener => { listeners.add(listener); return () => { listeners.delete(listener); }; }, () => state, () => state);
@@ -281,6 +353,7 @@ function connectionFor(peer: string, initiator = false) {
   connection.addEventListener('connectionstatechange', () => {
     if (connections.get(peer) !== connection) return;
     const value = connection.connectionState;
+    feedLink(peer, connection, { kind: 'state', state: value });
     if (value === 'connected') {
       peerUpdate(peer, { connected: true });
       if (state?.sharing && screenStream && verified.has(peer)) {
@@ -335,28 +408,36 @@ async function handle(data: any) {
         const offer = await connection.createOffer({ offerToReceiveAudio: true } as any);
         await connection.setLocalDescription({ type: offer.type, sdp: stereoScreenAudio(offer.sdp) });
         const sdp = await gathered(connection);
-        storeRef?.sendSocket({ type: 'voice.signal', to: item.peer, data: { kind: 'offer', sdp } });
+        storeRef?.sendSocket({ type: 'voice.signal', to: item.peer, data: { kind: 'offer', sdp: markRestartCapable(sdp) } });
       } catch { drop(item.peer); }
     }
   } else if (data.type === 'voice.signal' && data.channelId === state.channelId && data.data) {
     const from = data.from as string;
+    if (data.data.kind === 'offer' && typeof data.data.sdp === 'string' && await acceptRestart(from, data.data.sdp)) return;
     if (data.data.kind === 'offer') peerInfo.set(from, { userId: data.userId, device: typeof data.device === 'string' ? data.device : null });
     if (data.data.kind === 'offer') {
       try {
         if (!state.peers.some(item => item.peer === from)) { playVoiceSound('join'); patch({ peers: [...state.peers, { peer: from, userId: data.userId, muted: false, connected: false }] }); }
         try { connections.get(from)?.close(); } catch { /* replaced */ }
         const connection = connectionFor(from);
-        await connection.setRemoteDescription(new rtc!.RTCSessionDescription({ type: 'offer', sdp: data.data.sdp }));
+        await connection.setRemoteDescription(new rtc!.RTCSessionDescription({ type: 'offer', sdp: stripRestartMarker(data.data.sdp) }));
         const answer = await connection.createAnswer();
         await connection.setLocalDescription({ type: answer.type, sdp: stereoScreenAudio(answer.sdp) });
         const sdp = await gathered(connection);
-        storeRef?.sendSocket({ type: 'voice.signal', to: from, data: { kind: 'answer', sdp } });
+        storeRef?.sendSocket({ type: 'voice.signal', to: from, data: { kind: 'answer', sdp: markRestartCapable(sdp) } });
         startAuth(from, connection, sdp, data.data.sdp);
       } catch { drop(from); }
     } else if (data.data.kind === 'answer') {
       const connection = connections.get(from);
       if (connection && connection.signalingState === 'have-local-offer') {
-        try { await connection.setRemoteDescription(new rtc!.RTCSessionDescription({ type: 'answer', sdp: data.data.sdp })); } catch { drop(from); return; }
+        // The answer to an ICE restart of a verified connection: same fingerprints or refused.
+        const auth = verified.has(from) ? authSdp.get(from) : undefined;
+        if (auth) {
+          if (!sameFingerprints(data.data.sdp, auth.remote)) { refuse(from); return; }
+          try { await connection.setRemoteDescription(new rtc!.RTCSessionDescription({ type: 'answer', sdp: stripRestartMarker(data.data.sdp) })); } catch { /* the next attempt is on the timer */ }
+          return;
+        }
+        try { await connection.setRemoteDescription(new rtc!.RTCSessionDescription({ type: 'answer', sdp: stripRestartMarker(data.data.sdp) })); } catch { drop(from); return; }
         startAuth(from, connection, connection.localDescription?.sdp || '', data.data.sdp);
       }
     }
@@ -389,6 +470,8 @@ function cleanup(error: string) {
   stopGate(); stopGate = () => {};
   sfuSession?.close(); sfuSession = null; sfuPeers.clear(); sfuScreens.clear(); shareKey = null;
   authTimers.forEach(timer => clearTimeout(timer)); authTimers.clear();
+  links.forEach(entry => { if (entry.timer) clearTimeout(entry.timer); }); links.clear();
+  stopNetwork?.(); stopNetwork = null;
   verified.clear(); authSdp.clear(); pendingNotes.clear(); pendingKeys.clear(); micSenders.clear(); peerInfo.clear(); selfPeer = null; sharingViaSfu = false;
   if (voiceHookOn) { voiceHookOn = false; setVoiceActive(false); }
   try { releaseLocalStream(local); } catch { /* released */ }
@@ -407,13 +490,14 @@ export async function joinVoice(api: Api, store: MessengerStore, target: { commu
   const crypto = await store.cryptoRuntime.get(); await crypto.initialize();
   const device = crypto.deviceId;
   if (!device) throw new Error('Шифрование ещё не готово. Попробуй ещё раз.');
-  local = await rtc!.mediaDevices.getUserMedia({ audio: true, video: false } as any);
+  local = withStudio(await rtc!.mediaDevices.getUserMedia({ audio: micRequest(), video: false } as any));
   // PC: voice activation (Настройки → Звук и микрофон).
   if (Platform.OS === 'web') { stopGate = gateTrack(local.getAudioTracks()[0], () => !!state?.muted); setVoiceActive(true); voiceHookOn = true; overlayTrack('me', local.getAudioTracks()[0]); }
   if (!inCall) inCall = loadInCall();
   try { inCall?.start?.({ media: 'audio' }); inCall?.setForceSpeakerphoneOn?.(true); } catch { /* optional */ }
   storeRef = store;
   unsubscribe = store.onSocket(data => { void handle(data); });
+  stopNetwork?.(); stopNetwork = onNetworkChange(() => connections.forEach((connection, peer) => feedLink(peer, connection, { kind: 'network' })));
   set({ ...target, sharing: null, screenStream: null, status: 'connecting', muted: false, deafened: false, speaker: true, peers: [], error: '' });
   ownDevice = device;
   if (!store.sendSocket({ type: 'voice.join', communityId: target.communityId, channelId: target.channelId, device })) { cleanup(''); throw new Error('Нет соединения с сервером.'); }
@@ -465,8 +549,14 @@ export function toggleVoiceSpeaker() {
 }
 
 // PC: a different microphone picked in Настройки → Звук и микрофон takes effect at once,
-// without leaving the channel (the old track is swapped in every connection).
-if (Platform.OS === 'web') subscribeAudio(() => { void switchMicrophone(); });
+// without leaving the channel (the old track is swapped in every connection). Phones: «Шумоподавление»
+// (Настройки › Уведомления и звуки › Звонки) the same way; the native audio processing does the work.
+subscribeAudio(() => { void switchMicrophone(); });
+/** PC: the room keeps the sound as the PC gives it (Звук и микрофон); phones: the call processing with the switch. */
+const micRequest = () => Platform.OS === 'web' ? true : callAudio(true);
+const micKey = () => Platform.OS === 'web' ? `${audioPrefs().input}|${audioPrefs().noiseSuppression}|${audioPrefs().echoCancellation}|${audioPrefs().studioSound}` : callAudioKey(true);
+/** PC: «Студийный звук (тест)» swaps the raw microphone for the EQ'd one (the gate and mute act on that track). */
+const withStudio = (stream: any) => Platform.OS === 'web' && audioPrefs().studioSound ? applyStudio(stream) : stream;
 // Binds (Настройки → Звук и микрофон): mute and deafen while in a channel.
 let lastJoin: Parameters<typeof joinVoice> | null = null;
 onBindAction(action => {
@@ -478,20 +568,20 @@ onBindAction(action => {
   else if (action === 'disconnect') leaveVoice();
   else if (action === 'screenShare') { if (state.sharing) stopVoiceScreen(); else void startVoiceScreen('1080p60').catch(() => {}); }
 });
-let lastInput = `${audioPrefs().input}|${audioPrefs().noiseSuppression}|${audioPrefs().echoCancellation}`;
+let lastInput = micKey();
 let stopGate: () => void = () => {};
 let voiceHookOn = false;
 async function switchMicrophone() {
-  const p = audioPrefs(); const input = `${p.input}|${p.noiseSuppression}|${p.echoCancellation}`;
+  const input = micKey();
   if (input === lastInput) return; lastInput = input;
   if (!state || !local || !rtc) return;
   const old = local.getAudioTracks()[0]; if (!old) return;
-  const fresh = await rtc.mediaDevices.getUserMedia({ audio: true, video: false } as any).catch(() => null);
+  const fresh = await rtc.mediaDevices.getUserMedia({ audio: micRequest(), video: false } as any).then(withStudio).catch(() => null);
   if (!fresh || !state) { fresh?.getTracks().forEach((t: any) => t.stop()); return; }
   const track = fresh.getAudioTracks()[0]; track.enabled = !state.muted;
   for (const connection of connections.values()) for (const sender of connection.getSenders?.() || []) if (sender.track === old) await sender.replaceTrack(track).catch(() => {});
   try { local.removeTrack?.(old); local.addTrack?.(track); } catch { /* stream wrapper */ }
-  stopGate(); stopGate = gateTrack(track, () => !!state?.muted);
+  if (Platform.OS === 'web') { stopGate(); stopGate = gateTrack(track, () => !!state?.muted); }
   old.stop();
 }
 

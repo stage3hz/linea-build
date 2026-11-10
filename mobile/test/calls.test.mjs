@@ -71,3 +71,12 @@ test('the incoming alert follows Настройки › Звонки: «Без �
   assert.deepEqual(model.incomingAlert({ ringtone: 'none', vibration: true }), { sound: false, vibrate: true });
   assert.deepEqual(model.incomingAlert({ ringtone: 'none', vibration: false }), { sound: false, vibrate: false });
 });
+
+test('reconnect: restart steps pass validMeta only numbered; the restart marker never changes the key emoji', () => {
+  const reconnect = loadTs(new URL('../src/calls/reconnect.ts', import.meta.url), {});
+  assert.equal(meta.validMeta({ action: { type: 'call', call: id, step: 'restart', gen: 1, sdp: sdpA } }), true);
+  assert.equal(meta.validMeta({ action: { type: 'call', call: id, step: 'restart-answer', sdp: sdpB } }), false);
+  assert.equal(meta.validMeta({ action: { type: 'call', call: id, step: 'end', reason: 'failed', gen: 1 } }), false);
+  const marked = reconnect.markRestartCapable(sdpA.replace('a=fingerprint', 'm=audio 9 UDP/TLS/RTP/SAVPF 111\r\na=fingerprint'));
+  assert.equal(model.keyMaterial(marked, sdpB), model.keyMaterial(sdpA, sdpB));
+});

@@ -491,12 +491,16 @@ export function ChatScreen({api,user,chat,store,onBack,wide=false,onOpenMusic}: 
   },[wide,chat.id,user.id]);
   // F4 (Telegram): a clock with the count of «Отложенные сообщения» of this chat in the header; it opens their list.
   const scheduledPill=()=>chatScheduled.length?<GlassSurface material="regular" radius={22} interactive style={{height:44,maxHeight:44,flexGrow:0,flexShrink:0}} contentStyle={{height:44,maxHeight:44,justifyContent:'center'}}><Pressable testID="chat-scheduled" onPress={()=>{Keyboard.dismiss();setScheduledOpen(true);}} accessibilityRole="button" accessibilityLabel={`Отложенные сообщения: ${chatScheduled.length}`} hitSlop={6} style={({pressed})=>({flexDirection:'row',alignItems:'center',gap:4,paddingHorizontal:11,height:44,opacity:pressed?.7:1})}><Icon name="time-outline" size={21} color={chatScheduled.some(item=>item.status==='failed')?t.danger:t.accent}/><Text style={{color:t.accent,fontSize:13,fontWeight:'700'}}>{chatScheduled.length}</Text></Pressable></GlassSurface>:null;
-  const desktopHeader=()=>{const hover=(state:{pressed:boolean})=>{const h=(state as {hovered?:boolean}).hovered;return {width:40,height:40,borderRadius:12,alignItems:'center' as const,justifyContent:'center' as const,backgroundColor:h?(t.dark?'rgba(255,255,255,0.08)':'rgba(0,0,0,0.05)'):'transparent',opacity:state.pressed?.6:1};};
-    return <View style={{height:60,marginTop:-8,flexDirection:'row',alignItems:'center',gap:12,paddingHorizontal:16,backgroundColor:t.glassOpaque,borderBottomWidth:1,borderColor:t.border}}>
+  const desktopHeader=()=>{const hover=(state:{pressed:boolean})=>{const h=(state as {hovered?:boolean}).hovered;return {width:40,height:40,borderRadius:20,alignItems:'center' as const,justifyContent:'center' as const,backgroundColor:h?(t.dark?'rgba(255,255,255,0.08)':'rgba(0,0,0,0.05)'):'transparent',opacity:state.pressed?.6:1};};
+    // Telegram Web (telegram-tt, MiddleHeader.scss + _variables.scss): a floating pill over the wallpaper —
+    // height 3rem, border-radius 2rem, padding .25rem, 1rem from the top and the sides, as wide as the
+    // message column (47.5rem − 2 × 1rem), background colour, shadow 0 1px 5px −1px rgba(0,0,0,.21);
+    // avatar 2.5rem, title 1.125rem medium / 1.5rem, status .875rem / 1.125rem, round 2.5rem buttons.
+    return <View style={{paddingHorizontal:16,paddingTop:8,alignItems:'center'}}><View style={{width:'100%',maxWidth:728,height:48,borderRadius:32,flexDirection:'row',alignItems:'center',gap:10,padding:4,backgroundColor:t.dark?'#212121':'#FFFFFF',shadowColor:'#000',shadowOpacity:.21,shadowRadius:5,shadowOffset:{width:0,height:1}}}>
       <Pressable onPress={()=>setPeerInfo(true)} accessibilityRole="button" accessibilityLabel={`Полный профиль ${chat.peer.displayName}`}><DecoratedAvatar user={chat.peer} api={api} size={40} animated/></Pressable>
-      <Pressable onPress={(e:any)=>setMini({x:e.nativeEvent.pageX,y:e.nativeEvent.pageY})} accessibilityRole="button" style={{flex:1,minWidth:0,gap:2}}>
-        <View style={{flexDirection:'row',gap:6,alignItems:'center'}}><PlatinaName user={chat.peer} numberOfLines={1} style={{flexShrink:1,color:t.text,fontSize:16,fontWeight:'700',letterSpacing:-.2}}/><StatusEmoji user={chat.peer} size={16} animated/></View>
-        <Text numberOfLines={1} style={{color:headerStatus.accent?t.accent:t.muted,fontSize:12.5}}>{headerStatus.text}</Text>
+      <Pressable onPress={(e:any)=>setMini({x:e.nativeEvent.pageX,y:e.nativeEvent.pageY})} accessibilityRole="button" style={{flex:1,minWidth:0,gap:0}}>
+        <View style={{flexDirection:'row',gap:6,alignItems:'center'}}><PlatinaName user={chat.peer} numberOfLines={1} style={{flexShrink:1,color:t.text,fontSize:18,lineHeight:24,fontWeight:'500'}}/><StatusEmoji user={chat.peer} size={18} animated/></View>
+        <Text numberOfLines={1} style={{color:headerStatus.accent?t.accent:t.muted,fontSize:14,lineHeight:18}}>{headerStatus.text}</Text>
       </Pressable>
       <Pressable onPress={()=>{setSearchOpen(open=>!open);setQuery('');}} accessibilityRole="button" accessibilityLabel="Поиск в этом чате (Ctrl+F)" style={hover}><Icon name="search-outline" size={20} color={searchOpen?t.accent:t.muted}/></Pressable>
       {calls.available?<Pressable onPress={()=>calls.start(chat,false)} accessibilityRole="button" accessibilityLabel="Позвонить" style={hover}><Icon name="call-outline" size={20} color={t.muted}/></Pressable>:null}
@@ -504,7 +508,7 @@ export function ChatScreen({api,user,chat,store,onBack,wide=false,onOpenMusic}: 
       {chatScheduled.length?<Pressable testID="chat-scheduled" onPress={()=>setScheduledOpen(true)} accessibilityRole="button" accessibilityLabel={`Отложенные сообщения: ${chatScheduled.length}`} style={hover}><Icon name="time-outline" size={20} color={chatScheduled.some(item=>item.status==='failed')?t.danger:t.accent}/><View style={{position:'absolute',top:3,right:3,minWidth:16,height:16,borderRadius:8,paddingHorizontal:4,backgroundColor:t.accent,alignItems:'center',justifyContent:'center'}}><Text style={{color:t.onAccent,fontSize:10,fontWeight:'700'}}>{chatScheduled.length}</Text></View></Pressable>:null}
       <Pressable onPress={()=>setMediaOpen(true)} accessibilityRole="button" accessibilityLabel="Медиа и файлы чата" style={hover}><Icon name="images-outline" size={20} color={t.muted}/></Pressable>
       <Pressable onPress={()=>setPeerInfo(true)} accessibilityRole="button" accessibilityLabel="Информация" style={hover}><Icon name="information-circle-outline" size={22} color={t.muted}/></Pressable>
-    </View>;};
+    </View></View>;};
 
   return <VoicePlaybackProvider api={api}><GlassTargetScope targetRef={glassTarget}><KeyboardSafeView style={{flex:1,backgroundColor:'transparent',marginTop:wide?0:-insets.top,marginBottom:wide?0:-insets.bottom}}><View style={{flex:1}}>
     {/* Android: header and composer glass blur this (wallpaper + messages) on the GPU. */}
