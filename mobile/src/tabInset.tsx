@@ -34,9 +34,9 @@ function TabsFade({ bar }: { bar: number }) {
   const t = useTheme(); const insets = useSafeAreaInsets(); const extra = Platform.OS === 'web' ? 0 : insets.bottom;
   const below = extra ? 22 : 10; // the bar's bottom edge sits ~21 pt above the screen bottom on iPhones with a home indicator
   return <>
-    {Platform.OS === 'ios' ? <ScrollEdgeBlurView pointerEvents="none" edge="bottom" maxBlurRadius={8} falloff={1} style={{ position: 'absolute', left: 0, right: 0, bottom: -extra, height: bar + extra }} /> : null}
-    <LinearGradient pointerEvents="none" colors={[tint(t.bg, 0, t.dark), tint(t.bg, Platform.OS === 'ios' ? .12 : .3, t.dark), tint(t.bg, Platform.OS === 'ios' ? .3 : .5, t.dark)]} locations={[0, .55, 1]} style={{ position: 'absolute', left: 0, right: 0, bottom: -extra, height: bar + extra }} />
-    <LinearGradient pointerEvents="none" colors={[tint(t.bg, 0, t.dark), tint(t.bg, .5, t.dark)]} style={{ position: 'absolute', left: 0, right: 0, bottom: -extra, height: below }} />
+    {Platform.OS === 'ios' ? <ScrollEdgeBlurView pointerEvents="none" edge="bottom" maxBlurRadius={4} falloff={1} style={{ position: 'absolute', left: 0, right: 0, bottom: -extra, height: bar + extra }} /> : null}
+    <LinearGradient pointerEvents="none" colors={[tint(t.bg, 0, t.dark), tint(t.bg, Platform.OS === 'ios' ? .05 : .15, t.dark), tint(t.bg, Platform.OS === 'ios' ? .15 : .3, t.dark)]} locations={[0, .55, 1]} style={{ position: 'absolute', left: 0, right: 0, bottom: -extra, height: bar + extra }} />
+    <LinearGradient pointerEvents="none" colors={[tint(t.bg, 0, t.dark), tint(t.bg, .3, t.dark)]} style={{ position: 'absolute', left: 0, right: 0, bottom: -extra, height: below }} />
     {insets.top && Platform.OS === 'ios' ? <ScrollEdgeBlurView pointerEvents="none" edge="top" maxBlurRadius={8} falloff={1} style={{ position: 'absolute', left: 0, right: 0, top: -insets.top, height: insets.top + 10 }} /> : null}
     {insets.top && Platform.OS !== 'web' ? <LinearGradient pointerEvents="none" colors={[tint(t.bg, Platform.OS === 'ios' ? .3 : .5, t.dark), tint(t.bg, 0, t.dark)]} style={{ position: 'absolute', left: 0, right: 0, top: -insets.top, height: insets.top }} /> : null}
   </>;

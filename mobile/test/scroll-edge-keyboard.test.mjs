@@ -44,7 +44,8 @@ test('the stack dismisses the keyboard as soon as leaving is decided (button and
 test('chat header, composer and chat list header use the shared scroll-edge effect (blur + colour, solid behind the bar)', () => {
   const chat = src('ChatScreen.tsx'), inset = src('tabInset.tsx');
   assert.match(chat, /<ScrollEdgeEffect edge="top" size=\{headerHeight\}/);
-  assert.match(chat, /<ScrollEdgeEffect edge="bottom" size=\{footerHeight\}/);
+  // Telegram: no edge effect at the bottom of a chat — messages pass under the floating composer as they are.
+  assert.doesNotMatch(chat, /<ScrollEdgeEffect edge="bottom"/);
   assert.doesNotMatch(chat, /<LinearGradient/, 'no bare colour ramp left over the header');
   // The first message must still clear the header and the composer.
   assert.match(chat, /paddingTop:footerHeight\+8,paddingBottom:headerHeight\+14/);

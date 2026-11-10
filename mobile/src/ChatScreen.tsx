@@ -516,7 +516,7 @@ export function ChatScreen({api,user,chat,store,onBack,wide=false,onOpenMusic}: 
         alone over the header left messages crisp and half-readable next to the back button and the
         name pill. The first message still clears it: the list pads by headerHeight+14 / footerHeight+8. */}
     {headerHeight?<ScrollEdgeEffect edge="top" size={headerHeight} color={edge.top} alpha={Platform.OS==='ios'?Math.min(.85,edge.alpha):edge.alpha} fade={10} zIndex={4}/>:null}
-    {footerHeight?<ScrollEdgeEffect edge="bottom" size={footerHeight} color={edge.bottom} alpha={Platform.OS==='ios'?Math.min(.85,edge.alpha):edge.alpha} fade={6} zIndex={3}/>:null}
+    {/* Telegram: messages pass under the floating composer as they are, with no blur or fade at the bottom. */}
     <VoiceMiniPlayer top={headerHeight+4} find={id=>{const m=view.messages.find(x=>x.attachment?.id===id);return m&&m.attachment?{author:originalAuthor(m),attachment:m.attachment}:null;}}/>
     <View pointerEvents="box-none" onLayout={e=>setHeaderHeight(e.nativeEvent.layout.height)} style={{position:'absolute',top:0,left:0,right:0,zIndex:5,paddingTop:8+(wide?0:insets.top),gap:6}}>
     {selection?<View style={{flexDirection:'row',alignItems:'center',gap:8,paddingHorizontal:12}}>
