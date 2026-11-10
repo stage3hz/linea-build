@@ -1,7 +1,7 @@
 const fs = require('node:fs');
 const path = require('node:path');
 const root = path.resolve(__dirname, '../node_modules/react-native-webrtc');
-if (JSON.parse(fs.readFileSync(path.join(root,'package.json'),'utf8')).version !== '150.1.1') throw new Error('Review screen capture patch for the new WebRTC version');
+if (JSON.parse(fs.readFileSync(path.join(root,'package.json'),'utf8')).version !== '150.1.0') throw new Error('Review screen capture patch for the new WebRTC version');
 function edit(file, before, after) {
   const p = path.join(root,file), s = fs.readFileSync(p,'utf8');
   if (s.includes(after)) return;
