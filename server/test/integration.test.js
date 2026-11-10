@@ -604,7 +604,7 @@ test('privacy: new chats, avatar visibility and mutual read receipts are enforce
   const alice = await register(app, 'alice_priv'), bob = await register(app, 'bob_priv'), carol = await register(app, 'carol_priv');
   const defaults = await request(app, 'GET', '/me/privacy', alice);
   assert.equal(defaults.statusCode, 200);
-  assert.deepEqual(defaults.json().privacy, { allowNewChats: true, showAvatar: true, readReceipts: true, showLastSeen: true, calls: 'everyone' });
+  assert.deepEqual(defaults.json().privacy, { allowNewChats: true, showAvatar: true, readReceipts: true, showLastSeen: true, lastSeen: 'everyone', hideReadTime: false, calls: 'everyone' });
   assert.equal((await request(app, 'PATCH', '/me/privacy', alice, { allowNewChats: 'no' })).statusCode, 400);
   assert.equal((await request(app, 'PATCH', '/me/privacy', alice, { unknown: true })).statusCode, 400);
 
@@ -722,18 +722,15 @@ test('presence: chat peers see online / last seen; hiding it is mutual; stranger
   aliceSocket.socket.close();
   const offline = await bobSocket.next(packet => packet.type === 'presence' && packet.presence.userId === alice.user.id && !packet.presence.online);
   assert.ok(Number.isFinite(Date.parse(offline.presence.lastSeenAt)), 'last seen time is recorded');
-  // Hiding presence needs Platina; Bob then stops seeing Alice's too (mutual).
-  const locked = await request(app, 'PATCH', '/me/privacy', bob, { showLastSeen: false });
-  assert.equal(locked.statusCode, 403);
-  assert.equal(locked.json().code, 'PLATINA_REQUIRED');
-  platina(dataDir, bob);
+  // Hiding presence is free («Никто»); Bob then stops seeing Alice's too (reciprocal, no Platina).
   const beforeHide = bobSocket.packets.length;
-  const hide = await request(app, 'PATCH', '/me/privacy', bob, { showLastSeen: false });
+  const hide = await request(app, 'PATCH', '/me/privacy', bob, { lastSeen: 'nobody' });
   assert.equal(hide.statusCode, 200);
   assert.equal(hide.json().privacy.showLastSeen, false);
-  // Mutual: Bob's own view of his peers is re-sent as hidden the moment he hides himself.
+  assert.equal(hide.json().privacy.lastSeen, 'nobody');
+  // Reciprocal: Bob's own view of his peers is re-sent as hidden (only «недавно») the moment he hides himself.
   const hidden = (await bobSocket.next(packet => packet.type === 'presence.snapshot', { from: beforeHide })).items.find(item => item.userId === alice.user.id);
-  assert.deepEqual([hidden.hidden, hidden.online, hidden.lastSeenAt], [true, false, null]);
+  assert.deepEqual([hidden.hidden, hidden.online, hidden.lastSeenAt, hidden.approx], [true, false, null, 'recently']);
   // Alice coming back online is not announced to Bob at all (a {hidden:true} packet would still time her arrival).
   const marker = bobSocket.packets.length;
   const again = await socketFor(t, app, alice);
@@ -847,16 +844,26 @@ test('communities: game server with roles, private channels, invites, plain chan
 
   // Voice: both join, signalling is relayed only inside the room.
   const ownerSocket = await socketFor(t, app, owner), bobSocket = await socketFor(t, app, bob);
-  ownerSocket.socket.send(JSON.stringify({ type: 'voice.join', communityId: server.id, channelId: voiceChannel.id }));
+  const ownerDevice = '11111111-2222-4333-8444-555555555555', bobDevice = '66666666-7777-4888-9999-aaaaaaaaaaaa';
+  ownerSocket.socket.send(JSON.stringify({ type: 'voice.join', communityId: server.id, channelId: voiceChannel.id, device: ownerDevice }));
   const first = await ownerSocket.next(p => p.type === 'voice.joined');
   assert.deepEqual(first.peers, []);
-  bobSocket.socket.send(JSON.stringify({ type: 'voice.join', communityId: server.id, channelId: voiceChannel.id }));
+  bobSocket.socket.send(JSON.stringify({ type: 'voice.join', communityId: server.id, channelId: voiceChannel.id, device: bobDevice }));
   const second = await bobSocket.next(p => p.type === 'voice.joined');
   assert.equal(second.peers.length, 1);
+  assert.equal(second.peers[0].device, ownerDevice, 'the encryption device of each member is named for the connection check');
   bobSocket.socket.send(JSON.stringify({ type: 'voice.signal', to: second.peers[0].peer, data: { kind: 'offer', sdp: 'v=0\r\no=- 1 1 IN IP4 0.0.0.0\r\n' } }));
   const relayed = await ownerSocket.next(p => p.type === 'voice.signal');
   assert.equal(relayed.userId, bob.user.id);
   assert.equal(relayed.data.kind, 'offer');
+  assert.equal(relayed.device, bobDevice);
+  // The Signal-sealed connection check is passed on as is, only inside the room.
+  bobSocket.socket.send(JSON.stringify({ type: 'voice.auth', to: second.peers[0].peer, note: { senderDeviceId: bobDevice, type: 3, body: 'AAAA', extra: 'dropped' } }));
+  const auth = await ownerSocket.next(p => p.type === 'voice.auth');
+  assert.deepEqual(auth.note, { senderDeviceId: bobDevice, type: 3, body: 'AAAA' });
+  assert.equal(auth.userId, bob.user.id); assert.equal(auth.from, relayed.from);
+  bobSocket.socket.send(JSON.stringify({ type: 'voice.auth', to: second.peers[0].peer, note: { senderDeviceId: bobDevice, type: 9, body: 'AAAA' } }));
+  assert.match((await bobSocket.next(p => p.type === 'error')).error, /проверка/);
   const state = await ownerSocket.next(p => p.type === 'voice.state' && p.members.length === 2);
   assert.equal(state.channelId, voiceChannel.id);
   const eveSocket = await socketFor(t, app, eve);

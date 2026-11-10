@@ -253,13 +253,13 @@ test('review S2: hiding «last seen» is announced to peers (as hidden) and re-s
   await newChat(app, alice, bob);
   const aliceSocket = await socketFor(t, app, alice), bobSocket = await socketFor(t, app, bob);
   await aliceSocket.next(packet => packet.type === 'presence' && packet.presence.userId === bob.user.id && packet.presence.online);
-  readDatabase(dataDir, db => grantPermanentPlatina(db, { userId: bob.user.id, reason: 'Synthetic local test grant' }));
+  // «Время захода» is free now (Telegram); the old on/off switch still works and means «Никто».
   const marker = aliceSocket.packets.length, own = bobSocket.packets.length;
   assert.equal((await request(app, 'PATCH', '/me/privacy', bob, { showLastSeen: false })).statusCode, 200);
   const hidden = await aliceSocket.next(packet => packet.type === 'presence' && packet.presence.userId === bob.user.id, { from: marker });
-  assert.deepEqual([hidden.presence.hidden, hidden.presence.online, hidden.presence.lastSeenAt], [true, false, null]);
+  assert.deepEqual([hidden.presence.hidden, hidden.presence.online, hidden.presence.lastSeenAt, hidden.presence.approx], [true, false, null, 'recently']);
   const snapshot = await bobSocket.next(packet => packet.type === 'presence.snapshot', { from: own });
-  assert.deepEqual(snapshot.items.map(item => [item.userId, item.hidden]), [[alice.user.id, true]], 'mutual: Bob no longer sees Alice either');
+  assert.deepEqual(snapshot.items.map(item => [item.userId, item.hidden]), [[alice.user.id, true]], 'reciprocal: Bob (no Platina) no longer sees Alice either');
   // Showing it again is announced too, with the real state.
   assert.equal((await request(app, 'PATCH', '/me/privacy', bob, { showLastSeen: true })).statusCode, 200);
   const shown = await aliceSocket.next(packet => packet.type === 'presence' && packet.presence.userId === bob.user.id && !packet.presence.hidden, { from: marker + 1 });

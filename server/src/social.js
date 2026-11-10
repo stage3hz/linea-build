@@ -12,7 +12,8 @@ const MAX_INCOMING = 500;  // waiting requests one person may receive
 const MAX_MUTE_MS = 366 * 24 * 3600 * 1000;  // a timed mute runs at most a year; «Навсегда» is 0
 
 
-export function installSocialRoutes({ app, db, authOptions, publicUser, timestamp, serializationOptions, emitUser }) {
+/** `friendsChanged(a, b)`: a friendship began or ended — «Время захода: Мои контакты» may now differ. */
+export function installSocialRoutes({ app, db, authOptions, publicUser, timestamp, serializationOptions, emitUser, friendsChanged }) {
   const userId = value => { if (typeof value !== 'string' || !uuid.test(value)) fail(400, 'Некорректный пользователь.'); return value; };
 
   app.get('/users/:id', authOptions, async request => {
@@ -46,6 +47,7 @@ export function installSocialRoutes({ app, db, authOptions, publicUser, timestam
       db.exec('COMMIT');
     } catch (error) { db.exec('ROLLBACK'); throw error; }
     notify(a, b);
+    friendsChanged?.(a, b);
   };
   const requestState = (viewer, other) => requested(viewer, other) ? 'outgoing' : requested(other, viewer) ? 'incoming' : null;
 
@@ -73,7 +75,7 @@ export function installSocialRoutes({ app, db, authOptions, publicUser, timestam
   app.delete('/contacts/:id', authOptions, async request => {
     const id = userId(request.params.id), viewer = request.auth.user_id;
     const gone = db.prepare('DELETE FROM contacts WHERE (owner_id=? AND contact_id=?) OR (owner_id=? AND contact_id=?)').run(viewer, id, id, viewer).changes;
-    if (gone) notify(viewer, id);
+    if (gone) { notify(viewer, id); friendsChanged?.(viewer, id); }
     return { ok: true };
   });
 

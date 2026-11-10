@@ -19,6 +19,7 @@ const SCREENS = [
   'notifications/NotificationsSection.tsx', 'notifications/MuteSheet.tsx', 'lock/PasscodeSettings.tsx', 'lock/LockGate.tsx',
   'scheduled/ScheduledScreen.tsx', 'scheduled/SchedulePicker.tsx', 'calls/CallHistory.tsx', 'audio/AudioSettings.tsx',
   'format/FormatToolbar.tsx', 'photo/editor/PhotoEditorScreen.tsx', 'photo/editor/EditorPanels.tsx',
+  'privacy/lastSeenModel.ts', 'privacy/privacyStore.ts', 'presence.ts',
 ];
 const CYRILLIC = /[А-Яа-яЁё]/;
 const EQUALITY = new Set([ts.SyntaxKind.EqualsEqualsEqualsToken, ts.SyntaxKind.ExclamationEqualsEqualsToken, ts.SyntaxKind.EqualsEqualsToken, ts.SyntaxKind.ExclamationEqualsToken]);

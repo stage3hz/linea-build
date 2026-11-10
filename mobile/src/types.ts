@@ -61,4 +61,6 @@ export type PendingMessage = {
 };
 export type ThemeMode = 'system' | 'light' | 'dark' | 'black' | 'graphite' | import('./themes/palettes').PaletteId;
 export type DarkTheme = 'dark' | 'black' | 'graphite' | import('./themes/palettes').PaletteId;
-export type Presence = { userId: string; online: boolean; lastSeenAt: string | null; hidden: boolean };
+/** Telegram's approximate «был(а) …» the server sends instead of the time when «Время захода» hides it. */
+export type LastSeenApprox = 'recently' | 'week' | 'month' | 'long';
+export type Presence = { userId: string; online: boolean; lastSeenAt: string | null; hidden: boolean; approx?: LastSeenApprox };

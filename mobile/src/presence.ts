@@ -1,14 +1,23 @@
-import type { Presence } from './types';
+import type { LastSeenApprox, Presence } from './types';
 
 const pad = (n: number) => String(n).padStart(2, '0');
 const minutesWord = (n: number) => n % 10 === 1 && n % 100 !== 11 ? 'минуту' : n % 10 >= 2 && n % 10 <= 4 && (n % 100 < 10 || n % 100 >= 20) ? 'минуты' : 'минут';
 const hoursWord = (n: number) => n % 10 === 1 && n % 100 !== 11 ? 'час' : n % 10 >= 2 && n % 10 <= 4 && (n % 100 < 10 || n % 100 >= 20) ? 'часа' : 'часов';
 
-/** Telegram's wording: «в сети», «был(а) 5 минут назад», «был(а) вчера в 21:04», «был(а) недавно». */
+/** Telegram's approximate statuses: the server picks the bucket from the real time, which it never sends. */
+export const APPROX_TEXT: Record<LastSeenApprox, string> = {
+  recently: 'был(а) недавно',
+  week: 'был(а) на этой неделе',
+  month: 'был(а) в этом месяце',
+  long: 'был(а) давно',
+};
+
+/** Telegram's wording: «в сети», «был(а) 5 минут назад», «был(а) вчера в 21:04», «был(а) недавно», «был(а) на этой неделе». */
 export function presenceText(presence: Presence | undefined, now = Date.now()): string | null {
   if (!presence) return null;
+  if (presence.hidden) return APPROX_TEXT[presence.approx as LastSeenApprox] || APPROX_TEXT.recently;
   if (presence.online) return 'в сети';
-  if (presence.hidden || !presence.lastSeenAt) return 'был(а) недавно';
+  if (!presence.lastSeenAt) return 'был(а) недавно';
   const seen = new Date(presence.lastSeenAt), diff = now - seen.getTime();
   if (!Number.isFinite(diff)) return 'был(а) недавно';
   if (diff < 60_000) return 'был(а) только что';

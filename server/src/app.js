@@ -18,7 +18,8 @@ import { join, resolve } from 'node:path';
 import { Transform } from 'node:stream';
 import { pipeline } from 'node:stream/promises';
 import { CALL_MODES, canCall, installCallPrivacyRoutes, migrateCallPrivacy } from './callprivacy.js';
-import { openDatabase, transaction, publicUser as serializePublicUser, publicChat, publicMessage, publicAttachment, privacyOf, effectivePrivacy, PLATINA_PRIVACY, userForViewer, receiptsVisible, presenceVisible, chatSettings } from './database.js';
+import { openDatabase, transaction, publicUser as serializePublicUser, publicChat, publicMessage, publicAttachment, privacyOf, effectivePrivacy, PLATINA_PRIVACY, LAST_SEEN_MODES, userForViewer, receiptsVisible, readTimeVisible, presenceView, chatSettings } from './database.js';
+import { installLastSeenRoutes } from './lastseen.js';
 import { isAvatarFrame, isBannerPreset, isProfileEffect, isNameplate, isProfilePattern, MAX_PROFILE_VIDEO_BYTES, videoMime } from './cosmetics.js';
 import { platinaState } from './entitlements.js';
 import { DEFAULT_FILE_LIMITS, installBigFileRoutes } from './bigfiles.js';
@@ -217,11 +218,9 @@ export async function buildApp({
     const ids = [...new Set(userIds)];
     if (ids.length) db.prepare('UPDATE users SET last_seen_at=? WHERE id IN (SELECT value FROM json_each(?))').run(timestamp(), JSON.stringify(ids));
   };
-  const presenceFor = (userId, viewerId) => {
-    if (!presenceVisible(db, userId, viewerId, now())) return { userId, online: false, lastSeenAt: null, hidden: true };
-    const online = isOnline(userId);
-    return { userId, online, lastSeenAt: online ? null : db.prepare('SELECT last_seen_at FROM users WHERE id=?').get(userId)?.last_seen_at || null, hidden: false };
-  };
+  // Exact («в сети», «был(а) в 18:36») or, when «Время захода» hides it, only Telegram's approximate
+  // `approx` bucket («недавно», «на этой неделе», …) — never the time itself (database.js presenceView).
+  const presenceFor = (userId, viewerId) => presenceView(db, userId, viewerId, { online: isOnline(userId), time: now() });
   // Only peers who are online get pushes; offline ones read the state when they connect (load test F4).
   // A peer for whom the presence is hidden (a block, hidden «last seen») gets nothing at all: even a
   // {hidden:true} packet at socket open and close would tell them when the person comes and goes.
@@ -240,6 +239,13 @@ export async function buildApp({
     if (isOnline(a)) emitUser(a, { type: 'presence', presence: presenceFor(b, a) });
     if (isOnline(b)) emitUser(b, { type: 'presence', presence: presenceFor(a, b) });
     for (const { chat_id } of db.prepare('SELECT a.chat_id FROM chat_members a JOIN chat_members b ON a.chat_id=b.chat_id WHERE a.user_id=? AND b.user_id=?').all(a, b)) emitChat(chat_id);
+  };
+  // A «Время захода» exception or a friendship changed between two people: if they share a chat, both
+  // get the other's presence as it now looks (strangers never get presence at all).
+  const presencePairChanged = (a, b) => {
+    if (a === b || !db.prepare('SELECT 1 FROM chat_members x JOIN chat_members y ON x.chat_id=y.chat_id WHERE x.user_id=? AND y.user_id=? LIMIT 1').get(a, b)) return;
+    if (isOnline(a)) emitUser(a, { type: 'presence', presence: presenceFor(b, a) });
+    if (isOnline(b)) emitUser(b, { type: 'presence', presence: presenceFor(a, b) });
   };
   const emitChat = chatId => {
     for (const userId of memberIds(chatId)) if (isOnline(userId)) emitUser(userId, { type: 'chat', chat: publicChat(db, chatId, userId, serializationOptions) });
@@ -399,7 +405,7 @@ export async function buildApp({
   registerAiRoutes(app,{authenticate:requireAuth,apiKey:aiApiKey,provider:aiProvider(aiProviderConfig),fetchImpl:aiFetch,allowedOrigins,now,isPlatina:userId=>platinaState(db,userId,now()).active});
   installUsernameRoutes({app,db,now,authOptions,emitUser,emitChat});
   installCallRoutes({app,authOptions,now,turn});
-  installSocialRoutes({app,db,authOptions,publicUser,timestamp,serializationOptions,emitUser});
+  installSocialRoutes({app,db,authOptions,publicUser,timestamp,serializationOptions,emitUser,friendsChanged:presencePairChanged});
   installPostRoutes({ app, db, authOptions, now, timestamp, limiter, uploadDir, emitUser });
   migratePushTokens(db);
   db.exec(PUSH_SCHEMA);
@@ -407,6 +413,7 @@ export async function buildApp({
   db.exec(MODERATION_SCHEMA);
   migrateCallPrivacy(db);
   installCallPrivacyRoutes({ app, db, authOptions, publicUser, timestamp });
+  installLastSeenRoutes({ app, db, authOptions, publicUser, timestamp, changed: presencePairChanged });
   installModerationRoutes({ app, db, authOptions, publicUser, timestamp, limiter, blocksChanged });
   installSoundCloudRoutes({ app, authOptions, soundcloud, limiter });
   // Push token of this signed-in device. It lives as long as the session: a revoked or
@@ -607,21 +614,25 @@ export async function buildApp({
   app.get('/me/privacy', authOptions, async request => privacyResponse(request.auth.user_id));
 
   app.patch('/me/privacy', authOptions, async request => {
-    const body = objectBody(request.body, ['allowNewChats', 'showAvatar', 'readReceipts', 'showLastSeen', 'calls']);
+    const body = objectBody(request.body, ['allowNewChats', 'showAvatar', 'readReceipts', 'showLastSeen', 'lastSeen', 'hideReadTime', 'calls']);
     const userId = request.auth.user_id;
     const next = { ...privacyOf(db, userId) };
     const platinaActive = platinaState(db, userId, now()).active;
-    for (const key of ['allowNewChats', 'showAvatar', 'readReceipts', 'showLastSeen']) {
+    for (const key of ['allowNewChats', 'showAvatar', 'readReceipts', 'showLastSeen', 'hideReadTime']) {
       if (body[key] === undefined) continue;
       if (typeof body[key] !== 'boolean') fail(400, 'Настройка конфиденциальности должна быть включена или выключена.');
       if (body[key] === false && PLATINA_PRIVACY.includes(key) && !platinaActive) fail(403, 'Скрывать это можно с Platina.', { code: 'PLATINA_REQUIRED' });
       next[key] = body[key];
     }
+    // «Время захода» is free, as in Telegram. Older apps send the on/off switch: off is «Никто», on
+    // turns «Никто» back into «Все» and leaves «Мои контакты» as it is.
+    if (body.lastSeen !== undefined) { if (!LAST_SEEN_MODES.includes(body.lastSeen)) fail(400, 'Неизвестная настройка времени захода.'); next.lastSeen = body.lastSeen; }
+    else if (body.showLastSeen !== undefined) next.lastSeen = body.showLastSeen ? (next.lastSeen === 'nobody' ? 'everyone' : next.lastSeen) : 'nobody';
     if (body.calls !== undefined) { if (!CALL_MODES.includes(body.calls)) fail(400, 'Неизвестная настройка звонков.'); next.calls = body.calls; }
-    db.prepare(`INSERT INTO user_privacy(user_id,allow_new_chats,show_avatar,read_receipts,show_last_seen,calls,updated_at) VALUES(?,?,?,?,?,?,?)
-      ON CONFLICT(user_id) DO UPDATE SET allow_new_chats=excluded.allow_new_chats,show_avatar=excluded.show_avatar,read_receipts=excluded.read_receipts,show_last_seen=excluded.show_last_seen,calls=excluded.calls,updated_at=excluded.updated_at`)
-      .run(userId, next.allowNewChats ? 1 : 0, next.showAvatar ? 1 : 0, next.readReceipts ? 1 : 0, next.showLastSeen ? 1 : 0, next.calls, timestamp());
-    // Peers learn the new visibility even when it is now hidden; «last seen» is mutual, so this
+    db.prepare(`INSERT INTO user_privacy(user_id,allow_new_chats,show_avatar,read_receipts,show_last_seen,last_seen,hide_read_time,calls,updated_at) VALUES(?,?,?,?,?,?,?,?,?)
+      ON CONFLICT(user_id) DO UPDATE SET allow_new_chats=excluded.allow_new_chats,show_avatar=excluded.show_avatar,read_receipts=excluded.read_receipts,show_last_seen=excluded.show_last_seen,last_seen=excluded.last_seen,hide_read_time=excluded.hide_read_time,calls=excluded.calls,updated_at=excluded.updated_at`)
+      .run(userId, next.allowNewChats ? 1 : 0, next.showAvatar ? 1 : 0, next.readReceipts ? 1 : 0, next.lastSeen === 'nobody' ? 0 : 1, next.lastSeen, next.hideReadTime ? 1 : 0, next.calls, timestamp());
+    // Peers learn the new visibility even when it is now hidden; «last seen» is reciprocal, so this
     // account's own view of its peers changes too.
     broadcastPresence(userId, { includeHidden: true });
     if (isOnline(userId)) emitUser(userId, { type: 'presence.snapshot', items: peersOf(userId).map(peerId => presenceFor(peerId, userId)) });
@@ -750,7 +761,8 @@ export async function buildApp({
     notify: (chatId, senderId, kind) => notify(chatId, senderId, kind), log: (error, note) => app.log.warn({ err: error?.message }, note) });
 
   // «Прочитано сегодня в 18:36» for the sender's own message, like Telegram: only within 7 days,
-  // and only when both sides share read receipts (otherwise `hidden`, the time is not revealed).
+  // and only when both sides share read receipts and «Скрывать время прочтения» allows it (otherwise
+  // `hidden`, the time is not revealed).
   // «Удалить у меня и у собеседника»: the whole private chat, its messages and files, for both.
   app.delete('/chats/:chatId', authOptions, async request => {
     const chatId = request.params.chatId;
@@ -771,7 +783,7 @@ export async function buildApp({
     if (now() - Date.parse(message.created_at) > READ_DATE_WINDOW_MS) return { readAt: null, reason: 'old' };
     const peer = db.prepare('SELECT user_id, last_read_message_id FROM chat_members WHERE chat_id=? AND user_id<>?').get(chatId, userId);
     if (!peer || peer.last_read_message_id < messageId) return { readAt: null, reason: 'unread' };
-    if (!receiptsVisible(db, peer.user_id, userId, now())) return { readAt: null, reason: 'hidden' };
+    if (!readTimeVisible(db, peer.user_id, userId, now())) return { readAt: null, reason: 'hidden' };
     const mark = db.prepare('SELECT MIN(read_at) AS at FROM read_marks WHERE chat_id=? AND user_id=? AND message_id>=?').get(chatId, peer.user_id, messageId);
     return mark?.at ? { readAt: new Date(mark.at).toISOString() } : { readAt: null, reason: 'unknown' };
   });
@@ -1000,8 +1012,11 @@ export async function buildApp({
           const ghost = item => item.userId === state.auth.user_id && item.state.voiceGrace;
           const live = [...room.values()].filter(item => !ghost(item));
           if (live.length >= VOICE_LIMIT) fail(403, `В голосовом канале максимум ${VOICE_LIMIT} человек.`);
-          const peers = live.map(item => ({ peer: item.state.id, userId: item.userId, muted: item.muted }));
-          room.set(state.id, { state, userId: state.auth.user_id, muted: data.muted === true }); voiceRooms.set(data.channelId, room);
+          // `device`: the member's encryption device. The others seal their connection checks for it
+          // (Signal, end to end) — a wrong value here only makes the check fail, it cannot fake it.
+          const device = typeof data.device === 'string' && /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(data.device) ? data.device : null;
+          const peers = live.map(item => ({ peer: item.state.id, userId: item.userId, muted: item.muted, device: item.device }));
+          room.set(state.id, { state, userId: state.auth.user_id, muted: data.muted === true, device }); voiceRooms.set(data.channelId, room);
           state.voice = { channelId: data.channelId, communityId: data.communityId };
           dropGhosts(state.auth.user_id);
           sendSocket(state, { type: 'voice.joined', channelId: data.channelId, self: state.id, peers, sfu: !!sfu });
@@ -1034,7 +1049,18 @@ export async function buildApp({
           if (!target || target.state === state) fail(404, 'Участник вышел из канала.');
           const payload = data.data;
           if (!payload || typeof payload !== 'object' || !['offer', 'answer'].includes(payload.kind) || typeof payload.sdp !== 'string' || payload.sdp.length > 60_000 || !payload.sdp.startsWith('v=0')) fail(400, 'Некорректный сигнал.');
-          sendSocket(target.state, { type: 'voice.signal', channelId: state.voice.channelId, from: state.id, userId: state.auth.user_id, data: { kind: payload.kind, sdp: payload.sdp } });
+          sendSocket(target.state, { type: 'voice.signal', channelId: state.voice.channelId, from: state.id, userId: state.auth.user_id, device: room.get(state.id)?.device ?? null, data: { kind: payload.kind, sdp: payload.sdp } });
+          return;
+        }
+        if (data.type === 'voice.auth') {
+          // A Signal-encrypted note that proves the DTLS fingerprints of a voice connection end to end.
+          // The server cannot read or forge it; it only passes it on inside the same voice room.
+          const room = state.voice && voiceRooms.get(state.voice.channelId);
+          const target = room && typeof data.to === 'string' ? room.get(data.to) : null;
+          if (!target || target.state === state) fail(404, 'Участник вышел из канала.');
+          const note = data.note;
+          if (!note || typeof note !== 'object' || typeof note.senderDeviceId !== 'string' || note.senderDeviceId.length > 64 || (note.type !== 2 && note.type !== 3) || typeof note.body !== 'string' || note.body.length > 16_000) fail(400, 'Некорректная проверка соединения.');
+          sendSocket(target.state, { type: 'voice.auth', channelId: state.voice.channelId, from: state.id, userId: state.auth.user_id, note: { senderDeviceId: note.senderDeviceId, type: note.type, body: note.body } });
           return;
         }
         sendSocket(state, { type: 'error', error: 'Неизвестный тип события.' });

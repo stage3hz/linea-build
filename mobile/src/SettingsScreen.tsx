@@ -1,12 +1,12 @@
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { ProfileEffect } from './platina/Effects';
-import { ActivityIndicator, PanResponder, Platform, Pressable, ScrollView, StyleSheet, View, useWindowDimensions, Linking } from 'react-native';
+import { ActivityIndicator, PanResponder, Platform, Pressable, ScrollView, StyleSheet, TextInput, View, useWindowDimensions, Linking } from 'react-native';
 import { MONO, Text } from './typography';
 import { requestProfileEdit, requestStatusPicker } from './statusPickerRequest';
 import * as FileSystem from 'expo-file-system/legacy';
 import Constants from 'expo-constants';
 import { Image } from 'expo-image';
-import type { Api, Privacy } from './api';
+import type { Api } from './api';
 import { Avatar, Button, Icon, IconButton, Notice, Sheet, ThemeSwitch, type IconName } from './components';
 import { GlassBackdrop, GlassSurface } from './glass';
 import { useTheme, formatSize, palette } from './theme';
@@ -35,6 +35,8 @@ import { DecoratedAvatar, ProfileBanner } from './platina/Decor';
 import { PlatinaGem, PlatinaName, PlatinaSeal, hasPlatina, openPlatinaShowcase } from './platina/PlatinaMark';
 import { usePlatina } from './platina/usePlatina';
 import { CallPrivacy } from './privacy/CallPrivacy';
+import { LAST_SEEN_MODES, lastSeenSummary, listsFor } from './privacy/lastSeenModel';
+import { changePrivacy, lastSeenModeOf, loadLastSeenRules, loadPrivacy, setLastSeenRule, usePrivacy } from './privacy/privacyStore';
 import { AudioSettings } from './audio/AudioSettings';
 import { OverlaySettings } from './overlay/OverlaySettings';
 import { lightFeedback } from './haptics';
@@ -44,7 +46,7 @@ import { PasscodeRow, PasscodeSection } from './lock/PasscodeSettings';
 import { NotificationsSection } from './notifications/NotificationsSection';
 import { isMuted } from './notifications/model';
 
-type Section = 'root' | 'appearance' | 'night' | 'privacy' | 'passcode' | 'data' | 'language' | 'folders' | 'power' | 'audio' | 'overlay' | 'notifications';
+type Section = 'root' | 'appearance' | 'night' | 'privacy' | 'lastSeen' | 'lastSeenAllow' | 'lastSeenDeny' | 'passcode' | 'data' | 'language' | 'folders' | 'power' | 'audio' | 'overlay' | 'notifications';
 type Props = {
   api: Api; user: User; theme: ThemeMode; darkTheme: DarkTheme;
   /** From the one `useNightState` in App: the night theme on screen, the rule's own verdict and whether it is known yet (dev previews leave it out: day). */
@@ -64,10 +66,10 @@ export function SettingsScreen(props: Props) {
   const p0 = useSharedValue(1), p1 = useSharedValue(1), p2 = useSharedValue(1);
   const levels = [p0, p1, p2];
   const page = (current: Section, onBack: () => void) => {
-    const title = current === 'night' ? 'Ночная тема' : current === 'overlay' ? 'Оверлей' : current === 'audio' ? 'Звук и микрофон' : current === 'appearance' ? 'Оформление' : current === 'privacy' ? 'Конфиденциальность' : current === 'passcode' ? 'Код-пароль' : current === 'data' ? 'Данные и память' : current === 'language' ? 'Язык' : current === 'folders' ? 'Папки с чатами' : current === 'power' ? 'Энергосбережение' : current === 'notifications' ? 'Уведомления и звуки' : 'Настройки';
+    const title = current === 'night' ? 'Ночная тема' : current === 'overlay' ? 'Оверлей' : current === 'audio' ? 'Звук и микрофон' : current === 'appearance' ? 'Оформление' : current === 'privacy' ? 'Конфиденциальность' : current === 'lastSeen' ? 'Время захода' : current === 'lastSeenAllow' ? 'Всегда показывать' : current === 'lastSeenDeny' ? 'Никогда не показывать' : current === 'passcode' ? 'Код-пароль' : current === 'data' ? 'Данные и память' : current === 'language' ? 'Язык' : current === 'folders' ? 'Папки с чатами' : current === 'power' ? 'Энергосбережение' : current === 'notifications' ? 'Уведомления и звуки' : 'Настройки';
     if (current === 'root') return <Root {...props} onBack={onBack} open={open} />;
     return <Page title={title} backLabel="Назад" onBack={onBack}>
-      {current === 'appearance' ? <Appearance {...props} open={open} /> : current === 'night' ? <NightSettings {...props} /> : current === 'privacy' ? <PrivacySection api={props.api} open={open} /> : current === 'passcode' ? <PasscodeSection /> : current === 'language' ? <LanguageSection /> : current === 'folders' ? <FoldersSection api={props.api} user={props.user} chats={props.chats || []} /> : current === 'power' ? <Group><MotionSettings /></Group> : current === 'audio' ? <AudioSettings /> : current === 'overlay' ? <OverlaySettings /> : current === 'notifications' ? <NotificationsSection api={props.api} chats={props.chats || []} /> : <DataSection api={props.api} />}
+      {current === 'appearance' ? <Appearance {...props} open={open} /> : current === 'night' ? <NightSettings {...props} /> : current === 'privacy' ? <PrivacySection api={props.api} open={open} /> : current === 'lastSeen' ? <LastSeenSection api={props.api} open={open} /> : current === 'lastSeenAllow' || current === 'lastSeenDeny' ? <LastSeenExceptions api={props.api} user={props.user} chats={props.chats || []} rule={current === 'lastSeenAllow' ? 'allow' : 'deny'} /> : current === 'passcode' ? <PasscodeSection /> : current === 'language' ? <LanguageSection /> : current === 'folders' ? <FoldersSection api={props.api} user={props.user} chats={props.chats || []} /> : current === 'power' ? <Group><MotionSettings /></Group> : current === 'audio' ? <AudioSettings /> : current === 'overlay' ? <OverlaySettings /> : current === 'notifications' ? <NotificationsSection api={props.api} chats={props.chats || []} /> : <DataSection api={props.api} />}
     </Page>;
   };
   // Each level slides in over the previous one, which shifts aside and dims (StackBase) and closes
@@ -133,7 +135,7 @@ export function Item({ icon, color, label, value, onPress, danger = false }: { i
 export function Toggle({ label, description, value, onChange, disabled = false, badge }: { label: string; description: string; value: boolean; onChange: (value: boolean) => void; disabled?: boolean; badge?: string }) {
   const t = useTheme();
   return <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12, paddingHorizontal: 14, paddingVertical: 11 }}>
-    <View style={{ flex: 1, gap: 3 }}><View style={{ flexDirection: 'row', alignItems: 'center', gap: 7 }}><Text style={{ color: t.text, fontSize: 15 }}>{label}</Text>{badge ? <View style={{ flexDirection: 'row', alignItems: 'center', gap: 3, paddingHorizontal: 7, paddingVertical: 2, borderRadius: 8, backgroundColor: t.accentSoft }}><Icon name="lock-closed" size={10} color={t.accent} /><Text style={{ color: t.accent, fontSize: 11, fontWeight: '700' }}>{badge}</Text></View> : null}</View><Text style={{ color: t.muted, fontSize: 12, lineHeight: 17 }}>{description}</Text></View>
+    <View style={{ flex: 1, gap: 3 }}><View style={{ flexDirection: 'row', alignItems: 'center', gap: 7 }}><Text style={{ color: t.text, fontSize: 15 }}>{label}</Text>{badge ? <View style={{ flexDirection: 'row', alignItems: 'center', gap: 3, paddingHorizontal: 7, paddingVertical: 2, borderRadius: 8, backgroundColor: t.accentSoft }}><Icon name="lock-closed" size={10} color={t.accent} /><Text style={{ color: t.accent, fontSize: 11, fontWeight: '700' }}>{badge}</Text></View> : null}</View>{description ? <Text style={{ color: t.muted, fontSize: 12, lineHeight: 17 }}>{description}</Text> : null}</View>
     <ThemeSwitch accessibilityLabel={label} value={value} disabled={disabled} onValueChange={onChange} />
   </View>;
 }
@@ -327,37 +329,125 @@ function TimePicker({ value, onDone }: { value: string; onDone: (value: string) 
 }
 
 function PrivacySection({ api, open }: { api: Api; open: (section: Section) => void }) {
-  const t = useTheme(); const preferences = useChatPreferences();
-  const [privacy, setPrivacy] = useState<Privacy | null>(null); const [error, setError] = useState(''); const [saving, setSaving] = useState(false);
-  const [platina, setPlatina] = useState(false);
-  const load = useCallback(() => { setError(''); api.privacy().then(result => { setPrivacy(result.privacy); setPlatina(result.platina === true); }).catch(e => setError(e instanceof Error ? e.message : 'Не удалось загрузить настройки.')); }, [api]);
-  useEffect(load, [load]);
-  const change = async (patch: Partial<Privacy>) => {
-    if (!privacy || saving) return;
-    const previous = privacy; setPrivacy({ ...privacy, ...patch }); setSaving(true); setError('');
-    try { const result = await api.updatePrivacy(patch); setPrivacy(result.privacy); setPlatina(result.platina === true); }
-    catch (e) { setPrivacy(previous); setError(e instanceof Error ? e.message : 'Не удалось сохранить.'); }
-    finally { setSaving(false); }
-  };
+  const t = useTheme(); const preferences = useChatPreferences(); const language = useLanguage();
+  // Shared with the «Время захода» pages (privacy/privacyStore): a change there shows here at once.
+  const { privacy, platina, rules, saving, error } = usePrivacy(api, { rules: true, fresh: true });
+  const change = (patch: Parameters<typeof changePrivacy>[1]) => void changePrivacy(api, patch);
   return <>
-    {error ? <Notice text={error} error onRetry={privacy ? undefined : load} /> : null}
+    {error ? <Notice text={error} error onRetry={privacy ? undefined : () => loadPrivacy(api)} /> : null}
     {/* Telegram: the device lock sits first on the privacy screen. */}
     <Group label="Безопасность"><PasscodeRow onPress={() => open('passcode')} /></Group>
     <Group label="На сервере">
       {!privacy ? <ActivityIndicator color={t.accent} style={{ padding: 20 }} /> : <>
-        <Toggle label="Новые разговоры" description="Кто ещё не писал тебе, сможет начать чат. Выключи, чтобы писали только те, с кем переписка уже есть." value={privacy.allowNewChats} disabled={saving} onChange={value => void change({ allowNewChats: value })} />
-        <Toggle label="Фото профиля для других" description="Если выключить, собеседники и поиск увидят цветной аватар вместо фото." value={privacy.showAvatar} disabled={saving} onChange={value => void change({ showAvatar: value })} />
-        <Toggle label="Время захода и «в сети»" badge={platina ? undefined : 'Platina'} description={platina ? 'Взаимно: если скрыть, ты тоже не увидишь, когда собеседник был в сети.' : 'Скрывать время захода можно с Platina.'} value={privacy.showLastSeen !== false} disabled={saving || !platina} onChange={value => void change({ showLastSeen: value })} />
-        <Toggle label="Отчёты о прочтении" badge={platina ? undefined : 'Platina'} description={platina ? 'Взаимно: если выключить, ты тоже не увидишь, прочитали ли твои сообщения.' : 'Скрывать прочтение можно с Platina.'} value={privacy.readReceipts} disabled={saving || !platina} onChange={value => void change({ readReceipts: value })} />
+        <Item icon="time" color="#30B0C7" label="Время захода" value={lastSeenSummary(lastSeenModeOf(privacy), rules, text => tr(text, language))} onPress={() => open('lastSeen')} />
+        <Toggle label="Новые разговоры" description="Кто ещё не писал тебе, сможет начать чат. Выключи, чтобы писали только те, с кем переписка уже есть." value={privacy.allowNewChats} disabled={saving} onChange={value => change({ allowNewChats: value })} />
+        <Toggle label="Фото профиля для других" description="Если выключить, собеседники и поиск увидят цветной аватар вместо фото." value={privacy.showAvatar} disabled={saving} onChange={value => change({ showAvatar: value })} />
+        {/* Not in Telegram's private chats: hides the checkmarks themselves (both ways), a Platina extra. «Время прочтения» is on the «Время захода» page. */}
+        <Toggle label="Отчёты о прочтении" badge={platina ? undefined : 'Platina'} description={platina ? 'Взаимно: если выключить, ты тоже не увидишь, прочитали ли твои сообщения.' : 'Скрывать прочтение можно с Platina.'} value={privacy.readReceipts} disabled={saving || !platina} onChange={value => change({ readReceipts: value })} />
       </>}
     </Group>
     <Group label="Звонки">
-      {!privacy ? <ActivityIndicator color={t.accent} style={{ padding: 20 }} /> : <CallPrivacy api={api} mode={privacy.calls || 'everyone'} disabled={saving} onMode={calls => void change({ calls })} />}
+      {!privacy ? <ActivityIndicator color={t.accent} style={{ padding: 20 }} /> : <CallPrivacy api={api} mode={privacy.calls || 'everyone'} disabled={saving} onMode={calls => change({ calls })} />}
     </Group>
     <Group label="На этом устройстве">
       <Toggle label="Показывать «печатает…»" description="Собеседник видит, что ты набираешь сообщение." value={preferences.sendTyping} onChange={value => setChatPreferences({ sendTyping: value })} />
     </Group>
     <Text style={{ color: t.muted, fontSize: 12, lineHeight: 18, paddingHorizontal: 6 }}>Содержимое сообщений, ответы, реакции, правки и закрепления шифруются на устройстве. Сервер видит только служебные данные: кто, кому и когда.</Text>
+  </>;
+}
+
+/** «Время захода», Telegram's screen: who sees it, the two exception lists, «Скрывать время прочтения». */
+function LastSeenSection({ api, open }: { api: Api; open: (section: Section) => void }) {
+  const t = useTheme();
+  const { privacy, platina, rules, saving, error, rulesError } = usePrivacy(api, { rules: true });
+  if (!privacy) return error ? <Notice text={error} error onRetry={() => loadPrivacy(api)} /> : <ActivityIndicator color={t.accent} style={{ padding: 20 }} />;
+  const mode = lastSeenModeOf(privacy), lists = listsFor(mode);
+  const count = (users?: unknown[]) => users ? (users.length ? String(users.length) : 'Добавить') : '';
+  // Telegram shows «Скрывать время прочтения» once the time is hidden from anyone.
+  const hidesFromSomeone = mode !== 'everyone' || !!rules?.deny.length;
+  const foot = { color: t.muted, fontSize: 12, lineHeight: 17, paddingHorizontal: 8, marginTop: -8 } as const;
+  return <>
+    {error ? <Notice text={error} error /> : null}
+    <Group label="Кто видит, когда я в сети">
+      {LAST_SEEN_MODES.map(item => {
+        const selected = item.value === mode;
+        return <Pressable key={item.value} accessibilityRole="radio" accessibilityLabel={tr(item.label)} accessibilityState={{ selected, disabled: saving }} disabled={saving} onPress={() => { if (selected) return; lightFeedback(); void changePrivacy(api, { lastSeen: item.value }); }}
+          style={({ pressed }) => ({ flexDirection: 'row', alignItems: 'center', gap: 12, minHeight: 50, paddingHorizontal: 16, backgroundColor: pressed ? 'rgba(127,127,127,0.12)' : 'transparent' })}>
+          <Text style={{ flex: 1, color: t.text, fontSize: 15 }}>{item.label}</Text>
+          {selected ? <Icon name="checkmark" size={20} color={t.accent} /> : null}
+        </Pressable>;
+      })}
+    </Group>
+    <Text style={foot}>Без подписки Platina вы не будете видеть появление в сети и время последнего захода пользователей, от которых скрыли свои. Вместо точного времени будет видно примерное значение (недавно, на этой неделе, в этом месяце).</Text>
+    {rulesError ? <Notice text={rulesError} error onRetry={() => loadLastSeenRules(api)} /> : null}
+    <Group label="Исключения">
+      {lists.allow ? <Item icon="checkmark-circle" color="#34C759" label="Всегда показывать" value={count(rules?.allow)} onPress={() => open('lastSeenAllow')} /> : null}
+      {lists.deny ? <Item icon="remove-circle" color="#FF3B30" label="Никогда не показывать" value={count(rules?.deny)} onPress={() => open('lastSeenDeny')} /> : null}
+    </Group>
+    <Text style={foot}>Вы можете добавить пользователей в список исключений из настроек выше.</Text>
+    {hidesFromSomeone ? <>
+      <Group><Toggle label="Скрывать время прочтения" description="" value={privacy.hideReadTime === true} disabled={saving} onChange={value => void changePrivacy(api, { hideReadTime: value })} /></Group>
+      <Text style={foot}>Не показывать время прочтения сообщений пользователям, от которых вы скрыли время захода. Если включить, их время прочтения тоже будет скрыто от вас. Отметки о прочтении при этом остаются. Подписчики Platina видят время прочтения, даже если скрыли своё.</Text>
+      <Group><Item icon="diamond" color="#8E8E93" label="Подписчик Platina" value={platina ? 'Активна' : undefined} onPress={() => { lightFeedback(); openPlatinaShowcase(); }} /></Group>
+      <Text style={foot}>{platina ? 'С Platina вы видите время захода и прочтения других пользователей, даже если скрыли свои.' : 'Оформите Platina, чтобы видеть время захода и прочтения других пользователей, даже если скрыли свои.'}</Text>
+    </> : null}
+  </>;
+}
+
+/** «Всегда показывать» / «Никогда не показывать»: friends and chat partners to pick from, or anyone by @login. */
+function LastSeenExceptions({ api, user, chats, rule }: { api: Api; user: User; chats: Chat[]; rule: 'allow' | 'deny' }) {
+  const t = useTheme();
+  const { rules, rulesError } = usePrivacy(api, { rules: true });
+  const [friends, setFriends] = useState<User[]>([]);
+  const [query, setQuery] = useState(''); const [found, setFound] = useState<User[]>([]); const [busy, setBusy] = useState<string | null>(null);
+  useEffect(() => { let alive = true; api.contacts().then(result => { if (alive) setFriends(result.users); }).catch(() => {}); return () => { alive = false; }; }, [api]);
+  // Global search follows the app's rules (an exact @login, or four letters and more); people from chats
+  // and friends are filtered on the device.
+  const needle = query.trim().replace(/^@/, '').toLowerCase();
+  useEffect(() => {
+    setFound([]);
+    if (needle.length < 2 || (!query.trim().startsWith('@') && needle.length < 4)) return;
+    let alive = true;
+    const timer = setTimeout(() => { api.users(query.trim()).then(result => { if (alive) setFound(result.users); }).catch(() => {}); }, 350);
+    return () => { alive = false; clearTimeout(timer); };
+  }, [api, query, needle]);
+  const listed = rules?.[rule] || [];
+  const inList = new Set(listed.map(item => item.id));
+  const candidates = useMemo(() => {
+    const seen = new Set<string>(), out: User[] = [];
+    for (const person of [...friends, ...chats.map(chat => chat.peer), ...found]) {
+      if (!person || person.id === user.id || seen.has(person.id)) continue;
+      seen.add(person.id); out.push(person);
+    }
+    return out;
+  }, [friends, chats, found, user.id]);
+  const matches = candidates.filter(person => !inList.has(person.id) && (!needle || person.displayName.toLowerCase().includes(needle) || (person.username || '').toLowerCase().includes(needle))).slice(0, 50);
+  const toggle = async (person: User, add: boolean) => {
+    if (busy) return; setBusy(person.id); lightFeedback();
+    try { await setLastSeenRule(api, person.id, add ? rule : null); if (add) setQuery(''); } catch { /* shown as rulesError */ } finally { setBusy(null); }
+  };
+  const row = (person: User, add: boolean) => <Pressable key={person.id} accessibilityRole="button" accessibilityLabel={`${tr(add ? 'Добавить в список' : 'Убрать из списка')}: ${person.displayName}`} disabled={!!busy} onPress={() => void toggle(person, add)}
+    style={({ pressed }) => ({ flexDirection: 'row', alignItems: 'center', gap: 12, minHeight: 54, paddingHorizontal: 14, backgroundColor: pressed ? 'rgba(127,127,127,0.12)' : 'transparent' })}>
+    <Avatar user={person} api={api} size={36} round />
+    <View style={{ flex: 1, minWidth: 0 }}><Text raw numberOfLines={1} style={{ color: t.text, fontSize: 15 }}>{person.displayName}</Text>{person.username ? <Text raw numberOfLines={1} style={{ color: t.muted, fontSize: 12.5 }}>{`@${person.username}`}</Text> : null}</View>
+    {busy === person.id ? <ActivityIndicator size="small" color={t.accent} /> : <Icon name={add ? 'add-circle' : 'close-circle'} size={22} color={add ? t.accent : t.muted} />}
+  </Pressable>;
+  return <>
+    {rulesError ? <Notice text={rulesError} error onRetry={() => loadLastSeenRules(api)} /> : null}
+    <Group label={rule === 'allow' ? 'Всегда показывать' : 'Никогда не показывать'}>
+      {!rules ? <ActivityIndicator color={t.accent} style={{ padding: 20 }} /> : listed.length ? listed.map(person => row(person, false)) : <Text style={{ color: t.muted, fontSize: 13, lineHeight: 19, padding: 16 }}>Список пуст. Выбери людей ниже.</Text>}
+    </Group>
+    <Text style={{ color: t.muted, fontSize: 12, lineHeight: 17, paddingHorizontal: 8, marginTop: -8 }}>{rule === 'allow' ? 'Эти люди всегда будут видеть время вашего захода, независимо от настроек выше.' : 'Эти люди никогда не будут видеть время вашего захода, независимо от настроек выше.'}</Text>
+    <Group label="Добавить пользователей">
+      <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10, minHeight: 48, paddingHorizontal: 14 }}>
+        <Icon name="search" size={18} color={t.muted} />
+        <TextInput value={query} onChangeText={setQuery} placeholder={tr('Имя или @логин')} placeholderTextColor={t.muted} autoCapitalize="none" autoCorrect={false} returnKeyType="search" maxLength={60}
+          accessibilityLabel={tr('Поиск людей')} style={{ flex: 1, color: t.text, fontSize: 15, paddingVertical: 10 }} />
+        {query ? <Pressable accessibilityRole="button" accessibilityLabel={tr('Очистить')} onPress={() => setQuery('')} hitSlop={8}><Icon name="close-circle" size={18} color={t.muted} /></Pressable> : null}
+      </View>
+      {matches.map(person => row(person, true))}
+      {!matches.length ? <Text style={{ color: t.muted, fontSize: 13, lineHeight: 19, paddingHorizontal: 16, paddingBottom: 14 }}>{needle ? 'Никого не нашли. Введи точный @логин.' : 'Здесь появятся друзья и люди из твоих чатов.'}</Text> : null}
+    </Group>
   </>;
 }
 

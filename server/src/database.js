@@ -65,6 +65,15 @@ export function openDatabase(dataDir) {
       }
       const privacyColumns = new Set(db.prepare('PRAGMA table_info(user_privacy)').all().map(column => column.name));
       if (!privacyColumns.has('show_last_seen')) db.exec('ALTER TABLE user_privacy ADD COLUMN show_last_seen INTEGER NOT NULL DEFAULT 1 CHECK(show_last_seen IN (0,1))');
+      // «Время захода» as in Telegram: everyone / contacts (friends) / nobody, free for everyone. The old
+      // on/off switch (Platina only) maps to «Все» (on) and «Никто» (off); show_last_seen is still written
+      // (on = anything but «Никто») so an older server reading this file keeps a sensible value.
+      if (!privacyColumns.has('last_seen')) {
+        db.exec("ALTER TABLE user_privacy ADD COLUMN last_seen TEXT NOT NULL DEFAULT 'everyone' CHECK(last_seen IN ('everyone','contacts','nobody'))");
+        db.exec("UPDATE user_privacy SET last_seen = CASE WHEN show_last_seen = 0 THEN 'nobody' ELSE 'everyone' END");
+      }
+      // «Скрывать время прочтения»: free, off by default.
+      if (!privacyColumns.has('hide_read_time')) db.exec('ALTER TABLE user_privacy ADD COLUMN hide_read_time INTEGER NOT NULL DEFAULT 0 CHECK(hide_read_time IN (0,1))');
       db.exec('UPDATE users SET login_name=username WHERE login_name IS NULL');
       db.exec(`
         CREATE UNIQUE INDEX IF NOT EXISTS users_login_name ON users(login_name);
@@ -191,10 +200,14 @@ export function publicUser(row, { db, now = Date.now, own = false } = {}) {
   };
 }
 
-const PRIVACY_DEFAULTS = { allowNewChats: true, showAvatar: true, readReceipts: true, showLastSeen: true, calls: 'everyone' };
+export const LAST_SEEN_MODES = Object.freeze(['everyone', 'contacts', 'nobody']);
+const PRIVACY_DEFAULTS = { allowNewChats: true, showAvatar: true, readReceipts: true, showLastSeen: true, lastSeen: 'everyone', hideReadTime: false, calls: 'everyone' };
+/** `showLastSeen` is kept for older apps: true unless «Время захода» is «Никто». */
 export function privacyOf(db, userId) {
   const row = db.prepare('SELECT * FROM user_privacy WHERE user_id=?').get(userId);
-  return row ? { allowNewChats: row.allow_new_chats === 1, showAvatar: row.show_avatar === 1, readReceipts: row.read_receipts === 1, showLastSeen: row.show_last_seen !== 0, calls: row.calls || 'everyone' } : { ...PRIVACY_DEFAULTS };
+  if (!row) return { ...PRIVACY_DEFAULTS };
+  const lastSeen = LAST_SEEN_MODES.includes(row.last_seen) ? row.last_seen : row.show_last_seen === 0 ? 'nobody' : 'everyone';
+  return { allowNewChats: row.allow_new_chats === 1, showAvatar: row.show_avatar === 1, readReceipts: row.read_receipts === 1, showLastSeen: lastSeen !== 'nobody', lastSeen, hideReadTime: row.hide_read_time === 1, calls: row.calls || 'everyone' };
 }
 
 /** A serialized user as another account may see it. The owner always sees everything. */
@@ -219,7 +232,7 @@ export function userForViewer(db, user, viewerId) {
 }
 
 /** Settings that only Platina may switch off; without an active Platina they count as on. */
-export const PLATINA_PRIVACY = Object.freeze(['showLastSeen', 'readReceipts']);
+export const PLATINA_PRIVACY = Object.freeze(['readReceipts']);
 export function effectivePrivacy(db, userId, time = Date.now()) {
   const stored = privacyOf(db, userId);
   if (platinaState(db, userId, time).active) return stored;
@@ -228,16 +241,72 @@ export function effectivePrivacy(db, userId, time = Date.now()) {
   return effective;
 }
 
-/** "Online / last seen" is mutual: whoever hides it (Platina) does not see it either; a block hides it both ways. */
-export function presenceVisible(db, a, b, time = Date.now()) {
-  if (blockedEitherWay(db, a, b)) return false;
-  return effectivePrivacy(db, a, time).showLastSeen && effectivePrivacy(db, b, time).showLastSeen;
+/**
+ * Does `ownerId`'s own «Время захода» setting share it with `viewerId`? Telegram's rules: «Все» minus
+ * «Никогда не показывать»; «Мои контакты» (friends) plus «Всегда показывать» minus «Никогда»; «Никто»
+ * plus «Всегда показывать». A list that does not apply to the mode is kept but ignored, as in Telegram.
+ */
+export function sharesLastSeen(db, ownerId, viewerId) {
+  if (!ownerId || !viewerId) return false;
+  if (ownerId === viewerId) return true;
+  const rule = db.prepare('SELECT rule FROM last_seen_rules WHERE owner_id=? AND user_id=?').get(ownerId, viewerId)?.rule;
+  const mode = privacyOf(db, ownerId).lastSeen;
+  if (mode === 'everyone') return rule !== 'deny';
+  if (mode === 'nobody') return rule === 'allow';
+  if (rule) return rule === 'allow';
+  return !!db.prepare('SELECT 1 FROM contacts WHERE owner_id=? AND contact_id=?').get(ownerId, viewerId);
 }
 
-/** Read receipts are mutual: hidden if either side (with Platina) turned them off or blocked the other. */
+/**
+ * Does `viewerId` see `subjectId`'s exact «в сети» / «был(а) в 18:36»? The subject must share it with
+ * the viewer, and — like Telegram — the viewer must share his own with the subject, unless the viewer
+ * has Platina (Telegram Premium). A block hides it both ways.
+ */
+export function presenceVisible(db, subjectId, viewerId, time = Date.now()) {
+  if (subjectId === viewerId) return true;
+  if (blockedEitherWay(db, subjectId, viewerId)) return false;
+  if (!sharesLastSeen(db, subjectId, viewerId)) return false;
+  return sharesLastSeen(db, viewerId, subjectId) || platinaState(db, viewerId, time).active;
+}
+
+const DAY_MS = 86_400_000;
+export const LAST_SEEN_BUCKETS = Object.freeze(['recently', 'week', 'month', 'long']);
+/** Telegram's approximate status, worked out on the server from the real time (which is never sent). */
+export function lastSeenBucket(lastSeenAt, time, online = false) {
+  if (online) return 'recently';
+  const at = Date.parse(lastSeenAt || '');
+  if (!Number.isFinite(at)) return 'long';
+  const age = time - at;
+  return age <= 3 * DAY_MS ? 'recently' : age <= 7 * DAY_MS ? 'week' : age <= 30 * DAY_MS ? 'month' : 'long';
+}
+
+/**
+ * What `viewerId` gets about `subjectId`: exact (`hidden: false`) or only `approx` («недавно», «на этой
+ * неделе», …), with «в сети» hidden too. A block reads as «давно» (Telegram shows the same).
+ */
+export function presenceView(db, subjectId, viewerId, { online, time }) {
+  if (blockedEitherWay(db, subjectId, viewerId)) return { userId: subjectId, online: false, lastSeenAt: null, hidden: true, approx: 'long' };
+  const lastSeenAt = online ? null : db.prepare('SELECT last_seen_at FROM users WHERE id=?').get(subjectId)?.last_seen_at || null;
+  if (!presenceVisible(db, subjectId, viewerId, time)) return { userId: subjectId, online: false, lastSeenAt: null, hidden: true, approx: lastSeenBucket(lastSeenAt, time, online) };
+  return { userId: subjectId, online, lastSeenAt, hidden: false };
+}
+
+/** Read receipts (the checkmarks) are mutual: hidden if either side (with Platina) turned them off or blocked the other. */
 export function receiptsVisible(db, a, b, time = Date.now()) {
   if (blockedEitherWay(db, a, b)) return false;
   return effectivePrivacy(db, a, time).readReceipts && effectivePrivacy(db, b, time).readReceipts;
+}
+
+/**
+ * «Прочитано в 18:36» of `readerId` for `senderId`. Telegram's «Скрывать время прочтения»: whoever turned
+ * it on does not show when he read to people he hides his «время захода» from, and does not see their
+ * read time either — unless he has Platina. The checkmarks themselves are not affected.
+ */
+export function readTimeVisible(db, readerId, senderId, time = Date.now()) {
+  if (!receiptsVisible(db, readerId, senderId, time)) return false;
+  if (privacyOf(db, readerId).hideReadTime && !sharesLastSeen(db, readerId, senderId)) return false;
+  if (privacyOf(db, senderId).hideReadTime && !sharesLastSeen(db, senderId, readerId) && !platinaState(db, senderId, time).active) return false;
+  return true;
 }
 
 export function publicAttachment(row) {

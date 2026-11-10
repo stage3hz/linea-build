@@ -6,6 +6,7 @@ import { playVoiceSound } from './voiceSounds';
 import { connectOverlay, overlayTrack, overlayVoiceChanged } from '../overlay/sync';
 import { unwatchVoice } from '../overlay/speaking';
 import { SfuSession, sfuUsable } from './sfu/session';
+import { authText, checkAuth } from './voiceAuth';
 import { prepareScreenCapture, confirmScreenCapture, endScreenCapture } from './screenCapture';
 import { useSyncExternalStore } from 'react';
 import type { Api } from '../api';
@@ -51,8 +52,22 @@ const sfuPeers = new Set<string>();
 let shareKey: { raw: Uint8Array; id: number } | null = null; let shareKeyId = 0;
 const b64 = (bytes: Uint8Array) => { let s = ''; for (const b of bytes) s += String.fromCharCode(b); return btoa(s); };
 const unb64 = (text: string) => Uint8Array.from(atob(text), c => c.charCodeAt(0));
+// End-to-end check of every connection (voiceAuth.ts): until the other side's Signal note matches
+// the DTLS fingerprints we negotiated, nothing private goes to them or is played from them.
+let selfPeer: string | null = null;
+const peerInfo = new Map<string, { userId: string; device: string | null }>();
+const verified = new Set<string>();
+const authSdp = new Map<string, { local: string; remote: string; connection: any }>();
+const pendingNotes = new Map<string, any>();
+const pendingKeys = new Map<string, { keyId: number; raw: Uint8Array }>();
+const micSenders = new Map<string, any>();
+const authTimers = new Map<string, ReturnType<typeof setTimeout>>();
+const AUTH_TIMEOUT_MS = 20_000;
+const REFUSED = 'Не удалось подтвердить шифрование с участником — соединение с ним отключено.';
 function sendKey(channel: any) { if (shareKey && channel?.readyState === 'open') channel.send(JSON.stringify({ type: 'screenKey', keyId: shareKey.id, key: b64(shareKey.raw) })); }
-function sendCaps(channel: any) { if (channel?.readyState === 'open') channel.send(JSON.stringify({ type: 'caps', sfu: !!sfuSession })); }
+// `sfu`: opens legacy-layout SFU frames (PC apps up to 0.14.13 send only to peers saying this);
+// `lk`: opens «lk» frames (frameCrypto.ts) — PCs and phones whose WebRTC build has a FrameCryptor.
+function sendCaps(channel: any) { if (channel?.readyState === 'open') channel.send(JSON.stringify({ type: 'caps', sfu: Platform.OS === 'web' && !!sfuSession, lk: !!sfuSession })); }
 function attachOverlay() {
   if (local) overlayTrack('me', local.getAudioTracks()[0]);
   for (const [peer, connection] of connections) {
@@ -100,15 +115,18 @@ function bindControl(peer: string, channel: any) {
     if (typeof event.data === 'string' && event.data.length <= 512) {
       let extra: any = null; try { extra = JSON.parse(event.data); } catch { /* not ours */ }
       if (extra?.type === 'caps') {
-        if (extra.sfu === true && sfuSession) {
+        if (extra.lk === true && sfuSession) {
           sfuPeers.add(peer);
           // Already sharing: this viewer now gets the picture from the server — stop the direct copy.
-          if (screenStream && shareKey) { sendKey(channel); void screenSenders.get(peer)?.replaceTrack(null).catch(() => {}); void screenAudioSenders.get(peer)?.replaceTrack(null).catch(() => {}); }
+          if (screenStream && shareKey && verified.has(peer)) { sendKey(channel); void screenSenders.get(peer)?.replaceTrack(null).catch(() => {}); void screenAudioSenders.get(peer)?.replaceTrack(null).catch(() => {}); }
         }
         return;
       }
       if (extra?.type === 'screenKey' && Number.isInteger(extra.keyId) && extra.keyId >= 0 && extra.keyId < 256 && typeof extra.key === 'string' && extra.key.length <= 44) {
-        try { const raw = unb64(extra.key); if (raw.length === 16) void sfuSession?.setPeerKey(peer, extra.keyId, raw); } catch { /* bad key */ }
+        try {
+          const raw = unb64(extra.key);
+          if (raw.length === 16) { if (verified.has(peer)) void sfuSession?.setPeerKey(peer, extra.keyId, raw); else pendingKeys.set(peer, { keyId: extra.keyId, raw }); }
+        } catch { /* bad key */ }
         return;
       }
     }
@@ -121,6 +139,98 @@ function bindControl(peer: string, channel: any) {
   });
 }
 
+
+let ownDevice: string | null = null;
+/** WebCrypto where there is one (PC); expo-crypto on phones. */
+const randomBytes = (n: number): Uint8Array => {
+  const web = (globalThis as any).crypto;
+  return web?.getRandomValues ? web.getRandomValues(new Uint8Array(n)) : require('expo-crypto').getRandomBytes(n);
+};
+let sharingViaSfu = false;
+
+/** A direct copy of the screen (and the PC's sound) for one verified peer. */
+async function serveScreen(peer: string) {
+  const stream = screenStream, quality = state?.sharing;
+  if (!stream || !quality) return;
+  const preset = SCREEN_QUALITIES[quality];
+  const sender = screenSenders.get(peer), track = stream.getVideoTracks()[0];
+  if (sender && track) {
+    await sender.replaceTrack(track);
+    const parameters = sender.getParameters();
+    if (parameters.encodings?.length) { parameters.encodings[0].maxBitrate = preset.maxBitrate; parameters.encodings[0].maxFramerate = 60; await sender.setParameters(parameters); }
+  }
+  const sound = stream.getAudioTracks?.()[0], soundSender = screenAudioSenders.get(peer);
+  if (sound && soundSender) {
+    await soundSender.replaceTrack(sound);
+    const parameters = soundSender.getParameters();
+    if (!parameters.encodings?.length) parameters.encodings = [{}];
+    parameters.encodings[0].maxBitrate = SCREEN_AUDIO_BITRATE;
+    await soundSender.setParameters(parameters).catch(() => {});
+  }
+}
+
+function unverify(peer: string) {
+  verified.delete(peer); authSdp.delete(peer); pendingNotes.delete(peer); pendingKeys.delete(peer); micSenders.delete(peer);
+  const timer = authTimers.get(peer); if (timer) clearTimeout(timer); authTimers.delete(peer);
+}
+
+function refuse(peer: string) {
+  if (!state) return;
+  drop(peer, true);
+  patch({ error: REFUSED });
+}
+
+/**
+ * Both SDPs of the connection are known: send our note (sealed for the peer's device) and check
+ * theirs. Runs alongside ICE/DTLS, so it adds no round trip before the call starts.
+ */
+function startAuth(peer: string, connection: any, localSdp: string, remoteSdp: string) {
+  if (connections.get(peer) !== connection || !state || !selfPeer) return;
+  authSdp.set(peer, { local: localSdp, remote: remoteSdp, connection });
+  const channelId = state.channelId, self = selfPeer, info = peerInfo.get(peer);
+  authTimers.set(peer, setTimeout(() => { if (connections.get(peer) === connection && !verified.has(peer)) refuse(peer); }, AUTH_TIMEOUT_MS));
+  if (!info?.device) return; // the timer refuses it: an app without the check, or the server hid the device
+  void (async () => {
+    const crypto = await storeRef!.cryptoRuntime.get();
+    let note;
+    try { note = await crypto.sealNote(info.userId, info.device!, authText(channelId, self, peer, localSdp, remoteSdp)); }
+    catch { await new Promise(resolve => setTimeout(resolve, 1000)); note = await crypto.sealNote(info.userId, info.device!, authText(channelId, self, peer, localSdp, remoteSdp)); }
+    if (connections.get(peer) === connection) storeRef?.sendSocket({ type: 'voice.auth', to: peer, note });
+  })().catch(() => { if (connections.get(peer) === connection) refuse(peer); });
+  const waiting = pendingNotes.get(peer); pendingNotes.delete(peer);
+  if (waiting) void verifyNote(peer, waiting);
+}
+
+async function verifyNote(peer: string, note: any) {
+  const auth = authSdp.get(peer), info = peerInfo.get(peer);
+  if (!auth || !info || !state || !selfPeer || verified.has(peer)) return;
+  const expected = { channelId: state.channelId, self: selfPeer, peer, localSdp: auth.local, remoteSdp: auth.remote };
+  let ok = false;
+  try {
+    // The note must come from the device the server named for this person.
+    if (note?.senderDeviceId !== info.device) throw new Error('device');
+    const text = await storeRef!.cryptoRuntime.get().then(crypto => crypto.openNote(info.userId, note));
+    ok = checkAuth(text, expected);
+  } catch { ok = false; }
+  if (connections.get(peer) !== auth.connection) return;
+  if (!ok) { refuse(peer); return; }
+  verified.add(peer);
+  const timer = authTimers.get(peer); if (timer) clearTimeout(timer); authTimers.delete(peer);
+  onVerified(peer);
+}
+
+/** The connection is proven end to end: sound both ways, the screen and its frame keys. */
+function onVerified(peer: string) {
+  applyAudio();
+  const mic = local?.getAudioTracks?.()[0];
+  if (mic) void micSenders.get(peer)?.replaceTrack(mic).catch(() => {});
+  const key = pendingKeys.get(peer); pendingKeys.delete(peer);
+  if (key) void sfuSession?.setPeerKey(peer, key.keyId, key.raw);
+  if (screenStream && state?.sharing) {
+    if (sharingViaSfu && sfuPeers.has(peer)) sendKey(controls.get(peer));
+    else void serveScreen(peer).catch(() => {});
+  }
+}
 
 export const voiceAvailable = () => { if (!rtc) rtc = loadRtc(); return !!rtc; };
 export function useVoice(): VoiceState {
@@ -141,12 +251,12 @@ function peerUpdate(peer: string, change: Partial<VoicePeer>) {
 
 function connectionFor(peer: string, initiator = false) {
   releaseRemoteScreen(peer); controls.delete(peer); peerUpdate(peer, { screen: undefined });
+  unverify(peer);
   const connection: any = new rtc!.RTCPeerConnection({ iceServers, bundlePolicy: 'max-bundle' } as any);
   // Reserve a video slot before the first SDP exchange. Screen start/stop only replaces
   // this track, so simultaneous shares never tear down audio or race renegotiations.
   const video = connection.addTransceiver('video', { direction: 'sendrecv' });
-  screenSenders.set(peer, video.sender);
-  if (screenStream) void video.sender.replaceTrack(screenStream.getVideoTracks()[0]);
+  screenSenders.set(peer, video.sender); // the screen goes in once the connection is verified
   if (initiator) bindControl(peer, connection.createDataChannel('screen-control'));
   connection.addEventListener('datachannel', (event: any) => bindControl(peer, event.channel));
   connection.addEventListener('track', (event: any) => {
@@ -160,17 +270,20 @@ function connectionFor(peer: string, initiator = false) {
     const announced = controls.get(peer)?.screenState;
     if (announced?.active) peerUpdate(peer, { screen: { stream, quality: announced.quality } });
   });
-  local?.getTracks().forEach((track: any) => connection.addTrack(track, local));
+  // The microphone's slot is negotiated now, but the sound goes in only once the connection is verified.
+  local?.getTracks().forEach((track: any) => {
+    const sender = connection.addTrack(track, local);
+    if (track.kind === 'audio') { micSenders.set(peer, sender); void sender.replaceTrack(null).catch(() => {}); }
+  });
   // Reserved after the microphone so addTrack never lands in it. Sharing only swaps its track.
   const sound = connection.addTransceiver('audio', { direction: 'sendrecv' });
   screenAudioSenders.set(peer, sound.sender);
-  if (screenStream?.getAudioTracks?.()[0]) void sound.sender.replaceTrack(screenStream.getAudioTracks()[0]);
   connection.addEventListener('connectionstatechange', () => {
     if (connections.get(peer) !== connection) return;
     const value = connection.connectionState;
     if (value === 'connected') {
       peerUpdate(peer, { connected: true });
-      if (state?.sharing && screenStream) {
+      if (state?.sharing && screenStream && verified.has(peer)) {
         const sender = screenSenders.get(peer), preset = SCREEN_QUALITIES[state.sharing];
         void (async () => {
           const parameters = sender.getParameters();
@@ -188,6 +301,7 @@ function connectionFor(peer: string, initiator = false) {
 
 function drop(peer: string, quiet = false) {
   overlayMics.delete(peer); unwatchVoice(peer); sfuPeers.delete(peer); sfuScreens.delete(peer); sfuSession?.forget(peer);
+  unverify(peer); peerInfo.delete(peer);
   if (!quiet && state?.peers.some(item => item.peer === peer)) playVoiceSound('leave');
   try { connections.get(peer)?.close(); } catch { /* closed */ }
   connections.delete(peer);
@@ -200,14 +314,16 @@ async function handle(data: any) {
   if (sfuSession?.handle(data)) return;
   if (data.type === 'voice.joined' && data.channelId === state.channelId) {
     playVoiceSound('join');
-    if (data.sfu === true && Platform.OS === 'web' && sfuUsable() && !sfuSession) {
+    selfPeer = typeof data.self === 'string' ? data.self : null;
+    for (const item of data.peers || []) peerInfo.set(item.peer, { userId: item.userId, device: typeof item.device === 'string' ? item.device : null });
+    if (data.sfu === true && sfuUsable(rtc) && !sfuSession) {
       const session = new SfuSession(message => !!storeRef?.sendSocket(message), (peer, stream) => {
         if (!state) return;
         if (!stream) { sfuScreens.delete(peer); peerUpdate(peer, { screen: undefined }); return; }
         const wrapped = new rtc!.MediaStream(stream.getTracks() as any); sfuScreens.set(peer, wrapped);
         const announced = controls.get(peer)?.screenState;
         peerUpdate(peer, { screen: { stream: wrapped, quality: announced?.quality || '1080p60' } });
-      });
+      }, rtc);
       sfuSession = session;
       void session.start().then(() => controls.forEach(sendCaps)).catch(() => { if (sfuSession === session) { session.close(); sfuSession = null; } });
     }
@@ -224,6 +340,7 @@ async function handle(data: any) {
     }
   } else if (data.type === 'voice.signal' && data.channelId === state.channelId && data.data) {
     const from = data.from as string;
+    if (data.data.kind === 'offer') peerInfo.set(from, { userId: data.userId, device: typeof data.device === 'string' ? data.device : null });
     if (data.data.kind === 'offer') {
       try {
         if (!state.peers.some(item => item.peer === from)) { playVoiceSound('join'); patch({ peers: [...state.peers, { peer: from, userId: data.userId, muted: false, connected: false }] }); }
@@ -234,11 +351,17 @@ async function handle(data: any) {
         await connection.setLocalDescription({ type: answer.type, sdp: stereoScreenAudio(answer.sdp) });
         const sdp = await gathered(connection);
         storeRef?.sendSocket({ type: 'voice.signal', to: from, data: { kind: 'answer', sdp } });
+        startAuth(from, connection, sdp, data.data.sdp);
       } catch { drop(from); }
     } else if (data.data.kind === 'answer') {
       const connection = connections.get(from);
-      if (connection && connection.signalingState === 'have-local-offer') { try { await connection.setRemoteDescription(new rtc!.RTCSessionDescription({ type: 'answer', sdp: data.data.sdp })); } catch { drop(from); } }
+      if (connection && connection.signalingState === 'have-local-offer') {
+        try { await connection.setRemoteDescription(new rtc!.RTCSessionDescription({ type: 'answer', sdp: data.data.sdp })); } catch { drop(from); return; }
+        startAuth(from, connection, connection.localDescription?.sdp || '', data.data.sdp);
+      }
     }
+  } else if (data.type === 'voice.auth' && data.channelId === state.channelId && typeof data.from === 'string' && data.note) {
+    if (authSdp.has(data.from)) void verifyNote(data.from, data.note); else pendingNotes.set(data.from, data.note);
   } else if (data.type === 'voice.left' && typeof data.peer === 'string') drop(data.peer);
   else if (data.type === 'voice.state' && data.channelId === state.channelId && Array.isArray(data.members)) {
     // Mute flags of everyone in the room, including a moderator's server mute / deafen.
@@ -255,7 +378,7 @@ async function handle(data: any) {
     stopVoiceScreen();
     const current = state; connections.forEach((_c, peer) => drop(peer, true));
     patch({ status: 'connecting', peers: [] });
-    storeRef?.sendSocket({ type: 'voice.join', communityId: current.communityId, channelId: current.channelId, muted: current.muted });
+    storeRef?.sendSocket({ type: 'voice.join', communityId: current.communityId, channelId: current.channelId, muted: current.muted, device: ownDevice });
   }
 }
 
@@ -265,6 +388,8 @@ function cleanup(error: string) {
   connections.clear(); screenSenders.clear(); screenAudioSenders.clear(); controls.clear(); remoteScreens.forEach((_stream, peer) => releaseRemoteScreen(peer));
   stopGate(); stopGate = () => {};
   sfuSession?.close(); sfuSession = null; sfuPeers.clear(); sfuScreens.clear(); shareKey = null;
+  authTimers.forEach(timer => clearTimeout(timer)); authTimers.clear();
+  verified.clear(); authSdp.clear(); pendingNotes.clear(); pendingKeys.clear(); micSenders.clear(); peerInfo.clear(); selfPeer = null; sharingViaSfu = false;
   if (voiceHookOn) { voiceHookOn = false; setVoiceActive(false); }
   try { releaseLocalStream(local); } catch { /* released */ }
   local = null; unsubscribe?.(); unsubscribe = null;
@@ -278,6 +403,10 @@ export async function joinVoice(api: Api, store: MessengerStore, target: { commu
   lastJoin = [api, store, target];
   if (state) leaveVoice();
   try { iceServers = (await api.callIce()).iceServers; } catch { /* public STUN only */ }
+  // Our encryption device: the others seal their connection notes for exactly this device.
+  const crypto = await store.cryptoRuntime.get(); await crypto.initialize();
+  const device = crypto.deviceId;
+  if (!device) throw new Error('Шифрование ещё не готово. Попробуй ещё раз.');
   local = await rtc!.mediaDevices.getUserMedia({ audio: true, video: false } as any);
   // PC: voice activation (Настройки → Звук и микрофон).
   if (Platform.OS === 'web') { stopGate = gateTrack(local.getAudioTracks()[0], () => !!state?.muted); setVoiceActive(true); voiceHookOn = true; overlayTrack('me', local.getAudioTracks()[0]); }
@@ -286,7 +415,8 @@ export async function joinVoice(api: Api, store: MessengerStore, target: { commu
   storeRef = store;
   unsubscribe = store.onSocket(data => { void handle(data); });
   set({ ...target, sharing: null, screenStream: null, status: 'connecting', muted: false, deafened: false, speaker: true, peers: [], error: '' });
-  if (!store.sendSocket({ type: 'voice.join', communityId: target.communityId, channelId: target.channelId })) { cleanup(''); throw new Error('Нет соединения с сервером.'); }
+  ownDevice = device;
+  if (!store.sendSocket({ type: 'voice.join', communityId: target.communityId, channelId: target.channelId, device })) { cleanup(''); throw new Error('Нет соединения с сервером.'); }
 }
 
 export function leaveVoice() {
@@ -320,7 +450,7 @@ export function toggleVoiceDeafen() {
 function applyDeafen(_deafened: boolean) { applyAudio(); }
 /** Whether this peer's audio plays: not while I'm deafened (by myself or a moderator), nor when they are server-muted. */
 function audible(peer: string) {
-  if (!state || state.deafened || state.serverDeafened) return false;
+  if (!state || state.deafened || state.serverDeafened || !verified.has(peer)) return false;
   return !state.peers.find(item => item.peer === peer)?.serverMuted;
 }
 function applyAudio() {
@@ -392,39 +522,25 @@ export async function startVoiceScreen(quality: ScreenQuality) {
     screenStream = stream; pendingScreenStream = null;
     track.addEventListener('ended', () => { if (screenStream === stream) stopVoiceScreen(); });
     patch({ sharing: quality, screenStream: stream, error: '' });
-    // Through the SFU: one sealed upload for all PC viewers; direct copies only for the rest.
+    // Through the SFU: one sealed upload for all SFU viewers; direct copies only for the rest.
+    // Frame keys and direct copies go only to verified connections; the others get theirs on verification.
     let viaSfu = false;
     if (sfuSession) {
       try {
-        shareKeyId = (shareKeyId + 1) % 256; shareKey = { raw: crypto.getRandomValues(new Uint8Array(16)), id: shareKeyId };
-        controls.forEach((channel, peer) => { if (sfuPeers.has(peer)) sendKey(channel); });
+        // Key index 0..15: the FrameCryptor's key ring (frameCrypto.ts LK_KEY_RING); a new key per share.
+        shareKeyId = (shareKeyId + 1) % 16; shareKey = { raw: randomBytes(16), id: shareKeyId };
+        controls.forEach((channel, peer) => { if (sfuPeers.has(peer) && verified.has(peer)) sendKey(channel); });
         await sfuSession.publish(track, stream.getAudioTracks?.()[0] || null, shareKey.raw, shareKey.id, preset.maxBitrate);
         viaSfu = true;
       } catch { viaSfu = false; }
     }
-    for (const [peer, sender] of [...screenSenders.entries()]) {
-      if (viaSfu && sfuPeers.has(peer)) continue;
-      if (![...screenSenders.values()].includes(sender)) continue;
-      if (generation !== shareGeneration || !state) throw new Error('Запуск отменён.');
-      await sender.replaceTrack(track);
-      const parameters = sender.getParameters();
-      if (!parameters.encodings?.length) continue;
-      parameters.encodings[0].maxBitrate = preset.maxBitrate;
-      parameters.encodings[0].maxFramerate = 60;
-      await sender.setParameters(parameters);
-    }
+    sharingViaSfu = viaSfu;
     const sound = stream.getAudioTracks?.()[0];
-    if (sound) {
-      try { sound.contentHint = 'music'; } catch { /* optional */ }
-      for (const [peer, sender] of [...screenAudioSenders.entries()]) {
-        if (viaSfu && sfuPeers.has(peer)) continue;
-        if (generation !== shareGeneration || !state) break;
-        await sender.replaceTrack(sound);
-        const parameters = sender.getParameters();
-        if (!parameters.encodings?.length) parameters.encodings = [{}];
-        parameters.encodings[0].maxBitrate = SCREEN_AUDIO_BITRATE;
-        await sender.setParameters(parameters).catch(() => {});
-      }
+    if (sound) { try { sound.contentHint = 'music'; } catch { /* optional */ } }
+    for (const peer of [...screenSenders.keys()]) {
+      if (generation !== shareGeneration || !state) throw new Error('Запуск отменён.');
+      if (!verified.has(peer) || (viaSfu && sfuPeers.has(peer))) continue;
+      await serveScreen(peer);
     }
     patch({ sharingAudio: !!sound });
     if (generation !== shareGeneration || !state) { releaseLocalStream(stream); return; }
@@ -446,7 +562,7 @@ export function stopVoiceScreen() {
   releaseLocalStream(pending);
   screenSenders.forEach(sender => { void sender.replaceTrack(null).catch(() => {}); });
   screenAudioSenders.forEach(sender => { void sender.replaceTrack(null).catch(() => {}); });
-  void sfuSession?.unpublish(); shareKey = null;
+  void sfuSession?.unpublish(); shareKey = null; sharingViaSfu = false;
   patch({ sharing: null, screenStream: null, sharingAudio: false });
   controls.forEach(sendScreenState);
   releaseLocalStream(previous);

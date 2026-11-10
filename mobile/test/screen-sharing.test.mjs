@@ -10,6 +10,11 @@ test('only two bounded 60fps screen presets are accepted',()=>{
  for(const v of [null,'x'.repeat(257),'{}','{"type":"screen","active":"true","quality":"720p60"}'])assert.equal(model.screenControl(v),null);
  assert.deepEqual(model.screenControl('{"type":"screen","active":true,"quality":"1080p60"}'),{active:true,quality:'1080p60'});
 });
+// Voice-room connections are verified end to end (voiceAuth.ts): each peer answers and sends its
+// Signal-sealed note. The crypto here is a stand-in (sealNote/openNote pass the text through).
+const FP_ME='AA:AA:AA:AA:AA:AA:AA:AA:AA:AA:AA:AA:AA:AA:AA:AA:AA:AA:AA:AA:AA:AA:AA:AA:AA:AA:AA:AA:AA:AA:AA:AA';
+const fpOf=peer=>Array.from({length:32},()=>peer==='one'?'11':peer==='two'?'22':'EE').join(':');
+const sdpWith=fp=>`v=0\r\nm=audio 9 UDP/TLS/RTP/SAVPF 111\r\na=fingerprint:sha-256 ${fp}\r\n`;
 function fixture() {
  const pcs=[],sent=[],streams=[];let socketHandler,display;
  const track=kind=>({kind,enabled:true,stopped:false,events:{},addEventListener(n,cb){this.events[n]=cb;},stop(){this.stopped=true;},async applyConstraints(v){this.constraints=v;}});
@@ -20,10 +25,11 @@ function fixture() {
   constructor(){pcs.push(this);}
   addEventListener(n,cb){this.events[n]=cb;}
   addTransceiver(kind){if(kind==='audio'){this.soundSender={track:null,replaceTrack:async t=>{this.soundSender.track=t;},getParameters:()=>({encodings:[{}]}),setParameters:async p=>{this.soundParameters=p;}};return {sender:this.soundSender};}assert.equal(kind,'video');this.sender={track:null,replaceTrack:async t=>{this.sender.track=t;},getParameters:()=>({encodings:[{}]}),setParameters:async p=>{this.parameters=p;}};return {sender:this.sender};}
-  addTrack(t){this.audio.push(t);}
+  addTrack(t){this.audio.push(t);this.micSender={track:t,replaceTrack:async x=>{this.micSender.track=x;}};return this.micSender;}
   createDataChannel(){this.control={readyState:'open',label:'screen-control',addEventListener(){},send:data=>sent.push(JSON.parse(data))};return this.control;}
-  async createOffer(){this.offerCount++;return {type:'offer',sdp:'v=0\r\n'};}
-  async setLocalDescription(v){this.localDescription=v;}
+  async createOffer(){this.offerCount++;return {type:'offer',sdp:sdpWith(FP_ME)};}
+  async setLocalDescription(v){this.localDescription=v;if(v.type==='offer')this.signalingState='have-local-offer';}
+  async setRemoteDescription(v){this.remoteDescription=v;this.signalingState='stable';}
   close(){this.closed=true;}
  }
  const voice=loadTs(new URL('../src/communities/voice.ts',import.meta.url),{
@@ -31,11 +37,20 @@ function fixture() {
   react:{useSyncExternalStore:(_subscribe,snapshot)=>snapshot()},
   './voiceSounds':{playVoiceSound:kind=>{(globalThis.__voiceSounds||=[]).push(kind);}},
   './screenCapture':{prepareScreenCapture:async()=>{},confirmScreenCapture:async()=>{},endScreenCapture(){}},
-  'react-native-webrtc':{RTCPeerConnection:PC,MediaStream:class{constructor(tracks){return stream(tracks[0]);}},mediaDevices:{getUserMedia:async()=>stream(mic),getDisplayMedia:async()=>display ? await display() : stream(screen)}},
+  'react-native-webrtc':{RTCPeerConnection:PC,RTCSessionDescription:class{constructor(v){Object.assign(this,v);}},MediaStream:class{constructor(tracks){return stream(tracks[0]);}},mediaDevices:{getUserMedia:async()=>stream(mic),getDisplayMedia:async()=>display ? await display() : stream(screen)}},
   'react-native-incall-manager':{default:{start(){},stop(){},setForceSpeakerphoneOn(){}}},
  });
- const store={sendSocket:()=>true,onSocket:cb=>{socketHandler=cb;return()=>{};}};
- return {voice,pcs,sent,mic,screen,stream,streams,receive:data=>socketHandler(data),setDisplay:v=>display=v,async join(){await voice.joinVoice({callIce:async()=>({iceServers:[]})},store,{communityId:'game',communityName:'Game',channelId:'voice',channelName:'Voice'});socketHandler({type:'voice.joined',channelId:'voice',peers:[{peer:'one',userId:'u1'},{peer:'two',userId:'u2'}]});for(let i=0;i<20;i++)await Promise.resolve();}};
+ const notes=[];
+ const cryptoService={initialize:async()=>{},deviceId:'dev-me',sealNote:async(userId,device,text)=>{notes.push({userId,device,text});return {senderDeviceId:'dev-me',type:3,body:text};},openNote:async(_userId,note)=>note.body};
+ const store={sendSocket:()=>true,onSocket:cb=>{socketHandler=cb;return()=>{};},cryptoRuntime:{get:async()=>cryptoService}};
+ const flush=async()=>{for(let i=0;i<30;i++)await Promise.resolve();await new Promise(r=>setImmediate(r));};
+ /** The peer answers (its fingerprint `fp`) and sends its note naming what it saw. */
+ const answer=async(peer,{fp=fpOf(peer),seen=FP_ME,note=true}={})=>{
+  socketHandler({type:'voice.signal',channelId:'voice',from:peer,userId:'u-'+peer,data:{kind:'answer',sdp:sdpWith(fp)}});await flush();
+  if(note)socketHandler({type:'voice.auth',channelId:'voice',from:peer,userId:'u-'+peer,note:{senderDeviceId:'dev-'+peer,type:3,body:JSON.stringify({v:1,channelId:'voice',from:peer,to:'me',mine:'sha-256 '+fpOf(peer),yours:'sha-256 '+seen})}});
+  await flush();
+ };
+ return {voice,pcs,sent,mic,screen,stream,streams,receive:data=>socketHandler(data),setDisplay:v=>display=v,async join(verify=true){await voice.joinVoice({callIce:async()=>({iceServers:[]})},store,{communityId:'game',communityName:'Game',channelId:'voice',channelName:'Voice'});socketHandler({type:'voice.joined',channelId:'voice',self:'me',peers:[{peer:'one',userId:'u-one',device:'dev-one'},{peer:'two',userId:'u-two',device:'dev-two'}]});await flush();if(verify){await answer('one');await answer('two');}},answer,notes,flush};
 }
 test('start/stop replaces reserved video tracks without recreating audio connections',async()=>{
  const f=fixture();await f.join();const connections=[...f.pcs];await f.voice.startVoiceScreen('1080p60');
@@ -116,5 +131,32 @@ test('voice channel chimes: join on entering and when someone comes in, leave wh
  assert.deepEqual(globalThis.__voiceSounds, ['join'], 'own join');
  f.receive({ type: 'voice.left', channelId: 'voice', peer: f.voice.useVoice().peers[0]?.peer || 'p1' });
  assert.ok(globalThis.__voiceSounds.includes('leave'));
+ f.voice.leaveVoice();
+});
+
+test('voice connections are verified end to end: nothing private before, a swapped fingerprint is refused', async () => {
+ const f = fixture(); await f.join(false);
+ const [one, two] = f.pcs;
+ assert.equal(one.micSender.track, null, 'no microphone before the check');
+ await f.answer('one');
+ assert.equal(one.micSender.track, f.mic, 'verified: the microphone goes in');
+ assert.deepEqual(f.notes.map(n => [n.userId, n.device]), [['u-one', 'dev-one']], 'our note is sealed for the device the peer joined with');
+ assert.equal(JSON.parse(f.notes[0].text).yours, 'sha-256 ' + fpOf('one'));
+ // The server answered for «two» with its own DTLS key: two's note names the real fingerprint → refused.
+ await f.answer('two', { fp: 'EE:'.repeat(31) + 'EE' });
+ assert.equal(two.closed, true, 'connection torn down');
+ assert.equal(two.micSender.track, null, 'the microphone never reached it');
+ assert.deepEqual(f.voice.useVoice().peers.map(p => p.peer), ['one']);
+ assert.match(f.voice.useVoice().error, /шифрование/);
+ // Sharing now reaches only the verified peer.
+ await f.voice.startVoiceScreen('720p60');
+ assert.equal(one.sender.track, f.screen); assert.equal(two.sender.track, null);
+ f.voice.leaveVoice();
+});
+
+test('a peer whose note says it saw another fingerprint (offer swapped) is refused too', async () => {
+ const f = fixture(); await f.join(false);
+ await f.answer('one', { seen: 'BB:'.repeat(31) + 'BB' });
+ assert.equal(f.pcs[0].closed, true); assert.equal(f.pcs[0].micSender.track, null);
  f.voice.leaveVoice();
 });

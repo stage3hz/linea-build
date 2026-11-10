@@ -191,6 +191,17 @@ CREATE TABLE IF NOT EXISTS user_privacy (
   updated_at TEXT NOT NULL
 );
 
+-- «Время захода» exceptions, as in Telegram: «Всегда показывать» (allow) and «Никогда не показывать»
+-- (deny). A person is in one list at most; which list applies depends on the mode (user_privacy.last_seen).
+CREATE TABLE IF NOT EXISTS last_seen_rules (
+  owner_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+  user_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+  rule TEXT NOT NULL CHECK(rule IN ('allow','deny')),
+  created_at TEXT NOT NULL,
+  PRIMARY KEY(owner_id, user_id),
+  CHECK(owner_id <> user_id)
+);
+
 -- Friends list. New friendships are mutual (two rows, made when a request is accepted);
 -- older one-way rows stay as they were.
 CREATE TABLE IF NOT EXISTS contacts (

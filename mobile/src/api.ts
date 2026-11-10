@@ -25,8 +25,13 @@ const clientPlatform = desktopBridge() ? 'windows' : Platform.OS;
 export const CLIENT_HEADER = `invizent; v=${APP_VERSION}; p=${clientPlatform}`;
 
 export type CallMode = 'everyone' | 'contacts' | 'allowed';
-export type Privacy = { allowNewChats: boolean; showAvatar: boolean; readReceipts: boolean; showLastSeen?: boolean; calls?: CallMode };
+/** «Время захода»: Все / Мои контакты (friends) / Никто, as in Telegram. */
+export type LastSeenMode = 'everyone' | 'contacts' | 'nobody';
+/** `showLastSeen` is the old on/off switch (kept by the server for older apps); new code uses `lastSeen`. */
+export type Privacy = { allowNewChats: boolean; showAvatar: boolean; readReceipts: boolean; showLastSeen?: boolean; lastSeen?: LastSeenMode; hideReadTime?: boolean; calls?: CallMode };
 export type CallRules = { allow: User[]; deny: User[] };
+/** «Всегда показывать» (allow) and «Никогда не показывать» (deny) for «Время захода». */
+export type LastSeenRules = { allow: User[]; deny: User[] };
 /** `platinaOnly`: settings that only an active Platina may switch off. */
 export type PrivacyResponse = { privacy: Privacy; platinaOnly?: (keyof Privacy)[]; platina?: boolean };
 
@@ -257,6 +262,9 @@ export class Api {
   read = (chatId: string, messageId: number) => this.request<{ok: boolean; lastReadMessageId: number}>(`/chats/${encodeURIComponent(chatId)}/read`, {method: 'POST', body: JSON.stringify({messageId})});
   privacy = () => this.request<PrivacyResponse>('/me/privacy');
   updatePrivacy = (change: Partial<Privacy>) => this.request<PrivacyResponse>('/me/privacy', {method: 'PATCH', body: JSON.stringify(change)});
+  lastSeenRules = () => this.request<LastSeenRules>('/me/last-seen-rules');
+  setLastSeenRule = (userId: string, rule: 'allow' | 'deny') => this.request<LastSeenRules>(`/me/last-seen-rules/${encodeURIComponent(userId)}`, {method: 'PUT', body: JSON.stringify({rule})});
+  removeLastSeenRule = (userId: string) => this.request<LastSeenRules>(`/me/last-seen-rules/${encodeURIComponent(userId)}`, {method: 'DELETE'});
   callRules = () => this.request<CallRules>('/me/call-rules');
   setCallRule = (userId: string, rule: 'allow' | 'deny') => this.request<CallRules>(`/me/call-rules/${encodeURIComponent(userId)}`, {method: 'PUT', body: JSON.stringify({rule})});
   removeCallRule = (userId: string) => this.request<CallRules>(`/me/call-rules/${encodeURIComponent(userId)}`, {method: 'DELETE'});

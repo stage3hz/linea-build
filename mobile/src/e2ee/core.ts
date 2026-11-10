@@ -40,9 +40,17 @@ const uuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
  * message re-encrypted after E2EE_DEVICES_CHANGED goes out at once through the normal session.
  */
 export type Lane = 'scheduled';
-const LANE_SUFFIX: Record<Lane, string> = { scheduled: '.scheduled' };
+/**
+ * Voice rooms: short notes for exactly one device, outside every chat (nothing goes to history or
+ * the outbox). They prove who is at the other end of a voice-room connection (communities/voiceAuth.ts).
+ * Like the scheduled lane: a separate session per direction that is never answered in, so the chat
+ * sessions with that device are untouched and the same age limit applies.
+ */
+export type NoteLane = 'voice';
+const LANE_SUFFIX: Record<Lane | NoteLane, string> = { scheduled: '.scheduled', voice: '.voice' };
+export type SealedNote = { senderDeviceId: string; type: 2 | 3; body: string };
 /** Native/desktop cores accept `[A-Za-z0-9._:-]{1,160}` as an address name: uuid.uuid.scheduled is 83 chars. */
-const address = (userId: string, deviceId: string, lane?: Lane) => `${userId}.${deviceId}${lane ? LANE_SUFFIX[lane] : ''}`;
+const address = (userId: string, deviceId: string, lane?: Lane | NoteLane) => `${userId}.${deviceId}${lane ? LANE_SUFFIX[lane] : ''}`;
 /**
  * The recipient never answers in the lane, so for libsignal the lane session stays an
  * «unacknowledged pre-key session»; it refuses to encrypt in one older than 30 days. The lane is
@@ -82,7 +90,7 @@ export type HistoryItem = { chatId: string; senderId: string; clientId: string; 
 /** One page of a chat's cached history, newest first; `previous` names the older page, null past the oldest kept. */
 export type HistoryPage = { items: HistoryItem[]; page: number; previous: number | null };
 /** '1' for a normal session; for a lane session the ISO time it was started (see LANE_SESSION_MAX_AGE_MS). */
-const sessionKey = (device: Pick<CryptoDevice,'userId'|'id'>, lane?: Lane) => `session:${device.userId}:${device.id}${lane ? `:${lane}` : ''}`;
+const sessionKey = (device: Pick<CryptoDevice,'userId'|'id'>, lane?: Lane | NoteLane) => `session:${device.userId}:${device.id}${lane ? `:${lane}` : ''}`;
 /** Last device list seen from the server, so messages can still be encrypted without internet (Mesh). */
 const devicesKey = (userId: string) => `devices:${userId}`;
 const isNetwork = (error: unknown) => error instanceof Error && error.name === 'NetworkError';
@@ -402,6 +410,64 @@ export class CryptoService {
       Object.assign(changes,await this.outboxIndexChange({chatId,clientId},true),await this.historyChange(chatId,this.userId,clientId));
       // Atomic ratchet + outbox + local history commit BEFORE the network send.
       await this.vault.commit({...changes,protocol:state});return encrypted;
+    });
+  }
+  /**
+   * A note for one device of `peerId` (voice rooms, NoteLane). Same trust rules as chat messages:
+   * the device must be in the server's list and trusted (or auto-trusted on first sight).
+   */
+  async sealNote(peerId:string,deviceId:string,text:string,lane:NoteLane='voice'):Promise<SealedNote> {
+    await this.initialize();return this.exclusive(async()=>{
+      if(!uuid.test(deviceId)||typeof text!=='string'||!text||text.length>4000||lane!=='voice')throw new Error('Некорректная заметка.');
+      const device=(await this.targets(peerId)).find(item=>item.userId===peerId&&item.id===deviceId);
+      if(!device)throw new Error('Устройство собеседника не найдено.');
+      let state=(await this.vault.get('protocol'))!;const changes:Record<string,string|null>={};
+      const trusted=parse<TrustRecord>(await this.vault.get(trustKey(device)));let rekey=false;
+      if(!trusted||!sameDevice(trusted,device)){
+        if(!this.options.autoTrust)throw new UntrustedDeviceError();
+        state=(await this.bridge.trustIdentity(state,address(device.userId,device.id),1,device.identityKey)).state;
+        changes[trustKey(device)]=this.autoRecord(device);rekey=!!trusted;
+      }
+      state=(await this.bridge.trustIdentity(state,address(device.userId,device.id,lane),1,device.identityKey)).state;
+      const now=new Date().toISOString();const session=await this.vault.get(sessionKey(device,lane));
+      const stale=!!session&&!(Date.parse(session)>Date.parse(now)-LANE_SESSION_MAX_AGE_MS);
+      const claim=async()=>{
+        const claimed=await this.transport.claimPreKey(device.userId,device.id);
+        if(claimed.device.id!==device.id||claimed.device.userId!==device.userId||!sameDevice(claimed.device,device)||!sameDevice(claimed.bundle,device))throw new UntrustedDeviceError();
+        return claimed.bundle;
+      };
+      let bundle:ClaimedBundle|null=rekey||!session||stale?await claim():null;
+      const payload=JSON.stringify({version:1,note:lane,senderId:this.userId,senderDeviceId:this.local!.id,recipientId:device.userId,recipientDeviceId:device.id,text});
+      let result;
+      try{result=await this.bridge.encrypt(state,address(device.userId,device.id,lane),1,payload,bundle);}
+      catch(error){
+        if(bundle||isNetwork(error)||!laneSessionError(error))throw error;
+        bundle=await claim();result=await this.bridge.encrypt(state,address(device.userId,device.id,lane),1,payload,bundle);
+      }
+      changes[sessionKey(device,lane)]=bundle?now:session!;
+      await this.vault.commit({...changes,protocol:result.state});
+      return {senderDeviceId:this.local!.id,type:result.type,body:result.body};
+    });
+  }
+  /** Opens a note from `senderId`; throws unless it was sealed by that person's trusted device for this very device. */
+  async openNote(senderId:string,note:SealedNote,lane:NoteLane='voice'):Promise<string> {
+    await this.initialize();return this.exclusive(async()=>{
+      if(!uuid.test(senderId)||senderId===this.userId||!note||!uuid.test(note.senderDeviceId)||(note.type!==2&&note.type!==3)||!validCiphertextBody(note.body)||lane!=='voice')throw new Error('Некорректная заметка.');
+      const sender={userId:senderId,id:note.senderDeviceId};
+      let trusted=parse<TrustRecord>(await this.vault.get(trustKey(sender)));const changes:Record<string,string>={};
+      if(!trusted&&this.options.autoTrust){
+        const device=(await this.targets(senderId)).find(item=>item.userId===senderId&&item.id===sender.id);
+        if(device){trusted={identityKey:device.identityKey,registrationId:device.registrationId,checkedAt:null,auto:true};changes[trustKey(sender)]=this.autoRecord(device);}
+      }
+      if(!trusted)throw new UntrustedDeviceError();
+      const from=`${address(sender.userId,sender.id,lane)}.in`;
+      let state=(await this.vault.get('protocol'))!;
+      state=(await this.bridge.trustIdentity(state,from,1,trusted.identityKey)).state;
+      const result=await this.bridge.decrypt(state,from,1,note.type,note.body);
+      const body=JSON.parse(result.plaintext);
+      if(body.version!==1||body.note!==lane||body.senderId!==senderId||body.senderDeviceId!==note.senderDeviceId||body.recipientId!==this.userId||body.recipientDeviceId!==this.local!.id||typeof body.text!=='string'||body.text.length>4000)throw new Error('Заметка адресована не этому устройству.');
+      await this.vault.commit({...changes,protocol:result.state});
+      return body.text;
     });
   }
   async delivered(chatId:string,clientId:string):Promise<void> {await this.initialize();return this.exclusive(async()=>this.vault.commit({...(await this.outboxIndexChange({chatId,clientId},false)),[outboxKey(chatId,clientId)]:null}));}
