@@ -32,11 +32,10 @@ export function TabsOverlay({ tabs, children }: { tabs: React.ReactNode | null; 
 function TabsFade({ bar }: { bar: number }) {
   // The overlay sits inside App's SafeAreaView: the status-bar strip is just above it, the home indicator just below.
   const t = useTheme(); const insets = useSafeAreaInsets(); const extra = Platform.OS === 'web' ? 0 : insets.bottom;
-  const below = extra ? 22 : 10; // the bar's bottom edge sits ~21 pt above the screen bottom on iPhones with a home indicator
   return <>
-    {Platform.OS === 'ios' ? <ScrollEdgeBlurView pointerEvents="none" edge="bottom" maxBlurRadius={4} falloff={1} style={{ position: 'absolute', left: 0, right: 0, bottom: -extra, height: bar + extra }} /> : null}
-    <LinearGradient pointerEvents="none" colors={[tint(t.bg, 0, t.dark), tint(t.bg, Platform.OS === 'ios' ? .05 : .15, t.dark), tint(t.bg, Platform.OS === 'ios' ? .15 : .3, t.dark)]} locations={[0, .55, 1]} style={{ position: 'absolute', left: 0, right: 0, bottom: -extra, height: bar + extra }} />
-    <LinearGradient pointerEvents="none" colors={[tint(t.bg, 0, t.dark), tint(t.bg, .3, t.dark)]} style={{ position: 'absolute', left: 0, right: 0, bottom: -extra, height: below }} />
+    {/* A diffuse blur behind the bar that dissolves upwards (the library's progressive blur drew nothing on
+        device): the same masked blur as under the header, with a light tint. */}
+    <ScrollEdgeEffect edge="bottom" size={bar + extra - 18} color={t.bg} alpha={Platform.OS === 'ios' ? .5 : .8} fade={34} blur={30} style={{ bottom: -extra }} />
     {insets.top && Platform.OS === 'ios' ? <ScrollEdgeBlurView pointerEvents="none" edge="top" maxBlurRadius={8} falloff={1} style={{ position: 'absolute', left: 0, right: 0, top: -insets.top, height: insets.top + 10 }} /> : null}
     {insets.top && Platform.OS !== 'web' ? <LinearGradient pointerEvents="none" colors={[tint(t.bg, Platform.OS === 'ios' ? .3 : .5, t.dark), tint(t.bg, 0, t.dark)]} style={{ position: 'absolute', left: 0, right: 0, top: -insets.top, height: insets.top }} /> : null}
   </>;
@@ -81,7 +80,7 @@ export function FloatingHeader({ children, onHeight }: { children: React.ReactNo
 /** How strong the colour cover of the edge effect is (the blur keeps its own strength, as in Telegram: blurred, barely tinted): 1 was the first cut, which read too dense under the bars on device. */
 export const EDGE_STRENGTH = .3;
 
-export function ScrollEdgeEffect({ edge, size, color, alpha, fade = 8, zIndex }: { edge: 'top' | 'bottom'; size: number; color: string; alpha: number; fade?: number; zIndex?: number }) {
+export function ScrollEdgeEffect({ edge, size, color, alpha, fade = 8, zIndex, blur: strength, style }: { edge: 'top' | 'bottom'; size: number; color: string; alpha: number; fade?: number; zIndex?: number; blur?: number; style?: object }) {
   const t = useTheme(); const reduced = useReducedTransparency();
   if (size <= 0) return null;
   const total = size + fade;
@@ -96,9 +95,9 @@ export function ScrollEdgeEffect({ edge, size, color, alpha, fade = 8, zIndex }:
   const blur = Platform.OS === 'ios' && !reduced;
   // The material follows the edge colour, not only the theme: a dark wallpaper in the light theme gets a dark blur.
   const darkEdge = isDarkColor(color) ?? t.dark;
-  return <View pointerEvents="none" style={box}>
+  return <View pointerEvents="none" style={[box, style]}>
     {blur ? <MaskedView pointerEvents="none" style={{ position: 'absolute', top: 0, left: 0, right: 0, bottom: 0 }} maskElement={<LinearGradient colors={['#000', '#000', 'transparent']} locations={[0, solid, Math.min(1, solid + (1 - solid) * .8)]} {...vertical} style={{ flex: 1 }} />}>
-      <BlurView intensity={darkEdge ? 14 : 16} tint={darkEdge ? 'systemUltraThinMaterialDark' : 'systemUltraThinMaterialLight'} style={{ flex: 1 }} />
+      <BlurView intensity={strength ?? (darkEdge ? 14 : 16)} tint={darkEdge ? 'systemUltraThinMaterialDark' : 'systemUltraThinMaterialLight'} style={{ flex: 1 }} />
     </MaskedView> : null}
     <LinearGradient pointerEvents="none" colors={colors} locations={locations} {...vertical} style={{ position: 'absolute', top: 0, left: 0, right: 0, bottom: 0 }} />
   </View>;
