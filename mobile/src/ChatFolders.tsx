@@ -101,7 +101,9 @@ export function FolderTabs({ folders, filter, unread, onChange, onCreate, onEdit
       {tab.badge ? <View style={{ minWidth: 18, height: 18, borderRadius: 9, paddingHorizontal: 5, alignItems: 'center', justifyContent: 'center', backgroundColor: t.accent }}><Text maxFontSizeMultiplier={1} style={{ color: t.onAccent, fontSize: 11, fontWeight: '700' }}>{tab.badge > 99 ? '99+' : tab.badge}</Text></View> : null}
     </Pressable>; })}
   </>;
-  return <GlassSurface lens material="regular" radius={20} shadow={false} style={{ marginHorizontal: 16, marginBottom: 8 }} contentStyle={{ height: 40, justifyContent: 'center', borderRadius: 20, backgroundColor: t.dark ? 'rgba(255,255,255,0.04)' : 'rgba(255,255,255,0.72)' }}>
+  // Our own glass, not iOS 26's live Liquid Glass: on the phone the live glass adapted its tint to the rows
+  // behind it and washed the selected capsule out (screenshots and the app switcher showed it fine).
+  return <GlassSurface systemGlass={false} lens material="regular" radius={20} shadow={false} style={{ marginHorizontal: 16, marginBottom: 8 }} contentStyle={{ height: 40, justifyContent: 'center', borderRadius: 20, backgroundColor: t.dark ? 'rgba(255,255,255,0.04)' : 'rgba(255,255,255,0.72)' }}>
     {fits ? <View style={{ flexDirection: 'row', alignItems: 'center', paddingHorizontal: 4, gap: 2, height: 40 }}>{items}</View>
       : <ScrollView ref={scroll} horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ paddingHorizontal: 4, gap: 2, alignItems: 'center', height: 40 }}>{items}</ScrollView>}
   </GlassSurface>;
