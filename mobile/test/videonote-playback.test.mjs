@@ -145,3 +145,19 @@ test('seconds played count whole seconds and never pass the length', () => {
   assert.equal(playedSeconds(-1, 7), 0);
   assert.equal(playedSeconds(2.5, 0), 2);
 });
+
+test('rewind along the ring: clockwise share from 12 o\'clock, no wrap across the top, only from the ring band', () => {
+  const { scrubFraction, onScrubBand, SCRUB_MAX } = loadTs(new URL('../src/videonote/playback.ts', import.meta.url));
+  const size = 400, near = (a, b) => assert.ok(Math.abs(a - b) < 1e-6, `${a} ≈ ${b}`);
+  near(scrubFraction(200, 0, size, null), 0);       // 12 o'clock
+  near(scrubFraction(400, 200, size, null), 0.25);  // 3 o'clock
+  near(scrubFraction(200, 400, size, null), 0.5);   // 6 o'clock
+  near(scrubFraction(0, 200, size, null), 0.75);    // 9 o'clock
+  // Dragged past the top from the end: stays at the end, and from the start: stays at the start.
+  assert.equal(scrubFraction(210, 0, size, 0.95), SCRUB_MAX);
+  assert.equal(scrubFraction(190, 0, size, 0.03), 0);
+  assert.equal(scrubFraction(199, 0, size, 0.5) <= SCRUB_MAX, true);
+  assert.equal(onScrubBand(200, 6, size), true);    // on the ring
+  assert.equal(onScrubBand(200, 200, size), false); // the middle is a tap / a scroll
+  assert.equal(onScrubBand(200, 80, size), false);
+});

@@ -16,7 +16,7 @@ import { ProgressRing } from '../media/MediaBubble';
 import { useNetworkTier } from '../network/useNetworkTier';
 import * as VideoThumbnails from 'expo-video-thumbnails';
 import { NoteRing } from './NoteRing';
-import { claimNoteAudio, freshTick, playedSeconds, setNoteBar, isExpanded, isNoteVisible, keepsSoundRequest, noteAutoload, noteSizes, progressStep, reduceNote, releaseNoteAudio, restState, subscribeVisibleNotes, timeUpdateInterval, type NoteEvent, type NoteState } from './playback';
+import { claimNoteAudio, freshTick, playedSeconds, setNoteBar, isExpanded, isNoteVisible, keepsSoundRequest, noteAutoload, noteSizes, progressStep, reduceNote, scrubFraction, onScrubBand, releaseNoteAudio, restState, subscribeVisibleNotes, timeUpdateInterval, type NoteEvent, type NoteState } from './playback';
 import { setCenterStage } from '../media/centerStage';
 import { currentVoiceRate } from '../voice/VoiceMessage';
 import * as FileSystem from 'expo-file-system/legacy';
@@ -307,7 +307,7 @@ let instances = 0;
 /** How long a circle takes to grow or shrink (Telegram-like); a listen starts its sound when it has grown. */
 const NOTE_GROW_MS = 200;
 
-function NoteVideo({ uri, state, progress, onFirstFrame, onEnd, onSecond, rateHandle }: { uri: string; state: NoteState; progress: SharedValue<number>; onFirstFrame: () => void; onEnd: () => void; onSecond: (sec: number) => void; rateHandle: React.MutableRefObject<((rate: number) => void) | null> }) {
+function NoteVideo({ uri, state, progress, onFirstFrame, onEnd, onSecond, rateHandle, seekHandle }: { uri: string; state: NoteState; progress: SharedValue<number>; onFirstFrame: () => void; onEnd: () => void; onSecond: (sec: number) => void; rateHandle: React.MutableRefObject<((rate: number) => void) | null>; seekHandle: React.MutableRefObject<NoteSeek | null> }) {
   // No progress events while it loops silently: they are switched on only for a listen (applyState).
   const player = useVideoPlayer(uri, value => { value.loop = true; value.muted = true; value.audioMixingMode = 'mixWithOthers'; value.timeUpdateEventInterval = 0; });
   const stateRef = useRef(state); const previous = useRef<NoteState | null>(null);
@@ -332,11 +332,27 @@ function NoteVideo({ uri, state, progress, onFirstFrame, onEnd, onSecond, rateHa
   // The speed button in the strip under the header changes a listen that is already playing.
   useEffect(() => { rateHandle.current = rate => { try { if (stateRef.current === 'sound' || stateRef.current === 'paused') player.playbackRate = rate; } catch { /* released */ } }; return () => { rateHandle.current = null; }; }, [player]);
   const second = useRef(-1);
+  // Rewind along the ring: the video stops on the frame under the finger and goes on from there on release.
+  const scrubbing = useRef(false);
+  useEffect(() => {
+    const seek = (share: number) => {
+      const duration = player.duration; if (!(duration > 0)) return;
+      const time = share * duration; player.currentTime = time;
+      last.current = { value: share, at: Date.now() }; restartAt.current = null;
+      const whole = playedSeconds(time, duration); if (whole !== second.current) { second.current = whole; onSecond(whole); }
+    };
+    seekHandle.current = {
+      begin: () => { scrubbing.current = true; try { player.pause(); } catch { /* released */ } },
+      to: share => { try { seek(share); } catch { /* released */ } },
+      end: share => { scrubbing.current = false; try { seek(share); if (stateRef.current === 'sound') player.play(); } catch { /* released */ } },
+    };
+    return () => { seekHandle.current = null; };
+  }, [player, onSecond]);
   useEffect(() => {
     const end = player.addListener('playToEnd', () => { if (stateRef.current === 'sound') { progress.value = withTiming(1, { duration: 80 }); onEnd(); } });
     // Progress goes to a shared value (throttled): the ring moves, React does not re-render.
     const tick = player.addListener('timeUpdate', ({ currentTime }) => {
-      if (stateRef.current !== 'sound') return;
+      if (stateRef.current !== 'sound' || scrubbing.current) return;
       const now = Date.now();
       if (!freshTick(restartAt.current, currentTime, now, player.playbackRate || 1)) return;
       restartAt.current = null;
@@ -352,6 +368,8 @@ function NoteVideo({ uri, state, progress, onFirstFrame, onEnd, onSecond, rateHa
   return <VideoView player={player} pointerEvents="none" style={StyleSheet.absoluteFill} contentFit="cover" nativeControls={false} allowsPictureInPicture={false} allowsVideoFrameAnalysis={false}
     surfaceType="textureView" useExoShutter={false} onFirstFrameRender={onFirstFrame} />;
 }
+
+type NoteSeek = { begin: () => void; to: (share: number) => void; end: (share: number) => void };
 
 function applyState(player: VideoPlayer, state: NoteState, before: NoteState | null) {
   player.timeUpdateEventInterval = timeUpdateInterval(state);
@@ -407,6 +425,11 @@ export function VideoNoteBubble({ api, attachment, onLongPress, scope = null, si
   const [elapsed, setElapsed] = useState(0);
   const rateHandle = useRef<((rate: number) => void) | null>(null);
   const toggleListen = useCallback(() => dispatch({ type: 'tap' }), [dispatch]);
+  const seekHandle = useRef<NoteSeek | null>(null);
+  const [scrub, setScrub] = useState(false);
+  const scrubBegin = useCallback(() => { setScrub(true); seekHandle.current?.begin(); }, []);
+  const scrubTo = useCallback((share: number) => seekHandle.current?.to(share), []);
+  const scrubEnd = useCallback((share: number) => { seekHandle.current?.end(share); setScrub(false); }, []);
   const applyRate = useCallback((rate: number) => rateHandle.current?.(rate), []);
   useEffect(() => {
     if (state === 'sound' || state === 'paused') setNoteBar(key, { key, attachmentId: attachment.id, playing: state === 'sound', toggle: toggleListen, close: interrupt, applyRate });
@@ -473,29 +496,56 @@ export function VideoNoteBubble({ api, attachment, onLongPress, scope = null, si
   const ringStyle = useAnimatedStyle(() => ({ opacity: grow.value }));
   const progress = useSharedValue(0);
   const slot = open ? big : collapsed;
+  // Telegram: a drag along the ring rewinds. It starts on the ring band after a few points of movement,
+  // so a tap still pauses and a drag from the middle still scrolls the chat.
+  const knob = useSharedValue(0); const scrubStart = useSharedValue({ x: 0, y: 0, on: false }); const sent = useSharedValue(0); const live = useSharedValue(false);
+  const rewind = useMemo(() => Gesture.Pan().enabled(expanded && open).manualActivation(true)
+    .onTouchesDown((event, manager) => {
+      const touch = event.allTouches[0];
+      if (event.numberOfTouches !== 1 || !touch || !onScrubBand(touch.x, touch.y, big)) { scrubStart.value = { x: 0, y: 0, on: false }; manager.fail(); return; }
+      scrubStart.value = { x: touch.x, y: touch.y, on: true };
+    })
+    .onTouchesMove((event, manager) => {
+      const touch = event.allTouches[0]; const from = scrubStart.value;
+      if (!touch || !from.on) return;
+      if (Math.hypot(touch.x - from.x, touch.y - from.y) > 8) manager.activate();
+    })
+    .onStart(event => { live.value = true; cancelAnimation(progress); const share = scrubFraction(event.x, event.y, big, null); progress.value = share; sent.value = share; knob.value = withTiming(1, { duration: 120 }); runOnJS(scrubBegin)(); runOnJS(scrubTo)(share); })
+    .onUpdate(event => {
+      const share = scrubFraction(event.x, event.y, big, progress.value); progress.value = share;
+      if (Math.abs(share - sent.value) >= 0.01) { sent.value = share; runOnJS(scrubTo)(share); }
+    })
+    .onFinalize(() => { if (!live.value) return; live.value = false; knob.value = withTiming(0, { duration: 160 }); runOnJS(scrubEnd)(progress.value); }),
+  [expanded, open, big]);
+  const knobStyle = useAnimatedStyle(() => {
+    const angle = progress.value * 2 * Math.PI, r = big / 2 - 1.5;
+    return { opacity: knob.value, transform: [{ translateX: big / 2 + r * Math.sin(angle) - 7 }, { translateY: big / 2 - r * Math.cos(angle) - 7 }] };
+  });
   const right = side === 'right';
 
   const loading = media.status === 'loading';
   return <View style={{ alignSelf: right ? 'flex-end' : 'flex-start', alignItems: right ? 'flex-end' : 'flex-start' }}>
-    <Pressable onPress={tap} onLongPress={onLongPress ? event => onLongPress(event.nativeEvent.pageY) : undefined} delayLongPress={400} style={{ width: slot, height: slot }}
+    <GestureDetector gesture={rewind}><Pressable onPress={tap} onLongPress={onLongPress ? event => onLongPress(event.nativeEvent.pageY) : undefined} delayLongPress={400} style={{ width: slot, height: slot }}
       accessibilityRole="button" accessibilityLabel={state === 'sound' ? 'Пауза' : state === 'paused' ? 'Продолжить' : 'Смотреть видеосообщение со звуком'}>
       <Animated.View pointerEvents="none" style={[{ position: 'absolute', bottom: 0, [right ? 'right' : 'left']: 0, width: big, height: big, transformOrigin: right ? 'right bottom' : 'left bottom' } as object, visualStyle]}>
         <View style={[StyleSheet.absoluteFill, { borderRadius: big / 2, overflow: 'hidden', backgroundColor: t.surface2 }]}>
-          {mountVideo && media.uri ? <NoteVideo uri={media.uri} state={state} progress={progress} onFirstFrame={firstFrame} onEnd={ended} onSecond={setElapsed} rateHandle={rateHandle} /> : null}
+          {mountVideo && media.uri ? <NoteVideo uri={media.uri} state={state} progress={progress} onFirstFrame={firstFrame} onEnd={ended} onSecond={setElapsed} rateHandle={rateHandle} seekHandle={seekHandle} /> : null}
           <Animated.View pointerEvents="none" style={[StyleSheet.absoluteFill, posterStyle]}>
             {thumb ? <Image source={{ uri: thumb }} style={StyleSheet.absoluteFill} resizeMode="cover" fadeDuration={0} />
               : <View style={[StyleSheet.absoluteFill, { backgroundColor: t.surface2, alignItems: 'center', justifyContent: 'center' }]}><Icon name="videocam" size={Math.round(big * .14)} color={t.muted} /></View>}
           </Animated.View>
+          {scrub ? <View pointerEvents="none" style={[StyleSheet.absoluteFill, { backgroundColor: 'rgba(0,0,0,0.28)' }]} /> : null}
         </View>
         {/* Thin ring at the circle's edge, clockwise from 12 o'clock: mounted only while open or shrinking back. */}
         {open ? <NoteRing progress={progress} size={big} stroke={3} color={t.accent} track="transparent" style={ringStyle} /> : null}
+        {open ? <Animated.View pointerEvents="none" style={[{ position: 'absolute', left: 0, top: 0, width: 14, height: 14, borderRadius: 7, backgroundColor: '#FFFFFF', shadowColor: '#000', shadowOpacity: .3, shadowRadius: 3, shadowOffset: { width: 0, height: 1 }, elevation: 3 }, knobStyle]} /> : null}
       </Animated.View>
       {!ready ? <View pointerEvents="none" style={[StyleSheet.absoluteFill, { alignItems: 'center', justifyContent: 'center' }]}>
         <View style={{ width: 44, height: 44, borderRadius: 22, backgroundColor: 'rgba(10,20,35,0.55)', alignItems: 'center', justifyContent: 'center' }}>
           {loading ? <><ProgressRing progress={media.progress} size={44} /><Icon name="close" size={20} color="#FFF" /></> : <Icon name={media.status === 'error' ? 'refresh' : 'arrow-down'} size={22} color="#FFF" />}
         </View>
       </View> : null}
-      {state === 'paused' ? <View pointerEvents="none" style={[StyleSheet.absoluteFill, { alignItems: 'center', justifyContent: 'center' }]}><View style={{ width: 52, height: 52, borderRadius: 26, backgroundColor: 'rgba(10,20,35,0.45)', alignItems: 'center', justifyContent: 'center' }}><Icon name="play" size={26} color="#FFF" /></View></View> : null}
+      {state === 'paused' || scrub ? <View pointerEvents="none" style={[StyleSheet.absoluteFill, { alignItems: 'center', justifyContent: 'center' }]}><View style={{ width: 52, height: 52, borderRadius: 26, backgroundColor: 'rgba(10,20,35,0.45)', alignItems: 'center', justifyContent: 'center' }}><Icon name="play" size={26} color="#FFF" /></View></View> : null}
       {/* Telegram: the length in a small pill at the lower left, a small speaker-off mark while it loops silently. */}
       {open && expanded ? <View pointerEvents="none" style={{ position: 'absolute', left: 6, bottom: 6, paddingHorizontal: 7, paddingVertical: 2, borderRadius: 9, backgroundColor: 'rgba(0,0,0,0.42)' }}>
         <Text style={{ color: '#FFFFFF', fontSize: 12, fontVariant: ['tabular-nums'] }}>{formatVoiceTime(elapsed * 1000)}</Text>
@@ -504,7 +554,7 @@ export function VideoNoteBubble({ api, attachment, onLongPress, scope = null, si
         <Text style={{ color: '#FFFFFF', fontSize: 11 }}>{formatVoiceTime(attachment.media?.durationMs || 0)}</Text>
         {ready ? <Icon name="volume-mute" color="#FFF" size={11} /> : null}
       </View> : null}
-    </Pressable>
+    </Pressable></GestureDetector>
     {expanded ? <MusicGuard onInterrupt={interrupt} /> : null}
     {media.status === 'error' && media.error ? <Text style={{ color: t.danger, fontSize: 11, maxWidth: collapsed }}>{media.error}</Text> : null}
   </View>;

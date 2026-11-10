@@ -144,3 +144,24 @@ export function subscribeNoteBar(listener: () => void) { barListeners.add(listen
 
 /** Whole seconds played, for the counter under a circle that is being listened to (changes once a second). */
 export const playedSeconds = (currentSec: number, durationSec: number) => Math.max(0, Math.floor(Math.min(currentSec, durationSec > 0 ? durationSec : currentSec)));
+
+/**
+ * Telegram: dragging along the ring of an enlarged circle rewinds it. The touch at (x, y) inside a
+ * `size` pt square maps to the share of the circle clockwise from 12 o'clock. Crossing 12 o'clock does
+ * not wrap: near the end it stays at the end, near the start at the start (`prev` — the last share).
+ */
+export const SCRUB_MAX = 0.985;
+export function scrubFraction(x: number, y: number, size: number, prev: number | null): number {
+  'worklet';
+  const dx = x - size / 2, dy = y - size / 2;
+  let f = Math.atan2(dx, -dy) / (2 * Math.PI);
+  if (f < 0) f += 1;
+  if (prev !== null) { if (prev > 0.75 && f < 0.25) f = 1; else if (prev < 0.25 && f > 0.75) f = 0; }
+  return Math.max(0, Math.min(SCRUB_MAX, f));
+}
+/** A rewind starts on the ring band only (the outer ~56 pt), so a tap or a drag in the middle stays a tap or a scroll. */
+export function onScrubBand(x: number, y: number, size: number, band = 56): boolean {
+  'worklet';
+  const d = Math.hypot(x - size / 2, y - size / 2), r = size / 2;
+  return d >= r - band && d <= r + 12;
+}

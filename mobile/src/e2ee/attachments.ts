@@ -10,6 +10,11 @@ import type { Attachment, LocalFile } from '../types';
 import { getSignalBridge } from './signal';
 import { prepareMediaForUpload, type PreparedMedia } from '../media/pipeline';
 import { sanitizePng } from '../photo/png';
+
+// iOS: the default background session hands the download to a system daemon, which failed on device with
+// «Cannot create file» (NSURLErrorDomain -3000). Attachments load while the app is open, so they use the
+// app's own (foreground) session. Android ignores the option.
+const FOREGROUND=(FileSystem as {FileSystemSessionType?:{FOREGROUND:FileSystem.FileSystemSessionType}}).FileSystemSessionType?.FOREGROUND;
 import { sanitizePhotoJpeg } from '../photo/jpegHdr';
 import { wireMedia } from '../media/previewModel';
 import { sanitizeMp4 } from '../media/mp4';
@@ -271,7 +276,7 @@ async function downloadChunked(api:Api,attachment:Attachment,target:string,onPro
       const start=index*full,end=Math.min(total,start+full)-1;
       for(let attempt=0;;attempt++){
         checkAbort(signal);
-        const result=await FileSystem.downloadAsync(api.fileUrl(attachment.id),temp,{headers:{Authorization:`Bearer ${api.token}`,Range:`bytes=${start}-${end}`},cache:false}).catch(()=>null);
+        const result=await FileSystem.downloadAsync(api.fileUrl(attachment.id),temp,{headers:{Authorization:`Bearer ${api.token}`,Range:`bytes=${start}-${end}`},cache:false,sessionType:FOREGROUND}).catch(()=>null);
         const info=result?await FileSystem.getInfoAsync(temp):null;
         if(result&&(result.status===206||(result.status===200&&count===1))&&info?.exists&&!info.isDirectory&&info.size===end-start+1)break;
         if(result&&[401,403,404].includes(result.status))throw new Error('Файл недоступен.');
@@ -342,14 +347,15 @@ export async function decryptAttachmentWithProgress(api:Api,attachment:Attachmen
   if(!api.fileUrl(attachment.id).startsWith('https://'))throw new Error('Файлы загружаются только по защищённому соединению.');
   const temp=`${FileSystem.cacheDirectory}linea-view-dl-${Crypto.randomUUID()}.bin`;
   const expected=attachment.size+16;
-  const task=FileSystem.createDownloadResumable(api.fileUrl(attachment.id),temp,{headers:{Authorization:`Bearer ${api.token}`},cache:false},data=>{
+  const task=FileSystem.createDownloadResumable(api.fileUrl(attachment.id),temp,{headers:{Authorization:`Bearer ${api.token}`},cache:false,sessionType:FOREGROUND},data=>{
     const total=data.totalBytesExpectedToWrite>0?data.totalBytesExpectedToWrite:expected;
     onProgress(Math.max(0,Math.min(1,data.totalBytesWritten/total)));
   });
   const onAbort=()=>{void task.cancelAsync().catch(()=>{});};
   signal?.addEventListener('abort',onAbort);
   try{
-    const result=await task.downloadAsync();
+    // A native failure (no link, «Cannot create file») reads as one plain sentence, not as an NSError dump.
+    const result=await task.downloadAsync().catch(()=>null);
     checkAbort(signal);
     if(!result||result.status!==200)throw new Error('Не удалось загрузить зашифрованный файл.');
     const info=await FileSystem.getInfoAsync(temp);
