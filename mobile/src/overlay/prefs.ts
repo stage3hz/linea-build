@@ -1,14 +1,15 @@
 // In-game overlay (PC): off until the person switches it on in Настройки → Оверлей.
 export type OverlayCorner = 'topLeft' | 'topRight' | 'bottomLeft' | 'bottomRight';
-export type OverlayPrefs = { enabled: boolean; corner: OverlayCorner; onlySpeaking: boolean; opacity: number };
+/** inject: Windows — also draw inside fullscreen games (exclusive or borderless), Discord style. On with the overlay; can be switched off. */
+export type OverlayPrefs = { enabled: boolean; inject: boolean; corner: OverlayCorner; onlySpeaking: boolean; opacity: number };
 const KEY = 'invizent.overlay.v1';
-const DEFAULTS: OverlayPrefs = { enabled: false, corner: 'topLeft', onlySpeaking: false, opacity: 0.9 };
+const DEFAULTS: OverlayPrefs = { enabled: false, inject: true, corner: 'topLeft', onlySpeaking: false, opacity: 0.9 };
 const CORNERS: OverlayCorner[] = ['topLeft', 'topRight', 'bottomLeft', 'bottomRight'];
 let prefs = DEFAULTS;
 try {
   const v = JSON.parse(globalThis.localStorage?.getItem(KEY) || 'null');
   if (v && typeof v === 'object') prefs = {
-    enabled: v.enabled === true, corner: CORNERS.includes(v.corner) ? v.corner : DEFAULTS.corner,
+    enabled: v.enabled === true, inject: v.inject !== false, corner: CORNERS.includes(v.corner) ? v.corner : DEFAULTS.corner,
     onlySpeaking: v.onlySpeaking === true, opacity: Number.isFinite(v.opacity) ? Math.min(1, Math.max(0.3, v.opacity)) : DEFAULTS.opacity,
   };
 } catch { /* defaults */ }

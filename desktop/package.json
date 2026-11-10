@@ -39,6 +39,7 @@
       "overlay-preload.cjs",
       "overlay.html",
       "overlay.js",
+      "game-overlay.cjs",
       "capture-preload.cjs",
       "signal.mjs",
       "vault.mjs",
@@ -83,6 +84,15 @@
       {
         "from": "../THIRD_PARTY_NOTICES.md",
         "to": "THIRD_PARTY_NOTICES.md"
+      },
+      {
+        "from": "native/overlay/out",
+        "to": "overlay",
+        "filter": [
+          "invizent-overlay-hook.dll",
+          "invizent-overlay-injector.exe",
+          "MinHook-LICENSE.txt"
+        ]
       }
     ]
   },

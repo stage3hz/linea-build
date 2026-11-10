@@ -1,6 +1,7 @@
 // Настройки → Оверлей (PC): off by default; the person switches it on and picks where it sits.
 import React, { useSyncExternalStore } from 'react';
-import { Pressable, View } from 'react-native';
+import { Platform, Pressable, View } from 'react-native';
+import { desktopBridge } from '../desktop';
 import { Text } from '../typography';
 import { useTheme } from '../theme';
 import { GlassSurface } from '../glass';
@@ -14,6 +15,9 @@ function Row({ label, description, value, onChange }: { label: string; descripti
   </Pressable>;
 }
 
+// The in-game (injected) overlay exists only in the Windows app.
+const onWindows = () => Platform.OS === 'web' && (desktopBridge() as { windowControls?: { platform?: string } } | undefined)?.windowControls?.platform === 'win32';
+
 export function OverlaySettings() {
   const t = useTheme(); const p = useSyncExternalStore(subscribeOverlay, overlayPrefs, overlayPrefs);
   const corners: [OverlayCorner, string][] = [['topLeft', 'Слева сверху'], ['topRight', 'Справа сверху'], ['bottomLeft', 'Слева снизу'], ['bottomRight', 'Справа снизу']];
@@ -21,6 +25,7 @@ export function OverlaySettings() {
     <GlassSurface radius={20} shadow={false} contentStyle={{ paddingVertical: 2, borderRadius: 20, overflow: 'hidden' }}>
       <Row label="Оверлей поверх игр" description="Кто в голосовом канале и кто сейчас говорит — маленьким списком поверх игры" value={p.enabled} onChange={v => setOverlayPrefs({ enabled: v })} />
       {p.enabled ? <Row label="Только говорящие" description="Показывать человека, только пока он говорит" value={p.onlySpeaking} onChange={v => setOverlayPrefs({ onlySpeaking: v })} /> : null}
+      {p.enabled && onWindows() ? <Row label="Показывать в полноэкранных играх (внедрение в игру)" description="Как в Discord: оверлей рисуется внутри игры, поэтому виден и в эксклюзивном полноэкранном режиме. Некоторые античиты могут заблокировать это или отметить." value={p.inject} onChange={v => setOverlayPrefs({ inject: v })} /> : null}
     </GlassSurface>
     {p.enabled ? <>
       <Text style={{ color: t.muted, fontSize: 11, fontWeight: '700', letterSpacing: 1.2, paddingHorizontal: 8 }}>ПОЛОЖЕНИЕ</Text>
@@ -36,6 +41,6 @@ export function OverlaySettings() {
         </Pressable>)}
       </View>
     </> : null}
-    <Text style={{ color: t.muted, fontSize: 12, paddingHorizontal: 8 }}>Появляется, только пока ты в голосовом канале и окно Инвиза не активно. Не перехватывает мышь и клавиатуру. Работает поверх игр в оконном и «полноэкранном оконном» режиме; в эксклюзивном полноэкранном режиме игра закрывает любые окна — Инвиз не встраивается в чужие программы.</Text>
+    <Text style={{ color: t.muted, fontSize: 12, paddingHorizontal: 8 }}>Появляется, только пока ты в голосовом канале и окно Инвиза не активно. Не перехватывает мышь и клавиатуру. Работает поверх игр в оконном и «полноэкранном оконном» режиме. На Windows с включённым внедрением полноэкранная игра (в том числе эксклюзивный режим) рисует оверлей сама; если игра или античит не дают этого сделать, остаётся обычный оверлей поверх окон.</Text>
   </View>;
 }

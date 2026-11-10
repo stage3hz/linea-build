@@ -79,6 +79,14 @@ https://github.com/expo/expo/tree/main/packages/expo-camera — MIT License. Use
 сохраняет свой `dist/acknowledgments.md` и upstream-лицензии внутри пакета.
 Исходники клиента, IPC bridge и скрипты сборки доступны в этом репозитории.
 
+## Windows: MinHook 1.3.4 (оверлей в полноэкранных играх)
+
+[MinHook](https://github.com/TsudaKageyu/minhook/tree/v1.3.4) — Copyright (C) 2009-2017
+Tsuda Kageyu, BSD 2-Clause License (включает Hacker Disassembler Engine 64 — Copyright (c)
+2008-2009 Vyacheslav Patkov, BSD-style). Собирается из исходников закреплённого коммита в
+`invizent-overlay-hook.dll`; полный текст лицензии лежит рядом в пакете:
+`resources/overlay/MinHook-LICENSE.txt`.
+
 ## expokit (компоненты интерфейса)
 
 Конфетти, скелетоны загрузки, анимированный текст и кнопка с состояниями взяты из

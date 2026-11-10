@@ -27,4 +27,6 @@ deploy/secrets/
 
 # Desktop build artifacts
 desktop/release/
+desktop/native/overlay/out/
+desktop/native/overlay/build/
 desktop/smoke-screen.png

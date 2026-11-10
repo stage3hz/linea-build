@@ -24,6 +24,9 @@ test('overlay is off until switched on', () => {
   assert.equal(overlayPrefs().enabled, false);
   assert.equal(overlayView(overlayPrefs(), voice), null);
 });
+test('in-game (injected) overlay: on together with the overlay unless switched off', () => {
+  assert.equal(overlayPrefs().inject, true);
+});
 test('on: everyone, or only those speaking; nothing outside a voice channel; bounded', () => {
   const on = { ...overlayPrefs(), enabled: true };
   assert.equal(overlayView(on, voice).people.length, 2);

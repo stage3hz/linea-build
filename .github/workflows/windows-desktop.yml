@@ -37,6 +37,19 @@ jobs:
           ATTEST_KEY: ${{ secrets.ATTEST_KEY }}
       - run: npm run build:ui
         working-directory: desktop
+      # In-game overlay (x64 MSVC): invizent-overlay-hook.dll + invizent-overlay-injector.exe into
+      # desktop/native/overlay/out, packaged by electron-builder as resources/overlay (extraResources).
+      - name: Build in-game overlay (native)
+        shell: pwsh
+        run: |
+          cmake -S desktop/native/overlay -B desktop/native/overlay/build -G "Visual Studio 17 2022" -A x64
+          cmake --build desktop/native/overlay/build --config Release --parallel
+          $out = "desktop/native/overlay/out"
+          foreach ($f in "invizent-overlay-hook.dll", "invizent-overlay-injector.exe", "MinHook-LICENSE.txt") {
+            if (-not (Test-Path "$out/$f")) { throw "missing $out/$f" }
+          }
+          & "$out/invizent-overlay-injector.exe" --version
+          if ($LASTEXITCODE -ne 0) { throw "injector --version failed" }
       - run: npm run test:electron
         timeout-minutes: 3
         working-directory: desktop
@@ -45,6 +58,12 @@ jobs:
         working-directory: desktop
       - run: npm run dist:win
         working-directory: desktop
+      - name: Check the packaged in-game overlay files
+        shell: pwsh
+        run: |
+          foreach ($f in "invizent-overlay-hook.dll", "invizent-overlay-injector.exe", "MinHook-LICENSE.txt") {
+            if (-not (Test-Path "desktop/release/win-unpacked/resources/overlay/$f")) { throw "not packaged: $f" }
+          }
       - name: Test the packaged application and native SDK
         run: npm run test:electron
         timeout-minutes: 3

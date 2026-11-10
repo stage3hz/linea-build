@@ -46,9 +46,10 @@ ipcMain.handle('capture-choose',(event,id)=>{
 // ---- in-game overlay (Настройки → Оверлей; off by default) ----
 // A tiny transparent window that never takes focus or clicks, above other windows. Shown only
 // while you are in a voice channel and Инвиз itself is not the active window. Works over games in
-// windowed / borderless mode; exclusive fullscreen draws over everything (Discord injects into
-// the game for that — we do not inject into other programs).
-let overlayWin = null, overlayPrefs = { enabled: false, corner: 'topLeft', opacity: 0.9 }, overlayView = null;
+// windowed / borderless mode. For fullscreen games (exclusive or borderless) on Windows there is
+// also the in-game overlay (game-overlay.cjs, option «Показывать в полноэкранных играх»): drawn by
+// the game itself, like Discord's; while the game reports drawing it, this window hides.
+let overlayWin = null, overlayPrefs = { enabled: false, inject: true, corner: 'topLeft', opacity: 0.9 }, overlayView = null;
 const ROW = 32, HEAD = 22, WIDTH = 260;
 function overlayHeight() { return overlayView ? HEAD + 12 + overlayView.people.length * (ROW + 4) : 40; }
 function placeOverlay() {
@@ -59,7 +60,8 @@ function placeOverlay() {
   overlayWin.setBounds({ x, y, width: WIDTH, height: h });
 }
 function refreshOverlay() {
-  const wanted = overlayPrefs.enabled && overlayView && overlayView.people.length && window && !window.isDestroyed() && !window.isFocused();
+  refreshGameOverlay();
+  const wanted = overlayPrefs.enabled && overlayView && overlayView.people.length && window && !window.isDestroyed() && !window.isFocused() && !gameOverlay?.drawingInGame();
   if (!wanted) { if (overlayWin && overlayWin.isVisible()) overlayWin.hide(); if (overlayWin && overlayView) overlayWin.webContents.send('overlay-view', overlayView, overlayPrefs.opacity); return; }
   if (!overlayWin) {
     overlayWin = new BrowserWindow({ width: WIDTH, height: overlayHeight(), show: false, frame: false, transparent: true, resizable: false, movable: false, focusable: false, skipTaskbar: true, hasShadow: false, alwaysOnTop: true, fullscreenable: false,
@@ -76,6 +78,46 @@ function refreshOverlay() {
   placeOverlay();
   overlayWin.webContents.send('overlay-view', overlayView, overlayPrefs.opacity);
   if (!overlayWin.isVisible()) overlayWin.showInactive();
+}
+
+// In-game overlay for fullscreen games (Windows only). The overlay page is rendered offscreen at
+// 15 fps at most (Chromium paints only when something changed) and handed to the helper, which
+// shares it with the game; see game-overlay.cjs and native/overlay/README.md.
+const gameOverlay = process.platform === 'win32' ? require('./game-overlay.cjs').createGameOverlay({
+  binDir: app.isPackaged ? path.join(process.resourcesPath, 'overlay') : path.join(__dirname, 'native', 'overlay', 'out'),
+  spawn: (...args) => require('node:child_process').spawn(...args),
+  log: message => console.log(message),
+  ownPids: () => { try { return new Set([process.pid, ...app.getAppMetrics().map(m => m.pid)]); } catch { return new Set([process.pid]); } },
+  ownExe: path.basename(process.execPath),
+  systemRoot: process.env.SystemRoot || 'C:\\Windows',
+  onDrawingChange: () => refreshOverlay(),
+}) : null;
+let gameOverlayWin = null;
+function refreshGameOverlay() {
+  if (!gameOverlay) return;
+  const inVoice = !!(overlayPrefs.enabled && overlayView && overlayView.people.length);
+  gameOverlay.update({ enabled: overlayPrefs.enabled, inject: overlayPrefs.inject, corner: overlayPrefs.corner, opacity: overlayPrefs.opacity, inVoice, appFocused: !!window && !window.isDestroyed() && window.isFocused() });
+  if (!gameOverlay.rendererWanted()) { if (gameOverlayWin && !gameOverlayWin.isDestroyed()) gameOverlayWin.destroy(); gameOverlayWin = null; return; }
+  if (!gameOverlayWin) {
+    gameOverlayWin = new BrowserWindow({ width: WIDTH, height: overlayHeight(), show: false, frame: false, transparent: true, backgroundColor: '#00000000', resizable: false, focusable: false, skipTaskbar: true,
+      webPreferences: { offscreen: true, preload: path.join(__dirname, 'overlay-preload.cjs'), contextIsolation: true, sandbox: true, nodeIntegration: false, spellcheck: false, backgroundThrottling: false } });
+    const win = gameOverlayWin;
+    win.webContents.setWindowOpenHandler(() => ({ action: 'deny' }));
+    win.webContents.on('will-navigate', e => e.preventDefault());
+    win.webContents.setFrameRate(15);
+    win.webContents.on('paint', (_event, _dirty, image) => {
+      if (win.isDestroyed() || image.isEmpty()) return;
+      const size = image.getSize(), fit = require('./game-overlay.cjs').fitSize(size.width, size.height);
+      const picture = fit.width === size.width && fit.height === size.height ? image : image.resize({ ...fit, quality: 'good' });
+      gameOverlay.frame({ ...picture.getSize(), pixels: picture.toBitmap() }); // BGRA on Windows
+    });
+    win.on('closed', () => { if (gameOverlayWin === win) gameOverlayWin = null; });
+    void win.loadFile(path.join(__dirname, 'overlay.html')).then(() => refreshOverlay()).catch(() => {});
+    return;
+  }
+  // Opacity 1 in the page: the game applies the chosen opacity itself (header field).
+  gameOverlayWin.setContentSize(WIDTH, overlayHeight());
+  gameOverlayWin.webContents.send('overlay-view', overlayView, 1);
 }
 
 // ---- system keyboard hook for hold binds (see 'setHold') ----
@@ -186,8 +228,9 @@ ipcMain.handle('invizent', async (event, method, ...args) => {
   }
   if (method === 'overlayConfigure') {
     const p = args[0] || {};
-    overlayPrefs = { enabled: p.enabled === true, corner: ['topLeft','topRight','bottomLeft','bottomRight'].includes(p.corner) ? p.corner : 'topLeft', opacity: Math.min(1, Math.max(0.3, Number(p.opacity) || 0.9)) };
+    overlayPrefs = { enabled: p.enabled === true, inject: p.inject !== false, corner: ['topLeft','topRight','bottomLeft','bottomRight'].includes(p.corner) ? p.corner : 'topLeft', opacity: Math.min(1, Math.max(0.3, Number(p.opacity) || 0.9)) };
     if (!overlayPrefs.enabled) { overlayView = null; overlayWin?.destroy(); overlayWin = null; } else placeOverlay();
+    refreshOverlay();
     return;
   }
   if (method === 'overlayUpdate') {
@@ -323,7 +366,7 @@ app.whenReady().then(async () => {
   void setupTray();
   window.webContents.on('will-navigate', (event, url) => { if (!url.startsWith('invizent://app/')) event.preventDefault(); });
   window.on('focus', () => refreshOverlay()); window.on('blur', () => refreshOverlay()); window.on('minimize', () => refreshOverlay());
-  window.on('closed', () => { overlayWin?.destroy(); overlayWin = null; });
+  window.on('closed', () => { overlayWin?.destroy(); overlayWin = null; gameOverlay?.stop(); if (gameOverlayWin && !gameOverlayWin.isDestroyed()) gameOverlayWin.destroy(); gameOverlayWin = null; });
   const sendState = () => { if (!window || window.isDestroyed()) return; window.webContents.send('window-state', { maximized: window.isMaximized(), fullscreen: window.isFullScreen(), focused: window.isFocused() }); };
   for (const name of ['maximize', 'unmaximize', 'enter-full-screen', 'leave-full-screen', 'focus', 'blur']) window.on(name, sendState);
   window.webContents.setWindowOpenHandler(({ url }) => { if (url.startsWith('https://')) void shell.openExternal(url); return { action: 'deny' }; });
@@ -338,7 +381,7 @@ const notices = new Map();
 // Tray: the tooltip carries the count (the only badge Linux trays have); on Windows/Linux the counter is
 // drawn over the app icon while something is unread, like Telegram Desktop's tray counter (notify.cjs).
 const refreshTray = () => applyTrayBadge({ tray, icon: trayIcon, badge: lastBadge, nativeImage });
-app.on('before-quit', () => { quitting = true; });
+app.on('before-quit', () => { quitting = true; gameOverlay?.stop(); });
 function showWindow() { if (!window || window.isDestroyed()) return; if (window.isMinimized()) window.restore(); window.show(); window.focus(); }
 async function setupTray() {
   if (tray || process.platform === 'darwin') return;
