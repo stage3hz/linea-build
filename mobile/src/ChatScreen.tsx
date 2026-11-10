@@ -93,7 +93,7 @@ export function ChatScreen({api,user,chat,store,onBack,wide=false,onOpenMusic}: 
   const keyboardMotion=Platform.OS==='web'?null:useReanimatedKeyboardAnimation();
   const navInset=wide?0:insets.bottom;
   const footerInset=useAnimatedStyle(()=>({paddingBottom:navInset*(1-(keyboardMotion?keyboardMotion.progress.value:0))}));
-  const powerFeatures=usePowerFeatures();const t=useTheme();const [attachMenu,setAttachMenu]=useState(false);const [uploading,setUploading]=useState(false);const [downloadId,setDownloadId]=useState<string|null>(null);const [localError,setLocalError]=useState('');const [preview,setPreview]=useState<Attachment|null>(null);const [peerInfo,setPeerInfo]=useState(()=>takeProfileRequest(chat.id));const [avatarMenu,setAvatarMenu]=useState(false);const [actions,setActions]=useState<Row|null>(null);const [menuX,setMenuX]=useState<number|undefined>(undefined);const [menuY,setMenuY]=useState(0);const [copied,setCopied]=useState(false);
+  const [headerMenu,setHeaderMenu]=useState<{x:number;y:number}|null>(null);const powerFeatures=usePowerFeatures();const t=useTheme();const [attachMenu,setAttachMenu]=useState(false);const [uploading,setUploading]=useState(false);const [downloadId,setDownloadId]=useState<string|null>(null);const [localError,setLocalError]=useState('');const [preview,setPreview]=useState<Attachment|null>(null);const [peerInfo,setPeerInfo]=useState(()=>takeProfileRequest(chat.id));const [avatarMenu,setAvatarMenu]=useState(false);const [actions,setActions]=useState<Row|null>(null);const [menuX,setMenuX]=useState<number|undefined>(undefined);const [menuY,setMenuY]=useState(0);const [copied,setCopied]=useState(false);
   const [securityOpen,setSecurityOpen]=useState(false);
   const photoContext=`${user.id}:${chat.id}`;const currentPhotoContext=useRef(photoContext);currentPhotoContext.current=photoContext;
   // «Изменить» (Telegram): the message's text is edited in a field of its own, never in the chat's draft
@@ -502,12 +502,11 @@ export function ChatScreen({api,user,chat,store,onBack,wide=false,onOpenMusic}: 
         <View style={{flexDirection:'row',gap:6,alignItems:'center'}}><PlatinaName user={chat.peer} numberOfLines={1} style={{flexShrink:1,color:t.text,fontSize:18,lineHeight:24,fontWeight:'500'}}/><StatusEmoji user={chat.peer} size={18} animated/></View>
         <Text numberOfLines={1} style={{color:headerStatus.accent?t.accent:t.muted,fontSize:14,lineHeight:18}}>{headerStatus.text}</Text>
       </Pressable>
-      <Pressable onPress={()=>{setSearchOpen(open=>!open);setQuery('');}} accessibilityRole="button" accessibilityLabel="Поиск в этом чате (Ctrl+F)" style={hover}><Icon name="search-outline" size={20} color={searchOpen?t.accent:t.muted}/></Pressable>
-      {calls.available?<Pressable onPress={()=>calls.start(chat,false)} accessibilityRole="button" accessibilityLabel="Позвонить" style={hover}><Icon name="call-outline" size={20} color={t.muted}/></Pressable>:null}
-      {calls.available?<Pressable onPress={()=>calls.start(chat,true)} accessibilityRole="button" accessibilityLabel="Видеозвонок" style={hover}><Icon name="videocam-outline" size={21} color={t.muted}/></Pressable>:null}
+      {/* Telegram Web: call, search, ⋮ — the rest (video, media, info) in the ⋮ menu. */}
+      {calls.available?<Pressable onPress={()=>calls.start(chat,false)} accessibilityRole="button" accessibilityLabel="Позвонить" style={hover}><Icon name="call-outline" size={21} color={t.muted}/></Pressable>:null}
+      <Pressable onPress={()=>{setSearchOpen(open=>!open);setQuery('');}} accessibilityRole="button" accessibilityLabel="Поиск в этом чате (Ctrl+F)" style={hover}><Icon name="search-outline" size={21} color={searchOpen?t.accent:t.muted}/></Pressable>
       {chatScheduled.length?<Pressable testID="chat-scheduled" onPress={()=>setScheduledOpen(true)} accessibilityRole="button" accessibilityLabel={`Отложенные сообщения: ${chatScheduled.length}`} style={hover}><Icon name="time-outline" size={20} color={chatScheduled.some(item=>item.status==='failed')?t.danger:t.accent}/><View style={{position:'absolute',top:3,right:3,minWidth:16,height:16,borderRadius:8,paddingHorizontal:4,backgroundColor:t.accent,alignItems:'center',justifyContent:'center'}}><Text style={{color:t.onAccent,fontSize:10,fontWeight:'700'}}>{chatScheduled.length}</Text></View></Pressable>:null}
-      <Pressable onPress={()=>setMediaOpen(true)} accessibilityRole="button" accessibilityLabel="Медиа и файлы чата" style={hover}><Icon name="images-outline" size={20} color={t.muted}/></Pressable>
-      <Pressable onPress={()=>setPeerInfo(true)} accessibilityRole="button" accessibilityLabel="Информация" style={hover}><Icon name="information-circle-outline" size={22} color={t.muted}/></Pressable>
+      <Pressable onPress={(e:any)=>setHeaderMenu({x:e.nativeEvent.pageX,y:headerHeight+4})} accessibilityRole="button" accessibilityLabel="Ещё" style={hover}><Icon name="ellipsis-vertical" size={20} color={t.muted}/></Pressable>
     </View></View>;};
 
   return <VoicePlaybackProvider api={api}><GlassTargetScope targetRef={glassTarget}><KeyboardSafeView style={{flex:1,backgroundColor:'transparent',marginTop:wide?0:-insets.top,marginBottom:wide?0:-insets.bottom}}><View style={{flex:1}}>
@@ -680,6 +679,11 @@ export function ChatScreen({api,user,chat,store,onBack,wide=false,onOpenMusic}: 
     <SchedulePicker visible={schedulePick} onClose={()=>setSchedulePick(false)} onPick={deliverAt=>{setSchedulePick(false);lightFeedback();send({deliverAt});}}/>
     <ScheduledScreen visible={scheduledOpen} items={chatScheduled} peerName={chat.peer.displayName} busy={store.scheduledBusy} onClose={()=>setScheduledOpen(false)} onSendNow={item=>void store.sendScheduledNow(item).catch(e=>setLocalError(e instanceof Error?e.message:'Не удалось отправить.'))} onDelete={item=>void store.deleteScheduled(item).catch(e=>setLocalError(e instanceof Error?e.message:'Не удалось удалить.'))}/>
     {/* Selecting: the bin opens the same two-line choice just above itself (Telegram). */}
+    <ContextMenu visible={!!headerMenu} y={headerMenu?.y??0} x={headerMenu?.x} onClose={()=>setHeaderMenu(null)}>
+      {calls.available?<MenuItem icon="videocam-outline" label="Видеозвонок" onPress={()=>{setHeaderMenu(null);calls.start(chat,true);}}/>:null}
+      <MenuItem icon="images-outline" label="Медиа и файлы" onPress={()=>{setHeaderMenu(null);setMediaOpen(true);}}/>
+      <MenuItem icon="information-circle-outline" label="Информация" onPress={()=>{setHeaderMenu(null);setPeerInfo(true);}}/>
+    </ContextMenu>
     <ContextMenu visible={!!trashAt} y={trashAt?.y??0} x={trashAt?.x} onClose={()=>setTrashAt(null)}>
       {trashAt?deleteChoice(selectedMessages,()=>{setTrashAt(null);setSelection(null);}):null}
     </ContextMenu>
