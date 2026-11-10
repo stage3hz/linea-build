@@ -109,6 +109,26 @@ export function cancelMedia(attachment: Attachment) {
   entry.abort?.abort(); entries.delete(key); publish(key);
 }
 
+/**
+ * A file we sent ourselves is already here in plain form: it is moved into the cache under the uploaded
+ * attachment's key, so the sent bubble plays at once in full quality instead of downloading and decrypting
+ * its own upload again (Telegram shows a sent circle immediately). Resolves false if it could not be moved.
+ */
+export async function adoptMedia(attachment: Attachment, uri: string): Promise<boolean> {
+  const key = mediaKey(attachment);
+  if (entries.get(key)?.status === 'ready' || !FileSystem.cacheDirectory) return false;
+  const { folder, target } = paths(attachment), owner = generation;
+  try {
+    await FileSystem.deleteAsync(folder, { idempotent: true });
+    await FileSystem.makeDirectoryAsync(folder, { intermediates: true });
+    await FileSystem.moveAsync({ from: uri, to: target });
+  } catch { return false; }
+  if (owner !== generation) { void FileSystem.deleteAsync(folder, { idempotent: true }).catch(() => {}); return false; }
+  entries.set(key, { status: 'ready', progress: 1, uri: target, size: attachment.size, usedAt: Date.now() });
+  publish(key); evict();
+  return true;
+}
+
 /** Forget everything (the files themselves are removed by clearDecryptedAttachmentCache). */
 export function resetMediaCache() {
   generation++;

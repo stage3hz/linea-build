@@ -89,10 +89,8 @@ export function attachmentLabel(attachment: Pick<Attachment, 'name' | 'mimeType'
     const ms = attachment.media?.durationMs;
     return `🎤 Голосовое сообщение${ms ? ` · ${formatVoiceTime(ms)}` : ''}`;
   }
-  if (isVideoNote(attachment)) {
-    const ms = attachment.media?.durationMs;
-    return `⏺ Видеосообщение${ms ? ` · ${formatVoiceTime(ms)}` : ''}`;
-  }
+  // Telegram: just «Видеосообщение» (the ⏺ glyph drew as a white square on iPhone).
+  if (isVideoNote(attachment)) return 'Видеосообщение';
   if (attachment.mimeType.startsWith('image/')) return '🖼 Фотография';
   if (attachment.mimeType.startsWith('video/')) return '🎬 Видео';
   return `📎 ${attachment.name}`;

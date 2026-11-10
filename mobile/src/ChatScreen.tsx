@@ -76,6 +76,7 @@ import { errorFeedback, impactFeedback, lightFeedback } from './haptics';
 import { VideoNoteRecorder, type VideoHold, type VideoNoteTake } from './videonote/VideoNote';
 import { PendingNotes, useNoteUploads } from './videonote/PendingNotes';
 import { discardNote, queueNote, runNote, type NoteDeps } from './videonote/noteSender';
+import { adoptMedia } from './media/mediaCache';
 import { useCallback } from 'react';
 import { attachmentLabel, isVideoNote, isVoice } from './voice/voice';
 import { VOICE_MIME, VOICE_MIN_MS, videoNoteFileName, voiceFileName } from './voice/voice';
@@ -437,6 +438,7 @@ export function ChatScreen({api,user,chat,store,onBack,wide=false,onOpenMusic}: 
     send:(chatId,attachment,reply)=>store.send(chatId,'',attachment,reply?{reply}:undefined),
     deleteFile:uri=>FileSystem.deleteAsync(uri,{idempotent:true}),
     fileName:()=>videoNoteFileName(),
+    adopt:adoptMedia,
     thumbnail:uri=>VideoThumbnails.getThumbnailAsync(uri,{time:0,quality:.6}).then(frame=>frame.uri),
   });
   const sendVideoNote=(take:VideoNoteTake)=>{

@@ -132,3 +132,16 @@ test('«Удалить» on a failed circle deletes its recording at once', asyn
   assert.deepEqual(s.outbox.getNotes(), []); assert.deepEqual(s.log.deleted, [take.uri]);
   assert.equal(await s.runNote(s.deps, 'n1'), 'cancelled');
 });
+
+test('a sent take is handed to the media cache before the bubble appears, and then not deleted', async () => {
+  const s = sender(); const order = [];
+  s.deps.adopt = async (attachment, uri) => { order.push(`adopt:${attachment.id}:${uri}`); return true; };
+  const send = s.deps.send; s.deps.send = (...args) => { order.push('send'); send(...args); };
+  assert.equal(await s.queueNote(s.deps, take), 'sent');
+  assert.deepEqual(order, [`adopt:f:${take.uri}`, 'send']);
+  assert.deepEqual(s.log.deleted, []);
+  // A cache that could not take the file over: the take is deleted as before.
+  const t = sender(); t.deps.adopt = async () => false;
+  assert.equal(await t.queueNote(t.deps, take), 'sent');
+  assert.deepEqual(t.log.deleted, [take.uri]);
+});

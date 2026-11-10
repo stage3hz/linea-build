@@ -12,6 +12,8 @@ export type NoteDeps = {
   /** circle-<ms>.mp4: the name that makes receivers show it as a round video. */
   fileName: () => string;
   thumbnail?: (uri: string) => Promise<string>;
+  /** Moves the sent take into the media cache under the uploaded attachment (true: the file is taken over). */
+  adopt?: (attachment: Attachment, uri: string) => Promise<boolean>;
 };
 export type NoteResult = 'sent' | 'failed' | 'cancelled' | 'busy';
 
@@ -37,10 +39,14 @@ export async function runNote(deps: NoteDeps, id: string): Promise<NoteResult> {
     // ✕ while uploading: uploads cannot be aborted, so the finished upload is simply not sent.
     if (cancelled.has(id) || !findNote(id)) return await dropped();
     const durationMs = uploaded.media?.durationMs || Math.round(start.durationMs);
-    deps.send(start.chatId, { ...uploaded, name: deps.fileName(), mimeType: 'video/mp4', media: { ...(uploaded.media || {}), durationMs } }, start.reply);
+    const sent: Attachment = { ...uploaded, name: deps.fileName(), mimeType: 'video/mp4', media: { ...(uploaded.media || {}), durationMs } };
+    // The take becomes the sent bubble's cached file before the bubble appears: no second download.
+    const adopted = deps.adopt ? await deps.adopt(sent, start.uri).catch(() => false) : false;
+    deps.send(start.chatId, sent, start.reply);
     const note = findNote(id);
     dispatchNote({ type: 'remove', id });
-    await quietDelete(deps, start.uri); await quietDelete(deps, note?.thumb);
+    if (!adopted) await quietDelete(deps, start.uri);
+    await quietDelete(deps, note?.thumb);
     return 'sent';
   } catch (error) {
     if (cancelled.has(id) || !findNote(id)) return await dropped();
