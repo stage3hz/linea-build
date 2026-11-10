@@ -42,6 +42,12 @@ function schedulePlaybackReset(delay: number) {
   if (delay <= 0) reset(); else playbackReset = setTimeout(reset, delay);
 }
 
+/**
+ * A round video about to play with sound: the session goes back to playback now, not 4 s after the last
+ * voice take (expo-video leaves a recording session alone, and in it the sound would go to the earpiece).
+ */
+export function restorePlaybackSession() { schedulePlaybackReset(0); }
+
 export type VoiceTake = { uri: string; durationMs: number; waveform?: string };
 
 /** Microphone recorder for one chat composer. Nothing is recorded until start() and permission. */
