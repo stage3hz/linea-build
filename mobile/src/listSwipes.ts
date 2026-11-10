@@ -10,8 +10,13 @@ export const SLOP = 10;
  * past the slop and at least twice as far as up/down; a clearly vertical move is a scroll.
  * `direction` limits which way counts (1 = right only, -1 = left only, 0 = both).
  */
-export function axisLock(dx: number, dy: number, direction: -1 | 0 | 1 = 0, slop = SLOP): 'horizontal' | 'vertical' | 'wrong-way' | null {
+// No default parameter may name a module constant in a worklet: the worklets Babel plugin moves the
+// constant into `const {…} = this.__closure` inside the body, which a default (evaluated in the
+// parameter scope, before the body) cannot see. On the UI thread that is a ReferenceError, and in a
+// release build a worklet error is fatal (the app closed on the first finger move in the profile).
+export function axisLock(dx: number, dy: number, direction: -1 | 0 | 1 = 0, slopOverride?: number): 'horizontal' | 'vertical' | 'wrong-way' | null {
   'worklet';
+  const slop = slopOverride === undefined ? SLOP : slopOverride;
   const ax = Math.abs(dx), ay = Math.abs(dy);
   if (ay > slop && ay >= ax) return 'vertical';
   if (ax > slop && ax > ay * 2) return direction !== 0 && Math.sign(dx) !== direction ? 'wrong-way' : 'horizontal';
@@ -136,8 +141,9 @@ export const BACK_EDGE = 28;
  * (Telegram). `touching`: the finger went down on the strip; `offset`: its scroll position;
  * `startX`: where the finger went down, from the screen's left edge.
  */
-export function stripBlocksBack(touching: boolean, offset: number, startX: number, edge = BACK_EDGE): boolean {
+export function stripBlocksBack(touching: boolean, offset: number, startX: number, edgeOverride?: number): boolean {
   'worklet';
+  const edge = edgeOverride === undefined ? BACK_EDGE : edgeOverride; // not a default parameter: see axisLock
   return touching && offset > 1 && startX > edge;
 }
 
