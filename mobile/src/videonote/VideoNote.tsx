@@ -230,7 +230,9 @@ export function VideoNoteRecorder({ visible, onClose, onDone, hold = null }: { v
     if (recording && !FLIP_WHILE_RECORDING) return;
     setZoom(0); if (flipTimer.current) clearTimeout(flipTimer.current); flipTimer.current = undefined;
     const unready = !recording && Platform.OS !== 'ios' && !androidNoteCameraAvailable;
-    if (!motionEnabled()) { switchCamera(unready); return; }
+    // iPhone: Telegram cuts to the other camera in one frame (screen recording, 60 fps): no turn, no blur.
+    // The card turn is Telegram's Android behaviour.
+    if (!motionEnabled() || Platform.OS === 'ios') { switchCamera(unready); return; }
     spin.value = withTiming(spin.value + 180, { duration: TURN_HALF_MS * 2, easing: Easing.inOut(Easing.cubic) });
     cancelAnimation(turn); turn.value = 0;
     turn.value = withSequence(
