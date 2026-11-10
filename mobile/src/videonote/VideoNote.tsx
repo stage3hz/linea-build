@@ -1,6 +1,6 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState, useSyncExternalStore } from 'react';
 import { ActivityIndicator, Image, Modal, Platform, StyleSheet, View, useWindowDimensions } from 'react-native';
-import Animated, { Easing, cancelAnimation, interpolate, runOnJS, useAnimatedStyle, useSharedValue, withTiming, type SharedValue } from 'react-native-reanimated';
+import Animated, { Easing, cancelAnimation, interpolate, runOnJS, useAnimatedStyle, useSharedValue, withSequence, withTiming, type SharedValue } from 'react-native-reanimated';
 import { motionEnabled, usePowerFeatures } from '../motion';
 import { CameraView, useCameraPermissions, useMicrophonePermissions, type CameraType } from 'expo-camera';
 import { useVideoPlayer, VideoView, type VideoPlayer } from 'expo-video';
@@ -39,6 +39,11 @@ const FLIP_WHILE_RECORDING = androidNoteCameraAvailable;
 // iPhone with our native camera: the view itself shows the previous take's blurred last frame while the
 // camera starts and covers a flip with a short crossfade, so no JS cover or blur is drawn over it.
 const NATIVE_COVER = androidNoteCameraAvailable && Platform.OS === 'ios';
+// A flip with our native camera (both platforms) is covered natively: nothing to cover where both cameras
+// run at once, else the last frame, blurred, until the new camera's first upright frame. No JS blur then.
+const NATIVE_FLIP_COVER = androidNoteCameraAvailable;
+// The circle turns like a card on a flip; the camera switches at the halfway point (edge-on).
+const TURN_HALF_MS = 290;
 
 /** Full-screen recorder for a round video message. Camera and microphone are used only while it is open. */
 /**
@@ -207,9 +212,33 @@ export function VideoNoteRecorder({ visible, onClose, onDone, hold = null }: { v
     void Brightness.getBrightnessAsync().then(value => { brightness.current = value; return Brightness.setBrightnessAsync(1); }).catch(() => {});
   }, [screenFlash]);
   useEffect(() => { if (!visible) setFlash(false); }, [visible]);
-  // A flip's blur: none on iPhone with our native camera (it crossfades the last frame itself); on Android
-  // it ends when the new camera streams (onNativeReady), at most 700 ms; expo-camera keeps a fixed 450 ms.
-  const flip = () => { const now = Date.now(); if (now - lastFlip.current < 300) return; lastFlip.current = now; lightFeedback(); if (recording && !FLIP_WHILE_RECORDING) return; setZoom(0); if (flipTimer.current) clearTimeout(flipTimer.current); flipTimer.current = undefined; if (!NATIVE_COVER) { setFlipping(true); flipTimer.current = setTimeout(() => { flipTimer.current = undefined; setFlipping(false); }, androidNoteCameraAvailable ? 700 : 450); } if (!recording && Platform.OS !== 'ios' && !androidNoteCameraAvailable) setReady(false); setError(''); setFacing(value => value === 'front' ? 'back' : 'front'); };
+  // A flip turns the circle like a card around its vertical axis (0 → 90°, the camera switches edge-on,
+  // −90° → 0); with reduced motion it switches at once. A flip's blur: none with our native camera (it covers
+  // the switch itself, or needs no cover with both cameras running); expo-camera keeps a fixed 450 ms blur.
+  const turn = useSharedValue(0);
+  const spin = useSharedValue(0);
+  const turnStyle = useAnimatedStyle(() => ({ transform: [{ perspective: 900 }, { rotateY: `${turn.value}deg` }] }));
+  const spinStyle = useAnimatedStyle(() => ({ transform: [{ rotate: `${spin.value}deg` }] }));
+  const switchCamera = (unready: boolean) => {
+    if (!alive.current) return;
+    if (!NATIVE_FLIP_COVER) { setFlipping(true); flipTimer.current = setTimeout(() => { flipTimer.current = undefined; setFlipping(false); }, 450); }
+    if (unready) setReady(false);
+    setError(''); setFacing(value => value === 'front' ? 'back' : 'front');
+  };
+  const flip = () => {
+    const now = Date.now(); if (now - lastFlip.current < 300) return; lastFlip.current = now; lightFeedback();
+    if (recording && !FLIP_WHILE_RECORDING) return;
+    setZoom(0); if (flipTimer.current) clearTimeout(flipTimer.current); flipTimer.current = undefined;
+    const unready = !recording && Platform.OS !== 'ios' && !androidNoteCameraAvailable;
+    if (!motionEnabled()) { switchCamera(unready); return; }
+    spin.value = withTiming(spin.value + 180, { duration: TURN_HALF_MS * 2, easing: Easing.inOut(Easing.cubic) });
+    cancelAnimation(turn); turn.value = 0;
+    turn.value = withSequence(
+      withTiming(90, { duration: TURN_HALF_MS, easing: Easing.in(Easing.cubic) }, () => { runOnJS(switchCamera)(unready); }),
+      withTiming(-90, { duration: 0 }),
+      withTiming(0, { duration: TURN_HALF_MS, easing: Easing.out(Easing.cubic) }),
+    );
+  };
   const onNativeReady = () => { setReady(true); if (flipTimer.current) { clearTimeout(flipTimer.current); flipTimer.current = undefined; setFlipping(false); } };
   const preview = visible && allowed && androidNoteCameraAvailable ? <AndroidNoteCamera ref={nativeRef} zoom={zoom} facing={facing === 'back' ? 'back' : 'front'} {...(Platform.OS === 'ios' ? { torch: flash && facing === 'back' } : {})} style={{ position: 'absolute', left: 0, top: -CIRCLE / 6, width: CIRCLE, height: CIRCLE * 4 / 3 }} onReady={onNativeReady} onCameraError={event => setError(event.nativeEvent.message || 'Камера недоступна.')} /> : visible && allowed ? <CameraView key={Platform.OS === 'ios' ? 'camera' : facing} ref={ref} style={{ position: 'absolute', left: 0, top: -CIRCLE / 6, width: CIRCLE, height: CIRCLE * 4 / 3 }} facing={facing} mode="video" ratio="4:3" mirror={facing === 'front'} videoQuality="480p" enableTorch={flash && facing === 'back'} onCameraReady={() => setReady(true)} onMountError={event => setError(event.message || 'Камера недоступна.')} /> : null;
   // Telegram's way while the finger holds (and after a lock): the circle over the blurred chat with a
@@ -228,20 +257,20 @@ export function VideoNoteRecorder({ visible, onClose, onDone, hold = null }: { v
       <GestureDetector gesture={pinch}>
       <Animated.View style={[{ width: RING, height: RING, alignItems: 'center', justifyContent: 'center' }, grow]}>
         <NoteRing progress={recProgress} size={RING} stroke={4} color="#FFF" track="rgba(255,255,255,0.16)" />
-        <View style={{ width: CIRCLE, height: CIRCLE, borderRadius: CIRCLE / 2, overflow: 'hidden', backgroundColor: t.bg }}>
+        <Animated.View style={[{ width: CIRCLE, height: CIRCLE, borderRadius: CIRCLE / 2, overflow: 'hidden', backgroundColor: t.bg }, turnStyle]}>
           {preview}
-          {/* Telegram: the live picture is sharp at once; only a camera flip hides the jump behind a short blur. */}
+          {/* Telegram: the live picture is sharp at once; only an expo-camera flip hides the jump behind a short blur (our native camera covers its own). */}
           {flipping ? <BlurView pointerEvents="none" tint="dark" intensity={80} style={StyleSheet.absoluteFill} /> : null}
           {cameraCover}
           {zoom > 0.02 ? <View pointerEvents="none" style={{ position: 'absolute', bottom: 14, alignSelf: 'center', paddingHorizontal: 8, paddingVertical: 2, borderRadius: 10, backgroundColor: 'rgba(0,0,0,0.45)' }}><Text style={{ color: '#FFF', fontSize: 12, fontWeight: '700' }}>{(1 + zoom * 5).toFixed(1).replace('.', ',')}×</Text></View> : null}
-        </View>
+        </Animated.View>
       </Animated.View>
       </GestureDetector>
       {error ? <Text style={{ color: '#FFB4B4', fontSize: 13, textAlign: 'center', maxWidth: 320 }}>{error}</Text> : null}
     </View>
     <View pointerEvents="box-none" style={{ position: 'absolute', left: 8, right: 8, bottom: insets.bottom + 6, gap: 10 }}>
       <View pointerEvents="box-none" style={{ flexDirection: 'row' }}>
-        <Pressable accessibilityRole="button" accessibilityLabel="Сменить камеру" disabled={!showControls} onPress={flip} style={[styles.small, { opacity: recording && !FLIP_WHILE_RECORDING ? .35 : 1 }]}><Icon name="camera-reverse-outline" color="#FFF" size={21} /></Pressable>
+        <Pressable accessibilityRole="button" accessibilityLabel="Сменить камеру" disabled={!showControls} onPress={flip} style={[styles.small, { opacity: recording && !FLIP_WHILE_RECORDING ? .35 : 1 }]}><Animated.View style={spinStyle}><Icon name="camera-reverse-outline" color="#FFF" size={21} /></Animated.View></Pressable>
         {facing === 'front' || Platform.OS === 'ios' ? <Pressable accessibilityRole="switch" accessibilityState={{ checked: flash }} accessibilityLabel="Вспышка" disabled={!showControls} onPress={() => { lightFeedback(); setFlash(value => !value); }} style={[styles.small, { marginLeft: 11, backgroundColor: flash ? 'rgba(255,214,10,0.28)' : 'rgba(255,255,255,0.14)' }]}><Icon name={flash ? 'flash' : 'flash-off-outline'} color={flash ? '#FFD60A' : '#FFF'} size={20} /></Pressable> : null}
               <View style={{ flex: 1 }} />
         {hold?.locked && recording && androidNoteCameraAvailable ? <Pressable accessibilityRole="button" accessibilityLabel={notePaused ? 'Продолжить запись' : 'Пауза'} onPress={() => void togglePause()} style={[styles.small, { marginRight: 13 }]}><Icon name={notePaused ? 'videocam' : 'pause'} color={notePaused ? t.danger : '#FFF'} size={20} /></Pressable> : null}
@@ -266,10 +295,10 @@ export function VideoNoteRecorder({ visible, onClose, onDone, hold = null }: { v
       {recording ? <RecTimer running={!notePaused} getMs={getMs} /> : <Text style={{ color: '#FFF', fontSize: 17, fontWeight: '700' }}>Видеосообщение</Text>}
       <View style={{ width: CIRCLE + 12, height: CIRCLE + 12, borderRadius: (CIRCLE + 12) / 2, padding: 6 }}>
         <NoteRing progress={recProgress} size={CIRCLE + 12} stroke={3} color={t.danger} track="rgba(255,255,255,0.25)" />
-        <View style={{ width: CIRCLE, height: CIRCLE, borderRadius: CIRCLE / 2, overflow: 'hidden', backgroundColor: t.bg }}>
+        <Animated.View style={[{ width: CIRCLE, height: CIRCLE, borderRadius: CIRCLE / 2, overflow: 'hidden', backgroundColor: t.bg }, turnStyle]}>
           {visible && allowed && androidNoteCameraAvailable ? <AndroidNoteCamera ref={nativeRef} facing={facing === 'back' ? 'back' : 'front'} style={{ position: 'absolute', left: 0, top: -CIRCLE / 6, width: CIRCLE, height: CIRCLE * 4 / 3 }} onReady={onNativeReady} onCameraError={event => setError(event.nativeEvent.message || 'Камера недоступна.')} /> : visible && allowed ? <CameraView key={Platform.OS === 'ios' ? 'camera' : facing} ref={ref} style={{ position: 'absolute', left: 0, top: -CIRCLE / 6, width: CIRCLE, height: CIRCLE * 4 / 3 }} facing={facing} mode="video" ratio="4:3" mirror={facing === 'front'} videoQuality="480p" onCameraReady={() => setReady(true)} onMountError={event => setError(event.message || 'Камера недоступна.')} /> : null}
           {cameraCover}
-        </View>
+        </Animated.View>
       </View>
       {error ? <Text style={{ color: '#FFB4B4', fontSize: 13, textAlign: 'center', maxWidth: 320 }}>{error}</Text> : <Text style={{ color: 'rgba(255,255,255,0.6)', fontSize: 12 }}>{recording ? (hold ? 'Нажми ■, чтобы отправить' : 'Нажми ещё раз, чтобы отправить') : 'До 60 секунд · шифруется перед отправкой'}</Text>}
       {showControls ? <View style={{ flexDirection: 'row', alignItems: 'center', gap: 34 }}>
@@ -277,7 +306,7 @@ export function VideoNoteRecorder({ visible, onClose, onDone, hold = null }: { v
         <Pressable accessibilityRole="button" accessibilityLabel={recording ? 'Остановить и отправить' : 'Начать запись'} disabled={!allowed || !ready} onPress={() => recording ? void stop() : void start()} style={{ width: 78, height: 78, borderRadius: 39, borderWidth: 4, borderColor: '#FFF', alignItems: 'center', justifyContent: 'center', opacity: !allowed || !ready ? .4 : 1 }}>
           {!ready && allowed ? <ActivityIndicator color="#FFF" /> : <View style={{ width: recording ? 28 : 58, height: recording ? 28 : 58, borderRadius: recording ? 7 : 29, backgroundColor: t.danger }} />}
         </Pressable>
-        <Pressable accessibilityRole="button" accessibilityLabel="Сменить камеру" onPress={() => { if (recording && !FLIP_WHILE_RECORDING) return; if (!recording && Platform.OS !== 'ios' && !androidNoteCameraAvailable) setReady(false); setError(''); setFacing(value => value === 'front' ? 'back' : 'front'); }} style={[styles.round, { opacity: recording && !FLIP_WHILE_RECORDING ? .3 : 1 }]}><Icon name="camera-reverse-outline" color="#FFF" size={26} /></Pressable>
+        <Pressable accessibilityRole="button" accessibilityLabel="Сменить камеру" onPress={flip} style={[styles.round, { opacity: recording && !FLIP_WHILE_RECORDING ? .3 : 1 }]}><Animated.View style={spinStyle}><Icon name="camera-reverse-outline" color="#FFF" size={26} /></Animated.View></Pressable>
       </View> : <Text style={{ color: 'rgba(255,255,255,0.7)', fontSize: 13 }}>‹ Влево — отмена · вверх — без рук</Text>}
     </View>;
   if (hold) return visible ? <View pointerEvents={showControls ? 'auto' : 'box-none'} style={[StyleSheet.absoluteFill, { zIndex: 50 }]}>
