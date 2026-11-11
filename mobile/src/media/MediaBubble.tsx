@@ -3,7 +3,7 @@
 // open instantly once loaded. Tapping during a download cancels it.
 import { useNetworkTier } from '../network/useNetworkTier';
 import { autoload } from '../network/quality';
-import React, { useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import { Pressable, StyleSheet, View } from 'react-native';
 import { Image } from 'expo-image';
 import Svg, { Circle } from 'react-native-svg';
@@ -16,7 +16,7 @@ import { albumLayout } from './albumLayout';
 import { isGif, mediaPreviewKind } from './formats';
 import { usePowerFeatures } from '../motion';
 import { previewUri } from './previewModel';
-import { useMedia } from './mediaCache';
+import { forgetMedia, useMedia } from './mediaCache';
 import { lightFeedback } from '../haptics';
 
 /** Photos up to this size load automatically (Telegram's default is similar). */
@@ -61,25 +61,38 @@ export function MediaTile({ api, attachment, width, height, radius = 16, onOpen,
   const gif = isGif(attachment), features = usePowerFeatures();
   const [played, setPlayed] = useState(false);
   const animate = !gif || features.gif || played;
+  // The decrypted copy can be gone or unreadable while the cache still calls it ready (iOS purges the
+  // Caches folder; a damaged or undecodable file): the picture then failed silently and the bubble was an
+  // empty card. Such a tile shows the blurred thumbnail with a retry button, as Telegram does, and a tap
+  // decrypts the file again.
+  const [broken, setBroken] = useState<string | null>(null);
+  const [thumbFailed, setThumbFailed] = useState(false);
+  // A fresh download (same path) gets a fresh chance.
+  useEffect(() => { if (media.status !== 'ready' && broken) setBroken(null); }, [media.status, broken]);
+  const shown = photo && media.status === 'ready' && !!media.uri && broken !== media.uri;
+  const status = media.status === 'ready' && !shown && photo ? 'error' : media.status;
   const press = () => {
     if (media.status === 'loading') { lightFeedback(); media.cancel(); return; }
+    if (photo && media.status === 'ready' && !shown) { lightFeedback(); void forgetMedia(attachment).then(() => media.start()).catch(() => {}); return; }
     if (media.status === 'ready') { if (!animate) { lightFeedback(); setPlayed(true); return; } onOpen(); return; }
     lightFeedback();
     // A video opens by itself once loaded; a photo simply appears in the bubble.
     void media.start().then(() => { if (!photo) onOpen(); }).catch(() => {});
   };
-  return <Pressable onPress={press} onLongPress={onLongPress} delayLongPress={450} accessibilityRole="button" accessibilityLabel={`${photo ? 'Фото' : 'Видео'}${media.status === 'loading' ? `, загрузка ${Math.round(media.progress * 100)}%` : ''}`} style={{ width, height, borderRadius: radius, overflow: 'hidden', backgroundColor: 'rgba(120,130,160,0.18)' }}>
-    {thumb ? <Image source={{ uri: thumb }} style={StyleSheet.absoluteFill} contentFit="cover" blurRadius={photo ? 12 : 0} /> : null}
-    {photo && media.status === 'ready' && media.uri ? <Image key={animate ? 'gif' : 'still'} source={{ uri: media.uri }} style={StyleSheet.absoluteFill} contentFit="cover" transition={180} autoplay={animate} /> : null}
-    {gif && media.status === 'ready' && !animate ? <View pointerEvents="none" style={[StyleSheet.absoluteFill, { alignItems: 'center', justifyContent: 'center' }]}><View style={{ paddingHorizontal: 12, paddingVertical: 6, borderRadius: 14, backgroundColor: 'rgba(10,15,30,0.55)' }}><Text style={{ color: '#FFF', fontSize: 13, fontWeight: '800', letterSpacing: .5 }}>GIF</Text></View></View> : null}
-    {!photo || media.status !== 'ready' ? <View style={[StyleSheet.absoluteFill, { alignItems: 'center', justifyContent: 'center' }]}>
+  return <Pressable onPress={press} onLongPress={onLongPress} delayLongPress={450} accessibilityRole="button" accessibilityLabel={`${photo ? 'Фото' : 'Видео'}${status === 'loading' ? `, загрузка ${Math.round(media.progress * 100)}%` : ''}`} style={{ width, height, borderRadius: radius, overflow: 'hidden', backgroundColor: 'rgba(60,70,95,0.32)' }}>
+    {/* Never an empty card: while a photo without a thumbnail decodes, its kind is drawn in the middle. */}
+    {shown && (!thumb || thumbFailed) ? <View pointerEvents="none" style={[StyleSheet.absoluteFill, { alignItems: 'center', justifyContent: 'center' }]}><Icon name={photo ? 'image-outline' : 'videocam-outline'} size={34} color="rgba(255,255,255,0.75)" /></View> : null}
+    {thumb && !thumbFailed ? <Image source={{ uri: thumb }} style={StyleSheet.absoluteFill} contentFit="cover" blurRadius={photo ? 12 : 0} onError={() => setThumbFailed(true)} /> : null}
+    {shown ? <Image key={animate ? 'gif' : 'still'} source={{ uri: media.uri! }} style={StyleSheet.absoluteFill} contentFit="cover" transition={180} autoplay={animate} onError={() => setBroken(media.uri ?? null)} /> : null}
+    {gif && shown && !animate ? <View pointerEvents="none" style={[StyleSheet.absoluteFill, { alignItems: 'center', justifyContent: 'center' }]}><View style={{ paddingHorizontal: 12, paddingVertical: 6, borderRadius: 14, backgroundColor: 'rgba(10,15,30,0.55)' }}><Text style={{ color: '#FFF', fontSize: 13, fontWeight: '800', letterSpacing: .5 }}>GIF</Text></View></View> : null}
+    {!photo || !shown ? <View style={[StyleSheet.absoluteFill, { alignItems: 'center', justifyContent: 'center' }]}>
       <View style={{ width: 48, height: 48, borderRadius: 24, backgroundColor: 'rgba(10,15,30,0.55)', alignItems: 'center', justifyContent: 'center' }}>
-        {media.status === 'loading' ? <><ProgressRing progress={media.progress} size={48} /><Icon name="close" size={22} color="#FFF" /></> : <Icon name={media.status === 'error' ? 'refresh' : photo ? 'arrow-down' : 'play'} size={24} color="#FFF" />}
+        {status === 'loading' ? <><ProgressRing progress={media.progress} size={48} /><Icon name="close" size={22} color="#FFF" /></> : <Icon name={status === 'error' ? 'refresh' : photo ? 'arrow-down' : 'play'} size={24} color="#FFF" />}
       </View>
     </View> : null}
-    {!photo || media.status !== 'ready' ? <View style={{ position: 'absolute', left: 7, top: 7, flexDirection: 'row', gap: 4 }}>
+    {!photo || !shown ? <View style={{ position: 'absolute', left: 7, top: 7, flexDirection: 'row', gap: 4 }}>
       <Text style={{ color: '#FFF', fontSize: 11, paddingHorizontal: 6, paddingVertical: 3, borderRadius: 8, overflow: 'hidden', backgroundColor: 'rgba(10,15,30,0.55)' }}>
-        {media.status === 'loading' ? `${formatSize(attachment.size * media.progress)} / ${formatSize(attachment.size)}` : !photo ? `${clock(attachment.media?.durationMs)}${media.status === 'ready' ? '' : ` · ${formatSize(attachment.size)}`}` : formatSize(attachment.size)}
+        {status === 'loading' ? `${formatSize(attachment.size * media.progress)} / ${formatSize(attachment.size)}` : !photo ? `${clock(attachment.media?.durationMs)}${status === 'ready' ? '' : ` · ${formatSize(attachment.size)}`}` : formatSize(attachment.size)}
       </Text>
     </View> : null}
   </Pressable>;

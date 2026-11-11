@@ -80,14 +80,16 @@ export function FloatingHeader({ children, onHeight }: { children: React.ReactNo
 /** How strong the colour cover of the edge effect is (the blur keeps its own strength, as in Telegram: blurred, barely tinted): 1 was the first cut, which read too dense under the bars on device. */
 export const EDGE_STRENGTH = .3;
 
-export function ScrollEdgeEffect({ edge, size, color, alpha, fade = 8, zIndex, blur: strength, style }: { edge: 'top' | 'bottom'; size: number; color: string; alpha: number; fade?: number; zIndex?: number; blur?: number; style?: object }) {
+/** `cover`: how much of `alpha` the colour reaches right behind the bar (default EDGE_STRENGTH). A chat
+ *  header passes more: text scrolling under its pills must not stay readable through them. */
+export function ScrollEdgeEffect({ edge, size, color, alpha, fade = 8, zIndex, blur: strength, cover = EDGE_STRENGTH, style }: { edge: 'top' | 'bottom'; size: number; color: string; alpha: number; fade?: number; zIndex?: number; blur?: number; cover?: number; style?: object }) {
   const t = useTheme(); const reduced = useReducedTransparency();
   if (size <= 0) return null;
   const total = size + fade;
   // Fully covered up to 14 pt short of the bar's inner edge, then a soft ramp that ends `fade` pt past
   // it — inside the space the lists keep there, so at rest the first row / message is never covered.
   const solid = Math.max(0, Math.min(1, (size - 14) / total));
-  const peak = reduced ? 1 : alpha * EDGE_STRENGTH;
+  const peak = reduced ? 1 : Math.min(1, alpha * cover);
   const colors = [tint(color, peak, t.dark), tint(color, peak * .9, t.dark), tint(color, peak * .45, t.dark), tint(color, 0, t.dark)] as const;
   const locations = [0, solid, solid + (1 - solid) * .45, 1] as const;
   const vertical = edge === 'top' ? { start: { x: 0, y: 0 }, end: { x: 0, y: 1 } } : { start: { x: 0, y: 1 }, end: { x: 0, y: 0 } };

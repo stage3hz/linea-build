@@ -3,7 +3,8 @@ import { FormattedText } from './format/FormattedText';
 import { endsInBlock } from './format/render';
 import { ActivityIndicator, Keyboard, Platform, Pressable, View, useWindowDimensions } from 'react-native';
 import { Gesture, GestureDetector } from 'react-native-gesture-handler';
-import Animated, { Easing, FadeIn, FadeInDown, interpolate, runOnJS, useAnimatedStyle, useSharedValue, withTiming } from 'react-native-reanimated';
+import Animated, { Easing, FadeIn, FadeInDown, interpolate, runOnJS, useAnimatedStyle, useSharedValue, withDelay, withSequence, withTiming } from 'react-native-reanimated';
+import { Image } from 'expo-image';
 import { Text } from './typography';
 import { AttachmentCard, Icon } from './components';
 import { formatDay, formatTime, useTheme } from './theme';
@@ -39,7 +40,7 @@ export const MissingRow = memo(function MissingRow({ count }: { count: number })
   </View>;
 });
 export type RowHandlers = {
-  actions: (row: Row, y: number, x?: number) => void; jumpTo: (clientId: string) => void; open: (file: Attachment) => void;
+  actions: (row: Row, y: number, x?: number) => void; jumpTo: (clientId: string, fromKey?: string) => void; open: (file: Attachment) => void;
   react: (message: ViewMessage, emoji: Reaction) => void; retry: (pending: PendingMessage) => void; cancel?: (pending: PendingMessage) => void; reply: (message: ViewMessage) => void;
   vote: (message: ViewMessage, options: number[]) => void; toggleSelect: (row: Row) => void;
   /** A tap on the «История» quote of an answer to a story: opens the author's stories (never a jump in the chat). */
@@ -48,6 +49,12 @@ export type RowHandlers = {
 type Props = {
   row: Row; olderCreatedAt?: string; mine: boolean; author: string; peerLastRead: number; wide: boolean;
   fontSize: number; lineHeight: number; downloading: boolean; radius?: number; groupNext?: boolean; replyAuthor?: string; replyText?: string;
+  /** The quoted message's picture (Telegram): round for a video message, square for a photo or video. */
+  replyThumb?: { uri: string; round: boolean } | null;
+  /** A tap on the quote is loading earlier pages to find the original: a spinner on the quote. */
+  quoteBusy?: boolean;
+  /** Just jumped to from a quote: highlighted for a moment. */
+  flash?: boolean;
   api: Api; handlers: React.MutableRefObject<RowHandlers>; selecting: boolean; selected: boolean; fresh: boolean;
   /** Platina: large emoji-only messages play their animation. */
   animatedEmoji?: boolean;
@@ -101,7 +108,7 @@ function UploadBubble({ pending, onCancel }: { pending: PendingMessage; onCancel
   </View>;
 }
 
-function MessageRowView({ row, olderCreatedAt, mine, author, peerLastRead, wide, fontSize, lineHeight, downloading, radius = 20, groupNext = false, replyAuthor, replyText, api, handlers, selecting, selected, fresh, animatedEmoji = false }: Props) {
+function MessageRowView({ row, olderCreatedAt, mine, author, peerLastRead, wide, fontSize, lineHeight, downloading, radius = 20, groupNext = false, replyAuthor, replyText, replyThumb, quoteBusy = false, flash = false, api, handlers, selecting, selected, fresh, animatedEmoji = false }: Props) {
   const t = useTheme(); const screenWidth = useWindowDimensions().width;
   // Phone layout on a wide screen (phone sideways): bubbles stop at 520 pt instead of stretching.
   const bubbleMax = !wide && screenWidth > 612 ? 520 : '85%';
@@ -113,6 +120,8 @@ function MessageRowView({ row, olderCreatedAt, mine, author, peerLastRead, wide,
   // Formatting (bold, spoiler, quote…) came decrypted with the text; offsets refer to the full text, so a trimmed invite body is shown plain.
   const entities = invite ? undefined : message?.meta?.entities || p?.meta?.entities;
   const emoji = !file && !poll && !row.album ? bigEmojiCount(body) : 0;
+  // A message with nothing left to show (its content stripped or gone) says so instead of an empty bubble.
+  const empty = !!message && !body.trim() && !file && !poll && !row.album && !invite && !message.meta?.action;
   const animatedParts = emoji && animatedEmoji ? bigEmoji(body) : null;
   const visual = !!file && !p?.upload && visualKind(file) && !isVideoNote(file);
   const bare = (visual && !body) || !!row.album && !body || emoji > 0;
@@ -176,6 +185,7 @@ function MessageRowView({ row, olderCreatedAt, mine, author, peerLastRead, wide,
   return <Animated.View entering={fresh ? (circle ? FadeIn.duration(150) : FadeInDown.duration(220)) : undefined}>
     {showDay ? <DayChip at={row.createdAt} /> : null}
     <View ref={rootRef}>
+    {flash ? <JumpFlash /> : null}
     <Pressable onPress={event => desktop ? (selecting ? press() : undefined) : press(event.nativeEvent.pageY)} onLongPress={desktop ? undefined : event => longPress(event.nativeEvent.pageY)} delayLongPress={400} accessible={false} style={{ flexDirection: 'row', alignItems: 'center', backgroundColor: selected ? t.accentSoft : desktop && hovered ? (t.dark ? 'rgba(255,255,255,0.03)' : 'rgba(0,0,0,0.025)') : 'transparent', borderRadius: 14, marginHorizontal: -6, paddingHorizontal: 6 }}>
     {selecting ? <View style={{ width: 30, alignItems: 'flex-start' }}><Icon name={selected ? 'checkmark-circle' : 'ellipse-outline'} size={24} color={selected ? t.accent : t.subtle} /></View> : null}
     <View style={{ flex: 1 }}>
@@ -187,9 +197,10 @@ function MessageRowView({ row, olderCreatedAt, mine, author, peerLastRead, wide,
             longer turns into a long press, and a click only acts while choosing messages. */}
         <Pressable onPress={event => desktop ? (selecting ? press() : undefined) : press(event.nativeEvent.pageY)} onLongPress={desktop ? undefined : event => longPress(event.nativeEvent.pageY)} delayLongPress={400} accessibilityLabel={`${author}: ${poll ? `Опрос: ${poll.question}` : body || file?.name || 'Вложение'}`} style={circle ? { maxWidth: '100%', alignItems: mine ? 'flex-end' : 'flex-start' } : emoji ? { maxWidth: bubbleMax } : bare ? { maxWidth: bubbleMax, borderRadius: 18, overflow: 'hidden', borderWidth: p?.state === 'failed' ? 1 : 0, borderColor: t.danger } : { maxWidth: wide ? '76%' : bubbleMax, minWidth: 60, ...(flush ? { width: flushWidth + 4, overflow: 'hidden' as const } : null), backgroundColor: mine ? t.bubble : t.incoming, borderRadius: radius, borderBottomRightRadius: mine && !groupNext ? Math.min(6, radius) : radius, borderBottomLeftRadius: !mine && !groupNext ? Math.min(6, radius) : radius, paddingHorizontal: flush ? 2 : 11, paddingTop: flush ? 2 : file ? 5 : 6, paddingBottom: inlineTime ? 6 : 5, borderWidth: p?.state === 'failed' ? 1 : 0, borderColor: t.danger }}>
           {message?.meta?.forward ? <Text style={[{ color: t.accent, fontSize: 11, fontWeight: '600', marginBottom: 4, paddingHorizontal: 1 }, flush ? { paddingHorizontal: 12, paddingTop: 7 } : null]}>{message.meta.forward.from ? `Переслано от ${message.meta.forward.from}` : 'Пересланное сообщение'}</Text> : null}
-          {reply || storyRef ? <Pressable accessibilityRole="button" accessibilityLabel={storyRef ? 'Открыть историю' : 'Перейти к исходному сообщению'} onPress={() => storyRef ? handlers.current.openStory?.(storyRef) : reply ? handlers.current.jumpTo(reply.clientId) : undefined} style={{ flexDirection: 'row', gap: 7, marginBottom: 6, ...(flush ? { marginHorizontal: 8, marginTop: 8 } : null), paddingVertical: 5, paddingRight: 8, borderRadius: 10, backgroundColor: t.dark ? 'rgba(255,255,255,0.06)' : 'rgba(0,0,0,0.04)' }}><View style={{ width: 3, borderRadius: 2, backgroundColor: t.accent }} /><View style={{ flexShrink: 1, gap: 1 }}><Text style={{ color: t.accent, fontSize: 11, fontWeight: '700' }}>{replyAuthor}</Text><Text numberOfLines={2} style={{ color: t.muted, fontSize: 12 }}>{replyText}</Text></View></Pressable> : null}
+          {reply || storyRef ? <Pressable accessibilityRole="button" accessibilityLabel={storyRef ? 'Открыть историю' : 'Перейти к исходному сообщению'} onPress={() => storyRef ? handlers.current.openStory?.(storyRef) : reply ? handlers.current.jumpTo(reply.clientId, row.key) : undefined} style={{ flexDirection: 'row', gap: 7, marginBottom: 6, ...(flush ? { marginHorizontal: 8, marginTop: 8 } : null), paddingVertical: 5, paddingRight: 8, borderRadius: 10, backgroundColor: t.dark ? 'rgba(255,255,255,0.06)' : 'rgba(0,0,0,0.04)' }}><View style={{ width: 3, borderRadius: 2, backgroundColor: t.accent }} />{replyThumb ? <Image source={{ uri: replyThumb.uri }} contentFit="cover" style={{ width: 32, height: 32, borderRadius: replyThumb.round ? 16 : 5, alignSelf: 'center', backgroundColor: 'rgba(120,130,160,0.18)' }} /> : null}<View style={{ flexShrink: 1, gap: 1 }}><Text style={{ color: t.accent, fontSize: 11, fontWeight: '700' }}>{replyAuthor}</Text><Text numberOfLines={2} style={{ color: t.muted, fontSize: 12 }}>{replyText}</Text></View>{quoteBusy ? <ActivityIndicator size="small" color={t.accent} style={{ alignSelf: 'center', marginLeft: 2 }} /> : null}</Pressable> : null}
           {row.album ? <View style={{ marginBottom: body ? 7 : 0 }}><AlbumGrid api={api} items={row.album.map(part => part.attachment)} width={albumWidth} onOpen={attachment => selecting ? press() : handlers.current.open(attachment)} onLongPress={() => longPress(0)} /></View> : null}
           {file ? <View style={{ marginBottom: body ? 7 : bare ? 0 : 1, marginTop: bare || flush ? 0 : 1 }}>{p?.upload ? <UploadBubble pending={p} onCancel={() => handlers.current.cancel?.(p)} /> : isVoice(file) ? <VoiceBubble attachment={file} mine={mine} selecting={selecting} onLongPress={desktop ? undefined : longPress} /> : isVideoNote(file) ? <VideoNoteBubble api={api} attachment={file} scope={CHAT_NOTES} side={mine ? 'right' : 'left'} maxSide={rowWidth || screenWidth - (wide ? 56 : 18) - (selecting ? 30 : 0)} onLongPress={desktop || selecting ? undefined : longPress} /> : visual && box ? <MediaTile api={api} attachment={file} width={box.width} height={box.height} radius={bare ? 15 : flush ? Math.max(4, radius - 3) : 14} onOpen={() => selecting ? press() : handlers.current.open(file)} onLongPress={() => longPress(0)} /> : file.encryption ? <FileBubble api={api} attachment={file} onOpen={() => handlers.current.open(file)} /> : <AttachmentCard api={api} attachment={file} onPress={() => handlers.current.open(file)} />}</View> : null}
+          {empty ? <View style={{ flexDirection: 'row', alignItems: 'center', gap: 5, paddingHorizontal: 1, paddingVertical: 1 }}><Icon name="trash-outline" size={14} color={t.muted} /><Text style={{ color: t.muted, fontSize, lineHeight, fontStyle: 'italic' }}>Сообщение удалено</Text></View> : null}
           {poll ? <PollBubble poll={poll} results={message?.poll} disabled={!message || message.cryptoState !== 'decrypted' || selecting} onVote={options => message && handlers.current.vote(message, options)} /> : null}
           {animatedParts ? <View accessible accessibilityLabel={body} style={{ flexDirection: 'row', gap: 2 }}>{animatedParts.map((part, index) => <AnimatedEmoji key={`${index}${part}`} emoji={part} size={emoji === 1 ? 112 : emoji === 2 ? 84 : 68} mode="once" />)}</View> : body ? emoji ? <Text raw style={{ fontSize: emoji === 1 ? 64 : emoji === 2 ? 52 : 44, lineHeight: emoji === 1 ? 76 : emoji === 2 ? 62 : 54 }}>{body}</Text> : <FormattedText text={body} entities={entities} color={t.text} linkColor={mine ? t.text : t.accent} fontSize={fontSize} lineHeight={lineHeight} selectable={desktop} style={{ paddingHorizontal: flush ? 9 : 1 }} trailing={inlineTime ? <Text selectable={false} style={{ fontSize: 11, color: '#00000001', userSelect: 'none' } as any}>{`\u00A0\u00A0\u00A0${silent ? '\u00A0\u00A0\u00A0\u00A0\u00A0' : ''}${message?.edited ? 'изм. ' : ''}${formatTime(row.createdAt)}${mine ? '\u00A0\u00A0\u00A0\u00A0\u00A0\u00A0\u00A0' : ''}\u00A0`}</Text> : null} /> : null}
           {invite ? <View style={{ marginTop: 6, marginBottom: 2 }}><InviteCard api={api} code={invite} onOpen={code => navigate({ to: 'invite', code })} /></View> : null}
@@ -209,6 +220,14 @@ function MessageRowView({ row, olderCreatedAt, mine, author, peerLastRead, wide,
     </Pressable>
     </View>
   </Animated.View>;
+}
+
+/** Telegram: the message a quote led to lights up and fades out. */
+function JumpFlash() {
+  const t = useTheme(); const opacity = useSharedValue(0);
+  useEffect(() => { opacity.value = withSequence(withTiming(1, { duration: 160 }), withDelay(650, withTiming(0, { duration: 550 }))); }, []);
+  const style = useAnimatedStyle(() => ({ opacity: opacity.value }));
+  return <Animated.View pointerEvents="none" style={[{ position: 'absolute', top: -2, bottom: 2, left: -9, right: -9, backgroundColor: t.accentSoft }, style]} />;
 }
 
 /** Telegram's date pill between days. */

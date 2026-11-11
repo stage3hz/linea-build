@@ -82,6 +82,10 @@ import { adoptMedia } from './media/mediaCache';
 import { useCallback } from 'react';
 import { attachmentLabel, isVideoNote, isVoice } from './voice/voice';
 import { VOICE_MIME, VOICE_MIN_MS, videoNoteFileName, voiceFileName } from './voice/voice';
+import { HEADER_EDGE_BLUR, HEADER_EDGE_COVER, chatListPadding } from './chatLayout';
+import { quoteContent } from './replyQuote';
+import { previewUri } from './media/previewModel';
+import { JUMP_FLASH_MS, knownDeleted, nextJumpStep, rowIndexOf, type ReplyJump } from './replyJump';
 
 
 /** Formatting of the unsent text per chat (the draft text itself lives in the store as a plain string). */
@@ -95,6 +99,13 @@ export function ChatScreen({api,user,chat,store,onBack,wide=false,onOpenMusic}: 
   const keyboardMotion=Platform.OS==='web'?null:useReanimatedKeyboardAnimation();
   const navInset=wide?0:insets.bottom;
   const footerInset=useAnimatedStyle(()=>({paddingBottom:navInset*(1-(keyboardMotion?keyboardMotion.progress.value:0))}));
+  // The list's edges follow the composer's own height plus this inset from the keyboard state (chatLayout.ts).
+  useEffect(()=>{
+    if(Platform.OS==='web')return;
+    const show=Platform.OS==='ios'?'keyboardWillShow':'keyboardDidShow',hide=Platform.OS==='ios'?'keyboardWillHide':'keyboardDidHide';
+    const subs=[Keyboard.addListener(show,()=>setKeyboardOpen(true)),Keyboard.addListener(hide,()=>setKeyboardOpen(false))];
+    return()=>subs.forEach(sub=>sub.remove());
+  },[]);
   const [headerMenu,setHeaderMenu]=useState<{x:number;y:number}|null>(null);const powerFeatures=usePowerFeatures();const t=useTheme();const [attachMenu,setAttachMenu]=useState(false);const [uploading,setUploading]=useState(false);const [downloadId,setDownloadId]=useState<string|null>(null);const [localError,setLocalError]=useState('');const [preview,setPreview]=useState<Attachment|null>(null);const [peerInfo,setPeerInfo]=useState(()=>takeProfileRequest(chat.id));const [avatarMenu,setAvatarMenu]=useState(false);const [actions,setActions]=useState<Row|null>(null);const [menuX,setMenuX]=useState<number|undefined>(undefined);const [menuY,setMenuY]=useState(0);const [copied,setCopied]=useState(false);
   const [securityOpen,setSecurityOpen]=useState(false);
   // PC ⋮ menu (Telegram Web, HeaderMenuContainer for a private chat): its choosers and confirmations, and
@@ -189,7 +200,7 @@ export function ChatScreen({api,user,chat,store,onBack,wide=false,onOpenMusic}: 
   // A banner of a closed channel/server is not forwarded (the owner chose who gets in).
   const forwardable=async(list:ViewMessage[])=>{for(const item of list){const code=item.text?inviteCodeFrom(item.text):null;if(code&&!(await inviteForwardable(api,code))){setNotice('Приглашение в закрытый канал или на закрытый сервер переслать нельзя.');return false;}}return true;};
   const [gallery,setGallery]=useState<{items:Attachment[];index:number}|null>(null);
-  const [mediaOpen,setMediaOpen]=useState(false);const [sendMenu,setSendMenu]=useState(false);const [schedulePick,setSchedulePick]=useState(false);const scheduleAsk=useRef(false);const [scheduledOpen,setScheduledOpen]=useState(false);const chatScheduled=useMemo(()=>store.scheduled.filter(item=>item.chatId===chat.id),[store.scheduled,chat.id]);const [headerHeight,setHeaderHeight]=useState(76);const [footerHeight,setFooterHeight]=useState(60);const [showDown,setShowDown]=useState(false);const [recordMode,setRecordMode]=useState<'voice'|'video'>('voice');
+  const [mediaOpen,setMediaOpen]=useState(false);const [sendMenu,setSendMenu]=useState(false);const [schedulePick,setSchedulePick]=useState(false);const scheduleAsk=useRef(false);const [scheduledOpen,setScheduledOpen]=useState(false);const chatScheduled=useMemo(()=>store.scheduled.filter(item=>item.chatId===chat.id),[store.scheduled,chat.id]);const [headerHeight,setHeaderHeight]=useState(76);const [composerHeight,setComposerHeight]=useState(52);const [keyboardOpen,setKeyboardOpen]=useState(()=>Platform.OS!=='web'&&Keyboard.isVisible());const [showDown,setShowDown]=useState(false);const [recordMode,setRecordMode]=useState<'voice'|'video'>('voice');
   // Emoji panel <-> keyboard like Telegram: the panel appears first (at keyboard height) and the
   // keyboard goes down under it; back to the keyboard, the panel stays until the keyboard is fully up.
   const [keyboardAsk,setKeyboardAsk]=useState(0);const closeStickersOnKeyboard=useRef(false);
@@ -232,10 +243,40 @@ export function ChatScreen({api,user,chat,store,onBack,wide=false,onOpenMusic}: 
   const nameOf=(senderId:string)=>senderId===user.id?'Ты':chat.peer.displayName;
   // A forwarded message keeps its first author through further forwards.
   const originalAuthor=(message:ViewMessage)=>message.meta?.forward?.from||(message.senderId===user.id?user.displayName:chat.peer.displayName);
-  const jumpTo=(clientId:string)=>{
+  // A tap on a quote (or the pinned bar), as in Telegram: earlier pages load by themselves until the
+  // original is there (a spinner on the quote), then the list scrolls to it and it flashes; a deleted
+  // original gets a short «Сообщение удалено» (replyJump.ts).
+  const [replyJump,setReplyJump]=useState<ReplyJump|null>(null);
+  const [flashKey,setFlashKey]=useState<string|null>(null);const flashTimer=useRef<ReturnType<typeof setTimeout>|undefined>(undefined);
+  const toastTimer=useRef<ReturnType<typeof setTimeout>|undefined>(undefined);
+  const toast=(text:string)=>{setNotice(text);if(toastTimer.current)clearTimeout(toastTimer.current);toastTimer.current=setTimeout(()=>setNotice(current=>current===text?'':current),2200);};
+  useEffect(()=>()=>{if(flashTimer.current)clearTimeout(flashTimer.current);if(toastTimer.current)clearTimeout(toastTimer.current);},[]);
+  const jumpTo=(clientId:string,fromKey?:string)=>{
     if(searchOpen){setSearchOpen(false);setQuery('');}
-    setTimeout(()=>{const index=rows.findIndex(row=>row.message?.clientId===clientId);if(index>=0)listRef.current?.scrollToIndex({index,animated:true,viewPosition:.5});else setNotice('Сообщение выше в истории. Загрузи более ранние сообщения.');},searchOpen?60:0);
+    lightFeedback();setReplyJump({clientId,fromKey,pages:0});
   };
+  useEffect(()=>{
+    if(!replyJump||searchOpen)return;
+    const index=rowIndexOf(rows,replyJump.clientId);
+    const inView=view.byClientId.has(replyJump.clientId);
+    // Loaded, but folded into «messages from before this device» (no key): nothing to scroll to.
+    if(index<0&&inView){setReplyJump(null);toast('Сообщение недоступно на этом устройстве');return;}
+    const step=nextJumpStep({found:index>=0,deleted:knownDeleted(messages,replyJump.clientId,inView),loading:store.messageLoading,hasMore:!!store.hasMore[chat.id],pages:replyJump.pages});
+    if(step==='wait')return;
+    if(step==='load'){setReplyJump({...replyJump,pages:replyJump.pages+1});void store.loadMessages(chat.id,true);return;}
+    setReplyJump(null);
+    if(step==='scroll'){
+      const key=rows[index].key;
+      setTimeout(()=>listRef.current?.scrollToIndex({index,animated:true,viewPosition:.5}),replyJump.pages?120:0);
+      if(flashTimer.current)clearTimeout(flashTimer.current);
+      setFlashKey(null);setTimeout(()=>setFlashKey(key),replyJump.pages?320:200);
+      flashTimer.current=setTimeout(()=>setFlashKey(current=>current===key?null:current),(replyJump.pages?320:200)+JUMP_FLASH_MS);
+      return;
+    }
+    toast(step==='deleted'?'Сообщение удалено':'Сообщение слишком далеко в истории');
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  },[replyJump,searchOpen,rows,store.messageLoading,chat.id]);
+  useEffect(()=>{setReplyJump(null);setFlashKey(null);},[chat.id]);
   // A result of the global search («Сообщения»): once the page is here, scroll to that message; when it
   // is further up, earlier pages are loaded while the oldest loaded message is still newer than the hit
   // (the index knows when it was sent), up to a cap, before giving up with the usual notice.
@@ -439,15 +480,19 @@ export function ChatScreen({api,user,chat,store,onBack,wide=false,onOpenMusic}: 
     const original=reply?view.byClientId.get(reply.clientId):undefined;
     // The quote above the bubble: the replied-to message, or «История» for an answer to a story.
     const quoteAuthor=reply?(reply.senderId===user.id?'Ты':peerName):storyRef?(storyRef.ownerId===user.id?'Ты':peerName):undefined;
-    const quoteText=reply?(original?replyPreview(original):reply.preview||'Сообщение удалено'):storyRef?'История':undefined;
+    // Telegram: the live original when it is loaded (label + thumbnail), else the stored preview in today's form.
+    const quote=reply?quoteContent(original,reply.preview):null;
+    const quoteText=quote?quote.text:storyRef?'История':undefined;
+    const thumbUri=quote?.thumb?previewUri(quote.thumb.preview):null;
+    const replyThumb=thumbUri&&quote?.thumb?{uri:thumbUri,round:quote.thumb.round}:null;
     // Telegram groups consecutive messages of one author: 2 pt apart, the tail only on the last one.
     // A service row (a finished call) belongs to no author's run: it neither continues a group nor is grouped.
     const newer=index>0?rows[index-1]:undefined;
     const newerSender=newer?.pending?user.id:newer?.message&&!newer.message.meta?.action?newer.message.senderId:undefined;
     const groupNext=!!newer&&newerSender!==undefined&&!message?.meta?.action&&newerSender===(p?user.id:message?.senderId)&&new Date(newer.createdAt).toDateString()===new Date(item.createdAt).toDateString()&&Date.parse(newer.createdAt)-Date.parse(item.createdAt)<5*60_000;
     if(item.missing)return <MissingRow count={item.missing}/>;
-    return <MessageRow animatedEmoji={platina&&powerFeatures.stickers} groupNext={groupNext} row={item} selecting={!!selection} selected={!!selection?.has(item.key)} fresh={fresh(item.key)} olderCreatedAt={peek?item.createdAt:rows[index+1]?.createdAt} mine={mine} author={mine?'Ты':peerName} peerLastRead={peerLastRead} wide={wide} fontSize={metrics.fontSize} lineHeight={metrics.lineHeight} radius={preferences.bubbleRadius} downloading={!!downloadId&&file?.id===downloadId} replyAuthor={quoteAuthor} replyText={quoteText} api={api} handlers={handlers}/>;
-  },[rows,user.id,peerName,peerLastRead,wide,metrics.fontSize,metrics.lineHeight,downloadId,view.byClientId,api,selection,preferences.bubbleRadius,platina,powerFeatures.stickers]);
+    return <MessageRow animatedEmoji={platina&&powerFeatures.stickers} groupNext={groupNext} row={item} selecting={!!selection} selected={!!selection?.has(item.key)} fresh={fresh(item.key)} olderCreatedAt={peek?item.createdAt:rows[index+1]?.createdAt} mine={mine} author={mine?'Ты':peerName} peerLastRead={peerLastRead} wide={wide} fontSize={metrics.fontSize} lineHeight={metrics.lineHeight} radius={preferences.bubbleRadius} downloading={!!downloadId&&file?.id===downloadId} replyAuthor={quoteAuthor} replyText={quoteText} replyThumb={replyThumb} quoteBusy={!peek&&!!replyJump&&replyJump.fromKey===item.key} flash={!peek&&flashKey===item.key} api={api} handlers={handlers}/>;
+  },[rows,user.id,peerName,peerLastRead,wide,metrics.fontSize,metrics.lineHeight,downloadId,view.byClientId,api,selection,preferences.bubbleRadius,platina,powerFeatures.stickers,replyJump,flashKey]);
   const [circleOpen,setCircleOpen]=useState(false);
   // Telegram: the sent circle appears in the chat at once (frame from the take, upload ring, ✕). It lives in
   // the circle outbox (videonote/noteOutbox), not in this screen: leaving the chat mid-upload loses nothing,
@@ -474,6 +519,7 @@ export function ChatScreen({api,user,chat,store,onBack,wide=false,onOpenMusic}: 
   // Telegram: messages scroll under the status bar (no hard edge at the safe area); the header sits below it.
   // Edge fades take the wallpaper's own colour (top / bottom of the gradient), so they never show as a
   // light band over a dark wallpaper; a photo wallpaper gets a soft dark fade.
+  const listEdges=chatListPadding({composer:composerHeight,header:headerHeight,navInset,keyboardOpen});
   const preset=wallpaper.kind==='preset'?WALLPAPERS.find(item=>item.id===wallpaper.id)?.colors:null;
   const edge=preset?{top:preset[0],bottom:preset[preset.length-1],alpha:.9}:wallpaper.kind==='image'?{top:'#000000',bottom:'#000000',alpha:.5}:{top:t.bg,bottom:t.bg,alpha:.96};
   // Desktop (Telegram Desktop / Discord): a full-width bar — who, status, and the actions at hand.
@@ -531,7 +577,7 @@ export function ChatScreen({api,user,chat,store,onBack,wide=false,onOpenMusic}: 
     {/* Android: header and composer glass blur this (wallpaper + messages) on the GPU. */}
     <GlassContentTarget targetRef={glassTarget} style={{flex:1}}>
     <ChatWallpaper choice={wallpaper} style={{top:-80,bottom:-60}}/>
-    {rows.length===0&&!chatNotes.length?<View style={{flex:1,justifyContent:'center',paddingTop:headerHeight,paddingBottom:footerHeight}}>{store.messageLoading?<ActivityIndicator color={t.accent}/>:<Empty icon="hand-left-outline" title="Скажи «привет»" description={`Это начало вашей переписки с ${chat.peer.displayName}.`}/>}</View>:<FlatList ref={listRef} inverted data={rows} onViewableItemsChanged={onViewableRows.current} viewabilityConfig={viewability.current} keyExtractor={row=>row.key} keyboardShouldPersistTaps="handled" keyboardDismissMode={Platform.OS==='ios'?'interactive':'on-drag'} onScrollBeginDrag={()=>{if(stickers)setStickers(false);}} contentContainerStyle={{paddingHorizontal:wide?28:9,paddingTop:footerHeight+8,paddingBottom:headerHeight+14}} onScroll={e=>{const down=e.nativeEvent.contentOffset.y>350;if(down!==showDown)setShowDown(down);}} scrollEventThrottle={100} initialNumToRender={25} windowSize={11} onScrollToIndexFailed={info=>{listRef.current?.scrollToOffset({offset:info.averageItemLength*info.index,animated:true});setTimeout(()=>listRef.current?.scrollToIndex({index:info.index,animated:true,viewPosition:.5}),250);}}
+    {rows.length===0&&!chatNotes.length?<View style={{flex:1,justifyContent:'center',paddingTop:headerHeight,paddingBottom:listEdges.composerSide}}>{store.messageLoading?<ActivityIndicator color={t.accent}/>:<Empty icon="hand-left-outline" title="Скажи «привет»" description={`Это начало вашей переписки с ${chat.peer.displayName}.`}/>}</View>:<FlatList ref={listRef} inverted data={rows} onViewableItemsChanged={onViewableRows.current} viewabilityConfig={viewability.current} keyExtractor={row=>row.key} keyboardShouldPersistTaps="handled" keyboardDismissMode={Platform.OS==='ios'?'interactive':'on-drag'} onScrollBeginDrag={()=>{if(stickers)setStickers(false);}} contentContainerStyle={{paddingHorizontal:wide?28:9,paddingTop:listEdges.composerSide,paddingBottom:listEdges.headerSide}} onScroll={e=>{const down=e.nativeEvent.contentOffset.y>350;if(down!==showDown)setShowDown(down);}} scrollEventThrottle={100} initialNumToRender={25} windowSize={11} onScrollToIndexFailed={info=>{listRef.current?.scrollToOffset({offset:info.averageItemLength*info.index,animated:true});setTimeout(()=>listRef.current?.scrollToIndex({index:info.index,animated:true,viewPosition:.5}),250);}}
       ListHeaderComponent={chatNotes.length?<PendingNotes notes={chatNotes} onRetry={retryVideoNote} onDiscard={discardVideoNote}/>:null}
       ListFooterComponent={store.hasMore[chat.id]?<View style={{alignItems:'center',padding:18}}><GlassSurface material="clear" radius={19} shadow={false}><Pressable onPress={()=>void store.loadMessages(chat.id,true)} disabled={store.messageLoading} accessibilityRole="button" style={{paddingVertical:11,paddingHorizontal:17}}>{store.messageLoading?<ActivityIndicator size="small" color={t.accent}/>:<Text style={{fontSize:12,color:t.accent,fontWeight:'600'}}>Более ранние сообщения</Text>}</Pressable></GlassSurface></View>:null}
       renderItem={renderRow} removeClippedSubviews={Platform.OS==='android'} maxToRenderPerBatch={12} updateCellsBatchingPeriod={40}/>
@@ -541,7 +587,10 @@ export function ChatScreen({api,user,chat,store,onBack,wide=false,onOpenMusic}: 
         the status bar + header pills and behind the composer, dissolving just past them. A colour ramp
         alone over the header left messages crisp and half-readable next to the back button and the
         name pill. The first message still clears it: the list pads by headerHeight+14 / footerHeight+8. */}
-    {headerHeight?<ScrollEdgeEffect edge="top" size={headerHeight} color={edge.top} alpha={Platform.OS==='ios'?Math.min(.85,edge.alpha):edge.alpha} fade={10} zIndex={4}/>:null}
+    {/* Telegram: right behind the pills the messages are blurred and covered enough that their text cannot
+        be read through the glass (the light default cover left it legible); past the header it dissolves
+        over `fade` points, so the rest of the chat stays as light as before. */}
+    {headerHeight?<ScrollEdgeEffect edge="top" size={headerHeight} color={edge.top} alpha={Platform.OS==='ios'?Math.min(.85,edge.alpha):edge.alpha} cover={HEADER_EDGE_COVER} blur={HEADER_EDGE_BLUR} fade={16} zIndex={4}/>:null}
     {/* Telegram: messages pass under the floating composer as they are, with no blur or fade at the bottom. */}
     <VoiceMiniPlayer top={headerHeight+4} find={id=>{const m=view.messages.find(x=>x.attachment?.id===id);return m&&m.attachment?{author:originalAuthor(m),attachment:m.attachment}:null;}}/>
     <View pointerEvents="box-none" onLayout={e=>setHeaderHeight(e.nativeEvent.layout.height)} style={{position:'absolute',top:0,left:0,right:0,zIndex:5,paddingTop:8+(wide?0:insets.top),gap:6}}>
@@ -596,7 +645,9 @@ export function ChatScreen({api,user,chat,store,onBack,wide=false,onOpenMusic}: 
     {copied?<View style={{alignSelf:'center',marginTop:6,paddingVertical:7,paddingHorizontal:14,backgroundColor:t.accentSoft,borderRadius:16,borderWidth:1,borderColor:t.border}}><Text style={{color:t.accent,fontSize:12}}>Скопировано</Text></View>:null}
     </View>
     {/* Like Telegram: the composer floats over the messages, which scroll underneath it. */}
-    <Animated.View pointerEvents="box-none" onLayout={e=>setFooterHeight(e.nativeEvent.layout.height)} style={[{position:'absolute',left:0,right:0,bottom:0,zIndex:4},footerInset]}>
+    <Animated.View pointerEvents="box-none" style={[{position:'absolute',left:0,right:0,bottom:0,zIndex:4},footerInset]}>
+    {/* Measured without the animated inset above: reply/edit bar, attachments, multi-line field, emoji panel. */}
+    <View pointerEvents="box-none" onLayout={e=>{const h=Math.round(e.nativeEvent.layout.height);setComposerHeight(prev=>prev===h?prev:h);}}>
     {showDown&&!selection?<View pointerEvents="box-none" style={{height:0}}><View style={{position:'absolute',right:14,bottom:10}}><GlassSurface material="regular" radius={20} interactive contentStyle={{width:40,height:40,alignItems:'center',justifyContent:'center'}}><Pressable onPress={()=>{lightFeedback();listRef.current?.scrollToOffset({offset:0,animated:true});}} accessibilityRole="button" accessibilityLabel="Вниз к новым сообщениям" hitSlop={6}><Icon name="chevron-down" size={26} color={t.text}/></Pressable></GlassSurface></View></View>:null}
     {selection?<GlassSurface lens material="regular" radius={28} style={{marginHorizontal:12,marginTop:5,marginBottom:10}} contentStyle={{flexDirection:'row',justifyContent:'space-around',alignItems:'center',paddingVertical:8}}>
       {([
@@ -616,7 +667,7 @@ export function ChatScreen({api,user,chat,store,onBack,wide=false,onOpenMusic}: 
       {replyTo||editing?<View style={{flexDirection:'row',alignItems:'center',gap:8,paddingLeft:8,paddingBottom:6}}>
         <Icon name={editing?'create-outline':'arrow-undo-outline'} size={18} color={t.accent}/>
         <View style={{width:3,alignSelf:'stretch',borderRadius:2,backgroundColor:t.accent}}/>
-        <View style={{flex:1,gap:1}}><Text style={{color:t.accent,fontSize:11,fontWeight:'700'}}>{editing?'Редактирование':`Ответ ${nameOf((replyTo as ViewMessage).senderId)==='Ты'?'себе':nameOf((replyTo as ViewMessage).senderId)}`}</Text><Text numberOfLines={1} style={{color:t.muted,fontSize:12}}>{replyPreview((editing||replyTo)!)}</Text></View>
+        <View style={{flex:1,gap:1}}><Text style={{color:t.accent,fontSize:11,fontWeight:'700'}}>{editing?'Редактирование':`Ответ ${nameOf((replyTo as ViewMessage).senderId)==='Ты'?'себе':nameOf((replyTo as ViewMessage).senderId)}`}</Text><Text numberOfLines={1} style={{color:t.muted,fontSize:12}}>{editing?replyPreview(editing):quoteContent(replyTo!,'').text}</Text></View>
         <IconButton name="close" label={editing?'Отменить редактирование':'Отменить ответ'} size={18} color={t.muted} onPress={()=>{if(editing)endEdit();setReplyTo(null);}} style={{width:36,height:36}}/>
       </View>:null}
       {uploading?<View style={{flexDirection:'row',alignItems:'center',gap:9,padding:12,paddingTop:4}}><ActivityIndicator size="small" color={t.accent}/><Text style={{fontSize:12,color:t.muted}}>Обрабатываем и шифруем вложение…</Text></View>:null}
@@ -644,6 +695,7 @@ export function ChatScreen({api,user,chat,store,onBack,wide=false,onOpenMusic}: 
       {text.length>7500?<Text style={{fontSize:10,color:t.muted,textAlign:'right',paddingRight:8}}>{text.length} / 8000</Text>:null}
     </View>}
     {stickers&&!selection?<StickerPanel bottomInset={insets.bottom} onPick={insertEmoji} onErase={eraseBack} onClose={()=>setStickers(false)}/>:null}
+    </View>
     </Animated.View>
     <VideoNoteRecorder visible={circleOpen} hold={videoHold} onClose={()=>{setCircleOpen(false);setVideoHold(null);setRecHold(null);}} onDone={take=>{setCircleOpen(false);setVideoHold(null);setRecHold(null);void sendVideoNote(take);}}/>
     <AttachmentPanel key={photoContext} onPoll={()=>{setAttachMenu(false);setTimeout(()=>setPollOpen(true),350);}} visible={attachMenu} busy={uploading} canAdd={signalAvailable} remainingSlots={Math.max(0,MAX_DRAFT_ATTACHMENTS-attachments.length)} onClose={()=>setAttachMenu(false)} onAdd={item=>upload(item.file)}/>

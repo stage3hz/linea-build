@@ -129,6 +129,17 @@ export async function adoptMedia(attachment: Attachment, uri: string): Promise<b
   return true;
 }
 
+/**
+ * The decrypted copy turned out unusable (deleted by the system, unreadable): drop it, so the next
+ * loadMedia() decrypts the file again instead of handing back the same broken path.
+ */
+export async function forgetMedia(attachment: Attachment): Promise<void> {
+  const key = mediaKey(attachment), entry = entries.get(key);
+  if (entry?.status === 'loading') return;
+  if (entry) { entries.delete(key); publish(key); }
+  if (FileSystem.cacheDirectory) await FileSystem.deleteAsync(paths(attachment).folder, { idempotent: true }).catch(() => {});
+}
+
 /** Forget everything (the files themselves are removed by clearDecryptedAttachmentCache). */
 export function resetMediaCache() {
   generation++;

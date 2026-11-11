@@ -1,4 +1,5 @@
 import React, { useCallback, useEffect, useState } from 'react';
+import { shownError } from '../network/offline';
 import { ActivityIndicator, FlatList, Pressable, View, Platform } from 'react-native';
 import { useSharedValue } from 'react-native-reanimated';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -22,19 +23,24 @@ import { useTabInset } from '../tabInset';
  * «Каналы» tab: the user's game servers and blogs, create a new one (choose the type, as in
  * Discord's «create server» flow), or join by an invite link.
  */
+let lastList: { owner: string; list: CommunitySummary[] } | null = null;
 export function CommunitiesScreen({ api, me, store, openId, onOpenInvite, onOpened }: { api: Api; me: User; store: MessengerStore; openId: string | null; onOpenInvite: (code: string) => void; onOpened: (id: string | null) => void }) {
   const tabInset = useTabInset();
   const t = useTheme(); const insets = useSafeAreaInsets();
-  const [list, setList] = useState<CommunitySummary[] | null>(null); const [error, setError] = useState('');
+  // The last list stays on screen when the tab is reopened offline (in memory, this account only); a failed load keeps it.
+  const [list, setList] = useState<CommunitySummary[] | null>(() => lastList?.owner === me.id ? lastList.list : null); const [error, setError] = useState('');
+  useEffect(() => { if (list) lastList = { owner: me.id, list }; }, [list, me.id]);
   const [create, setCreate] = useState<CommunityKind | 'choose' | null>(null); const [join, setJoin] = useState(false);
   const progress = useSharedValue(1);
-  const load = useCallback(() => { api.communities().then(result => { setList(result.communities); setCommunitySummaries(result.communities); setError(''); }).catch(failure => setError(failure instanceof Error ? failure.message : 'Не удалось загрузить.')); }, [api]);
+  // Offline is not an error card (the chat list title shows the network state); the list reloads on reconnect.
+  const load = useCallback(() => { api.communities().then(result => { setList(result.communities); setCommunitySummaries(result.communities); setError(''); }).catch(failure => setError(shownError(failure, e => e instanceof Error ? e.message : 'Не удалось загрузить.'))); }, [api]);
   useEffect(load, [load]);
   useEffect(() => store.onSocket(data => {
-    if (data.type === 'community' && data.community) setList(current => current ? current.some(item => item.id === data.community.id) ? current.map(item => item.id === data.community.id ? data.community : item) : [data.community, ...current] : current);
+    if (data.type === 'ready') load();
+    else if (data.type === 'community' && data.community) setList(current => current ? current.some(item => item.id === data.community.id) ? current.map(item => item.id === data.community.id ? data.community : item) : [data.community, ...current] : current);
     else if (data.type === 'community.removed') setList(current => current?.filter(item => item.id !== data.communityId) || current);
     else if (data.type === 'community.message') setList(current => current?.map(item => item.id === data.communityId ? { ...item, lastMessage: data.message } : item) || current);
-  }), [store]);
+  }), [store, load]);
   useEffect(() => { if (openId) load(); }, [openId, load]);
 
   const servers = (list || []).filter(item => item.kind === 'server'), blogs = (list || []).filter(item => item.kind === 'blog');

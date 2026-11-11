@@ -16,10 +16,12 @@ import { CallHistory } from './calls/CallHistory';
 import { useCallHistory } from './calls/CallProvider';
 import { unseenMissedCount } from './calls/callLog';
 
+let lastFriends:{owner:string|undefined;list:User[]}|null=null;
 export function PeopleScreen({api,onBack,onOpen}: {api:Api;onBack:()=>void;onOpen:(chat:Chat)=>void}) {
   const tabInset = useTabInset();
-  const t=useTheme();const [query,setQuery]=useState('');const [users,setUsers]=useState<User[]>([]);const [loading,setLoading]=useState(false);const [creating,setCreating]=useState<string|null>(null);const [error,setError]=useState('');const sequence=useRef(0);const [friends,setFriends]=useState<User[]>([]);const [profile,setProfile]=useState<User|null>(null);
-  const loadFriends=()=>{api.contacts().then(result=>setFriends(result.users)).catch(()=>{});};
+  const t=useTheme();const [query,setQuery]=useState('');const [users,setUsers]=useState<User[]>([]);const [loading,setLoading]=useState(false);const [creating,setCreating]=useState<string|null>(null);const [error,setError]=useState('');const sequence=useRef(0);const [friends,setFriends]=useState<User[]>(()=>{const last=lastFriends;return last&&last.owner===api.token?last.list:[];});const [profile,setProfile]=useState<User|null>(null);
+  // A failed load (offline) keeps the friends shown last time in this session.
+  const loadFriends=()=>{api.contacts().then(result=>{setFriends(result.users);lastFriends={owner:api.token,list:result.users};}).catch(()=>{});};
   const requests=useFriendRequests();
   // A request accepted on any device (or by the other person) changes the friends list too.
   useEffect(loadFriends,[api,requests.version]);

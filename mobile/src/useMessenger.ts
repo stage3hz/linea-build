@@ -37,10 +37,15 @@ import { useVoice } from './communities/voice';
 import { attachChannelOutbox, resetChannelOutbox } from './communities/channelOutbox';
 import { clearLogins, noteSocketEvent } from './sessionAlerts';
 import { canResend, pushKind, scheduledIntentKey, withSendOptions, type ScheduledItem, type SendOptions } from './scheduled/model';
+import { afterRefresh, isConnectivityError, listStillLoading } from './network/offline';
+import { onOnlineChange } from './network/netChange';
+import { CHAT_LIST_CACHE, chatPageCacheKey, decodeChatList, decodeChatPage, encodeChatList, encodeChatPage, restoreChats } from './chatListCache';
 
 const HIDDEN_LIMIT = 5000;
 
-const sortedChats = (chats: Chat[]) => [...chats].sort((a,b)=>b.updatedAt.localeCompare(a.updatedAt));
+const sortedChats = (chats: readonly Chat[]) => [...chats].sort((a,b)=>b.updatedAt.localeCompare(a.updatedAt));
+/** A successful list refresh over the one on screen: lines already opened here stay opened (listCatchUp.ts). */
+export const mergeRefreshed = (previous: readonly Chat[], next: readonly Chat[]) => sortedChats(keepOpened(next, previous));
 const MESH_ID_BASE = 9e15; // local ids for messages that came over Mesh, after every server id
 export type Connection = 'connecting'|'connected'|'offline';
 
@@ -62,6 +67,10 @@ export function useMessenger(api: Api, user: User, onExpired: ()=>void) {
   const [recoveryRequests,setRecoveryRequests]=useState<RecoveryRequest[]>([]);
   const [recoveryError,setRecoveryError]=useState('');
   const [cryptoError,setCryptoError]=useState('');
+  // Telegram offline: «Ожидание сети…» / «Соединение…» / «Обновление…» in the title (network/offline.ts), no error cards.
+  const [online,setOnline]=useState<boolean|null>(null);const [updating,setUpdating]=useState(false);
+  // The list shown comes from the server once (`serverLoaded`); until then from the vault's cache (chatListCache.ts).
+  const serverLoaded=useRef(false);const cacheRead=useRef(false);const [fresh,setFresh]=useState(false);
   // "Delete for me": a local list of message keys, per account, never sent to the server.
   const hiddenKey=`linea.hidden.v1:${user.id}`;
   const [hidden,setHidden]=useState<ReadonlySet<string>>(new Set());
@@ -88,12 +97,14 @@ export function useMessenger(api: Api, user: User, onExpired: ()=>void) {
     if(e instanceof Error&&/LineaSignal|CRYPTO_FAILED|Signal operation/i.test(e.message))return 'Не удалось расшифровать сообщение. Нажми «Повторить»: если не выйдет, оно будет пропущено, а остальные откроются.';
     return e instanceof Error?e.message:'Произошла ошибка. Попробуй ещё раз.';
   },[]);
+  /** checkError, but a connection problem shows nothing: the title says it and everything retries by itself. */
+  const quietError=useCallback((e:unknown)=>{const text=checkError(e);return isConnectivityError(e)?'':text;},[checkError]);
 
   useEffect(()=>{
     let current=true;
     // Publish this installation's public keys even when the account has no chats.
     // Otherwise an online new account would be unable to receive its first message.
-    void cryptoRuntime.get().then(service=>service.initialize()).catch(e=>{if(current)setCryptoError(checkError(e));});
+    void cryptoRuntime.get().then(service=>service.initialize()).catch(e=>{if(current)setCryptoError(quietError(e));});
     // Decrypted media stays on disk between launches (as in Telegram) for the same account;
     // a different account, sign-out or session end wipes it.
     resetMediaCache();
@@ -102,7 +113,7 @@ export function useMessenger(api: Api, user: User, onExpired: ()=>void) {
     // launch), which deleted every decrypted photo and video so they downloaded again after each restart.
     // Sign-out wipes them explicitly (App.logout); another account wipes them via the owner check above.
     return()=>{current=false;void cryptoRuntime.close();resetMediaCache();};
-  },[cryptoRuntime,checkError]);
+  },[cryptoRuntime,quietError]);
 
   // G029: local search over the decrypted history. The index lives in memory only and is fed by every
   // message decrypted here (hydrate) and, at startup, by the vault's cache (CryptoService.history).
@@ -139,8 +150,8 @@ export function useMessenger(api: Api, user: User, onExpired: ()=>void) {
   /** `opened: false` — the vault or Signal threw: the placeholder is not this device's verdict on the message. */
   const hydrateChecked=useCallback(async(message:Message):Promise<{message:Message;opened:boolean}>=>{
     try{const shown=cleanShown(await(await cryptoRuntime.get()).preview(message));indexMessage(shown);return {message:shown,opened:true};}
-    catch(e){if(aliveRef.current)setCryptoError(checkError(e));return {message:{...message,text:message.legacy?'Сообщение из старой версии без сквозного шифрования.':'Зашифрованное сообщение недоступно на этом устройстве.',attachment:null,cryptoState:message.legacy?'legacy':'no-key'},opened:false};}
-  },[cryptoRuntime,checkError,indexMessage]);
+    catch(e){if(aliveRef.current)setCryptoError(quietError(e));return {message:{...message,text:message.legacy?'Сообщение из старой версии без сквозного шифрования.':'Зашифрованное сообщение недоступно на этом устройстве.',attachment:null,cryptoState:message.legacy?'legacy':'no-key'},opened:false};}
+  },[cryptoRuntime,quietError,indexMessage]);
   const hydrate=useCallback(async(message:Message):Promise<Message>=>(await hydrateChecked(message)).message,[hydrateChecked]);
 
   const refreshRecoveryRequests=useCallback(async()=>{
@@ -149,9 +160,10 @@ export function useMessenger(api: Api, user: User, onExpired: ()=>void) {
       const result=await api.recoveryRequests();
       if(aliveRef.current&&revision===recoveryFetchRef.current){setRecoveryRequests(result.requests);setRecoveryError('');}
     } catch(e) {
-      if(aliveRef.current&&revision===recoveryFetchRef.current)setRecoveryError(checkError(e));
+      // Offline is not «не удалось проверить»: the last known requests stay, the next poll / reconnect asks again.
+      if(aliveRef.current&&revision===recoveryFetchRef.current)setRecoveryError(quietError(e));
     }
-  },[api,checkError]);
+  },[api,quietError]);
   const cancelRecovery=useCallback(async(requestId:string)=>{
     try {
       await api.cancelRecovery(requestId);
@@ -212,13 +224,40 @@ export function useMessenger(api: Api, user: User, onExpired: ()=>void) {
       const counted=next.map(chat=>{const loaded=messagesRef.current[chat.id];const quiet=quietPages.current[chat.id];return coversUnread(chat,loaded,hasMoreRef.current[chat.id])?reconcileUnread(chat,loaded,user.id,hasMoreRef.current[chat.id]):quiet?reconcileUnread(chat,quiet.messages,user.id,quiet.hasMore):chat;});
       if(aliveRef.current){
         const merged=keepOpened(counted,chatsRef.current);
-        setChats(prev=>sortedChats(keepOpened(counted,prev)));setError('');
+        // Only a successful answer replaces the list (a failed one below keeps what is on screen).
+        serverLoaded.current=true;setFresh(true);
+        setChats(prev=>afterRefresh(prev,{ok:true,value:counted},checkError,mergeRefreshed).list as Chat[]);setError('');setListLoading(false);
         void catchUp(merged);
       }
     }
-    catch(e){if(aliveRef.current)setError(checkError(e));}
-    finally {if(aliveRef.current)setListLoading(false);listReady.current?.resolve();}
+    catch(e){
+      // Offline / server out of reach: the chats on screen (memory or the vault's cache) stay, no error card;
+      // the skeleton stays only while there is nothing at all to show. A real error ends the wait and is shown.
+      if(aliveRef.current){
+        const text=afterRefresh(chatsRef.current,{ok:false,error:e},checkError).error;setError(text);
+        if(!listStillLoading({chats:chatsRef.current.length,serverLoaded:serverLoaded.current,failure:text?'error':'connectivity'}))setListLoading(false);
+      }
+    }
+    finally {listReady.current?.resolve();}
   },[api,checkError,hydrateChecked,user.id,catchUp]);
+  // The vault's copy of the last list: on screen at once, before (or without) the network.
+  useEffect(()=>{
+    let live=true;
+    cryptoRuntime.get().then(crypto=>crypto.loadCache(CHAT_LIST_CACHE)).then(raw=>{
+      if(!live||!aliveRef.current)return;
+      const cached=decodeChatList(raw);
+      if(cached.length&&!serverLoaded.current){setChats(prev=>sortedChats([...restoreChats(prev,cached,serverLoaded.current)]));setListLoading(false);}
+    }).catch(()=>{/* no vault here (browser) */}).finally(()=>{if(live)cacheRead.current=true;});
+    return()=>{live=false;};
+  },[cryptoRuntime,user.id]);
+  // …and kept current: written a moment after the list changes (only once the cache was read, so an
+  // empty list at start never overwrites it; an empty list is written only when the server said so).
+  useEffect(()=>{
+    if(!cacheRead.current&&!serverLoaded.current)return;
+    if(!chats.length&&!serverLoaded.current)return;
+    const timer=setTimeout(()=>{void cryptoRuntime.get().then(crypto=>crypto.storeCache(CHAT_LIST_CACHE,encodeChatList(chats))).catch(()=>{});},1500);
+    return()=>clearTimeout(timer);
+  },[chats,cryptoRuntime]);
   // ---- F4 «Отправить позже» ----
   // Which pending messages the server is to keep until a time (clientId → ISO). Kept per account outside
   // the vault (no text in it) so a message restored from the vault outbox after a restart is scheduled
@@ -265,13 +304,23 @@ export function useMessenger(api: Api, user: User, onExpired: ()=>void) {
     const current=messagesRef.current[chatId]||[];
     if(older&&!current.length)return;
     setMessageLoading(true);
+    // Not loaded in this session: the page shown last time (vault cache) is on screen at once, also offline.
+    const pageKey=chatPageCacheKey(chatId);
+    if(!older&&!current.length&&pageKey){
+      const cached=await cryptoRuntime.get().then(crypto=>crypto.loadCache(pageKey)).then(raw=>decodeChatPage(raw,chatId)).catch(()=>null);
+      if(cached&&aliveRef.current&&!(messagesRef.current[chatId]||[]).length){
+        messagesRef.current={...messagesRef.current,[chatId]:cached.messages};
+        setMessages(prev=>prev[chatId]?.length?prev:{...prev,[chatId]:cached.messages});
+        setHasMore(prev=>chatId in prev?prev:{...prev,[chatId]:cached.hasMore});
+      }
+    }
     try {
       // The page request goes out together with the inbox sync (one network round trip saved before the chat shows);
       // decryption stays sequential: hydrate runs only after the sync has consumed the envelopes.
       const pageRequest=api.messages(chatId,older?current[0].id:undefined);pageRequest.catch(()=>{});
       let deviceId:string|null=null,synced=false;
       try {const crypto=await cryptoRuntime.get();deviceId=crypto.deviceId;await crypto.syncChat(chatId);synced=true;if(aliveRef.current)setCryptoError('');}
-      catch(e){if(aliveRef.current)setCryptoError(checkError(e));}
+      catch(e){if(aliveRef.current)setCryptoError(quietError(e));}
       const result=await pageRequest;
       result.messages=await Promise.all(result.messages.map(hydrate));
       if(!aliveRef.current)return;
@@ -288,9 +337,17 @@ export function useMessenger(api: Api, user: User, onExpired: ()=>void) {
       const watermark=older?0:readWatermark(result.messages,user.id,deviceId,synced);
       if(watermark)void markRead(chatId,watermark);
       setError('');
-    }catch(e){if(aliveRef.current)setError(checkError(e));}
+    }catch(e){if(aliveRef.current)setError(quietError(e));}
     finally {if(aliveRef.current)setMessageLoading(false);}
-  },[api,user.id,checkError,markRead,cryptoRuntime,hydrate]);
+  },[api,user.id,quietError,markRead,cryptoRuntime,hydrate]);
+  // The open chat's newest messages go to the vault cache a moment after they change (see loadMessages).
+  useEffect(()=>{
+    const chatId=selectedId;const list=chatId?messages[chatId]:undefined;const key=chatId?chatPageCacheKey(chatId):null;
+    if(!chatId||!key||!list?.length)return;
+    const more=!!hasMore[chatId];
+    const timer=setTimeout(()=>{void cryptoRuntime.get().then(crypto=>crypto.storeCache(key,encodeChatPage(list,more))).catch(()=>{});},2000);
+    return()=>clearTimeout(timer);
+  },[selectedId,messages,hasMore,cryptoRuntime]);
 
   // Encrypted call signalling (offer / answer / end) is handed to the call screen, not shown as a message.
   // Raw socket events for features outside private chats (channels, voice rooms).
@@ -300,7 +357,7 @@ export function useMessenger(api: Api, user: User, onExpired: ()=>void) {
   const callListeners=useRef(new Set<(message:Message)=>void>());
   const onCallSignal=useCallback((listener:(message:Message)=>void)=>{callListeners.current.add(listener);return()=>{callListeners.current.delete(listener);};},[]);
   const acceptMessage=useCallback(async(raw:Message)=>{
-    try{await(await cryptoRuntime.get()).syncChat(raw.chatId);if(aliveRef.current)setCryptoError('');}catch(e){if(aliveRef.current)setCryptoError(checkError(e));}
+    try{await(await cryptoRuntime.get()).syncChat(raw.chatId);if(aliveRef.current)setCryptoError('');}catch(e){if(aliveRef.current)setCryptoError(quietError(e));}
     const message=await hydrate(raw);if(!aliveRef.current)return;
     if(message.meta?.action?.type==='call'&&message.senderId!==user.id&&message.cryptoState==='decrypted')callListeners.current.forEach(listener=>{try{listener(message);}catch{/* a broken listener must not drop the message */}});
     setMessages(prev=>({...prev,[message.chatId]:mergeMessages(prev[message.chatId]||[],[message])}));
@@ -313,7 +370,7 @@ export function useMessenger(api: Api, user: User, onExpired: ()=>void) {
       return {...c,lastMessage:message,updatedAt:isQuietAction(message)?c.updatedAt:message.createdAt,unreadCount:countsAsUnread(message,user.id)?c.unreadCount+1:c.unreadCount};
     })));
     if(message.senderId!==user.id&&message.cryptoState==='decrypted')void markRead(message.chatId,message.id);
-  },[user.id,markRead,cryptoRuntime,hydrate,checkError]);
+  },[user.id,markRead,cryptoRuntime,hydrate,quietError]);
 
   useEffect(()=>{
     aliveRef.current=true;void refreshChats();void refreshRecoveryRequests();
@@ -335,7 +392,8 @@ export function useMessenger(api: Api, user: User, onExpired: ()=>void) {
         // `story` / `story.view` reach the stories strip above the chat list (StoriesStrip).
         if(typeof data.type==='string'&&(data.type.startsWith('community')||data.type.startsWith('voice')||data.type.startsWith('sfu')||data.type.startsWith('story')||data.type==='friends'||data.type==='ready'||data.type==='error'))socketListeners.current.forEach(listener=>{try{listener(data);}catch{/* keep other listeners */}});
         if(data.type==='ready'){
-          attempts=0;setConnection('connected');void refreshChats();void refreshRecoveryRequests();void refreshScheduled();
+          // «Обновление…» in the title until the list is fresh again (Telegram).
+          attempts=0;setConnection('connected');setUpdating(true);void refreshChats().finally(()=>{if(!stopped)setUpdating(false);});void refreshRecoveryRequests();void refreshScheduled();
           if(selectedRef.current)void loadMessages(selectedRef.current);
         }else if(data.type==='message'&&data.message){void acceptMessage(data.message);}
         else if(data.type==='chat'&&data.chat){void refreshChats();}
@@ -352,7 +410,7 @@ export function useMessenger(api: Api, user: User, onExpired: ()=>void) {
         else if(data.type==='scheduled'){void refreshScheduled();}
       };
       socket.onclose=event=>{
-        if(stopped||socketRef.current!==socket)return;setConnection('offline');
+        if(stopped||socketRef.current!==socket)return;setConnection('offline');setUpdating(false);
         // The socket alone never signs anyone out: on a slow link (EDGE) the server may close it before
         // our auth frame arrives. Only the HTTP check «is this session really gone?» (401) does.
         if(event.code===4001||event.code===4401){void api.me().then(()=>{if(!stopped)retry=setTimeout(connect,1000);},e=>{if(e instanceof ApiError&&e.status===401)onExpiredRef.current();else if(!stopped)retry=setTimeout(connect,3000);});return;}
@@ -390,7 +448,12 @@ export function useMessenger(api: Api, user: User, onExpired: ()=>void) {
       else if(state==='background'&&!connectionHeld())sleep();
     });
     const recoveryPoll=setInterval(()=>{if(appState.current==='active')void refreshRecoveryRequests();},30000);
-    return ()=>{stopped=true;aliveRef.current=false;++recoveryFetchRef.current;if(retry)clearTimeout(retry);clearInterval(heartbeat);clearInterval(recoveryPoll);subscription.remove();socketRef.current?.close();socketRef.current=null;resetChannelOutbox();clearLogins();};
+    // The network came back: connect now instead of waiting out the back-off (the «ready» refreshes everything).
+    const stopOnline=onOnlineChange(up=>{
+      if(stopped)return;setOnline(up);
+      if(up&&!paused&&appState.current!=='background'){attempts=0;if(retry)clearTimeout(retry);connect();}
+    });
+    return ()=>{stopped=true;aliveRef.current=false;++recoveryFetchRef.current;if(retry)clearTimeout(retry);clearInterval(heartbeat);clearInterval(recoveryPoll);stopOnline();subscription.remove();socketRef.current?.close();socketRef.current=null;resetChannelOutbox();clearLogins();};
   },[api,user.id,refreshChats,loadMessages,acceptMessage,refreshRecoveryRequests,onSocket,refreshScheduled]);
 
   const selectChat=useCallback((chat:Chat|null)=>{
@@ -622,7 +685,7 @@ export function useMessenger(api: Api, user: User, onExpired: ()=>void) {
     let attachment:Attachment|null=null;
     if(message.attachment){
       const local=await decryptAttachment(api,message.attachment);
-      try{const uploaded=await uploadEncryptedRef.current({uri:local.uri,name:message.attachment.name,mimeType:message.attachment.mimeType,size:message.attachment.size});attachment=message.attachment.media&&!uploaded.media?{...uploaded,media:message.attachment.media}:uploaded;}
+      try{const uploaded=await uploadEncryptedRef.current({uri:local.uri,name:message.attachment.name,mimeType:message.attachment.mimeType,size:message.attachment.size});attachment={...uploaded,...(message.attachment.media&&!uploaded.media?{media:message.attachment.media}:{}),...(message.attachment.preview&&!uploaded.preview?{preview:message.attachment.preview}:{})};}
       finally{await local.dispose().catch(()=>{});}
     }
     const text=message.text||'';
@@ -721,7 +784,7 @@ export function useMessenger(api: Api, user: User, onExpired: ()=>void) {
         // A reaction or an edit by the peer is not unread (Telegram): the server's count is corrected here.
         setChats(prev=>{const next=prev.map(c=>c.id===chat.id?reconcileUnread(c,hydrated,user.id,page.hasMore):c);return next.some((c,i)=>c!==prev[i])?next:prev;});
         const shown=listPreviewMessage(hydrated);if(shown)setPreviewFill(prev=>({...prev,[chat.id]:shown}));
-      }catch{/* the action text stays as a fallback */}})();
+      }catch{previewAsked.current.delete(`${chat.id}:${last.id}`);/* the action text stays as a fallback; asked again with the next list (e.g. back online) */}})();
     }
   },[filtered,messages,hasMore,api,hydrate,user.id]);
   // A voice room keeps the socket alive in the background (see connectionHold); a call does the same from CallProvider.
@@ -741,7 +804,8 @@ export function useMessenger(api: Api, user: User, onExpired: ()=>void) {
   // While it is being re-sent by itself, the bubble shows the clock, not «Не отправлено».
   const shownPending=useMemo(()=>pending.map(p=>p.state==='failed'&&p.offline&&(p.offline<=40||p.mesh)&&!p.upload?{...p,state:'sending' as const,error:undefined}:p),[pending]);
   // F11: system notifications on PC / in the browser when the window is not in front (one hook, decisions in notifications/desktopNotify.ts).
-  useDesktopNotifications({user,chats:visibleChats,selectedId,onCallSignal,ready:!listLoading});
-  return {cryptoRuntime,onSocket,sendSocket,onCallSignal,readChat,presence,chats:visibleChats,removeChat,removeChatForEveryone,messages,hasMore,pending:shownPending,selectedId,selectChat,connection,listLoading,messageLoading,error,setError,typing,refreshChats,loadMessages,send,sendAction,hideForMe,hidden,forward,sendAttachments,sendLargeFile,cancelPending,retry:performSend,sendPoll,sendTyping,drafts,draftFiles,setDraft,setDraftFile,setDraftFiles,appendDraftFiles,removeDraftFile,recoveryRequests,recoveryError,refreshRecoveryRequests,cancelRecovery,cryptoError,trustSnapshot,approveDevices,uploadEncrypted,saved,aiHistory,updateChatSettings,searchMessages,searchVersion,focus,focusMessage,clearFocus,scheduled,scheduledBusy,refreshScheduled,sendScheduledNow,deleteScheduled};
+  // `fresh`: the server's list, not the vault's cache — messages that came while the app was closed are not announced.
+  useDesktopNotifications({user,chats:visibleChats,selectedId,onCallSignal,ready:fresh});
+  return {cryptoRuntime,onSocket,sendSocket,onCallSignal,readChat,presence,chats:visibleChats,removeChat,removeChatForEveryone,messages,hasMore,pending:shownPending,selectedId,selectChat,connection,online,updating,listLoading,messageLoading,error,setError,typing,refreshChats,loadMessages,send,sendAction,hideForMe,hidden,forward,sendAttachments,sendLargeFile,cancelPending,retry:performSend,sendPoll,sendTyping,drafts,draftFiles,setDraft,setDraftFile,setDraftFiles,appendDraftFiles,removeDraftFile,recoveryRequests,recoveryError,refreshRecoveryRequests,cancelRecovery,cryptoError,trustSnapshot,approveDevices,uploadEncrypted,saved,aiHistory,updateChatSettings,searchMessages,searchVersion,focus,focusMessage,clearFocus,scheduled,scheduledBusy,refreshScheduled,sendScheduledNow,deleteScheduled};
 }
 export type MessengerStore = ReturnType<typeof useMessenger>;

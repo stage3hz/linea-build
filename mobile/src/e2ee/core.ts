@@ -96,6 +96,7 @@ const devicesKey = (userId: string) => `devices:${userId}`;
 const isNetwork = (error: unknown) => error instanceof Error && error.name === 'NetworkError';
 const samePlain = (a: PlainBody, b: PlainBody) => a.text === b.text && JSON.stringify(a.attachment) === JSON.stringify(b.attachment) && JSON.stringify(a.meta ?? null) === JSON.stringify(b.meta ?? null);
 
+const cacheName=(name:string)=>name==='chats:v1'||/^page:v1:[A-Za-z0-9_-]{1,80}$/.test(name);
 export class UntrustedDeviceError extends Error {
   constructor() { super('Проверь коды устройств в разделе «Защита чата». Новые ключи не принимаются автоматически.'); this.name='UntrustedDeviceError'; }
 }
@@ -485,6 +486,8 @@ export class CryptoService {
   async forgetChat(chatId:string):Promise<void> {
     return this.exclusive(async()=>{
       const changes=await this.historyForget(chatId);
+      // The chat's cached page (chatListCache.ts) goes too.
+      if(cacheName(`page:v1:${chatId}`)&&await this.vault.get(`page:v1:${chatId}`)!==null)changes[`page:v1:${chatId}`]=null;
       const refs=await this.outboxRefs();const rest=refs.filter(ref=>ref.chatId!==chatId);
       if(rest.length!==refs.length){
         for(const ref of refs)if(ref.chatId===chatId){changes[outboxKey(chatId,ref.clientId)]=null;changes[messageKey({chatId,clientId:ref.clientId,senderId:this.userId})]=null;}
@@ -636,7 +639,12 @@ export class CryptoService {
   async loadSaved():Promise<string|null> {return this.loadLocal('saved:v1');}
   async storeSaved(value:string):Promise<void> {return this.storeLocal('saved:v1',value);}
   /** Other device-only data (AI chat history) shares the same encrypted vault under fixed keys. */
-  async loadLocal(name:'saved:v1'|'ai:v1'):Promise<string|null> {await this.initialize();return this.exclusive(()=>this.vault.get(name));}
-  async storeLocal(name:'saved:v1'|'ai:v1',value:string):Promise<void> {await this.initialize();return this.exclusive(()=>this.vault.commit({[name]:value}));}
+  // Only the local vault is read or written: no device registration first (it needs the server), so
+  // Избранное, AI history and the cached chat list open without a network, as in Telegram.
+  async loadLocal(name:'saved:v1'|'ai:v1'):Promise<string|null> {return this.exclusive(()=>this.vault.get(name));}
+  async storeLocal(name:'saved:v1'|'ai:v1',value:string):Promise<void> {return this.exclusive(()=>this.vault.commit({[name]:value}));}
+  /** The last shown chat list (`chats:v1`) and chat pages (`page:v1:<chat>`), see chatListCache.ts. Local only. */
+  async loadCache(name:string):Promise<string|null> {if(!cacheName(name))throw new Error('Unknown cache entry.');return this.exclusive(()=>this.vault.get(name));}
+  async storeCache(name:string,value:string|null):Promise<void> {if(!cacheName(name))throw new Error('Unknown cache entry.');return this.exclusive(()=>this.vault.commit({[name]:value}));}
   async close():Promise<void> {this.closed=true;await this.tail.catch(()=>{});await this.vault.close();this.local=null;}
 }
