@@ -32,13 +32,13 @@ test('falloff = smoothstep(1 − d): 1 at the centre, smooth, 0 at and beyond th
   assert.ok(trailFalloff(0.98) < 0.002);
 });
 
-test('fade = age^1.5 over the sample life; the glide is LERP per 60 Hz frame at any refresh rate', () => {
+test('fade: smoothstep over the trail life, linear when held; the glide is LERP per 60 Hz frame at any refresh rate', () => {
   assert.equal(trailFade(0), 1);
   assert.equal(trailFade(TRAIL.LIFE), 0);
   assert.equal(trailFade(Infinity), 0);
   assert.ok(Math.abs(trailFade(TRAIL.LIFE / 2) - 0.5) < 1e-12, 'smoothstep at the midpoint');
   assert.ok(Math.abs(trailFade(TRAIL.HOLD / 4, TRAIL.HOLD) - 0.75) < 1e-12, 'held finger dims linearly');
-  assert.ok(TRAIL.HOLD >= 2000 && TRAIL.HOLD <= 4000 && TRAIL.LIFE < 500, 'a short trail, a resting light that fades in a few seconds');
+  assert.ok(TRAIL.HOLD >= 1000 && TRAIL.HOLD <= 4000 && TRAIL.LIFE < 500, 'a short trail, a resting light that fades within a couple of seconds');
   assert.ok(Math.abs(trailGlide(FRAME) - TRAIL.LERP) < 1e-12);
   // Two 120 Hz frames glide as far as one 60 Hz frame.
   const half = trailGlide(FRAME / 2);

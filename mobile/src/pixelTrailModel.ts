@@ -30,18 +30,18 @@ export const TRAIL = {
   /** Light radius, pt. */
   RADIUS: 140,
   /** Tile opacity at the centre of a fresh light. */
-  PEAK: 0.55,
+  PEAK: 0.44,
   /** Bloom opacity at its centre (fresh), and its radius as a multiple of RADIUS. */
-  BLOOM: 0.16,
+  BLOOM: 0.128,
   BLOOM_SCALE: 1.15,
   /** Life of a sample left by a moving light, ms. */
-  LIFE: 200,
+  LIFE: 150,
   /** Life of the light under a finger (or a held mouse button) at rest, ms. */
-  HOLD: 2000,
+  HOLD: 1500,
   /** On release the light fades within this, ms, from its current brightness. */
   RELEASE: 1200,
   /** Glide per 60 Hz frame. */
-  LERP: 0.35,
+  LERP: 0.22,
   FRAME_MS: 1000 / 60,
   /** New sample when the light is this far (pt) from the newest one. */
   SAMPLE_STEP: 4,
