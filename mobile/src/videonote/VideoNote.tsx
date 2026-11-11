@@ -23,7 +23,7 @@ import * as FileSystem from 'expo-file-system/legacy';
 import { AndroidNoteCamera, androidNoteCameraAvailable, prewarmNoteCamera, type AndroidNoteCameraHandle } from './androidCamera';
 import { resolveTake } from './take';
 import { useMusic } from '../music/MusicProvider';
-import { VIDEO_NOTE_MAX_MS, formatVoiceTime, formatVoiceTimeFine } from '../voice/voice';
+import { VIDEO_NOTE_MAX_MS, formatVoiceTime } from '../voice/voice';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import * as Brightness from 'expo-brightness';
 import { lightFeedback } from '../haptics';
@@ -337,7 +337,7 @@ function RecTimer({ running, getMs, dot, fine = false }: { running: boolean; get
   if (!fine) return <Text style={{ color: '#FFF', fontSize: 17, fontWeight: '700' }}>{formatVoiceTime(ms)}</Text>;
   return <>
     {dot ? <View style={{ width: 9, height: 9, borderRadius: 5, backgroundColor: dot, opacity: running && Math.floor(ms / 600) % 2 ? .25 : 1 }} /> : null}
-    <Text style={{ color: '#FFF', fontSize: 15, fontWeight: '500', minWidth: 62, fontVariant: ['tabular-nums'] }}>{formatVoiceTimeFine(ms)}</Text>
+    <Text style={{ color: '#FFF', fontSize: 15, fontWeight: '500', minWidth: 44, fontVariant: ['tabular-nums'] }}>{formatVoiceTime(ms)}</Text>
   </>;
 }
 

@@ -15,7 +15,7 @@ import { decryptAttachment } from '../e2ee/attachments';
 import { useMusic } from '../music/MusicProvider';
 import { getNoteBar, interruptNoteAudio, onNoteSound, subscribeNoteBar } from '../videonote/playback';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { VOICE_MAX_MS, pushVoiceSample, voiceSamples, decodeWaveform, encodeWaveform, fitWaveform, formatVoiceTime, formatVoiceTimeFine, levelFromMetering, diagnoseVoiceTake, voiceRecorderStalled, VOICE_PROBE_MS, type VoiceTakeDiagnosis } from './voice';
+import { VOICE_MAX_MS, pushVoiceSample, voiceSamples, decodeWaveform, encodeWaveform, fitWaveform, formatVoiceTime, levelFromMetering, diagnoseVoiceTake, voiceRecorderStalled, VOICE_PROBE_MS, type VoiceTakeDiagnosis } from './voice';
 
 // Mono AAC at 48 kHz / 128 kbit/s: full-band, very clear voice (about 0.95 MB per minute;
 // was 32 kHz / 48 kbit/s). Still encrypted before sending like any other attachment.
@@ -236,7 +236,7 @@ export function VoiceRecordingBar({ durationMs, levels, onCancel, onSend, holdin
   useEffect(() => { const timer = setInterval(() => setBlink(value => !value), 600); return () => clearInterval(timer); }, []);
   const level = levels.at(-1) || 0;
   const dot = <View style={{ width: 9, height: 9, borderRadius: 5, backgroundColor: paused ? t.muted : t.danger, opacity: paused || blink ? 1 : .25 }} />;
-  const time = <Text style={{ color: t.text, fontSize: 15, fontWeight: '500', minWidth: 62, fontVariant: ['tabular-nums'] }}>{formatVoiceTimeFine(durationMs)}</Text>;
+  const time = <Text style={{ color: t.text, fontSize: 15, fontWeight: '500', minWidth: 44, fontVariant: ['tabular-nums'] }}>{formatVoiceTime(durationMs)}</Text>;
   // As in Telegram. Holding: red dot, 0:01,62 and «‹ Влево — отмена» that follows the finger.
   if (holding) return <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8, minHeight: 44, paddingLeft: 12 }}>
     {dot}{time}

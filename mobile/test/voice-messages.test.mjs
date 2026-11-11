@@ -96,3 +96,12 @@ test('voice: the recording waveform is compacted and still spans the whole take'
   [0.2, 0.5, 0.3].forEach(level => pushVoiceSample(short, level, 1000));
   assert.deepEqual(short.samples, [0.2, 0.5, 0.3], 'short takes are kept sample by sample');
 });
+
+test('recording timers show whole seconds only (no hundredths)', async () => {
+  const { readFileSync } = await import('node:fs');
+  for (const file of ['../src/voice/VoiceMessage.tsx', '../src/videonote/VideoNote.tsx']) {
+    const src = readFileSync(new URL(file, import.meta.url), 'utf8');
+    assert.doesNotMatch(src, /formatVoiceTimeFine/, file);
+  }
+  assert.equal(formatVoiceTime(4630), '0:04');
+});
