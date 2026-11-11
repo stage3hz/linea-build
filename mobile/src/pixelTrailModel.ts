@@ -40,6 +40,8 @@ export const TRAIL = {
   HOLD: 1500,
   /** On release the light fades within this, ms, from its current brightness. */
   RELEASE: 300,
+  /** The pointer counts as stopped once it has not moved for this long (ms); the light starts fading from that moment. */
+  STILL_MS: 40,
   /** Glide per 60 Hz frame. */
   LERP: 0.22,
   FRAME_MS: 1000 / 60,
@@ -101,38 +103,31 @@ export class PixelTrailModel {
   /** Pointer (target) and light (glides after it). */
   tx = NaN; ty = NaN; px = NaN; py = NaN;
   private lastStep = NaN;
+  /** Where the pointer was last seen and when it last moved: the fade of a still finger starts at that moment, not later. */
+  private ox = NaN; private oy = NaN; private moveAt = -Infinity;
   private held = false;
-  /** The finger lifted: the light fades out at once, it does not settle and linger. Cleared by the next point/down. */
-  private lifted = false;
   readonly field: TrailField = { c0: 0, r0: 0, cols: 0, rows: 0, alpha: new Float32Array(0), lit: 0 };
 
   /** The pointer (a hovering cursor or a moving finger) is at (x, y); the light glides there from where it rests. */
   point(x: number, y: number, _now?: number) {
     if (!Number.isFinite(x) || !Number.isFinite(y)) return;
     if (!Number.isFinite(this.px)) { this.px = x; this.py = y; }
-    this.tx = x; this.ty = y; this.lifted = false;
+    this.tx = x; this.ty = y;
   }
 
   /** A finger / button went down at (x, y): the light is right there, with a fresh HOLD sample. */
   down(x: number, y: number, now: number) {
     if (!Number.isFinite(x) || !Number.isFinite(y)) return;
-    this.tx = this.px = x; this.ty = this.py = y; this.held = true; this.lifted = false;
+    this.tx = this.px = x; this.ty = this.py = y; this.held = true;
+    this.ox = x; this.oy = y; this.moveAt = now - TRAIL.STILL_MS;// a still touch starts fading at once
     this.push(x, y, now, TRAIL.HOLD);
   }
 
-  /** The finger lifted / the button was released (or the touch was cancelled): the light stops where it is and
-   * fades out right away (RELEASE, eased) from its current brightness — no waiting. */
-  release(now: number) {
-    this.held = false; this.lifted = true;
-    if (Number.isFinite(this.px)) { this.tx = this.px; this.ty = this.py; }
-    for (let i = 0; i < TRAIL.MAX_SAMPLES; i++) {
-      if (!(this.ls[i] > TRAIL.RELEASE) || !this.live(i, now)) continue;
-      const left = trailCarry(now - this.ts[i], this.ls[i]);
-      this.ls[i] = TRAIL.RELEASE; this.ts[i] = now - (1 - left) * TRAIL.RELEASE;
-    }
-  }
+  /** The finger lifted / the button was released (or the touch was cancelled): the light ends the same way as a
+   * still finger — it fades from the moment the pointer stopped. */
+  release(_now: number) { this.held = false; }
 
-  clear() { this.ts.fill(-Infinity); this.newest = -1; this.lastStep = NaN; this.held = false; this.lifted = false; this.field.cols = this.field.rows = this.field.lit = 0; }
+  clear() { this.ts.fill(-Infinity); this.newest = -1; this.lastStep = NaN; this.held = false; this.ox = this.oy = NaN; this.moveAt = -Infinity; this.field.cols = this.field.rows = this.field.lit = 0; }
 
   private live(i: number, now: number) { return now - this.ts[i] < this.ls[i]; }
 
@@ -142,13 +137,28 @@ export class PixelTrailModel {
     return false;
   }
 
+  /** Lights the light's current position with a sample born at `t` living `life` (refreshing the newest one when it is
+   *  close), filling the gap of a fast swipe every FILL_STEP pt so the band stays continuous. */
+  private sample(t: number, life: number, dt: number) {
+    const n = this.newest, last = n >= 0 && this.ts[n] + this.ls[n] > t;
+    if (last && Math.hypot(this.xs[n] - this.px, this.ys[n] - this.py) < TRAIL.SAMPLE_STEP) { this.ts[n] = t; this.ls[n] = life; return; }
+    if (last) {
+      const dx = this.px - this.xs[n], dy = this.py - this.ys[n], k = Math.min(TRAIL.FILL_MAX, Math.floor(Math.hypot(dx, dy) / TRAIL.FILL_STEP));
+      for (let j = 1; j <= k; j++) { const f = j / (k + 1); this.push(this.xs[n] + dx * f, this.ys[n] + dy * f, t - (1 - f) * dt, life); }
+    }
+    this.push(this.px, this.py, t, life);
+  }
+
   /** Advances the light by one frame and samples it. Returns whether another frame is needed. */
   step(now: number): boolean {
     if (Number.isFinite(this.tx)) {
-      const k = trailGlide(Number.isFinite(this.lastStep) ? Math.min(100, now - this.lastStep) : TRAIL.FRAME_MS);
+      if (this.tx !== this.ox || this.ty !== this.oy) { this.ox = this.tx; this.oy = this.ty; this.moveAt = now; }
+      const pointerMoving = now - this.moveAt < TRAIL.STILL_MS;
+      const dt = Number.isFinite(this.lastStep) ? Math.min(100, now - this.lastStep) : TRAIL.FRAME_MS;
+      const k = trailGlide(dt);
       this.px += (this.tx - this.px) * k; this.py += (this.ty - this.py) * k;
       const n = this.newest, last = n >= 0 && this.live(n, now);
-      if (Math.hypot(this.tx - this.px, this.ty - this.py) > TRAIL.MOVING) {
+      if (pointerMoving) {
         // Moving again after a rest: a held light keeps its current brightness but fades as fast as the trail,
         // so no second slow spot stays behind.
         for (let i = 0; i < TRAIL.MAX_SAMPLES; i++) {
@@ -156,18 +166,13 @@ export class PixelTrailModel {
           const left = trailCarry(now - this.ts[i], TRAIL.HOLD);
           this.ls[i] = TRAIL.LIFE; this.ts[i] = now - (1 - left) * TRAIL.LIFE;
         }
-        if (last && Math.hypot(this.xs[n] - this.px, this.ys[n] - this.py) < TRAIL.SAMPLE_STEP) { this.ts[n] = now; this.ls[n] = TRAIL.LIFE; }
-        else {
-          if (last) {
-            const dx = this.px - this.xs[n], dy = this.py - this.ys[n], k = Math.min(TRAIL.FILL_MAX, Math.floor(Math.hypot(dx, dy) / TRAIL.FILL_STEP));
-            const dt = Number.isFinite(this.lastStep) ? Math.min(100, now - this.lastStep) : TRAIL.FRAME_MS;
-            for (let j = 1; j <= k; j++) { const f = j / (k + 1); this.push(this.xs[n] + dx * f, this.ys[n] + dy * f, now - (1 - f) * dt, TRAIL.LIFE); }
-          }
-          this.push(this.px, this.py, now, TRAIL.LIFE);
-        }
-      } else if (!this.lifted && last && this.ls[n] !== TRAIL.HOLD && this.ls[n] !== TRAIL.RELEASE) {
-        // The light stopped (finger held still, lifted, or the cursor rested): it stays and fades smoothly over HOLD.
-        this.ts[n] = now; this.ls[n] = TRAIL.HOLD;
+        this.sample(now, TRAIL.LIFE, dt);
+      } else if (Math.hypot(this.tx - this.px, this.ty - this.py) > TRAIL.MOVING) {
+        // The pointer stopped but the light still glides to it: everything it lights now fades from the moment the
+        // pointer stopped (HOLD), so a still finger starts dimming at once — no waiting for the light to arrive.
+        this.sample(this.moveAt, TRAIL.HOLD, 0);
+      } else if (last && this.ls[n] !== TRAIL.HOLD) {
+        this.ts[n] = this.moveAt; this.ls[n] = TRAIL.HOLD;
       }
     }
     this.lastStep = now;

@@ -25,6 +25,7 @@ object TrailRules {
   const val MAX_SAMPLES = 64
   const val FILL_STEP = 20.0      // a fast swipe's gap is filled every FILL_STEP pt
   const val FILL_MAX = 8          // at most this many fill samples per frame
+  const val STILL_MS = 40.0       // the pointer counts as stopped after this long without moving, ms
   const val MIN_WEIGHT = 0.008
   const val MOVING = 0.3         // dp
 
@@ -51,7 +52,7 @@ class TrailModel {
   private var px = Double.NaN; private var py = Double.NaN
   private var lastStep = Double.NaN
   private var held = false
-  private var lifted = false // the finger lifted: fade out at once, no settling
+  private var ox = Double.NaN; private var oy = Double.NaN; private var moveAt = Double.NEGATIVE_INFINITY // last seen pointer, when it last moved
 
   // The lit tiles of the last compute: columns c0 until c0+cols, rows r0 until r0+rows.
   var c0 = 0; private set
@@ -69,28 +70,21 @@ class TrailModel {
   fun point(x: Double, y: Double) {
     if (x.isNaN() || y.isNaN() || x.isInfinite() || y.isInfinite()) return
     if (px.isNaN()) { px = x; py = y }
-    tx = x; ty = y; lifted = false
+    tx = x; ty = y
   }
 
   /** A finger went down: the light is right there (no glide), with a fresh HOLD sample. */
   fun down(x: Double, y: Double, now: Double) {
     if (x.isNaN() || y.isNaN() || x.isInfinite() || y.isInfinite()) return
-    tx = x; px = x; ty = y; py = y; held = true; lifted = false
+    tx = x; px = x; ty = y; py = y; held = true
+    ox = x; oy = y; moveAt = now - TrailRules.STILL_MS // a still touch starts fading at once
     push(x, y, now, TrailRules.HOLD)
   }
 
-  /** Lift/cancel: the light stops where it is and fades out right away (RELEASE) from its current brightness. */
-  fun release(now: Double) {
-    held = false; lifted = true
-    if (!px.isNaN()) { tx = px; ty = py }
-    for (i in 0 until TrailRules.MAX_SAMPLES) {
-      if (!(ls[i] > TrailRules.RELEASE) || !live(i, now)) continue
-      val left = TrailRules.carry(now - ts[i], ls[i])
-      ls[i] = TrailRules.RELEASE; ts[i] = now - (1 - left) * TrailRules.RELEASE
-    }
-  }
+  /** Lift/cancel: ends like a still finger — the light fades from the moment the pointer stopped. */
+  @Suppress("UNUSED_PARAMETER") fun release(now: Double) { held = false }
 
-  fun clear() { ts.fill(Double.NEGATIVE_INFINITY); newest = -1; lastStep = Double.NaN; held = false; lifted = false; cols = 0; rows = 0; lit = 0; bloomAlpha = 0.0 }
+  fun clear() { ts.fill(Double.NEGATIVE_INFINITY); newest = -1; lastStep = Double.NaN; held = false; ox = Double.NaN; oy = Double.NaN; moveAt = Double.NEGATIVE_INFINITY; cols = 0; rows = 0; lit = 0; bloomAlpha = 0.0 }
 
   private fun live(i: Int, now: Double) = now - ts[i] < ls[i]
 
@@ -100,31 +94,39 @@ class TrailModel {
   }
 
   /** Advances the light by one frame and samples it. Returns whether another frame is needed. */
+  /** Lights the current position with a sample born at `t` (refreshing the newest one when close), filling a fast swipe's gap. */
+  private fun sample(t: Double, life: Double, dt: Double) {
+    val n = newest; val last = n >= 0 && ts[n] + ls[n] > t
+    if (last && hypot(xs[n] - px, ys[n] - py) < TrailRules.SAMPLE_STEP) { ts[n] = t; ls[n] = life; return }
+    if (last) {
+      val x0 = xs[n]; val y0 = ys[n]; val dx = px - x0; val dy = py - y0
+      val k = min(TrailRules.FILL_MAX, floor(hypot(dx, dy) / TrailRules.FILL_STEP).toInt())
+      for (j in 1..k) { val f = j.toDouble() / (k + 1); push(x0 + dx * f, y0 + dy * f, t - (1 - f) * dt, life) }
+    }
+    push(px, py, t, life)
+  }
+
   fun step(now: Double): Boolean {
     if (!tx.isNaN()) {
-      val k = TrailRules.glide(if (!lastStep.isNaN()) min(100.0, now - lastStep) else TrailRules.FRAME_MS)
+      if (tx != ox || ty != oy) { ox = tx; oy = ty; moveAt = now }
+      val pointerMoving = now - moveAt < TrailRules.STILL_MS
+      val dt = if (!lastStep.isNaN()) min(100.0, now - lastStep) else TrailRules.FRAME_MS
+      val k = TrailRules.glide(dt)
       px += (tx - px) * k; py += (ty - py) * k
       val n = newest; val last = n >= 0 && live(n, now)
-      if (hypot(tx - px, ty - py) > TrailRules.MOVING) {
+      if (pointerMoving) {
         // Moving again after a rest: a held light keeps its brightness but fades as fast as the trail.
         for (i in 0 until TrailRules.MAX_SAMPLES) {
           if (ls[i] != TrailRules.HOLD || !live(i, now)) continue
           val left = TrailRules.carry(now - ts[i], TrailRules.HOLD)
           ls[i] = TrailRules.LIFE; ts[i] = now - (1 - left) * TrailRules.LIFE
         }
-        if (last && hypot(xs[n] - px, ys[n] - py) < TrailRules.SAMPLE_STEP) { ts[n] = now; ls[n] = TrailRules.LIFE }
-        else {
-          if (last) {
-            val x0 = xs[n]; val y0 = ys[n]; val dx = px - x0; val dy = py - y0
-            val k = min(TrailRules.FILL_MAX, floor(hypot(dx, dy) / TrailRules.FILL_STEP).toInt())
-            val dt = if (lastStep.isFinite()) min(100.0, now - lastStep) else TrailRules.FRAME_MS
-            for (j in 1..k) { val f = j.toDouble() / (k + 1); push(x0 + dx * f, y0 + dy * f, now - (1 - f) * dt, TrailRules.LIFE) }
-          }
-          push(px, py, now, TrailRules.LIFE)
-        }
-      } else if (!lifted && last && ls[n] != TrailRules.HOLD && ls[n] != TrailRules.RELEASE) {
-        // The light stopped (finger held still, lifted, or the cursor rested): it stays and fades smoothly over HOLD.
-        ts[n] = now; ls[n] = TrailRules.HOLD
+        sample(now, TrailRules.LIFE, dt)
+      } else if (hypot(tx - px, ty - py) > TrailRules.MOVING) {
+        // The pointer stopped but the light still glides to it: it fades from the stop moment (no waiting).
+        sample(moveAt, TrailRules.HOLD, 0.0)
+      } else if (last && ls[n] != TrailRules.HOLD) {
+        ts[n] = moveAt; ls[n] = TrailRules.HOLD
       }
     }
     lastStep = now

@@ -103,36 +103,31 @@ test('when the light settles under a held finger it stays and fades by itself ov
   assert.deepEqual([model.px, model.py], [x, 100]);
 });
 
-test('a cursor that stops leaves the light where it stopped, fading smoothly over HOLD', () => {
+test('when the pointer stops, the light starts fading at once (no waiting) and is gone within HOLD', () => {
   const model = new PixelTrailModel();
   model.point(100, 100);
   let x = 100;
   let t = run(model, 0, 200, () => { x += 8; model.point(x, 100); });
-  t = run(model, t, t + 300);// the light catches up and settles
-  const centre = () => at(model.compute(t - FRAME), cell(x), cell(100));
-  const start = centre();
-  assert.ok(start > TRAIL.PEAK * 0.8, `lit where it stopped: ${start}`);
-  t = run(model, t, t + TRAIL.HOLD / 2);
-  const half = centre();
-  assert.ok(half > start * 0.35 && half < start * 0.65, `even fade half-way: ${half}`);
+  const stop = t;
+  t = run(model, t, t + 300);// the light glides in, but already dims from the stop
+  const v = at(model.compute(t - FRAME), cell(x), cell(100));
+  const expected = TRAIL.PEAK * (1 - (t - FRAME - stop) / TRAIL.HOLD);
+  assert.ok(Math.abs(v - expected) < TRAIL.PEAK * 0.1, `dimming since the stop: ${v} vs ${expected}`);
   let frames = 0;
   while (model.step(t)) { t += FRAME; frames++; }
-  assert.ok(frames * FRAME <= TRAIL.HOLD, 'gone within HOLD');
+  assert.ok(t - stop <= TRAIL.HOLD + 3 * FRAME, `gone ${t - stop} ms after the stop`);
 });
 
-test('lifting the finger fades the light out right away (RELEASE), from its current brightness, with no jump', () => {
+test('a still, held finger dims from the first moment; lifting it changes nothing (no jump, same fade)', () => {
   const model = new PixelTrailModel();
   model.down(400, 400, 0);
-  let x = 400;
-  let t = run(model, 0, 150, () => { x += 10; model.point(x, 400, 0); });
-  t = run(model, t, t + 600);// settled under the held finger
-  const before = at(model.compute(t - FRAME), cell(x), cell(400));
+  let t = run(model, 0, 300);
+  const v = at(model.compute(t - FRAME), cell(400), cell(400));
+  assert.ok(v < TRAIL.PEAK * 0.9 && v > TRAIL.PEAK * 0.7, `already dimming: ${v}`);
   model.release(t - FRAME);
-  const after = at(model.compute(t - FRAME), cell(x), cell(400));
-  assert.ok(Math.abs(after - before) < 1e-6, 'no jump at release');
-  let frames = 0;
-  while (model.step(t)) { t += FRAME; frames++; }
-  assert.ok(frames * FRAME <= TRAIL.RELEASE + FRAME, `gone ${frames * FRAME} ms after lifting (no waiting)`);
+  assert.ok(Math.abs(at(model.compute(t - FRAME), cell(400), cell(400)) - v) < 1e-6, 'no jump at release');
+  while (model.step(t)) t += FRAME;
+  assert.ok(t <= TRAIL.HOLD + 3 * FRAME, `gone ${t} ms after the touch`);
 });
 
 test('moving away after a rest does not leave a second slow spot behind', () => {
@@ -195,7 +190,7 @@ test('native ports mirror the shared constants', () => {
   const swift = readFileSync(new URL('../modules/linea-trail/ios/LineTrailModule.swift', import.meta.url), 'utf8');
   const kotlin = readFileSync(new URL('../modules/linea-trail/android/src/main/java/expo/modules/lineatrail/TrailModel.kt', import.meta.url), 'utf8');
   const num = (text, pattern) => Number(text.match(pattern)?.[1]);
-  for (const [key, swiftName] of [['PITCH', 'pitch'], ['DOT', 'dot'], ['RADIUS', 'radius'], ['PEAK', 'peak'], ['BLOOM', 'bloom'], ['BLOOM_SCALE', 'bloomScale'], ['LIFE', 'life'], ['HOLD', 'hold'], ['RELEASE', 'release'], ['LERP', 'lerp'], ['SAMPLE_STEP', 'sampleStep'], ['MAX_SAMPLES', 'maxSamples'], ['FILL_STEP', 'fillStep'], ['FILL_MAX', 'fillMax'], ['MIN_WEIGHT', 'minWeight'], ['MOVING', 'moving']]) {
+  for (const [key, swiftName] of [['PITCH', 'pitch'], ['DOT', 'dot'], ['RADIUS', 'radius'], ['PEAK', 'peak'], ['BLOOM', 'bloom'], ['BLOOM_SCALE', 'bloomScale'], ['LIFE', 'life'], ['HOLD', 'hold'], ['RELEASE', 'release'], ['LERP', 'lerp'], ['SAMPLE_STEP', 'sampleStep'], ['MAX_SAMPLES', 'maxSamples'], ['FILL_STEP', 'fillStep'], ['FILL_MAX', 'fillMax'], ['STILL_MS', 'stillMs'], ['MIN_WEIGHT', 'minWeight'], ['MOVING', 'moving']]) {
     assert.equal(num(swift, new RegExp(`static let ${swiftName}(?:: \\w+)? = ([\\d.]+)`)), TRAIL[key], `Swift ${swiftName}`);
     assert.equal(num(kotlin, new RegExp(`const val ${key} = ([\\d.]+)`)), TRAIL[key], `Kotlin ${key}`);
   }
