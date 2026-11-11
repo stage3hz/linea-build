@@ -3,44 +3,45 @@ import QuartzCore
 import UIKit
 import UIKit.UIGestureRecognizerSubclass
 
-/// «Пиксельный след» (src/PixelTrail.tsx). A window-level gesture recognizer only OBSERVES touches — it never
-/// recognizes, never cancels or delays them and is never prevented by other recognizers — so the trail keeps
-/// following the finger while a UIScrollView scrolls, an RNGH pan runs or a sheet is dragged (a JS onTouchMove
-/// is cancelled at that moment). The touch points feed a passthrough overlay (isUserInteractionEnabled = false)
-/// on top of the key window that draws a soft bloom and the lit tiles of a fixed mesh (one view, draw(_:) into the
-/// dirty rect only), driven by a CADisplayLink that runs only while the light is alive. Anything missing (no key window) =
-/// nothing drawn.
+/// «Пиксельный след» (src/PixelTrail.tsx). The light is part of the app's BACKGROUND: it is drawn by
+/// TrailBackgroundView, a native view the app mounts inside its background layers (the backdrop, a chat wallpaper),
+/// under all content. A window-level gesture recognizer only OBSERVES touches — it never recognizes, never cancels
+/// or delays them and is never prevented by other recognizers — so the light keeps following the finger while a
+/// UIScrollView scrolls, an RNGH pan runs or a sheet is dragged (a JS onTouchMove is cancelled at that moment).
+/// The touch points (window coordinates) feed one shared model (TrailHub); every mounted view draws the part of it
+/// that falls on the view, so the mesh stays fixed to the screen. A CADisplayLink runs only while the light is
+/// alive and some view shows it. Anything missing (no key window, no view) = nothing drawn.
 public final class LineTrailModule: Module {
-  private var overlay: TrailOverlayView?
-  private var observer: TrailTouchObserver?
-  private var color: UIColor = .white
-  private var enabled = false
   private var keyWindowToken: NSObjectProtocol?
 
   public func definition() -> ModuleDefinition {
     Name("LineaTrail")
 
     Function("setEnabled") { (on: Bool) in
-      DispatchQueue.main.async {
-        self.enabled = on
-        if on { self.attach() } else { self.detach() }
-      }
+      DispatchQueue.main.async { TrailHub.shared.enabled = on }
     }
 
     Function("setColor") { (hex: String) in
       DispatchQueue.main.async {
-        guard let parsed = LineTrailModule.color(hex) else { return }
-        self.color = parsed
-        self.overlay?.color = parsed
+        guard let parsed = trailColor(hex) else { return }
+        TrailHub.shared.color = parsed
+      }
+    }
+
+    View(TrailBackgroundView.self) {
+      Prop("color") { (view: TrailBackgroundView, hex: String?) in
+        view.canvas.tint = hex.flatMap { trailColor($0) }
+      }
+      Prop("active") { (view: TrailBackgroundView, on: Bool?) in
+        view.canvas.active = on ?? true
       }
     }
 
     OnCreate {
       DispatchQueue.main.async {
-        // A new key window (scene reconnect) gets the overlay again.
-        self.keyWindowToken = NotificationCenter.default.addObserver(forName: UIWindow.didBecomeKeyNotification, object: nil, queue: .main) { [weak self] _ in
-          guard let self, self.enabled else { return }
-          self.attach()
+        // A new key window (scene reconnect) gets the touch observer again.
+        self.keyWindowToken = NotificationCenter.default.addObserver(forName: UIWindow.didBecomeKeyNotification, object: nil, queue: .main) { _ in
+          TrailHub.shared.refresh()
         }
       }
     }
@@ -49,56 +50,23 @@ public final class LineTrailModule: Module {
       DispatchQueue.main.async {
         if let token = self.keyWindowToken { NotificationCenter.default.removeObserver(token) }
         self.keyWindowToken = nil
-        self.detach()
+        TrailHub.shared.enabled = false
       }
     }
   }
+}
 
-  private static func keyWindow() -> UIWindow? {
-    let scenes = UIApplication.shared.connectedScenes.compactMap { $0 as? UIWindowScene }
-    let windows = scenes.flatMap { $0.windows }
-    return windows.first(where: { $0.isKeyWindow }) ?? windows.first
-  }
-
-  private func attach() {
-    guard let window = LineTrailModule.keyWindow() else { return }
-    if let overlay, overlay.superview === window, observer?.view === window {
-      overlay.color = color
-      window.bringSubviewToFront(overlay)
-      return
-    }
-    detach()
-    let view = TrailOverlayView(frame: window.bounds)
-    view.color = color
-    window.addSubview(view)
-    let recognizer = TrailTouchObserver(target: nil, action: nil)
-    recognizer.overlay = view
-    window.addGestureRecognizer(recognizer)
-    overlay = view
-    observer = recognizer
-  }
-
-  private func detach() {
-    if let observer { observer.view?.removeGestureRecognizer(observer) }
-    observer?.overlay = nil
-    observer = nil
-    overlay?.stop()
-    overlay?.removeFromSuperview()
-    overlay = nil
-  }
-
-  private static func color(_ hex: String) -> UIColor? {
-    var text = hex.trimmingCharacters(in: .whitespaces)
-    if text.hasPrefix("#") { text.removeFirst() }
-    guard text.count == 6, let value = UInt32(text, radix: 16) else { return nil }
-    return UIColor(red: CGFloat((value >> 16) & 0xFF) / 255, green: CGFloat((value >> 8) & 0xFF) / 255, blue: CGFloat(value & 0xFF) / 255, alpha: 1)
-  }
+/// '#RRGGBB' → colour.
+func trailColor(_ hex: String) -> UIColor? {
+  var text = hex.trimmingCharacters(in: .whitespaces)
+  if text.hasPrefix("#") { text.removeFirst() }
+  guard text.count == 6, let value = UInt32(text, radix: 16) else { return nil }
+  return UIColor(red: CGFloat((value >> 16) & 0xFF) / 255, green: CGFloat((value >> 8) & 0xFF) / 255, blue: CGFloat(value & 0xFF) / 255, alpha: 1)
 }
 
 /// Watches every touch of the window and never takes part in gesture arbitration: it stays .possible while
-/// fingers are down and fails when the last one lifts.
+/// fingers are down and fails when the last one lifts. Points are reported in window coordinates.
 final class TrailTouchObserver: UIGestureRecognizer, UIGestureRecognizerDelegate {
-  weak var overlay: TrailOverlayView?
   private weak var lead: UITouch?   // the one finger that leads the light
 
   override init(target: Any?, action: Selector?) {
@@ -112,16 +80,13 @@ final class TrailTouchObserver: UIGestureRecognizer, UIGestureRecognizerDelegate
 
   override func touchesBegan(_ touches: Set<UITouch>, with event: UIEvent) {
     super.touchesBegan(touches, with: event)
-    guard let overlay else { return }
-    overlay.keepOnTop()
     // One finger only: the first finger down leads the light; other fingers are ignored while it is on the screen.
-    if lead == nil, let first = touches.first { lead = first; overlay.began(first) }
+    if lead == nil, let first = touches.first { lead = first; TrailHub.shared.began(first.location(in: view)) }
   }
 
   override func touchesMoved(_ touches: Set<UITouch>, with event: UIEvent) {
     super.touchesMoved(touches, with: event)
-    guard let overlay else { return }
-    if let lead, touches.contains(lead) { overlay.moved(lead, event: event) }
+    if let lead, touches.contains(lead) { TrailHub.shared.moved(lead.location(in: view)) }
   }
 
   override func touchesEnded(_ touches: Set<UITouch>, with event: UIEvent) {
@@ -138,19 +103,19 @@ final class TrailTouchObserver: UIGestureRecognizer, UIGestureRecognizerDelegate
 
   /// The leading finger went up: its light fades; the next finger down leads.
   private func leadLifted(_ touches: Set<UITouch>) {
-    if let lead, touches.contains(lead) { self.lead = nil; overlay?.released() }
+    if let lead, touches.contains(lead) { self.lead = nil; TrailHub.shared.released() }
   }
 
   // UIKit resets the recognizer after the sequence; a release here too covers any sequence that ended unseen.
   override func reset() {
     super.reset()
-    if lead != nil { lead = nil; overlay?.released() }
+    if lead != nil { lead = nil; TrailHub.shared.released() }
   }
 
   private func finishIfDone(_ event: UIEvent) {
     let down = event.allTouches?.contains(where: { $0.phase != .ended && $0.phase != .cancelled }) ?? false
     if !down {
-      if lead != nil { lead = nil; overlay?.released() }
+      if lead != nil { lead = nil; TrailHub.shared.released() }
       if state == .possible { state = .failed }
     }
   }
@@ -350,21 +315,144 @@ final class TrailModel {
 }
 
 private final class DisplayLinkProxy: NSObject {
-  weak var owner: TrailOverlayView?
-  @objc func tick(_ link: CADisplayLink) { owner?.tick() }
+  @objc func tick(_ link: CADisplayLink) { TrailHub.shared.tick() }
 }
 
-/// The drawing surface. Never takes touches and is hidden from accessibility. Its backing store is 1 px per pt
-/// with nearest-neighbour scaling: the tiles sit on whole points (the DOT-pt square at the cell's origin rather than
-/// half a point in — the same mesh, shifted by half a point), so they stay crisp at a ninth of the memory.
-final class TrailOverlayView: UIView {
-  var color: UIColor = .white { didSet { setNeedsDisplay() } }
+/// The one light of the app (main thread only): the model in window coordinates, the views that draw it, the touch
+/// observer and the frame loop. Touches are observed only while the effect is on and some view is mounted; the
+/// display link runs only while the light is alive and some mounted view is visible.
+final class TrailHub {
+  static let shared = TrailHub()
 
-  private let model = TrailModel()
+  let model = TrailModel()
+  var enabled = false { didSet { if enabled != oldValue { refresh() } } }
+  var color: UIColor = .white { didSet { for view in views.allObjects { view.setNeedsDisplay() } } }
+  /// The bloom of the current frame, window coordinates.
+  private(set) var bloomCentre = CGPoint.zero
+  private(set) var bloomAlpha: Double = 0
+
+  private let views = NSHashTable<TrailCanvasView>.weakObjects()
+  private var observer: TrailTouchObserver?
   private var link: CADisplayLink?
+  private let proxy = DisplayLinkProxy()
   private var shown = CGRect.null
-  private var bloomCentre = CGPoint.zero
-  private var bloomAlpha: Double = 0
+
+  private static func now() -> Double { CACurrentMediaTime() * 1000 }
+
+  private static func keyWindow() -> UIWindow? {
+    let scenes = UIApplication.shared.connectedScenes.compactMap { $0 as? UIWindowScene }
+    let windows = scenes.flatMap { $0.windows }
+    return windows.first(where: { $0.isKeyWindow }) ?? windows.first
+  }
+
+  func add(_ view: TrailCanvasView) { views.add(view); refresh() }
+  func remove(_ view: TrailCanvasView) { views.remove(view); refresh() }
+
+  /// Attaches the touch observer to the key window, or removes it and clears the light.
+  func refresh() {
+    guard enabled, !views.allObjects.isEmpty, let window = TrailHub.keyWindow() else { quit(); return }
+    if let observer, observer.view === window { return }
+    if let observer { observer.view?.removeGestureRecognizer(observer) }
+    let recognizer = TrailTouchObserver(target: nil, action: nil)
+    window.addGestureRecognizer(recognizer)
+    observer = recognizer
+  }
+
+  private func quit() {
+    if let observer { observer.view?.removeGestureRecognizer(observer) }
+    observer = nil
+    link?.invalidate()
+    link = nil
+    model.clear()
+    bloomAlpha = 0
+    shown = .null
+    for view in views.allObjects { view.setNeedsDisplay() }
+  }
+
+  func began(_ point: CGPoint) {
+    if UIAccessibility.isReduceMotionEnabled { return }
+    model.down(Double(point.x), Double(point.y), TrailHub.now())
+    start()
+  }
+
+  func moved(_ point: CGPoint) {
+    if UIAccessibility.isReduceMotionEnabled { return }
+    model.point(Double(point.x), Double(point.y), TrailHub.now())
+    start()
+  }
+
+  /// The leading finger is up (or the touch sequence ended).
+  func released() { model.release(TrailHub.now()); start() }
+
+  private func start() {
+    guard link == nil, enabled else { return }
+    let made = CADisplayLink(target: proxy, selector: #selector(DisplayLinkProxy.tick(_:)))
+    made.preferredFrameRateRange = CAFrameRateRange(minimum: 30, maximum: 120, preferred: 120)
+    made.add(to: .main, forMode: .common)
+    link = made
+  }
+
+  func tick() {
+    let now = TrailHub.now()
+    let alive = model.step(now)
+    model.compute(now)
+    let glow = model.bloom(now)
+    bloomCentre = CGPoint(x: glow.x, y: glow.y)
+    bloomAlpha = glow.alpha
+    var next = model.bounds
+    if glow.alpha > 0 {
+      let reach = CGFloat(TrailRules.radius * TrailRules.bloomScale)
+      next = next.union(CGRect(x: bloomCentre.x - reach, y: bloomCentre.y - reach, width: reach * 2, height: reach * 2))
+    }
+    // Each view redraws only what was lit last frame plus what is lit now (window coordinates).
+    let dirty = shown.union(next)
+    shown = next
+    var visible = false
+    for view in views.allObjects where view.mark(dirty) { visible = true }
+    // Idle = no loop once the light has faded out, or when no view is there to show it.
+    if !alive || !visible {
+      link?.invalidate()
+      link = nil
+      if !visible { model.clear(); bloomAlpha = 0; shown = .null }
+    }
+  }
+}
+
+/// The background view the app mounts (src/PixelTrail.tsx, PixelTrailLayer): a passthrough container for the canvas.
+final class TrailBackgroundView: ExpoView {
+  let canvas = TrailCanvasView(frame: .zero)
+
+  required init(appContext: AppContext? = nil) {
+    super.init(appContext: appContext)
+    isUserInteractionEnabled = false
+    backgroundColor = .clear
+    isAccessibilityElement = false
+    accessibilityElementsHidden = true
+    canvas.frame = bounds
+    canvas.autoresizingMask = [.flexibleWidth, .flexibleHeight]
+    addSubview(canvas)
+  }
+
+  override func layoutSubviews() {
+    super.layoutSubviews()
+    if canvas.frame != bounds { canvas.frame = bounds }
+  }
+
+  override func hitTest(_ point: CGPoint, with event: UIEvent?) -> UIView? { nil }
+}
+
+/// The drawing surface: the part of the hub's light that falls on this view. Never takes touches and is hidden from
+/// accessibility. Its backing store is 1 px per pt with nearest-neighbour scaling: the tiles sit on whole points
+/// (the DOT-pt square at the cell's origin rather than half a point in — the same mesh, shifted by half a point), so
+/// they stay crisp at a ninth of the memory.
+final class TrailCanvasView: UIView {
+  /// This view's own tile colour; nil = the hub's (theme) colour.
+  var tint: UIColor? { didSet { setNeedsDisplay() } }
+  /// false: a screen kept mounted under another one — nothing is drawn.
+  var active = true { didSet { if active != oldValue { setNeedsDisplay() } } }
+
+  /// Where this view's top-left corner is in the window (whole points), as of the last mark().
+  private var origin = CGPoint.zero
   private var gradient: CGGradient?
   private var gradientColor: UIColor?
 
@@ -379,7 +467,6 @@ final class TrailOverlayView: UIView {
     layer.magnificationFilter = .nearest
     isAccessibilityElement = false
     accessibilityElementsHidden = true
-    autoresizingMask = [.flexibleWidth, .flexibleHeight]
   }
 
   required init?(coder: NSCoder) { return nil }
@@ -387,114 +474,64 @@ final class TrailOverlayView: UIView {
   override func didMoveToWindow() {
     super.didMoveToWindow()
     contentScaleFactor = 1
+    if window != nil { TrailHub.shared.add(self) } else { TrailHub.shared.remove(self) }
   }
 
   override func hitTest(_ point: CGPoint, with event: UIEvent?) -> UIView? { nil }
 
-  func keepOnTop() {
-    guard let parent = superview, parent.subviews.last !== self else { return }
-    parent.bringSubviewToFront(self)
-  }
-
-  private static func now() -> Double { CACurrentMediaTime() * 1000 }
-
-  func began(_ touch: UITouch) {
-    if UIAccessibility.isReduceMotionEnabled { return }
-    let p = touch.location(in: self)
-    model.down(Double(p.x), Double(p.y), TrailOverlayView.now())
-    start()
-  }
-
-  func moved(_ touch: UITouch, event: UIEvent) {
-    if UIAccessibility.isReduceMotionEnabled { return }
-    // The light glides after the latest finger position (sampled once per frame in tick()).
-    let p = touch.location(in: self)
-    model.point(Double(p.x), Double(p.y), TrailOverlayView.now())
-    start()
-  }
-
-  /// The leading finger is up (or the touch sequence ended).
-  func released() { model.release(TrailOverlayView.now()); start() }
-
-  private func start() {
-    guard link == nil, window != nil else { return }
-    let proxy = DisplayLinkProxy()
-    proxy.owner = self
-    let made = CADisplayLink(target: proxy, selector: #selector(DisplayLinkProxy.tick(_:)))
-    made.preferredFrameRateRange = CAFrameRateRange(minimum: 30, maximum: 120, preferred: 120)
-    made.add(to: .main, forMode: .common)
-    link = made
-  }
-
-  func stop() {
-    link?.invalidate()
-    link = nil
-    model.clear()
-    bloomAlpha = 0
-    if !shown.isNull { setNeedsDisplay(shown) }
-    shown = .null
-  }
-
-  func tick() {
-    let now = TrailOverlayView.now()
-    let alive = model.step(now)
-    model.compute(now)
-    let glow = model.bloom(now)
-    bloomCentre = CGPoint(x: glow.x, y: glow.y)
-    bloomAlpha = glow.alpha
-    var next = model.bounds
-    if glow.alpha > 0 {
-      let reach = CGFloat(TrailRules.radius * TrailRules.bloomScale)
-      next = next.union(CGRect(x: bloomCentre.x - reach, y: bloomCentre.y - reach, width: reach * 2, height: reach * 2))
+  /// Schedules a redraw of the window rect `dirty` where it falls on this view. Returns whether the view can show
+  /// anything at all (in a window, active, not hidden, not empty).
+  func mark(_ dirty: CGRect) -> Bool {
+    guard window != nil, active, !isHidden, bounds.width > 0, bounds.height > 0 else { return false }
+    // The mesh is fixed to the window: drawing is offset by the view's own position (whole points keep it crisp).
+    let corner = convert(CGPoint.zero, to: nil)
+    let moved = CGPoint(x: corner.x.rounded(), y: corner.y.rounded())
+    if moved != origin {
+      // The view itself moved (a screen sliding in): everything it shows is redrawn at the new offset.
+      origin = moved
+      setNeedsDisplay()
+    } else if !dirty.isNull {
+      let local = dirty.offsetBy(dx: -origin.x, dy: -origin.y).intersection(bounds)
+      if !local.isNull && !local.isEmpty { setNeedsDisplay(local.integral) }
     }
-    // Redraw only what was lit last frame plus what is lit now.
-    let dirty = shown.union(next)
-    if !dirty.isNull { setNeedsDisplay(dirty.integral) }
-    shown = next
-    // Idle = no loop once the light has faded out.
-    if !alive {
-      link?.invalidate()
-      link = nil
-    }
+    return true
   }
 
   override func draw(_ rect: CGRect) {
-    guard let context = UIGraphicsGetCurrentContext() else { return }
+    let hub = TrailHub.shared, model = hub.model
+    guard active, let context = UIGraphicsGetCurrentContext() else { return }
+    let ink = tint ?? hub.color
     // 1) The soft bloom under the mesh, at the newest sample.
-    if bloomAlpha > 0 {
-      if gradient == nil || gradientColor != color {
+    if hub.bloomAlpha > 0 {
+      if gradient == nil || gradientColor != ink {
         let space = CGColorSpaceCreateDeviceRGB()
-        gradient = CGGradient(colorsSpace: space, colors: [color.cgColor, color.withAlphaComponent(0).cgColor] as CFArray, locations: [0, 1])
-        gradientColor = color
+        gradient = CGGradient(colorsSpace: space, colors: [ink.cgColor, ink.withAlphaComponent(0).cgColor] as CFArray, locations: [0, 1])
+        gradientColor = ink
       }
       if let gradient {
+        let centre = CGPoint(x: hub.bloomCentre.x - origin.x, y: hub.bloomCentre.y - origin.y)
         context.saveGState()
-        context.setAlpha(CGFloat(bloomAlpha))
-        context.drawRadialGradient(gradient, startCenter: bloomCentre, startRadius: 0, endCenter: bloomCentre, endRadius: CGFloat(TrailRules.radius * TrailRules.bloomScale), options: [])
+        context.setAlpha(CGFloat(hub.bloomAlpha))
+        context.drawRadialGradient(gradient, startCenter: centre, startRadius: 0, endCenter: centre, endRadius: CGFloat(TrailRules.radius * TrailRules.bloomScale), options: [])
         context.restoreGState()
       }
     }
-    // 2) The tiles, on whole points (see the class comment).
+    // 2) The tiles of the window grid that fall into `rect`, on whole points (see the class comment).
     guard model.lit > 0 else { return }
     let pitch = TrailRules.pitch, dot = TrailRules.dot, inset = floor((pitch - dot) / 2)
-    let rFrom = max(0, Int(floor(rect.minY / pitch)) - model.r0), rTo = min(model.rows - 1, Int(ceil(rect.maxY / pitch)) - model.r0)
-    let cFrom = max(0, Int(floor(rect.minX / pitch)) - model.c0), cTo = min(model.cols - 1, Int(ceil(rect.maxX / pitch)) - model.c0)
+    let rFrom = max(0, Int(floor((rect.minY + origin.y) / pitch)) - model.r0), rTo = min(model.rows - 1, Int(ceil((rect.maxY + origin.y) / pitch)) - model.r0)
+    let cFrom = max(0, Int(floor((rect.minX + origin.x) / pitch)) - model.c0), cTo = min(model.cols - 1, Int(ceil((rect.maxX + origin.x) / pitch)) - model.c0)
     if rFrom > rTo || cFrom > cTo { return }
-    context.setFillColor(color.cgColor)
+    context.setFillColor(ink.cgColor)
     let alpha = model.alpha, cols = model.cols
     for r in rFrom...rTo {
-      let y = CGFloat(model.r0 + r) * pitch + inset
+      let y = CGFloat(model.r0 + r) * pitch + inset - origin.y
       for c in cFrom...cTo {
         let a = alpha[r * cols + c]
         if a <= 0 { continue }
         context.setAlpha(CGFloat(a))
-        context.fill(CGRect(x: CGFloat(model.c0 + c) * pitch + inset, y: y, width: dot, height: dot))
+        context.fill(CGRect(x: CGFloat(model.c0 + c) * pitch + inset - origin.x, y: y, width: dot, height: dot))
       }
     }
-  }
-
-  override func removeFromSuperview() {
-    stop()
-    super.removeFromSuperview()
   }
 }

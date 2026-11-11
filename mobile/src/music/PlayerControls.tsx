@@ -195,6 +195,8 @@ export function PlayerControls({ compact = false, onOpen, onCollapse }: { compac
  * bottom. The page itself never moves under the finger; only a swipe down that starts on the
  * top bar or the cover collapses it (the cover alone swipes left/right between tracks).
  */
+/** Veil over the blurred cover behind the full player: a tint of the cover remains, the theme's text stays readable (see FullPlayer). */
+export const COVER_VEIL = { dark: 'rgba(0,0,0,0.68)', light: 'rgba(255,255,255,0.82)' } as const;
 export function FullPlayer({ visible, onClose, onSource }: { visible: boolean; onClose: () => void; onSource?: (url: string) => void }) {
   const music = useMusic(), t = useTheme(); const { width, height } = useWindowDimensions();
   const insets = useSafeAreaInsets(); const [panel, setPanel] = useState<'queue' | 'lyrics' | null>(null); const [eqOpen, setEqOpen] = useState(false);
@@ -220,10 +222,14 @@ export function FullPlayer({ visible, onClose, onSource }: { visible: boolean; o
   return <Modal visible transparent animationType="slide" statusBarTranslucent onRequestClose={onClose}>
     <GestureHandlerRootView style={{ flex: 1 }}>
       <View style={{ flex: 1, overflow: 'hidden', backgroundColor: t.bg }}>
-        {/* Like VK: the page takes the colour of the cover (blurred), otherwise the cold ambient. */}
+        {/* Like VK: the page takes the colour of the cover (blurred), otherwise the cold ambient.
+            The veil over the blurred cover carries the contrast: the text and controls keep the theme's
+            colours, so the page must stay light in the light theme and dark in the dark ones whatever the
+            cover is. White at .4 let a cover with a dark lower half (a night street, dark clothes) through
+            as a muddy grey-brown band under the dark text; black at .5 left a white cover mid-grey. */}
         {track.artworkUrl ? <View pointerEvents="none" style={StyleSheet.absoluteFill}>
           <BlurImage source={{ uri: track.artworkUrl }} blurRadius={70} contentFit="cover" style={[StyleSheet.absoluteFill, { transform: [{ scale: 1.3 }] }]} transition={250} />
-          <View style={[StyleSheet.absoluteFill, { backgroundColor: t.dark ? 'rgba(0,0,0,0.5)' : 'rgba(255,255,255,0.4)' }]} />
+          <View style={[StyleSheet.absoluteFill, { backgroundColor: t.dark ? COVER_VEIL.dark : COVER_VEIL.light }]} />
         </View> : <MusicAmbient width={width} height={height} tone={tone} custom={custom} />}
         <View style={{ flex: 1, paddingTop: insets.top }}>
           <GestureDetector gesture={collapseTop}>

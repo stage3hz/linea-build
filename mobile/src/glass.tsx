@@ -13,6 +13,7 @@ import { LiquidGlassView } from 'react-native-liquid-glassmorphism';
 const androidLiquid=false;
 import { useTheme } from './theme';
 import { useRenderActive } from './renderActivity';
+import { PixelTrailLayer } from './PixelTrail';
 
 type GlassContextValue = { targetRef:RefObject<View|null>|undefined; reduceTransparency:boolean };
 const GlassContext=createContext<GlassContextValue>({targetRef:undefined,reduceTransparency:true});
@@ -44,11 +45,13 @@ function useTransparencyPreference() {
   return reduced;
 }
 
-/** Ambient content only. Never put a glass surface inside this target. */
+/** Ambient content only. Never put a glass surface inside this target.
+ *  «Пиксельный след» (PixelTrailLayer) is the top layer of the backdrop: over the colour / gradients, under every
+ *  screen's content. On Android the backdrop is a blur target, so glass surfaces show the light blurred through. */
 export function GlassBackdrop() {
   const t=useTheme();
   // The built-in themes (Светлая, Тёмная, Чёрная, Графит) are a plain colour: no gradient bands or arcs.
-  if(t.plain)return <View pointerEvents="none" style={[StyleSheet.absoluteFill,{backgroundColor:t.bg}]}/>;
+  if(t.plain)return <View pointerEvents="none" style={[StyleSheet.absoluteFill,{backgroundColor:t.bg}]}><PixelTrailLayer/></View>;
   return <View pointerEvents="none" style={[StyleSheet.absoluteFill,{backgroundColor:t.bg}]}>
     <LinearGradient colors={t.bgGradient} start={{x:0,y:0}} end={{x:.8,y:1}} style={StyleSheet.absoluteFill}/>
     <LinearGradient colors={[t.ambientBlue,'transparent','transparent']} locations={[0,.62,1]} start={{x:1,y:0}} end={{x:0,y:.85}} style={StyleSheet.absoluteFill}/>
@@ -56,6 +59,7 @@ export function GlassBackdrop() {
     <View style={{position:'absolute',top:'-26%',right:'-30%',width:'108%',aspectRatio:1,borderRadius:1000,borderWidth:1,borderColor:t.black?'rgba(255,255,255,0.035)':t.dark?'rgba(145,181,255,0.07)':'rgba(255,255,255,0.58)',overflow:'hidden',transform:[{rotate:'-24deg'}]}}>
       <LinearGradient colors={[t.black?'rgba(255,255,255,0.025)':t.dark?'rgba(89,130,222,0.09)':'rgba(255,255,255,0.34)','transparent']} start={{x:0,y:0}} end={{x:.6,y:1}} style={StyleSheet.absoluteFill}/>
     </View>
+    <PixelTrailLayer/>
   </View>;
 }
 

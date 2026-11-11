@@ -161,3 +161,29 @@ export function archiveSnap(offset: number, rowHeight: number, velocityY = 0): n
   if (velocityY > 0.3) return rowHeight;
   return offset < rowHeight / 2 ? 0 : rowHeight;
 }
+
+// ─── One row with open buttons at a time ─────────────────────────────────────────────────────────
+
+/**
+ * The single slot for «the row whose swipe buttons are open». A row is known by its own `close`
+ * function, which must be the same function object for the row's whole life: the slot is released
+ * only by the function that took it. (The chat list once stored a fresh wrapper on every open, so no
+ * row could ever release it: after one row had been opened, every later tap on a chat «closed» that
+ * row instead of opening the chat, until the app was restarted. Избранное has no swipe and kept
+ * opening.)
+ */
+export function openRowSlot() {
+  let open: (() => void) | null = null;
+  const closeOthers = (close: () => void) => { if (open && open !== close) { const other = open; open = null; other(); } };
+  return {
+    /** This row's buttons are open now; another open row closes. */
+    open(close: () => void) { closeOthers(close); open = close; },
+    /** A drag starts on this row: another open row closes. */
+    closeOthers,
+    /** This row closed or left the screen. */
+    release(close: () => void) { if (open === close) open = null; },
+    /** Close the open row, if any (a tap on a chat, a scroll, a folder change). True when one was open.
+     * The slot is emptied before the row is asked, so one open row can take at most one tap. */
+    closeOpen(): boolean { const close = open; if (!close) return false; open = null; close(); return true; },
+  };
+}

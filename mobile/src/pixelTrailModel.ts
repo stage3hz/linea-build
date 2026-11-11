@@ -1,6 +1,6 @@
 // «Пиксельный след»: the pure model of the glowing tile mesh under the finger (phone) and the cursor (PC).
 // Kept free of React Native imports: it is tested in Node (test/pixel-trail.test.mjs) and drawn by
-// src/PixelTrail.tsx on a canvas (web). The native overlays (modules/linea-trail: ios/LineTrailModule.swift,
+// src/PixelTrail.tsx on a canvas (web). The native views (modules/linea-trail: ios/LineTrailModule.swift,
 // android/.../TrailModel.kt) mirror the SAME constants and rules — change them in all three places.
 //
 // Model:

@@ -10,6 +10,7 @@ import { ScrollEdgeBlurView } from 'react-native-liquid-glassmorphism';
 import { useReducedTransparency } from './glass';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useTheme } from './theme';
+import { tabBarEdge, tabBarMarginBottom } from './chatLayout';
 
 const TabInset = createContext(0);
 export const useTabInset = () => useContext(TabInset);
@@ -24,21 +25,40 @@ export function TabsOverlay({ tabs, children }: { tabs: React.ReactNode | null; 
   </View>;
 }
 
-// Telegram: rows passing behind the floating tab bar soften into the background — a progressive blur
-// (iOS) with a light tint that starts at the bar's top edge and is strongest at the screen bottom;
-// the rows stay recognisable behind the bar, as in Telegram's own chat list. It
-// starts at the bar, not above it: a fade from higher up darkened readable rows (reported earlier),
-// and none at all left the rows sharp and bright behind the bar (reported later).
+// Telegram / iOS 26: rows passing behind the floating tab bar dissolve into the page — nothing readable
+// under the pill, beside its rounded ends or in the home-indicator strip below it (reported: a chat row,
+// its avatar frame and its check mark peeked out there). Above the bar rows are untouched: a fade from
+// higher up darkened readable rows (reported earlier).
 function TabsFade({ bar }: { bar: number }) {
   // The overlay sits inside App's SafeAreaView: the status-bar strip is just above it, the home indicator just below.
-  const t = useTheme(); const insets = useSafeAreaInsets(); const extra = Platform.OS === 'web' ? 0 : insets.bottom;
+  const t = useTheme(); const insets = useSafeAreaInsets();
   return <>
-    {/* A diffuse blur behind the bar that dissolves upwards (the library's progressive blur drew nothing on
-        device): the same masked blur as under the header, with a light tint. */}
-    <ScrollEdgeEffect edge="bottom" size={bar + extra - 18} color={t.bg} alpha={Platform.OS === 'ios' ? .5 : .8} fade={34} blur={30} style={{ bottom: -extra }} />
+    <TabBarEdge bar={bar} />
     {insets.top && Platform.OS === 'ios' ? <ScrollEdgeBlurView pointerEvents="none" edge="top" maxBlurRadius={8} falloff={1} style={{ position: 'absolute', left: 0, right: 0, top: -insets.top, height: insets.top + 10 }} /> : null}
     {insets.top && Platform.OS !== 'web' ? <LinearGradient pointerEvents="none" colors={[tint(t.bg, Platform.OS === 'ios' ? .3 : .5, t.dark), tint(t.bg, 0, t.dark)]} style={{ position: 'absolute', left: 0, right: 0, top: -insets.top, height: insets.top }} /> : null}
   </>;
+}
+
+/**
+ * The bottom scroll-edge effect of the floating tab bar (every tab: the chat list renders its own bar and
+ * places this itself, the other tabs get it from TabsOverlay). A masked blur (iOS) and a page-colour
+ * gradient from the screen bottom up to just above the bar — geometry in `tabBarEdge` (chatLayout.ts).
+ * `bar`: measured height of the tab block above the safe area. Static native views, nothing per frame.
+ */
+export function TabBarEdge({ bar }: { bar: number }) {
+  const t = useTheme(); const insets = useSafeAreaInsets(); const reduced = useReducedTransparency();
+  const inset = Platform.OS === 'web' ? 0 : insets.bottom;
+  const edge = tabBarEdge(bar, inset, inset + tabBarMarginBottom(Platform.OS === 'ios', insets.bottom));
+  const up = { start: { x: 0, y: 1 }, end: { x: 0, y: 0 } };
+  const fill = { position: 'absolute' as const, top: 0, left: 0, right: 0, bottom: 0 };
+  // Reduce Transparency: no blur, so the colour alone must hide the rows behind the bar.
+  const alphas = reduced ? [1, 1, 1, .9, 0] : edge.alphas;
+  return <View pointerEvents="none" style={{ position: 'absolute', left: 0, right: 0, bottom: -inset, height: edge.total }}>
+    {Platform.OS === 'ios' && !reduced ? <MaskedView pointerEvents="none" style={fill} maskElement={<LinearGradient colors={['#000', '#000', 'transparent']} locations={[0, edge.blurSolid, 1]} {...up} style={{ flex: 1 }} />}>
+      <BlurView intensity={30} tint={t.dark ? 'systemUltraThinMaterialDark' : 'systemUltraThinMaterialLight'} style={{ flex: 1 }} />
+    </MaskedView> : null}
+    <LinearGradient pointerEvents="none" colors={alphas.map(alpha => tint(t.bg, alpha, t.dark)) as [string, string, ...string[]]} locations={edge.locations} {...up} style={fill} />
+  </View>;
 }
 const isDarkColor = (color: string): boolean | null => {
   const m = /^#([0-9a-f]{6})$/i.exec(color); if (!m) return null;

@@ -107,3 +107,61 @@ test('back swipe over a strip: a scrolled strip keeps a rightward drag, its star
   assert.equal(s.stripBlocksBack(true, 120, s.BACK_EDGE), false);
   assert.equal(s.stripBlocksBack(false, 120, 200), false, 'the finger is not on the strip');
 });
+
+// Regression: after one chat row's swipe buttons had been opened, every later tap on a chat only
+// «closed» that row (the slot was never released) and no 1:1 chat opened until the app was restarted.
+test('open row slot: a closed or removed row frees the slot, so the next tap opens the chat', () => {
+  const slot = s.openRowSlot();
+  const row = () => { const r = { closed: 0, close: () => { r.closed++; slot.release(r.close); } }; return r; };
+  assert.equal(slot.closeOpen(), false); // nothing open: the tap goes to the chat
+  const a = row(), b = row();
+  slot.open(a.close);
+  assert.equal(slot.closeOpen(), true); // the tap only closes the open row
+  assert.equal(a.closed, 1);
+  assert.equal(slot.closeOpen(), false); // and the next tap opens the chat
+  // The row closes itself (a button, a swipe back, a tap on it).
+  slot.open(a.close); a.close();
+  assert.equal(slot.closeOpen(), false);
+  // The row leaves the screen with its buttons open (another tab, scrolled away).
+  slot.open(a.close); slot.release(a.close);
+  assert.equal(slot.closeOpen(), false);
+  // One at a time: opening or dragging another row closes the open one; a row never closes itself by that.
+  slot.open(a.close); slot.open(b.close);
+  assert.equal(a.closed, 3);
+  slot.closeOthers(b.close); assert.equal(b.closed, 0);
+  slot.closeOthers(a.close); assert.equal(b.closed, 1);
+  assert.equal(slot.closeOpen(), false);
+  // Another row's function does not release the slot.
+  slot.open(a.close); slot.release(b.close);
+  assert.equal(slot.closeOpen(), true);
+  // Even a row that never releases takes one tap at most.
+  let stale = 0; slot.open(() => { stale++; });
+  assert.equal(slot.closeOpen(), true); assert.equal(slot.closeOpen(), false); assert.equal(stale, 1);
+});
+
+test('chat list rows take and release the open-row slot with one stable function', async () => {
+  const { readFileSync } = await import('node:fs');
+  const source = readFileSync(new URL('../src/ChatListScreen.tsx', import.meta.url), 'utf8');
+  assert.match(source, /const closeHandle=useRef\(\(\)=>closeSelf\.current\(\)\)\.current;/);
+  assert.match(source, /openRows\.open\(closeHandle\)/);
+  assert.equal(source.match(/openRows\.release\(closeHandle\)/g)?.length, 2); // on close and on unmount
+  assert.doesNotMatch(source, /openRows\.(open|release|closeOthers)\((?!closeHandle\))/);
+});
+
+// The user's steps: swipe a chat right (buttons open), close, swipe again — the second time the row
+// sprang shut at once (opening it «closed the other open row», which was itself), and after a few
+// rounds taps on chats did nothing.
+test('open row slot: the same row opens again and again, then a tap opens the chat', () => {
+  const slot = s.openRowSlot();
+  let closed = 0; const close = () => { closed++; slot.release(close); };
+  for (let round = 0; round < 5; round++) {
+    slot.closeOthers(close); // the drag starts on this row
+    slot.open(close);        // released past the open point
+    assert.equal(closed, round, 'opening a row does not close that same row');
+    slot.closeOthers(close); slot.open(close); // dragged again while open: still open
+    assert.equal(closed, round);
+    close();                 // tapped shut / a button pressed
+  }
+  assert.equal(slot.closeOpen(), false); // the next tap on a chat opens it
+  assert.equal(closed, 5);
+});

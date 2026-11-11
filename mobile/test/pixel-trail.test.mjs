@@ -196,6 +196,31 @@ test('native ports mirror the shared constants', () => {
   }
 });
 
+test('the light is part of the background: drawn inside the backdrop layers, never as an overlay on top', () => {
+  const read = path => readFileSync(new URL(path, import.meta.url), 'utf8');
+  const host = read('../src/PixelTrail.tsx'), glass = read('../src/glass.tsx');
+  // Every backdrop (both the plain and the gradient one) ends with the layer; glass.tsx owns the Android blur target.
+  const backdrop = glass.slice(glass.indexOf('export function GlassBackdrop'), glass.indexOf('export function GlassStage'));
+  assert.equal(backdrop.match(/<PixelTrailLayer\/>/g)?.length, 2);
+  assert.match(read('../src/auth/AuthBackdrop.tsx'), /<PixelTrailLayer \/>/);
+  const wallpaper = read('../src/WallpaperPicker.tsx');
+  assert.equal(wallpaper.match(/trail \? <PixelTrailLayer/g)?.length, 2, 'over a preset and over a picture wallpaper');
+  assert.match(read('../src/ChatScreen.tsx'), /<ChatWallpaper choice=\{wallpaper\}[^>]* trail\/>/);
+  // Web: a canvas inside the layer, no fixed full-window overlay.
+  assert.doesNotMatch(host, /position: 'fixed'|zIndex|document\.body\.appendChild/);
+  assert.match(host, /pointerEvents: 'none'/);
+  // Native: a view component, no view added on top of the window / decor view.
+  const swift = read('../modules/linea-trail/ios/LineTrailModule.swift');
+  assert.match(swift, /View\(TrailBackgroundView\.self\)/);
+  assert.doesNotMatch(swift, /window\.addSubview|bringSubviewToFront/);
+  assert.match(swift, /cancelsTouchesInView = false/);
+  const dir = '../modules/linea-trail/android/src/main/java/expo/modules/lineatrail/';
+  const kotlin = read(dir + 'LineTrailModule.kt') + read(dir + 'TrailBackground.kt');
+  assert.match(kotlin, /View\(TrailBackgroundView::class\)/);
+  assert.doesNotMatch(kotlin, /decor\.addView|decorView|bringToFront/);
+  assert.match(kotlin, /return inner\.dispatchTouchEvent\(event\)/);
+});
+
 test('the setting defaults to on and survives bad stored values', () => {
   const { parsePreferences } = loadTs(new URL('../src/chatPreferences.ts', import.meta.url), { '@react-native-async-storage/async-storage': {}, react: { useSyncExternalStore: () => null } });
   assert.equal(parsePreferences(null).pixelTrail, true);
@@ -237,7 +262,7 @@ test('the end of a fast swipe fades exactly like a finger held still (HOLD), and
 
   const host = readFileSync(new URL('../src/PixelTrail.tsx', import.meta.url), 'utf8');
   assert.match(host, /event\.pointerId === finger/);
-  const kotlin = readFileSync(new URL('../modules/linea-trail/android/src/main/java/expo/modules/lineatrail/TrailOverlay.kt', import.meta.url), 'utf8');
+  const kotlin = readFileSync(new URL('../modules/linea-trail/android/src/main/java/expo/modules/lineatrail/TrailBackground.kt', import.meta.url), 'utf8');
   assert.match(kotlin, /findPointerIndex\(lead\)/);
   const swift = readFileSync(new URL('../modules/linea-trail/ios/LineTrailModule.swift', import.meta.url), 'utf8');
   assert.match(swift, /if lead == nil, let first = touches\.first/);

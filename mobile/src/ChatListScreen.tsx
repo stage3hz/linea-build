@@ -13,7 +13,8 @@ if (Platform.OS === 'android' && UIManager.setLayoutAnimationEnabledExperimental
 import { Text, TextInput } from './typography';
 import { MiniPlayer } from './music/PlayerControls';
 import { ChatListSkeleton } from './effects';
-import { FloatingHeader, isWideLayout, useBleed } from './tabInset';
+import { FloatingHeader, TabBarEdge, isWideLayout, useBleed } from './tabInset';
+import { tabBarMarginBottom } from './chatLayout';
 import { Avatar, Bouncy, Button, Empty, Icon, IconButton, Notice } from './components';
 import { GlassSurface } from './glass';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -42,7 +43,7 @@ import { isMuted, muteUntilLabel } from './notifications/model';
 import { Gesture, GestureDetector } from 'react-native-gesture-handler';
 import Animated, { Easing, makeMutable, runOnJS, useAnimatedStyle, useSharedValue, withSpring, withTiming, type SharedValue } from 'react-native-reanimated';
 import { getMarkedUnread, markedExtra, pruneMarkedUnread, setMarkedExtra, setMarkedUnread, showsUnread, useMarkedExtra, useMarkedUnread } from './markedUnread';
-import { ROW_BUTTON, ROW_GAP, archiveSnap, axisLock, fullSwipeDistance, openWidth, pageRelease, pagePosition, rowActions, rowDrag, rowRelease, type RowAction, type RowSupport } from './listSwipes';
+import { ROW_BUTTON, ROW_GAP, archiveSnap, axisLock, fullSwipeDistance, openWidth, pageRelease, openRowSlot, pagePosition, rowActions, rowDrag, rowRelease, type RowAction, type RowSupport } from './listSwipes';
 
 // Telegram: the first row stands ~11 pt below the folder bar; flush against it, the bar's edge fade covered the top of «Избранное».
 const LIST_GAP=10;
@@ -192,6 +193,8 @@ export function ChatListScreen({api,user,store,onProfile,onNewChat,onMusic,onAI,
         <MenuItem icon="trash-outline" label="Удалить чат" danger onPress={()=>{const chat=menu.chat;setMenu(null);setRemoveAsk([chat]);}}/>
       </>:null}
     </ContextMenu>
+    {/* The bottom scroll-edge effect behind the floating tab bar (the other tabs get it from TabsOverlay). */}
+    {editing||rail?null:<TabBarEdge bar={tabsHeight}/>}
     {editing?null:rail?<><VoiceBar onOpen={communityId=>navigate({to:'channels',communityId})}/><MiniPlayer onOpen={onMusic}/></>:<View pointerEvents="box-none" onLayout={e=>{const h=Math.round(e.nativeEvent.layout.height);if(h&&Math.abs(h-tabsHeight)>1)setTabsHeight(h);}} style={{position:'absolute',left:0,right:0,bottom:0}}><MessengerTabs onProfile={onProfile} onNewChat={onNewChat} onMusic={onMusic} onAI={onAI} onChats={onChats} activeTab={activeTab}/></View>}
   </View>;
 }
@@ -200,7 +203,7 @@ export function MessengerTabs({onProfile,onNewChat,onMusic,onAI,onChats,activeTa
   const t=useTheme();const insets=useSafeAreaInsets();const tabBadges:Record<string,number>=useTabBadges(useUnreadTotal()+useMarkedExtra());
   const narrow=useWindowDimensions().width<350; // e.g. 320 pt phones, a folded Galaxy Fold cover screen
   // The music screen shows its own player above the same tab bar; everywhere else it sits here, above the tabs.
-  return <><VoiceBar onOpen={communityId=>navigate({to:'channels',communityId})}/>{activeTab!=='music'?<MiniPlayer onOpen={onMusic}/>:null}<GlassSurface systemGlass={false} material="regular" radius={31} style={{marginHorizontal:narrow?8:12,marginBottom:Platform.OS==='ios'&&insets.bottom?21-insets.bottom:10,marginTop:5}} contentStyle={{paddingHorizontal:3.6,paddingVertical:3}}>{/* 3.6 at the ends: the pill of the first and last tab then sits as far from the bar's end as from its top and bottom (6.6 pt), concentric with the bar's rounded ends (simulator: 5 pt vs 6.7 pt with 2) */}
+  return <><VoiceBar onOpen={communityId=>navigate({to:'channels',communityId})}/>{activeTab!=='music'?<MiniPlayer onOpen={onMusic}/>:null}<GlassSurface systemGlass={false} material="regular" radius={31} style={{marginHorizontal:narrow?8:12,marginBottom:tabBarMarginBottom(Platform.OS==='ios',insets.bottom),marginTop:5}} contentStyle={{paddingHorizontal:3.6,paddingVertical:3}}>{/* 3.6 at the ends: the pill of the first and last tab then sits as far from the bar's end as from its top and bottom (6.6 pt), concentric with the bar's rounded ends (simulator: 5 pt vs 6.7 pt with 2) */}
     {/* «Люди» and «Каналы» share one slot (swipe up on it to switch, remembered); five tabs, each with its own tap animation. */}
     <TabBar active={activeTab==='people'?'people':activeTab==='channels'?'channels':activeTab==='profile'?'profile':activeTab==='music'?'music':activeTab==='ai'?'ai':'chats'} items={[
       {id:'ai',label:'AI',icon:'sparkles-outline',activeIcon:'sparkles',badge:0,onPress:onAI},
@@ -279,9 +282,9 @@ function ChatPeek({chat,api,userId,messages}:{chat:Chat;api:Api;userId:string;me
 }
 
 /** The row whose swipe buttons are open (one at a time, as in Telegram): opening another closes it. */
-let closeOpenRow:(()=>void)|null=null;
+const openRows=openRowSlot();
 /** Close the open row, if any (a tap on another row, a scroll, a folder change). True when one was open. */
-function closeOpenSwipeRow():boolean{const close=closeOpenRow;if(!close)return false;close();return true;}
+function closeOpenSwipeRow():boolean{return openRows.closeOpen();}
 /** 1 while a finger is down on a chat row that can swipe: the folder swipe on the list then stands aside. */
 const rowTouch=makeMutable(0);
 /** What a swipe can do. «Непрочитано» has no server endpoint: it is a device-local mark (src/markedUnread.ts). */
@@ -339,11 +342,14 @@ function SwipeRow({enabled,unread,pinned,muted,archived,onAction,children}:{enab
   const leadRef=useRef({left:left[0],right:right[0]});leadRef.current={left:left[0],right:right[0]};
   const motion=motionEnabled();
   const SPRING={damping:24,stiffness:300,mass:0.8};
-  const close=()=>{x.value=motion?withSpring(0,SPRING):0;setOpen(false);if(closeOpenRow===closeSelf.current)closeOpenRow=null;};
-  const closeSelf=useRef(close);closeSelf.current=close;
-  useEffect(()=>()=>{if(closeOpenRow===closeSelf.current)closeOpenRow=null;},[]);
-  const claim=()=>{if(closeOpenRow&&closeOpenRow!==closeSelf.current)closeOpenRow();};
-  const opened=()=>{claim();closeOpenRow=()=>closeSelf.current();setOpen(true);};
+  // The shared slot knows this row by `closeHandle`: one function for the row's whole life. (A fresh wrapper per open
+  // was never recognised as this row's, the slot stayed taken and every later tap on a chat only «closed» it.)
+  const closeSelf=useRef<()=>void>(()=>{});const closeHandle=useRef(()=>closeSelf.current()).current;
+  const close=()=>{x.value=motion?withSpring(0,SPRING):0;setOpen(false);openRows.release(closeHandle);};
+  closeSelf.current=close;
+  useEffect(()=>()=>openRows.release(closeHandle),[closeHandle]);
+  const claim=()=>openRows.closeOthers(closeHandle);
+  const opened=()=>{openRows.open(closeHandle);setOpen(true);};
   const full=(side:-1|1)=>{const action=side<0?leadRef.current.left:leadRef.current.right;close();if(action)actionRef.current(action);};
   const pan=Gesture.Pan().enabled(enabled).activeOffsetX([-12,12]).failOffsetY([-14,14])
     .onBegin(()=>{rowTouch.value=1;})
