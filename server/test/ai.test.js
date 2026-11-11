@@ -130,7 +130,9 @@ test('message count, individual text, total text, malformed Unicode and HTTP bod
     { messages: [], consent: true },
   ];
   for (const value of invalid) assert.equal((await f.post(value)).statusCode, 400);
-  assert.equal((await f.post(body('x'.repeat(150_000)))).statusCode, 413);
+  // The route takes up to 17 MB (photos for the vision model); oversized text is still refused before any provider call.
+  assert.equal((await f.post(body('x'.repeat(150_000)))).statusCode, 400);
+  assert.equal((await f.post(body('x'.repeat(18 * 1024 * 1024)))).statusCode, 413);
   assert.equal(f.calls.length, 0);
 });
 
@@ -570,4 +572,19 @@ test('FreeLLMAPI: documents are read on the server and travel with the question'
   assert.match(sent, /<документ name="счёт.pdf">[\s\S]*Invoice 42[\s\S]*Вопрос: Сколько к оплате\?/);
   assert.equal((await f.post({ ...body(), documents: [{ name: 'x', text: 'y', extra: 1 }] })).statusCode, 400);
   assert.equal((await f.call('POST', '/ai/document', { name: 'x.heic', data: 'AAAA', consent: true })).statusCode, 400);
+});
+
+test('OpenRouter: photos and video frames go to the free vision route; the model stays pinned', async t => {
+  const f = await fixture(t);
+  assert.equal((await f.status()).json().capabilities.vision.enabled, true);
+  const image = `data:image/png;base64,${PNG_1x1}`;
+  const response = await f.post({ ...body('Что на фото?'), image: [image, image] });
+  assert.equal(response.statusCode, 200, response.body);
+  const sent = JSON.parse(f.calls.at(-1).init.body);
+  assert.equal(sent.model, 'openrouter/free');
+  assert.deepEqual(sent.provider.max_price, { prompt: 0, completion: 0, request: 0 });
+  assert.equal(sent.provider.data_collection, 'deny');
+  assert.deepEqual(sent.messages.at(-1).content, [{ type: 'text', text: 'Что на фото?' }, { type: 'image_url', image_url: { url: image } }, { type: 'image_url', image_url: { url: image } }]);
+  assert.equal((await f.post({ ...body(), image, model: 'paid/model' })).statusCode, 400, 'model choice stays FreeLLMAPI-only');
+  assert.equal((await f.post({ ...body(), image: 'data:image/png;base64,AAAA' })).statusCode, 400);
 });

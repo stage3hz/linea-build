@@ -19,7 +19,6 @@ export function aiProvider({ provider = 'openrouter', baseUrl = '', model = '' }
   if (!/^[A-Za-z0-9_./:@+-]{1,200}$/.test(chosen)) throw new Error('Invalid AI model');
   return { name: 'freellmapi', endpoint: `${url.origin}${url.pathname.replace(/\/+$/, '')}/chat/completions`, model: chosen };
 }
-const MAX_BODY = 128 * 1024;
 const MAX_RESPONSE = 128 * 1024;
 const WINDOW_MS = 60_000;
 const MAX_REQUESTS = 6;
@@ -114,7 +113,8 @@ function capabilities(configured, provider = OPENROUTER) {
     speech: media ? { enabled: true, reason: viaRouter } : { enabled: false, reason: 'Озвучка текста не подключена.' },
     transcribe: media ? { enabled: true, reason: viaRouter } : { enabled: false, reason: 'Расшифровка аудио не подключена.' },
     documents: media ? { enabled: true } : { enabled: false, reason: 'Документы доступны, когда сервер подключён к FreeLLMAPI.' },
-    vision: media ? { enabled: true, reason: viaRouter } : { enabled: false, reason: 'Вопросы по фото не подключены.' },
+    // openrouter/free accepts text and images and routes a picture to a free vision model.
+    vision: media ? { enabled: true, reason: viaRouter } : configured ? { enabled: true, reason: 'Через OpenRouter: бесплатная модель, которая понимает фото.' } : { enabled: false, reason: disabled },
     models: media ? { enabled: true } : { enabled: false, reason: 'Выбор модели доступен с FreeLLMAPI.' },
     threeD: { enabled: false, reason: 'Генерация и редактирование 3D-моделей не подключены.' },
     social: { enabled: false, reason: 'Исполнитель задач в соцсетях не подключён. Публикации и действия недоступны.' },
@@ -208,7 +208,7 @@ function answerFrom(data, provider, via) {
 async function completion(messages, key, fetchImpl, controller, now, provider, options = {}) {
   const body = provider.name === 'openrouter'
     ? {
-      model: provider.model, messages, stream: false, max_tokens: 2048,
+      model: provider.model, messages: withImage(messages, options.image), stream: false, max_tokens: 2048,
       provider: {
         data_collection: 'deny', zdr: true, require_parameters: true,
         max_price: { prompt: 0, completion: 0, request: 0 },
@@ -416,7 +416,7 @@ export function registerAiRoutes(app, {
     configured, provider: provider.name, model: provider.model, freeOnly: true, capabilities: capabilities(configured, provider),
     platina: isPlatina(String(request.auth.user_id)),
   }));
-  app.post('/ai/chat', { preHandler: access, bodyLimit: provider.name === 'freellmapi' ? MAX_IMAGE_BODY : MAX_BODY, logLevel: 'silent' },
+  app.post('/ai/chat', { preHandler: access, bodyLimit: MAX_IMAGE_BODY, logLevel: 'silent' },
     chatHandler({ apiKey, configured, fetchImpl, now, timeoutMs, provider, isPlatina }, budget));
   registerMediaRoutes(app, { access: platinaAccess(access, isPlatina), budget, apiKey, configured, fetchImpl, now, provider });
   app.addHook('preClose', async () => budget.abortAll());
@@ -452,7 +452,8 @@ function chatOptions(body, provider) {
   const { model, image } = body;
   if (model === undefined && image === undefined) return {};
   // The OpenRouter route is pinned to its zero-price model: a client-chosen model stays a 400.
-  if (provider.name !== 'freellmapi') throw invalid();
+  // Photos are fine there: openrouter/free picks a free model that understands images.
+  if (provider.name !== 'freellmapi' && model !== undefined) throw invalid();
   const options = {};
   if (model !== undefined) {
     if (typeof model !== 'string' || !(AI_STRATEGIES.includes(model) || /^[A-Za-z0-9_./:@+-]{1,200}$/.test(model))) throw mediaInvalid('Неизвестная модель.');
