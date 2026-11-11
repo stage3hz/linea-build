@@ -99,6 +99,7 @@ public final class LineTrailModule: Module {
 /// fingers are down and fails when the last one lifts.
 final class TrailTouchObserver: UIGestureRecognizer, UIGestureRecognizerDelegate {
   weak var overlay: TrailOverlayView?
+  private weak var lead: UITouch?   // the one finger that leads the light
 
   override init(target: Any?, action: Selector?) {
     super.init(target: target, action: action)
@@ -113,35 +114,43 @@ final class TrailTouchObserver: UIGestureRecognizer, UIGestureRecognizerDelegate
     super.touchesBegan(touches, with: event)
     guard let overlay else { return }
     overlay.keepOnTop()
-    for touch in touches { overlay.began(touch) }
+    // One finger only: the first finger down leads the light; other fingers are ignored while it is on the screen.
+    if lead == nil, let first = touches.first { lead = first; overlay.began(first) }
   }
 
   override func touchesMoved(_ touches: Set<UITouch>, with event: UIEvent) {
     super.touchesMoved(touches, with: event)
     guard let overlay else { return }
-    for touch in touches { overlay.moved(touch, event: event) }
+    if let lead, touches.contains(lead) { overlay.moved(lead, event: event) }
   }
 
   override func touchesEnded(_ touches: Set<UITouch>, with event: UIEvent) {
     super.touchesEnded(touches, with: event)
+    leadLifted(touches)
     finishIfDone(event)
   }
 
   override func touchesCancelled(_ touches: Set<UITouch>, with event: UIEvent) {
     super.touchesCancelled(touches, with: event)
+    leadLifted(touches)
     finishIfDone(event)
+  }
+
+  /// The leading finger went up: its light fades; the next finger down leads.
+  private func leadLifted(_ touches: Set<UITouch>) {
+    if let lead, touches.contains(lead) { self.lead = nil; overlay?.released() }
   }
 
   // UIKit resets the recognizer after the sequence; a release here too covers any sequence that ended unseen.
   override func reset() {
     super.reset()
-    overlay?.released()
+    if lead != nil { lead = nil; overlay?.released() }
   }
 
   private func finishIfDone(_ event: UIEvent) {
     let down = event.allTouches?.contains(where: { $0.phase != .ended && $0.phase != .cancelled }) ?? false
     if !down {
-      overlay?.released()
+      if lead != nil { lead = nil; overlay?.released() }
       if state == .possible { state = .failed }
     }
   }
@@ -163,34 +172,28 @@ enum TrailRules {
   static let bloom: Double = 0.128      // BLOOM
   static let bloomScale: Double = 1.15  // BLOOM_SCALE
   static let life: Double = 150         // LIFE, ms (a moving light's samples)
-  static let hold: Double = 1500        // HOLD, ms (the light under a finger at rest)
+  static let hold: Double = 1200        // HOLD, ms (the light under a finger at rest)
   static let release: Double = 300      // RELEASE, ms (fade after the finger lifts)
-  static let lerp: Double = 0.22        // LERP (per 60 Hz frame)
+  static let lerp: Double = 1           // LERP (per 60 Hz frame)
   static let frameMs: Double = 1000.0 / 60
   static let sampleStep: Double = 4     // SAMPLE_STEP, pt
-  static let maxSamples = 64            // MAX_SAMPLES
+  static let maxSamples = 96            // MAX_SAMPLES
   static let fillStep: Double = 20      // FILL_STEP, pt
   static let fillMax = 8                // FILL_MAX
   static let stillMs: Double = 40       // STILL_MS: the pointer counts as stopped after this long without moving
   static let minWeight: Double = 0.008  // MIN_WEIGHT
   static let moving: Double = 0.3       // MOVING, pt
 
-  /// trailCarry: the eased age with the same brightness (inverse smoothstep), so a life switch never jumps.
-  static func carry(_ ms: Double, _ life: Double) -> Double {
-    let v = min(1, max(0, fade(ms, life)))
-    return 0.5 - sin(asin(1 - 2 * v) / 3)
-  }
-  /// trailFade: smoothstep(age), age = 1 − ms / life.
+  /// trailCarry: the share of life left; a life switch at the same share keeps the brightness.
+  static func carry(_ ms: Double, _ life: Double) -> Double { min(1, max(0, fade(ms, life))) }
+  /// trailFade: even (linear) fade, 1 − ms / life.
   static func fade(_ ms: Double, _ life: Double) -> Double {
     if ms < 0 { return 1 }
     if !(ms < life) { return 0 }
-    let age = 1 - ms / life
-    // A still, held finger dims evenly (linear); the moving trail and the release ease in and out.
-    return life == hold ? age : age * age * (3 - 2 * age)
+    return 1 - ms / life
   }
-
   /// trailGlide: LERP at 60 Hz, the same speed at any refresh rate.
-  static func glide(_ dt: Double) -> Double { 1 - pow(1 - lerp, max(0, dt) / frameMs) }
+  static func glide(_ dt: Double) -> Double { lerp >= 1 ? 1 : 1 - pow(1 - lerp, max(0, dt) / frameMs) }
 }
 
 /// PixelTrailModel in src/pixelTrailModel.ts. Coordinates in pt, time in ms.
@@ -224,8 +227,13 @@ final class TrailModel {
     push(x, y, now, TrailRules.hold)
   }
 
-  /// Lift/cancel: ends like a still finger — the light fades from the moment the pointer stopped.
-  func release(_ now: Double) { held = false }
+  /// Lift/cancel (also at the end of a fast swipe): the point where the finger was fades over HOLD, like a held finger.
+  func release(_ now: Double) {
+    held = false
+    let n = newest
+    if n >= 0 && live(n, now) && ls[n] != TrailRules.hold { ts[n] = now; ls[n] = TrailRules.hold }
+    moveAt = -.infinity
+  }
 
   func clear() {
     for i in 0..<TrailRules.maxSamples { ts[i] = -Double.infinity }
@@ -405,7 +413,7 @@ final class TrailOverlayView: UIView {
     start()
   }
 
-  /// All fingers are up (the observer calls this once per touch sequence).
+  /// The leading finger is up (or the touch sequence ended).
   func released() { model.release(TrailOverlayView.now()); start() }
 
   private func start() {

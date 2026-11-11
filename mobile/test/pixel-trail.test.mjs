@@ -71,15 +71,15 @@ test('a touch lights a soft circle right under the finger, on the fixed screen g
   assert.ok(Math.abs(bloom.alpha - TRAIL.BLOOM) < 1e-9);
 });
 
-test('the light glides after the pointer and leaves a trail that fades behind it', () => {
+test('the light sits right under the pointer and leaves a short tail that fades behind it', () => {
   const model = new PixelTrailModel();
   model.point(0, 200, 0);
   let x = 0;
   const end = run(model, 0, 300, () => { x += 12; model.point(x, 200, 0); });
-  assert.ok(model.px < model.tx && model.px > model.tx - 60, `light ${model.px} glides behind the pointer ${model.tx}`);
+  assert.equal(model.px, model.tx, 'the light is exactly under the pointer (no lag)');
   const field = model.compute(end - FRAME);
   const r = cell(200);
-  const head = at(field, cell(model.px), r), middle = at(field, cell(model.px - 100), r), tail = at(field, cell(model.px - 180), r);
+  const head = at(field, cell(model.px), r), middle = at(field, cell(model.px - 110), r), tail = at(field, cell(model.px - 200), r);
   assert.ok(head > middle && middle > tail, `head ${head} > middle ${middle} > tail ${tail}`);
   assert.ok(middle > 0);
 });
@@ -158,8 +158,8 @@ test('a hovering cursor starts a trail after a rest; a touch puts the light righ
   let t = run(model, 0, TRAIL.HOLD + 100);
   assert.equal(model.alive(t), false);
   model.point(80, 50);
-  assert.equal(model.step(t), true, 'the cursor moved on: the light glides after it');
-  assert.ok(model.px > 50 && model.px < 80);
+  assert.equal(model.step(t), true, 'the cursor moved on: the light follows it');
+  assert.equal(model.px, 80);
   t = run(model, t, t + TRAIL.HOLD + 100);
   model.down(800, 500, t);
   assert.deepEqual([model.px, model.py], [800, 500]);
@@ -214,4 +214,31 @@ test('a fast swipe leaves one continuous band, not separate spots', () => {
   let gaps = 0;
   for (let px = 120; px < Math.min(x, 380); px += 5) if (!(at(field, cell(px), cell(300)) > 0)) gaps++;
   assert.equal(gaps, 0, 'no unlit tiles along the swipe');
+});
+
+test('the end of a fast swipe fades exactly like a finger held still (HOLD), and only one finger leads on web', () => {
+  const swipe = new PixelTrailModel();
+  swipe.down(100, 100, 0);
+  let y = 100;
+  let t = run(swipe, 0, 160, () => { y += 50; swipe.point(100, y, 0); });
+  swipe.release(t - FRAME);
+  const s0 = at(swipe.compute(t - FRAME), cell(100), cell(y));
+  const t1 = run(swipe, t, t + TRAIL.HOLD / 2);
+  const s1 = at(swipe.compute(t1 - FRAME), cell(100), cell(y));
+  assert.ok(Math.abs(s1 / s0 - 0.5) < 0.06, `half-way after the lift: ${s1 / s0}`);
+  // The tail behind is short: the start of the swipe is dark long before that.
+  assert.equal(at(swipe.compute(t + TRAIL.LIFE + 2 * FRAME), cell(100), cell(100)), 0);
+
+  const still = new PixelTrailModel();
+  still.down(300, 300, 0);
+  const u = run(still, 0, TRAIL.HOLD / 2);
+  const h = at(still.compute(u - FRAME), cell(300), cell(300)) / TRAIL.PEAK;
+  assert.ok(Math.abs(h - 0.5) < 0.06, `half-way while held: ${h}`);
+
+  const host = readFileSync(new URL('../src/PixelTrail.tsx', import.meta.url), 'utf8');
+  assert.match(host, /event\.pointerId === finger/);
+  const kotlin = readFileSync(new URL('../modules/linea-trail/android/src/main/java/expo/modules/lineatrail/TrailOverlay.kt', import.meta.url), 'utf8');
+  assert.match(kotlin, /findPointerIndex\(lead\)/);
+  const swift = readFileSync(new URL('../modules/linea-trail/ios/LineTrailModule.swift', import.meta.url), 'utf8');
+  assert.match(swift, /if lead == nil, let first = touches\.first/);
 });

@@ -17,25 +17,25 @@ object TrailRules {
   const val BLOOM = 0.128        // bloom opacity at its centre
   const val BLOOM_SCALE = 1.15   // bloom radius / RADIUS
   const val LIFE = 150.0         // life of a sample left by a moving light, ms
-  const val HOLD = 1500.0        // life of the light under a finger at rest, ms
+  const val HOLD = 1200.0        // life of the light under a finger at rest, ms
   const val RELEASE = 300.0      // fade after the finger lifts, ms
-  const val LERP = 0.22          // glide per 60 Hz frame
+  const val LERP = 1.0           // glide per 60 Hz frame
   const val FRAME_MS = 1000.0 / 60
   const val SAMPLE_STEP = 4.0    // dp
-  const val MAX_SAMPLES = 64
+  const val MAX_SAMPLES = 96
   const val FILL_STEP = 20.0      // a fast swipe's gap is filled every FILL_STEP pt
   const val FILL_MAX = 8          // at most this many fill samples per frame
   const val STILL_MS = 40.0       // the pointer counts as stopped after this long without moving, ms
   const val MIN_WEIGHT = 0.008
   const val MOVING = 0.3         // dp
 
-  /** trailCarry: the eased age with the same brightness (inverse smoothstep), so a life switch never jumps. */
-  fun carry(ms: Double, life: Double): Double { val v = min(1.0, max(0.0, fade(ms, life))); return 0.5 - kotlin.math.sin(kotlin.math.asin(1 - 2 * v) / 3) }
-  /** trailFade: smoothstep(age), age = 1 − ms / life. */
-  fun fade(ms: Double, life: Double): Double = if (ms < 0) 1.0 else if (!(ms < life)) 0.0 else (1 - ms / life).let { if (life == HOLD) it else it * it * (3 - 2 * it) } // held finger: even (linear) dimming
+  /** trailCarry: the share of life left; a life switch at the same share keeps the brightness. */
+  fun carry(ms: Double, life: Double): Double = min(1.0, max(0.0, fade(ms, life)))
+  /** trailFade: even (linear) fade, 1 − ms / life. */
+  fun fade(ms: Double, life: Double): Double = if (ms < 0) 1.0 else if (!(ms < life)) 0.0 else 1 - ms / life
 
   /** trailGlide: LERP at 60 Hz, the same speed at any refresh rate. */
-  fun glide(dt: Double): Double = 1 - (1 - LERP).pow(max(0.0, dt) / FRAME_MS)
+  fun glide(dt: Double): Double = if (LERP >= 1) 1.0 else 1 - (1 - LERP).pow(max(0.0, dt) / FRAME_MS)
 }
 
 /** PixelTrailModel in src/pixelTrailModel.ts. Coordinates in dp, time in ms. No allocation per frame once the
@@ -81,8 +81,13 @@ class TrailModel {
     push(x, y, now, TrailRules.HOLD)
   }
 
-  /** Lift/cancel: ends like a still finger — the light fades from the moment the pointer stopped. */
-  @Suppress("UNUSED_PARAMETER") fun release(now: Double) { held = false }
+  /** Lift/cancel (also at the end of a fast swipe): the point where the finger was fades over HOLD, like a held finger. */
+  fun release(now: Double) {
+    held = false
+    val n = newest
+    if (n >= 0 && live(n, now) && ls[n] != TrailRules.HOLD) { ts[n] = now; ls[n] = TrailRules.HOLD }
+    moveAt = Double.NEGATIVE_INFINITY
+  }
 
   fun clear() { ts.fill(Double.NEGATIVE_INFINITY); newest = -1; lastStep = Double.NaN; held = false; ox = Double.NaN; oy = Double.NaN; moveAt = Double.NEGATIVE_INFINITY; cols = 0; rows = 0; lit = 0; bloomAlpha = 0.0 }
 

@@ -118,9 +118,13 @@ function WebTrail({ enabled, color }: { enabled: boolean; color: string }) {
     };
     const schedule = () => { if (!frame) frame = requestAnimationFrame(draw); };
     redrawRef.current = schedule;
-    const down = (event: PointerEvent) => { model.down(event.clientX, event.clientY, performance.now()); schedule(); };
-    const move = (event: PointerEvent) => { model.point(event.clientX, event.clientY, performance.now()); schedule(); };
-    const release = () => { model.release(performance.now()); schedule(); };
+    // One finger only: the first touch leads the light, other touches are ignored while it is down. If the browser
+    // cancels the touch mid-swipe while the finger keeps moving, it leads again on its next move.
+    let finger: number | null = null;
+    const leads = (event: PointerEvent) => { if (event.pointerType === 'mouse') return true; if (finger === null) finger = event.pointerId; return event.pointerId === finger; };
+    const down = (event: PointerEvent) => { if (!leads(event)) return; model.down(event.clientX, event.clientY, performance.now()); schedule(); };
+    const move = (event: PointerEvent) => { if (!leads(event)) return; model.point(event.clientX, event.clientY, performance.now()); schedule(); };
+    const release = (event: PointerEvent) => { if (event.pointerType !== 'mouse') { if (event.pointerId !== finger) return; finger = null; } model.release(performance.now()); schedule(); };
     resize();
     window.addEventListener('resize', resize);
     window.addEventListener('pointerdown', down, { passive: true });

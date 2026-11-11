@@ -50,29 +50,36 @@ class TrailOverlay(context: Context) : View(context) {
 
   private fun frame() { if (!running) { running = true; postInvalidateOnAnimation() } }
 
+  private var lead = -1 // pointer id of the one finger that leads the light
+
   /** Called from the window callback BEFORE the app sees the event; never consumes it. */
   fun observe(event: MotionEvent) {
     val now = SystemClock.uptimeMillis().toDouble()
     when (event.actionMasked) {
-      MotionEvent.ACTION_DOWN, MotionEvent.ACTION_POINTER_DOWN -> {
+      // One finger only: the first finger down leads the light; other fingers are ignored while it is on the screen.
+      MotionEvent.ACTION_DOWN -> {
         // System «Remove animations» (animator duration scale 0) = no trail.
         if (!ValueAnimator.areAnimatorsEnabled()) return
-        val index = event.actionIndex
-        model.down((event.getX(index) / density).toDouble(), (event.getY(index) / density).toDouble(), now)
+        lead = event.getPointerId(0)
+        model.down((event.getX(0) / density).toDouble(), (event.getY(0) / density).toDouble(), now)
       }
       MotionEvent.ACTION_MOVE -> {
         if (!ValueAnimator.areAnimatorsEnabled()) return
-        // The light glides after the finger that moved last (sampled once per frame in onDraw).
-        val index = event.pointerCount - 1
+        val index = if (lead >= 0) event.findPointerIndex(lead) else -1
+        if (index < 0) return
         model.point((event.getX(index) / density).toDouble(), (event.getY(index) / density).toDouble())
       }
-      MotionEvent.ACTION_UP, MotionEvent.ACTION_CANCEL -> model.release(now)
+      MotionEvent.ACTION_POINTER_UP -> {
+        if (lead < 0 || event.getPointerId(event.actionIndex) != lead) return
+        lead = -1; model.release(now)
+      }
+      MotionEvent.ACTION_UP, MotionEvent.ACTION_CANCEL -> { if (lead < 0) return; lead = -1; model.release(now) }
       else -> return
     }
     frame()
   }
 
-  fun stop() { model.clear(); running = false; invalidate() }
+  fun stop() { lead = -1; model.clear(); running = false; invalidate() }
 
   private fun bloomShader(): RadialGradient {
     val radius = (TrailRules.RADIUS * TrailRules.BLOOM_SCALE).toFloat() * density

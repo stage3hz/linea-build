@@ -37,17 +37,17 @@ export const TRAIL = {
   /** Life of a sample left by a moving light, ms. */
   LIFE: 150,
   /** Life of the light under a finger (or a held mouse button) at rest, ms. */
-  HOLD: 1500,
+  HOLD: 1200,
   /** On release the light fades within this, ms, from its current brightness. */
   RELEASE: 300,
   /** The pointer counts as stopped once it has not moved for this long (ms); the light starts fading from that moment. */
   STILL_MS: 40,
   /** Glide per 60 Hz frame. */
-  LERP: 0.22,
+  LERP: 1,
   FRAME_MS: 1000 / 60,
   /** New sample when the light is this far (pt) from the newest one. */
   SAMPLE_STEP: 4,
-  MAX_SAMPLES: 64,
+  MAX_SAMPLES: 96,
   /** A fast swipe moves the light far in one frame: the gap from the previous sample is filled every FILL_STEP pt
    *  (at most FILL_MAX per frame) so the band stays continuous instead of separate spots. */
   FILL_STEP: 20,
@@ -70,24 +70,21 @@ export function trailFalloff(d: number): number {
   return k * k * (3 - 2 * k);
 }
 
-/** Smooth fade: smoothstep(age) with age = 1 − ms / life (0 when dead) — eases in and out. */
+/** Even (linear) fade: 1 − ms / life, 0 when dead. The short tail behind a moving finger (LIFE) and the light where the
+ *  finger stopped or was lifted (HOLD) use the same curve. */
 export function trailFade(ms: number, life: number = TRAIL.LIFE): number {
   if (ms < 0) return 1;
   if (!(ms < life)) return 0;
-  const age = 1 - ms / life;
-  // A still, held finger dims evenly (linear); the moving trail and the release ease in and out.
-  return life === TRAIL.HOLD ? age : age * age * (3 - 2 * age);
+  return 1 - ms / life;
 }
 
-/** The age on the eased (smoothstep) curve that has the same brightness as `trailFade(ms, life)`:
- * switching a sample to another life keeps its brightness, with no jump. Inverse smoothstep. */
+/** The share of life left: switching a sample to another life at the same share keeps its brightness (no jump). */
 export function trailCarry(ms: number, life: number): number {
-  const v = Math.min(1, Math.max(0, trailFade(ms, life)));
-  return 0.5 - Math.sin(Math.asin(1 - 2 * v) / 3);
+  return Math.min(1, Math.max(0, trailFade(ms, life)));
 }
 
 /** The glide factor for a frame of `dt` ms: LERP at 60 Hz, the same speed at any refresh rate. */
-export const trailGlide = (dt: number) => 1 - Math.pow(1 - TRAIL.LERP, Math.max(0, dt) / TRAIL.FRAME_MS);
+export const trailGlide = (dt: number) => TRAIL.LERP >= 1 ? 1 : 1 - Math.pow(1 - TRAIL.LERP, Math.max(0, dt) / TRAIL.FRAME_MS);
 
 /** The lit tiles of one frame: a window of the grid (columns c0.., rows r0..) with an opacity per tile. */
 export type TrailField = { c0: number; r0: number; cols: number; rows: number; alpha: Float32Array; lit: number };
@@ -123,9 +120,14 @@ export class PixelTrailModel {
     this.push(x, y, now, TRAIL.HOLD);
   }
 
-  /** The finger lifted / the button was released (or the touch was cancelled): the light ends the same way as a
-   * still finger — it fades from the moment the pointer stopped. */
-  release(_now: number) { this.held = false; }
+  /** The finger lifted / the button was released (or the touch was cancelled) — also at the end of a fast swipe:
+   *  the point where it was fades over HOLD, exactly like a finger held still. */
+  release(now: number) {
+    this.held = false;
+    const n = this.newest;
+    if (n >= 0 && this.live(n, now) && this.ls[n] !== TRAIL.HOLD) { this.ts[n] = now; this.ls[n] = TRAIL.HOLD; }
+    this.moveAt = -Infinity;
+  }
 
   clear() { this.ts.fill(-Infinity); this.newest = -1; this.lastStep = NaN; this.held = false; this.ox = this.oy = NaN; this.moveAt = -Infinity; this.field.cols = this.field.rows = this.field.lit = 0; }
 
