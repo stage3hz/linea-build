@@ -163,7 +163,7 @@ enum TrailRules {
   static let bloom: Double = 0.16       // BLOOM
   static let bloomScale: Double = 1.15  // BLOOM_SCALE
   static let life: Double = 200         // LIFE, ms (a moving light's samples)
-  static let hold: Double = 3000        // HOLD, ms (the light under a finger at rest)
+  static let hold: Double = 2000        // HOLD, ms (the light under a finger at rest)
   static let release: Double = 1200     // RELEASE, ms (fade after the finger lifts)
   static let lerp: Double = 0.35        // LERP (per 60 Hz frame)
   static let frameMs: Double = 1000.0 / 60
@@ -172,12 +172,18 @@ enum TrailRules {
   static let minWeight: Double = 0.008  // MIN_WEIGHT
   static let moving: Double = 0.3       // MOVING, pt
 
+  /// trailCarry: the eased age with the same brightness (inverse smoothstep), so a life switch never jumps.
+  static func carry(_ ms: Double, _ life: Double) -> Double {
+    let v = min(1, max(0, fade(ms, life)))
+    return 0.5 - sin(asin(1 - 2 * v) / 3)
+  }
   /// trailFade: smoothstep(age), age = 1 − ms / life.
   static func fade(_ ms: Double, _ life: Double) -> Double {
     if ms < 0 { return 1 }
     if !(ms < life) { return 0 }
     let age = 1 - ms / life
-    return age * age * (3 - 2 * age)
+    // A still, held finger dims evenly (linear); the moving trail and the release ease in and out.
+    return life == hold ? age : age * age * (3 - 2 * age)
   }
 
   /// trailGlide: LERP at 60 Hz, the same speed at any refresh rate.
@@ -217,7 +223,7 @@ final class TrailModel {
   func release(_ now: Double) {
     held = false
     for i in 0..<TrailRules.maxSamples where ls[i] > TrailRules.release && live(i, now) {
-      let left = max(0, 1 - (now - ts[i]) / ls[i])
+      let left = TrailRules.carry(now - ts[i], ls[i])
       ls[i] = TrailRules.release; ts[i] = now - (1 - left) * TrailRules.release
     }
   }
@@ -244,7 +250,7 @@ final class TrailModel {
       if hypot(tx - px, ty - py) > TrailRules.moving {
         // Moving again after a rest: a held light keeps its brightness but fades as fast as the trail.
         for i in 0..<TrailRules.maxSamples where ls[i] == TrailRules.hold && live(i, now) {
-          let left = max(0, 1 - (now - ts[i]) / TrailRules.hold)
+          let left = TrailRules.carry(now - ts[i], TrailRules.hold)
           ls[i] = TrailRules.life; ts[i] = now - (1 - left) * TrailRules.life
         }
         if last && hypot(xs[n] - px, ys[n] - py) < TrailRules.sampleStep { ts[n] = now; ls[n] = TrailRules.life } else { push(px, py, now, TrailRules.life) }

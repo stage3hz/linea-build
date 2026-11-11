@@ -37,7 +37,7 @@ test('fade = age^1.5 over the sample life; the glide is LERP per 60 Hz frame at 
   assert.equal(trailFade(TRAIL.LIFE), 0);
   assert.equal(trailFade(Infinity), 0);
   assert.ok(Math.abs(trailFade(TRAIL.LIFE / 2) - 0.5) < 1e-12, 'smoothstep at the midpoint');
-  { const a = 1 - 1500 / TRAIL.HOLD; assert.ok(Math.abs(trailFade(1500, TRAIL.HOLD) - a * a * (3 - 2 * a)) < 1e-12); }
+  assert.ok(Math.abs(trailFade(TRAIL.HOLD / 4, TRAIL.HOLD) - 0.75) < 1e-12, 'held finger dims linearly');
   assert.ok(TRAIL.HOLD >= 2000 && TRAIL.HOLD <= 4000 && TRAIL.LIFE < 500, 'a short trail, a resting light that fades in a few seconds');
   assert.ok(Math.abs(trailGlide(FRAME) - TRAIL.LERP) < 1e-12);
   // Two 120 Hz frames glide as far as one 60 Hz frame.
@@ -129,7 +129,7 @@ test('lifting the finger fades the light within RELEASE, from its current bright
 test('moving away after a rest does not leave a second slow spot behind', () => {
   const model = new PixelTrailModel();
   model.down(200, 200, 0);
-  let t = run(model, 0, 1000);// held still for a second: still bright
+  let t = run(model, 0, 600);// held still for a moment: still bright
   assert.ok(at(model.compute(t - FRAME), cell(200), cell(200)) > TRAIL.PEAK * 0.5);
   let x = 200;
   t = run(model, t, t + 600, () => { x += 15; model.point(x, 200, 0); });

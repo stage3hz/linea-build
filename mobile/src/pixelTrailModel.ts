@@ -37,7 +37,7 @@ export const TRAIL = {
   /** Life of a sample left by a moving light, ms. */
   LIFE: 200,
   /** Life of the light under a finger (or a held mouse button) at rest, ms. */
-  HOLD: 3000,
+  HOLD: 2000,
   /** On release the light fades within this, ms, from its current brightness. */
   RELEASE: 1200,
   /** Glide per 60 Hz frame. */
@@ -69,7 +69,15 @@ export function trailFade(ms: number, life: number = TRAIL.LIFE): number {
   if (ms < 0) return 1;
   if (!(ms < life)) return 0;
   const age = 1 - ms / life;
-  return age * age * (3 - 2 * age);
+  // A still, held finger dims evenly (linear); the moving trail and the release ease in and out.
+  return life === TRAIL.HOLD ? age : age * age * (3 - 2 * age);
+}
+
+/** The age on the eased (smoothstep) curve that has the same brightness as `trailFade(ms, life)`:
+ * switching a sample to another life keeps its brightness, with no jump. Inverse smoothstep. */
+export function trailCarry(ms: number, life: number): number {
+  const v = Math.min(1, Math.max(0, trailFade(ms, life)));
+  return 0.5 - Math.sin(Math.asin(1 - 2 * v) / 3);
 }
 
 /** The glide factor for a frame of `dt` ms: LERP at 60 Hz, the same speed at any refresh rate. */
@@ -111,7 +119,7 @@ export class PixelTrailModel {
     this.held = false;
     for (let i = 0; i < TRAIL.MAX_SAMPLES; i++) {
       if (!(this.ls[i] > TRAIL.RELEASE) || !this.live(i, now)) continue;
-      const left = Math.max(0, 1 - (now - this.ts[i]) / this.ls[i]);
+      const left = trailCarry(now - this.ts[i], this.ls[i]);
       this.ls[i] = TRAIL.RELEASE; this.ts[i] = now - (1 - left) * TRAIL.RELEASE;
     }
   }
@@ -137,7 +145,7 @@ export class PixelTrailModel {
         // so no second slow spot stays behind.
         for (let i = 0; i < TRAIL.MAX_SAMPLES; i++) {
           if (this.ls[i] !== TRAIL.HOLD || !this.live(i, now)) continue;
-          const left = Math.max(0, 1 - (now - this.ts[i]) / TRAIL.HOLD);
+          const left = trailCarry(now - this.ts[i], TRAIL.HOLD);
           this.ls[i] = TRAIL.LIFE; this.ts[i] = now - (1 - left) * TRAIL.LIFE;
         }
         if (last && Math.hypot(this.xs[n] - this.px, this.ys[n] - this.py) < TRAIL.SAMPLE_STEP) { this.ts[n] = now; this.ls[n] = TRAIL.LIFE; }
