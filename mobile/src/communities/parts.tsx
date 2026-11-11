@@ -31,15 +31,22 @@ export function KindBadge({ kind, category }: { kind: CommunityKind; category?: 
   </View>;
 }
 
-export const members = (count: number) => {
-  const mod10 = count % 10, mod100 = count % 100;
-  const word = mod10 === 1 && mod100 !== 11 ? 'участник' : mod10 >= 2 && mod10 <= 4 && (mod100 < 12 || mod100 > 14) ? 'участника' : 'участников';
-  return `${count} ${word}`;
+/** Count as Telegram shows it: «1 234», «12,3 тыс.», «1,2 млн» — never long enough to break a card. */
+export const compactCount = (count: number) => {
+  const n = Math.max(0, Math.floor(Number(count) || 0));
+  const short = (value: number, unit: string) => `${(Math.floor(value * 10) / 10).toString().replace('.', ',')}\u00A0${unit}`;
+  if (n >= 1_000_000) return short(n / 1_000_000, 'млн');
+  if (n >= 10_000) return short(n / 1_000, 'тыс.');
+  return n >= 1000 ? `${Math.floor(n / 1000)}\u202F${String(n % 1000).padStart(3, '0')}` : String(n);
 };
-export const subscribers = (count: number) => {
-  const mod10 = count % 10, mod100 = count % 100;
-  const word = mod10 === 1 && mod100 !== 11 ? 'подписчик' : mod10 >= 2 && mod10 <= 4 && (mod100 < 12 || mod100 > 14) ? 'подписчика' : 'подписчиков';
-  return `${count} ${word}`;
+const counted = (count: number, one: string, few: string, many: string) => {
+  const n = Math.max(0, Math.floor(Number(count) || 0));
+  if (n >= 10_000) return `${compactCount(n)} ${many}`;
+  const mod10 = n % 10, mod100 = n % 100;
+  const word = mod10 === 1 && mod100 !== 11 ? one : mod10 >= 2 && mod10 <= 4 && (mod100 < 12 || mod100 > 14) ? few : many;
+  return `${compactCount(n)} ${word}`;
 };
+export const members = (count: number) => counted(count, 'участник', 'участника', 'участников');
+export const subscribers = (count: number) => counted(count, 'подписчик', 'подписчика', 'подписчиков');
 
 export { inviteCodeFrom } from './types';

@@ -11,6 +11,7 @@ import { formatSize, useTheme } from './theme';
 import type { Attachment } from './types';
 import type { ViewMessage } from './messageMeta';
 import { mediaPreviewKind } from './media/formats';
+import { inviteCodeFrom } from './communities/types';
 import { previewUri } from './media/previewModel';
 import { isVideoNote, isVoice } from './voice/voice';
 import { BackStripTouch, stripScrollProps, type BackStrip } from './backStrip';
@@ -35,7 +36,7 @@ export function SharedMedia({ messages, onOpen, emptyText, backStrip }: { messag
         else if (['photo', 'video'].includes(mediaPreviewKind(a))) media.push({ a, m });
         else files.push({ a, m });
       }
-      for (const url of m.text?.match(URL) || []) links.push({ url: url.replace(/[).,!?»]+$/, ''), m });
+      for (const url of m.text?.match(URL) || []) if (!inviteCodeFrom(url)) links.push({ url: url.replace(/[).,!?»]+$/, ''), m });
     }
     return { media, photos: media.filter(x => mediaPreviewKind(x.a) === 'photo'), videos: media.filter(x => mediaPreviewKind(x.a) === 'video'), files, voice, links };
   }, [messages]);
