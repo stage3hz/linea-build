@@ -1,0 +1,8 @@
+{
+  "name": "linea-trail",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Pixel trail under the finger: a passthrough overlay fed by a non-consuming window-level touch observer",
+  "license": "AGPL-3.0-only",
+  "main": "index.ts"
+}

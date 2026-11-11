@@ -2807,5 +2807,7 @@
 "Нет соединения": "No connection",
 "Текущий звонок": "Ongoing call",
 "Собеседник": "Contact",
-"Вернуться к звонку": "Return to the call"
+"Вернуться к звонку": "Return to the call",
+"Пиксельный след": "Pixel trail",
+"Пиксели под пальцем и курсором: белые в тёмной теме, чёрные в светлой": "Pixels under your finger and cursor: white in a dark theme, black in a light one"
 }
