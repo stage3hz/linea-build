@@ -255,7 +255,7 @@ function Appearance({ api, user, theme, darkTheme, nightState = DAY_STATE, onThe
       <Item icon="moon" color="#5856D6" label="Ночная тема" value={NIGHT_LABELS[effectiveNightMode({ mode: preferences.nightMode, from: preferences.nightFrom, to: preferences.nightTo, brightness: preferences.nightBrightness }, theme, Platform.OS)]} onPress={() => open?.('night')} />
     </Group>
     {Platform.OS === 'ios' ? <Group label="Иконка приложения"><AppIconPicker /></Group> : null}
-    <Group><Toggle label="Пиксельный след" description="Пиксели под пальцем и курсором: белые в тёмной теме, чёрные в светлой" value={preferences.pixelTrail} onChange={value => setChatPreferences({ pixelTrail: value })} /></Group>
+    <Group><Toggle label="Пиксельный след" description="Сетка пикселей подсвечивается под пальцем и курсором: белая в тёмной теме, чёрная в светлой" value={preferences.pixelTrail} onChange={value => setChatPreferences({ pixelTrail: value })} /></Group>
     <Group label="Обои чатов"><Item icon="image" color="#2EA37A" label="Обои чатов" value="Выбрать" onPress={() => setWallpaperOpen(true)} /></Group>
     <WallpaperPicker visible={wallpaperOpen} onClose={() => setWallpaperOpen(false)} />
     <Group label="Углы сообщений"><View style={{ padding: 14, flexDirection: 'row', gap: 7 }}>{([[8, 'Острые'], [14, 'Средние'], [20, 'Круглые']] as const).map(([value, label]) => {

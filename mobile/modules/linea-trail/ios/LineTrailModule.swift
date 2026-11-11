@@ -7,8 +7,9 @@ import UIKit.UIGestureRecognizerSubclass
 /// recognizes, never cancels or delays them and is never prevented by other recognizers — so the trail keeps
 /// following the finger while a UIScrollView scrolls, an RNGH pan runs or a sheet is dragged (a JS onTouchMove
 /// is cancelled at that moment). The touch points feed a passthrough overlay (isUserInteractionEnabled = false)
-/// on top of the key window that draws the cells with a small reused pool of CALayers, driven by a CADisplayLink
-/// that runs only while some cell is alive. Anything missing (no key window) = nothing drawn.
+/// on top of the key window that draws a soft bloom and the lit tiles of a fixed mesh (one view, draw(_:) into the
+/// dirty rect only), driven by a CADisplayLink that runs only while the light is alive. Anything missing (no key window) =
+/// nothing drawn.
 public final class LineTrailModule: Module {
   private var overlay: TrailOverlayView?
   private var observer: TrailTouchObserver?
@@ -123,24 +124,26 @@ final class TrailTouchObserver: UIGestureRecognizer, UIGestureRecognizerDelegate
 
   override func touchesEnded(_ touches: Set<UITouch>, with event: UIEvent) {
     super.touchesEnded(touches, with: event)
-    for touch in touches { overlay?.lifted(touch) }
     finishIfDone(event)
   }
 
   override func touchesCancelled(_ touches: Set<UITouch>, with event: UIEvent) {
     super.touchesCancelled(touches, with: event)
-    for touch in touches { overlay?.lifted(touch) }
     finishIfDone(event)
   }
 
+  // UIKit resets the recognizer after the sequence; a release here too covers any sequence that ended unseen.
   override func reset() {
     super.reset()
-    overlay?.liftAll()
+    overlay?.released()
   }
 
   private func finishIfDone(_ event: UIEvent) {
     let down = event.allTouches?.contains(where: { $0.phase != .ended && $0.phase != .cancelled }) ?? false
-    if !down && state == .possible { state = .failed }
+    if !down {
+      overlay?.released()
+      if state == .possible { state = .failed }
+    }
   }
 
   override func canPrevent(_ preventedGestureRecognizer: UIGestureRecognizer) -> Bool { false }
@@ -153,40 +156,166 @@ final class TrailTouchObserver: UIGestureRecognizer, UIGestureRecognizerDelegate
 
 /// Mirrors TRAIL in src/pixelTrailModel.ts — keep the values and rules identical.
 enum TrailRules {
-  static let grid: CGFloat = 5          // GRID, pt
-  static let spacing: CGFloat = 5       // SPACING, pt
-  static let scatter = 2                // SCATTER, cells
-  static let extraChance = 0.4          // EXTRA_CHANCE
-  static let bigChance = 0.15           // BIG_CHANCE
-  static let lifeMin = 0.42             // LIFE_MIN, s
-  static let lifeMax = 0.70             // LIFE_MAX, s
-  static let maxLive = 150              // MAX_LIVE
-  static let birthAlpha = 0.85          // BIRTH_ALPHA
-  static let flicker = 0.048            // FLICKER_MS, s
-  static let flickerBase = 0.08         // FLICKER_BASE
-  static let flickerGrow = 0.5          // FLICKER_GROW
-  static let maxJump: CGFloat = 240     // MAX_JUMP, pt
-  static let maxSteps = 40              // MAX_STEPS
+  static let pitch: CGFloat = 5         // PITCH, pt
+  static let dot: CGFloat = 4           // DOT, pt
+  static let radius: Double = 140       // RADIUS, pt
+  static let peak: Double = 0.55        // PEAK
+  static let bloom: Double = 0.16       // BLOOM
+  static let bloomScale: Double = 1.15  // BLOOM_SCALE
+  static let life: Double = 200         // LIFE, ms (a moving light's samples)
+  static let hold: Double = 3000        // HOLD, ms (the light under a finger at rest)
+  static let release: Double = 1200     // RELEASE, ms (fade after the finger lifts)
+  static let lerp: Double = 0.35        // LERP (per 60 Hz frame)
+  static let frameMs: Double = 1000.0 / 60
+  static let sampleStep: Double = 4     // SAMPLE_STEP, pt
+  static let maxSamples = 48            // MAX_SAMPLES
+  static let minWeight: Double = 0.008  // MIN_WEIGHT
+  static let moving: Double = 0.3       // MOVING, pt
 
-  /// A random neighbour offset in cells, -scatter...scatter (src/pixelTrailModel.ts: Math.round((random * 2 - 1) * SCATTER)).
-  static func offset() -> Int { Int(((Double.random(in: 0..<1) * 2 - 1) * Double(scatter)).rounded()) }
-
-  /// trailHash in src/pixelTrailModel.ts (same bits).
-  static func hash(_ seed: UInt32, _ step: UInt32) -> Double {
-    var h = seed ^ (step &* 0x9E37_79B1)
-    h = (h ^ (h >> 16)) &* 0x85EB_CA6B
-    h = (h ^ (h >> 13)) &* 0xC2B2_AE35
-    h ^= h >> 16
-    return Double(h) / 4_294_967_296.0
+  /// trailFade: smoothstep(age), age = 1 − ms / life.
+  static func fade(_ ms: Double, _ life: Double) -> Double {
+    if ms < 0 { return 1 }
+    if !(ms < life) { return 0 }
+    let age = 1 - ms / life
+    return age * age * (3 - 2 * age)
   }
 
-  /// trailAlpha in src/pixelTrailModel.ts (age and life in seconds).
-  static func alpha(age: Double, life: Double, seed: UInt32) -> Double {
-    if !(age >= 0) || age >= life { return 0 }
-    let t = age / life
-    let step = UInt32(truncatingIfNeeded: Int(floor(age / flicker)))
-    if hash(seed, step) < flickerBase + flickerGrow * t { return 0 }
-    return birthAlpha * (1 - t)
+  /// trailGlide: LERP at 60 Hz, the same speed at any refresh rate.
+  static func glide(_ dt: Double) -> Double { 1 - pow(1 - lerp, max(0, dt) / frameMs) }
+}
+
+/// PixelTrailModel in src/pixelTrailModel.ts. Coordinates in pt, time in ms.
+final class TrailModel {
+  private var xs = [Double](repeating: 0, count: TrailRules.maxSamples)
+  private var ys = [Double](repeating: 0, count: TrailRules.maxSamples)
+  private var ts = [Double](repeating: -Double.infinity, count: TrailRules.maxSamples)
+  private var ls = [Double](repeating: TrailRules.life, count: TrailRules.maxSamples)
+  private var head = 0
+  private var newest = -1
+  // Pointer (target) and light (glides after it).
+  private var tx = Double.nan, ty = Double.nan, px = Double.nan, py = Double.nan
+  private var lastStep = Double.nan
+  private var held = false
+  // The lit tiles of the last compute: columns c0..<c0+cols, rows r0..<r0+rows, opacity per tile.
+  private(set) var c0 = 0, r0 = 0, cols = 0, rows = 0, lit = 0
+  private(set) var alpha: [Float] = []
+
+  func point(_ x: Double, _ y: Double, _ now: Double) {
+    if !x.isFinite || !y.isFinite { return }
+    if !px.isFinite { px = x; py = y }
+    tx = x; ty = y
+  }
+
+  /// A finger went down: the light is right there (no glide), with a fresh HOLD sample.
+  func down(_ x: Double, _ y: Double, _ now: Double) {
+    if !x.isFinite || !y.isFinite { return }
+    tx = x; px = x; ty = y; py = y; held = true
+    push(x, y, now, TrailRules.hold)
+  }
+
+  /// The last finger lifted (or the touch was cancelled): the light fades within RELEASE from its brightness.
+  func release(_ now: Double) {
+    held = false
+    for i in 0..<TrailRules.maxSamples where ls[i] > TrailRules.release && live(i, now) {
+      let left = max(0, 1 - (now - ts[i]) / ls[i])
+      ls[i] = TrailRules.release; ts[i] = now - (1 - left) * TrailRules.release
+    }
+  }
+
+  func clear() {
+    for i in 0..<TrailRules.maxSamples { ts[i] = -Double.infinity }
+    newest = -1; lastStep = .nan; held = false
+    cols = 0; rows = 0; lit = 0
+  }
+
+  private func live(_ i: Int, _ now: Double) -> Bool { now - ts[i] < ls[i] }
+
+  func alive(_ now: Double) -> Bool {
+    for i in 0..<TrailRules.maxSamples where live(i, now) { return true }
+    return false
+  }
+
+  /// Advances the light by one frame and samples it. Returns whether another frame is needed.
+  func step(_ now: Double) -> Bool {
+    if tx.isFinite {
+      let k = TrailRules.glide(lastStep.isFinite ? min(100, now - lastStep) : TrailRules.frameMs)
+      px += (tx - px) * k; py += (ty - py) * k
+      let n = newest, last = n >= 0 && live(n, now)
+      if hypot(tx - px, ty - py) > TrailRules.moving {
+        // Moving again after a rest: a held light keeps its brightness but fades as fast as the trail.
+        for i in 0..<TrailRules.maxSamples where ls[i] == TrailRules.hold && live(i, now) {
+          let left = max(0, 1 - (now - ts[i]) / TrailRules.hold)
+          ls[i] = TrailRules.life; ts[i] = now - (1 - left) * TrailRules.life
+        }
+        if last && hypot(xs[n] - px, ys[n] - py) < TrailRules.sampleStep { ts[n] = now; ls[n] = TrailRules.life } else { push(px, py, now, TrailRules.life) }
+      } else if held && last && ls[n] != TrailRules.hold {
+        // Settled under a held finger: the light stays and fades by itself over HOLD.
+        ts[n] = now; ls[n] = TrailRules.hold
+      }
+    }
+    lastStep = now
+    if alive(now) { return true }
+    px = tx; py = ty; lastStep = .nan
+    return false
+  }
+
+  /// The bloom under the mesh: centre (pt) and opacity (0 = none).
+  func bloom(_ now: Double) -> (x: Double, y: Double, alpha: Double) {
+    let n = newest
+    if n < 0 || !live(n, now) { return (0, 0, 0) }
+    return (xs[n], ys[n], TrailRules.bloom * (1 - (now - ts[n]) / ls[n]))
+  }
+
+  /// The box (pt) of the tiles of the last compute; .null when nothing is lit.
+  var bounds: CGRect {
+    if cols == 0 || rows == 0 { return .null }
+    return CGRect(x: CGFloat(c0) * TrailRules.pitch, y: CGFloat(r0) * TrailRules.pitch, width: CGFloat(cols) * TrailRules.pitch, height: CGFloat(rows) * TrailRules.pitch)
+  }
+
+  func compute(_ now: Double) {
+    let P = Double(TrailRules.pitch), R = TrailRules.radius
+    var minX = Double.infinity, minY = Double.infinity, maxX = -Double.infinity, maxY = -Double.infinity
+    for i in 0..<TrailRules.maxSamples where live(i, now) {
+      minX = min(minX, xs[i]); maxX = max(maxX, xs[i]); minY = min(minY, ys[i]); maxY = max(maxY, ys[i])
+    }
+    lit = 0
+    if minX > maxX { cols = 0; rows = 0; return }
+    c0 = Int(floor((minX - R) / P)); r0 = Int(floor((minY - R) / P))
+    cols = Int(floor((maxX + R) / P)) - c0 + 1; rows = Int(floor((maxY + R) / P)) - r0 + 1
+    let size = cols * rows
+    if alpha.count < size { alpha = [Float](repeating: 0, count: size + size / 2) }
+    for i in 0..<size { alpha[i] = 0 }
+    // Each sample writes the max into the tiles inside its own circle (per row, only the columns that can be inside).
+    for i in 0..<TrailRules.maxSamples {
+      let strength = TrailRules.fade(now - ts[i], ls[i])
+      if !(strength > 0) { continue }
+      let x = xs[i], y = ys[i]
+      let r1 = max(r0, Int(floor((y - R) / P))), r2 = min(r0 + rows - 1, Int(floor((y + R) / P)))
+      if r1 > r2 { continue }
+      for r in r1...r2 {
+        let dy = Double(r) * P + P / 2 - y
+        if dy * dy >= R * R { continue }
+        let half = (R * R - dy * dy).squareRoot(), row = (r - r0) * cols - c0
+        let c1 = max(c0, Int(ceil((x - half) / P - 0.5))), c2 = min(c0 + cols - 1, Int(floor((x + half) / P - 0.5)))
+        if c1 > c2 { continue }
+        for c in c1...c2 {
+          let dx = Double(c) * P + P / 2 - x, d = (dx * dx + dy * dy).squareRoot() / R
+          if d >= 1 { continue }
+          let k = 1 - d
+          let v = Float(strength * k * k * (3 - 2 * k))
+          if v > alpha[row + c] { alpha[row + c] = v }
+        }
+      }
+    }
+    for i in 0..<size {
+      if Double(alpha[i]) >= TrailRules.minWeight { alpha[i] *= Float(TrailRules.peak); lit += 1 } else { alpha[i] = 0 }
+    }
+  }
+
+  private func push(_ x: Double, _ y: Double, _ now: Double, _ life: Double) {
+    xs[head] = x; ys[head] = y; ts[head] = now; ls[head] = life
+    newest = head
+    head = (head + 1) % TrailRules.maxSamples
   }
 }
 
@@ -195,41 +324,40 @@ private final class DisplayLinkProxy: NSObject {
   @objc func tick(_ link: CADisplayLink) { owner?.tick() }
 }
 
-/// The drawing surface. Never takes touches and is hidden from accessibility.
+/// The drawing surface. Never takes touches and is hidden from accessibility. Its backing store is 1 px per pt
+/// with nearest-neighbour scaling: the tiles sit on whole points (the DOT-pt square at the cell's origin rather than
+/// half a point in — the same mesh, shifted by half a point), so they stay crisp at a ninth of the memory.
 final class TrailOverlayView: UIView {
-  private struct Stroke { var x: CGFloat; var y: CGFloat; var carry: CGFloat }
+  var color: UIColor = .white { didSet { setNeedsDisplay() } }
 
-  var color: UIColor = .white {
-    didSet {
-      CATransaction.begin(); CATransaction.setDisableActions(true)
-      for layer in cells { layer.backgroundColor = color.cgColor }
-      CATransaction.commit()
-    }
-  }
-
-  private var cells: [CALayer] = []
-  private var cx = [Int](repeating: 0, count: TrailRules.maxLive)
-  private var cy = [Int](repeating: 0, count: TrailRules.maxLive)
-  private var size = [Int](repeating: 0, count: TrailRules.maxLive)
-  private var born = [Double](repeating: -Double.infinity, count: TrailRules.maxLive)
-  private var life = [Double](repeating: 0, count: TrailRules.maxLive)
-  private var seed = [UInt32](repeating: 0, count: TrailRules.maxLive)
-  private var head = 0
-  private var until = -Double.infinity
-  private var strokes: [ObjectIdentifier: Stroke] = [:]
+  private let model = TrailModel()
   private var link: CADisplayLink?
+  private var shown = CGRect.null
+  private var bloomCentre = CGPoint.zero
+  private var bloomAlpha: Double = 0
+  private var gradient: CGGradient?
+  private var gradientColor: UIColor?
 
   override init(frame: CGRect) {
     super.init(frame: frame)
     isUserInteractionEnabled = false
     isOpaque = false
     backgroundColor = .clear
+    clearsContextBeforeDrawing = true
+    contentMode = .redraw
+    contentScaleFactor = 1
+    layer.magnificationFilter = .nearest
     isAccessibilityElement = false
     accessibilityElementsHidden = true
     autoresizingMask = [.flexibleWidth, .flexibleHeight]
   }
 
   required init?(coder: NSCoder) { return nil }
+
+  override func didMoveToWindow() {
+    super.didMoveToWindow()
+    contentScaleFactor = 1
+  }
 
   override func hitTest(_ point: CGPoint, with event: UIEvent?) -> UIView? { nil }
 
@@ -238,97 +366,28 @@ final class TrailOverlayView: UIView {
     parent.bringSubviewToFront(self)
   }
 
+  private static func now() -> Double { CACurrentMediaTime() * 1000 }
+
   func began(_ touch: UITouch) {
     if UIAccessibility.isReduceMotionEnabled { return }
     let p = touch.location(in: self)
-    strokes[ObjectIdentifier(touch)] = Stroke(x: p.x, y: p.y, carry: 0)
+    model.down(Double(p.x), Double(p.y), TrailOverlayView.now())
+    start()
   }
 
   func moved(_ touch: UITouch, event: UIEvent) {
-    let id = ObjectIdentifier(touch)
-    guard strokes[id] != nil else { return }
-    let now = CACurrentMediaTime()
-    // Coalesced samples follow a fast finger more closely than one point per event.
-    let samples = event.coalescedTouches(for: touch) ?? [touch]
-    var lit = 0
-    for sample in samples {
-      let p = sample.location(in: self)
-      lit += move(id, p.x, p.y, now)
-    }
-    if lit > 0 { start() }
+    if UIAccessibility.isReduceMotionEnabled { return }
+    // The light glides after the latest finger position (sampled once per frame in tick()).
+    let p = touch.location(in: self)
+    model.point(Double(p.x), Double(p.y), TrailOverlayView.now())
+    start()
   }
 
-  func lifted(_ touch: UITouch) { strokes[ObjectIdentifier(touch)] = nil }
-  func liftAll() { strokes.removeAll() }
-
-  private func move(_ id: ObjectIdentifier, _ x: CGFloat, _ y: CGFloat, _ now: Double) -> Int {
-    guard var stroke = strokes[id] else { return 0 }
-    let dx = x - stroke.x, dy = y - stroke.y, length = hypot(dx, dy)
-    if length > TrailRules.maxJump {
-      strokes[id] = Stroke(x: x, y: y, carry: 0)
-      return 0
-    }
-    var lit = 0, steps = 0
-    var at = TrailRules.spacing - stroke.carry
-    while at <= length && steps < TrailRules.maxSteps {
-      let k = at / length
-      lit += light(stroke.x + dx * k, stroke.y + dy * k, now)
-      at += TrailRules.spacing
-      steps += 1
-    }
-    stroke.carry = steps >= TrailRules.maxSteps ? 0 : length - (at - TrailRules.spacing)
-    stroke.x = x; stroke.y = y
-    strokes[id] = stroke
-    return lit
-  }
-
-  private func light(_ x: CGFloat, _ y: CGFloat, _ now: Double) -> Int {
-    let gx = Int(floor(x / TrailRules.grid)), gy = Int(floor(y / TrailRules.grid))
-    var lit = cell(gx, gy, Double.random(in: 0..<1) < TrailRules.bigChance ? 2 : 1, now)
-    if Double.random(in: 0..<1) < TrailRules.extraChance {
-      let ox = TrailRules.offset(), oy = TrailRules.offset()
-      if ox != 0 || oy != 0 { lit += cell(gx + ox, gy + oy, 1, now) }
-    }
-    return lit
-  }
-
-  private func cell(_ gx: Int, _ gy: Int, _ blocks: Int, _ now: Double) -> Int {
-    makeLayers()
-    let lifetime = TrailRules.lifeMin + Double.random(in: 0..<1) * (TrailRules.lifeMax - TrailRules.lifeMin)
-    var slot = -1
-    for i in 0..<TrailRules.maxLive where cx[i] == gx && cy[i] == gy && size[i] == blocks && now - born[i] < life[i] {
-      slot = i
-      break
-    }
-    if slot < 0 { slot = head; head = (head + 1) % TrailRules.maxLive }
-    cx[slot] = gx; cy[slot] = gy; size[slot] = blocks
-    born[slot] = now; life[slot] = lifetime; seed[slot] = UInt32.random(in: 0...UInt32.max)
-    until = max(until, now + lifetime)
-    let side = TrailRules.grid * CGFloat(blocks)
-    CATransaction.begin(); CATransaction.setDisableActions(true)
-    let layer = cells[slot]
-    layer.frame = CGRect(x: CGFloat(gx) * TrailRules.grid, y: CGFloat(gy) * TrailRules.grid, width: side, height: side)
-    layer.opacity = Float(TrailRules.birthAlpha)
-    layer.isHidden = false
-    CATransaction.commit()
-    return 1
-  }
-
-  private func makeLayers() {
-    guard cells.isEmpty else { return }
-    let still: [String: CAAction] = ["position": NSNull(), "bounds": NSNull(), "frame": NSNull(), "opacity": NSNull(), "hidden": NSNull(), "backgroundColor": NSNull()]
-    for _ in 0..<TrailRules.maxLive {
-      let cell = CALayer()
-      cell.actions = still
-      cell.isHidden = true
-      cell.backgroundColor = color.cgColor
-      layer.addSublayer(cell)
-      cells.append(cell)
-    }
-  }
+  /// All fingers are up (the observer calls this once per touch sequence).
+  func released() { model.release(TrailOverlayView.now()); start() }
 
   private func start() {
-    guard link == nil else { return }
+    guard link == nil, window != nil else { return }
     let proxy = DisplayLinkProxy()
     proxy.owner = self
     let made = CADisplayLink(target: proxy, selector: #selector(DisplayLinkProxy.tick(_:)))
@@ -340,26 +399,68 @@ final class TrailOverlayView: UIView {
   func stop() {
     link?.invalidate()
     link = nil
-    CATransaction.begin(); CATransaction.setDisableActions(true)
-    for layer in cells { layer.isHidden = true }
-    CATransaction.commit()
+    model.clear()
+    bloomAlpha = 0
+    if !shown.isNull { setNeedsDisplay(shown) }
+    shown = .null
   }
 
   func tick() {
-    let now = CACurrentMediaTime()
-    if now >= until { stop(); return }
-    CATransaction.begin(); CATransaction.setDisableActions(true)
-    for i in 0..<cells.count {
-      let a = TrailRules.alpha(age: now - born[i], life: life[i], seed: seed[i])
-      let layer = cells[i]
-      if a <= 0 {
-        if !layer.isHidden { layer.isHidden = true }
-      } else {
-        layer.isHidden = false
-        layer.opacity = Float(a)
+    let now = TrailOverlayView.now()
+    let alive = model.step(now)
+    model.compute(now)
+    let glow = model.bloom(now)
+    bloomCentre = CGPoint(x: glow.x, y: glow.y)
+    bloomAlpha = glow.alpha
+    var next = model.bounds
+    if glow.alpha > 0 {
+      let reach = CGFloat(TrailRules.radius * TrailRules.bloomScale)
+      next = next.union(CGRect(x: bloomCentre.x - reach, y: bloomCentre.y - reach, width: reach * 2, height: reach * 2))
+    }
+    // Redraw only what was lit last frame plus what is lit now.
+    let dirty = shown.union(next)
+    if !dirty.isNull { setNeedsDisplay(dirty.integral) }
+    shown = next
+    // Idle = no loop once the light has faded out.
+    if !alive {
+      link?.invalidate()
+      link = nil
+    }
+  }
+
+  override func draw(_ rect: CGRect) {
+    guard let context = UIGraphicsGetCurrentContext() else { return }
+    // 1) The soft bloom under the mesh, at the newest sample.
+    if bloomAlpha > 0 {
+      if gradient == nil || gradientColor != color {
+        let space = CGColorSpaceCreateDeviceRGB()
+        gradient = CGGradient(colorsSpace: space, colors: [color.cgColor, color.withAlphaComponent(0).cgColor] as CFArray, locations: [0, 1])
+        gradientColor = color
+      }
+      if let gradient {
+        context.saveGState()
+        context.setAlpha(CGFloat(bloomAlpha))
+        context.drawRadialGradient(gradient, startCenter: bloomCentre, startRadius: 0, endCenter: bloomCentre, endRadius: CGFloat(TrailRules.radius * TrailRules.bloomScale), options: [])
+        context.restoreGState()
       }
     }
-    CATransaction.commit()
+    // 2) The tiles, on whole points (see the class comment).
+    guard model.lit > 0 else { return }
+    let pitch = TrailRules.pitch, dot = TrailRules.dot, inset = floor((pitch - dot) / 2)
+    let rFrom = max(0, Int(floor(rect.minY / pitch)) - model.r0), rTo = min(model.rows - 1, Int(ceil(rect.maxY / pitch)) - model.r0)
+    let cFrom = max(0, Int(floor(rect.minX / pitch)) - model.c0), cTo = min(model.cols - 1, Int(ceil(rect.maxX / pitch)) - model.c0)
+    if rFrom > rTo || cFrom > cTo { return }
+    context.setFillColor(color.cgColor)
+    let alpha = model.alpha, cols = model.cols
+    for r in rFrom...rTo {
+      let y = CGFloat(model.r0 + r) * pitch + inset
+      for c in cFrom...cTo {
+        let a = alpha[r * cols + c]
+        if a <= 0 { continue }
+        context.setAlpha(CGFloat(a))
+        context.fill(CGRect(x: CGFloat(model.c0 + c) * pitch + inset, y: y, width: dot, height: dot))
+      }
+    }
   }
 
   override func removeFromSuperview() {

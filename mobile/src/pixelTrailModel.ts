@@ -1,129 +1,223 @@
-// «Пиксельный след»: the pure model of the pixel trail under the finger (phone) and the cursor (PC).
+// «Пиксельный след»: the pure model of the glowing tile mesh under the finger (phone) and the cursor (PC).
 // Kept free of React Native imports: it is tested in Node (test/pixel-trail.test.mjs) and drawn by
 // src/PixelTrail.tsx on a canvas (web). The native overlays (modules/linea-trail: ios/LineTrailModule.swift,
-// TrailOverlay.kt on Android) mirror the SAME constants and rules — change them in all three places.
+// android/.../TrailModel.kt) mirror the SAME constants and rules — change them in all three places.
 //
-// Model (grid recolour): the screen is divided into a fixed grid of GRID-pt cells. While the pointer moves,
-// a point is taken every SPACING pt along the path from the previous position; the cell under that point
-// lights up, sometimes with one neighbour up to SCATTER cells away (and sometimes as a 2×2 block). A lit cell
-// fades from BIRTH_ALPHA to 0 over its life (LIFE_MIN..LIFE_MAX ms) and flickers off for single FLICKER_MS
-// frames more and more often as it fades, so it dissolves rather than just dimming. A cell passed again is
-// re-lit, not duplicated. At most MAX_LIVE cells live at once: the oldest slot is reused (a ring).
+// Model:
+//  - The screen carries a fixed mesh of square tiles (DOT-pt squares every PITCH pt, a thin gap between them,
+//    snapped to the screen — never to the pointer), invisible except where the light falls.
+//  - The light glides after the pointer: every frame pos += (target − pos) · LERP (at 60 Hz; the same glide at
+//    any refresh rate). While it moves, a sample of its position is taken each frame: a new one (life LIFE) when it
+//    is SAMPLE_STEP pt or more from the newest, otherwise the newest is refreshed (t = now, life = LIFE).
+//  - When the light settles (|target − pos| ≤ MOVING) while a finger / button is DOWN, the newest sample is switched
+//    ONCE to life HOLD with t = now and is not refreshed after that: a finger held still keeps a light that fades by
+//    itself over a few seconds, until the next touch or movement. (A resting cursor without a button just lets the
+//    trail fade over LIFE.) On release every sample living longer than RELEASE is switched to RELEASE keeping its
+//    current brightness: left = 1 − (now − t) / life, t = now − (1 − left) · RELEASE. When the light moves again, every HOLD sample switches to life
+//    LIFE keeping its current brightness (t = now − (1 − left) · LIFE), so no slow spot stays behind. A touch / button down puts the light right there (no glide) with a
+//    fresh HOLD sample. At most MAX_SAMPLES samples.
+//  - Tile weight = max over samples of smoothstep(1 − d / RADIUS) · smoothstep(age), age = 1 − (now − t) / life;
+//    tiles below MIN_WEIGHT are skipped; tile opacity = PEAK · weight.
+//  - Under the mesh, a soft radial bloom at the newest sample: radius RADIUS · BLOOM_SCALE, opacity BLOOM · age at
+//    the centre, 0 at the edge. (Web also softens the tile edges with a BLUR px blur; the phones skip it.)
+//  - Once every sample has expired the frame loop stops and the light rests at the pointer.
 
 export const TRAIL = {
-  /** Cell size, pt (CSS px on PC). */
-  GRID: 5,
-  /** Distance along the path between two lit points, pt. */
-  SPACING: 5,
-  /** Neighbour scatter radius, in cells. */
-  SCATTER: 2,
-  /** Chance that a lit point also lights one scattered neighbour. */
-  EXTRA_CHANCE: 0.4,
-  /** Chance that a lit cell is a 2×2 block. */
-  BIG_CHANCE: 0.15,
-  LIFE_MIN: 420,
-  LIFE_MAX: 700,
-  MAX_LIVE: 150,
-  BIRTH_ALPHA: 0.85,
-  FLICKER_MS: 48,
-  /** Flicker-off chance at birth and how much it grows by the end of life. */
-  FLICKER_BASE: 0.08,
-  FLICKER_GROW: 0.5,
-  /** A jump longer than this (pt) starts a new stroke instead of drawing a line (cursor left and came back). */
-  MAX_JUMP: 240,
-  /** At most this many points per move event (a fast flick on a slow frame). */
-  MAX_STEPS: 40,
+  /** Grid pitch, pt (CSS px on PC). */
+  PITCH: 5,
+  /** Tile side, pt (the gap is PITCH − DOT). */
+  DOT: 4,
+  /** Light radius, pt. */
+  RADIUS: 140,
+  /** Tile opacity at the centre of a fresh light. */
+  PEAK: 0.55,
+  /** Bloom opacity at its centre (fresh), and its radius as a multiple of RADIUS. */
+  BLOOM: 0.16,
+  BLOOM_SCALE: 1.15,
+  /** Life of a sample left by a moving light, ms. */
+  LIFE: 200,
+  /** Life of the light under a finger (or a held mouse button) at rest, ms. */
+  HOLD: 3000,
+  /** On release the light fades within this, ms, from its current brightness. */
+  RELEASE: 1200,
+  /** Glide per 60 Hz frame. */
+  LERP: 0.35,
+  FRAME_MS: 1000 / 60,
+  /** New sample when the light is this far (pt) from the newest one. */
+  SAMPLE_STEP: 4,
+  MAX_SAMPLES: 48,
+  MIN_WEIGHT: 0.008,
+  /** The light counts as moving while it is farther than this (pt) from the pointer. */
+  MOVING: 0.3,
+  /** Tile edge blur on web, canvas px. */
+  BLUR: 0.45,
 } as const;
 
-/** Trail colour for the current theme: white on dark themes, black on light ones. */
+/** Tile colour for the current theme: white on dark themes, black on light ones. */
 export const trailColor = (dark: boolean) => dark ? '#FFFFFF' : '#000000';
 
-/** Deterministic 32-bit hash → [0, 1). Ported 1:1 to Swift (UInt32 &*) and Kotlin (Int, wrapping *). */
-export function trailHash(seed: number, step: number): number {
-  let h = (seed ^ Math.imul(step | 0, 0x9E3779B1)) | 0;
-  h = Math.imul(h ^ (h >>> 16), 0x85EBCA6B);
-  h = Math.imul(h ^ (h >>> 13), 0xC2B2AE35);
-  h ^= h >>> 16;
-  return (h >>> 0) / 4294967296;
+/** smoothstep(1 − d): 1 at the centre, 0 at and beyond the edge. */
+export function trailFalloff(d: number): number {
+  if (!(d < 1)) return 0;
+  if (d <= 0) return 1;
+  const k = 1 - d;
+  return k * k * (3 - 2 * k);
 }
 
-/** Opacity of a cell `age` ms after it lit up, with life `life` and flicker seed `seed`; 0 = not drawn. */
-export function trailAlpha(age: number, life: number, seed: number): number {
-  if (!(age >= 0) || age >= life) return 0;
-  const t = age / life;
-  const off = TRAIL.FLICKER_BASE + TRAIL.FLICKER_GROW * t;
-  if (trailHash(seed, Math.floor(age / TRAIL.FLICKER_MS)) < off) return 0;
-  return TRAIL.BIRTH_ALPHA * (1 - t);
+/** Smooth fade: smoothstep(age) with age = 1 − ms / life (0 when dead) — eases in and out. */
+export function trailFade(ms: number, life: number = TRAIL.LIFE): number {
+  if (ms < 0) return 1;
+  if (!(ms < life)) return 0;
+  const age = 1 - ms / life;
+  return age * age * (3 - 2 * age);
 }
 
-type Stroke = { x: number; y: number; carry: number };
+/** The glide factor for a frame of `dt` ms: LERP at 60 Hz, the same speed at any refresh rate. */
+export const trailGlide = (dt: number) => 1 - Math.pow(1 - TRAIL.LERP, Math.max(0, dt) / TRAIL.FRAME_MS);
+
+/** The lit tiles of one frame: a window of the grid (columns c0.., rows r0..) with an opacity per tile. */
+export type TrailField = { c0: number; r0: number; cols: number; rows: number; alpha: Float32Array; lit: number };
 
 export class PixelTrailModel {
-  /** Cell coordinates (multiply by GRID for pt) and size in cells (1 or 2). */
-  readonly cx = new Int32Array(TRAIL.MAX_LIVE);
-  readonly cy = new Int32Array(TRAIL.MAX_LIVE);
-  readonly size = new Uint8Array(TRAIL.MAX_LIVE);
-  readonly born = new Float64Array(TRAIL.MAX_LIVE).fill(-Infinity);
-  readonly life = new Float64Array(TRAIL.MAX_LIVE);
-  readonly seed = new Int32Array(TRAIL.MAX_LIVE);
+  readonly xs = new Float64Array(TRAIL.MAX_SAMPLES);
+  readonly ys = new Float64Array(TRAIL.MAX_SAMPLES);
+  readonly ts = new Float64Array(TRAIL.MAX_SAMPLES).fill(-Infinity);
+  /** Life of each sample, ms (LIFE or HOLD). */
+  readonly ls = new Float64Array(TRAIL.MAX_SAMPLES).fill(TRAIL.LIFE);
   private head = 0;
-  private until = -Infinity;
-  private strokes = new Map<number, Stroke>();
+  private newest = -1;
+  /** Pointer (target) and light (glides after it). */
+  tx = NaN; ty = NaN; px = NaN; py = NaN;
+  private lastStep = NaN;
+  private held = false;
+  readonly field: TrailField = { c0: 0, r0: 0, cols: 0, rows: 0, alpha: new Float32Array(0), lit: 0 };
 
-  constructor(private random: () => number = Math.random) {}
-
-  /** The pointer `id` moved to (x, y) pt at `now` ms. Returns how many cells lit up. */
-  move(id: number, x: number, y: number, now: number): number {
-    if (!Number.isFinite(x) || !Number.isFinite(y)) return 0;
-    const stroke = this.strokes.get(id);
-    if (!stroke) { this.strokes.set(id, { x, y, carry: 0 }); return 0; }
-    const dx = x - stroke.x, dy = y - stroke.y, length = Math.hypot(dx, dy);
-    if (length > TRAIL.MAX_JUMP) { stroke.x = x; stroke.y = y; stroke.carry = 0; return 0; }
-    let lit = 0, at = TRAIL.SPACING - stroke.carry, steps = 0;
-    while (at <= length && steps < TRAIL.MAX_STEPS) {
-      const k = at / length;
-      lit += this.light(stroke.x + dx * k, stroke.y + dy * k, now);
-      at += TRAIL.SPACING; steps++;
-    }
-    // The distance already walked past the last lit point carries over to the next move.
-    stroke.carry = steps >= TRAIL.MAX_STEPS ? 0 : length - (at - TRAIL.SPACING);
-    stroke.x = x; stroke.y = y;
-    return lit;
+  /** The pointer (a hovering cursor or a moving finger) is at (x, y); the light glides there from where it rests. */
+  point(x: number, y: number, _now?: number) {
+    if (!Number.isFinite(x) || !Number.isFinite(y)) return;
+    if (!Number.isFinite(this.px)) { this.px = x; this.py = y; }
+    this.tx = x; this.ty = y;
   }
 
-  /** The pointer `id` lifted (or left the window): the next move starts a new stroke. */
-  lift(id: number) { this.strokes.delete(id); }
-  liftAll() { this.strokes.clear(); }
-
-  /** True while some cell may still be drawn at `now` (the animation loop stops once this is false). */
-  alive(now: number) { return now < this.until; }
-
-  /** Drops every cell (setting turned off, theme switched mid-trail is fine — colour is applied at draw time). */
-  clear() { this.born.fill(-Infinity); this.until = -Infinity; this.strokes.clear(); }
-
-  /** Opacity of slot `i` at `now` (0 = skip it). */
-  alpha(i: number, now: number) { return trailAlpha(now - this.born[i], this.life[i], this.seed[i]); }
-
-  private light(x: number, y: number, now: number): number {
-    const cx = Math.floor(x / TRAIL.GRID), cy = Math.floor(y / TRAIL.GRID);
-    let lit = this.cell(cx, cy, this.random() < TRAIL.BIG_CHANCE ? 2 : 1, now);
-    if (this.random() < TRAIL.EXTRA_CHANCE) {
-      const ox = Math.round((this.random() * 2 - 1) * TRAIL.SCATTER), oy = Math.round((this.random() * 2 - 1) * TRAIL.SCATTER);
-      if (ox || oy) lit += this.cell(cx + ox, cy + oy, 1, now);
-    }
-    return lit;
+  /** A finger / button went down at (x, y): the light is right there, with a fresh HOLD sample. */
+  down(x: number, y: number, now: number) {
+    if (!Number.isFinite(x) || !Number.isFinite(y)) return;
+    this.tx = this.px = x; this.ty = this.py = y; this.held = true;
+    this.push(x, y, now, TRAIL.HOLD);
   }
 
-  private cell(cx: number, cy: number, size: number, now: number): number {
-    const life = TRAIL.LIFE_MIN + this.random() * (TRAIL.LIFE_MAX - TRAIL.LIFE_MIN);
-    const seed = (this.random() * 4294967296) | 0;
-    let slot = -1;
-    // A cell passed again is re-lit, not stacked.
-    for (let i = 0; i < TRAIL.MAX_LIVE; i++) if (this.cx[i] === cx && this.cy[i] === cy && this.size[i] === size && now - this.born[i] < this.life[i]) { slot = i; break; }
-    if (slot < 0) { slot = this.head; this.head = (this.head + 1) % TRAIL.MAX_LIVE; }
-    this.cx[slot] = cx; this.cy[slot] = cy; this.size[slot] = size;
-    this.born[slot] = now; this.life[slot] = life; this.seed[slot] = seed;
-    this.until = Math.max(this.until, now + life);
-    return 1;
+  /** The finger lifted / the button was released (or the touch was cancelled): the light fades within RELEASE. */
+  release(now: number) {
+    this.held = false;
+    for (let i = 0; i < TRAIL.MAX_SAMPLES; i++) {
+      if (!(this.ls[i] > TRAIL.RELEASE) || !this.live(i, now)) continue;
+      const left = Math.max(0, 1 - (now - this.ts[i]) / this.ls[i]);
+      this.ls[i] = TRAIL.RELEASE; this.ts[i] = now - (1 - left) * TRAIL.RELEASE;
+    }
+  }
+
+  clear() { this.ts.fill(-Infinity); this.newest = -1; this.lastStep = NaN; this.held = false; this.field.cols = this.field.rows = this.field.lit = 0; }
+
+  private live(i: number, now: number) { return now - this.ts[i] < this.ls[i]; }
+
+  /** Some sample is still alive: the picture still changes, keep the frame loop running. */
+  alive(now: number) {
+    for (let i = 0; i < TRAIL.MAX_SAMPLES; i++) if (this.live(i, now)) return true;
+    return false;
+  }
+
+  /** Advances the light by one frame and samples it. Returns whether another frame is needed. */
+  step(now: number): boolean {
+    if (Number.isFinite(this.tx)) {
+      const k = trailGlide(Number.isFinite(this.lastStep) ? Math.min(100, now - this.lastStep) : TRAIL.FRAME_MS);
+      this.px += (this.tx - this.px) * k; this.py += (this.ty - this.py) * k;
+      const n = this.newest, last = n >= 0 && this.live(n, now);
+      if (Math.hypot(this.tx - this.px, this.ty - this.py) > TRAIL.MOVING) {
+        // Moving again after a rest: a held light keeps its current brightness but fades as fast as the trail,
+        // so no second slow spot stays behind.
+        for (let i = 0; i < TRAIL.MAX_SAMPLES; i++) {
+          if (this.ls[i] !== TRAIL.HOLD || !this.live(i, now)) continue;
+          const left = Math.max(0, 1 - (now - this.ts[i]) / TRAIL.HOLD);
+          this.ls[i] = TRAIL.LIFE; this.ts[i] = now - (1 - left) * TRAIL.LIFE;
+        }
+        if (last && Math.hypot(this.xs[n] - this.px, this.ys[n] - this.py) < TRAIL.SAMPLE_STEP) { this.ts[n] = now; this.ls[n] = TRAIL.LIFE; }
+        else this.push(this.px, this.py, now, TRAIL.LIFE);
+      } else if (this.held && last && this.ls[n] !== TRAIL.HOLD) {
+        // Settled under a held finger: the light stays and fades by itself over HOLD.
+        this.ts[n] = now; this.ls[n] = TRAIL.HOLD;
+      }
+    }
+    this.lastStep = now;
+    if (this.alive(now)) return true;
+    // At rest: the light waits at the pointer.
+    this.px = this.tx; this.py = this.ty; this.lastStep = NaN;
+    return false;
+  }
+
+  /** The bloom under the mesh at `now`: centre and opacity (0 = none). */
+  bloom(now: number): { x: number; y: number; alpha: number } {
+    const i = this.newest;
+    if (i < 0 || !this.live(i, now)) return { x: 0, y: 0, alpha: 0 };
+    return { x: this.xs[i], y: this.ys[i], alpha: TRAIL.BLOOM * (1 - (now - this.ts[i]) / this.ls[i]) };
+  }
+
+  /** Opacity of the tile centred at (x, y) pt — the reference the field computation must agree with. */
+  alphaAt(x: number, y: number, now: number): number {
+    let best = 0;
+    for (let i = 0; i < TRAIL.MAX_SAMPLES; i++) {
+      const fade = trailFade(now - this.ts[i], this.ls[i]);
+      if (fade > best) best = Math.max(best, fade * trailFalloff(Math.hypot(x - this.xs[i], y - this.ys[i]) / TRAIL.RADIUS));
+    }
+    return best >= TRAIL.MIN_WEIGHT ? TRAIL.PEAK * best : 0;
+  }
+
+  /** Computes the lit tiles at `now` into `this.field` (no allocation once the buffer is big enough). */
+  compute(now: number): TrailField {
+    const f = this.field, P = TRAIL.PITCH, R = TRAIL.RADIUS;
+    let minX = Infinity, minY = Infinity, maxX = -Infinity, maxY = -Infinity;
+    for (let i = 0; i < TRAIL.MAX_SAMPLES; i++) {
+      if (!this.live(i, now)) continue;
+      const x = this.xs[i], y = this.ys[i];
+      if (x < minX) minX = x;
+      if (x > maxX) maxX = x;
+      if (y < minY) minY = y;
+      if (y > maxY) maxY = y;
+    }
+    f.lit = 0;
+    if (minX > maxX) { f.cols = f.rows = 0; return f; }
+    f.c0 = Math.floor((minX - R) / P); f.r0 = Math.floor((minY - R) / P);
+    f.cols = Math.floor((maxX + R) / P) - f.c0 + 1; f.rows = Math.floor((maxY + R) / P) - f.r0 + 1;
+    const size = f.cols * f.rows;
+    if (f.alpha.length < size) f.alpha = new Float32Array(Math.ceil(size * 1.5));
+    f.alpha.fill(0, 0, size);
+    // Each sample writes the max into the tiles inside its own circle (per row, only the columns that can be inside).
+    for (let i = 0; i < TRAIL.MAX_SAMPLES; i++) {
+      const strength = trailFade(now - this.ts[i], this.ls[i]);
+      if (!(strength > 0)) continue;
+      const x = this.xs[i], y = this.ys[i];
+      const r1 = Math.max(f.r0, Math.floor((y - R) / P)), r2 = Math.min(f.r0 + f.rows - 1, Math.floor((y + R) / P));
+      for (let r = r1; r <= r2; r++) {
+        const dy = r * P + P / 2 - y;
+        if (dy * dy >= R * R) continue;
+        const half = Math.sqrt(R * R - dy * dy), row = (r - f.r0) * f.cols - f.c0;
+        const c1 = Math.max(f.c0, Math.ceil((x - half) / P - 0.5)), c2 = Math.min(f.c0 + f.cols - 1, Math.floor((x + half) / P - 0.5));
+        for (let c = c1; c <= c2; c++) {
+          const dx = c * P + P / 2 - x, d = Math.sqrt(dx * dx + dy * dy) / R;
+          if (d >= 1) continue;
+          const k = 1 - d, v = strength * k * k * (3 - 2 * k);
+          if (v > f.alpha[row + c]) f.alpha[row + c] = v;
+        }
+      }
+    }
+    for (let i = 0; i < size; i++) {
+      if (f.alpha[i] >= TRAIL.MIN_WEIGHT) { f.alpha[i] *= TRAIL.PEAK; f.lit++; } else f.alpha[i] = 0;
+    }
+    return f;
+  }
+
+  private push(x: number, y: number, now: number, life: number) {
+    this.xs[this.head] = x; this.ys[this.head] = y; this.ts[this.head] = now; this.ls[this.head] = life;
+    this.newest = this.head;
+    this.head = (this.head + 1) % TRAIL.MAX_SAMPLES;
   }
 }

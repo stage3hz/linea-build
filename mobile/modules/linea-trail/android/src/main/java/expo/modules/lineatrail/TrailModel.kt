@@ -1,112 +1,168 @@
 package expo.modules.lineatrail
 
+import kotlin.math.ceil
 import kotlin.math.floor
 import kotlin.math.hypot
 import kotlin.math.max
-import kotlin.math.roundToInt
-import kotlin.random.Random
+import kotlin.math.min
+import kotlin.math.pow
+import kotlin.math.sqrt
 
 /** Mirrors TRAIL in src/pixelTrailModel.ts (and TrailRules in ios/LineTrailModule.swift) — keep the values identical. */
 object TrailRules {
-  const val GRID = 5f            // pt (dp)
-  const val SPACING = 5f         // dp
-  const val SCATTER = 2          // cells
-  const val EXTRA_CHANCE = 0.4
-  const val BIG_CHANCE = 0.15
-  const val LIFE_MIN = 420.0     // ms
-  const val LIFE_MAX = 700.0     // ms
-  const val MAX_LIVE = 150
-  const val BIRTH_ALPHA = 0.85
-  const val FLICKER_MS = 48.0
-  const val FLICKER_BASE = 0.08
-  const val FLICKER_GROW = 0.5
-  const val MAX_JUMP = 240f      // dp
-  const val MAX_STEPS = 40
+  const val PITCH = 5f           // grid pitch, dp
+  const val DOT = 4f             // tile side, dp
+  const val RADIUS = 140.0       // light radius, dp
+  const val PEAK = 0.55          // tile opacity at the centre of a fresh light
+  const val BLOOM = 0.16         // bloom opacity at its centre
+  const val BLOOM_SCALE = 1.15   // bloom radius / RADIUS
+  const val LIFE = 200.0         // life of a sample left by a moving light, ms
+  const val HOLD = 3000.0        // life of the light under a finger at rest, ms
+  const val RELEASE = 1200.0     // fade after the finger lifts, ms
+  const val LERP = 0.35          // glide per 60 Hz frame
+  const val FRAME_MS = 1000.0 / 60
+  const val SAMPLE_STEP = 4.0    // dp
+  const val MAX_SAMPLES = 48
+  const val MIN_WEIGHT = 0.008
+  const val MOVING = 0.3         // dp
 
-  /** trailHash in src/pixelTrailModel.ts (same bits: Int multiplication wraps like Math.imul). */
-  fun hash(seed: Int, step: Int): Double {
-    var h = seed xor (step * 0x9E3779B1L.toInt())
-    h = (h xor (h ushr 16)) * 0x85EBCA6BL.toInt()
-    h = (h xor (h ushr 13)) * 0xC2B2AE35L.toInt()
-    h = h xor (h ushr 16)
-    return (h.toLong() and 0xFFFFFFFFL).toDouble() / 4294967296.0
-  }
+  /** trailFade: smoothstep(age), age = 1 − ms / life. */
+  fun fade(ms: Double, life: Double): Double = if (ms < 0) 1.0 else if (!(ms < life)) 0.0 else (1 - ms / life).let { it * it * (3 - 2 * it) }
 
-  /** trailAlpha in src/pixelTrailModel.ts; 0 = not drawn. */
-  fun alpha(age: Double, life: Double, seed: Int): Double {
-    if (!(age >= 0) || age >= life) return 0.0
-    val t = age / life
-    if (hash(seed, floor(age / FLICKER_MS).toInt()) < FLICKER_BASE + FLICKER_GROW * t) return 0.0
-    return BIRTH_ALPHA * (1 - t)
-  }
+  /** trailGlide: LERP at 60 Hz, the same speed at any refresh rate. */
+  fun glide(dt: Double): Double = 1 - (1 - LERP).pow(max(0.0, dt) / FRAME_MS)
 }
 
-/** PixelTrailModel in src/pixelTrailModel.ts: a fixed ring of MAX_LIVE cells, no allocation while drawing. Coordinates in dp, time in ms. */
-class TrailModel(private val random: Random = Random.Default) {
-  val cx = IntArray(TrailRules.MAX_LIVE)
-  val cy = IntArray(TrailRules.MAX_LIVE)
-  val size = IntArray(TrailRules.MAX_LIVE)
-  val born = DoubleArray(TrailRules.MAX_LIVE) { Double.NEGATIVE_INFINITY }
-  val life = DoubleArray(TrailRules.MAX_LIVE)
-  val seed = IntArray(TrailRules.MAX_LIVE)
+/** PixelTrailModel in src/pixelTrailModel.ts. Coordinates in dp, time in ms. No allocation per frame once the
+ *  tile buffer has grown to the band size. */
+class TrailModel {
+  private val xs = DoubleArray(TrailRules.MAX_SAMPLES)
+  private val ys = DoubleArray(TrailRules.MAX_SAMPLES)
+  private val ts = DoubleArray(TrailRules.MAX_SAMPLES) { Double.NEGATIVE_INFINITY }
+  private val ls = DoubleArray(TrailRules.MAX_SAMPLES) { TrailRules.LIFE }
   private var head = 0
-  private var until = Double.NEGATIVE_INFINITY
-  // Strokes by pointer id (Android pointer ids are small: 0..31).
-  private val strokeX = FloatArray(32)
-  private val strokeY = FloatArray(32)
-  private val carry = FloatArray(32)
-  private val down = BooleanArray(32)
+  private var newest = -1
+  // Pointer (target) and light (glides after it).
+  private var tx = Double.NaN; private var ty = Double.NaN
+  private var px = Double.NaN; private var py = Double.NaN
+  private var lastStep = Double.NaN
+  private var held = false
 
-  fun begin(id: Int, x: Float, y: Float) {
-    if (id !in 0 until 32) return
-    strokeX[id] = x; strokeY[id] = y; carry[id] = 0f; down[id] = true
+  // The lit tiles of the last compute: columns c0 until c0+cols, rows r0 until r0+rows.
+  var c0 = 0; private set
+  var r0 = 0; private set
+  var cols = 0; private set
+  var rows = 0; private set
+  var lit = 0; private set
+  var alpha = FloatArray(0); private set
+  // The bloom of the last step: centre (dp) and opacity (0 = none).
+  var bloomX = 0.0; private set
+  var bloomY = 0.0; private set
+  var bloomAlpha = 0.0; private set
+
+  /** The finger is at (x, y); the light glides there from where it rests. */
+  fun point(x: Double, y: Double) {
+    if (x.isNaN() || y.isNaN() || x.isInfinite() || y.isInfinite()) return
+    if (px.isNaN()) { px = x; py = y }
+    tx = x; ty = y
   }
 
-  fun lift(id: Int) { if (id in 0 until 32) down[id] = false }
-  fun liftAll() { down.fill(false) }
-  fun alive(now: Double) = now < until
-  fun alpha(i: Int, now: Double) = TrailRules.alpha(now - born[i], life[i], seed[i])
-
-  fun clear() { born.fill(Double.NEGATIVE_INFINITY); until = Double.NEGATIVE_INFINITY; liftAll() }
-
-  /** Returns how many cells lit up. */
-  fun move(id: Int, x: Float, y: Float, now: Double): Int {
-    if (id !in 0 until 32 || !down[id] || x.isNaN() || y.isNaN()) return 0
-    val dx = x - strokeX[id]; val dy = y - strokeY[id]; val length = hypot(dx, dy)
-    if (length > TrailRules.MAX_JUMP) { begin(id, x, y); return 0 }
-    var lit = 0; var steps = 0
-    var at = TrailRules.SPACING - carry[id]
-    while (at <= length && steps < TrailRules.MAX_STEPS) {
-      val k = at / length
-      lit += light(strokeX[id] + dx * k, strokeY[id] + dy * k, now)
-      at += TrailRules.SPACING; steps++
-    }
-    carry[id] = if (steps >= TrailRules.MAX_STEPS) 0f else length - (at - TrailRules.SPACING)
-    strokeX[id] = x; strokeY[id] = y
-    return lit
+  /** A finger went down: the light is right there (no glide), with a fresh HOLD sample. */
+  fun down(x: Double, y: Double, now: Double) {
+    if (x.isNaN() || y.isNaN() || x.isInfinite() || y.isInfinite()) return
+    tx = x; px = x; ty = y; py = y; held = true
+    push(x, y, now, TrailRules.HOLD)
   }
 
-  private fun light(x: Float, y: Float, now: Double): Int {
-    val gx = floor(x / TrailRules.GRID).toInt(); val gy = floor(y / TrailRules.GRID).toInt()
-    var lit = cell(gx, gy, if (random.nextDouble() < TrailRules.BIG_CHANCE) 2 else 1, now)
-    if (random.nextDouble() < TrailRules.EXTRA_CHANCE) {
-      val ox = ((random.nextDouble() * 2 - 1) * TrailRules.SCATTER).roundToInt()
-      val oy = ((random.nextDouble() * 2 - 1) * TrailRules.SCATTER).roundToInt()
-      if (ox != 0 || oy != 0) lit += cell(gx + ox, gy + oy, 1, now)
+  /** The last finger lifted (or the touch was cancelled): the light fades within RELEASE from its brightness. */
+  fun release(now: Double) {
+    held = false
+    for (i in 0 until TrailRules.MAX_SAMPLES) {
+      if (!(ls[i] > TrailRules.RELEASE) || !live(i, now)) continue
+      val left = max(0.0, 1 - (now - ts[i]) / ls[i])
+      ls[i] = TrailRules.RELEASE; ts[i] = now - (1 - left) * TrailRules.RELEASE
     }
-    return lit
   }
 
-  private fun cell(gx: Int, gy: Int, blocks: Int, now: Double): Int {
-    val lifetime = TrailRules.LIFE_MIN + random.nextDouble() * (TrailRules.LIFE_MAX - TrailRules.LIFE_MIN)
-    var slot = -1
-    for (i in 0 until TrailRules.MAX_LIVE) {
-      if (cx[i] == gx && cy[i] == gy && size[i] == blocks && now - born[i] < life[i]) { slot = i; break }
+  fun clear() { ts.fill(Double.NEGATIVE_INFINITY); newest = -1; lastStep = Double.NaN; held = false; cols = 0; rows = 0; lit = 0; bloomAlpha = 0.0 }
+
+  private fun live(i: Int, now: Double) = now - ts[i] < ls[i]
+
+  fun alive(now: Double): Boolean {
+    for (i in 0 until TrailRules.MAX_SAMPLES) if (live(i, now)) return true
+    return false
+  }
+
+  /** Advances the light by one frame and samples it. Returns whether another frame is needed. */
+  fun step(now: Double): Boolean {
+    if (!tx.isNaN()) {
+      val k = TrailRules.glide(if (!lastStep.isNaN()) min(100.0, now - lastStep) else TrailRules.FRAME_MS)
+      px += (tx - px) * k; py += (ty - py) * k
+      val n = newest; val last = n >= 0 && live(n, now)
+      if (hypot(tx - px, ty - py) > TrailRules.MOVING) {
+        // Moving again after a rest: a held light keeps its brightness but fades as fast as the trail.
+        for (i in 0 until TrailRules.MAX_SAMPLES) {
+          if (ls[i] != TrailRules.HOLD || !live(i, now)) continue
+          val left = max(0.0, 1 - (now - ts[i]) / TrailRules.HOLD)
+          ls[i] = TrailRules.LIFE; ts[i] = now - (1 - left) * TrailRules.LIFE
+        }
+        if (last && hypot(xs[n] - px, ys[n] - py) < TrailRules.SAMPLE_STEP) { ts[n] = now; ls[n] = TrailRules.LIFE }
+        else push(px, py, now, TrailRules.LIFE)
+      } else if (held && last && ls[n] != TrailRules.HOLD) {
+        // Settled under a held finger: the light stays and fades by itself over HOLD.
+        ts[n] = now; ls[n] = TrailRules.HOLD
+      }
     }
-    if (slot < 0) { slot = head; head = (head + 1) % TrailRules.MAX_LIVE }
-    cx[slot] = gx; cy[slot] = gy; size[slot] = blocks
-    born[slot] = now; life[slot] = lifetime; seed[slot] = random.nextInt()
-    until = max(until, now + lifetime)
-    return 1
+    lastStep = now
+    if (alive(now)) {
+      val n = newest
+      if (n >= 0 && live(n, now)) { bloomX = xs[n]; bloomY = ys[n]; bloomAlpha = TrailRules.BLOOM * (1 - (now - ts[n]) / ls[n]) } else bloomAlpha = 0.0
+      return true
+    }
+    px = tx; py = ty; lastStep = Double.NaN; bloomAlpha = 0.0
+    return false
+  }
+
+  fun compute(now: Double) {
+    val p = TrailRules.PITCH.toDouble(); val r = TrailRules.RADIUS
+    var minX = Double.POSITIVE_INFINITY; var minY = Double.POSITIVE_INFINITY
+    var maxX = Double.NEGATIVE_INFINITY; var maxY = Double.NEGATIVE_INFINITY
+    for (i in 0 until TrailRules.MAX_SAMPLES) if (live(i, now)) { minX = min(minX, xs[i]); maxX = max(maxX, xs[i]); minY = min(minY, ys[i]); maxY = max(maxY, ys[i]) }
+    lit = 0
+    if (minX > maxX) { cols = 0; rows = 0; return }
+    c0 = floor((minX - r) / p).toInt(); r0 = floor((minY - r) / p).toInt()
+    cols = floor((maxX + r) / p).toInt() - c0 + 1; rows = floor((maxY + r) / p).toInt() - r0 + 1
+    val size = cols * rows
+    if (alpha.size < size) alpha = FloatArray(size + size / 2)
+    alpha.fill(0f, 0, size)
+    // Each sample writes the max into the tiles inside its own circle (per row, only the columns that can be inside).
+    for (i in 0 until TrailRules.MAX_SAMPLES) {
+      val strength = TrailRules.fade(now - ts[i], ls[i])
+      if (!(strength > 0)) continue
+      val x = xs[i]; val y = ys[i]
+      val r1 = max(r0, floor((y - r) / p).toInt()); val r2 = min(r0 + rows - 1, floor((y + r) / p).toInt())
+      for (row in r1..r2) {
+        val dy = row * p + p / 2 - y
+        if (dy * dy >= r * r) continue
+        val half = sqrt(r * r - dy * dy); val base = (row - r0) * cols - c0
+        val c1 = max(c0, ceil((x - half) / p - 0.5).toInt()); val c2 = min(c0 + cols - 1, floor((x + half) / p - 0.5).toInt())
+        for (c in c1..c2) {
+          val dx = c * p + p / 2 - x; val d = sqrt(dx * dx + dy * dy) / r
+          if (d >= 1) continue
+          val k = 1 - d
+          val v = (strength * k * k * (3 - 2 * k)).toFloat()
+          if (v > alpha[base + c]) alpha[base + c] = v
+        }
+      }
+    }
+    for (i in 0 until size) {
+      if (alpha[i] >= TrailRules.MIN_WEIGHT) { alpha[i] = (alpha[i] * TrailRules.PEAK).toFloat(); lit++ } else alpha[i] = 0f
+    }
+  }
+
+  private fun push(x: Double, y: Double, now: Double, life: Double) {
+    xs[head] = x; ys[head] = y; ts[head] = now; ls[head] = life
+    newest = head
+    head = (head + 1) % TrailRules.MAX_SAMPLES
   }
 }

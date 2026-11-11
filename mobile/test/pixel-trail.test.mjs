@@ -3,104 +3,191 @@ import test from 'node:test';
 import { readFileSync } from 'node:fs';
 import { loadTs } from './support/load-ts.mjs';
 
-const { PixelTrailModel, TRAIL, trailAlpha, trailColor, trailHash } = loadTs(new URL('../src/pixelTrailModel.ts', import.meta.url), {});
+const { PixelTrailModel, TRAIL, trailColor, trailFade, trailFalloff, trailGlide } = loadTs(new URL('../src/pixelTrailModel.ts', import.meta.url), {});
 
-// A seeded generator so the spawn pattern is reproducible.
-const seeded = (seed = 1) => () => { seed = (Math.imul(seed, 1664525) + 1013904223) >>> 0; return seed / 4294967296; };
-const live = (model, now) => { let n = 0; for (let i = 0; i < TRAIL.MAX_LIVE; i++) if (now - model.born[i] < model.life[i]) n++; return n; };
+const FRAME = 1000 / 60;
+const at = (field, c, r) => (c < field.c0 || r < field.r0 || c >= field.c0 + field.cols || r >= field.r0 + field.rows) ? 0 : field.alpha[(r - field.r0) * field.cols + (c - field.c0)];
+const cell = v => Math.floor(v / TRAIL.PITCH);
+/** Runs frames from `from` until `until` (ms), calling `each(t)` before every step; returns the next frame time. */
+const run = (model, from, until, each = () => {}) => { let t = from; for (; t < until; t += FRAME) { each(t); model.step(t); } return t; };
 
 test('colour contrasts with the theme', () => {
   assert.equal(trailColor(true), '#FFFFFF');
   assert.equal(trailColor(false), '#000000');
 });
 
-test('hash is a stable 32-bit mix in [0, 1) (the Swift and Kotlin ports reproduce these values)', () => {
-  assert.equal(trailHash(0, 0), 0);
-  assert.equal(trailHash(1, 2).toFixed(12), '0.054057230009');
-  assert.equal(trailHash(-123456789, 7).toFixed(12), '0.457903033355');
-  assert.equal(trailHash(2147483647, 99).toFixed(12), '0.475562395528');
-  for (let i = 0; i < 1000; i++) { const h = trailHash(i * 7919, i); assert.ok(h >= 0 && h < 1); }
+test('the tiles form a fine mesh: small squares with a thin gap', () => {
+  assert.equal(TRAIL.PITCH - TRAIL.DOT, 1);
+  assert.ok(TRAIL.DOT >= 3 && TRAIL.DOT <= 6);
+  assert.ok(TRAIL.PEAK > 0 && TRAIL.PEAK < 1, 'a glow, never solid');
 });
 
-test('alpha starts at the birth opacity, falls with age, is 0 after the life, and flickers off sometimes', () => {
-  assert.equal(trailAlpha(-1, 500, 1), 0);
-  assert.equal(trailAlpha(500, 500, 1), 0);
-  assert.equal(trailAlpha(900, 500, 1), 0);
-  let shown = 0, hidden = 0, previous = Infinity;
-  for (let seed = 1; seed < 400; seed++) {
-    const a = trailAlpha(250, 500, seed);
-    if (a === 0) hidden++; else { shown++; assert.ok(Math.abs(a - TRAIL.BIRTH_ALPHA * 0.5) < 1e-9); }
+test('falloff = smoothstep(1 − d): 1 at the centre, smooth, 0 at and beyond the edge', () => {
+  assert.equal(trailFalloff(0), 1);
+  assert.equal(trailFalloff(0.5), 0.5);
+  assert.equal(trailFalloff(1), 0);
+  assert.equal(trailFalloff(3), 0);
+  assert.equal(trailFalloff(NaN), 0);
+  for (let d = 0; d < 1; d += 0.05) assert.ok(trailFalloff(d) >= trailFalloff(d + 0.05));
+  assert.ok(trailFalloff(0.98) < 0.002);
+});
+
+test('fade = age^1.5 over the sample life; the glide is LERP per 60 Hz frame at any refresh rate', () => {
+  assert.equal(trailFade(0), 1);
+  assert.equal(trailFade(TRAIL.LIFE), 0);
+  assert.equal(trailFade(Infinity), 0);
+  assert.ok(Math.abs(trailFade(TRAIL.LIFE / 2) - 0.5) < 1e-12, 'smoothstep at the midpoint');
+  { const a = 1 - 1500 / TRAIL.HOLD; assert.ok(Math.abs(trailFade(1500, TRAIL.HOLD) - a * a * (3 - 2 * a)) < 1e-12); }
+  assert.ok(TRAIL.HOLD >= 2000 && TRAIL.HOLD <= 4000 && TRAIL.LIFE < 500, 'a short trail, a resting light that fades in a few seconds');
+  assert.ok(Math.abs(trailGlide(FRAME) - TRAIL.LERP) < 1e-12);
+  // Two 120 Hz frames glide as far as one 60 Hz frame.
+  const half = trailGlide(FRAME / 2);
+  assert.ok(Math.abs(1 - (1 - half) * (1 - half) - TRAIL.LERP) < 1e-12);
+});
+
+test('nothing is lit and no frames are asked for until a pointer appears', () => {
+  const model = new PixelTrailModel();
+  assert.equal(model.step(0), false);
+  assert.equal(model.compute(0).lit, 0);
+  assert.equal(model.bloom(0).alpha, 0);
+});
+
+test('a touch lights a soft circle right under the finger, on the fixed screen grid', () => {
+  const model = new PixelTrailModel();
+  model.down(202.5, 302.5, 0);// a tile centre
+  assert.equal(model.step(0), true);
+  const field = model.compute(0);
+  assert.ok(Math.abs(at(field, cell(202.5), cell(302.5)) - TRAIL.PEAK) < 1e-6);
+  let previous = Infinity;
+  for (let c = cell(202.5); c < cell(202.5 + TRAIL.RADIUS) + 2; c++) { const a = at(field, c, cell(302.5)); assert.ok(a <= previous + 1e-7); previous = a; }
+  assert.equal(at(field, cell(202.5 + TRAIL.RADIUS) + 1, cell(302.5)), 0);
+  for (let r = field.r0; r < field.r0 + field.rows; r++) for (let c = field.c0; c < field.c0 + field.cols; c++) {
+    const a = at(field, c, r);
+    assert.ok(Math.abs(a - model.alphaAt(c * TRAIL.PITCH + TRAIL.PITCH / 2, r * TRAIL.PITCH + TRAIL.PITCH / 2, 0)) < 1e-6);
+    assert.ok(a === 0 || a >= TRAIL.PEAK * TRAIL.MIN_WEIGHT - 1e-7);
   }
-  assert.ok(shown > hidden && hidden > 0, `flicker hides some cells (${hidden}/${shown + hidden})`);
-  // Never brighter than at birth, and fading as it ages.
-  for (let age = 0; age < 500; age += 48) { const a = trailAlpha(age, 500, 3); if (a) { assert.ok(a <= TRAIL.BIRTH_ALPHA && a <= previous + 1e-9); previous = a; } }
+  const bloom = model.bloom(0);
+  assert.deepEqual([bloom.x, bloom.y], [202.5, 302.5]);
+  assert.ok(Math.abs(bloom.alpha - TRAIL.BLOOM) < 1e-9);
 });
 
-test('the first point of a stroke only anchors it; moving lights cells about every SPACING pt along the path', () => {
-  const model = new PixelTrailModel(seeded(5));
-  assert.equal(model.move(1, 10, 10, 0), 0);
-  assert.equal(model.alive(0), false);
-  const lit = model.move(1, 110, 10, 16);
-  assert.ok(lit >= 100 / TRAIL.SPACING, `lit ${lit}`);
-  assert.equal(model.alive(16), true);
-  // Every lit cell sits on the grid within SCATTER (+1 for a 2×2 block) cells of the path.
-  for (let i = 0; i < TRAIL.MAX_LIVE; i++) {
-    if (!(16 - model.born[i] < model.life[i])) continue;
-    assert.ok(model.size[i] === 1 || model.size[i] === 2);
-    assert.ok(Math.abs(model.cy[i] - Math.floor(10 / TRAIL.GRID)) <= TRAIL.SCATTER);
-    assert.ok(model.cx[i] >= Math.floor(10 / TRAIL.GRID) - TRAIL.SCATTER && model.cx[i] <= Math.floor(110 / TRAIL.GRID) + TRAIL.SCATTER);
-    assert.ok(model.life[i] >= TRAIL.LIFE_MIN && model.life[i] <= TRAIL.LIFE_MAX);
-  }
-  // Everything is gone after the longest life: the animation loop can stop.
-  assert.equal(model.alive(16 + TRAIL.LIFE_MAX + 1), false);
+test('the light glides after the pointer and leaves a trail that fades behind it', () => {
+  const model = new PixelTrailModel();
+  model.point(0, 200, 0);
+  let x = 0;
+  const end = run(model, 0, 300, () => { x += 12; model.point(x, 200, 0); });
+  assert.ok(model.px < model.tx && model.px > model.tx - 60, `light ${model.px} glides behind the pointer ${model.tx}`);
+  const field = model.compute(end - FRAME);
+  const r = cell(200);
+  const head = at(field, cell(model.px), r), middle = at(field, cell(model.px - 100), r), tail = at(field, cell(model.px - 180), r);
+  assert.ok(head > middle && middle > tail, `head ${head} > middle ${middle} > tail ${tail}`);
+  assert.ok(middle > 0);
 });
 
-test('spacing carries over between small moves', () => {
-  const model = new PixelTrailModel(() => 0.99);// no extras, no big blocks
-  model.move(1, 0, 0, 0);
-  let lit = 0;
-  for (let x = 1; x <= 50; x++) lit += model.move(1, x, 0, x);
-  assert.equal(lit, 50 / TRAIL.SPACING);
+test('when the light settles under a held finger it stays and fades by itself over a few seconds', () => {
+  const model = new PixelTrailModel();
+  model.down(100, 100, 0);
+  let x = 100;
+  let t = run(model, 0, 200, () => { x += 8; model.point(x, 100, 0); });
+  t = run(model, t, t + 150);// the light catches up and settles
+  const centre = () => at(model.compute(t - FRAME), cell(x), cell(100));
+  assert.ok(centre() > TRAIL.PEAK * 0.8, `fresh at rest ${centre()}`);
+  t = run(model, t, t + TRAIL.HOLD / 2);
+  const later = centre();
+  assert.ok(later > TRAIL.PEAK * 0.35 && later < TRAIL.PEAK * 0.65, `dimmer half-way through HOLD: ${later}`);
+  let frames = 0;
+  while (model.step(t)) { t += FRAME; frames++; }
+  assert.ok(frames * FRAME < TRAIL.HOLD, 'gone within HOLD');
+  assert.equal(model.compute(t).lit, 0);
+  // At rest the light waits at the pointer.
+  assert.deepEqual([model.px, model.py], [x, 100]);
 });
 
-test('a cell passed again is re-lit, not stacked', () => {
-  const model = new PixelTrailModel(() => 0.99);
-  model.move(1, 0, 2, 0);
-  model.move(1, 5, 2, 0);
-  model.move(1, 0, 2, 100);
-  model.move(1, 5, 2, 200);
-  assert.equal(live(model, 200), 2);
+test('a resting cursor without a button lets the light fade as fast as the trail', () => {
+  const model = new PixelTrailModel();
+  model.point(100, 100);
+  let x = 100;
+  let t = run(model, 0, 200, () => { x += 8; model.point(x, 100); });
+  let frames = 0;
+  while (model.step(t)) { t += FRAME; frames++; }
+  assert.ok(frames * FRAME < TRAIL.LIFE + 300, `gone ${frames * FRAME} ms after the cursor stopped`);
 });
 
-test('live cells are capped, the oldest slot is reused', () => {
-  const model = new PixelTrailModel(seeded(9));
-  model.move(1, 0, 0, 0);
-  for (let i = 1; i <= 100; i++) model.move(1, (i % 2 ? 200 : 0), i * 3, i);
-  assert.ok(live(model, 100) <= TRAIL.MAX_LIVE);
-  assert.equal(model.born.length, TRAIL.MAX_LIVE);
+test('lifting the finger fades the light within RELEASE, from its current brightness', () => {
+  const model = new PixelTrailModel();
+  model.down(400, 400, 0);
+  let t = run(model, 0, 500);
+  const before = at(model.compute(t - FRAME), cell(400), cell(400));
+  model.release(t - FRAME);
+  const after = at(model.compute(t - FRAME), cell(400), cell(400));
+  assert.ok(Math.abs(after - before) < 1e-6, 'no jump at release');
+  let frames = 0;
+  while (model.step(t)) { t += FRAME; frames++; }
+  assert.ok(frames * FRAME <= TRAIL.RELEASE, `gone ${frames * FRAME} ms after release`);
 });
 
-test('a long jump starts a new stroke; long fast moves are bounded; lift ends a stroke; bad input is ignored', () => {
-  const model = new PixelTrailModel(() => 0.99);
-  model.move(1, 0, 0, 0);
-  assert.equal(model.move(1, TRAIL.MAX_JUMP + 50, 0, 1), 0);
-  assert.ok(model.move(1, TRAIL.MAX_JUMP + 50 + TRAIL.MAX_JUMP - 1, 0, 2) <= TRAIL.MAX_STEPS);
-  model.lift(1);
-  assert.equal(model.move(1, 0, 0, 3), 0);
-  assert.equal(model.move(1, NaN, 0, 4), 0);
-  // Two fingers are tracked separately.
-  model.move(2, 300, 300, 5);
-  assert.ok(model.move(2, 330, 300, 6) > 0);
+test('moving away after a rest does not leave a second slow spot behind', () => {
+  const model = new PixelTrailModel();
+  model.down(200, 200, 0);
+  let t = run(model, 0, 1000);// held still for a second: still bright
+  assert.ok(at(model.compute(t - FRAME), cell(200), cell(200)) > TRAIL.PEAK * 0.5);
+  let x = 200;
+  t = run(model, t, t + 600, () => { x += 15; model.point(x, 200, 0); });
+  // The old spot faded as fast as the trail (as a HOLD light it would still glow for seconds).
+  assert.equal(at(model.compute(t - FRAME), cell(200), cell(200)), 0);
+});
+
+test('a still, held finger is not refreshed: its light fades too; a new touch lights again at once', () => {
+  const model = new PixelTrailModel();
+  model.down(300, 300, 0);
+  const t = run(model, 0, TRAIL.HOLD + 100);
+  assert.equal(model.alive(t), false);
+  model.down(600, 300, t);
+  assert.equal(model.step(t), true);
+  assert.ok(at(model.compute(t), cell(600), cell(300)) > 0);
+  assert.equal(at(model.compute(t), cell(300), cell(300)), 0);
+});
+
+test('a hovering cursor starts a trail after a rest; a touch puts the light right under the finger', () => {
+  const model = new PixelTrailModel();
+  model.point(50, 50);
+  let t = run(model, 0, TRAIL.HOLD + 100);
+  assert.equal(model.alive(t), false);
+  model.point(80, 50);
+  assert.equal(model.step(t), true, 'the cursor moved on: the light glides after it');
+  assert.ok(model.px > 50 && model.px < 80);
+  t = run(model, t, t + TRAIL.HOLD + 100);
+  model.down(800, 500, t);
+  assert.deepEqual([model.px, model.py], [800, 500]);
+});
+
+test('samples are capped at MAX_SAMPLES and the tile buffer covers the band', () => {
+  const model = new PixelTrailModel();
+  model.point(0, 0, 0);
+  let x = 0;
+  const t = run(model, 0, 2000, () => { x += 30; model.point(x, x % 700, 0); });
+  assert.equal(model.ts.length, TRAIL.MAX_SAMPLES);
+  const field = model.compute(t - FRAME);
+  assert.ok(field.lit > 0 && field.cols * field.rows <= field.alpha.length);
+});
+
+test('bad input is ignored; clear drops everything', () => {
+  const model = new PixelTrailModel();
+  model.down(NaN, 0, 0);
+  model.point(0, Infinity, 0);
+  assert.equal(model.step(0), false);
+  model.down(10, 10, 0);
   model.clear();
-  assert.equal(model.alive(6), false);
+  assert.equal(model.alive(0), false);
+  assert.equal(model.compute(0).lit, 0);
 });
 
 test('native ports mirror the shared constants', () => {
   const swift = readFileSync(new URL('../modules/linea-trail/ios/LineTrailModule.swift', import.meta.url), 'utf8');
   const kotlin = readFileSync(new URL('../modules/linea-trail/android/src/main/java/expo/modules/lineatrail/TrailModel.kt', import.meta.url), 'utf8');
   const num = (text, pattern) => Number(text.match(pattern)?.[1]);
-  for (const [key, swiftName, factor] of [['GRID', 'grid', 1], ['SPACING', 'spacing', 1], ['SCATTER', 'scatter', 1], ['EXTRA_CHANCE', 'extraChance', 1], ['BIG_CHANCE', 'bigChance', 1], ['LIFE_MIN', 'lifeMin', 1000], ['LIFE_MAX', 'lifeMax', 1000], ['MAX_LIVE', 'maxLive', 1], ['BIRTH_ALPHA', 'birthAlpha', 1], ['FLICKER_MS', 'flicker', 1000], ['FLICKER_BASE', 'flickerBase', 1], ['FLICKER_GROW', 'flickerGrow', 1], ['MAX_JUMP', 'maxJump', 1], ['MAX_STEPS', 'maxSteps', 1]]) {
-    assert.ok(Math.abs(num(swift, new RegExp(`static let ${swiftName}(?:: \\w+)? = ([\\d.]+)`)) * factor - TRAIL[key]) < 1e-9, `Swift ${swiftName}`);
+  for (const [key, swiftName] of [['PITCH', 'pitch'], ['DOT', 'dot'], ['RADIUS', 'radius'], ['PEAK', 'peak'], ['BLOOM', 'bloom'], ['BLOOM_SCALE', 'bloomScale'], ['LIFE', 'life'], ['HOLD', 'hold'], ['RELEASE', 'release'], ['LERP', 'lerp'], ['SAMPLE_STEP', 'sampleStep'], ['MAX_SAMPLES', 'maxSamples'], ['MIN_WEIGHT', 'minWeight'], ['MOVING', 'moving']]) {
+    assert.equal(num(swift, new RegExp(`static let ${swiftName}(?:: \\w+)? = ([\\d.]+)`)), TRAIL[key], `Swift ${swiftName}`);
     assert.equal(num(kotlin, new RegExp(`const val ${key} = ([\\d.]+)`)), TRAIL[key], `Kotlin ${key}`);
   }
 });
