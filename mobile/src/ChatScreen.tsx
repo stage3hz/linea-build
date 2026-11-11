@@ -16,10 +16,11 @@ import { activeTypes } from './format/entities';
 import { countChats } from './plural';
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { ActivityIndicator, FlatList, Keyboard, Modal, Platform, Pressable, ScrollView, View } from 'react-native';
-import Animated, { useAnimatedStyle } from 'react-native-reanimated';
+import Animated, { runOnJS, scrollTo, useAnimatedRef, useAnimatedScrollHandler, useAnimatedStyle, useSharedValue } from 'react-native-reanimated';
 import { setVisibleNotes } from './videonote/playback';
 import { composerValue, typedInto } from './editDraft';
-import { useReanimatedKeyboardAnimation } from 'react-native-keyboard-controller';
+import { KeyboardGestureArea, useReanimatedKeyboardAnimation } from 'react-native-keyboard-controller';
+import { DRAG_UNLOCKED, dragLockBegin, dragLockEnd, dragLockMomentumBegin, dragLockMomentumEnd, dragLockScroll, keyboardDismissSetup, keyboardGestureOffset } from './keyboardDragLock';
 import * as VideoThumbnails from 'expo-video-thumbnails';
 import { Text, TextInput } from './typography';
 import { KeyboardSafeView } from './keyboard';
@@ -82,10 +83,13 @@ import { adoptMedia } from './media/mediaCache';
 import { useCallback } from 'react';
 import { attachmentLabel, isVideoNote, isVoice } from './voice/voice';
 import { VOICE_MIME, VOICE_MIN_MS, videoNoteFileName, voiceFileName } from './voice/voice';
-import { HEADER_EDGE_BLUR, HEADER_EDGE_COVER, chatListPadding } from './chatLayout';
+import { HEADER_EDGE_BLUR, HEADER_EDGE_COVER, chatListPadding, navInsetShown } from './chatLayout';
 import { quoteContent } from './replyQuote';
 import { previewUri } from './media/previewModel';
 import { JUMP_FLASH_MS, knownDeleted, nextJumpStep, rowIndexOf, type ReplyJump } from './replyJump';
+
+/** Links the composer field to the list's KeyboardGestureArea (iOS: the keyboard follows the finger from the composer's top). */
+const COMPOSER_NATIVE_ID='chat-composer-input';
 
 
 /** Formatting of the unsent text per chat (the draft text itself lives in the store as a plain string). */
@@ -98,7 +102,10 @@ export function ChatScreen({api,user,chat,store,onBack,wide=false,onOpenMusic}: 
   // 3 buttons — like Telegram; the composer alone stays above it, and above the keyboard when open.
   const keyboardMotion=Platform.OS==='web'?null:useReanimatedKeyboardAnimation();
   const navInset=wide?0:insets.bottom;
-  const footerInset=useAnimatedStyle(()=>({paddingBottom:navInset*(1-(keyboardMotion?keyboardMotion.progress.value:0))}));
+  const noKeyboard=useSharedValue(0);const keyboardProgress=keyboardMotion?keyboardMotion.progress:noKeyboard;
+  const footerInset=useAnimatedStyle(()=>({paddingBottom:navInsetShown(navInset,keyboardProgress.value)}));
+  // The same inset at the list's composer side, so the newest message rides with the composer (chatLayout.ts).
+  const listNavSpacer=useAnimatedStyle(()=>({height:navInsetShown(navInset,keyboardProgress.value)}));
   // The list's edges follow the composer's own height plus this inset from the keyboard state (chatLayout.ts).
   useEffect(()=>{
     if(Platform.OS==='web')return;
@@ -144,7 +151,7 @@ export function ChatScreen({api,user,chat,store,onBack,wide=false,onOpenMusic}: 
   const onViewableRows=useRef(({viewableItems}:{viewableItems:{item:Row}[]})=>setVisibleNotes(viewableItems.map(v=>v.item.message?.attachment?.id??v.item.pending?.attachment?.id).filter((id):id is string=>!!id)));
   const viewability=useRef({itemVisiblePercentThreshold:1});
   useEffect(()=>()=>setVisibleNotes(null),[]);
-  const listRef=useRef<FlatList<Row>>(null);const typingAt=useRef(0);const typingTimer=useRef<ReturnType<typeof setTimeout>|undefined>(undefined);const alive=useRef(true);
+  const listRef=useAnimatedRef<FlatList<Row>>();const typingAt=useRef(0);const typingTimer=useRef<ReturnType<typeof setTimeout>|undefined>(undefined);const alive=useRef(true);
   const messages=store.messages[chat.id]||[];
   const pendingAll=store.pending.filter(p=>p.chatId===chat.id);
   // Actions (edit, delete, react, pin) are encrypted messages too; they are applied, not shown.
@@ -520,6 +527,29 @@ export function ChatScreen({api,user,chat,store,onBack,wide=false,onOpenMusic}: 
   // Edge fades take the wallpaper's own colour (top / bottom of the gradient), so they never show as a
   // light band over a dark wallpaper; a photo wallpaper gets a soft dark fade.
   const listEdges=chatListPadding({composer:composerHeight,header:headerHeight,navInset,keyboardOpen});
+  // The list itself pads without the home-indicator inset; listNavSpacer adds it frame by frame instead.
+  const listComposerSide=chatListPadding({composer:composerHeight,header:headerHeight,navInset,keyboardOpen:true}).composerSide;
+  // Keyboard open + drag down on the messages (Telegram iOS): only the keyboard goes down with the finger,
+  // the list keeps its offset — it is put back on every scroll event while the hold lasts (keyboardDragLock.ts).
+  const dismissSetup=keyboardDismissSetup(Platform.OS,Platform.Version);
+  const dragLock=useSharedValue(DRAG_UNLOCKED);const lockTick=useSharedValue(0);const downShown=useSharedValue(false);
+  const closeStickersOnDrag=useCallback(()=>setStickers(false),[]);
+  const onListScroll=useAnimatedScrollHandler({
+    onBeginDrag:e=>{dragLock.value=dragLockBegin(keyboardProgress.value,e.contentOffset.y);runOnJS(closeStickersOnDrag)();},
+    onScroll:e=>{
+      const y=e.contentOffset.y;
+      const next=dragLockScroll(dragLock.value,y,keyboardProgress.value,Date.now(),e.contentSize.height-e.layoutMeasurement.height);
+      if(next.lock!==dragLock.value)dragLock.value=next.lock;
+      if(next.restore!==null){scrollTo(listRef,0,next.restore,false);lockTick.value=lockTick.value+1;}
+      const down=(next.restore??y)>350;if(down!==downShown.value){downShown.value=down;runOnJS(setShowDown)(down);}
+    },
+    onEndDrag:()=>{dragLock.value=dragLockEnd(dragLock.value,Date.now());},
+    onMomentumBegin:()=>{dragLock.value=dragLockMomentumBegin(dragLock.value);},
+    onMomentumEnd:()=>{dragLock.value=dragLockMomentumEnd(dragLock.value);},
+  });
+  // A style that changes with every put-back makes Reanimated commit in that frame, so the scrollTo above
+  // lands in the same frame as the drag (the trick keyboard-controller's KeyboardChatScrollView uses on Fabric).
+  const lockCommit=useAnimatedStyle(()=>({transform:[{translateY:lockTick.value%2}]}));
   const preset=wallpaper.kind==='preset'?WALLPAPERS.find(item=>item.id===wallpaper.id)?.colors:null;
   const edge=preset?{top:preset[0],bottom:preset[preset.length-1],alpha:.9}:wallpaper.kind==='image'?{top:'#000000',bottom:'#000000',alpha:.5}:{top:t.bg,bottom:t.bg,alpha:.96};
   // Desktop (Telegram Desktop / Discord): a full-width bar — who, status, and the actions at hand.
@@ -577,10 +607,10 @@ export function ChatScreen({api,user,chat,store,onBack,wide=false,onOpenMusic}: 
     {/* Android: header and composer glass blur this (wallpaper + messages) on the GPU. */}
     <GlassContentTarget targetRef={glassTarget} style={{flex:1}}>
     <ChatWallpaper choice={wallpaper} style={{top:-80,bottom:-60}}/>
-    {rows.length===0&&!chatNotes.length?<View style={{flex:1,justifyContent:'center',paddingTop:headerHeight,paddingBottom:listEdges.composerSide}}>{store.messageLoading?<ActivityIndicator color={t.accent}/>:<Empty icon="hand-left-outline" title="Скажи «привет»" description={`Это начало вашей переписки с ${chat.peer.displayName}.`}/>}</View>:<FlatList ref={listRef} inverted data={rows} onViewableItemsChanged={onViewableRows.current} viewabilityConfig={viewability.current} keyExtractor={row=>row.key} keyboardShouldPersistTaps="handled" keyboardDismissMode={Platform.OS==='ios'?'interactive':'on-drag'} onScrollBeginDrag={()=>{if(stickers)setStickers(false);}} contentContainerStyle={{paddingHorizontal:wide?28:9,paddingTop:listEdges.composerSide,paddingBottom:listEdges.headerSide}} onScroll={e=>{const down=e.nativeEvent.contentOffset.y>350;if(down!==showDown)setShowDown(down);}} scrollEventThrottle={100} initialNumToRender={25} windowSize={11} onScrollToIndexFailed={info=>{listRef.current?.scrollToOffset({offset:info.averageItemLength*info.index,animated:true});setTimeout(()=>listRef.current?.scrollToIndex({index:info.index,animated:true,viewPosition:.5}),250);}}
-      ListHeaderComponent={chatNotes.length?<PendingNotes notes={chatNotes} onRetry={retryVideoNote} onDiscard={discardVideoNote}/>:null}
+    {rows.length===0&&!chatNotes.length?<View style={{flex:1,justifyContent:'center',paddingTop:headerHeight,paddingBottom:listEdges.composerSide}}>{store.messageLoading?<ActivityIndicator color={t.accent}/>:<Empty icon="hand-left-outline" title="Скажи «привет»" description={`Это начало вашей переписки с ${chat.peer.displayName}.`}/>}</View>:<><KeyboardGestureArea style={{flex:1}} interpolator="ios" offset={keyboardGestureOffset(composerHeight,stickers)} textInputNativeID={COMPOSER_NATIVE_ID} enableSwipeToDismiss={dismissSetup.gestureArea}><Animated.FlatList ref={listRef} inverted data={rows} onViewableItemsChanged={onViewableRows.current} viewabilityConfig={viewability.current} keyExtractor={row=>row.key} keyboardShouldPersistTaps="handled" keyboardDismissMode={dismissSetup.mode} contentContainerStyle={{paddingHorizontal:wide?28:9,paddingTop:listComposerSide,paddingBottom:listEdges.headerSide}} onScroll={onListScroll} scrollEventThrottle={16} initialNumToRender={25} windowSize={11} onScrollToIndexFailed={info=>{listRef.current?.scrollToOffset({offset:info.averageItemLength*info.index,animated:true});setTimeout(()=>listRef.current?.scrollToIndex({index:info.index,animated:true,viewPosition:.5}),250);}}
+      ListHeaderComponent={<View>{chatNotes.length?<PendingNotes notes={chatNotes} onRetry={retryVideoNote} onDiscard={discardVideoNote}/>:null}<Animated.View style={listNavSpacer}/></View>}
       ListFooterComponent={store.hasMore[chat.id]?<View style={{alignItems:'center',padding:18}}><GlassSurface material="clear" radius={19} shadow={false}><Pressable onPress={()=>void store.loadMessages(chat.id,true)} disabled={store.messageLoading} accessibilityRole="button" style={{paddingVertical:11,paddingHorizontal:17}}>{store.messageLoading?<ActivityIndicator size="small" color={t.accent}/>:<Text style={{fontSize:12,color:t.accent,fontWeight:'600'}}>Более ранние сообщения</Text>}</Pressable></GlassSurface></View>:null}
-      renderItem={renderRow} removeClippedSubviews={Platform.OS==='android'} maxToRenderPerBatch={12} updateCellsBatchingPeriod={40}/>
+      renderItem={renderRow} removeClippedSubviews={Platform.OS==='android'} maxToRenderPerBatch={12} updateCellsBatchingPeriod={40}/></KeyboardGestureArea><Animated.View pointerEvents="none" style={[{position:'absolute',width:0,height:0,opacity:0},lockCommit]}/></>
     }
     </GlassContentTarget>
     {/* iOS 26 scroll-edge effect: blurred (iOS) and covered by the wallpaper's edge colour evenly behind
@@ -685,7 +715,7 @@ export function ChatScreen({api,user,chat,store,onBack,wide=false,onOpenMusic}: 
         <GlassSurface lens material="regular" radius={20} style={{flex:1}} contentStyle={{minHeight:40,maxHeight:140,flexDirection:'row',alignItems:'flex-end'}}>
           {/* A browser cannot send in a 1:1 chat (no Signal): a one-line hint stands in for the field — a
               read-only <textarea> wrapped its long placeholder onto a hidden second line. */}
-          <View style={{flex:1,justifyContent:'center',minHeight:40}}>{!signalAvailable?<Text numberOfLines={1} style={{fontSize:17,lineHeight:22,color:t.muted,paddingHorizontal:14,paddingVertical:9}}>Только в приложении</Text>:<ComposerInput focusKey={editing?`edit:${editing.clientId}`:replyTo?`reply:${replyTo.clientId}`:keyboardAsk?`keyboard:${keyboardAsk}`:null} onFocus={()=>{if(stickers&&Platform.OS!=='web')stickersToKeyboard();}} minHeight={40} testID="chat-composer" accessibilityLabel="Сообщение" placeholder="Сообщение" value={text} onChangeText={changeText} onSelectionChange={e=>{const next=e.nativeEvent.selection;caret.current=next;setSel(prev=>next.start!==next.end?(prev&&prev.start===next.start&&prev.end===next.end?prev:{start:next.start,end:next.end}):prev?null:prev);}} placeholderTextColor={t.muted} selectionColor={t.accent} keyboardAppearance={t.dark?'dark':'light'} multiline maxLength={8000} style={{fontSize:17,lineHeight:22,color:t.text,paddingHorizontal:14,paddingTop:Platform.OS==='ios'?9:7,paddingBottom:9,maxHeight:136}} onKeyPress={e=>{if(Platform.OS==='web'&&e.nativeEvent.key==='Enter'&&!(e.nativeEvent as unknown as {shiftKey?:boolean}).shiftKey){e.preventDefault();send();}}}/>}</View>
+          <View style={{flex:1,justifyContent:'center',minHeight:40}}>{!signalAvailable?<Text numberOfLines={1} style={{fontSize:17,lineHeight:22,color:t.muted,paddingHorizontal:14,paddingVertical:9}}>Только в приложении</Text>:<ComposerInput nativeID={COMPOSER_NATIVE_ID} focusKey={editing?`edit:${editing.clientId}`:replyTo?`reply:${replyTo.clientId}`:keyboardAsk?`keyboard:${keyboardAsk}`:null} onFocus={()=>{if(stickers&&Platform.OS!=='web')stickersToKeyboard();}} minHeight={40} testID="chat-composer" accessibilityLabel="Сообщение" placeholder="Сообщение" value={text} onChangeText={changeText} onSelectionChange={e=>{const next=e.nativeEvent.selection;caret.current=next;setSel(prev=>next.start!==next.end?(prev&&prev.start===next.start&&prev.end===next.end?prev:{start:next.start,end:next.end}):prev?null:prev);}} placeholderTextColor={t.muted} selectionColor={t.accent} keyboardAppearance={t.dark?'dark':'light'} multiline maxLength={8000} style={{fontSize:17,lineHeight:22,color:t.text,paddingHorizontal:14,paddingTop:Platform.OS==='ios'?9:7,paddingBottom:9,maxHeight:136}} onKeyPress={e=>{if(Platform.OS==='web'&&e.nativeEvent.key==='Enter'&&!(e.nativeEvent as unknown as {shiftKey?:boolean}).shiftKey){e.preventDefault();send();}}}/>}</View>
           <Pressable accessibilityRole="button" accessibilityLabel="Стикеры и эмодзи" onPress={toggleStickers} style={({pressed})=>({height:40,width:38,alignItems:'center',justifyContent:'center',opacity:pressed?.6:1})}><Icon name={stickers?'keypad-outline':'happy-outline'} color={stickers?t.accent:t.muted} size={22}/></Pressable>
         </GlassSurface>
         {canSend||!signalAvailable||uploading?<Pressable accessibilityRole="button" testID="chat-send" accessibilityLabel="Отправить сообщение" accessibilityHint="Удержи: без звука или отправить позже" disabled={sendDisabled} onPress={()=>send()} onLongPress={()=>{if(editing||forwardDraft||sendDisabled)return;impactFeedback();Keyboard.dismiss();setSendMenu(true);}} delayLongPress={350} style={({pressed})=>({height:40,width:40,borderRadius:20,backgroundColor:t.accent,alignItems:'center',justifyContent:'center',opacity:sendDisabled?.4:pressed?.75:1})}><Icon name={editing?'checkmark':'arrow-up'} color={t.onAccent} size={25}/></Pressable>

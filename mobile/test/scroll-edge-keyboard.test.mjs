@@ -48,8 +48,14 @@ test('chat header, composer and chat list header use the shared scroll-edge effe
   assert.doesNotMatch(chat, /<ScrollEdgeEffect edge="bottom"/);
   assert.doesNotMatch(chat, /<LinearGradient/, 'no bare colour ramp left over the header');
   // The first message must still clear the header and the composer.
-  assert.match(chat, /paddingTop:listEdges\.composerSide,paddingBottom:listEdges\.headerSide/);
+  // The composer side pads without the home-indicator inset; a spacer at the list's composer side adds it
+  // frame by frame with the composer's own padding (navInsetShown), so nothing jumps when the keyboard moves.
+  assert.match(chat, /paddingTop:listComposerSide,paddingBottom:listEdges\.headerSide/);
+  assert.match(chat, /listComposerSide=chatListPadding\(\{composer:composerHeight,header:headerHeight,navInset,keyboardOpen:true\}\)\.composerSide/);
   assert.match(chat, /chatListPadding\(\{composer:composerHeight,header:headerHeight,navInset,keyboardOpen\}\)/);
+  assert.match(chat, /paddingBottom:navInsetShown\(navInset,keyboardProgress\.value\)/);
+  assert.match(chat, /height:navInsetShown\(navInset,keyboardProgress\.value\)/);
+  assert.match(chat, /<Animated\.View style=\{listNavSpacer\}\/><\/View>\}/, 'the spacer is the last thing at the composer side');
   const floating = inset.slice(inset.indexOf('export function FloatingHeader'), inset.indexOf('export function ScrollEdgeEffect'));
   assert.match(floating, /<ScrollEdgeEffect edge="top" size=\{height\}/);
   assert.doesNotMatch(floating, /ScrollEdgeBlurView/, 'not the linear-fading blur that was nearly gone behind «Поиск»');

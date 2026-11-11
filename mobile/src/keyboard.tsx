@@ -1,7 +1,7 @@
 import React, { useCallback, useRef } from 'react';
-import { Dimensions, Keyboard, Platform, View, type StyleProp, type ViewStyle } from 'react-native';
+import { Dimensions, Platform, View, type StyleProp, type ViewStyle } from 'react-native';
 import Animated, { useAnimatedStyle, useSharedValue } from 'react-native-reanimated';
-import { useReanimatedKeyboardAnimation } from 'react-native-keyboard-controller';
+import { KeyboardEvents, useReanimatedKeyboardAnimation } from 'react-native-keyboard-controller';
 
 /**
  * Keeps the composer right above the keyboard, frame by frame, on the UI thread.
@@ -36,5 +36,8 @@ function NativeKeyboardSafeView({ style, children, bottomInset }: { style?: Styl
  * height so switching keyboard <-> emoji does not move the composer. 0 until the keyboard has shown.
  */
 let lastKeyboard = 0;
-if (Platform.OS !== 'web') Keyboard.addListener('keyboardDidShow', event => { const h = event.endCoordinates?.height || 0; if (h > 120) lastKeyboard = h; });
+// keyboard-controller's height, not React Native's: in a chat the composer field carries an invisible
+// input accessory view (KeyboardGestureArea `offset`, the keyboard follows the finger from the composer's
+// top), which RN's endCoordinates count as keyboard; keyboard-controller reports the keyboard alone.
+if (Platform.OS !== 'web') KeyboardEvents.addListener('keyboardDidShow', event => { const h = event.height || 0; if (h > 120) lastKeyboard = h; });
 export const lastKeyboardHeight = () => lastKeyboard;

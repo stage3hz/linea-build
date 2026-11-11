@@ -33,3 +33,16 @@ export function chatListPadding({ composer, header, navInset, keyboardOpen }: Ch
     headerSide: Math.ceil(safe(header) + HEADER_GAP),
   };
 }
+
+/**
+ * The part of the bottom safe area kept under the composer, frame by frame: all of it with the keyboard down,
+ * none with it up (`progress` 0 … 1). The composer's own bottom padding and the spacer at the list's
+ * composer side both use it, so the newest message moves with the composer and never jumps when the
+ * keyboard state flips (the list's static padding is taken with `keyboardOpen: true`, i.e. without it).
+ */
+export function navInsetShown(navInset: number, progress: number): number {
+  'worklet';
+  const inset = Number.isFinite(navInset) && navInset > 0 ? navInset : 0;
+  const p = Number.isFinite(progress) ? Math.min(1, Math.max(0, progress)) : 0;
+  return inset * (1 - p);
+}
