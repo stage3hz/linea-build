@@ -114,15 +114,9 @@ export class PixelTrailModel {
     this.push(x, y, now, TRAIL.HOLD);
   }
 
-  /** The finger lifted / the button was released (or the touch was cancelled): the light fades within RELEASE. */
-  release(now: number) {
-    this.held = false;
-    for (let i = 0; i < TRAIL.MAX_SAMPLES; i++) {
-      if (!(this.ls[i] > TRAIL.RELEASE) || !this.live(i, now)) continue;
-      const left = trailCarry(now - this.ts[i], this.ls[i]);
-      this.ls[i] = TRAIL.RELEASE; this.ts[i] = now - (1 - left) * TRAIL.RELEASE;
-    }
-  }
+  /** The finger lifted / the button was released (or the touch was cancelled). The light glides to where the
+   * pointer stopped and fades there smoothly over HOLD, exactly like a still, held finger — always the same ending. */
+  release(_now: number) { this.held = false; }
 
   clear() { this.ts.fill(-Infinity); this.newest = -1; this.lastStep = NaN; this.held = false; this.field.cols = this.field.rows = this.field.lit = 0; }
 
@@ -150,8 +144,8 @@ export class PixelTrailModel {
         }
         if (last && Math.hypot(this.xs[n] - this.px, this.ys[n] - this.py) < TRAIL.SAMPLE_STEP) { this.ts[n] = now; this.ls[n] = TRAIL.LIFE; }
         else this.push(this.px, this.py, now, TRAIL.LIFE);
-      } else if (this.held && last && this.ls[n] !== TRAIL.HOLD) {
-        // Settled under a held finger: the light stays and fades by itself over HOLD.
+      } else if (last && this.ls[n] !== TRAIL.HOLD) {
+        // The light stopped (finger held still, lifted, or the cursor rested): it stays and fades smoothly over HOLD.
         this.ts[n] = now; this.ls[n] = TRAIL.HOLD;
       }
     }

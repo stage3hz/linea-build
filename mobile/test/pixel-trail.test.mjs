@@ -103,27 +103,37 @@ test('when the light settles under a held finger it stays and fades by itself ov
   assert.deepEqual([model.px, model.py], [x, 100]);
 });
 
-test('a resting cursor without a button lets the light fade as fast as the trail', () => {
+test('a cursor that stops leaves the light where it stopped, fading smoothly over HOLD', () => {
   const model = new PixelTrailModel();
   model.point(100, 100);
   let x = 100;
   let t = run(model, 0, 200, () => { x += 8; model.point(x, 100); });
+  t = run(model, t, t + 300);// the light catches up and settles
+  const centre = () => at(model.compute(t - FRAME), cell(x), cell(100));
+  const start = centre();
+  assert.ok(start > TRAIL.PEAK * 0.8, `lit where it stopped: ${start}`);
+  t = run(model, t, t + TRAIL.HOLD / 2);
+  const half = centre();
+  assert.ok(half > start * 0.35 && half < start * 0.65, `even fade half-way: ${half}`);
   let frames = 0;
   while (model.step(t)) { t += FRAME; frames++; }
-  assert.ok(frames * FRAME < TRAIL.LIFE + 300, `gone ${frames * FRAME} ms after the cursor stopped`);
+  assert.ok(frames * FRAME <= TRAIL.HOLD, 'gone within HOLD');
 });
 
-test('lifting the finger fades the light within RELEASE, from its current brightness', () => {
+test('lifting the finger ends the same way: no jump, the light fades smoothly over HOLD where it stopped', () => {
   const model = new PixelTrailModel();
   model.down(400, 400, 0);
-  let t = run(model, 0, 500);
-  const before = at(model.compute(t - FRAME), cell(400), cell(400));
+  let x = 400;
+  let t = run(model, 0, 150, () => { x += 10; model.point(x, 400, 0); });
+  const before = at(model.compute(t - FRAME), cell(x), cell(400));
   model.release(t - FRAME);
-  const after = at(model.compute(t - FRAME), cell(400), cell(400));
+  const after = at(model.compute(t - FRAME), cell(x), cell(400));
   assert.ok(Math.abs(after - before) < 1e-6, 'no jump at release');
+  t = run(model, t, t + 300);
+  assert.ok(at(model.compute(t - FRAME), cell(x), cell(400)) > TRAIL.PEAK * 0.6, 'still lit after lifting');
   let frames = 0;
   while (model.step(t)) { t += FRAME; frames++; }
-  assert.ok(frames * FRAME <= TRAIL.RELEASE, `gone ${frames * FRAME} ms after release`);
+  assert.ok(frames * FRAME <= TRAIL.HOLD, `gone ${frames * FRAME} ms later`);
 });
 
 test('moving away after a rest does not leave a second slow spot behind', () => {
