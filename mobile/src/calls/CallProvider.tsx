@@ -29,6 +29,8 @@ import { GATHER_TIMEOUT_MS, RING_TIMEOUT_MS, SEND_BITRATE, callClock, callEndMet
 import { buildCallHistory, type CallRecord } from './callLog';
 import { DISCONNECT_GRACE_MS, LINK_UP, POLITE_EXTRA_MS, linkNext, linkShowsReconnecting, markRestartCapable, remoteRestart, restartAnswerFits, restartCapable, sameFingerprints, stripRestartMarker, type Link, type LinkInput } from './reconnect';
 import { onAnswerFromNotification } from '../notifications/desktopNotify';
+import { CALL_BAR_HEIGHT, NETWORK_WAIT_MS, NO_CONNECTION_TEXT, callBarLayout, callBarText, callBarTone, callStatusText, ringExpiry, signalNetwork, systemCallText, type SignalNetwork } from './callStatus';
+import { beginSystemCall, endSystemCall, setSystemCallHandlers, setSystemCallMuted, updateSystemCall } from './systemCall';
 import { getNotificationPrefs } from '../notifications/prefs';
 
 // Native modules are loaded lazily: the web build and old builds without them keep working.
@@ -42,6 +44,8 @@ type CallState = {
   localUrl: string | null; remoteUrl: string | null; remoteSdp?: string; minimized?: boolean;
   /** «Восстановление связи…»: the media dropped mid-call and an ICE restart is under way (the clock keeps running). */
   reconnecting?: boolean;
+  /** Ended without a connection («Нет соединения»): the screen stays with «Повторить» instead of closing by itself. */
+  retry?: boolean;
 };
 /** The microphone of a call: phones always cancel echo, everyone gets noise suppression (switchable) and AGC. */
 const PHONE = Platform.OS !== 'web';
@@ -83,6 +87,12 @@ export function CallProvider({ api, store, me, children }: { api: Api; store: Me
   // A live call keeps the messenger socket open in the background (connectionHold): its signalling and the server's presence go through it.
   const live = !!call && call.status !== 'ended';
   useEffect(() => (live ? holdConnection('call') : undefined), [live]);
+  // The signalling path (the messenger socket): offline, an outgoing call says «Ожидание сети…» / «Соединение…»
+  // instead of «Вызов…», does not send its offer into the void, and gives up after NETWORK_WAIT_MS («Нет соединения»).
+  const network = signalNetwork(store.connection, store.online);
+  const networkRef = useRef<SignalNetwork>(network); networkRef.current = network;
+  const networkWaiters = useRef(new Set<() => void>());
+  useEffect(() => { if (network === 'online') [...networkWaiters.current].forEach(wake => wake()); }, [network]);
   const pc = useRef<any>(null); const local = useRef<any>(null); const stopGate = useRef<() => void>(() => {}); const hookOn = useRef(false);
   const seen = useRef(new Set<string>());
   const ringTimer = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
@@ -91,7 +101,7 @@ export function CallProvider({ api, store, me, children }: { api: Api; store: Me
   // PC binds during a call: mute the microphone; «звук» turns the other person's voice off.
   useEffect(() => onBindAction(action => {
     const c = callRef.current; if (!c || c.status === 'ended') return;
-    if (action === 'mute') { local.current?.getAudioTracks().forEach((t: any) => { t.enabled = c.muted; }); patch({ muted: !c.muted }); return; }
+    if (action === 'mute') { setMicMutedRef.current(!c.muted); return; }
     if (action === 'deafen') { for (const receiver of pc.current?.getReceivers?.() || []) if (receiver.track?.kind === 'audio') receiver.track.enabled = !receiver.track.enabled; return; }
     if (action === 'answerCall' && c.status === 'incoming') { void acceptRef.current?.(); return; }
     if (action === 'endCall') hangupRef.current?.();
@@ -138,6 +148,7 @@ export function CallProvider({ api, store, me, children }: { api: Api; store: Me
   };
 
   const cleanup = useCallback(() => {
+    const id = callRef.current?.id; if (id) void endSystemCall(id);
     resetLink();
     stopGate.current(); stopGate.current = () => {};
     if (hookOn.current) { hookOn.current = false; setVoiceActive(false); }
@@ -150,15 +161,16 @@ export function CallProvider({ api, store, me, children }: { api: Api; store: Me
     pc.current = null; local.current = null;
   }, []);
 
-  const finish = useCallback((text: string, notify?: CallEndReason) => {
+  const finish = useCallback((text: string, notify?: CallEndReason, retry = false) => {
     const current = callRef.current; if (!current) return;
     // The `end` carries what both chats show as the service row (F9): how long the call lasted (from the
     // moment the media connected), whether it was video, and whether this phone placed it — all inside the ciphertext.
     // Every `end` this phone sends (here, busy, privacy) goes through the same builder (callModel.callEndMeta).
     if (notify) signal(current.chat.id, callEndMeta(current, notify));
     cleanup();
-    setCall({ ...current, status: 'ended', endedText: text, localUrl: null, remoteUrl: null });
-    setTimeout(() => setCall(value => value?.id === current.id && value.status === 'ended' ? null : value), 1600);
+    // «Нет соединения» stays on screen (opened, if it was minimised) with «Повторить» / «Закрыть», like Telegram.
+    setCall({ ...current, status: 'ended', endedText: text, localUrl: null, remoteUrl: null, retry, minimized: retry ? false : current.minimized });
+    if (!retry) setTimeout(() => setCall(value => value?.id === current.id && value.status === 'ended' ? null : value), 1600);
   }, [cleanup]);
 
   const prepare = useCallback(async (video: boolean) => {
@@ -242,12 +254,26 @@ export function CallProvider({ api, store, me, children }: { api: Api; store: Me
     patch({ key: keyEmoji(digest) });
   };
 
+  /** Resolves true once the signalling path is up, false after NETWORK_WAIT_MS or when this call is gone. */
+  const waitForNetwork = (id: string) => new Promise<boolean>(resolve => {
+    if (networkRef.current === 'online') { resolve(true); return; }
+    const done = (ok: boolean) => { clearTimeout(timer); networkWaiters.current.delete(wake); resolve(ok && callRef.current?.id === id); };
+    const wake = () => done(true);
+    const timer = setTimeout(() => done(false), NETWORK_WAIT_MS);
+    networkWaiters.current.add(wake);
+  });
+
   const start = useCallback((chat: Chat, video: boolean) => {
     if (callRef.current) return;
     const id = Crypto.randomUUID(); seen.current.add(id); music.stop(); impactFeedback();
     setCall({ id, chat, peer: chat.peer, incoming: false, video, status: 'requesting', muted: false, speaker: video, cameraOff: false, startedAt: null, endedText: '', key: null, localUrl: null, remoteUrl: null });
+    // iOS CallKit / Android ongoing-call notification (systemCall.ts); without it the call simply stays in the app.
+    void beginSystemCall(id, chat.peer.displayName, video, systemCallText('requesting', video, false, networkRef.current));
+    const noConnection = () => { if (callRef.current?.id === id) finish(NO_CONNECTION_TEXT, undefined, true); };
     void (async () => {
       try {
+        // Offline: wait for the connection first (the screen says «Ожидание сети…»); nothing has been sent yet.
+        if (!(await waitForNetwork(id))) { noConnection(); return; }
         // The callee decides who may ring them (Настройки → Конфиденциальность → Звонки).
         const permission = await api.callPermission(chat.peer.id).catch(() => ({ allowed: true }));
         if (!permission.allowed) { finish('Этот человек ограничил, кто может ему звонить'); return; }
@@ -255,13 +281,19 @@ export function CallProvider({ api, store, me, children }: { api: Api; store: Me
         try { inCall.current?.start?.({ media: video ? 'video' : 'audio' }); inCall.current?.setForceSpeakerphoneOn?.(video); } catch { /* optional */ }
         const { connection, localUrl } = await prepare(video);
         patch({ localUrl });
+        // Android: the ongoing-call service needs the microphone permission, granted just now on a first call.
+        if (Platform.OS === 'android') void beginSystemCall(id, chat.peer.displayName, video, systemCallText('requesting', video, false, networkRef.current));
         await setLocal(connection, await connection.createOffer({}), video);
         const sdp = await gathered(connection);
         if (callRef.current?.id !== id) return;
+        // The connection dropped while the offer was being prepared: an offer queued now would ring much later
+        // (or never), so wait again and end with «Нет соединения» if it does not come back.
+        if (!(await waitForNetwork(id))) { noConnection(); return; }
         signal(chat.id, { type: 'call', call: id, step: 'offer', video, sdp: markRestartCapable(sdp) });
         patch({ status: 'ringing' });
         void playCallSound('outgoing');
-        ringTimer.current = setTimeout(() => { if (callRef.current?.id === id && callRef.current.status === 'ringing') finish('Нет ответа', 'missed'); }, RING_TIMEOUT_MS);
+        // No answer in time: «Нет ответа» — or «Нет соединения» with «Повторить» when the connection is down.
+        ringTimer.current = setTimeout(() => { if (callRef.current?.id === id && callRef.current.status === 'ringing') { const expiry = ringExpiry(networkRef.current); finish(expiry.text, 'missed', expiry.retry); } }, RING_TIMEOUT_MS);
       } catch (error) { finish(error instanceof Error ? error.message : 'Не удалось начать звонок'); }
     })();
   }, [api, music, prepare, finish]);
@@ -272,11 +304,14 @@ export function CallProvider({ api, store, me, children }: { api: Api; store: Me
     try { inCall.current?.stopRingtone?.(); } catch { /* optional */ }
     Vibration.cancel(); music.stop(); lightFeedback();
     patch({ status: 'connecting' });
+    // Answered in the app: from now on the phone shows it as a running call (CallKit / ongoing notification).
+    void beginSystemCall(current.id, current.peer.displayName, current.video, systemCallText('connecting', current.video, false, networkRef.current));
     try {
       try { inCall.current?.start?.({ media: current.video ? 'video' : 'audio' }); inCall.current?.setForceSpeakerphoneOn?.(current.video); } catch { /* optional */ }
       const webrtc = rtc.current!;
       const { connection, localUrl } = await prepare(current.video);
       patch({ localUrl });
+      if (Platform.OS === 'android') void beginSystemCall(current.id, current.peer.displayName, current.video, systemCallText('connecting', current.video, false, networkRef.current));
       await connection.setRemoteDescription(new webrtc.RTCSessionDescription({ type: 'offer', sdp: stripRestartMarker(current.remoteSdp) }));
       await setLocal(connection, await connection.createAnswer(), current.video);
       const sdp = await gathered(connection);
@@ -392,9 +427,20 @@ export function CallProvider({ api, store, me, children }: { api: Api; store: Me
       lightFeedback();
     } catch { /* camera unavailable — the call goes on with audio */ }
   };
+  /** Sets (not toggles) the microphone, so CallKit echoing the app's own change back cannot flip it again. */
+  const setMicMuted = (muted: boolean, fromSystem = false) => {
+    const c = callRef.current; if (!c || c.status === 'ended') return;
+    local.current?.getAudioTracks().forEach((t: any) => { t.enabled = !muted; });
+    if (c.muted !== muted) patch({ muted });
+    if (!fromSystem) setSystemCallMuted(c.id, muted);
+  };
+  const setMicMutedRef = useRef(setMicMuted); setMicMutedRef.current = setMicMuted;
   const controls = {
     minimize: () => patch({ minimized: true }),
     restore: () => patch({ minimized: false }),
+    /** «Нет соединения» → «Повторить»: the same chat, the same kind of call, a new call id. */
+    retry: () => { const c = callRef.current; if (!c || c.status !== 'ended') return; callRef.current = null; setCall(null); start(c.chat, c.video); },
+    close: () => { const c = callRef.current; if (c?.status === 'ended') setCall(null); },
     hangup: () => {
       const c = callRef.current; if (!c) return;
       // The reason by status (callModel.hangupOutcome): a call that never connected — ringing, or connecting after the
@@ -404,7 +450,7 @@ export function CallProvider({ api, store, me, children }: { api: Api; store: Me
       finish(outcome.text, outcome.reason ?? undefined);
     },
     accept: () => void accept(),
-    mute: () => { const c = callRef.current; if (!c) return; local.current?.getAudioTracks().forEach((t: any) => { t.enabled = c.muted; }); patch({ muted: !c.muted }); lightFeedback(); },
+    mute: () => { const c = callRef.current; if (!c) return; setMicMuted(!c.muted); lightFeedback(); },
     speaker: () => { const c = callRef.current; if (!c) return; try { inCall.current?.setForceSpeakerphoneOn?.(!c.speaker); } catch { /* optional */ } patch({ speaker: !c.speaker }); lightFeedback(); },
     camera: () => {
       const c = callRef.current; if (!c) return;
@@ -413,15 +459,25 @@ export function CallProvider({ api, store, me, children }: { api: Api; store: Me
     flip: () => { local.current?.getVideoTracks().forEach((t: any) => { try { t._switchCamera(); } catch { /* single camera */ } }); lightFeedback(); },
   };
   acceptRef.current = accept; hangupRef.current = controls.hangup;
+  // What the system call UI may do: end the call (CallKit pill, lock screen, «Завершить» in the notification), mute it, open it.
+  useEffect(() => setSystemCallHandlers({
+    onEnd: id => { if (callRef.current?.id === id) hangupRef.current?.(); },
+    onMute: (id, muted) => { if (callRef.current?.id === id) setMicMutedRef.current(muted, true); },
+    onOpen: () => { if (callRef.current && callRef.current.status !== 'ended') patch({ minimized: false }); },
+  }), []);
+  // The system indicator follows the call: «Вызов…», «Ожидание сети…», then the running duration once connected.
+  const systemText = call && call.status !== 'ended' ? systemCallText(call.status, call.video, call.reconnecting, network) : null;
+  useEffect(() => { if (call && systemText) updateSystemCall(call.id, systemText, call.status === 'active' ? call.startedAt : null); }, [call?.id, systemText, call?.startedAt]);
   const callBack = useCallback((chatId: string, video: boolean) => { const chat = storeRef.current.chats.find(c => c.id === chatId); if (chat) start(chat, video); }, [start]);
   // Люди › Звонки and the service rows read the history from the local cache only: loaded pages plus each chat's last message.
   const history = React.useMemo(() => buildCallHistory(store.chats, store.messages, me.id), [store.chats, store.messages, me.id]);
   const value = React.useMemo<CallApi>(() => ({ start, available: !!rtc.current, busy: !!call, callBack }), [start, call, callBack]);
 
   return <CallContext.Provider value={value}>
-    <CallHistoryContext.Provider value={history}>{children}</CallHistoryContext.Provider>
-    {call && !call.minimized ? <CallScreen call={call} api={api} rtc={rtc.current} {...controls} /> : null}
-    {call && call.minimized ? <CallBanner call={call} onPress={controls.restore} onHangup={controls.hangup} /> : null}
+    <CallBarFrame bar={call && call.minimized ? <CallBanner call={call} network={network} onPress={controls.restore} onHangup={controls.hangup} /> : null}>
+      <CallHistoryContext.Provider value={history}>{children}</CallHistoryContext.Provider>
+    </CallBarFrame>
+    {call && !call.minimized ? <CallScreen call={call} api={api} rtc={rtc.current} network={network} {...controls} /> : null}
   </CallContext.Provider>;
 }
 
@@ -439,13 +495,14 @@ function CallButton({ icon, label, onPress, active = false, color }: { icon: Ico
   </Pressable>;
 }
 
-function CallScreen({ call, api, rtc, hangup, accept, mute, speaker, camera, flip, minimize }: { call: CallState; api: Api; rtc: WebRTC | null; hangup: () => void; accept: () => void; mute: () => void; speaker: () => void; camera: () => void; flip: () => void; minimize: () => void; restore?: () => void }) {
+function CallScreen({ call, api, rtc, network, hangup, accept, mute, speaker, camera, flip, minimize, retry, close }: { call: CallState; api: Api; rtc: WebRTC | null; network: SignalNetwork; hangup: () => void; accept: () => void; mute: () => void; speaker: () => void; camera: () => void; flip: () => void; minimize: () => void; restore?: () => void; retry: () => void; close: () => void }) {
   const insets = useSafeAreaInsets(); const { width, height } = useWindowDimensions(); const t = useTheme();
   const [, tick] = useState(0);
   useEffect(() => { if (call.status !== 'active') return; const timer = setInterval(() => tick(v => v + 1), 1000); return () => clearInterval(timer); }, [call.status]);
   const clock = callClock(Date.now() - (call.startedAt || Date.now()));
   const reconnecting = call.status === 'active' && !!call.reconnecting;
-  const status = call.status === 'requesting' ? 'Запрос…' : call.status === 'ringing' ? 'Вызов…' : call.status === 'incoming' ? (call.video ? 'Входящий видеозвонок' : 'Входящий звонок') : call.status === 'connecting' ? 'Соединение…' : reconnecting ? 'Восстановление связи…' : call.status === 'active' ? clock : call.endedText;
+  // Offline the status says so («Ожидание сети…» / «Соединение…») instead of «Вызов…» (callStatus.ts).
+  const status = callStatusText({ status: call.status, incoming: call.incoming, video: call.video, reconnecting: call.reconnecting, startedAt: call.startedAt, endedText: call.endedText, network, now: Date.now() });
   const View_ = rtc?.RTCView as any;
   const showVideo = call.video && call.remoteUrl && View_;
   // Telegram: pull the call screen down to minimise it (the same as the chevron); not while it rings in
@@ -477,7 +534,10 @@ function CallScreen({ call, api, rtc, hangup, accept, mute, speaker, camera, fli
       {call.status === 'incoming' ? <View style={{ flexDirection: 'row', justifyContent: 'space-around', paddingHorizontal: 30 }}>
         <CallButton icon="close" label="Отклонить" onPress={hangup} color="#FF3B30" />
         <CallButton icon={call.video ? 'videocam' : 'call'} label="Ответить" onPress={accept} color="#34C759" />
-      </View> : call.status === 'ended' ? null : <View style={{ flexDirection: 'row', justifyContent: 'space-around', paddingHorizontal: 8 }}>
+      </View> : call.status === 'ended' ? (call.retry ? <View style={{ flexDirection: 'row', justifyContent: 'space-around', paddingHorizontal: 30 }}>
+        <CallButton icon="close" label="Закрыть" onPress={close} />
+        <CallButton icon={call.video ? 'videocam' : 'call'} label="Повторить" onPress={retry} color="#34C759" />
+      </View> : null) : <View style={{ flexDirection: 'row', justifyContent: 'space-around', paddingHorizontal: 8 }}>
         <CallButton icon="volume-high" label="Динамик" onPress={speaker} active={call.speaker} />
         <CallButton icon={call.video && !call.cameraOff ? 'videocam' : 'videocam-off'} label="Видео" onPress={camera} active={call.video && !call.cameraOff} />
         {call.video && !call.cameraOff ? <CallButton icon="camera-reverse" label="Повернуть" onPress={flip} /> : null}
@@ -491,16 +551,56 @@ function CallScreen({ call, api, rtc, hangup, accept, mute, speaker, camera, fli
 
 export const callsSupported = Platform.OS !== 'web';
 
-/** Telegram-style strip while the call is minimized: tap to return, the app stays usable. */
-function CallBanner({ call, onPress, onHangup }: { call: CallState; onPress: () => void; onHangup: () => void }) {
+/**
+ * Telegram iOS's active-call bar while the call is minimised: a full-width strip right under the status bar (the
+ * clock, the Dynamic Island and the battery stay visible above it), the screens below move down by its height
+ * (CallBarFrame). Name and status centred; tap opens the call; the round button on the right ends it.
+ */
+function CallBanner({ call, network, onPress, onHangup }: { call: CallState; network: SignalNetwork; onPress: () => void; onHangup: () => void }) {
   const [, tick] = useState(0);
   useEffect(() => { const timer = setInterval(() => tick(v => v + 1), 1000); return () => clearInterval(timer); }, []);
-  const status = call.status === 'active' ? (call.reconnecting ? `Восстановление связи… ${callClock(Date.now() - (call.startedAt || Date.now()))}` : callClock(Date.now() - (call.startedAt || Date.now()))) : call.status === 'ended' ? call.endedText : 'Соединение…';
-  return <View pointerEvents="box-none" style={{ position: 'absolute', top: 0, left: 0, right: 0, zIndex: 50 }}>
-    <Pressable onPress={onPress} accessibilityRole="button" accessibilityLabel={`Вернуться к звонку: ${call.peer.displayName}, ${status}`} style={{ marginHorizontal: 10, marginTop: 2, height: 36, borderRadius: 18, backgroundColor: call.status === 'active' && !call.reconnecting ? '#2BA36B' : call.reconnecting ? '#D9822B' : '#3B6FB6', flexDirection: 'row', alignItems: 'center', paddingLeft: 14, paddingRight: 4, gap: 8, shadowColor: '#000', shadowOpacity: .25, shadowRadius: 8, shadowOffset: { width: 0, height: 3 } }}>
-      <Icon name={call.video ? 'videocam' : 'call'} size={16} color="#FFF" />
-      <Text numberOfLines={1} style={{ flex: 1, color: '#FFF', fontSize: 14, fontWeight: '600' }}>{call.peer.displayName} · {status}</Text>
-      <Pressable onPress={onHangup} accessibilityRole="button" accessibilityLabel="Завершить звонок" hitSlop={6} style={{ width: 30, height: 30, borderRadius: 15, backgroundColor: '#FF3B30', alignItems: 'center', justifyContent: 'center' }}><Icon name="close" size={16} color="#FFF" /></Pressable>
-    </Pressable>
+  const { status, clock } = callBarText({ status: call.status, incoming: call.incoming, video: call.video, reconnecting: call.reconnecting, startedAt: call.startedAt, endedText: call.endedText, network, now: Date.now() });
+  const tone = callBarTone(call.status, call.reconnecting, network);
+  const background = tone === 'active' ? '#2BA36B' : tone === 'trouble' ? '#D9822B' : tone === 'pending' ? '#3B6FB6' : '#6B7280';
+  const text = { color: '#FFF', fontSize: 14, lineHeight: 18 } as const;
+  return <Pressable onPress={onPress} accessibilityRole="button" accessibilityLabel={`${call.peer.displayName}, ${status}${clock ? ` ${clock}` : ''}`} accessibilityHint="Вернуться к звонку"
+    style={({ pressed }) => ({ height: CALL_BAR_HEIGHT, backgroundColor: background, opacity: pressed ? .85 : 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', paddingHorizontal: 46 })}>
+    <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, maxWidth: '100%' }}>
+      <Icon name={call.video ? 'videocam' : 'call'} size={14} color="#FFF" />
+      <Text numberOfLines={1} style={[text, { fontWeight: '600', flexShrink: 1 }]}>{call.peer.displayName}</Text>
+      <Text style={[text, { opacity: .85 }]}>·</Text>
+      <Text numberOfLines={1} style={[text, { flexShrink: 0 }]}>{status}</Text>
+      {clock ? <Text numberOfLines={1} style={[text, { flexShrink: 0, opacity: .85 }]}>{clock}</Text> : null}
+    </View>
+    {call.status !== 'ended' ? <Pressable onPress={onHangup} accessibilityRole="button" accessibilityLabel="Завершить звонок" hitSlop={8}
+      style={{ position: 'absolute', right: 8, top: (CALL_BAR_HEIGHT - 26) / 2, width: 26, height: 26, borderRadius: 13, backgroundColor: '#FF3B30', alignItems: 'center', justifyContent: 'center' }}>
+      <Icon name="close" size={15} color="#FFF" />
+    </Pressable> : null}
+  </Pressable>;
+}
+
+/**
+ * Lays the minimised call bar out under the status bar and moves everything else down by its height, on every tab
+ * and screen (they are all inside). The screens that reach up under the status bar (marginTop: -insets.top) keep
+ * doing so from their new top, so their headers land right under the bar. The strip above the bar is the app
+ * background, so the status bar keeps its usual colour in light and dark. The frame measures where it starts on
+ * screen: if it ever starts higher than the safe area (no safe-area padding above it), the bar still goes below
+ * the status bar instead of over the clock and the Dynamic Island.
+ */
+function CallBarFrame({ bar, children }: { bar: React.ReactNode | null; children: React.ReactNode }) {
+  const insets = useSafeAreaInsets(); const t = useTheme();
+  const frame = useRef<View>(null); const [frameTop, setFrameTop] = useState<number | null>(null);
+  const insetTop = Platform.OS === 'web' ? 0 : insets.top;
+  const measure = () => { frame.current?.measureInWindow?.((_x, y) => { if (Number.isFinite(y)) setFrameTop(value => value === y ? value : y); }); };
+  useEffect(() => { if (bar) measure(); }, [!!bar, insetTop]);
+  const layout = callBarLayout(insetTop, frameTop);
+  // The status bar strip (screen top → insetTop) in this frame's coordinates: normally all of it lies above the frame.
+  const strip = layout.top + Math.min(frameTop ?? insetTop, insetTop);
+  return <View ref={frame} collapsable={false} onLayout={measure} style={{ flex: 1 }}>
+    <View style={{ flex: 1, paddingTop: bar ? layout.contentTop : 0 }}>{children}</View>
+    {bar ? <>
+      {strip > 0 ? <View pointerEvents="none" style={{ position: 'absolute', left: 0, right: 0, top: layout.top - strip, height: strip, backgroundColor: t.bg, zIndex: 49, elevation: 49 }} /> : null}
+      <View style={{ position: 'absolute', left: 0, right: 0, top: layout.top, height: CALL_BAR_HEIGHT, zIndex: 50, elevation: 50 }}>{bar}</View>
+    </> : null}
   </View>;
 }

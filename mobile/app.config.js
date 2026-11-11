@@ -52,8 +52,11 @@ module.exports = {
         NSBluetoothAlwaysUsageDescription: 'Bluetooth нужен, чтобы писать без интернета тем, кто рядом. Сообщения остаются зашифрованными, местоположение не определяется.',
         // Music keeps playing and a call keeps its audio when the app goes to the background.
         // bluetooth-*: Mesh keeps passing messages with the app in the background (no internet only).
-        // No 'voip': since iOS 13 it requires PushKit + CallKit, which the app does not have yet (App Review
-        // rejects an unused mode). Incoming calls with the app closed arrive as a regular APNs alert.
+        // No 'voip': since iOS 13 it requires PushKit (every VoIP push must report a CallKit call), which the app
+        // does not have yet (App Review rejects an unused mode). Incoming calls with the app closed arrive as a
+        // regular APNs alert. CallKit itself is used (modules/linea-call) only for a call already running in the
+        // app — placed, or answered in the app — which needs neither PushKit nor 'voip': it gives the green call
+        // pill / Dynamic Island indicator in the background; the audio session keeps the call alive ('audio').
         UIBackgroundModes: ['audio', 'bluetooth-central', 'bluetooth-peripheral'],
         ...(allowDevelopmentHttp ? { NSAppTransportSecurity: { NSAllowsArbitraryLoads: true, NSAllowsLocalNetworking: true } } : {}),
       },

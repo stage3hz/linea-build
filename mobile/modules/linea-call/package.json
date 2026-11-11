@@ -1,0 +1,8 @@
+{
+  "name": "linea-call",
+  "version": "0.1.0",
+  "private": true,
+  "description": "The running call as the phone shows it: CallKit on iOS, an ongoing-call foreground service on Android",
+  "license": "AGPL-3.0-only",
+  "main": "index.ts"
+}

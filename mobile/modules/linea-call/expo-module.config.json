@@ -1,0 +1,1 @@
+{"platforms":["apple","android"],"apple":{"modules":["LineCallModule"]},"android":{"modules":["expo.modules.lineacall.LineCallModule"]}}

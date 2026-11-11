@@ -1,0 +1,9 @@
+<manifest xmlns:android="http://schemas.android.com/apk/res/android">
+  <!-- The ongoing-call notification of a running call (src/calls/systemCall.ts). Type microphone: Android 11+
+       silences the microphone of an app in the background unless a foreground service of this type runs. -->
+  <uses-permission android:name="android.permission.FOREGROUND_SERVICE" />
+  <uses-permission android:name="android.permission.FOREGROUND_SERVICE_MICROPHONE" />
+  <application>
+    <service android:name="expo.modules.lineacall.CallService" android:exported="false" android:foregroundServiceType="microphone" />
+  </application>
+</manifest>

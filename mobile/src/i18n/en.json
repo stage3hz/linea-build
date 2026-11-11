@@ -2803,5 +2803,9 @@
 "Подарок отправлен": "Gift sent",
 "Сообщение недоступно на этом устройстве": "The message isn't available on this device",
 "Сообщение слишком далеко в истории": "The message is too far back in history",
-"Обновление…": "Updating…"
+"Обновление…": "Updating…",
+"Нет соединения": "No connection",
+"Текущий звонок": "Ongoing call",
+"Собеседник": "Contact",
+"Вернуться к звонку": "Return to the call"
 }
