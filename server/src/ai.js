@@ -112,7 +112,8 @@ function capabilities(configured, provider = OPENROUTER) {
     video: media ? { enabled: true, reason: viaRouter } : { enabled: false, reason: 'AI-генерация и AI-монтаж видео не подключены.' },
     speech: media ? { enabled: true, reason: viaRouter } : { enabled: false, reason: 'Озвучка текста не подключена.' },
     transcribe: media ? { enabled: true, reason: viaRouter } : { enabled: false, reason: 'Расшифровка аудио не подключена.' },
-    documents: media ? { enabled: true } : { enabled: false, reason: 'Документы доступны, когда сервер подключён к FreeLLMAPI.' },
+    // A document is text read from the file and sent with the question: any configured provider takes it.
+    documents: configured ? { enabled: true } : { enabled: false, reason: disabled },
     // openrouter/free accepts text and images and routes a picture to a free vision model.
     vision: media ? { enabled: true, reason: viaRouter } : configured ? { enabled: true, reason: 'Через OpenRouter: бесплатная модель, которая понимает фото.' } : { enabled: false, reason: disabled },
     models: media ? { enabled: true } : { enabled: false, reason: 'Выбор модели доступен с FreeLLMAPI.' },
@@ -372,7 +373,6 @@ function chatHandler({ apiKey, configured, fetchImpl, now, timeoutMs, provider, 
       const messages = withDocuments(messagesFrom(request.body), documents);
       const options = chatOptions(request.body, provider);
       if (documents && !isPlatina(userId)) throw platinaRequired();
-      if (documents && provider.name !== 'freellmapi') throw featureOff();
       // Without Platina: fast answers only — no model choice, no photo questions.
       if (!isPlatina(userId)) {
         if (options.model !== undefined || options.image !== undefined) throw platinaRequired();

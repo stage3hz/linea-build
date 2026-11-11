@@ -588,3 +588,16 @@ test('OpenRouter: photos and video frames go to the free vision route; the model
   assert.equal((await f.post({ ...body(), image, model: 'paid/model' })).statusCode, 400, 'model choice stays FreeLLMAPI-only');
   assert.equal((await f.post({ ...body(), image: 'data:image/png;base64,AAAA' })).statusCode, 400);
 });
+
+test('OpenRouter: documents are read on the server and travel with the question to the free route', async t => {
+  const f = await fixture(t);
+  assert.equal((await f.status()).json().capabilities.documents.enabled, true);
+  const pdf = (await import('node:fs')).readFileSync(new URL('./fixtures/sample.pdf', import.meta.url));
+  const read = await f.app.inject({ method: 'POST', url: '/ai/document', payload: { name: 'счёт.pdf', data: pdf.toString('base64'), consent: true }, headers: { authorization: 'Bearer test-session' } });
+  assert.equal(read.statusCode, 200, read.body);
+  const asked = await f.post({ ...body('Сколько к оплате?'), documents: [{ name: 'счёт.pdf', text: read.json().text }] });
+  assert.equal(asked.statusCode, 200, asked.body);
+  const sent = JSON.parse(f.calls.at(-1).init.body);
+  assert.equal(sent.model, 'openrouter/free');
+  assert.match(sent.messages.at(-1).content, /<документ name="счёт.pdf">[\s\S]*Invoice 42[\s\S]*Вопрос: Сколько к оплате\?/);
+});
