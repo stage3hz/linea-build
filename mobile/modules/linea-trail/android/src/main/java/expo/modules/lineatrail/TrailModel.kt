@@ -18,7 +18,7 @@ object TrailRules {
   const val BLOOM_SCALE = 1.15   // bloom radius / RADIUS
   const val LIFE = 150.0         // life of a sample left by a moving light, ms
   const val HOLD = 1500.0        // life of the light under a finger at rest, ms
-  const val RELEASE = 1200.0     // fade after the finger lifts, ms
+  const val RELEASE = 300.0      // fade after the finger lifts, ms
   const val LERP = 0.22          // glide per 60 Hz frame
   const val FRAME_MS = 1000.0 / 60
   const val SAMPLE_STEP = 4.0    // dp
@@ -51,6 +51,7 @@ class TrailModel {
   private var px = Double.NaN; private var py = Double.NaN
   private var lastStep = Double.NaN
   private var held = false
+  private var lifted = false // the finger lifted: fade out at once, no settling
 
   // The lit tiles of the last compute: columns c0 until c0+cols, rows r0 until r0+rows.
   var c0 = 0; private set
@@ -68,20 +69,28 @@ class TrailModel {
   fun point(x: Double, y: Double) {
     if (x.isNaN() || y.isNaN() || x.isInfinite() || y.isInfinite()) return
     if (px.isNaN()) { px = x; py = y }
-    tx = x; ty = y
+    tx = x; ty = y; lifted = false
   }
 
   /** A finger went down: the light is right there (no glide), with a fresh HOLD sample. */
   fun down(x: Double, y: Double, now: Double) {
     if (x.isNaN() || y.isNaN() || x.isInfinite() || y.isInfinite()) return
-    tx = x; px = x; ty = y; py = y; held = true
+    tx = x; px = x; ty = y; py = y; held = true; lifted = false
     push(x, y, now, TrailRules.HOLD)
   }
 
-  /** Lift/cancel: the light glides to where it stopped and fades there over HOLD, like a still finger. */
-  @Suppress("UNUSED_PARAMETER") fun release(now: Double) { held = false }
+  /** Lift/cancel: the light stops where it is and fades out right away (RELEASE) from its current brightness. */
+  fun release(now: Double) {
+    held = false; lifted = true
+    if (!px.isNaN()) { tx = px; ty = py }
+    for (i in 0 until TrailRules.MAX_SAMPLES) {
+      if (!(ls[i] > TrailRules.RELEASE) || !live(i, now)) continue
+      val left = TrailRules.carry(now - ts[i], ls[i])
+      ls[i] = TrailRules.RELEASE; ts[i] = now - (1 - left) * TrailRules.RELEASE
+    }
+  }
 
-  fun clear() { ts.fill(Double.NEGATIVE_INFINITY); newest = -1; lastStep = Double.NaN; held = false; cols = 0; rows = 0; lit = 0; bloomAlpha = 0.0 }
+  fun clear() { ts.fill(Double.NEGATIVE_INFINITY); newest = -1; lastStep = Double.NaN; held = false; lifted = false; cols = 0; rows = 0; lit = 0; bloomAlpha = 0.0 }
 
   private fun live(i: Int, now: Double) = now - ts[i] < ls[i]
 
@@ -113,7 +122,7 @@ class TrailModel {
           }
           push(px, py, now, TrailRules.LIFE)
         }
-      } else if (last && ls[n] != TrailRules.HOLD) {
+      } else if (!lifted && last && ls[n] != TrailRules.HOLD && ls[n] != TrailRules.RELEASE) {
         // The light stopped (finger held still, lifted, or the cursor rested): it stays and fades smoothly over HOLD.
         ts[n] = now; ls[n] = TrailRules.HOLD
       }

@@ -164,7 +164,7 @@ enum TrailRules {
   static let bloomScale: Double = 1.15  // BLOOM_SCALE
   static let life: Double = 150         // LIFE, ms (a moving light's samples)
   static let hold: Double = 1500        // HOLD, ms (the light under a finger at rest)
-  static let release: Double = 1200     // RELEASE, ms (fade after the finger lifts)
+  static let release: Double = 300      // RELEASE, ms (fade after the finger lifts)
   static let lerp: Double = 0.22        // LERP (per 60 Hz frame)
   static let frameMs: Double = 1000.0 / 60
   static let sampleStep: Double = 4     // SAMPLE_STEP, pt
@@ -204,6 +204,7 @@ final class TrailModel {
   private var tx = Double.nan, ty = Double.nan, px = Double.nan, py = Double.nan
   private var lastStep = Double.nan
   private var held = false
+  private var lifted = false   // the finger lifted: fade out at once, no settling
   // The lit tiles of the last compute: columns c0..<c0+cols, rows r0..<r0+rows, opacity per tile.
   private(set) var c0 = 0, r0 = 0, cols = 0, rows = 0, lit = 0
   private(set) var alpha: [Float] = []
@@ -211,22 +212,29 @@ final class TrailModel {
   func point(_ x: Double, _ y: Double, _ now: Double) {
     if !x.isFinite || !y.isFinite { return }
     if !px.isFinite { px = x; py = y }
-    tx = x; ty = y
+    tx = x; ty = y; lifted = false
   }
 
   /// A finger went down: the light is right there (no glide), with a fresh HOLD sample.
   func down(_ x: Double, _ y: Double, _ now: Double) {
     if !x.isFinite || !y.isFinite { return }
-    tx = x; px = x; ty = y; py = y; held = true
+    tx = x; px = x; ty = y; py = y; held = true; lifted = false
     push(x, y, now, TrailRules.hold)
   }
 
-  /// Lift/cancel: the light glides to where it stopped and fades there over HOLD, like a still finger.
-  func release(_ now: Double) { held = false }
+  /// Lift/cancel: the light stops where it is and fades out right away (RELEASE) from its current brightness.
+  func release(_ now: Double) {
+    held = false; lifted = true
+    if px.isFinite { tx = px; ty = py }
+    for i in 0..<TrailRules.maxSamples where ls[i] > TrailRules.release && live(i, now) {
+      let left = TrailRules.carry(now - ts[i], ls[i])
+      ls[i] = TrailRules.release; ts[i] = now - (1 - left) * TrailRules.release
+    }
+  }
 
   func clear() {
     for i in 0..<TrailRules.maxSamples { ts[i] = -Double.infinity }
-    newest = -1; lastStep = .nan; held = false
+    newest = -1; lastStep = .nan; held = false; lifted = false
     cols = 0; rows = 0; lit = 0
   }
 
@@ -259,7 +267,7 @@ final class TrailModel {
           }
           push(px, py, now, TrailRules.life)
         }
-      } else if last && ls[n] != TrailRules.hold {
+      } else if !lifted && last && ls[n] != TrailRules.hold && ls[n] != TrailRules.release {
         // The light stopped (finger held still, lifted, or the cursor rested): it stays and fades smoothly over HOLD.
         ts[n] = now; ls[n] = TrailRules.hold
       }

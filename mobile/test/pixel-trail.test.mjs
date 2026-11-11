@@ -120,20 +120,19 @@ test('a cursor that stops leaves the light where it stopped, fading smoothly ove
   assert.ok(frames * FRAME <= TRAIL.HOLD, 'gone within HOLD');
 });
 
-test('lifting the finger ends the same way: no jump, the light fades smoothly over HOLD where it stopped', () => {
+test('lifting the finger fades the light out right away (RELEASE), from its current brightness, with no jump', () => {
   const model = new PixelTrailModel();
   model.down(400, 400, 0);
   let x = 400;
   let t = run(model, 0, 150, () => { x += 10; model.point(x, 400, 0); });
+  t = run(model, t, t + 600);// settled under the held finger
   const before = at(model.compute(t - FRAME), cell(x), cell(400));
   model.release(t - FRAME);
   const after = at(model.compute(t - FRAME), cell(x), cell(400));
   assert.ok(Math.abs(after - before) < 1e-6, 'no jump at release');
-  t = run(model, t, t + 300);
-  assert.ok(at(model.compute(t - FRAME), cell(x), cell(400)) > TRAIL.PEAK * 0.6, 'still lit after lifting');
   let frames = 0;
   while (model.step(t)) { t += FRAME; frames++; }
-  assert.ok(frames * FRAME <= TRAIL.HOLD, `gone ${frames * FRAME} ms later`);
+  assert.ok(frames * FRAME <= TRAIL.RELEASE + FRAME, `gone ${frames * FRAME} ms after lifting (no waiting)`);
 });
 
 test('moving away after a rest does not leave a second slow spot behind', () => {
