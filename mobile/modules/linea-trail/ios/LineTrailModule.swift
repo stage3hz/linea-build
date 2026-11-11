@@ -168,7 +168,9 @@ enum TrailRules {
   static let lerp: Double = 0.35        // LERP (per 60 Hz frame)
   static let frameMs: Double = 1000.0 / 60
   static let sampleStep: Double = 4     // SAMPLE_STEP, pt
-  static let maxSamples = 48            // MAX_SAMPLES
+  static let maxSamples = 64            // MAX_SAMPLES
+  static let fillStep: Double = 20      // FILL_STEP, pt
+  static let fillMax = 8                // FILL_MAX
   static let minWeight: Double = 0.008  // MIN_WEIGHT
   static let moving: Double = 0.3       // MOVING, pt
 
@@ -247,7 +249,16 @@ final class TrailModel {
           let left = TrailRules.carry(now - ts[i], TrailRules.hold)
           ls[i] = TrailRules.life; ts[i] = now - (1 - left) * TrailRules.life
         }
-        if last && hypot(xs[n] - px, ys[n] - py) < TrailRules.sampleStep { ts[n] = now; ls[n] = TrailRules.life } else { push(px, py, now, TrailRules.life) }
+        if last && hypot(xs[n] - px, ys[n] - py) < TrailRules.sampleStep { ts[n] = now; ls[n] = TrailRules.life } else {
+          if last {
+            // Fill the gap of a fast swipe so the band stays continuous (FILL_STEP, at most FILL_MAX per frame).
+            let x0 = xs[n], y0 = ys[n], dx = px - x0, dy = py - y0
+            let k = min(TrailRules.fillMax, Int(floor(hypot(dx, dy) / TrailRules.fillStep)))
+            let dt = lastStep.isFinite ? min(100, now - lastStep) : TrailRules.frameMs
+            if k > 0 { for j in 1...k { let f = Double(j) / Double(k + 1); push(x0 + dx * f, y0 + dy * f, now - (1 - f) * dt, TrailRules.life) } }
+          }
+          push(px, py, now, TrailRules.life)
+        }
       } else if last && ls[n] != TrailRules.hold {
         // The light stopped (finger held still, lifted, or the cursor rested): it stays and fades smoothly over HOLD.
         ts[n] = now; ls[n] = TrailRules.hold

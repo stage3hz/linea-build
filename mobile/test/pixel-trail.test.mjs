@@ -196,7 +196,7 @@ test('native ports mirror the shared constants', () => {
   const swift = readFileSync(new URL('../modules/linea-trail/ios/LineTrailModule.swift', import.meta.url), 'utf8');
   const kotlin = readFileSync(new URL('../modules/linea-trail/android/src/main/java/expo/modules/lineatrail/TrailModel.kt', import.meta.url), 'utf8');
   const num = (text, pattern) => Number(text.match(pattern)?.[1]);
-  for (const [key, swiftName] of [['PITCH', 'pitch'], ['DOT', 'dot'], ['RADIUS', 'radius'], ['PEAK', 'peak'], ['BLOOM', 'bloom'], ['BLOOM_SCALE', 'bloomScale'], ['LIFE', 'life'], ['HOLD', 'hold'], ['RELEASE', 'release'], ['LERP', 'lerp'], ['SAMPLE_STEP', 'sampleStep'], ['MAX_SAMPLES', 'maxSamples'], ['MIN_WEIGHT', 'minWeight'], ['MOVING', 'moving']]) {
+  for (const [key, swiftName] of [['PITCH', 'pitch'], ['DOT', 'dot'], ['RADIUS', 'radius'], ['PEAK', 'peak'], ['BLOOM', 'bloom'], ['BLOOM_SCALE', 'bloomScale'], ['LIFE', 'life'], ['HOLD', 'hold'], ['RELEASE', 'release'], ['LERP', 'lerp'], ['SAMPLE_STEP', 'sampleStep'], ['MAX_SAMPLES', 'maxSamples'], ['FILL_STEP', 'fillStep'], ['FILL_MAX', 'fillMax'], ['MIN_WEIGHT', 'minWeight'], ['MOVING', 'moving']]) {
     assert.equal(num(swift, new RegExp(`static let ${swiftName}(?:: \\w+)? = ([\\d.]+)`)), TRAIL[key], `Swift ${swiftName}`);
     assert.equal(num(kotlin, new RegExp(`const val ${key} = ([\\d.]+)`)), TRAIL[key], `Kotlin ${key}`);
   }
@@ -208,4 +208,16 @@ test('the setting defaults to on and survives bad stored values', () => {
   assert.equal(parsePreferences('{}').pixelTrail, true);
   assert.equal(parsePreferences('{"pixelTrail":"no"}').pixelTrail, true);
   assert.equal(parsePreferences('{"pixelTrail":false}').pixelTrail, false);
+});
+
+test('a fast swipe leaves one continuous band, not separate spots', () => {
+  const model = new PixelTrailModel();
+  model.down(50, 300, 0);
+  let x = 50;
+  const t = run(model, 0, 120, () => { x += 60; model.point(x, 300, 0); });// ~60 pt per frame
+  const field = model.compute(t - FRAME);
+  // Every tile along the travelled path (inside the band) is lit.
+  let gaps = 0;
+  for (let px = 120; px < Math.min(x, 380); px += 5) if (!(at(field, cell(px), cell(300)) > 0)) gaps++;
+  assert.equal(gaps, 0, 'no unlit tiles along the swipe');
 });

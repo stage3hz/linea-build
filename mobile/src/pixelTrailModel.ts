@@ -45,7 +45,11 @@ export const TRAIL = {
   FRAME_MS: 1000 / 60,
   /** New sample when the light is this far (pt) from the newest one. */
   SAMPLE_STEP: 4,
-  MAX_SAMPLES: 48,
+  MAX_SAMPLES: 64,
+  /** A fast swipe moves the light far in one frame: the gap from the previous sample is filled every FILL_STEP pt
+   *  (at most FILL_MAX per frame) so the band stays continuous instead of separate spots. */
+  FILL_STEP: 20,
+  FILL_MAX: 8,
   MIN_WEIGHT: 0.008,
   /** The light counts as moving while it is farther than this (pt) from the pointer. */
   MOVING: 0.3,
@@ -143,7 +147,14 @@ export class PixelTrailModel {
           this.ls[i] = TRAIL.LIFE; this.ts[i] = now - (1 - left) * TRAIL.LIFE;
         }
         if (last && Math.hypot(this.xs[n] - this.px, this.ys[n] - this.py) < TRAIL.SAMPLE_STEP) { this.ts[n] = now; this.ls[n] = TRAIL.LIFE; }
-        else this.push(this.px, this.py, now, TRAIL.LIFE);
+        else {
+          if (last) {
+            const dx = this.px - this.xs[n], dy = this.py - this.ys[n], k = Math.min(TRAIL.FILL_MAX, Math.floor(Math.hypot(dx, dy) / TRAIL.FILL_STEP));
+            const dt = Number.isFinite(this.lastStep) ? Math.min(100, now - this.lastStep) : TRAIL.FRAME_MS;
+            for (let j = 1; j <= k; j++) { const f = j / (k + 1); this.push(this.xs[n] + dx * f, this.ys[n] + dy * f, now - (1 - f) * dt, TRAIL.LIFE); }
+          }
+          this.push(this.px, this.py, now, TRAIL.LIFE);
+        }
       } else if (last && this.ls[n] !== TRAIL.HOLD) {
         // The light stopped (finger held still, lifted, or the cursor rested): it stays and fades smoothly over HOLD.
         this.ts[n] = now; this.ls[n] = TRAIL.HOLD;

@@ -22,7 +22,9 @@ object TrailRules {
   const val LERP = 0.35          // glide per 60 Hz frame
   const val FRAME_MS = 1000.0 / 60
   const val SAMPLE_STEP = 4.0    // dp
-  const val MAX_SAMPLES = 48
+  const val MAX_SAMPLES = 64
+  const val FILL_STEP = 20.0      // a fast swipe's gap is filled every FILL_STEP pt
+  const val FILL_MAX = 8          // at most this many fill samples per frame
   const val MIN_WEIGHT = 0.008
   const val MOVING = 0.3         // dp
 
@@ -102,7 +104,15 @@ class TrailModel {
           ls[i] = TrailRules.LIFE; ts[i] = now - (1 - left) * TrailRules.LIFE
         }
         if (last && hypot(xs[n] - px, ys[n] - py) < TrailRules.SAMPLE_STEP) { ts[n] = now; ls[n] = TrailRules.LIFE }
-        else push(px, py, now, TrailRules.LIFE)
+        else {
+          if (last) {
+            val x0 = xs[n]; val y0 = ys[n]; val dx = px - x0; val dy = py - y0
+            val k = min(TrailRules.FILL_MAX, floor(hypot(dx, dy) / TrailRules.FILL_STEP).toInt())
+            val dt = if (lastStep.isFinite()) min(100.0, now - lastStep) else TrailRules.FRAME_MS
+            for (j in 1..k) { val f = j.toDouble() / (k + 1); push(x0 + dx * f, y0 + dy * f, now - (1 - f) * dt, TrailRules.LIFE) }
+          }
+          push(px, py, now, TrailRules.LIFE)
+        }
       } else if (last && ls[n] != TrailRules.HOLD) {
         // The light stopped (finger held still, lifted, or the cursor rested): it stays and fades smoothly over HOLD.
         ts[n] = now; ls[n] = TrailRules.HOLD
