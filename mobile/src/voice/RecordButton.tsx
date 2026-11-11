@@ -7,6 +7,7 @@ import { StyleSheet, View } from 'react-native';
 import { Gesture, GestureDetector } from 'react-native-gesture-handler';
 import Animated, { Easing, runOnJS, useAnimatedStyle, useSharedValue, withSpring, withTiming } from 'react-native-reanimated';
 import { Icon } from '../components';
+import { GlassSurface } from '../glass';
 import { useTheme } from '../theme';
 import { impactFeedback, lightFeedback } from '../haptics';
 
@@ -87,11 +88,13 @@ export function RecordButton({ mode, disabled, onToggleMode, onTouchDown, onHold
     {holding ? <Animated.View pointerEvents="none" style={[{ position: 'absolute', width: 36, height: 64, borderRadius: 18, alignItems: 'center', justifyContent: 'space-evenly', backgroundColor: t.glassOpaque, borderWidth: 1, borderColor: t.border }, lockPill]}>
       <Icon name="lock-open-outline" size={17} color={t.text} /><Icon name="chevron-up" size={14} color={t.muted} />
     </Animated.View> : null}
+    {/* Telegram: at rest the mic sits in the same glass circle as the paperclip. */}
+    {!holding ? <View pointerEvents="none" style={{ position: 'absolute', width: 40, height: 40 }}><GlassSurface material="regular" radius={20} contentStyle={{ width: 40, height: 40 }}><View /></GlassSurface></View> : null}
     <Animated.View pointerEvents="none" style={[{ position: 'absolute', width: 40, height: 40, borderRadius: 20, backgroundColor: t.accent }, halo]} />
     <GestureDetector gesture={gesture}>
       <Animated.View accessible accessibilityRole="button" accessibilityLabel={mode === 'voice' ? 'Голосовое: удерживай для записи, свайп влево — отмена, вверх — без рук. Нажми — переключить на видео' : 'Видеосообщение: удерживай для записи, свайп влево — отмена, вверх — без рук. Нажми — переключить на голосовое'}
         style={[{ width: 40, height: 40, borderRadius: 20, alignItems: 'center', justifyContent: 'center' }, button]}>
-        <Icon name={mode === 'voice' ? (holding ? 'mic' : 'mic-outline') : (holding ? 'videocam' : 'videocam-outline')} color={holding ? t.onAccent : t.text} size={holding ? 20 : 25} />
+        <Icon name={mode === 'voice' ? (holding ? 'mic' : 'mic-outline') : (holding ? 'videocam' : 'videocam-outline')} color={holding ? t.onAccent : t.text} size={holding ? 20 : 24} />
       </Animated.View>
     </GestureDetector>
   </View>;
