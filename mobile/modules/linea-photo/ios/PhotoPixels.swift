@@ -21,6 +21,9 @@ enum PhotoPixels {
     }
     return PixelImage(width:image.width,height:image.height,pixels:output)
   }
+  /// Normalised brightness at or below which a pixel is pure ink, and at or above which it is paper.
+  static let bwInk: Float = 120
+  static let bwPaper: Float = 200
   static func document(_ image: PixelImage, monochrome: Bool) -> PixelImage {
     let opaque = whiteBackground(image)
     // Split into typed steps: one long expression made the Swift type checker time out on slower Macs.
@@ -31,21 +34,26 @@ enum PhotoPixels {
       return UInt8((r+g+b+128)/256)
     }
     let side = min(image.width,image.height)
+    if monochrome {
+      // Scanner-style black and white. Paper brightness is a local maximum only a little wider
+      // than a pen stroke (side/130), smoothed by the same radius: it follows shadows, creases and
+      // stains closely, so dividing by it leaves only the ink. A soft ramp keeps letters anti-aliased.
+      let paperRadius = max(2,side/130)
+      let paper = boxBlur(maxFilter(luma,width:image.width,height:image.height,radius:paperRadius),width:image.width,height:image.height,radius:paperRadius)
+      let output = luma.indices.map { i -> UInt32 in
+        let value = min(Float(255),Float(luma[i])*255/max(24,paper[i]))
+        let level = byte(Double(max(0,min(1,(value-bwInk)/(bwPaper-bwInk))))*255)
+        return color(255,level,level,level)
+      }
+      return PixelImage(width:image.width,height:image.height,pixels:output)
+    }
     // Paper brightness: local maximum, then a blur no wider than that maximum,
     // so the estimate never spills from bright paper into shadows or the table.
     let closeRadius = max(2,side/40)
     let localMax = maxFilter(luma,width:image.width,height:image.height,radius:closeRadius)
     let illumination = boxBlur(localMax,width:image.width,height:image.height,radius:max(2,closeRadius/2))
-    let normalized = luma.indices.map { i in min(Float(255),Float(luma[i])*255/max(16,illumination[i])) }
-    // Black-and-white: a pixel is ink only when it is clearly darker than its neighbourhood
-    // (or simply very dark). Large uniformly dark areas therefore stay white instead of becoming blots.
-    let neighbourhood = monochrome ? blurFloat(normalized,width:image.width,height:image.height,radius:max(4,side/24)) : normalized
     let output = opaque.pixels.enumerated().map { index, pixel -> UInt32 in
       let divisor = max(16,Double(illumination[index]))
-      if monochrome {
-        let value = normalized[index]; let mean = neighbourhood[index]
-        return (value < mean*0.90 && mean-value > 8) || value < 150 ? 0xff000000 : 0xffffffff
-      }
       return color(255,byte(Double(channel(pixel,16))*255/divisor),byte(Double(channel(pixel,8))*255/divisor),byte(Double(channel(pixel,0))*255/divisor))
     }
     return PixelImage(width:image.width,height:image.height,pixels:output)

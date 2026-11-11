@@ -26,31 +26,35 @@ object PhotoPixels {
       val p=opaque.pixels[i];((component(p,16)*77+component(p,8)*150+component(p,0)*29+128)/256).toByte()
     }
     val side=min(image.width,image.height)
+    if(monochrome) {
+      // Scanner-style black and white. Paper brightness is a local maximum only a little wider
+      // than a pen stroke (side/130), smoothed by the same radius: it follows shadows, creases and
+      // stains closely, so dividing by it leaves only the ink. A soft ramp keeps letters anti-aliased.
+      val paperRadius=max(2,side/130)
+      val paper=boxBlur(maxFilter(luma,image.width,image.height,paperRadius),image.width,image.height,paperRadius)
+      val output=IntArray(luma.size) { i ->
+        val value=min(255f,(luma[i].toInt() and 255)*255f/max(24f,paper[i]))
+        val level=byte(((value-BW_INK)/(BW_PAPER-BW_INK)).coerceIn(0f,1f)*255.0)
+        color(255,level,level,level)
+      }
+      return image.copy(pixels=output)
+    }
     // Paper brightness: local maximum, then a blur no wider than that maximum,
     // so the estimate never spills from bright paper into shadows or the table.
     val closeRadius=max(2,side/40)
     val localMax=maxFilter(luma,image.width,image.height,closeRadius)
     val illumination=boxBlur(localMax,image.width,image.height,max(2,closeRadius/2))
-    val normalized=FloatArray(luma.size){i->min(255f,(luma[i].toInt() and 255)*255f/max(16f,illumination[i]))}
-    // Black-and-white: a pixel is ink only when it is clearly darker than its neighbourhood
-    // (or simply very dark). Large uniformly dark areas therefore stay white instead of becoming blots.
-    val neighbourhood=if(monochrome)blurFloat(normalized,image.width,image.height,max(4,side/24))else normalized
     val output=IntArray(opaque.pixels.size) { i ->
       val divisor=max(16.0,illumination[i].toDouble())
-      if(monochrome) {
-        val value=normalized[i];val mean=neighbourhood[i]
-        if((value<mean*BW_RATIO && mean-value>BW_MIN_CONTRAST) || value<BW_ALWAYS_INK) 0xff000000.toInt() else -1
-      } else {
-        val p=opaque.pixels[i]
-        color(255,byte(component(p,16)*255.0/divisor),byte(component(p,8)*255.0/divisor),byte(component(p,0)*255.0/divisor))
-      }
+      val p=opaque.pixels[i]
+      color(255,byte(component(p,16)*255.0/divisor),byte(component(p,8)*255.0/divisor),byte(component(p,0)*255.0/divisor))
     }
     return image.copy(pixels=output)
   }
 
-  private const val BW_RATIO=0.90f
-  private const val BW_MIN_CONTRAST=8f
-  private const val BW_ALWAYS_INK=150f
+  /** Normalised brightness at or below which a pixel is pure ink, and at or above which it is paper. */
+  private const val BW_INK=120f
+  private const val BW_PAPER=200f
 
   private fun blurFloat(input:FloatArray,width:Int,height:Int,radius:Int):FloatArray {
     val horizontal=FloatArray(input.size);val output=FloatArray(input.size)
