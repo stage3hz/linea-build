@@ -7,7 +7,9 @@ export interface LineaCallBridge {
   setMuted(id: string, muted: boolean): Promise<void>;
   end(id: string): Promise<void>;
   /** iPhone, 0.14.16+: the call's microphones and current route; `chosen` is the microphone the user picked. */
-  audioRoute?(): { inputs: AudioPort[]; input?: AudioPort; output?: AudioPort; chosen?: string };
+  audioRoute?(): { inputs: AudioPort[]; input?: AudioPort; output?: AudioPort; chosen?: string; outputChoice?: 'system' | 'receiver' | 'device'; outputDevice?: string };
+  /** Where the call sounds: as the system routes it, the phone itself, or headphones by their id. */
+  setAudioOutput?(kind: 'system' | 'receiver' | 'device', id: string | null): Promise<boolean>;
   /** A microphone by its id, or null for the system's choice. */
   setAudioInput?(id: string | null): Promise<boolean>;
   /** The system's list of outputs. */

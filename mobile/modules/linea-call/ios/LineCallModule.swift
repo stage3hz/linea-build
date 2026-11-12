@@ -115,6 +115,7 @@ public final class LineCallModule: Module {
     }
     Function("audioRoute") { () -> [String: Any] in CallAudio.route() }
     AsyncFunction("setAudioInput") { (uid: String?) -> Bool in CallAudio.setInput(uid) }.runOnQueue(.main)
+    AsyncFunction("setAudioOutput") { (kind: String, uid: String?) -> Bool in CallAudio.setOutput(kind, uid) }.runOnQueue(.main)
     AsyncFunction("showOutputPicker") { () -> Bool in CallAudio.showOutputPicker() }.runOnQueue(.main)
 
     Function("supported") { () -> Bool in LineCallModule.allowed }
@@ -171,8 +172,12 @@ public final class LineCallModule: Module {
 /// may pick another microphone (the phone's own while the sound stays in Bluetooth headphones — iOS then plays to
 /// them over A2DP), and open the system's list of outputs.
 enum CallAudio {
-  /// The microphone the user chose (a port uid), or nil for the system's choice. Kept for the life of the app run.
+  /// The microphone the user chose (a port uid), or nil for the system's choice. Kept until the call ends.
   static var chosen: String?
+  /// The output the user chose: "system" (as iOS routes it), "receiver" (the phone itself) or "device" (the
+  /// headphones `outputDevice`). The loudspeaker is not here: it is a port override the call screen switches.
+  static var output = "system"
+  static var outputDevice: String?
 
   private static func describe(_ port: AVAudioSessionPortDescription) -> [String: String] {
     return ["id": port.uid, "name": port.portName, "kind": port.portType.rawValue]
@@ -180,33 +185,65 @@ enum CallAudio {
 
   static func route() -> [String: Any] {
     let session = AVAudioSession.sharedInstance()
-    var result: [String: Any] = ["inputs": (session.availableInputs ?? []).map(describe)]
+    var result: [String: Any] = ["inputs": (session.availableInputs ?? []).map(describe), "outputChoice": output]
     if let input = session.currentRoute.inputs.first { result["input"] = describe(input) }
-    if let output = session.currentRoute.outputs.first { result["output"] = describe(output) }
+    if let current = session.currentRoute.outputs.first { result["output"] = describe(current) }
     if let uid = chosen { result["chosen"] = uid }
+    if let uid = outputDevice { result["outputDevice"] = uid }
     return result
+  }
+
+  private static func port(_ uid: String) -> AVAudioSessionPortDescription? {
+    return (AVAudioSession.sharedInstance().availableInputs ?? []).first(where: { $0.uid == uid })
+  }
+
+  /// The microphone iOS should prefer for what the user chose, or nil to leave it to the system.
+  /// iOS routes a call by its microphone: a headset's own microphone sends the sound to that headset too; the
+  /// phone's microphone leaves the sound in Bluetooth headphones (played over A2DP) or, with Bluetooth not allowed,
+  /// in the phone.
+  private static func wantedInput() -> AVAudioSessionPortDescription? {
+    let session = AVAudioSession.sharedInstance()
+    if let uid = chosen, let own = port(uid) { return own }
+    if output == "device", let uid = outputDevice, let device = port(uid) { return device }
+    if output == "receiver" { return (session.availableInputs ?? []).first(where: { $0.portType == .builtInMic }) }
+    return nil
+  }
+
+  private static func applyInput() -> Bool {
+    let session = AVAudioSession.sharedInstance()
+    let wanted = wantedInput()
+    if wanted == nil && chosen == nil && output == "system" { return (try? session.setPreferredInput(nil)) != nil }
+    guard let input = wanted else { return false }
+    if session.currentRoute.inputs.first?.uid == input.uid { return true }
+    return (try? session.setPreferredInput(input)) != nil
   }
 
   /// nil: back to the system's choice. False when the microphone is not available (any more).
   static func setInput(_ uid: String?) -> Bool {
-    let session = AVAudioSession.sharedInstance()
-    guard let uid = uid else {
-      chosen = nil
-      return (try? session.setPreferredInput(nil)) != nil
-    }
-    guard let port = (session.availableInputs ?? []).first(where: { $0.uid == uid }) else { return false }
-    chosen = uid
-    return (try? session.setPreferredInput(port)) != nil
+    if let uid = uid { guard port(uid) != nil else { return false }; chosen = uid } else { chosen = nil }
+    return applyInput()
   }
 
-  /// The route changed (headphones connected, the call's audio was set up again): the chosen microphone is asked
-  /// for again if the system moved away from it and it is still there.
-  static func keepChosenInput() {
-    guard let uid = chosen else { return }
+  /// "system", "receiver" or "device" (with the headphones' uid). The phone itself is reached by not allowing
+  /// Bluetooth for the call; everything else allows it.
+  static func setOutput(_ kind: String, _ uid: String?) -> Bool {
     let session = AVAudioSession.sharedInstance()
-    guard session.currentRoute.inputs.first?.uid != uid else { return }
-    guard let port = (session.availableInputs ?? []).first(where: { $0.uid == uid }) else { return }
-    try? session.setPreferredInput(port)
+    let receiver = kind == "receiver"
+    if kind == "device" { guard let uid = uid, port(uid) != nil else { return false }; output = "device"; outputDevice = uid }
+    else { output = receiver ? "receiver" : "system"; outputDevice = nil }
+    let options: AVAudioSession.CategoryOptions = receiver ? [] : [.allowBluetooth, .allowBluetoothA2DP]
+    do {
+      try session.setCategory(.playAndRecord, mode: session.mode, options: options)
+      try session.overrideOutputAudioPort(.none)
+    } catch { return false }
+    return applyInput()
+  }
+
+  /// The route changed (headphones connected, the call's audio was set up again): what the user chose is asked for
+  /// again if the system moved away from it and it is still there.
+  static func keepChosenInput() {
+    guard chosen != nil || output != "system" else { return }
+    _ = applyInput()
   }
 
   /// The system's own list of outputs (the phone, the speaker, AirPods, a car…): the only way iOS lets an app offer

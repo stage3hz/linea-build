@@ -49,3 +49,10 @@ export function microphoneChoices(inputs: readonly AudioPort[] | undefined): Aud
   for (const port of inputs || []) { if (!port || typeof port.id !== 'string' || !port.id || seen.has(port.id)) continue; seen.add(port.id); result.push(port); }
   return result.sort((a, b) => Number(b.kind === 'MicrophoneBuiltIn') - Number(a.kind === 'MicrophoneBuiltIn'));
 }
+
+/** iPhone: the headphones and other devices the call can sound in, besides the phone itself and its speaker.
+ *  iOS lists a device an app may route a call to among the microphones (a headset is both); the phone's own
+ *  microphone is not an output. */
+export function outputDevices(inputs: readonly AudioPort[] | undefined): AudioPort[] {
+  return microphoneChoices(inputs).filter(port => port.kind !== 'MicrophoneBuiltIn');
+}

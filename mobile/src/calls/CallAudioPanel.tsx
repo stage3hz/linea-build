@@ -11,9 +11,9 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Text } from '../typography';
 import { Icon } from '../components';
 import type { LineaCallBridge } from '../../modules/linea-call';
-import { androidRouteLabel, androidRoutes, microphoneChoices, portHint, portLabel, type AndroidRoute, type AudioPort } from './audioRouteModel';
+import { androidRouteLabel, androidRoutes, microphoneChoices, outputDevices, portHint, portLabel, type AndroidRoute, type AudioPort } from './audioRouteModel';
 
-type Route = { inputs: AudioPort[]; input?: AudioPort; output?: AudioPort; chosen?: string };
+type Route = { inputs: AudioPort[]; input?: AudioPort; output?: AudioPort; chosen?: string; outputChoice?: 'system' | 'receiver' | 'device'; outputDevice?: string };
 type Listener = { remove(): void };
 let bridge: (LineaCallBridge & { addListener?(event: 'route', listener: () => void): Listener }) | null | undefined;
 function native() {
@@ -25,7 +25,7 @@ function native() {
 export const callAudioChoice = () => Platform.OS === 'android' || (Platform.OS === 'ios' && typeof native()?.audioRoute === 'function');
 
 /** A call has ended: the next one starts on the system's own microphone again. */
-export function resetCallAudio() { try { void native()?.setAudioInput?.(null)?.catch(() => {}); } catch { /* optional */ } }
+export function resetCallAudio() { try { void native()?.setAudioInput?.(null)?.catch(() => {}); void native()?.setAudioOutput?.('system', null)?.catch(() => {}); } catch { /* optional */ } }
 
 function Row({ label, hint, selected, onPress, icon }: { label: string; hint?: string; selected?: boolean; onPress: () => void; icon?: React.ComponentProps<typeof Icon>['name'] }) {
   return <Pressable accessibilityRole={selected === undefined ? 'button' : 'radio'} accessibilityState={selected === undefined ? undefined : { selected }} accessibilityLabel={label} onPress={onPress}
@@ -69,6 +69,14 @@ export function CallAudioPanel({ inCall, speakerOn, onSpeaker, onClose }: { /** 
     setSystem(device === null);
     try { if (device === null) inCall?.setForceSpeakerphoneOn?.(null); else void Promise.resolve(inCall?.chooseAudioRoute?.(device)).catch(() => {}); } catch { /* optional */ }
   };
+  // iPhone: where the call sounds. The loudspeaker is the call screen's own switch; the rest is asked of iOS.
+  const reread = () => { try { setRoute(native()!.audioRoute!() as Route); } catch { /* next refresh */ } };
+  const chooseOutput = (kind: 'system' | 'receiver' | 'device' | 'speaker', id: string | null = null) => {
+    if (kind === 'speaker') { if (!speakerOn) onSpeaker(); return; }
+    if (speakerOn) onSpeaker();
+    void native()?.setAudioOutput?.(kind, id)?.then(reread, () => {});
+  };
+  const outputChoice = route?.outputChoice || 'system';
   const microphones = microphoneChoices(route?.inputs);
   return <View style={{ position: 'absolute', left: 0, right: 0, top: 0, bottom: 0, zIndex: 20, justifyContent: 'flex-end' }}>
     <Pressable accessibilityRole="button" accessibilityLabel="Закрыть" onPress={onClose} style={{ position: 'absolute', left: 0, right: 0, top: 0, bottom: 0, backgroundColor: 'rgba(0,0,0,0.45)' }} />
@@ -81,8 +89,11 @@ export function CallAudioPanel({ inCall, speakerOn, onSpeaker, onClose }: { /** 
         {Platform.OS === 'ios' ? <>
           <Title>Динамики</Title>
           {route?.output ? <Text style={{ color: 'rgba(255,255,255,0.75)', fontSize: 13, paddingHorizontal: 14, paddingBottom: 4 }}>Сейчас: {portLabel(route.output)}</Text> : null}
-          <Row icon="volume-high" label="Громкий динамик" selected={speakerOn} onPress={onSpeaker} />
-          <Row icon="headset-outline" label="Другое устройство…" hint="Наушники, телефон, колонка — список системы" onPress={() => { void native()?.showOutputPicker?.()?.catch(() => {}); }} />
+          <Row icon="phone-portrait-outline" label="Как в системе" selected={!speakerOn && outputChoice === 'system'} onPress={() => chooseOutput('system')} />
+          <Row icon="call" label="Телефон" selected={!speakerOn && outputChoice === 'receiver'} onPress={() => chooseOutput('receiver')} />
+          <Row icon="volume-high" label="Громкий динамик" selected={speakerOn} onPress={() => chooseOutput('speaker')} />
+          {outputDevices(route?.inputs).map(port => <Row key={port.id} icon="headset-outline" label={portLabel(port)} hint={portHint(port.kind) || undefined} selected={!speakerOn && outputChoice === 'device' && route?.outputDevice === port.id} onPress={() => chooseOutput('device', port.id)} />)}
+          <Row icon="list-outline" label="Список системы…" hint="Если устройства нет выше (колонка, AirPlay)" onPress={() => { void native()?.showOutputPicker?.()?.catch(() => {}); }} />
           <Title>Микрофон</Title>
           <Row icon="mic-outline" label="Как в системе" hint={!route?.chosen && route?.input ? `Сейчас: ${portLabel(route.input)}` : undefined} selected={!route?.chosen} onPress={() => chooseInput(null)} />
           {microphones.map(port => <Row key={port.id} icon="mic" label={portLabel(port)} hint={portHint(port.kind) || undefined} selected={route?.chosen === port.id} onPress={() => chooseInput(port.id)} />)}
