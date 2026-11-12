@@ -109,3 +109,10 @@ test('phone: the falling snow is part of the background, the caps stay on the on
   assert.match(phone, /layer="back" active=\{active\}/);
   assert.equal(phone.match(/layer="front"/g)?.length, 1);
 });
+
+test('phone: no ledge is reported before the launch layout has settled', () => {
+  const phone = readFileSync(new URL('../src/SnowPhone.tsx', import.meta.url), 'utf8');
+  assert.match(phone, /if \(pushTimer \|\| !native \|\| !running \|\| !settled\) return;/);
+  assert.match(phone, /if \(id !== 'island'\) ledges\.delete\(id\);\n\s+settled = true; push\(\); remeasure\(\);/, 'rectangles measured before the insets arrived are dropped');
+  assert.match(phone, /\}, ready \? 500 : 1500\);/);
+});

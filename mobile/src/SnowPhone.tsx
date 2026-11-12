@@ -28,10 +28,13 @@ const call = (run: () => void) => { try { run(); } catch { /* decorative: never 
 const ledges = new Map<string, Ledge>();
 const measurers = new Set<() => void>();
 let running = false, pushTimer: ReturnType<typeof setTimeout> | null = null;
+// The ledges are handed to the native side only once the app's layout has settled after launch (see SnowPhone): until
+// the safe-area insets arrive the header sits a status bar higher, and caps were drawn there for a moment.
+let settled = false;
 
 function push() {
-  if (pushTimer || !native || !running) return;
-  pushTimer = setTimeout(() => { pushTimer = null; if (running) call(() => native.setLedges(Array.from(ledges.values()))); }, 40);
+  if (pushTimer || !native || !running || !settled) return;
+  pushTimer = setTimeout(() => { pushTimer = null; if (running && settled) call(() => native.setLedges(Array.from(ledges.values()))); }, 40);
 }
 function setLedge(id: string, ledge: Ledge | null) {
   const before = ledges.get(id);
@@ -105,14 +108,20 @@ export function SnowPhone() {
     running = enabled;
     call(() => native.setEnabled(enabled));
     if (!enabled) return;
+    // Nothing is reported until the layout has settled: the insets are known (or clearly will not come) and half a
+    // second has passed. Then every control is measured afresh — a rectangle taken earlier may be a status bar off.
+    const ready = insets.top > 0 || Platform.OS !== 'ios';
+    const remeasure = () => { for (const measure of measurers) measure(); };
+    const start = setTimeout(() => {
+      // What was measured before now is dropped, not sent: only the island's rectangle does not depend on the layout.
+      for (const id of Array.from(ledges.keys())) if (id !== 'island') ledges.delete(id);
+      settled = true; push(); remeasure();
+    }, ready ? 500 : 1500);
     // Controls move without a layout event of their own (a header growing above them, the keyboard, a rotation):
     // re-measure a few times a second; setLedge ignores unchanged rectangles.
-    // The native side forgets its ledges when switched off: send the whole set again, then re-measure.
-    push();
-    for (const measure of measurers) measure();
-    const timer = setInterval(() => { for (const measure of measurers) measure(); }, 700);
-    return () => { clearInterval(timer); running = false; call(() => native.setEnabled(false)); };
-  }, [enabled]);
+    const timer = setInterval(remeasure, 400);
+    return () => { clearTimeout(start); clearInterval(timer); running = false; settled = false; call(() => native.setEnabled(false)); };
+  }, [enabled, insets.top > 0]);
   useEffect(() => { if (native && enabled) call(() => native.setDark(t.dark)); }, [enabled, t.dark]);
   // The Dynamic Island (iPhone) / the camera cutout (Android): snow lies on it too.
   useEffect(() => {
