@@ -24,3 +24,19 @@ test('the actual application protects and wires the free-only AI route without a
   const answer=await app.inject({method:'POST',url:'/ai/chat',headers,payload:{messages,consent:true}});assert.equal(answer.statusCode,200);assert.equal(answer.json().text,'Synthetic test answer');assert.equal(forwarded,1);
   await app.inject({method:'POST',url:'/auth/logout',headers});assert.equal((await app.inject({method:'POST',url:'/ai/chat',headers,payload:{messages,consent:true}})).statusCode,401);assert.equal(forwarded,1);
 });
+
+test('a large body from a caller without a session is refused before it is parsed', async t => {
+  const dataDir = await mkdtemp(join(tmpdir(), 'linea-anon-body-'));
+  const app = await buildApp({ dataDir, authRateLimit: false });
+  t.after(async () => { await app.close(); await rm(dataDir, { recursive: true, force: true }); });
+  const body = '{"messages":[' + '[],'.repeat(1_000_000) + '[]]}'; // ~4 MB of JSON that is costly to parse
+  const started = Date.now();
+  const anonymous = await app.inject({ method: 'POST', url: '/ai/chat', headers: { 'content-type': 'application/json' }, payload: body });
+  assert.equal(anonymous.statusCode, 401);
+  assert.ok(Date.now() - started < 60, `refused in ${Date.now() - started} ms: the body must not have been parsed`);
+  const forged = await app.inject({ method: 'POST', url: '/ai/document', headers: { 'content-type': 'application/json', authorization: 'Bearer ' + 'A'.repeat(43) }, payload: body });
+  assert.equal(forged.statusCode, 401, 'a token that names no session does not open the gate');
+  // Small anonymous requests (sign-in, registration) are untouched.
+  const registration = await app.inject({ method: 'POST', url: '/auth/register', payload: { username: 'anon_gate', displayName: 'Gate', password: 'Solid-test-passphrase_2026!', confirmationWord: 'корабль', recoveryWord: 'астра' } });
+  assert.equal(registration.statusCode, 201);
+});

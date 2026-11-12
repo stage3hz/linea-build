@@ -60,3 +60,15 @@ test('RTF: the text without control words', async () => {
   const { text } = await documentText('a.rtf', Buffer.from('{\\rtf1\\ansi{\\fonttbl{\\f0 Arial;}}\\f0\\fs24 Hello\\par World \\u1055?\\u1088?}', 'latin1'));
   assert.match(text, /Hello\nWorld Пр/);
 });
+
+test('hostile markup cannot hold the server: unclosed tags and unclosed script blocks are stripped in linear time', async () => {
+  const { documentText } = await import('../src/documents.js');
+  const { zipSync, strToU8 } = await import('fflate');
+  const started = Date.now();
+  const docx = Buffer.from(zipSync({ 'word/document.xml': strToU8('ok ' + '<'.repeat(400_000)) }));
+  assert.match((await documentText('a.docx', docx)).text, /^ok/);
+  assert.match((await documentText('a.html', Buffer.from('hello ' + '<script'.repeat(200_000)))).text, /^hello/);
+  assert.equal((await documentText('b.html', Buffer.from('<p>a</p><script>x()</script><style>p{}</style><b>c</b>'))).text, 'a c');
+  assert.ok(Date.now() - started < 4000, `took ${Date.now() - started} ms`);
+  await assert.rejects(documentText('big.rtf', Buffer.concat([Buffer.from('{\\rtf1 '), Buffer.alloc(5 * 1024 * 1024, 0x61)])), /RTF — до 4 МБ/);
+});

@@ -47,3 +47,25 @@ test('only this project\'s release installers are accepted', async t => {
   await assert.rejects(updater.download(`${base}v1/INVIZENT-1.0.0-Windows-x64.exe`, 'nothex', 10), /Invalid update checksum/);
   await assert.rejects(updater.download(`${base}redirect-away/INVIZENT-1.0.0-Windows-x64.exe`, sha, body.length));
 });
+
+test('the address is parsed, not compared as text: a path that climbs out of the project is refused', async () => {
+  const { releaseAsset, UPDATE_PREFIX: P } = createRequire(import.meta.url)('../update.cjs');
+  assert.equal(releaseAsset(`${P}v0.14.14/INVIZENT-0.14.14-Windows-x64.exe`, P), true);
+  assert.equal(releaseAsset(`${P}../../../evil/r/releases/download/v/x-Windows-x64.exe`, P), false, 'normalises to another repository');
+  assert.equal(releaseAsset('https://github.com/stage3hz/evil/releases/download/v/x-Windows-x64.exe', P), false);
+  assert.equal(releaseAsset(`${P}v/%2e%2e/x-Windows-x64.exe`, P), false);
+  assert.equal(releaseAsset(`${P.replace('github.com', 'github.com@evil.example')}v/x-Windows-x64.exe`, P), false);
+  assert.equal(releaseAsset(`${P.replace('https:', 'http:')}v/x-Windows-x64.exe`, P), false);
+  assert.equal(releaseAsset(`${P}v/x-Windows-x64.exe?x=1`, P), false);
+});
+
+test('the installer is hashed again right before it is launched', async t => {
+  const { base, updater } = await harness(t);
+  await updater.download(`${base}v1/INVIZENT-1.0.0-Windows-x64.exe`, sha, body.length);
+  const file = updater.verifiedFile();
+  assert.equal(await updater.fileForLaunch(), file);
+  const { writeFile } = await import('node:fs/promises');
+  await writeFile(file, 'swapped');
+  assert.equal(await updater.fileForLaunch(), null, 'a file changed after the download is never launched');
+  assert.equal(existsSync(file), false);
+});

@@ -7,11 +7,25 @@ import { unzipSync, strFromU8 } from 'fflate';
 
 export const MAX_DOCUMENT_BYTES = 15 * 1024 * 1024;
 export const MAX_DOCUMENT_TEXT = 120_000;
-const MAX_UNZIPPED = 80 * 1024 * 1024, MAX_PARTS = 600;
+const MAX_UNZIPPED = 80 * 1024 * 1024, MAX_PARTS = 600, MAX_PART = 8 * 1024 * 1024;
 const TEXT_TYPES = /\.(txt|md|markdown|csv|tsv|json|xml|html?|log|ya?ml|ini|srt|vtt|js|ts|py|java|kt|swift|c|cpp|h|cs|go|rs|rb|php|sql|css|sh)$/i;
 
 const decodeEntities = text => text.replace(/&lt;/g, '<').replace(/&gt;/g, '>').replace(/&quot;/g, '"').replace(/&apos;/g, "'")
   .replace(/&#(\d+);/g, (_, n) => String.fromCodePoint(Number(n))).replace(/&#x([0-9a-f]+);/gi, (_, n) => String.fromCodePoint(parseInt(n, 16))).replace(/&amp;/g, '&');
+
+/** Removes <tag …>…</tag> blocks with plain scans. A lazy regex here rescanned the rest of the text from every
+ *  unclosed opening tag (quadratic: a small file of «<script» could hold the server for minutes). */
+function dropBlocks(text, tag) {
+  const lower = text.toLowerCase(), open = `<${tag}`, close = `</${tag}>`;
+  let out = '', at = 0;
+  for (;;) {
+    const start = lower.indexOf(open, at);
+    if (start < 0) return out + text.slice(at);
+    const end = lower.indexOf(close, start);
+    if (end < 0) return out + text.slice(at, start);
+    out += text.slice(at, start); at = end + close.length;
+  }
+}
 
 /** Paragraph-ish text from Office XML: paragraph and row ends become new lines, tags are dropped. */
 function xmlText(xml) {
@@ -20,7 +34,7 @@ function xmlText(xml) {
     .replace(/<w:tab\/>|<a:tab\/>|<text:tab\/>/g, '\t')
     .replace(/<\/(w:p|a:p|text:p|text:h|row|w:tr)>|<w:br\/>|<a:br\/>|<text:line-break\/>/g, '\n')
     .replace(/<\/c>/g, '\t')
-    .replace(/<[^>]+>/g, ''))
+    .replace(/<[^<>]*>/g, ''))
     .replace(/[ \t]+\n/g, '\n').replace(/\n{3,}/g, '\n\n').trim();
 }
 
@@ -32,7 +46,7 @@ function zipText(bytes, name) {
     files = unzipSync(bytes, { filter: file => {
       if (!/^(word\/document\.xml|content\.xml|ppt\/slides\/slide\d+\.xml|xl\/sharedStrings\.xml|xl\/worksheets\/sheet\d+\.xml)$/.test(file.name)) return false;
       total += file.originalSize; parts += 1;
-      if (file.originalSize > 40 * 1024 * 1024 || total > MAX_UNZIPPED || parts > MAX_PARTS) throw new RangeError('too big');
+      if (file.originalSize > MAX_PART || total > MAX_UNZIPPED || parts > MAX_PARTS) throw new RangeError('too big');
       return true;
     } });
   } catch (error) {
@@ -103,6 +117,7 @@ export async function documentText(name, bytes) {
   } else if (bytes[0] === 0x50 && bytes[1] === 0x4b) {
     text = zipText(bytes, name);
   } else if (bytes.subarray(0, 5).toString('latin1') === '{\\rtf') {
+    if (bytes.length > 4 * 1024 * 1024) throw new Error('RTF — до 4 МБ.');
     text = rtfText(bytes.toString('latin1'));
   } else {
     // Any file that reads as text is taken whatever its extension (code, configs, logs, subtitles, notes…); a known
@@ -111,7 +126,7 @@ export async function documentText(name, bytes) {
     if (plain !== null) text = plain;
     else if (TEXT_TYPES.test(name)) text = new TextDecoder('windows-1251').decode(bytes);
     else throw new Error('Этот файл не текстовый. Читаются PDF, Word, PowerPoint, Excel, OpenDocument, RTF, архивы ZIP с текстом и любые текстовые файлы; фото и видео прикрепляй как фото, аудио — как аудио.');
-    if (/\.html?$/i.test(name)) text = decodeEntities(text.replace(/<(script|style)[\s\S]*?<\/\1>/gi, '').replace(/<[^>]+>/g, ' ')).replace(/[ \t]+/g, ' ');
+    if (/\.html?$/i.test(name)) text = decodeEntities(dropBlocks(dropBlocks(text, 'script'), 'style').replace(/<[^<>]*>/g, ' ')).replace(/[ \t]+/g, ' ');
   }
   text = text.replace(/\u0000/g, '').trim();
   if (!text) throw new Error('В документе нет текста.');
