@@ -12,7 +12,7 @@ import { Platform } from 'react-native';
 import { useChatPreferences } from './chatPreferences';
 import { useMotion } from './motion';
 import { desktopBridge } from './desktop';
-import { SNOW, snowBrush, snowColumns, snowDeposit, snowSurface } from './snowModel';
+import { SNOW, snowBrush, snowCeiling, snowColumns, snowDeposit, snowSurface } from './snowModel';
 
 const LEDGES = '[data-snow],[data-testid="chat-composer"],[role="tablist"]';
 
@@ -20,7 +20,7 @@ const LEDGES = '[data-snow],[data-testid="chat-composer"],[role="tablist"]';
 export const snowLedge = (on = true): object => Platform.OS === 'web' && on ? { dataSet: { snow: '1' } } : {};
 
 type Flake = { x: number; y: number; r: number; v: number; phase: number; alpha: number };
-type Ledge = { x: number; y: number; h: Float32Array; cap: number };
+type Ledge = { x: number; y: number; h: Float32Array; cap: number; seed: number };
 type Puff = { x: number; y: number; vx: number; vy: number; r: number; age: number };
 
 function startSnow(): () => void {
@@ -29,7 +29,8 @@ function startSnow(): () => void {
   Object.assign(canvas.style, { position: 'fixed', left: '0', top: '0', width: '100%', height: '100%', pointerEvents: 'none', zIndex: '2147483000' });
   document.body.appendChild(canvas);
   const context = canvas.getContext('2d');
-  const drifts = new WeakMap<Element, Float32Array>();
+  const drifts = new WeakMap<Element, { h: Float32Array; seed: number }>();
+  let scans = 0;
   let floor = new Float32Array(1);
   let elements: Element[] = [], found = 0;
   const flakes: Flake[] = [], puffs: Puff[] = [];
@@ -42,7 +43,8 @@ function startSnow(): () => void {
     dpr = Math.min(2, window.devicePixelRatio || 1); W = window.innerWidth; H = window.innerHeight;
     canvas.width = Math.round(W * dpr); canvas.height = Math.round(H * dpr);
     const columns = Math.ceil(W / SNOW.COL);
-    if (floor.length !== columns) floor = new Float32Array(columns);
+    // The bottom of the window starts under snow as well.
+    if (floor.length !== columns) { floor = new Float32Array(columns); for (let i = 0; i < columns; i++) floor[i] = snowCeiling(i, columns, SNOW.FLOOR_MAX, 7) * 0.8; }
     const want = Math.min(400, Math.round(SNOW.FLAKES * W * H / (1280 * 800)));
     while (flakes.length < want) flakes.push(flake(true));
     flakes.length = want;
@@ -50,8 +52,8 @@ function startSnow(): () => void {
 
   /** The ledges on screen right now, the bottom of the window last. */
   const ledges = (now: number): Ledge[] => {
-    if (now - found > 300) { elements = Array.from(document.querySelectorAll(LEDGES)); found = now; }
-    const list: Ledge[] = [];
+    if (now - found > 300) { elements = Array.from(document.querySelectorAll(LEDGES)); found = now; scans++; }
+    const list: Ledge[] = [], fresh: { h: Float32Array; seed: number }[] = [];
     for (const element of elements) {
       if (!element.isConnected) continue;
       const box = element.getBoundingClientRect();
@@ -60,11 +62,14 @@ function startSnow(): () => void {
       if (!over || !(over === element || element.contains(over))) continue;
       const radius = parseFloat(getComputedStyle(element).borderTopLeftRadius) || 0;
       const columns = snowColumns(box.width, radius);
-      let h = drifts.get(element);
-      if (!h || h.length !== columns) { h = new Float32Array(columns); drifts.set(element, h); }
-      list.push({ x: box.left + radius * 0.6, y: box.top + 1, h, cap: SNOW.MAX });
+      let drift = drifts.get(element);
+      if (!drift || drift.h.length !== columns) { drift = { h: new Float32Array(columns), seed: Math.random() * 100 }; drifts.set(element, drift); fresh.push(drift); }
+      list.push({ x: box.left + radius * 0.6, y: box.top + 1, h: drift.h, cap: SNOW.MAX, seed: drift.seed });
     }
-    list.push({ x: 0, y: H, h: floor, cap: SNOW.FLOOR_MAX });
+    // The snow already lies on what was there when the snow started or a screen opened (several ledges at once);
+    // a single new ledge — a message that has just arrived — starts bare and gathers snow.
+    if (fresh.length > 2 || scans <= 1) for (const drift of fresh) for (let i = 0; i < drift.h.length; i++) drift.h[i] = snowCeiling(i, drift.h.length, SNOW.MAX, drift.seed) * 0.8;
+    list.push({ x: 0, y: H, h: floor, cap: SNOW.FLOOR_MAX, seed: 7 });
     return list;
   };
 
@@ -91,10 +96,15 @@ function startSnow(): () => void {
       context.beginPath(); context.moveTo(ledge.x, ledge.y);
       for (let i = 0; i < h.length; i++) context.lineTo(ledge.x + i * SNOW.COL + SNOW.COL / 2, ledge.y - snowSurface(h, i));
       context.lineTo(ledge.x + h.length * SNOW.COL, ledge.y); context.closePath();
-      context.shadowColor = shade; context.shadowBlur = 5; context.shadowOffsetY = 1;
+      // Lit from above: white on top, a cold shade where the drift meets the ledge.
+      const fill = context.createLinearGradient(0, ledge.y - ledge.cap, 0, ledge.y);
+      fill.addColorStop(0, SNOW.TOP); fill.addColorStop(1, SNOW.BOTTOM);
+      context.fillStyle = fill;
+      context.shadowColor = shade; context.shadowBlur = 4; context.shadowOffsetY = 1;
       context.fill();
     }
     context.shadowOffsetY = 0; context.shadowBlur = 3;
+    context.fillStyle = '#FFFFFF';
     for (let k = 0; k < flakes.length; k++) {
       const f = flakes[k];
       f.y += f.v * dt; f.x += (wind * f.r * 0.5 + Math.sin(now / 900 + f.phase) * 10) * dt;
@@ -104,7 +114,7 @@ function startSnow(): () => void {
         const i = Math.floor((f.x - ledge.x) / SNOW.COL);
         if (i < 0 || i >= ledge.h.length) continue;
         const top = ledge.y - ledge.h[i];
-        if (f.y >= top && f.y < top + 8) { snowDeposit(ledge.h, i, f.r, ledge.cap); landed = true; break; }
+        if (f.y >= top && f.y < top + 8) { snowDeposit(ledge.h, i, f.r, snowCeiling(i, ledge.h.length, ledge.cap, ledge.seed)); landed = true; break; }
       }
       if (landed) { flakes[k] = flake(false); continue; }
       context.globalAlpha = f.alpha; context.beginPath(); context.arc(f.x, f.y, f.r, 0, 6.3); context.fill();

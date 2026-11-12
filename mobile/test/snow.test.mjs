@@ -4,7 +4,7 @@ import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import { loadTs } from './support/load-ts.mjs';
 
-const { SNOW, snowBrush, snowColumns, snowDeposit, snowSurface } = loadTs(new URL('../src/snowModel.ts', import.meta.url), {});
+const { SNOW, snowBrush, snowCeiling, snowColumns, snowDeposit, snowSurface } = loadTs(new URL('../src/snowModel.ts', import.meta.url), {});
 
 test('a drift never grows above its cap', () => {
   const h = new Float32Array(20);
@@ -58,4 +58,15 @@ test('the desktop app keeps the cap strip harmless: no focus, no clicks, owned b
   assert.doesNotMatch(cap, /alwaysOnTop/);
   const pkg = JSON.parse(readFileSync(new URL('../../desktop/package.json', import.meta.url), 'utf8'));
   for (const file of ['snow.html', 'snow.js', 'snow-preload.cjs']) assert.ok(pkg.build.files.includes(file), file);
+});
+
+test('the cap is lumpy, never taller than the limit, and rounds down to the ledge at both ends', () => {
+  const n = 120, heights = Array.from({ length: n }, (_, i) => snowCeiling(i, n, SNOW.MAX, 3));
+  for (const value of heights) assert.ok(value > 0 && value <= SNOW.MAX + 1e-9);
+  assert.ok(heights[0] < heights[4] && heights[n - 1] < heights[n - 5], 'rounded ends');
+  assert.ok(heights[0] < SNOW.MAX * 0.5);
+  const middle = heights.slice(10, n - 10);
+  assert.ok(Math.max(...middle) - Math.min(...middle) > 2, 'bumps, not a level strip');
+  assert.ok(Math.min(...middle) >= SNOW.MAX * 0.5, 'thick everywhere away from the ends');
+  assert.notDeepEqual(heights, Array.from({ length: n }, (_, i) => snowCeiling(i, n, SNOW.MAX, 40)), 'every ledge has its own shape');
 });

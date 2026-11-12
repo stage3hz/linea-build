@@ -17,11 +17,14 @@ function resize() {
   while (flakes.length < want) flakes.push(flake(true));
   flakes.length = want;
 }
-// The tallest the drift may be over column i: a thick, gently wavy cap that rounds down to the window corners.
+// The tallest the drift may be over column i: a lumpy cap that rounds down to the window corners (the same
+// shape as snowCeiling in mobile/src/snowModel.ts).
+const SEED = Math.random() * 100;
 function ceiling(i) {
-  const edge = (Math.min(i, h.length - 1 - i) + 0.5) * COL, round = Math.min(1, edge / 16);
-  const wave = 0.5 + 0.5 * (Math.sin(i * COL / 67) * 0.6 + Math.sin(i * COL / 23 + 1.7) * 0.4);
-  return (11 + (MAX - 11) * wave) * Math.sqrt(1 - (1 - round) * (1 - round));
+  const x = i * COL;
+  const lumps = 0.5 + 0.5 * (Math.sin(x / 61 + SEED) * 0.5 + Math.sin(x / 23 + SEED * 2.3) * 0.3 + Math.sin(x / 9 + SEED * 5.1) * 0.2);
+  const edge = Math.min(1, (Math.min(i, h.length - 1 - i) + 0.5) * COL / 14);
+  return MAX * (0.55 + 0.45 * lumps) * Math.sqrt(1 - (1 - edge) * (1 - edge));
 }
 function deposit(i, r) {
   const cap = i >= 0 && i < h.length ? ceiling(i) : 0;
@@ -52,13 +55,17 @@ function draw(now) {
   brush(); pmx = mx; pmy = my;
   context.setTransform(dpr, 0, 0, dpr, 0, 0);
   context.clearRect(0, 0, W, H);
-  context.fillStyle = '#F6F4EE';
+  // Lit from above: white on top, a cold shade where the drift meets the window.
+  const fill = context.createLinearGradient(0, H - MAX, 0, H);
+  fill.addColorStop(0, '#FFFFFF'); fill.addColorStop(1, '#C6D0E2');
+  context.fillStyle = fill;
   context.shadowColor = 'rgba(60,80,120,0.55)';
   context.beginPath(); context.moveTo(0, H);
   for (let i = 0; i < h.length; i++) context.lineTo(i * COL + COL / 2, H - ((i ? h[i - 1] : 0) + 2 * h[i] + (i < h.length - 1 ? h[i + 1] : 0)) / 4);
   context.lineTo(h.length * COL, H); context.closePath();
   context.shadowBlur = 4; context.fill();
   context.shadowBlur = 2;
+  context.fillStyle = '#FFFFFF';
   const wind = Math.sin(now / 5200) * 8;
   for (let k = 0; k < flakes.length; k++) {
     const f = flakes[k];
