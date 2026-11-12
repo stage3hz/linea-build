@@ -44,6 +44,8 @@ const publicSession = (session, currentTokenHash) => ({
   osVersion: session.os_version ?? null, appVersion: session.app_version ?? null,
   // The address as text only; it is never geolocated.
   ip: session.ip ?? null,
+  // 'hardware' | 'software' when the session is bound to a device key (devicebind.js), else null.
+  deviceKey: session.bind_key ? (session.bind_kind === 'hardware' ? 'hardware' : 'software') : null,
 });
 
 /**

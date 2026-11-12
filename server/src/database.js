@@ -1,3 +1,4 @@
+import { migrateDeviceBinding } from './devicebind.js';
 import { DatabaseSync } from 'node:sqlite';
 import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
@@ -102,6 +103,7 @@ export function openDatabase(dataDir) {
       for (const column of ['platform', 'device_model', 'os_version', 'app_version', 'ip']) {
         if (!sessionColumns.has(column)) db.exec(`ALTER TABLE sessions ADD COLUMN ${column} TEXT`);
       }
+      migrateDeviceBinding(db);
       // The encryption-device foreign key references this unique public id.
       // Establish the parent key before updating legacy session rows.
       db.exec('CREATE UNIQUE INDEX IF NOT EXISTS sessions_id ON sessions(id)');

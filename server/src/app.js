@@ -25,6 +25,7 @@ import { platinaState } from './entitlements.js';
 import { DEFAULT_FILE_LIMITS, installBigFileRoutes } from './bigfiles.js';
 import { installPlainUploadRoutes } from './plainuploads.js';
 import { installAuthRoutes, RECOVERY_LOCK_MS, rateLimitIp } from './auth.js';
+import { installDeviceBinding, PROOF_HEADER, PROOF_REQUIRED, proofAccepted } from './devicebind.js';
 import { installE2eeRoutes, installScheduledRoutes, parseEncryptedMessage } from './e2ee.js';
 import { registerAiRoutes, aiProvider } from './ai.js';
 import { installUsernameRoutes } from './username.js';
@@ -163,7 +164,7 @@ export async function buildApp({
   const publicUser = (row, extra = {}) => serializePublicUser(row,{db,now,...extra});
   const sessionForToken = token => {
     if (!validToken(token)) return null;
-    return db.prepare('SELECT token_hash,id,user_id,expires_at,last_active_at FROM sessions WHERE token_hash=? AND expires_at>?')
+    return db.prepare('SELECT token_hash,id,user_id,expires_at,last_active_at,bind_key,proof_hash,proof_expires_at,proof_prev_hash,proof_prev_expires_at FROM sessions WHERE token_hash=? AND expires_at>?')
       .get(tokenHash(token), now()) || null;
   };
   const sessionStillValid = state => state.auth && db.prepare('SELECT 1 FROM sessions WHERE token_hash=? AND expires_at>?')
@@ -263,6 +264,9 @@ export async function buildApp({
     const token = typeof header === 'string' && /^Bearer [A-Za-z0-9_-]{43}$/.test(header) ? header.slice(7) : null;
     const session = sessionForToken(token);
     if (!session) fail(401, 'Войдите в аккаунт заново.');
+    // A session bound to a device key (devicebind.js): the token alone is not enough, the request also carries the
+    // short-lived proof only that device can obtain. The routes that issue the proof are the exception.
+    if (session.bind_key && !request.routeOptions?.url?.startsWith('/auth/device/') && !proofAccepted(session, request.headers[PROOF_HEADER], now())) fail(401, 'Подтвердите устройство.', PROOF_REQUIRED);
     request.auth = session;
     if (!limiter.allow(`api:${session.user_id}`, 600, 60_000)) fail(429, 'Слишком много запросов. Попробуйте через минуту.');
     touchSession(session);
@@ -327,7 +331,7 @@ export async function buildApp({
         reply.header('Vary', 'Origin');
         reply.header('Access-Control-Allow-Methods', 'GET, POST, PUT, PATCH, DELETE, OPTIONS');
         // The app announces its version and signs writes (clientgate.js, attest.js).
-        reply.header('Access-Control-Allow-Headers', 'Authorization, Content-Type, X-Linea-Client, X-Linea-Attest, Range');
+        reply.header('Access-Control-Allow-Headers', 'Authorization, Content-Type, X-Linea-Client, X-Linea-Attest, X-Linea-Proof, Range');
       }
     }
     // A large body is read only from a signed-in caller. Fastify parses JSON before any preHandler, so without this
@@ -406,6 +410,7 @@ export async function buildApp({
   });
   release.install(app);
 
+  installDeviceBinding({ app, db, now, authOptions, limiter });
   installAuthRoutes({
     app, db, now, timestamp, authOptions, authThrottle, recoveryStatusThrottle,
     allowAccountLogin, withPasswordJob, newSession, dummyPasswordHash,
@@ -991,6 +996,8 @@ export async function buildApp({
           if (data.type !== 'auth') { socket.close(4401, 'Authentication required'); return; }
           const session = sessionForToken(data.token);
           if (!session) { socket.close(4401, 'Invalid session'); return; }
+          // Bound to a device key: the frame carries the proof as well (4402: fetch a new proof and reconnect).
+          if (session.bind_key && !proofAccepted(session, data.proof, now())) { socket.close(4402, 'Device proof required'); return; }
           const sameUser = socketsByUser.get(session.user_id)?.size || 0;
           if (sameUser >= 10) { socket.close(4429, 'Connection limit'); return; }
           const wasOnline = isOnline(session.user_id);
