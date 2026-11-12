@@ -80,6 +80,8 @@ export function SnowPhone() {
     if (!enabled) return;
     // Controls move without a layout event of their own (a header growing above them, the keyboard, a rotation):
     // re-measure a few times a second; setLedge ignores unchanged rectangles.
+    // The native side forgets its ledges when switched off: send the whole set again, then re-measure.
+    push();
     for (const measure of measurers) measure();
     const timer = setInterval(() => { for (const measure of measurers) measure(); }, 700);
     return () => { clearInterval(timer); running = false; call(() => native.setEnabled(false)); };
