@@ -204,7 +204,7 @@ internal object SnowHub {
       val count = max(1f, s.n / 22f)
       var q = 0
       while (q < count) {
-        if (s.h[sparkleColumn(q, s.n)] >= 2 && sparkle(q, s.x) >= .05f) return true
+        if (s.h[sparkleColumn(q, s.n)] >= 2 && sparkle(q, s.x) * s.opacity >= .05f) return true
         q++
       }
     }
@@ -450,6 +450,7 @@ class SnowView(context: Context, appContext: AppContext) : ExpoView(context, app
   private val underPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply { style = Paint.Style.FILL; color = 0xFFC9D4E6.toInt() }
   private val dropPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply { style = Paint.Style.FILL; color = 0x8CCDE4FF.toInt() }
   private val glintPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply { style = Paint.Style.FILL; color = 0xE6FFFFFF.toInt() }
+  private var capOpacity = 1f // what capPaint and grainPaint are set up for
   private val path = Path()
   private val rect = RectF()
   private val spriteRect = RectF(-SPRITE / 2, -SPRITE / 2, SPRITE / 2, SPRITE / 2)
@@ -512,11 +513,11 @@ class SnowView(context: Context, appContext: AppContext) : ExpoView(context, app
   private fun rime(canvas: Canvas, model: SnowModel) {
     val alpha = ((1 - model.heat * 1.4f).coerceIn(0f, 1f) * 255).roundToInt()
     if (alpha <= 0) return
-    rimePaint.alpha = alpha
     val ledges = model.ledges
     for (k in ledges.indices) {
       val s = ledges[k]
       val bitmap = (s.tag as? Rime)?.bitmap ?: continue
+      rimePaint.alpha = (alpha * s.opacity).roundToInt() // a ledge that has just appeared fades in
       rect.set(s.x, s.y, s.x + s.width, s.y + s.height)
       canvas.drawBitmap(bitmap, null, rect, rimePaint)
     }
@@ -541,6 +542,16 @@ class SnowView(context: Context, appContext: AppContext) : ExpoView(context, app
       }
       for (i in n - 1 downTo 0) path.lineTo((i + .5f) * col, s.base(i) + .5f - top)
       path.close()
+      // A ledge that has just appeared fades in: the cap, its shadow, the grain and the sparkles together.
+      val opacity = s.opacity
+      if (opacity <= 0f) continue
+      if (opacity != capOpacity) {
+        capOpacity = opacity
+        capPaint.alpha = (opacity * 255).roundToInt()
+        // A translucent shadow colour ignores the paint's alpha, so it is faded by hand.
+        capPaint.setShadowLayer(1.8f, 0f, 1f, ((0x59 * opacity).roundToInt() shl 24) or 0x283C6E)
+        grainPaint.alpha = (opacity * 128).roundToInt()
+      }
       canvas.save()
       canvas.translate(s.x, top)
       canvas.drawPath(path, capPaint)
@@ -558,7 +569,7 @@ class SnowView(context: Context, appContext: AppContext) : ExpoView(context, app
         val i = SnowHub.sparkleColumn(q, n)
         val hh = h[i]
         if (hh >= 2) {
-          val twinkle = SnowHub.sparkle(q, s.x)
+          val twinkle = SnowHub.sparkle(q, s.x) * opacity
           if (twinkle >= .05f) {
             val x = s.x + (i + .5f) * col; val y = s.base(i) - hh * .6f
             flakePaint.alpha = (twinkle * 255).roundToInt().coerceIn(0, 255)

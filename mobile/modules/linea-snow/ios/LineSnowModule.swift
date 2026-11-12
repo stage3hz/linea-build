@@ -141,6 +141,33 @@ final class SnowDrift {
   var dirty = false
   /// …or only by flakes landing (redrawn a few times per second: growth is slow).
   var landed = false
+  /// Fade-in progress, 0…1: a ledge that appears (again) must not pop in.
+  var appear: Double = 1
+  /// The fade moved since the last ground redraw: the cap and the rime are redrawn.
+  var fadeDirty = false
+  /// When the ledge stopped being reported (s, media time); its drift waits in the engine's cache.
+  var cachedAt: Double = 0
+
+  /// Opacity of the cap, the rime and the sparkles (ease-out).
+  var fade: Double {
+    let rest = 1 - max(0, min(1, appear))
+    return 1 - rest * rest
+  }
+
+  /// The next apply() rebuilds the drift from scratch.
+  func forget() {
+    n = 0
+    width = -1
+  }
+
+  /// After a rest in the cache: not more snow than the current heat lets stay.
+  func clamp(heat: Double) {
+    var i = 0
+    while i < n {
+      h[i] = min(h[i], cap[i] * (1 - heat))
+      i += 1
+    }
+  }
 
   /// Everything the cap can cover, with its shadow (window coordinates).
   var capRect: CGRect {
@@ -494,6 +521,9 @@ final class SnowEngine {
   private var airSkip = false
 
   private var drifts: [String: SnowDrift] = [:]
+  /// Drifts of ledges that are not reported right now (a covered screen, a moving control): the same snow lies
+  /// there when the ledge comes back. At most 24, for 120 s.
+  private var resting: [String: SnowDrift] = [:]
   private var order: [SnowDrift] = []
   private var flakes: [SnowFlake] = []
   private var liveFlakes = 0
@@ -563,6 +593,7 @@ final class SnowEngine {
       detachObserver()
       stopLoop()
       drifts.removeAll()
+      resting.removeAll()
       order.removeAll()
       flakes.removeAll()
       liveFlakes = 0
@@ -591,17 +622,57 @@ final class SnowEngine {
     if !enabled { return }
     var next: [String: SnowDrift] = [:]
     var list: [SnowDrift] = []
+    let stamp = CACurrentMediaTime()
     for spec in specs {
-      let drift = drifts[spec.id] ?? SnowDrift(id: spec.id)
+      if let shown = drifts[spec.id] {
+        shown.apply(spec, heat: heat)
+        next[spec.id] = shown
+        list.append(shown)
+        continue
+      }
+      // The ledge appears: with the snow it had when it left (same shape only), or with fresh snow. It fades in.
+      var drift = SnowDrift(id: spec.id)
+      if let rested = resting[spec.id] {
+        resting[spec.id] = nil
+        if abs(spec.maxCap - rested.maxCap) > 0.001 { rested.forget() }
+        drift = rested
+      }
       drift.apply(spec, heat: heat)
+      drift.clamp(heat: heat)
+      drift.appear = 0
+      drift.dirty = false
+      drift.landed = false
       next[spec.id] = drift
       list.append(drift)
     }
+    // Ledges that are gone disappear at once (nothing hangs in the air); their drifts rest in the cache.
+    for (id, drift) in drifts where next[id] == nil {
+      drift.cachedAt = stamp
+      resting[id] = drift
+    }
+    pruneResting(stamp)
     drifts = next
     order = list
     prepareRime()
     refresh()
     canvas?.setNeedsDisplay()
+  }
+
+  private func pruneResting(_ stamp: Double) {
+    if resting.isEmpty { return }
+    for (id, drift) in resting where stamp - drift.cachedAt > 120 || stamp < drift.cachedAt {
+      resting[id] = nil
+    }
+    while resting.count > 24 {
+      var oldest: String?
+      var oldestAt = Double.infinity
+      for (id, drift) in resting where drift.cachedAt < oldestAt {
+        oldest = id
+        oldestAt = drift.cachedAt
+      }
+      guard let key = oldest else { break }
+      resting[key] = nil
+    }
   }
 
   func setDark(_ value: Bool) {
@@ -715,6 +786,14 @@ final class SnowEngine {
     link?.invalidate()
     link = nil
     fingerDown = false
+    // A fade-in cannot go on without the loop: it ends at once.
+    var finished = false
+    for s in order where s.appear < 1 {
+      s.appear = 1
+      s.fadeDirty = false
+      finished = true
+    }
+    if finished { canvas?.setNeedsDisplay() }
     // Flakes must not hang frozen in the backgrounds while the loop rests.
     flakesAlive = false
     if flakesShown {
@@ -739,6 +818,11 @@ final class SnowEngine {
     let ease = 0.25 * dt
     heat += max(-ease, min(ease, targetHeat() - heat))
     heat = max(0, min(1, heat))
+    // Ledges that have just appeared fade in over 0.35 s.
+    for s in order where s.appear < 1 {
+      s.appear = min(1, s.appear + dt / 0.35)
+      s.fadeDirty = true
+    }
     sweep()
     prevX = fingerX
     prevY = fingerY
@@ -810,6 +894,11 @@ final class SnowEngine {
         changed = changed.union(s.capRect)
         s.dirty = false
         s.landed = false
+      }
+      if s.fadeDirty {
+        changed = changed.union(s.capRect)
+        changed = changed.union(s.ledgeRect)
+        s.fadeDirty = false
       }
     }
     if flushLanded { lastLandFlush = now }
@@ -1305,11 +1394,13 @@ final class SnowEngine {
     for s in order {
       guard s.glass, let image = s.rime else { continue }
       if !s.ledgeRect.intersects(part) { continue }
+      let shown = opacity * s.fade
+      if shown <= 0.003 { continue }
       // CGImage is drawn bottom-up in a UIKit context: flipped back here.
       context.saveGState()
       context.translateBy(x: CGFloat(s.x), y: CGFloat(s.y + s.height))
       context.scaleBy(x: 1, y: -1)
-      context.setAlpha(CGFloat(opacity))
+      context.setAlpha(CGFloat(shown))
       context.draw(image, in: CGRect(x: 0, y: 0, width: s.width, height: s.height))
       context.restoreGState()
     }
@@ -1321,6 +1412,8 @@ final class SnowEngine {
       let n = s.n
       if n < 2 { continue }
       if !s.capRect.intersects(part) { continue }
+      let fade = s.fade
+      if fade <= 0.003 { continue }
       var top = 1e9
       var i = 0
       while i < n {
@@ -1331,6 +1424,8 @@ final class SnowEngine {
       // The transparency layer below is only as large as the cap and its shadow — the same rect that is
       // invalidated when the cap changes, so nothing is ever drawn outside a redrawn area.
       context.clip(to: s.capRect)
+      // The layer is composited with the fade-in opacity, shadow included.
+      context.setAlpha(CGFloat(fade))
       // One soft shadow for the whole cap (gradient + grain), not one per drawing call.
       context.setShadow(offset: CGSize(width: 0, height: 1), blur: 3, color: capShadow)
       context.beginTransparencyLayer(auxiliaryInfo: nil)
@@ -1396,7 +1491,7 @@ final class SnowEngine {
           if twinkle >= 0.05 {
             let sx = s.x + (Double(at) + 0.5) * col
             let sy = s.base[at] - snow * 0.6
-            context.setAlpha(CGFloat(twinkle))
+            context.setAlpha(CGFloat(twinkle * s.fade))
             context.fill(CGRect(x: sx - 1.6, y: sy - 0.3, width: 3.2, height: 0.6))
             context.fill(CGRect(x: sx - 0.3, y: sy - 1.6, width: 0.6, height: 3.2))
           }

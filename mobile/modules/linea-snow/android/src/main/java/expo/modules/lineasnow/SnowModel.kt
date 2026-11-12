@@ -32,6 +32,9 @@ object SnowRules {
   const val HEAT_EASE = .25f      // applied heat moves towards the target this much per second
   const val MAX_DT = .05f
   const val COLUMNS_MAX = 2000    // sanity bound for one ledge
+  const val FADE_IN = .35f        // a ledge that appears fades in over this long, s
+  const val KEPT = 24             // drifts remembered for ledges that are not reported now
+  const val KEPT_FOR = 120.0      // …for this long, s of model time
 
   const val GRAIN = 0
   const val CLUMP = 1
@@ -65,6 +68,11 @@ class Ledge(val id: String) {
   val frostSeed: Int
   /** Renderer's attachment (the rime bitmap); the model never reads it. */
   var tag: Any? = null
+  /** Progress of the fade-in after the ledge appeared, 0…1, and the model time it was last reported (while kept). */
+  var fade = 0f
+  var leftAt = 0.0
+  /** Opacity of the cap and the rime: ease-out, so a returning screen's snow does not pop in. */
+  val opacity: Float get() { val rest = 1 - fade.coerceIn(0f, 1f); return 1 - rest * rest * rest }
 
   init {
     var hash = -0x7ee3623b // FNV-1a
@@ -102,6 +110,10 @@ class SnowModel(private val random: Random = Random.Default) {
   var width = 0f; private set
   var height = 0f; private set
   val ledges = ArrayList<Ledge>()
+  /** Drifts of ledges that are not reported now (a covered screen, a moving control): they come back as they were. */
+  private val kept = ArrayList<Ledge>()
+  /** Model time, s: the sum of the stepped frames. */
+  var clock = 0.0; private set
 
   // Falling flakes; the first `falling` are simulated and drawn (heat thins the snowfall).
   var flakes = 0; private set
@@ -153,27 +165,48 @@ class SnowModel(private val random: Random = Random.Default) {
   }
 
   fun clear() {
-    ledges.clear(); flakes = 0; falling = 0; particles = 0; width = 0f; height = 0f
+    ledges.clear(); kept.clear(); flakes = 0; falling = 0; particles = 0; width = 0f; height = 0f
     heat = 0f; asleep = false; finger = false; tapId = null; dirty = true
   }
 
-  /** The complete set of ledges. A drift is kept by id; it is rebuilt only when the ledge's shape changes. */
+  /** The complete set of ledges. A drift is kept by id and rebuilt only when the ledge's shape changes; a ledge
+   *  that is no longer reported keeps its drift aside for a while, and any ledge that appears fades in. */
   fun setLedges(specs: List<LedgeSpec>) {
     val old = ArrayList(ledges)
     dirty = true
+    forget()
     ledges.clear()
     for (spec in specs) {
       if (find(spec.id) != null) continue
-      var ledge: Ledge? = null
-      for (candidate in old) if (candidate.id == spec.id) { ledge = candidate; break }
-      val fresh = ledge == null
+      var ledge = take(old, spec.id)
+      val present = ledge != null
+      if (ledge == null) ledge = take(kept, spec.id)
       val target = ledge ?: Ledge(spec.id)
       // Sub-dp jitter of a re-measure must not reset the drift.
-      val reshaped = fresh || abs(target.width - spec.width) > .25f || abs(target.radius - spec.radius) > .25f || abs(target.max - spec.max) > .01f
+      val reshaped = ledge == null || abs(target.width - spec.width) > .25f || abs(target.radius - spec.radius) > .25f || abs(target.max - spec.max) > .01f
       target.x = spec.x; target.y = spec.y; target.height = spec.height; target.glass = spec.glass
       if (reshaped) { target.width = spec.width; target.radius = spec.radius; target.max = spec.max; target.rebuild() }
+      if (!present) {
+        target.fade = 0f
+        // A remembered drift did not melt while away: bring it down to what the heat allows now.
+        if (!reshaped) for (i in 0 until target.n) target.h[i] = min(target.h[i], target.cap[i] * (1 - heat))
+      }
       ledges.add(target)
     }
+    // Removal is immediate; the drift is remembered.
+    for (gone in old) { gone.leftAt = clock; kept.add(gone) }
+    while (kept.size > SnowRules.KEPT) kept.removeAt(0) // the oldest first
+  }
+
+  private fun take(from: ArrayList<Ledge>, id: String): Ledge? {
+    for (k in from.indices) if (from[k].id == id) return from.removeAt(k)
+    return null
+  }
+
+  /** Drops the remembered drifts that are too old. */
+  private fun forget() {
+    var k = kept.size - 1
+    while (k >= 0) { if (clock - kept[k].leftAt > SnowRules.KEPT_FOR) kept.removeAt(k); k-- }
   }
 
   private fun find(id: String?): Ledge? {
@@ -390,12 +423,21 @@ class SnowModel(private val random: Random = Random.Default) {
     val gap = heatTarget - heat
     val ease = SnowRules.HEAT_EASE * t
     heat = if (abs(gap) <= ease) heatTarget else heat + (if (gap > 0) ease else -ease)
+    clock += t
+    forget()
+    var fading = false
+    for (k in ledges.indices) {
+      val s = ledges[k]
+      if (s.fade >= 1f) continue
+      s.fade = min(1f, s.fade + t / SnowRules.FADE_IN)
+      fading = true; dirty = true
+    }
     brush()
     prevX = fingerX; prevY = fingerY
     val melting = melt(t)
     fall(now, t)
     drift(t)
-    asleep = heat >= .99f && heatTarget >= .99f && !melting && particles == 0
+    asleep = heat >= .99f && heatTarget >= .99f && !melting && !fading && particles == 0
     return !asleep
   }
 }
