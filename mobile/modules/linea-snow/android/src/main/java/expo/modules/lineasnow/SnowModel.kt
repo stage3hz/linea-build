@@ -66,8 +66,6 @@ class Ledge(val id: String) {
   /** Stable per-id values: the shape of the lumps and of the rime. */
   val seed: Float
   val frostSeed: Int
-  /** Renderer's attachment (the rime bitmap); the model never reads it. */
-  var tag: Any? = null
   /** Progress of the fade-in after the ledge appeared, 0…1, and the model time it was last reported (while kept). */
   var fade = 0f
   var leftAt = 0.0
@@ -143,6 +141,9 @@ class SnowModel(private val random: Random = Random.Default) {
   var heat = 0f; private set
   var heatTarget = 0f
     set(value) { field = if (value.isNaN()) 0f else value.coerceIn(0f, 1f) }
+  /** Skips the easing: the applied heat becomes the target at once (the loop resumes after a pause during which
+   *  the rime views already followed the device's heat). */
+  fun settleHeat() { heat = heatTarget }
   /** Hot, everything melted and fallen: the frame loop may stop until the heat drops or a ledge appears. */
   var asleep = false; private set
 

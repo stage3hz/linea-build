@@ -41,10 +41,22 @@ public final class LineSnowModule: Module {
       Prop("active") { (view: SnowOverlayView, on: Bool?) in
         view.snowActive = on ?? true
       }
-      // 'front' (default): caps, rime and what is knocked off, above the app. 'back': only the falling flakes,
-      // mounted inside a screen's background.
+      // 'front' (default): caps and what is knocked off, above the app. 'back': only the falling flakes, mounted
+      // inside a screen's background. 'rime': only the rime of the glass surface the view fills.
       Prop("layer") { (view: SnowOverlayView, layer: String?) in
-        view.snowBack = (layer ?? "front") == "back"
+        let name = layer ?? "front"
+        if name == "back" {
+          view.snowRole = 1
+        } else if name == "rime" {
+          view.snowRole = 2
+        } else {
+          view.snowRole = 0
+        }
+      }
+      // Corner radius of the glass surface, pt (used by 'rime').
+      Prop("radius") { (view: SnowOverlayView, radius: Double?) in
+        let value = radius ?? 0
+        view.snowRadius = value.isFinite ? max(0, value) : 0
       }
     }
 
@@ -122,7 +134,6 @@ final class SnowDrift {
   let id: String
   /// Lumps of the cap ceiling differ per ledge; derived from the id so that they are stable.
   let seed: Double
-  let rimeSeed: Int
   var x: Double = 0
   var y: Double = 0
   var width: Double = 0
@@ -135,20 +146,18 @@ final class SnowDrift {
   var base: [Double] = []   // window y where the cap sits
   var cap: [Double] = []    // ceiling of the cap
   var h: [Double] = []      // current height
-  var rime: CGImage?
-  var rimeKey = ""
   /// Heights changed since the last ground redraw: by a sweep, a knock or melting (redrawn next frame)…
   var dirty = false
   /// …or only by flakes landing (redrawn a few times per second: growth is slow).
   var landed = false
   /// Fade-in progress, 0…1: a ledge that appears (again) must not pop in.
   var appear: Double = 1
-  /// The fade moved since the last ground redraw: the cap and the rime are redrawn.
+  /// The fade moved since the last ground redraw: the cap is redrawn.
   var fadeDirty = false
   /// When the ledge stopped being reported (s, media time); its drift waits in the engine's cache.
   var cachedAt: Double = 0
 
-  /// Opacity of the cap, the rime and the sparkles (ease-out).
+  /// Opacity of the cap and the sparkles (ease-out).
   var fade: Double {
     let rest = 1 - max(0, min(1, appear))
     return 1 - rest * rest
@@ -186,7 +195,6 @@ final class SnowDrift {
       hash = hash &* 1099511628211
     }
     seed = Double(hash % 6283) / 100
-    rimeSeed = Int(hash % 997) + 5
   }
 
   /// Takes the reported geometry. Heights survive a move; a new width / radius rebuilds the drift.
@@ -283,7 +291,8 @@ struct SnowParticle {
   var blobs: [Double] = []    // clump: (dx, dy, radius) triples
 }
 
-/// Renders the rime of one glass ledge (frost() in the demo): a matte haze strongest at the rim with an irregular
+/// Renders the rime of one glass surface (frost() in the demo; pure bitmap work, safe off the main thread as long
+/// as one painter is used by one thread): a matte haze strongest at the rim with an irregular
 /// inner boundary, fine specks near the rim and a few thin ice feathers growing inward.
 final class SnowRimePainter {
   let w: Double
@@ -485,7 +494,7 @@ final class SnowEngine {
   static let shared = SnowEngine()
 
   private(set) var enabled = false
-  private var dark = true
+  private(set) var dark = true
   private var heatOverride: Double = -1   // < 0: the device's real thermal state
   private var thermal: Double = 0
   private var heat: Double = 0            // applied heat, eased towards the target
@@ -494,6 +503,10 @@ final class SnowEngine {
   private var sleeping = false
 
   private weak var canvas: SnowCanvasView?
+  /// The rime views (role 'rime') that are active and in a window. They live apart from the snow: its own setting.
+  private let rimeViews = NSHashTable<SnowRimeView>.weakObjects()
+  /// The thermal state is watched while the snow is on OR some rime view is shown.
+  private var thermalToken: NSObjectProtocol?
   /// Every front canvas in a window: when the anchor leaves, another one takes over.
   private let canvases = NSHashTable<SnowCanvasView>.weakObjects()
   /// The 'back' views (inside screen backgrounds) that show the falling flakes.
@@ -508,7 +521,7 @@ final class SnowEngine {
   private var scale: Double = 2           // screen scale
   private var now: Double = 0             // ms
   private var lastTick: Double = 0        // s; 0 = the loop has just (re)started
-  private var rimeStep = 50               // rime opacity in steps of 0.02: the ground redraws per step, not per frame
+  private var rimeStep = 50               // rime opacity in steps of 0.02, as applied to the rime views
   private var lastLandFlush: Double = 0   // ms; when landed flakes last caused a ground redraw
   private var airMoving = false           // the front air has something to show: particles, or sparkles on lying snow
   private var airShown = false            // the air view shows something that must be erased once the air is empty
@@ -574,12 +587,8 @@ final class SnowEngine {
     enabled = on
     if on {
       foreground = UIApplication.shared.applicationState != .background
-      thermal = SnowEngine.thermalHeat()
+      updateThermalWatch()
       let centre = NotificationCenter.default
-      // Posted on an arbitrary thread: delivered on the main queue.
-      tokens.append(centre.addObserver(forName: ProcessInfo.thermalStateDidChangeNotification, object: nil, queue: .main) { _ in
-        SnowEngine.shared.thermalChanged()
-      })
       tokens.append(centre.addObserver(forName: UIApplication.didEnterBackgroundNotification, object: nil, queue: .main) { _ in
         SnowEngine.shared.setForeground(false)
       })
@@ -599,7 +608,6 @@ final class SnowEngine {
       liveFlakes = 0
       particles.removeAll()
       heat = 0
-      rimeStep = 50
       sleeping = false
       airMoving = false
       airShown = false
@@ -615,6 +623,9 @@ final class SnowEngine {
       canvas?.setNeedsDisplay()
       canvas?.air?.setNeedsDisplay()
       for back in flakeViews.allObjects { back.setNeedsDisplay() }
+      // The rime is a separate setting: its views stay, and the heat is still watched for them.
+      updateThermalWatch()
+      applyRimeHeat()
     }
   }
 
@@ -653,7 +664,6 @@ final class SnowEngine {
     pruneResting(stamp)
     drifts = next
     order = list
-    prepareRime()
     refresh()
     canvas?.setNeedsDisplay()
   }
@@ -678,8 +688,8 @@ final class SnowEngine {
   func setDark(_ value: Bool) {
     if value == dark { return }
     dark = value
-    prepareRime()
-    canvas?.setNeedsDisplay()
+    // Only the rime depends on the theme; it works with the snow off too.
+    for view in rimeViews.allObjects { view.refreshContents() }
   }
 
   func setHeat(_ value: Double) {
@@ -694,7 +704,6 @@ final class SnowEngine {
     let screen = view.screenScale
     if screen > 0 { scale = screen }
     prepareAssets()
-    prepareRime()
     refresh()
   }
 
@@ -713,6 +722,49 @@ final class SnowEngine {
 
   func unregister(_ view: SnowFlakesView) {
     flakeViews.remove(view)
+  }
+
+  func registerRime(_ view: SnowRimeView) {
+    rimeViews.add(view)
+    updateThermalWatch()
+    applyRimeHeat()
+    view.setHeatAlpha(Double(rimeStep) / 50, animated: false)
+  }
+
+  func unregisterRime(_ view: SnowRimeView) {
+    rimeViews.remove(view)
+    updateThermalWatch()
+  }
+
+  /// The device's real thermal state is observed while anything depends on it.
+  private func updateThermalWatch() {
+    let wanted = enabled || !rimeViews.allObjects.isEmpty
+    if wanted {
+      if thermalToken == nil {
+        thermal = SnowEngine.thermalHeat()
+        // Posted on an arbitrary thread: delivered on the main queue.
+        thermalToken = NotificationCenter.default.addObserver(forName: ProcessInfo.thermalStateDidChangeNotification, object: nil, queue: .main) { _ in
+          SnowEngine.shared.thermalChanged()
+        }
+      }
+    } else if let token = thermalToken {
+      NotificationCenter.default.removeObserver(token)
+      thermalToken = nil
+    }
+  }
+
+  /// The rime goes first as the phone warms up: opacity clamp(1 − heat·1.4). While the frame loop runs, the views
+  /// follow the eased heat step by step; without it nothing eases the heat, so it takes the target at once and
+  /// the views animate there themselves.
+  private func applyRimeHeat() {
+    let running = link != nil
+    if !running { heat = max(0, min(1, targetHeat())) }
+    let opacity = max(0, min(1, 1 - heat * 1.4))
+    let step = Int((opacity * 50).rounded())
+    if step == rimeStep { return }
+    rimeStep = step
+    let value = Double(step) / 50
+    for view in rimeViews.allObjects { view.setHeatAlpha(value, animated: !running) }
   }
 
   private func thermalChanged() {
@@ -746,6 +798,7 @@ final class SnowEngine {
     guard enabled, let view = canvas, let window = view.window else {
       detachObserver()
       stopLoop()
+      applyRimeHeat()
       return
     }
     if let current = observer, current.view !== window {
@@ -763,6 +816,7 @@ final class SnowEngine {
     } else {
       stopLoop()
     }
+    applyRimeHeat()
   }
 
   private func detachObserver() {
@@ -818,6 +872,7 @@ final class SnowEngine {
     let ease = 0.25 * dt
     heat += max(-ease, min(ease, targetHeat() - heat))
     heat = max(0, min(1, heat))
+    applyRimeHeat()
     // Ledges that have just appeared fade in over 0.9 s: quicker, the buttons seemed to jump as the app opened.
     for s in order where s.appear < 1 {
       s.appear = min(1, s.appear + dt / 0.9)
@@ -885,7 +940,7 @@ final class SnowEngine {
     }
   }
 
-  /// Redraws the ground (caps, rime) only where something changed since its last redraw.
+  /// Redraws the ground (the caps) only where something changed since its last redraw.
   private func flushGround(_ view: SnowCanvasView) {
     var changed = CGRect.null
     let flushLanded = now - lastLandFlush >= 100 || now < lastLandFlush
@@ -897,19 +952,10 @@ final class SnowEngine {
       }
       if s.fadeDirty {
         changed = changed.union(s.capRect)
-        changed = changed.union(s.ledgeRect)
         s.fadeDirty = false
       }
     }
     if flushLanded { lastLandFlush = now }
-    let opacity = max(0, min(1, 1 - heat * 1.4))
-    let step = Int((opacity * 50).rounded())
-    if step != rimeStep {
-      rimeStep = step
-      for s in order where s.glass {
-        changed = changed.union(s.ledgeRect)
-      }
-    }
     if changed.isNull { return }
     let corner = view.convert(CGPoint.zero, to: nil)
     let local = changed.offsetBy(dx: -corner.x, dy: -corner.y).intersection(view.bounds)
@@ -1335,35 +1381,14 @@ final class SnowEngine {
     }
   }
 
-  /// The rime of every glass ledge, rendered again only when its size, radius, the theme or the scale changes.
-  private func prepareRime() {
-    let density = min(2, max(1, scale))
-    for s in order {
-      if !s.glass {
-        s.rime = nil
-        s.rimeKey = ""
-        continue
-      }
-      let w10 = Int((s.width * 10).rounded())
-      let h10 = Int((s.height * 10).rounded())
-      let r10 = Int((s.radius * 10).rounded())
-      let key = "\(w10)x\(h10)r\(r10)" + (dark ? "d" : "l") + "\(Int(density * 10))"
-      if key == s.rimeKey { continue }
-      let painter = SnowRimePainter(width: s.width, height: s.height, radius: s.radius, dark: dark, seed: s.rimeSeed)
-      s.rime = painter.render(scale: density)
-      s.rimeKey = key
-    }
-  }
-
   // MARK: Drawing (called from the view's draw(_:); `origin` is the view's corner in the window)
 
-  /// The ground: rime and caps. `rect` is the part of the view being redrawn.
+  /// The ground: the caps. `rect` is the part of the view being redrawn.
   func draw(in context: CGContext, origin: CGPoint, view: SnowCanvasView, rect: CGRect) {
     guard enabled, let current = canvas, current === view else { return }
     let part = rect.offsetBy(dx: origin.x, dy: origin.y)
     context.saveGState()
     context.translateBy(x: -origin.x, y: -origin.y)
-    drawRime(context, part)
     drawCaps(context, part)
     context.restoreGState()
   }
@@ -1385,25 +1410,6 @@ final class SnowEngine {
     context.translateBy(x: -origin.x, y: -origin.y)
     drawFlakes(context)
     context.restoreGState()
-  }
-
-  private func drawRime(_ context: CGContext, _ part: CGRect) {
-    // The rime goes first as the phone warms up (opacity in steps: see flushGround).
-    let opacity = Double(rimeStep) / 50
-    if opacity <= 0.003 { return }
-    for s in order {
-      guard s.glass, let image = s.rime else { continue }
-      if !s.ledgeRect.intersects(part) { continue }
-      let shown = opacity * s.fade
-      if shown <= 0.003 { continue }
-      // CGImage is drawn bottom-up in a UIKit context: flipped back here.
-      context.saveGState()
-      context.translateBy(x: CGFloat(s.x), y: CGFloat(s.y + s.height))
-      context.scaleBy(x: 1, y: -1)
-      context.setAlpha(CGFloat(shown))
-      context.draw(image, in: CGRect(x: 0, y: 0, width: s.width, height: s.height))
-      context.restoreGState()
-    }
   }
 
   private func drawCaps(_ context: CGContext, _ part: CGRect) {
@@ -1668,23 +1674,33 @@ final class SnowTouchObserver: UIGestureRecognizer, UIGestureRecognizerDelegate 
 
 /// The view the app mounts above everything (src/SnowPhone.tsx): a passthrough container for the canvas.
 final class SnowOverlayView: ExpoView {
-  let canvas = SnowCanvasView(frame: .zero)   // front, the ground: caps and rime, redrawn only where they change
+  let canvas = SnowCanvasView(frame: .zero)   // front, the ground: the caps, redrawn only where they change
   let air = SnowAirView(frame: .zero)         // front, the air: sparkles and what falls off, at 1 px per pt
   let flakes = SnowFlakesView(frame: .zero)   // back: the falling flakes, at 1 px per pt
+  let rime = SnowRimeView(frame: .zero)       // rime: the rime of the glass surface this view fills
 
   /// The `active` prop.
   var snowActive = true { didSet { if snowActive != oldValue { applyRole() } } }
-  /// The `layer` prop: false = 'front' (the engine's anchor), true = 'back' (flakes only, never the anchor).
-  var snowBack = false { didSet { if snowBack != oldValue { applyRole() } } }
+  /// The `layer` prop: 0 = 'front' (the engine's anchor), 1 = 'back' (flakes only), 2 = 'rime' (rime only).
+  /// Only 'front' can be the anchor and brings the touch observer.
+  var snowRole = 0 { didSet { if snowRole != oldValue { applyRole() } } }
+  /// The `radius` prop (for 'rime').
+  var snowRadius: Double = 0 { didSet { if snowRadius != oldValue { applyRole() } } }
 
   /// The props may arrive after init and in any order: the role is applied again on every change.
   private func applyRole() {
-    canvas.isHidden = snowBack
-    air.isHidden = snowBack
-    flakes.isHidden = !snowBack
-    canvas.hosted = !snowBack
-    canvas.active = !snowBack && snowActive
-    flakes.active = snowBack && snowActive
+    let front = snowRole == 0
+    let back = snowRole == 1
+    let frost = snowRole == 2
+    canvas.isHidden = !front
+    air.isHidden = !front
+    flakes.isHidden = !back
+    rime.isHidden = !frost
+    canvas.hosted = front
+    canvas.active = front && snowActive
+    flakes.active = back && snowActive
+    rime.radius = snowRadius
+    rime.active = frost && snowActive
   }
 
   required init(appContext: AppContext? = nil) {
@@ -1704,6 +1720,9 @@ final class SnowOverlayView: ExpoView {
     flakes.frame = bounds
     flakes.autoresizingMask = [.flexibleWidth, .flexibleHeight]
     addSubview(flakes)
+    rime.frame = bounds
+    rime.autoresizingMask = [.flexibleWidth, .flexibleHeight]
+    addSubview(rime)
     applyRole()
   }
 
@@ -1712,26 +1731,34 @@ final class SnowOverlayView: ExpoView {
     if canvas.frame != bounds { canvas.frame = bounds }
     if air.frame != bounds { air.frame = bounds }
     if flakes.frame != bounds { flakes.frame = bounds }
+    if rime.frame != bounds { rime.frame = bounds }
   }
 
   override func hitTest(_ point: CGPoint, with event: UIEvent?) -> UIView? { nil }
 }
 
-/// The ground surface (caps and rime) and the engine's anchor in the window. Never takes touches and is hidden from
+/// The ground surface (the caps) and the engine's anchor in the window. Never takes touches and is hidden from
 /// accessibility. Its backing store is at most 2 px per pt; it is redrawn only where the snow on a ledge changed.
 final class SnowCanvasView: UIView {
   /// The sibling that shows everything in the air.
   weak var air: SnowAirView?
 
-  /// false: this canvas belongs to a 'back' view — it never becomes the engine's anchor.
+  /// false: this canvas belongs to a 'back' or 'rime' view — it never becomes the engine's anchor.
   var hosted = true {
     didSet {
-      if hosted == oldValue { return }
-      if hosted && window != nil {
-        SnowEngine.shared.attach(self)
-      } else {
-        SnowEngine.shared.detach(self)
-      }
+      if hosted != oldValue { syncAnchor() }
+    }
+  }
+  private var attached = false
+
+  /// Only a hosted canvas in a window talks to the engine: there may be dozens of 'rime' views.
+  private func syncAnchor() {
+    if hosted && window != nil {
+      attached = true
+      SnowEngine.shared.attach(self)
+    } else if attached {
+      attached = false
+      SnowEngine.shared.detach(self)
     }
   }
 
@@ -1773,17 +1800,13 @@ final class SnowCanvasView: UIView {
   override func didMoveToWindow() {
     super.didMoveToWindow()
     if window != nil { contentScaleFactor = CGFloat(min(2, max(1, screenScale))) }
-    if window != nil && hosted {
-      SnowEngine.shared.attach(self)
-    } else {
-      SnowEngine.shared.detach(self)
-    }
+    syncAnchor()
   }
 
   override func layoutSubviews() {
     super.layoutSubviews()
     // The loop waits for a non-empty view.
-    SnowEngine.shared.refresh()
+    if attached { SnowEngine.shared.refresh() }
   }
 
   override func hitTest(_ point: CGPoint, with event: UIEvent?) -> UIView? { nil }
@@ -1838,7 +1861,19 @@ final class SnowFlakesView: UIView {
   /// false: a background kept mounted under another one — nothing is drawn.
   var active = false {
     didSet {
-      if active != oldValue { setNeedsDisplay() }
+      if active != oldValue {
+        setNeedsDisplay()
+        syncEngine()
+      }
+    }
+  }
+
+  /// Only an active view in a window is on the engine's list (every LineaSnow view hosts one of these).
+  private func syncEngine() {
+    if active && window != nil {
+      SnowEngine.shared.register(self)
+    } else {
+      SnowEngine.shared.unregister(self)
     }
   }
 
@@ -1869,11 +1904,7 @@ final class SnowFlakesView: UIView {
     // UIKit resets the scale to the screen's when the view enters a window.
     contentScaleFactor = 1
     // The engine holds the view weakly, so a view that dies without leaving its window needs no deinit.
-    if window != nil {
-      SnowEngine.shared.register(self)
-    } else {
-      SnowEngine.shared.unregister(self)
-    }
+    syncEngine()
   }
 
   override func hitTest(_ point: CGPoint, with event: UIEvent?) -> UIView? { nil }
@@ -1883,5 +1914,190 @@ final class SnowFlakesView: UIView {
     // The snowfall is in window coordinates; the context is already clipped to this view.
     let corner = convert(CGPoint.zero, to: nil)
     SnowEngine.shared.drawBack(in: context, origin: corner)
+  }
+}
+
+/// Rendered rime bitmaps, by size / radius / theme / scale / seed. Main thread only; the rendering itself runs on
+/// `queue`, one bitmap at a time, so that a large card never stalls scrolling.
+final class SnowRimeCache {
+  static let shared = SnowRimeCache()
+  static let queue = DispatchQueue(label: "linea.snow.rime", qos: .userInitiated)
+  static let limit = 64
+
+  private var images: [String: CGImage] = [:]
+  private var stamps: [String: Int] = [:]
+  private var clock = 0
+
+  func image(_ key: String) -> CGImage? {
+    guard let found = images[key] else { return nil }
+    clock += 1
+    stamps[key] = clock
+    return found
+  }
+
+  func store(_ key: String, _ image: CGImage) {
+    clock += 1
+    images[key] = image
+    stamps[key] = clock
+    // Over the limit: the least recently used ones go.
+    while images.count > SnowRimeCache.limit {
+      var oldest: String?
+      var oldestAt = Int.max
+      for (name, stamp) in stamps where stamp < oldestAt {
+        oldest = name
+        oldestAt = stamp
+      }
+      guard let name = oldest else { break }
+      images[name] = nil
+      stamps[name] = nil
+    }
+  }
+}
+
+/// A 'rime' surface: the rime of the glass surface it fills (a child of that surface, so it scrolls and clips with
+/// it). The bitmap is rendered off the main thread when the size, the radius or the theme changes, becomes the
+/// layer's contents and fades in; nothing is drawn per frame. Its alpha follows the heat. Never takes touches and
+/// is hidden from accessibility.
+final class SnowRimeView: UIView {
+  /// false: nothing is shown.
+  var active = false {
+    didSet {
+      if active != oldValue {
+        syncEngine()
+        refreshContents()
+      }
+    }
+  }
+
+  /// Corner radius of the glass surface, pt.
+  var radius: Double = 0 {
+    didSet {
+      if radius != oldValue { refreshContents() }
+    }
+  }
+
+  /// Equal-sized buttons must not all carry the same pattern: every view freezes its own way.
+  private let seed = Int.random(in: 5...1000)
+  private var shownKey = ""     // what the layer shows
+  private var wantedKey = ""    // what is being rendered
+  private var generation = 0
+
+  override init(frame: CGRect) {
+    super.init(frame: frame)
+    isUserInteractionEnabled = false
+    isOpaque = false
+    backgroundColor = .clear
+    isAccessibilityElement = false
+    accessibilityElementsHidden = true
+    layer.contentsGravity = .resize
+  }
+
+  required init?(coder: NSCoder) { return nil }
+
+  override func hitTest(_ point: CGPoint, with event: UIEvent?) -> UIView? { nil }
+
+  private func syncEngine() {
+    if active && window != nil {
+      SnowEngine.shared.registerRime(self)
+    } else {
+      SnowEngine.shared.unregisterRime(self)
+    }
+  }
+
+  override func didMoveToWindow() {
+    super.didMoveToWindow()
+    syncEngine()
+    refreshContents()
+  }
+
+  override func layoutSubviews() {
+    super.layoutSubviews()
+    if !active || window == nil { return }
+    if shownKey.isEmpty && wantedKey.isEmpty {
+      refreshContents()
+      return
+    }
+    // A surface that is being resized (an animation) is rendered once it settles; the old rime stretches meanwhile.
+    generation += 1
+    let ticket = generation
+    DispatchQueue.main.asyncAfter(deadline: .now() + 0.08) { [weak self] in
+      guard let view = self, view.generation == ticket else { return }
+      view.refreshContents()
+    }
+  }
+
+  /// The engine's heat, as opacity. Animated when no frame loop eases it.
+  func setHeatAlpha(_ value: Double, animated: Bool) {
+    let target = CGFloat(max(0, min(1, value)))
+    if animated && window != nil {
+      UIView.animate(withDuration: 0.6, delay: 0, options: [.beginFromCurrentState, .allowUserInteraction], animations: {
+        self.alpha = target
+      }, completion: nil)
+    } else {
+      alpha = target
+    }
+  }
+
+  private func clearContents() {
+    shownKey = ""
+    wantedKey = ""
+    layer.contents = nil
+  }
+
+  /// Shows the rime for the current size, radius and theme (rendering it first when it is not in the cache).
+  func refreshContents() {
+    if !active {
+      clearContents()
+      return
+    }
+    if window == nil { return }
+    let w = Double(bounds.width)
+    let h = Double(bounds.height)
+    if !(w >= 4) || !(h >= 4) || w > 4096 || h > 4096 {
+      clearContents()
+      return
+    }
+    var screen = Double(traitCollection.displayScale)
+    if let real = window?.windowScene?.screen { screen = Double(real.scale) }
+    let density = min(2, max(1, screen))
+    let dark = SnowEngine.shared.dark
+    let corner = radius
+    let own = seed
+    let w10 = Int((w * 10).rounded())
+    let h10 = Int((h * 10).rounded())
+    let r10 = Int((corner * 10).rounded())
+    let key = "\(w10)x\(h10)r\(r10)" + (dark ? "d" : "l") + "\(Int(density * 10))s\(own)"
+    if key == shownKey {
+      wantedKey = ""
+      return
+    }
+    if key == wantedKey { return }
+    wantedKey = key
+    if let cached = SnowRimeCache.shared.image(key) {
+      show(cached, key, density)
+      return
+    }
+    SnowRimeCache.queue.async { [weak self] in
+      let painter = SnowRimePainter(width: w, height: h, radius: corner, dark: dark, seed: own)
+      let image = painter.render(scale: density)
+      DispatchQueue.main.async {
+        guard let made = image else { return }
+        SnowRimeCache.shared.store(key, made)
+        guard let view = self, view.wantedKey == key else { return }
+        view.show(made, key, density)
+      }
+    }
+  }
+
+  private func show(_ image: CGImage, _ key: String, _ density: Double) {
+    shownKey = key
+    wantedKey = ""
+    // Fades in (and cross-fades on a theme change) instead of popping.
+    let fade = CATransition()
+    fade.type = .fade
+    fade.duration = 0.3
+    layer.add(fade, forKey: "rime")
+    layer.contentsScale = CGFloat(density)
+    layer.contents = image
   }
 }
