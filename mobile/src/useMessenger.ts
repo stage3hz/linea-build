@@ -776,17 +776,18 @@ export function useMessenger(api: Api, user: User, onExpired: ()=>void) {
     for(const chat of filtered){
       const last=chat.lastMessage;
       // A chat never opened may still hold a socket message or two (a reaction that just arrived): that set does not cover the watermark, so the page is read anyway.
-      if(!last||!skippedInList(last)||coversUnread(chat,messages[chat.id],hasMore[chat.id])||previewAsked.current.has(`${chat.id}:${last.id}`))continue;
+      // «Удалить у меня» hides a message on this device only: when it is the chat's last one, the list looks past it too.
+      if(!last||!(skippedInList(last)||hidden.has(messageKey(last)))||coversUnread(chat,messages[chat.id],hasMore[chat.id])||previewAsked.current.has(`${chat.id}:${last.id}`))continue;
       previewAsked.current.add(`${chat.id}:${last.id}`);
       void (async()=>{try{
         const page=await api.messages(chat.id);const hydrated=await Promise.all(page.messages.map(hydrate));if(!aliveRef.current)return;
         quietPages.current[chat.id]={messages:hydrated,hasMore:page.hasMore};
         // A reaction or an edit by the peer is not unread (Telegram): the server's count is corrected here.
         setChats(prev=>{const next=prev.map(c=>c.id===chat.id?reconcileUnread(c,hydrated,user.id,page.hasMore):c);return next.some((c,i)=>c!==prev[i])?next:prev;});
-        const shown=listPreviewMessage(hydrated);if(shown)setPreviewFill(prev=>({...prev,[chat.id]:shown}));
+        const shown=listPreviewMessage(hydrated.filter(message=>!hidden.has(messageKey(message))));if(shown)setPreviewFill(prev=>({...prev,[chat.id]:shown}));
       }catch{previewAsked.current.delete(`${chat.id}:${last.id}`);/* the action text stays as a fallback; asked again with the next list (e.g. back online) */}})();
     }
-  },[filtered,messages,hasMore,api,hydrate,user.id]);
+  },[filtered,messages,hasMore,api,hydrate,user.id,hidden]);
   // A voice room keeps the socket alive in the background (see connectionHold); a call does the same from CallProvider.
   const inVoice=!!useVoice();
   useEffect(()=>inVoice?holdConnection('voice'):undefined,[inVoice]);
@@ -795,12 +796,17 @@ export function useMessenger(api: Api, user: User, onExpired: ()=>void) {
   const visibleChats=useMemo(()=>stabilizeById(chatCache.current,filtered.map(chat=>{
     const last=chat.lastMessage;if(!last)return chat;
     const loaded=messages[chat.id];
-    const shown=loaded?.length?listPreviewMessage([...loaded,last]):skippedInList(last)?previewFill[chat.id]??null:last;
+    // Messages deleted «у меня» are not candidates for the line (the delete actions among the rest still apply).
+    const lastHidden=hidden.has(messageKey(last));
+    const fill=previewFill[chat.id];
+    const shown=loaded?.length?listPreviewMessage([...loaded,last].filter(message=>!hidden.has(messageKey(message)))):skippedInList(last)||lastHidden?(fill&&!hidden.has(messageKey(fill))?fill:null):last;
+    // Nothing else known yet (the page is still being read): an empty line, never the hidden text.
+    if(!shown&&lastHidden)return {...chat,lastMessage:{...last,text:'',attachment:null}};
     // The server's lastMessage is shown as is when no page is loaded: a spoiler in it must still be hidden.
     const masked=shown&&shown===last?chatListText(shown):null;
     const final=masked!==null&&masked!==last.text?{...last,text:masked}:shown;
     return final&&final!==last?{...chat,lastMessage:final}:chat;
-  }),c=>c.id),[filtered,messages,previewFill]);
+  }),c=>c.id),[filtered,messages,previewFill,hidden]);
   // While it is being re-sent by itself, the bubble shows the clock, not «Не отправлено».
   const shownPending=useMemo(()=>pending.map(p=>p.state==='failed'&&p.offline&&(p.offline<=40||p.mesh)&&!p.upload?{...p,state:'sending' as const,error:undefined}:p),[pending]);
   // F11: system notifications on PC / in the browser when the window is not in front (one hook, decisions in notifications/desktopNotify.ts).

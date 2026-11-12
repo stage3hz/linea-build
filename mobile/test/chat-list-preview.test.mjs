@@ -28,3 +28,14 @@ test('a pin reads like Telegram in the chat list: «Вы закрепили «�
   assert.equal(meta.pinPreview('Закреплено сообщение «Чеза ник у тебя»', false, 'Ира'), 'Ира закрепил(а) «Чеза ник у тебя»');
   assert.equal(meta.pinPreview('Закреплено сообщение', false, 'Ира'), 'Ира закрепил(а) сообщение');
 });
+
+test('a message deleted «у меня» is not the chat list line: the list looks past it', async () => {
+  const { readFileSync } = await import('node:fs');
+  const source = readFileSync(new URL('../src/useMessenger.ts', import.meta.url), 'utf8');
+  assert.ok(source.includes("listPreviewMessage([...loaded,last].filter(message=>!hidden.has(messageKey(message))))"), 'hidden messages are not candidates in an opened chat');
+  assert.ok(source.includes("skippedInList(last)||hidden.has(messageKey(last))"), 'a hidden last message makes the list read the recent page');
+  assert.ok(source.includes("if(!shown&&lastHidden)return {...chat,lastMessage:{...last,text:'',attachment:null}};"), 'never the hidden text while nothing else is known');
+  // The rule itself: with the hidden message left out, the previous real message is the line.
+  const list = [msg(1, 'Да'), msg(2, 'Привет, дорогой')];
+  assert.equal(listPreviewMessage(list.filter(m => m.id !== 2)).text, 'Да');
+});
