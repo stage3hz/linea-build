@@ -131,7 +131,7 @@ function VideoThumb({ api, id, size }: { api: Api; id: string; size: number }) {
   const [uri, setUri] = useState(thumbs.get(id) ?? null);
   useEffect(() => {
     if (uri) return; let live = true;
-    const frame = Platform.OS === 'web' ? webVideoThumbnail(api, id) : VideoThumbnails.getThumbnailAsync(api.fileUrl(id), { time: 0, headers: { Authorization: `Bearer ${api.token}` } }).then(result => result.uri);
+    const frame = Platform.OS === 'web' ? webVideoThumbnail(api, id) : VideoThumbnails.getThumbnailAsync(api.fileUrl(id), { time: 0, headers: { ...api.authHeaders } }).then(result => result.uri);
     frame.then(result => { thumbs.set(id, result); if (live) setUri(result); }).catch(() => {});
     return () => { live = false; };
   }, [id]);
@@ -245,7 +245,7 @@ function VideoMedia({ api, id, active, width, height, onEnd }: { api: Api; id: s
     webVideoUrl(api, id).then(url => { if (live) setWebSrc(url); }).catch(() => { if (live) setFailed(true); });
     return () => { live = false; };
   }, [web, api.base, api.token, id]);
-  const player = useVideoPlayer(web ? (webSrc ? { uri: webSrc } : null) : { uri: api.fileUrl(id), headers: { Authorization: `Bearer ${api.token}` } }, value => { value.loop = !onEnd; });
+  const player = useVideoPlayer(web ? (webSrc ? { uri: webSrc } : null) : { uri: api.fileUrl(id), headers: { ...api.authHeaders } }, value => { value.loop = !onEnd; });
   // Starts from the beginning the first time it plays; a later pause/resume (the viewer paused while typing a reply) continues.
   const started = useRef(false);
   useEffect(() => { if (active) { if (!started.current) { started.current = true; player.currentTime = 0; } player.play(); } else player.pause(); }, [active, player]);

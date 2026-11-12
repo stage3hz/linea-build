@@ -21,7 +21,7 @@ export function profileMedia(user: Pick<User, 'avatarId' | 'avatarVideoId'>): Pr
 }
 
 function VideoPage({ api, id, active, width, height }: { api: Api; id: string; active: boolean; width: number; height: number }) {
-  const player = useVideoPlayer({ uri: api.fileUrl(id), headers: { Authorization: `Bearer ${api.token}` } }, value => { value.loop = true; value.muted = false; });
+  const player = useVideoPlayer({ uri: api.fileUrl(id), headers: { ...api.authHeaders } }, value => { value.loop = true; value.muted = false; });
   React.useEffect(() => { if (active) player.play(); else player.pause(); }, [active, player]);
   return <VideoView player={player} style={{ width, height }} contentFit="contain" nativeControls={false} allowsPictureInPicture={false} />;
 }
@@ -42,7 +42,7 @@ export function ProfileMediaViewer({ api, user, start, onClose }: { api: Api; us
           onMomentumScrollEnd={e => setIndex(Math.round(e.nativeEvent.contentOffset.x / width))} style={StyleSheet.absoluteFill}>
           {items.map((item, i) => <Pressable key={item.id} accessible={false} onPress={() => setChrome(value => !value)} disabled={item.kind === 'photo' && Platform.OS !== 'web'} style={{ width, height, alignItems: 'center', justifyContent: 'center' }}>
             {item.kind === 'video' ? <VideoPage api={api} id={item.id} active={i === index} width={width} height={width} />
-              : Platform.OS !== 'web' ? <ZoomableImage uri={api.fileUrl(item.id)} headers={{ Authorization: `Bearer ${api.token}` }} cacheKey={`invizent-file-${item.id}`} style={{ width, height }} accessibilityLabel={user.displayName}
+              : Platform.OS !== 'web' ? <ZoomableImage uri={api.fileUrl(item.id)} headers={{ ...api.authHeaders }} cacheKey={`invizent-file-${item.id}`} style={{ width, height }} accessibilityLabel={user.displayName}
                 onTap={() => setChrome(value => !value)} onZoomChange={value => { if (i === index) setZoomed(value); }} />
               : <AuthImage api={api} id={item.id} style={{ width, height: width }} resizeMode="contain" />}
           </Pressable>)}

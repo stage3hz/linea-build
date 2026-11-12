@@ -16,6 +16,13 @@ public final class LineSignalModule: Module {
     AsyncFunction("decrypt") { (state: String, name: String, deviceId: Int, type: Int, body: String) in try self.protect { try SignalCore.decrypt(state, name, deviceId, type, body) } }
     AsyncFunction("seal") { (plaintext: String, key: String, nonce: String, ad: String) in try self.protect { try SignalCore.seal(plaintext, key, nonce, ad) } }
     AsyncFunction("open") { (ciphertext: String, key: String, nonce: String, ad: String) in try self.protect { try SignalCore.open(ciphertext, key, nonce, ad) } }
+    // The key this device's sessions are bound to (DeviceKey.swift).
+    AsyncFunction("deviceKeyEnsure") { () -> [String: String] in
+      do { return try DeviceKey.ensure() } catch { throw LineaSignalError(code: "ERR_LINEA_DEVICE_KEY", description: "Device key unavailable") }
+    }
+    AsyncFunction("deviceKeySign") { (message: String) -> String in
+      do { return try DeviceKey.sign(message) } catch { throw LineaSignalError(code: "ERR_LINEA_DEVICE_KEY", description: "Device key could not sign") }
+    }
   }
   private func protect<T>(_ body: () throws -> T) throws -> T {
     do { return try body() }

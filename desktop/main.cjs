@@ -21,6 +21,7 @@ async function vault(scope) {
   if (!scopes.has(scope)) scopes.set(scope, ready.then(([,v]) => v.openDesktopVault(path.join(app.getPath('userData'),'private'), scope, safeStorage)).catch(e => { scopes.delete(scope); throw e; }));
   return scopes.get(scope);
 }
+const deviceKey = require('./devicekey.cjs').createDeviceKey({ vault: () => vault('invizent:desktop:devicekey') });
 ipcMain.handle('window-control', (event, action) => {
   const win = BrowserWindow.fromWebContents(event.sender); if (!win || win !== window) return null;
   if (action === 'minimize') win.minimize();
@@ -354,6 +355,9 @@ ipcMain.handle('invizent', async (event, method, ...args) => {
     return true;
   }
   if (method === 'tokenRead') return (await vault('invizent:desktop:session')).get('token');
+  // The key this computer's sessions are bound to (devicekey.cjs): only its public half and signatures leave here.
+  if (method === 'deviceKeyEnsure') return deviceKey.ensure();
+  if (method === 'deviceKeySign') return deviceKey.sign(args[0]);
   if (method === 'tokenWrite') { if (args[0] !== null && typeof args[0] !== 'string') throw new Error('Invalid token'); return (await vault('invizent:desktop:session')).commit({ token: args[0] }); }
   throw new Error('Unknown desktop operation');
 });

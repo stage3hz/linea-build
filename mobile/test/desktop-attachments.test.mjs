@@ -23,7 +23,7 @@ test('desktop chunked upload resumes after a lost completion and removes corrupt
    '../api':{},'./signal':{getSignalBridge:()=>desktopSignalBridge},'../media/pipeline.web':{},
   });
   let putCalls=0;
-  const api={token:'test-token',fileUrl:()=> 'https://file.test/upload',async request(url,options){
+  const api={token: 'test-token', authHeaders: { Authorization: 'Bearer test-token' }, ensureProof: async () => {},fileUrl:()=> 'https://file.test/upload',async request(url,options){
    if(url==='/e2ee/limits')return {maxFileBytes:100*1024*1024};
    if(url==='/e2ee/uploads')return {id:'session'};
    if(url==='/e2ee/uploads/session')return {received};
@@ -61,7 +61,7 @@ test('desktop: a small MP4 with a video track named and typed as audio is cleane
    // The 20 MB pipeline does not treat an audio-typed file as video: it hands the bytes back unchanged.
    '../media/pipeline.web': { prepareMediaForUpload: async file => ({ file: { ...file, size: bytes.length }, photo: false, video: false, dispose: async () => {} }) },
   });
-  const api = { token: 'test-token', fileUrl: () => 'https://file.test/upload', async request(url, options) {
+  const api = { token: 'test-token', authHeaders: { Authorization: 'Bearer test-token' }, ensureProof: async () => {}, fileUrl: () => 'https://file.test/upload', async request(url, options) {
    if (url === '/e2ee/limits') return { maxFileBytes: 100 * 1024 * 1024, maxVideoBytes: 100 * 1024 * 1024 };
    if (url === '/e2ee/uploads') return { id: 'session' };
    if (url.startsWith('/e2ee/uploads/session?offset=')) { parts.push(Buffer.from(options.body)); received += options.body.length; return {}; }

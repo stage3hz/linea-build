@@ -37,7 +37,7 @@ function harness({ limits = { platina: false, maxFileBytes: 2 * GiB, maxVideoByt
     '../attest/index': { attestHeaders: () => ({}) },
     'base64-js': { fromByteArray: bytes => Buffer.from(bytes).toString('base64'), toByteArray: value => new Uint8Array(Buffer.from(value, 'base64')) },
   });
-  const api = { endpoint: 'https://api.test', token: 'token', fileUrl: id => `https://api.test/files/${id}`,
+  const api = { endpoint: 'https://api.test', token: 'token', authHeaders: { Authorization: 'Bearer token' }, ensureProof: async () => {}, fileUrl: id => `https://api.test/files/${id}`,
     async request(path, options = {}) {
       if (path === '/e2ee/limits') return { ...limits, storageBytes: 20 * GiB, usedBytes: 0, chunkBytes: 4 * MiB };
       if (path === '/e2ee/uploads' && options.method === 'POST') { server.posts.push(JSON.parse(options.body)); return { id: 'session-1' }; }

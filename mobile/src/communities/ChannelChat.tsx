@@ -245,7 +245,7 @@ function ChannelAttachment({ api, attachment, wide }: { api: Api; attachment: No
       const folder = `${FileSystem.cacheDirectory}channel-files/${attachment.id}/`;
       const target = `${folder}${attachment.name.replace(/[\\/:*?"<>|]/g, '_') || 'file'}`;
       const info = await FileSystem.getInfoAsync(target);
-      if (!info.exists) { await FileSystem.makeDirectoryAsync(folder, { intermediates: true }); await FileSystem.downloadAsync(api.fileUrl(attachment.id), target, { headers: { Authorization: `Bearer ${api.token}` } }); }
+      if (!info.exists) { await FileSystem.makeDirectoryAsync(folder, { intermediates: true }); await FileSystem.downloadAsync(api.fileUrl(attachment.id), target, { headers: { ...api.authHeaders } }); }
       await previewDocument(target, attachment.mimeType);
     } catch { /* stays tappable */ } finally { setBusy(false); }
   };

@@ -15,9 +15,15 @@ class LineSignalModule : Module() {
     AsyncFunction("decrypt") { state: String, name: String, deviceId: Int, type: Int, body: String -> protect { SignalCore.decrypt(state, name, deviceId, type, body) } }
     AsyncFunction("seal") { plaintext: String, key: String, nonce: String, ad: String -> protect { SignalCore.seal(plaintext, key, nonce, ad) } }
     AsyncFunction("open") { ciphertext: String, key: String, nonce: String, ad: String -> protect { SignalCore.open(ciphertext, key, nonce, ad) } }
+    // The key this device's sessions are bound to (DeviceKey.kt).
+    AsyncFunction("deviceKeyEnsure") { -> deviceKey { DeviceKey.ensure() } }
+    AsyncFunction("deviceKeySign") { message: String -> deviceKey { DeviceKey.sign(message) } }
   }
 
   // Do not propagate SDK exceptions containing protocol data into JS error logs.
+  private inline fun <T> deviceKey(body: () -> T): T = try { body() } catch (error: Exception) {
+    throw CodedException("ERR_LINEA_DEVICE_KEY", "Device key unavailable", null)
+  }
   private inline fun <T> protect(body: () -> T): T = try { body() } catch (error: Exception) {
     val reason = (error as? SignalFailure)?.reason ?: "CRYPTO_FAILED"
     throw CodedException("ERR_LINEA_SIGNAL_$reason", "Signal operation rejected: $reason", null)

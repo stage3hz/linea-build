@@ -259,6 +259,10 @@ export async function buildApp({
   /** The largest request body read from a caller that has not shown a valid session (sign-in, registration and
    *  recovery are far smaller). */
   const ANONYMOUS_BODY = 64 * 1024;
+  // Reading a stored file is the one thing a bound session may do with the token alone: players and image loaders
+  // are given their headers once and keep using them for hours (a film), far past a proof's ten minutes. What they
+  // read is ciphertext (chat attachments) or media the account's contacts see anyway.
+  const proofFree = request => { const route = request.routeOptions?.url || ''; return route.startsWith('/auth/device/') || (route === '/files/:id' && (request.method === 'GET' || request.method === 'HEAD')); };
   const requireAuth = async request => {
     const header = request.headers.authorization;
     const token = typeof header === 'string' && /^Bearer [A-Za-z0-9_-]{43}$/.test(header) ? header.slice(7) : null;
@@ -266,7 +270,7 @@ export async function buildApp({
     if (!session) fail(401, 'Войдите в аккаунт заново.');
     // A session bound to a device key (devicebind.js): the token alone is not enough, the request also carries the
     // short-lived proof only that device can obtain. The routes that issue the proof are the exception.
-    if (session.bind_key && !request.routeOptions?.url?.startsWith('/auth/device/') && !proofAccepted(session, request.headers[PROOF_HEADER], now())) fail(401, 'Подтвердите устройство.', PROOF_REQUIRED);
+    if (session.bind_key && !proofFree(request) && !proofAccepted(session, request.headers[PROOF_HEADER], now())) fail(401, 'Подтвердите устройство.', PROOF_REQUIRED);
     request.auth = session;
     if (!limiter.allow(`api:${session.user_id}`, 600, 60_000)) fail(429, 'Слишком много запросов. Попробуйте через минуту.');
     touchSession(session);

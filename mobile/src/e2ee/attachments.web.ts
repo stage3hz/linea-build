@@ -151,7 +151,7 @@ export async function decryptAttachmentWithProgress(api:Api,file:Attachment,prog
   await FileSystem.deleteAsync(target,{idempotent:true});
   try {
     if(encryption.scheme==='aes-256-gcm-siv') {
-      const response=await fetch(api.fileUrl(file.id),{headers:{Authorization:`Bearer ${api.token}`},signal});if(!response.ok)throw new Error('Не удалось загрузить файл.');
+      const response=await fetch(api.fileUrl(file.id),{headers:{...api.authHeaders},signal});if(!response.ok)throw new Error('Не удалось загрузить файл.');
       const cipher=fromByteArray(new Uint8Array(await response.arrayBuffer()));
       const plain=toByteArray(await getSignalBridge().open(cipher,encryption.key,encryption.nonce,associatedData(encryption.fileKeyId)));
       if(plain.length!==file.size)throw new Error('Размер вложения не совпадает.');
@@ -161,7 +161,7 @@ export async function decryptAttachmentWithProgress(api:Api,file:Attachment,prog
     const count=chunkCount(file.size),total=chunkedCipherSize(file.size),full=CHUNK_PLAIN+TAG;
     for(let i=0;i<count;i++) {
       abort(signal);const start=i*full,end=Math.min(total,start+full)-1;
-      const response=await fetch(api.fileUrl(file.id),{headers:{Authorization:`Bearer ${api.token}`,Range:`bytes=${start}-${end}`},signal});
+      const response=await fetch(api.fileUrl(file.id),{headers:{...api.authHeaders,Range:`bytes=${start}-${end}`},signal});
       if(response.status!==206&&!(count===1&&response.status===200))throw new Error('Не удалось загрузить часть файла.');
       const bytes=new Uint8Array(await response.arrayBuffer());if(bytes.length!==end-start+1)throw new Error('Неверный размер части.');
       const plain=toByteArray(await getSignalBridge().open(fromByteArray(bytes),encryption.key,chunkNonce(encryption.nonce,i),chunkAd(encryption.fileKeyId,i,count)));

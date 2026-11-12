@@ -224,7 +224,8 @@ async function uploadChunks(api:Api,bridge:ReturnType<typeof getSignalBridge>,fi
       for(let attempt=0,busyFor=0;;attempt++){
         checkAbort(options.signal);
         const chunkPath=`/e2ee/uploads/${sessionId}?offset=${at}`;
-        const result=await FileSystem.uploadAsync(`${api.endpoint}${chunkPath}`,temp,{httpMethod:'PUT',uploadType:FileSystem.FileSystemUploadType.BINARY_CONTENT,headers:{Authorization:`Bearer ${api.token}`,'Content-Type':'application/octet-stream','X-Linea-Client':CLIENT_HEADER,...attestHeaders('PUT',chunkPath)}}).catch(()=>null);
+        await api.ensureProof(); // a session bound to this device: the chunk carries a fresh proof
+        const result=await FileSystem.uploadAsync(`${api.endpoint}${chunkPath}`,temp,{httpMethod:'PUT',uploadType:FileSystem.FileSystemUploadType.BINARY_CONTENT,headers:{...api.authHeaders,'Content-Type':'application/octet-stream','X-Linea-Client':CLIENT_HEADER,...attestHeaders('PUT',chunkPath)}}).catch(()=>null);
         if(result?.status===200)break;
         const body=(()=>{try{return JSON.parse(result?.body||'{}');}catch{return {};}})() as {received?:number;error?:string;code?:string};
         // The chunk got through but the reply was lost: the server already has it.
@@ -276,7 +277,7 @@ async function downloadChunked(api:Api,attachment:Attachment,target:string,onPro
       const start=index*full,end=Math.min(total,start+full)-1;
       for(let attempt=0;;attempt++){
         checkAbort(signal);
-        const result=await FileSystem.downloadAsync(api.fileUrl(attachment.id),temp,{headers:{Authorization:`Bearer ${api.token}`,Range:`bytes=${start}-${end}`},cache:false,sessionType:FOREGROUND}).catch(()=>null);
+        const result=await FileSystem.downloadAsync(api.fileUrl(attachment.id),temp,{headers:{...api.authHeaders,Range:`bytes=${start}-${end}`},cache:false,sessionType:FOREGROUND}).catch(()=>null);
         const info=result?await FileSystem.getInfoAsync(temp):null;
         if(result&&(result.status===206||(result.status===200&&count===1))&&info?.exists&&!info.isDirectory&&info.size===end-start+1)break;
         if(result&&[401,403,404].includes(result.status))throw new Error('Файл недоступен.');
@@ -314,7 +315,7 @@ export async function decryptAttachment(api:Api,attachment:Attachment,signal?:Ab
   if(!encryption||encryption.scheme!=='aes-256-gcm-siv')throw new Error('У вложения нет ключа сквозного шифрования.');
   if(!api.token)throw new Error('Нужно войти в аккаунт.');
   if(attachment.size>MAX_FILE)throw new Error('Файл превышает допустимый размер.');
-  const response=await fetch(api.fileUrl(attachment.id),{headers:{Authorization:`Bearer ${api.token}`},credentials:'omit',cache:'no-store',redirect:'error',signal});
+  const response=await fetch(api.fileUrl(attachment.id),{headers:{...api.authHeaders},credentials:'omit',cache:'no-store',redirect:'error',signal});
   if(!response.ok)throw new Error('Не удалось загрузить зашифрованный файл.');
   const claimedSize=Number(response.headers.get('content-length'));
   if(Number.isFinite(claimedSize)&&claimedSize>MAX_FILE+16)throw new Error('Размер зашифрованного файла превышает ограничение.');
@@ -347,7 +348,7 @@ export async function decryptAttachmentWithProgress(api:Api,attachment:Attachmen
   if(!api.fileUrl(attachment.id).startsWith('https://'))throw new Error('Файлы загружаются только по защищённому соединению.');
   const temp=`${FileSystem.cacheDirectory}linea-view-dl-${Crypto.randomUUID()}.bin`;
   const expected=attachment.size+16;
-  const task=FileSystem.createDownloadResumable(api.fileUrl(attachment.id),temp,{headers:{Authorization:`Bearer ${api.token}`},cache:false,sessionType:FOREGROUND},data=>{
+  const task=FileSystem.createDownloadResumable(api.fileUrl(attachment.id),temp,{headers:{...api.authHeaders},cache:false,sessionType:FOREGROUND},data=>{
     const total=data.totalBytesExpectedToWrite>0?data.totalBytesExpectedToWrite:expected;
     onProgress(Math.max(0,Math.min(1,data.totalBytesWritten/total)));
   });

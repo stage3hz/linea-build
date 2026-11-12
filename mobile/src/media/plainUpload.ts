@@ -29,9 +29,10 @@ export const nativeIo: PlainIo = {
     let timer: ReturnType<typeof setTimeout> | undefined, cancel: (() => void) | undefined;
     try {
       await FileSystem.writeAsStringAsync(temp, fromByteArray(bytes), { encoding: FileSystem.EncodingType.Base64 });
+      await api.ensureProof(); // a session bound to this device: the chunk carries a fresh proof
       // A task, not a bare uploadAsync: «Отмена» and a stalled connection stop the chunk instead of waiting forever.
       const task = FileSystem.createUploadTask(`${api.endpoint}${path}`, temp, { httpMethod: 'PUT', uploadType: FileSystem.FileSystemUploadType.BINARY_CONTENT,
-        headers: { Authorization: `Bearer ${api.token}`, 'Content-Type': 'application/octet-stream', 'X-Linea-Client': CLIENT_HEADER, ...attestHeaders('PUT', path) } });
+        headers: { ...api.authHeaders, 'Content-Type': 'application/octet-stream', 'X-Linea-Client': CLIENT_HEADER, ...attestHeaders('PUT', path) } });
       cancel = () => { task.cancelAsync().catch(() => {}); };
       signal?.addEventListener('abort', cancel, { once: true });
       timer = setTimeout(cancel, timeoutFor('upload', networkTier()) * 2);

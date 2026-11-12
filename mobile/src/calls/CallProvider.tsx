@@ -514,7 +514,7 @@ function CallScreen({ call, api, rtc, network, hangup, accept, mute, speaker, ca
     {/* Like Telegram / iOS: the background is the other person's avatar, heavily blurred and dimmed.
         Without a photo — their avatar colour over the app's deep-blue background. */}
     <MusicAmbient width={width} height={height} tone={t.black ? 'black' : 'dark'} still />
-    {call.peer.avatarId ? <BlurImage source={{ uri: api.fileUrl(call.peer.avatarId), headers: { Authorization: `Bearer ${api.token}` }, cacheKey: `invizent-file-${call.peer.avatarId}` }} cachePolicy="memory-disk" blurRadius={60} contentFit="cover" style={[StyleSheet.absoluteFill, { transform: [{ scale: 1.25 }] }]} />
+    {call.peer.avatarId ? <BlurImage source={{ uri: api.fileUrl(call.peer.avatarId), headers: { ...api.authHeaders }, cacheKey: `invizent-file-${call.peer.avatarId}` }} cachePolicy="memory-disk" blurRadius={60} contentFit="cover" style={[StyleSheet.absoluteFill, { transform: [{ scale: 1.25 }] }]} />
       : <LinearGradient colors={[`${call.peer.avatarColor || '#4B73BB'}CC`, `${call.peer.avatarColor || '#4B73BB'}55`, 'rgba(0,0,0,0)']} start={{ x: 0.5, y: 0 }} end={{ x: 0.5, y: 1 }} style={StyleSheet.absoluteFill} />}
     <View pointerEvents="none" style={[StyleSheet.absoluteFill, { backgroundColor: 'rgba(0,0,0,0.32)' }]} />
     {showVideo ? <View_ streamURL={call.remoteUrl} objectFit="cover" style={StyleSheet.absoluteFill} /> : null}

@@ -382,7 +382,8 @@ export function useMessenger(api: Api, user: User, onExpired: ()=>void) {
       setConnection('connecting');
       const target=api.endpoint;let opened=false;
       const socket=new WebSocket(api.socketUrl());socketRef.current=socket;lastReceive=Date.now();
-      socket.onopen=()=>{opened=true;if(!stopped&&socketRef.current===socket)socket.send(JSON.stringify({type:'auth',token:api.token,lean:true}));};
+      // A session bound to this device sends its proof with the token (deviceProof.ts); without one the server closes with 4402.
+      socket.onopen=()=>{opened=true;void api.ensureProof().catch(()=>{}).then(()=>{if(!stopped&&socketRef.current===socket&&socket.readyState===WebSocket.OPEN)socket.send(JSON.stringify({type:'auth',token:api.token,...(api.proof?{proof:api.proof}:{}),lean:true}));});};
       socket.onmessage=event=>{
         if(stopped||socketRef.current!==socket)return;
         lastReceive=Date.now();
@@ -411,7 +412,7 @@ export function useMessenger(api: Api, user: User, onExpired: ()=>void) {
         if(stopped||socketRef.current!==socket)return;setConnection('offline');setUpdating(false);
         // The socket alone never signs anyone out: on a slow link (EDGE) the server may close it before
         // our auth frame arrives. Only the HTTP check «is this session really gone?» (401) does.
-        if(event.code===4001||event.code===4401){void api.me().then(()=>{if(!stopped)retry=setTimeout(connect,1000);},e=>{if(e instanceof ApiError&&e.status===401)onExpiredRef.current();else if(!stopped)retry=setTimeout(connect,3000);});return;}
+        if(event.code===4001||event.code===4401||event.code===4402){void api.me().then(()=>{if(!stopped)retry=setTimeout(connect,1000);},e=>{if(e instanceof ApiError&&e.status===401)onExpiredRef.current();else if(!stopped)retry=setTimeout(connect,3000);});return;}
         // The server could not be reached at all: try the next one at once instead of backing off.
         if(!opened&&api.endpoint===target){reportFailure(target);}
         retry=setTimeout(connect,!opened&&api.endpoint!==target?300:Math.min(1000*2**attempts++,15000));

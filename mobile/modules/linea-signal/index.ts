@@ -17,4 +17,7 @@ export interface LineaSignalBridge {
   decrypt(state:string,addressName:string,deviceId:number,type:2|3,body:string):Promise<SignalStateResult & {plaintext:string}>;
   seal(plaintextBase64:string,keyBase64:string,nonceBase64:string,adBase64:string):Promise<string>;
   open(cipherBase64:string,keyBase64:string,nonceBase64:string,adBase64:string):Promise<string>;
+  /** The key this device's sessions are bound to. Absent in builds older than 0.14.15. */
+  deviceKeyEnsure?():Promise<{publicKey:string;kind:'hardware'|'software'}>;
+  deviceKeySign?(message:string):Promise<string>;
 }

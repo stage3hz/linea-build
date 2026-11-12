@@ -5,7 +5,8 @@ const {Api}=loadTs(new URL('../src/api.ts',import.meta.url),{'react-native':{Pla
 const abortError=()=>new DOMException('cancelled','AbortError');
 test('cancelling an AI request aborts the actual network operation',async t=>{
   let networkSignal;const controller=new AbortController();
-  t.mock.method(globalThis,'fetch',(_url,options)=>new Promise((resolve,reject)=>{networkSignal=options.signal;options.signal.addEventListener('abort',()=>reject(abortError()),{once:true});}));
+  // (The device-proof exchange that starts beside the first request of a session is not the request under test.)
+  t.mock.method(globalThis,'fetch',(url,options)=>String(url).includes('/auth/device/')?Promise.reject(new TypeError('offline')):new Promise((resolve,reject)=>{networkSignal=options.signal;options.signal.addEventListener('abort',()=>reject(abortError()),{once:true});}));
   const request=new Api('https://example.invalid','test-token').request('/ai/chat',{signal:controller.signal});
   controller.abort();
   assert.equal(networkSignal.aborted,true);

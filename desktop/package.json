@@ -34,6 +34,7 @@
     "files": [
       "main.cjs",
       "update.cjs",
+      "devicekey.cjs",
       "notify.cjs",
       "preload.cjs",
       "overlay-preload.cjs",

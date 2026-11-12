@@ -9,6 +9,7 @@ contextBridge.exposeInMainWorld('invizentDesktop', Object.freeze({
   signal: Object.freeze(Object.fromEntries(['createState','replenish','trustIdentity','encrypt','decrypt','seal','open'].map(method => [method, (...args) => invoke('signal', method, args)]))),
   vault: Object.freeze({ open: scope => invoke('vaultOpen', scope), get: (id,key) => invoke('vaultGet',id,key), commit: (id,changes) => invoke('vaultCommit',id,changes), close: id => invoke('vaultClose',id) }),
   token: Object.freeze({ read: () => invoke('tokenRead'), write: value => invoke('tokenWrite',value) }),
+  deviceKey: Object.freeze({ ensure: () => invoke('deviceKeyEnsure'), sign: message => invoke('deviceKeySign', message) }),
   shortcuts: Object.freeze({
     set: binds => invoke('setShortcuts', binds),
     setHold: config => invoke('setHold', config),

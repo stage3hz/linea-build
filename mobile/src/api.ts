@@ -6,6 +6,8 @@ import { APP_VERSION, SERVER_URL, SIMULATOR_TEST_BUILD } from './serverConfig';
 import { currentEndpoint, markServerOk, reportFailure } from './servers/pool';
 import { networkTier, reportRequest, timeoutFor } from './network/quality';
 import { attestHeaders } from './attest/index';
+import { DeviceProof, DeviceProofError } from './deviceProof';
+import { deviceKey } from './deviceKey';
 import { markUpdateRequired } from './update/store';
 import { deviceFields, deviceInfo } from './deviceInfo';
 import type { SessionDetails } from './sessionAlerts';
@@ -84,13 +86,76 @@ export class NetworkError extends Error { constructor(message: string, readonly 
  *  to the next server and lets messages go by Mesh; only the text tells it apart from «no connection». */
 export class RequestTimeoutError extends NetworkError { constructor(message: string) { super(message); this.name = 'TimeoutError'; } }
 
+/** One proof exchange per session token, shared by every Api made for it (deviceProof.ts). */
+const proofs = new Map<string, DeviceProof>();
+
 export class Api {
   /** `base` is the account's realm (fixed: keys and history on the device are tied to it). */
   constructor(public readonly base: string, public readonly token?: string) {}
+  private get deviceProof(): DeviceProof | null {
+    const token = this.token; if (!token) return null;
+    let held = proofs.get(token);
+    if (!held) {
+      held = new DeviceProof(deviceKey, (path, body) => this.requestOnce(path, { method: 'POST', ...(body === undefined ? {} : { body: JSON.stringify(body) }) }, this.endpoint));
+      proofs.set(token, held);
+    }
+    return held;
+  }
+  /** The headers of a signed-in request made outside `request()` (uploads, downloads, players): the token and, for a
+   *  session bound to this device, its current proof. */
+  get authHeaders(): Record<string, string> {
+    if (!this.token) return {};
+    const proof = this.deviceProof?.current;
+    return { Authorization: `Bearer ${this.token}`, ...(proof ? { 'X-Linea-Proof': proof } : {}) };
+  }
+  /** The proof for the socket's `auth` frame. */
+  get proof(): string | null { return this.deviceProof?.current ?? null; }
+  /**
+   * Makes sure the session's device proof is fresh before something that cannot retry by itself (the socket, an
+   * upload). Never throws for a passing failure — the server then asks for the proof and the request path retries;
+   * a session bound to a key this device no longer has ends as an expired one (401).
+   */
+  async ensureProof(force = false, signal?: AbortSignal | null): Promise<void> {
+    const held = this.deviceProof; if (!held || (!force && !held.due)) return;
+    try {
+      const exchange = held.refresh(force);
+      // The caller's «Отмена» is honoured while waiting, as it is by the request itself.
+      await (signal ? Promise.race([exchange, new Promise<never>((_resolve, reject) => { const stop = () => { const error = new Error('Запрос отменён.'); error.name = 'AbortError'; reject(error); }; if (signal.aborted) stop(); else signal.addEventListener('abort', stop, { once: true }); })]) : exchange);
+    }
+    catch (error) {
+      if (error instanceof Error && error.name === 'AbortError') throw error;
+      if (error instanceof DeviceProofError && error.reason === 'lost') throw new ApiError('Войдите в аккаунт заново.', 401, {});
+      if (force) throw error instanceof ApiError && error.status === 401 ? error : new NetworkError(error instanceof DeviceProofError ? error.message : 'Не удалось подтвердить устройство. Проверь подключение.');
+    }
+  }
   /** Where requests go now: for the main realm, the fastest live server from the pool. */
   get endpoint(): string { return this.pooled ? currentEndpoint() : this.base; }
   private get pooled() { return this.base.replace(/\/+$/, '') === SERVER_URL; }
   async request<T>(path: string, options: RequestInit = {}): Promise<T> {
+    const bound = !!this.token && !path.startsWith('/auth/device/');
+    const held = bound ? this.deviceProof : null;
+    // A session known to need a proof waits for a fresh one. While that is not known yet (the first requests of a
+    // run), the request goes at once and the exchange starts beside it: an unbound session, or an older server,
+    // is not held back at all.
+    const first = !!held && held.due && !held.known;
+    if (held && held.due && !first) await this.ensureProof(false, options.signal);
+    const sent = this.send<T>(path, options);
+    if (first) void held!.refresh().catch(() => {});
+    try { return await sent; }
+    catch (error) {
+      // The server wants the device proof (ours ran out, or the session was bound a moment ago): get one and repeat.
+      // Nothing was done by the refused request, so repeating a write is safe.
+      if (!bound || !(error instanceof ApiError) || error.status !== 401 || error.code !== 'device_proof') throw error;
+      await this.ensureProof(true, options.signal);
+      try { return await this.send<T>(path, options); }
+      catch (again) {
+        // Still refused with a fresh proof: not a reason to sign the account out — say it could not be done.
+        if (again instanceof ApiError && again.status === 401 && again.code === 'device_proof') throw new NetworkError('Не удалось подтвердить устройство. Попробуй ещё раз.');
+        throw again;
+      }
+    }
+  }
+  private async send<T>(path: string, options: RequestInit): Promise<T> {
     const target = this.endpoint;
     try { return await this.requestOnce<T>(path, options, target); }
     catch (error) {
@@ -117,7 +182,7 @@ export class Api {
     const abortError=()=>{const error=new Error('Запрос отменён.');error.name='AbortError';return error;};
     try {
       if(abort.signal.aborted)throw abortError();
-      const headers: Record<string, string> = { 'X-Linea-Client': CLIENT_HEADER, ...attestHeaders(options.method || 'GET', path), ...(options.body && !(options.body instanceof FormData) ? { 'Content-Type': 'application/json' } : {}), ...(this.token ? { Authorization: `Bearer ${this.token}` } : {}) };
+      const headers: Record<string, string> = { 'X-Linea-Client': CLIENT_HEADER, ...attestHeaders(options.method || 'GET', path), ...(options.body && !(options.body instanceof FormData) ? { 'Content-Type': 'application/json' } : {}), ...this.authHeaders };
       const response = await fetch(target + path, { credentials: 'omit', cache: 'no-store', redirect: 'error', ...options, headers: { ...headers, ...(options.headers || {}) }, signal: abort.signal });
       const raw = await response.text().catch(() => '');
       let data: any = {};
@@ -144,7 +209,7 @@ export class Api {
     let timedOut = false;
     const timeout = setTimeout(() => { timedOut = true; cancel(); }, requestTimeout(path));
     try {
-      const response = await fetch(this.endpoint + path, { credentials: 'omit', cache: 'no-store', redirect: 'error', ...options, headers: { 'X-Linea-Client': CLIENT_HEADER, ...attestHeaders(options.method || 'GET', path), 'Content-Type': 'application/json', ...(this.token ? { Authorization: `Bearer ${this.token}` } : {}) }, signal: abort.signal });
+      const response = await fetch(this.endpoint + path, { credentials: 'omit', cache: 'no-store', redirect: 'error', ...options, headers: { 'X-Linea-Client': CLIENT_HEADER, ...attestHeaders(options.method || 'GET', path), 'Content-Type': 'application/json', ...this.authHeaders }, signal: abort.signal });
       if (!response.ok) {
         const data = await response.json().catch(() => ({}));
         throw new ApiError(typeof data.error === 'string' ? data.error : 'Не удалось выполнить запрос. Попробуй ещё раз.', response.status, data);

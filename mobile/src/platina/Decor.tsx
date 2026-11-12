@@ -63,7 +63,7 @@ export function webVideoUrl(api: Api, id: string): Promise<string> {
   const key = `${api.base}\n${id}`;
   let url = webVideoCache.get(key);
   if (url) { webVideoCache.delete(key); webVideoCache.set(key, url); return url; } // the most recent goes last
-  url = fetch(api.fileUrl(id), { headers: { Authorization: `Bearer ${api.token}` } }).then(r => { if (!r.ok) throw new Error('video'); return r.blob(); }).then(blob => URL.createObjectURL(blob));
+  url = fetch(api.fileUrl(id), { headers: { ...api.authHeaders } }).then(r => { if (!r.ok) throw new Error('video'); return r.blob(); }).then(blob => URL.createObjectURL(blob));
   url.catch(() => { if (webVideoCache.get(key) === url) webVideoCache.delete(key); }); webVideoCache.set(key, url);
   for (const [oldest, stale] of webVideoCache) { if (webVideoCache.size <= WEB_VIDEO_CACHE_MAX) break; webVideoCache.delete(oldest); stale.then(u => URL.revokeObjectURL(u)).catch(() => {}); }
   return url;
@@ -76,7 +76,7 @@ function WebLoopVideo({ api, id, uri, style }: { api?: Api; id?: string; uri?: s
 }
 
 function VideoAvatar({ api, id, size, radius }: { api: Api; id: string; size: number; radius: number }) {
-  const player = useVideoPlayer({ uri: api.fileUrl(id), headers: { Authorization: `Bearer ${api.token}` } }, value => { value.loop = true; value.muted = true; value.play(); });
+  const player = useVideoPlayer({ uri: api.fileUrl(id), headers: { ...api.authHeaders } }, value => { value.loop = true; value.muted = true; value.play(); });
   return <View pointerEvents="none" style={[StyleSheet.absoluteFill, { borderRadius: radius, overflow: 'hidden' }]}>
     <VideoView player={player} style={{ width: size, height: size }} contentFit="cover" nativeControls={false} allowsPictureInPicture={false} />
   </View>;
@@ -140,7 +140,7 @@ export function DecoratedAvatar({ user, api, size = 54, animated = false, round 
 }
 
 function VideoBanner({ api, id }: { api: Api; id: string }) {
-  const player = useVideoPlayer({ uri: api.fileUrl(id), headers: { Authorization: `Bearer ${api.token}` } }, value => { value.loop = true; value.muted = true; value.play(); });
+  const player = useVideoPlayer({ uri: api.fileUrl(id), headers: { ...api.authHeaders } }, value => { value.loop = true; value.muted = true; value.play(); });
   return <VideoView player={player} style={StyleSheet.absoluteFill} contentFit="cover" nativeControls={false} allowsPictureInPicture={false} />;
 }
 

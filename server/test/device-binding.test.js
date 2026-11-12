@@ -103,6 +103,10 @@ test('a bound session: the token without the proof is refused, with it accepted;
   assert.equal(rebind.statusCode, 409);
   assert.equal(rebind.json().code, 'device_bound');
   assert.equal((await call(app, 'GET', '/auth/sessions', ann.token, undefined, proof)).statusCode, 200, 'the owner is not disturbed');
+  // A stored file is still read with the token alone (a player keeps its headers for hours): not a 401 for the proof.
+  const file = await call(app, 'GET', '/files/00000000-0000-4000-8000-000000000000', ann.token);
+  assert.notEqual(file.json().code, 'device_proof');
+  assert.equal(file.statusCode, 404);
 });
 
 test('binding needs a signature by the offered key over this session\'s challenge; a challenge is used once', async t => {

@@ -208,7 +208,7 @@ test('after five failed retries the text depends on whether the caller can resum
   });
   const data = Buffer.concat([Buffer.from('%PDF-1.7\n'), randomBytes(100)]);
   const io = { open: async () => ({ size: data.length, read: async (o, l) => new Uint8Array(data.subarray(o, o + l)), close: () => {} }), put: async () => null, bigPhoto: async () => { throw new Error('no'); }, wait: async () => {} };
-  const api = { token: 't', request: async (path, options = {}) => path === '/uploads/sessions' ? { id: 's1' } : path === '/uploads/limits' ? { platina: false, maxFileBytes: GiB, maxVideoBytes: GiB } : { ok: true } };
+  const api = { token: 't', authHeaders: { Authorization: 'Bearer t' }, ensureProof: async () => {}, request: async (path, options = {}) => path === '/uploads/sessions' ? { id: 's1' } : path === '/uploads/limits' ? { platina: false, maxFileBytes: GiB, maxVideoBytes: GiB } : { ok: true } };
   const file = { uri: 'file:///a.pdf', name: 'a.pdf', mimeType: 'application/pdf' };
   await assert.rejects(core.uploadPlainChunked(api, file, io, { purpose: 'channel' }), /Отправь файл ещё раз/);
   await assert.rejects(core.uploadPlainChunked(api, file, io, { purpose: 'channel', onState: () => {} }), /продолжится с того же места/);
@@ -225,7 +225,7 @@ test('409 UPLOAD_BUSY (an earlier request still on the server) is waited out wit
   const io = { open: async () => ({ size: data.length, read: async (o, l) => new Uint8Array(data.subarray(o, o + l)), close: () => {} }),
     put: async () => busy-- > 0 ? { status: 409, body: { code: 'UPLOAD_BUSY' } } : { status: 200, body: { received: data.length } },
     bigPhoto: async () => { throw new Error('no'); }, wait: async () => {}, busyWait: async () => { pauses++; } };
-  const api = { token: 't', request: async path => path === '/uploads/sessions' ? { id: 's1' } : path === '/uploads/limits' ? { platina: false, maxFileBytes: GiB, maxVideoBytes: GiB } : path.endsWith('/complete') ? { attachment: { id: 'x', size: data.length } } : { ok: true } };
+  const api = { token: 't', authHeaders: { Authorization: 'Bearer t' }, ensureProof: async () => {}, request: async path => path === '/uploads/sessions' ? { id: 's1' } : path === '/uploads/limits' ? { platina: false, maxFileBytes: GiB, maxVideoBytes: GiB } : path.endsWith('/complete') ? { attachment: { id: 'x', size: data.length } } : { ok: true } };
   const attachment = await core.uploadPlainChunked(api, { uri: 'file:///a.pdf', name: 'a.pdf', mimeType: 'application/pdf' }, io, { purpose: 'channel' });
   assert.equal(attachment.size, data.length); assert.equal(pauses, 8);
 });
@@ -250,7 +250,7 @@ test('encrypted big file: 409 UPLOAD_LOST (part file gone after a failover) rest
     '../api': { CLIENT_HEADER: 'test', multipartFile: bytes => ({ body: bytes, contentType: 'x' }) }, '../attest/index': { attestHeaders: () => ({}) },
     'base64-js': { fromByteArray: bytes => Buffer.from(bytes).toString('base64'), toByteArray: value => new Uint8Array(Buffer.from(value, 'base64')) },
   });
-  const api = { endpoint: 'https://api.test', token: 'token', async request(path, options = {}) {
+  const api = { endpoint: 'https://api.test', token: 'token', authHeaders: { Authorization: 'Bearer token' }, ensureProof: async () => {}, async request(path, options = {}) {
     if (path === '/e2ee/limits') return { platina: false, maxFileBytes: 2 * GiB, maxVideoBytes: 10 * GiB, storageBytes: 20 * GiB, usedBytes: 0, chunkBytes: CHUNK };
     if (path === '/e2ee/uploads' && options.method === 'POST') { server.posts++; server.file = Buffer.alloc(0); return { id: `e${server.posts}` }; }
     if (options.method === 'DELETE') { server.deleted.push(path); return { ok: true }; }

@@ -38,7 +38,7 @@ function harness({ loseReplyAt = -1, maxFileBytes = 5 * 1024 * MiB, platina = tr
     '../media/thumbnail': { makeThumbnail: async () => undefined },
     'base64-js': { fromByteArray: bytes => Buffer.from(bytes).toString('base64'), toByteArray: value => new Uint8Array(Buffer.from(value, 'base64')) },
   });
-  const api = { base: 'https://api.test', endpoint: 'https://api.test', token: 'token', fileUrl: id => `https://api.test/files/${id}`,
+  const api = { base: 'https://api.test', endpoint: 'https://api.test', token: 'token', authHeaders: { Authorization: 'Bearer token' }, ensureProof: async () => {}, fileUrl: id => `https://api.test/files/${id}`,
     async request(path, options = {}) {
       if (path === '/e2ee/limits') return { platina, maxFileBytes, storageBytes: 15 * 1024 * MiB, usedBytes: 0, chunkBytes: 4 * MiB };
       if (path === '/e2ee/uploads' && options.method === 'POST') { server.total = mod.chunkedCipherSize(JSON.parse(options.body).size); return { id: 'session-1' }; }
