@@ -18,7 +18,7 @@ import { deleteAIMedia, holdAIMedia, mediaUris, missingAIMedia, pruneAIMedia, re
 import { detectIntent, speechText } from './intent';
 import { fromByteArray } from 'base64-js';
 import { ModelMenu } from './ModelMenu';
-import { MAX_PICTURES, pickAudio, pickDocuments, pickPictures, type AIPicture } from './attach';
+import { MAX_PICTURES, pickAudio, pickDocumentsOrMedia, pickPictures, type AIPicture } from './attach';
 import { AIConversation, parseAIReply, type AITaskKind, type AITaskWork, AI_MESSAGE_LIMIT, CODE_TASK_PREFIX, codePreviewCurrent, createCodeTaskPreview, type AICapabilityName, type AIState, type AIStatus, type AITurn, type CodeTaskPreview } from './conversation';
 import { useTabInset } from '../tabInset';
 
@@ -201,7 +201,9 @@ export function AIScreen({ api, onBack, quick = false, history, name }: { api: A
   };
   const attachDocuments = async () => {
     try {
-      const files = await pickDocuments();
+      const { files, pictures: media } = await pickDocumentsOrMedia(MAX_PICTURES - pictures.length);
+      // A photo or video chosen as a file is attached as cleaned pictures, like the «Фото и видео» button does.
+      if (media.length) { setPictures(list => [...list, ...media].slice(0, MAX_PICTURES)); setFocused(true); setTaskError(''); }
       if (!files.length) return;
       setTaskError(''); setReading(value => value + files.length);
       for (const file of files) {

@@ -63,6 +63,42 @@ export async function pickDocuments(): Promise<PickedFile[]> {
   return out;
 }
 
+/**
+ * «Файл» with a photo or a video chosen in it: instead of refusing («прикрепляй кнопкой „Фото и видео“»), the file is
+ * prepared the same way that button prepares it — a photo is re-encoded (which drops EXIF/GPS), a video is replaced by
+ * frames — and comes back as pictures. Everything else comes back as documents. Never the original media file.
+ */
+export async function pickDocumentsOrMedia(room: number): Promise<{ files: PickedFile[]; pictures: AIPicture[] }> {
+  const picked = await DocumentPicker.getDocumentAsync({ multiple: true, copyToCacheDirectory: true, type: '*/*' });
+  if (picked.canceled) return { files: [], pictures: [] };
+  const files: PickedFile[] = [], pictures: AIPicture[] = [];
+  for (const asset of picked.assets) {
+    let keep = false;
+    try {
+      const header = toByteArray(await FileSystem.readAsStringAsync(asset.uri, { encoding: FileSystem.EncodingType.Base64, position: 0, length: 768 }));
+      const media = planUpload(header, { name: asset.name, mimeType: asset.mimeType || '' }).kind !== 'raw';
+      if (!media) {
+        if (asset.size && asset.size > MAX_DOCUMENT) throw new Error(`«${asset.name}» больше 15 МБ.`);
+        files.push({ name: asset.name, base64: await FileSystem.readAsStringAsync(asset.uri, { encoding: FileSystem.EncodingType.Base64 }) });
+        continue;
+      }
+      if (pictures.length >= room) throw new Error(`К вопросу — до ${MAX_PICTURES} фото и кадров.`);
+      const video = (asset.mimeType || '').startsWith('video/') || /\.(mp4|mov|m4v|webm|mkv|avi|3gp)$/i.test(asset.name);
+      try {
+        if (video) {
+          // The length is not known here: a frame near the start and, when the video is long enough, two later ones.
+          for (const time of [400, 3000, 9000]) {
+            if (pictures.length >= room) break;
+            try { const frame = await VideoThumbnails.getThumbnailAsync(asset.uri, { time, quality: .8 }); pictures.push({ id: `${asset.uri}#${time}`, uri: frame.uri, data: await jpeg(frame.uri, frame.width, frame.height), video: true }); }
+            catch { if (time === 400) throw new Error('frame'); break; }
+          }
+        } else { pictures.push({ id: asset.uri, uri: asset.uri, data: await jpeg(asset.uri) }); keep = true; }
+      } catch { throw new Error(MEDIA_AS_DOCUMENT); }
+    } finally { if (!keep) await FileSystem.deleteAsync(asset.uri, { idempotent: true }).catch(() => {}); }
+  }
+  return { files, pictures };
+}
+
 export async function pickAudio(): Promise<PickedFile | null> {
   const picked = await DocumentPicker.getDocumentAsync({ type: 'audio/*', multiple: false, copyToCacheDirectory: true });
   const asset = picked.canceled ? null : picked.assets[0];

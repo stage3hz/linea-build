@@ -54,6 +54,11 @@ export async function pickDocuments(): Promise<PickedFile[]> {
   return out;
 }
 
+/** The PC's file dialog offers documents only; photos and videos have their own button. */
+export async function pickDocumentsOrMedia(_room: number): Promise<{ files: PickedFile[]; pictures: AIPicture[] }> {
+  return { files: await pickDocuments(), pictures: [] };
+}
+
 export async function pickAudio(): Promise<PickedFile | null> {
   const [file] = await choose('audio/*', false);
   if (!file) return null;
