@@ -15,7 +15,7 @@ export type SnowLedge = {
   radius: number;
   /** Tallest cap, pt (demo: 6 on bars, 4 on round buttons, 5 on the island, 7 on the tab bar). */
   max: number;
-  /** 'glass': rime grows inward from its rim and a tap inside knocks the snow off. 'island': snow only, no rime, no knock. */
+  /** 'glass': a tap inside knocks the snow off. 'island': snow only, no knock. (Rime is drawn by 'rime' views.) */
   kind: 'glass' | 'island';
 };
 export interface LineaSnowBridge {
@@ -35,6 +35,10 @@ export type LineaSnowViewProps = {
   active?: boolean;
   /** 'front' (default): the one surface above the app — caps, rime, snow knocked or swept off, meltwater, sparkles.
    *  'back': a surface inside a screen's background that draws only the falling snow, so it passes BEHIND the
-   *  content; several can be mounted, each draws the part of the one shared snowfall that falls on it. */
-  layer?: 'front' | 'back';
+   *  content; several can be mounted, each draws the part of the one shared snowfall that falls on it.
+   *  'rime': «Ледяное стекло» — a child of one glass surface that draws the rime along its rim; it fades as the
+   *  device heats up and does not depend on the snow being enabled. */
+  layer?: 'front' | 'back' | 'rime';
+  /** 'rime' only: the corner radius of the glass surface the view fills, pt. */
+  radius?: number;
 };

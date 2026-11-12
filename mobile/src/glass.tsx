@@ -13,7 +13,7 @@ import { LiquidGlassView } from 'react-native-liquid-glassmorphism';
 const androidLiquid=false;
 import { useTheme } from './theme';
 import { useRenderActive } from './renderActivity';
-import { SnowBackLayer } from './SnowPhone';
+import { IceLayer, SnowBackLayer } from './SnowPhone';
 import { PixelTrailLayer } from './PixelTrail';
 
 type GlassContextValue = { targetRef:RefObject<View|null>|undefined; reduceTransparency:boolean };
@@ -127,7 +127,7 @@ export function GlassSurface({children,style,contentStyle,radius=26,material='re
   // two-colour border on top of it were clipped together with the glass and showed stepped edges.
   if(nativeGlass&&!reduceTransparency)return <View collapsable={false} style={[{borderRadius:radius},style]}>
     <GlassView pointerEvents="none" colorScheme={t.dark?'dark':'light'} glassEffectStyle={material} isInteractive={interactive} tintColor={t.glassTint} style={[StyleSheet.absoluteFill,{borderRadius:radius}]}/>
-    <NestedGlass.Provider value={true}><View collapsable={false} style={[{flexGrow:1},contentStyle]}>{children}</View></NestedGlass.Provider>
+    {/* «Ледяное стекло»: rime along the rim, under the content. */}{nested?null:<IceLayer radius={radius}/>}<NestedGlass.Provider value={true}><View collapsable={false} style={[{flexGrow:1},contentStyle]}>{children}</View></NestedGlass.Provider>
   </View>;
   // Android 13+: the same Liquid Glass look as iOS 26 — the real content behind is blurred and
   // bent at the edges by a shader, with a light rim. No fill or gradient layers on top.
@@ -141,7 +141,7 @@ export function GlassSurface({children,style,contentStyle,radius=26,material='re
   // and small pills get a static glass below.
   if(androidLiquid&&lens&&systemGlass&&!nested&&!reduceTransparency)return <LiquidGlassView paused={!renderActive} variant={material} refraction={lens??interactive} borderRadius={radius} tintColor={t.black?'rgba(0,0,0,0.5)':t.dark?'rgba(10,18,36,0.42)':regular?'rgba(255,255,255,0.34)':'rgba(255,255,255,0.18)'} brightness={t.dark?0.92:1.06} blurRadius={regular?14:10} thickness={regular?1:.45} edgeReflectionStrength={regular?1:.6} legibilityFloor={t.dark?.12:0} interactive={false} tilt={false} style={[{borderRadius:radius},style]}>
     {/* Content lives inside the glass: the shader excludes it from the backdrop, so icons do not bleed into the blur. */}
-    <NestedGlass.Provider value={true}><View collapsable={false} style={[{flexGrow:1},contentStyle]}>{children}</View></NestedGlass.Provider>
+    {/* «Ледяное стекло»: rime along the rim, under the content. */}{nested?null:<IceLayer radius={radius}/>}<NestedGlass.Provider value={true}><View collapsable={false} style={[{flexGrow:1},contentStyle]}>{children}</View></NestedGlass.Provider>
   </LiquidGlassView>;
   return <View collapsable={false} style={[{borderRadius:radius},shadowStyle,style]}>
     <View pointerEvents="none" style={[StyleSheet.absoluteFill,{borderRadius:radius,overflow:'hidden'}]}>
@@ -157,6 +157,6 @@ export function GlassSurface({children,style,contentStyle,radius=26,material='re
       <View style={[StyleSheet.absoluteFill,{borderRadius:radius,borderWidth:1,borderColor:t.glassBorder,...(systemGlass?{borderBottomColor:t.black?'rgba(255,255,255,0.10)':t.dark?'rgba(129,167,230,0.10)':'rgba(139,162,204,0.23)'}:null)}]}/>
       <View style={{position:'absolute',top:1,left:radius*.58,right:radius*.58,height:1,borderRadius:1,backgroundColor:t.glassHighlight,opacity:.7}}/>
     </View>
-    <NestedGlass.Provider value={true}><View collapsable={false} style={[{flexGrow:1},contentStyle]}>{children}</View></NestedGlass.Provider>
+    {/* «Ледяное стекло»: rime along the rim, under the content. */}{nested?null:<IceLayer radius={radius}/>}<NestedGlass.Provider value={true}><View collapsable={false} style={[{flexGrow:1},contentStyle]}>{children}</View></NestedGlass.Provider>
   </View>;
 }

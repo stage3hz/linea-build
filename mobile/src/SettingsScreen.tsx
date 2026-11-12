@@ -256,7 +256,8 @@ function Appearance({ api, user, theme, darkTheme, nightState = DAY_STATE, onThe
     </Group>
     {Platform.OS === 'ios' ? <Group label="Иконка приложения"><AppIconPicker /></Group> : null}
     <Group><Toggle label="Пиксельный след" description="Сетка пикселей подсвечивается под пальцем и курсором: белая в тёмной теме, чёрная в светлой" value={preferences.pixelTrail} onChange={value => setChatPreferences({ pixelTrail: value })} /></Group>
-    <Group><Toggle label="Снег" description={Platform.OS === 'web' ? 'Снег падает в окне, ложится на сообщения, панели и верх окна; курсор его смахивает' : 'Снег падает и ложится на кнопки и панели, стекло покрывается инеем; нажатие стряхивает снег, а когда телефон нагревается — всё тает'} value={preferences.snow} onChange={value => setChatPreferences({ snow: value })} /></Group>
+    <Group><Toggle label="Снег" description={Platform.OS === 'web' ? 'Снег падает в окне, ложится на сообщения, панели и верх окна; курсор его смахивает' : 'Снег падает и ложится на кнопки и панели; нажатие стряхивает его, а когда телефон нагревается — он тает'} value={preferences.snow} onChange={value => setChatPreferences({ snow: value })} /></Group>
+    {Platform.OS === 'web' ? null : <Group><Toggle label="Ледяное стекло" description="Иней по кромке стеклянных кнопок, панелей и карточек; тает, когда телефон нагревается" value={preferences.ice} onChange={value => setChatPreferences({ ice: value })} /></Group>}
     <Group label="Обои чатов"><Item icon="image" color="#2EA37A" label="Обои чатов" value="Выбрать" onPress={() => setWallpaperOpen(true)} /></Group>
     <WallpaperPicker visible={wallpaperOpen} onClose={() => setWallpaperOpen(false)} />
     <Group label="Углы сообщений"><View style={{ padding: 14, flexDirection: 'row', gap: 7 }}>{([[8, 'Острые'], [14, 'Средние'], [20, 'Круглые']] as const).map(([value, label]) => {

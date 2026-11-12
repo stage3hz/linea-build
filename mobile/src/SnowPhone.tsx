@@ -86,6 +86,14 @@ export function SnowLedge({ id, radius, max = 6, inset, style, children }: { id:
   return <View ref={ref} collapsable={false} onLayout={measure} style={style}>{children}</View>;
 }
 
+/** «Ледяное стекло»: rime along the rim of a glass surface — its own setting, independent of the snow. A small native
+ *  view inside the glass (so it scrolls and clips with it); it melts away as the phone heats up. */
+export function IceLayer({ radius }: { radius: number }) {
+  const preferences = useChatPreferences();
+  if (!NativeSnow || !preferences.ice) return null;
+  return <NativeSnow pointerEvents="none" style={StyleSheet.absoluteFill} layer="rime" radius={radius} />;
+}
+
 /** The falling snow: part of a screen's background (beside PixelTrailLayer), so it passes behind the content. */
 export function SnowBackLayer() {
   const preferences = useChatPreferences();
@@ -122,7 +130,8 @@ export function SnowPhone() {
     const timer = setInterval(remeasure, 400);
     return () => { clearTimeout(start); clearInterval(timer); running = false; settled = false; call(() => native.setEnabled(false)); };
   }, [enabled, insets.top > 0]);
-  useEffect(() => { if (native && enabled) call(() => native.setDark(t.dark)); }, [enabled, t.dark]);
+  // The theme also colours the rime of «Ледяное стекло», which does not depend on the snow being on.
+  useEffect(() => { if (native && (enabled || preferences.ice)) call(() => native.setDark(t.dark)); }, [enabled, preferences.ice, t.dark]);
   // The Dynamic Island (iPhone) / the camera cutout (Android): snow lies on it too.
   useEffect(() => {
     if (!native || !enabled) return;

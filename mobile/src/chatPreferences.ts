@@ -37,9 +37,11 @@ export type ChatPreferences = {
   pixelTrail: boolean;
   /** «Снег» (PC): falling snow and drifts on bubbles, bars and the window. */
   snow: boolean;
+  /** «Ледяное стекло»: rime along the rim of glass buttons, bars and cards (phone). */
+  ice: boolean;
 };
 const KEY = 'linea.chat-preferences.v1';
-const DEFAULTS: ChatPreferences = { textSize: 'medium', sendTyping: true, animations: 'auto', lowBattery: 0.25, bubbleRadius: 20, wallpaper: 'none', nightMode: null, nightFrom: '22:00', nightTo: '07:00', nightBrightness: 0.25, nightForced: null, nightForcedAt: null, autoplayVideo: true, autoplayGif: true, animatedStickers: true, animatedEmoji: true, pixelTrail: true, snow: true };
+const DEFAULTS: ChatPreferences = { textSize: 'medium', sendTyping: true, animations: 'auto', lowBattery: 0.25, bubbleRadius: 20, wallpaper: 'none', nightMode: null, nightFrom: '22:00', nightTo: '07:00', nightBrightness: 0.25, nightForced: null, nightForcedAt: null, autoplayVideo: true, autoplayGif: true, animatedStickers: true, animatedEmoji: true, pixelTrail: true, snow: true, ice: true };
 
 let current: ChatPreferences = DEFAULTS;
 const listeners = new Set<() => void>();
@@ -69,6 +71,7 @@ export function parsePreferences(raw: string | null): ChatPreferences {
       animatedEmoji: typeof value?.animatedEmoji === 'boolean' ? value.animatedEmoji : true,
       pixelTrail: typeof value?.pixelTrail === 'boolean' ? value.pixelTrail : DEFAULTS.pixelTrail,
       snow: typeof value?.snow === 'boolean' ? value.snow : DEFAULTS.snow,
+      ice: typeof value?.ice === 'boolean' ? value.ice : DEFAULTS.ice,
     };
   } catch { return DEFAULTS; }
 }
