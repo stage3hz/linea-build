@@ -1,8 +1,11 @@
 // The same message over and over (anti-spam).
 //
-// The same text may be sent to a chat REPEAT_FREE times in a row. After that every further copy has to wait:
-// REPEAT_WAIT_MS after the previous one, and REPEAT_STEP_MS longer with each copy (10 s, 15 s, 20 s, …).
-// Any other message starts the count again; so does REPEAT_FORGET_MS without that text.
+//  - The same text may be sent to a chat REPEAT_FREE (5) times in a row. Every further copy has to wait:
+//    REPEAT_WAIT_MS (10 s) after the previous one, and REPEAT_STEP_MS (5 s) longer with each copy (10, 15, 20 s, …).
+//  - Once that limit has been reached the chat is «strict»: the NEXT messages are held too — any text may be sent
+//    once, its second copy already waits, and the wait keeps growing from where it stopped (it does not start again
+//    at 10 s for a new text).
+//  - REPEAT_RESET_MS (4 hours) after the last held copy went out, everything is back to the start.
 // «The same»: compared without case, and with runs of spaces and line breaks taken as one space.
 //
 // Private chats are end-to-end encrypted — the server cannot see what is repeated, so there this rule is kept by
@@ -11,9 +14,11 @@
 export const REPEAT_FREE = 5;
 export const REPEAT_WAIT_MS = 10_000;
 export const REPEAT_STEP_MS = 5_000;
-export const REPEAT_FORGET_MS = 10 * 60_000;
+export const REPEAT_RESET_MS = 4 * 60 * 60_000;
 
-export type RepeatState = { key: string; count: number; lastAt: number };
+/** `count`: copies of `key` sent in a row, the last at `lastAt`. `level`: held copies sent so far (each adds a step
+ *  to the wait), the last at `heldAt`; above zero the chat is strict. */
+export type RepeatState = { key: string; count: number; lastAt: number; level: number; heldAt: number };
 export type RepeatVerdict = { allowed: true; state: RepeatState } | { allowed: false; waitMs: number };
 
 export const repeatKey = (text: string) => text.normalize('NFKC').toLowerCase().replace(/\s+/g, ' ').trim();
@@ -21,11 +26,13 @@ export const repeatKey = (text: string) => text.normalize('NFKC').toLowerCase().
 /** Whether `text` may be sent now, given what was sent to this chat before (`state`, null at first). */
 export function checkRepeat(state: RepeatState | null | undefined, text: string, now: number): RepeatVerdict {
   const key = repeatKey(text);
-  if (!key || !state || state.key !== key || now - state.lastAt >= REPEAT_FORGET_MS) return { allowed: true, state: { key, count: 1, lastAt: now } };
-  if (state.count < REPEAT_FREE) return { allowed: true, state: { key, count: state.count + 1, lastAt: now } };
-  const need = REPEAT_WAIT_MS + REPEAT_STEP_MS * (state.count - REPEAT_FREE);
-  const waited = now - state.lastAt;
-  return waited >= need ? { allowed: true, state: { key, count: state.count + 1, lastAt: now } } : { allowed: false, waitMs: need - waited };
+  // Four hours after the last held copy the strictness is gone; without any, a run is forgotten after as long.
+  const expired = !state || now - (state.level > 0 ? state.heldAt : state.lastAt) >= REPEAT_RESET_MS;
+  const level = expired ? 0 : state!.level, heldAt = expired ? 0 : state!.heldAt;
+  if (!key || expired || state!.key !== key) return { allowed: true, state: { key, count: key ? 1 : 0, lastAt: now, level, heldAt } };
+  if (state!.count < (level > 0 ? 1 : REPEAT_FREE)) return { allowed: true, state: { key, count: state!.count + 1, lastAt: now, level, heldAt } };
+  const need = REPEAT_WAIT_MS + REPEAT_STEP_MS * level, waited = now - state!.lastAt;
+  return waited >= need ? { allowed: true, state: { key, count: state!.count + 1, lastAt: now, level: level + 1, heldAt: now } } : { allowed: false, waitMs: need - waited };
 }
 
 const chats = new Map<string, RepeatState>();
@@ -36,6 +43,7 @@ export function repeatWait(chatId: string, text: string, now = Date.now()): numb
   chats.set(chatId, verdict.state);
   return 0;
 }
-/** Something else went to the chat (a photo, a sticker, a voice message): the run of identical texts is over. */
-export function repeatBroken(chatId: string) { chats.delete(chatId); }
+/** Something else went to the chat (a photo, a sticker, a voice message): the run of identical texts is over
+ *  (the strictness, once earned, stays for its four hours). */
+export function repeatBroken(chatId: string, now = Date.now()) { repeatWait(chatId, '', now); }
 export const repeatNotice = (seconds: number) => `Одинаковое сообщение. Подожди ${seconds} с.`;
