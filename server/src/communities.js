@@ -4,6 +4,7 @@
 // and private conversations keep their E2EE. Access is enforced here for every route.
 import { randomBytes, randomUUID } from 'node:crypto';
 import { boundedText, fail, objectBody, publicName } from './security.js';
+import { createRepeatGuard } from './repeatguard.js';
 
 export const PERM = Object.freeze({
   ADMIN: 1, MANAGE_COMMUNITY: 2, MANAGE_CHANNELS: 4, MANAGE_ROLES: 8, INVITE: 16,
@@ -145,6 +146,7 @@ export const isInviteCode = value => typeof value === 'string' && /^[A-Za-z0-9]{
 const CLIENT_KEY = /^[A-Za-z0-9_.:-]{1,64}$/;
 
 export function installCommunityRoutes({ app, db, authOptions, publicUser, timestamp, now, emitUser, limiter, voice, isOnline = () => true }) {
+  const repeats = createRepeatGuard(now);
   // Idempotent migration (databases made before client keys existed): the column, then the uniqueness
   // per (sender, key). Rows without a key stay out of the index.
   if (!db.prepare('PRAGMA table_info(community_messages)').all().some(column => column.name === 'client_key')) db.exec('ALTER TABLE community_messages ADD COLUMN client_key TEXT');
@@ -702,6 +704,9 @@ export function installCommunityRoutes({ app, db, authOptions, publicUser, times
     }
     if (!limiter.allow(`community-send:${viewer}`, 30, 10_000)) fail(429, 'Слишком часто. Подожди немного.');
     const value = body.text === undefined ? '' : boundedText(body.text, 'Сообщение', 0, 4000, { trim: false });
+    // The same text over and over: five in a row, then 10 s, 15 s, 20 s… between copies (repeatguard.js).
+    const hold = repeats.wait(viewer, item.id, value);
+    if (hold) { const seconds = Math.ceil(hold / 1000); fail(429, `Одинаковое сообщение. Подождите ${seconds} с.`, { code: 'repeat', retryAfterSeconds: seconds }); }
     let attachmentId = null;
     if (body.attachmentId !== undefined && body.attachmentId !== null) {
       if (typeof body.attachmentId !== 'string') fail(400, 'Некорректный файл.');

@@ -1,3 +1,4 @@
+import { repeatNotice, repeatWait } from '../repeatGuard';
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { linkify } from '../linkify';
 import { MiniProfile } from '../MiniProfile';
@@ -107,6 +108,8 @@ export function ChannelChat({ api, me, store, community, channel, onOpenInvite }
   };
   const send = async () => {
     const value = text.trim(); if (!value || sending) return;
+    // The same text over and over (repeatGuard.ts); the server keeps the same rule for channels.
+    if (!editing) { const wait = repeatWait(`channel:${channel.id}`, value); if (wait) { setError(repeatNotice(wait)); return; } }
     setSending(true); setError('');
     try {
       if (editing) { const result = await api.editChannelMessage(community.id, channel.id, editing.id, value); setMessages(current => current.map(item => item.id === result.message.id ? result.message : item)); setEditing(null); }

@@ -1,3 +1,4 @@
+import { repeatBroken, repeatNotice, repeatWait } from './repeatGuard';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import { takeProfileRequest } from './birthdayNotifications';
 import { StatusEmoji } from './StatusEmoji';
@@ -345,6 +346,10 @@ export function ChatScreen({api,user,chat,store,onBack,wide=false,onOpenMusic}: 
       if(changed)store.sendAction(chat.id,{type:'edit',target:editing.clientId,text:out.text,...(out.entities?{entities:out.entities}:{})});
       endEdit();store.sendTyping(chat.id,false);return;
     }
+    // The same text over and over: five in a row, then 10 s, 15 s, 20 s… between copies (repeatGuard.ts). The text
+    // stays in the field; anything else sent (a photo, a file) ends the run.
+    if(out.text){const wait=repeatWait(chat.id,out.text);if(wait){toast(repeatNotice(wait));return;}}
+    else if(attachments.length)repeatBroken(chat.id);
     if(replyTo){
       const reply={clientId:replyTo.clientId,senderId:replyTo.senderId,preview:replyPreview(replyTo)};
       if(out.text)store.send(chat.id,out.text,null,{reply,...(out.entities?{entities:out.entities}:{})},options);
