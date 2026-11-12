@@ -98,10 +98,11 @@ test('F6: the response lists the current session first with model, OS, app versi
   const fromLaptop = (await request(app, 'GET', '/auth/sessions', laptop)).json().sessions;
   assert.equal(fromLaptop.length, 2);
   assert.equal(fromLaptop[0].isCurrent, true, 'the asking device comes first even though it signed in later');
-  assert.deepEqual(Object.keys(fromLaptop[0]).sort(), ['appVersion', 'createdAt', 'deviceModel', 'deviceName', 'expiresAt', 'id', 'ip', 'isCurrent', 'lastActiveAt', 'osVersion', 'platform']);
+  assert.deepEqual(Object.keys(fromLaptop[0]).sort(), ['appVersion', 'createdAt', 'deviceKey', 'deviceModel', 'deviceName', 'expiresAt', 'id', 'ip', 'isCurrent', 'lastActiveAt', 'osVersion', 'platform']);
   assert.deepEqual({ ...fromLaptop[0], id: undefined, expiresAt: undefined }, {
     id: undefined, expiresAt: undefined, deviceName: 'Windows', platform: 'windows', deviceModel: 'Windows PC', osVersion: 'Windows 11', appVersion: '0.14.12',
     ip: '127.0.0.1', isCurrent: true, createdAt: '2026-11-08T10:05:00.000Z', lastActiveAt: '2026-11-08T10:07:00.000Z' /* this very request is activity */,
+    deviceKey: null /* not bound to a device key (devicebind.js) */,
   });
   const phoneRow = fromLaptop[1];
   assert.equal(phoneRow.isCurrent, false);
@@ -161,7 +162,7 @@ test('F6: a new sign-in is announced to the other devices, and «Это был �
   assert.equal(event.label, 'Windows PC · Windows 11');
   assert.deepEqual({ ...event.session, id: undefined, createdAt: undefined, lastActiveAt: undefined, expiresAt: undefined }, {
     id: undefined, createdAt: undefined, lastActiveAt: undefined, expiresAt: undefined,
-    deviceName: 'Windows', platform: 'windows', deviceModel: 'Windows PC', osVersion: 'Windows 11', appVersion: '0.14.12', ip: '127.0.0.1', isCurrent: false,
+    deviceName: 'Windows', platform: 'windows', deviceModel: 'Windows PC', osVersion: 'Windows 11', appVersion: '0.14.12', ip: '127.0.0.1', isCurrent: false, deviceKey: null,
   });
   assert.ok(!JSON.stringify(event).includes(laptop.token), 'the event never carries the new token');
   const listed = (await request(app, 'GET', '/auth/sessions', laptop)).json().sessions;

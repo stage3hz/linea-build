@@ -115,10 +115,10 @@ export class Api {
    * upload). Never throws for a passing failure — the server then asks for the proof and the request path retries;
    * a session bound to a key this device no longer has ends as an expired one (401).
    */
-  async ensureProof(force = false, signal?: AbortSignal | null): Promise<void> {
+  async ensureProof(force = false, signal?: AbortSignal | null, seen?: number): Promise<void> {
     const held = this.deviceProof; if (!held || (!force && !held.due)) return;
     try {
-      const exchange = held.refresh(force);
+      const exchange = held.refresh(force, seen);
       // The caller's «Отмена» is honoured while waiting, as it is by the request itself.
       await (signal ? Promise.race([exchange, new Promise<never>((_resolve, reject) => { const stop = () => { const error = new Error('Запрос отменён.'); error.name = 'AbortError'; reject(error); }; if (signal.aborted) stop(); else signal.addEventListener('abort', stop, { once: true }); })]) : exchange);
     }
@@ -139,6 +139,7 @@ export class Api {
     // is not held back at all.
     const first = !!held && held.due && !held.known;
     if (held && held.due && !first) await this.ensureProof(false, options.signal);
+    const seen = held?.generation;
     const sent = this.send<T>(path, options);
     if (first) void held!.refresh().catch(() => {});
     try { return await sent; }
@@ -146,7 +147,7 @@ export class Api {
       // The server wants the device proof (ours ran out, or the session was bound a moment ago): get one and repeat.
       // Nothing was done by the refused request, so repeating a write is safe.
       if (!bound || !(error instanceof ApiError) || error.status !== 401 || error.code !== 'device_proof') throw error;
-      await this.ensureProof(true, options.signal);
+      await this.ensureProof(true, options.signal, seen);
       try { return await this.send<T>(path, options); }
       catch (again) {
         // Still refused with a fresh proof: not a reason to sign the account out — say it could not be done.

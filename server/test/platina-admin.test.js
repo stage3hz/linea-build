@@ -39,7 +39,9 @@ async function fixture(t) {
 // Columns added by later migrations (empty for old rows) are not part of the v4 snapshot.
 const ADDED = new Set(['last_seen_at', 'show_last_seen', 'avatar_video_id', 'avatar_frame', 'banner_id', 'banner_kind', 'banner_preset', 'profile_effect', 'nameplate', 'birthday', 'gender', 'profile_pattern',
   // sessions: device details recorded at sign-in (F6)
-  'platform', 'device_model', 'os_version', 'app_version', 'ip']);
+  'platform', 'device_model', 'os_version', 'app_version', 'ip',
+  // sessions: the device key a session is bound to and its proof (devicebind.js)
+  'bind_key', 'bind_kind', 'bind_challenge', 'bind_challenge_expires_at', 'proof_hash', 'proof_expires_at', 'proof_prev_hash', 'proof_prev_expires_at']);
 const rows = (db, table) => db.prepare(`SELECT * FROM ${table} ORDER BY rowid`).all().map(row => Object.fromEntries(Object.entries(row).filter(([key, value]) => !(ADDED.has(key) && (value === null || value === 1)))));
 
 test('real SQLite v4 migration preserves finite grants, revocations, audit and account/session data before allowing null expiry', async t => {

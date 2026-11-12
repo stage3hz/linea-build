@@ -67,6 +67,20 @@ test('requests that arrive together share one exchange', async () => {
   assert.equal(remote.state.calls.length, 2);
 });
 
+test('requests refused together renew the proof once, not once each', async () => {
+  const device = softwareKey(), remote = server();
+  const proof = new DeviceProof(() => device.key, remote.post, () => 0, false);
+  const seen = proof.generation; // three requests leave before any proof exists
+  assert.equal(await proof.refresh(true, seen), true);
+  assert.equal(await proof.refresh(true, seen), true);
+  assert.equal(await proof.refresh(true, seen), true);
+  assert.equal(remote.state.calls.length, 2, 'one exchange served all three');
+  assert.equal(proof.current, 'proof-1');
+  // A request sent with the newest proof and still refused does get a new one.
+  assert.equal(await proof.refresh(true, proof.generation), true);
+  assert.equal(proof.current, 'proof-2');
+});
+
 test('an older server, a browser without a key, or a key that does not work: the session stays as it was', async () => {
   const none = new DeviceProof(() => softwareKey().key, async () => { throw refuse(404, ''); }, () => 0, false);
   assert.equal(await none.refresh(), false);

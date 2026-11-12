@@ -41,6 +41,7 @@ export class DeviceProof {
   private off = false;
   private failedAt = -PROOF_RETRY_MS;
   private timer: ReturnType<typeof setTimeout> | null = null;
+  private issued = 0;
 
   private readonly key: () => DeviceKey | null;
   private readonly post: ProofPost;
@@ -51,6 +52,8 @@ export class DeviceProof {
 
   /** The proof to send with a request, or null. */
   get current(): string | null { return this.proof && this.until > this.now() ? this.proof : null; }
+  /** Grows with every proof received: lets a refused request tell whether a newer proof has arrived since it left. */
+  get generation(): number { return this.issued; }
   /** Whether a proof was ever held in this run: only then is the session known to need one. */
   get known(): boolean { return this.until > 0; }
   /** Whether a request should first wait for `refresh()`. */
@@ -59,11 +62,13 @@ export class DeviceProof {
   /**
    * Gets a proof (binding the session to the key first, if it has none). Resolves true when a proof is held, false
    * when this session does not use one. Rejects with DeviceProofError, or with the transport's own error.
-   * `force`: the server has just refused the proof we hold.
+   * `force`: the server has just refused the proof we hold. `seen`: the generation when the refused request was
+   * sent — if a newer proof has arrived since (many requests were refused together), that one is used.
    */
-  refresh(force = false): Promise<boolean> {
+  refresh(force = false, seen?: number): Promise<boolean> {
     if (this.busy) return this.busy;
     if (this.off) return Promise.resolve(false);
+    if (force && seen !== undefined && seen !== this.issued && this.current) return Promise.resolve(true);
     if (!force && this.current && this.until - this.now() >= PROOF_MARGIN_MS) return Promise.resolve(true);
     const run: Promise<boolean> = this.exchange(true).then(result => result, error => { this.failedAt = this.now(); throw error; }).finally(() => { if (this.busy === run) this.busy = null; });
     this.busy = run;
@@ -110,6 +115,7 @@ export class DeviceProof {
   private take(answer: { proof?: unknown; expiresIn?: unknown }): boolean {
     if (typeof answer?.proof !== 'string' || typeof answer.expiresIn !== 'number' || !(answer.expiresIn > 0)) throw new DeviceProofError('unavailable');
     this.proof = answer.proof;
+    this.issued++;
     this.until = this.now() + answer.expiresIn * 1000;
     if (this.schedule) {
       if (this.timer) clearTimeout(this.timer);
