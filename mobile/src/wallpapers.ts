@@ -5,10 +5,12 @@ import * as FileSystem from 'expo-file-system/legacy';
 import * as Crypto from 'expo-crypto';
 import { useSyncExternalStore } from 'react';
 import { WALLPAPERS, getChatPreferences } from './chatPreferences';
+import { storedFit } from './wallpaperFit';
 
 export type WallpaperChoice =
   | { kind: 'preset'; id: string }
-  | { kind: 'image'; uri: string; blur: boolean; motion: boolean; dim: number };
+  // `aspect`, `zoom`, `fx`, `fy`: how the picture is fitted to the chat (wallpaperFit.ts); absent in older choices.
+  | { kind: 'image'; uri: string; blur: boolean; motion: boolean; dim: number; aspect?: number; zoom?: number; fx?: number; fy?: number };
 type Store = { global: WallpaperChoice | null; chats: Record<string, WallpaperChoice> };
 
 const KEY = 'linea.wallpapers.v1';
@@ -24,7 +26,7 @@ export function parseWallpapers(raw: string | null): Store {
     const value = raw ? JSON.parse(raw) : null;
     const valid = (item: any): WallpaperChoice | null => {
       if (item?.kind === 'preset' && typeof item.id === 'string' && WALLPAPERS.some(preset => preset.id === item.id)) return { kind: 'preset', id: item.id };
-      if (item?.kind === 'image' && typeof item.uri === 'string' && (item.uri.startsWith('file://') || item.uri.startsWith(OWN_FILES))) return { kind: 'image', uri: item.uri, blur: item.blur === true, motion: item.motion === true, dim: [0, 0.2, 0.4, 0.6].includes(item.dim) ? item.dim : 0.2 };
+      if (item?.kind === 'image' && typeof item.uri === 'string' && (item.uri.startsWith('file://') || item.uri.startsWith(OWN_FILES))) return { kind: 'image', uri: item.uri, blur: item.blur === true, motion: item.motion === true, dim: [0, 0.2, 0.4, 0.6].includes(item.dim) ? item.dim : 0.2, ...storedFit(item) };
       return null;
     };
     const chats: Record<string, WallpaperChoice> = {};
