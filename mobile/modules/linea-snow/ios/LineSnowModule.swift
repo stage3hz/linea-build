@@ -622,7 +622,7 @@ final class SnowEngine {
       height = 0
       canvas?.setNeedsDisplay()
       canvas?.air?.setNeedsDisplay()
-      for back in flakeViews.allObjects { back.setNeedsDisplay() }
+      for back in flakeViews.allObjects { back.setFalling(0) }
       // The rime is a separate setting: its views stay, and the heat is still watched for them.
       updateThermalWatch()
       applyRimeHeat()
@@ -852,7 +852,7 @@ final class SnowEngine {
     flakesAlive = false
     if flakesShown {
       flakesShown = false
-      for back in flakeViews.allObjects { back.setNeedsDisplay() }
+      for back in flakeViews.allObjects { back.setFalling(0) }
     }
   }
 
@@ -929,14 +929,14 @@ final class SnowEngine {
     }
     // The falling flakes: drawn by the back views that are active and in a window.
     flakesAlive = link != nil && !sleeping && liveFlakes > 0
+    // They are particles of the render server (see SnowFlakesView): nothing is drawn here per frame, the views
+    // are only told how much is falling — less as the phone heats up.
     if flakesAlive {
-      if !skip {
-        for back in flakeViews.allObjects where back.canShow { back.setNeedsDisplay() }
-        flakesShown = true
-      }
+      for back in flakeViews.allObjects { back.setFalling(1 - heat) }
+      flakesShown = true
     } else if flakesShown {
       flakesShown = false
-      for back in flakeViews.allObjects { back.setNeedsDisplay() }
+      for back in flakeViews.allObjects { back.setFalling(0) }
     }
   }
 
@@ -1858,11 +1858,50 @@ final class SnowAirView: UIView {
 /// wallpaper…), so the snow falls behind the content. Several can be mounted at once; each draws the part of the
 /// window-wide snowfall that falls on it. 1 px per pt. Never takes touches and is hidden from accessibility.
 final class SnowFlakesView: UIView {
-  /// false: a background kept mounted under another one — nothing is drawn.
+  // The flakes are a CAEmitterLayer: the system's render server moves and draws them on the GPU, outside the app's
+  // main thread. They used to be drawn here with Core Graphics, the whole view anew on every frame; with two or
+  // three such views on screen (the backdrop, a chat wallpaper) that took the main thread's time away from
+  // scrolling and animations — the app ran at half its frame rate wherever the snow fell behind a busy screen.
+  private let emitter = CAEmitterLayer()
+  /// How much is falling now, 0…1 (set by the engine); below zero: not set yet.
+  private var falling: Double = -1
+
+  private static let dot: CGImage? = {
+    let format = UIGraphicsImageRendererFormat()
+    format.scale = 2
+    format.opaque = false
+    let image = UIGraphicsImageRenderer(size: CGSize(width: 8, height: 8), format: format).image { context in
+      UIColor.white.setFill()
+      context.cgContext.fillEllipse(in: CGRect(x: 1, y: 1, width: 6, height: 6))
+    }
+    return image.cgImage
+  }()
+
+  private static func cell(rate: Float, speed: CGFloat, spread: CGFloat, size: CGFloat, sizeRange: CGFloat, alpha: CGFloat) -> CAEmitterCell {
+    let cell = CAEmitterCell()
+    cell.contents = dot
+    cell.birthRate = rate
+    // Long enough to cross a tall screen at the slowest speed.
+    cell.lifetime = 36
+    cell.velocity = speed
+    cell.velocityRange = spread
+    // Downwards, with a slight sway to the sides.
+    cell.emissionLongitude = .pi / 2
+    cell.emissionRange = 0.22
+    cell.xAcceleration = 1.5
+    cell.scale = size
+    cell.scaleRange = sizeRange
+    cell.color = UIColor(white: 1, alpha: alpha).cgColor
+    cell.alphaRange = 0.25
+    return cell
+  }
+
+  /// false: a background kept mounted under another one — nothing falls there.
   var active = false {
     didSet {
       if active != oldValue {
-        setNeedsDisplay()
+        emitter.isHidden = !active
+        if !active { setFalling(0) }
         syncEngine()
       }
     }
@@ -1882,14 +1921,23 @@ final class SnowFlakesView: UIView {
     isUserInteractionEnabled = false
     isOpaque = false
     backgroundColor = .clear
-    clearsContextBeforeDrawing = true
-    contentMode = .redraw
     // Background snow is dimmed: at full brightness the flakes outshone the grey text they pass behind and
     // read as lying on top of it.
     alpha = 0.45
-    contentScaleFactor = 1
     isAccessibilityElement = false
     accessibilityElementsHidden = true
+    layer.masksToBounds = true
+    emitter.emitterShape = .line
+    emitter.emitterMode = .outline
+    emitter.renderMode = .unordered
+    emitter.birthRate = 0
+    emitter.isHidden = true
+    // Near flakes: larger, faster, brighter; far ones: small pale dots.
+    emitter.emitterCells = [
+      SnowFlakesView.cell(rate: 1.2, speed: 46, spread: 14, size: 0.44, sizeRange: 0.16, alpha: 0.9),
+      SnowFlakesView.cell(rate: 1.0, speed: 30, spread: 6, size: 0.2, sizeRange: 0.07, alpha: 0.6),
+    ]
+    layer.addSublayer(emitter)
   }
 
   required init?(coder: NSCoder) { return nil }
@@ -1899,22 +1947,45 @@ final class SnowFlakesView: UIView {
     return window != nil && active && !isHidden && bounds.width > 0 && bounds.height > 0
   }
 
+  override func layoutSubviews() {
+    super.layoutSubviews()
+    CATransaction.begin()
+    CATransaction.setDisableActions(true)
+    emitter.frame = bounds
+    // A line just above the top edge, a little wider than the view.
+    emitter.emitterPosition = CGPoint(x: bounds.midX, y: -6)
+    emitter.emitterSize = CGSize(width: bounds.width + 40, height: 1)
+    CATransaction.commit()
+    if falling > 0 { applyRate() }
+  }
+
+  /// The wider the view, the more flakes it takes to look the same.
+  private func applyRate() {
+    emitter.birthRate = Float(max(0, falling) * Double(max(0.5, min(4, bounds.width / 400))))
+  }
+
+  /// How much falls: 1 — the full snowfall, 0 — none (new flakes stop; those in the air fall out of sight).
+  func setFalling(_ amount: Double) {
+    let wanted = canShow ? max(0, min(1, amount)) : 0
+    if falling >= 0 && abs(wanted - falling) < 0.02 && (wanted > 0) == (falling > 0) { return }
+    let starting = falling <= 0 && wanted > 0
+    falling = wanted
+    CATransaction.begin()
+    CATransaction.setDisableActions(true)
+    applyRate()
+    // As if it had been snowing for a while: the screen is not empty when the snow comes on.
+    if starting { emitter.beginTime = emitter.convertTime(CACurrentMediaTime(), from: nil) - 30 }
+    CATransaction.commit()
+  }
+
   override func didMoveToWindow() {
     super.didMoveToWindow()
-    // UIKit resets the scale to the screen's when the view enters a window.
-    contentScaleFactor = 1
     // The engine holds the view weakly, so a view that dies without leaving its window needs no deinit.
     syncEngine()
+    if window == nil { setFalling(0) }
   }
 
   override func hitTest(_ point: CGPoint, with event: UIEvent?) -> UIView? { nil }
-
-  override func draw(_ rect: CGRect) {
-    guard active, window != nil, let context = UIGraphicsGetCurrentContext() else { return }
-    // The snowfall is in window coordinates; the context is already clipped to this view.
-    let corner = convert(CGPoint.zero, to: nil)
-    SnowEngine.shared.drawBack(in: context, origin: corner)
-  }
 }
 
 /// Rendered rime bitmaps, by size / radius / theme / scale / seed. Main thread only; the rendering itself runs on
