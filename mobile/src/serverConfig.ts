@@ -18,4 +18,4 @@ export const EDGE_SERVER_URLS: string[] = SIMULATOR ? [] : ['https://invizent-ap
 // Version this build reports to the server (header X-Linea-Client). The server
 // may refuse clients it has retired (see server/src/clientgate.js). Bump this
 // together with app.config.js version at every release.
-export const APP_VERSION = '0.14.13';
+export const APP_VERSION = '0.14.14';
