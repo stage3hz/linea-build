@@ -80,6 +80,46 @@ function refreshOverlay() {
   if (!overlayWin.isVisible()) overlayWin.showInactive();
 }
 
+// ---- «Снег»: a drift on the top edge of the window ----
+// A thin transparent strip owned by the main window, sitting just above its top edge (it moves, hides and
+// minimises with the window and never goes above other apps' windows on its own). It takes no focus and no
+// clicks; the cursor position over it is read here and passed to the page so the snow can be swept off.
+const SNOW_CAP = 26;
+let snowWin = null, snowOn = false, snowTimer = null, snowCursorOver = false;
+function placeSnowCap() {
+  if (!snowWin || snowWin.isDestroyed() || !window || window.isDestroyed()) return;
+  const hidden = !snowOn || !window.isVisible() || window.isMinimized() || window.isMaximized() || window.isFullScreen();
+  if (hidden) { if (snowWin.isVisible()) snowWin.hide(); return; }
+  const b = window.getBounds();
+  // 2 px over the window so the drift sits on its edge with no gap; inset from the rounded corners.
+  snowWin.setBounds({ x: b.x + 6, y: b.y - SNOW_CAP + 2, width: Math.max(40, b.width - 12), height: SNOW_CAP });
+  if (!snowWin.isVisible()) snowWin.showInactive();
+}
+function snowCap(on) {
+  snowOn = on === true;
+  if (!snowOn) { clearInterval(snowTimer); snowTimer = null; if (snowWin && !snowWin.isDestroyed()) snowWin.destroy(); snowWin = null; return; }
+  if (!window || window.isDestroyed()) return;
+  if (!snowWin || snowWin.isDestroyed()) {
+    snowWin = new BrowserWindow({ parent: window, width: 400, height: SNOW_CAP, show: false, frame: false, transparent: true, backgroundColor: '#00000000', resizable: false, movable: false, minimizable: false, maximizable: false, focusable: false, skipTaskbar: true, hasShadow: false, fullscreenable: false,
+      webPreferences: { preload: path.join(__dirname, 'snow-preload.cjs'), contextIsolation: true, sandbox: true, nodeIntegration: false, spellcheck: false } });
+    const win = snowWin;
+    win.setIgnoreMouseEvents(true);
+    win.webContents.setWindowOpenHandler(() => ({ action: 'deny' }));
+    win.webContents.on('will-navigate', e => e.preventDefault());
+    win.on('closed', () => { if (snowWin === win) snowWin = null; });
+    void win.loadFile(path.join(__dirname, 'snow.html')).then(() => placeSnowCap()).catch(() => {});
+  }
+  if (!snowTimer) snowTimer = setInterval(() => {
+    if (!snowWin || snowWin.isDestroyed() || !snowWin.isVisible()) return;
+    const p = screen.getCursorScreenPoint(), b = snowWin.getBounds();
+    const over = p.x >= b.x - 30 && p.x <= b.x + b.width + 30 && p.y >= b.y - 30 && p.y <= b.y + b.height + 30;
+    if (over) snowWin.webContents.send('snow-cursor', p.x - b.x, p.y - b.y);
+    else if (snowCursorOver) snowWin.webContents.send('snow-cursor', null, null);
+    snowCursorOver = over;
+  }, 33);
+  placeSnowCap();
+}
+
 // In-game overlay for fullscreen games (Windows only). The overlay page is rendered offscreen at
 // 15 fps at most (Chromium paints only when something changed) and handed to the helper, which
 // shares it with the game; see game-overlay.cjs and native/overlay/README.md.
@@ -233,6 +273,7 @@ ipcMain.handle('invizent', async (event, method, ...args) => {
     refreshOverlay();
     return;
   }
+  if (method === 'snowCap') { try { snowCap(args[0] === true); } catch { /* decorative */ } return; }
   if (method === 'overlayUpdate') {
     const v = args[0];
     overlayView = v && typeof v === 'object' && Array.isArray(v.people) ? { channel: String(v.channel || '').slice(0, 60), people: v.people.slice(0, 12).map(p => ({ name: String(p?.name || '').slice(0, 32), speaking: p?.speaking === true, muted: p?.muted === true, deafened: p?.deafened === true, me: p?.me === true })) } : null;
@@ -366,9 +407,10 @@ app.whenReady().then(async () => {
   void setupTray();
   window.webContents.on('will-navigate', (event, url) => { if (!url.startsWith('invizent://app/')) event.preventDefault(); });
   window.on('focus', () => refreshOverlay()); window.on('blur', () => refreshOverlay()); window.on('minimize', () => refreshOverlay());
-  window.on('closed', () => { overlayWin?.destroy(); overlayWin = null; gameOverlay?.stop(); if (gameOverlayWin && !gameOverlayWin.isDestroyed()) gameOverlayWin.destroy(); gameOverlayWin = null; });
+  window.on('closed', () => { clearInterval(snowTimer); snowTimer = null; if (snowWin && !snowWin.isDestroyed()) snowWin.destroy(); snowWin = null; overlayWin?.destroy(); overlayWin = null; gameOverlay?.stop(); if (gameOverlayWin && !gameOverlayWin.isDestroyed()) gameOverlayWin.destroy(); gameOverlayWin = null; });
   const sendState = () => { if (!window || window.isDestroyed()) return; window.webContents.send('window-state', { maximized: window.isMaximized(), fullscreen: window.isFullScreen(), focused: window.isFocused() }); };
   for (const name of ['maximize', 'unmaximize', 'enter-full-screen', 'leave-full-screen', 'focus', 'blur']) window.on(name, sendState);
+  for (const name of ['move', 'resize', 'show', 'hide', 'minimize', 'restore', 'maximize', 'unmaximize', 'enter-full-screen', 'leave-full-screen']) window.on(name, () => { try { placeSnowCap(); } catch { /* decorative */ } });
   window.webContents.setWindowOpenHandler(({ url }) => { if (url.startsWith('https://')) void shell.openExternal(url); return { action: 'deny' }; });
   await window.loadURL('invizent://app/index.html');
 });

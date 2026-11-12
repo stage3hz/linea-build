@@ -17,6 +17,8 @@ export type DesktopBridge = {
     setHold?(config: { active: boolean; ptt?: string; pushToMute?: string }): Promise<{ hooked: boolean }>; onHold?(listener: (action: 'ptt' | 'pushToMute', down: boolean) => void): () => void };
   /** In-game overlay window (Настройки → Оверлей). Older builds lack it. */
   overlay?: { configure(prefs: { enabled: boolean; inject: boolean; corner: string; onlySpeaking: boolean; opacity: number }): Promise<void>; update(view: unknown): Promise<void> };
+  /** «Снег»: a drift on the top edge of the window, drawn by the main process. Older builds lack it. */
+  snow?: { cap(on: boolean): Promise<void> };
   update?: { download(url: string, sha256: string, size: number): Promise<boolean>; progress(): Promise<{ received: number; total: number; ready: boolean }>; cancel(): Promise<void>; install(): Promise<boolean> };
   /** Unread counter: Windows taskbar overlay (picture drawn by the page), macOS dock badge, tray icon and tooltip on Windows/Linux. */
   badge?: (count: number, picture: string | null) => Promise<void>;

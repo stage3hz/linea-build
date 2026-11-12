@@ -35,9 +35,11 @@ export type ChatPreferences = {
   autoplayVideo: boolean; autoplayGif: boolean; animatedStickers: boolean; animatedEmoji: boolean;
   /** «Пиксельный след» under the finger / cursor (src/PixelTrail.tsx); also off whenever animations are off. */
   pixelTrail: boolean;
+  /** «Снег» (PC): falling snow and drifts on bubbles, bars and the window. */
+  snow: boolean;
 };
 const KEY = 'linea.chat-preferences.v1';
-const DEFAULTS: ChatPreferences = { textSize: 'medium', sendTyping: true, animations: 'auto', lowBattery: 0.25, bubbleRadius: 20, wallpaper: 'none', nightMode: null, nightFrom: '22:00', nightTo: '07:00', nightBrightness: 0.25, nightForced: null, nightForcedAt: null, autoplayVideo: true, autoplayGif: true, animatedStickers: true, animatedEmoji: true, pixelTrail: true };
+const DEFAULTS: ChatPreferences = { textSize: 'medium', sendTyping: true, animations: 'auto', lowBattery: 0.25, bubbleRadius: 20, wallpaper: 'none', nightMode: null, nightFrom: '22:00', nightTo: '07:00', nightBrightness: 0.25, nightForced: null, nightForcedAt: null, autoplayVideo: true, autoplayGif: true, animatedStickers: true, animatedEmoji: true, pixelTrail: true, snow: true };
 
 let current: ChatPreferences = DEFAULTS;
 const listeners = new Set<() => void>();
@@ -66,6 +68,7 @@ export function parsePreferences(raw: string | null): ChatPreferences {
       animatedStickers: typeof value?.animatedStickers === 'boolean' ? value.animatedStickers : true,
       animatedEmoji: typeof value?.animatedEmoji === 'boolean' ? value.animatedEmoji : true,
       pixelTrail: typeof value?.pixelTrail === 'boolean' ? value.pixelTrail : DEFAULTS.pixelTrail,
+      snow: typeof value?.snow === 'boolean' ? value.snow : DEFAULTS.snow,
     };
   } catch { return DEFAULTS; }
 }

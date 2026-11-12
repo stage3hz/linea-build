@@ -28,6 +28,7 @@ contextBridge.exposeInMainWorld('invizentDesktop', Object.freeze({
     action: action => ['minimize', 'maximize', 'close', 'state'].includes(action) ? ipcRenderer.invoke('window-control', action) : Promise.resolve(null),
     onState: listener => { const handler = (_event, state) => listener(state); ipcRenderer.on('window-state', handler); return () => ipcRenderer.removeListener('window-state', handler); },
   }),
+  snow: Object.freeze({ cap: on => invoke('snowCap', on === true) }),
   overlay: Object.freeze({ configure: prefs => invoke('overlayConfigure', prefs), update: view => invoke('overlayUpdate', view) }),
   update: Object.freeze({ download: (url,sha256,size) => invoke('updateDownload',url,sha256,size), progress: () => invoke('updateProgress'), cancel: () => invoke('updateCancel'), install: () => invoke('updateInstall') }),
 }));
