@@ -54,9 +54,25 @@ export async function pickDocuments(): Promise<PickedFile[]> {
   return out;
 }
 
-/** The PC's file dialog offers documents only; photos and videos have their own button. */
-export async function pickDocumentsOrMedia(_room: number): Promise<{ files: PickedFile[]; pictures: AIPicture[] }> {
-  return { files: await pickDocuments(), pictures: [] };
+/** «Файл» on the PC: any file. A photo or a video is prepared like «Фото и видео» does it (redrawn without metadata,
+ *  a video as frames) and comes back as pictures; everything else as documents. Never the original media file. */
+export async function pickDocumentsOrMedia(room: number): Promise<{ files: PickedFile[]; pictures: AIPicture[] }> {
+  const files: PickedFile[] = [], pictures: AIPicture[] = [];
+  for (const file of await choose('', true)) {
+    const media = planUpload(new Uint8Array(await file.slice(0, 768).arrayBuffer()), { name: file.name, mimeType: file.type }).kind !== 'raw';
+    if (!media) {
+      if (file.size > MAX_DOCUMENT) throw new Error(`«${file.name}» больше 15 МБ.`);
+      files.push({ name: file.name, base64: await toBase64(file) });
+      continue;
+    }
+    if (pictures.length >= room) throw new Error(`К вопросу — до ${MAX_PICTURES} фото и кадров.`);
+    try {
+      if (file.type.startsWith('video/')) { for (const data of await videoFrames(file, room - pictures.length)) pictures.push({ id: `${file.name}#${pictures.length}`, uri: data, data, video: true }); continue; }
+      const bitmap = await createImageBitmap(file); const data = draw(bitmap, bitmap.width, bitmap.height); bitmap.close();
+      pictures.push({ id: `${file.name}#${pictures.length}`, uri: data, data });
+    } catch { throw new Error(MEDIA_AS_DOCUMENT); }
+  }
+  return { files, pictures };
 }
 
 export async function pickAudio(): Promise<PickedFile | null> {

@@ -1,4 +1,5 @@
-// Text out of a document for an AI question: PDF (unpdf / pdf.js), DOCX/ODT/PPTX/XLSX (zip + XML),
+// Text out of a document for an AI question: PDF (unpdf / pdf.js), DOCX/ODT/PPTX/XLSX (zip + XML), RTF, an
+// ordinary ZIP with text files, and any file that reads as text,
 // and plain text formats. Nothing is stored — the bytes come in, the text goes back to the
 // client, which then sends it with its questions. Scanned PDFs (pictures only) have no text.
 import { extractText, getDocumentProxy } from 'unpdf';
@@ -43,7 +44,48 @@ function zipText(bytes, name) {
   const slides = Object.keys(files).filter(key => key.startsWith('ppt/slides/')).sort((a, b) => Number(a.match(/\d+/)[0]) - Number(b.match(/\d+/)[0]));
   if (slides.length) return slides.map((key, index) => `— Слайд ${index + 1} —\n${xmlText(strFromU8(files[key]))}`).join('\n\n');
   if (files['xl/sharedStrings.xml']) return xmlText(strFromU8(files['xl/sharedStrings.xml']).replace(/<\/si>/g, '\n'));
-  throw new Error(`Не удалось найти текст в «${name}».`);
+  return archiveText(bytes, name);
+}
+
+/** Looks like text: decodes as UTF-8 and has next to no control bytes. Returns the text or null. */
+function plainText(bytes) {
+  if (!bytes.length) return null;
+  let text;
+  try { text = new TextDecoder('utf-8', { fatal: true }).decode(bytes); } catch { return null; }
+  const sample = text.length > 20000 ? text.slice(0, 20000) : text;
+  let odd = 0;
+  for (let i = 0; i < sample.length; i++) { const c = sample.charCodeAt(i); if (c < 32 && c !== 9 && c !== 10 && c !== 13) odd++; }
+  return odd > sample.length * 0.01 ? null : text;
+}
+
+/** An ordinary ZIP (a project, a folder of notes): the text files in it, each under its path. Binary entries are
+ *  only listed. The same caps as for Office files keep an archive bomb from being unpacked. */
+function archiveText(bytes, name) {
+  const skipped = []; let files, total = 0, parts = 0;
+  try {
+    files = unzipSync(bytes, { filter: file => {
+      if (file.name.endsWith('/') || /(^|\/)(\.git|node_modules|__MACOSX)\//.test(file.name)) return false;
+      if (file.originalSize > 2 * 1024 * 1024 || parts >= 200 || total + file.originalSize > 20 * 1024 * 1024) { skipped.push(file.name); return false; }
+      total += file.originalSize; parts += 1;
+      return true;
+    } });
+  } catch { throw new Error('Файл повреждён или это не архив.'); }
+  const out = [];
+  for (const path of Object.keys(files).sort()) {
+    const text = plainText(files[path]);
+    if (text === null) { skipped.push(path); continue; }
+    if (text.trim()) out.push(`— ${path} —\n${text.trim()}`);
+  }
+  if (!out.length) throw new Error(`В архиве «${name}» нет текстовых файлов.`);
+  return out.join('\n\n') + (skipped.length ? `\n\n— Не прочитано (не текст или слишком большое): ${skipped.slice(0, 40).join(', ')}${skipped.length > 40 ? ` и ещё ${skipped.length - 40}` : ''} —` : '');
+}
+
+/** RTF: the control words and groups are dropped, the text and paragraph breaks stay. */
+function rtfText(source) {
+  return source.replace(/\{\\\*[^{}]*\}/g, '').replace(/\\par[d]?\b ?/g, '\n').replace(/\\tab\b ?/g, '\t')
+    .replace(/\\u(-?\d+)\??/g, (_, n) => String.fromCharCode((Number(n) + 65536) % 65536))
+    .replace(/\\'([0-9a-f]{2})/gi, (_, h) => new TextDecoder('windows-1251').decode(Uint8Array.of(parseInt(h, 16))))
+    .replace(/\\[a-z]+-?\d* ?/gi, '').replace(/[{}]/g, '').replace(/\n{3,}/g, '\n\n');
 }
 
 /** Returns { text, truncated, pages? }. Throws an Error with a user-facing message. */
@@ -60,11 +102,17 @@ export async function documentText(name, bytes) {
     if (!text) throw new Error('В этом PDF нет текста — похоже, это скан. Сфотографируй страницы и отправь как фото.');
   } else if (bytes[0] === 0x50 && bytes[1] === 0x4b) {
     text = zipText(bytes, name);
-  } else if (TEXT_TYPES.test(name)) {
-    try { text = new TextDecoder('utf-8', { fatal: true }).decode(bytes); }
-    catch { text = new TextDecoder('windows-1251').decode(bytes); }
+  } else if (bytes.subarray(0, 5).toString('latin1') === '{\\rtf') {
+    text = rtfText(bytes.toString('latin1'));
+  } else {
+    // Any file that reads as text is taken whatever its extension (code, configs, logs, subtitles, notes…); a known
+    // text extension in an old Windows encoding is decoded as windows-1251.
+    const plain = plainText(bytes);
+    if (plain !== null) text = plain;
+    else if (TEXT_TYPES.test(name)) text = new TextDecoder('windows-1251').decode(bytes);
+    else throw new Error('Этот файл не текстовый. Читаются PDF, Word, PowerPoint, Excel, OpenDocument, RTF, архивы ZIP с текстом и любые текстовые файлы; фото и видео прикрепляй как фото, аудио — как аудио.');
     if (/\.html?$/i.test(name)) text = decodeEntities(text.replace(/<(script|style)[\s\S]*?<\/\1>/gi, '').replace(/<[^>]+>/g, ' ')).replace(/[ \t]+/g, ' ');
-  } else throw new Error('Поддерживаются PDF, Word (DOCX), PowerPoint (PPTX), Excel (XLSX), OpenDocument и текстовые файлы.');
+  }
   text = text.replace(/\u0000/g, '').trim();
   if (!text) throw new Error('В документе нет текста.');
   const truncated = text.length > MAX_DOCUMENT_TEXT;
