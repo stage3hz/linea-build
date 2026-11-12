@@ -4,7 +4,7 @@
 import { useNetworkTier } from '../network/useNetworkTier';
 import { autoload } from '../network/quality';
 import React, { useEffect, useMemo, useState } from 'react';
-import { Pressable, StyleSheet, View } from 'react-native';
+import { Platform, Pressable, StyleSheet, View } from 'react-native';
 import { Image } from 'expo-image';
 import Svg, { Circle } from 'react-native-svg';
 import { Text } from '../typography';
@@ -16,6 +16,8 @@ import { albumLayout } from './albumLayout';
 import { isGif, mediaPreviewKind } from './formats';
 import { usePowerFeatures } from '../motion';
 import { previewUri } from './previewModel';
+import * as VideoThumbnails from 'expo-video-thumbnails';
+import { mediaKey } from './mediaCache';
 import { forgetMedia, useMedia } from './mediaCache';
 import { lightFeedback } from '../haptics';
 
@@ -49,6 +51,13 @@ export function captionedMediaBox(attachment: Attachment, maxWidth: number, maxH
   return { width: Math.round(maxWidth), height: Math.round(Math.max(120, height)) };
 }
 
+// A loaded video shows a frame taken from the file itself: the small preview that travels inside the message can be
+// missing or black (made from the very first frame, which is often dark, or by a device that could not decode it).
+// The frame is taken a little into the video, once per file and session.
+const videoPosters = new Map<string, string>();
+/** Where the poster frame is taken (ms): a little in, never past the first sixth of a short clip. */
+export const posterTime = (durationMs?: number) => Math.round(Math.min(600, durationMs && durationMs > 0 ? durationMs / 6 : 400));
+
 /** One photo or video tile; used alone and inside an album grid. */
 export function MediaTile({ api, attachment, width, height, radius = 16, onOpen, onLongPress }: { api: Api; attachment: Attachment; width: number; height: number; radius?: number; onOpen: () => void; onLongPress?: () => void }) {
   const kind = mediaPreviewKind(attachment), photo = kind === 'photo';
@@ -67,6 +76,16 @@ export function MediaTile({ api, attachment, width, height, radius = 16, onOpen,
   // decrypts the file again.
   const [broken, setBroken] = useState<string | null>(null);
   const [thumbFailed, setThumbFailed] = useState(false);
+  const posterKey = mediaKey(attachment);
+  const [poster, setPoster] = useState<string | null>(() => videoPosters.get(posterKey) ?? null);
+  useEffect(() => {
+    if (photo || Platform.OS === 'web' || media.status !== 'ready' || !media.uri) return;
+    const known = videoPosters.get(posterKey);
+    if (known) { setPoster(known); return; }
+    let alive = true;
+    void VideoThumbnails.getThumbnailAsync(media.uri, { time: posterTime(attachment.media?.durationMs), quality: .6 }).then(frame => { videoPosters.set(posterKey, frame.uri); if (alive) setPoster(frame.uri); }).catch(() => {});
+    return () => { alive = false; };
+  }, [photo, media.status, media.uri, posterKey, attachment.media?.durationMs]);
   // A fresh download (same path) gets a fresh chance.
   useEffect(() => { if (media.status !== 'ready' && broken) setBroken(null); }, [media.status, broken]);
   const shown = photo && media.status === 'ready' && !!media.uri && broken !== media.uri;
@@ -83,6 +102,7 @@ export function MediaTile({ api, attachment, width, height, radius = 16, onOpen,
     {/* Never an empty card: while a photo without a thumbnail decodes, its kind is drawn in the middle. */}
     {shown && (!thumb || thumbFailed) ? <View pointerEvents="none" style={[StyleSheet.absoluteFill, { alignItems: 'center', justifyContent: 'center' }]}><Icon name={photo ? 'image-outline' : 'videocam-outline'} size={34} color="rgba(255,255,255,0.75)" /></View> : null}
     {thumb && !thumbFailed ? <Image source={{ uri: thumb }} style={StyleSheet.absoluteFill} contentFit="cover" blurRadius={photo ? 12 : 0} onError={() => setThumbFailed(true)} /> : null}
+    {!photo && poster ? <Image source={{ uri: poster }} style={StyleSheet.absoluteFill} contentFit="cover" transition={150} onError={() => { videoPosters.delete(posterKey); setPoster(null); }} /> : null}
     {shown ? <Image key={animate ? 'gif' : 'still'} source={{ uri: media.uri! }} style={StyleSheet.absoluteFill} contentFit="cover" transition={180} autoplay={animate} onError={() => setBroken(media.uri ?? null)} /> : null}
     {gif && shown && !animate ? <View pointerEvents="none" style={[StyleSheet.absoluteFill, { alignItems: 'center', justifyContent: 'center' }]}><View style={{ paddingHorizontal: 12, paddingVertical: 6, borderRadius: 14, backgroundColor: 'rgba(10,15,30,0.55)' }}><Text style={{ color: '#FFF', fontSize: 13, fontWeight: '800', letterSpacing: .5 }}>GIF</Text></View></View> : null}
     {!photo || !shown ? <View style={[StyleSheet.absoluteFill, { alignItems: 'center', justifyContent: 'center' }]}>

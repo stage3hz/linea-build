@@ -28,7 +28,9 @@ export async function makeThumbnail(prepared:PreparedMedia):Promise<AttachmentPr
   let width=prepared.media?.width||1,height=prepared.media?.height||1;
   try {
     if(prepared.video){
-      const frame=await VideoThumbnails.getThumbnailAsync(source,{time:0,quality:.7});
+      // Not the very first frame: it is often black (a fade-in, a camera still opening) and made a black preview.
+      const duration=prepared.media?.durationMs;
+      const frame=await VideoThumbnails.getThumbnailAsync(source,{time:Math.round(Math.min(600,duration&&duration>0?duration/6:400)),quality:.7});
       if(!generated(frame.uri,prepared.file.uri))throw new Error('Недопустимый путь миниатюры.');
       temporary.add(frame.uri);source=frame.uri;width=frame.width;height=frame.height;
     }

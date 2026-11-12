@@ -9,7 +9,7 @@ async function frame(uri:string,video:boolean):Promise<CanvasImageSource&{width:
   if(!video){const blob=await (await fetch(uri)).blob();return await createImageBitmap(blob);}
   const element=document.createElement('video');element.muted=true;element.playsInline=true;element.preload='auto';element.src=uri;
   await new Promise<void>((resolve,reject)=>{const t=setTimeout(()=>reject(new Error('timeout')),8000);
-    element.onloadeddata=()=>{element.currentTime=Math.min(0.1,(element.duration||1)/2);};
+    element.onloadeddata=()=>{element.currentTime=Math.min(0.6,(element.duration||1)/6);};
     element.onseeked=()=>{clearTimeout(t);resolve();};element.onerror=()=>{clearTimeout(t);reject(new Error('video'));};});
   const canvas=document.createElement('canvas');canvas.width=element.videoWidth||1;canvas.height=element.videoHeight||1;
   canvas.getContext('2d')?.drawImage(element,0,0);element.removeAttribute('src');element.load();
