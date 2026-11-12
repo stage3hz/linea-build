@@ -88,6 +88,9 @@ module.exports = {
         android: { fonts: [{ fontFamily: 'Montserrat', fontDefinitions: [{path:'./assets/fonts/Montserrat-Regular.ttf',weight:400},{path:'./assets/fonts/Montserrat-Medium.ttf',weight:500},{path:'./assets/fonts/Montserrat-SemiBold.ttf',weight:600},{path:'./assets/fonts/Montserrat-Bold.ttf',weight:700},{path:'./assets/fonts/Montserrat-ExtraBold.ttf',weight:800}] }] },
       }],
       'expo-asset',
+      // «Картинка в картинке»: a video opened from a chat keeps playing in the system's small window when the app is
+      // left (iOS: needs the 'audio' background mode, already declared above; Android: the activity flag).
+      ['expo-video', { supportsPictureInPicture: true }],
       ['expo-audio', {
         microphonePermission: 'Инвиз использует микрофон только во время записи голосового сообщения. Запись шифруется до отправки.',
         recordAudioAndroid: true,

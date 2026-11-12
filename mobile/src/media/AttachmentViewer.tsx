@@ -1,9 +1,9 @@
-import React,{useEffect,useState} from 'react';
-import { ActivityIndicator, AppState, FlatList, Modal, Pressable, StyleSheet, View, useWindowDimensions } from 'react-native';
+import React,{useEffect,useRef,useState} from 'react';
+import { ActivityIndicator, AppState, FlatList, Modal, Platform, Pressable, StyleSheet, View, useWindowDimensions } from 'react-native';
 import { Text } from '../typography';
 import {Image} from 'expo-image';
 import {useEvent} from 'expo';
-import {useVideoPlayer,VideoView} from 'expo-video';
+import {isPictureInPictureSupported,useVideoPlayer,VideoView} from 'expo-video';
 import {setAudioModeAsync,useAudioPlayer,useAudioPlayerStatus} from 'expo-audio';
 import * as Sharing from 'expo-sharing';
 import type {Api} from '../api';
@@ -22,15 +22,29 @@ import Reanimated from 'react-native-reanimated';
 
 const clock=(seconds:number)=>{const value=Math.max(0,Math.floor(Number.isFinite(seconds)?seconds:0));return `${Math.floor(value/60)}:${String(value%60).padStart(2,'0')}`;};
 
+// «Картинка в картинке»: leaving the app while a video plays moves it into the system's small window (a saved film
+// keeps playing over other apps, with no network needed — the file is already decrypted on the device). Where the
+// system has no such window, or it did not open (the video was paused), playback stops in the background as before.
+const pipSupported=(()=>{try{return Platform.OS!=='web'&&isPictureInPictureSupported();}catch{return false;}})();
 function VideoPlayer({uri}:{uri:string}){
-  const t=useTheme(),player=useVideoPlayer(uri,value=>{value.loop=false;value.audioMixingMode='doNotMix';});
+  const t=useTheme(),player=useVideoPlayer(uri,value=>{value.loop=false;value.audioMixingMode='doNotMix';if(pipSupported)value.staysActiveInBackground=true;});
   const {status,error}=useEvent(player,'statusChange',{status:player.status});
+  const inPip=useRef(false);
   useEffect(()=>{
-    player.play();const subscription=AppState.addEventListener('change',state=>{if(state!=='active')player.pause();});
-    return()=>{subscription.remove();try{player.pause();}catch{/* The native hook may have disposed first. */}};
+    player.play();
+    let timer:ReturnType<typeof setTimeout>|null=null;
+    const pause=()=>{try{player.pause();}catch{/* The native hook may have disposed first. */}};
+    const subscription=AppState.addEventListener('change',state=>{
+      if(timer){clearTimeout(timer);timer=null;}
+      if(state==='active')return;
+      if(!pipSupported){pause();return;}
+      // The small window opens a moment after the app leaves the screen: if it has not, nothing may keep playing unseen.
+      if(state==='background')timer=setTimeout(()=>{timer=null;if(!inPip.current)pause();},1500);
+    });
+    return()=>{subscription.remove();if(timer)clearTimeout(timer);pause();};
   },[player]);
   return <View style={{flex:1,justifyContent:'center'}}>
-    <VideoView player={player} style={{width:'100%',height:'78%',minHeight:220}} contentFit="contain" nativeControls fullscreenOptions={{enable:true}} allowsPictureInPicture={false}/>
+    <VideoView player={player} style={{width:'100%',height:'78%',minHeight:220}} contentFit="contain" nativeControls fullscreenOptions={{enable:true}} allowsPictureInPicture={pipSupported} startsPictureInPictureAutomatically={pipSupported} onPictureInPictureStart={()=>{inPip.current=true;}} onPictureInPictureStop={()=>{inPip.current=false;}}/>
     {status==='loading'?<ActivityIndicator color={t.accent}/>:null}
     {status==='error'?<Notice error text={`Устройство не смогло воспроизвести это видео. ${error?.message||'Можно сохранить файл и открыть совместимым проигрывателем.'}`}/>:null}
   </View>;
