@@ -13,7 +13,7 @@ import {useTheme,formatSize} from '../theme';
 import {GlassStage,GlassSurface} from '../glass';
 import {useMusic} from '../music/MusicProvider';
 import {mediaPreviewKind} from './formats';
-import {loadMedia,useMedia} from './mediaCache';
+import {keepMedia,loadMedia,useMedia} from './mediaCache';
 import {ProgressRing} from './MediaBubble';
 import {ZoomableImage} from './ZoomableImage';
 import {useSwipeDismiss} from './useSwipeDismiss';
@@ -137,6 +137,15 @@ function GalleryPage({api,attachment,width,height,active,onTap,onZoom}:{api:Api;
   </Pressable>;
 }
 
+/** «Сохранить для просмотра без сети»: a loaded video is kept on the device outside the cache's size limit (a film
+ *  is a gigabyte or more and would otherwise be the first file evicted). Shown once the video has loaded. */
+function KeepButton({api,attachment}:{api:Api;attachment:Attachment}){
+  const media=useMedia(api,attachment,false);const [busy,setBusy]=useState(false);
+  if(media.status!=='ready')return null;
+  const kept=!!media.kept,circle={width:48,height:48,alignItems:'center' as const,justifyContent:'center' as const};
+  return <GlassSurface material="regular" radius={24} interactive contentStyle={circle}><Pressable onPress={()=>{if(busy)return;setBusy(true);void keepMedia(attachment,!kept).finally(()=>setBusy(false));}} accessibilityRole="button" accessibilityState={{selected:kept}} accessibilityLabel={kept?'Сохранено для просмотра без сети. Нажми, чтобы убрать':'Сохранить для просмотра без сети'} hitSlop={6} style={[circle,{opacity:busy?.5:1}]}><Icon name={kept?'checkmark-circle':'cloud-download-outline'} color="#FFF" size={24}/></Pressable></GlassSurface>;
+}
+
 /** Telegram-style full-screen media: black background, swipe left/right between
  * the chat's photos and videos, swipe down to close, pinch to zoom a photo. */
 export function MediaGallery({api,items,index,onClose}:{api:Api;items:Attachment[];index:number;onClose:()=>void}){
@@ -175,6 +184,7 @@ export function MediaGallery({api,items,index,onClose}:{api:Api;items:Attachment
           <Text style={{color:'#FFF',fontSize:15,fontWeight:'700'}}>{items.length>1?`${title} ${current+1} из ${items.length}`:title}</Text>
           {item?<Text style={{color:'rgba(255,255,255,0.7)',fontSize:11}}>{formatSize(item.size)}</Text>:null}
         </GlassSurface></View>
+        {item&&kind==='video'?<KeepButton api={api} attachment={item}/>:null}
         <GlassSurface material="regular" radius={24} interactive contentStyle={circle}><Pressable onPress={()=>void share()} disabled={saving} accessibilityRole="button" accessibilityLabel="Сохранить или поделиться" hitSlop={6} style={[circle,{opacity:saving?.5:1}]}>{saving?<ActivityIndicator color="#FFF"/>:<Icon name="share-outline" color="#FFF" size={22}/>}</Pressable></GlassSurface>
       </View>
     </InsetView></Reanimated.View>:null}

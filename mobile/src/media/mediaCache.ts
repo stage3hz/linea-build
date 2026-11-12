@@ -8,7 +8,7 @@ import type { Api } from '../api';
 import type { Attachment } from '../types';
 import { attachmentFileName, decryptAttachmentWithProgress } from '../e2ee/attachments';
 
-export type MediaState = { status: 'idle' | 'loading' | 'ready' | 'error'; progress: number; uri?: string; error?: string };
+export type MediaState = { status: 'idle' | 'loading' | 'ready' | 'error'; progress: number; uri?: string; error?: string; /** Kept for watching without a network: never evicted by the size limit. */ kept?: boolean };
 type Entry = MediaState & { size: number; usedAt: number; abort?: AbortController; promise?: Promise<string> };
 
 const LIMIT_BYTES = 300 * 1024 * 1024;
@@ -22,14 +22,15 @@ export const mediaKey = (attachment: Attachment) => `${attachment.id}:${attachme
 
 function publish(key: string) {
   const entry = entries.get(key);
-  const state: MediaState = entry ? { status: entry.status, progress: entry.progress, uri: entry.uri, error: entry.error } : IDLE;
+  const state: MediaState = entry ? { status: entry.status, progress: entry.progress, uri: entry.uri, error: entry.error, kept: entry.kept } : IDLE;
   listeners.get(key)?.forEach(listener => listener(state));
 }
 
 function evict() {
-  let total = [...entries.values()].reduce((sum, entry) => sum + (entry.status === 'ready' ? entry.size : 0), 0);
+  // Files kept for offline viewing (a film is a gigabyte or more) are outside the limit and are never evicted.
+  let total = [...entries.values()].reduce((sum, entry) => sum + (entry.status === 'ready' && !entry.kept ? entry.size : 0), 0);
   if (total <= LIMIT_BYTES) return;
-  const ready = [...entries.entries()].filter(([, entry]) => entry.status === 'ready').sort((a, b) => a[1].usedAt - b[1].usedAt);
+  const ready = [...entries.entries()].filter(([, entry]) => entry.status === 'ready' && !entry.kept).sort((a, b) => a[1].usedAt - b[1].usedAt);
   for (const [key, entry] of ready) {
     if (total <= LIMIT_BYTES) break;
     if (listeners.get(key)?.size) continue; // on screen right now
@@ -40,7 +41,7 @@ function evict() {
 
 function paths(attachment: Attachment) {
   const folder = `${FileSystem.cacheDirectory}linea-view-cache-${mediaKey(attachment).replace(/[^A-Za-z0-9-]/g, '_')}/`;
-  return { folder, target: `${folder}${attachmentFileName(attachment)}` };
+  return { folder, target: `${folder}${attachmentFileName(attachment)}`, marker: `${folder}.keep` };
 }
 
 /**
@@ -50,17 +51,19 @@ function paths(attachment: Attachment) {
 function probe(attachment: Attachment) {
   const key = mediaKey(attachment);
   if (entries.has(key) || !FileSystem.cacheDirectory) return;
-  const { target } = paths(attachment), owner = generation;
-  void FileSystem.getInfoAsync(target).then(info => {
+  const { target, marker } = paths(attachment), owner = generation;
+  void FileSystem.getInfoAsync(target).then(async info => {
     if (owner !== generation || entries.has(key) || !info.exists || info.isDirectory || info.size !== attachment.size) return;
-    entries.set(key, { status: 'ready', progress: 1, uri: target, size: attachment.size, usedAt: Date.now() });
+    const kept = await FileSystem.getInfoAsync(marker).then(found => found.exists, () => false);
+    if (owner !== generation || entries.has(key)) return;
+    entries.set(key, { status: 'ready', progress: 1, uri: target, size: attachment.size, usedAt: Date.now(), kept });
     publish(key);
   }).catch(() => {});
 }
 
 export function mediaState(attachment: Attachment): MediaState {
   const entry = entries.get(mediaKey(attachment));
-  return entry ? { status: entry.status, progress: entry.progress, uri: entry.uri, error: entry.error } : IDLE;
+  return entry ? { status: entry.status, progress: entry.progress, uri: entry.uri, error: entry.error, kept: entry.kept } : IDLE;
 }
 
 /** Starts (or joins) the download; resolves with the decrypted local file. */
@@ -88,7 +91,9 @@ export function loadMedia(api: Api, attachment: Attachment): Promise<string> {
   }).then(() => {
     if (owner !== generation || entries.get(key) !== entry) { void FileSystem.deleteAsync(folder, { idempotent: true }).catch(() => {}); throw new Error('Загрузка отменена.'); }
     entry.status = 'ready'; entry.progress = 1; entry.uri = target; entry.abort = undefined; entry.promise = undefined;
-    publish(key); evict();
+    publish(key);
+    // The size limit is applied once it is known whether this file is kept (its marker survives restarts).
+    void FileSystem.getInfoAsync(paths(attachment).marker).then(found => found.exists, () => false).then(kept => { if (entries.get(key) === entry) { if (kept) { entry.kept = true; publish(key); } evict(); } });
     return target;
   }, error => {
     if (entries.get(key) === entry) {
@@ -127,6 +132,24 @@ export async function adoptMedia(attachment: Attachment, uri: string): Promise<b
   entries.set(key, { status: 'ready', progress: 1, uri: target, size: attachment.size, usedAt: Date.now() });
   publish(key); evict();
   return true;
+}
+
+/**
+ * «Сохранить для просмотра без сети»: a loaded file is marked as kept — it is left out of the size limit and is
+ * not evicted, so a film stays on the device until it is released here, the user signs out, or the system clears
+ * the app's cache (the file stays in the private cache folder: it is not copied into backups). Resolves the new state.
+ */
+export async function keepMedia(attachment: Attachment, keep: boolean): Promise<boolean> {
+  const key = mediaKey(attachment), entry = entries.get(key);
+  if (entry?.status !== 'ready' || !FileSystem.cacheDirectory) return false;
+  const { marker } = paths(attachment);
+  try {
+    if (keep) await FileSystem.writeAsStringAsync(marker, '1'); else await FileSystem.deleteAsync(marker, { idempotent: true });
+  } catch { return !!entry.kept; }
+  if (entries.get(key) !== entry) return keep;
+  entry.kept = keep; entry.usedAt = Date.now();
+  publish(key); if (!keep) evict();
+  return keep;
 }
 
 /**
