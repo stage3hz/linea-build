@@ -187,3 +187,14 @@ test('a chat row gives a drag from its middle to the folder pager and keeps a dr
   assert.equal(s.rowClaimsSwipe(W / 2, W, 0, false, true, true), false, 'no direction yet');
   assert.ok(edge >= 72 && edge <= W / 3, 'an edge zone a thumb can hit, the middle stays the larger part');
 });
+
+test('the hidden block above the chats follows the drag: any swipe up hides it, any pull down shows it', async () => {
+  // Shown whole (offset 0), swiped up by a little: with the half-way rule alone it stayed on screen.
+  assert.equal(s.archiveSnap(12, 132, 1), 132);
+  assert.equal(s.archiveSnap(120, 132, -1), 0);
+  assert.equal(s.archiveSnap(12, 132, 0), 0, 'no clear direction: the half-way rule');
+  const { readFileSync } = await import('node:fs');
+  const list = readFileSync(new URL('../src/ChatListScreen.tsx', import.meta.url), 'utf8');
+  assert.ok(list.includes('const moved=y-dragFrom.current;const to=archiveSnap(y,archiveH,moved>6?1:moved<-6?-1:0);'));
+  assert.ok(list.includes('dragFrom.current=e.nativeEvent.contentOffset.y;'));
+});
