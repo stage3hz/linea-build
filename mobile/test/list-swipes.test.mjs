@@ -210,7 +210,9 @@ test('«Поиск» comes out on one quick pull or on the second pull in a row,
 test('a slanted drag over a chat row is given to the list, not held by the row or the folder pager', async () => {
   const { readFileSync } = await import('node:fs');
   const list = readFileSync(new URL('../src/ChatListScreen.tsx', import.meta.url), 'utf8');
-  assert.ok(list.includes("if(lock==='vertical'||(lock!=='horizontal'&&Math.abs(touch.absoluteY-down.value.y)>10)){manager.fail();return;}"));
-  assert.ok(list.includes("else if(lock||Math.abs(touch.absoluteY-panStart.value.y)>10)manager.fail();"));
+  // Neither gesture is activated by hand: the pan's own thresholds decide (10 pt up or down gives the drag to the list).
+  assert.ok(!list.includes('manualActivation'), 'no manually activated pan over the chat list');
+  assert.ok(list.includes("const folderSwipe=Gesture.Pan().activeOffsetX([-16,16]).failOffsetY([-10,10])"));
+  assert.ok(list.includes("const pan=Gesture.Pan().enabled(enabled).activeOffsetX([-12,12]).failOffsetY([-10,10])"));
   assert.ok(list.includes("if(searchOpen){if(y-dragFrom.current>6)closeSearch();return;}"), 'any swipe up puts the search away');
 });
