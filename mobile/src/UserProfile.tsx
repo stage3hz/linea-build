@@ -8,8 +8,8 @@ import { useCalls } from './calls/CallProvider';
 import { ProfileEffect } from './platina/Effects';
 import { PlatinaName, PlatinaSeal, hasPlatina } from './platina/PlatinaMark';
 import React, { useEffect, useRef, useState } from 'react';
-import { useTabInset } from './tabInset';
-import { ActivityIndicator, Modal, Pressable, StyleSheet, View, useWindowDimensions } from 'react-native';
+import { ScrollEdgeEffect, useTabInset } from './tabInset';
+import { ActivityIndicator, Modal, Platform, Pressable, StyleSheet, View, useWindowDimensions } from 'react-native';
 import Animated, { Easing, interpolate, runOnJS, useAnimatedScrollHandler, useAnimatedStyle, useSharedValue, withSpring, withTiming } from 'react-native-reanimated';
 import { ProfileMediaViewer, profileMedia } from './ProfileMediaViewer';
 import { PostViewer, PostsSection, ProfilePattern, StoryRing, useProfilePosts } from './ProfilePosts';
@@ -64,7 +64,11 @@ export function UserProfile({ api, user, onClose, chat, onMessage, onMute, onSea
   // Telegram: pulling the profile down enlarges the photo; scrolling up shrinks it away.
   const scrollY = useSharedValue(0);
   // Telegram: the top of the profile — avatar, name, status, buttons — sits on the person's own colour.
-  const [heroBottom, setHeroBottom] = useState(0); const topInset = useSafeAreaInsets().top;
+  const [heroBottom, setHeroBottom] = useState(0); const safe = useSafeAreaInsets(); const topInset = safe.top;
+  // Phone: the content scrolls under the floating back / «Ещё» row and the status bar and dissolves there, and runs
+  // down to the screen's bottom edge (it used to be cut off along a hard line under the buttons and above the
+  // home indicator).
+  const float = width < 760 && Platform.OS !== 'web'; const [barHeight, setBarHeight] = useState(56);
   const heroColor = useAnimatedStyle(() => ({ transform: [{ translateY: Math.min(0, -scrollY.value) }], height: topInset + 56 + heroBottom + 34 + Math.max(0, -scrollY.value) }));
   const onScroll = useAnimatedScrollHandler({ onScroll: e => { scrollY.value = e.contentOffset.y; }, onEndDrag: e => { if (e.contentOffset.y < -110) runOnJS(openViewer)(); } });
   // Scrolling up, the photo shrinks, rises towards the top edge (the Dynamic Island) and darkens away, as in
@@ -192,13 +196,14 @@ export function UserProfile({ api, user, onClose, chat, onMessage, onMute, onSea
     <GestureHandlerRootView style={{ flex: 1 }}><GestureDetector gesture={edgeSwipe}><Animated.View pointerEvents="box-none" style={[card ? { flex: 1, alignItems: 'center', justifyContent: 'center', padding: 24 } : { flex: 1, backgroundColor: t.bg }, card ? null : pushIn]}>
     <View style={card ? { width: cardWidth, height: '88%', maxHeight: 860, borderRadius: 22, overflow: 'hidden', borderWidth: StyleSheet.hairlineWidth, borderColor: t.border, shadowColor: '#000', shadowOpacity: 0.4, shadowRadius: 30 } : { flex: 1 }}>
     <GlassStage>{tinted && heroBottom ? <Animated.View pointerEvents="none" style={[{ position: 'absolute', top: 0, left: 0, right: 0, overflow: 'hidden' }, heroColor]}><LinearGradient colors={birthdayToday ? [festive[0], festive[1]] : [shade(shown.avatarColor, 0.15), shade(shown.avatarColor, -0.12)]} style={StyleSheet.absoluteFill} /></Animated.View> : null}{/* PC: the banner is as wide as the card, not the window (it was cut off at the card's edge). */}{shown.bannerId || shown.bannerPreset ? <View pointerEvents="none" style={{ position: 'absolute', top: 0, left: 0, right: 0, height: 260 }}><ProfileBanner user={shown} api={api} height={260} width={card ? cardWidth : width} /></View> : null}<InsetView style={{ flex: 1 }}>
-      <View style={{ flexDirection: 'row', alignItems: 'center', paddingHorizontal: 10, paddingVertical: 6 }}>
+      {float ? <ScrollEdgeEffect edge="top" size={topInset + barHeight} color={t.bg} alpha={Platform.OS === 'ios' ? .78 : .97} zIndex={1} /> : null}
+      <View onLayout={e => { const h = Math.round(e.nativeEvent.layout.height); if (h && h !== barHeight) setBarHeight(h); }} style={{ flexDirection: 'row', alignItems: 'center', paddingHorizontal: 10, paddingVertical: 6, zIndex: 2 }}>
         <IconButton name="chevron-back" label="Назад" onPress={back} />
         {/* No title, as in Telegram: over a banner the dark «Профиль» was unreadable. */}
         <View style={{ flex: 1 }} />
         <IconButton name="ellipsis-horizontal" label="Ещё" onPress={() => { lightFeedback(); setMenuAt({ y: 90 }); setMenu(true); }} />
       </View>
-      <Animated.ScrollView onScroll={onScroll} scrollEventThrottle={16} contentContainerStyle={{ padding: 18, paddingBottom: 18 + tabInset, gap: 16, alignItems: 'center', width: '100%', maxWidth: 680, alignSelf: 'center' }}>
+      <Animated.ScrollView onScroll={onScroll} scrollEventThrottle={16} style={float ? { marginTop: -(topInset + barHeight), marginBottom: -safe.bottom } : undefined} scrollIndicatorInsets={float ? { top: topInset + barHeight, bottom: safe.bottom } : undefined} contentContainerStyle={{ padding: 18, paddingTop: 18 + (float ? topInset + barHeight : 0), paddingBottom: 18 + tabInset + (float ? safe.bottom : 0), gap: 16, alignItems: 'center', width: '100%', maxWidth: 680, alignSelf: 'center' }}>
         <View onLayout={e => setHeroBottom(Math.round(e.nativeEvent.layout.y + e.nativeEvent.layout.height))} style={{ alignSelf: 'stretch', alignItems: 'center', gap: 16 }}>
         {/* Telegram: the chosen emoji pattern around the photo. */}
         {shown.profilePattern ? <View pointerEvents="none" style={{ position: 'absolute', left: -18, right: -18, top: -90, height: 90 + Math.max(220, heroBottom) }}><ProfilePattern emoji={shown.profilePattern} width={(card ? cardWidth : Math.min(680, width))} height={90 + Math.max(220, heroBottom)} cx={(card ? cardWidth : Math.min(680, width)) / 2} cy={90 + (stories.length ? 64 : 58)} /></View> : null}
