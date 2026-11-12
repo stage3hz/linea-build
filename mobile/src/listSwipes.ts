@@ -46,6 +46,26 @@ export function rowActions(state: RowState, support: RowSupport): { right: RowAc
   return { right, left };
 }
 
+/** Share of a chat row at each side from which a sideways drag pulls out the row's buttons (at least ROW_EDGE_MIN pt). */
+export const ROW_EDGE = 0.25;
+export const ROW_EDGE_MIN = 72;
+/**
+ * Who takes a sideways drag that began on a chat row at `startX` (pt from the row's left) and goes `dx`:
+ * true — the row (its buttons slide out), false — the folder pager.
+ * The row's buttons are pulled out from the screen edge they hide behind: a drag to the left that starts in the
+ * right-hand edge zone, a drag to the right that starts in the left-hand one. A drag from the middle turns the
+ * folder. An open row always follows the finger (to close it), and where there is no folder that way
+ * (`prevFolder` / `nextFolder` false: the first / last folder, or no folders at all) the whole row is the row's.
+ */
+export function rowClaimsSwipe(startX: number, width: number, dx: number, open: boolean, prevFolder: boolean, nextFolder: boolean): boolean {
+  'worklet';
+  if (open) return true;
+  const edge = Math.max(ROW_EDGE_MIN, width * ROW_EDGE);
+  if (dx < 0) return !nextFolder || startX >= width - edge;
+  if (dx > 0) return !prevFolder || startX <= edge;
+  return false;
+}
+
 export const ROW_BUTTON = 64;
 export const ROW_GAP = 8;
 /** How far the row slides to show `count` buttons. */

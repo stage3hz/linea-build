@@ -165,3 +165,25 @@ test('open row slot: the same row opens again and again, then a tap opens the ch
   assert.equal(slot.closeOpen(), false); // the next tap on a chat opens it
   assert.equal(closed, 5);
 });
+
+test('a chat row gives a drag from its middle to the folder pager and keeps a drag from its edge', () => {
+  const W = 393, edge = Math.max(s.ROW_EDGE_MIN, W * s.ROW_EDGE);
+  // Folders both ways: the buttons are pulled out from the edge they hide behind.
+  assert.equal(s.rowClaimsSwipe(W - 10, W, -30, false, true, true), true, 'leftward from the right edge: the row');
+  assert.equal(s.rowClaimsSwipe(W / 2, W, -30, false, true, true), false, 'leftward from the middle: next folder');
+  assert.equal(s.rowClaimsSwipe(20, W, -30, false, true, true), false, 'leftward from the left edge: next folder');
+  assert.equal(s.rowClaimsSwipe(20, W, 30, false, true, true), true, 'rightward from the left edge: the row');
+  assert.equal(s.rowClaimsSwipe(W / 2, W, 30, false, true, true), false, 'rightward from the middle: previous folder');
+  assert.equal(s.rowClaimsSwipe(W - 10, W, 30, false, true, true), false);
+  assert.equal(s.rowClaimsSwipe(W - edge, W, -30, false, true, true), true, 'the zone includes its border');
+  assert.equal(s.rowClaimsSwipe(W - edge - 1, W, -30, false, true, true), false);
+  // An open row always follows the finger, wherever it is touched.
+  assert.equal(s.rowClaimsSwipe(W / 2, W, 30, true, true, true), true);
+  assert.equal(s.rowClaimsSwipe(W / 2, W, -30, true, true, true), true);
+  // No folder that way (first / last folder, or no folders at all): the whole row is the row's, as before.
+  assert.equal(s.rowClaimsSwipe(W / 2, W, 30, false, false, true), true);
+  assert.equal(s.rowClaimsSwipe(W / 2, W, -30, false, true, false), true);
+  assert.equal(s.rowClaimsSwipe(W / 2, W, -30, false, false, false), true);
+  assert.equal(s.rowClaimsSwipe(W / 2, W, 0, false, true, true), false, 'no direction yet');
+  assert.ok(edge >= 72 && edge <= W / 3, 'an edge zone a thumb can hit, the middle stays the larger part');
+});

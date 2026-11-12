@@ -43,7 +43,7 @@ import { isMuted, muteUntilLabel } from './notifications/model';
 import { Gesture, GestureDetector } from 'react-native-gesture-handler';
 import Animated, { Easing, makeMutable, runOnJS, useAnimatedStyle, useSharedValue, withSpring, withTiming, type SharedValue } from 'react-native-reanimated';
 import { getMarkedUnread, markedExtra, pruneMarkedUnread, setMarkedExtra, setMarkedUnread, showsUnread, useMarkedExtra, useMarkedUnread } from './markedUnread';
-import { ROW_BUTTON, ROW_GAP, archiveSnap, axisLock, fullSwipeDistance, openWidth, pageRelease, openRowSlot, pagePosition, rowActions, rowDrag, rowRelease, type RowAction, type RowSupport } from './listSwipes';
+import { ROW_BUTTON, ROW_GAP, archiveSnap, axisLock, fullSwipeDistance, openWidth, pageRelease, openRowSlot, pagePosition, rowActions, rowClaimsSwipe, rowDrag, rowRelease, type RowAction, type RowSupport } from './listSwipes';
 
 // Telegram: the first row stands ~11 pt below the folder bar; flush against it, the bar's edge fade covered the top of «Избранное».
 const LIST_GAP=10;
@@ -86,6 +86,9 @@ export function ChatListScreen({api,user,store,onProfile,onNewChat,onMusic,onAI,
   const tabIds=folderTabIds(folders.folders);const folderIndex=Math.max(0,tabIds.indexOf(filter));
   const folderPos=useSharedValue(folderIndex);const listShift=useSharedValue(0);const panStart=useSharedValue({x:0,y:0});
   useEffect(()=>{folderPos.value=withTiming(folderIndex,{duration:animMs(220),easing:Easing.out(Easing.cubic)});closeOpenSwipeRow();},[folderIndex,folderPos]);
+  // Which way a folder can be turned (bit 1: back, bit 2: forward) — the rows give those drags up, see SwipeRow.
+  const ways=Platform.OS!=='web'&&!archive&&tabIds.length>1?(folderIndex>0?1:0)|(folderIndex<tabIds.length-1?2:0):0;
+  useEffect(()=>{folderWays.value=ways;return()=>{folderWays.value=0;};},[ways]);
   const goFolder=(to:number)=>{const id=tabIds[to];if(id!==undefined&&id!==filter){lightFeedback();setFilter(id);}};
   const motion=motionEnabled();
   // The list's own width (narrower than the window beside the rail / an open chat), measured on layout.
@@ -94,10 +97,10 @@ export function ChatListScreen({api,user,store,onProfile,onNewChat,onMusic,onAI,
     .onTouchesDown((e,manager)=>{const touch=e.changedTouches[0];if(!touch){manager.fail();return;}panStart.value={x:touch.absoluteX,y:touch.absoluteY};})
     .onTouchesMove((e,manager)=>{
       const touch=e.changedTouches[0];if(!touch)return;
-      if(rowTouch.value){manager.fail();return;}
       // Nothing before «Все» or after the last folder: such a drag is left alone.
       const lock=axisLock(touch.absoluteX-panStart.value.x,touch.absoluteY-panStart.value.y,folderIndex===0?-1:folderIndex===tabIds.length-1?1:0,14);
-      if(lock==='horizontal')manager.activate();else if(lock)manager.fail();
+      // On a chat row: from its edge the row's buttons slide out, from the middle the folder turns (rowClaimsSwipe).
+      if(lock==='horizontal'){if(rowTouch.value&&rowClaimsSwipe(rowStart.value.local,rowStart.value.width,touch.absoluteX-panStart.value.x,rowStart.value.open,folderIndex>0,folderIndex<tabIds.length-1))manager.fail();else manager.activate();}else if(lock)manager.fail();
     })
     .onUpdate(e=>{folderPos.value=pagePosition(folderIndex,tabIds.length,e.translationX,listWidth.value);listShift.value=motion?e.translationX*0.3:0;})
     .onEnd(e=>{
@@ -287,6 +290,10 @@ const openRows=openRowSlot();
 function closeOpenSwipeRow():boolean{return openRows.closeOpen();}
 /** 1 while a finger is down on a chat row that can swipe: the folder swipe on the list then stands aside. */
 const rowTouch=makeMutable(0);
+/** Where the finger went down on a swipeable row (pt from its left), the row's width and whether it stands open. */
+const rowStart=makeMutable({local:0,width:0,open:false});
+/** Folder turns possible from the list on screen: bit 1 back, bit 2 forward; 0 — rows keep every sideways drag. */
+const folderWays=makeMutable(0);
 /** What a swipe can do. «Непрочитано» has no server endpoint: it is a device-local mark (src/markedUnread.ts). */
 const ROW_SUPPORT:RowSupport={markUnread:true,pin:true,archive:true};
 const MUTE_ORANGE='#FF9500',PIN_GREEN='#34C759',ARCHIVE_GREY='#8E8E93';
@@ -351,9 +358,22 @@ function SwipeRow({enabled,unread,pinned,muted,archived,onAction,children}:{enab
   const claim=()=>openRows.closeOthers(closeHandle);
   const opened=()=>{openRows.open(closeHandle);setOpen(true);};
   const full=(side:-1|1)=>{const action=side<0?leadRef.current.left:leadRef.current.right;close();if(action)actionRef.current(action);};
-  const pan=Gesture.Pan().enabled(enabled).activeOffsetX([-12,12]).failOffsetY([-14,14])
+  // Activated by hand: a sideways drag is the row's only from its edge (or anywhere when it is open / no folder
+  // lies that way); from the middle it is left to the folder pager. Up/down is the list's scroll.
+  const down=useSharedValue({x:0,y:0});const dragging=useSharedValue(0);
+  const pan=Gesture.Pan().enabled(enabled).manualActivation(true)
     .onBegin(()=>{rowTouch.value=1;})
-    .onFinalize(()=>{rowTouch.value=0;})
+    .onFinalize(()=>{rowTouch.value=0;dragging.value=0;})
+    .onTouchesDown((e,manager)=>{const touch=e.changedTouches[0];if(!touch||e.numberOfTouches>1){manager.fail();return;}down.value={x:touch.absoluteX,y:touch.absoluteY};rowStart.value={local:touch.x,width:rowWidth.value,open:x.value!==0};})
+    .onTouchesMove((e,manager)=>{
+      if(dragging.value)return;
+      const touch=e.changedTouches[0];if(!touch)return;
+      const dx=touch.absoluteX-down.value.x,lock=axisLock(dx,touch.absoluteY-down.value.y,0,12);
+      if(lock==='vertical'){manager.fail();return;}
+      if(lock!=='horizontal')return;
+      if(rowClaimsSwipe(rowStart.value.local,rowStart.value.width,dx,rowStart.value.open,(folderWays.value&1)!==0,(folderWays.value&2)!==0)){dragging.value=1;manager.activate();}else manager.fail();
+    })
+    .onTouchesUp((_e,manager)=>{if(!dragging.value)manager.fail();})
     .onStart(()=>{start.value=x.value;runOnJS(claim)();})
     .onUpdate(e=>{
       const v=rowDrag(start.value+e.translationX,leftOpen,rightOpen,rowWidth.value);x.value=v;
