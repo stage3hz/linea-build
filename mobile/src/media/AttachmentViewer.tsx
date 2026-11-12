@@ -32,6 +32,10 @@ function VideoPlayer({uri}:{uri:string}){
   const inPip=useRef(false);
   useEffect(()=>{
     player.play();
+    // Something else letting go of the audio session right now (the music player stopping, a voice message ending)
+    // pauses a video that has only just started: it is started again, twice at most, while it still stands at its
+    // beginning. A pause the user makes later is never undone.
+    const nudges=[300,700].map(delay=>setTimeout(()=>{try{if(!player.playing&&player.currentTime<0.4&&player.status!=='error')player.play();}catch{/* released */}},delay));
     let timer:ReturnType<typeof setTimeout>|null=null;
     const pause=()=>{try{player.pause();}catch{/* The native hook may have disposed first. */}};
     const subscription=AppState.addEventListener('change',state=>{
@@ -41,7 +45,7 @@ function VideoPlayer({uri}:{uri:string}){
       // The small window opens a moment after the app leaves the screen: if it has not, nothing may keep playing unseen.
       if(state==='background')timer=setTimeout(()=>{timer=null;if(!inPip.current)pause();},1500);
     });
-    return()=>{subscription.remove();if(timer)clearTimeout(timer);pause();};
+    return()=>{subscription.remove();nudges.forEach(clearTimeout);if(timer)clearTimeout(timer);pause();};
   },[player]);
   return <View style={{flex:1,justifyContent:'center'}}>
     <VideoView player={player} style={{width:'100%',height:'78%',minHeight:220}} contentFit="contain" nativeControls fullscreenOptions={{enable:true}} allowsPictureInPicture={pipSupported} startsPictureInPictureAutomatically={pipSupported} onPictureInPictureStart={()=>{inPip.current=true;}} onPictureInPictureStop={()=>{inPip.current=false;}}/>

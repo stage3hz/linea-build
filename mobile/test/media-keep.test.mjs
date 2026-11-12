@@ -24,3 +24,11 @@ test('picture in picture: the viewer keeps playing only inside the small window'
   const config = readFileSync(new URL('../app.config.js', import.meta.url), 'utf8');
   assert.match(config, /\['expo-video', \{ supportsPictureInPicture: true \}\]/);
 });
+
+test('a video that has just started is not paused by the audio session going down under it', () => {
+  const patch = readFileSync(new URL('../scripts/patch-expo-audio.cjs', import.meta.url), 'utf8');
+  assert.match(patch, /mode == \.moviePlayback \{ return \}/, 'expo-audio leaves the session alone while a video plays');
+  assert.match(patch, /source\.includes\(earlier\) \? earlier : before/, 'an already patched tree is upgraded, not rejected');
+  const viewer = readFileSync(new URL('../src/media/AttachmentViewer.tsx', import.meta.url), 'utf8');
+  assert.match(viewer, /!player\.playing&&player\.currentTime<0\.4&&player\.status!=='error'\)player\.play\(\)/, 'started again only while still at its beginning');
+});
