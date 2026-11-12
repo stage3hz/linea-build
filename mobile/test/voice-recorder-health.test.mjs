@@ -42,7 +42,7 @@ test('expo-audio never deactivates the iOS audio session under a recording (post
   assert.match(pkg.scripts.postinstall, /patch-expo-audio\.cjs/);
   const swift = readFileSync(new URL('../node_modules/expo-audio/ios/AudioModule.swift', import.meta.url), 'utf8');
   const body = swift.slice(swift.indexOf('private func deactivateSession()'));
-  assert.match(body, /if category == \.playAndRecord \|\| category == \.record \{ return \}\n\s+do \{\n\s+try AVAudioSession\.sharedInstance\(\)\.setActive\(false/);
+  assert.match(body, /if category == \.playAndRecord \|\| category == \.record \{ return \}\n[\s\S]{0,260}?if AVAudioSession\.sharedInstance\(\)\.mode == \.moviePlayback \{ return \}\n\s+do \{\n\s+try AVAudioSession\.sharedInstance\(\)\.setActive\(false/);
 });
 
 test('the voice recorder stops the music before arming the microphone, never between prepare and record()', () => {
