@@ -6,7 +6,7 @@ import { applyStudio } from '../audio/studioSound';
 import { onBindAction, setVoiceActive } from '../audio/binds';
 import React, { createContext, useCallback, useContext, useEffect, useRef, useState } from 'react';
 import { playCallSound, stopCallSound } from './callSounds';
-import { Modal, Platform, Pressable, StyleSheet, Vibration, View, useWindowDimensions } from 'react-native';
+import { Modal, PermissionsAndroid, Platform, Pressable, StyleSheet, Vibration, View, useWindowDimensions } from 'react-native';
 import * as Crypto from 'expo-crypto';
 import { MusicAmbient } from '../music/MusicAmbient';
 import { LinearGradient } from 'expo-linear-gradient';
@@ -78,6 +78,27 @@ async function setLocal(connection: any, description: { type: string; sdp: strin
       await sender.setParameters(params);
     } catch { /* older WebRTC builds: the SDP limit above still applies */ }
   }
+}
+
+/**
+ * What the call's audio library is told about the speaker (react-native-incall-manager: true = force the speaker,
+ * false = force the phone's earpiece, null = the system's own route).
+ * A call starts on the system's route: Bluetooth or wired headphones when they are connected, else the earpiece
+ * (a video call: the speaker). Forcing either one at the start — as this did — took the call away from connected
+ * headphones. «Динамик» on forces the speaker; off goes back to the system's route, except in a video call, whose
+ * own route is the speaker: there «off» has to force the earpiece.
+ */
+export const speakerRoute = (chosen: boolean | null, video: boolean): boolean | null => (chosen === null ? null : chosen ? true : video ? false : null);
+
+/** Android 12+: an app sees connected Bluetooth headsets only with «Устройства поблизости» (BLUETOOTH_CONNECT);
+ *  without it the call's audio library never routes to them. Asked once, before the call's audio starts; a refusal
+ *  only means the call uses the phone itself. */
+async function allowBluetoothAudio() {
+  if (Platform.OS !== 'android' || Number(Platform.Version) < 31) return;
+  try {
+    const permission = PermissionsAndroid.PERMISSIONS.BLUETOOTH_CONNECT;
+    if (permission && !(await PermissionsAndroid.check(permission))) await PermissionsAndroid.request(permission);
+  } catch { /* the call goes on without Bluetooth */ }
 }
 
 export function CallProvider({ api, store, me, children }: { api: Api; store: MessengerStore; me: User; children: React.ReactNode }) {
@@ -278,7 +299,8 @@ export function CallProvider({ api, store, me, children }: { api: Api; store: Me
         const permission = await api.callPermission(chat.peer.id).catch(() => ({ allowed: true }));
         if (!permission.allowed) { finish('Этот человек ограничил, кто может ему звонить'); return; }
         if (callRef.current?.id !== id) return;
-        try { inCall.current?.start?.({ media: video ? 'video' : 'audio' }); inCall.current?.setForceSpeakerphoneOn?.(video); } catch { /* optional */ }
+        await allowBluetoothAudio();
+        try { inCall.current?.start?.({ media: video ? 'video' : 'audio' }); inCall.current?.setForceSpeakerphoneOn?.(speakerRoute(null, video)); } catch { /* optional */ }
         const { connection, localUrl } = await prepare(video);
         patch({ localUrl });
         // Android: the ongoing-call service needs the microphone permission, granted just now on a first call.
@@ -307,7 +329,8 @@ export function CallProvider({ api, store, me, children }: { api: Api; store: Me
     // Answered in the app: from now on the phone shows it as a running call (CallKit / ongoing notification).
     void beginSystemCall(current.id, current.peer.displayName, current.video, systemCallText('connecting', current.video, false, networkRef.current));
     try {
-      try { inCall.current?.start?.({ media: current.video ? 'video' : 'audio' }); inCall.current?.setForceSpeakerphoneOn?.(current.video); } catch { /* optional */ }
+      await allowBluetoothAudio();
+      try { inCall.current?.start?.({ media: current.video ? 'video' : 'audio' }); inCall.current?.setForceSpeakerphoneOn?.(speakerRoute(null, current.video)); } catch { /* optional */ }
       const webrtc = rtc.current!;
       const { connection, localUrl } = await prepare(current.video);
       patch({ localUrl });
@@ -451,7 +474,7 @@ export function CallProvider({ api, store, me, children }: { api: Api; store: Me
     },
     accept: () => void accept(),
     mute: () => { const c = callRef.current; if (!c) return; setMicMuted(!c.muted); lightFeedback(); },
-    speaker: () => { const c = callRef.current; if (!c) return; try { inCall.current?.setForceSpeakerphoneOn?.(!c.speaker); } catch { /* optional */ } patch({ speaker: !c.speaker }); lightFeedback(); },
+    speaker: () => { const c = callRef.current; if (!c) return; try { inCall.current?.setForceSpeakerphoneOn?.(speakerRoute(!c.speaker, c.video)); } catch { /* optional */ } patch({ speaker: !c.speaker }); lightFeedback(); },
     camera: () => {
       const c = callRef.current; if (!c) return;
       if (!local.current?.getVideoTracks().length) { void enableVideo(); return; }

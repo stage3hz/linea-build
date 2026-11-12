@@ -19,7 +19,7 @@
     "test:ai": "node --test --test-isolation=none test/ai*.test.mjs",
     "test:ui": "node --test --test-isolation=none test/attachment*.test.mjs test/theme-preference.test.mjs test/status-emoji.test.mjs test/chat-header-glass.test.mjs test/render-activity.test.mjs test/screen-sharing.test.mjs test/desktop-fetch.test.mjs test/screen-broadcast-manifest.test.mjs",
     "test:security": "node --test --test-isolation=none test/secure-transport.test.mjs",
-    "postinstall": "node scripts/patch-screen-capture.cjs && node scripts/patch-expo-video.cjs && node scripts/patch-expo-audio.cjs"
+    "postinstall": "node scripts/patch-screen-capture.cjs && node scripts/patch-expo-video.cjs && node scripts/patch-expo-audio.cjs && node scripts/patch-incall-manager.cjs"
   },
   "dependencies": {
     "@config-plugins/react-native-webrtc": "15.0.2",
