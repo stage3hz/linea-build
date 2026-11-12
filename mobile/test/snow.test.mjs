@@ -87,12 +87,13 @@ test('phone: the island ledge is derived from the top inset; a notch or a wide A
   assert.equal(islandLedge('android', 412, 915, 40, null), null);
 });
 
-test('phone: the snow never takes a touch and is off with the setting; «Поиск» is pulled out, not always shown', () => {
+test('phone: the snow never takes a touch and is off with the setting; «Поиск» is the hidden first row of the list', () => {
   const phone = readFileSync(new URL('../src/SnowPhone.tsx', import.meta.url), 'utf8');
   assert.match(phone, /pointerEvents="none"/);
   assert.match(phone, /preferences\.snow && motion\.enabled/);
   const list = readFileSync(new URL('../src/ChatListScreen.tsx', import.meta.url), 'utf8');
-  assert.match(list, /const searchShown=!float\|\|searchPulled;/, 'always shown on the PC and beside the rail');
-  assert.match(list, /const refresh=async\(\)=>\{setSearchPulled\(true\);/, 'pulling the list down at its start brings it out');
-  assert.match(list, /\{searchShown\?<SnowLedge id="chats\.search"/);
+  assert.match(list, /const pullSearch=float&&!archive&&!query;const topRow=archiveRow\|\|pullSearch;/, 'the phone keeps it above the first chat');
+  assert.ok(list.includes('{topRow?<View onLayout=') && list.includes('>{pullSearch?searchBar:null}{archiveRow?'), 'one hidden block: the field, then «Архив»');
+  assert.match(list, /\{float\?null:<SnowLedge id="chats\.search"/, 'the PC and the rail keep it in the header');
+  assert.doesNotMatch(list, /searchPulled/);
 });
