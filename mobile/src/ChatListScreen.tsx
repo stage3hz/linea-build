@@ -41,10 +41,10 @@ import { impactFeedback, lightFeedback } from './haptics';
 import { MuteSheet } from './notifications/MuteSheet';
 import { RemoveChatSheet } from './ChatSheets';
 import { isMuted, muteUntilLabel } from './notifications/model';
-import { Gesture, GestureDetector } from 'react-native-gesture-handler';
+import { Gesture, GestureDetector, State } from 'react-native-gesture-handler';
 import Animated, { Easing, makeMutable, runOnJS, useAnimatedStyle, useSharedValue, withSpring, withTiming, type SharedValue } from 'react-native-reanimated';
 import { getMarkedUnread, markedExtra, pruneMarkedUnread, setMarkedExtra, setMarkedUnread, showsUnread, useMarkedExtra, useMarkedUnread } from './markedUnread';
-import { ROW_BUTTON, ROW_GAP, SEARCH_PULL, searchPullOpens, archiveSnap, axisLock, fullSwipeDistance, openWidth, pageRelease, openRowSlot, pagePosition, rowActions, rowClaimsSwipe, rowDrag, rowRelease, type RowAction, type RowSupport } from './listSwipes';
+import { ROW_BUTTON, ROW_GAP, SEARCH_PULL, searchPullOpens, archiveSnap, fullSwipeDistance, openWidth, pageRelease, openRowSlot, pagePosition, rowActions, rowClaimsSwipe, rowDrag, rowRelease, type RowAction, type RowSupport } from './listSwipes';
 
 // Telegram: the first row stands ~11 pt below the folder bar; flush against it, the bar's edge fade covered the top of «Избранное».
 const LIST_GAP=10;
@@ -99,16 +99,20 @@ export function ChatListScreen({api,user,store,onProfile,onNewChat,onMusic,onAI,
   const motion=motionEnabled();
   // The list's own width (narrower than the window beside the rail / an open chat), measured on layout.
   const listWidth=useSharedValue(windowSize.width);
-  const folderSwipe=Gesture.Pan().manualActivation(true).enabled(Platform.OS!=='web'&&!archive&&tabIds.length>1)
-    .onTouchesDown((e,manager)=>{const touch=e.changedTouches[0];if(!touch){manager.fail();return;}panStart.value={x:touch.absoluteX,y:touch.absoluteY};})
+  // Both sideways gestures of the list use the pan's own thresholds (sideways by 12–16 pt to start, 10 pt up or down to
+  // give up), decided natively on the UI thread — not manual activation. With the row and the pager both activated
+  // by hand, a finger held on the list and then moved (or a slanted swipe) left the list not scrolling at all on the
+  // iPhone. The touch callbacks below only decline a drag that belongs to the other one, while it is still undecided.
+  const folderSwipe=Gesture.Pan().activeOffsetX([-16,16]).failOffsetY([-10,10]).enabled(Platform.OS!=='web'&&!archive&&tabIds.length>1)
+    .onTouchesDown((e,manager)=>{const touch=e.changedTouches[0];if(!touch||e.numberOfTouches>1){manager.fail();return;}panStart.value={x:touch.absoluteX,y:touch.absoluteY};})
     .onTouchesMove((e,manager)=>{
+      if(e.state===State.ACTIVE)return;
       const touch=e.changedTouches[0];if(!touch)return;
+      const dx=touch.absoluteX-panStart.value.x;if(Math.abs(dx)<3)return;
       // Nothing before «Все» or after the last folder: such a drag is left alone.
-      const lock=axisLock(touch.absoluteX-panStart.value.x,touch.absoluteY-panStart.value.y,folderIndex===0?-1:folderIndex===tabIds.length-1?1:0,14);
+      if((dx>0&&folderIndex===0)||(dx<0&&folderIndex===tabIds.length-1)){manager.fail();return;}
       // On a chat row: from its edge the row's buttons slide out, from the middle the folder turns (rowClaimsSwipe).
-      if(lock==='horizontal'){if(rowTouch.value&&rowClaimsSwipe(rowStart.value.local,rowStart.value.width,touch.absoluteX-panStart.value.x,rowStart.value.open,folderIndex>0,folderIndex<tabIds.length-1))manager.fail();else manager.activate();}
-      // Not clearly sideways: the list scrolls (see the same rule in SwipeRow).
-      else if(lock||Math.abs(touch.absoluteY-panStart.value.y)>10)manager.fail();
+      if(rowTouch.value&&rowClaimsSwipe(rowStart.value.local,rowStart.value.width,dx,rowStart.value.open,folderIndex>0,folderIndex<tabIds.length-1))manager.fail();
     })
     .onUpdate(e=>{folderPos.value=pagePosition(folderIndex,tabIds.length,e.translationX,listWidth.value);listShift.value=motion?e.translationX*0.3:0;})
     .onEnd(e=>{
@@ -394,22 +398,18 @@ function SwipeRow({enabled,unread,pinned,muted,archived,onAction,children}:{enab
   const full=(side:-1|1)=>{const action=side<0?leadRef.current.left:leadRef.current.right;close();if(action)actionRef.current(action);};
   // Activated by hand: a sideways drag is the row's only from its edge (or anywhere when it is open / no folder
   // lies that way); from the middle it is left to the folder pager. Up/down is the list's scroll.
-  const down=useSharedValue({x:0,y:0});const dragging=useSharedValue(0);
-  const pan=Gesture.Pan().enabled(enabled).manualActivation(true)
+  const down=useSharedValue({x:0,y:0});
+  const pan=Gesture.Pan().enabled(enabled).activeOffsetX([-12,12]).failOffsetY([-10,10])
     .onBegin(()=>{rowTouch.value=1;})
-    .onFinalize(()=>{rowTouch.value=0;dragging.value=0;})
+    .onFinalize(()=>{rowTouch.value=0;})
     .onTouchesDown((e,manager)=>{const touch=e.changedTouches[0];if(!touch||e.numberOfTouches>1){manager.fail();return;}down.value={x:touch.absoluteX,y:touch.absoluteY};rowStart.value={local:touch.x,width:rowWidth.value,open:x.value!==0};})
     .onTouchesMove((e,manager)=>{
-      if(dragging.value)return;
+      if(e.state===State.ACTIVE)return;
       const touch=e.changedTouches[0];if(!touch)return;
-      const dx=touch.absoluteX-down.value.x,lock=axisLock(dx,touch.absoluteY-down.value.y,0,12);
-      // Anything that is not clearly sideways is the list's: a slanted swipe (a thumb's arc) used to match neither
-      // rule, the touch stayed held here and the list did not move at all.
-      if(lock==='vertical'||(lock!=='horizontal'&&Math.abs(touch.absoluteY-down.value.y)>10)){manager.fail();return;}
-      if(lock!=='horizontal')return;
-      if(rowClaimsSwipe(rowStart.value.local,rowStart.value.width,dx,rowStart.value.open,(folderWays.value&1)!==0,(folderWays.value&2)!==0)){dragging.value=1;manager.activate();}else manager.fail();
+      const dx=touch.absoluteX-down.value.x;if(Math.abs(dx)<3)return;
+      // From the middle of the row the drag is the folder pager's (see folderSwipe for why this is not manual activation).
+      if(!rowClaimsSwipe(rowStart.value.local,rowStart.value.width,dx,rowStart.value.open,(folderWays.value&1)!==0,(folderWays.value&2)!==0))manager.fail();
     })
-    .onTouchesUp((_e,manager)=>{if(!dragging.value)manager.fail();})
     .onStart(()=>{start.value=x.value;runOnJS(claim)();})
     .onUpdate(e=>{
       const v=rowDrag(start.value+e.translationX,leftOpen,rightOpen,rowWidth.value);x.value=v;
