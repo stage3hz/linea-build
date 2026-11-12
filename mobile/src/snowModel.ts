@@ -54,3 +54,24 @@ export function snowCeiling(i: number, n: number, max: number, seed: number): nu
   const edge = Math.min(1, (Math.min(i, n - 1 - i) + 0.5) * SNOW.COL / SNOW.ROUND);
   return max * (0.55 + 0.45 * lumps) * Math.sqrt(1 - (1 - edge) * (1 - edge));
 }
+
+// ── Phone: where the Dynamic Island / camera cutout is ──────────────────────────────────────────────────────────
+/** The Dynamic Island's size in points. */
+export const ISLAND = { WIDTH: 126, HEIGHT: 37.33, BELOW: 48 } as const;
+/**
+ * The ledge on top of the screen's cutout, in window points, or null when there is none to lie on.
+ *  - iPhone: iOS has no call that returns the island's rectangle, so it is derived from the top safe-area inset:
+ *    phones with the island report 59 pt or more (a notch: 44–50), the island is centred, and its top is the
+ *    inset minus ISLAND.BELOW. Portrait only (in landscape the island is on the side).
+ *  - Android: the system reports the cutout; only a hole or pill clear of the screen's top edge and no wider than
+ *    half the screen holds snow (a wide notch that touches the top edge has no top to lie on).
+ */
+export function islandLedge(os: 'ios' | 'android', width: number, height: number, topInset: number, cutout: { x: number; y: number; width: number; height: number } | null): { x: number; y: number; width: number; height: number; radius: number } | null {
+  if (!(width > 0) || !(height > width)) return null;
+  if (os === 'ios') {
+    if (!(topInset >= 59) || topInset > 70) return null;
+    return { x: (width - ISLAND.WIDTH) / 2, y: topInset - ISLAND.BELOW, width: ISLAND.WIDTH, height: ISLAND.HEIGHT, radius: ISLAND.HEIGHT / 2 };
+  }
+  if (!cutout || !(cutout.width >= 8) || !(cutout.height >= 8) || cutout.width > width / 2 || cutout.y < 2) return null;
+  return { x: cutout.x, y: cutout.y, width: cutout.width, height: cutout.height, radius: Math.min(cutout.width, cutout.height) / 2 };
+}

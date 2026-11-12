@@ -70,3 +70,29 @@ test('the cap is lumpy, never taller than the limit, and rounds down to the ledg
   assert.ok(Math.min(...middle) >= SNOW.MAX * 0.5, 'thick everywhere away from the ends');
   assert.notDeepEqual(heights, Array.from({ length: n }, (_, i) => snowCeiling(i, n, SNOW.MAX, 40)), 'every ledge has its own shape');
 });
+
+test('phone: the island ledge is derived from the top inset; a notch or a wide Android cutout holds no snow', () => {
+  const { islandLedge, ISLAND } = loadTs(new URL('../src/snowModel.ts', import.meta.url), {});
+  const a = islandLedge('ios', 393, 852, 59, null);   // iPhone 14 Pro class
+  assert.ok(a && Math.abs(a.x + a.width / 2 - 393 / 2) < 1e-9, 'centred');
+  assert.equal(a.y, 11); assert.equal(a.width, ISLAND.WIDTH); assert.ok(Math.abs(a.radius - a.height / 2) < 1e-9);
+  assert.equal(islandLedge('ios', 402, 874, 62, null).y, 14);     // iPhone 16 Pro class
+  assert.equal(islandLedge('ios', 390, 844, 47, null), null, 'a notch: nothing to lie on');
+  assert.equal(islandLedge('ios', 375, 667, 20, null), null);
+  assert.equal(islandLedge('ios', 852, 393, 59, null), null, 'landscape');
+  const hole = islandLedge('android', 412, 915, 40, { x: 190, y: 12, width: 32, height: 32 });
+  assert.deepEqual(hole, { x: 190, y: 12, width: 32, height: 32, radius: 16 });
+  assert.equal(islandLedge('android', 412, 915, 40, { x: 100, y: 0, width: 212, height: 30 }), null, 'a notch flush with the top edge');
+  assert.equal(islandLedge('android', 412, 915, 40, { x: 20, y: 10, width: 300, height: 30 }), null, 'wider than half the screen');
+  assert.equal(islandLedge('android', 412, 915, 40, null), null);
+});
+
+test('phone: the snow never takes a touch and is off with the setting; «Поиск» is pulled out, not always shown', () => {
+  const phone = readFileSync(new URL('../src/SnowPhone.tsx', import.meta.url), 'utf8');
+  assert.match(phone, /pointerEvents="none"/);
+  assert.match(phone, /preferences\.snow && motion\.enabled/);
+  const list = readFileSync(new URL('../src/ChatListScreen.tsx', import.meta.url), 'utf8');
+  assert.match(list, /const searchShown=!float\|\|searchPulled;/, 'always shown on the PC and beside the rail');
+  assert.match(list, /const refresh=async\(\)=>\{setSearchPulled\(true\);/, 'pulling the list down at its start brings it out');
+  assert.match(list, /\{searchShown\?<SnowLedge id="chats\.search"/);
+});

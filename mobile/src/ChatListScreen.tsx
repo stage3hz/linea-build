@@ -17,6 +17,7 @@ import { FloatingHeader, TabBarEdge, isWideLayout, useBleed } from './tabInset';
 import { tabBarMarginBottom } from './chatLayout';
 import { Avatar, Bouncy, Button, Empty, Icon, IconButton, Notice } from './components';
 import { GlassSurface } from './glass';
+import { SnowLedge } from './SnowPhone';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { StatusEmoji } from './StatusEmoji';
 import { DecoratedAvatar } from './platina/Decor';
@@ -47,6 +48,8 @@ import { ROW_BUTTON, ROW_GAP, archiveSnap, axisLock, fullSwipeDistance, openWidt
 
 // Telegram: the first row stands ~11 pt below the folder bar; flush against it, the bar's edge fade covered the top of «Избранное».
 const LIST_GAP=10;
+/** How far the list is scrolled from its start before a pulled-out «Поиск» hides again (pt). */
+const SEARCH_HIDE_AFTER=60;
 export type MessengerTab = 'chats' | 'people' | 'channels' | 'music' | 'ai' | 'profile';
 type Navigation = { onProfile:()=>void;onNewChat:()=>void;onMusic:()=>void;onAI:()=>void;onChats:()=>void;activeTab?:MessengerTab };
 
@@ -54,6 +57,13 @@ export function ChatListScreen({api,user,store,onProfile,onNewChat,onMusic,onAI,
   // Tabs float over the list (it scrolls under the blurred bar, like Telegram); the list keeps room for them at the end.
   const [tabsHeight,setTabsHeight]=useState(96);const [headerHeight,setHeaderHeight]=useState(170);const bleed=useBleed();
   const float=!rail&&Platform.OS!=='web';
+  // Phone: «Поиск» is hidden until pulled out; the PC and the tablet rail always show it.
+  const [searchPulled,setSearchPulled]=useState(false);
+  const searchShown=!float||searchPulled;
+  // Hiding «Поиск» lowers the floating header: the list is scrolled back by the same amount so the rows under the
+  // finger stay where they are.
+  const searchDrop=useRef<number|null>(null);const lastHeader=useRef(headerHeight);
+  useEffect(()=>{const delta=lastHeader.current-headerHeight;lastHeader.current=headerHeight;const from=searchDrop.current;if(from===null||delta<=0)return;searchDrop.current=null;const to=Math.max(0,from-delta);listOffset.current=to;listRef.current?.scrollToOffset({offset:to,animated:false});},[headerHeight]);
   const mesh=useMeshActive();
   // Title like Telegram: «Ожидание сети…» → «Соединение…» → «Обновление…» → «Чаты».
   const title=titleState({connection:store.connection,online:store.online,updating:store.updating,mesh});
@@ -129,7 +139,7 @@ export function ChatListScreen({api,user,store,onProfile,onNewChat,onMusic,onAI,
   const rowActionsRef=useRef<RowActions>(null as unknown as RowActions);rowActionsRef.current={editing:!!editing,swipe:(chat,action)=>{switch(action){case 'read':readChat(chat);break;case 'unread':markUnread(chat);break;case 'pin':case 'unpin':change(chat,{pinned:action==='pin'});break;case 'mute':case 'unmute':askMute([chat]);break;case 'delete':setRemoveAsk([chat]);break;case 'archive':case 'unarchive':change(chat,{archived:action==='archive'});break;}},toggleEdit,select:chat=>store.selectChat(chat),menu:(chat,y,x)=>{impactFeedback();setMenu({chat,y,x});}};
   const selectedChats=editing?chats.filter(c=>editing.has(c.id)):[];
   const bulk=(fn:(chat:Chat)=>void)=>{const list=selectedChats.length?selectedChats:chats;list.forEach(fn);setEditing(null);lightFeedback();};
-  const refresh=async()=>{setRefreshing(true);await store.refreshChats();setRefreshing(false);};
+  const refresh=async()=>{setSearchPulled(true);setRefreshing(true);await store.refreshChats();setRefreshing(false);};
   // Telegram keeps «Архив» above the first chat, out of sight until the list is pulled down: the list
   // opens scrolled just past it (its content is made at least that much taller than the screen) and a
   // drag that ends with it half shown settles open or shut. A further pull still refreshes.
@@ -152,19 +162,23 @@ export function ChatListScreen({api,user,store,onProfile,onNewChat,onMusic,onAI,
   const lastFilter=useRef(filter);if(lastFilter.current!==filter){lastFilter.current=filter;listOffset.current=0;}
   useEffect(()=>{if(archiveRow&&listMounted){hideArchive.current=true;tryHideRef.current();}},[archiveRow,listMounted]);
   useEffect(()=>{tryHideRef.current();},[archiveH,listH]);
-  const settleArchive=(y:number)=>{listOffset.current=y;if(!archiveRow||hideArchive.current)return;const to=archiveSnap(y,archiveH);if(to!==null){listOffset.current=to;listRef.current?.scrollToOffset({offset:to,animated:motion});}};
+  const settleArchive=(y:number)=>{listOffset.current=y;if(searchPulled&&y>(archiveRow?archiveH:0)+SEARCH_HIDE_AFTER){searchDrop.current=y;setSearchPulled(false);}if(!archiveRow||hideArchive.current)return;const to=archiveSnap(y,archiveH);if(to!==null){listOffset.current=to;listRef.current?.scrollToOffset({offset:to,animated:motion});}};
   if(searching)return <View style={{flex:1,backgroundColor:'transparent'}}><ChatSearch api={api} me={user} store={store} onClose={()=>setSearching(false)} onSaved={onSaved}/></View>;
   const header=<>
     {/* Telegram header: «Изм.» · title with connection state · AI and «new chat» buttons. */}
     <View style={{flexDirection:'row',alignItems:'center',gap:8,paddingHorizontal:16,paddingTop:6,paddingBottom:10}}>
-      <Bouncy scaleTo={.88} onPress={()=>{lightFeedback();setEditing(current=>current?null:new Set());}} accessibilityRole="button" hitSlop={6}><GlassSurface material="regular" radius={22} interactive contentStyle={{height:44,paddingHorizontal:16,justifyContent:'center'}}><Text style={{color:t.text,fontSize:16,fontWeight:'600'}}>{editing?'Готово':'Изм.'}</Text></GlassSurface></Bouncy>
+      <SnowLedge id="chats.edit" radius={22}><Bouncy scaleTo={.88} onPress={()=>{lightFeedback();setEditing(current=>current?null:new Set());}} accessibilityRole="button" hitSlop={6}><GlassSurface material="regular" radius={22} interactive contentStyle={{height:44,paddingHorizontal:16,justifyContent:'center'}}><Text style={{color:t.text,fontSize:16,fontWeight:'600'}}>{editing?'Готово':'Изм.'}</Text></GlassSurface></Bouncy></SnowLedge>
       <View style={{flex:1,alignItems:'center'}}>{title==='chats'?<Text style={{color:t.text,fontSize:17,fontWeight:'700'}}>Чаты</Text>:title==='mesh'?<View accessibilityLabel="Связь через Mesh, без интернета" style={{flexDirection:'row',alignItems:'center',gap:6}}><Icon name="bluetooth" size={16} color={t.accent}/><Text style={{color:t.text,fontSize:17,fontWeight:'700'}}>Mesh</Text></View>:<View style={{flexDirection:'row',alignItems:'center',gap:6}}><ActivityIndicator size="small" color={t.muted}/><Text style={{color:t.text,fontSize:15,fontWeight:'600'}}>{TITLE_TEXT[title]}</Text></View>}</View>
-      <Bouncy scaleTo={.84} onPress={onQuickAI} accessibilityRole="button" accessibilityLabel="Быстрый вопрос AI" hitSlop={6}><GlassSurface material="regular" radius={22} interactive contentStyle={{width:44,height:44,alignItems:'center',justifyContent:'center'}}><Icon name="sparkles-outline" size={20} color={t.text}/></GlassSurface></Bouncy>
-      <Bouncy scaleTo={.84} onPress={onNewChat} accessibilityRole="button" accessibilityLabel="Новый чат" hitSlop={6} style={{width:44,height:44,borderRadius:22,backgroundColor:t.accent,alignItems:'center',justifyContent:'center'}}><Icon name="create-outline" size={20} color={t.onAccent}/></Bouncy>
+      <SnowLedge id="chats.ai" radius={22} max={4}><Bouncy scaleTo={.84} onPress={onQuickAI} accessibilityRole="button" accessibilityLabel="Быстрый вопрос AI" hitSlop={6}><GlassSurface material="regular" radius={22} interactive contentStyle={{width:44,height:44,alignItems:'center',justifyContent:'center'}}><Icon name="sparkles-outline" size={20} color={t.text}/></GlassSurface></Bouncy></SnowLedge>
+      <SnowLedge id="chats.new" radius={22} max={4}><Bouncy scaleTo={.84} onPress={onNewChat} accessibilityRole="button" accessibilityLabel="Новый чат" hitSlop={6} style={{width:44,height:44,borderRadius:22,backgroundColor:t.accent,alignItems:'center',justifyContent:'center'}}><Icon name="create-outline" size={20} color={t.onAccent}/></Bouncy></SnowLedge>
     </View>
+    {/* «Поиск» stays out of sight on the phone until the list, already at its start, is pulled down again (the
+        pull-to-refresh gesture); it hides again once the list is scrolled away from the start. */}
+    {searchShown?<SnowLedge id="chats.search" radius={22} inset={{left:16,right:16,bottom:10}}>
     <GlassSurface systemGlass={false} lens material="regular" radius={22} shadow={false} style={{marginHorizontal:16,marginBottom:10}} contentStyle={{flexDirection:'row',alignItems:'center',gap:8,paddingHorizontal:14,minHeight:44,borderRadius:22,backgroundColor:t.dark?'rgba(255,255,255,0.07)':'rgba(110,122,148,0.13)'}}>
-      <Pressable onPress={()=>{lightFeedback();setSearching(true);}} accessibilityRole="search" accessibilityLabel="Поиск" style={{flex:1,flexDirection:'row',alignItems:'center',gap:8,minHeight:44}}><Icon name="search-outline" color={t.muted} size={19}/><Text style={{flex:1,fontSize:17,color:t.muted}}>Поиск</Text></Pressable>
-    </GlassSurface>
+        <Pressable onPress={()=>{lightFeedback();setSearching(true);}} accessibilityRole="search" accessibilityLabel="Поиск" style={{flex:1,flexDirection:'row',alignItems:'center',gap:8,minHeight:44}}><Icon name="search-outline" color={t.muted} size={19}/><Text style={{flex:1,fontSize:17,color:t.muted}}>Поиск</Text></Pressable>
+      </GlassSurface>
+    </SnowLedge>:null}
     {/* F8: friends' stories above the chats (hidden while nobody has one); not in the archive or while editing. */}
     {!archive&&!editing?<StoriesStrip api={api} user={user} store={store}/>:null}
     {!archive&&folders.folders.length?<FolderTabs position={folderPos} folders={folders.folders} filter={filter} unread={unread} onChange={setFilter} onCreate={()=>setEditor({folder:null})} onEdit={folder=>setEditor({folder})}/>:null}
@@ -206,7 +220,7 @@ export function MessengerTabs({onProfile,onNewChat,onMusic,onAI,onChats,activeTa
   const t=useTheme();const insets=useSafeAreaInsets();const tabBadges:Record<string,number>=useTabBadges(useUnreadTotal()+useMarkedExtra());
   const narrow=useWindowDimensions().width<350; // e.g. 320 pt phones, a folded Galaxy Fold cover screen
   // The music screen shows its own player above the same tab bar; everywhere else it sits here, above the tabs.
-  return <><VoiceBar onOpen={communityId=>navigate({to:'channels',communityId})}/>{activeTab!=='music'?<MiniPlayer onOpen={onMusic}/>:null}<GlassSurface systemGlass={false} material="regular" radius={31} style={{marginHorizontal:narrow?8:12,marginBottom:tabBarMarginBottom(Platform.OS==='ios',insets.bottom),marginTop:5}} contentStyle={{paddingHorizontal:3.6,paddingVertical:3}}>{/* 3.6 at the ends: the pill of the first and last tab then sits as far from the bar's end as from its top and bottom (6.6 pt), concentric with the bar's rounded ends (simulator: 5 pt vs 6.7 pt with 2) */}
+  return <><VoiceBar onOpen={communityId=>navigate({to:'channels',communityId})}/>{activeTab!=='music'?<MiniPlayer onOpen={onMusic}/>:null}<SnowLedge id="tabs" radius={31} max={7} inset={{left:narrow?8:12,right:narrow?8:12,top:5,bottom:tabBarMarginBottom(Platform.OS==='ios',insets.bottom)}}><GlassSurface systemGlass={false} material="regular" radius={31} style={{marginHorizontal:narrow?8:12,marginBottom:tabBarMarginBottom(Platform.OS==='ios',insets.bottom),marginTop:5}} contentStyle={{paddingHorizontal:3.6,paddingVertical:3}}>{/* 3.6 at the ends: the pill of the first and last tab then sits as far from the bar's end as from its top and bottom (6.6 pt), concentric with the bar's rounded ends (simulator: 5 pt vs 6.7 pt with 2) */}
     {/* «Люди» and «Каналы» share one slot (swipe up on it to switch, remembered); five tabs, each with its own tap animation. */}
     <TabBar active={activeTab==='people'?'people':activeTab==='channels'?'channels':activeTab==='profile'?'profile':activeTab==='music'?'music':activeTab==='ai'?'ai':'chats'} items={[
       {id:'ai',label:'AI',icon:'sparkles-outline',activeIcon:'sparkles',badge:0,onPress:onAI},
@@ -216,7 +230,7 @@ export function MessengerTabs({onProfile,onNewChat,onMusic,onAI,onChats,activeTa
       {id:'music',label:'Музыка',icon:'headset-outline',activeIcon:'headset',badge:0,onPress:onMusic},
       {id:'profile',label:'Настройки',icon:'settings-outline',activeIcon:'settings',badge:0,onPress:onProfile},
     ]}/>
-  </GlassSurface></>;
+  </GlassSurface></SnowLedge></>;
 }
 
 /** The list shows an invite as words, as the chat shows it as a card (not the raw https://…/i/… link). */

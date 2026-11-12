@@ -1,0 +1,8 @@
+{
+  "name": "linea-snow",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Snow on the phone: a passthrough overlay with falling snow, caps on ledges, rime on glass; melts with the device's thermal state",
+  "license": "AGPL-3.0-only",
+  "main": "index.ts"
+}
