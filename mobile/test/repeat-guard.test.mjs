@@ -46,20 +46,24 @@ test('after the limit the next message is held from its second copy, and the wai
   for (const text of ['раз', 'два', 'три', 'четыре']) assert.equal(repeatWait('s', text, now += 10), 0);
 });
 
-test('four hours after the last held copy everything is back to the start', () => {
+test('four hours after the limit was first reached everything is back to the start, whatever was sent since', () => {
   let now = 40_000_000;
   for (let i = 0; i < 5; i++) assert.equal(repeatWait('r', 'спам', now += 10), 0);
-  assert.equal(repeatWait('r', 'спам', now += 10_000), 0);
-  const heldAt = now;
+  assert.equal(repeatWait('r', 'спам', now += 10_000), 0, 'the first held copy: the four hours start here');
+  const first = now;
+  // Three hours later the spam goes on: still strict, the wait still grows — and the four hours are NOT extended.
+  now = first + 3 * 3_600_000;
   assert.equal(repeatWait('r', 'иное', now += 10), 0);
-  now = heldAt + REPEAT_RESET_MS - 1;
-  assert.ok(repeatWait('r', 'иное', now) === 0, 'long past its 15 s');
-  assert.equal(repeatWait('r', 'ещё', now += 0), 0);
-  assert.ok(repeatWait('r', 'ещё', now += 100) > 0, 'one millisecond short of four hours after… the copy just sent: still strict');
-  // The strict period runs from the last held copy; left alone for four hours, it ends.
-  now += REPEAT_RESET_MS;
-  for (let i = 0; i < 5; i++) assert.equal(repeatWait('r', 'ещё', now += 10), 0, 'five in a row again');
+  assert.equal(repeatWait('r', 'иное', now += 1_000), 14);
+  assert.equal(repeatWait('r', 'иное', now += 14_000), 0, 'a held copy three hours in');
+  now = first + REPEAT_RESET_MS - 1;
+  assert.equal(repeatWait('r', 'ещё', now), 0);
+  assert.ok(repeatWait('r', 'ещё', now) > 0, 'one millisecond short of four hours: still strict');
+  now = first + REPEAT_RESET_MS;
+  for (let i = 0; i < 4; i++) assert.equal(repeatWait('r', 'ещё', now += 10), 0, 'five in a row again (one was sent a moment ago… as a new run)');
+  assert.equal(repeatWait('r', 'ещё', now += 10), 0);
   assert.equal(repeatWait('r', 'ещё', now += 1_000), 9, 'and the wait starts from 10 s');
+  assert.deepEqual(checkRepeat({ key: 'x', count: 1, lastAt: 500, level: 2, heldAt: 100 }, 'x', 30_000), { allowed: true, state: { key: 'x', count: 2, lastAt: 30_000, level: 3, heldAt: 100 } }, 'a later held copy keeps the first one\'s time');
 });
 
 test('each chat has its own count', () => {

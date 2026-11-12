@@ -5,7 +5,8 @@
 //  - Once that limit has been reached the chat is «strict»: the NEXT messages are held too — any text may be sent
 //    once, its second copy already waits, and the wait keeps growing from where it stopped (it does not start again
 //    at 10 s for a new text).
-//  - REPEAT_RESET_MS (4 hours) after the last held copy went out, everything is back to the start.
+//  - REPEAT_RESET_MS (4 hours) after the limit was first reached (the first held copy), everything is back to the
+//    start — whatever was sent in between.
 // «The same»: compared without case, and with runs of spaces and line breaks taken as one space.
 //
 // Private chats are end-to-end encrypted — the server cannot see what is repeated, so there this rule is kept by
@@ -17,7 +18,7 @@ export const REPEAT_STEP_MS = 5_000;
 export const REPEAT_RESET_MS = 4 * 60 * 60_000;
 
 /** `count`: copies of `key` sent in a row, the last at `lastAt`. `level`: held copies sent so far (each adds a step
- *  to the wait), the last at `heldAt`; above zero the chat is strict. */
+ *  to the wait), the first of them at `heldAt`; above zero the chat is strict. */
 export type RepeatState = { key: string; count: number; lastAt: number; level: number; heldAt: number };
 export type RepeatVerdict = { allowed: true; state: RepeatState } | { allowed: false; waitMs: number };
 
@@ -26,13 +27,13 @@ export const repeatKey = (text: string) => text.normalize('NFKC').toLowerCase().
 /** Whether `text` may be sent now, given what was sent to this chat before (`state`, null at first). */
 export function checkRepeat(state: RepeatState | null | undefined, text: string, now: number): RepeatVerdict {
   const key = repeatKey(text);
-  // Four hours after the last held copy the strictness is gone; without any, a run is forgotten after as long.
+  // Four hours after the first held copy the strictness is gone; without any, a run is forgotten after as long.
   const expired = !state || now - (state.level > 0 ? state.heldAt : state.lastAt) >= REPEAT_RESET_MS;
   const level = expired ? 0 : state!.level, heldAt = expired ? 0 : state!.heldAt;
   if (!key || expired || state!.key !== key) return { allowed: true, state: { key, count: key ? 1 : 0, lastAt: now, level, heldAt } };
   if (state!.count < (level > 0 ? 1 : REPEAT_FREE)) return { allowed: true, state: { key, count: state!.count + 1, lastAt: now, level, heldAt } };
   const need = REPEAT_WAIT_MS + REPEAT_STEP_MS * level, waited = now - state!.lastAt;
-  return waited >= need ? { allowed: true, state: { key, count: state!.count + 1, lastAt: now, level: level + 1, heldAt: now } } : { allowed: false, waitMs: need - waited };
+  return waited >= need ? { allowed: true, state: { key, count: state!.count + 1, lastAt: now, level: level + 1, heldAt: level > 0 ? heldAt : now } } : { allowed: false, waitMs: need - waited };
 }
 
 const chats = new Map<string, RepeatState>();

@@ -4,7 +4,8 @@
 //    previous one and REPEAT_STEP_MS (5 s) longer each time;
 //  - once that limit was reached the sender is «strict» there: any next text goes once, its second copy already
 //    waits, and the wait keeps growing from where it stopped;
-//  - REPEAT_RESET_MS (4 hours) after the last held copy went out, everything is back to the start.
+//  - REPEAT_RESET_MS (4 hours) after the limit was first reached (the first held copy), everything is back to the
+//    start — whatever was sent in between.
 // Kept in memory: a restart forgets it.
 export const REPEAT_FREE = 5;
 export const REPEAT_WAIT_MS = 10_000;
@@ -31,7 +32,7 @@ export function createRepeatGuard(now = () => Date.now()) {
       if (state.count < (level > 0 ? 1 : REPEAT_FREE)) { state.count += 1; state.lastAt = time; return 0; }
       const need = REPEAT_WAIT_MS + REPEAT_STEP_MS * level, waited = time - state.lastAt;
       if (waited < need) return need - waited;
-      state.count += 1; state.lastAt = time; state.level = level + 1; state.heldAt = time;
+      state.count += 1; state.lastAt = time; state.level = level + 1; if (level === 0) state.heldAt = time;
       return 0;
     },
   };
