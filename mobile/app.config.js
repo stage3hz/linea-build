@@ -125,7 +125,9 @@ module.exports = {
       }],
       // libsignal ships a second, test-only copy of its native library (11 MB). Its loader tries that copy first and
       // falls back to the real one (org.signal.libsignal.internal.Native.loadNativeCode), so the app works without it.
-      ['expo-build-properties', { android: { usesCleartextTraffic: allowDevelopmentHttp, packagingOptions: { exclude: ['**/libsignal_jni_testing.so'] } }, ios: { useFrameworks: 'static' } }],
+      // `useLegacyPackaging`: the native libraries (over half of the APK) are stored compressed. The file to download
+      // is far smaller; Android unpacks them at install, so the installed app takes somewhat more room.
+      ['expo-build-properties', { android: { usesCleartextTraffic: allowDevelopmentHttp, useLegacyPackaging: true, packagingOptions: { exclude: ['**/libsignal_jni_testing.so'] } }, ios: { useFrameworks: 'static' } }],
       // Alternate app icons (Настройки → Оформление → Иконка приложения).
       ['expo-alternate-app-icons', [
         { name: 'Light', ios: './assets/icons/light.png', android: { foregroundImage: './assets/icons/light-android.png', backgroundColor: '#F5F4F9' } },
