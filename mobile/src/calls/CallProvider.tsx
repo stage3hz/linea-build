@@ -8,6 +8,7 @@ import React, { createContext, useCallback, useContext, useEffect, useRef, useSt
 import { playCallSound, stopCallSound } from './callSounds';
 import { Modal, PermissionsAndroid, Platform, Pressable, StyleSheet, Vibration, View, useWindowDimensions } from 'react-native';
 import * as Crypto from 'expo-crypto';
+import { CallAudioPanel, callAudioChoice, resetCallAudio } from './CallAudioPanel';
 import { MusicAmbient } from '../music/MusicAmbient';
 import { LinearGradient } from 'expo-linear-gradient';
 import { Image as BlurImage } from 'expo-image';
@@ -176,6 +177,7 @@ export function CallProvider({ api, store, me, children }: { api: Api; store: Me
     if (ringTimer.current) clearTimeout(ringTimer.current);
     stopCallSound();
     try { inCall.current?.stopRingtone?.(); inCall.current?.stop?.(); } catch { /* optional */ }
+    resetCallAudio(); // the next call starts on the system's own microphone again
     Vibration.cancel();
     try { local.current?.getTracks().forEach((track: any) => track.stop()); } catch { /* released */ }
     try { pc.current?.close(); } catch { /* closed */ }
@@ -521,6 +523,8 @@ function CallButton({ icon, label, onPress, active = false, color }: { icon: Ico
 function CallScreen({ call, api, rtc, network, hangup, accept, mute, speaker, camera, flip, minimize, retry, close }: { call: CallState; api: Api; rtc: WebRTC | null; network: SignalNetwork; hangup: () => void; accept: () => void; mute: () => void; speaker: () => void; camera: () => void; flip: () => void; minimize: () => void; restore?: () => void; retry: () => void; close: () => void }) {
   const insets = useSafeAreaInsets(); const { width, height } = useWindowDimensions(); const t = useTheme();
   const [, tick] = useState(0);
+  // «Звук»: the microphone and the output of this call (CallAudioPanel.tsx); phones only.
+  const [audioOpen, setAudioOpen] = useState(false); const audioChoice = callAudioChoice();
   useEffect(() => { if (call.status !== 'active') return; const timer = setInterval(() => tick(v => v + 1), 1000); return () => clearInterval(timer); }, [call.status]);
   const clock = callClock(Date.now() - (call.startedAt || Date.now()));
   const reconnecting = call.status === 'active' && !!call.reconnecting;
@@ -561,13 +565,14 @@ function CallScreen({ call, api, rtc, network, hangup, accept, mute, speaker, ca
         <CallButton icon="close" label="Закрыть" onPress={close} />
         <CallButton icon={call.video ? 'videocam' : 'call'} label="Повторить" onPress={retry} color="#34C759" />
       </View> : null) : <View style={{ flexDirection: 'row', justifyContent: 'space-around', paddingHorizontal: 8 }}>
-        <CallButton icon="volume-high" label="Динамик" onPress={speaker} active={call.speaker} />
+        <CallButton icon="volume-high" label={audioChoice ? 'Звук' : 'Динамик'} onPress={audioChoice ? () => setAudioOpen(true) : speaker} active={call.speaker} />
         <CallButton icon={call.video && !call.cameraOff ? 'videocam' : 'videocam-off'} label="Видео" onPress={camera} active={call.video && !call.cameraOff} />
         {call.video && !call.cameraOff ? <CallButton icon="camera-reverse" label="Повернуть" onPress={flip} /> : null}
         <CallButton icon={call.muted ? 'mic-off' : 'mic'} label={call.muted ? 'Звук выкл' : 'Убрать звук'} onPress={mute} active={call.muted} />
         <CallButton icon="close" label="Завершить" onPress={hangup} color="#FF3B30" />
       </View>}
     </View>
+    {audioOpen && call.status !== 'ended' && call.status !== 'incoming' ? <CallAudioPanel inCall={loadInCall()} speakerOn={call.speaker} onSpeaker={speaker} onClose={() => setAudioOpen(false)} /> : null}
     </SwipeDismissView></GestureHandlerRootView>
   </Modal>;
 }

@@ -1,4 +1,5 @@
 import AVFoundation
+import AVKit
 import CallKit
 import ExpoModulesCore
 import UIKit
@@ -95,9 +96,26 @@ public final class LineCallModule: Module {
     names.removeValue(forKey: uuid); video.removeValue(forKey: uuid); connected.remove(uuid)
   }
 
+  private var routeObserver: NSObjectProtocol?
+
   public func definition() -> ModuleDefinition {
     Name("LineaCall")
-    Events("end", "mute", "audio", "open")
+    Events("end", "mute", "audio", "open", "route")
+
+    // ---- The call's microphone and output (CallAudio below) ----
+    OnStartObserving {
+      self.routeObserver = NotificationCenter.default.addObserver(forName: AVAudioSession.routeChangeNotification, object: nil, queue: .main) { [weak self] _ in
+        CallAudio.keepChosenInput()
+        self?.sendEvent("route", [:])
+      }
+    }
+    OnStopObserving {
+      if let observer = self.routeObserver { NotificationCenter.default.removeObserver(observer) }
+      self.routeObserver = nil
+    }
+    Function("audioRoute") { () -> [String: Any] in CallAudio.route() }
+    AsyncFunction("setAudioInput") { (uid: String?) -> Bool in CallAudio.setInput(uid) }.runOnQueue(.main)
+    AsyncFunction("showOutputPicker") { () -> Bool in CallAudio.showOutputPicker() }.runOnQueue(.main)
 
     Function("supported") { () -> Bool in LineCallModule.allowed }
 
@@ -145,5 +163,66 @@ public final class LineCallModule: Module {
       self.calls.removeAll()
       self.provider?.invalidate()
     }
+  }
+}
+
+/// The microphone and the output of a call, chosen by the user (звонок › «Звук»).
+/// By default iOS routes the call itself: connected headphones take both the sound and the microphone. Here the user
+/// may pick another microphone (the phone's own while the sound stays in Bluetooth headphones — iOS then plays to
+/// them over A2DP), and open the system's list of outputs.
+enum CallAudio {
+  /// The microphone the user chose (a port uid), or nil for the system's choice. Kept for the life of the app run.
+  static var chosen: String?
+
+  private static func describe(_ port: AVAudioSessionPortDescription) -> [String: String] {
+    return ["id": port.uid, "name": port.portName, "kind": port.portType.rawValue]
+  }
+
+  static func route() -> [String: Any] {
+    let session = AVAudioSession.sharedInstance()
+    var result: [String: Any] = ["inputs": (session.availableInputs ?? []).map(describe)]
+    if let input = session.currentRoute.inputs.first { result["input"] = describe(input) }
+    if let output = session.currentRoute.outputs.first { result["output"] = describe(output) }
+    if let uid = chosen { result["chosen"] = uid }
+    return result
+  }
+
+  /// nil: back to the system's choice. False when the microphone is not available (any more).
+  static func setInput(_ uid: String?) -> Bool {
+    let session = AVAudioSession.sharedInstance()
+    guard let uid = uid else {
+      chosen = nil
+      return (try? session.setPreferredInput(nil)) != nil
+    }
+    guard let port = (session.availableInputs ?? []).first(where: { $0.uid == uid }) else { return false }
+    chosen = uid
+    return (try? session.setPreferredInput(port)) != nil
+  }
+
+  /// The route changed (headphones connected, the call's audio was set up again): the chosen microphone is asked
+  /// for again if the system moved away from it and it is still there.
+  static func keepChosenInput() {
+    guard let uid = chosen else { return }
+    let session = AVAudioSession.sharedInstance()
+    guard session.currentRoute.inputs.first?.uid != uid else { return }
+    guard let port = (session.availableInputs ?? []).first(where: { $0.uid == uid }) else { return }
+    try? session.setPreferredInput(port)
+  }
+
+  /// The system's own list of outputs (the phone, the speaker, AirPods, a car…): the only way iOS lets an app offer
+  /// them all. The picker view is put in the window out of sight and its button is pressed for the user.
+  static func showOutputPicker() -> Bool {
+    let scenes = UIApplication.shared.connectedScenes.compactMap { $0 as? UIWindowScene }
+    guard let scene = scenes.first(where: { $0.activationState == .foregroundActive }) ?? scenes.first else { return false }
+    guard let window = scene.windows.first(where: { $0.isKeyWindow }) ?? scene.windows.first else { return false }
+    let picker = AVRoutePickerView(frame: CGRect(x: -10, y: -10, width: 1, height: 1))
+    picker.alpha = 0.01
+    window.addSubview(picker)
+    var pressed = false
+    for view in picker.subviews {
+      if let button = view as? UIButton { button.sendActions(for: .touchUpInside); pressed = true }
+    }
+    DispatchQueue.main.asyncAfter(deadline: .now() + 2) { picker.removeFromSuperview() }
+    return pressed
   }
 }

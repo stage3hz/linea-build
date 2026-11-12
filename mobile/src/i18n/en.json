@@ -2847,5 +2847,14 @@
 "Нравится, оставляю": "I like it, keeping it",
 "Кнопка": "Button",
 "Двигай фото пальцем, масштаб — двумя": "Drag the photo with a finger, zoom with two",
-"Цвет действует поверх любой темы. Если он плохо читается на её фоне, приложение слегка сдвигает его, чтобы текст оставался разборчивым.": "The colour applies over any theme. If it reads poorly on the theme's background, the app shifts it slightly so that text stays legible."
+"Цвет действует поверх любой темы. Если он плохо читается на её фоне, приложение слегка сдвигает его, чтобы текст оставался разборчивым.": "The colour applies over any theme. If it reads poorly on the theme's background, the app shifts it slightly so that text stays legible.",
+"Динамики": "Speakers",
+"Громкий динамик": "Loudspeaker",
+"Другое устройство…": "Another device…",
+"Наушники, телефон, колонка — список системы": "Headphones, phone, speaker — the system's list",
+"Устройство звука": "Audio device",
+"Микрофон телефона": "Phone microphone",
+"Проводные наушники": "Wired headphones",
+"Bluetooth-наушники": "Bluetooth headphones",
+"На Android звук и микрофон идут через одно устройство: система не даёт приложению разделить их в звонке.": "On Android the sound and the microphone go through one device: the system does not let an app split them in a call."
 }
