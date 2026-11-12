@@ -31,6 +31,7 @@ import { StackBase, StackScreen } from './stack';
 import { currentEndpoint } from './servers/pool';
 import { FloatingHeader, useBleed, useTabInset } from './tabInset';
 import { WallpaperPicker } from './WallpaperPicker';
+import { ColorSettings } from './ColorSettings';
 import { DecoratedAvatar, ProfileBanner } from './platina/Decor';
 import { PlatinaGem, PlatinaName, PlatinaSeal, hasPlatina, openPlatinaShowcase } from './platina/PlatinaMark';
 import { usePlatina } from './platina/usePlatina';
@@ -255,6 +256,7 @@ function Appearance({ api, user, theme, darkTheme, nightState = DAY_STATE, onThe
       <Item icon="moon" color="#5856D6" label="Ночная тема" value={NIGHT_LABELS[effectiveNightMode({ mode: preferences.nightMode, from: preferences.nightFrom, to: preferences.nightTo, brightness: preferences.nightBrightness }, theme, Platform.OS)]} onPress={() => open?.('night')} />
     </Group>
     {Platform.OS === 'ios' ? <Group label="Иконка приложения"><AppIconPicker /></Group> : null}
+    <Group label="Свои цвета"><ColorSettings /></Group>
     <Group><Toggle label="Пиксельный след" description="Сетка пикселей подсвечивается под пальцем и курсором: белая в тёмной теме, чёрная в светлой" value={preferences.pixelTrail} onChange={value => setChatPreferences({ pixelTrail: value })} /></Group>
     <Group><Toggle label="Снег" description={Platform.OS === 'web' ? 'Снег падает в окне, ложится на сообщения, панели и верх окна; курсор его смахивает' : 'Снег падает и ложится на кнопки и панели; нажатие стряхивает его, а когда телефон нагревается — он тает'} value={preferences.snow} onChange={value => setChatPreferences({ snow: value })} /></Group>
     {Platform.OS === 'web' ? null : <Group><Toggle label="Ледяное стекло" description="Иней по кромке стеклянных кнопок, панелей и карточек; тает, когда телефон нагревается" value={preferences.ice} onChange={value => setChatPreferences({ ice: value })} /></Group>}

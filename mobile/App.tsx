@@ -35,6 +35,8 @@ import { NewLoginNotice } from './src/NewLoginNotice';
 import { Button, Empty, Icon, Logo, Notice, Sheet, SheetAction } from './src/components';
 import { clearServer, normalizeServer, readCachedUser, readDarkTheme, readServer, readTheme, readToken, writeCachedUser, writeDarkTheme, writeServer, writeTheme, writeToken } from './src/storage';
 import { ThemeContext, palette, useTheme } from './src/theme';
+import { customTheme } from './src/themes/custom';
+import { useChatPreferences } from './src/chatPreferences';
 import type { DarkTheme, Session, ThemeMode, User } from './src/types';
 import {resolveTheme,withPlatina,themeFor} from './src/themePreference';
 import { useNightState, type NightState } from './src/nightTheme';
@@ -90,7 +92,9 @@ export default function App() {
   const knownPlatina=useKnownPlatina(session?.user.id??null);const platina=!!session&&(knownPlatina??hasPlatina(session.user));
   const shownMode=withPlatina(mode,platina) as ThemeMode,shownDark=withPlatina(darkTheme,platina) as DarkTheme;
   // Night theme (schedule, brightness, system or by hand) over the chosen day theme.
-  const nightState=useNightState(shownMode);const {night}=nightState;const theme=palette[themeFor(shownMode,shownDark,night)];
+  const nightState=useNightState(shownMode);const {night}=nightState;const preferences=useChatPreferences();
+  // «Свои цвета»: the user's accent and message colours over the theme that is on (themes/custom.ts).
+  const theme=useMemo(()=>customTheme(palette[themeFor(shownMode,shownDark,night)],preferences.accentColor,preferences.bubbleColor),[shownMode,shownDark,night,preferences.accentColor,preferences.bubbleColor]);
   const api=useMemo(()=>new Api(server||'',session?.token),[server,session?.token]);
   // SoundCloud is fetched through our server, so it needs the signed-in session (guests get Audius only).
   useEffect(()=>{setSoundCloudApi(session?.token&&server?api:null);},[api,session?.token,server]);

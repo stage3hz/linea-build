@@ -2815,7 +2815,6 @@
 "Собеседник": "Contact",
 "Вернуться к звонку": "Return to the call",
 "Пиксельный след": "Pixel trail",
-"Снег": "Snow",
 "Снег падает в окне, ложится на сообщения, панели и верх окна; курсор его смахивает": "Snow falls in the window and settles on messages, bars and the top of the window; the cursor sweeps it off",
 "Сетка пикселей подсвечивается под пальцем и курсором: белая в тёмной теме, чёрная в светлой": "A pixel grid lights up under your finger and cursor: white in a dark theme, black in a light one",
 "секунд": "seconds",
@@ -2834,5 +2833,19 @@
 "Исходный размер": "Original size",
 "Окно не открылось": "The window did not open",
 "Скрыть управление": "Hide controls",
-"Показать управление": "Show controls"
+"Показать управление": "Show controls",
+"Свои цвета": "Custom colours",
+"Цвет интерфейса": "Interface colour",
+"Цвет своих сообщений": "Colour of my messages",
+"Как в теме": "As in the theme",
+"Свой цвет": "Custom colour",
+"Свой": "Custom",
+"Оттенок": "Hue",
+"Насыщенность": "Saturation",
+"Яркость": "Brightness",
+"Как тебе новый цвет?": "How do you like the new colour?",
+"Нравится, оставляю": "I like it, keeping it",
+"Кнопка": "Button",
+"Двигай фото пальцем, масштаб — двумя": "Drag the photo with a finger, zoom with two",
+"Цвет действует поверх любой темы. Если он плохо читается на её фоне, приложение слегка сдвигает его, чтобы текст оставался разборчивым.": "The colour applies over any theme. If it reads poorly on the theme's background, the app shifts it slightly so that text stays legible."
 }
