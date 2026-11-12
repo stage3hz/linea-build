@@ -13,6 +13,7 @@ import { useTheme } from './theme';
 import { WALLPAPERS } from './chatPreferences';
 import { keepPicture, setWallpaper, useWallpaper, type WallpaperChoice } from './wallpapers';
 import { useMotion } from './motion';
+import { SnowBackLayer } from './SnowPhone';
 import { PixelTrailLayer } from './PixelTrail';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import { SwipeDismissView, useSwipeDismiss } from './swipeDismiss';
@@ -28,13 +29,13 @@ export function ChatWallpaper({ choice, style, trail = false }: { choice: Wallpa
     // The presets are all dark gradients: white tiles whatever the theme.
     return <View pointerEvents="none" style={[StyleSheet.absoluteFill, style]}>
       <LinearGradient pointerEvents="none" colors={colors as unknown as [string, string, string]} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={StyleSheet.absoluteFill} />
-      {trail ? <PixelTrailLayer ink="#FFFFFF" /> : null}
+      {trail ? <><PixelTrailLayer ink="#FFFFFF" /><SnowBackLayer/></> : null}
     </View>;
   }
   return <View pointerEvents="none" style={[StyleSheet.absoluteFill, { overflow: 'hidden' }, style]}>
     <MovingPicture uri={choice.uri} blur={choice.blur} motion={choice.motion} />
     {t.dark && choice.dim > 0 ? <View style={[StyleSheet.absoluteFill, { backgroundColor: `rgba(0,0,0,${choice.dim})` }]} /> : null}
-    {trail ? <PixelTrailLayer /> : null}
+    {trail ? <><PixelTrailLayer /><SnowBackLayer/></> : null}
   </View>;
 }
 

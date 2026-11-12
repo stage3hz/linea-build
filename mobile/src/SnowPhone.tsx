@@ -1,10 +1,12 @@
 // «Снег» on the phone (Настройки › Оформление): snow falls over the app, lies in caps on the Dynamic Island / camera
 // cutout, the header buttons, «Поиск» and the tab bar, the glass is rimed, a tap knocks the snow off a button and a
 // finger sweeps it away; when the phone really heats up (the system's thermal state) the snow and the rime melt.
-// All of it is drawn by ONE native view above the app (modules/linea-snow) that never takes a touch. This file only
-// tells it where the ledges are:
+// The caps, the rime and the snow that falls off are drawn by ONE native view above the app (modules/linea-snow); the
+// falling snow itself is drawn behind the content, by a layer inside each screen's background. Neither ever takes a
+// touch. This file tells the native side where the ledges are:
 //  - <SnowLedge id …> wraps a control whose top edge holds snow and reports its rectangle in window coordinates;
-//  - <SnowPhone/> — mounted once at the root: the native surface, the switch, the theme, the island.
+//  - <SnowPhone/> — mounted once at the root: the front surface, the switch, the theme, the island;
+//  - <SnowBackLayer/> — the falling snow, placed in the backgrounds next to PixelTrailLayer.
 // The PC has its own snow (src/Snow.tsx); here everything is a no-op on the web.
 import React, { useCallback, useEffect, useRef } from 'react';
 import { Platform, StyleSheet, View, useWindowDimensions, type StyleProp, type ViewStyle } from 'react-native';
@@ -81,6 +83,15 @@ export function SnowLedge({ id, radius, max = 6, inset, style, children }: { id:
   return <View ref={ref} collapsable={false} onLayout={measure} style={style}>{children}</View>;
 }
 
+/** The falling snow: part of a screen's background (beside PixelTrailLayer), so it passes behind the content. */
+export function SnowBackLayer() {
+  const preferences = useChatPreferences();
+  const motion = useMotion();
+  const active = useRenderActive();
+  if (!NativeSnow || !preferences.snow || !motion.enabled) return null;
+  return <NativeSnow pointerEvents="none" style={StyleSheet.absoluteFill} layer="back" active={active} />;
+}
+
 /** Mount once at the root, above the screens. */
 export function SnowPhone() {
   const t = useTheme();
@@ -113,5 +124,5 @@ export function SnowPhone() {
     return () => setLedge('island', null);
   }, [enabled, window.width, window.height, insets.top]);
   if (!enabled || !NativeSnow) return null;
-  return <NativeSnow pointerEvents="none" style={StyleSheet.absoluteFill} active />;
+  return <NativeSnow pointerEvents="none" style={StyleSheet.absoluteFill} layer="front" active />;
 }

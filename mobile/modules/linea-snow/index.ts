@@ -1,6 +1,7 @@
 /** Native contract of «Снег» on the phone (src/SnowPhone.tsx).
- *  The view (requireNativeViewManager('LineaSnow')) is ONE transparent, non-interactive surface mounted above the whole
- *  app. It draws falling snow, the snow caps lying on the «ledges» it is told about, the rime on frozen glass, the
+ *  The view (requireNativeViewManager('LineaSnow')) is a transparent, non-interactive surface. One `front` view is
+ *  mounted above the whole app; `back` views sit inside the screens' backgrounds and carry the falling snow (see
+ *  `layer`). Together they draw falling snow, the snow caps lying on the «ledges» it is told about, the rime on frozen glass, the
  *  snow knocked or swept off and the meltwater drops. It never takes a touch: touches are only observed at window
  *  level (as in modules/linea-trail). The device's real thermal state melts the snow (see `setHeat`).
  *  The module (requireOptionalNativeModule('LineaSnow')) carries the calls below; all are fire-and-forget and safe to
@@ -30,6 +31,10 @@ export interface LineaSnowBridge {
   cutout(): { x: number; y: number; width: number; height: number } | null;
 }
 export type LineaSnowViewProps = {
-  /** false: the view stops drawing and its frame loop sleeps. */
+  /** false: the view stops drawing (a screen kept mounted under another one; for the front view the frame loop sleeps). */
   active?: boolean;
+  /** 'front' (default): the one surface above the app — caps, rime, snow knocked or swept off, meltwater, sparkles.
+   *  'back': a surface inside a screen's background that draws only the falling snow, so it passes BEHIND the
+   *  content; several can be mounted, each draws the part of the one shared snowfall that falls on it. */
+  layer?: 'front' | 'back';
 };

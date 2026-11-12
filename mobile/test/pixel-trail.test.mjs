@@ -204,7 +204,7 @@ test('the light is part of the background: drawn inside the backdrop layers, nev
   assert.equal(backdrop.match(/<PixelTrailLayer\/>/g)?.length, 2);
   assert.match(read('../src/auth/AuthBackdrop.tsx'), /<PixelTrailLayer \/>/);
   const wallpaper = read('../src/WallpaperPicker.tsx');
-  assert.equal(wallpaper.match(/trail \? <PixelTrailLayer/g)?.length, 2, 'over a preset and over a picture wallpaper');
+  assert.equal(wallpaper.match(/trail \? <><PixelTrailLayer/g)?.length, 2, 'over a preset and over a picture wallpaper');
   assert.match(read('../src/ChatScreen.tsx'), /<ChatWallpaper choice=\{wallpaper\}[^>]* trail\/>/);
   // Web: a canvas inside the layer, no fixed full-window overlay.
   assert.doesNotMatch(host, /position: 'fixed'|zIndex|document\.body\.appendChild/);

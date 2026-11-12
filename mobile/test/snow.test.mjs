@@ -97,3 +97,15 @@ test('phone: the snow never takes a touch and is off with the setting; «Пои�
   assert.match(list, /\{float\?null:<SnowLedge id="chats\.search"/, 'the PC and the rail keep it in the header');
   assert.doesNotMatch(list, /searchPulled/);
 });
+
+test('phone: the falling snow is part of the background, the caps stay on the one front surface', () => {
+  const read = path => readFileSync(new URL(path, import.meta.url), 'utf8');
+  const glass = read('../src/glass.tsx');
+  const backdrop = glass.slice(glass.indexOf('export function GlassBackdrop'), glass.indexOf('export function GlassStage'));
+  assert.equal(backdrop.match(/<PixelTrailLayer\/><SnowBackLayer\/>/g)?.length, 2, 'both app backdrops');
+  assert.match(read('../src/auth/AuthBackdrop.tsx'), /<PixelTrailLayer \/><SnowBackLayer\/>/);
+  assert.equal(read('../src/WallpaperPicker.tsx').match(/<SnowBackLayer\/>/g)?.length, 2, 'the chat wallpaper covers the backdrop');
+  const phone = read('../src/SnowPhone.tsx');
+  assert.match(phone, /layer="back" active=\{active\}/);
+  assert.equal(phone.match(/layer="front"/g)?.length, 1);
+});

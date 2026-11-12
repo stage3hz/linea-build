@@ -2,6 +2,7 @@
 // own colours, and the app icon as a lit tile. Motion follows the app's energy
 // policy (low battery / reduce motion → still image).
 import React, { useEffect, useRef } from 'react';
+import { SnowBackLayer } from '../SnowPhone';
 import { PixelTrailLayer } from '../PixelTrail';
 import { Animated, Easing, Image, Platform, StyleSheet, View, useWindowDimensions } from 'react-native';
 import MaskedView from '@react-native-masked-view/masked-view';
@@ -42,7 +43,7 @@ export function AuthBackdrop() {
     <Glow color={t.ambientLilac} size={size} from={[width - size * 0.45, height - size * 0.55]} to={[width - size * 0.65, height - size * 0.7]} duration={11000} />
     <LinearGradient colors={['transparent', t.dark ? 'rgba(0,0,0,0.35)' : 'rgba(255,255,255,0.25)']} style={StyleSheet.absoluteFill} />
     {/* «Пиксельный след»: part of the background, under the sign-in card. */}
-    <PixelTrailLayer />
+    <PixelTrailLayer /><SnowBackLayer/>
   </View>;
 }
 
