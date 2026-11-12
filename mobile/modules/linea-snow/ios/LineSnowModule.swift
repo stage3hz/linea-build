@@ -818,9 +818,9 @@ final class SnowEngine {
     let ease = 0.25 * dt
     heat += max(-ease, min(ease, targetHeat() - heat))
     heat = max(0, min(1, heat))
-    // Ledges that have just appeared fade in over 0.35 s.
+    // Ledges that have just appeared fade in over 0.9 s: quicker, the buttons seemed to jump as the app opened.
     for s in order where s.appear < 1 {
-      s.appear = min(1, s.appear + dt / 0.35)
+      s.appear = min(1, s.appear + dt / 0.9)
       s.fadeDirty = true
     }
     sweep()
@@ -1849,6 +1849,9 @@ final class SnowFlakesView: UIView {
     backgroundColor = .clear
     clearsContextBeforeDrawing = true
     contentMode = .redraw
+    // Background snow is dimmed: at full brightness the flakes outshone the grey text they pass behind and
+    // read as lying on top of it.
+    alpha = 0.45
     contentScaleFactor = 1
     isAccessibilityElement = false
     accessibilityElementsHidden = true

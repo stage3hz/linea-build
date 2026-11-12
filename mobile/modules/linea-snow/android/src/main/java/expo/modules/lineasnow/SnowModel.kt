@@ -32,7 +32,7 @@ object SnowRules {
   const val HEAT_EASE = .25f      // applied heat moves towards the target this much per second
   const val MAX_DT = .05f
   const val COLUMNS_MAX = 2000    // sanity bound for one ledge
-  const val FADE_IN = .35f        // a ledge that appears fades in over this long, s
+  const val FADE_IN = .9f         // a ledge that appears fades in over this long, s (quicker, the buttons seemed to jump)
   const val KEPT = 24             // drifts remembered for ledges that are not reported now
   const val KEPT_FOR = 120.0      // …for this long, s of model time
 

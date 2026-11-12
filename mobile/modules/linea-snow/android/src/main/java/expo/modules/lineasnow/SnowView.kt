@@ -429,11 +429,16 @@ class SnowView(context: Context, appContext: AppContext) : ExpoView(context, app
       val attached = isAttachedToWindow
       try { if (attached) SnowHub.remove(this) } catch (_: Throwable) { /* decorative */ }
       back = isBack
+      // Background snow is dimmed: at full brightness the flakes outshone the text they pass behind.
+      alpha = if (isBack) .45f else 1f
       try { if (attached) SnowHub.add(this) } catch (_: Throwable) { /* decorative */ }
       invalidate()
     }
   var back = false
     private set
+
+  // Flakes do not overlap in a way that matters: the view's alpha needs no offscreen buffer.
+  override fun hasOverlappingRendering(): Boolean = false
 
   private val capPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
     style = Paint.Style.FILL
