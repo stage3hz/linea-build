@@ -7,7 +7,8 @@ kotlin { jvmToolchain(21) }
 sourceSets {
   main.kotlin {
     srcDirs '../android/src/main/java'
-    exclude '**/LineSignalModule.kt'
+    // Android-only files: the Expo module and the Keystore-backed device key.
+    exclude '**/LineSignalModule.kt', '**/DeviceKey.kt'
   }
   test.kotlin.srcDirs '../android/src/test/java'
 }
