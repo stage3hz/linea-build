@@ -132,6 +132,19 @@ final class SnowDrift {
   var h: [Double] = []      // current height
   var rime: CGImage?
   var rimeKey = ""
+  /// Heights changed since the last ground redraw: by a sweep, a knock or melting (redrawn next frame)…
+  var dirty = false
+  /// …or only by flakes landing (redrawn a few times per second: growth is slow).
+  var landed = false
+
+  /// Everything the cap can cover, with its shadow (window coordinates).
+  var capRect: CGRect {
+    return CGRect(x: x - 8, y: y - maxCap - 9, width: width + 16, height: maxCap + radius + 22)
+  }
+
+  var ledgeRect: CGRect {
+    return CGRect(x: x, y: y, width: width, height: height)
+  }
 
   init(id: String) {
     self.id = id
@@ -459,6 +472,14 @@ final class SnowEngine {
   private var scale: Double = 2           // screen scale
   private var now: Double = 0             // ms
   private var lastTick: Double = 0        // s; 0 = the loop has just (re)started
+  private var rimeStep = 50               // rime opacity in steps of 0.02: the ground redraws per step, not per frame
+  private var lastLandFlush: Double = 0   // ms; when landed flakes last caused a ground redraw
+  private var airMoving = false           // something was in the air at the last tick
+  private var airShown = false            // the air view shows something that must be erased once the air is empty
+  private var slowFrames = 0
+  private var fastFrames = 0
+  private var airHalved = false           // the main thread struggles: the air is redrawn every other frame
+  private var airSkip = false
 
   private var drifts: [String: SnowDrift] = [:]
   private var order: [SnowDrift] = []
@@ -535,12 +556,19 @@ final class SnowEngine {
       liveFlakes = 0
       particles.removeAll()
       heat = 0
+      rimeStep = 50
       sleeping = false
+      airMoving = false
+      airShown = false
+      airHalved = false
+      slowFrames = 0
+      fastFrames = 0
       fingerDown = false
       tapId = nil
       width = 0
       height = 0
       canvas?.setNeedsDisplay()
+      canvas?.air?.setNeedsDisplay()
     }
   }
 
@@ -687,7 +715,62 @@ final class SnowEngine {
       sleeping = true
       stopLoop()
     }
-    view.setNeedsDisplay()
+    flushGround(view)
+    // A busy main thread (a heavy screen opening): the air is redrawn every other frame until it recovers.
+    if dt > 0.036 {
+      slowFrames += 1
+      fastFrames = 0
+      if slowFrames >= 4 { airHalved = true }
+    } else {
+      fastFrames += 1
+      if !airHalved {
+        slowFrames = 0
+      } else if fastFrames >= 30 {
+        airHalved = false
+        slowFrames = 0
+      }
+    }
+    airSkip = !airSkip
+    airMoving = !sleeping && (liveFlakes > 0 || !particles.isEmpty)
+    if let air = view.air {
+      if airMoving {
+        if !(airHalved && airSkip) {
+          air.setNeedsDisplay()
+          airShown = true
+        }
+      } else if airShown {
+        // Nothing moves any more: one last redraw erases what was shown, then the air view rests.
+        air.setNeedsDisplay()
+        airShown = false
+      }
+    }
+  }
+
+  /// Redraws the ground (caps, rime) only where something changed since its last redraw.
+  private func flushGround(_ view: SnowCanvasView) {
+    var changed = CGRect.null
+    let flushLanded = now - lastLandFlush >= 100 || now < lastLandFlush
+    for s in order {
+      if s.dirty || (flushLanded && s.landed) {
+        changed = changed.union(s.capRect)
+        s.dirty = false
+        s.landed = false
+      }
+    }
+    if flushLanded { lastLandFlush = now }
+    let opacity = max(0, min(1, 1 - heat * 1.4))
+    let step = Int((opacity * 50).rounded())
+    if step != rimeStep {
+      rimeStep = step
+      for s in order where s.glass {
+        changed = changed.union(s.ledgeRect)
+      }
+    }
+    if changed.isNull { return }
+    let corner = view.convert(CGPoint.zero, to: nil)
+    let local = changed.offsetBy(dx: -corner.x, dy: -corner.y).intersection(view.bounds)
+    if local.isNull || local.isEmpty { return }
+    view.setNeedsDisplay(local.integral)
   }
 
   private func anySnow() -> Bool {
@@ -758,7 +841,10 @@ final class SnowEngine {
           let top = s.base[i] - s.h[i]
           if f.y >= top && f.y < top + 7 {
             let limit = s.cap[i] * room
-            if s.h[i] < limit { s.h[i] = min(limit, s.h[i] + f.r * SnowRules.gain) }
+            if s.h[i] < limit {
+              s.h[i] = min(limit, s.h[i] + f.r * SnowRules.gain)
+              s.landed = true
+            }
             landed = true
             break
           }
@@ -786,6 +872,7 @@ final class SnowEngine {
         let limit = s.cap[i] * (1 - heat)
         if s.h[i] > limit + 0.05 {
           s.h[i] = max(limit, s.h[i] - rate)
+          s.dirty = true
           if rnd() < chance && particles.count < SnowRules.maxParticles {
             var p = SnowParticle()
             p.kind = 2
@@ -826,6 +913,7 @@ final class SnowEngine {
           if d <= brush {
             let take = min(snow, snow * (1 - d / brush) * 0.9 + 0.4)
             s.h[i] = snow - take
+            s.dirty = true
             if take > 0.5 { shed(cx, s.base[i] - s.h[i], take * col, dx * 5, -8, col) }
           }
         }
@@ -867,6 +955,7 @@ final class SnowEngine {
       }
       i += 3
     }
+    s.dirty = true
   }
 
   /// Snow torn off a cap: its volume splits into loose clumps and a trail of fine grains.
@@ -1124,23 +1213,35 @@ final class SnowEngine {
 
   // MARK: Drawing (called from the view's draw(_:); `origin` is the view's corner in the window)
 
-  func draw(in context: CGContext, origin: CGPoint, view: SnowCanvasView) {
+  /// The ground: rime and caps. `rect` is the part of the view being redrawn.
+  func draw(in context: CGContext, origin: CGPoint, view: SnowCanvasView, rect: CGRect) {
     guard enabled, let current = canvas, current === view else { return }
+    let part = rect.offsetBy(dx: origin.x, dy: origin.y)
     context.saveGState()
     context.translateBy(x: -origin.x, y: -origin.y)
-    drawRime(context)
-    drawCaps(context)
-    if !sleeping { drawFlakes(context) }
+    drawRime(context, part)
+    drawCaps(context, part)
+    context.restoreGState()
+  }
+
+  /// The air: sparkles, falling flakes, clumps, grains and drops.
+  func drawAir(in context: CGContext, origin: CGPoint, view: SnowAirView) {
+    guard enabled, airMoving, let current = canvas, let air = current.air, air === view else { return }
+    context.saveGState()
+    context.translateBy(x: -origin.x, y: -origin.y)
+    drawSparkles(context)
+    drawFlakes(context)
     drawParticles(context)
     context.restoreGState()
   }
 
-  private func drawRime(_ context: CGContext) {
-    // The rime goes first as the phone warms up.
-    let opacity = max(0, min(1, 1 - heat * 1.4))
+  private func drawRime(_ context: CGContext, _ part: CGRect) {
+    // The rime goes first as the phone warms up (opacity in steps: see flushGround).
+    let opacity = Double(rimeStep) / 50
     if opacity <= 0.003 { return }
     for s in order {
       guard s.glass, let image = s.rime else { continue }
+      if !s.ledgeRect.intersects(part) { continue }
       // CGImage is drawn bottom-up in a UIKit context: flipped back here.
       context.saveGState()
       context.translateBy(x: CGFloat(s.x), y: CGFloat(s.y + s.height))
@@ -1151,11 +1252,12 @@ final class SnowEngine {
     }
   }
 
-  private func drawCaps(_ context: CGContext) {
+  private func drawCaps(_ context: CGContext, _ part: CGRect) {
     let col = SnowRules.col
     for s in order {
       let n = s.n
       if n < 2 { continue }
+      if !s.capRect.intersects(part) { continue }
       var top = 1e9
       var i = 0
       while i < n {
@@ -1163,10 +1265,9 @@ final class SnowEngine {
         i += 1
       }
       context.saveGState()
-      // The transparency layer below is only as large as the cap and its shadow.
-      let boxTop = top - 8
-      let boxBottom = s.y + s.radius + 12
-      context.clip(to: CGRect(x: s.x - 8, y: boxTop, width: s.width + 16, height: max(1, boxBottom - boxTop)))
+      // The transparency layer below is only as large as the cap and its shadow — the same rect that is
+      // invalidated when the cap changes, so nothing is ever drawn outside a redrawn area.
+      context.clip(to: s.capRect)
       // One soft shadow for the whole cap (gradient + grain), not one per drawing call.
       context.setShadow(offset: CGSize(width: 0, height: 1), blur: 3, color: capShadow)
       context.beginTransparencyLayer(auxiliaryInfo: nil)
@@ -1209,8 +1310,17 @@ final class SnowEngine {
       }
       context.endTransparencyLayer()
       context.restoreGState()
-      // Sparkles: single crystal faces catch the light for a moment; their places hop every 2.6 s.
-      let hop = Int(now / 2600) % 100000
+    }
+  }
+
+  /// Sparkles: single crystal faces catch the light for a moment; their places hop every 2.6 s. They live in the
+  /// air view, so that the ground is not redrawn for them.
+  private func drawSparkles(_ context: CGContext) {
+    let col = SnowRules.col
+    let hop = Int(now / 2600) % 100000
+    for s in order {
+      let n = s.n
+      if n < 2 { continue }
       let count = max(1, Int(ceil(Double(n) / 22)))
       context.setFillColor(white)
       var q = 0
@@ -1230,8 +1340,8 @@ final class SnowEngine {
         }
         q += 1
       }
-      context.setAlpha(1)
     }
+    context.setAlpha(1)
   }
 
   private func drawFlakes(_ context: CGContext) {
@@ -1400,7 +1510,8 @@ final class SnowTouchObserver: UIGestureRecognizer, UIGestureRecognizerDelegate 
 
 /// The view the app mounts above everything (src/SnowPhone.tsx): a passthrough container for the canvas.
 final class SnowOverlayView: ExpoView {
-  let canvas = SnowCanvasView(frame: .zero)
+  let canvas = SnowCanvasView(frame: .zero)   // the ground: caps and rime, redrawn only where they change
+  let air = SnowAirView(frame: .zero)         // the air: everything that moves, redrawn every frame at 1 px per pt
 
   required init(appContext: AppContext? = nil) {
     super.init(appContext: appContext)
@@ -1411,24 +1522,34 @@ final class SnowOverlayView: ExpoView {
     canvas.frame = bounds
     canvas.autoresizingMask = [.flexibleWidth, .flexibleHeight]
     addSubview(canvas)
+    air.frame = bounds
+    air.autoresizingMask = [.flexibleWidth, .flexibleHeight]
+    addSubview(air)
+    canvas.air = air
+    air.ground = canvas
   }
 
   override func layoutSubviews() {
     super.layoutSubviews()
     if canvas.frame != bounds { canvas.frame = bounds }
+    if air.frame != bounds { air.frame = bounds }
   }
 
   override func hitTest(_ point: CGPoint, with event: UIEvent?) -> UIView? { nil }
 }
 
-/// The drawing surface. Never takes touches and is hidden from accessibility. Its backing store is at most 2 px per
-/// pt: snow is soft, and a full-window redraw every frame at 3× would cost twice the memory traffic for nothing.
+/// The ground surface (caps and rime) and the engine's anchor in the window. Never takes touches and is hidden from
+/// accessibility. Its backing store is at most 2 px per pt; it is redrawn only where the snow on a ledge changed.
 final class SnowCanvasView: UIView {
-  /// false: the view draws nothing and the frame loop sleeps.
+  /// The sibling that shows everything in the air.
+  weak var air: SnowAirView?
+
+  /// false: both views draw nothing and the frame loop sleeps.
   var active = true {
     didSet {
       if active != oldValue {
         setNeedsDisplay()
+        air?.setNeedsDisplay()
         SnowEngine.shared.refresh()
       }
     }
@@ -1480,6 +1601,40 @@ final class SnowCanvasView: UIView {
     guard active, window != nil, let context = UIGraphicsGetCurrentContext() else { return }
     // The engine works in window coordinates.
     let corner = convert(CGPoint.zero, to: nil)
-    SnowEngine.shared.draw(in: context, origin: corner, view: self)
+    SnowEngine.shared.draw(in: context, origin: corner, view: self, rect: rect)
+  }
+}
+
+/// The air surface: falling flakes, sparkles, clumps, grains and drops. It is redrawn every frame while anything
+/// moves, so its backing store is 1 px per pt: soft dots look the same and cost a quarter of the pixels.
+final class SnowAirView: UIView {
+  weak var ground: SnowCanvasView?
+
+  override init(frame: CGRect) {
+    super.init(frame: frame)
+    isUserInteractionEnabled = false
+    isOpaque = false
+    backgroundColor = .clear
+    clearsContextBeforeDrawing = true
+    contentMode = .redraw
+    contentScaleFactor = 1
+    isAccessibilityElement = false
+    accessibilityElementsHidden = true
+  }
+
+  required init?(coder: NSCoder) { return nil }
+
+  override func didMoveToWindow() {
+    super.didMoveToWindow()
+    // UIKit resets the scale to the screen's when the view enters a window.
+    contentScaleFactor = 1
+  }
+
+  override func hitTest(_ point: CGPoint, with event: UIEvent?) -> UIView? { nil }
+
+  override func draw(_ rect: CGRect) {
+    guard let owner = ground, owner.active, window != nil, let context = UIGraphicsGetCurrentContext() else { return }
+    let corner = convert(CGPoint.zero, to: nil)
+    SnowEngine.shared.drawAir(in: context, origin: corner, view: self)
   }
 }
