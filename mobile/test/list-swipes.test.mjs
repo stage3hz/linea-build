@@ -198,3 +198,19 @@ test('the hidden block above the chats follows the drag: any swipe up hides it, 
   assert.ok(list.includes('const moved=y-dragFrom.current;const to=archiveSnap(y,archiveH,moved>6?1:moved<-6?-1:0);'));
   assert.ok(list.includes('dragFrom.current=e.nativeEvent.contentOffset.y;'));
 });
+
+test('«Поиск» comes out on one quick pull or on the second pull in a row, never on a single slow one', () => {
+  assert.equal(s.searchPullOpens(150, 60000), true, 'a quick swipe');
+  assert.equal(s.searchPullOpens(700, 60000), false, 'one slow pull: the list just bounces');
+  assert.equal(s.searchPullOpens(700, 1200), true, 'the second pull soon after the first');
+  assert.equal(s.searchPullOpens(700, 4000), false, 'too long after the first');
+  assert.ok(s.SEARCH_PULL >= 20 && s.SEARCH_PULL <= 60);
+});
+
+test('a slanted drag over a chat row is given to the list, not held by the row or the folder pager', async () => {
+  const { readFileSync } = await import('node:fs');
+  const list = readFileSync(new URL('../src/ChatListScreen.tsx', import.meta.url), 'utf8');
+  assert.ok(list.includes("if(lock==='vertical'||(lock!=='horizontal'&&Math.abs(touch.absoluteY-down.value.y)>10)){manager.fail();return;}"));
+  assert.ok(list.includes("else if(lock||Math.abs(touch.absoluteY-panStart.value.y)>10)manager.fail();"));
+  assert.ok(list.includes("if(searchOpen){if(y-dragFrom.current>6)closeSearch(y);return;}"), 'any swipe up puts the search away');
+});

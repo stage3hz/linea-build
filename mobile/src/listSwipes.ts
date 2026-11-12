@@ -182,6 +182,20 @@ export function archiveSnap(offset: number, rowHeight: number, velocityY = 0): n
   return offset < rowHeight / 2 ? 0 : rowHeight;
 }
 
+// ─── «Поиск» above the chats ─────────────────────────────────────────────────────────────────────
+
+/** How far past the top of the list a drag must end to count as a pull for «Поиск» (pt). */
+export const SEARCH_PULL = 30;
+/** A drag shorter than this (ms) is a quick swipe: one is enough. */
+export const SEARCH_QUICK_MS = 280;
+/** Two pulls this close together (ms) bring the field out as well. */
+export const SEARCH_AGAIN_MS = 2500;
+/** Whether a pull that has just ended brings «Поиск» out: `dragMs` — how long the drag lasted, `sinceLastMs` — time
+ *  since the previous pull. A single slow pull does not (the list just bounces), so the field never appears by accident. */
+export function searchPullOpens(dragMs: number, sinceLastMs: number): boolean {
+  return (dragMs >= 0 && dragMs < SEARCH_QUICK_MS) || (sinceLastMs >= 0 && sinceLastMs < SEARCH_AGAIN_MS);
+}
+
 // ─── One row with open buttons at a time ─────────────────────────────────────────────────────────
 
 /**

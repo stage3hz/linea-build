@@ -44,10 +44,12 @@ import { isMuted, muteUntilLabel } from './notifications/model';
 import { Gesture, GestureDetector } from 'react-native-gesture-handler';
 import Animated, { Easing, makeMutable, runOnJS, useAnimatedStyle, useSharedValue, withSpring, withTiming, type SharedValue } from 'react-native-reanimated';
 import { getMarkedUnread, markedExtra, pruneMarkedUnread, setMarkedExtra, setMarkedUnread, showsUnread, useMarkedExtra, useMarkedUnread } from './markedUnread';
-import { ROW_BUTTON, ROW_GAP, archiveSnap, axisLock, fullSwipeDistance, openWidth, pageRelease, openRowSlot, pagePosition, rowActions, rowClaimsSwipe, rowDrag, rowRelease, type RowAction, type RowSupport } from './listSwipes';
+import { ROW_BUTTON, ROW_GAP, SEARCH_PULL, searchPullOpens, archiveSnap, axisLock, fullSwipeDistance, openWidth, pageRelease, openRowSlot, pagePosition, rowActions, rowClaimsSwipe, rowDrag, rowRelease, type RowAction, type RowSupport } from './listSwipes';
 
 // Telegram: the first row stands ~11 pt below the folder bar; flush against it, the bar's edge fade covered the top of «Избранное».
 const LIST_GAP=10;
+/** Height the search field takes at the top of the list (44 pt field, 10 pt gap). */
+const SEARCH_ROW=54;
 export type MessengerTab = 'chats' | 'people' | 'channels' | 'music' | 'ai' | 'profile';
 type Navigation = { onProfile:()=>void;onNewChat:()=>void;onMusic:()=>void;onAI:()=>void;onChats:()=>void;activeTab?:MessengerTab };
 
@@ -55,6 +57,9 @@ export function ChatListScreen({api,user,store,onProfile,onNewChat,onMusic,onAI,
   // Tabs float over the list (it scrolls under the blurred bar, like Telegram); the list keeps room for them at the end.
   const [tabsHeight,setTabsHeight]=useState(96);const [headerHeight,setHeaderHeight]=useState(170);const bleed=useBleed();
   const float=!rail&&Platform.OS!=='web';
+  // Phone: «Поиск» is not on screen at all until it is asked for — one quick pull down at the top of the list, or
+  // two pulls in a row; any swipe up puts it away again.
+  const [searchOpen,setSearchOpen]=useState(false);
   const mesh=useMeshActive();
   // Title like Telegram: «Ожидание сети…» → «Соединение…» → «Обновление…» → «Чаты».
   const title=titleState({connection:store.connection,online:store.online,updating:store.updating,mesh});
@@ -101,7 +106,9 @@ export function ChatListScreen({api,user,store,onProfile,onNewChat,onMusic,onAI,
       // Nothing before «Все» or after the last folder: such a drag is left alone.
       const lock=axisLock(touch.absoluteX-panStart.value.x,touch.absoluteY-panStart.value.y,folderIndex===0?-1:folderIndex===tabIds.length-1?1:0,14);
       // On a chat row: from its edge the row's buttons slide out, from the middle the folder turns (rowClaimsSwipe).
-      if(lock==='horizontal'){if(rowTouch.value&&rowClaimsSwipe(rowStart.value.local,rowStart.value.width,touch.absoluteX-panStart.value.x,rowStart.value.open,folderIndex>0,folderIndex<tabIds.length-1))manager.fail();else manager.activate();}else if(lock)manager.fail();
+      if(lock==='horizontal'){if(rowTouch.value&&rowClaimsSwipe(rowStart.value.local,rowStart.value.width,touch.absoluteX-panStart.value.x,rowStart.value.open,folderIndex>0,folderIndex<tabIds.length-1))manager.fail();else manager.activate();}
+      // Not clearly sideways: the list scrolls (see the same rule in SwipeRow).
+      else if(lock||Math.abs(touch.absoluteY-panStart.value.y)>10)manager.fail();
     })
     .onUpdate(e=>{folderPos.value=pagePosition(folderIndex,tabIds.length,e.translationX,listWidth.value);listShift.value=motion?e.translationX*0.3:0;})
     .onEnd(e=>{
@@ -130,16 +137,33 @@ export function ChatListScreen({api,user,store,onProfile,onNewChat,onMusic,onAI,
   const rowActionsRef=useRef<RowActions>(null as unknown as RowActions);rowActionsRef.current={editing:!!editing,swipe:(chat,action)=>{switch(action){case 'read':readChat(chat);break;case 'unread':markUnread(chat);break;case 'pin':case 'unpin':change(chat,{pinned:action==='pin'});break;case 'mute':case 'unmute':askMute([chat]);break;case 'delete':setRemoveAsk([chat]);break;case 'archive':case 'unarchive':change(chat,{archived:action==='archive'});break;}},toggleEdit,select:chat=>store.selectChat(chat),menu:(chat,y,x)=>{impactFeedback();setMenu({chat,y,x});}};
   const selectedChats=editing?chats.filter(c=>editing.has(c.id)):[];
   const bulk=(fn:(chat:Chat)=>void)=>{const list=selectedChats.length?selectedChats:chats;list.forEach(fn);setEditing(null);lightFeedback();};
-  const refresh=async()=>{setRefreshing(true);await store.refreshChats();setRefreshing(false);};
+  const refresh=async()=>{if(Platform.OS==='android')openSearchRef.current();setRefreshing(true);await store.refreshChats();setRefreshing(false);};
   // Telegram keeps «Архив» above the first chat, out of sight until the list is pulled down: the list
   // opens scrolled just past it (its content is made at least that much taller than the screen) and a
   // drag that ends with it half shown settles open or shut. A further pull still refreshes.
   const archiveRow=!archive&&!!archivedCount&&!query&&filter==='all';
   // Phone: «Поиск» lies above the first chat as well, hidden the same way and pulled out with the same gesture;
   // `topRow` is that hidden block (the search field, then «Архив»), `archiveH` its measured height.
-  const pullSearch=float&&!archive&&!query;const topRow=archiveRow||pullSearch;
+  const pullSearch=float&&!archive&&!query&&searchOpen;const topRow=archiveRow||pullSearch;
   const listRef=useRef<FlatList<Chat>>(null);const [archiveH,setArchiveH]=useState(0);const [listH,setListH]=useState(0);
   const hideArchive=useRef(true);const listOffset=useRef(0);const contentH=useRef(0);const dragFrom=useRef(0);
+  const dragAt=useRef(0);const lastPull=useRef(0);const closedAt=useRef<number|null>(null);
+  const openSearchRef=useRef(()=>{});
+  const openSearch=()=>{if(searchOpen||!float||archive)return;lightFeedback();LayoutAnimation.configureNext(LayoutAnimation.Presets.easeInEaseOut);hideArchive.current=false;setSearchOpen(true);listOffset.current=0;requestAnimationFrame(()=>listRef.current?.scrollToOffset({offset:0,animated:false}));};
+  openSearchRef.current=openSearch;
+  const closeSearch=(y:number)=>{if(!searchOpen)return;closedAt.current=y;setSearchOpen(false);};
+  // The field leaves the list's header: the rows keep their place on screen (the list is scrolled back by its height).
+  useEffect(()=>{const y=closedAt.current;if(searchOpen||y===null)return;closedAt.current=null;const to=Math.max(0,y-SEARCH_ROW);listOffset.current=to;listRef.current?.scrollToOffset({offset:to,animated:false});},[searchOpen]);
+  /** A drag has ended at offset `y`: a pull past the top of the list asks for «Поиск» (a quick one at once, a slow one
+   *  on its second go within 2.5 s); a swipe up puts an open one away. */
+  const searchGesture=(y:number)=>{
+    if(!float||archive)return;
+    const now=Date.now();
+    if(searchOpen){if(y-dragFrom.current>6)closeSearch(y);return;}
+    if(y>=-SEARCH_PULL)return;
+    if(searchPullOpens(now-dragAt.current,now-lastPull.current))openSearch();
+    lastPull.current=now;
+  };
   const tryHideArchive=()=>{
     if(!hideArchive.current||!topRow||!archiveH||!listH)return;
     // Scrolled down into the chats: leave the position alone (the row is out of sight anyway).
@@ -154,9 +178,10 @@ export function ChatListScreen({api,user,store,onProfile,onNewChat,onMusic,onAI,
   // A folder change shows another list from the top: forget the old offset (only then — archiving a chat
   // while scrolled down must not jump the list to the top).
   const lastFilter=useRef(filter);if(lastFilter.current!==filter){lastFilter.current=filter;listOffset.current=0;}
-  useEffect(()=>{if(topRow&&listMounted){hideArchive.current=true;tryHideRef.current();}},[topRow,listMounted]);
+  // Only «Архив» is tucked away by the offset; an opened «Поиск» is meant to be seen.
+  useEffect(()=>{if(archiveRow&&listMounted){hideArchive.current=true;tryHideRef.current();}},[archiveRow,listMounted]);
   useEffect(()=>{tryHideRef.current();},[archiveH,listH]);
-  const settleArchive=(y:number)=>{listOffset.current=y;if(!topRow||hideArchive.current)return;
+  const settleArchive=(y:number)=>{listOffset.current=y;if(!archiveRow||hideArchive.current)return;
     // The hidden block follows the direction of the drag that just ended: any swipe up puts it away, any pull down
     // brings it out whole (by the half-way rule alone a short swipe up left «Поиск» on screen).
     const moved=y-dragFrom.current;const to=archiveSnap(y,archiveH,moved>6?1:moved<-6?-1:0);if(to!==null){listOffset.current=to;listRef.current?.scrollToOffset({offset:to,animated:motion});}};
@@ -188,7 +213,7 @@ export function ChatListScreen({api,user,store,onProfile,onNewChat,onMusic,onAI,
     {/* Phone, like Telegram: the header (title, search, folders) floats over the list, which scrolls under it
         and fades/blurs out there instead of being cut at a hard edge. Desktop keeps it in the flow. */}
     {float?<FloatingHeader onHeight={setHeaderHeight}>{header}</FloatingHeader>:header}
-    {store.listLoading?<View style={{flex:1,overflow:'hidden',paddingTop:float?headerHeight+LIST_GAP:0,...(float?bleed.style:null)}}>{filter==='all'&&!archive?<SavedRow count={store.saved.items.length} last={store.saved.items[store.saved.items.length-1]} selected={savedActive} onPress={onSaved}/>:null}<ChatListSkeleton/></View>:<GestureDetector gesture={folderSwipe}><Animated.View style={[listFollow,float?bleed.style:null]}><FlatList ref={listRef} onLayout={e=>{const {width:w,height}=e.nativeEvent.layout;if(w>0)listWidth.value=w;const h=Math.round(height);if(h&&h!==listH)setListH(h);}} onContentSizeChange={(_w,h)=>{contentH.current=h;tryHideArchive();}} onScrollBeginDrag={e=>{closeOpenSwipeRow();dragFrom.current=e.nativeEvent.contentOffset.y;}} onScrollEndDrag={e=>{const v=e.nativeEvent.velocity?.y||0;if(Math.abs(v)>0.3){listOffset.current=e.nativeEvent.contentOffset.y;return;}settleArchive(e.nativeEvent.contentOffset.y);}} onMomentumScrollEnd={e=>settleArchive(e.nativeEvent.contentOffset.y)} style={{flex:1}} scrollIndicatorInsets={float?{top:headerHeight+LIST_GAP,bottom:tabsHeight}:undefined} progressViewOffset={float?headerHeight:undefined} data={chats} keyExtractor={item=>item.id} keyboardShouldPersistTaps="handled" keyboardDismissMode="on-drag" alwaysBounceVertical contentContainerStyle={{paddingTop:float?headerHeight+LIST_GAP:0,paddingBottom:(rail||editing?12:tabsHeight+12)+(float?bleed.bottom:0),flexGrow:1,minHeight:topRow&&archiveH&&listH?listH+archiveH:undefined}} ListHeaderComponent={archive?<Pressable onPress={()=>setArchive(false)} accessibilityRole="button" style={{flexDirection:'row',alignItems:'center',gap:8,padding:12}}><Icon name="chevron-back" size={18} color={t.accent}/><Text style={{color:t.accent,fontSize:15,fontWeight:'700'}}>Архив</Text></Pressable>:<>{topRow?<View onLayout={e=>{const h=Math.round(e.nativeEvent.layout.height);if(h&&h!==archiveH)setArchiveH(h);}}>{pullSearch?searchBar:null}{archiveRow?<Pressable onPress={()=>{closeOpenSwipeRow();setArchive(true);}} accessibilityRole="button" accessibilityLabel={`Архив, чатов: ${archivedCount}`} style={({pressed})=>({flexDirection:'row',gap:13,alignItems:'center',paddingHorizontal:16,paddingVertical:12,borderRadius:24,backgroundColor:pressed?(t.dark?'rgba(255,255,255,0.09)':'rgba(255,255,255,0.62)'):'transparent'})}><View style={{width:54,height:54,borderRadius:19,backgroundColor:t.surface2,alignItems:'center',justifyContent:'center'}}><Icon name="archive" color={t.muted} size={24}/></View><View style={{flex:1}}><Text style={{color:t.text,fontSize:15,fontWeight:'700'}}>Архив</Text><Text style={{color:t.muted,fontSize:12}}>{countChats(archivedCount)}</Text></View></Pressable>:null}</View>:null}{menuError?<View style={{paddingBottom:8}}><Notice text={menuError} error/></View>:null}{filter==='all'&&(!query||'избранное'.includes(query.toLowerCase()))?<SavedRow count={store.saved.items.length} last={store.saved.items[store.saved.items.length-1]} selected={savedActive} onPress={onSaved}/>:null}</>} refreshControl={<RefreshControl refreshing={refreshing} onRefresh={()=>void refresh()} tintColor={t.accent}/>} ListEmptyComponent={<View style={{flex:1,justifyContent:'center',paddingBottom:20}}>{query?<Empty icon="search-outline" title="Чат не найден" description="Попробуй другое имя или найди человека по @имени." action={<Button label="Найти собеседника" onPress={onNewChat} icon="add"/>}/>:filter==='unread'?<Empty icon="checkmark-done-outline" title="Всё прочитано" description="Здесь появятся чаты с новыми сообщениями и отмеченные как непрочитанные."/>:filter!=='all'||archive?<Empty icon="folder-open-outline" title="Здесь пока пусто" description={archive?'В архиве нет чатов.':'В этой папке нет чатов. Добавь их в настройках папки.'}/>:<Empty icon="chatbubbles-outline" title="Начни разговор" description="Найди своего человека по @имени. Всё начинается с простого «привет»." action={<Button label="Найти собеседника" onPress={onNewChat} icon="add"/>}/>}</View>}
+    {store.listLoading?<View style={{flex:1,overflow:'hidden',paddingTop:float?headerHeight+LIST_GAP:0,...(float?bleed.style:null)}}>{filter==='all'&&!archive?<SavedRow count={store.saved.items.length} last={store.saved.items[store.saved.items.length-1]} selected={savedActive} onPress={onSaved}/>:null}<ChatListSkeleton/></View>:<GestureDetector gesture={folderSwipe}><Animated.View style={[listFollow,float?bleed.style:null]}><FlatList ref={listRef} onLayout={e=>{const {width:w,height}=e.nativeEvent.layout;if(w>0)listWidth.value=w;const h=Math.round(height);if(h&&h!==listH)setListH(h);}} onContentSizeChange={(_w,h)=>{contentH.current=h;tryHideArchive();}} onScrollBeginDrag={e=>{closeOpenSwipeRow();dragFrom.current=e.nativeEvent.contentOffset.y;dragAt.current=Date.now();}} onScrollEndDrag={e=>{searchGesture(e.nativeEvent.contentOffset.y);const v=e.nativeEvent.velocity?.y||0;if(Math.abs(v)>0.3){listOffset.current=e.nativeEvent.contentOffset.y;return;}settleArchive(e.nativeEvent.contentOffset.y);}} onMomentumScrollEnd={e=>settleArchive(e.nativeEvent.contentOffset.y)} style={{flex:1}} scrollIndicatorInsets={float?{top:headerHeight+LIST_GAP,bottom:tabsHeight}:undefined} progressViewOffset={float?headerHeight:undefined} data={chats} keyExtractor={item=>item.id} keyboardShouldPersistTaps="handled" keyboardDismissMode="on-drag" alwaysBounceVertical contentContainerStyle={{paddingTop:float?headerHeight+LIST_GAP:0,paddingBottom:(rail||editing?12:tabsHeight+12)+(float?bleed.bottom:0),flexGrow:1,minHeight:topRow&&archiveH&&listH?listH+archiveH:undefined}} ListHeaderComponent={archive?<Pressable onPress={()=>setArchive(false)} accessibilityRole="button" style={{flexDirection:'row',alignItems:'center',gap:8,padding:12}}><Icon name="chevron-back" size={18} color={t.accent}/><Text style={{color:t.accent,fontSize:15,fontWeight:'700'}}>Архив</Text></Pressable>:<>{topRow?<View onLayout={e=>{const h=Math.round(e.nativeEvent.layout.height);if(h&&h!==archiveH)setArchiveH(h);}}>{pullSearch?searchBar:null}{archiveRow?<Pressable onPress={()=>{closeOpenSwipeRow();setArchive(true);}} accessibilityRole="button" accessibilityLabel={`Архив, чатов: ${archivedCount}`} style={({pressed})=>({flexDirection:'row',gap:13,alignItems:'center',paddingHorizontal:16,paddingVertical:12,borderRadius:24,backgroundColor:pressed?(t.dark?'rgba(255,255,255,0.09)':'rgba(255,255,255,0.62)'):'transparent'})}><View style={{width:54,height:54,borderRadius:19,backgroundColor:t.surface2,alignItems:'center',justifyContent:'center'}}><Icon name="archive" color={t.muted} size={24}/></View><View style={{flex:1}}><Text style={{color:t.text,fontSize:15,fontWeight:'700'}}>Архив</Text><Text style={{color:t.muted,fontSize:12}}>{countChats(archivedCount)}</Text></View></Pressable>:null}</View>:null}{menuError?<View style={{paddingBottom:8}}><Notice text={menuError} error/></View>:null}{filter==='all'&&(!query||'избранное'.includes(query.toLowerCase()))?<SavedRow count={store.saved.items.length} last={store.saved.items[store.saved.items.length-1]} selected={savedActive} onPress={onSaved}/>:null}</>} refreshControl={<RefreshControl refreshing={refreshing} onRefresh={()=>void refresh()} tintColor={t.accent}/>} ListEmptyComponent={<View style={{flex:1,justifyContent:'center',paddingBottom:20}}>{query?<Empty icon="search-outline" title="Чат не найден" description="Попробуй другое имя или найди человека по @имени." action={<Button label="Найти собеседника" onPress={onNewChat} icon="add"/>}/>:filter==='unread'?<Empty icon="checkmark-done-outline" title="Всё прочитано" description="Здесь появятся чаты с новыми сообщениями и отмеченные как непрочитанные."/>:filter!=='all'||archive?<Empty icon="folder-open-outline" title="Здесь пока пусто" description={archive?'В архиве нет чатов.':'В этой папке нет чатов. Добавь их в настройках папки.'}/>:<Empty icon="chatbubbles-outline" title="Начни разговор" description="Найди своего человека по @имени. Всё начинается с простого «привет»." action={<Button label="Найти собеседника" onPress={onNewChat} icon="add"/>}/>}</View>}
       renderItem={({item})=><ChatListItem chat={item} marked={marked.has(item.id)} api={api} userId={user.id} editable={!editing} selected={wideLayout&&store.selectedId===item.id} idle={!store.selectedId} typing={!!store.typing[item.id]} muted={isMuted(item.settings)} checked={editing?editing.has(item.id):undefined} actions={rowActionsRef}/>}/></Animated.View></GestureDetector>}
     {editing?<GlassSurface lens material="regular" radius={26} style={{marginHorizontal:16,marginBottom:6}} contentStyle={{flexDirection:'row',justifyContent:'space-around',alignItems:'center',minHeight:52}}>
       <Pressable onPress={()=>bulk(readChat)} accessibilityRole="button" style={{padding:10}}><Text style={{color:t.accent,fontSize:14,fontWeight:'600'}}>{selectedChats.length?'Прочитать':'Прочитать все'}</Text></Pressable>
@@ -380,7 +405,9 @@ function SwipeRow({enabled,unread,pinned,muted,archived,onAction,children}:{enab
       if(dragging.value)return;
       const touch=e.changedTouches[0];if(!touch)return;
       const dx=touch.absoluteX-down.value.x,lock=axisLock(dx,touch.absoluteY-down.value.y,0,12);
-      if(lock==='vertical'){manager.fail();return;}
+      // Anything that is not clearly sideways is the list's: a slanted swipe (a thumb's arc) used to match neither
+      // rule, the touch stayed held here and the list did not move at all.
+      if(lock==='vertical'||(lock!=='horizontal'&&Math.abs(touch.absoluteY-down.value.y)>10)){manager.fail();return;}
       if(lock!=='horizontal')return;
       if(rowClaimsSwipe(rowStart.value.local,rowStart.value.width,dx,rowStart.value.open,(folderWays.value&1)!==0,(folderWays.value&2)!==0)){dragging.value=1;manager.activate();}else manager.fail();
     })
