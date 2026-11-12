@@ -1,0 +1,2 @@
+10013:/Users/runner/work/linea-build/linea-build/mobile/node_modules/react-native-webrtc/ios/RCTWebRTC/WebRTCModule+Transceivers.m:237:17: warning: 'setCodecPreferences:' is deprecated: Use setCodecPreferences:error: instead. [-Wdeprecated-declarations]
+10018:  153 |     RTC_OBJC_DEPRECATED("Use setCodecPreferences:error: instead.");
