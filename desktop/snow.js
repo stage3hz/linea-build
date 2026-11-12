@@ -3,7 +3,7 @@
 // strip and pile up there; the cursor (reported by the main process: the strip itself takes no mouse) sweeps
 // the snow off. Same rules as mobile/src/snowModel.ts.
 const canvas = document.getElementById('c'), context = canvas.getContext('2d');
-const COL = 3, MAX = 13, BRUSH = 26, GAIN = 1.2; // few flakes cross the thin strip, so each one adds more
+const COL = 3, MAX = 19, BRUSH = 26, GAIN = 1.2; // few flakes cross the thin strip, so each one adds more
 let W = 0, H = 0, dpr = 1, h = new Float32Array(1), flakes = [], puffs = [], last = performance.now();
 let mx = null, my = null, pmx = null, pmy = null;
 const flake = anywhere => { const z = Math.random(); return { x: Math.random() * W, y: anywhere ? Math.random() * H : -4, r: 1 + z * 1.8, v: 14 + z * 22, phase: Math.random() * 6.28 }; };
@@ -11,14 +11,20 @@ function resize() {
   dpr = Math.min(2, window.devicePixelRatio || 1); W = window.innerWidth; H = window.innerHeight;
   canvas.width = Math.round(W * dpr); canvas.height = Math.round(H * dpr);
   const columns = Math.max(1, Math.ceil(W / COL));
-  if (h.length !== columns) { const next = new Float32Array(columns); next.set(h.subarray(0, Math.min(columns, h.length))); h = next; }
+  // The snow already lies there when the window appears; after a resize the columns are laid anew.
+  if (h.length !== columns) { h = new Float32Array(columns); for (let i = 0; i < columns; i++) h[i] = ceiling(i); }
   const want = Math.max(6, Math.min(60, Math.round(W / 34)));
   while (flakes.length < want) flakes.push(flake(true));
   flakes.length = want;
 }
+// The tallest the drift may be over column i: a thick, gently wavy cap that rounds down to the window corners.
+function ceiling(i) {
+  const edge = (Math.min(i, h.length - 1 - i) + 0.5) * COL, round = Math.min(1, edge / 16);
+  const wave = 0.5 + 0.5 * (Math.sin(i * COL / 67) * 0.6 + Math.sin(i * COL / 23 + 1.7) * 0.4);
+  return (11 + (MAX - 11) * wave) * Math.sqrt(1 - (1 - round) * (1 - round));
+}
 function deposit(i, r) {
-  // The drift thins out towards the corners of the window.
-  const edge = Math.min(i, h.length - 1 - i) * COL, cap = MAX * Math.min(1, edge / 18);
+  const cap = i >= 0 && i < h.length ? ceiling(i) : 0;
   if (i < 0 || i >= h.length || h[i] >= cap) return;
   let k = i;
   for (let step = 0; step < 3; step++) {
@@ -46,8 +52,8 @@ function draw(now) {
   brush(); pmx = mx; pmy = my;
   context.setTransform(dpr, 0, 0, dpr, 0, 0);
   context.clearRect(0, 0, W, H);
-  context.fillStyle = '#FFFFFF';
-  context.shadowColor = 'rgba(110,145,200,0.6)';
+  context.fillStyle = '#F6F4EE';
+  context.shadowColor = 'rgba(60,80,120,0.55)';
   context.beginPath(); context.moveTo(0, H);
   for (let i = 0; i < h.length; i++) context.lineTo(i * COL + COL / 2, H - ((i ? h[i - 1] : 0) + 2 * h[i] + (i < h.length - 1 ? h[i + 1] : 0)) / 4);
   context.lineTo(h.length * COL, H); context.closePath();

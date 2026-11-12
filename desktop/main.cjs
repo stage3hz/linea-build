@@ -84,15 +84,15 @@ function refreshOverlay() {
 // A thin transparent strip owned by the main window, sitting just above its top edge (it moves, hides and
 // minimises with the window and never goes above other apps' windows on its own). It takes no focus and no
 // clicks; the cursor position over it is read here and passed to the page so the snow can be swept off.
-const SNOW_CAP = 26;
+const SNOW_CAP = 30;
 let snowWin = null, snowOn = false, snowTimer = null, snowCursorOver = false;
 function placeSnowCap() {
   if (!snowWin || snowWin.isDestroyed() || !window || window.isDestroyed()) return;
   const hidden = !snowOn || !window.isVisible() || window.isMinimized() || window.isMaximized() || window.isFullScreen();
   if (hidden) { if (snowWin.isVisible()) snowWin.hide(); return; }
   const b = window.getBounds();
-  // 2 px over the window so the drift sits on its edge with no gap; inset from the rounded corners.
-  snowWin.setBounds({ x: b.x + 6, y: b.y - SNOW_CAP + 2, width: Math.max(40, b.width - 12), height: SNOW_CAP });
+  // The full width of the window, 3 px over it so the drift sits on its edge with no gap.
+  snowWin.setBounds({ x: b.x, y: b.y - SNOW_CAP + 3, width: Math.max(40, b.width), height: SNOW_CAP });
   if (!snowWin.isVisible()) snowWin.showInactive();
 }
 function snowCap(on) {
