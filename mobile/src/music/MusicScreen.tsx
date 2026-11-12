@@ -153,6 +153,8 @@ export function MusicScreen({ onBack, guest = false }: { onBack: () => void; gue
   return <View style={{ flex: 1, width: '100%', maxWidth: 980, alignSelf: 'center', paddingBottom: tabInset }}>
 
     <FlatList keyboardDismissMode="on-drag" style={{ marginTop: -insets.top }} contentInsetAdjustmentBehavior="never"
+      // The first frame draws the header and a few rows; the rest follow in small batches.
+      initialNumToRender={6} maxToRenderPerBatch={6} windowSize={9}
       data={rows}
       keyExtractor={track => track.id}
       keyboardShouldPersistTaps="handled"

@@ -27,12 +27,19 @@ export type AmbientTone = keyof typeof PALETTES;
 const COUNT = 5;
 const STEP = 6000; // ms per colour
 
+/** Side of the bitmap a glow is rasterised into (pt). The glow is a smooth radial fade, so it is drawn small and
+ *  stretched to its real size: twenty glows the size of the screen, each rasterised at full resolution, were
+ *  hundreds of megabytes of layers and stalled the first opening of the music tab. */
+const GLOW_RASTER = 128;
 function Glow({ color, size, opacity }: { color: string; size: number; opacity: number }) {
   const id = `g${color.slice(1)}${Math.round(size)}`;
-  return <Svg width={size} height={size} style={StyleSheet.absoluteFill}>
-    <Defs><RadialGradient id={id} cx="50%" cy="50%" r="50%"><Stop offset="0" stopColor={color} stopOpacity={opacity} /><Stop offset="1" stopColor={color} stopOpacity={0} /></RadialGradient></Defs>
-    <Rect width={size} height={size} fill={`url(#${id})`} />
-  </Svg>;
+  const raster = Math.min(GLOW_RASTER, size);
+  return <View pointerEvents="none" style={[StyleSheet.absoluteFill, { alignItems: 'center', justifyContent: 'center' }]}>
+    <Svg width={raster} height={raster} style={{ transform: [{ scale: size / raster }] }}>
+      <Defs><RadialGradient id={id} cx="50%" cy="50%" r="50%"><Stop offset="0" stopColor={color} stopOpacity={opacity} /><Stop offset="1" stopColor={color} stopOpacity={0} /></RadialGradient></Defs>
+      <Rect width={raster} height={raster} fill={`url(#${id})`} />
+    </Svg>
+  </View>;
 }
 
 /** One colour layer of a patch; its opacity rises while the cycle passes its slot. */
