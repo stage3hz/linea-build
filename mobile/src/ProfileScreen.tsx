@@ -187,6 +187,15 @@ export function ProfileScreen({ api, user, theme, darkTheme, onTheme, onDarkThem
   };
   // Telegram: the profile is shown read-only; «Изм.» opens the editor (✕ discards the draft, ✓ saves).
   const [editing, setEditing] = useState(takeProfileEditRequest);
+  // «Рамки и анимации» is the heavy part of the editor (dozens of decorated avatars, a banner, glass cards). Mounted
+  // in the same moment as the rest, it held the tap on «Изм.» for a noticeable pause; it comes in right after the
+  // editor is on screen instead.
+  const [studioShown, setStudioShown] = useState(false);
+  useEffect(() => {
+    if (!editing) { setStudioShown(false); return; }
+    const timer = setTimeout(() => setStudioShown(true), 350);
+    return () => clearTimeout(timer);
+  }, [editing]);
   const wantsPicker = useRef(takeStatusPickerRequest());
   const [pickerOpen, setPickerOpen] = useState(false), [pickerY, setPickerY] = useState(260);
   useEffect(() => { if (wantsPicker.current && status) { wantsPicker.current = false; setPickerY(headerHeight + 230); setPickerOpen(true); } }, [status]);
@@ -333,7 +342,7 @@ export function ProfileScreen({ api, user, theme, darkTheme, onTheme, onDarkThem
       <View style={{ gap: 8 }}>
         <SectionLabel>Рамки и анимации</SectionLabel>
         <GlassSurface material="regular" radius={22} contentStyle={{ padding: 16, gap: 14 }}>
-          <PlatinaStudio ref={studio} compact api={api} user={user} active={ready && status.platina.active} onUser={onUser}/>
+          {studioShown ? <PlatinaStudio ref={studio} compact api={api} user={user} active={ready && status.platina.active} onUser={onUser}/> : <View style={{ height: 120, alignItems: 'center', justifyContent: 'center' }}><ActivityIndicator color={t.muted}/></View>}
         </GlassSurface>
       </View>
       </>}

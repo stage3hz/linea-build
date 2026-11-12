@@ -41,6 +41,8 @@ export function ChatWallpaper({ choice, style, trail = false, live }: { choice: 
 }
 
 const SHIFT = 14;
+/** The picture follows a tilt only in steps of this many points (see MovingPicture). */
+const MOTION_STEP = 2.5;
 type LiveFit = { zoom: SharedValue<number>; fx: SharedValue<number>; fy: SharedValue<number> };
 function MovingPicture({ uri, blur, motion, aspect, fit, live }: { uri: string; blur: boolean; motion: boolean; aspect: number; fit: { zoom?: number; fx?: number; fy?: number }; live?: LiveFit }) {
   const { enabled } = useMotion(); const x = useSharedValue(0), y = useSharedValue(0);
@@ -60,11 +62,19 @@ function MovingPicture({ uri, blur, motion, aspect, fit, live }: { uri: string; 
     let subscription: { remove: () => void } | null = null;
     try {
       const { DeviceMotion } = require('expo-sensors') as typeof import('expo-sensors');
-      DeviceMotion.setUpdateInterval(50);
+      DeviceMotion.setUpdateInterval(100);
+      // A hand never holds a phone still: followed exactly, the picture crept all the time, and everything of glass
+      // above it (the header, the message field, the tab bar) had to be blurred anew on every frame — a chat with a
+      // wallpaper ran at half the frame rate. The picture now moves only when the phone is really tilted
+      // (MOTION_STEP points or more), and rests otherwise.
+      let lastX = 0, lastY = 0;
       subscription = DeviceMotion.addListener(data => {
         const r = data.rotation; if (!r) return;
-        x.value = withSpring(Math.max(-1, Math.min(1, r.gamma / 0.6)) * SHIFT, { damping: 20, stiffness: 120 });
-        y.value = withSpring(Math.max(-1, Math.min(1, (r.beta - 0.8) / 0.6)) * SHIFT, { damping: 20, stiffness: 120 });
+        const toX = Math.max(-1, Math.min(1, r.gamma / 0.6)) * SHIFT, toY = Math.max(-1, Math.min(1, (r.beta - 0.8) / 0.6)) * SHIFT;
+        if (Math.abs(toX - lastX) < MOTION_STEP && Math.abs(toY - lastY) < MOTION_STEP) return;
+        lastX = toX; lastY = toY;
+        x.value = withSpring(toX, { damping: 26, stiffness: 120 });
+        y.value = withSpring(toY, { damping: 26, stiffness: 120 });
       });
     } catch { /* sensors unavailable: the picture stays still */ }
     return () => subscription?.remove();
@@ -105,7 +115,7 @@ export function WallpaperPicker({ visible, onClose, chatId }: { visible: boolean
       const asset = result.canceled ? null : result.assets[0]; if (!asset) return;
       // A phone-screen-sized JPEG is enough and keeps scrolling smooth.
       const small = await ImageManipulator.manipulateAsync(asset.uri, (asset.width || 0) > 1600 ? [{ resize: { width: 1600 } }] : [], { format: ImageManipulator.SaveFormat.JPEG, compress: 0.85 });
-      setDraft({ kind: 'image', uri: small.uri, blur: false, motion: true, dim: 0.2, aspect: small.width > 0 && small.height > 0 ? small.width / small.height : 0, zoom: 1, fx: 0, fy: 0 });
+      setDraft({ kind: 'image', uri: small.uri, blur: false, motion: false, dim: 0.2, aspect: small.width > 0 && small.height > 0 ? small.width / small.height : 0, zoom: 1, fx: 0, fy: 0 });
     } catch (failure) { setError(failure instanceof Error ? failure.message : 'Не удалось открыть фото.'); }
   };
   const apply = async (forChat: boolean) => {
