@@ -9,7 +9,8 @@ import expo.modules.kotlin.modules.ModuleDefinition
 import java.lang.ref.WeakReference
 
 /** «Снег» on the phone (src/SnowPhone.tsx, contract in ../index.ts). The snow is drawn by SnowView, one transparent
- *  surface the app mounts above everything; it never takes a touch. Touches are observed by wrapping the Activity's
+ *  surface the app mounts above everything, plus 'back' SnowViews inside the screens' backgrounds for the falling
+ *  flakes; none ever takes a touch. Touches are observed by wrapping the Activity's
  *  Window.Callback (observe, then delegate — never consumed), as in modules/linea-trail; they sweep and knock the
  *  snow in one shared model (SnowHub, window dp). The device's thermal state melts it. Any failure = no snow. */
 class LineSnowModule : Module() {
@@ -51,6 +52,7 @@ class LineSnowModule : Module() {
 
     View(SnowView::class) {
       Prop("active") { view: SnowView, on: Boolean? -> view.active = on ?: true }
+      Prop("layer") { view: SnowView, layer: String? -> view.layer = layer }
     }
 
     OnActivityEntersForeground { onMain { SnowHub.foreground = true; if (enabled) { attach(); SnowHub.readCutout(decor()) } } }

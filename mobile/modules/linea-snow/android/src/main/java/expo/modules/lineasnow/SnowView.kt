@@ -65,7 +65,9 @@ private class ThermalWatch(private val power: PowerManager, sink: (Int) -> Unit)
 
 /** The snow of the app (main thread only): the model in window dp, the mounted views, the pre-rendered art, the
  *  frame loop and the thermal listener. The loop (Choreographer) runs only while the snow is enabled, the app is in
- *  the foreground, a mounted view is active and shown, and something is left to animate. */
+ *  the foreground, a mounted view is active and shown, and something is left to animate.
+ *  Two kinds of views draw the one model: the 'front' view above the app (rime, caps, knocked-off snow, drops) and
+ *  any number of 'back' views inside the screens' backgrounds (the falling flakes only, behind the content). */
 internal object SnowHub {
   val model = SnowModel()
   var enabled = false
@@ -93,7 +95,13 @@ internal object SnowHub {
   @Volatile var cutoutKnown = false
     private set
 
-  private val views = ArrayList<SnowView>()
+  private val views = ArrayList<SnowView>() // front
+  private val backs = ArrayList<SnowView>()
+  // What the front view showed last frame: it is redrawn only when something on it changed or moves.
+  private var hadParticles = false
+  private var hadSparkle = false
+  private var shownHeat = -1f
+  private var flakesShown = false
   private val main = Handler(Looper.getMainLooper())
   private var running = false
   private var lastNanos = 0L
@@ -107,14 +115,17 @@ internal object SnowHub {
     try { tick(nanos) } catch (_: Throwable) { running = false /* decorative: a failed frame draws nothing */ }
   }
 
+  /** An attached view joins the list of its layer (a view whose layer changes is removed and added again). */
   fun add(view: SnowView) {
-    if (!views.contains(view)) views.add(view)
+    val list = if (view.back) backs else views
+    if (!list.contains(view)) list.add(view)
     density = view.resources.displayMetrics.density
     readCutout(view.rootView)
+    view.invalidate()
     frame()
   }
 
-  fun remove(view: SnowView) { views.remove(view); if (views.isEmpty()) park() }
+  fun remove(view: SnowView) { views.remove(view); backs.remove(view); if (views.isEmpty() && backs.isEmpty()) park() }
 
   fun start(context: Context?) { enabled = true; listen(context); frame() }
 
@@ -165,12 +176,53 @@ internal object SnowHub {
     return floatArrayOf(rect.left / scale, rect.top / scale, rect.width() / scale, rect.height() / scale)
   }
 
+  /** Some active view on the screen, the front one first; null = nobody to draw for. */
   private fun shown(): SnowView? {
     for (k in views.indices) { val view = views[k]; if (view.active && view.isShown) return view }
+    for (k in backs.indices) { val view = backs[k]; if (view.active && view.isShown) return view }
     return null
   }
 
-  private fun redraw() { for (k in views.indices) views[k].invalidate() }
+  /** Everything, after a change of state (on, off, «Remove animations»). */
+  private fun redraw() {
+    for (k in views.indices) views[k].invalidate()
+    for (k in backs.indices) backs[k].invalidate()
+    shownHeat = -1f
+  }
+
+  /** Index of the q-th sparkle's column on a ledge of n columns; the places hop every 2.6 s. */
+  fun sparkleColumn(q: Int, n: Int): Int = ((q * 37 + 11 + floor(now / 2600).toLong() * 13 + q * 7) % n).toInt()
+
+  /** Brightness of the q-th sparkle of the ledge at x: a crystal face catches the light for a moment. */
+  fun sparkle(q: Int, x: Float): Float = max(0.0, sin(now / 330 + q * 2.1 + x)).pow(10).toFloat()
+
+  private fun sparkling(): Boolean {
+    val ledges = model.ledges
+    for (k in ledges.indices) {
+      val s = ledges[k]
+      if (s.n < 1) continue
+      val count = max(1f, s.n / 22f)
+      var q = 0
+      while (q < count) {
+        if (s.h[sparkleColumn(q, s.n)] >= 2 && sparkle(q, s.x) >= .05f) return true
+        q++
+      }
+    }
+    return false
+  }
+
+  /** One frame's invalidations: the flakes' views while flakes fall, the front view only when it would differ. */
+  private fun present(rimed: Boolean) {
+    val falling = !model.asleep
+    // One more pass after the snowfall stops, to wipe the last flakes.
+    if (falling || flakesShown) for (k in backs.indices) { val view = backs[k]; if (view.active) view.invalidate() }
+    flakesShown = falling
+    val particles = model.particles > 0
+    val sparkle = sparkling()
+    val changed = model.takeDirty() || rimed || particles || hadParticles || sparkle || hadSparkle || model.heat != shownHeat
+    hadParticles = particles; hadSparkle = sparkle; shownHeat = model.heat
+    if (changed) for (k in views.indices) { val view = views[k]; if (view.active) view.invalidate() }
+  }
 
   private fun park() {
     if (running) { running = false; Choreographer.getInstance().removeFrameCallback(callback) }
@@ -189,7 +241,7 @@ internal object SnowHub {
 
   /** Called from the window callback BEFORE the app sees the event; never consumes it. Window coordinates. */
   fun observe(event: MotionEvent) {
-    if (!enabled || still || views.isEmpty()) return
+    if (!enabled || still || (views.isEmpty() && backs.isEmpty())) return
     when (event.actionMasked) {
       MotionEvent.ACTION_DOWN -> {
         lead = event.getPointerId(0)
@@ -224,8 +276,7 @@ internal object SnowHub {
     model.heatTarget = if (override >= 0) override else device
     val awake = model.step(now, dt)
     art()
-    rime()
-    redraw()
+    present(rime())
     // Hot, melted and fallen: sleep until the heat drops (saves the battery exactly when the phone is hot).
     if (awake) frame() else lastNanos = 0
   }
@@ -270,7 +321,7 @@ internal object SnowHub {
 
   /** Keeps the rime bitmaps of the glass ledges up to date: at most one render per frame, and only once a ledge
    *  has kept its shape for a moment (a resizing ledge shows its previous rime stretched). */
-  private fun rime() {
+  private fun rime(): Boolean {
     var budget = 1
     val ledges = model.ledges
     for (k in ledges.indices) {
@@ -286,6 +337,7 @@ internal object SnowHub {
       rime.rendered = true
       rime.w = s.width; rime.h = s.height; rime.r = s.radius; rime.dark = dark
     }
+    return budget < 1
   }
 
   /** The demo's `frost()`: the haze, then sub-pixel specks near the rim, then thin ice feathers growing inward. */
@@ -356,15 +408,32 @@ internal object SnowHub {
   }
 }
 
-/** The one transparent surface the app mounts above everything (src/SnowPhone.tsx). It never takes touches, focus
- *  or accessibility and draws the hub's model: rime, caps, falling flakes, knocked-off snow, meltwater. The model
- *  is in window dp, so drawing is offset by the view's own position in the window. Paints, the path and the
- *  rectangles are reused — no allocation per frame. */
+/** A transparent surface of the snow (src/SnowPhone.tsx). It never takes touches, focus or accessibility and draws
+ *  its layer of the hub's model: 'front' (one view above everything) — rime, caps, knocked-off snow, meltwater;
+ *  'back' (a view inside each screen's background) — the falling flakes only, so they pass behind the content.
+ *  The model is in window dp, so drawing is offset by the view's own position in the window and clipped to the
+ *  view. Paints, the path and the rectangles are reused — no allocation per frame. */
 @SuppressLint("ViewConstructor")
 class SnowView(context: Context, appContext: AppContext) : ExpoView(context, appContext) {
   /** false: the view stops drawing and (when no other view is shown) the frame loop sleeps. */
   var active = true
     set(value) { if (field != value) { field = value; invalidate(); if (value) SnowHub.frame() } }
+
+  /** 'back': this view draws the falling flakes only; anything else (the default): the front layer. The prop
+   *  may arrive after the view is attached, so the view then changes lists in the hub. */
+  var layer: String? = null
+    set(value) {
+      field = value
+      val isBack = value == "back"
+      if (isBack == back) return
+      val attached = isAttachedToWindow
+      try { if (attached) SnowHub.remove(this) } catch (_: Throwable) { /* decorative */ }
+      back = isBack
+      try { if (attached) SnowHub.add(this) } catch (_: Throwable) { /* decorative */ }
+      invalidate()
+    }
+  var back = false
+    private set
 
   private val capPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
     style = Paint.Style.FILL
@@ -429,11 +498,13 @@ class SnowView(context: Context, appContext: AppContext) : ExpoView(context, app
     val model = hub.model
     if (!active || !hub.enabled || hub.still || model.width <= 0f) return
     getLocationInWindow(place)
+    // A back view may be smaller than the window or offset in it: nothing outside its own bounds.
+    if (back) canvas.clipRect(0, 0, width, height)
     canvas.translate(-place[0].toFloat(), -place[1].toFloat())
     canvas.scale(hub.density, hub.density) // from here on: window dp
+    if (back) { if (!model.asleep) flakes(canvas, model, hub.sprites); return }
     rime(canvas, model)
-    caps(canvas, model, hub.now, hub.grain)
-    if (!model.asleep) flakes(canvas, model, hub.sprites)
+    caps(canvas, model, hub.grain)
     particles(canvas, model)
   }
 
@@ -452,10 +523,9 @@ class SnowView(context: Context, appContext: AppContext) : ExpoView(context, app
   }
 
   /** 2) The caps: a smoothed top, back along the ledge's outline; gradient + shadow, grain, sparkles. */
-  private fun caps(canvas: Canvas, model: SnowModel, now: Double, grain: BitmapShader?) {
+  private fun caps(canvas: Canvas, model: SnowModel, grain: BitmapShader?) {
     val col = SnowRules.COL
     val ledges = model.ledges
-    val hop = floor(now / 2600).toLong()
     for (k in ledges.indices) {
       val s = ledges[k]
       val n = s.n
@@ -485,10 +555,10 @@ class SnowView(context: Context, appContext: AppContext) : ExpoView(context, app
       val count = max(1f, n / 22f)
       var q = 0
       while (q < count) {
-        val i = ((q * 37 + 11 + hop * 13 + q * 7) % n).toInt()
+        val i = SnowHub.sparkleColumn(q, n)
         val hh = h[i]
         if (hh >= 2) {
-          val twinkle = max(0.0, sin(now / 330 + q * 2.1 + s.x)).pow(10).toFloat()
+          val twinkle = SnowHub.sparkle(q, s.x)
           if (twinkle >= .05f) {
             val x = s.x + (i + .5f) * col; val y = s.base(i) - hh * .6f
             flakePaint.alpha = (twinkle * 255).roundToInt().coerceIn(0, 255)
@@ -501,7 +571,7 @@ class SnowView(context: Context, appContext: AppContext) : ExpoView(context, app
     }
   }
 
-  /** 3) Falling snow: far flakes are pale dots, nearer ones slowly turning fluffy aggregates. */
+  /** Back layer. Falling snow: far flakes are pale dots, nearer ones slowly turning fluffy aggregates. */
   private fun flakes(canvas: Canvas, model: SnowModel, sprites: Array<Bitmap>?) {
     for (k in 0 until model.falling) {
       val z = model.flakeZ[k]
@@ -522,7 +592,7 @@ class SnowView(context: Context, appContext: AppContext) : ExpoView(context, app
     }
   }
 
-  /** 4) Knocked-off snow (clumps, grains) and meltwater drops. Opaque: they fall off the window, never fade. */
+  /** 3) Knocked-off snow (clumps, grains) and meltwater drops. Opaque: they fall off the window, never fade. */
   private fun particles(canvas: Canvas, model: SnowModel) {
     val stride = SnowRules.BLOBS * 3
     for (k in 0 until model.particles) {

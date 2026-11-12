@@ -134,6 +134,10 @@ class SnowModel(private val random: Random = Random.Default) {
   /** Hot, everything melted and fallen: the frame loop may stop until the heat drops or a ledge appears. */
   var asleep = false; private set
 
+  /** Some cap or ledge changed since the renderer last asked: the caps need a redraw. */
+  private var dirty = true
+  fun takeDirty(): Boolean { val was = dirty; dirty = false; return was }
+
   private var finger = false
   private var fingerX = 0f; private var fingerY = 0f; private var prevX = 0f; private var prevY = 0f
   private var tapId: String? = null
@@ -150,12 +154,13 @@ class SnowModel(private val random: Random = Random.Default) {
 
   fun clear() {
     ledges.clear(); flakes = 0; falling = 0; particles = 0; width = 0f; height = 0f
-    heat = 0f; asleep = false; finger = false; tapId = null
+    heat = 0f; asleep = false; finger = false; tapId = null; dirty = true
   }
 
   /** The complete set of ledges. A drift is kept by id; it is rebuilt only when the ledge's shape changes. */
   fun setLedges(specs: List<LedgeSpec>) {
     val old = ArrayList(ledges)
+    dirty = true
     ledges.clear()
     for (spec in specs) {
       if (find(spec.id) != null) continue
@@ -217,6 +222,7 @@ class SnowModel(private val random: Random = Random.Default) {
           amount += s.h[q] * (1 - keep) * col
           top = min(top, s.base(q) - s.h[q])
           s.h[q] *= keep
+          dirty = true
         }
         if (amount > 1) shed(px, top + 2, amount * 1.6f, if (wide) (px - cx) * .8f else (px - mid) * 1.6f, -22f, col * 3)
       }
@@ -239,6 +245,7 @@ class SnowModel(private val random: Random = Random.Default) {
         if (d > reach) continue
         val take = min(s.h[i], s.h[i] * (1 - d / reach) * .9f + .4f)
         s.h[i] -= take
+        dirty = true
         if (take > .5f) shed(cx, s.base(i) - s.h[i], take * col, (fingerX - prevX) * 5, -8f, col)
       }
     }
@@ -297,6 +304,7 @@ class SnowModel(private val random: Random = Random.Default) {
         val limit = s.cap[i] * (1 - heat)
         if (s.h[i] <= limit + .05f) continue
         melting = true
+        dirty = true
         s.h[i] = max(limit, s.h[i] - (1.2f + heat * 5) * dt)
         if (random.nextFloat() < dt * (.12f + heat * .5f)) {
           val p = add(SnowRules.DROP, s.x + (i + .5f) * SnowRules.COL, s.base(i) + 1, 0f, 6 + random.nextFloat() * 10, .9f + random.nextFloat() * .8f, 0f)
@@ -334,7 +342,7 @@ class SnowModel(private val random: Random = Random.Default) {
         val top = s.base(i) - s.h[i]
         if (flakeY[k] >= top && flakeY[k] < top + 7) {
           val limit = s.cap[i] * share
-          if (s.h[i] < limit) s.h[i] = min(limit, s.h[i] + flakeR[k] * SnowRules.GAIN)
+          if (s.h[i] < limit) { s.h[i] = min(limit, s.h[i] + flakeR[k] * SnowRules.GAIN); dirty = true }
           landed = true
           break
         }
