@@ -123,7 +123,9 @@ module.exports = {
         isAccessMediaLocationEnabled:false,
         preventAutomaticLimitedAccessAlert:true,
       }],
-      ['expo-build-properties', { android: { usesCleartextTraffic: allowDevelopmentHttp }, ios: { useFrameworks: 'static' } }],
+      // libsignal ships a second, test-only copy of its native library (11 MB). Its loader tries that copy first and
+      // falls back to the real one (org.signal.libsignal.internal.Native.loadNativeCode), so the app works without it.
+      ['expo-build-properties', { android: { usesCleartextTraffic: allowDevelopmentHttp, packagingOptions: { exclude: ['**/libsignal_jni_testing.so'] } }, ios: { useFrameworks: 'static' } }],
       // Alternate app icons (Настройки → Оформление → Иконка приложения).
       ['expo-alternate-app-icons', [
         { name: 'Light', ios: './assets/icons/light.png', android: { foregroundImage: './assets/icons/light-android.png', backgroundColor: '#F5F4F9' } },
