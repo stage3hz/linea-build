@@ -70,6 +70,7 @@ export function useMessenger(api: Api, user: User, onExpired: ()=>void) {
   // Telegram offline: «Ожидание сети…» / «Соединение…» / «Обновление…» in the title (network/offline.ts), no error cards.
   const [online,setOnline]=useState<boolean|null>(null);const [updating,setUpdating]=useState(false);
   // The list shown comes from the server once (`serverLoaded`); until then from the vault's cache (chatListCache.ts).
+  const seedPreview=useRef<((cached:readonly Chat[])=>void)|null>(null);
   const serverLoaded=useRef(false);const cacheRead=useRef(false);const [fresh,setFresh]=useState(false);
   // "Delete for me": a local list of message keys, per account, never sent to the server.
   const hiddenKey=`linea.hidden.v1:${user.id}`;
@@ -246,18 +247,15 @@ export function useMessenger(api: Api, user: User, onExpired: ()=>void) {
     cryptoRuntime.get().then(crypto=>crypto.loadCache(CHAT_LIST_CACHE)).then(raw=>{
       if(!live||!aliveRef.current)return;
       const cached=decodeChatList(raw);
+      // Each cached line is the last real message of its chat: it stands in when the server's last one is an action.
+      if(cached.length)seedPreview.current?.(cached);
       if(cached.length&&!serverLoaded.current){setChats(prev=>sortedChats([...restoreChats(prev,cached,serverLoaded.current)]));setListLoading(false);}
     }).catch(()=>{/* no vault here (browser) */}).finally(()=>{if(live)cacheRead.current=true;});
     return()=>{live=false;};
   },[cryptoRuntime,user.id]);
   // …and kept current: written a moment after the list changes (only once the cache was read, so an
   // empty list at start never overwrites it; an empty list is written only when the server said so).
-  useEffect(()=>{
-    if(!cacheRead.current&&!serverLoaded.current)return;
-    if(!chats.length&&!serverLoaded.current)return;
-    const timer=setTimeout(()=>{void cryptoRuntime.get().then(crypto=>crypto.storeCache(CHAT_LIST_CACHE,encodeChatList(chats))).catch(()=>{});},1500);
-    return()=>clearTimeout(timer);
-  },[chats,cryptoRuntime]);
+  // (the effect that writes it sits below `visibleChats`: the list is stored as it is shown.)
   // ---- F4 «Отправить позже» ----
   // Which pending messages the server is to keep until a time (clientId → ISO). Kept per account outside
   // the vault (no text in it) so a message restored from the vault outbox after a restart is scheduled
@@ -770,6 +768,7 @@ export function useMessenger(api: Api, user: User, onExpired: ()=>void) {
   // (the server cannot tell, they are encrypted), but the list shows the last real message. For a
   // chat never opened, its recent page is read quietly (no «read» mark) to find that message.
   const [previewFill,setPreviewFill]=useState<Record<string,Message>>({});
+  seedPreview.current=cached=>setPreviewFill(prev=>{const next:Record<string,Message>={};for(const chat of cached){const line=chat.lastMessage;if(line&&(line.text||line.attachment)&&!skippedInList(line))next[chat.id]=line;}return {...next,...prev};});
   const previewAsked=useRef(new Set<string>());
   const filtered=useMemo(()=>chats.filter(chat=>removed[chat.id]===undefined||(chat.lastMessage?.id||0)>removed[chat.id]),[chats,removed]);
   useEffect(()=>{
@@ -807,6 +806,14 @@ export function useMessenger(api: Api, user: User, onExpired: ()=>void) {
     const final=masked!==null&&masked!==last.text?{...last,text:masked}:shown;
     return final&&final!==last?{...chat,lastMessage:final}:chat;
   }),c=>c.id),[filtered,messages,previewFill,hidden]);
+  // The cached list holds each chat's line as it is shown (the last real message, not a trailing reaction or delete
+  // action): at the next launch the list opens with the same lines instead of «Сообщение удалено» until the page is read.
+  useEffect(()=>{
+    if(!cacheRead.current&&!serverLoaded.current)return;
+    if(!visibleChats.length&&!serverLoaded.current)return;
+    const timer=setTimeout(()=>{void cryptoRuntime.get().then(crypto=>crypto.storeCache(CHAT_LIST_CACHE,encodeChatList(visibleChats))).catch(()=>{});},1500);
+    return()=>clearTimeout(timer);
+  },[visibleChats,cryptoRuntime]);
   // While it is being re-sent by itself, the bubble shows the clock, not «Не отправлено».
   const shownPending=useMemo(()=>pending.map(p=>p.state==='failed'&&p.offline&&(p.offline<=40||p.mesh)&&!p.upload?{...p,state:'sending' as const,error:undefined}:p),[pending]);
   // F11: system notifications on PC / in the browser when the window is not in front (one hook, decisions in notifications/desktopNotify.ts).

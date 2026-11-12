@@ -92,9 +92,11 @@ test('phone: the snow never takes a touch and is off with the setting; «Пои�
   assert.match(phone, /pointerEvents="none"/);
   assert.match(phone, /preferences\.snow && motion\.enabled/);
   const list = readFileSync(new URL('../src/ChatListScreen.tsx', import.meta.url), 'utf8');
-  assert.ok(list.includes('const pullSearch=float&&!archive&&!query&&searchOpen;const topRow=archiveRow||pullSearch;'), 'on the phone it is in the list only while opened');
-  assert.ok(list.includes('{topRow?<View onLayout=') && list.includes('>{pullSearch?searchBar:null}{archiveRow?'), 'one hidden block: the field, then «Архив»');
-  assert.match(list, /\{float\?null:<SnowLedge id="chats\.search"/, 'the PC and the rail keep it in the header');
+  // The field is never a row of the list (the list was left scrolled by its height when it went away): opened, it
+  // sits in the floating header, and the list is not scrolled for it.
+  assert.ok(list.includes('const topRow=archiveRow;') && !list.includes('pullSearch'), 'only «Архив» is tucked above the chats');
+  assert.ok(list.includes('{float?(searchOpen&&!archive&&!editing?searchBar:null):<SnowLedge id="chats.search"'), 'opened, it is under the title');
+  assert.ok(!/const (open|close)Search=[^\n]*scrollToOffset/.test(list), 'opening and closing never scroll the list');
   assert.doesNotMatch(list, /searchPulled/);
 });
 
