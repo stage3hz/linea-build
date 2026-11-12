@@ -10,7 +10,7 @@ import { ScrollEdgeBlurView } from 'react-native-liquid-glassmorphism';
 import { useReducedTransparency } from './glass';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useTheme } from './theme';
-import { tabBarEdge, tabBarMarginBottom } from './chatLayout';
+import { TAB_BAR_EDGE_SOFT, TAB_BAR_EDGE_SOFT_FADE, tabBarEdge, tabBarMarginBottom } from './chatLayout';
 
 const TabInset = createContext(0);
 export const useTabInset = () => useContext(TabInset);
@@ -48,11 +48,12 @@ function TabsFade({ bar }: { bar: number }) {
 export function TabBarEdge({ bar }: { bar: number }) {
   const t = useTheme(); const insets = useSafeAreaInsets(); const reduced = useReducedTransparency();
   const inset = Platform.OS === 'web' ? 0 : insets.bottom;
-  const edge = tabBarEdge(bar, inset, inset + tabBarMarginBottom(Platform.OS === 'ios', insets.bottom));
+  const soft = Platform.OS === 'ios' && !reduced;
+  const edge = tabBarEdge(bar, inset, inset + tabBarMarginBottom(Platform.OS === 'ios', insets.bottom), soft ? TAB_BAR_EDGE_SOFT_FADE : 8);
   const up = { start: { x: 0, y: 1 }, end: { x: 0, y: 0 } };
   const fill = { position: 'absolute' as const, top: 0, left: 0, right: 0, bottom: 0 };
   // Reduce Transparency: no blur, so the colour alone must hide the rows behind the bar.
-  const alphas = reduced ? [1, 1, 1, .9, 0] : edge.alphas;
+  const alphas = reduced ? [1, 1, 1, .9, 0] : soft ? TAB_BAR_EDGE_SOFT : edge.alphas;
   return <View pointerEvents="none" style={{ position: 'absolute', left: 0, right: 0, bottom: -inset, height: edge.total }}>
     {Platform.OS === 'ios' && !reduced ? <MaskedView pointerEvents="none" style={fill} maskElement={<LinearGradient colors={['#000', '#000', 'transparent']} locations={[0, edge.blurSolid, 1]} {...up} style={{ flex: 1 }} />}>
       <BlurView intensity={30} tint={t.dark ? 'systemUltraThinMaterialDark' : 'systemUltraThinMaterialLight'} style={{ flex: 1 }} />
