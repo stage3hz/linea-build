@@ -39,7 +39,12 @@ public final class LineSnowModule: Module {
 
     View(SnowOverlayView.self) {
       Prop("active") { (view: SnowOverlayView, on: Bool?) in
-        view.canvas.active = on ?? true
+        view.snowActive = on ?? true
+      }
+      // 'front' (default): caps, rime and what is knocked off, above the app. 'back': only the falling flakes,
+      // mounted inside a screen's background.
+      Prop("layer") { (view: SnowOverlayView, layer: String?) in
+        view.snowBack = (layer ?? "front") == "back"
       }
     }
 
@@ -462,6 +467,10 @@ final class SnowEngine {
   private var sleeping = false
 
   private weak var canvas: SnowCanvasView?
+  /// Every front canvas in a window: when the anchor leaves, another one takes over.
+  private let canvases = NSHashTable<SnowCanvasView>.weakObjects()
+  /// The 'back' views (inside screen backgrounds) that show the falling flakes.
+  private let flakeViews = NSHashTable<SnowFlakesView>.weakObjects()
   private var observer: SnowTouchObserver?
   private var link: CADisplayLink?
   private let proxy = SnowLinkProxy()
@@ -474,8 +483,11 @@ final class SnowEngine {
   private var lastTick: Double = 0        // s; 0 = the loop has just (re)started
   private var rimeStep = 50               // rime opacity in steps of 0.02: the ground redraws per step, not per frame
   private var lastLandFlush: Double = 0   // ms; when landed flakes last caused a ground redraw
-  private var airMoving = false           // something was in the air at the last tick
+  private var airMoving = false           // the front air has something to show: particles, or sparkles on lying snow
   private var airShown = false            // the air view shows something that must be erased once the air is empty
+  private var flakesAlive = false         // flakes are falling (drawn by the back views)
+  private var flakesShown = false         // the back views show flakes that must be erased once none fall
+  private var frameCount = 0
   private var slowFrames = 0
   private var fastFrames = 0
   private var airHalved = false           // the main thread struggles: the air is redrawn every other frame
@@ -560,6 +572,8 @@ final class SnowEngine {
       sleeping = false
       airMoving = false
       airShown = false
+      flakesAlive = false
+      flakesShown = false
       airHalved = false
       slowFrames = 0
       fastFrames = 0
@@ -569,6 +583,7 @@ final class SnowEngine {
       height = 0
       canvas?.setNeedsDisplay()
       canvas?.air?.setNeedsDisplay()
+      for back in flakeViews.allObjects { back.setNeedsDisplay() }
     }
   }
 
@@ -603,6 +618,7 @@ final class SnowEngine {
   }
 
   func attach(_ view: SnowCanvasView) {
+    canvases.add(view)
     canvas = view
     let screen = view.screenScale
     if screen > 0 { scale = screen }
@@ -612,8 +628,20 @@ final class SnowEngine {
   }
 
   func detach(_ view: SnowCanvasView) {
-    if canvas === view { canvas = nil }
+    canvases.remove(view)
+    if canvas === view {
+      // Another front canvas still in a window (if any) becomes the anchor.
+      canvas = canvases.allObjects.first(where: { $0.window != nil && $0.hosted })
+    }
     refresh()
+  }
+
+  func register(_ view: SnowFlakesView) {
+    flakeViews.add(view)
+  }
+
+  func unregister(_ view: SnowFlakesView) {
+    flakeViews.remove(view)
   }
 
   private func thermalChanged() {
@@ -687,6 +715,12 @@ final class SnowEngine {
     link?.invalidate()
     link = nil
     fingerDown = false
+    // Flakes must not hang frozen in the backgrounds while the loop rests.
+    flakesAlive = false
+    if flakesShown {
+      flakesShown = false
+      for back in flakeViews.allObjects { back.setNeedsDisplay() }
+    }
   }
 
   func tick() {
@@ -731,18 +765,39 @@ final class SnowEngine {
       }
     }
     airSkip = !airSkip
-    airMoving = !sleeping && (liveFlakes > 0 || !particles.isEmpty)
+    frameCount = (frameCount + 1) % 1024
+    let skip = airHalved && airSkip
+    // The front air: every frame while something falls off; a low rate is enough for the sparkles on lying snow.
+    let falling = !particles.isEmpty
+    let lying = anySnow()
+    airMoving = falling || lying
     if let air = view.air {
-      if airMoving {
-        if !(airHalved && airSkip) {
+      if falling {
+        if !skip {
+          air.setNeedsDisplay()
+          airShown = true
+        }
+      } else if lying {
+        if frameCount % 4 == 0 {
           air.setNeedsDisplay()
           airShown = true
         }
       } else if airShown {
-        // Nothing moves any more: one last redraw erases what was shown, then the air view rests.
+        // Nothing to show any more: one last redraw erases what was shown, then the air view rests.
         air.setNeedsDisplay()
         airShown = false
       }
+    }
+    // The falling flakes: drawn by the back views that are active and in a window.
+    flakesAlive = link != nil && !sleeping && liveFlakes > 0
+    if flakesAlive {
+      if !skip {
+        for back in flakeViews.allObjects where back.canShow { back.setNeedsDisplay() }
+        flakesShown = true
+      }
+    } else if flakesShown {
+      flakesShown = false
+      for back in flakeViews.allObjects { back.setNeedsDisplay() }
     }
   }
 
@@ -1224,14 +1279,22 @@ final class SnowEngine {
     context.restoreGState()
   }
 
-  /// The air: sparkles, falling flakes, clumps, grains and drops.
+  /// The front air: sparkles, clumps, grains and drops.
   func drawAir(in context: CGContext, origin: CGPoint, view: SnowAirView) {
     guard enabled, airMoving, let current = canvas, let air = current.air, air === view else { return }
     context.saveGState()
     context.translateBy(x: -origin.x, y: -origin.y)
     drawSparkles(context)
-    drawFlakes(context)
     drawParticles(context)
+    context.restoreGState()
+  }
+
+  /// A back view: the falling flakes, behind the app's content. `origin` is the view's corner in the window.
+  func drawBack(in context: CGContext, origin: CGPoint) {
+    guard enabled, flakesAlive else { return }
+    context.saveGState()
+    context.translateBy(x: -origin.x, y: -origin.y)
+    drawFlakes(context)
     context.restoreGState()
   }
 
@@ -1510,8 +1573,24 @@ final class SnowTouchObserver: UIGestureRecognizer, UIGestureRecognizerDelegate 
 
 /// The view the app mounts above everything (src/SnowPhone.tsx): a passthrough container for the canvas.
 final class SnowOverlayView: ExpoView {
-  let canvas = SnowCanvasView(frame: .zero)   // the ground: caps and rime, redrawn only where they change
-  let air = SnowAirView(frame: .zero)         // the air: everything that moves, redrawn every frame at 1 px per pt
+  let canvas = SnowCanvasView(frame: .zero)   // front, the ground: caps and rime, redrawn only where they change
+  let air = SnowAirView(frame: .zero)         // front, the air: sparkles and what falls off, at 1 px per pt
+  let flakes = SnowFlakesView(frame: .zero)   // back: the falling flakes, at 1 px per pt
+
+  /// The `active` prop.
+  var snowActive = true { didSet { if snowActive != oldValue { applyRole() } } }
+  /// The `layer` prop: false = 'front' (the engine's anchor), true = 'back' (flakes only, never the anchor).
+  var snowBack = false { didSet { if snowBack != oldValue { applyRole() } } }
+
+  /// The props may arrive after init and in any order: the role is applied again on every change.
+  private func applyRole() {
+    canvas.isHidden = snowBack
+    air.isHidden = snowBack
+    flakes.isHidden = !snowBack
+    canvas.hosted = !snowBack
+    canvas.active = !snowBack && snowActive
+    flakes.active = snowBack && snowActive
+  }
 
   required init(appContext: AppContext? = nil) {
     super.init(appContext: appContext)
@@ -1527,12 +1606,17 @@ final class SnowOverlayView: ExpoView {
     addSubview(air)
     canvas.air = air
     air.ground = canvas
+    flakes.frame = bounds
+    flakes.autoresizingMask = [.flexibleWidth, .flexibleHeight]
+    addSubview(flakes)
+    applyRole()
   }
 
   override func layoutSubviews() {
     super.layoutSubviews()
     if canvas.frame != bounds { canvas.frame = bounds }
     if air.frame != bounds { air.frame = bounds }
+    if flakes.frame != bounds { flakes.frame = bounds }
   }
 
   override func hitTest(_ point: CGPoint, with event: UIEvent?) -> UIView? { nil }
@@ -1543,6 +1627,18 @@ final class SnowOverlayView: ExpoView {
 final class SnowCanvasView: UIView {
   /// The sibling that shows everything in the air.
   weak var air: SnowAirView?
+
+  /// false: this canvas belongs to a 'back' view — it never becomes the engine's anchor.
+  var hosted = true {
+    didSet {
+      if hosted == oldValue { return }
+      if hosted && window != nil {
+        SnowEngine.shared.attach(self)
+      } else {
+        SnowEngine.shared.detach(self)
+      }
+    }
+  }
 
   /// false: both views draw nothing and the frame loop sleeps.
   var active = true {
@@ -1576,13 +1672,13 @@ final class SnowCanvasView: UIView {
 
   /// In a window, active, not hidden, not empty.
   var canShow: Bool {
-    return window != nil && active && !isHidden && bounds.width > 0 && bounds.height > 0
+    return window != nil && hosted && active && !isHidden && bounds.width > 0 && bounds.height > 0
   }
 
   override func didMoveToWindow() {
     super.didMoveToWindow()
-    if window != nil {
-      contentScaleFactor = CGFloat(min(2, max(1, screenScale)))
+    if window != nil { contentScaleFactor = CGFloat(min(2, max(1, screenScale))) }
+    if window != nil && hosted {
       SnowEngine.shared.attach(self)
     } else {
       SnowEngine.shared.detach(self)
@@ -1605,8 +1701,9 @@ final class SnowCanvasView: UIView {
   }
 }
 
-/// The air surface: falling flakes, sparkles, clumps, grains and drops. It is redrawn every frame while anything
-/// moves, so its backing store is 1 px per pt: soft dots look the same and cost a quarter of the pixels.
+/// The front air surface: sparkles, clumps, grains and drops. It is redrawn every frame while anything falls off
+/// (and a few times per second for the sparkles), so its backing store is 1 px per pt: soft dots look the same and
+/// cost a quarter of the pixels.
 final class SnowAirView: UIView {
   weak var ground: SnowCanvasView?
 
@@ -1636,5 +1733,57 @@ final class SnowAirView: UIView {
     guard let owner = ground, owner.active, window != nil, let context = UIGraphicsGetCurrentContext() else { return }
     let corner = convert(CGPoint.zero, to: nil)
     SnowEngine.shared.drawAir(in: context, origin: corner, view: self)
+  }
+}
+
+/// A 'back' surface: only the falling flakes, mounted inside a screen's background (the app backdrop, a chat
+/// wallpaper…), so the snow falls behind the content. Several can be mounted at once; each draws the part of the
+/// window-wide snowfall that falls on it. 1 px per pt. Never takes touches and is hidden from accessibility.
+final class SnowFlakesView: UIView {
+  /// false: a background kept mounted under another one — nothing is drawn.
+  var active = false {
+    didSet {
+      if active != oldValue { setNeedsDisplay() }
+    }
+  }
+
+  override init(frame: CGRect) {
+    super.init(frame: frame)
+    isUserInteractionEnabled = false
+    isOpaque = false
+    backgroundColor = .clear
+    clearsContextBeforeDrawing = true
+    contentMode = .redraw
+    contentScaleFactor = 1
+    isAccessibilityElement = false
+    accessibilityElementsHidden = true
+  }
+
+  required init?(coder: NSCoder) { return nil }
+
+  /// In a window, active, not hidden, not empty.
+  var canShow: Bool {
+    return window != nil && active && !isHidden && bounds.width > 0 && bounds.height > 0
+  }
+
+  override func didMoveToWindow() {
+    super.didMoveToWindow()
+    // UIKit resets the scale to the screen's when the view enters a window.
+    contentScaleFactor = 1
+    // The engine holds the view weakly, so a view that dies without leaving its window needs no deinit.
+    if window != nil {
+      SnowEngine.shared.register(self)
+    } else {
+      SnowEngine.shared.unregister(self)
+    }
+  }
+
+  override func hitTest(_ point: CGPoint, with event: UIEvent?) -> UIView? { nil }
+
+  override func draw(_ rect: CGRect) {
+    guard active, window != nil, let context = UIGraphicsGetCurrentContext() else { return }
+    // The snowfall is in window coordinates; the context is already clipped to this view.
+    let corner = convert(CGPoint.zero, to: nil)
+    SnowEngine.shared.drawBack(in: context, origin: corner)
   }
 }
