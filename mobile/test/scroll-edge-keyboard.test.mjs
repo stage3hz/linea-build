@@ -84,7 +84,10 @@ test('the floating tab bar stands clear of the home gesture and has a bottom scr
   assert.ok(edge.alphas[0] >= .9 && edge.alphas[1] >= .9, 'under the pill and beside its lower edge rows are covered');
   assert.ok(edge.locations[1] * edge.total > 30, 'the full cover reaches past the pill\'s lower edge');
   assert.equal(edge.alphas.at(-1), 0); assert.equal(edge.locations.at(-1), 1);
-  assert.ok(Math.abs(edge.blurSolid * edge.total - 93) < 1e-9, 'blurred up to the pill\'s top edge');
+  assert.ok(Math.abs(edge.blurSolid * edge.total - 79) < 1e-9, 'fully blurred up to 14 pt inside the pill\'s top edge, thinning out above');
+  assert.ok(layout.TAB_BAR_EDGE_SOFT[0] <= .4 && layout.TAB_BAR_EDGE_SOFT.at(-1) === 0, 'with a blur the colour only tints, as under the header');
+  for (let i = 1; i < 5; i++) assert.ok(layout.TAB_BAR_EDGE_SOFT[i] <= layout.TAB_BAR_EDGE_SOFT[i - 1]);
+  assert.equal(layout.tabBarEdge(64, 34, 30, layout.TAB_BAR_EDGE_SOFT_FADE).total, 98 + layout.TAB_BAR_EDGE_SOFT_FADE);
   // With the mini-player above the pill the effect still ends above the whole block; junk input is safe.
   assert.equal(layout.tabBarEdge(130, 34, 30).total, 172);
   const junk = layout.tabBarEdge(NaN, -1, NaN);

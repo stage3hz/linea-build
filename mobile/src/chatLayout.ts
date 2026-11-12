@@ -64,6 +64,14 @@ export function tabBarMarginBottom(ios: boolean, bottomInset: number): number {
   return ios && inset > 0 ? Math.min(TAB_BAR_GAP, TAB_BAR_HOME_GAP - inset) : TAB_BAR_GAP;
 }
 
+/** The colour cover of the tab bar edge where the content is blurred behind it (iPhone): the same recipe as the
+ *  header edge — blurred and barely tinted, dissolving upwards — instead of a near-solid band of page colour
+ *  (reported: «снизу нет рассеянной прозрачности как сверху»). Without a blur (Android, Reduce Transparency)
+ *  the denser `alphas` of `tabBarEdge` stay: there the colour alone hides the rows. */
+export const TAB_BAR_EDGE_SOFT: [number, number, number, number, number] = [.34, .3, .22, .1, 0];
+/** How far above the tab block the blurred edge dissolves (the dense one ends 8 pt above it). */
+export const TAB_BAR_EDGE_SOFT_FADE = 22;
+
 /**
  * The bottom scroll-edge effect behind the floating tab bar, measured from the SCREEN bottom upwards.
  * `bar`: height of the tab block above the safe area (pill, its margins, the mini-player when shown);
@@ -81,6 +89,7 @@ export function tabBarEdge(bar: number, inset: number, lift: number, fade = 8): 
     total,
     locations: [0, at(pillBottom + TAB_BAR_PILL * .2), at(pillBottom + TAB_BAR_PILL * .6), at(pillTop), 1],
     alphas: [.97, .94, .66, .3, 0],
-    blurSolid: at(pillTop),
+    // The blur thins out from 14 pt inside the pill's top edge to the end of the fade: no hard line above the bar.
+    blurSolid: at(pillTop - 14),
   };
 }
