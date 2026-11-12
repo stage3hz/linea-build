@@ -18,7 +18,7 @@ test('the keep mark lives beside the file in the private cache folder (not in a 
 });
 
 test('picture in picture: the viewer keeps playing only inside the small window', () => {
-  const viewer = readFileSync(new URL('../src/media/AttachmentViewer.tsx', import.meta.url), 'utf8');
+  const viewer = readFileSync(new URL('../src/media/VideoPlayerView.tsx', import.meta.url), 'utf8');
   assert.match(viewer, /allowsPictureInPicture=\{pipSupported\} startsPictureInPictureAutomatically=\{pipSupported\}/);
   assert.match(viewer, /if\(!inPip\.current\)pause\(\);/, 'no sound left playing unseen when the window did not open');
   const config = readFileSync(new URL('../app.config.js', import.meta.url), 'utf8');
@@ -29,6 +29,6 @@ test('a video that has just started is not paused by the audio session going dow
   const patch = readFileSync(new URL('../scripts/patch-expo-audio.cjs', import.meta.url), 'utf8');
   assert.match(patch, /mode == \.moviePlayback \{ return \}/, 'expo-audio leaves the session alone while a video plays');
   assert.match(patch, /source\.includes\(earlier\) \? earlier : before/, 'an already patched tree is upgraded, not rejected');
-  const viewer = readFileSync(new URL('../src/media/AttachmentViewer.tsx', import.meta.url), 'utf8');
+  const viewer = readFileSync(new URL('../src/media/VideoPlayerView.tsx', import.meta.url), 'utf8');
   assert.match(viewer, /!player\.playing&&player\.currentTime<0\.4&&player\.status!=='error'\)player\.play\(\)/, 'started again only while still at its beginning');
 });

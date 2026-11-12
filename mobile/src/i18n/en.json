@@ -2814,5 +2814,22 @@
 "Пиксельный след": "Pixel trail",
 "Снег": "Snow",
 "Снег падает в окне, ложится на сообщения, панели и верх окна; курсор его смахивает": "Snow falls in the window and settles on messages, bars and the top of the window; the cursor sweeps it off",
-"Сетка пикселей подсвечивается под пальцем и курсором: белая в тёмной теме, чёрная в светлой": "A pixel grid lights up under your finger and cursor: white in a dark theme, black in a light one"
+"Сетка пикселей подсвечивается под пальцем и курсором: белая в тёмной теме, чёрная в светлой": "A pixel grid lights up under your finger and cursor: white in a dark theme, black in a light one",
+"секунд": "seconds",
+"Обычная": "Normal",
+"Скорость воспроизведения": "Playback speed",
+"Заблокировать экран": "Lock screen",
+"Экран заблокирован. Удерживай, чтобы снять": "Screen locked. Press and hold to unlock",
+"Блокировка снята": "Screen unlocked",
+"Картинка в картинке": "Picture in picture",
+"Сохранено для просмотра без сети": "Kept for watching offline",
+"Убрано из сохранённых": "No longer kept offline",
+"Точная перемотка": "Precise seeking",
+"Потяни вверх для точной перемотки": "Pull up for precise seeking",
+"Смотреть сначала": "Watch again",
+"Масштаб по экрану": "Zoomed to fill",
+"Исходный размер": "Original size",
+"Окно не открылось": "The window did not open",
+"Скрыть управление": "Hide controls",
+"Показать управление": "Show controls"
 }
