@@ -50,7 +50,7 @@ export async function pickPictures(room: number): Promise<AIPicture[]> {
 export async function pickDocuments(): Promise<PickedFile[]> {
   const files = await choose('.pdf,.docx,.pptx,.xlsx,.odt,.odp,.ods,.txt,.md,.csv,.json,.xml,.html,.htm,.log,.yaml,.yml,.srt,.js,.ts,.py,.java,.kt,.swift,.c,.cpp,.h,.cs,.go,.rs,.rb,.php,.sql,.css,.sh', true);
   const out: PickedFile[] = [];
-  for (const file of files) { if (file.size > MAX_DOCUMENT) throw new Error(`«${file.name}» больше 15 МБ.`); if (planUpload(new Uint8Array(await file.slice(0, 768).arrayBuffer()), { name: file.name, mimeType: file.type }).kind !== 'raw') throw new Error(MEDIA_AS_DOCUMENT); out.push({ name: file.name, base64: await toBase64(file) }); }
+  for (const file of files) { if (file.size > MAX_DOCUMENT) throw new Error(`«${file.name}» больше 15 МБ.`); if (planUpload(new Uint8Array(await file.slice(0, 65536).arrayBuffer()), { name: file.name, mimeType: file.type }).kind !== 'raw') throw new Error(MEDIA_AS_DOCUMENT); out.push({ name: file.name, base64: await toBase64(file) }); }
   return out;
 }
 
@@ -59,7 +59,7 @@ export async function pickDocuments(): Promise<PickedFile[]> {
 export async function pickDocumentsOrMedia(room: number): Promise<{ files: PickedFile[]; pictures: AIPicture[] }> {
   const files: PickedFile[] = [], pictures: AIPicture[] = [];
   for (const file of await choose('', true)) {
-    const media = planUpload(new Uint8Array(await file.slice(0, 768).arrayBuffer()), { name: file.name, mimeType: file.type }).kind !== 'raw';
+    const media = planUpload(new Uint8Array(await file.slice(0, 65536).arrayBuffer()), { name: file.name, mimeType: file.type }).kind !== 'raw';
     if (!media) {
       if (file.size > MAX_DOCUMENT) throw new Error(`«${file.name}» больше 15 МБ.`);
       files.push({ name: file.name, base64: await toBase64(file) });

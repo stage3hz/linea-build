@@ -56,7 +56,7 @@ export async function pickDocuments(): Promise<PickedFile[]> {
   for (const asset of picked.assets) {
     try {
       if (asset.size && asset.size > MAX_DOCUMENT) throw new Error(`«${asset.name}» больше 15 МБ.`);
-      refuseMediaDocument(toByteArray(await FileSystem.readAsStringAsync(asset.uri, { encoding: FileSystem.EncodingType.Base64, position: 0, length: 768 })), asset.name, asset.mimeType || '');
+      refuseMediaDocument(toByteArray(await FileSystem.readAsStringAsync(asset.uri, { encoding: FileSystem.EncodingType.Base64, position: 0, length: 65536 })), asset.name, asset.mimeType || '');
       out.push({ name: asset.name, base64: await FileSystem.readAsStringAsync(asset.uri, { encoding: FileSystem.EncodingType.Base64 }) });
     } finally { await FileSystem.deleteAsync(asset.uri, { idempotent: true }).catch(() => {}); }
   }
@@ -75,7 +75,7 @@ export async function pickDocumentsOrMedia(room: number): Promise<{ files: Picke
   for (const asset of picked.assets) {
     let keep = false;
     try {
-      const header = toByteArray(await FileSystem.readAsStringAsync(asset.uri, { encoding: FileSystem.EncodingType.Base64, position: 0, length: 768 }));
+      const header = toByteArray(await FileSystem.readAsStringAsync(asset.uri, { encoding: FileSystem.EncodingType.Base64, position: 0, length: 65536 }));
       const media = planUpload(header, { name: asset.name, mimeType: asset.mimeType || '' }).kind !== 'raw';
       if (!media) {
         if (asset.size && asset.size > MAX_DOCUMENT) throw new Error(`«${asset.name}» больше 15 МБ.`);

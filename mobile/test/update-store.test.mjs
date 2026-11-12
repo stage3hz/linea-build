@@ -71,3 +71,13 @@ test('a dismissed prompt returns after the app was away 5+ minutes, not after a 
   store.appBecameActive(store.REPROMPT_AFTER_MS);
   assert.equal((await read()).dismissed, false, 'back after 5 min: prompt again');
 });
+
+test('an update address is parsed, not compared as text: a path that climbs out of the project is refused', () => {
+  const P = 'https://github.com/stage3hz/linea-build/releases/download/';
+  assert.equal(store.releaseAssetUrl(`${P}v0.14.14/INVIZENT-0.14.14-Windows-x64.exe`), true);
+  assert.equal(store.releaseAssetUrl(`${P}../../../../evil/repo/releases/download/v1/x-Windows-x64.exe`), false);
+  assert.equal(store.releaseAssetUrl(`${P}v/%2e%2e/x.apk`), false);
+  assert.equal(store.releaseAssetUrl('https://github.com/stage3hz/evil/releases/download/v/x.apk'), false);
+  assert.equal(store.releaseAssetUrl(`${P}v/x.apk?y=1`), false);
+  assert.equal(store.releaseAssetUrl(null), false);
+});

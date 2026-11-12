@@ -161,7 +161,7 @@ function refreshGameOverlay() {
 }
 
 // ---- system keyboard hook for hold binds (see 'setHold') ----
-let hook = null, hookRunning = false, holdBinds = [];
+let hook = null, hookRunning = false, holdBinds = [], holdChanges = [];
 function parseHold(combo) {
   if (typeof combo !== 'string' || !/^((Ctrl|Alt|Shift|Meta)\+){0,4}[A-Za-z0-9]{1,20}$/.test(combo)) return null;
   const parts = combo.split('+'); const code = parts.pop();
@@ -215,8 +215,11 @@ ipcMain.handle('invizent', async (event, method, ...args) => {
   }
   if (method === 'openFile') {
     const file=cachePath(args[0]); if(!['.pdf','.txt','.md','.csv','.rtf','.docx','.xlsx','.pptx'].includes(path.extname(file).toLowerCase()))return false;
-    const answer=await dialog.showMessageBox(window,{message:'Открыть документ в системном приложении?',detail:path.basename(file),buttons:['Отмена','Открыть'],defaultId:0,cancelId:0});
-    return answer.response===1 ? (await shell.openPath(file)) === '' : false;
+    const answer=await dialog.showMessageBox(window,{type:'warning',message:'Открыть документ в системном приложении?',detail:`${path.basename(file)}\n\nФайл получен в переписке. Открывай его, только если доверяешь отправителю.`,buttons:['Отмена','Открыть'],defaultId:0,cancelId:0});
+    if(answer.response!==1)return false;
+    // Windows: the file is marked as coming from the internet, so Office and other viewers open it in their protected mode.
+    if(process.platform==='win32')await fs.writeFile(`${file}:Zone.Identifier`,'[ZoneTransfer]\r\nZoneId=3\r\n').catch(()=>{});
+    return (await shell.openPath(file)) === '';
   }
   if (method === 'files') {
     const [operation, parameters] = args; if (!Array.isArray(parameters)) throw new Error('Invalid file operation');
@@ -285,6 +288,11 @@ ipcMain.handle('invizent', async (event, method, ...args) => {
     // while the person is in a voice channel or call AND has such a bind switched on. It compares
     // each key with those binds and nothing else — keys are never stored, logged or sent anywhere.
     const config = args[0] && typeof args[0] === 'object' ? args[0] : {};
+    // The binds change when the person edits them in the settings — a few times, not in a stream. A page that kept
+    // re-binding could otherwise learn which keys are pressed in other apps, one key at a time.
+    const stamp = Date.now(); holdChanges = holdChanges.filter(at => stamp - at < 60_000);
+    if (holdChanges.length >= 12) throw new Error('Too many bind changes');
+    holdChanges.push(stamp);
     holdBinds = [];
     for (const action of ['ptt', 'pushToMute']) {
       const parsed = parseHold(config[action]);
@@ -338,7 +346,7 @@ ipcMain.handle('invizent', async (event, method, ...args) => {
   if (method === 'updateProgress') return update.progress();
   if (method === 'updateCancel') { update.cancel(); return; }
   if (method === 'updateInstall') {
-    const file = update.verifiedFile();
+    const file = await update.fileForLaunch();
     if (!file) throw new Error('No verified update to install');
     const problem = await shell.openPath(file);
     if (problem) throw new Error(problem);

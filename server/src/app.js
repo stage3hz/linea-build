@@ -255,6 +255,9 @@ export async function buildApp({
     if (!member) fail(404, 'Чат не найден.');
     return member;
   };
+  /** The largest request body read from a caller that has not shown a valid session (sign-in, registration and
+   *  recovery are far smaller). */
+  const ANONYMOUS_BODY = 64 * 1024;
   const requireAuth = async request => {
     const header = request.headers.authorization;
     const token = typeof header === 'string' && /^Bearer [A-Za-z0-9_-]{43}$/.test(header) ? header.slice(7) : null;
@@ -326,6 +329,17 @@ export async function buildApp({
         // The app announces its version and signs writes (clientgate.js, attest.js).
         reply.header('Access-Control-Allow-Headers', 'Authorization, Content-Type, X-Linea-Client, X-Linea-Attest, Range');
       }
+    }
+    // A large body is read only from a signed-in caller. Fastify parses JSON before any preHandler, so without this
+    // an anonymous client could make the server parse 17 MB bodies (≈1 s of blocked event loop and ≈240 MB of heap
+    // each) on the routes with a raised bodyLimit, never reaching the per-user limiter. Other servers of the cluster
+    // sign their own way (/cluster/*).
+    const declared = Number(request.headers['content-length']);
+    const large = Number.isFinite(declared) ? declared > ANONYMOUS_BODY : request.headers['transfer-encoding'] !== undefined;
+    if (large && !request.url.startsWith('/cluster/')) {
+      const header = request.headers.authorization;
+      const token = typeof header === 'string' && /^Bearer [A-Za-z0-9_-]{43}$/.test(header) ? header.slice(7) : null;
+      if (!sessionForToken(token)) { reply.header('Connection', 'close'); fail(401, 'Войдите в аккаунт заново.'); }
     }
     if (request.query && ('token' in request.query || 'access_token' in request.query)) {
       fail(400, 'Передавайте токен только в заголовке Authorization или первом сообщении WebSocket.');

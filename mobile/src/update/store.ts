@@ -26,8 +26,15 @@ export function versionLess(a: string, b: string): boolean {
 }
 
 const GITHUB_PREFIX = 'https://github.com/stage3hz/linea-build/releases/download/';
+/** A release asset of this project. The address is parsed, not compared as text: «…/download/../../../other/repo/…»
+ *  passed a plain prefix check and normalised to another repository (the same rule as desktop/update.cjs). */
+export function releaseAssetUrl(url: unknown): boolean {
+  if (typeof url !== 'string' || /[\s"'<>\\%]/.test(url) || url.includes('..')) return false;
+  try { const parsed = new URL(url); return parsed.href === url && parsed.protocol === 'https:' && parsed.host === 'github.com' && !parsed.username && !parsed.password && !parsed.search && !parsed.hash && parsed.pathname.startsWith('/stage3hz/linea-build/releases/download/'); }
+  catch { return false; }
+}
 const asset = (value: any): UpdateAsset | null =>
-  value && typeof value.url === 'string' && value.url.startsWith(GITHUB_PREFIX) && /^[0-9a-f]{64}$/.test(value.sha256) && Number.isSafeInteger(value.size) && value.size > 0 ? { url: value.url, sha256: value.sha256, size: value.size } : null;
+  value && releaseAssetUrl(value.url) && value.url.startsWith(GITHUB_PREFIX) && /^[0-9a-f]{64}$/.test(value.sha256) && Number.isSafeInteger(value.size) && value.size > 0 ? { url: value.url, sha256: value.sha256, size: value.size } : null;
 
 /** Pure decision, unit-tested: what this build should show for a server answer. */
 export function decide(info: UpdateInfo, current = APP_VERSION, nowMs = Date.now()): { required: boolean; available: boolean } {
