@@ -46,16 +46,32 @@ export function SnowLedge({ id, radius, max = 6, inset, style, children }: { id:
   const ref = useRef<View>(null);
   const active = useRenderActive();
   const shape = useRef({ radius, max, inset }); shape.current = { radius, max, inset };
+  // A rectangle is reported only once two measurements in a row agree: while the app starts, a screen slides in or
+  // a header changes height, a control is measured at places it only passes through (the header buttons were seen
+  // under the status bar for a moment at launch, with snow and rime drawn there).
+  const seen = useRef<{ x: number; y: number; w: number; h: number } | null>(null);
+  const again = useRef<ReturnType<typeof setTimeout> | null>(null);
   const measure = useCallback(() => {
     const view = ref.current;
     if (!view || !running) return;
     view.measureInWindow((x, y, width, height) => {
       const { radius: r, max: m, inset: i } = shape.current;
       const w = width - (i?.left || 0) - (i?.right || 0), h = height - (i?.top || 0) - (i?.bottom || 0);
-      if (!(w > 8) || !(h > 8) || !Number.isFinite(x) || !Number.isFinite(y)) { setLedge(id, null); return; }
-      setLedge(id, { id, x: x + (i?.left || 0), y: y + (i?.top || 0), width: w, height: h, radius: Math.min(r, h / 2, w / 2), max: m, kind: 'glass' });
+      if (!(w > 8) || !(h > 8) || !Number.isFinite(x) || !Number.isFinite(y)) { seen.current = null; setLedge(id, null); return; }
+      const now = { x: x + (i?.left || 0), y: y + (i?.top || 0), w, h }, before = seen.current;
+      seen.current = now;
+      if (!before || Math.abs(before.x - now.x) > 0.5 || Math.abs(before.y - now.y) > 0.5 || Math.abs(before.w - now.w) > 0.5 || Math.abs(before.h - now.h) > 0.5) {
+        // Moving or just appeared: no snow on it until it comes to rest.
+        setLedge(id, null);
+        if (again.current) clearTimeout(again.current);
+        again.current = setTimeout(() => { again.current = null; measureRef.current(); }, 140);
+        return;
+      }
+      setLedge(id, { id, x: now.x, y: now.y, width: w, height: h, radius: Math.min(r, h / 2, w / 2), max: m, kind: 'glass' });
     });
   }, [id]);
+  const measureRef = useRef(measure); measureRef.current = measure;
+  useEffect(() => () => { if (again.current) clearTimeout(again.current); }, []);
   useEffect(() => {
     if (!onPhone || !active) { setLedge(id, null); return; }
     measurers.add(measure); measure();
