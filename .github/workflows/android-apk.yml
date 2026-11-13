@@ -10,7 +10,7 @@ name: Android APK
 # Signing. Gradle signs the release APK with the Expo template debug key; this job then re-signs it with
 # apksigner (v2+v3), so the Gradle project needs no signing patches:
 #   * secrets ANDROID_KEYSTORE_B64 / ANDROID_KEYSTORE_PASSWORD / ANDROID_KEY_ALIAS / ANDROID_KEY_PASSWORD
-#     all set  -> the owner's stable key: the APK installs over earlier builds with the same key;
+#     all set  -> the owner's stable key: the APK installs over earlier builds with the same key; (the first such build still needs one reinstall over a debug-signed one)
 #   * none set -> a throw-away keystore generated in this job; the artifact name ends in -debugsigned,
 #     every run has a new key (uninstall the previous CI APK before installing the next one);
 #   * some set -> the job fails early instead of silently producing a debug-signed APK.
