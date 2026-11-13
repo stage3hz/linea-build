@@ -145,7 +145,7 @@ C=(docker compose --env-file deploy/.env -f deploy/compose.production.yml)
 echo "== 4/5 Сборка и запуск (несколько минут)"
 if command -v ufw >/dev/null && ufw status | grep -q "Status: active"; then
   ufw allow 22/tcp >/dev/null; ufw allow 80/tcp >/dev/null; ufw allow 443/tcp >/dev/null; ufw allow 443/udp >/dev/null
-  ufw allow 3478/udp >/dev/null; ufw allow 3478/tcp >/dev/null; ufw allow 49160:49200/udp >/dev/null
+  ufw allow 3478/udp >/dev/null; ufw allow 3478/tcp >/dev/null; ufw allow 49160:49999/udp >/dev/null
   ufw allow 40000/udp >/dev/null; ufw allow 40000/tcp >/dev/null
 fi
 "${C[@]}" up -d --build

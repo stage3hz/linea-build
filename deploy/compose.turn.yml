@@ -18,7 +18,10 @@ services:
       - --realm=${PUBLIC_HOST_RU:?Set PUBLIC_HOST_RU}
       - --external-ip=${TURN_EXTERNAL_IP:?Set TURN_EXTERNAL_IP}
       - --min-port=49160
-      - --max-port=49200
+      # 840 ports. There were 41 (…49200): every side of a call holds two to four of them (UDP and TCP, each network
+      # of the phone) and keeps them for minutes after the call, so a handful of calls used them all — and a call
+      # that needs the relay (mobile networks) then got no relay address, while Wi-Fi calls went on working.
+      - --max-port=49999
       - --no-cli
       - --no-tls
       - --no-dtls
