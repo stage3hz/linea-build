@@ -1,4 +1,0 @@
-7907:PhaseScriptExecution [CP-User]\ Download\ libsignal-ffi\ if\ not\ in\ cache /Users/runner/work/linea-build/linea-build/mobile/ios/build/Build/Intermediates.noindex/Pods.build/Release-iphoneos/LibSignalClient.build/Script-46EB2E00028000.sh (in target 'LibSignalClient' from project 'Pods')
-7910:downloading libsignal-client-ios-build-v0.106.0.tar.gz...
-9519:PhaseScriptExecution [CP-User]\ Extract\ libsignal-ffi\ prebuild /Users/runner/work/linea-build/linea-build/mobile/ios/build/Build/Intermediates.noindex/Pods.build/Release-iphoneos/LibSignalClient.build/Script-46EB2E00028010.sh (in target 'LibSignalClient' from project 'Pods')
-9620:ld: warning: -undefined dynamic_lookup is deprecated on iOS
