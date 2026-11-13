@@ -26,7 +26,7 @@ import { useMusic } from '../music/MusicProvider';
 import { setCenterStage } from '../media/centerStage';
 import { holdConnection } from '../connectionHold';
 import { impactFeedback, lightFeedback } from '../haptics';
-import { GATHER_RELAY_MS, GATHER_TIMEOUT_MS, ICE_REUSE_MS, RING_TIMEOUT_MS, gatherDone, hasRelay, isRelayCandidate, SEND_BITRATE, callClock, callEndMeta, economySdp, hangupOutcome, incomingAlert, keyEmoji, keyMaterial, offerIsFresh, type CallEndReason, type CallStatus } from './callModel';
+import { callLink, callLinkLines, type CallLink, type CallLinkSample, GATHER_RELAY_MS, GATHER_TIMEOUT_MS, ICE_REUSE_MS, RING_TIMEOUT_MS, gatherDone, hasRelay, isRelayCandidate, SEND_BITRATE, callClock, callEndMeta, economySdp, hangupOutcome, incomingAlert, keyEmoji, keyMaterial, offerIsFresh, type CallEndReason, type CallStatus } from './callModel';
 import { buildCallHistory, type CallRecord } from './callLog';
 import { DISCONNECT_GRACE_MS, LINK_UP, POLITE_EXTRA_MS, linkNext, linkShowsReconnecting, markRestartCapable, remoteRestart, restartAnswerFits, restartCapable, sameFingerprints, stripRestartMarker, type Link, type LinkInput } from './reconnect';
 import { onAnswerFromNotification } from '../notifications/desktopNotify';
@@ -537,7 +537,7 @@ export function CallProvider({ api, store, me, children }: { api: Api; store: Me
     <CallBarFrame bar={call && call.minimized ? <CallBanner call={call} network={network} onPress={controls.restore} onHangup={controls.hangup} /> : null}>
       <CallHistoryContext.Provider value={history}>{children}</CallHistoryContext.Provider>
     </CallBarFrame>
-    {call && !call.minimized ? <CallScreen call={call} api={api} rtc={rtc.current} network={network} {...controls} /> : null}
+    {call && !call.minimized ? <CallScreen call={call} api={api} rtc={rtc.current} network={network} readStats={() => pc.current?.getStats?.() ?? null} {...controls} /> : null}
   </CallContext.Provider>;
 }
 
@@ -555,9 +555,28 @@ function CallButton({ icon, label, onPress, active = false, color }: { icon: Ico
   </Pressable>;
 }
 
-function CallScreen({ call, api, rtc, network, hangup, accept, mute, speaker, camera, flip, minimize, retry, close }: { call: CallState; api: Api; rtc: WebRTC | null; network: SignalNetwork; hangup: () => void; accept: () => void; mute: () => void; speaker: () => void; camera: () => void; flip: () => void; minimize: () => void; restore?: () => void; retry: () => void; close: () => void }) {
+function CallScreen({ call, api, rtc, network, readStats, hangup, accept, mute, speaker, camera, flip, minimize, retry, close }: { call: CallState; api: Api; rtc: WebRTC | null; network: SignalNetwork; /** The connection's WebRTC statistics (диагностика). */ readStats: () => Promise<any> | null; hangup: () => void; accept: () => void; mute: () => void; speaker: () => void; camera: () => void; flip: () => void; minimize: () => void; restore?: () => void; retry: () => void; close: () => void }) {
   const insets = useSafeAreaInsets(); const { width, height } = useWindowDimensions(); const t = useTheme();
   const [, tick] = useState(0);
+  // Диагностика: a tap on the status shows how the call travels (direct / through the server), its delay, losses
+  // and bitrates — read from WebRTC every two seconds while shown.
+  const [stats, setStats] = useState(false); const [link, setLink] = useState<CallLink | null>(null);
+  const lastSample = useRef<CallLinkSample | null>(null);
+  useEffect(() => {
+    if (!stats || call.status !== 'active') { setLink(null); lastSample.current = null; return; }
+    let alive = true;
+    const read = async () => {
+      try {
+        const reports = await readStats(); if (!alive || !reports) return;
+        const list: any[] = []; reports.forEach?.((report: any) => list.push(report));
+        const next = callLink(list, lastSample.current, Date.now()); lastSample.current = next.sample; setLink(next.link);
+      } catch { /* no statistics in this WebRTC build: the lines keep their dashes */ }
+    };
+    void read(); const timer = setInterval(() => void read(), 2000);
+    return () => { alive = false; clearInterval(timer); };
+  }, [stats, call.status]);
+  const statsLines = stats && call.status === 'active' ? callLinkLines(link || { route: null, rttMs: null, lossPct: null, jitterMs: null, kbpsOut: null, kbpsIn: null }, networkTier()) : null;
+  const statsBlock = statsLines ? <View style={{ marginTop: 6, paddingHorizontal: 12, paddingVertical: 8, borderRadius: 12, backgroundColor: 'rgba(0,0,0,0.35)' }}>{statsLines.map(line => <Text key={line} style={{ color: 'rgba(255,255,255,0.9)', fontSize: 12, lineHeight: 17, textAlign: 'center' }}>{line}</Text>)}</View> : null;
   // «Звук»: the microphone and the output of this call (CallAudioPanel.tsx); phones only.
   const [audioOpen, setAudioOpen] = useState(false); const audioChoice = callAudioChoice();
   useEffect(() => { if (call.status !== 'active') return; const timer = setInterval(() => tick(v => v + 1), 1000); return () => clearInterval(timer); }, [call.status]);
@@ -588,10 +607,11 @@ function CallScreen({ call, api, rtc, network, hangup, accept, mute, speaker, ca
       {showVideo ? <View style={{ flex: 1 }} /> : <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center', gap: 14 }}>
         <View style={{ alignItems: 'center', justifyContent: 'center', width: 170, height: 170 }}><Pulse size={140} active={call.status === 'ringing' || call.status === 'incoming' || call.status === 'requesting'} /><View style={{ borderRadius: 70, overflow: 'hidden' }}><Avatar user={call.peer} api={api} size={130} /></View></View>
         <Text style={{ color: '#FFF', fontSize: 28, fontWeight: '700' }}>{call.peer.displayName}</Text>
-        <Text style={{ color: 'rgba(255,255,255,0.85)', fontSize: 16 }}>{status}</Text>
+        <Pressable accessibilityRole="button" accessibilityLabel={`${status}. Диагностика звонка`} hitSlop={8} onPress={() => setStats(value => !value)}><Text style={{ color: 'rgba(255,255,255,0.85)', fontSize: 16 }}>{status}</Text></Pressable>
+        {statsBlock}
         {reconnecting ? <Text style={{ color: 'rgba(255,255,255,0.6)', fontSize: 14 }}>{clock}</Text> : null}
       </View>}
-      {showVideo ? <View style={{ alignItems: 'center', marginBottom: 14 }}><Text style={{ color: '#FFF', fontSize: 18, fontWeight: '700' }}>{call.peer.displayName}</Text><Text style={{ color: 'rgba(255,255,255,0.85)' }}>{status}{reconnecting ? ` · ${clock}` : ''}</Text></View> : null}
+      {showVideo ? <View style={{ alignItems: 'center', marginBottom: 14 }}><Text style={{ color: '#FFF', fontSize: 18, fontWeight: '700' }}>{call.peer.displayName}</Text><Text onPress={() => setStats(value => !value)} style={{ color: 'rgba(255,255,255,0.85)' }}>{status}{reconnecting ? ` · ${clock}` : ''}</Text>{statsBlock}</View> : null}
       {call.video && call.localUrl && View_ && !call.cameraOff ? <Pressable onPress={flip} style={{ position: 'absolute', right: 16, top: insets.top + 56, width: width * .28, height: width * .28 * 4 / 3, borderRadius: 16, overflow: 'hidden', borderWidth: 1, borderColor: 'rgba(255,255,255,0.4)' }}><View_ streamURL={call.localUrl} objectFit="cover" mirror zOrder={1} style={{ flex: 1 }} /></Pressable> : null}
       {call.status === 'incoming' ? <View style={{ flexDirection: 'row', justifyContent: 'space-around', paddingHorizontal: 30 }}>
         <CallButton icon="close" label="Отклонить" onPress={hangup} color="#FF3B30" />

@@ -147,3 +147,59 @@ export function hangupOutcome(status: CallStatus, incoming: boolean): { text: st
 export function incomingAlert(calls: { ringtone: 'neon' | 'pulse' | 'none'; vibration: boolean }): { sound: boolean; vibrate: boolean } {
   return { sound: calls.ringtone !== 'none', vibrate: calls.vibration };
 }
+
+// ─── Диагностика звонка (экран звонка: нажатие на статус) ───────────────────────────────────────────────────────
+/** How the call's media travels and how well: read from WebRTC's own statistics while the call is up. */
+export type CallLink = {
+  /** direct: phone to phone; relay-udp / relay-tcp: through the server's relay (TCP when the network drops UDP). */
+  route: 'direct' | 'relay-udp' | 'relay-tcp' | 'relay' | null;
+  rttMs: number | null; lossPct: number | null; jitterMs: number | null; kbpsOut: number | null; kbpsIn: number | null;
+};
+export type CallLinkSample = { at: number; sent: number; received: number };
+const num = (value: unknown): number | null => (typeof value === 'number' && Number.isFinite(value) ? value : null);
+
+/** `reports`: the entries of RTCPeerConnection.getStats(). `previous`: the last sample, for the bitrates. */
+export function callLink(reports: Iterable<any>, previous: CallLinkSample | null, nowMs: number): { link: CallLink; sample: CallLinkSample } {
+  const byId = new Map<string, any>(); const all: any[] = [];
+  for (const report of reports) { if (report && typeof report === 'object') { all.push(report); if (typeof report.id === 'string') byId.set(report.id, report); } }
+  const transport = all.find(r => r.type === 'transport' && typeof r.selectedCandidatePairId === 'string');
+  const pair = (transport && byId.get(transport.selectedCandidatePairId)) || all.find(r => r.type === 'candidate-pair' && (r.selected === true || (r.nominated === true && r.state === 'succeeded'))) || null;
+  const local = pair ? byId.get(pair.localCandidateId) : null, remote = pair ? byId.get(pair.remoteCandidateId) : null;
+  let route: CallLink['route'] = null;
+  if (pair) {
+    if (local?.candidateType === 'relay') route = local.relayProtocol === 'udp' ? 'relay-udp' : local.relayProtocol === 'tcp' || local.relayProtocol === 'tls' ? 'relay-tcp' : 'relay';
+    else if (remote?.candidateType === 'relay') route = 'relay';
+    else route = 'direct';
+  }
+  const audioIn = all.find(r => r.type === 'inbound-rtp' && (r.kind === 'audio' || r.mediaType === 'audio'));
+  const audioOut = all.find(r => r.type === 'outbound-rtp' && (r.kind === 'audio' || r.mediaType === 'audio'));
+  const lost = num(audioIn?.packetsLost), got = num(audioIn?.packetsReceived);
+  const sent = all.filter(r => r.type === 'outbound-rtp').reduce((sum, r) => sum + (num(r.bytesSent) ?? 0), 0);
+  const received = all.filter(r => r.type === 'inbound-rtp').reduce((sum, r) => sum + (num(r.bytesReceived) ?? 0), 0);
+  const seconds = previous ? (nowMs - previous.at) / 1000 : 0;
+  const rate = (now: number, before: number) => (previous && seconds >= 0.5 && now >= before ? Math.round((now - before) * 8 / seconds / 1000) : null);
+  const rtt = num(pair?.currentRoundTripTime), jitter = num(audioIn?.jitter);
+  return {
+    link: {
+      route,
+      rttMs: rtt === null ? null : Math.round(rtt * 1000),
+      lossPct: lost === null || got === null || lost + got <= 0 ? null : Math.round(Math.max(0, lost) / (Math.max(0, lost) + got) * 1000) / 10,
+      jitterMs: jitter === null ? null : Math.round(jitter * 1000),
+      kbpsOut: rate(sent, previous?.sent ?? 0), kbpsIn: rate(received, previous?.received ?? 0),
+    },
+    sample: { at: nowMs, sent, received },
+  };
+}
+const ROUTES: Record<NonNullable<CallLink['route']>, string> = { direct: 'напрямую', 'relay-udp': 'через сервер (UDP)', 'relay-tcp': 'через сервер (TCP)', relay: 'через сервер' };
+const TIERS: Record<CallTier, string> = { slow: 'экономия (12 кбит/с)', medium: 'средний (24 кбит/с)', fast: 'полное качество' };
+/** The lines shown on the call screen. A dash where WebRTC has no figure yet. */
+export function callLinkLines(link: CallLink, tier: CallTier): string[] {
+  const show = (value: number | null, unit: string) => (value === null ? '—' : `${value} ${unit}`);
+  return [
+    `Маршрут: ${link.route ? ROUTES[link.route] : '—'}`,
+    `Задержка: ${show(link.rttMs, 'мс')} · потери: ${show(link.lossPct, '%')} · дрожание: ${show(link.jitterMs, 'мс')}`,
+    `Отправка: ${show(link.kbpsOut, 'кбит/с')} · приём: ${show(link.kbpsIn, 'кбит/с')}`,
+    `Режим звука: ${TIERS[tier]}`,
+  ];
+}
+
