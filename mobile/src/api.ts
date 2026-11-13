@@ -284,10 +284,10 @@ export class Api {
   messages = (chatId: string, before?: number) => this.request<{messages: Message[]; hasMore: boolean}>(`/chats/${encodeURIComponent(chatId)}/messages?lean=1&limit=${networkTier() === 'slow' ? 15 : networkTier() === 'medium' ? 30 : 50}${before ? `&before=${before}` : ''}`);
   /** push: what the recipient's phone shows ('call' rings, 'none' for reactions/edits); an older server without push gets no field. */
   private pushField = true;
-  sendEncrypted = async (chatId: string, clientId: string, encrypted: EncryptedMessage, push?: 'message' | 'call' | 'none' | 'silent') => {
+  sendEncrypted = async (chatId: string, clientId: string, encrypted: EncryptedMessage, push?: 'message' | 'call' | 'missed' | 'none' | 'silent') => {
     // lean=1: the server does not echo our own (large) ciphertext back; we put it in from here.
-    const post = async (withPush: boolean) => {
-      const result = await this.request<{message: Message}>(`/chats/${encodeURIComponent(chatId)}/messages?lean=1`, {method: 'POST', body: JSON.stringify(withPush && push ? {clientId, encrypted, push} : {clientId, encrypted})});
+    const post = async (withPush: boolean, kind = push) => {
+      const result = await this.request<{message: Message}>(`/chats/${encodeURIComponent(chatId)}/messages?lean=1`, {method: 'POST', body: JSON.stringify(withPush && kind ? {clientId, encrypted, push: kind} : {clientId, encrypted})});
       if (result?.message && !result.message.encrypted) result.message = { ...result.message, encrypted };
       return result;
     };
@@ -297,6 +297,8 @@ export class Api {
       if (error instanceof ApiError && error.status === 400 && /неизвестные поля/.test(error.message)) { this.pushField = false; return post(false); }
       // An older server knows no quiet push: the message still goes, with an ordinary notification.
       if (error instanceof ApiError && error.status === 400 && push === 'silent' && /вид уведомления/.test(error.message)) return post(false);
+      // …and no «missed call» push: the end of the call goes as before, without a notification.
+      if (error instanceof ApiError && error.status === 400 && push === 'missed' && /вид уведомления/.test(error.message)) return post(true, 'none');
       throw error;
     }
   };

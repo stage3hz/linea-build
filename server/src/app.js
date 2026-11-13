@@ -738,7 +738,7 @@ export async function buildApp({
     if (peerMember && blockedBetween(db, senderId, peerMember.user_id)) fail(403, 'Переписка с этим пользователем недоступна.', { code: 'BLOCKED' });
     const body = objectBody(request.body, ['text', 'attachmentId', 'clientId', 'encrypted', 'push', 'deliverAt']);
     if (body.push !== undefined && !PUSH_KINDS.has(body.push)) fail(400, 'Некорректный вид уведомления.');
-    if (body.push === 'call' && peerMember && !canCall(db, senderId, peerMember.user_id)) fail(403, 'Этот человек ограничил, кто может ему звонить.', { code: 'CALLS_RESTRICTED' });
+    if ((body.push === 'call' || body.push === 'missed') && peerMember && !canCall(db, senderId, peerMember.user_id)) fail(403, 'Этот человек ограничил, кто может ему звонить.', { code: 'CALLS_RESTRICTED' });
     if (body.text !== undefined || body.attachmentId !== undefined || !body.encrypted) {
       fail(400, 'Сообщения принимаются только в зашифрованном виде.', { code: 'E2EE_PLAINTEXT_REJECTED' });
     }
@@ -764,7 +764,7 @@ export async function buildApp({
       // push:'none' — a reaction, an edit, a vote: the server cannot see inside, but the sender says it is
       // not news, so the row stays out of the unread counts (publicChat, pushes, the icon badge).
       const result = db.prepare('INSERT INTO messages(chat_id,sender_id,client_id,text,attachment_id,encrypted_json,silent,created_at) VALUES(?,?,?,?,?,?,?,?)')
-        .run(chatId, senderId, clientId, '', null, encryptedJson, body.push === 'none' ? 1 : 0, date);
+        .run(chatId, senderId, clientId, '', null, encryptedJson, body.push === 'none' || body.push === 'missed' ? 1 : 0, date);
       const messageId = Number(result.lastInsertRowid);
       e2ee.linkAttachments(messageId, encrypted.attachmentIds);
       db.prepare('UPDATE chats SET updated_at=? WHERE id=?').run(date, chatId);

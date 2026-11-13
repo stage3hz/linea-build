@@ -22,6 +22,13 @@ test('the `silent` flag travels inside the meta: true only, never together with 
   assert.equal(withSendOptions(undefined, { deliverAt: '2026-11-09T09:00:00.000Z' }), undefined, 'a time alone adds nothing to the ciphertext');
   assert.equal(pushKind({ silent: true }), 'silent');
   assert.equal(pushKind(undefined), undefined);
+  // A call nobody answered: the caller's «end» carries a notification of its own (the ringing one lives 45 s).
+  const end = (reason, caller) => ({ action: { type: 'call', call: target, step: 'end', reason, caller } });
+  assert.equal(pushKind(end('missed', true)), 'missed');
+  assert.equal(pushKind(end('missed', false)), 'none', 'only the caller\'s side announces it');
+  assert.equal(pushKind(end('declined', false)), 'none');
+  assert.equal(pushKind(end('hangup', true)), 'none', 'a call that took place is not a missed one');
+  assert.equal(pushKind({ action: { type: 'call', call: target, step: 'offer' } }), 'call');
   assert.equal(pushKind({ action: { type: 'react', target, emoji: '👍' } }), 'none');
   assert.equal(pushKind({ action: { type: 'call', call: target, step: 'offer', sdp: 'v=0 x' } }), 'call');
   assert.equal(pushKind({ action: { type: 'call', call: target, step: 'end', reason: 'hangup' } }), 'none');

@@ -88,8 +88,11 @@ export function failureText(code: string | null | undefined): string {
 export const canResend = (item: Pick<ScheduledItem, 'status' | 'failure' | 'cryptoState'>) => item.status === 'failed' && item.failure === 'E2EE_DEVICES_CHANGED' && item.cryptoState === 'decrypted';
 
 /** The push the server should send for a message with this meta: a ringing call, nothing for an action, quiet for «без звука». */
-export function pushKind(meta: MessageMeta | undefined): 'call' | 'none' | 'silent' | undefined {
+export function pushKind(meta: MessageMeta | undefined): 'call' | 'missed' | 'none' | 'silent' | undefined {
   const action = meta?.action;
+  // The caller's «not answered» ends the call with a notification of its own: the ringing one lives 45 seconds and
+  // may never reach a phone that was asleep on a mobile network.
+  if (action?.type === 'call' && action.step === 'end' && action.reason === 'missed' && action.caller === true) return 'missed';
   if (action) return action.type === 'call' && action.step === 'offer' ? 'call' : 'none';
   return meta?.silent ? 'silent' : undefined;
 }

@@ -118,3 +118,17 @@ test('the app icon badge travels in the push when known', () => {
   const none = chatNotification({ chatId: 'c', senderName: 'x', kind: 'call', unread: 1 });
   assert.equal('badge' in none.apns.payload.aps, false);
 });
+
+test('a call nobody answered gets a notification of its own: no 45 s limit, and it takes the ringing one\'s place', () => {
+  const ringing = chatNotification({ chatId: 'c1', senderName: 'Аня', kind: 'call', unread: 0 });
+  const missed = chatNotification({ chatId: 'c1', senderName: 'Аня', kind: 'missed', unread: 0 });
+  assert.equal(ringing.android.ttl, '45s');
+  assert.equal(missed.android.ttl, undefined, 'kept until the phone wakes up');
+  assert.equal(missed.android.notification.body, '📞 Пропущенный звонок');
+  assert.equal(missed.android.notification.tag, ringing.android.notification.tag, 'replaces «Входящий звонок» on the screen');
+  assert.equal(missed.android.notification.channel_id, 'messages');
+  assert.equal(missed.android.priority, 'high');
+  assert.equal(missed.apns.payload.aps.alert.body, '📞 Пропущенный звонок');
+  assert.equal(missed.apns.headers['apns-expiration'], undefined);
+  assert.equal(missed.data.kind, 'missed');
+});
