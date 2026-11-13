@@ -28,11 +28,13 @@ Using Expo modules
 [Expo] Enabling modular headers for pod fmt
 [Expo] Enabling modular headers for pod RCT-Folly
 [Expo] Enabling modular headers for pod SocketRocket
+[Expo] Enabling modular headers for pod ExpoTaskManager
 [Expo] Enabling modular headers for pod SDWebImage
 [Expo] Enabling modular headers for pod SDWebImageAVIFCoder
 [Expo] Enabling modular headers for pod SDWebImageSVGCoder
 [Expo] Enabling modular headers for pod SDWebImageWebPCoder
 [Expo] Enabling modular headers for pod libavif
+[Expo] Enabling modular headers for pod UMAppLoader
 [Expo] Enabling modular headers for pod LibSignalClient
 [Expo-precompiled] RNReanimated: building from source (prebuilt tarball not found)
 [Expo-precompiled]   Expected tarball: /Users/runner/work/linea-build/linea-build/mobile/packages/precompile/.build/react-native-reanimated/output/4.5.1/0.86.3/250829098.0.17/debug/xcframeworks/RNReanimated.tar.gz
@@ -58,16 +60,16 @@ Framework build type is static framework
 [ReactNativeDependencies] Cache miss: downloading reactnative-dependencies-0.86.3-debug.tar.gz from https://repo1.maven.org/maven2/com/facebook/react/react-native-artifacts/0.86.3/react-native-artifacts-0.86.3-reactnative-dependencies-debug.tar.gz
   % Total    % Received % Xferd  Average Speed  Time    Time    Time   Current
                                  Dload  Upload  Total   Spent   Left   Speed
-  0      0   0      0   0      0      0      0                              0100    167   0    167   0      0   5643      0                              0100    167   0    167   0      0   5630      0                              0
-  0      0   0      0   0      0      0      0                              0100 17.87M 100 17.87M   0      0 62.66M      0                              0100 17.87M 100 17.87M   0      0 62.62M      0                              0100 17.87M 100 17.87M   0      0 62.60M      0                              0
+  0      0   0      0   0      0      0      0                              0100    167   0    167   0      0   3549      0                              0100    167   0    167   0      0   3532      0                              0
+  0      0   0      0   0      0      0      0                              0100 17.87M 100 17.87M   0      0 42.21M      0                              0100 17.87M 100 17.87M   0      0 42.20M      0                              0100 17.87M 100 17.87M   0      0 42.19M      0                              0
 [ReactNativeDependencies] Verifying checksum for downloaded reactnative-dependencies-0.86.3-debug.tar.gz...
 [Cache] SHA1 verified for reactnative-dependencies-0.86.3-debug.tar.gz
 [ReactNativeDependencies] Saved reactnative-dependencies-0.86.3-debug.tar.gz to shared cache (/Users/runner/Library/Caches/ReactNative)
 [ReactNativeDependencies] Cache miss: downloading reactnative-dependencies-0.86.3-release.tar.gz from https://repo1.maven.org/maven2/com/facebook/react/react-native-artifacts/0.86.3/react-native-artifacts-0.86.3-reactnative-dependencies-release.tar.gz
   % Total    % Received % Xferd  Average Speed  Time    Time    Time   Current
                                  Dload  Upload  Total   Spent   Left   Speed
-  0      0   0      0   0      0      0      0                              0100    167   0    167   0      0   4463      0                              0100    167   0    167   0      0   4452      0                              0
-  0      0   0      0   0      0      0      0                              0100  9.93M 100  9.93M   0      0 62.37M      0                              0100  9.93M 100  9.93M   0      0 62.33M      0                              0100  9.93M 100  9.93M   0      0 62.25M      0                              0
+  0      0   0      0   0      0      0      0                              0100    167   0    167   0      0   3299      0                              0100    167   0    167   0      0   3282      0                              0
+  0      0   0      0   0      0      0      0                              0100  9.93M 100  9.93M   0      0 42.35M      0                              0100  9.93M 100  9.93M   0      0 40.63M      0                              0100  9.93M 100  9.93M   0      0 38.15M      0                              0
 [ReactNativeDependencies] Verifying checksum for downloaded reactnative-dependencies-0.86.3-release.tar.gz...
 [Cache] SHA1 verified for reactnative-dependencies-0.86.3-release.tar.gz
 [ReactNativeDependencies] Saved reactnative-dependencies-0.86.3-release.tar.gz to shared cache (/Users/runner/Library/Caches/ReactNative)
@@ -191,16 +193,16 @@ Fetching podspec for `React-Core-prebuilt` from `../node_modules/react-native/Re
 [ReactNativeCore] Cache miss: downloading reactnative-core-0.86.3-debug.tar.gz from https://repo1.maven.org/maven2/com/facebook/react/react-native-artifacts/0.86.3/react-native-artifacts-0.86.3-reactnative-core-debug.tar.gz
   % Total    % Received % Xferd  Average Speed  Time    Time    Time   Current
                                  Dload  Upload  Total   Spent   Left   Speed
-  0      0   0      0   0      0      0      0                              0100    167   0    167   0      0   5757      0                              0100    167   0    167   0      0   5744      0                              0
-  0      0   0      0   0      0      0      0                              0100 94.20M 100 94.20M   0      0 115.0M      0                              0100 94.20M 100 94.20M   0      0 115.0M      0                              0100 94.20M 100 94.20M   0      0 115.0M      0                              0
+  0      0   0      0   0      0      0      0                              0100    167   0    167   0      0   3696      0                              0100    167   0    167   0      0   3683      0                              0
+  0      0   0      0   0      0      0      0                              0 42 94.20M  42 40.25M   0      0 35.92M      0   00:02   00:01   00:01 38.45M100 94.20M 100 94.20M   0      0 46.26M      0   00:02   00:02         38.45M100 94.20M 100 94.20M   0      0 46.25M      0   00:02   00:02         38.45M100 94.20M 100 94.20M   0      0 46.24M      0   00:02   00:02         38.45M
 [ReactNativeCore] Verifying checksum for downloaded reactnative-core-0.86.3-debug.tar.gz...
 [Cache] SHA1 verified for reactnative-core-0.86.3-debug.tar.gz
 [ReactNativeCore] Saved reactnative-core-0.86.3-debug.tar.gz to shared cache (/Users/runner/Library/Caches/ReactNative)
 [ReactNativeCore] Cache miss: downloading reactnative-core-0.86.3-release.tar.gz from https://repo1.maven.org/maven2/com/facebook/react/react-native-artifacts/0.86.3/react-native-artifacts-0.86.3-reactnative-core-release.tar.gz
   % Total    % Received % Xferd  Average Speed  Time    Time    Time   Current
                                  Dload  Upload  Total   Spent   Left   Speed
-  0      0   0      0   0      0      0      0                              0100    167   0    167   0      0   3258      0                              0100    167   0    167   0      0   3246      0                              0
-  0      0   0      0   0      0      0      0                              0100 29.56M 100 29.56M   0      0 57.48M      0                              0100 29.56M 100 29.56M   0      0 57.46M      0                              0100 29.56M 100 29.56M   0      0 57.44M      0                              0
+  0      0   0      0   0      0      0      0                              0100    167   0    167   0      0   3619      0                              0100    167   0    167   0      0   3607      0                              0
+  0      0   0      0   0      0      0      0                              0100 29.56M 100 29.56M   0      0 71.24M      0                              0100 29.56M 100 29.56M   0      0 71.20M      0                              0100 29.56M 100 29.56M   0      0 71.18M      0                              0
 [ReactNativeCore] Verifying checksum for downloaded reactnative-core-0.86.3-release.tar.gz...
 [Cache] SHA1 verified for reactnative-core-0.86.3-release.tar.gz
 [ReactNativeCore] Saved reactnative-core-0.86.3-release.tar.gz to shared cache (/Users/runner/Library/Caches/ReactNative)
@@ -216,16 +218,16 @@ Fetching podspec for `hermes-engine` from `../node_modules/react-native/sdks/her
 [Hermes] Cache miss: downloading hermes-ios-250829098.0.17-debug.tar.gz from https://repo1.maven.org/maven2/com/facebook/hermes/hermes-ios/250829098.0.17/hermes-ios-250829098.0.17-hermes-ios-debug.tar.gz
   % Total    % Received % Xferd  Average Speed  Time    Time    Time   Current
                                  Dload  Upload  Total   Spent   Left   Speed
-  0      0   0      0   0      0      0      0                              0100    167   0    167   0      0   5165      0                              0100    167   0    167   0      0   5148      0                              0
-  0      0   0      0   0      0      0      0                              0100 31.23M 100 31.23M   0      0 100.1M      0                              0100 31.23M 100 31.23M   0      0 100.1M      0                              0100 31.23M 100 31.23M   0      0 100.0M      0                              0
+  0      0   0      0   0      0      0      0                              0100    167   0    167   0      0   3813      0                              0100    167   0    167   0      0   3794      0                              0
+  0      0   0      0   0      0      0      0                              0100 31.23M 100 31.23M   0      0 81.42M      0                              0100 31.23M 100 31.23M   0      0 81.39M      0                              0100 31.23M 100 31.23M   0      0 81.32M      0                              0
 [Hermes] Verifying checksum for downloaded hermes-ios-250829098.0.17-debug.tar.gz...
 [Hermes] SHA1 verified for hermes-ios-250829098.0.17-debug.tar.gz
 [Hermes] Saved hermes-ios-250829098.0.17-debug.tar.gz to shared cache (/Users/runner/Library/Caches/ReactNative)
 [Hermes] Cache miss: downloading hermes-ios-250829098.0.17-release.tar.gz from https://repo1.maven.org/maven2/com/facebook/hermes/hermes-ios/250829098.0.17/hermes-ios-250829098.0.17-hermes-ios-release.tar.gz
   % Total    % Received % Xferd  Average Speed  Time    Time    Time   Current
                                  Dload  Upload  Total   Spent   Left   Speed
-  0      0   0      0   0      0      0      0                              0100    167   0    167   0      0   5128      0                              0100    167   0    167   0      0   5111      0                              0
-  0      0   0      0   0      0      0      0                              0100 24.35M 100 24.35M   0      0 36.72M      0                              0100 24.35M 100 24.35M   0      0 36.71M      0                              0100 24.35M 100 24.35M   0      0 36.70M      0                              0
+  0      0   0      0   0      0      0      0                              0100    167   0    167   0      0   4024      0                              0100    167   0    167   0      0   4008      0                              0
+  0      0   0      0   0      0      0      0                              0100 24.35M 100 24.35M   0      0 76.81M      0                              0100 24.35M 100 24.35M   0      0 76.79M      0                              0100 24.35M 100 24.35M   0      0 76.72M      0                              0
 [Hermes] Verifying checksum for downloaded hermes-ios-250829098.0.17-release.tar.gz...
 [Hermes] SHA1 verified for hermes-ios-250829098.0.17-release.tar.gz
 [Hermes] Saved hermes-ios-250829098.0.17-release.tar.gz to shared cache (/Users/runner/Library/Caches/ReactNative)
@@ -237,6 +239,7 @@ Installing Expo (57.0.31)
 Installing ExpoAlternateAppIcons (8.0.0)
 Installing ExpoAsset (57.0.20)
 Installing ExpoAudio (57.0.5)
+Installing ExpoBackgroundTask (57.0.23)
 Installing ExpoBattery (57.0.3)
 Installing ExpoBlur (57.0.3)
 Installing ExpoBrightness (57.0.2)
@@ -268,6 +271,7 @@ Installing ExpoSecureStore (57.0.4)
 Installing ExpoSensors (57.0.3)
 Installing ExpoSharing (57.0.24)
 Installing ExpoSystemUI (57.0.4)
+Installing ExpoTaskManager (57.0.23)
 Installing ExpoVideo (57.0.5)
 Installing ExpoVideoThumbnails (57.0.2)
 Installing FBLazyVector (0.86.3)
@@ -362,6 +366,7 @@ Installing ReactCodegen (0.86.3)
 Installing ReactCommon (0.86.3)
 Installing ReactNativeDependencies (0.86.3)
 Installing ReactNativeIncallManager (4.3.0)
+Installing UMAppLoader (57.0.2)
 Installing Yoga (0.0.0)
 Installing hermes-engine (250829098.0.17)
 Installing livekit-react-native-webrtc (150.1.0)
@@ -402,12 +407,12 @@ solutions to build the project.
 `yarn ios`
 =============================================================
 
-Pod install took 143 [s] to run
+Pod install took 199 [s] to run
 Integrating client project
 
 [!] Please close any current Xcode sessions and use `INVIZENT.xcworkspace` for this project from now on.
 [Expo] Installing the build script for target INVIZENT
-Pod installation complete! There are 138 dependencies from the Podfile and 139 total pods installed.
+Pod installation complete! There are 141 dependencies from the Podfile and 142 total pods installed.
 [Expo-precompiled] Precompiled modules:
 [Expo-precompiled]   📦 ExpoCamera (57.0.6)
 [Expo-precompiled]   📦 ExpoCameraBarcodeScanning (57.0.6)
@@ -496,11 +501,13 @@ Using Expo modules
 [Expo] Enabling modular headers for pod fmt
 [Expo] Enabling modular headers for pod RCT-Folly
 [Expo] Enabling modular headers for pod SocketRocket
+[Expo] Enabling modular headers for pod ExpoTaskManager
 [Expo] Enabling modular headers for pod SDWebImage
 [Expo] Enabling modular headers for pod SDWebImageAVIFCoder
 [Expo] Enabling modular headers for pod SDWebImageSVGCoder
 [Expo] Enabling modular headers for pod SDWebImageWebPCoder
 [Expo] Enabling modular headers for pod libavif
+[Expo] Enabling modular headers for pod UMAppLoader
 [Expo] Enabling modular headers for pod LibSignalClient
 [Expo-precompiled] RNReanimated: building from source (prebuilt tarball not found)
 [Expo-precompiled]   Expected tarball: /Users/runner/work/linea-build/linea-build/mobile/packages/precompile/.build/react-native-reanimated/output/4.5.1/0.86.3/250829098.0.17/debug/xcframeworks/RNReanimated.tar.gz
@@ -526,16 +533,16 @@ Framework build type is static framework
 [ReactNativeDependencies] Cache miss: downloading reactnative-dependencies-0.86.3-debug.tar.gz from https://repo1.maven.org/maven2/com/facebook/react/react-native-artifacts/0.86.3/react-native-artifacts-0.86.3-reactnative-dependencies-debug.tar.gz
   % Total    % Received % Xferd  Average Speed  Time    Time    Time   Current
                                  Dload  Upload  Total   Spent   Left   Speed
-  0      0   0      0   0      0      0      0                              0100    167   0    167   0      0   5643      0                              0100    167   0    167   0      0   5630      0                              0
-  0      0   0      0   0      0      0      0                              0100 17.87M 100 17.87M   0      0 62.66M      0                              0100 17.87M 100 17.87M   0      0 62.62M      0                              0100 17.87M 100 17.87M   0      0 62.60M      0                              0
+  0      0   0      0   0      0      0      0                              0100    167   0    167   0      0   3549      0                              0100    167   0    167   0      0   3532      0                              0
+  0      0   0      0   0      0      0      0                              0100 17.87M 100 17.87M   0      0 42.21M      0                              0100 17.87M 100 17.87M   0      0 42.20M      0                              0100 17.87M 100 17.87M   0      0 42.19M      0                              0
 [ReactNativeDependencies] Verifying checksum for downloaded reactnative-dependencies-0.86.3-debug.tar.gz...
 [Cache] SHA1 verified for reactnative-dependencies-0.86.3-debug.tar.gz
 [ReactNativeDependencies] Saved reactnative-dependencies-0.86.3-debug.tar.gz to shared cache (/Users/runner/Library/Caches/ReactNative)
 [ReactNativeDependencies] Cache miss: downloading reactnative-dependencies-0.86.3-release.tar.gz from https://repo1.maven.org/maven2/com/facebook/react/react-native-artifacts/0.86.3/react-native-artifacts-0.86.3-reactnative-dependencies-release.tar.gz
   % Total    % Received % Xferd  Average Speed  Time    Time    Time   Current
                                  Dload  Upload  Total   Spent   Left   Speed
-  0      0   0      0   0      0      0      0                              0100    167   0    167   0      0   4463      0                              0100    167   0    167   0      0   4452      0                              0
-  0      0   0      0   0      0      0      0                              0100  9.93M 100  9.93M   0      0 62.37M      0                              0100  9.93M 100  9.93M   0      0 62.33M      0                              0100  9.93M 100  9.93M   0      0 62.25M      0                              0
+  0      0   0      0   0      0      0      0                              0100    167   0    167   0      0   3299      0                              0100    167   0    167   0      0   3282      0                              0
+  0      0   0      0   0      0      0      0                              0100  9.93M 100  9.93M   0      0 42.35M      0                              0100  9.93M 100  9.93M   0      0 40.63M      0                              0100  9.93M 100  9.93M   0      0 38.15M      0                              0
 [ReactNativeDependencies] Verifying checksum for downloaded reactnative-dependencies-0.86.3-release.tar.gz...
 [Cache] SHA1 verified for reactnative-dependencies-0.86.3-release.tar.gz
 [ReactNativeDependencies] Saved reactnative-dependencies-0.86.3-release.tar.gz to shared cache (/Users/runner/Library/Caches/ReactNative)
@@ -659,16 +666,16 @@ Fetching podspec for `React-Core-prebuilt` from `../node_modules/react-native/Re
 [ReactNativeCore] Cache miss: downloading reactnative-core-0.86.3-debug.tar.gz from https://repo1.maven.org/maven2/com/facebook/react/react-native-artifacts/0.86.3/react-native-artifacts-0.86.3-reactnative-core-debug.tar.gz
   % Total    % Received % Xferd  Average Speed  Time    Time    Time   Current
                                  Dload  Upload  Total   Spent   Left   Speed
-  0      0   0      0   0      0      0      0                              0100    167   0    167   0      0   5757      0                              0100    167   0    167   0      0   5744      0                              0
-  0      0   0      0   0      0      0      0                              0100 94.20M 100 94.20M   0      0 115.0M      0                              0100 94.20M 100 94.20M   0      0 115.0M      0                              0100 94.20M 100 94.20M   0      0 115.0M      0                              0
+  0      0   0      0   0      0      0      0                              0100    167   0    167   0      0   3696      0                              0100    167   0    167   0      0   3683      0                              0
+  0      0   0      0   0      0      0      0                              0 42 94.20M  42 40.25M   0      0 35.92M      0   00:02   00:01   00:01 38.45M100 94.20M 100 94.20M   0      0 46.26M      0   00:02   00:02         38.45M100 94.20M 100 94.20M   0      0 46.25M      0   00:02   00:02         38.45M100 94.20M 100 94.20M   0      0 46.24M      0   00:02   00:02         38.45M
 [ReactNativeCore] Verifying checksum for downloaded reactnative-core-0.86.3-debug.tar.gz...
 [Cache] SHA1 verified for reactnative-core-0.86.3-debug.tar.gz
 [ReactNativeCore] Saved reactnative-core-0.86.3-debug.tar.gz to shared cache (/Users/runner/Library/Caches/ReactNative)
 [ReactNativeCore] Cache miss: downloading reactnative-core-0.86.3-release.tar.gz from https://repo1.maven.org/maven2/com/facebook/react/react-native-artifacts/0.86.3/react-native-artifacts-0.86.3-reactnative-core-release.tar.gz
   % Total    % Received % Xferd  Average Speed  Time    Time    Time   Current
                                  Dload  Upload  Total   Spent   Left   Speed
-  0      0   0      0   0      0      0      0                              0100    167   0    167   0      0   3258      0                              0100    167   0    167   0      0   3246      0                              0
-  0      0   0      0   0      0      0      0                              0100 29.56M 100 29.56M   0      0 57.48M      0                              0100 29.56M 100 29.56M   0      0 57.46M      0                              0100 29.56M 100 29.56M   0      0 57.44M      0                              0
+  0      0   0      0   0      0      0      0                              0100    167   0    167   0      0   3619      0                              0100    167   0    167   0      0   3607      0                              0
+  0      0   0      0   0      0      0      0                              0100 29.56M 100 29.56M   0      0 71.24M      0                              0100 29.56M 100 29.56M   0      0 71.20M      0                              0100 29.56M 100 29.56M   0      0 71.18M      0                              0
 [ReactNativeCore] Verifying checksum for downloaded reactnative-core-0.86.3-release.tar.gz...
 [Cache] SHA1 verified for reactnative-core-0.86.3-release.tar.gz
 [ReactNativeCore] Saved reactnative-core-0.86.3-release.tar.gz to shared cache (/Users/runner/Library/Caches/ReactNative)
@@ -684,16 +691,16 @@ Fetching podspec for `hermes-engine` from `../node_modules/react-native/sdks/her
 [Hermes] Cache miss: downloading hermes-ios-250829098.0.17-debug.tar.gz from https://repo1.maven.org/maven2/com/facebook/hermes/hermes-ios/250829098.0.17/hermes-ios-250829098.0.17-hermes-ios-debug.tar.gz
   % Total    % Received % Xferd  Average Speed  Time    Time    Time   Current
                                  Dload  Upload  Total   Spent   Left   Speed
-  0      0   0      0   0      0      0      0                              0100    167   0    167   0      0   5165      0                              0100    167   0    167   0      0   5148      0                              0
-  0      0   0      0   0      0      0      0                              0100 31.23M 100 31.23M   0      0 100.1M      0                              0100 31.23M 100 31.23M   0      0 100.1M      0                              0100 31.23M 100 31.23M   0      0 100.0M      0                              0
+  0      0   0      0   0      0      0      0                              0100    167   0    167   0      0   3813      0                              0100    167   0    167   0      0   3794      0                              0
+  0      0   0      0   0      0      0      0                              0100 31.23M 100 31.23M   0      0 81.42M      0                              0100 31.23M 100 31.23M   0      0 81.39M      0                              0100 31.23M 100 31.23M   0      0 81.32M      0                              0
 [Hermes] Verifying checksum for downloaded hermes-ios-250829098.0.17-debug.tar.gz...
 [Hermes] SHA1 verified for hermes-ios-250829098.0.17-debug.tar.gz
 [Hermes] Saved hermes-ios-250829098.0.17-debug.tar.gz to shared cache (/Users/runner/Library/Caches/ReactNative)
 [Hermes] Cache miss: downloading hermes-ios-250829098.0.17-release.tar.gz from https://repo1.maven.org/maven2/com/facebook/hermes/hermes-ios/250829098.0.17/hermes-ios-250829098.0.17-hermes-ios-release.tar.gz
   % Total    % Received % Xferd  Average Speed  Time    Time    Time   Current
                                  Dload  Upload  Total   Spent   Left   Speed
-  0      0   0      0   0      0      0      0                              0100    167   0    167   0      0   5128      0                              0100    167   0    167   0      0   5111      0                              0
-  0      0   0      0   0      0      0      0                              0100 24.35M 100 24.35M   0      0 36.72M      0                              0100 24.35M 100 24.35M   0      0 36.71M      0                              0100 24.35M 100 24.35M   0      0 36.70M      0                              0
+  0      0   0      0   0      0      0      0                              0100    167   0    167   0      0   4024      0                              0100    167   0    167   0      0   4008      0                              0
+  0      0   0      0   0      0      0      0                              0100 24.35M 100 24.35M   0      0 76.81M      0                              0100 24.35M 100 24.35M   0      0 76.79M      0                              0100 24.35M 100 24.35M   0      0 76.72M      0                              0
 [Hermes] Verifying checksum for downloaded hermes-ios-250829098.0.17-release.tar.gz...
 [Hermes] SHA1 verified for hermes-ios-250829098.0.17-release.tar.gz
 [Hermes] Saved hermes-ios-250829098.0.17-release.tar.gz to shared cache (/Users/runner/Library/Caches/ReactNative)
@@ -705,6 +712,7 @@ Installing Expo (57.0.31)
 Installing ExpoAlternateAppIcons (8.0.0)
 Installing ExpoAsset (57.0.20)
 Installing ExpoAudio (57.0.5)
+Installing ExpoBackgroundTask (57.0.23)
 Installing ExpoBattery (57.0.3)
 Installing ExpoBlur (57.0.3)
 Installing ExpoBrightness (57.0.2)
@@ -736,6 +744,7 @@ Installing ExpoSecureStore (57.0.4)
 Installing ExpoSensors (57.0.3)
 Installing ExpoSharing (57.0.24)
 Installing ExpoSystemUI (57.0.4)
+Installing ExpoTaskManager (57.0.23)
 Installing ExpoVideo (57.0.5)
 Installing ExpoVideoThumbnails (57.0.2)
 Installing FBLazyVector (0.86.3)
@@ -830,6 +839,7 @@ Installing ReactCodegen (0.86.3)
 Installing ReactCommon (0.86.3)
 Installing ReactNativeDependencies (0.86.3)
 Installing ReactNativeIncallManager (4.3.0)
+Installing UMAppLoader (57.0.2)
 Installing Yoga (0.0.0)
 Installing hermes-engine (250829098.0.17)
 Installing livekit-react-native-webrtc (150.1.0)
@@ -870,12 +880,12 @@ solutions to build the project.
 `yarn ios`
 =============================================================
 
-Pod install took 143 [s] to run
+Pod install took 199 [s] to run
 Integrating client project
 
 [!] Please close any current Xcode sessions and use `INVIZENT.xcworkspace` for this project from now on.
 [Expo] Installing the build script for target INVIZENT
-Pod installation complete! There are 138 dependencies from the Podfile and 139 total pods installed.
+Pod installation complete! There are 141 dependencies from the Podfile and 142 total pods installed.
 [Expo-precompiled] Precompiled modules:
 [Expo-precompiled]   📦 ExpoCamera (57.0.6)
 [Expo-precompiled]   📦 ExpoCameraBarcodeScanning (57.0.6)
