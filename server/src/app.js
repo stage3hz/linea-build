@@ -3,7 +3,7 @@ import { installCallRoutes } from './calls.js';
 import { parseClientInfo, clientGateDecision, parseVersion, versionLessThan } from './clientgate.js';
 import { verifyAttest, attestMode } from './attest.js';
 import { createRelease } from './release.js';
-import { PUSH_SCHEMA, PUSH_KINDS, RING_CHANNEL_SINCE, chatNotification, migratePushTokens } from './push.js';
+import { PUSH_SCHEMA, PUSH_KINDS, RING_CHANNEL_SINCE, WAKE_SINCE, chatNotification, migratePushTokens } from './push.js';
 import { MODERATION_SCHEMA, installModerationRoutes, blockedBetween, deleteAccount, deleteChatForEveryone } from './moderation.js';
 import { installSoundCloudRoutes } from './soundcloud.js';
 import { COMMUNITY_SCHEMA, installCommunityRoutes, VOICE_LIMIT } from './communities.js';
@@ -486,9 +486,12 @@ export async function buildApp({
       // An incoming call rings with a long ringtone on apps that have that channel (an older app has no such
       // channel, and Android would fall back to the ordinary one).
       const ringing = kind === 'call' ? chatNotification({ ...content, ring: true }) : message;
+      // …and wakes the app for a full-screen incoming call where the app can do that.
+      const waking = kind === 'call' ? chatNotification({ ...content, ring: true, wake: true }) : message;
       for (const { token, platform, app_version: version } of tokens) {
         const ring = kind === 'call' && platform === 'android' && !!parseVersion(version) && !versionLessThan(version, RING_CHANNEL_SINCE);
-        push(token, ring ? ringing : message, platform).then(result => { if (result === 'gone' && !databaseClosed) db.prepare('DELETE FROM push_tokens WHERE token=?').run(token); })
+        const wake = ring && !versionLessThan(version, WAKE_SINCE);
+        push(token, wake ? waking : ring ? ringing : message, platform).then(result => { if (result === 'gone' && !databaseClosed) db.prepare('DELETE FROM push_tokens WHERE token=?').run(token); })
           .catch(error => app.log.warn({ err: error.message }, 'push failed'));
       }
     }

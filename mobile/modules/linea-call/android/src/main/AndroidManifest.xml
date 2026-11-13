@@ -3,7 +3,11 @@
        silences the microphone of an app in the background unless a foreground service of this type runs. -->
   <uses-permission android:name="android.permission.FOREGROUND_SERVICE" />
   <uses-permission android:name="android.permission.FOREGROUND_SERVICE_MICROPHONE" />
+  <!-- An incoming call while the app is closed: the ringing notification may open the app over the lock screen
+       (IncomingCall.kt). On Android 14+ the person can switch this off in the app's notification settings. -->
+  <uses-permission android:name="android.permission.USE_FULL_SCREEN_INTENT" />
   <application>
+    <receiver android:name="expo.modules.lineacall.IncomingCallReceiver" android:exported="false" />
     <service android:name="expo.modules.lineacall.CallService" android:exported="false" android:foregroundServiceType="microphone" />
   </application>
 </manifest>

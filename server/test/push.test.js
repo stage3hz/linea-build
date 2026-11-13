@@ -141,3 +141,11 @@ test('an incoming call rings on the ringing channel only where the app has it', 
   assert.equal(ring.android.ttl, '45s');
   assert.equal(chatNotification({ chatId: 'c1', senderName: 'Аня', kind: 'message', unread: 1, ring: true }).android.notification.channel_id, 'messages', 'only a call rings');
 });
+
+test('a call wakes the app with a data message that still reads as a ringing notification if the app\'s code does not run', () => {
+  const wake = chatNotification({ chatId: 'c1', senderName: 'Аня', kind: 'call', unread: 0, ring: true, wake: true });
+  assert.equal(wake.android.notification, undefined, 'a data message: Android hands it to the closed app');
+  assert.deepEqual(wake.data, { chatId: 'c1', kind: 'call', wake: '1', title: 'Аня', message: '📞 Входящий звонок', channelId: 'calls-ring' });
+  assert.deepEqual(wake.android, { priority: 'high', ttl: '45s' });
+  assert.ok(chatNotification({ chatId: 'c1', senderName: 'Аня', kind: 'message', unread: 1, wake: true }).android.notification, 'only a call');
+});

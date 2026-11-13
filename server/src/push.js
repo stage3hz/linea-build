@@ -156,10 +156,12 @@ const plural = (n, one, few, many) => { const a = n % 10, b = n % 100; return a 
 
 /** The first app version that has the ringing channel «calls-ring» (a long ringtone for an incoming call). */
 export const RING_CHANNEL_SINCE = '0.14.16';
+/** The first app version that a call's data message wakes (the full-screen incoming call). */
+export const WAKE_SINCE = '0.14.17';
 
 /** The FCM message for a chat notification (no message content — it is end-to-end encrypted).
  *  `ring`: the device's app has the ringing channel. */
-export function chatNotification({ chatId, senderName, kind, unread, badge, ring = false }) {
+export function chatNotification({ chatId, senderName, kind, unread, badge, ring = false, wake = false }) {
   const count = Number.isSafeInteger(badge) && badge >= 0 ? badge : null;
   const call = kind === 'call';
   // A call that was not answered: an ordinary notification (no 45 s limit), so it still arrives when the phone woke
@@ -168,6 +170,14 @@ export function chatNotification({ chatId, senderName, kind, unread, badge, ring
   // F4 «Отправить без звука»: the same notification, delivered quietly (Android: the app's `silent`
   // channel has no sound or vibration; iPhone: no `sound` key — the banner and the badge still show).
   const silent = kind === 'silent';
+  // An incoming call for an app that can be woken by it (Android, WAKE_SINCE on): a DATA message. Android hands a
+  // data message to the app even when it is closed; the app then shows the full-screen incoming call itself
+  // (mobile/src/calls/incomingPush.ts). `title` / `message` / `channelId` are there for the case the app's own code
+  // does not get to run: the notifications library then shows them as the ordinary ringing notification.
+  if (call && wake) return {
+    data: { chatId, kind, wake: '1', title: senderName, message: '📞 Входящий звонок', channelId: 'calls-ring' },
+    android: { priority: 'high', ttl: '45s' },
+  };
   const body = call ? '📞 Входящий звонок' : missed ? '📞 Пропущенный звонок' : unread > 1 ? `${unread} ${plural(unread, 'новое сообщение', 'новых сообщения', 'новых сообщений')}` : 'Новое сообщение';
   return {
     data: { chatId, kind },

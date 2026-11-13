@@ -37,6 +37,7 @@ import { clearServer, normalizeServer, readCachedUser, readDarkTheme, readServer
 import { ThemeContext, palette, useTheme } from './src/theme';
 import { customTheme } from './src/themes/custom';
 import { enablePrefetch } from './src/prefetch/task';
+import { enableCallPush } from './src/calls/incomingPush';
 import { clearPrefetch } from './src/prefetch/store';
 import { useChatPreferences } from './src/chatPreferences';
 import type { DarkTheme, Session, ThemeMode, User } from './src/types';
@@ -99,7 +100,7 @@ export default function App() {
   const theme=useMemo(()=>customTheme(palette[themeFor(shownMode,shownDark,night)],preferences.accentColor,preferences.bubbleColor),[shownMode,shownDark,night,preferences.accentColor,preferences.bubbleColor]);
   const api=useMemo(()=>new Api(server||'',session?.token),[server,session?.token]);
   // Фоновое обновление (Android): signed in — the system may run the background download (src/prefetch).
-  useEffect(()=>{if(session?.token)void enablePrefetch();},[session?.token]);
+  useEffect(()=>{if(session?.token){void enablePrefetch();void enableCallPush();}},[session?.token]);
   // SoundCloud is fetched through our server, so it needs the signed-in session (guests get Audius only).
   useEffect(()=>{setSoundCloudApi(session?.token&&server?api:null);},[api,session?.token,server]);
   // Servers: measure once at start, keep measuring in the background, fail over on their own.

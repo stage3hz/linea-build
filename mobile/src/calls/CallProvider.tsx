@@ -9,6 +9,7 @@ import { playCallSound, stopCallSound } from './callSounds';
 import { Modal, PermissionsAndroid, Platform, Pressable, StyleSheet, Vibration, View, useWindowDimensions } from 'react-native';
 import * as Crypto from 'expo-crypto';
 import { CallAudioPanel, callAudioChoice, resetCallAudio } from './CallAudioPanel';
+import { dismissIncomingCall, setOverLock, takeIncomingCall } from './incomingPush';
 import { MusicAmbient } from '../music/MusicAmbient';
 import { LinearGradient } from 'expo-linear-gradient';
 import { Image as BlurImage } from 'expo-image';
@@ -109,6 +110,15 @@ async function allowBluetoothAudio() {
 export function CallProvider({ api, store, me, children }: { api: Api; store: MessengerStore; me: User; children: React.ReactNode }) {
   const music = useMusic();
   const [call, setCall] = useState<CallState | null>(null);
+  // Android: a call may be shown over the lock screen — only the call. The moment its screen is left (minimised or
+  // over) the app goes back behind the lock, so a locked phone never opens the chats. Before any call has been on
+  // screen nothing is switched off here: an app just opened by the ringing notification keeps its own minute.
+  const overLock = useRef(false);
+  const callOnScreen = !!call && !call.minimized;
+  useEffect(() => {
+    if (callOnScreen) { overLock.current = true; setOverLock(true); }
+    else if (overLock.current) { overLock.current = false; setOverLock(false); }
+  }, [callOnScreen]);
   const callRef = useRef<CallState | null>(null); callRef.current = call;
   // A live call keeps the messenger socket open in the background (connectionHold): its signalling and the server's presence go through it.
   const live = !!call && call.status !== 'ended';
@@ -386,6 +396,11 @@ export function CallProvider({ api, store, me, children }: { api: Api; store: Me
     // Busy: the same `end` as a hang-up (video, caller: false), so the caller's chat says «Собеседник занят» and ours a missed call.
     if (callRef.current) { signal(chat.id, callEndMeta({ id: action.call, video: !!action.video, incoming: true, startedAt: null }, 'busy')); return; }
     setCall({ id: action.call, chat, peer: chat.peer, incoming: true, video: !!action.video, status: 'incoming', muted: false, speaker: !!action.video, cameraOff: false, startedAt: null, endedText: '', key: null, localUrl: null, remoteUrl: null, remoteSdp: action.sdp });
+    // Opened from the ringing notification of a closed app (incomingPush.ts): that notification is not needed any
+    // more, and «Ответить» pressed on it answers here, once the call is on screen.
+    dismissIncomingCall();
+    const opened = takeIncomingCall();
+    if (opened?.answer && opened.chatId === chat.id) setTimeout(() => { if (callRef.current?.id === action.call && callRef.current.status === 'incoming') void accept(); }, 400);
     // Настройки › Уведомления и звуки › Звонки (F2): «Без мелодии» rings silently, «Вибрация» off keeps the phone still.
     const alert = incomingAlert(getNotificationPrefs().calls);
     if (alert.sound) void playCallSound('incoming');

@@ -2858,5 +2858,6 @@
 "Bluetooth-наушники": "Bluetooth headphones",
 "На Android звук и микрофон идут через одно устройство: система не даёт приложению разделить их в звонке.": "On Android the sound and the microphone go through one device: the system does not let an app split them in a call.",
 "Список системы…": "The system's list…",
-"Если устройства нет выше (колонка, AirPlay)": "If the device is not listed above (a speaker, AirPlay)"
+"Если устройства нет выше (колонка, AirPlay)": "If the device is not listed above (a speaker, AirPlay)",
+"Входящие звонки": "Incoming calls"
 }
