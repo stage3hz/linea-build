@@ -132,3 +132,12 @@ test('a call nobody answered gets a notification of its own: no 45 s limit, and 
   assert.equal(missed.apns.headers['apns-expiration'], undefined);
   assert.equal(missed.data.kind, 'missed');
 });
+
+test('an incoming call rings on the ringing channel only where the app has it', () => {
+  const plain = chatNotification({ chatId: 'c1', senderName: 'Аня', kind: 'call', unread: 0 });
+  const ring = chatNotification({ chatId: 'c1', senderName: 'Аня', kind: 'call', unread: 0, ring: true });
+  assert.equal(plain.android.notification.channel_id, 'calls');
+  assert.equal(ring.android.notification.channel_id, 'calls-ring');
+  assert.equal(ring.android.ttl, '45s');
+  assert.equal(chatNotification({ chatId: 'c1', senderName: 'Аня', kind: 'message', unread: 1, ring: true }).android.notification.channel_id, 'messages', 'only a call rings');
+});

@@ -62,6 +62,10 @@ export async function channels() {
   if (Platform.OS !== 'android') return;
   await Notifications.setNotificationChannelAsync('messages', { name: 'Сообщения', importance: Notifications.AndroidImportance.HIGH, sound: 'default', vibrationPattern: [0, 180, 120, 180], lockscreenVisibility: Notifications.AndroidNotificationVisibility.PRIVATE });
   await Notifications.setNotificationChannelAsync('calls', { name: 'Звонки', importance: Notifications.AndroidImportance.MAX, sound: 'default', vibrationPattern: [0, 600, 400, 600, 400, 600], lockscreenVisibility: Notifications.AndroidNotificationVisibility.PUBLIC, bypassDnd: false });
+  // An incoming call while the app is closed: the notification rings like a call — our own ringtone for 25 seconds
+  // (or until it is opened or swiped away) and a long vibration, also on the lock screen. A channel's sound cannot be
+  // changed once it exists, hence the separate channel; the server uses it for builds from 0.14.16 on.
+  await Notifications.setNotificationChannelAsync('calls-ring', { name: 'Входящие звонки', importance: Notifications.AndroidImportance.MAX, sound: 'call_ring.ogg', vibrationPattern: [0, 800, 500, 800, 500, 800, 500, 800, 500, 800], lockscreenVisibility: Notifications.AndroidNotificationVisibility.PUBLIC, bypassDnd: false, audioAttributes: { usage: Notifications.AndroidAudioUsage.NOTIFICATION_RINGTONE, contentType: Notifications.AndroidAudioContentType.SONIFICATION } });
   await Notifications.setNotificationChannelAsync('silent', { name: 'Без звука', importance: Notifications.AndroidImportance.LOW, sound: null, vibrationPattern: [0], enableVibrate: false });
 }
 

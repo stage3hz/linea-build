@@ -154,8 +154,12 @@ export function createFcm(account, { fetch: fetchImpl = globalThis.fetch, now = 
 
 const plural = (n, one, few, many) => { const a = n % 10, b = n % 100; return a === 1 && b !== 11 ? one : a >= 2 && a <= 4 && (b < 12 || b > 14) ? few : many; };
 
-/** The FCM message for a chat notification (no message content — it is end-to-end encrypted). */
-export function chatNotification({ chatId, senderName, kind, unread, badge }) {
+/** The first app version that has the ringing channel «calls-ring» (a long ringtone for an incoming call). */
+export const RING_CHANNEL_SINCE = '0.14.16';
+
+/** The FCM message for a chat notification (no message content — it is end-to-end encrypted).
+ *  `ring`: the device's app has the ringing channel. */
+export function chatNotification({ chatId, senderName, kind, unread, badge, ring = false }) {
   const count = Number.isSafeInteger(badge) && badge >= 0 ? badge : null;
   const call = kind === 'call';
   // A call that was not answered: an ordinary notification (no 45 s limit), so it still arrives when the phone woke
@@ -170,7 +174,7 @@ export function chatNotification({ chatId, senderName, kind, unread, badge }) {
     android: {
       priority: 'high',
       ...(call ? { ttl: '45s' } : { collapse_key: chatId }),
-      notification: { title: senderName, body, tag: call || missed ? `call:${chatId}` : chatId, channel_id: call ? 'calls' : silent ? 'silent' : 'messages', icon: 'notification_icon', color: '#4C7DFF', ...(silent ? { notification_priority: 'PRIORITY_LOW' } : { sound: 'default' }), ...(count !== null ? { notification_count: count } : {}) },
+      notification: { title: senderName, body, tag: call || missed ? `call:${chatId}` : chatId, channel_id: call ? (ring ? 'calls-ring' : 'calls') : silent ? 'silent' : 'messages', icon: 'notification_icon', color: '#4C7DFF', ...(silent ? { notification_priority: 'PRIORITY_LOW' } : { sound: 'default' }), ...(count !== null ? { notification_count: count } : {}) },
     },
     // iPhone: the same shape FCM v1 uses for its `apns` field, sent to Apple directly.
     apns: {

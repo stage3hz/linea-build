@@ -1,9 +1,9 @@
 import { createSfu, sfuConfig } from './sfu.js';
 import { installCallRoutes } from './calls.js';
-import { parseClientInfo, clientGateDecision } from './clientgate.js';
+import { parseClientInfo, clientGateDecision, parseVersion, versionLessThan } from './clientgate.js';
 import { verifyAttest, attestMode } from './attest.js';
 import { createRelease } from './release.js';
-import { PUSH_SCHEMA, PUSH_KINDS, chatNotification, migratePushTokens } from './push.js';
+import { PUSH_SCHEMA, PUSH_KINDS, RING_CHANNEL_SINCE, chatNotification, migratePushTokens } from './push.js';
 import { MODERATION_SCHEMA, installModerationRoutes, blockedBetween, deleteAccount, deleteChatForEveryone } from './moderation.js';
 import { installSoundCloudRoutes } from './soundcloud.js';
 import { COMMUNITY_SCHEMA, installCommunityRoutes, VOICE_LIMIT } from './communities.js';
@@ -448,6 +448,10 @@ export async function buildApp({
     if (body.platform === 'ios' && !/^[0-9a-f]{64,200}$/i.test(body.token)) fail(400, 'Некорректный токен уведомлений.');
     db.prepare('INSERT INTO push_tokens(token,user_id,session_hash,platform,updated_at) VALUES(?,?,?,?,?) ON CONFLICT(token) DO UPDATE SET user_id=excluded.user_id,session_hash=excluded.session_hash,updated_at=excluded.updated_at')
       .run(body.token, request.auth.user_id, request.auth.token_hash, body.platform, now());
+    // The app registers its token at every start: a good moment to note the version it runs now (a session keeps the
+    // version of the sign-in otherwise, and the ringing channel for calls depends on the current one).
+    const version = parseClientInfo(request.headers['x-linea-client'])?.version;
+    if (version) db.prepare('UPDATE sessions SET app_version=? WHERE token_hash=?').run(version, request.auth.token_hash);
     return { ok: true, enabled: !!push && (push.platforms ? !!push.platforms[body.platform] : body.platform === 'android') };
   });
   app.delete('/me/push', authOptions, async request => {
@@ -473,13 +477,18 @@ export async function buildApp({
       if (userId === senderId) continue;
       // A timed mute (F2) ends by comparison with the clock: no sweep, the next message simply rings again.
       if (kind !== 'call' && chatSettings(db, userId, chatId, now()).muted) continue;
-      const tokens = db.prepare('SELECT p.token, p.platform FROM push_tokens p JOIN sessions s ON s.token_hash=p.session_hash WHERE p.user_id=? AND s.expires_at>?').all(userId, now());
+      const tokens = db.prepare('SELECT p.token, p.platform, s.app_version FROM push_tokens p JOIN sessions s ON s.token_hash=p.session_hash WHERE p.user_id=? AND s.expires_at>?').all(userId, now());
       if (!tokens.length) continue;
       const member = db.prepare('SELECT last_read_message_id FROM chat_members WHERE chat_id=? AND user_id=?').get(chatId, userId);
       const unread = db.prepare('SELECT COUNT(*) AS count FROM (SELECT 1 FROM messages WHERE chat_id=? AND sender_id<>? AND id>? AND silent=0 LIMIT 9999)').get(chatId, userId, member?.last_read_message_id ?? 0).count;
-      const message = chatNotification({ chatId, senderName: sender?.display_name || 'Инвиз', kind, unread, badge: kind === 'call' ? undefined : badgeTotal(userId) });
-      for (const { token, platform } of tokens) {
-        push(token, message, platform).then(result => { if (result === 'gone' && !databaseClosed) db.prepare('DELETE FROM push_tokens WHERE token=?').run(token); })
+      const content = { chatId, senderName: sender?.display_name || 'Инвиз', kind, unread, badge: kind === 'call' ? undefined : badgeTotal(userId) };
+      const message = chatNotification(content);
+      // An incoming call rings with a long ringtone on apps that have that channel (an older app has no such
+      // channel, and Android would fall back to the ordinary one).
+      const ringing = kind === 'call' ? chatNotification({ ...content, ring: true }) : message;
+      for (const { token, platform, app_version: version } of tokens) {
+        const ring = kind === 'call' && platform === 'android' && !!parseVersion(version) && !versionLessThan(version, RING_CHANNEL_SINCE);
+        push(token, ring ? ringing : message, platform).then(result => { if (result === 'gone' && !databaseClosed) db.prepare('DELETE FROM push_tokens WHERE token=?').run(token); })
           .catch(error => app.log.warn({ err: error.message }, 'push failed'));
       }
     }

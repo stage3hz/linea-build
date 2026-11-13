@@ -16,6 +16,7 @@ const mod = loadTs(new URL('../src/push.ts', import.meta.url), {
     setNotificationHandler: ({ handleNotification }) => { handler = handleNotification; },
     setNotificationChannelAsync: async (id, channel) => { channels.set(id, channel); },
     AndroidImportance: { LOW: 2, DEFAULT: 3, HIGH: 4, MAX: 5 },
+    AndroidAudioUsage: { NOTIFICATION_RINGTONE: 6 }, AndroidAudioContentType: { SONIFICATION: 4 },
     AndroidNotificationVisibility: { PRIVATE: 0, PUBLIC: 1 },
   },
   '@react-native-async-storage/async-storage': {
@@ -48,7 +49,10 @@ test('a message sounds, a «silent» message is shown but never sounds, a call a
 
 test('Android channels: messages (high, sound), calls (max), silent (low, no sound, no vibration)', async () => {
   await mod.channels();
-  assert.deepEqual([...channels.keys()].sort(), ['calls', 'messages', 'silent']);
+  assert.deepEqual([...channels.keys()].sort(), ['calls', 'calls-ring', 'messages', 'silent']);
+  // An incoming call rings: our own long ringtone, at the highest importance, shown on the lock screen.
+  assert.equal(channels.get('calls-ring').sound, 'call_ring.ogg');
+  assert.equal(channels.get('calls-ring').importance, 5);
   assert.equal(channels.get('messages').importance, 4); assert.equal(channels.get('messages').sound, 'default');
   assert.equal(channels.get('calls').importance, 5);
   const silent = channels.get('silent');
