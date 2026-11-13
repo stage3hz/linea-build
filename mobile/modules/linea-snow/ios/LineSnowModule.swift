@@ -1866,34 +1866,87 @@ final class SnowFlakesView: UIView {
   /// How much is falling now, 0…1 (set by the engine); below zero: not set yet.
   private var falling: Double = -1
 
+  /// A far flake: a plain pale dot (4 pt, drawn at 2x).
   private static let dot: CGImage? = {
     let format = UIGraphicsImageRendererFormat()
     format.scale = 2
     format.opaque = false
-    let image = UIGraphicsImageRenderer(size: CGSize(width: 8, height: 8), format: format).image { context in
+    let image = UIGraphicsImageRenderer(size: CGSize(width: 4, height: 4), format: format).image { context in
       UIColor.white.setFill()
-      context.cgContext.fillEllipse(in: CGRect(x: 1, y: 1, width: 6, height: 6))
+      context.cgContext.fillEllipse(in: CGRect(x: 0.5, y: 0.5, width: 3, height: 3))
     }
     return image.cgImage
   }()
 
-  private static func cell(rate: Float, speed: CGFloat, spread: CGFloat, size: CGFloat, sizeRange: CGFloat, alpha: CGFloat) -> CAEmitterCell {
+  /// Near flakes: loose aggregates of crystals, each of its own shape — the same look the snow had when the app
+  /// drew it itself (a few small soft ellipses stuck together, 12 pt, drawn at 2x).
+  private static let aggregates: [CGImage] = {
+    let side = SnowRules.spriteSize
+    let format = UIGraphicsImageRendererFormat()
+    format.scale = 2
+    format.opaque = false
+    let renderer = UIGraphicsImageRenderer(size: CGSize(width: side, height: side), format: format)
+    let glow = UIColor(red: 1, green: 1, blue: 1, alpha: 0.9).cgColor
+    var made: [CGImage] = []
+    for _ in 0..<4 {
+      let image = renderer.image { rc in
+        let c = rc.cgContext
+        c.translateBy(x: CGFloat(side / 2), y: CGFloat(side / 2))
+        c.setShadow(offset: CGSize.zero, blur: 1.2, color: glow)
+        c.setFillColor(UIColor.white.cgColor)
+        let parts = 3 + Int.random(in: 0...4)
+        for _ in 0..<parts {
+          let a = Double.random(in: 0..<6.283)
+          let r = Double.random(in: 0..<2.2)
+          let rx = 0.5 + Double.random(in: 0..<1.1)
+          let ry = 0.4 + Double.random(in: 0..<0.7)
+          c.saveGState()
+          c.translateBy(x: CGFloat(cos(a) * r), y: CGFloat(sin(a) * r))
+          c.rotate(by: CGFloat(Double.random(in: 0..<3)))
+          c.setAlpha(CGFloat(0.55 + Double.random(in: 0..<0.45)))
+          c.fillEllipse(in: CGRect(x: -rx, y: -ry, width: rx * 2, height: ry * 2))
+          c.restoreGState()
+        }
+      }
+      if let cg = image.cgImage { made.append(cg) }
+    }
+    return made
+  }()
+
+  /// `rate`: flakes a second for a view 393 pt wide. `size`: 1 — the image at its own size in points.
+  private static func cell(_ image: CGImage?, rate: Float, speed: CGFloat, spread: CGFloat, life: Float, size: CGFloat, sizeRange: CGFloat, alpha: Float, alphaRange: Float, spin: CGFloat) -> CAEmitterCell {
     let cell = CAEmitterCell()
-    cell.contents = dot
+    cell.contents = image
+    // The images are drawn at 2x: without this a flake would come out twice its size.
+    cell.contentsScale = 2
     cell.birthRate = rate
-    // Long enough to cross a tall screen at the slowest speed.
-    cell.lifetime = 36
+    cell.lifetime = life
     cell.velocity = speed
     cell.velocityRange = spread
-    // Downwards, with a slight sway to the sides.
-    cell.emissionLongitude = .pi / 2
+    // Straight down from a line along the top edge, with a slight spread to the sides. (π, not π/2: with π/2 the
+    // flakes flew along the top edge and left the view at once — the snowfall was all but invisible.)
+    cell.emissionLongitude = .pi
     cell.emissionRange = 0.22
-    cell.xAcceleration = 1.5
     cell.scale = size
     cell.scaleRange = sizeRange
-    cell.color = UIColor(white: 1, alpha: alpha).cgColor
-    cell.alphaRange = 0.25
+    cell.color = UIColor(white: 1, alpha: CGFloat(alpha)).cgColor
+    cell.alphaRange = alphaRange
+    cell.spinRange = spin
     return cell
+  }
+
+  /// The snowfall the app used to draw itself, as emitter cells: 70 flakes over a 393×852 pt screen — about two
+  /// thirds near (aggregates 8–14 pt, 36–66 pt/s, turning slowly), a third far (pale dots, 20–36 pt/s).
+  private static func cells() -> [CAEmitterCell] {
+    let screen = 852.0
+    let nearRate = SnowRules.flakes * 0.65 / (screen / 51)
+    let farRate = SnowRules.flakes * 0.35 / (screen / 28)
+    var cells: [CAEmitterCell] = []
+    for image in aggregates {
+      cells.append(cell(image, rate: Float(nearRate / Double(aggregates.count)), speed: 51, spread: 15, life: 30, size: 0.95, sizeRange: 0.25, alpha: 0.65, alphaRange: 0.2, spin: 0.8))
+    }
+    cells.append(cell(dot, rate: Float(farRate + (aggregates.isEmpty ? nearRate : 0)), speed: 28, spread: 8, life: 50, size: 0.42, sizeRange: 0.06, alpha: 0.36, alphaRange: 0.1, spin: 0))
+    return cells
   }
 
   /// false: a background kept mounted under another one — nothing falls there.
@@ -1932,11 +1985,7 @@ final class SnowFlakesView: UIView {
     emitter.renderMode = .unordered
     emitter.birthRate = 0
     emitter.isHidden = true
-    // Near flakes: larger, faster, brighter; far ones: small pale dots.
-    emitter.emitterCells = [
-      SnowFlakesView.cell(rate: 1.2, speed: 46, spread: 14, size: 0.44, sizeRange: 0.16, alpha: 0.9),
-      SnowFlakesView.cell(rate: 1.0, speed: 30, spread: 6, size: 0.2, sizeRange: 0.07, alpha: 0.6),
-    ]
+    emitter.emitterCells = SnowFlakesView.cells()
     layer.addSublayer(emitter)
   }
 
@@ -1961,7 +2010,7 @@ final class SnowFlakesView: UIView {
 
   /// The wider the view, the more flakes it takes to look the same.
   private func applyRate() {
-    emitter.birthRate = Float(max(0, falling) * Double(max(0.5, min(4, bounds.width / 400))))
+    emitter.birthRate = Float(max(0, falling) * Double(max(0.5, min(4, bounds.width / 393))))
   }
 
   /// How much falls: 1 — the full snowfall, 0 — none (new flakes stop; those in the air fall out of sight).
@@ -1974,7 +2023,7 @@ final class SnowFlakesView: UIView {
     CATransaction.setDisableActions(true)
     applyRate()
     // As if it had been snowing for a while: the screen is not empty when the snow comes on.
-    if starting { emitter.beginTime = emitter.convertTime(CACurrentMediaTime(), from: nil) - 30 }
+    if starting { emitter.beginTime = emitter.convertTime(CACurrentMediaTime(), from: nil) - 45 }
     CATransaction.commit()
   }
 
