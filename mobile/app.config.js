@@ -104,6 +104,8 @@ module.exports = {
       // iOS: «aps-environment» entitlement (APNs); Xcode sets production for App Store exports anyway.
       ['expo-notifications', { icon: './assets/notification-icon.png', color: '#4C7DFF', defaultChannel: 'messages', mode: development ? 'development' : 'production' }],
       './plugins/withSelfUpdate',
+      // Фоновое обновление (Android, src/prefetch): the system's periodic background run.
+      'expo-background-task',
       // Only DeviceMotion (wallpaper parallax); the pedometer's ACTIVITY_RECOGNITION is in blockedPermissions.
       ['expo-sensors', { motionPermission: 'Инвиз использует наклон телефона только для лёгкого движения обоев в чатах.' }],
       // Face ID / Touch ID for the passcode lock (src/lock); the code itself never leaves the device.

@@ -86,6 +86,11 @@ export class NetworkError extends Error { constructor(message: string, readonly 
  *  to the next server and lets messages go by Mesh; only the text tells it apart from «no connection». */
 export class RequestTimeoutError extends NetworkError { constructor(message: string) { super(message); this.name = 'TimeoutError'; } }
 
+/** Фоновое обновление (prefetch/store.ts connects itself here; absent on the PC and in tests). */
+type InboxPrefetch = { take(deviceId: string, chatId: string, after: number): Promise<{ messages: { id: number }[]; nextCursor: number; hasMore: boolean } | null>; note(deviceId: string, chatId: string, page: { messages: { id: number }[]; nextCursor: number; hasMore: boolean }, after: number): void };
+let inboxPrefetch: InboxPrefetch | null = null;
+export const setInboxPrefetch = (value: InboxPrefetch | null) => { inboxPrefetch = value; };
+
 /** One proof exchange per session token, shared by every Api made for it (deviceProof.ts). */
 const proofs = new Map<string, DeviceProof>();
 
@@ -246,7 +251,16 @@ export class Api {
   ownCryptoDevices = () => this.request<{devices: CryptoDevice[]}>('/e2ee/devices/self');
   claimPreKey = (userId: string, deviceId: string) => this.request<{device: CryptoDevice; bundle: ClaimedBundle}>('/e2ee/prekeys/claim', {method: 'POST', body: JSON.stringify({userId, deviceId})});
   revokeCryptoDevice = (deviceId: string) => this.request<{ok: true}>('/e2ee/devices/revoke', {method: 'POST', body: JSON.stringify({deviceId})});
-  cryptoInbox = (deviceId: string, chatId: string, after: number) => this.request<{messages: Message[]; nextCursor: number; hasMore: boolean}>(`/e2ee/inbox?lean=1&deviceId=${encodeURIComponent(deviceId)}&chatId=${encodeURIComponent(chatId)}&after=${after}&limit=100`);
+  /** The device's encrypted inbox for a chat, straight from the server. */
+  inboxPage = (deviceId: string, chatId: string, after: number) => this.request<{messages: Message[]; nextCursor: number; hasMore: boolean}>(`/e2ee/inbox?lean=1&deviceId=${encodeURIComponent(deviceId)}&chatId=${encodeURIComponent(chatId)}&after=${after}&limit=100`);
+  /** …and as the app reads it: a page the background run has kept for exactly this request comes first
+   *  (prefetch/store.ts), and each page read is reported, so the next background run knows where to go on. */
+  cryptoInbox = async (deviceId: string, chatId: string, after: number): Promise<{messages: Message[]; nextCursor: number; hasMore: boolean}> => {
+    const kept = inboxPrefetch ? await inboxPrefetch.take(deviceId, chatId, after).catch(() => null) : null;
+    const result = (kept as {messages: Message[]; nextCursor: number; hasMore: boolean} | null) ?? await this.inboxPage(deviceId, chatId, after);
+    try { inboxPrefetch?.note(deviceId, chatId, result, after); } catch { /* optional */ }
+    return result;
+  };
   logout = () => this.request('/auth/logout', { method: 'POST' });
   chats = () => this.request<{chats: Chat[]}>('/chats?lean=1');
   users = (query: string) => this.request<{users: User[]}>(`/users?q=${encodeURIComponent(query)}`);

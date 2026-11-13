@@ -36,6 +36,8 @@ import { Button, Empty, Icon, Logo, Notice, Sheet, SheetAction } from './src/com
 import { clearServer, normalizeServer, readCachedUser, readDarkTheme, readServer, readTheme, readToken, writeCachedUser, writeDarkTheme, writeServer, writeTheme, writeToken } from './src/storage';
 import { ThemeContext, palette, useTheme } from './src/theme';
 import { customTheme } from './src/themes/custom';
+import { enablePrefetch } from './src/prefetch/task';
+import { clearPrefetch } from './src/prefetch/store';
 import { useChatPreferences } from './src/chatPreferences';
 import type { DarkTheme, Session, ThemeMode, User } from './src/types';
 import {resolveTheme,withPlatina,themeFor} from './src/themePreference';
@@ -96,6 +98,8 @@ export default function App() {
   // «Свои цвета»: the user's accent and message colours over the theme that is on (themes/custom.ts).
   const theme=useMemo(()=>customTheme(palette[themeFor(shownMode,shownDark,night)],preferences.accentColor,preferences.bubbleColor),[shownMode,shownDark,night,preferences.accentColor,preferences.bubbleColor]);
   const api=useMemo(()=>new Api(server||'',session?.token),[server,session?.token]);
+  // Фоновое обновление (Android): signed in — the system may run the background download (src/prefetch).
+  useEffect(()=>{if(session?.token)void enablePrefetch();},[session?.token]);
   // SoundCloud is fetched through our server, so it needs the signed-in session (guests get Audius only).
   useEffect(()=>{setSoundCloudApi(session?.token&&server?api:null);},[api,session?.token,server]);
   // Servers: measure once at start, keep measuring in the background, fail over on their own.
@@ -139,7 +143,7 @@ export default function App() {
       // Decrypted media of this account must not outlive the session on this device.
       await clearDecryptedAttachmentCache().then(()=>AsyncStorage.removeItem('linea.media-cache-owner')).catch(()=>{});
       // Channel messages still waiting to be sent belong to this account: nothing of them may go out from the next one.
-      resetChannelOutbox({purge:true});
+      resetChannelOutbox({purge:true});void clearPrefetch();
       try {await api.logout();}
       catch(error) {if(!(error instanceof ApiError&&error.status===401))revokeError=error;}
       try {await writeToken(null);}
@@ -151,14 +155,14 @@ export default function App() {
       setAuthNotice(revokeError?(revokeError instanceof ApiError?'Выход выполнен на этом устройстве. Сервер не подтвердил отзыв удалённой сессии.':'Выход выполнен на этом устройстве. Сервер недоступен — удалённую сессию отозвать не удалось.'):'');
     } finally {logoutInProgress.current=false;}
   };
-  const expired=(ownerToken?:string)=>{if(!currentAuth.current.token||(ownerToken&&currentAuth.current.token!==ownerToken)||logoutInProgress.current)return;if(securityInProgress.current){pendingSecurityExpiry.current=true;return;}currentAuth.current={server,token:undefined};void writeToken(null).catch(()=>{});resetChannelOutbox({purge:true});setSession(null);setAuthNotice('Сессия завершилась. Войди снова.');};
+  const expired=(ownerToken?:string)=>{if(!currentAuth.current.token||(ownerToken&&currentAuth.current.token!==ownerToken)||logoutInProgress.current)return;if(securityInProgress.current){pendingSecurityExpiry.current=true;return;}currentAuth.current={server,token:undefined};void writeToken(null).catch(()=>{});resetChannelOutbox({purge:true});void clearPrefetch();setSession(null);setAuthNotice('Сессия завершилась. Войди снова.');};
   const securityPending=(pending:boolean)=>{if(!session||currentAuth.current.token!==session.token)return;securityInProgress.current=pending;if(!pending&&pendingSecurityExpiry.current){pendingSecurityExpiry.current=false;expired(session.token);}};
   const credentialsChanged=async(message:string)=>{
     if(!session||currentAuth.current.token!==session.token)return;
     let storageNotice='';
     try{await writeToken(null);}catch{storageNotice=' Сохранённую копию отозванной сессии не удалось удалить с устройства; сервер больше её не принимает.';}
     if(currentAuth.current.token!==session.token)return;
-    securityInProgress.current=false;pendingSecurityExpiry.current=false;currentAuth.current={server,token:undefined};resetChannelOutbox({purge:true});setSession(null);setAuthNotice(message+storageNotice);
+    securityInProgress.current=false;pendingSecurityExpiry.current=false;currentAuth.current={server,token:undefined};resetChannelOutbox({purge:true});void clearPrefetch();setSession(null);setAuthNotice(message+storageNotice);
   };
   const saveThemePreference=(pending:Promise<void>)=>{const revision=++themeSaveRevision.current;setThemeError('');void pending.catch(()=>{if(revision===themeSaveRevision.current)setThemeError('Оформление изменено, но не сохранилось на устройстве. Выбери его ещё раз, чтобы повторить сохранение.');});};
   const changeTheme=(value:ThemeMode)=>{setMode(value);saveThemePreference(writeTheme(value));};
