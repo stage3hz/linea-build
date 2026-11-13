@@ -34,10 +34,13 @@ test('the text is cut without losing or doubling a character', () => {
   }
 });
 
-test('a tap opens the chat with exactly that person', () => {
+test('a tap opens the profile of exactly that person — not the chat, so nothing is marked as read', () => {
   const read = path => readFileSync(new URL(path, import.meta.url), 'utf8');
   assert.ok(read('../src/linkify.tsx').includes("onPress={() => navigate({ to: 'mention', username })}"));
   const app = read('../App.tsx');
   assert.ok(app.includes("const found=users.find(user=>user.username?.toLowerCase()===name);"), 'an exact match only, never the first similar name');
   assert.ok(app.includes("if(name===session?.user.username?.toLowerCase())return;"), 'your own name opens nothing');
+  const handler = app.slice(app.indexOf("if(request.to==='mention')"), app.indexOf("if(request.to==='chat')"));
+  assert.ok(handler.includes('setMentioned(found);') && !handler.includes('createChat') && !handler.includes('selectChat'), 'the tap itself opens no chat');
+  assert.ok(app.includes('<UserProfile api={api} user={mentioned} onClose={()=>setMentioned(null)}'), '«Написать» in the profile is the way to the chat');
 });
