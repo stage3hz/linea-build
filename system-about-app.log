@@ -1,0 +1,1027 @@
+Timestamp               Ty Process[PID:TID]
+2026-11-12 22:01:42.403 Df CoreSimulatorBridge[772:3eed1] [com.apple.securityd:truststore] Set TrustSettings for <cert(0x10200a200) s: INVIZENT Simulator Test CA i: INVIZENT Simulator Test CA>
+2026-11-12 22:01:55.959 Df CoreSimulatorBridge[772:3eed1] Request received for installation of file:///Users/runner/work/linea-build/linea-build/mobile/ios/simbuild/Build/Products/Release-iphonesimulator/INVIZENT.app/ with options: {
+    PackageType = Developer;
+    SimulatorRootPath = "/Library/Developer/CoreSimulator/Volumes/iOS_23C54/Library/Developer/CoreSimulator/Profiles/Runtimes/iOS 26.2.simruntime/Contents/Resources/RuntimeRoot";
+    SimulatorUserPath = "/Users/runner/Library/Developer/CoreSimulator/Devices/C15FAC2A-CB46-4F16-B882-3970BD44CFAD/data";
+}
+2026-11-12 22:01:55.962 Df CoreSimulatorBridge[772:3eed1] [com.apple.installcoordination:framework] +[IXAppInstallCoordinator(IXSimpleInstaller) _beginInstallForURL:forPersonaUniqueString:consumeSource:options:progressBlock:completionWithIdentity:]: Beginning install for /Users/runner/work/linea-build/linea-build/mobile/ios/simbuild/Build/Products/Release-iphonesimulator/INVIZENT.app consuming source:N options:{
+    IsUserInitiated = 1;
+    PackageType = Developer;
+} installationRequestorAuditToken: NULL
+2026-11-12 22:01:56.001 Df installcoordinationd[4783:4169e] [com.apple.installcoordination:daemon] -[IXSDataPromiseManager registerPromise:]: Registered promise <IXSPlaceholder(0x10b404b90) Name:App Placeholder: INVIZENT (com.linea.messenger.preview) Creator:InstallCoordination Simple SPI UUID:F3A4828E-889A-41C5-BC45-F5D6672DFCEC Location:[system-defined]> for UUID F3A4828E-889A-41C5-BC45-F5D6672DFCEC
+2026-11-12 22:01:56.010 Df installcoordinationd[4783:4169e] [com.apple.installcoordination:daemon] -[IXSPlaceholder setAttributes:]: <IXSPlaceholder(0x10b404b90) Name:App Placeholder: INVIZENT (com.linea.messenger.preview) Creator:InstallCoordination Simple SPI UUID:F3A4828E-889A-41C5-BC45-F5D6672DFCEC Location:[system-defined]>: setting placeholder attributes to <IXPlaceholderAttributes<0x60000300c120> : {
+    CFBundleShortVersionString = "0.14.14";
+    CFBundleSupportedPlatforms =     (
+        iPhoneSimulator
+    );
+    CFBundleVersion = 1;
+    DTPlatformName = iphonesimulator;
+    LSRequiresIPhoneOS = 1;
+    MinimumOSVersion = "16.4";
+    UIDeviceFamily =     (
+        1
+    );
+    UIRequiredDeviceCapabilities =     {
+        arm64 = 1;
+    };
+}>
+2026-11-12 22:01:56.021 Df installcoordinationd[4783:4169e] [com.apple.installcoordination:daemon] -[IXSDataPromise _setPercentComplete:saveStateIfNeeded:]: Progress: <IXSPromisedInMemoryDictionary(0x600002c00500) Name:Entitlements Promise for com.linea.messenger.preview Creator:InstallCoordination Simple SPI UUID:78C901F9-1502-4898-91AE-7B997C66F97D Location:[system-defined]>
+2026-11-12 22:01:56.022 Df installcoordinationd[4783:4169e] [com.apple.installcoordination:daemon] -[IXSDataPromiseManager registerPromise:]: Registered promise <IXSPromisedInMemoryDictionary(0x600002c00500) Name:Entitlements Promise for com.linea.messenger.preview Creator:InstallCoordination Simple SPI UUID:78C901F9-1502-4898-91AE-7B997C66F97D Location:[system-defined]> for UUID 78C901F9-1502-4898-91AE-7B997C66F97D
+2026-11-12 22:01:56.023 Df installcoordinationd[4783:42372] [com.apple.installcoordination:daemon] -[IXSDataPromiseManager promiseDidBegin:]: Unowned promise began: <IXSPromisedInMemoryDictionary(0x600002c00500) Name:Entitlements Promise for com.linea.messenger.preview Creator:InstallCoordination Simple SPI UUID:78C901F9-1502-4898-91AE-7B997C66F97D Location:[system-defined]>
+2026-11-12 22:01:56.023 Df installcoordinationd[4783:42372] [com.apple.installcoordination:daemon] -[IXSDataPromiseManager promise:didUpdateProgress:]: Unowned promise update progress to 1.000000 : <IXSPromisedInMemoryDictionary(0x600002c00500) Name:Entitlements Promise for com.linea.messenger.preview Creator:InstallCoordination Simple SPI UUID:78C901F9-1502-4898-91AE-7B997C66F97D Location:[system-defined]>
+2026-11-12 22:01:56.025 Df installcoordinationd[4783:4169e] [com.apple.installcoordination:daemon] -[IXSPlaceholder setEntitlements:]: <IXSPlaceholder(0x10b404b90) Name:App Placeholder: INVIZENT (com.linea.messenger.preview) Creator:InstallCoordination Simple SPI UUID:F3A4828E-889A-41C5-BC45-F5D6672DFCEC Location:[system-defined]>: setting entitlements promise to <IXSPromisedInMemoryDictionary(0x600002c00500) Name:Entitlements Promise for com.linea.messenger.preview Creator:InstallCoordination Simple SPI UUID:78C901F9-1502-4898-91AE-7B997C66F97D Location:[system-defined]>
+2026-11-12 22:01:56.026 Df installcoordinationd[4783:42372] [com.apple.installcoordination:daemon] -[IXSDataPromiseManager promiseDidComplete:]: Unowned promise completed: <IXSPromisedInMemoryDictionary(0x600002c00500) Name:Entitlements Promise for com.linea.messenger.preview Creator:InstallCoordination Simple SPI UUID:78C901F9-1502-4898-91AE-7B997C66F97D Location:[system-defined]>
+2026-11-12 22:01:56.030 Df installcoordinationd[4783:4169e] [com.apple.installcoordination:daemon] -[IXSDataPromiseManager promiseDidBegin:]: Unowned promise began: <IXSPlaceholder(0x10b404b90) Name:App Placeholder: INVIZENT (com.linea.messenger.preview) Creator:InstallCoordination Simple SPI UUID:F3A4828E-889A-41C5-BC45-F5D6672DFCEC Location:[system-defined]>
+2026-11-12 22:01:56.030 Df installcoordinationd[4783:4169e] [com.apple.installcoordination:daemon] -[IXSDataPromiseManager promise:didUpdateProgress:]: Unowned promise update progress to 0.000000 : <IXSPlaceholder(0x10b404b90) Name:App Placeholder: INVIZENT (com.linea.messenger.preview) Creator:InstallCoordination Simple SPI UUID:F3A4828E-889A-41C5-BC45-F5D6672DFCEC Location:[system-defined]>
+2026-11-12 22:01:56.031 Df CoreSimulatorBridge[772:3eed2] [com.apple.installcoordination:framework] +[IXPlaceholder _placeholderForBundle:client:withParent:installType:metadata:placeholderType:mayBeDeltaPackage:isFromSerializedPlaceholder:location:error:]: Using full fidelity icons for com.linea.messenger.preview at /Users/runner/work/linea-build/linea-build/mobile/ios/simbuild/Build/Products/Release-iphonesimulator/INVIZENT.app
+2026-11-12 22:01:56.034 Df installcoordinationd[4783:4169e] [com.apple.installcoordination:daemon] -[IXSDataPromiseManager registerPromise:]: Registered promise <IXSPromisedTransferToPath(0x600002c01f00) Name:Icon resources for com.linea.messenger.preview Creator:InstallCoordination Simple SPI UUID:2FDB6C39-5A10-411A-A74D-152D6EFDAA48 Location:[system-defined]> for UUID 2FDB6C39-5A10-411A-A74D-152D6EFDAA48
+2026-11-12 22:01:56.053 Df CoreSimulatorBridge[772:3eed2] [com.apple.installcoordination:framework] -[IXPromisedTransferToPath setComplete:]: <IXPromisedTransferToPath<0x6000017012c0> name:"Icon resources for com.linea.messenger.preview" uuid:2FDB6C39-5A10-411A-A74D-152D6EFDAA48 creator:"InstallCoordination Simple SPI" location:[system-defined]> Move operation from /Users/runner/Library/Developer/CoreSimulator/Devices/C15FAC2A-CB46-4F16-B882-3970BD44CFAD/data/Containers/Shared/SystemGroup/systemgroup.com.apple.installcoordinationd/Library/InstallCoordination/PromiseStaging/2FDB6C39-5A10-411A-A74D-152D6EFDAA48/temp.WhnZoc to /Users/runner/Library/Developer/CoreSimulator/Devices/C15FAC2A-CB46-4F16-B882-3970BD44CFAD/data/Containers/Shared/SystemGroup/systemgroup.com.apple.installcoordinationd/Library/InstallCoordination/PromiseStaging/2FDB6C39-5A10-411A-A74D-152D6EFDAA48/temp.WhnZoc took 0.000299 seconds
+2026-11-12 22:01:56.057 Df installcoordinationd[4783:4169e] [com.apple.installcoordination:daemon] -[IXSDataPromise _setPercentComplete:saveStateIfNeeded:]: Progress: <IXSPromisedTransferToPath(0x600002c01f00) Name:Icon resources for com.linea.messenger.preview Creator:InstallCoordination Simple SPI UUID:2FDB6C39-5A10-411A-A74D-152D6EFDAA48 Location:[system-defined]>
+2026-11-12 22:01:56.057 Df installcoordinationd[4783:42373] [com.apple.installcoordination:daemon] -[IXSDataPromiseManager promiseDidBegin:]: Unowned promise began: <IXSPromisedTransferToPath(0x600002c01f00) Name:Icon resources for com.linea.messenger.preview Creator:InstallCoordination Simple SPI UUID:2FDB6C39-5A10-411A-A74D-152D6EFDAA48 Location:[system-defined]>
+2026-11-12 22:01:56.057 Df installcoordinationd[4783:42373] [com.apple.installcoordination:daemon] -[IXSDataPromiseManager promise:didUpdateProgress:]: Unowned promise update progress to 1.000000 : <IXSPromisedTransferToPath(0x600002c01f00) Name:Icon resources for com.linea.messenger.preview Creator:InstallCoordination Simple SPI UUID:2FDB6C39-5A10-411A-A74D-152D6EFDAA48 Location:[system-defined]>
+2026-11-12 22:01:56.059 Df installcoordinationd[4783:42373] [com.apple.installcoordination:daemon] -[IXSDataPromiseManager promiseDidComplete:]: Unowned promise completed: <IXSPromisedTransferToPath(0x600002c01f00) Name:Icon resources for com.linea.messenger.preview Creator:InstallCoordination Simple SPI UUID:2FDB6C39-5A10-411A-A74D-152D6EFDAA48 Location:[system-defined]>
+2026-11-12 22:01:56.063 Df installcoordinationd[4783:42373] [com.apple.installcoordination:daemon] -[IXSDataPromise _setPercentComplete:saveStateIfNeeded:]: Progress: <IXSPromisedInMemoryDictionary(0x600002c04d00) Name:Info.plist icon content for com.linea.messenger.preview Creator:InstallCoordination Simple SPI UUID:0209B068-04E2-400F-BE0A-F64701D7BE07 Location:[system-defined]>
+2026-11-12 22:01:56.065 Df installcoordinationd[4783:42373] [com.apple.installcoordination:daemon] -[IXSDataPromiseManager registerPromise:]: Registered promise <IXSPromisedInMemoryDictionary(0x600002c04d00) Name:Info.plist icon content for com.linea.messenger.preview Creator:InstallCoordination Simple SPI UUID:0209B068-04E2-400F-BE0A-F64701D7BE07 Location:[system-defined]> for UUID 0209B068-04E2-400F-BE0A-F64701D7BE07
+2026-11-12 22:01:56.065 Df installcoordinationd[4783:4169e] [com.apple.installcoordination:daemon] -[IXSDataPromiseManager promiseDidBegin:]: Unowned promise began: <IXSPromisedInMemoryDictionary(0x600002c04d00) Name:Info.plist icon content for com.linea.messenger.preview Creator:InstallCoordination Simple SPI UUID:0209B068-04E2-400F-BE0A-F64701D7BE07 Location:[system-defined]>
+2026-11-12 22:01:56.065 Df installcoordinationd[4783:4169e] [com.apple.installcoordination:daemon] -[IXSDataPromiseManager promise:didUpdateProgress:]: Unowned promise update progress to 1.000000 : <IXSPromisedInMemoryDictionary(0x600002c04d00) Name:Info.plist icon content for com.linea.messenger.preview Creator:InstallCoordination Simple SPI UUID:0209B068-04E2-400F-BE0A-F64701D7BE07 Location:[system-defined]>
+2026-11-12 22:01:56.065 Df installcoordinationd[4783:4169e] [com.apple.installcoordination:daemon] -[IXSDataPromiseManager promiseDidComplete:]: Unowned promise completed: <IXSPromisedInMemoryDictionary(0x600002c04d00) Name:Info.plist icon content for com.linea.messenger.preview Creator:InstallCoordination Simple SPI UUID:0209B068-04E2-400F-BE0A-F64701D7BE07 Location:[system-defined]>
+2026-11-12 22:01:56.068 Df installcoordinationd[4783:42373] [com.apple.installcoordination:daemon] -[IXSPlaceholder setIconResourcesPromise:]: <IXSPlaceholder(0x10b404b90) Name:App Placeholder: INVIZENT (com.linea.messenger.preview) Creator:InstallCoordination Simple SPI UUID:F3A4828E-889A-41C5-BC45-F5D6672DFCEC Location:[system-defined]>: setting icon resources promise to <IXSPromisedTransferToPath(0x600002c01f00) Name:Icon resources for com.linea.messenger.preview Creator:InstallCoordination Simple SPI UUID:2FDB6C39-5A10-411A-A74D-152D6EFDAA48 Location:[system-defined]>
+2026-11-12 22:01:56.069 Df installcoordinationd[4783:42373] [com.apple.installcoordination:daemon] -[IXSPlaceholder setInfoPlistIconContentPromise:]: <IXSPlaceholder(0x10b404b90) Name:App Placeholder: INVIZENT (com.linea.messenger.preview) Creator:InstallCoordination Simple SPI UUID:F3A4828E-889A-41C5-BC45-F5D6672DFCEC Location:[system-defined]>: setting Info.plist icon content promise to <IXSPromisedInMemoryDictionary(0x600002c04d00) Name:Info.plist icon content for com.linea.messenger.preview Creator:InstallCoordination Simple SPI UUID:0209B068-04E2-400F-BE0A-F64701D7BE07 Location:[system-defined]>
+2026-11-12 22:01:56.073 Df installcoordinationd[4783:42372] [com.apple.installcoordination:daemon] -[IXSDataPromiseManager promise:didUpdateProgress:]: Unowned promise update progress to 0.000000 : <IXSPlaceholder(0x10b404b90) Name:App Placeholder: INVIZENT (com.linea.messenger.preview) Creator:InstallCoordination Simple SPI UUID:F3A4828E-889A-41C5-BC45-F5D6672DFCEC Location:[system-defined]>
+2026-11-12 22:01:56.073 Df installcoordinationd[4783:42372] [com.apple.installcoordination:daemon] -[IXSDataPromiseManager promise:didUpdateProgress:]: Unowned promise update progress to 0.000000 : <IXSPlaceholder(0x10b404b90) Name:App Placeholder: INVIZENT (com.linea.messenger.preview) Creator:InstallCoordination Simple SPI UUID:F3A4828E-889A-41C5-BC45-F5D6672DFCEC Location:[system-defined]>
+2026-11-12 22:01:56.077 Df installcoordinationd[4783:42372] [com.apple.installcoordination:daemon] -[IXSDataPromise _setPercentComplete:saveStateIfNeeded:]: Progress: <IXSPromisedInMemoryDictionary(0x600002c00b00) Name:Localizations for com.linea.messenger.preview Creator:InstallCoordination Simple SPI UUID:354841E2-1FA2-4D15-BE4D-E75338B4F138 Location:[system-defined]>
+2026-11-12 22:01:56.078 Df installcoordinationd[4783:42372] [com.apple.installcoordination:daemon] -[IXSDataPromiseManager registerPromise:]: Registered promise <IXSPromisedInMemoryDictionary(0x600002c00b00) Name:Localizations for com.linea.messenger.preview Creator:InstallCoordination Simple SPI UUID:354841E2-1FA2-4D15-BE4D-E75338B4F138 Location:[system-defined]> for UUID 354841E2-1FA2-4D15-BE4D-E75338B4F138
+2026-11-12 22:01:56.079 Df installcoordinationd[4783:4169e] [com.apple.installcoordination:daemon] -[IXSDataPromiseManager promiseDidBegin:]: Unowned promise began: <IXSPromisedInMemoryDictionary(0x600002c00b00) Name:Localizations for com.linea.messenger.preview Creator:InstallCoordination Simple SPI UUID:354841E2-1FA2-4D15-BE4D-E75338B4F138 Location:[system-defined]>
+2026-11-12 22:01:56.079 Df installcoordinationd[4783:4169e] [com.apple.installcoordination:daemon] -[IXSDataPromiseManager promise:didUpdateProgress:]: Unowned promise update progress to 1.000000 : <IXSPromisedInMemoryDictionary(0x600002c00b00) Name:Localizations for com.linea.messenger.preview Creator:InstallCoordination Simple SPI UUID:354841E2-1FA2-4D15-BE4D-E75338B4F138 Location:[system-defined]>
+2026-11-12 22:01:56.079 Df installcoordinationd[4783:4169e] [com.apple.installcoordination:daemon] -[IXSDataPromiseManager promiseDidComplete:]: Unowned promise completed: <IXSPromisedInMemoryDictionary(0x600002c00b00) Name:Localizations for com.linea.messenger.preview Creator:InstallCoordination Simple SPI UUID:354841E2-1FA2-4D15-BE4D-E75338B4F138 Location:[system-defined]>
+2026-11-12 22:01:56.081 Df installcoordinationd[4783:42372] [com.apple.installcoordination:daemon] -[IXSPlaceholder setLocalizationDictionaryPromise:]: <IXSPlaceholder(0x10b404b90) Name:App Placeholder: INVIZENT (com.linea.messenger.preview) Creator:InstallCoordination Simple SPI UUID:F3A4828E-889A-41C5-BC45-F5D6672DFCEC Location:[system-defined]>: setting localization dict promise to <IXSPromisedInMemoryDictionary(0x600002c00b00) Name:Localizations for com.linea.messenger.preview Creator:InstallCoordination Simple SPI UUID:354841E2-1FA2-4D15-BE4D-E75338B4F138 Location:[system-defined]>
+2026-11-12 22:01:56.084 Df installcoordinationd[4783:42373] [com.apple.installcoordination:daemon] -[IXSDataPromiseManager promise:didUpdateProgress:]: Unowned promise update progress to 0.000000 : <IXSPlaceholder(0x10b404b90) Name:App Placeholder: INVIZENT (com.linea.messenger.preview) Creator:InstallCoordination Simple SPI UUID:F3A4828E-889A-41C5-BC45-F5D6672DFCEC Location:[system-defined]>
+2026-11-12 22:01:56.091 Df installcoordinationd[4783:42373] [com.apple.installcoordination:daemon] -[IXSDataPromiseManager registerPromise:]: Registered promise <IXSPlaceholder(0x10b509410) Name:PlugInKit Placeholder: INVIZENT Screen (com.linea.messenger.preview.ScreenBroadcast) Creator:InstallCoordination Simple SPI UUID:627A2A22-9C3B-40AC-A937-1E1D44E30FA7 Location:[system-defined]> for UUID 627A2A22-9C3B-40AC-A937-1E1D44E30FA7
+2026-11-12 22:01:56.094 Df installcoordinationd[4783:42373] [com.apple.installcoordination:daemon] -[IXSPlaceholder setAttributes:]: <IXSPlaceholder(0x10b509410) Name:PlugInKit Placeholder: INVIZENT Screen (com.linea.messenger.preview.ScreenBroadcast) Creator:InstallCoordination Simple SPI UUID:627A2A22-9C3B-40AC-A937-1E1D44E30FA7 Location:[system-defined]>: setting placeholder attributes to <IXPlaceholderAttributes<0x600003004480> : {
+    CFBundleShortVersionString = "0.14.14";
+    CFBundleSupportedPlatforms =     (
+        iPhoneSimulator
+    );
+    CFBundleVersion = 1;
+    DTPlatformName = iphonesimulator;
+    MinimumOSVersion = "16.4";
+    NSExtension =     {
+        NSExtensionAttributes =         {
+            RPBroadcastProcessMode = RPBroadcastProcessModeSampleBuffer;
+        };
+        NSExtensionPointIdentifier = "com.apple.broadcast-services-upload";
+        NSExtensionPrincipalClass = "ScreenBroadcast.SampleHandler";
+    };
+    UIDeviceFamily =     (
+        1,
+        2
+    );
+}>
+2026-11-12 22:01:56.101 Df installcoordinationd[4783:42373] [com.apple.installcoordination:daemon] -[IXSDataPromise _setPercentComplete:saveStateIfNeeded:]: Progress: <IXSPromisedInMemoryDictionary(0x600002c0cb00) Name:Entitlements Promise for com.linea.messenger.preview.ScreenBroadcast Creator:InstallCoordination Simple SPI UUID:E3975B9F-8363-44EF-A3E6-28EBEC9CEB4D Location:[system-defined]>
+2026-11-12 22:01:56.103 Df installcoordinationd[4783:42373] [com.apple.installcoordination:daemon] -[IXSDataPromiseManager registerPromise:]: Registered promise <IXSPromisedInMemoryDictionary(0x600002c0cb00) Name:Entitlements Promise for com.linea.messenger.preview.ScreenBroadcast Creator:InstallCoordination Simple SPI UUID:E3975B9F-8363-44EF-A3E6-28EBEC9CEB4D Location:[system-defined]> for UUID E3975B9F-8363-44EF-A3E6-28EBEC9CEB4D
+2026-11-12 22:01:56.103 Df installcoordinationd[4783:42372] [com.apple.installcoordination:daemon] -[IXSDataPromiseManager promiseDidBegin:]: Unowned promise began: <IXSPromisedInMemoryDictionary(0x600002c0cb00) Name:Entitlements Promise for com.linea.messenger.preview.ScreenBroadcast Creator:InstallCoordination Simple SPI UUID:E3975B9F-8363-44EF-A3E6-28EBEC9CEB4D Location:[system-defined]>
+2026-11-12 22:01:56.103 Df installcoordinationd[4783:42372] [com.apple.installcoordination:daemon] -[IXSDataPromiseManager promise:didUpdateProgress:]: Unowned promise update progress to 1.000000 : <IXSPromisedInMemoryDictionary(0x600002c0cb00) Name:Entitlements Promise for com.linea.messenger.preview.ScreenBroadcast Creator:InstallCoordination Simple SPI UUID:E3975B9F-8363-44EF-A3E6-28EBEC9CEB4D Location:[system-defined]>
+2026-11-12 22:01:56.103 Df installcoordinationd[4783:42372] [com.apple.installcoordination:daemon] -[IXSDataPromiseManager promiseDidComplete:]: Unowned promise completed: <IXSPromisedInMemoryDictionary(0x600002c0cb00) Name:Entitlements Promise for com.linea.messenger.preview.ScreenBroadcast Creator:InstallCoordination Simple SPI UUID:E3975B9F-8363-44EF-A3E6-28EBEC9CEB4D Location:[system-defined]>
+2026-11-12 22:01:56.105 Df installcoordinationd[4783:42373] [com.apple.installcoordination:daemon] -[IXSPlaceholder setEntitlements:]: <IXSPlaceholder(0x10b509410) Name:PlugInKit Placeholder: INVIZENT Screen (com.linea.messenger.preview.ScreenBroadcast) Creator:InstallCoordination Simple SPI UUID:627A2A22-9C3B-40AC-A937-1E1D44E30FA7 Location:[system-defined]>: setting entitlements promise to <IXSPromisedInMemoryDictionary(0x600002c0cb00) Name:Entitlements Promise for com.linea.messenger.preview.ScreenBroadcast Creator:InstallCoordination Simple SPI UUID:E3975B9F-8363-44EF-A3E6-28EBEC9CEB4D Location:[system-defined]>
+2026-11-12 22:01:56.109 Df installcoordinationd[4783:42373] [com.apple.installcoordination:daemon] -[IXSDataPromiseManager promiseDidBegin:]: Unowned promise began: <IXSPlaceholder(0x10b509410) Name:PlugInKit Placeholder: INVIZENT Screen (com.linea.messenger.preview.ScreenBroadcast) Creator:InstallCoordination Simple SPI UUID:627A2A22-9C3B-40AC-A937-1E1D44E30FA7 Location:[system-defined]>
+2026-11-12 22:01:56.109 Df CoreSimulatorBridge[772:3eed2] [com.apple.installcoordination:framework] +[IXPlaceholder _placeholderForBundle:client:withParent:installType:metadata:placeholderType:mayBeDeltaPackage:isFromSerializedPlaceholder:location:error:]: Using full fidelity icons for com.linea.messenger.preview.ScreenBroadcast at /Users/runner/work/linea-build/linea-build/mobile/ios/simbuild/Build/Products/Release-iphonesimulator/INVIZENT.app/PlugIns/ScreenBroadcast.appex
+2026-11-12 22:01:56.109 Df installcoordinationd[4783:42373] [com.apple.installcoordination:daemon] -[IXSDataPromiseManager promise:didUpdateProgress:]: Unowned promise update progress to 0.000000 : <IXSPlaceholder(0x10b509410) Name:PlugInKit Placeholder: INVIZENT Screen (com.linea.messenger.preview.ScreenBroadcast) Creator:InstallCoordination Simple SPI UUID:627A2A22-9C3B-40AC-A937-1E1D44E30FA7 Location:[system-defined]>
+2026-11-12 22:01:56.111 Df installcoordinationd[4783:42373] [com.apple.installcoordination:daemon] -[IXSDataPromiseManager registerPromise:]: Registered promise <IXSPromisedTransferToPath(0x600002c06700) Name:Icon resources for com.linea.messenger.preview.ScreenBroadcast Creator:InstallCoordination Simple SPI UUID:1201F4E6-9C63-4C28-B31B-6B2DCFB8169C Location:[system-defined]> for UUID 1201F4E6-9C63-4C28-B31B-6B2DCFB8169C
+2026-11-12 22:01:56.116 Df installcoordinationd[4783:42373] [com.apple.installcoordination:daemon] -[IXSDataPromise cancelForReason:client:error:]: <IXSPromisedTransferToPath(0x600002c06700) Name:Icon resources for com.linea.messenger.preview.ScreenBroadcast Creator:InstallCoordination Simple SPI UUID:1201F4E6-9C63-4C28-B31B-6B2DCFB8169C Location:[system-defined]> : canceled by client 15 for reason Error Domain=IXErrorDomain Code=1 "No icon found for bundle com.linea.messenger.preview.ScreenBroadcast at /Users/runner/work/linea-build/linea-build/mobile/ios/simbuild/Build/Products/Release-iphonesimulator/INVIZENT.app/PlugIns/ScreenBroadcast.appex; skipping icon resources promise" UserInfo={NSLocalizedFailureReason=Internal error., FunctionName=+[IXPlaceholder _placeholderForBundle:client:withParent:installType:metadata:placeholderType:mayBeDeltaPackage:isFromSerializedPlaceholder:location:error:], SourceFileLine=926, NSLocalizedDescription=No icon found for bundle com.linea.messenger.preview.ScreenBroadcast at /Users/runner/work/linea-build/linea-build/mobile/ios/simbuild/Build/Products/Release-iphonesimulator/I
+2026-11-12 22:01:56.116 Df installcoordinationd[4783:4169e] [com.apple.installcoordination:daemon] -[IXSDataPromiseManager promise:didCancelForReason:client:]: Unowned promise <IXSPromisedTransferToPath(0x600002c06700) Name:Icon resources for com.linea.messenger.preview.ScreenBroadcast Creator:InstallCoordination Simple SPI UUID:1201F4E6-9C63-4C28-B31B-6B2DCFB8169C Location:[system-defined]> canceled for reason: Error Domain=IXErrorDomain Code=1 "No icon found for bundle com.linea.messenger.preview.ScreenBroadcast at /Users/runner/work/linea-build/linea-build/mobile/ios/simbuild/Build/Products/Release-iphonesimulator/INVIZENT.app/PlugIns/ScreenBroadcast.appex; skipping icon resources promise" UserInfo={NSLocalizedFailureReason=Internal error., FunctionName=+[IXPlaceholder _placeholderForBundle:client:withParent:installType:metadata:placeholderType:mayBeDeltaPackage:isFromSerializedPlaceholder:location:error:], SourceFileLine=926, NSLocalizedDescription=No icon found for bundle com.linea.messenger.preview.ScreenBroadcast at /Users/runner/work/linea-build/linea-build/mobile/ios/simbuild/Build/Products/Release-iphonesimulator client: <decode: missing data>
+2026-11-12 22:01:56.116 Df installcoordinationd[4783:42373] [com.apple.installcoordination:daemon] -[IXSDataPromise decommission]: Decommissioning <IXSPromisedTransferToPath(0x600002c06700) Name:Icon resources for com.linea.messenger.preview.ScreenBroadcast Creator:InstallCoordination Simple SPI UUID:1201F4E6-9C63-4C28-B31B-6B2DCFB8169C Location:[system-defined]>
+2026-11-12 22:01:56.121 Df installcoordinationd[4783:4169e] [com.apple.installcoordination:daemon] -[IXSDataPromise _setPercentComplete:saveStateIfNeeded:]: Progress: <IXSPromisedInMemoryDictionary(0x600002c06380) Name:Localizations for com.linea.messenger.preview.ScreenBroadcast Creator:InstallCoordination Simple SPI UUID:3A132240-CE97-4CCA-B32B-A53C1A58EBAD Location:[system-defined]>
+2026-11-12 22:01:56.122 Df installcoordinationd[4783:4169e] [com.apple.installcoordination:daemon] -[IXSDataPromiseManager registerPromise:]: Registered promise <IXSPromisedInMemoryDictionary(0x600002c06380) Name:Localizations for com.linea.messenger.preview.ScreenBroadcast Creator:InstallCoordination Simple SPI UUID:3A132240-CE97-4CCA-B32B-A53C1A58EBAD Location:[system-defined]> for UUID 3A132240-CE97-4CCA-B32B-A53C1A58EBAD
+2026-11-12 22:01:56.123 Df installcoordinationd[4783:42373] [com.apple.installcoordination:daemon] -[IXSDataPromiseManager promiseDidBegin:]: Unowned promise began: <IXSPromisedInMemoryDictionary(0x600002c06380) Name:Localizations for com.linea.messenger.preview.ScreenBroadcast Creator:InstallCoordination Simple SPI UUID:3A132240-CE97-4CCA-B32B-A53C1A58EBAD Location:[system-defined]>
+2026-11-12 22:01:56.123 Df installcoordinationd[4783:42373] [com.apple.installcoordination:daemon] -[IXSDataPromiseManager promise:didUpdateProgress:]: Unowned promise update progress to 1.000000 : <IXSPromisedInMemoryDictionary(0x600002c06380) Name:Localizations for com.linea.messenger.preview.ScreenBroadcast Creator:InstallCoordination Simple SPI UUID:3A132240-CE97-4CCA-B32B-A53C1A58EBAD Location:[system-defined]>
+2026-11-12 22:01:56.123 Df installcoordinationd[4783:42373] [com.apple.installcoordination:daemon] -[IXSDataPromiseManager promiseDidComplete:]: Unowned promise completed: <IXSPromisedInMemoryDictionary(0x600002c06380) Name:Localizations for com.linea.messenger.preview.ScreenBroadcast Creator:InstallCoordination Simple SPI UUID:3A132240-CE97-4CCA-B32B-A53C1A58EBAD Location:[system-defined]>
+2026-11-12 22:01:56.125 Df installcoordinationd[4783:4169e] [com.apple.installcoordination:daemon] -[IXSPlaceholder setLocalizationDictionaryPromise:]: <IXSPlaceholder(0x10b509410) Name:PlugInKit Placeholder: INVIZENT Screen (com.linea.messenger.preview.ScreenBroadcast) Creator:InstallCoordination Simple SPI UUID:627A2A22-9C3B-40AC-A937-1E1D44E30FA7 Location:[system-defined]>: setting localization dict promise to <IXSPromisedInMemoryDictionary(0x600002c06380) Name:Localizations for com.linea.messenger.preview.ScreenBroadcast Creator:InstallCoordination Simple SPI UUID:3A132240-CE97-4CCA-B32B-A53C1A58EBAD Location:[system-defined]>
+2026-11-12 22:01:56.129 Df installcoordinationd[4783:42372] [com.apple.installcoordination:daemon] -[IXSDataPromiseManager promise:didUpdateProgress:]: Unowned promise update progress to 0.000000 : <IXSPlaceholder(0x10b509410) Name:PlugInKit Placeholder: INVIZENT Screen (com.linea.messenger.preview.ScreenBroadcast) Creator:InstallCoordination Simple SPI UUID:627A2A22-9C3B-40AC-A937-1E1D44E30FA7 Location:[system-defined]>
+2026-11-12 22:01:56.130 Df installcoordinationd[4783:4169e] [com.apple.installcoordination:daemon] -[IXSPlaceholder setConfigurationComplete:]: <IXSPlaceholder(0x10b509410) Name:PlugInKit Placeholder: INVIZENT Screen (com.linea.messenger.preview.ScreenBroadcast) Creator:InstallCoordination Simple SPI UUID:627A2A22-9C3B-40AC-A937-1E1D44E30FA7 Location:[system-defined]>: setting configuration complete to Y
+2026-11-12 22:01:56.132 Df installcoordinationd[4783:4169e] [com.apple.installcoordination:daemon] -[IXSPlaceholder _materialize]: <IXSPlaceholder(0x10b509410) Name:PlugInKit Placeholder: INVIZENT Screen (com.linea.messenger.preview.ScreenBroadcast) Creator:InstallCoordination Simple SPI UUID:627A2A22-9C3B-40AC-A937-1E1D44E30FA7 Location:[system-defined]>: Materializing placeholder at /Users/runner/Library/Developer/CoreSimulator/Devices/C15FAC2A-CB46-4F16-B882-3970BD44CFAD/data/Containers/Shared/SystemGroup/systemgroup.com.apple.installcoordinationd/Library/InstallCoordination/PromiseStaging/627A2A22-9C3B-40AC-A937-1E1D44E30FA7/ScreenBroadcast.appex
+2026-11-12 22:01:56.134 Df installcoordinationd[4783:4169e] [com.apple.installcoordination:daemon] -[IXSPlaceholder _materialize]_block_invoke: <IXSPlaceholder(0x10b509410) Name:PlugInKit Placeholder: INVIZENT Screen (com.linea.messenger.preview.ScreenBroadcast) Creator:InstallCoordination Simple SPI UUID:627A2A22-9C3B-40AC-A937-1E1D44E30FA7 Location:[system-defined]>: Added entitlements
+2026-11-12 22:01:56.135 Df installcoordinationd[4783:4169e] [com.apple.installcoordination:daemon] -[IXSPlaceholder _materialize]: <IXSPlaceholder(0x10b509410) Name:PlugInKit Placeholder: INVIZENT Screen (com.linea.messenger.preview.ScreenBroadcast) Creator:InstallCoordination Simple SPI UUID:627A2A22-9C3B-40AC-A937-1E1D44E30FA7 Location:[system-defined]>: Including lproj localizations for (
+)
+2026-11-12 22:01:56.137 Df installcoordinationd[4783:4169e] [com.apple.installcoordination:daemon] -[IXSDataPromiseManager promiseDidComplete:]: Unowned promise completed: <IXSPlaceholder(0x10b509410) Name:PlugInKit Placeholder: INVIZENT Screen (com.linea.messenger.preview.ScreenBroadcast) Creator:InstallCoordination Simple SPI UUID:627A2A22-9C3B-40AC-A937-1E1D44E30FA7 Location:[system-defined]>
+2026-11-12 22:01:56.140 Df installcoordinationd[4783:4169e] [com.apple.installcoordination:daemon] -[IXSPlaceholder setAppExtensionPlaceholders:]: <IXSPlaceholder(0x10b404b90) Name:App Placeholder: INVIZENT (com.linea.messenger.preview) Creator:InstallCoordination Simple SPI UUID:F3A4828E-889A-41C5-BC45-F5D6672DFCEC Location:[system-defined]>: setting app extension placeholder promises to (
+    "<IXSPlaceholder(0x10b509410) Name:PlugInKit Placeholder: INVIZENT Screen (com.linea.messenger.preview.ScreenBroadcast) Creator:InstallCoordination Simple SPI UUID:627A2A22-9C3B-40AC-A937-1E1D44E30FA7 Location:[system-defined]>"
+)
+2026-11-12 22:01:56.143 Df installcoordinationd[4783:4169e] [com.apple.installcoordination:daemon] -[IXSDataPromiseManager promise:didUpdateProgress:]: Unowned promise update progress to 0.000000 : <IXSPlaceholder(0x10b404b90) Name:App Placeholder: INVIZENT (com.linea.messenger.preview) Creator:InstallCoordination Simple SPI UUID:F3A4828E-889A-41C5-BC45-F5D6672DFCEC Location:[system-defined]>
+2026-11-12 22:01:56.143 Df installcoordinationd[4783:4169e] [com.apple.installcoordination:daemon] -[IXSPlaceholder setConfigurationComplete:]: <IXSPlaceholder(0x10b404b90) Name:App Placeholder: INVIZENT (com.linea.messenger.preview) Creator:InstallCoordination Simple SPI UUID:F3A4828E-889A-41C5-BC45-F5D6672DFCEC Location:[system-defined]>: setting configuration complete to Y
+2026-11-12 22:01:56.145 Df installcoordinationd[4783:4169e] [com.apple.installcoordination:daemon] -[IXSPlaceholder _materialize]: <IXSPlaceholder(0x10b404b90) Name:App Placeholder: INVIZENT (com.linea.messenger.preview) Creator:InstallCoordination Simple SPI UUID:F3A4828E-889A-41C5-BC45-F5D6672DFCEC Location:[system-defined]>: Materializing placeholder at /Users/runner/Library/Developer/CoreSimulator/Devices/C15FAC2A-CB46-4F16-B882-3970BD44CFAD/data/Containers/Shared/SystemGroup/systemgroup.com.apple.installcoordinationd/Library/InstallCoordination/PromiseStaging/F3A4828E-889A-41C5-BC45-F5D6672DFCEC/INVIZENT.app
+2026-11-12 22:01:56.146 Df installcoordinationd[4783:4169e] [com.apple.installcoordination:daemon] -[IXSPlaceholder _materialize]: <IXSPlaceholder(0x10b404b90) Name:App Placeholder: INVIZENT (com.linea.messenger.preview) Creator:InstallCoordination Simple SPI UUID:F3A4828E-889A-41C5-BC45-F5D6672DFCEC Location:[system-defined]>: Using Info.plist icon content: {
+    CFBundleIcons =     {
+        CFBundlePrimaryIcon =         {
+            CFBundleIconName = AppIcon;
+        };
+    };
+    ISIconPlatform = iPhoneOS;
+}
+2026-11-12 22:01:56.148 Df installcoordinationd[4783:4169e] [com.apple.installcoordination:daemon] -[IXSPlaceholder _materialize]_block_invoke: <IXSPlaceholder(0x10b404b90) Name:App Placeholder: INVIZENT (com.linea.messenger.preview) Creator:InstallCoordination Simple SPI UUID:F3A4828E-889A-41C5-BC45-F5D6672DFCEC Location:[system-defined]>: Using icon resource Assets.car
+2026-11-12 22:01:56.149 Df installcoordinationd[4783:4169e] [com.apple.installcoordination:daemon] -[IXSPlaceholder _materialize]_block_invoke: <IXSPlaceholder(0x10b404b90) Name:App Placeholder: INVIZENT (com.linea.messenger.preview) Creator:InstallCoordination Simple SPI UUID:F3A4828E-889A-41C5-BC45-F5D6672DFCEC Location:[system-defined]>: Added entitlements
+2026-11-12 22:01:56.149 Df installcoordinationd[4783:4169e] [com.apple.installcoordination:daemon] -[IXSPlaceholder _materialize]: <IXSPlaceholder(0x10b404b90) Name:App Placeholder: INVIZENT (com.linea.messenger.preview) Creator:InstallCoordination Simple SPI UUID:F3A4828E-889A-41C5-BC45-F5D6672DFCEC Location:[system-defined]>: Including lproj localizations for (
+)
+2026-11-12 22:01:56.150 Df installcoordinationd[4783:4169e] [com.apple.installcoordination:daemon] -[IXSPlaceholder _materialize]_block_invoke: <IXSPlaceholder(0x10b404b90) Name:App Placeholder: INVIZENT (com.linea.messenger.preview) Creator:InstallCoordination Simple SPI UUID:F3A4828E-889A-41C5-BC45-F5D6672DFCEC Location:[system-defined]>: added appex ScreenBroadcast.appex
+2026-11-12 22:01:56.152 Df installcoordinationd[4783:42373] [com.apple.installcoordination:daemon] -[IXSDataPromiseManager promiseDidComplete:]: Unowned promise completed: <IXSPlaceholder(0x10b404b90) Name:App Placeholder: INVIZENT (com.linea.messenger.preview) Creator:InstallCoordination Simple SPI UUID:F3A4828E-889A-41C5-BC45-F5D6672DFCEC Location:[system-defined]>
+2026-11-12 22:01:56.157 Df installcoordinationd[4783:42373] [com.apple.installcoordination:daemon] -[IXSDataPromiseManager registerPromise:]: Registered promise <IXSPromisedTransferToPath(0x600002c01300) Name:App Asset: com.linea.messenger.preview Creator:InstallCoordination Simple SPI UUID:D87A701C-9723-45D1-8D46-CCA503544578 Location:[system-defined]> for UUID D87A701C-9723-45D1-8D46-CCA503544578
+2026-11-12 22:01:56.175 Df installcoordinationd[4783:42373] [com.apple.installcoordination:daemon] -[IXSCoordinatorManager coordinatorForIdentity:connection:error:creatingIfNotExisting:]_block_invoke: Registered coordinator: <IXSCoordinatedAppInstall<0x10b509ed0> [P=CoreSimulatorBridge (pid 772)] identifier:[com.linea.messenger.preview/Invalid/[system-defined]] uuid:187F671F-7B08-4B5B-AC3B-06BF069F14A4 intent:IXCoordinatorIntentInitiating creator/appDRI:InstallCoordination Simple SPI importance:Background state:IXAppCoordinationStatePlaceholderPromiseNotSet promise-state:01234>
+2026-11-12 22:01:56.175 Df installcoordinationd[4783:42373] [com.apple.appinstallation:TransactionLog] com.linea.messenger.preview/Unknown Persona:4:1:1:1:Created coordinator with intent IXCoordinatorIntentInitiating for client InstallCoordination Simple SPI
+2026-11-12 22:01:56.178 Df installcoordinationd[4783:42373] [com.apple.installcoordination:daemon] -[IXSCoordinatedAppInstall setPriorityBoostCompletion:withSourceInfo:]: <IXSCoordinatedAppInstall<0x10b509ed0> [P=CoreSimulatorBridge (pid 772)] identifier:[com.linea.messenger.preview/Invalid/[system-defined]] uuid:187F671F-7B08-4B5B-AC3B-06BF069F14A4 intent:IXCoordinatorIntentInitiating creator/appDRI:InstallCoordination Simple SPI importance:Background state:IXAppCoordinationStatePlaceholderPromiseNotSet promise-state:01234>: Retaining completion from CoreSimulatorBridge (772), QOS_CLASS_DEFAULT (0x15)
+2026-11-12 22:01:56.178 Df installcoordinationd[4783:42373] [com.apple.installcoordination:daemon] -[IXSCoordinatedAppInstall _onQueue_fireObserversForClient:]: <IXSCoordinatedAppInstall<0x10b509ed0> [P=CoreSimulatorBridge (pid 772)] identifier:[com.linea.messenger.preview/Invalid/[system-defined]] uuid:187F671F-7B08-4B5B-AC3B-06BF069F14A4 intent:IXCoordinatorIntentInitiating creator/appDRI:InstallCoordination Simple SPI importance:Background state:IXAppCoordinationStatePlaceholderPromiseNotSet promise-state:01234>: Firing applicable observers for client <IXSClientConnection<0x60000260c3c0> client:CoreSimulatorBridge (pid 772) uuid:878F3C8F-EFE6-4B67-ABCD-2574B29188BE>
+2026-11-12 22:01:56.178 Df installcoordinationd[4783:42373] [com.apple.installcoordination:daemon] -[IXSCoordinatedAppInstall setImportance:]: <IXSCoordinatedAppInstall<0x10b509ed0> [P=CoreSimulatorBridge (pid 772)] identifier:[com.linea.messenger.preview/Invalid/[system-defined]] uuid:187F671F-7B08-4B5B-AC3B-06BF069F14A4 intent:IXCoordinatorIntentInitiating creator/appDRI:InstallCoordination Simple SPI importance:UserWaiting state:IXAppCoordinationStatePlaceholderPromiseNotSet promise-state:01234>: set importance to UserWaiting
+2026-11-12 22:01:56.181 Df CoreSimulatorBridge[772:418c1] [com.apple.installcoordination:framework] -[IXAppInstallCoordinator _clientDelegate_didRegisterForObservation]: <IXInitiatingAppInstallCoordinator<0x600001710680> identity:[com.linea.messenger.preview/Invalid/[system-defined]] uuid:187F671F-7B08-4B5B-AC3B-06BF069F14A4 creator:InstallCoordination Simple SPI>: Got observer registration delegate
+2026-11-12 22:01:56.181 Df CoreSimulatorBridge[772:418c1] [com.apple.installcoordination:framework] -[IXAppInstallCoordinator _clientDelegate_shouldResume]: <IXInitiatingAppInstallCoordinator<0x600001710680> identity:[com.linea.messenger.preview/Invalid/[system-defined]] uuid:187F671F-7B08-4B5B-AC3B-06BF069F14A4 creator:InstallCoordination Simple SPI>: Got should resume delegate
+2026-11-12 22:01:56.181 Df CoreSimulatorBridge[772:41838] [com.apple.installcoordination:framework] -[IXAppInstallCoordinator _clientDelegate_didRegisterForObservation]_block_invoke: <IXInitiatingAppInstallCoordinator<0x600001710680> identity:[com.linea.messenger.preview/Invalid/[system-defined]] uuid:187F671F-7B08-4B5B-AC3B-06BF069F14A4 creator:InstallCoordination Simple SPI>: Observer <_IXSimpleInstallerDelegate 0x0x600000c14fc0> does not respond to coordinatorDidRegisterForObservation:
+2026-11-12 22:01:56.181 Df CoreSimulatorBridge[772:41838] [com.apple.installcoordination:framework] -[IXAppInstallCoordinator _clientDelegate_shouldResume]_block_invoke: <IXInitiatingAppInstallCoordinator<0x600001710680> identity:[com.linea.messenger.preview/Invalid/[system-defined]] uuid:187F671F-7B08-4B5B-AC3B-06BF069F14A4 creator:InstallCoordination Simple SPI>: Observer <_IXSimpleInstallerDelegate 0x0x600000c14fc0> does not respond to coordinatorShouldResume:
+2026-11-12 22:01:56.184 Df installcoordinationd[4783:4169e] [com.apple.installcoordination:daemon] -[IXSCoordinatedAppInstall setPriorityBoostCompletion:withSourceInfo:]: <IXSCoordinatedAppInstall<0x10b509ed0> [P=CoreSimulatorBridge (pid 772)] identifier:[com.linea.messenger.preview/Invalid/[system-defined]] uuid:187F671F-7B08-4B5B-AC3B-06BF069F14A4 intent:IXCoordinatorIntentInitiating creator/appDRI:InstallCoordination Simple SPI importance:UserWaiting state:IXAppCoordinationStatePlaceholderPromiseNotSet promise-state:01234>: Disposing of completion from CoreSimulatorBridge (772), QOS_CLASS_DEFAULT (0x15)
+2026-11-12 22:01:56.185 Df installcoordinationd[4783:4169e] [com.apple.installcoordination:daemon] -[IXSCoordinatedAppInstall setPriorityBoostCompletion:withSourceInfo:]: <IXSCoordinatedAppInstall<0x10b509ed0> [P=CoreSimulatorBridge (pid 772)] identifier:[com.linea.messenger.preview/Invalid/[system-defined]] uuid:187F671F-7B08-4B5B-AC3B-06BF069F14A4 intent:IXCoordinatorIntentInitiating creator/appDRI:InstallCoordination Simple SPI importance:UserWaiting state:IXAppCoordinationStatePlaceholderPromiseNotSet promise-state:01234>: Retaining completion from CoreSimulatorBridge (772), QOS_CLASS_DEFAULT (0x15)
+2026-11-12 22:01:56.271 Df installcoordinationd[4783:4169e] [com.apple.installcoordination:daemon] -[IXSCoordinatedAppInstall _internal_setInstallOptionsPromise:performExternalActions:]: <IXSCoordinatedAppInstall<0x10b509ed0> [P=CoreSimulatorBridge (pid 772)] identifier:[com.linea.messenger.preview/Invalid/[system-defined]] uuid:187F671F-7B08-4B5B-AC3B-06BF069F14A4 intent:IXCoordinatorIntentInitiating creator/appDRI:InstallCoordination Simple SPI importance:UserWaiting state:IXAppCoordinationStatePlaceholderPromiseNotSet promise-state:012I4> : install options set: <IXSPromisedInMemoryData(0x600002c05400) Name:MIInstallOptions data Creator:Install Coordination Internal UUID:58460821-C732-4108-AD67-67ED300ECB82 Location:[system-defined]>
+2026-11-12 22:01:56.273 Df installcoordinationd[4783:42372] [com.apple.installcoordination:daemon] -[IXSCoordinatedAppInstall promiseDidComplete:]: <IXSCoordinatedAppInstall<0x10b509ed0> [P=CoreSimulatorBridge (pid 772)] identifier:[com.linea.messenger.preview/Invalid/[system-defined]] uuid:187F671F-7B08-4B5B-AC3B-06BF069F14A4 intent:IXCoordinatorIntentInitiating creator/appDRI:InstallCoordination Simple SPI importance:UserWaiting state:IXAppCoordinationStatePlaceholderPromiseNotSet promise-state:012I4> : Promise completed: <IXSPromisedInMemoryData(0x600002c05400) Name:MIInstallOptions data Creator:Install Coordination Internal UUID:58460821-C732-4108-AD67-67ED300ECB82 Location:[system-defined]>
+2026-11-12 22:01:56.278 Df installcoordinationd[4783:4169e] [com.apple.appinstallation:TransactionLog] com.linea.messenger.preview/Unknown Persona:4:12:1:1:Install Options Promise began. Coordinator State: IXAppCoordinationStatePlaceholderPromiseNotSet
+2026-11-12 22:01:56.280 Df installcoordinationd[4783:4169e] [com.apple.appinstallation:TransactionLog] com.linea.messenger.preview/Unknown Persona:4:12:2:1:Install Options Promise completed. Coordinator State: IXAppCoordinationStatePlaceholderPromiseNotSet
+2026-11-12 22:01:56.285 Df installcoordinationd[4783:42372] [com.apple.installcoordination:daemon] -[IXSCoordinatedAppInstall _internal_setAppAssetPromise:performExternalActions:]: <IXSCoordinatedAppInstall<0x10b509ed0> [P=CoreSimulatorBridge (pid 772)] identifier:[com.linea.messenger.preview/Invalid/[system-defined]] uuid:187F671F-7B08-4B5B-AC3B-06BF069F14A4 intent:IXCoordinatorIntentInitiating creator/appDRI:InstallCoordination Simple SPI importance:UserWaiting state:IXAppCoordinationStatePlaceholderPromiseNotSet promise-state:0a2I4> : App Asset Promise set: <IXSPromisedTransferToPath(0x600002c01300) Name:App Asset: com.linea.messenger.preview Creator:InstallCoordination Simple SPI UUID:D87A701C-9723-45D1-8D46-CCA503544578 Location:[system-defined]>
+2026-11-12 22:01:56.288 Df installcoordinationd[4783:4169e] [com.apple.installcoordination:daemon] -[IXSCoordinatedAppInstall setInitialODRAssetPromises:]: <IXSCoordinatedAppInstall<0x10b509ed0> [P=CoreSimulatorBridge (pid 772)] identifier:[com.linea.messenger.preview/Invalid/[system-defined]] uuid:187F671F-7B08-4B5B-AC3B-06BF069F14A4 intent:IXCoordinatorIntentInitiating creator/appDRI:InstallCoordination Simple SPI importance:UserWaiting state:IXAppCoordinationStatePlaceholderPromiseNotSet promise-state:0a2I4> : Initial ODR Asset Promises set: (
+)
+2026-11-12 22:01:56.882 Df CoreSimulatorBridge[772:3eed2] [com.apple.installcoordination:framework] -[IXPromisedTransferToPath setComplete:]: <IXPromisedTransferToPath<0x60000170a5c0> name:"App Asset: com.linea.messenger.preview" uuid:D87A701C-9723-45D1-8D46-CCA503544578 creator:"InstallCoordination Simple SPI" location:[system-defined]> Copy operation from /Users/runner/work/linea-build/linea-build/mobile/ios/simbuild/Build/Products/Release-iphonesimulator/INVIZENT.app to /Users/runner/Library/Developer/CoreSimulator/Devices/C15FAC2A-CB46-4F16-B882-3970BD44CFAD/data/Containers/Shared/SystemGroup/systemgroup.com.apple.installcoordinationd/Library/InstallCoordination/PromiseStaging/D87A701C-9723-45D1-8D46-CCA503544578/INVIZENT.app took 0.590796 seconds
+2026-11-12 22:01:56.883 Df installcoordinationd[4783:42372] [com.apple.installcoordination:daemon] -[IXSDataPromise _setPercentComplete:saveStateIfNeeded:]: Progress: <IXSPromisedTransferToPath(0x600002c01300) Name:App Asset: com.linea.messenger.preview Creator:InstallCoordination Simple SPI UUID:D87A701C-9723-45D1-8D46-CCA503544578 Location:[system-defined]>
+2026-11-12 22:01:56.884 Df installcoordinationd[4783:42373] [com.apple.appinstallation:TransactionLog] com.linea.messenger.preview/Unknown Persona:4:9:1:1:App Asset Promise began. Coordinator State: IXAppCoordinationStatePlaceholderPromiseNotSet
+2026-11-12 22:01:56.884 Df CoreSimulatorBridge[772:41838] [com.apple.installcoordination:framework] -[IXAppInstallCoordinator _clientDelegate_promiseDidBeginFulfillmentWithIdentifier:]: <IXInitiatingAppInstallCoordinator<0x600001710680> identity:[com.linea.messenger.preview/Invalid/[system-defined]] uuid:187F671F-7B08-4B5B-AC3B-06BF069F14A4 creator:InstallCoordination Simple SPI>: Got promise did begin fulfillment for identifier 2
+2026-11-12 22:01:56.884 Df CoreSimulatorBridge[772:41838] [com.apple.installcoordination:framework] -[IXAppInstallCoordinator _clientDelegate_promiseDidBeginFulfillmentWithIdentifier:]_block_invoke: <IXInitiatingAppInstallCoordinator<0x600001710680> identity:[com.linea.messenger.preview/Invalid/[system-defined]] uuid:187F671F-7B08-4B5B-AC3B-06BF069F14A4 creator:InstallCoordination Simple SPI>: Observer <_IXSimpleInstallerDelegate 0x0x600000c14fc0> does not respond to coordinator:configuredPromiseDidBeginFulfillment: (or any deprecated equivalent)
+2026-11-12 22:01:56.885 Df installcoordinationd[4783:42374] [com.apple.installcoordination:daemon] -[IXSCoordinatedAppInstall promiseDidComplete:]: <IXSCoordinatedAppInstall<0x10b509ed0> [P=CoreSimulatorBridge (pid 772)] identifier:[com.linea.messenger.preview/Invalid/[system-defined]] uuid:187F671F-7B08-4B5B-AC3B-06BF069F14A4 intent:IXCoordinatorIntentInitiating creator/appDRI:InstallCoordination Simple SPI importance:UserWaiting state:IXAppCoordinationStatePlaceholderPromiseNotSet promise-state:0A2I4> : Promise completed: <IXSPromisedTransferToPath(0x600002c01300) Name:App Asset: com.linea.messenger.preview Creator:InstallCoordination Simple SPI UUID:D87A701C-9723-45D1-8D46-CCA503544578 Location:[system-defined]>
+2026-11-12 22:01:56.885 Df installcoordinationd[4783:4169e] [com.apple.appinstallation:TransactionLog] com.linea.messenger.preview/Unknown Persona:4:9:2:1:App Asset Promise completed. Coordinator State: IXAppCoordinationStatePlaceholderPromiseNotSet
+2026-11-12 22:01:56.886 Df CoreSimulatorBridge[772:41838] [com.apple.installcoordination:framework] -[IXAppInstallCoordinator _clientDelegate_didUpdateProgress:forPhase:overallProgress:]: <IXInitiatingAppInstallCoordinator<0x600001710680> identity:[com.linea.messenger.preview/Invalid/[system-defined]] uuid:187F671F-7B08-4B5B-AC3B-06BF069F14A4 creator:InstallCoordination Simple SPI>: Got did update progress delegate with percentComplete 100.000000 phase IXCoordinatorProgressPhaseLoading overallProgress 60.000000
+2026-11-12 22:01:56.886 Df CoreSimulatorBridge[772:41838] [com.apple.installcoordination:framework] -[IXAppInstallCoordinator _clientDelegate_didUpdateProgress:forPhase:overallProgress:]_block_invoke: <IXInitiatingAppInstallCoordinator<0x600001710680> identity:[com.linea.messenger.preview/Invalid/[system-defined]] uuid:187F671F-7B08-4B5B-AC3B-06BF069F14A4 creator:InstallCoordination Simple SPI>: Calling selector coordinator:didUpdateProgress:forPhase:overallProgress: on observer <_IXSimpleInstallerDelegate 0x0x600000c14fc0>
+2026-11-12 22:01:56.886 Df installcoordinationd[4783:42372] [com.apple.installcoordination:daemon] -[IXSCoordinatedAppInstall setPlaceholderPromise:]: <IXSCoordinatedAppInstall<0x10b509ed0> [P=CoreSimulatorBridge (pid 772)] identifier:[com.linea.messenger.preview/Invalid/[system-defined]] uuid:187F671F-7B08-4B5B-AC3B-06BF069F14A4 intent:IXCoordinatorIntentInitiating creator/appDRI:InstallCoordination Simple SPI importance:UserWaiting state:IXAppCoordinationStateReadyForPlaceholderInstall promise-state:PA2I4> : Placeholder Promise set: <IXSPlaceholder(0x10b404b90) Name:App Placeholder: INVIZENT (com.linea.messenger.preview) Creator:InstallCoordination Simple SPI UUID:F3A4828E-889A-41C5-BC45-F5D6672DFCEC Location:[system-defined]>
+2026-11-12 22:01:56.886 Df installcoordinationd[4783:42374] [com.apple.installcoordination:daemon] -[IXSCoordinatedAppInstall promiseDidComplete:]: <IXSCoordinatedAppInstall<0x10b509ed0> [P=CoreSimulatorBridge (pid 772)] identifier:[com.linea.messenger.preview/Invalid/[system-defined]] uuid:187F671F-7B08-4B5B-AC3B-06BF069F14A4 intent:IXCoordinatorIntentInitiating creator/appDRI:InstallCoordination Simple SPI importance:UserWaiting state:IXAppCoordinationStateReadyForPlaceholderInstall promise-state:PA2I4> : Promise completed: <IXSPlaceholder(0x10b404b90) Name:App Placeholder: INVIZENT (com.linea.messenger.preview) Creator:InstallCoordination Simple SPI UUID:F3A4828E-889A-41C5-BC45-F5D6672DFCEC Location:[system-defined]>
+2026-11-12 22:01:56.889 Df installcoordinationd[4783:42372] [com.apple.installcoordination:daemon] -[IXSCoordinatedAppInstall _onQueue_acquireAssertionAndInstallPlaceholder]: Acquiring termination assertion to install placeholder for [com.linea.messenger.preview/Invalid/[system-defined]]
+2026-11-12 22:01:56.889 Df installcoordinationd[4783:42372] [com.apple.installcoordination:daemon] -[IXSPendingOperationsTracker beginPendingOperationForIdentity:]_block_invoke: Beginning pending operation for [com.linea.messenger.preview/Invalid/[system-defined]]
+2026-11-12 22:01:56.903 Df runningboardd[737:41b85] [com.apple.runningboard:connection] Received termination request from [osservice<com.apple.installcoordinationd>:4783] on <RBSProcessPredicate <RBSProcessBundleIdentifierPredicate "com.linea.messenger.preview">> with context <RBSTerminateContext| explanation:installcoordinationd app:[com.linea.messenger.preview/Invalid/[system-defined]] uuid:187F671F-7B08-4B5B-AC3B-06BF069F14A4 isPlaceholder:Y reportType:None maxTerminationResistance:Absolute attrs:[
+	<RBSPreventLaunchLimitation| <RBSProcessPredicate <RBSProcessBundleIdentifierPredicate "com.linea.messenger.preview">> allow:(null)>
+	]>
+2026-11-12 22:01:56.903 Df runningboardd[737:41b85] [com.apple.runningboard:general] failed to get LSApplicationRecord for com.linea.messenger.preview - probably OK
+2026-11-12 22:01:56.904 Df runningboardd[737:41b85] [com.apple.runningboard:connection] skipping plugin hold for uninstalled proxy com.linea.messenger.preview
+2026-11-12 22:01:56.904 Df runningboardd[737:41b85] [com.apple.runningboard:ttl] Acquiring assertion targeting system from originator [osservice<com.apple.installcoordinationd>:4783] with description <RBSAssertionDescriptor| "installcoordinationd app:[com.linea.messenger.preview/Invalid/[system-defined]] uuid:187F671F-7B08-4B5B-AC3B-06BF069F14A4 isPlaceholder:Y" ID:737-4783-584 target:system attributes:[
+	<RBSPreventLaunchLimitation| <RBSProcessPredicate <RBSProcessBundleIdentifierPredicate "com.linea.messenger.preview">> allow:(null)>
+	]>
+2026-11-12 22:01:56.905 Df runningboardd[737:41b85] [com.apple.runningboard:process] Executing termination request for: <RBSProcessPredicate <RBSProcessBundleIdentifierPredicate "com.linea.messenger.preview">>
+2026-11-12 22:01:56.906 Df SpringBoard[734:3ecf7] [com.apple.SpringBoard:Common] termination assertion acquired for com.linea.messenger.preview (app not found)
+2026-11-12 22:01:56.907 Df installcoordinationd[4783:42372] [com.apple.appinstallation:TransactionLog] com.linea.messenger.preview/Unknown Persona:4:8:1:1:Placeholder Promise began. Coordinator State: IXAppCoordinationStateWaitingForPlaceholderAssertion
+2026-11-12 22:01:56.907 Df installcoordinationd[4783:42372] [com.apple.installcoordination:daemon] -[IXSCoordinatorProgress setTotalUnitsCompleted:]: Progress for coordinator: [com.linea.messenger.preview/Invalid/[system-defined]], Phase: IXCoordinatorProgressPhaseLoading, Percentage: 100.000000: Attempt to set units completed on finished progress: 100
+2026-11-12 22:01:56.907 Df installcoordinationd[4783:42373] [com.apple.installcoordination:daemon] -[IXSCoordinatedAppInstall assertionTargetProcessDidExit:]: RBS termination assertion observer called for <IXSCoordinatedAppInstall<0x10b509ed0> [P=CoreSimulatorBridge (pid 772)] identifier:[com.linea.messenger.preview/Invalid/[system-defined]] uuid:187F671F-7B08-4B5B-AC3B-06BF069F14A4 intent:IXCoordinatorIntentInitiating creator/appDRI:InstallCoordination Simple SPI importance:UserWaiting state:IXAppCoordinationStateWaitingForPlaceholderAssertion promise-state:PA2I4>
+2026-11-12 22:01:56.907 Df installcoordinationd[4783:42372] [com.apple.appinstallation:TransactionLog] com.linea.messenger.preview/Unknown Persona:4:8:2:1:Placeholder Promise completed. Coordinator State: IXAppCoordinationStateWaitingForPlaceholderAssertion
+2026-11-12 22:01:56.908 Df CoreSimulatorBridge[772:41838] [com.apple.installcoordination:framework] -[IXAppInstallCoordinator _clientDelegate_promiseDidBeginFulfillmentWithIdentifier:]: <IXInitiatingAppInstallCoordinator<0x600001710680> identity:[com.linea.messenger.preview/Invalid/[system-defined]] uuid:187F671F-7B08-4B5B-AC3B-06BF069F14A4 creator:InstallCoordination Simple SPI>: Got promise did begin fulfillment for identifier 1
+2026-11-12 22:01:56.908 Df CoreSimulatorBridge[772:41838] [com.apple.installcoordination:framework] -[IXAppInstallCoordinator _clientDelegate_promiseDidBeginFulfillmentWithIdentifier:]_block_invoke: <IXInitiatingAppInstallCoordinator<0x600001710680> identity:[com.linea.messenger.preview/Invalid/[system-defined]] uuid:187F671F-7B08-4B5B-AC3B-06BF069F14A4 creator:InstallCoordination Simple SPI>: Observer <_IXSimpleInstallerDelegate 0x0x600000c14fc0> does not respond to coordinator:configuredPromiseDidBeginFulfillment: (or any deprecated equivalent)
+2026-11-12 22:01:56.909 Df installcoordinationd[4783:42372] [com.apple.installcoordination:daemon] -[IXSCoordinatedAppInstall _onQueue_installPlaceholder]: Acquired termination assertion for placeholder [com.linea.messenger.preview/Invalid/[system-defined]]; proceeding with install.
+2026-11-12 22:01:56.910 Df installcoordinationd[4783:42372] [com.apple.installcoordination:daemon] -[IXSPowerAssertion initWithAssertionName:details:]: Acquired power assertion IXPowerAssertion-12-[com.linea.messenger.preview/Invalid/[system-defined]]
+2026-11-12 22:01:56.922 Df installd[4553:413b7] (MobileSystemServices) 0x700003fc2000 -[MIClientConnection _doInstallationForURL:identity:domain:options:operationType:completion:]: Install of "/Users/runner/Library/Developer/CoreSimulator/Devices/C15FAC2A-CB46-4F16-B882-3970BD44CFAD/data/Containers/Shared/SystemGroup/systemgroup.com.apple.installcoordinationd/Library/InstallCoordination/PromiseStaging/F3A4828E-889A-41C5-BC45-F5D6672DFCEC/INVIZENT.app" type Placeholder (LSInstallType = 1, Domain: MIInstallationDomainDefault) requested by installcoordinationd (pid 4783 (501/20))
+2026-11-12 22:01:56.951 Df installd[4553:413b7] [com.apple.containermanager:xpc] Query; euid = 501, uid = 501, class = 1, identifier = [com.linea.messenger.preview](1), flags = 300000002
+2026-11-12 22:01:57.871 Df installd[4553:413b7] [com.apple.containermanager:xpc] Query; euid = 501, uid = 501, class = 1, identifier = [com.linea.messenger.preview](1), flags = 300000002
+2026-11-12 22:01:57.876 Df installd[4553:413b7] (MobileSystemServices) 0x700003fc2000 -[MIInstaller _installInstallable:containingSymlink:error:]: Installing <MIInstallableBundle ID=com.linea.messenger.preview; Persona=com.apple.containermanager.primary-persona, Version=1, ShortVersion=0.14.14>
+2026-11-12 22:01:57.877 Df installd[4553:413b7] [com.apple.appinstallation:TransactionLog] com.linea.messenger.preview/com.apple.containermanager.primary-persona:7:4:1:1:Start : Install (Placeholder)
+2026-11-12 22:02:20.541 Df installd[4553:413b7] [com.apple.containermanager:query] Query; euid = 501, uid = 501, class = 4, identifier = [com.linea.messenger.preview](1), flags = 300000002
+2026-11-12 22:02:20.544 Df installd[4553:413b7] [com.apple.containermanager:query] Query; euid = 501, uid = 501, class = 4, identifier = [com.linea.messenger.preview](1), flags = 300000002
+2026-11-12 22:02:20.547 Df installd[4553:413b7] [com.apple.containermanager:query] Query; euid = 501, uid = 501, class = 2, identifier = [com.linea.messenger.preview.ScreenBroadcast](1), flags = 300000002
+2026-11-12 22:02:20.552 Df installd[4553:413b7] [com.apple.containermanager:query] Query; euid = 501, uid = 501, class = 2, identifier = [com.linea.messenger.preview.ScreenBroadcast](1), flags = 300000002
+2026-11-12 22:02:20.554 Df installd[4553:413b7] [com.apple.containermanager:query] Query; euid = 501, uid = 501, class = 4, identifier = [com.linea.messenger.preview.ScreenBroadcast](1), flags = 300000002
+2026-11-12 22:02:20.556 Df installd[4553:413b7] [com.apple.containermanager:xpc] Query; euid = 501, uid = 501, class = 1, identifier = [com.linea.messenger.preview](1), flags = 300000003
+2026-11-12 22:02:20.559 E  containermanagerd_system[828:4142a] [com.apple.containermanager:schema] [com.linea.messenger.preview(1)] Current schema version (1) is newer than the latest (0), ignoring.
+2026-11-12 22:02:20.563 Df containermanagerd_system[828:4142a] [com.apple.containermanager:schema] [u B49FB3BA-FFD8-4444-8032-978DF8910AF7:p A313E62D-9F3D-479D-AD88-EECBF07C3B75:c com.linea.messenger.preview(1):i12888564940] Successfully updated schema from (0) → (0), actions count = 0
+2026-11-12 22:02:20.570 Df installd[4553:413b7] [com.apple.containermanager:xpc] Query; euid = 501, uid = 501, class = 1, identifier = [com.linea.messenger.preview](1), flags = 300000002
+2026-11-12 22:02:20.729 Df installd[4553:413b7] [com.apple.containermanager:query] Query; euid = 501, uid = 501, class = 2, identifier = [com.linea.messenger.preview](1), flags = 300000003
+2026-11-12 22:02:20.734 Df containermanagerd[848:4142b] [com.apple.containermanager:schema] [u BFB73F88-B159-493B-B0CC-7A4308765224:p D73F1777-F51C-4407-91B8-7EBFD34C156A:c com.linea.messenger.preview(2):i12888564946] Successfully updated schema from (0) → (1), actions count = 6
+2026-11-12 22:02:20.742 Df installd[4553:413b7] [com.apple.containermanager:query] Query; euid = 501, uid = 501, class = 2, identifier = [com.linea.messenger.preview](1), flags = 300000002
+2026-11-12 22:02:20.746 Df containermanagerd[848:4142b] [com.apple.containermanager:codesignmapping] Reconciled [com.linea.messenger.preview.ScreenBroadcast]; old app groups: (null), new app groups: (null), old system groups: (null), new system groups: (null)
+2026-11-12 22:02:20.750 Df installd[4553:413b7] [com.apple.containermanager:query] Query; euid = 501, uid = 501, class = 4, identifier = [com.linea.messenger.preview.ScreenBroadcast](1), flags = 300000003
+2026-11-12 22:02:20.757 Df containermanagerd[848:4142b] [com.apple.containermanager:schema] [u A1B71FA9-411A-496D-9B48-1AAA13CF6EA4:p 6DDEEC12-0501-4BF7-BAFA-54B2C3257DA7:c com.linea.messenger.preview.ScreenBroadcast(4):i12888564954] Successfully updated schema from (0) → (1), actions count = 6
+2026-11-12 22:02:20.766 Df installd[4553:413b7] [com.apple.containermanager:query] Query; euid = 501, uid = 501, class = 4, identifier = [com.linea.messenger.preview.ScreenBroadcast](1), flags = 300000002
+2026-11-12 22:02:20.780 Df installd[4553:413b7] (MobileSystemServices) 0x700003fc2000 -[MIInstallationJournalEntry _refreshUUIDForContainer:withError:]: Data container for com.linea.messenger.preview is now at /Users/runner/Library/Developer/CoreSimulator/Devices/C15FAC2A-CB46-4F16-B882-3970BD44CFAD/data/Containers/Data/Application/74033B27-7B7D-47CA-BB8B-BD5DD1049654
+2026-11-12 22:02:20.786 Df containermanagerd[848:4142b] [com.apple.containermanager:schema] [u BFB73F88-B159-493B-B0CC-7A4308765224:p 74033B27-7B7D-47CA-BB8B-BD5DD1049654:c com.linea.messenger.preview(2):i0] Successfully updated schema from (0) → (1), actions count = 6
+2026-11-12 22:02:20.792 Df installd[4553:413b7] (MobileSystemServices) 0x700003fc2000 -[MIInstallationJournalEntry _refreshUUIDForContainer:withError:]: Data container for com.linea.messenger.preview.ScreenBroadcast is now at /Users/runner/Library/Developer/CoreSimulator/Devices/C15FAC2A-CB46-4F16-B882-3970BD44CFAD/data/Containers/Data/PluginKitPlugin/269AF29D-51D5-48C7-BB40-85C2F0E83FB7
+2026-11-12 22:02:20.796 Df containermanagerd[848:4142b] [com.apple.containermanager:schema] [u A1B71FA9-411A-496D-9B48-1AAA13CF6EA4:p 269AF29D-51D5-48C7-BB40-85C2F0E83FB7:c com.linea.messenger.preview.ScreenBroadcast(4):i0] Successfully updated schema from (0) → (1), actions count = 6
+2026-11-12 22:02:20.797 Df installd[4553:413b7] [com.apple.containermanager:unspecified] Replace; old = <NULL>, new = [temp-app:com.linea.messenger.preview:501::(B49FB3BA-FFD8-4444-8032-978DF8910AF7)]
+2026-11-12 22:02:20.807 Df installd[4553:413b7] [com.apple.containermanager:xpc] Query; euid = 501, uid = 501, class = 1, identifier = [com.linea.messenger.preview](1), flags = 300000002
+2026-11-12 22:02:20.809 Df installd[4553:413b7] (MobileSystemServices) 0x700003fc2000 -[MIContainer makeContainerLiveReplacingContainer:reason:waitForDeletion:withError:]: Made container live for com.linea.messenger.preview at /Users/runner/Library/Developer/CoreSimulator/Devices/C15FAC2A-CB46-4F16-B882-3970BD44CFAD/data/Containers/Bundle/Application/F994925B-5A5E-4BE6-8DA4-ECF385443C4D
+2026-11-12 22:02:20.813 Df containermanagerd[848:4142b] [com.apple.containermanager:codesignmapping] Reconciled [com.linea.messenger.preview]; old app groups: (null), new app groups: (null), old system groups: (null), new system groups: (null)
+2026-11-12 22:02:20.814 Df installd[4553:413b7] [com.apple.containermanager:unspecified] Requesting disk usage; class = 1, identifier = com.linea.messenger.preview
+2026-11-12 22:02:20.827 Df installd[4553:413b7] [com.apple.containermanager:query] Query; euid = 501, uid = 501, class = 7, identifier = [com.linea.messenger.preview](1), flags = 300000001
+2026-11-12 22:02:20.831 Df containermanagerd[848:4142b] [com.apple.containermanager:codesignmapping] Reconciled [com.linea.messenger.preview.ScreenBroadcast]; old app groups: (null), new app groups: (null), old system groups: (null), new system groups: (null)
+2026-11-12 22:02:20.833 Df installd[4553:413b7] [com.apple.containermanager:query] Query; euid = 501, uid = 501, class = 7, identifier = [com.linea.messenger.preview.ScreenBroadcast](1), flags = 300000001
+2026-11-12 22:02:20.843 Df SpringBoard[734:3ecf7] [com.apple.SpringBoard:Common] termination assertion released for com.linea.messenger.preview (app not found)
+2026-11-12 22:02:20.880 Df installd[4553:413b7] (MobileSystemServices) 0x700003fc2000 -[MILaunchServicesOperationManager _onQueue_addPendingLaunchServicesOperation:error:]: Added pending LS operation <MILaunchServicesRegisterOperation: 6D23F7F1-2665-4E96-9CF6-47241AFD7F20:1 com.linea.messenger.preview/MIInstallationDomainSystemShared personas:[com.apple.containermanager.primary-persona]>
+2026-11-12 22:02:20.897 Df lsd[832:41ad9] [com.apple.launchservices:appinstallation] Post installation registration: request to register com.linea.messenger.preview, operation 6D23F7F1-2665-4E96-9CF6-47241AFD7F20, from pid 4553
+2026-11-12 22:02:20.900 Df lsd[832:41ad9] [com.apple.appinstallation:TransactionLog] com.linea.messenger.preview/Unknown Persona:5:4:1:1:Registering bundles via registrant - start
+2026-11-12 22:02:20.912 E  lsd[832:41ad9] [com.apple.launchservices:default] LSStringLocalizer development region en not found in localizations available for bundle file:///Users/runner/Library/Developer/CoreSimulator/Devices/C15FAC2A-CB46-4F16-B882-3970BD44CFAD/data/Containers/Bundle/Application/F994925B-5A5E-4BE6-8DA4-ECF385443C4D/INVIZENT.app/
+2026-11-12 22:02:20.921 E  lsd[832:41ad9] [com.apple.launchservices:default] LSStringLocalizer development region en not found in localizations available for bundle file:///Users/runner/Library/Developer/CoreSimulator/Devices/C15FAC2A-CB46-4F16-B882-3970BD44CFAD/data/Containers/Bundle/Application/F994925B-5A5E-4BE6-8DA4-ECF385443C4D/INVIZENT.app/PlugIns/ScreenBroadcast.appex/
+2026-11-12 22:02:20.922 Df lsd[832:41ad9] [com.apple.appinstallation:TransactionLog] com.linea.messenger.preview/Unknown Persona:5:5:1:1:Building bundle record for app
+2026-11-12 22:02:20.922 Df lsd[832:41ad9] [com.apple.launchservices:appinstallation] No bundles to remove for com.linea.messenger.preview
+2026-11-12 22:02:20.923 Df lsd[832:41ad9] [com.apple.launchservices:appinstallation] Placeholder detected - Flagging bundle com.linea.messenger.preview incomplete
+2026-11-12 22:02:20.923 Df lsd[832:41ad9] [com.apple.appinstallation:TransactionLog] com.linea.messenger.preview/Unknown Persona:5:5:2:1:Built bundle record for app
+2026-11-12 22:02:20.938 Df lsd[832:41ad9] [com.apple.appinstallation:TransactionLog] com.linea.messenger.preview/Unknown Persona:5:4:2:1:Registered bundle status = success
+2026-11-12 22:02:20.938 Df lsd[832:41ad9] [com.apple.appinstallation:TransactionLog] com.linea.messenger.preview/Unknown Persona:5:4:2:1:Finished registering com.linea.messenger.preview, bundle unit 2a0
+2026-11-12 22:02:20.955 Df lsd[832:4281c] [com.apple.launchservices:progress] Sending applicationInstallsDidStart: for (
+    "<LSApplicationProxy: 0x60000370c000> com.linea.messenger.preview file:///Users/runner/Library/Developer/CoreSimulator/Devices/C15FAC2A-CB46-4F16-B882-3970BD44CFAD/data/Containers/Bundle/Application/F994925B-5A5E-4BE6-8DA4-ECF385443C4D/INVIZENT.app/ <com.linea.messenger.preview <placeholder >:1>"
+)
+2026-11-12 22:02:20.977 Df searchd[929:414d6] [com.apple.launchservices:appinstallation] LaunchServices observer: Installed plugins (
+    "<LSPlugInKitProxy: 0x600003d04f00> pluginID=com.linea.messenger.preview.ScreenBroadcast UUID=73B3D145-8569-4F49-9076-518FC3163932 version=0.14.14"
+)
+2026-11-12 22:02:20.980 Df callservicesd[855:41903] [com.apple.launchservices:appinstallation] LaunchServices observer: Installed plugins (
+    "<LSPlugInKitProxy: 0x10c368600> pluginID=com.linea.messenger.preview.ScreenBroadcast UUID=73B3D145-8569-4F49-9076-518FC3163932 version=0.14.14"
+)
+2026-11-12 22:02:20.982 Df axassetsd[743:423d8] [com.apple.launchservices:appinstallation] LaunchServices observer: Installed plugins (
+    "<LSPlugInKitProxy: 0x600003d13750> pluginID=com.linea.messenger.preview.ScreenBroadcast UUID=73B3D145-8569-4F49-9076-518FC3163932 version=0.14.14"
+)
+2026-11-12 22:02:20.984 Df SpringBoard[734:41952] [com.apple.launchservices:appinstallation] LaunchServices observer: Installed plugins (
+    "<LSPlugInKitProxy: 0x600003d46d00> pluginID=com.linea.messenger.preview.ScreenBroadcast UUID=73B3D145-8569-4F49-9076-518FC3163932 version=0.14.14"
+)
+2026-11-12 22:02:20.995 Df pkd[928:41ea5] [com.apple.launchservices:appinstallation] LaunchServices observer: Installed plugins (
+    "<LSPlugInKitProxy: 0x600003d044b0> pluginID=com.linea.messenger.preview.ScreenBroadcast UUID=73B3D145-8569-4F49-9076-518FC3163932 version=0.14.14"
+)
+2026-11-12 22:02:21.005 Df pkd[928:41ea5] [com.apple.PlugInKit:ls] [u 73B3D145-8569-4F49-9076-518FC3163932] [com.linea.messenger.preview.ScreenBroadcast(0.14.14)] plugin INSTALLED; bundleID: [com.linea.messenger.preview.ScreenBroadcast], path: [/Users/runner/Library/Developer/CoreSimulator/Devices/C15FAC2A-CB46-4F16-B882-3970BD44CFAD/data/Containers/Bundle/Application/F994925B-5A5E-4BE6-8DA4-ECF385443C4D/INVIZENT.app/PlugIns/ScreenBroadcast.appex], contained in [com.linea.messenger.preview]
+2026-11-12 22:02:21.030 Df lsd[832:4281c] [com.apple.launchservices:progress] Created parent progress <NSProgress: com.linea.messenger.preview phase=InstallingPlaceholder; state=Waiting; finalPhase=Installing; fractionCompleted=0.000000>
+2026-11-12 22:02:21.046 Df activityawardsd[4811:4283e] [com.apple.launchservices:appinstallation] LaunchServices observer: InstallsStarted (
+    "<LSApplicationProxy: 0x600003708000> com.linea.messenger.preview file:///Users/runner/Library/Developer/CoreSimulator/Devices/C15FAC2A-CB46-4F16-B882-3970BD44CFAD/data/Containers/Bundle/Application/F994925B-5A5E-4BE6-8DA4-ECF385443C4D/INVIZENT.app/ <com.linea.messenger.preview <placeholder >:1>"
+)
+2026-11-12 22:02:21.056 Df donotdisturbd[831:41960] [com.apple.launchservices:appinstallation] LaunchServices observer: InstallsStarted (
+    "<LSApplicationProxy: 0x600003704540> com.linea.messenger.preview file:///Users/runner/Library/Developer/CoreSimulator/Devices/C15FAC2A-CB46-4F16-B882-3970BD44CFAD/data/Containers/Bundle/Application/F994925B-5A5E-4BE6-8DA4-ECF385443C4D/INVIZENT.app/ <com.linea.messenger.preview <placeholder >:1>"
+)
+2026-11-12 22:02:21.056 Df sleepd[769:42821] [com.apple.launchservices:appinstallation] LaunchServices observer: InstallsStarted (
+    "<LSApplicationProxy: 0x6000037049c0> com.linea.messenger.preview file:///Users/runner/Library/Developer/CoreSimulator/Devices/C15FAC2A-CB46-4F16-B882-3970BD44CFAD/data/Containers/Bundle/Application/F994925B-5A5E-4BE6-8DA4-ECF385443C4D/INVIZENT.app/ <com.linea.messenger.preview <placeholder >:1>"
+)
+2026-11-12 22:02:21.059 Df passd[771:414a3] [com.apple.launchservices:appinstallation] LaunchServices observer: InstallsStarted (
+    "<LSApplicationProxy: 0x60000370ce40> com.linea.messenger.preview file:///Users/runner/Library/Developer/CoreSimulator/Devices/C15FAC2A-CB46-4F16-B882-3970BD44CFAD/data/Containers/Bundle/Application/F994925B-5A5E-4BE6-8DA4-ECF385443C4D/INVIZENT.app/ <com.linea.messenger.preview <placeholder >:1>"
+)
+2026-11-12 22:02:21.060 Df nsurlsessiond[815:42424] [com.apple.launchservices:appinstallation] LaunchServices observer: InstallsStarted (
+    "<LSApplicationProxy: 0x60000370dec0> com.linea.messenger.preview file:///Users/runner/Library/Developer/CoreSimulator/Devices/C15FAC2A-CB46-4F16-B882-3970BD44CFAD/data/Containers/Bundle/Application/F994925B-5A5E-4BE6-8DA4-ECF385443C4D/INVIZENT.app/ <com.linea.messenger.preview <placeholder >:1>"
+)
+2026-11-12 22:02:21.062 Df lsd[832:4281c] [com.apple.launchservices:progress] Sent distributed notification com.apple.LaunchServices.applicationRegistered with payload {
+    bundleIDs =     (
+        "com.linea.messenger.preview"
+    );
+    isPlaceholder = 1;
+}
+2026-11-12 22:02:21.068 Df deviceaccessd[4762:415bc] [com.apple.launchservices:appinstallation] LaunchServices observer: InstallsStarted (
+    "<LSApplicationProxy: 0x600003700000> com.linea.messenger.preview file:///Users/runner/Library/Developer/CoreSimulator/Devices/C15FAC2A-CB46-4F16-B882-3970BD44CFAD/data/Containers/Bundle/Application/F994925B-5A5E-4BE6-8DA4-ECF385443C4D/INVIZENT.app/ <com.linea.messenger.preview <placeholder >:1>"
+)
+2026-11-12 22:02:21.069 Df appstored[4767:416b3] [com.apple.launchservices:appinstallation] LaunchServices observer: InstallsStarted (
+    "<LSApplicationProxy: 0x60000370c240> com.linea.messenger.preview file:///Users/runner/Library/Developer/CoreSimulator/Devices/C15FAC2A-CB46-4F16-B882-3970BD44CFAD/data/Containers/Bundle/Application/F994925B-5A5E-4BE6-8DA4-ECF385443C4D/INVIZENT.app/ <com.linea.messenger.preview <placeholder >:1>"
+)
+2026-11-12 22:02:21.070 Df dasd[768:3ee15] [com.apple.launchservices:appinstallation] LaunchServices observer: InstallsStarted (
+    "<LSApplicationProxy: 0x60000370c300> com.linea.messenger.preview file:///Users/runner/Library/Developer/CoreSimulator/Devices/C15FAC2A-CB46-4F16-B882-3970BD44CFAD/data/Containers/Bundle/Application/F994925B-5A5E-4BE6-8DA4-ECF385443C4D/INVIZENT.app/ <com.linea.messenger.preview <placeholder >:1>"
+)
+2026-11-12 22:02:21.072 Df liveactivitiesd[850:4196c] [com.apple.launchservices:appinstallation] LaunchServices observer: InstallsStarted (
+    "<LSApplicationProxy: 0x6000037003c0> com.linea.messenger.preview file:///Users/runner/Library/Developer/CoreSimulator/Devices/C15FAC2A-CB46-4F16-B882-3970BD44CFAD/data/Containers/Bundle/Application/F994925B-5A5E-4BE6-8DA4-ECF385443C4D/INVIZENT.app/ <com.linea.messenger.preview <placeholder >:1>"
+)
+2026-11-12 22:02:21.072 Df gamed[4772:41e7d] [com.apple.launchservices:appinstallation] LaunchServices observer: InstallsStarted (
+    "<LSApplicationProxy: 0x60000370c300> com.linea.messenger.preview file:///Users/runner/Library/Developer/CoreSimulator/Devices/C15FAC2A-CB46-4F16-B882-3970BD44CFAD/data/Containers/Bundle/Application/F994925B-5A5E-4BE6-8DA4-ECF385443C4D/INVIZENT.app/ <com.linea.messenger.preview <placeholder >:1>"
+)
+2026-11-12 22:02:21.078 Df locationd[766:3ee02] [com.apple.launchservices:appinstallation] LaunchServices observer: InstallsStarted (
+    "<LSApplicationProxy: 0x60000370c840> com.linea.messenger.preview file:///Users/runner/Library/Developer/CoreSimulator/Devices/C15FAC2A-CB46-4F16-B882-3970BD44CFAD/data/Containers/Bundle/Application/F994925B-5A5E-4BE6-8DA4-ECF385443C4D/INVIZENT.app/ <com.linea.messenger.preview <placeholder >:1>"
+)
+2026-11-12 22:02:21.085 Df homed[861:3f22f] [com.apple.launchservices:appinstallation] LaunchServices observer: InstallsStarted (
+    "<LSApplicationProxy: 0x60000370c300> com.linea.messenger.preview file:///Users/runner/Library/Developer/CoreSimulator/Devices/C15FAC2A-CB46-4F16-B882-3970BD44CFAD/data/Containers/Bundle/Application/F994925B-5A5E-4BE6-8DA4-ECF385443C4D/INVIZENT.app/ <com.linea.messenger.preview <placeholder >:1>"
+)
+2026-11-12 22:02:21.113 Df runningboardd[737:41dc4] [com.apple.launchservices:appinstallation] LaunchServices observer: InstallsStarted (
+    "<LSApplicationProxy: 0x600003708a80> com.linea.messenger.preview file:///Users/runner/Library/Developer/CoreSimulator/Devices/C15FAC2A-CB46-4F16-B882-3970BD44CFAD/data/Containers/Bundle/Application/F994925B-5A5E-4BE6-8DA4-ECF385443C4D/INVIZENT.app/ <com.linea.messenger.preview <placeholder >:1>"
+)
+2026-11-12 22:02:21.115 Df mobiletimerd[752:425e6] [com.apple.launchservices:appinstallation] LaunchServices observer: InstallsStarted (
+    "<LSApplicationProxy: 0x60000370c600> com.linea.messenger.preview file:///Users/runner/Library/Developer/CoreSimulator/Devices/C15FAC2A-CB46-4F16-B882-3970BD44CFAD/data/Containers/Bundle/Application/F994925B-5A5E-4BE6-8DA4-ECF385443C4D/INVIZENT.app/ <com.linea.messenger.preview <placeholder >:1>"
+)
+2026-11-12 22:02:21.119 Df profiled[4796:42842] [com.apple.launchservices:appinstallation] LaunchServices observer: InstallsStarted (
+    "<LSApplicationProxy: 0x600003709c80> com.linea.messenger.preview file:///Users/runner/Library/Developer/CoreSimulator/Devices/C15FAC2A-CB46-4F16-B882-3970BD44CFAD/data/Containers/Bundle/Application/F994925B-5A5E-4BE6-8DA4-ECF385443C4D/INVIZENT.app/ <com.linea.messenger.preview <placeholder >:1>"
+)
+2026-11-12 22:02:21.119 Df routined[742:419de] [com.apple.launchservices:appinstallation] LaunchServices observer: InstallsStarted (
+    "<LSApplicationProxy: 0x600003708240> com.linea.messenger.preview file:///Users/runner/Library/Developer/CoreSimulator/Devices/C15FAC2A-CB46-4F16-B882-3970BD44CFAD/data/Containers/Bundle/Application/F994925B-5A5E-4BE6-8DA4-ECF385443C4D/INVIZENT.app/ <com.linea.messenger.preview <placeholder >:1>"
+)
+2026-11-12 22:02:21.135 Df nanotimekitcompaniond[4761:416fb] [com.apple.launchservices:appinstallation] LaunchServices observer: InstallsStarted (
+    "<LSApplicationProxy: 0x60000370c000> com.linea.messenger.preview file:///Users/runner/Library/Developer/CoreSimulator/Devices/C15FAC2A-CB46-4F16-B882-3970BD44CFAD/data/Containers/Bundle/Application/F994925B-5A5E-4BE6-8DA4-ECF385443C4D/INVIZENT.app/ <com.linea.messenger.preview <placeholder >:1>"
+)
+2026-11-12 22:02:21.141 Df financed[893:3f14e] [com.apple.launchservices:appinstallation] LaunchServices observer: InstallsStarted (
+    "<LSApplicationProxy: 0x600003742700> com.linea.messenger.preview file:///Users/runner/Library/Developer/CoreSimulator/Devices/C15FAC2A-CB46-4F16-B882-3970BD44CFAD/data/Containers/Bundle/Application/F994925B-5A5E-4BE6-8DA4-ECF385443C4D/INVIZENT.app/ <com.linea.messenger.preview <placeholder >:1>"
+)
+2026-11-12 22:02:21.142 Df SpringBoard[734:418be] [com.apple.launchservices:appinstallation] LaunchServices observer: InstallsStarted (
+    "<LSApplicationProxy: 0x6000037bef40> com.linea.messenger.preview file:///Users/runner/Library/Developer/CoreSimulator/Devices/C15FAC2A-CB46-4F16-B882-3970BD44CFAD/data/Containers/Bundle/Application/F994925B-5A5E-4BE6-8DA4-ECF385443C4D/INVIZENT.app/ <com.linea.messenger.preview <placeholder >:1>"
+)
+2026-11-12 22:02:21.142 Df SpringBoard[734:418be] [com.apple.frontboard.ApplicationLibrary:observer] -[FBSApplicationLibrary applicationInstallsDidStart:] com.linea.messenger.preview
+2026-11-12 22:02:21.144 Df SpringBoard[734:418be] [com.apple.frontboard.ApplicationLibrary:default] Added placeholder: <SBApplicationPlaceholderProxy: 0x600002c72880; com.linea.messenger.preview (INVIZENT); LSInstallType: StoreDownload>
+2026-11-12 22:02:21.179 E  intents_helper[4809:4284d] [com.apple.siri:Intents] -[INHService loadSchemaURLsForBundleIdentifiers:completion:] Error getting bundle record for bundle identifier com.linea.messenger.preview: Error Domain=NSOSStatusErrorDomain Code=-10814 "(null)" UserInfo={_LSLine=156, _LSFunction=+[LSBundleRecord bundleRecordWithBundleIdentifier:allowPlaceholder:error:], _LSFile=LSBundleRecord.mm, NSUnderlyingError=0x600000cc0060 {Error Domain=NSOSStatusErrorDomain Code=-10814 "Unable to find this application extension record in the Launch Services database." UserInfo={_LSLine=652, _LSFunction=_LSPluginFindWithPlatformInfo, _LSFile=LSPluginBundle.mm, NSDebugDescription=Unable to find this application extension record in the Launch Services database., SK=com.linea.messenger.preview, IS=false}}}
+2026-11-12 22:02:21.216 Df siriactionsd[869:4150a] [com.apple.shortcuts:Daemon] Dispatching XPC event: <distributed notification: com.apple.LaunchServices.applicationRegistered, userInfo: [AnyHashable("bundleIDs"): <__NSSingleObjectArrayI 0x600000012200>(
+com.linea.messenger.preview
+)
+, AnyHashable("isPlaceholder"): 1]>
+2026-11-12 22:02:21.216 Df siriactionsd[869:4150a] [com.apple.shortcuts:XPCEvent] Dispatching XPC event: <distributed notification: com.apple.LaunchServices.applicationRegistered, userInfo: [AnyHashable("bundleIDs"): <__NSSingleObjectArrayI 0x600000012200>(
+com.linea.messenger.preview
+)
+, AnyHashable("isPlaceholder"): 1]>
+2026-11-12 22:02:21.232 Df dmd[4763:41598] Received xpc stream event (distributed notification matching) with name: com.apple.LaunchServices.applicationRegistered user info: {
+    bundleIDs =     (
+        "com.linea.messenger.preview"
+    );
+    isPlaceholder = 1;
+}
+2026-11-12 22:02:21.242 Df appprotectiond[757:41ce3] [com.apple.appprotection:server] Received distnoted event <dictionary: 0x600003e05a00> { count = 3, transaction: 0, voucher = 0x6000021080f0, contents =
+	"UserInfo" => <dictionary: 0x600002610000> { count = 2, transaction: 0, voucher = 0x0, contents =
+		"isPlaceholder" => <bool: 0x7ff840008670>: true
+		"bundleIDs" => <array: 0x600000c13990> { count = 1, capacity = 1, contents =
+			0: <string: 0x600000c13d50> { string cache = 0x0, length = 27, contents = "com.linea.messenger.preview" }
+		}
+	}
+	"Name" => <string: 0x600000c10720> { string cache = 0x0, length = 46, contents = "com.apple.LaunchServices.applicationRegistered" }
+	"XPCEventName" => <string: 0x600000c107b0> { string cache = 0x0, length = 21, contents = "ApplicationRegistered" }
+}
+2026-11-12 22:02:21.247 Df appprotectiond[757:41ce3] [com.apple.appprotection:server] received note: name = com.apple.LaunchServices.applicationRegistered, object = Optional(AppProtection.DistnotedXPCEventStreamTranslator), userInfo = Optional([AnyHashable("bundleIDs"): <__NSSingleObjectArrayI 0x600000010490>(
+com.linea.messenger.preview
+)
+, AnyHashable("isPlaceholder"): 1])
+2026-11-12 22:02:21.247 Df appprotectiond[757:41ce3] [com.apple.appprotection:server] processing settings authority event: SettingsAuthorityEvent.promotePreferenceFromProvisionalForApplication(com.linea.messenger.preview)
+2026-11-12 22:02:21.281 Df SiriAUSP[4795:41746] [com.apple.launchservices:appinstallation] LaunchServices observer: Installed plugins (
+    "<LSPlugInKitProxy: 0x600003d005a0> pluginID=com.linea.messenger.preview.ScreenBroadcast UUID=73B3D145-8569-4F49-9076-518FC3163932 version=0.14.14"
+)
+2026-11-12 22:02:21.289 Df KonaSynthesizer[4778:416ad] [com.apple.launchservices:appinstallation] LaunchServices observer: Installed plugins (
+    "<LSPlugInKitProxy: 0x600003d0c3c0> pluginID=com.linea.messenger.preview.ScreenBroadcast UUID=73B3D145-8569-4F49-9076-518FC3163932 version=0.14.14"
+)
+2026-11-12 22:02:21.300 Df callservicesd[855:41903] [com.apple.launchservices:appinstallation] LaunchServices observer: InstallsStarted (
+    "<LSApplicationProxy: 0x10d150cc0> com.linea.messenger.preview file:///Users/runner/Library/Developer/CoreSimulator/Devices/C15FAC2A-CB46-4F16-B882-3970BD44CFAD/data/Containers/Bundle/Application/F994925B-5A5E-4BE6-8DA4-ECF385443C4D/INVIZENT.app/ <com.linea.messenger.preview <placeholder >:1>"
+)
+2026-11-12 22:02:21.301 Df callservicesd[855:41903] [com.apple.calls.callkit:Default] pluginKitProxies=(
+    "<LSPlugInKitProxy: 0x10c368600> pluginID=com.linea.messenger.preview.ScreenBroadcast UUID=73B3D145-8569-4F49-9076-518FC3163932 version=0.14.14"
+)
+2026-11-12 22:02:21.303 Df MauiAUSP[4768:415d6] [com.apple.launchservices:appinstallation] LaunchServices observer: Installed plugins (
+    "<LSPlugInKitProxy: 0x600003d0c0f0> pluginID=com.linea.messenger.preview.ScreenBroadcast UUID=73B3D145-8569-4F49-9076-518FC3163932 version=0.14.14"
+)
+2026-11-12 22:02:21.308 Df MacinTalkAUSP[4800:41763] [com.apple.launchservices:appinstallation] LaunchServices observer: Installed plugins (
+    "<LSPlugInKitProxy: 0x600003d040f0> pluginID=com.linea.messenger.preview.ScreenBroadcast UUID=73B3D145-8569-4F49-9076-518FC3163932 version=0.14.14"
+)
+2026-11-12 22:02:21.480 Df SpringBoard[734:3ecf7] [com.apple.frontboard.ApplicationLibrary:sb.placeholder] App placeholder proxies added: (
+    "<SBApplicationPlaceholderProxy: 0x600002c72880; com.linea.messenger.preview (INVIZENT); LSInstallType: StoreDownload>"
+), currentlyKnownExistingPlaceholders: {
+}
+2026-11-12 22:02:21.481 Df SpringBoard[734:3ecf7] [com.apple.appinstallation:TransactionLog] com.linea.messenger.preview/Unknown Persona:10:0:1:1:Placeholder add BEGIN
+2026-11-12 22:02:21.483 Df SpringBoard[734:41952] [com.apple.launchservices:progress] #LSInstallProgressList add subscriber: <_NSProgressSubscriber: 0x600000cb1f20> publishingString: com.linea.messenger.preview
+2026-11-12 22:02:21.483 Df SpringBoard[734:41952] [com.apple.launchservices:progress] Subscribing to progress for app com.linea.messenger.preview,
+2026-11-12 22:02:21.483 E  SpringBoard[734:41952] [com.apple.frontboard.ApplicationLibrary:placeholder] Non-demoted placeholder for com.linea.messenger.preview has no associated NSProgress!
+2026-11-12 22:02:21.512 Df SpringBoard[734:3ecf7] [com.apple.SpringBoard:Icon] <<SBLeafIcon:0x60000332f8e0 [com.linea.messenger.preview]>> Changing active data source: <SBApplicationIcon: 0x60000332f8e0; nodeID: com.linea.messenger.preview; bundleID: com.linea.messenger.preview>
+2026-11-12 22:02:21.512 Df SpringBoard[734:3ecf7] [com.apple.SpringBoard:Icon] <<SBLeafIcon:0x60000332f8e0 [com.linea.messenger.preview]>> Changing from data souce: (null) to data source:com.linea.messenger.preview.
+2026-11-12 22:02:21.515 Df SpringBoard[734:3ecf7] [com.apple.SpringBoard:Icon] icon model preparing to add icon to designated location: <SBApplicationIcon: 0x60000332f8e0; nodeID: com.linea.messenger.preview; bundleID: com.linea.messenger.preview>
+2026-11-12 22:02:21.574 Df installd[4553:413b7] (MobileSystemServices) 0x700003fc2000 -[MIJournal purgeJournalEntry:withError:]: Removing journal entry <MIInstallationJournalEntry<0x600003300000> [com.linea.messenger.preview/com.apple.containermanager.primary-persona/[system-defined]]/MIInstallationDomainSystemShared op:2 phase:JournalPhaseDidRegisterWithLS version:1>
+2026-11-12 22:02:21.586 Df installd[4553:413b7] [com.apple.appinstallation:TransactionLog] com.linea.messenger.preview/com.apple.containermanager.primary-persona:7:4:2:1:Success (End) : Install (Placeholder)
+2026-11-12 22:02:21.587 Df installd[4553:413b7] (MobileSystemServices) 0x700003fc2000 -[MIInstaller _logOperationCompletionWithStartTime:distributorID:]: Install successful for (Placeholder:com.linea.messenger.preview) [Distributor: (null)]; Staging: 0.02s; Waiting: 0.00s; Preflight/Patch: 22.66s, Verifying: 0.02s; Overall: 24.66s
+2026-11-12 22:02:21.591 Df installcoordinationd[4783:42372] [com.apple.installcoordination:daemon] -[IXSPowerAssertion invalidate]: Released power assertion IXPowerAssertion-12-[com.linea.messenger.preview/Invalid/[system-defined]]
+2026-11-12 22:02:21.594 Df installcoordinationd[4783:42373] [com.apple.installcoordination:daemon] -[IXSPendingOperationsTracker endPendingOperationForIdentity:]_block_invoke: Ending pending operation for [com.linea.messenger.preview/Invalid/[system-defined]]
+2026-11-12 22:02:21.596 Df installcoordinationd[4783:42373] [com.apple.installcoordination:daemon] -[IXSCoordinatedAppInstall setPlaceholderInstallState:withLSRecordPromiseForCompletion:]: <IXSCoordinatedAppInstall<0x10b509ed0> [P=CoreSimulatorBridge (pid 772)] identifier:[com.linea.messenger.preview/Invalid/[system-defined]] uuid:187F671F-7B08-4B5B-AC3B-06BF069F14A4 intent:IXCoordinatorIntentInitiating creator/appDRI:InstallCoordination Simple SPI importance:UserWaiting state:IXAppCoordinationStateReadyForInstall promise-state:PA2I4>: Placeholder install completed.
+2026-11-12 22:02:21.598 Df installcoordinationd[4783:42373] [com.apple.installprogress:server] initiating progress for [com.linea.messenger.preview/Invalid/[system-defined]]
+2026-11-12 22:02:21.602 Df installcoordinationd[4783:42373] [com.apple.installprogress:default] Created published identity progress for [com.linea.messenger.preview/Invalid/[system-defined]], observer 0x600001702300
+2026-11-12 22:02:21.603 Df installcoordinationd[4783:42373] [com.apple.installcoordination:daemon] -[IXSCoordinatorProgress setTotalUnitsCompleted:]: Progress for coordinator: [com.linea.messenger.preview/Invalid/[system-defined]], Phase: IXCoordinatorProgressPhaseLoading, Percentage: 100.000000: Attempt to set units completed on finished progress: 100
+2026-11-12 22:02:21.603 Df installcoordinationd[4783:42373] [com.apple.installcoordination:daemon] -[IXSCoordinatedAppInstall _onQueue_acquireAssertionAndDoInstall]: Acquiring termination assertion to install [com.linea.messenger.preview/Invalid/[system-defined]]
+2026-11-12 22:02:21.603 Df installcoordinationd[4783:42373] [com.apple.installcoordination:daemon] -[IXSPendingOperationsTracker beginPendingOperationForIdentity:]_block_invoke: Beginning pending operation for [com.linea.messenger.preview/Invalid/[system-defined]]
+2026-11-12 22:02:21.606 Df installcoordinationd[4783:42372] [com.apple.installcoordination:daemon] -[IXSCoordinatedAppInstall _limitedConcurrency_fetchLoadingProgressForPlaceholderInstallType:progressHint:andRun:]: <IXSCoordinatedAppInstall<0x10b509ed0> [P=CoreSimulatorBridge (pid 772)] identifier:[com.linea.messenger.preview/Invalid/[system-defined]] uuid:187F671F-7B08-4B5B-AC3B-06BF069F14A4 intent:IXCoordinatorIntentInitiating creator/appDRI:InstallCoordination Simple SPI importance:UserWaiting state:IXAppCoordinationStateWaitingForInstallAssertion promise-state:PA2I4>: initiating loading progress with install type 1
+2026-11-12 22:02:21.607 Df installcoordinationd[4783:42372] [com.apple.appinstallation:TransactionLog] com.linea.messenger.preview/Unknown Persona:5:11:1:1:Updating PlaceholderMetadata for com.linea.messenger.preview with LSInstallType 1
+2026-11-12 22:02:21.607 Df runningboardd[737:41dc4] [com.apple.runningboard:connection] Received termination request from [osservice<com.apple.installcoordinationd>:4783] on <RBSProcessPredicate <RBSProcessBundleIdentifierPredicate "com.linea.messenger.preview">> with context <RBSTerminateContext| explanation:installcoordinationd app:[com.linea.messenger.preview/Invalid/[system-defined]] uuid:187F671F-7B08-4B5B-AC3B-06BF069F14A4 isPlaceholder:N reportType:None maxTerminationResistance:Absolute attrs:[
+	<RBSPreventLaunchLimitation| <RBSProcessPredicate <RBSProcessBundleIdentifierPredicate "com.linea.messenger.preview">> allow:(null)>
+	]>
+2026-11-12 22:02:21.609 Df runningboardd[737:41dc4] [com.apple.runningboard:general] failed to get LSApplicationRecord for com.linea.messenger.preview - probably OK
+2026-11-12 22:02:21.611 Df runningboardd[737:41dc4] [com.apple.runningboard:connection] skipping plugin hold for uninstalled proxy com.linea.messenger.preview
+2026-11-12 22:02:21.611 Df CoreSimulatorBridge[772:4281b] [com.apple.installcoordination:framework] -[IXAppInstallCoordinator _clientDelegate_placeholderDidInstallForApplicationRecord:]: <IXInitiatingAppInstallCoordinator<0x600001710680> identity:[com.linea.messenger.preview/Invalid/[system-defined]] uuid:187F671F-7B08-4B5B-AC3B-06BF069F14A4 creator:InstallCoordination Simple SPI>: Got placeholder did install delegate for app record { bundleID: com.linea.messenger.preview, URL: file:///Users/runner/Library/Developer/CoreSimulator/Devices/C15FAC2A-CB46-4F16-B882-3970BD44CFAD/data/Containers/Bundle/Application/F994925B-5A5E-4BE6-8DA4-ECF385443C4D/INVIZENT.app/ }
+2026-11-12 22:02:21.611 Df runningboardd[737:41dc4] [com.apple.runningboard:ttl] Acquiring assertion targeting system from originator [osservice<com.apple.installcoordinationd>:4783] with description <RBSAssertionDescriptor| "installcoordinationd app:[com.linea.messenger.preview/Invalid/[system-defined]] uuid:187F671F-7B08-4B5B-AC3B-06BF069F14A4 isPlaceholder:N" ID:737-4783-604 target:system attributes:[
+	<RBSPreventLaunchLimitation| <RBSProcessPredicate <RBSProcessBundleIdentifierPredicate "com.linea.messenger.preview">> allow:(null)>
+	]>
+2026-11-12 22:02:21.611 Df CoreSimulatorBridge[772:3eed2] [com.apple.installcoordination:framework] -[IXAppInstallCoordinator _clientDelegate_placeholderDidInstallForApplicationRecord:]_block_invoke: <IXInitiatingAppInstallCoordinator<0x600001710680> identity:[com.linea.messenger.preview/Invalid/[system-defined]] uuid:187F671F-7B08-4B5B-AC3B-06BF069F14A4 creator:InstallCoordination Simple SPI>: Observer <_IXSimpleInstallerDelegate 0x0x600000c14fc0> does not respond to coordinatorDidInstallPlaceholder:forApplicationRecord: (or any deprecated equivalent)
+2026-11-12 22:02:21.617 Df runningboardd[737:41dc4] [com.apple.runningboard:process] Executing termination request for: <RBSProcessPredicate <RBSProcessBundleIdentifierPredicate "com.linea.messenger.preview">>
+2026-11-12 22:02:21.618 Df lsd[832:4281c] [com.apple.launchservices:progress] Using publishing string "com.linea.messenger.preview.InstallingPlaceholder" for the first time
+2026-11-12 22:02:21.618 Df lsd[832:4281c] [com.apple.launchservices:progress] Parent progress for installation <NSProgress: com.linea.messenger.preview phase=InstallingPlaceholder; state=Finished; finalPhase=Installing; fractionCompleted=0.000000>, adding phase 3
+2026-11-12 22:02:21.619 Df lsd[832:4281c] [com.apple.launchservices:progress] #LSInstallProgressList add subscriber: <_NSProgressSubscriber: 0x600000c42dc0> publishingString: com.linea.messenger.preview.InstallingPlaceholder
+2026-11-12 22:02:21.619 Df lsd[832:4281c] [com.apple.launchservices:progress] Subscribing to com.linea.messenger.preview.InstallingPlaceholder
+2026-11-12 22:02:21.621 Df installcoordinationd[4783:42372] [com.apple.launchservices:progress] Published install progress <NSProgress: com.linea.messenger.preview.InstallingPlaceholder phase=InstallingPlaceholder; state=Waiting; finalPhase=Installing; fractionCompleted=0.000000>
+2026-11-12 22:02:21.622 Df installcoordinationd[4783:428c4] [com.apple.installcoordination:daemon] -[IXSCoordinatedAppInstall assertionTargetProcessDidExit:]: RBS termination assertion observer called for <IXSCoordinatedAppInstall<0x10b509ed0> [P=CoreSimulatorBridge (pid 772)] identifier:[com.linea.messenger.preview/Invalid/[system-defined]] uuid:187F671F-7B08-4B5B-AC3B-06BF069F14A4 intent:IXCoordinatorIntentInitiating creator/appDRI:InstallCoordination Simple SPI importance:UserWaiting state:IXAppCoordinationStateWaitingForInstallAssertion promise-state:PA2I4>
+2026-11-12 22:02:21.626 Df lsd[832:3ee07] [com.apple.launchservices:progress] unsubscribing from com.linea.messenger.preview.InstallingPlaceholder as it was unpublished
+2026-11-12 22:02:21.626 Df lsd[832:3ee07] [com.apple.launchservices:progress] #LSInstallProgressList remove subscriber: <_NSProgressSubscriber: 0x600000c42dc0> publishingString: com.linea.messenger.preview.InstallingPlaceholder
+2026-11-12 22:02:21.632 Df installd[4553:413b7] (MobileSystemServices) 0x700003fc2000 -[MIClientConnection updatePlaceholderMetadataForApp:installType:failureReason:underlyingError:failureSource:completion:]: Update placeholder metadata requested by client installcoordinationd (pid 4783 (501/20)) for app com.linea.messenger.preview installType = 1 failureReason = 0 underlyingError = (null) failureSource = 0
+2026-11-12 22:02:21.633 Df installd[4553:413b7] [com.apple.containermanager:xpc] Query; euid = 501, uid = 501, class = 1, identifier = [com.linea.messenger.preview](1), flags = 300000002
+2026-11-12 22:02:21.634 Df installcoordinationd[4783:42373] [com.apple.installcoordination:daemon] -[IXSCoordinatedAppInstall _onQueue_doInstall]: Acquired termination assertion for [com.linea.messenger.preview/Invalid/[system-defined]]; proceeding with install.
+2026-11-12 22:02:21.635 Df installcoordinationd[4783:42373] [com.apple.installcoordination:daemon] -[IXSPowerAssertion initWithAssertionName:details:]: Acquired power assertion IXPowerAssertion-12-[com.linea.messenger.preview/Invalid/[system-defined]]
+2026-11-12 22:02:21.635 Df installd[4553:413b7] [com.apple.containermanager:xpc] Query; euid = 501, uid = 501, class = 1, identifier = [com.linea.messenger.preview](1), flags = 300000002
+2026-11-12 22:02:21.652 Df lsd[832:4281c] [com.apple.appinstallation:TransactionLog] com.linea.messenger.preview/Unknown Persona:5:11:1:1:Updating bundle record for app (placeholderMetadata)
+2026-11-12 22:02:21.652 Df lsd[832:4281c] [com.apple.launchservices:default] Created bundleRecordUpdater for app com.linea.messenger.preview. flags=14000041202
+2026-11-12 22:02:21.652 Df lsd[832:4281c] [com.apple.launchservices:default] Updating database with (null) (null) {
+    LSInstallType = 1;
+    PlaceholderFailureReason = 0;
+} for com.linea.messenger.preview: did not actually need an update, and it was not forced, so skipping
+2026-11-12 22:02:21.652 Df lsd[832:4281c] [com.apple.appinstallation:TransactionLog] com.linea.messenger.preview/Unknown Persona:5:11:2:1:Updated bundle record (skipped)
+2026-11-12 22:02:21.654 Df lsd[832:4281c] [com.apple.launchservices:progress] Sending applicationsDidUpdateMetadata: for (
+    "com.linea.messenger.preview"
+)
+2026-11-12 22:02:21.655 Df nanotimekitcompaniond[4761:416fb] [com.apple.launchservices:appinstallation] LaunchServices observer: MetadataUpdate (
+    "com.linea.messenger.preview"
+)
+2026-11-12 22:02:21.655 Df homed[861:3f177] [com.apple.launchservices:appinstallation] LaunchServices observer: MetadataUpdate (
+    "com.linea.messenger.preview"
+)
+2026-11-12 22:02:21.655 Df donotdisturbd[831:41997] [com.apple.launchservices:appinstallation] LaunchServices observer: MetadataUpdate (
+    "com.linea.messenger.preview"
+)
+2026-11-12 22:02:21.655 Df nsurlsessiond[815:42425] [com.apple.launchservices:appinstallation] LaunchServices observer: MetadataUpdate (
+    "com.linea.messenger.preview"
+)
+2026-11-12 22:02:21.656 Df runningboardd[737:41dc4] [com.apple.launchservices:appinstallation] LaunchServices observer: MetadataUpdate (
+    "com.linea.messenger.preview"
+)
+2026-11-12 22:02:21.656 Df dasd[768:4000c] [com.apple.launchservices:appinstallation] LaunchServices observer: MetadataUpdate (
+    "com.linea.messenger.preview"
+)
+2026-11-12 22:02:21.657 Df liveactivitiesd[850:4196c] [com.apple.launchservices:appinstallation] LaunchServices observer: MetadataUpdate (
+    "com.linea.messenger.preview"
+)
+2026-11-12 22:02:21.657 Df gamed[4772:41e7d] [com.apple.launchservices:appinstallation] LaunchServices observer: MetadataUpdate (
+    "com.linea.messenger.preview"
+)
+2026-11-12 22:02:21.657 Df activityawardsd[4811:4283f] [com.apple.launchservices:appinstallation] LaunchServices observer: MetadataUpdate (
+    "com.linea.messenger.preview"
+)
+2026-11-12 22:02:21.660 Df sleepd[769:42821] [com.apple.launchservices:appinstallation] LaunchServices observer: MetadataUpdate (
+    "com.linea.messenger.preview"
+)
+2026-11-12 22:02:21.660 Df financed[893:3f0d4] [com.apple.launchservices:appinstallation] LaunchServices observer: MetadataUpdate (
+    "com.linea.messenger.preview"
+)
+2026-11-12 22:02:21.661 Df mobiletimerd[752:425e6] [com.apple.launchservices:appinstallation] LaunchServices observer: MetadataUpdate (
+    "com.linea.messenger.preview"
+)
+2026-11-12 22:02:21.662 Df passd[771:414f8] [com.apple.launchservices:appinstallation] LaunchServices observer: MetadataUpdate (
+    "com.linea.messenger.preview"
+)
+2026-11-12 22:02:21.662 Df deviceaccessd[4762:42843] [com.apple.launchservices:appinstallation] LaunchServices observer: MetadataUpdate (
+    "com.linea.messenger.preview"
+)
+2026-11-12 22:02:21.663 Df profiled[4796:4183b] [com.apple.launchservices:appinstallation] LaunchServices observer: MetadataUpdate (
+    "com.linea.messenger.preview"
+)
+2026-11-12 22:02:21.663 Df callservicesd[855:41ae4] [com.apple.launchservices:appinstallation] LaunchServices observer: MetadataUpdate (
+    "com.linea.messenger.preview"
+)
+2026-11-12 22:02:21.666 Df clipserviced[863:428b0] [com.apple.launchservices:appinstallation] LaunchServices observer: MetadataUpdate (
+    "com.linea.messenger.preview"
+)
+2026-11-12 22:02:21.669 Df locationd[766:3ee02] [com.apple.launchservices:appinstallation] LaunchServices observer: MetadataUpdate (
+    "com.linea.messenger.preview"
+)
+2026-11-12 22:02:21.669 Df appstored[4767:416b3] [com.apple.launchservices:appinstallation] LaunchServices observer: MetadataUpdate (
+    "com.linea.messenger.preview"
+)
+2026-11-12 22:02:21.676 Df lsd[832:4281c] [com.apple.appinstallation:TransactionLog] com.linea.messenger.preview/Unknown Persona:5:11:1:1:Updating bundle record for app (placeholderMetadata)
+2026-11-12 22:02:21.677 Df lsd[832:4281c] [com.apple.launchservices:default] Created bundleRecordUpdater for app com.linea.messenger.preview. flags=14000041202
+2026-11-12 22:02:21.677 Df lsd[832:4281c] [com.apple.launchservices:default] Updating database with (null) (null) {
+    LSInstallType = 1;
+} for com.linea.messenger.preview: did not actually need an update, and it was not forced, so skipping
+2026-11-12 22:02:21.677 Df lsd[832:4281c] [com.apple.appinstallation:TransactionLog] com.linea.messenger.preview/Unknown Persona:5:11:2:1:Updated bundle record (skipped)
+2026-11-12 22:02:21.679 Df routined[742:419de] [com.apple.launchservices:appinstallation] LaunchServices observer: MetadataUpdate (
+    "com.linea.messenger.preview"
+)
+2026-11-12 22:02:21.684 Df lsd[832:428c2] [com.apple.launchservices:progress] Sending applicationInstallsDidStart: for (
+    "<LSApplicationProxy: 0x600003709f80> com.linea.messenger.preview file:///Users/runner/Library/Developer/CoreSimulator/Devices/C15FAC2A-CB46-4F16-B882-3970BD44CFAD/data/Containers/Bundle/Application/F994925B-5A5E-4BE6-8DA4-ECF385443C4D/INVIZENT.app/ <com.linea.messenger.preview <placeholder >:1>"
+)
+2026-11-12 22:02:21.684 Df installcoordinationd[4783:42372] [com.apple.appinstallation:TransactionLog] com.linea.messenger.preview/Unknown Persona:5:11:2:1:Updated Placeholder install type with error (null)
+2026-11-12 22:02:21.684 Df installcoordinationd[4783:42372] [com.apple.appinstallation:TransactionLog] com.linea.messenger.preview/Unknown Persona:5:11:2:1:Updated PlaceholderMetadata for app with error (null)
+2026-11-12 22:02:21.697 Df nanotimekitcompaniond[4761:416fb] [com.apple.launchservices:appinstallation] LaunchServices observer: InstallsStarted (
+    "<LSApplicationProxy: 0x6000037000c0> com.linea.messenger.preview file:///Users/runner/Library/Developer/CoreSimulator/Devices/C15FAC2A-CB46-4F16-B882-3970BD44CFAD/data/Containers/Bundle/Application/F994925B-5A5E-4BE6-8DA4-ECF385443C4D/INVIZENT.app/ <com.linea.messenger.preview <placeholder >:1>"
+)
+2026-11-12 22:02:21.700 Df donotdisturbd[831:41997] [com.apple.launchservices:appinstallation] LaunchServices observer: InstallsStarted (
+    "<LSApplicationProxy: 0x600003700480> com.linea.messenger.preview file:///Users/runner/Library/Developer/CoreSimulator/Devices/C15FAC2A-CB46-4F16-B882-3970BD44CFAD/data/Containers/Bundle/Application/F994925B-5A5E-4BE6-8DA4-ECF385443C4D/INVIZENT.app/ <com.linea.messenger.preview <placeholder >:1>"
+)
+2026-11-12 22:02:21.704 Df dasd[768:3ed8c] [com.apple.launchservices:appinstallation] LaunchServices observer: InstallsStarted (
+    "<LSApplicationProxy: 0x6000037049c0> com.linea.messenger.preview file:///Users/runner/Library/Developer/CoreSimulator/Devices/C15FAC2A-CB46-4F16-B882-3970BD44CFAD/data/Containers/Bundle/Application/F994925B-5A5E-4BE6-8DA4-ECF385443C4D/INVIZENT.app/ <com.linea.messenger.preview <placeholder >:1>"
+)
+2026-11-12 22:02:21.727 Df runningboardd[737:3efab] [com.apple.launchservices:appinstallation] LaunchServices observer: InstallsStarted (
+    "<LSApplicationProxy: 0x60000370c840> com.linea.messenger.preview file:///Users/runner/Library/Developer/CoreSimulator/Devices/C15FAC2A-CB46-4F16-B882-3970BD44CFAD/data/Containers/Bundle/Application/F994925B-5A5E-4BE6-8DA4-ECF385443C4D/INVIZENT.app/ <com.linea.messenger.preview <placeholder >:1>"
+)
+2026-11-12 22:02:21.727 Df gamed[4772:41e7d] [com.apple.launchservices:appinstallation] LaunchServices observer: InstallsStarted (
+    "<LSApplicationProxy: 0x600003700b40> com.linea.messenger.preview file:///Users/runner/Library/Developer/CoreSimulator/Devices/C15FAC2A-CB46-4F16-B882-3970BD44CFAD/data/Containers/Bundle/Application/F994925B-5A5E-4BE6-8DA4-ECF385443C4D/INVIZENT.app/ <com.linea.messenger.preview <placeholder >:1>"
+)
+2026-11-12 22:02:21.729 Df routined[742:419de] [com.apple.launchservices:appinstallation] LaunchServices observer: InstallsStarted (
+    "<LSApplicationProxy: 0x6000037083c0> com.linea.messenger.preview file:///Users/runner/Library/Developer/CoreSimulator/Devices/C15FAC2A-CB46-4F16-B882-3970BD44CFAD/data/Containers/Bundle/Application/F994925B-5A5E-4BE6-8DA4-ECF385443C4D/INVIZENT.app/ <com.linea.messenger.preview <placeholder >:1>"
+)
+2026-11-12 22:02:21.730 Df nsurlsessiond[815:42425] [com.apple.launchservices:appinstallation] LaunchServices observer: InstallsStarted (
+    "<LSApplicationProxy: 0x600003704a80> com.linea.messenger.preview file:///Users/runner/Library/Developer/CoreSimulator/Devices/C15FAC2A-CB46-4F16-B882-3970BD44CFAD/data/Containers/Bundle/Application/F994925B-5A5E-4BE6-8DA4-ECF385443C4D/INVIZENT.app/ <com.linea.messenger.preview <placeholder >:1>"
+)
+2026-11-12 22:02:21.731 Df liveactivitiesd[850:419e6] [com.apple.launchservices:appinstallation] LaunchServices observer: InstallsStarted (
+    "<LSApplicationProxy: 0x6000037046c0> com.linea.messenger.preview file:///Users/runner/Library/Developer/CoreSimulator/Devices/C15FAC2A-CB46-4F16-B882-3970BD44CFAD/data/Containers/Bundle/Application/F994925B-5A5E-4BE6-8DA4-ECF385443C4D/INVIZENT.app/ <com.linea.messenger.preview <placeholder >:1>"
+)
+2026-11-12 22:02:21.733 Df activityawardsd[4811:4283f] [com.apple.launchservices:appinstallation] LaunchServices observer: InstallsStarted (
+    "<LSApplicationProxy: 0x600003704180> com.linea.messenger.preview file:///Users/runner/Library/Developer/CoreSimulator/Devices/C15FAC2A-CB46-4F16-B882-3970BD44CFAD/data/Containers/Bundle/Application/F994925B-5A5E-4BE6-8DA4-ECF385443C4D/INVIZENT.app/ <com.linea.messenger.preview <placeholder >:1>"
+)
+2026-11-12 22:02:21.736 Df sleepd[769:42821] [com.apple.launchservices:appinstallation] LaunchServices observer: InstallsStarted (
+    "<LSApplicationProxy: 0x600003700780> com.linea.messenger.preview file:///Users/runner/Library/Developer/CoreSimulator/Devices/C15FAC2A-CB46-4F16-B882-3970BD44CFAD/data/Containers/Bundle/Application/F994925B-5A5E-4BE6-8DA4-ECF385443C4D/INVIZENT.app/ <com.linea.messenger.preview <placeholder >:1>"
+)
+2026-11-12 22:02:21.738 Df financed[893:3f0d4] [com.apple.launchservices:appinstallation] LaunchServices observer: InstallsStarted (
+    "<LSApplicationProxy: 0x600003724f00> com.linea.messenger.preview file:///Users/runner/Library/Developer/CoreSimulator/Devices/C15FAC2A-CB46-4F16-B882-3970BD44CFAD/data/Containers/Bundle/Application/F994925B-5A5E-4BE6-8DA4-ECF385443C4D/INVIZENT.app/ <com.linea.messenger.preview <placeholder >:1>"
+)
+2026-11-12 22:02:21.741 Df homed[861:41592] [com.apple.launchservices:appinstallation] LaunchServices observer: InstallsStarted (
+    "<LSApplicationProxy: 0x600003700a80> com.linea.messenger.preview file:///Users/runner/Library/Developer/CoreSimulator/Devices/C15FAC2A-CB46-4F16-B882-3970BD44CFAD/data/Containers/Bundle/Application/F994925B-5A5E-4BE6-8DA4-ECF385443C4D/INVIZENT.app/ <com.linea.messenger.preview <placeholder >:1>"
+)
+2026-11-12 22:02:21.743 Df passd[771:414a3] [com.apple.launchservices:appinstallation] LaunchServices observer: InstallsStarted (
+    "<LSApplicationProxy: 0x600003709140> com.linea.messenger.preview file:///Users/runner/Library/Developer/CoreSimulator/Devices/C15FAC2A-CB46-4F16-B882-3970BD44CFAD/data/Containers/Bundle/Application/F994925B-5A5E-4BE6-8DA4-ECF385443C4D/INVIZENT.app/ <com.linea.messenger.preview <placeholder >:1>"
+)
+2026-11-12 22:02:21.745 Df deviceaccessd[4762:415bc] [com.apple.launchservices:appinstallation] LaunchServices observer: InstallsStarted (
+    "<LSApplicationProxy: 0x600003704180> com.linea.messenger.preview file:///Users/runner/Library/Developer/CoreSimulator/Devices/C15FAC2A-CB46-4F16-B882-3970BD44CFAD/data/Containers/Bundle/Application/F994925B-5A5E-4BE6-8DA4-ECF385443C4D/INVIZENT.app/ <com.linea.messenger.preview <placeholder >:1>"
+)
+2026-11-12 22:02:21.750 Df profiled[4796:4183b] [com.apple.launchservices:appinstallation] LaunchServices observer: InstallsStarted (
+    "<LSApplicationProxy: 0x600003709c80> com.linea.messenger.preview file:///Users/runner/Library/Developer/CoreSimulator/Devices/C15FAC2A-CB46-4F16-B882-3970BD44CFAD/data/Containers/Bundle/Application/F994925B-5A5E-4BE6-8DA4-ECF385443C4D/INVIZENT.app/ <com.linea.messenger.preview <placeholder >:1>"
+)
+2026-11-12 22:02:21.753 Df callservicesd[855:41ae4] [com.apple.launchservices:appinstallation] LaunchServices observer: InstallsStarted (
+    "<LSApplicationProxy: 0x10d150a80> com.linea.messenger.preview file:///Users/runner/Library/Developer/CoreSimulator/Devices/C15FAC2A-CB46-4F16-B882-3970BD44CFAD/data/Containers/Bundle/Application/F994925B-5A5E-4BE6-8DA4-ECF385443C4D/INVIZENT.app/ <com.linea.messenger.preview <placeholder >:1>"
+)
+2026-11-12 22:02:21.759 Df clipserviced[863:40082] [com.apple.launchservices:appinstallation] LaunchServices observer: InstallsStarted (
+    "<LSApplicationProxy: 0x600003704240> com.linea.messenger.preview file:///Users/runner/Library/Developer/CoreSimulator/Devices/C15FAC2A-CB46-4F16-B882-3970BD44CFAD/data/Containers/Bundle/Application/F994925B-5A5E-4BE6-8DA4-ECF385443C4D/INVIZENT.app/ <com.linea.messenger.preview <placeholder >:1>"
+)
+2026-11-12 22:02:21.778 Df SpringBoard[734:3ecf7] [com.apple.appinstallation:TransactionLog] com.linea.messenger.preview/Unknown Persona:10:1:3:1:Created icon for placeholder.
+2026-11-12 22:02:21.784 Df locationd[766:428b1] [com.apple.launchservices:appinstallation] LaunchServices observer: InstallsStarted (
+    "<LSApplicationProxy: 0x600003708fc0> com.linea.messenger.preview file:///Users/runner/Library/Developer/CoreSimulator/Devices/C15FAC2A-CB46-4F16-B882-3970BD44CFAD/data/Containers/Bundle/Application/F994925B-5A5E-4BE6-8DA4-ECF385443C4D/INVIZENT.app/ <com.linea.messenger.preview <placeholder >:1>"
+)
+2026-11-12 22:02:21.786 Df SpringBoard[734:3ecf7] [com.apple.frontboard.ApplicationLibrary:sb.placeholder] Placeholders added: (
+    "<SBApplicationPlaceholder: 0x600000d9a580; bundleIdentifier: com.linea.messenger.preview; displayName: INVIZENT>"
+), modified: (
+), removed: (null)
+2026-11-12 22:02:21.786 Df lsd[832:428c2] [com.apple.launchservices:progress] Sent distributed notification com.apple.LaunchServices.applicationRegistered with payload {
+    bundleIDs =     (
+        "com.linea.messenger.preview"
+    );
+    isPlaceholder = 1;
+}
+2026-11-12 22:02:21.787 Df SpringBoard[734:3ecf7] [com.apple.SpringBoard:Widgets] handleRemovedDataSource:<SBApplicationPlaceholder: 0x600000d9a580; bundleIdentifier: com.linea.messenger.preview; displayName: INVIZENT> ofIcon:<SBApplicationIcon: 0x60000332f8e0; nodeID: com.linea.messenger.preview; bundleID: com.linea.messenger.preview>
+2026-11-12 22:02:21.787 Df SpringBoard[734:3ecf7] [com.apple.SpringBoard:Icon] <<SBLeafIcon:0x60000332f8e0 [com.linea.messenger.preview]>> Changing active data source: <SBApplicationIcon: 0x60000332f8e0; nodeID: com.linea.messenger.preview; bundleID: com.linea.messenger.preview>
+2026-11-12 22:02:21.787 Df SpringBoard[734:3ecf7] [com.apple.SpringBoard:Icon] <<SBLeafIcon:0x60000332f8e0 [com.linea.messenger.preview]>> Changing from data souce: (null) to data source:com.linea.messenger.preview.
+2026-11-12 22:02:21.800 Df siriactionsd[869:4155e] [com.apple.shortcuts:Daemon] Dispatching XPC event: <distributed notification: com.apple.LaunchServices.applicationRegistered, userInfo: [AnyHashable("bundleIDs"): <__NSSingleObjectArrayI 0x600000004200>(
+com.linea.messenger.preview
+)
+, AnyHashable("isPlaceholder"): 1]>
+2026-11-12 22:02:21.800 Df siriactionsd[869:4155e] [com.apple.shortcuts:XPCEvent] Dispatching XPC event: <distributed notification: com.apple.LaunchServices.applicationRegistered, userInfo: [AnyHashable("bundleIDs"): <__NSSingleObjectArrayI 0x600000004200>(
+com.linea.messenger.preview
+)
+, AnyHashable("isPlaceholder"): 1]>
+2026-11-12 22:02:21.801 Df dmd[4763:41598] Received xpc stream event (distributed notification matching) with name: com.apple.LaunchServices.applicationRegistered user info: {
+    bundleIDs =     (
+        "com.linea.messenger.preview"
+    );
+    isPlaceholder = 1;
+}
+2026-11-12 22:02:21.803 Df appprotectiond[757:41ce3] [com.apple.appprotection:server] Received distnoted event <dictionary: 0x600003e03c00> { count = 3, transaction: 0, voucher = 0x6000021080f0, contents =
+	"UserInfo" => <dictionary: 0x600002604180> { count = 2, transaction: 0, voucher = 0x0, contents =
+		"isPlaceholder" => <bool: 0x7ff840008670>: true
+		"bundleIDs" => <array: 0x600000c18810> { count = 1, capacity = 1, contents =
+			0: <string: 0x600000c19920> { string cache = 0x0, length = 27, contents = "com.linea.messenger.preview" }
+		}
+	}
+	"Name" => <string: 0x600000c1af40> { string cache = 0x0, length = 46, contents = "com.apple.LaunchServices.applicationRegistered" }
+	"XPCEventName" => <string: 0x600000c18420> { string cache = 0x0, length = 21, contents = "ApplicationRegistered" }
+}
+2026-11-12 22:02:21.803 Df appprotectiond[757:41ce3] [com.apple.appprotection:server] received note: name = com.apple.LaunchServices.applicationRegistered, object = Optional(AppProtection.DistnotedXPCEventStreamTranslator), userInfo = Optional([AnyHashable("isPlaceholder"): 1, AnyHashable("bundleIDs"): <__NSSingleObjectArrayI 0x600000004590>(
+com.linea.messenger.preview
+)
+])
+2026-11-12 22:02:21.804 Df appprotectiond[757:41ce3] [com.apple.appprotection:server] processing settings authority event: SettingsAuthorityEvent.promotePreferenceFromProvisionalForApplication(com.linea.messenger.preview)
+2026-11-12 22:02:21.806 E  intents_helper[4809:4284d] [com.apple.siri:Intents] -[INHService loadSchemaURLsForBundleIdentifiers:completion:] Error getting bundle record for bundle identifier com.linea.messenger.preview: Error Domain=NSOSStatusErrorDomain Code=-10814 "(null)" UserInfo={_LSLine=156, _LSFunction=+[LSBundleRecord bundleRecordWithBundleIdentifier:allowPlaceholder:error:], _LSFile=LSBundleRecord.mm, NSUnderlyingError=0x600000cc0210 {Error Domain=NSOSStatusErrorDomain Code=-10814 "Unable to find this application extension record in the Launch Services database." UserInfo={_LSLine=652, _LSFunction=_LSPluginFindWithPlatformInfo, _LSFile=LSPluginBundle.mm, NSDebugDescription=Unable to find this application extension record in the Launch Services database., SK=com.linea.messenger.preview, IS=false}}}
+2026-11-12 22:02:21.846 Df appstored[4767:416b3] [com.apple.launchservices:appinstallation] LaunchServices observer: InstallsStarted (
+    "<LSApplicationProxy: 0x600003701080> com.linea.messenger.preview file:///Users/runner/Library/Developer/CoreSimulator/Devices/C15FAC2A-CB46-4F16-B882-3970BD44CFAD/data/Containers/Bundle/Application/F994925B-5A5E-4BE6-8DA4-ECF385443C4D/INVIZENT.app/ <com.linea.messenger.preview <placeholder >:1>"
+)
+2026-11-12 22:02:21.866 Df lsd[832:4281c] [com.apple.launchservices:progress] Setting progress proportions for com.linea.messenger.preview to {
+    0 = "0.6";
+    1 = "0.4";
+    4 = 0;
+}, error is (null)
+2026-11-12 22:02:21.870 Df installcoordinationd[4783:42372] [com.apple.installcoordination:daemon] -[IXSCoordinatedAppInstall _limitedConcurrency_setUpLSProgressForInstallType:progressHint:]: <IXSCoordinatedAppInstall<0x10b509ed0> [P=CoreSimulatorBridge (pid 772)] identifier:[com.linea.messenger.preview/Invalid/[system-defined]] uuid:187F671F-7B08-4B5B-AC3B-06BF069F14A4 intent:IXCoordinatorIntentInitiating creator/appDRI:InstallCoordination Simple SPI importance:UserWaiting state:IXAppCoordinationStateWaitingForInstall promise-state:PA2I4>: Set progress proportions to {
+    0 = "0.6";
+    1 = "0.4";
+    4 = 0;
+}
+2026-11-12 22:02:21.876 Df mobiletimerd[752:425e6] [com.apple.launchservices:appinstallation] LaunchServices observer: InstallsStarted (
+    "<LSApplicationProxy: 0x60000370c600> com.linea.messenger.preview file:///Users/runner/Library/Developer/CoreSimulator/Devices/C15FAC2A-CB46-4F16-B882-3970BD44CFAD/data/Containers/Bundle/Application/F994925B-5A5E-4BE6-8DA4-ECF385443C4D/INVIZENT.app/ <com.linea.messenger.preview <placeholder >:1>"
+)
+2026-11-12 22:02:21.878 Df lsd[832:428c3] [com.apple.launchservices:progress] Using publishing string "com.linea.messenger.preview.Loading" for the first time
+2026-11-12 22:02:21.878 Df lsd[832:428c3] [com.apple.launchservices:progress] Updating installPhase for <NSProgress: com.linea.messenger.preview phase=InstallingPlaceholder; state=Finished; finalPhase=Installing; fractionCompleted=0.000000> to 0
+2026-11-12 22:02:21.878 Df lsd[832:428c3] [com.apple.launchservices:progress] Parent progress for installation <NSProgress: com.linea.messenger.preview phase=Loading; state=Finished; finalPhase=Installing; fractionCompleted=0.000000>, adding phase 0
+2026-11-12 22:02:21.879 Df lsd[832:428c3] [com.apple.launchservices:progress] #LSInstallProgressList add subscriber: <_NSProgressSubscriber: 0x600000c152c0> publishingString: com.linea.messenger.preview.Loading
+2026-11-12 22:02:21.879 Df lsd[832:428c3] [com.apple.launchservices:progress] Subscribing to com.linea.messenger.preview.Loading
+2026-11-12 22:02:21.879 Df installcoordinationd[4783:42372] [com.apple.launchservices:progress] Published install progress <NSProgress: com.linea.messenger.preview.Loading phase=Loading; state=Waiting; finalPhase=Installing; fractionCompleted=0.000000>
+2026-11-12 22:02:21.881 Df CoreSimulatorBridge[772:3eed2] [com.apple.installcoordination:framework] -[IXAppInstallCoordinator _clientDelegate_didUpdateProgress:forPhase:overallProgress:]: <IXInitiatingAppInstallCoordinator<0x600001710680> identity:[com.linea.messenger.preview/Invalid/[system-defined]] uuid:187F671F-7B08-4B5B-AC3B-06BF069F14A4 creator:InstallCoordination Simple SPI>: Got did update progress delegate with percentComplete 100.000000 phase IXCoordinatorProgressPhaseLoading overallProgress 60.000000
+2026-11-12 22:02:21.882 Df CoreSimulatorBridge[772:3eed2] [com.apple.installcoordination:framework] -[IXAppInstallCoordinator _clientDelegate_didUpdateProgress:forPhase:overallProgress:]_block_invoke: <IXInitiatingAppInstallCoordinator<0x600001710680> identity:[com.linea.messenger.preview/Invalid/[system-defined]] uuid:187F671F-7B08-4B5B-AC3B-06BF069F14A4 creator:InstallCoordination Simple SPI>: Calling selector coordinator:didUpdateProgress:forPhase:overallProgress: on observer <_IXSimpleInstallerDelegate 0x0x600000c14fc0>
+2026-11-12 22:02:21.885 Df lsd[832:3ee07] [com.apple.launchservices:progress] unsubscribing from com.linea.messenger.preview.Loading as it was unpublished
+2026-11-12 22:02:21.886 Df lsd[832:3ee07] [com.apple.launchservices:progress] #LSInstallProgressList remove subscriber: <_NSProgressSubscriber: 0x600000c152c0> publishingString: com.linea.messenger.preview.Loading
+2026-11-12 22:02:21.891 Df lsd[832:428c3] [com.apple.launchservices:progress] Using publishing string "com.linea.messenger.preview.Installing" for the first time
+2026-11-12 22:02:21.894 Df lsd[832:428c3] [com.apple.launchservices:progress] Updating installPhase for <NSProgress: com.linea.messenger.preview phase=Loading; state=Active; finalPhase=Installing; fractionCompleted=0.600000> to 1
+2026-11-12 22:02:21.899 Df lsd[832:428c3] [com.apple.launchservices:progress] Parent progress for installation <NSProgress: com.linea.messenger.preview phase=Installing; state=Active; finalPhase=Installing; fractionCompleted=0.600000>, adding phase 1
+2026-11-12 22:02:21.904 Df lsd[832:428c3] [com.apple.launchservices:progress] #LSInstallProgressList add subscriber: <_NSProgressSubscriber: 0x600000c181b0> publishingString: com.linea.messenger.preview.Installing
+2026-11-12 22:02:21.904 Df lsd[832:428c3] [com.apple.launchservices:progress] Subscribing to com.linea.messenger.preview.Installing
+2026-11-12 22:02:21.904 Df installcoordinationd[4783:42384] [com.apple.launchservices:progress] Published install progress <NSProgress: com.linea.messenger.preview.Installing phase=Installing; state=Waiting; finalPhase=Installing; fractionCompleted=0.000000>
+2026-11-12 22:02:21.923 Df installd[4553:416b0] (MobileSystemServices) 0x70000414b000 -[MIClientConnection _doInstallationForURL:identity:domain:options:operationType:completion:]: Install of "/Users/runner/Library/Developer/CoreSimulator/Devices/C15FAC2A-CB46-4F16-B882-3970BD44CFAD/data/Containers/Shared/SystemGroup/systemgroup.com.apple.installcoordinationd/Library/InstallCoordination/PromiseStaging/D87A701C-9723-45D1-8D46-CCA503544578/INVIZENT.app" type Developer (LSInstallType = 0, Domain: MIInstallationDomainDefault) requested by installcoordinationd (pid 4783 (501/20))
+2026-11-12 22:02:21.957 Df SpringBoard[734:3ecf7] [com.apple.launchservices:progress] Got progress <NSProgress: com.linea.messenger.preview phase=InstallingPlaceholder; state=Finished; finalPhase=Installing; fractionCompleted=0.000000> for app com.linea.messenger.preview,
+2026-11-12 22:02:21.957 Df SpringBoard[734:418be] [com.apple.launchservices:appinstallation] LaunchServices observer: MetadataUpdate (
+    "com.linea.messenger.preview"
+)
+2026-11-12 22:02:21.962 Df SpringBoard[734:418be] [com.apple.launchservices:appinstallation] LaunchServices observer: InstallsStarted (
+    "<LSApplicationProxy: 0x6000037c2040> com.linea.messenger.preview file:///Users/runner/Library/Developer/CoreSimulator/Devices/C15FAC2A-CB46-4F16-B882-3970BD44CFAD/data/Containers/Bundle/Application/F994925B-5A5E-4BE6-8DA4-ECF385443C4D/INVIZENT.app/ <com.linea.messenger.preview <placeholder >:1>"
+)
+2026-11-12 22:02:21.963 Df SpringBoard[734:418be] [com.apple.frontboard.ApplicationLibrary:observer] -[FBSApplicationLibrary applicationInstallsDidStart:] com.linea.messenger.preview
+2026-11-12 22:02:22.175 Df CoreSimulatorBridge[772:3eed2] [com.apple.installcoordination:framework] -[IXAppInstallCoordinator _clientDelegate_didUpdateProgress:forPhase:overallProgress:]: <IXInitiatingAppInstallCoordinator<0x600001710680> identity:[com.linea.messenger.preview/Invalid/[system-defined]] uuid:187F671F-7B08-4B5B-AC3B-06BF069F14A4 creator:InstallCoordination Simple SPI>: Got did update progress delegate with percentComplete 5.000000 phase IXCoordinatorProgressPhaseInstalling overallProgress 62.000000
+2026-11-12 22:02:22.175 Df CoreSimulatorBridge[772:3eed2] [com.apple.installcoordination:framework] -[IXAppInstallCoordinator _clientDelegate_didUpdateProgress:forPhase:overallProgress:]_block_invoke: <IXInitiatingAppInstallCoordinator<0x600001710680> identity:[com.linea.messenger.preview/Invalid/[system-defined]] uuid:187F671F-7B08-4B5B-AC3B-06BF069F14A4 creator:InstallCoordination Simple SPI>: Calling selector coordinator:didUpdateProgress:forPhase:overallProgress: on observer <_IXSimpleInstallerDelegate 0x0x600000c14fc0>
+2026-11-12 22:02:22.177 Df CoreSimulatorBridge[772:3eed2] [com.apple.installcoordination:framework] -[IXAppInstallCoordinator _clientDelegate_didUpdateProgress:forPhase:overallProgress:]: <IXInitiatingAppInstallCoordinator<0x600001710680> identity:[com.linea.messenger.preview/Invalid/[system-defined]] uuid:187F671F-7B08-4B5B-AC3B-06BF069F14A4 creator:InstallCoordination Simple SPI>: Got did update progress delegate with percentComplete 15.000000 phase IXCoordinatorProgressPhaseInstalling overallProgress 66.000000
+2026-11-12 22:02:22.177 Df CoreSimulatorBridge[772:3eed2] [com.apple.installcoordination:framework] -[IXAppInstallCoordinator _clientDelegate_didUpdateProgress:forPhase:overallProgress:]: <IXInitiatingAppInstallCoordinator<0x600001710680> identity:[com.linea.messenger.preview/Invalid/[system-defined]] uuid:187F671F-7B08-4B5B-AC3B-06BF069F14A4 creator:InstallCoordination Simple SPI>: Got did update progress delegate with percentComplete 20.000000 phase IXCoordinatorProgressPhaseInstalling overallProgress 68.000000
+2026-11-12 22:02:22.177 Df CoreSimulatorBridge[772:3eed2] [com.apple.installcoordination:framework] -[IXAppInstallCoordinator _clientDelegate_didUpdateProgress:forPhase:overallProgress:]_block_invoke: <IXInitiatingAppInstallCoordinator<0x600001710680> identity:[com.linea.messenger.preview/Invalid/[system-defined]] uuid:187F671F-7B08-4B5B-AC3B-06BF069F14A4 creator:InstallCoordination Simple SPI>: Calling selector coordinator:didUpdateProgress:forPhase:overallProgress: on observer <_IXSimpleInstallerDelegate 0x0x600000c14fc0>
+2026-11-12 22:02:22.177 Df CoreSimulatorBridge[772:3eed2] [com.apple.installcoordination:framework] -[IXAppInstallCoordinator _clientDelegate_didUpdateProgress:forPhase:overallProgress:]_block_invoke: <IXInitiatingAppInstallCoordinator<0x600001710680> identity:[com.linea.messenger.preview/Invalid/[system-defined]] uuid:187F671F-7B08-4B5B-AC3B-06BF069F14A4 creator:InstallCoordination Simple SPI>: Calling selector coordinator:didUpdateProgress:forPhase:overallProgress: on observer <_IXSimpleInstallerDelegate 0x0x600000c14fc0>
+2026-11-12 22:02:22.188 Df installd[4553:416b0] [com.apple.containermanager:xpc] Query; euid = 501, uid = 501, class = 1, identifier = [com.linea.messenger.preview](1), flags = 300000002
+2026-11-12 22:02:22.240 Df appstored[4767:428cd] [com.apple.launchservices:progress] #LSInstallProgressList add subscriber: <_NSProgressSubscriber: 0x600000c22670> publishingString: com.linea.messenger.preview
+2026-11-12 22:02:22.240 Df appstored[4767:4159a] [com.apple.launchservices:progress] Got progress <NSProgress: com.linea.messenger.preview phase=Installing; state=Active; finalPhase=Installing; fractionCompleted=0.620000> for app com.linea.messenger.preview,
+2026-11-12 22:02:22.254 Df installd[4553:416b0] [com.apple.containermanager:xpc] Query; euid = 501, uid = 501, class = 1, identifier = [com.linea.messenger.preview](1), flags = 300000002
+2026-11-12 22:02:22.264 Df appstored[4767:428cd] [com.apple.launchservices:progress] Subscribing to progress for app com.linea.messenger.preview,
+2026-11-12 22:02:22.275 Df lsd[832:428c3] [com.apple.launchservices:appinstallation] Save after update app record for bundle com.linea.messenger.preview attempted: 1 save error: (null)
+2026-11-12 22:02:22.277 Df installd[4553:413b7] (MobileSystemServices) 0x700003fc2000 -[MILaunchServicesOperationManager _onQueue_removePendingLaunchServicesOperationForUUID:dueToLSSave:]: Removing operation after LS save: <MILaunchServicesRegisterOperation: 6D23F7F1-2665-4E96-9CF6-47241AFD7F20:1 com.linea.messenger.preview/MIInstallationDomainSystemShared personas:[com.apple.containermanager.primary-persona]>
+2026-11-12 22:02:22.317 Df installcoordinationd[4783:428d6] [com.apple.installcoordination:daemon] -[IXSCoordinatorProgress setTotalUnitsCompleted:]: Progress for coordinator: [com.linea.messenger.preview/Invalid/[system-defined]], Phase: IXCoordinatorProgressPhaseInstalling, Percentage: 20.000000: Attempt to set units completed on finished progress: 20
+2026-11-12 22:02:22.317 Df installd[4553:416b0] [com.apple.containermanager:xpc] Query; euid = 501, uid = 501, class = 1, identifier = [com.linea.messenger.preview](1), flags = 300000002
+2026-11-12 22:02:22.319 Df installd[4553:416b0] [com.apple.containermanager:xpc] Query; euid = 501, uid = 501, class = 1, identifier = [com.linea.messenger.preview](1), flags = 300000002
+2026-11-12 22:02:22.470 Df installd[4553:416b0] (MobileSystemServices) 0x70000414b000 -[MIInstaller _installInstallable:containingSymlink:error:]: Installing <MIInstallableBundle ID=com.linea.messenger.preview; Persona=com.apple.containermanager.primary-persona, Version=1, ShortVersion=0.14.14>
+2026-11-12 22:02:22.470 Df installd[4553:416b0] [com.apple.appinstallation:TransactionLog] com.linea.messenger.preview/com.apple.containermanager.primary-persona:7:5:1:1:Start : Install (New)
+2026-11-12 22:02:22.473 Df CoreSimulatorBridge[772:4281b] [com.apple.installcoordination:framework] -[IXAppInstallCoordinator _clientDelegate_didUpdateProgress:forPhase:overallProgress:]: <IXInitiatingAppInstallCoordinator<0x600001710680> identity:[com.linea.messenger.preview/Invalid/[system-defined]] uuid:187F671F-7B08-4B5B-AC3B-06BF069F14A4 creator:InstallCoordination Simple SPI>: Got did update progress delegate with percentComplete 30.000000 phase IXCoordinatorProgressPhaseInstalling overallProgress 72.000000
+2026-11-12 22:02:22.473 Df CoreSimulatorBridge[772:4281b] [com.apple.installcoordination:framework] -[IXAppInstallCoordinator _clientDelegate_didUpdateProgress:forPhase:overallProgress:]_block_invoke: <IXInitiatingAppInstallCoordinator<0x600001710680> identity:[com.linea.messenger.preview/Invalid/[system-defined]] uuid:187F671F-7B08-4B5B-AC3B-06BF069F14A4 creator:InstallCoordination Simple SPI>: Calling selector coordinator:didUpdateProgress:forPhase:overallProgress: on observer <_IXSimpleInstallerDelegate 0x0x600000c14fc0>
+2026-11-12 22:02:23.210 Df SpringBoard[734:3ecf7] [com.apple.appinstallation:TransactionLog] com.linea.messenger.preview/Unknown Persona:10:2:3:1:Reloading icon image.
+2026-11-12 22:02:23.211 Df SpringBoard[734:3ecf7] [com.apple.SpringBoard:Common] termination assertion acquired for com.linea.messenger.preview (app not found)
+2026-11-12 22:02:23.221 Df SpringBoard[734:3ecf7] [com.apple.appinstallation:TransactionLog] com.linea.messenger.preview/Unknown Persona:10:2:3:1:Reloading icon image.
+2026-11-12 22:02:23.226 Df SpringBoard[734:3ecf7] [com.apple.appinstallation:TransactionLog] com.linea.messenger.preview/Unknown Persona:10:2:3:1:Reloading icon image.
+2026-11-12 22:02:23.620 Df CoreSimulatorBridge[772:3eed2] [com.apple.installcoordination:framework] -[IXAppInstallCoordinator _clientDelegate_didUpdateProgress:forPhase:overallProgress:]: <IXInitiatingAppInstallCoordinator<0x600001710680> identity:[com.linea.messenger.preview/Invalid/[system-defined]] uuid:187F671F-7B08-4B5B-AC3B-06BF069F14A4 creator:InstallCoordination Simple SPI>: Got did update progress delegate with percentComplete 40.000000 phase IXCoordinatorProgressPhaseInstalling overallProgress 76.000000
+2026-11-12 22:02:23.620 Df CoreSimulatorBridge[772:3eed2] [com.apple.installcoordination:framework] -[IXAppInstallCoordinator _clientDelegate_didUpdateProgress:forPhase:overallProgress:]_block_invoke: <IXInitiatingAppInstallCoordinator<0x600001710680> identity:[com.linea.messenger.preview/Invalid/[system-defined]] uuid:187F671F-7B08-4B5B-AC3B-06BF069F14A4 creator:InstallCoordination Simple SPI>: Calling selector coordinator:didUpdateProgress:forPhase:overallProgress: on observer <_IXSimpleInstallerDelegate 0x0x600000c14fc0>
+2026-11-12 22:02:23.621 Df installd[4553:416b0] [com.apple.containermanager:query] Query; euid = 501, uid = 501, class = 4, identifier = [com.linea.messenger.preview](1), flags = 300000002
+2026-11-12 22:02:23.622 Df installd[4553:416b0] [com.apple.containermanager:query] Query; euid = 501, uid = 501, class = 4, identifier = [com.linea.messenger.preview](1), flags = 300000002
+2026-11-12 22:02:23.631 Df installd[4553:416b0] [com.apple.containermanager:query] Query; euid = 501, uid = 501, class = 2, identifier = [com.linea.messenger.preview.ScreenBroadcast](1), flags = 300000002
+2026-11-12 22:02:23.632 Df installd[4553:416b0] [com.apple.containermanager:query] Query; euid = 501, uid = 501, class = 2, identifier = [com.linea.messenger.preview.ScreenBroadcast](1), flags = 300000002
+2026-11-12 22:02:23.634 Df installd[4553:416b0] [com.apple.containermanager:query] Query; euid = 501, uid = 501, class = 4, identifier = [com.linea.messenger.preview.ScreenBroadcast](1), flags = 300000002
+2026-11-12 22:02:23.636 Df installd[4553:416b0] [com.apple.containermanager:query] Query; euid = 501, uid = 501, class = 4, identifier = [com.linea.messenger.preview.ScreenBroadcast](1), flags = 300000002
+2026-11-12 22:02:23.639 Df installd[4553:416b0] [com.apple.containermanager:query] Query; euid = 501, uid = 501, class = 4, identifier = [com.linea.messenger.preview.ScreenBroadcast](1), flags = 300000002
+2026-11-12 22:02:23.644 Df CoreSimulatorBridge[772:3eed2] [com.apple.installcoordination:framework] -[IXAppInstallCoordinator _clientDelegate_didUpdateProgress:forPhase:overallProgress:]: <IXInitiatingAppInstallCoordinator<0x600001710680> identity:[com.linea.messenger.preview/Invalid/[system-defined]] uuid:187F671F-7B08-4B5B-AC3B-06BF069F14A4 creator:InstallCoordination Simple SPI>: Got did update progress delegate with percentComplete 50.000000 phase IXCoordinatorProgressPhaseInstalling overallProgress 80.000000
+2026-11-12 22:02:23.644 Df installd[4553:416b0] [com.apple.containermanager:xpc] Query; euid = 501, uid = 501, class = 1, identifier = [com.linea.messenger.preview](1), flags = 300000003
+2026-11-12 22:02:23.644 Df CoreSimulatorBridge[772:3eed2] [com.apple.installcoordination:framework] -[IXAppInstallCoordinator _clientDelegate_didUpdateProgress:forPhase:overallProgress:]_block_invoke: <IXInitiatingAppInstallCoordinator<0x600001710680> identity:[com.linea.messenger.preview/Invalid/[system-defined]] uuid:187F671F-7B08-4B5B-AC3B-06BF069F14A4 creator:InstallCoordination Simple SPI>: Calling selector coordinator:didUpdateProgress:forPhase:overallProgress: on observer <_IXSimpleInstallerDelegate 0x0x600000c14fc0>
+2026-11-12 22:02:23.645 E  containermanagerd_system[828:4142a] [com.apple.containermanager:schema] [com.linea.messenger.preview(1)] Current schema version (1) is newer than the latest (0), ignoring.
+2026-11-12 22:02:23.647 Df containermanagerd_system[828:4142a] [com.apple.containermanager:schema] [u 2D3FC667-2864-40E0-A75D-A7AECAB75486:p 8D6E0A35-D8A5-42C1-A796-7FBB67FAED7D:c com.linea.messenger.preview(1):i12888565000] Successfully updated schema from (0) → (0), actions count = 0
+2026-11-12 22:02:23.650 Df installd[4553:416b0] [com.apple.containermanager:xpc] Query; euid = 501, uid = 501, class = 1, identifier = [com.linea.messenger.preview](1), flags = 300000002
+2026-11-12 22:02:23.654 Df CoreSimulatorBridge[772:3eed2] [com.apple.installcoordination:framework] -[IXAppInstallCoordinator _clientDelegate_didUpdateProgress:forPhase:overallProgress:]: <IXInitiatingAppInstallCoordinator<0x600001710680> identity:[com.linea.messenger.preview/Invalid/[system-defined]] uuid:187F671F-7B08-4B5B-AC3B-06BF069F14A4 creator:InstallCoordination Simple SPI>: Got did update progress delegate with percentComplete 60.000000 phase IXCoordinatorProgressPhaseInstalling overallProgress 84.000000
+2026-11-12 22:02:23.654 Df CoreSimulatorBridge[772:3eed2] [com.apple.installcoordination:framework] -[IXAppInstallCoordinator _clientDelegate_didUpdateProgress:forPhase:overallProgress:]_block_invoke: <IXInitiatingAppInstallCoordinator<0x600001710680> identity:[com.linea.messenger.preview/Invalid/[system-defined]] uuid:187F671F-7B08-4B5B-AC3B-06BF069F14A4 creator:InstallCoordination Simple SPI>: Calling selector coordinator:didUpdateProgress:forPhase:overallProgress: on observer <_IXSimpleInstallerDelegate 0x0x600000c14fc0>
+2026-11-12 22:02:23.680 Df installd[4553:416b0] [com.apple.containermanager:query] Query; euid = 501, uid = 501, class = 2, identifier = [com.linea.messenger.preview](1), flags = 300000003
+2026-11-12 22:02:23.681 Df CoreSimulatorBridge[772:3eed2] [com.apple.installcoordination:framework] -[IXAppInstallCoordinator _clientDelegate_didUpdateProgress:forPhase:overallProgress:]: <IXInitiatingAppInstallCoordinator<0x600001710680> identity:[com.linea.messenger.preview/Invalid/[system-defined]] uuid:187F671F-7B08-4B5B-AC3B-06BF069F14A4 creator:InstallCoordination Simple SPI>: Got did update progress delegate with percentComplete 70.000000 phase IXCoordinatorProgressPhaseInstalling overallProgress 88.000000
+2026-11-12 22:02:23.681 Df CoreSimulatorBridge[772:3eed2] [com.apple.installcoordination:framework] -[IXAppInstallCoordinator _clientDelegate_didUpdateProgress:forPhase:overallProgress:]_block_invoke: <IXInitiatingAppInstallCoordinator<0x600001710680> identity:[com.linea.messenger.preview/Invalid/[system-defined]] uuid:187F671F-7B08-4B5B-AC3B-06BF069F14A4 creator:InstallCoordination Simple SPI>: Calling selector coordinator:didUpdateProgress:forPhase:overallProgress: on observer <_IXSimpleInstallerDelegate 0x0x600000c14fc0>
+2026-11-12 22:02:23.683 Df installd[4553:416b0] [com.apple.containermanager:query] Query; euid = 501, uid = 501, class = 2, identifier = [com.linea.messenger.preview](1), flags = 300000002
+2026-11-12 22:02:23.688 Df containermanagerd[848:4142b] [com.apple.containermanager:codesignmapping] Reconciled [com.linea.messenger.preview.ScreenBroadcast]; old app groups: (null), new app groups: (null), old system groups: (null), new system groups: (null)
+2026-11-12 22:02:23.689 Df installd[4553:416b0] [com.apple.containermanager:query] Query; euid = 501, uid = 501, class = 4, identifier = [com.linea.messenger.preview.ScreenBroadcast](1), flags = 300000003
+2026-11-12 22:02:23.691 Df installd[4553:416b0] [com.apple.containermanager:query] Query; euid = 501, uid = 501, class = 4, identifier = [com.linea.messenger.preview.ScreenBroadcast](1), flags = 300000002
+2026-11-12 22:02:23.967 Df installd[4553:416b0] (MobileSystemServices) 0x70000414b000 -[MIPlaceholderConstructor _writeIconToPlaceholder:infoPlistIconContent:error:]: Bundle at /Users/runner/Library/Developer/CoreSimulator/Devices/C15FAC2A-CB46-4F16-B882-3970BD44CFAD/data/Containers/Temp/Bundle/Application/A891EB92-D3CA-477D-B52E-6F7CCD727E3F/INVIZENT.app/PlugIns/ScreenBroadcast.appex has no icon (no Icon Info.plist content)
+2026-11-12 22:02:23.986 Df CoreSimulatorBridge[772:3eed2] [com.apple.installcoordination:framework] -[IXAppInstallCoordinator _clientDelegate_didUpdateProgress:forPhase:overallProgress:]: <IXInitiatingAppInstallCoordinator<0x600001710680> identity:[com.linea.messenger.preview/Invalid/[system-defined]] uuid:187F671F-7B08-4B5B-AC3B-06BF069F14A4 creator:InstallCoordination Simple SPI>: Got did update progress delegate with percentComplete 80.000000 phase IXCoordinatorProgressPhaseInstalling overallProgress 92.000000
+2026-11-12 22:02:23.986 Df CoreSimulatorBridge[772:3eed2] [com.apple.installcoordination:framework] -[IXAppInstallCoordinator _clientDelegate_didUpdateProgress:forPhase:overallProgress:]_block_invoke: <IXInitiatingAppInstallCoordinator<0x600001710680> identity:[com.linea.messenger.preview/Invalid/[system-defined]] uuid:187F671F-7B08-4B5B-AC3B-06BF069F14A4 creator:InstallCoordination Simple SPI>: Calling selector coordinator:didUpdateProgress:forPhase:overallProgress: on observer <_IXSimpleInstallerDelegate 0x0x600000c14fc0>
+2026-11-12 22:02:24.007 Df installd[4553:416b0] (MobileSystemServices) 0x70000414b000 -[MIInstallationJournalEntry _refreshUUIDForContainer:withError:]: Data container for com.linea.messenger.preview is now at /Users/runner/Library/Developer/CoreSimulator/Devices/C15FAC2A-CB46-4F16-B882-3970BD44CFAD/data/Containers/Data/Application/038AA52F-BA41-452C-8B62-36AB59EC57C6
+2026-11-12 22:02:24.010 Df containermanagerd[848:4142b] [com.apple.containermanager:schema] [u BFB73F88-B159-493B-B0CC-7A4308765224:p 038AA52F-BA41-452C-8B62-36AB59EC57C6:c com.linea.messenger.preview(2):i0] Successfully updated schema from (0) → (1), actions count = 6
+2026-11-12 22:02:24.014 Df installd[4553:416b0] (MobileSystemServices) 0x70000414b000 -[MIInstallationJournalEntry _refreshUUIDForContainer:withError:]: Data container for com.linea.messenger.preview.ScreenBroadcast is now at /Users/runner/Library/Developer/CoreSimulator/Devices/C15FAC2A-CB46-4F16-B882-3970BD44CFAD/data/Containers/Data/PluginKitPlugin/33AC23BD-7209-4659-A6A5-2BB7B9317CE7
+2026-11-12 22:02:24.018 Df containermanagerd[848:4142b] [com.apple.containermanager:schema] [u A1B71FA9-411A-496D-9B48-1AAA13CF6EA4:p 33AC23BD-7209-4659-A6A5-2BB7B9317CE7:c com.linea.messenger.preview.ScreenBroadcast(4):i0] Successfully updated schema from (0) → (1), actions count = 6
+2026-11-12 22:02:24.018 Df installd[4553:416b0] [com.apple.containermanager:unspecified] Replace; old = [app:com.linea.messenger.preview:501::(B49FB3BA-FFD8-4444-8032-978DF8910AF7)], new = [temp-app:com.linea.messenger.preview:501::(2D3FC667-2864-40E0-A75D-A7AECAB75486)]
+2026-11-12 22:02:24.033 Df installd[4553:416b0] [com.apple.containermanager:xpc] Query; euid = 501, uid = 501, class = 1, identifier = [com.linea.messenger.preview](1), flags = 300000002
+2026-11-12 22:02:24.036 Df installd[4553:416b0] (MobileSystemServices) 0x70000414b000 -[MIContainer makeContainerLiveReplacingContainer:reason:waitForDeletion:withError:]: Made container live for com.linea.messenger.preview at /Users/runner/Library/Developer/CoreSimulator/Devices/C15FAC2A-CB46-4F16-B882-3970BD44CFAD/data/Containers/Bundle/Application/A891EB92-D3CA-477D-B52E-6F7CCD727E3F
+2026-11-12 22:02:24.052 Df installd[4553:416b0] [com.apple.containermanager:xpc] Query; euid = 501, uid = 501, class = 1, identifier = [com.linea.messenger.preview](1), flags = 300000002
+2026-11-12 22:02:24.059 Df CoreSimulatorBridge[772:3eed2] [com.apple.installcoordination:framework] -[IXAppInstallCoordinator _clientDelegate_didUpdateProgress:forPhase:overallProgress:]: <IXInitiatingAppInstallCoordinator<0x600001710680> identity:[com.linea.messenger.preview/Invalid/[system-defined]] uuid:187F671F-7B08-4B5B-AC3B-06BF069F14A4 creator:InstallCoordination Simple SPI>: Got did update progress delegate with percentComplete 90.000000 phase IXCoordinatorProgressPhaseInstalling overallProgress 96.000000
+2026-11-12 22:02:24.059 Df CoreSimulatorBridge[772:3eed2] [com.apple.installcoordination:framework] -[IXAppInstallCoordinator _clientDelegate_didUpdateProgress:forPhase:overallProgress:]_block_invoke: <IXInitiatingAppInstallCoordinator<0x600001710680> identity:[com.linea.messenger.preview/Invalid/[system-defined]] uuid:187F671F-7B08-4B5B-AC3B-06BF069F14A4 creator:InstallCoordination Simple SPI>: Calling selector coordinator:didUpdateProgress:forPhase:overallProgress: on observer <_IXSimpleInstallerDelegate 0x0x600000c14fc0>
+2026-11-12 22:02:24.067 Df containermanagerd[848:4142b] [com.apple.containermanager:codesignmapping] Reconciled [com.linea.messenger.preview]; old app groups: (null), new app groups: (null), old system groups: (null), new system groups: (null)
+2026-11-12 22:02:24.068 Df installd[4553:416b0] [com.apple.containermanager:unspecified] Requesting disk usage; class = 1, identifier = com.linea.messenger.preview
+2026-11-12 22:02:24.211 Df installd[4553:416b0] [com.apple.containermanager:query] Query; euid = 501, uid = 501, class = 7, identifier = [com.linea.messenger.preview](1), flags = 300000001
+2026-11-12 22:02:24.229 Df containermanagerd[848:4142b] [com.apple.containermanager:codesignmapping] Reconciled [com.linea.messenger.preview.ScreenBroadcast]; old app groups: (null), new app groups: (null), old system groups: (null), new system groups: (null)
+2026-11-12 22:02:24.232 Df installd[4553:416b0] [com.apple.containermanager:query] Query; euid = 501, uid = 501, class = 7, identifier = [com.linea.messenger.preview.ScreenBroadcast](1), flags = 300000001
+2026-11-12 22:02:24.297 Df installd[4553:416b0] (MobileSystemServices) 0x70000414b000 -[MILaunchServicesOperationManager _onQueue_addPendingLaunchServicesOperation:error:]: Added pending LS operation <MILaunchServicesRegisterOperation: D4E344F4-2F56-401B-9840-FB69DE02BD57:2 com.linea.messenger.preview/MIInstallationDomainSystemShared personas:[com.apple.containermanager.primary-persona]>
+2026-11-12 22:02:24.300 Df lsd[832:428c3] [com.apple.launchservices:appinstallation] Post installation registration: request to register com.linea.messenger.preview, operation D4E344F4-2F56-401B-9840-FB69DE02BD57, from pid 4553
+2026-11-12 22:02:24.301 Df lsd[832:428c3] [com.apple.appinstallation:TransactionLog] com.linea.messenger.preview/Unknown Persona:5:4:1:1:Registering bundles via registrant - start
+2026-11-12 22:02:24.316 Df lsd[832:428c3] [com.apple.appinstallation:TransactionLog] com.linea.messenger.preview/Unknown Persona:5:5:1:1:Building bundle record for app
+2026-11-12 22:02:24.317 Df lsd[832:428c3] [com.apple.launchservices:appinstallation] Removed existing registered placeholder for com.linea.messenger.preview
+2026-11-12 22:02:24.317 Df lsd[832:428c3] [com.apple.appinstallation:TransactionLog] com.linea.messenger.preview/Unknown Persona:5:5:2:1:Built bundle record for app
+2026-11-12 22:02:24.329 Df lsd[832:428c3] [com.apple.launchservices:icons] clearAlternateNameForBundleIdentifier: won't clear for com.linea.messenger.preview
+2026-11-12 22:02:24.329 Df lsd[832:428c3] [com.apple.appinstallation:TransactionLog] com.linea.messenger.preview/Unknown Persona:5:4:2:1:Registered bundle status = success
+2026-11-12 22:02:24.332 Df lsd[832:428c3] [com.apple.appinstallation:TransactionLog] com.linea.messenger.preview/Unknown Persona:5:4:2:1:Finished registering com.linea.messenger.preview, bundle unit 2a4
+2026-11-12 22:02:24.333 Df lsd[832:42906] [com.apple.launchservices:progress] Installation ended for com.linea.messenger.preview with state 5
+2026-11-12 22:02:24.334 Df lsd[832:42906] [com.apple.launchservices:progress] Discarding proportions for com.linea.messenger.preview
+2026-11-12 22:02:24.336 Df appstored[4767:4159a] [com.apple.launchservices:progress] Unpublishing progress block called for app com.linea.messenger.preview
+2026-11-12 22:02:24.337 Df appstored[4767:42841] [com.apple.launchservices:progress] #LSInstallProgressList remove subscriber: <_NSProgressSubscriber: 0x600000c22670> publishingString: com.linea.messenger.preview
+2026-11-12 22:02:24.341 Df SiriAUSP[4795:428b7] [com.apple.launchservices:appinstallation] LaunchServices observer: Installed plugins (
+    "<LSPlugInKitProxy: 0x600003d08780> pluginID=com.linea.messenger.preview.ScreenBroadcast UUID=DCD90368-A3D0-400F-8616-6F95653DC3BB version=0.14.14"
+)
+2026-11-12 22:02:24.341 Df MacinTalkAUSP[4800:41763] [com.apple.launchservices:appinstallation] LaunchServices observer: Installed plugins (
+    "<LSPlugInKitProxy: 0x600003d0c0f0> pluginID=com.linea.messenger.preview.ScreenBroadcast UUID=DCD90368-A3D0-400F-8616-6F95653DC3BB version=0.14.14"
+)
+2026-11-12 22:02:24.341 Df MauiAUSP[4768:42831] [com.apple.launchservices:appinstallation] LaunchServices observer: Installed plugins (
+    "<LSPlugInKitProxy: 0x600003d0c1e0> pluginID=com.linea.messenger.preview.ScreenBroadcast UUID=DCD90368-A3D0-400F-8616-6F95653DC3BB version=0.14.14"
+)
+2026-11-12 22:02:24.343 Df pkd[928:4282d] [com.apple.launchservices:appinstallation] LaunchServices observer: Installed plugins (
+    "<LSPlugInKitProxy: 0x600003d08780> pluginID=com.linea.messenger.preview.ScreenBroadcast UUID=DCD90368-A3D0-400F-8616-6F95653DC3BB version=0.14.14"
+)
+2026-11-12 22:02:24.343 Df pkd[928:4282d] [com.apple.PlugInKit:ls] [u DCD90368-A3D0-400F-8616-6F95653DC3BB] [com.linea.messenger.preview.ScreenBroadcast(0.14.14)] plugin INSTALLED; bundleID: [com.linea.messenger.preview.ScreenBroadcast], path: [/Users/runner/Library/Developer/CoreSimulator/Devices/C15FAC2A-CB46-4F16-B882-3970BD44CFAD/data/Containers/Bundle/Application/A891EB92-D3CA-477D-B52E-6F7CCD727E3F/INVIZENT.app/PlugIns/ScreenBroadcast.appex], contained in [com.linea.messenger.preview]
+2026-11-12 22:02:24.343 Df searchd[929:414d6] [com.apple.launchservices:appinstallation] LaunchServices observer: Installed plugins (
+    "<LSPlugInKitProxy: 0x600003d04ff0> pluginID=com.linea.messenger.preview.ScreenBroadcast UUID=DCD90368-A3D0-400F-8616-6F95653DC3BB version=0.14.14"
+)
+2026-11-12 22:02:24.345 Df callservicesd[855:41651] [com.apple.launchservices:appinstallation] LaunchServices observer: Installed plugins (
+    "<LSPlugInKitProxy: 0x10c368a00> pluginID=com.linea.messenger.preview.ScreenBroadcast UUID=DCD90368-A3D0-400F-8616-6F95653DC3BB version=0.14.14"
+)
+2026-11-12 22:02:24.345 Df KonaSynthesizer[4778:42830] [com.apple.launchservices:appinstallation] LaunchServices observer: Installed plugins (
+    "<LSPlugInKitProxy: 0x600003d001e0> pluginID=com.linea.messenger.preview.ScreenBroadcast UUID=DCD90368-A3D0-400F-8616-6F95653DC3BB version=0.14.14"
+)
+2026-11-12 22:02:24.345 Df axassetsd[743:4282e] [com.apple.launchservices:appinstallation] LaunchServices observer: Installed plugins (
+    "<LSPlugInKitProxy: 0x600003d094a0> pluginID=com.linea.messenger.preview.ScreenBroadcast UUID=DCD90368-A3D0-400F-8616-6F95653DC3BB version=0.14.14"
+)
+2026-11-12 22:02:24.345 Df callservicesd[855:41ae4] [com.apple.calls.callkit:Default] pluginKitProxies=(
+    "<LSPlugInKitProxy: 0x10c368a00> pluginID=com.linea.messenger.preview.ScreenBroadcast UUID=DCD90368-A3D0-400F-8616-6F95653DC3BB version=0.14.14"
+)
+2026-11-12 22:02:24.350 Df installd[4553:416b0] (MobileSystemServices) 0x70000414b000 -[MIJournal purgeJournalEntry:withError:]: Removing journal entry <MIInstallationJournalEntry<0x60000330c500> [com.linea.messenger.preview/com.apple.containermanager.primary-persona/[system-defined]]/MIInstallationDomainSystemShared op:1 phase:JournalPhaseDidRegisterWithLS version:1>
+2026-11-12 22:02:24.353 Df installd[4553:416b0] [com.apple.appinstallation:TransactionLog] com.linea.messenger.preview/com.apple.containermanager.primary-persona:7:5:2:1:Success (End) : Install (New)
+2026-11-12 22:02:24.353 Df installd[4553:416b0] (MobileSystemServices) 0x70000414b000 -[MIInstaller _logOperationCompletionWithStartTime:distributorID:]: Install successful for (Developer:com.linea.messenger.preview) [Distributor: (null)]; Staging: 0.24s; Waiting: 0.00s; Preflight/Patch: 1.15s, Verifying: 0.02s; Overall: 2.42s
+2026-11-12 22:02:24.356 Df lsd[832:428c1] [com.apple.launchservices:progress] Sending applicationsDidInstall: for (
+    "<LSApplicationProxy: 0x600003700fc0> com.linea.messenger.preview file:///Users/runner/Library/Developer/CoreSimulator/Devices/C15FAC2A-CB46-4F16-B882-3970BD44CFAD/data/Containers/Bundle/Application/A891EB92-D3CA-477D-B52E-6F7CCD727E3F/INVIZENT.app/ <com.linea.messenger.preview <installed >:0>"
+)
+2026-11-12 22:02:24.360 Df installcoordinationd[4783:428d6] [com.apple.installcoordination:daemon] -[IXSPendingOperationsTracker endPendingOperationForIdentity:]_block_invoke: Ending pending operation for [com.linea.messenger.preview/Invalid/[system-defined]]
+2026-11-12 22:02:24.361 Df lsd[832:3ee07] [com.apple.launchservices:progress] unsubscribing from com.linea.messenger.preview.Installing as it was unpublished
+2026-11-12 22:02:24.361 Df CoreSimulatorBridge[772:3eed2] [com.apple.installcoordination:framework] -[IXAppInstallCoordinator _clientDelegate_didUpdateProgress:forPhase:overallProgress:]: <IXInitiatingAppInstallCoordinator<0x600001710680> identity:[com.linea.messenger.preview/Invalid/[system-defined]] uuid:187F671F-7B08-4B5B-AC3B-06BF069F14A4 creator:InstallCoordination Simple SPI>: Got did update progress delegate with percentComplete 100.000000 phase IXCoordinatorProgressPhaseInstalling overallProgress 100.000000
+2026-11-12 22:02:24.361 Df CoreSimulatorBridge[772:3eed2] [com.apple.installcoordination:framework] -[IXAppInstallCoordinator _clientDelegate_didUpdateProgress:forPhase:overallProgress:]_block_invoke: <IXInitiatingAppInstallCoordinator<0x600001710680> identity:[com.linea.messenger.preview/Invalid/[system-defined]] uuid:187F671F-7B08-4B5B-AC3B-06BF069F14A4 creator:InstallCoordination Simple SPI>: Calling selector coordinator:didUpdateProgress:forPhase:overallProgress: on observer <_IXSimpleInstallerDelegate 0x0x600000c14fc0>
+2026-11-12 22:02:24.363 Df installcoordinationd[4783:428d6] [com.apple.installcoordination:daemon] -[IXSCoordinatedAppInstall setComplete:]: <IXSCoordinatedAppInstall<0x10b509ed0> [P=CoreSimulatorBridge (pid 772)] identifier:[com.linea.messenger.preview/Invalid/[system-defined]] uuid:187F671F-7B08-4B5B-AC3B-06BF069F14A4 intent:IXCoordinatorIntentInitiating creator/appDRI:InstallCoordination Simple SPI importance:UserWaiting state:IXAppCoordinationStateComplete promise-state:PA2I4> complete!
+2026-11-12 22:02:24.364 Df installcoordinationd[4783:428d6] [com.apple.installcoordination:daemon] -[IXSPowerAssertion invalidate]: Released power assertion IXPowerAssertion-12-[com.linea.messenger.preview/Invalid/[system-defined]]
+2026-11-12 22:02:24.364 Df installcoordinationd[4783:428d6] [com.apple.installcoordination:daemon] -[IXSDataPromise decommission]: Decommissioning <IXSPromisedTransferToPath(0x600002c01f00) Name:Icon resources for com.linea.messenger.preview Creator:InstallCoordination Simple SPI UUID:2FDB6C39-5A10-411A-A74D-152D6EFDAA48 Location:[system-defined]>
+2026-11-12 22:02:24.372 Df installcoordinationd[4783:428d6] [com.apple.installcoordination:daemon] -[IXSDataPromise decommission]: Decommissioning <IXSPromisedInMemoryDictionary(0x600002c04d00) Name:Info.plist icon content for com.linea.messenger.preview Creator:InstallCoordination Simple SPI UUID:0209B068-04E2-400F-BE0A-F64701D7BE07 Location:[system-defined]>
+2026-11-12 22:02:24.373 Df lsd[832:3ee07] [com.apple.launchservices:progress] #LSInstallProgressList remove subscriber: <_NSProgressSubscriber: 0x600000c181b0> publishingString: com.linea.messenger.preview.Installing
+2026-11-12 22:02:24.381 Df installcoordinationd[4783:428d6] [com.apple.installcoordination:daemon] -[IXSDataPromise decommission]: Decommissioning <IXSPromisedInMemoryDictionary(0x600002c00500) Name:Entitlements Promise for com.linea.messenger.preview Creator:InstallCoordination Simple SPI UUID:78C901F9-1502-4898-91AE-7B997C66F97D Location:[system-defined]>
+2026-11-12 22:02:24.389 Df installcoordinationd[4783:428d6] [com.apple.installcoordination:daemon] -[IXSDataPromise decommission]: Decommissioning <IXSPromisedInMemoryDictionary(0x600002c00b00) Name:Localizations for com.linea.messenger.preview Creator:InstallCoordination Simple SPI UUID:354841E2-1FA2-4D15-BE4D-E75338B4F138 Location:[system-defined]>
+2026-11-12 22:02:24.394 Df nsurlsessiond[815:41eab] [com.apple.launchservices:appinstallation] Received applicationsDidInstall:(
+    "<LSApplicationProxy: 0x600003700f00> com.linea.messenger.preview file:///Users/runner/Library/Developer/CoreSimulator/Devices/C15FAC2A-CB46-4F16-B882-3970BD44CFAD/data/Containers/Bundle/Application/A891EB92-D3CA-477D-B52E-6F7CCD727E3F/INVIZENT.app/ <com.linea.messenger.preview <installed >:0>"
+)
+2026-11-12 22:02:24.396 Df nanotimekitcompaniond[4761:41856] [com.apple.launchservices:appinstallation] Received applicationsDidInstall:(
+    "<LSApplicationProxy: 0x600003704540> com.linea.messenger.preview file:///Users/runner/Library/Developer/CoreSimulator/Devices/C15FAC2A-CB46-4F16-B882-3970BD44CFAD/data/Containers/Bundle/Application/A891EB92-D3CA-477D-B52E-6F7CCD727E3F/INVIZENT.app/ <com.linea.messenger.preview <installed >:0>"
+)
+2026-11-12 22:02:24.399 Df homed[861:3f16f] [com.apple.launchservices:appinstallation] Received applicationsDidInstall:(
+    "<LSApplicationProxy: 0x60000370d200> com.linea.messenger.preview file:///Users/runner/Library/Developer/CoreSimulator/Devices/C15FAC2A-CB46-4F16-B882-3970BD44CFAD/data/Containers/Bundle/Application/A891EB92-D3CA-477D-B52E-6F7CCD727E3F/INVIZENT.app/ <com.linea.messenger.preview <installed >:0>"
+)
+2026-11-12 22:02:24.400 Df routined[742:419de] [com.apple.launchservices:appinstallation] Received applicationsDidInstall:(
+    "<LSApplicationProxy: 0x600003721b00> com.linea.messenger.preview file:///Users/runner/Library/Developer/CoreSimulator/Devices/C15FAC2A-CB46-4F16-B882-3970BD44CFAD/data/Containers/Bundle/Application/A891EB92-D3CA-477D-B52E-6F7CCD727E3F/INVIZENT.app/ <com.linea.messenger.preview <installed >:0>"
+)
+2026-11-12 22:02:24.401 Df donotdisturbd[831:41997] [com.apple.launchservices:appinstallation] Received applicationsDidInstall:(
+    "<LSApplicationProxy: 0x60000370c540> com.linea.messenger.preview file:///Users/runner/Library/Developer/CoreSimulator/Devices/C15FAC2A-CB46-4F16-B882-3970BD44CFAD/data/Containers/Bundle/Application/A891EB92-D3CA-477D-B52E-6F7CCD727E3F/INVIZENT.app/ <com.linea.messenger.preview <installed >:0>"
+)
+2026-11-12 22:02:24.402 Df runningboardd[737:42382] [com.apple.launchservices:appinstallation] Received applicationsDidInstall:(
+    "<LSApplicationProxy: 0x60000370c840> com.linea.messenger.preview file:///Users/runner/Library/Developer/CoreSimulator/Devices/C15FAC2A-CB46-4F16-B882-3970BD44CFAD/data/Containers/Bundle/Application/A891EB92-D3CA-477D-B52E-6F7CCD727E3F/INVIZENT.app/ <com.linea.messenger.preview <installed >:0>"
+)
+2026-11-12 22:02:24.403 Df dasd[768:3ed8c] [com.apple.launchservices:appinstallation] Received applicationsDidInstall:(
+    "<LSApplicationProxy: 0x60000370c180> com.linea.messenger.preview file:///Users/runner/Library/Developer/CoreSimulator/Devices/C15FAC2A-CB46-4F16-B882-3970BD44CFAD/data/Containers/Bundle/Application/A891EB92-D3CA-477D-B52E-6F7CCD727E3F/INVIZENT.app/ <com.linea.messenger.preview <installed >:0>"
+)
+2026-11-12 22:02:24.405 Df gamed[4772:41e7d] [com.apple.launchservices:appinstallation] Received applicationsDidInstall:(
+    "<LSApplicationProxy: 0x600003700900> com.linea.messenger.preview file:///Users/runner/Library/Developer/CoreSimulator/Devices/C15FAC2A-CB46-4F16-B882-3970BD44CFAD/data/Containers/Bundle/Application/A891EB92-D3CA-477D-B52E-6F7CCD727E3F/INVIZENT.app/ <com.linea.messenger.preview <installed >:0>"
+)
+2026-11-12 22:02:24.407 Df activityawardsd[4811:4283f] [com.apple.launchservices:appinstallation] Received applicationsDidInstall:(
+    "<LSApplicationProxy: 0x600003700540> com.linea.messenger.preview file:///Users/runner/Library/Developer/CoreSimulator/Devices/C15FAC2A-CB46-4F16-B882-3970BD44CFAD/data/Containers/Bundle/Application/A891EB92-D3CA-477D-B52E-6F7CCD727E3F/INVIZENT.app/ <com.linea.messenger.preview <installed >:0>"
+)
+2026-11-12 22:02:24.407 Df liveactivitiesd[850:4196c] [com.apple.launchservices:appinstallation] Received applicationsDidInstall:(
+    "<LSApplicationProxy: 0x6000037043c0> com.linea.messenger.preview file:///Users/runner/Library/Developer/CoreSimulator/Devices/C15FAC2A-CB46-4F16-B882-3970BD44CFAD/data/Containers/Bundle/Application/A891EB92-D3CA-477D-B52E-6F7CCD727E3F/INVIZENT.app/ <com.linea.messenger.preview <installed >:0>"
+)
+2026-11-12 22:02:24.408 Df installcoordinationd[4783:428d6] [com.apple.installcoordination:daemon] -[IXSDataPromise decommission]: Decommissioning <IXSPromisedInMemoryDictionary(0x600002c0cb00) Name:Entitlements Promise for com.linea.messenger.preview.ScreenBroadcast Creator:InstallCoordination Simple SPI UUID:E3975B9F-8363-44EF-A3E6-28EBEC9CEB4D Location:[system-defined]>
+2026-11-12 22:02:24.410 Df sleepd[769:41e5a] [com.apple.launchservices:appinstallation] Received applicationsDidInstall:(
+    "<LSApplicationProxy: 0x600003708540> com.linea.messenger.preview file:///Users/runner/Library/Developer/CoreSimulator/Devices/C15FAC2A-CB46-4F16-B882-3970BD44CFAD/data/Containers/Bundle/Application/A891EB92-D3CA-477D-B52E-6F7CCD727E3F/INVIZENT.app/ <com.linea.messenger.preview <installed >:0>"
+)
+2026-11-12 22:02:24.414 Df deviceaccessd[4762:42843] [com.apple.launchservices:appinstallation] Received applicationsDidInstall:(
+    "<LSApplicationProxy: 0x6000037086c0> com.linea.messenger.preview file:///Users/runner/Library/Developer/CoreSimulator/Devices/C15FAC2A-CB46-4F16-B882-3970BD44CFAD/data/Containers/Bundle/Application/A891EB92-D3CA-477D-B52E-6F7CCD727E3F/INVIZENT.app/ <com.linea.messenger.preview <installed >:0>"
+)
+2026-11-12 22:02:24.415 Df mobiletimerd[752:42856] [com.apple.launchservices:appinstallation] Received applicationsDidInstall:(
+    "<LSApplicationProxy: 0x6000037080c0> com.linea.messenger.preview file:///Users/runner/Library/Developer/CoreSimulator/Devices/C15FAC2A-CB46-4F16-B882-3970BD44CFAD/data/Containers/Bundle/Application/A891EB92-D3CA-477D-B52E-6F7CCD727E3F/INVIZENT.app/ <com.linea.messenger.preview <installed >:0>"
+)
+2026-11-12 22:02:24.415 Df financed[893:3f0d4] [com.apple.launchservices:appinstallation] Received applicationsDidInstall:(
+    "<LSApplicationProxy: 0x600003727780> com.linea.messenger.preview file:///Users/runner/Library/Developer/CoreSimulator/Devices/C15FAC2A-CB46-4F16-B882-3970BD44CFAD/data/Containers/Bundle/Application/A891EB92-D3CA-477D-B52E-6F7CCD727E3F/INVIZENT.app/ <com.linea.messenger.preview <installed >:0>"
+)
+2026-11-12 22:02:24.415 Df profiled[4796:4183a] [com.apple.launchservices:appinstallation] Received applicationsDidInstall:(
+    "<LSApplicationProxy: 0x60000370d200> com.linea.messenger.preview file:///Users/runner/Library/Developer/CoreSimulator/Devices/C15FAC2A-CB46-4F16-B882-3970BD44CFAD/data/Containers/Bundle/Application/A891EB92-D3CA-477D-B52E-6F7CCD727E3F/INVIZENT.app/ <com.linea.messenger.preview <installed >:0>"
+)
+2026-11-12 22:02:24.418 Df passd[771:414f8] [com.apple.launchservices:appinstallation] Received applicationsDidInstall:(
+    "<LSApplicationProxy: 0x600003701380> com.linea.messenger.preview file:///Users/runner/Library/Developer/CoreSimulator/Devices/C15FAC2A-CB46-4F16-B882-3970BD44CFAD/data/Containers/Bundle/Application/A891EB92-D3CA-477D-B52E-6F7CCD727E3F/INVIZENT.app/ <com.linea.messenger.preview <installed >:0>"
+)
+2026-11-12 22:02:24.422 Df clipserviced[863:41ca1] [com.apple.launchservices:appinstallation] Received applicationsDidInstall:(
+    "<LSApplicationProxy: 0x60000370c180> com.linea.messenger.preview file:///Users/runner/Library/Developer/CoreSimulator/Devices/C15FAC2A-CB46-4F16-B882-3970BD44CFAD/data/Containers/Bundle/Application/A891EB92-D3CA-477D-B52E-6F7CCD727E3F/INVIZENT.app/ <com.linea.messenger.preview <installed >:0>"
+)
+2026-11-12 22:02:24.423 Df installcoordinationd[4783:428d6] [com.apple.installcoordination:daemon] -[IXSDataPromise decommission]: Decommissioning <IXSPromisedInMemoryDictionary(0x600002c06380) Name:Localizations for com.linea.messenger.preview.ScreenBroadcast Creator:InstallCoordination Simple SPI UUID:3A132240-CE97-4CCA-B32B-A53C1A58EBAD Location:[system-defined]>
+2026-11-12 22:02:24.423 Df lsd[832:428c1] [com.apple.launchservices:progress] Sent distributed notification com.apple.LaunchServices.applicationRegistered with payload {
+    bundleIDs =     (
+        "com.linea.messenger.preview"
+    );
+    isPlaceholder = 0;
+}
+2026-11-12 22:02:24.426 Df SpringBoard[734:418bc] [com.apple.launchservices:appinstallation] Received applicationsDidInstall:(
+    "<LSApplicationProxy: 0x6000037e9e00> com.linea.messenger.preview file:///Users/runner/Library/Developer/CoreSimulator/Devices/C15FAC2A-CB46-4F16-B882-3970BD44CFAD/data/Containers/Bundle/Application/A891EB92-D3CA-477D-B52E-6F7CCD727E3F/INVIZENT.app/ <com.linea.messenger.preview <installed >:0>"
+)
+2026-11-12 22:02:24.427 Df appstored[4767:42841] [com.apple.launchservices:appinstallation] Received applicationsDidInstall:(
+    "<LSApplicationProxy: 0x600003704fc0> com.linea.messenger.preview file:///Users/runner/Library/Developer/CoreSimulator/Devices/C15FAC2A-CB46-4F16-B882-3970BD44CFAD/data/Containers/Bundle/Application/A891EB92-D3CA-477D-B52E-6F7CCD727E3F/INVIZENT.app/ <com.linea.messenger.preview <installed >:0>"
+)
+2026-11-12 22:02:24.430 Df locationd[766:428b1] [com.apple.launchservices:appinstallation] Received applicationsDidInstall:(
+    "<LSApplicationProxy: 0x60000370c900> com.linea.messenger.preview file:///Users/runner/Library/Developer/CoreSimulator/Devices/C15FAC2A-CB46-4F16-B882-3970BD44CFAD/data/Containers/Bundle/Application/A891EB92-D3CA-477D-B52E-6F7CCD727E3F/INVIZENT.app/ <com.linea.messenger.preview <installed >:0>"
+)
+2026-11-12 22:02:24.431 Df installcoordinationd[4783:428d6] [com.apple.installcoordination:daemon] -[IXSDataPromise decommission]: Decommissioning <IXSPlaceholder(0x10b509410) Name:PlugInKit Placeholder: INVIZENT Screen (com.linea.messenger.preview.ScreenBroadcast) Creator:InstallCoordination Simple SPI UUID:627A2A22-9C3B-40AC-A937-1E1D44E30FA7 Location:[system-defined]>
+2026-11-12 22:02:24.441 Df installcoordinationd[4783:428d6] [com.apple.installcoordination:daemon] -[IXSDataPromise decommission]: Decommissioning <IXSPlaceholder(0x10b404b90) Name:App Placeholder: INVIZENT (com.linea.messenger.preview) Creator:InstallCoordination Simple SPI UUID:F3A4828E-889A-41C5-BC45-F5D6672DFCEC Location:[system-defined]>
+2026-11-12 22:02:24.451 Df installcoordinationd[4783:428d6] [com.apple.installcoordination:daemon] -[IXSDataPromise decommission]: Decommissioning <IXSPromisedTransferToPath(0x600002c01300) Name:App Asset: com.linea.messenger.preview Creator:InstallCoordination Simple SPI UUID:D87A701C-9723-45D1-8D46-CCA503544578 Location:[system-defined]>
+2026-11-12 22:02:24.454 Df installcoordinationd[4783:428d6] [com.apple.appinstallation:TransactionLog] com.linea.messenger.preview/Unknown Persona:4:1:2:1:Coordinator completed successfully.
+2026-11-12 22:02:24.456 Df siriactionsd[869:4150a] [com.apple.shortcuts:Daemon] Dispatching XPC event: <distributed notification: com.apple.LaunchServices.applicationRegistered, userInfo: [AnyHashable("isPlaceholder"): 0, AnyHashable("bundleIDs"): <__NSSingleObjectArrayI 0x60000000d690>(
+com.linea.messenger.preview
+)
+]>
+2026-11-12 22:02:24.456 Df siriactionsd[869:4150a] [com.apple.shortcuts:XPCEvent] Dispatching XPC event: <distributed notification: com.apple.LaunchServices.applicationRegistered, userInfo: [AnyHashable("isPlaceholder"): 0, AnyHashable("bundleIDs"): <__NSSingleObjectArrayI 0x60000000d690>(
+com.linea.messenger.preview
+)
+]>
+2026-11-12 22:02:24.461 Df dmd[4763:41598] Received xpc stream event (distributed notification matching) with name: com.apple.LaunchServices.applicationRegistered user info: {
+    bundleIDs =     (
+        "com.linea.messenger.preview"
+    );
+    isPlaceholder = 0;
+}
+2026-11-12 22:02:24.465 Df appprotectiond[757:41ce3] [com.apple.appprotection:server] Received distnoted event <dictionary: 0x600003e02100> { count = 3, transaction: 0, voucher = 0x6000021080f0, contents =
+	"UserInfo" => <dictionary: 0x600002605ec0> { count = 2, transaction: 0, voucher = 0x0, contents =
+		"isPlaceholder" => <bool: 0x7ff840008690>: false
+		"bundleIDs" => <array: 0x600000c1a2b0> { count = 1, capacity = 1, contents =
+			0: <string: 0x600000c18420> { string cache = 0x0, length = 27, contents = "com.linea.messenger.preview" }
+		}
+	}
+	"Name" => <string: 0x600000c19920> { string cache = 0x0, length = 46, contents = "com.apple.LaunchServices.applicationRegistered" }
+	"XPCEventName" => <string: 0x600000c19890> { string cache = 0x0, length = 21, contents = "ApplicationRegistered" }
+}
+2026-11-12 22:02:24.465 Df appprotectiond[757:41ce3] [com.apple.appprotection:server] received note: name = com.apple.LaunchServices.applicationRegistered, object = Optional(AppProtection.DistnotedXPCEventStreamTranslator), userInfo = Optional([AnyHashable("isPlaceholder"): 0, AnyHashable("bundleIDs"): <__NSSingleObjectArrayI 0x6000000043b0>(
+com.linea.messenger.preview
+)
+])
+2026-11-12 22:02:24.465 Df appprotectiond[757:41ce3] [com.apple.appprotection:server] processing settings authority event: SettingsAuthorityEvent.promotePreferenceFromProvisionalForApplication(com.linea.messenger.preview)
+2026-11-12 22:02:24.472 Df nanotimekitcompaniond[4761:41856] [com.apple.appinstallation:TransactionLog] com.linea.messenger.preview/Unknown Persona:5:8:3:1:applicationsDidInstall <LSApplicationProxy: 0x6000037046c0> com.linea.messenger.preview file:///Users/runner/Library/Developer/CoreSimulator/Devices/C15FAC2A-CB46-4F16-B882-3970BD44CFAD/data/Containers/Bundle/Application/A891EB92-D3CA-477D-B52E-6F7CCD727E3F/INVIZENT.app/ <com.linea.messenger.preview <installed >:0>
+2026-11-12 22:02:24.472 Df nanotimekitcompaniond[4761:41856] [com.apple.NanoTimeKit:UpNext] Setting data sources for SiriDefaultsPhoneThirdPartyDataSources - {(
+    "com.linea.messenger.preview"
+)}
+2026-11-12 22:02:24.481 Df callservicesd[855:41903] [com.apple.launchservices:appinstallation] Received applicationsDidInstall:(
+    "<LSApplicationProxy: 0x10d150cc0> com.linea.messenger.preview file:///Users/runner/Library/Developer/CoreSimulator/Devices/C15FAC2A-CB46-4F16-B882-3970BD44CFAD/data/Containers/Bundle/Application/A891EB92-D3CA-477D-B52E-6F7CCD727E3F/INVIZENT.app/ <com.linea.messenger.preview <installed >:0>"
+)
+2026-11-12 22:02:24.487 Df clipserviced[863:40082] [com.apple.appinstallation:TransactionLog] com.linea.messenger.preview/Unknown Persona:5:8:3:1:applicationsDidInstall <LSApplicationProxy: 0x60000370c480> com.linea.messenger.preview file:///Users/runner/Library/Developer/CoreSimulator/Devices/C15FAC2A-CB46-4F16-B882-3970BD44CFAD/data/Containers/Bundle/Application/A891EB92-D3CA-477D-B52E-6F7CCD727E3F/INVIZENT.app/ <com.linea.messenger.preview <installed >:0>
+2026-11-12 22:02:24.491 Df nsurlsessiond[815:41eab] [com.apple.appinstallation:TransactionLog] com.linea.messenger.preview/Unknown Persona:5:8:3:1:applicationsDidInstall <LSApplicationProxy: 0x600003709680> com.linea.messenger.preview file:///Users/runner/Library/Developer/CoreSimulator/Devices/C15FAC2A-CB46-4F16-B882-3970BD44CFAD/data/Containers/Bundle/Application/A891EB92-D3CA-477D-B52E-6F7CCD727E3F/INVIZENT.app/ <com.linea.messenger.preview <installed >:0>
+2026-11-12 22:02:24.491 Df routined[742:419de] [com.apple.appinstallation:TransactionLog] com.linea.messenger.preview/Unknown Persona:5:8:3:1:applicationsDidInstall <LSApplicationProxy: 0x60000370e580> com.linea.messenger.preview file:///Users/runner/Library/Developer/CoreSimulator/Devices/C15FAC2A-CB46-4F16-B882-3970BD44CFAD/data/Containers/Bundle/Application/A891EB92-D3CA-477D-B52E-6F7CCD727E3F/INVIZENT.app/ <com.linea.messenger.preview <installed >:0>
+2026-11-12 22:02:24.492 Df homed[861:3f16f] [com.apple.appinstallation:TransactionLog] com.linea.messenger.preview/Unknown Persona:5:8:3:1:applicationsDidInstall <LSApplicationProxy: 0x600003709ec0> com.linea.messenger.preview file:///Users/runner/Library/Developer/CoreSimulator/Devices/C15FAC2A-CB46-4F16-B882-3970BD44CFAD/data/Containers/Bundle/Application/A891EB92-D3CA-477D-B52E-6F7CCD727E3F/INVIZENT.app/ <com.linea.messenger.preview <installed >:0>
+2026-11-12 22:02:24.493 Df locationd[766:428b1] [com.apple.appinstallation:TransactionLog] com.linea.messenger.preview/Unknown Persona:5:8:3:1:applicationsDidInstall <LSApplicationProxy: 0x600003704d80> com.linea.messenger.preview file:///Users/runner/Library/Developer/CoreSimulator/Devices/C15FAC2A-CB46-4F16-B882-3970BD44CFAD/data/Containers/Bundle/Application/A891EB92-D3CA-477D-B52E-6F7CCD727E3F/INVIZENT.app/ <com.linea.messenger.preview <installed >:0>
+2026-11-12 22:02:24.493 Df donotdisturbd[831:41997] [com.apple.appinstallation:TransactionLog] com.linea.messenger.preview/Unknown Persona:5:8:3:1:applicationsDidInstall <LSApplicationProxy: 0x60000370c600> com.linea.messenger.preview file:///Users/runner/Library/Developer/CoreSimulator/Devices/C15FAC2A-CB46-4F16-B882-3970BD44CFAD/data/Containers/Bundle/Application/A891EB92-D3CA-477D-B52E-6F7CCD727E3F/INVIZENT.app/ <com.linea.messenger.preview <installed >:0>
+2026-11-12 22:02:24.494 Df locationd[766:41c90] [com.apple.locationd.Core:Core] {"msg":"#Warning #ClientResolution the passed keyPath is not registered. Resolving to #nullCKP", "InputCKP":icom.linea.messenger.preview:}
+2026-11-12 22:02:24.494 Df locationd[766:41c90] [com.apple.locationd.Core:Core] {"msg":"AppMonitor - application (un)installation notification", "notification":Installation, "BundleId":com.linea.messenger.preview, "BundlePath":/Users/runner/Library/Developer/CoreSimulator/Devices/C15FAC2A-CB46-4F16-B882-3970BD44CFAD/data/Containers/Bundle/Application/A891EB92-D3CA-477D-B52E-6F7CCD727E3F/INVIZENT.app, "ExecutablePath":/Users/runner/Library/Developer/CoreSimulator/Devices/C15FAC2A-CB46-4F16-B882-3970BD44CFAD/data/Containers/Bundle/Application/A891EB92-D3CA-477D-B52E-6F7CCD727E3F/INVIZENT.app/INVIZENT}
+2026-11-12 22:02:24.495 Df appstored[4767:42841] [com.apple.appinstallation:TransactionLog] com.linea.messenger.preview/Unknown Persona:5:8:3:1:applicationsDidInstall <LSApplicationProxy: 0x60000370c300> com.linea.messenger.preview file:///Users/runner/Library/Developer/CoreSimulator/Devices/C15FAC2A-CB46-4F16-B882-3970BD44CFAD/data/Containers/Bundle/Application/A891EB92-D3CA-477D-B52E-6F7CCD727E3F/INVIZENT.app/ <com.linea.messenger.preview <installed >:0>
+2026-11-12 22:02:24.495 Df SpringBoard[734:418bc] [com.apple.appinstallation:TransactionLog] com.linea.messenger.preview/Unknown Persona:5:8:3:1:applicationsDidInstall <LSApplicationProxy: 0x6000037e46c0> com.linea.messenger.preview file:///Users/runner/Library/Developer/CoreSimulator/Devices/C15FAC2A-CB46-4F16-B882-3970BD44CFAD/data/Containers/Bundle/Application/A891EB92-D3CA-477D-B52E-6F7CCD727E3F/INVIZENT.app/ <com.linea.messenger.preview <installed >:0>
+2026-11-12 22:02:24.496 Df SpringBoard[734:418bc] [com.apple.frontboard.ApplicationLibrary:observer] -[FBSApplicationLibrary applicationsDidInstall:] com.linea.messenger.preview
+2026-11-12 22:02:24.496 Df SpringBoard[734:418bc] [com.apple.frontboard.ApplicationLibrary:default] Removed placeholder: <SBApplicationPlaceholderProxy: 0x600002c72880; com.linea.messenger.preview (INVIZENT); LSInstallType: StoreDownload>
+2026-11-12 22:02:24.497 Df dasd[768:3ed8c] [com.apple.appinstallation:TransactionLog] com.linea.messenger.preview/Unknown Persona:5:8:3:1:applicationsDidInstall <LSApplicationProxy: 0x600003708180> com.linea.messenger.preview file:///Users/runner/Library/Developer/CoreSimulator/Devices/C15FAC2A-CB46-4F16-B882-3970BD44CFAD/data/Containers/Bundle/Application/A891EB92-D3CA-477D-B52E-6F7CCD727E3F/INVIZENT.app/ <com.linea.messenger.preview <installed >:0>
+2026-11-12 22:02:24.497 Df sleepd[769:41e5a] [com.apple.appinstallation:TransactionLog] com.linea.messenger.preview/Unknown Persona:5:8:3:1:applicationsDidInstall <LSApplicationProxy: 0x600003700840> com.linea.messenger.preview file:///Users/runner/Library/Developer/CoreSimulator/Devices/C15FAC2A-CB46-4F16-B882-3970BD44CFAD/data/Containers/Bundle/Application/A891EB92-D3CA-477D-B52E-6F7CCD727E3F/INVIZENT.app/ <com.linea.messenger.preview <installed >:0>
+2026-11-12 22:02:24.500 Df financed[893:3f0d4] [com.apple.appinstallation:TransactionLog] com.linea.messenger.preview/Unknown Persona:5:8:3:1:applicationsDidInstall <LSApplicationProxy: 0x600003724540> com.linea.messenger.preview file:///Users/runner/Library/Developer/CoreSimulator/Devices/C15FAC2A-CB46-4F16-B882-3970BD44CFAD/data/Containers/Bundle/Application/A891EB92-D3CA-477D-B52E-6F7CCD727E3F/INVIZENT.app/ <com.linea.messenger.preview <installed >:0>
+2026-11-12 22:02:24.500 Df SpringBoard[734:418bc] [com.apple.frontboard.ApplicationLibrary:default] Added application: <SBApplicationInfo: 0x11d13e900; com.linea.messenger.preview (INVIZENT)>
+2026-11-12 22:02:24.503 Df runningboardd[737:42382] [com.apple.appinstallation:TransactionLog] com.linea.messenger.preview/Unknown Persona:5:8:3:1:applicationsDidInstall <LSApplicationProxy: 0x60000370ce40> com.linea.messenger.preview file:///Users/runner/Library/Developer/CoreSimulator/Devices/C15FAC2A-CB46-4F16-B882-3970BD44CFAD/data/Containers/Bundle/Application/A891EB92-D3CA-477D-B52E-6F7CCD727E3F/INVIZENT.app/ <com.linea.messenger.preview <installed >:0>
+2026-11-12 22:02:24.504 Df mobiletimerd[752:42856] [com.apple.appinstallation:TransactionLog] com.linea.messenger.preview/Unknown Persona:5:8:3:1:applicationsDidInstall <LSApplicationProxy: 0x600003708480> com.linea.messenger.preview file:///Users/runner/Library/Developer/CoreSimulator/Devices/C15FAC2A-CB46-4F16-B882-3970BD44CFAD/data/Containers/Bundle/Application/A891EB92-D3CA-477D-B52E-6F7CCD727E3F/INVIZENT.app/ <com.linea.messenger.preview <installed >:0>
+2026-11-12 22:02:24.505 Df passd[771:414f8] [com.apple.appinstallation:TransactionLog] com.linea.messenger.preview/Unknown Persona:5:8:3:1:applicationsDidInstall <LSApplicationProxy: 0x6000037049c0> com.linea.messenger.preview file:///Users/runner/Library/Developer/CoreSimulator/Devices/C15FAC2A-CB46-4F16-B882-3970BD44CFAD/data/Containers/Bundle/Application/A891EB92-D3CA-477D-B52E-6F7CCD727E3F/INVIZENT.app/ <com.linea.messenger.preview <installed >:0>
+2026-11-12 22:02:24.505 Df deviceaccessd[4762:42843] [com.apple.appinstallation:TransactionLog] com.linea.messenger.preview/Unknown Persona:5:8:3:1:applicationsDidInstall <LSApplicationProxy: 0x600003708480> com.linea.messenger.preview file:///Users/runner/Library/Developer/CoreSimulator/Devices/C15FAC2A-CB46-4F16-B882-3970BD44CFAD/data/Containers/Bundle/Application/A891EB92-D3CA-477D-B52E-6F7CCD727E3F/INVIZENT.app/ <com.linea.messenger.preview <installed >:0>
+2026-11-12 22:02:24.506 Df deviceaccessd[4762:415bd] [com.apple.DeviceAccess:DADaemonServer] ### applicationsDidInstall [
+    <LSApplicationProxy: 0x600003708480> com.linea.messenger.preview file:///Users/runner/Library/Developer/CoreSimulator/Devices/C15FAC2A-CB46-4F16-B882-3970BD44CFAD/data/Containers/Bundle/Application/A891EB92-D3CA-477D-B52E-6F7CCD727E3F/INVIZENT.app/ <com.linea.messenger.preview <installed >:0>
+]
+2026-11-12 22:02:24.506 Df deviceaccessd[4762:415bd] [com.apple.DeviceAccess:DADaemonServer] ### applicationsDidInstall com.linea.messenger.preview
+2026-11-12 22:02:24.511 Df profiled[4796:4183a] [com.apple.appinstallation:TransactionLog] com.linea.messenger.preview/Unknown Persona:5:8:3:1:applicationsDidInstall <LSApplicationProxy: 0x600003704540> com.linea.messenger.preview file:///Users/runner/Library/Developer/CoreSimulator/Devices/C15FAC2A-CB46-4F16-B882-3970BD44CFAD/data/Containers/Bundle/Application/A891EB92-D3CA-477D-B52E-6F7CCD727E3F/INVIZENT.app/ <com.linea.messenger.preview <installed >:0>
+2026-11-12 22:02:24.511 Df liveactivitiesd[850:4196c] [com.apple.appinstallation:TransactionLog] com.linea.messenger.preview/Unknown Persona:5:8:3:1:applicationsDidInstall <LSApplicationProxy: 0x60000370c300> com.linea.messenger.preview file:///Users/runner/Library/Developer/CoreSimulator/Devices/C15FAC2A-CB46-4F16-B882-3970BD44CFAD/data/Containers/Bundle/Application/A891EB92-D3CA-477D-B52E-6F7CCD727E3F/INVIZENT.app/ <com.linea.messenger.preview <installed >:0>
+2026-11-12 22:02:24.514 Df appstored[4767:41633] [com.apple.appstored:ODR] Handling application installation: {bundleID = com.linea.messenger.preview; version = 1; shortVersion = 0.14.14; variantID = (null)}
+2026-11-12 22:02:24.523 Df appstored[4767:41633] [com.apple.appstored:ODR] Ignoring installation for {bundleID = com.linea.messenger.preview; version = 1; shortVersion = 0.14.14; variantID = (null)} as it does not appear to support ODR
+2026-11-12 22:02:24.525 Df activityawardsd[4811:4283f] [com.apple.appinstallation:TransactionLog] com.linea.messenger.preview/Unknown Persona:5:8:3:1:applicationsDidInstall <LSApplicationProxy: 0x600003700840> com.linea.messenger.preview file:///Users/runner/Library/Developer/CoreSimulator/Devices/C15FAC2A-CB46-4F16-B882-3970BD44CFAD/data/Containers/Bundle/Application/A891EB92-D3CA-477D-B52E-6F7CCD727E3F/INVIZENT.app/ <com.linea.messenger.preview <installed >:0>
+2026-11-12 22:02:24.528 Df deviceaccessd[4762:415bd] [com.apple.DeviceAccess:DADaemonServer] ### appBundleHasASKEnabled com.linea.messenger.preview supports None
+2026-11-12 22:02:24.528 Df appstored[4767:41633] [com.apple.appstored:General] Checking to see if apps need to be migrated to managed: [com.linea.messenger.preview]
+2026-11-12 22:02:24.534 Df deviceaccessd[4762:415bd] [com.apple.DeviceAccess:DADaemonServer] ### UpdateAppsAccess: com.linea.messenger.preview with existing info plist options: None
+2026-11-12 22:02:24.547 Df gamed[4772:41e7d] [com.apple.appinstallation:TransactionLog] com.linea.messenger.preview/Unknown Persona:5:8:3:1:applicationsDidInstall <LSApplicationProxy: 0x6000037009c0> com.linea.messenger.preview file:///Users/runner/Library/Developer/CoreSimulator/Devices/C15FAC2A-CB46-4F16-B882-3970BD44CFAD/data/Containers/Bundle/Application/A891EB92-D3CA-477D-B52E-6F7CCD727E3F/INVIZENT.app/ <com.linea.messenger.preview <installed >:0>
+2026-11-12 22:02:24.550 Df installcoordinationd[4783:428d6] [com.apple.installcoordination:daemon] -[IXSCoordinatorManager unregisterCoordinator:]: Unregistered coordinator: <IXSCoordinatedAppInstall<0x10b509ed0> [P=CoreSimulatorBridge (pid 772)] identifier:[com.linea.messenger.preview/Invalid/[system-defined]] uuid:187F671F-7B08-4B5B-AC3B-06BF069F14A4 intent:IXCoordinatorIntentInitiating creator/appDRI:InstallCoordination Simple SPI importance:UserWaiting state:IXAppCoordinationStateComplete promise-state:PA2I4>
+2026-11-12 22:02:24.551 Df installcoordinationd[4783:428d6] [com.apple.installcoordination:daemon] -[IXSCoordinatedAppInstall setPriorityBoostCompletion:withSourceInfo:]: <IXSCoordinatedAppInstall<0x10b509ed0> [P=CoreSimulatorBridge (pid 772)] identifier:[com.linea.messenger.preview/Invalid/[system-defined]] uuid:187F671F-7B08-4B5B-AC3B-06BF069F14A4 intent:IXCoordinatorIntentInitiating creator/appDRI:InstallCoordination Simple SPI importance:UserWaiting state:IXAppCoordinationStateComplete promise-state:PA2I4>: Disposing of completion from CoreSimulatorBridge (772), QOS_CLASS_DEFAULT (0x15)
+2026-11-12 22:02:24.567 Df callservicesd[855:41903] [com.apple.appinstallation:TransactionLog] com.linea.messenger.preview/Unknown Persona:5:8:3:1:applicationsDidInstall <LSApplicationProxy: 0x10d150a80> com.linea.messenger.preview file:///Users/runner/Library/Developer/CoreSimulator/Devices/C15FAC2A-CB46-4F16-B882-3970BD44CFAD/data/Containers/Bundle/Application/A891EB92-D3CA-477D-B52E-6F7CCD727E3F/INVIZENT.app/ <com.linea.messenger.preview <installed >:0>
+2026-11-12 22:02:24.573 Df callservicesd[855:41903] [com.apple.calls.copresencecore:Default] Invalidating cached value for bundle identifier: com.linea.messenger.preview
+2026-11-12 22:02:24.593 Df CoreSimulatorBridge[772:4281b] [com.apple.installcoordination:framework] -[IXAppInstallCoordinator _clientDelegate_didCompleteForApplicationRecord:]: <IXInitiatingAppInstallCoordinator<0x600001710680> identity:[com.linea.messenger.preview/Invalid/[system-defined]] uuid:187F671F-7B08-4B5B-AC3B-06BF069F14A4 creator:InstallCoordination Simple SPI>: Got completion delegate for app record { bundleID: com.linea.messenger.preview, URL: file:///Users/runner/Library/Developer/CoreSimulator/Devices/C15FAC2A-CB46-4F16-B882-3970BD44CFAD/data/Containers/Bundle/Application/A891EB92-D3CA-477D-B52E-6F7CCD727E3F/INVIZENT.app/ }
+2026-11-12 22:02:24.594 Df CoreSimulatorBridge[772:3eed2] [com.apple.installcoordination:framework] -[IXAppInstallCoordinator _clientDelegate_didCompleteForApplicationRecord:]_block_invoke: <IXInitiatingAppInstallCoordinator<0x600001710680> identity:[com.linea.messenger.preview/Invalid/[system-defined]] uuid:187F671F-7B08-4B5B-AC3B-06BF069F14A4 creator:InstallCoordination Simple SPI>: Calling selector coordinatorDidCompleteSuccessfully:forApplicationRecord: on observer <_IXSimpleInstallerDelegate 0x0x600000c14fc0>
+2026-11-12 22:02:24.711 Df callservicesd[855:41903] [com.apple.calls.copresencecore:Default] Invalidating cached value for bundle identifier: com.linea.messenger.preview
+2026-11-12 22:02:24.774 Df SpringBoard[734:41927] [com.apple.UserNotifications:DataProviderFactory] [com.linea.messenger.preview] Application installed using default data provider
+2026-11-12 22:02:24.774 Df SpringBoard[734:41927] [com.apple.UserNotifications:Settings] Getting sectionInfos for section identifiers: {(
+    "com.linea.messenger.preview"
+)}
+2026-11-12 22:02:24.775 Df SpringBoard[734:41927] [com.apple.UserNotifications:Settings] [{(
+    "com.linea.messenger.preview"
+)}] Got section infos [ hasResult: 1 ]
+2026-11-12 22:02:25.279 Df clipserviced[863:3f017] [com.apple.ClipServices:ClipServices] CPSClipCleanupManager: Detected installation of new app (com.linea.messenger.preview)
+2026-11-12 22:02:25.578 Df SpringBoard[734:3ecf7] [com.apple.launchservices:progress] Unpublishing progress block called for app com.linea.messenger.preview
+2026-11-12 22:02:25.580 Df SpringBoard[734:41927] [com.apple.launchservices:progress] #LSInstallProgressList remove subscriber: <_NSProgressSubscriber: 0x600000cb1f20> publishingString: com.linea.messenger.preview
+2026-11-12 22:02:25.582 Df SpringBoard[734:3ecf7] [com.apple.SpringBoard:Common] termination assertion released for com.linea.messenger.preview (app not found)
+2026-11-12 22:02:25.589 Df SpringBoard[734:3ecf7] [com.apple.frontboard.ApplicationLibrary:sb.placeholder] App placeholder proxies installed: (
+    "<SBApplicationPlaceholderProxy: 0x600002c72880; com.linea.messenger.preview (INVIZENT); LSInstallType: StoreDownload>"
+)
+2026-11-12 22:02:25.590 Df SpringBoard[734:3ecf7] [com.apple.appinstallation:TransactionLog] com.linea.messenger.preview/Unknown Persona:10:4:1:1:Placeholder remove BEGIN
+2026-11-12 22:02:25.591 Df SpringBoard[734:3ecf7] [com.apple.appinstallation:TransactionLog] com.linea.messenger.preview/Unknown Persona:10:10:3:1:Application added
+2026-11-12 22:02:25.604 Df SpringBoard[734:3ecf7] [com.apple.SpringBoard:Common] Installed apps did change.
+Added: {(
+    "com.linea.messenger.preview"
+)}
+Removed: {(
+)}
+Replaced: {(
+)}
+Updated: (null)
+2026-11-12 22:02:25.606 Df SpringBoard[734:3ecf7] [com.apple.SpringBoard:Widgets] handleRemovedDataSource:<SBApplicationPlaceholder: 0x600000d9a580; bundleIdentifier: com.linea.messenger.preview; displayName: INVIZENT; progress: 100%; state: Finished> ofIcon:<SBApplicationIcon: 0x60000332f8e0; nodeID: com.linea.messenger.preview; bundleID: com.linea.messenger.preview>
+2026-11-12 22:02:25.608 Df SpringBoard[734:3ecf7] [com.apple.SpringBoard:Icon] <<SBLeafIcon:0x60000332f8e0 [com.linea.messenger.preview]>> Changing active data source: <SBApplicationIcon: 0x60000332f8e0; nodeID: com.linea.messenger.preview; bundleID: com.linea.messenger.preview>
+2026-11-12 22:02:25.609 Df SpringBoard[734:3ecf7] [com.apple.SpringBoard:Icon] <<SBLeafIcon:0x60000332f8e0 [com.linea.messenger.preview]>> Changing from data souce: (null) to data source:com.linea.messenger.preview.
+2026-11-12 22:02:25.615 Df SpringBoard[734:3ecf7] [com.apple.frontboard.ApplicationLibrary:sb.placeholder] Placeholders added: (null), modified: (null), removed: (
+    "<SBApplicationPlaceholder: 0x600000d9a580; bundleIdentifier: com.linea.messenger.preview; displayName: INVIZENT; progress: 100%; state: Finished>"
+)
+2026-11-12 22:02:25.615 Df SpringBoard[734:3ecf7] [com.apple.SpringBoard:Widgets] handleRemovedDataSource:<SBApplication: 0x600003d482d0; com.linea.messenger.preview> {
+} ofIcon:<SBApplicationIcon: 0x60000332f8e0; nodeID: com.linea.messenger.preview; bundleID: com.linea.messenger.preview>
+2026-11-12 22:02:25.615 Df SpringBoard[734:3ecf7] [com.apple.SpringBoard:Icon] <<SBLeafIcon:0x60000332f8e0 [com.linea.messenger.preview]>> Changing active data source: <SBApplicationIcon: 0x60000332f8e0; nodeID: com.linea.messenger.preview; bundleID: com.linea.messenger.preview>
+2026-11-12 22:02:25.616 Df SpringBoard[734:3ecf7] [com.apple.SpringBoard:Icon] <<SBLeafIcon:0x60000332f8e0 [com.linea.messenger.preview]>> Changing from data souce: (null) to data source:com.linea.messenger.preview.
+2026-11-12 22:02:25.619 Df SpringBoard[734:418bc] [com.apple.SplashBoard:FileManifest] Applications were added. Updating launch images for: (
+    "com.linea.messenger.preview"
+)
+2026-11-12 22:02:25.704 Df SpringBoard[734:418bc] [com.apple.SplashBoard:FileManifest] com.linea.messenger.preview Manifest is empty; purging everything at /Users/runner/Library/Developer/CoreSimulator/Devices/C15FAC2A-CB46-4F16-B882-3970BD44CFAD/data/Containers/Data/Application/038AA52F-BA41-452C-8B62-36AB59EC57C6/Library/SplashBoard/Snapshots
+2026-11-12 22:02:25.957 Df SpringBoard[734:418bc] [com.apple.SplashBoard:Capture] Processing launch request <XBLaunchStateRequest: 0x600002912a00> for app: com.linea.messenger.preview.
+2026-11-12 22:02:25.959 Df SpringBoard[734:418bc] [com.apple.SplashBoard:Capture] Processing launch request <XBLaunchStateRequest: 0x600002913c60> for app: com.linea.messenger.preview.
+2026-11-12 22:02:25.960 Df SpringBoard[734:41a6e] [com.apple.SplashBoard:Capture] Asynchronously generating image data for request: <XBLaunchStateRequest: 0x600002912a00; groupID: com.linea.messenger.preview - {DEFAULT GROUP}; statusBar: normal; refSize: {402, 874}; orientation: Portrait; userInterfaceStyle: Light>
+2026-11-12 22:02:25.970 Df SpringBoard[734:41a6e] [com.apple.SplashBoard:Capture] Validating resource SplashScreen.storyboardc in NSBundle </Users/runner/Library/Developer/CoreSimulator/Devices/C15FAC2A-CB46-4F16-B882-3970BD44CFAD/data/Containers/Bundle/Application/A891EB92-D3CA-477D-B52E-6F7CCD727E3F/INVIZENT.app> (not yet loaded)
+2026-11-12 22:02:26.756 Df SpringBoard[734:419b8] [com.apple.SplashBoard:FileManifest] <XBApplicationSnapshotManifestImpl: 0x600002c4ce00> [com.linea.messenger.preview] We don't have any snapshots, so we're clearing our manifest data.
+2026-11-12 22:02:30.971 Df SpringBoard[734:418bc] [com.apple.launchservices:appinstallation] LaunchServices observer: Installed plugins (
+    "<LSPlugInKitProxy: 0x600003d4b390> pluginID=com.linea.messenger.preview.ScreenBroadcast UUID=DCD90368-A3D0-400F-8616-6F95653DC3BB version=0.14.14"
+)
+2026-11-12 22:03:02.133 Df splashboardd[5993:43014] [com.apple.SplashBoard:Capture] Running image request from SpringBoard.734 for com.linea.messenger.preview
+2026-11-12 22:03:02.260 Df splashboardd[5993:42ffe] (UIKitCore) Could not load the "SplashScreen" image referenced from a nib in the bundle with identifier "com.linea.messenger.preview"
+2026-11-12 22:03:02.575 Df splashboardd[5993:42ffe] [com.apple.SplashBoard:Capture] Updating window to <XBLaunchStateRequest: 0x6000029082a0; groupID: com.linea.messenger.preview - {DEFAULT GROUP}; statusBar: normal; refSize: {402, 874}; orientation: Portrait; userInterfaceStyle: Light>
+2026-11-12 22:03:02.618 Df splashboardd[5993:42ffe] [com.apple.SplashBoard:Capture] [com.linea.messenger.preview] launch image generation completed after 0.455s
+2026-11-12 22:03:04.017 Df SpringBoard[734:418bd] [com.apple.SplashBoard:Capture] Image generation complete for: <XBLaunchStateRequest: 0x600002912a00; groupID: com.linea.messenger.preview - {DEFAULT GROUP}; statusBar: normal; refSize: {402, 874}; orientation: Portrait; userInterfaceStyle: Light>
+2026-11-12 22:03:04.026 Df SpringBoard[734:41a6e] [com.apple.SplashBoard:Capture] Asynchronously generating image data for request: <XBLaunchStateRequest: 0x600002913c60; groupID: com.linea.messenger.preview - {DEFAULT GROUP}; statusBar: normal; refSize: {402, 874}; orientation: Portrait; userInterfaceStyle: Dark>
+2026-11-12 22:03:04.030 Df SpringBoard[734:41a6e] [com.apple.SplashBoard:Capture] Validating resource SplashScreen.storyboardc in NSBundle </Users/runner/Library/Developer/CoreSimulator/Devices/C15FAC2A-CB46-4F16-B882-3970BD44CFAD/data/Containers/Bundle/Application/A891EB92-D3CA-477D-B52E-6F7CCD727E3F/INVIZENT.app> (not yet loaded)
+2026-11-12 22:03:04.037 Df SpringBoard[734:419b6] [com.apple.SplashBoard:FileManifest] <XBApplicationSnapshotManifestImpl: 0x600002c4ce00> [com.linea.messenger.preview] Snapshot data for <XBApplicationSnapshot: 0x11d108c50; …BA632271F9D2> [com.linea.messenger.preview] written to file: /Users/runner/Library/Developer/CoreSimulator/Devices/C15FAC2A-CB46-4F16-B882-3970BD44CFAD/data/Containers/Data/Application/038AA52F-BA41-452C-8B62-36AB59EC57C6/Library/SplashBoard/Snapshots/com.linea.messenger.preview - {DEFAULT GROUP}/6D7786F9-7A93-4E88-BF1E-BA632271F9D2@3x.ktx
+2026-11-12 22:03:04.071 Df splashboardd[5993:43014] [com.apple.SplashBoard:Capture] Running image request from SpringBoard.734 for com.linea.messenger.preview
+2026-11-12 22:03:04.071 Df splashboardd[5993:42ffe] [com.apple.SplashBoard:Capture] Updating window to <XBLaunchStateRequest: 0x600002900a80; groupID: com.linea.messenger.preview - {DEFAULT GROUP}; statusBar: normal; refSize: {402, 874}; orientation: Portrait; userInterfaceStyle: Dark>
+2026-11-12 22:03:04.085 Df splashboardd[5993:42ffe] [com.apple.SplashBoard:Capture] [com.linea.messenger.preview] launch image generation completed after 0.013s
+2026-11-12 22:03:04.524 Df SpringBoard[734:419b6] [com.apple.SplashBoard:FileManifest] <XBApplicationSnapshotManifestImpl: 0x600002c4ce00> [com.linea.messenger.preview] Snapshot data for <XBApplicationSnapshot: 0x12030e540; …F8E15009D6DA> [com.linea.messenger.preview] written to file: /Users/runner/Library/Developer/CoreSimulator/Devices/C15FAC2A-CB46-4F16-B882-3970BD44CFAD/data/Containers/Data/Application/038AA52F-BA41-452C-8B62-36AB59EC57C6/Library/SplashBoard/Snapshots/com.linea.messenger.preview - {DEFAULT GROUP}/0245C9FD-E89A-43D1-8882-F8E15009D6DA@3x.ktx
+2026-11-12 22:03:04.526 Df SpringBoard[734:419b6] [com.apple.SplashBoard:Capture] Image generation complete for: <XBLaunchStateRequest: 0x600002913c60; groupID: com.linea.messenger.preview - {DEFAULT GROUP}; statusBar: normal; refSize: {402, 874}; orientation: Portrait; userInterfaceStyle: Dark>
+2026-11-12 22:03:23.396 Df linkd[909:40023] [com.apple.appintents:Registry] com.apple.LaunchServices.applicationRegistered => ["com.linea.messenger.preview"]
+2026-11-12 22:03:23.402 Df linkd[909:40023] [com.apple.appintents:Registry] com.linea.messenger.preview is not link enabled
+2026-11-12 22:04:22.340 Df SpringBoard[734:41952] [com.apple.launchservices:progress] #LSInstallProgressList add subscriber: <_NSProgressSubscriber: 0x600000cfe640> publishingString: com.linea.messenger.preview
+2026-11-12 22:04:22.340 Df SpringBoard[734:41952] [com.apple.launchservices:progress] Subscribing to progress for app com.linea.messenger.preview,
+2026-11-12 22:04:39.520 Df installd[4553:416b0] (MobileSystemServices) 0x70000414b000 -[MILaunchServicesOperationManager _onQueue_removePendingLaunchServicesOperationForUUID:dueToLSSave:]: Removing operation after LS save: <MILaunchServicesRegisterOperation: D4E344F4-2F56-401B-9840-FB69DE02BD57:2 com.linea.messenger.preview/MIInstallationDomainSystemShared personas:[com.apple.containermanager.primary-persona]>
+2026-11-12 22:04:47.812 Df liveactivitiesd[850:41737] [com.apple.launchservices:progress] #LSInstallProgressList add subscriber: <_NSProgressSubscriber: 0x600000c12430> publishingString: com.linea.messenger.preview
+2026-11-12 22:04:47.812 Df liveactivitiesd[850:41737] [com.apple.launchservices:progress] Subscribing to progress for app com.linea.messenger.preview,
+2026-11-12 22:05:18.866 Df searchd[929:414d6] [com.apple.spotlight:default] Apps changed: (
+    "com.apple.Passbook",
+    "com.apple.MobileAddressBook",
+    "com.apple.Fitness",
+    "com.apple.DocumentsApp",
+    "com.apple.MobileSMS",
+    "com.apple.Maps",
+    "com.apple.Passwords",
+    "com.apple.mobilecal",
+    "com.apple.Bridge",
+    "com.apple.BarcodeScanner",
+    "com.apple.Preferences",
+    "com.apple.reminders",
+    "com.apple.Health",
+    "com.apple.TVRemoteUIService",
+    "com.apple.news",
+    "com.apple.mobileslideshow",
+    "com.apple.mobilesafari",
+    "com.apple.Preview",
+    "com.linea.messenger.preview",
+    "com.apple.shortcuts"
+)
+2026-11-12 22:08:54.021 Df appleaccountd[901:3f05a] [com.apple.appleaccount:daemon] Dataclass App Install Observer - Ignoring ["com.linea.messenger.preview"]
+2026-11-12 22:11:09.201 Df BackgroundShortcutRunner[13946:47f67] [com.apple.shortcuts:ToolKitScheduler] Policy: seed LaunchServicesChangesetProducer contributes changeset: .partial(updatedCount: 1 removedCount: 0 updated: ["com.linea.messenger.preview"], removed: [])
+2026-11-12 22:11:11.409 Df BackgroundShortcutRunner[13946:47f67] [com.apple.shortcuts:AppIntentsMetadata] Loading LNExamplePhraseDescription for bundle identifier com.linea.messenger.preview
+2026-11-12 22:12:00.602 Df SpringBoard[734:489dc] [com.apple.SpringBoard:ProactiveAppLibrary] (3) Library category map changes: LHS: 0x6000017bf2c0
+RHS: 0x6000018c9180
+	-->CategoryIdentifiers: 
+		INSERT <SBHLibraryCategoryIdentifier: 0x600000e593b0; localizedDisplayName: Other; predictionCategoryID: 3001>
+Category id '<SBHLibraryCategoryIdentifier: 0x600000e5bf90; localizedDisplayName: " System"; predictionCategoryID: 3000>' name change from '(null)'->'(null)'Category id '<SBHLibraryCategoryIdentifier: 0x600000e593b0; localizedDisplayName: Other; predictionCategoryID: 3001>' name change from '(null)'->'(null)'	-->Other: 
+		INSERT com.linea.messenger.preview
+2026-11-12 22:12:01.188 Df nanotimekitcompaniond[4761:48b58] [com.apple.NanoTimeKit:UpNext] Setting data sources for SiriDefaultsPhoneThirdPartyDataSources - {(
+    "com.linea.messenger.preview",
+    "dev.mobile.maestro-driver-iosUITests.xctrunner"
+)}
+2026-11-12 22:13:04.273 Df searchd[929:48cb6] [com.apple.spotlight:default] Apps changed: (
+    "com.apple.Passbook",
+    "com.apple.MobileAddressBook",
+    "com.apple.Fitness",
+    "com.apple.DocumentsApp",
+    "com.apple.MobileSMS",
+    "dev.mobile.maestro-driver-iosUITests.xctrunner",
+    "com.apple.Maps",
+    "com.apple.Passwords",
+    "com.apple.mobilecal",
+    "com.apple.Bridge",
+    "com.apple.BarcodeScanner",
+    "com.apple.Preferences",
+    "com.apple.reminders",
+    "com.apple.Health",
+    "com.apple.TVRemoteUIService",
+    "com.apple.news",
+    "com.apple.mobileslideshow",
+    "com.apple.mobilesafari",
+    "com.apple.Preview",
+    "com.apple.shortcuts",
+    "com.linea.messenger.preview"
+)
+2026-11-12 22:13:51.936 Df storekitd[5966:48a07] [com.apple.storekit:Receipts] [ReceiptManager] Handling app install for (
+    "com.linea.messenger.preview"
+)
+2026-11-12 22:14:17.325 Df storekitd[5966:48a07] [com.apple.storekit:Receipts] [ReceiptManager] Clearing app receipt for com.linea.messenger.preview
+2026-11-12 22:14:57.263 Df testmanagerd[15196:4a183] [com.apple.dt.xctest:Default] Icon, identifier: 'INVIZENT' is not actually a child of Icon, including at this point anyway (rdar://problem/20738636)
+2026-11-12 22:15:04.852 Df testmanagerd[15196:4a183] [com.apple.dt.xctest:Default] Icon, {{209.3, 188.3}, {76.3, 90.7}}, identifier: 'INVIZENT', label: 'INVIZENT' is not actually a child of Icon, {{0.0, 0.0}, {0.0, 0.0}}, including at this point anyway (rdar://problem/20738636)
+2026-11-13 00:15:48.666 Df log[12416:0] [com.apple.log:] log run noninteractively, parent: 712 (launchd_sim), args: 'log' 'show' '--last' '3h' '--style' 'compact' '--predicate' 'process == "INVIZENT"'
+2026-11-13 00:16:07.012 Df log[12892:0] [com.apple.log:] log run noninteractively, parent: 712 (launchd_sim), args: 'log' 'show' '--last' '3h' '--style' 'compact' '--predicate' 'eventMessage CONTAINS[c] "INVIZENT" OR eventMessage CONTAINS[c] "linea.messenger"'

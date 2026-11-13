@@ -1,0 +1,62 @@
+2026-11-12 22:11:08.203 xcodebuild[13138:291449] [MT] IDERunDestination: Supported platforms for the buildables in the current scheme is empty.
+2026-11-12 22:11:08.305 xcodebuild[13138:291449] [MT] IDERunDestination: Supported platforms for the buildables in the current scheme is empty.
+2026-11-12 22:11:15.722 xcodebuild[13138:291449] [MT] IDERunDestination: Supported platforms for the buildables in the current scheme is empty.
+2026-11-12 22:112026-11-12 22:12:12.254079+0000 maestro-driver-iosUITests-Runner[15550:298354] [Default] Running tests...
+2026-11-12 22:12:14.532457+0000 maestro-driver-iosUITests-Runner[15550:298354] snapshotKeyHonorModalViews configured to value: (null)
+    t =      nans Interface orientation changed to Portrait
+Test Suite 'Selected tests' started at 2026-11-12 22:13:14.018.
+Test Suite 'maestro-driver-iosUITests.xctest' started at 2026-11-12 22:13:14.020.
+Test Suite 'SwipeRouteHandlerV2ClassificationTests' started at 2026-11-12 22:13:14.021.
+Test Case '-[maestro_driver_iosUITests.SwipeRouteHandlerV2ClassificationTests testClassifiedTimeoutPreservesTheRealMessage]' started.
+    t =     0.01s Start Test at 2026-11-12 22:13:14.034
+    t =     0.03s Set Up
+    t =     0.04s Tear Down
+Test Case '-[maestro_driver_iosUITests.SwipeRouteHandlerV2ClassificationTests testClassifiedTimeoutPreservesTheRealMessage]' passed (0.040 seconds).
+Test Case '-[maestro_driver_iosUITests.SwipeRouteHandlerV2ClassificationTests testMainThreadBusyIsClassifiedAsTimeout]' started.
+    t =     0.00s Start Test at 2026-11-12 22:13:14.071
+    t =     0.01s Set Up
+    t =     0.01s Tear Down
+Test Case '-[maestro_driver_iosUITests.SwipeRouteHandlerV2ClassificationTests testMainThreadBusyIsClassifiedAsTimeout]' passed (0.011 seconds).
+Test Case '-[maestro_driver_iosUITests.SwipeRouteHandlerV2ClassificationTests testTimeoutMessageWithWrongDomainStaysInternal]' started.
+    t =     0.00s Start Test at 2026-11-12 22:13:14.084
+    t =     0.01s Set Up
+    t =     0.01s Tear Down
+Test Case '-[maestro_driver_iosUITests.SwipeRouteHandlerV2ClassificationTests testTimeoutMessageWithWrongDomainStaysInternal]' passed (0.011 seconds).
+Test Case '-[maestro_driver_iosUITests.SwipeRouteHandlerV2ClassificationTests testUIQueryTimeoutIsClassifiedAsTimeout]' started.
+    t =     0.01s Start Test at 2026-11-12 22:13:14.101
+    t =     0.01s Set Up
+    t =     0.04s Tear Down
+Test Case '-[maestro_driver_iosUITests.SwipeRouteHandlerV2ClassificationTests testUIQueryTimeoutIsClassifiedAsTimeout]' passed (0.046 seconds).
+Test Case '-[maestro_driver_iosUITests.SwipeRouteHandlerV2ClassificationTests testUnrelatedXCTFutureErrorStaysInternal]' started.
+    t =     0.00s Start Test at 2026-11-12 22:13:14.168
+    t =     0.01s Set Up
+    t =     0.01s Tear Down
+Test Case '-[maestro_driver_iosUITests.SwipeRouteHandlerV2ClassificationTests testUnrelatedXCTFutureErrorStaysInternal]' passed (0.015 seconds).
+Test Case '-[maestro_driver_iosUITests.SwipeRouteHandlerV2ClassificationTests testXCTFutureCode1000WithUnrelatedMessageStaysInternal]' started.
+    t =     0.02s Start Test at 2026-11-12 22:13:14.202
+    t =     0.04s Set Up
+    t =     0.05s Tear Down
+Test Case '-[maestro_driver_iosUITests.SwipeRouteHandlerV2ClassificationTests testXCTFutureCode1000WithUnrelatedMessageStaysInternal]' passed (0.050 seconds).
+Test Suite 'SwipeRouteHandlerV2ClassificationTests' passed at 2026-11-12 22:13:14.244.
+	 Executed 6 tests, with 0 failures (0 unexpected) in 0.173 (0.223) seconds
+Test Suite 'maestro_driver_iosUITests' started at 2026-11-12 22:13:14.252.
+    t =      nans Suite Set Up
+Test Case '-[maestro_driver_iosUITests.maestro_driver_iosUITests testHttpServer]' started.
+    t =     0.17s Start Test at 2026-11-12 22:13:14.431
+    t =     0.17s Set Up
+2026-11-12 22:13:14.437962+0000 maestro-driver-iosUITests-Runner[15550:299733] [maestro_driver_iosUITests] Will start HTTP server
+2026-11-12 22:13:15.113026+0000 maestro-driver-iosUITests-Runner[15550:299982] [FlyingFox] starting server 127.0.0.1:54715
+2026-11-12 22:13:15.425826+0000 maestro-driver-iosUITests-Runner[15550:299733] [FlyingFox] <127.0.0.1> open connection
+2026-11-12 22:13:15.445218+0000 maestro-driver-iosUITests-Runner[15550:299733] [FlyingFox] <127.0.0.1> request: GET /status
+2026-11-12 22:13:16.275982+0000 maestro-driver-iosUITests-Runner[15550:299733] [FlyingFox] <127.0.0.1> open connection
+2026-11-12 22:13:16.282563+0000 maestro-driver-iosUITests-Runner[15550:299982] [FlyingFox] <127.0.0.1> request: POST /deviceInfo
+    t =     2.02s Getting device orientation
+2026-11-12 22:13:32.189692+0000 maestro-driver-iosUITests-Runner[15550:298354] Using singleton test manager
+2026-11-12 22:13:32.194387+0000 maestro-driver-iosUITests-Runner[15550:298354] Detected running apps: ["com.apple.springboard"]
+    t =    17.93s Getting device orientation
+    t =    17.95s Find the Application 'com.apple.springboard'
+    t =    78.02s     Requesting snapshot of accessibility hierarchy for app with pid 734
+2026-11-12 22:15:05.000959+0000 maestro-driver-iosUITests-Runner[15550:298354] Device orientation is 1
+2026-11-12 22:15:05.016517+0000 maestro-driver-iosUITests-Runner[15550:299091] [FlyingFox] handler error: Task timed out before completion. Timeout: 100.0 seconds.
+2026-11-12 22:18:15.600909+0000 maestro-driver-iosUITests-Runner[15550:299091] [FlyingFox] <127.0.0.1> close connection
+2026-11-12 22:20:05.099260+0000 maestro-driver-iosUITests-Runner[15550:299091] [FlyingFox] <127.0.0.1> close connection

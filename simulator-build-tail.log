@@ -1,0 +1,300 @@
+Code Signing /Users/runner/work/linea-build/linea-build/mobile/ios/simbuild/Build/Products/Release-iphonesimulator/INVIZENT.app/Frameworks/ExpoImage.framework with Identity Sign to Run Locally
+/usr/bin/codesign --force --sign -  --preserve-metadata=identifier,entitlements '/Users/runner/work/linea-build/linea-build/mobile/ios/simbuild/Build/Products/Release-iphonesimulator/INVIZENT.app/Frameworks/ExpoImage.framework'
+/Users/runner/work/linea-build/linea-build/mobile/ios/simbuild/Build/Products/Release-iphonesimulator/INVIZENT.app/Frameworks/ExpoImage.framework: replacing existing signature
+rsync --delete -av --filter P .*.?????? --links --filter "- CVS/" --filter "- .svn/" --filter "- .git/" --filter "- .hg/" --filter "- Headers" --filter "- PrivateHeaders" --filter "- Modules" "/Users/runner/work/linea-build/linea-build/mobile/ios/simbuild/Build/Products/Release-iphonesimulator/XCFrameworkIntermediates/ExpoImage/SDWebImage.framework" "/Users/runner/work/linea-build/linea-build/mobile/ios/simbuild/Build/Products/Release-iphonesimulator/INVIZENT.app/Frameworks"
+Transfer starting: 5 files
+SDWebImage.framework/
+SDWebImage.framework/Info.plist
+SDWebImage.framework/SDWebImage
+SDWebImage.framework/_CodeSignature/
+SDWebImage.framework/_CodeSignature/CodeResources
+
+sent 1655452 bytes  received 98 bytes  34418918 bytes/sec
+total size is 1654654  speedup is 1.00
+Stripped /Users/runner/work/linea-build/linea-build/mobile/ios/simbuild/Build/Products/Release-iphonesimulator/INVIZENT.app/Frameworks/SDWebImage.framework/SDWebImage of architectures: arm64
+Code Signing /Users/runner/work/linea-build/linea-build/mobile/ios/simbuild/Build/Products/Release-iphonesimulator/INVIZENT.app/Frameworks/SDWebImage.framework with Identity Sign to Run Locally
+/usr/bin/codesign --force --sign -  --preserve-metadata=identifier,entitlements '/Users/runner/work/linea-build/linea-build/mobile/ios/simbuild/Build/Products/Release-iphonesimulator/INVIZENT.app/Frameworks/SDWebImage.framework'
+/Users/runner/work/linea-build/linea-build/mobile/ios/simbuild/Build/Products/Release-iphonesimulator/INVIZENT.app/Frameworks/SDWebImage.framework: replacing existing signature
+rsync --delete -av --filter P .*.?????? --links --filter "- CVS/" --filter "- .svn/" --filter "- .git/" --filter "- .hg/" --filter "- Headers" --filter "- PrivateHeaders" --filter "- Modules" "/Users/runner/work/linea-build/linea-build/mobile/ios/simbuild/Build/Products/Release-iphonesimulator/XCFrameworkIntermediates/ExpoImage/SDWebImageAVIFCoder.framework" "/Users/runner/work/linea-build/linea-build/mobile/ios/simbuild/Build/Products/Release-iphonesimulator/INVIZENT.app/Frameworks"
+Transfer starting: 5 files
+SDWebImageAVIFCoder.framework/
+SDWebImageAVIFCoder.framework/Info.plist
+SDWebImageAVIFCoder.framework/SDWebImageAVIFCoder
+SDWebImageAVIFCoder.framework/_CodeSignature/
+SDWebImageAVIFCoder.framework/_CodeSignature/CodeResources
+
+sent 212406 bytes  received 98 bytes  14073112 bytes/sec
+total size is 211730  speedup is 1.00
+Stripped /Users/runner/work/linea-build/linea-build/mobile/ios/simbuild/Build/Products/Release-iphonesimulator/INVIZENT.app/Frameworks/SDWebImageAVIFCoder.framework/SDWebImageAVIFCoder of architectures: arm64
+Code Signing /Users/runner/work/linea-build/linea-build/mobile/ios/simbuild/Build/Products/Release-iphonesimulator/INVIZENT.app/Frameworks/SDWebImageAVIFCoder.framework with Identity Sign to Run Locally
+/usr/bin/codesign --force --sign -  --preserve-metadata=identifier,entitlements '/Users/runner/work/linea-build/linea-build/mobile/ios/simbuild/Build/Products/Release-iphonesimulator/INVIZENT.app/Frameworks/SDWebImageAVIFCoder.framework'
+/Users/runner/work/linea-build/linea-build/mobile/ios/simbuild/Build/Products/Release-iphonesimulator/INVIZENT.app/Frameworks/SDWebImageAVIFCoder.framework: replacing existing signature
+rsync --delete -av --filter P .*.?????? --links --filter "- CVS/" --filter "- .svn/" --filter "- .git/" --filter "- .hg/" --filter "- Headers" --filter "- PrivateHeaders" --filter "- Modules" "/Users/runner/work/linea-build/linea-build/mobile/ios/simbuild/Build/Products/Release-iphonesimulator/XCFrameworkIntermediates/ExpoImage/SDWebImageSVGCoder.framework" "/Users/runner/work/linea-build/linea-build/mobile/ios/simbuild/Build/Products/Release-iphonesimulator/INVIZENT.app/Frameworks"
+Transfer starting: 5 files
+SDWebImageSVGCoder.framework/
+SDWebImageSVGCoder.framework/Info.plist
+SDWebImageSVGCoder.framework/SDWebImageSVGCoder
+SDWebImageSVGCoder.framework/_CodeSignature/
+SDWebImageSVGCoder.framework/_CodeSignature/CodeResources
+
+sent 146470 bytes  received 98 bytes  9706490 bytes/sec
+total size is 145808  speedup is 0.99
+Stripped /Users/runner/work/linea-build/linea-build/mobile/ios/simbuild/Build/Products/Release-iphonesimulator/INVIZENT.app/Frameworks/SDWebImageSVGCoder.framework/SDWebImageSVGCoder of architectures: arm64
+Code Signing /Users/runner/work/linea-build/linea-build/mobile/ios/simbuild/Build/Products/Release-iphonesimulator/INVIZENT.app/Frameworks/SDWebImageSVGCoder.framework with Identity Sign to Run Locally
+/usr/bin/codesign --force --sign -  --preserve-metadata=identifier,entitlements '/Users/runner/work/linea-build/linea-build/mobile/ios/simbuild/Build/Products/Release-iphonesimulator/INVIZENT.app/Frameworks/SDWebImageSVGCoder.framework'
+/Users/runner/work/linea-build/linea-build/mobile/ios/simbuild/Build/Products/Release-iphonesimulator/INVIZENT.app/Frameworks/SDWebImageSVGCoder.framework: replacing existing signature
+rsync --delete -av --filter P .*.?????? --links --filter "- CVS/" --filter "- .svn/" --filter "- .git/" --filter "- .hg/" --filter "- Headers" --filter "- PrivateHeaders" --filter "- Modules" "/Users/runner/work/linea-build/linea-build/mobile/ios/simbuild/Build/Products/Release-iphonesimulator/XCFrameworkIntermediates/ExpoImage/SDWebImageWebPCoder.framework" "/Users/runner/work/linea-build/linea-build/mobile/ios/simbuild/Build/Products/Release-iphonesimulator/INVIZENT.app/Frameworks"
+Transfer starting: 5 files
+SDWebImageWebPCoder.framework/
+SDWebImageWebPCoder.framework/Info.plist
+SDWebImageWebPCoder.framework/SDWebImageWebPCoder
+SDWebImageWebPCoder.framework/_CodeSignature/
+SDWebImageWebPCoder.framework/_CodeSignature/CodeResources
+
+sent 1150538 bytes  received 98 bytes  31873573 bytes/sec
+total size is 1149746  speedup is 1.00
+Stripped /Users/runner/work/linea-build/linea-build/mobile/ios/simbuild/Build/Products/Release-iphonesimulator/INVIZENT.app/Frameworks/SDWebImageWebPCoder.framework/SDWebImageWebPCoder of architectures: arm64
+Code Signing /Users/runner/work/linea-build/linea-build/mobile/ios/simbuild/Build/Products/Release-iphonesimulator/INVIZENT.app/Frameworks/SDWebImageWebPCoder.framework with Identity Sign to Run Locally
+/usr/bin/codesign --force --sign -  --preserve-metadata=identifier,entitlements '/Users/runner/work/linea-build/linea-build/mobile/ios/simbuild/Build/Products/Release-iphonesimulator/INVIZENT.app/Frameworks/SDWebImageWebPCoder.framework'
+/Users/runner/work/linea-build/linea-build/mobile/ios/simbuild/Build/Products/Release-iphonesimulator/INVIZENT.app/Frameworks/SDWebImageWebPCoder.framework: replacing existing signature
+rsync --delete -av --filter P .*.?????? --links --filter "- CVS/" --filter "- .svn/" --filter "- .git/" --filter "- .hg/" --filter "- Headers" --filter "- PrivateHeaders" --filter "- Modules" "/Users/runner/work/linea-build/linea-build/mobile/ios/simbuild/Build/Products/Release-iphonesimulator/XCFrameworkIntermediates/ExpoImage/libavif.framework" "/Users/runner/work/linea-build/linea-build/mobile/ios/simbuild/Build/Products/Release-iphonesimulator/INVIZENT.app/Frameworks"
+Transfer starting: 5 files
+libavif.framework/
+libavif.framework/Info.plist
+libavif.framework/libavif
+libavif.framework/_CodeSignature/
+libavif.framework/_CodeSignature/CodeResources
+
+sent 8312862 bytes  received 98 bytes  45154589 bytes/sec
+total size is 8311270  speedup is 1.00
+Stripped /Users/runner/work/linea-build/linea-build/mobile/ios/simbuild/Build/Products/Release-iphonesimulator/INVIZENT.app/Frameworks/libavif.framework/libavif of architectures: arm64
+Code Signing /Users/runner/work/linea-build/linea-build/mobile/ios/simbuild/Build/Products/Release-iphonesimulator/INVIZENT.app/Frameworks/libavif.framework with Identity Sign to Run Locally
+/usr/bin/codesign --force --sign -  --preserve-metadata=identifier,entitlements '/Users/runner/work/linea-build/linea-build/mobile/ios/simbuild/Build/Products/Release-iphonesimulator/INVIZENT.app/Frameworks/libavif.framework'
+/Users/runner/work/linea-build/linea-build/mobile/ios/simbuild/Build/Products/Release-iphonesimulator/INVIZENT.app/Frameworks/libavif.framework: replacing existing signature
+rsync --delete -av --filter P .*.?????? --links --filter "- CVS/" --filter "- .svn/" --filter "- .git/" --filter "- .hg/" --filter "- Headers" --filter "- PrivateHeaders" --filter "- Modules" "/Users/runner/work/linea-build/linea-build/mobile/ios/simbuild/Build/Products/Release-iphonesimulator/XCFrameworkIntermediates/ExpoImageManipulator/ExpoImageManipulator.framework" "/Users/runner/work/linea-build/linea-build/mobile/ios/simbuild/Build/Products/Release-iphonesimulator/INVIZENT.app/Frameworks"
+Transfer starting: 5 files
+ExpoImageManipulator.framework/
+ExpoImageManipulator.framework/ExpoImageManipulator
+ExpoImageManipulator.framework/Info.plist
+ExpoImageManipulator.framework/_CodeSignature/
+ExpoImageManipulator.framework/_CodeSignature/CodeResources
+
+sent 630067 bytes  received 98 bytes  25106175 bytes/sec
+total size is 629333  speedup is 1.00
+Stripped /Users/runner/work/linea-build/linea-build/mobile/ios/simbuild/Build/Products/Release-iphonesimulator/INVIZENT.app/Frameworks/ExpoImageManipulator.framework/ExpoImageManipulator of architectures: arm64
+Code Signing /Users/runner/work/linea-build/linea-build/mobile/ios/simbuild/Build/Products/Release-iphonesimulator/INVIZENT.app/Frameworks/ExpoImageManipulator.framework with Identity Sign to Run Locally
+/usr/bin/codesign --force --sign -  --preserve-metadata=identifier,entitlements '/Users/runner/work/linea-build/linea-build/mobile/ios/simbuild/Build/Products/Release-iphonesimulator/INVIZENT.app/Frameworks/ExpoImageManipulator.framework'
+/Users/runner/work/linea-build/linea-build/mobile/ios/simbuild/Build/Products/Release-iphonesimulator/INVIZENT.app/Frameworks/ExpoImageManipulator.framework: replacing existing signature
+rsync --delete -av --filter P .*.?????? --links --filter "- CVS/" --filter "- .svn/" --filter "- .git/" --filter "- .hg/" --filter "- Headers" --filter "- PrivateHeaders" --filter "- Modules" "/Users/runner/work/linea-build/linea-build/mobile/ios/simbuild/Build/Products/Release-iphonesimulator/XCFrameworkIntermediates/ExpoMediaLibrary/ExpoMediaLibrary.framework" "/Users/runner/work/linea-build/linea-build/mobile/ios/simbuild/Build/Products/Release-iphonesimulator/INVIZENT.app/Frameworks"
+Transfer starting: 5 files
+ExpoMediaLibrary.framework/
+ExpoMediaLibrary.framework/ExpoMediaLibrary
+ExpoMediaLibrary.framework/Info.plist
+ExpoMediaLibrary.framework/_CodeSignature/
+ExpoMediaLibrary.framework/_CodeSignature/CodeResources
+
+sent 1988354 bytes  received 98 bytes  38912954 bytes/sec
+total size is 1987480  speedup is 1.00
+Stripped /Users/runner/work/linea-build/linea-build/mobile/ios/simbuild/Build/Products/Release-iphonesimulator/INVIZENT.app/Frameworks/ExpoMediaLibrary.framework/ExpoMediaLibrary of architectures: arm64
+Code Signing /Users/runner/work/linea-build/linea-build/mobile/ios/simbuild/Build/Products/Release-iphonesimulator/INVIZENT.app/Frameworks/ExpoMediaLibrary.framework with Identity Sign to Run Locally
+/usr/bin/codesign --force --sign -  --preserve-metadata=identifier,entitlements '/Users/runner/work/linea-build/linea-build/mobile/ios/simbuild/Build/Products/Release-iphonesimulator/INVIZENT.app/Frameworks/ExpoMediaLibrary.framework'
+/Users/runner/work/linea-build/linea-build/mobile/ios/simbuild/Build/Products/Release-iphonesimulator/INVIZENT.app/Frameworks/ExpoMediaLibrary.framework: replacing existing signature
+rsync --delete -av --filter P .*.?????? --links --filter "- CVS/" --filter "- .svn/" --filter "- .git/" --filter "- .hg/" --filter "- Headers" --filter "- PrivateHeaders" --filter "- Modules" "/Users/runner/work/linea-build/linea-build/mobile/ios/simbuild/Build/Products/Release-iphonesimulator/XCFrameworkIntermediates/ExpoModulesCore/ExpoModulesCore.framework" "/Users/runner/work/linea-build/linea-build/mobile/ios/simbuild/Build/Products/Release-iphonesimulator/INVIZENT.app/Frameworks"
+Transfer starting: 5 files
+ExpoModulesCore.framework/
+ExpoModulesCore.framework/ExpoModulesCore
+ExpoModulesCore.framework/Info.plist
+ExpoModulesCore.framework/_CodeSignature/
+ExpoModulesCore.framework/_CodeSignature/CodeResources
+
+sent 7608842 bytes  received 98 bytes  42964088 bytes/sec
+total size is 7607286  speedup is 1.00
+Stripped /Users/runner/work/linea-build/linea-build/mobile/ios/simbuild/Build/Products/Release-iphonesimulator/INVIZENT.app/Frameworks/ExpoModulesCore.framework/ExpoModulesCore of architectures: arm64
+Code Signing /Users/runner/work/linea-build/linea-build/mobile/ios/simbuild/Build/Products/Release-iphonesimulator/INVIZENT.app/Frameworks/ExpoModulesCore.framework with Identity Sign to Run Locally
+/usr/bin/codesign --force --sign -  --preserve-metadata=identifier,entitlements '/Users/runner/work/linea-build/linea-build/mobile/ios/simbuild/Build/Products/Release-iphonesimulator/INVIZENT.app/Frameworks/ExpoModulesCore.framework'
+/Users/runner/work/linea-build/linea-build/mobile/ios/simbuild/Build/Products/Release-iphonesimulator/INVIZENT.app/Frameworks/ExpoModulesCore.framework: replacing existing signature
+rsync --delete -av --filter P .*.?????? --links --filter "- CVS/" --filter "- .svn/" --filter "- .git/" --filter "- .hg/" --filter "- Headers" --filter "- PrivateHeaders" --filter "- Modules" "/Users/runner/work/linea-build/linea-build/mobile/ios/simbuild/Build/Products/Release-iphonesimulator/XCFrameworkIntermediates/ExpoModulesJSI/ExpoModulesJSI.framework" "/Users/runner/work/linea-build/linea-build/mobile/ios/simbuild/Build/Products/Release-iphonesimulator/INVIZENT.app/Frameworks"
+Transfer starting: 5 files
+ExpoModulesJSI.framework/
+ExpoModulesJSI.framework/ExpoModulesJSI
+ExpoModulesJSI.framework/Info.plist
+ExpoModulesJSI.framework/_CodeSignature/
+ExpoModulesJSI.framework/_CodeSignature/CodeResources
+
+sent 1816145 bytes  received 98 bytes  29247069 bytes/sec
+total size is 1815303  speedup is 1.00
+Stripped /Users/runner/work/linea-build/linea-build/mobile/ios/simbuild/Build/Products/Release-iphonesimulator/INVIZENT.app/Frameworks/ExpoModulesJSI.framework/ExpoModulesJSI of architectures: arm64
+Code Signing /Users/runner/work/linea-build/linea-build/mobile/ios/simbuild/Build/Products/Release-iphonesimulator/INVIZENT.app/Frameworks/ExpoModulesJSI.framework with Identity Sign to Run Locally
+/usr/bin/codesign --force --sign -  --preserve-metadata=identifier,entitlements '/Users/runner/work/linea-build/linea-build/mobile/ios/simbuild/Build/Products/Release-iphonesimulator/INVIZENT.app/Frameworks/ExpoModulesJSI.framework'
+/Users/runner/work/linea-build/linea-build/mobile/ios/simbuild/Build/Products/Release-iphonesimulator/INVIZENT.app/Frameworks/ExpoModulesJSI.framework: replacing existing signature
+rsync --delete -av --filter P .*.?????? --links --filter "- CVS/" --filter "- .svn/" --filter "- .git/" --filter "- .hg/" --filter "- Headers" --filter "- PrivateHeaders" --filter "- Modules" "/Users/runner/work/linea-build/linea-build/mobile/ios/simbuild/Build/Products/Release-iphonesimulator/XCFrameworkIntermediates/ExpoModulesWorklets/ExpoModulesWorklets.framework" "/Users/runner/work/linea-build/linea-build/mobile/ios/simbuild/Build/Products/Release-iphonesimulator/INVIZENT.app/Frameworks"
+Transfer starting: 5 files
+ExpoModulesWorklets.framework/
+ExpoModulesWorklets.framework/ExpoModulesWorklets
+ExpoModulesWorklets.framework/Info.plist
+ExpoModulesWorklets.framework/_CodeSignature/
+ExpoModulesWorklets.framework/_CodeSignature/CodeResources
+
+sent 298978 bytes  received 98 bytes  15658429 bytes/sec
+total size is 298290  speedup is 1.00
+Stripped /Users/runner/work/linea-build/linea-build/mobile/ios/simbuild/Build/Products/Release-iphonesimulator/INVIZENT.app/Frameworks/ExpoModulesWorklets.framework/ExpoModulesWorklets of architectures: arm64
+Code Signing /Users/runner/work/linea-build/linea-build/mobile/ios/simbuild/Build/Products/Release-iphonesimulator/INVIZENT.app/Frameworks/ExpoModulesWorklets.framework with Identity Sign to Run Locally
+/usr/bin/codesign --force --sign -  --preserve-metadata=identifier,entitlements '/Users/runner/work/linea-build/linea-build/mobile/ios/simbuild/Build/Products/Release-iphonesimulator/INVIZENT.app/Frameworks/ExpoModulesWorklets.framework'
+/Users/runner/work/linea-build/linea-build/mobile/ios/simbuild/Build/Products/Release-iphonesimulator/INVIZENT.app/Frameworks/ExpoModulesWorklets.framework: replacing existing signature
+rsync --delete -av --filter P .*.?????? --links --filter "- CVS/" --filter "- .svn/" --filter "- .git/" --filter "- .hg/" --filter "- Headers" --filter "- PrivateHeaders" --filter "- Modules" "/Users/runner/work/linea-build/linea-build/mobile/ios/simbuild/Build/Products/Release-iphonesimulator/XCFrameworkIntermediates/ExpoVideo/ExpoVideo.framework" "/Users/runner/work/linea-build/linea-build/mobile/ios/simbuild/Build/Products/Release-iphonesimulator/INVIZENT.app/Frameworks"
+Transfer starting: 5 files
+ExpoVideo.framework/
+ExpoVideo.framework/ExpoVideo
+ExpoVideo.framework/Info.plist
+ExpoVideo.framework/_CodeSignature/
+ExpoVideo.framework/_CodeSignature/CodeResources
+
+sent 3103994 bytes  received 98 bytes  39745096 bytes/sec
+total size is 3103026  speedup is 1.00
+Stripped /Users/runner/work/linea-build/linea-build/mobile/ios/simbuild/Build/Products/Release-iphonesimulator/INVIZENT.app/Frameworks/ExpoVideo.framework/ExpoVideo of architectures: arm64
+Code Signing /Users/runner/work/linea-build/linea-build/mobile/ios/simbuild/Build/Products/Release-iphonesimulator/INVIZENT.app/Frameworks/ExpoVideo.framework with Identity Sign to Run Locally
+/usr/bin/codesign --force --sign -  --preserve-metadata=identifier,entitlements '/Users/runner/work/linea-build/linea-build/mobile/ios/simbuild/Build/Products/Release-iphonesimulator/INVIZENT.app/Frameworks/ExpoVideo.framework'
+/Users/runner/work/linea-build/linea-build/mobile/ios/simbuild/Build/Products/Release-iphonesimulator/INVIZENT.app/Frameworks/ExpoVideo.framework: replacing existing signature
+rsync --delete -av --filter P .*.?????? --links --filter "- CVS/" --filter "- .svn/" --filter "- .git/" --filter "- .hg/" --filter "- Headers" --filter "- PrivateHeaders" --filter "- Modules" "/Users/runner/work/linea-build/linea-build/mobile/ios/simbuild/Build/Products/Release-iphonesimulator/XCFrameworkIntermediates/LiveKitWebRTC/LiveKitWebRTC.framework" "/Users/runner/work/linea-build/linea-build/mobile/ios/simbuild/Build/Products/Release-iphonesimulator/INVIZENT.app/Frameworks"
+Transfer starting: 4 files
+LiveKitWebRTC.framework/
+LiveKitWebRTC.framework/Info.plist
+LiveKitWebRTC.framework/LiveKitWebRTC
+LiveKitWebRTC.framework/PrivacyInfo.xcprivacy
+
+sent 28899558 bytes  received 92 bytes  43063105 bytes/sec
+total size is 28895494  speedup is 1.00
+Stripped /Users/runner/work/linea-build/linea-build/mobile/ios/simbuild/Build/Products/Release-iphonesimulator/INVIZENT.app/Frameworks/LiveKitWebRTC.framework/LiveKitWebRTC of architectures: arm64
+Code Signing /Users/runner/work/linea-build/linea-build/mobile/ios/simbuild/Build/Products/Release-iphonesimulator/INVIZENT.app/Frameworks/LiveKitWebRTC.framework with Identity Sign to Run Locally
+/usr/bin/codesign --force --sign -  --preserve-metadata=identifier,entitlements '/Users/runner/work/linea-build/linea-build/mobile/ios/simbuild/Build/Products/Release-iphonesimulator/INVIZENT.app/Frameworks/LiveKitWebRTC.framework'
+rsync --delete -av --filter P .*.?????? --links --filter "- CVS/" --filter "- .svn/" --filter "- .git/" --filter "- .hg/" --filter "- Headers" --filter "- PrivateHeaders" --filter "- Modules" "/Users/runner/work/linea-build/linea-build/mobile/ios/simbuild/Build/Products/Release-iphonesimulator/XCFrameworkIntermediates/React-Core-prebuilt/React.framework" "/Users/runner/work/linea-build/linea-build/mobile/ios/simbuild/Build/Products/Release-iphonesimulator/INVIZENT.app/Frameworks"
+Transfer starting: 5 files
+React.framework/
+React.framework/Info.plist
+React.framework/React
+React.framework/_CodeSignature/
+React.framework/_CodeSignature/CodeResources
+
+sent 24457386 bytes  received 98 bytes  45033113 bytes/sec
+total size is 24453834  speedup is 1.00
+Stripped /Users/runner/work/linea-build/linea-build/mobile/ios/simbuild/Build/Products/Release-iphonesimulator/INVIZENT.app/Frameworks/React.framework/React of architectures: arm64
+Code Signing /Users/runner/work/linea-build/linea-build/mobile/ios/simbuild/Build/Products/Release-iphonesimulator/INVIZENT.app/Frameworks/React.framework with Identity Sign to Run Locally
+/usr/bin/codesign --force --sign -  --preserve-metadata=identifier,entitlements '/Users/runner/work/linea-build/linea-build/mobile/ios/simbuild/Build/Products/Release-iphonesimulator/INVIZENT.app/Frameworks/React.framework'
+/Users/runner/work/linea-build/linea-build/mobile/ios/simbuild/Build/Products/Release-iphonesimulator/INVIZENT.app/Frameworks/React.framework: replacing existing signature
+rsync --delete -av --filter P .*.?????? --links --filter "- CVS/" --filter "- .svn/" --filter "- .git/" --filter "- .hg/" --filter "- Headers" --filter "- PrivateHeaders" --filter "- Modules" "/Users/runner/work/linea-build/linea-build/mobile/ios/simbuild/Build/Products/Release-iphonesimulator/XCFrameworkIntermediates/ReactNativeDependencies/ReactNativeDependencies.framework" "/Users/runner/work/linea-build/linea-build/mobile/ios/simbuild/Build/Products/Release-iphonesimulator/INVIZENT.app/Frameworks"
+Transfer starting: 32 files
+ReactNativeDependencies.framework/
+ReactNativeDependencies.framework/Info.plist
+ReactNativeDependencies.framework/ReactNativeDependencies
+ReactNativeDependencies.framework/ReactNativeDependencies_boost.bundle/
+ReactNativeDependencies.framework/ReactNativeDependencies_boost.bundle/Info.plist
+ReactNativeDependencies.framework/ReactNativeDependencies_boost.bundle/PrivacyInfo.xcprivacy
+ReactNativeDependencies.framework/ReactNativeDependencies_boost.bundle/_CodeSignature/
+ReactNativeDependencies.framework/ReactNativeDependencies_boost.bundle/_CodeSignature/CodeDirectory
+ReactNativeDependencies.framework/ReactNativeDependencies_boost.bundle/_CodeSignature/CodeRequirements
+ReactNativeDependencies.framework/ReactNativeDependencies_boost.bundle/_CodeSignature/CodeRequirements-1
+ReactNativeDependencies.framework/ReactNativeDependencies_boost.bundle/_CodeSignature/CodeResources
+ReactNativeDependencies.framework/ReactNativeDependencies_boost.bundle/_CodeSignature/CodeSignature
+ReactNativeDependencies.framework/ReactNativeDependencies_folly.bundle/
+ReactNativeDependencies.framework/ReactNativeDependencies_folly.bundle/Info.plist
+ReactNativeDependencies.framework/ReactNativeDependencies_folly.bundle/PrivacyInfo.xcprivacy
+ReactNativeDependencies.framework/ReactNativeDependencies_folly.bundle/_CodeSignature/
+ReactNativeDependencies.framework/ReactNativeDependencies_folly.bundle/_CodeSignature/CodeDirectory
+ReactNativeDependencies.framework/ReactNativeDependencies_folly.bundle/_CodeSignature/CodeRequirements
+ReactNativeDependencies.framework/ReactNativeDependencies_folly.bundle/_CodeSignature/CodeRequirements-1
+ReactNativeDependencies.framework/ReactNativeDependencies_folly.bundle/_CodeSignature/CodeResources
+ReactNativeDependencies.framework/ReactNativeDependencies_folly.bundle/_CodeSignature/CodeSignature
+ReactNativeDependencies.framework/ReactNativeDependencies_glog.bundle/
+ReactNativeDependencies.framework/ReactNativeDependencies_glog.bundle/Info.plist
+ReactNativeDependencies.framework/ReactNativeDependencies_glog.bundle/PrivacyInfo.xcprivacy
+ReactNativeDependencies.framework/ReactNativeDependencies_glog.bundle/_CodeSignature/
+ReactNativeDependencies.framework/ReactNativeDependencies_glog.bundle/_CodeSignature/CodeDirectory
+ReactNativeDependencies.framework/ReactNativeDependencies_glog.bundle/_CodeSignature/CodeRequirements
+ReactNativeDependencies.framework/ReactNativeDependencies_glog.bundle/_CodeSignature/CodeRequirements-1
+ReactNativeDependencies.framework/ReactNativeDependencies_glog.bundle/_CodeSignature/CodeResources
+ReactNativeDependencies.framework/ReactNativeDependencies_glog.bundle/_CodeSignature/CodeSignature
+ReactNativeDependencies.framework/_CodeSignature/
+ReactNativeDependencies.framework/_CodeSignature/CodeResources
+
+sent 2492987 bytes  received 596 bytes  26499287 bytes/sec
+total size is 2487862  speedup is 1.00
+Stripped /Users/runner/work/linea-build/linea-build/mobile/ios/simbuild/Build/Products/Release-iphonesimulator/INVIZENT.app/Frameworks/ReactNativeDependencies.framework/ReactNativeDependencies of architectures: arm64
+Code Signing /Users/runner/work/linea-build/linea-build/mobile/ios/simbuild/Build/Products/Release-iphonesimulator/INVIZENT.app/Frameworks/ReactNativeDependencies.framework with Identity Sign to Run Locally
+/usr/bin/codesign --force --sign -  --preserve-metadata=identifier,entitlements '/Users/runner/work/linea-build/linea-build/mobile/ios/simbuild/Build/Products/Release-iphonesimulator/INVIZENT.app/Frameworks/ReactNativeDependencies.framework'
+/Users/runner/work/linea-build/linea-build/mobile/ios/simbuild/Build/Products/Release-iphonesimulator/INVIZENT.app/Frameworks/ReactNativeDependencies.framework: replacing existing signature
+rsync --delete -av --filter P .*.?????? --links --filter "- CVS/" --filter "- .svn/" --filter "- .git/" --filter "- .hg/" --filter "- Headers" --filter "- PrivateHeaders" --filter "- Modules" "/Users/runner/work/linea-build/linea-build/mobile/ios/simbuild/Build/Products/Release-iphonesimulator/XCFrameworkIntermediates/hermes-engine/Pre-built/hermesvm.framework" "/Users/runner/work/linea-build/linea-build/mobile/ios/simbuild/Build/Products/Release-iphonesimulator/INVIZENT.app/Frameworks"
+Transfer starting: 3 files
+hermesvm.framework/
+hermesvm.framework/Info.plist
+hermesvm.framework/hermesvm
+
+sent 10175718 bytes  received 70 bytes  42381457 bytes/sec
+total size is 10174074  speedup is 1.00
+Stripped /Users/runner/work/linea-build/linea-build/mobile/ios/simbuild/Build/Products/Release-iphonesimulator/INVIZENT.app/Frameworks/hermesvm.framework/hermesvm of architectures: arm64
+Code Signing /Users/runner/work/linea-build/linea-build/mobile/ios/simbuild/Build/Products/Release-iphonesimulator/INVIZENT.app/Frameworks/hermesvm.framework with Identity Sign to Run Locally
+/usr/bin/codesign --force --sign -  --preserve-metadata=identifier,entitlements '/Users/runner/work/linea-build/linea-build/mobile/ios/simbuild/Build/Products/Release-iphonesimulator/INVIZENT.app/Frameworks/hermesvm.framework'
+
+GenerateDSYMFile /Users/runner/work/linea-build/linea-build/mobile/ios/simbuild/Build/Products/Release-iphonesimulator/INVIZENT.app.dSYM /Users/runner/work/linea-build/linea-build/mobile/ios/simbuild/Build/Products/Release-iphonesimulator/INVIZENT.app/INVIZENT (in target 'INVIZENT' from project 'INVIZENT')
+    cd /Users/runner/work/linea-build/linea-build/mobile/ios
+    /Applications/Xcode_26.3.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/bin/dsymutil /Users/runner/work/linea-build/linea-build/mobile/ios/simbuild/Build/Products/Release-iphonesimulator/INVIZENT.app/INVIZENT -o /Users/runner/work/linea-build/linea-build/mobile/ios/simbuild/Build/Products/Release-iphonesimulator/INVIZENT.app.dSYM
+
+ExtractAppIntentsMetadata (in target 'INVIZENT' from project 'INVIZENT')
+    cd /Users/runner/work/linea-build/linea-build/mobile/ios
+    /Applications/Xcode_26.3.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/bin/appintentsmetadataprocessor --toolchain-dir /Applications/Xcode_26.3.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain --module-name INVIZENT --sdk-root /Applications/Xcode_26.3.app/Contents/Developer/Platforms/iPhoneSimulator.platform/Developer/SDKs/iPhoneSimulator26.2.sdk --xcode-version 17C529 --platform-family iOS --deployment-target 16.4 --bundle-identifier com.linea.messenger.preview --output /Users/runner/work/linea-build/linea-build/mobile/ios/simbuild/Build/Products/Release-iphonesimulator/INVIZENT.app --target-triple x86_64-apple-ios16.4-simulator --binary-file /Users/runner/work/linea-build/linea-build/mobile/ios/simbuild/Build/Products/Release-iphonesimulator/INVIZENT.app/INVIZENT --dependency-file /Users/runner/work/linea-build/linea-build/mobile/ios/simbuild/Build/Intermediates.noindex/INVIZENT.build/Release-iphonesimulator/INVIZENT.build/Objects-normal/x86_64/INVIZENT_dependency_info.dat --stringsdata-file /Users/runner/work/linea-build/linea-build/mobile/ios/simbuild/Build/Intermediates.noindex/INVIZENT.build/Release-iphonesimulator/INVIZENT.build/Objects-normal/x86_64/ExtractedAppShortcutsMetadata.stringsdata --source-file-list /Users/runner/work/linea-build/linea-build/mobile/ios/simbuild/Build/Intermediates.noindex/INVIZENT.build/Release-iphonesimulator/INVIZENT.build/Objects-normal/x86_64/INVIZENT.SwiftFileList --metadata-file-list /Users/runner/work/linea-build/linea-build/mobile/ios/simbuild/Build/Intermediates.noindex/INVIZENT.build/Release-iphonesimulator/INVIZENT.build/INVIZENT.DependencyMetadataFileList --static-metadata-file-list /Users/runner/work/linea-build/linea-build/mobile/ios/simbuild/Build/Intermediates.noindex/INVIZENT.build/Release-iphonesimulator/INVIZENT.build/INVIZENT.DependencyStaticMetadataFileList --swift-const-vals-list /Users/runner/work/linea-build/linea-build/mobile/ios/simbuild/Build/Intermediates.noindex/INVIZENT.build/Release-iphonesimulator/INVIZENT.build/Objects-normal/x86_64/INVIZENT.SwiftConstValuesFileList --compile-time-extraction --deployment-aware-processing --validate-assistant-intents --no-app-shortcuts-localization
+2026-11-12 21:45:49.609 appintentsmetadataprocessor[94160:237744] Starting appintentsmetadataprocessor export
+2026-11-12 21:45:49.661 appintentsmetadataprocessor[94160:237744] warning: Metadata extraction skipped. No AppIntents.framework dependency found.
+
+CopySwiftLibs /Users/runner/work/linea-build/linea-build/mobile/ios/simbuild/Build/Products/Release-iphonesimulator/INVIZENT.app (in target 'INVIZENT' from project 'INVIZENT')
+    cd /Users/runner/work/linea-build/linea-build/mobile/ios
+    builtin-swiftStdLibTool --copy --verbose --sign - --scan-executable /Users/runner/work/linea-build/linea-build/mobile/ios/simbuild/Build/Products/Release-iphonesimulator/INVIZENT.app/INVIZENT --scan-folder /Users/runner/work/linea-build/linea-build/mobile/ios/simbuild/Build/Products/Release-iphonesimulator/INVIZENT.app/Frameworks --scan-folder /Users/runner/work/linea-build/linea-build/mobile/ios/simbuild/Build/Products/Release-iphonesimulator/INVIZENT.app/PlugIns --scan-folder /Users/runner/work/linea-build/linea-build/mobile/ios/simbuild/Build/Products/Release-iphonesimulator/INVIZENT.app/SystemExtensions --scan-folder /Users/runner/work/linea-build/linea-build/mobile/ios/simbuild/Build/Products/Release-iphonesimulator/INVIZENT.app/Extensions --scan-folder /Users/runner/work/linea-build/linea-build/mobile/ios/simbuild/Build/Products/Release-iphonesimulator/Pods_INVIZENT.framework --platform iphonesimulator --toolchain /Applications/Xcode_26.3.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain --destination /Users/runner/work/linea-build/linea-build/mobile/ios/simbuild/Build/Products/Release-iphonesimulator/INVIZENT.app/Frameworks --strip-bitcode --strip-bitcode-tool /Applications/Xcode_26.3.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/bin/bitcode_strip --emit-dependency-info /Users/runner/work/linea-build/linea-build/mobile/ios/simbuild/Build/Intermediates.noindex/INVIZENT.build/Release-iphonesimulator/INVIZENT.build/SwiftStdLibToolInputDependencies.dep --filter-for-swift-os --back-deploy-swift-span
+
+AppIntentsSSUTraining (in target 'INVIZENT' from project 'INVIZENT')
+    cd /Users/runner/work/linea-build/linea-build/mobile/ios
+    /Applications/Xcode_26.3.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/bin/appintentsnltrainingprocessor --infoplist-path /Users/runner/work/linea-build/linea-build/mobile/ios/simbuild/Build/Products/Release-iphonesimulator/INVIZENT.app/Info.plist --temp-dir-path /Users/runner/work/linea-build/linea-build/mobile/ios/simbuild/Build/Intermediates.noindex/INVIZENT.build/Release-iphonesimulator/INVIZENT.build/ssu --bundle-id com.linea.messenger.preview --product-path /Users/runner/work/linea-build/linea-build/mobile/ios/simbuild/Build/Products/Release-iphonesimulator/INVIZENT.app --extracted-metadata-path /Users/runner/work/linea-build/linea-build/mobile/ios/simbuild/Build/Products/Release-iphonesimulator/INVIZENT.app/Metadata.appintents --metadata-file-list /Users/runner/work/linea-build/linea-build/mobile/ios/simbuild/Build/Intermediates.noindex/INVIZENT.build/Release-iphonesimulator/INVIZENT.build/INVIZENT.DependencyMetadataFileList --archive-ssu-assets
+2026-11-12 21:45:49.739 appintentsnltrainingprocessor[94162:237749] Parsing options for appintentsnltrainingprocessor
+2026-11-12 21:45:49.742 appintentsnltrainingprocessor[94162:237749] No AppShortcuts found - Skipping.
+
+CodeSign /Users/runner/work/linea-build/linea-build/mobile/ios/simbuild/Build/Products/Release-iphonesimulator/INVIZENT.app (in target 'INVIZENT' from project 'INVIZENT')
+    cd /Users/runner/work/linea-build/linea-build/mobile/ios
+    
+    Signing Identity:     "Sign to Run Locally"
+    
+    /usr/bin/codesign --force --sign - --timestamp\=none --generate-entitlement-der /Users/runner/work/linea-build/linea-build/mobile/ios/simbuild/Build/Products/Release-iphonesimulator/INVIZENT.app
+
+ValidateEmbeddedBinary /Users/runner/work/linea-build/linea-build/mobile/ios/simbuild/Build/Products/Release-iphonesimulator/INVIZENT.app/PlugIns/ScreenBroadcast.appex (in target 'INVIZENT' from project 'INVIZENT')
+    cd /Users/runner/work/linea-build/linea-build/mobile/ios
+    /Applications/Xcode_26.3.app/Contents/Developer/usr/bin/embeddedBinaryValidationUtility /Users/runner/work/linea-build/linea-build/mobile/ios/simbuild/Build/Products/Release-iphonesimulator/INVIZENT.app/PlugIns/ScreenBroadcast.appex -signing-cert - -info-plist-path /Users/runner/work/linea-build/linea-build/mobile/ios/simbuild/Build/Products/Release-iphonesimulator/INVIZENT.app/Info.plist
+
+RegisterExecutionPolicyException /Users/runner/work/linea-build/linea-build/mobile/ios/simbuild/Build/Products/Release-iphonesimulator/INVIZENT.app (in target 'INVIZENT' from project 'INVIZENT')
+    cd /Users/runner/work/linea-build/linea-build/mobile/ios
+    builtin-RegisterExecutionPolicyException /Users/runner/work/linea-build/linea-build/mobile/ios/simbuild/Build/Products/Release-iphonesimulator/INVIZENT.app
+
+Validate /Users/runner/work/linea-build/linea-build/mobile/ios/simbuild/Build/Products/Release-iphonesimulator/INVIZENT.app (in target 'INVIZENT' from project 'INVIZENT')
+    cd /Users/runner/work/linea-build/linea-build/mobile/ios
+    builtin-validationUtility /Users/runner/work/linea-build/linea-build/mobile/ios/simbuild/Build/Products/Release-iphonesimulator/INVIZENT.app -validate-for-store -shallow-bundle -infoplist-subpath Info.plist
+
+Touch /Users/runner/work/linea-build/linea-build/mobile/ios/simbuild/Build/Products/Release-iphonesimulator/INVIZENT.app (in target 'INVIZENT' from project 'INVIZENT')
+    cd /Users/runner/work/linea-build/linea-build/mobile/ios
+    /usr/bin/touch -c /Users/runner/work/linea-build/linea-build/mobile/ios/simbuild/Build/Products/Release-iphonesimulator/INVIZENT.app
+
+note: Run script build phase '[CP-User] [Expo] Switch ExpoModulesWorklets XCFramework for build configuration' will be run during every build because the option to run the script phase "Based on dependency analysis" is unchecked. (in target 'ExpoModulesWorklets' from project 'Pods')
+warning: Run script build phase '[CP-User] [Hermes] Replace Hermes for the right configuration, if needed' will be run during every build because it does not specify any outputs. To address this issue, either add output dependencies to the script phase, or configure it to run in every build by unchecking "Based on dependency analysis" in the script phase. (in target 'hermes-engine' from project 'Pods')
+note: Run script build phase '[CP-User] [RNDeps] Replace React Native Dependencies for the right configuration, if needed' will be run during every build because the option to run the script phase "Based on dependency analysis" is unchecked. (in target 'ReactNativeDependencies' from project 'Pods')
+note: Run script build phase '[CP-User] [RN]Check FBReactNativeSpec' will be run during every build because the option to run the script phase "Based on dependency analysis" is unchecked. (in target 'React-RCTFBReactNativeSpec' from project 'Pods')
+note: Run script build phase '[CP-User] [RNCore] Replace React Native Core for the right configuration, if needed' will be run during every build because the option to run the script phase "Based on dependency analysis" is unchecked. (in target 'React-Core-prebuilt' from project 'Pods')
+note: Run script build phase '[CP-User] [Expo] Switch ExpoVideo XCFramework for build configuration' will be run during every build because the option to run the script phase "Based on dependency analysis" is unchecked. (in target 'ExpoVideo' from project 'Pods')
+note: Run script build phase '[CP-User] Build ExpoModulesJSI xcframework' will be run during every build because the option to run the script phase "Based on dependency analysis" is unchecked. (in target 'ExpoModulesJSI' from project 'Pods')
+note: Run script build phase '[CP-User] [Expo] Switch ExpoModulesCore XCFramework for build configuration' will be run during every build because the option to run the script phase "Based on dependency analysis" is unchecked. (in target 'ExpoModulesCore' from project 'Pods')
+note: Run script build phase '[CP-User] [Expo] Switch ExpoMediaLibrary XCFramework for build configuration' will be run during every build because the option to run the script phase "Based on dependency analysis" is unchecked. (in target 'ExpoMediaLibrary' from project 'Pods')
+note: Run script build phase '[CP-User] [Expo] Switch ExpoImageManipulator XCFramework for build configuration' will be run during every build because the option to run the script phase "Based on dependency analysis" is unchecked. (in target 'ExpoImageManipulator' from project 'Pods')
+note: Run script build phase '[CP-User] [Expo] Switch ExpoImage XCFramework for build configuration' will be run during every build because the option to run the script phase "Based on dependency analysis" is unchecked. (in target 'ExpoImage' from project 'Pods')
+note: Run script build phase '[CP-User] [Expo] Switch ExpoFont XCFramework for build configuration' will be run during every build because the option to run the script phase "Based on dependency analysis" is unchecked. (in target 'ExpoFont' from project 'Pods')
+note: Run script build phase '[CP-User] [Expo] Switch ExpoFileSystem XCFramework for build configuration' will be run during every build because the option to run the script phase "Based on dependency analysis" is unchecked. (in target 'ExpoFileSystem' from project 'Pods')
+note: Run script build phase '[CP-User] [Expo] Switch ExpoCameraBarcodeScanning XCFramework for build configuration' will be run during every build because the option to run the script phase "Based on dependency analysis" is unchecked. (in target 'ExpoCameraBarcodeScanning' from project 'Pods')
+note: Run script build phase '[CP-User] [Expo] Switch ExpoCamera XCFramework for build configuration' will be run during every build because the option to run the script phase "Based on dependency analysis" is unchecked. (in target 'ExpoCamera' from project 'Pods')
+note: Run script build phase 'Bundle React Native code and images' will be run during every build because the option to run the script phase "Based on dependency analysis" is unchecked. (in target 'INVIZENT' from project 'INVIZENT')
+note: Run script build phase '[Expo] Configure project' will be run during every build because the option to run the script phase "Based on dependency analysis" is unchecked. (in target 'INVIZENT' from project 'INVIZENT')
+note: Run script build phase '[CP-User] Download libsignal-ffi if not in cache' will be run during every build because the option to run the script phase "Based on dependency analysis" is unchecked. (in target 'LibSignalClient' from project 'Pods')
+note: Run script build phase '[CP-User] Generate app.config for prebuilt Constants.manifest' will be run during every build because the option to run the script phase "Based on dependency analysis" is unchecked. (in target 'EXConstants' from project 'Pods')
+** BUILD SUCCEEDED **
+

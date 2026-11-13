@@ -1,0 +1,5 @@
+sim-tls-proxy https://localhost:8443 -> http://127.0.0.1:3999
+2026-11-12T21:08:32.781Z GET /health upstream error ECONNREFUSED 20ms
+2026-11-12T21:08:33.986Z GET /health upstream error ECONNREFUSED 2ms
+2026-11-12T21:08:35.205Z GET /health 200 19ms
+2026-11-12T21:08:35.266Z GET /health 200 2ms
