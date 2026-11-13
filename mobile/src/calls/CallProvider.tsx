@@ -26,7 +26,7 @@ import { useMusic } from '../music/MusicProvider';
 import { setCenterStage } from '../media/centerStage';
 import { holdConnection } from '../connectionHold';
 import { impactFeedback, lightFeedback } from '../haptics';
-import { GATHER_TIMEOUT_MS, RING_TIMEOUT_MS, SEND_BITRATE, callClock, callEndMeta, economySdp, hangupOutcome, incomingAlert, keyEmoji, keyMaterial, offerIsFresh, type CallEndReason, type CallStatus } from './callModel';
+import { GATHER_RELAY_MS, GATHER_TIMEOUT_MS, ICE_REUSE_MS, RING_TIMEOUT_MS, gatherDone, hasRelay, isRelayCandidate, SEND_BITRATE, callClock, callEndMeta, economySdp, hangupOutcome, incomingAlert, keyEmoji, keyMaterial, offerIsFresh, type CallEndReason, type CallStatus } from './callModel';
 import { buildCallHistory, type CallRecord } from './callLog';
 import { DISCONNECT_GRACE_MS, LINK_UP, POLITE_EXTRA_MS, linkNext, linkShowsReconnecting, markRestartCapable, remoteRestart, restartAnswerFits, restartCapable, sameFingerprints, stripRestartMarker, type Link, type LinkInput } from './reconnect';
 import { onAnswerFromNotification } from '../notifications/desktopNotify';
@@ -37,6 +37,10 @@ import { getNotificationPrefs } from '../notifications/prefs';
 // Native modules are loaded lazily: the web build and old builds without them keep working.
 type WebRTC = typeof import('react-native-webrtc');
 const loadRtc = (): WebRTC | null => { try { return require('react-native-webrtc'); } catch { return null; } };
+/** The servers of the last call, for when the request for fresh ones fails (prepare). */
+let lastIce: { at: number; servers: any[] } | null = null;
+/** Per connection: whether a relay is configured and whether its address has been gathered (prepare → gathered). */
+const relayState = new WeakMap<object, { wantRelay: boolean; relay: boolean }>();
 const loadInCall = (): any => { try { return require('react-native-incall-manager').default; } catch { return null; } };
 
 type CallState = {
@@ -199,8 +203,17 @@ export function CallProvider({ api, store, me, children }: { api: Api; store: Me
   const prepare = useCallback(async (video: boolean) => {
     const webrtc = rtc.current; if (!webrtc) throw new Error('Звонки появятся после установки новой сборки приложения.');
     let iceServers: any[] = [{ urls: ['stun:stun.l.google.com:19302'] }];
-    try { iceServers = (await api.callIce()).iceServers; } catch { /* public STUN only */ }
+    // Without the relay's address a call between two mobile networks cannot connect, so its request is not given up
+    // at the first failure: one more try, then the servers of the last call (the relay's password lasts 6 hours).
+    for (let attempt = 0; attempt < 2; attempt++) {
+      try { iceServers = (await api.callIce()).iceServers; lastIce = { at: Date.now(), servers: iceServers }; break; }
+      catch { if (attempt === 0) await new Promise(resolve => setTimeout(resolve, 400)); else if (lastIce && Date.now() - lastIce.at < ICE_REUSE_MS) iceServers = lastIce.servers; }
+    }
     const connection: any = new webrtc.RTCPeerConnection({ iceServers, bundlePolicy: 'max-bundle' } as any);
+    // For `gathered` below: is there a relay to wait for, and has its address arrived.
+    const gathering = { wantRelay: hasRelay(iceServers), relay: false };
+    relayState.set(connection, gathering);
+    connection.addEventListener('icecandidate', (event: any) => { if (isRelayCandidate(event?.candidate?.candidate)) gathering.relay = true; });
     if (video) await setCenterStage(true);
     // Noise suppression, echo cancellation and automatic gain (the native WebRTC audio processing on phones).
     const stream = withStudio(await webrtc.mediaDevices.getUserMedia({ audio: callAudio(PHONE), video: video ? { facingMode: 'user', width: 640, height: 480, frameRate: 30 } : false } as any));
@@ -221,19 +234,41 @@ export function CallProvider({ api, store, me, children }: { api: Api; store: Me
   }, [api, finish]);
 
   // Non-trickle ICE: wait (briefly) until the candidates are inside the SDP, then send one message.
+  // (gatherDone in callModel.ts: at once when gathering is complete; after 3 s if the relay's address is there or
+  // none is configured; never later than 10 s.)
   const gathered = (connection: any) => new Promise<string>(resolve => {
-    const done = () => resolve(connection.localDescription?.sdp || '');
-    if (connection.iceGatheringState === 'complete') return done();
-    const timer = setTimeout(done, GATHER_TIMEOUT_MS);
-    connection.addEventListener('icegatheringstatechange', () => { if (connection.iceGatheringState === 'complete') { clearTimeout(timer); done(); } });
+    const started = Date.now(), state = relayState.get(connection) || { wantRelay: false, relay: false };
+    let settled = false, poll: ReturnType<typeof setInterval> | null = null;
+    const check = () => {
+      if (settled || !gatherDone({ complete: connection.iceGatheringState === 'complete', relay: state.relay, wantRelay: state.wantRelay, elapsedMs: Date.now() - started })) return;
+      settled = true; if (poll) clearInterval(poll); clearTimeout(soft); clearTimeout(hard);
+      resolve(connection.localDescription?.sdp || '');
+    };
+    const soft = setTimeout(check, GATHER_TIMEOUT_MS), hard = setTimeout(check, GATHER_RELAY_MS);
+    connection.addEventListener('icegatheringstatechange', check);
+    connection.addEventListener('icecandidate', check);
+    // The relay's address may come between the events above: looked at a few times a second after the first 3 s.
+    poll = setInterval(check, 250);
+    check();
   });
 
   // After an ICE restart the gathering starts over: wait for that new round (listener set before setLocalDescription).
   const gatheredAgain = (connection: any) => new Promise<string>(resolve => {
-    const onChange = () => { if (connection.iceGatheringState === 'complete') done(); };
-    const done = () => { clearTimeout(timer); connection.removeEventListener?.('icegatheringstatechange', onChange); resolve(connection.localDescription?.sdp || ''); };
-    const timer = setTimeout(done, GATHER_TIMEOUT_MS);
+    // The same rule as `gathered`. «Complete» counts only from now on (the state still says so from the last round),
+    // and the relay's address has to arrive anew.
+    const started = Date.now(), state = relayState.get(connection) || { wantRelay: false, relay: false };
+    state.relay = false;
+    let settled = false, complete = false, poll: ReturnType<typeof setInterval> | null = null;
+    const onChange = () => { if (connection.iceGatheringState === 'complete') complete = true; check(); };
+    const check = () => {
+      if (settled || !gatherDone({ complete, relay: state.relay, wantRelay: state.wantRelay, elapsedMs: Date.now() - started })) return;
+      settled = true; if (poll) clearInterval(poll); clearTimeout(soft); clearTimeout(hard);
+      connection.removeEventListener?.('icegatheringstatechange', onChange);
+      resolve(connection.localDescription?.sdp || '');
+    };
+    const soft = setTimeout(check, GATHER_TIMEOUT_MS), hard = setTimeout(check, GATHER_RELAY_MS);
     connection.addEventListener('icegatheringstatechange', onChange);
+    poll = setInterval(check, 250);
   });
 
   /** ICE restart offer, numbered, inside the same Signal-encrypted signalling as the first SDP (non-trickle). */

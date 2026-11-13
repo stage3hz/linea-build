@@ -3,6 +3,31 @@
 export const OFFER_TTL_MS = 45_000;       // an offer older than this is a missed call, never rings
 export const RING_TIMEOUT_MS = 45_000;    // the caller gives up after this
 export const GATHER_TIMEOUT_MS = 3_000;   // non-trickle ICE: send what was gathered by then
+/** With a relay (TURN) configured, the wait goes on up to this long for the relay's own address to arrive. */
+export const GATHER_RELAY_MS = 10_000;
+
+/**
+ * Non-trickle ICE: the addresses a phone can be reached at are sent once, inside the offer / answer — whatever is
+ * missing then never reaches the other side. On a mobile network the two phones usually cannot reach each other
+ * directly and the call lives on the relay's address alone; that one takes the longest to arrive (a name lookup,
+ * then two round trips to the relay, over TCP when the operator drops UDP). Sending after a flat 3 s left it out on
+ * a slow or busy link — the call rang and then failed with «Не удалось соединиться», while the same two people
+ * connected fine on Wi-Fi. So: once gathering is complete, at once; otherwise after 3 s only if the relay's address
+ * is already there (or no relay is configured); and never later than 10 s.
+ */
+export function gatherDone(state: { complete: boolean; relay: boolean; wantRelay: boolean; elapsedMs: number }): boolean {
+  if (state.complete || state.elapsedMs >= GATHER_RELAY_MS) return true;
+  return state.elapsedMs >= GATHER_TIMEOUT_MS && (state.relay || !state.wantRelay);
+}
+/** Whether an ICE candidate line is the relay's address (`… typ relay …`). */
+export const isRelayCandidate = (candidate: unknown): boolean => typeof candidate === 'string' && /\btyp relay\b/.test(candidate);
+/** Whether the servers the app was given include a relay (TURN). */
+export const hasRelay = (iceServers: readonly { urls?: string | string[] }[] | undefined): boolean =>
+  !!iceServers?.some(server => (Array.isArray(server.urls) ? server.urls : [server.urls]).some(url => typeof url === 'string' && /^turns?:/i.test(url)));
+
+/** How long the servers for a call (and the relay's short-lived password, good for 6 h) may be reused when the
+ *  request for fresh ones fails. */
+export const ICE_REUSE_MS = 4 * 60 * 60_000;
 
 export type CallStatus = 'requesting' | 'ringing' | 'incoming' | 'connecting' | 'active' | 'ended';
 
