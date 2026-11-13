@@ -93,3 +93,34 @@ export function toMarkdown(text: string, entities: readonly Entity[]): string {
   for (let index = 0; index <= text.length; index++) { const list = marks.get(index); if (list) out += list.join(''); if (index < text.length) out += text[index]; }
   return out;
 }
+
+// ─── Links and @mentions inside message text ─────────────────────────────────────────────────────
+/** A public name: 3–24 Latin letters, digits or underscores (the server's rule, security.js `usernameValue`). */
+const MENTION_RE = /@([A-Za-z0-9_]{3,24})/g;
+export type LinkToken = { kind: 'text'; text: string } | { kind: 'url'; text: string; href: string } | { kind: 'mention'; text: string; username: string };
+
+/**
+ * A message's text cut into plain parts, addresses and @mentions, in order. A mention is `@name` standing on its
+ * own: not inside an address, an e-mail (`a@mail.ru`) or a longer word, and not longer than a name can be.
+ */
+export function linkTokens(text: string): LinkToken[] {
+  if (!text) return [];
+  const found: { start: number; end: number; token: LinkToken }[] = [];
+  let match: RegExpExecArray | null; URL_RE.lastIndex = 0;
+  while ((match = URL_RE.exec(text))) { const raw = match[1]; found.push({ start: match.index, end: match.index + raw.length, token: { kind: 'url', text: raw, href: /^https?:\/\//i.test(raw) ? raw : `https://${raw}` } }); }
+  const urls = found.slice();
+  MENTION_RE.lastIndex = 0;
+  while ((match = MENTION_RE.exec(text))) {
+    const start = match.index, end = start + match[0].length;
+    const before = start ? text[start - 1] : '', after = text[end] || '';
+    if (/[A-Za-z0-9_@.\/-]/.test(before) || /[A-Za-z0-9_@]/.test(after)) continue;
+    if (urls.some(url => start < url.end && end > url.start)) continue;
+    found.push({ start, end, token: { kind: 'mention', text: match[0], username: match[1].toLowerCase() } });
+  }
+  found.sort((a, b) => a.start - b.start);
+  const out: LinkToken[] = []; let last = 0;
+  for (const part of found) { if (part.start > last) out.push({ kind: 'text', text: text.slice(last, part.start) }); out.push(part.token); last = part.end; }
+  if (last < text.length) out.push({ kind: 'text', text: text.slice(last) });
+  return out;
+}
+

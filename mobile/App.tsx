@@ -5,7 +5,7 @@ import { TitleBar } from './src/TitleBar';
 import { TabsOverlay, isWideLayout } from './src/tabInset';
 import { DesktopWelcome } from './src/DesktopWelcome';
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { ActivityIndicator, AppState, BackHandler, Linking, Platform, Pressable, View, useColorScheme, useWindowDimensions } from 'react-native';
+import { ActivityIndicator, Alert, AppState, BackHandler, Linking, Platform, Pressable, View, useColorScheme, useWindowDimensions } from 'react-native';
 import { Text } from './src/typography';
 import { SafeAreaProvider, SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { StatusBar } from 'expo-status-bar';
@@ -78,7 +78,7 @@ import { PlatinaConfettiHost } from './src/platina/PlatinaConfetti';
 import { useBirthdayReminders } from './src/birthdayNotifications';
 import { CallProvider } from './src/calls/CallProvider';
 import { GlassBackdrop } from './src/glass';
-import { loadLanguage } from './src/i18n';
+import { loadLanguage, tr } from './src/i18n';
 import { LockGate, isLocked } from './src/lock/LockGate';
 import { disableLock, loadLockSettings } from './src/lock/storage';
 
@@ -198,7 +198,14 @@ function Messenger({api,session,onUser,themeMode,darkTheme,nightState,onTheme,on
   useEffect(()=>{if(!pushChat)return;const target=store.chats.find(c=>c.id===pushChat);if(target){setPushChat(null);setPage('chats');store.selectChat(target);}},[pushChat,store.chats,store.selectChat]);
   const newChat=()=>{store.selectChat(null);setPage('people');};
   // Channels: open a community, or an invite from a banner / a linea://invite/… link.
-  useEffect(()=>onNavigate(request=>{if(request.to==='chat'){const userId=request.userId;void api.createChat(userId).then(({chat})=>{setPage('chats');store.selectChat(chat);}).catch(()=>{});return;}if(request.to==='invite'){setInviteCode(request.code);return;}if(request.to==='security'){store.selectChat(null);setPage('security');return;}store.selectChat(null);setPage('channels');setOpenCommunity(request.communityId??null);}),[store.selectChat]);
+  useEffect(()=>onNavigate(request=>{
+    // @name in a message: the person with exactly that public name (the search puts an exact match first).
+    if(request.to==='mention'){const name=request.username;
+      if(name===session?.user.username?.toLowerCase())return;
+      void api.users(`@${name}`).then(({users})=>{const found=users.find(user=>user.username?.toLowerCase()===name);
+        if(!found){Alert.alert(tr('Пользователь не найден'),`@${name}`);return;}
+        return api.createChat(found.id).then(({chat})=>{setPage('chats');store.selectChat(chat);});}).catch(()=>{});return;}
+    if(request.to==='chat'){const userId=request.userId;void api.createChat(userId).then(({chat})=>{setPage('chats');store.selectChat(chat);}).catch(()=>{});return;}if(request.to==='invite'){setInviteCode(request.code);return;}if(request.to==='security'){store.selectChat(null);setPage('security');return;}store.selectChat(null);setPage('channels');setOpenCommunity(request.communityId??null);}),[store.selectChat]);
   useEffect(()=>{const handle=(url:string|null)=>{const code=url?inviteCodeFrom(url):null;if(code)setInviteCode(code);};void Linking.getInitialURL().then(handle).catch(()=>{});const sub=Linking.addEventListener('url',event=>handle(event.url));return()=>sub.remove();},[]);
   const profile=()=>{store.selectChat(null);setPage('settings');};
   const openMusic=()=>{store.selectChat(null);setPage('music');};
