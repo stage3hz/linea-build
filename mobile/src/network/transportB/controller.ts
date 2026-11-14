@@ -114,18 +114,23 @@ export class TransportBController {
     this.setState('idle');
     const active = this.pending;
     const previousStop = this.stopping;
-    const shutdown = (async () => {
+    // The first stop must complete promptly after native shutdown. Waiting for
+    // `active` here deadlocks callers whose native start resolves only later.
+    const stopNative = (async () => {
       if (previousStop) await previousStop;
-      // Interrupt a native start that is already in progress.
-      await this.options.joiner.stop().catch(() => {});
-      if (active) await active.catch(() => {});
-      // A cancelled native call may have returned after the first stop.
       await this.options.joiner.stop().catch(() => {});
     })();
-    const tracked = shutdown.finally(() => {
+    // Fence the NEXT start until the cancelled native invocation has unwound.
+    // A second stop is needed if an old native start completes after stopNative.
+    const drain = (async () => {
+      await stopNative;
+      if (active) await active.catch(() => {});
+      await this.options.joiner.stop().catch(() => {});
+    })();
+    const tracked = drain.finally(() => {
       if (this.stopping === tracked) this.stopping = null;
     });
     this.stopping = tracked;
-    return tracked;
+    return stopNative;
   }
 }
