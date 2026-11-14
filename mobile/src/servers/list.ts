@@ -124,3 +124,18 @@ export function routeState(input: { current: string | null; edges: readonly stri
   if (current && typeof rtt[current] !== 'number') return 'checking';
   return 'direct';
 }
+
+/** The reserve entrance carries the traffic now (also while the direct route is being checked before the return). */
+export const usesReserve = (state: RouteState): boolean => state === 'reserve' || state === 'returning';
+
+/**
+ * When to measure again, besides the regular five-minute round: `null` — no extra measurement.
+ *  - on the reserve while a direct server has begun to answer: soon, so the return does not wait a whole round;
+ *  - nothing answered: after 15 s, then 30 s, 60 s… up to the regular round (`emptyRuns` counts such measurements in a
+ *    row), so a phone without a route neither waits five minutes nor asks in a tight loop.
+ */
+export function nextMeasureDelay(input: { alive: boolean; returning: boolean; emptyRuns: number; regularMs: number }): number | null {
+  if (input.returning) return 20_000;
+  if (input.alive) return null;
+  return Math.min(input.regularMs, 15_000 * 2 ** Math.max(0, Math.min(10, input.emptyRuns - 1)));
+}

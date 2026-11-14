@@ -4,6 +4,8 @@ import { inviteCodeFrom, withoutInviteLink } from './communities/types';
 import React, { memo, useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useMeshActive } from './nearby/meshState';
 import { TITLE_TEXT, titleState } from './network/offline';
+import { connectionRoute, subscribeServers } from './servers/pool';
+import { usesReserve } from './servers/list';
 import { PlatinaGem, PlatinaName, hasPlatina } from './platina/PlatinaMark';
 import { FolderEditor, FolderTabs, folderTabIds, matchesFolder, useChatFolders, type ChatFolder, type FolderFilter } from './ChatFolders';
 import { attachmentLabel, isVideoNote } from './voice/voice';
@@ -63,6 +65,9 @@ export function ChatListScreen({api,user,store,onProfile,onNewChat,onMusic,onAI,
   const mesh=useMeshActive();
   // Title like Telegram: «Ожидание сети…» → «Соединение…» → «Обновление…» → «Чаты».
   const title=titleState({connection:store.connection,online:store.online,updating:store.updating,mesh});
+  // The reserve entrance is in use (servers/pool.ts): said in small letters under the title, nothing else changes.
+  const [onReserve,setOnReserve]=useState(()=>usesReserve(connectionRoute()));
+  useEffect(()=>subscribeServers(()=>setOnReserve(usesReserve(connectionRoute()))),[]);
   // The open chat is highlighted only when it is shown beside the list (tablet/desktop), as in Telegram.
   const windowSize=useWindowDimensions();const wideLayout=isWideLayout(windowSize.width,windowSize.height);
   // Rows remount when a chat closes: a press interrupted by opening the chat otherwise left the
@@ -196,7 +201,7 @@ export function ChatListScreen({api,user,store,onProfile,onNewChat,onMusic,onAI,
     {/* Telegram header: «Изм.» · title with connection state · AI and «new chat» buttons. */}
     <View style={{flexDirection:'row',alignItems:'center',gap:8,paddingHorizontal:16,paddingTop:6,paddingBottom:10}}>
       <SnowLedge id="chats.edit" radius={22}><Bouncy scaleTo={.88} onPress={()=>{lightFeedback();setEditing(current=>current?null:new Set());}} accessibilityRole="button" hitSlop={6}><GlassSurface material="regular" radius={22} interactive contentStyle={{height:44,paddingHorizontal:16,justifyContent:'center'}}><Text style={{color:t.text,fontSize:16,fontWeight:'600'}}>{editing?'Готово':'Изм.'}</Text></GlassSurface></Bouncy></SnowLedge>
-      <View style={{flex:1,alignItems:'center'}}>{title==='chats'?<Text style={{color:t.text,fontSize:17,fontWeight:'700'}}>Чаты</Text>:title==='mesh'?<View accessibilityLabel="Связь через Mesh, без интернета" style={{flexDirection:'row',alignItems:'center',gap:6}}><Icon name="bluetooth" size={16} color={t.accent}/><Text style={{color:t.text,fontSize:17,fontWeight:'700'}}>Mesh</Text></View>:<View style={{flexDirection:'row',alignItems:'center',gap:6}}><ActivityIndicator size="small" color={t.muted}/><Text style={{color:t.text,fontSize:15,fontWeight:'600'}}>{TITLE_TEXT[title]}</Text></View>}</View>
+      <View style={{flex:1,alignItems:'center'}}>{title==='chats'?<View style={{alignItems:'center'}}><Text style={{color:t.text,fontSize:17,fontWeight:'700'}}>Чаты</Text>{onReserve?<Text accessibilityLabel="Резервное подключение" style={{color:t.muted,fontSize:10,lineHeight:12}}>Резервное подключение</Text>:null}</View>:title==='mesh'?<View accessibilityLabel="Связь через Mesh, без интернета" style={{flexDirection:'row',alignItems:'center',gap:6}}><Icon name="bluetooth" size={16} color={t.accent}/><Text style={{color:t.text,fontSize:17,fontWeight:'700'}}>Mesh</Text></View>:<View style={{flexDirection:'row',alignItems:'center',gap:6}}><ActivityIndicator size="small" color={t.muted}/><Text style={{color:t.text,fontSize:15,fontWeight:'600'}}>{TITLE_TEXT[title]}</Text></View>}</View>
       <SnowLedge id="chats.ai" radius={22} max={4}><Bouncy scaleTo={.84} onPress={onQuickAI} accessibilityRole="button" accessibilityLabel="Быстрый вопрос AI" hitSlop={6}><GlassSurface material="regular" radius={22} interactive contentStyle={{width:44,height:44,alignItems:'center',justifyContent:'center'}}><Icon name="sparkles-outline" size={20} color={t.text}/></GlassSurface></Bouncy></SnowLedge>
       <SnowLedge id="chats.new" radius={22} max={4}><Bouncy scaleTo={.84} onPress={onNewChat} accessibilityRole="button" accessibilityLabel="Новый чат" hitSlop={6} style={{width:44,height:44,borderRadius:22,backgroundColor:t.accent,alignItems:'center',justifyContent:'center'}}><Icon name="create-outline" size={20} color={t.onAccent}/></Bouncy></SnowLedge>
     </View>

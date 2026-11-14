@@ -24,7 +24,8 @@ import { applyCommunityEvent, resetCommunityCounts, setCommunitySummaries, useCh
 // PC: hot keys for mute / deafen / рация (Настройки → Звук и микрофон).
 startBinds();
 import { QuickSwitcher } from './src/QuickSwitcher';
-import { startServerPool } from './src/servers/pool';
+import { networkChanged, startServerPool } from './src/servers/pool';
+import { onNetworkChange } from './src/network/netChange';
 import { ChatScreen } from './src/ChatScreen';
 import { SavedScreen } from './src/saved/SavedScreen';
 import { PeopleScreen } from './src/PeopleScreen';
@@ -106,6 +107,8 @@ export default function App() {
   useEffect(()=>{setSoundCloudApi(session?.token&&server?api:null);},[api,session?.token,server]);
   // Servers: measure once at start, keep measuring in the background, fail over on their own.
   useEffect(()=>{void startServerPool();},[]);
+  // Wi-Fi ↔ mobile: the servers are measured again at once, without the old network's failures held against them.
+  useEffect(()=>onNetworkChange(networkChanged),[]);
   const initialize=useCallback(async()=>{
     setBooting(true);setBootError('');
     try{

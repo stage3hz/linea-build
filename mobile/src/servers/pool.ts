@@ -5,7 +5,7 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { EDGE_SERVER_URLS, LEGACY_SERVER_URLS, SERVER_URL } from '../serverConfig';
 import { SERVER_LIST_KEYS } from './key';
-import { fallbackServer, healthOk, normalizeServer, pickRoute, routeState, verifyServerList, type RouteState, type ServerList, type SignedServerList } from './list';
+import { fallbackServer, healthOk, nextMeasureDelay, normalizeServer, pickRoute, RETURN_AFTER, routeState, verifyServerList, type RouteState, type ServerList, type SignedServerList } from './list';
 import { networkTier } from '../network/quality';
 
 const STORE = 'invizent.servers.v1';
@@ -17,6 +17,8 @@ const REPROBE_MS = 5 * 60_000, DOWN_MS = 60_000;
 type State = { list: ServerList | null; signed: SignedServerList | null; current: string | null; rtt: Record<string, number | null>; down: Record<string, number>; reserve: boolean; directStreak: number; measured: boolean };
 let state: State = { list: null, signed: null, current: null, rtt: {}, down: {}, reserve: true, directStreak: 0, measured: false };
 let started = false, probing: Promise<void> | null = null, timer: ReturnType<typeof setInterval> | undefined;
+// An extra measurement before the regular round (list.ts, nextMeasureDelay), and measurements in a row with no answer.
+let extra: ReturnType<typeof setTimeout> | undefined, emptyRuns = 0;
 const listeners = new Set<() => void>();
 const emit = () => listeners.forEach(l => l());
 
@@ -89,6 +91,11 @@ export function measureServers(): Promise<void> {
     const directStreak = Object.values(direct).some(v => typeof v === 'number') ? state.directStreak + 1 : 0;
     const current = pickRoute(state.current, direct, reserve, directStreak, state.reserve) ?? state.current;
     state = { ...state, rtt, current, directStreak, measured: true };
+    const alive = Object.values(rtt).some(v => typeof v === 'number');
+    emptyRuns = alive ? 0 : emptyRuns + 1;
+    if (extra) clearTimeout(extra);
+    const again = started ? nextMeasureDelay({ alive, returning: !!current && edges.includes(current) && directStreak > 0 && directStreak < RETURN_AFTER, emptyRuns, regularMs: REPROBE_MS }) : null;
+    extra = again === null ? undefined : setTimeout(() => void measureServers(), again);
     const fresh = current ? await refreshList(current) : false;
     emit();
     save();
@@ -111,6 +118,14 @@ export function reportFailure(endpoint: string) {
   void measureServers();
 }
 
+/** The phone moved to another network (Wi-Fi ↔ mobile): what failed on the old one says nothing about this one. */
+export function networkChanged() {
+  if (!started) return;
+  state = { ...state, down: {}, directStreak: 0 };
+  emptyRuns = 0;
+  void measureServers();
+}
+
 export async function startServerPool() {
   if (started) return; started = true;
   try {
@@ -125,4 +140,4 @@ export async function startServerPool() {
   await measureServers();
   timer = setInterval(() => void measureServers(), REPROBE_MS);
 }
-export function stopServerPool() { if (timer) clearInterval(timer); started = false; }
+export function stopServerPool() { if (timer) clearInterval(timer); if (extra) clearTimeout(extra); extra = undefined; started = false; }

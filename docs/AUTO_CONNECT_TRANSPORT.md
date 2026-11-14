@@ -25,7 +25,11 @@ These are source-review observations, not results of a device test.
 - HTTP 504 no longer marks a write as not delivered; 502/503 still do (`mobile/src/api.ts`).
 - Route choice is one pure function, `pickRoute`: the Cloudflare entrance only when no direct server answers; the way back needs a direct answer in two measurements in a row. `routeState` names the route in use (`direct`, `checking`, `reserve`, `returning`, `offline`).
 - Settings → «Данные и память» → «Подключение»: the route in use and the switch «Автоматический резерв».
-- Not done: validation of the authenticated message channel as part of route choice, the status in the chat list title, native attachment paths, any new transport, any test in a real restricted network.
+- The chat list shows «Резервное подключение» in small letters under the title while the reserve entrance is in use.
+- Wi-Fi ↔ mobile: the servers are measured again at once and the old network's failures are dropped (`networkChanged`).
+- When nothing answers, the next measurement comes after 15 s, 30 s, 60 s… up to the regular five-minute round; on the way back from the reserve, after 20 s (`nextMeasureDelay`).
+- Reviewed, no change needed: a message socket that fails to open already reports its address to the pool (`mobile/src/useMessenger.ts`); native attachment uploads and downloads take the address in use (`api.endpoint`, `api.fileUrl`).
+- Not done: a failed native attachment transfer does not report its address to the pool; an open socket stays on its address when the route changes; reconciliation of writes other than messages after a lost response; any new transport; any test on a device or in a real restricted network.
 
 
 ## Architecture

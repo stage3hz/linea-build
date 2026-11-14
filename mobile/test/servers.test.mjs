@@ -93,3 +93,12 @@ test('the status names the route in use', () => {
   assert.equal(routeState({ ...base, current: api, rtt: { [api]: null, [edge]: null }, probing: true }), 'checking');
   assert.equal(routeState({ ...base, current: api, rtt: { [api]: null, [edge]: 150 } }), 'checking', 'the address in use just failed');
 });
+
+test('an extra measurement comes soon on the way back and with growing pauses when nothing answers', () => {
+  const { nextMeasureDelay, usesReserve } = loadTs(new URL('../src/servers/list.ts', import.meta.url));
+  const regularMs = 300_000;
+  assert.equal(nextMeasureDelay({ alive: true, returning: false, emptyRuns: 0, regularMs }), null, 'all is well: the regular round only');
+  assert.equal(nextMeasureDelay({ alive: true, returning: true, emptyRuns: 0, regularMs }), 20_000);
+  assert.deepEqual([1, 2, 3, 4, 5, 6, 40].map(emptyRuns => nextMeasureDelay({ alive: false, returning: false, emptyRuns, regularMs })), [15_000, 30_000, 60_000, 120_000, 240_000, 300_000, 300_000]);
+  assert.deepEqual(['direct', 'checking', 'reserve', 'returning', 'offline'].map(usesReserve), [false, false, true, true, false]);
+});
