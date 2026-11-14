@@ -26,6 +26,8 @@ export class TransportBController {
   private readonly options: TransportBOptions;
   private state: TransportBState = 'idle';
   private pending: Promise<boolean> | null = null;
+  /** The previous native joiner must finish stopping before it can be started again. */
+  private stopping: Promise<void> | null = null;
   private abort: AbortController | null = null;
   private epoch = 0;
   private listeners = new Set<(state: TransportBState) => void>();
@@ -57,15 +59,19 @@ export class TransportBController {
 
   /** Single in-flight attempt; never retries automatically in a tight loop. */
   start(): Promise<boolean> {
-    if (this.state === 'connected') return Promise.resolve(true);
+    if (this.state === 'connected' && !this.stopping) return Promise.resolve(true);
     if (this.pending) return this.pending;
+    const waitForStop = this.stopping;
     const abort = new AbortController();
     const epoch = ++this.epoch;
     this.abort = abort;
 
     const attempt = (async () => {
-      this.setState('requesting');
       try {
+        // A cancelled native start may finish late. Never overlap it with the next session.
+        if (waitForStop) await waitForStop;
+        if (abort.signal.aborted || this.epoch !== epoch) return false;
+        this.setState('requesting');
         const previous = await this.options.loadSequence();
         if (!Number.isSafeInteger(previous) || previous < 0) throw new Error('invalid saved sequence');
         if (abort.signal.aborted) return false;
@@ -100,14 +106,26 @@ export class TransportBController {
     return attempt;
   }
 
-  /** Stops any ongoing setup or active tunnel. No traffic is sent after shutdown. */
-  async stop(): Promise<void> {
+  /** Abort, drain the previous attempt, and fence any subsequent native startup. */
+  stop(): Promise<void> {
     ++this.epoch;
     this.abort?.abort();
     this.abort = null;
     this.setState('idle');
-    // Give an in-flight native start a chance to observe abort; its finalizer
-    // calls stop again if it resolves after cancellation.
-    await this.options.joiner.stop().catch(() => {});
+    const active = this.pending;
+    const previousStop = this.stopping;
+    const shutdown = (async () => {
+      if (previousStop) await previousStop;
+      // Interrupt a native start that is already in progress.
+      await this.options.joiner.stop().catch(() => {});
+      if (active) await active.catch(() => {});
+      // A cancelled native call may have returned after the first stop.
+      await this.options.joiner.stop().catch(() => {});
+    })();
+    const tracked = shutdown.finally(() => {
+      if (this.stopping === tracked) this.stopping = null;
+    });
+    this.stopping = tracked;
+    return tracked;
   }
 }
