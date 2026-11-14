@@ -104,6 +104,7 @@ export function createApns(credentials, { connect = http2Connect, now = Date.now
     if (result.status === 200) return 'ok';
     if (result.status === 410 || ['BadDeviceToken', 'Unregistered', 'DeviceTokenNotForTopic'].includes(result.reason)) return 'gone';
     if (result.status === 403 && result.reason === 'ExpiredProviderToken') cached = null;
+    console.warn(`push refused by APNs: HTTP ${result.status} ${String(result.reason).slice(0, 80)}`);
     return 'error';
   };
 }
@@ -148,6 +149,9 @@ export function createFcm(account, { fetch: fetchImpl = globalThis.fetch, now = 
     const text = await response.text().catch(() => '');
     if (response.status === 404 || /UNREGISTERED|registration-token-not-registered/.test(text)) return 'gone';
     if (response.status === 400 && /INVALID_ARGUMENT/.test(text) && /token/i.test(text)) return 'gone';
+    // Why Google refused it (its status word and sentence; neither holds the token or anything of the message).
+    let why = ''; try { const error = JSON.parse(text).error; why = `${error?.status || ''} ${error?.message || ''}`.trim().slice(0, 200); } catch { /* not JSON */ }
+    console.warn(`push refused by FCM: HTTP ${response.status} ${why}`);
     return 'error';
   };
 }

@@ -491,7 +491,7 @@ export async function buildApp({
       for (const { token, platform, app_version: version } of tokens) {
         const ring = kind === 'call' && platform === 'android' && !!parseVersion(version) && !versionLessThan(version, RING_CHANNEL_SINCE);
         const wake = ring && !versionLessThan(version, WAKE_SINCE);
-        push(token, wake ? waking : ring ? ringing : message, platform).then(result => { if (result === 'gone' && !databaseClosed) db.prepare('DELETE FROM push_tokens WHERE token=?').run(token); })
+        push(token, wake ? waking : ring ? ringing : message, platform).then(result => { if (kind === 'call' || result !== 'ok') app.log.info({ kind, platform, version, form: wake ? 'wake' : ring ? 'ring' : 'plain', result }, 'push sent'); if (result === 'gone' && !databaseClosed) db.prepare('DELETE FROM push_tokens WHERE token=?').run(token); })
           .catch(error => app.log.warn({ err: error.message }, 'push failed'));
       }
     }
