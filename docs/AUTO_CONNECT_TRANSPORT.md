@@ -18,6 +18,16 @@ This is resilience for INVIZENT's own traffic, not a system-wide VPN. Do not ins
 
 These are source-review observations, not results of a device test.
 
+### Stage A, branch `auto-connect-a` (not merged into `main`, not built, not run on a device)
+
+- `/health` probing now accepts only the service's own answer, HTTP 200 with `{"status":"ok"}` (`healthOk`, `mobile/src/servers/list.ts`).
+- `RequestTimeoutError` already extends `NetworkError` in current `main`: a timeout does reach the pool. Nothing to change.
+- HTTP 504 no longer marks a write as not delivered; 502/503 still do (`mobile/src/api.ts`).
+- Route choice is one pure function, `pickRoute`: the Cloudflare entrance only when no direct server answers; the way back needs a direct answer in two measurements in a row. `routeState` names the route in use (`direct`, `checking`, `reserve`, `returning`, `offline`).
+- Settings → «Данные и память» → «Подключение»: the route in use and the switch «Автоматический резерв».
+- Not done: validation of the authenticated message channel as part of route choice, the status in the chat list title, native attachment paths, any new transport, any test in a real restricted network.
+
+
 ## Architecture
 
 Keep account identity independent of the current route:

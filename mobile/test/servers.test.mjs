@@ -50,3 +50,46 @@ test('after a failure the next server is a live one, never a recently dead one f
   assert.equal(fallbackServer(all[0], all, {}, { [all[1]]: now - 5000 }, now, 60000), all[2]);
   assert.equal(fallbackServer(all[0], [all[0]], {}, {}, now, 60000), null);
 });
+
+test('a route counts only when /health is this service\'s own answer, not any successful page', () => {
+  const { healthOk } = loadTs(new URL('../src/servers/list.ts', import.meta.url));
+  assert.equal(healthOk(200, '{"status":"ok"}'), true);
+  assert.equal(healthOk(200, '<html><body>Войдите в сеть Wi-Fi</body></html>'), false, 'a captive portal page');
+  assert.equal(healthOk(200, ''), false);
+  assert.equal(healthOk(200, '{"status":"maintenance"}'), false);
+  assert.equal(healthOk(200, 'null'), false);
+  assert.equal(healthOk(204, '{"status":"ok"}'), false);
+  assert.equal(healthOk(200, `{"status":"ok","pad":"${'x'.repeat(300)}"}`), false, 'not the short answer the server sends');
+});
+
+test('the reserve entrance is the last resort, and the way back to a direct server needs it to answer twice in a row', () => {
+  const { pickRoute, RETURN_AFTER } = loadTs(new URL('../src/servers/list.ts', import.meta.url));
+  const api = 'https://api.invizent.com', edge = 'https://edge.example';
+  assert.equal(RETURN_AFTER, 2);
+  // Normal network: direct, the reserve is not touched even though it answers faster.
+  assert.equal(pickRoute(api, { [api]: 80 }, { [edge]: 20 }, 5, true), api);
+  // No direct server answers: the reserve — unless the user switched it off, or it does not answer either.
+  assert.equal(pickRoute(api, { [api]: null }, { [edge]: 200 }, 0, true), edge);
+  assert.equal(pickRoute(api, { [api]: null }, {}, 0, false), api, '«Автоматический резерв» off: stay and keep trying');
+  assert.equal(pickRoute(api, { [api]: null }, { [edge]: null }, 0, true), api, 'nothing answers: no jump to a dead reserve');
+  // On the reserve, the direct server answers once: not yet. Twice in a row: back.
+  assert.equal(pickRoute(edge, { [api]: 90 }, { [edge]: 200 }, 1, true), edge);
+  assert.equal(pickRoute(edge, { [api]: 90 }, { [edge]: 200 }, 2, true), api);
+  // The reserve itself stopped answering while a direct server answers: go direct at once.
+  assert.equal(pickRoute(edge, { [api]: 90 }, { [edge]: null }, 1, true), api);
+  // The reserve was switched off while in use.
+  assert.equal(pickRoute(edge, { [api]: 90 }, { [edge]: 200 }, 1, false), api);
+});
+
+test('the status names the route in use', () => {
+  const { routeState } = loadTs(new URL('../src/servers/list.ts', import.meta.url));
+  const api = 'https://api.invizent.com', edge = 'https://edge.example', edges = [edge];
+  const base = { edges, measured: true, probing: false, directStreak: 0 };
+  assert.equal(routeState({ ...base, current: null, rtt: {}, measured: false }), 'checking', 'nothing measured yet');
+  assert.equal(routeState({ ...base, current: api, rtt: { [api]: 70, [edge]: 150 }, directStreak: 3 }), 'direct');
+  assert.equal(routeState({ ...base, current: edge, rtt: { [api]: null, [edge]: 150 } }), 'reserve');
+  assert.equal(routeState({ ...base, current: edge, rtt: { [api]: 90, [edge]: 150 }, directStreak: 1 }), 'returning');
+  assert.equal(routeState({ ...base, current: api, rtt: { [api]: null, [edge]: null } }), 'offline');
+  assert.equal(routeState({ ...base, current: api, rtt: { [api]: null, [edge]: null }, probing: true }), 'checking');
+  assert.equal(routeState({ ...base, current: api, rtt: { [api]: null, [edge]: 150 } }), 'checking', 'the address in use just failed');
+});
