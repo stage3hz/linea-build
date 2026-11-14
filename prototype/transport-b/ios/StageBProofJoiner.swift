@@ -1,0 +1,118 @@
+// Stage B native feasibility bridge: compiled independently against the pinned
+// upstream Mobile.xcframework. NOT linked into the INVIZENT application.
+// A local SOCKS endpoint alone DOES NOT route the app's requests or prove connectivity.
+import Foundation
+import CFNetwork
+import Darwin
+import Mobile
+
+public enum StageBProofError: Error {
+    case invalidJoinLink
+    case invalidSocksPort
+    case invalidParameters
+}
+
+// Gomobile invokes these methods on background threads. This callback does not
+// copy upstream diagnostics into application logs: they may contain bearer URLs.
+public final class StageBProofCallback: NSObject, IosHeadlessCallbackProtocol {
+    private let cacheLock = NSLock()
+    private var cache: [String: String] = [:]
+    public var statusHandler: ((String) -> Void)?
+
+    public func onLog(_ msg: String?) {
+        // No logging of room links, session credentials or third-party tokens.
+    }
+
+    public func onStatus(_ status: String?) {
+        guard let status else { return }
+        statusHandler?(status)
+    }
+
+    public func saveCache(_ key: String?, value: String?) {
+        guard let key, let value, key.count <= 256, value.count <= 8192 else { return }
+        cacheLock.lock()
+        defer { cacheLock.unlock() }
+        cache[key] = value
+    }
+
+    public func loadCache(_ key: String?) -> String {
+        guard let key else { return "" }
+        cacheLock.lock()
+        defer { cacheLock.unlock() }
+        return cache[key] ?? ""
+    }
+
+    public func clearCache(_ key: String?) {
+        guard let key else { return }
+        cacheLock.lock()
+        defer { cacheLock.unlock() }
+        cache.removeValue(forKey: key)
+    }
+
+    public func resolveHost(_ hostname: String?) -> String {
+        guard let hostname, !hostname.isEmpty, hostname.count <= 253 else { return "" }
+        let host = CFHostCreateWithName(nil, hostname as CFString).takeRetainedValue()
+        guard CFHostStartInfoResolution(host, .addresses, nil),
+              let addresses = CFHostGetAddressing(host, nil)?.takeUnretainedValue() as? [Data] else {
+            return ""
+        }
+        for addressData in addresses {
+            var addr = sockaddr_in()
+            addressData.withUnsafeBytes { bytes in
+                if let base = bytes.baseAddress, addressData.count >= MemoryLayout<sockaddr_in>.size {
+                    memcpy(&addr, base, MemoryLayout<sockaddr_in>.size)
+                }
+            }
+            if addr.sin_family == sa_family_t(AF_INET) {
+                var address = addr.sin_addr
+                var buffer = [CChar](repeating: 0, count: Int(INET_ADDRSTRLEN))
+                guard inet_ntop(AF_INET, &address, &buffer, socklen_t(INET_ADDRSTRLEN)) != nil else { continue }
+                return String(cString: buffer)
+            }
+        }
+        return ""
+    }
+}
+
+// Native proof only. start() begins an async WebRTC negotiation but does NOT
+// signal connection success. The eventual app adapter must wait for a verified
+// native connected status and set up an app-scoped, authenticated network client.
+public final class StageBProofJoiner {
+    public let callback = StageBProofCallback()
+
+    public init() {}
+
+    public func start(joinLink: String, socksPort: Int = 1080) throws {
+        guard joinLink.range(of: #"^wbstream://[A-Za-z0-9_-]{6,160}$"#,
+                             options: .regularExpression) != nil else {
+            throw StageBProofError.invalidJoinLink
+        }
+        guard socksPort > 0 && socksPort <= 65535 else {
+            throw StageBProofError.invalidSocksPort
+        }
+        let roomID = String(joinLink.dropFirst("wbstream://".count))
+        // Credentials are generated per session. Do not expose the local SOCKS
+        // listener without authentication or use it as a general-purpose proxy.
+        let socksUser = "invizent-" + UUID().uuidString
+        let socksPass = UUID().uuidString + UUID().uuidString
+        let params: [String: Any] = [
+            "roomId": roomID,
+            "displayName": "INVIZENT",
+            "tunnelMode": "dc",
+            "vp8Fps": 0,
+            "vp8Batch": 0,
+            "dualTrack": false,
+            "reliable": true
+        ]
+        guard let bytes = try? JSONSerialization.data(withJSONObject: params),
+              let json = String(data: bytes, encoding: .utf8) else {
+            throw StageBProofError.invalidParameters
+        }
+        IosStartWBStreamHeadless(socksPort, socksUser, socksPass, callback)
+        IosSendJoinParams(json)
+    }
+
+    public func stop() {
+        IosStopHeadless()
+    }
+}
