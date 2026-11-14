@@ -1,0 +1,52 @@
+name: Stage B native transport feasibility
+
+# Compile an upstream, pinned Go/iOS transport binding without adding it to the app.
+# No credentials are loaded and this workflow does not deploy anything.
+on:
+  pull_request:
+    paths:
+      - 'prototype/transport-b/**'
+      - 'mobile/src/network/transportB/**'
+      - '.github/workflows/stage-b-native-proof.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  ios-bind:
+    name: iOS gomobile xcframework proof (isolated)
+    runs-on: macos-15-intel
+    timeout-minutes: 60
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-go@v6
+        with:
+          go-version: '1.26.1'
+          cache: false
+      - name: Install reproducible gomobile/gobind toolchain
+        run: |
+          set -euo pipefail
+          go install golang.org/x/mobile/cmd/gomobile@v0.0.0-20260508232728-bebd421c7fa8
+          go install golang.org/x/mobile/cmd/gobind@v0.0.0-20260508232728-bebd421c7fa8
+          echo "$(go env GOPATH)/bin" >> "$GITHUB_PATH"
+      - name: Checkout pinned upstream source (never from moving main)
+        run: |
+          set -euo pipefail
+          git clone --filter=blob:none https://github.com/kulikov0/whitelist-bypass.git upstream
+          git -C upstream checkout --detach a26b5555728e5b3e990b8204f7663cc742c9de3b
+          test "$(git -C upstream rev-parse HEAD)" = a26b5555728e5b3e990b8204f7663cc742c9de3b
+          grep -q '^MIT License$' upstream/LICENSE
+      - name: Build iOS Mobile.xcframework — no Apple signing
+        working-directory: upstream/relay
+        run: |
+          set -euo pipefail
+          gomobile init
+          gomobile bind -trimpath -ldflags="-s -w" -target=ios -o "$RUNNER_TEMP/Mobile.xcframework" ./pion/ios/
+          test -d "$RUNNER_TEMP/Mobile.xcframework"
+          /usr/libexec/PlistBuddy -c 'Print :CFBundlePackageType' "$RUNNER_TEMP/Mobile.xcframework/Info.plist"
+          du -sh "$RUNNER_TEMP/Mobile.xcframework"
+      - name: Native build summary (no app build)
+        run: |
+          echo "Compiled pinned upstream iOS binding, not wired into INVIZENT." >> "$GITHUB_STEP_SUMMARY"
+          echo "Does not prove real WB Stream connection, signing, or cellular allowlist access." >> "$GITHUB_STEP_SUMMARY"
