@@ -27,7 +27,7 @@ module.exports = {
   expo: {
     name: 'INVIZENT',
     slug: 'linea-messenger',
-    version: "0.14.18",
+    version: "0.14.19",
     // The commit this build was made from (CI sets GITHUB_SHA): shown in Settings next to the version.
     extra: { commit: (process.env.GITHUB_SHA || "").slice(0, 7) },
     orientation: 'portrait',
