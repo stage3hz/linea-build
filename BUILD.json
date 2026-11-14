@@ -1,0 +1,14 @@
+{
+  "version": "0.14.19",
+  "versionCode": 39,
+  "package": "com.linea.messenger.preview",
+  "appEnv": "development",
+  "abis": "arm64-v8a",
+  "signing": "release",
+  "certSha256": "bc77a678f39ec9a8d62020a1d4720310e076c48420d03ffd02cd7c739d945c3d",
+  "push": true,
+  "googleServices": "committed mobile/google-services.json",
+  "apiUrl": "",
+  "commit": "c98764e604ded4459d0486c99b8244d4cbc23bdb",
+  "run": "https://github.com/stage3hz/linea-build/actions/runs/43577035514"
+}
