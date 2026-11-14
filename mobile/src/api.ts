@@ -196,11 +196,9 @@ export class Api {
       if(abort.signal.aborted)throw abortError();
       if (response.status < 500) { markServerOk(); reportRequest(Date.now() - started, raw.length); }
       if (response.status === 426) markUpdateRequired();
-      // 502/503 come from the proxy in front of a server that is down: the request never reached Invizent itself, so
-      // it is safe to send it to the next server. 504 is different: the proxy stopped WAITING for a server that had
-      // the request, which may have been carried out — a write is not repeated on its strength (RFC 9110, 15.6.5).
-      if (response.status === 502 || response.status === 503) throw new NetworkError('Сервер недоступен.', true);
-      if (response.status === 504) throw new NetworkError('Сервер не ответил вовремя.');
+      // Gateway 502/503/504 does not establish that an upstream write was not applied.
+      // Fail over to another ingress without blindly repeating non-idempotent operations.
+      if (response.status === 502 || response.status === 503 || response.status === 504) throw new NetworkError('Сервер недоступен.');
       if (!response.ok) throw new ApiError(typeof data.error === 'string' ? data.error : 'Не удалось выполнить запрос. Попробуй ещё раз.', response.status, data);
       return data as T;
     } catch (error) {
