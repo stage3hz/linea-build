@@ -109,8 +109,9 @@ async function cli(){
       reserve:{host:process.env.LAB_CARRIER_IP,port:8443},
       ca,clientId:'test-'+process.env.LAB_MODE+'-message',timeoutMs:1200,
     });
-    const expected=process.env.LAB_MODE==='restricted'?'reserve':'direct';
-    if(result.route!==expected||result.response?.storedMessages<1||!result.response?.clientId){
+    const expected=process.env.LAB_MODE==='restricted'?'reserve':process.env.LAB_MODE==='offline'?'offline':'direct';
+    const delivered = result.response?.storedMessages>=1 && !!result.response?.clientId;
+    if(result.route!==expected || (expected==='offline' ? result.response!==null : !delivered)){
       console.error('LAB FAILED',{expected,result});process.exitCode=1;
     }else console.log('LAB PASSED',{expected,selected:result.route,attempts:result.attempts});
   }else throw new Error('Usage: node lab.mjs api|carrier|client');
