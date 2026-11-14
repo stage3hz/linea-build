@@ -89,3 +89,35 @@ test('a message to an iPhone user goes through Apple with the sender name only',
   assert.equal(payload.aps.alert.body, 'Новое сообщение');
   assert.ok(!JSON.stringify(sent[0].message).includes(ciphertext), 'push carries no ciphertext either');
 });
+
+test('an incoming call reaches each Android app in the form that version of the app understands', async t => {
+  const dataDir = await mkdtemp(join(tmpdir(), 'linea-push-route-'));
+  const sent = [];
+  const push = createPush({ android: async (token, message) => { sent.push({ token, message }); return 'ok'; } });
+  const app = await buildApp({ dataDir, authRateLimit: false, push });
+  t.after(async () => { await app.close(); await rm(dataDir, { recursive: true, force: true }); });
+  const sender = await account(app, 'caller_any');
+  const senderDevice = await device(app, sender);
+  // 0.14.13 has neither the ringing channel nor the code a data message needs: it must get the plain notification
+  // (it got the data message, which it shows nothing for — the call did not reach a closed app).
+  const cases = [['0.14.13', 'calls', true], ['0.14.16', 'calls-ring', true], ['0.14.17', undefined, false], ['0.15.2', undefined, false], ['1.0.0', undefined, false]];
+  for (const [index, [version, channel, notification]] of cases.entries()) {
+    const receiver = await account(app, `callee_${index}`);
+    const client = { ...receiver.headers, 'x-linea-client': `invizent; v=${version}; p=android` };
+    assert.equal((await app.inject({ method: 'PUT', url: '/me/push', headers: client, payload: { token: `${ANDROID_TOKEN}_${index}`, platform: 'android' } })).statusCode, 200);
+    const receiverDevice = await device(app, receiver);
+    const chat = await app.inject({ method: 'POST', url: '/chats', headers: sender.headers, payload: { userId: receiver.userId } });
+    assert.ok([200, 201].includes(chat.statusCode), chat.body);
+    sent.length = 0;
+    const message = await app.inject({ method: 'POST', url: `/chats/${encodeURIComponent(chat.json().chat.id)}/messages`, headers: sender.headers, payload: {
+      clientId: randomUUID(), push: 'call',
+      encrypted: { scheme: 'signal-v1', senderDeviceId: senderDevice.id, envelopes: [{ userId: receiver.userId, deviceId: receiverDevice.id, type: 3, body: randomBytes(96).toString('base64') }], attachmentIds: [] },
+    } });
+    assert.equal(message.statusCode, 201, message.body);
+    for (let i = 0; i < 50 && sent.length === 0; i++) await new Promise(resolve => setTimeout(resolve, 20));
+    assert.equal(sent.length, 1, version);
+    assert.equal(!!sent[0].message.android.notification, notification, `${version}: a notification or a data message`);
+    assert.equal(sent[0].message.android.notification?.channel_id, channel, version);
+    assert.equal(sent[0].message.data.wake, notification ? undefined : '1', version);
+  }
+});

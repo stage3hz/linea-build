@@ -489,8 +489,10 @@ export async function buildApp({
       // …and wakes the app for a full-screen incoming call where the app can do that.
       const waking = kind === 'call' ? chatNotification({ ...content, ring: true, wake: true }) : message;
       for (const { token, platform, app_version: version } of tokens) {
-        const ring = kind === 'call' && platform === 'android' && !!parseVersion(version) && !versionLessThan(version, RING_CHANNEL_SINCE);
-        const wake = ring && !versionLessThan(version, WAKE_SINCE);
+        // versionLessThan compares parsed versions ([major, minor, patch]), not the strings.
+        const parsed = parseVersion(version);
+        const ring = kind === 'call' && platform === 'android' && !!parsed && !versionLessThan(parsed, parseVersion(RING_CHANNEL_SINCE));
+        const wake = ring && !versionLessThan(parsed, parseVersion(WAKE_SINCE));
         push(token, wake ? waking : ring ? ringing : message, platform).then(result => { if (kind === 'call' || result !== 'ok') app.log.info({ kind, platform, version, form: wake ? 'wake' : ring ? 'ring' : 'plain', result }, 'push sent'); if (result === 'gone' && !databaseClosed) db.prepare('DELETE FROM push_tokens WHERE token=?').run(token); })
           .catch(error => app.log.warn({ err: error.message }, 'push failed'));
       }
