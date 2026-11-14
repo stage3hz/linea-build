@@ -5,7 +5,7 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { EDGE_SERVER_URLS, LEGACY_SERVER_URLS, SERVER_URL } from '../serverConfig';
 import { SERVER_LIST_KEYS } from './key';
-import { fallbackServer, healthOk, nextMeasureDelay, normalizeServer, pickRoute, RETURN_AFTER, routeState, verifyServerList, type RouteState, type ServerList, type SignedServerList } from './list';
+import { connectionRows, fallbackServer, healthOk, nextMeasureDelay, normalizeServer, pickRoute, RETURN_AFTER, routeState, verifyServerList, type RouteState, type ServerList, type SignedServerList } from './list';
 import { networkTier } from '../network/quality';
 
 const STORE = 'invizent.servers.v1';
@@ -50,6 +50,10 @@ export function setAutoReserve(on: boolean) {
   save(); emit(); void measureServers();
 }
 export function serverStatus() { return { current: currentEndpoint(), route: connectionRoute(), reserve: state.reserve, rtt: { ...state.rtt }, listVersion: state.list?.version ?? null }; }
+/** Everything the connection screen draws: the route in use, whether the reserve is allowed, and our addresses with pings. */
+export function connectionSnapshot() {
+  return { route: connectionRoute(), reserve: state.reserve, probing: !!probing, rows: connectionRows({ current: currentEndpoint(), rtt: state.rtt, edges: edgeServers(), order: candidates() }) };
+}
 // Read-only diagnostics (Settings → «О приложении» can show it; the test stand reads it).
 (globalThis as { __invizentServers?: () => unknown }).__invizentServers = serverStatus;
 

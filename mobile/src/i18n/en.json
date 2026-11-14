@@ -2866,5 +2866,10 @@
 "Резервное подключение: проверяем обычное": "Reserve connection: checking the direct one",
 "Нет связи с сервером": "No connection to the server",
 "Автоматический резерв": "Automatic reserve",
-"Если сервер не отвечает напрямую, приложение само пробует запасной вход INVIZENT и возвращается на обычный, когда тот снова работает. Переписка остаётся зашифрованной.": "If the server does not answer directly, the app tries INVIZENT's reserve entrance by itself and returns to the direct one when it works again. Your chats stay encrypted."
+"Если сервер не отвечает напрямую, приложение само пробует запасной вход INVIZENT и возвращается на обычный, когда тот снова работает. Переписка остаётся зашифрованной.": "If the server does not answer directly, the app tries INVIZENT's reserve entrance by itself and returns to the direct one when it works again. Your chats stay encrypted.",
+"Проверить подключение": "Check connection",
+"Проверить": "Check",
+"РЕЗЕРВ": "RESERVE",
+"Запасной вход (Cloudflare)": "Reserve entrance (Cloudflare)",
+"нет ответа": "no answer"
 }

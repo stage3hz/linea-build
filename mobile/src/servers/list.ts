@@ -139,3 +139,32 @@ export function nextMeasureDelay(input: { alive: boolean; returning: boolean; em
   if (input.alive) return null;
   return Math.min(input.regularMs, 15_000 * 2 ** Math.max(0, Math.min(10, input.emptyRuns - 1)));
 }
+
+export type ConnectionRow = { url: string; label: string; kind: 'direct' | 'reserve'; rttMs: number | null; measured: boolean; active: boolean };
+/** A plain host for the UI: no scheme or trailing slash. The reserve entrance is named, not shown as a raw host. */
+export function connectionLabel(url: string, kind: 'direct' | 'reserve'): string {
+  if (kind === 'reserve') return 'Запасной вход (Cloudflare)';
+  return url.replace(/^https?:\/\//, '').replace(/\/+$/, '');
+}
+/** The ping as the user reads it. `measured` false: not tried yet in this round. */
+export function pingLabel(rttMs: number | null, measured: boolean): string {
+  if (!measured) return '—';
+  if (rttMs === null) return 'нет ответа';
+  return `${rttMs} мс`;
+}
+/**
+ * The address list for the connection screen, in the order the app tries them (our own servers first, the reserve
+ * entrance last), each with its measured ping and whether it is the one in use. Pure: the screen only draws it.
+ */
+export function connectionRows(input: { current: string; rtt: Record<string, number | null | undefined>; edges: readonly string[]; order: readonly string[] }): ConnectionRow[] {
+  const seen = new Set<string>();
+  const rows: ConnectionRow[] = [];
+  for (const url of input.order) {
+    if (seen.has(url)) continue;
+    seen.add(url);
+    const kind: 'direct' | 'reserve' = input.edges.includes(url) ? 'reserve' : 'direct';
+    const value = input.rtt[url];
+    rows.push({ url, label: connectionLabel(url, kind), kind, rttMs: typeof value === 'number' ? value : null, measured: value !== undefined, active: url === input.current });
+  }
+  return rows;
+}

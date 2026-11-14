@@ -28,7 +28,8 @@ import { FolderEditor, useChatFolders, type ChatFolder } from './ChatFolders';
 import Animated, { useAnimatedScrollHandler, useAnimatedStyle, useSharedValue, withSpring } from 'react-native-reanimated';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { StackBase, StackScreen } from './stack';
-import { autoReserve, connectionRoute, currentEndpoint, setAutoReserve, subscribeServers } from './servers/pool';
+import { autoReserve, connectionSnapshot, currentEndpoint, measureServers, setAutoReserve, subscribeServers } from './servers/pool';
+import { pingLabel, type RouteState } from './servers/list';
 import { FloatingHeader, useBleed, useTabInset } from './tabInset';
 import { WallpaperPicker } from './WallpaperPicker';
 import { ColorSettings } from './ColorSettings';
@@ -525,12 +526,31 @@ function ServerStorage({ api }: { api: Api }) {
 // Which way the app reaches the server now, and whether it may use the reserve entrance (servers/pool.ts). The line
 // names the route in use; it does not say why another one failed — the app cannot know that from a timeout.
 const ROUTE_TEXT = { direct: 'Обычное подключение', checking: 'Подключение…', reserve: 'Резервное подключение', returning: 'Резервное подключение: проверяем обычное', offline: 'Нет связи с сервером' } as const;
+// A dot the colour of the state: direct is good, the reserve is a warning, no route is bad, checking is neutral.
+const ROUTE_DOT: Record<RouteState, string> = { direct: '#3BA776', checking: '#9A9EA9', reserve: '#E39A3B', returning: '#E39A3B', offline: '#E0564E' };
 function ConnectionRoute() {
   const t = useTheme();
   const [, refresh] = useState(0);
   useEffect(() => subscribeServers(() => refresh(value => value + 1)), []);
+  const snapshot = connectionSnapshot();
+  const recheck = () => { void measureServers(); refresh(value => value + 1); };
   return <Group label="Подключение">
-    <View style={{ paddingHorizontal: 14, paddingTop: 12 }}><Text style={{ color: t.muted, fontSize: 12 }}>Сейчас</Text><Text style={{ color: t.text, fontSize: 15 }}>{ROUTE_TEXT[connectionRoute()]}</Text></View>
+    <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10, paddingHorizontal: 14, paddingTop: 12, paddingBottom: 4 }}>
+      <View style={{ width: 9, height: 9, borderRadius: 5, backgroundColor: ROUTE_DOT[snapshot.route] }} />
+      <View style={{ flex: 1 }}><Text style={{ color: t.muted, fontSize: 12 }}>Подключение</Text><Text style={{ color: t.text, fontSize: 15, fontWeight: '600' }}>{ROUTE_TEXT[snapshot.route]}</Text></View>
+      <Pressable accessibilityRole="button" accessibilityLabel="Проверить подключение" disabled={snapshot.probing} onPress={recheck} hitSlop={8} style={({ pressed }) => ({ flexDirection: 'row', alignItems: 'center', gap: 6, paddingHorizontal: 12, minHeight: 34, borderRadius: 17, backgroundColor: t.accentSoft, borderWidth: 1, borderColor: t.border, opacity: snapshot.probing ? .6 : pressed ? .7 : 1 })}>
+        {snapshot.probing ? <ActivityIndicator size="small" color={t.accent} /> : <Icon name="refresh-outline" size={16} color={t.accent} />}
+        <Text style={{ color: t.accent, fontSize: 13, fontWeight: '600' }}>Проверить</Text>
+      </Pressable>
+    </View>
+    <View style={{ paddingHorizontal: 14, paddingBottom: 6 }}>
+      {snapshot.rows.map(row => <View key={row.url} style={{ flexDirection: 'row', alignItems: 'center', gap: 8, minHeight: 34 }}>
+        <Icon name={row.active ? 'checkmark-circle' : 'ellipse-outline'} size={16} color={row.active ? '#3BA776' : t.muted} />
+        <Text numberOfLines={1} style={{ flex: 1, color: row.active ? t.text : t.muted, fontSize: 14 }}>{row.label}</Text>
+        {row.kind === 'reserve' ? <View style={{ paddingHorizontal: 7, paddingVertical: 2, borderRadius: 7, backgroundColor: t.surface2 }}><Text style={{ color: t.muted, fontSize: 10, fontWeight: '700' }}>РЕЗЕРВ</Text></View> : null}
+        <Text style={{ color: row.measured && row.rttMs === null ? '#E0564E' : t.muted, fontSize: 12, fontVariant: ['tabular-nums'] }}>{pingLabel(row.rttMs, row.measured)}</Text>
+      </View>)}
+    </View>
     <Toggle label="Автоматический резерв" description="Если сервер не отвечает напрямую, приложение само пробует запасной вход INVIZENT и возвращается на обычный, когда тот снова работает. Переписка остаётся зашифрованной." value={autoReserve()} onChange={value => { setAutoReserve(value); refresh(count => count + 1); }} />
   </Group>;
 }

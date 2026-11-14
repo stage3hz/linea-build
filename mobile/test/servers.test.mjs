@@ -102,3 +102,20 @@ test('an extra measurement comes soon on the way back and with growing pauses wh
   assert.deepEqual([1, 2, 3, 4, 5, 6, 40].map(emptyRuns => nextMeasureDelay({ alive: false, returning: false, emptyRuns, regularMs })), [15_000, 30_000, 60_000, 120_000, 240_000, 300_000, 300_000]);
   assert.deepEqual(['direct', 'checking', 'reserve', 'returning', 'offline'].map(usesReserve), [false, false, true, true, false]);
 });
+
+test('the connection list shows our addresses in try-order with pings and marks the one in use', () => {
+  const { connectionRows, pingLabel, connectionLabel } = loadTs(new URL('../src/servers/list.ts', import.meta.url));
+  const api = 'https://api.invizent.com', api2 = 'https://api2.invizent.com', edge = 'https://edge.workers.dev';
+  const rows = connectionRows({ current: edge, edges: [edge], order: [api, api2, edge], rtt: { [api]: null, [api2]: 70 } });
+  assert.deepEqual(rows.map(r => [r.label, r.kind, r.rttMs, r.measured, r.active]), [
+    ['api.invizent.com', 'direct', null, true, false],
+    ['api2.invizent.com', 'direct', 70, true, false],
+    ['Запасной вход (Cloudflare)', 'reserve', null, false, true], // not measured this round → rttMs null, measured false
+  ]);
+  assert.equal(connectionLabel(edge, 'reserve'), 'Запасной вход (Cloudflare)', 'the reserve is named, not shown as a raw host');
+  assert.equal(pingLabel(70, true), '70 мс');
+  assert.equal(pingLabel(null, true), 'нет ответа');
+  assert.equal(pingLabel(null, false), '—');
+  // The same address is listed once even if it appears twice in the order.
+  assert.equal(connectionRows({ current: api, edges: [], order: [api, api], rtt: {} }).length, 1);
+});
