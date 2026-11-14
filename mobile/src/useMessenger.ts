@@ -1,5 +1,5 @@
 import { UntrustedDeviceError, type HistoryItem } from './e2ee/core';
-import { reportFailure } from './servers/pool';
+import { reportFailure, subscribeServers } from './servers/pool';
 import { networkTier } from './network/quality';
 import { meshActive, useMeshActive } from './nearby/meshState';
 import { onMesh, packetIdOf, publishMessage, publishReceipt, startMesh, stopMesh } from './nearby/meshRuntime';
@@ -375,12 +375,13 @@ export function useMessenger(api: Api, user: User, onExpired: ()=>void) {
     // The channel outbox (messages typed offline) sends through this account whichever screen is open; it is flushed on every «ready».
     attachChannelOutbox({userId:user.id,send:item=>api.sendChannelMessage(item.communityId,item.channelId,{text:item.text,clientKey:item.key,...(item.replyTo?{replyTo:item.replyTo}:{})}).then(r=>r.message),onSocket});
     let stopped=false, paused=false, retry:ReturnType<typeof setTimeout>|undefined, attempts=0, lastReceive=Date.now();
+    let socketTarget: string | null = null;
     const connect=()=>{
       if(stopped||paused)return;
       const current=socketRef.current;
       if(current&&(current.readyState===WebSocket.OPEN||current.readyState===WebSocket.CONNECTING))return;
       setConnection('connecting');
-      const target=api.endpoint;let opened=false;
+      const target=api.endpoint;socketTarget=target;let opened=false;
       const socket=new WebSocket(api.socketUrl());socketRef.current=socket;lastReceive=Date.now();
       // A session bound to this device sends its proof with the token (deviceProof.ts); without one the server closes with 4402.
       socket.onopen=()=>{opened=true;void api.ensureProof().catch(()=>{}).then(()=>{if(!stopped&&socketRef.current===socket&&socket.readyState===WebSocket.OPEN)socket.send(JSON.stringify({type:'auth',token:api.token,...(api.proof?{proof:api.proof}:{}),lean:true}));});};
@@ -415,6 +416,8 @@ export function useMessenger(api: Api, user: User, onExpired: ()=>void) {
         if(event.code===4001||event.code===4401||event.code===4402){void api.me().then(()=>{if(!stopped)retry=setTimeout(connect,1000);},e=>{if(e instanceof ApiError&&e.status===401)onExpiredRef.current();else if(!stopped)retry=setTimeout(connect,3000);});return;}
         // The server could not be reached at all: try the next one at once instead of backing off.
         if(!opened&&api.endpoint===target){reportFailure(target);}
+        // A failure may immediately switch routes and reconnect via the pool listener.
+        if(socketRef.current!==socket)return;
         retry=setTimeout(connect,!opened&&api.endpoint!==target?300:Math.min(1000*2**attempts++,15000));
       };
       socket.onerror=()=>{if(!stopped&&socketRef.current===socket)setConnection('offline');};
@@ -424,6 +427,11 @@ export function useMessenger(api: Api, user: User, onExpired: ()=>void) {
       previous?.close();if(retry)clearTimeout(retry);connect();
     };
     connect();
+    // HTTP failover also changes the endpoint needed for the long-lived message socket.
+    const stopRoute=subscribeServers(()=>{
+      if(stopped||paused||!socketRef.current)return;
+      if(socketTarget!==api.endpoint){attempts=0;reconnect();}
+    });
     // In the background the connection is closed, so peers see "был(а) только что" as in Telegram —
     // unless a voice room or a call holds it: the server would otherwise drop us from the room on close.
     const sleep=()=>{paused=true;if(retry)clearTimeout(retry);const previous=socketRef.current;socketRef.current=null;previous?.close();setConnection('offline');};
@@ -452,7 +460,7 @@ export function useMessenger(api: Api, user: User, onExpired: ()=>void) {
       if(stopped)return;setOnline(up);
       if(up&&!paused&&appState.current!=='background'){attempts=0;if(retry)clearTimeout(retry);connect();}
     });
-    return ()=>{stopped=true;aliveRef.current=false;++recoveryFetchRef.current;if(retry)clearTimeout(retry);clearInterval(heartbeat);clearInterval(recoveryPoll);stopOnline();subscription.remove();socketRef.current?.close();socketRef.current=null;resetChannelOutbox();clearLogins();};
+    return ()=>{stopped=true;aliveRef.current=false;++recoveryFetchRef.current;if(retry)clearTimeout(retry);clearInterval(heartbeat);clearInterval(recoveryPoll);stopOnline();stopRoute();subscription.remove();socketRef.current?.close();socketRef.current=null;resetChannelOutbox();clearLogins();};
   },[api,user.id,refreshChats,loadMessages,acceptMessage,refreshRecoveryRequests,onSocket,refreshScheduled]);
 
   const selectChat=useCallback((chat:Chat|null)=>{
