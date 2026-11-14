@@ -113,3 +113,39 @@ test('subscriber failure cannot crash the transport state machine',async()=>{
   assert.equal(await controller.start(),true);
   await controller.stop();
 });
+
+test('a reconnect waits until the previous native joiner has fully stopped', async()=>{
+  let releaseStop;
+  const stopGate = new Promise(resolve=>{releaseStop=resolve;});
+  const calls=[];
+  let stopCount=0, nextIssued=3;
+  const rollingIssuer = makeLeaseIssuer({
+    privateKey:keys.privateKey.export({format:'pem',type:'pkcs8'}),
+    now:()=>1_000_000,
+    nextSequence:async()=>++nextIssued,
+  });
+  const {controller}=setup({
+    publicKeys:[rollingIssuer.publicKeyBase64],
+    acquire:()=>rollingIssuer.issue({
+      deviceId:'testdevice_001',joinLink:'wbstream://room_123456789',expiresAt:1_100_000,
+    }),
+    joiner:{
+      start:async()=>{calls.push('start');},
+      stop:async()=>{
+        calls.push('stop');
+        if (++stopCount===1) await stopGate;
+      },
+    },
+  });
+  assert.equal(await controller.start(),true);
+  const stopping=controller.stop();
+  const reconnect=controller.start();
+  // The old native stop has started but is still blocked.
+  assert.deepEqual(calls,['start','stop']);
+  releaseStop();
+  await stopping;
+  assert.equal(await reconnect,true);
+  assert.equal(calls.filter(call=>call==='start').length,2);
+  assert.equal(controller.status,'connected');
+  await controller.stop();
+});
