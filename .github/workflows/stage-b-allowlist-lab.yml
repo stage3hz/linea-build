@@ -1,0 +1,35 @@
+name: Stage B allowlist isolation laboratory
+
+# This is an artificial two-network lab, not a test against any operator.
+on:
+  pull_request:
+    paths:
+      - 'prototype/transport-b/allowlist-lab/**'
+      - '.github/workflows/stage-b-allowlist-lab.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  allowlist-lab:
+    name: Isolated direct-vs-carrier connectivity
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+      - name: Node policy + end-to-end TLS tests
+        run: node --test prototype/transport-b/allowlist-lab/allowlist.test.mjs
+      - name: Verify disposable Docker network separation
+        run: |
+          set -euo pipefail
+          docker compose version
+          bash prototype/transport-b/allowlist-lab/run.sh
+      - name: Disclose the model's limits
+        if: always()
+        run: |
+          echo "An artificially allowed TCP carrier is NOT a real WebRTC/SFU platform." >> "$GITHUB_STEP_SUMMARY"
+          echo "No claim of reachability on a real restricted operator network." >> "$GITHUB_STEP_SUMMARY"
