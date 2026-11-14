@@ -17,7 +17,7 @@ import { activeTypes } from './format/entities';
 import { countChats } from './plural';
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { ActivityIndicator, FlatList, Keyboard, Modal, Platform, Pressable, ScrollView, View } from 'react-native';
-import Animated, { LinearTransition, runOnJS, scrollTo, useAnimatedRef, useAnimatedScrollHandler, useAnimatedStyle, useSharedValue } from 'react-native-reanimated';
+import Animated, { runOnJS, scrollTo, useAnimatedRef, useAnimatedScrollHandler, useAnimatedStyle, useSharedValue } from 'react-native-reanimated';
 import { setVisibleNotes } from './videonote/playback';
 import { composerValue, typedInto } from './editDraft';
 import { KeyboardGestureArea, useReanimatedKeyboardAnimation } from 'react-native-keyboard-controller';
@@ -91,9 +91,6 @@ import { JUMP_FLASH_MS, knownDeleted, nextJumpStep, rowIndexOf, type ReplyJump }
 
 /** Links the composer field to the list's KeyboardGestureArea (iOS: the keyboard follows the finger from the composer's top). */
 const COMPOSER_NATIVE_ID='chat-composer-input';
-// A new message slides in over 220 ms (MessageRow); the rows above it move up over the same time instead of jumping.
-// Phones only: on the web the list is laid out by the browser.
-const ROW_SHIFT=Platform.OS==='web'?undefined:LinearTransition.duration(220);
 
 
 /** Formatting of the unsent text per chat (the draft text itself lives in the store as a plain string). */
@@ -487,7 +484,9 @@ export function ChatScreen({api,user,chat,store,onBack,wide=false,onOpenMusic}: 
   const handlers=useRef<RowHandlers>(null as unknown as RowHandlers);
   handlers.current={actions:(row,y,x)=>{setMenuY(y);setMenuX(x);setActions(row);},jumpTo,open:openAttachment,react,retry:pending=>void store.retry(pending),cancel:pending=>store.cancelPending(pending),reply:message=>{if(editing)endEdit();setReplyTo(message);},vote:(message,options)=>store.sendAction(chat.id,{type:'vote',target:message.clientId,options},replyPreview(message)),toggleSelect,openStory:ref=>void openStory(ref)};
   if(seen.current===null&&rows.length)seen.current=new Set(rows.map(row=>row.key));
-  const fresh=(key:string)=>{if(!seen.current)return false;if(seen.current.has(key))return false;seen.current.add(key);return true;};
+  // A message being sent is a row of its own (key p…); once the server has it, the same message is another row (key
+  // m…). That second row is not new: it must not slide in again — the message looked as if it were sent twice.
+  const fresh=(row:Row)=>{if(!seen.current)return false;if(seen.current.has(row.key))return false;seen.current.add(row.key);const sent=row.album?row.album[0]?.message:row.message;const sentAs=sent?.clientId?`${row.album?'a':''}p${sent.clientId}`:'';return !(sentAs&&seen.current.has(sentAs));};
   const peerLastRead=chat.peerLastReadMessageId,peerName=chat.peer.displayName;
   const renderRow=useCallback(({item,index,peek=false}:{item:Row;index:number;peek?:boolean})=>{
     const message=item.message,p=item.pending,mine=!!p||message?.senderId===user.id;
@@ -506,7 +505,7 @@ export function ChatScreen({api,user,chat,store,onBack,wide=false,onOpenMusic}: 
     const newerSender=newer?.pending?user.id:newer?.message&&!newer.message.meta?.action?newer.message.senderId:undefined;
     const groupNext=!!newer&&newerSender!==undefined&&!message?.meta?.action&&newerSender===(p?user.id:message?.senderId)&&new Date(newer.createdAt).toDateString()===new Date(item.createdAt).toDateString()&&Date.parse(newer.createdAt)-Date.parse(item.createdAt)<5*60_000;
     if(item.missing)return <MissingRow count={item.missing}/>;
-    return <MessageRow animatedEmoji={platina&&powerFeatures.stickers} groupNext={groupNext} row={item} selecting={!!selection} selected={!!selection?.has(item.key)} fresh={fresh(item.key)} olderCreatedAt={peek?item.createdAt:rows[index+1]?.createdAt} mine={mine} author={mine?'Ты':peerName} peerLastRead={peerLastRead} wide={wide} fontSize={metrics.fontSize} lineHeight={metrics.lineHeight} radius={preferences.bubbleRadius} downloading={!!downloadId&&file?.id===downloadId} replyAuthor={quoteAuthor} replyText={quoteText} replyThumb={replyThumb} quoteBusy={!peek&&!!replyJump&&replyJump.fromKey===item.key} flash={!peek&&flashKey===item.key} api={api} handlers={handlers}/>;
+    return <MessageRow animatedEmoji={platina&&powerFeatures.stickers} groupNext={groupNext} row={item} selecting={!!selection} selected={!!selection?.has(item.key)} fresh={fresh(item)} olderCreatedAt={peek?item.createdAt:rows[index+1]?.createdAt} mine={mine} author={mine?'Ты':peerName} peerLastRead={peerLastRead} wide={wide} fontSize={metrics.fontSize} lineHeight={metrics.lineHeight} radius={preferences.bubbleRadius} downloading={!!downloadId&&file?.id===downloadId} replyAuthor={quoteAuthor} replyText={quoteText} replyThumb={replyThumb} quoteBusy={!peek&&!!replyJump&&replyJump.fromKey===item.key} flash={!peek&&flashKey===item.key} api={api} handlers={handlers}/>;
   },[rows,user.id,peerName,peerLastRead,wide,metrics.fontSize,metrics.lineHeight,downloadId,view.byClientId,api,selection,preferences.bubbleRadius,platina,powerFeatures.stickers,replyJump,flashKey]);
   const [circleOpen,setCircleOpen]=useState(false);
   // Telegram: the sent circle appears in the chat at once (frame from the take, upload ring, ✕). It lives in
@@ -615,7 +614,7 @@ export function ChatScreen({api,user,chat,store,onBack,wide=false,onOpenMusic}: 
     {/* Android: header and composer glass blur this (wallpaper + messages) on the GPU. */}
     <GlassContentTarget targetRef={glassTarget} style={{flex:1}}>
     <ChatWallpaper choice={wallpaper} style={{top:-80,bottom:-60}} trail/>
-    {rows.length===0&&!chatNotes.length?<View style={{flex:1,justifyContent:'center',paddingTop:headerHeight,paddingBottom:listEdges.composerSide}}>{store.messageLoading?<ActivityIndicator color={t.accent}/>:<Empty icon="hand-left-outline" title="Скажи «привет»" description={`Это начало вашей переписки с ${chat.peer.displayName}.`}/>}</View>:<><KeyboardGestureArea style={{flex:1}} interpolator="ios" offset={keyboardGestureOffset(composerHeight,stickers)} textInputNativeID={COMPOSER_NATIVE_ID} enableSwipeToDismiss={dismissSetup.gestureArea}><Animated.FlatList ref={listRef} inverted data={rows} itemLayoutAnimation={ROW_SHIFT} onViewableItemsChanged={onViewableRows.current} viewabilityConfig={viewability.current} keyExtractor={row=>row.key} keyboardShouldPersistTaps="handled" keyboardDismissMode={dismissSetup.mode} contentContainerStyle={{paddingHorizontal:wide?28:9,paddingTop:listComposerSide,paddingBottom:listEdges.headerSide}} onScroll={onListScroll} scrollEventThrottle={16} initialNumToRender={25} windowSize={11} onScrollToIndexFailed={info=>{listRef.current?.scrollToOffset({offset:info.averageItemLength*info.index,animated:true});setTimeout(()=>listRef.current?.scrollToIndex({index:info.index,animated:true,viewPosition:.5}),250);}}
+    {rows.length===0&&!chatNotes.length?<View style={{flex:1,justifyContent:'center',paddingTop:headerHeight,paddingBottom:listEdges.composerSide}}>{store.messageLoading?<ActivityIndicator color={t.accent}/>:<Empty icon="hand-left-outline" title="Скажи «привет»" description={`Это начало вашей переписки с ${chat.peer.displayName}.`}/>}</View>:<><KeyboardGestureArea style={{flex:1}} interpolator="ios" offset={keyboardGestureOffset(composerHeight,stickers)} textInputNativeID={COMPOSER_NATIVE_ID} enableSwipeToDismiss={dismissSetup.gestureArea}><Animated.FlatList ref={listRef} inverted data={rows} onViewableItemsChanged={onViewableRows.current} viewabilityConfig={viewability.current} keyExtractor={row=>row.key} keyboardShouldPersistTaps="handled" keyboardDismissMode={dismissSetup.mode} contentContainerStyle={{paddingHorizontal:wide?28:9,paddingTop:listComposerSide,paddingBottom:listEdges.headerSide}} onScroll={onListScroll} scrollEventThrottle={16} initialNumToRender={25} windowSize={11} onScrollToIndexFailed={info=>{listRef.current?.scrollToOffset({offset:info.averageItemLength*info.index,animated:true});setTimeout(()=>listRef.current?.scrollToIndex({index:info.index,animated:true,viewPosition:.5}),250);}}
       ListHeaderComponent={<View>{chatNotes.length?<PendingNotes notes={chatNotes} onRetry={retryVideoNote} onDiscard={discardVideoNote}/>:null}<Animated.View style={listNavSpacer}/></View>}
       ListFooterComponent={store.hasMore[chat.id]?<View style={{alignItems:'center',padding:18}}><GlassSurface material="clear" radius={19} shadow={false}><Pressable onPress={()=>void store.loadMessages(chat.id,true)} disabled={store.messageLoading} accessibilityRole="button" style={{paddingVertical:11,paddingHorizontal:17}}>{store.messageLoading?<ActivityIndicator size="small" color={t.accent}/>:<Text style={{fontSize:12,color:t.accent,fontWeight:'600'}}>Более ранние сообщения</Text>}</Pressable></GlassSurface></View>:null}
       renderItem={renderRow} removeClippedSubviews={Platform.OS==='android'} maxToRenderPerBatch={12} updateCellsBatchingPeriod={40}/></KeyboardGestureArea><Animated.View pointerEvents="none" style={[{position:'absolute',width:0,height:0,opacity:0},lockCommit]}/></>
