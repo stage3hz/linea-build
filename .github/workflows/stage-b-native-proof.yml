@@ -46,6 +46,24 @@ jobs:
           test -d "$RUNNER_TEMP/Mobile.xcframework"
           /usr/libexec/PlistBuddy -c 'Print :CFBundlePackageType' "$RUNNER_TEMP/Mobile.xcframework/Info.plist"
           du -sh "$RUNNER_TEMP/Mobile.xcframework"
+      # Keep the compiled, unsigned binding as a reviewable CI artifact.
+      # The artifact is NOT linked into INVIZENT or distributed as a signed app.
+      - name: Package iOS framework and record checksum
+        run: |
+          set -euo pipefail
+          cd "$RUNNER_TEMP"
+          ditto -c -k --sequesterRsrc --keepParent Mobile.xcframework Mobile.xcframework.zip
+          shasum -a 256 Mobile.xcframework.zip > Mobile.xcframework.zip.sha256
+          shasum -a 256 -c Mobile.xcframework.zip.sha256
+      - name: Upload reproducible framework proof (unsigned)
+        uses: actions/upload-artifact@v4
+        with:
+          name: stage-b-ios-xcframework-${{ github.sha }}
+          path: |
+            ${{ runner.temp }}/Mobile.xcframework.zip
+            ${{ runner.temp }}/Mobile.xcframework.zip.sha256
+          if-no-files-found: error
+          retention-days: 14
       - name: Native build summary (no app build)
         run: |
           echo "Compiled pinned upstream iOS binding, not wired into INVIZENT." >> "$GITHUB_STEP_SUMMARY"
