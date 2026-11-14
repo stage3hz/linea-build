@@ -1,17 +1,23 @@
 name: Stage B native transport feasibility
 
-# Compile an upstream, pinned Go/iOS transport binding without adding it to the app.
-# No credentials are loaded and this workflow does not deploy anything.
+# Compile the pinned Go binding, then LINK the opt-in Expo module into an unsigned
+# experimental app. No deployment, signing credentials, bootstrap or real session.
 on:
   pull_request:
     paths:
       - 'prototype/transport-b/**'
       - 'mobile/src/network/transportB/**'
+      - 'mobile/modules/linea-transport-b/**'
+      - 'mobile/test/transport-b-native.test.mjs'
       - '.github/workflows/stage-b-native-proof.yml'
   workflow_dispatch:
 
 permissions:
   contents: read
+
+concurrency:
+  group: stage-b-native-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
 
 jobs:
   ios-bind:
@@ -56,25 +62,122 @@ jobs:
           xcrun --sdk iphonesimulator swiftc -typecheck -sdk "$SDK" \
             -target x86_64-apple-ios16.0-simulator -F "$SIM_DIR" \
             prototype/transport-b/ios/StageBProofJoiner.swift
-      # Keep the compiled, unsigned binding as a reviewable CI artifact.
-      # The artifact is NOT linked into INVIZENT or distributed as a signed app.
       - name: Package iOS framework and record checksum
         run: |
           set -euo pipefail
+          cp upstream/LICENSE "$RUNNER_TEMP/WHITELIST_BYPASS_LICENSE.txt"
           cd "$RUNNER_TEMP"
           ditto -c -k --sequesterRsrc --keepParent Mobile.xcframework Mobile.xcframework.zip
           shasum -a 256 Mobile.xcframework.zip > Mobile.xcframework.zip.sha256
           shasum -a 256 -c Mobile.xcframework.zip.sha256
-      - name: Upload reproducible framework proof (unsigned)
+      - name: Upload pinned framework (unsigned)
         uses: actions/upload-artifact@v4
         with:
           name: stage-b-ios-xcframework-${{ github.sha }}
           path: |
             ${{ runner.temp }}/Mobile.xcframework.zip
             ${{ runner.temp }}/Mobile.xcframework.zip.sha256
+            ${{ runner.temp }}/WHITELIST_BYPASS_LICENSE.txt
           if-no-files-found: error
           retention-days: 14
-      - name: Native build summary (no app build)
+      - name: Native binding summary
         run: |
-          echo "Compiled pinned upstream iOS binding, not wired into INVIZENT." >> "$GITHUB_STEP_SUMMARY"
-          echo "Does not prove real WB Stream connection, signing, or cellular allowlist access." >> "$GITHUB_STEP_SUMMARY"
+          echo "Compiled pinned upstream binding. The separate job must still link the Expo app." >> "$GITHUB_STEP_SUMMARY"
+          echo "Does not prove a real session, app routing, signing, or cellular allowlist access." >> "$GITHUB_STEP_SUMMARY"
+
+  ios-app-link:
+    name: Link opt-in Expo module into unsigned iOS app
+    needs: ios-bind
+    runs-on: macos-15-intel
+    timeout-minutes: 120
+    env:
+      INVIZENT_TRANSPORT_B: '1'
+      APP_ENV: development
+      EXPO_PUBLIC_ALLOW_LOCAL_HTTP: '0'
+      EXPO_NO_TELEMETRY: '1'
+      CI: '1'
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+      - uses: actions/download-artifact@v4
+        with:
+          name: stage-b-ios-xcframework-${{ github.sha }}
+          path: ${{ runner.temp }}/transport-b
+      - name: Prepare verified local framework and shared Swift source
+        run: |
+          set -euo pipefail
+          (cd "$RUNNER_TEMP/transport-b" && shasum -a 256 -c Mobile.xcframework.zip.sha256)
+          MODULE=mobile/modules/linea-transport-b/ios
+          mkdir -p "$MODULE/Frameworks" "$MODULE/Generated"
+          ditto -x -k "$RUNNER_TEMP/transport-b/Mobile.xcframework.zip" "$MODULE/Frameworks"
+          cp prototype/transport-b/ios/StageBProofJoiner.swift "$MODULE/Generated/"
+          test -f "$MODULE/Frameworks/Mobile.xcframework/Info.plist"
+      - name: Select Xcode
+        run: |
+          set -euo pipefail
+          XC=$(ls -d /Applications/Xcode_*.app | grep -v -i beta | sort -V | tail -1)
+          sudo xcode-select -s "$XC/Contents/Developer"
+          xcodebuild -version
+          pod --version
+      - name: Install app dependencies
+        working-directory: mobile
+        run: npm ci --no-audit --no-fund
+      - name: Check TypeScript and bridge contract
+        working-directory: mobile
+        run: |
+          npx tsc --noEmit
+          node --test test/transport-b-native.test.mjs
+      - name: Verify actual Expo autolinking discovery
+        working-directory: mobile
+        run: |
+          set -euo pipefail
+          npx expo-modules-autolinking resolve --platform apple --json > "$RUNNER_TEMP/transport-b-autolinking.json"
+          grep -q 'LineaTransportB' "$RUNNER_TEMP/transport-b-autolinking.json"
+      - name: Generate native project and install pods
+        working-directory: mobile
+        run: |
+          set -euo pipefail
+          npx expo prebuild --platform ios --clean --no-install
+          cd ios
+          pod install --repo-update
+          grep -q 'LineaTransportB' Podfile.lock
+      - name: Build unsigned device app with the real framework linked
+        working-directory: mobile/ios
+        run: |
+          set -euo pipefail
+          SCHEME=$(basename *.xcworkspace .xcworkspace)
+          echo "SCHEME=$SCHEME" >> "$GITHUB_ENV"
+          xcodebuild -workspace "$SCHEME.xcworkspace" -scheme "$SCHEME" \
+            -configuration Release -sdk iphoneos -destination 'generic/platform=iOS' \
+            -derivedDataPath build -hideShellScriptEnvironment \
+            ARCHS=arm64 ONLY_ACTIVE_ARCH=NO \
+            CODE_SIGNING_ALLOWED=NO CODE_SIGNING_REQUIRED=NO CODE_SIGN_IDENTITY="" CODE_SIGN_ENTITLEMENTS="" \
+            build > "$RUNNER_TEMP/transport-b-xcodebuild.log" 2>&1 || { tail -n 160 "$RUNNER_TEMP/transport-b-xcodebuild.log"; exit 1; }
+          grep -q 'BUILD SUCCEEDED' "$RUNNER_TEMP/transport-b-xcodebuild.log"
+          find . -name ExpoModulesProvider.swift -exec grep -l TransportBModule {} \; | grep -q .
+      - name: Package experimental IPA (NOT a working reserve route)
+        run: |
+          set -euo pipefail
+          APP="mobile/ios/build/Build/Products/Release-iphoneos/$SCHEME.app"
+          test -s "$APP/main.jsbundle"
+          mkdir -p "$RUNNER_TEMP/stage-b-app/Payload"
+          ditto "$APP" "$RUNNER_TEMP/stage-b-app/Payload/INVIZENT.app"
+          cp "$RUNNER_TEMP/transport-b/WHITELIST_BYPASS_LICENSE.txt" "$RUNNER_TEMP/stage-b-app/Payload/INVIZENT.app/"
+          cd "$RUNNER_TEMP/stage-b-app"
+          zip -qry StageB-experimental-unsigned.ipa Payload
+          shasum -a 256 StageB-experimental-unsigned.ipa > StageB-experimental-unsigned.ipa.sha256
+          echo "Unsigned link proof only. No bootstrap, API/WS routing, real-network test or deployment." > STATUS.txt
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: stage-b-experimental-ios-${{ github.sha }}
+          path: |
+            ${{ runner.temp }}/stage-b-app/StageB-experimental-unsigned.ipa
+            ${{ runner.temp }}/stage-b-app/StageB-experimental-unsigned.ipa.sha256
+            ${{ runner.temp }}/stage-b-app/STATUS.txt
+            ${{ runner.temp }}/transport-b-xcodebuild.log
+            ${{ runner.temp }}/transport-b-autolinking.json
+          if-no-files-found: warn
+          retention-days: 7

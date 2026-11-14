@@ -1,0 +1,7 @@
+{
+  "name": "linea-transport-b",
+  "version": "0.1.0",
+  "private": true,
+  "main": "index.ts",
+  "description": "Opt-in iOS transport-session bridge; does not route application traffic"
+}
