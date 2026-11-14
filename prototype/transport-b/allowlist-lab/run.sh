@@ -24,4 +24,5 @@ for attempt in 1 2 3; do
   sleep 1
 done
 docker compose -p "$PROJECT" -f "$DIR/compose.yml" run --rm client-restricted
-echo 'ALLOWLIST DOCKER NETWORK LAB: PASS (controlled network isolation only)'
+docker compose -p "$PROJECT" -f "$DIR/compose.yml" run --rm client-offline
+echo 'ALLOWLIST DOCKER NETWORK LAB: PASS (direct, allowlist, total outage simulated)'
