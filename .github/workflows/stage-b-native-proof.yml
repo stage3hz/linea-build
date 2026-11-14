@@ -9,6 +9,7 @@ on:
       - 'mobile/src/network/transportB/**'
       - 'mobile/modules/linea-transport-b/**'
       - 'mobile/test/transport-b-native.test.mjs'
+      - 'mobile/test/native/transport-b-podspec.test.mjs'
       - '.github/workflows/stage-b-native-proof.yml'
   workflow_dispatch:
 
@@ -86,12 +87,20 @@ jobs:
           echo "Does not prove a real session, app routing, signing, or cellular allowlist access." >> "$GITHUB_STEP_SUMMARY"
 
   ios-app-link:
-    name: Link opt-in Expo module into unsigned iOS app
+    name: Link Expo module (${{ matrix.mode }}) into unsigned iOS app
     needs: ios-bind
     runs-on: macos-15-intel
     timeout-minutes: 120
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - mode: disabled
+            transport: '0'
+          - mode: enabled
+            transport: '1'
     env:
-      INVIZENT_TRANSPORT_B: '1'
+      INVIZENT_TRANSPORT_B: ${{ matrix.transport }}
       APP_ENV: development
       EXPO_PUBLIC_ALLOW_LOCAL_HTTP: '0'
       EXPO_NO_TELEMETRY: '1'
@@ -129,6 +138,9 @@ jobs:
         run: |
           npx tsc --noEmit
           node --test test/transport-b-native.test.mjs
+      - name: Evaluate both podspec modes with real CocoaPods and prepared artifacts
+        working-directory: mobile
+        run: node --test test/native/transport-b-podspec.test.mjs
       - name: Verify actual Expo autolinking discovery
         working-directory: mobile
         run: |
@@ -143,7 +155,7 @@ jobs:
           cd ios
           pod install --repo-update
           grep -q 'LineaTransportB' Podfile.lock
-      - name: Build unsigned device app with the real framework linked
+      - name: Build unsigned device app (${{ matrix.mode }})
         working-directory: mobile/ios
         run: |
           set -euo pipefail
@@ -162,22 +174,34 @@ jobs:
           set -euo pipefail
           APP="mobile/ios/build/Build/Products/Release-iphoneos/$SCHEME.app"
           test -s "$APP/main.jsbundle"
+          EXE=$(/usr/libexec/PlistBuddy -c 'Print :CFBundleExecutable' "$APP/Info.plist")
+          test "$(lipo -archs "$APP/$EXE")" = arm64
+          otool -l "$APP/$EXE" > "$RUNNER_TEMP/transport-b-mach-o.txt"
+          grep -A4 LC_BUILD_VERSION "$RUNNER_TEMP/transport-b-mach-o.txt" | grep -q 'platform 2'
+          nm -gU "$APP/$EXE" > "$RUNNER_TEMP/transport-b-symbols.txt"
+          if [ "$INVIZENT_TRANSPORT_B" = 1 ]; then
+            grep -q '_IosStartWBStreamHeadless' "$RUNNER_TEMP/transport-b-symbols.txt"
+          else
+            ! grep -q '_IosStartWBStreamHeadless' "$RUNNER_TEMP/transport-b-symbols.txt"
+          fi
           mkdir -p "$RUNNER_TEMP/stage-b-app/Payload"
           ditto "$APP" "$RUNNER_TEMP/stage-b-app/Payload/INVIZENT.app"
           cp "$RUNNER_TEMP/transport-b/WHITELIST_BYPASS_LICENSE.txt" "$RUNNER_TEMP/stage-b-app/Payload/INVIZENT.app/"
           cd "$RUNNER_TEMP/stage-b-app"
           zip -qry StageB-experimental-unsigned.ipa Payload
           shasum -a 256 StageB-experimental-unsigned.ipa > StageB-experimental-unsigned.ipa.sha256
-          echo "Unsigned link proof only. No bootstrap, API/WS routing, real-network test or deployment." > STATUS.txt
+          echo "Source=$GITHUB_SHA mode=${{ matrix.mode }}. Unsigned link proof only. No bootstrap, API/WS routing, real-network test or deployment." > STATUS.txt
       - uses: actions/upload-artifact@v4
         if: always()
         with:
-          name: stage-b-experimental-ios-${{ github.sha }}
+          name: stage-b-experimental-ios-${{ matrix.mode }}-${{ github.sha }}
           path: |
             ${{ runner.temp }}/stage-b-app/StageB-experimental-unsigned.ipa
             ${{ runner.temp }}/stage-b-app/StageB-experimental-unsigned.ipa.sha256
             ${{ runner.temp }}/stage-b-app/STATUS.txt
             ${{ runner.temp }}/transport-b-xcodebuild.log
             ${{ runner.temp }}/transport-b-autolinking.json
+            ${{ runner.temp }}/transport-b-mach-o.txt
+            ${{ runner.temp }}/transport-b-symbols.txt
           if-no-files-found: warn
           retention-days: 7

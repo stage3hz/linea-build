@@ -20,10 +20,12 @@ Pod::Spec.new do |s|
   s.dependency 'ExpoModulesCore'
   s.source_files = enabled ? ['TransportBModule.swift', 'Generated/*.swift'] : ['TransportBModule.swift']
   s.frameworks = 'Foundation', 'CFNetwork', 'Security', 'SystemConfiguration'
-  s.pod_target_xcconfig = { 'DEFINES_MODULE' => 'YES', 'SWIFT_COMPILATION_MODE' => 'wholemodule' }
+  # CocoaPods exposes a DSL writer, not a readable Hash on Specification.
+  xcconfig = { 'DEFINES_MODULE' => 'YES', 'SWIFT_COMPILATION_MODE' => 'wholemodule' }
   if enabled
     s.vendored_frameworks = 'Frameworks/Mobile.xcframework'
     s.libraries = 'resolv', 'c++'
-    s.pod_target_xcconfig['SWIFT_ACTIVE_COMPILATION_CONDITIONS'] = '$(inherited) INVIZENT_TRANSPORT_B'
+    xcconfig['SWIFT_ACTIVE_COMPILATION_CONDITIONS'] = '$(inherited) INVIZENT_TRANSPORT_B'
   end
+  s.pod_target_xcconfig = xcconfig
 end
