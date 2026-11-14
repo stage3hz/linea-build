@@ -46,6 +46,16 @@ jobs:
           test -d "$RUNNER_TEMP/Mobile.xcframework"
           /usr/libexec/PlistBuddy -c 'Print :CFBundlePackageType' "$RUNNER_TEMP/Mobile.xcframework/Info.plist"
           du -sh "$RUNNER_TEMP/Mobile.xcframework"
+      - name: Typecheck isolated Swift joiner against iOS framework (no app routing)
+        run: |
+          set -euo pipefail
+          SIM_DIR="$(find "$RUNNER_TEMP/Mobile.xcframework" -maxdepth 1 -type d -name '*simulator*' | head -n 1)"
+          test -n "$SIM_DIR"
+          test -d "$SIM_DIR/Mobile.framework"
+          SDK="$(xcrun --sdk iphonesimulator --show-sdk-path)"
+          xcrun --sdk iphonesimulator swiftc -typecheck -sdk "$SDK" \
+            -target x86_64-apple-ios16.0-simulator -F "$SIM_DIR" \
+            prototype/transport-b/ios/StageBProofJoiner.swift
       # Keep the compiled, unsigned binding as a reviewable CI artifact.
       # The artifact is NOT linked into INVIZENT or distributed as a signed app.
       - name: Package iOS framework and record checksum
