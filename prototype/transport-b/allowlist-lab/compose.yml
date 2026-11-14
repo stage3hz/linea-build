@@ -59,6 +59,22 @@ services:
     networks: [allowed]
     restart: "no"
     depends_on: [api, carrier]
+  client-offline:
+    profiles: [tests]
+    image: node:24-alpine
+    command: ["node", "/lab/lab.mjs", "client"]
+    working_dir: /lab
+    environment:
+      LAB_MODE: offline
+      LAB_ORIGIN_IP: 172.29.230.10
+      LAB_CARRIER_IP: 172.29.231.20
+    volumes:
+      - ./lab.mjs:/lab/lab.mjs:ro
+      - ${LAB_CERT_DIR:?temporary TLS fixture required}/ca.crt:/run/labcerts/ca.crt:ro
+    networks: [denied]
+    restart: "no"
+    depends_on: [api, carrier]
+
 networks:
   origin:
     internal: true
@@ -70,3 +86,8 @@ networks:
     ipam:
       config:
         - subnet: 172.29.231.0/24
+  denied:
+    internal: true
+    ipam:
+      config:
+        - subnet: 172.29.232.0/24
