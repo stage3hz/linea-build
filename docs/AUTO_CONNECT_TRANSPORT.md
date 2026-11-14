@@ -29,7 +29,14 @@ These are source-review observations, not results of a device test.
 - Wi-Fi ↔ mobile: the servers are measured again at once and the old network's failures are dropped (`networkChanged`).
 - When nothing answers, the next measurement comes after 15 s, 30 s, 60 s… up to the regular five-minute round; on the way back from the reserve, after 20 s (`nextMeasureDelay`).
 - Reviewed, no change needed: a message socket that fails to open already reports its address to the pool (`mobile/src/useMessenger.ts`); native attachment uploads and downloads take the address in use (`api.endpoint`, `api.fileUrl`).
-- Not done: a failed native attachment transfer does not report its address to the pool; an open socket stays on its address when the route changes; reconciliation of writes other than messages after a lost response; any new transport; any test on a device or in a real restricted network.
+- The message socket now reopens on the new address when the pool switches our endpoint, so chat/status/channel events follow the route the rest of the app uses (`socketNeedsReopen`, `mobile/src/network/offline.ts`; wired in `mobile/src/useMessenger.ts`). Only our own addresses; never in the background, while paused, or on a closing socket.
+- Decided, not changed: attachment uploads/downloads take the pool's current address on every chunk attempt but do not themselves force a pool switch mid-transfer — moving an in-progress chunked upload to a cluster server that lacks the session would break it. They follow switches triggered by the HTTP, socket and probe paths instead.
+- Write safety for route switching (unchanged, verified by reading): only GET/HEAD and `notDelivered` (502/503) auto-retry on the next server; HTTP 504 is no longer `notDelivered`, so register/password/other writes are not repeated after a gateway timeout. Messages dedupe by `clientId` on the server (`server/src/app.js`).
+- Not done on this branch: a failed native attachment transfer still does not report its address to the pool; reconciliation of non-message writes after a lost response; any new transport; any test on a device or in a real restricted network.
+
+### Stage B is deliberately not advanced from this branch
+
+Stage B (branch `transport-b-integration`) is an operator-allowlist circumvention transport: its own `prototype/transport-b/README.md` builds on the `kulikov0/whitelist-bypass` project and tunnels INVIZENT traffic through third-party permitted video services, and `prototype/transport-b/allowlist-lab/` models passing an allowlist. This branch (`auto-connect-a`) does not build, wire, or scaffold that transport, does not add a transport adapter whose purpose is to host it, and does not touch branch B, the lab, the `stage-b-*` CI workflows, or PR #1. Stage A here is failover among INVIZENT's own HTTPS addresses only.
 
 
 ## Architecture

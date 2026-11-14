@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict';
 import { randomUUID } from 'node:crypto';
 import test from 'node:test';
-import { afterRefresh, isConnectivityError, listStillLoading, shownError, TITLE_TEXT, titleState } from '../src/network/offline.ts';
+import { afterRefresh, isConnectivityError, listStillLoading, shownError, socketNeedsReopen, TITLE_TEXT, titleState } from '../src/network/offline.ts';
 import { CHAT_LIST_LIMIT, CHAT_PAGE_LIMIT, chatPageCacheKey, decodeChatList, decodeChatPage, encodeChatList, encodeChatPage, isCacheName, restoreChats } from '../src/chatListCache.ts';
 import { CryptoService, MemoryVault, sha256 } from './support/crypto-harness.mjs';
 import { keepOpened } from '../src/listCatchUp.ts';
@@ -132,4 +132,18 @@ test('vault: Избранное and the cached chat list open with no network; a
   await service.forgetChat('a');
   assert.equal(await service.loadCache('page:v1:a'), null, 'a deleted chat leaves no cached page');
   await service.close();
+});
+
+test('the message socket reopens only when the pool moved it to a different one of our addresses, and only in the foreground', () => {
+  const api = 'https://api.invizent.com', edge = 'https://edge.invizent';
+  const base = { state: 1, target: api, current: api, paused: false, foreground: true, stopped: false };
+  assert.equal(socketNeedsReopen(base), false, 'same address: nothing to do');
+  assert.equal(socketNeedsReopen({ ...base, current: edge }), true, 'the pool switched to the reserve: reopen there');
+  assert.equal(socketNeedsReopen({ ...base, state: 0, current: edge }), true, 'a still-connecting socket on the old address is redirected');
+  assert.equal(socketNeedsReopen({ ...base, state: 2, current: edge }), false, 'a closing socket is already being replaced');
+  assert.equal(socketNeedsReopen({ ...base, state: 3, current: edge }), false, 'a closed socket is already being replaced');
+  assert.equal(socketNeedsReopen({ ...base, current: edge, foreground: false }), false, 'in the background the socket is torn down anyway');
+  assert.equal(socketNeedsReopen({ ...base, current: edge, paused: true }), false, 'paused: do not fight the pause');
+  assert.equal(socketNeedsReopen({ ...base, current: edge, stopped: true }), false, 'the screen is gone');
+  assert.equal(socketNeedsReopen({ ...base, target: null, current: edge }), false, 'no socket address yet');
 });

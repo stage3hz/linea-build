@@ -56,3 +56,15 @@ export function titleState(input: { connection: 'connecting' | 'connected' | 'of
   return input.connection === 'connecting' ? 'connecting' : 'waiting';
 }
 export const TITLE_TEXT: Record<Exclude<TitleState, 'chats' | 'mesh'>, string> = { waiting: 'Ожидание сети…', connecting: 'Соединение…', updating: 'Обновление…' };
+
+/**
+ * Whether the message socket must be reopened because the server pool switched our endpoint under it. Pure so it can
+ * be tested (useMessenger). `state` is the socket's readyState (0 CONNECTING, 1 OPEN, 2 CLOSING, 3 CLOSED).
+ *  - never while the connection is stopped, paused, or the app is in the background (the socket is torn down there);
+ *  - only an open or connecting socket on a stale address; a closing/closed one is already being replaced.
+ */
+export function socketNeedsReopen(input: { state: number; target: string | null; current: string; paused: boolean; foreground: boolean; stopped: boolean }): boolean {
+  if (input.stopped || input.paused || !input.foreground) return false;
+  if (input.state !== 0 && input.state !== 1) return false;
+  return !!input.target && input.target !== input.current;
+}

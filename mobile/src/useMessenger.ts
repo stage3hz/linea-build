@@ -1,5 +1,5 @@
 import { UntrustedDeviceError, type HistoryItem } from './e2ee/core';
-import { reportFailure } from './servers/pool';
+import { currentEndpoint, reportFailure, subscribeServers } from './servers/pool';
 import { networkTier } from './network/quality';
 import { meshActive, useMeshActive } from './nearby/meshState';
 import { onMesh, packetIdOf, publishMessage, publishReceipt, startMesh, stopMesh } from './nearby/meshRuntime';
@@ -37,7 +37,7 @@ import { useVoice } from './communities/voice';
 import { attachChannelOutbox, resetChannelOutbox } from './communities/channelOutbox';
 import { clearLogins, noteSocketEvent } from './sessionAlerts';
 import { canResend, pushKind, scheduledIntentKey, withSendOptions, type ScheduledItem, type SendOptions } from './scheduled/model';
-import { afterRefresh, isConnectivityError, listStillLoading } from './network/offline';
+import { afterRefresh, isConnectivityError, listStillLoading, socketNeedsReopen } from './network/offline';
 import { onOnlineChange } from './network/netChange';
 import { CHAT_LIST_CACHE, chatPageCacheKey, decodeChatList, decodeChatPage, encodeChatList, encodeChatPage, restoreChats } from './chatListCache';
 
@@ -375,12 +375,15 @@ export function useMessenger(api: Api, user: User, onExpired: ()=>void) {
     // The channel outbox (messages typed offline) sends through this account whichever screen is open; it is flushed on every «ready».
     attachChannelOutbox({userId:user.id,send:item=>api.sendChannelMessage(item.communityId,item.channelId,{text:item.text,clientKey:item.key,...(item.replyTo?{replyTo:item.replyTo}:{})}).then(r=>r.message),onSocket});
     let stopped=false, paused=false, retry:ReturnType<typeof setTimeout>|undefined, attempts=0, lastReceive=Date.now();
+    // The address the open socket was opened to. When the server pool switches our endpoint (direct ↔ reserve,
+    // or a faster direct server), the socket is on a stale address and must be reopened on the new one.
+    let socketTarget:string|null=null;
     const connect=()=>{
       if(stopped||paused)return;
       const current=socketRef.current;
       if(current&&(current.readyState===WebSocket.OPEN||current.readyState===WebSocket.CONNECTING))return;
       setConnection('connecting');
-      const target=api.endpoint;let opened=false;
+      const target=api.endpoint;let opened=false;socketTarget=target;
       const socket=new WebSocket(api.socketUrl());socketRef.current=socket;lastReceive=Date.now();
       // A session bound to this device sends its proof with the token (deviceProof.ts); without one the server closes with 4402.
       socket.onopen=()=>{opened=true;void api.ensureProof().catch(()=>{}).then(()=>{if(!stopped&&socketRef.current===socket&&socket.readyState===WebSocket.OPEN)socket.send(JSON.stringify({type:'auth',token:api.token,...(api.proof?{proof:api.proof}:{}),lean:true}));});};
@@ -452,7 +455,13 @@ export function useMessenger(api: Api, user: User, onExpired: ()=>void) {
       if(stopped)return;setOnline(up);
       if(up&&!paused&&appState.current!=='background'){attempts=0;if(retry)clearTimeout(retry);connect();}
     });
-    return ()=>{stopped=true;aliveRef.current=false;++recoveryFetchRef.current;if(retry)clearTimeout(retry);clearInterval(heartbeat);clearInterval(recoveryPoll);stopOnline();subscription.remove();socketRef.current?.close();socketRef.current=null;resetChannelOutbox();clearLogins();};
+    // The server pool switched our endpoint (servers/pool.ts): reopen the socket on the new address so messages,
+    // statuses and channel events arrive through the route the rest of the app now uses. Only our own addresses.
+    const stopPool=subscribeServers(()=>{
+      const socket=socketRef.current;
+      if(socket&&socketNeedsReopen({state:socket.readyState,target:socketTarget,current:currentEndpoint(),paused,foreground:appState.current!=='background',stopped})){attempts=0;reconnect();}
+    });
+    return ()=>{stopped=true;aliveRef.current=false;++recoveryFetchRef.current;if(retry)clearTimeout(retry);clearInterval(heartbeat);clearInterval(recoveryPoll);stopOnline();stopPool();subscription.remove();socketRef.current?.close();socketRef.current=null;resetChannelOutbox();clearLogins();};
   },[api,user.id,refreshChats,loadMessages,acceptMessage,refreshRecoveryRequests,onSocket,refreshScheduled]);
 
   const selectChat=useCallback((chat:Chat|null)=>{
