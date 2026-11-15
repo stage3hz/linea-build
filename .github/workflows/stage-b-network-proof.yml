@@ -1,15 +1,11 @@
 name: Stage B native app network adapter proof
 on:
-  pull_request:
-    paths:
-      - 'mobile/modules/linea-transport-b/**'
-      - 'prototype/transport-b/network-proof/**'
-      - '.github/workflows/stage-b-network-proof.yml'
+  workflow_call:
   workflow_dispatch:
 permissions:
   contents: read
 concurrency:
-  group: stage-b-network-${{ github.event.pull_request.number || github.ref }}
+  group: stage-b-network-${{ github.run_id }}
   cancel-in-progress: true
 jobs:
   network:
@@ -21,7 +17,7 @@ jobs:
         with:
           node-version: 24
       - run: npm ci --no-audit --no-fund
-        working-directory: server
+        working-directory: prototype/transport-b/network-proof
       - name: Compile the actual URLSession adapter
         run: |
           set -euo pipefail

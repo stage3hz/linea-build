@@ -7,7 +7,7 @@ import { execFileSync } from 'node:child_process';
 import { readFileSync, writeFileSync, mkdirSync } from 'node:fs';
 import { join } from 'node:path';
 import { createRequire } from 'node:module';
-const {WebSocketServer}=createRequire(new URL('../../../server/package.json',import.meta.url))('ws');
+const {WebSocketServer}=createRequire(import.meta.url)('ws');
 const root=process.argv[2];mkdirSync(root,{recursive:true});
 const openssl=(...args)=>execFileSync('openssl',args,{cwd:root,stdio:'ignore'});
 openssl('req','-x509','-newkey','rsa:2048','-nodes','-keyout','ca.key','-out','ca.pem','-days','1','-subj','/CN=INVIZENT Stage B ephemeral CI CA');

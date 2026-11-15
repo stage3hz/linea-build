@@ -1,5 +1,5 @@
 import { requireOptionalNativeModule } from 'expo-modules-core';
-import type { TransportBNativeModule } from '../../../modules/linea-transport-b';
+import type { TransportBNativeModule, TransportBNetworkModule } from '../../../modules/linea-transport-b';
 
 /** An experimental session bridge, not a TransportBJoiner for the production pool. */
 export function loadTransportBSessionModule(): TransportBNativeModule | null {
@@ -20,4 +20,16 @@ export function loadTransportBSessionModule(): TransportBNativeModule | null {
 /** A linked native library must NEVER make the server pool display "connected". */
 export function transportBReadiness(): { nativeSession: boolean; appRouting: false } {
   return { nativeSession: loadTransportBSessionModule() !== null, appRouting: false };
+}
+
+/** Explicit opt-in networking ABI; never enables the global application route. */
+export function loadTransportBNetworkModule(): TransportBNetworkModule | null {
+  const native = loadTransportBSessionModule() as TransportBNetworkModule | null;
+  if (!native) return null;
+  try {
+    const capabilities = native.capabilities();
+    if (capabilities.networkProtocol !== 1 || capabilities.sessionNetworking !== true) return null;
+    if (['request', 'cancelRequest', 'socketOpen', 'socketSend', 'socketClose'].some(name => typeof (native as unknown as Record<string, unknown>)[name] !== 'function')) return null;
+    return native;
+  } catch { return null; }
 }

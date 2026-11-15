@@ -1,5 +1,4 @@
-// Stage B native feasibility bridge: compiled independently against the pinned
-// upstream Mobile.xcframework. NOT linked into the INVIZENT application.
+// Stage B bridge shared by the standalone proof and opt-in Expo module.
 // A local SOCKS endpoint alone DOES NOT route the app's requests or prove connectivity.
 import Foundation
 import CFNetwork
@@ -82,12 +81,35 @@ public final class StageBProofJoiner {
 
     public init() {}
 
-    public func start(joinLink: String, socksPort: Int = 1080) throws {
+    private func availablePort() throws -> Int {
+        let descriptor = socket(AF_INET, SOCK_STREAM, 0)
+        guard descriptor >= 0 else { throw StageBProofError.invalidSocksPort }
+        defer { close(descriptor) }
+        var address = sockaddr_in()
+        address.sin_len = UInt8(MemoryLayout<sockaddr_in>.size)
+        address.sin_family = sa_family_t(AF_INET)
+        address.sin_addr.s_addr = inet_addr("127.0.0.1")
+        var length = socklen_t(MemoryLayout<sockaddr_in>.size)
+        let bound = withUnsafeMutablePointer(to: &address) { pointer in
+            pointer.withMemoryRebound(to: sockaddr.self, capacity: 1) { bind(descriptor, $0, length) }
+        }
+        guard bound == 0 else { throw StageBProofError.invalidSocksPort }
+        let result = withUnsafeMutablePointer(to: &address) { pointer in
+            pointer.withMemoryRebound(to: sockaddr.self, capacity: 1) { getsockname(descriptor, $0, &length) }
+        }
+        guard result == 0 else { throw StageBProofError.invalidSocksPort }
+        // Go owns the listener. A competing bind after close fails route validation;
+        // per-session SOCKS authentication prevents using a substituted listener.
+        return Int(UInt16(bigEndian: address.sin_port))
+    }
+
+    @discardableResult
+    public func start(joinLink: String, socksPort: Int = 0) throws -> (port: UInt16, username: String, password: String) {
         guard joinLink.range(of: #"^wbstream://[A-Za-z0-9_-]{6,160}$"#,
                              options: .regularExpression) != nil else {
             throw StageBProofError.invalidJoinLink
         }
-        guard socksPort > 0 && socksPort <= 65535 else {
+        guard socksPort >= 0 && socksPort <= 65535 else {
             throw StageBProofError.invalidSocksPort
         }
         let roomID = String(joinLink.dropFirst("wbstream://".count))
@@ -108,8 +130,10 @@ public final class StageBProofJoiner {
               let json = String(data: bytes, encoding: .utf8) else {
             throw StageBProofError.invalidParameters
         }
-        IosStartWBStreamHeadless(socksPort, socksUser, socksPass, callback)
+        let port = try socksPort == 0 ? availablePort() : socksPort
+        IosStartWBStreamHeadless(port, socksUser, socksPass, callback)
         IosSendJoinParams(json)
+        return (UInt16(port), socksUser, socksPass)
     }
 
     public func stop() {

@@ -18,7 +18,7 @@ Pod::Spec.new do |s|
   s.source = { :path => '.' }
   s.static_framework = true
   s.dependency 'ExpoModulesCore'
-  s.source_files = enabled ? ['TransportBModule.swift', 'Generated/*.swift'] : ['TransportBModule.swift']
+  s.source_files = enabled ? ['TransportBModule.swift', 'TransportBURLSession.swift', 'Generated/*.swift'] : ['TransportBModule.swift', 'TransportBURLSession.swift']
   s.frameworks = 'Foundation', 'CFNetwork', 'Security', 'SystemConfiguration'
   # CocoaPods exposes a DSL writer, not a readable Hash on Specification.
   xcconfig = { 'DEFINES_MODULE' => 'YES', 'SWIFT_COMPILATION_MODE' => 'wholemodule' }

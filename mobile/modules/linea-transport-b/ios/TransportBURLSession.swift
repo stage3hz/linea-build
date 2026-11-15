@@ -37,7 +37,7 @@ final class TransportBURLSession: NSObject, URLSessionDataDelegate, URLSessionWe
         self.origins = origins
         super.init()
         let configuration = URLSessionConfiguration.ephemeral
-        let proxy = ProxyConfiguration(socksv5Proxy: .hostPort(host: "127.0.0.1", port: NWEndpoint.Port(rawValue: port)!))
+        var proxy = ProxyConfiguration(socksv5Proxy: .hostPort(host: "127.0.0.1", port: NWEndpoint.Port(rawValue: port)!))
         proxy.applyCredential(username: username, password: password)
         proxy.allowFailover = false
         configuration.proxyConfigurations = [proxy]

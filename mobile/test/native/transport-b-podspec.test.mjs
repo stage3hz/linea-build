@@ -48,7 +48,7 @@ function common(spec) {
 }
 function disabled(spec) {
   common(spec);
-  assert.deepEqual(values(spec.source_files), ['TransportBModule.swift']);
+  assert.deepEqual(values(spec.source_files), ['TransportBModule.swift', 'TransportBURLSession.swift']);
   assert.equal(spec.vendored_frameworks, undefined);
   assert.equal(spec.libraries, undefined);
   assert.equal(spec.pod_target_xcconfig.SWIFT_ACTIVE_COMPILATION_CONDITIONS, undefined);
@@ -67,7 +67,7 @@ test('enabled podspec evaluates in CocoaPods with the real framework and shared 
   fixture(true, root => {
     const spec = read(root, '1');
     common(spec);
-    assert.deepEqual(values(spec.source_files), ['TransportBModule.swift', 'Generated/*.swift']);
+    assert.deepEqual(values(spec.source_files), ['TransportBModule.swift', 'TransportBURLSession.swift', 'Generated/*.swift']);
     assert.deepEqual(values(spec.vendored_frameworks), ['Frameworks/Mobile.xcframework']);
     assert.deepEqual(spec.libraries, ['resolv', 'c++']);
     assert.equal(spec.pod_target_xcconfig.SWIFT_ACTIVE_COMPILATION_CONDITIONS,
