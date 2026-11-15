@@ -7,6 +7,11 @@ on:
     paths:
       - 'prototype/transport-b/**'
       - 'mobile/src/network/transportB/**'
+      - 'mobile/src/network/messageRoute.ts'
+      - 'mobile/src/network/messageHandshake.ts'
+      - 'mobile/src/api.ts'
+      - 'mobile/src/servers/**'
+      - 'mobile/src/useMessenger.ts'
       - 'mobile/modules/linea-transport-b/**'
       - 'mobile/test/transport-b-native.test.mjs'
       - 'mobile/test/native/transport-b-podspec.test.mjs'

@@ -37,6 +37,8 @@ export function updateReserveAvailability({enabled,allFailed,directStable}:{enab
  const run=Promise.resolve().then(action).catch(()=>false).finally(()=>{if(owner.busy===run){owner.busy=null;if(registration===owner)emit();}});
  owner.busy=run;emit();
 }
+/** A failed authenticated message channel invalidates the route, not the account. */
+export function reportMessageRouteFailure(){const selected=active;if(!selected)return false;clear(selected.owner);return true;}
 export function resetReserveNetwork(){const owner=registration;if(!owner)return;clear(owner);void (owner.handler.reset?.()??owner.handler.stop());}
 function target(address:string,websocket=false){
  const url=new URL(address),origin=websocket?url.origin.replace(/^wss:/,'https:'):url.origin;

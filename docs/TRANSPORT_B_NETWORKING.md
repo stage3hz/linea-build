@@ -12,6 +12,9 @@ Work is isolated to `transport-b-integration`. No production deployment, merge,
 - API dispatch and message socket creation use the selected app-owned route.
   Account realm, auth/device proof, Signal keys and original outbox IDs remain intact.
   A failed write is not secretly repeated through the direct network.
+  A socket that opens but never reaches authenticated ready has a bounded setup
+  deadline (longer on slow links); foreground reserve is stopped on background
+  and re-established after foreground return without borrowing an audio mode.
 - Ready means expected TLS health, matching authenticated `/me` identity and WSS
   `ready`, not a resolved native start Promise. Direct recovery uses the same checks.
 - Independent owned bootstrap forwards ONLY `/auth/device/challenge`, `/auth/device/bind`,
