@@ -16,7 +16,7 @@ export function ConnectScreen({initialUrl='',onConnect}: {initialUrl?:string;onC
   const t=useTheme();const [url,setUrl]=useState(initialUrl);const [error,setError]=useState('');const [busy,setBusy]=useState(false);
   const connect=async()=>{setError('');setBusy(true);try{const base=normalizeServer(url);const result=await new Api(base).health();if(result.status!=='ok')throw new Error('Этот адрес не похож на сервер Инвиза.');await onConnect(base);}catch(e){setError(e instanceof Error?e.message:'Не удалось подключиться.');}finally{setBusy(false);}};
   return <KeyboardAvoidingView style={{flex:1,backgroundColor:'transparent'}} behavior={Platform.OS==='ios'?'padding':undefined}>
-    <ScrollView keyboardShouldPersistTaps="handled" contentContainerStyle={{flexGrow:1,justifyContent:'center',paddingHorizontal:22,paddingVertical:32}}>
+    <ScrollView keyboardShouldPersistTaps="handled" contentContainerStyle={{flexGrow:1,paddingHorizontal:22,paddingTop:72,paddingBottom:32}}>
       <View style={{width:'100%',maxWidth:440,alignSelf:'center'}}>
         <View style={{flexDirection:'row',alignItems:'center',gap:12,paddingHorizontal:6,marginBottom:32}}><Logo size={43}/><Text style={{color:t.text,fontSize:25,fontWeight:'800',letterSpacing:-1}}>Инвиз</Text></View>
         <View style={{paddingHorizontal:6,marginBottom:26,gap:13}}><AppearingText delay={150} style={{fontSize:39,lineHeight:45,fontWeight:'800',letterSpacing:-1.7,color:t.text}}>{'Ближе.\nДаже на расстоянии.'}</AppearingText><Text style={{color:t.muted,fontSize:15,lineHeight:23,maxWidth:340}}>Место для твоих разговоров. Подключись, чтобы войти или создать аккаунт.</Text></View>
@@ -315,7 +315,7 @@ export function AuthScreen({api,onLogin,onChangeServer}: {api:Api;onLogin:(sessi
   const wordHelp=<Text style={{color:t.muted,fontSize:12,lineHeight:18}}>От 4 до 64 русских или английских букв, без пробелов. Регистр не важен; «е» и «ё» различаются.</Text>;
 
   return <View style={{flex:1}}><KeyboardAvoidingView style={{flex:1,backgroundColor:'transparent'}} behavior={Platform.OS==='ios'?'padding':undefined}>
-    <ScrollView keyboardShouldPersistTaps="handled" contentContainerStyle={{flexGrow:1,justifyContent:'center',paddingHorizontal:22,paddingVertical:28}}>
+    <ScrollView keyboardShouldPersistTaps="handled" contentContainerStyle={{flexGrow:1,paddingHorizontal:22,paddingTop:64,paddingBottom:28}}>
       <View style={{width:'100%',maxWidth:440,alignSelf:'center'}}>
         <View style={{alignItems:'center',marginBottom:26,gap:16}}>
           <Wordmark size={isLogin||isRegister?60:46}/>
