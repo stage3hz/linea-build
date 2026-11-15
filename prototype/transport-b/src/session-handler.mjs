@@ -62,7 +62,7 @@ export function makeSessionHandler({ pool, issuer, authenticate }) {
 
     let identity;
     try {
-      identity = await authenticate(token, proof);
+      identity = await authenticate(token, proof, req.headers['x-linea-client']);
     } catch {
       return respond(res, 503, { error: 'verification_unavailable' });
     }

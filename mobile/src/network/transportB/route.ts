@@ -54,7 +54,9 @@ export class TransportBMessageSocket {
   }
 }
 
-export type RouteVerifier = (route: TransportBSessionRoute, signal: AbortSignal) => Promise<void>;
+export type MessageSocketLike = {readyState:number;onopen:((event:any)=>void)|null;onmessage:((event:any)=>void)|null;onerror:((event:any)=>void)|null;onclose:((event:any)=>void)|null;send(text:string):void;close():void};
+export type ServiceRoute = {origin:string;fetch(address:string,options?:RequestInit):Promise<Response>;openSocket(address:string):MessageSocketLike};
+export type RouteVerifier = (route: ServiceRoute, signal: AbortSignal) => Promise<void>;
 
 /** One signed-lease attempt. Ready requires the concrete authenticated service verifier. */
 export class TransportBSessionRoute {
@@ -131,8 +133,8 @@ export class TransportBSessionRoute {
     if (typeof options.body === 'string') body = new TextEncoder().encode(options.body);
     else if (options.body instanceof ArrayBuffer) body = new Uint8Array(options.body);
     else if (options.body instanceof Uint8Array) body = options.body;
-    else if (options.body != null) throw new Error('This transfer is unavailable on the reserve route');
-    if ((body?.byteLength ?? 0) > 1024 * 1024) throw new Error('This transfer is too large for the reserve route');
+    else if (options.body != null) throw Object.assign(new Error('Передача этого файла через резерв пока недоступна.'),{name:'ReserveTransferError'});
+    if ((body?.byteLength ?? 0) > 1024 * 1024) throw Object.assign(new Error('Этот файл слишком большой для резервного подключения.'),{name:'ReserveTransferError'});
     const caller = options.signal;
     if (caller?.aborted) throw abortError();
     let rejectAbort: (error: Error) => void = () => {};

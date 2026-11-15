@@ -1,4 +1,5 @@
 import { desktopBridge } from './desktop';
+import { messageFetch } from './network/messageRoute';
 import { Platform } from 'react-native';
 import { toByteArray } from 'base64-js';
 import type { UserProfile } from './types';
@@ -189,7 +190,7 @@ export class Api {
     try {
       if(abort.signal.aborted)throw abortError();
       const headers: Record<string, string> = { 'X-Linea-Client': CLIENT_HEADER, ...attestHeaders(options.method || 'GET', path), ...(options.body && !(options.body instanceof FormData) ? { 'Content-Type': 'application/json' } : {}), ...this.authHeaders };
-      const response = await fetch(target + path, { credentials: 'omit', cache: 'no-store', redirect: 'error', ...options, headers: { ...headers, ...(options.headers || {}) }, signal: abort.signal });
+      const response = await (this.pooled ? messageFetch : fetch)(target + path, { credentials: 'omit', cache: 'no-store', redirect: 'error', ...options, headers: { ...headers, ...(options.headers || {}) }, signal: abort.signal });
       const raw = await response.text().catch(() => '');
       let data: any = {};
       try { data = raw ? JSON.parse(raw) : {}; } catch { data = {}; }
@@ -202,7 +203,7 @@ export class Api {
       if (!response.ok) throw new ApiError(typeof data.error === 'string' ? data.error : 'Не удалось выполнить запрос. Попробуй ещё раз.', response.status, data);
       return data as T;
     } catch (error) {
-      if (error instanceof ApiError || error instanceof NetworkError) throw error;
+      if (error instanceof ApiError || error instanceof NetworkError || (error instanceof Error && error.name === 'ReserveTransferError')) throw error;
       if(caller?.aborted)throw abortError();
       if (timedOut || (error instanceof Error && error.name === 'AbortError')) throw new RequestTimeoutError('Сервер не ответил вовремя. Проверь подключение.');
       throw new NetworkError('Нет связи с сервером. Проверь интернет и адрес подключения.');

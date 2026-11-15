@@ -1,10 +1,21 @@
 # INVIZENT (Инвиз): передача проекта в новый чат
 
-Состояние на 2 ноября 2026, версия приложения **0.14.2** (Android/iPhone/Windows).
+Состояние экспериментальной ветки на 15 ноября 2026; mobile **0.14.19**. Текущая задача Transport B — см. новый раздел ниже и `docs/TRANSPORT_B_NETWORKING.md`. Исторические сведения о 0.14.2 сохранены далее.
 
 Чтобы продолжить, вставь этот файл в новый чат и напиши, что делать дальше. Весь код лежит в GitHub, поэтому новый чат начинает с `git clone`.
 
 ---
+
+## Текущая работа: Transport B, 15 ноября 2026
+
+- Работать только в `transport-b-integration`; Draft PR №1 не объединять. `main`, `auto-connect-a`, `ipa-output` и рабочий VPS не менять.
+- CocoaPods writer bug исправлен в `87e3bb1`; полные unsigned iOS сборки off/on в run `43643073741` прошли, обе IPA были скачаны и проверены. Это предыдущая сборка, не доказательство новых изменений ниже.
+- Затем добавлен iOS 17+ URLSession HTTPS/WSS через отдельный authenticated SOCKS5. Стандартный TLS, `allowFailover=false`, фиксированные API origins, отмена, лимиты, fencing. Новый native network proof в run `43688489806` прошёл: настоящие TLS GET/POST и WSS auth/ready/message через SOCKS, неверные пароль/сертификат отклонены, прямого fallback нет. Это локальный fixture, не WB Stream и не iPhone.
+- В текущем коде: session-route verifier (`/health` + ожидаемый `/me` + WSS ready), app-owned API/socket dispatch, автоматический контроллер, отдельный bootstrap с прежним device proof и подписанным lease, сохранение anti-replay sequence, возврат к проверенному direct и остановка на новой сети/выключении.
+- Подготовлены loopback bootstrap service, ограниченный egress только API TCP/443 и скрипт генерации частной stand-конфигурации / ПУБЛИЧНОГО trust JSON. Ничего не развёрнуто. Реальные cookies/платформенный аккаунт и отдельный разрешённый стенд в среде отсутствуют; не просить секреты в чате.
+- Normal config имеет ПУСТЫЕ bootstrap origins/keys; `appRouting=false`. Экспериментальный workflow допускает явную public trust injection и использует штатную инъекцию request-signing key, не отключая серверные проверки. Нельзя считать public JSON решением сетевой доступности.
+- Покрытие текущего этапа: foreground JSON/text API и WSS сообщений. Media loaders, крупные/streamed вложения, звонки, SFU, APNs и фон остаются отдельным неподтверждённым покрытием. Production не включать.
+- Перед итоговым отчётом проверить CI именно последнего SHA: в процессе разработки были промежуточные отмены и failure сетевого fixture; они не являются зелёным результатом. Проверять реальное содержимое IPA и SHA-256. Подробнее устройство, команды и критерии — `docs/TRANSPORT_B_NETWORKING.md`.
 
 ## 1. Что это
 

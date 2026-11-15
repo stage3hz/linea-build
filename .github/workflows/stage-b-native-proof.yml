@@ -13,6 +13,11 @@ on:
       - '.github/workflows/stage-b-native-proof.yml'
       - '.github/workflows/stage-b-network-proof.yml'
   workflow_dispatch:
+    inputs:
+      transport_b_public_config:
+        description: 'Optional PUBLIC owned-ingress JSON. No cookies, token or private key.'
+        required: false
+        default: ''
 
 permissions:
   contents: read
@@ -109,6 +114,7 @@ jobs:
       EXPO_PUBLIC_ALLOW_LOCAL_HTTP: '0'
       EXPO_NO_TELEMETRY: '1'
       CI: '1'
+      TRANSPORT_B_PUBLIC_CONFIG: ${{ inputs.transport_b_public_config || '' }}
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
@@ -137,6 +143,15 @@ jobs:
       - name: Install app dependencies
         working-directory: mobile
         run: npm ci --no-audit --no-fund
+      - name: Preserve the existing request-signing protocol (empty secret stays off)
+        working-directory: mobile
+        env:
+          ATTEST_KEY: ${{ secrets.ATTEST_KEY }}
+        run: node scripts/inject-attest-key.mjs
+      - name: Embed optional public ingress trust (no production enablement)
+        if: matrix.transport == '1' && inputs.transport_b_public_config != ''
+        working-directory: mobile
+        run: node scripts/inject-transport-b.mjs
       - name: Check TypeScript and bridge contract
         working-directory: mobile
         run: |
@@ -194,7 +209,7 @@ jobs:
           cd "$RUNNER_TEMP/stage-b-app"
           zip -qry StageB-experimental-unsigned.ipa Payload
           shasum -a 256 StageB-experimental-unsigned.ipa > StageB-experimental-unsigned.ipa.sha256
-          echo "Source=$GITHUB_SHA mode=${{ matrix.mode }}. Unsigned link proof only. No bootstrap, API/WS routing, real-network test or deployment." > STATUS.txt
+          echo "Source=$GITHUB_SHA mode=${{ matrix.mode }}. Unsigned link proof only. Experimental session-scoped API/WSS adapter. No real upstream, device-network acceptance or deployment. Public ingress configuration alone proves no connectivity." > STATUS.txt
       - uses: actions/upload-artifact@v4
         if: always()
         with:

@@ -7,6 +7,7 @@ import { EDGE_SERVER_URLS, LEGACY_SERVER_URLS, SERVER_URL } from '../serverConfi
 import { SERVER_LIST_KEYS } from './key';
 import { fallbackServer, healthOk, nextMeasureDelay, normalizeServer, pickRoute, RETURN_AFTER, routeState, verifyServerList, type RouteState, type ServerList, type SignedServerList } from './list';
 import { networkTier } from '../network/quality';
+import { reserveRouteStatus, resetReserveNetwork, subscribeMessageRoute, updateReserveAvailability } from '../network/messageRoute';
 
 const STORE = 'invizent.servers.v1';
 // Probes wait longer on a slow link (EDGE: one TLS handshake alone takes about a second).
@@ -21,6 +22,7 @@ let started = false, probing: Promise<void> | null = null, timer: ReturnType<typ
 let extra: ReturnType<typeof setTimeout> | undefined, emptyRuns = 0;
 const listeners = new Set<() => void>();
 const emit = () => listeners.forEach(l => l());
+subscribeMessageRoute(emit);
 
 export function builtinServers(): string[] {
   return [SERVER_URL, ...LEGACY_SERVER_URLS].map(normalizeServer).filter((u): u is string => !!u);
@@ -38,7 +40,7 @@ let lastOk = 0;
 export function markServerOk() { lastOk = Date.now(); }
 export function lastServerOkAt() { return lastOk; }
 /** Which route is in use (list.ts, routeState): for the status line and the connection settings. */
-export function connectionRoute(): RouteState { return routeState({ current: state.current, edges: edgeServers(), rtt: state.rtt, measured: state.measured, probing: !!probing, directStreak: state.directStreak }); }
+export function connectionRoute(): RouteState { const reserve = state.reserve ? reserveRouteStatus() : 'off'; if (reserve === 'ready') return 'reserve'; if (reserve === 'checking') return 'checking'; return routeState({ current: state.current, edges: edgeServers(), rtt: state.rtt, measured: state.measured, probing: !!probing, directStreak: state.directStreak }); }
 /** «Автоматический резерв»: whether the app may use the reserve entrance when no direct server answers. */
 export function autoReserve(): boolean { return state.reserve; }
 const save = () => { void AsyncStorage.setItem(STORE, JSON.stringify({ signed: state.signed, current: state.current, reserve: state.reserve })).catch(() => {}); };
@@ -47,6 +49,7 @@ export function setAutoReserve(on: boolean) {
   state = { ...state, reserve: on };
   // Switched off while the reserve is in use: go back to the realm's own address at once and measure.
   if (!on && state.current && edgeServers().includes(state.current)) state = { ...state, current: builtinServers()[0] || null };
+  if (!on) updateReserveAvailability({enabled:false,allFailed:false,directStable:false});
   save(); emit(); void measureServers();
 }
 export function serverStatus() { return { current: currentEndpoint(), route: connectionRoute(), reserve: state.reserve, rtt: { ...state.rtt }, listVersion: state.list?.version ?? null }; }
@@ -97,6 +100,7 @@ export function measureServers(): Promise<void> {
     const again = started ? nextMeasureDelay({ alive, returning: !!current && edges.includes(current) && directStreak > 0 && directStreak < RETURN_AFTER, emptyRuns, regularMs: REPROBE_MS }) : null;
     extra = again === null ? undefined : setTimeout(() => void measureServers(), again);
     const fresh = current ? await refreshList(current) : false;
+    updateReserveAvailability({enabled:state.reserve,allFailed:!alive,directStable:directStreak>=RETURN_AFTER && !!current && !edges.includes(current)});
     emit();
     save();
     // A new list brought new servers: measure them right away rather than in five minutes.
@@ -121,6 +125,7 @@ export function reportFailure(endpoint: string) {
 /** The phone moved to another network (Wi-Fi ↔ mobile): what failed on the old one says nothing about this one. */
 export function networkChanged() {
   if (!started) return;
+  resetReserveNetwork();
   state = { ...state, down: {}, directStreak: 0 };
   emptyRuns = 0;
   void measureServers();
@@ -140,4 +145,4 @@ export async function startServerPool() {
   await measureServers();
   timer = setInterval(() => void measureServers(), REPROBE_MS);
 }
-export function stopServerPool() { if (timer) clearInterval(timer); if (extra) clearTimeout(extra); extra = undefined; started = false; }
+export function stopServerPool() { resetReserveNetwork(); if (timer) clearInterval(timer); if (extra) clearTimeout(extra); extra = undefined; started = false; }

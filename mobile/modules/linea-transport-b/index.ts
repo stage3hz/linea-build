@@ -1,4 +1,4 @@
-/** Types only. This module must never be mistaken for an app-scoped network route. */
+/** Types for the opt-in session and bounded app-owned networking ABI. */
 export type TransportBNativeCapabilities = {
   protocol: 1;
   nativeSession: boolean;
