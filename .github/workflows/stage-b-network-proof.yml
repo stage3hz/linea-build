@@ -1,0 +1,46 @@
+name: Stage B native app network adapter proof
+on:
+  pull_request:
+    paths:
+      - 'mobile/modules/linea-transport-b/**'
+      - 'prototype/transport-b/network-proof/**'
+      - '.github/workflows/stage-b-network-proof.yml'
+  workflow_dispatch:
+permissions:
+  contents: read
+concurrency:
+  group: stage-b-network-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+jobs:
+  network:
+    runs-on: macos-15-intel
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+      - run: npm ci --no-audit --no-fund
+        working-directory: server
+      - name: Compile the actual URLSession adapter
+        run: |
+          set -euo pipefail
+          XC=$(ls -d /Applications/Xcode_*.app | grep -v -i beta | sort -V | tail -1)
+          sudo xcode-select -s "$XC/Contents/Developer"
+          swiftc -swift-version 5 -parse-as-library -target x86_64-apple-macos14.0 \
+            mobile/modules/linea-transport-b/ios/TransportBURLSession.swift \
+            prototype/transport-b/network-proof/Proof.swift -o "$RUNNER_TEMP/network-proof"
+      - name: Exercise real TLS and WSS through authenticated SOCKS (no upstream account)
+        run: |
+          set -euo pipefail
+          ROOT="$RUNNER_TEMP/network-fixture"
+          node prototype/transport-b/network-proof/fixture.mjs "$ROOT" > "$RUNNER_TEMP/network-fixture.log" 2>&1 &
+          FIXTURE_PID=$!
+          trap 'kill "$FIXTURE_PID" 2>/dev/null || true' EXIT
+          for i in $(seq 1 30); do [ ! -f "$ROOT/config.json" ] || break; sleep 1; done
+          test -s "$ROOT/config.json"
+          sudo security add-trusted-cert -d -r trustRoot -k /Library/Keychains/System.keychain "$ROOT/ca.pem"
+          python3 - "$RUNNER_TEMP/network-proof" "$ROOT/config.json" <<'PY'
+          import subprocess, sys
+          subprocess.run(sys.argv[1:], check=True, timeout=90)
+          PY
