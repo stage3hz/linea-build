@@ -52,6 +52,12 @@ are separate unfinished coverage. The iOS 17 networking API is not enabled on 16
 
 ## Separate authorized test stand (agent-operated)
 
+The offered RUVDS host was confirmed to be the **working** messenger server;
+it is not an authorized separate stand. See `TRANSPORT_B_SERVER_HANDOFF.md`.
+Read-only-first helpers for a future empty host are documented in
+`../prototype/transport-b/stand/README.md`; they do not deploy this service or
+automatically provision its browser/display.
+
 No commands below are a request to change the working VPS. Before exposure, use a
 separate authorized host, owned HTTPS name, private platform credential file and
 verified isolation. Never send cookies/private keys in chat, PRs or Actions logs.
