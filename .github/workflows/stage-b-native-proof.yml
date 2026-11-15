@@ -67,6 +67,13 @@ jobs:
           test -d "$RUNNER_TEMP/Mobile.xcframework"
           /usr/libexec/PlistBuddy -c 'Print :CFBundlePackageType' "$RUNNER_TEMP/Mobile.xcframework/Info.plist"
           du -sh "$RUNNER_TEMP/Mobile.xcframework"
+      - name: Run native provider parameter regression tests (no sessions)
+        run: |
+          set -euo pipefail
+          xcrun swiftc prototype/transport-b/ios/StageBJoinParameters.swift \
+            prototype/transport-b/ios/JoinParametersTests.swift \
+            -o "$RUNNER_TEMP/stage-b-join-parameters"
+          "$RUNNER_TEMP/stage-b-join-parameters"
       - name: Typecheck isolated Swift joiner against iOS framework (no app routing)
         run: |
           set -euo pipefail
@@ -76,6 +83,7 @@ jobs:
           SDK="$(xcrun --sdk iphonesimulator --show-sdk-path)"
           xcrun --sdk iphonesimulator swiftc -typecheck -sdk "$SDK" \
             -target x86_64-apple-ios16.0-simulator -F "$SIM_DIR" \
+            prototype/transport-b/ios/StageBJoinParameters.swift \
             prototype/transport-b/ios/StageBProofJoiner.swift
       - name: Package iOS framework and record checksum
         run: |
@@ -137,6 +145,7 @@ jobs:
           mkdir -p "$MODULE/Frameworks" "$MODULE/Generated"
           ditto -x -k "$RUNNER_TEMP/transport-b/Mobile.xcframework.zip" "$MODULE/Frameworks"
           cp prototype/transport-b/ios/StageBProofJoiner.swift "$MODULE/Generated/"
+          cp prototype/transport-b/ios/StageBJoinParameters.swift "$MODULE/Generated/"
           test -f "$MODULE/Frameworks/Mobile.xcframework/Info.plist"
       - name: Select Xcode
         run: |
@@ -205,8 +214,10 @@ jobs:
           nm -gU "$APP/$EXE" > "$RUNNER_TEMP/transport-b-symbols.txt"
           if [ "$INVIZENT_TRANSPORT_B" = 1 ]; then
             grep -q '_IosStartWBStreamHeadless' "$RUNNER_TEMP/transport-b-symbols.txt"
+            grep -q '_IosStartTelemostHeadless' "$RUNNER_TEMP/transport-b-symbols.txt"
           else
             ! grep -q '_IosStartWBStreamHeadless' "$RUNNER_TEMP/transport-b-symbols.txt"
+            ! grep -q '_IosStartTelemostHeadless' "$RUNNER_TEMP/transport-b-symbols.txt"
           fi
           mkdir -p "$RUNNER_TEMP/stage-b-app/Payload"
           ditto "$APP" "$RUNNER_TEMP/stage-b-app/Payload/INVIZENT.app"

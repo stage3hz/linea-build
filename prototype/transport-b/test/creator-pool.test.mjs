@@ -29,7 +29,10 @@ test('requires fixed binary, secret path, and an explicit local egress policy pr
   assert.throws(() => validateCreatorConfig({ ...base, egressSocks: '0.0.0.0:9090' }), /loopback/);
   assert.throws(() => validateCreatorConfig({ ...base, egressSocks: '127.0.0.1:65536' }), /loopback/);
   assert.throws(() => validateCreatorConfig({ ...base, maxSessions: 0 }), /maxSessions/);
+  assert.throws(() => validateCreatorConfig({ ...base, provider: 'vk' }), /provider/);
+  assert.throws(() => validateCreatorConfig({ ...base, provider: null }), /provider/);
   assert.equal(validateCreatorConfig(base).max, 2);
+  assert.equal(validateCreatorConfig(base).provider, 'wbstream');
 });
 
 test('starts one isolated creator per device; returns the secret only to the caller', async () => {
@@ -56,9 +59,45 @@ test('handles split stdout lines and ignores malicious/unexpected join links', a
   const lease = pool.acquire('test-device-01');
   processes[0].write('join_link: https://evil.example/connect\n');
   processes[0].write('join_link: wbstream://../../etc/passwd\n');
+  processes[0].write('join_link: https://telemost.yandex.ru/j/1234567890123\n');
   processes[0].write('join_link: wbstream://sa');
   processes[0].write('fe_room_99\n');
   assert.equal((await lease).joinLink, 'wbstream://safe_room_99');
+  pool.close();
+});
+
+test('Telemost uses only supported arguments and accepts a split canonical numeric room link', async () => {
+  const { pool, processes, invocations } = makePool({ provider: 'telemost' });
+  const pending = pool.acquire('test-device-01');
+  assert.deepEqual(invocations[0].args, ['--cookies', base.cookiesFile, '--resources', 'moderate', '--upstream-socks', base.egressSocks]);
+  assert.equal(invocations[0].options.shell, false);
+  for (const bad of [
+    'wbstream://room_123456789',
+    'https://telemost.yandex.ru.evil.example/j/123',
+    'https://telemost.yandex.ru@evil.example/j/123',
+    'https://evil.example/telemost.yandex.ru/j/123',
+    'https://telemost.yandex.ru:443/j/123',
+    'http://telemost.yandex.ru/j/123',
+    'https://telemost.yandex.ru/j/room_123',
+    'https://telemost.yandex.ru/j/123?cookie=secret',
+    'https://telemost.yandex.ru/j/123#secret',
+    'https://telemost.yandex.ru/j/123/extra',
+  ]) processes[0].write(`join_link: ${bad}\n`);
+  processes[0].write('  CALL CREATED\n  join_link: https://telemost.yandex.ru/j/12345');
+  processes[0].write('67890123\r\n');
+  const lease = await pending;
+  assert.deepEqual(lease, { joinLink: 'https://telemost.yandex.ru/j/1234567890123', expiresAt: 500_150 });
+  assert.equal(JSON.stringify(pool.stats()).includes('1234567890123'), false);
+  pool.close();
+});
+
+test('Telemost creator stderr is discarded and errors never include session secrets', async () => {
+  const { pool, processes } = makePool({ provider: 'telemost' });
+  const pending = pool.acquire('test-device-01');
+  processes[0].stderr.emit('data', 'Session_id=private-cookie https://telemost.yandex.ru/j/1234567890123');
+  processes[0].emit('error', new Error('Session_id=private-cookie'));
+  await assert.rejects(pending, error => error.message === 'creator process failed');
+  assert.equal(pool.stats().activeSessions, 0);
   pool.close();
 });
 

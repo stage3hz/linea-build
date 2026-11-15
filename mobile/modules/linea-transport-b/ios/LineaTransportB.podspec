@@ -1,6 +1,6 @@
 enabled = ENV['INVIZENT_TRANSPORT_B'] == '1'
 if enabled
-  ['Frameworks/Mobile.xcframework/Info.plist', 'Generated/StageBProofJoiner.swift'].each do |relative|
+  ['Frameworks/Mobile.xcframework/Info.plist', 'Generated/StageBProofJoiner.swift', 'Generated/StageBJoinParameters.swift'].each do |relative|
     raise "Transport B enabled but missing #{relative}; prepare the pinned CI artifacts first" unless File.file?(File.join(__dir__, relative))
   end
 end

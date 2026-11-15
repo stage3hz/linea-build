@@ -2,15 +2,15 @@
 // and shared Swift source. A missing CocoaPods or real artifact is a failure.
 import assert from 'node:assert/strict';
 import { execFileSync, spawnSync } from 'node:child_process';
-import { copyFileSync, existsSync, mkdtempSync, rmSync, symlinkSync } from 'node:fs';
+import { copyFileSync, existsSync, mkdirSync, mkdtempSync, rmSync, symlinkSync } from 'node:fs';
 import { tmpdir } from 'node:os';
-import { join } from 'node:path';
+import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import test from 'node:test';
 
 const source = fileURLToPath(new URL('../../modules/linea-transport-b/ios/', import.meta.url));
 const filename = 'LineaTransportB.podspec';
-const required = ['Frameworks/Mobile.xcframework/Info.plist', 'Generated/StageBProofJoiner.swift'];
+const required = ['Frameworks/Mobile.xcframework/Info.plist', 'Generated/StageBProofJoiner.swift', 'Generated/StageBJoinParameters.swift'];
 
 function fixture(withArtifacts, run) {
   const root = mkdtempSync(join(tmpdir(), 'invizent-podspec-'));
@@ -74,18 +74,20 @@ test('enabled podspec evaluates in CocoaPods with the real framework and shared 
       '$(inherited) INVIZENT_TRANSPORT_B');
   });
 });
-test('enabled podspec fails closed for either missing artifact', () => {
+test('enabled podspec fails closed for any missing required artifact', () => {
   fixture(true, () => fixture(false, root => {
-    for (const directory of ['Frameworks', 'Generated']) {
-      symlinkSync(join(source, directory), join(root, directory));
+    for (const missing of required) {
+      for (const relative of required.filter(value => value !== missing)) {
+        mkdirSync(dirname(join(root, relative)), { recursive: true });
+        symlinkSync(join(source, relative), join(root, relative));
+      }
       const result = spawnSync('pod', ['ipc', 'spec', join(root, filename), '--no-ansi'], {
         env: environment('1'), encoding: 'utf8', timeout: 60_000,
       });
       assert.ifError(result.error);
       assert.notEqual(result.status, 0);
-      const missing = directory === 'Frameworks' ? required[1] : required[0];
       assert.ok(`${result.stdout}\n${result.stderr}`.includes(`Transport B enabled but missing ${missing}`));
-      rmSync(join(root, directory));
+      for (const directory of ['Frameworks', 'Generated']) rmSync(join(root, directory), { recursive: true, force: true });
     }
   }));
 });

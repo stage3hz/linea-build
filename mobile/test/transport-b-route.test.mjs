@@ -37,6 +37,19 @@ test('ready requires TLS health, matching authenticated identity and WSS ready',
  assert.equal(f.requests[1][4].authorization,'Bearer fixture');assert.equal(JSON.parse(f.writes[0]).type,'auth');
  await f.route.stop();assert.equal(f.route.ready,false);
 });
+
+test('Telemost start forwards its full link and waits for the same authenticated service checks',async()=>{
+ const f=fixture(),starts=[],joinLink='https://telemost.yandex.ru/j/1234567890123456';
+ f.native.startSession=async(...args)=>{starts.push(args);};
+ const started=f.route.start(joinLink,new AbortController().signal);
+ await tick();assert.equal(f.route.ready,false);assert.equal(f.requests.length,0);
+ assert.deepEqual(starts,[[sessionId,joinLink]]);
+ f.connected();await started;
+ assert.equal(f.route.ready,true);
+ assert.deepEqual(f.requests.map(x=>x[2]),[origin+'/health',origin+'/me']);
+ assert.equal(JSON.parse(f.writes[0]).type,'auth');
+ await f.route.stop();
+});
 test('captured portal, denied authentication and wrong account never become ready',async()=>{
  for(const answer of [f=>f.reply({status:'portal'}),f=>f.reply({error:'unauthorized'},401),f=>f.reply({user:{id:'someone-else'}})]){
   const f=fixture();const original=f.native.request;

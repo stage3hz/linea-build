@@ -1,5 +1,5 @@
 /**
- * Experimental one-creator-per-device allocator for the upstream WB Stream headless creator.
+ * Experimental one-creator-per-device allocator for a pinned upstream headless creator.
  * NO HTTP ROUTES ARE REGISTERED. This is not enabled by production INVIZENT.
  *
  * Upstream reference: https://github.com/kulikov0/whitelist-bypass
@@ -9,14 +9,16 @@
  */
 import { spawn as nodeSpawn } from 'node:child_process';
 import { isAbsolute } from 'node:path';
+import { isProviderJoinLink, requireTransportProvider } from './providers.mjs';
 
-const ROOM_RE = /^\s*join_link:\s*(wbstream:\/\/[A-Za-z0-9_-]{6,160})\s*$/;
+const ROOM_RE = /^\s*join_link:\s*(\S+)\s*$/;
 const DEVICE_ID_RE = /^[A-Za-z0-9_-]{8,96}$/;
 const LOOPBACK_PROXY_RE = /^127\.0\.0\.1:(?:[1-9][0-9]{0,4})$/;
 const MIN_STARTUP_MS = 5;
 
 export function validateCreatorConfig(config) {
   if (!config || typeof config !== 'object') throw new TypeError('configuration is required');
+  const provider = requireTransportProvider(config.provider);
   if (typeof config.binary !== 'string' || !isAbsolute(config.binary)) throw new TypeError('binary must be an absolute path');
   if (typeof config.cookiesFile !== 'string' || !isAbsolute(config.cookiesFile)) throw new TypeError('cookiesFile must be an absolute path');
   if (typeof config.egressSocks !== 'string' || !LOOPBACK_PROXY_RE.test(config.egressSocks) || Number(config.egressSocks.split(':')[1]) > 65535)
@@ -27,7 +29,7 @@ export function validateCreatorConfig(config) {
   if (!Number.isSafeInteger(startupMs) || startupMs < MIN_STARTUP_MS || startupMs > 300_000) throw new RangeError('invalid startupMs');
   const leaseMs = config.leaseMs ?? 10 * 60_000;
   if (!Number.isSafeInteger(leaseMs) || leaseMs < 10 || leaseMs > 24 * 60 * 60_000) throw new RangeError('invalid leaseMs');
-  return { max, startupMs, leaseMs };
+  return { provider, max, startupMs, leaseMs };
 }
 
 export class CreatorPool {
@@ -67,7 +69,9 @@ export class CreatorPool {
 
     try {
       const args = ['--cookies', this.#config.cookiesFile, '--resources', 'moderate',
-        '--upstream-socks', this.#config.egressSocks, '--name', 'INVIZENT relay'];
+        '--upstream-socks', this.#config.egressSocks];
+      // The pinned Telemost executable does not implement --name.
+      if (this.#config.provider === 'wbstream') args.push('--name', 'INVIZENT relay');
       const env = {};
       // Do not propagate DB credentials or other application secrets to a child executable.
       for (const key of ['PATH', 'HOME', 'LANG', 'TMPDIR', 'SSL_CERT_FILE'])
@@ -88,7 +92,7 @@ export class CreatorPool {
           const line = entry.text.slice(0, newline);
           entry.text = entry.text.slice(newline + 1);
           const link = ROOM_RE.exec(line)?.[1];
-          if (!link) continue;
+          if (!link || !isProviderJoinLink(this.#config.provider, link)) continue;
           entry.resolved = true;
           if (entry.timer) clearTimeout(entry.timer);
           const expiresAt = this.#clock() + this.#config.leaseMs;

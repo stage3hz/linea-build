@@ -5,6 +5,13 @@ Work is isolated to `transport-b-integration`. No production deployment, merge,
 
 ## Implemented source
 
+- The experimental stand can select `wbstream` or `telemost`. The provider is
+  chosen by private server configuration, signed into each lease and checked
+  against its exact link format on mobile. A client request cannot select an
+  arbitrary provider or destination. Telemost uses the pinned upstream's VP8
+  transport, a full canonical `https://telemost.yandex.ru/j/<numeric-id>` link
+  and a server-side Yandex session; WB uses its existing room ID/DC path.
+  These are protocol adapters, not proof of a real platform connection.
 - Native iOS 17+ URLSession HTTPS/WSS over per-session authenticated loopback SOCKS5.
   Direct fallback is explicitly disabled; system TLS validation is retained.
   Session IDs/generations fence cancellation and stale callbacks. Network requests
@@ -49,12 +56,24 @@ No commands below are a request to change the working VPS. Before exposure, use 
 separate authorized host, owned HTTPS name, private platform credential file and
 verified isolation. Never send cookies/private keys in chat, PRs or Actions logs.
 
-1. Build `headless/wbstream` from pinned upstream
+1. Build `headless/telemost` (or `headless/wbstream`) from pinned upstream
    `kulikov0/whitelist-bypass@a26b5555728e5b3e990b8204f7663cc742c9de3b`, Go 1.26.1.
    Keep its MIT license. No floating main or universal room URL.
 2. Prepare private paths and owned ingress trust (creates files, deploys nothing):
 
    `node prototype/transport-b/prepare-stand.mjs /absolute/private/stand https://reserve-test.invizent.com /absolute/bin/wbstream /absolute/private/cookies.json`
+
+   For Telemost, use its Creator binary and add the final argument `telemost`:
+
+   `node prototype/transport-b/prepare-stand.mjs /absolute/private/stand https://reserve-test.invizent.com /absolute/bin/telemost /absolute/private/cookies-yandex.json telemost`
+
+   The default remains `wbstream` for existing private stand configurations.
+   The account used by the owner was refused by WB Stream with the message
+   that access is limited to employees. Guest UI visibility did not demonstrate
+   Creator permission. Do not keep asking the owner to register there.
+   Telemost Creator requires a real Yandex `Session_id`; a public meeting link
+   alone cannot replace its server-side session. No real Yandex login, credential
+   import or Telemost Creator/Joiner connection has been performed here.
 
    It creates an Ed25519 key (0600), durable sequence DB path, bootstrap config,
    PUBLIC app trust JSON and owned TLS ingress config. Existing files are not overwritten.

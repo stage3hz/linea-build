@@ -142,7 +142,7 @@ public final class TransportBModule: Module {
     private func start(id: String, link: String) throws {
         #if INVIZENT_TRANSPORT_B
         guard id.range(of: #"^[A-Za-z0-9_-]{8,96}$"#, options: .regularExpression) != nil,
-              link.range(of: #"^wbstream://[A-Za-z0-9_-]{6,160}$"#, options: .regularExpression) != nil else {
+              StageBJoinParameters(joinLink: link) != nil else {
             throw reject("Invalid transport session parameters")
         }
         guard joiner == nil else { throw reject("Stop the previous transport session first") }

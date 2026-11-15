@@ -45,6 +45,36 @@ test('invalid providers, schemes and URLs cannot become a native tunnel destinat
   assert.equal(verifyTransportBLease(make({ joinLink: 'wbstream://../../secret' }), [pub], expected), null);
 });
 
+test('accepts Telemost only when the authenticated provider matches its canonical link', () => {
+  const joinLink = 'https://telemost.yandex.ru/j/1234567890123456';
+  const lease = verifyTransportBLease(make({provider:'telemost',joinLink}), [pub], expected);
+  assert.equal(lease?.provider, 'telemost');
+  assert.equal(lease?.joinLink, joinLink);
+  assert.equal(verifyTransportBLease(make({joinLink}), [pub], expected), null);
+  assert.equal(verifyTransportBLease(make({provider:'telemost'}), [pub], expected), null);
+});
+
+test('signed Telemost destinations reject URL parser ambiguities and noncanonical identifiers', () => {
+  const base = 'https://telemost.yandex.ru/j/123456789';
+  for (const joinLink of [
+    'http://telemost.yandex.ru/j/123456789',
+    'https://telemost.yandex.ru.evil.example/j/123456789',
+    'https://evil.example/telemost.yandex.ru/j/123456789',
+    'https://telemost.yandex.ru@evil.example/j/123456789',
+    'https://user@telemost.yandex.ru/j/123456789',
+    'https://telemost.yandex.ru:443/j/123456789',
+    'https://TELEMOST.yandex.ru/j/123456789',
+    'https://telemost.yandex.ru/j/%31',
+    'https://telemost.yandex.ru/j/../123456789',
+    'https://telemost.yandex.ru/j/abc',
+    'https://telemost.yandex.ru/j/',
+    'https://telemost.yandex.ru/j/' + '1'.repeat(161),
+    base+'?redirect=https://evil.example', base+'#fragment', base+'/',
+    ' '+base, base+'\n', base+'\r\n',
+  ]) assert.equal(verifyTransportBLease(make({provider:'telemost',joinLink}), [pub], expected), null, joinLink);
+  assert.equal(verifyTransportBLease(make({joinLink:'wbstream://room_123456789\n'}), [pub], expected), null);
+});
+
 test('malformed signed data fails closed', () => {
   assert.equal(verifyTransportBLease(null, [pub], expected), null);
   assert.equal(verifyTransportBLease({payload: '{', sig: 'bogus'}, [pub], expected), null);

@@ -105,33 +105,26 @@ public final class StageBProofJoiner {
 
     @discardableResult
     public func start(joinLink: String, socksPort: Int = 0) throws -> (port: UInt16, username: String, password: String) {
-        guard joinLink.range(of: #"^wbstream://[A-Za-z0-9_-]{6,160}$"#,
-                             options: .regularExpression) != nil else {
+        guard let parameters = StageBJoinParameters(joinLink: joinLink) else {
             throw StageBProofError.invalidJoinLink
         }
         guard socksPort >= 0 && socksPort <= 65535 else {
             throw StageBProofError.invalidSocksPort
         }
-        let roomID = String(joinLink.dropFirst("wbstream://".count))
         // Credentials are generated per session. Do not expose the local SOCKS
         // listener without authentication or use it as a general-purpose proxy.
         let socksUser = "invizent-" + UUID().uuidString
         let socksPass = UUID().uuidString + UUID().uuidString
-        let params: [String: Any] = [
-            "roomId": roomID,
-            "displayName": "INVIZENT",
-            "tunnelMode": "dc",
-            "vp8Fps": 0,
-            "vp8Batch": 0,
-            "dualTrack": false,
-            "reliable": true
-        ]
-        guard let bytes = try? JSONSerialization.data(withJSONObject: params),
-              let json = String(data: bytes, encoding: .utf8) else {
+        guard let json = try? parameters.encoded() else {
             throw StageBProofError.invalidParameters
         }
         let port = try socksPort == 0 ? availablePort() : socksPort
-        IosStartWBStreamHeadless(port, socksUser, socksPass, callback)
+        switch parameters.provider {
+        case .wbstream:
+            IosStartWBStreamHeadless(port, socksUser, socksPass, callback)
+        case .telemost:
+            IosStartTelemostHeadless(port, socksUser, socksPass, callback)
+        }
         IosSendJoinParams(json)
         return (UInt16(port), socksUser, socksPass)
     }

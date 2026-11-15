@@ -1,11 +1,11 @@
 // Stage B: validate a short-lived, device-bound WebRTC session offer.
-// This does NOT acquire the offer; the restricted-network bootstrap remains unimplemented.
+// Acquisition and native readiness are separate from this signature check.
 import { ed25519 } from '@noble/curves/ed25519';
 import { toByteArray } from 'base64-js';
 
 export type TransportBLease = {
   protocol: 'invizent-transport-b-v1';
-  provider: 'wbstream';
+  provider: 'wbstream' | 'telemost';
   joinLink: string;
   deviceId: string;
   realm: string;
@@ -15,7 +15,10 @@ export type TransportBLease = {
 };
 export type SignedTransportBLease = { payload: string; sig: string };
 export const MAX_LEASE_MS = 30 * 60_000;
-const ROOM = /^wbstream:\/\/[a-zA-Z0-9_-]{6,160}$/;
+const ROOMS = {
+  wbstream: /^wbstream:\/\/[a-zA-Z0-9_-]{6,160}$/,
+  telemost: /^https:\/\/telemost\.yandex\.ru\/j\/[0-9]{1,160}$/,
+};
 const DEVICE = /^[a-zA-Z0-9_-]{8,96}$/;
 const BASE64_SIG = /^[a-zA-Z0-9+/]{86}==$/;
 const BASE64_KEY = /^[a-zA-Z0-9+/]{43}=$/;
@@ -42,7 +45,12 @@ export function verifyTransportBLease(
   if (expected.minSequence !== undefined && (!Number.isSafeInteger(expected.minSequence) || expected.minSequence < 0)) return null;
   let lease: TransportBLease;
   try { lease = JSON.parse(payload) as TransportBLease; } catch { return null; }
-  if (!lease || typeof lease !== 'object' || lease.protocol !== 'invizent-transport-b-v1' || lease.provider !== 'wbstream' || typeof lease.joinLink !== 'string' || !ROOM.test(lease.joinLink)) return null;
+  if (!lease || typeof lease !== 'object' || lease.protocol !== 'invizent-transport-b-v1' ||
+      (lease.provider !== 'wbstream' && lease.provider !== 'telemost') || typeof lease.joinLink !== 'string') return null;
+  // Bind the signed provider to one canonical link shape. Do not normalize URLs:
+  // credentials, ports, alternate hosts, escapes, query/fragment and whitespace
+  // are never allowed. Compare the entire match because `$` permits a final LF.
+  if (ROOMS[lease.provider].exec(lease.joinLink)?.[0] !== lease.joinLink) return null;
   if (lease.deviceId !== expected.deviceId || lease.realm !== expected.realm) return null;
   if (!Number.isSafeInteger(lease.sequence) || lease.sequence < 0 || (expected.minSequence !== undefined && lease.sequence <= expected.minSequence)) return null;
   if (!Number.isSafeInteger(lease.issuedAt) || !Number.isSafeInteger(lease.expiresAt)) return null;
