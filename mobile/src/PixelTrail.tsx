@@ -21,6 +21,7 @@ import { useChatPreferences } from './chatPreferences';
 import { useMotion } from './motion';
 import { useRenderActive } from './renderActivity';
 import { PixelTrailModel, TRAIL, trailColor } from './pixelTrailModel';
+import { UntouchableLayer } from './untouchableLayer';
 
 const onPhone = Platform.OS === 'ios' || Platform.OS === 'android';
 const native = onPhone ? (() => { try { return requireOptionalNativeModule<LineaTrailBridge>('LineaTrail'); } catch { return null; } })() : null;
@@ -55,7 +56,7 @@ export function PixelTrailLayer({ ink }: { ink?: string }) {
   const active = useRenderActive();
   if (!enabled) return null;
   if (Platform.OS === 'web') return active ? <WebLayer ink={ink} /> : null;
-  return NativeLayer ? <NativeLayer pointerEvents="none" style={StyleSheet.absoluteFill} color={ink} active={active} /> : null;
+  return NativeLayer ? <UntouchableLayer><NativeLayer pointerEvents="none" style={StyleSheet.absoluteFill} color={ink} active={active} /></UntouchableLayer> : null;
 }
 
 /** The browser's «reduce motion» (motion.tsx follows the system setting on the phone only). */

@@ -574,6 +574,13 @@ class SnowView(context: Context, appContext: AppContext) : ExpoView(context, app
   override fun onTouchEvent(event: MotionEvent?) = false
   override fun dispatchTouchEvent(event: MotionEvent?) = false
 
+  // React Native finds the JS touch target by coordinates (TouchTargetHelper) and takes every view that is not one
+  // of its own view groups for a view that wants the touch: the JS `pointerEvents="none"` reaches React's own
+  // views only. A layer lying over the screens was therefore the target of every tap, and no button under it
+  // heard one (scrolling and text fields, which Android dispatches itself, went on working). A view that says it
+  // is disabled is passed over, and this one has no children to look into. Nothing else reads this flag here.
+  override fun isEnabled(): Boolean = false
+
   override fun onAttachedToWindow() { super.onAttachedToWindow(); try { SnowHub.add(this) } catch (_: Throwable) { /* decorative */ } }
   override fun onDetachedFromWindow() {
     try { SnowHub.remove(this); fader?.cancel(); appearing = 1f } catch (_: Throwable) { /* decorative */ }

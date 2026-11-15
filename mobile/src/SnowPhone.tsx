@@ -18,6 +18,7 @@ import { useChatPreferences } from './chatPreferences';
 import { useMotion } from './motion';
 import { useRenderActive } from './renderActivity';
 import { islandLedge } from './snowModel';
+import { UntouchableLayer } from './untouchableLayer';
 
 const onPhone = Platform.OS === 'ios' || Platform.OS === 'android';
 const native = onPhone ? (() => { try { return requireOptionalNativeModule<LineaSnowBridge>('LineaSnow'); } catch { return null; } })() : null;
@@ -100,7 +101,7 @@ export function SnowBackLayer() {
   const motion = useMotion();
   const active = useRenderActive();
   if (!NativeSnow || !preferences.snow || !motion.enabled) return null;
-  return <NativeSnow pointerEvents="none" style={StyleSheet.absoluteFill} layer="back" active={active} />;
+  return <UntouchableLayer><NativeSnow pointerEvents="none" style={StyleSheet.absoluteFill} layer="back" active={active} /></UntouchableLayer>;
 }
 
 /** Mount once at the root, above the screens. */
@@ -142,5 +143,6 @@ export function SnowPhone() {
     return () => setLedge('island', null);
   }, [enabled, window.width, window.height, insets.top]);
   if (!enabled || !NativeSnow) return null;
-  return <NativeSnow pointerEvents="none" style={StyleSheet.absoluteFill} layer="front" active />;
+  // Over every screen: on Android it must not be a touch target (untouchableLayer.tsx).
+  return <UntouchableLayer><NativeSnow pointerEvents="none" style={StyleSheet.absoluteFill} layer="front" active /></UntouchableLayer>;
 }
