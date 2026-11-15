@@ -30,9 +30,12 @@ jobs:
         run: |
           set -euo pipefail
           ROOT="$RUNNER_TEMP/network-fixture"
+          # Reserved test name, local runner only. Direct reachability lets the test
+          # detect an accidental fallback instead of hiding it behind DNS failure.
+          echo '127.0.0.1 service.invizent.test' | sudo tee -a /etc/hosts >/dev/null
           node prototype/transport-b/network-proof/fixture.mjs "$ROOT" > "$RUNNER_TEMP/network-fixture.log" 2>&1 &
           FIXTURE_PID=$!
-          trap 'kill "$FIXTURE_PID" 2>/dev/null || true' EXIT
+          trap 'kill "$FIXTURE_PID" 2>/dev/null || true; sleep 1; cat "$RUNNER_TEMP/network-fixture.log"' EXIT
           for i in $(seq 1 30); do [ ! -f "$ROOT/config.json" ] || break; sleep 1; done
           test -s "$ROOT/config.json"
           sudo security add-trusted-cert -d -r trustRoot -k /Library/Keychains/System.keychain "$ROOT/ca.pem"

@@ -11,9 +11,17 @@ import Foundation
             try TransportBURLSession(port: UInt16(configuration["port"] as! Int), username: configuration["username"] as! String,
                 password: password ?? (configuration["password"] as! String), origins: [origin, badOrigin])
         }
+        // Check credentials before any valid connection can enter the OS connection pool.
+        let wrong = try client(password: "wrong"); defer { wrong.close() }
+        do { _ = try await wrong.request(id: "bad-auth", address: origin + "/health", method: "GET", headers: [:], body: nil, timeout: 3); throw NSError(domain: "Bad SOCKS credential accepted", code: 1) }
+        catch TransportBURLSession.Failure.network { }
         let route = try client(); defer { route.close() }
         let health = try await route.request(id: "health", address: origin + "/health", method: "GET", headers: [:], body: nil)
         try check(health.status == 200 && String(data: health.body, encoding: .utf8) == "{\"status\":\"ok\"}", "TLS health failed")
+        let (firstStatsData, _) = try await URLSession.shared.data(from: URL(string: control + "/stats")!)
+        let firstStats = try JSONSerialization.jsonObject(with: firstStatsData) as! [String: Int]
+        print("Initial SOCKS traversal counters:", firstStats)
+        try check(firstStats["direct"] == 0 && firstStats["authenticated"]! >= 1 && firstStats["denied"]! >= 1, "HTTPS bypassed authenticated SOCKS")
         let reply = try await route.request(id: "post", address: origin + "/me", method: "POST", headers: ["Authorization": "Bearer fixture-device-session"], body: Data("encrypted-envelope".utf8))
         try check(reply.status == 200 && String(data: reply.body, encoding: .utf8)!.contains("encrypted-envelope"), "Authenticated POST failed")
         let redirect = try await route.request(id: "redirect", address: origin + "/redirect", method: "GET", headers: [:], body: nil)
@@ -21,9 +29,6 @@ import Foundation
         do { _ = try await route.request(id: "foreign", address: "https://example.com/", method: "GET", headers: [:], body: nil); throw NSError(domain: "Foreign origin accepted", code: 1) }
         catch TransportBURLSession.Failure.invalidRequest { }
         do { _ = try await route.request(id: "bad-tls", address: badOrigin + "/health", method: "GET", headers: [:], body: nil, timeout: 3); throw NSError(domain: "Bad TLS accepted", code: 1) }
-        catch TransportBURLSession.Failure.network { }
-        let wrong = try client(password: "wrong"); defer { wrong.close() }
-        do { _ = try await wrong.request(id: "bad-auth", address: origin + "/health", method: "GET", headers: [:], body: nil, timeout: 3); throw NSError(domain: "Bad SOCKS credential accepted", code: 1) }
         catch TransportBURLSession.Failure.network { }
         let cancelled = Task { try await route.request(id: "cancel", address: origin + "/hang", method: "GET", headers: [:], body: nil) }
         try await Task.sleep(nanoseconds: 100_000_000); cancelled.cancel()

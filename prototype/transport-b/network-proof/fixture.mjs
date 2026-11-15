@@ -11,10 +11,10 @@ const {WebSocketServer}=createRequire(import.meta.url)('ws');
 const root=process.argv[2];mkdirSync(root,{recursive:true});
 const openssl=(...args)=>execFileSync('openssl',args,{cwd:root,stdio:'ignore'});
 openssl('req','-x509','-newkey','rsa:2048','-nodes','-keyout','ca.key','-out','ca.pem','-days','1','-subj','/CN=INVIZENT Stage B ephemeral CI CA');
-openssl('req','-newkey','rsa:2048','-nodes','-keyout','tls.key','-out','tls.csr','-subj','/CN=localhost');
-writeFileSync(join(root,'tls.ext'),'subjectAltName=DNS:localhost\nextendedKeyUsage=serverAuth\n');
+openssl('req','-newkey','rsa:2048','-nodes','-keyout','tls.key','-out','tls.csr','-subj','/CN=service.invizent.test');
+writeFileSync(join(root,'tls.ext'),'subjectAltName=DNS:service.invizent.test\nextendedKeyUsage=serverAuth\n');
 openssl('x509','-req','-in','tls.csr','-CA','ca.pem','-CAkey','ca.key','-CAcreateserial','-out','tls.pem','-days','1','-extfile','tls.ext');
-openssl('req','-x509','-newkey','rsa:2048','-nodes','-keyout','bad.key','-out','bad.pem','-days','1','-subj','/CN=localhost','-addext','subjectAltName=DNS:localhost');
+openssl('req','-x509','-newkey','rsa:2048','-nodes','-keyout','bad.key','-out','bad.pem','-days','1','-subj','/CN=service.invizent.test','-addext','subjectAltName=DNS:service.invizent.test');
 const stats={authenticated:0,denied:0,http:0,websocket:0,direct:0};
 const peers=new Set(),proxyPorts=new Set();
 const listen=server=>new Promise(resolve=>server.listen(0,'127.0.0.1',()=>resolve(server.address().port)));
@@ -57,7 +57,7 @@ const proxy=net.createServer(socket=>{
    else if(type===4){n=22;if(bytes.length<n)return;host=bytes.subarray(4,20).toString('hex')==='00000000000000000000000000000001'?'::1':'other';}
    else{fail();return;}
    const port=bytes.readUInt16BE(n-2);
-   if(bytes[0]!==5||bytes[1]!==1||!['localhost','127.0.0.1','::1'].includes(host)||![goodPort,badPort].includes(port)){fail();return;}
+   if(bytes[0]!==5||bytes[1]!==1||!['service.invizent.test','127.0.0.1','::1'].includes(host)||![goodPort,badPort].includes(port)){fail();return;}
    state='forward';socket.removeListener('data',receive);socket.pause();
    const target=net.connect(port,'127.0.0.1',()=>{
     proxyPorts.add(target.localPort);socket.write(Buffer.from([5,0,0,1,127,0,0,1,0,0]));
@@ -73,5 +73,7 @@ const control=http.createServer((req,res)=>{
  res.setHeader('content-type','application/json');res.end(JSON.stringify(stats));
 });
 const controlPort=await listen(control);
-writeFileSync(join(root,'config.json'),JSON.stringify({origin:`https://localhost:${goodPort}`,badOrigin:`https://localhost:${badPort}`,control:`http://127.0.0.1:${controlPort}`,port:proxyPort,username,password}),{mode:0o600});
+writeFileSync(join(root,'config.json'),JSON.stringify({origin:`https://service.invizent.test:${goodPort}`,badOrigin:`https://service.invizent.test:${badPort}`,control:`http://127.0.0.1:${controlPort}`,port:proxyPort,username,password}),{mode:0o600});
 console.log('Local TLS/SOCKS/WSS fixture ready. No production service is used.');
+
+process.on('SIGTERM',()=>{console.log('Fixture counters:',JSON.stringify(stats));process.exit(0);});
