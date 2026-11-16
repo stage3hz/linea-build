@@ -1,0 +1,14 @@
+2026-11-16 13:32:12.093 xcodebuild[89719:234502] [MT] IDERunDestination: Supported platforms for the buildables in the current scheme is empty.
+2026-11-16 13:32:12.585 xcodebuild[89719:234502] [MT] IDERunDestination: Supported platforms for the buildables in the current scheme is empty.
+2026-11-16 13:32:34.361 xcodebuild[89719:234502] [MT] IDERunDestination: Supported platforms for the buildables in the current scheme is empty.
+2026-11-16 13:37:23.087 xcodebuild[89719:234502] [MT] IDETestOperationsObserverDebug: 288.241 elapsed -- Testing started co
+Test session results, code coverage, and logs:
+	/var/folders/20/jp1_0n3n7kndh6rnbqb5344m0000gn/T/maestro_xctestrunner_xcodebuild_output11029500802507555134/Logs/Test/Test-maestro-driver-ios-2026.11.16_13-32-12-+0000.xcresult
+
+Testing started
+d
+Testing failed:
+	maestro-driver-iosUITests-Runner (91172) encountered an error (Early unexpected exit, operation never finished bootstrapping - no restart will be attempted. (Underlying Error: Test crashed with signal kill before establishing connection.))
+
+** TEST EXECUTE FAILED **
+

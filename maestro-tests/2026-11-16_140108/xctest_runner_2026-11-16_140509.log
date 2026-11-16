@@ -1,0 +1,7 @@
+2026-11-16 14:06:53.679 xcodebuild[28375:328784] [MT] IDERunDestination: Supported platforms for the buildables in the current scheme is empty.
+2026-11-16 14:06:55.704 xcodebuild[28375:328784] [MT] IDERunDestination: Supported platforms for the buildables in the current scheme is empty.
+2026-11-16 14:07:11.920 xcodebuild[28375:328784] [MT] IDERunDestination: Supported platforms for the buildables in the current scheme is empty.
+187979332585707
+
+2026-11-16 14:08:39.575422+0000 maestro-driver-iosUITests-Runner[31087:334933] [Default] Running tests...
+2026-11-16 14:08:40.737720+0000 maestro-driver-iosUITests-Runner[31087:334933] snapshotKeyHonorModalViews configured to value: (null)

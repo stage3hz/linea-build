@@ -1,0 +1,4 @@
+sim-tls-proxy https://localhost:8443 -> http://127.0.0.1:3999
+2026-11-16T12:45:39.216Z GET /health 200 51ms
+2026-11-16T12:45:39.275Z GET /health 200 3ms
+2026-11-16T13:45:22.459Z GET /app/update 200 3539ms

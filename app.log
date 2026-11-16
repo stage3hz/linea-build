@@ -1,0 +1,1326 @@
+Timestamp               Ty Process[PID:TID]
+2026-11-16 13:44:26.281 Df INVIZENT[15438:4867a] [com.apple.xpc:connection] [0x1068058b0] activating connection: mach=true listener=false peer=false name=com.apple.cfprefsd.daemon
+2026-11-16 13:44:26.289 Df INVIZENT[15438:4867a] [com.apple.UserNotifications:Connections] [com.linea.messenger.preview] Creating a user notification center
+2026-11-16 13:44:26.343 A  INVIZENT[15438:48799] (CoreFoundation) Loading Preferences From User Session CFPrefsD
+2026-11-16 13:44:26.350 Df INVIZENT[15438:4867a] (libMobileGestalt.dylib) No persisted cache on this platform.
+2026-11-16 13:44:26.352 Df INVIZENT[15438:4879a] [com.apple.BoardServices:XPCErrors] [C:1] Alloc com.apple.frontboard.systemappservices
+2026-11-16 13:44:26.354 Df INVIZENT[15438:4879a] [com.apple.xpc:connection] [0x106b067b0] activating connection: mach=false listener=false peer=false name=(anonymous)
+2026-11-16 13:44:26.363 Df INVIZENT[15438:4867a] [com.apple.UIKit:Application] Deactivation reason added: 10; deactivation reasons: 0 -> 1024; animating application lifecycle event: 0
+2026-11-16 13:44:26.364 Df INVIZENT[15438:4867a] [com.apple.runningboard:connection] Initializing connection
+2026-11-16 13:44:26.364 Df INVIZENT[15438:4867a] [com.apple.runningboard:process] Removing all cached process handles
+2026-11-16 13:44:26.364 Df INVIZENT[15438:4879f] [com.apple.runningboard:connection] Sending handshake request attempt #1 to server
+2026-11-16 13:44:26.364 Df INVIZENT[15438:4879f] [com.apple.runningboard:connection] Creating connection to com.apple.runningboard
+2026-11-16 13:44:26.364 Df INVIZENT[15438:4867a] [com.apple.BoardServices:Injection] activating monitor for service com.apple.frontboard.open
+2026-11-16 13:44:26.364 Df INVIZENT[15438:4879f] [com.apple.xpc:connection] [0x106a04e40] activating connection: mach=true listener=false peer=false name=com.apple.runningboard
+2026-11-16 13:44:26.366 Df INVIZENT[15438:4867a] [com.apple.BoardServices:Injection] activating monitor for service com.apple.frontboard.workspace-service
+2026-11-16 13:44:26.367 Df INVIZENT[15438:4867a] [com.apple.FrontBoard:Common] FBSWorkspace registering source: com.apple.frontboard.systemappservices
+2026-11-16 13:44:26.373 A  INVIZENT[15438:4879a] (RunningBoardServices) didChangeInheritances
+2026-11-16 13:44:26.375 Df INVIZENT[15438:4879f] [com.apple.runningboard:connection] Handshake succeeded
+2026-11-16 13:44:26.375 Df INVIZENT[15438:4879f] [com.apple.runningboard:connection] Identity resolved as app<com.linea.messenger.preview((null))>
+2026-11-16 13:44:29.093 Df INVIZENT[15438:48793] [com.apple.UIKit:BackgroundTask] Creating new assertion because there is no existing background assertion.
+2026-11-16 13:44:29.093 Df INVIZENT[15438:48793] [com.apple.UIKit:BackgroundTask] Creating new background assertion
+2026-11-16 13:44:29.094 Df INVIZENT[15438:48793] [com.apple.UIKit:BackgroundTask] Created new background assertion <BKSProcessAssertion: 0x600002105a40>
+2026-11-16 13:44:29.095 Df INVIZENT[15438:48793] [com.apple.UIKit:BackgroundTask] Incrementing reference count for background assertion <BKSProcessAssertion: 0x600002105a40>
+2026-11-16 13:44:29.095 Df INVIZENT[15438:48793] [com.apple.UIKit:BackgroundTask] Created background task <_UIBackgroundTaskInfo: 0x60000170ef80>: taskID = 1, taskName = Launch Background Task for Coalescing, creationTime = 4620 (elapsed = 0).
+2026-11-16 13:44:29.096 Df INVIZENT[15438:48793] [com.apple.FrontBoard:SceneExtension] Realizing settings extension _UIApplicationSceneKeyboardSettings on FBSSceneSettings
+2026-11-16 13:44:29.098 Df INVIZENT[15438:48793] [com.apple.FrontBoard:SceneExtension] Realizing settings extension <_UISceneOcclusionSettings> on FBSSceneSettings
+2026-11-16 13:44:29.099 Df INVIZENT[15438:48793] [com.apple.FrontBoard:SceneExtension] Realizing settings extension <_UISceneInterfaceProtectionSettings> on FBSSceneSettings
+2026-11-16 13:44:29.099 Df INVIZENT[15438:48793] [com.apple.FrontBoard:SceneExtension] Realizing settings extension _UISceneLayoutPreferencesHostSettingsExtension on FBSSceneSettings
+2026-11-16 13:44:29.100 Df INVIZENT[15438:48793] [com.apple.FrontBoard:SceneExtension] Realizing settings extension _UISceneSafeAreaSettingsExtension on FBSSceneSettings
+2026-11-16 13:44:29.505 Df INVIZENT[15438:48793] [com.apple.FrontBoard:SceneExtension] Realizing settings extension _UISceneLayoutPreferenceClientSettingsExtension on FBSSceneClientSettings
+2026-11-16 13:44:29.506 Df INVIZENT[15438:48793] [com.apple.FrontBoard:SceneExtension] Realizing settings extension <_UIHomeAffordanceHostSceneSettings> on FBSSceneSettings
+2026-11-16 13:44:29.507 Df INVIZENT[15438:4867a] [com.apple.FrontBoard:Common] FBSWorkspace connected to endpoint : <BSServiceConnectionEndpoint: 0x600000202ea0; target: com.apple.frontboard.systemappservices; service: com.apple.frontboard.workspace-service>
+2026-11-16 13:44:29.507 Df INVIZENT[15438:48793] [com.apple.FrontBoard:SceneExtension] Realizing settings extension _UISystemShellSceneHostingEnvironmentSettings on FBSSceneSettings
+2026-11-16 13:44:29.507 Df INVIZENT[15438:4867a] [com.apple.FrontBoard:Common] <FBSWorkspaceScenesClient:0x600003004630 com.apple.frontboard.systemappservices> attempting immediate handshake from activate
+2026-11-16 13:44:29.508 Df INVIZENT[15438:4867a] [com.apple.FrontBoard:Common] <FBSWorkspaceScenesClient:0x600003004630 com.apple.frontboard.systemappservices> sent handshake
+2026-11-16 13:44:29.508 Df INVIZENT[15438:48793] [com.apple.FrontBoard:SceneExtension] Realizing settings extension _UISceneRenderingEnvironmentSettings on FBSSceneSettings
+2026-11-16 13:44:29.508 Df INVIZENT[15438:4867a] [com.apple.runningboard:general] Added observer for process assertions expiration warning: <_RBSExpirationWarningClient: 0x600000203a80>
+2026-11-16 13:44:29.508 Df INVIZENT[15438:48793] [com.apple.FrontBoard:SceneExtension] Realizing settings extension <_UISceneRenderingEnvironmentClientSettings> on FBSSceneClientSettings
+2026-11-16 13:44:29.509 Df INVIZENT[15438:48793] [com.apple.FrontBoard:SceneExtension] Realizing settings extension <_UISceneTransitioningHostSettings> on FBSSceneSettings
+2026-11-16 13:44:29.510 Df INVIZENT[15438:48793] [com.apple.FrontBoard:SceneExtension] Realizing settings extension <_UISceneFocusSystemSettings> on FBSSceneSettings
+2026-11-16 13:44:29.511 Df INVIZENT[15438:48793] [com.apple.FrontBoard:SceneExtension] Realizing settings extension _UISceneOrientationSettingsExtension on FBSSceneSettings
+2026-11-16 13:44:29.511 Df INVIZENT[15438:48793] [com.apple.FrontBoard:SceneExtension] Realizing settings extension _UISceneOrientationClientSettingsExtension on FBSSceneClientSettings
+2026-11-16 13:44:29.512 Df INVIZENT[15438:48793] [com.apple.FrontBoard:SceneExtension] Realizing settings extension _UISceneWindowingControlClientSettings on FBSSceneClientSettings
+2026-11-16 13:44:29.512 Df INVIZENT[15438:48793] [com.apple.FrontBoard:SceneExtension] Realizing settings extension <_UISceneHostingContentSizePreferenceClientSettings> on FBSSceneClientSettings
+2026-11-16 13:44:29.513 Df INVIZENT[15438:48793] [com.apple.FrontBoard:SceneExtension] Realizing settings extension _UISceneHostingTraitCollectionPropagationSettings on FBSSceneSettings
+2026-11-16 13:44:29.515 Df INVIZENT[15438:48793] [com.apple.FrontBoard:SceneExtension] Realizing settings extension <_UISceneHostingSheetPresentationSettings> on FBSSceneSettings
+2026-11-16 13:44:29.515 Df INVIZENT[15438:48793] [com.apple.FrontBoard:SceneExtension] Realizing settings extension <_UISceneHostingSheetPresentationClientSettings> on FBSSceneClientSettings
+2026-11-16 13:44:29.516 Df INVIZENT[15438:48793] [com.apple.FrontBoard:SceneExtension] Realizing settings extension <_UISceneHostingEventDeferringSettings> on FBSSceneSettings
+2026-11-16 13:44:29.517 Df INVIZENT[15438:48793] [com.apple.FrontBoard:SceneExtension] Realizing settings extension <UIKit__UITypedKeyValueSceneSettings> on FBSSceneSettings
+2026-11-16 13:44:29.519 Df INVIZENT[15438:48793] [com.apple.FrontBoard:SceneExtension] Realizing settings extension <UIKit__UITypedKeyValueSceneSettings> on FBSSceneClientSettings
+2026-11-16 13:44:29.519 Df INVIZENT[15438:48793] [com.apple.FrontBoard:SceneExtension] Realizing settings extension <_UISceneHostingViewControllerPreferencePropagationClientSettings> on FBSSceneClientSettings
+2026-11-16 13:44:29.520 Df INVIZENT[15438:48793] [com.apple.FrontBoard:SceneExtension] Realizing settings extension <_UISceneZoomTransitionSettings> on FBSSceneSettings
+2026-11-16 13:44:29.540 Df INVIZENT[15438:488a7] [com.apple.FrontBoard:SceneExtension] Realizing settings extension FBSSceneSettingsCore on FBSSceneSettings
+2026-11-16 13:44:29.541 Df INVIZENT[15438:488a7] [com.apple.FrontBoard:SceneExtension] Realizing settings extension FBSSceneClientSettingsCore on FBSSceneClientSettings
+2026-11-16 13:44:29.560 Df INVIZENT[15438:488a7] [com.apple.FrontBoard:SceneExtension] UIMutableApplicationSceneSettings setting counterpart class: UIApplicationSceneSettings
+2026-11-16 13:44:29.561 Df INVIZENT[15438:488a7] [com.apple.FrontBoard:SceneExtension] UIMutableApplicationSceneClientSettings setting counterpart class: UIApplicationSceneClientSettings
+2026-11-16 13:44:29.561 Df INVIZENT[15438:488a7] [com.apple.FrontBoard:SceneExtension] Realizing settings extension FBSSceneTransitionContextCore on FBSSceneTransitionContext
+2026-11-16 13:44:30.116 Df INVIZENT[15438:488a7] [com.apple.UIKit:BackgroundTask] Ending background task with UIBackgroundTaskIdentifier: 1
+2026-11-16 13:44:30.116 Df INVIZENT[15438:488a7] [com.apple.UIKit:BackgroundTask] Ending task with identifier 1 and description: <_UIBackgroundTaskInfo: 0x60000170ef80>: taskID = 1, taskName = Launch Background Task for Coalescing, creationTime = 4620 (elapsed = 1), _expireHandler: (null)
+2026-11-16 13:44:30.116 Df INVIZENT[15438:488a7] [com.apple.UIKit:BackgroundTask] Decrementing reference count for assertion <BKSProcessAssertion: 0x600002105a40> (used by background task with identifier 1: <_UIBackgroundTaskInfo: 0x60000170ef80>: taskID = 1, taskName = Launch Background Task for Coalescing, creationTime = 4620 (elapsed = 1))
+2026-11-16 13:44:30.117 Df INVIZENT[15438:488a7] [com.apple.UIKit:BackgroundTask] Will invalidate assertion: <BKSProcessAssertion: 0x600002105a40> for task identifier: 1
+2026-11-16 13:44:30.623 A  INVIZENT[15438:488a7] (RunningBoardServices) didChangeInheritances
+2026-11-16 13:44:31.023 Df INVIZENT[15438:4867a] [com.apple.UIKit:UIScreen] Evaluated capturing state as 0 on <UIScreen: 0x10680ae40> for initial
+2026-11-16 13:44:31.024 Df INVIZENT[15438:4867a] [com.apple.UIKit:UIScreen] Evaluated capturing state as 0 on <UIScreen: 0x10680ae40> for CADisplay KVO
+2026-11-16 13:44:31.027 Df INVIZENT[15438:4867a] [com.apple.Accessibility:AXSupportCommon] Read CategoryName: per-app = 1, category name = (null)
+2026-11-16 13:44:31.028 Df INVIZENT[15438:4867a] [com.apple.Accessibility:AXSupportCommon] Read CategoryName: per-app = 0, category name = (null)
+2026-11-16 13:44:36.718 A  INVIZENT[15438:488a7] (CoreFoundation) Updating Key-Value Observers Of Preferences
+2026-11-16 13:44:36.767 Df INVIZENT[15438:4867a] [com.apple.dt.xctest:Default] Registering for test daemon availability notify post.
+2026-11-16 13:44:36.769 Df INVIZENT[15438:4867a] [com.apple.dt.xctest:Default] notify_get_state check indicated test daemon not ready.
+2026-11-16 13:44:36.777 Df INVIZENT[15438:4867a] [com.apple.dt.xctest:Default] Test daemon availability confirmed via notify_get_state.
+2026-11-16 13:44:36.778 Df INVIZENT[15438:48899] [com.apple.xpc:connection] [0x1069045b0] activating connection: mach=true listener=false peer=false name=com.apple.dt.xctestd.target
+2026-11-16 13:44:36.780 Df INVIZENT[15438:4867a] [com.apple.dt.xctest:Default] notify_get_state check indicated test daemon not ready.
+2026-11-16 13:44:36.780 Df INVIZENT[15438:4879a] [com.apple.dt.xctest:Default] Received request for endpoint.
+2026-11-16 13:44:36.780 Df INVIZENT[15438:4879a] [com.apple.dt.xctest:Default] Attempting to load /Library/Developer/CoreSimulator/Volumes/iOS_23C54/Library/Developer/CoreSimulator/Profiles/Runtimes/iOS 26.2.simruntime/Contents/Resources/RuntimeRoot/Developer/Library/PrivateFrameworks/XCTAutomationSupport.framework.
+2026-11-16 13:44:36.787 Df INVIZENT[15438:4867a] [com.apple.UIKit:UpdateScheduler] Selected display: name=LCD (PurpleMain), id=1
+2026-11-16 13:44:36.793 Df INVIZENT[15438:4867a] [com.apple.UIKit:BackgroundTask] Will add backgroundTask with taskName: Persistent SceneSession Map Update, expirationHandler: <__NSGlobalBlock__: 0x7ff840854ae0>
+2026-11-16 13:44:36.793 Df INVIZENT[15438:4867a] [com.apple.UIKit:BackgroundTask] Creating new assertion because there is no existing background assertion.
+2026-11-16 13:44:36.793 Df INVIZENT[15438:4867a] [com.apple.UIKit:BackgroundTask] Creating new background assertion
+2026-11-16 13:44:36.793 Df INVIZENT[15438:4867a] [com.apple.UIKit:BackgroundTask] Created new background assertion <BKSProcessAssertion: 0x600002117250>
+2026-11-16 13:44:36.796 Df INVIZENT[15438:4867a] [com.apple.UIKit:BackgroundTask] Incrementing reference count for background assertion <BKSProcessAssertion: 0x600002117250>
+2026-11-16 13:44:36.974 Df INVIZENT[15438:4867a] [com.apple.UIKit:BackgroundTask] Created background task <_UIBackgroundTaskInfo: 0x600001740480>: taskID = 2, taskName = Persistent SceneSession Map Update, creationTime = 4628 (elapsed = 0).
+2026-11-16 13:44:36.975 Df INVIZENT[15438:4867a] [com.apple.UIKit:Application] Deactivation reason added: 5; deactivation reasons: 1024 -> 1056; animating application lifecycle event: 1
+2026-11-16 13:44:36.976 Df INVIZENT[15438:4867a] [com.apple.UIKit:InterfaceStyle] Not push traits update to screen for new style 2, <UIWindowScene: 0x106b1c8e0> (ED211AAB-5EEE-49D2-A3D9-612E64EC1AD0)
+2026-11-16 13:44:36.977 Df INVIZENT[15438:4867a] [com.apple.UIKit:InterfaceStyle] Should send trait collection or coordinate space update, interface style 2 -> 2, <UIWindowScene: 0x106b1c8e0> (ED211AAB-5EEE-49D2-A3D9-612E64EC1AD0)
+2026-11-16 13:44:36.978 Df INVIZENT[15438:4867a] [com.apple.UIKit:InterfaceStyle] Not push traits update to screen for new style 2, <UIWindowScene: 0x106b1c8e0> (ED211AAB-5EEE-49D2-A3D9-612E64EC1AD0)
+2026-11-16 13:44:36.979 Df INVIZENT[15438:4867a] [com.apple.UIKit:HomeAffordanceObservation] Initializing: <_UIHomeAffordanceSceneNotifier: 0x600002914c40>; with scene: <UIWindowScene: 0x106b1c8e0>
+2026-11-16 13:44:36.979 Df INVIZENT[15438:4867a] [com.apple.BacklightServices:scenes] 0x600000c31050 setDelegate:<0x600000c31260 _UIBacklightEnvironment> hasDelegate:YES for environment:sceneID:com.linea.messenger.preview-default
+2026-11-16 13:44:36.980 Df INVIZENT[15438:4867a] [com.apple.UIKit:InterfaceStyle] Not push traits update to screen for new style 2, <UIWindowScene: 0x106b1c8e0> (ED211AAB-5EEE-49D2-A3D9-612E64EC1AD0)
+2026-11-16 13:44:36.980 Df INVIZENT[15438:4867a] [com.apple.UIKit:EventDeferring] [0x600002914d20] Initialized with scene: <UIWindowScene: 0x106b1c8e0>; behavior: <_UIEventDeferringBehavior_iOS: 0x60000022ce20>; availableForProcess: 1, systemShellManagesKeyboardFocus: 1
+2026-11-16 13:44:36.981 Df INVIZENT[15438:4867a] [com.apple.BoardServices:XPCErrors] [C:2] Alloc com.apple.backboard.hid-services.xpc
+2026-11-16 13:44:36.981 Df INVIZENT[15438:4867a] [com.apple.xpc:connection] [0x106a13df0] activating connection: mach=false listener=false peer=false name=(anonymous)
+2026-11-16 13:44:36.985 Df INVIZENT[15438:48893] [com.apple.BackBoard:EventDelivery] BKSHIDEventObserver - connection activation
+2026-11-16 13:44:36.986 Df INVIZENT[15438:4867a] [com.apple.BackBoard:EventDelivery] policyStatus:<BKSHIDEventDeliveryPolicyObserver: 0x60000260d380; process scope; status: target> was:none
+2026-11-16 13:44:36.986 Df INVIZENT[15438:4867a] [com.apple.UIKit:KeyWindow] Setting default evaluation strategy for UIUserInterfaceIdiomPhone to LastOneWins
+2026-11-16 13:44:36.986 Df INVIZENT[15438:4867a] [com.apple.UIKit:KeyWindow] Scene target of keyboard event deferring environment did change: 1; scene: UIWindowScene: 0x106b1c8e0; scene identity: com.apple.frontboard.systemappservices/FBSceneManager:sceneID%3Acom.linea.messenger.preview-default
+2026-11-16 13:44:36.986 Df INVIZENT[15438:4867a] [com.apple.UIKit:EventDeferring] [0x600002914d20] Scene target of event deferring environments did update: scene: 0x106b1c8e0; current systemShellManagesKeyboardFocus: 1; systemShellManagesKeyboardFocusForScene: 1; eligibleForRecordRemoval: 1;
+2026-11-16 13:44:36.986 Df INVIZENT[15438:4867a] [com.apple.UIKit:KeyWindow] Scene became target of keyboard event deferring environment: UIWindowScene: 0x106b1c8e0; scene identity: com.apple.frontboard.systemappservices/FBSceneManager:sceneID%3Acom.linea.messenger.preview-default
+2026-11-16 13:44:36.986 Df INVIZENT[15438:4867a] [com.apple.UIKit:KeyWindow] Stack[KeyWindow] 0x600000c31710: Taking no further action for migration from LastOneWins -> SystemShellManaged as there are no scenes
+2026-11-16 13:44:36.986 Df INVIZENT[15438:4867a] [com.apple.UIKit:KeyWindow] Setting default evaluation strategy for UIUserInterfaceIdiomPhone to SystemShellManaged
+2026-11-16 13:44:36.986 Df INVIZENT[15438:4867a] [com.apple.UIKit:KeyWindow] Key window needs update: 0; currentKeyWindowScene: 0x0; evaluatedKeyWindowScene: 0x106b1c8e0; currentApplicationKeyWindow: 0x0; evaluatedApplicationKeyWindow: 0x0; reason: UIWindowScene: 0x106b1c8e0: Window scene became target of keyboard environment
+2026-11-16 13:44:36.987 Df INVIZENT[15438:4867a] [com.apple.UIKit:InterfaceStyle] Not push traits update to screen for new style 2, <UIWindowScene: 0x106b1c8e0> (ED211AAB-5EEE-49D2-A3D9-612E64EC1AD0)
+2026-11-16 13:44:36.988 Df INVIZENT[15438:4867a] [com.apple.UIKit:InterfaceStyle] Not push traits update to screen for new style 2, <UIWindowScene: 0x106b1c8e0> (ED211AAB-5EEE-49D2-A3D9-612E64EC1AD0)
+2026-11-16 13:44:36.991 Df INVIZENT[15438:4867a] [com.apple.UIKit:InterfaceStyle] Not push traits update to screen for new style 2, <UIWindowScene: 0x106b1c8e0> (ED211AAB-5EEE-49D2-A3D9-612E64EC1AD0)
+2026-11-16 13:44:36.993 F  INVIZENT[15438:4867a] [com.apple.runtime-issues:UIKit App Config] `UIScene` lifecycle will soon be required. Failure to adopt will result in an assert in the future.
+2026-11-16 13:44:36.993 A  INVIZENT[15438:4867a] (libsystem_trace.dylib) Activity for state dumps
+2026-11-16 13:44:36.993 Df INVIZENT[15438:4867a] [com.apple.UIKit:InterfaceStyle] Not push traits update to screen for new style 2, <UIWindowScene: 0x106b1c8e0> (ED211AAB-5EEE-49D2-A3D9-612E64EC1AD0)
+2026-11-16 13:44:36.994 Df INVIZENT[15438:4867a] [com.apple.UIKit:AppLifecycle] sceneOfRecord: sceneID: sceneID:com.linea.messenger.preview-default  persistentID: ED211AAB-5EEE-49D2-A3D9-612E64EC1AD0
+2026-11-16 13:44:36.995 Df INVIZENT[15438:4867a] [com.apple.UIKit:Application] Ignoring already applied deactivation reason: 5; deactivation reasons: 1056
+2026-11-16 13:44:36.995 Df INVIZENT[15438:4867a] [com.apple.UIKit:Application] Deactivation reason added: 11; deactivation reasons: 1056 -> 3104; animating application lifecycle event: 1
+2026-11-16 13:44:36.996 Df INVIZENT[15438:4867a] [com.apple.KeyboardArbiter:Client] startConnection
+2026-11-16 13:44:36.998 Df INVIZENT[15438:4867a] [com.apple.xpc:connection] [0x106804800] activating connection: mach=true listener=false peer=false name=com.apple.UIKit.KeyboardManagement.hosted
+2026-11-16 13:44:36.999 Df INVIZENT[15438:4867a] (UIKitCore) You've implemented -[<UIApplicationDelegate> application:didReceiveRemoteNotification:fetchCompletionHandler:], but you still need to add "remote-notification" to the list of your supported UIBackgroundModes in your Info.plist.
+2026-11-16 13:44:37.002 Df INVIZENT[15438:4867a] (React) _setUpFeatureFlags called with release level 2
+2026-11-16 13:44:37.477 Df INVIZENT[15438:4867a] [com.apple.network:] networkd_settings_read_from_file initialized networkd settings by reading plist directly
+2026-11-16 13:44:37.488 Df INVIZENT[15438:4889d] [com.apple.UIKit:BackgroundTask] Ending background task with UIBackgroundTaskIdentifier: 2
+2026-11-16 13:44:37.501 Df INVIZENT[15438:4889d] [com.apple.UIKit:BackgroundTask] Ending task with identifier 2 and description: <_UIBackgroundTaskInfo: 0x600001740480>: taskID = 2, taskName = Persistent SceneSession Map Update, creationTime = 4628 (elapsed = 1), _expireHandler: <__NSGlobalBlock__: 0x7ff840854ae0>
+2026-11-16 13:44:37.502 Df INVIZENT[15438:4867a] [com.apple.network:] networkd_settings_read_from_file initialized networkd settings by reading plist directly
+2026-11-16 13:44:37.507 Df INVIZENT[15438:4889d] [com.apple.UIKit:BackgroundTask] Decrementing reference count for assertion <BKSProcessAssertion: 0x600002117250> (used by background task with identifier 2: <_UIBackgroundTaskInfo: 0x600001740480>: taskID = 2, taskName = Persistent SceneSession Map Update, creationTime = 4628 (elapsed = 1))
+2026-11-16 13:44:37.507 Df INVIZENT[15438:4889d] [com.apple.UIKit:BackgroundTask] Will invalidate assertion: <BKSProcessAssertion: 0x600002117250> for task identifier: 2
+2026-11-16 13:44:37.519 Df INVIZENT[15438:4879a] [com.apple.dt.automationmode:Default] XAM shared observer connecting to com.apple.dt.automationmode.reader
+2026-11-16 13:44:37.520 Df INVIZENT[15438:4879a] [com.apple.xpc:connection] [0x106a0ff30] activating connection: mach=true listener=false peer=false name=com.apple.dt.automationmode.reader
+2026-11-16 13:44:37.522 Df INVIZENT[15438:4879a] [com.apple.xpc:connection] [0x106a0ff30] invalidated because the current process cancelled the connection by calling xpc_connection_cancel()
+2026-11-16 13:44:37.522 Df INVIZENT[15438:4879a] [com.apple.dt.xctest:Default] Sending anonymous endpoint.
+2026-11-16 13:44:37.522 Df INVIZENT[15438:4879a] [com.apple.dt.xctest:Default] Setting up target listener.
+2026-11-16 13:44:37.522 Df INVIZENT[15438:4879a] [com.apple.xpc:connection] [0x106925bb0] activating connection: mach=false listener=true peer=false name=(anonymous)
+2026-11-16 13:44:37.522 Df INVIZENT[15438:4879a] [com.apple.xpc:connection] [0x106925bb0] Connection returned listener port: 0x6407
+2026-11-16 13:44:37.526 Df INVIZENT[15438:4879a] [com.apple.dt.xctest:Default] Received client to target connection.
+2026-11-16 13:44:37.526 Df INVIZENT[15438:4879a] [com.apple.dt.automationmode:Default] Returning 1 for enabled state
+2026-11-16 13:44:37.527 Df INVIZENT[15438:4879a] [com.apple.xpc:connection] [0x106b10df0] activating connection: mach=false listener=false peer=true name=com.apple.xpc.anonymous.0x106925bb0.peer[13249].0x106b10df0
+2026-11-16 13:44:37.528 Df INVIZENT[15438:4889d] [com.apple.dt.xctest:Default] Received request to exchange capabilities, remote interface capabilities are: <XCTCapabilities: 0x6000000101f0>: {
+    "query runtime issue reporting" = 1;
+    "query runtime issue reporting/automation type mismatch" = 1;
+}
+2026-11-16 13:44:37.531 Df INVIZENT[15438:4889d] [com.apple.dt.xctest:Default] Received request to fetch matches for query:
+2026-11-16 13:44:37.532 Df INVIZENT[15438:4889d] [com.apple.dt.xctest:Default] Evaluating query:
+2026-11-16 13:44:37.532 Df INVIZENT[15438:4889d] [com.apple.dt.xctest:Default] Getting root element snapshot
+2026-11-16 13:44:37.532 Df INVIZENT[15438:4889d] [com.apple.dt.xctest:Default] Getting snapshot for App element pid: 15438 for query
+2026-11-16 13:44:37.532 Df INVIZENT[15438:4889d] [com.apple.dt.xctest:Default] Query requires iOS snapshot attributes .
+2026-11-16 13:44:37.532 Df INVIZENT[15438:4889d] [com.apple.dt.xctest:Default] XCTPerformOnMainRunLoop[not MT]: about to CFRunLoopPerform
+2026-11-16 13:44:37.532 Df INVIZENT[15438:4889d] [com.apple.dt.xctest:Default] XCTPerformOnMainRunLoop[not MT]: waiting with 30.00s responsiveness timeout
+2026-11-16 13:44:37.943 A  INVIZENT[15438:48ad9] (libsystem_containermanager.dylib) container_create_or_lookup_app_group_path_by_app_group_identifier
+2026-11-16 13:44:37.943 Df INVIZENT[15438:48ad9] [com.apple.containermanager:xpc] Requesting app group container lookup; identifier = group.com.linea.messenger.preview.screen, euid = 501, uid = 501, platform = 7
+2026-11-16 13:44:37.945 E  INVIZENT[15438:48ad9] [com.apple.containermanager:unspecified] container_create_or_lookup_app_group_path_by_app_group_identifier: client is not entitled
+2026-11-16 13:44:39.189 Df INVIZENT[15438:48ad9] [com.apple.xpc:connection] [0x10680a6b0] activating connection: mach=true listener=false peer=false name=com.apple.lsd.mapdb
+2026-11-16 13:44:39.225 Df INVIZENT[15438:4867a] [com.apple.UIKit:Orientation] <UIWindowScene: 0x106b1c8e0> (ED211AAB-5EEE-49D2-A3D9-612E64EC1AD0) Scene updated orientation preferences: none -> ( Pu )
+2026-11-16 13:44:39.236 Df INVIZENT[15438:4867a] [com.apple.UIKit:KeyWindow] Key window API is scene-level: YES
+2026-11-16 13:44:39.236 Df INVIZENT[15438:4867a] [com.apple.UIKit:KeyWindow] UIWindowScene: 0x106b1c8e0: Window became key in scene: UIWindow: 0x106b403d0; contextId: 0x15297CE4: reason: UIWindowScene: 0x106b1c8e0: Window requested to become key in scene: 0x106b403d0
+2026-11-16 13:44:39.237 Df INVIZENT[15438:4867a] [com.apple.UIKit:KeyWindow] Key window needs update: 1; currentKeyWindowScene: 0x0; evaluatedKeyWindowScene: 0x106b1c8e0; currentApplicationKeyWindow: 0x0; evaluatedApplicationKeyWindow: 0x106b403d0; reason: UIWindowScene: 0x106b1c8e0: Window requested to become key in scene: 0x106b403d0
+2026-11-16 13:44:39.237 Df INVIZENT[15438:4867a] [com.apple.UIKit:KeyWindow] Window did become application key: UIWindow: 0x106b403d0; contextId: 0x15297CE4; scene identity: com.apple.frontboard.systemappservices/FBSceneManager:sceneID%3Acom.linea.messenger.preview-default
+2026-11-16 13:44:39.237 Df INVIZENT[15438:4867a] [com.apple.UIKit:EventDeferring] [0x600002914d20] Begin local event deferring requested for token: 0x6000026052c0; environments: 1; reason: UIWindowScene: 0x106b1c8e0: Begin event deferring in keyboardFocus for window: 0x106b403d0
+2026-11-16 13:44:39.239 Df INVIZENT[15438:4879d] [com.apple.BackBoard:EventDelivery] BKSHIDEventDeliveryManager - connection activation
+2026-11-16 13:44:39.249 Df INVIZENT[15438:4879a] [com.apple.BackBoard:EventDelivery] policyStatus:<BKSHIDEventDeliveryPolicyObserver: 0x60000260d380; token: com.apple.frontboard.systemappservices/FBSceneManager:sceneID%3Acom.linea.messenger.preview-default; status: ancestor> was:target
+2026-11-16 13:44:39.252 Df INVIZENT[15438:4867a] [com.apple.UIKit:Application] Deactivation reason removed: 10; deactivation reasons: 3104 -> 2080; animating application lifecycle event: 1
+2026-11-16 13:44:39.253 Df INVIZENT[15438:4867a] [com.apple.UIKit:Application] Deactivation reason added: 12; deactivation reasons: 2080 -> 6176; animating application lifecycle event: 1
+2026-11-16 13:44:39.253 Df INVIZENT[15438:4867a] [com.apple.UIKit:Application] Deactivation reason removed: 11; deactivation reasons: 6176 -> 4128; animating application lifecycle event: 1
+2026-11-16 13:44:39.254 Df INVIZENT[15438:4867a] [com.apple.FrontBoard:SceneExtension] Realizing settings extension <_UISceneIntelligenceSupportSettings> on FBSSceneSettings
+2026-11-16 13:44:39.255 Df INVIZENT[15438:4879d] [com.apple.UIIntelligenceSupport:xpc] establishing connection to agent
+2026-11-16 13:44:39.256 Df INVIZENT[15438:4879d] [com.apple.xpc:session] [0x600002119950] Session created.
+2026-11-16 13:44:39.256 Df INVIZENT[15438:4879d] [com.apple.xpc:session] [0x600002119950] Session created from connection [0x106a14dd0]
+2026-11-16 13:44:39.256 Df INVIZENT[15438:4879d] [com.apple.xpc:connection] [0x106a14dd0] activating connection: mach=true listener=false peer=false name=com.apple.uiintelligencesupport.agent
+2026-11-16 13:44:39.256 Df INVIZENT[15438:4879d] [com.apple.xpc:session] [0x600002119950] Session activated
+2026-11-16 13:44:39.257 Df INVIZENT[15438:4867a] [com.apple.UIKit:InterfaceStyle] Not push traits update to screen for new style 2, <UIWindowScene: 0x106b1c8e0> (ED211AAB-5EEE-49D2-A3D9-612E64EC1AD0)
+2026-11-16 13:44:39.259 Df INVIZENT[15438:4867a] [com.apple.dt.xctest:Default] XCTPerformOnMainRunLoop[MT]: inside CFRunLoopPerform
+2026-11-16 13:44:39.259 Df INVIZENT[15438:4867a] [com.apple.dt.xctest:Default] XCTPerformOnMainRunLoop[MT]: MT responded in time (won the race to the busy flag)
+2026-11-16 13:44:39.259 Df INVIZENT[15438:4889d] [com.apple.dt.xctest:Default] XCTPerformOnMainRunLoop[not MT]: waiting 60.00s for work to complete
+2026-11-16 13:44:39.259 E  INVIZENT[15438:4867a] [com.apple.dt.xctest:Default] XCTAS Error: XCTAutomationSupportErrorUnknownElement: Error getting main window Unknown kAXError value -25218
+2026-11-16 13:44:39.260 E  INVIZENT[15438:4867a] [com.apple.dt.xctest:Default] XCTAS Error: Error Domain=com.apple.dt.xctest.automation-support.error Code=8 "Error getting main window Unknown kAXError value -25218" UserInfo={NSLocalizedDescription=Error getting main window Unknown kAXError value -25218}
+2026-11-16 13:44:39.261 E  INVIZENT[15438:4889d] [com.apple.dt.xctest:Default] XCTAS Error: Error Domain=com.apple.dt.xctest.automation-support.error Code=8 "Error getting main window Unknown kAXError value -25218" UserInfo={NSLocalizedDescription=Error getting main window Unknown kAXError value -25218}
+2026-11-16 13:44:39.262 Df INVIZENT[15438:4889d] [com.apple.dt.xctest:Default] Query  found matching snapshots: (null) (error: Error Domain=com.apple.dt.xctest.automation-support.error Code=8 "Error getting main window Unknown kAXError value -25218" UserInfo={NSLocalizedDescription=Error getting main window Unknown kAXError value -25218})
+2026-11-16 13:44:39.263 Df INVIZENT[15438:4889d] [com.apple.dt.xctest:Default] Replying to query  with results: (null) (error: Error Domain=com.apple.dt.xctest.automation-support.error Code=8 "Error getting main window Unknown kAXError value -25218" UserInfo={NSLocalizedDescription=Error getting main window Unknown kAXError value -25218})
+2026-11-16 13:44:39.300 A  INVIZENT[15438:4889d] (RunningBoardServices) didChangeInheritances
+2026-11-16 13:44:39.320 A  INVIZENT[15438:4879a] (RunningBoardServices) didChangeInheritances
+2026-11-16 13:44:39.420 A  INVIZENT[15438:4879a] (RunningBoardServices) didChangeInheritances
+2026-11-16 13:44:40.282 Df INVIZENT[15438:4889d] [com.apple.dt.xctest:Default] Received request to fetch matches for query:
+2026-11-16 13:44:40.282 Df INVIZENT[15438:4889d] [com.apple.dt.xctest:Default] Evaluating query:
+2026-11-16 13:44:40.282 Df INVIZENT[15438:4889d] [com.apple.dt.xctest:Default] Getting root element snapshot
+2026-11-16 13:44:40.282 Df INVIZENT[15438:4889d] [com.apple.dt.xctest:Default] Getting snapshot for App element pid: 15438 for query
+2026-11-16 13:44:40.282 Df INVIZENT[15438:4889d] [com.apple.dt.xctest:Default] Query requires iOS snapshot attributes .
+2026-11-16 13:44:40.282 Df INVIZENT[15438:4889d] [com.apple.dt.xctest:Default] XCTPerformOnMainRunLoop[not MT]: about to CFRunLoopPerform
+2026-11-16 13:44:40.282 Df INVIZENT[15438:4889d] [com.apple.dt.xctest:Default] XCTPerformOnMainRunLoop[not MT]: waiting with 30.00s responsiveness timeout
+2026-11-16 13:44:47.476 Df INVIZENT[15438:4867a] [com.apple.network:activity] Create activity from XPC object <nw_activity 50:1 [440D0E9B-8D40-4131-B2A6-30CD6F95061C] (reporting strategy default)>
+2026-11-16 13:44:47.476 Df INVIZENT[15438:4867a] [com.apple.network:activity] Create activity from XPC object <nw_activity 50:2 [66D1C337-3F42-4E94-B128-683F8E5D7B36] (reporting strategy default)>
+2026-11-16 13:44:47.476 Df INVIZENT[15438:4867a] [com.apple.network:activity] Set activity <nw_activity 50:1 [440D0E9B-8D40-4131-B2A6-30CD6F95061C] (reporting strategy default)> as the global parent
+2026-11-16 13:44:47.476 Df INVIZENT[15438:4867a] [com.apple.dt.xctest:Default] XCTPerformOnMainRunLoop[MT]: inside CFRunLoopPerform
+2026-11-16 13:44:47.476 Df INVIZENT[15438:4867a] [com.apple.dt.xctest:Default] XCTPerformOnMainRunLoop[MT]: MT responded in time (won the race to the busy flag)
+2026-11-16 13:44:47.476 Df INVIZENT[15438:4889d] [com.apple.dt.xctest:Default] XCTPerformOnMainRunLoop[not MT]: waiting 60.00s for work to complete
+2026-11-16 13:44:52.204 Df INVIZENT[15438:4867a] (Foundation) void * _Nullable NSMapGet(NSMapTable * _Nonnull, const void * _Nullable): map table argument is NULL
+2026-11-16 13:44:52.205 Df INVIZENT[15438:4867a] [com.apple.dt.xctest:Default] Got main window <AXUIElementRef 0x600000c43b40> {pid=15438} {uid=[ID:3 hash:0x106b403d0]}
+2026-11-16 13:44:52.206 Df INVIZENT[15438:4867a] [com.apple.dt.xctest:Default] Capturing hierarchy with attributes XC_kAXXCAttributeElementType, XC_kAXXCAttributeElementBaseType, XC_kAXXCAttributeParent, XC_kAXXCAttributeIdentifier, XC_kAXXCAttributeAutomationType, XC_kAXXCAttributeTraits
+2026-11-16 13:44:52.206 Df INVIZENT[15438:4867a] [com.apple.dt.xctest:Default] Capturing hierarchy with parameters {
+    attributes =     (
+        5003,
+        5004,
+        5002,
+        5019,
+        5058,
+        2004
+    );
+    maxArrayCount = 2147483647;
+    maxChildren = 2147483647;
+    maxDepth = 2147483647;
+    snapshotKeyHonorModalViews = 0;
+    traverseFromParentsToChildren = 1;
+}
+2026-11-16 13:44:52.206 Df INVIZENT[15438:4867a] [com.apple.dt.xctest:Default] Snapshot attributes 5003, 5004, 5002, 5019, 5058, 2004
+2026-11-16 13:44:52.215 Df INVIZENT[15438:4867a] [com.apple.dt.xctest:Default] Got snapshot for <AXUIElementRef 0x600000c1f0c0> {pid=15438} {uid=[ID:1 hash:0x0]}
+2026-11-16 13:44:52.216 Df INVIZENT[15438:4867a] [com.apple.dt.xctest:Default] Got app orientation 0
+2026-11-16 13:44:52.216 Df INVIZENT[15438:4867a] [com.apple.dt.xctest:Default] Captured accessibility snapshot data in 4.74s
+2026-11-16 13:44:52.216 Df INVIZENT[15438:4867a] [com.apple.UIKit:EventBus] Event Timing Profile for Touch: not found, path="/System/Library/EventTimingProfiles/Sim.Touch.plist"
+2026-11-16 13:44:52.216 Df INVIZENT[15438:4867a] [com.apple.UIKit:EventBus] Event Timing Profile for Pencil: not found, path="/System/Library/EventTimingProfiles/Sim.Pencil.plist"
+2026-11-16 13:44:52.216 Df INVIZENT[15438:4889d] [com.apple.dt.xctest:Default] Found main window: Window
+2026-11-16 13:44:52.217 Df INVIZENT[15438:4867a] [com.apple.UIKit:UpdateScheduler] Target list changed: <CADisplay:LCD PurpleMain>
+2026-11-16 13:44:52.217 Df INVIZENT[15438:4889d] [com.apple.dt.xctest:Default] Query  found matching snapshots: {(
+    Application, pid: 15438
+)} (error: (null))
+2026-11-16 13:44:52.217 Df INVIZENT[15438:4889d] [com.apple.dt.xctest:Default] Replying to query  with results: <XCTElementQueryResults: 0x600000c1fcf0> (error: (null))
+2026-11-16 13:44:52.218 Df INVIZENT[15438:4867a] [com.apple.UIKit:AppLifecycle] sceneOfRecord: sceneID: sceneID:com.linea.messenger.preview-default  persistentID: ED211AAB-5EEE-49D2-A3D9-612E64EC1AD0
+2026-11-16 13:44:52.219 Df INVIZENT[15438:4867a] [com.apple.UIKit:InterfaceStyle] Not push traits update to screen for new style 2, <UIWindowScene: 0x106b1c8e0> (ED211AAB-5EEE-49D2-A3D9-612E64EC1AD0)
+2026-11-16 13:44:52.220 Df INVIZENT[15438:4867a] [com.apple.Accessibility:AXCommon] Read Per-App on Init: Smart invert = (null)
+2026-11-16 13:44:52.548 Sd INVIZENT[15438:0] (EB73264B-09AE-3310-B642-B0B5D9390089) IOHIDManager State
+{
+    DispatchQueue = 0;
+    RunLoop = 1;
+    createOptions = 0;
+    isOpen = 0;
+    openOptions = 0;
+}
+2026-11-16 13:44:52.548 Df INVIZENT[15438:4867a] [com.apple.UIKit:EventDeferring] [0x600002914d20] Scene target of event deferring environments did update: scene: 0x106b1c8e0; current systemShellManagesKeyboardFocus: 1; systemShellManagesKeyboardFocusForScene: 1; eligibleForRecordRemoval: 1;
+2026-11-16 13:44:52.548 Df INVIZENT[15438:4867a] [com.apple.UIKit:KeyWindow] Scene became target of keyboard event deferring environment: UIWindowScene: 0x106b1c8e0; scene identity: com.apple.frontboard.systemappservices/FBSceneManager:sceneID%3Acom.linea.messenger.preview-default
+2026-11-16 13:44:52.556 Df INVIZENT[15438:4867a] [com.apple.FrontBoard:SceneExtension] Realizing settings extension SBUISecureRenderingSettingsExtension on FBSSceneSettings
+2026-11-16 13:44:52.559 Df INVIZENT[15438:4867a] [com.apple.UIKit:InterfaceStyle] Not push traits update to screen for new style 2, <UIWindowScene: 0x106b1c8e0> (ED211AAB-5EEE-49D2-A3D9-612E64EC1AD0)
+2026-11-16 13:44:52.559 Df INVIZENT[15438:4867a] [com.apple.UIKit:InterfaceStyle] Not push traits update to screen for new style 2, <UIWindowScene: 0x106b1c8e0> (ED211AAB-5EEE-49D2-A3D9-612E64EC1AD0)
+2026-11-16 13:44:52.560 Df INVIZENT[15438:4867a] [com.apple.UIKit:AppLifecycle] sceneOfRecord: sceneID: sceneID:com.linea.messenger.preview-default  persistentID: ED211AAB-5EEE-49D2-A3D9-612E64EC1AD0
+2026-11-16 13:44:52.561 Df INVIZENT[15438:4867a] [com.apple.UIKit:Application] Deactivation reason removed: 12; deactivation reasons: 4128 -> 32; animating application lifecycle event: 1
+2026-11-16 13:44:52.561 Df INVIZENT[15438:4867a] [com.apple.KeyboardArbiter:Client] Send setDeactivating: N (-DeactivationReason:SuspendedEventsOnly)
+2026-11-16 13:44:52.562 Df INVIZENT[15438:4867a] [com.apple.UIKit:Application] Deactivation reason removed: 5; deactivation reasons: 32 -> 0; animating application lifecycle event: 0
+2026-11-16 13:44:52.583 Df INVIZENT[15438:4867a] [com.apple.BackBoard:Display] [FBSDisplaySource 1-1] silently connecting raw configuration: <FBSDisplayConfiguration: 0x600003d05680; Main; mode: "402x874@3x 60Hz p3 SDR">
+2026-11-16 13:44:52.585 Df INVIZENT[15438:4867a] [com.apple.KeyboardArbiter:Client] startConnection
+2026-11-16 13:44:52.588 Df INVIZENT[15438:4867a] [com.apple.KeyboardArbiter:Client] handleKeyboardChange: set currentKeyboard:N (wasKeyboard:N)
+2026-11-16 13:44:53.118 Df INVIZENT[15438:4867a] [com.apple.UIKit:KeyboardArbiterClientLog] isWritingToolsHandlingKeyboardTracking:Y (WT ready:Y, Arbiter ready:Y)
+2026-11-16 13:44:53.132 Df INVIZENT[15438:48893] [com.apple.xpc:connection] [0x106b27cf0] activating connection: mach=true listener=false peer=false name=com.apple.fontservicesd
+2026-11-16 13:44:53.300 Df INVIZENT[15438:4867a] [com.apple.network:activity] <nw_activity 50:1 [440D0E9B-8D40-4131-B2A6-30CD6F95061C] (global parent) (reporting strategy default) complete (reason success)> complete with reason 2 (success), duration 32590ms
+2026-11-16 13:44:53.301 Df INVIZENT[15438:4867a] [com.apple.network:activity] <nw_activity 50:2 [66D1C337-3F42-4E94-B128-683F8E5D7B36] (reporting strategy default) complete (reason success)> complete with reason 2 (success), duration 32590ms
+2026-11-16 13:44:53.301 Df INVIZENT[15438:4867a] [com.apple.network:activity] Unsetting the global parent activity <nw_activity 50:1 [440D0E9B-8D40-4131-B2A6-30CD6F95061C] (global parent) (reporting strategy default) complete (reason success)>
+2026-11-16 13:44:53.301 Df INVIZENT[15438:4867a] [com.apple.network:activity] Unset the global parent activity
+2026-11-16 13:44:53.805 Df INVIZENT[15438:4879d] [com.apple.calls.callkit:Default] Call host has no calls
+2026-11-16 13:44:53.981 Df INVIZENT[15438:48ad9] [com.apple.network:path] nw_path_evaluator_start [6A9EBFE6-B367-40E7-8445-287D83957C24 <NULL> generic, multipath service: handover, attribution: developer]
+	path: satisfied (Path is satisfied), interface: en0
+2026-11-16 13:44:54.287 Df INVIZENT[15438:4879d] [com.apple.dt.xctest:Default] Received request to fetch matches for query:
+2026-11-16 13:44:54.287 Df INVIZENT[15438:4879d] [com.apple.dt.xctest:Default] Evaluating query:
+2026-11-16 13:44:54.287 Df INVIZENT[15438:4879d] [com.apple.dt.xctest:Default] Getting root element snapshot
+2026-11-16 13:44:54.287 Df INVIZENT[15438:4879d] [com.apple.dt.xctest:Default] Getting snapshot for App element pid: 15438 for query
+2026-11-16 13:44:54.287 Df INVIZENT[15438:4879d] [com.apple.dt.xctest:Default] Query requires iOS snapshot attributes .
+2026-11-16 13:44:54.288 Df INVIZENT[15438:4879d] [com.apple.dt.xctest:Default] XCTPerformOnMainRunLoop[not MT]: about to CFRunLoopPerform
+2026-11-16 13:44:54.288 Df INVIZENT[15438:4879d] [com.apple.dt.xctest:Default] XCTPerformOnMainRunLoop[not MT]: waiting with 30.00s responsiveness timeout
+2026-11-16 13:44:55.280 Df INVIZENT[15438:4867a] [com.apple.xpc:connection] [0x106945de0] activating connection: mach=true listener=false peer=false name=com.apple.server.bluetooth.le.att.xpc
+2026-11-16 13:44:55.280 Df INVIZENT[15438:4867a] [com.apple.xpc:connection] [0x106945de0] failed to do a bootstrap look-up: xpc_error=[3: No such process]
+2026-11-16 13:44:55.280 Df INVIZENT[15438:4867a] [com.apple.xpc:connection] [0x106945de0] invalidated after a failed init
+2026-11-16 13:44:55.280 E  INVIZENT[15438:48893] [com.apple.bluetooth:CoreBluetooth] XPC connection invalid
+2026-11-16 13:44:55.280 Df INVIZENT[15438:4867a] [com.apple.dt.xctest:Default] XCTPerformOnMainRunLoop[MT]: inside CFRunLoopPerform
+2026-11-16 13:44:55.281 Df INVIZENT[15438:4867a] [com.apple.dt.xctest:Default] XCTPerformOnMainRunLoop[MT]: MT responded in time (won the race to the busy flag)
+2026-11-16 13:44:55.281 Df INVIZENT[15438:4879d] [com.apple.dt.xctest:Default] XCTPerformOnMainRunLoop[not MT]: waiting 60.00s for work to complete
+2026-11-16 13:44:55.282 Df INVIZENT[15438:4867a] [com.apple.dt.xctest:Default] Got main window <AXUIElementRef 0x600000c6ed30> {pid=15438} {uid=[ID:3 hash:0x106b403d0]}
+2026-11-16 13:44:55.283 Df INVIZENT[15438:4867a] [com.apple.dt.xctest:Default] Capturing hierarchy with attributes XC_kAXXCAttributeElementType, XC_kAXXCAttributeElementBaseType, XC_kAXXCAttributeParent, XC_kAXXCAttributeIdentifier, XC_kAXXCAttributeAutomationType, XC_kAXXCAttributeTraits
+2026-11-16 13:44:55.283 Df INVIZENT[15438:4867a] [com.apple.dt.xctest:Default] Capturing hierarchy with parameters {
+    attributes =     (
+        5003,
+        5004,
+        5002,
+        5019,
+        5058,
+        2004
+    );
+    maxArrayCount = 2147483647;
+    maxChildren = 2147483647;
+    maxDepth = 2147483647;
+    snapshotKeyHonorModalViews = 0;
+    traverseFromParentsToChildren = 1;
+}
+2026-11-16 13:44:55.283 Df INVIZENT[15438:4867a] [com.apple.dt.xctest:Default] Snapshot attributes 5003, 5004, 5002, 5019, 5058, 2004
+2026-11-16 13:44:55.289 Df INVIZENT[15438:4867a] [com.apple.dt.xctest:Default] Got snapshot for <AXUIElementRef 0x600000c75350> {pid=15438} {uid=[ID:1 hash:0x0]}
+2026-11-16 13:44:55.289 Df INVIZENT[15438:4867a] [com.apple.dt.xctest:Default] Got app orientation 0
+2026-11-16 13:44:55.289 Df INVIZENT[15438:4867a] [com.apple.dt.xctest:Default] Captured accessibility snapshot data in 0.01s
+2026-11-16 13:44:55.290 Df INVIZENT[15438:4879d] [com.apple.dt.xctest:Default] Found main window: Window
+2026-11-16 13:44:55.290 Df INVIZENT[15438:4879d] [com.apple.dt.xctest:Default] Query  found matching snapshots: {(
+    Application, pid: 15438
+)} (error: (null))
+2026-11-16 13:44:55.293 Df INVIZENT[15438:4879d] [com.apple.dt.xctest:Default] Replying to query  with results: <XCTElementQueryResults: 0x600000c73990> (error: (null))
+2026-11-16 13:44:55.492 A  INVIZENT[15438:4879d] (Security) SecItemCopyMatching_ios
+2026-11-16 13:44:55.497 Df INVIZENT[15438:4879d] [com.apple.securityd:secitemratelimit] Not internal release, disabling SIRL
+2026-11-16 13:44:55.506 Df INVIZENT[15438:4879d] [com.apple.securityd:thread-local-client-debug] SecSecurityClientGet new thread!
+2026-11-16 13:44:55.511 Df INVIZENT[15438:4879d] [com.apple.securityd:keychain] System Keychain Always Supported set via feature flag to disabled
+2026-11-16 13:44:55.527 Df INVIZENT[15438:4879d] [com.apple.xpc:connection] [0x10694e110] activating connection: mach=true listener=false peer=false name=com.apple.securityd
+2026-11-16 13:44:56.062 Df INVIZENT[15438:4879d] [com.apple.FileURL:default] kExcludedFromBackupXattrName set on path: /Users/runner/Library/Developer/CoreSimulator/Devices/C15FAC2A-CB46-4F16-B882-3970BD44CFAD/data/Containers/Data/Application/F3C38705-6FA1-4389-B875-D5251EF6B3FC/Library/Application Support/com.linea.messenger.preview/RCTAsyncLocalStorage_V1
+2026-11-16 13:44:56.254 Df INVIZENT[15438:48ad9] [com.apple.avkit:AVKit] +[AVPictureInPicturePlatformAdapter isPictureInPictureSupported]_block_invoke isPictureInPictureSupported NO
+2026-11-16 13:44:56.366 E  INVIZENT[15438:49134] [com.apple.coremedia:] (Fig) signalled err=0 at <>:85
+2026-11-16 13:44:56.583 A  INVIZENT[15438:4879d] (Security) SecItemCopyMatching_ios
+2026-11-16 13:44:56.584 Df INVIZENT[15438:4867a] [com.apple.UIKit:KeyboardLayoutGuide] _moveGuideOffscreenAtEdge: 4
+2026-11-16 13:44:56.585 A  INVIZENT[15438:4879d] (Security) SecItemCopyMatching_ios
+2026-11-16 13:44:56.585 Df INVIZENT[15438:4867a] [com.apple.UIKit:KeyboardLayoutGuide] changeOffsetConstants: offset is changing to {0, 0} [previous offset: {-1, -1}]
+2026-11-16 13:44:56.586 A  INVIZENT[15438:4879d] (Security) SecItemCopyMatching_ios
+2026-11-16 13:44:56.586 Df INVIZENT[15438:4867a] [com.apple.UIKit:KeyboardLayoutGuide] changeSizingConstants: size is changing [not transitioning] to {402, 0} [previous size: {1, 0}]
+2026-11-16 13:44:56.587 A  INVIZENT[15438:4879d] (Security) SecItemCopyMatching_ios
+2026-11-16 13:44:56.589 A  INVIZENT[15438:4879d] (Security) SecItemCopyMatching_ios
+2026-11-16 13:44:56.590 A  INVIZENT[15438:4879d] (Security) SecItemCopyMatching_ios
+2026-11-16 13:44:56.611 Df INVIZENT[15438:4867a] [com.apple.UIKit:TrackingElementWindowController] Change from input view set: (null)
+2026-11-16 13:44:56.611 Df INVIZENT[15438:4867a] [com.apple.UIKit:TrackingElementWindowController] Change to input view set: (null)
+2026-11-16 13:44:56.632 Df INVIZENT[15438:4867a] [com.apple.UIKit:KeyboardLayoutGuide] _moveGuideOffscreenAtEdge: 4
+2026-11-16 13:44:56.632 Df INVIZENT[15438:4867a] [com.apple.UIKit:KeyboardLayoutGuide] changeOffsetConstants: offset is changing to {0, 0} [previous offset: {-1, -1}]
+2026-11-16 13:44:56.633 Df INVIZENT[15438:4867a] [com.apple.UIKit:KeyboardLayoutGuide] changeSizingConstants: size is changing [not transitioning] to {402, 0} [previous size: {1, 0}]
+2026-11-16 13:44:56.641 Df INVIZENT[15438:4867a] [com.apple.UIKit:KeyboardSceneDelegate] KeyboardTrackingCoordinator: Creating tracking coordinator for <UIWindowScene: 0x106b1c8e0; role: UIWindowSceneSessionRoleApplication; persistentIdentifier: ED211AAB-5EEE-49D2-A3D9-612E64EC1AD0; activationState: UISceneActivationStateForegroundActive>
+2026-11-16 13:44:56.664 Df INVIZENT[15438:4867a] [com.apple.UIKit:KeyboardLayoutGuide] _moveGuideOffscreenAtEdge: 4
+2026-11-16 13:44:56.741 A  INVIZENT[15438:4867a] (UIKitCore) send control actions
+2026-11-16 13:44:56.797 Df INVIZENT[15438:4867a] [PrototypeTools:domain] Not observing PTDefaults on customer install.
+2026-11-16 13:44:56.893 Df INVIZENT[15438:4867a] [com.apple.UIKit:KeyboardSceneDelegate] Reloading input views for key-window scene responder: <UITextField: 0x10a992600; frame = (0 0; 0 0); hidden = YES; opaque = NO; > force:N
+2026-11-16 13:44:56.894 Df INVIZENT[15438:4867a] [com.apple.UIKit:KeyboardSceneDelegate] _reloadInputViewsForKeyWindowSceneResponder: 1 force: 0, fromBecomeFirstResponder: 1 (automaticKeyboard: 1, reloadIdentifier: D9F4CCB7-E8FA-4FCD-AA77-95D25B2A323E)
+2026-11-16 13:44:56.897 Df INVIZENT[15438:4867a] [com.apple.UIKit:KeyboardSceneDelegate] _inputViewsForResponder: <UITextField: 0x10a992600; frame = (0 0; 0 0); hidden = YES; opaque = NO; >, automaticKeyboard: 1, force: 0
+2026-11-16 13:44:56.898 Df INVIZENT[15438:4867a] [com.apple.UIKit:KeyboardSceneDelegate] _inputViewsForResponder, found custom inputView: <(null): 0x0>, customInputViewController: <(null): 0x0>
+2026-11-16 13:44:56.898 Df INVIZENT[15438:4867a] [com.apple.UIKit:KeyboardSceneDelegate] _inputViewsForResponder, found inputAccessoryView: <(null): 0x0>
+2026-11-16 13:44:56.899 Df INVIZENT[15438:4867a] [com.apple.UIKit:KeyboardSceneDelegate] _inputViewsForResponder, responderRequiresKeyboard 1 (automaticKeyboardEnabled: 1, activeInstance: <(null): 0x0>, self.isOnScreen: 0, requiresKBWhenFirstResponder: 1)
+2026-11-16 13:44:56.899 Df INVIZENT[15438:4867a] [com.apple.UIKit:KeyboardSceneDelegate] _inputViewsForResponder, useKeyboard 1 (allowsSystemInputView: 1, !inputView <(null): 0x0>, responderRequiresKeyboard 1)
+2026-11-16 13:44:56.936 A  INVIZENT[15438:4867a] (libsystem_containermanager.dylib) container_system_group_path_for_identifier
+2026-11-16 13:44:56.936 Df INVIZENT[15438:4867a] [com.apple.containermanager:xpc] Requesting container lookup; class = 13, identifier = (null), group_identifier = systemgroup.com.apple.configurationprofiles, create = 1, temp = 0, euid = 501, uid = 501
+2026-11-16 13:44:56.937 A  INVIZENT[15438:4867a] (libsystem_containermanager.dylib) container_query_t
+2026-11-16 13:44:56.937 Df INVIZENT[15438:4867a] [com.apple.containermanager:xpc] Query; euid = 501, uid = 501, class = 13, identifier = [(null)](0), flags = 900000003
+2026-11-16 13:44:56.940 Df INVIZENT[15438:4867a] [com.apple.containermanager:unspecified] _container_query_get_result_at_index: success
+2026-11-16 13:44:56.940 A  INVIZENT[15438:4867a] (libsystem_containermanager.dylib) container_copy_object
+2026-11-16 13:44:56.940 Df INVIZENT[15438:4867a] [com.apple.containermanager:unspecified] container_system_group_path_for_identifier: success
+2026-11-16 13:44:56.940 Df INVIZENT[15438:4867a] [com.apple.ManagedConfiguration:MC] Got system group container path from MCM for systemgroup.com.apple.configurationprofiles: /Users/runner/Library/Developer/CoreSimulator/Devices/C15FAC2A-CB46-4F16-B882-3970BD44CFAD/data/Containers/Shared/SystemGroup/systemgroup.com.apple.configurationprofiles
+2026-11-16 13:44:57.167 Df INVIZENT[15438:4879d] [com.apple.dt.xctest:Default] Received request to fetch matches for query:
+2026-11-16 13:44:57.167 Df INVIZENT[15438:4879d] [com.apple.dt.xctest:Default] Evaluating query:
+2026-11-16 13:44:57.167 Df INVIZENT[15438:4879d] [com.apple.dt.xctest:Default] Getting root element snapshot
+2026-11-16 13:44:57.167 Df INVIZENT[15438:4879d] [com.apple.dt.xctest:Default] Getting snapshot for App element pid: 15438 for query
+2026-11-16 13:44:57.167 Df INVIZENT[15438:4879d] [com.apple.dt.xctest:Default] Query requires iOS snapshot attributes .
+2026-11-16 13:44:57.167 Df INVIZENT[15438:4879d] [com.apple.dt.xctest:Default] XCTPerformOnMainRunLoop[not MT]: about to CFRunLoopPerform
+2026-11-16 13:44:57.167 Df INVIZENT[15438:4879d] [com.apple.dt.xctest:Default] XCTPerformOnMainRunLoop[not MT]: waiting with 30.00s responsiveness timeout
+2026-11-16 13:44:57.173 Df INVIZENT[15438:4867a] [com.apple.UIKit:KeyboardSceneDelegate] _inputViewsForResponder, found assistantVC: <UISystemInputAssistantViewController: 0x10982c600; frame = {{0, 0}, {0, 0}}> (should suppress: 0, _dontNeed: 0)
+2026-11-16 13:44:57.175 Df INVIZENT[15438:4867a] [com.apple.UIKit:KeyboardSceneDelegate] _inputViewsForResponder, configuring _responderWithoutAutomaticAppearanceEnabled: <(null): 0x0> (_automaticAppearEnabled: 1)
+2026-11-16 13:44:57.184 Df INVIZENT[15438:4867a] [com.apple.UIKit:KeyboardUI] -[_UIKeyboardStateManager initWithPresentationDelegateView:forCustomInputView:] UIDevice.currentDevice._hardwareKeyboardAvailable = YES
+2026-11-16 13:44:57.186 Df INVIZENT[15438:4867a] [com.apple.BackBoard:Keyboard] Activating connection to server: (null)
+2026-11-16 13:44:57.186 Df INVIZENT[15438:4867a] [com.apple.BackBoard:Keyboard] server remote target <BSXPCServiceConnectionProxy<BKSKeyboardServiceClientToServerIPC>: 0x60000298a0d0>
+2026-11-16 13:44:57.186 Df INVIZENT[15438:4867a] [com.apple.BackBoard:Keyboard] currently observing: YES
+2026-11-16 13:44:57.187 Df INVIZENT[15438:4867a] [com.apple.BackBoard:Keyboard] connected: (
+    "<BKSHIDKeyboardDevice: 0x6000002dbb60> {\134n    senderID: 0xACEFADE00000003;\134n    transport: <nil>;\134n    language: <nil>;\134n    layout: US;\134n    countryCode: 0;\134n    standardType: 4294967295;\134n    subinterfaceID: 0;\134n    capsLockKeyHasLanguageSwitchLabel: NO;\134n    globeKeyLabelHasGlobeSymbol: NO;\134n}"
+)
+2026-11-16 13:44:57.188 Df INVIZENT[15438:4867a] [com.apple.BackBoard:Keyboard] currently observing: NO
+2026-11-16 13:44:57.189 Df INVIZENT[15438:4867a] [com.apple.BackBoard:Keyboard] disconnected: (
+    "<BKSHIDKeyboardDevice: 0x6000002dbb60> {\134n    senderID: 0xACEFADE00000003;\134n    transport: <nil>;\134n    language: <nil>;\134n    layout: US;\134n    countryCode: 0;\134n    standardType: 4294967295;\134n    subinterfaceID: 0;\134n    capsLockKeyHasLanguageSwitchLabel: NO;\134n    globeKeyLabelHasGlobeSymbol: NO;\134n}"
+)
+2026-11-16 13:44:57.193 Df INVIZENT[15438:4867a] [com.apple.xpc:connection] [0x1068a7380] activating connection: mach=true listener=false peer=false name=com.apple.TextInput
+2026-11-16 13:44:57.194 Df INVIZENT[15438:4867a] [com.apple.BackBoard:Keyboard] currently observing: YES
+2026-11-16 13:44:57.195 Df INVIZENT[15438:4867a] [com.apple.BackBoard:Keyboard] connected: (
+    "<BKSHIDKeyboardDevice: 0x6000002e27e0> {\134n    senderID: 0xACEFADE00000003;\134n    transport: <nil>;\134n    language: <nil>;\134n    layout: US;\134n    countryCode: 0;\134n    standardType: 4294967295;\134n    subinterfaceID: 0;\134n    capsLockKeyHasLanguageSwitchLabel: NO;\134n    globeKeyLabelHasGlobeSymbol: NO;\134n}"
+)
+2026-11-16 13:44:57.196 Df INVIZENT[15438:4867a] [com.apple.BackBoard:Keyboard] currently observing: NO
+2026-11-16 13:44:57.196 Df INVIZENT[15438:4867a] [com.apple.BackBoard:Keyboard] disconnected: (
+    "<BKSHIDKeyboardDevice: 0x6000002e27e0> {\134n    senderID: 0xACEFADE00000003;\134n    transport: <nil>;\134n    language: <nil>;\134n    layout: US;\134n    countryCode: 0;\134n    standardType: 4294967295;\134n    subinterfaceID: 0;\134n    capsLockKeyHasLanguageSwitchLabel: NO;\134n    globeKeyLabelHasGlobeSymbol: NO;\134n}"
+)
+2026-11-16 13:44:57.197 Df INVIZENT[15438:4867a] [com.apple.BackBoard:Keyboard] currently observing: YES
+2026-11-16 13:44:57.198 Df INVIZENT[15438:4867a] [com.apple.BackBoard:Keyboard] connected: (
+    "<BKSHIDKeyboardDevice: 0x6000002dbba0> {\134n    senderID: 0xACEFADE00000003;\134n    transport: <nil>;\134n    language: <nil>;\134n    layout: US;\134n    countryCode: 0;\134n    standardType: 4294967295;\134n    subinterfaceID: 0;\134n    capsLockKeyHasLanguageSwitchLabel: NO;\134n    globeKeyLabelHasGlobeSymbol: NO;\134n}"
+)
+2026-11-16 13:44:57.198 Df INVIZENT[15438:4867a] [com.apple.BackBoard:Keyboard] currently observing: NO
+2026-11-16 13:44:57.199 Df INVIZENT[15438:4867a] [com.apple.BackBoard:Keyboard] disconnected: (
+    "<BKSHIDKeyboardDevice: 0x6000002dbba0> {\134n    senderID: 0xACEFADE00000003;\134n    transport: <nil>;\134n    language: <nil>;\134n    layout: US;\134n    countryCode: 0;\134n    standardType: 4294967295;\134n    subinterfaceID: 0;\134n    capsLockKeyHasLanguageSwitchLabel: NO;\134n    globeKeyLabelHasGlobeSymbol: NO;\134n}"
+)
+2026-11-16 13:44:57.206 Df INVIZENT[15438:4867a] [com.apple.UIKit:HardwareKeyboard] -[UIApplication GSKeyboardForHWLayout:senderID:forceRebuild:createIfNeeded:], New hardware layout is created with US layout and 0 standardType.
+2026-11-16 13:44:57.206 Df INVIZENT[15438:4867a] [com.apple.BackBoard:Keyboard] currently observing: YES
+2026-11-16 13:44:57.207 Df INVIZENT[15438:4867a] [com.apple.BackBoard:Keyboard] connected: (
+    "<BKSHIDKeyboardDevice: 0x6000002e28a0> {\134n    senderID: 0xACEFADE00000003;\134n    transport: <nil>;\134n    language: <nil>;\134n    layout: US;\134n    countryCode: 0;\134n    standardType: 4294967295;\134n    subinterfaceID: 0;\134n    capsLockKeyHasLanguageSwitchLabel: NO;\134n    globeKeyLabelHasGlobeSymbol: NO;\134n}"
+)
+2026-11-16 13:44:57.207 Df INVIZENT[15438:4867a] [com.apple.BackBoard:Keyboard] currently observing: NO
+2026-11-16 13:44:57.208 Df INVIZENT[15438:4867a] [com.apple.BackBoard:Keyboard] disconnected: (
+    "<BKSHIDKeyboardDevice: 0x6000002e28a0> {\134n    senderID: 0xACEFADE00000003;\134n    transport: <nil>;\134n    language: <nil>;\134n    layout: US;\134n    countryCode: 0;\134n    standardType: 4294967295;\134n    subinterfaceID: 0;\134n    capsLockKeyHasLanguageSwitchLabel: NO;\134n    globeKeyLabelHasGlobeSymbol: NO;\134n}"
+)
+2026-11-16 13:44:57.255 Df INVIZENT[15438:4867a] [com.apple.BackBoard:Keyboard] currently observing: YES
+2026-11-16 13:44:57.256 Df INVIZENT[15438:4867a] [com.apple.BackBoard:Keyboard] connected: (
+    "<BKSHIDKeyboardDevice: 0x6000002dbd00> {\134n    senderID: 0xACEFADE00000003;\134n    transport: <nil>;\134n    language: <nil>;\134n    layout: US;\134n    countryCode: 0;\134n    standardType: 4294967295;\134n    subinterfaceID: 0;\134n    capsLockKeyHasLanguageSwitchLabel: NO;\134n    globeKeyLabelHasGlobeSymbol: NO;\134n}"
+)
+2026-11-16 13:44:57.257 Df INVIZENT[15438:4867a] [com.apple.BackBoard:Keyboard] currently observing: NO
+2026-11-16 13:44:57.259 Df INVIZENT[15438:4867a] [com.apple.BackBoard:Keyboard] disconnected: (
+    "<BKSHIDKeyboardDevice: 0x6000002dbd00> {\134n    senderID: 0xACEFADE00000003;\134n    transport: <nil>;\134n    language: <nil>;\134n    layout: US;\134n    countryCode: 0;\134n    standardType: 4294967295;\134n    subinterfaceID: 0;\134n    capsLockKeyHasLanguageSwitchLabel: NO;\134n    globeKeyLabelHasGlobeSymbol: NO;\134n}"
+)
+2026-11-16 13:44:57.288 Df INVIZENT[15438:4867a] [com.apple.BackBoard:Keyboard] currently observing: YES
+2026-11-16 13:44:57.289 Df INVIZENT[15438:4867a] [com.apple.BackBoard:Keyboard] connected: (
+    "<BKSHIDKeyboardDevice: 0x6000002e2840> {\134n    senderID: 0xACEFADE00000003;\134n    transport: <nil>;\134n    language: <nil>;\134n    layout: US;\134n    countryCode: 0;\134n    standardType: 4294967295;\134n    subinterfaceID: 0;\134n    capsLockKeyHasLanguageSwitchLabel: NO;\134n    globeKeyLabelHasGlobeSymbol: NO;\134n}"
+)
+2026-11-16 13:44:57.289 Df INVIZENT[15438:4867a] [com.apple.BackBoard:Keyboard] currently observing: NO
+2026-11-16 13:44:57.290 Df INVIZENT[15438:4867a] [com.apple.BackBoard:Keyboard] disconnected: (
+    "<BKSHIDKeyboardDevice: 0x6000002e2840> {\134n    senderID: 0xACEFADE00000003;\134n    transport: <nil>;\134n    language: <nil>;\134n    layout: US;\134n    countryCode: 0;\134n    standardType: 4294967295;\134n    subinterfaceID: 0;\134n    capsLockKeyHasLanguageSwitchLabel: NO;\134n    globeKeyLabelHasGlobeSymbol: NO;\134n}"
+)
+2026-11-16 13:44:57.298 A  INVIZENT[15438:4867a] (CoreFoundation) Updating Key-Value Observers Of Preferences
+2026-11-16 13:44:57.322 Df INVIZENT[15438:4867a] [com.apple.UIKit:UIKBFeedbackGenerator] <_UIKBFeedbackGenerator: 0x600003516d60>: Updating mode. Haptics: unsupported. Haptics: disabled. Ringer: on. Sound: enabled. Mode: audio only
+2026-11-16 13:44:57.353 Df INVIZENT[15438:4867a] [com.apple.UIKit:KeyboardSceneDelegate] _inputViewsForResponder, useKeyboard ivs: <UIInputViewSet: 0x6000037706c0>
+2026-11-16 13:44:57.357 Df INVIZENT[15438:4867a] [com.apple.UIKit:KeyboardSceneDelegate] _inputViewsForResponder returning: <<UIInputViewSet: 0x6000037706c0>; view = <_UIKBCompatInputView: 0x106bf3570; frame = (0 0; 0 0); >; assistant = <TUISystemInputAssistantView: 0x106892910; frame = (0 0; 0 0); hidden = YES; >; usesKeyClicks = NO;  >
+2026-11-16 13:44:57.359 Df INVIZENT[15438:4867a] [com.apple.BackBoard:Keyboard] currently observing: YES
+2026-11-16 13:44:57.360 Df INVIZENT[15438:4867a] [com.apple.BackBoard:Keyboard] connected: (
+    "<BKSHIDKeyboardDevice: 0x6000002dbe00> {\134n    senderID: 0xACEFADE00000003;\134n    transport: <nil>;\134n    language: <nil>;\134n    layout: US;\134n    countryCode: 0;\134n    standardType: 4294967295;\134n    subinterfaceID: 0;\134n    capsLockKeyHasLanguageSwitchLabel: NO;\134n    globeKeyLabelHasGlobeSymbol: NO;\134n}"
+)
+2026-11-16 13:44:57.361 Df INVIZENT[15438:4867a] [com.apple.BackBoard:Keyboard] currently observing: NO
+2026-11-16 13:44:57.361 Df INVIZENT[15438:4867a] [com.apple.BackBoard:Keyboard] disconnected: (
+    "<BKSHIDKeyboardDevice: 0x6000002dbe00> {\134n    senderID: 0xACEFADE00000003;\134n    transport: <nil>;\134n    language: <nil>;\134n    layout: US;\134n    countryCode: 0;\134n    standardType: 4294967295;\134n    subinterfaceID: 0;\134n    capsLockKeyHasLanguageSwitchLabel: NO;\134n    globeKeyLabelHasGlobeSymbol: NO;\134n}"
+)
+2026-11-16 13:44:57.362 Df INVIZENT[15438:4867a] [com.apple.UIKit:InputSessionChange] -_teardownExistingDelegate:(nil) forSetDelegate:<UITextField: 0x10a992600> force:NO delayEndInputSession:YES
+2026-11-16 13:44:57.363 Df INVIZENT[15438:4867a] [com.apple.UIKit:InputSessionChange] endInputSession completion is disabled
+2026-11-16 13:44:57.366 Df INVIZENT[15438:4867a] [com.apple.UIKit:KeyboardSceneDelegate] [Interface Orientation] was:Interface Unknown now:UIInterfaceOrientationPortrait reason:Using key window scene
+2026-11-16 13:44:57.377 Df INVIZENT[15438:4867a] [com.apple.UIKit:SmartReply] Handling responseContextDidChange - existing: (null), new: (null)
+2026-11-16 13:44:57.424 E  INVIZENT[15438:4867a] [com.apple.UIKit:UIFocus] UIKeyboardLayoutStar implements focusItemsInRect: - caching for linear focus movement is limited as long as this view is on screen.
+2026-11-16 13:44:57.555 Df INVIZENT[15438:4867a] [com.apple.TextInputUI:DynamicKeyplaneView] <TUIKeyplaneView: 0x106889350> changed keyplane size to {402, 216}; docked
+2026-11-16 13:44:57.559 Df INVIZENT[15438:4867a] [com.apple.TextInputUI:DynamicKeyplaneView] Setting dynamic keyplane: Dynamic-QWERTY-British-Small_Capital-Letters
+2026-11-16 13:44:57.752 Df INVIZENT[15438:4889d] [com.apple.TextInputUI:CandidateGeneration] -[TUIKeyboardCandidateMultiplexer installGeneratorForSource:]_block_invoke: Multiplexer is installing generator for source: 1
+2026-11-16 13:44:57.752 Df INVIZENT[15438:4889d] [com.apple.TextInputUI:CandidateGeneration] -[TUIKeyboardCandidateMultiplexer installGeneratorForSource:]_block_invoke: Multiplexer is installing generator for source: 3
+2026-11-16 13:44:57.769 Df INVIZENT[15438:4867a] [com.apple.UIKit:KeyboardUI] Creating a new RTI client
+2026-11-16 13:44:57.795 Df INVIZENT[15438:4867a] [com.apple.BoardServices:XPCErrors] [C:3] Alloc com.apple.inputservice.input-ui-host
+2026-11-16 13:44:57.796 Df INVIZENT[15438:4867a] [com.apple.xpc:connection] [0x106ad06f0] activating connection: mach=false listener=false peer=false name=(anonymous)
+2026-11-16 13:44:57.799 Df INVIZENT[15438:4867a] [com.apple.UIKit:KeyboardUI] creating new AutofillUI connection
+2026-11-16 13:44:57.802 Df INVIZENT[15438:4867a] [com.apple.RemoteTextInput:InputSessionChange] -[RTIInputSystemClient beginAllowingRemoteTextInput:]  Begin allowing remote text input: ACEB8741-E5F6-4514-984C-63F780431991
+2026-11-16 13:44:57.802 Df INVIZENT[15438:4867a] [com.apple.RemoteTextInput:InputSessionChange] -[RTIInputSystemClient _modifyTextEditingAllowedForReason:notify:animated:modifyAllowancesBlock:completion:]  Text editing allowed did change (editingAllowedAfter = YES)
+2026-11-16 13:44:57.835 Df INVIZENT[15438:4867a] [com.apple.xpc:connection] [0x1069b4150] activating connection: mach=true listener=false peer=false name=com.apple.pasteboard.pasted
+2026-11-16 13:44:57.888 Df INVIZENT[15438:4867a] [com.apple.RemoteTextInput:InputSessionChange] -[RTIInputSystemClient _beginSessionWithID:forServices:force:]  Begin text input session. sessionID = ACEB8741-E5F6-4514-984C-63F780431991, options = <RTISessionOptions: 0x6000002ff800; shouldResign = NO; animated = YES; offscreenDirection = 0; enhancedWindowingModeEnabled = NO
+2026-11-16 13:44:57.902 Df INVIZENT[15438:4867a] [com.apple.UIKit:KeyboardSceneDelegate] Reloading input views for key-window scene responder: <(null): 0x0; > force:N
+2026-11-16 13:44:57.903 Df INVIZENT[15438:4867a] [com.apple.UIKit:KeyboardSceneDelegate] _reloadInputViewsForKeyWindowSceneResponder: 0 force: 0, fromBecomeFirstResponder: 0 (automaticKeyboard: 0, reloadIdentifier: E08C8CE9-419B-49C5-93EC-D254A220DF74)
+2026-11-16 13:44:57.903 Df INVIZENT[15438:4867a] [com.apple.UIKit:KeyboardSceneDelegate] _inputViewsForResponder: <(null): 0x0; >, automaticKeyboard: 0, force: 0
+2026-11-16 13:44:57.903 Df INVIZENT[15438:4867a] [com.apple.UIKit:KeyboardSceneDelegate] _inputViewsForResponder, found custom inputView: <(null): 0x0>, customInputViewController: <(null): 0x0>
+2026-11-16 13:44:57.903 Df INVIZENT[15438:4867a] [com.apple.UIKit:KeyboardSceneDelegate] _inputViewsForResponder, found inputAccessoryView: <(null): 0x0>
+2026-11-16 13:44:57.903 Df INVIZENT[15438:4867a] [com.apple.UIKit:KeyboardSceneDelegate] _inputViewsForResponder, responderRequiresKeyboard 0 (automaticKeyboardEnabled: 0, activeInstance: <UIKeyboardAutomatic: 0x106acc830; frame = {{0, 0}, {0, 0}}; alpha = 1.000000; isHidden = 0; tAMIC = 0>, self.isOnScreen: 0, requiresKBWhenFirstResponder: 0)
+2026-11-16 13:44:57.903 Df INVIZENT[15438:4867a] [com.apple.UIKit:KeyboardSceneDelegate] _inputViewsForResponder, useKeyboard 0 (allowsSystemInputView: 1, !inputView <(null): 0x0>, responderRequiresKeyboard 0)
+2026-11-16 13:44:57.903 Df INVIZENT[15438:4867a] [com.apple.UIKit:KeyboardSceneDelegate] _inputViewsForResponder, configuring _responderWithoutAutomaticAppearanceEnabled: <(null): 0x0> (_automaticAppearEnabled: 1)
+2026-11-16 13:44:57.903 Df INVIZENT[15438:4867a] [com.apple.UIKit:KeyboardSceneDelegate] _inputViewsForResponder, needsIVPlaceholder: 0, needsIAVPlaceholder: 0, needsInputSetWithPlaceholder: 0
+2026-11-16 13:44:57.904 Df INVIZENT[15438:4867a] [com.apple.UIKit:KeyboardSceneDelegate] _inputViewsForResponder returning: <<UIInputViewSet: 0x600003774fc0>; (empty)>
+2026-11-16 13:44:57.905 Df INVIZENT[15438:4867a] [com.apple.BackBoard:Keyboard] currently observing: YES
+2026-11-16 13:44:57.906 Df INVIZENT[15438:4867a] [com.apple.BackBoard:Keyboard] connected: (
+    "<BKSHIDKeyboardDevice: 0x6000002f2180> {\134n    senderID: 0xACEFADE00000003;\134n    transport: <nil>;\134n    language: <nil>;\134n    layout: US;\134n    countryCode: 0;\134n    standardType: 4294967295;\134n    subinterfaceID: 0;\134n    capsLockKeyHasLanguageSwitchLabel: NO;\134n    globeKeyLabelHasGlobeSymbol: NO;\134n}"
+)
+2026-11-16 13:44:57.906 Df INVIZENT[15438:4867a] [com.apple.BackBoard:Keyboard] currently observing: NO
+2026-11-16 13:44:57.909 Df INVIZENT[15438:4867a] [com.apple.BackBoard:Keyboard] disconnected: (
+    "<BKSHIDKeyboardDevice: 0x6000002f2180> {\134n    senderID: 0xACEFADE00000003;\134n    transport: <nil>;\134n    language: <nil>;\134n    layout: US;\134n    countryCode: 0;\134n    standardType: 4294967295;\134n    subinterfaceID: 0;\134n    capsLockKeyHasLanguageSwitchLabel: NO;\134n    globeKeyLabelHasGlobeSymbol: NO;\134n}"
+)
+2026-11-16 13:44:57.909 Df INVIZENT[15438:4867a] [com.apple.UIKit:InputSessionChange] -_teardownExistingDelegate:<UITextField: 0x10a992600> forSetDelegate:(nil) force:NO delayEndInputSession:NO
+2026-11-16 13:44:57.923 Df INVIZENT[15438:4867a] [com.apple.RemoteTextInput:InputSessionChange] -[RTIInputSystemClient endRemoteTextInputSessionWithID:options:completion:]  Ending text input session. sessionID = ACEB8741-E5F6-4514-984C-63F780431991, options = <RTISessionOptions: 0x600000304640; shouldResign = YES; animated = YES; offscreenDirection = 0; enhancedWindowingModeEnabled = NO
+2026-11-16 13:44:57.924 Df INVIZENT[15438:4867a] [com.apple.RemoteTextInput:InputSessionChange] -[RTIInputSystemClient _endSessionWithID:forServices:options:completion:]  End input session: ACEB8741-E5F6-4514-984C-63F780431991
+2026-11-16 13:44:57.930 Df INVIZENT[15438:4867a] [com.apple.RemoteTextInput:InputSessionChange] -[RTIInputSystemClient endAllowingRemoteTextInput:completion:]  End allowing remote text input: ACEB8741-E5F6-4514-984C-63F780431991
+2026-11-16 13:44:57.930 Df INVIZENT[15438:4867a] [com.apple.RemoteTextInput:InputSessionChange] -[RTIInputSystemClient _modifyTextEditingAllowedForReason:notify:animated:modifyAllowancesBlock:completion:]  Text editing allowed did change (editingAllowedAfter = NO)
+2026-11-16 13:44:58.974 Df INVIZENT[15438:4867a] [com.apple.UIKit:SmartReply] Handling responseContextDidChange - existing: (null), new: (null)
+2026-11-16 13:44:58.984 Df INVIZENT[15438:4867a] [com.apple.UIKit:UIPeripheralHost] endPlacementForInputViewSet: <<UIInputViewSet: 0x6000037706c0>; keyboard = <UIKeyboardAutomatic: 0x106acc830; frame = (0 0; 0 0); opaque = NO; layer = <CALayer: 0x600000d08540>>%; assistant = <TUISystemInputAssistantView: 0x106892910; frame = (0 0; 0 0); hidden = YES; >; usesKeyClicks = NO;  > windowScene: <UIWindowScene: 0x106b1c8e0; role: UIWindowSceneSessionRoleApplication; persistentIdentifier: ED211AAB-5EEE-49D2-A3D9-612E64EC1AD0; activationState: UISceneActivationStateForegroundActive>
+2026-11-16 13:44:58.985 Df INVIZENT[15438:4867a] [com.apple.UIKit:UIPeripheralHost] endPlacementForInputViewSet, returning -> <UIInputViewSetPlacementOnScreen>
+2026-11-16 13:44:58.987 Df INVIZENT[15438:4867a] [com.apple.UIKit:KeyboardArbiterClientLog] -[_UIRemoteKeyboards prepareToMoveKeyboard:withIAV:isIAVRelevant:showing:notifyRemote:forScene:] position: {{0, 0}, {402, 325}} visible: 1; notifyRemote: 1; isMinimized: NO
+2026-11-16 13:44:58.989 Df INVIZENT[15438:4867a] [com.apple.UIKit:InterfaceStyle] Should send trait collection or coordinate space update, interface style 2 -> 2, <_UIKeyboardWindowScene: 0x11313f110> (963F5412-957D-4F02-A78C-975A834AA770)
+2026-11-16 13:44:58.989 Df INVIZENT[15438:4867a] [com.apple.UIKit:InterfaceStyle] Should send trait collection or coordinate space update, interface style 2 -> 2, <_UIKeyboardWindowScene: 0x11313f110> (963F5412-957D-4F02-A78C-975A834AA770)
+2026-11-16 13:44:58.991 Df INVIZENT[15438:4867a] [com.apple.UIKit:HomeAffordanceObservation] Initializing: <_UIHomeAffordanceSceneNotifierProxy: 0x600002637d20>; with scene: <_UIKeyboardWindowScene: 0x11313f110>
+2026-11-16 13:44:59.004 Df INVIZENT[15438:4867a] [com.apple.UIKit:InputWindowController] Change from input view set: (null)
+2026-11-16 13:44:59.004 Df INVIZENT[15438:4867a] [com.apple.UIKit:InputWindowController] Change to input view set: (null)
+2026-11-16 13:44:59.007 Df INVIZENT[15438:4867a] [com.apple.FrontBoard:SceneExtension] Realizing settings extension <_UIApplicationSceneDisplaySettings> on FBSSceneSettings
+2026-11-16 13:44:59.013 Df INVIZENT[15438:4867a] [com.apple.UIKit:InputWindowController] Change from input view set: (null)
+2026-11-16 13:44:59.013 Df INVIZENT[15438:4867a] [com.apple.UIKit:InputWindowController] Change to input view set: <<UIInputViewSet: 0x6000037758c0>; (empty)>
+2026-11-16 13:44:59.098 Df INVIZENT[15438:4867a] [com.apple.purplebuddy:launch] BYSetupAssistantHasCompletedInitialRun is YES in the simulator.
+2026-11-16 13:44:59.120 Df INVIZENT[15438:4889d] [com.apple.xpc:connection] [0x113157110] activating connection: mach=true listener=false peer=false name=com.apple.SystemConfiguration.NetworkInformation_sim
+2026-11-16 13:44:59.126 Df INVIZENT[15438:4867a] [com.apple.UIKit:InputWindowController] updatePlacementWithPlacement: <UITrackingElementPlacementInitialPosition>
+2026-11-16 13:44:59.138 Df INVIZENT[15438:4867a] [com.apple.runningboard:connection] Creating side-channel connection to com.apple.runningboard
+2026-11-16 13:44:59.138 Df INVIZENT[15438:4867a] [com.apple.xpc:connection] [0x1068bab40] activating connection: mach=true listener=false peer=false name=com.apple.runningboard
+2026-11-16 13:44:59.142 Df INVIZENT[15438:4867a] [com.apple.runningboard:process] Hit the server for a process handle 1e13102400003c4e that resolved to: [app<com.linea.messenger.preview((null))>:15438]
+2026-11-16 13:44:59.143 Df INVIZENT[15438:4867a] [com.apple.KeyboardArbiter:Client] prepareToMoveKeyboard: set currentKeyboard:Y
+2026-11-16 13:44:59.144 Df INVIZENT[15438:4867a] [com.apple.KeyboardArbiter:Client] TX signalKeyboardChanged
+2026-11-16 13:44:59.145 Df INVIZENT[15438:4867a] [com.apple.UIKit:KeyboardArbiterClientLog] -[_UIRemoteKeyboards signalToProxyKeyboardChanged:onCompletion:]  Signaling keyboard changed <<<_UIKeyboardChangedInformation: 0x106ad8640>; appId (null) bundleId (null) animation fence <BKSAnimationFenceHandle:0x6000000249a0 -> <CAFenceHandle:0x6000029b1880 name=2 fence=1359000000007 usable=YES>>; position {{0, 549}, {402, 325}}; animated YES; on screen YES; tracking NO; resizing NO; local NO, dock state: Unknown, hasValidNotif: NO>; source canvas com.apple.frontboard.systemappservices/FBSceneManager:sceneID%3Acom.linea.messenger.preview-default; source display Main; source bundle com.linea.messenger.preview; host bundle (null); animation fence <BKSAnimationFenceHandle:0x6000000249a0 -> <CAFenceHandle:0x6000029b1880 name=2 fence=1359000000007 usable=YES>>; position {{0, 549}, {402, 325}} (with IAV same); floating 0; on screen YES;  intersectable YES; snapshot YES>
+2026-11-16 13:44:59.146 Df INVIZENT[15438:4867a] [com.apple.KeyboardArbiter:Client] TX setWindowContextID:1944340063 windowState:Enabled level:0.0
+    focusContext:<contextID:355040484 sceneID:com.linea.messenger.preview-default>
+2026-11-16 13:44:59.147 Df INVIZENT[15438:4867a] [com.apple.UIKit:UIKeyboardExtended] Requesting scene for autofill UI
+2026-11-16 13:44:59.149 Df INVIZENT[15438:4867a] [com.apple.UIKit:KeyboardVisualMode] Show keyboard with visual mode windowed (0)
+2026-11-16 13:44:59.150 Df INVIZENT[15438:4867a] [com.apple.UIKit:InputWindowController] Setting input views: <<UIInputViewSet: 0x60000376e340>; keyboard = [uninitialized]; assistant = <TUISystemInputAssistantView: 0x106892910; frame = (0 0; 0 0); hidden = YES; >; usesKeyClicks = NO;  >
+2026-11-16 13:44:59.185 Df INVIZENT[15438:4867a] [com.apple.UIKit:UIPeripheralHost] endPlacementForInputViewSet: <<UIInputViewSet: 0x60000376e340>; keyboard = <UIKeyboardAutomatic: 0x106acc830; frame = (0 0; 0 0); opaque = NO; layer = <CALayer: 0x600000d08540>>%; assistant = <TUISystemInputAssistantView: 0x106892910; frame = (0 0; 0 0); hidden = YES; >; usesKeyClicks = NO;  > windowScene: <_UIKeyboardWindowScene: 0x11313f110; role: _UIScreenBasedSceneSession; persistentIdentifier: 963F5412-957D-4F02-A78C-975A834AA770; activationState: UISceneActivationStateForegroundActive>
+2026-11-16 13:44:59.185 Df INVIZENT[15438:4867a] [com.apple.UIKit:UIPeripheralHost] endPlacementForInputViewSet, returning -> <UIInputViewSetPlacementOnScreen>
+2026-11-16 13:44:59.186 Df INVIZENT[15438:4867a] [com.apple.UIKit:InputWindowController] Moving from placement: <UITrackingElementPlacementInitialPosition> to placement: <UIInputViewSetPlacementOnScreen> (currentPlacement: <UITrackingElementPlacementInitialPosition>)
+2026-11-16 13:44:59.187 Df INVIZENT[15438:4867a] [com.apple.UIKit:InputWindowController] Change from input view set: <<UIInputViewSet: 0x6000037758c0>; (empty)>
+2026-11-16 13:44:59.187 Df INVIZENT[15438:4867a] [com.apple.UIKit:InputWindowController] Change to input view set: <<UIInputViewSet: 0x60000376e340>; keyboard = <UIKeyboardAutomatic: 0x106acc830; frame = (0 0; 0 0); opaque = NO; layer = <CALayer: 0x600000d08540>>%; assistant = <TUISystemInputAssistantView: 0x106892910; frame = (0 0; 0 0); hidden = YES; >; usesKeyClicks = NO;  >
+2026-11-16 13:44:59.210 Df INVIZENT[15438:4867a] [com.apple.TextInputUI:DynamicKeyplaneView] Setting dynamic keyplane: Dynamic-QWERTY-British-Small_Small-Letters-Small-Display
+2026-11-16 13:44:59.382 A  INVIZENT[15438:491a3] (RunningBoardServices) didChangeInheritances
+2026-11-16 13:44:59.735 Df INVIZENT[15438:4867a] [com.apple.UIKit:UIPeripheralHost] endPlacementForInputViewSet: <<UIInputViewSet: 0x60000376e340>; keyboard = <UIKeyboardAutomatic: 0x106acc830; frame = (0 0; 0 0); opaque = NO; layer = <CALayer: 0x600000d08540>>%; assistant = <TUISystemInputAssistantView: 0x106892910; frame = (0 0; 0 0); hidden = YES; >; usesKeyClicks = NO;  > windowScene: <_UIKeyboardWindowScene: 0x11313f110; role: _UIScreenBasedSceneSession; persistentIdentifier: 963F5412-957D-4F02-A78C-975A834AA770; activationState: UISceneActivationStateForegroundActive>
+2026-11-16 13:44:59.736 Df INVIZENT[15438:4867a] [com.apple.UIKit:UIPeripheralHost] endPlacementForInputViewSet, returning -> <UIInputViewSetPlacementOnScreen>
+2026-11-16 13:44:59.739 Df INVIZENT[15438:4867a] [com.apple.UIKit:UIPeripheralHost] endPlacementForInputViewSet: <<UIInputViewSet: 0x60000376e340>; keyboard = <UIKeyboardAutomatic: 0x106acc830; frame = (0 0; 0 0); opaque = NO; layer = <CALayer: 0x600000d08540>>%; assistant = <TUISystemInputAssistantView: 0x106892910; frame = (0 0; 0 0); hidden = YES; >; usesKeyClicks = NO;  > windowScene: <_UIKeyboardWindowScene: 0x11313f110; role: _UIScreenBasedSceneSession; persistentIdentifier: 963F5412-957D-4F02-A78C-975A834AA770; activationState: UISceneActivationStateForegroundActive>
+2026-11-16 13:44:59.739 Df INVIZENT[15438:4867a] [com.apple.UIKit:UIPeripheralHost] endPlacementForInputViewSet, returning -> <UIInputViewSetPlacementOnScreen>
+2026-11-16 13:44:59.744 Df INVIZENT[15438:4867a] [com.apple.UIKit:UIPeripheralHost] endPlacementForInputViewSet: <<UIInputViewSet: 0x60000376e340>; keyboard = <UIKeyboardAutomatic: 0x106acc830; frame = (0 0; 0 0); opaque = NO; layer = <CALayer: 0x600000d08540>>%; assistant = <TUISystemInputAssistantView: 0x106892910; frame = (0 0; 0 0); hidden = YES; >; usesKeyClicks = NO;  > windowScene: <_UIKeyboardWindowScene: 0x11313f110; role: _UIScreenBasedSceneSession; persistentIdentifier: 963F5412-957D-4F02-A78C-975A834AA770; activationState: UISceneActivationStateForegroundActive>
+2026-11-16 13:44:59.744 Df INVIZENT[15438:4867a] [com.apple.UIKit:UIPeripheralHost] endPlacementForInputViewSet, returning -> <UIInputViewSetPlacementOnScreen>
+2026-11-16 13:44:59.745 Df INVIZENT[15438:4867a] [com.apple.UIKit:UIPeripheralHost] endPlacementForInputViewSet: <<UIInputViewSet: 0x60000376e340>; keyboard = <UIKeyboardAutomatic: 0x106acc830; frame = (0 0; 0 0); opaque = NO; layer = <CALayer: 0x600000d08540>>%; assistant = <TUISystemInputAssistantView: 0x106892910; frame = (0 0; 0 0); hidden = YES; >; usesKeyClicks = NO;  > windowScene: <_UIKeyboardWindowScene: 0x11313f110; role: _UIScreenBasedSceneSession; persistentIdentifier: 963F5412-957D-4F02-A78C-975A834AA770; activationState: UISceneActivationStateForegroundActive>
+2026-11-16 13:44:59.745 Df INVIZENT[15438:4867a] [com.apple.UIKit:UIPeripheralHost] endPlacementForInputViewSet, returning -> <UIInputViewSetPlacementOnScreen>
+2026-11-16 13:44:59.774 Df INVIZENT[15438:4867a] [com.apple.UIKit:UIPeripheralHost] endPlacementForInputViewSet: <<UIInputViewSet: 0x60000376e340>; keyboard = <UIKeyboardAutomatic: 0x106acc830; frame = (0 0; 0 0); opaque = NO; layer = <CALayer: 0x600000d08540>>%; assistant = <TUISystemInputAssistantView: 0x106892910; frame = (0 0; 0 0); hidden = YES; >; usesKeyClicks = NO;  > windowScene: <_UIKeyboardWindowScene: 0x11313f110; role: _UIScreenBasedSceneSession; persistentIdentifier: 963F5412-957D-4F02-A78C-975A834AA770; activationState: UISceneActivationStateForegroundActive>
+2026-11-16 13:44:59.775 Df INVIZENT[15438:4867a] [com.apple.UIKit:UIPeripheralHost] endPlacementForInputViewSet, returning -> <UIInputViewSetPlacementOnScreen>
+2026-11-16 13:44:59.776 Df INVIZENT[15438:4867a] [com.apple.UIKit:UIPeripheralHost] endPlacementForInputViewSet: <<UIInputViewSet: 0x60000376e340>; keyboard = <UIKeyboardAutomatic: 0x106acc830; frame = (0 0; 0 0); opaque = NO; layer = <CALayer: 0x600000d08540>>%; assistant = <TUISystemInputAssistantView: 0x106892910; frame = (0 0; 0 0); hidden = YES; >; usesKeyClicks = NO;  > windowScene: <_UIKeyboardWindowScene: 0x11313f110; role: _UIScreenBasedSceneSession; persistentIdentifier: 963F5412-957D-4F02-A78C-975A834AA770; activationState: UISceneActivationStateForegroundActive>
+2026-11-16 13:44:59.777 Df INVIZENT[15438:4867a] [com.apple.UIKit:UIPeripheralHost] endPlacementForInputViewSet, returning -> <UIInputViewSetPlacementOnScreen>
+2026-11-16 13:44:59.778 Df INVIZENT[15438:4867a] [com.apple.UIKit:UIPeripheralHost] endPlacementForInputViewSet: <<UIInputViewSet: 0x60000376e340>; keyboard = <UIKeyboardAutomatic: 0x106acc830; frame = (0 0; 0 0); opaque = NO; layer = <CALayer: 0x600000d08540>>%; assistant = <TUISystemInputAssistantView: 0x106892910; frame = (0 0; 0 0); hidden = YES; >; usesKeyClicks = NO;  > windowScene: <_UIKeyboardWindowScene: 0x11313f110; role: _UIScreenBasedSceneSession; persistentIdentifier: 963F5412-957D-4F02-A78C-975A834AA770; activationState: UISceneActivationStateForegroundActive>
+2026-11-16 13:44:59.778 Df INVIZENT[15438:4867a] [com.apple.UIKit:UIPeripheralHost] endPlacementForInputViewSet, returning -> <UIInputViewSetPlacementOnScreen>
+2026-11-16 13:44:59.779 Df INVIZENT[15438:4867a] [com.apple.UIKit:UIPeripheralHost] endPlacementForInputViewSet: <<UIInputViewSet: 0x60000376e340>; keyboard = <UIKeyboardAutomatic: 0x106acc830; frame = (0 0; 0 0); opaque = NO; layer = <CALayer: 0x600000d08540>>%; assistant = <TUISystemInputAssistantView: 0x106892910; frame = (0 0; 0 0); hidden = YES; >; usesKeyClicks = NO;  > windowScene: <_UIKeyboardWindowScene: 0x11313f110; role: _UIScreenBasedSceneSession; persistentIdentifier: 963F5412-957D-4F02-A78C-975A834AA770; activationState: UISceneActivationStateForegroundActive>
+2026-11-16 13:44:59.780 Df INVIZENT[15438:4867a] [com.apple.UIKit:UIPeripheralHost] endPlacementForInputViewSet, returning -> <UIInputViewSetPlacementOnScreen>
+2026-11-16 13:44:59.837 Df INVIZENT[15438:4867a] [com.apple.UIKit:InputWindowController] moveFromPlacement, updated placements from: <UITrackingElementPlacementInitialPosition>, to: <UIInputViewSetPlacementOnScreen>
+2026-11-16 13:44:59.839 Df INVIZENT[15438:4867a] [com.apple.UIKit:InputWindowController] updatePlacementWithPlacement: <UIInputViewSetPlacementOnScreen>
+2026-11-16 13:44:59.840 Df INVIZENT[15438:4867a] [com.apple.UIKit:UIPeripheralHost] endPlacementForInputViewSet: <<UIInputViewSet: 0x60000376e340>; keyboard = <UIKeyboardAutomatic: 0x106acc830; frame = (0 0; 402 233); opaque = NO; layer = <CALayer: 0x600000d08540>>%; assistant = <TUISystemInputAssistantView: 0x106892910; frame = (0 0; 402 0); hidden = YES; >; usesKeyClicks = NO;  > windowScene: <_UIKeyboardWindowScene: 0x11313f110; role: _UIScreenBasedSceneSession; persistentIdentifier: 963F5412-957D-4F02-A78C-975A834AA770; activationState: UISceneActivationStateForegroundActive>
+2026-11-16 13:44:59.840 Df INVIZENT[15438:4867a] [com.apple.UIKit:UIPeripheralHost] endPlacementForInputViewSet, returning -> <UIInputViewSetPlacementOnScreen>
+2026-11-16 13:44:59.841 Df INVIZENT[15438:4867a] [com.apple.UIKit:UIPeripheralHost] endPlacementForInputViewSet: <<UIInputViewSet: 0x60000376e340>; keyboard = <UIKeyboardAutomatic: 0x106acc830; frame = (0 0; 402 233); opaque = NO; layer = <CALayer: 0x600000d08540>>%; assistant = <TUISystemInputAssistantView: 0x106892910; frame = (0 0; 402 0); hidden = YES; >; usesKeyClicks = NO;  > windowScene: <_UIKeyboardWindowScene: 0x11313f110; role: _UIScreenBasedSceneSession; persistentIdentifier: 963F5412-957D-4F02-A78C-975A834AA770; activationState: UISceneActivationStateForegroundActive>
+2026-11-16 13:44:59.842 Df INVIZENT[15438:4867a] [com.apple.UIKit:UIPeripheralHost] endPlacementForInputViewSet, returning -> <UIInputViewSetPlacementOnScreen>
+2026-11-16 13:44:59.843 Df INVIZENT[15438:4867a] [com.apple.UIKit:UIPeripheralHost] endPlacementForInputViewSet: <<UIInputViewSet: 0x60000376e340>; keyboard = <UIKeyboardAutomatic: 0x106acc830; frame = (0 0; 402 233); opaque = NO; layer = <CALayer: 0x600000d08540>>%; assistant = <TUISystemInputAssistantView: 0x106892910; frame = (0 0; 402 0); hidden = YES; >; usesKeyClicks = NO;  > windowScene: <_UIKeyboardWindowScene: 0x11313f110; role: _UIScreenBasedSceneSession; persistentIdentifier: 963F5412-957D-4F02-A78C-975A834AA770; activationState: UISceneActivationStateForegroundActive>
+2026-11-16 13:44:59.843 Df INVIZENT[15438:4867a] [com.apple.UIKit:UIPeripheralHost] endPlacementForInputViewSet, returning -> <UIInputViewSetPlacementOnScreen>
+2026-11-16 13:44:59.844 Df INVIZENT[15438:4867a] [com.apple.UIKit:UIPeripheralHost] endPlacementForInputViewSet: <<UIInputViewSet: 0x60000376e340>; keyboard = <UIKeyboardAutomatic: 0x106acc830; frame = (0 0; 402 233); opaque = NO; layer = <CALayer: 0x600000d08540>>%; assistant = <TUISystemInputAssistantView: 0x106892910; frame = (0 0; 402 0); hidden = YES; >; usesKeyClicks = NO;  > windowScene: <_UIKeyboardWindowScene: 0x11313f110; role: _UIScreenBasedSceneSession; persistentIdentifier: 963F5412-957D-4F02-A78C-975A834AA770; activationState: UISceneActivationStateForegroundActive>
+2026-11-16 13:44:59.844 Df INVIZENT[15438:4867a] [com.apple.UIKit:UIPeripheralHost] endPlacementForInputViewSet, returning -> <UIInputViewSetPlacementOnScreen>
+2026-11-16 13:44:59.847 Df INVIZENT[15438:4867a] [com.apple.UIKit:KeyboardArbiterClientLog] -[_UIRemoteKeyboards prepareToMoveKeyboard:withIAV:isIAVRelevant:showing:notifyRemote:forScene:] position: {{0, 0}, {402, 308}} visible: 1; notifyRemote: 0; isMinimized: NO
+2026-11-16 13:44:59.848 Df INVIZENT[15438:4867a] [com.apple.KeyboardArbiter:Client] prepareToMoveKeyboard: set currentKeyboard:Y
+2026-11-16 13:44:59.848 Df INVIZENT[15438:4867a] [com.apple.KeyboardArbiter:Client] TX signalKeyboardChanged
+2026-11-16 13:44:59.849 Df INVIZENT[15438:4867a] [com.apple.UIKit:KeyboardArbiterClientLog] -[_UIRemoteKeyboards signalToProxyKeyboardChanged:onCompletion:]  Signaling keyboard changed <<<_UIKeyboardChangedInformation: 0x106ae8050>; appId (null) bundleId (null) animation fence <BKSAnimationFenceHandle:0x60000001ce60 -> <CAFenceHandle:0x6000029adc00 name=4 fence=1359000000007 usable=YES>>; position {{0, 566}, {402, 308}}; animated YES; on screen YES; tracking NO; resizing NO; local NO, dock state: Unknown, hasValidNotif: NO>; source canvas com.apple.frontboard.systemappservices/FBSceneManager:sceneID%3Acom.linea.messenger.preview-default; source display Main; source bundle com.linea.messenger.preview; host bundle (null); animation fence <BKSAnimationFenceHandle:0x60000001ce60 -> <CAFenceHandle:0x6000029adc00 name=4 fence=1359000000007 usable=YES>>; position {{0, 566}, {402, 308}} (with IAV same); floating 0; on screen YES;  intersectable YES; snapshot YES>
+2026-11-16 13:45:00.110 Df INVIZENT[15438:4867a] [com.apple.UIKit:InputWindowController] Tracking provider: moveFromPlacement: <UITrackingElementPlacementInitialPosition> toPlacement: <UIInputViewSetPlacementOnScreen> update to: {{0, 566}, {402, 308}}
+2026-11-16 13:45:00.111 Df INVIZENT[15438:4867a] [com.apple.UIKit:KeyboardSceneDelegate] KeyboardTrackingCoordinator: Creating tracking provider for <_UIKeyboardWindowScene: 0x11313f110; role: _UIScreenBasedSceneSession; persistentIdentifier: 963F5412-957D-4F02-A78C-975A834AA770; activationState: UISceneActivationStateForegroundActive>
+2026-11-16 13:45:00.111 Df INVIZENT[15438:4867a] [com.apple.TextInputUI:KeyboardTrackingCoordinator] Updating tracking clients for start <TUIKeyboardTrackingCoordinator:0x10688e050 state=<TUIKeyboardState: 0x60000031eda0 State: onscreen with input view; is docked>; frame={{0, 566}, {402, 308}}; animation=<TUIKeyboardAnimationInfo: 0x600001848440, duration: 0.38, from local keyboard, is not rotating, should animate, type: 0, notificationInfo: {
+    UIKeyboardAnimationCurveUserInfoKey = 7;
+    UIKeyboardAnimationDurationUserInfoKey = "0.3833";
+    UIKeyboardBoundsUserInfoKey = "NSRect: {{0, 0}, {402, 308}}";
+    UIKeyboardCenterBeginUserInfoKey = "NSPoint: {201, 874}";
+    UIKeyboardCenterEndUserInfoKey = "NSPoint: {201, 720}";
+    UIKeyboardFrameBeginUserInfoKey = "NSRect: {{0, 874}, {402, 0}}";
+    UIKeyboardFrameEndUserInfoKey = "NSRect: {{0, 566}, {402, 308}}";
+    UIKeyboardIsLocalUserInfoKey = 1;
+}notificationsDebug: >>
+2026-11-16 13:45:00.112 Df INVIZENT[15438:4867a] [com.apple.UIKit:KeyboardLayoutGuide] changeSizingConstants: size is changing [not transitioning] to {402, 308} [previous size: {402, 34}]
+2026-11-16 13:45:00.113 Df INVIZENT[15438:4867a] [com.apple.UIKit:KeyboardLayoutGuide] changeSizingConstants: size is changing [not transitioning] to {402, 308} [previous size: {402, 0}]
+2026-11-16 13:45:00.120 Df INVIZENT[15438:4867a] [com.apple.UIKit:TrackingElementWindowController] Setting tracking element input views: <<UIInputViewSet: 0x60000376e400>; keyboard = [uninitialized]; usesKeyClicks = NO;  >
+2026-11-16 13:45:00.121 Df INVIZENT[15438:4867a] [com.apple.UIKit:UIPeripheralHost] endPlacementForInputViewSet: <<UIInputViewSet: 0x60000376e400>; keyboard = <UIKeyboardAutomatic: 0x106acc830; frame = (0 0; 402 233); opaque = NO; layer = <CALayer: 0x600000d08540>>%; usesKeyClicks = NO;  > windowScene: <UIWindowScene: 0x106b1c8e0; role: UIWindowSceneSessionRoleApplication; persistentIdentifier: ED211AAB-5EEE-49D2-A3D9-612E64EC1AD0; activationState: UISceneActivationStateForegroundActive>
+2026-11-16 13:45:00.123 Df INVIZENT[15438:4867a] [com.apple.UIKit:UIPeripheralHost] endPlacementForInputViewSet, returning -> <UIInputViewSetPlacementOnScreen>
+2026-11-16 13:45:00.123 Df INVIZENT[15438:4867a] [com.apple.UIKit:TrackingElementWindowController] Moving from placement: <UITrackingElementPlacementInitialPosition> to placement: <UIInputViewSetPlacementOnScreen> (currentPlacement: <UITrackingElementPlacementInitialPosition>)
+2026-11-16 13:45:00.123 Df INVIZENT[15438:4867a] [com.apple.UIKit:TrackingElementWindowController] Change from input view set: (null)
+2026-11-16 13:45:00.123 Df INVIZENT[15438:4867a] [com.apple.UIKit:TrackingElementWindowController] Change to input view set: <<UIInputViewSet: 0x60000376e400>; keyboard = <UIKeyboardAutomatic: 0x106acc830; frame = (0 0; 402 233); opaque = NO; layer = <CALayer: 0x600000d08540>>%; usesKeyClicks = NO;  >
+2026-11-16 13:45:00.124 Df INVIZENT[15438:4867a] [com.apple.UIKit:KeyboardArbiterClientLog] -[_UIRemoteKeyboardPlaceholderView refreshPlaceholder]  refreshPlaceholder: size={402, 308} [previous size={402, 0}]
+2026-11-16 13:45:00.125 Df INVIZENT[15438:4867a] [com.apple.UIKit:UIPeripheralHost] endPlacementForInputViewSet: <<UIInputViewSet: 0x60000376e400>; keyboard = <UIKeyboardAutomatic: 0x106acc830; frame = (0 0; 402 233); opaque = NO; layer = <CALayer: 0x600000d08540>>%; usesKeyClicks = NO;  > windowScene: <UIWindowScene: 0x106b1c8e0; role: UIWindowSceneSessionRoleApplication; persistentIdentifier: ED211AAB-5EEE-49D2-A3D9-612E64EC1AD0; activationState: UISceneActivationStateForegroundActive>
+2026-11-16 13:45:00.125 Df INVIZENT[15438:4867a] [com.apple.UIKit:UIPeripheralHost] endPlacementForInputViewSet, returning -> <UIInputViewSetPlacementOnScreen>
+2026-11-16 13:45:00.174 Df INVIZENT[15438:4867a] [com.apple.UIKit:TrackingElementWindowController] updatePlacementWithPlacement: <UIInputViewSetPlacementOnScreen>
+2026-11-16 13:45:00.178 Df INVIZENT[15438:4867a] [com.apple.TextInputUI:KeyboardTrackingCoordinator] Posted notification willShow with {
+    UIKeyboardAnimationCurveUserInfoKey = 7;
+    UIKeyboardAnimationDurationUserInfoKey = "0.3833";
+    UIKeyboardBoundsUserInfoKey = "NSRect: {{0, 0}, {402, 308}}";
+    UIKeyboardCenterBeginUserInfoKey = "NSPoint: {201, 874}";
+    UIKeyboardCenterEndUserInfoKey = "NSPoint: {201, 720}";
+    UIKeyboardFrameBeginUserInfoKey = "NSRect: {{0, 874}, {402, 0}}";
+    UIKeyboardFrameEndUserInfoKey = "NSRect: {{0, 566}, {402, 308}}";
+    UIKeyboardIsLocalUserInfoKey = 1;
+} (null)
+2026-11-16 13:45:00.180 Df INVIZENT[15438:4867a] [com.apple.UIKit:UIPeripheralHost] endPlacementForInputViewSet: <<UIInputViewSet: 0x600003774fc0>; (empty)> windowScene: <UIWindowScene: 0x106b1c8e0; role: UIWindowSceneSessionRoleApplication; persistentIdentifier: ED211AAB-5EEE-49D2-A3D9-612E64EC1AD0; activationState: UISceneActivationStateForegroundActive>
+2026-11-16 13:45:00.181 Df INVIZENT[15438:4867a] [com.apple.UIKit:KeyboardArbiterClientLog] -[_UIRemoteKeyboards prepareToMoveKeyboard:withIAV:isIAVRelevant:showing:notifyRemote:forScene:] position: {{0, 0}, {0, 0}} visible: 0; notifyRemote: 1; isMinimized: NO
+2026-11-16 13:45:00.182 Df INVIZENT[15438:4867a] [com.apple.KeyboardArbiter:Client] prepareToMoveKeyboard: set currentKeyboard:N
+2026-11-16 13:45:00.183 Df INVIZENT[15438:4867a] [com.apple.KeyboardArbiter:Client] TX signalKeyboardChanged
+2026-11-16 13:45:00.183 Df INVIZENT[15438:4867a] [com.apple.UIKit:KeyboardArbiterClientLog] -[_UIRemoteKeyboards signalToProxyKeyboardChanged:onCompletion:]  Signaling keyboard changed <<<_UIKeyboardChangedInformation: 0x1069dba10>; appId (null) bundleId (null) animation fence <BKSAnimationFenceHandle:0x600000021000 -> <CAFenceHandle:0x600002999dc0 name=5 fence=1359000000007 usable=YES>>; position {{0, 0}, {0, 0}}; animated YES; on screen NO; tracking NO; resizing NO; local NO, dock state: Unknown, hasValidNotif: NO>; source canvas com.apple.frontboard.systemappservices/FBSceneManager:sceneID%3Acom.linea.messenger.preview-default; source display Main; source bundle com.linea.messenger.preview; host bundle (null); animation fence <BKSAnimationFenceHandle:0x600000021000 -> <CAFenceHandle:0x600002999dc0 name=5 fence=1359000000007 usable=YES>>; position {{0, 0}, {0, 0}} (with IAV same); floating 0; on screen NO;  intersectable YES; snapshot YES>
+2026-11-16 13:45:00.184 Df INVIZENT[15438:4867a] [com.apple.UIKit:KeyboardVisualMode] Show keyboard with visual mode windowed (0)
+2026-11-16 13:45:00.184 Df INVIZENT[15438:4867a] [com.apple.UIKit:InputWindowController] Setting input views: <<UIInputViewSet: 0x60000377e280>; (empty)>
+2026-11-16 13:45:00.185 Df INVIZENT[15438:4867a] [com.apple.UIKit:UIPeripheralHost] endPlacementForInputViewSet: <<UIInputViewSet: 0x60000376e340>; keyboard = <UIKeyboardAutomatic: 0x106acc830; frame = (0 0; 402 233); opaque = NO; layer = <CALayer: 0x600000d08540>>%; assistant = <TUISystemInputAssistantView: 0x106892910; frame = (0 0; 402 0); hidden = YES; >; usesKeyClicks = NO;  > windowScene: <_UIKeyboardWindowScene: 0x11313f110; role: _UIScreenBasedSceneSession; persistentIdentifier: 963F5412-957D-4F02-A78C-975A834AA770; activationState: UISceneActivationStateForegroundActive>
+2026-11-16 13:45:00.185 Df INVIZENT[15438:4867a] [com.apple.UIKit:UIPeripheralHost] endPlacementForInputViewSet, returning -> <UIInputViewSetPlacementOnScreen>
+2026-11-16 13:45:00.187 Df INVIZENT[15438:4867a] [com.apple.UIKit:UIPeripheralHost] endPlacementForInputViewSet: <<UIInputViewSet: 0x60000376e340>; keyboard = <UIKeyboardAutomatic: 0x106acc830; frame = (0 0; 402 233); opaque = NO; layer = <CALayer: 0x600000d08540>>%; assistant = <TUISystemInputAssistantView: 0x106892910; frame = (0 0; 402 0); hidden = YES; >; usesKeyClicks = NO;  > windowScene: <_UIKeyboardWindowScene: 0x11313f110; role: _UIScreenBasedSceneSession; persistentIdentifier: 963F5412-957D-4F02-A78C-975A834AA770; activationState: UISceneActivationStateForegroundActive>
+2026-11-16 13:45:00.188 Df INVIZENT[15438:4867a] [com.apple.UIKit:UIPeripheralHost] endPlacementForInputViewSet, returning -> <UIInputViewSetPlacementOnScreen>
+2026-11-16 13:45:00.189 Df INVIZENT[15438:4867a] [com.apple.UIKit:UIPeripheralHost] endPlacementForInputViewSet: <<UIInputViewSet: 0x60000376e340>; keyboard = <UIKeyboardAutomatic: 0x106acc830; frame = (0 0; 402 233); opaque = NO; layer = <CALayer: 0x600000d08540>>%; assistant = <TUISystemInputAssistantView: 0x106892910; frame = (0 0; 402 0); hidden = YES; >; usesKeyClicks = NO;  > windowScene: <_UIKeyboardWindowScene: 0x11313f110; role: _UIScreenBasedSceneSession; persistentIdentifier: 963F5412-957D-4F02-A78C-975A834AA770; activationState: UISceneActivationStateForegroundActive>
+2026-11-16 13:45:00.189 Df INVIZENT[15438:4867a] [com.apple.UIKit:UIPeripheralHost] endPlacementForInputViewSet, returning -> <UIInputViewSetPlacementOnScreen>
+2026-11-16 13:45:00.190 Df INVIZENT[15438:4867a] [com.apple.UIKit:UIPeripheralHost] endPlacementForInputViewSet: <<UIInputViewSet: 0x60000376e340>; keyboard = <UIKeyboardAutomatic: 0x106acc830; frame = (0 0; 402 233); opaque = NO; layer = <CALayer: 0x600000d08540>>%; assistant = <TUISystemInputAssistantView: 0x106892910; frame = (0 0; 402 0); hidden = YES; >; usesKeyClicks = NO;  > windowScene: <_UIKeyboardWindowScene: 0x11313f110; role: _UIScreenBasedSceneSession; persistentIdentifier: 963F5412-957D-4F02-A78C-975A834AA770; activationState: UISceneActivationStateForegroundActive>
+2026-11-16 13:45:00.191 Df INVIZENT[15438:4867a] [com.apple.UIKit:UIPeripheralHost] endPlacementForInputViewSet, returning -> <UIInputViewSetPlacementOnScreen>
+2026-11-16 13:45:00.192 Df INVIZENT[15438:4867a] [com.apple.UIKit:UIPeripheralHost] endPlacementForInputViewSet: <<UIInputViewSet: 0x60000377e280>; (empty)> windowScene: <_UIKeyboardWindowScene: 0x11313f110; role: _UIScreenBasedSceneSession; persistentIdentifier: 963F5412-957D-4F02-A78C-975A834AA770; activationState: UISceneActivationStateForegroundActive>
+2026-11-16 13:45:00.236 Df INVIZENT[15438:4867a] [com.apple.UIKit:InputWindowController] Moving from placement: <UIInputViewSetPlacementOnScreen> to placement: <UIInputViewSetPlacementOffScreenDown> (currentPlacement: <UIInputViewSetPlacementOnScreen>)
+2026-11-16 13:45:00.236 Df INVIZENT[15438:4867a] [com.apple.UIKit:InputWindowController] Merging transitions: <UIInputViewPlacementTransition: 0x600002162170> into <UIInputViewPlacementTransition: 0x600002188500>
+2026-11-16 13:45:00.246 Df INVIZENT[15438:4867a] [com.apple.UIKit:InputWindowController] Change from input view set: <<UIInputViewSet: 0x60000376e340>; keyboard = <UIKeyboardAutomatic: 0x106acc830; frame = (0 0; 402 233); opaque = NO; layer = <CALayer: 0x600000d08540>>%; assistant = <TUISystemInputAssistantView: 0x106892910; frame = (0 0; 402 0); hidden = YES; >; usesKeyClicks = NO;  >
+2026-11-16 13:45:00.247 Df INVIZENT[15438:4867a] [com.apple.UIKit:InputWindowController] Change to input view set: <<UIInputViewSet: 0x60000377e280>; (empty)>
+2026-11-16 13:45:00.285 Df INVIZENT[15438:4867a] [com.apple.UIKit:InputWindowController] Tracking provider: viewDidLayoutSubviews update to {{0, 874}, {402, 0}}
+2026-11-16 13:45:00.286 Df INVIZENT[15438:4867a] [com.apple.TextInputUI:KeyboardTrackingCoordinator] Updating tracking clients for start <TUIKeyboardTrackingCoordinator:0x10688e050 state=<TUIKeyboardState: 0x6000003265e0 State: onscreen with input view; is docked>; frame={{0, 874}, {402, 0}}; animation=<TUIKeyboardAnimationInfo: 0x600001854900, duration: 0.38, from local keyboard, is not rotating, should not animate, type: 0, notificationInfo: {
+    UIKeyboardAnimationCurveUserInfoKey = 7;
+    UIKeyboardAnimationDurationUserInfoKey = 0;
+    UIKeyboardBoundsUserInfoKey = "NSRect: {{0, 0}, {402, 0}}";
+    UIKeyboardCenterBeginUserInfoKey = "NSPoint: {201, 720}";
+    UIKeyboardCenterEndUserInfoKey = "NSPoint: {201, 874}";
+    UIKeyboardFrameBeginUserInfoKey = "NSRect: {{0, 566}, {402, 308}}";
+    UIKeyboardFrameEndUserInfoKey = "NSRect: {{0, 874}, {402, 0}}";
+    UIKeyboardIsLocalUserInfoKey = 1;
+}notificationsDebug: >>
+2026-11-16 13:45:00.288 Df INVIZENT[15438:4867a] [com.apple.UIKit:KeyboardLayoutGuide] changeSizingConstants: size is changing [not transitioning] to {402, 0} [previous size: {402, 308}]
+2026-11-16 13:45:00.288 Df INVIZENT[15438:4867a] [com.apple.UIKit:KeyboardLayoutGuide] changeSizingConstants: size is changing [not transitioning] to {402, 0} [previous size: {402, 308}]
+2026-11-16 13:45:00.293 Df INVIZENT[15438:4867a] [com.apple.UIKit:InputWindowController] moveFromPlacement, updated placements from: <UITrackingElementPlacementInitialPosition>, to: <UIInputViewSetPlacementOffScreenDown>
+2026-11-16 13:45:00.294 Df INVIZENT[15438:4867a] [com.apple.UIKit:InputWindowController] chainPlacementsIfNecessaryFrom, from: <UITrackingElementPlacementInitialPosition>, to: <UIInputViewSetPlacementOffScreenDown> transition: <UIInputViewPlacementTransition: 0x600002188500>
+2026-11-16 13:45:00.294 Df INVIZENT[15438:4867a] [com.apple.UIKit:InputWindowController] updatePlacementWithPlacement: <UIInputViewSetPlacementOffScreenDown>
+2026-11-16 13:45:00.296 Df INVIZENT[15438:4867a] [com.apple.UIKit:InputWindowController] Tracking provider: moveFromPlacement: <UITrackingElementPlacementInitialPosition> toPlacement: <UIInputViewSetPlacementOffScreenDown> update to: {{0, 874}, {402, 0}}
+2026-11-16 13:45:00.305 Df INVIZENT[15438:4867a] [com.apple.TextInputUI:KeyboardTrackingCoordinator] Updating tracking clients for start <TUIKeyboardTrackingCoordinator:0x10688e050 state=<TUIKeyboardState: 0x60000030a400 State: offscreen; is docked>; frame={{0, 874}, {402, 0}}; animation=<TUIKeyboardAnimationInfo: 0x600001851cc0, duration: 0.38, from local keyboard, is not rotating, should not animate, type: 0, notificationInfo: {
+    UIKeyboardAnimationCurveUserInfoKey = 7;
+    UIKeyboardAnimationDurationUserInfoKey = "0.3833";
+    UIKeyboardBoundsUserInfoKey = "NSRect: {{0, 0}, {402, 0}}";
+    UIKeyboardCenterBeginUserInfoKey = "NSPoint: {201, 720}";
+    UIKeyboardCenterEndUserInfoKey = "NSPoint: {201, 874}";
+    UIKeyboardFrameBeginUserInfoKey = "NSRect: {{0, 566}, {402, 308}}";
+    UIKeyboardFrameEndUserInfoKey = "NSRect: {{0, 874}, {402, 0}}";
+    UIKeyboardIsLocalUserInfoKey = 1;
+}notificationsDebug: >>
+2026-11-16 13:45:00.313 Df INVIZENT[15438:4867a] [com.apple.TextInputUI:KeyboardTrackingCoordinator] Posted notification didHide with {
+    UIKeyboardAnimationCurveUserInfoKey = 7;
+    UIKeyboardAnimationDurationUserInfoKey = "0.3833";
+    UIKeyboardBoundsUserInfoKey = "NSRect: {{0, 0}, {402, 0}}";
+    UIKeyboardCenterBeginUserInfoKey = "NSPoint: {201, 720}";
+    UIKeyboardCenterEndUserInfoKey = "NSPoint: {201, 874}";
+    UIKeyboardFrameBeginUserInfoKey = "NSRect: {{0, 566}, {402, 308}}";
+    UIKeyboardFrameEndUserInfoKey = "NSRect: {{0, 874}, {402, 0}}";
+    UIKeyboardIsLocalUserInfoKey = 1;
+} (null)
+2026-11-16 13:45:00.314 Df INVIZENT[15438:4867a] [com.apple.UIKit:TrackingElementWindowController] Setting tracking element input views: <<UIInputViewSet: 0x60000377e1c0>; (empty)>
+2026-11-16 13:45:00.315 Df INVIZENT[15438:4867a] [com.apple.UIKit:KeyboardArbiterClientLog] -[_UIRemoteKeyboardPlaceholderView refreshPlaceholder]  refreshPlaceholder: size={402, 0} [previous size={402, 308}]
+2026-11-16 13:45:00.315 Df INVIZENT[15438:4867a] [com.apple.UIKit:TrackingElementWindowController] Placeholder height changed from 308.0 to 0.0
+2026-11-16 13:45:00.315 Df INVIZENT[15438:4867a] [com.apple.UIKit:UIPeripheralHost] endPlacementForInputViewSet: <<UIInputViewSet: 0x60000377e1c0>; (empty)> windowScene: <UIWindowScene: 0x106b1c8e0; role: UIWindowSceneSessionRoleApplication; persistentIdentifier: ED211AAB-5EEE-49D2-A3D9-612E64EC1AD0; activationState: UISceneActivationStateForegroundActive>
+2026-11-16 13:45:00.322 Df INVIZENT[15438:4867a] [com.apple.UIKit:TrackingElementWindowController] Moving from placement: <UIInputViewSetPlacementOnScreen> to placement: <UIInputViewSetPlacementOffScreenDown> (currentPlacement: <UIInputViewSetPlacementOnScreen>)
+2026-11-16 13:45:00.323 Df INVIZENT[15438:4867a] [com.apple.UIKit:TrackingElementWindowController] Merging transitions: <UITrackingElementPlacementTransition: 0x600002998af0> into <UITrackingElementPlacementTransition: 0x6000029ab5d0>
+2026-11-16 13:45:00.352 Df INVIZENT[15438:4867a] [com.apple.TextInputUI:KeyboardTrackingCoordinator] Posted notification didShow with {
+    UIKeyboardAnimationCurveUserInfoKey = 7;
+    UIKeyboardAnimationDurationUserInfoKey = "0.3833";
+    UIKeyboardBoundsUserInfoKey = "NSRect: {{0, 0}, {402, 0}}";
+    UIKeyboardCenterBeginUserInfoKey = "NSPoint: {201, 720}";
+    UIKeyboardCenterEndUserInfoKey = "NSPoint: {201, 874}";
+    UIKeyboardFrameBeginUserInfoKey = "NSRect: {{0, 566}, {402, 308}}";
+    UIKeyboardFrameEndUserInfoKey = "NSRect: {{0, 874}, {402, 0}}";
+    UIKeyboardIsLocalUserInfoKey = 1;
+} (null)
+2026-11-16 13:45:00.354 Df INVIZENT[15438:4867a] [com.apple.UIKit:TrackingElementWindowController] updatePlacementWithPlacement: <UIInputViewSetPlacementOffScreenDown>
+2026-11-16 13:45:00.355 Df INVIZENT[15438:4867a] [com.apple.UIKit:TrackingElementWindowController] Tracking provider: moveFromPlacement: <UITrackingElementPlacementInitialPosition> toPlacement: <UIInputViewSetPlacementOffScreenDown> update to {{0, 874}, {402, 0}}
+2026-11-16 13:45:00.356 Df INVIZENT[15438:4867a] [com.apple.TextInputUI:KeyboardTrackingCoordinator] Updating tracking clients for start <TUIKeyboardTrackingCoordinator:0x10688e050 state=<TUIKeyboardState: 0x600000326940 State: offscreen; is docked>; frame={{0, 874}, {402, 0}}; animation=<TUIKeyboardAnimationInfo: 0x6000018557c0, duration: 0.00, from local keyboard, is not rotating, should not animate, type: 0, notificationInfo: {
+    UIKeyboardAnimationCurveUserInfoKey = 7;
+    UIKeyboardAnimationDurationUserInfoKey = 0;
+    UIKeyboardBoundsUserInfoKey = "NSRect: {{0, 0}, {402, 0}}";
+    UIKeyboardCenterBeginUserInfoKey = "NSPoint: {201, 1028}";
+    UIKeyboardCenterEndUserInfoKey = "NSPoint: {201, 874}";
+    UIKeyboardFrameBeginUserInfoKey = "NSRect: {{0, 874}, {402, 308}}";
+    UIKeyboardFrameEndUserInfoKey = "NSRect: {{0, 874}, {402, 0}}";
+    UIKeyboardIsLocalUserInfoKey = 1;
+}notificationsDebug: >>
+2026-11-16 13:45:00.522 Df INVIZENT[15438:4867a] [com.apple.TextInputUI:KeyboardTrackingCoordinator] Posted notification willHide with {
+    UIKeyboardAnimationCurveUserInfoKey = 7;
+    UIKeyboardAnimationDurationUserInfoKey = 0;
+    UIKeyboardBoundsUserInfoKey = "NSRect: {{0, 0}, {402, 0}}";
+    UIKeyboardCenterBeginUserInfoKey = "NSPoint: {201, 1028}";
+    UIKeyboardCenterEndUserInfoKey = "NSPoint: {201, 874}";
+    UIKeyboardFrameBeginUserInfoKey = "NSRect: {{0, 874}, {402, 308}}";
+    UIKeyboardFrameEndUserInfoKey = "NSRect: {{0, 874}, {402, 0}}";
+    UIKeyboardIsLocalUserInfoKey = 1;
+} (null)
+2026-11-16 13:45:00.524 Df INVIZENT[15438:4867a] [com.apple.KeyboardArbiter:Client] TX setWindowContextID:1944340063 windowState:Disabled level:0.0
+    focusContext:<contextID:355040484 sceneID:com.linea.messenger.preview-default>
+2026-11-16 13:45:00.528 Df INVIZENT[15438:4867a] [com.apple.UIKit:TrackingElementWindowController] Change from input view set: <<UIInputViewSet: 0x60000376e400>; keyboard = <UIKeyboardAutomatic: 0x106acc830; frame = (0 0; 402 233); opaque = NO; layer = <CALayer: 0x600000d08540>>%; usesKeyClicks = NO;  >
+2026-11-16 13:45:00.528 Df INVIZENT[15438:4867a] [com.apple.UIKit:TrackingElementWindowController] Change to input view set: <<UIInputViewSet: 0x60000377e1c0>; (empty)>
+2026-11-16 13:45:00.540 Df INVIZENT[15438:4867a] [com.apple.UIKit:UIPeripheralHost] endPlacementForInputViewSet: <<UIInputViewSet: 0x60000377e1c0>; (empty)> windowScene: <UIWindowScene: 0x106b1c8e0; role: UIWindowSceneSessionRoleApplication; persistentIdentifier: ED211AAB-5EEE-49D2-A3D9-612E64EC1AD0; activationState: UISceneActivationStateForegroundActive>
+2026-11-16 13:45:00.546 Df INVIZENT[15438:4867a] [com.apple.TextInputUI:KeyboardTrackingCoordinator] Posted notification didHide with {
+    UIKeyboardAnimationCurveUserInfoKey = 7;
+    UIKeyboardAnimationDurationUserInfoKey = 0;
+    UIKeyboardBoundsUserInfoKey = "NSRect: {{0, 0}, {402, 0}}";
+    UIKeyboardCenterBeginUserInfoKey = "NSPoint: {201, 1028}";
+    UIKeyboardCenterEndUserInfoKey = "NSPoint: {201, 874}";
+    UIKeyboardFrameBeginUserInfoKey = "NSRect: {{0, 874}, {402, 308}}";
+    UIKeyboardFrameEndUserInfoKey = "NSRect: {{0, 874}, {402, 0}}";
+    UIKeyboardIsLocalUserInfoKey = 1;
+} (null)
+2026-11-16 13:45:00.547 Df INVIZENT[15438:4867a] [com.apple.RemoteTextInput:RTILog] -[RTIInputSystemClient remoteTextInputSessionWithID:textSuggestionsChanged:]  Text input session suggestions changed. sessionID = (null)
+2026-11-16 13:45:00.555 A  INVIZENT[15438:4867a] (UIKitCore) send control actions
+2026-11-16 13:45:00.583 Df INVIZENT[15438:4867a] [com.apple.dt.xctest:Default] XCTPerformOnMainRunLoop[MT]: inside CFRunLoopPerform
+2026-11-16 13:45:00.583 Df INVIZENT[15438:4867a] [com.apple.dt.xctest:Default] XCTPerformOnMainRunLoop[MT]: MT responded in time (won the race to the busy flag)
+2026-11-16 13:45:00.583 Df INVIZENT[15438:4879d] [com.apple.dt.xctest:Default] XCTPerformOnMainRunLoop[not MT]: waiting 60.00s for work to complete
+2026-11-16 13:45:00.585 Df INVIZENT[15438:4867a] [com.apple.dt.xctest:Default] Got main window <AXUIElementRef 0x600000d292c0> {pid=15438} {uid=[ID:3 hash:0x106b403d0]}
+2026-11-16 13:45:00.586 Df INVIZENT[15438:4867a] [com.apple.dt.xctest:Default] Capturing hierarchy with attributes XC_kAXXCAttributeElementType, XC_kAXXCAttributeElementBaseType, XC_kAXXCAttributeParent, XC_kAXXCAttributeIdentifier, XC_kAXXCAttributeAutomationType, XC_kAXXCAttributeTraits
+2026-11-16 13:45:00.586 Df INVIZENT[15438:4867a] [com.apple.dt.xctest:Default] Capturing hierarchy with parameters {
+    attributes =     (
+        5003,
+        5004,
+        5002,
+        5019,
+        5058,
+        2004
+    );
+    maxArrayCount = 2147483647;
+    maxChildren = 2147483647;
+    maxDepth = 2147483647;
+    snapshotKeyHonorModalViews = 0;
+    traverseFromParentsToChildren = 1;
+}
+2026-11-16 13:45:00.587 Df INVIZENT[15438:4867a] [com.apple.dt.xctest:Default] Snapshot attributes 5003, 5004, 5002, 5019, 5058, 2004
+2026-11-16 13:45:00.604 Df INVIZENT[15438:4867a] [com.apple.dt.xctest:Default] Got snapshot for <AXUIElementRef 0x600000d08180> {pid=15438} {uid=[ID:1 hash:0x0]}
+2026-11-16 13:45:00.604 Df INVIZENT[15438:4867a] [com.apple.dt.xctest:Default] Got app orientation 0
+2026-11-16 13:45:00.604 Df INVIZENT[15438:4867a] [com.apple.dt.xctest:Default] Captured accessibility snapshot data in 0.02s
+2026-11-16 13:45:00.605 Df INVIZENT[15438:4879d] [com.apple.dt.xctest:Default] Found main window: Window
+2026-11-16 13:45:00.605 Df INVIZENT[15438:4879d] [com.apple.dt.xctest:Default] App orientation is 0 (not portrait) and UITextEffectsWindow window Window is not main window
+2026-11-16 13:45:00.606 Df INVIZENT[15438:4879d] [com.apple.dt.xctest:Default] Leaving frame unchanged for Window: either already correct or we can't detect it.
+2026-11-16 13:45:00.606 Df INVIZENT[15438:4879d] [com.apple.dt.xctest:Default] Query  found matching snapshots: {(
+    Application, pid: 15438
+)} (error: (null))
+2026-11-16 13:45:00.606 Df INVIZENT[15438:4879d] [com.apple.dt.xctest:Default] Replying to query  with results: <XCTElementQueryResults: 0x600000d54d50> (error: (null))
+2026-11-16 13:45:00.607 Df INVIZENT[15438:491c7] [com.apple.CFNetwork:Default] Initializing NSHTTPCookieStorage singleton
+2026-11-16 13:45:00.608 Df INVIZENT[15438:491c7] [com.apple.CFNetwork:Default] Initializing CFHTTPCookieStorage singleton
+2026-11-16 13:45:00.609 Df INVIZENT[15438:491c7] [com.apple.CFNetwork:Default] Creating default cookie storage with process/bundle identifier
+2026-11-16 13:45:00.614 Df INVIZENT[15438:491c7] [com.apple.CFNetwork:Default] Task <4B9F3AC4-A1D9-418B-AEB5-4AB4C25E984E>.<1> resuming, timeouts(0.0, 604800.0) qos(0x19) voucher((null)) activity(00000000-0000-0000-0000-000000000000)
+2026-11-16 13:45:00.615 A  INVIZENT[15438:491c7] (CoreFoundation) Loading Preferences From User Session CFPrefsD
+2026-11-16 13:45:00.621 Df INVIZENT[15438:4879d] [com.apple.FileURL:default] kExcludedFromBackupXattrName set on path: /Users/runner/Library/Developer/CoreSimulator/Devices/C15FAC2A-CB46-4F16-B882-3970BD44CFAD/data/Containers/Data/Application/F3C38705-6FA1-4389-B875-D5251EF6B3FC/Library/Caches/linea-photo
+2026-11-16 13:45:00.621 Df INVIZENT[15438:491a3] [com.apple.FileURL:default] kExcludedFromBackupXattrName set on path: /Users/runner/Library/Developer/CoreSimulator/Devices/C15FAC2A-CB46-4F16-B882-3970BD44CFAD/data/Containers/Data/Application/F3C38705-6FA1-4389-B875-D5251EF6B3FC/Library/Caches/linea-video
+2026-11-16 13:45:00.650 A  INVIZENT[15438:491cf] (RunningBoardServices) didChangeInheritances
+2026-11-16 13:45:00.696 Df INVIZENT[15438:491ce] [com.apple.CFNetwork:Default] Initializing AlternativeServices Storage singleton
+2026-11-16 13:45:00.697 Df INVIZENT[15438:491ce] [com.apple.FileURL:default] kExcludedFromBackupXattrName set on path: /Users/runner/Library/Developer/CoreSimulator/Devices/C15FAC2A-CB46-4F16-B882-3970BD44CFAD/data/Containers/Data/Application/F3C38705-6FA1-4389-B875-D5251EF6B3FC/Library/HTTPStorages/com.linea.messenger.preview
+2026-11-16 13:45:00.712 Df INVIZENT[15438:491ce] [com.apple.CFNetwork:Default] Connection 0: creating secure tcp or quic connection
+2026-11-16 13:45:00.720 Df INVIZENT[15438:491ce] [com.apple.CFNetwork:Default] Connection 1: enabling TLS
+2026-11-16 13:45:00.720 Df INVIZENT[15438:491ce] [com.apple.CFNetwork:Default] Connection 1: starting, TC(0x0)
+2026-11-16 13:45:00.722 Df INVIZENT[15438:491ce] [com.apple.network:connection] [C1 98FBDD87-7ACA-47CA-8599-7FE9EEA4D311 Hostname#4c9e204b:8443 quic-connection, url: https://localhost:8443/app/update, definite, attribution: developer, context: com.apple.CFNetwork.NSURLSession.{8F735180-939B-4975-A7D6-345FDD571053}{(null)}{Y}{2}{0x0} (private), proc: 61C98CE4-F3CA-3B0E-921E-E65C592A788A, delegated upid: 0] start
+2026-11-16 13:45:00.723 Df INVIZENT[15438:491ce] [com.apple.network:connection] [C1 Hostname#4c9e204b:8443 initial parent-flow ((null))] event: path:start @0.000s
+2026-11-16 13:45:00.726 Df INVIZENT[15438:491ce] [com.apple.network:connection] [C1 Hostname#4c9e204b:8443 waiting parent-flow (satisfied (Path is satisfied), interface: en0)] event: path:satisfied @0.003s, uuid: BA675CBC-EE4E-4C9F-98A9-06BE7CA4F5A6
+2026-11-16 13:45:00.727 Df INVIZENT[15438:491ce] [com.apple.network:connection] [C1 Hostname#4c9e204b:8443 in_progress parent-flow (satisfied (Path is satisfied), interface: en0)] event: flow:start_connect @0.004s
+2026-11-16 13:45:00.727 Df INVIZENT[15438:491ce] [com.apple.network:connection] nw_connection_report_state_with_handler_on_nw_queue [C1] reporting state preparing
+2026-11-16 13:45:00.729 Df INVIZENT[15438:491ce] [com.apple.network:connection] [C1 Hostname#4c9e204b:8443 in_progress parent-flow (satisfied (Path is satisfied), interface: en0)] event: flow:start_child @0.006s
+2026-11-16 13:45:00.729 Df INVIZENT[15438:491ce] [com.apple.network:connection] [C1.1 Hostname#4c9e204b:8443 initial path ((null))] event: path:start @0.006s
+2026-11-16 13:45:00.731 Df INVIZENT[15438:491ce] [com.apple.network:connection] [C1.1 Hostname#4c9e204b:8443 waiting path (satisfied (Path is satisfied), interface: en0)] event: path:satisfied @0.008s, uuid: BA675CBC-EE4E-4C9F-98A9-06BE7CA4F5A6
+2026-11-16 13:45:00.731 Df INVIZENT[15438:491ce] [com.apple.network:connection] [C1.1 Hostname#4c9e204b:8443 in_progress transform (satisfied (Path is satisfied), interface: en0)] event: transform:start @0.009s
+2026-11-16 13:45:00.806 Df INVIZENT[15438:491ce] [com.apple.network:connection] [C1.1.1 Hostname#4c9e204b:8443 initial path ((null))] event: path:start @0.084s
+2026-11-16 13:45:00.846 Df INVIZENT[15438:491ce] [com.apple.network:connection] [C1.1.1 Hostname#4c9e204b:8443 waiting path (satisfied (Path is satisfied), interface: en0)] event: path:satisfied @0.123s, uuid: D6FEEB21-D310-4573-938E-E6364D875E84
+2026-11-16 13:45:00.858 Df INVIZENT[15438:491ce] [com.apple.network:connection] [C1.1.1 Hostname#4c9e204b:8443 in_progress resolver (satisfied (Path is satisfied), interface: en0)] event: resolver:start_dns @0.135s
+2026-11-16 13:45:00.866 Df INVIZENT[15438:4889d] [com.apple.CFNetwork:Default] Garbage collection for alternative services
+2026-11-16 13:45:00.889 Df INVIZENT[15438:491ce] [com.apple.CFNetwork:Default] Task <4B9F3AC4-A1D9-418B-AEB5-4AB4C25E984E>.<1> setting up Connection 1
+2026-11-16 13:45:00.890 Df INVIZENT[15438:491ce] [com.apple.network:connection] nw_endpoint_resolver_update [C1.1.1 Hostname#4c9e204b:8443 in_progress resolver (satisfied (Path is satisfied), interface: en0)] Adding endpoint handler for IPv6#75e034e7.8443
+2026-11-16 13:45:00.890 Df INVIZENT[15438:491ce] [com.apple.network:connection] nw_endpoint_resolver_update [C1.1.1 Hostname#4c9e204b:8443 in_progress resolver (satisfied (Path is satisfied), interface: en0)] Adding endpoint handler for IPv4#4832423c:8443
+2026-11-16 13:45:00.890 Df INVIZENT[15438:491ce] [com.apple.network:connection] [C1.1.1 Hostname#4c9e204b:8443 in_progress resolver (satisfied (Path is satisfied), interface: en0)] event: resolver:receive_dns @0.168s
+2026-11-16 13:45:00.892 Df INVIZENT[15438:491ce] [com.apple.network:connection] [C1.1.1.1 IPv6#75e034e7.8443 initial path ((null))] event: path:start @0.170s
+2026-11-16 13:45:00.894 Df INVIZENT[15438:491ce] [com.apple.network:connection] [C1.1.1.1 IPv6#75e034e7.8443 waiting path (satisfied (Path is satisfied), interface: lo0)] event: path:satisfied @0.172s, uuid: EF22EA2C-4772-4FDB-8213-AEB13F3E587F
+2026-11-16 13:45:00.897 Df INVIZENT[15438:491ce] [com.apple.network:connection] [C1.1.1.1 IPv6#75e034e7.8443 in_progress socket-flow (satisfied (Path is satisfied), interface: lo0)] event: flow:start_connect @0.174s
+2026-11-16 13:45:00.899 Df INVIZENT[15438:491ce] [com.apple.network:connection] nw_socket_handle_socket_event [C1.1.1.1:3] Socket received CONNRESET event
+2026-11-16 13:45:00.899 Df INVIZENT[15438:491ce] [com.apple.network:connection] nw_socket_handle_socket_event [C1.1.1.1:3] Socket received DISCONNECTED event
+2026-11-16 13:45:00.899 E  INVIZENT[15438:491ce] [com.apple.network:connection] nw_socket_handle_socket_event [C1.1.1.1:3] Socket SO_ERROR [61: Connection refused]
+2026-11-16 13:45:00.899 Df INVIZENT[15438:491ce] [com.apple.network:boringssl] nw_protocol_boringssl_error(2297) [C1.1.1.1:2][0x106ac4d40] Lower protocol stack error pre TLS handshake. [61: Connection refused]
+2026-11-16 13:45:00.899 Df INVIZENT[15438:491ce] [com.apple.network:boringssl] nw_protocol_boringssl_error(2301) [C1.1.1.1:2][0x106ac4d40] Propagating error up the stack
+2026-11-16 13:45:00.901 E  INVIZENT[15438:491ce] [com.apple.network:connection] nw_endpoint_flow_failed_with_error [C1.1.1.1 IPv6#75e034e7.8443 in_progress socket-flow (satisfied (Path is satisfied), interface: lo0)] already failing, returning
+2026-11-16 13:45:00.901 Df INVIZENT[15438:491ce] [com.apple.network:connection] [C1.1.1.1 IPv6#75e034e7.8443 failed socket-flow (satisfied (Path is satisfied), interface: lo0)] event: flow:failed_connect @0.179s, error Connection refused
+2026-11-16 13:45:00.902 E  INVIZENT[15438:491ce] [com.apple.network:connection] nw_endpoint_flow_failed_with_error [C1.1.1.1 IPv6#75e034e7.8443 failed socket-flow (satisfied (Path is satisfied), interface: lo0)] already failing, returning
+2026-11-16 13:45:00.902 Df INVIZENT[15438:491ce] [com.apple.network:connection] [C1.1.1.1 IPv6#75e034e7.8443 failed socket-flow (satisfied (Path is satisfied), interface: lo0)] event: flow:failed_connect @0.179s, error Connection refused
+2026-11-16 13:45:00.906 Df INVIZENT[15438:491ce] [com.apple.network:connection] [C1.1.1.2 IPv4#4832423c:8443 initial path ((null))] event: path:start @0.184s
+2026-11-16 13:45:00.907 Df INVIZENT[15438:491ce] [com.apple.network:connection] [C1.1.1.2 IPv4#4832423c:8443 waiting path (satisfied (Path is satisfied), interface: lo0)] event: path:satisfied @0.184s, uuid: 04CE0356-3BB9-4AD2-B054-563052B64506
+2026-11-16 13:45:00.909 Df INVIZENT[15438:491ce] [com.apple.network:connection] [C1.1.1.2 IPv4#4832423c:8443 in_progress socket-flow (satisfied (Path is satisfied), interface: lo0)] event: flow:start_connect @0.186s
+2026-11-16 13:45:00.950 Df INVIZENT[15438:491ce] [com.apple.network:connection] nw_socket_handle_socket_event [C1.1.1.2:3] Socket received CONNECTED event
+2026-11-16 13:45:00.951 Df INVIZENT[15438:491ce] [com.apple.network:connection] nw_flow_connected [C1.1.1.2 IPv4#4832423c:8443 in_progress socket-flow (satisfied (Path is satisfied), interface: lo0)] Transport protocol connected (socket)
+2026-11-16 13:45:00.951 Df INVIZENT[15438:491ce] [com.apple.network:connection] [C1.1.1.2 IPv4#4832423c:8443 in_progress socket-flow (satisfied (Path is satisfied), interface: lo0)] event: flow:finish_transport @0.228s
+2026-11-16 13:45:00.956 Df INVIZENT[15438:491ce] [com.apple.network:boringssl] boringssl_session_apply_protocol_options_for_transport_block_invoke_2(2323) [C1.1.1.2:2][0x11316ca20] TLS configured [min_version(0x0303) max_version(0x0304) name(redacted) tickets(false) false_start(false) enforce_ev(false) enforce_ats(false) ats_non_pfs_ciphersuite_allowed(false) ech(false) pqtls(true), pake(false)]
+2026-11-16 13:45:00.958 Df INVIZENT[15438:491ce] [com.apple.network:boringssl] boringssl_context_info_handler(2390) [C1.1.1.2:2][0x11316ca20] Client handshake started
+2026-11-16 13:45:00.958 Df INVIZENT[15438:491ce] [com.apple.network:boringssl] boringssl_context_info_handler(2407) [C1.1.1.2:2][0x11316ca20] Client handshake state: TLS client enter_early_data
+2026-11-16 13:45:00.959 Df INVIZENT[15438:491ce] [com.apple.network:boringssl] boringssl_context_info_handler(2407) [C1.1.1.2:2][0x11316ca20] Client handshake state: TLS client read_server_hello
+2026-11-16 13:45:01.011 Df INVIZENT[15438:4867a] [com.apple.KeyboardArbiter:Client] RX keyboardArbiterClientHandle:Y
+2026-11-16 13:45:01.018 Df INVIZENT[15438:4867a] [com.apple.KeyboardArbiter:Client] RX keyboardArbiterClientHandle:Y
+2026-11-16 13:45:01.019 Df INVIZENT[15438:4867a] [com.apple.UIKit:UIKBFeedbackGenerator] <_UIKBFeedbackGenerator: 0x600003516d60>: Calling deactivate (was active: no) for reason: keyboard preferences changed
+2026-11-16 13:45:01.019 Df INVIZENT[15438:491ce] [com.apple.UIKit:UIKBFeedbackGenerator] <_UIKBFeedbackGenerator: 0x600003516d60>: Cooling CoreHaptics.
+2026-11-16 13:45:01.023 Df INVIZENT[15438:4867a] [com.apple.UIKit:UIKBFeedbackGenerator] <_UIKBFeedbackGenerator: 0x600003516d60>: Updating mode. Haptics: unsupported. Haptics: disabled. Ringer: on. Sound: enabled. Mode: audio only
+2026-11-16 13:45:01.024 Df INVIZENT[15438:4867a] [com.apple.xpc:connection] [0x1068a7380] invalidated because the current process cancelled the connection by calling xpc_connection_cancel()
+2026-11-16 13:45:01.076 Df INVIZENT[15438:48ad9] [com.apple.coremedia:] <<<< AVReadWriteDispatchQueue >>>> usesSerialQueue_block_invoke: Using read/write queue
+2026-11-16 13:45:01.099 Df INVIZENT[15438:48ad9] [com.apple.runningboard:process] Hit the server for a process handle 1e13102400003c4e that resolved to: [app<com.linea.messenger.preview((null))>:15438]
+2026-11-16 13:45:01.662 E  INVIZENT[15438:4867a] [com.apple.UIKit:UIFocus] RCTScrollViewComponentView implements focusItemsInRect: - caching for linear focus movement is limited as long as this view is on screen.
+2026-11-16 13:45:01.670 A  INVIZENT[15438:491cf] (Security) SecItemCopyMatching_ios
+2026-11-16 13:45:01.671 Df INVIZENT[15438:491cf] [com.apple.securityd:thread-local-client-debug] SecSecurityClientGet new thread!
+2026-11-16 13:45:01.672 A  INVIZENT[15438:491cf] (Security) SecItemCopyMatching_ios
+2026-11-16 13:45:01.673 A  INVIZENT[15438:491cf] (Security) SecItemCopyMatching_ios
+2026-11-16 13:45:01.691 Df INVIZENT[15438:4867a] [com.apple.UIKit:_UIVisualStyleRegistry] Note: no default visual style class registered as fallback for stylable class UIActivityIndicatorView
+2026-11-16 13:45:01.692 Df INVIZENT[15438:4867a] [com.apple.UIKit:_UIVisualStyleRegistry] Note: no default visual style class registered as fallback for stylable class UIActivityIndicatorView
+2026-11-16 13:45:03.167 Df INVIZENT[15438:4889d] [com.apple.dt.xctest:Default] Received request to fetch matches for query:
+2026-11-16 13:45:03.167 Df INVIZENT[15438:4889d] [com.apple.dt.xctest:Default] Evaluating query:
+2026-11-16 13:45:03.167 Df INVIZENT[15438:4889d] [com.apple.dt.xctest:Default] Getting root element snapshot
+2026-11-16 13:45:03.167 Df INVIZENT[15438:4889d] [com.apple.dt.xctest:Default] Getting snapshot for App element pid: 15438 for query
+2026-11-16 13:45:03.167 Df INVIZENT[15438:4889d] [com.apple.dt.xctest:Default] Query requires iOS snapshot attributes .
+2026-11-16 13:45:03.167 Df INVIZENT[15438:4889d] [com.apple.dt.xctest:Default] XCTPerformOnMainRunLoop[not MT]: about to CFRunLoopPerform
+2026-11-16 13:45:03.167 Df INVIZENT[15438:4889d] [com.apple.dt.xctest:Default] XCTPerformOnMainRunLoop[not MT]: waiting with 30.00s responsiveness timeout
+2026-11-16 13:45:06.259 Df INVIZENT[15438:49155] [com.apple.CoreAnalytics:client] No XPC connection in Simulator
+2026-11-16 13:45:07.416 Df INVIZENT[15438:4867a] [com.apple.dt.xctest:Default] XCTPerformOnMainRunLoop[MT]: inside CFRunLoopPerform
+2026-11-16 13:45:07.416 Df INVIZENT[15438:4867a] [com.apple.dt.xctest:Default] XCTPerformOnMainRunLoop[MT]: MT responded in time (won the race to the busy flag)
+2026-11-16 13:45:07.416 Df INVIZENT[15438:4889d] [com.apple.dt.xctest:Default] XCTPerformOnMainRunLoop[not MT]: waiting 60.00s for work to complete
+2026-11-16 13:45:07.419 Df INVIZENT[15438:4867a] [com.apple.dt.xctest:Default] Got main window <AXUIElementRef 0x600000d8c0f0> {pid=15438} {uid=[ID:3 hash:0x106b403d0]}
+2026-11-16 13:45:07.420 Df INVIZENT[15438:4867a] [com.apple.dt.xctest:Default] Capturing hierarchy with attributes XC_kAXXCAttributeElementType, XC_kAXXCAttributeElementBaseType, XC_kAXXCAttributeParent, XC_kAXXCAttributeIdentifier, XC_kAXXCAttributeAutomationType, XC_kAXXCAttributeTraits
+2026-11-16 13:45:07.420 Df INVIZENT[15438:4867a] [com.apple.dt.xctest:Default] Capturing hierarchy with parameters {
+    attributes =     (
+        5003,
+        5004,
+        5002,
+        5019,
+        5058,
+        2004
+    );
+    maxArrayCount = 2147483647;
+    maxChildren = 2147483647;
+    maxDepth = 2147483647;
+    snapshotKeyHonorModalViews = 0;
+    traverseFromParentsToChildren = 1;
+}
+2026-11-16 13:45:07.420 Df INVIZENT[15438:4867a] [com.apple.dt.xctest:Default] Snapshot attributes 5003, 5004, 5002, 5019, 5058, 2004
+2026-11-16 13:45:07.724 Df INVIZENT[15438:4867a] [com.apple.dt.xctest:Default] Got snapshot for <AXUIElementRef 0x600000cda880> {pid=15438} {uid=[ID:1 hash:0x0]}
+2026-11-16 13:45:07.724 Df INVIZENT[15438:4867a] [com.apple.dt.xctest:Default] Got app orientation 0
+2026-11-16 13:45:07.724 Df INVIZENT[15438:4867a] [com.apple.dt.xctest:Default] Captured accessibility snapshot data in 0.31s
+2026-11-16 13:45:07.725 Df INVIZENT[15438:4889d] [com.apple.dt.xctest:Default] Found main window: Window
+2026-11-16 13:45:07.728 Df INVIZENT[15438:4889d] [com.apple.dt.xctest:Default] App orientation is 0 (not portrait) and UITextEffectsWindow window Window is not main window
+2026-11-16 13:45:07.728 Df INVIZENT[15438:4889d] [com.apple.dt.xctest:Default] Leaving frame unchanged for Window: either already correct or we can't detect it.
+2026-11-16 13:45:07.728 Df INVIZENT[15438:4889d] [com.apple.dt.xctest:Default] Query  found matching snapshots: {(
+    Application, pid: 15438
+)} (error: (null))
+2026-11-16 13:45:07.733 Df INVIZENT[15438:4889d] [com.apple.dt.xctest:Default] Replying to query  with results: <XCTElementQueryResults: 0x600000da67f0> (error: (null))
+2026-11-16 13:45:12.084 Df INVIZENT[15438:491cf] [com.apple.network:boringssl] boringssl_context_info_handler(2407) [C1.1.1.2:2][0x11316ca20] Client handshake state: TLS 1.3 client read_hello_retry_request
+2026-11-16 13:45:12.595 Df INVIZENT[15438:491cf] [com.apple.network:boringssl] boringssl_context_info_handler(2407) [C1.1.1.2:2][0x11316ca20] Client handshake state: TLS 1.3 client read_server_hello
+2026-11-16 13:45:12.596 Df INVIZENT[15438:491cf] [com.apple.network:boringssl] boringssl_context_info_handler(2407) [C1.1.1.2:2][0x11316ca20] Client handshake state: TLS 1.3 client read_encrypted_extensions
+2026-11-16 13:45:12.598 Df INVIZENT[15438:491cf] [com.apple.network:boringssl] boringssl_context_info_handler(2407) [C1.1.1.2:2][0x11316ca20] Client handshake state: TLS 1.3 client read_certificate_request
+2026-11-16 13:45:12.599 Df INVIZENT[15438:491cf] [com.apple.network:boringssl] boringssl_context_info_handler(2407) [C1.1.1.2:2][0x11316ca20] Client handshake state: TLS 1.3 client read_server_certificate
+2026-11-16 13:45:12.599 Df INVIZENT[15438:491cf] [com.apple.network:boringssl] boringssl_context_info_handler(2407) [C1.1.1.2:2][0x11316ca20] Client handshake state: TLS 1.3 client read_server_certificate_verify
+2026-11-16 13:45:12.599 Df INVIZENT[15438:491cf] [com.apple.network:boringssl] boringssl_context_evaluate_trust_async(1833) [C1.1.1.2:2][0x11316ca20] Performing external trust evaluation
+2026-11-16 13:45:12.599 A  INVIZENT[15438:491cf] (Security) SecKeyCopyPublicBytes
+2026-11-16 13:45:12.605 Df INVIZENT[15438:491cf] [com.apple.network:boringssl] boringssl_context_evaluate_trust_async_external(1818) [C1.1.1.2:2][0x11316ca20] Asyncing for external verify block
+2026-11-16 13:45:13.656 Df INVIZENT[15438:491cf] [com.apple.CFNetwork:Default] Connection 1: asked to evaluate TLS Trust
+2026-11-16 13:45:13.860 Df INVIZENT[15438:4867a] [com.apple.Accessibility:AXCommon] Loading PDFKit
+2026-11-16 13:45:13.933 Df INVIZENT[15438:48893] [com.apple.CFNetwork:Default] Task <4B9F3AC4-A1D9-418B-AEB5-4AB4C25E984E>.<1> auth completion disp=1 cred=0x0
+2026-11-16 13:45:13.935 A  INVIZENT[15438:48893] (libsystem_containermanager.dylib) container_system_group_path_for_identifier
+2026-11-16 13:45:13.935 A  INVIZENT[15438:491cf] (Security) SecTrustReportNetworkingAnalytics
+2026-11-16 13:45:13.935 Df INVIZENT[15438:48893] [com.apple.containermanager:xpc] Requesting container lookup; class = 13, identifier = com.apple.nsurlsessiond, group_identifier = systemgroup.com.apple.nsurlstoragedresources, create = 1, temp = 0, euid = 501, uid = 501
+2026-11-16 13:45:13.935 Df INVIZENT[15438:491cf] [com.apple.xpc:connection] [0x1131a9780] activating connection: mach=true listener=false peer=false name=com.apple.trustd
+2026-11-16 13:45:13.936 A  INVIZENT[15438:48893] (libsystem_containermanager.dylib) container_query_t
+2026-11-16 13:45:13.936 Df INVIZENT[15438:48893] [com.apple.containermanager:xpc] Query; euid = 501, uid = 501, class = 13, identifier = [com.apple.nsurlsessiond](1), flags = 900000003
+2026-11-16 13:45:13.938 Df INVIZENT[15438:491cf] [com.apple.securityd:SecError] SecTrustReportNetworkingAnalytics failed with error: -4
+2026-11-16 13:45:13.941 Df INVIZENT[15438:48893] [com.apple.containermanager:unspecified] _container_query_get_result_at_index: success
+2026-11-16 13:45:13.941 A  INVIZENT[15438:48893] (libsystem_containermanager.dylib) container_copy_object
+2026-11-16 13:45:13.941 Df INVIZENT[15438:48893] [com.apple.containermanager:unspecified] container_system_group_path_for_identifier: success
+2026-11-16 13:45:13.985 Df INVIZENT[15438:48893] [com.apple.securityd:trust] (Trust 0x60000351e520) No pending evals, starting
+2026-11-16 13:45:13.985 A  INVIZENT[15438:48893] (Security) SecTrustEvaluateIfNecessaryFastAsync
+2026-11-16 13:45:13.985 Df INVIZENT[15438:48893] [com.apple.xpc:connection] [0x1068f5440] activating connection: mach=true listener=false peer=false name=com.apple.trustd
+2026-11-16 13:45:13.986 Df INVIZENT[15438:48893] [com.apple.securityd:trust] (Trust 0x60000351e520) Completed async eval kickoff
+2026-11-16 13:45:14.036 Df INVIZENT[15438:491cf] [com.apple.securityd:trust] (Trust 0x60000351e520) trustd returned 1
+2026-11-16 13:45:15.282 Df INVIZENT[15438:491cf] [com.apple.CFNetwork:Default] Connection 1: TLS Trust result 0
+2026-11-16 13:45:15.282 Df INVIZENT[15438:491cf] [com.apple.network:boringssl] boringssl_context_evaluate_trust_async_external_block_invoke_3(1773) [C1.1.1.2:2][0x11316ca20] Returning from external verify block with result: true
+2026-11-16 13:45:15.282 Df INVIZENT[15438:491cf] [com.apple.network:boringssl] boringssl_context_certificate_verify_callback(2014) [C1.1.1.2:2][0x11316ca20] Certificate verification result: OK
+2026-11-16 13:45:15.282 Df INVIZENT[15438:491cf] [com.apple.network:boringssl] boringssl_context_info_handler(2407) [C1.1.1.2:2][0x11316ca20] Client handshake state: TLS 1.3 client read_server_finished
+2026-11-16 13:45:15.283 Df INVIZENT[15438:491cf] [com.apple.network:boringssl] boringssl_context_info_handler(2407) [C1.1.1.2:2][0x11316ca20] Client handshake state: TLS 1.3 client send_end_of_early_data
+2026-11-16 13:45:15.283 Df INVIZENT[15438:491cf] [com.apple.network:boringssl] boringssl_context_info_handler(2407) [C1.1.1.2:2][0x11316ca20] Client handshake state: TLS 1.3 client send_client_encrypted_extensions
+2026-11-16 13:45:15.300 Df INVIZENT[15438:491cf] [com.apple.network:boringssl] boringssl_context_info_handler(2407) [C1.1.1.2:2][0x11316ca20] Client handshake state: TLS 1.3 client send_client_certificate
+2026-11-16 13:45:15.301 Df INVIZENT[15438:491cf] [com.apple.network:boringssl] boringssl_context_info_handler(2407) [C1.1.1.2:2][0x11316ca20] Client handshake state: TLS 1.3 client complete_second_flight
+2026-11-16 13:45:15.302 Df INVIZENT[15438:491cf] [com.apple.network:boringssl] boringssl_context_info_handler(2407) [C1.1.1.2:2][0x11316ca20] Client handshake state: TLS 1.3 client done
+2026-11-16 13:45:15.304 Df INVIZENT[15438:491cf] [com.apple.network:boringssl] boringssl_context_info_handler(2407) [C1.1.1.2:2][0x11316ca20] Client handshake state: TLS client finish_client_handshake
+2026-11-16 13:45:15.305 Df INVIZENT[15438:491cf] [com.apple.network:boringssl] boringssl_context_info_handler(2407) [C1.1.1.2:2][0x11316ca20] Client handshake state: TLS client done
+2026-11-16 13:45:15.306 Df INVIZENT[15438:491cf] [com.apple.network:boringssl] boringssl_context_info_handler(2396) [C1.1.1.2:2][0x11316ca20] Client handshake done
+2026-11-16 13:45:15.306 A  INVIZENT[15438:491cf] (Security) SecKeyCopyPublicBytes
+2026-11-16 13:45:15.307 Df INVIZENT[15438:491cf] [com.apple.network:boringssl] nw_protocol_boringssl_signal_connected(895) [C1.1.1.2:2][0x11316ca20] TLS connected [server(0) version(0x0304) ciphersuite(TLS_AES_256_GCM_SHA384) group(0x11ec) signature_alg(0x0804) alpn(http/1.1) resumed(0) offered_ticket(0) in_early_data(0) early_data_accepted(0) false_started(0) ocsp_received(0) sct_received(0) connect_time(14348ms) flight_time(11129ms) rtt(11126ms) write_stalls(0) read_stalls(2) pake(0x0000)]
+2026-11-16 13:45:15.307 Df INVIZENT[15438:491cf] [com.apple.network:connection] nw_flow_connected [C1.1.1.2 IPv4#4832423c:8443 in_progress socket-flow (satisfied (Path is satisfied), interface: lo0)] Output protocol connected (CFNetworkConnection-184697560)
+2026-11-16 13:45:15.308 Df INVIZENT[15438:491cf] [com.apple.network:connection] [C1.1.1.2 IPv4#4832423c:8443 ready socket-flow (satisfied (Path is satisfied), interface: lo0)] event: flow:child_finish_connect @14.586s
+2026-11-16 13:45:15.309 Df INVIZENT[15438:491cf] [com.apple.network:connection] [C1.1.1 Hostname#4c9e204b:8443 ready resolver (satisfied (Path is satisfied), interface: en0)] event: flow:child_finish_connect @14.586s
+2026-11-16 13:45:15.309 Df INVIZENT[15438:491cf] [com.apple.network:connection] [C1.1 Hostname#4c9e204b:8443 ready transform (satisfied (Path is satisfied), interface: en0)] event: flow:child_finish_connect @14.587s
+2026-11-16 13:45:15.312 Df INVIZENT[15438:491cf] [com.apple.network:connection] nw_flow_connected [C1 IPv4#4832423c:8443 in_progress parent-flow (satisfied (Path is satisfied), interface: en0)] Output protocol connected (endpoint_flow)
+2026-11-16 13:45:15.313 Df INVIZENT[15438:491cf] [com.apple.network:connection] [C1 IPv4#4832423c:8443 ready parent-flow (satisfied (Path is satisfied), interface: en0)] event: flow:finish_connect @14.590s
+2026-11-16 13:45:15.313 Df INVIZENT[15438:491cf] [com.apple.network:connection] nw_connection_report_state_with_handler_on_nw_queue [C1] reporting state ready
+2026-11-16 13:45:15.313 Df INVIZENT[15438:491cf] [com.apple.xpc:connection] [0x1068f5440] invalidated because the current process cancelled the connection by calling xpc_connection_cancel()
+2026-11-16 13:45:15.313 Df INVIZENT[15438:491cf] [com.apple.CFNetwork:Default] Connection 1: connected successfully
+2026-11-16 13:45:15.314 Df INVIZENT[15438:491cf] [com.apple.CFNetwork:Default] Connection 1: TLS handshake complete
+2026-11-16 13:45:15.314 Df INVIZENT[15438:491cf] [com.apple.CFNetwork:Default] Connection 1: ready C(N) E(N)
+2026-11-16 13:45:15.314 Df INVIZENT[15438:491cf] [com.apple.CFNetwork:Default] Task <4B9F3AC4-A1D9-418B-AEB5-4AB4C25E984E>.<1> now using Connection 1
+2026-11-16 13:45:15.324 Df INVIZENT[15438:491cf] [com.apple.CFNetwork:Default] Task <4B9F3AC4-A1D9-418B-AEB5-4AB4C25E984E>.<1> sent request, body N 0
+2026-11-16 13:45:18.501 Df INVIZENT[15438:4889d] [com.apple.network:connection] [C1] event: client:data_stall @17.779s
+2026-11-16 13:45:18.906 A  INVIZENT[15438:48893] (Security) SecKeyCopyPublicBytes
+2026-11-16 13:45:18.910 A  INVIZENT[15438:48893] (Security) SecKeyCopyPublicBytes
+2026-11-16 13:45:25.059 Df INVIZENT[15438:491cf] [com.apple.CFNetwork:Default] Task <4B9F3AC4-A1D9-418B-AEB5-4AB4C25E984E>.<1> received response, status 200 content K
+2026-11-16 13:45:25.060 Df INVIZENT[15438:491cf] [com.apple.CFNetwork:Default] Task <4B9F3AC4-A1D9-418B-AEB5-4AB4C25E984E>.<1> response ended
+2026-11-16 13:45:25.061 Df INVIZENT[15438:491cf] [com.apple.CFNetwork:Default] Task <4B9F3AC4-A1D9-418B-AEB5-4AB4C25E984E>.<1> done using Connection 1
+2026-11-16 13:45:25.061 Df INVIZENT[15438:491cf] [com.apple.network:connection] [C1] event: client:connection_idle @24.338s
+2026-11-16 13:45:25.062 Df INVIZENT[15438:491cf] [com.apple.network:connection] nw_protocol_socket_notify [C1.1.1.2:3] nw_protocol_notification_type_connection_idle is true
+2026-11-16 13:45:25.063 E  INVIZENT[15438:491cf] [com.apple.network:connection] nw_socket_set_connection_idle [C1.1.1.2:3] setsockopt SO_CONNECTION_IDLE failed [42: Protocol not available]
+2026-11-16 13:45:25.063 Df INVIZENT[15438:491cf] [com.apple.network:connection] [C1] event: client:connection_idle @24.340s
+2026-11-16 13:45:25.065 Df INVIZENT[15438:491cf] [com.apple.network:connection] nw_protocol_socket_notify [C1.1.1.2:3] nw_protocol_notification_type_connection_idle is true
+2026-11-16 13:45:25.066 E  INVIZENT[15438:491cf] [com.apple.network:connection] nw_socket_set_connection_idle [C1.1.1.2:3] setsockopt SO_CONNECTION_IDLE failed [42: Protocol not available]
+2026-11-16 13:45:25.084 Df INVIZENT[15438:49155] [com.apple.CFNetwork:Summary] Task <4B9F3AC4-A1D9-418B-AEB5-4AB4C25E984E>.<1> summary for task success {transaction_duration_ms=24451, response_status=200, connection=1, protocol="http/1.1", domain_lookup_duration_ms=33, connect_duration_ms=14404, secure_connection_duration_ms=14348, private_relay=false, request_start_ms=14690, request_duration_ms=0, response_start_ms=24423, response_duration_ms=5, request_bytes=253, request_throughput_kbps=5047, response_bytes=446, response_throughput_kbps=708, cache_hit=false}
+2026-11-16 13:45:25.086 Df INVIZENT[15438:49155] [com.apple.CFNetwork:Default] Task <4B9F3AC4-A1D9-418B-AEB5-4AB4C25E984E>.<1> finished successfully
+2026-11-16 13:45:31.810 Df INVIZENT[15438:491c7] [com.apple.network:connection] nw_socket_handle_socket_event [C1.1.1.2:3] Socket received READ_CLOSE event
+2026-11-16 13:45:31.811 Df INVIZENT[15438:491c7] [com.apple.CFNetwork:Default] Connection 1: read-side closed
+2026-11-16 13:45:31.812 Df INVIZENT[15438:491c7] [com.apple.CFNetwork:Default] Connection 1: cleaning up
+2026-11-16 13:45:31.813 Df INVIZENT[15438:491c7] [com.apple.network:connection] [C1 98FBDD87-7ACA-47CA-8599-7FE9EEA4D311 Hostname#4c9e204b:8443 quic-connection, url: https://localhost:8443/app/update, definite, attribution: developer] cancel
+2026-11-16 13:45:31.814 Df INVIZENT[15438:491c7] [com.apple.network:connection] [C1 98FBDD87-7ACA-47CA-8599-7FE9EEA4D311 Hostname#4c9e204b:8443 quic-connection, url: https://localhost:8443/app/update, definite, attribution: developer] cancelled
+	[C1.1.1.2 04CE0356-3BB9-4AD2-B054-563052B64506 127.0.0.1:57629<->IPv4#4832423c:8443]
+	Connected Path: satisfied (Path is satisfied), interface: lo0
+	Privacy Stance: Not Eligible
+	Duration: 31.091s, DNS @0.135s took 0.033s, TCP @0.186s took 0.042s, TLS 1.3 took 14.348s
+	bytes in/out: 3557/1887, packets in/out: 4/3, rtt: 0.001s, retransmitted bytes: 0, out-of-order bytes: 0
+	ecn packets sent/acked/marked/lost: 0/0/0/0
+2026-11-16 13:45:31.825 Df INVIZENT[15438:491c7] [com.apple.network:connection] nw_connection_report_state_with_handler_on_nw_queue [C1] reporting state cancelled
+2026-11-16 13:45:31.825 Df INVIZENT[15438:491c7] [com.apple.CFNetwork:Default] Connection 1: done
+2026-11-16 13:47:28.661 Df INVIZENT[15438:491c7] [com.apple.dt.xctest:Default] Received request to fetch matches for query:
+2026-11-16 13:47:28.662 Df INVIZENT[15438:491c7] [com.apple.dt.xctest:Default] Evaluating query:
+2026-11-16 13:47:28.662 Df INVIZENT[15438:491c7] [com.apple.dt.xctest:Default] Getting root element snapshot
+2026-11-16 13:47:28.662 Df INVIZENT[15438:491c7] [com.apple.dt.xctest:Default] Getting snapshot for App element pid: 15438 for query
+2026-11-16 13:47:28.663 Df INVIZENT[15438:491c7] [com.apple.dt.xctest:Default] Query requires iOS snapshot attributes .
+2026-11-16 13:47:28.664 Df INVIZENT[15438:491c7] [com.apple.dt.xctest:Default] XCTPerformOnMainRunLoop[not MT]: about to CFRunLoopPerform
+2026-11-16 13:47:28.664 Df INVIZENT[15438:491c7] [com.apple.dt.xctest:Default] XCTPerformOnMainRunLoop[not MT]: waiting with 30.00s responsiveness timeout
+2026-11-16 13:47:28.664 Df INVIZENT[15438:4867a] [com.apple.dt.xctest:Default] XCTPerformOnMainRunLoop[MT]: inside CFRunLoopPerform
+2026-11-16 13:47:28.664 Df INVIZENT[15438:4867a] [com.apple.dt.xctest:Default] XCTPerformOnMainRunLoop[MT]: MT responded in time (won the race to the busy flag)
+2026-11-16 13:47:28.664 Df INVIZENT[15438:491c7] [com.apple.dt.xctest:Default] XCTPerformOnMainRunLoop[not MT]: waiting 60.00s for work to complete
+2026-11-16 13:47:28.677 Df INVIZENT[15438:4867a] [com.apple.dt.xctest:Default] Got main window <AXUIElementRef 0x600000d80fc0> {pid=15438} {uid=[ID:3 hash:0x106b403d0]}
+2026-11-16 13:47:28.677 Df INVIZENT[15438:4867a] [com.apple.dt.xctest:Default] Capturing hierarchy with attributes XC_kAXXCAttributeElementType, XC_kAXXCAttributeElementBaseType, XC_kAXXCAttributeParent, XC_kAXXCAttributeIdentifier, XC_kAXXCAttributeAutomationType, XC_kAXXCAttributeTraits
+2026-11-16 13:47:28.678 Df INVIZENT[15438:4867a] [com.apple.dt.xctest:Default] Capturing hierarchy with parameters {
+    attributes =     (
+        5003,
+        5004,
+        5002,
+        5019,
+        5058,
+        2004
+    );
+    maxArrayCount = 2147483647;
+    maxChildren = 2147483647;
+    maxDepth = 2147483647;
+    snapshotKeyHonorModalViews = 0;
+    traverseFromParentsToChildren = 1;
+}
+2026-11-16 13:47:28.678 Df INVIZENT[15438:4867a] [com.apple.dt.xctest:Default] Snapshot attributes 5003, 5004, 5002, 5019, 5058, 2004
+2026-11-16 13:47:28.858 Df INVIZENT[15438:4867a] [com.apple.dt.xctest:Default] Got snapshot for <AXUIElementRef 0x600000d81680> {pid=15438} {uid=[ID:1 hash:0x0]}
+2026-11-16 13:47:28.859 Df INVIZENT[15438:4867a] [com.apple.dt.xctest:Default] Got app orientation 0
+2026-11-16 13:47:28.860 Df INVIZENT[15438:4867a] [com.apple.dt.xctest:Default] Captured accessibility snapshot data in 0.20s
+2026-11-16 13:47:28.861 Df INVIZENT[15438:491c7] [com.apple.dt.xctest:Default] Found main window: Window
+2026-11-16 13:47:28.865 Df INVIZENT[15438:491c7] [com.apple.dt.xctest:Default] App orientation is 0 (not portrait) and UITextEffectsWindow window Window is not main window
+2026-11-16 13:47:28.865 Df INVIZENT[15438:491c7] [com.apple.dt.xctest:Default] Leaving frame unchanged for Window: either already correct or we can't detect it.
+2026-11-16 13:47:28.867 Df INVIZENT[15438:491c7] [com.apple.dt.xctest:Default] Query  found matching snapshots: {(
+    Application, pid: 15438
+)} (error: (null))
+2026-11-16 13:47:28.869 Df INVIZENT[15438:491c7] [com.apple.dt.xctest:Default] Replying to query  with results: <XCTElementQueryResults: 0x600000d9ef10> (error: (null))
+2026-11-16 13:47:37.844 Df INVIZENT[15438:4959b] [com.apple.dt.xctest:Default] Received request to fetch matches for query:
+2026-11-16 13:47:37.844 Df INVIZENT[15438:4959b] [com.apple.dt.xctest:Default] Evaluating query:
+2026-11-16 13:47:37.844 Df INVIZENT[15438:4959b] [com.apple.dt.xctest:Default] Getting root element snapshot
+2026-11-16 13:47:37.844 Df INVIZENT[15438:4959b] [com.apple.dt.xctest:Default] Getting snapshot for App element pid: 15438 for query
+2026-11-16 13:47:37.844 Df INVIZENT[15438:4959b] [com.apple.dt.xctest:Default] Query requires iOS snapshot attributes .
+2026-11-16 13:47:37.844 Df INVIZENT[15438:4959b] [com.apple.dt.xctest:Default] XCTPerformOnMainRunLoop[not MT]: about to CFRunLoopPerform
+2026-11-16 13:47:37.844 Df INVIZENT[15438:4959b] [com.apple.dt.xctest:Default] XCTPerformOnMainRunLoop[not MT]: waiting with 30.00s responsiveness timeout
+2026-11-16 13:47:37.844 Df INVIZENT[15438:4867a] [com.apple.dt.xctest:Default] XCTPerformOnMainRunLoop[MT]: inside CFRunLoopPerform
+2026-11-16 13:47:37.845 Df INVIZENT[15438:4867a] [com.apple.dt.xctest:Default] XCTPerformOnMainRunLoop[MT]: MT responded in time (won the race to the busy flag)
+2026-11-16 13:47:37.846 Df INVIZENT[15438:4959b] [com.apple.dt.xctest:Default] XCTPerformOnMainRunLoop[not MT]: waiting 60.00s for work to complete
+2026-11-16 13:47:37.851 Df INVIZENT[15438:4867a] [com.apple.dt.xctest:Default] Got main window <AXUIElementRef 0x600000dd0330> {pid=15438} {uid=[ID:3 hash:0x106b403d0]}
+2026-11-16 13:47:37.851 Df INVIZENT[15438:4867a] [com.apple.dt.xctest:Default] Capturing hierarchy with attributes XC_kAXXCAttributeElementType, XC_kAXXCAttributeElementBaseType, XC_kAXXCAttributeParent, XC_kAXXCAttributeIdentifier, XC_kAXXCAttributeAutomationType, XC_kAXXCAttributeTraits
+2026-11-16 13:47:37.851 Df INVIZENT[15438:4867a] [com.apple.dt.xctest:Default] Capturing hierarchy with parameters {
+    attributes =     (
+        5003,
+        5004,
+        5002,
+        5019,
+        5058,
+        2004
+    );
+    maxArrayCount = 2147483647;
+    maxChildren = 2147483647;
+    maxDepth = 2147483647;
+    snapshotKeyHonorModalViews = 0;
+    traverseFromParentsToChildren = 1;
+}
+2026-11-16 13:47:37.851 Df INVIZENT[15438:4867a] [com.apple.dt.xctest:Default] Snapshot attributes 5003, 5004, 5002, 5019, 5058, 2004
+2026-11-16 13:47:38.182 Df INVIZENT[15438:4867a] [com.apple.dt.xctest:Default] Got snapshot for <AXUIElementRef 0x600000dd0180> {pid=15438} {uid=[ID:1 hash:0x0]}
+2026-11-16 13:47:38.187 Df INVIZENT[15438:4867a] [com.apple.dt.xctest:Default] Got app orientation 0
+2026-11-16 13:47:38.187 Df INVIZENT[15438:4867a] [com.apple.dt.xctest:Default] Captured accessibility snapshot data in 0.34s
+2026-11-16 13:47:38.188 Df INVIZENT[15438:4959b] [com.apple.dt.xctest:Default] Found main window: Window
+2026-11-16 13:47:38.191 Df INVIZENT[15438:4959b] [com.apple.dt.xctest:Default] App orientation is 0 (not portrait) and UITextEffectsWindow window Window is not main window
+2026-11-16 13:47:38.191 Df INVIZENT[15438:4959b] [com.apple.dt.xctest:Default] Leaving frame unchanged for Window: either already correct or we can't detect it.
+2026-11-16 13:47:38.192 Df INVIZENT[15438:4959b] [com.apple.dt.xctest:Default] Query  found matching snapshots: {(
+    Application, pid: 15438
+)} (error: (null))
+2026-11-16 13:47:38.192 Df INVIZENT[15438:4959b] [com.apple.dt.xctest:Default] Replying to query  with results: <XCTElementQueryResults: 0x600000c4c180> (error: (null))
+2026-11-16 13:47:42.932 Df INVIZENT[15438:491c7] [com.apple.dt.xctest:Default] Received request to fetch matches for query:
+2026-11-16 13:47:42.933 Df INVIZENT[15438:488a0] [com.apple.dt.xctest:Default] Evaluating query:
+2026-11-16 13:47:42.934 Df INVIZENT[15438:488a0] [com.apple.dt.xctest:Default] Getting root element snapshot
+2026-11-16 13:47:42.934 Df INVIZENT[15438:488a0] [com.apple.dt.xctest:Default] Getting snapshot for App element pid: 15438 for query
+2026-11-16 13:47:42.934 Df INVIZENT[15438:488a0] [com.apple.dt.xctest:Default] Query requires iOS snapshot attributes .
+2026-11-16 13:47:42.935 Df INVIZENT[15438:488a0] [com.apple.dt.xctest:Default] XCTPerformOnMainRunLoop[not MT]: about to CFRunLoopPerform
+2026-11-16 13:47:42.935 Df INVIZENT[15438:488a0] [com.apple.dt.xctest:Default] XCTPerformOnMainRunLoop[not MT]: waiting with 30.00s responsiveness timeout
+2026-11-16 13:47:42.938 Df INVIZENT[15438:4867a] [com.apple.dt.xctest:Default] XCTPerformOnMainRunLoop[MT]: inside CFRunLoopPerform
+2026-11-16 13:47:42.938 Df INVIZENT[15438:4867a] [com.apple.dt.xctest:Default] XCTPerformOnMainRunLoop[MT]: MT responded in time (won the race to the busy flag)
+2026-11-16 13:47:42.938 Df INVIZENT[15438:488a0] [com.apple.dt.xctest:Default] XCTPerformOnMainRunLoop[not MT]: waiting 60.00s for work to complete
+2026-11-16 13:47:42.942 Df INVIZENT[15438:4867a] [com.apple.dt.xctest:Default] Got main window <AXUIElementRef 0x600000d88ed0> {pid=15438} {uid=[ID:3 hash:0x106b403d0]}
+2026-11-16 13:47:42.942 Df INVIZENT[15438:4867a] [com.apple.dt.xctest:Default] Capturing hierarchy with attributes XC_kAXXCAttributeElementType, XC_kAXXCAttributeElementBaseType, XC_kAXXCAttributeParent, XC_kAXXCAttributeIdentifier, XC_kAXXCAttributeAutomationType, XC_kAXXCAttributeTraits
+2026-11-16 13:47:42.942 Df INVIZENT[15438:4867a] [com.apple.dt.xctest:Default] Capturing hierarchy with parameters {
+    attributes =     (
+        5003,
+        5004,
+        5002,
+        5019,
+        5058,
+        2004
+    );
+    maxArrayCount = 2147483647;
+    maxChildren = 2147483647;
+    maxDepth = 2147483647;
+    snapshotKeyHonorModalViews = 0;
+    traverseFromParentsToChildren = 1;
+}
+2026-11-16 13:47:42.942 Df INVIZENT[15438:4867a] [com.apple.dt.xctest:Default] Snapshot attributes 5003, 5004, 5002, 5019, 5058, 2004
+2026-11-16 13:47:43.274 Df INVIZENT[15438:4867a] [com.apple.dt.xctest:Default] Got snapshot for <AXUIElementRef 0x600000d8b240> {pid=15438} {uid=[ID:1 hash:0x0]}
+2026-11-16 13:47:43.275 Df INVIZENT[15438:4867a] [com.apple.dt.xctest:Default] Got app orientation 0
+2026-11-16 13:47:43.276 Df INVIZENT[15438:4867a] [com.apple.dt.xctest:Default] Captured accessibility snapshot data in 0.34s
+2026-11-16 13:47:43.276 Df INVIZENT[15438:488a0] [com.apple.dt.xctest:Default] Found main window: Window
+2026-11-16 13:47:43.281 Df INVIZENT[15438:488a0] [com.apple.dt.xctest:Default] App orientation is 0 (not portrait) and UITextEffectsWindow window Window is not main window
+2026-11-16 13:47:43.282 Df INVIZENT[15438:488a0] [com.apple.dt.xctest:Default] Leaving frame unchanged for Window: either already correct or we can't detect it.
+2026-11-16 13:47:43.283 Df INVIZENT[15438:488a0] [com.apple.dt.xctest:Default] Query  found matching snapshots: {(
+    Application, pid: 15438
+)} (error: (null))
+2026-11-16 13:47:43.283 Df INVIZENT[15438:488a0] [com.apple.dt.xctest:Default] Replying to query  with results: <XCTElementQueryResults: 0x600000dbd590> (error: (null))
+2026-11-16 13:47:47.323 Df INVIZENT[15438:488a0] [com.apple.dt.xctest:Default] Received request to fetch matches for query:
+2026-11-16 13:47:47.323 Df INVIZENT[15438:488a0] [com.apple.dt.xctest:Default] Evaluating query:
+2026-11-16 13:47:47.323 Df INVIZENT[15438:488a0] [com.apple.dt.xctest:Default] Getting root element snapshot
+2026-11-16 13:47:47.323 Df INVIZENT[15438:488a0] [com.apple.dt.xctest:Default] Getting snapshot for App element pid: 15438 for query
+2026-11-16 13:47:47.323 Df INVIZENT[15438:488a0] [com.apple.dt.xctest:Default] Query requires iOS snapshot attributes .
+2026-11-16 13:47:47.324 Df INVIZENT[15438:488a0] [com.apple.dt.xctest:Default] XCTPerformOnMainRunLoop[not MT]: about to CFRunLoopPerform
+2026-11-16 13:47:47.324 Df INVIZENT[15438:488a0] [com.apple.dt.xctest:Default] XCTPerformOnMainRunLoop[not MT]: waiting with 30.00s responsiveness timeout
+2026-11-16 13:47:47.324 Df INVIZENT[15438:4867a] [com.apple.dt.xctest:Default] XCTPerformOnMainRunLoop[MT]: inside CFRunLoopPerform
+2026-11-16 13:47:47.324 Df INVIZENT[15438:4867a] [com.apple.dt.xctest:Default] XCTPerformOnMainRunLoop[MT]: MT responded in time (won the race to the busy flag)
+2026-11-16 13:47:47.324 Df INVIZENT[15438:488a0] [com.apple.dt.xctest:Default] XCTPerformOnMainRunLoop[not MT]: waiting 60.00s for work to complete
+2026-11-16 13:47:47.328 Df INVIZENT[15438:4867a] [com.apple.dt.xctest:Default] Got main window <AXUIElementRef 0x600000db4000> {pid=15438} {uid=[ID:3 hash:0x106b403d0]}
+2026-11-16 13:47:47.329 Df INVIZENT[15438:4867a] [com.apple.dt.xctest:Default] Capturing hierarchy with attributes XC_kAXXCAttributeElementType, XC_kAXXCAttributeElementBaseType, XC_kAXXCAttributeParent, XC_kAXXCAttributeIdentifier, XC_kAXXCAttributeAutomationType, XC_kAXXCAttributeTraits
+2026-11-16 13:47:47.329 Df INVIZENT[15438:4867a] [com.apple.dt.xctest:Default] Capturing hierarchy with parameters {
+    attributes =     (
+        5003,
+        5004,
+        5002,
+        5019,
+        5058,
+        2004
+    );
+    maxArrayCount = 2147483647;
+    maxChildren = 2147483647;
+    maxDepth = 2147483647;
+    snapshotKeyHonorModalViews = 0;
+    traverseFromParentsToChildren = 1;
+}
+2026-11-16 13:47:47.329 Df INVIZENT[15438:4867a] [com.apple.dt.xctest:Default] Snapshot attributes 5003, 5004, 5002, 5019, 5058, 2004
+2026-11-16 13:47:47.509 Df INVIZENT[15438:4867a] [com.apple.dt.xctest:Default] Got snapshot for <AXUIElementRef 0x600000db34b0> {pid=15438} {uid=[ID:1 hash:0x0]}
+2026-11-16 13:47:47.509 Df INVIZENT[15438:4867a] [com.apple.dt.xctest:Default] Got app orientation 0
+2026-11-16 13:47:47.510 Df INVIZENT[15438:4867a] [com.apple.dt.xctest:Default] Captured accessibility snapshot data in 0.19s
+2026-11-16 13:47:47.510 Df INVIZENT[15438:488a0] [com.apple.dt.xctest:Default] Found main window: Window
+2026-11-16 13:47:47.514 Df INVIZENT[15438:488a0] [com.apple.dt.xctest:Default] App orientation is 0 (not portrait) and UITextEffectsWindow window Window is not main window
+2026-11-16 13:47:47.514 Df INVIZENT[15438:488a0] [com.apple.dt.xctest:Default] Leaving frame unchanged for Window: either already correct or we can't detect it.
+2026-11-16 13:47:47.515 Df INVIZENT[15438:488a0] [com.apple.dt.xctest:Default] Query  found matching snapshots: {(
+    Application, pid: 15438
+)} (error: (null))
+2026-11-16 13:47:47.515 Df INVIZENT[15438:488a0] [com.apple.dt.xctest:Default] Replying to query  with results: <XCTElementQueryResults: 0x600000db5800> (error: (null))
+2026-11-16 13:47:51.592 Df INVIZENT[15438:491c7] [com.apple.dt.xctest:Default] Received request to fetch matches for query:
+2026-11-16 13:47:51.593 Df INVIZENT[15438:4959b] [com.apple.dt.xctest:Default] Evaluating query:
+2026-11-16 13:47:51.593 Df INVIZENT[15438:4959b] [com.apple.dt.xctest:Default] Getting root element snapshot
+2026-11-16 13:47:51.593 Df INVIZENT[15438:4959b] [com.apple.dt.xctest:Default] Getting snapshot for App element pid: 15438 for query
+2026-11-16 13:47:51.594 Df INVIZENT[15438:4959b] [com.apple.dt.xctest:Default] Query requires iOS snapshot attributes .
+2026-11-16 13:47:51.594 Df INVIZENT[15438:4959b] [com.apple.dt.xctest:Default] XCTPerformOnMainRunLoop[not MT]: about to CFRunLoopPerform
+2026-11-16 13:47:51.594 Df INVIZENT[15438:4959b] [com.apple.dt.xctest:Default] XCTPerformOnMainRunLoop[not MT]: waiting with 30.00s responsiveness timeout
+2026-11-16 13:47:51.594 Df INVIZENT[15438:4867a] [com.apple.dt.xctest:Default] XCTPerformOnMainRunLoop[MT]: inside CFRunLoopPerform
+2026-11-16 13:47:51.595 Df INVIZENT[15438:4867a] [com.apple.dt.xctest:Default] XCTPerformOnMainRunLoop[MT]: MT responded in time (won the race to the busy flag)
+2026-11-16 13:47:51.595 Df INVIZENT[15438:4959b] [com.apple.dt.xctest:Default] XCTPerformOnMainRunLoop[not MT]: waiting 60.00s for work to complete
+2026-11-16 13:47:51.604 Df INVIZENT[15438:4867a] [com.apple.dt.xctest:Default] Got main window <AXUIElementRef 0x600000dc8330> {pid=15438} {uid=[ID:3 hash:0x106b403d0]}
+2026-11-16 13:47:51.604 Df INVIZENT[15438:4867a] [com.apple.dt.xctest:Default] Capturing hierarchy with attributes XC_kAXXCAttributeElementType, XC_kAXXCAttributeElementBaseType, XC_kAXXCAttributeParent, XC_kAXXCAttributeIdentifier, XC_kAXXCAttributeAutomationType, XC_kAXXCAttributeTraits
+2026-11-16 13:47:51.605 Df INVIZENT[15438:4867a] [com.apple.dt.xctest:Default] Capturing hierarchy with parameters {
+    attributes =     (
+        5003,
+        5004,
+        5002,
+        5019,
+        5058,
+        2004
+    );
+    maxArrayCount = 2147483647;
+    maxChildren = 2147483647;
+    maxDepth = 2147483647;
+    snapshotKeyHonorModalViews = 0;
+    traverseFromParentsToChildren = 1;
+}
+2026-11-16 13:47:51.605 Df INVIZENT[15438:4867a] [com.apple.dt.xctest:Default] Snapshot attributes 5003, 5004, 5002, 5019, 5058, 2004
+2026-11-16 13:47:51.826 Df INVIZENT[15438:4867a] [com.apple.dt.xctest:Default] Got snapshot for <AXUIElementRef 0x600000d8a970> {pid=15438} {uid=[ID:1 hash:0x0]}
+2026-11-16 13:47:51.827 Df INVIZENT[15438:4867a] [com.apple.dt.xctest:Default] Got app orientation 0
+2026-11-16 13:47:51.829 Df INVIZENT[15438:4867a] [com.apple.dt.xctest:Default] Captured accessibility snapshot data in 0.23s
+2026-11-16 13:47:51.831 Df INVIZENT[15438:4959b] [com.apple.dt.xctest:Default] Found main window: Window
+2026-11-16 13:47:51.835 Df INVIZENT[15438:4959b] [com.apple.dt.xctest:Default] App orientation is 0 (not portrait) and UITextEffectsWindow window Window is not main window
+2026-11-16 13:47:51.835 Df INVIZENT[15438:4959b] [com.apple.dt.xctest:Default] Leaving frame unchanged for Window: either already correct or we can't detect it.
+2026-11-16 13:47:51.836 Df INVIZENT[15438:4959b] [com.apple.dt.xctest:Default] Query  found matching snapshots: {(
+    Application, pid: 15438
+)} (error: (null))
+2026-11-16 13:47:51.836 Df INVIZENT[15438:4959b] [com.apple.dt.xctest:Default] Replying to query  with results: <XCTElementQueryResults: 0x600000d72a30> (error: (null))
+2026-11-16 13:47:55.394 Df INVIZENT[15438:488a0] [com.apple.dt.xctest:Default] Received request to fetch matches for query:
+2026-11-16 13:47:55.394 Df INVIZENT[15438:4959b] [com.apple.dt.xctest:Default] Evaluating query:
+2026-11-16 13:47:55.394 Df INVIZENT[15438:4959b] [com.apple.dt.xctest:Default] Getting root element snapshot
+2026-11-16 13:47:55.394 Df INVIZENT[15438:4959b] [com.apple.dt.xctest:Default] Getting snapshot for App element pid: 15438 for query
+2026-11-16 13:47:55.395 Df INVIZENT[15438:4959b] [com.apple.dt.xctest:Default] Query requires iOS snapshot attributes .
+2026-11-16 13:47:55.395 Df INVIZENT[15438:4959b] [com.apple.dt.xctest:Default] XCTPerformOnMainRunLoop[not MT]: about to CFRunLoopPerform
+2026-11-16 13:47:55.395 Df INVIZENT[15438:4959b] [com.apple.dt.xctest:Default] XCTPerformOnMainRunLoop[not MT]: waiting with 30.00s responsiveness timeout
+2026-11-16 13:47:55.395 Df INVIZENT[15438:4867a] [com.apple.dt.xctest:Default] XCTPerformOnMainRunLoop[MT]: inside CFRunLoopPerform
+2026-11-16 13:47:55.395 Df INVIZENT[15438:4867a] [com.apple.dt.xctest:Default] XCTPerformOnMainRunLoop[MT]: MT responded in time (won the race to the busy flag)
+2026-11-16 13:47:55.396 Df INVIZENT[15438:4959b] [com.apple.dt.xctest:Default] XCTPerformOnMainRunLoop[not MT]: waiting 60.00s for work to complete
+2026-11-16 13:47:55.400 Df INVIZENT[15438:4867a] [com.apple.dt.xctest:Default] Got main window <AXUIElementRef 0x600000dc9bf0> {pid=15438} {uid=[ID:3 hash:0x106b403d0]}
+2026-11-16 13:47:55.401 Df INVIZENT[15438:4867a] [com.apple.dt.xctest:Default] Capturing hierarchy with attributes XC_kAXXCAttributeElementType, XC_kAXXCAttributeElementBaseType, XC_kAXXCAttributeParent, XC_kAXXCAttributeIdentifier, XC_kAXXCAttributeAutomationType, XC_kAXXCAttributeTraits
+2026-11-16 13:47:55.403 Df INVIZENT[15438:4867a] [com.apple.dt.xctest:Default] Capturing hierarchy with parameters {
+    attributes =     (
+        5003,
+        5004,
+        5002,
+        5019,
+        5058,
+        2004
+    );
+    maxArrayCount = 2147483647;
+    maxChildren = 2147483647;
+    maxDepth = 2147483647;
+    snapshotKeyHonorModalViews = 0;
+    traverseFromParentsToChildren = 1;
+}
+2026-11-16 13:47:55.404 Df INVIZENT[15438:4867a] [com.apple.dt.xctest:Default] Snapshot attributes 5003, 5004, 5002, 5019, 5058, 2004
+2026-11-16 13:47:55.812 Df INVIZENT[15438:4867a] [com.apple.dt.xctest:Default] Got snapshot for <AXUIElementRef 0x600000dc4150> {pid=15438} {uid=[ID:1 hash:0x0]}
+2026-11-16 13:47:55.813 Df INVIZENT[15438:4867a] [com.apple.dt.xctest:Default] Got app orientation 0
+2026-11-16 13:47:55.813 Df INVIZENT[15438:4867a] [com.apple.dt.xctest:Default] Captured accessibility snapshot data in 0.42s
+2026-11-16 13:47:55.813 Df INVIZENT[15438:4959b] [com.apple.dt.xctest:Default] Found main window: Window
+2026-11-16 13:47:55.819 Df INVIZENT[15438:4959b] [com.apple.dt.xctest:Default] App orientation is 0 (not portrait) and UITextEffectsWindow window Window is not main window
+2026-11-16 13:47:55.820 Df INVIZENT[15438:4959b] [com.apple.dt.xctest:Default] Leaving frame unchanged for Window: either already correct or we can't detect it.
+2026-11-16 13:47:55.820 Df INVIZENT[15438:4959b] [com.apple.dt.xctest:Default] Query  found matching snapshots: {(
+    Application, pid: 15438
+)} (error: (null))
+2026-11-16 13:47:55.821 Df INVIZENT[15438:4959b] [com.apple.dt.xctest:Default] Replying to query  with results: <XCTElementQueryResults: 0x600000d9f930> (error: (null))
+2026-11-16 13:47:59.145 Df INVIZENT[15438:491c7] [com.apple.dt.xctest:Default] Received request to fetch matches for query:
+2026-11-16 13:47:59.145 Df INVIZENT[15438:491c7] [com.apple.dt.xctest:Default] Evaluating query:
+2026-11-16 13:47:59.145 Df INVIZENT[15438:491c7] [com.apple.dt.xctest:Default] Getting root element snapshot
+2026-11-16 13:47:59.145 Df INVIZENT[15438:491c7] [com.apple.dt.xctest:Default] Getting snapshot for App element pid: 15438 for query
+2026-11-16 13:47:59.145 Df INVIZENT[15438:491c7] [com.apple.dt.xctest:Default] Query requires iOS snapshot attributes .
+2026-11-16 13:47:59.145 Df INVIZENT[15438:491c7] [com.apple.dt.xctest:Default] XCTPerformOnMainRunLoop[not MT]: about to CFRunLoopPerform
+2026-11-16 13:47:59.145 Df INVIZENT[15438:491c7] [com.apple.dt.xctest:Default] XCTPerformOnMainRunLoop[not MT]: waiting with 30.00s responsiveness timeout
+2026-11-16 13:47:59.145 Df INVIZENT[15438:4867a] [com.apple.dt.xctest:Default] XCTPerformOnMainRunLoop[MT]: inside CFRunLoopPerform
+2026-11-16 13:47:59.145 Df INVIZENT[15438:4867a] [com.apple.dt.xctest:Default] XCTPerformOnMainRunLoop[MT]: MT responded in time (won the race to the busy flag)
+2026-11-16 13:47:59.146 Df INVIZENT[15438:491c7] [com.apple.dt.xctest:Default] XCTPerformOnMainRunLoop[not MT]: waiting 60.00s for work to complete
+2026-11-16 13:47:59.150 Df INVIZENT[15438:4867a] [com.apple.dt.xctest:Default] Got main window <AXUIElementRef 0x600000db4390> {pid=15438} {uid=[ID:3 hash:0x106b403d0]}
+2026-11-16 13:47:59.150 Df INVIZENT[15438:4867a] [com.apple.dt.xctest:Default] Capturing hierarchy with attributes XC_kAXXCAttributeElementType, XC_kAXXCAttributeElementBaseType, XC_kAXXCAttributeParent, XC_kAXXCAttributeIdentifier, XC_kAXXCAttributeAutomationType, XC_kAXXCAttributeTraits
+2026-11-16 13:47:59.151 Df INVIZENT[15438:4867a] [com.apple.dt.xctest:Default] Capturing hierarchy with parameters {
+    attributes =     (
+        5003,
+        5004,
+        5002,
+        5019,
+        5058,
+        2004
+    );
+    maxArrayCount = 2147483647;
+    maxChildren = 2147483647;
+    maxDepth = 2147483647;
+    snapshotKeyHonorModalViews = 0;
+    traverseFromParentsToChildren = 1;
+}
+2026-11-16 13:47:59.151 Df INVIZENT[15438:4867a] [com.apple.dt.xctest:Default] Snapshot attributes 5003, 5004, 5002, 5019, 5058, 2004
+2026-11-16 13:47:59.282 Df INVIZENT[15438:4867a] [com.apple.dt.xctest:Default] Got snapshot for <AXUIElementRef 0x600000db4090> {pid=15438} {uid=[ID:1 hash:0x0]}
+2026-11-16 13:47:59.283 Df INVIZENT[15438:4867a] [com.apple.dt.xctest:Default] Got app orientation 0
+2026-11-16 13:47:59.284 Df INVIZENT[15438:4867a] [com.apple.dt.xctest:Default] Captured accessibility snapshot data in 0.14s
+2026-11-16 13:47:59.285 Df INVIZENT[15438:491c7] [com.apple.dt.xctest:Default] Found main window: Window
+2026-11-16 13:47:59.290 Df INVIZENT[15438:491c7] [com.apple.dt.xctest:Default] App orientation is 0 (not portrait) and UITextEffectsWindow window Window is not main window
+2026-11-16 13:47:59.291 Df INVIZENT[15438:491c7] [com.apple.dt.xctest:Default] Leaving frame unchanged for Window: either already correct or we can't detect it.
+2026-11-16 13:47:59.291 Df INVIZENT[15438:491c7] [com.apple.dt.xctest:Default] Query  found matching snapshots: {(
+    Application, pid: 15438
+)} (error: (null))
+2026-11-16 13:47:59.292 Df INVIZENT[15438:491c7] [com.apple.dt.xctest:Default] Replying to query  with results: <XCTElementQueryResults: 0x600000d8ba80> (error: (null))
+2026-11-16 13:48:02.486 Df INVIZENT[15438:4959b] [com.apple.dt.xctest:Default] Received request to fetch matches for query:
+2026-11-16 13:48:02.487 Df INVIZENT[15438:491c7] [com.apple.dt.xctest:Default] Evaluating query:
+2026-11-16 13:48:02.487 Df INVIZENT[15438:491c7] [com.apple.dt.xctest:Default] Getting root element snapshot
+2026-11-16 13:48:02.487 Df INVIZENT[15438:491c7] [com.apple.dt.xctest:Default] Getting snapshot for App element pid: 15438 for query
+2026-11-16 13:48:02.487 Df INVIZENT[15438:491c7] [com.apple.dt.xctest:Default] Query requires iOS snapshot attributes .
+2026-11-16 13:48:02.487 Df INVIZENT[15438:491c7] [com.apple.dt.xctest:Default] XCTPerformOnMainRunLoop[not MT]: about to CFRunLoopPerform
+2026-11-16 13:48:02.487 Df INVIZENT[15438:491c7] [com.apple.dt.xctest:Default] XCTPerformOnMainRunLoop[not MT]: waiting with 30.00s responsiveness timeout
+2026-11-16 13:48:02.487 Df INVIZENT[15438:4867a] [com.apple.dt.xctest:Default] XCTPerformOnMainRunLoop[MT]: inside CFRunLoopPerform
+2026-11-16 13:48:02.487 Df INVIZENT[15438:4867a] [com.apple.dt.xctest:Default] XCTPerformOnMainRunLoop[MT]: MT responded in time (won the race to the busy flag)
+2026-11-16 13:48:02.490 Df INVIZENT[15438:491c7] [com.apple.dt.xctest:Default] XCTPerformOnMainRunLoop[not MT]: waiting 60.00s for work to complete
+2026-11-16 13:48:02.494 Df INVIZENT[15438:4867a] [com.apple.dt.xctest:Default] Got main window <AXUIElementRef 0x600000d846c0> {pid=15438} {uid=[ID:3 hash:0x106b403d0]}
+2026-11-16 13:48:02.495 Df INVIZENT[15438:4867a] [com.apple.dt.xctest:Default] Capturing hierarchy with attributes XC_kAXXCAttributeElementType, XC_kAXXCAttributeElementBaseType, XC_kAXXCAttributeParent, XC_kAXXCAttributeIdentifier, XC_kAXXCAttributeAutomationType, XC_kAXXCAttributeTraits
+2026-11-16 13:48:02.497 Df INVIZENT[15438:4867a] [com.apple.dt.xctest:Default] Capturing hierarchy with parameters {
+    attributes =     (
+        5003,
+        5004,
+        5002,
+        5019,
+        5058,
+        2004
+    );
+    maxArrayCount = 2147483647;
+    maxChildren = 2147483647;
+    maxDepth = 2147483647;
+    snapshotKeyHonorModalViews = 0;
+    traverseFromParentsToChildren = 1;
+}
+2026-11-16 13:48:02.499 Df INVIZENT[15438:4867a] [com.apple.dt.xctest:Default] Snapshot attributes 5003, 5004, 5002, 5019, 5058, 2004
+2026-11-16 13:48:02.646 Df INVIZENT[15438:4867a] [com.apple.dt.xctest:Default] Got snapshot for <AXUIElementRef 0x600000d84600> {pid=15438} {uid=[ID:1 hash:0x0]}
+2026-11-16 13:48:02.647 Df INVIZENT[15438:4867a] [com.apple.dt.xctest:Default] Got app orientation 0
+2026-11-16 13:48:02.647 Df INVIZENT[15438:4867a] [com.apple.dt.xctest:Default] Captured accessibility snapshot data in 0.16s
+2026-11-16 13:48:02.648 Df INVIZENT[15438:491c7] [com.apple.dt.xctest:Default] Found main window: Window
+2026-11-16 13:48:02.653 Df INVIZENT[15438:491c7] [com.apple.dt.xctest:Default] App orientation is 0 (not portrait) and UITextEffectsWindow window Window is not main window
+2026-11-16 13:48:02.653 Df INVIZENT[15438:491c7] [com.apple.dt.xctest:Default] Leaving frame unchanged for Window: either already correct or we can't detect it.
+2026-11-16 13:48:02.654 Df INVIZENT[15438:491c7] [com.apple.dt.xctest:Default] Query  found matching snapshots: {(
+    Application, pid: 15438
+)} (error: (null))
+2026-11-16 13:48:02.654 Df INVIZENT[15438:491c7] [com.apple.dt.xctest:Default] Replying to query  with results: <XCTElementQueryResults: 0x600000d24a50> (error: (null))
+2026-11-16 13:48:06.895 Df INVIZENT[15438:4959b] [com.apple.dt.xctest:Default] Received request to fetch matches for query:
+2026-11-16 13:48:06.896 Df INVIZENT[15438:491c7] [com.apple.dt.xctest:Default] Evaluating query:
+2026-11-16 13:48:06.896 Df INVIZENT[15438:491c7] [com.apple.dt.xctest:Default] Getting root element snapshot
+2026-11-16 13:48:06.896 Df INVIZENT[15438:491c7] [com.apple.dt.xctest:Default] Getting snapshot for App element pid: 15438 for query
+2026-11-16 13:48:06.897 Df INVIZENT[15438:491c7] [com.apple.dt.xctest:Default] Query requires iOS snapshot attributes .
+2026-11-16 13:48:06.897 Df INVIZENT[15438:491c7] [com.apple.dt.xctest:Default] XCTPerformOnMainRunLoop[not MT]: about to CFRunLoopPerform
+2026-11-16 13:48:06.897 Df INVIZENT[15438:491c7] [com.apple.dt.xctest:Default] XCTPerformOnMainRunLoop[not MT]: waiting with 30.00s responsiveness timeout
+2026-11-16 13:48:06.897 Df INVIZENT[15438:4867a] [com.apple.dt.xctest:Default] XCTPerformOnMainRunLoop[MT]: inside CFRunLoopPerform
+2026-11-16 13:48:06.898 Df INVIZENT[15438:4867a] [com.apple.dt.xctest:Default] XCTPerformOnMainRunLoop[MT]: MT responded in time (won the race to the busy flag)
+2026-11-16 13:48:06.898 Df INVIZENT[15438:491c7] [com.apple.dt.xctest:Default] XCTPerformOnMainRunLoop[not MT]: waiting 60.00s for work to complete
+2026-11-16 13:48:06.906 Df INVIZENT[15438:4867a] [com.apple.dt.xctest:Default] Got main window <AXUIElementRef 0x600000d88b40> {pid=15438} {uid=[ID:3 hash:0x106b403d0]}
+2026-11-16 13:48:06.907 Df INVIZENT[15438:4867a] [com.apple.dt.xctest:Default] Capturing hierarchy with attributes XC_kAXXCAttributeElementType, XC_kAXXCAttributeElementBaseType, XC_kAXXCAttributeParent, XC_kAXXCAttributeIdentifier, XC_kAXXCAttributeAutomationType, XC_kAXXCAttributeTraits
+2026-11-16 13:48:06.907 Df INVIZENT[15438:4867a] [com.apple.dt.xctest:Default] Capturing hierarchy with parameters {
+    attributes =     (
+        5003,
+        5004,
+        5002,
+        5019,
+        5058,
+        2004
+    );
+    maxArrayCount = 2147483647;
+    maxChildren = 2147483647;
+    maxDepth = 2147483647;
+    snapshotKeyHonorModalViews = 0;
+    traverseFromParentsToChildren = 1;
+}
+2026-11-16 13:48:06.908 Df INVIZENT[15438:4867a] [com.apple.dt.xctest:Default] Snapshot attributes 5003, 5004, 5002, 5019, 5058, 2004
+2026-11-16 13:48:07.083 Df INVIZENT[15438:4867a] [com.apple.dt.xctest:Default] Got snapshot for <AXUIElementRef 0x600000d8b750> {pid=15438} {uid=[ID:1 hash:0x0]}
+2026-11-16 13:48:07.083 Df INVIZENT[15438:4867a] [com.apple.dt.xctest:Default] Got app orientation 0
+2026-11-16 13:48:07.083 Df INVIZENT[15438:4867a] [com.apple.dt.xctest:Default] Captured accessibility snapshot data in 0.18s
+2026-11-16 13:48:07.084 Df INVIZENT[15438:491c7] [com.apple.dt.xctest:Default] Found main window: Window
+2026-11-16 13:48:07.089 Df INVIZENT[15438:491c7] [com.apple.dt.xctest:Default] App orientation is 0 (not portrait) and UITextEffectsWindow window Window is not main window
+2026-11-16 13:48:07.089 Df INVIZENT[15438:491c7] [com.apple.dt.xctest:Default] Leaving frame unchanged for Window: either already correct or we can't detect it.
+2026-11-16 13:48:07.090 Df INVIZENT[15438:491c7] [com.apple.dt.xctest:Default] Query  found matching snapshots: {(
+    Application, pid: 15438
+)} (error: (null))
+2026-11-16 13:48:07.091 Df INVIZENT[15438:491c7] [com.apple.dt.xctest:Default] Replying to query  with results: <XCTElementQueryResults: 0x600000d8aeb0> (error: (null))
+2026-11-16 13:48:10.778 Df INVIZENT[15438:4959b] [com.apple.dt.xctest:Default] Received request to fetch matches for query:
+2026-11-16 13:48:10.778 Df INVIZENT[15438:4959b] [com.apple.dt.xctest:Default] Evaluating query:
+2026-11-16 13:48:10.779 Df INVIZENT[15438:4959b] [com.apple.dt.xctest:Default] Getting root element snapshot
+2026-11-16 13:48:10.779 Df INVIZENT[15438:4959b] [com.apple.dt.xctest:Default] Getting snapshot for App element pid: 15438 for query
+2026-11-16 13:48:10.779 Df INVIZENT[15438:4959b] [com.apple.dt.xctest:Default] Query requires iOS snapshot attributes .
+2026-11-16 13:48:10.779 Df INVIZENT[15438:4959b] [com.apple.dt.xctest:Default] XCTPerformOnMainRunLoop[not MT]: about to CFRunLoopPerform
+2026-11-16 13:48:10.780 Df INVIZENT[15438:4959b] [com.apple.dt.xctest:Default] XCTPerformOnMainRunLoop[not MT]: waiting with 30.00s responsiveness timeout
+2026-11-16 13:48:10.780 Df INVIZENT[15438:4867a] [com.apple.dt.xctest:Default] XCTPerformOnMainRunLoop[MT]: inside CFRunLoopPerform
+2026-11-16 13:48:10.780 Df INVIZENT[15438:4867a] [com.apple.dt.xctest:Default] XCTPerformOnMainRunLoop[MT]: MT responded in time (won the race to the busy flag)
+2026-11-16 13:48:10.784 Df INVIZENT[15438:4959b] [com.apple.dt.xctest:Default] XCTPerformOnMainRunLoop[not MT]: waiting 60.00s for work to complete
+2026-11-16 13:48:10.786 Df INVIZENT[15438:4867a] [com.apple.dt.xctest:Default] Got main window <AXUIElementRef 0x600000dd3780> {pid=15438} {uid=[ID:3 hash:0x106b403d0]}
+2026-11-16 13:48:10.788 Df INVIZENT[15438:4867a] [com.apple.dt.xctest:Default] Capturing hierarchy with attributes XC_kAXXCAttributeElementType, XC_kAXXCAttributeElementBaseType, XC_kAXXCAttributeParent, XC_kAXXCAttributeIdentifier, XC_kAXXCAttributeAutomationType, XC_kAXXCAttributeTraits
+2026-11-16 13:48:10.788 Df INVIZENT[15438:4867a] [com.apple.dt.xctest:Default] Capturing hierarchy with parameters {
+    attributes =     (
+        5003,
+        5004,
+        5002,
+        5019,
+        5058,
+        2004
+    );
+    maxArrayCount = 2147483647;
+    maxChildren = 2147483647;
+    maxDepth = 2147483647;
+    snapshotKeyHonorModalViews = 0;
+    traverseFromParentsToChildren = 1;
+}
+2026-11-16 13:48:10.788 Df INVIZENT[15438:4867a] [com.apple.dt.xctest:Default] Snapshot attributes 5003, 5004, 5002, 5019, 5058, 2004
+2026-11-16 13:48:11.166 Df INVIZENT[15438:4867a] [com.apple.dt.xctest:Default] Got snapshot for <AXUIElementRef 0x600000dac1b0> {pid=15438} {uid=[ID:1 hash:0x0]}
+2026-11-16 13:48:11.171 Df INVIZENT[15438:4867a] [com.apple.dt.xctest:Default] Got app orientation 0
+2026-11-16 13:48:11.172 Df INVIZENT[15438:4867a] [com.apple.dt.xctest:Default] Captured accessibility snapshot data in 0.39s
+2026-11-16 13:48:11.172 Df INVIZENT[15438:4959b] [com.apple.dt.xctest:Default] Found main window: Window
+2026-11-16 13:48:11.176 Df INVIZENT[15438:4959b] [com.apple.dt.xctest:Default] App orientation is 0 (not portrait) and UITextEffectsWindow window Window is not main window
+2026-11-16 13:48:11.176 Df INVIZENT[15438:4959b] [com.apple.dt.xctest:Default] Leaving frame unchanged for Window: either already correct or we can't detect it.
+2026-11-16 13:48:11.177 Df INVIZENT[15438:4959b] [com.apple.dt.xctest:Default] Query  found matching snapshots: {(
+    Application, pid: 15438
+)} (error: (null))
+2026-11-16 13:48:11.178 Df INVIZENT[15438:4959b] [com.apple.dt.xctest:Default] Replying to query  with results: <XCTElementQueryResults: 0x600000d9e5e0> (error: (null))
+2026-11-16 13:48:14.913 Df INVIZENT[15438:4959b] [com.apple.dt.xctest:Default] Received request to fetch matches for query:
+2026-11-16 13:48:14.913 Df INVIZENT[15438:491c7] [com.apple.dt.xctest:Default] Evaluating query:
+2026-11-16 13:48:14.913 Df INVIZENT[15438:491c7] [com.apple.dt.xctest:Default] Getting root element snapshot
+2026-11-16 13:48:14.914 Df INVIZENT[15438:491c7] [com.apple.dt.xctest:Default] Getting snapshot for App element pid: 15438 for query
+2026-11-16 13:48:14.914 Df INVIZENT[15438:491c7] [com.apple.dt.xctest:Default] Query requires iOS snapshot attributes .
+2026-11-16 13:48:14.914 Df INVIZENT[15438:491c7] [com.apple.dt.xctest:Default] XCTPerformOnMainRunLoop[not MT]: about to CFRunLoopPerform
+2026-11-16 13:48:14.914 Df INVIZENT[15438:491c7] [com.apple.dt.xctest:Default] XCTPerformOnMainRunLoop[not MT]: waiting with 30.00s responsiveness timeout
+2026-11-16 13:48:14.914 Df INVIZENT[15438:4867a] [com.apple.dt.xctest:Default] XCTPerformOnMainRunLoop[MT]: inside CFRunLoopPerform
+2026-11-16 13:48:14.915 Df INVIZENT[15438:4867a] [com.apple.dt.xctest:Default] XCTPerformOnMainRunLoop[MT]: MT responded in time (won the race to the busy flag)
+2026-11-16 13:48:14.915 Df INVIZENT[15438:491c7] [com.apple.dt.xctest:Default] XCTPerformOnMainRunLoop[not MT]: waiting 60.00s for work to complete
+2026-11-16 13:48:14.919 Df INVIZENT[15438:4867a] [com.apple.dt.xctest:Default] Got main window <AXUIElementRef 0x600000dc5a70> {pid=15438} {uid=[ID:3 hash:0x106b403d0]}
+2026-11-16 13:48:14.920 Df INVIZENT[15438:4867a] [com.apple.dt.xctest:Default] Capturing hierarchy with attributes XC_kAXXCAttributeElementType, XC_kAXXCAttributeElementBaseType, XC_kAXXCAttributeParent, XC_kAXXCAttributeIdentifier, XC_kAXXCAttributeAutomationType, XC_kAXXCAttributeTraits
+2026-11-16 13:48:14.920 Df INVIZENT[15438:4867a] [com.apple.dt.xctest:Default] Capturing hierarchy with parameters {
+    attributes =     (
+        5003,
+        5004,
+        5002,
+        5019,
+        5058,
+        2004
+    );
+    maxArrayCount = 2147483647;
+    maxChildren = 2147483647;
+    maxDepth = 2147483647;
+    snapshotKeyHonorModalViews = 0;
+    traverseFromParentsToChildren = 1;
+}
+2026-11-16 13:48:14.921 Df INVIZENT[15438:4867a] [com.apple.dt.xctest:Default] Snapshot attributes 5003, 5004, 5002, 5019, 5058, 2004
+2026-11-16 13:48:15.188 Df INVIZENT[15438:4867a] [com.apple.dt.xctest:Default] Got snapshot for <AXUIElementRef 0x600000dc59e0> {pid=15438} {uid=[ID:1 hash:0x0]}
+2026-11-16 13:48:15.189 Df INVIZENT[15438:4867a] [com.apple.dt.xctest:Default] Got app orientation 0
+2026-11-16 13:48:15.189 Df INVIZENT[15438:4867a] [com.apple.dt.xctest:Default] Captured accessibility snapshot data in 0.27s
+2026-11-16 13:48:15.190 Df INVIZENT[15438:491c7] [com.apple.dt.xctest:Default] Found main window: Window
+2026-11-16 13:48:15.194 Df INVIZENT[15438:491c7] [com.apple.dt.xctest:Default] App orientation is 0 (not portrait) and UITextEffectsWindow window Window is not main window
+2026-11-16 13:48:15.194 Df INVIZENT[15438:491c7] [com.apple.dt.xctest:Default] Leaving frame unchanged for Window: either already correct or we can't detect it.
+2026-11-16 13:48:15.195 Df INVIZENT[15438:491c7] [com.apple.dt.xctest:Default] Query  found matching snapshots: {(
+    Application, pid: 15438
+)} (error: (null))
+2026-11-16 13:48:15.196 Df INVIZENT[15438:491c7] [com.apple.dt.xctest:Default] Replying to query  with results: <XCTElementQueryResults: 0x600000db5860> (error: (null))
+2026-11-16 13:56:17.843 Df INVIZENT[15438:4867a] [com.apple.KeyboardArbiter:Client] TX focusApplication (peekAppEvent) stealKB:Y scene:com.linea.messenger.preview-default
+2026-11-16 13:56:17.844 Df INVIZENT[15438:4867a] [com.apple.UIKit:EventDispatch] Evaluating dispatch of UIEvent: 0x600003d21e00; type: 0; subtype: 0; backing type: 11; shouldSend: 1; ignoreInteractionEvents: 0, systemGestureStateChange: 0
+2026-11-16 13:56:17.845 Df INVIZENT[15438:4867a] [com.apple.UIKit:EventDispatch] Sending UIEvent type: 0; subtype: 0; to windows: 1
+2026-11-16 13:56:17.846 Df INVIZENT[15438:4867a] [com.apple.UIKit:EventDispatch] Sending UIEvent type: 0; subtype: 0; to window: <UIWindow: 0x106b403d0>; contextId: 0x15297CE4
+2026-11-16 13:56:18.000 Df INVIZENT[15438:4867a] [com.apple.UIKit:EventDispatch] Evaluating dispatch of UIEvent: 0x600003d21e00; type: 0; subtype: 0; backing type: 11; shouldSend: 0; ignoreInteractionEvents: 0, systemGestureStateChange: 0
+2026-11-16 13:56:18.050 Df INVIZENT[15438:4867a] [com.apple.UIKit:EventDispatch] Evaluating dispatch of UIEvent: 0x600003d21e00; type: 0; subtype: 0; backing type: 11; shouldSend: 0; ignoreInteractionEvents: 0, systemGestureStateChange: 0
+2026-11-16 13:56:18.052 Df INVIZENT[15438:4867a] [com.apple.UIKit:EventDispatch] Evaluating dispatch of UIEvent: 0x600003d21e00; type: 0; subtype: 0; backing type: 11; shouldSend: 1; ignoreInteractionEvents: 0, systemGestureStateChange: 0
+2026-11-16 13:56:18.052 Df INVIZENT[15438:4867a] [com.apple.UIKit:EventDispatch] Sending UIEvent type: 0; subtype: 0; to windows: 1
+2026-11-16 13:56:18.052 Df INVIZENT[15438:4867a] [com.apple.UIKit:EventDispatch] Sending UIEvent type: 0; subtype: 0; to window: <UIWindow: 0x106b403d0>; contextId: 0x15297CE4
+2026-11-16 13:56:18.059 Df INVIZENT[15438:4867a] [com.apple.UIKit:EventDispatch] Evaluating dispatch of UIEvent: 0x600003d21e00; type: 0; subtype: 0; backing type: 11; shouldSend: 0; ignoreInteractionEvents: 0, systemGestureStateChange: 0
+2026-11-16 13:56:18.103 A  INVIZENT[15438:4867a] (UIKitCore) send gesture actions
+2026-11-16 13:58:21.866 Df INVIZENT[15438:4c8d1] [com.apple.xpc:connection] [0x106b10df0] invalidated because the client process (pid 13249) either cancelled the connection or exited
+2026-11-16 13:58:21.868 Df INVIZENT[15438:4c8d1] [com.apple.dt.xctest:Default] Connection from client with pid 13249 was invalidated.
+2026-11-16 13:58:21.959 Df INVIZENT[15438:4cb2d] [com.apple.dt.automationmode:Default] Handling posted change notification (com.apple.dt.automationmode.state-changed)
+2026-11-16 13:58:21.962 Df INVIZENT[15438:4cb2d] [com.apple.dt.automationmode:Default] XAM shared observer connecting to com.apple.dt.automationmode.reader
+2026-11-16 13:58:21.966 Df INVIZENT[15438:4cb2d] [com.apple.xpc:connection] [0x106acde00] activating connection: mach=true listener=false peer=false name=com.apple.dt.automationmode.reader
+2026-11-16 13:58:21.991 Df INVIZENT[15438:4cb2d] [com.apple.xpc:connection] [0x106acde00] invalidated because the current process cancelled the connection by calling xpc_connection_cancel()
+2026-11-16 13:58:21.991 Df INVIZENT[15438:4cb2d] [com.apple.dt.automationmode:Default] Comparing previous enabled state (1) to current enabled state (0)
+2026-11-16 13:58:21.999 Df INVIZENT[15438:4c8d1] [com.apple.dt.xctest:Default] Automation Mode has been disabled, existing connections will be invalidated.
+2026-11-16 13:59:16.986 Df INVIZENT[15438:4d23e] [com.apple.launchservices:db] NotifyToken::RegisterDispatch(com.apple.LaunchServices.database) fired for session key LSSessionKey(system: 0 uid: 501)
+2026-11-16 13:59:27.778 Df INVIZENT[15438:4867a] [com.apple.UIKit:AppLifecycle] sceneOfRecord: sceneID: sceneID:com.linea.messenger.preview-default  persistentID: ED211AAB-5EEE-49D2-A3D9-612E64EC1AD0
+2026-11-16 13:59:27.779 Df INVIZENT[15438:4867a] [com.apple.UIKit:InterfaceStyle] Scene did update interface style to 1, <UIWindowScene: 0x106b1c8e0> (ED211AAB-5EEE-49D2-A3D9-612E64EC1AD0)
+2026-11-16 13:59:28.030 Df INVIZENT[15438:4867a] [com.apple.UIKit:InterfaceStyle] Not push traits update to screen for new style 1, <UIWindowScene: 0x106b1c8e0> (ED211AAB-5EEE-49D2-A3D9-612E64EC1AD0)
+2026-11-16 13:59:28.035 Df INVIZENT[15438:4867a] [com.apple.UIKit:InterfaceStyle] Push traits update to screen for new style 1, <UIWindowScene: 0x106b1c8e0> (ED211AAB-5EEE-49D2-A3D9-612E64EC1AD0)
+2026-11-16 13:59:31.882 Df INVIZENT[15438:4867a] [com.apple.UIKit:EventEnvironment] Enqueuing clear events of window: <_UIWindowSceneUserInterfaceStyleAnimationSnapshotWindow: 0x1209141a0>; contextId: 0x58DA71CA
+2026-11-16 13:59:31.885 Df INVIZENT[15438:4867a] [com.apple.UIKit:EventEnvironment] Performing clear events of window: <_UIWindowSceneUserInterfaceStyleAnimationSnapshotWindow: 0x1209141a0>; contextId: 0x0
+2026-11-16 14:08:41.142 Df INVIZENT[15438:51775] [com.apple.dt.automationmode:Default] Handling posted change notification (com.apple.dt.automationmode.state-changed)
+2026-11-16 14:08:41.146 Df INVIZENT[15438:51775] [com.apple.dt.automationmode:Default] XAM shared observer connecting to com.apple.dt.automationmode.reader
+2026-11-16 14:08:41.148 Df INVIZENT[15438:51775] [com.apple.xpc:connection] [0x1131ad270] activating connection: mach=true listener=false peer=false name=com.apple.dt.automationmode.reader
+2026-11-16 14:08:41.188 Df INVIZENT[15438:51775] [com.apple.xpc:connection] [0x1131ad270] invalidated because the current process cancelled the connection by calling xpc_connection_cancel()
+2026-11-16 14:08:41.188 Df INVIZENT[15438:51775] [com.apple.dt.automationmode:Default] Comparing previous enabled state (0) to current enabled state (1)
+2026-11-16 14:08:41.278 A  INVIZENT[15438:51c8a] (CoreFoundation) Loading Preferences From User Session CFPrefsD
+2026-11-16 14:10:10.645 Df INVIZENT[15438:52677] [com.apple.dt.automationmode:Default] Handling posted change notification (com.apple.dt.automationmode.state-changed)
+2026-11-16 14:10:10.646 Df INVIZENT[15438:52677] [com.apple.dt.automationmode:Default] XAM shared observer connecting to com.apple.dt.automationmode.reader
+2026-11-16 14:10:10.651 Df INVIZENT[15438:52677] [com.apple.xpc:connection] [0x1131ad270] activating connection: mach=true listener=false peer=false name=com.apple.dt.automationmode.reader
+2026-11-16 14:10:10.721 Df INVIZENT[15438:52677] [com.apple.xpc:connection] [0x1131ad270] invalidated because the current process cancelled the connection by calling xpc_connection_cancel()
+2026-11-16 14:10:10.721 Df INVIZENT[15438:52677] [com.apple.dt.automationmode:Default] Comparing previous enabled state (1) to current enabled state (0)
+2026-11-16 14:10:10.724 Df INVIZENT[15438:52a64] [com.apple.dt.xctest:Default] Automation Mode has been disabled, existing connections will be invalidated.
