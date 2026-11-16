@@ -244,6 +244,7 @@ export function useMessenger(api: Api, user: User, onExpired: ()=>void) {
   // One refresh at a time. A message used to start two or three downloads of the whole list at once (its own `chat`
   // event, the read mark, the soft refresh); now a request made while one is running is folded into a single pass
   // that follows it, so nothing is missed and nothing runs in parallel.
+  const refreshTimer=useRef<ReturnType<typeof setTimeout>|null>(null);const chatEventAt=useRef(0);
   const refreshRun=useRef<Promise<void>|null>(null);const refreshAgain=useRef(false);
   const refreshChats=useCallback(():Promise<void>=>{
     if(refreshRun.current){refreshAgain.current=true;return refreshRun.current;}
@@ -383,7 +384,7 @@ export function useMessenger(api: Api, user: User, onExpired: ()=>void) {
     aliveRef.current=true;void refreshChats();void refreshRecoveryRequests();
     // The channel outbox (messages typed offline) sends through this account whichever screen is open; it is flushed on every «ready».
     attachChannelOutbox({userId:user.id,send:item=>api.sendChannelMessage(item.communityId,item.channelId,{text:item.text,clientKey:item.key,...(item.replyTo?{replyTo:item.replyTo}:{})}).then(r=>r.message),onSocket});
-    let stopped=false, paused=false, retry:ReturnType<typeof setTimeout>|undefined, attempts=0, lastReceive=Date.now();
+    let stopped=false, paused=false, retry:ReturnType<typeof setTimeout>|undefined, chatTimer:ReturnType<typeof setTimeout>|undefined, attempts=0, lastReceive=Date.now();
     const connect=()=>{
       if(stopped||paused)return;
       const current=socketRef.current;
@@ -404,7 +405,12 @@ export function useMessenger(api: Api, user: User, onExpired: ()=>void) {
           attempts=0;setConnection('connected');setUpdating(true);void refreshChats().finally(()=>{if(!stopped)setUpdating(false);});void refreshRecoveryRequests();void refreshScheduled();
           if(selectedRef.current)void loadMessages(selectedRef.current);
         }else if(data.type==='message'&&data.message){void acceptMessage(data.message);}
-        else if(data.type==='chat'&&data.chat){void refreshChats();}
+        else if(data.type==='chat'&&data.chat){
+          // A burst of «chat» events (a message, its read mark, the peer's reply) is one list reload, not one each;
+          // the check queued after a send (softRefresh) is covered by it as well.
+          chatEventAt.current=Date.now();if(refreshTimer.current){clearTimeout(refreshTimer.current);refreshTimer.current=null;}
+          if(!chatTimer)chatTimer=setTimeout(()=>{chatTimer=undefined;if(!stopped)void refreshChats();},250);
+        }
         else if(data.type==='chat.deleted'&&typeof data.chatId==='string'){const gone=data.chatId;setChats(prev=>prev.filter(c=>c.id!==gone));setMessages(prev=>{const next={...prev};delete next[gone];return next;});if(selectedRef.current===gone)selectChat(null);}
         else if(data.type==='read'){
           setChats(prev=>prev.map(c=>c.id===data.chatId?(data.userId===user.id?{...c,lastReadMessageId:Math.max(c.lastReadMessageId,data.messageId),unreadCount:0}:{...c,peerLastReadMessageId:Math.max(c.peerLastReadMessageId,data.messageId)}):c));
@@ -461,7 +467,7 @@ export function useMessenger(api: Api, user: User, onExpired: ()=>void) {
       if(stopped)return;setOnline(up);
       if(up&&!paused&&appState.current!=='background'){attempts=0;if(retry)clearTimeout(retry);connect();}
     });
-    return ()=>{stopped=true;aliveRef.current=false;++recoveryFetchRef.current;if(retry)clearTimeout(retry);clearInterval(heartbeat);clearInterval(recoveryPoll);stopOnline();subscription.remove();socketRef.current?.close();socketRef.current=null;resetChannelOutbox();clearLogins();};
+    return ()=>{stopped=true;aliveRef.current=false;++recoveryFetchRef.current;if(retry)clearTimeout(retry);if(chatTimer)clearTimeout(chatTimer);clearInterval(heartbeat);clearInterval(recoveryPoll);stopOnline();subscription.remove();socketRef.current?.close();socketRef.current=null;resetChannelOutbox();clearLogins();};
   },[api,user.id,refreshChats,loadMessages,acceptMessage,refreshRecoveryRequests,onSocket,refreshScheduled]);
 
   const selectChat=useCallback((chat:Chat|null)=>{
@@ -475,9 +481,8 @@ export function useMessenger(api: Api, user: User, onExpired: ()=>void) {
   const restoredPeers=useRef(new Map<string,string>());const reencrypted=useRef(new Set<string>());
   // After a send the list is already updated locally; a full reload is only a check, so several
   // sends share one, and on a slow link (EDGE) it waits longer so it never competes with messages.
-  const refreshTimer=useRef<ReturnType<typeof setTimeout>|null>(null);
   const softRefresh=useCallback(()=>{
-    if(refreshTimer.current)return;
+    if(refreshTimer.current||Date.now()-chatEventAt.current<1000)return;
     refreshTimer.current=setTimeout(()=>{refreshTimer.current=null;void refreshChats();},networkTier()==='slow'?15000:networkTier()==='medium'?3000:500);
   },[refreshChats]);
   useEffect(()=>()=>{if(refreshTimer.current)clearTimeout(refreshTimer.current);},[]);
