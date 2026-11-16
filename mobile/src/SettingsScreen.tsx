@@ -28,7 +28,7 @@ import { FolderEditor, useChatFolders, type ChatFolder } from './ChatFolders';
 import Animated, { useAnimatedScrollHandler, useAnimatedStyle, useSharedValue, withSpring } from 'react-native-reanimated';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { StackBase, StackScreen } from './stack';
-import { currentEndpoint } from './servers/pool';
+import { autoReserve, connectionRoute, currentEndpoint, setAutoReserve, subscribeServers } from './servers/pool';
 import { FloatingHeader, useBleed, useTabInset } from './tabInset';
 import { WallpaperPicker } from './WallpaperPicker';
 import { ColorSettings } from './ColorSettings';
@@ -522,6 +522,19 @@ function ServerStorage({ api }: { api: Api }) {
   </Group>;
 }
 
+// Which way the app reaches the server now, and whether it may use the reserve entrance (servers/pool.ts). The line
+// names the route in use; it does not say why another one failed — the app cannot know that from a timeout.
+const ROUTE_TEXT = { direct: 'Обычное подключение', checking: 'Подключение…', reserve: 'Резервное подключение', returning: 'Резервное подключение: проверяем обычное', offline: 'Нет связи с сервером' } as const;
+function ConnectionRoute() {
+  const t = useTheme();
+  const [, refresh] = useState(0);
+  useEffect(() => subscribeServers(() => refresh(value => value + 1)), []);
+  return <Group label="Подключение">
+    <View style={{ paddingHorizontal: 14, paddingTop: 12 }}><Text style={{ color: t.muted, fontSize: 12 }}>Сейчас</Text><Text style={{ color: t.text, fontSize: 15 }}>{ROUTE_TEXT[connectionRoute()]}</Text></View>
+    <Toggle label="Автоматический резерв" description="Если сервер не отвечает напрямую, приложение само пробует запасной вход INVIZENT и возвращается на обычный, когда тот снова работает. Переписка остаётся зашифрованной." value={autoReserve()} onChange={value => { setAutoReserve(value); refresh(count => count + 1); }} />
+  </Group>;
+}
+
 function DataSection({ api }: { api: Api }) {
   const t = useTheme(); const [size, setSize] = useState<number | null>(null); const [busy, setBusy] = useState(false); const [done, setDone] = useState('');
   const measure = useCallback(() => { setSize(null); const dir = FileSystem.cacheDirectory; if (!dir) { setSize(0); return; } directorySize(dir).then(setSize).catch(() => setSize(0)); }, []);
@@ -535,6 +548,7 @@ function DataSection({ api }: { api: Api }) {
   };
   return <>
     <ServerStorage api={api} />
+    <ConnectionRoute />
     <Group label="Кэш на этом устройстве">
       <View style={{ padding: 16, gap: 12 }}>
         <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10 }}><Icon name="server-outline" size={22} color={t.accent} /><Text style={{ flex: 1, color: t.text, fontSize: 15 }}>Временные файлы</Text>{size === null ? <ActivityIndicator color={t.accent} size="small" /> : <Text style={{ color: t.text, fontSize: 15, fontWeight: '700' }}>{formatSize(size)}</Text>}</View>

@@ -2860,5 +2860,11 @@
 "Список системы…": "The system's list…",
 "Если устройства нет выше (колонка, AirPlay)": "If the device is not listed above (a speaker, AirPlay)",
 "Входящие звонки": "Incoming calls",
-"Пользователь не найден": "User not found"
+"Пользователь не найден": "User not found",
+"Обычное подключение": "Direct connection",
+"Резервное подключение": "Reserve connection",
+"Резервное подключение: проверяем обычное": "Reserve connection: checking the direct one",
+"Нет связи с сервером": "No connection to the server",
+"Автоматический резерв": "Automatic reserve",
+"Если сервер не отвечает напрямую, приложение само пробует запасной вход INVIZENT и возвращается на обычный, когда тот снова работает. Переписка остаётся зашифрованной.": "If the server does not answer directly, the app tries INVIZENT's reserve entrance by itself and returns to the direct one when it works again. Your chats stay encrypted."
 }

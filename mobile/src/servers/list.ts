@@ -75,3 +75,67 @@ export function fallbackServer(failed: string, all: readonly string[], rtt: Reco
   const best = [...others].sort((a, b) => rank(a) - rank(b) || (rank(a) === 0 ? (rtt[a] as number) - (rtt[b] as number) : rank(a) === 2 ? (down[a] || 0) - (down[b] || 0) : 0))[0];
   return rank(best) === 2 && all.includes(failed) ? failed : best;
 }
+
+/**
+ * Whether an answer to GET /health is this service's own: HTTP 200 with the JSON `{"status":"ok"}` the server sends.
+ * Any other successful page (a captive portal, a provider's stub, an HTML error page) is not a working route.
+ */
+export function healthOk(status: number, body: string): boolean {
+  if (status !== 200 || body.length > 256) return false;
+  try { const value = JSON.parse(body) as { status?: unknown } | null; return !!value && typeof value === 'object' && value.status === 'ok'; } catch { return false; }
+}
+
+/** How many measurements in a row a direct server must answer before the app leaves the reserve entrance for it. */
+export const RETURN_AFTER = 2;
+
+/**
+ * Picks the address after a measurement, with the reserve entrance as the last resort:
+ *  - a direct server is used whenever one answers — but coming BACK from the reserve needs RETURN_AFTER
+ *    measurements in a row with a direct answer (`directStreak` counts them, this one included), so a direct route
+ *    that works every other minute does not make the app jump to and fro;
+ *  - the reserve is taken only when no direct server answers, and only if it is allowed (`reserveAllowed`);
+ *  - nothing answers: the current address is kept and tried again.
+ */
+export function pickRoute(current: string | null, direct: Record<string, number | null>, reserve: Record<string, number | null>, directStreak: number, reserveAllowed: boolean): string | null {
+  const onReserve = !!current && current in reserve;
+  const directAlive = Object.values(direct).some(value => typeof value === 'number');
+  if (directAlive) {
+    if (onReserve && reserveAllowed && directStreak < RETURN_AFTER && typeof reserve[current!] === 'number') return current;
+    return chooseServer(current && !onReserve ? current : null, direct);
+  }
+  if (reserveAllowed) { const next = chooseServer(onReserve ? current : null, reserve); if (next && typeof reserve[next] === 'number') return next; }
+  return current;
+}
+
+export type RouteState = 'direct' | 'checking' | 'reserve' | 'returning' | 'offline';
+/**
+ * What the connection is doing, for the status line and diagnostics. It says which route is in use — never why another
+ * one failed (a timeout does not show what stopped the request).
+ *  - `reserve`: the reserve entrance is in use; `returning`: it still is, while a direct server has begun to answer;
+ *  - `offline`: the last measurement found no answering server at all; `checking`: no measurement has finished yet,
+ *    or the address in use has just failed and the others are being measured.
+ */
+export function routeState(input: { current: string | null; edges: readonly string[]; rtt: Record<string, number | null | undefined>; measured: boolean; probing: boolean; directStreak: number }): RouteState {
+  const { current, edges, rtt } = input;
+  const alive = Object.values(rtt).some(value => typeof value === 'number');
+  if (!input.measured) return 'checking';
+  if (!alive) return input.probing ? 'checking' : 'offline';
+  if (current && edges.includes(current)) return input.directStreak > 0 ? 'returning' : 'reserve';
+  if (current && typeof rtt[current] !== 'number') return 'checking';
+  return 'direct';
+}
+
+/** The reserve entrance carries the traffic now (also while the direct route is being checked before the return). */
+export const usesReserve = (state: RouteState): boolean => state === 'reserve' || state === 'returning';
+
+/**
+ * When to measure again, besides the regular five-minute round: `null` — no extra measurement.
+ *  - on the reserve while a direct server has begun to answer: soon, so the return does not wait a whole round;
+ *  - nothing answered: after 15 s, then 30 s, 60 s… up to the regular round (`emptyRuns` counts such measurements in a
+ *    row), so a phone without a route neither waits five minutes nor asks in a tight loop.
+ */
+export function nextMeasureDelay(input: { alive: boolean; returning: boolean; emptyRuns: number; regularMs: number }): number | null {
+  if (input.returning) return 20_000;
+  if (input.alive) return null;
+  return Math.min(input.regularMs, 15_000 * 2 ** Math.max(0, Math.min(10, input.emptyRuns - 1)));
+}

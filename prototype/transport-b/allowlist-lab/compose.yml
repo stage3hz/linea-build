@@ -1,0 +1,93 @@
+# Real network separation, not production DPI. No host ports are published.
+# Carrier is a TCP stand-in, NOT a real SFU / videoconference.
+services:
+  api:
+    image: node:24-alpine
+    command: ["node", "/lab/lab.mjs", "api"]
+    working_dir: /lab
+    environment: {NODE_ENV: test}
+    volumes:
+      - ./lab.mjs:/lab/lab.mjs:ro
+      - ${LAB_CERT_DIR:?temporary TLS fixture required}/server.key:/run/labcerts/server.key:ro
+      - ${LAB_CERT_DIR:?temporary TLS fixture required}/ca.crt:/run/labcerts/ca.crt:ro
+    networks:
+      origin:
+        ipv4_address: 172.29.230.10
+    restart: "no"
+  carrier:
+    image: node:24-alpine
+    command: ["node", "/lab/lab.mjs", "carrier"]
+    working_dir: /lab
+    environment:
+      LAB_ORIGIN_IP: 172.29.230.10
+    volumes:
+      - ./lab.mjs:/lab/lab.mjs:ro
+    networks:
+      origin:
+        ipv4_address: 172.29.230.20
+      allowed:
+        ipv4_address: 172.29.231.20
+    depends_on: [api]
+    restart: "no"
+  client-open:
+    profiles: [tests]
+    image: node:24-alpine
+    command: ["node", "/lab/lab.mjs", "client"]
+    working_dir: /lab
+    environment:
+      LAB_MODE: open
+      LAB_ORIGIN_IP: 172.29.230.10
+      LAB_CARRIER_IP: 172.29.231.20
+    volumes:
+      - ./lab.mjs:/lab/lab.mjs:ro
+      - ${LAB_CERT_DIR:?temporary TLS fixture required}/ca.crt:/run/labcerts/ca.crt:ro
+    networks: [origin]
+    restart: "no"
+    depends_on: [api]
+  client-restricted:
+    profiles: [tests]
+    image: node:24-alpine
+    command: ["node", "/lab/lab.mjs", "client"]
+    working_dir: /lab
+    environment:
+      LAB_MODE: restricted
+      LAB_ORIGIN_IP: 172.29.230.10
+      LAB_CARRIER_IP: 172.29.231.20
+    volumes:
+      - ./lab.mjs:/lab/lab.mjs:ro
+      - ${LAB_CERT_DIR:?temporary TLS fixture required}/ca.crt:/run/labcerts/ca.crt:ro
+    networks: [allowed]
+    restart: "no"
+    depends_on: [api, carrier]
+  client-offline:
+    profiles: [tests]
+    image: node:24-alpine
+    command: ["node", "/lab/lab.mjs", "client"]
+    working_dir: /lab
+    environment:
+      LAB_MODE: offline
+      LAB_ORIGIN_IP: 172.29.230.10
+      LAB_CARRIER_IP: 172.29.231.20
+    volumes:
+      - ./lab.mjs:/lab/lab.mjs:ro
+      - ${LAB_CERT_DIR:?temporary TLS fixture required}/ca.crt:/run/labcerts/ca.crt:ro
+    networks: [denied]
+    restart: "no"
+    depends_on: [api, carrier]
+
+networks:
+  origin:
+    internal: true
+    ipam:
+      config:
+        - subnet: 172.29.230.0/24
+  allowed:
+    internal: true
+    ipam:
+      config:
+        - subnet: 172.29.231.0/24
+  denied:
+    internal: true
+    ipam:
+      config:
+        - subnet: 172.29.232.0/24

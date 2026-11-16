@@ -1,5 +1,8 @@
 import { UntrustedDeviceError, type HistoryItem } from './e2ee/core';
-import { reportFailure } from './servers/pool';
+import { reportFailure, subscribeServers } from './servers/pool';
+import { messageSocket, messageRouteRevision, reportMessageRouteFailure, subscribeMessageRoute } from './network/messageRoute';
+import { attachAutomaticTransportB } from './network/transportB/automatic';
+import { messageHandshakeExpired, messageHeartbeatStale } from './network/messageHandshake';
 import { networkTier } from './network/quality';
 import { meshActive, useMeshActive } from './nearby/meshState';
 import { onMesh, packetIdOf, publishMessage, publishReceipt, startMesh, stopMesh } from './nearby/meshRuntime';
@@ -375,13 +378,18 @@ export function useMessenger(api: Api, user: User, onExpired: ()=>void) {
     // The channel outbox (messages typed offline) sends through this account whichever screen is open; it is flushed on every «ready».
     attachChannelOutbox({userId:user.id,send:item=>api.sendChannelMessage(item.communityId,item.channelId,{text:item.text,clientKey:item.key,...(item.replyTo?{replyTo:item.replyTo}:{})}).then(r=>r.message),onSocket});
     let stopped=false, paused=false, retry:ReturnType<typeof setTimeout>|undefined, attempts=0, lastReceive=Date.now();
+    let reservePaused = appState.current === 'background';
+    let stopReserve = reservePaused ? () => {} : attachAutomaticTransportB(api,user.id);
+    let socketReady = false, socketStarted = Date.now();
+    let socketTarget: string | null = null;
+    let socketRevision = messageRouteRevision();
     const connect=()=>{
       if(stopped||paused)return;
       const current=socketRef.current;
       if(current&&(current.readyState===WebSocket.OPEN||current.readyState===WebSocket.CONNECTING))return;
       setConnection('connecting');
-      const target=api.endpoint;let opened=false;
-      const socket=new WebSocket(api.socketUrl());socketRef.current=socket;lastReceive=Date.now();
+      const target=api.endpoint;socketTarget=target;socketRevision=messageRouteRevision();socketReady=false;socketStarted=Date.now();let opened=false;
+      const socket=messageSocket(api.socketUrl());socketRef.current=socket;lastReceive=Date.now();
       // A session bound to this device sends its proof with the token (deviceProof.ts); without one the server closes with 4402.
       socket.onopen=()=>{opened=true;void api.ensureProof().catch(()=>{}).then(()=>{if(!stopped&&socketRef.current===socket&&socket.readyState===WebSocket.OPEN)socket.send(JSON.stringify({type:'auth',token:api.token,...(api.proof?{proof:api.proof}:{}),lean:true}));});};
       socket.onmessage=event=>{
@@ -391,6 +399,7 @@ export function useMessenger(api: Api, user: User, onExpired: ()=>void) {
         // `story` / `story.view` reach the stories strip above the chat list (StoriesStrip).
         if(typeof data.type==='string'&&(data.type.startsWith('community')||data.type.startsWith('voice')||data.type.startsWith('sfu')||data.type.startsWith('story')||data.type==='friends'||data.type==='ready'||data.type==='error'))socketListeners.current.forEach(listener=>{try{listener(data);}catch{/* keep other listeners */}});
         if(data.type==='ready'){
+          socketReady=true;
           // «Обновление…» in the title until the list is fresh again (Telegram).
           attempts=0;setConnection('connected');setUpdating(true);void refreshChats().finally(()=>{if(!stopped)setUpdating(false);});void refreshRecoveryRequests();void refreshScheduled();
           if(selectedRef.current)void loadMessages(selectedRef.current);
@@ -414,7 +423,9 @@ export function useMessenger(api: Api, user: User, onExpired: ()=>void) {
         // our auth frame arrives. Only the HTTP check «is this session really gone?» (401) does.
         if(event.code===4001||event.code===4401||event.code===4402){void api.me().then(()=>{if(!stopped)retry=setTimeout(connect,1000);},e=>{if(e instanceof ApiError&&e.status===401)onExpiredRef.current();else if(!stopped)retry=setTimeout(connect,3000);});return;}
         // The server could not be reached at all: try the next one at once instead of backing off.
-        if(!opened&&api.endpoint===target){reportFailure(target);}
+        if(!socketReady&&api.endpoint===target){if(!reportMessageRouteFailure())reportFailure(target);}
+        // A failure may immediately switch routes and reconnect via the pool listener.
+        if(socketRef.current!==socket)return;
         retry=setTimeout(connect,!opened&&api.endpoint!==target?300:Math.min(1000*2**attempts++,15000));
       };
       socket.onerror=()=>{if(!stopped&&socketRef.current===socket)setConnection('offline');};
@@ -423,16 +434,29 @@ export function useMessenger(api: Api, user: User, onExpired: ()=>void) {
       const previous=socketRef.current;socketRef.current=null;
       previous?.close();if(retry)clearTimeout(retry);connect();
     };
+    const recycleFailedSocket=()=>{
+      const failed=socketRef.current,target=socketTarget;if(!failed||!target)return;
+      if(!reportMessageRouteFailure())reportFailure(target);
+      if(socketRef.current===failed)reconnect();
+    };
     connect();
+    // HTTP failover also changes the endpoint needed for the long-lived message socket.
+    const stopRoute=subscribeServers(()=>{
+      if(stopped||paused||!socketRef.current)return;
+      if(socketTarget!==api.endpoint){attempts=0;reconnect();}
+    });
+    const stopMessageRoute=subscribeMessageRoute(()=>{if(stopped||paused)return;if(socketRevision!==messageRouteRevision()){attempts=0;reconnect();}});
     // In the background the connection is closed, so peers see "был(а) только что" as in Telegram —
     // unless a voice room or a call holds it: the server would otherwise drop us from the room on close.
     const sleep=()=>{paused=true;if(retry)clearTimeout(retry);const previous=socketRef.current;socketRef.current=null;previous?.close();setConnection('offline');};
     const heartbeat=setInterval(()=>{
       const socket=socketRef.current;
       // 'inactive' (iOS app switcher, a system call sheet) is not the background: the socket stays.
-      const tick=socketTick({foreground:appState.current!=='background',held:connectionHeld(),open:socket?.readyState===WebSocket.OPEN,sinceReceive:Date.now()-lastReceive});
+      const foreground=appState.current!=='background',tier=networkTier();
+      if((foreground||connectionHeld())&&messageHandshakeExpired({ready:socketReady,hasSocket:!!socket,sinceStart:Date.now()-socketStarted,tier})){recycleFailedSocket();return;}
+      const tick=socketTick({foreground,held:connectionHeld(),open:socketReady&&socket?.readyState===WebSocket.OPEN,sinceReceive:Date.now()-lastReceive,stale:messageHeartbeatStale(tier)});
       if(tick==='sleep')sleep();
-      else if(tick==='reconnect'){paused=false;reconnect();}
+      else if(tick==='reconnect'){paused=false;recycleFailedSocket();}
       else if(tick==='ping')socket!.send(JSON.stringify({type:'ping'}));
       else if(paused&&connectionHeld()){paused=false;connect();}
       setTyping(prev=>{const now=Date.now();return Object.values(prev).some(exp=>exp>0&&exp<now)?Object.fromEntries(Object.entries(prev).map(([id,exp])=>[id,exp<now?0:exp])):prev;});
@@ -440,11 +464,11 @@ export function useMessenger(api: Api, user: User, onExpired: ()=>void) {
     const subscription=AppState.addEventListener('change',state=>{
       appState.current=state;
       if(state==='active'){
-        paused=false;void refreshChats();void refreshRecoveryRequests();void refreshScheduled();if(selectedRef.current)void loadMessages(selectedRef.current);
+        paused=false;if(reservePaused){reservePaused=false;stopReserve=attachAutomaticTransportB(api,user.id);}void refreshChats();void refreshRecoveryRequests();void refreshScheduled();if(selectedRef.current)void loadMessages(selectedRef.current);
         // A socket kept alive through the background (call, voice room) is not torn down: that would leave the room.
         if(socketRef.current?.readyState===WebSocket.OPEN&&Date.now()-lastReceive<=15000)connect();else reconnect();
       }
-      else if(state==='background'&&!connectionHeld())sleep();
+      else if(state==='background'){if(!connectionHeld())sleep();if(!reservePaused){reservePaused=true;stopReserve();stopReserve=()=>{};}}
     });
     const recoveryPoll=setInterval(()=>{if(appState.current==='active')void refreshRecoveryRequests();},30000);
     // The network came back: connect now instead of waiting out the back-off (the «ready» refreshes everything).
@@ -452,7 +476,7 @@ export function useMessenger(api: Api, user: User, onExpired: ()=>void) {
       if(stopped)return;setOnline(up);
       if(up&&!paused&&appState.current!=='background'){attempts=0;if(retry)clearTimeout(retry);connect();}
     });
-    return ()=>{stopped=true;aliveRef.current=false;++recoveryFetchRef.current;if(retry)clearTimeout(retry);clearInterval(heartbeat);clearInterval(recoveryPoll);stopOnline();subscription.remove();socketRef.current?.close();socketRef.current=null;resetChannelOutbox();clearLogins();};
+    return ()=>{stopped=true;aliveRef.current=false;++recoveryFetchRef.current;if(retry)clearTimeout(retry);clearInterval(heartbeat);clearInterval(recoveryPoll);stopOnline();stopRoute();stopMessageRoute();stopReserve();subscription.remove();socketRef.current?.close();socketRef.current=null;resetChannelOutbox();clearLogins();};
   },[api,user.id,refreshChats,loadMessages,acceptMessage,refreshRecoveryRequests,onSocket,refreshScheduled]);
 
   const selectChat=useCallback((chat:Chat|null)=>{

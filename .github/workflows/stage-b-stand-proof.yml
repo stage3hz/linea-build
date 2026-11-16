@@ -1,0 +1,64 @@
+name: Stage B private stand preparation
+
+# This prepares binaries on a disposable empty runner, never a user's VPS.
+on:
+  pull_request:
+    paths:
+      - 'prototype/transport-b/stand/**'
+      - 'prototype/transport-b/test/stand-*.test.mjs'
+      - 'prototype/transport-b/test/browser-session.test.mjs'
+      - '.github/workflows/stage-b-stand-proof.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: stage-b-stand-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  prepare:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+      - name: Preparation and private browser regression tests
+        run: node --test prototype/transport-b/test/stand-*.test.mjs prototype/transport-b/test/browser-session.test.mjs
+      - name: Build an empty Ubuntu preparation fixture
+        run: docker build -t invizent-stage-b-stand-proof -f prototype/transport-b/stand/Dockerfile.proof prototype/transport-b/stand
+      - name: Prepare real pinned Creator and Joiner without platform credentials
+        run: |
+          set -euo pipefail
+          docker run --name invizent-stage-b-stand-proof \
+            --cap-drop=ALL --security-opt=no-new-privileges \
+            --cpus=1 --memory=1536m --memory-swap=1536m --pids-limit=128 \
+            invizent-stage-b-stand-proof --prepare /opt/stand-proof
+      - name: Independently inspect binaries, toolchain and private preparation evidence
+        run: |
+          set -euo pipefail
+          mkdir -p "$RUNNER_TEMP/stand-proof"
+          docker cp invizent-stage-b-stand-proof:/opt/stand-proof/manifest.json "$RUNNER_TEMP/stand-proof/manifest.json"
+          docker cp invizent-stage-b-stand-proof:/opt/stand-proof/bin "$RUNNER_TEMP/stand-proof/bin"
+          docker cp invizent-stage-b-stand-proof:/opt/stand-proof/evidence "$RUNNER_TEMP/stand-proof/evidence"
+          docker cp invizent-stage-b-stand-proof:/opt/stand-proof/downloads "$RUNNER_TEMP/stand-proof/downloads"
+          python3 prototype/transport-b/stand/verify-manifest.py "$RUNNER_TEMP/stand-proof/manifest.json"
+          test "$(docker inspect --format '{{.State.Running}}' invizent-stage-b-stand-proof)" = false
+          docker inspect --format '{{json .HostConfig.PortBindings}}' invizent-stage-b-stand-proof | python3 -c 'import json,sys; assert not json.load(sys.stdin)'
+      - name: Remove the disposable fixture
+        if: always()
+        run: docker rm -f invizent-stage-b-stand-proof 2>/dev/null || true
+
+  browser:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+      - name: Exercise real headful Chrome over anonymous CDP pipes (no platform login)
+        run: xvfb-run -a node prototype/transport-b/stand/browser-proof.mjs /usr/bin/google-chrome

@@ -1,0 +1,7 @@
+# Disposable preparation proof only. No account, listener or host service.
+FROM ubuntu:24.04
+RUN apt-get update && DEBIAN_FRONTEND=noninteractive apt-get install -y --no-install-recommends \
+    ca-certificates git iproute2 python3 \
+    && rm -rf /var/lib/apt/lists/*
+COPY prepare.py /proof/prepare.py
+ENTRYPOINT ["python3", "-B", "/proof/prepare.py"]

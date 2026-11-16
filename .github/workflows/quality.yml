@@ -46,6 +46,8 @@ jobs:
       - name: node --test test/*.test.js
         run: node --test --test-isolation=none test/*.test.js
         working-directory: server
+      - name: Stage B session prototype (no real network or credentials)
+        run: node --test prototype/transport-b/test/*.test.mjs
 
   mobile:
     name: Mobile typecheck + tests (Node 24)
