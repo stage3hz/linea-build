@@ -644,7 +644,10 @@ export class CryptoService {
   async loadLocal(name:'saved:v1'|'ai:v1'):Promise<string|null> {return this.exclusive(()=>this.vault.get(name));}
   async storeLocal(name:'saved:v1'|'ai:v1',value:string):Promise<void> {return this.exclusive(()=>this.vault.commit({[name]:value}));}
   /** The last shown chat list (`chats:v1`) and chat pages (`page:v1:<chat>`), see chatListCache.ts. Local only. */
-  async loadCache(name:string):Promise<string|null> {if(!cacheName(name))throw new Error('Unknown cache entry.');return this.exclusive(()=>this.vault.get(name));}
+  // A plain read of a cache entry, outside the queue: the queue's first job at start (initialize) waits for the server
+  // while it publishes the keys, and the saved chat list stood behind it — the «instant» list waited for the network.
+  // Nothing here touches the protocol state; a cache write in progress just means the previous copy is read.
+  async loadCache(name:string):Promise<string|null> {if(!cacheName(name))throw new Error('Unknown cache entry.');if(this.closed)throw new Error('Сессия шифрования завершена.');return this.vault.get(name);}
   async storeCache(name:string,value:string|null):Promise<void> {if(!cacheName(name))throw new Error('Unknown cache entry.');return this.exclusive(()=>this.vault.commit({[name]:value}));}
   async close():Promise<void> {this.closed=true;await this.tail.catch(()=>{});await this.vault.close();this.local=null;}
 }

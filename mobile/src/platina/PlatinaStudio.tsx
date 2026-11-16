@@ -1,5 +1,5 @@
 import { CODE_FRAMES, isCodeFrame } from './CodeFrames';
-import React, { forwardRef, useImperativeHandle, useRef, useState } from 'react';
+import React, { forwardRef, memo, useImperativeHandle, useRef, useState } from 'react';
 import { EffectSwatch, NAMEPLATES, Nameplate, PROFILE_EFFECTS } from './Effects';
 import { Platform, Pressable, ScrollView, View } from 'react-native';
 import * as ImagePicker from 'expo-image-picker';
@@ -26,7 +26,9 @@ const message = (error: unknown, fallback: string) => error instanceof Error ? e
 export type PlatinaStudioHandle = { upload: (kind: 'avatar' | 'banner', asset: ImagePicker.ImagePickerAsset) => Promise<void>; preview: (asset: ImagePicker.ImagePickerAsset) => void };
 
 /** `compact`: the profile editor already handles the photo/video of the avatar and banner at its top (Telegram-style), so only the decorations are listed. */
-export const PlatinaStudio = forwardRef<PlatinaStudioHandle, { api: Api; user: User; active: boolean; onUser: (user: User) => void; compact?: boolean }>(function PlatinaStudio({ api, user: saved, active, onUser, compact = false }, ref) {
+// memo: the profile editor re-renders on every key typed into «Имя» / «О себе»; without it each key went through the
+// whole studio (hundreds of decorated previews and their animations) — the lag people felt while editing a profile.
+export const PlatinaStudio = memo(forwardRef<PlatinaStudioHandle, { api: Api; user: User; active: boolean; onUser: (user: User) => void; compact?: boolean }>(function PlatinaStudio({ api, user: saved, active, onUser, compact = false }, ref) {
   const t = useTheme();
   // Optimistic: a choice shows as chosen at once (no dimmed, frozen list while the server answers).
   const [optimistic, setOptimistic] = useState<Partial<User> | null>(null);
@@ -153,7 +155,7 @@ export const PlatinaStudio = forwardRef<PlatinaStudioHandle, { api: Api; user: U
       </View> : null}
     </Sheet>
   </View>;
-});
+}));
 
 function Section({ title, hint, children }: { title: string; hint: string; children: React.ReactNode }) {
   const t = useTheme();

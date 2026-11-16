@@ -151,7 +151,10 @@ export async function buildApp({
     } : false,
     logController: new LogController({ disableRequestLogging: true }),
     bodyLimit: 64 * 1024,
-    requestTimeout: 30_000,
+    // The whole request, body included. The app waits up to 6 minutes for a 4 MiB chunk on a slow link; 30 s here cut
+    // every upload on EDGE / weak LTE and made it start over. Bodies over 64 KiB without a session are refused before
+    // they are read (the anonymous-body gate below), and idle sockets still end by connectionTimeout.
+    requestTimeout: 6 * 60_000,
     connectionTimeout: 75_000,
     trustProxy,
     onProtoPoisoning: 'error',

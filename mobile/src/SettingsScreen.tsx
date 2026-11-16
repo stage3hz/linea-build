@@ -158,6 +158,10 @@ function Root({ api, user, theme, darkTheme, nightState = DAY_STATE, onBack, onP
   const hasBanner = !!(user.bannerId || user.bannerPreset);
   // Telegram: pulling the list down stretches the header picture and keeps it at the top of the screen
   // (no empty strip above it). Grows by the pull distance, scaled around its centre, shifted up by half.
+  // «Выйти из аккаунта» asks first: the row is the last one above the tab bar, and coming back needs the secret login,
+  // the long password and the confirmation word.
+  const [leaveAsk, setLeaveAsk] = useState(false), [leaving, setLeaving] = useState(false), [leaveError, setLeaveError] = useState('');
+  const leave = async () => { if (leaving) return; setLeaving(true); setLeaveError(''); try { await onLogout(); } catch (failure) { setLeaveError(failure instanceof Error ? failure.message : 'Не удалось выйти.'); setLeaving(false); } };
   const pull = useSharedValue(0);
   const onScroll = useAnimatedScrollHandler(e => { pull.value = Math.min(0, e.contentOffset.y); });
   const stretch = useAnimatedStyle(() => ({ transform: [{ translateY: pull.value / 2 }, { scale: 1 - pull.value / bannerHeight }] }));
@@ -217,11 +221,12 @@ function Root({ api, user, theme, darkTheme, nightState = DAY_STATE, onBack, onP
         <Item icon="help-buoy" color="#2AA9E0" label="Помощь и поддержка" onPress={() => { void Linking.openURL(`${currentEndpoint()}/support`).catch(() => {}); }} />
       </Group>
       <Group>
-        <Item icon="log-out-outline" color="#D9534F" label="Выйти из аккаунта" danger onPress={() => void onLogout()} />
+        <Item icon="log-out-outline" color="#D9534F" label="Выйти из аккаунта" danger onPress={() => { setLeaveError(''); setLeaveAsk(true); }} />
       </Group>
       {/* «Чёрная» (Linear): the technical line in a monospaced face, quiet grey. */}
       {t.black ? <Text raw style={{ color: t.subtle, fontSize: 12, textAlign: 'center', fontFamily: MONO, letterSpacing: -0.15 }}>INVIZENT {version} · e2ee · signal</Text>
         : <Text style={{ color: t.muted, fontSize: 11, textAlign: 'center' }}>Инвиз {version} · переписка защищена сквозным шифрованием</Text>}
+      <Sheet visible={leaveAsk} title="Выйти из Инвиза?" onClose={() => { if (!leaving) setLeaveAsk(false); }}><Text style={{ color: t.muted, fontSize: 15, lineHeight: 22, marginBottom: leaveError ? 12 : 22 }}>Сеанс на этом устройстве завершится. Для следующего входа понадобятся логин, пароль и слово подтверждения. Публичное имя может отличаться от логина.</Text>{leaveError ? <View style={{ marginBottom: 14 }}><Notice text={leaveError} error /></View> : null}<Button label="Выйти" danger onPress={() => void leave()} loading={leaving} /></Sheet>
     </View>
   </Animated.ScrollView>;
 }

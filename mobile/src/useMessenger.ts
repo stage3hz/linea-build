@@ -159,7 +159,7 @@ export function useMessenger(api: Api, user: User, onExpired: ()=>void) {
     const revision=++recoveryFetchRef.current;
     try {
       const result=await api.recoveryRequests();
-      if(aliveRef.current&&revision===recoveryFetchRef.current){setRecoveryRequests(result.requests);setRecoveryError('');}
+      if(aliveRef.current&&revision===recoveryFetchRef.current){/* The same answer keeps the same array: a new one every 30 s re-rendered the whole screen. */setRecoveryRequests(prev=>JSON.stringify(prev)===JSON.stringify(result.requests)?prev:result.requests);setRecoveryError('');}
     } catch(e) {
       // Offline is not «не удалось проверить»: the last known requests stay, the next poll / reconnect asks again.
       if(aliveRef.current&&revision===recoveryFetchRef.current)setRecoveryError(quietError(e));
@@ -213,7 +213,7 @@ export function useMessenger(api: Api, user: User, onExpired: ()=>void) {
     }catch{/* no vault here (browser) or the session ended */}
     finally{catchUpBusy.current=false;}
   },[cryptoRuntime,hydrateChecked]);
-  const refreshChats=useCallback(async()=>{
+  const refreshChatsOnce=useCallback(async()=>{
     try {
       const result=await api.chats();const next=await Promise.all(result.chats.map(async chat=>{
         if(!chat.lastMessage)return {...chat,lastMessage:null};
@@ -241,6 +241,15 @@ export function useMessenger(api: Api, user: User, onExpired: ()=>void) {
     }
     finally {listReady.current?.resolve();}
   },[api,checkError,hydrateChecked,user.id,catchUp]);
+  // One refresh at a time. A message used to start two or three downloads of the whole list at once (its own `chat`
+  // event, the read mark, the soft refresh); now a request made while one is running is folded into a single pass
+  // that follows it, so nothing is missed and nothing runs in parallel.
+  const refreshRun=useRef<Promise<void>|null>(null);const refreshAgain=useRef(false);
+  const refreshChats=useCallback(():Promise<void>=>{
+    if(refreshRun.current){refreshAgain.current=true;return refreshRun.current;}
+    const run=(async()=>{do{refreshAgain.current=false;await refreshChatsOnce();}while(refreshAgain.current&&aliveRef.current);})().finally(()=>{if(refreshRun.current===run)refreshRun.current=null;});
+    refreshRun.current=run;return run;
+  },[refreshChatsOnce]);
   // The vault's copy of the last list: on screen at once, before (or without) the network.
   useEffect(()=>{
     let live=true;

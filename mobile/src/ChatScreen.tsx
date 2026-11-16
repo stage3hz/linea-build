@@ -154,7 +154,9 @@ export function ChatScreen({api,user,chat,store,onBack,wide=false,onOpenMusic}: 
   useEffect(()=>()=>setVisibleNotes(null),[]);
   const listRef=useAnimatedRef<FlatList<Row>>();const typingAt=useRef(0);const typingTimer=useRef<ReturnType<typeof setTimeout>|undefined>(undefined);const alive=useRef(true);
   const messages=store.messages[chat.id]||[];
-  const pendingAll=store.pending.filter(p=>p.chatId===chat.id);
+  // Memoised: a new array on every render made the rows and the row renderer new each time, so every key press and
+  // every «печатает…» went through all the mounted message cells.
+  const pendingAll=useMemo(()=>store.pending.filter(p=>p.chatId===chat.id),[store.pending,chat.id]);
   // Actions (edit, delete, react, pin) are encrypted messages too; they are applied, not shown.
   const pending=useMemo(()=>pendingAll.filter(p=>!p.meta?.action),[pendingAll]);
   const failedActions=pendingAll.filter(p=>p.meta?.action&&p.state==='failed');
@@ -610,14 +612,22 @@ export function ChatScreen({api,user,chat,store,onBack,wide=false,onOpenMusic}: 
       <Pressable onPress={(e:any)=>{setHeaderMenu({x:e.nativeEvent.pageX,y:headerHeight+4});loadBlocked();}} accessibilityRole="button" accessibilityLabel="Ещё" style={hover}><Icon name="ellipsis-vertical" size={20} color={t.muted}/></Pressable>
     </View></View>;};
 
+  // The message list as one memoised element: a keystroke in the composer re-renders this screen, and without
+  // this every cell wrapper of the list re-rendered with it (measured: 240 of 652 renders per key at 60 bubbles).
+  const noteActs=useRef({retry:retryVideoNote,discard:discardVideoNote});noteActs.current={retry:retryVideoNote,discard:discardVideoNote};
+  const noteRetry=useCallback((id:string)=>noteActs.current.retry(id),[]),noteDiscard=useCallback((id:string)=>noteActs.current.discard(id),[]);
+  const hasMore=!!store.hasMore[chat.id],loadingMore=store.messageLoading,loadMessages=store.loadMessages,listSide=wide?28:9,listHeaderSide=listEdges.headerSide,dismissMode=dismissSetup.mode,accent=t.accent;
+  const listEl=useMemo(()=><Animated.FlatList ref={listRef} inverted data={rows} onViewableItemsChanged={onViewableRows.current} viewabilityConfig={viewability.current} keyExtractor={row=>row.key} keyboardShouldPersistTaps="handled" keyboardDismissMode={dismissSetup.mode} contentContainerStyle={{paddingHorizontal:listSide,paddingTop:listComposerSide,paddingBottom:listEdges.headerSide}} onScroll={onListScroll} scrollEventThrottle={16} initialNumToRender={25} windowSize={11} onScrollToIndexFailed={info=>{listRef.current?.scrollToOffset({offset:info.averageItemLength*info.index,animated:true});setTimeout(()=>listRef.current?.scrollToIndex({index:info.index,animated:true,viewPosition:.5}),250);}}
+      ListHeaderComponent={<View>{chatNotes.length?<PendingNotes notes={chatNotes} onRetry={noteRetry} onDiscard={noteDiscard}/>:null}<Animated.View style={listNavSpacer}/></View>}
+      ListFooterComponent={hasMore?<View style={{alignItems:'center',padding:18}}><GlassSurface material="clear" radius={19} shadow={false}><Pressable onPress={()=>void loadMessages(chat.id,true)} disabled={loadingMore} accessibilityRole="button" style={{paddingVertical:11,paddingHorizontal:17}}>{loadingMore?<ActivityIndicator size="small" color={accent}/>:<Text style={{fontSize:12,color:accent,fontWeight:'600'}}>Более ранние сообщения</Text>}</Pressable></GlassSurface></View>:null}
+      renderItem={renderRow} removeClippedSubviews={Platform.OS==='android'} maxToRenderPerBatch={12} updateCellsBatchingPeriod={40}/>,
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [rows,renderRow,chatNotes,hasMore,loadingMore,loadMessages,listSide,listComposerSide,listHeaderSide,dismissMode,accent,onListScroll,listNavSpacer,listRef,chat.id,noteRetry,noteDiscard]);
   return <VoicePlaybackProvider api={api}><GlassTargetScope targetRef={glassTarget}><KeyboardSafeView style={{flex:1,backgroundColor:'transparent',marginTop:wide?0:-insets.top,marginBottom:wide?0:-insets.bottom}}><View style={{flex:1}}>
     {/* Android: header and composer glass blur this (wallpaper + messages) on the GPU. */}
     <GlassContentTarget targetRef={glassTarget} style={{flex:1}}>
     <ChatWallpaper choice={wallpaper} style={{top:-80,bottom:-60}} trail/>
-    {rows.length===0&&!chatNotes.length?<View style={{flex:1,justifyContent:'center',paddingTop:headerHeight,paddingBottom:listEdges.composerSide}}>{store.messageLoading?<ActivityIndicator color={t.accent}/>:<Empty icon="hand-left-outline" title="Скажи «привет»" description={`Это начало вашей переписки с ${chat.peer.displayName}.`}/>}</View>:<><KeyboardGestureArea style={{flex:1}} interpolator="ios" offset={keyboardGestureOffset(composerHeight,stickers)} textInputNativeID={COMPOSER_NATIVE_ID} enableSwipeToDismiss={dismissSetup.gestureArea}><Animated.FlatList ref={listRef} inverted data={rows} onViewableItemsChanged={onViewableRows.current} viewabilityConfig={viewability.current} keyExtractor={row=>row.key} keyboardShouldPersistTaps="handled" keyboardDismissMode={dismissSetup.mode} contentContainerStyle={{paddingHorizontal:wide?28:9,paddingTop:listComposerSide,paddingBottom:listEdges.headerSide}} onScroll={onListScroll} scrollEventThrottle={16} initialNumToRender={25} windowSize={11} onScrollToIndexFailed={info=>{listRef.current?.scrollToOffset({offset:info.averageItemLength*info.index,animated:true});setTimeout(()=>listRef.current?.scrollToIndex({index:info.index,animated:true,viewPosition:.5}),250);}}
-      ListHeaderComponent={<View>{chatNotes.length?<PendingNotes notes={chatNotes} onRetry={retryVideoNote} onDiscard={discardVideoNote}/>:null}<Animated.View style={listNavSpacer}/></View>}
-      ListFooterComponent={store.hasMore[chat.id]?<View style={{alignItems:'center',padding:18}}><GlassSurface material="clear" radius={19} shadow={false}><Pressable onPress={()=>void store.loadMessages(chat.id,true)} disabled={store.messageLoading} accessibilityRole="button" style={{paddingVertical:11,paddingHorizontal:17}}>{store.messageLoading?<ActivityIndicator size="small" color={t.accent}/>:<Text style={{fontSize:12,color:t.accent,fontWeight:'600'}}>Более ранние сообщения</Text>}</Pressable></GlassSurface></View>:null}
-      renderItem={renderRow} removeClippedSubviews={Platform.OS==='android'} maxToRenderPerBatch={12} updateCellsBatchingPeriod={40}/></KeyboardGestureArea><Animated.View pointerEvents="none" style={[{position:'absolute',width:0,height:0,opacity:0},lockCommit]}/></>
+    {rows.length===0&&!chatNotes.length?<View style={{flex:1,justifyContent:'center',paddingTop:headerHeight,paddingBottom:listEdges.composerSide}}>{store.messageLoading?<ActivityIndicator color={t.accent}/>:<Empty icon="hand-left-outline" title="Скажи «привет»" description={`Это начало вашей переписки с ${chat.peer.displayName}.`}/>}</View>:<><KeyboardGestureArea style={{flex:1}} interpolator="ios" offset={keyboardGestureOffset(composerHeight,stickers)} textInputNativeID={COMPOSER_NATIVE_ID} enableSwipeToDismiss={dismissSetup.gestureArea}>{listEl}</KeyboardGestureArea><Animated.View pointerEvents="none" style={[{position:'absolute',width:0,height:0,opacity:0},lockCommit]}/></>
     }
     </GlassContentTarget>
     {/* iOS 26 scroll-edge effect: blurred (iOS) and covered by the wallpaper's edge colour evenly behind
