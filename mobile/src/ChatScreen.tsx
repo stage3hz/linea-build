@@ -486,6 +486,10 @@ export function ChatScreen({api,user,chat,store,onBack,wide=false,onOpenMusic}: 
   const handlers=useRef<RowHandlers>(null as unknown as RowHandlers);
   handlers.current={actions:(row,y,x)=>{setMenuY(y);setMenuX(x);setActions(row);},jumpTo,open:openAttachment,react,retry:pending=>void store.retry(pending),cancel:pending=>store.cancelPending(pending),reply:message=>{if(editing)endEdit();setReplyTo(message);},vote:(message,options)=>store.sendAction(chat.id,{type:'vote',target:message.clientId,options},replyPreview(message)),toggleSelect,openStory:ref=>void openStory(ref)};
   if(seen.current===null&&rows.length)seen.current=new Set(rows.map(row=>row.key));
+  // Only a message or two arriving live slides in. A batch (a page of history, everything that came while the chat
+  // was closed) is simply there: dozens of entering animations at once made the list jerk.
+  const seenRows=useRef<Row[]|null>(null);
+  if(seen.current&&seenRows.current!==rows){seenRows.current=rows;let unseen=0;for(const row of rows)if(!seen.current.has(row.key))unseen+=1;if(unseen>3)for(const row of rows)seen.current.add(row.key);}
   // A message being sent is a row of its own (key p…); once the server has it, the same message is another row (key
   // m…). That second row is not new: it must not slide in again — the message looked as if it were sent twice.
   const fresh=(row:Row)=>{if(!seen.current)return false;if(seen.current.has(row.key))return false;seen.current.add(row.key);const sent=row.album?row.album[0]?.message:row.message;const sentAs=sent?.clientId?`${row.album?'a':''}p${sent.clientId}`:'';return !(sentAs&&seen.current.has(sentAs));};
@@ -617,12 +621,15 @@ export function ChatScreen({api,user,chat,store,onBack,wide=false,onOpenMusic}: 
   const noteActs=useRef({retry:retryVideoNote,discard:discardVideoNote});noteActs.current={retry:retryVideoNote,discard:discardVideoNote};
   const noteRetry=useCallback((id:string)=>noteActs.current.retry(id),[]),noteDiscard=useCallback((id:string)=>noteActs.current.discard(id),[]);
   const hasMore=!!store.hasMore[chat.id],loadingMore=store.messageLoading,loadMessages=store.loadMessages,listSide=wide?28:9,listHeaderSide=listEdges.headerSide,dismissMode=dismissSetup.mode,accent=t.accent;
-  const listEl=useMemo(()=><Animated.FlatList ref={listRef} inverted data={rows} onViewableItemsChanged={onViewableRows.current} viewabilityConfig={viewability.current} keyExtractor={row=>row.key} keyboardShouldPersistTaps="handled" keyboardDismissMode={dismissSetup.mode} contentContainerStyle={{paddingHorizontal:listSide,paddingTop:listComposerSide,paddingBottom:listEdges.headerSide}} onScroll={onListScroll} scrollEventThrottle={16} initialNumToRender={25} windowSize={11} onScrollToIndexFailed={info=>{listRef.current?.scrollToOffset({offset:info.averageItemLength*info.index,animated:true});setTimeout(()=>listRef.current?.scrollToIndex({index:info.index,animated:true,viewPosition:.5}),250);}}
+  // History loads by itself when the list is scrolled towards its older end (the button below stays as a fallback).
+  const olderBusy=useRef(false);
+  const loadOlder=useCallback(()=>{if(!hasMore||loadingMore||olderBusy.current)return;olderBusy.current=true;void loadMessages(chat.id,true).catch(()=>{}).finally(()=>{olderBusy.current=false;});},[hasMore,loadingMore,loadMessages,chat.id]);
+  const listEl=useMemo(()=><Animated.FlatList ref={listRef} inverted data={rows} onViewableItemsChanged={onViewableRows.current} viewabilityConfig={viewability.current} keyExtractor={row=>row.key} keyboardShouldPersistTaps="handled" keyboardDismissMode={dismissSetup.mode} contentContainerStyle={{paddingHorizontal:listSide,paddingTop:listComposerSide,paddingBottom:listEdges.headerSide}} onScroll={onListScroll} scrollEventThrottle={16} initialNumToRender={12} windowSize={7} onEndReached={loadOlder} onEndReachedThreshold={0.6} onScrollToIndexFailed={info=>{listRef.current?.scrollToOffset({offset:info.averageItemLength*info.index,animated:true});setTimeout(()=>listRef.current?.scrollToIndex({index:info.index,animated:true,viewPosition:.5}),250);}}
       ListHeaderComponent={<View>{chatNotes.length?<PendingNotes notes={chatNotes} onRetry={noteRetry} onDiscard={noteDiscard}/>:null}<Animated.View style={listNavSpacer}/></View>}
       ListFooterComponent={hasMore?<View style={{alignItems:'center',padding:18}}><GlassSurface material="clear" radius={19} shadow={false}><Pressable onPress={()=>void loadMessages(chat.id,true)} disabled={loadingMore} accessibilityRole="button" style={{paddingVertical:11,paddingHorizontal:17}}>{loadingMore?<ActivityIndicator size="small" color={accent}/>:<Text style={{fontSize:12,color:accent,fontWeight:'600'}}>Более ранние сообщения</Text>}</Pressable></GlassSurface></View>:null}
-      renderItem={renderRow} removeClippedSubviews={Platform.OS==='android'} maxToRenderPerBatch={12} updateCellsBatchingPeriod={40}/>,
+      renderItem={renderRow} removeClippedSubviews={Platform.OS==='android'} maxToRenderPerBatch={8} updateCellsBatchingPeriod={40}/>,
     // eslint-disable-next-line react-hooks/exhaustive-deps
-    [rows,renderRow,chatNotes,hasMore,loadingMore,loadMessages,listSide,listComposerSide,listHeaderSide,dismissMode,accent,onListScroll,listNavSpacer,listRef,chat.id,noteRetry,noteDiscard]);
+    [rows,renderRow,chatNotes,hasMore,loadingMore,loadMessages,loadOlder,listSide,listComposerSide,listHeaderSide,dismissMode,accent,onListScroll,listNavSpacer,listRef,chat.id,noteRetry,noteDiscard]);
   return <VoicePlaybackProvider api={api}><GlassTargetScope targetRef={glassTarget}><KeyboardSafeView style={{flex:1,backgroundColor:'transparent',marginTop:wide?0:-insets.top,marginBottom:wide?0:-insets.bottom}}><View style={{flex:1}}>
     {/* Android: header and composer glass blur this (wallpaper + messages) on the GPU. */}
     <GlassContentTarget targetRef={glassTarget} style={{flex:1}}>

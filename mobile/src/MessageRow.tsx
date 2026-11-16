@@ -285,7 +285,24 @@ function CallServiceRow({ row, olderCreatedAt, mine, wide, handlers, selecting, 
 export const MessageRow = memo(function MessageRow(props: Props) {
   const message = props.row.message;
   return message && isCallEnd(message) && !props.row.album ? <CallServiceRow {...props} /> : <MessageRowView {...props} />;
-});
+}, sameRowProps);
+
+/**
+ * Props that change without the row looking any different: the peer's read mark (only whether THIS message is read
+ * matters, so a new mark re-renders the rows it reached and not every row), the quote thumbnail (a new object each
+ * render) and `fresh` (read once, when the row mounts, to choose the entering animation).
+ */
+export function sameRowProps(a: Props, b: Props): boolean {
+  const keys = Object.keys(b) as (keyof Props)[];
+  if (Object.keys(a).length !== keys.length) return false;
+  for (const key of keys) {
+    if (key === 'fresh') continue;
+    if (key === 'peerLastRead') { const id = b.row.message?.id || 0; if ((a.peerLastRead >= id) !== (b.peerLastRead >= id)) return false; continue; }
+    if (key === 'replyThumb') { if (a.replyThumb?.uri !== b.replyThumb?.uri || a.replyThumb?.round !== b.replyThumb?.round) return false; continue; }
+    if (a[key] !== b[key]) return false;
+  }
+  return true;
+}
 
 function HoverButton({ icon, label, onPress }: { icon: React.ComponentProps<typeof Icon>['name']; label: string; onPress: (x: number, y: number) => void }) {
   const t = useTheme();
