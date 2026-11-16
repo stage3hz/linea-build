@@ -65,3 +65,18 @@ export function customTheme(theme: Theme, accentColor: string | null, bubbleColo
   }
   return result;
 }
+
+const ink = new WeakMap<Theme, { meta: string; accent: string }>();
+/**
+ * Service text on the user's own bubble (time, ticks, «изм.», the quote): the theme's muted and accent colours, moved
+ * toward the text colour until they read on the bubble (4.5:1 for text, 3:1 for the accent marks). In several
+ * palettes the plain muted colour all but merged with the bubble.
+ */
+export function ownBubbleInk(theme: Theme): { meta: string; accent: string } {
+  const known = ink.get(theme); if (known) return known;
+  const text = solid(theme.text, theme.dark ? '#FFFFFF' : '#10141C'), bg = solid(theme.bg, theme.dark ? '#101014' : '#F4F6FA');
+  const alpha = /^rgba\(\s*\d+,\s*\d+,\s*\d+,\s*([\d.]+)\)/.exec(theme.bubble);
+  const bubble = mix(bg, solid(theme.bubble, bg), alpha ? Math.min(1, Number(alpha[1])) : 1);
+  const result = { meta: readable(solid(theme.muted, text), bubble, text, 4.5), accent: readable(solid(theme.accent, text), bubble, text, 3) };
+  ink.set(theme, result); return result;
+}
