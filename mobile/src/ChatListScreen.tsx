@@ -153,7 +153,9 @@ export function ChatListScreen({api,user,store,onProfile,onNewChat,onMusic,onAI,
   const hideArchive=useRef(true);const listOffset=useRef(0);const contentH=useRef(0);const dragFrom=useRef(0);
   const dragAt=useRef(0);const lastPull=useRef(0);
   const openSearchRef=useRef(()=>{});
-  const openSearch=()=>{if(searchOpen||!float||archive)return;lightFeedback();if(motion)LayoutAnimation.configureNext(LayoutAnimation.Presets.easeInEaseOut);setSearchOpen(true);};
+  // The phone has no search row any more (owner's decision, 0.14.24): the magnifier in the header opens search, so a
+  // pull of the list opens nothing.
+  const openSearch=()=>{};
   openSearchRef.current=openSearch;
   const closeSearch=()=>{if(!searchOpen)return;if(motion)LayoutAnimation.configureNext(LayoutAnimation.Presets.easeInEaseOut);setSearchOpen(false);};
   /** A drag has ended at offset `y`: a pull past the top of the list asks for «Поиск» (a quick one at once, a slow one
@@ -202,9 +204,8 @@ export function ChatListScreen({api,user,store,onProfile,onNewChat,onMusic,onAI,
       <SnowLedge id="chats.ai" radius={22} max={4}><Bouncy scaleTo={.84} onPress={onQuickAI} accessibilityRole="button" accessibilityLabel="Быстрый вопрос AI" hitSlop={6}><GlassSurface material="regular" radius={22} interactive contentStyle={{width:44,height:44,alignItems:'center',justifyContent:'center'}}><Icon name="sparkles-outline" size={20} color={t.text}/></GlassSurface></Bouncy></SnowLedge>
       <SnowLedge id="chats.new" radius={22} max={4}><Bouncy scaleTo={.84} onPress={onNewChat} accessibilityRole="button" accessibilityLabel="Новый чат" hitSlop={6} style={{width:44,height:44,borderRadius:22,backgroundColor:t.accent,alignItems:'center',justifyContent:'center'}}><Icon name="create-outline" size={20} color={t.onAccent}/></Bouncy></SnowLedge>
     </View>
-    {/* The PC and the tablet rail keep «Поиск» in the header; on the phone it is put away and comes out here, under
-        the title, when the list is pulled (see openSearch). */}
-    {float?(searchOpen&&!archive&&!editing?searchBar:null):<SnowLedge id="chats.search" radius={22} inset={{left:16,right:16,bottom:10}}>{searchBar}</SnowLedge>}
+    {/* The PC and the tablet rail keep «Поиск» in the header; the phone has the magnifier button instead. */}
+    {float?null:<SnowLedge id="chats.search" radius={22} inset={{left:16,right:16,bottom:10}}>{searchBar}</SnowLedge>}
     {/* F8: friends' stories above the chats (hidden while nobody has one); not in the archive or while editing. */}
     {!archive&&!editing?<StoriesStrip api={api} user={user} store={store}/>:null}
     {!archive&&folders.folders.length?<FolderTabs position={folderPos} folders={folders.folders} filter={filter} unread={unread} onChange={setFilter} onCreate={()=>setEditor({folder:null})} onEdit={folder=>setEditor({folder})}/>:null}

@@ -95,7 +95,7 @@ test('phone: the snow never takes a touch and is off with the setting; «Пои�
   // The field is never a row of the list (the list was left scrolled by its height when it went away): opened, it
   // sits in the floating header, and the list is not scrolled for it.
   assert.ok(list.includes('const topRow=archiveRow;') && !list.includes('pullSearch'), 'only «Архив» is tucked above the chats');
-  assert.ok(list.includes('{float?(searchOpen&&!archive&&!editing?searchBar:null):<SnowLedge id="chats.search"'), 'opened, it is under the title');
+  assert.ok(list.includes('{float?null:<SnowLedge id="chats.search"'), 'the phone has no search row: the magnifier in the header opens search');
   assert.ok(!/const (open|close)Search=[^\n]*scrollToOffset/.test(list), 'opening and closing never scroll the list');
   assert.doesNotMatch(list, /searchPulled/);
 });
