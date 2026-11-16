@@ -57,6 +57,8 @@ export function ChatListScreen({api,user,store,onProfile,onNewChat,onMusic,onAI,
   // Tabs float over the list (it scrolls under the blurred bar, like Telegram); the list keeps room for them at the end.
   const [tabsHeight,setTabsHeight]=useState(96);const [headerHeight,setHeaderHeight]=useState(170);const bleed=useBleed();
   const float=!rail&&Platform.OS!=='web';
+  // A tablet held upright has no rail but room for the «Поиск» field; only the phone gets the magnifier instead.
+  const screen=useWindowDimensions();const phone=float&&Math.min(screen.width,screen.height)<600;
   // Phone: «Поиск» is not on screen at all until it is asked for — one quick pull down at the top of the list, or
   // two pulls in a row; any swipe up puts it away again.
   const [searchOpen,setSearchOpen]=useState(false);
@@ -200,12 +202,12 @@ export function ChatListScreen({api,user,store,onProfile,onNewChat,onMusic,onAI,
       <SnowLedge id="chats.edit" radius={22}><Bouncy scaleTo={.88} onPress={()=>{lightFeedback();setEditing(current=>current?null:new Set());}} accessibilityRole="button" hitSlop={6}><GlassSurface material="regular" radius={22} interactive contentStyle={{height:44,paddingHorizontal:16,justifyContent:'center'}}><Text style={{color:t.text,fontSize:16,fontWeight:'600'}}>{editing?'Готово':'Изм.'}</Text></GlassSurface></Bouncy></SnowLedge>
       <View style={{flex:1,alignItems:'center'}}>{title==='chats'?<Text style={{color:t.text,fontSize:17,fontWeight:'700'}}>Чаты</Text>:title==='mesh'?<View accessibilityLabel="Связь через Mesh, без интернета" style={{flexDirection:'row',alignItems:'center',gap:6}}><Icon name="bluetooth" size={16} color={t.accent}/><Text style={{color:t.text,fontSize:17,fontWeight:'700'}}>Mesh</Text></View>:<View style={{flexDirection:'row',alignItems:'center',gap:6}}><ActivityIndicator size="small" color={t.muted}/><Text style={{color:t.text,fontSize:15,fontWeight:'600'}}>{TITLE_TEXT[title]}</Text></View>}</View>
       {/* The phone keeps «Поиск» put away (it comes out when the list is pulled); the magnifier opens the search screen at once. */}
-      {float&&!archive&&!editing?<Bouncy scaleTo={.84} onPress={()=>{lightFeedback();setSearching(true);}} accessibilityRole="button" accessibilityLabel="Поиск" hitSlop={6}><GlassSurface material="regular" radius={22} interactive contentStyle={{width:44,height:44,alignItems:'center',justifyContent:'center'}}><Icon name="search" size={20} color={t.text}/></GlassSurface></Bouncy>:null}
+      {phone&&!archive&&!editing?<Bouncy scaleTo={.84} onPress={()=>{lightFeedback();setSearching(true);}} accessibilityRole="button" accessibilityLabel="Поиск" hitSlop={6}><GlassSurface material="regular" radius={22} interactive contentStyle={{width:44,height:44,alignItems:'center',justifyContent:'center'}}><Icon name="search" size={20} color={t.text}/></GlassSurface></Bouncy>:null}
       <SnowLedge id="chats.ai" radius={22} max={4}><Bouncy scaleTo={.84} onPress={onQuickAI} accessibilityRole="button" accessibilityLabel="Быстрый вопрос AI" hitSlop={6}><GlassSurface material="regular" radius={22} interactive contentStyle={{width:44,height:44,alignItems:'center',justifyContent:'center'}}><Icon name="sparkles-outline" size={20} color={t.text}/></GlassSurface></Bouncy></SnowLedge>
       <SnowLedge id="chats.new" radius={22} max={4}><Bouncy scaleTo={.84} onPress={onNewChat} accessibilityRole="button" accessibilityLabel="Новый чат" hitSlop={6} style={{width:44,height:44,borderRadius:22,backgroundColor:t.accent,alignItems:'center',justifyContent:'center'}}><Icon name="create-outline" size={20} color={t.onAccent}/></Bouncy></SnowLedge>
     </View>
     {/* The PC and the tablet rail keep «Поиск» in the header; the phone has the magnifier button instead. */}
-    {float?null:<SnowLedge id="chats.search" radius={22} inset={{left:16,right:16,bottom:10}}>{searchBar}</SnowLedge>}
+    {phone?null:<SnowLedge id="chats.search" radius={22} inset={{left:16,right:16,bottom:10}}>{searchBar}</SnowLedge>}
     {/* F8: friends' stories above the chats (hidden while nobody has one); not in the archive or while editing. */}
     {!archive&&!editing?<StoriesStrip api={api} user={user} store={store}/>:null}
     {!archive&&folders.folders.length?<FolderTabs position={folderPos} folders={folders.folders} filter={filter} unread={unread} onChange={setFilter} onCreate={()=>setEditor({folder:null})} onEdit={folder=>setEditor({folder})}/>:null}
