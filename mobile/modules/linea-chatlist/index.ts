@@ -45,3 +45,40 @@ export type NativeChatListProps = {
   onRowLongPress?: (event: { nativeEvent: { id: string; y: number } }) => void;
   style?: unknown;
 };
+
+/** One row of the experimental native message list (view 'LineaMsgList'); rows are given oldest first. */
+export type NativeMsgRow = {
+  key: string;
+  /** 0 = a message bubble, 1 = a centred notice (the day, a service line). */
+  kind: 0 | 1;
+  mine: boolean;
+  text: string;
+  time: string;
+  /** Own message: 1 = sent, 2 = read, 3 = being sent, 4 = failed; 0 = no mark. */
+  ticks: 0 | 1 | 2 | 3 | 4;
+  /** The last bubble of a run of one sender. */
+  tail: boolean;
+  quoteAuthor: string;
+  quoteText: string;
+  forward: string;
+  /** The attachment in words («Фотография», «Голосовое сообщение · 0:12», a file name). */
+  label: string;
+  thumb: string;
+  thumbRound: boolean;
+  /** Width / height of the thumbnail. */
+  thumbWide: number;
+  checked: -1 | 0 | 1;
+};
+export type NativeMsgPalette = { text: number; muted: number; accent: number; onAccent: number; mine: number; theirs: number; notice: number; noticeText: number; danger: number; quote: number; mineMeta: number; mineMark: number; subtle: number };
+export type NativeMsgListProps = {
+  rows: NativeMsgRow[];
+  palette: NativeMsgPalette;
+  fontSize?: number;
+  /** [under the header, above the composer], dp. */
+  pad?: [number, number];
+  onMsgPress?: (event: { nativeEvent: { key: string } }) => void;
+  onMsgLongPress?: (event: { nativeEvent: { key: string; y: number } }) => void;
+  /** The oldest loaded row is near: time to load older messages. */
+  onNearTop?: (event: { nativeEvent: { key: string } }) => void;
+  style?: unknown;
+};

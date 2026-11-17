@@ -72,7 +72,11 @@ import { inviteCodeFrom } from './communities/types';
 import { inviteForwardable } from './communities/InviteCard';
 import { TopPlayerBar } from './music/PlayerControls';
 import { useCalls } from './calls/CallProvider';
-import { callServiceText } from './calls/callLog';
+import { callServiceText, isCallEnd } from './calls/callLog';
+import { requireNativeViewManager, requireOptionalNativeModule } from 'expo-modules-core';
+import { processColor } from 'react-native';
+import type { NativeMsgListProps, NativeMsgRow } from '../modules/linea-chatlist';
+import { ownBubbleInk } from './themes/custom';
 import { isMuted, muteUntilLabel } from './notifications/model';
 import { UserProfile } from './UserProfile';
 import { MiniProfile } from './MiniProfile';
@@ -93,6 +97,10 @@ import { JUMP_FLASH_MS, knownDeleted, nextJumpStep, rowIndexOf, type ReplyJump }
 const COMPOSER_NATIVE_ID='chat-composer-input';
 
 
+// Experimental («Быстрый чат» in the settings): the messages drawn by modules/linea-chatlist (view LineaMsgList).
+const NativeMsgListView:React.ComponentType<NativeMsgListProps>|null=Platform.OS==='android'||Platform.OS==='ios'?(()=>{try{return requireOptionalNativeModule('LineaMsgList')?requireNativeViewManager('LineaMsgList'):null;}catch{return null;}})():null;
+const nativeColor=(value:string)=>{const c=processColor(value);return typeof c==='number'?c:0;};
+const missingWords=(count:number)=>count%10===1&&count%100!==11?'сообщение':count%10>=2&&count%10<=4&&(count%100<12||count%100>14)?'сообщения':'сообщений';
 /** Formatting of the unsent text per chat (the draft text itself lives in the store as a plain string). */
 const draftEntities=new Map<string,Entity[]>();
 
@@ -624,6 +632,42 @@ export function ChatScreen({api,user,chat,store,onBack,wide=false,onOpenMusic}: 
   // History loads by itself when the list is scrolled towards its older end (the button below stays as a fallback).
   const olderBusy=useRef(false);
   const loadOlder=useCallback(()=>{if(!hasMore||loadingMore||olderBusy.current)return;olderBusy.current=true;void loadMessages(chat.id,true).catch(()=>{}).finally(()=>{olderBusy.current=false;});},[hasMore,loadingMore,loadMessages,chat.id]);
+  // ---- the experimental native message list ----
+  const nativeChatPref=preferences.nativeChat;const nativeChatOn=!!NativeMsgListView&&nativeChatPref;
+  const nativeMsgRows=useMemo<NativeMsgRow[]>(()=>{
+    if(!nativeChatOn)return [];
+    const out:NativeMsgRow[]=[];const blank={mine:false,time:'',ticks:0 as const,tail:false,quoteAuthor:'',quoteText:'',forward:'',label:'',thumb:'',thumbRound:false,thumbWide:1,checked:-1 as const};
+    const senderOf=(row:Row|undefined)=>!row||row.missing?undefined:row.pending?user.id:row.message&&!row.message.meta?.action?row.message.senderId:undefined;
+    // `rows` is newest first; the native list takes them oldest first.
+    for(let i=rows.length-1;i>=0;i--){
+      const row=rows[i],older=rows[i+1],newer=rows[i-1];
+      if(!older||new Date(older.createdAt).toDateString()!==new Date(row.createdAt).toDateString())out.push({...blank,key:`d${row.key}`,kind:1,text:formatDay(row.createdAt)});
+      if(row.missing){out.push({...blank,key:row.key,kind:1,text:`${row.missing} ${missingWords(row.missing)} до входа на этом устройстве`});continue;}
+      const message=row.message,p=row.pending,mine=!!p||message?.senderId===user.id;
+      if(message&&isCallEnd(message)&&!row.album){out.push({...blank,key:row.key,kind:1,text:`${callServiceText(message.meta.action,message.senderId,user.id)} · ${formatTime(row.createdAt)}`});continue;}
+      const file=message?.attachment||p?.attachment,reply=message?.meta?.reply||p?.meta?.reply,storyRef=message?.meta?.story||p?.meta?.story;
+      const quote=reply?quoteContent(reply?view.byClientId.get(reply.clientId):undefined,reply.preview):null;
+      const sender=senderOf(row);
+      const tail=!newer||senderOf(newer)!==sender||new Date(newer.createdAt).toDateString()!==new Date(row.createdAt).toDateString()||Date.parse(newer.createdAt)-Date.parse(row.createdAt)>=5*60_000;
+      const visual=!!file?.preview&&(isVideoNote(file)||file.mimeType.startsWith('image/')||file.mimeType.startsWith('video/'));
+      out.push({key:row.key,kind:0,mine,text:message?.text||p?.text||'',time:`${message?.edited?'изм. ':''}${formatTime(row.createdAt)}`,
+        ticks:!mine?0:p?(p.state==='failed'?4:3):(peerLastRead>=(message?.id||0)?2:1),tail,
+        quoteAuthor:reply?(reply.senderId===user.id?'Ты':peerName):storyRef?(storyRef.ownerId===user.id?'Ты':peerName):'',quoteText:quote?quote.text:storyRef?'История':'',
+        forward:message?.meta?.forward?(message.meta.forward.from?`Переслано от ${message.meta.forward.from}`:'Пересланное сообщение'):'',
+        label:row.album?`Альбом · ${row.album.length}`:file?(visual?attachmentLabel(file):`${attachmentLabel(file)}${file.name&&!isVoice(file)&&!isVideoNote(file)?` · ${file.name}`:''}`):message?.poll?'Опрос':'',
+        thumb:visual&&file?.preview?file.preview.base64:'',thumbRound:!!file&&isVideoNote(file),thumbWide:visual&&file?.preview&&file.preview.height?file.preview.width/file.preview.height:1,
+        checked:selection?(selection.has(row.key)?1:0):-1});
+    }
+    return out;
+  },[nativeChatOn,rows,user.id,peerLastRead,peerName,view.byClientId,selection]);
+  const nativeMsgPalette=useMemo(()=>{const ink=ownBubbleInk(t);return {text:nativeColor(t.text),muted:nativeColor(t.muted),accent:nativeColor(t.accent),onAccent:nativeColor(t.onAccent),mine:nativeColor(t.bubble),theirs:nativeColor(t.incoming),notice:nativeColor(t.dark?'rgba(12,18,34,0.55)':'rgba(255,255,255,0.7)'),noticeText:nativeColor(t.text),danger:nativeColor(t.danger),quote:nativeColor(t.dark?'rgba(255,255,255,0.08)':'rgba(0,0,0,0.05)'),mineMeta:nativeColor(ink.meta),mineMark:nativeColor(ink.accent),subtle:nativeColor(t.subtle)};},[t]);
+  const nativeMsgPress=(key:string)=>{
+    const row=rows.find(r=>r.key===key);if(!row||row.missing)return;
+    if(selection){handlers.current.toggleSelect(row);return;}
+    if(row.pending?.state==='failed'){handlers.current.retry(row.pending);return;}
+    const file=row.album?row.album[0]?.attachment:row.message?.attachment;if(file)handlers.current.open(file);
+  };
+  const nativeMsgHold=(key:string,y:number)=>{const row=rows.find(r=>r.key===key);if(row&&!row.missing)handlers.current.actions(row,y);};
   const listEl=useMemo(()=><Animated.FlatList ref={listRef} inverted data={rows} onViewableItemsChanged={onViewableRows.current} viewabilityConfig={viewability.current} keyExtractor={row=>row.key} keyboardShouldPersistTaps="handled" keyboardDismissMode={dismissSetup.mode} contentContainerStyle={{paddingHorizontal:listSide,paddingTop:listComposerSide,paddingBottom:listEdges.headerSide}} onScroll={onListScroll} scrollEventThrottle={16} initialNumToRender={12} windowSize={7} onEndReached={loadOlder} onEndReachedThreshold={0.6} onScrollToIndexFailed={info=>{listRef.current?.scrollToOffset({offset:info.averageItemLength*info.index,animated:true});setTimeout(()=>listRef.current?.scrollToIndex({index:info.index,animated:true,viewPosition:.5}),250);}}
       ListHeaderComponent={<View>{chatNotes.length?<PendingNotes notes={chatNotes} onRetry={noteRetry} onDiscard={noteDiscard}/>:null}<Animated.View style={listNavSpacer}/></View>}
       ListFooterComponent={hasMore?<View style={{alignItems:'center',padding:18}}><GlassSurface material="clear" radius={19} shadow={false}><Pressable onPress={()=>void loadMessages(chat.id,true)} disabled={loadingMore} accessibilityRole="button" style={{paddingVertical:11,paddingHorizontal:17}}>{loadingMore?<ActivityIndicator size="small" color={accent}/>:<Text style={{fontSize:12,color:accent,fontWeight:'600'}}>Более ранние сообщения</Text>}</Pressable></GlassSurface></View>:null}
@@ -634,7 +678,7 @@ export function ChatScreen({api,user,chat,store,onBack,wide=false,onOpenMusic}: 
     {/* Android: header and composer glass blur this (wallpaper + messages) on the GPU. */}
     <GlassContentTarget targetRef={glassTarget} style={{flex:1}}>
     <ChatWallpaper choice={wallpaper} style={{top:-80,bottom:-60}} trail/>
-    {rows.length===0&&!chatNotes.length?<View style={{flex:1,justifyContent:'center',paddingTop:headerHeight,paddingBottom:listEdges.composerSide}}>{store.messageLoading?<ActivityIndicator color={t.accent}/>:<Empty icon="hand-left-outline" title="Скажи «привет»" description={`Это начало вашей переписки с ${chat.peer.displayName}.`}/>}</View>:<><KeyboardGestureArea style={{flex:1}} interpolator="ios" offset={keyboardGestureOffset(composerHeight,stickers)} textInputNativeID={COMPOSER_NATIVE_ID} enableSwipeToDismiss={dismissSetup.gestureArea}>{listEl}</KeyboardGestureArea><Animated.View pointerEvents="none" style={[{position:'absolute',width:0,height:0,opacity:0},lockCommit]}/></>
+    {rows.length===0&&!chatNotes.length?<View style={{flex:1,justifyContent:'center',paddingTop:headerHeight,paddingBottom:listEdges.composerSide}}>{store.messageLoading?<ActivityIndicator color={t.accent}/>:<Empty icon="hand-left-outline" title="Скажи «привет»" description={`Это начало вашей переписки с ${chat.peer.displayName}.`}/>}</View>:<><KeyboardGestureArea style={{flex:1}} interpolator="ios" offset={keyboardGestureOffset(composerHeight,stickers)} textInputNativeID={COMPOSER_NATIVE_ID} enableSwipeToDismiss={dismissSetup.gestureArea}>{nativeChatOn&&NativeMsgListView?<NativeMsgListView style={{flex:1}} rows={nativeMsgRows} palette={nativeMsgPalette} fontSize={metrics.fontSize} pad={[listEdges.headerSide,listComposerSide]} onMsgPress={e=>nativeMsgPress(e.nativeEvent.key)} onMsgLongPress={e=>nativeMsgHold(e.nativeEvent.key,e.nativeEvent.y)} onNearTop={loadOlder}/>:listEl}</KeyboardGestureArea><Animated.View pointerEvents="none" style={[{position:'absolute',width:0,height:0,opacity:0},lockCommit]}/></>
     }
     </GlassContentTarget>
     {/* iOS 26 scroll-edge effect: blurred (iOS) and covered by the wallpaper's edge colour evenly behind

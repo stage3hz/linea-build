@@ -1,1 +1,1 @@
-{"platforms":["apple","android"],"apple":{"modules":["LineChatListModule"]},"android":{"modules":["expo.modules.lineachatlist.LineChatListModule"]}}
+{"platforms":["apple","android"],"apple":{"modules":["LineChatListModule","LineMsgListModule"]},"android":{"modules":["expo.modules.lineachatlist.LineChatListModule","expo.modules.lineachatlist.LineMsgListModule"]}}

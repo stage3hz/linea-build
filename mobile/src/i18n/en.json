@@ -2880,5 +2880,8 @@
 "Быстрый список чатов": "Fast chat list",
 "Список чатов рисуется родным кодом телефона. Если с ним что-то не так — выключи, вернётся прежний список": "The chat list is drawn by the phone's native code. If something is wrong with it, switch it off and the previous list comes back",
 "Не прочитано": "Unread",
-"Со звуком": "Unmute"
+"Со звуком": "Unmute",
+"Быстрый чат (тест)": "Fast chat (test)",
+"Сообщения рисует родной код телефона. Пока только текст, ответы и подписи вложений: без проигрывателя голосовых, реакций и опросов": "Messages are drawn by the phone's native code. For now only text, replies and attachment labels: no voice player, reactions or polls",
+"Альбом": "Album"
 }
