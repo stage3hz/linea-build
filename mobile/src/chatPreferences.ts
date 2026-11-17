@@ -40,11 +40,13 @@ export type ChatPreferences = {
   snow: boolean;
   /** «Ледяное стекло»: rime along the rim of glass buttons, bars and cards (phone). */
   ice: boolean;
+  /** Experimental (Android): the chat list drawn by the native module linea-chatlist instead of React. Off by default. */
+  nativeList: boolean;
   /** «Свои цвета»: the user's accent colour and the colour of their own messages (`#RRGGBB`), over any theme; null = the theme's. */
   accentColor: string | null; bubbleColor: string | null;
 };
 const KEY = 'linea.chat-preferences.v1';
-const DEFAULTS: ChatPreferences = { textSize: 'medium', sendTyping: true, animations: 'auto', lowBattery: 0.25, bubbleRadius: 20, wallpaper: 'none', nightMode: null, nightFrom: '22:00', nightTo: '07:00', nightBrightness: 0.25, nightForced: null, nightForcedAt: null, autoplayVideo: true, autoplayGif: true, animatedStickers: true, animatedEmoji: true, pixelTrail: true, snow: true, ice: true, accentColor: null, bubbleColor: null };
+const DEFAULTS: ChatPreferences = { textSize: 'medium', sendTyping: true, animations: 'auto', lowBattery: 0.25, bubbleRadius: 20, wallpaper: 'none', nightMode: null, nightFrom: '22:00', nightTo: '07:00', nightBrightness: 0.25, nightForced: null, nightForcedAt: null, autoplayVideo: true, autoplayGif: true, animatedStickers: true, animatedEmoji: true, pixelTrail: true, snow: true, ice: true, nativeList: false, accentColor: null, bubbleColor: null };
 
 let current: ChatPreferences = DEFAULTS;
 const listeners = new Set<() => void>();
@@ -73,6 +75,7 @@ export function parsePreferences(raw: string | null): ChatPreferences {
       animatedStickers: typeof value?.animatedStickers === 'boolean' ? value.animatedStickers : true,
       animatedEmoji: typeof value?.animatedEmoji === 'boolean' ? value.animatedEmoji : true,
       pixelTrail: typeof value?.pixelTrail === 'boolean' ? value.pixelTrail : DEFAULTS.pixelTrail,
+      nativeList: value?.nativeList === true,
       snow: typeof value?.snow === 'boolean' ? value.snow : DEFAULTS.snow,
       ice: typeof value?.ice === 'boolean' ? value.ice : DEFAULTS.ice,
       accentColor: storedColor(value?.accentColor), bubbleColor: storedColor(value?.bubbleColor),

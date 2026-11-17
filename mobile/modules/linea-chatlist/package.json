@@ -1,0 +1,8 @@
+{
+  "name": "linea-chatlist",
+  "version": "0.1.0",
+  "private": true,
+  "description": "The chat list drawn natively (Android: ListView with canvas-drawn rows); experimental, off by default",
+  "license": "AGPL-3.0-only",
+  "main": "index.ts"
+}

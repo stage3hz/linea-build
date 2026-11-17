@@ -41,7 +41,7 @@ test('Android: every native view of the app either says it is disabled (decorati
   // A view that reports isEnabled() == false is passed over by React Native's touch targeting (AUTO becomes BOX_NONE,
   // and these views have no children). A new decorative native view must do the same; one that is meant to be touched
   // is listed here on purpose.
-  const interactive = new Set(['VideoNoteView']);
+  const interactive = new Set(['VideoNoteView', 'ChatListView']);
   const modules = new URL('../modules/', import.meta.url);
   const found = [];
   const walk = dir => {
@@ -61,6 +61,6 @@ test('Android: every native view of the app either says it is disabled (decorati
     const android = new URL(`${entry.name}/android/src/main/java/`, modules);
     if (entry.isDirectory() && existsSync(android)) walk(android);
   }
-  assert.deepEqual(found.map(view => view.name).sort(), ['SnowView', 'TrailBackgroundView', 'VideoNoteView'], 'a new native view: decide whether it takes touches');
+  assert.deepEqual(found.map(view => view.name).sort(), ['ChatListView', 'SnowView', 'TrailBackgroundView', 'VideoNoteView'], 'a new native view: decide whether it takes touches');
   for (const view of found) assert.equal(view.disabled, !interactive.has(view.name), `${view.name}: decorative views are disabled, interactive ones are not`);
 });
