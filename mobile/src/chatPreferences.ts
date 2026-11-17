@@ -40,11 +40,12 @@ export type ChatPreferences = {
   snow: boolean;
   /** «Ледяное стекло»: rime along the rim of glass buttons, bars and cards (phone). */
   ice: boolean;
-  /** The chat list drawn by the native module linea-chatlist instead of React (phones). On by default since 0.14.29
-   *  (owner's decision); the switch in the settings stays as the way back if the native list misbehaves. */
+  /** The chat list drawn by the native module linea-chatlist instead of React (phones). Always on
+   *  on phones (owner's decision); there is no switch. */
   nativeList: boolean;
   /** Experimental: the messages of a chat drawn by the native module (text, quotes, attachment labels and thumbnails
-   *  only — no inline players, reactions or polls yet). Off by default. */
+   *  only — no inline players or polls yet). Off until it shows everything the React chat does; the simulator build
+   *  turns it on with EXPO_PUBLIC_NATIVE_CHAT=1. There is no switch. */
   nativeChat: boolean;
   /** «Свои цвета»: the user's accent colour and the colour of their own messages (`#RRGGBB`), over any theme; null = the theme's. */
   accentColor: string | null; bubbleColor: string | null;
@@ -79,8 +80,9 @@ export function parsePreferences(raw: string | null): ChatPreferences {
       animatedStickers: typeof value?.animatedStickers === 'boolean' ? value.animatedStickers : true,
       animatedEmoji: typeof value?.animatedEmoji === 'boolean' ? value.animatedEmoji : true,
       pixelTrail: typeof value?.pixelTrail === 'boolean' ? value.pixelTrail : DEFAULTS.pixelTrail,
-      nativeList: value?.nativeList !== false,
-      nativeChat: typeof value?.nativeChat === 'boolean' ? value.nativeChat : DEFAULTS.nativeChat,
+      // No switches for these any more (owner's decision, 0.14.37): what an earlier build's switch saved is ignored.
+      nativeList: DEFAULTS.nativeList,
+      nativeChat: DEFAULTS.nativeChat,
       snow: typeof value?.snow === 'boolean' ? value.snow : DEFAULTS.snow,
       ice: typeof value?.ice === 'boolean' ? value.ice : DEFAULTS.ice,
       accentColor: storedColor(value?.accentColor), bubbleColor: storedColor(value?.bubbleColor),
