@@ -1,6 +1,7 @@
 appId: com.linea.messenger.preview
 ---
-# Registers a fresh test account on the local test server and walks the screens (screens.yaml).
+# Registers a fresh test account on the local test server. The workflow then seeds people and messages
+# (tools/sim-seed.mjs) and walks the chats (native-check.yaml) and the other screens (screens-again.yaml).
 #
 # Typing: ManualField accepts one code point per change, which is exactly what XCUITest typing does,
 # so a whole string per inputText is fine (the "по одному символу" hint would appear otherwise — asserted).
@@ -20,14 +21,9 @@ appId: com.linea.messenger.preview
 - takeScreenshot: 00-auth
 - tapOn: "Создать аккаунт"
 
-# Step 1/5: login twice
+# Step 1/5: the login (every value is entered once since 0.14.25)
 - tapOn:
     id: "field-Логин"
-- inputText: "simtester${ATTEMPT}"
-- assertNotVisible: "Введи по одному символу.*"
-- pressKey: enter
-- tapOn:
-    id: "field-Повтори логин"
 - inputText: "simtester${ATTEMPT}"
 - assertNotVisible: "Введи по одному символу.*"
 - takeScreenshot: 01-register-login
@@ -75,18 +71,9 @@ appId: com.linea.messenger.preview
       id: "field-Пароль"
     timeout: 20000
 
-# Step 3/5: password twice
-# The simulator cannot type into a secure field (iOS Password AutoFill); show it first.
-- tapOn: "Показать: пароль"
+# Step 3/5: the password (shown while typed since 0.14.25, so the simulator can type into it)
 - tapOn:
     id: "field-Пароль"
-- inputText: "correct horse battery staple 42"
-- assertNotVisible: "Введи по одному символу.*"
-- pressKey: enter
-# The simulator cannot type into a secure field (iOS Password AutoFill); show it first.
-- tapOn: "Показать: повтори пароль"
-- tapOn:
-    id: "field-Повтори пароль"
 - inputText: "correct horse battery staple 42"
 - assertNotVisible: "Введи по одному символу.*"
 - pressKey: enter
@@ -117,17 +104,8 @@ appId: com.linea.messenger.preview
 - waitForAnimationToEnd
 
 # Step 4/5: confirmation word twice
-# The simulator cannot type into a secure field (iOS Password AutoFill); show it first.
-- tapOn: "Показать: слово подтверждения"
 - tapOn:
     id: "field-Слово подтверждения"
-- inputText: "ludwigsalt"
-- assertNotVisible: "Введи по одному символу.*"
-- pressKey: enter
-# The simulator cannot type into a secure field (iOS Password AutoFill); show it first.
-- tapOn: "Показать: повтори слово подтверждения"
-- tapOn:
-    id: "field-Повтори слово подтверждения"
 - inputText: "ludwigsalt"
 - assertNotVisible: "Введи по одному символу.*"
 - pressKey: enter
@@ -158,17 +136,8 @@ appId: com.linea.messenger.preview
 - waitForAnimationToEnd
 
 # Step 5/5: recovery word twice
-# The simulator cannot type into a secure field (iOS Password AutoFill); show it first.
-- tapOn: "Показать: слово восстановления"
 - tapOn:
     id: "field-Слово восстановления"
-- inputText: "mariposa"
-- assertNotVisible: "Введи по одному символу.*"
-- pressKey: enter
-# The simulator cannot type into a secure field (iOS Password AutoFill); show it first.
-- tapOn: "Показать: повтори слово восстановления"
-- tapOn:
-    id: "field-Повтори слово восстановления"
 - inputText: "mariposa"
 - assertNotVisible: "Введи по одному символу.*"
 - takeScreenshot: 02-register-last-step
@@ -176,7 +145,7 @@ appId: com.linea.messenger.preview
 # Sign-up runs now (three secrets hashed on the server). Wait for an outcome instead of acting at once:
 # the chat list, iOS's «Save Password?» (it may come only after the screen changes) or an error.
 - extendedWaitUntil:
-    visible: "Избранное.*|Not Now|Не сейчас|Сервер не ответил.*|Нет связи.*"
+    visible: "Избранное.*|Чаты|Not Now|Не сейчас|Сервер не ответил.*|Нет связи.*"
     timeout: 300000
 - tapOn:
     text: "Not Now|Не сейчас"
@@ -184,7 +153,7 @@ appId: com.linea.messenger.preview
 # Still on the form (Return did not submit, or the request failed): press the button once more.
 - runFlow:
     when:
-      notVisible: "Избранное.*"
+      notVisible: "Чаты"
       visible:
         id: "auth-submit"
     commands:
@@ -197,12 +166,13 @@ appId: com.linea.messenger.preview
     text: "Разрешить"
     optional: true
 - extendedWaitUntil:
-    visible: "Избранное.*|Not Now|Не сейчас"
+    visible: "Избранное.*|Чаты|Not Now|Не сейчас"
     timeout: 300000
 - tapOn:
     text: "Not Now|Не сейчас"
     optional: true
 - extendedWaitUntil:
-    visible: "Избранное.*"
+    visible: "Избранное.*|Чаты"
     timeout: 60000
-- runFlow: screens.yaml
+- waitForAnimationToEnd
+- takeScreenshot: 03-registered

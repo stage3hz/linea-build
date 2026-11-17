@@ -1,0 +1,79 @@
+appId: com.linea.messenger.preview
+---
+# The native chat list and the native message list with people in them (seeded by tools/sim-seed.mjs after
+# register-and-screens.yaml). The simulator build has «Быстрый чат» on (EXPO_PUBLIC_NATIVE_CHAT=1 in the workflow).
+# Every chat is opened from a fresh launch: a cold start is slow but never depends on a back gesture.
+- launchApp
+- extendedWaitUntil:
+    visible: "Чаты"
+    timeout: 300000
+- extendedWaitUntil:
+    visible: "Лариса Новикова.*"
+    timeout: 120000
+- waitForAnimationToEnd
+- takeScreenshot: ${THEME}-n01-list
+# Avatars are fetched after the first frame.
+- extendedWaitUntil:
+    visible: "Анна Лебедева.*"
+    timeout: 30000
+- takeScreenshot: ${THEME}-n02-list-avatars
+
+# A long chat: 24 messages, some of two lines.
+- tapOn:
+    text: "Лариса Новикова.*"
+- extendedWaitUntil:
+    visible:
+      id: "chat-composer"
+    timeout: 60000
+- waitForAnimationToEnd
+- takeScreenshot: ${THEME}-n03-chat-long
+- swipe:
+    start: "50%,35%"
+    end: "50%,75%"
+- waitForAnimationToEnd
+- takeScreenshot: ${THEME}-n04-chat-long-scrolled
+- tapOn:
+    id: "chat-composer"
+- inputText: "Привет из симулятора"
+- waitForAnimationToEnd
+- takeScreenshot: ${THEME}-n05-chat-keyboard
+- tapOn:
+    id: "chat-send"
+- waitForAnimationToEnd
+- takeScreenshot: ${THEME}-n06-chat-sent
+
+# A chat with a long paragraph.
+- launchApp
+- extendedWaitUntil:
+    visible: "Максим Голубев.*"
+    timeout: 300000
+- tapOn:
+    text: "Максим Голубев.*"
+- extendedWaitUntil:
+    visible:
+      id: "chat-composer"
+    timeout: 60000
+- waitForAnimationToEnd
+- takeScreenshot: ${THEME}-n07-chat-paragraph
+
+# Short messages, emoji, a letter avatar in the list.
+- launchApp
+- extendedWaitUntil:
+    visible: "Ксюша.*"
+    timeout: 300000
+- tapOn:
+    text: "Ксюша.*"
+- extendedWaitUntil:
+    visible:
+      id: "chat-composer"
+    timeout: 60000
+- waitForAnimationToEnd
+- takeScreenshot: ${THEME}-n08-chat-emoji
+
+# Back on the list: the opened chats are read, the sent message is the last line.
+- launchApp
+- extendedWaitUntil:
+    visible: "Лариса Новикова.*"
+    timeout: 300000
+- waitForAnimationToEnd
+- takeScreenshot: ${THEME}-n09-list-after

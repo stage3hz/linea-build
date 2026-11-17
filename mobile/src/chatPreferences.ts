@@ -50,7 +50,7 @@ export type ChatPreferences = {
   accentColor: string | null; bubbleColor: string | null;
 };
 const KEY = 'linea.chat-preferences.v1';
-const DEFAULTS: ChatPreferences = { textSize: 'medium', sendTyping: true, animations: 'auto', lowBattery: 0.25, bubbleRadius: 20, wallpaper: 'none', nightMode: null, nightFrom: '22:00', nightTo: '07:00', nightBrightness: 0.25, nightForced: null, nightForcedAt: null, autoplayVideo: true, autoplayGif: true, animatedStickers: true, animatedEmoji: true, pixelTrail: true, snow: true, ice: true, nativeList: true, nativeChat: false, accentColor: null, bubbleColor: null };
+const DEFAULTS: ChatPreferences = { textSize: 'medium', sendTyping: true, animations: 'auto', lowBattery: 0.25, bubbleRadius: 20, wallpaper: 'none', nightMode: null, nightFrom: '22:00', nightTo: '07:00', nightBrightness: 0.25, nightForced: null, nightForcedAt: null, autoplayVideo: true, autoplayGif: true, animatedStickers: true, animatedEmoji: true, pixelTrail: true, snow: true, ice: true, nativeList: true, nativeChat: process.env.EXPO_PUBLIC_NATIVE_CHAT === '1', accentColor: null, bubbleColor: null };
 
 let current: ChatPreferences = DEFAULTS;
 const listeners = new Set<() => void>();
@@ -80,7 +80,7 @@ export function parsePreferences(raw: string | null): ChatPreferences {
       animatedEmoji: typeof value?.animatedEmoji === 'boolean' ? value.animatedEmoji : true,
       pixelTrail: typeof value?.pixelTrail === 'boolean' ? value.pixelTrail : DEFAULTS.pixelTrail,
       nativeList: value?.nativeList !== false,
-      nativeChat: value?.nativeChat === true,
+      nativeChat: typeof value?.nativeChat === 'boolean' ? value.nativeChat : DEFAULTS.nativeChat,
       snow: typeof value?.snow === 'boolean' ? value.snow : DEFAULTS.snow,
       ice: typeof value?.ice === 'boolean' ? value.ice : DEFAULTS.ice,
       accentColor: storedColor(value?.accentColor), bubbleColor: storedColor(value?.bubbleColor),

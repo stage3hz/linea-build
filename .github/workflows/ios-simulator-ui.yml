@@ -30,12 +30,15 @@ jobs:
     # macos-15 arm64 then failed the same way four times («Due to capacity constraints, jobs targeting macOS
     # arm64 runners may experience longer queue times»), so the default is the Intel runner, which the IPA
     # build gets reliably; pass runner=macos-15 by hand when arm64 capacity is back.
-    runs-on: ${{ inputs.runner || 'macos-15-intel' }}
+    # macos-26: the runner the IPA build (ios-unsigned-ipa.yml) gets reliably; the Intel runner timed out on the first tap.
+    runs-on: ${{ inputs.runner || 'macos-26' }}
     timeout-minutes: 240
     env:
       APP_ENV: development
       EXPO_PUBLIC_ALLOW_LOCAL_HTTP: '0'
       EXPO_PUBLIC_SIMULATOR_SERVER: https://localhost:8443
+      # The simulator build shows the experimental native message list at once (native-check.yaml photographs it).
+      EXPO_PUBLIC_NATIVE_CHAT: '1'
       EXPO_NO_TELEMETRY: '1'
       CI: '1'
       MAESTRO_DRIVER_STARTUP_TIMEOUT: '600000'  # the Intel runner needs ~150 s to start the driver; the 120 s default killed the walk
@@ -70,6 +73,8 @@ jobs:
         run: |
           (cd mobile && npm ci --no-audit --no-fund)
           (cd server && npm ci --no-audit --no-fund)
+          # tools/sim-seed.mjs encrypts with the official libsignal that desktop pins; Electron itself is not needed.
+          (cd desktop && ELECTRON_SKIP_BINARY_DOWNLOAD=1 npm ci --no-audit --no-fund)
       - name: Test CA and localhost certificate (this run only)
         run: |
           OSSL=$(brew --prefix openssl@3 2>/dev/null)/bin/openssl; [ -x "$OSSL" ] || OSSL=openssl
@@ -139,11 +144,17 @@ jobs:
           dark_ok=0
           for attempt in 1 2; do
             if maestro --device "$SIMULATOR_UDID" test -e THEME=dark -e ATTEMPT="$attempt" "$GITHUB_WORKSPACE/tools/maestro/register-and-screens.yaml"; then dark_ok=1; break; fi
-            echo "Dark walk attempt $attempt failed"
+            echo "Registration attempt $attempt failed"
           done
-          [ "$dark_ok" = 1 ] || echo "DARK_FAILED=1" >> "$GITHUB_ENV"
-          xcrun simctl ui "$SIMULATOR_UDID" appearance light
-          maestro --device "$SIMULATOR_UDID" test -e THEME=light "$GITHUB_WORKSPACE/tools/maestro/screens-again.yaml" || echo "LIGHT_FAILED=1" >> "$GITHUB_ENV"
+          if [ "$dark_ok" = 1 ]; then
+            # People to talk to: accounts with avatars and really encrypted messages, on the local server only.
+            (cd "$GITHUB_WORKSPACE" && node tools/sim-seed.mjs http://127.0.0.1:3999 "simui_check$attempt") || echo "SEED_FAILED=1" >> "$GITHUB_ENV"
+            maestro --device "$SIMULATOR_UDID" test -e THEME=dark "$GITHUB_WORKSPACE/tools/maestro/native-check.yaml" || echo "NATIVE_FAILED=1" >> "$GITHUB_ENV"
+            xcrun simctl io "$SIMULATOR_UDID" screenshot zy-after-native.png || true
+            maestro --device "$SIMULATOR_UDID" test -e THEME=dark "$GITHUB_WORKSPACE/tools/maestro/screens-again.yaml" || echo "DARK_FAILED=1" >> "$GITHUB_ENV"
+          else
+            echo "DARK_FAILED=1" >> "$GITHUB_ENV"
+          fi
           xcrun simctl io "$SIMULATOR_UDID" screenshot zz-last-state.png || true
       - name: Collect logs
         if: always()
@@ -179,5 +190,5 @@ jobs:
           git add -A && git commit -qm "Simulator shots for $GITHUB_SHA"
           git push -f "https://x-access-token:${{ github.token }}@github.com/${{ github.repository }}.git" HEAD:sim-output
       - name: Fail if a walk failed
-        if: env.DARK_FAILED == '1' || env.LIGHT_FAILED == '1'
+        if: env.DARK_FAILED == '1' || env.LIGHT_FAILED == '1' || env.NATIVE_FAILED == '1' || env.SEED_FAILED == '1'
         run: exit 1
