@@ -276,6 +276,13 @@ type VoicePlayback = {
 };
 const VoiceContext = createContext<VoicePlayback | null>(null);
 
+/** Hands the chat's shared player to code that draws messages outside React (the native message list). */
+export function VoiceToggleBridge({ target }: { target: React.MutableRefObject<((attachment: Attachment) => void) | null> }) {
+  const voice = useContext(VoiceContext);
+  target.current = voice ? voice.toggle : null;
+  return null;
+}
+
 /** One shared player per chat screen: starting a voice message stops the previous one and the music. */
 export function VoicePlaybackProvider({ api, children }: { api: Api; children: React.ReactNode }) {
   const player = useAudioPlayer(null, { updateInterval: 150 });

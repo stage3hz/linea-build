@@ -63,7 +63,7 @@ import { PollComposer } from './PollBubble';
 import { StickerPanel } from './StickerPanel';
 import { Share, type GestureResponderEvent } from 'react-native';
 import { presenceText } from './presence';
-import { VoiceMiniPlayer, VoicePlaybackProvider, VoiceRecordingBar, useVoiceRecorder } from './voice/VoiceMessage';
+import { VoiceMiniPlayer, VoicePlaybackProvider, VoiceRecordingBar, VoiceToggleBridge, useVoiceRecorder } from './voice/VoiceMessage';
 import { RecordButton } from './voice/RecordButton';
 import { MessageRow, MissingRow, type AlbumPart, type Row, type RowHandlers } from './MessageRow';
 import { ContextMenu, ReadDateRow, MenuItem, CLOSE_MS as MENU_ANIMATION_MS } from './ContextMenu';
@@ -661,11 +661,15 @@ export function ChatScreen({api,user,chat,store,onBack,wide=false,onOpenMusic}: 
     return out;
   },[nativeChatOn,rows,user.id,peerLastRead,peerName,view.byClientId,selection]);
   const nativeMsgPalette=useMemo(()=>{const ink=ownBubbleInk(t);return {text:nativeColor(t.text),muted:nativeColor(t.muted),accent:nativeColor(t.accent),onAccent:nativeColor(t.onAccent),mine:nativeColor(t.bubble),theirs:nativeColor(t.incoming),notice:nativeColor(t.dark?'rgba(12,18,34,0.55)':'rgba(255,255,255,0.7)'),noticeText:nativeColor(t.text),danger:nativeColor(t.danger),quote:nativeColor(t.dark?'rgba(255,255,255,0.08)':'rgba(0,0,0,0.05)'),mineMeta:nativeColor(ink.meta),mineMark:nativeColor(ink.accent),subtle:nativeColor(t.subtle)};},[t]);
+  const voiceToggle=useRef<((attachment:Attachment)=>void)|null>(null);
   const nativeMsgPress=(key:string)=>{
     const row=rows.find(r=>r.key===key);if(!row||row.missing)return;
     if(selection){handlers.current.toggleSelect(row);return;}
     if(row.pending?.state==='failed'){handlers.current.retry(row.pending);return;}
-    const file=row.album?row.album[0]?.attachment:row.message?.attachment;if(file)handlers.current.open(file);
+    const file=row.album?row.album[0]?.attachment:row.message?.attachment;if(!file)return;
+    // A voice message plays in the chat's own player (the bar under the header), not in the file viewer.
+    if(isVoice(file)&&voiceToggle.current){voiceToggle.current(file);return;}
+    handlers.current.open(file);
   };
   const nativeMsgHold=(key:string,y:number)=>{const row=rows.find(r=>r.key===key);if(row&&!row.missing)handlers.current.actions(row,y);};
   const listEl=useMemo(()=><Animated.FlatList ref={listRef} inverted data={rows} onViewableItemsChanged={onViewableRows.current} viewabilityConfig={viewability.current} keyExtractor={row=>row.key} keyboardShouldPersistTaps="handled" keyboardDismissMode={dismissSetup.mode} contentContainerStyle={{paddingHorizontal:listSide,paddingTop:listComposerSide,paddingBottom:listEdges.headerSide}} onScroll={onListScroll} scrollEventThrottle={16} initialNumToRender={12} windowSize={7} onEndReached={loadOlder} onEndReachedThreshold={0.6} onScrollToIndexFailed={info=>{listRef.current?.scrollToOffset({offset:info.averageItemLength*info.index,animated:true});setTimeout(()=>listRef.current?.scrollToIndex({index:info.index,animated:true,viewPosition:.5}),250);}}
@@ -674,11 +678,11 @@ export function ChatScreen({api,user,chat,store,onBack,wide=false,onOpenMusic}: 
       renderItem={renderRow} removeClippedSubviews={Platform.OS==='android'} maxToRenderPerBatch={8} updateCellsBatchingPeriod={40}/>,
     // eslint-disable-next-line react-hooks/exhaustive-deps
     [rows,renderRow,chatNotes,hasMore,loadingMore,loadMessages,loadOlder,listSide,listComposerSide,listHeaderSide,dismissMode,accent,onListScroll,listNavSpacer,listRef,chat.id,noteRetry,noteDiscard]);
-  return <VoicePlaybackProvider api={api}><GlassTargetScope targetRef={glassTarget}><KeyboardSafeView style={{flex:1,backgroundColor:'transparent',marginTop:wide?0:-insets.top,marginBottom:wide?0:-insets.bottom}}><View style={{flex:1}}>
+  return <VoicePlaybackProvider api={api}><VoiceToggleBridge target={voiceToggle}/><GlassTargetScope targetRef={glassTarget}><KeyboardSafeView style={{flex:1,backgroundColor:'transparent',marginTop:wide?0:-insets.top,marginBottom:wide?0:-insets.bottom}}><View style={{flex:1}}>
     {/* Android: header and composer glass blur this (wallpaper + messages) on the GPU. */}
     <GlassContentTarget targetRef={glassTarget} style={{flex:1}}>
     <ChatWallpaper choice={wallpaper} style={{top:-80,bottom:-60}} trail/>
-    {rows.length===0&&!chatNotes.length?<View style={{flex:1,justifyContent:'center',paddingTop:headerHeight,paddingBottom:listEdges.composerSide}}>{store.messageLoading?<ActivityIndicator color={t.accent}/>:<Empty icon="hand-left-outline" title="Скажи «привет»" description={`Это начало вашей переписки с ${chat.peer.displayName}.`}/>}</View>:<><KeyboardGestureArea style={{flex:1}} interpolator="ios" offset={keyboardGestureOffset(composerHeight,stickers)} textInputNativeID={COMPOSER_NATIVE_ID} enableSwipeToDismiss={dismissSetup.gestureArea}>{nativeChatOn&&NativeMsgListView?<NativeMsgListView style={{flex:1}} rows={nativeMsgRows} palette={nativeMsgPalette} fontSize={metrics.fontSize} pad={[listEdges.headerSide,listComposerSide]} onMsgPress={e=>nativeMsgPress(e.nativeEvent.key)} onMsgLongPress={e=>nativeMsgHold(e.nativeEvent.key,e.nativeEvent.y)} onNearTop={loadOlder}/>:listEl}</KeyboardGestureArea><Animated.View pointerEvents="none" style={[{position:'absolute',width:0,height:0,opacity:0},lockCommit]}/></>
+    {rows.length===0&&!chatNotes.length?<View style={{flex:1,justifyContent:'center',paddingTop:headerHeight,paddingBottom:listEdges.composerSide}}>{store.messageLoading?<ActivityIndicator color={t.accent}/>:<Empty icon="hand-left-outline" title="Скажи «привет»" description={`Это начало вашей переписки с ${chat.peer.displayName}.`}/>}</View>:<><KeyboardGestureArea style={{flex:1}} interpolator="ios" offset={keyboardGestureOffset(composerHeight,stickers)} textInputNativeID={COMPOSER_NATIVE_ID} enableSwipeToDismiss={dismissSetup.gestureArea}>{nativeChatOn&&NativeMsgListView?<NativeMsgListView style={{flex:1}} rows={nativeMsgRows} palette={nativeMsgPalette} fontSize={metrics.fontSize} pad={[listEdges.headerSide,listEdges.composerSide]} onMsgPress={e=>nativeMsgPress(e.nativeEvent.key)} onMsgLongPress={e=>nativeMsgHold(e.nativeEvent.key,e.nativeEvent.y)} onNearTop={loadOlder}/>:listEl}</KeyboardGestureArea><Animated.View pointerEvents="none" style={[{position:'absolute',width:0,height:0,opacity:0},lockCommit]}/></>
     }
     </GlassContentTarget>
     {/* iOS 26 scroll-edge effect: blurred (iOS) and covered by the wallpaper's edge colour evenly behind
