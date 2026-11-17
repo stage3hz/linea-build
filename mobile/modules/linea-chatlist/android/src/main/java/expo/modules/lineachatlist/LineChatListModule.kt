@@ -8,7 +8,7 @@ class LineChatListModule : Module() {
   override fun definition() = ModuleDefinition {
     Name("LineaChatList")
     View(ChatListView::class) {
-      Events("onRowPress", "onRowLongPress")
+      Events("onRowPress", "onRowLongPress", "onRowAction")
       Prop("rows") { view: ChatListView, rows: List<Map<String, Any?>>? -> try { view.setRows(ChatRow.parse(rows)) } catch (_: Throwable) { } }
       Prop("palette") { view: ChatListView, palette: Map<String, Any?>? -> try { view.setPalette(ChatPalette.parse(palette)) } catch (_: Throwable) { } }
       Prop("headers") { view: ChatListView, headers: Map<String, String>? -> view.setHeaders(headers ?: emptyMap()) }

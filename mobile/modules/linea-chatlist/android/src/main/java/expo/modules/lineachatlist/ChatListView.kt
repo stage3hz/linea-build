@@ -1,11 +1,13 @@
 package expo.modules.lineachatlist
 
+import android.animation.ValueAnimator
 import android.annotation.SuppressLint
 import android.content.Context
 import android.graphics.Color
 import android.graphics.drawable.ColorDrawable
 import android.view.MotionEvent
 import android.view.View
+import android.view.ViewConfiguration
 import android.view.ViewGroup
 import android.widget.BaseAdapter
 import android.widget.ListView
@@ -19,6 +21,7 @@ import expo.modules.kotlin.views.ExpoView
 class ChatListView(context: Context, appContext: AppContext) : ExpoView(context, appContext) {
   private val onRowPress by EventDispatcher()
   private val onRowLongPress by EventDispatcher()
+  private val onRowAction by EventDispatcher()
   private val d = resources.displayMetrics.density
   private var rows: List<ChatRow> = emptyList()
   private var palette = ChatPalette.DARK
@@ -36,8 +39,91 @@ class ChatListView(context: Context, appContext: AppContext) : ExpoView(context,
     }
   }
 
+  // Swiping a row sideways (as the React list does): the row follows the finger and uncovers its buttons; past half
+  // of them it stays open, a swipe across most of the row performs the outermost action at once (as in Telegram).
+  private val slop = ViewConfiguration.get(context).scaledTouchSlop
+  private var open: ChatRowView? = null
+  private var target: ChatRowView? = null
+  private var dragging = false
+  private var swallow = false
+  private var downX = 0f
+  private var downY = 0f
+  private var startX = 0f
+  private var settle: ValueAnimator? = null
+
+  private fun slide(view: ChatRowView, to: Float) {
+    settle?.cancel()
+    settle = ValueAnimator.ofFloat(view.swipeX, to).apply {
+      duration = 180
+      addUpdateListener { view.swipeX = it.animatedValue as Float }
+      start()
+    }
+    open = if (to == 0f) null else view
+  }
+  private fun closeOpen() { open?.let { slide(it, 0f) } }
+  private fun act(view: ChatRowView, action: String?) {
+    val id = view.rowId
+    slide(view, 0f)
+    if (action != null && id.isNotEmpty()) onRowAction(mapOf("id" to id, "action" to action))
+  }
+
+  /** True when the gesture belongs to a row's swipe and the list must not see it. */
+  private fun swipeTouch(list: ListView, event: MotionEvent): Boolean {
+    when (event.actionMasked) {
+      MotionEvent.ACTION_DOWN -> {
+        downX = event.x; downY = event.y; dragging = false
+        val position = list.pointToPosition(event.x.toInt(), event.y.toInt())
+        target = if (position < 0) null else list.getChildAt(position - list.firstVisiblePosition) as? ChatRowView
+        val shown = open
+        // A touch anywhere while a row is open belongs to that row: its button, or closing it.
+        swallow = shown != null
+        if (shown != null && shown !== target) closeOpen()
+        startX = target?.swipeX ?: 0f
+        return swallow
+      }
+      MotionEvent.ACTION_MOVE -> {
+        val view = target ?: return swallow
+        val dx = event.x - downX; val dy = event.y - downY
+        if (!dragging) {
+          if (Math.abs(dx) < slop || Math.abs(dx) < Math.abs(dy) * 1.5f) return swallow
+          if (startX == 0f && view.buttons(if (dx > 0) 1 else -1).isEmpty()) return swallow
+          dragging = true; settle?.cancel()
+          list.parent?.requestDisallowInterceptTouchEvent(true)
+          if (!swallow) { val cancel = MotionEvent.obtain(event); cancel.action = MotionEvent.ACTION_CANCEL; list.onTouchEvent(cancel); cancel.recycle() }
+        }
+        var x = startX + dx
+        if (x > 0 && view.buttons(1).isEmpty() || x < 0 && view.buttons(-1).isEmpty()) x = 0f
+        view.swipeX = x.coerceIn(-view.width.toFloat(), view.width.toFloat())
+        return true
+      }
+      MotionEvent.ACTION_UP, MotionEvent.ACTION_CANCEL -> {
+        val view = target; target = null
+        if (dragging && view != null) {
+          dragging = false
+          val x = view.swipeX; val side = if (x > 0) 1 else -1; val rest = view.buttonsWidth(side)
+          when {
+            event.actionMasked == MotionEvent.ACTION_UP && Math.abs(x) > view.width * 0.6f -> act(view, view.buttons(side).firstOrNull()?.substringBefore(':'))
+            Math.abs(x) > rest / 2 -> slide(view, side * rest)
+            else -> slide(view, 0f)
+          }
+          return true
+        }
+        if (swallow) {
+          if (view != null && view === open && event.actionMasked == MotionEvent.ACTION_UP) act(view, view.actionAt(event.x)) else closeOpen()
+          return true
+        }
+        return false
+      }
+    }
+    return dragging || swallow
+  }
+
   private val list = object : ListView(context) {
-    override fun dispatchTouchEvent(event: MotionEvent): Boolean { lastTouchY = event.rawY; return super.dispatchTouchEvent(event) }
+    override fun dispatchTouchEvent(event: MotionEvent): Boolean {
+      lastTouchY = event.rawY
+      if (swipeTouch(this, event)) return true
+      return super.dispatchTouchEvent(event)
+    }
   }.apply {
     divider = null; dividerHeight = 0
     selector = ColorDrawable(Color.TRANSPARENT); cacheColorHint = Color.TRANSPARENT
@@ -54,7 +140,7 @@ class ChatListView(context: Context, appContext: AppContext) : ExpoView(context,
 
   fun setRows(next: List<ChatRow>) {
     if (next == rows) return
-    rows = next; adapter.notifyDataSetChanged()
+    rows = next; open?.let { settle?.cancel(); it.swipeX = 0f; open = null }; adapter.notifyDataSetChanged()
   }
 
   fun setPalette(next: ChatPalette) {

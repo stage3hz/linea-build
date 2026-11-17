@@ -55,8 +55,46 @@ class ChatRowView(context: Context) : View(context) {
   private var builtFor: ChatRow? = null
   private var builtWidth = 0
 
+  /** Sideways shift under a finger, px: above zero the `lead` buttons show on the left, below zero `trail` on the right. */
+  var swipeX = 0f
+    set(value) { if (field != value) { field = value; invalidate() } }
+  private val actionPaint = TextPaint(Paint.ANTI_ALIAS_FLAG).apply { textSize = 12f * d; typeface = Typeface.create(Typeface.DEFAULT, Typeface.BOLD); textAlign = Paint.Align.CENTER; color = 0xFFFFFFFF.toInt() }
+  val rowId: String get() = row?.id ?: ""
+  fun buttons(side: Int): List<String> = (if (side > 0) row?.lead else row?.trail).orEmpty()
+  /** How far the row rests when its buttons are open. */
+  fun buttonsWidth(side: Int) = buttons(side).size * BUTTON_DP * d
+  /** The action of the button under `x` while the row is shifted; null = the row itself. */
+  fun actionAt(x: Float): String? {
+    if (swipeX == 0f) return null
+    val specs = buttons(if (swipeX > 0) 1 else -1); if (specs.isEmpty()) return null
+    val each = Math.abs(swipeX) / specs.size
+    val index = if (swipeX > 0) { if (x > swipeX) return null; (x / each).toInt() } else { if (x < width + swipeX) return null; ((width - x) / each).toInt() }
+    return specs.getOrNull(index.coerceIn(0, specs.size - 1))?.substringBefore(':')
+  }
+  private fun drawButtons(canvas: Canvas) {
+    val side = if (swipeX > 0) 1 else -1; val specs = buttons(side); if (specs.isEmpty()) return
+    val each = Math.abs(swipeX) / specs.size; val h = height.toFloat()
+    specs.forEachIndexed { i, spec ->
+      val name = spec.substringBefore(':'); val label = spec.substringAfter(':', name)
+      val l = if (side > 0) i * each else width - (i + 1) * each
+      fill.color = when (name) { "delete" -> 0xFFE5484D.toInt(); "archive", "unarchive" -> 0xFF7B8497.toInt(); "mute", "unmute" -> 0xFFF29D38.toInt(); else -> 0xFF3B82F6.toInt() }
+      canvas.drawRect(l, 0f, l + each + 1f, h, fill)
+      canvas.save(); canvas.clipRect(l, 0f, l + each, h)
+      canvas.drawText(label, l + each / 2, h / 2 - (actionPaint.descent() + actionPaint.ascent()) / 2, actionPaint)
+      canvas.restore()
+    }
+  }
+  override fun onDraw(canvas: Canvas) {
+    if (swipeX == 0f) { drawRow(canvas); return }
+    drawButtons(canvas)
+    canvas.save(); canvas.translate(swipeX, 0f)
+    fill.color = palette.bg; canvas.drawRect(0f, 0f, width.toFloat(), height.toFloat(), fill)
+    drawRow(canvas); canvas.restore()
+  }
+
   fun bind(next: ChatRow, colors: ChatPalette) {
     if (row == next && palette == colors) return
+    if (row?.id != next.id) swipeX = 0f
     row = next; palette = colors; contentDescription = next.title + ". " + next.preview
     if (next.thumb != thumbOf) {
       thumbOf = next.thumb
@@ -79,7 +117,7 @@ class ChatRowView(context: Context) : View(context) {
     builtFor = item; builtWidth = this.width
   }
 
-  override fun onDraw(canvas: Canvas) {
+  private fun drawRow(canvas: Canvas) {
     val item = row ?: return
     val w = width.toFloat(); val h = height.toFloat()
     if (item.selected || isPressed) { fill.color = if (item.selected) palette.selected else palette.pressed; canvas.drawRect(0f, 0f, w, h, fill) }
@@ -179,5 +217,5 @@ class ChatRowView(context: Context) : View(context) {
     fill.color = palette.border; canvas.drawRect(x, h - maxOf(1f, d / 2), w, h, fill)
   }
 
-  companion object { const val ROW_DP = 76f }
+  companion object { const val ROW_DP = 76f; const val BUTTON_DP = 78f }
 }
