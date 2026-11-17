@@ -4,7 +4,7 @@ import { inviteCodeFrom, withoutInviteLink } from './communities/types';
 import React, { memo, useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useMeshActive } from './nearby/meshState';
 import { TITLE_TEXT, titleState } from './network/offline';
-import { PlatinaGem, PlatinaName, hasPlatina } from './platina/PlatinaMark';
+import { NAME_METAL, NAME_METAL_LIGHT, PlatinaGem, PlatinaName, hasPlatina } from './platina/PlatinaMark';
 import { FolderEditor, FolderTabs, folderTabIds, matchesFolder, useChatFolders, type ChatFolder, type FolderFilter } from './ChatFolders';
 import { attachmentLabel, isVideoNote } from './voice/voice';
 import { animMs, motionEnabled } from './motion';
@@ -205,7 +205,7 @@ export function ChatListScreen({api,user,store,onProfile,onNewChat,onMusic,onAI,
   const typingMap=store.typing,selectedId=store.selectedId,savedItems=store.saved.items;
   const nativeRows=useMemo<NativeChatRow[]>(()=>{
     if(!nativeOn)return [];
-    const rows:NativeChatRow[]=[];const base={unread:0,muted:false,pinned:false,accentPreview:false,ticks:0 as const,checked:-1 as const,selected:false,time:'',avatarUrl:'',avatarKey:'',thumb:'',thumbRound:false,lead:[] as string[],trail:[] as string[],ring:[] as number[],deco:'',decoScale:1,plate:''};
+    const rows:NativeChatRow[]=[];const base={unread:0,muted:false,pinned:false,accentPreview:false,ticks:0 as const,checked:-1 as const,selected:false,time:'',avatarUrl:'',avatarKey:'',thumb:'',thumbRound:false,lead:[] as string[],trail:[] as string[],metal:[] as number[],nameLen:0,ring:[] as number[],deco:'',decoScale:1,plate:''};
     if(archive)rows.push({...base,id:BACK_ROW,title:'‹ Архив',preview:'Вернуться к чатам',avatarColor:colorNumber(t.surface2),initials:'‹'});
     else if(filter==='all'){
       const last=savedItems[savedItems.length-1];
@@ -221,7 +221,7 @@ export function ChatListScreen({api,user,store,onProfile,onNewChat,onMusic,onAI,
       // picture the app takes of its own component (FrameBake), shown the way an art decoration is.
       const art=findDecoration(chat.peer.avatarFrame);const coded=isCodeFrame(chat.peer.avatarFrame)?chat.peer.avatarFrame:null;const ringOf=art||coded?undefined:FRAMES.find(item=>item.id===(chat.peer.avatarFrame||(chat.peer.seal==='platina'?'platinum':'')));
       rows.push({...nativeThumb(chat,typing,user.id),ring:ringOf?ringOf.colors.map(colorNumber):[],deco:coded||(art?(Image.resolveAssetSource(art.image as number)?.uri||''):''),decoScale:coded?CODE_FRAME_SCALE:art?art.scale:1,plate:chat.peer.nameplate||'',avatarUrl:chat.peer.avatarId?api.fileUrl(chat.peer.avatarId):'',avatarKey:chat.peer.avatarId?`invizent-file-${chat.peer.avatarId}`:'',lead:swipes.right.map(a=>`${a}:${tr(SWIPE_LABEL[a])}`),trail:swipes.left.map(a=>`${a}:${tr(SWIPE_LABEL[a])}`),
-        id:chat.id,title:`${chat.peer.displayName}${chat.peer.seal==='platina'?' 💎':''}${status?` ${status}`:''}${muted?' 🔕':''}${chat.settings?.pinnedAt?' 📌':''}`,preview:nativeLine(chat,typing,user.id),time:last?formatListTime(last.createdAt):'',unread:chat.unreadCount||(marked.has(chat.id)?1:0),muted,pinned:!!chat.settings?.pinnedAt,accentPreview:typing,
+        id:chat.id,metal:chat.peer.seal==='platina'?(chat.peer.nameplate||t.dark?NAME_METAL:NAME_METAL_LIGHT).map(colorNumber):[],nameLen:chat.peer.displayName.length,title:`${chat.peer.displayName}${status?` ${status}`:''}${muted?' 🔕':''}${chat.settings?.pinnedAt?' 📌':''}`,preview:nativeLine(chat,typing,user.id),time:last?formatListTime(last.createdAt):'',unread:chat.unreadCount||(marked.has(chat.id)?1:0),muted,pinned:!!chat.settings?.pinnedAt,accentPreview:typing,
         ticks:last&&last.senderId===user.id?(chat.peerLastReadMessageId>=last.id?2:1):0,checked:editing?(editing.has(chat.id)?1:0):-1,selected:wideLayout&&selectedId===chat.id,
         avatarColor:colorNumber(chat.peer.avatarColor||'#4B73BB'),initials:chat.peer.displayName.trim().split(/\s+/).slice(0,2).map(word=>Array.from(word)[0]||'').join('').toUpperCase()});
     }

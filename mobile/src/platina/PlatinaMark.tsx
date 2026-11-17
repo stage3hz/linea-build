@@ -11,9 +11,9 @@ import type { User } from '../types';
 
 /** Platinum: cool white metal with a slow light passing over it. */
 export const PLATINUM = ['#D9DEE8', '#FFFFFF', '#AEB8CA', '#F4F6FA', '#C3CBD9', '#FFFFFF'] as const;
-const NAME_METAL = ['#C9D0DC', '#FFFFFF', '#9AA4B6', '#F3F5F9', '#C9D0DC', '#FFFFFF', '#9AA4B6'] as const;
+export const NAME_METAL = ['#C9D0DC', '#FFFFFF', '#9AA4B6', '#F3F5F9', '#C9D0DC', '#FFFFFF', '#9AA4B6'] as const;
 // On a light theme white metal would vanish: dark polished platinum instead.
-const NAME_METAL_LIGHT = ['#3B4352', '#7D889C', '#262C37', '#5E687B', '#3B4352', '#8A95A8', '#262C37'] as const;
+export const NAME_METAL_LIGHT = ['#3B4352', '#7D889C', '#262C37', '#5E687B', '#3B4352', '#8A95A8', '#262C37'] as const;
 export const hasPlatina = (user?: Pick<User, 'seal'> | null) => user?.seal === 'platina';
 
 // Opening the showcase from anywhere (someone's seal, a platinum name, the settings card).

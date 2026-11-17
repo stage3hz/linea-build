@@ -53,6 +53,9 @@ struct ChatRow: Equatable {
   let decoScale: CGFloat
   /// Nameplate behind the row: an id of ChatDecorStore.plates; empty = none.
   let plate: String
+  /// A Platina name: the first `nameLen` UTF-16 units of the title are drawn in this metal (ARGB); empty = plain.
+  let metal: [Int]
+  let nameLen: Int
 
   private static func int(_ value: Any?, _ fallback: Int) -> Int { (value as? NSNumber)?.intValue ?? fallback }
   private static func flag(_ value: Any?) -> Bool { (value as? Bool) ?? false }
@@ -73,7 +76,8 @@ struct ChatRow: Equatable {
         avatarUrl: text(row["avatarUrl"]), avatarKey: text(row["avatarKey"]), thumb: text(row["thumb"]),
         thumbRound: flag(row["thumbRound"]), lead: (row["lead"] as? [String]) ?? [], trail: (row["trail"] as? [String]) ?? [],
         ring: ((row["ring"] as? [Any]) ?? []).compactMap { ($0 as? NSNumber)?.intValue }, deco: text(row["deco"]),
-        decoScale: CGFloat(min(2, max(1, (row["decoScale"] as? NSNumber)?.doubleValue ?? 1))), plate: text(row["plate"])))
+        decoScale: CGFloat(min(2, max(1, (row["decoScale"] as? NSNumber)?.doubleValue ?? 1))), plate: text(row["plate"]),
+        metal: ((row["metal"] as? [Any]) ?? []).compactMap { ($0 as? NSNumber)?.intValue }, nameLen: max(0, int(row["nameLen"], 0))))
     }
     return result
   }
@@ -383,8 +387,34 @@ final class ChatRowCanvas: UIView {
 
     let title = NSAttributedString(string: item.title, attributes: [
       .font: ChatRowCanvas.titleFont, .foregroundColor: textColor, .paragraphStyle: paragraph(.byTruncatingTail)])
-    title.draw(with: CGRect(x: x, y: top, width: max(0, right - x - timeWidth - 8), height: 21),
-               options: [.usesLineFragmentOrigin, .truncatesLastVisibleLine], context: nil)
+    let titleRoom = max(0, right - x - timeWidth - 8)
+    let whole = item.title as NSString
+    if item.metal.count >= 2, item.nameLen > 0, item.nameLen <= whole.length, titleRoom > 1 {
+      // A Platina name: the letters of the name show polished metal, the rest of the line stays plain.
+      let name = NSAttributedString(string: whole.substring(to: item.nameLen), attributes: [
+        .font: ChatRowCanvas.titleFont, .foregroundColor: UIColor.white, .paragraphStyle: paragraph(.byTruncatingTail)])
+      let nameWidth = min(titleRoom, ceil(name.size().width))
+      let size = CGSize(width: nameWidth, height: 21)
+      let colors = item.metal.map { chatColor($0).cgColor } as CFArray
+      let picture = UIGraphicsImageRenderer(size: size).image { renderer in
+        if let gradient = CGGradient(colorsSpace: CGColorSpaceCreateDeviceRGB(), colors: colors, locations: nil) {
+          renderer.cgContext.drawLinearGradient(gradient, start: CGPoint(x: 0, y: 6), end: CGPoint(x: nameWidth, y: 15), options: [.drawsBeforeStartLocation, .drawsAfterEndLocation])
+        }
+        // Keep the metal only where the letters are.
+        renderer.cgContext.setBlendMode(.destinationIn)
+        name.draw(with: CGRect(origin: .zero, size: size), options: [.usesLineFragmentOrigin, .truncatesLastVisibleLine], context: nil)
+      }
+      picture.draw(at: CGPoint(x: x, y: top))
+      if item.nameLen < whole.length, titleRoom - nameWidth > 8 {
+        let rest = NSAttributedString(string: whole.substring(from: item.nameLen), attributes: [
+          .font: ChatRowCanvas.titleFont, .foregroundColor: textColor, .paragraphStyle: paragraph(.byTruncatingTail)])
+        rest.draw(with: CGRect(x: x + nameWidth, y: top, width: titleRoom - nameWidth, height: 21),
+                  options: [.usesLineFragmentOrigin, .truncatesLastVisibleLine], context: nil)
+      }
+    } else {
+      title.draw(with: CGRect(x: x, y: top, width: titleRoom, height: 21),
+                 options: [.usesLineFragmentOrigin, .truncatesLastVisibleLine], context: nil)
+    }
 
     let previewColor = item.accentPreview ? palette.accent : mutedColor
     let preview = NSAttributedString(string: item.preview, attributes: [

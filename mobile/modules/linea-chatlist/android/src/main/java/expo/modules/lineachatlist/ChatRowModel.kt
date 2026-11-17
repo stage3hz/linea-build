@@ -17,6 +17,8 @@ data class ChatRow(
   val plate: String,
   /** Swipe buttons as "action:Label", the outermost first: `lead` opens from the left edge, `trail` from the right. */
   val lead: List<String>, val trail: List<String>,
+  /** A Platina name: the first `nameLen` characters of the title are drawn in this metal (ARGB); empty = plain. */
+  val metal: List<Int>, val nameLen: Int,
 ) {
   companion object {
     private fun int(value: Any?, fallback: Int) = (value as? Number)?.toInt() ?: fallback
@@ -34,6 +36,7 @@ data class ChatRow(
         (row["ring"] as? List<*>)?.mapNotNull { (it as? Number)?.toInt() } ?: emptyList(),
         text(row["deco"]), ((row["decoScale"] as? Number)?.toDouble() ?: 1.0).coerceIn(1.0, 2.0), text(row["plate"]),
         (row["lead"] as? List<*>)?.mapNotNull { it as? String } ?: emptyList(), (row["trail"] as? List<*>)?.mapNotNull { it as? String } ?: emptyList(),
+        (row["metal"] as? List<*>)?.mapNotNull { (it as? Number)?.toInt() } ?: emptyList(), int(row["nameLen"], 0).coerceAtLeast(0),
       )
     }
   }

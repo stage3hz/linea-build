@@ -27,7 +27,7 @@ export type NativeChatRow = {
   /** Base64 of a small picture shown before the preview (the photo or video of the last message); '' = none. */
   thumb: string;
   thumbRound: boolean;
-  /** iOS: swipe buttons as "action:Label", the outermost first. Android ignores them for now. */
+  /** Swipe buttons as "action:Label", the outermost first. */
   lead: string[];
   trail: string[];
   /** Avatar frame: a ring of these colours (processColor) around the photo; [] = none. */
@@ -37,6 +37,9 @@ export type NativeChatRow = {
   decoScale: number;
   /** Nameplate id (a key of the `plates` prop); '' = none. */
   plate: string;
+  /** A Platina name: the first `nameLen` characters of the title are drawn in this metal (processColor); [] = plain text. */
+  metal: number[];
+  nameLen: number;
 };
 export type NativeChatPalette = { text: number; muted: number; subtle: number; accent: number; onAccent: number; border: number; pressed: number; selected: number; badgeMuted: number; bg: number };
 export type NativeChatListProps = {

@@ -193,7 +193,15 @@ class ChatRowView(context: Context) : View(context) {
 
     val top = 12f * d
     titlePaint.color = textColor
-    canvas.drawText(title, 0, title.length, x, top - titlePaint.ascent(), titlePaint)
+    val nameEnd = if (item.metal.size >= 2) minOf(item.nameLen, title.length) else 0
+    if (nameEnd > 0) {
+      // A Platina name: the letters of the name show polished metal, the rest of the line stays plain.
+      val nameWidth = titlePaint.measureText(title, 0, nameEnd)
+      titlePaint.shader = LinearGradient(x, top + 6f * d, x + nameWidth, top + 15f * d, item.metal.toIntArray(), null, Shader.TileMode.CLAMP)
+      canvas.drawText(title, 0, nameEnd, x, top - titlePaint.ascent(), titlePaint)
+      titlePaint.shader = null
+      if (nameEnd < title.length) canvas.drawText(title, nameEnd, title.length, x + nameWidth, top - titlePaint.ascent(), titlePaint)
+    } else canvas.drawText(title, 0, title.length, x, top - titlePaint.ascent(), titlePaint)
     canvas.drawText(item.time, right - timeWidth, top - timePaint.ascent() + 1.5f * d, timePaint)
 
     previewPaint.color = if (item.accentPreview) palette.accent else mutedColor
