@@ -19,8 +19,11 @@ on:
 permissions:
   contents: write
 concurrency:
-  group: ios-simulator-ui
-  cancel-in-progress: false  # a walk takes ~1 h; a new push waits instead of killing it before the screenshots upload
+  # «-v2»: runs of the old group were stuck in the queue (waiting for a runner) and every new walk waited behind
+  # them; a new group starts with an empty queue. A newer push now replaces a walk still in progress: the
+  # latest commit is the one whose screenshots are wanted.
+  group: ios-simulator-ui-v2
+  cancel-in-progress: true
 jobs:
   ui:
     # Apple silicon: on the Intel runner one walk saw 100 s per tap and a 30 s blocked main thread, and the
@@ -32,7 +35,7 @@ jobs:
     # build gets reliably; pass runner=macos-15 by hand when arm64 capacity is back.
     # macos-26: the runner the IPA build (ios-unsigned-ipa.yml) gets reliably; the Intel runner timed out on the first tap.
     runs-on: ${{ inputs.runner || 'macos-26' }}
-    timeout-minutes: 240
+    timeout-minutes: 150
     env:
       APP_ENV: development
       EXPO_PUBLIC_ALLOW_LOCAL_HTTP: '0'
