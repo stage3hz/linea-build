@@ -61,6 +61,6 @@ test('Android: every native view of the app either says it is disabled (decorati
     const android = new URL(`${entry.name}/android/src/main/java/`, modules);
     if (entry.isDirectory() && existsSync(android)) walk(android);
   }
-  assert.deepEqual(found.map(view => view.name).sort(), ['ChatListView', 'MsgListView', 'SnowView', 'TrailBackgroundView', 'VideoNoteView'], 'a new native view: decide whether it takes touches');
+  assert.deepEqual(found.map(view => view.name).sort(), ['BakeView', 'ChatListView', 'MsgListView', 'SnowView', 'TrailBackgroundView', 'VideoNoteView'], 'a new native view: decide whether it takes touches');
   for (const view of found) assert.equal(view.disabled, !interactive.has(view.name), `${view.name}: decorative views are disabled, interactive ones are not`);
 });

@@ -26,6 +26,8 @@ object DecorStore {
   }
 
   fun art(context: Context, name: String): Bitmap? {
+    plates[name]?.let { return it }   // a decoration the app drew itself (a frame made in code)
+    if (name.startsWith("fx-")) return null   // not drawn yet: asked again on the next frame, never cached as missing
     if (arts.containsKey(name)) return arts[name]
     val bitmap = try {
       when {

@@ -146,6 +146,9 @@ final class ChatDecorStore {
   }
 
   func art(_ name: String) -> UIImage? {
+    // A decoration the app drew itself (a frame made in code); until it is drawn, asked again and never cached as missing.
+    if let baked = plates[name] { return baked }
+    if name.hasPrefix("fx-") { return nil }
     if let hit = arts[name] { return hit }
     if missing.contains(name) { return nil }
     var image: UIImage? = nil
