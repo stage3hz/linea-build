@@ -5,6 +5,10 @@ data class ChatRow(
   val id: String, val title: String, val preview: String, val time: String, val unread: Int,
   val muted: Boolean, val pinned: Boolean, val accentPreview: Boolean, val ticks: Int, val checked: Int,
   val selected: Boolean, val avatarColor: Int, val initials: String,
+  /** Picture avatar: where to get it and the key it is cached under; empty = the letter avatar. */
+  val avatarUrl: String, val avatarKey: String,
+  /** A small JPEG/PNG (base64) shown before the preview text: the photo or video of the last message. */
+  val thumb: String, val thumbRound: Boolean,
 ) {
   companion object {
     private fun int(value: Any?, fallback: Int) = (value as? Number)?.toInt() ?: fallback
@@ -18,6 +22,7 @@ data class ChatRow(
         id, text(row["title"]), text(row["preview"]), text(row["time"]), int(row["unread"], 0).coerceAtLeast(0),
         flag(row["muted"]), flag(row["pinned"]), flag(row["accentPreview"]), int(row["ticks"], 0).coerceIn(0, 2),
         int(row["checked"], -1).coerceIn(-1, 1), flag(row["selected"]), int(row["avatarColor"], 0xFF5E7BFF.toInt()), text(row["initials"]).take(2),
+        text(row["avatarUrl"]), text(row["avatarKey"]), text(row["thumb"]), flag(row["thumbRound"]),
       )
     }
   }

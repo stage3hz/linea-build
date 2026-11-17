@@ -11,6 +11,7 @@ class LineChatListModule : Module() {
       Events("onRowPress", "onRowLongPress")
       Prop("rows") { view: ChatListView, rows: List<Map<String, Any?>>? -> try { view.setRows(ChatRow.parse(rows)) } catch (_: Throwable) { } }
       Prop("palette") { view: ChatListView, palette: Map<String, Any?>? -> try { view.setPalette(ChatPalette.parse(palette)) } catch (_: Throwable) { } }
+      Prop("headers") { view: ChatListView, headers: Map<String, String>? -> view.setHeaders(headers ?: emptyMap()) }
       Prop("pad") { view: ChatListView, pad: List<Double>? -> view.setPadding((pad?.getOrNull(0) ?: 0.0).toFloat(), (pad?.getOrNull(1) ?: 0.0).toFloat()) }
     }
   }

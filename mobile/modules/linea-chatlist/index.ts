@@ -21,6 +21,15 @@ export type NativeChatRow = {
   /** Letter avatar: background colour (processColor) and the letters. */
   avatarColor: number;
   initials: string;
+  /** Picture avatar: the file's address and the key it is cached under ('' = the letter avatar). */
+  avatarUrl: string;
+  avatarKey: string;
+  /** Base64 of a small picture shown before the preview (the photo or video of the last message); '' = none. */
+  thumb: string;
+  thumbRound: boolean;
+  /** iOS: swipe buttons as "action:Label", the outermost first. Android ignores them for now. */
+  lead: string[];
+  trail: string[];
 };
 export type NativeChatPalette = { text: number; muted: number; subtle: number; accent: number; onAccent: number; border: number; pressed: number; selected: number; badgeMuted: number };
 export type NativeChatListProps = {
@@ -28,7 +37,10 @@ export type NativeChatListProps = {
   palette: NativeChatPalette;
   /** Room above the first row and below the last one (the floating header and tab bar), dp: [top, bottom]. */
   pad?: [number, number];
+  /** The headers the app sends with a file request (its session): the native side fetches avatars with them. */
+  headers?: Record<string, string>;
   onRowPress?: (event: { nativeEvent: { id: string } }) => void;
+  onRowAction?: (event: { nativeEvent: { id: string; action: string } }) => void;
   /** `y`: the finger's position in the window, dp (for the context menu). */
   onRowLongPress?: (event: { nativeEvent: { id: string; y: number } }) => void;
   style?: unknown;

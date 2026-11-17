@@ -1,7 +1,13 @@
 package expo.modules.lineachatlist
 
 import android.content.Context
+import android.graphics.Bitmap
+import android.graphics.BitmapFactory
+import android.graphics.BitmapShader
 import android.graphics.Canvas
+import android.graphics.Matrix
+import android.graphics.Shader
+import android.util.Base64
 import android.graphics.Paint
 import android.graphics.Path
 import android.graphics.Typeface
@@ -23,6 +29,21 @@ class ChatRowView(context: Context) : View(context) {
   private val badgePaint = TextPaint(Paint.ANTI_ALIAS_FLAG).apply { textSize = 12f * d; typeface = Typeface.create(Typeface.DEFAULT, Typeface.BOLD); textAlign = Paint.Align.CENTER }
   private val avatarPaint = TextPaint(Paint.ANTI_ALIAS_FLAG).apply { textSize = 21f * d; typeface = Typeface.create(Typeface.DEFAULT, Typeface.BOLD); textAlign = Paint.Align.CENTER; color = 0xFFFFFFFF.toInt() }
   private val path = Path()
+  private val picture = Paint(Paint.ANTI_ALIAS_FLAG or Paint.FILTER_BITMAP_FLAG)
+  private val matrix = Matrix()
+  private var shaderOf: Bitmap? = null
+  private var thumbOf = ""
+  private var thumb: Bitmap? = null
+
+  /** `bitmap` centre-cropped into the rounded rectangle (x, y, side, side). */
+  private fun drawPicture(canvas: Canvas, bitmap: Bitmap, x: Float, y: Float, side: Float, radius: Float, own: Boolean) {
+    if (!own || shaderOf !== bitmap) { picture.shader = BitmapShader(bitmap, Shader.TileMode.CLAMP, Shader.TileMode.CLAMP); if (own) shaderOf = bitmap }
+    val scale = maxOf(side / bitmap.width, side / bitmap.height)
+    matrix.reset(); matrix.setScale(scale, scale); matrix.postTranslate(x + (side - bitmap.width * scale) / 2, y + (side - bitmap.height * scale) / 2)
+    picture.shader?.setLocalMatrix(matrix)
+    canvas.drawRoundRect(x, y, x + side, y + side, radius, radius, picture)
+    if (!own) picture.shader = null
+  }
 
   private var row: ChatRow? = null
   private var palette = ChatPalette.DARK
@@ -34,6 +55,10 @@ class ChatRowView(context: Context) : View(context) {
   fun bind(next: ChatRow, colors: ChatPalette) {
     if (row == next && palette == colors) return
     row = next; palette = colors; contentDescription = next.title + ". " + next.preview
+    if (next.thumb != thumbOf) {
+      thumbOf = next.thumb
+      thumb = if (next.thumb.isEmpty()) null else try { val bytes = Base64.decode(next.thumb, Base64.DEFAULT); BitmapFactory.decodeByteArray(bytes, 0, bytes.size) } catch (_: Throwable) { null }
+    }
     invalidate()
   }
 
@@ -68,8 +93,14 @@ class ChatRowView(context: Context) : View(context) {
     }
 
     val avatar = 60f * d
-    fill.color = item.avatarColor; canvas.drawCircle(x + avatar / 2, h / 2, avatar / 2, fill)
-    canvas.drawText(item.initials, x + avatar / 2, h / 2 - (avatarPaint.descent() + avatarPaint.ascent()) / 2, avatarPaint)
+    // The app's avatar is a rounded square (radius 0.36 of the side), not a circle.
+    val corner = avatar * 0.36f; val avatarTop = (h - avatar) / 2
+    val face = if (item.avatarUrl.isNotEmpty() && item.avatarKey.isNotEmpty()) AvatarStore.get(context, item.avatarKey, item.avatarUrl, this) else null
+    if (face != null) drawPicture(canvas, face, x, avatarTop, avatar, corner, true)
+    else {
+      fill.color = item.avatarColor; canvas.drawRoundRect(x, avatarTop, x + avatar, avatarTop + avatar, corner, corner, fill)
+      canvas.drawText(item.initials, x + avatar / 2, h / 2 - (avatarPaint.descent() + avatarPaint.ascent()) / 2, avatarPaint)
+    }
     x += avatar + 12f * d
 
     val right = w - 16f * d
@@ -79,7 +110,9 @@ class ChatRowView(context: Context) : View(context) {
     val badgeWidth = if (badge.isEmpty()) 0f else maxOf(22f * d, badgePaint.measureText(badge) + 12f * d)
     val markWidth = if (badge.isEmpty() && item.ticks > 0) 22f * d else badgeWidth
     val titleWidth = right - x - timeWidth - 8f * d
-    val textWidth = (right - x - (if (markWidth > 0f) markWidth + 8f * d else 0f)).toInt()
+    val small = thumb
+    val thumbRoom = if (small != null) 26f * d else 0f
+    val textWidth = (right - x - thumbRoom - (if (markWidth > 0f) markWidth + 8f * d else 0f)).toInt()
     if (builtFor != item || builtWidth != width) build(item, textWidth, titleWidth)
 
     val top = 12f * d
@@ -88,7 +121,8 @@ class ChatRowView(context: Context) : View(context) {
     canvas.drawText(item.time, right - timeWidth, top - timePaint.ascent() + 1.5f * d, timePaint)
 
     previewPaint.color = if (item.accentPreview) palette.accent else palette.muted
-    preview?.let { layout -> canvas.save(); canvas.translate(x, top + 23f * d); layout.draw(canvas); canvas.restore() }
+    if (small != null) drawPicture(canvas, small, x, top + 23f * d, 20f * d, if (item.thumbRound) 10f * d else 4f * d, false)
+    preview?.let { layout -> canvas.save(); canvas.translate(x + thumbRoom, top + 23f * d); layout.draw(canvas); canvas.restore() }
 
     val markY = top + 23f * d + 11f * d
     if (badge.isNotEmpty()) {

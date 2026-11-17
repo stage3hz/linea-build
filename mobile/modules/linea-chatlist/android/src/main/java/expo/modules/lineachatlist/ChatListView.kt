@@ -62,6 +62,9 @@ class ChatListView(context: Context, appContext: AppContext) : ExpoView(context,
     palette = next; adapter.notifyDataSetChanged()
   }
 
+  /** The headers the app sends with a file request (its session); used only to fetch avatars. */
+  fun setHeaders(headers: Map<String, String>) { AvatarStore.headers = headers }
+
   fun setPadding(top: Float, bottom: Float) { list.setPadding(0, (top * d).toInt(), 0, (bottom * d).toInt()) }
 
   // React Native lays its views out itself and does not run Android's layout pass for views added natively: after
