@@ -1,4 +1,4 @@
-/** Native contract of the experimental chat list (src/NativeChatList.tsx). Android only for now.
+/** Native contract of the experimental chat list (used in src/ChatListScreen.tsx). Android (ChatListView.kt) and iOS (ios/LineChatListModule.swift).
  *  The view (requireNativeViewManager('LineaChatList')) is a scrolling list whose rows are drawn on a canvas, so a
  *  change of one chat redraws one row and nothing is laid out by React. It knows nothing about chats: JS hands it
  *  ready lines of text and colours, and gets a row id back when a row is tapped or held. */

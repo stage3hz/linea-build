@@ -56,9 +56,9 @@ const SEARCH_ROW=54;
 export type MessengerTab = 'chats' | 'people' | 'channels' | 'music' | 'ai' | 'profile';
 type Navigation = { onProfile:()=>void;onNewChat:()=>void;onMusic:()=>void;onAI:()=>void;onChats:()=>void;activeTab?:MessengerTab };
 
-// Experimental (Android, «Быстрый список чатов» in the settings): the list drawn by modules/linea-chatlist. Absent
+// Experimental (phones, «Быстрый список чатов» in the settings): the list drawn by modules/linea-chatlist. Absent
 // in a build without the module — then the React list below is used whatever the setting says.
-const NativeChatListView:React.ComponentType<NativeChatListProps>|null=Platform.OS==='android'?(()=>{try{return requireOptionalNativeModule('LineaChatList')?requireNativeViewManager('LineaChatList'):null;}catch{return null;}})():null;
+const NativeChatListView:React.ComponentType<NativeChatListProps>|null=Platform.OS==='android'||Platform.OS==='ios'?(()=>{try{return requireOptionalNativeModule('LineaChatList')?requireNativeViewManager('LineaChatList'):null;}catch{return null;}})():null;
 const colorNumber=(value:string)=>{const c=processColor(value);return typeof c==='number'?c:0;};
 /** The line under the name, as ChatRow shows it (text only: the native row has no thumbnail). */
 function nativeLine(chat:Chat,typing:boolean,userId:string):string{
