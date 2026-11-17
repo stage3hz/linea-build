@@ -48,12 +48,14 @@ export function recoveryWordError(value:string,password='',username='',otherWord
   if(word===normalizeRecoveryWord(password)||word===username.trim().toLowerCase()||word===normalizeRecoveryWord(otherWord))return 'Два слова должны отличаться друг от друга, пароля и логина.';
   return '';
 }
-export function SecretInput({label,value,onChangeText,placeholder,disabled=false,onSubmit}: {
+export function SecretInput({label,value,onChangeText,placeholder,disabled=false,onSubmit,shown=false}: {
   label:string;value:string;onChangeText:(value:string)=>void;placeholder?:string;disabled?:boolean;
   newPassword?:boolean;word?:boolean;onSubmit?:()=>void;
+  /** A secret being created is typed once (no «повтори» field), so it is shown while typed; the eye hides it. */
+  shown?:boolean;
 }) {
-  const t=useTheme();const [visible,setVisible]=useState(false);
-  useEffect(()=>{if(!value)setVisible(false);},[value]);
+  const t=useTheme();const [visible,setVisible]=useState(shown);
+  useEffect(()=>{if(!value)setVisible(shown);},[value,shown]);
   return <View style={{gap:8}}>
     <Text style={{fontSize:11,fontWeight:'700',letterSpacing:1,color:t.muted,textTransform:'uppercase',paddingLeft:2}}>{label}</Text>
     <View style={{position:'relative'}}>
@@ -76,12 +78,12 @@ const registerSteps:Mode[]=['register-name','register-profile','register-passwor
 
 export function AuthScreen({api,onLogin,onChangeServer}: {api:Api;onLogin:(session:Session)=>Promise<void>;onChangeServer:()=>void}) {
   const t=useTheme();const [mode,setMode]=useState<Mode>('login-name');
-  const [username,setUsername]=useState(''),[usernameRepeat,setUsernameRepeat]=useState('');
+  const [username,setUsername]=useState('');
   // Public profile, separate from the secret login: the name people see and the @username they search.
   const [displayName,setDisplayName]=useState(''),[handle,setHandle]=useState('');
-  const [password,setPassword]=useState(''),[passwordRepeat,setPasswordRepeat]=useState('');
-  const [confirmationWord,setConfirmationWord]=useState(''),[confirmationRepeat,setConfirmationRepeat]=useState('');
-  const [recoveryWord,setRecoveryWord]=useState(''),[recoveryRepeat,setRecoveryRepeat]=useState('');
+  const [password,setPassword]=useState('');
+  const [confirmationWord,setConfirmationWord]=useState('');
+  const [recoveryWord,setRecoveryWord]=useState('');
   const [challenge,setChallenge]=useState<RecoveryChallenge|null>(null),[serverOffset,setServerOffset]=useState(0);
   const [entered,setEntered]=useState(false);
   const [busy,setBusy]=useState(false),[restoring,setRestoring]=useState(true),[checking,setChecking]=useState(false);
@@ -98,12 +100,12 @@ export function AuthScreen({api,onLogin,onChangeServer}: {api:Api;onLogin:(sessi
   const lockLeft=Math.max(0,Math.ceil((loginLockUntil-clock)/1000));
   const lockText=`${Math.floor(lockLeft/60)}:${String(lockLeft%60).padStart(2,'0')}`;
   const current=(id:number)=>alive.current&&generation.current===id;
-  const clearSecrets=()=>{setPassword('');setPasswordRepeat('');setConfirmationWord('');setConfirmationRepeat('');setRecoveryWord('');setRecoveryRepeat('');};
+  const clearSecrets=()=>{setPassword('');setConfirmationWord('');setRecoveryWord('');};
   const forgetGrant=()=>{setChallenge(null);challengeRef.current=null;};
 
   useEffect(()=>{
     alive.current=true;const life=++generation.current;
-    clearSecrets();forgetGrant();setUsername('');setUsernameRepeat('');setMode('login-name');setError('');setNotice('');setFeedback(null);setBusy(false);pending.current=false;statusGeneration.current++;statusPending.current=false;setChecking(false);setRestoring(true);
+    clearSecrets();forgetGrant();setUsername('');setMode('login-name');setError('');setNotice('');setFeedback(null);setBusy(false);pending.current=false;statusGeneration.current++;statusPending.current=false;setChecking(false);setRestoring(true);
     void readRecovery(api.base).then(saved=>{
       if(!current(life)||!saved)return;
       setUsername(saved.username);setChallenge(saved.challenge);challengeRef.current=saved.challenge;setMode('waiting');
@@ -124,7 +126,7 @@ export function AuthScreen({api,onLogin,onChangeServer}: {api:Api;onLogin:(sessi
   const go=(next:Mode)=>{setError('');setNotice('');setMode(next);};
   const switchFlow=(register:boolean)=>{
     if(pending.current||restoring)return;
-    generation.current++;clearSecrets();setUsername('');setUsernameRepeat('');go(register?'register-name':'login-name');
+    generation.current++;clearSecrets();setUsername('');go(register?'register-name':'login-name');
   };
   const acceptSession=async(session:Session,id:number)=>{
     if(!current(id)){void new Api(api.base,session.token).logout().catch(()=>{});return;}
@@ -158,7 +160,6 @@ export function AuthScreen({api,onLogin,onChangeServer}: {api:Api;onLogin:(sessi
     if(pending.current)return;
     if(mode==='register-name'){
       if(!usernameCheck())return;
-      if(login!==usernameRepeat.trim().toLowerCase()){setError('Логины не совпадают. Введи оба вручную ещё раз.');return;}
       go('register-profile');return;
     }
     if(mode==='register-profile'){
@@ -170,16 +171,13 @@ export function AuthScreen({api,onLogin,onChangeServer}: {api:Api;onLogin:(sessi
     }
     if(mode==='register-password'){
       const invalid=newPasswordError(password);if(invalid){setError(invalid);return;}
-      if(password!==passwordRepeat){setError('Пароли не совпадают. Проверь повторный ввод.');return;}
       go('register-confirmation');return;
     }
     if(mode==='register-confirmation'){
       const invalid=recoveryWordError(confirmationWord,password,login);if(invalid){setError(invalid);return;}
-      if(normalizeRecoveryWord(confirmationWord)!==normalizeRecoveryWord(confirmationRepeat)){setError('Слова подтверждения не совпадают.');return;}
       go('register-recovery');return;
     }
     const invalid=recoveryWordError(recoveryWord,password,login,confirmationWord);if(invalid){setError(invalid);return;}
-    if(normalizeRecoveryWord(recoveryWord)!==normalizeRecoveryWord(recoveryRepeat)){setError('Слова восстановления не совпадают.');return;}
     const id=begin();if(id===null)return;
     try{await acceptSession(await api.register(login,password,displayName.trim(),normalizeRecoveryWord(confirmationWord),normalizeRecoveryWord(recoveryWord),handle.trim().replace(/^@/,'').toLowerCase()),id);}
     catch(reason){if(current(id)){const message=reason instanceof Error?reason.message:'Не удалось создать аккаунт.';
@@ -187,7 +185,7 @@ export function AuthScreen({api,onLogin,onChangeServer}: {api:Api;onLogin:(sessi
       if(/@юзернейм/.test(message))setMode('register-profile');
       // A taken login: back to the first step with the password and words kept (they were wiped by going back by hand).
       // There is no early «is it free» check on purpose: the login is secret and must not be probed.
-      else if(/логин уже занят/.test(message)){setMode('register-name');setUsernameRepeat('');}
+      else if(/логин уже занят/.test(message)){setMode('register-name');}
       setError(message);}}
     finally{finish(id);}
   };
@@ -246,13 +244,12 @@ export function AuthScreen({api,onLogin,onChangeServer}: {api:Api;onLogin:(sessi
   const resetPassword=async()=>{
     const grant=challengeRef.current;if(!grant){clearSecrets();go('recover');return;}
     const invalid=newPasswordError(password);if(invalid){setError(invalid);return;}
-    if(password!==passwordRepeat){setError('Пароли не совпадают. Проверь повторный ввод.');return;}
     const id=begin();if(id===null)return;
     try{
       await api.resetPassword(grant.resetToken,password);
       await clearRecovery(api.base,grant.resetToken).catch(()=>{});
       if(!current(id))return;
-      clearSecrets();forgetGrant();setFeedback(null);setUsername('');setUsernameRepeat('');setMode('login-name');setNotice('Пароль изменён. Все устройства вышли из аккаунта. Войди с новым паролем и прежним словом подтверждения.');
+      clearSecrets();forgetGrant();setFeedback(null);setUsername('');setMode('login-name');setNotice('Пароль изменён. Все устройства вышли из аккаунта. Войди с новым паролем и прежним словом подтверждения.');
     }catch(reason){
       if(!current(id))return;
       if(reason instanceof ApiError&&reason.code==='RECOVERY_WAIT'){clearSecrets();setMode('waiting');}
@@ -268,7 +265,7 @@ export function AuthScreen({api,onLogin,onChangeServer}: {api:Api;onLogin:(sessi
     try{
       await clearRecovery(api.base,grant?.resetToken);
       if(!current(id))return;
-      clearSecrets();forgetGrant();setUsername('');setUsernameRepeat('');setMode('login-name');setError('');setNotice('');
+      clearSecrets();forgetGrant();setUsername('');setMode('login-name');setError('');setNotice('');
       if(changeServer)onChangeServer();
     }catch{if(current(id))setError('Не удалось удалить сохранённый запрос. Попробуй ещё раз.');}
     finally{finish(id);}
@@ -279,11 +276,11 @@ export function AuthScreen({api,onLogin,onChangeServer}: {api:Api;onLogin:(sessi
     generation.current++;setError('');setNotice('');
     if(mode==='login-word'){setConfirmationWord('');setPassword('');setMode('login-password');return;}
     if(mode==='login-password'){clearSecrets();setMode('login-name');return;}
-    if(mode==='register-recovery'){setRecoveryWord('');setRecoveryRepeat('');setMode('register-confirmation');return;}
-    if(mode==='register-confirmation'){setConfirmationWord('');setConfirmationRepeat('');setMode('register-password');return;}
+    if(mode==='register-recovery'){setRecoveryWord('');setMode('register-confirmation');return;}
+    if(mode==='register-confirmation'){setConfirmationWord('');setMode('register-password');return;}
     if(mode==='register-password'){clearSecrets();setMode('register-profile');return;}
     if(mode==='register-profile'){setMode('register-name');return;}
-    clearSecrets();setUsername('');setUsernameRepeat('');setMode('login-name');
+    clearSecrets();setUsername('');setMode('login-name');
   };
   const submit=async()=>{
     if(pending.current||restoring)return;
@@ -300,14 +297,14 @@ export function AuthScreen({api,onLogin,onChangeServer}: {api:Api;onLogin:(sessi
     'login-name':'Вход без почты и номера телефона. Данные проверим вместе на последнем шаге.',
     'login-password':'Введи пароль вручную. Следом понадобится слово подтверждения.',
     'login-word':'Введи слово подтверждения, которое выбрал при регистрации.',
-    'register-name':'Каждое значение вводится дважды вручную. Это поможет заметить опечатку.',
+    'register-name':'Всё вводится один раз. Перед тем как идти дальше, проверь, что нет опечатки.',
     'register-profile':'Это видят другие: имя и @юзернейм для поиска. Логин остаётся тайным.',
     'register-password':'От 15 до 128 символов. Длинная фраза тоже подходит.',
     'register-confirmation':'Это слово нужно при входе после пароля. Оно должно отличаться от логина и пароля.',
     'register-recovery':'Это отдельное слово понадобится, если забудешь пароль. Оно должно отличаться от первого.',
     recover:'Введи логин и слово восстановления. После подтверждения нужно будет подождать 10 минут.',
     waiting:'Слово восстановления подтверждено. Через 10 минут сервер разрешит задать новый пароль.',
-    reset:'Введи новый пароль дважды вручную. Слово подтверждения и слово восстановления сохранятся.'};
+    reset:'Введи новый пароль и проверь его глазами. Слово подтверждения и слово восстановления сохранятся.'};
   const step=isRegister?registerSteps.indexOf(mode)+1:isLogin?loginSteps.indexOf(mode)+1:0;
   const stepCount=isRegister?registerSteps.length:3;
   const buttonTitle=mode==='register-recovery'?'Создать аккаунт':mode==='login-word'?'Войти в Инвиз':mode==='recover'?'Подтвердить слово':mode==='waiting'?'Проверить статус':mode==='reset'?'Сохранить новый пароль':'Продолжить';
@@ -327,8 +324,7 @@ export function AuthScreen({api,onLogin,onChangeServer}: {api:Api;onLogin:(sessi
           </View>:null}
           {step?<View style={{flexDirection:'row',alignItems:'center',gap:8}}>{Array.from({length:stepCount},(_,index)=><View key={index} style={{height:4,flex:1,borderRadius:4,backgroundColor:index<step?t.accent:t.border}}/>)}<Text style={{color:t.muted,fontSize:11,marginLeft:5}}>{step} / {stepCount}</Text></View>:null}
           {restoring?<View style={{padding:15,alignItems:'center',gap:10}}><ActivityIndicator color={t.accent}/><Text style={{color:t.muted,fontSize:12}}>Проверяем сохранённый запрос…</Text></View>:null}
-          {mode==='login-name'||mode==='register-name'||mode==='recover'?<ManualField label="Логин" value={username} onChangeText={setUsername} placeholder="Введите логин" maxLength={24} editable={!disabled} returnKeyType={mode==='login-name'?'go':'next'} onSubmitEditing={mode==='login-name'?()=>void submit():undefined}/>:null}
-          {mode==='register-name'?<ManualField label="Повтори логин" value={usernameRepeat} onChangeText={setUsernameRepeat} placeholder="Введи тот же логин вручную" maxLength={24} editable={!disabled} returnKeyType="go" onSubmitEditing={()=>void submit()}/>:null}
+          {mode==='login-name'||mode==='register-name'||mode==='recover'?<ManualField label="Логин" value={username} onChangeText={setUsername} placeholder="Введите логин" maxLength={24} editable={!disabled} returnKeyType="go" onSubmitEditing={mode==='recover'?undefined:()=>void submit()}/>:null}
           {/* The login is private and permanent: say so before the account exists. */}
           {mode==='register-name'?<View accessibilityRole="alert" style={{flexDirection:'row',gap:10,padding:13,borderRadius:16,backgroundColor:t.accentSoft,borderWidth:1,borderColor:t.border}}><Icon name="key-outline" size={18} color={t.accent}/><Text style={{flex:1,color:t.text,fontSize:13,lineHeight:19}}>Это твой логин для входа. Его видишь только ты, и сменить его потом нельзя. Публичный @юзернейм задашь на следующем шаге — он будет другим. Запомни логин или запиши в надёжное место.</Text></View>:null}
           {mode==='register-profile'?<>
@@ -336,16 +332,15 @@ export function AuthScreen({api,onLogin,onChangeServer}: {api:Api;onLogin:(sessi
             <ManualField label="Публичный @юзернейм" value={handle} onChangeText={value=>setHandle(value.replace(/\s/g,''))} placeholder="Для поиска, не как логин" maxLength={25} autoCapitalize="none" autoCorrect={false} editable={!disabled} returnKeyType="go" onSubmitEditing={()=>void submit()}/>
             <Text style={{color:t.muted,fontSize:12,lineHeight:18}}>По @юзернейму тебя найдут. Логин для входа другой, его не видит никто.</Text>
           </>:null}
-          {mode==='login-password'||mode==='register-password'||mode==='reset'?<SecretInput label={mode==='reset'?'Новый пароль':'Пароль'} value={password} onChangeText={setPassword} placeholder={mode==='login-password'?'Твой пароль':'От 15 символов — можно фразу'} disabled={disabled} onSubmit={mode==='login-password'?()=>void submit():undefined}/>:null}
-          {mode==='register-password'||mode==='reset'?<SecretInput label={mode==='reset'?'Повтори новый пароль':'Повтори пароль'} value={passwordRepeat} onChangeText={setPasswordRepeat} placeholder="Введи тот же пароль вручную" disabled={disabled} onSubmit={()=>void submit()}/>:null}
+          {mode==='login-password'||mode==='register-password'||mode==='reset'?<SecretInput label={mode==='reset'?'Новый пароль':'Пароль'} value={password} onChangeText={setPassword} placeholder={mode==='login-password'?'Твой пароль':'От 15 символов — можно фразу'} disabled={disabled} shown={mode!=='login-password'} onSubmit={()=>void submit()}/>:null}
           {mode==='login-word'||mode==='register-confirmation'?<>
-            <SecretInput label="Слово подтверждения" value={confirmationWord} onChangeText={setConfirmationWord} placeholder="Твоё слово для входа" disabled={disabled} word onSubmit={mode==='login-word'?()=>void submit():undefined}/>
-            {mode==='register-confirmation'?<>{wordHelp}<SecretInput label="Повтори слово подтверждения" value={confirmationRepeat} onChangeText={setConfirmationRepeat} placeholder="Введи то же слово вручную" disabled={disabled} word onSubmit={()=>void submit()}/></>:<Text style={{color:t.muted,fontSize:12,lineHeight:18}}>Если в старом аккаунте слово ещё не настроено, оставь поле пустым. После входа сможешь добавить его в безопасности.</Text>}
+            <SecretInput label="Слово подтверждения" value={confirmationWord} onChangeText={setConfirmationWord} placeholder="Твоё слово для входа" disabled={disabled} word shown={mode==='register-confirmation'} onSubmit={()=>void submit()}/>
+            {mode==='register-confirmation'?wordHelp:<Text style={{color:t.muted,fontSize:12,lineHeight:18}}>Если в старом аккаунте слово ещё не настроено, оставь поле пустым. После входа сможешь добавить его в безопасности.</Text>}
           </>:null}
           {mode==='register-recovery'||mode==='recover'?<>
-            <SecretInput label="Слово восстановления" value={recoveryWord} onChangeText={setRecoveryWord} placeholder="Отдельное слово для восстановления" disabled={disabled||locked&&mode==='recover'} word onSubmit={mode==='recover'?()=>void submit():undefined}/>
+            <SecretInput label="Слово восстановления" value={recoveryWord} onChangeText={setRecoveryWord} placeholder="Отдельное слово для восстановления" disabled={disabled||locked&&mode==='recover'} word shown={mode==='register-recovery'} onSubmit={()=>void submit()}/>
             {wordHelp}
-            {mode==='register-recovery'?<><SecretInput label="Повтори слово восстановления" value={recoveryRepeat} onChangeText={setRecoveryRepeat} placeholder="Введи то же слово вручную" disabled={disabled} word onSubmit={()=>void submit()}/><Text style={{color:t.muted,fontSize:12,lineHeight:18}}>Запомни оба слова и храни их отдельно. В приложении их нельзя будет посмотреть повторно.</Text></>:<Text style={{color:t.muted,fontSize:12,lineHeight:18}}>Всего 3 неверные попытки, затем восстановление блокируется на 24 часа. Вход с паролем и словом подтверждения остаётся доступен.</Text>}
+            {mode==='register-recovery'?<><Text style={{color:t.muted,fontSize:12,lineHeight:18}}>Запомни оба слова и храни их отдельно. В приложении их нельзя будет посмотреть повторно.</Text></>:<Text style={{color:t.muted,fontSize:12,lineHeight:18}}>Всего 3 неверные попытки, затем восстановление блокируется на 24 часа. Вход с паролем и словом подтверждения остаётся доступен.</Text>}
           </>:null}
           {mode==='waiting'&&challenge?<View style={{gap:14}}>
             <View style={{alignItems:'center',paddingVertical:16,gap:10}}><Icon name="time-outline" size={30} color={t.accent}/><Text accessibilityLabel="Осталось до проверки сервером" style={{color:t.text,fontSize:43,fontWeight:'700',letterSpacing:1,fontVariant:['tabular-nums']}}>{formatCountdown(Date.parse(challenge.readyAt),clock+serverOffset)}</Text><Text style={{color:t.muted,fontSize:12,textAlign:'center'}}>Запрос для логина {login}</Text></View>

@@ -512,6 +512,8 @@
 "КТО ВИДИТ": "WHO CAN SEE",
 "Кадрирование": "Cropping",
 "Каждое значение вводится дважды вручную. Это поможет заметить опечатку.": "Each value is entered twice by hand. This helps catch a typo.",
+"Всё вводится один раз. Перед тем как идти дальше, проверь, что нет опечатки.": "Everything is entered once. Check for typos before you continue.",
+"Введи новый пароль и проверь его глазами. Слово подтверждения и слово восстановления сохранятся.": "Enter the new password and check it by eye. The confirmation word and the recovery word stay the same.",
 "Как в Discord: текстовые и голосовые каналы, роли, закрытые каналы для своих.": "Like Discord: text and voice channels, roles, private channels for your people.",
 "Как в системе": "System",
 "Как тебе новые обои?": "How do you like the new wallpaper?",
