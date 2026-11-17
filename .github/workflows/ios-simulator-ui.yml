@@ -42,7 +42,8 @@ jobs:
       matrix:
         runner: ${{ fromJSON(inputs.runner && format('["{0}"]', inputs.runner) || '["macos-15-intel","macos-26"]') }}
     runs-on: ${{ matrix.runner }}
-    timeout-minutes: 150
+    # 210: the Intel Mac spent the whole former 150 on build + walk and was stopped before it could publish anything.
+    timeout-minutes: 210
     env:
       APP_ENV: development
       EXPO_PUBLIC_ALLOW_LOCAL_HTTP: '0'
@@ -154,9 +155,20 @@ jobs:
           done
           echo "$HOME/.maestro/bin" >> "$GITHUB_PATH"
       - name: Walk the screens (dark, then light)
-        timeout-minutes: 130
+        timeout-minutes: 120
         run: |
           mkdir -p shots && cd shots
+          # Screenshots taken so far go to the output branch after every stage: a walk that is stopped half-way
+          # (time limit, a lost runner) still leaves what it saw.
+          publish() {
+            ( rm -rf "$RUNNER_TEMP/part" && mkdir -p "$RUNNER_TEMP/part" && cp -R . "$RUNNER_TEMP/part/" 2>/dev/null
+              cp -R "$HOME/.maestro/tests" "$RUNNER_TEMP/part/maestro-tests" 2>/dev/null
+              cd "$RUNNER_TEMP/part" && echo "running:$1 $GITHUB_SHA $(date -u) ${{ matrix.runner }}" > STATUS.txt
+              git init -q -b part && git config user.name "linea-ci" && git config user.email "ci@localhost"
+              git add -A && git commit -qm "Simulator shots so far ($1) for $GITHUB_SHA"
+              git push -qf "https://x-access-token:${{ github.token }}@github.com/${{ github.repository }}.git" "HEAD:sim-output-${{ matrix.runner }}" ) || true
+          }
+          publish walk-begins
           xcrun simctl ui "$SIMULATOR_UDID" appearance dark
           # Two attempts: on a slow runner the very first XCTest tap once took 377 s (34 s on a normal run, 0.4 s
           # afterwards) and the driver gave up. Each attempt registers its own account (ATTEMPT in login/username).
@@ -164,12 +176,15 @@ jobs:
           for attempt in 1 2; do
             if maestro --device "$SIMULATOR_UDID" test -e THEME=dark -e ATTEMPT="$attempt" "$GITHUB_WORKSPACE/tools/maestro/register-and-screens.yaml"; then dark_ok=1; break; fi
             echo "Registration attempt $attempt failed"
+            publish "registration-attempt-$attempt-failed"
           done
           if [ "$dark_ok" = 1 ]; then
+            publish registered
             # People to talk to: accounts with avatars and really encrypted messages, on the local server only.
             (cd "$GITHUB_WORKSPACE" && node tools/sim-seed.mjs http://127.0.0.1:3999 "simui_check$attempt") || echo "SEED_FAILED=1" >> "$GITHUB_ENV"
             maestro --device "$SIMULATOR_UDID" test -e THEME=dark "$GITHUB_WORKSPACE/tools/maestro/native-check.yaml" || echo "NATIVE_FAILED=1" >> "$GITHUB_ENV"
             xcrun simctl io "$SIMULATOR_UDID" screenshot zy-after-native.png || true
+            publish native-check-done
             maestro --device "$SIMULATOR_UDID" test -e THEME=dark "$GITHUB_WORKSPACE/tools/maestro/screens-again.yaml" || echo "DARK_FAILED=1" >> "$GITHUB_ENV"
           else
             echo "DARK_FAILED=1" >> "$GITHUB_ENV"
