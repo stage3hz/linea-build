@@ -6,6 +6,8 @@ data class MsgRow(
   val key: String, val kind: Int, val mine: Boolean, val text: String, val time: String, val ticks: Int,
   val tail: Boolean, val quoteAuthor: String, val quoteText: String, val forward: String, val label: String,
   val thumb: String, val thumbRound: Boolean, val thumbWide: Double, val checked: Int,
+  /** Reactions in one line («👍 2  ❤️ 1»); '' = none. */
+  val reactions: String,
 ) {
   companion object {
     private fun text(value: Any?) = value as? String ?: ""
@@ -16,7 +18,7 @@ data class MsgRow(
       if (key.isEmpty()) null else MsgRow(
         key, int(row["kind"], 0), flag(row["mine"]), text(row["text"]), text(row["time"]), int(row["ticks"], 0).coerceIn(0, 4),
         flag(row["tail"]), text(row["quoteAuthor"]), text(row["quoteText"]), text(row["forward"]), text(row["label"]),
-        text(row["thumb"]), flag(row["thumbRound"]), ((row["thumbWide"] as? Number)?.toDouble() ?: 1.0).coerceIn(0.4, 2.5), int(row["checked"], -1).coerceIn(-1, 1),
+        text(row["thumb"]), flag(row["thumbRound"]), ((row["thumbWide"] as? Number)?.toDouble() ?: 1.0).coerceIn(0.4, 2.5), int(row["checked"], -1).coerceIn(-1, 1), text(row["reactions"]),
       )
     }
   }

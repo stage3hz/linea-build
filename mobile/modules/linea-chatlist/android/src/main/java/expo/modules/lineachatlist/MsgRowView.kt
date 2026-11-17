@@ -45,6 +45,7 @@ class MsgRowView(context: Context) : View(context) {
   private var quoteLayout: StaticLayout? = null
   private var labelLayout: StaticLayout? = null
   private var noticeLayout: StaticLayout? = null
+  private var reactLayout: StaticLayout? = null
   private var bubbleW = 0f
   private var bubbleH = 0f
   private var thumbW = 0f
@@ -72,7 +73,7 @@ class MsgRowView(context: Context) : View(context) {
 
   private fun build(item: MsgRow, width: Int) {
     body.textSize = fontSize * d
-    textLayout = null; quoteLayout = null; labelLayout = null; noticeLayout = null; thumbW = 0f; thumbH = 0f
+    textLayout = null; quoteLayout = null; labelLayout = null; noticeLayout = null; reactLayout = null; thumbW = 0f; thumbH = 0f
     if (item.kind == 1) {
       noticeLayout = layout(item.text, small, (width * 0.8f).toInt(), 6, true)
       bubbleW = widest(noticeLayout) + 24f * d; bubbleH = (noticeLayout?.height ?: 0) + 12f * d
@@ -81,9 +82,10 @@ class MsgRowView(context: Context) : View(context) {
       if (item.text.isNotEmpty()) textLayout = layout(item.text, body, inner, 400)
       if (item.quoteText.isNotEmpty() || item.quoteAuthor.isNotEmpty()) quoteLayout = layout(item.quoteText, small, inner - (12f * d).toInt(), 2)
       if (item.label.isNotEmpty()) labelLayout = layout(item.label, small, inner, 2)
+      if (item.reactions.isNotEmpty()) reactLayout = layout(item.reactions, small, inner, 2)
       if (thumb != null) { thumbW = minOf(inner.toFloat(), 220f * d); thumbH = (thumbW / item.thumbWide.toFloat()).coerceIn(90f * d, 300f * d) }
       val metaWidth = meta.measureText(item.time) + (if (item.mine) 22f * d else 0f)
-      var w = maxOf(widest(textLayout), metaWidth, thumbW, widest(labelLayout))
+      var w = maxOf(maxOf(widest(textLayout), metaWidth, thumbW, widest(labelLayout)), widest(reactLayout))
       if (quoteLayout != null) w = maxOf(w, maxOf(widest(quoteLayout), smallBold.measureText(item.quoteAuthor)) + 12f * d)
       if (item.forward.isNotEmpty()) w = maxOf(w, minOf(inner.toFloat(), smallBold.measureText(item.forward)))
       var h = 9f * d
@@ -92,6 +94,7 @@ class MsgRowView(context: Context) : View(context) {
       if (thumbH > 0f) h += thumbH + 6f * d
       if (labelLayout != null) h += labelLayout!!.height + 4f * d
       if (textLayout != null) h += textLayout!!.height
+      if (reactLayout != null) h += reactLayout!!.height + 6f * d
       h += 16f * d + 6f * d
       bubbleW = w + 26f * d; bubbleH = h
     }
@@ -169,6 +172,7 @@ class MsgRowView(context: Context) : View(context) {
     if (image != null && thumbH > 0f) { drawPicture(canvas, image, x, y, thumbW, thumbH, if (item.thumbRound) minOf(thumbW, thumbH) / 2 else 12f * d); y += thumbH + 6f * d }
     labelLayout?.let { small.color = markColor; canvas.save(); canvas.translate(x, y); it.draw(canvas); canvas.restore(); y += it.height + 4f * d }
     textLayout?.let { body.color = palette.text; canvas.save(); canvas.translate(x, y); it.draw(canvas); canvas.restore(); y += it.height }
+    reactLayout?.let { small.color = palette.text; canvas.save(); canvas.translate(x, y + 6f * d); it.draw(canvas); canvas.restore() }
 
     val right = left + bubbleW - 13f * d
     val base = bubbleH - 8f * d

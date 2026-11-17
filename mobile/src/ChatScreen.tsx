@@ -636,7 +636,7 @@ export function ChatScreen({api,user,chat,store,onBack,wide=false,onOpenMusic}: 
   const nativeChatPref=preferences.nativeChat;const nativeChatOn=!!NativeMsgListView&&nativeChatPref;
   const nativeMsgRows=useMemo<NativeMsgRow[]>(()=>{
     if(!nativeChatOn)return [];
-    const out:NativeMsgRow[]=[];const blank={mine:false,time:'',ticks:0 as const,tail:false,quoteAuthor:'',quoteText:'',forward:'',label:'',thumb:'',thumbRound:false,thumbWide:1,checked:-1 as const};
+    const out:NativeMsgRow[]=[];const blank={mine:false,time:'',ticks:0 as const,tail:false,quoteAuthor:'',quoteText:'',forward:'',label:'',thumb:'',thumbRound:false,thumbWide:1,checked:-1 as const,reactions:''};
     const senderOf=(row:Row|undefined)=>!row||row.missing?undefined:row.pending?user.id:row.message&&!row.message.meta?.action?row.message.senderId:undefined;
     // `rows` is newest first; the native list takes them oldest first.
     for(let i=rows.length-1;i>=0;i--){
@@ -656,7 +656,7 @@ export function ChatScreen({api,user,chat,store,onBack,wide=false,onOpenMusic}: 
         forward:message?.meta?.forward?(message.meta.forward.from?`Переслано от ${message.meta.forward.from}`:'Пересланное сообщение'):'',
         label:row.album?`Альбом · ${row.album.length}`:file?(visual?attachmentLabel(file):`${attachmentLabel(file)}${file.name&&!isVoice(file)&&!isVideoNote(file)?` · ${file.name}`:''}`):message?.poll?'Опрос':'',
         thumb:visual&&file?.preview?file.preview.base64:'',thumbRound:!!file&&isVideoNote(file),thumbWide:visual&&file?.preview&&file.preview.height?file.preview.width/file.preview.height:1,
-        checked:selection?(selection.has(row.key)?1:0):-1});
+        checked:selection?(selection.has(row.key)?1:0):-1,reactions:(message?.reactions||[]).map(r=>`${r.emoji} ${r.count}`).join('   ')});
     }
     return out;
   },[nativeChatOn,rows,user.id,peerLastRead,peerName,view.byClientId,selection]);

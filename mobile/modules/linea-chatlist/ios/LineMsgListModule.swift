@@ -38,6 +38,8 @@ struct MsgRow: Equatable {
   let thumbRound: Bool
   let thumbWide: CGFloat
   let checked: Int
+  /// Reactions in one line («👍 2  ❤️ 1»); empty = none.
+  let reactions: String
 
   static func parse(_ rows: [[String: Any]]) -> [MsgRow] {
     func text(_ value: Any?) -> String { (value as? String) ?? "" }
@@ -52,7 +54,7 @@ struct MsgRow: Equatable {
         key: key, kind: int(row["kind"], 0), mine: flag(row["mine"]), text: text(row["text"]), time: text(row["time"]),
         ticks: min(4, max(0, int(row["ticks"], 0))), tail: flag(row["tail"]), quoteAuthor: text(row["quoteAuthor"]),
         quoteText: text(row["quoteText"]), forward: text(row["forward"]), label: text(row["label"]), thumb: text(row["thumb"]),
-        thumbRound: flag(row["thumbRound"]), thumbWide: CGFloat(min(2.5, max(0.4, wide))), checked: min(1, max(-1, int(row["checked"], -1)))))
+        thumbRound: flag(row["thumbRound"]), thumbWide: CGFloat(min(2.5, max(0.4, wide))), checked: min(1, max(-1, int(row["checked"], -1))), reactions: text(row["reactions"])))
     }
     return result
   }
@@ -118,6 +120,7 @@ struct MsgLayout {
   var quoteSize = CGSize.zero
   var labelSize = CGSize.zero
   var thumbSize = CGSize.zero
+  var reactSize = CGSize.zero
   var height: CGFloat = 0
 
   static func make(_ row: MsgRow, width: CGFloat, fontSize: CGFloat, hasThumb: Bool) -> MsgLayout {
@@ -134,12 +137,13 @@ struct MsgLayout {
     layout.textSize = msgSize(row.text, body, inner, 20000)
     if !row.quoteText.isEmpty || !row.quoteAuthor.isEmpty { layout.quoteSize = msgSize(row.quoteText.isEmpty ? " " : row.quoteText, msgSmallFont, inner - 12, 36) }
     layout.labelSize = msgSize(row.label, msgSmallFont, inner, 36)
+    layout.reactSize = msgSize(row.reactions, msgSmallFont, inner, 40)
     if hasThumb {
       let w = min(inner, 220)
       layout.thumbSize = CGSize(width: w, height: min(300, max(90, w / row.thumbWide)))
     }
     let timeWidth = ceil(NSAttributedString(string: row.time, attributes: [.font: msgMetaFont]).size().width) + (row.mine ? 22 : 0)
-    var w = max(layout.textSize.width, timeWidth, layout.thumbSize.width, layout.labelSize.width)
+    var w = max(max(layout.textSize.width, timeWidth, layout.thumbSize.width, layout.labelSize.width), layout.reactSize.width)
     if layout.quoteSize != .zero {
       let author = ceil(NSAttributedString(string: row.quoteAuthor, attributes: [.font: msgSmallBold]).size().width)
       w = max(w, min(inner, max(layout.quoteSize.width, author) + 12))
@@ -151,6 +155,7 @@ struct MsgLayout {
     if layout.thumbSize != .zero { h += layout.thumbSize.height + 6 }
     if layout.labelSize != .zero { h += layout.labelSize.height + 4 }
     h += layout.textSize.height
+    if layout.reactSize != .zero { h += layout.reactSize.height + 6 }
     h += 16 + 6
     layout.bubble = CGSize(width: w + 26, height: h)
     layout.height = h + (row.tail ? 7 : 2)
@@ -268,6 +273,10 @@ final class MsgRowCanvas: UIView {
     }
     if layoutInfo.textSize != .zero {
       draw(item.text, UIFont.systemFont(ofSize: fontSize), palette.text, CGRect(x: x, y: y, width: inner, height: layoutInfo.textSize.height + 2), lines: true)
+      y += layoutInfo.textSize.height
+    }
+    if layoutInfo.reactSize != .zero {
+      draw(item.reactions, msgSmallFont, palette.text, CGRect(x: x, y: y + 6, width: inner, height: layoutInfo.reactSize.height + 2), lines: true)
     }
 
     let right = left + bubble.width - 13

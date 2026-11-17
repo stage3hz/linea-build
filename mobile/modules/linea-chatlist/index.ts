@@ -68,6 +68,8 @@ export type NativeMsgRow = {
   /** Width / height of the thumbnail. */
   thumbWide: number;
   checked: -1 | 0 | 1;
+  /** Reactions in one line («👍 2  ❤️ 1»); '' = none. */
+  reactions: string;
 };
 export type NativeMsgPalette = { text: number; muted: number; accent: number; onAccent: number; mine: number; theirs: number; notice: number; noticeText: number; danger: number; quote: number; mineMeta: number; mineMark: number; subtle: number };
 export type NativeMsgListProps = {
