@@ -56,8 +56,8 @@ export function passwordValue(value, { existing = false, username = '' } = {}) {
   const password = existing ? value : value.normalize('NFC');
   const length = Array.from(password).length;
   const invalidControl = existing ? password.includes('\0') : /[\u0000-\u001f\u007f]/.test(password);
-  if (length < (existing ? 1 : 15) || length > 128 || invalidControl) {
-    fail(400, existing ? 'Пароль: допустимо от 1 до 128 символов.' : 'Пароль: от 15 до 128 символов. Можно использовать длинную фразу.');
+  if (length < (existing ? 1 : 10) || length > 128 || invalidControl) {
+    fail(400, existing ? 'Пароль: допустимо от 1 до 128 символов.' : 'Пароль: от 10 до 128 символов. Можно использовать длинную фразу.');
   }
   const normalized = normalizeRecoveryWord(password);
   if (!existing && (!normalized || COMMON_SECRETS.has(normalized) || /^(.)\1+$/u.test(normalized) || (username && normalized === username.toLowerCase()))) {

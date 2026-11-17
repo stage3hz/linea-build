@@ -38,7 +38,7 @@ export function normalizeRecoveryWord(value: string) {
 }
 export function newPasswordError(value: string) {
   const count=Array.from(value.normalize('NFC')).length;
-  if(count<15||count>128)return 'Новый пароль: от 15 до 128 символов. Можно использовать длинную фразу.';
+  if(count<10||count>128)return 'Новый пароль: от 10 до 128 символов. Можно использовать длинную фразу.';
   if(/[\u0000-\u001f\u007f]/.test(value))return 'В пароле есть недопустимый символ.';
   return '';
 }
@@ -299,7 +299,7 @@ export function AuthScreen({api,onLogin,onChangeServer}: {api:Api;onLogin:(sessi
     'login-word':'Введи слово подтверждения, которое выбрал при регистрации.',
     'register-name':'Всё вводится один раз. Перед тем как идти дальше, проверь, что нет опечатки.',
     'register-profile':'Это видят другие: имя и @юзернейм для поиска. Логин остаётся тайным.',
-    'register-password':'От 15 до 128 символов. Длинная фраза тоже подходит.',
+    'register-password':'От 10 до 128 символов. Длинная фраза тоже подходит.',
     'register-confirmation':'Это слово нужно при входе после пароля. Оно должно отличаться от логина и пароля.',
     'register-recovery':'Это отдельное слово понадобится, если забудешь пароль. Оно должно отличаться от первого.',
     recover:'Введи логин и слово восстановления. После подтверждения нужно будет подождать 10 минут.',
@@ -332,7 +332,7 @@ export function AuthScreen({api,onLogin,onChangeServer}: {api:Api;onLogin:(sessi
             <ManualField label="Публичный @юзернейм" value={handle} onChangeText={value=>setHandle(value.replace(/\s/g,''))} placeholder="Для поиска, не как логин" maxLength={25} autoCapitalize="none" autoCorrect={false} editable={!disabled} returnKeyType="go" onSubmitEditing={()=>void submit()}/>
             <Text style={{color:t.muted,fontSize:12,lineHeight:18}}>По @юзернейму тебя найдут. Логин для входа другой, его не видит никто.</Text>
           </>:null}
-          {mode==='login-password'||mode==='register-password'||mode==='reset'?<SecretInput label={mode==='reset'?'Новый пароль':'Пароль'} value={password} onChangeText={setPassword} placeholder={mode==='login-password'?'Твой пароль':'От 15 символов — можно фразу'} disabled={disabled} shown={mode!=='login-password'} onSubmit={()=>void submit()}/>:null}
+          {mode==='login-password'||mode==='register-password'||mode==='reset'?<SecretInput label={mode==='reset'?'Новый пароль':'Пароль'} value={password} onChangeText={setPassword} placeholder={mode==='login-password'?'Твой пароль':'От 10 символов — можно фразу'} disabled={disabled} shown={mode!=='login-password'} onSubmit={()=>void submit()}/>:null}
           {mode==='login-word'||mode==='register-confirmation'?<>
             <SecretInput label="Слово подтверждения" value={confirmationWord} onChangeText={setConfirmationWord} placeholder="Твоё слово для входа" disabled={disabled} word shown={mode==='register-confirmation'} onSubmit={()=>void submit()}/>
             {mode==='register-confirmation'?wordHelp:<Text style={{color:t.muted,fontSize:12,lineHeight:18}}>Если в старом аккаунте слово ещё не настроено, оставь поле пустым. После входа сможешь добавить его в безопасности.</Text>}

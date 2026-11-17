@@ -193,9 +193,9 @@ test('contact-free registration validates independent secrets and exposes only p
 
 test('new password policy counts Unicode code points and preserves intentional spaces', async t => {
   const { app } = await fixture(t);
-  const unicodePassword = '🦉🌲🌙🦊🍁🌊🐚🪁🧭🌻🦋🍀🍂🦜🪷';
-  assert.equal(Array.from(unicodePassword).length, 15);
-  for (const password of [Array.from(unicodePassword).slice(0, 14).join(''), 'x'.repeat(129), ' '.repeat(15)]) {
+  const unicodePassword = '🦉🌲🌙🦊🍁🌊🐚🪁🧭🌻';
+  assert.equal(Array.from(unicodePassword).length, 10);
+  for (const password of [Array.from(unicodePassword).slice(0, 9).join(''), 'x'.repeat(129), ' '.repeat(10)]) {
     const response = await request(app, 'POST', '/auth/register', null, { username: 'unicode', displayName: 'Unicode', password, recoveryWord: WORD, confirmationWord: CONFIRMATION_WORD });
     assert.equal(response.statusCode, 400, response.body);
   }

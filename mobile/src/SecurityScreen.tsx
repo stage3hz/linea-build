@@ -183,7 +183,7 @@ export function SecurityScreen({api,onBack,onCredentialsChanged,onSensitiveActio
         <SecretInput label="Текущий пароль" value={currentPassword} onChangeText={setCurrentPassword} placeholder="Пароль этого аккаунта" disabled={busy}/>
         {status?.confirmationConfigured?<SecretInput label="Текущее слово подтверждения" value={currentConfirmation} onChangeText={setCurrentConfirmation} placeholder="Слово, которое используешь при входе" disabled={busy} word/>:null}
         {form==='password'?<>
-          <SecretInput label="Новый пароль" value={newPassword} onChangeText={setNewPassword} placeholder="От 15 до 128 символов" disabled={busy} newPassword/>
+          <SecretInput label="Новый пароль" value={newPassword} onChangeText={setNewPassword} placeholder="От 10 до 128 символов" disabled={busy} newPassword/>
           <SecretInput label="Повтори новый пароль" value={confirmation} onChangeText={setConfirmation} placeholder="Для проверки без опечаток" disabled={busy} newPassword onSubmit={()=>void sensitiveChange()}/>
         </>:<>
           <SecretInput label={form==='confirmation'?'Новое слово подтверждения':'Новое слово восстановления'} value={word} onChangeText={setWord} placeholder="Русские или английские буквы" disabled={busy} word/>
