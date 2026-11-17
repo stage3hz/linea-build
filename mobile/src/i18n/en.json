@@ -2876,5 +2876,7 @@
 "Быстрый список чатов (тест)": "Fast chat list (test)",
 "Список чатов рисуется родным кодом телефона. Пока без аватарок-картинок, рамок, табличек и свайпов по строкам": "The chat list is drawn by the phone's native code. For now without picture avatars, frames, nameplates and row swipes",
 "Вернуться к чатам": "Back to chats",
-"‹ Архив": "‹ Archive"
+"‹ Архив": "‹ Archive",
+"Быстрый список чатов": "Fast chat list",
+"Список чатов рисуется родным кодом телефона. Если с ним что-то не так — выключи, вернётся прежний список": "The chat list is drawn by the phone's native code. If something is wrong with it, switch it off and the previous list comes back"
 }
