@@ -53,6 +53,8 @@ export function openDatabase(dataDir) {
       if (!userColumns.has('credential_version')) db.exec('ALTER TABLE users ADD COLUMN credential_version INTEGER NOT NULL DEFAULT 0');
       if (!userColumns.has('login_name')) db.exec('ALTER TABLE users ADD COLUMN login_name TEXT');
       if (!userColumns.has('username_change_used')) db.exec('ALTER TABLE users ADD COLUMN username_change_used INTEGER NOT NULL DEFAULT 0 CHECK(username_change_used IN (0,1))');
+      // When the public @username was last changed (ms): one change a week, one a day with Platina (username.js).
+      if (!userColumns.has('username_changed_at')) db.exec('ALTER TABLE users ADD COLUMN username_changed_at INTEGER');
       if (!userColumns.has('status_emoji')) db.exec('ALTER TABLE users ADD COLUMN status_emoji TEXT');
       if (!userColumns.has('last_seen_at')) db.exec('ALTER TABLE users ADD COLUMN last_seen_at TEXT');
       // Birthday, as in Telegram: «MM-DD» (day and month) or «YYYY-MM-DD» (full date).

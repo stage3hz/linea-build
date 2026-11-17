@@ -97,7 +97,7 @@ test('real SQLite v4 migration preserves finite grants, revocations, audit and a
     try {
       assert.equal(db.prepare('PRAGMA user_version').get().user_version, 5);
       assert.equal(db.prepare('PRAGMA table_info(platina_entitlements)').all().find(column => column.name === 'expires_at').notnull, 0);
-      for (const [table, expected] of Object.entries(snapshot)) assert.deepEqual(rows(db, table), expected, table);
+      for (const [table, expected] of Object.entries(snapshot)) assert.deepEqual(rows(db, table), table === 'users' ? expected.map(row => ({ ...row, username_changed_at: null })) : expected, table);
       assert.deepEqual(db.prepare('PRAGMA foreign_key_check').all(), []);
       assert.deepEqual(platinaState(db, alice, NOW), { active: true, expiresAt: new Date(expiry).toISOString() });
       assert.deepEqual(platinaState(db, bob, NOW + 1), { active: false, expiresAt: new Date(expiry).toISOString() });

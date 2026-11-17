@@ -70,7 +70,7 @@ test('account status separates immutable private login, unique public username a
   assert.equal(result.statusCode, 200, result.body);
   assert.deepEqual(result.json(), {
     accountId: alice.user.id, loginName: 'alice', username: 'alice', freeChangeAvailable: true,
-    canChangeUsername: true, platina: { active: false, expiresAt: null }, canSetStatusEmoji: false,
+    canChangeUsername: true, nextUsernameChangeAt: null, usernameChangeEvery: 'week', platina: { active: false, expiresAt: null }, canSetStatusEmoji: false,
     statusEmoji: null, statusEmojiChoices: CHOICES,
   });
   assert.equal(alice.user.statusEmoji, null);
@@ -98,7 +98,13 @@ test('one actual free rename is atomic and repeated same-name requests do not sp
   }
   const denied = await rename(f.app, alice, 'another_name');
   assert.equal(denied.statusCode, 403, denied.body);
-  assert.equal(denied.json().code, 'PLATINA_REQUIRED');
+  assert.equal(denied.json().code, 'USERNAME_CHANGE_TOO_SOON');
+  assert.equal(denied.json().nextUsernameChangeAt, new Date(f.now() + 7 * 24 * 60 * 60_000).toISOString());
+  f.advance(7 * 24 * 60 * 60_000 - 1);
+  assert.equal((await rename(f.app, alice, 'another_name')).statusCode, 403, 'one millisecond before the week is over');
+  f.advance(1);
+  assert.equal((await status(f.app, alice)).json().canChangeUsername, true);
+  assert.equal((await rename(f.app, alice, 'another_name')).statusCode, 200, 'a week later the name can be changed again');
   assert.deepEqual(f.sql(db => db.prepare('SELECT token_hash,id,user_id FROM sessions WHERE user_id=?').all(alice.user.id)), before);
   assert.equal(f.sql(db => db.prepare('SELECT username_change_used FROM users WHERE id=?').get(alice.user.id).username_change_used), 1);
 });
@@ -169,11 +175,19 @@ test('only trusted active Platina permits further name changes and exact expiry 
   const active = (await status(f.app, alice)).json();
   assert.equal(active.platina.active, true);
   assert.equal(active.platina.expiresAt, new Date(f.now() + 60_000).toISOString());
-  assert.equal(active.canChangeUsername, true);
-  for (const name of ['second_public', 'third_public']) assert.equal((await rename(f.app, alice, name)).statusCode, 200);
+  assert.equal(active.canChangeUsername, false, 'with Platina: once a day');
+  assert.equal(active.usernameChangeEvery, 'day');
+  assert.equal(active.nextUsernameChangeAt, new Date(f.now() + 24 * 60 * 60_000).toISOString());
+  assert.equal((await rename(f.app, alice, 'second_public')).statusCode, 403);
   f.advance(60_000);
   assert.equal((await status(f.app, alice)).json().platina.active, false);
-  assert.equal((await rename(f.app, alice, 'expired_public')).statusCode, 403);
+  await grant(f, alice, 3 * 24 * 60 * 60_000);
+  f.advance(24 * 60 * 60_000);
+  for (const name of ['second_public', 'third_public']) { assert.equal((await rename(f.app, alice, name)).statusCode, 200); f.advance(24 * 60 * 60_000); }
+  f.advance(24 * 60 * 60_000);
+  assert.equal((await status(f.app, alice)).json().platina.active, false);
+  assert.equal((await status(f.app, alice)).json().usernameChangeEvery, 'week');
+  assert.equal((await rename(f.app, alice, 'expired_public')).statusCode, 403, 'without Platina the week counts from the last change');
   assert.equal((await rename(f.app, alice, 'third_public')).statusCode, 200, 'an idempotent retry is not a paid change');
   await grant(f, alice);
   const { revokePlatina } = await import('../src/platina-admin.js');
@@ -359,6 +373,7 @@ test('permanent Platina and its emoji survive public renames, server restart and
     assert.equal(renamed.statusCode, 200, renamed.body);
     assert.equal(renamed.json().user.id, alice.user.id);
     assert.deepEqual(renamed.json().status.platina, expected);
+    f.advance(24 * 60 * 60_000);
   }
   const selected = await emoji(f.app, alice, '🎧');
   assert.equal(selected.statusCode, 200, selected.body);
@@ -446,10 +461,12 @@ test('reserved private logins cannot be probed through renames: the rename right
   assert.equal(reserved.json().code, free.json().code);
   assert.equal((await rename(f.app, bob, 'renamed_bob')).statusCode, 200, 'an idempotent retry is never counted');
   // With Platina the login stays reserved, but attempts (conflicts included) are capped per account per hour.
-  await grant(f, bob, 24 * 60 * 60_000);
+  await grant(f, bob, 3 * 24 * 60 * 60_000);
+  f.advance(24 * 60 * 60_000);
   const results = [];
-  for (let i = 0; i < 8; i++) results.push((await rename(f.app, bob, 'alice')).statusCode);
-  assert.deepEqual(results, [409, 409, 409, 409, 409, 409, 409, 429], JSON.stringify(results));
+  // The day that passed above also started a new hour for the attempt budget: ten tries, then 429.
+  for (let i = 0; i < 11; i++) results.push((await rename(f.app, bob, 'alice')).statusCode);
+  assert.deepEqual(results, [...Array(10).fill(409), 429], JSON.stringify(results));
   const limited = await rename(f.app, bob, 'alice');
   assert.equal(limited.json().code, 'USERNAME_RATE_LIMITED');
   assert.ok(limited.json().retryAfterSeconds > 0 && limited.json().retryAfterSeconds <= 3600);

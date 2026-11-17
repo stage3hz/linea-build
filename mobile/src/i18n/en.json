@@ -2867,5 +2867,10 @@
 "Список системы…": "The system's list…",
 "Если устройства нет выше (колонка, AirPlay)": "If the device is not listed above (a speaker, AirPlay)",
 "Входящие звонки": "Incoming calls",
-"Пользователь не найден": "User not found"
+"Пользователь не найден": "User not found",
+"Следующая смена будет доступна через день.": "The next change will be available in a day.",
+"Следующая смена будет доступна через неделю, с Platina — через день.": "The next change will be available in a week, or in a day with Platina.",
+"С Platina публичное имя можно менять раз в день.": "With Platina the public name can be changed once a day.",
+"Публичное имя можно менять раз в неделю, с Platina — раз в день.": "The public name can be changed once a week, or once a day with Platina.",
+"Публичное имя можно менять раз в день. Попробуй позже.": "The public name can be changed once a day. Try later."
 }

@@ -7,6 +7,7 @@ CREATE TABLE IF NOT EXISTS users (
   username TEXT NOT NULL UNIQUE,
   login_name TEXT NOT NULL UNIQUE,
   username_change_used INTEGER NOT NULL DEFAULT 0 CHECK(username_change_used IN (0,1)),
+  username_changed_at INTEGER,
   status_emoji TEXT,
   display_name TEXT NOT NULL,
   password_hash TEXT NOT NULL,
