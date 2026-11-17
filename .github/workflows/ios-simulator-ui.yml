@@ -34,7 +34,14 @@ jobs:
     # arm64 runners may experience longer queue times»), so the default is the Intel runner, which the IPA
     # build gets reliably; pass runner=macos-15 by hand when arm64 capacity is back.
     # macos-26: the runner the IPA build (ios-unsigned-ipa.yml) gets reliably; the Intel runner timed out on the first tap.
-    runs-on: ${{ inputs.runner || 'macos-26' }}
+    # Two runners at once, each with its own output branch: without access to the Actions page the only sign of a
+    # job that never got a runner was silence. Whichever Mac is free walks the app; branch sim-started-<runner>
+    # shows that the job began, sim-output-<runner> holds its screenshots.
+    strategy:
+      fail-fast: false
+      matrix:
+        runner: ${{ fromJSON(inputs.runner && format('["{0}"]', inputs.runner) || '["macos-15-intel","macos-26"]') }}
+    runs-on: ${{ matrix.runner }}
     timeout-minutes: 150
     env:
       APP_ENV: development
@@ -47,6 +54,15 @@ jobs:
       MAESTRO_DRIVER_STARTUP_TIMEOUT: '600000'  # the Intel runner needs ~150 s to start the driver; the 120 s default killed the walk
     steps:
       - uses: actions/checkout@v4
+      - name: Say that the walk has started (branch sim-started-<runner>)
+        run: |
+          mkdir started && cd started
+          echo "started $GITHUB_SHA $(date -u) ${{ matrix.runner }} $(uname -m)" > STATUS.txt
+          git init -q -b started
+          git config user.name "linea-ci"; git config user.email "ci@localhost"
+          git add -A && git commit -qm "Simulator walk started for $GITHUB_SHA"
+          git push -f "https://x-access-token:${{ github.token }}@github.com/${{ github.repository }}.git" "HEAD:sim-started-${{ matrix.runner }}" || true
+          cd .. && rm -rf started
       - name: Select newest Xcode
         run: |
           XC=$(ls -d /Applications/Xcode_*.app | grep -v -i beta | sort -V | tail -1)
@@ -176,7 +192,7 @@ jobs:
       - uses: actions/upload-artifact@v4
         if: always()
         with:
-          name: ios-simulator-ui
+          name: ios-simulator-ui-${{ matrix.runner }}
           path: shots
           if-no-files-found: ignore
       # Screenshots also go to branch sim-output (one fresh commit), readable with plain git.
@@ -186,12 +202,12 @@ jobs:
           set -e
           [ -d shots ] || exit 0
           rm -rf pub && cp -R shots pub
-          echo "${{ job.status }} $GITHUB_SHA $(date -u)" > pub/STATUS.txt
+          echo "${{ job.status }} $GITHUB_SHA $(date -u) ${{ matrix.runner }}" > pub/STATUS.txt
           cd pub
           git init -q -b sim-output
           git config user.name "linea-ci"; git config user.email "ci@localhost"
           git add -A && git commit -qm "Simulator shots for $GITHUB_SHA"
-          git push -f "https://x-access-token:${{ github.token }}@github.com/${{ github.repository }}.git" HEAD:sim-output
+          git push -f "https://x-access-token:${{ github.token }}@github.com/${{ github.repository }}.git" "HEAD:sim-output-${{ matrix.runner }}"
       - name: Fail if a walk failed
         if: env.DARK_FAILED == '1' || env.LIGHT_FAILED == '1' || env.NATIVE_FAILED == '1' || env.SEED_FAILED == '1'
         run: exit 1
