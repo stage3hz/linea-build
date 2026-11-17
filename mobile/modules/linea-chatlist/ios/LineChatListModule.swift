@@ -113,6 +113,14 @@ struct ChatPalette: Equatable {
 
 private let chatRowHeight: CGFloat = 76
 
+/// A rectangle with circular corners of exactly `radius`. UIBezierPath(roundedRect:cornerRadius:) turns the shape
+/// into a capsule once the radius passes about a third of the side — the app's avatar (radius 0.36 of the side)
+/// came out as a circle.
+private func chatRound(_ rect: CGRect, _ radius: CGFloat) -> UIBezierPath {
+  let r = max(0, min(radius, min(rect.width, rect.height) / 2))
+  return UIBezierPath(cgPath: CGPath(roundedRect: rect, cornerWidth: r, cornerHeight: r, transform: nil))
+}
+
 /// Decorations of the native chat list. Nameplates arrive from JS as PNGs of the app's own vector art; the art of
 /// an avatar decoration is one of the app's bundled pictures (a file address).
 final class ChatDecorStore {
@@ -231,7 +239,7 @@ final class ChatRowCanvas: UIView {
   private func drawPicture(_ context: CGContext, _ image: UIImage, _ box: CGRect, _ radius: CGFloat) {
     guard image.size.width > 0, image.size.height > 0 else { return }
     context.saveGState()
-    UIBezierPath(roundedRect: box, cornerRadius: radius).addClip()
+    chatRound(box, radius).addClip()
     let scale = max(box.width / image.size.width, box.height / image.size.height)
     let size = CGSize(width: image.size.width * scale, height: image.size.height * scale)
     image.draw(in: CGRect(x: box.midX - size.width / 2, y: box.midY - size.height / 2, width: size.width, height: size.height))
@@ -272,7 +280,7 @@ final class ChatRowCanvas: UIView {
     if let plate = plate, plate.size.width > 0, plate.size.height > 0 {
       let box = CGRect(x: 10, y: 3, width: w - 20, height: h - 6)
       context.saveGState()
-      UIBezierPath(roundedRect: box, cornerRadius: 20).addClip()
+      chatRound(box, 20).addClip()
       let scale = max(box.width / plate.size.width, box.height / plate.size.height)
       let size = CGSize(width: plate.size.width * scale, height: plate.size.height * scale)
       plate.draw(in: CGRect(x: box.maxX - size.width, y: box.midY - size.height / 2, width: size.width, height: size.height))
@@ -283,7 +291,7 @@ final class ChatRowCanvas: UIView {
       context.restoreGState()
       context.setStrokeColor(UIColor(white: 1, alpha: 0.16).cgColor)
       context.setLineWidth(1 / max(1, UIScreen.main.scale))
-      context.addPath(UIBezierPath(roundedRect: box, cornerRadius: 20).cgPath)
+      context.addPath(chatRound(box, 20).cgPath)
       context.strokePath()
     }
     let textColor = plate != nil ? UIColor.white : palette.text
@@ -327,7 +335,7 @@ final class ChatRowCanvas: UIView {
       let ring: CGFloat = 3
       let gap: CGFloat = 2
       context.saveGState()
-      UIBezierPath(roundedRect: avatarBox, cornerRadius: avatar * 0.36).addClip()
+      chatRound(avatarBox, avatar * 0.36).addClip()
       let colors = item.ring.map { chatColor($0).cgColor } as CFArray
       if let gradient = CGGradient(colorsSpace: CGColorSpaceCreateDeviceRGB(), colors: colors, locations: nil) {
         context.drawLinearGradient(gradient, start: CGPoint(x: avatarBox.minX, y: avatarBox.minY), end: CGPoint(x: avatarBox.maxX, y: avatarBox.maxY), options: [])
@@ -335,7 +343,7 @@ final class ChatRowCanvas: UIView {
       context.restoreGState()
       let inside = avatarBox.insetBy(dx: ring, dy: ring)
       context.setFillColor(palette.bg.cgColor)
-      context.addPath(UIBezierPath(roundedRect: inside, cornerRadius: inside.width * 0.36).cgPath)
+      context.addPath(chatRound(inside, inside.width * 0.36).cgPath)
       context.fillPath()
       photoBox = avatarBox.insetBy(dx: ring + gap, dy: ring + gap)
       corner = photoBox.width * 0.36
@@ -345,7 +353,7 @@ final class ChatRowCanvas: UIView {
       drawPicture(context, face, photoBox, corner)
     } else {
       context.setFillColor(chatColor(item.avatarColor).cgColor)
-      context.addPath(UIBezierPath(roundedRect: photoBox, cornerRadius: corner).cgPath)
+      context.addPath(chatRound(photoBox, corner).cgPath)
       context.fillPath()
       let letters = NSAttributedString(string: item.initials, attributes: [.font: ChatRowCanvas.avatarFont, .foregroundColor: UIColor.white])
       let lettersSize = letters.size()
@@ -395,7 +403,7 @@ final class ChatRowCanvas: UIView {
     if !badgeText.isEmpty {
       let box = CGRect(x: right - badgeWidth, y: markY - 11, width: badgeWidth, height: 22)
       context.setFillColor((item.muted ? palette.badgeMuted : palette.accent).cgColor)
-      context.addPath(UIBezierPath(roundedRect: box, cornerRadius: 11).cgPath)
+      context.addPath(chatRound(box, 11).cgPath)
       context.fillPath()
       let size = badge.size()
       badge.draw(at: CGPoint(x: box.midX - size.width / 2, y: box.midY - size.height / 2))
