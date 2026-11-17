@@ -13,6 +13,7 @@ public final class LineChatListModule: Module {
       Prop("rows") { (view: ChatListView, rows: [[String: Any]]?) in view.setRows(ChatRow.parse(rows ?? [])) }
       Prop("palette") { (view: ChatListView, palette: [String: Any]?) in view.setPalette(ChatPalette(palette ?? [:])) }
       Prop("headers") { (view: ChatListView, headers: [String: String]?) in ChatAvatarStore.shared.headers = headers ?? [:] }
+      Prop("plates") { (view: ChatListView, plates: [String: String]?) in view.setPlates(plates ?? [:]) }
       Prop("pad") { (view: ChatListView, pad: [Double]?) in
         let values = pad ?? []
         view.setPad(top: values.count > 0 ? values[0] : 0, bottom: values.count > 1 ? values[1] : 0)
@@ -45,6 +46,13 @@ struct ChatRow: Equatable {
   /// Swipe buttons as "action:Label", the outermost first (see rowActions in src/listSwipes.ts).
   let lead: [String]
   let trail: [String]
+  /// Avatar frame: a ring of these colours (ARGB) around the photo; empty = none.
+  let ring: [Int]
+  /// Avatar decoration: the art's file address, drawn `decoScale` times the photo; empty = none.
+  let deco: String
+  let decoScale: CGFloat
+  /// Nameplate behind the row: an id of ChatDecorStore.plates; empty = none.
+  let plate: String
 
   private static func int(_ value: Any?, _ fallback: Int) -> Int { (value as? NSNumber)?.intValue ?? fallback }
   private static func flag(_ value: Any?) -> Bool { (value as? Bool) ?? false }
@@ -63,7 +71,9 @@ struct ChatRow: Equatable {
         checked: min(1, max(-1, int(row["checked"], -1))), selected: flag(row["selected"]),
         avatarColor: int(row["avatarColor"], 0xFF5E7BFF), initials: String(text(row["initials"]).prefix(2)),
         avatarUrl: text(row["avatarUrl"]), avatarKey: text(row["avatarKey"]), thumb: text(row["thumb"]),
-        thumbRound: flag(row["thumbRound"]), lead: (row["lead"] as? [String]) ?? [], trail: (row["trail"] as? [String]) ?? []))
+        thumbRound: flag(row["thumbRound"]), lead: (row["lead"] as? [String]) ?? [], trail: (row["trail"] as? [String]) ?? [],
+        ring: ((row["ring"] as? [Any]) ?? []).compactMap { ($0 as? NSNumber)?.intValue }, deco: text(row["deco"]),
+        decoScale: CGFloat(min(2, max(1, (row["decoScale"] as? NSNumber)?.doubleValue ?? 1))), plate: text(row["plate"])))
     }
     return result
   }
@@ -86,6 +96,7 @@ struct ChatPalette: Equatable {
   var pressed = chatColor(0x12FFFFFF)
   var selected = chatColor(0x1FA9C4FF)
   var badgeMuted = chatColor(0xFF34415F)
+  var bg = chatColor(0xFF070B16)
 
   init() {}
   init(_ map: [String: Any]) {
@@ -96,10 +107,46 @@ struct ChatPalette: Equatable {
     text = color("text", text); muted = color("muted", muted); subtle = color("subtle", subtle)
     accent = color("accent", accent); onAccent = color("onAccent", onAccent); border = color("border", border)
     pressed = color("pressed", pressed); selected = color("selected", selected); badgeMuted = color("badgeMuted", badgeMuted)
+    bg = color("bg", bg)
   }
 }
 
 private let chatRowHeight: CGFloat = 76
+
+/// Decorations of the native chat list. Nameplates arrive from JS as PNGs of the app's own vector art; the art of
+/// an avatar decoration is one of the app's bundled pictures (a file address).
+final class ChatDecorStore {
+  static let shared = ChatDecorStore()
+  private(set) var plates: [String: UIImage] = [:]
+  private var plateSource: [String: Int] = [:]
+  private var arts: [String: UIImage] = [:]
+  private var missing = Set<String>()
+
+  /// True when a plate was added or replaced (the rows are redrawn then).
+  func setPlates(_ next: [String: String]) -> Bool {
+    var changed = false
+    for (id, value) in next {
+      let mark = value.count &* 31 &+ value.hashValue
+      if plateSource[id] == mark { continue }
+      let base64 = value.range(of: "base64,").map { String(value[$0.upperBound...]) } ?? value
+      guard let data = Data(base64Encoded: base64, options: .ignoreUnknownCharacters), let image = UIImage(data: data) else { continue }
+      plates[id] = image
+      plateSource[id] = mark
+      changed = true
+    }
+    return changed
+  }
+
+  func art(_ name: String) -> UIImage? {
+    if let hit = arts[name] { return hit }
+    if missing.contains(name) { return nil }
+    var image: UIImage? = nil
+    if name.hasPrefix("file://"), let url = URL(string: name) { image = UIImage(contentsOfFile: url.path) }
+    else if name.hasPrefix("/") { image = UIImage(contentsOfFile: name) }
+    if let image = image { arts[name] = image } else { missing.insert(name) }
+    return image
+  }
+}
 
 /// Avatars of the native list: memory, then a file in the caches folder, then one download through URLSession
 /// (certificates are checked as usual) with the app's own request headers. A failure is not retried for a minute.
@@ -220,6 +267,28 @@ final class ChatRowCanvas: UIView {
       context.fill(bounds)
     }
 
+    // The nameplate: a picture behind the whole row (right-aligned, cropped to fill), darkened towards the name.
+    let plate = item.plate.isEmpty ? nil : ChatDecorStore.shared.plates[item.plate]
+    if let plate = plate, plate.size.width > 0, plate.size.height > 0 {
+      let box = CGRect(x: 10, y: 3, width: w - 20, height: h - 6)
+      context.saveGState()
+      UIBezierPath(roundedRect: box, cornerRadius: 20).addClip()
+      let scale = max(box.width / plate.size.width, box.height / plate.size.height)
+      let size = CGSize(width: plate.size.width * scale, height: plate.size.height * scale)
+      plate.draw(in: CGRect(x: box.maxX - size.width, y: box.midY - size.height / 2, width: size.width, height: size.height))
+      let shade = [UIColor(white: 0, alpha: 0.62).cgColor, UIColor(white: 0, alpha: 0.32).cgColor, UIColor(white: 0, alpha: 0.05).cgColor] as CFArray
+      if let gradient = CGGradient(colorsSpace: CGColorSpaceCreateDeviceRGB(), colors: shade, locations: [0, 0.5, 1]) {
+        context.drawLinearGradient(gradient, start: CGPoint(x: box.minX, y: 0), end: CGPoint(x: box.maxX, y: 0), options: [])
+      }
+      context.restoreGState()
+      context.setStrokeColor(UIColor(white: 1, alpha: 0.16).cgColor)
+      context.setLineWidth(1 / max(1, UIScreen.main.scale))
+      context.addPath(UIBezierPath(roundedRect: box, cornerRadius: 20).cgPath)
+      context.strokePath()
+    }
+    let textColor = plate != nil ? UIColor.white : palette.text
+    let mutedColor = plate != nil ? UIColor(white: 1, alpha: 0.8) : palette.muted
+
     var x: CGFloat = 16
     if item.checked >= 0 {
       let center = CGPoint(x: x + 12, y: h / 2)
@@ -245,23 +314,52 @@ final class ChatRowCanvas: UIView {
     let avatar: CGFloat = 60
     // The app's avatar is a rounded square (radius 0.36 of the side), not a circle.
     let avatarBox = CGRect(x: x, y: (h - avatar) / 2, width: avatar, height: avatar)
-    let corner = avatar * 0.36
+    let art = item.deco.isEmpty ? nil : ChatDecorStore.shared.art(item.deco)
+    // As DecoratedAvatar does at list sizes: a ring is drawn inside the box (the photo shrinks a little); under an
+    // art decoration the photo is a circle, and it shrinks so the art reaches at most 1.3× the box.
+    var photoBox = avatarBox
+    var corner = avatar * 0.36
+    if art != nil {
+      let side = item.decoScale > 1.3 ? avatar * 1.3 / item.decoScale : avatar
+      photoBox = CGRect(x: avatarBox.midX - side / 2, y: avatarBox.midY - side / 2, width: side, height: side)
+      corner = side / 2
+    } else if item.ring.count >= 2 {
+      let ring: CGFloat = 3
+      let gap: CGFloat = 2
+      context.saveGState()
+      UIBezierPath(roundedRect: avatarBox, cornerRadius: avatar * 0.36).addClip()
+      let colors = item.ring.map { chatColor($0).cgColor } as CFArray
+      if let gradient = CGGradient(colorsSpace: CGColorSpaceCreateDeviceRGB(), colors: colors, locations: nil) {
+        context.drawLinearGradient(gradient, start: CGPoint(x: avatarBox.minX, y: avatarBox.minY), end: CGPoint(x: avatarBox.maxX, y: avatarBox.maxY), options: [])
+      }
+      context.restoreGState()
+      let inside = avatarBox.insetBy(dx: ring, dy: ring)
+      context.setFillColor(palette.bg.cgColor)
+      context.addPath(UIBezierPath(roundedRect: inside, cornerRadius: inside.width * 0.36).cgPath)
+      context.fillPath()
+      photoBox = avatarBox.insetBy(dx: ring + gap, dy: ring + gap)
+      corner = photoBox.width * 0.36
+    }
     let face = item.avatarUrl.isEmpty || item.avatarKey.isEmpty ? nil : ChatAvatarStore.shared.image(key: item.avatarKey, url: item.avatarUrl)
     if let face = face {
-      drawPicture(context, face, avatarBox, corner)
+      drawPicture(context, face, photoBox, corner)
     } else {
       context.setFillColor(chatColor(item.avatarColor).cgColor)
-      context.addPath(UIBezierPath(roundedRect: avatarBox, cornerRadius: corner).cgPath)
+      context.addPath(UIBezierPath(roundedRect: photoBox, cornerRadius: corner).cgPath)
       context.fillPath()
       let letters = NSAttributedString(string: item.initials, attributes: [.font: ChatRowCanvas.avatarFont, .foregroundColor: UIColor.white])
       let lettersSize = letters.size()
       letters.draw(at: CGPoint(x: x + (avatar - lettersSize.width) / 2, y: (h - lettersSize.height) / 2))
     }
+    if let art = art {
+      let side = photoBox.width * item.decoScale
+      art.draw(in: CGRect(x: avatarBox.midX - side / 2, y: avatarBox.midY - side / 2, width: side, height: side))
+    }
     x += avatar + 12
 
     let right = w - 16
     let top: CGFloat = 11
-    let timeColor = item.unread > 0 && !item.muted ? palette.accent : palette.muted
+    let timeColor = item.unread > 0 && !item.muted ? palette.accent : mutedColor
     let time = NSAttributedString(string: item.time, attributes: [.font: ChatRowCanvas.timeFont, .foregroundColor: timeColor])
     let timeWidth = ceil(time.size().width)
     time.draw(at: CGPoint(x: right - timeWidth, y: top + 2))
@@ -273,11 +371,11 @@ final class ChatRowCanvas: UIView {
     let markWidth = badgeText.isEmpty && item.ticks > 0 ? 22 : badgeWidth
 
     let title = NSAttributedString(string: item.title, attributes: [
-      .font: ChatRowCanvas.titleFont, .foregroundColor: palette.text, .paragraphStyle: paragraph(.byTruncatingTail)])
+      .font: ChatRowCanvas.titleFont, .foregroundColor: textColor, .paragraphStyle: paragraph(.byTruncatingTail)])
     title.draw(with: CGRect(x: x, y: top, width: max(0, right - x - timeWidth - 8), height: 21),
                options: [.usesLineFragmentOrigin, .truncatesLastVisibleLine], context: nil)
 
-    let previewColor = item.accentPreview ? palette.accent : palette.muted
+    let previewColor = item.accentPreview ? palette.accent : mutedColor
     let preview = NSAttributedString(string: item.preview, attributes: [
       .font: ChatRowCanvas.previewFont, .foregroundColor: previewColor, .paragraphStyle: paragraph(.byWordWrapping)])
     if item.thumb != thumbOf {
@@ -445,6 +543,10 @@ final class ChatListView: ExpoView, UITableViewDataSource, UITableViewDelegate {
     if next == palette { return }
     palette = next
     table.reloadData()
+  }
+
+  func setPlates(_ plates: [String: String]) {
+    if ChatDecorStore.shared.setPlates(plates) { table.reloadData() }
   }
 
   func setPad(top: Double, bottom: Double) {

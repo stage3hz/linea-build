@@ -6,7 +6,9 @@ import android.graphics.BitmapFactory
 import android.graphics.BitmapShader
 import android.graphics.Canvas
 import android.graphics.Matrix
+import android.graphics.LinearGradient
 import android.graphics.Shader
+import android.graphics.SweepGradient
 import android.util.Base64
 import android.graphics.Paint
 import android.graphics.Path
@@ -31,6 +33,7 @@ class ChatRowView(context: Context) : View(context) {
   private val path = Path()
   private val picture = Paint(Paint.ANTI_ALIAS_FLAG or Paint.FILTER_BITMAP_FLAG)
   private val matrix = Matrix()
+  private val dst = android.graphics.RectF()
   private var shaderOf: Bitmap? = null
   private var thumbOf = ""
   private var thumb: Bitmap? = null
@@ -81,6 +84,21 @@ class ChatRowView(context: Context) : View(context) {
     val w = width.toFloat(); val h = height.toFloat()
     if (item.selected || isPressed) { fill.color = if (item.selected) palette.selected else palette.pressed; canvas.drawRect(0f, 0f, w, h, fill) }
 
+    // The nameplate: a picture behind the whole row (right-aligned, cropped to fill), darkened towards the name.
+    val plate = if (item.plate.isEmpty()) null else DecorStore.plates[item.plate]
+    if (plate != null) {
+      val l = 10f * d; val t = 3f * d; val r = w - 10f * d; val b = h - 3f * d; val rad = 20f * d
+      val scale = maxOf((r - l) / plate.width, (b - t) / plate.height)
+      picture.shader = BitmapShader(plate, Shader.TileMode.CLAMP, Shader.TileMode.CLAMP)
+      matrix.reset(); matrix.setScale(scale, scale); matrix.postTranslate(r - plate.width * scale, t + ((b - t) - plate.height * scale) / 2)
+      picture.shader?.setLocalMatrix(matrix); canvas.drawRoundRect(l, t, r, b, rad, rad, picture); picture.shader = null
+      fill.shader = LinearGradient(l, 0f, r, 0f, intArrayOf(0x9E000000.toInt(), 0x52000000, 0x0D000000), floatArrayOf(0f, 0.5f, 1f), Shader.TileMode.CLAMP)
+      fill.color = 0xFFFFFFFF.toInt(); canvas.drawRoundRect(l, t, r, b, rad, rad, fill); fill.shader = null
+      stroke.color = 0x29FFFFFF; stroke.strokeWidth = maxOf(1f, d / 2); canvas.drawRoundRect(l, t, r, b, rad, rad, stroke)
+    }
+    val textColor = if (plate != null) 0xFFFFFFFF.toInt() else palette.text
+    val mutedColor = if (plate != null) 0xCCFFFFFF.toInt() else palette.muted
+
     var x = 16f * d
     if (item.checked >= 0) {
       val cx = x + 12f * d; val cy = h / 2
@@ -94,17 +112,37 @@ class ChatRowView(context: Context) : View(context) {
 
     val avatar = 60f * d
     // The app's avatar is a rounded square (radius 0.36 of the side), not a circle.
-    val corner = avatar * 0.36f; val avatarTop = (h - avatar) / 2
+    val avatarTop = (h - avatar) / 2
+    val art = if (item.deco.isEmpty()) null else DecorStore.art(context, item.deco)
+    // As DecoratedAvatar does at list sizes: a ring is drawn inside the box (the photo shrinks a little); under an
+    // art decoration the photo is a circle, and it shrinks so the art reaches at most 1.3× the box.
+    var photo = avatar; var photoX = x; var photoY = avatarTop; var corner = avatar * 0.36f
+    if (art != null) {
+      photo = if (item.decoScale > 1.3) avatar * 1.3f / item.decoScale.toFloat() else avatar
+      photoX = x + (avatar - photo) / 2; photoY = avatarTop + (avatar - photo) / 2; corner = photo / 2
+    } else if (item.ring.size >= 2) {
+      val ring = 3f * d; val gap = 2f * d
+      fill.shader = SweepGradient(x + avatar / 2, h / 2, item.ring.toIntArray(), null)
+      fill.color = 0xFFFFFFFF.toInt(); canvas.drawRoundRect(x, avatarTop, x + avatar, avatarTop + avatar, avatar * 0.36f, avatar * 0.36f, fill); fill.shader = null
+      val inside = avatar - 2 * ring
+      fill.color = palette.bg; canvas.drawRoundRect(x + ring, avatarTop + ring, x + ring + inside, avatarTop + ring + inside, inside * 0.36f, inside * 0.36f, fill)
+      photo = avatar - 2 * (ring + gap); photoX = x + ring + gap; photoY = avatarTop + ring + gap; corner = photo * 0.36f
+    }
     val face = if (item.avatarUrl.isNotEmpty() && item.avatarKey.isNotEmpty()) AvatarStore.get(context, item.avatarKey, item.avatarUrl, this) else null
-    if (face != null) drawPicture(canvas, face, x, avatarTop, avatar, corner, true)
+    if (face != null) drawPicture(canvas, face, photoX, photoY, photo, corner, true)
     else {
-      fill.color = item.avatarColor; canvas.drawRoundRect(x, avatarTop, x + avatar, avatarTop + avatar, corner, corner, fill)
+      fill.color = item.avatarColor; canvas.drawRoundRect(photoX, photoY, photoX + photo, photoY + photo, corner, corner, fill)
       canvas.drawText(item.initials, x + avatar / 2, h / 2 - (avatarPaint.descent() + avatarPaint.ascent()) / 2, avatarPaint)
+    }
+    if (art != null) {
+      val side = photo * item.decoScale.toFloat()
+      dst.set(x + avatar / 2 - side / 2, h / 2 - side / 2, x + avatar / 2 + side / 2, h / 2 + side / 2)
+      canvas.drawBitmap(art, null, dst, picture)
     }
     x += avatar + 12f * d
 
     val right = w - 16f * d
-    timePaint.color = if (item.unread > 0 && !item.muted) palette.accent else palette.muted
+    timePaint.color = if (item.unread > 0 && !item.muted) palette.accent else mutedColor
     val timeWidth = timePaint.measureText(item.time)
     val badge = if (item.unread > 0) (if (item.unread > 999) "999+" else item.unread.toString()) else ""
     val badgeWidth = if (badge.isEmpty()) 0f else maxOf(22f * d, badgePaint.measureText(badge) + 12f * d)
@@ -116,11 +154,11 @@ class ChatRowView(context: Context) : View(context) {
     if (builtFor != item || builtWidth != width) build(item, textWidth, titleWidth)
 
     val top = 12f * d
-    titlePaint.color = palette.text
+    titlePaint.color = textColor
     canvas.drawText(title, 0, title.length, x, top - titlePaint.ascent(), titlePaint)
     canvas.drawText(item.time, right - timeWidth, top - timePaint.ascent() + 1.5f * d, timePaint)
 
-    previewPaint.color = if (item.accentPreview) palette.accent else palette.muted
+    previewPaint.color = if (item.accentPreview) palette.accent else mutedColor
     if (small != null) drawPicture(canvas, small, x, top + 23f * d, 20f * d, if (item.thumbRound) 10f * d else 4f * d, false)
     preview?.let { layout -> canvas.save(); canvas.translate(x + thumbRoom, top + 23f * d); layout.draw(canvas); canvas.restore() }
 

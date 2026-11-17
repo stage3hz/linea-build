@@ -30,8 +30,15 @@ export type NativeChatRow = {
   /** iOS: swipe buttons as "action:Label", the outermost first. Android ignores them for now. */
   lead: string[];
   trail: string[];
+  /** Avatar frame: a ring of these colours (processColor) around the photo; [] = none. */
+  ring: number[];
+  /** Avatar decoration: the bundled art (Image.resolveAssetSource(...).uri) and how many times the photo it is; '' = none. */
+  deco: string;
+  decoScale: number;
+  /** Nameplate id (a key of the `plates` prop); '' = none. */
+  plate: string;
 };
-export type NativeChatPalette = { text: number; muted: number; subtle: number; accent: number; onAccent: number; border: number; pressed: number; selected: number; badgeMuted: number };
+export type NativeChatPalette = { text: number; muted: number; subtle: number; accent: number; onAccent: number; border: number; pressed: number; selected: number; badgeMuted: number; bg: number };
 export type NativeChatListProps = {
   rows: NativeChatRow[];
   palette: NativeChatPalette;
@@ -39,6 +46,8 @@ export type NativeChatListProps = {
   pad?: [number, number];
   /** The headers the app sends with a file request (its session): the native side fetches avatars with them. */
   headers?: Record<string, string>;
+  /** Nameplate pictures by id (PNG as base64 or a data URL), see NameplateBake. */
+  plates?: Record<string, string>;
   onRowPress?: (event: { nativeEvent: { id: string } }) => void;
   onRowAction?: (event: { nativeEvent: { id: string; action: string } }) => void;
   /** `y`: the finger's position in the window, dp (for the context menu). */

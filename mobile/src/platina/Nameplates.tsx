@@ -1,7 +1,7 @@
 // Discord-style nameplates: a picture that fills the whole row behind a person's name in the chat list
 // and member lists, fading into the row on the left so the name and preview stay readable.
 // All artwork is drawn here (vector, deterministic) — no third-party images.
-import React, { useMemo } from 'react';
+import React, { useEffect, useMemo, useRef } from 'react';
 import { StyleSheet, View } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import Svg, { Circle, Defs, Ellipse, G, Path, Rect, Stop, LinearGradient as SvgGradient } from 'react-native-svg';
@@ -65,5 +65,29 @@ export function Nameplate({ plate, radius = 0, compact = false }: { plate?: stri
       <Art id={item.id} />
     </Svg>
     {compact ? null : <LinearGradient colors={['rgba(0,0,0,0.62)', 'rgba(0,0,0,0.32)', 'rgba(0,0,0,0.05)']} locations={[0, .5, 1]} start={{ x: 0, y: .5 }} end={{ x: 1, y: .5 }} style={StyleSheet.absoluteFill} />}
+  </View>;
+}
+
+/**
+ * The plate's vector art as a PNG (base64), for the native chat list, which draws the row itself: rendered once,
+ * off screen, and handed over through `onReady`. The darkening towards the name is drawn by the native row.
+ */
+export function NameplateBake({ plate, onReady }: { plate: string; onReady: (plate: string, base64: string) => void }) {
+  const item = NAMEPLATES.find(entry => entry.id === plate);
+  const ref = useRef<Svg>(null);
+  useEffect(() => {
+    if (!item) return;
+    let alive = true;
+    // The first frame must be drawn before the picture can be taken.
+    const timer = setTimeout(() => { try { (ref.current as unknown as { toDataURL?: (done: (data: string) => void, options?: object) => void } | null)?.toDataURL?.(data => { if (alive && data) onReady(plate, data); }, { width: W * 2, height: H * 2 }); } catch { /* the row stays without its plate */ } }, 250);
+    return () => { alive = false; clearTimeout(timer); };
+  }, [plate]);
+  if (!item) return null;
+  return <View pointerEvents="none" style={{ position: 'absolute', left: -4000, top: 0, width: W, height: H, opacity: 0.01 }}>
+    <Svg ref={ref} width={W} height={H} viewBox={`0 0 ${W} ${H}`}>
+      <Defs><SvgGradient id={`npb-${item.id}`} x1="0" y1="0" x2="1" y2="0"><Stop offset="0" stopColor={item.colors[0]} /><Stop offset="1" stopColor={item.colors[1]} /></SvgGradient></Defs>
+      <Rect x={0} y={0} width={W} height={H} fill={`url(#npb-${item.id})`} />
+      <Art id={item.id} />
+    </Svg>
   </View>;
 }

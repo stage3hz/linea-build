@@ -9,6 +9,12 @@ data class ChatRow(
   val avatarUrl: String, val avatarKey: String,
   /** A small JPEG/PNG (base64) shown before the preview text: the photo or video of the last message. */
   val thumb: String, val thumbRound: Boolean,
+  /** Avatar frame: a ring of these colours (ARGB) around the photo; empty = none. */
+  val ring: List<Int>,
+  /** Avatar decoration: the art's drawable name or file path, drawn `decoScale` times the photo; '' = none. */
+  val deco: String, val decoScale: Double,
+  /** Nameplate behind the row: an id of DecorStore.plates; '' = none. */
+  val plate: String,
 ) {
   companion object {
     private fun int(value: Any?, fallback: Int) = (value as? Number)?.toInt() ?: fallback
@@ -23,6 +29,8 @@ data class ChatRow(
         flag(row["muted"]), flag(row["pinned"]), flag(row["accentPreview"]), int(row["ticks"], 0).coerceIn(0, 2),
         int(row["checked"], -1).coerceIn(-1, 1), flag(row["selected"]), int(row["avatarColor"], 0xFF5E7BFF.toInt()), text(row["initials"]).take(2),
         text(row["avatarUrl"]), text(row["avatarKey"]), text(row["thumb"]), flag(row["thumbRound"]),
+        (row["ring"] as? List<*>)?.mapNotNull { (it as? Number)?.toInt() } ?: emptyList(),
+        text(row["deco"]), ((row["decoScale"] as? Number)?.toDouble() ?: 1.0).coerceIn(1.0, 2.0), text(row["plate"]),
       )
     }
   }
@@ -31,15 +39,15 @@ data class ChatRow(
 /** Theme colours as ARGB ints (processColor on the JS side). */
 data class ChatPalette(
   val text: Int, val muted: Int, val subtle: Int, val accent: Int, val onAccent: Int,
-  val border: Int, val pressed: Int, val selected: Int, val badgeMuted: Int,
+  val border: Int, val pressed: Int, val selected: Int, val badgeMuted: Int, val bg: Int,
 ) {
   companion object {
-    val DARK = ChatPalette(0xFFF1F5FF.toInt(), 0xFF8A97B4.toInt(), 0xFF6B7896.toInt(), 0xFFA9C4FF.toInt(), 0xFF0A1430.toInt(), 0x12FFFFFF, 0x12FFFFFF, 0x1FA9C4FF, 0xFF34415F.toInt())
+    val DARK = ChatPalette(0xFFF1F5FF.toInt(), 0xFF8A97B4.toInt(), 0xFF6B7896.toInt(), 0xFFA9C4FF.toInt(), 0xFF0A1430.toInt(), 0x12FFFFFF, 0x12FFFFFF, 0x1FA9C4FF, 0xFF34415F.toInt(), 0xFF070B16.toInt())
     fun parse(map: Map<String, Any?>?): ChatPalette {
       if (map == null) return DARK
       fun c(key: String, fallback: Int) = (map[key] as? Number)?.toInt() ?: fallback
       return ChatPalette(c("text", DARK.text), c("muted", DARK.muted), c("subtle", DARK.subtle), c("accent", DARK.accent), c("onAccent", DARK.onAccent),
-        c("border", DARK.border), c("pressed", DARK.pressed), c("selected", DARK.selected), c("badgeMuted", DARK.badgeMuted))
+        c("border", DARK.border), c("pressed", DARK.pressed), c("selected", DARK.selected), c("badgeMuted", DARK.badgeMuted), c("bg", DARK.bg))
     }
   }
 }
