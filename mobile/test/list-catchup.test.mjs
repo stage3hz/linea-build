@@ -126,6 +126,12 @@ test('an inbox read through without a key says so honestly; an opened line is ne
   assert.equal(keepOpened([chat('x', line)], [chat('x', opened)])[0].lastMessage.text, 'Привет');
   // A newer server message is taken as it is.
   assert.equal(keepOpened([chat('x', closed(5))], [chat('x', opened)])[0].lastMessage.id, 5);
+  // The verdict «недоступно на данном устройстве» is not flipped back to «Открой чат…» by a reload of the list…
+  const verdict = settled(line);
+  assert.equal(keepOpened([chat('x', line)], [chat('x', verdict)])[0].lastMessage.text, NOT_FOR_DEVICE);
+  // …but a copy that did open replaces it, and so does a newer message.
+  assert.equal(keepOpened([chat('x', opened)], [chat('x', verdict)])[0].lastMessage.text, 'Привет');
+  assert.equal(keepOpened([chat('x', closed(5))], [chat('x', verdict)])[0].lastMessage.text, closed(5).text);
 });
 
 test('editing: 48 hours like Telegram', () => {

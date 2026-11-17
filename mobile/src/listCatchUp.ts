@@ -39,13 +39,15 @@ export function settled(message: Message): Message {
 /**
  * A fresh server list (lean, re-read from the vault) never replaces a line this device has already
  * opened with a closed placeholder for the same message: a list read that raced a socket message
- * (the decrypt was still running) would otherwise put «Зашифровано» back.
+ * (the decrypt was still running) would otherwise put «Зашифровано» back. The same holds for this
+ * device's verdict («недоступно на данном устройстве»): on every start and reconnect the line used to
+ * flip to «Открой чат для расшифровки» and back while the background sync repeated the same answer.
  */
 export function keepOpened(next: readonly Chat[], previous: readonly Chat[]): Chat[] {
   const before = new Map(previous.map(chat => [chat.id, chat.lastMessage] as const));
   return next.map(chat => {
     const last = chat.lastMessage, old = before.get(chat.id);
-    if (!awaitsInbox(last) || !old || old.id !== last.id || old.cryptoState !== 'decrypted') return chat;
+    if (!awaitsInbox(last) || !old || old.id !== last.id || (old.cryptoState !== 'decrypted' && old.text !== NOT_FOR_DEVICE)) return chat;
     return { ...chat, lastMessage: old };
   });
 }
