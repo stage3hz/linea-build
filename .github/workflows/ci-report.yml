@@ -46,6 +46,21 @@ jobs:
             done
             gh run view "$id" --repo "$REPO" --log-failed 2>&1 | tail -500 | cut -c1-400 > "walk-$id-failed-steps.txt" || true
           done
+      # The Macs fail to push their screenshots (HTTP 408 from a loaded runner), but the artifacts they upload do
+      # arrive. They are fetched here, made small (JPEG, half size) and published with the report.
+      - name: Fetch the screenshots of the last two walks
+        run: |
+          cd out
+          command -v mogrify >/dev/null || (sudo apt-get update -qq && sudo apt-get install -y -qq imagemagick)
+          for id in $(gh api "repos/$REPO/actions/workflows/ios-simulator-ui.yml/runs?per_page=2" --jq '.workflow_runs[].id'); do
+            gh run download "$id" --repo "$REPO" --dir "shots-$id" 2> "shots-$id-download.txt" || true
+            [ -d "shots-$id" ] || continue
+            find "shots-$id" -name '*.png' -print0 | xargs -0 -r -n 20 mogrify -resize 50% -format jpg -quality 82 2>/dev/null || true
+            find "shots-$id" -name '*.png' -delete
+            find "shots-$id" -type f -size +3M -exec sh -c 'tail -c 1500000 "$1" > "$1.tail" && rm "$1"' _ {} \;
+            find "shots-$id" -name 'commands-*.json' -delete
+          done
+          du -sh . || true
       - name: Publish to branch ci-report
         run: |
           cd out
