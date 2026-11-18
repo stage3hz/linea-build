@@ -1,6 +1,6 @@
 {
   "name": "invizent-desktop",
-  "version": "0.14.39",
+  "version": "0.14.40",
   "private": true,
   "type": "module",
   "main": "main.cjs",

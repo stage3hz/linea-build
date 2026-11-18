@@ -156,11 +156,17 @@ export function TabBar({ items, active }: { items: TabItem[]; active: TabId }) {
     item.onPress();
   };
   // Swipe up on the slot: «Люди» ⇄ «Каналы» (remembered), the icon flips like a slot machine.
+  // Switched while its own section is open, the slot takes the screen along: seen in the simulator, «Люди» was
+  // lit in the bar over the still open «Каналы».
+  const slotSwitched = (next: 'people' | 'channels') => {
+    setSlot(next);
+    if (active === 'people' || active === 'channels') items.find(item => item.id === next)?.onPress();
+  };
   const switchSlot = () => {
     const next = slot === 'people' ? 'channels' : 'people';
     const from = slot === 'people' ? 0 : 1;
     reel.value = from;
-    reel.value = withTiming(from + 1, { duration: 230, easing: Easing.out(Easing.cubic) }, done => { if (done) runOnJS(setSlot)(next); });
+    reel.value = withTiming(from + 1, { duration: 230, easing: Easing.out(Easing.cubic) }, done => { if (done) runOnJS(slotSwitched)(next); });
 
   };
   const at = (x: number) => { 'worklet'; return Math.max(0, Math.min(n - 1, Math.floor(x / Math.max(1, width / n)))); };

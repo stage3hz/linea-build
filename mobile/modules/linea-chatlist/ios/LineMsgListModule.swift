@@ -364,6 +364,9 @@ final class MsgListView: ExpoView, UITableViewDataSource, UITableViewDelegate {
   private var fontSize: CGFloat = 17
   private var layouts: [String: (row: MsgRow, width: CGFloat, font: CGFloat, layout: MsgLayout)] = [:]
   private var askedAt = ""
+  /// What `pad` asked for, and how much of the list the keyboard covers on top of that.
+  private var padInsets = UIEdgeInsets.zero
+  private var keyboardOverlap: CGFloat = 0
 
   required init(appContext: AppContext? = nil) {
     super.init(appContext: appContext)
@@ -384,6 +387,29 @@ final class MsgListView: ExpoView, UITableViewDataSource, UITableViewDelegate {
     let hold = UILongPressGestureRecognizer(target: self, action: #selector(held(_:)))
     hold.minimumPressDuration = 0.4
     table.addGestureRecognizer(hold)
+    // The list reaches the bottom of the screen and nothing in React shrinks it for the keyboard: seen in the
+    // simulator, the newest messages (and the one just sent) stayed behind the keyboard and the composer.
+    NotificationCenter.default.addObserver(self, selector: #selector(keyboardMoved(_:)), name: UIResponder.keyboardWillChangeFrameNotification, object: nil)
+  }
+
+  @objc private func keyboardMoved(_ note: Notification) {
+    guard let window = window, let info = note.userInfo, let end = (info[UIResponder.keyboardFrameEndUserInfoKey] as? NSValue)?.cgRectValue else { return }
+    let mine = convert(bounds, to: window)
+    let overlap = max(0, mine.maxY - max(end.minY, mine.minY))
+    if abs(overlap - keyboardOverlap) < 0.5 { return }
+    keyboardOverlap = overlap
+    let duration = (info[UIResponder.keyboardAnimationDurationUserInfoKey] as? NSNumber)?.doubleValue ?? 0.25
+    let curve = (info[UIResponder.keyboardAnimationCurveUserInfoKey] as? NSNumber)?.uintValue ?? 7
+    UIView.animate(withDuration: duration, delay: 0, options: [UIView.AnimationOptions(rawValue: curve << 16), .beginFromCurrentState], animations: { self.applyInsets() }, completion: nil)
+  }
+
+  private func applyInsets() {
+    var insets = padInsets
+    insets.top += keyboardOverlap
+    if table.contentInset == insets { return }
+    let atBottom = table.contentOffset.y <= -table.contentInset.top + 1
+    table.contentInset = insets
+    if atBottom { table.contentOffset = CGPoint(x: 0, y: -insets.top) }
   }
 
   override func layoutSubviews() {
@@ -436,11 +462,8 @@ final class MsgListView: ExpoView, UITableViewDataSource, UITableViewDelegate {
 
   /// `top` is the room under the header, `bottom` the room above the composer. The table is upside down, so they swap.
   func setPad(top: Double, bottom: Double) {
-    let insets = UIEdgeInsets(top: CGFloat(bottom), left: 0, bottom: CGFloat(top), right: 0)
-    if table.contentInset == insets { return }
-    let atBottom = table.contentOffset.y <= -table.contentInset.top + 1
-    table.contentInset = insets
-    if atBottom { table.contentOffset = CGPoint(x: 0, y: -insets.top) }
+    padInsets = UIEdgeInsets(top: CGFloat(bottom), left: 0, bottom: CGFloat(top), right: 0)
+    applyInsets()
   }
 
   func tableView(_ tableView: UITableView, numberOfRowsInSection section: Int) -> Int { rows.count }
