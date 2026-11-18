@@ -55,10 +55,18 @@ async function peer(username, displayName, colors) {
   }
   return { api, service, id: session.user.id, chatId: null };
 }
-async function say(from, to, text) {
+// A message with every kind of formatting, for the native list's formatting check: [text, entities].
+const FORMATTED = (() => {
+  const text = 'Жирный, курсив, подчёркнутый, зачёркнутый, код и спойлер.\nЦитата из письма\nСайт www.example.com, подробности тут, пиши @simpeer';
+  const at = (word, type, extra = {}) => ({ type, offset: text.indexOf(word), length: word.length, ...extra });
+  return [text, [at('Жирный', 'bold'), at('курсив', 'italic'), at('подчёркнутый', 'underline'), at('зачёркнутый', 'strikethrough'), at('код', 'code'),
+    at('спойлер', 'spoiler'), at('Цитата из письма', 'quote'), at('подробности тут', 'text_link', { url: 'https://example.com/details' })]];
+})();
+async function say(from, to, message) {
+  const [text, entities] = Array.isArray(message) ? message : [message, null];
   if (!from.chatId) from.chatId = (await from.api.createChat(to)).chat.id;
   const clientId = randomUUID();
-  const encrypted = await from.service.encrypt(from.chatId, to, clientId, text, null);
+  const encrypted = await from.service.encrypt(from.chatId, to, clientId, text, null, entities ? { entities } : undefined);
   await from.api.sendEncrypted(from.chatId, clientId, encrypted);
   await from.service.delivered(from.chatId, clientId);
 }
@@ -70,7 +78,7 @@ const PEOPLE = [
   ['Ксюша', [[224, 128, 59], [240, 168, 96]], ['😂😂😂', 'Ну ты даёшь', 'Давай в семь у метро']],
   ['Dimas', null, ['Го вечером?', 'Я освобожусь после шести']],
   ['Лариса Новикова', [[176, 74, 122], [224, 106, 154]], Array.from({ length: 24 }, (_, i) => `Сообщение номер ${i + 1}${i % 5 === 4 ? ' — подлиннее, чтобы перенеслось на вторую строку и было видно, как ведёт себя пузырь' : ''}`)],
-  ['Тимур Богданов', [[61, 139, 208], [94, 176, 240]], ['Список покупок:\n— молоко\n— хлеб\n— сыр', 'Не забудь!']],
+  ['Тимур Богданов', [[61, 139, 208], [94, 176, 240]], ['Список покупок:\n— молоко\n— хлеб\n— сыр', FORMATTED, 'Не забудь!']],
 ];
 const people = [];
 for (const [index, [name, colors]] of PEOPLE.entries()) people.push(await peer(`simpeer${index}_${stamp}`, name, colors));

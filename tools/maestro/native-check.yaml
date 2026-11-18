@@ -70,6 +70,20 @@ appId: com.linea.messenger.preview
 - waitForAnimationToEnd
 - takeScreenshot: ${THEME}-n08-chat-emoji
 
+# Formatting in the native list: bold, italic, underline, strike, code, a hidden spoiler, a quote, links.
+- launchApp
+- extendedWaitUntil:
+    visible: "Тимур Богданов.*"
+    timeout: 300000
+- tapOn:
+    text: "Тимур Богданов.*"
+- extendedWaitUntil:
+    visible:
+      id: "chat-composer"
+    timeout: 60000
+- waitForAnimationToEnd
+- takeScreenshot: ${THEME}-n10-chat-format
+
 # Back on the list: the opened chats are read, the sent message is the last line.
 - launchApp
 - extendedWaitUntil:

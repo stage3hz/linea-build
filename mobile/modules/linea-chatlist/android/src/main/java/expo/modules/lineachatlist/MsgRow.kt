@@ -8,6 +8,10 @@ data class MsgRow(
   val thumb: String, val thumbRound: Boolean, val thumbWide: Double, val checked: Int,
   /** Reactions in one line («👍 2  ❤️ 1»); '' = none. */
   val reactions: String,
+  /** Formatting of `text`: triples [flags, offset, length] (NATIVE_FMT in src/format/nativeSpans.ts). */
+  val fmt: List<Int> = emptyList(),
+  /** One address per triple with the link flag (64), in order. */
+  val urls: List<String> = emptyList(),
 ) {
   companion object {
     private fun text(value: Any?) = value as? String ?: ""
@@ -19,6 +23,7 @@ data class MsgRow(
         key, int(row["kind"], 0), flag(row["mine"]), text(row["text"]), text(row["time"]), int(row["ticks"], 0).coerceIn(0, 4),
         flag(row["tail"]), text(row["quoteAuthor"]), text(row["quoteText"]), text(row["forward"]), text(row["label"]),
         text(row["thumb"]), flag(row["thumbRound"]), ((row["thumbWide"] as? Number)?.toDouble() ?: 1.0).coerceIn(0.4, 2.5), int(row["checked"], -1).coerceIn(-1, 1), text(row["reactions"]),
+        (row["fmt"] as? List<*>)?.mapNotNull { (it as? Number)?.toInt() } ?: emptyList(), (row["urls"] as? List<*>)?.mapNotNull { it as? String } ?: emptyList(),
       )
     }
   }

@@ -9,7 +9,7 @@ public final class LineMsgListModule: Module {
   public func definition() -> ModuleDefinition {
     Name("LineaMsgList")
     View(MsgListView.self) {
-      Events("onMsgPress", "onMsgLongPress", "onNearTop")
+      Events("onMsgPress", "onMsgLongPress", "onNearTop", "onLinkPress")
       Prop("rows") { (view: MsgListView, rows: [[String: Any]]?) in view.setRows(MsgRow.parse(rows ?? [])) }
       Prop("palette") { (view: MsgListView, palette: [String: Any]?) in view.setPalette(MsgPalette(palette ?? [:])) }
       Prop("fontSize") { (view: MsgListView, size: Double?) in view.setFontSize(CGFloat(size ?? 17)) }
@@ -40,6 +40,10 @@ struct MsgRow: Equatable {
   let checked: Int
   /// Reactions in one line («👍 2  ❤️ 1»); empty = none.
   let reactions: String
+  /// Formatting of `text`: triples [flags, offset, length] in UTF-16 units (NATIVE_FMT in src/format/nativeSpans.ts).
+  let fmt: [Int]
+  /// One address per triple with the link flag (64), in order.
+  let urls: [String]
 
   static func parse(_ rows: [[String: Any]]) -> [MsgRow] {
     func text(_ value: Any?) -> String { (value as? String) ?? "" }
@@ -54,7 +58,8 @@ struct MsgRow: Equatable {
         key: key, kind: int(row["kind"], 0), mine: flag(row["mine"]), text: text(row["text"]), time: text(row["time"]),
         ticks: min(4, max(0, int(row["ticks"], 0))), tail: flag(row["tail"]), quoteAuthor: text(row["quoteAuthor"]),
         quoteText: text(row["quoteText"]), forward: text(row["forward"]), label: text(row["label"]), thumb: text(row["thumb"]),
-        thumbRound: flag(row["thumbRound"]), thumbWide: CGFloat(min(2.5, max(0.4, wide))), checked: min(1, max(-1, int(row["checked"], -1))), reactions: text(row["reactions"])))
+        thumbRound: flag(row["thumbRound"]), thumbWide: CGFloat(min(2.5, max(0.4, wide))), checked: min(1, max(-1, int(row["checked"], -1))), reactions: text(row["reactions"]),
+        fmt: ((row["fmt"] as? [NSNumber]) ?? []).map { $0.intValue }, urls: (row["urls"] as? [String]) ?? []))
     }
     return result
   }
@@ -113,6 +118,50 @@ private func msgSize(_ text: String, _ font: UIFont, _ width: CGFloat, _ maxHeig
   return CGSize(width: ceil(box.width), height: ceil(min(box.height, maxHeight)))
 }
 
+private func msgAttrSize(_ text: NSAttributedString, _ width: CGFloat, _ maxHeight: CGFloat) -> CGSize {
+  if text.length == 0 { return .zero }
+  let box = text.boundingRect(with: CGSize(width: max(1, width), height: maxHeight), options: [.usesLineFragmentOrigin, .truncatesLastVisibleLine], context: nil)
+  return CGSize(width: ceil(box.width), height: ceil(min(box.height, maxHeight)))
+}
+
+/// The text of a bubble with its formatting. Flags: 1 bold, 2 italic, 4 underline, 8 strike, 16 monospace,
+/// 32 spoiler (a block until tapped), 64 link, 128 quote, 256 code block.
+func msgBody(_ row: MsgRow, fontSize: CGFloat, text: UIColor, link: UIColor, quote: UIColor, revealed: Bool) -> NSAttributedString {
+  let base = UIFont.systemFont(ofSize: fontSize)
+  let result = NSMutableAttributedString(string: row.text, attributes: [.font: base, .foregroundColor: text, .paragraphStyle: msgWrap(true)])
+  let total = (row.text as NSString).length
+  var i = 0
+  while i + 2 < row.fmt.count {
+    let flags = row.fmt[i], start = row.fmt[i + 1], length = row.fmt[i + 2]
+    i += 3
+    if start < 0 || length <= 0 || start + length > total { continue }
+    let range = NSRange(location: start, length: length)
+    let mono = flags & 16 != 0
+    var font = mono ? UIFont.monospacedSystemFont(ofSize: max(10, fontSize - 1), weight: flags & 1 != 0 ? .bold : .regular) : base
+    var traits = font.fontDescriptor.symbolicTraits
+    if flags & 1 != 0 && !mono { traits.insert(.traitBold) }
+    if flags & 2 != 0 { traits.insert(.traitItalic) }
+    if traits != font.fontDescriptor.symbolicTraits, let descriptor = font.fontDescriptor.withSymbolicTraits(traits) {
+      font = UIFont(descriptor: descriptor, size: font.pointSize)
+    }
+    result.addAttribute(.font, value: font, range: range)
+    if flags & (4 | 64) != 0 { result.addAttribute(.underlineStyle, value: NSUnderlineStyle.single.rawValue, range: range) }
+    if flags & 8 != 0 { result.addAttribute(.strikethroughStyle, value: NSUnderlineStyle.single.rawValue, range: range) }
+    if mono { result.addAttribute(.backgroundColor, value: text.withAlphaComponent(0.10), range: range) }
+    if flags & 128 != 0 { result.addAttribute(.backgroundColor, value: quote, range: range) }
+    if flags & 64 != 0 { result.addAttribute(.foregroundColor, value: link, range: range) }
+    if flags & 32 != 0 {
+      if revealed {
+        result.addAttribute(.backgroundColor, value: text.withAlphaComponent(0.07), range: range)
+      } else {
+        result.addAttribute(.foregroundColor, value: UIColor.clear, range: range)
+        result.addAttribute(.backgroundColor, value: text.withAlphaComponent(0.28), range: range)
+      }
+    }
+  }
+  return result
+}
+
 /// Where everything of one row goes, for the width it is shown at.
 struct MsgLayout {
   var bubble = CGSize.zero
@@ -134,7 +183,8 @@ struct MsgLayout {
     }
     let inner = width * 0.78 - 26
     let body = UIFont.systemFont(ofSize: fontSize)
-    layout.textSize = msgSize(row.text, body, inner, 20000)
+    layout.textSize = row.fmt.isEmpty ? msgSize(row.text, body, inner, 20000)
+      : msgAttrSize(msgBody(row, fontSize: fontSize, text: .black, link: .black, quote: .clear, revealed: true), inner, 20000)
     if !row.quoteText.isEmpty || !row.quoteAuthor.isEmpty { layout.quoteSize = msgSize(row.quoteText.isEmpty ? " " : row.quoteText, msgSmallFont, inner - 12, 36) }
     layout.labelSize = msgSize(row.label, msgSmallFont, inner, 36)
     layout.reactSize = msgSize(row.reactions, msgSmallFont, inner, 40)
@@ -170,6 +220,43 @@ final class MsgRowCanvas: UIView {
   var layoutInfo = MsgLayout()
   var thumbImage: UIImage?
   var pressed = false
+  /// The spoilers of this message have been tapped open.
+  var revealed = false
+  /// Where the body text was drawn last (for taps on links and spoilers).
+  private var bodyBox = CGRect.zero
+
+  /// A link or a still hidden spoiler under a point of this view.
+  func run(at point: CGPoint) -> (flags: Int, url: String, shown: String)? {
+    guard let item = row, !item.fmt.isEmpty, bodyBox.contains(point) else { return nil }
+    let storage = NSTextStorage(attributedString: msgBody(item, fontSize: fontSize, text: .black, link: .black, quote: .clear, revealed: true))
+    let manager = NSLayoutManager()
+    let container = NSTextContainer(size: CGSize(width: bodyBox.width, height: CGFloat.greatestFiniteMagnitude))
+    container.lineFragmentPadding = 0
+    manager.addTextContainer(container)
+    storage.addLayoutManager(manager)
+    let local = CGPoint(x: point.x - bodyBox.minX, y: point.y - bodyBox.minY)
+    let glyph = manager.glyphIndex(for: local, in: container)
+    let glyphBox = manager.boundingRect(forGlyphRange: NSRange(location: glyph, length: 1), in: container)
+    if !glyphBox.insetBy(dx: -4, dy: -4).contains(local) { return nil }
+    let index = manager.characterIndexForGlyph(at: glyph)
+    let total = (item.text as NSString).length
+    var link = 0
+    var i = 0
+    while i + 2 < item.fmt.count {
+      let flags = item.fmt[i], start = item.fmt[i + 1], length = item.fmt[i + 2]
+      i += 3
+      let isLink = flags & 64 != 0
+      if index >= start && index < start + length && start >= 0 && length > 0 && start + length <= total {
+        let hidden = flags & 32 != 0 && !revealed
+        let url = isLink && link < item.urls.count ? item.urls[link] : ""
+        if hidden || !url.isEmpty {
+          return (flags, hidden ? "" : url, (item.text as NSString).substring(with: NSRange(location: start, length: length)))
+        }
+      }
+      if isLink { link += 1 }
+    }
+    return nil
+  }
 
   override init(frame: CGRect) {
     super.init(frame: frame)
@@ -271,8 +358,15 @@ final class MsgRowCanvas: UIView {
       draw(item.label, msgSmallFont, markColor, CGRect(x: x, y: y, width: inner, height: layoutInfo.labelSize.height), lines: true)
       y += layoutInfo.labelSize.height + 4
     }
+    bodyBox = .zero
     if layoutInfo.textSize != .zero {
-      draw(item.text, UIFont.systemFont(ofSize: fontSize), palette.text, CGRect(x: x, y: y, width: inner, height: layoutInfo.textSize.height + 2), lines: true)
+      bodyBox = CGRect(x: x, y: y, width: inner, height: layoutInfo.textSize.height + 2)
+      if item.fmt.isEmpty {
+        draw(item.text, UIFont.systemFont(ofSize: fontSize), palette.text, bodyBox, lines: true)
+      } else {
+        msgBody(item, fontSize: fontSize, text: palette.text, link: markColor, quote: palette.quote, revealed: revealed)
+          .draw(with: bodyBox, options: [.usesLineFragmentOrigin, .truncatesLastVisibleLine], context: nil)
+      }
       y += layoutInfo.textSize.height
     }
     if layoutInfo.reactSize != .zero {
@@ -330,8 +424,9 @@ final class MsgRowCell: UITableViewCell {
   }
   required init?(coder: NSCoder) { return nil }
 
-  func show(_ row: MsgRow, _ palette: MsgPalette, _ fontSize: CGFloat, _ layout: MsgLayout) {
+  func show(_ row: MsgRow, _ palette: MsgPalette, _ fontSize: CGFloat, _ layout: MsgLayout, _ revealed: Bool) {
     canvas.row = row
+    canvas.revealed = revealed
     canvas.palette = palette
     canvas.fontSize = fontSize
     canvas.layoutInfo = layout
@@ -352,7 +447,11 @@ final class MsgRowCell: UITableViewCell {
   }
 }
 
-final class MsgListView: ExpoView, UITableViewDataSource, UITableViewDelegate {
+final class MsgListView: ExpoView, UITableViewDataSource, UITableViewDelegate, UIGestureRecognizerDelegate {
+  let onLinkPress = EventDispatcher()
+  /// Messages whose spoilers were tapped open (until the chat is left).
+  private var revealed = Set<String>()
+  private lazy var linkTap = UITapGestureRecognizer(target: self, action: #selector(linkTapped(_:)))
   let onMsgPress = EventDispatcher()
   let onMsgLongPress = EventDispatcher()
   let onNearTop = EventDispatcher()
@@ -387,9 +486,37 @@ final class MsgListView: ExpoView, UITableViewDataSource, UITableViewDelegate {
     let hold = UILongPressGestureRecognizer(target: self, action: #selector(held(_:)))
     hold.minimumPressDuration = 0.4
     table.addGestureRecognizer(hold)
+    // A tap on a link or on a hidden spoiler is taken before the row gets it; any other tap goes to the row.
+    linkTap.delegate = self
+    table.addGestureRecognizer(linkTap)
     // The list reaches the bottom of the screen and nothing in React shrinks it for the keyboard: seen in the
     // simulator, the newest messages (and the one just sent) stayed behind the keyboard and the composer.
     NotificationCenter.default.addObserver(self, selector: #selector(keyboardMoved(_:)), name: UIResponder.keyboardWillChangeFrameNotification, object: nil)
+  }
+
+  private func run(atTablePoint point: CGPoint) -> (path: IndexPath, key: String, hit: (flags: Int, url: String, shown: String))? {
+    guard let path = table.indexPathForRow(at: point), path.row < rows.count, let cell = table.cellForRow(at: path) as? MsgRowCell,
+          let hit = cell.canvas.run(at: table.convert(point, to: cell.canvas)) else { return nil }
+    return (path, rows[path.row].key, hit)
+  }
+
+  override func gestureRecognizerShouldBegin(_ gestureRecognizer: UIGestureRecognizer) -> Bool {
+    if gestureRecognizer === linkTap { return run(atTablePoint: gestureRecognizer.location(in: table)) != nil }
+    return super.gestureRecognizerShouldBegin(gestureRecognizer)
+  }
+
+  @objc private func linkTapped(_ recognizer: UITapGestureRecognizer) {
+    guard recognizer.state == .ended, let found = run(atTablePoint: recognizer.location(in: table)) else { return }
+    if found.hit.url.isEmpty {
+      // Telegram: one tap shows every spoiler of the message.
+      revealed.insert(found.key)
+      if let cell = table.cellForRow(at: found.path) as? MsgRowCell {
+        cell.canvas.revealed = true
+        cell.canvas.setNeedsDisplay()
+      }
+      return
+    }
+    onLinkPress(["key": found.key, "url": found.hit.url, "shown": found.hit.shown])
   }
 
   @objc private func keyboardMoved(_ note: Notification) {
@@ -475,7 +602,7 @@ final class MsgListView: ExpoView, UITableViewDataSource, UITableViewDelegate {
   func tableView(_ tableView: UITableView, cellForRowAt indexPath: IndexPath) -> UITableViewCell {
     let cell = tableView.dequeueReusableCell(withIdentifier: "msg", for: indexPath)
     if let rowCell = cell as? MsgRowCell, indexPath.row < rows.count {
-      rowCell.show(rows[indexPath.row], palette, fontSize, layout(rows[indexPath.row]))
+      rowCell.show(rows[indexPath.row], palette, fontSize, layout(rows[indexPath.row]), revealed.contains(rows[indexPath.row].key))
     }
     return cell
   }

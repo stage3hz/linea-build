@@ -13,6 +13,8 @@ import { usePlatina } from './platina/usePlatina';
 import { ComposerInput } from './ComposerInput';
 import { FormatToolbar } from './format/FormatToolbar';
 import { clearFormatting, normalizeEntities, packEntities, parseMarkdown, shiftEntities, sliceEntities, toggleEntity, type Entity, type EntityType } from './format';
+import { nativeText } from './format/nativeSpans';
+import { openLink } from './format/FormattedText';
 import { activeTypes } from './format/entities';
 import { countChats } from './plural';
 import React, { useEffect, useMemo, useRef, useState } from 'react';
@@ -634,9 +636,11 @@ export function ChatScreen({api,user,chat,store,onBack,wide=false,onOpenMusic}: 
   const loadOlder=useCallback(()=>{if(!hasMore||loadingMore||olderBusy.current)return;olderBusy.current=true;void loadMessages(chat.id,true).catch(()=>{}).finally(()=>{olderBusy.current=false;});},[hasMore,loadingMore,loadMessages,chat.id]);
   // ---- the experimental native message list ----
   const nativeChatPref=preferences.nativeChat;const nativeChatOn=!!NativeMsgListView&&nativeChatPref;
+  // A link in a native bubble: an @mention opens that person's chat, an address opens after the same check as in FormattedText.
+  const nativeLinkPress=useCallback((url:string,shown:string)=>{if(url.startsWith('mention:'))navigate({to:'mention',username:url.slice(8)});else if(/^https?:\/\//i.test(url))openLink(url,shown);},[]);
   const nativeMsgRows=useMemo<NativeMsgRow[]>(()=>{
     if(!nativeChatOn)return [];
-    const out:NativeMsgRow[]=[];const blank={mine:false,time:'',ticks:0 as const,tail:false,quoteAuthor:'',quoteText:'',forward:'',label:'',thumb:'',thumbRound:false,thumbWide:1,checked:-1 as const,reactions:''};
+    const out:NativeMsgRow[]=[];const blank={mine:false,time:'',ticks:0 as const,tail:false,quoteAuthor:'',quoteText:'',forward:'',label:'',thumb:'',thumbRound:false,thumbWide:1,checked:-1 as const,reactions:'',fmt:[] as number[],urls:[] as string[]};
     const senderOf=(row:Row|undefined)=>!row||row.missing?undefined:row.pending?user.id:row.message&&!row.message.meta?.action?row.message.senderId:undefined;
     // `rows` is newest first; the native list takes them oldest first.
     for(let i=rows.length-1;i>=0;i--){
@@ -650,7 +654,8 @@ export function ChatScreen({api,user,chat,store,onBack,wide=false,onOpenMusic}: 
       const sender=senderOf(row);
       const tail=!newer||senderOf(newer)!==sender||new Date(newer.createdAt).toDateString()!==new Date(row.createdAt).toDateString()||Date.parse(newer.createdAt)-Date.parse(row.createdAt)>=5*60_000;
       const visual=!!file?.preview&&(isVideoNote(file)||file.mimeType.startsWith('image/')||file.mimeType.startsWith('video/'));
-      out.push({key:row.key,kind:0,mine,text:message?.text||p?.text||'',time:`${message?.edited?'изм. ':''}${formatTime(row.createdAt)}`,
+      const body=nativeText(message?.text||p?.text||'',message?.meta?.entities||p?.meta?.entities);
+      out.push({key:row.key,kind:0,mine,text:body.text,fmt:body.fmt,urls:body.urls,time:`${message?.edited?'изм. ':''}${formatTime(row.createdAt)}`,
         ticks:!mine?0:p?(p.state==='failed'?4:3):(peerLastRead>=(message?.id||0)?2:1),tail,
         quoteAuthor:reply?(reply.senderId===user.id?'Ты':peerName):storyRef?(storyRef.ownerId===user.id?'Ты':peerName):'',quoteText:quote?quote.text:storyRef?'История':'',
         forward:message?.meta?.forward?(message.meta.forward.from?`Переслано от ${message.meta.forward.from}`:'Пересланное сообщение'):'',
@@ -682,7 +687,7 @@ export function ChatScreen({api,user,chat,store,onBack,wide=false,onOpenMusic}: 
     {/* Android: header and composer glass blur this (wallpaper + messages) on the GPU. */}
     <GlassContentTarget targetRef={glassTarget} style={{flex:1}}>
     <ChatWallpaper choice={wallpaper} style={{top:-80,bottom:-60}} trail/>
-    {rows.length===0&&!chatNotes.length?<View style={{flex:1,justifyContent:'center',paddingTop:headerHeight,paddingBottom:listEdges.composerSide}}>{store.messageLoading?<ActivityIndicator color={t.accent}/>:<Empty icon="hand-left-outline" title="Скажи «привет»" description={`Это начало вашей переписки с ${chat.peer.displayName}.`}/>}</View>:<><KeyboardGestureArea style={{flex:1}} interpolator="ios" offset={keyboardGestureOffset(composerHeight,stickers)} textInputNativeID={COMPOSER_NATIVE_ID} enableSwipeToDismiss={dismissSetup.gestureArea}>{nativeChatOn&&NativeMsgListView?<NativeMsgListView style={{flex:1}} rows={nativeMsgRows} palette={nativeMsgPalette} fontSize={metrics.fontSize} pad={[listEdges.headerSide,listEdges.composerSide]} onMsgPress={e=>nativeMsgPress(e.nativeEvent.key)} onMsgLongPress={e=>nativeMsgHold(e.nativeEvent.key,e.nativeEvent.y)} onNearTop={loadOlder}/>:listEl}</KeyboardGestureArea><Animated.View pointerEvents="none" style={[{position:'absolute',width:0,height:0,opacity:0},lockCommit]}/></>
+    {rows.length===0&&!chatNotes.length?<View style={{flex:1,justifyContent:'center',paddingTop:headerHeight,paddingBottom:listEdges.composerSide}}>{store.messageLoading?<ActivityIndicator color={t.accent}/>:<Empty icon="hand-left-outline" title="Скажи «привет»" description={`Это начало вашей переписки с ${chat.peer.displayName}.`}/>}</View>:<><KeyboardGestureArea style={{flex:1}} interpolator="ios" offset={keyboardGestureOffset(composerHeight,stickers)} textInputNativeID={COMPOSER_NATIVE_ID} enableSwipeToDismiss={dismissSetup.gestureArea}>{nativeChatOn&&NativeMsgListView?<NativeMsgListView style={{flex:1}} rows={nativeMsgRows} palette={nativeMsgPalette} fontSize={metrics.fontSize} pad={[listEdges.headerSide,listEdges.composerSide]} onMsgPress={e=>nativeMsgPress(e.nativeEvent.key)} onMsgLongPress={e=>nativeMsgHold(e.nativeEvent.key,e.nativeEvent.y)} onLinkPress={e=>nativeLinkPress(e.nativeEvent.url,e.nativeEvent.shown)} onNearTop={loadOlder}/>:listEl}</KeyboardGestureArea><Animated.View pointerEvents="none" style={[{position:'absolute',width:0,height:0,opacity:0},lockCommit]}/></>
     }
     </GlassContentTarget>
     {/* iOS 26 scroll-edge effect: blurred (iOS) and covered by the wallpaper's edge colour evenly behind

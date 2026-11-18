@@ -82,6 +82,10 @@ export type NativeMsgRow = {
   checked: -1 | 0 | 1;
   /** Reactions in one line («👍 2  ❤️ 1»); '' = none. */
   reactions: string;
+  /** Formatting of `text`: triples [flags, offset, length] (src/format/nativeSpans.ts, NATIVE_FMT). */
+  fmt: number[];
+  /** One address per `fmt` triple with the link flag, in order: `https://…` or `mention:<username>`. */
+  urls: string[];
 };
 export type NativeMsgPalette = { text: number; muted: number; accent: number; onAccent: number; mine: number; theirs: number; notice: number; noticeText: number; danger: number; quote: number; mineMeta: number; mineMark: number; subtle: number };
 export type NativeMsgListProps = {
@@ -92,6 +96,8 @@ export type NativeMsgListProps = {
   pad?: [number, number];
   onMsgPress?: (event: { nativeEvent: { key: string } }) => void;
   onMsgLongPress?: (event: { nativeEvent: { key: string; y: number } }) => void;
+  /** A link or an @mention inside a bubble was tapped; `shown` is the linked text. */
+  onLinkPress?: (event: { nativeEvent: { key: string; url: string; shown: string } }) => void;
   /** The oldest loaded row is near: time to load older messages. */
   onNearTop?: (event: { nativeEvent: { key: string } }) => void;
   style?: unknown;

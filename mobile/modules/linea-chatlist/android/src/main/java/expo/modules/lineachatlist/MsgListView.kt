@@ -22,6 +22,11 @@ class MsgListView(context: Context, appContext: AppContext) : ExpoView(context, 
   private val onMsgPress by EventDispatcher()
   private val onMsgLongPress by EventDispatcher()
   private val onNearTop by EventDispatcher()
+  private val onLinkPress by EventDispatcher()
+  /** Messages whose spoilers were tapped open (until the chat is left). */
+  private val revealed = HashSet<String>()
+  private var upX = 0f
+  private var upY = 0f
   private val d = resources.displayMetrics.density
   private var rows: List<MsgRow> = emptyList()
   private var palette = MsgPalette.DARK
@@ -38,20 +43,27 @@ class MsgListView(context: Context, appContext: AppContext) : ExpoView(context, 
     override fun areAllItemsEnabled() = false
     override fun getView(position: Int, convertView: View?, parent: ViewGroup?): View {
       val view = convertView as? MsgRowView ?: MsgRowView(context)
-      view.bind(rows[position], palette, fontSize)
+      view.bind(rows[position], palette, fontSize, revealed.contains(rows[position].key))
       return view
     }
   }
 
   private val list = object : ListView(context) {
-    override fun dispatchTouchEvent(event: MotionEvent): Boolean { lastTouchY = event.rawY; return super.dispatchTouchEvent(event) }
+    override fun dispatchTouchEvent(event: MotionEvent): Boolean { lastTouchY = event.rawY; upX = event.x; upY = event.y; return super.dispatchTouchEvent(event) }
   }.apply {
     divider = null; dividerHeight = 0
     selector = ColorDrawable(Color.TRANSPARENT); cacheColorHint = Color.TRANSPARENT
     isVerticalScrollBarEnabled = false; clipToPadding = false
     isStackFromBottom = true; transcriptMode = AbsListView.TRANSCRIPT_MODE_NORMAL
     this.adapter = this@MsgListView.adapter
-    setOnItemClickListener { _, _, position, _ -> rows.getOrNull(position)?.let { onMsgPress(mapOf("key" to it.key)) } }
+    setOnItemClickListener { _, view, position, _ ->
+      val row = rows.getOrNull(position) ?: return@setOnItemClickListener
+      // A tap on a link or on a hidden spoiler is not a tap on the message.
+      val hit = (view as? MsgRowView)?.runAt(upX - view.left, upY - view.top)
+      if (hit == null) onMsgPress(mapOf("key" to row.key))
+      else if (hit.first.isEmpty()) { revealed.add(row.key); (view as? MsgRowView)?.reveal() }
+      else onLinkPress(mapOf("key" to row.key, "url" to hit.first, "shown" to hit.second))
+    }
     setOnItemLongClickListener { _, _, position, _ ->
       val row = rows.getOrNull(position) ?: return@setOnItemLongClickListener false
       onMsgLongPress(mapOf("key" to row.key, "y" to (lastTouchY / d).toDouble())); true

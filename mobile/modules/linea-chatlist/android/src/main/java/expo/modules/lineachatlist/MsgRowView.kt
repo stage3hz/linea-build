@@ -10,7 +10,17 @@ import android.graphics.Paint
 import android.graphics.Path
 import android.graphics.Shader
 import android.graphics.Typeface
+import android.graphics.Color
 import android.text.Layout
+import android.text.SpannableString
+import android.text.Spanned
+import android.text.style.AbsoluteSizeSpan
+import android.text.style.BackgroundColorSpan
+import android.text.style.ForegroundColorSpan
+import android.text.style.StrikethroughSpan
+import android.text.style.StyleSpan
+import android.text.style.TypefaceSpan
+import android.text.style.UnderlineSpan
 import android.text.StaticLayout
 import android.text.TextPaint
 import android.text.TextUtils
@@ -36,6 +46,11 @@ class MsgRowView(context: Context) : View(context) {
   private var fontSize = 17f
   private var thumbOf = ""
   private var thumb: Bitmap? = null
+  /** The spoilers of this message have been tapped open. */
+  private var revealed = false
+  /** Where the body text was drawn last (for taps on links and spoilers). */
+  private var bodyX = 0f
+  private var bodyY = 0f
 
   // What the last measure laid out.
   private var builtFor: MsgRow? = null
@@ -51,10 +66,13 @@ class MsgRowView(context: Context) : View(context) {
   private var thumbW = 0f
   private var thumbH = 0f
 
-  fun bind(next: MsgRow, colors: MsgPalette, size: Float) {
-    if (row == next && palette == colors && fontSize == size) return
-    val relayout = row != next || fontSize != size
-    row = next; palette = colors; fontSize = size
+  fun bind(next: MsgRow, colors: MsgPalette, size: Float, open: Boolean = false) {
+    if (row == next && palette == colors && fontSize == size && revealed == open) return
+    // Formatted text carries its colours in spans, so new colours mean a new layout as well.
+    val styledAgain = next.fmt.isNotEmpty() && (palette != colors || revealed != open)
+    val relayout = row != next || fontSize != size || styledAgain
+    if (styledAgain) builtFor = null
+    row = next; palette = colors; fontSize = size; revealed = open
     if (next.thumb != thumbOf) {
       thumbOf = next.thumb
       thumb = if (next.thumb.isEmpty()) null else try { val bytes = Base64.decode(next.thumb, Base64.DEFAULT); BitmapFactory.decodeByteArray(bytes, 0, bytes.size) } catch (_: Throwable) { null }
@@ -64,7 +82,62 @@ class MsgRowView(context: Context) : View(context) {
     invalidate()
   }
 
-  private fun layout(text: String, paint: TextPaint, width: Int, lines: Int, center: Boolean = false): StaticLayout =
+  /** Telegram: one tap shows every spoiler of the message. */
+  fun reveal() { if (revealed) return; revealed = true; builtFor = null; requestLayout(); invalidate() }
+
+  private fun alpha(color: Int, a: Int) = (color and 0x00FFFFFF) or (a shl 24)
+
+  /** The text with its formatting. Flags: 1 bold, 2 italic, 4 underline, 8 strike, 16 monospace, 32 spoiler
+   *  (a block until tapped), 64 link, 128 quote, 256 code block. */
+  private fun styled(item: MsgRow): CharSequence {
+    if (item.fmt.isEmpty()) return item.text
+    val out = SpannableString(item.text)
+    val linkColor = if (item.mine) palette.mineMark else palette.accent
+    var i = 0
+    while (i + 2 < item.fmt.size) {
+      val flags = item.fmt[i]; val start = item.fmt[i + 1]; val end = start + item.fmt[i + 2]; i += 3
+      if (start < 0 || end <= start || end > item.text.length) continue
+      fun put(span: Any) = out.setSpan(span, start, end, Spanned.SPAN_EXCLUSIVE_EXCLUSIVE)
+      val bold = flags and 1 != 0; val italic = flags and 2 != 0
+      if (bold || italic) put(StyleSpan(if (bold && italic) Typeface.BOLD_ITALIC else if (bold) Typeface.BOLD else Typeface.ITALIC))
+      if (flags and (4 or 64) != 0) put(UnderlineSpan())
+      if (flags and 8 != 0) put(StrikethroughSpan())
+      if (flags and 16 != 0) { put(TypefaceSpan("monospace")); put(AbsoluteSizeSpan(((fontSize - 1f).coerceAtLeast(10f) * d).toInt())); put(BackgroundColorSpan(alpha(palette.text, 0x1A))) }
+      if (flags and 128 != 0) put(BackgroundColorSpan(palette.quote))
+      if (flags and 64 != 0) put(ForegroundColorSpan(linkColor))
+      if (flags and 32 != 0) {
+        if (revealed) put(BackgroundColorSpan(alpha(palette.text, 0x12)))
+        else { put(ForegroundColorSpan(Color.TRANSPARENT)); put(BackgroundColorSpan(alpha(palette.text, 0x47))) }
+      }
+    }
+    return out
+  }
+
+  /** A link (address, linked text) or a still hidden spoiler ("" as the address) under a point of this view. */
+  fun runAt(px: Float, py: Float): Pair<String, String>? {
+    val item = row ?: return null
+    val layout = textLayout ?: return null
+    if (item.fmt.isEmpty()) return null
+    val x = px - bodyX; val y = py - bodyY
+    if (y < 0 || y > layout.height || x < -4f * d) return null
+    val line = layout.getLineForVertical(y.toInt())
+    if (x > layout.getLineWidth(line) + 4f * d) return null
+    val index = layout.getOffsetForHorizontal(line, x).coerceIn(0, (item.text.length - 1).coerceAtLeast(0))
+    var link = 0; var i = 0
+    while (i + 2 < item.fmt.size) {
+      val flags = item.fmt[i]; val start = item.fmt[i + 1]; val end = start + item.fmt[i + 2]; i += 3
+      val isLink = flags and 64 != 0
+      if (index in start until end && start >= 0 && end <= item.text.length) {
+        val hidden = flags and 32 != 0 && !revealed
+        val url = if (isLink) item.urls.getOrNull(link) ?: "" else ""
+        if (hidden || url.isNotEmpty()) return Pair(if (hidden) "" else url, item.text.substring(start, end))
+      }
+      if (isLink) link++
+    }
+    return null
+  }
+
+  private fun layout(text: CharSequence, paint: TextPaint, width: Int, lines: Int, center: Boolean = false): StaticLayout =
     StaticLayout.Builder.obtain(text, 0, text.length, paint, width.coerceAtLeast(1))
       .setAlignment(if (center) Layout.Alignment.ALIGN_CENTER else Layout.Alignment.ALIGN_NORMAL)
       .setMaxLines(lines).setEllipsize(TextUtils.TruncateAt.END).setIncludePad(false).setLineSpacing(2f * d, 1f).build()
@@ -79,7 +152,7 @@ class MsgRowView(context: Context) : View(context) {
       bubbleW = widest(noticeLayout) + 24f * d; bubbleH = (noticeLayout?.height ?: 0) + 12f * d
     } else {
       val inner = (width * 0.78f - 26f * d).toInt()
-      if (item.text.isNotEmpty()) textLayout = layout(item.text, body, inner, 400)
+      if (item.text.isNotEmpty()) textLayout = layout(styled(item), body, inner, 400)
       if (item.quoteText.isNotEmpty() || item.quoteAuthor.isNotEmpty()) quoteLayout = layout(item.quoteText, small, inner - (12f * d).toInt(), 2)
       if (item.label.isNotEmpty()) labelLayout = layout(item.label, small, inner, 2)
       if (item.reactions.isNotEmpty()) reactLayout = layout(item.reactions, small, inner, 2)
@@ -171,7 +244,7 @@ class MsgRowView(context: Context) : View(context) {
     val image = thumb
     if (image != null && thumbH > 0f) { drawPicture(canvas, image, x, y, thumbW, thumbH, if (item.thumbRound) minOf(thumbW, thumbH) / 2 else 12f * d); y += thumbH + 6f * d }
     labelLayout?.let { small.color = markColor; canvas.save(); canvas.translate(x, y); it.draw(canvas); canvas.restore(); y += it.height + 4f * d }
-    textLayout?.let { body.color = palette.text; canvas.save(); canvas.translate(x, y); it.draw(canvas); canvas.restore(); y += it.height }
+    textLayout?.let { body.color = palette.text; bodyX = x; bodyY = y; canvas.save(); canvas.translate(x, y); it.draw(canvas); canvas.restore(); y += it.height }
     reactLayout?.let { small.color = palette.text; canvas.save(); canvas.translate(x, y + 6f * d); it.draw(canvas); canvas.restore() }
 
     val right = left + bubbleW - 13f * d

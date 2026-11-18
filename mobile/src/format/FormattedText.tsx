@@ -20,7 +20,7 @@ type Props = {
 
 const safeUrl = (url: string) => /^https?:\/\//i.test(url) ? url : null;
 /** A link whose text hides its address («подробнее» → https://…) is confirmed first, with the full URL shown (Telegram does the same). */
-function openLink(url: string, shown: string) {
+export function openLink(url: string, shown: string) {
   const open = () => { void Linking.openURL(url).catch(() => {}); };
   if (linkTextMatchesUrl(shown, url)) return open();
   if (Platform.OS === 'web') { if (typeof window !== 'undefined' && window.confirm(`${tr('Открыть ссылку?')}\n\n${url}`)) open(); return; }
