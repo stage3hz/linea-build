@@ -93,7 +93,7 @@ appId: com.linea.messenger.preview
     end: "31%,80%"
     duration: 400
 - waitForAnimationToEnd
-- tapOn: "Чаты"
+- tapOn: "Чаты.*"
 - waitForAnimationToEnd
 - extendedWaitUntil:
     visible: "Избранное.*"
@@ -129,7 +129,7 @@ appId: com.linea.messenger.preview
 # Чаты is opened, so the way back is Настройки → Оформление every time.
 - tapOn: "Светлая тема"
 - waitForAnimationToEnd
-- tapOn: "Чаты"
+- tapOn: "Чаты.*"
 - extendedWaitUntil:
     visible: "Избранное.*"
     timeout: 15000
@@ -147,7 +147,7 @@ appId: com.linea.messenger.preview
 
 - tapOn: "Тёмная тема"
 - waitForAnimationToEnd
-- tapOn: "Чаты"
+- tapOn: "Чаты.*"
 - extendedWaitUntil:
     visible: "Избранное.*"
     timeout: 15000
@@ -165,7 +165,7 @@ appId: com.linea.messenger.preview
 
 - tapOn: "Чёрная тема"
 - waitForAnimationToEnd
-- tapOn: "Чаты"
+- tapOn: "Чаты.*"
 - extendedWaitUntil:
     visible: "Избранное.*"
     timeout: 15000
@@ -183,7 +183,7 @@ appId: com.linea.messenger.preview
 
 - tapOn: "Графит тема"
 - waitForAnimationToEnd
-- tapOn: "Чаты"
+- tapOn: "Чаты.*"
 - extendedWaitUntil:
     visible: "Избранное.*"
     timeout: 15000
@@ -206,7 +206,7 @@ appId: com.linea.messenger.preview
 # «night off» holds until the system rule flips, which is what the light run does.)
 - tapOn: "Светлая тема"
 - waitForAnimationToEnd
-- tapOn: "Чаты"
+- tapOn: "Чаты.*"
 - extendedWaitUntil:
     visible: "Избранное.*"
     timeout: 15000
