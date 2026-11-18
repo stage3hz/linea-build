@@ -168,13 +168,19 @@ jobs:
               git add -A && git commit -qm "Simulator shots so far ($1) for $GITHUB_SHA"
               git push -qf "https://x-access-token:${{ github.token }}@github.com/${{ github.repository }}.git" "HEAD:sim-output-${{ matrix.runner }}" ) || true
           }
+          # No maestro call may run longer than its limit (one hung for two hours with no output), and while the
+          # walk goes on a picture of the simulator screen is published every four minutes: what the robot is
+          # looking at can be read from the branch without the Actions page.
+          limit() { local s="$1"; shift; perl -e 'alarm shift; exec @ARGV' "$s" "$@"; }
+          ( n=0; while true; do sleep 240; n=$((n+1)); limit 60 xcrun simctl io "$SIMULATOR_UDID" screenshot "live-$(printf %02d $n).png" >/dev/null 2>&1 || true; publish "live-$n"; done ) &
+          LIVE=$!
           publish walk-begins
           xcrun simctl ui "$SIMULATOR_UDID" appearance dark
           # Two attempts: on a slow runner the very first XCTest tap once took 377 s (34 s on a normal run, 0.4 s
           # afterwards) and the driver gave up. Each attempt registers its own account (ATTEMPT in login/username).
           dark_ok=0
           for attempt in 1 2; do
-            if maestro --device "$SIMULATOR_UDID" test -e THEME=dark -e ATTEMPT="$attempt" "$GITHUB_WORKSPACE/tools/maestro/register-and-screens.yaml"; then dark_ok=1; break; fi
+            if limit 1500 maestro --device "$SIMULATOR_UDID" test -e THEME=dark -e ATTEMPT="$attempt" "$GITHUB_WORKSPACE/tools/maestro/register-and-screens.yaml"; then dark_ok=1; break; fi
             echo "Registration attempt $attempt failed"
             publish "registration-attempt-$attempt-failed"
           done
@@ -182,14 +188,16 @@ jobs:
             publish registered
             # People to talk to: accounts with avatars and really encrypted messages, on the local server only.
             (cd "$GITHUB_WORKSPACE" && node tools/sim-seed.mjs http://127.0.0.1:3999 "simui_check$attempt") || echo "SEED_FAILED=1" >> "$GITHUB_ENV"
-            maestro --device "$SIMULATOR_UDID" test -e THEME=dark "$GITHUB_WORKSPACE/tools/maestro/native-check.yaml" || echo "NATIVE_FAILED=1" >> "$GITHUB_ENV"
+            limit 1200 maestro --device "$SIMULATOR_UDID" test -e THEME=dark "$GITHUB_WORKSPACE/tools/maestro/native-check.yaml" || echo "NATIVE_FAILED=1" >> "$GITHUB_ENV"
             xcrun simctl io "$SIMULATOR_UDID" screenshot zy-after-native.png || true
             publish native-check-done
-            maestro --device "$SIMULATOR_UDID" test -e THEME=dark "$GITHUB_WORKSPACE/tools/maestro/screens-again.yaml" || echo "DARK_FAILED=1" >> "$GITHUB_ENV"
+            limit 1200 maestro --device "$SIMULATOR_UDID" test -e THEME=dark "$GITHUB_WORKSPACE/tools/maestro/screens-again.yaml" || echo "DARK_FAILED=1" >> "$GITHUB_ENV"
           else
             echo "DARK_FAILED=1" >> "$GITHUB_ENV"
           fi
+          kill "$LIVE" 2>/dev/null || true
           xcrun simctl io "$SIMULATOR_UDID" screenshot zz-last-state.png || true
+          publish walk-ended
       - name: Collect logs
         if: always()
         run: |
@@ -198,8 +206,8 @@ jobs:
           tail -300 simulator-build.log > shots/simulator-build-tail.log 2>/dev/null || true
           cp -R "$HOME/.maestro/tests" shots/maestro-tests 2>/dev/null || true
           # The whole walk (it takes up to two hours), not the last minutes: a launch crash happens early.
-          xcrun simctl spawn "$SIMULATOR_UDID" log show --last 3h --style compact --predicate 'process == "INVIZENT"' > shots/app.log 2>/dev/null || true
-          xcrun simctl spawn "$SIMULATOR_UDID" log show --last 3h --style compact --predicate 'eventMessage CONTAINS[c] "INVIZENT" OR eventMessage CONTAINS[c] "linea.messenger"' > shots/system-about-app.log 2>/dev/null || true
+          perl -e 'alarm shift; exec @ARGV' 300 xcrun simctl spawn "$SIMULATOR_UDID" log show --last 3h --style compact --predicate 'process == "INVIZENT"' > shots/app.log 2>/dev/null || true
+          perl -e 'alarm shift; exec @ARGV' 300 xcrun simctl spawn "$SIMULATOR_UDID" log show --last 3h --style compact --predicate 'eventMessage CONTAINS[c] "INVIZENT" OR eventMessage CONTAINS[c] "linea.messenger"' > shots/system-about-app.log 2>/dev/null || true
           # Crash reports of the app (simulator crashes land in the host's DiagnosticReports).
           mkdir -p shots/crashes
           find "$HOME/Library/Logs/DiagnosticReports" -maxdepth 2 \( -name 'INVIZENT*' -o -name '*linea*' \) -mmin -240 -exec cp {} shots/crashes/ \; 2>/dev/null || true
