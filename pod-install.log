@@ -60,16 +60,16 @@ Framework build type is static framework
 [ReactNativeDependencies] Cache miss: downloading reactnative-dependencies-0.86.3-debug.tar.gz from https://repo1.maven.org/maven2/com/facebook/react/react-native-artifacts/0.86.3/react-native-artifacts-0.86.3-reactnative-dependencies-debug.tar.gz
   % Total    % Received % Xferd  Average Speed  Time    Time    Time   Current
                                  Dload  Upload  Total   Spent   Left   Speed
-  0      0   0      0   0      0      0      0                              0100    167   0    167   0      0    766      0                              0100    167   0    167   0      0    762      0                              0
-  0      0   0      0   0      0      0      0                              0100 17.87M 100 17.87M   0      0 17.53M      0   00:01   00:01              0100 17.87M 100 17.87M   0      0 17.52M      0   00:01   00:01              0100 17.87M 100 17.87M   0      0 17.52M      0   00:01   00:01              0
+  0      0   0      0   0      0      0      0                              0100    167   0    167   0      0   3402      0                              0100    167   0    167   0      0   3392      0                              0
+  0      0   0      0   0      0      0      0                              0100 17.87M 100 17.87M   0      0 54.92M      0                              0100 17.87M 100 17.87M   0      0 54.88M      0                              0100 17.87M 100 17.87M   0      0 54.85M      0                              0
 [ReactNativeDependencies] Verifying checksum for downloaded reactnative-dependencies-0.86.3-debug.tar.gz...
 [Cache] SHA1 verified for reactnative-dependencies-0.86.3-debug.tar.gz
 [ReactNativeDependencies] Saved reactnative-dependencies-0.86.3-debug.tar.gz to shared cache (/Users/runner/Library/Caches/ReactNative)
 [ReactNativeDependencies] Cache miss: downloading reactnative-dependencies-0.86.3-release.tar.gz from https://repo1.maven.org/maven2/com/facebook/react/react-native-artifacts/0.86.3/react-native-artifacts-0.86.3-reactnative-dependencies-release.tar.gz
   % Total    % Received % Xferd  Average Speed  Time    Time    Time   Current
                                  Dload  Upload  Total   Spent   Left   Speed
-  0      0   0      0   0      0      0      0                              0100    167   0    167   0      0   1268      0                              0100    167   0    167   0      0   1266      0                              0
-  0      0   0      0   0      0      0      0                              0100  9.93M 100  9.93M   0      0 27.70M      0                              0100  9.93M 100  9.93M   0      0 27.67M      0                              0100  9.93M 100  9.93M   0      0 27.66M      0                              0
+  0      0   0      0   0      0      0      0                              0100    167   0    167   0      0   2857      0                              0100    167   0    167   0      0   2849      0                              0
+  0      0   0      0   0      0      0      0                              0100  9.93M 100  9.93M   0      0 16.52M      0                              0100  9.93M 100  9.93M   0      0 16.51M      0                              0100  9.93M 100  9.93M   0      0 16.51M      0                              0
 [ReactNativeDependencies] Verifying checksum for downloaded reactnative-dependencies-0.86.3-release.tar.gz...
 [Cache] SHA1 verified for reactnative-dependencies-0.86.3-release.tar.gz
 [ReactNativeDependencies] Saved reactnative-dependencies-0.86.3-release.tar.gz to shared cache (/Users/runner/Library/Caches/ReactNative)
@@ -193,16 +193,16 @@ Fetching podspec for `React-Core-prebuilt` from `../node_modules/react-native/Re
 [ReactNativeCore] Cache miss: downloading reactnative-core-0.86.3-debug.tar.gz from https://repo1.maven.org/maven2/com/facebook/react/react-native-artifacts/0.86.3/react-native-artifacts-0.86.3-reactnative-core-debug.tar.gz
   % Total    % Received % Xferd  Average Speed  Time    Time    Time   Current
                                  Dload  Upload  Total   Spent   Left   Speed
-  0      0   0      0   0      0      0      0                              0100    167   0    167   0      0   2997      0                              0100    167   0    167   0      0   2984      0                              0
-  0      0   0      0   0      0      0      0                              0 70 94.20M  70 66.71M   0      0 61.37M      0   00:01   00:01         66.74M100 94.20M 100 94.20M   0      0 55.58M      0   00:01   00:01         66.74M100 94.20M 100 94.20M   0      0 55.52M      0   00:01   00:01         66.74M100 94.20M 100 94.20M   0      0 55.51M      0   00:01   00:01         66.74M
+  0      0   0      0   0      0      0      0                              0100    167   0    167   0      0   3380      0                              0100    167   0    167   0      0   3357      0                              0
+  0      0   0      0   0      0      0      0                              0 31 94.20M  31 29.85M   0      0 26.02M      0   00:03   00:01   00:02 28.09M 79 94.20M  79 75.11M   0      0 34.92M      0   00:02   00:02         36.35M100 94.20M 100 94.20M   0      0 35.15M      0   00:02   00:02         36.35M100 94.20M 100 94.20M   0      0 35.15M      0   00:02   00:02         36.35M100 94.20M 100 94.20M   0      0 35.14M      0   00:02   00:02         36.35M
 [ReactNativeCore] Verifying checksum for downloaded reactnative-core-0.86.3-debug.tar.gz...
 [Cache] SHA1 verified for reactnative-core-0.86.3-debug.tar.gz
 [ReactNativeCore] Saved reactnative-core-0.86.3-debug.tar.gz to shared cache (/Users/runner/Library/Caches/ReactNative)
 [ReactNativeCore] Cache miss: downloading reactnative-core-0.86.3-release.tar.gz from https://repo1.maven.org/maven2/com/facebook/react/react-native-artifacts/0.86.3/react-native-artifacts-0.86.3-reactnative-core-release.tar.gz
   % Total    % Received % Xferd  Average Speed  Time    Time    Time   Current
                                  Dload  Upload  Total   Spent   Left   Speed
-  0      0   0      0   0      0      0      0                              0100    167   0    167   0      0   2874      0                              0100    167   0    167   0      0   2868      0                              0
-  0      0   0      0   0      0      0      0                              0100 29.56M 100 29.56M   0      0 35.17M      0                              0100 29.56M 100 29.56M   0      0 35.16M      0                              0100 29.56M 100 29.56M   0      0 35.14M      0                              0
+  0      0   0      0   0      0      0      0                              0100    167   0    167   0      0   3359      0                              0100    167   0    167   0      0   3342      0                              0
+  0      0   0      0   0      0      0      0                              0100 29.56M 100 29.56M   0      0 48.27M      0                              0100 29.56M 100 29.56M   0      0 48.25M      0                              0100 29.56M 100 29.56M   0      0 48.24M      0                              0
 [ReactNativeCore] Verifying checksum for downloaded reactnative-core-0.86.3-release.tar.gz...
 [Cache] SHA1 verified for reactnative-core-0.86.3-release.tar.gz
 [ReactNativeCore] Saved reactnative-core-0.86.3-release.tar.gz to shared cache (/Users/runner/Library/Caches/ReactNative)
@@ -218,16 +218,16 @@ Fetching podspec for `hermes-engine` from `../node_modules/react-native/sdks/her
 [Hermes] Cache miss: downloading hermes-ios-250829098.0.17-debug.tar.gz from https://repo1.maven.org/maven2/com/facebook/hermes/hermes-ios/250829098.0.17/hermes-ios-250829098.0.17-hermes-ios-debug.tar.gz
   % Total    % Received % Xferd  Average Speed  Time    Time    Time   Current
                                  Dload  Upload  Total   Spent   Left   Speed
-  0      0   0      0   0      0      0      0                              0100    167   0    167   0      0   2923      0                              0100    167   0    167   0      0   2913      0                              0
-  0      0   0      0   0      0      0      0                              0100 31.23M 100 31.23M   0      0 43.29M      0                              0100 31.23M 100 31.23M   0      0 43.27M      0                              0100 31.23M 100 31.23M   0      0 43.26M      0                              0
+  0      0   0      0   0      0      0      0                              0100    167   0    167   0      0   3365      0                              0100    167   0    167   0      0   3349      0                              0
+  0      0   0      0   0      0      0      0                              0100 31.23M 100 31.23M   0      0 54.54M      0                              0100 31.23M 100 31.23M   0      0 54.53M      0                              0100 31.23M 100 31.23M   0      0 54.50M      0                              0
 [Hermes] Verifying checksum for downloaded hermes-ios-250829098.0.17-debug.tar.gz...
 [Hermes] SHA1 verified for hermes-ios-250829098.0.17-debug.tar.gz
 [Hermes] Saved hermes-ios-250829098.0.17-debug.tar.gz to shared cache (/Users/runner/Library/Caches/ReactNative)
 [Hermes] Cache miss: downloading hermes-ios-250829098.0.17-release.tar.gz from https://repo1.maven.org/maven2/com/facebook/hermes/hermes-ios/250829098.0.17/hermes-ios-250829098.0.17-hermes-ios-release.tar.gz
   % Total    % Received % Xferd  Average Speed  Time    Time    Time   Current
                                  Dload  Upload  Total   Spent   Left   Speed
-  0      0   0      0   0      0      0      0                              0100    167   0    167   0      0   2580      0                              0100    167   0    167   0      0   2569      0                              0
-  0      0   0      0   0      0      0      0                              0100 24.35M 100 24.35M   0      0 49.87M      0                              0100 24.35M 100 24.35M   0      0 49.85M      0                              0100 24.35M 100 24.35M   0      0 49.83M      0                              0
+  0      0   0      0   0      0      0      0                              0100    167   0    167   0      0   2850      0                              0100    167   0    167   0      0   2836      0                              0
+  0      0   0      0   0      0      0      0                              0100 24.35M 100 24.35M   0      0 34.17M      0                              0100 24.35M 100 24.35M   0      0 34.17M      0                              0100 24.35M 100 24.35M   0      0 34.17M      0                              0
 [Hermes] Verifying checksum for downloaded hermes-ios-250829098.0.17-release.tar.gz...
 [Hermes] SHA1 verified for hermes-ios-250829098.0.17-release.tar.gz
 [Hermes] Saved hermes-ios-250829098.0.17-release.tar.gz to shared cache (/Users/runner/Library/Caches/ReactNative)
@@ -370,105 +370,6 @@ Installing ReactNativeIncallManager (4.3.0)
 Installing UMAppLoader (57.0.2)
 Installing Yoga (0.0.0)
 Installing hermes-engine (250829098.0.17)
-Installing livekit-react-native-webrtc (150.1.0)
-Installing lottie-ios (4.6.0)
-Installing lottie-react-native (7.3.8)
-Installing react-native-keyboard-controller (1.21.9)
-Installing react-native-netinfo (12.0.1)
-Installing react-native-safe-area-context (5.7.0)
-[Expo] Ensuring required slices in ExpoModulesJSI.xcframework
-[Expo] Staged 6/6 shared SPM xcframework(s) (debug)
-[Expo] Disabling USE_FRAMEWORKS for 90 pods (ExpoModulesCore, ExpoModulesJSI, Expo, ReactAppDependencyProvider, expo-dev-menu, ExpoCamera, ExpoCameraBarcodeScanning, ExpoFileSystem, ExpoFont, ExpoImage, ExpoImageManipulator, ExpoLogBox, ExpoMediaLibrary, ExpoModulesWorklets, ExpoVideo, LiquidGlassmorphism, LiveKitWebRTC, RCTTypeSafety, RNCAsyncStorage, RNCMaskedView, RNGestureHandler, RNReanimated, RNSVG, RNScreens, RNWorklets, React, React-Core, React-Core-prebuilt, React-CoreModules, React-Fabric, React-FabricComponents, React-FabricImage, React-ImageManager, React-Mapbuffer, React-NativeModulesApple, React-RCTActionSheet, React-RCTAnimation, React-RCTAppDelegate, React-RCTBlob, React-RCTFBReactNativeSpec, React-RCTFabric, React-RCTImage, React-RCTLinking, React-RCTNetwork, React-RCTRuntime, React-RCTSettings, React-RCTText, React-RCTVibration, React-RuntimeApple, React-RuntimeCore, React-RuntimeHermes, React-cxxreact, React-defaultsnativemodule, React-domnativemodule, React-featureflags, React-featureflagsnativemodule, React-graphics, React-hermes, React-idlecallbacksnativemodule, React-intersectionobservernativemodule, React-jserrorhandler, React-jsi, React-jsiexecutor, React-jsinspector, React-jsinspectorcdp, React-jsinspectornetwork, React-jsinspectortracing, React-jsitooling, React-logger, React-microtasksnativemodule, React-mutationobservernativemodule, React-networking, React-perflogger, React-performancecdpmetrics, React-performancetimeline, React-rendererdebug, React-runtimeexecutor, React-runtimescheduler, React-utils, React-viewtransitionnativemodule, React-webperformancenativemodule, ReactCodegen, ReactCommon, ReactNativeDependencies, ReactNativeIncallManager, livekit-react-native-webrtc, lottie-react-native, react-native-keyboard-controller, react-native-netinfo, react-native-safe-area-context)
-[Expo] Disabling USE_FRAMEWORKS for modules ExpoModulesCore, ExpoModulesJSI, Expo, ReactAppDependencyProvider, expo-dev-menu
-Generating Pods project
-Setting USE_HERMES build settings
-Setting REACT_NATIVE_PATH build settings
-Setting SWIFT_ACTIVE_COMPILATION_CONDITIONS build settings
-[Ccache]: Removing Ccache from CC, LD, CXX & LDPLUSPLUS build settings
-Setting SWIFT_ENABLE_EXPLICIT_MODULES build settings
-[ReactNativeCore] Processing VFS overlay file...
-[ReactNativeCore]   Created VFS overlay at /Users/runner/work/linea-build/linea-build/mobile/ios/Pods/React-Core-prebuilt/React-VFS.yaml
-[ReactNativeCore] VFS overlay setup complete
-[ReactNativeCore] Configuring xcconfig for prebuilt React Native Core...
-[ReactNativeCore] Prebuilt xcconfig configuration complete
-[SPM] Cleaning old SPM dependencies from Pods project
-[SPM] Adding SPM dependencies to Pods project
-[Privacy Manifest Aggregation] No existing PrivacyInfo.xcprivacy file found, creating a new one.
-[Privacy Manifest Aggregation] Reading .xcprivacy files to aggregate all used Required Reason APIs.
-file_root: INVIZENT
-Setting CLANG_CXX_LANGUAGE_STANDARD to c++20 on /Users/runner/work/linea-build/linea-build/mobile/ios/INVIZENT.xcodeproj
-
-==================== DEPRECATION NOTICE =====================
-Calling `pod install` directly is deprecated in React Native
-because we are moving away from Cocoapods toward alternative
-solutions to build the project.
-* If you are using Expo, please run:
-`npx expo run:ios`
-* If you are using the Community CLI, please run:
-`yarn ios`
-=============================================================
-
-Pod install took 244 [s] to run
-Integrating client project
-
-[!] Please close any current Xcode sessions and use `INVIZENT.xcworkspace` for this project from now on.
-[Expo] Installing the build script for target INVIZENT
-Pod installation complete! There are 142 dependencies from the Podfile and 143 total pods installed.
-[Expo-precompiled] Precompiled modules:
-[Expo-precompiled]   📦 ExpoCamera (57.0.6)
-[Expo-precompiled]   📦 ExpoCameraBarcodeScanning (57.0.6)
-[Expo-precompiled]       ∟ ZXingObjC.xcframework (3.6.9)
-[Expo-precompiled]   📦 ExpoFileSystem (57.0.7)
-[Expo-precompiled]   📦 ExpoFont (57.0.4)
-[Expo-precompiled]   📦 ExpoImage (57.0.5)
-[Expo-precompiled]       ∟ SDWebImage.xcframework (5.21.6)
-[Expo-precompiled]       ∟ SDWebImageAVIFCoder.xcframework (0.12.0)
-[Expo-precompiled]       ∟ SDWebImageSVGCoder.xcframework (1.8.0)
-[Expo-precompiled]       ∟ SDWebImageWebPCoder.xcframework (0.15.0)
-[Expo-precompiled]       ∟ libavif.xcframework (1.0.0)
-[Expo-precompiled]   📦 ExpoImageManipulator (57.0.21)
-[Expo-precompiled]       ∟ SDWebImage.xcframework (5.21.1)
-[Expo-precompiled]       ∟ SDWebImageWebPCoder.xcframework (0.14.6)
-[Expo-precompiled]   📦 ExpoMediaLibrary (57.0.5)
-[Expo-precompiled]   📦 ExpoModulesCore (57.0.24)
-[Expo-precompiled]   📦 ExpoModulesWorklets (57.0.24)
-[Expo-precompiled]   📦 ExpoVideo (57.0.5)
-[Expo] Disabling SWIFT_EMIT_MODULE_INTERFACE for pod targets (prebuilt React compatibility)
-[Expo] Created non-framework React modulemap for use_frameworks! compatibility
-[Expo-precompiled] Looking for ExpoModulesCore.xcframework at: /Users/runner/work/linea-build/linea-build/mobile/ios/Pods/ExpoModulesCore/ExpoModulesCore.xcframework
-[Expo-precompiled] Adding ExpoModulesJSI header search paths to all targets
-[Expo] Adding '[Expo] Remove duplicate codegen output' build phase to ReactCodegen
-[Expo] Raised deployment target for Expo modules matching ExpoModulesCore:
-  ExpoAlternateAppIcons (iOS=16.4)
-[Expo] Raised resource bundle deployment targets to match their pods: RNCAsyncStorage-RNCAsyncStorage_resources, RNSVG-RNSVGFilters, lottie-ios-LottiePrivacyInfo, lottie-react-native-Lottie_React_Native_Privacy
-
-[!] ExpoCamera has added 2 script phases. Please inspect before executing a build. See `https://guides.cocoapods.org/syntax/podspec.html#script_phases` for more information.
-
-[!] ExpoCameraBarcodeScanning has added 2 script phases. Please inspect before executing a build. See `https://guides.cocoapods.org/syntax/podspec.html#script_phases` for more information.
-
-[!] ExpoFileSystem has added 2 script phases. Please inspect before executing a build. See `https://guides.cocoapods.org/syntax/podspec.html#script_phases` for more information.
-
-[!] ExpoFont has added 2 script phases. Please inspect before executing a build. See `https://guides.cocoapods.org/syntax/podspec.html#script_phases` for more information.
-
-[!] ExpoImage has added 2 script phases. Please inspect before executing a build. See `https://guides.cocoapods.org/syntax/podspec.html#script_phases` for more information.
-
-[!] ExpoImageManipulator has added 2 script phases. Please inspect before executing a build. See `https://guides.cocoapods.org/syntax/podspec.html#script_phases` for more information.
-
-[!] ExpoMediaLibrary has added 2 script phases. Please inspect before executing a build. See `https://guides.cocoapods.org/syntax/podspec.html#script_phases` for more information.
-
-[!] ExpoModulesCore has added 2 script phases. Please inspect before executing a build. See `https://guides.cocoapods.org/syntax/podspec.html#script_phases` for more information.
-
-[!] ExpoModulesWorklets has added 2 script phases. Please inspect before executing a build. See `https://guides.cocoapods.org/syntax/podspec.html#script_phases` for more information.
-
-[!] ExpoVideo has added 2 script phases. Please inspect before executing a build. See `https://guides.cocoapods.org/syntax/podspec.html#script_phases` for more information.
-
-[!] LibSignalClient has added 2 script phases. Please inspect before executing a build. See `https://guides.cocoapods.org/syntax/podspec.html#script_phases` for more information.
-
-[!] React-Core-prebuilt has added 1 script phase. Please inspect before executing a build. See `https://guides.cocoapods.org/syntax/podspec.html#script_phases` for more information.
-
-[!] ReactNativeDependencies has added 1 script phase. Please inspect before executing a build. See `https://guides.cocoapods.org/syntax/podspec.html#script_phases` for more information.
-
-[!] hermes-engine has added 1 script phase. Please inspect before executing a build. See `https://guides.cocoapods.org/syntax/podspec.html#script_phases` for more information.
 
 ...[cut]...
 Using Expo modules
@@ -533,16 +434,16 @@ Framework build type is static framework
 [ReactNativeDependencies] Cache miss: downloading reactnative-dependencies-0.86.3-debug.tar.gz from https://repo1.maven.org/maven2/com/facebook/react/react-native-artifacts/0.86.3/react-native-artifacts-0.86.3-reactnative-dependencies-debug.tar.gz
   % Total    % Received % Xferd  Average Speed  Time    Time    Time   Current
                                  Dload  Upload  Total   Spent   Left   Speed
-  0      0   0      0   0      0      0      0                              0100    167   0    167   0      0    766      0                              0100    167   0    167   0      0    762      0                              0
-  0      0   0      0   0      0      0      0                              0100 17.87M 100 17.87M   0      0 17.53M      0   00:01   00:01              0100 17.87M 100 17.87M   0      0 17.52M      0   00:01   00:01              0100 17.87M 100 17.87M   0      0 17.52M      0   00:01   00:01              0
+  0      0   0      0   0      0      0      0                              0100    167   0    167   0      0   3402      0                              0100    167   0    167   0      0   3392      0                              0
+  0      0   0      0   0      0      0      0                              0100 17.87M 100 17.87M   0      0 54.92M      0                              0100 17.87M 100 17.87M   0      0 54.88M      0                              0100 17.87M 100 17.87M   0      0 54.85M      0                              0
 [ReactNativeDependencies] Verifying checksum for downloaded reactnative-dependencies-0.86.3-debug.tar.gz...
 [Cache] SHA1 verified for reactnative-dependencies-0.86.3-debug.tar.gz
 [ReactNativeDependencies] Saved reactnative-dependencies-0.86.3-debug.tar.gz to shared cache (/Users/runner/Library/Caches/ReactNative)
 [ReactNativeDependencies] Cache miss: downloading reactnative-dependencies-0.86.3-release.tar.gz from https://repo1.maven.org/maven2/com/facebook/react/react-native-artifacts/0.86.3/react-native-artifacts-0.86.3-reactnative-dependencies-release.tar.gz
   % Total    % Received % Xferd  Average Speed  Time    Time    Time   Current
                                  Dload  Upload  Total   Spent   Left   Speed
-  0      0   0      0   0      0      0      0                              0100    167   0    167   0      0   1268      0                              0100    167   0    167   0      0   1266      0                              0
-  0      0   0      0   0      0      0      0                              0100  9.93M 100  9.93M   0      0 27.70M      0                              0100  9.93M 100  9.93M   0      0 27.67M      0                              0100  9.93M 100  9.93M   0      0 27.66M      0                              0
+  0      0   0      0   0      0      0      0                              0100    167   0    167   0      0   2857      0                              0100    167   0    167   0      0   2849      0                              0
+  0      0   0      0   0      0      0      0                              0100  9.93M 100  9.93M   0      0 16.52M      0                              0100  9.93M 100  9.93M   0      0 16.51M      0                              0100  9.93M 100  9.93M   0      0 16.51M      0                              0
 [ReactNativeDependencies] Verifying checksum for downloaded reactnative-dependencies-0.86.3-release.tar.gz...
 [Cache] SHA1 verified for reactnative-dependencies-0.86.3-release.tar.gz
 [ReactNativeDependencies] Saved reactnative-dependencies-0.86.3-release.tar.gz to shared cache (/Users/runner/Library/Caches/ReactNative)
@@ -666,16 +567,16 @@ Fetching podspec for `React-Core-prebuilt` from `../node_modules/react-native/Re
 [ReactNativeCore] Cache miss: downloading reactnative-core-0.86.3-debug.tar.gz from https://repo1.maven.org/maven2/com/facebook/react/react-native-artifacts/0.86.3/react-native-artifacts-0.86.3-reactnative-core-debug.tar.gz
   % Total    % Received % Xferd  Average Speed  Time    Time    Time   Current
                                  Dload  Upload  Total   Spent   Left   Speed
-  0      0   0      0   0      0      0      0                              0100    167   0    167   0      0   2997      0                              0100    167   0    167   0      0   2984      0                              0
-  0      0   0      0   0      0      0      0                              0 70 94.20M  70 66.71M   0      0 61.37M      0   00:01   00:01         66.74M100 94.20M 100 94.20M   0      0 55.58M      0   00:01   00:01         66.74M100 94.20M 100 94.20M   0      0 55.52M      0   00:01   00:01         66.74M100 94.20M 100 94.20M   0      0 55.51M      0   00:01   00:01         66.74M
+  0      0   0      0   0      0      0      0                              0100    167   0    167   0      0   3380      0                              0100    167   0    167   0      0   3357      0                              0
+  0      0   0      0   0      0      0      0                              0 31 94.20M  31 29.85M   0      0 26.02M      0   00:03   00:01   00:02 28.09M 79 94.20M  79 75.11M   0      0 34.92M      0   00:02   00:02         36.35M100 94.20M 100 94.20M   0      0 35.15M      0   00:02   00:02         36.35M100 94.20M 100 94.20M   0      0 35.15M      0   00:02   00:02         36.35M100 94.20M 100 94.20M   0      0 35.14M      0   00:02   00:02         36.35M
 [ReactNativeCore] Verifying checksum for downloaded reactnative-core-0.86.3-debug.tar.gz...
 [Cache] SHA1 verified for reactnative-core-0.86.3-debug.tar.gz
 [ReactNativeCore] Saved reactnative-core-0.86.3-debug.tar.gz to shared cache (/Users/runner/Library/Caches/ReactNative)
 [ReactNativeCore] Cache miss: downloading reactnative-core-0.86.3-release.tar.gz from https://repo1.maven.org/maven2/com/facebook/react/react-native-artifacts/0.86.3/react-native-artifacts-0.86.3-reactnative-core-release.tar.gz
   % Total    % Received % Xferd  Average Speed  Time    Time    Time   Current
                                  Dload  Upload  Total   Spent   Left   Speed
-  0      0   0      0   0      0      0      0                              0100    167   0    167   0      0   2874      0                              0100    167   0    167   0      0   2868      0                              0
-  0      0   0      0   0      0      0      0                              0100 29.56M 100 29.56M   0      0 35.17M      0                              0100 29.56M 100 29.56M   0      0 35.16M      0                              0100 29.56M 100 29.56M   0      0 35.14M      0                              0
+  0      0   0      0   0      0      0      0                              0100    167   0    167   0      0   3359      0                              0100    167   0    167   0      0   3342      0                              0
+  0      0   0      0   0      0      0      0                              0100 29.56M 100 29.56M   0      0 48.27M      0                              0100 29.56M 100 29.56M   0      0 48.25M      0                              0100 29.56M 100 29.56M   0      0 48.24M      0                              0
 [ReactNativeCore] Verifying checksum for downloaded reactnative-core-0.86.3-release.tar.gz...
 [Cache] SHA1 verified for reactnative-core-0.86.3-release.tar.gz
 [ReactNativeCore] Saved reactnative-core-0.86.3-release.tar.gz to shared cache (/Users/runner/Library/Caches/ReactNative)
@@ -691,16 +592,16 @@ Fetching podspec for `hermes-engine` from `../node_modules/react-native/sdks/her
 [Hermes] Cache miss: downloading hermes-ios-250829098.0.17-debug.tar.gz from https://repo1.maven.org/maven2/com/facebook/hermes/hermes-ios/250829098.0.17/hermes-ios-250829098.0.17-hermes-ios-debug.tar.gz
   % Total    % Received % Xferd  Average Speed  Time    Time    Time   Current
                                  Dload  Upload  Total   Spent   Left   Speed
-  0      0   0      0   0      0      0      0                              0100    167   0    167   0      0   2923      0                              0100    167   0    167   0      0   2913      0                              0
-  0      0   0      0   0      0      0      0                              0100 31.23M 100 31.23M   0      0 43.29M      0                              0100 31.23M 100 31.23M   0      0 43.27M      0                              0100 31.23M 100 31.23M   0      0 43.26M      0                              0
+  0      0   0      0   0      0      0      0                              0100    167   0    167   0      0   3365      0                              0100    167   0    167   0      0   3349      0                              0
+  0      0   0      0   0      0      0      0                              0100 31.23M 100 31.23M   0      0 54.54M      0                              0100 31.23M 100 31.23M   0      0 54.53M      0                              0100 31.23M 100 31.23M   0      0 54.50M      0                              0
 [Hermes] Verifying checksum for downloaded hermes-ios-250829098.0.17-debug.tar.gz...
 [Hermes] SHA1 verified for hermes-ios-250829098.0.17-debug.tar.gz
 [Hermes] Saved hermes-ios-250829098.0.17-debug.tar.gz to shared cache (/Users/runner/Library/Caches/ReactNative)
 [Hermes] Cache miss: downloading hermes-ios-250829098.0.17-release.tar.gz from https://repo1.maven.org/maven2/com/facebook/hermes/hermes-ios/250829098.0.17/hermes-ios-250829098.0.17-hermes-ios-release.tar.gz
   % Total    % Received % Xferd  Average Speed  Time    Time    Time   Current
                                  Dload  Upload  Total   Spent   Left   Speed
-  0      0   0      0   0      0      0      0                              0100    167   0    167   0      0   2580      0                              0100    167   0    167   0      0   2569      0                              0
-  0      0   0      0   0      0      0      0                              0100 24.35M 100 24.35M   0      0 49.87M      0                              0100 24.35M 100 24.35M   0      0 49.85M      0                              0100 24.35M 100 24.35M   0      0 49.83M      0                              0
+  0      0   0      0   0      0      0      0                              0100    167   0    167   0      0   2850      0                              0100    167   0    167   0      0   2836      0                              0
+  0      0   0      0   0      0      0      0                              0100 24.35M 100 24.35M   0      0 34.17M      0                              0100 24.35M 100 24.35M   0      0 34.17M      0                              0100 24.35M 100 24.35M   0      0 34.17M      0                              0
 [Hermes] Verifying checksum for downloaded hermes-ios-250829098.0.17-release.tar.gz...
 [Hermes] SHA1 verified for hermes-ios-250829098.0.17-release.tar.gz
 [Hermes] Saved hermes-ios-250829098.0.17-release.tar.gz to shared cache (/Users/runner/Library/Caches/ReactNative)
@@ -843,102 +744,3 @@ Installing ReactNativeIncallManager (4.3.0)
 Installing UMAppLoader (57.0.2)
 Installing Yoga (0.0.0)
 Installing hermes-engine (250829098.0.17)
-Installing livekit-react-native-webrtc (150.1.0)
-Installing lottie-ios (4.6.0)
-Installing lottie-react-native (7.3.8)
-Installing react-native-keyboard-controller (1.21.9)
-Installing react-native-netinfo (12.0.1)
-Installing react-native-safe-area-context (5.7.0)
-[Expo] Ensuring required slices in ExpoModulesJSI.xcframework
-[Expo] Staged 6/6 shared SPM xcframework(s) (debug)
-[Expo] Disabling USE_FRAMEWORKS for 90 pods (ExpoModulesCore, ExpoModulesJSI, Expo, ReactAppDependencyProvider, expo-dev-menu, ExpoCamera, ExpoCameraBarcodeScanning, ExpoFileSystem, ExpoFont, ExpoImage, ExpoImageManipulator, ExpoLogBox, ExpoMediaLibrary, ExpoModulesWorklets, ExpoVideo, LiquidGlassmorphism, LiveKitWebRTC, RCTTypeSafety, RNCAsyncStorage, RNCMaskedView, RNGestureHandler, RNReanimated, RNSVG, RNScreens, RNWorklets, React, React-Core, React-Core-prebuilt, React-CoreModules, React-Fabric, React-FabricComponents, React-FabricImage, React-ImageManager, React-Mapbuffer, React-NativeModulesApple, React-RCTActionSheet, React-RCTAnimation, React-RCTAppDelegate, React-RCTBlob, React-RCTFBReactNativeSpec, React-RCTFabric, React-RCTImage, React-RCTLinking, React-RCTNetwork, React-RCTRuntime, React-RCTSettings, React-RCTText, React-RCTVibration, React-RuntimeApple, React-RuntimeCore, React-RuntimeHermes, React-cxxreact, React-defaultsnativemodule, React-domnativemodule, React-featureflags, React-featureflagsnativemodule, React-graphics, React-hermes, React-idlecallbacksnativemodule, React-intersectionobservernativemodule, React-jserrorhandler, React-jsi, React-jsiexecutor, React-jsinspector, React-jsinspectorcdp, React-jsinspectornetwork, React-jsinspectortracing, React-jsitooling, React-logger, React-microtasksnativemodule, React-mutationobservernativemodule, React-networking, React-perflogger, React-performancecdpmetrics, React-performancetimeline, React-rendererdebug, React-runtimeexecutor, React-runtimescheduler, React-utils, React-viewtransitionnativemodule, React-webperformancenativemodule, ReactCodegen, ReactCommon, ReactNativeDependencies, ReactNativeIncallManager, livekit-react-native-webrtc, lottie-react-native, react-native-keyboard-controller, react-native-netinfo, react-native-safe-area-context)
-[Expo] Disabling USE_FRAMEWORKS for modules ExpoModulesCore, ExpoModulesJSI, Expo, ReactAppDependencyProvider, expo-dev-menu
-Generating Pods project
-Setting USE_HERMES build settings
-Setting REACT_NATIVE_PATH build settings
-Setting SWIFT_ACTIVE_COMPILATION_CONDITIONS build settings
-[Ccache]: Removing Ccache from CC, LD, CXX & LDPLUSPLUS build settings
-Setting SWIFT_ENABLE_EXPLICIT_MODULES build settings
-[ReactNativeCore] Processing VFS overlay file...
-[ReactNativeCore]   Created VFS overlay at /Users/runner/work/linea-build/linea-build/mobile/ios/Pods/React-Core-prebuilt/React-VFS.yaml
-[ReactNativeCore] VFS overlay setup complete
-[ReactNativeCore] Configuring xcconfig for prebuilt React Native Core...
-[ReactNativeCore] Prebuilt xcconfig configuration complete
-[SPM] Cleaning old SPM dependencies from Pods project
-[SPM] Adding SPM dependencies to Pods project
-[Privacy Manifest Aggregation] No existing PrivacyInfo.xcprivacy file found, creating a new one.
-[Privacy Manifest Aggregation] Reading .xcprivacy files to aggregate all used Required Reason APIs.
-file_root: INVIZENT
-Setting CLANG_CXX_LANGUAGE_STANDARD to c++20 on /Users/runner/work/linea-build/linea-build/mobile/ios/INVIZENT.xcodeproj
-
-==================== DEPRECATION NOTICE =====================
-Calling `pod install` directly is deprecated in React Native
-because we are moving away from Cocoapods toward alternative
-solutions to build the project.
-* If you are using Expo, please run:
-`npx expo run:ios`
-* If you are using the Community CLI, please run:
-`yarn ios`
-=============================================================
-
-Pod install took 244 [s] to run
-Integrating client project
-
-[!] Please close any current Xcode sessions and use `INVIZENT.xcworkspace` for this project from now on.
-[Expo] Installing the build script for target INVIZENT
-Pod installation complete! There are 142 dependencies from the Podfile and 143 total pods installed.
-[Expo-precompiled] Precompiled modules:
-[Expo-precompiled]   📦 ExpoCamera (57.0.6)
-[Expo-precompiled]   📦 ExpoCameraBarcodeScanning (57.0.6)
-[Expo-precompiled]       ∟ ZXingObjC.xcframework (3.6.9)
-[Expo-precompiled]   📦 ExpoFileSystem (57.0.7)
-[Expo-precompiled]   📦 ExpoFont (57.0.4)
-[Expo-precompiled]   📦 ExpoImage (57.0.5)
-[Expo-precompiled]       ∟ SDWebImage.xcframework (5.21.6)
-[Expo-precompiled]       ∟ SDWebImageAVIFCoder.xcframework (0.12.0)
-[Expo-precompiled]       ∟ SDWebImageSVGCoder.xcframework (1.8.0)
-[Expo-precompiled]       ∟ SDWebImageWebPCoder.xcframework (0.15.0)
-[Expo-precompiled]       ∟ libavif.xcframework (1.0.0)
-[Expo-precompiled]   📦 ExpoImageManipulator (57.0.21)
-[Expo-precompiled]       ∟ SDWebImage.xcframework (5.21.1)
-[Expo-precompiled]       ∟ SDWebImageWebPCoder.xcframework (0.14.6)
-[Expo-precompiled]   📦 ExpoMediaLibrary (57.0.5)
-[Expo-precompiled]   📦 ExpoModulesCore (57.0.24)
-[Expo-precompiled]   📦 ExpoModulesWorklets (57.0.24)
-[Expo-precompiled]   📦 ExpoVideo (57.0.5)
-[Expo] Disabling SWIFT_EMIT_MODULE_INTERFACE for pod targets (prebuilt React compatibility)
-[Expo] Created non-framework React modulemap for use_frameworks! compatibility
-[Expo-precompiled] Looking for ExpoModulesCore.xcframework at: /Users/runner/work/linea-build/linea-build/mobile/ios/Pods/ExpoModulesCore/ExpoModulesCore.xcframework
-[Expo-precompiled] Adding ExpoModulesJSI header search paths to all targets
-[Expo] Adding '[Expo] Remove duplicate codegen output' build phase to ReactCodegen
-[Expo] Raised deployment target for Expo modules matching ExpoModulesCore:
-  ExpoAlternateAppIcons (iOS=16.4)
-[Expo] Raised resource bundle deployment targets to match their pods: RNCAsyncStorage-RNCAsyncStorage_resources, RNSVG-RNSVGFilters, lottie-ios-LottiePrivacyInfo, lottie-react-native-Lottie_React_Native_Privacy
-
-[!] ExpoCamera has added 2 script phases. Please inspect before executing a build. See `https://guides.cocoapods.org/syntax/podspec.html#script_phases` for more information.
-
-[!] ExpoCameraBarcodeScanning has added 2 script phases. Please inspect before executing a build. See `https://guides.cocoapods.org/syntax/podspec.html#script_phases` for more information.
-
-[!] ExpoFileSystem has added 2 script phases. Please inspect before executing a build. See `https://guides.cocoapods.org/syntax/podspec.html#script_phases` for more information.
-
-[!] ExpoFont has added 2 script phases. Please inspect before executing a build. See `https://guides.cocoapods.org/syntax/podspec.html#script_phases` for more information.
-
-[!] ExpoImage has added 2 script phases. Please inspect before executing a build. See `https://guides.cocoapods.org/syntax/podspec.html#script_phases` for more information.
-
-[!] ExpoImageManipulator has added 2 script phases. Please inspect before executing a build. See `https://guides.cocoapods.org/syntax/podspec.html#script_phases` for more information.
-
-[!] ExpoMediaLibrary has added 2 script phases. Please inspect before executing a build. See `https://guides.cocoapods.org/syntax/podspec.html#script_phases` for more information.
-
-[!] ExpoModulesCore has added 2 script phases. Please inspect before executing a build. See `https://guides.cocoapods.org/syntax/podspec.html#script_phases` for more information.
-
-[!] ExpoModulesWorklets has added 2 script phases. Please inspect before executing a build. See `https://guides.cocoapods.org/syntax/podspec.html#script_phases` for more information.
-
-[!] ExpoVideo has added 2 script phases. Please inspect before executing a build. See `https://guides.cocoapods.org/syntax/podspec.html#script_phases` for more information.
-
-[!] LibSignalClient has added 2 script phases. Please inspect before executing a build. See `https://guides.cocoapods.org/syntax/podspec.html#script_phases` for more information.
-
-[!] React-Core-prebuilt has added 1 script phase. Please inspect before executing a build. See `https://guides.cocoapods.org/syntax/podspec.html#script_phases` for more information.
-
-[!] ReactNativeDependencies has added 1 script phase. Please inspect before executing a build. See `https://guides.cocoapods.org/syntax/podspec.html#script_phases` for more information.
-
-[!] hermes-engine has added 1 script phase. Please inspect before executing a build. See `https://guides.cocoapods.org/syntax/podspec.html#script_phases` for more information.
