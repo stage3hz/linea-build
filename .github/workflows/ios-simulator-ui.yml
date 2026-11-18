@@ -167,6 +167,9 @@ jobs:
               # The state of the Mac itself: two walks stopped publishing half-way with no final status, and without
               # the Actions page load, memory and disk at the last sign of life are the only clue.
               { uptime; df -h / "$RUNNER_TEMP" | tail -2; vm_stat | head -8; ps -Ao %cpu,%mem,rss,etime,comm -r | cut -c1-150 | head -16; echo; ps -Ao rss,comm -m | cut -c1-150 | head -8; sysctl vm.swapusage; ps -A | wc -l; } > host.txt 2>&1
+              # A push of full-size PNGs from the loaded Mac ended in HTTP 408 every time (seen in the job log).
+              find . -name '*.png' -exec sh -c 'sips -Z 1400 -s format jpeg -s formatOptions 80 "$1" --out "${1%.png}.jpg" >/dev/null 2>&1 && rm "$1"' _ {} \;
+              find . -name 'commands-*.json' -delete; find . -type f -size +3000k -delete
               git init -q -b part && git config user.name "linea-ci" && git config user.email "ci@localhost"
               git add -A && git commit -qm "Simulator shots so far ($1) for $GITHUB_SHA"
               limit 180 git push -qf "https://x-access-token:${{ github.token }}@github.com/${{ github.repository }}.git" "HEAD:sim-output-${{ matrix.runner }}" ) || true
@@ -237,6 +240,9 @@ jobs:
           rm -rf pub && cp -R shots pub
           echo "${{ job.status }} $GITHUB_SHA $(date -u) ${{ matrix.runner }}" > pub/STATUS.txt
           cd pub
+          find . -name '*.png' -exec sh -c 'sips -Z 1400 -s format jpeg -s formatOptions 80 "$1" --out "${1%.png}.jpg" >/dev/null 2>&1 && rm "$1"' _ {} \;
+          find . -name 'commands-*.json' -delete
+          find . -type f -size +3000k -exec sh -c 'tail -c 1500000 "$1" > "$1.tail" && rm "$1"' _ {} \;
           git init -q -b sim-output
           git config user.name "linea-ci"; git config user.email "ci@localhost"
           git add -A && git commit -qm "Simulator shots for $GITHUB_SHA"
