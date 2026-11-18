@@ -7,6 +7,8 @@ const fs = require('node:fs/promises');
 const { randomUUID } = require('node:crypto');
 const { createUpdater } = require('./update.cjs');
 const { notificationPayload, applyTrayBadge } = require('./notify.cjs');
+// The ringtone of an incoming call starts with no click in the window (it may be hidden in the tray).
+app.commandLine.appendSwitch('autoplay-policy', 'no-user-gesture-required');
 const { pathToFileURL } = require('node:url');
 protocol.registerSchemesAsPrivileged([{ scheme: 'invizent', privileges: { standard: true, secure: true, supportFetchAPI: true, stream: true } }, { scheme: 'invizent-cache', privileges: { standard: true, secure: true, supportFetchAPI: true, stream: true, corsEnabled: true } }]);
 let window, cacheRoot, picker = null, capture = null;
@@ -408,7 +410,9 @@ app.whenReady().then(async () => {
   // lights drawn by the page; on macOS the native lights stay, inset into the page.
   window = new BrowserWindow({ width: 1280, height: 850, minWidth: 850, minHeight: 600, title: 'Инвиз', backgroundColor: '#0B0F17',
     ...(process.platform === 'darwin' ? { titleBarStyle: 'hiddenInset', trafficLightPosition: { x: 12, y: 9 } } : { frame: false, thickFrame: true }),
-    webPreferences: { preload: path.join(__dirname,'preload.cjs'), nodeIntegration: false, contextIsolation: true, sandbox: true, webSecurity: true } });
+    // backgroundThrottling off: hidden in the tray the page must keep its timers (the call's minute, the connection's
+    // heartbeat) and ring for an incoming call; Chromium slows a hidden page's timers down to one a minute otherwise.
+    webPreferences: { preload: path.join(__dirname,'preload.cjs'), nodeIntegration: false, contextIsolation: true, sandbox: true, webSecurity: true, backgroundThrottling: false } });
   // No File/Edit/View/Window bar on Windows and Linux (copy, paste and undo still work in text fields).
   if (process.platform !== 'darwin') window.removeMenu();
   window.on('close', event => {

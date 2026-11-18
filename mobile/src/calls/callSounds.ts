@@ -1,5 +1,6 @@
 import { Platform } from 'react-native';
 import { createAudioPlayer, setAudioModeAsync, type AudioPlayer } from 'expo-audio';
+import { desktopBridge } from '../desktop';
 
 /**
  * Our own call sounds (made for Invizent, no third-party audio): «Пульс» while the other side
@@ -18,11 +19,13 @@ let generation = 0;
 
 export async function playCallSound(kind: keyof typeof SOURCES): Promise<void> {
   stopCallSound();
-  if (Platform.OS === 'web') return;
+  // In a browser tab nothing rings (a page may not start sound by itself). The PC app does: its window allows
+  // sound without a click (desktop/main.cjs), so a call rings there too — also with the window in the tray.
+  if (Platform.OS === 'web' && !desktopBridge()) return;
   const mine = generation;
   try {
     // The incoming ringtone follows the silent switch on iPhone (vibration still rings); ringback always plays.
-    await setAudioModeAsync({ playsInSilentMode: kind !== 'incoming', shouldPlayInBackground: true, interruptionMode: 'duckOthers' }).catch(() => {});
+    if (Platform.OS !== 'web') await setAudioModeAsync({ playsInSilentMode: kind !== 'incoming', shouldPlayInBackground: true, interruptionMode: 'duckOthers' }).catch(() => {});
     // The call may have been answered or ended while the audio mode was being set.
     if (mine !== generation) return;
     const next = createAudioPlayer(SOURCES[kind]);
