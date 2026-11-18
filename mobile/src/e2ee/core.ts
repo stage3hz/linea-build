@@ -641,8 +641,8 @@ export class CryptoService {
   /** Other device-only data (AI chat history) shares the same encrypted vault under fixed keys. */
   // Only the local vault is read or written: no device registration first (it needs the server), so
   // Избранное, AI history and the cached chat list open without a network, as in Telegram.
-  async loadLocal(name:'saved:v1'|'ai:v1'):Promise<string|null> {return this.exclusive(()=>this.vault.get(name));}
-  async storeLocal(name:'saved:v1'|'ai:v1',value:string):Promise<void> {return this.exclusive(()=>this.vault.commit({[name]:value}));}
+  async loadLocal(name:'saved:v1'|'ai:v1'|'drafts:v1'):Promise<string|null> {return this.exclusive(()=>this.vault.get(name));}
+  async storeLocal(name:'saved:v1'|'ai:v1'|'drafts:v1',value:string):Promise<void> {return this.exclusive(()=>this.vault.commit({[name]:value}));}
   /** The last shown chat list (`chats:v1`) and chat pages (`page:v1:<chat>`), see chatListCache.ts. Local only. */
   // A plain read of a cache entry, outside the queue: the queue's first job at start (initialize) waits for the server
   // while it publishes the keys, and the saved chat list stood behind it — the «instant» list waited for the network.

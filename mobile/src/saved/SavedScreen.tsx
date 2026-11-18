@@ -38,10 +38,19 @@ const SAVED_NOTES = 'saved';
 /** A round video with no text or origin is shown alone, without a bubble (Telegram). */
 const circleOnly = (item: { text?: string; origin?: unknown; attachment?: Parameters<typeof isVideoNote>[0] | null }) => !!item.attachment && isVideoNote(item.attachment) && !item.text && !item.origin;
 
+/** The key of «Избранное» among the drafts (chat ids are UUIDs, so it cannot clash). */
+const SAVED_DRAFT = 'saved';
+
 export function SavedScreen({ api, user, store, onBack, wide = false }: { api: Api; user: User; store: MessengerStore; onBack: () => void; wide?: boolean }) {
   const t = useTheme(); const saved = store.saved;
-  const [text, setText] = useState('');
-  const [editing, setEditing] = useState<SavedItem | null>(null);
+  // What is typed here waits like a chat's draft (the same store, the encrypted vault): leaving «Избранное» or
+  // restarting the app used to erase it.
+  const [text, setTextState] = useState(() => store.drafts[SAVED_DRAFT] || '');
+  const editingNow = useRef(false);
+  const setText = (value: string) => { setTextState(value); if (!editingNow.current || !value) store.setDraft(SAVED_DRAFT, value); };
+  const draftSeen = useRef(!!store.drafts[SAVED_DRAFT]);
+  useEffect(() => { const saved = store.drafts[SAVED_DRAFT]; if (!draftSeen.current && saved) { draftSeen.current = true; setTextState(current => current || saved); } }, [store.drafts]);
+  const [editing, setEditing] = useState<SavedItem | null>(null); editingNow.current = !!editing;
   const [actions, setActions] = useState<SavedItem | null>(null); const [at, setAt] = useState<{ x?: number; y: number }>({ y: 300 });
   const [forwarding, setForwarding] = useState<SavedItem | null>(null);
   const [preview, setPreview] = useState<Attachment | null>(null);

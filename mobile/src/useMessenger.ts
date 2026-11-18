@@ -736,6 +736,22 @@ export function useMessenger(api: Api, user: User, onExpired: ()=>void) {
     if(socketRef.current?.readyState===WebSocket.OPEN)socketRef.current.send(JSON.stringify({type:'typing',chatId,isTyping}));
   },[]);
   const setDraft=useCallback((chatId:string,text:string)=>setDrafts(prev=>({...prev,[chatId]:text})),[]);
+  // Unsent text survives leaving the chat and restarting the app (Telegram's drafts): it is kept in the encrypted
+  // vault next to the messages (SQLCipher, the key in the Keychain / Keystore), never in plain storage, and is
+  // written a moment after typing stops. What is typed before the saved drafts have loaded wins over them.
+  const draftsLoaded=useRef(false);
+  useEffect(()=>{let live=true;draftsLoaded.current=false;
+    cryptoRuntime.get().then(service=>service.loadLocal('drafts:v1')).then(raw=>{
+      if(!live)return;draftsLoaded.current=true;if(!raw)return;
+      try{const saved=JSON.parse(raw);if(!saved||typeof saved!=='object')return;
+        const kept:Record<string,string>={};for(const [key,value] of Object.entries(saved))if(typeof value==='string'&&value&&key.length<=80)kept[key]=value.slice(0,8000);
+        setDrafts(prev=>({...kept,...prev}));}catch{/* a damaged entry is ignored */}
+    }).catch(()=>{if(live)draftsLoaded.current=true;});
+    return()=>{live=false;};},[cryptoRuntime]);
+  useEffect(()=>{if(!draftsLoaded.current)return undefined;
+    const timer=setTimeout(()=>{const kept=Object.fromEntries(Object.entries(drafts).filter(([,value])=>!!value&&!!value.trim()).slice(-200));
+      void cryptoRuntime.get().then(service=>service.storeLocal('drafts:v1',JSON.stringify(kept))).catch(()=>{});},700);
+    return()=>clearTimeout(timer);},[drafts,cryptoRuntime]);
   const setDraftFiles=useCallback((chatId:string,attachments:Attachment[])=>{
     const next={...draftFilesRef.current,[chatId]:appendAttachments([],attachments)};
     draftFilesRef.current=next;updateDraftFiles(next);
