@@ -161,6 +161,55 @@ private func msgAttrSize(_ text: NSAttributedString, _ width: CGFloat, _ maxHeig
   return CGSize(width: ceil(box.width), height: ceil(min(box.height, maxHeight)))
 }
 
+/// A laid out text: its size, the place of a range, and the drawing — one layout for measuring, drawing and taps.
+final class MsgText {
+  private let storage: NSTextStorage
+  private let manager = NSLayoutManager()
+  private let container: NSTextContainer
+
+  init(_ text: NSAttributedString, width: CGFloat) {
+    storage = NSTextStorage(attributedString: text)
+    container = NSTextContainer(size: CGSize(width: max(1, width), height: CGFloat.greatestFiniteMagnitude))
+    container.lineFragmentPadding = 0
+    manager.addTextContainer(container)
+    storage.addLayoutManager(manager)
+    manager.ensureLayout(for: container)
+  }
+
+  var size: CGSize {
+    let used = manager.usedRect(for: container)
+    return CGSize(width: ceil(used.maxX), height: ceil(used.height))
+  }
+
+  func rect(_ range: NSRange) -> CGRect {
+    manager.boundingRect(forGlyphRange: manager.glyphRange(forCharacterRange: range, actualCharacterRange: nil), in: container)
+  }
+
+  /// The character under a point, or nil when the point is not on a glyph.
+  func index(at point: CGPoint) -> Int? {
+    let glyph = manager.glyphIndex(for: point, in: container)
+    let box = manager.boundingRect(forGlyphRange: NSRange(location: glyph, length: 1), in: container)
+    return box.insetBy(dx: -4, dy: -4).contains(point) ? manager.characterIndexForGlyph(at: glyph) : nil
+  }
+
+  func draw(at origin: CGPoint) {
+    let all = manager.glyphRange(for: container)
+    manager.drawBackground(forGlyphRange: all, at: origin)
+    manager.drawGlyphs(forGlyphRange: all, at: origin)
+  }
+}
+
+/// A paragraph style of a quote or a code block: the text stands in from the block's edge.
+private func msgBlockStyle(_ inset: CGFloat) -> NSParagraphStyle {
+  let style = NSMutableParagraphStyle()
+  style.lineBreakMode = .byWordWrapping
+  style.lineSpacing = 2
+  style.firstLineHeadIndent = inset
+  style.headIndent = inset
+  style.tailIndent = -8
+  return style
+}
+
 /// The text of a bubble with its formatting. Flags: 1 bold, 2 italic, 4 underline, 8 strike, 16 monospace,
 /// 32 spoiler (a block until tapped), 64 link, 128 quote, 256 code block.
 func msgBody(_ row: MsgRow, fontSize: CGFloat, text: UIColor, link: UIColor, quote: UIColor, revealed: Bool) -> NSAttributedString {
@@ -184,8 +233,10 @@ func msgBody(_ row: MsgRow, fontSize: CGFloat, text: UIColor, link: UIColor, quo
     result.addAttribute(.font, value: font, range: range)
     if flags & (4 | 64) != 0 { result.addAttribute(.underlineStyle, value: NSUnderlineStyle.single.rawValue, range: range) }
     if flags & 8 != 0 { result.addAttribute(.strikethroughStyle, value: NSUnderlineStyle.single.rawValue, range: range) }
-    if mono { result.addAttribute(.backgroundColor, value: text.withAlphaComponent(0.10), range: range) }
-    if flags & 128 != 0 { result.addAttribute(.backgroundColor, value: quote, range: range) }
+    if mono && flags & 256 == 0 { result.addAttribute(.backgroundColor, value: text.withAlphaComponent(0.10), range: range) }
+    // A quote and a code block are plates drawn under the text (MsgRowCanvas); here only their indents.
+    if flags & 128 != 0 { result.addAttribute(.paragraphStyle, value: msgBlockStyle(11), range: range) }
+    if flags & 256 != 0 { result.addAttribute(.paragraphStyle, value: msgBlockStyle(8), range: range) }
     if flags & 64 != 0 { result.addAttribute(.foregroundColor, value: link, range: range) }
     if flags & 32 != 0 {
       if revealed {
@@ -221,7 +272,7 @@ struct MsgLayout {
     let inner = width * 0.78 - 26
     let body = UIFont.systemFont(ofSize: fontSize)
     layout.textSize = row.fmt.isEmpty ? msgSize(row.text, body, inner, 20000)
-      : msgAttrSize(msgBody(row, fontSize: fontSize, text: .black, link: .black, quote: .clear, revealed: true), inner, 20000)
+      : MsgText(msgBody(row, fontSize: fontSize, text: .black, link: .black, quote: .clear, revealed: true), width: inner).size
     if !row.quoteText.isEmpty || !row.quoteAuthor.isEmpty { layout.quoteSize = msgSize(row.quoteText.isEmpty ? " " : row.quoteText, msgSmallFont, inner - 12, 36) }
     layout.labelSize = msgSize(row.label, msgSmallFont, inner, 36)
     layout.reactSize = row.chips.isEmpty ? msgSize(row.reactions, msgSmallFont, inner, 40) : msgChips(row, width: inner).size
@@ -272,17 +323,8 @@ final class MsgRowCanvas: UIView {
   /// A link or a still hidden spoiler under a point of this view.
   func run(at point: CGPoint) -> (flags: Int, url: String, shown: String)? {
     guard let item = row, !item.fmt.isEmpty, bodyBox.contains(point) else { return nil }
-    let storage = NSTextStorage(attributedString: msgBody(item, fontSize: fontSize, text: .black, link: .black, quote: .clear, revealed: true))
-    let manager = NSLayoutManager()
-    let container = NSTextContainer(size: CGSize(width: bodyBox.width, height: CGFloat.greatestFiniteMagnitude))
-    container.lineFragmentPadding = 0
-    manager.addTextContainer(container)
-    storage.addLayoutManager(manager)
-    let local = CGPoint(x: point.x - bodyBox.minX, y: point.y - bodyBox.minY)
-    let glyph = manager.glyphIndex(for: local, in: container)
-    let glyphBox = manager.boundingRect(forGlyphRange: NSRange(location: glyph, length: 1), in: container)
-    if !glyphBox.insetBy(dx: -4, dy: -4).contains(local) { return nil }
-    let index = manager.characterIndexForGlyph(at: glyph)
+    let laid = MsgText(msgBody(item, fontSize: fontSize, text: .black, link: .black, quote: .clear, revealed: true), width: bodyBox.width)
+    guard let index = laid.index(at: CGPoint(x: point.x - bodyBox.minX, y: point.y - bodyBox.minY)) else { return nil }
     let total = (item.text as NSString).length
     var link = 0
     var i = 0
@@ -408,8 +450,26 @@ final class MsgRowCanvas: UIView {
       if item.fmt.isEmpty {
         draw(item.text, UIFont.systemFont(ofSize: fontSize), palette.text, bodyBox, lines: true)
       } else {
-        msgBody(item, fontSize: fontSize, text: palette.text, link: markColor, quote: palette.quote, revealed: revealed)
-          .draw(with: bodyBox, options: [.usesLineFragmentOrigin, .truncatesLastVisibleLine], context: nil)
+        let laid = MsgText(msgBody(item, fontSize: fontSize, text: palette.text, link: markColor, quote: palette.quote, revealed: revealed), width: inner)
+        // The plates of quotes (with the accent bar, as in the React list) and of code blocks, under the text.
+        let total = (item.text as NSString).length
+        var i = 0
+        while i + 2 < item.fmt.count {
+          let flags = item.fmt[i], start = item.fmt[i + 1], length = item.fmt[i + 2]
+          i += 3
+          if flags & (128 | 256) == 0 || start < 0 || length <= 0 || start + length > total { continue }
+          let lines = laid.rect(NSRange(location: start, length: length))
+          let plate = CGRect(x: x, y: y + lines.minY - 2, width: inner, height: lines.height + 4)
+          context.setFillColor((flags & 128 != 0 ? palette.quote : palette.text.withAlphaComponent(0.10)).cgColor)
+          context.addPath(UIBezierPath(roundedRect: plate, cornerRadius: 7).cgPath)
+          context.fillPath()
+          if flags & 128 != 0 {
+            context.setFillColor(markColor.cgColor)
+            context.addPath(UIBezierPath(roundedRect: CGRect(x: plate.minX, y: plate.minY, width: 3, height: plate.height), cornerRadius: 1.5).cgPath)
+            context.fillPath()
+          }
+        }
+        laid.draw(at: CGPoint(x: x, y: y))
       }
       y += layoutInfo.textSize.height
     }

@@ -17,6 +17,8 @@ import android.text.Spanned
 import android.text.style.AbsoluteSizeSpan
 import android.text.style.BackgroundColorSpan
 import android.text.style.ForegroundColorSpan
+import android.text.style.LeadingMarginSpan
+import android.text.style.LineBackgroundSpan
 import android.text.style.StrikethroughSpan
 import android.text.style.StyleSpan
 import android.text.style.TypefaceSpan
@@ -127,8 +129,10 @@ class MsgRowView(context: Context) : View(context) {
       if (bold || italic) put(StyleSpan(if (bold && italic) Typeface.BOLD_ITALIC else if (bold) Typeface.BOLD else Typeface.ITALIC))
       if (flags and (4 or 64) != 0) put(UnderlineSpan())
       if (flags and 8 != 0) put(StrikethroughSpan())
-      if (flags and 16 != 0) { put(TypefaceSpan("monospace")); put(AbsoluteSizeSpan(((fontSize - 1f).coerceAtLeast(10f) * d).toInt())); put(BackgroundColorSpan(alpha(palette.text, 0x1A))) }
-      if (flags and 128 != 0) put(BackgroundColorSpan(palette.quote))
+      if (flags and 16 != 0) { put(TypefaceSpan("monospace")); put(AbsoluteSizeSpan(((fontSize - 1f).coerceAtLeast(10f) * d).toInt())); if (flags and 256 == 0) put(BackgroundColorSpan(alpha(palette.text, 0x1A))) }
+      // A quote (with the accent bar, as in the React list) and a code block are plates under their lines.
+      if (flags and 128 != 0) { put(LeadingMarginSpan.Standard((11f * d).toInt())); put(Plate(palette.quote, linkColor, 3f * d)) }
+      if (flags and 256 != 0) { put(LeadingMarginSpan.Standard((8f * d).toInt())); put(Plate(alpha(palette.text, 0x1A), 0, 0f)) }
       if (flags and 64 != 0) put(ForegroundColorSpan(linkColor))
       if (flags and 32 != 0) {
         if (revealed) put(BackgroundColorSpan(alpha(palette.text, 0x12)))
@@ -136,6 +140,17 @@ class MsgRowView(context: Context) : View(context) {
       }
     }
     return out
+  }
+
+  /** The plate of a quote or a code block: every line of it gets the fill, a quote also the bar on the left. */
+  private class Plate(val color: Int, val bar: Int, val barWidth: Float) : LineBackgroundSpan {
+    override fun drawBackground(canvas: Canvas, paint: Paint, left: Int, right: Int, top: Int, baseline: Int, bottom: Int, text: CharSequence, start: Int, end: Int, lineNumber: Int) {
+      val was = paint.color; val style = paint.style
+      paint.style = Paint.Style.FILL; paint.color = color
+      canvas.drawRect(left.toFloat(), top.toFloat(), right.toFloat(), bottom.toFloat(), paint)
+      if (barWidth > 0f) { paint.color = bar; canvas.drawRect(left.toFloat(), top.toFloat(), left + barWidth, bottom.toFloat(), paint) }
+      paint.color = was; paint.style = style
+    }
   }
 
   /** A link (address, linked text) or a still hidden spoiler ("" as the address) under a point of this view. */
