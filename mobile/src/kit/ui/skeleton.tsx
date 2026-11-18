@@ -613,7 +613,7 @@ export function SkeletonNav({
       ) : null}
 
       <View style={styles.navBody}>
-        {children ?? (rows > 0 ? <SkeletonList variant={variant} rows={rows} avatarShape="rounded" avatarSize={40} /> : null)}
+        {children ?? (rows > 0 ? <SkeletonList variant={variant} rows={rows} avatarShape="circle" avatarSize={40} /> : null)}
       </View>
 
       {tabs ? (

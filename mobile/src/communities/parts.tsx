@@ -12,7 +12,7 @@ const hash = (value: string) => { let h = 0; for (let i = 0; i < value.length; i
 
 /** Community picture: the uploaded image, or a cold gradient with initials (rounded square, as in Discord). */
 export function CommunityAvatar({ api, community, size = 48 }: { api: Api; community: { id: string; name: string; avatarId: string | null; kind: CommunityKind }; size?: number }) {
-  const radius = size * 0.32;
+  const radius = size / 2; // a circle everywhere (the owner's choice, 18 Nov 2026)
   if (community.avatarId) return <View style={{ width: size, height: size, borderRadius: radius, overflow: 'hidden' }}><AuthImage api={api} id={community.avatarId} style={{ width: size, height: size }} /></View>;
   const colors = PALETTE[hash(community.id) % PALETTE.length];
   const initials = community.name.trim().split(/\s+/).slice(0, 2).map(word => word[0] || '').join('').toUpperCase() || '#';

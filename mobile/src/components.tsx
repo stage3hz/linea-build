@@ -140,7 +140,7 @@ function avatarTextColor(color:string) {
 }
 export function Avatar({user,api,size=54,round=false}:{user:User;api:Api;size?:number;round?:boolean}) {
   // `round`: a circle under an avatar decoration (their openings are round, Discord-style).
-  const t=useTheme();const radius=round?size/2:size*.36;
+  const t=useTheme();const radius=size/2; // a circle everywhere (the owner's choice, 18 Nov 2026); `round` is kept for callers
   if(user.avatarId)return <View style={{width:size,height:size,borderRadius:radius,borderWidth:1,borderColor:t.glassBorder,overflow:'hidden'}}><AuthImage api={api} id={user.avatarId} style={{width:size,height:size,borderRadius:radius}}/></View>;
   // Whole characters (Array.from): word[0] cut an emoji in half and showed «А�».
   const initials=user.displayName.trim().split(/\s+/).slice(0,2).map(word=>Array.from(word)[0]||'').join('').toUpperCase();const color=user.avatarColor||'#4B73BB';

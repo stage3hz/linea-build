@@ -327,13 +327,13 @@ final class ChatRowCanvas: UIView {
     }
 
     let avatar: CGFloat = 60
-    // The app's avatar is a rounded square (radius 0.36 of the side), not a circle.
+    // The avatar is a circle (the owner's choice, 18 Nov 2026; it was a rounded square before).
     let avatarBox = CGRect(x: x, y: (h - avatar) / 2, width: avatar, height: avatar)
     let art = item.deco.isEmpty ? nil : ChatDecorStore.shared.art(item.deco)
     // As DecoratedAvatar does at list sizes: a ring is drawn inside the box (the photo shrinks a little); under an
     // art decoration the photo is a circle, and it shrinks so the art reaches at most 1.3× the box.
     var photoBox = avatarBox
-    var corner = avatar * 0.36
+    var corner = avatar * 0.5
     if art != nil {
       let side = item.decoScale > 1.3 ? avatar * 1.3 / item.decoScale : avatar
       photoBox = CGRect(x: avatarBox.midX - side / 2, y: avatarBox.midY - side / 2, width: side, height: side)
@@ -342,7 +342,7 @@ final class ChatRowCanvas: UIView {
       let ring: CGFloat = 3
       let gap: CGFloat = 2
       context.saveGState()
-      chatRound(avatarBox, avatar * 0.36).addClip()
+      chatRound(avatarBox, avatar * 0.5).addClip()
       let colors = item.ring.map { chatColor($0).cgColor } as CFArray
       if let gradient = CGGradient(colorsSpace: CGColorSpaceCreateDeviceRGB(), colors: colors, locations: nil) {
         context.drawLinearGradient(gradient, start: CGPoint(x: avatarBox.minX, y: avatarBox.minY), end: CGPoint(x: avatarBox.maxX, y: avatarBox.maxY), options: [])
@@ -350,10 +350,10 @@ final class ChatRowCanvas: UIView {
       context.restoreGState()
       let inside = avatarBox.insetBy(dx: ring, dy: ring)
       context.setFillColor(palette.bg.cgColor)
-      context.addPath(chatRound(inside, inside.width * 0.36).cgPath)
+      context.addPath(chatRound(inside, inside.width * 0.5).cgPath)
       context.fillPath()
       photoBox = avatarBox.insetBy(dx: ring + gap, dy: ring + gap)
-      corner = photoBox.width * 0.36
+      corner = photoBox.width * 0.5
     }
     let face = item.avatarUrl.isEmpty || item.avatarKey.isEmpty ? nil : ChatAvatarStore.shared.image(key: item.avatarKey, url: item.avatarUrl)
     if let face = face {

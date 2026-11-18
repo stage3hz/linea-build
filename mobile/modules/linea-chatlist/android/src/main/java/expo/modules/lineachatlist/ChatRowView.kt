@@ -149,22 +149,22 @@ class ChatRowView(context: Context) : View(context) {
     }
 
     val avatar = 60f * d
-    // The app's avatar is a rounded square (radius 0.36 of the side), not a circle.
+    // The avatar is a circle (the owner's choice, 18 Nov 2026; it was a rounded square before).
     val avatarTop = (h - avatar) / 2
     val art = if (item.deco.isEmpty()) null else DecorStore.art(context, item.deco)
     // As DecoratedAvatar does at list sizes: a ring is drawn inside the box (the photo shrinks a little); under an
     // art decoration the photo is a circle, and it shrinks so the art reaches at most 1.3× the box.
-    var photo = avatar; var photoX = x; var photoY = avatarTop; var corner = avatar * 0.36f
+    var photo = avatar; var photoX = x; var photoY = avatarTop; var corner = avatar * 0.5f
     if (art != null) {
       photo = if (item.decoScale > 1.3) avatar * 1.3f / item.decoScale.toFloat() else avatar
       photoX = x + (avatar - photo) / 2; photoY = avatarTop + (avatar - photo) / 2; corner = photo / 2
     } else if (item.ring.size >= 2) {
       val ring = 3f * d; val gap = 2f * d
       fill.shader = SweepGradient(x + avatar / 2, h / 2, item.ring.toIntArray(), null)
-      fill.color = 0xFFFFFFFF.toInt(); canvas.drawRoundRect(x, avatarTop, x + avatar, avatarTop + avatar, avatar * 0.36f, avatar * 0.36f, fill); fill.shader = null
+      fill.color = 0xFFFFFFFF.toInt(); canvas.drawRoundRect(x, avatarTop, x + avatar, avatarTop + avatar, avatar * 0.5f, avatar * 0.5f, fill); fill.shader = null
       val inside = avatar - 2 * ring
-      fill.color = palette.bg; canvas.drawRoundRect(x + ring, avatarTop + ring, x + ring + inside, avatarTop + ring + inside, inside * 0.36f, inside * 0.36f, fill)
-      photo = avatar - 2 * (ring + gap); photoX = x + ring + gap; photoY = avatarTop + ring + gap; corner = photo * 0.36f
+      fill.color = palette.bg; canvas.drawRoundRect(x + ring, avatarTop + ring, x + ring + inside, avatarTop + ring + inside, inside * 0.5f, inside * 0.5f, fill)
+      photo = avatar - 2 * (ring + gap); photoX = x + ring + gap; photoY = avatarTop + ring + gap; corner = photo * 0.5f
     }
     val face = if (item.avatarUrl.isNotEmpty() && item.avatarKey.isNotEmpty()) AvatarStore.get(context, item.avatarKey, item.avatarUrl, this) else null
     if (face != null) drawPicture(canvas, face, photoX, photoY, photo, corner, true)

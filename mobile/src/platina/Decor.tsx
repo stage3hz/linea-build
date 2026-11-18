@@ -107,7 +107,7 @@ export function DecoratedAvatar({ user, api, size = 54, animated = false, round 
   const face = decoration && size < 64 && decoration.scale > 1.3 ? Math.round(size * 1.3 / decoration.scale) : size;
   const inner = <View style={{ width: face, height: face }}>
     <Avatar user={user} api={api} size={face} round={round || !!decoration || !!coded} />
-    {video ? Platform.OS === 'web' ? <View pointerEvents="none" style={[StyleSheet.absoluteFill, { borderRadius: decoration || round ? face / 2 : face * .36, overflow: 'hidden' }]}><WebLoopVideo api={api} id={video} style={{ width: face, height: face }} /></View> : <VideoAvatar api={api} id={video} size={face} radius={decoration ? face / 2 : face * .36} /> : null}
+    {video ? Platform.OS === 'web' ? <View pointerEvents="none" style={[StyleSheet.absoluteFill, { borderRadius: decoration || round ? face / 2 : face / 2, overflow: 'hidden' }]}><WebLoopVideo api={api} id={video} style={{ width: face, height: face }} /></View> : <VideoAvatar api={api} id={video} size={face} radius={decoration ? face / 2 : face * .36} /> : null}
   </View>;
   // Frames drawn in code (neon, flame, stardust…): around a round avatar, outside its box like the art.
   if (coded) return <View style={{ width: size, height: size }}>{inner}<CodeFrame id={coded} size={size} live={live} /></View>;
@@ -123,8 +123,8 @@ export function DecoratedAvatar({ user, api, size = 54, animated = false, round 
   if (size < 64) {
     const photo = size - 2 * (ring + gap);
     return <View style={{ width: size, height: size, alignItems: 'center', justifyContent: 'center' }}>
-      <Spin size={size} radius={round ? size / 2 : size * .36} colors={frame.colors} still={!live} />
-      <View style={{ position: 'absolute', left: ring, top: ring, width: size - 2 * ring, height: size - 2 * ring, borderRadius: round ? size / 2 : (size - 2 * ring) * .36, backgroundColor: t.bg }} />
+      <Spin size={size} radius={round ? size / 2 : size / 2} colors={frame.colors} still={!live} />
+      <View style={{ position: 'absolute', left: ring, top: ring, width: size - 2 * ring, height: size - 2 * ring, borderRadius: round ? size / 2 : (size - 2 * ring) / 2, backgroundColor: t.bg }} />
       <Avatar user={user} api={api} size={photo} round={round} />
       {birthday ? <View pointerEvents="none" accessibilityLabel="День рождения" style={{ position: 'absolute', right: -2, bottom: -2, width: Math.max(16, size * .34), height: Math.max(16, size * .34), borderRadius: size, backgroundColor: t.bg, alignItems: 'center', justifyContent: 'center' }}><Text style={{ fontSize: Math.max(10, size * .22) }}>🎂</Text></View> : null}
     </View>;
@@ -132,8 +132,8 @@ export function DecoratedAvatar({ user, api, size = 54, animated = false, round 
   const outer = size + 2 * (ring + gap);
   // The frame grows outwards so lists keep their layout: negative margins cancel the extra size.
   return <View style={{ width: outer, height: outer, margin: -(ring + gap), alignItems: 'center', justifyContent: 'center' }}>
-    <Spin size={outer} radius={round ? outer / 2 : outer * .36} colors={frame.colors} still={!live} />
-    <View style={{ position: 'absolute', left: ring, top: ring, width: size + 2 * gap, height: size + 2 * gap, borderRadius: round ? (size + 2 * gap) / 2 : (size + 2 * gap) * .36, backgroundColor: t.bg }} />
+    <Spin size={outer} radius={round ? outer / 2 : outer / 2} colors={frame.colors} still={!live} />
+    <View style={{ position: 'absolute', left: ring, top: ring, width: size + 2 * gap, height: size + 2 * gap, borderRadius: round ? (size + 2 * gap) / 2 : (size + 2 * gap) / 2, backgroundColor: t.bg }} />
     {inner}
     {birthday ? <View pointerEvents="none" accessibilityLabel="День рождения" style={{ position: 'absolute', right: 0, bottom: 0, width: Math.max(16, size * .34), height: Math.max(16, size * .34), borderRadius: size, backgroundColor: t.bg, alignItems: 'center', justifyContent: 'center' }}><Text style={{ fontSize: Math.max(10, size * .22) }}>🎂</Text></View> : null}
   </View>;
