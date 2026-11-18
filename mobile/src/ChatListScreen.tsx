@@ -42,7 +42,7 @@ import { callListText } from './calls/callLog';
 import { countChats } from './plural';
 import type { MessengerStore } from './useMessenger';
 import type { SavedItem } from './saved/saved.ts';
-import { ContextMenu, MenuItem } from './ContextMenu';
+import { CLOSE_MS, ContextMenu, MenuItem } from './ContextMenu';
 import { StoriesStrip } from './stories/StoriesStrip';
 import { incomingCount, useFriendRequests } from './friendRequests';
 import { useChannelsBadge } from './communities/unread';
@@ -182,7 +182,9 @@ export function ChatListScreen({api,user,store,onProfile,onNewChat,onMusic,onAI,
   const change=(chat:Chat,update:Partial<{pinned:boolean;archived:boolean;muted:boolean}>)=>{setMenu(null);setMenuError('');lightFeedback();store.updateChatSettings(chat.id,update).catch(e=>setMenuError(e instanceof Error?e.message:'Не удалось изменить чат.'));};
   // Telegram «Выкл. звук»: a muted chat gets its sound back in one tap; otherwise the sheet asks for how long
   // (1 hour / 8 hours / 2 days / forever / custom). The server answers with the chat and tells every device over the socket.
-  const askMute=(list:Chat[])=>{if(!list.length)return;if(list.every(c=>isMuted(c.settings))){list.forEach(c=>change(c,{muted:false}));setEditing(null);return;}setMenu(null);setMuteAsk(list);};
+  const askMute=(list:Chat[])=>{if(!list.length)return;if(list.every(c=>isMuted(c.settings))){list.forEach(c=>change(c,{muted:false}));setEditing(null);return;}
+    // From the long-press menu the sheet waits until the menu is gone: opened in the same instant, the sheet was put on top of the menu's own window and went away with it, leaving an invisible window that took every touch on the list (seen on an iPhone).
+    if(menu){setMenu(null);setTimeout(()=>setMuteAsk(list),CLOSE_MS+110);}else setMuteAsk(list);};
   const mute=(list:Chat[],until:string|null)=>{setMuteAsk(null);setMenuError('');setEditing(null);lightFeedback();void Promise.all(list.map(chat=>api.chatSettings(chat.id,until===null?{muted:true}:{mutedUntil:until}))).then(()=>store.refreshChats()).catch(e=>setMenuError(e instanceof Error?e.message:'Не удалось изменить чат.'));};
   // The store reads up to the newest server message, not only the one the list shows (reactions and edits are hidden here).
   // «Прочитано» also takes the hand-made mark off.

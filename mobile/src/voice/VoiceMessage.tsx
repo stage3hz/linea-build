@@ -84,11 +84,20 @@ export function useVoiceRecorder(onLimit: () => void) {
   const busy = useRef(false);
   const pausedRef = useRef(false); pausedRef.current = paused;
 
+  // The level is asked from the recorder itself ten times a second while the take runs. It used to be taken
+  // from the status hook and only while its `isRecording` flag was up: reported from an iPhone, a loud take
+  // came out with a flat waveform and the «записал тишину» notice — no level had been collected at all.
   useEffect(() => {
-    if (!active || !state.isRecording) return;
-    if (typeof state.metering === 'number' && Number.isFinite(state.metering)) meter.current = { seen: true, last: state.metering };
-    const level = levelFromMetering(state.metering); pushVoiceSample(samples.current, level); setLevels(previous => [...previous.slice(-39), level]);
-  }, [active, state.isRecording, state.durationMillis, state.metering]);
+    if (!active) return undefined;
+    const timer = setInterval(() => {
+      if (pausedRef.current) return;
+      const metering = safeStatus(recorder)?.metering;
+      if (typeof metering !== 'number' || !Number.isFinite(metering)) return;
+      meter.current = { seen: true, last: metering };
+      const level = levelFromMetering(metering); pushVoiceSample(samples.current, level); setLevels(previous => [...previous.slice(-39), level]);
+    }, 100);
+    return () => clearInterval(timer);
+  }, [active, recorder]);
   useEffect(() => { if (active && state.durationMillis >= VOICE_MAX_MS) limitRef.current(); }, [active, state.durationMillis]);
   // By the time this cleanup runs, useAudioRecorder may already have released the native
   // recorder; touching a released shared object throws and would crash the app on «Назад».
@@ -285,9 +294,22 @@ export function VoiceToggleBridge({ target }: { target: React.MutableRefObject<(
 
 /** One shared player per chat screen: starting a voice message stops the previous one and the music. */
 export function VoicePlaybackProvider({ api, children }: { api: Api; children: React.ReactNode }) {
-  const player = useAudioPlayer(null, { updateInterval: 150 });
+  // keepAudioSessionActive: this player's own pauses never switch the audio session off (expo-audio does that
+  // 100 ms after a pause when «nothing plays», and a voice message that is just starting does not count yet).
+  const player = useAudioPlayer(null, { updateInterval: 150, keepAudioSessionActive: true });
   const status = useAudioPlayerStatus(player);
   const music = useMusic();
+  const musicNow = useRef(music); musicNow.current = music;
+  /** Stops the music and the round video's sound before a voice message plays. Stopping the music pauses an
+   *  expo-audio player, and 100 ms later expo-audio switches the session off unless something already plays —
+   *  under a voice message that had just been started it cut the sound a moment later (reported from an
+   *  iPhone: «включаю и через пару секунд останавливается»). So the music stops first and that moment passes. */
+  const quiet = useCallback(async () => {
+    const hadMusic = !!musicNow.current.current;
+    if (hadMusic) musicNow.current.stop();
+    interruptNoteAudio();
+    if (hadMusic) await sleep(220);
+  }, []);
   const [activeId, setActiveId] = useState<string | null>(null);
   const [loadingId, setLoadingId] = useState<string | null>(null);
   const [error, setError] = useState('');
@@ -310,7 +332,11 @@ export function VoicePlaybackProvider({ api, children }: { api: Api; children: R
   useEffect(() => { if (status.didJustFinish) { try { player.pause(); void player.seekTo(0); } catch { /* ignore */ } } }, [status.didJustFinish, player]);
 
   const toggle = useCallback((attachment: Attachment) => {
-    if (activeId === attachment.id && !loadingId && failedId !== attachment.id) { if (status.playing) player.pause(); else { music.stop(); interruptNoteAudio(); player.play(); } return; }
+    if (activeId === attachment.id && !loadingId && failedId !== attachment.id) {
+      if (status.playing) player.pause();
+      else void quiet().then(() => { try { player.play(); if (Platform.OS === 'ios') void setIsAudioActiveAsync(true).catch(() => {}); } catch { /* released */ } });
+      return;
+    }
     const ticket = ++request.current;
     setError(''); setFailedId(null); setLoadingId(attachment.id); setActiveId(attachment.id);
     try { player.pause(); } catch { /* nothing playing */ }
@@ -320,16 +346,18 @@ export function VoicePlaybackProvider({ api, children }: { api: Api; children: R
         if (!file) { file = await decryptAttachment(api, attachment); files.current.set(attachment.id, file); }
         if (ticket !== request.current) return;
         // Not while a take records: switching to playback stops the recorder (expo-audio setAudioMode).
+        await quiet();
+        if (ticket !== request.current) return;
         if (!recordingLive) { cancelPlaybackReset(); await setAudioModeAsync(PLAYBACK_MODE).catch(() => {}); }
-        music.stop(); interruptNoteAudio();
         player.replace({ uri: file.uri });
         try { player.setPlaybackRate(voiceRate); } catch { /* applied by the effect */ }
         player.play();
+        if (Platform.OS === 'ios' && !recordingLive) void setIsAudioActiveAsync(true).catch(() => {});
       } catch (e) {
         if (ticket === request.current) { setError(e instanceof Error ? e.message : 'Не удалось воспроизвести голосовое.'); setFailedId(attachment.id); }
       } finally { if (ticket === request.current) setLoadingId(null); }
     })();
-  }, [activeId, loadingId, failedId, status.playing, player, music, api]);
+  }, [activeId, loadingId, failedId, status.playing, player, quiet, api]);
 
   const seek = useCallback((attachment: Attachment, fraction: number) => {
     if (activeId !== attachment.id || loadingId) return;
