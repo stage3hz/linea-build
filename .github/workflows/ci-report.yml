@@ -1,0 +1,54 @@
+# How the other workflows ended, written to branch ci-report as plain text: which job and step failed, the
+# runner's own annotations («lost communication», «exceeded the maximum execution time») and the end of each
+# job's log. Read with plain git by whoever has no access to the Actions page. Writes to that branch only.
+name: CI report
+on:
+  workflow_run:
+    workflows: ['iOS Simulator UI check']
+    types: [completed]
+  push:
+    branches: [main]
+    paths: ['.github/workflows/ci-report.yml']
+  workflow_dispatch:
+permissions:
+  actions: read
+  checks: read
+  contents: write
+concurrency:
+  group: ci-report
+  cancel-in-progress: false
+jobs:
+  report:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    env:
+      GH_TOKEN: ${{ github.token }}
+      REPO: ${{ github.repository }}
+    steps:
+      - name: Collect the last runs
+        run: |
+          mkdir out && cd out
+          date -u > WRITTEN.txt
+          gh api "repos/$REPO/actions/runs?per_page=25" --jq '.workflow_runs[] | [.id, .name, .head_sha[0:7], .event, .status, (.conclusion // "-"), .run_started_at, .updated_at] | @tsv' > runs.tsv || true
+          # The simulator walk: the last 6 runs in full.
+          for id in $(gh api "repos/$REPO/actions/workflows/ios-simulator-ui.yml/runs?per_page=6" --jq '.workflow_runs[].id'); do
+            {
+              gh api "repos/$REPO/actions/runs/$id" --jq '"run \(.id) \(.head_sha[0:7]) \(.status) \(.conclusion // "-") started \(.run_started_at) updated \(.updated_at)"'
+              gh api "repos/$REPO/actions/runs/$id/jobs?per_page=30" --jq '.jobs[] | "JOB \(.name) [\(.runner_name // "no runner")] \(.status) \(.conclusion // "-") \(.started_at) -> \(.completed_at // "-")", (.steps[]? | "   \(.number). \(.name): \(.status) \(.conclusion // "-") \(.started_at // "-") -> \(.completed_at // "-")")'
+              for job in $(gh api "repos/$REPO/actions/runs/$id/jobs?per_page=30" --jq '.jobs[].id'); do
+                echo "ANNOTATIONS of job $job:"
+                gh api "repos/$REPO/check-runs/$job/annotations" --jq '.[] | "   [\(.annotation_level)] \(.title // ""): \(.message)"' || true
+              done
+            } > "walk-$id.txt" 2>&1 || true
+            # The end of every finished job's log (a whole walk log is tens of megabytes).
+            for job in $(gh api "repos/$REPO/actions/runs/$id/jobs?per_page=30" --jq '.jobs[] | select(.status=="completed") | .id'); do
+              gh api "repos/$REPO/actions/jobs/$job/logs" 2>/dev/null | tail -400 | cut -c1-400 > "walk-$id-job-$job-log-tail.txt" || true
+            done
+          done
+      - name: Publish to branch ci-report
+        run: |
+          cd out
+          git init -q -b ci-report
+          git config user.name "linea-ci"; git config user.email "ci@localhost"
+          git add -A && git commit -qm "CI report"
+          git push --force "https://x-access-token:${{ github.token }}@github.com/${{ github.repository }}.git" HEAD:ci-report
