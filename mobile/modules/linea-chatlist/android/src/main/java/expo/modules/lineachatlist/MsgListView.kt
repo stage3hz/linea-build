@@ -23,6 +23,7 @@ class MsgListView(context: Context, appContext: AppContext) : ExpoView(context, 
   private val onMsgLongPress by EventDispatcher()
   private val onNearTop by EventDispatcher()
   private val onLinkPress by EventDispatcher()
+  private val onReactPress by EventDispatcher()
   /** Messages whose spoilers were tapped open (until the chat is left). */
   private val revealed = HashSet<String>()
   private var upX = 0f
@@ -59,6 +60,8 @@ class MsgListView(context: Context, appContext: AppContext) : ExpoView(context, 
     setOnItemClickListener { _, view, position, _ ->
       val row = rows.getOrNull(position) ?: return@setOnItemClickListener
       // A tap on a link or on a hidden spoiler is not a tap on the message.
+      val chip = (view as? MsgRowView)?.chipAt(upX - view.left, upY - view.top)
+      if (chip != null) { onReactPress(mapOf("key" to row.key, "emoji" to chip)); return@setOnItemClickListener }
       val hit = (view as? MsgRowView)?.runAt(upX - view.left, upY - view.top)
       if (hit == null) onMsgPress(mapOf("key" to row.key))
       else if (hit.first.isEmpty()) { revealed.add(row.key); (view as? MsgRowView)?.reveal() }

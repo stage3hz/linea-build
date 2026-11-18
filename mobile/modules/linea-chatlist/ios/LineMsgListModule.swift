@@ -9,7 +9,7 @@ public final class LineMsgListModule: Module {
   public func definition() -> ModuleDefinition {
     Name("LineaMsgList")
     View(MsgListView.self) {
-      Events("onMsgPress", "onMsgLongPress", "onNearTop", "onLinkPress")
+      Events("onMsgPress", "onMsgLongPress", "onNearTop", "onLinkPress", "onReactPress")
       Prop("rows") { (view: MsgListView, rows: [[String: Any]]?) in view.setRows(MsgRow.parse(rows ?? [])) }
       Prop("palette") { (view: MsgListView, palette: [String: Any]?) in view.setPalette(MsgPalette(palette ?? [:])) }
       Prop("fontSize") { (view: MsgListView, size: Double?) in view.setFontSize(CGFloat(size ?? 17)) }
@@ -40,6 +40,8 @@ struct MsgRow: Equatable {
   let checked: Int
   /// Reactions in one line («👍 2  ❤️ 1»); empty = none.
   let reactions: String
+  /// Reactions as chips: triples [emoji, count, "1" if mine]. With them `reactions` is only read aloud.
+  let chips: [String]
   /// Formatting of `text`: triples [flags, offset, length] in UTF-16 units (NATIVE_FMT in src/format/nativeSpans.ts).
   let fmt: [Int]
   /// One address per triple with the link flag (64), in order.
@@ -58,7 +60,7 @@ struct MsgRow: Equatable {
         key: key, kind: int(row["kind"], 0), mine: flag(row["mine"]), text: text(row["text"]), time: text(row["time"]),
         ticks: min(4, max(0, int(row["ticks"], 0))), tail: flag(row["tail"]), quoteAuthor: text(row["quoteAuthor"]),
         quoteText: text(row["quoteText"]), forward: text(row["forward"]), label: text(row["label"]), thumb: text(row["thumb"]),
-        thumbRound: flag(row["thumbRound"]), thumbWide: CGFloat(min(2.5, max(0.4, wide))), checked: min(1, max(-1, int(row["checked"], -1))), reactions: text(row["reactions"]),
+        thumbRound: flag(row["thumbRound"]), thumbWide: CGFloat(min(2.5, max(0.4, wide))), checked: min(1, max(-1, int(row["checked"], -1))), reactions: text(row["reactions"]), chips: (row["chips"] as? [String]) ?? [],
         fmt: ((row["fmt"] as? [NSNumber]) ?? []).map { $0.intValue }, urls: (row["urls"] as? [String]) ?? []))
     }
     return result
@@ -116,6 +118,41 @@ private func msgSize(_ text: String, _ font: UIFont, _ width: CGFloat, _ maxHeig
   let box = NSAttributedString(string: text, attributes: [.font: font, .paragraphStyle: msgWrap(true)])
     .boundingRect(with: CGSize(width: max(1, width), height: maxHeight), options: [.usesLineFragmentOrigin, .truncatesLastVisibleLine], context: nil)
   return CGSize(width: ceil(box.width), height: ceil(min(box.height, maxHeight)))
+}
+
+private let msgChipEmoji = UIFont.systemFont(ofSize: 15)
+private let msgChipCount = UIFont.systemFont(ofSize: 12, weight: .semibold)
+
+struct MsgChip {
+  let emoji: String
+  let count: Int
+  let mine: Bool
+  let frame: CGRect
+}
+
+/// The reaction chips of a row, wrapped into `width`; frames start at (0, 0).
+func msgChips(_ row: MsgRow, width: CGFloat) -> (chips: [MsgChip], size: CGSize) {
+  var chips: [MsgChip] = []
+  var x: CGFloat = 0
+  var y: CGFloat = 0
+  var widest: CGFloat = 0
+  var i = 0
+  while i + 2 < row.chips.count {
+    let emoji = row.chips[i]
+    let count = Int(row.chips[i + 1]) ?? 1
+    let mine = row.chips[i + 2] == "1"
+    i += 3
+    var w = ceil(NSAttributedString(string: emoji, attributes: [.font: msgChipEmoji]).size().width) + 16
+    if count > 1 { w += 4 + ceil(NSAttributedString(string: String(count), attributes: [.font: msgChipCount]).size().width) }
+    if x > 0 && x + w > width {
+      x = 0
+      y += 29
+    }
+    chips.append(MsgChip(emoji: emoji, count: count, mine: mine, frame: CGRect(x: x, y: y, width: w, height: 24)))
+    x += w + 5
+    widest = max(widest, x - 5)
+  }
+  return (chips, chips.isEmpty ? .zero : CGSize(width: widest, height: y + 24))
 }
 
 private func msgAttrSize(_ text: NSAttributedString, _ width: CGFloat, _ maxHeight: CGFloat) -> CGSize {
@@ -187,7 +224,7 @@ struct MsgLayout {
       : msgAttrSize(msgBody(row, fontSize: fontSize, text: .black, link: .black, quote: .clear, revealed: true), inner, 20000)
     if !row.quoteText.isEmpty || !row.quoteAuthor.isEmpty { layout.quoteSize = msgSize(row.quoteText.isEmpty ? " " : row.quoteText, msgSmallFont, inner - 12, 36) }
     layout.labelSize = msgSize(row.label, msgSmallFont, inner, 36)
-    layout.reactSize = msgSize(row.reactions, msgSmallFont, inner, 40)
+    layout.reactSize = row.chips.isEmpty ? msgSize(row.reactions, msgSmallFont, inner, 40) : msgChips(row, width: inner).size
     if hasThumb {
       let w = min(inner, 220)
       layout.thumbSize = CGSize(width: w, height: min(300, max(90, w / row.thumbWide)))
@@ -224,6 +261,13 @@ final class MsgRowCanvas: UIView {
   var revealed = false
   /// Where the body text was drawn last (for taps on links and spoilers).
   private var bodyBox = CGRect.zero
+  /// The reaction chips as drawn last.
+  private var chipBoxes: [(frame: CGRect, emoji: String)] = []
+
+  /// The reaction chip under a point of this view.
+  func chip(at point: CGPoint) -> String? {
+    chipBoxes.first { $0.frame.insetBy(dx: -3, dy: -4).contains(point) }?.emoji
+  }
 
   /// A link or a still hidden spoiler under a point of this view.
   func run(at point: CGPoint) -> (flags: Int, url: String, shown: String)? {
@@ -369,7 +413,23 @@ final class MsgRowCanvas: UIView {
       }
       y += layoutInfo.textSize.height
     }
-    if layoutInfo.reactSize != .zero {
+    chipBoxes = []
+    if layoutInfo.reactSize != .zero && !item.chips.isEmpty {
+      for chip in msgChips(item, width: inner).chips {
+        let frame = chip.frame.offsetBy(dx: x, dy: y + 6)
+        chipBoxes.append((frame, chip.emoji))
+        context.setFillColor((chip.mine ? palette.accent : palette.text.withAlphaComponent(0.10)).cgColor)
+        context.addPath(UIBezierPath(roundedRect: frame, cornerRadius: 12).cgPath)
+        context.fillPath()
+        let emoji = NSAttributedString(string: chip.emoji, attributes: [.font: msgChipEmoji])
+        let emojiSize = emoji.size()
+        emoji.draw(at: CGPoint(x: frame.minX + 8, y: frame.midY - emojiSize.height / 2))
+        if chip.count > 1 {
+          let count = NSAttributedString(string: String(chip.count), attributes: [.font: msgChipCount, .foregroundColor: chip.mine ? palette.onAccent : palette.text])
+          count.draw(at: CGPoint(x: frame.minX + 8 + ceil(emojiSize.width) + 4, y: frame.midY - count.size().height / 2))
+        }
+      }
+    } else if layoutInfo.reactSize != .zero {
       draw(item.reactions, msgSmallFont, palette.text, CGRect(x: x, y: y + 6, width: inner, height: layoutInfo.reactSize.height + 2), lines: true)
     }
 
@@ -449,6 +509,7 @@ final class MsgRowCell: UITableViewCell {
 
 final class MsgListView: ExpoView, UITableViewDataSource, UITableViewDelegate, UIGestureRecognizerDelegate {
   let onLinkPress = EventDispatcher()
+  let onReactPress = EventDispatcher()
   /// Messages whose spoilers were tapped open (until the chat is left).
   private var revealed = Set<String>()
   private lazy var linkTap = UITapGestureRecognizer(target: self, action: #selector(linkTapped(_:)))
@@ -500,13 +561,27 @@ final class MsgListView: ExpoView, UITableViewDataSource, UITableViewDelegate, U
     return (path, rows[path.row].key, hit)
   }
 
+  private func chip(atTablePoint point: CGPoint) -> (key: String, emoji: String)? {
+    guard let path = table.indexPathForRow(at: point), path.row < rows.count, let cell = table.cellForRow(at: path) as? MsgRowCell,
+          let emoji = cell.canvas.chip(at: table.convert(point, to: cell.canvas)) else { return nil }
+    return (rows[path.row].key, emoji)
+  }
+
   override func gestureRecognizerShouldBegin(_ gestureRecognizer: UIGestureRecognizer) -> Bool {
-    if gestureRecognizer === linkTap { return run(atTablePoint: gestureRecognizer.location(in: table)) != nil }
+    if gestureRecognizer === linkTap {
+      let point = gestureRecognizer.location(in: table)
+      return chip(atTablePoint: point) != nil || run(atTablePoint: point) != nil
+    }
     return super.gestureRecognizerShouldBegin(gestureRecognizer)
   }
 
   @objc private func linkTapped(_ recognizer: UITapGestureRecognizer) {
-    guard recognizer.state == .ended, let found = run(atTablePoint: recognizer.location(in: table)) else { return }
+    if recognizer.state != .ended { return }
+    if let chip = chip(atTablePoint: recognizer.location(in: table)) {
+      onReactPress(["key": chip.key, "emoji": chip.emoji])
+      return
+    }
+    guard let found = run(atTablePoint: recognizer.location(in: table)) else { return }
     if found.hit.url.isEmpty {
       // Telegram: one tap shows every spoiler of the message.
       revealed.insert(found.key)

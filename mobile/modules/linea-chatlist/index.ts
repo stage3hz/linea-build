@@ -82,6 +82,8 @@ export type NativeMsgRow = {
   checked: -1 | 0 | 1;
   /** Reactions in one line («👍 2  ❤️ 1»); '' = none. */
   reactions: string;
+  /** Reactions as chips: triples [emoji, count, '1' if mine else '0']. With them `reactions` is only read aloud. */
+  chips: string[];
   /** Formatting of `text`: triples [flags, offset, length] (src/format/nativeSpans.ts, NATIVE_FMT). */
   fmt: number[];
   /** One address per `fmt` triple with the link flag, in order: `https://…` or `mention:<username>`. */
@@ -96,6 +98,8 @@ export type NativeMsgListProps = {
   pad?: [number, number];
   onMsgPress?: (event: { nativeEvent: { key: string } }) => void;
   onMsgLongPress?: (event: { nativeEvent: { key: string; y: number } }) => void;
+  /** A reaction chip was tapped: put it or take it back. */
+  onReactPress?: (event: { nativeEvent: { key: string; emoji: string } }) => void;
   /** A link or an @mention inside a bubble was tapped; `shown` is the linked text. */
   onLinkPress?: (event: { nativeEvent: { key: string; url: string; shown: string } }) => void;
   /** The oldest loaded row is near: time to load older messages. */

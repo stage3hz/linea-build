@@ -640,7 +640,7 @@ export function ChatScreen({api,user,chat,store,onBack,wide=false,onOpenMusic}: 
   const nativeLinkPress=useCallback((url:string,shown:string)=>{if(url.startsWith('mention:'))navigate({to:'mention',username:url.slice(8)});else if(/^https?:\/\//i.test(url))openLink(url,shown);},[]);
   const nativeMsgRows=useMemo<NativeMsgRow[]>(()=>{
     if(!nativeChatOn)return [];
-    const out:NativeMsgRow[]=[];const blank={mine:false,time:'',ticks:0 as const,tail:false,quoteAuthor:'',quoteText:'',forward:'',label:'',thumb:'',thumbRound:false,thumbWide:1,checked:-1 as const,reactions:'',fmt:[] as number[],urls:[] as string[]};
+    const out:NativeMsgRow[]=[];const blank={mine:false,time:'',ticks:0 as const,tail:false,quoteAuthor:'',quoteText:'',forward:'',label:'',thumb:'',thumbRound:false,thumbWide:1,checked:-1 as const,reactions:'',chips:[] as string[],fmt:[] as number[],urls:[] as string[]};
     const senderOf=(row:Row|undefined)=>!row||row.missing?undefined:row.pending?user.id:row.message&&!row.message.meta?.action?row.message.senderId:undefined;
     // `rows` is newest first; the native list takes them oldest first.
     for(let i=rows.length-1;i>=0;i--){
@@ -661,7 +661,7 @@ export function ChatScreen({api,user,chat,store,onBack,wide=false,onOpenMusic}: 
         forward:message?.meta?.forward?(message.meta.forward.from?`Переслано от ${message.meta.forward.from}`:'Пересланное сообщение'):'',
         label:row.album?`Альбом · ${row.album.length}`:file?(visual?attachmentLabel(file):`${attachmentLabel(file)}${file.name&&!isVoice(file)&&!isVideoNote(file)?` · ${file.name}`:''}`):message?.poll?'Опрос':'',
         thumb:visual&&file?.preview?file.preview.base64:'',thumbRound:!!file&&isVideoNote(file),thumbWide:visual&&file?.preview&&file.preview.height?file.preview.width/file.preview.height:1,
-        checked:selection?(selection.has(row.key)?1:0):-1,reactions:(message?.reactions||[]).map(r=>`${r.emoji} ${r.count}`).join('   ')});
+        checked:selection?(selection.has(row.key)?1:0):-1,reactions:(message?.reactions||[]).map(r=>`${r.emoji} ${r.count}`).join('   '),chips:(message?.reactions||[]).flatMap(r=>[r.emoji,String(r.count),r.mine?'1':'0'])});
     }
     return out;
   },[nativeChatOn,rows,user.id,peerLastRead,peerName,view.byClientId,selection]);
@@ -687,7 +687,7 @@ export function ChatScreen({api,user,chat,store,onBack,wide=false,onOpenMusic}: 
     {/* Android: header and composer glass blur this (wallpaper + messages) on the GPU. */}
     <GlassContentTarget targetRef={glassTarget} style={{flex:1}}>
     <ChatWallpaper choice={wallpaper} style={{top:-80,bottom:-60}} trail/>
-    {rows.length===0&&!chatNotes.length?<View style={{flex:1,justifyContent:'center',paddingTop:headerHeight,paddingBottom:listEdges.composerSide}}>{store.messageLoading?<ActivityIndicator color={t.accent}/>:<Empty icon="hand-left-outline" title="Скажи «привет»" description={`Это начало вашей переписки с ${chat.peer.displayName}.`}/>}</View>:<><KeyboardGestureArea style={{flex:1}} interpolator="ios" offset={keyboardGestureOffset(composerHeight,stickers)} textInputNativeID={COMPOSER_NATIVE_ID} enableSwipeToDismiss={dismissSetup.gestureArea}>{nativeChatOn&&NativeMsgListView?<NativeMsgListView style={{flex:1}} rows={nativeMsgRows} palette={nativeMsgPalette} fontSize={metrics.fontSize} pad={[listEdges.headerSide,listEdges.composerSide]} onMsgPress={e=>nativeMsgPress(e.nativeEvent.key)} onMsgLongPress={e=>nativeMsgHold(e.nativeEvent.key,e.nativeEvent.y)} onLinkPress={e=>nativeLinkPress(e.nativeEvent.url,e.nativeEvent.shown)} onNearTop={loadOlder}/>:listEl}</KeyboardGestureArea><Animated.View pointerEvents="none" style={[{position:'absolute',width:0,height:0,opacity:0},lockCommit]}/></>
+    {rows.length===0&&!chatNotes.length?<View style={{flex:1,justifyContent:'center',paddingTop:headerHeight,paddingBottom:listEdges.composerSide}}>{store.messageLoading?<ActivityIndicator color={t.accent}/>:<Empty icon="hand-left-outline" title="Скажи «привет»" description={`Это начало вашей переписки с ${chat.peer.displayName}.`}/>}</View>:<><KeyboardGestureArea style={{flex:1}} interpolator="ios" offset={keyboardGestureOffset(composerHeight,stickers)} textInputNativeID={COMPOSER_NATIVE_ID} enableSwipeToDismiss={dismissSetup.gestureArea}>{nativeChatOn&&NativeMsgListView?<NativeMsgListView style={{flex:1}} rows={nativeMsgRows} palette={nativeMsgPalette} fontSize={metrics.fontSize} pad={[listEdges.headerSide,listEdges.composerSide]} onMsgPress={e=>nativeMsgPress(e.nativeEvent.key)} onMsgLongPress={e=>nativeMsgHold(e.nativeEvent.key,e.nativeEvent.y)} onLinkPress={e=>nativeLinkPress(e.nativeEvent.url,e.nativeEvent.shown)} onReactPress={e=>{const message=rows.find(r=>r.key===e.nativeEvent.key)?.message;if(message)handlers.current.react(message,e.nativeEvent.emoji as Reaction);}} onNearTop={loadOlder}/>:listEl}</KeyboardGestureArea><Animated.View pointerEvents="none" style={[{position:'absolute',width:0,height:0,opacity:0},lockCommit]}/></>
     }
     </GlassContentTarget>
     {/* iOS 26 scroll-edge effect: blurred (iOS) and covered by the wallpaper's edge colour evenly behind

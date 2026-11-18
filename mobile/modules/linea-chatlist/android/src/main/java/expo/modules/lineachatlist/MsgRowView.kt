@@ -51,6 +51,31 @@ class MsgRowView(context: Context) : View(context) {
   /** Where the body text was drawn last (for taps on links and spoilers). */
   private var bodyX = 0f
   private var bodyY = 0f
+  private val chipEmoji = TextPaint(Paint.ANTI_ALIAS_FLAG).apply { textSize = 15f * d }
+  private val chipCount = TextPaint(Paint.ANTI_ALIAS_FLAG).apply { textSize = 12f * d; typeface = Typeface.create(Typeface.DEFAULT, Typeface.BOLD) }
+  private class Chip(val emoji: String, val count: Int, val mine: Boolean, val x: Float, val y: Float, val w: Float)
+  /** Reaction chips laid out for the bubble's width (positions from the chips' own corner). */
+  private var chips: List<Chip> = emptyList()
+  private var chipsW = 0f
+  private var chipsH = 0f
+  private var chipsX = 0f
+  private var chipsY = 0f
+
+  private fun layoutChips(item: MsgRow, width: Float) {
+    val out = ArrayList<Chip>(); var x = 0f; var y = 0f; var widest = 0f; var i = 0
+    while (i + 2 < item.chips.size) {
+      val emoji = item.chips[i]; val count = item.chips[i + 1].toIntOrNull() ?: 1; val mine = item.chips[i + 2] == "1"; i += 3
+      var w = chipEmoji.measureText(emoji) + 16f * d
+      if (count > 1) w += 4f * d + chipCount.measureText(count.toString())
+      if (x > 0f && x + w > width) { x = 0f; y += 29f * d }
+      out.add(Chip(emoji, count, mine, x, y, w)); x += w + 5f * d; widest = maxOf(widest, x - 5f * d)
+    }
+    chips = out; chipsW = widest; chipsH = if (out.isEmpty()) 0f else y + 24f * d
+  }
+
+  /** The reaction chip under a point of this view. */
+  fun chipAt(px: Float, py: Float): String? =
+    chips.firstOrNull { px >= chipsX + it.x - 3f * d && px <= chipsX + it.x + it.w + 3f * d && py >= chipsY + it.y - 4f * d && py <= chipsY + it.y + 28f * d }?.emoji
 
   // What the last measure laid out.
   private var builtFor: MsgRow? = null
@@ -147,6 +172,7 @@ class MsgRowView(context: Context) : View(context) {
   private fun build(item: MsgRow, width: Int) {
     body.textSize = fontSize * d
     textLayout = null; quoteLayout = null; labelLayout = null; noticeLayout = null; reactLayout = null; thumbW = 0f; thumbH = 0f
+    chips = emptyList(); chipsW = 0f; chipsH = 0f
     if (item.kind == 1) {
       noticeLayout = layout(item.text, small, (width * 0.8f).toInt(), 6, true)
       bubbleW = widest(noticeLayout) + 24f * d; bubbleH = (noticeLayout?.height ?: 0) + 12f * d
@@ -155,10 +181,11 @@ class MsgRowView(context: Context) : View(context) {
       if (item.text.isNotEmpty()) textLayout = layout(styled(item), body, inner, 400)
       if (item.quoteText.isNotEmpty() || item.quoteAuthor.isNotEmpty()) quoteLayout = layout(item.quoteText, small, inner - (12f * d).toInt(), 2)
       if (item.label.isNotEmpty()) labelLayout = layout(item.label, small, inner, 2)
-      if (item.reactions.isNotEmpty()) reactLayout = layout(item.reactions, small, inner, 2)
+      layoutChips(item, inner.toFloat())
+      if (item.reactions.isNotEmpty() && chips.isEmpty()) reactLayout = layout(item.reactions, small, inner, 2)
       if (thumb != null) { thumbW = minOf(inner.toFloat(), 220f * d); thumbH = (thumbW / item.thumbWide.toFloat()).coerceIn(90f * d, 300f * d) }
       val metaWidth = meta.measureText(item.time) + (if (item.mine) 22f * d else 0f)
-      var w = maxOf(maxOf(widest(textLayout), metaWidth, thumbW, widest(labelLayout)), widest(reactLayout))
+      var w = maxOf(maxOf(widest(textLayout), metaWidth, thumbW, widest(labelLayout)), maxOf(widest(reactLayout), chipsW))
       if (quoteLayout != null) w = maxOf(w, maxOf(widest(quoteLayout), smallBold.measureText(item.quoteAuthor)) + 12f * d)
       if (item.forward.isNotEmpty()) w = maxOf(w, minOf(inner.toFloat(), smallBold.measureText(item.forward)))
       var h = 9f * d
@@ -168,6 +195,7 @@ class MsgRowView(context: Context) : View(context) {
       if (labelLayout != null) h += labelLayout!!.height + 4f * d
       if (textLayout != null) h += textLayout!!.height
       if (reactLayout != null) h += reactLayout!!.height + 6f * d
+      if (chipsH > 0f) h += chipsH + 6f * d
       h += 16f * d + 6f * d
       bubbleW = w + 26f * d; bubbleH = h
     }
@@ -246,6 +274,18 @@ class MsgRowView(context: Context) : View(context) {
     labelLayout?.let { small.color = markColor; canvas.save(); canvas.translate(x, y); it.draw(canvas); canvas.restore(); y += it.height + 4f * d }
     textLayout?.let { body.color = palette.text; bodyX = x; bodyY = y; canvas.save(); canvas.translate(x, y); it.draw(canvas); canvas.restore(); y += it.height }
     reactLayout?.let { small.color = palette.text; canvas.save(); canvas.translate(x, y + 6f * d); it.draw(canvas); canvas.restore() }
+    chipsX = x; chipsY = y + 6f * d
+    for (chip in chips) {
+      val cx = chipsX + chip.x; val cy = chipsY + chip.y
+      fill.color = if (chip.mine) palette.accent else alpha(palette.text, 0x1A)
+      canvas.drawRoundRect(cx, cy, cx + chip.w, cy + 24f * d, 12f * d, 12f * d, fill)
+      chipEmoji.color = palette.text
+      canvas.drawText(chip.emoji, cx + 8f * d, cy + 12f * d - (chipEmoji.ascent() + chipEmoji.descent()) / 2, chipEmoji)
+      if (chip.count > 1) {
+        chipCount.color = if (chip.mine) palette.onAccent else palette.text
+        canvas.drawText(chip.count.toString(), cx + 8f * d + chipEmoji.measureText(chip.emoji) + 4f * d, cy + 12f * d - (chipCount.ascent() + chipCount.descent()) / 2, chipCount)
+      }
+    }
 
     val right = left + bubbleW - 13f * d
     val base = bubbleH - 8f * d
