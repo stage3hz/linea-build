@@ -473,9 +473,25 @@ export async function buildApp({
     let communities = 0; try { communities = communityApi.badge(userId); } catch { /* counters are best effort */ }
     return Math.min(chats + friends + communities, 99999);
   };
+  // The caller is told how far the call got, so the ringback can differ (as on a phone line): 'online' — the
+  // other side's app is connected and got the call itself; 'push' — a notification service took the call for a
+  // closed app; 'none' — nothing of the other side could be reached. Nothing about the call's content is known here.
   const notify = (chatId, senderId, kind) => {
-    if (!push || kind === 'none') return;
+    const call = kind === 'call';
+    const online = call && memberIds(chatId).some(userId => userId !== senderId && socketsByUser.get(userId)?.size);
+    const reach = value => emitUser(senderId, { type: 'call.reach', chatId, reach: value });
+    if (online) reach('online');
+    if (!push || kind === 'none') { if (call && !online) reach('none'); return; }
     const sender = db.prepare('SELECT display_name FROM users WHERE id=?').get(senderId);
+    // Pushes still on their way, and whether one was taken: 'push' at the first one taken, 'none' when all are
+    // back and none was (or there was no device to push to).
+    let pending = 0, pushed = false, queued = false;
+    const settle = result => {
+      if (!call) return;
+      if (result === 'ok' && !pushed) { pushed = true; if (!online) reach('push'); }
+      pending--;
+      if (queued && pending === 0 && !pushed && !online) reach('none');
+    };
     for (const userId of memberIds(chatId)) {
       if (userId === senderId) continue;
       // A timed mute (F2) ends by comparison with the clock: no sweep, the next message simply rings again.
@@ -499,10 +515,13 @@ export async function buildApp({
         const ring = kind === 'call' && platform === 'android' && !!parsed && !versionLessThan(parsed, parseVersion(RING_CHANNEL_SINCE));
         const wake = ring && !versionLessThan(parsed, parseVersion(WAKE_SINCE));
         const iosRing = kind === 'call' && platform === 'ios' && !!parsed && !versionLessThan(parsed, parseVersion(RING_IOS_SINCE));
-        push(token, wake ? waking : ring ? ringing : iosRing ? iosRinging : message, platform).then(result => { if (kind === 'call' || result !== 'ok') app.log.info({ kind, platform, version, form: wake ? 'wake' : ring ? 'ring' : iosRing ? 'ios-ring' : 'plain', result }, 'push sent'); if (result === 'gone' && !databaseClosed) db.prepare('DELETE FROM push_tokens WHERE token=?').run(token); })
-          .catch(error => app.log.warn({ err: error.message }, 'push failed'));
+        pending++;
+        push(token, wake ? waking : ring ? ringing : iosRing ? iosRinging : message, platform).then(result => { settle(result); if (kind === 'call' || result !== 'ok') app.log.info({ kind, platform, version, form: wake ? 'wake' : ring ? 'ring' : iosRing ? 'ios-ring' : 'plain', result }, 'push sent'); if (result === 'gone' && !databaseClosed) db.prepare('DELETE FROM push_tokens WHERE token=?').run(token); })
+          .catch(error => { settle('failed'); app.log.warn({ err: error.message }, 'push failed'); });
       }
     }
+    queued = true;
+    if (call && pending === 0 && !pushed && !online) reach('none');
   };
   db.exec(COMMUNITY_SCHEMA);
   if (!db.prepare('PRAGMA table_info(communities)').all().some(column => column.name === 'category')) db.exec('ALTER TABLE communities ADD COLUMN category TEXT');

@@ -29,8 +29,8 @@ object IncomingCall {
   const val ACTION_DECLINE = "expo.modules.lineacall.DECLINE_INCOMING"
   private const val CHANNEL_ID = "calls-incoming"
   private const val NOTIFICATION_ID = 7402
-  /** As long as the caller rings (the push itself lives 45 s). */
-  private const val RING_MS = 45_000L
+  /** As long as the caller rings: a minute (the push itself lives 60 s). */
+  private const val RING_MS = 60_000L
   /** The app stays allowed over the lock screen this long after it was opened for a call, unless a call is up. */
   private const val OVER_LOCK_MS = 60_000L
 
@@ -97,7 +97,11 @@ object IncomingCall {
       builder.addAction(Notification.Action.Builder(null as android.graphics.drawable.Icon?, declineLabel, decline).build())
       builder.addAction(Notification.Action.Builder(null as android.graphics.drawable.Icon?, answerLabel, answer).build())
     }
-    return try { manager.notify(NOTIFICATION_ID, builder.build()); true } catch (e: Exception) { false }
+    // The ringtone file is 25 s long and a notification plays its sound once: «insistent» repeats it until the
+    // notification goes away (answered, declined, or the minute is over).
+    val notification = builder.build()
+    notification.flags = notification.flags or Notification.FLAG_INSISTENT
+    return try { manager.notify(NOTIFICATION_ID, notification); true } catch (e: Exception) { false }
   }
 
   fun dismiss(context: Context) {
@@ -113,7 +117,11 @@ object IncomingCall {
     intent.removeExtra(EXTRA_ANSWER)
     pending = Pair(chatId, answer)
     pendingAt = android.os.SystemClock.elapsedRealtime()
-    if (activity != null) { dismiss(activity.applicationContext); overLock(activity, true, OVER_LOCK_MS) }
+    // The notification — and with it the ringtone — stays until the app's own call screen is up and rings itself
+    // (JS: dismissIncomingCall). It used to be put away here: on an idle phone the full-screen intent opens the
+    // app at once, so the ringtone stopped a second or two after it began while the app was still starting.
+    // «Ответить» was pressed: nothing is left to ring for.
+    if (activity != null) { if (answer) dismiss(activity.applicationContext); overLock(activity, true, OVER_LOCK_MS) }
   }
 
   fun take(): Map<String, Any>? {

@@ -6,6 +6,9 @@ import { createAudioPlayer, setAudioModeAsync, type AudioPlayer } from 'expo-aud
  * rings, «Неон» for an incoming call. Seamless loops; only one plays at a time.
  */
 const SOURCES = {
+  // Two ringbacks, as on a phone line: short soft beeps while the call is still on its way, «Пульс» once the
+  // other side's phone has it (the server says how far the call got: `call.reach`).
+  connecting: require('../../assets/sounds/call_connecting.wav'),
   outgoing: require('../../assets/sounds/call_outgoing.wav'),
   incoming: require('../../assets/sounds/call_incoming.wav'),
 };
@@ -18,7 +21,7 @@ export async function playCallSound(kind: keyof typeof SOURCES): Promise<void> {
   const mine = generation;
   try {
     // The incoming ringtone follows the silent switch on iPhone (vibration still rings); ringback always plays.
-    await setAudioModeAsync({ playsInSilentMode: kind === 'outgoing', shouldPlayInBackground: true, interruptionMode: 'duckOthers' }).catch(() => {});
+    await setAudioModeAsync({ playsInSilentMode: kind !== 'incoming', shouldPlayInBackground: true, interruptionMode: 'duckOthers' }).catch(() => {});
     // The call may have been answered or ended while the audio mode was being set.
     if (mine !== generation) return;
     const next = createAudioPlayer(SOURCES[kind]);

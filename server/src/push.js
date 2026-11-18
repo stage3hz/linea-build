@@ -171,7 +171,7 @@ export const WAKE_SINCE = '0.14.17';
 export function chatNotification({ chatId, senderName, kind, unread, badge, ring = false, wake = false, iosRing = false }) {
   const count = Number.isSafeInteger(badge) && badge >= 0 ? badge : null;
   const call = kind === 'call';
-  // A call that was not answered: an ordinary notification (no 45 s limit), so it still arrives when the phone woke
+  // A call that was not answered: an ordinary notification (no 60 s limit), so it still arrives when the phone woke
   // up too late for the ringing one — and it takes that one's place on the screen (the same tag).
   const missed = kind === 'missed';
   // F4 «Отправить без звука»: the same notification, delivered quietly (Android: the app's `silent`
@@ -183,19 +183,19 @@ export function chatNotification({ chatId, senderName, kind, unread, badge, ring
   // does not get to run: the notifications library then shows them as the ordinary ringing notification.
   if (call && wake) return {
     data: { chatId, kind, wake: '1', title: senderName, message: '📞 Входящий звонок', channelId: 'calls-ring' },
-    android: { priority: 'high', ttl: '45s' },
+    android: { priority: 'high', ttl: '60s' },
   };
   const body = call ? '📞 Входящий звонок' : missed ? '📞 Пропущенный звонок' : unread > 1 ? `${unread} ${plural(unread, 'новое сообщение', 'новых сообщения', 'новых сообщений')}` : 'Новое сообщение';
   return {
     data: { chatId, kind },
     android: {
       priority: 'high',
-      ...(call ? { ttl: '45s' } : { collapse_key: chatId }),
+      ...(call ? { ttl: '60s' } : { collapse_key: chatId }),
       notification: { title: senderName, body, tag: call || missed ? `call:${chatId}` : chatId, channel_id: call ? (ring ? 'calls-ring' : 'calls') : silent ? 'silent' : 'messages', icon: 'notification_icon', color: '#4C7DFF', ...(silent ? { notification_priority: 'PRIORITY_LOW' } : { sound: 'default' }), ...(count !== null ? { notification_count: count } : {}) },
     },
     // iPhone: the same shape FCM v1 uses for its `apns` field, sent to Apple directly.
     apns: {
-      headers: { ...(call ? { 'apns-expiration': String(Math.floor(Date.now() / 1000) + 45) } : { 'apns-collapse-id': chatId.slice(0, 64) }) },
+      headers: { ...(call ? { 'apns-expiration': String(Math.floor(Date.now() / 1000) + 60) } : { 'apns-collapse-id': chatId.slice(0, 64) }) },
       payload: { aps: { alert: { title: senderName, body }, ...(silent ? { 'interruption-level': 'passive' } : { sound: call && iosRing ? 'call_ring.wav' : 'default' }), 'thread-id': chatId, ...(count !== null ? { badge: count } : {}), ...(call ? { 'interruption-level': 'time-sensitive' } : {}) }, chatId, kind },
     },
   };

@@ -172,6 +172,18 @@ export function CallProvider({ api, store, me, children }: { api: Api; store: Me
 
   const patch = (change: Partial<CallState>) => setCall(current => current ? { ...current, ...change } : current);
   const signal = (chatId: string, action: Parameters<MessengerStore['sendAction']>[1]) => storeRef.current.sendAction(chatId, action);
+  // Which ringback plays for an outgoing call, and whether the server has said how far the call got.
+  const ringTone = useRef<'connecting' | 'outgoing' | null>(null); const reachKnown = useRef(false);
+  const reachTimer = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
+  useEffect(() => store.onSocket((data: { type?: string; chatId?: string; reach?: string }) => {
+    if (data?.type !== 'call.reach') return;
+    const current = callRef.current;
+    if (!current || current.incoming || current.status !== 'ringing' || current.chat.id !== data.chatId) return;
+    reachKnown.current = true;
+    // Reached (the app is connected, or a notification service took the call): the ringing tone. Not reached: the
+    // «on its way» beeps go on.
+    if ((data.reach === 'online' || data.reach === 'push') && ringTone.current !== 'outgoing') { ringTone.current = 'outgoing'; void playCallSound('outgoing'); }
+  }), [store.onSocket]);
 
   // Automatic reconnection (reconnect.ts): the link state machine, its timer and the ICE-restart numbering.
   const link = useRef<Link>(LINK_UP); const linkTimer = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
@@ -360,7 +372,12 @@ export function CallProvider({ api, store, me, children }: { api: Api; store: Me
         if (!(await waitForNetwork(id))) { noConnection(); return; }
         signal(chat.id, { type: 'call', call: id, step: 'offer', video, sdp: markRestartCapable(sdp) });
         patch({ status: 'ringing' });
-        void playCallSound('outgoing');
+        // The first ringback: the call is on its way. The server then says how far it got (`call.reach`, below) and
+        // the ringing one takes over. A server that says nothing (an older one) gets the ringing tone after 3 s.
+        ringTone.current = 'connecting'; void playCallSound('connecting');
+        if (reachTimer.current) clearTimeout(reachTimer.current);
+        reachTimer.current = setTimeout(() => { if (callRef.current?.id === id && callRef.current.status === 'ringing' && ringTone.current === 'connecting' && !reachKnown.current) { ringTone.current = 'outgoing'; void playCallSound('outgoing'); } }, 3000);
+        reachKnown.current = false;
         // No answer in time: «Нет ответа» — or «Нет соединения» with «Повторить» when the connection is down.
         ringTimer.current = setTimeout(() => { if (callRef.current?.id === id && callRef.current.status === 'ringing') { const expiry = ringExpiry(networkRef.current); finish(expiry.text, 'missed', expiry.retry); } }, RING_TIMEOUT_MS);
       } catch (error) { finish(error instanceof Error ? error.message : 'Не удалось начать звонок'); }
@@ -480,6 +497,8 @@ export function CallProvider({ api, store, me, children }: { api: Api; store: Me
         .then(() => computeKey(connection.localDescription?.sdp || '', action.sdp!)).catch(() => finish('Не удалось соединиться', 'failed'));
       return;
     }
+    // The ringing notification of a closed app (Android) goes away with the call, whoever ended it.
+    if (action.step === 'end') dismissIncomingCall();
     if (action.step === 'end') finish(action.reason === 'declined' ? 'Звонок отклонён' : action.reason === 'busy' ? 'Собеседник занят' : action.reason === 'missed' ? 'Пропущенный звонок' : 'Звонок завершён');
   }), [store.onCallSignal, finish, api]);
 

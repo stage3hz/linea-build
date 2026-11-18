@@ -14,7 +14,7 @@ test('notification carries no message content and pluralises unread', () => {
   assert.equal(chatNotification({ chatId: 'c', senderName: 'x', kind: 'message', unread: 21 }).android.notification.body, '21 новое сообщение');
   const call = chatNotification({ chatId: 'c', senderName: 'x', kind: 'call', unread: 1 });
   assert.equal(call.android.notification.channel_id, 'calls');
-  assert.equal(call.android.ttl, '45s');
+  assert.equal(call.android.ttl, '60s');
 });
 
 test('FCM: signed JWT exchanged for a token, cached, invalid token reported as gone', async () => {
@@ -119,10 +119,10 @@ test('the app icon badge travels in the push when known', () => {
   assert.equal('badge' in none.apns.payload.aps, false);
 });
 
-test('a call nobody answered gets a notification of its own: no 45 s limit, and it takes the ringing one\'s place', () => {
+test('a call nobody answered gets a notification of its own: no 60 s limit, and it takes the ringing one\'s place', () => {
   const ringing = chatNotification({ chatId: 'c1', senderName: 'Аня', kind: 'call', unread: 0 });
   const missed = chatNotification({ chatId: 'c1', senderName: 'Аня', kind: 'missed', unread: 0 });
-  assert.equal(ringing.android.ttl, '45s');
+  assert.equal(ringing.android.ttl, '60s');
   assert.equal(missed.android.ttl, undefined, 'kept until the phone wakes up');
   assert.equal(missed.android.notification.body, '📞 Пропущенный звонок');
   assert.equal(missed.android.notification.tag, ringing.android.notification.tag, 'replaces «Входящий звонок» on the screen');
@@ -138,7 +138,7 @@ test('an incoming call rings on the ringing channel only where the app has it', 
   const ring = chatNotification({ chatId: 'c1', senderName: 'Аня', kind: 'call', unread: 0, ring: true });
   assert.equal(plain.android.notification.channel_id, 'calls');
   assert.equal(ring.android.notification.channel_id, 'calls-ring');
-  assert.equal(ring.android.ttl, '45s');
+  assert.equal(ring.android.ttl, '60s');
   assert.equal(chatNotification({ chatId: 'c1', senderName: 'Аня', kind: 'message', unread: 1, ring: true }).android.notification.channel_id, 'messages', 'only a call rings');
 });
 
@@ -156,6 +156,6 @@ test('a call wakes the app with a data message that still reads as a ringing not
   const wake = chatNotification({ chatId: 'c1', senderName: 'Аня', kind: 'call', unread: 0, ring: true, wake: true });
   assert.equal(wake.android.notification, undefined, 'a data message: Android hands it to the closed app');
   assert.deepEqual(wake.data, { chatId: 'c1', kind: 'call', wake: '1', title: 'Аня', message: '📞 Входящий звонок', channelId: 'calls-ring' });
-  assert.deepEqual(wake.android, { priority: 'high', ttl: '45s' });
+  assert.deepEqual(wake.android, { priority: 'high', ttl: '60s' });
   assert.ok(chatNotification({ chatId: 'c1', senderName: 'Аня', kind: 'message', unread: 1, wake: true }).android.notification, 'only a call');
 });

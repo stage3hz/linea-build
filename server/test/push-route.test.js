@@ -6,6 +6,8 @@ import { join } from 'node:path';
 import { randomBytes, randomUUID } from 'node:crypto';
 import { buildApp } from '../src/app.js';
 import { createPush } from '../src/push.js';
+import { once } from 'node:events';
+import WebSocket from 'ws';
 
 const IOS_TOKEN = 'a'.repeat(32) + '0123456789abcdef'.repeat(2);
 const ANDROID_TOKEN = 'fcm-registration-token:APA91bExample_1234567890';
@@ -14,7 +16,7 @@ async function account(app, username) {
   const registration = await app.inject({ method: 'POST', url: '/auth/register', payload: { username, displayName: 'Push test', password: 'Solid-test-passphrase_2026!', confirmationWord: 'корабль', recoveryWord: 'астра' } });
   assert.equal(registration.statusCode, 201, registration.body);
   const body = registration.json();
-  return { headers: { authorization: `Bearer ${body.token}` }, userId: body.user.id };
+  return { headers: { authorization: `Bearer ${body.token}` }, userId: body.user.id, token: body.token };
 }
 const key33 = () => Buffer.concat([Buffer.from([5]), randomBytes(32)]).toString('base64');
 async function device(app, who) {
@@ -120,4 +122,60 @@ test('an incoming call reaches each Android app in the form that version of the 
     assert.equal(sent[0].message.android.notification?.channel_id, channel, version);
     assert.equal(sent[0].message.data.wake, notification ? undefined : '1', version);
   }
+});
+
+/** A connected app: its packets, and a wait for the next one that fits. */
+async function socketOf(t, app, who) {
+  if (!app.server.listening) await app.listen({ host: '127.0.0.1', port: 0 });
+  const socket = new WebSocket(`ws://127.0.0.1:${app.server.address().port}/ws`);
+  const packets = [];
+  socket.on('message', raw => { packets.push(JSON.parse(raw.toString())); });
+  socket.on('error', () => {});
+  t.after(() => { socket.terminate(); });
+  await once(socket, 'open');
+  socket.send(JSON.stringify({ type: 'auth', token: who.token }));
+  const wait = async predicate => { for (let i = 0; i < 150; i++) { const hit = packets.find(predicate); if (hit) return hit; await new Promise(resolve => setTimeout(resolve, 20)); } return null; };
+  assert.ok(await wait(packet => packet.type === 'ready'), 'the socket is signed in');
+  return { socket, packets, wait };
+}
+
+test('the caller is told how far the call got: the app is connected, a push was taken, or nothing was reached', async t => {
+  const dataDir = await mkdtemp(join(tmpdir(), 'linea-push-reach-'));
+  let result = 'ok';
+  const push = createPush({ android: async () => result });
+  const app = await buildApp({ dataDir, authRateLimit: false, push });
+  t.after(async () => { await app.close(); await rm(dataDir, { recursive: true, force: true }); });
+  const caller = await account(app, 'reach_caller');
+  const callerDevice = await device(app, caller);
+  const callerSocket = await socketOf(t, app, caller);
+  const call = async (receiver, receiverDevice) => {
+    const chat = await app.inject({ method: 'POST', url: '/chats', headers: caller.headers, payload: { userId: receiver.userId } });
+    assert.ok([200, 201].includes(chat.statusCode), chat.body);
+    const chatId = chat.json().chat.id;
+    callerSocket.packets.length = 0;
+    const message = await app.inject({ method: 'POST', url: `/chats/${encodeURIComponent(chatId)}/messages`, headers: caller.headers, payload: {
+      clientId: randomUUID(), push: 'call',
+      encrypted: { scheme: 'signal-v1', senderDeviceId: callerDevice.id, envelopes: [{ userId: receiver.userId, deviceId: receiverDevice.id, type: 3, body: randomBytes(96).toString('base64') }], attachmentIds: [] },
+    } });
+    assert.equal(message.statusCode, 201, message.body);
+    const packet = await callerSocket.wait(item => item.type === 'call.reach');
+    assert.equal(packet?.chatId, chatId);
+    return packet.reach;
+  };
+  // A closed app with a push token: a notification service takes the call.
+  const closed = await account(app, 'reach_closed');
+  assert.equal((await app.inject({ method: 'PUT', url: '/me/push', headers: { ...closed.headers, 'x-linea-client': 'invizent; v=0.14.41; p=android' }, payload: { token: `${ANDROID_TOKEN}_reach`, platform: 'android' } })).statusCode, 200);
+  const closedDevice = await device(app, closed);
+  assert.equal(await call(closed, closedDevice), 'push');
+  // The same phone, but the service refuses the call: nothing was reached.
+  result = 'failed';
+  assert.equal(await call(closed, closedDevice), 'none');
+  // Nobody to push to at all.
+  const nowhere = await account(app, 'reach_nowhere');
+  assert.equal(await call(nowhere, await device(app, nowhere)), 'none');
+  // The other side's app is connected: it gets the call itself.
+  const open = await account(app, 'reach_open');
+  const openDevice = await device(app, open);
+  await socketOf(t, app, open);
+  assert.equal(await call(open, openDevice), 'online');
 });
