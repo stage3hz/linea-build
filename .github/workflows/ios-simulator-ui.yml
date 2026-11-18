@@ -166,7 +166,7 @@ jobs:
               cd "$RUNNER_TEMP/part" && echo "running:$1 $GITHUB_SHA $(date -u) ${{ matrix.runner }}" > STATUS.txt
               # The state of the Mac itself: two walks stopped publishing half-way with no final status, and without
               # the Actions page load, memory and disk at the last sign of life are the only clue.
-              { uptime; df -h / "$RUNNER_TEMP" | tail -2; vm_stat | head -8; ps -Ao %cpu,%mem,etime,comm -r | head -12; } > host.txt 2>&1
+              { uptime; df -h / "$RUNNER_TEMP" | tail -2; vm_stat | head -8; ps -Ao %cpu,%mem,rss,etime,comm -r | cut -c1-150 | head -16; echo; ps -Ao rss,comm -m | cut -c1-150 | head -8; sysctl vm.swapusage; ps -A | wc -l; } > host.txt 2>&1
               git init -q -b part && git config user.name "linea-ci" && git config user.email "ci@localhost"
               git add -A && git commit -qm "Simulator shots so far ($1) for $GITHUB_SHA"
               limit 180 git push -qf "https://x-access-token:${{ github.token }}@github.com/${{ github.repository }}.git" "HEAD:sim-output-${{ matrix.runner }}" ) || true
@@ -178,6 +178,13 @@ jobs:
           ( n=0; while true; do sleep 240; n=$((n+1)); limit 60 xcrun simctl io "$SIMULATOR_UDID" screenshot "live-$(printf %02d $n).png" >/dev/null 2>&1 || true; publish "live-$n"; done ) &
           LIVE=$!
           publish walk-begins
+          # The Mac was at load 425-545 on 3-4 cores during the walk (host.txt) and went silent a minute after the
+          # chat list first appeared. The falling snow keeps the software renderer busy all the time, so this
+          # walk runs with the system «Reduce Motion» on (the app obeys it: motionPolicy.ts) and takes still
+          # pictures; indexing and what is left of the build are stopped as well.
+          sudo mdutil -a -i off >/dev/null 2>&1 || true
+          pkill -f XCBBuildService 2>/dev/null || true; pkill -f SourceKitService 2>/dev/null || true; pkill -x swift-frontend 2>/dev/null || true
+          limit 60 xcrun simctl spawn "$SIMULATOR_UDID" defaults write com.apple.Accessibility ReduceMotionEnabled -bool true || true
           xcrun simctl ui "$SIMULATOR_UDID" appearance dark
           # Two attempts: on a slow runner the very first XCTest tap once took 377 s (34 s on a normal run, 0.4 s
           # afterwards) and the driver gave up. Each attempt registers its own account (ATTEMPT in login/username).
