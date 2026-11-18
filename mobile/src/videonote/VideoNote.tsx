@@ -260,8 +260,9 @@ export function VideoNoteRecorder({ visible, onClose, onDone, hold = null }: { v
     <View pointerEvents="box-none" style={{ alignItems: 'center', paddingTop: Math.max(insets.top + 24, win.height * 0.4 - RING / 2), gap: 18 }}>
       <GestureDetector gesture={pinch}>
       <Animated.View style={[{ width: RING, height: RING, alignItems: 'center', justifyContent: 'center' }, grow]}>
-        <NoteRing progress={recProgress} size={RING} stroke={4} color="#FFF" track="rgba(255,255,255,0.16)" />
-        <Animated.View style={[{ width: CIRCLE, height: CIRCLE, borderRadius: CIRCLE / 2, overflow: 'hidden', backgroundColor: t.bg }, turnStyle]}>
+        <NoteRing progress={recProgress} size={RING} stroke={4} color="#FFF" track="transparent" />
+        {/* Until the camera gives its first picture the circle is a soft grey disc (Telegram shows a blurred one), not a black hole with an outline. */}
+        <Animated.View style={[{ width: CIRCLE, height: CIRCLE, borderRadius: CIRCLE / 2, overflow: 'hidden', backgroundColor: '#2C2C31' }, turnStyle]}>
           {preview}
           {/* Telegram: the live picture is sharp at once; only an expo-camera flip hides the jump behind a short blur (our native camera covers its own). */}
           {flipping ? <BlurView pointerEvents="none" tint="dark" intensity={80} style={StyleSheet.absoluteFill} /> : null}
@@ -282,13 +283,14 @@ export function VideoNoteRecorder({ visible, onClose, onDone, hold = null }: { v
       <View pointerEvents="box-none" style={{ flexDirection: 'row', alignItems: 'flex-end' }}>
         <View pointerEvents="box-none" style={{ flex: 1, minHeight: 48, marginBottom: 16, marginRight: -68, paddingRight: 76, borderRadius: 24, flexDirection: 'row', alignItems: 'center', gap: 8, paddingLeft: 14, backgroundColor: 'rgba(28,32,46,0.88)' }}>
           <RecTimer running={recording && !notePaused} getMs={getMs} dot={t.danger} fine />
-          {hold?.locked ? <Pressable accessibilityRole="button" accessibilityLabel="Отменить видеосообщение" onPress={cancel} hitSlop={8} style={({ pressed }) => ({ flex: 1, height: 44, alignItems: 'center', justifyContent: 'center', opacity: pressed ? .6 : 1 })}><Text style={{ color: t.accent, fontSize: 16, fontWeight: '600' }}>Отмена</Text></Pressable>
-            : <Text style={{ flex: 1, textAlign: 'center', color: 'rgba(255,255,255,0.6)', fontSize: 14 }}>‹ Влево — отмена</Text>}
+          {hold?.locked ? <Pressable accessibilityRole="button" accessibilityLabel="Отменить видеосообщение" onPress={cancel} hitSlop={8} style={({ pressed }) => ({ flex: 1, height: 44, alignItems: 'center', justifyContent: 'center', opacity: pressed ? .6 : 1 })}><Text style={{ color: t.accent, fontSize: 17, fontWeight: '400' }}>Отмена</Text></Pressable>
+            : <Text style={{ flex: 1, textAlign: 'center', color: 'rgba(255,255,255,0.85)', fontSize: 15 }}>‹ Влево — отмена</Text>}
         </View>
         {/* Telegram: a big accent circle with a light ring, the icon at once (no spinner while the camera starts). */}
         <View style={{ width: 80, height: 80, alignItems: 'center', justifyContent: 'center', marginRight: -6, marginBottom: -6 }}>
-          <View pointerEvents="none" style={{ position: 'absolute', width: 108, height: 108, borderRadius: 54, backgroundColor: t.accent, opacity: .22 }} />
-          <Pressable accessibilityRole="button" accessibilityLabel="Отправить видеосообщение" disabled={!hold?.locked || !recording} onPress={() => void stop()} style={({ pressed }) => ({ width: 80, height: 80, borderRadius: 40, backgroundColor: t.accent, alignItems: 'center', justifyContent: 'center', opacity: pressed ? .85 : 1 })}>
+          {/* Measured on Telegram's screen recording: a 100 pt circle with a thin ring around it (112 pt). */}
+          <View pointerEvents="none" style={{ position: 'absolute', width: 112, height: 112, borderRadius: 56, borderWidth: 2, borderColor: t.accent, opacity: .5 }} />
+          <Pressable accessibilityRole="button" accessibilityLabel="Отправить видеосообщение" disabled={!hold?.locked || !recording} onPress={() => void stop()} hitSlop={10} style={({ pressed }) => ({ position: 'absolute', width: 100, height: 100, borderRadius: 50, backgroundColor: t.accent, alignItems: 'center', justifyContent: 'center', opacity: pressed ? .85 : 1 })}>
             <Icon name={hold?.locked ? 'arrow-up' : 'videocam'} color={t.onAccent} size={hold?.locked ? 34 : 30} />
           </Pressable>
         </View>
@@ -315,8 +317,13 @@ export function VideoNoteRecorder({ visible, onClose, onDone, hold = null }: { v
     </View>;
   if (hold) return visible ? <View pointerEvents={showControls ? 'auto' : 'box-none'} style={[StyleSheet.absoluteFill, { zIndex: 50 }]}>
     {/* Never a touch target: while the finger holds the button the chat below must keep receiving it.
-        Telegram dims the chat (no heavy blur), fading in with the circle. */}
-    <Animated.View pointerEvents="none" style={[StyleSheet.absoluteFill, { backgroundColor: 'rgba(0,0,0,0.55)' }, dim]} />
+        The backdrop fades in with the circle. */}
+    {/* Telegram's screen recording, frame by frame: the chat behind is blurred and darkened almost to black — the
+        header, the messages and the composer are not readable while a circle records. */}
+    <Animated.View pointerEvents="none" style={[StyleSheet.absoluteFill, dim]}>
+      <BlurView tint="dark" intensity={70} style={StyleSheet.absoluteFill} />
+      <View style={[StyleSheet.absoluteFill, { backgroundColor: 'rgba(0,0,0,0.62)' }]} />
+    </Animated.View>
     {holdBody}
   </View> : null;
   return <Modal visible={visible} animationType="fade" onRequestClose={cancel} statusBarTranslucent>{body}</Modal>;
@@ -336,8 +343,9 @@ function RecTimer({ running, getMs, dot, fine = false }: { running: boolean; get
   }, [running, fine]);
   if (!fine) return <Text style={{ color: '#FFF', fontSize: 17, fontWeight: '700' }}>{formatVoiceTime(ms)}</Text>;
   return <>
-    {dot ? <View style={{ width: 9, height: 9, borderRadius: 5, backgroundColor: dot, opacity: running && Math.floor(ms / 600) % 2 ? .25 : 1 }} /> : null}
-    <Text style={{ color: '#FFF', fontSize: 15, fontWeight: '500', minWidth: 44, fontVariant: ['tabular-nums'] }}>{formatVoiceTime(ms)}</Text>
+    {dot ? <View style={{ width: 10, height: 10, borderRadius: 5, backgroundColor: dot, opacity: running && Math.floor(ms / 600) % 2 ? .25 : 1 }} /> : null}
+    {/* With hundredths, as in Telegram («0:03,93»): the comment above promised them, the text never had them. */}
+    <Text raw style={{ color: '#FFF', fontSize: 17, fontWeight: '400', minWidth: 70, fontVariant: ['tabular-nums'] }}>{formatVoiceTime(ms)},{String(Math.floor((ms % 1000) / 10)).padStart(2, '0')}</Text>
   </>;
 }
 
