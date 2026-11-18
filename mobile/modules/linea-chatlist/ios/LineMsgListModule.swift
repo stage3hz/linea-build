@@ -524,9 +524,10 @@ final class MsgListView: ExpoView, UITableViewDataSource, UITableViewDelegate, U
   private var fontSize: CGFloat = 17
   private var layouts: [String: (row: MsgRow, width: CGFloat, font: CGFloat, layout: MsgLayout)] = [:]
   private var askedAt = ""
-  /// What `pad` asked for, and how much of the list the keyboard covers on top of that.
+  /// The user is at the newest message (changed only by their own scrolling).
+  private var pinned = true
+  /// What `pad` asked for.
   private var padInsets = UIEdgeInsets.zero
-  private var keyboardOverlap: CGFloat = 0
 
   required init(appContext: AppContext? = nil) {
     super.init(appContext: appContext)
@@ -542,7 +543,8 @@ final class MsgListView: ExpoView, UITableViewDataSource, UITableViewDelegate, U
     table.dataSource = self
     table.delegate = self
     if #available(iOS 15.0, *) { table.sectionHeaderTopPadding = 0 }
-    table.frame = bounds
+    table.bounds = CGRect(origin: .zero, size: bounds.size)
+    table.center = CGPoint(x: bounds.midX, y: bounds.midY)
     addSubview(table)
     let hold = UILongPressGestureRecognizer(target: self, action: #selector(held(_:)))
     hold.minimumPressDuration = 0.4
@@ -550,9 +552,6 @@ final class MsgListView: ExpoView, UITableViewDataSource, UITableViewDelegate, U
     // A tap on a link or on a hidden spoiler is taken before the row gets it; any other tap goes to the row.
     linkTap.delegate = self
     table.addGestureRecognizer(linkTap)
-    // The list reaches the bottom of the screen and nothing in React shrinks it for the keyboard: seen in the
-    // simulator, the newest messages (and the one just sent) stayed behind the keyboard and the composer.
-    NotificationCenter.default.addObserver(self, selector: #selector(keyboardMoved(_:)), name: UIResponder.keyboardWillChangeFrameNotification, object: nil)
   }
 
   private func run(atTablePoint point: CGPoint) -> (path: IndexPath, key: String, hit: (flags: Int, url: String, shown: String))? {
@@ -594,32 +593,28 @@ final class MsgListView: ExpoView, UITableViewDataSource, UITableViewDelegate, U
     onLinkPress(["key": found.key, "url": found.hit.url, "shown": found.hit.shown])
   }
 
-  @objc private func keyboardMoved(_ note: Notification) {
-    guard let window = window, let info = note.userInfo, let end = (info[UIResponder.keyboardFrameEndUserInfoKey] as? NSValue)?.cgRectValue else { return }
-    let mine = convert(bounds, to: window)
-    let overlap = max(0, mine.maxY - max(end.minY, mine.minY))
-    if abs(overlap - keyboardOverlap) < 0.5 { return }
-    keyboardOverlap = overlap
-    let duration = (info[UIResponder.keyboardAnimationDurationUserInfoKey] as? NSNumber)?.doubleValue ?? 0.25
-    let curve = (info[UIResponder.keyboardAnimationCurveUserInfoKey] as? NSNumber)?.uintValue ?? 7
-    UIView.animate(withDuration: duration, delay: 0, options: [UIView.AnimationOptions(rawValue: curve << 16), .beginFromCurrentState], animations: { self.applyInsets() }, completion: nil)
-  }
-
   private func applyInsets() {
-    var insets = padInsets
-    insets.top += keyboardOverlap
+    let insets = padInsets
     if table.contentInset == insets { return }
-    let atBottom = table.contentOffset.y <= -table.contentInset.top + 1
+    let atBottom = pinned
     table.contentInset = insets
     if atBottom { table.contentOffset = CGPoint(x: 0, y: -insets.top) }
   }
 
   override func layoutSubviews() {
     super.layoutSubviews()
-    if table.frame != bounds {
-      let widthChanged = table.frame.width != bounds.width
-      table.frame = bounds
+    // The screen shrinks from below when the keyboard comes (KeyboardSafeView). The table is upside down and
+    // `frame` of a transformed view is undefined, so size and centre are set instead; the scroll position is
+    // kept, and a list the user left at its newest message is put back there.
+    let middle = CGPoint(x: bounds.midX, y: bounds.midY)
+    if table.bounds.size != bounds.size || table.center != middle {
+      let widthChanged = table.bounds.width != bounds.width
+      let atBottom = pinned
+      let offset = table.contentOffset
+      table.bounds = CGRect(origin: offset, size: bounds.size)
+      table.center = middle
       if widthChanged { layouts.removeAll(); table.reloadData() }
+      if atBottom { table.contentOffset = CGPoint(x: 0, y: -table.contentInset.top) }
     }
   }
 
@@ -636,6 +631,8 @@ final class MsgListView: ExpoView, UITableViewDataSource, UITableViewDelegate, U
     if next == rows { return }
     let sameOrder = next.count == rows.count && zip(next, rows).allSatisfy { $0.key == $1.key }
     let sameHeights = sameOrder && zip(next, rows).allSatisfy { $0 == $1 || layout($0).height == layout($1).height }
+    // Telegram: a message of your own takes the list to its end, wherever it was scrolled to.
+    let ownNew = !rows.isEmpty && (next.first.map { $0.mine && $0.key != rows.first?.key } ?? false)
     rows = next
     if layouts.count > rows.count * 2 + 200 { layouts.removeAll() }
     if sameHeights {
@@ -645,6 +642,11 @@ final class MsgListView: ExpoView, UITableViewDataSource, UITableViewDelegate, U
       }
     } else {
       table.reloadData()
+    }
+    if ownNew {
+      pinned = true
+      table.layoutIfNeeded()
+      table.setContentOffset(CGPoint(x: 0, y: -table.contentInset.top), animated: true)
     }
   }
 
@@ -666,6 +668,10 @@ final class MsgListView: ExpoView, UITableViewDataSource, UITableViewDelegate, U
   func setPad(top: Double, bottom: Double) {
     padInsets = UIEdgeInsets(top: CGFloat(bottom), left: 0, bottom: CGFloat(top), right: 0)
     applyInsets()
+  }
+
+  func scrollViewDidScroll(_ scrollView: UIScrollView) {
+    if scrollView.isDragging || scrollView.isDecelerating { pinned = scrollView.contentOffset.y <= -scrollView.contentInset.top + 24 }
   }
 
   func tableView(_ tableView: UITableView, numberOfRowsInSection section: Int) -> Int { rows.count }

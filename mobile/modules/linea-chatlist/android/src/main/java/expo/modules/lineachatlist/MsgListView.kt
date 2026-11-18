@@ -89,7 +89,10 @@ class MsgListView(context: Context, appContext: AppContext) : ExpoView(context, 
     val anchor = rows.getOrNull(list.firstVisiblePosition)?.key
     val top = list.getChildAt(0)?.top ?: 0
     val prepended = rows.isNotEmpty() && next.size > rows.size && next.firstOrNull()?.key != rows.firstOrNull()?.key && next.lastOrNull()?.key == rows.lastOrNull()?.key
+    // Telegram: a message of your own takes the list to its end, wherever it was scrolled to.
+    val ownNew = rows.isNotEmpty() && next.lastOrNull()?.let { it.mine && it.key != rows.lastOrNull()?.key } == true
     rows = next; adapter.notifyDataSetChanged()
+    if (ownNew) list.post { list.setSelection(next.size - 1) }
     if (prepended && anchor != null) { val index = next.indexOfFirst { it.key == anchor }; if (index >= 0) list.setSelectionFromTop(index, top - list.paddingTop) }
   }
 
