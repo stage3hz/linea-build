@@ -4,7 +4,7 @@
 name: CI report
 on:
   workflow_run:
-    workflows: ['iOS Simulator UI check']
+    workflows: ['iOS Simulator UI check', 'Android APK', 'iOS unsigned IPA (iphoneos arm64)', 'Windows desktop EXE']
     types: [completed]
   push:
     branches: [main]
@@ -45,6 +45,21 @@ jobs:
               gh run view --repo "$REPO" --job "$job" --log 2> "walk-$id-job-$job-log-error.txt" | tail -600 | cut -c1-400 > "walk-$id-job-$job-log-tail.txt" || true
             done
             gh run view "$id" --repo "$REPO" --log-failed 2>&1 | tail -500 | cut -c1-400 > "walk-$id-failed-steps.txt" || true
+          done
+      # The builds: how the last runs of each ended and, for a failed one, the end of its failed steps' log.
+      - name: Collect the last builds
+        run: |
+          cd out
+          for wf in android-apk ios-unsigned-ipa windows-desktop; do
+            for id in $(gh api "repos/$REPO/actions/workflows/$wf.yml/runs?per_page=3" --jq '.workflow_runs[].id'); do
+              {
+                gh api "repos/$REPO/actions/runs/$id" --jq '"run \(.id) \(.head_sha[0:7]) \(.status) \(.conclusion // "-") started \(.run_started_at) updated \(.updated_at)"'
+                gh api "repos/$REPO/actions/runs/$id/jobs?per_page=30" --jq '.jobs[] | "JOB \(.name) \(.status) \(.conclusion // "-")", (.steps[]? | select(.conclusion != "success" and .conclusion != "skipped") | "   \(.number). \(.name): \(.status) \(.conclusion // "-")")'
+              } > "build-$wf-$id.txt" 2>&1 || true
+              if [ "$(gh api "repos/$REPO/actions/runs/$id" --jq '.conclusion // "-"')" = "failure" ]; then
+                gh run view "$id" --repo "$REPO" --log-failed 2>&1 | grep -iE 'error|e: |FAILED|What went wrong|Unresolved|exception' | tail -80 | cut -c1-400 > "build-$wf-$id-errors.txt" || true
+              fi
+            done
           done
       # The Macs fail to push their screenshots (HTTP 408 from a loaded runner), but the artifacts they upload do
       # arrive. They are fetched here, made small (JPEG, half size) and published with the report.
