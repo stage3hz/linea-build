@@ -79,7 +79,9 @@ export function NameplateBake({ plate, onReady }: { plate: string; onReady: (pla
     if (!item) return;
     let alive = true;
     // The first frame must be drawn before the picture can be taken.
-    const timer = setTimeout(() => { try { (ref.current as unknown as { toDataURL?: (done: (data: string) => void, options?: object) => void } | null)?.toDataURL?.(data => { if (alive && data) onReady(plate, data); }, { width: W * 2, height: H * 2 }); } catch { /* the row stays without its plate */ } }, 250);
+    // No size is asked for: with one, iOS drew the art at its own size into the corner of a larger empty picture
+    // (seen on a device: the plate filled a quarter of the row). The native row scales the picture itself.
+    const timer = setTimeout(() => { try { (ref.current as unknown as { toDataURL?: (done: (data: string) => void) => void } | null)?.toDataURL?.(data => { if (alive && data) onReady(plate, data); }); } catch { /* the row stays without its plate */ } }, 250);
     return () => { alive = false; clearTimeout(timer); };
   }, [plate]);
   if (!item) return null;

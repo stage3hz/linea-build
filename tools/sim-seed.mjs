@@ -78,5 +78,18 @@ const found = (await people[0].api.users('@' + handle)).users[0];
 if (!found) { console.error(`the test account @${handle} was not found`); process.exit(1); }
 let sent = 0;
 for (const [index, [, , texts]] of PEOPLE.entries()) for (const text of texts) { await say(people[index], found.id, text); sent++; }
+// Platina looks (the metal name, the platinum ring, a nameplate, a colour frame) for three of the people, when the
+// local server's data folder is given: the grant goes through the server's own administrator tool, as in production.
+const dataDir = process.argv[4];
+if (dataDir) {
+  const { execFileSync } = await import('node:child_process');
+  const looks = [{ nameplate: 'crows' }, {}, { avatarFrame: 'aurora' }];
+  for (const [index, look] of looks.entries()) {
+    try {
+      execFileSync(process.execPath, [new URL('../server/src/platina-admin.js', import.meta.url).pathname, 'grant-permanent', '--data-dir', dataDir, '--user-id', people[index].id, '--reason', 'simulator walk'], { stdio: 'pipe' });
+      if (Object.keys(look).length) await people[index].api.profile(look);
+    } catch (error) { console.log(`Platina look of person ${index} not set: ${error.message}`); }
+  }
+}
 for (const person of people) await person.service.close();
 console.log(JSON.stringify({ people: people.length, messages: sent, to: found.id }));

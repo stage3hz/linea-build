@@ -187,7 +187,7 @@ jobs:
           if [ "$dark_ok" = 1 ]; then
             publish registered
             # People to talk to: accounts with avatars and really encrypted messages, on the local server only.
-            (cd "$GITHUB_WORKSPACE" && node tools/sim-seed.mjs http://127.0.0.1:3999 "simui_check$attempt") || echo "SEED_FAILED=1" >> "$GITHUB_ENV"
+            (cd "$GITHUB_WORKSPACE" && node tools/sim-seed.mjs http://127.0.0.1:3999 "simui_check$attempt" "$GITHUB_WORKSPACE/srvdata") || echo "SEED_FAILED=1" >> "$GITHUB_ENV"
             limit 1200 maestro --device "$SIMULATOR_UDID" test -e THEME=dark "$GITHUB_WORKSPACE/tools/maestro/native-check.yaml" || echo "NATIVE_FAILED=1" >> "$GITHUB_ENV"
             xcrun simctl io "$SIMULATOR_UDID" screenshot zy-after-native.png || true
             publish native-check-done

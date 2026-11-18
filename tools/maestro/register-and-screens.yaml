@@ -21,6 +21,8 @@ appId: com.linea.messenger.preview
 - takeScreenshot: 00-auth
 - tapOn: "Создать аккаунт"
 
+# The submit button is found by its label: the testID wrapper around it is not in the accessibility tree
+# (seen in a walk: «No visible element found: id: auth-submit» with the button on screen).
 # Step 1/5: the login (every value is entered once since 0.14.25)
 - tapOn:
     id: "field-Логин"
@@ -35,10 +37,10 @@ appId: com.linea.messenger.preview
     commands:
       - scrollUntilVisible:
           element:
-            id: "auth-submit"
+            text: "Продолжить"
           direction: DOWN
       - tapOn:
-          id: "auth-submit"
+          text: "Продолжить"
 - extendedWaitUntil:
     visible:
       id: "field-Имя"
@@ -62,10 +64,10 @@ appId: com.linea.messenger.preview
     commands:
       - scrollUntilVisible:
           element:
-            id: "auth-submit"
+            text: "Продолжить"
           direction: DOWN
       - tapOn:
-          id: "auth-submit"
+          text: "Продолжить"
 - extendedWaitUntil:
     visible:
       id: "field-Пароль"
@@ -89,10 +91,10 @@ appId: com.linea.messenger.preview
     commands:
       - scrollUntilVisible:
           element:
-            id: "auth-submit"
+            text: "Продолжить"
           direction: DOWN
       - tapOn:
-          id: "auth-submit"
+          text: "Продолжить"
 - extendedWaitUntil:
     visible:
       id: "field-Слово подтверждения"
@@ -121,10 +123,10 @@ appId: com.linea.messenger.preview
     commands:
       - scrollUntilVisible:
           element:
-            id: "auth-submit"
+            text: "Продолжить"
           direction: DOWN
       - tapOn:
-          id: "auth-submit"
+          text: "Продолжить"
 - extendedWaitUntil:
     visible:
       id: "field-Слово восстановления"
@@ -155,10 +157,12 @@ appId: com.linea.messenger.preview
     when:
       notVisible: "Чаты"
       visible:
-        id: "auth-submit"
+        text: "Создать аккаунт"
+        index: 1
     commands:
       - tapOn:
-          id: "auth-submit"
+          text: "Создать аккаунт"
+          index: 1
 - tapOn:
     text: "Allow"
     optional: true

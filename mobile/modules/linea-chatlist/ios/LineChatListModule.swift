@@ -396,13 +396,16 @@ final class ChatRowCanvas: UIView {
       let nameWidth = min(titleRoom, ceil(name.size().width))
       let size = CGSize(width: nameWidth, height: 21)
       let colors = item.metal.map { chatColor($0).cgColor } as CFArray
+      // The letters as a picture first, then the metal kept only where they are. The blend mode has to be given to
+      // UIImage.draw: text drawing ignores the mode set on the context (seen on a device: a solid metal bar).
+      let letters = UIGraphicsImageRenderer(size: size).image { _ in
+        name.draw(with: CGRect(origin: .zero, size: size), options: [.usesLineFragmentOrigin, .truncatesLastVisibleLine], context: nil)
+      }
       let picture = UIGraphicsImageRenderer(size: size).image { renderer in
         if let gradient = CGGradient(colorsSpace: CGColorSpaceCreateDeviceRGB(), colors: colors, locations: nil) {
           renderer.cgContext.drawLinearGradient(gradient, start: CGPoint(x: 0, y: 6), end: CGPoint(x: nameWidth, y: 15), options: [.drawsBeforeStartLocation, .drawsAfterEndLocation])
         }
-        // Keep the metal only where the letters are.
-        renderer.cgContext.setBlendMode(.destinationIn)
-        name.draw(with: CGRect(origin: .zero, size: size), options: [.usesLineFragmentOrigin, .truncatesLastVisibleLine], context: nil)
+        letters.draw(at: .zero, blendMode: .destinationIn, alpha: 1)
       }
       picture.draw(at: CGPoint(x: x, y: top))
       if item.nameLen < whole.length, titleRoom - nameWidth > 8 {
