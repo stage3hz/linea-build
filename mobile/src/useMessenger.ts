@@ -332,6 +332,15 @@ export function useMessenger(api: Api, user: User, onExpired: ()=>void) {
       const result=await pageRequest;
       result.messages=await Promise.all(result.messages.map(hydrate));
       if(!aliveRef.current)return;
+      // A call that came while the app was closed: the app was started by its notification (or opened by hand a
+      // moment later) and nothing handed it the call — call signals were heard only as live messages, so the call
+      // screen never came up and there was nothing to press (reported from an Android phone). The recent call
+      // signals of the page are handed over in order (the offer, then a hang-up if there was one); the call screen
+      // itself drops what is stale or already seen.
+      if(!older){const fresh=Date.now()-2*60_000;
+        for(const message of [...result.messages].sort((a,b)=>a.id-b.id))
+          if(message.meta?.action?.type==='call'&&message.senderId!==user.id&&message.cryptoState==='decrypted'&&Date.parse(message.createdAt)>=fresh)
+            callListeners.current.forEach(listener=>{try{listener(message);}catch{/* keep the page */}});}
       // The latest page replaces only its own range: history scrolled up earlier survives a reconnect.
       const applied=applyPage(messagesRef.current[chatId]||[],result.messages,{older,hasMore:result.hasMore,prevHasMore:hasMoreRef.current[chatId]});
       setMessages(prev=>({...prev,[chatId]:applied.messages}));
@@ -402,7 +411,12 @@ export function useMessenger(api: Api, user: User, onExpired: ()=>void) {
         if(typeof data.type==='string'&&(data.type.startsWith('community')||data.type.startsWith('voice')||data.type.startsWith('sfu')||data.type.startsWith('story')||data.type==='call.reach'||data.type==='friends'||data.type==='ready'||data.type==='error'))socketListeners.current.forEach(listener=>{try{listener(data);}catch{/* keep other listeners */}});
         if(data.type==='ready'){
           // «Обновление…» in the title until the list is fresh again (Telegram).
-          attempts=0;setConnection('connected');setUpdating(true);void refreshChats().finally(()=>{if(!stopped)setUpdating(false);});void refreshRecoveryRequests();void refreshScheduled();
+          attempts=0;setConnection('connected');setUpdating(true);
+          // …and a chat whose last message came from the other side within the last minute is looked into at once:
+          // it may be a call still ringing (see loadMessages).
+          void refreshChats().finally(()=>{if(stopped)return;setUpdating(false);const recent=Date.now()-70_000;
+            for(const chat of chatsRef.current){const last=chat.lastMessage;if(last&&last.senderId!==user.id&&Date.parse(last.createdAt)>=recent&&chat.id!==selectedRef.current)void loadMessages(chat.id);}});
+          void refreshRecoveryRequests();void refreshScheduled();
           if(selectedRef.current)void loadMessages(selectedRef.current);
         }else if(data.type==='message'&&data.message){void acceptMessage(data.message);}
         else if(data.type==='chat'&&data.chat){

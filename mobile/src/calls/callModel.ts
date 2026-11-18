@@ -1,6 +1,6 @@
 // Pure helpers for calls (no React Native imports, covered by tests).
 
-export const OFFER_TTL_MS = 45_000;       // an offer older than this is a missed call, never rings
+export const OFFER_TTL_MS = 60_000;       // an offer older than this is a missed call, never rings (a call rings for a minute)
 export const RING_TIMEOUT_MS = 60_000;    // a call rings for a minute, then ends by itself (both sides)
 export const GATHER_TIMEOUT_MS = 3_000;   // non-trickle ICE: send what was gathered by then
 /** With a relay (TURN) configured, the wait goes on up to this long for the relay's own address to arrive. */
