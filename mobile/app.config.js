@@ -102,8 +102,9 @@ module.exports = {
       // sees (and removes) the entitlement when expo-notifications' mod has already run.
       ...(process.env.IOS_PUSH === '1' ? [] : ['./plugins/withNoIosPush']),
       // iOS: «aps-environment» entitlement (APNs); Xcode sets production for App Store exports anyway.
-      // `sounds`: the ringtone of an incoming call's notification (Android channel «calls-ring», src/push.ts).
-      ['expo-notifications', { icon: './assets/notification-icon.png', color: '#4C7DFF', defaultChannel: 'messages', mode: development ? 'development' : 'production', sounds: ['./assets/sounds/call_ring.ogg'] }],
+      // `sounds`: the ringtone of an incoming call's notification (Android channel «calls-ring», src/push.ts) and the
+      // same ringtone as a WAV for iPhone: a notification there can only play aiff / wav / caf from the app, up to 30 s.
+      ['expo-notifications', { icon: './assets/notification-icon.png', color: '#4C7DFF', defaultChannel: 'messages', mode: development ? 'development' : 'production', sounds: ['./assets/sounds/call_ring.ogg', './assets/sounds/call_ring.wav'] }],
       './plugins/withSelfUpdate',
       // Фоновое обновление (Android, src/prefetch): the system's periodic background run.
       'expo-background-task',

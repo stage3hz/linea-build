@@ -3,7 +3,7 @@ import { installCallRoutes } from './calls.js';
 import { parseClientInfo, clientGateDecision, parseVersion, versionLessThan } from './clientgate.js';
 import { verifyAttest, attestMode } from './attest.js';
 import { createRelease } from './release.js';
-import { PUSH_SCHEMA, PUSH_KINDS, RING_CHANNEL_SINCE, WAKE_SINCE, chatNotification, migratePushTokens } from './push.js';
+import { PUSH_SCHEMA, PUSH_KINDS, RING_CHANNEL_SINCE, RING_IOS_SINCE, WAKE_SINCE, chatNotification, migratePushTokens } from './push.js';
 import { MODERATION_SCHEMA, installModerationRoutes, blockedBetween, deleteAccount, deleteChatForEveryone } from './moderation.js';
 import { installSoundCloudRoutes } from './soundcloud.js';
 import { COMMUNITY_SCHEMA, installCommunityRoutes, VOICE_LIMIT } from './communities.js';
@@ -491,12 +491,15 @@ export async function buildApp({
       const ringing = kind === 'call' ? chatNotification({ ...content, ring: true }) : message;
       // …and wakes the app for a full-screen incoming call where the app can do that.
       const waking = kind === 'call' ? chatNotification({ ...content, ring: true, wake: true }) : message;
+      // iPhone: the long ringtone the app carries since RING_IOS_SINCE, instead of the system's short sound.
+      const iosRinging = kind === 'call' ? chatNotification({ ...content, iosRing: true }) : message;
       for (const { token, platform, app_version: version } of tokens) {
         // versionLessThan compares parsed versions ([major, minor, patch]), not the strings.
         const parsed = parseVersion(version);
         const ring = kind === 'call' && platform === 'android' && !!parsed && !versionLessThan(parsed, parseVersion(RING_CHANNEL_SINCE));
         const wake = ring && !versionLessThan(parsed, parseVersion(WAKE_SINCE));
-        push(token, wake ? waking : ring ? ringing : message, platform).then(result => { if (kind === 'call' || result !== 'ok') app.log.info({ kind, platform, version, form: wake ? 'wake' : ring ? 'ring' : 'plain', result }, 'push sent'); if (result === 'gone' && !databaseClosed) db.prepare('DELETE FROM push_tokens WHERE token=?').run(token); })
+        const iosRing = kind === 'call' && platform === 'ios' && !!parsed && !versionLessThan(parsed, parseVersion(RING_IOS_SINCE));
+        push(token, wake ? waking : ring ? ringing : iosRing ? iosRinging : message, platform).then(result => { if (kind === 'call' || result !== 'ok') app.log.info({ kind, platform, version, form: wake ? 'wake' : ring ? 'ring' : iosRing ? 'ios-ring' : 'plain', result }, 'push sent'); if (result === 'gone' && !databaseClosed) db.prepare('DELETE FROM push_tokens WHERE token=?').run(token); })
           .catch(error => app.log.warn({ err: error.message }, 'push failed'));
       }
     }

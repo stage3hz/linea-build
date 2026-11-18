@@ -142,6 +142,16 @@ test('an incoming call rings on the ringing channel only where the app has it', 
   assert.equal(chatNotification({ chatId: 'c1', senderName: 'Аня', kind: 'message', unread: 1, ring: true }).android.notification.channel_id, 'messages', 'only a call rings');
 });
 
+test('an incoming call to an iPhone rings with the app\'s long ringtone only where the app carries it', () => {
+  const plain = chatNotification({ chatId: 'c1', senderName: 'Аня', kind: 'call', unread: 0 });
+  const ring = chatNotification({ chatId: 'c1', senderName: 'Аня', kind: 'call', unread: 0, iosRing: true });
+  assert.equal(plain.apns.payload.aps.sound, 'default');
+  assert.equal(ring.apns.payload.aps.sound, 'call_ring.wav');
+  assert.equal(ring.apns.payload.aps['interruption-level'], 'time-sensitive');
+  assert.equal(chatNotification({ chatId: 'c1', senderName: 'Аня', kind: 'message', unread: 1, iosRing: true }).apns.payload.aps.sound, 'default', 'only a call rings');
+  assert.equal(chatNotification({ chatId: 'c1', senderName: 'Аня', kind: 'silent', unread: 1, iosRing: true }).apns.payload.aps.sound, undefined, 'a silent message stays silent');
+});
+
 test('a call wakes the app with a data message that still reads as a ringing notification if the app\'s code does not run', () => {
   const wake = chatNotification({ chatId: 'c1', senderName: 'Аня', kind: 'call', unread: 0, ring: true, wake: true });
   assert.equal(wake.android.notification, undefined, 'a data message: Android hands it to the closed app');
