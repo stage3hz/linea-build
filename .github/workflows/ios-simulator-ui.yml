@@ -164,9 +164,12 @@ jobs:
             ( rm -rf "$RUNNER_TEMP/part" && mkdir -p "$RUNNER_TEMP/part" && cp -R . "$RUNNER_TEMP/part/" 2>/dev/null
               cp -R "$HOME/.maestro/tests" "$RUNNER_TEMP/part/maestro-tests" 2>/dev/null
               cd "$RUNNER_TEMP/part" && echo "running:$1 $GITHUB_SHA $(date -u) ${{ matrix.runner }}" > STATUS.txt
+              # The state of the Mac itself: two walks stopped publishing half-way with no final status, and without
+              # the Actions page load, memory and disk at the last sign of life are the only clue.
+              { uptime; df -h / "$RUNNER_TEMP" | tail -2; vm_stat | head -8; ps -Ao %cpu,%mem,etime,comm -r | head -12; } > host.txt 2>&1
               git init -q -b part && git config user.name "linea-ci" && git config user.email "ci@localhost"
               git add -A && git commit -qm "Simulator shots so far ($1) for $GITHUB_SHA"
-              git push -qf "https://x-access-token:${{ github.token }}@github.com/${{ github.repository }}.git" "HEAD:sim-output-${{ matrix.runner }}" ) || true
+              limit 180 git push -qf "https://x-access-token:${{ github.token }}@github.com/${{ github.repository }}.git" "HEAD:sim-output-${{ matrix.runner }}" ) || true
           }
           # No maestro call may run longer than its limit (one hung for two hours with no output), and while the
           # walk goes on a picture of the simulator screen is published every four minutes: what the robot is
