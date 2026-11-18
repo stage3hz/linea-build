@@ -641,7 +641,7 @@ final class MsgListView: ExpoView, UITableViewDataSource, UITableViewDelegate, U
     if sameHeights {
       for cell in table.visibleCells {
         guard let rowCell = cell as? MsgRowCell, let path = table.indexPath(for: cell), path.row < rows.count else { continue }
-        rowCell.show(rows[path.row], palette, fontSize, layout(rows[path.row]))
+        rowCell.show(rows[path.row], palette, fontSize, layout(rows[path.row]), revealed.contains(rows[path.row].key))
       }
     } else {
       table.reloadData()
