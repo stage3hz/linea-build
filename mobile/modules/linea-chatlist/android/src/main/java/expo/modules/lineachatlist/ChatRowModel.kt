@@ -46,6 +46,8 @@ data class ChatRow(
 data class ChatPalette(
   val text: Int, val muted: Int, val subtle: Int, val accent: Int, val onAccent: Int,
   val border: Int, val pressed: Int, val selected: Int, val badgeMuted: Int, val bg: Int,
+  /** The fill of a pinned row. */
+  val pinned: Int = 0x0EFFFFFF,
 ) {
   companion object {
     val DARK = ChatPalette(0xFFF1F5FF.toInt(), 0xFF8A97B4.toInt(), 0xFF6B7896.toInt(), 0xFFA9C4FF.toInt(), 0xFF0A1430.toInt(), 0x12FFFFFF, 0x12FFFFFF, 0x1FA9C4FF, 0xFF34415F.toInt(), 0xFF070B16.toInt())
@@ -53,7 +55,7 @@ data class ChatPalette(
       if (map == null) return DARK
       fun c(key: String, fallback: Int) = (map[key] as? Number)?.toInt() ?: fallback
       return ChatPalette(c("text", DARK.text), c("muted", DARK.muted), c("subtle", DARK.subtle), c("accent", DARK.accent), c("onAccent", DARK.onAccent),
-        c("border", DARK.border), c("pressed", DARK.pressed), c("selected", DARK.selected), c("badgeMuted", DARK.badgeMuted), c("bg", DARK.bg))
+        c("border", DARK.border), c("pressed", DARK.pressed), c("selected", DARK.selected), c("badgeMuted", DARK.badgeMuted), c("bg", DARK.bg), c("pinned", DARK.pinned))
     }
   }
 }

@@ -100,6 +100,8 @@ struct ChatPalette: Equatable {
   var pressed = chatColor(0x12FFFFFF)
   var selected = chatColor(0x1FA9C4FF)
   var badgeMuted = chatColor(0xFF34415F)
+  /// The fill of a pinned row.
+  var pinned = chatColor(0x0EFFFFFF)
   var bg = chatColor(0xFF070B16)
 
   init() {}
@@ -110,7 +112,7 @@ struct ChatPalette: Equatable {
     }
     text = color("text", text); muted = color("muted", muted); subtle = color("subtle", subtle)
     accent = color("accent", accent); onAccent = color("onAccent", onAccent); border = color("border", border)
-    pressed = color("pressed", pressed); selected = color("selected", selected); badgeMuted = color("badgeMuted", badgeMuted)
+    pressed = color("pressed", pressed); selected = color("selected", selected); badgeMuted = color("badgeMuted", badgeMuted); pinned = color("pinned", pinned)
     bg = color("bg", bg)
   }
 }
@@ -277,6 +279,11 @@ final class ChatRowCanvas: UIView {
     guard let item = row, let context = UIGraphicsGetCurrentContext() else { return }
     let w = bounds.width
     let h = bounds.height
+    // Telegram: pinned chats stand on a slightly different ground than the rest of the list.
+    if item.pinned {
+      context.setFillColor(palette.pinned.cgColor)
+      context.fill(bounds)
+    }
     if item.selected || pressed {
       context.setFillColor((item.selected ? palette.selected : palette.pressed).cgColor)
       context.fill(bounds)
@@ -383,11 +390,13 @@ final class ChatRowCanvas: UIView {
     let badgeColor = item.muted ? palette.text : palette.onAccent
     let badge = NSAttributedString(string: badgeText, attributes: [.font: ChatRowCanvas.badgeFont, .foregroundColor: badgeColor])
     let badgeWidth = badgeText.isEmpty ? 0 : max(22, ceil(badge.size().width) + 12)
-    let markWidth = badgeText.isEmpty && item.ticks > 0 ? 22 : badgeWidth
+    // Telegram: the ticks stand before the time; under the time is the unread badge or, without one, the pin.
+    let tickWidth: CGFloat = item.ticks > 0 ? 22 : 0
+    let markWidth: CGFloat = badgeText.isEmpty && item.pinned ? 20 : badgeWidth
 
     let title = NSAttributedString(string: item.title, attributes: [
       .font: ChatRowCanvas.titleFont, .foregroundColor: textColor, .paragraphStyle: paragraph(.byTruncatingTail)])
-    let titleRoom = max(0, right - x - timeWidth - 8)
+    let titleRoom = max(0, right - x - timeWidth - 8 - tickWidth)
     let whole = item.title as NSString
     if item.metal.count >= 2, item.nameLen > 0, item.nameLen <= whole.length, titleRoom > 1 {
       // A Platina name: the letters of the name show polished metal, the rest of the line stays plain.
@@ -443,19 +452,24 @@ final class ChatRowCanvas: UIView {
       context.fillPath()
       let size = badge.size()
       badge.draw(at: CGPoint(x: box.midX - size.width / 2, y: box.midY - size.height / 2))
-    } else if item.ticks > 0 {
+    } else if item.pinned, let pin = UIImage(systemName: "pin.fill", withConfiguration: UIImage.SymbolConfiguration(pointSize: 13, weight: .regular))?
+                .withTintColor(palette.subtle, renderingMode: .alwaysOriginal) {
+      pin.draw(at: CGPoint(x: right - pin.size.width - 1, y: markY - pin.size.height / 2))
+    }
+    if item.ticks > 0 {
+      let tickY = top + 12
       context.setStrokeColor((item.ticks == 2 ? palette.accent : palette.muted).cgColor)
-      context.setLineWidth(1.8)
+      context.setLineWidth(1.7)
       context.setLineCap(.round)
       context.setLineJoin(.round)
-      let bx = right - 16
-      context.move(to: CGPoint(x: bx, y: markY))
-      context.addLine(to: CGPoint(x: bx + 4, y: markY + 4))
-      context.addLine(to: CGPoint(x: bx + 12, y: markY - 5))
+      let bx = right - timeWidth - 6 - 16
+      context.move(to: CGPoint(x: bx, y: tickY))
+      context.addLine(to: CGPoint(x: bx + 4, y: tickY + 4))
+      context.addLine(to: CGPoint(x: bx + 12, y: tickY - 5))
       if item.ticks == 2 {
-        context.move(to: CGPoint(x: bx + 6, y: markY + 2))
-        context.addLine(to: CGPoint(x: bx + 8, y: markY + 4))
-        context.addLine(to: CGPoint(x: bx + 16, y: markY - 5))
+        context.move(to: CGPoint(x: bx + 6, y: tickY + 2))
+        context.addLine(to: CGPoint(x: bx + 8, y: tickY + 4))
+        context.addLine(to: CGPoint(x: bx + 16, y: tickY - 5))
       }
       context.strokePath()
     }

@@ -84,6 +84,19 @@ appId: com.linea.messenger.preview
 - waitForAnimationToEnd
 - takeScreenshot: ${THEME}-n10-chat-format
 
+# A pinned chat, as in Telegram: its row stands on a different ground and carries a pin under the time.
+- launchApp
+- extendedWaitUntil:
+    visible: "Dimas.*"
+    timeout: 300000
+- longPressOn:
+    text: "Dimas.*"
+- tapOn:
+    text: "Закрепить"
+    optional: true
+- waitForAnimationToEnd
+- takeScreenshot: ${THEME}-n11-list-pinned
+
 # Back on the list: the opened chats are read, the sent message is the last line.
 - launchApp
 - extendedWaitUntil:

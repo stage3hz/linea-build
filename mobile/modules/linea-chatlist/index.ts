@@ -41,7 +41,7 @@ export type NativeChatRow = {
   metal: number[];
   nameLen: number;
 };
-export type NativeChatPalette = { text: number; muted: number; subtle: number; accent: number; onAccent: number; border: number; pressed: number; selected: number; badgeMuted: number; bg: number };
+export type NativeChatPalette = { text: number; muted: number; subtle: number; accent: number; onAccent: number; border: number; pressed: number; selected: number; badgeMuted: number; bg: number; /** The fill of a pinned row (Telegram: pinned chats stand on a slightly different ground). */ pinned: number };
 export type NativeChatListProps = {
   rows: NativeChatRow[];
   palette: NativeChatPalette;

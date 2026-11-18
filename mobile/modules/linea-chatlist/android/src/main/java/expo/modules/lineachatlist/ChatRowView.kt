@@ -120,6 +120,8 @@ class ChatRowView(context: Context) : View(context) {
   private fun drawRow(canvas: Canvas) {
     val item = row ?: return
     val w = width.toFloat(); val h = height.toFloat()
+    // Telegram: pinned chats stand on a slightly different ground than the rest of the list.
+    if (item.pinned) { fill.color = palette.pinned; canvas.drawRect(0f, 0f, w, h, fill) }
     if (item.selected || isPressed) { fill.color = if (item.selected) palette.selected else palette.pressed; canvas.drawRect(0f, 0f, w, h, fill) }
 
     // The nameplate: a picture behind the whole row (right-aligned, cropped to fill), darkened towards the name.
@@ -184,8 +186,10 @@ class ChatRowView(context: Context) : View(context) {
     val timeWidth = timePaint.measureText(item.time)
     val badge = if (item.unread > 0) (if (item.unread > 999) "999+" else item.unread.toString()) else ""
     val badgeWidth = if (badge.isEmpty()) 0f else maxOf(22f * d, badgePaint.measureText(badge) + 12f * d)
-    val markWidth = if (badge.isEmpty() && item.ticks > 0) 22f * d else badgeWidth
-    val titleWidth = right - x - timeWidth - 8f * d
+    // Telegram: the ticks stand before the time; under the time is the unread badge or, without one, the pin.
+    val tickWidth = if (item.ticks > 0) 22f * d else 0f
+    val markWidth = if (badge.isEmpty() && item.pinned) 20f * d else badgeWidth
+    val titleWidth = right - x - timeWidth - 8f * d - tickWidth
     val small = thumb
     val thumbRoom = if (small != null) 26f * d else 0f
     val textWidth = (right - x - thumbRoom - (if (markWidth > 0f) markWidth + 8f * d else 0f)).toInt()
@@ -214,11 +218,22 @@ class ChatRowView(context: Context) : View(context) {
       canvas.drawRoundRect(right - badgeWidth, markY - 11f * d, right, markY + 11f * d, 11f * d, 11f * d, fill)
       badgePaint.color = if (item.muted) palette.text else palette.onAccent
       canvas.drawText(badge, right - badgeWidth / 2, markY - (badgePaint.descent() + badgePaint.ascent()) / 2, badgePaint)
-    } else if (item.ticks > 0) {
-      stroke.color = if (item.ticks == 2) palette.accent else palette.muted; stroke.strokeWidth = 1.8f * d
-      val bx = right - 16f * d
-      path.reset(); path.moveTo(bx, markY); path.lineTo(bx + 4f * d, markY + 4f * d); path.lineTo(bx + 12f * d, markY - 5f * d)
-      if (item.ticks == 2) { path.moveTo(bx + 6f * d, markY + 2f * d); path.lineTo(bx + 8f * d, markY + 4f * d); path.lineTo(bx + 16f * d, markY - 5f * d) }
+    } else if (item.pinned) {
+      // A pin leaning to the right, as in Telegram: the head, its base and the needle.
+      val cx = right - 8f * d
+      canvas.save(); canvas.rotate(45f, cx, markY)
+      fill.color = palette.subtle
+      canvas.drawRoundRect(cx - 3.2f * d, markY - 7f * d, cx + 3.2f * d, markY - 1f * d, 1.2f * d, 1.2f * d, fill)
+      canvas.drawRoundRect(cx - 5f * d, markY - 1.6f * d, cx + 5f * d, markY + 0.4f * d, 1f * d, 1f * d, fill)
+      canvas.drawRect(cx - 0.7f * d, markY + 0.4f * d, cx + 0.7f * d, markY + 7f * d, fill)
+      canvas.restore()
+    }
+    if (item.ticks > 0) {
+      val tickY = top + 11f * d
+      stroke.color = if (item.ticks == 2) palette.accent else palette.muted; stroke.strokeWidth = 1.7f * d
+      val bx = right - timeWidth - 6f * d - 16f * d
+      path.reset(); path.moveTo(bx, tickY); path.lineTo(bx + 4f * d, tickY + 4f * d); path.lineTo(bx + 12f * d, tickY - 5f * d)
+      if (item.ticks == 2) { path.moveTo(bx + 6f * d, tickY + 2f * d); path.lineTo(bx + 8f * d, tickY + 4f * d); path.lineTo(bx + 16f * d, tickY - 5f * d) }
       canvas.drawPath(path, stroke)
     }
 
