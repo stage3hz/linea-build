@@ -42,8 +42,9 @@ jobs:
             } > "walk-$id.txt" 2>&1 || true
             # The end of every finished job's log (a whole walk log is tens of megabytes).
             for job in $(gh api "repos/$REPO/actions/runs/$id/jobs?per_page=30" --jq '.jobs[] | select(.status=="completed") | .id'); do
-              gh api "repos/$REPO/actions/jobs/$job/logs" 2>/dev/null | tail -400 | cut -c1-400 > "walk-$id-job-$job-log-tail.txt" || true
+              gh run view --repo "$REPO" --job "$job" --log 2> "walk-$id-job-$job-log-error.txt" | tail -600 | cut -c1-400 > "walk-$id-job-$job-log-tail.txt" || true
             done
+            gh run view "$id" --repo "$REPO" --log-failed 2>&1 | tail -500 | cut -c1-400 > "walk-$id-failed-steps.txt" || true
           done
       - name: Publish to branch ci-report
         run: |
