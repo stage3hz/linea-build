@@ -1,4 +1,4 @@
-// Telegram's record button: tap switches microphone ↔ round video; press and hold records; while
+// Telegram's record button: tap switches microphone ↔ round video; a swipe up starts a locked take; press and hold records; while
 // holding, slide left to cancel or up to lock (then the hands are free); releasing sends.
 // The button stays in place vertically (Telegram): only a slide left moves it; dragging up
 // pulls the lock pill down towards the button.
@@ -72,8 +72,14 @@ export function RecordButton({ mode, disabled, onToggleMode, onTouchDown, onHold
       sentSlide.value = 0; reset(); runOnJS(finish)(result);
     })
     .onFinalize(() => { reset(); });
+  // Telegram: a swipe up from the button starts a take that is locked at once (hands free) — no waiting for the
+  // hold. A finger that moves before the hold delay fails the hold above, and this gesture takes it.
+  const flickLock = () => { done.current = true; setHolding(false); impactFeedback(); props.current.onHoldStart(); lightFeedback(); props.current.onLock(); };
+  const swipeUp = Gesture.Pan().enabled(!disabled).activeOffsetY(-14).failOffsetX([-18, 18])
+    .onBegin(() => { runOnJS(down)(); })
+    .onStart(() => { runOnJS(flickLock)(); });
   const tap = Gesture.Tap().enabled(!disabled).maxDuration(HOLD_MS).onEnd((_e, ok) => { if (ok) runOnJS(toggle)(); });
-  const gesture = Gesture.Exclusive(hold, tap);
+  const gesture = Gesture.Exclusive(Gesture.Race(hold, swipeUp), tap);
 
   const button = useAnimatedStyle(() => ({
     // Telegram: at rest just the icon; while held a 100 pt accent circle (2.5×) that reaches past the edge.
