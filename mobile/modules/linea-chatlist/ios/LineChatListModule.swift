@@ -45,6 +45,8 @@ struct ChatRow: Equatable {
   let thumbRound: Bool
   /// A small grey icon before the preview text: "mic" for a voice message; empty = none.
   let previewIcon: String
+  /// The first N characters (UTF-16) of the preview are drawn in the danger colour («Черновик:»).
+  let previewRed: Int
   /// Swipe buttons as "action:Label", the outermost first (see rowActions in src/listSwipes.ts).
   let lead: [String]
   let trail: [String]
@@ -76,7 +78,7 @@ struct ChatRow: Equatable {
         checked: min(1, max(-1, int(row["checked"], -1))), selected: flag(row["selected"]),
         avatarColor: int(row["avatarColor"], 0xFF5E7BFF), initials: String(text(row["initials"]).prefix(2)),
         avatarUrl: text(row["avatarUrl"]), avatarKey: text(row["avatarKey"]), thumb: text(row["thumb"]),
-        thumbRound: flag(row["thumbRound"]), previewIcon: text(row["previewIcon"]), lead: (row["lead"] as? [String]) ?? [], trail: (row["trail"] as? [String]) ?? [],
+        thumbRound: flag(row["thumbRound"]), previewIcon: text(row["previewIcon"]), previewRed: max(0, int(row["previewRed"], 0)), lead: (row["lead"] as? [String]) ?? [], trail: (row["trail"] as? [String]) ?? [],
         ring: ((row["ring"] as? [Any]) ?? []).compactMap { ($0 as? NSNumber)?.intValue }, deco: text(row["deco"]),
         decoScale: CGFloat(min(2, max(1, (row["decoScale"] as? NSNumber)?.doubleValue ?? 1))), plate: text(row["plate"]),
         metal: ((row["metal"] as? [Any]) ?? []).compactMap { ($0 as? NSNumber)?.intValue }, nameLen: max(0, int(row["nameLen"], 0))))
@@ -104,6 +106,7 @@ struct ChatPalette: Equatable {
   var badgeMuted = chatColor(0xFF34415F)
   /// The fill of a pinned row.
   var pinned = chatColor(0x0EFFFFFF)
+  var danger = chatColor(0xFFFF6B6B)
   var bg = chatColor(0xFF070B16)
 
   init() {}
@@ -114,7 +117,7 @@ struct ChatPalette: Equatable {
     }
     text = color("text", text); muted = color("muted", muted); subtle = color("subtle", subtle)
     accent = color("accent", accent); onAccent = color("onAccent", onAccent); border = color("border", border)
-    pressed = color("pressed", pressed); selected = color("selected", selected); badgeMuted = color("badgeMuted", badgeMuted); pinned = color("pinned", pinned)
+    pressed = color("pressed", pressed); selected = color("selected", selected); badgeMuted = color("badgeMuted", badgeMuted); pinned = color("pinned", pinned); danger = color("danger", danger)
     bg = color("bg", bg)
   }
 }
@@ -431,8 +434,12 @@ final class ChatRowCanvas: UIView {
     }
 
     let previewColor = item.accentPreview ? palette.accent : mutedColor
-    let preview = NSAttributedString(string: item.preview, attributes: [
+    let preview = NSMutableAttributedString(string: item.preview, attributes: [
       .font: ChatRowCanvas.previewFont, .foregroundColor: previewColor, .paragraphStyle: paragraph(.byWordWrapping)])
+    // Telegram: the word «Черновик:» of a draft is red.
+    if item.previewRed > 0 {
+      preview.addAttribute(.foregroundColor, value: palette.danger, range: NSRange(location: 0, length: min(item.previewRed, preview.length)))
+    }
     if item.thumb != thumbOf {
       thumbOf = item.thumb
       thumbImage = item.thumb.isEmpty ? nil : Data(base64Encoded: item.thumb, options: .ignoreUnknownCharacters).flatMap { UIImage(data: $0) }

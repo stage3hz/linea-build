@@ -83,6 +83,9 @@ function FrameBake({id,onReady}:{id:CodeFrameId;onReady:(id:string,base64:string
 }
 const colorNumber=(value:string)=>{const c=processColor(value);return typeof c==='number'?c:0;};
 /** The line under the name, as ChatRow shows it (text only: the native row has no thumbnail). */
+/** Telegram: a chat with unsent text or attachments shows «Черновик: …» in the list, the word in red. */
+const DRAFT_WORD='Черновик:';
+function draftLine(text:string|undefined,files:number):string{const typed=(text||'').replace(/\s+/g,' ').trim();return typed?`${DRAFT_WORD} ${typed.slice(0,160)}`:files?`${DRAFT_WORD} ${files>1?`вложения (${files})`:'вложение'}`:'';}
 function nativeLine(chat:Chat,typing:boolean,userId:string):{icon:''|'mic';text:string}{
   const plain=(text:string)=>({icon:'' as const,text});
   const last=chat.lastMessage;if(typing)return plain('Печатает…');if(!last)return plain('Напиши первое сообщение');
@@ -208,7 +211,7 @@ export function ChatListScreen({api,user,store,onProfile,onNewChat,onMusic,onAI,
   const typingMap=store.typing,selectedId=store.selectedId,savedItems=store.saved.items;
   const nativeRows=useMemo<NativeChatRow[]>(()=>{
     if(!nativeOn)return [];
-    const rows:NativeChatRow[]=[];const base={unread:0,muted:false,pinned:false,accentPreview:false,ticks:0 as const,checked:-1 as const,selected:false,time:'',avatarUrl:'',avatarKey:'',thumb:'',thumbRound:false,previewIcon:'' as ''|'mic',lead:[] as string[],trail:[] as string[],metal:[] as number[],nameLen:0,ring:[] as number[],deco:'',decoScale:1,plate:''};
+    const rows:NativeChatRow[]=[];const base={unread:0,muted:false,pinned:false,accentPreview:false,ticks:0 as const,checked:-1 as const,selected:false,time:'',avatarUrl:'',avatarKey:'',thumb:'',thumbRound:false,previewIcon:'' as ''|'mic',previewRed:0,lead:[] as string[],trail:[] as string[],metal:[] as number[],nameLen:0,ring:[] as number[],deco:'',decoScale:1,plate:''};
     if(archive)rows.push({...base,id:BACK_ROW,title:'‹ Архив',preview:'Вернуться к чатам',avatarColor:colorNumber(t.surface2),initials:'‹'});
     else if(filter==='all'){
       const last=savedItems[savedItems.length-1];
@@ -218,18 +221,18 @@ export function ChatListScreen({api,user,store,onProfile,onNewChat,onMusic,onAI,
     for(const chat of chats){
       const last=chat.lastMessage,typing=!!typingMap[chat.id],muted=isMuted(chat.settings);
       const swipes=editing?{left:[],right:[]}:rowActions({unread:chat.unreadCount>0||marked.has(chat.id),pinned:!!chat.settings?.pinnedAt,muted,archived:!!chat.settings?.archived},ROW_SUPPORT);
-      const status=visibleStatusEmoji(chat.peer,Date.now());const line=nativeLine(chat,typing,user.id);
+      const status=visibleStatusEmoji(chat.peer,Date.now());const draft=typing?'':draftLine(store.drafts[chat.id],(store.draftFiles[chat.id]||[]).length);const line=draft?{icon:'' as const,text:draft}:nativeLine(chat,typing,user.id);
       // Decorations as DecoratedAvatar and ChatRow show them in a list: an art decoration, else a colour ring (Platina
       // without a chosen frame wears the platinum one), and the nameplate behind the row. A frame drawn in code is a
       // picture the app takes of its own component (FrameBake), shown the way an art decoration is.
       const art=findDecoration(chat.peer.avatarFrame);const coded=isCodeFrame(chat.peer.avatarFrame)?chat.peer.avatarFrame:null;const ringOf=art||coded?undefined:FRAMES.find(item=>item.id===(chat.peer.avatarFrame||(chat.peer.seal==='platina'?'platinum':'')));
       rows.push({...nativeThumb(chat,typing,user.id),ring:ringOf?ringOf.colors.map(colorNumber):[],deco:coded||(art?(Image.resolveAssetSource(art.image as number)?.uri||''):''),decoScale:coded?CODE_FRAME_SCALE:art?art.scale:1,plate:chat.peer.nameplate||'',avatarUrl:chat.peer.avatarId?api.fileUrl(chat.peer.avatarId):'',avatarKey:chat.peer.avatarId?`invizent-file-${chat.peer.avatarId}`:'',lead:swipes.right.map(a=>`${a}:${tr(SWIPE_LABEL[a])}`),trail:swipes.left.map(a=>`${a}:${tr(SWIPE_LABEL[a])}`),
-        id:chat.id,metal:chat.peer.seal==='platina'?(chat.peer.nameplate||t.dark?NAME_METAL:NAME_METAL_LIGHT).map(colorNumber):[],nameLen:chat.peer.displayName.length,title:`${chat.peer.displayName}${status?` ${status}`:''}${muted?' 🔕':''}`,preview:line.text,previewIcon:line.icon,time:last?formatListTime(last.createdAt):'',unread:chat.unreadCount||(marked.has(chat.id)?1:0),muted,pinned:!!chat.settings?.pinnedAt,accentPreview:typing,
+        id:chat.id,metal:chat.peer.seal==='platina'?(chat.peer.nameplate||t.dark?NAME_METAL:NAME_METAL_LIGHT).map(colorNumber):[],nameLen:chat.peer.displayName.length,title:`${chat.peer.displayName}${status?` ${status}`:''}${muted?' 🔕':''}`,preview:line.text,previewIcon:line.icon,previewRed:draft?DRAFT_WORD.length:0,time:last?formatListTime(last.createdAt):'',unread:chat.unreadCount||(marked.has(chat.id)?1:0),muted,pinned:!!chat.settings?.pinnedAt,accentPreview:typing,
         ticks:last&&last.senderId===user.id?(chat.peerLastReadMessageId>=last.id?2:1):0,checked:editing?(editing.has(chat.id)?1:0):-1,selected:wideLayout&&selectedId===chat.id,
         avatarColor:colorNumber(chat.peer.avatarColor||'#4B73BB'),initials:chat.peer.displayName.trim().split(/\s+/).slice(0,2).map(word=>Array.from(word)[0]||'').join('').toUpperCase()});
     }
     return rows;
-  },[nativeOn,chats,archive,filter,archiveRow,archivedCount,savedItems,savedActive,typingMap,marked,editing,selectedId,wideLayout,user.id,t.accent,t.surface2,api]);
+  },[nativeOn,chats,archive,filter,archiveRow,archivedCount,savedItems,savedActive,typingMap,marked,editing,selectedId,wideLayout,user.id,store.drafts,store.draftFiles,t.accent,t.surface2,api]);
   const nativeHeaders=useMemo(()=>api.authHeaders,[api,api.token]);
   // Nameplates are vector art drawn by the app: each one in use is rendered once off screen and handed to the native list as a picture.
   const [plates,setPlates]=useState<Record<string,string>>({});
@@ -237,7 +240,7 @@ export function ChatListScreen({api,user,store,onProfile,onNewChat,onMusic,onAI,
   const frameIds=useMemo(()=>nativeOn?[...new Set(chats.map(c=>c.peer.avatarFrame).filter(isCodeFrame))]:[],[nativeOn,chats]);
   const plateReady=useCallback((id:string,data:string)=>setPlates(prev=>prev[id]===data?prev:{...prev,[id]:data}),[]);
   const nativeAction=(id:string,action:string)=>{const chat=chats.find(c=>c.id===id);if(chat&&action in SWIPE_LABEL)rowActionsRef.current.swipe(chat,action as RowAction);};
-  const nativePalette=useMemo(()=>({bg:colorNumber(t.bg),text:colorNumber(t.text),muted:colorNumber(t.muted),subtle:colorNumber(t.subtle),accent:colorNumber(t.accent),onAccent:colorNumber(t.onAccent),border:colorNumber(t.border),pressed:colorNumber(t.dark?'rgba(255,255,255,0.07)':'rgba(0,0,0,0.05)'),selected:colorNumber(t.accentSoft),badgeMuted:colorNumber(t.surface2),pinned:colorNumber(t.dark?'rgba(255,255,255,0.055)':'rgba(0,0,0,0.045)')}),[t]);
+  const nativePalette=useMemo(()=>({bg:colorNumber(t.bg),text:colorNumber(t.text),muted:colorNumber(t.muted),subtle:colorNumber(t.subtle),accent:colorNumber(t.accent),onAccent:colorNumber(t.onAccent),border:colorNumber(t.border),pressed:colorNumber(t.dark?'rgba(255,255,255,0.07)':'rgba(0,0,0,0.05)'),selected:colorNumber(t.accentSoft),badgeMuted:colorNumber(t.surface2),danger:colorNumber(t.danger),pinned:colorNumber(t.dark?'rgba(255,255,255,0.055)':'rgba(0,0,0,0.045)')}),[t]);
   const nativePress=(id:string)=>{
     if(id===SAVED_ROW){onSaved();return;}if(id===ARCHIVE_ROW){setArchive(true);return;}if(id===BACK_ROW){setArchive(false);return;}
     const chat=chats.find(c=>c.id===id);if(!chat)return;const a=rowActionsRef.current;if(a.editing)a.toggleEdit(chat);else a.select(chat);

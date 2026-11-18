@@ -21,6 +21,8 @@ data class ChatRow(
   val metal: List<Int>, val nameLen: Int,
   /** A small grey icon before the preview text: "mic" for a voice message; '' = none. */
   val previewIcon: String = "",
+  /** The first N characters of the preview are drawn in the danger colour («Черновик:»). */
+  val previewRed: Int = 0,
 ) {
   companion object {
     private fun int(value: Any?, fallback: Int) = (value as? Number)?.toInt() ?: fallback
@@ -39,7 +41,7 @@ data class ChatRow(
         text(row["deco"]), ((row["decoScale"] as? Number)?.toDouble() ?: 1.0).coerceIn(1.0, 2.0), text(row["plate"]),
         (row["lead"] as? List<*>)?.mapNotNull { it as? String } ?: emptyList(), (row["trail"] as? List<*>)?.mapNotNull { it as? String } ?: emptyList(),
         (row["metal"] as? List<*>)?.mapNotNull { (it as? Number)?.toInt() } ?: emptyList(), int(row["nameLen"], 0).coerceAtLeast(0),
-        text(row["previewIcon"]),
+        text(row["previewIcon"]), int(row["previewRed"], 0).coerceAtLeast(0),
       )
     }
   }
@@ -51,6 +53,7 @@ data class ChatPalette(
   val border: Int, val pressed: Int, val selected: Int, val badgeMuted: Int, val bg: Int,
   /** The fill of a pinned row. */
   val pinned: Int = 0x0EFFFFFF,
+  val danger: Int = 0xFFFF6B6B.toInt(),
 ) {
   companion object {
     val DARK = ChatPalette(0xFFF1F5FF.toInt(), 0xFF8A97B4.toInt(), 0xFF6B7896.toInt(), 0xFFA9C4FF.toInt(), 0xFF0A1430.toInt(), 0x12FFFFFF, 0x12FFFFFF, 0x1FA9C4FF, 0xFF34415F.toInt(), 0xFF070B16.toInt())
@@ -58,7 +61,7 @@ data class ChatPalette(
       if (map == null) return DARK
       fun c(key: String, fallback: Int) = (map[key] as? Number)?.toInt() ?: fallback
       return ChatPalette(c("text", DARK.text), c("muted", DARK.muted), c("subtle", DARK.subtle), c("accent", DARK.accent), c("onAccent", DARK.onAccent),
-        c("border", DARK.border), c("pressed", DARK.pressed), c("selected", DARK.selected), c("badgeMuted", DARK.badgeMuted), c("bg", DARK.bg), c("pinned", DARK.pinned))
+        c("border", DARK.border), c("pressed", DARK.pressed), c("selected", DARK.selected), c("badgeMuted", DARK.badgeMuted), c("bg", DARK.bg), c("pinned", DARK.pinned), c("danger", DARK.danger))
     }
   }
 }

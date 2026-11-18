@@ -112,7 +112,11 @@ class ChatRowView(context: Context) : View(context) {
   private fun build(item: ChatRow, textWidth: Int, titleWidth: Float) {
     title = TextUtils.ellipsize(item.title, titlePaint, titleWidth.coerceAtLeast(0f), TextUtils.TruncateAt.END)
     val width = textWidth.coerceAtLeast(1)
-    preview = StaticLayout.Builder.obtain(item.preview, 0, item.preview.length, previewPaint, width)
+    // Telegram: the word «Черновик:» of a draft is red.
+    val line: CharSequence = if (item.previewRed > 0 && item.preview.isNotEmpty())
+      android.text.SpannableString(item.preview).apply { setSpan(android.text.style.ForegroundColorSpan(palette.danger), 0, minOf(item.previewRed, length), android.text.Spanned.SPAN_EXCLUSIVE_EXCLUSIVE) }
+      else item.preview
+    preview = StaticLayout.Builder.obtain(line, 0, line.length, previewPaint, width)
       .setAlignment(Layout.Alignment.ALIGN_NORMAL).setMaxLines(2).setEllipsize(TextUtils.TruncateAt.END).setIncludePad(false).build()
     builtFor = item; builtWidth = this.width
   }

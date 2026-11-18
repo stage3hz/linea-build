@@ -381,10 +381,13 @@ export function ChatScreen({api,user,chat,store,onBack,wide=false,onOpenMusic}: 
     if(uploadingRef.current)throw new Error('Дождись завершения текущего вложения.');
     if(draftCount.current>=MAX_DRAFT_ATTACHMENTS)throw new Error(`В сообщении уже ${MAX_DRAFT_ATTACHMENTS} вложений. Сначала отправь или убери часть файлов.`);
     uploadingRef.current=true;setUploading(true);setLocalError('');
+    // The chat it was picked in: leaving the chat while the file goes up used to throw the upload away («Чат
+    // сменился во время загрузки»), so the message simply vanished. It now lands in that chat's draft, where it
+    // waits like a Telegram draft (the list shows «Черновик»); it can never reach another conversation.
+    const pickedIn=chat.id;
     try{
       const uploaded=await store.uploadEncrypted(file);
-      if(!current())throw new Error('Чат сменился во время загрузки. Вложение не добавлено в другой разговор.');
-      store.appendDraftFiles(chat.id,[uploaded]);draftCount.current+=1;
+      store.appendDraftFiles(pickedIn,[uploaded]);if(current())draftCount.current+=1;
     }catch(e){if(current())setLocalError(e instanceof Error?e.message:'Не удалось зашифровать и загрузить файл.');throw e;}
     finally{uploadingRef.current=false;if(alive.current)setUploading(false);}
   };

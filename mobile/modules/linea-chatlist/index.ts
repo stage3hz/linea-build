@@ -29,6 +29,8 @@ export type NativeChatRow = {
   thumbRound: boolean;
   /** A small grey icon before the preview text: 'mic' for a voice message (Telegram); '' = none. */
   previewIcon: '' | 'mic';
+  /** The first N characters of the preview are drawn in the danger colour («Черновик:»); 0 = none. */
+  previewRed: number;
   /** Swipe buttons as "action:Label", the outermost first. */
   lead: string[];
   trail: string[];
@@ -43,7 +45,7 @@ export type NativeChatRow = {
   metal: number[];
   nameLen: number;
 };
-export type NativeChatPalette = { text: number; muted: number; subtle: number; accent: number; onAccent: number; border: number; pressed: number; selected: number; badgeMuted: number; bg: number; /** The fill of a pinned row (Telegram: pinned chats stand on a slightly different ground). */ pinned: number };
+export type NativeChatPalette = { text: number; muted: number; subtle: number; accent: number; onAccent: number; border: number; pressed: number; selected: number; badgeMuted: number; bg: number; danger: number; /** The fill of a pinned row (Telegram: pinned chats stand on a slightly different ground). */ pinned: number };
 export type NativeChatListProps = {
   rows: NativeChatRow[];
   palette: NativeChatPalette;
