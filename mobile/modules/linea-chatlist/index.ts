@@ -27,6 +27,8 @@ export type NativeChatRow = {
   /** Base64 of a small picture shown before the preview (the photo or video of the last message); '' = none. */
   thumb: string;
   thumbRound: boolean;
+  /** A small grey icon before the preview text: 'mic' for a voice message (Telegram); '' = none. */
+  previewIcon: '' | 'mic';
   /** Swipe buttons as "action:Label", the outermost first. */
   lead: string[];
   trail: string[];

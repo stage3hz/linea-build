@@ -43,6 +43,8 @@ struct ChatRow: Equatable {
   /// A small JPEG/PNG (base64) shown before the preview text.
   let thumb: String
   let thumbRound: Bool
+  /// A small grey icon before the preview text: "mic" for a voice message; empty = none.
+  let previewIcon: String
   /// Swipe buttons as "action:Label", the outermost first (see rowActions in src/listSwipes.ts).
   let lead: [String]
   let trail: [String]
@@ -74,7 +76,7 @@ struct ChatRow: Equatable {
         checked: min(1, max(-1, int(row["checked"], -1))), selected: flag(row["selected"]),
         avatarColor: int(row["avatarColor"], 0xFF5E7BFF), initials: String(text(row["initials"]).prefix(2)),
         avatarUrl: text(row["avatarUrl"]), avatarKey: text(row["avatarKey"]), thumb: text(row["thumb"]),
-        thumbRound: flag(row["thumbRound"]), lead: (row["lead"] as? [String]) ?? [], trail: (row["trail"] as? [String]) ?? [],
+        thumbRound: flag(row["thumbRound"]), previewIcon: text(row["previewIcon"]), lead: (row["lead"] as? [String]) ?? [], trail: (row["trail"] as? [String]) ?? [],
         ring: ((row["ring"] as? [Any]) ?? []).compactMap { ($0 as? NSNumber)?.intValue }, deco: text(row["deco"]),
         decoScale: CGFloat(min(2, max(1, (row["decoScale"] as? NSNumber)?.doubleValue ?? 1))), plate: text(row["plate"]),
         metal: ((row["metal"] as? [Any]) ?? []).compactMap { ($0 as? NSNumber)?.intValue }, nameLen: max(0, int(row["nameLen"], 0))))
@@ -439,6 +441,11 @@ final class ChatRowCanvas: UIView {
     if let small = thumbImage {
       drawPicture(context, small, CGRect(x: x, y: top + 23, width: 20, height: 20), item.thumbRound ? 10 : 4)
       thumbRoom = 26
+    } else if item.previewIcon == "mic", let mic = UIImage(systemName: "mic.fill", withConfiguration: UIImage.SymbolConfiguration(pointSize: 13, weight: .regular))?
+                .withTintColor(palette.subtle, renderingMode: .alwaysOriginal) {
+      // Telegram: a voice message is a grey microphone before its name.
+      mic.draw(at: CGPoint(x: x + 1, y: top + 22 + (ChatRowCanvas.previewFont.lineHeight - mic.size.height) / 2))
+      thumbRoom = ceil(mic.size.width) + 7
     }
     let previewWidth = max(0, right - x - thumbRoom - (markWidth > 0 ? markWidth + 8 : 0))
     preview.draw(with: CGRect(x: x + thumbRoom, y: top + 22, width: previewWidth, height: 38),

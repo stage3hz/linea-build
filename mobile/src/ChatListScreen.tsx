@@ -6,7 +6,7 @@ import { useMeshActive } from './nearby/meshState';
 import { TITLE_TEXT, titleState } from './network/offline';
 import { NAME_METAL, NAME_METAL_LIGHT, PlatinaGem, PlatinaName, hasPlatina } from './platina/PlatinaMark';
 import { FolderEditor, FolderTabs, folderTabIds, matchesFolder, useChatFolders, type ChatFolder, type FolderFilter } from './ChatFolders';
-import { attachmentLabel, isVideoNote } from './voice/voice';
+import { attachmentLabel, isVideoNote, listAttachment } from './voice/voice';
 import { animMs, motionEnabled } from './motion';
 import { ActivityIndicator, FlatList, Image, LayoutAnimation, Platform, Pressable, RefreshControl, StyleSheet, UIManager, View, processColor, useWindowDimensions } from 'react-native';
 import { requireNativeViewManager, requireOptionalNativeModule } from 'expo-modules-core';
@@ -83,14 +83,15 @@ function FrameBake({id,onReady}:{id:CodeFrameId;onReady:(id:string,base64:string
 }
 const colorNumber=(value:string)=>{const c=processColor(value);return typeof c==='number'?c:0;};
 /** The line under the name, as ChatRow shows it (text only: the native row has no thumbnail). */
-function nativeLine(chat:Chat,typing:boolean,userId:string):string{
-  const last=chat.lastMessage;if(typing)return 'Печатает…';if(!last)return 'Напиши первое сообщение';
-  const call=callListText(last,userId);if(call)return call;
+function nativeLine(chat:Chat,typing:boolean,userId:string):{icon:''|'mic';text:string}{
+  const plain=(text:string)=>({icon:'' as const,text});
+  const last=chat.lastMessage;if(typing)return plain('Печатает…');if(!last)return plain('Напиши первое сообщение');
+  const call=callListText(last,userId);if(call)return plain(call);
   const text=listText(chatListText(last))||'';
-  if(last.meta?.action?.type==='pin'&&last.meta.action.target)return pinPreview(text,last.senderId===userId,chat.peer.displayName);
-  if(text)return text;
-  const file=last.attachment;if(!file)return 'Сообщение';
-  return isVideoNote(file)?'Видеосообщение':file.mimeType.startsWith('image/')?'Фотография':file.mimeType.startsWith('video/')?'Видео':attachmentLabel(file);
+  if(last.meta?.action?.type==='pin'&&last.meta.action.target)return plain(pinPreview(text,last.senderId===userId,chat.peer.displayName));
+  if(text)return plain(text);
+  const file=last.attachment;if(!file)return plain('Сообщение');
+  return listAttachment(file);
 }
 const SAVED_ROW='__saved',ARCHIVE_ROW='__archive',BACK_ROW='__back';
 const SWIPE_LABEL:Record<RowAction,string>={read:'Прочитано',unread:'Не прочитано',pin:'Закрепить',unpin:'Открепить',mute:'Без звука',unmute:'Со звуком',delete:'Удалить',archive:'В архив',unarchive:'Вернуть'};
@@ -205,23 +206,23 @@ export function ChatListScreen({api,user,store,onProfile,onNewChat,onMusic,onAI,
   const typingMap=store.typing,selectedId=store.selectedId,savedItems=store.saved.items;
   const nativeRows=useMemo<NativeChatRow[]>(()=>{
     if(!nativeOn)return [];
-    const rows:NativeChatRow[]=[];const base={unread:0,muted:false,pinned:false,accentPreview:false,ticks:0 as const,checked:-1 as const,selected:false,time:'',avatarUrl:'',avatarKey:'',thumb:'',thumbRound:false,lead:[] as string[],trail:[] as string[],metal:[] as number[],nameLen:0,ring:[] as number[],deco:'',decoScale:1,plate:''};
+    const rows:NativeChatRow[]=[];const base={unread:0,muted:false,pinned:false,accentPreview:false,ticks:0 as const,checked:-1 as const,selected:false,time:'',avatarUrl:'',avatarKey:'',thumb:'',thumbRound:false,previewIcon:'' as ''|'mic',lead:[] as string[],trail:[] as string[],metal:[] as number[],nameLen:0,ring:[] as number[],deco:'',decoScale:1,plate:''};
     if(archive)rows.push({...base,id:BACK_ROW,title:'‹ Архив',preview:'Вернуться к чатам',avatarColor:colorNumber(t.surface2),initials:'‹'});
     else if(filter==='all'){
       const last=savedItems[savedItems.length-1];
-      rows.push({...base,id:SAVED_ROW,title:'Избранное',preview:last?(listText(last.text)||(last.attachment?attachmentLabel(last.attachment):'Запись')):'Заметки, файлы и сохранённые сообщения',time:last?formatListTime(last.savedAt):'',selected:savedActive,avatarColor:colorNumber(t.accent),initials:'★'});
+      rows.push({...base,id:SAVED_ROW,title:'Избранное',preview:last?(listText(last.text)||(last.attachment?listAttachment(last.attachment).text:'Запись')):'Заметки, файлы и сохранённые сообщения',previewIcon:last&&!listText(last.text)&&last.attachment?listAttachment(last.attachment).icon:'',time:last?formatListTime(last.savedAt):'',selected:savedActive,avatarColor:colorNumber(t.accent),initials:'★'});
       if(archiveRow)rows.push({...base,id:ARCHIVE_ROW,title:'Архив',preview:countChats(archivedCount),avatarColor:colorNumber(t.surface2),initials:'▤'});
     }
     for(const chat of chats){
       const last=chat.lastMessage,typing=!!typingMap[chat.id],muted=isMuted(chat.settings);
       const swipes=editing?{left:[],right:[]}:rowActions({unread:chat.unreadCount>0||marked.has(chat.id),pinned:!!chat.settings?.pinnedAt,muted,archived:!!chat.settings?.archived},ROW_SUPPORT);
-      const status=visibleStatusEmoji(chat.peer,Date.now());
+      const status=visibleStatusEmoji(chat.peer,Date.now());const line=nativeLine(chat,typing,user.id);
       // Decorations as DecoratedAvatar and ChatRow show them in a list: an art decoration, else a colour ring (Platina
       // without a chosen frame wears the platinum one), and the nameplate behind the row. A frame drawn in code is a
       // picture the app takes of its own component (FrameBake), shown the way an art decoration is.
       const art=findDecoration(chat.peer.avatarFrame);const coded=isCodeFrame(chat.peer.avatarFrame)?chat.peer.avatarFrame:null;const ringOf=art||coded?undefined:FRAMES.find(item=>item.id===(chat.peer.avatarFrame||(chat.peer.seal==='platina'?'platinum':'')));
       rows.push({...nativeThumb(chat,typing,user.id),ring:ringOf?ringOf.colors.map(colorNumber):[],deco:coded||(art?(Image.resolveAssetSource(art.image as number)?.uri||''):''),decoScale:coded?CODE_FRAME_SCALE:art?art.scale:1,plate:chat.peer.nameplate||'',avatarUrl:chat.peer.avatarId?api.fileUrl(chat.peer.avatarId):'',avatarKey:chat.peer.avatarId?`invizent-file-${chat.peer.avatarId}`:'',lead:swipes.right.map(a=>`${a}:${tr(SWIPE_LABEL[a])}`),trail:swipes.left.map(a=>`${a}:${tr(SWIPE_LABEL[a])}`),
-        id:chat.id,metal:chat.peer.seal==='platina'?(chat.peer.nameplate||t.dark?NAME_METAL:NAME_METAL_LIGHT).map(colorNumber):[],nameLen:chat.peer.displayName.length,title:`${chat.peer.displayName}${status?` ${status}`:''}${muted?' 🔕':''}`,preview:nativeLine(chat,typing,user.id),time:last?formatListTime(last.createdAt):'',unread:chat.unreadCount||(marked.has(chat.id)?1:0),muted,pinned:!!chat.settings?.pinnedAt,accentPreview:typing,
+        id:chat.id,metal:chat.peer.seal==='platina'?(chat.peer.nameplate||t.dark?NAME_METAL:NAME_METAL_LIGHT).map(colorNumber):[],nameLen:chat.peer.displayName.length,title:`${chat.peer.displayName}${status?` ${status}`:''}${muted?' 🔕':''}`,preview:line.text,previewIcon:line.icon,time:last?formatListTime(last.createdAt):'',unread:chat.unreadCount||(marked.has(chat.id)?1:0),muted,pinned:!!chat.settings?.pinnedAt,accentPreview:typing,
         ticks:last&&last.senderId===user.id?(chat.peerLastReadMessageId>=last.id?2:1):0,checked:editing?(editing.has(chat.id)?1:0):-1,selected:wideLayout&&selectedId===chat.id,
         avatarColor:colorNumber(chat.peer.avatarColor||'#4B73BB'),initials:chat.peer.displayName.trim().split(/\s+/).slice(0,2).map(word=>Array.from(word)[0]||'').join('').toUpperCase()});
     }

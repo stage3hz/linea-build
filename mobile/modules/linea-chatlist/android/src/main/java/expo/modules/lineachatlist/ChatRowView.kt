@@ -191,7 +191,8 @@ class ChatRowView(context: Context) : View(context) {
     val markWidth = if (badge.isEmpty() && item.pinned) 20f * d else badgeWidth
     val titleWidth = right - x - timeWidth - 8f * d - tickWidth
     val small = thumb
-    val thumbRoom = if (small != null) 26f * d else 0f
+    val mic = small == null && item.previewIcon == "mic"
+    val thumbRoom = if (small != null) 26f * d else if (mic) 19f * d else 0f
     val textWidth = (right - x - thumbRoom - (if (markWidth > 0f) markWidth + 8f * d else 0f)).toInt()
     if (builtFor != item || builtWidth != width) build(item, textWidth, titleWidth)
 
@@ -210,6 +211,15 @@ class ChatRowView(context: Context) : View(context) {
 
     previewPaint.color = if (item.accentPreview) palette.accent else mutedColor
     if (small != null) drawPicture(canvas, small, x, top + 23f * d, 20f * d, if (item.thumbRound) 10f * d else 4f * d, false)
+    if (mic) {
+      // Telegram: a voice message is a grey microphone before its name. The capsule, the cradle and the stand.
+      val mx = x + 6f * d; val my = top + 23f * d + 9.5f * d
+      fill.color = palette.subtle
+      canvas.drawRoundRect(mx - 2.6f * d, my - 6.5f * d, mx + 2.6f * d, my + 1.5f * d, 2.6f * d, 2.6f * d, fill)
+      stroke.color = palette.subtle; stroke.strokeWidth = 1.3f * d
+      canvas.drawArc(mx - 4.6f * d, my - 5.5f * d, mx + 4.6f * d, my + 4f * d, 0f, 180f, false, stroke)
+      canvas.drawLine(mx, my + 4f * d, mx, my + 6.5f * d, stroke)
+    }
     preview?.let { layout -> canvas.save(); canvas.translate(x + thumbRoom, top + 23f * d); layout.draw(canvas); canvas.restore() }
 
     val markY = top + 23f * d + 11f * d

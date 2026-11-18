@@ -96,6 +96,16 @@ export function attachmentLabel(attachment: Pick<Attachment, 'name' | 'mimeType'
   return `📎 ${attachment.name}`;
 }
 
+/** The chat list's line for an attachment, as in Telegram: a voice message is a grey microphone and its name,
+ *  with no length (`icon` is drawn by the list; '' = no icon). */
+export function listAttachment(attachment: Pick<Attachment, 'name' | 'mimeType' | 'media'>): { icon: '' | 'mic'; text: string } {
+  if (isVoice(attachment)) return { icon: 'mic', text: 'Голосовое сообщение' };
+  if (isVideoNote(attachment)) return { icon: '', text: 'Видеосообщение' };
+  if (attachment.mimeType.startsWith('image/')) return { icon: '', text: 'Фотография' };
+  if (attachment.mimeType.startsWith('video/')) return { icon: '', text: 'Видео' };
+  return { icon: '', text: attachmentLabel(attachment) };
+}
+
 /** Recording levels (dBFS, about -60…0) to a 0…1 bar height. */
 export function levelFromMetering(db: number | undefined): number {
   if (typeof db !== 'number' || !Number.isFinite(db)) return 0;
