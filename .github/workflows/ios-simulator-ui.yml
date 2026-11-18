@@ -42,8 +42,8 @@ jobs:
       matrix:
         runner: ${{ fromJSON(inputs.runner && format('["{0}"]', inputs.runner) || '["macos-15-intel","macos-26"]') }}
     runs-on: ${{ matrix.runner }}
-    # 210: the Intel Mac spent the whole former 150 on build + walk and was stopped before it could publish anything.
-    timeout-minutes: 210
+    # 120: the owner's rule — a run that takes more than two hours has gone wrong and is stopped. A normal walk takes about 40 minutes.
+    timeout-minutes: 120
     env:
       APP_ENV: development
       EXPO_PUBLIC_ALLOW_LOCAL_HTTP: '0'
@@ -155,7 +155,7 @@ jobs:
           done
           echo "$HOME/.maestro/bin" >> "$GITHUB_PATH"
       - name: Walk the screens (dark, then light)
-        timeout-minutes: 120
+        timeout-minutes: 75
         run: |
           mkdir -p shots && cd shots
           # Screenshots taken so far go to the output branch after every stage: a walk that is stopped half-way
