@@ -76,7 +76,7 @@ function WebLoopVideo({ api, id, uri, style }: { api?: Api; id?: string; uri?: s
 }
 
 function VideoAvatar({ api, id, size, radius }: { api: Api; id: string; size: number; radius: number }) {
-  const player = useVideoPlayer({ uri: api.fileUrl(id), headers: { ...api.authHeaders } }, value => { value.loop = true; value.muted = true; value.play(); });
+  const player = useVideoPlayer({ uri: api.fileUrl(id), headers: { ...api.authHeaders } }, value => { value.loop = true; value.muted = true; value.audioMixingMode = 'mixWithOthers'; value.play(); });
   return <View pointerEvents="none" style={[StyleSheet.absoluteFill, { borderRadius: radius, overflow: 'hidden' }]}>
     <VideoView player={player} style={{ width: size, height: size }} contentFit="cover" nativeControls={false} allowsPictureInPicture={false} />
   </View>;
@@ -139,8 +139,10 @@ export function DecoratedAvatar({ user, api, size = 54, animated = false, round 
   </View>;
 }
 
+// The silent loops of an animated avatar and banner play together with whatever sounds on the phone: without
+// «mixWithOthers» opening a profile paused the music of another app (seen on an iPhone, the Dynamic Island wave went grey).
 function VideoBanner({ api, id }: { api: Api; id: string }) {
-  const player = useVideoPlayer({ uri: api.fileUrl(id), headers: { ...api.authHeaders } }, value => { value.loop = true; value.muted = true; value.play(); });
+  const player = useVideoPlayer({ uri: api.fileUrl(id), headers: { ...api.authHeaders } }, value => { value.loop = true; value.muted = true; value.audioMixingMode = 'mixWithOthers'; value.play(); });
   return <VideoView player={player} style={StyleSheet.absoluteFill} contentFit="cover" nativeControls={false} allowsPictureInPicture={false} />;
 }
 
@@ -148,7 +150,7 @@ function VideoBanner({ api, id }: { api: Api; id: string }) {
 const EdgeBlur = ({ children }: { children: React.ReactNode }) => <MaskedView pointerEvents="none" style={StyleSheet.absoluteFill} maskElement={<LinearGradient colors={['#000', 'transparent', 'transparent', '#000']} locations={[0, 0.3, 0.55, 1]} style={StyleSheet.absoluteFill} />}>{children}</MaskedView>;
 
 function LocalVideo({ uri }: { uri: string }) {
-  const player = useVideoPlayer({ uri }, value => { value.loop = true; value.muted = true; value.play(); });
+  const player = useVideoPlayer({ uri }, value => { value.loop = true; value.muted = true; value.audioMixingMode = 'mixWithOthers'; value.play(); });
   return <VideoView player={player} style={StyleSheet.absoluteFill} contentFit="cover" nativeControls={false} allowsPictureInPicture={false} />;
 }
 
