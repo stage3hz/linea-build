@@ -146,7 +146,7 @@ test('an incoming call to an iPhone rings with the app\'s long ringtone only whe
   const plain = chatNotification({ chatId: 'c1', senderName: 'Аня', kind: 'call', unread: 0 });
   const ring = chatNotification({ chatId: 'c1', senderName: 'Аня', kind: 'call', unread: 0, iosRing: true });
   assert.equal(plain.apns.payload.aps.sound, 'default');
-  assert.equal(ring.apns.payload.aps.sound, 'call_ring.wav');
+  assert.equal(ring.apns.payload.aps.sound, 'call_ring_ios.wav');
   assert.equal(ring.apns.payload.aps['interruption-level'], 'time-sensitive');
   assert.equal(chatNotification({ chatId: 'c1', senderName: 'Аня', kind: 'message', unread: 1, iosRing: true }).apns.payload.aps.sound, 'default', 'only a call rings');
   assert.equal(chatNotification({ chatId: 'c1', senderName: 'Аня', kind: 'silent', unread: 1, iosRing: true }).apns.payload.aps.sound, undefined, 'a silent message stays silent');

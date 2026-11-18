@@ -160,7 +160,7 @@ const plural = (n, one, few, many) => { const a = n % 10, b = n % 100; return a 
 
 /** The first app version that has the ringing channel «calls-ring» (a long ringtone for an incoming call). */
 export const RING_CHANNEL_SINCE = '0.14.16';
-/** The first iPhone app that carries the long ringtone (`call_ring.wav`, 25.6 s). Before it an incoming call to a
+/** The first iPhone app that carries the long ringtone (`call_ring_ios.wav`, 25.6 s). Before it an incoming call to a
  *  closed app sounded like any notification: the system's default sound, a second or two. */
 export const RING_IOS_SINCE = '0.14.41';
 /** The first app version that a call's data message wakes (the full-screen incoming call). */
@@ -196,7 +196,7 @@ export function chatNotification({ chatId, senderName, kind, unread, badge, ring
     // iPhone: the same shape FCM v1 uses for its `apns` field, sent to Apple directly.
     apns: {
       headers: { ...(call ? { 'apns-expiration': String(Math.floor(Date.now() / 1000) + 60) } : { 'apns-collapse-id': chatId.slice(0, 64) }) },
-      payload: { aps: { alert: { title: senderName, body }, ...(silent ? { 'interruption-level': 'passive' } : { sound: call && iosRing ? 'call_ring.wav' : 'default' }), 'thread-id': chatId, ...(count !== null ? { badge: count } : {}), ...(call ? { 'interruption-level': 'time-sensitive' } : {}) }, chatId, kind },
+      payload: { aps: { alert: { title: senderName, body }, ...(silent ? { 'interruption-level': 'passive' } : { sound: call && iosRing ? 'call_ring_ios.wav' : 'default' }), 'thread-id': chatId, ...(count !== null ? { badge: count } : {}), ...(call ? { 'interruption-level': 'time-sensitive' } : {}) }, chatId, kind },
     },
   };
 }

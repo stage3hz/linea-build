@@ -104,7 +104,9 @@ module.exports = {
       // iOS: «aps-environment» entitlement (APNs); Xcode sets production for App Store exports anyway.
       // `sounds`: the ringtone of an incoming call's notification (Android channel «calls-ring», src/push.ts) and the
       // same ringtone as a WAV for iPhone: a notification there can only play aiff / wav / caf from the app, up to 30 s.
-      ['expo-notifications', { icon: './assets/notification-icon.png', color: '#4C7DFF', defaultChannel: 'messages', mode: development ? 'development' : 'production', sounds: ['./assets/sounds/call_ring.ogg', './assets/sounds/call_ring.wav'] }],
+      // Its name differs from the .ogg on purpose: on Android both land in res/raw, where the name without the
+      // extension is the resource's name — two «call_ring» files broke the Android build (Duplicate resources).
+      ['expo-notifications', { icon: './assets/notification-icon.png', color: '#4C7DFF', defaultChannel: 'messages', mode: development ? 'development' : 'production', sounds: ['./assets/sounds/call_ring.ogg', './assets/sounds/call_ring_ios.wav'] }],
       './plugins/withSelfUpdate',
       // Фоновое обновление (Android, src/prefetch): the system's periodic background run.
       'expo-background-task',
