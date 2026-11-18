@@ -6,8 +6,9 @@ import { createAudioPlayer, setAudioModeAsync, type AudioPlayer } from 'expo-aud
  * rings, «Неон» for an incoming call. Seamless loops; only one plays at a time.
  */
 const SOURCES = {
-  // Two ringbacks, as on a phone line: short soft beeps while the call is still on its way, «Пульс» once the
-  // other side's phone has it (the server says how far the call got: `call.reach`).
+  // Two ringbacks, as on a phone line, both our own «Пульс»: a lower, slower and quieter one while the call is
+  // still on its way (call_connecting.wav is call_outgoing.wav played at 0.8 of its speed), the usual one once
+  // the other side's phone has it (the server says how far the call got: `call.reach`).
   connecting: require('../../assets/sounds/call_connecting.wav'),
   outgoing: require('../../assets/sounds/call_outgoing.wav'),
   incoming: require('../../assets/sounds/call_incoming.wav'),
