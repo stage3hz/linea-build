@@ -63,7 +63,7 @@ module.exports = {
     },
     android: {
       package: androidPackage,
-      versionCode: 39,
+      versionCode: 40,
       softwareKeyboardLayoutMode: 'resize',
       // Firebase Cloud Messaging (push) in every build, see the check above.
       ...(androidPush ? { googleServicesFile } : {}),
