@@ -1,5 +1,5 @@
 import React, { createContext, useCallback, useContext, useEffect, useRef, useState, useSyncExternalStore } from 'react';
-import Animated, { FadeIn, FadeInLeft, FadeInRight } from 'react-native-reanimated';
+import Animated, { FadeIn, FadeInDown, FadeInLeft, FadeInRight } from 'react-native-reanimated';
 import { ActivityIndicator, Platform, Pressable, StyleSheet, View, type LayoutChangeEvent } from 'react-native';
 import { GlassSurface } from '../glass';
 import * as FileSystem from 'expo-file-system/legacy';
@@ -249,7 +249,22 @@ function RecordClock({ durationMs, paused, color }: { durationMs: number; paused
   useEffect(() => { if (paused) return undefined; const timer = setInterval(() => tick(value => value + 1), 45); return () => clearInterval(timer); }, [paused]);
   const shown = paused ? durationMs : durationMs + Math.min(200, Math.max(0, Date.now() - seen.current.at));
   const hundredths = Math.floor((shown % 1000) / 10);
-  return <Text raw style={{ color, fontSize: 15, fontWeight: '500', minWidth: 62, fontVariant: ['tabular-nums'] }}>{formatVoiceTime(shown)},{String(hundredths).padStart(2, '0')}</Text>;
+  return <Text raw style={{ color, fontSize: 17, fontWeight: '400', minWidth: 70, fontVariant: ['tabular-nums'] }}>{formatVoiceTime(shown)},{String(hundredths).padStart(2, '0')}</Text>;
+}
+
+/** The send circle of a locked take, measured on Telegram's screen recording: a 100 pt accent circle with a
+ *  white arrow that reaches past the composer, a thin ring around it that moves with the voice, and the
+ *  pause button as its own round pill above it (iPhone; on Android a view outside its parent takes no
+ *  touches, so the pause stays inside the strip there). */
+function SendCircle({ level, paused, onSend, onPause }: { level: number; paused: boolean; onSend: () => void; onPause?: () => void }) {
+  const t = useTheme();
+  return <View style={{ width: 40, height: 40, alignItems: 'center', justifyContent: 'center' }}>
+    {onPause && Platform.OS === 'ios' ? <Animated.View entering={FadeInDown.duration(200)} style={{ position: 'absolute', top: -105, width: 40, height: 40 }}>
+      <Pressable accessibilityRole="button" accessibilityLabel={paused ? 'Продолжить запись' : 'Пауза'} onPress={onPause} hitSlop={10} style={({ pressed }) => ({ width: 40, height: 40, borderRadius: 20, alignItems: 'center', justifyContent: 'center', backgroundColor: t.glassOpaque, borderWidth: StyleSheet.hairlineWidth, borderColor: t.border, opacity: pressed ? .6 : 1 })}><Icon name={paused ? 'mic' : 'pause'} size={20} color={paused ? t.danger : t.text} /></Pressable>
+    </Animated.View> : null}
+    <View pointerEvents="none" style={{ position: 'absolute', width: 112, height: 112, borderRadius: 56, borderWidth: 2, borderColor: t.accent, opacity: paused ? 0 : .5, transform: [{ scale: 1 + Math.min(1, level) * .12 }] }} />
+    <Pressable accessibilityRole="button" accessibilityLabel="Отправить голосовое сообщение" onPress={onSend} hitSlop={30} style={({ pressed }) => ({ position: 'absolute', height: 100, width: 100, borderRadius: 50, backgroundColor: t.accent, alignItems: 'center', justifyContent: 'center', opacity: pressed ? .8 : 1 })}><Icon name="arrow-up" color={t.onAccent} size={32} /></Pressable>
+  </View>;
 }
 
 export function VoiceRecordingBar({ durationMs, levels, onCancel, onSend, holding = false, cancelProgress = 0, paused = false, onPause, floating = false }: { durationMs: number; levels: number[]; onCancel: () => void; onSend: () => void; holding?: boolean; cancelProgress?: number; paused?: boolean; onPause?: () => void; floating?: boolean }) {
@@ -257,7 +272,7 @@ export function VoiceRecordingBar({ durationMs, levels, onCancel, onSend, holdin
   const [blink, setBlink] = useState(true);
   useEffect(() => { const timer = setInterval(() => setBlink(value => !value), 600); return () => clearInterval(timer); }, []);
   const level = levels.at(-1) || 0;
-  const dot = <View style={{ width: 9, height: 9, borderRadius: 5, backgroundColor: paused ? t.muted : t.danger, opacity: paused || blink ? 1 : .25 }} />;
+  const dot = <View style={{ width: 10, height: 10, borderRadius: 5, backgroundColor: paused ? t.muted : t.danger, opacity: paused || blink ? 1 : .25 }} />;
   const time = <RecordClock durationMs={durationMs} paused={paused} color={t.text} />;
   // As in Telegram. Holding: red dot, 0:01,62 and «‹ Влево — отмена» that follows the finger.
   // The strip comes in softly (the dot and the time from the left, the hint from the right) instead of
@@ -267,7 +282,7 @@ export function VoiceRecordingBar({ durationMs, levels, onCancel, onSend, holdin
       {cancelProgress > 0.55 ? <View style={{ width: 18, alignItems: 'center', transform: [{ scale: 0.9 + cancelProgress * 0.35 }] }}><Icon name="trash" size={17} color={t.danger} /></View> : dot}{time}
     </Animated.View>
     <Animated.View entering={FadeInRight.duration(220)} style={{ flex: 1 }}>
-      <Text style={{ textAlign: 'center', color: t.muted, fontSize: 14, opacity: 1 - cancelProgress, transform: [{ translateX: -cancelProgress * 40 }] }}>‹ Влево — отмена</Text>
+      <Text style={{ textAlign: 'center', color: t.text, fontSize: 15, opacity: (1 - cancelProgress) * .85, transform: [{ translateX: -cancelProgress * 40 }] }}>‹ Влево — отмена</Text>
     </Animated.View>
   </View>;
   // Locked in a chat, as in Telegram: a glass strip with dot, 0:04,63, «Отмена» and pause, the composer
@@ -275,25 +290,19 @@ export function VoiceRecordingBar({ durationMs, levels, onCancel, onSend, holdin
   if (floating) return <Animated.View entering={FadeIn.duration(160)} style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
     <GlassSurface lens material="regular" radius={20} style={{ flex: 1 }} contentStyle={{ minHeight: 40, flexDirection: 'row', alignItems: 'center', gap: 8, paddingLeft: 14, paddingRight: 4 }}>
       {dot}{time}
-      <Pressable accessibilityRole="button" accessibilityLabel="Отменить запись" onPress={onCancel} hitSlop={8} style={({ pressed }) => ({ flex: 1, height: 40, alignItems: 'center', justifyContent: 'center', opacity: pressed ? .6 : 1 })}><Text style={{ color: t.accent, fontSize: 16, fontWeight: '600' }}>Отмена</Text></Pressable>
-      {onPause ? <Pressable accessibilityRole="button" accessibilityLabel={paused ? 'Продолжить запись' : 'Пауза'} onPress={onPause} hitSlop={6} style={({ pressed }) => ({ width: 32, height: 32, borderRadius: 16, alignItems: 'center', justifyContent: 'center', backgroundColor: t.surface2, opacity: pressed ? .6 : 1 })}><Icon name={paused ? 'mic' : 'pause'} size={17} color={paused ? t.danger : t.text} /></Pressable> : null}
+      <Pressable accessibilityRole="button" accessibilityLabel="Отменить запись" onPress={onCancel} hitSlop={8} style={({ pressed }) => ({ flex: 1, height: 40, alignItems: 'center', justifyContent: 'center', paddingRight: 34, opacity: pressed ? .6 : 1 })}><Text style={{ color: t.accent, fontSize: 17, fontWeight: '400' }}>Отмена</Text></Pressable>
+      {onPause && Platform.OS !== 'ios' ? <Pressable accessibilityRole="button" accessibilityLabel={paused ? 'Продолжить запись' : 'Пауза'} onPress={onPause} hitSlop={6} style={({ pressed }) => ({ width: 32, height: 32, borderRadius: 16, marginRight: 34, alignItems: 'center', justifyContent: 'center', backgroundColor: t.surface2, opacity: pressed ? .6 : 1 })}><Icon name={paused ? 'mic' : 'pause'} size={17} color={paused ? t.danger : t.text} /></Pressable> : null}
     </GlassSurface>
-    <View style={{ width: 40, height: 40, alignItems: 'center', justifyContent: 'center' }}>
-      <View pointerEvents="none" style={{ position: 'absolute', width: 52, height: 52, borderRadius: 26, backgroundColor: t.accent, opacity: paused ? 0 : .22, transform: [{ scale: 1 + level * .4 }] }} />
-      <Pressable accessibilityRole="button" accessibilityLabel="Отправить голосовое сообщение" onPress={onSend} hitSlop={6} style={({ pressed }) => ({ position: 'absolute', height: 52, width: 52, borderRadius: 26, backgroundColor: t.accent, alignItems: 'center', justifyContent: 'center', opacity: pressed ? .8 : 1 })}><Icon name="arrow-up" color={t.onAccent} size={27} /></Pressable>
-    </View>
+    <SendCircle level={level} paused={paused} onSend={onSend} onPause={onPause} />
   </Animated.View>;
   // Elsewhere (Saved): one row — dot, time, «Отмена», pause and the send circle.
   // The row is as tall as the field it replaces (44): it used to be 50 and the whole composer jumped up when
   // a take was locked (seen in a screen recording). The send circle reaches past the row instead.
   return <Animated.View entering={FadeIn.duration(160)} style={{ flexDirection: 'row', alignItems: 'center', gap: 8, minHeight: 44, paddingLeft: 10 }}>
     {dot}{time}
-    <Pressable accessibilityRole="button" accessibilityLabel="Отменить запись" onPress={onCancel} style={({ pressed }) => ({ flex: 1, height: 44, alignItems: 'center', justifyContent: 'center', opacity: pressed ? .6 : 1 })}><Text style={{ color: t.accent, fontSize: 16, fontWeight: '600' }}>Отмена</Text></Pressable>
-    {onPause ? <Pressable accessibilityRole="button" accessibilityLabel={paused ? 'Продолжить запись' : 'Пауза'} onPress={onPause} hitSlop={6} style={({ pressed }) => ({ width: 36, height: 36, borderRadius: 18, alignItems: 'center', justifyContent: 'center', backgroundColor: t.surface2, opacity: pressed ? .6 : 1 })}><Icon name={paused ? 'mic' : 'pause'} size={18} color={paused ? t.danger : t.text} /></Pressable> : null}
-    <View style={{ width: 44, height: 44, alignItems: 'center', justifyContent: 'center' }}>
-      <View pointerEvents="none" style={{ position: 'absolute', width: 52, height: 52, borderRadius: 26, backgroundColor: t.accent, opacity: paused ? 0 : .22, transform: [{ scale: 1 + level * .45 }] }} />
-      <Pressable accessibilityRole="button" accessibilityLabel="Отправить голосовое сообщение" onPress={onSend} hitSlop={6} style={({ pressed }) => ({ position: 'absolute', height: 50, width: 50, borderRadius: 25, backgroundColor: t.accent, alignItems: 'center', justifyContent: 'center', opacity: pressed ? .75 : 1 })}><Icon name="arrow-up" color={t.onAccent} size={25} /></Pressable>
-    </View>
+    <Pressable accessibilityRole="button" accessibilityLabel="Отменить запись" onPress={onCancel} style={({ pressed }) => ({ flex: 1, height: 44, alignItems: 'center', justifyContent: 'center', paddingRight: 34, opacity: pressed ? .6 : 1 })}><Text style={{ color: t.accent, fontSize: 17, fontWeight: '400' }}>Отмена</Text></Pressable>
+    {onPause && Platform.OS !== 'ios' ? <Pressable accessibilityRole="button" accessibilityLabel={paused ? 'Продолжить запись' : 'Пауза'} onPress={onPause} hitSlop={6} style={({ pressed }) => ({ width: 36, height: 36, borderRadius: 18, marginRight: 34, alignItems: 'center', justifyContent: 'center', backgroundColor: t.surface2, opacity: pressed ? .6 : 1 })}><Icon name={paused ? 'mic' : 'pause'} size={18} color={paused ? t.danger : t.text} /></Pressable> : null}
+    <View style={{ width: 44, height: 44, alignItems: 'center', justifyContent: 'center' }}><SendCircle level={level} paused={paused} onSend={onSend} onPause={onPause} /></View>
   </Animated.View>;
 }
 

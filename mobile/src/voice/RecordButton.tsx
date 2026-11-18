@@ -76,25 +76,28 @@ export function RecordButton({ mode, disabled, onToggleMode, onTouchDown, onHold
   const gesture = Gesture.Exclusive(hold, tap);
 
   const button = useAnimatedStyle(() => ({
-    // Telegram: at rest just the icon; while held a big accent circle (~2.3×) that reaches past the edge.
-    transform: [{ translateX: tx.value * 0.9 }, { scale: 1 + active.value * 1.3 }],
+    // Telegram: at rest just the icon; while held a 100 pt accent circle (2.5×) that reaches past the edge.
+    transform: [{ translateX: tx.value * 0.9 }, { scale: 1 + active.value * 1.5 }],
     backgroundColor: active.value > 0.05 ? t.accent : 'transparent',
   }));
   // The light ring around the big circle, breathing with the voice (Telegram's halo).
-  const halo = useAnimatedStyle(() => ({ opacity: active.value * 0.32, transform: [{ translateX: tx.value * 0.9 }, { scale: active.value * (1.85 + Math.min(1, level) * 0.5) }] }));
-  const lockPill = useAnimatedStyle(() => ({ opacity: active.value, transform: [{ translateY: -70 - ty.value * 0.15 }, { scale: 0.8 + active.value * 0.2 }] }));
+  // A thin ring just outside the circle, moving with the voice (measured on Telegram: 112 pt around 100 pt).
+  const halo = useAnimatedStyle(() => ({ opacity: active.value * 0.5, transform: [{ translateX: tx.value * 0.9 }, { scale: active.value * (2.8 + Math.min(1, level) * 0.34) }] }));
+  // The lock pill stands 105 pt above the circle's centre, where the pause button is after a lock.
+  const lockPill = useAnimatedStyle(() => ({ opacity: active.value, transform: [{ translateY: -105 - ty.value * 0.15 }, { scale: 0.8 + active.value * 0.2 }] }));
 
   return <View style={{ width: 40, height: 40, alignItems: 'center', justifyContent: 'center' }}>
-    {holding ? <Animated.View pointerEvents="none" style={[{ position: 'absolute', width: 36, height: 64, borderRadius: 18, alignItems: 'center', justifyContent: 'space-evenly', backgroundColor: t.glassOpaque, borderWidth: 1, borderColor: t.border }, lockPill]}>
+    {holding ? <Animated.View pointerEvents="none" style={[{ position: 'absolute', width: 40, height: 66, borderRadius: 20, alignItems: 'center', justifyContent: 'space-evenly', backgroundColor: t.glassOpaque, borderWidth: 1, borderColor: t.border }, lockPill]}>
       <Icon name="lock-open-outline" size={17} color={t.text} /><Icon name="chevron-up" size={14} color={t.muted} />
     </Animated.View> : null}
     {/* Telegram: at rest the mic sits in the same glass circle as the paperclip. */}
     {!holding ? <View pointerEvents="none" style={{ position: 'absolute', width: 40, height: 40 }}><GlassSurface material="regular" radius={20} contentStyle={{ width: 40, height: 40 }}><View /></GlassSurface></View> : null}
-    <Animated.View pointerEvents="none" style={[{ position: 'absolute', width: 40, height: 40, borderRadius: 20, backgroundColor: t.accent }, halo]} />
+    <Animated.View pointerEvents="none" style={[{ position: 'absolute', width: 40, height: 40, borderRadius: 20, borderWidth: 0.7, borderColor: t.accent }, halo]} />
     <GestureDetector gesture={gesture}>
       <Animated.View accessible accessibilityRole="button" accessibilityLabel={mode === 'voice' ? 'Голосовое: удерживай для записи, свайп влево — отмена, вверх — без рук. Нажми — переключить на видео' : 'Видеосообщение: удерживай для записи, свайп влево — отмена, вверх — без рук. Нажми — переключить на голосовое'}
         style={[{ width: 40, height: 40, borderRadius: 20, alignItems: 'center', justifyContent: 'center' }, button]}>
-        <Icon name={mode === 'voice' ? (holding ? 'mic' : 'mic-outline') : (holding ? 'videocam' : 'videocam-outline')} color={holding ? t.onAccent : t.text} size={holding ? 20 : 24} />
+        {/* Telegram: the held circle shows the send arrow (the circle is drawn 2.5× here, so 13 → 32 pt). */}
+        <Icon name={holding ? (mode === 'voice' ? 'arrow-up' : 'videocam') : (mode === 'voice' ? 'mic-outline' : 'videocam-outline')} color={holding ? t.onAccent : t.text} size={holding ? (mode === 'voice' ? 13 : 17) : 24} />
       </Animated.View>
     </GestureDetector>
   </View>;
