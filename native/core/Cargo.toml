@@ -1,0 +1,18 @@
+[package]
+name = "invizent-core"
+version = "0.1.0"
+edition = "2021"
+license = "AGPL-3.0-only"
+description = "The shared core of the INVIZENT phone apps: server protocol and the logic around end-to-end encryption, written once for iOS and Android"
+publish = false
+
+[lib]
+name = "invizent_core"
+
+[dependencies]
+hmac = "0.12"
+sha2 = "0.10"
+
+[dev-dependencies]
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"

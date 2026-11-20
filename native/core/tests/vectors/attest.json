@@ -1,0 +1,37 @@
+[
+ {
+  "key": "k",
+  "ts": 1700000000,
+  "method": "GET",
+  "url": "/me",
+  "hex": "37b1388e242c6b7f70412e0e1aa5222ca20ec07cba9be09bfc37acb4a54636ba"
+ },
+ {
+  "key": "a-per-build-key-0123456789abcdef",
+  "ts": 1763660000,
+  "method": "POST",
+  "url": "/chats/42/messages?lean=1",
+  "hex": "bcda702bb97a824ebf002882525a747870f20acfbfab9c2539ca9129cd2fab08"
+ },
+ {
+  "key": "ключ с юникодом ✓",
+  "ts": 1763660001,
+  "method": "put",
+  "url": "/me/push",
+  "hex": "b3a01126a9727a7a187b49a756a6f56f84ecf213e2864713e336463e3bf9e256"
+ },
+ {
+  "key": "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx",
+  "ts": 1763660002,
+  "method": "DELETE",
+  "url": "/chats/7",
+  "hex": "cce47d8728ec19985a0eb1669ecd409670e97785d8f05ca60920a931c861cb84"
+ },
+ {
+  "key": "key",
+  "ts": 999999999,
+  "method": "PATCH",
+  "url": "/me/privacy?a=1&b=%D0%B0",
+  "hex": "c98c01b4dc32f2efde55aa06ec71528165ddf6cbe625150dfea1eda22e4fc239"
+ }
+]
