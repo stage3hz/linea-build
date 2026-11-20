@@ -1,4 +1,4 @@
-import { BarGlow, TabBar, TabWheel, useBarHint, type GlowColors, type TabItem } from './TabBar';
+import { BarGlow, TabBar, TabList, useBarHint, type GlowColors, type TabItem } from './TabBar';
 import { useMusic } from './music/MusicProvider';
 import { coverGlow, useCoverTints } from './design/coverTint';
 import { badgeText, useUnreadTotal } from './unreadBadge';
@@ -402,7 +402,7 @@ export function MessengerTabs({onProfile,onNewChat,onMusic,onAI,onChats,activeTa
   const t=useTheme();const insets=useSafeAreaInsets();const tabBadges:Record<string,number>=useTabBadges(useUnreadTotal()+useMarkedExtra());
   const roomsAwake=useRoomsAwake();
   const side=Math.max(8,(useWindowDimensions().width-BAR_WIDTH)/2);
-  // The section under the finger while it goes through them (null: no gesture).
+  // The row of the list under the finger, counted from the bottom (-1: none; null: no gesture).
   const [scrub,setScrub]=useState<number|null>(null);const hint=useBarHint();
   const items:TabItem[]=[
     {id:'ai',label:'AI',icon:'sparkles-outline',activeIcon:'sparkles',badge:0,onPress:onAI},
@@ -415,9 +415,9 @@ export function MessengerTabs({onProfile,onNewChat,onMusic,onAI,onChats,activeTa
   // The music screen shows its own player above the same tab bar; everywhere else it sits here, above the tabs.
   return <><VoiceBar onOpen={communityId=>navigate({to:'channels',communityId})}/>{activeTab!=='music'?<MiniPlayer onOpen={onMusic}/>:null}
     {/* The bar shows two sections of six: the way to the rest, in words, until the gesture has been used once. */}
-    {hint&&scrub===null?<View pointerEvents="none" style={{alignSelf:'center',marginBottom:3,height:28,paddingHorizontal:13,borderRadius:14,justifyContent:'center',backgroundColor:t.dark?'rgba(22,24,29,0.94)':'rgba(255,255,255,0.96)',borderWidth:1,borderColor:t.glassBorder}}><Text maxFontSizeMultiplier={1.2} style={{color:t.text,fontSize:12.5,fontWeight:'600'}}>Удержи и веди вверх — все разделы</Text></View>:null}
+    {hint&&scrub===null?<View pointerEvents="none" style={{alignSelf:'center',marginBottom:3,height:28,paddingHorizontal:13,borderRadius:14,justifyContent:'center',backgroundColor:t.dark?'rgba(22,24,29,0.94)':'rgba(255,255,255,0.96)',borderWidth:1,borderColor:t.glassBorder}}><Text maxFontSizeMultiplier={1.2} style={{color:t.text,fontSize:12.5,fontWeight:'600'}}>Удержи «Чаты» и веди вверх — остальные разделы</Text></View>:null}
     <SnowLedge id="tabs" radius={31} max={7} inset={{left:side,right:side,top:5,bottom:tabBarMarginBottom(Platform.OS==='ios',insets.bottom)}}><View style={{alignSelf:'center',width:BAR_WIDTH,marginBottom:tabBarMarginBottom(Platform.OS==='ios',insets.bottom),marginTop:5}}>
-    {scrub!==null?<View pointerEvents="none" style={{position:'absolute',bottom:'100%',left:(BAR_WIDTH-216)/2,marginBottom:12}}><GlassSurface material="regular" radius={24}><TabWheel items={items} index={scrub}/></GlassSurface></View>:null}
+    {scrub!==null?<View pointerEvents="none" style={{position:'absolute',bottom:'100%',left:(BAR_WIDTH-216)/2,marginBottom:12}}><GlassSurface material="regular" radius={24}><TabList items={items} pick={scrub}/></GlassSurface></View>:null}
     {GLOW_UNDER?<TabsGlow/>:null}<GlassSurface pure lens material="regular" radius={31} contentStyle={{paddingHorizontal:3.6,paddingVertical:3}}>{GLOW_UNDER?null:<TabsGlow/>}
     <TabBar onScrub={setScrub} active={activeTab==='people'?'people':activeTab==='channels'?'channels':activeTab==='profile'?'profile':activeTab==='music'?'music':activeTab==='ai'?'ai':'chats'} items={items}/>
   </GlassSurface></View></SnowLedge></>;

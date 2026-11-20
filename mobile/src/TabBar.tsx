@@ -1,9 +1,9 @@
-// The phone tab bar: small, two icons — «Чаты» and «Настройки» — and every section under the finger.
+// The phone tab bar: small, two icons — «Чаты» and «Настройки».
 // • a tap opens the tab; its icon plays its own little animation (the gear turns, the chat bubble bounces);
-// • put a finger on the bar and move it up or down: the sections go by one at a time, the page behind is the
-//   real one (a live preview), a small wheel above the bar names them; moved too far — move back; let go and
-//   the section stays. The order is the list given by the caller and it goes round.
-// • no captions: the names are read out by screen readers and shown in the wheel.
+// • the other sections: put a finger on «Чаты» and move it up — they appear above the bar as one plain list
+//   (nothing rolls, nothing to play with); the row under the finger is lit and its page shows behind the bar;
+//   let go on a row and that section opens, let go anywhere else and nothing changes.
+// • no captions: the names are read out by screen readers and shown in the list.
 import React, { memo, useEffect, useRef, useState, useSyncExternalStore } from 'react';
 import { View, Platform } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
@@ -73,7 +73,7 @@ let hint = false;
 const listeners = new Set<() => void>();
 void AsyncStorage.getItem(HINT_KEY).then(value => { const seen = Number(value) || 0; if (value !== 'used' && seen < HINT_STARTS) { hint = true; listeners.forEach(l => l()); void AsyncStorage.setItem(HINT_KEY, String(seen + 1)).catch(() => {}); } }).catch(() => {});
 function gestureUsed() { if (!hint) return; hint = false; listeners.forEach(l => l()); void AsyncStorage.setItem(HINT_KEY, 'used').catch(() => {}); }
-/** Whether to show the words «Удержи и веди вверх — все разделы» above the bar. */
+/** Whether to show the words about the gesture above the bar. */
 export const useBarHint = () => useSyncExternalStore(l => { listeners.add(l); return () => { listeners.delete(l); }; }, () => hint, () => hint);
 
 const SPRING = { damping: 20, stiffness: 320, mass: 0.7 };
@@ -142,10 +142,10 @@ function TabIcon({ item, active, kick, pressed, index }: { item: TabItem; active
 
 /** The sections that have their own icon in the bar; the others are reached with the gesture. */
 const BAR_TABS: TabId[] = ['chats', 'profile'];
-/** Finger travel for one section, points. */
-const STEP = 38;
+/** One row of the list, and how far above the finger's start the list's lowest row begins (the finger then lies on the row it picks). */
+const ROW = 44, FIRST = 49;
 
-/** `items`: every section in the order the gesture goes through them; the bar itself shows «Чаты» and «Настройки». */
+/** `items`: every section; the bar itself shows «Чаты» and «Настройки», the rest are in the list (top to bottom in the order given). */
 export function TabBar({ items, active, onScrub }: { items: TabItem[]; active: TabId; onScrub?: (index: number | null) => void }) {
   const t = useTheme();
   const shown = BAR_TABS.map(id => items.find(item => item.id === id)).filter((item): item is TabItem => !!item);
@@ -154,7 +154,7 @@ export function TabBar({ items, active, onScrub }: { items: TabItem[]; active: T
   const found = shown.findIndex(item => item.id === active);
   // A section without an icon of its own: the light stands between the two icons and neither is lit.
   const target = found < 0 ? (n - 1) / 2 : found;
-  const pill = PILL; const pressed = useSharedValue(-1); const hold = useSharedValue(0); const step = useSharedValue(0);
+  const pill = PILL; const pressed = useSharedValue(-1); const hold = useSharedValue(0); const step = useSharedValue(-1); const armed = useSharedValue(0);
   useState(() => { if (PILL.value < 0) { PILL.value = lastPill ?? target; pillTarget = lastPill ?? target; } return 0; });
   const k0 = useSharedValue(0), k1 = useSharedValue(0);
   const kicks = [k0, k1];
@@ -176,25 +176,27 @@ export function TabBar({ items, active, onScrub }: { items: TabItem[]; active: T
     pillTarget = index; pill.value = withSpring(index, SPRING);
     item.onPress();
   };
-  // The gesture: the sections go by under the finger. Each step opens the real page, so what is seen behind the
-  // bar is the page itself; a cancelled gesture goes back to where it began.
+  // The gesture: the list of the other sections; the row under the finger opens its real page behind the bar,
+  // off the list the page it began on comes back. `pick` counts rows from the bottom, -1 is none.
   const live = useRef({ items, active, onScrub }); live.current = { items, active, onScrub };
-  const run = useRef<{ from: number; steps: number } | null>(null);
+  const run = useRef<{ from: number; pick: number } | null>(null);
+  const rest = () => live.current.items.filter(item => !BAR_TABS.includes(item.id));
   const at = (from: number, steps: number, count: number) => (((from + steps) % count) + count) % count;
   const scrubStart = () => {
     const from = Math.max(0, live.current.items.findIndex(item => item.id === live.current.active));
-    run.current = { from, steps: 0 }; live.current.onScrub?.(from); gestureUsed();
+    run.current = { from, pick: -1 }; live.current.onScrub?.(-1); gestureUsed();
   };
-  const scrubTo = (steps: number) => {
-    const now = run.current; if (!now || now.steps === steps) return;
-    now.steps = steps;
-    const list = live.current.items, index = at(now.from, steps, list.length);
-    live.current.onScrub?.(index); list[index]?.onPress();
+  const scrubTo = (pick: number) => {
+    const now = run.current; if (!now) return;
+    const list = rest(); const next = pick >= 0 && pick < list.length ? pick : -1;
+    if (next === now.pick) return;
+    now.pick = next; live.current.onScrub?.(next);
+    (next < 0 ? live.current.items[now.from] : list[list.length - 1 - next])?.onPress();
   };
   const scrubEnd = (cancelled: boolean) => {
     const now = run.current; if (!now) return;
     run.current = null; live.current.onScrub?.(null);
-    if (cancelled && now.steps) live.current.items[now.from]?.onPress();
+    if (cancelled && now.pick >= 0) live.current.items[now.from]?.onPress();
   };
   const move = (by: number) => { const list = live.current.items; const from = Math.max(0, list.findIndex(item => item.id === live.current.active)); list[at(from, by, list.length)]?.onPress(); };
   const tabAt = (x: number) => { 'worklet'; return Math.max(0, Math.min(n - 1, Math.floor(x / Math.max(1, width / n)))); };
@@ -203,11 +205,13 @@ export function TabBar({ items, active, onScrub }: { items: TabItem[]; active: T
     .onBegin(e => { pressed.value = tabAt(e.x); })
     .onEnd(e => { const index = tabAt(e.x); pill.value = withSpring(index, SPRING); runOnJS(open)(index); })
     .onFinalize(() => { pressed.value = -1; });
-  const scrub = Gesture.Pan().activeOffsetY([-8, 8]).failOffsetX([-48, 48])
-    .onStart(() => { hold.value = withSpring(1, SPRING); pressed.value = -1; step.value = 0; runOnJS(scrubStart)(); })
-    .onUpdate(e => { const next = Math.round(-e.translationY / STEP); if (next !== step.value) { step.value = next; runOnJS(scrubTo)(next); } })
-    .onEnd(() => { runOnJS(scrubEnd)(false); })
-    .onFinalize(() => { hold.value = withSpring(0, SPRING); runOnJS(scrubEnd)(true); });
+  const chats = Math.max(0, shown.findIndex(item => item.id === 'chats'));
+  // Only from «Чаты»: the gear keeps a plain tap.
+  const scrub = Gesture.Pan().activeOffsetY([-1000, -8]).failOffsetX([-48, 48])
+    .onStart(e => { armed.value = tabAt(e.x - e.translationX) === chats ? 1 : 0; if (!armed.value) return; hold.value = withSpring(1, SPRING); pressed.value = -1; step.value = -1; runOnJS(scrubStart)(); })
+    .onUpdate(e => { if (!armed.value) return; const next = Math.floor((-e.translationY - FIRST) / ROW); if (next !== step.value) { step.value = next; runOnJS(scrubTo)(next); } })
+    .onEnd(() => { if (armed.value) runOnJS(scrubEnd)(false); })
+    .onFinalize(() => { hold.value = withSpring(0, SPRING); if (armed.value) runOnJS(scrubEnd)(true); armed.value = 0; });
   const gesture = Gesture.Exclusive(scrub, tap);
 
   // The light is whole on a tab and gone half-way between the two.
@@ -221,7 +225,7 @@ export function TabBar({ items, active, onScrub }: { items: TabItem[]; active: T
         <TabLight color={t.dark ? '#FFFFFF' : t.accent} width={cell} />
       </Animated.View> : null}
       {shown.map((item, index) => { const on = index === found; return <View key={item.id} accessible accessibilityRole="tab"
-        accessibilityLabel={`${item.label}${item.badge ? `, ${item.badge}` : ''}`} accessibilityHint="Веди вверх или вниз по панели, чтобы листать все разделы" accessibilityState={{ selected: on }}
+        accessibilityLabel={`${item.label}${item.badge ? `, ${item.badge}` : ''}`} accessibilityHint={item.id === 'chats' ? 'Удержи и веди вверх — остальные разделы' : undefined} accessibilityState={{ selected: on }}
         accessibilityActions={[{ name: 'activate' }, { name: 'increment', label: 'Следующий раздел' }, { name: 'decrement', label: 'Прошлый раздел' }]}
         onAccessibilityAction={event => { const name = event.nativeEvent.actionName; if (name === 'increment') move(1); else if (name === 'decrement') move(-1); else open(index); }}
         onAccessibilityTap={() => open(index)} style={{ flex: 1, alignItems: 'center', justifyContent: 'center', paddingVertical: 12 }}>
@@ -234,17 +238,16 @@ export function TabBar({ items, active, onScrub }: { items: TabItem[]; active: T
   </GestureDetector>;
 }
 
-/** The wheel shown above the bar while the finger goes through the sections: the one before, the one under the finger, the one after. */
-export function TabWheel({ items, index }: { items: TabItem[]; index: number }) {
-  const t = useTheme(); const n = items.length;
-  const rows = [-1, 0, 1].map(by => ({ item: items[(((index + by) % n) + n) % n], on: by === 0 }));
-  return <View style={{ width: 216, padding: 6, gap: 2 }}>
-    {rows.map(({ item, on }, place) => item ? <View key={place} style={{ height: 42, borderRadius: 16, paddingHorizontal: 14, flexDirection: 'row', alignItems: 'center', gap: 12, backgroundColor: on ? (t.dark ? 'rgba(255,255,255,0.13)' : 'rgba(0,0,0,0.07)') : 'transparent' }}>
+/** The list shown above the bar while the finger is held on «Чаты»: every section without an icon of its own; `pick` counts from the bottom, -1 is none. */
+export function TabList({ items, pick }: { items: TabItem[]; pick: number }) {
+  const t = useTheme(); const list = items.filter(item => !BAR_TABS.includes(item.id));
+  return <View style={{ width: 216, padding: 6 }}>
+    {list.map((item, place) => { const on = list.length - 1 - place === pick; return <View key={item.id} style={{ height: ROW, borderRadius: 16, paddingHorizontal: 14, flexDirection: 'row', alignItems: 'center', gap: 12, backgroundColor: on ? (t.dark ? 'rgba(255,255,255,0.13)' : 'rgba(0,0,0,0.07)') : 'transparent' }}>
       <Ionicons name={on ? item.activeIcon : item.icon} size={20} color={on ? t.text : t.muted} {...HIDDEN_ICON} />
       <Text numberOfLines={1} maxFontSizeMultiplier={1.2} style={{ flex: 1, color: on ? t.text : t.muted, fontSize: 15.5, fontWeight: '600' }}>{item.label}</Text>
       {item.badge ? <View style={{ minWidth: 20, height: 20, paddingHorizontal: 6, borderRadius: 10, backgroundColor: BADGE, alignItems: 'center', justifyContent: 'center' }}><Text maxFontSizeMultiplier={1} style={{ color: '#FFFFFF', fontSize: 10.5, fontWeight: '800' }}>{badgeText(item.badge)}</Text></View>
         : item.dot ? <View style={{ width: 8, height: 8, borderRadius: 4, backgroundColor: item.dot }} /> : null}
-    </View> : null)}
+    </View>; })}
   </View>;
 }
 
