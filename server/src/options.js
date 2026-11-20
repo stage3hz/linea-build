@@ -45,7 +45,8 @@ export function appOptions(overrides = {}) {
   diskReserveBytes: integerEnv('DISK_RESERVE_MIB', 5120, 0, 1048576) * 1024 * 1024,
   // AI_PROVIDER=freellmapi uses a self-hosted FreeLLMAPI router; default stays OpenRouter.
   aiApiKey: (process.env.AI_PROVIDER === 'freellmapi' ? process.env.AI_API_KEY : process.env.OPENROUTER_API_KEY) || '',
-  turn: process.env.TURN_SECRET ? { secret: process.env.TURN_SECRET, host: process.env.TURN_HOST || '' } : null,
+  // TURN_TLS_PORT (optional, e.g. 443): the relay's TLS listener, offered to the apps as turns:host:port.
+  turn: process.env.TURN_SECRET ? { secret: process.env.TURN_SECRET, host: process.env.TURN_HOST || '', tlsPort: /^\d{2,5}$/.test(process.env.TURN_TLS_PORT || '') && Number(process.env.TURN_TLS_PORT) <= 65535 ? Number(process.env.TURN_TLS_PORT) : 0 } : null,
   aiProviderConfig: { provider: process.env.AI_PROVIDER || 'openrouter', baseUrl: process.env.AI_BASE_URL || '', model: process.env.AI_MODEL || '' },
   // Refuse clients older than MIN_CLIENT_VERSION (x.y.z). Unset = allow all.
   minClientVersion: process.env.MIN_CLIENT_VERSION || null,

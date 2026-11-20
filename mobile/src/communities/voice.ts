@@ -1,3 +1,5 @@
+import { audioCap, callLink, gradeLink, steadyGrade, type CallLinkSample, type LinkGrade } from '../calls/callModel';
+import { networkTier } from '../network/quality';
 import { Platform } from 'react-native';
 import { audioPrefs, callAudio, callAudioKey, setAudioPrefs, subscribeAudio } from '../audio/devices';
 import { gateTrack } from '../audio/gate';
@@ -30,6 +32,8 @@ const loadInCall = (): any => { try { return require('react-native-incall-manage
 export type VoicePeer = { peer: string; userId: string; muted: boolean; serverMuted?: boolean; serverDeafened?: boolean; connected: boolean; screen?: { stream: any; quality: ScreenQuality } };
 export type VoiceState = {
   communityId: string; channelId: string; channelName: string; communityName: string;
+  /** The worst link among the people you are connected to right now (read from the connections every few seconds). */
+  link?: LinkGrade;
   /** A room of «свои» (outside any community): the same engine, `channelId` is the room's id. */
   roomId?: string;
   sharing: ScreenQuality | null; screenStream: any;
@@ -321,6 +325,36 @@ async function acceptRestart(from: string, sdp: string): Promise<boolean> {
 
 // Wi-Fi ↔ LTE or a new IP while in a room: restart ICE with every verified peer at once.
 let stopNetwork: (() => void) | null = null;
+// Following every peer's link while in a voice channel or a room: when packets to or from someone are lost or
+// late, the voice sent to that person is made lighter at once; it comes back step by step once the link is calm.
+let linkTimer: ReturnType<typeof setInterval> | null = null;
+const linkStates = new Map<string, { grade: LinkGrade; calm: number; sample: CallLinkSample | null }>();
+async function checkLinks() {
+  if (!state) return;
+  let worst: LinkGrade = 'good';
+  await Promise.all([...connections].map(async ([peer, connection]) => {
+    try {
+      const reports = await connection.getStats(); const list: any[] = []; reports.forEach?.((report: any) => list.push(report));
+      const known = linkStates.get(peer) || { grade: 'good' as LinkGrade, calm: 0, sample: null };
+      const next = callLink(list, known.sample, Date.now()); known.sample = next.sample;
+      const step = steadyGrade(known.grade, gradeLink(next.link), known.calm); known.calm = step.calm;
+      if (step.grade !== known.grade) {
+        known.grade = step.grade;
+        const sender = micSenders.get(peer);
+        if (sender?.getParameters && sender.setParameters) {
+          const parameters = sender.getParameters(); if (!parameters.encodings?.length) parameters.encodings = [{}];
+          const cap = audioCap(networkTier(), step.grade);
+          if (cap) parameters.encodings[0].maxBitrate = cap; else delete parameters.encodings[0].maxBitrate;
+          await sender.setParameters(parameters);
+        }
+      }
+      linkStates.set(peer, known);
+      if (known.grade === 'bad' || (known.grade === 'weak' && worst === 'good')) worst = known.grade;
+    } catch { /* the connection is closing, or this WebRTC build gives no statistics */ }
+  }));
+  for (const peer of [...linkStates.keys()]) if (!connections.has(peer)) linkStates.delete(peer);
+  if (state && (state.link || 'good') !== worst) patch({ link: worst });
+}
 
 export const voiceAvailable = () => { if (!rtc) rtc = loadRtc(); return !!rtc; };
 export function useVoice(): VoiceState {
@@ -490,6 +524,7 @@ function cleanup(error: string) {
   authTimers.forEach(timer => clearTimeout(timer)); authTimers.clear();
   links.forEach(entry => { if (entry.timer) clearTimeout(entry.timer); }); links.clear();
   stopNetwork?.(); stopNetwork = null;
+  if (linkTimer) { clearInterval(linkTimer); linkTimer = null; } linkStates.clear();
   verified.clear(); authSdp.clear(); pendingNotes.clear(); pendingKeys.clear(); micSenders.clear(); peerInfo.clear(); selfPeer = null; sharingViaSfu = false;
   if (voiceHookOn) { voiceHookOn = false; setVoiceActive(false); }
   try { releaseLocalStream(local); } catch { /* released */ }
@@ -518,6 +553,8 @@ export async function joinVoice(api: Api, store: MessengerStore, target: { commu
   stopNetwork?.(); stopNetwork = onNetworkChange(() => connections.forEach((connection, peer) => feedLink(peer, connection, { kind: 'network' })));
   set({ ...target, sharing: null, screenStream: null, status: 'connecting', muted: false, deafened: false, speaker: true, peers: [], error: '' });
   ownDevice = device;
+  if (linkTimer) clearInterval(linkTimer);
+  linkTimer = setInterval(() => { void checkLinks(); }, 4000);
   if (!store.sendSocket(target.roomId ? { type: 'voice.join', roomId: target.roomId, device } : { type: 'voice.join', communityId: target.communityId, channelId: target.channelId, device })) { cleanup(''); throw new Error('Нет соединения с сервером.'); }
 }
 

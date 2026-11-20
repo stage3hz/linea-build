@@ -156,6 +156,38 @@ export type CallLink = {
   rttMs: number | null; lossPct: number | null; jitterMs: number | null; kbpsOut: number | null; kbpsIn: number | null;
 };
 export type CallLinkSample = { at: number; sent: number; received: number };
+
+// ---- Following the link while the call goes on ----
+/** How the connection is doing right now, from its own statistics. */
+export type LinkGrade = 'good' | 'weak' | 'bad';
+const RANK: Record<LinkGrade, number> = { good: 0, weak: 1, bad: 2 };
+const ORDER: LinkGrade[] = ['good', 'weak', 'bad'];
+/** One reading of the link → its grade. Unknown numbers count as fine (no statistics yet is not a bad link). */
+export function gradeLink(link: Pick<CallLink, 'rttMs' | 'lossPct' | 'jitterMs'>): LinkGrade {
+  const loss = link.lossPct ?? 0, rtt = link.rttMs ?? 0, jitter = link.jitterMs ?? 0;
+  if (loss >= 10 || rtt >= 800 || jitter >= 120) return 'bad';
+  if (loss >= 3 || rtt >= 350 || jitter >= 50) return 'weak';
+  return 'good';
+}
+/**
+ * The grade the call acts on. Worse takes effect at once (the sound must be made lighter before it breaks up);
+ * better only after three calm readings in a row and one step at a time, so a link that wobbles around a
+ * threshold does not flip the quality back and forth.
+ */
+export function steadyGrade(current: LinkGrade, reading: LinkGrade, calm: number): { grade: LinkGrade; calm: number } {
+  if (RANK[reading] > RANK[current]) return { grade: reading, calm: 0 };
+  if (RANK[reading] === RANK[current]) return { grade: current, calm: 0 };
+  return calm + 1 >= 3 ? { grade: ORDER[RANK[current] - 1], calm: 0 } : { grade: current, calm: calm + 1 };
+}
+const GRADE_AUDIO: Record<LinkGrade, number | null> = { good: null, weak: 24_000, bad: 12_000 };
+/** The cap for the voice: the tighter of what the measured network speed and the live link allow (null = none). */
+export function audioCap(tier: CallTier, grade: LinkGrade): number | null {
+  const caps = [SEND_BITRATE[tier], GRADE_AUDIO[grade]].filter((value): value is number => value !== null);
+  return caps.length ? Math.min(...caps) : null;
+}
+/** The cap for the camera picture: it gives way first, the voice last. */
+export const VIDEO_CAP: Record<LinkGrade, number> = { good: 900_000, weak: 400_000, bad: 150_000 };
+export const LINK_TEXT: Record<LinkGrade, string> = { good: '', weak: 'слабая связь', bad: 'плохая связь' };
 const num = (value: unknown): number | null => (typeof value === 'number' && Number.isFinite(value) ? value : null);
 
 /** `reports`: the entries of RTCPeerConnection.getStats(). `previous`: the last sample, for the bitrates. */

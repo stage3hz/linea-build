@@ -4,6 +4,7 @@ import { createHmac } from 'node:crypto';
 import { mkdtemp, rm } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
+import { turnCredentials } from '../src/calls.js';
 import { buildApp } from '../src/app.js';
 import { TURN_TTL_SECONDS } from '../src/calls.js';
 
@@ -34,4 +35,12 @@ test('without a TURN secret only public STUN is offered', async t => {
   const res = await app.inject({ method: 'GET', url: '/calls/ice', headers: { authorization: `Bearer ${account.token}` } });
   assert.equal(res.statusCode, 200);
   assert.ok(res.json().iceServers.every(server => !server.username));
+});
+
+test('the relay is also offered over TLS when its port is configured', () => {
+  const plain = turnCredentials({ secret: 's', host: 'turn.example.org', userId: 'u', nowMs: 0 });
+  assert.ok(!plain.iceServers[1].urls.some(url => url.startsWith('turns:')));
+  const tls = turnCredentials({ secret: 's', host: 'turn.example.org', userId: 'u', nowMs: 0, tlsPort: 443 });
+  assert.ok(tls.iceServers[1].urls.includes('turns:turn.example.org:443?transport=tcp'));
+  assert.equal(tls.iceServers[1].urls.length, 3);
 });

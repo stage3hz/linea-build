@@ -17,6 +17,7 @@ import { brightTint } from '../design/peerLight';
 import { tintOf, useAvatarTints } from '../design/avatarTint';
 import { toggleVoiceMute, toggleVoiceSpeaker, useVoice, voiceSpeaking } from '../communities/voice';
 import { RoomMusicLine, useRoomMusicAllowed } from './roomMusic';
+import { LINK_TEXT } from '../calls/callModel';
 import { enterRoom, exitRoom, forgetRoom, insideLine, seatSize, seats, sleepLine, useRooms, type Room, type RoomMember } from './rooms';
 
 const TALK = '#3EE08E';
@@ -59,7 +60,8 @@ export function RoomScreen({ api, me, store, roomId, onBack }: { api: Api; me: U
   const span = Math.min(stage.w, 620), left = (stage.w - span) / 2;
   const size = seatSize(room.members.length, span || 360), pad = size * 0.62;
   const at = (id: string) => { const place = places.get(id) || { x: 0.5, y: 0.5 }; return { x: left + pad + place.x * Math.max(0, span - pad * 2), y: pad * 0.9 + place.y * Math.max(0, stage.h - pad * 2.1) }; };
-  const status = here ? (voice?.status === 'connected' ? `комната · ${insideLine(inside.size)}` : 'подключение…') : room.inside.length ? `комната · ${insideLine(room.inside.length)}` : room.awake ? 'комната · никого, ещё не спит' : sleepLine(room);
+  const linkNote = here && voice?.link && voice.link !== 'good' ? ` · ${LINK_TEXT[voice.link]}` : '';
+  const status = here ? (voice?.status === 'connected' ? `комната · ${insideLine(inside.size)}${linkNote}` : 'подключение…') : room.inside.length ? `комната · ${insideLine(room.inside.length)}` : room.awake ? 'комната · никого, ещё не спит' : sleepLine(room);
   const lit = room.members.filter(member => inside.has(member.id));
 
   const enter = async () => { setBusy(true); setError(''); try { await enterRoom(api, store, room, me.id); } catch (failure) { setError(failure instanceof Error ? failure.message : 'Не удалось зайти.'); } finally { setBusy(false); } };

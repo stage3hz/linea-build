@@ -27,7 +27,7 @@ import { useMusic } from '../music/MusicProvider';
 import { setCenterStage } from '../media/centerStage';
 import { holdConnection } from '../connectionHold';
 import { impactFeedback, lightFeedback } from '../haptics';
-import { callLink, callLinkLines, type CallLink, type CallLinkSample, GATHER_RELAY_MS, GATHER_TIMEOUT_MS, ICE_REUSE_MS, RING_TIMEOUT_MS, gatherDone, hasRelay, isRelayCandidate, SEND_BITRATE, callClock, callEndMeta, economySdp, hangupOutcome, incomingAlert, keyEmoji, keyMaterial, offerIsFresh, type CallEndReason, type CallStatus } from './callModel';
+import { LINK_TEXT, VIDEO_CAP, audioCap, gradeLink, steadyGrade, type LinkGrade, callLink, callLinkLines, type CallLink, type CallLinkSample, GATHER_RELAY_MS, GATHER_TIMEOUT_MS, ICE_REUSE_MS, RING_TIMEOUT_MS, gatherDone, hasRelay, isRelayCandidate, SEND_BITRATE, callClock, callEndMeta, economySdp, hangupOutcome, incomingAlert, keyEmoji, keyMaterial, offerIsFresh, type CallEndReason, type CallStatus } from './callModel';
 import { buildCallHistory, type CallRecord } from './callLog';
 import { DISCONNECT_GRACE_MS, LINK_UP, POLITE_EXTRA_MS, linkNext, linkShowsReconnecting, markRestartCapable, remoteRestart, restartAnswerFits, restartCapable, sameFingerprints, stripRestartMarker, type Link, type LinkInput } from './reconnect';
 import { onAnswerFromNotification } from '../notifications/desktopNotify';
@@ -48,6 +48,8 @@ type CallState = {
   id: string; chat: Chat; peer: User; incoming: boolean; video: boolean; status: CallStatus;
   muted: boolean; speaker: boolean; cameraOff: boolean; startedAt: number | null; endedText: string; key: string[] | null;
   localUrl: string | null; remoteUrl: string | null; remoteSdp?: string; minimized?: boolean;
+  /** How the link is doing right now (read from the connection every few seconds while the call is active). */
+  link?: LinkGrade;
   /** «Восстановление связи…»: the media dropped mid-call and an ICE restart is under way (the clock keeps running). */
   reconnecting?: boolean;
   /** Ended without a connection («Нет соединения»): the screen stays with «Повторить» instead of closing by itself. */
@@ -171,6 +173,39 @@ export function CallProvider({ api, store, me, children }: { api: Api; store: Me
   const inCall = useRef<any>(null); if (inCall.current === null) inCall.current = loadInCall();
 
   const patch = (change: Partial<CallState>) => setCall(current => current ? { ...current, ...change } : current);
+  // The link is read from the connection itself every three seconds for the whole call (also while the call is
+  // minimised): when packets are lost or late, the voice is made lighter at once and the picture gives way
+  // first; when the link has been calm for a while, the quality comes back step by step.
+  const linkState = useRef<{ grade: LinkGrade; calm: number; sample: CallLinkSample | null }>({ grade: 'good', calm: 0, sample: null });
+  const callActive = call?.status === 'active';
+  useEffect(() => {
+    linkState.current = { grade: 'good', calm: 0, sample: null };
+    if (!callActive) return;
+    let alive = true;
+    const read = async () => {
+      try {
+        const connection = pc.current; const reports = await connection?.getStats?.(); if (!alive || !reports) return;
+        const list: any[] = []; reports.forEach?.((report: any) => list.push(report));
+        const state = linkState.current; const next = callLink(list, state.sample, Date.now()); state.sample = next.sample;
+        const step = steadyGrade(state.grade, gradeLink(next.link), state.calm); state.calm = step.calm;
+        if (step.grade === state.grade) return;
+        state.grade = step.grade;
+        for (const sender of connection.getSenders?.() || []) {
+          const kind = sender.track?.kind; if ((kind !== 'audio' && kind !== 'video') || !sender.getParameters || !sender.setParameters) continue;
+          try {
+            const params = sender.getParameters(); if (!params.encodings?.length) params.encodings = [{}];
+            const cap = kind === 'audio' ? audioCap(networkTier(), step.grade) : VIDEO_CAP[step.grade];
+            if (cap) params.encodings[0].maxBitrate = cap; else delete params.encodings[0].maxBitrate;
+            await sender.setParameters(params);
+          } catch { /* this WebRTC build does not take new limits mid-call */ }
+        }
+        if (alive) patch({ link: step.grade });
+      } catch { /* no statistics in this WebRTC build */ }
+    };
+    const timer = setInterval(() => void read(), 3000);
+    return () => { alive = false; clearInterval(timer); };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [callActive]);
   const signal = (chatId: string, action: Parameters<MessengerStore['sendAction']>[1]) => storeRef.current.sendAction(chatId, action);
   // Which ringback plays for an outgoing call, and whether the server has said how far the call got.
   const ringTone = useRef<'connecting' | 'outgoing' | null>(null); const reachKnown = useRef(false);
@@ -617,7 +652,9 @@ function CallScreen({ call, api, rtc, network, readStats, hangup, accept, mute, 
   const clock = callClock(Date.now() - (call.startedAt || Date.now()));
   const reconnecting = call.status === 'active' && !!call.reconnecting;
   // Offline the status says so («Ожидание сети…» / «Соединение…») instead of «Вызов…» (callStatus.ts).
-  const status = callStatusText({ status: call.status, incoming: call.incoming, video: call.video, reconnecting: call.reconnecting, startedAt: call.startedAt, endedText: call.endedText, network, now: Date.now() });
+  const statusBase = callStatusText({ status: call.status, incoming: call.incoming, video: call.video, reconnecting: call.reconnecting, startedAt: call.startedAt, endedText: call.endedText, network, now: Date.now() });
+  // A weak link is said in words next to the status, so it is clear the trouble is the network and not the app.
+  const status = call.status === 'active' && !call.reconnecting && call.link && call.link !== 'good' ? `${statusBase} · ${LINK_TEXT[call.link]}` : statusBase;
   const View_ = rtc?.RTCView as any;
   const showVideo = call.video && call.remoteUrl && View_;
   // Telegram: pull the call screen down to minimise it (the same as the chevron); not while it rings in
