@@ -2,7 +2,7 @@
 // them. Whoever is talking gets a green ring; members who are not inside right now are shown small and dim
 // in their usual place. Below: «Позвать всех» (rings like a call) and the microphone, sound and leave buttons.
 import React, { useEffect, useMemo, useState } from 'react';
-import { Pressable, StyleSheet, View } from 'react-native';
+import { Platform, Pressable, StyleSheet, View } from 'react-native';
 import Svg, { Defs, RadialGradient, Rect, Stop } from 'react-native-svg';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import type { Api } from '../api';
@@ -16,7 +16,7 @@ import { useTabInset } from '../tabInset';
 import { brightTint } from '../design/peerLight';
 import { tintOf, useAvatarTints } from '../design/avatarTint';
 import { toggleVoiceMute, toggleVoiceSpeaker, useVoice, voiceSpeaking } from '../communities/voice';
-import { RoomMusicLine, roomMusicAvailable } from './roomMusic';
+import { RoomMusicLine, useRoomMusicAllowed } from './roomMusic';
 import { enterRoom, exitRoom, forgetRoom, insideLine, seatSize, seats, sleepLine, useRooms, type Room, type RoomMember } from './rooms';
 
 const TALK = '#3EE08E';
@@ -27,6 +27,7 @@ export function RoomScreen({ api, me, store, roomId, onBack }: { api: Api; me: U
   const t = useTheme(); const insets = useSafeAreaInsets(); const tabInset = useTabInset();
   const room = useRooms().rooms?.find(item => item.id === roomId);
   const voice = useVoice(); const here = !!voice && voice.roomId === roomId; useAvatarTints();
+  const musicAllowed = useRoomMusicAllowed(here);
   const [stage, setStage] = useState({ w: 0, h: 0 });
   const [speaking, setSpeaking] = useState<Set<string>>(() => new Set());
   const [busy, setBusy] = useState(false); const [error, setError] = useState(''); const [menu, setMenu] = useState(false);
@@ -101,7 +102,7 @@ export function RoomScreen({ api, me, store, roomId, onBack }: { api: Api; me: U
     <View style={{ paddingHorizontal: 18, paddingBottom: 18 + insets.bottom + tabInset, gap: 14, alignItems: 'center' }}>
       {error ? <View style={{ alignSelf: 'stretch' }}><Notice text={error} error /></View> : null}
       {voice?.error && here ? <View style={{ alignSelf: 'stretch' }}><Notice text={voice.error} error /></View> : null}
-      {here && roomMusicAvailable ? <RoomMusicLine members={room.members} peers={voice?.peers || []} /> : null}
+      {here && musicAllowed ? <RoomMusicLine members={room.members} peers={voice?.peers || []} /> : here && Platform.OS !== 'web' ? <Text style={{ color: t.subtle, fontSize: 12.5 }}>Музыка для всех — на телефоне только в наушниках</Text> : null}
       <Pressable accessibilityRole="button" accessibilityLabel="Позвать всех" onPress={ring} style={({ pressed }) => ({ paddingHorizontal: 16, paddingVertical: 9, borderRadius: 18, borderWidth: 1, borderColor: t.glassBorder, backgroundColor: pressed ? t.accentSoft : 'transparent' })}>
         <Text style={{ color: t.text, fontSize: 14, fontWeight: '500' }}>{rang ? `Позвали: ${rang}` : 'Позвать всех'}</Text>
       </Pressable>

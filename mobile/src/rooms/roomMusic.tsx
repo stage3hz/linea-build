@@ -1,9 +1,10 @@
-// Music for everyone in a room — on the computer only. One person turns it on; what they play (which track,
+// Music for everyone in a room: always on the computer, on a phone only in headphones (from the phone's
+// speaker the music would go straight back into the microphone and everyone would hear it twice). One person turns it on; what they play (which track,
 // where in it, playing or paused) is told to the others straight over the room's own peer-to-peer channel,
 // and every computer plays the track itself from the catalogue. No sound is sent, the server sees nothing.
-// Phones take no part: they neither play nor show it.
+// A phone without headphones takes no part: it neither plays nor leads.
 import React, { useEffect, useRef, useState } from 'react';
-import { Platform, Pressable, View } from 'react-native';
+import { DeviceEventEmitter, Platform, Pressable, View } from 'react-native';
 import { Icon } from '../components';
 import { Text } from '../typography';
 import { useTheme } from '../theme';
@@ -12,7 +13,38 @@ import type { MusicTrack } from '../music/types';
 import { onRoomMusic, sendRoomMusic, type VoicePeer } from '../communities/voice';
 import type { RoomMember } from './rooms';
 
-export const roomMusicAvailable = Platform.OS === 'web';
+const HEADPHONE_ROUTES = new Set(['BLUETOOTH', 'WIRED_HEADSET']);
+/** iPhone output kinds that are the phone itself; anything else (wired, Bluetooth, USB) is worn or plugged in. */
+const OWN_OUTPUTS = new Set(['Speaker', 'Receiver']);
+/**
+ * Whether music for everyone may run on this device: a computer always; a phone only while its sound goes to
+ * headphones. Follows the route as it changes (headphones taken off: the music stops for this phone).
+ */
+export function useRoomMusicAllowed(active: boolean): boolean {
+  const [headphones, setHeadphones] = useState(false);
+  useEffect(() => {
+    if (Platform.OS === 'web' || !active) return;
+    if (Platform.OS === 'android') {
+      const take = (status: any) => { if (status && typeof status.selectedAudioDevice === 'string') setHeadphones(HEADPHONE_ROUTES.has(status.selectedAudioDevice)); };
+      const subscription = DeviceEventEmitter.addListener('onAudioDeviceChanged', take);
+      // An unknown name changes nothing and answers with the current state.
+      // eslint-disable-next-line @typescript-eslint/no-require-imports
+      try { const inCall = require('react-native-incall-manager').default; void Promise.resolve(inCall?.chooseAudioRoute?.('')).then(take, () => {}); } catch { /* no call module in this build */ }
+      return () => subscription.remove();
+    }
+    let module: { audioRoute?: () => { output?: { kind?: string } }; addListener?: (event: 'route', listener: () => void) => { remove(): void } } | null = null;
+    // eslint-disable-next-line @typescript-eslint/no-require-imports
+    try { module = (require('expo-modules-core') as typeof import('expo-modules-core')).requireOptionalNativeModule('LineaCall'); } catch { module = null; }
+    if (!module?.audioRoute) return;
+    const read = () => { try { const kind = module!.audioRoute!().output?.kind; setHeadphones(!!kind && !OWN_OUTPUTS.has(kind)); } catch { /* keep the last answer */ } };
+    read();
+    let subscription: { remove(): void } | null = null;
+    try { subscription = module.addListener?.('route', read) ?? null; } catch { /* no events: the timer below reads it */ }
+    const timer = setInterval(read, 2000);
+    return () => { subscription?.remove(); clearInterval(timer); };
+  }, [active]);
+  return Platform.OS === 'web' || (active && headphones);
+}
 /** How far the listener may drift from the host before it jumps to the host's place, seconds. */
 const DRIFT = 2.5;
 /** How often the host repeats where it is, so a listener that fell behind catches up. */
@@ -72,7 +104,7 @@ export function RoomMusicLine({ members, peers }: { members: RoomMember[]; peers
     <View style={{ width: 44, height: 44, borderRadius: 13, backgroundColor: t.accentSoft, alignItems: 'center', justifyContent: 'center' }}><Icon name="musical-notes" size={20} color={t.text} /></View>
     <View style={{ flex: 1, minWidth: 0 }}>
       <Text raw numberOfLines={1} style={{ color: t.text, fontSize: 15.5, fontWeight: '600' }}>{shown.title}</Text>
-      <Text numberOfLines={1} style={{ color: t.muted, fontSize: 12.5 }}>{`включил ${by} · играет у всех на компьютере`}</Text>
+      <Text numberOfLines={1} style={{ color: t.muted, fontSize: 12.5 }}>{`включил ${by} · играет у всех`}</Text>
     </View>
     {leading ? <Pressable accessibilityRole="button" accessibilityLabel="Выключить музыку для всех" onPress={stop} style={{ paddingHorizontal: 12, height: 34, borderRadius: 17, borderWidth: 1, borderColor: t.glassBorder, justifyContent: 'center' }}><Text style={{ color: t.text, fontSize: 13 }}>Выключить</Text></Pressable> : null}
   </View>;
