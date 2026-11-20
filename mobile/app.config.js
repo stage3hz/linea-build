@@ -27,7 +27,7 @@ module.exports = {
   expo: {
     name: 'INVIZENT',
     slug: 'linea-messenger',
-    version: "0.16.2",
+    version: "0.16.3",
     // The commit this build was made from (CI sets GITHUB_SHA): shown in Settings next to the version.
     extra: { commit: (process.env.GITHUB_SHA || "").slice(0, 7) },
     orientation: 'portrait',
@@ -66,7 +66,7 @@ module.exports = {
     },
     android: {
       package: androidPackage,
-      versionCode: 46,
+      versionCode: 47,
       softwareKeyboardLayoutMode: 'resize',
       // Firebase Cloud Messaging (push) in every build, see the check above.
       ...(androidPush ? { googleServicesFile } : {}),

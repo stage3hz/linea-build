@@ -191,24 +191,30 @@ export function TabBar({ items, active, onScrub, onMenu }: { items: TabItem[]; a
   // off the list the page it began on comes back. `pick` counts rows from the bottom, -1 is none.
   const live = useRef({ items, active, onScrub, onMenu }); live.current = { items, active, onScrub, onMenu };
   const menu = () => { gestureUsed(); live.current.onMenu?.(); };
-  const run = useRef<{ from: number; pick: number } | null>(null);
+  const run = useRef<{ from: number; pick: number; shown: number } | null>(null); const stay = useRef<ReturnType<typeof setTimeout> | null>(null);
   const rest = () => live.current.items.filter(item => !BAR_TABS.includes(item.id));
   const at = (from: number, steps: number, count: number) => (((from + steps) % count) + count) % count;
   const scrubStart = () => {
     const from = Math.max(0, live.current.items.findIndex(item => item.id === live.current.active));
-    run.current = { from, pick: -1 }; live.current.onScrub?.(-1); gestureUsed();
+    run.current = { from, pick: -1, shown: -1 }; live.current.onScrub?.(-1); gestureUsed();
   };
   const scrubTo = (pick: number) => {
     const now = run.current; if (!now) return;
     const list = rest(); const next = pick >= 0 && pick < list.length ? pick : -1;
     if (next === now.pick) return;
     now.pick = next; live.current.onScrub?.(next);
-    (next < 0 ? live.current.items[now.from] : list[list.length - 1 - next])?.onPress();
+    // The page behind follows only a row the finger has stayed on: passing over the rows built all four pages.
+    if (stay.current) clearTimeout(stay.current);
+    stay.current = setTimeout(() => { stay.current = null; const run2 = run.current; if (!run2 || run2.pick !== next) return; run2.shown = next; (next < 0 ? live.current.items[run2.from] : list[list.length - 1 - next])?.onPress(); }, 140);
   };
   const scrubEnd = (cancelled: boolean) => {
     const now = run.current; if (!now) return;
     run.current = null; live.current.onScrub?.(null);
-    if (cancelled && now.pick >= 0) live.current.items[now.from]?.onPress();
+    if (stay.current) { clearTimeout(stay.current); stay.current = null; }
+    const list = rest();
+    if (cancelled) { if (now.shown >= 0) live.current.items[now.from]?.onPress(); }
+    else if (now.pick >= 0 && now.pick !== now.shown) list[list.length - 1 - now.pick]?.onPress();
+    else if (now.pick < 0 && now.shown >= 0) live.current.items[now.from]?.onPress();
   };
   const move = (by: number) => { const list = live.current.items; const from = Math.max(0, list.findIndex(item => item.id === live.current.active)); list[at(from, by, list.length)]?.onPress(); };
   const tabAt = (x: number) => { 'worklet'; return Math.max(0, Math.min(n - 1, Math.floor(x / Math.max(1, width / n)))); };
@@ -219,11 +225,14 @@ export function TabBar({ items, active, onScrub, onMenu }: { items: TabItem[]; a
     .onFinalize(() => { pressed.value = -1; LIFT.value = withSpring(0, SPRING); });
   const chats = Math.max(0, shown.findIndex(item => item.id === 'chats'));
   // Only from «Чаты»: the gear keeps a plain tap.
-  const scrub = Gesture.Pan().activeOffsetY([-1000, -8]).failOffsetX([-48, 48])
+  // `activeOffsetY(-8)`: starts once the finger has gone 8 pt up. The pair form names the range in which the
+  // gesture does NOT start, so `[-1000, -8]` started it on the first tremble of the finger and on a phone every
+  // tap and hold on the bar was lost (found in review; a mouse click does not tremble, the browser hid it).
+  const scrub = Gesture.Pan().activeOffsetY(-8).failOffsetX([-48, 48])
     .onStart(e => { armed.value = tabAt(e.x - e.translationX) === chats ? 1 : 0; if (!armed.value) return; hold.value = withSpring(1, SPRING); pressed.value = -1; step.value = -1; runOnJS(scrubStart)(); })
     .onUpdate(e => { if (!armed.value) return; const next = Math.floor((-e.translationY - FIRST) / ROW); if (next !== step.value) { step.value = next; runOnJS(scrubTo)(next); } })
-    .onEnd(() => { if (armed.value) runOnJS(scrubEnd)(false); })
-    .onFinalize(() => { hold.value = withSpring(0, SPRING); if (armed.value) runOnJS(scrubEnd)(true); armed.value = 0; });
+    .onEnd((_e, ok) => { if (armed.value) runOnJS(scrubEnd)(!ok); })
+    .onFinalize(() => { hold.value = withSpring(0, SPRING); armed.value = 0; });
   const press = Gesture.LongPress().minDuration(350).maxDistance(10)
     .onStart(e => { if (tabAt(e.x) === chats) { pressed.value = -1; runOnJS(menu)(); } });
   // A race, not a queue: in a queue the hold waited for the move to give up, which it does only when the finger lifts.

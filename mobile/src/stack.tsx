@@ -20,7 +20,7 @@ import { stopFocusRetries } from './focusRetry';
 // where dropped frames get noticed.
 const OPEN = { duration: 220, easing: Easing.bezier(0.2, 0.9, 0.25, 1) };
 /** How long a screen that asked to be waited for may keep the slide from starting. Telegram for Android: 200 ms. */
-const READY_WAIT_MS = 200;
+const READY_WAIT_MS = 80;
 const StackReady = createContext<() => void>(() => {});
 /** Called by a pushed screen once its first content is on screen: the slide starts then, not before. */
 export const useStackReady = () => useContext(StackReady);
@@ -40,6 +40,8 @@ export const PageVisible = createContext(true);
 export const GoHome = createContext<(() => void) | null>(null);
 /** How long the finger has to stay past the «leave» point of a swipe back for it to become «straight to Чаты». */
 const LONG_HOLD_MS = 600;
+/** A section's swipe to «Чаты» starts within this many points of the screen's left edge. */
+const HOME_EDGE = 32;
 /** How many pushed screens are on the page that is on screen: a section's own swipe to «Чаты» waits while there are any. */
 const PUSHED = makeMutable(0);
 // Counted here and written as a number: a value written from this side cannot be read back at once on a phone.
@@ -99,8 +101,10 @@ export function StackScreen({ progress, onBack, children, waitReady = false }: {
     .onEnd(event => {
       const straightHome = long.value > 0.5;
       armed.value = 0; cancelAnimation(long); long.value = withTiming(0, { duration: 120 });
-      if (straightHome) runOnJS(goHome)();
-      const leave = straightHome || event.translationX > width * 0.33 || event.velocityX > 700;
+      // Straight to «Чаты»: this screen is not closed one step back as well — its own «back» would run after the
+      // jump and bring the section back on screen (review). It stays as it was for the next visit.
+      if (straightHome) { runOnJS(dismissForLeave)(); runOnJS(goHome)(); progress.value = withDelay(260, withTiming(0, { duration: 0 })); return; }
+      const leave = event.translationX > width * 0.33 || event.velocityX > 700;
       if (leave) {
         runOnJS(dismissForLeave)();
         runOnJS(lightFeedback)();
@@ -147,8 +151,8 @@ function HomePill({ words = false }: { words?: boolean }) {
 }
 
 /**
- * A section of the tab bar (Каналы, Люди, Музыка, AI, Настройки) on a phone: a swipe to the right anywhere on
- * it goes back to «Чаты», with a round mark coming out of the left edge under the finger. While a screen is
+ * A section of the tab bar (Каналы, Люди, Музыка, AI, Настройки) on a phone: a swipe to the right from the
+ * screen's left edge goes back to «Чаты», with a round mark coming out of the left edge under the finger. While a screen is
  * pushed inside the section the swipe belongs to that screen (one step back), not to this.
  */
 export function HomeSwipe({ onHome, children }: { onHome: () => void; children: React.ReactNode }) {
@@ -157,7 +161,9 @@ export function HomeSwipe({ onHome, children }: { onHome: () => void; children: 
   const start = useSharedValue({ x: 0, y: 0 }); const pull = useSharedValue(0);
   const pan = Gesture.Pan()
     .manualActivation(true)
-    .onTouchesDown((event, manager) => { const touch = event.changedTouches[0]; if (!touch || PUSHED.value > 0) { manager.fail(); return; } start.value = { x: touch.absoluteX, y: touch.absoluteY }; })
+    // Only from the screen's left edge: started anywhere, it took over sideways scrolling (the shelves in «Музыка»,
+    // attachment strips) and the text cursor (review).
+    .onTouchesDown((event, manager) => { const touch = event.changedTouches[0]; if (!touch || PUSHED.value > 0 || touch.absoluteX > HOME_EDGE) { manager.fail(); return; } start.value = { x: touch.absoluteX, y: touch.absoluteY }; })
     .onTouchesMove((event, manager) => {
       const touch = event.changedTouches[0]; if (!touch) return;
       const dx = touch.absoluteX - start.value.x, dy = Math.abs(touch.absoluteY - start.value.y);

@@ -639,8 +639,11 @@ final class ChatListView: ExpoView, UITableViewDataSource, UITableViewDelegate {
   func setRows(_ next: [ChatRow]) {
     if next == rows { return }
     let sameOrder = next.count == rows.count && zip(next, rows).allSatisfy { $0.id == $1.id }
+    // A heading that appears or goes changes its row's height: redrawing the cell alone left the old height
+    // (a heading squeezed into a row without room for it, or an empty band where one used to be).
+    let sameHeights = sameOrder && zip(next, rows).allSatisfy { $0.section.isEmpty == $1.section.isEmpty }
     rows = next
-    if !sameOrder { table.reloadData(); return }
+    if !sameOrder || !sameHeights { table.reloadData(); return }
     // Same chats in the same order: only the rows on screen that changed are redrawn, the scroll stays where it is.
     for cell in table.visibleCells {
       guard let rowCell = cell as? ChatRowCell, let path = table.indexPath(for: cell), path.row < rows.count else { continue }

@@ -149,7 +149,9 @@ export function ChatListScreen({api,user,store,onProfile,onNewChat,onMusic,onAI,
   const [archive,setArchive]=useState(false);const [editing,setEditing]=useState<Set<string>|null>(null);
   // One tab bar for the whole phone (drawn by the app): the list only keeps room for it and says when «Изм.» is open.
   useEffect(()=>{if(sharedTabs&&Math.abs(sharedTabs-tabsHeight)>1)setTabsHeight(sharedTabs);},[sharedTabs,tabsHeight]);
-  const isEditing=!!editing;useEffect(()=>{onEditing?.(isEditing);},[isEditing,onEditing]);
+  const isEditing=!!editing;
+  // Search replaces the list: the shared bar must go too, or it covers the last results (review).
+  useEffect(()=>{onEditing?.(isEditing||searching);},[isEditing,searching,onEditing]);
 const [removeAsk,setRemoveAsk]=useState<Chat[]|null>(null);const [menu,setMenu]=useState<{chat:Chat;y:number;x?:number}|null>(null);const [menuError,setMenuError]=useState('');const [muteAsk,setMuteAsk]=useState<Chat[]|null>(null);
   const archivedCount=store.chats.filter(c=>c.settings?.archived).length;
   const folders=useChatFolders(user.id);const [filter,setFilter]=useState<FolderFilter>('all');const [editor,setEditor]=useState<{folder:ChatFolder|null}|null>(null);
@@ -416,10 +418,10 @@ export function MessengerTabs({onProfile,onNewChat,onMusic,onAI,onChats,activeTa
   // The music screen shows its own player above the same tab bar; everywhere else it sits here, above the tabs.
   return <><VoiceBar onOpen={communityId=>navigate({to:'channels',communityId})}/>{activeTab!=='music'?<MiniPlayer onOpen={onMusic}/>:null}
     {/* The bar shows two sections of six: the way to the rest, in words, until the gesture has been used once. */}
-    {hint&&scrub===null?<View pointerEvents="none" style={{alignSelf:'center',marginBottom:3,height:28,paddingHorizontal:13,borderRadius:14,justifyContent:'center',backgroundColor:t.dark?'rgba(22,24,29,0.94)':'rgba(255,255,255,0.96)',borderWidth:1,borderColor:t.glassBorder}}><Text maxFontSizeMultiplier={1.2} style={{color:t.text,fontSize:12.5,fontWeight:'600'}}>Удержи «Чаты» — остальные разделы</Text></View>:null}
+    {hint&&scrub===null&&!menu?<View pointerEvents="none" style={{position:'absolute',left:0,right:0,bottom:'100%',alignItems:'center'}}><View style={{marginBottom:3,height:28,paddingHorizontal:13,borderRadius:14,justifyContent:'center',backgroundColor:t.dark?'rgba(22,24,29,0.94)':'rgba(255,255,255,0.96)',borderWidth:1,borderColor:t.glassBorder}}><Text maxFontSizeMultiplier={1.2} style={{color:t.text,fontSize:12.5,fontWeight:'600'}}>Удержи «Чаты» — остальные разделы</Text></View></View>:null}
     <SnowLedge id="tabs" radius={31} max={7} inset={{left:side,right:side,top:5,bottom:tabBarMarginBottom(Platform.OS==='ios',insets.bottom)}}><View style={{alignSelf:'center',width:BAR_WIDTH,marginBottom:tabBarMarginBottom(Platform.OS==='ios',insets.bottom),marginTop:5}}>
     {scrub!==null?<View pointerEvents="none" style={{position:'absolute',bottom:'100%',left:(BAR_WIDTH-216)/2,marginBottom:12}}><GlassSurface material="regular" radius={24}><TabList items={items} pick={scrub}/></GlassSurface></View>:null}
-    {GLOW_UNDER?<TabsGlow/>:null}{/* «clear»: the system's see-through glass, not the frosted one — the page is seen through the bar. */}<GlassSurface pure lens material="clear" radius={31} contentStyle={{paddingHorizontal:3.6,paddingVertical:3}}>{GLOW_UNDER?null:<TabsGlow/>}
+    {GLOW_UNDER?<TabsGlow/>:null}{/* «clear»: the system's see-through glass, not the frosted one — the page is seen through the bar. */}<GlassSurface pure lens systemGlass={Platform.OS!=='android'} material="clear" radius={31} contentStyle={{paddingHorizontal:3.6,paddingVertical:3}}>{GLOW_UNDER?null:<TabsGlow/>}
     <TabBar onScrub={setScrub} onMenu={()=>setMenu(true)} active={activeTab==='people'?'people':activeTab==='channels'?'channels':activeTab==='profile'?'profile':activeTab==='music'?'music':activeTab==='ai'?'ai':'chats'} items={items}/>
   </GlassSurface></View></SnowLedge>
     <Modal visible={menu} transparent animationType="fade" statusBarTranslucent onRequestClose={()=>setMenu(false)}>
