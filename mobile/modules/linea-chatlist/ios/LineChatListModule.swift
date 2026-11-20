@@ -291,13 +291,13 @@ final class ChatRowCanvas: UIView {
   override func draw(_ rect: CGRect) {
     guard let item = row, let context = UIGraphicsGetCurrentContext() else { return }
     let w = bounds.width
-    let top: CGFloat = item.section.isEmpty ? 0 : chatSectionHeight
-    let h = bounds.height - top
-    if top > 0 {
+    let heading: CGFloat = item.section.isEmpty ? 0 : chatSectionHeight
+    let h = bounds.height - heading
+    if heading > 0 {
       NSAttributedString(string: item.section.uppercased(), attributes: [.font: ChatRowCanvas.sectionFont, .foregroundColor: palette.subtle, .kern: 1.4])
-        .draw(at: CGPoint(x: 18, y: top - 21))
+        .draw(at: CGPoint(x: 18, y: heading - 21))
       // Everything below is the row itself, drawn under the heading.
-      context.translateBy(x: 0, y: top)
+      context.translateBy(x: 0, y: heading)
     }
     // Telegram: pinned chats stand on a slightly different ground than the rest of the list.
     if item.pinned {
