@@ -104,7 +104,7 @@ function CreateSheet({ api, mode, onMode, onCreated }: { api: Api; mode: Communi
   };
   return <Sheet visible={mode !== null} title={mode === 'choose' ? 'Что создаём?' : mode === 'server' ? 'Игровой сервер' : 'Стандартный канал'} onClose={() => onMode(null)}>
     {mode === 'choose' ? <View style={{ gap: 10 }}>
-      {option('server', 'game-controller-outline', 'Игровой', 'Как в Discord: текстовые и голосовые каналы, роли, закрытые каналы для своих.')}
+      {option('server', 'game-controller-outline', 'Игровой', 'Текстовые и голосовые каналы, роли, закрытые каналы для своих.')}
       {option('blog', 'megaphone-outline', 'Стандартный', 'Обычный канал: блог, новости, музыка и не только. Публикуешь ты и авторы, подписчики читают.')}
     </View> : <View style={{ gap: 14 }}>
       <Field label="Название" value={name} onChangeText={setName} maxLength={60} placeholder={mode === 'server' ? 'Например, Клан «Север»' : 'Например, Заметки Стейджа'} />

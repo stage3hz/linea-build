@@ -372,7 +372,7 @@ export function ProfileScreen({ api, user, theme, darkTheme, onTheme, onDarkThem
   </View></Sheet>
   <BirthdaySheet visible={birthdaySheet} value={birthday} onClose={() => setBirthdaySheet(false)} onDone={value => { setBirthday(value); setBirthdaySheet(false); setNotice(''); }}/>
   <Sheet visible={patternSheet} title="Узор фона" onClose={() => setPatternSheet(false)}><View style={{ gap: 14 }}>
-    <Text style={{ color: t.muted, fontSize: 13, lineHeight: 19 }}>Значок, которым усыпан фон вокруг твоего фото в профиле, как в Telegram.</Text>
+    <Text style={{ color: t.muted, fontSize: 13, lineHeight: 19 }}>Значок, которым усыпан фон вокруг твоего фото в профиле.</Text>
     <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 8, justifyContent: 'center' }}>
       <Pressable accessibilityRole="radio" accessibilityLabel="Без узора" accessibilityState={{ checked: pattern === null }} onPress={() => setPattern(null)} style={{ width: 48, height: 48, borderRadius: 14, alignItems: 'center', justifyContent: 'center', backgroundColor: t.surface2, borderWidth: 2, borderColor: pattern === null ? t.accent : 'transparent' }}><Icon name="close" size={20} color={t.muted}/></Pressable>
       {PROFILE_PATTERNS.map(value => <Pressable key={value} accessibilityRole="radio" accessibilityLabel={value} accessibilityState={{ checked: pattern === value }} onPress={() => setPattern(value)} style={{ width: 48, height: 48, borderRadius: 14, alignItems: 'center', justifyContent: 'center', backgroundColor: t.surface2, borderWidth: 2, borderColor: pattern === value ? t.accent : 'transparent' }}><Text style={{ fontSize: 24 }}>{value}</Text></Pressable>)}

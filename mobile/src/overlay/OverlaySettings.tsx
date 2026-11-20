@@ -25,7 +25,7 @@ export function OverlaySettings() {
     <GlassSurface radius={20} shadow={false} contentStyle={{ paddingVertical: 2, borderRadius: 20, overflow: 'hidden' }}>
       <Row label="Оверлей поверх игр" description="Кто в голосовом канале и кто сейчас говорит — маленьким списком поверх игры" value={p.enabled} onChange={v => setOverlayPrefs({ enabled: v })} />
       {p.enabled ? <Row label="Только говорящие" description="Показывать человека, только пока он говорит" value={p.onlySpeaking} onChange={v => setOverlayPrefs({ onlySpeaking: v })} /> : null}
-      {p.enabled && onWindows() ? <Row label="Показывать в полноэкранных играх (внедрение в игру)" description="Как в Discord: оверлей рисуется внутри игры, поэтому виден и в эксклюзивном полноэкранном режиме. Некоторые античиты могут заблокировать это или отметить." value={p.inject} onChange={v => setOverlayPrefs({ inject: v })} /> : null}
+      {p.enabled && onWindows() ? <Row label="Показывать в полноэкранных играх (внедрение в игру)" description="Оверлей рисуется внутри игры, поэтому виден и в эксклюзивном полноэкранном режиме. Некоторые античиты могут заблокировать это или отметить." value={p.inject} onChange={v => setOverlayPrefs({ inject: v })} /> : null}
     </GlassSurface>
     {p.enabled ? <>
       <Text style={{ color: t.muted, fontSize: 11, fontWeight: '700', letterSpacing: 1.2, paddingHorizontal: 8 }}>ПОЛОЖЕНИЕ</Text>
