@@ -384,9 +384,10 @@ const [removeAsk,setRemoveAsk]=useState<Chat[]|null>(null);const [menu,setMenu]=
   </View>;
 }
 
-// The light under the bar's glass. iPhone glass and the browser's show what lies behind them, so the light is put
-// behind the glass; Android's glass looks only at the page behind the bar, so there the light is drawn on it.
-const GLOW_UNDER=Platform.OS!=='android';
+// The light under the bar's glass. iPhone glass shows what lies behind it, so there the light is put behind the
+// glass. Android's glass looks only at the page behind the bar, and the browser's frosted fill dims whatever is
+// behind it (seen on the stand: the light was barely there), so on those the light is drawn on the glass.
+const GLOW_UNDER=Platform.OS==='ios';
 const CALM_DARK:GlowColors=['#E9EDF5','#7F8EA8','#C9D2E0'],CALM_LIGHT:GlowColors=['#8E99AE','#B4BCCB','#9AA5B8'];
 /** Calm silver while nothing plays; the three colours of the cover while a track with a cover plays. */
 function TabsGlow(){
