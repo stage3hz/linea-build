@@ -2936,8 +2936,10 @@
 "Скрыть подсказку": "Hide the hint",
 "Правая кнопка мыши по сообщению — ответить, переслать, удалить": "Right-click a message to reply, forward or delete",
 "Удержи сообщение — ответить, переслать, удалить": "Hold a message to reply, forward or delete",
-"Удержи «Чаты» и веди вверх — остальные разделы": "Hold Chats and slide up for the other sections",
-"Удержи и веди вверх — остальные разделы": "Hold and slide up for the other sections",
+"Удержи «Чаты» — остальные разделы": "Hold Chats for the other sections",
+"Удержи — остальные разделы": "Hold for the other sections",
+"Закрыть список разделов": "Close the list of sections",
+"Отпусти — в чаты": "Let go to return to chats",
 "Следующий раздел": "Next section",
 "Прошлый раздел": "Previous section"
 }

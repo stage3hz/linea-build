@@ -10,7 +10,7 @@ import { NAME_METAL, NAME_METAL_LIGHT, PlatinaGem, PlatinaName, hasPlatina } fro
 import { FolderEditor, FolderTabs, folderTabIds, matchesFolder, useChatFolders, type ChatFolder, type FolderFilter } from './ChatFolders';
 import { attachmentLabel, isVideoNote, listAttachment } from './voice/voice';
 import { animMs, motionEnabled } from './motion';
-import { ActivityIndicator, FlatList, Image, LayoutAnimation, Platform, Pressable, RefreshControl, StyleSheet, UIManager, View, processColor, useWindowDimensions } from 'react-native';
+import { ActivityIndicator, FlatList, Image, LayoutAnimation, Modal, Platform, Pressable, RefreshControl, StyleSheet, UIManager, View, processColor, useWindowDimensions } from 'react-native';
 import { requireNativeViewManager, requireOptionalNativeModule } from 'expo-modules-core';
 import type { NativeChatListProps, NativeChatRow } from '../modules/linea-chatlist';
 import { useChatPreferences } from './chatPreferences';
@@ -404,6 +404,8 @@ export function MessengerTabs({onProfile,onNewChat,onMusic,onAI,onChats,activeTa
   const side=Math.max(8,(useWindowDimensions().width-BAR_WIDTH)/2);
   // The row of the list under the finger, counted from the bottom (-1: none; null: no gesture).
   const [scrub,setScrub]=useState<number|null>(null);const hint=useBarHint();
+  // A plain hold on «Чаты»: the same list, left open until a row or the empty space is tapped.
+  const [menu,setMenu]=useState(false);
   const items:TabItem[]=[
     {id:'ai',label:'AI',icon:'sparkles-outline',activeIcon:'sparkles',badge:0,onPress:onAI},
     {id:'people',label:'Люди',icon:'people-outline',activeIcon:'people',badge:tabBadges.people||0,onPress:onNewChat},
@@ -415,12 +417,17 @@ export function MessengerTabs({onProfile,onNewChat,onMusic,onAI,onChats,activeTa
   // The music screen shows its own player above the same tab bar; everywhere else it sits here, above the tabs.
   return <><VoiceBar onOpen={communityId=>navigate({to:'channels',communityId})}/>{activeTab!=='music'?<MiniPlayer onOpen={onMusic}/>:null}
     {/* The bar shows two sections of six: the way to the rest, in words, until the gesture has been used once. */}
-    {hint&&scrub===null?<View pointerEvents="none" style={{alignSelf:'center',marginBottom:3,height:28,paddingHorizontal:13,borderRadius:14,justifyContent:'center',backgroundColor:t.dark?'rgba(22,24,29,0.94)':'rgba(255,255,255,0.96)',borderWidth:1,borderColor:t.glassBorder}}><Text maxFontSizeMultiplier={1.2} style={{color:t.text,fontSize:12.5,fontWeight:'600'}}>Удержи «Чаты» и веди вверх — остальные разделы</Text></View>:null}
+    {hint&&scrub===null?<View pointerEvents="none" style={{alignSelf:'center',marginBottom:3,height:28,paddingHorizontal:13,borderRadius:14,justifyContent:'center',backgroundColor:t.dark?'rgba(22,24,29,0.94)':'rgba(255,255,255,0.96)',borderWidth:1,borderColor:t.glassBorder}}><Text maxFontSizeMultiplier={1.2} style={{color:t.text,fontSize:12.5,fontWeight:'600'}}>Удержи «Чаты» — остальные разделы</Text></View>:null}
     <SnowLedge id="tabs" radius={31} max={7} inset={{left:side,right:side,top:5,bottom:tabBarMarginBottom(Platform.OS==='ios',insets.bottom)}}><View style={{alignSelf:'center',width:BAR_WIDTH,marginBottom:tabBarMarginBottom(Platform.OS==='ios',insets.bottom),marginTop:5}}>
     {scrub!==null?<View pointerEvents="none" style={{position:'absolute',bottom:'100%',left:(BAR_WIDTH-216)/2,marginBottom:12}}><GlassSurface material="regular" radius={24}><TabList items={items} pick={scrub}/></GlassSurface></View>:null}
     {GLOW_UNDER?<TabsGlow/>:null}<GlassSurface pure lens material="regular" radius={31} contentStyle={{paddingHorizontal:3.6,paddingVertical:3}}>{GLOW_UNDER?null:<TabsGlow/>}
-    <TabBar onScrub={setScrub} active={activeTab==='people'?'people':activeTab==='channels'?'channels':activeTab==='profile'?'profile':activeTab==='music'?'music':activeTab==='ai'?'ai':'chats'} items={items}/>
-  </GlassSurface></View></SnowLedge></>;
+    <TabBar onScrub={setScrub} onMenu={()=>setMenu(true)} active={activeTab==='people'?'people':activeTab==='channels'?'channels':activeTab==='profile'?'profile':activeTab==='music'?'music':activeTab==='ai'?'ai':'chats'} items={items}/>
+  </GlassSurface></View></SnowLedge>
+    <Modal visible={menu} transparent animationType="fade" statusBarTranslucent onRequestClose={()=>setMenu(false)}>
+      <Pressable accessibilityRole="button" accessibilityLabel="Закрыть список разделов" onPress={()=>setMenu(false)} style={{flex:1,justifyContent:'flex-end',alignItems:'center',backgroundColor:'rgba(0,0,0,0.28)'}}>
+        <View style={{marginBottom:Math.max(insets.bottom,0)+tabBarMarginBottom(Platform.OS==='ios',insets.bottom)+62+14}}><GlassSurface material="regular" radius={24}><TabList items={items} pick={-1} onPick={item=>{setMenu(false);item.onPress();}}/></GlassSurface></View>
+      </Pressable>
+    </Modal></>;
 }
 
 /** The list shows an invite as words, as the chat shows it as a card (not the raw https://…/i/… link). */

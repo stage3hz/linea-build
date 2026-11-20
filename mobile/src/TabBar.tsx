@@ -2,10 +2,11 @@
 // • a tap opens the tab; its icon plays its own little animation (the gear turns, the chat bubble bounces);
 // • the other sections: put a finger on «Чаты» and move it up — they appear above the bar as one plain list
 //   (nothing rolls, nothing to play with); the row under the finger is lit and its page shows behind the bar;
-//   let go on a row and that section opens, let go anywhere else and nothing changes.
+//   let go on a row and that section opens, let go anywhere else and nothing changes. A plain hold on «Чаты»
+//   (no move) opens the same list and leaves it open: a tap on a row opens the section.
 // • no captions: the names are read out by screen readers and shown in the list.
 import React, { memo, useEffect, useRef, useState, useSyncExternalStore } from 'react';
-import { View, Platform } from 'react-native';
+import { View, Platform, Pressable } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { Gesture, GestureDetector } from 'react-native-gesture-handler';
 import Animated, { Easing, makeMutable, runOnJS, useAnimatedStyle, useSharedValue, withSpring, withTiming, type SharedValue } from 'react-native-reanimated';
@@ -153,7 +154,7 @@ const BAR_TABS: TabId[] = ['chats', 'profile'];
 const ROW = 44, FIRST = 49;
 
 /** `items`: every section; the bar itself shows «Чаты» and «Настройки», the rest are in the list (top to bottom in the order given). */
-export function TabBar({ items, active, onScrub }: { items: TabItem[]; active: TabId; onScrub?: (index: number | null) => void }) {
+export function TabBar({ items, active, onScrub, onMenu }: { items: TabItem[]; active: TabId; onScrub?: (index: number | null) => void; /** A plain hold on «Чаты»: the list opens and stays. */ onMenu?: () => void }) {
   const t = useTheme();
   const shown = BAR_TABS.map(id => items.find(item => item.id === id)).filter((item): item is TabItem => !!item);
   const [width, setWidth] = useState(0);
@@ -185,7 +186,8 @@ export function TabBar({ items, active, onScrub }: { items: TabItem[]; active: T
   };
   // The gesture: the list of the other sections; the row under the finger opens its real page behind the bar,
   // off the list the page it began on comes back. `pick` counts rows from the bottom, -1 is none.
-  const live = useRef({ items, active, onScrub }); live.current = { items, active, onScrub };
+  const live = useRef({ items, active, onScrub, onMenu }); live.current = { items, active, onScrub, onMenu };
+  const menu = () => { gestureUsed(); live.current.onMenu?.(); };
   const run = useRef<{ from: number; pick: number } | null>(null);
   const rest = () => live.current.items.filter(item => !BAR_TABS.includes(item.id));
   const at = (from: number, steps: number, count: number) => (((from + steps) % count) + count) % count;
@@ -219,7 +221,10 @@ export function TabBar({ items, active, onScrub }: { items: TabItem[]; active: T
     .onUpdate(e => { if (!armed.value) return; const next = Math.floor((-e.translationY - FIRST) / ROW); if (next !== step.value) { step.value = next; runOnJS(scrubTo)(next); } })
     .onEnd(() => { if (armed.value) runOnJS(scrubEnd)(false); })
     .onFinalize(() => { hold.value = withSpring(0, SPRING); if (armed.value) runOnJS(scrubEnd)(true); armed.value = 0; });
-  const gesture = Gesture.Exclusive(scrub, tap);
+  const press = Gesture.LongPress().minDuration(350).maxDistance(10)
+    .onStart(e => { if (tabAt(e.x) === chats) { pressed.value = -1; runOnJS(menu)(); } });
+  // A race, not a queue: in a queue the hold waited for the move to give up, which it does only when the finger lifts.
+  const gesture = Gesture.Race(scrub, press, tap);
 
   // The capsule spans from its tail to its front: equal at rest, stretched on the way. It rises a little under the finger.
   const pillStyle = useAnimatedStyle(() => { const front = pill.value, back = TAIL.value; return { opacity: SHOWN.value, left: Math.min(front, back) * cell, width: cell * (1 + Math.abs(front - back)), transform: [{ scale: 1 + LIFT.value * 0.05 }] }; });
@@ -232,7 +237,7 @@ export function TabBar({ items, active, onScrub }: { items: TabItem[]; active: T
         <Capsule dark={t.dark} />
       </Animated.View> : null}
       {shown.map((item, index) => { const on = index === found; return <View key={item.id} accessible accessibilityRole="tab"
-        accessibilityLabel={`${item.label}${item.badge ? `, ${item.badge}` : ''}`} accessibilityHint={item.id === 'chats' ? 'Удержи и веди вверх — остальные разделы' : undefined} accessibilityState={{ selected: on }}
+        accessibilityLabel={`${item.label}${item.badge ? `, ${item.badge}` : ''}`} accessibilityHint={item.id === 'chats' ? 'Удержи — остальные разделы' : undefined} accessibilityState={{ selected: on }}
         accessibilityActions={[{ name: 'activate' }, { name: 'increment', label: 'Следующий раздел' }, { name: 'decrement', label: 'Прошлый раздел' }]}
         onAccessibilityAction={event => { const name = event.nativeEvent.actionName; if (name === 'increment') move(1); else if (name === 'decrement') move(-1); else open(index); }}
         onAccessibilityTap={() => open(index)} style={{ flex: 1, alignItems: 'center', justifyContent: 'center', paddingVertical: 12 }}>
@@ -246,15 +251,17 @@ export function TabBar({ items, active, onScrub }: { items: TabItem[]; active: T
 }
 
 /** The list shown above the bar while the finger is held on «Чаты»: every section without an icon of its own; `pick` counts from the bottom, -1 is none. */
-export function TabList({ items, pick }: { items: TabItem[]; pick: number }) {
+export function TabList({ items, pick, onPick }: { items: TabItem[]; pick: number; /** Given when the list stays open: a row is then a button. */ onPick?: (item: TabItem) => void }) {
   const t = useTheme(); const list = items.filter(item => !BAR_TABS.includes(item.id));
   return <View style={{ width: 216, padding: 6 }}>
-    {list.map((item, place) => { const on = list.length - 1 - place === pick; return <View key={item.id} style={{ height: ROW, borderRadius: 16, paddingHorizontal: 14, flexDirection: 'row', alignItems: 'center', gap: 12, backgroundColor: on ? (t.dark ? 'rgba(255,255,255,0.13)' : 'rgba(0,0,0,0.07)') : 'transparent' }}>
+    {list.map((item, place) => { const on = list.length - 1 - place === pick; const style = (lit: boolean) => ({ height: ROW, borderRadius: 16, paddingHorizontal: 14, flexDirection: 'row', alignItems: 'center', gap: 12, backgroundColor: on || lit ? (t.dark ? 'rgba(255,255,255,0.13)' : 'rgba(0,0,0,0.07)') : 'transparent' } as const);
+      const inside = <>
       <Ionicons name={on ? item.activeIcon : item.icon} size={20} color={on ? t.text : t.muted} {...HIDDEN_ICON} />
       <Text numberOfLines={1} maxFontSizeMultiplier={1.2} style={{ flex: 1, color: on ? t.text : t.muted, fontSize: 15.5, fontWeight: '600' }}>{item.label}</Text>
       {item.badge ? <View style={{ minWidth: 20, height: 20, paddingHorizontal: 6, borderRadius: 10, backgroundColor: BADGE, alignItems: 'center', justifyContent: 'center' }}><Text maxFontSizeMultiplier={1} style={{ color: '#FFFFFF', fontSize: 10.5, fontWeight: '800' }}>{badgeText(item.badge)}</Text></View>
         : item.dot ? <View style={{ width: 8, height: 8, borderRadius: 4, backgroundColor: item.dot }} /> : null}
-    </View>; })}
+      </>;
+      return onPick ? <Pressable key={item.id} accessibilityRole="button" accessibilityLabel={`${item.label}${item.badge ? `, ${item.badge}` : ''}`} onPress={() => onPick(item)} style={({ pressed }) => style(pressed)}>{inside}</Pressable> : <View key={item.id} style={style(false)}>{inside}</View>; })}
   </View>;
 }
 

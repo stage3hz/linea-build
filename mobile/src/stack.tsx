@@ -1,7 +1,10 @@
 import React, { createContext, useContext, memo, useCallback, useEffect, useRef } from 'react';
 import { Keyboard, StyleSheet, View, useWindowDimensions, BackHandler } from 'react-native';
 import { Gesture, GestureDetector } from 'react-native-gesture-handler';
-import Animated, { Easing, interpolate, runOnJS, useAnimatedStyle, useSharedValue, withTiming, type SharedValue } from 'react-native-reanimated';
+import Animated, { Easing, cancelAnimation, interpolate, makeMutable, runOnJS, useAnimatedReaction, useAnimatedStyle, useSharedValue, withDelay, withTiming, type SharedValue } from 'react-native-reanimated';
+import { Ionicons } from '@expo/vector-icons';
+import { Text } from './typography';
+import { useTheme } from './theme';
 import { lightFeedback } from './haptics';
 import { RenderActivity } from './renderActivity';
 import { stopFocusRetries } from './focusRetry';
@@ -33,6 +36,12 @@ export function dismissForLeave() { stopFocusRetries(); Keyboard.dismiss(); }
 
 /** False inside a tab's page that is kept built but is not the one on screen. */
 export const PageVisible = createContext(true);
+/** Inside a section of the phone's tab bar: the way straight back to «Чаты» (a long swipe back takes it). */
+export const GoHome = createContext<(() => void) | null>(null);
+/** How long the finger has to stay past the «leave» point of a swipe back for it to become «straight to Чаты». */
+const LONG_HOLD_MS = 600;
+/** How many pushed screens are on the page that is on screen: a section's own swipe to «Чаты» waits while there are any. */
+const PUSHED = makeMutable(0);
 
 export function StackScreen({ progress, onBack, children, waitReady = false }: { progress: SharedValue<number>; onBack: () => void; children: (back: () => void) => React.ReactNode; /** Hold the slide until the screen reports its first content (a chat: its first messages), at most READY_WAIT_MS. The screen mounting its rows while it slides is what dropped frames. */ waitReady?: boolean }) {
   const { width } = useWindowDimensions();
@@ -58,6 +67,13 @@ export function StackScreen({ progress, onBack, children, waitReady = false }: {
   // A page kept built behind another tab must not catch the system «back» meant for the tab on screen.
   const visible = useContext(PageVisible);
   useEffect(() => { if (!visible) return; const sub = BackHandler.addEventListener('hardwareBackPress', () => { back(); return true; }); return () => sub.remove(); }, [back, visible]);
+  useEffect(() => { if (!visible) return; PUSHED.value = PUSHED.value + 1; return () => { PUSHED.value = Math.max(0, PUSHED.value - 1); }; }, [visible]);
+  // A long swipe back: the finger stays past the «leave» point — the words «Отпусти — в чаты» appear and letting go
+  // then goes straight to the chat list instead of one screen back.
+  const home = useContext(GoHome); const homeRef = useRef(home); homeRef.current = home; const canHome = !!home;
+  const goHome = useCallback(() => homeRef.current?.(), []);
+  const long = useSharedValue(0); const armed = useSharedValue(0);
+  useAnimatedReaction(() => long.value > 0.5, (now, before) => { if (now && !before) runOnJS(lightFeedback)(); });
   // Direction lock like Telegram-iOS: the swipe takes over once the finger has moved right and mostly
   // sideways (2:1); a clearly vertical move (scrolling a list) lets it go. Fixed ±14 pt vertical
   // limits used to cancel the swipe on any slight wobble.
@@ -71,9 +87,18 @@ export function StackScreen({ progress, onBack, children, waitReady = false }: {
       if (dx > 10 && dx > dy * 2) manager.activate();
       else if (dx < -10 || (dy > 10 && dy >= dx)) manager.fail();
     })
-    .onUpdate(event => { progress.value = Math.min(1, Math.max(0, event.translationX / width)); })
+    .onUpdate(event => {
+      progress.value = Math.min(1, Math.max(0, event.translationX / width));
+      if (!canHome) return;
+      const far = event.translationX > width * 0.33;
+      if (far && !armed.value) { armed.value = 1; long.value = withDelay(LONG_HOLD_MS, withTiming(1, { duration: 140 })); }
+      else if (!far && armed.value) { armed.value = 0; cancelAnimation(long); long.value = withTiming(0, { duration: 100 }); }
+    })
     .onEnd(event => {
-      const leave = event.translationX > width * 0.33 || event.velocityX > 700;
+      const straightHome = long.value > 0.5;
+      armed.value = 0; cancelAnimation(long); long.value = withTiming(0, { duration: 120 });
+      if (straightHome) runOnJS(goHome)();
+      const leave = straightHome || event.translationX > width * 0.33 || event.velocityX > 700;
       if (leave) {
         runOnJS(dismissForLeave)();
         runOnJS(lightFeedback)();
@@ -82,6 +107,7 @@ export function StackScreen({ progress, onBack, children, waitReady = false }: {
     });
   const style = useAnimatedStyle(() => ({ transform: [{ translateX: progress.value * width }] }));
   const shadow = useAnimatedStyle(() => ({ opacity: interpolate(progress.value, [0, 1], [0.35, 0]) }));
+  const homeWords = useAnimatedStyle(() => ({ opacity: long.value, transform: [{ scale: 0.9 + long.value * 0.1 }] }));
   return <View style={StyleSheet.absoluteFill} pointerEvents="box-none">
     <GestureDetector gesture={pan}>
       <Animated.View style={[StyleSheet.absoluteFill, style]}>
@@ -91,6 +117,7 @@ export function StackScreen({ progress, onBack, children, waitReady = false }: {
         <StackReady.Provider value={begin}>{children(back)}</StackReady.Provider>
       </Animated.View>
     </GestureDetector>
+    {canHome ? <Animated.View pointerEvents="none" style={[{ position: 'absolute', left: 14, top: '46%' }, homeWords]}><HomePill words /></Animated.View> : null}
   </View>;
 }
 
@@ -107,3 +134,42 @@ export function StackBase({ progress, covered, children }: { progress: SharedVal
 
 /** While covered, the list underneath does not re-render on every keystroke or socket event. */
 const Frozen = memo(({ children }: { frozen: boolean; children: React.ReactNode }) => <>{children}</>, (_previous, next) => next.frozen);
+
+/** The mark of «to the chat list»: a round chat icon, with the words when the gesture needs telling. */
+function HomePill({ words = false }: { words?: boolean }) {
+  const t = useTheme();
+  return <View style={{ height: 44, minWidth: 44, paddingHorizontal: words ? 14 : 0, borderRadius: 22, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8, backgroundColor: t.text }}>
+    <Ionicons name="chatbubbles" size={20} color={t.dark ? '#000' : '#FFF'} />
+    {words ? <Text maxFontSizeMultiplier={1.2} style={{ color: t.dark ? '#000' : '#FFF', fontSize: 14, fontWeight: '700' }}>Отпусти — в чаты</Text> : null}
+  </View>;
+}
+
+/**
+ * A section of the tab bar (Каналы, Люди, Музыка, AI, Настройки) on a phone: a swipe to the right anywhere on
+ * it goes back to «Чаты», with a round mark coming out of the left edge under the finger. While a screen is
+ * pushed inside the section the swipe belongs to that screen (one step back), not to this.
+ */
+export function HomeSwipe({ onHome, children }: { onHome: () => void; children: React.ReactNode }) {
+  const homeRef = useRef(onHome); homeRef.current = onHome;
+  const go = useCallback(() => { dismissForLeave(); lightFeedback(); homeRef.current(); }, []);
+  const start = useSharedValue({ x: 0, y: 0 }); const pull = useSharedValue(0);
+  const pan = Gesture.Pan()
+    .manualActivation(true)
+    .onTouchesDown((event, manager) => { const touch = event.changedTouches[0]; if (!touch || PUSHED.value > 0) { manager.fail(); return; } start.value = { x: touch.absoluteX, y: touch.absoluteY }; })
+    .onTouchesMove((event, manager) => {
+      const touch = event.changedTouches[0]; if (!touch) return;
+      const dx = touch.absoluteX - start.value.x, dy = Math.abs(touch.absoluteY - start.value.y);
+      if (dx > 10 && dx > dy * 2) manager.activate();
+      else if (dx < -10 || (dy > 10 && dy >= dx)) manager.fail();
+    })
+    .onUpdate(event => { pull.value = Math.max(0, event.translationX); })
+    .onEnd(event => { if (event.translationX > 80 || event.velocityX > 700) runOnJS(go)(); })
+    .onFinalize(() => { pull.value = withTiming(0, { duration: 160 }); });
+  const mark = useAnimatedStyle(() => { const k = Math.min(1, pull.value / 80); return { opacity: k, transform: [{ translateX: -52 + Math.min(pull.value, 110) * 0.62 }, { scale: 0.7 + k * 0.3 }] }; });
+  return <GestureDetector gesture={pan}>
+    <View collapsable={false} style={{ flex: 1 }}>
+      {children}
+      <Animated.View pointerEvents="none" style={[{ position: 'absolute', left: 0, top: '46%' }, mark]}><HomePill /></Animated.View>
+    </View>
+  </GestureDetector>;
+}

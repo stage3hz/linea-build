@@ -68,7 +68,7 @@ import { Snow } from './src/Snow';
 import { SnowPhone } from './src/SnowPhone';
 import { PixelTrail } from './src/PixelTrail';
 import { RenderActivity } from './src/renderActivity';
-import { PageVisible, StackBase, StackScreen } from './src/stack';
+import { GoHome, HomeSwipe, PageVisible, StackBase, StackScreen } from './src/stack';
 import { CommunitiesScreen } from './src/communities/CommunitiesScreen';
 import { InviteSheet } from './src/communities/InviteSheet';
 import { inviteCodeFrom } from './src/communities/types';
@@ -284,7 +284,7 @@ function Messenger({api,session,onUser,themeMode,darkTheme,nightState,onTheme,on
     return <CallProvider api={api} store={store} me={session.user}><View style={{flex:1,width:'100%'}}><NearbyOffer/>{mentionProfile}<View style={{flex:1}}>
       <View pointerEvents={onList?'auto':'none'} style={[StyleSheet.absoluteFill,{display:onList?'flex':'none'}]}><RenderActivity active={onList}><StackBase progress={stackProgress} covered={!!pushed}><ChatListScreen sharedTabs={barHeight} onEditing={setListEditing} api={api} user={session.user} store={listStore} banner={notices} onNewChat={newChat} onProfile={profile} onMusic={openMusic} onAI={openAI} onQuickAI={()=>setQuickAI(true)} onChats={openChats} onSaved={openSaved} savedActive={page==='saved'} activeTab={page==='saved'?'chats':page==='security'||page==='settings'?'profile':page}/></StackBase></RenderActivity></View>
       {/* A tab that was opened once stays built (hidden and frozen): coming back to it shows it at once instead of building it again. */}
-      {[...openedTabs.current].map(tab=><KeptPage key={tab} active={!onList&&shownTab===tab}><TabsFrame height={barHeight}><View style={{flex:1}}>{tab==='channels'?<CommunitiesScreen api={api} me={session.user} store={store} openId={openCommunity} onOpened={setOpenCommunity} onOpenInvite={setInviteCode}/>:tab==='people'?<PeopleScreen api={api} onBack={goBack} onOpen={newChat=>{setPage('chats');store.selectChat(newChat);}}/>:tab==='music'?<MusicScreen onBack={goBack}/>:tab==='ai'?<AIScreen api={api} onBack={goBack} history={store.aiHistory} name={session.user.displayName}/>:settingsStack}</View></TabsFrame></KeptPage>)}
+      {[...openedTabs.current].map(tab=><KeptPage key={tab} active={!onList&&shownTab===tab}><TabsFrame height={barHeight}><GoHome.Provider value={openChats}><HomeSwipe onHome={openChats}>{tab==='channels'?<CommunitiesScreen api={api} me={session.user} store={store} openId={openCommunity} onOpened={setOpenCommunity} onOpenInvite={setInviteCode}/>:tab==='people'?<PeopleScreen api={api} onBack={goBack} onOpen={newChat=>{setPage('chats');store.selectChat(newChat);}}/>:tab==='music'?<MusicScreen onBack={goBack}/>:tab==='ai'?<AIScreen api={api} onBack={goBack} history={store.aiHistory} name={session.user.displayName}/>:settingsStack}</HomeSwipe></GoHome.Provider></TabsFrame></KeptPage>)}
       {/* The bar: above the list and the pages, under a chat that slides in over them. */}
       {onList&&listEditing?null:<View pointerEvents="box-none" onLayout={e=>{const h=Math.round(e.nativeEvent.layout.height);if(h&&Math.abs(h-barHeight)>1)setBarHeight(h);}} style={{position:'absolute',left:0,right:0,bottom:0}}><MessengerTabs onNewChat={newChat} onProfile={profile} onMusic={openMusic} onAI={openAI} onChats={openChats} activeTab={page==='saved'?'chats':page==='security'||page==='settings'?'profile':page}/></View>}
       {onList?pushedScreen:null}
