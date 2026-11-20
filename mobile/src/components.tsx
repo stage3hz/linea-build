@@ -72,14 +72,16 @@ export function Button({label,onPress,loading=false,disabled=false,secondary=fal
 }
 
 /**
- * A switch in the theme's colours. The knob is `onAccent` when on: in «Чёрная» and «Графит» the
- * accent track is nearly white, so a white knob would vanish on it (1.3:1), as it would on iOS without
- * the knob's shadow on web.
+ * A switch in the theme's colours. Where the theme's accent is nearly white («Чёрная», «Графит») a switch
+ * that is on used to be a pale track with a dark knob — it read as a hole, not as «on». There it is green
+ * with a white knob (the app's colour for «live»: someone talking, a room with people); a theme with a
+ * coloured accent keeps its accent.
  */
 export function ThemeSwitch({ value, onValueChange, disabled = false, accessibilityLabel }: { value: boolean; onValueChange: (value: boolean) => void; disabled?: boolean; accessibilityLabel?: string }) {
   const t = useTheme(); const language = useLanguage();
-  const thumb = value ? t.onAccent : '#FFFFFF';
-  return <Switch {...({ activeThumbColor: thumb } as object)} accessibilityLabel={accessibilityLabel ? tr(accessibilityLabel, language) : accessibilityLabel} value={value} disabled={disabled} onValueChange={onValueChange} trackColor={{ false: t.subtle, true: t.accent }} thumbColor={thumb} ios_backgroundColor={t.subtle} />;
+  const pale = /^#[0-9a-f]{6}$/i.test(t.accent) && [1, 3, 5].every(at => parseInt(t.accent.slice(at, at + 2), 16) > 190);
+  const on = pale ? '#34C77B' : t.accent;
+  return <Switch {...({ activeThumbColor: '#FFFFFF' } as object)} accessibilityLabel={accessibilityLabel ? tr(accessibilityLabel, language) : accessibilityLabel} value={value} disabled={disabled} onValueChange={onValueChange} trackColor={{ false: t.subtle, true: on }} thumbColor="#FFFFFF" ios_backgroundColor={t.subtle} />;
 }
 export function useSuccessFlash(ms=1600):[boolean,()=>void]{
   const [on,setOn]=useState(false);
@@ -113,7 +115,7 @@ export function Logo({size=58}:{size?:number}) {
 export function Empty({icon,title,description,action}:{icon:IconName;title:string;description:string;action?:React.ReactNode}) {
   const t=useTheme();return <View style={{alignItems:'center',paddingHorizontal:28,paddingVertical:38,gap:13}}>
     <View style={{width:126,height:126,alignItems:'center',justifyContent:'center',marginBottom:8}}><View pointerEvents="none" style={{position:'absolute',width:126,height:126,borderRadius:47,borderWidth:1,borderColor:t.glassBorder,backgroundColor:t.accentSoft,transform:[{rotate:'-15deg'}]}}/><GlassSurface radius={34} material="clear" style={{width:94,height:94,transform:[{rotate:'-5deg'}]}} contentStyle={{flex:1,alignItems:'center',justifyContent:'center'}}><Icon name={icon} color={t.accent} size={35}/></GlassSurface></View>
-    <Text style={{color:t.text,fontFamily:TITLE_FONT,fontSize:21,lineHeight:27,fontWeight:'800',letterSpacing:-.7,textAlign:'center'}}>{title}</Text><Text style={{color:t.muted,fontSize:15,lineHeight:23,textAlign:'center',maxWidth:310}}>{description}</Text>{action?<View style={{marginTop:11,width:'100%',maxWidth:270}}>{action}</View>:null}
+    <Text style={{color:t.text,fontFamily:TITLE_FONT,fontSize:21,lineHeight:27,fontWeight:'800',letterSpacing:-.2,textAlign:'center'}}>{title}</Text><Text style={{color:t.muted,fontSize:15,lineHeight:23,textAlign:'center',maxWidth:310}}>{description}</Text>{action?<View style={{marginTop:11,width:'100%',maxWidth:270}}>{action}</View>:null}
   </View>;
 }
 
@@ -182,7 +184,7 @@ export function Sheet({visible,title,onClose,onClosed,children}:{visible:boolean
     <GestureHandlerRootView style={{flex:1}}><KeyboardAvoidingView style={{flex:1}} behavior={Platform.OS==='ios'?'padding':undefined}><View style={{flex:1,justifyContent:'flex-end',paddingHorizontal:12,paddingBottom:Math.max(12,insets.bottom)}}>
       <Animated.View style={[StyleSheet.absoluteFill,{backgroundColor:t.black?'rgba(0,0,0,0.55)':t.dark?'rgba(0,5,19,0.5)':'rgba(20,32,60,0.28)'},swipe.backdropStyle]}><Pressable style={StyleSheet.absoluteFill} onPress={onClose} accessibilityRole="button" accessibilityLabel="Закрыть"/></Animated.View>
       <SwipeDismissView swipe={swipe} style={{width:'100%',maxWidth:580,maxHeight:'88%',alignSelf:'center',borderRadius:32,backgroundColor:t.glassOpaque,borderWidth:StyleSheet.hairlineWidth,borderColor:t.border,padding:22,paddingBottom:25,flexShrink:1,shadowColor:'#000',shadowOpacity:.18,shadowRadius:24,shadowOffset:{width:0,height:-4},elevation:12}}><FlatGlassScope>
-        <View style={{width:36,height:4,backgroundColor:t.subtle,opacity:.45,borderRadius:2,alignSelf:'center',marginBottom:17}}/><View style={{flexDirection:'row',alignItems:'center',justifyContent:'space-between',gap:12,marginBottom:13}}><Text style={{fontFamily:TITLE_FONT,fontSize:19,lineHeight:25,fontWeight:'800',letterSpacing:-.6,color:t.text,flex:1}}>{title}</Text><IconButton name="close" label="Закрыть" onPress={onClose}/></View><SwipeDismissScrollView swipe={swipe} style={{flexGrow:0,flexShrink:1}} keyboardShouldPersistTaps="handled" showsVerticalScrollIndicator={false}>{children}</SwipeDismissScrollView>
+        <View style={{width:36,height:4,backgroundColor:t.subtle,opacity:.45,borderRadius:2,alignSelf:'center',marginBottom:17}}/><View style={{flexDirection:'row',alignItems:'center',justifyContent:'space-between',gap:12,marginBottom:13}}><Text style={{fontFamily:TITLE_FONT,fontSize:19,lineHeight:25,fontWeight:'800',letterSpacing:-.2,color:t.text,flex:1}}>{title}</Text><IconButton name="close" label="Закрыть" onPress={onClose}/></View><SwipeDismissScrollView swipe={swipe} style={{flexGrow:0,flexShrink:1}} keyboardShouldPersistTaps="handled" showsVerticalScrollIndicator={false}>{children}</SwipeDismissScrollView>
       </FlatGlassScope></SwipeDismissView>
     </View></KeyboardAvoidingView></GestureHandlerRootView>
   </Modal>;

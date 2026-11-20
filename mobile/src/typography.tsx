@@ -26,7 +26,8 @@ if (Platform.OS === 'web' && typeof document !== 'undefined' && !document.getEle
 // title read as a sign, not a label. iOS finds a single static face by its PostScript name; Android registers
 // it as a family with its weight (app.config.js); the browser gets it with @font-face below.
 export const TITLE_FONT = Platform.select({ ios: 'Unbounded-ExtraBold', android: 'Unbounded', default: 'Unbounded, Montserrat, system-ui, sans-serif' })!;
-export const TITLE = { fontFamily: TITLE_FONT, fontWeight: '800' as const, letterSpacing: -0.8 };
+// No tightening: the face is wide and its letters already sit close; at −0.8 they touched each other.
+export const TITLE = { fontFamily: TITLE_FONT, fontWeight: '800' as const, letterSpacing: -0.2 };
 if (Platform.OS === 'web' && typeof document !== 'undefined' && !document.getElementById('invizent-unbounded')) {
   try {
     // eslint-disable-next-line @typescript-eslint/no-require-imports

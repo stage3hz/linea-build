@@ -106,7 +106,7 @@ function Page({ title, backLabel, onBack, children }: { title: string; backLabel
     <FloatingHeader onHeight={setHeaderHeight}>
     <GlassSurface lens radius={27} style={{ margin: 12, marginBottom: 7 }} contentStyle={{ padding: 8, flexDirection: 'row', alignItems: 'center', gap: 9, minHeight: 60 }}>
       <IconButton name="chevron-back" label={backLabel} onPress={onBack} />
-      <Text numberOfLines={1} adjustsFontSizeToFit minimumFontScale={0.62} style={[TITLE, { flex: 1, color: t.text, fontSize: 22, lineHeight: 28 }]}>{title}</Text>
+      <Text numberOfLines={1} adjustsFontSizeToFit minimumFontScale={0.62} style={[TITLE, { flex: 1, color: t.text, fontSize: title.length > 16 ? 17 : title.length > 12 ? 19 : 22, lineHeight: 28 }]}>{title}</Text>
     </GlassSurface>
     </FloatingHeader>
   </View>;
@@ -187,7 +187,7 @@ function Root({ api, user, theme, darkTheme, nightState = DAY_STATE, onBack, onP
         <DecoratedAvatar user={user} api={api} size={100} animated />
       </Pressable>
       <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8, marginTop: 12 }}>
-        <PlatinaName user={user} numberOfLines={2} style={{ color: t.text, fontFamily: TITLE.fontFamily, fontSize: 27, lineHeight: 33, fontWeight: '800', letterSpacing: -0.9 }} />
+        <PlatinaName user={user} numberOfLines={2} style={{ color: t.text, fontFamily: TITLE.fontFamily, fontSize: 27, lineHeight: 33, fontWeight: '800', letterSpacing: -.2 }} />
         <Pressable accessibilityRole="button" accessibilityLabel="Сменить статус рядом с именем" hitSlop={10} onPress={() => { requestStatusPicker(); onProfile(); }}><StatusEmoji user={user} size={22} animated /></Pressable>
       </View>
       <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8, marginTop: 5 }}>

@@ -6,7 +6,7 @@
 // • one slot holds «Люди» or «Каналы»: swipe up on it to switch; the choice is remembered and stays
 //   in the bar until switched back. It rolls like a carousel — the same quick roll however hard you swipe. (Tablets and PC show both in their rail.)
 import React, { useEffect, useState, useSyncExternalStore } from 'react';
-import { View } from 'react-native';
+import { View, Platform } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { Gesture, GestureDetector } from 'react-native-gesture-handler';
 import Animated, { Easing, makeMutable, runOnJS, useAnimatedStyle, useSharedValue, withSpring, withTiming, type SharedValue } from 'react-native-reanimated';
@@ -104,7 +104,9 @@ function Under({ index, far, near }: { index: number; far: React.ReactNode; near
     <Animated.View pointerEvents="none" style={[{ position: 'absolute', left: 0, right: 0, top: 0, bottom: 0, alignItems: 'center', justifyContent: 'center' }, here]}>{near}</Animated.View>
   </View>;
 }
-const TabLabel = ({ text, color }: { text: string; color: string }) => <Text numberOfLines={1} adjustsFontSizeToFit minimumFontScale={.8} maxFontSizeMultiplier={1} style={{ maxWidth: CAPTION_MAX, fontSize: 9, lineHeight: 12, letterSpacing: -.25, color, fontWeight: '600' }}>{text}</Text>;
+// The browser cannot shrink a caption to fit (it cut «Настройки» to «Настрой…»): there a long caption is set a point smaller and given more room.
+const SHRINKS = Platform.OS !== 'web';
+const TabLabel = ({ text, color }: { text: string; color: string }) => <Text numberOfLines={1} adjustsFontSizeToFit minimumFontScale={.8} maxFontSizeMultiplier={1} style={{ maxWidth: CAPTION_MAX + (SHRINKS ? 0 : 10), fontSize: !SHRINKS && text.length > 8 ? 8 : 9, lineHeight: 12, letterSpacing: -.25, color, fontWeight: '600' }}>{text}</Text>;
 
 function TabIcon({ item, active, kick, pressed, index }: { item: TabItem; active: boolean; kick: SharedValue<number>; pressed: SharedValue<number>; index: number }) {
   const t = useTheme();
