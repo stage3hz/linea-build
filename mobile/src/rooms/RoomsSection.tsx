@@ -44,13 +44,13 @@ export function RoomsSection({ api, me, store }: { api: Api; me: User; store: Me
   return <View>{header}
     {error ? <Text style={{ color: t.danger, fontSize: 13, paddingHorizontal: 8, paddingBottom: 6 }}>{error}</Text> : null}
     {rooms.map(room => {
-      const inside = new Set(room.inside.map(member => member.userId)), here = voice?.roomId === room.id;
+      const here = voice?.roomId === room.id, inside = new Set(room.inside.map(member => member.userId)); if (here) inside.add(me.id);
       if (inside.size || here) {
         return <Pressable key={room.id} accessibilityRole="button" accessibilityLabel={`Комната ${room.name}, ${insideLine(inside.size)}`} onPress={() => openRoom(room.id)} style={({ pressed }) => ({ marginBottom: 8, padding: 14, borderRadius: 26, borderWidth: 1, borderColor: 'rgba(62,224,142,0.28)', backgroundColor: t.dark ? 'rgba(62,224,142,0.06)' : 'rgba(62,224,142,0.10)', opacity: pressed ? 0.85 : 1, flexDirection: 'row', alignItems: 'center', gap: 12 })}>
-          <RoomFaces api={api} room={room} only={inside.size ? inside : undefined} size={44} ring={TALK} hide={inside.size > 1 ? me.id : undefined} />
+          <RoomFaces api={api} room={room} only={inside} size={44} ring={TALK} hide={inside.size > 1 ? me.id : undefined} />
           <View style={{ flex: 1, minWidth: 0 }}>
             <Text raw numberOfLines={1} style={{ color: t.text, fontSize: 17, fontWeight: '600' }}>{room.name}</Text>
-            <Text numberOfLines={1} style={{ color: TALK, fontSize: 13, marginTop: 2 }}>{here ? `ты внутри · ${insideLine(Math.max(inside.size, 1))}` : insideLine(inside.size)}</Text>
+            <Text numberOfLines={1} style={{ color: TALK, fontSize: 13, marginTop: 2 }}>{here ? inside.size > 1 ? `ты внутри · ${insideLine(inside.size)}` : 'ты внутри, пока один' : insideLine(inside.size)}</Text>
           </View>
           {here ? null : <Pressable accessibilityRole="button" accessibilityLabel="Зайти" disabled={busy === room.id} onPress={() => { void enter(room); }} style={({ pressed }) => ({ paddingHorizontal: 16, height: 40, borderRadius: 20, backgroundColor: t.text, alignItems: 'center', justifyContent: 'center', opacity: pressed || busy === room.id ? 0.7 : 1 })}><Text style={{ color: t.bg, fontSize: 14, fontWeight: '600' }}>Зайти</Text></Pressable>}
         </Pressable>;

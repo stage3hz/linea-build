@@ -21,6 +21,8 @@ export type NativeChatRow = {
   /** Letter avatar: background colour (processColor) and the letters. */
   avatarColor: number;
   initials: string;
+  /** The letter avatar as a lit ball: its lighter and deeper corner colours (0 = a flat circle). */
+  orbA: number; orbB: number;
   /** Picture avatar: the file's address and the key it is cached under ('' = the letter avatar). */
   avatarUrl: string;
   avatarKey: string;

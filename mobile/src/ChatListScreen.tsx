@@ -35,6 +35,7 @@ import { findDecoration } from './platina/Decorations';
 import { CODE_FRAME_SCALE, CodeFrame, isCodeFrame, type CodeFrameId } from './platina/CodeFrames';
 import { VoiceBar } from './communities/VoiceBar';
 import { startRoomCall } from './rooms/rooms';
+import { orbColors } from './design/peerLight';
 import { useRoomsAwake } from './rooms/RoomsSection';
 import { useCalls } from './calls/CallProvider';
 import { formatListTime, useTheme } from './theme';
@@ -109,6 +110,8 @@ function nativeThumb(chat:Chat,typing:boolean,userId:string):{thumb:string;thumb
   return round||file.mimeType.startsWith('image/')||file.mimeType.startsWith('video/')?{thumb:file.preview.base64,thumbRound:round}:{thumb:'',thumbRound:false};
 }
 
+/** The lighter and deeper corner colours of a letter avatar for the native rows. */
+const orbPair=(color:string)=>{const [light,,deep]=orbColors(color);return {orbA:colorNumber(light),orbB:colorNumber(deep)};};
 export function ChatListScreen({api,user,store,onProfile,onNewChat,onMusic,onAI,onQuickAI,onChats,onSaved,savedActive=false,activeTab='chats',rail=false,banner=null}: {api:Api;user:User;store:MessengerStore;onQuickAI:()=>void;onSaved:()=>void;savedActive?:boolean;rail?:boolean;banner?:React.ReactNode}&Navigation) {
   // Tabs float over the list (it scrolls under the blurred bar, like Telegram); the list keeps room for them at the end.
   const calls=useCalls();
@@ -217,7 +220,7 @@ export function ChatListScreen({api,user,store,onProfile,onNewChat,onMusic,onAI,
   const typingMap=store.typing,selectedId=store.selectedId,savedItems=store.saved.items;
   const nativeRows=useMemo<NativeChatRow[]>(()=>{
     if(!nativeOn)return [];
-    const rows:NativeChatRow[]=[];const base={unread:0,muted:false,pinned:false,accentPreview:false,ticks:0 as const,checked:-1 as const,selected:false,time:'',avatarUrl:'',avatarKey:'',thumb:'',thumbRound:false,previewIcon:'' as ''|'mic',previewRed:0,lead:[] as string[],trail:[] as string[],metal:[] as number[],nameLen:0,ring:[] as number[],deco:'',decoScale:1,plate:''};
+    const rows:NativeChatRow[]=[];const base={orbA:0,orbB:0,unread:0,muted:false,pinned:false,accentPreview:false,ticks:0 as const,checked:-1 as const,selected:false,time:'',avatarUrl:'',avatarKey:'',thumb:'',thumbRound:false,previewIcon:'' as ''|'mic',previewRed:0,lead:[] as string[],trail:[] as string[],metal:[] as number[],nameLen:0,ring:[] as number[],deco:'',decoScale:1,plate:''};
     if(archive)rows.push({...base,id:BACK_ROW,title:'‹ Архив',preview:'Вернуться к чатам',avatarColor:colorNumber(t.surface2),initials:'‹'});
     else if(filter==='all'){
       const last=savedItems[savedItems.length-1];
@@ -235,7 +238,7 @@ export function ChatListScreen({api,user,store,onProfile,onNewChat,onMusic,onAI,
       rows.push({...nativeThumb(chat,typing,user.id),ring:ringOf?ringOf.colors.map(colorNumber):[],deco:coded||(art?(Image.resolveAssetSource(art.image as number)?.uri||''):''),decoScale:coded?CODE_FRAME_SCALE:art?art.scale:1,plate:chat.peer.nameplate||'',avatarUrl:chat.peer.avatarId?api.fileUrl(chat.peer.avatarId):'',avatarKey:chat.peer.avatarId?`invizent-file-${chat.peer.avatarId}`:'',lead:swipes.right.map(a=>`${a}:${tr(SWIPE_LABEL[a])}`),trail:swipes.left.map(a=>`${a}:${tr(SWIPE_LABEL[a])}`),
         id:chat.id,metal:chat.peer.seal==='platina'?(chat.peer.nameplate||t.dark?NAME_METAL:NAME_METAL_LIGHT).map(colorNumber):[],nameLen:chat.peer.displayName.length,title:`${chat.peer.displayName}${status?` ${status}`:''}${muted?' 🔕':''}`,preview:line.text,previewIcon:line.icon,previewRed:draft?DRAFT_WORD.length:0,time:last?formatListTime(last.createdAt):'',unread:chat.unreadCount||(marked.has(chat.id)?1:0),muted,pinned:!!chat.settings?.pinnedAt,accentPreview:typing,
         ticks:last&&last.senderId===user.id?(chat.peerLastReadMessageId>=last.id?2:1):0,checked:editing?(editing.has(chat.id)?1:0):-1,selected:wideLayout&&selectedId===chat.id,
-        avatarColor:colorNumber(chat.peer.avatarColor||'#4B73BB'),initials:chat.peer.displayName.trim().split(/\s+/).slice(0,2).map(word=>Array.from(word)[0]||'').join('').toUpperCase()});
+        avatarColor:colorNumber(chat.peer.avatarColor||'#4B73BB'),...orbPair(chat.peer.avatarColor||'#4B73BB'),initials:chat.peer.displayName.trim().split(/\s+/).slice(0,2).map(word=>Array.from(word)[0]||'').join('').toUpperCase()});
     }
     return rows;
   },[nativeOn,chats,archive,filter,archiveRow,archivedCount,savedItems,savedActive,typingMap,marked,editing,selectedId,wideLayout,user.id,store.drafts,store.draftFiles,t.accent,t.surface2,api]);

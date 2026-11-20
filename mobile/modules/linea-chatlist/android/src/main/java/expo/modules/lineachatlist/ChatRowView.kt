@@ -24,6 +24,7 @@ import android.view.View
 class ChatRowView(context: Context) : View(context) {
   private val d = resources.displayMetrics.density
   private val fill = Paint(Paint.ANTI_ALIAS_FLAG)
+  private val orb = Paint(Paint.ANTI_ALIAS_FLAG)
   private val stroke = Paint(Paint.ANTI_ALIAS_FLAG).apply { style = Paint.Style.STROKE; strokeCap = Paint.Cap.ROUND; strokeJoin = Paint.Join.ROUND }
   private val titlePaint = TextPaint(Paint.ANTI_ALIAS_FLAG).apply { textSize = 16f * d; typeface = Typeface.create(Typeface.DEFAULT, Typeface.BOLD) }
   private val previewPaint = TextPaint(Paint.ANTI_ALIAS_FLAG).apply { textSize = 15f * d }
@@ -175,7 +176,14 @@ class ChatRowView(context: Context) : View(context) {
     val face = if (item.avatarUrl.isNotEmpty() && item.avatarKey.isNotEmpty()) AvatarStore.get(context, item.avatarKey, item.avatarUrl, this) else null
     if (face != null) drawPicture(canvas, face, photoX, photoY, photo, corner, true)
     else {
-      fill.color = item.avatarColor; canvas.drawRoundRect(photoX, photoY, photoX + photo, photoY + photo, corner, corner, fill)
+      if (item.orbA != 0 && item.orbB != 0) {
+        // A lit ball: the person's colour between a lighter and a deeper neighbour hue, a highlight from the top left.
+        orb.shader = LinearGradient(photoX + photo * 0.9f, photoY + photo, photoX + photo * 0.1f, photoY, intArrayOf(item.orbA, item.avatarColor, item.orbB), null, Shader.TileMode.CLAMP)
+        canvas.drawRoundRect(photoX, photoY, photoX + photo, photoY + photo, corner, corner, orb)
+        orb.shader = LinearGradient(photoX + photo * 0.12f, photoY + photo * 0.02f, photoX + photo * 0.7f, photoY + photo * 0.8f, intArrayOf(0x6BFFFFFF, 0x0FFFFFFF, 0x00FFFFFF), floatArrayOf(0f, 0.38f, 0.6f), Shader.TileMode.CLAMP)
+        canvas.drawRoundRect(photoX, photoY, photoX + photo, photoY + photo, corner, corner, orb)
+        orb.shader = null
+      } else { fill.color = item.avatarColor; canvas.drawRoundRect(photoX, photoY, photoX + photo, photoY + photo, corner, corner, fill) }
       canvas.drawText(item.initials, x + avatar / 2, h / 2 - (avatarPaint.descent() + avatarPaint.ascent()) / 2, avatarPaint)
     }
     if (art != null) {

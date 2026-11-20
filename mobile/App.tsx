@@ -33,7 +33,7 @@ import { SecurityScreen } from './src/SecurityScreen';
 import { RecoveryNotice } from './src/RecoveryNotice';
 import { NewLoginNotice } from './src/NewLoginNotice';
 import { Button, Empty, Icon, Logo, Notice, Sheet, SheetAction } from './src/components';
-import { clearServer, normalizeServer, readCachedUser, readDarkTheme, readServer, readTheme, readToken, writeCachedUser, writeDarkTheme, writeServer, writeTheme, writeToken } from './src/storage';
+import { adoptNewLook, clearServer, normalizeServer, readCachedUser, readDarkTheme, readServer, readTheme, readToken, writeCachedUser, writeDarkTheme, writeServer, writeTheme, writeToken } from './src/storage';
 import { ThemeContext, palette, useTheme } from './src/theme';
 import { customTheme } from './src/themes/custom';
 import { UserProfile } from './src/UserProfile';
@@ -112,6 +112,7 @@ export default function App() {
     setBooting(true);setBootError('');
     try{
       // The code-lock settings are read before the first frame, so a locked start never shows a chat first (a read error is the LockGate's to handle: it stays covered).
+      await adoptNewLook();
       const [savedServer,savedTheme,savedDarkTheme,token]=await Promise.all([readServer(),readTheme(),readDarkTheme(),readToken(),loadLockSettings().catch(()=>null)]);setMode(savedTheme);setDarkTheme(savedDarkTheme);
       // The server address is fixed in the app (api.invizent.com); a saved older address is ignored.
       void savedServer;const base=normalizeServer(SERVER_URL);setServer(base);

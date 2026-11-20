@@ -38,6 +38,21 @@ export async function writeToken(token: string | null) {
 export const readServer = () => AsyncStorage.getItem(SERVER_KEY);
 export const writeServer = (url: string) => AsyncStorage.setItem(SERVER_KEY, url);
 export const clearServer = () => AsyncStorage.removeItem(SERVER_KEY);
+const LOOK_KEY = 'linea.look.v2';
+/**
+ * The new look (version 0.15) is drawn on the black theme: once, on the first start after the update, the
+ * dark built-in themes («Тёмная», «Графит») are switched to «Чёрная». A light theme and a Platina palette
+ * are the person's own choice and stay; anyone can pick another theme again in Настройки → Оформление.
+ */
+export async function adoptNewLook(): Promise<void> {
+  try {
+    if (await AsyncStorage.getItem(LOOK_KEY)) return;
+    const [mode, dark] = await Promise.all([AsyncStorage.getItem(THEME_KEY), AsyncStorage.getItem(DARK_THEME_KEY)]);
+    if (mode === 'dark' || mode === 'graphite') await AsyncStorage.setItem(THEME_KEY, 'black');
+    if (!dark || dark === 'dark' || dark === 'graphite') await AsyncStorage.setItem(DARK_THEME_KEY, 'black');
+    await AsyncStorage.setItem(LOOK_KEY, '1');
+  } catch { /* the saved theme stays */ }
+}
 export async function readTheme(): Promise<ThemeMode> {
   return storedThemeMode(await AsyncStorage.getItem(THEME_KEY));
 }

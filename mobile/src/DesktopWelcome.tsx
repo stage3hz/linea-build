@@ -14,11 +14,11 @@ import { TITLE_BAR_HEIGHT } from './TitleBar';
 
 const KEY = 'invizent.welcome.version';
 const NEWS: { icon: IconName; title: string; text: string }[] = [
-  { icon: 'browsers-outline', title: 'Окно как в Windows', text: 'Свернуть, развернуть и закрыть — справа. Закрытие оставляет Инвиз в трее.' },
-  { icon: 'person-circle-outline', title: 'Профиль как в Telegram', text: 'Имя — быстрые действия, аватар — полный профиль с фото и видео.' },
-  { icon: 'mic-outline', title: 'Голосовые и кружки', text: 'Удерживай кнопку: влево — отмена, вверх — без рук.' },
-  { icon: 'images-outline', title: 'Фото с превью', text: 'Миниатюры у фото, видео и GIF, редактор перед отправкой.' },
-  { icon: 'search-outline', title: 'Поиск по сообщениям', text: 'Находит слова в чатах и в Избранном.' },
+  { icon: 'sparkles-outline', title: 'Новый вид', text: 'Чат без пузырей: слова собеседника — в его цвете, а его свет лежит с его стороны экрана.' },
+  { icon: 'mic-outline', title: 'Комнаты', text: 'Позвонил нескольким сразу — получилась комната. В следующий раз в неё просто заходят.' },
+  { icon: 'planet-outline', title: 'Каналы', text: 'Комнаты стоят первыми: видно, кто внутри, зайти можно в один щелчок.' },
+  { icon: 'people-outline', title: 'Звонок нескольким', text: 'В чатах: «Изм.», отметь людей, «Звонок» — до двенадцати человек в одной комнате.' },
+  { icon: 'ellipse-outline', title: 'Аватарки', text: 'Без фото — цветной шар в цвете человека вместо плоского круга.' },
 ];
 const AnimatedCircle = Animated.createAnimatedComponent(Circle);
 
