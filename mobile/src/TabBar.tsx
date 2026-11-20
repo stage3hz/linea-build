@@ -15,6 +15,7 @@ import { Ionicons } from '@expo/vector-icons';
 // Every tab icon sits in the same 22×22 box with a 22-pt line: an icon-font glyph otherwise gets a
 // taller line on iOS and is drawn lower than its box, so the drawn gear looked higher than the rest.
 import { useTheme } from './theme';
+import { GlassView, isGlassEffectAPIAvailable, isLiquidGlassAvailable } from 'expo-glass-effect';
 import { badgeText } from './unreadBadge';
 import Svg, { Circle, Defs, Path, RadialGradient, Rect, Stop } from 'react-native-svg';
 
@@ -89,6 +90,16 @@ let lastPill: number | null = null;
 // rendered, so the capsule stood still and then caught up in a jerk. Now the tap starts the move on the UI
 // thread at once, and the next page's bar picks the same move up wherever it is.
 const PILL = makeMutable(-1);
+// The selection is a capsule with a tail: its front edge goes to the tapped tab at once and its back edge follows
+// a little late, so for a moment the capsule is stretched between the two tabs — a trail — and then gathers itself.
+const TAIL = makeMutable(-1);
+/** 1 while the open section has an icon in the bar (the capsule is shown), 0 otherwise. */
+const SHOWN = makeMutable(1);
+const LIFT = makeMutable(0);
+const TRAIL = { damping: 22, stiffness: 130, mass: 0.9 };
+/** Sends the capsule to a tab: the front now, the tail after it. */
+function sendPill(to: number) { 'worklet'; PILL.value = withSpring(to, SPRING); TAIL.value = withSpring(to, TRAIL); }
+const SYSTEM_GLASS = (() => { try { return Platform.OS === 'ios' && isGlassEffectAPIAvailable() && isLiquidGlassAvailable(); } catch { return false; } })();
 let pillTarget = -1;
 const kickTiming = (id: TabId) => id === 'profile' ? { duration: 760, easing: Easing.out(Easing.back(1.7)) } : { duration: 650, easing: Easing.out(Easing.quad) };
 
@@ -105,18 +116,15 @@ function Under({ index, far, near }: { index: number; far: React.ReactNode; near
     <Animated.View pointerEvents="none" style={[{ position: 'absolute', left: 0, right: 0, top: 0, bottom: 0, alignItems: 'center', justifyContent: 'center' }, here]}>{near}</Animated.View>
   </View>;
 }
-/** The mark of the active tab: a faint spot of light under the icon (the bar's own glow stands under it too). */
-function TabLight({ color, width }: { color: string; width: number }) {
-  const wide = Math.max(60, width * 1.5), tall = 64;
-  return <View pointerEvents="none" style={{ flex: 1, alignItems: 'center', justifyContent: 'center' }}>
-    <View style={{ position: 'absolute', width: wide, height: tall, top: -8 }}>
-      <Svg width={wide} height={tall}>
-        <Defs><RadialGradient id="tablight" cx="50%" cy="58%" rx="50%" ry="50%" gradientUnits="objectBoundingBox">
-          <Stop offset="0" stopColor={color} stopOpacity={0.16} /><Stop offset="0.5" stopColor={color} stopOpacity={0.05} /><Stop offset="1" stopColor={color} stopOpacity={0} />
-        </RadialGradient></Defs>
-        <Rect x="0" y="0" width={wide} height={tall} fill="url(#tablight)" />
-      </Svg>
-    </View>
+/**
+ * The capsule under the chosen tab. On an iPhone with Liquid Glass it is the system's own glass (clear, it bends
+ * what is under it); elsewhere — Android, the computer, older iPhones — it is drawn: a light fill, a bright upper
+ * rim and a soft inner shade, the same shape and the same motion.
+ */
+function Capsule({ dark }: { dark: boolean }) {
+  if (SYSTEM_GLASS) return <GlassView pointerEvents="none" colorScheme={dark ? 'dark' : 'light'} glassEffectStyle="clear" isInteractive style={{ flex: 1, borderRadius: 27 }} />;
+  return <View pointerEvents="none" style={{ flex: 1, borderRadius: 27, overflow: 'hidden', backgroundColor: dark ? 'rgba(255,255,255,0.13)' : 'rgba(0,0,0,0.06)', borderWidth: 1, borderColor: dark ? 'rgba(255,255,255,0.2)' : 'rgba(255,255,255,0.7)' }}>
+    <View style={{ position: 'absolute', left: 10, right: 10, top: 0, height: 1.5, borderRadius: 1, backgroundColor: dark ? 'rgba(255,255,255,0.55)' : 'rgba(255,255,255,0.95)' }} />
   </View>;
 }
 
@@ -154,11 +162,11 @@ export function TabBar({ items, active, onScrub }: { items: TabItem[]; active: T
   // A section without an icon of its own: the light stands between the two icons and neither is lit.
   const target = found < 0 ? (n - 1) / 2 : found;
   const pill = PILL; const pressed = useSharedValue(-1); const hold = useSharedValue(0); const step = useSharedValue(-1); const armed = useSharedValue(0);
-  useState(() => { if (PILL.value < 0) { PILL.value = lastPill ?? target; pillTarget = lastPill ?? target; } return 0; });
+  useState(() => { if (PILL.value < 0) { PILL.value = lastPill ?? target; TAIL.value = PILL.value; pillTarget = lastPill ?? target; SHOWN.value = found < 0 ? 0 : 1; } return 0; });
   const k0 = useSharedValue(0), k1 = useSharedValue(0);
   const kicks = [k0, k1];
   // Only when the page changed by something other than a tap on this bar (a tap has started the move itself).
-  useEffect(() => { lastPill = target; if (pillTarget !== target) { pillTarget = target; pill.value = withSpring(target, SPRING); } }, [target]);
+  useEffect(() => { lastPill = target; SHOWN.value = withTiming(found < 0 ? 0 : 1, { duration: 180 }); if (pillTarget !== target) { pillTarget = target; sendPill(target); } }, [target, found]);
   // A bar mounted by the tap that opened its page plays that tap's icon animation.
   useEffect(() => {
     const pending = pendingKick; pendingKick = null;
@@ -172,7 +180,7 @@ export function TabBar({ items, active, onScrub }: { items: TabItem[]; active: T
     const kick = kicks[index];
     kick.value = withTiming(Math.floor(kick.value) + 1, kickTiming(item.id));
     pendingKick = { id: item.id, at: Date.now() };
-    pillTarget = index; pill.value = withSpring(index, SPRING);
+    pillTarget = index; sendPill(index);
     item.onPress();
   };
   // The gesture: the list of the other sections; the row under the finger opens its real page behind the bar,
@@ -201,9 +209,9 @@ export function TabBar({ items, active, onScrub }: { items: TabItem[]; active: T
   const tabAt = (x: number) => { 'worklet'; return Math.max(0, Math.min(n - 1, Math.floor(x / Math.max(1, width / n)))); };
 
   const tap = Gesture.Tap().maxDuration(500)
-    .onBegin(e => { pressed.value = tabAt(e.x); })
-    .onEnd(e => { const index = tabAt(e.x); pill.value = withSpring(index, SPRING); runOnJS(open)(index); })
-    .onFinalize(() => { pressed.value = -1; });
+    .onBegin(e => { pressed.value = tabAt(e.x); LIFT.value = withSpring(1, SPRING); })
+    .onEnd(e => { const index = tabAt(e.x); sendPill(index); runOnJS(open)(index); })
+    .onFinalize(() => { pressed.value = -1; LIFT.value = withSpring(0, SPRING); });
   const chats = Math.max(0, shown.findIndex(item => item.id === 'chats'));
   // Only from «Чаты»: the gear keeps a plain tap.
   const scrub = Gesture.Pan().activeOffsetY([-1000, -8]).failOffsetX([-48, 48])
@@ -213,15 +221,15 @@ export function TabBar({ items, active, onScrub }: { items: TabItem[]; active: T
     .onFinalize(() => { hold.value = withSpring(0, SPRING); if (armed.value) runOnJS(scrubEnd)(true); armed.value = 0; });
   const gesture = Gesture.Exclusive(scrub, tap);
 
-  // The light is whole on a tab and gone half-way between the two.
-  const pillStyle = useAnimatedStyle(() => ({ opacity: Math.max(0, 1 - 2 * Math.abs(pill.value - Math.round(pill.value))), transform: [{ translateX: pill.value * cell }] }));
+  // The capsule spans from its tail to its front: equal at rest, stretched on the way. It rises a little under the finger.
+  const pillStyle = useAnimatedStyle(() => { const front = pill.value, back = TAIL.value; return { opacity: SHOWN.value, left: Math.min(front, back) * cell, width: cell * (1 + Math.abs(front - back)), transform: [{ scale: 1 + LIFT.value * 0.05 }] }; });
   const grow = useAnimatedStyle(() => ({ transform: [{ scale: 1 + hold.value * 0.06 }] }));
   const others = items.filter(item => !BAR_TABS.includes(item.id)); const waiting = others.reduce((sum, item) => sum + (item.badge || 0), 0); const awake = others.find(item => item.dot)?.dot;
 
   return <GestureDetector gesture={gesture}>
     <Animated.View collapsable={false} onLayout={e => setWidth(e.nativeEvent.layout.width)} accessibilityRole="tablist" style={[{ flexDirection: 'row', alignItems: 'center', minHeight: 56 }, grow]}>
-      {width ? <Animated.View pointerEvents="none" style={[{ position: 'absolute', left: 0, top: 1, bottom: 1, width: cell, padding: 2 }, pillStyle]}>
-        <TabLight color={t.dark ? '#FFFFFF' : t.accent} width={cell} />
+      {width ? <Animated.View pointerEvents="none" style={[{ position: 'absolute', top: 1, bottom: 1, padding: 1 }, pillStyle]}>
+        <Capsule dark={t.dark} />
       </Animated.View> : null}
       {shown.map((item, index) => { const on = index === found; return <View key={item.id} accessible accessibilityRole="tab"
         accessibilityLabel={`${item.label}${item.badge ? `, ${item.badge}` : ''}`} accessibilityHint={item.id === 'chats' ? 'Удержи и веди вверх — остальные разделы' : undefined} accessibilityState={{ selected: on }}
