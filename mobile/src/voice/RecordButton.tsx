@@ -7,6 +7,8 @@ import { StyleSheet, View } from 'react-native';
 import { Gesture, GestureDetector } from 'react-native-gesture-handler';
 import Animated, { Easing, runOnJS, useAnimatedStyle, useSharedValue, withSpring, withTiming } from 'react-native-reanimated';
 import { Icon } from '../components';
+import { Text } from '../typography';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import { GlassSurface } from '../glass';
 import { useTheme } from '../theme';
 import { impactFeedback, lightFeedback } from '../haptics';
@@ -17,6 +19,16 @@ import { HOLD_MS, holdAxis, holdMove, holdRelease, slideStep } from '../videonot
 // The rules live in videonote/recordGesture.ts (pure, tested).
 export { CANCEL_DISTANCE, LOCK_DISTANCE, HOLD_MS } from '../videonote/recordGesture';
 export type RecordKind = 'voice' | 'video';
+
+// «Вверх — без рук» is said in words for the first few holds on this device, then the pill alone is enough.
+const HINT_KEY = 'linea.hint.voice-lock.v1', HINT_TIMES = 5;
+let hintShown = HINT_TIMES; // unknown until read: no hint rather than a hint shown forever
+void AsyncStorage.getItem(HINT_KEY).then(value => { hintShown = Math.max(0, Number(value) || 0); }).catch(() => {});
+function nextLockHint(): boolean {
+  if (hintShown >= HINT_TIMES) return false;
+  hintShown += 1; void AsyncStorage.setItem(HINT_KEY, String(hintShown)).catch(() => {});
+  return true;
+}
 
 export function RecordButton({ mode, disabled, onToggleMode, onTouchDown, onHoldStart, onHoldEnd, onLock, onSlide, level = 0 }: {
   mode: RecordKind; disabled?: boolean;
@@ -37,14 +49,14 @@ export function RecordButton({ mode, disabled, onToggleMode, onTouchDown, onHold
   const tx = useSharedValue(0), ty = useSharedValue(0), active = useSharedValue(0);
   // Last cancel-slide step sent to JS: the chat screen re-renders on a 5 % step, not on every touch move.
   const sentSlide = useSharedValue(0);
-  const [holding, setHolding] = useState(false);
+  const [holding, setHolding] = useState(false); const [lockHint, setLockHint] = useState(false);
   const done = useRef(false);
   // The gesture worklets keep the functions of the render they were attached in; going through a ref
   // always reaches the current props (otherwise a hold right after «tap → video» still recorded voice).
   const props = useRef({ onHoldStart, onHoldEnd, onLock, onSlide, onToggleMode, onTouchDown });
   props.current = { onHoldStart, onHoldEnd, onLock, onSlide, onToggleMode, onTouchDown };
   const down = () => props.current.onTouchDown?.();
-  const begin = () => { done.current = false; setHolding(true); impactFeedback(); props.current.onHoldStart(); };
+  const begin = () => { done.current = false; setHolding(true); setLockHint(nextLockHint()); impactFeedback(); props.current.onHoldStart(); };
   const finish = (result: 'send' | 'cancel' | 'lock') => {
     if (done.current) return; done.current = true; setHolding(false); props.current.onSlide?.(0);
     if (result === 'lock') { lightFeedback(); props.current.onLock(); } else props.current.onHoldEnd(result);
@@ -95,6 +107,8 @@ export function RecordButton({ mode, disabled, onToggleMode, onTouchDown, onHold
   return <View style={{ width: 40, height: 40, alignItems: 'center', justifyContent: 'center' }}>
     {holding ? <Animated.View pointerEvents="none" style={[{ position: 'absolute', width: 40, height: 66, borderRadius: 20, alignItems: 'center', justifyContent: 'space-evenly', backgroundColor: t.glassOpaque, borderWidth: 1, borderColor: t.border }, lockPill]}>
       <Icon name="lock-open-outline" size={17} color={t.text} /><Icon name="chevron-up" size={14} color={t.muted} />
+      {/* The lock is a gesture nobody guesses: the first few holds say it in words, beside the pill. */}
+      {lockHint ? <View style={{ position: 'absolute', right: 48, top: 18, width: 132, alignItems: 'flex-end' }}><View style={{ paddingHorizontal: 10, paddingVertical: 6, borderRadius: 12, backgroundColor: t.glassOpaque, borderWidth: 1, borderColor: t.border }}><Text numberOfLines={1} style={{ color: t.text, fontSize: 12.5 }}>Вверх — без рук</Text></View></View> : null}
     </Animated.View> : null}
     {/* Telegram: at rest the mic sits in the same glass circle as the paperclip. */}
     {!holding ? <View pointerEvents="none" style={{ position: 'absolute', width: 40, height: 40 }}><GlassSurface material="regular" radius={20} contentStyle={{ width: 40, height: 40 }}><View /></GlassSurface></View> : null}

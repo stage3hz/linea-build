@@ -1,3 +1,4 @@
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useStackReady } from './stack';
 import { repeatBroken, repeatNotice, repeatWait } from './repeatGuard';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
@@ -831,6 +832,7 @@ const [wallpaperOpen,setWallpaperOpen]=useState(false);
     </SafeAreaView></GlassStage></GestureHandlerRootView></Modal>:null}
     {mini?<MiniProfile api={api} user={chat.peer} me={user.id} at={mini} inChat status={headerStatus.text} onClose={()=>setMini(null)} onOpenProfile={()=>setTimeout(()=>setPeerInfo(true),Platform.OS==='ios'?300:0)} quick={{onCall:calls.available?video=>setTimeout(()=>calls.start(chat,video),Platform.OS==='ios'?300:0):undefined,onAttachments:()=>setTimeout(()=>setMediaOpen(true),Platform.OS==='ios'?300:0),rules:view.rules||{ttl:0,noCopy:false},onRules:rules=>store.sendAction(chat.id,{type:'settings',ttl:rules.ttl,noCopy:rules.noCopy})}}/>:null}
     {peerInfo?<UserProfile api={api} user={chat.peer} chat={chat} shared={view.messages} onOpenAttachment={openAttachment} status={headerStatus.text.startsWith('@')||headerStatus.text.endsWith('…')?undefined:headerStatus.text} onClose={()=>setPeerInfo(false)} onMute={muted=>store.updateChatSettings(chat.id,{muted})} onSearch={()=>{setSearchOpen(true);setQuery('');}} onSecurity={()=>setTimeout(()=>setSecurityOpen(true),350)} onWallpaper={()=>setTimeout(()=>setWallpaperOpen(true),350)} rules={view.rules} onRules={signalAvailable?rules=>store.sendAction(chat.id,{type:'settings',ttl:rules.ttl,noCopy:rules.noCopy}):undefined} onClear={()=>store.sendAction(chat.id,{type:'clear'})}/>:null}
+    <HoldHint top={headerHeight+10} desktop={Platform.OS==='web'&&wide} show={rows.length>0}/>
     <WallpaperPicker visible={wallpaperOpen} onClose={()=>setWallpaperOpen(false)} chatId={chat.id}/>
     {dropping?<View pointerEvents="none" style={{position:'absolute',top:12,left:12,right:12,bottom:12,zIndex:20,borderRadius:24,borderWidth:2,borderStyle:'dashed',borderColor:t.accent,backgroundColor:t.dark?'rgba(10,14,24,0.72)':'rgba(255,255,255,0.78)',alignItems:'center',justifyContent:'center',gap:10}}><Icon name="cloud-upload-outline" size={44} color={t.accent}/><Text style={{color:t.text,fontSize:20,fontWeight:'700'}}>Отпусти, чтобы прикрепить</Text><Text style={{color:t.muted,fontSize:13}}>Файлы зашифруются перед отправкой</Text></View>:null}
     {/* Telegram: long-press the avatar in the header — a large photo card with «Открыть профиль» and «Поиск». */}
@@ -896,4 +898,26 @@ const [wallpaperOpen,setWallpaperOpen]=useState(false);
       {trashAt?deleteChoice(selectedMessages,()=>{setTrashAt(null);setSelection(null);}):null}
     </ContextMenu>
   </View></KeyboardSafeView></GlassTargetScope></VoicePlaybackProvider>;
+}
+
+// What a message can do is behind a hold (a right click on the computer) — a gesture nobody guesses. The first
+// three times a chat with messages is opened on this device, a small line under the header says so; a tap or
+// six seconds put it away.
+const HOLD_HINT_KEY='linea.hint.message-hold.v1',HOLD_HINT_TIMES=3;
+let holdHintSeen=HOLD_HINT_TIMES;
+void AsyncStorage.getItem(HOLD_HINT_KEY).then(value=>{holdHintSeen=Math.max(0,Number(value)||0);}).catch(()=>{});
+function HoldHint({top,desktop,show}:{top:number;desktop:boolean;show:boolean}){
+  const t=useTheme();const [open,setOpen]=useState(false);const counted=useRef(false);
+  useEffect(()=>{
+    if(!show||counted.current||holdHintSeen>=HOLD_HINT_TIMES)return;
+    counted.current=true;holdHintSeen+=1;void AsyncStorage.setItem(HOLD_HINT_KEY,String(holdHintSeen)).catch(()=>{});
+    const start=setTimeout(()=>setOpen(true),700),end=setTimeout(()=>setOpen(false),6700);
+    return()=>{clearTimeout(start);clearTimeout(end);};
+  },[show]);
+  if(!open)return null;
+  return <View pointerEvents="box-none" style={{position:'absolute',left:0,right:0,top,alignItems:'center'}}>
+    <Pressable accessibilityRole="button" accessibilityLabel="Скрыть подсказку" onPress={()=>setOpen(false)} style={{maxWidth:330,marginHorizontal:16,paddingHorizontal:14,paddingVertical:9,borderRadius:16,backgroundColor:t.glassOpaque,borderWidth:1,borderColor:t.border}}>
+      <Text style={{color:t.text,fontSize:13.5,lineHeight:18,textAlign:'center'}}>{desktop?'Правая кнопка мыши по сообщению — ответить, переслать, удалить':'Удержи сообщение — ответить, переслать, удалить'}</Text>
+    </Pressable>
+  </View>;
 }
