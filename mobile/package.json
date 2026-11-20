@@ -83,5 +83,10 @@
   "devDependencies": {
     "@types/react": "~19.2.2",
     "typescript": "~6.0.3"
+  },
+  "worklets": {
+    "staticFeatureFlags": {
+      "IOS_DYNAMIC_FRAMERATE_ENABLED": false
+    }
   }
 }

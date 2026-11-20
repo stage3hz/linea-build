@@ -91,8 +91,8 @@ let lastPill: number | null = null;
 // rendered, so the capsule stood still and then caught up in a jerk. Now the tap starts the move on the UI
 // thread at once, and the next page's bar picks the same move up wherever it is.
 const PILL = makeMutable(-1);
-// The selection is a capsule with a tail: its front edge goes to the tapped tab at once and its back edge follows
-// a little late, so for a moment the capsule is stretched between the two tabs — a trail — and then gathers itself.
+// The selection is a capsule with a trail: the capsule goes to the tapped tab at once and a faint second capsule
+// follows a little late and fades as it catches up.
 const TAIL = makeMutable(-1);
 /** 1 while the open section has an icon in the bar (the capsule is shown), 0 otherwise. */
 const SHOWN = makeMutable(1);
@@ -229,14 +229,21 @@ export function TabBar({ items, active, onScrub, onMenu }: { items: TabItem[]; a
   // A race, not a queue: in a queue the hold waited for the move to give up, which it does only when the finger lifts.
   const gesture = Gesture.Race(scrub, press, tap);
 
-  // The capsule spans from its tail to its front: equal at rest, stretched on the way. It rises a little under the finger.
-  const pillStyle = useAnimatedStyle(() => { const front = Math.max(0, pill.value), back = TAIL.value < 0 ? front : TAIL.value; return { opacity: SHOWN.value, left: Math.min(front, back) * cell, width: cell * (1 + Math.abs(front - back)), transform: [{ scale: 1 + LIFT.value * 0.05 }] }; });
+  // The capsule and its trail move by transform only. Its place used to be `left` and `width`, which made the
+  // whole screen lay itself out again on every frame of the move; with frames that slow the animation library
+  // lowers the screen's refresh rate (see package.json, IOS_DYNAMIC_FRAMERATE_ENABLED). The trail is a faint
+  // second capsule that follows a little late and fades as it catches up.
+  const pillStyle = useAnimatedStyle(() => ({ opacity: SHOWN.value, transform: [{ translateX: Math.max(0, pill.value) * cell }, { scale: 1 + LIFT.value * 0.05 }] }));
+  const trailStyle = useAnimatedStyle(() => { const front = Math.max(0, pill.value), back = TAIL.value < 0 ? front : TAIL.value; return { opacity: SHOWN.value * Math.min(1, Math.abs(front - back) * 2.2) * 0.55, transform: [{ translateX: back * cell }] }; });
   const grow = useAnimatedStyle(() => ({ transform: [{ scale: 1 + hold.value * 0.06 }] }));
   const others = items.filter(item => !BAR_TABS.includes(item.id)); const waiting = others.reduce((sum, item) => sum + (item.badge || 0), 0); const awake = others.find(item => item.dot)?.dot;
 
   return <GestureDetector gesture={gesture}>
     <Animated.View collapsable={false} onLayout={e => setWidth(e.nativeEvent.layout.width)} accessibilityRole="tablist" style={[{ flexDirection: 'row', alignItems: 'center', minHeight: 56 }, grow]}>
-      {width ? <Animated.View pointerEvents="none" style={[{ position: 'absolute', top: 1, bottom: 1, padding: 1 }, pillStyle]}>
+      {width ? <Animated.View pointerEvents="none" style={[{ position: 'absolute', left: 0, top: 1, bottom: 1, width: cell, padding: 1 }, trailStyle]}>
+        <View style={{ flex: 1, borderRadius: 27, backgroundColor: t.dark ? 'rgba(255,255,255,0.16)' : 'rgba(0,0,0,0.07)' }} />
+      </Animated.View> : null}
+      {width ? <Animated.View pointerEvents="none" style={[{ position: 'absolute', left: 0, top: 1, bottom: 1, width: cell, padding: 1 }, pillStyle]}>
         <Capsule dark={t.dark} />
       </Animated.View> : null}
       {shown.map((item, index) => { const on = index === found; return <View key={item.id} accessible accessibilityRole="tab"
