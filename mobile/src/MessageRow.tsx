@@ -63,6 +63,10 @@ type Props = {
   /** The copy of the message shown inside its menu: nothing in it acts on a press, and its text can be selected
    *  (a second hold, as in Telegram). */
   peek?: boolean;
+  /** No bubbles (the chat has no wallpaper): the peer's words carry a thin line in the peer's colour, yours stand alone on the right. */
+  open?: boolean;
+  /** The peer's colour for that line. */
+  tint?: string;
 };
 const visualKind = (file: Attachment) => { const kind = mediaPreviewKind(file); return kind === 'photo' || kind === 'video'; };
 
@@ -119,7 +123,7 @@ function UploadBubble({ pending, onCancel }: { pending: PendingMessage; onCancel
   </View>;
 }
 
-function MessageRowView({ row, olderCreatedAt, mine, author, peerLastRead, wide, fontSize, lineHeight, downloading, radius = 20, groupNext = false, replyAuthor, replyText, replyThumb, quoteBusy = false, flash = false, api, handlers, selecting, selected, fresh, animatedEmoji = false, peek = false }: Props) {
+function MessageRowView({ row, olderCreatedAt, mine, author, peerLastRead, wide, fontSize, lineHeight, downloading, radius = 20, groupNext = false, replyAuthor, replyText, replyThumb, quoteBusy = false, flash = false, api, handlers, selecting, selected, fresh, animatedEmoji = false, peek = false, open: openLook = false, tint }: Props) {
   const t = useTheme(); const screenWidth = useWindowDimensions().width;
   // Phone layout on a wide screen (phone sideways): bubbles stop at 520 pt instead of stretching.
   const bubbleMax = !wide && screenWidth > 612 ? 520 : '85%';
@@ -143,6 +147,8 @@ function MessageRowView({ row, olderCreatedAt, mine, author, peerLastRead, wide,
   // Photo/video/album with a caption: the media fills the bubble edge to edge, the caption sits below (as in Telegram).
   const flush = !!body && !emoji && ((visual && !!box) || !!row.album);
   const flushWidth = row.album ? albumWidth : box?.width || 0;
+  // The open look applies to text, files, voice and polls; a picture with a caption keeps its card.
+  const plainLook = openLook && !peek && !flush;
   const pad = flush ? { paddingHorizontal: 12 } : null;
   // Telegram puts the time inside the last line of text; an invisible spacer reserves its place.
   // The spacer is #00000001, not 'transparent': on Android a nested span with colour 0 inherits the text colour.
@@ -160,7 +166,7 @@ function MessageRowView({ row, olderCreatedAt, mine, author, peerLastRead, wide,
   const storyRef = message?.meta?.story || p?.meta?.story;
   const read = peerLastRead >= (message?.id || 0);
   // Time, ticks and the quote on the user's own bubble use colours checked against that bubble (see ownBubbleInk).
-  const ownInk = mine ? ownBubbleInk(t) : null; const metaInk = ownInk ? ownInk.meta : t.muted; const markInk = ownInk ? ownInk.accent : t.accent;
+  const ownInk = mine && !plainLook ? ownBubbleInk(t) : null; const metaInk = ownInk ? ownInk.meta : t.muted; const markInk = ownInk ? ownInk.accent : t.accent;
   // F4 «Отправить без звука»: a small crossed bell beside the time of your own message (the peer sees a plain message).
   const silent = mine && !!(message?.meta?.silent || p?.meta?.silent);
   const silentMark = silent ? <Icon name="notifications-off" size={11} color={bare && !body ? '#FFF' : t.subtle} /> : null;
@@ -210,7 +216,7 @@ function MessageRowView({ row, olderCreatedAt, mine, author, peerLastRead, wide,
         <View onLayout={circle ? event => { const next = Math.round(event.nativeEvent.layout.width); if (next !== rowWidth) setRowWidth(next); } : undefined} style={{ width: '100%', flexDirection: mine ? 'row-reverse' : 'row', alignItems: 'center', gap: 6 }}>
         {/* On PC the text is selectable with the mouse like in Telegram Desktop: holding the button no
             longer turns into a long press, and a click only acts while choosing messages. */}
-        <Pressable disabled={peek} {...snowLedge(!circle && !emoji)} onPress={event => desktop ? (selecting ? press() : undefined) : press(event.nativeEvent.pageY)} onLongPress={desktop ? undefined : event => longPress(event.nativeEvent.pageY)} delayLongPress={400} accessibilityLabel={`${author}: ${poll ? `Опрос: ${poll.question}` : body || file?.name || 'Вложение'}`} style={circle ? { maxWidth: '100%', alignItems: mine ? 'flex-end' : 'flex-start' } : emoji ? { maxWidth: bubbleMax } : bare ? { maxWidth: bubbleMax, borderRadius: 18, overflow: 'hidden', borderWidth: p?.state === 'failed' ? 1 : 0, borderColor: t.danger } : { maxWidth: wide ? '76%' : bubbleMax, minWidth: 60, ...(flush ? { width: flushWidth + 4, overflow: 'hidden' as const } : null), backgroundColor: mine ? t.bubble : t.incoming, borderRadius: radius, borderBottomRightRadius: mine && !groupNext ? Math.min(6, radius) : radius, borderBottomLeftRadius: !mine && !groupNext ? Math.min(6, radius) : radius, paddingHorizontal: flush ? 2 : 11, paddingTop: flush ? 2 : file ? 5 : 6, paddingBottom: inlineTime ? 6 : 5, borderWidth: p?.state === 'failed' ? 1 : 0, borderColor: t.danger }}>
+        <Pressable disabled={peek} {...snowLedge(!circle && !emoji)} onPress={event => desktop ? (selecting ? press() : undefined) : press(event.nativeEvent.pageY)} onLongPress={desktop ? undefined : event => longPress(event.nativeEvent.pageY)} delayLongPress={400} accessibilityLabel={`${author}: ${poll ? `Опрос: ${poll.question}` : body || file?.name || 'Вложение'}`} style={circle ? { maxWidth: '100%', alignItems: mine ? 'flex-end' : 'flex-start' } : emoji ? { maxWidth: bubbleMax } : bare ? { maxWidth: bubbleMax, borderRadius: 18, overflow: 'hidden', borderWidth: p?.state === 'failed' ? 1 : 0, borderColor: t.danger } : { maxWidth: wide ? '76%' : bubbleMax, minWidth: 60, ...(flush ? { width: flushWidth + 4, overflow: 'hidden' as const } : null), ...(plainLook ? { backgroundColor: 'transparent', borderRadius: 0, borderLeftWidth: mine ? 0 : 2, borderLeftColor: tint || t.accent, paddingLeft: mine ? 4 : 12, paddingRight: 4 } : { backgroundColor: mine ? t.bubble : t.incoming, borderRadius: radius, borderBottomRightRadius: mine && !groupNext ? Math.min(6, radius) : radius, borderBottomLeftRadius: !mine && !groupNext ? Math.min(6, radius) : radius, paddingHorizontal: flush ? 2 : 11 }), paddingTop: flush ? 2 : file ? 5 : 6, paddingBottom: inlineTime ? 6 : 5, borderWidth: p?.state === 'failed' ? 1 : 0, borderColor: t.danger }}>
           {message?.meta?.forward ? <Text style={[{ color: t.accent, fontSize: 11, fontWeight: '600', marginBottom: 4, paddingHorizontal: 1 }, flush ? { paddingHorizontal: 12, paddingTop: 7 } : null]}>{message.meta.forward.from ? `Переслано от ${message.meta.forward.from}` : 'Пересланное сообщение'}</Text> : null}
           {reply || storyRef ? <Pressable accessibilityRole="button" accessibilityLabel={storyRef ? 'Открыть историю' : 'Перейти к исходному сообщению'} onPress={() => storyRef ? handlers.current.openStory?.(storyRef) : reply ? handlers.current.jumpTo(reply.clientId, row.key) : undefined} style={{ flexDirection: 'row', gap: 7, marginBottom: 6, ...(flush ? { marginHorizontal: 8, marginTop: 8 } : null), paddingVertical: 5, paddingRight: 8, borderRadius: 10, backgroundColor: t.dark ? 'rgba(255,255,255,0.06)' : 'rgba(0,0,0,0.04)' }}><View style={{ width: 3, borderRadius: 2, backgroundColor: markInk }} />{replyThumb ? <Image source={{ uri: replyThumb.uri }} contentFit="cover" style={{ width: 32, height: 32, borderRadius: replyThumb.round ? 16 : 5, alignSelf: 'center', backgroundColor: 'rgba(120,130,160,0.18)' }} /> : null}<View style={{ flexShrink: 1, gap: 1 }}><Text style={{ color: markInk, fontSize: 11, fontWeight: '700' }}>{replyAuthor}</Text><Text numberOfLines={2} style={{ color: metaInk, fontSize: 12 }}>{replyText}</Text></View>{quoteBusy ? <ActivityIndicator size="small" color={t.accent} style={{ alignSelf: 'center', marginLeft: 2 }} /> : null}</Pressable> : null}
           {row.album ? <View style={{ marginBottom: body ? 7 : 0 }}><AlbumGrid api={api} items={row.album.map(part => part.attachment)} width={albumWidth} onOpen={attachment => selecting ? press() : handlers.current.open(attachment)} onLongPress={() => longPress(0)} /></View> : null}

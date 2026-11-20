@@ -8,6 +8,7 @@ import { PlatinaGem, PlatinaName, hasPlatina } from './platina/PlatinaMark';
 import { DecoratedAvatar } from './platina/Decor';
 import { usePowerFeatures } from './motion';
 import { ChatWallpaper, WallpaperPicker } from './WallpaperPicker';
+import { PeerLight, brightTint, peerTint } from './design/peerLight';
 import { useWallpaper } from './wallpapers';
 import { usePlatina } from './platina/usePlatina';
 import { ComposerInput } from './ComposerInput';
@@ -259,7 +260,11 @@ export function ChatScreen({api,user,chat,store,onBack,wide=false,onOpenMusic}: 
     return stabilizeById(rowCache.current,visible.reverse(),row=>row.key);
   },[view,pending,searchOpen,needle,user.id]);
   const preferences=useChatPreferences();const metrics=textMetrics(preferences.textSize);
-  const wallpaper=useWallpaper(chat.id);const [wallpaperOpen,setWallpaperOpen]=useState(false);
+  const wallpaper=useWallpaper(chat.id);
+  // No wallpaper chosen: the open look — the peer's light on their side of the screen and words without bubbles.
+  const openLook=wallpaper.kind==='preset'&&!WALLPAPERS.find(item=>item.id===wallpaper.id)?.colors;
+  const peerLine=useMemo(()=>brightTint(peerTint(chat.peer.avatarColor,'#8A8F98'),t.dark?190:0),[chat.peer.avatarColor,t.dark]);
+const [wallpaperOpen,setWallpaperOpen]=useState(false);
   const nameOf=(senderId:string)=>senderId===user.id?'Ты':chat.peer.displayName;
   // A forwarded message keeps its first author through further forwards.
   const originalAuthor=(message:ViewMessage)=>message.meta?.forward?.from||(message.senderId===user.id?user.displayName:chat.peer.displayName);
@@ -524,8 +529,8 @@ export function ChatScreen({api,user,chat,store,onBack,wide=false,onOpenMusic}: 
     const newerSender=newer?.pending?user.id:newer?.message&&!newer.message.meta?.action?newer.message.senderId:undefined;
     const groupNext=!!newer&&newerSender!==undefined&&!message?.meta?.action&&newerSender===(p?user.id:message?.senderId)&&new Date(newer.createdAt).toDateString()===new Date(item.createdAt).toDateString()&&Date.parse(newer.createdAt)-Date.parse(item.createdAt)<5*60_000;
     if(item.missing)return <MissingRow count={item.missing}/>;
-    return <MessageRow animatedEmoji={platina&&powerFeatures.stickers} groupNext={groupNext} row={item} selecting={!!selection} selected={!!selection?.has(item.key)} fresh={fresh(item)} olderCreatedAt={peek?item.createdAt:rows[index+1]?.createdAt} mine={mine} author={mine?'Ты':peerName} peerLastRead={peerLastRead} wide={wide} fontSize={metrics.fontSize} lineHeight={metrics.lineHeight} radius={preferences.bubbleRadius} downloading={!!downloadId&&file?.id===downloadId} replyAuthor={quoteAuthor} replyText={quoteText} replyThumb={replyThumb} quoteBusy={!peek&&!!replyJump&&replyJump.fromKey===item.key} flash={!peek&&flashKey===item.key} api={api} handlers={handlers} peek={peek}/>;
-  },[rows,user.id,peerName,peerLastRead,wide,metrics.fontSize,metrics.lineHeight,downloadId,view.byClientId,api,selection,preferences.bubbleRadius,platina,powerFeatures.stickers,replyJump,flashKey]);
+    return <MessageRow animatedEmoji={platina&&powerFeatures.stickers} groupNext={groupNext} row={item} selecting={!!selection} selected={!!selection?.has(item.key)} fresh={fresh(item)} olderCreatedAt={peek?item.createdAt:rows[index+1]?.createdAt} mine={mine} author={mine?'Ты':peerName} peerLastRead={peerLastRead} wide={wide} fontSize={metrics.fontSize} lineHeight={metrics.lineHeight} radius={preferences.bubbleRadius} downloading={!!downloadId&&file?.id===downloadId} replyAuthor={quoteAuthor} replyText={quoteText} replyThumb={replyThumb} quoteBusy={!peek&&!!replyJump&&replyJump.fromKey===item.key} flash={!peek&&flashKey===item.key} api={api} handlers={handlers} peek={peek} open={openLook} tint={peerLine}/>;
+  },[rows,user.id,peerName,peerLastRead,wide,metrics.fontSize,metrics.lineHeight,downloadId,view.byClientId,api,selection,preferences.bubbleRadius,platina,powerFeatures.stickers,replyJump,flashKey,openLook,peerLine]);
   const [circleOpen,setCircleOpen]=useState(false);
   // Telegram: the sent circle appears in the chat at once (frame from the take, upload ring, ✕). It lives in
   // the circle outbox (videonote/noteOutbox), not in this screen: leaving the chat mid-upload loses nothing,
@@ -633,7 +638,7 @@ export function ChatScreen({api,user,chat,store,onBack,wide=false,onOpenMusic}: 
   // this every cell wrapper of the list re-rendered with it (measured: 240 of 652 renders per key at 60 bubbles).
   const noteActs=useRef({retry:retryVideoNote,discard:discardVideoNote});noteActs.current={retry:retryVideoNote,discard:discardVideoNote};
   const noteRetry=useCallback((id:string)=>noteActs.current.retry(id),[]),noteDiscard=useCallback((id:string)=>noteActs.current.discard(id),[]);
-  const hasMore=!!store.hasMore[chat.id],loadingMore=store.messageLoading,loadMessages=store.loadMessages,listSide=wide?28:9,listHeaderSide=listEdges.headerSide,dismissMode=dismissSetup.mode,accent=t.accent;
+  const hasMore=!!store.hasMore[chat.id],loadingMore=store.messageLoading,loadMessages=store.loadMessages,listSide=wide?(openLook?'13%' as const:28):(openLook?14:9),listHeaderSide=listEdges.headerSide,dismissMode=dismissSetup.mode,accent=t.accent;
   // History loads by itself when the list is scrolled towards its older end (the button below stays as a fallback).
   const olderBusy=useRef(false);
   const loadOlder=useCallback(()=>{if(!hasMore||loadingMore||olderBusy.current)return;olderBusy.current=true;void loadMessages(chat.id,true).catch(()=>{}).finally(()=>{olderBusy.current=false;});},[hasMore,loadingMore,loadMessages,chat.id]);
@@ -690,6 +695,7 @@ export function ChatScreen({api,user,chat,store,onBack,wide=false,onOpenMusic}: 
     {/* Android: header and composer glass blur this (wallpaper + messages) on the GPU. */}
     <GlassContentTarget targetRef={glassTarget} style={{flex:1}}>
     <ChatWallpaper choice={wallpaper} style={{top:-80,bottom:-60}} trail/>
+    {openLook?<PeerLight color={peerTint(chat.peer.avatarColor,'#8A8F98')} style={{top:-80,bottom:-60}}/>:null}
     {rows.length===0&&!chatNotes.length?<View style={{flex:1,justifyContent:'center',paddingTop:headerHeight,paddingBottom:listEdges.composerSide}}>{store.messageLoading?<ActivityIndicator color={t.accent}/>:<Empty icon="hand-left-outline" title="Скажи «привет»" description={`Это начало вашей переписки с ${chat.peer.displayName}.`}/>}</View>:<><KeyboardGestureArea style={{flex:1}} interpolator="ios" offset={keyboardGestureOffset(composerHeight,stickers)} textInputNativeID={COMPOSER_NATIVE_ID} enableSwipeToDismiss={dismissSetup.gestureArea}>{nativeChatOn&&NativeMsgListView?<NativeMsgListView style={{flex:1}} rows={nativeMsgRows} palette={nativeMsgPalette} fontSize={metrics.fontSize} pad={[listEdges.headerSide,listEdges.composerSide]} onMsgPress={e=>nativeMsgPress(e.nativeEvent.key)} onMsgLongPress={e=>nativeMsgHold(e.nativeEvent.key,e.nativeEvent.y)} onLinkPress={e=>nativeLinkPress(e.nativeEvent.url,e.nativeEvent.shown)} onReactPress={e=>{const message=rows.find(r=>r.key===e.nativeEvent.key)?.message;if(message)handlers.current.react(message,e.nativeEvent.emoji as Reaction);}} onNearTop={loadOlder}/>:listEl}</KeyboardGestureArea><Animated.View pointerEvents="none" style={[{position:'absolute',width:0,height:0,opacity:0},lockCommit]}/></>
     }
     </GlassContentTarget>

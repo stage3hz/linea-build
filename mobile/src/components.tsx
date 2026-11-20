@@ -1,3 +1,4 @@
+import { orbColors } from './design/peerLight';
 import React, { useEffect, useMemo, useState } from 'react';
 import { Image as CachedImage } from 'expo-image';
 import { ActivityIndicator, Image, KeyboardAvoidingView, Modal, Platform, Pressable as RNPressable, ScrollView, StyleSheet, Switch, View, type ImageStyle, type StyleProp, type TextInputProps, type ViewStyle } from 'react-native';
@@ -144,7 +145,7 @@ export function Avatar({user,api,size=54,round=false}:{user:User;api:Api;size?:n
   if(user.avatarId)return <View style={{width:size,height:size,borderRadius:radius,borderWidth:1,borderColor:t.glassBorder,overflow:'hidden'}}><AuthImage api={api} id={user.avatarId} style={{width:size,height:size,borderRadius:radius}}/></View>;
   // Whole characters (Array.from): word[0] cut an emoji in half and showed «А�».
   const initials=user.displayName.trim().split(/\s+/).slice(0,2).map(word=>Array.from(word)[0]||'').join('').toUpperCase();const color=user.avatarColor||'#4B73BB';
-  return <View accessibilityLabel={user.displayName} style={{width:size,height:size,borderRadius:radius,backgroundColor:color,overflow:'hidden',alignItems:'center',justifyContent:'center',borderWidth:1,borderColor:t.glassBorder}}><LinearGradient colors={['rgba(255,255,255,0.27)','rgba(255,255,255,0.02)','rgba(4,15,50,0.12)']} start={{x:0,y:0}} end={{x:1,y:1}} style={StyleSheet.absoluteFill}/><Text style={{fontSize:size*.32,fontWeight:'700',letterSpacing:-.5,color:avatarTextColor(color)}}>{initials}</Text></View>;
+  return <View accessibilityLabel={user.displayName} style={{width:size,height:size,borderRadius:radius,backgroundColor:color,overflow:'hidden',alignItems:'center',justifyContent:'center'}}><LinearGradient colors={orbColors(color)} start={{x:.9,y:1}} end={{x:.1,y:0}} style={StyleSheet.absoluteFill}/><LinearGradient colors={['rgba(255,255,255,0.42)','rgba(255,255,255,0.06)','rgba(255,255,255,0)']} locations={[0,.38,.6]} start={{x:.12,y:.02}} end={{x:.7,y:.8}} style={StyleSheet.absoluteFill}/><Text style={{fontSize:size*.32,fontWeight:'700',letterSpacing:-.5,color:avatarTextColor(color)}}>{initials}</Text></View>;
 }
 
 export function AttachmentCard({attachment,api,onPress,compact=false}:{attachment:Attachment;api:Api;onPress:()=>void;compact?:boolean}) {
