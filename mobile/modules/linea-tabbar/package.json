@@ -1,0 +1,8 @@
+{
+  "name": "linea-tabbar",
+  "version": "0.1.0",
+  "private": true,
+  "description": "The phone's tab bar drawn by the system itself: Liquid Glass, a capsule with a trail, the list of the other sections",
+  "license": "AGPL-3.0-only",
+  "main": "index.ts"
+}

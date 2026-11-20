@@ -74,7 +74,7 @@ const HINT_KEY = 'linea.hint.bar-scrub.v1', HINT_STARTS = 6;
 let hint = false;
 const listeners = new Set<() => void>();
 void AsyncStorage.getItem(HINT_KEY).then(value => { const seen = Number(value) || 0; if (value !== 'used' && seen < HINT_STARTS) { hint = true; listeners.forEach(l => l()); void AsyncStorage.setItem(HINT_KEY, String(seen + 1)).catch(() => {}); } }).catch(() => {});
-function gestureUsed() { if (!hint) return; hint = false; listeners.forEach(l => l()); void AsyncStorage.setItem(HINT_KEY, 'used').catch(() => {}); }
+export function gestureUsed() { if (!hint) return; hint = false; listeners.forEach(l => l()); void AsyncStorage.setItem(HINT_KEY, 'used').catch(() => {}); }
 /** Whether to show the words about the gesture above the bar. */
 export const useBarHint = () => useSyncExternalStore(l => { listeners.add(l); return () => { listeners.delete(l); }; }, () => hint, () => hint);
 
