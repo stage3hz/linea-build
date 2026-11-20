@@ -1,0 +1,8 @@
+.gradle/
+.kotlin/
+build/
+local.properties
+*.iml
+.idea/
+# The request-signing key is injected at build time and never committed.
+attest.properties
