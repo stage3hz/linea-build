@@ -8,7 +8,7 @@
 name: iOS Simulator UI check
 on:
   push:
-    branches: [main, next]
+    branches: [main, walk]
     paths: ['mobile/src/**', 'mobile/modules/**', 'tools/maestro/**', 'tools/sim-tls-proxy.mjs', '.github/workflows/ios-simulator-ui.yml', '!mobile/src/**/*.web.ts', '!mobile/src/**/*.web.tsx']
   workflow_dispatch:
     inputs:
