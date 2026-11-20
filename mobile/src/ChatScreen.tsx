@@ -19,7 +19,7 @@ import { openLink } from './format/FormattedText';
 import { activeTypes } from './format/entities';
 import { countChats } from './plural';
 import React, { useEffect, useMemo, useRef, useState } from 'react';
-import { ActivityIndicator, FlatList, Keyboard, Modal, Platform, Pressable, ScrollView, View } from 'react-native';
+import { ActivityIndicator, FlatList, Keyboard, Modal, Platform, Pressable, ScrollView, View, useWindowDimensions } from 'react-native';
 import Animated, { runOnJS, scrollTo, useAnimatedRef, useAnimatedScrollHandler, useAnimatedStyle, useSharedValue } from 'react-native-reanimated';
 import { setVisibleNotes } from './videonote/playback';
 import { composerValue, typedInto } from './editDraft';
@@ -260,6 +260,7 @@ export function ChatScreen({api,user,chat,store,onBack,wide=false,onOpenMusic}: 
     return stabilizeById(rowCache.current,visible.reverse(),row=>row.key);
   },[view,pending,searchOpen,needle,user.id]);
   const preferences=useChatPreferences();const metrics=textMetrics(preferences.textSize);
+  const windowWidth=useWindowDimensions().width;
   const wallpaper=useWallpaper(chat.id);
   // No wallpaper chosen: the open look — the peer's light on their side of the screen and words without bubbles.
   const openLook=wallpaper.kind==='preset'&&!WALLPAPERS.find(item=>item.id===wallpaper.id)?.colors;
@@ -638,7 +639,7 @@ const [wallpaperOpen,setWallpaperOpen]=useState(false);
   // this every cell wrapper of the list re-rendered with it (measured: 240 of 652 renders per key at 60 bubbles).
   const noteActs=useRef({retry:retryVideoNote,discard:discardVideoNote});noteActs.current={retry:retryVideoNote,discard:discardVideoNote};
   const noteRetry=useCallback((id:string)=>noteActs.current.retry(id),[]),noteDiscard=useCallback((id:string)=>noteActs.current.discard(id),[]);
-  const hasMore=!!store.hasMore[chat.id],loadingMore=store.messageLoading,loadMessages=store.loadMessages,listSide=wide?(openLook?'13%' as const:28):(openLook?14:9),listHeaderSide=listEdges.headerSide,dismissMode=dismissSetup.mode,accent=t.accent;
+  const hasMore=!!store.hasMore[chat.id],loadingMore=store.messageLoading,loadMessages=store.loadMessages,listSide=wide?(openLook?'13%' as const:28):windowWidth>720?Math.round((windowWidth-680)/2):(openLook?14:9),listHeaderSide=listEdges.headerSide,dismissMode=dismissSetup.mode,accent=t.accent;
   // History loads by itself when the list is scrolled towards its older end (the button below stays as a fallback).
   const olderBusy=useRef(false);
   const loadOlder=useCallback(()=>{if(!hasMore||loadingMore||olderBusy.current)return;olderBusy.current=true;void loadMessages(chat.id,true).catch(()=>{}).finally(()=>{olderBusy.current=false;});},[hasMore,loadingMore,loadMessages,chat.id]);
