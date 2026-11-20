@@ -1,5 +1,5 @@
 import React, { createContext, useCallback, useContext, useEffect, useRef, useState, useSyncExternalStore } from 'react';
-import Animated, { FadeIn, FadeInDown, FadeInLeft, FadeInRight } from 'react-native-reanimated';
+import Animated, { Easing, FadeIn, FadeInDown, FadeInLeft, FadeInRight, useAnimatedStyle, useSharedValue, withTiming } from 'react-native-reanimated';
 import { ActivityIndicator, Platform, Pressable, StyleSheet, View, type LayoutChangeEvent } from 'react-native';
 import { GlassSurface } from '../glass';
 import * as FileSystem from 'expo-file-system/legacy';
@@ -7,7 +7,7 @@ import {
   AudioQuality, IOSOutputFormat, requestRecordingPermissionsAsync, setAudioModeAsync, setIsAudioActiveAsync,
   useAudioPlayer, useAudioPlayerStatus, useAudioRecorder, useAudioRecorderState, type AudioRecorder, type RecordingOptions,
 } from 'expo-audio';
-import { Text } from '../typography';
+import { MONO, Text } from '../typography';
 import { Icon } from '../components';
 import { useTheme } from '../theme';
 import type { Api } from '../api';
@@ -482,41 +482,62 @@ function RateToast({ text, rate }: { text: string; rate: number }) {
 
 // Telegram's voice bubble: play button, the take's waveform (played part bright, tap or drag to seek),
 // time under it, speed while playing. Messages without a waveform (older apps) show even low bars.
+/**
+ * A voice message in a chat. The wrapper reads the player; the picture itself is a separate memoised component
+ * that gets plain values, so while one message plays only that one is redrawn — the player's position used to
+ * redraw every voice message on screen seven times a second.
+ */
 export function VoiceBubble({ attachment, mine, selecting = false, onLongPress }: { attachment: Attachment; mine: boolean; selecting?: boolean; onLongPress?: (pageY: number) => void }) {
-  const t = useTheme();
   const voice = useContext(VoiceContext);
   const prefetch = voice?.prefetch;
   useEffect(() => { prefetch?.(attachment); }, [attachment.id, prefetch]);
+  const actions = useRef(voice); actions.current = voice;
+  const held = useRef(onLongPress); held.current = onLongPress;
+  if (!voice) return null;
+  const active = voice.activeId === attachment.id;
+  const total = (active && voice.duration ? voice.duration * 1000 : 0) || attachment.media?.durationMs || 0;
+  const position = active ? voice.position * 1000 : 0;
+  return <VoiceBubbleView attachment={attachment} mine={mine} selecting={selecting} canHold={!!onLongPress} held={held} actions={actions}
+    active={active} playing={active && voice.playing} loading={voice.loadingId === attachment.id} total={total} position={position}
+    rate={active ? voice.rate : 1} error={voice.failedId === attachment.id ? voice.error : ''} />;
+}
+
+const WAVE_HEIGHT = 30, BAR = 2.5, BAR_STEP = 4.5;
+const VoiceBubbleView = React.memo(function VoiceBubbleView({ attachment, selecting, canHold, held, actions, active, playing, loading, total, position, rate, error }: {
+  attachment: Attachment; mine: boolean; selecting: boolean; canHold: boolean; held: React.MutableRefObject<((pageY: number) => void) | undefined>;
+  actions: React.MutableRefObject<VoicePlayback | null>; active: boolean; playing: boolean; loading: boolean; total: number; position: number; rate: number; error: string;
+}) {
+  const t = useTheme();
   const [width, setWidth] = useState(1);
   const touch = useRef<{ x: number; long: boolean; moved: boolean } | null>(null);
   const hold = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
   useEffect(() => () => { if (hold.current) clearTimeout(hold.current); }, []);
-  // Stored bars (100 now, 48 in 0.14.5–0.14.6) fitted to the bubble: one 2.5 pt bar per 4 pt.
-  const bars = React.useMemo(() => fitWaveform(decodeWaveform(attachment.media?.waveform) || Array.from({ length: 48 }, () => .12), Math.max(12, Math.floor(width / 4))), [attachment.media?.waveform, width]);
-  if (!voice) return null;
-  const active = voice.activeId === attachment.id;
-  const loading = voice.loadingId === attachment.id;
-  const total = (active && voice.duration ? voice.duration * 1000 : 0) || attachment.media?.durationMs || 0;
-  const position = active ? voice.position * 1000 : 0;
+  // Stored bars (100 now, 48 in 0.14.5–0.14.6) fitted to the width.
+  const bars = React.useMemo(() => fitWaveform(decodeWaveform(attachment.media?.waveform) || Array.from({ length: 48 }, () => .12), Math.max(12, Math.floor(width / BAR_STEP))), [attachment.media?.waveform, width]);
   const progress = total > 0 ? Math.min(1, position / total) : 0;
-  const playing = active && voice.playing;
-  // The whole right part (waveform and time) belongs to the player, as in Telegram: a tap there plays (or seeks
-  // when playing), a drag scrubs, a long press opens the message menu. Only the 24-pt waveform used to take the
-  // touch, so a tap a little above or below it went to the message and opened its menu instead of playing;
-  // and a touch on a bar measured x from that bar, so seeking jumped to the start. The bars ignore touches now.
-  // Not playing yet: start on release, so a scroll that begins on the bubble does not start playback.
-  const seekAt = (x: number) => { if (active) voice.seek(attachment, Math.max(0, Math.min(1, x / width))); };
-  return <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10, paddingVertical: 4, width: 240 }}>
-    <Pressable accessibilityRole="button" accessibilityLabel={playing ? 'Пауза' : 'Прослушать голосовое сообщение'} onPress={() => voice.toggle(attachment)} style={({ pressed }) => ({ width: 44, height: 44, borderRadius: 22, backgroundColor: t.accent, alignItems: 'center', justifyContent: 'center', opacity: pressed ? .75 : 1 })}>
-      {loading ? <ActivityIndicator size="small" color={t.onAccent} /> : <Icon name={playing ? 'pause' : 'play'} color={t.onAccent} size={21} />}
+  // The played part is the same wave in full light, uncovered from the left. The edge glides between the
+  // player's reports (it reports every 150 ms) instead of stepping, and moves by transforms only.
+  const shown = useSharedValue(progress);
+  useEffect(() => { shown.value = playing ? withTiming(progress, { duration: 170, easing: Easing.linear }) : progress; }, [progress, playing, shown]);
+  const cover = useAnimatedStyle(() => ({ transform: [{ translateX: -(1 - shown.value) * width }] }), [width]);
+  const uncover = useAnimatedStyle(() => ({ transform: [{ translateX: (1 - shown.value) * width }] }), [width]);
+  const wave = (color: string) => bars.map((value, index) => <View key={index} style={{ width: BAR, borderRadius: BAR, height: Math.max(BAR, value * (WAVE_HEIGHT - 2)), backgroundColor: color }} />);
+  const row = { height: WAVE_HEIGHT, flexDirection: 'row' as const, alignItems: 'center' as const, justifyContent: 'space-between' as const };
+  // The whole right part belongs to the player: a tap plays (or seeks while playing), a drag scrubs, a long
+  // press opens the message menu. Not playing yet: start on release, so a scroll that begins here does not start it.
+  const seekAt = (x: number) => { if (active) actions.current?.seek(attachment, Math.max(0, Math.min(1, x / width))); };
+  const toggle = () => actions.current?.toggle(attachment);
+  return <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12, paddingVertical: 4, width: 262 }}>
+    <Pressable accessibilityRole="button" accessibilityLabel={playing ? 'Пауза' : 'Прослушать голосовое сообщение'} onPress={toggle} style={({ pressed }) => ({ width: 44, height: 44, borderRadius: 22, backgroundColor: t.text, alignItems: 'center', justifyContent: 'center', opacity: pressed ? .75 : 1 })}>
+      {loading ? <ActivityIndicator size="small" color={t.bg} /> : <View style={{ marginLeft: playing ? 0 : 2 }}><Icon name={playing ? 'pause' : 'play'} color={t.bg} size={20} /></View>}
     </Pressable>
-    <View style={{ flex: 1, gap: 4, paddingVertical: 6, marginVertical: -6 }} onLayout={(event: LayoutChangeEvent) => setWidth(Math.max(1, event.nativeEvent.layout.width))}
+    <View style={{ flex: 1, gap: 3, paddingVertical: 6, marginVertical: -6 }} onLayout={(event: LayoutChangeEvent) => setWidth(Math.max(1, event.nativeEvent.layout.width))}
       onStartShouldSetResponder={() => !selecting} onMoveShouldSetResponder={() => !selecting && active}
       onResponderTerminationRequest={() => !active}
       onResponderGrant={event => {
         const { locationX, pageX, pageY } = event.nativeEvent; touch.current = { x: pageX, long: false, moved: false };
         if (hold.current) clearTimeout(hold.current);
-        if (onLongPress) hold.current = setTimeout(() => { hold.current = undefined; if (touch.current && !touch.current.moved) { touch.current.long = true; onLongPress(pageY); } }, 400);
+        if (canHold) hold.current = setTimeout(() => { hold.current = undefined; if (touch.current && !touch.current.moved) { touch.current.long = true; held.current?.(pageY); } }, 400);
         seekAt(locationX);
       }}
       onResponderMove={event => {
@@ -524,17 +545,17 @@ export function VoiceBubble({ attachment, mine, selecting = false, onLongPress }
         if (at && Math.abs(pageX - at.x) > 6) { at.moved = true; if (hold.current) { clearTimeout(hold.current); hold.current = undefined; } }
         if (active) seekAt(locationX);
       }}
-      onResponderRelease={() => { if (hold.current) { clearTimeout(hold.current); hold.current = undefined; } const at = touch.current; touch.current = null; if (!at?.long && !active) voice.toggle(attachment); }}
+      onResponderRelease={() => { if (hold.current) { clearTimeout(hold.current); hold.current = undefined; } const at = touch.current; touch.current = null; if (!at?.long && !active) toggle(); }}
       onResponderTerminate={() => { if (hold.current) { clearTimeout(hold.current); hold.current = undefined; } touch.current = null; }}>
-      <View pointerEvents="none" accessibilityRole="adjustable" accessibilityLabel="Перемотка голосового"
-        style={{ height: 24, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
-        {bars.map((value, index) => <View key={index} style={{ width: 2.5, borderRadius: 2, height: Math.max(2.5, value * 22), backgroundColor: (index + .5) / bars.length <= progress ? t.accent : (mine ? 'rgba(127,140,170,0.45)' : t.muted), opacity: (index + .5) / bars.length <= progress ? 1 : .55 }} />)}
+      <View pointerEvents="none" accessibilityRole="adjustable" accessibilityLabel="Перемотка голосового" style={{ height: WAVE_HEIGHT, overflow: 'hidden' }}>
+        <View style={[row, { opacity: .3 }]}>{wave(t.text)}</View>
+        <Animated.View style={[StyleSheet.absoluteFill, { overflow: 'hidden' }, cover]}><Animated.View style={[row, uncover]}>{wave(t.text)}</Animated.View></Animated.View>
       </View>
-      <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
-        <Text style={{ color: t.muted, fontSize: 11, fontVariant: ['tabular-nums'] }}>{active && position > 0 ? formatVoiceTime(position) : formatVoiceTime(total)}</Text>
-        {active ? <Pressable accessibilityRole="button" accessibilityLabel={`Скорость ${voice.rate}×. Изменить`} onPress={voice.cycleRate} hitSlop={8} style={{ marginLeft: 'auto', paddingHorizontal: 6, paddingVertical: 1, borderRadius: 6, backgroundColor: voice.rate !== 1 ? t.accent : (mine ? 'rgba(127,140,170,0.3)' : t.surface2) }}><Text style={{ color: voice.rate !== 1 ? t.onAccent : t.text, fontSize: 11, fontWeight: '800' }}>{voice.rate === 1.5 ? '1,5×' : `${voice.rate}×`}</Text></Pressable> : null}
+      <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, minHeight: 16 }}>
+        <Text style={{ color: t.muted, fontSize: 11, fontFamily: MONO, letterSpacing: .3 }}>{active && position > 0 ? `${formatVoiceTime(position)} / ${formatVoiceTime(total)}` : formatVoiceTime(total)}</Text>
+        {active ? <Pressable accessibilityRole="button" accessibilityLabel={`Скорость ${rate}×. Изменить`} onPress={() => actions.current?.cycleRate()} hitSlop={8} style={{ marginLeft: 'auto', paddingHorizontal: 7, paddingVertical: 1, borderRadius: 8, borderWidth: 1, borderColor: rate !== 1 ? t.text : t.border, backgroundColor: rate !== 1 ? t.text : 'transparent' }}><Text style={{ color: rate !== 1 ? t.bg : t.text, fontSize: 11, fontWeight: '800' }}>{rate === 1.5 ? '1,5×' : `${rate}×`}</Text></Pressable> : null}
       </View>
-      {voice.failedId === attachment.id && voice.error ? <Text style={{ color: t.danger, fontSize: 11 }}>{voice.error}</Text> : null}
+      {error ? <Text style={{ color: t.danger, fontSize: 11 }}>{error}</Text> : null}
     </View>
   </View>;
-}
+});
