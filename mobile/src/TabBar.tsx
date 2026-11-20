@@ -105,7 +105,7 @@ function Under({ index, far, near }: { index: number; far: React.ReactNode; near
     <Animated.View pointerEvents="none" style={[{ position: 'absolute', left: 0, right: 0, top: 0, bottom: 0, alignItems: 'center', justifyContent: 'center' }, here]}>{near}</Animated.View>
   </View>;
 }
-/** The mark of the active tab: a short bright line at the bar's top edge and a faint spot of light under the icon. */
+/** The mark of the active tab: a faint spot of light under the icon (the bar's own glow stands under it too). */
 function TabLight({ color, width }: { color: string; width: number }) {
   const wide = Math.max(60, width * 1.5), tall = 64;
   return <View pointerEvents="none" style={{ flex: 1, alignItems: 'center', justifyContent: 'center' }}>
@@ -117,7 +117,6 @@ function TabLight({ color, width }: { color: string; width: number }) {
         <Rect x="0" y="0" width={wide} height={tall} fill="url(#tablight)" />
       </Svg>
     </View>
-    <View style={{ position: 'absolute', top: -2, width: 22, height: 3, borderRadius: 2, backgroundColor: color, shadowColor: color, shadowOpacity: 0.9, shadowRadius: 6, shadowOffset: { width: 0, height: 0 } }} />
   </View>;
 }
 
