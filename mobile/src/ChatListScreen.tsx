@@ -1,4 +1,6 @@
-import { TabBar } from './TabBar';
+import { BarGlow, TabBar, type GlowColors } from './TabBar';
+import { useMusic } from './music/MusicProvider';
+import { coverGlow, useCoverTints } from './design/coverTint';
 import { badgeText, useUnreadTotal } from './unreadBadge';
 import { inviteCodeFrom, withoutInviteLink } from './communities/types';
 import React, { memo, useCallback, useEffect, useMemo, useRef, useState } from 'react';
@@ -382,12 +384,23 @@ const [removeAsk,setRemoveAsk]=useState<Chat[]|null>(null);const [menu,setMenu]=
   </View>;
 }
 
+// The light under the bar's glass. iPhone glass and the browser's show what lies behind them, so the light is put
+// behind the glass; Android's glass looks only at the page behind the bar, so there the light is drawn on it.
+const GLOW_UNDER=Platform.OS!=='android';
+const CALM_DARK:GlowColors=['#E9EDF5','#7F8EA8','#C9D2E0'],CALM_LIGHT:GlowColors=['#8E99AE','#B4BCCB','#9AA5B8'];
+/** Calm silver while nothing plays; the three colours of the cover while a track with a cover plays. */
+function TabsGlow(){
+  const t=useTheme();const music=useMusic();useCoverTints();
+  const cover=music.current&&music.playing?coverGlow(music.current):null;
+  return <BarGlow colors={cover??(t.dark?CALM_DARK:CALM_LIGHT)} radius={27} inset={3.6} strength={cover?1:t.dark?.55:.4}/>;
+}
+
 export function MessengerTabs({onProfile,onNewChat,onMusic,onAI,onChats,activeTab='chats'}: Navigation) {
   const t=useTheme();const insets=useSafeAreaInsets();const tabBadges:Record<string,number>=useTabBadges(useUnreadTotal()+useMarkedExtra());
   const roomsAwake=useRoomsAwake();
   const narrow=useWindowDimensions().width<350; // e.g. 320 pt phones, a folded Galaxy Fold cover screen
   // The music screen shows its own player above the same tab bar; everywhere else it sits here, above the tabs.
-  return <><VoiceBar onOpen={communityId=>navigate({to:'channels',communityId})}/>{activeTab!=='music'?<MiniPlayer onOpen={onMusic}/>:null}<SnowLedge id="tabs" radius={31} max={7} inset={{left:narrow?8:12,right:narrow?8:12,top:5,bottom:tabBarMarginBottom(Platform.OS==='ios',insets.bottom)}}><GlassSurface pure lens material="regular" radius={31} style={{marginHorizontal:narrow?8:12,marginBottom:tabBarMarginBottom(Platform.OS==='ios',insets.bottom),marginTop:5}} contentStyle={{paddingHorizontal:3.6,paddingVertical:3}}>{/* 3.6 at the ends: the pill of the first and last tab then sits as far from the bar's end as from its top and bottom (6.6 pt), concentric with the bar's rounded ends (simulator: 5 pt vs 6.7 pt with 2) */}
+  return <><VoiceBar onOpen={communityId=>navigate({to:'channels',communityId})}/>{activeTab!=='music'?<MiniPlayer onOpen={onMusic}/>:null}<SnowLedge id="tabs" radius={27} max={7} inset={{left:narrow?8:14,right:narrow?8:14,top:5,bottom:tabBarMarginBottom(Platform.OS==='ios',insets.bottom)}}><View style={{marginHorizontal:narrow?8:14,marginBottom:tabBarMarginBottom(Platform.OS==='ios',insets.bottom),marginTop:5}}>{GLOW_UNDER?<TabsGlow/>:null}<GlassSurface pure lens material="regular" radius={27} contentStyle={{paddingHorizontal:3.6,paddingVertical:3}}>{GLOW_UNDER?null:<TabsGlow/>}{/* 3.6 at the ends: the pill of the first and last tab then sits as far from the bar's end as from its top and bottom (6.6 pt), concentric with the bar's rounded ends (simulator: 5 pt vs 6.7 pt with 2) */}
     {/* «Люди» and «Каналы» share one slot (swipe up on it to switch, remembered); five tabs, each with its own tap animation. */}
     <TabBar active={activeTab==='people'?'people':activeTab==='channels'?'channels':activeTab==='profile'?'profile':activeTab==='music'?'music':activeTab==='ai'?'ai':'chats'} items={[
       {id:'ai',label:'AI',icon:'sparkles-outline',activeIcon:'sparkles',badge:0,onPress:onAI},
@@ -397,7 +410,7 @@ export function MessengerTabs({onProfile,onNewChat,onMusic,onAI,onChats,activeTa
       {id:'music',label:'Музыка',icon:'headset-outline',activeIcon:'headset',badge:0,onPress:onMusic},
       {id:'profile',label:'Настройки',icon:'settings-outline',activeIcon:'settings',badge:0,onPress:onProfile},
     ]}/>
-  </GlassSurface></SnowLedge></>;
+  </GlassSurface></View></SnowLedge></>;
 }
 
 /** The list shows an invite as words, as the chat shows it as a card (not the raw https://…/i/… link). */

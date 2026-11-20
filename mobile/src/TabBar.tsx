@@ -3,9 +3,10 @@
 //   sparkles twinkle…) and the tab presses in under the finger;
 // • the selection is a pill; put a finger on the bar and slide (no need to lift or wait) — it becomes a
 //   larger lens that follows the finger, letting go opens the tab under it;
-// • one slot holds «Люди» or «Каналы»: swipe up on it to switch; the choice is remembered and stays
-//   in the bar until switched back. It rolls like a carousel — the same quick roll however hard you swipe. (Tablets and PC show both in their rail.)
-import React, { useEffect, useState, useSyncExternalStore } from 'react';
+// • no captions: the icons speak, the names stay for screen readers;
+// • one slot holds «Люди» or «Каналы»: swipe up on it to switch (two dots beside it show which of the two is
+//   up, like a stack of widgets); the choice is remembered and stays in the bar until switched back. It rolls like a carousel — the same quick roll however hard you swipe. (Tablets and PC show both in their rail.)
+import React, { memo, useEffect, useState, useSyncExternalStore } from 'react';
 import { View, Platform } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { Gesture, GestureDetector } from 'react-native-gesture-handler';
@@ -104,23 +105,19 @@ function Under({ index, far, near }: { index: number; far: React.ReactNode; near
     <Animated.View pointerEvents="none" style={[{ position: 'absolute', left: 0, right: 0, top: 0, bottom: 0, alignItems: 'center', justifyContent: 'center' }, here]}>{near}</Animated.View>
   </View>;
 }
-// The browser cannot shrink a caption to fit (it cut «Настройки» to «Настрой…»): there a long caption is set a point smaller and given more room.
-const SHRINKS = Platform.OS !== 'web';
-const TabLabel = ({ text, color }: { text: string; color: string }) => <Text numberOfLines={1} adjustsFontSizeToFit minimumFontScale={.8} maxFontSizeMultiplier={1} style={{ maxWidth: CAPTION_MAX + (SHRINKS ? 0 : 10), fontSize: !SHRINKS && text.length > 8 ? 8 : 9, lineHeight: 12, letterSpacing: -.25, color, fontWeight: '600' }}>{text}</Text>;
-
-/** The light under the active tab: a soft spot that fades out sideways and a short bright line at the bottom edge. */
+/** The mark of the active tab: a short bright line at the bar's top edge and a faint spot of light under the icon. */
 function TabLight({ color, width }: { color: string; width: number }) {
-  const wide = Math.max(60, width * 1.5), tall = 74;
+  const wide = Math.max(60, width * 1.5), tall = 64;
   return <View pointerEvents="none" style={{ flex: 1, alignItems: 'center', justifyContent: 'center' }}>
     <View style={{ position: 'absolute', width: wide, height: tall, top: -8 }}>
       <Svg width={wide} height={tall}>
         <Defs><RadialGradient id="tablight" cx="50%" cy="58%" rx="50%" ry="50%" gradientUnits="objectBoundingBox">
-          <Stop offset="0" stopColor={color} stopOpacity={0.3} /><Stop offset="0.5" stopColor={color} stopOpacity={0.1} /><Stop offset="1" stopColor={color} stopOpacity={0} />
+          <Stop offset="0" stopColor={color} stopOpacity={0.16} /><Stop offset="0.5" stopColor={color} stopOpacity={0.05} /><Stop offset="1" stopColor={color} stopOpacity={0} />
         </RadialGradient></Defs>
         <Rect x="0" y="0" width={wide} height={tall} fill="url(#tablight)" />
       </Svg>
     </View>
-    <View style={{ position: 'absolute', bottom: -1, width: 22, height: 3, borderRadius: 2, backgroundColor: color, shadowColor: color, shadowOpacity: 0.9, shadowRadius: 6, shadowOffset: { width: 0, height: 0 } }} />
+    <View style={{ position: 'absolute', top: -2, width: 22, height: 3, borderRadius: 2, backgroundColor: color, shadowColor: color, shadowOpacity: 0.9, shadowRadius: 6, shadowOffset: { width: 0, height: 0 } }} />
   </View>;
 }
 
@@ -143,22 +140,17 @@ function TabIcon({ item, active, kick, pressed, index }: { item: TabItem; active
   </Animated.View>;
 }
 
-// The bar is a capsule: at caption height its ends curve in by ~6.5 pt, so the long caption of the last tab
-// («Настройки») touched the glass edge. The first and last tabs sit this much closer to the middle.
+// The first and last tabs sit a little closer to the middle: the bar is a capsule and its ends curve in.
 const EDGE_SHIFT = 5;
-// Captions: 9 pt, slightly tightened, and never wider than this — a longer one shrinks instead of sticking out.
-const CAPTION_MAX = 46;
-const REEL = 40.5; // one carousel row: icon (27.5) + gap (1) + label (12)
+const REEL = 31.5; // one carousel row: the icon (27.5) and a little air
 
 /** «Люди» / «Каналы» as a vertical carousel: rows [Люди, Каналы, Люди] rolled by `reel` (0 → 1 → 2). */
 function SlotReel({ reel, people, channels, active, kick, pressed, index }: { reel: SharedValue<number>; people: TabItem; channels: TabItem; active: boolean; kick: SharedValue<number>; pressed: SharedValue<number>; index: number }) {
-  const t = useTheme();
   const roll = useAnimatedStyle(() => ({ transform: [{ translateY: -reel.value * REEL }] }));
-  const row = (item: TabItem, key: string) => <View key={key} style={{ height: REEL, alignItems: 'center', justifyContent: 'center', gap: 1 }}>
+  const row = (item: TabItem, key: string) => <View key={key} style={{ height: REEL, alignItems: 'center', justifyContent: 'center' }}>
     <TabIcon item={item} active={active} kick={kick} pressed={pressed} index={index} />
-    <Under index={index} far={<TabLabel text={item.label} color={t.muted} />} near={<TabLabel text={item.label} color={t.dark ? t.text : t.accent} />} />
   </View>;
-  return <View style={{ height: REEL, overflow: 'hidden', alignSelf: 'stretch' }}>
+  return <View style={{ height: REEL, overflow: 'hidden', alignSelf: 'stretch', paddingTop: 0 }}>
     <Animated.View style={roll}>{row(people, 'a')}{row(channels, 'b')}{row(people, 'c')}</Animated.View>
   </View>;
 }
@@ -238,7 +230,7 @@ export function TabBar({ items, active }: { items: TabItem[]; active: TabId }) {
   const pillInner = useAnimatedStyle(() => ({ opacity: 0.86 + lens.value * 0.14, transform: [{ scale: 1 + lens.value * 0.18 }] }));
 
   return <GestureDetector gesture={gesture}>
-    <View collapsable={false} onLayout={e => setWidth(e.nativeEvent.layout.width)} accessibilityRole="tablist" style={{ flexDirection: 'row', alignItems: 'center', minHeight: 57 }}>
+    <View collapsable={false} onLayout={e => setWidth(e.nativeEvent.layout.width)} accessibilityRole="tablist" style={{ flexDirection: 'row', alignItems: 'center', minHeight: 48 }}>
       {width ? <Animated.View pointerEvents="none" style={[{ position: 'absolute', left: 0, width: cell, padding: 2 }, pillStyle]}>
         <Animated.View style={[{ flex: 1 }, pillInner]}><TabLight color={t.dark ? '#FFFFFF' : t.accent} width={cell} /></Animated.View>
       </Animated.View> : null}
@@ -246,15 +238,64 @@ export function TabBar({ items, active }: { items: TabItem[]; active: TabId }) {
         accessibilityLabel={`${item.label}${item.badge ? `, ${item.badge}` : ''}${slotted && other ? `. Смахни вверх — ${other.label}` : ''}`} accessibilityState={{ selected: on }}
         accessibilityActions={slotted ? [{ name: 'activate' }, { name: 'magicTap', label: other?.label }] : undefined}
         onAccessibilityAction={slotted ? event => { if (event.nativeEvent.actionName === 'magicTap') switchSlot(); else open(index); } : undefined}
-        onAccessibilityTap={() => open(index)} style={{ flex: 1, alignItems: 'center', justifyContent: 'center', gap: 1, paddingVertical: 7, transform: [{ translateX: index === 0 ? EDGE_SHIFT : index === n - 1 ? -EDGE_SHIFT : 0 }] }}>
+        onAccessibilityTap={() => open(index)} style={{ flex: 1, alignItems: 'center', justifyContent: 'center', paddingVertical: 8, transform: [{ translateX: index === 0 ? EDGE_SHIFT : index === n - 1 ? -EDGE_SHIFT : 0 }] }}>
         {slotted && other ? <SlotReel reel={reel} people={item.id === 'people' ? item : other} channels={item.id === 'channels' ? item : other} active={on} kick={kicks[index]} pressed={pressed} index={index} /> : <>
           <TabIcon item={item} active={on} kick={kicks[index]} pressed={pressed} index={index} />
-          <Under index={index} far={<TabLabel text={item.label} color={t.muted} />} near={<TabLabel text={item.label} color={t.dark ? t.text : t.accent} />} />
         </>}
-        {/* A small hint that the slot switches: a dot (with the other section's unread count) above it. */}
-        {slotted && other ? other.badge ? <View pointerEvents="none" accessibilityElementsHidden style={{ position: 'absolute', top: -2, minWidth: 18, height: 14, paddingHorizontal: 4, borderRadius: 7, backgroundColor: t.accent, alignItems: 'center', justifyContent: 'center' }}><Text maxFontSizeMultiplier={1} style={{ color: t.onAccent, fontSize: 9, fontWeight: '800' }}>{badgeText(other.badge)}</Text></View>
-          : <View pointerEvents="none" style={{ position: 'absolute', top: 1, width: 14, height: 3, borderRadius: 2, backgroundColor: t.muted, opacity: .35 }} /> : null}
+        {/* The slot holds two sections: two dots beside it, the bright one is the section that is up (as on a stack of widgets). */}
+        {slotted && other ? <View pointerEvents="none" accessibilityElementsHidden importantForAccessibility="no-hide-descendants" style={{ position: 'absolute', left: '50%', marginLeft: 20, top: '50%', marginTop: -7, gap: 4 }}>
+          {(['people', 'channels'] as const).map(id => <View key={id} style={{ width: 5, height: 5, borderRadius: 3, backgroundColor: t.text, opacity: current === id ? 1 : 0.32 }} />)}
+        </View> : null}
+        {slotted && other?.badge ? <View pointerEvents="none" accessibilityElementsHidden style={{ position: 'absolute', top: -1, minWidth: 18, height: 14, paddingHorizontal: 4, borderRadius: 7, backgroundColor: t.accent, alignItems: 'center', justifyContent: 'center' }}><Text maxFontSizeMultiplier={1} style={{ color: t.onAccent, fontSize: 9, fontWeight: '800' }}>{badgeText(other.badge)}</Text></View> : null}
       </View>; })}
     </View>
   </GestureDetector>;
 }
+
+export type GlowColors = [string, string, string];
+const TABS_IN_BAR = 5;
+function GlowSides({ colors, width, height, id }: { colors: GlowColors; width: number; height: number; id: string }) {
+  return <Svg width={width} height={height}>
+    <Defs>
+      <RadialGradient id={id + 'l'} cx="20%" cy="100%" rx="36%" ry="95%" gradientUnits="objectBoundingBox"><Stop offset="0" stopColor={colors[1]} stopOpacity={0.62} /><Stop offset="1" stopColor={colors[1]} stopOpacity={0} /></RadialGradient>
+      <RadialGradient id={id + 'r'} cx="82%" cy="100%" rx="36%" ry="95%" gradientUnits="objectBoundingBox"><Stop offset="0" stopColor={colors[2]} stopOpacity={0.62} /><Stop offset="1" stopColor={colors[2]} stopOpacity={0} /></RadialGradient>
+    </Defs>
+    <Rect x="0" y="0" width={width} height={height} fill={`url(#${id}l)`} /><Rect x="0" y="0" width={width} height={height} fill={`url(#${id}r)`} />
+  </Svg>;
+}
+function GlowSpot({ color, width, height, id }: { color: string; width: number; height: number; id: string }) {
+  return <Svg width={width} height={height}>
+    <Defs><RadialGradient id={id} cx="50%" cy="100%" rx="50%" ry="100%" gradientUnits="objectBoundingBox"><Stop offset="0" stopColor={color} stopOpacity={0.8} /><Stop offset="1" stopColor={color} stopOpacity={0} /></RadialGradient></Defs>
+    <Rect x="0" y="0" width={width} height={height} fill={`url(#${id})`} />
+  </Svg>;
+}
+/**
+ * The light that lives under the bar's glass: two quiet colours at the sides and a brighter one that stands under
+ * the active tab and travels with it. When the colours change (another track, music stopped) the old light
+ * fades into the new one. `inset` is the glass's own side padding, so the spot stands exactly under the tab.
+ */
+export const BarGlow = memo(function BarGlow({ colors, radius, inset = 0, strength = 1 }: { colors: GlowColors; radius: number; inset?: number; strength?: number }) {
+  const [size, setSize] = useState({ width: 0, height: 0 });
+  const key = colors.join();
+  const [pair, setPair] = useState<{ from: GlowColors; to: GlowColors }>({ from: colors, to: colors });
+  const mix = useSharedValue(1);
+  useEffect(() => {
+    if (pair.to.join() === key) return;
+    setPair(now => ({ from: now.to, to: colors })); mix.value = 0; mix.value = withTiming(1, { duration: 520, easing: Easing.out(Easing.quad) });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [key]);
+  const old = useAnimatedStyle(() => ({ opacity: 1 - mix.value })), fresh = useAnimatedStyle(() => ({ opacity: mix.value }));
+  const { width, height } = size, cell = (width - inset * 2) / TABS_IN_BAR, spot = Math.max(120, width * 0.46);
+  const travel = useAnimatedStyle(() => ({ transform: [{ translateX: inset + (Math.max(0, PILL.value) + 0.5) * cell - spot / 2 }] }));
+  const fill = { position: 'absolute', left: 0, top: 0, right: 0, bottom: 0 } as const;
+  return <View pointerEvents="none" onLayout={e => { const { width: w, height: h } = e.nativeEvent.layout; if (Math.abs(w - size.width) > 0.5 || Math.abs(h - size.height) > 0.5) setSize({ width: w, height: h }); }} style={[fill, { borderRadius: radius, overflow: 'hidden', opacity: strength }]}>
+    {width ? <>
+      <Animated.View style={[fill, old]}><GlowSides colors={pair.from} width={width} height={height} id="glowa" /></Animated.View>
+      <Animated.View style={[fill, fresh]}><GlowSides colors={pair.to} width={width} height={height} id="glowb" /></Animated.View>
+      <Animated.View style={[{ position: 'absolute', left: 0, top: 0, width: spot, height }, travel]}>
+        <Animated.View style={[fill, old]}><GlowSpot color={pair.from[0]} width={spot} height={height} id="glowc" /></Animated.View>
+        <Animated.View style={[fill, fresh]}><GlowSpot color={pair.to[0]} width={spot} height={height} id="glowd" /></Animated.View>
+      </Animated.View>
+    </> : null}
+  </View>;
+});
