@@ -55,8 +55,8 @@ export function navInsetShown(navInset: number, progress: number): number {
 export const TAB_BAR_HOME_GAP = 30;
 /** The same gap above the safe area everywhere else (Android navigation bar / gesture pill, no inset, web). */
 export const TAB_BAR_GAP = 10;
-/** Height of the pill itself: a 48 pt row of icons (no captions) and 3 pt of padding above and below. */
-export const TAB_BAR_PILL = 54;
+/** Height of the pill itself: a 56 pt row of icons (no captions) and 3 pt of padding above and below. */
+export const TAB_BAR_PILL = 62;
 
 /** Bottom margin of the tab pill inside the safe area (negative on an iPhone: the pill reaches into the home-indicator inset). */
 export function tabBarMarginBottom(ios: boolean, bottomInset: number): number {

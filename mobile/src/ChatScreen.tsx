@@ -648,7 +648,7 @@ const [wallpaperOpen,setWallpaperOpen]=useState(false);
   // this every cell wrapper of the list re-rendered with it (measured: 240 of 652 renders per key at 60 bubbles).
   const noteActs=useRef({retry:retryVideoNote,discard:discardVideoNote});noteActs.current={retry:retryVideoNote,discard:discardVideoNote};
   const noteRetry=useCallback((id:string)=>noteActs.current.retry(id),[]),noteDiscard=useCallback((id:string)=>noteActs.current.discard(id),[]);
-  const hasMore=!!store.hasMore[chat.id],loadingMore=store.messageLoading,loadMessages=store.loadMessages,listSide=wide?(openLook?'13%' as const:28):windowWidth>720?Math.round((windowWidth-680)/2):(openLook?14:9),listHeaderSide=listEdges.headerSide,dismissMode=dismissSetup.mode,accent=t.accent;
+  const hasMore=!!store.hasMore[chat.id],loadingMore=store.messageLoading,loadMessages=store.loadMessages,listSide=wide?(openLook?'13%' as const:28):windowWidth>720?Math.round((windowWidth-680)/2):(openLook?6:9),listHeaderSide=listEdges.headerSide,dismissMode=dismissSetup.mode,accent=t.accent;
   // History loads by itself when the list is scrolled towards its older end (the button below stays as a fallback).
   const olderBusy=useRef(false);
   const loadOlder=useCallback(()=>{if(!hasMore||loadingMore||olderBusy.current)return;olderBusy.current=true;void loadMessages(chat.id,true).catch(()=>{}).finally(()=>{olderBusy.current=false;});},[hasMore,loadingMore,loadMessages,chat.id]);

@@ -1,4 +1,4 @@
-import { BarGlow, TabBar, type GlowColors } from './TabBar';
+import { BarGlow, TabBar, TabWheel, useBarHint, type GlowColors, type TabItem } from './TabBar';
 import { useMusic } from './music/MusicProvider';
 import { coverGlow, useCoverTints } from './design/coverTint';
 import { badgeText, useUnreadTotal } from './unreadBadge';
@@ -393,24 +393,33 @@ const CALM_DARK:GlowColors=['#E9EDF5','#7F8EA8','#C9D2E0'],CALM_LIGHT:GlowColors
 function TabsGlow(){
   const t=useTheme();const music=useMusic();useCoverTints();
   const cover=music.current&&music.playing?coverGlow(music.current):null;
-  return <BarGlow colors={cover??(t.dark?CALM_DARK:CALM_LIGHT)} radius={27} inset={3.6} strength={cover?1:t.dark?.55:.4}/>;
+  return <BarGlow colors={cover??(t.dark?CALM_DARK:CALM_LIGHT)} radius={31} inset={3.6} strength={cover?1:t.dark?.55:.4}/>;
 }
 
+/** The bar's own width: two icons. */
+const BAR_WIDTH=176;
 export function MessengerTabs({onProfile,onNewChat,onMusic,onAI,onChats,activeTab='chats'}: Navigation) {
   const t=useTheme();const insets=useSafeAreaInsets();const tabBadges:Record<string,number>=useTabBadges(useUnreadTotal()+useMarkedExtra());
   const roomsAwake=useRoomsAwake();
-  const narrow=useWindowDimensions().width<350; // e.g. 320 pt phones, a folded Galaxy Fold cover screen
+  const side=Math.max(8,(useWindowDimensions().width-BAR_WIDTH)/2);
+  // The section under the finger while it goes through them (null: no gesture).
+  const [scrub,setScrub]=useState<number|null>(null);const hint=useBarHint();
+  const items:TabItem[]=[
+    {id:'ai',label:'AI',icon:'sparkles-outline',activeIcon:'sparkles',badge:0,onPress:onAI},
+    {id:'people',label:'Люди',icon:'people-outline',activeIcon:'people',badge:tabBadges.people||0,onPress:onNewChat},
+    {id:'channels',label:'Каналы',icon:'planet-outline',activeIcon:'planet',badge:tabBadges.channels||0,dot:roomsAwake?'#3EE08E':undefined,onPress:()=>navigate({to:'channels'})},
+    {id:'chats',label:'Чаты',icon:'chatbubbles-outline',activeIcon:'chatbubbles',badge:tabBadges.chats||0,onPress:onChats},
+    {id:'music',label:'Музыка',icon:'headset-outline',activeIcon:'headset',badge:0,onPress:onMusic},
+    {id:'profile',label:'Настройки',icon:'settings-outline',activeIcon:'settings',badge:0,onPress:onProfile},
+  ];
   // The music screen shows its own player above the same tab bar; everywhere else it sits here, above the tabs.
-  return <><VoiceBar onOpen={communityId=>navigate({to:'channels',communityId})}/>{activeTab!=='music'?<MiniPlayer onOpen={onMusic}/>:null}<SnowLedge id="tabs" radius={27} max={7} inset={{left:narrow?8:14,right:narrow?8:14,top:5,bottom:tabBarMarginBottom(Platform.OS==='ios',insets.bottom)}}><View style={{marginHorizontal:narrow?8:14,marginBottom:tabBarMarginBottom(Platform.OS==='ios',insets.bottom),marginTop:5}}>{GLOW_UNDER?<TabsGlow/>:null}<GlassSurface pure lens material="regular" radius={27} contentStyle={{paddingHorizontal:3.6,paddingVertical:3}}>{GLOW_UNDER?null:<TabsGlow/>}{/* 3.6 at the ends: the pill of the first and last tab then sits as far from the bar's end as from its top and bottom (6.6 pt), concentric with the bar's rounded ends (simulator: 5 pt vs 6.7 pt with 2) */}
-    {/* «Люди» and «Каналы» share one slot (swipe up on it to switch, remembered); five tabs, each with its own tap animation. */}
-    <TabBar active={activeTab==='people'?'people':activeTab==='channels'?'channels':activeTab==='profile'?'profile':activeTab==='music'?'music':activeTab==='ai'?'ai':'chats'} items={[
-      {id:'ai',label:'AI',icon:'sparkles-outline',activeIcon:'sparkles',badge:0,onPress:onAI},
-      {id:'people',label:'Люди',icon:'people-outline',activeIcon:'people',badge:tabBadges.people||0,onPress:onNewChat},
-      {id:'channels',label:'Каналы',icon:'planet-outline',activeIcon:'planet',badge:tabBadges.channels||0,dot:roomsAwake?'#3EE08E':undefined,onPress:()=>navigate({to:'channels'})},
-      {id:'chats',label:'Чаты',icon:'chatbubbles-outline',activeIcon:'chatbubbles',badge:tabBadges.chats||0,onPress:onChats},
-      {id:'music',label:'Музыка',icon:'headset-outline',activeIcon:'headset',badge:0,onPress:onMusic},
-      {id:'profile',label:'Настройки',icon:'settings-outline',activeIcon:'settings',badge:0,onPress:onProfile},
-    ]}/>
+  return <><VoiceBar onOpen={communityId=>navigate({to:'channels',communityId})}/>{activeTab!=='music'?<MiniPlayer onOpen={onMusic}/>:null}
+    {/* The bar shows two sections of six: the way to the rest, in words, until the gesture has been used once. */}
+    {hint&&scrub===null?<View pointerEvents="none" style={{alignSelf:'center',marginBottom:3,height:28,paddingHorizontal:13,borderRadius:14,justifyContent:'center',backgroundColor:t.dark?'rgba(22,24,29,0.94)':'rgba(255,255,255,0.96)',borderWidth:1,borderColor:t.glassBorder}}><Text maxFontSizeMultiplier={1.2} style={{color:t.text,fontSize:12.5,fontWeight:'600'}}>Удержи и веди вверх — все разделы</Text></View>:null}
+    <SnowLedge id="tabs" radius={31} max={7} inset={{left:side,right:side,top:5,bottom:tabBarMarginBottom(Platform.OS==='ios',insets.bottom)}}><View style={{alignSelf:'center',width:BAR_WIDTH,marginBottom:tabBarMarginBottom(Platform.OS==='ios',insets.bottom),marginTop:5}}>
+    {scrub!==null?<View pointerEvents="none" style={{position:'absolute',bottom:'100%',left:(BAR_WIDTH-216)/2,marginBottom:12}}><GlassSurface material="regular" radius={24}><TabWheel items={items} index={scrub}/></GlassSurface></View>:null}
+    {GLOW_UNDER?<TabsGlow/>:null}<GlassSurface pure lens material="regular" radius={31} contentStyle={{paddingHorizontal:3.6,paddingVertical:3}}>{GLOW_UNDER?null:<TabsGlow/>}
+    <TabBar onScrub={setScrub} active={activeTab==='people'?'people':activeTab==='channels'?'channels':activeTab==='profile'?'profile':activeTab==='music'?'music':activeTab==='ai'?'ai':'chats'} items={items}/>
   </GlassSurface></View></SnowLedge></>;
 }
 

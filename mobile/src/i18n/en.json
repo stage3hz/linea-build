@@ -2935,5 +2935,9 @@
 "Вверх — без рук": "Up — hands free",
 "Скрыть подсказку": "Hide the hint",
 "Правая кнопка мыши по сообщению — ответить, переслать, удалить": "Right-click a message to reply, forward or delete",
-"Удержи сообщение — ответить, переслать, удалить": "Hold a message to reply, forward or delete"
+"Удержи сообщение — ответить, переслать, удалить": "Hold a message to reply, forward or delete",
+"Удержи и веди вверх — все разделы": "Hold and slide up for all sections",
+"Веди вверх или вниз по панели, чтобы листать все разделы": "Slide up or down on the bar to go through all sections",
+"Следующий раздел": "Next section",
+"Прошлый раздел": "Previous section"
 }

@@ -1,12 +1,10 @@
-// The phone tab bar, Telegram-style:
-// • every tab has its own little icon animation on tap (the gear turns, the chat bubble bounces, the
-//   sparkles twinkle…) and the tab presses in under the finger;
-// • the selection is a pill; put a finger on the bar and slide (no need to lift or wait) — it becomes a
-//   larger lens that follows the finger, letting go opens the tab under it;
-// • no captions: the icons speak, the names stay for screen readers;
-// • one slot holds «Люди» or «Каналы»: swipe up on it to switch (two dots beside it show which of the two is
-//   up, like a stack of widgets); the choice is remembered and stays in the bar until switched back. It rolls like a carousel — the same quick roll however hard you swipe. (Tablets and PC show both in their rail.)
-import React, { memo, useEffect, useState, useSyncExternalStore } from 'react';
+// The phone tab bar: small, two icons — «Чаты» and «Настройки» — and every section under the finger.
+// • a tap opens the tab; its icon plays its own little animation (the gear turns, the chat bubble bounces);
+// • put a finger on the bar and move it up or down: the sections go by one at a time, the page behind is the
+//   real one (a live preview), a small wheel above the bar names them; moved too far — move back; let go and
+//   the section stays. The order is the list given by the caller and it goes round.
+// • no captions: the names are read out by screen readers and shown in the wheel.
+import React, { memo, useEffect, useRef, useState, useSyncExternalStore } from 'react';
 import { View, Platform } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { Gesture, GestureDetector } from 'react-native-gesture-handler';
@@ -68,13 +66,15 @@ function GearIcon({ size, active, accent, muted }: { size: number; active: boole
 export type TabId = 'ai' | 'people' | 'channels' | 'chats' | 'music' | 'profile';
 export type TabItem = { id: TabId; label: string; icon: IconName; activeIcon: IconName; badge: number; /** A quiet coloured dot when there is no number (somebody is in one of your rooms). */ dot?: string; onPress: () => void };
 
-// Which of «Люди» / «Каналы» the slot shows: remembered on this device.
-const SLOT_KEY = 'linea.tabs.slot';
-let slot: 'people' | 'channels' = 'people';
+// The bar shows two of six sections, so the gesture is told in words above it until it has been used once
+// (at most on the first few starts of the app).
+const HINT_KEY = 'linea.hint.bar-scrub.v1', HINT_STARTS = 6;
+let hint = false;
 const listeners = new Set<() => void>();
-void AsyncStorage.getItem(SLOT_KEY).then(value => { if (value === 'channels') { slot = 'channels'; listeners.forEach(l => l()); } }).catch(() => {});
-function setSlot(next: 'people' | 'channels') { slot = next; listeners.forEach(l => l()); void AsyncStorage.setItem(SLOT_KEY, next).catch(() => {}); }
-const useSlot = () => useSyncExternalStore(l => { listeners.add(l); return () => { listeners.delete(l); }; }, () => slot, () => slot);
+void AsyncStorage.getItem(HINT_KEY).then(value => { const seen = Number(value) || 0; if (value !== 'used' && seen < HINT_STARTS) { hint = true; listeners.forEach(l => l()); void AsyncStorage.setItem(HINT_KEY, String(seen + 1)).catch(() => {}); } }).catch(() => {});
+function gestureUsed() { if (!hint) return; hint = false; listeners.forEach(l => l()); void AsyncStorage.setItem(HINT_KEY, 'used').catch(() => {}); }
+/** Whether to show the words «Удержи и веди вверх — все разделы» above the bar. */
+export const useBarHint = () => useSyncExternalStore(l => { listeners.add(l); return () => { listeners.delete(l); }; }, () => hint, () => hint);
 
 const SPRING = { damping: 20, stiffness: 320, mass: 0.7 };
 // The unread badge keeps one colour that reads both on the glass and on the light capsule under an active tab.
@@ -98,8 +98,8 @@ const kickTiming = (id: TabId) => id === 'profile' ? { duration: 760, easing: Ea
  * capsule arrives under it — also while React is still busy building the next page (Telegram does the same).
  */
 function Under({ index, far, near }: { index: number; far: React.ReactNode; near: React.ReactNode }) {
-  const away = useAnimatedStyle(() => ({ opacity: 1 - Math.max(0, 1 - Math.abs(PILL.value - index)) }));
-  const here = useAnimatedStyle(() => ({ opacity: Math.max(0, 1 - Math.abs(PILL.value - index)) }));
+  const away = useAnimatedStyle(() => ({ opacity: 1 - Math.max(0, 1 - 2 * Math.abs(PILL.value - index)) }));
+  const here = useAnimatedStyle(() => ({ opacity: Math.max(0, 1 - 2 * Math.abs(PILL.value - index)) }));
   return <View>
     <Animated.View style={away}>{far}</Animated.View>
     <Animated.View pointerEvents="none" style={[{ position: 'absolute', left: 0, right: 0, top: 0, bottom: 0, alignItems: 'center', justifyContent: 'center' }, here]}>{near}</Animated.View>
@@ -140,41 +140,26 @@ function TabIcon({ item, active, kick, pressed, index }: { item: TabItem; active
   </Animated.View>;
 }
 
-// The first and last tabs sit a little closer to the middle: the bar is a capsule and its ends curve in.
-const EDGE_SHIFT = 5;
-const REEL = 31.5; // one carousel row: the icon (27.5) and a little air
+/** The sections that have their own icon in the bar; the others are reached with the gesture. */
+const BAR_TABS: TabId[] = ['chats', 'profile'];
+/** Finger travel for one section, points. */
+const STEP = 38;
 
-/** «Люди» / «Каналы» as a vertical carousel: rows [Люди, Каналы, Люди] rolled by `reel` (0 → 1 → 2). */
-function SlotReel({ reel, people, channels, active, kick, pressed, index }: { reel: SharedValue<number>; people: TabItem; channels: TabItem; active: boolean; kick: SharedValue<number>; pressed: SharedValue<number>; index: number }) {
-  const roll = useAnimatedStyle(() => ({ transform: [{ translateY: -reel.value * REEL }] }));
-  const row = (item: TabItem, key: string) => <View key={key} style={{ height: REEL, alignItems: 'center', justifyContent: 'center' }}>
-    <TabIcon item={item} active={active} kick={kick} pressed={pressed} index={index} />
-  </View>;
-  return <View style={{ height: REEL, overflow: 'hidden', alignSelf: 'stretch', paddingTop: 0 }}>
-    <Animated.View style={roll}>{row(people, 'a')}{row(channels, 'b')}{row(people, 'c')}</Animated.View>
-  </View>;
-}
-
-/** `items`: AI, people, channels, chats, music, profile — people and channels share one slot. */
-export function TabBar({ items, active }: { items: TabItem[]; active: TabId }) {
-  const t = useTheme(); const current = useSlot();
-  // Opening «Каналы» or «Люди» from elsewhere also turns the slot to it.
-  useEffect(() => { if ((active === 'people' || active === 'channels') && active !== slot) setSlot(active); }, [active]);
-  const shown = items.filter(item => item.id !== (current === 'people' ? 'channels' : 'people'));
-  const other = items.find(item => item.id === (current === 'people' ? 'channels' : 'people'));
+/** `items`: every section in the order the gesture goes through them; the bar itself shows «Чаты» and «Настройки». */
+export function TabBar({ items, active, onScrub }: { items: TabItem[]; active: TabId; onScrub?: (index: number | null) => void }) {
+  const t = useTheme();
+  const shown = BAR_TABS.map(id => items.find(item => item.id === id)).filter((item): item is TabItem => !!item);
   const [width, setWidth] = useState(0);
   const n = shown.length; const cell = width / Math.max(1, n);
-  const slotIndex = shown.findIndex(item => item.id === 'people' || item.id === 'channels');
-  const activeIndex = Math.max(0, shown.findIndex(item => item.id === (active === 'people' || active === 'channels' ? current : active)));
-  const pill = PILL; const lens = useSharedValue(0); const pressed = useSharedValue(-1);
-  useState(() => { if (PILL.value < 0) { PILL.value = lastPill ?? activeIndex; pillTarget = lastPill ?? activeIndex; } return 0; });
-  // The slot is a vertical carousel [Люди, Каналы, Люди]: a swipe always plays the same quick roll up.
-  const reel = useSharedValue(current === 'channels' ? 1 : 0);
-  useEffect(() => { reel.value = current === 'channels' ? 1 : 0; }, [current]);
-  const k0 = useSharedValue(0), k1 = useSharedValue(0), k2 = useSharedValue(0), k3 = useSharedValue(0), k4 = useSharedValue(0), k5 = useSharedValue(0);
-  const kicks = [k0, k1, k2, k3, k4, k5];
+  const found = shown.findIndex(item => item.id === active);
+  // A section without an icon of its own: the light stands between the two icons and neither is lit.
+  const target = found < 0 ? (n - 1) / 2 : found;
+  const pill = PILL; const pressed = useSharedValue(-1); const hold = useSharedValue(0); const step = useSharedValue(0);
+  useState(() => { if (PILL.value < 0) { PILL.value = lastPill ?? target; pillTarget = lastPill ?? target; } return 0; });
+  const k0 = useSharedValue(0), k1 = useSharedValue(0);
+  const kicks = [k0, k1];
   // Only when the page changed by something other than a tap on this bar (a tap has started the move itself).
-  useEffect(() => { lastPill = activeIndex; if (!lens.value && pillTarget !== activeIndex) { pillTarget = activeIndex; pill.value = withSpring(activeIndex, SPRING); } }, [activeIndex]);
+  useEffect(() => { lastPill = target; if (pillTarget !== target) { pillTarget = target; pill.value = withSpring(target, SPRING); } }, [target]);
   // A bar mounted by the tap that opened its page plays that tap's icon animation.
   useEffect(() => {
     const pending = pendingKick; pendingKick = null;
@@ -186,74 +171,84 @@ export function TabBar({ items, active }: { items: TabItem[]; active: TabId }) {
   const open = (index: number) => {
     const item = shown[index]; if (!item) return;
     const kick = kicks[index];
-    // Longer and smoother: the gear turns with a soft overshoot (~0.75 s), the others play over ~0.65 s.
     kick.value = withTiming(Math.floor(kick.value) + 1, kickTiming(item.id));
     pendingKick = { id: item.id, at: Date.now() };
-    // Also for an opening that did not come from the tap gesture (VoiceOver, the slide).
     pillTarget = index; pill.value = withSpring(index, SPRING);
     item.onPress();
   };
-  // Swipe up on the slot: «Люди» ⇄ «Каналы» (remembered), the icon flips like a slot machine.
-  // Switched while its own section is open, the slot takes the screen along: seen in the simulator, «Люди» was
-  // lit in the bar over the still open «Каналы».
-  const slotSwitched = (next: 'people' | 'channels') => {
-    setSlot(next);
-    if (active === 'people' || active === 'channels') items.find(item => item.id === next)?.onPress();
+  // The gesture: the sections go by under the finger. Each step opens the real page, so what is seen behind the
+  // bar is the page itself; a cancelled gesture goes back to where it began.
+  const live = useRef({ items, active, onScrub }); live.current = { items, active, onScrub };
+  const run = useRef<{ from: number; steps: number } | null>(null);
+  const at = (from: number, steps: number, count: number) => (((from + steps) % count) + count) % count;
+  const scrubStart = () => {
+    const from = Math.max(0, live.current.items.findIndex(item => item.id === live.current.active));
+    run.current = { from, steps: 0 }; live.current.onScrub?.(from); gestureUsed();
   };
-  const switchSlot = () => {
-    const next = slot === 'people' ? 'channels' : 'people';
-    const from = slot === 'people' ? 0 : 1;
-    reel.value = from;
-    reel.value = withTiming(from + 1, { duration: 230, easing: Easing.out(Easing.cubic) }, done => { if (done) runOnJS(slotSwitched)(next); });
-
+  const scrubTo = (steps: number) => {
+    const now = run.current; if (!now || now.steps === steps) return;
+    now.steps = steps;
+    const list = live.current.items, index = at(now.from, steps, list.length);
+    live.current.onScrub?.(index); list[index]?.onPress();
   };
-  const at = (x: number) => { 'worklet'; return Math.max(0, Math.min(n - 1, Math.floor(x / Math.max(1, width / n)))); };
+  const scrubEnd = (cancelled: boolean) => {
+    const now = run.current; if (!now) return;
+    run.current = null; live.current.onScrub?.(null);
+    if (cancelled && now.steps) live.current.items[now.from]?.onPress();
+  };
+  const move = (by: number) => { const list = live.current.items; const from = Math.max(0, list.findIndex(item => item.id === live.current.active)); list[at(from, by, list.length)]?.onPress(); };
+  const tabAt = (x: number) => { 'worklet'; return Math.max(0, Math.min(n - 1, Math.floor(x / Math.max(1, width / n)))); };
 
   const tap = Gesture.Tap().maxDuration(500)
-    .onBegin(e => { pressed.value = at(e.x); })
-    .onEnd(e => { const index = at(e.x); pill.value = withSpring(index, SPRING); runOnJS(open)(index); })
+    .onBegin(e => { pressed.value = tabAt(e.x); })
+    .onEnd(e => { const index = tabAt(e.x); pill.value = withSpring(index, SPRING); runOnJS(open)(index); })
     .onFinalize(() => { pressed.value = -1; });
-  // Telegram: put a finger down and slide — no waiting; the pill turns into a bigger lens under the finger.
-  const slide = Gesture.Pan().activeOffsetX([-8, 8]).failOffsetY([-24, 24])
-    .onStart(() => { lens.value = withSpring(1, SPRING); pressed.value = -1; })
-    .onUpdate(e => { pill.value = Math.max(0, Math.min(n - 1, e.x / Math.max(1, width / n) - 0.5)); })
-    .onEnd(e => { const index = at(e.x); pill.value = withSpring(index, SPRING); runOnJS(open)(index); })
-    .onFinalize(() => { lens.value = withSpring(0, SPRING); });
-  const swipeUp = Gesture.Pan().activeOffsetY([-14, 1000]).failOffsetX([-20, 20])
-    .onEnd(e => { if (e.translationY < -14 && at(e.x - e.translationX) === slotIndex) runOnJS(switchSlot)(); })
-    .onFinalize(() => { pressed.value = -1; });
-  const gesture = Gesture.Exclusive(swipeUp, slide, tap);
+  const scrub = Gesture.Pan().activeOffsetY([-8, 8]).failOffsetX([-48, 48])
+    .onStart(() => { hold.value = withSpring(1, SPRING); pressed.value = -1; step.value = 0; runOnJS(scrubStart)(); })
+    .onUpdate(e => { const next = Math.round(-e.translationY / STEP); if (next !== step.value) { step.value = next; runOnJS(scrubTo)(next); } })
+    .onEnd(() => { runOnJS(scrubEnd)(false); })
+    .onFinalize(() => { hold.value = withSpring(0, SPRING); runOnJS(scrubEnd)(true); });
+  const gesture = Gesture.Exclusive(scrub, tap);
 
-  const pillStyle = useAnimatedStyle(() => ({ top: 1 - lens.value * 9, bottom: 1 - lens.value * 9, transform: [{ translateX: pill.value * cell + EDGE_SHIFT * (Math.max(0, 1 - pill.value) - Math.max(0, pill.value - (n - 2))) }, { scale: 1 + lens.value * 0.12 }] }));
-  // No capsule: a spot of light under the active tab, seen through the glass, and a thin bright line at the bar's
-  // lower edge. It grows a little while the finger drags it.
-  const pillInner = useAnimatedStyle(() => ({ opacity: 0.86 + lens.value * 0.14, transform: [{ scale: 1 + lens.value * 0.18 }] }));
+  // The light is whole on a tab and gone half-way between the two.
+  const pillStyle = useAnimatedStyle(() => ({ opacity: Math.max(0, 1 - 2 * Math.abs(pill.value - Math.round(pill.value))), transform: [{ translateX: pill.value * cell }] }));
+  const grow = useAnimatedStyle(() => ({ transform: [{ scale: 1 + hold.value * 0.06 }] }));
+  const others = items.filter(item => !BAR_TABS.includes(item.id)); const waiting = others.reduce((sum, item) => sum + (item.badge || 0), 0); const awake = others.find(item => item.dot)?.dot;
 
   return <GestureDetector gesture={gesture}>
-    <View collapsable={false} onLayout={e => setWidth(e.nativeEvent.layout.width)} accessibilityRole="tablist" style={{ flexDirection: 'row', alignItems: 'center', minHeight: 48 }}>
-      {width ? <Animated.View pointerEvents="none" style={[{ position: 'absolute', left: 0, width: cell, padding: 2 }, pillStyle]}>
-        <Animated.View style={[{ flex: 1 }, pillInner]}><TabLight color={t.dark ? '#FFFFFF' : t.accent} width={cell} /></Animated.View>
+    <Animated.View collapsable={false} onLayout={e => setWidth(e.nativeEvent.layout.width)} accessibilityRole="tablist" style={[{ flexDirection: 'row', alignItems: 'center', minHeight: 56 }, grow]}>
+      {width ? <Animated.View pointerEvents="none" style={[{ position: 'absolute', left: 0, top: 1, bottom: 1, width: cell, padding: 2 }, pillStyle]}>
+        <TabLight color={t.dark ? '#FFFFFF' : t.accent} width={cell} />
       </Animated.View> : null}
-      {shown.map((item, index) => { const on = index === activeIndex; const slotted = index === slotIndex; return <View key={slotted ? 'slot' : item.id} accessible accessibilityRole="tab"
-        accessibilityLabel={`${item.label}${item.badge ? `, ${item.badge}` : ''}${slotted && other ? `. Смахни вверх — ${other.label}` : ''}`} accessibilityState={{ selected: on }}
-        accessibilityActions={slotted ? [{ name: 'activate' }, { name: 'magicTap', label: other?.label }] : undefined}
-        onAccessibilityAction={slotted ? event => { if (event.nativeEvent.actionName === 'magicTap') switchSlot(); else open(index); } : undefined}
-        onAccessibilityTap={() => open(index)} style={{ flex: 1, alignItems: 'center', justifyContent: 'center', paddingVertical: 8, transform: [{ translateX: index === 0 ? EDGE_SHIFT : index === n - 1 ? -EDGE_SHIFT : 0 }] }}>
-        {slotted && other ? <SlotReel reel={reel} people={item.id === 'people' ? item : other} channels={item.id === 'channels' ? item : other} active={on} kick={kicks[index]} pressed={pressed} index={index} /> : <>
-          <TabIcon item={item} active={on} kick={kicks[index]} pressed={pressed} index={index} />
-        </>}
-        {/* The slot holds two sections: two dots beside it, the bright one is the section that is up (as on a stack of widgets). */}
-        {slotted && other ? <View pointerEvents="none" accessibilityElementsHidden importantForAccessibility="no-hide-descendants" style={{ position: 'absolute', left: '50%', marginLeft: 20, top: '50%', marginTop: -7, gap: 4 }}>
-          {(['people', 'channels'] as const).map(id => <View key={id} style={{ width: 5, height: 5, borderRadius: 3, backgroundColor: t.text, opacity: current === id ? 1 : 0.32 }} />)}
-        </View> : null}
-        {slotted && other?.badge ? <View pointerEvents="none" accessibilityElementsHidden style={{ position: 'absolute', top: -1, minWidth: 18, height: 14, paddingHorizontal: 4, borderRadius: 7, backgroundColor: t.accent, alignItems: 'center', justifyContent: 'center' }}><Text maxFontSizeMultiplier={1} style={{ color: t.onAccent, fontSize: 9, fontWeight: '800' }}>{badgeText(other.badge)}</Text></View> : null}
+      {shown.map((item, index) => { const on = index === found; return <View key={item.id} accessible accessibilityRole="tab"
+        accessibilityLabel={`${item.label}${item.badge ? `, ${item.badge}` : ''}`} accessibilityHint="Веди вверх или вниз по панели, чтобы листать все разделы" accessibilityState={{ selected: on }}
+        accessibilityActions={[{ name: 'activate' }, { name: 'increment', label: 'Следующий раздел' }, { name: 'decrement', label: 'Прошлый раздел' }]}
+        onAccessibilityAction={event => { const name = event.nativeEvent.actionName; if (name === 'increment') move(1); else if (name === 'decrement') move(-1); else open(index); }}
+        onAccessibilityTap={() => open(index)} style={{ flex: 1, alignItems: 'center', justifyContent: 'center', paddingVertical: 12 }}>
+        <TabIcon item={item} active={on} kick={kicks[index]} pressed={pressed} index={index} />
       </View>; })}
-    </View>
+      {/* Something waits in a section that has no icon here: its count (or a quiet dot) at the bar's top edge. */}
+      {waiting ? <View pointerEvents="none" accessibilityElementsHidden importantForAccessibility="no-hide-descendants" style={{ position: 'absolute', top: -5, alignSelf: 'center', left: '50%', marginLeft: -11, minWidth: 22, height: 16, paddingHorizontal: 5, borderRadius: 8, backgroundColor: BADGE, alignItems: 'center', justifyContent: 'center' }}><Text maxFontSizeMultiplier={1} style={{ color: '#FFFFFF', fontSize: 9.5, fontWeight: '800' }}>{badgeText(waiting)}</Text></View>
+        : awake ? <View pointerEvents="none" style={{ position: 'absolute', top: -3, left: '50%', marginLeft: -4, width: 8, height: 8, borderRadius: 4, backgroundColor: awake }} /> : null}
+    </Animated.View>
   </GestureDetector>;
 }
 
+/** The wheel shown above the bar while the finger goes through the sections: the one before, the one under the finger, the one after. */
+export function TabWheel({ items, index }: { items: TabItem[]; index: number }) {
+  const t = useTheme(); const n = items.length;
+  const rows = [-1, 0, 1].map(by => ({ item: items[(((index + by) % n) + n) % n], on: by === 0 }));
+  return <View style={{ width: 216, padding: 6, gap: 2 }}>
+    {rows.map(({ item, on }, place) => item ? <View key={place} style={{ height: 42, borderRadius: 16, paddingHorizontal: 14, flexDirection: 'row', alignItems: 'center', gap: 12, backgroundColor: on ? (t.dark ? 'rgba(255,255,255,0.13)' : 'rgba(0,0,0,0.07)') : 'transparent' }}>
+      <Ionicons name={on ? item.activeIcon : item.icon} size={20} color={on ? t.text : t.muted} {...HIDDEN_ICON} />
+      <Text numberOfLines={1} maxFontSizeMultiplier={1.2} style={{ flex: 1, color: on ? t.text : t.muted, fontSize: 15.5, fontWeight: '600' }}>{item.label}</Text>
+      {item.badge ? <View style={{ minWidth: 20, height: 20, paddingHorizontal: 6, borderRadius: 10, backgroundColor: BADGE, alignItems: 'center', justifyContent: 'center' }}><Text maxFontSizeMultiplier={1} style={{ color: '#FFFFFF', fontSize: 10.5, fontWeight: '800' }}>{badgeText(item.badge)}</Text></View>
+        : item.dot ? <View style={{ width: 8, height: 8, borderRadius: 4, backgroundColor: item.dot }} /> : null}
+    </View> : null)}
+  </View>;
+}
+
 export type GlowColors = [string, string, string];
-const TABS_IN_BAR = 5;
 function GlowSides({ colors, width, height, id }: { colors: GlowColors; width: number; height: number; id: string }) {
   return <Svg width={width} height={height}>
     <Defs>
@@ -274,7 +269,7 @@ function GlowSpot({ color, width, height, id }: { color: string; width: number; 
  * the active tab and travels with it. When the colours change (another track, music stopped) the old light
  * fades into the new one. `inset` is the glass's own side padding, so the spot stands exactly under the tab.
  */
-export const BarGlow = memo(function BarGlow({ colors, radius, inset = 0, strength = 1 }: { colors: GlowColors; radius: number; inset?: number; strength?: number }) {
+export const BarGlow = memo(function BarGlow({ colors, radius, inset = 0, strength = 1, tabs = 2 }: { colors: GlowColors; radius: number; inset?: number; strength?: number; tabs?: number }) {
   const [size, setSize] = useState({ width: 0, height: 0 });
   const key = colors.join();
   const [pair, setPair] = useState<{ from: GlowColors; to: GlowColors }>({ from: colors, to: colors });
@@ -285,7 +280,7 @@ export const BarGlow = memo(function BarGlow({ colors, radius, inset = 0, streng
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [key]);
   const old = useAnimatedStyle(() => ({ opacity: 1 - mix.value })), fresh = useAnimatedStyle(() => ({ opacity: mix.value }));
-  const { width, height } = size, cell = (width - inset * 2) / TABS_IN_BAR, spot = Math.max(120, width * 0.46);
+  const { width, height } = size, cell = (width - inset * 2) / tabs, spot = Math.max(110, width * 0.7);
   const travel = useAnimatedStyle(() => ({ transform: [{ translateX: inset + (Math.max(0, PILL.value) + 0.5) * cell - spot / 2 }] }));
   const fill = { position: 'absolute', left: 0, top: 0, right: 0, bottom: 0 } as const;
   return <View pointerEvents="none" onLayout={e => { const { width: w, height: h } = e.nativeEvent.layout; if (Math.abs(w - size.width) > 0.5 || Math.abs(h - size.height) > 0.5) setSize({ width: w, height: h }); }} style={[fill, { borderRadius: radius, overflow: 'hidden', opacity: strength }]}>
