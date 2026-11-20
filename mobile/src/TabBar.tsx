@@ -9,7 +9,7 @@ import React, { useEffect, useState, useSyncExternalStore } from 'react';
 import { View } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { Gesture, GestureDetector } from 'react-native-gesture-handler';
-import Animated, { Easing, runOnJS, useAnimatedStyle, useSharedValue, withSpring, withTiming, type SharedValue } from 'react-native-reanimated';
+import Animated, { Easing, makeMutable, runOnJS, useAnimatedStyle, useSharedValue, withSpring, withTiming, type SharedValue } from 'react-native-reanimated';
 import { Text } from './typography';
 import { type IconName, HIDDEN_ICON } from './components';
 import { Ionicons } from '@expo/vector-icons';
@@ -81,6 +81,12 @@ const SPRING = { damping: 20, stiffness: 320, mass: 0.7 };
 // second tap). The tap is remembered for a moment and the new bar plays it; the pill starts where it was.
 let pendingKick: { id: TabId; at: number } | null = null;
 let lastPill: number | null = null;
+// The capsule's place is one value for every tab bar in the app (each page draws its own bar). It used to be a
+// value of the bar that was mounting: on the way to «Чаты» that bar appears only after the heavy chat list has
+// rendered, so the capsule stood still and then caught up in a jerk. Now the tap starts the move on the UI
+// thread at once, and the next page's bar picks the same move up wherever it is.
+const PILL = makeMutable(-1);
+let pillTarget = -1;
 const kickTiming = (id: TabId) => id === 'profile' ? { duration: 760, easing: Easing.out(Easing.back(1.7)) } : { duration: 650, easing: Easing.out(Easing.quad) };
 
 function TabIcon({ item, active, kick, pressed, index }: { item: TabItem; active: boolean; kick: SharedValue<number>; pressed: SharedValue<number>; index: number }) {
@@ -132,13 +138,15 @@ export function TabBar({ items, active }: { items: TabItem[]; active: TabId }) {
   const n = shown.length; const cell = width / Math.max(1, n);
   const slotIndex = shown.findIndex(item => item.id === 'people' || item.id === 'channels');
   const activeIndex = Math.max(0, shown.findIndex(item => item.id === (active === 'people' || active === 'channels' ? current : active)));
-  const pill = useSharedValue(lastPill ?? activeIndex); const lens = useSharedValue(0); const pressed = useSharedValue(-1);
+  const pill = PILL; const lens = useSharedValue(0); const pressed = useSharedValue(-1);
+  useState(() => { if (PILL.value < 0) { PILL.value = lastPill ?? activeIndex; pillTarget = lastPill ?? activeIndex; } return 0; });
   // The slot is a vertical carousel [Люди, Каналы, Люди]: a swipe always plays the same quick roll up.
   const reel = useSharedValue(current === 'channels' ? 1 : 0);
   useEffect(() => { reel.value = current === 'channels' ? 1 : 0; }, [current]);
   const k0 = useSharedValue(0), k1 = useSharedValue(0), k2 = useSharedValue(0), k3 = useSharedValue(0), k4 = useSharedValue(0), k5 = useSharedValue(0);
   const kicks = [k0, k1, k2, k3, k4, k5];
-  useEffect(() => { lastPill = activeIndex; if (!lens.value) pill.value = withSpring(activeIndex, SPRING); }, [activeIndex]);
+  // Only when the page changed by something other than a tap on this bar (a tap has started the move itself).
+  useEffect(() => { lastPill = activeIndex; if (!lens.value && pillTarget !== activeIndex) { pillTarget = activeIndex; pill.value = withSpring(activeIndex, SPRING); } }, [activeIndex]);
   // A bar mounted by the tap that opened its page plays that tap's icon animation.
   useEffect(() => {
     const pending = pendingKick; pendingKick = null;
@@ -153,6 +161,8 @@ export function TabBar({ items, active }: { items: TabItem[]; active: TabId }) {
     // Longer and smoother: the gear turns with a soft overshoot (~0.75 s), the others play over ~0.65 s.
     kick.value = withTiming(Math.floor(kick.value) + 1, kickTiming(item.id));
     pendingKick = { id: item.id, at: Date.now() };
+    // Also for an opening that did not come from the tap gesture (VoiceOver, the slide).
+    pillTarget = index; pill.value = withSpring(index, SPRING);
     item.onPress();
   };
   // Swipe up on the slot: «Люди» ⇄ «Каналы» (remembered), the icon flips like a slot machine.
@@ -173,7 +183,7 @@ export function TabBar({ items, active }: { items: TabItem[]; active: TabId }) {
 
   const tap = Gesture.Tap().maxDuration(500)
     .onBegin(e => { pressed.value = at(e.x); })
-    .onEnd(e => { runOnJS(open)(at(e.x)); })
+    .onEnd(e => { const index = at(e.x); pill.value = withSpring(index, SPRING); runOnJS(open)(index); })
     .onFinalize(() => { pressed.value = -1; });
   // Telegram: put a finger down and slide — no waiting; the pill turns into a bigger lens under the finger.
   const slide = Gesture.Pan().activeOffsetX([-8, 8]).failOffsetY([-24, 24])

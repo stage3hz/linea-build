@@ -309,6 +309,7 @@ export function VoiceRecordingBar({ durationMs, levels, onCancel, onSend, holdin
 type VoicePlayback = {
   activeId: string | null; loadingId: string | null; failedId: string | null; playing: boolean; position: number; duration: number; error: string;
   toggle: (attachment: Attachment) => void; seek: (attachment: Attachment, fraction: number) => void;
+  prefetch: (attachment: Attachment) => void;
   rate: number; cycleRate: () => void;
   /** Stops playback and forgets the active message (the mini player's ✕). */
   stop: () => void;
@@ -361,6 +362,30 @@ export function VoicePlaybackProvider({ api, children }: { api: Api; children: R
   useEffect(() => onNoteSound(() => { try { player.pause(); } catch { /* not loaded */ } }), [player]);
   useEffect(() => { if (status.didJustFinish) { try { player.pause(); void player.seekTo(0); } catch { /* ignore */ } } }, [status.didJustFinish, player]);
 
+  // One download and decryption per voice message, shared by the prefetch and the tap on play.
+  const loads = useRef(new Map<string, Promise<{ uri: string; dispose: () => Promise<void> }>>());
+  const gone = useRef(false);
+  useEffect(() => { gone.current = false; return () => { gone.current = true; }; }, []);
+  const fetchFile = useCallback((attachment: Attachment) => {
+    const ready = files.current.get(attachment.id); if (ready) return Promise.resolve(ready);
+    let run = loads.current.get(attachment.id);
+    if (!run) {
+      run = decryptAttachment(api, attachment).then(file => {
+        // The chat was left while it loaded: nothing will play it, the decrypted copy goes.
+        if (gone.current) void file.dispose().catch(() => {}); else files.current.set(attachment.id, file);
+        return file;
+      }).finally(() => { loads.current.delete(attachment.id); });
+      loads.current.set(attachment.id, run);
+    }
+    return run;
+  }, [api]);
+  /** A voice message on screen is fetched before it is tapped (Telegram loads voice messages by itself): a small
+   *  file only, and no more than a dozen kept per open chat. */
+  const prefetch = useCallback((attachment: Attachment) => {
+    if (recordingLive || attachment.size > 3 * 1024 * 1024 || files.current.size + loads.current.size >= 12) return;
+    void fetchFile(attachment).catch(() => {});
+  }, [fetchFile]);
+
   const toggle = useCallback((attachment: Attachment) => {
     if (activeId === attachment.id && !loadingId && failedId !== attachment.id) {
       if (status.playing) player.pause();
@@ -372,13 +397,13 @@ export function VoicePlaybackProvider({ api, children }: { api: Api; children: R
     try { player.pause(); } catch { /* nothing playing */ }
     void (async () => {
       try {
-        let file = files.current.get(attachment.id);
-        if (!file) { file = await decryptAttachment(api, attachment); files.current.set(attachment.id, file); }
-        if (ticket !== request.current) return;
+        // The file, the silence around it and the audio session are got ready at the same time: one after another
+        // they added up to a long wait before the first sound (reported from an iPhone). The file is usually
+        // here already — a voice message is fetched when its bubble appears (prefetch below).
         // Not while a take records: switching to playback stops the recorder (expo-audio setAudioMode).
-        await quiet();
+        const session = recordingLive ? Promise.resolve() : (cancelPlaybackReset(), setAudioModeAsync(PLAYBACK_MODE).catch(() => {}));
+        const [file] = await Promise.all([fetchFile(attachment), quiet(), session]);
         if (ticket !== request.current) return;
-        if (!recordingLive) { cancelPlaybackReset(); await setAudioModeAsync(PLAYBACK_MODE).catch(() => {}); }
         player.replace({ uri: file.uri });
         try { player.setPlaybackRate(voiceRate); } catch { /* applied by the effect */ }
         player.play();
@@ -387,7 +412,7 @@ export function VoicePlaybackProvider({ api, children }: { api: Api; children: R
         if (ticket === request.current) { setError(e instanceof Error ? e.message : 'Не удалось воспроизвести голосовое.'); setFailedId(attachment.id); }
       } finally { if (ticket === request.current) setLoadingId(null); }
     })();
-  }, [activeId, loadingId, failedId, status.playing, player, quiet, api]);
+  }, [activeId, loadingId, failedId, status.playing, player, quiet, fetchFile]);
 
   const seek = useCallback((attachment: Attachment, fraction: number) => {
     if (activeId !== attachment.id || loadingId) return;
@@ -396,7 +421,7 @@ export function VoicePlaybackProvider({ api, children }: { api: Api; children: R
   }, [activeId, loadingId, status.duration, player]);
 
   const stop = useCallback(() => { request.current++; try { player.pause(); } catch { /* not loaded */ } setActiveId(null); setLoadingId(null); }, [player]);
-  const value: VoicePlayback = { activeId, loadingId, failedId, playing: status.playing, position: status.currentTime || 0, duration: status.duration || 0, error, toggle, seek, rate, cycleRate, stop };
+  const value: VoicePlayback = { activeId, loadingId, failedId, playing: status.playing, position: status.currentTime || 0, duration: status.duration || 0, error, toggle, seek, prefetch, rate, cycleRate, stop };
   return <VoiceContext.Provider value={value}>{children}{toast ? <RateToast text={toast} rate={rate} /> : null}</VoiceContext.Provider>;
 }
 
@@ -460,6 +485,8 @@ function RateToast({ text, rate }: { text: string; rate: number }) {
 export function VoiceBubble({ attachment, mine, selecting = false, onLongPress }: { attachment: Attachment; mine: boolean; selecting?: boolean; onLongPress?: (pageY: number) => void }) {
   const t = useTheme();
   const voice = useContext(VoiceContext);
+  const prefetch = voice?.prefetch;
+  useEffect(() => { prefetch?.(attachment); }, [attachment.id, prefetch]);
   const [width, setWidth] = useState(1);
   const touch = useRef<{ x: number; long: boolean; moved: boolean } | null>(null);
   const hold = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
