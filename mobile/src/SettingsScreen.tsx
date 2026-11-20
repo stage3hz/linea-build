@@ -1,3 +1,5 @@
+import { ProfileLight } from './design/peerLight';
+import { tintOf, useAvatarTints } from './design/avatarTint';
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { ProfileEffect } from './platina/Effects';
 import { ActivityIndicator, PanResponder, Platform, Pressable, ScrollView, StyleSheet, TextInput, View, useWindowDimensions, Linking } from 'react-native';
@@ -125,8 +127,8 @@ export function Item({ icon, color, label, value, onPress, danger = false }: { i
   const t = useTheme();
   const iconScale = useSharedValue(1); const iconStyle = useAnimatedStyle(() => ({ transform: [{ scale: iconScale.value }] }));
   return <Pressable accessibilityRole="button" onPress={onPress} onPressIn={() => { iconScale.value = withSpring(.82, { damping: 14, stiffness: 420 }); }} onPressOut={() => { iconScale.value = withSpring(1, { damping: 9, stiffness: 260 }); }} style={({ pressed }) => ({ flexDirection: 'row', alignItems: 'center', gap: 13, minHeight: 48, paddingHorizontal: 14, backgroundColor: pressed ? 'rgba(127,127,127,0.12)' : 'transparent' })}>
-    {/* Telegram: the coloured icon squishes under the finger and springs back. */}
-    <Animated.View style={[{ width: 30, height: 30, borderRadius: 8, backgroundColor: color, alignItems: 'center', justifyContent: 'center' }, iconStyle]}><Icon name={icon} size={17} color="#FFF" /></Animated.View>
+    {/* The icon squishes under the finger and springs back. One quiet tone for every row: colour in this app belongs to people, not to menu items (`color` is kept for callers). */}
+    <Animated.View style={[{ width: 34, height: 34, borderRadius: 17, backgroundColor: danger ? t.dangerBg : t.dark ? 'rgba(255,255,255,0.07)' : 'rgba(0,0,0,0.05)', alignItems: 'center', justifyContent: 'center' }, iconStyle]}><Icon name={icon} size={18} color={danger ? t.danger : t.text} /></Animated.View>
     <Text style={{ flex: 1, color: danger ? t.danger : t.text, fontSize: 15 }}>{label}</Text>
     {value ? <Text style={{ color: t.muted, fontSize: 13 }}>{value}</Text> : null}
     {!danger ? <Icon name="chevron-forward" size={17} color={t.subtle} /> : null}
@@ -155,6 +157,7 @@ function Root({ api, user, theme, darkTheme, nightState = DAY_STATE, onBack, onP
   const [until, setUntil] = useState<string | null>(null);
   useEffect(() => { let alive = true; api.usernameStatus().then(status => { if (!alive) return; const p = status.platina; setUntil(p.permanent ? 'Бессрочно' : p.expiresAt ? `Активна до ${new Date(p.expiresAt).toLocaleDateString('ru-RU', { day: 'numeric', month: 'long' })}` : 'Активна'); }).catch(() => {}); return () => { alive = false; }; }, [api, user.id]);
   const bannerHeight = 200 + insets.top;
+  useAvatarTints();
   const hasBanner = !!(user.bannerId || user.bannerPreset);
   // Telegram: pulling the list down stretches the header picture and keeps it at the top of the screen
   // (no empty strip above it). Grows by the pull distance, scaled around its centre, shifted up by half.
@@ -170,7 +173,7 @@ function Root({ api, user, theme, darkTheme, nightState = DAY_STATE, onBack, onP
   return <Animated.ScrollView onScroll={onScroll} scrollEventThrottle={16} style={{ marginTop: -insets.top, marginBottom: Platform.OS === 'web' ? 0 : -insets.bottom }} contentContainerStyle={{ paddingBottom: 30 + tabInset + (Platform.OS === 'web' ? 0 : insets.bottom) }} showsVerticalScrollIndicator={false} contentInsetAdjustmentBehavior="never">
     {/* Telegram's settings head with Discord's banner: the banner runs under the status bar. */}
     <View style={{ height: bannerHeight }}>
-      <Animated.View pointerEvents="none" style={[StyleSheet.absoluteFill, stretch]}>{hasBanner ? <ProfileBanner user={user} api={api} height={bannerHeight} width={width} /> : <LinearGradient colors={t.dark ? ['rgba(96,124,190,0.34)', 'rgba(150,120,200,0.14)', 'transparent'] : ['rgba(120,150,230,0.30)', 'rgba(190,170,240,0.16)', 'transparent']} start={{ x: 0.1, y: 0 }} end={{ x: 0.7, y: 1 }} style={StyleSheet.absoluteFill} />}</Animated.View>
+      <Animated.View pointerEvents="none" style={[StyleSheet.absoluteFill, stretch]}>{hasBanner ? <ProfileBanner user={user} api={api} height={bannerHeight} width={width} /> : <ProfileLight color={tintOf(api, user)} height={bannerHeight + 180} />}</Animated.View>
       <ProfileEffect effect={user.profileEffect} width={width} height={bannerHeight + 140} />
       <View style={{ position: 'absolute', top: insets.top + 6, left: 16, right: 16, flexDirection: 'row', justifyContent: 'space-between' }}>
         {/* Settings is a tab root (Telegram): no back button; the space keeps «Изм.» on the right. */}
@@ -184,7 +187,7 @@ function Root({ api, user, theme, darkTheme, nightState = DAY_STATE, onBack, onP
         <DecoratedAvatar user={user} api={api} size={100} animated />
       </Pressable>
       <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8, marginTop: 12 }}>
-        <PlatinaName user={user} numberOfLines={2} style={{ color: t.text, fontSize: 26, fontWeight: '800', letterSpacing: -0.5 }} />
+        <PlatinaName user={user} numberOfLines={2} style={{ color: t.text, fontFamily: TITLE.fontFamily, fontSize: 27, lineHeight: 33, fontWeight: '800', letterSpacing: -0.9 }} />
         <Pressable accessibilityRole="button" accessibilityLabel="Сменить статус рядом с именем" hitSlop={10} onPress={() => { requestStatusPicker(); onProfile(); }}><StatusEmoji user={user} size={22} animated /></Pressable>
       </View>
       <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8, marginTop: 5 }}>
