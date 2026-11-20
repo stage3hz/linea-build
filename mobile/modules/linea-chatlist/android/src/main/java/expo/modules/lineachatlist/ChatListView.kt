@@ -19,6 +19,20 @@ import expo.modules.kotlin.views.ExpoView
  *  is a single canvas-drawn view (ChatRowView), so scrolling and updates never go through React. */
 @SuppressLint("ViewConstructor")
 class ChatListView(context: Context, appContext: AppContext) : ExpoView(context, appContext) {
+  // The window asks for the display's highest refresh rate (Telegram for Android does the same): a phone with
+  // a 90 or 120 Hz screen may otherwise keep an app at 60. Done here because this list is the first screen.
+  override fun onAttachedToWindow() {
+    super.onAttachedToWindow()
+    try {
+      var owner: Context? = context
+      while (owner is android.content.ContextWrapper && owner !is android.app.Activity) owner = owner.baseContext
+      val window = (owner as? android.app.Activity)?.window ?: return
+      val fastest = display?.supportedRefreshRates?.maxOrNull() ?: return
+      val params = window.attributes
+      if (fastest > 0f && params.preferredRefreshRate != fastest) { params.preferredRefreshRate = fastest; window.attributes = params }
+    } catch (_: Throwable) { /* the system keeps its own choice */ }
+  }
+
   private val onRowPress by EventDispatcher()
   private val onRowLongPress by EventDispatcher()
   private val onRowAction by EventDispatcher()

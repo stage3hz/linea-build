@@ -13,7 +13,14 @@ import { stopFocusRetries } from './focusRetry';
  *
  * `progress` is shared with the layer below: 0 = pushed screen fully open, 1 = closed.
  */
-const OPEN = { duration: 300, easing: Easing.bezier(0.2, 0.9, 0.25, 1) };
+// Short, as in Telegram (Android slides a chat in over 150 ms, iOS settles in about 0.3 s): a long slide is
+// where dropped frames get noticed.
+const OPEN = { duration: 220, easing: Easing.bezier(0.2, 0.9, 0.25, 1) };
+/** How long a screen that asked to be waited for may keep the slide from starting. Telegram for Android: 200 ms. */
+const READY_WAIT_MS = 200;
+const StackReady = createContext<() => void>(() => {});
+/** Called by a pushed screen once its first content is on screen: the slide starts then, not before. */
+export const useStackReady = () => useContext(StackReady);
 const CLOSE = { duration: 240, easing: Easing.bezier(0.3, 0.1, 0.3, 1) };
 /**
  * Telegram: the keyboard leaves together with the screen. Put it away as soon as leaving is decided
@@ -27,12 +34,19 @@ export function dismissForLeave() { stopFocusRetries(); Keyboard.dismiss(); }
 /** False inside a tab's page that is kept built but is not the one on screen. */
 export const PageVisible = createContext(true);
 
-export function StackScreen({ progress, onBack, children }: { progress: SharedValue<number>; onBack: () => void; children: (back: () => void) => React.ReactNode }) {
+export function StackScreen({ progress, onBack, children, waitReady = false }: { progress: SharedValue<number>; onBack: () => void; children: (back: () => void) => React.ReactNode; /** Hold the slide until the screen reports its first content (a chat: its first messages), at most READY_WAIT_MS. The screen mounting its rows while it slides is what dropped frames. */ waitReady?: boolean }) {
   const { width } = useWindowDimensions();
   const backRef = useRef(onBack); backRef.current = onBack;
   const closing = useRef(false);
   const finish = useCallback(() => backRef.current(), []);
-  useEffect(() => { closing.current = false; progress.value = 1; progress.value = withTiming(0, OPEN); }, [progress]);
+  const started = useRef(false); const waitTimer = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
+  const begin = useCallback(() => { if (started.current) return; started.current = true; if (waitTimer.current) { clearTimeout(waitTimer.current); waitTimer.current = undefined; } if (!closing.current) progress.value = withTiming(0, OPEN); }, [progress]);
+  useEffect(() => {
+    closing.current = false; started.current = false; progress.value = 1;
+    if (waitReady) waitTimer.current = setTimeout(begin, READY_WAIT_MS); else begin();
+    return () => { if (waitTimer.current) clearTimeout(waitTimer.current); };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [progress]);
   // Back button / hardware back: animate out, then actually leave the screen.
   const back = useCallback(() => {
     if (closing.current) return; closing.current = true;
@@ -74,7 +88,7 @@ export function StackScreen({ progress, onBack, children }: { progress: SharedVa
         <Animated.View pointerEvents="none" style={[{ position: 'absolute', top: 0, bottom: 0, left: -18, width: 18 }, shadow]}>
           <View style={{ flex: 1, backgroundColor: 'transparent', shadowColor: '#000', shadowOpacity: 0.5, shadowRadius: 12, shadowOffset: { width: -2, height: 0 }, borderRightWidth: 1, borderRightColor: 'rgba(0,0,0,0.25)' }} />
         </Animated.View>
-        {children(back)}
+        <StackReady.Provider value={begin}>{children(back)}</StackReady.Provider>
       </Animated.View>
     </GestureDetector>
   </View>;

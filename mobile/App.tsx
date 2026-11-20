@@ -68,6 +68,7 @@ import { MotionRoot } from './src/motion';
 import { Snow } from './src/Snow';
 import { SnowPhone } from './src/SnowPhone';
 import { PixelTrail } from './src/PixelTrail';
+import { RenderActivity } from './src/renderActivity';
 import { PageVisible, StackBase, StackScreen } from './src/stack';
 import { CommunitiesScreen } from './src/communities/CommunitiesScreen';
 import { InviteSheet } from './src/communities/InviteSheet';
@@ -229,7 +230,7 @@ function Messenger({api,session,onUser,themeMode,darkTheme,nightState,onTheme,on
   const stackProgress=useSharedValue(1);
   // Narrow screens: a chat or Избранное is pushed over the chat list, which stays mounted underneath.
   const pushed:null|'saved'|'chat'=wide?null:page==='saved'?'saved':page==='chats'&&chat?'chat':null;
-  const pushedScreen=pushed?<StackScreen key={pushed==='chat'?`chat:${chat!.id}`:'saved'} progress={stackProgress} onBack={goBack}>{back=><View style={{flex:1}}><StackBackdrop/>{pushed==='saved'?<SavedScreen api={api} user={session.user} store={store} onBack={back} wide={wide}/>:<ChatScreen key={chat!.id} api={api} user={session.user} chat={chat!} store={store} onBack={back} wide={wide} onOpenMusic={openMusic}/>}</View>}</StackScreen>:null;
+  const pushedScreen=pushed?<StackScreen key={pushed==='chat'?`chat:${chat!.id}`:'saved'} progress={stackProgress} onBack={goBack} waitReady={pushed==='chat'}>{back=><View style={{flex:1}}><StackBackdrop/>{pushed==='saved'?<SavedScreen api={api} user={session.user} store={store} onBack={back} wide={wide}/>:<ChatScreen key={chat!.id} api={api} user={session.user} chat={chat!} store={store} onBack={back} wide={wide} onOpenMusic={openMusic}/>}</View>}</StackScreen>:null;
   // Narrow screens: Профиль and Безопасность are pushed over Настройки, with the same swipe back.
   const settingsProgress=useSharedValue(1);
   const settingsScreen=<SettingsScreen api={api} user={session.user} theme={themeMode} darkTheme={darkTheme} nightState={nightState} onTheme={onTheme} onDarkTheme={onDarkTheme} onBack={goBack} onProfile={()=>setPage('profile')} onSecurity={()=>setPage('security')} onMusic={openMusic} onLogout={onLogout} chats={store.chats}/>;
@@ -282,7 +283,7 @@ function Messenger({api,session,onUser,themeMode,darkTheme,nightState,onTheme,on
     const shownTab=page==='settings'||page==='profile'||page==='security'?'settings':page;
     if(!onList)openedTabs.current.add(shownTab);
     return <CallProvider api={api} store={store} me={session.user}><View style={{flex:1,width:'100%'}}><NearbyOffer/>{mentionProfile}<View style={{flex:1}}>
-      <View pointerEvents={onList?'auto':'none'} style={[StyleSheet.absoluteFill,{display:onList?'flex':'none'}]}><StackBase progress={stackProgress} covered={!!pushed}><ChatListScreen sharedTabs={barHeight} onEditing={setListEditing} api={api} user={session.user} store={listStore} banner={notices} onNewChat={newChat} onProfile={profile} onMusic={openMusic} onAI={openAI} onQuickAI={()=>setQuickAI(true)} onChats={openChats} onSaved={openSaved} savedActive={page==='saved'} activeTab={page==='saved'?'chats':page==='security'||page==='settings'?'profile':page}/></StackBase></View>
+      <View pointerEvents={onList?'auto':'none'} style={[StyleSheet.absoluteFill,{display:onList?'flex':'none'}]}><RenderActivity active={onList}><StackBase progress={stackProgress} covered={!!pushed}><ChatListScreen sharedTabs={barHeight} onEditing={setListEditing} api={api} user={session.user} store={listStore} banner={notices} onNewChat={newChat} onProfile={profile} onMusic={openMusic} onAI={openAI} onQuickAI={()=>setQuickAI(true)} onChats={openChats} onSaved={openSaved} savedActive={page==='saved'} activeTab={page==='saved'?'chats':page==='security'||page==='settings'?'profile':page}/></StackBase></RenderActivity></View>
       {/* A tab that was opened once stays built (hidden and frozen): coming back to it shows it at once instead of building it again. */}
       {[...openedTabs.current].map(tab=><KeptPage key={tab} active={!onList&&shownTab===tab}><TabsFrame height={barHeight}><View style={{flex:1}}>{tab==='channels'?<CommunitiesScreen api={api} me={session.user} store={store} openId={openCommunity} onOpened={setOpenCommunity} onOpenInvite={setInviteCode}/>:tab==='people'?<PeopleScreen api={api} onBack={goBack} onOpen={newChat=>{setPage('chats');store.selectChat(newChat);}}/>:tab==='music'?<MusicScreen onBack={goBack}/>:tab==='ai'?<AIScreen api={api} onBack={goBack} history={store.aiHistory} name={session.user.displayName}/>:settingsStack}</View></TabsFrame></KeptPage>)}
       {/* The bar: above the list and the pages, under a chat that slides in over them. */}
@@ -309,5 +310,6 @@ function StackBackdrop(){
  * costs nothing. The moment it is shown again it renders once with the current state.
  */
 const KeptPage=React.memo(function KeptPage({active,children}:{active:boolean;children:React.ReactNode}){
-  return <PageVisible.Provider value={active}><View pointerEvents={active?'auto':'none'} style={[StyleSheet.absoluteFill,{display:active?'flex':'none'}]}>{children}</View></PageVisible.Provider>;
+  // A hidden page also stops its decorative drawing (snow, the pixel trail, glass refreshes).
+  return <PageVisible.Provider value={active}><RenderActivity active={active}><View pointerEvents={active?'auto':'none'} style={[StyleSheet.absoluteFill,{display:active?'flex':'none'}]}>{children}</View></RenderActivity></PageVisible.Provider>;
 },(before,after)=>!before.active&&!after.active);

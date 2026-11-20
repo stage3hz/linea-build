@@ -1,3 +1,4 @@
+import { useStackReady } from './stack';
 import { repeatBroken, repeatNotice, repeatWait } from './repeatGuard';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import { takeProfileRequest } from './birthdayNotifications';
@@ -262,6 +263,10 @@ export function ChatScreen({api,user,chat,store,onBack,wide=false,onOpenMusic}: 
   },[view,pending,searchOpen,needle,user.id]);
   const preferences=useChatPreferences();const metrics=textMetrics(preferences.textSize);
   const windowWidth=useWindowDimensions().width;
+  // The slide-in starts once the first messages are drawn (or it is known there are none): two frames after
+  // they are committed, so their views are mounted before the screen starts to move.
+  const stackReady=useStackReady();const hasFirst=!!store.messages[chat.id]?.length||!store.messageLoading;
+  useEffect(()=>{if(!hasFirst)return;let second=0;const first=requestAnimationFrame(()=>{second=requestAnimationFrame(stackReady);});return()=>{cancelAnimationFrame(first);cancelAnimationFrame(second);};},[hasFirst,stackReady]);
   const wallpaper=useWallpaper(chat.id);
   // No wallpaper chosen: the open look — the peer's light on their side of the screen and words without bubbles.
   const openLook=wallpaper.kind==='preset'&&!WALLPAPERS.find(item=>item.id===wallpaper.id)?.colors;
