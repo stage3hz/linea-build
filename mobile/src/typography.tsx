@@ -22,6 +22,20 @@ if (Platform.OS === 'web' && typeof document !== 'undefined' && !document.getEle
     document.head.appendChild(style);
   } catch { /* the system font stays */ }
 }
+// Screen titles are set in Unbounded ExtraBold (SIL Open Font License 1.1): wide, heavy letters that make a
+// title read as a sign, not a label. iOS finds a single static face by its PostScript name; Android registers
+// it as a family with its weight (app.config.js); the browser gets it with @font-face below.
+export const TITLE_FONT = Platform.select({ ios: 'Unbounded-ExtraBold', android: 'Unbounded', default: 'Unbounded, Montserrat, system-ui, sans-serif' })!;
+export const TITLE = { fontFamily: TITLE_FONT, fontWeight: '800' as const, letterSpacing: -0.8 };
+if (Platform.OS === 'web' && typeof document !== 'undefined' && !document.getElementById('invizent-unbounded')) {
+  try {
+    // eslint-disable-next-line @typescript-eslint/no-require-imports
+    const { Asset } = require('expo-asset') as typeof import('expo-asset');
+    const style = document.createElement('style'); style.id = 'invizent-unbounded';
+    style.textContent = `@font-face{font-family:'Unbounded';src:url('${Asset.fromModule(require('../assets/fonts/Unbounded-ExtraBold.ttf')).uri}') format('truetype');font-weight:800;font-style:normal;font-display:swap}`;
+    document.head.appendChild(style);
+  } catch { /* the body face stays */ }
+}
 /** The system monospaced face (technical lines, key hints). */
 export const MONO = Platform.select({ ios: 'Menlo', android: 'monospace', default: 'ui-monospace, SFMono-Regular, Menlo, Consolas, monospace' })!;
 const base = StyleSheet.create({ font: { fontFamily: FONT_FAMILY } });

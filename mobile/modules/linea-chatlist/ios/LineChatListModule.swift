@@ -40,6 +40,8 @@ struct ChatRow: Equatable {
   /// The letter avatar as a lit ball: its lighter and deeper corner colours (0 = a flat circle).
   let orbA: Int
   let orbB: Int
+  /// A quiet heading drawn above this row (the first chat of a part of the list); empty = none.
+  let section: String
   /// Picture avatar: where to get it and the key it is cached under; empty = the letter avatar.
   let avatarUrl: String
   let avatarKey: String
@@ -79,7 +81,7 @@ struct ChatRow: Equatable {
         unread: max(0, int(row["unread"], 0)), muted: flag(row["muted"]), pinned: flag(row["pinned"]),
         accentPreview: flag(row["accentPreview"]), ticks: min(2, max(0, int(row["ticks"], 0))),
         checked: min(1, max(-1, int(row["checked"], -1))), selected: flag(row["selected"]),
-        avatarColor: int(row["avatarColor"], 0xFF5E7BFF), initials: String(text(row["initials"]).prefix(2)), orbA: int(row["orbA"], 0), orbB: int(row["orbB"], 0),
+        avatarColor: int(row["avatarColor"], 0xFF5E7BFF), initials: String(text(row["initials"]).prefix(2)), orbA: int(row["orbA"], 0), orbB: int(row["orbB"], 0), section: String(text(row["section"]).prefix(24)),
         avatarUrl: text(row["avatarUrl"]), avatarKey: text(row["avatarKey"]), thumb: text(row["thumb"]),
         thumbRound: flag(row["thumbRound"]), previewIcon: text(row["previewIcon"]), previewRed: max(0, int(row["previewRed"], 0)), lead: (row["lead"] as? [String]) ?? [], trail: (row["trail"] as? [String]) ?? [],
         ring: ((row["ring"] as? [Any]) ?? []).compactMap { ($0 as? NSNumber)?.intValue }, deco: text(row["deco"]),
@@ -126,6 +128,8 @@ struct ChatPalette: Equatable {
 }
 
 private let chatRowHeight: CGFloat = 76
+/// A row that opens a part of the list («Сегодня», «Вчера»…) is taller by its heading.
+private let chatSectionHeight: CGFloat = 30
 
 /// A rectangle with circular corners of exactly `radius`. UIBezierPath(roundedRect:cornerRadius:) turns the shape
 /// into a capsule once the radius passes about a third of the side — the app's avatar (radius 0.36 of the side)
@@ -268,6 +272,7 @@ final class ChatRowCanvas: UIView {
   private static let timeFont = UIFont.systemFont(ofSize: 13)
   private static let badgeFont = UIFont.systemFont(ofSize: 12, weight: .bold)
   private static let avatarFont = UIFont.systemFont(ofSize: 21, weight: .bold)
+  private static let sectionFont = UIFont.systemFont(ofSize: 11, weight: .bold)
 
   override init(frame: CGRect) {
     super.init(frame: frame)
@@ -286,15 +291,22 @@ final class ChatRowCanvas: UIView {
   override func draw(_ rect: CGRect) {
     guard let item = row, let context = UIGraphicsGetCurrentContext() else { return }
     let w = bounds.width
-    let h = bounds.height
+    let top: CGFloat = item.section.isEmpty ? 0 : chatSectionHeight
+    let h = bounds.height - top
+    if top > 0 {
+      NSAttributedString(string: item.section.uppercased(), attributes: [.font: ChatRowCanvas.sectionFont, .foregroundColor: palette.subtle, .kern: 1.4])
+        .draw(at: CGPoint(x: 18, y: top - 21))
+      // Everything below is the row itself, drawn under the heading.
+      context.translateBy(x: 0, y: top)
+    }
     // Telegram: pinned chats stand on a slightly different ground than the rest of the list.
     if item.pinned {
       context.setFillColor(palette.pinned.cgColor)
-      context.fill(bounds)
+      context.fill(CGRect(x: 0, y: 0, width: w, height: h))
     }
     if item.selected || pressed {
       context.setFillColor((item.selected ? palette.selected : palette.pressed).cgColor)
-      context.fill(bounds)
+      context.fill(CGRect(x: 0, y: 0, width: w, height: h))
     }
 
     // The nameplate: a picture behind the whole row (right-aligned, cropped to fill), darkened towards the name.
@@ -656,6 +668,10 @@ final class ChatListView: ExpoView, UITableViewDataSource, UITableViewDelegate {
   }
 
   func tableView(_ tableView: UITableView, numberOfRowsInSection section: Int) -> Int { rows.count }
+
+  func tableView(_ tableView: UITableView, heightForRowAt indexPath: IndexPath) -> CGFloat {
+    indexPath.row < rows.count && !rows[indexPath.row].section.isEmpty ? chatRowHeight + chatSectionHeight : chatRowHeight
+  }
 
   func tableView(_ tableView: UITableView, cellForRowAt indexPath: IndexPath) -> UITableViewCell {
     let cell = tableView.dequeueReusableCell(withIdentifier: "row", for: indexPath)

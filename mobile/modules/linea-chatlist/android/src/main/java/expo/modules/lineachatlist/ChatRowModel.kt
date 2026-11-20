@@ -7,6 +7,8 @@ data class ChatRow(
   val selected: Boolean, val avatarColor: Int, val initials: String,
   /** The letter avatar as a lit ball: its lighter and deeper corner colours (0 = a flat circle). */
   val orbA: Int, val orbB: Int,
+  /** A quiet heading drawn above this row (the first chat of a part of the list); empty = none. */
+  val section: String,
   /** Picture avatar: where to get it and the key it is cached under; empty = the letter avatar. */
   val avatarUrl: String, val avatarKey: String,
   /** A small JPEG/PNG (base64) shown before the preview text: the photo or video of the last message. */
@@ -37,7 +39,7 @@ data class ChatRow(
       if (id.isEmpty()) null else ChatRow(
         id, text(row["title"]), text(row["preview"]), text(row["time"]), int(row["unread"], 0).coerceAtLeast(0),
         flag(row["muted"]), flag(row["pinned"]), flag(row["accentPreview"]), int(row["ticks"], 0).coerceIn(0, 2),
-        int(row["checked"], -1).coerceIn(-1, 1), flag(row["selected"]), int(row["avatarColor"], 0xFF5E7BFF.toInt()), text(row["initials"]).take(2), int(row["orbA"], 0), int(row["orbB"], 0),
+        int(row["checked"], -1).coerceIn(-1, 1), flag(row["selected"]), int(row["avatarColor"], 0xFF5E7BFF.toInt()), text(row["initials"]).take(2), int(row["orbA"], 0), int(row["orbB"], 0), text(row["section"]).take(24),
         text(row["avatarUrl"]), text(row["avatarKey"]), text(row["thumb"]), flag(row["thumbRound"]),
         (row["ring"] as? List<*>)?.mapNotNull { (it as? Number)?.toInt() } ?: emptyList(),
         text(row["deco"]), ((row["decoScale"] as? Number)?.toDouble() ?: 1.0).coerceIn(1.0, 2.0), text(row["plate"]),

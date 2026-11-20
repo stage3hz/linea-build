@@ -84,8 +84,8 @@ module.exports = {
       './plugins/withScreenBroadcast',
       // Montserrat (SIL OFL 1.1), embedded natively; family 'Montserrat' with weights 400–800.
       ['expo-font', {
-        ios: { fonts: ['./assets/fonts/Montserrat-Regular.ttf','./assets/fonts/Montserrat-Medium.ttf','./assets/fonts/Montserrat-SemiBold.ttf','./assets/fonts/Montserrat-Bold.ttf','./assets/fonts/Montserrat-ExtraBold.ttf'] },
-        android: { fonts: [{ fontFamily: 'Montserrat', fontDefinitions: [{path:'./assets/fonts/Montserrat-Regular.ttf',weight:400},{path:'./assets/fonts/Montserrat-Medium.ttf',weight:500},{path:'./assets/fonts/Montserrat-SemiBold.ttf',weight:600},{path:'./assets/fonts/Montserrat-Bold.ttf',weight:700},{path:'./assets/fonts/Montserrat-ExtraBold.ttf',weight:800}] }] },
+        ios: { fonts: ['./assets/fonts/Montserrat-Regular.ttf','./assets/fonts/Montserrat-Medium.ttf','./assets/fonts/Montserrat-SemiBold.ttf','./assets/fonts/Montserrat-Bold.ttf','./assets/fonts/Montserrat-ExtraBold.ttf','./assets/fonts/Unbounded-ExtraBold.ttf'] },
+        android: { fonts: [{ fontFamily: 'Montserrat', fontDefinitions: [{path:'./assets/fonts/Montserrat-Regular.ttf',weight:400},{path:'./assets/fonts/Montserrat-Medium.ttf',weight:500},{path:'./assets/fonts/Montserrat-SemiBold.ttf',weight:600},{path:'./assets/fonts/Montserrat-Bold.ttf',weight:700},{path:'./assets/fonts/Montserrat-ExtraBold.ttf',weight:800}] }, { fontFamily: 'Unbounded', fontDefinitions: [{path:'./assets/fonts/Unbounded-ExtraBold.ttf',weight:800}] }] },
       }],
       'expo-asset',
       // «Картинка в картинке»: a video opened from a chat keeps playing in the system's small window when the app is

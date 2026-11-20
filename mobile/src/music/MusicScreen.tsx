@@ -1,7 +1,7 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { ActivityIndicator, Alert, FlatList, Image, Linking, Platform, Pressable, ScrollView, StyleSheet, View, useWindowDimensions } from 'react-native';
 import { MusicAmbient, themeAmbient, type AmbientTone } from './MusicAmbient';
-import { Text, TextInput } from '../typography';
+import { TITLE, Text, TextInput } from '../typography';
 import { LinearGradient } from 'expo-linear-gradient';
 import MaskedView from '@react-native-masked-view/masked-view';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -169,7 +169,7 @@ export function MusicScreen({ onBack, guest = false }: { onBack: () => void; gue
             : <MaskedView pointerEvents="none" style={[StyleSheet.absoluteFill, { width: screen.width, height: headHeight }]} maskElement={<LinearGradient colors={['#000', '#000', 'transparent']} locations={[0, 0.6, 1]} style={{ width: screen.width, height: headHeight }} />}><MusicAmbient width={screen.width} height={headHeight} tone={tone} /></MaskedView>}
           <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10, paddingHorizontal: 18 }}>
             {guest ? <IconButton name="chevron-back" label="Вернуться ко входу" onPress={onBack} color={ink} /> : null}
-            <Text style={{ flex: 1, color: ink, fontSize: 22, fontWeight: '700', letterSpacing: -.4 }}>Музыка</Text>
+            <Text style={[TITLE, { flex: 1, color: ink, fontSize: 26, lineHeight: 32 }]}>Музыка</Text>
             <IconButton name="add" label="Добавить аудиофайлы" disabled={music.importing} onPress={() => void music.importFiles()} color={ink} />
             <IconButton name="information-outline" label="О музыкальном разделе" onPress={() => setInfoOpen(true)} color={ink} />
           </View>

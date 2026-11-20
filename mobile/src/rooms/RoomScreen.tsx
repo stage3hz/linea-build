@@ -10,7 +10,7 @@ import type { User } from '../types';
 import type { MessengerStore } from '../useMessenger';
 import { Avatar, Button, Field, Icon, IconButton, Notice, Sheet, SheetAction } from '../components';
 import { GlassSurface } from '../glass';
-import { Text } from '../typography';
+import { TITLE, Text } from '../typography';
 import { useTheme } from '../theme';
 import { useTabInset } from '../tabInset';
 import { brightTint } from '../design/peerLight';
@@ -71,7 +71,7 @@ export function RoomScreen({ api, me, store, roomId, onBack }: { api: Api; me: U
     <GlassSurface lens material="clear" radius={27} style={{ marginHorizontal: 14, marginTop: 12 }} contentStyle={{ flexDirection: 'row', alignItems: 'center', padding: 8, gap: 6, minHeight: 64 }}>
       <IconButton name="chevron-back" label="Назад" onPress={onBack} />
       <View style={{ flex: 1, minWidth: 0 }}>
-        <Text raw numberOfLines={1} style={{ fontSize: 20, fontWeight: '800', letterSpacing: -0.4, color: t.text }}>{room.name}</Text>
+        <Text raw numberOfLines={1} style={[TITLE, { fontSize: 20, lineHeight: 26, color: t.text }]}>{room.name}</Text>
         <Text numberOfLines={1} style={{ fontSize: 12, fontWeight: '600', color: inside.size ? TALK : t.muted }}>{status}</Text>
       </View>
       <IconButton name="ellipsis-horizontal" label="Действия с комнатой" onPress={() => setMenu(true)} />

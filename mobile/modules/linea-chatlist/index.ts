@@ -23,6 +23,8 @@ export type NativeChatRow = {
   initials: string;
   /** The letter avatar as a lit ball: its lighter and deeper corner colours (0 = a flat circle). */
   orbA: number; orbB: number;
+  /** A quiet heading drawn above this row (the first chat of a part of the list); '' = none. */
+  section: string;
   /** Picture avatar: the file's address and the key it is cached under ('' = the letter avatar). */
   avatarUrl: string;
   avatarKey: string;

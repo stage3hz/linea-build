@@ -8,7 +8,7 @@ import type { User } from '../types';
 import type { MessengerStore } from '../useMessenger';
 import { Button, Empty, Field, Icon, IconButton, Notice, Sheet } from '../components';
 import { GlassBackdrop, GlassSurface } from '../glass';
-import { Text } from '../typography';
+import { TITLE, Text } from '../typography';
 import { useTheme } from '../theme';
 import { StackBase, StackScreen } from '../stack';
 import { CommunityScreen, LIST_WIDTH } from './CommunityScreen';
@@ -58,7 +58,7 @@ export function CommunitiesScreen({ api, me, store, openId, onOpenInvite, onOpen
     <StackBase progress={progress} covered={!!openId || !!roomId}>
       <View style={{ flex: 1 }}>
         <GlassSurface lens material="clear" radius={27} style={{ marginHorizontal: 14, marginTop: 12 }} contentStyle={{ flexDirection: 'row', alignItems: 'center', padding: 10, gap: 9, minHeight: 64 }}>
-          <View style={{ flex: 1, paddingLeft: 6 }}><Text style={{ fontSize: 22, fontWeight: '700', color: t.text }}>Каналы</Text><Text style={{ fontSize: 12, color: t.muted }}>Комнаты, серверы и каналы</Text></View>
+          <View style={{ flex: 1, paddingLeft: 6 }}><Text style={[TITLE, { fontSize: 26, lineHeight: 32, color: t.text }]}>Каналы</Text><Text style={{ fontSize: 12, color: t.muted }}>Комнаты, серверы и каналы</Text></View>
           <IconButton name="link-outline" label="Вступить по ссылке" onPress={() => setJoin(true)} />
           <Pressable accessibilityRole="button" accessibilityLabel="Создать" onPress={() => setCreate('choose')} style={{ width: 42, height: 42, borderRadius: 21, backgroundColor: t.accent, alignItems: 'center', justifyContent: 'center' }}><Icon name="add" color={t.onAccent} size={24} /></Pressable>
         </GlassSurface>

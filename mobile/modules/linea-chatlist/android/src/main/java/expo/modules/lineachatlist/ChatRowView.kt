@@ -25,6 +25,7 @@ class ChatRowView(context: Context) : View(context) {
   private val d = resources.displayMetrics.density
   private val fill = Paint(Paint.ANTI_ALIAS_FLAG)
   private val orb = Paint(Paint.ANTI_ALIAS_FLAG)
+  private val sectionPaint = TextPaint(Paint.ANTI_ALIAS_FLAG).apply { textSize = 11f * d; typeface = Typeface.create(Typeface.DEFAULT, Typeface.BOLD); letterSpacing = 0.12f }
   private val stroke = Paint(Paint.ANTI_ALIAS_FLAG).apply { style = Paint.Style.STROKE; strokeCap = Paint.Cap.ROUND; strokeJoin = Paint.Join.ROUND }
   private val titlePaint = TextPaint(Paint.ANTI_ALIAS_FLAG).apply { textSize = 16f * d; typeface = Typeface.create(Typeface.DEFAULT, Typeface.BOLD) }
   private val previewPaint = TextPaint(Paint.ANTI_ALIAS_FLAG).apply { textSize = 15f * d }
@@ -96,7 +97,9 @@ class ChatRowView(context: Context) : View(context) {
   fun bind(next: ChatRow, colors: ChatPalette) {
     if (row == next && palette == colors) return
     if (row?.id != next.id) swipeX = 0f
+    val taller = row?.section.isNullOrEmpty() != next.section.isEmpty()
     row = next; palette = colors; contentDescription = next.title + ". " + next.preview
+    if (taller) requestLayout()
     if (next.thumb != thumbOf) {
       thumbOf = next.thumb
       thumb = if (next.thumb.isEmpty()) null else try { val bytes = Base64.decode(next.thumb, Base64.DEFAULT); BitmapFactory.decodeByteArray(bytes, 0, bytes.size) } catch (_: Throwable) { null }
@@ -105,7 +108,8 @@ class ChatRowView(context: Context) : View(context) {
   }
 
   override fun onMeasure(widthSpec: Int, heightSpec: Int) {
-    setMeasuredDimension(MeasureSpec.getSize(widthSpec), (ROW_DP * d).toInt())
+    // A row that opens a part of the list is taller by its heading.
+    setMeasuredDimension(MeasureSpec.getSize(widthSpec), ((ROW_DP + if (row?.section.isNullOrEmpty()) 0f else SECTION_DP) * d).toInt())
   }
 
   override fun drawableStateChanged() { super.drawableStateChanged(); invalidate() }
@@ -124,7 +128,17 @@ class ChatRowView(context: Context) : View(context) {
 
   private fun drawRow(canvas: Canvas) {
     val item = row ?: return
-    val w = width.toFloat(); val h = height.toFloat()
+    val top = if (item.section.isEmpty()) 0f else SECTION_DP * d
+    if (top == 0f) { drawBody(canvas, item, height.toFloat()); return }
+    sectionPaint.color = palette.subtle
+    canvas.drawText(item.section.uppercase(), 18f * d, top - 8f * d, sectionPaint)
+    canvas.save(); canvas.translate(0f, top)
+    drawBody(canvas, item, height.toFloat() - top)
+    canvas.restore()
+  }
+
+  private fun drawBody(canvas: Canvas, item: ChatRow, h: Float) {
+    val w = width.toFloat()
     // Telegram: pinned chats stand on a slightly different ground than the rest of the list.
     if (item.pinned) { fill.color = palette.pinned; canvas.drawRect(0f, 0f, w, h, fill) }
     if (item.selected || isPressed) { fill.color = if (item.selected) palette.selected else palette.pressed; canvas.drawRect(0f, 0f, w, h, fill) }
@@ -262,5 +276,5 @@ class ChatRowView(context: Context) : View(context) {
     fill.color = palette.border; canvas.drawRect(x, h - maxOf(1f, d / 2), w, h, fill)
   }
 
-  companion object { const val ROW_DP = 76f; const val BUTTON_DP = 78f }
+  companion object { const val ROW_DP = 76f; const val BUTTON_DP = 78f; const val SECTION_DP = 30f }
 }
