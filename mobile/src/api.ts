@@ -29,8 +29,10 @@ export const CLIENT_HEADER = `invizent; v=${APP_VERSION}; p=${clientPlatform}`;
 export type CallMode = 'everyone' | 'contacts' | 'allowed';
 /** «Время захода»: Все / Мои контакты (friends) / Никто, as in Telegram. */
 export type LastSeenMode = 'everyone' | 'contacts' | 'nobody';
+/** «Кто видит мои истории и записи»: «Друзья» (the default) or «Все» — anyone signed in whom I have not blocked. */
+export type PostsAudience = 'friends' | 'everyone';
 /** `showLastSeen` is the old on/off switch (kept by the server for older apps); new code uses `lastSeen`. */
-export type Privacy = { allowNewChats: boolean; showAvatar: boolean; readReceipts: boolean; showLastSeen?: boolean; lastSeen?: LastSeenMode; hideReadTime?: boolean; calls?: CallMode };
+export type Privacy = { allowNewChats: boolean; showAvatar: boolean; readReceipts: boolean; showLastSeen?: boolean; lastSeen?: LastSeenMode; hideReadTime?: boolean; calls?: CallMode; posts?: PostsAudience };
 export type CallRules = { allow: User[]; deny: User[] };
 /** «Всегда показывать» (allow) and «Никогда не показывать» (deny) for «Время захода». */
 export type LastSeenRules = { allow: User[]; deny: User[] };
@@ -271,7 +273,8 @@ export class Api {
   publishPost = (uploadId: string, kind: 'post' | 'story', caption = '') => this.request<{post: ProfilePost}>('/me/posts', {method: 'POST', body: JSON.stringify({uploadId, kind, caption})});
   deletePost = (id: string) => this.request<{ok: true}>(`/me/posts/${encodeURIComponent(id)}`, {method: 'DELETE'});
   // The stories strip above the chat list: friends with a live story (unseen first) and my own stories.
-  storiesFeed = () => this.request<StoriesFeed>('/stories/feed');
+  /** `posts=1`: this app can also show people who have no live story but published a post in the last 48 h. */
+  storiesFeed = () => this.request<StoriesFeed>('/stories/feed?posts=1');
   /** Marks a story watched (idempotent; the server ignores the owner's own view). */
   viewStory = (id: string) => this.request<{ok: true; seen: true}>(`/stories/${encodeURIComponent(id)}/view`, {method: 'POST', body: '{}'});
   /** Who watched my story — the owner only. */
@@ -491,7 +494,13 @@ export function multipartFile(bytes: Uint8Array, filename: string, mimeType: str
 export type ProfilePost = { id: string; kind: 'post' | 'story'; caption: string; createdAt: string; expiresAt: string | null; media: { id: string; mimeType: string; isImage: boolean; isVideo: boolean; size: number }; views?: number; seen?: boolean };
 export type ProfilePosts = { visible: boolean; posts: ProfilePost[]; stories: ProfilePost[] };
 /** One friend in the stories strip: their live stories oldest first, and how many I have not seen. */
-export type StoryFeedItem = { user: User; stories: ProfilePost[]; unseen: number };
+/**
+ * One person in the stories strip. `stories` are their live stories (oldest first) and `unseen` how many of
+ * them I have not watched. `posts`: only when there is no live story — their posts of the last 48 h, newest
+ * first. `pending`: not a friend yet — I sent them a friend request that is still waiting and they show
+ * stories and posts to everyone. `latest`: when their newest story or post was published (for the order).
+ */
+export type StoryFeedItem = { user: User; stories: ProfilePost[]; unseen: number; posts?: ProfilePost[]; pending?: boolean; latest?: string };
 export type StoriesFeed = { items: StoryFeedItem[]; mine: ProfilePost[] };
 export type StoryViewers = { count: number; viewers: { user: User; viewedAt: string }[] };
 export type ProfileGift = { id: string; gift: string; message: string; createdAt: string; sender: { id: string; username: string; displayName: string; avatarColor: string } | null };

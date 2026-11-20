@@ -8,7 +8,8 @@ import { PlatinaGem, PlatinaName, hasPlatina } from './platina/PlatinaMark';
 import { DecoratedAvatar } from './platina/Decor';
 import { usePowerFeatures } from './motion';
 import { ChatWallpaper, WallpaperPicker } from './WallpaperPicker';
-import { PeerLight, brightTint, peerTint } from './design/peerLight';
+import { PeerLight, brightTint } from './design/peerLight';
+import { tintOf, useAvatarTints } from './design/avatarTint';
 import { useWallpaper } from './wallpapers';
 import { usePlatina } from './platina/usePlatina';
 import { ComposerInput } from './ComposerInput';
@@ -264,7 +265,9 @@ export function ChatScreen({api,user,chat,store,onBack,wide=false,onOpenMusic}: 
   const wallpaper=useWallpaper(chat.id);
   // No wallpaper chosen: the open look — the peer's light on their side of the screen and words without bubbles.
   const openLook=wallpaper.kind==='preset'&&!WALLPAPERS.find(item=>item.id===wallpaper.id)?.colors;
-  const peerLine=useMemo(()=>brightTint(peerTint(chat.peer.avatarColor,'#8A8F98'),t.dark?190:0),[chat.peer.avatarColor,t.dark]);
+  // The light takes the colour of the peer's photo (their chosen colour when there is no photo).
+  useAvatarTints();const peerColor=tintOf(api,chat.peer);
+  const peerLine=useMemo(()=>brightTint(peerColor,t.dark?190:0),[peerColor,t.dark]);
 const [wallpaperOpen,setWallpaperOpen]=useState(false);
   const nameOf=(senderId:string)=>senderId===user.id?'Ты':chat.peer.displayName;
   // A forwarded message keeps its first author through further forwards.
@@ -696,7 +699,7 @@ const [wallpaperOpen,setWallpaperOpen]=useState(false);
     {/* Android: header and composer glass blur this (wallpaper + messages) on the GPU. */}
     <GlassContentTarget targetRef={glassTarget} style={{flex:1}}>
     <ChatWallpaper choice={wallpaper} style={{top:-80,bottom:-60}} trail/>
-    {openLook?<PeerLight color={peerTint(chat.peer.avatarColor,'#8A8F98')} style={{top:-80,bottom:-60}}/>:null}
+    {openLook?<PeerLight color={peerColor} style={{top:-80,bottom:-60}}/>:null}
     {rows.length===0&&!chatNotes.length?<View style={{flex:1,justifyContent:'center',paddingTop:headerHeight,paddingBottom:listEdges.composerSide}}>{store.messageLoading?<ActivityIndicator color={t.accent}/>:<Empty icon="hand-left-outline" title="Скажи «привет»" description={`Это начало вашей переписки с ${chat.peer.displayName}.`}/>}</View>:<><KeyboardGestureArea style={{flex:1}} interpolator="ios" offset={keyboardGestureOffset(composerHeight,stickers)} textInputNativeID={COMPOSER_NATIVE_ID} enableSwipeToDismiss={dismissSetup.gestureArea}>{nativeChatOn&&NativeMsgListView?<NativeMsgListView style={{flex:1}} rows={nativeMsgRows} palette={nativeMsgPalette} fontSize={metrics.fontSize} pad={[listEdges.headerSide,listEdges.composerSide]} onMsgPress={e=>nativeMsgPress(e.nativeEvent.key)} onMsgLongPress={e=>nativeMsgHold(e.nativeEvent.key,e.nativeEvent.y)} onLinkPress={e=>nativeLinkPress(e.nativeEvent.url,e.nativeEvent.shown)} onReactPress={e=>{const message=rows.find(r=>r.key===e.nativeEvent.key)?.message;if(message)handlers.current.react(message,e.nativeEvent.emoji as Reaction);}} onNearTop={loadOlder}/>:listEl}</KeyboardGestureArea><Animated.View pointerEvents="none" style={[{position:'absolute',width:0,height:0,opacity:0},lockCommit]}/></>
     }
     </GlassContentTarget>

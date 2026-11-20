@@ -13,6 +13,7 @@ import { useTheme } from '../theme';
 import { impactFeedback } from '../haptics';
 import { playCallSound, stopCallSound } from '../calls/callSounds';
 import { useVoice } from '../communities/voice';
+import { useCalls } from '../calls/CallProvider';
 import { navigate } from '../navigation';
 import { RoomFaces } from './RoomScreen';
 import { dismissRing, enterRoom, handleRoomEvent, insideLine, loadRooms, openRoom, sleepLine, useRooms, type Room } from './rooms';
@@ -73,13 +74,17 @@ export function RoomsSection({ api, me, store }: { api: Api; me: User; store: Me
  */
 export function RoomsHost({ api, me, store }: { api: Api; me: User; store: MessengerStore }) {
   const t = useTheme(); const insets = useSafeAreaInsets(); const { ring, rooms } = useRooms();
+  const callBusy = useCalls().busy;
   useEffect(() => { void loadRooms(api, me.id); }, [api, me.id]);
   useEffect(() => store.onSocket(data => { if (data?.type === 'ready') void loadRooms(api, me.id); else handleRoomEvent(data, me.id); }), [store, api, me.id]);
   useEffect(() => {
     if (!ring) return;
-    impactFeedback(); void playCallSound('incoming');
+    // An ordinary call that is ringing or going on keeps its own sound: the room's call is then shown silently.
+    const sound = !callBusy;
+    impactFeedback(); if (sound) void playCallSound('incoming');
     const timer = setTimeout(dismissRing, RING_MS);
-    return () => { clearTimeout(timer); stopCallSound(); };
+    return () => { clearTimeout(timer); if (sound) stopCallSound(); };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [ring]);
   if (!ring) return null;
   const room = rooms?.find(item => item.id === ring.roomId);

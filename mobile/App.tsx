@@ -74,7 +74,8 @@ import { InviteSheet } from './src/communities/InviteSheet';
 import { inviteCodeFrom } from './src/communities/types';
 import { onNavigate } from './src/navigation';
 import { RoomsHost } from './src/rooms/RoomsSection';
-import { openRoom, roomsNow } from './src/rooms/rooms';
+import { openRoom, resetRooms, roomsNow } from './src/rooms/rooms';
+import { leaveVoice } from './src/communities/voice';
 import { usePush, stopPush } from './src/push';
 import { PlatinaShowcaseHost } from './src/platina/PlatinaShowcase';
 import { PlatinaConfettiHost } from './src/platina/PlatinaConfetti';
@@ -91,6 +92,10 @@ void loadLanguage();
 export default function App() {
   const system=useColorScheme();const [mode,setMode]=useState<ThemeMode>('system');const [darkTheme,setDarkTheme]=useState<DarkTheme>('dark');const [themeError,setThemeError]=useState('');const themeSaveRevision=useRef(0);const [server,setServer]=useState<string|null>(null);const [session,setSession]=useState<Session|null>(null);const [booting,setBooting]=useState(true);const [bootError,setBootError]=useState('');const [authNotice,setAuthNotice]=useState('');
   const logoutInProgress=useRef(false);
+  // Signing out or switching the account: the microphone closes (a room or a voice channel is left) and the
+  // rooms of that account are forgotten, so nothing of it is shown or heard under the next one.
+  const signedInAs=session?.user.id;
+  useEffect(()=>()=>{leaveVoice();resetRooms();},[signedInAs]);
   const securityInProgress=useRef(false);const pendingSecurityExpiry=useRef(false);
   const currentAuth=useRef({server,token:session?.token});currentAuth.current={server,token:session?.token};
   const [guestMusicOpen,setGuestMusicOpen]=useState(false);

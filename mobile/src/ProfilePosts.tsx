@@ -265,13 +265,17 @@ function VideoMedia({ api, id, active, width, height, onEnd }: { api: Api; id: s
  * In the strip (F8) the viewer also shows whose stories these
  * are (`owner`), reports each story watched (`onView`), continues to the next friend at the end
  * (`onFinished`), lets a friend answer a story (`onReply`: an ordinary end-to-end encrypted message to the
- * author) and shows the owner «👁 N» with the list of viewers (`own`).
+ * author) and shows the owner «👁 N» with the list of viewers (`own`). The strip also opens a person's
+ * recent posts here (`story` false): `onShown` reports each post shown, and with `onFinished` a swipe or a
+ * tap past the last post runs on to the next person, as stories do.
  */
-export function PostViewer({ api, items, start, story, onClose, onFinished, onPrevious, onView, owner, own = false, onReply, group, enterFrom = 1 }: {
+export function PostViewer({ api, items, start, story, onClose, onFinished, onPrevious, onView, onShown, owner, own = false, onReply, group, enterFrom = 1 }: {
   api: Api; items: ProfilePost[]; start: number; story: boolean; onClose: () => void;
   onFinished?: () => void;
   /** A swipe right on the first item (e.g. the previous friend in the stories strip). Without it the page springs back. */
-  onPrevious?: () => void; onView?: (post: ProfilePost) => void; owner?: User; own?: boolean; onReply?: (text: string, post: ProfilePost) => Promise<void>;
+  onPrevious?: () => void; onView?: (post: ProfilePost) => void;
+  /** Called for every item that comes on screen, stories and posts alike (`onView` is for stories only). */
+  onShown?: (post: ProfilePost) => void; owner?: User; own?: boolean; onReply?: (text: string, post: ProfilePost) => Promise<void>;
   /**
    * Whose items these are (the stories strip: a person's id). When it changes the viewer stays open and
    * starts over at `start` with the new items, the page coming in from `enterFrom` (1 = from the right,
@@ -300,6 +304,10 @@ export function PostViewer({ api, items, start, story, onClose, onFinished, onPr
   const previous = () => { if (index > 0) setIndex(index - 1); else if (onPrevious && !closing.current) { closing.current = true; onPrevious(); } };
   const onViewRef = useRef(onView); onViewRef.current = onView;
   useEffect(() => { if (story && current) onViewRef.current?.(current); }, [story, current?.id]);
+  const onShownRef = useRef(onShown); onShownRef.current = onShown;
+  useEffect(() => { if (current) onShownRef.current?.(current); }, [current?.id]);
+  // Past the last item: stories always run on (or close); posts only when the caller continues somewhere (`onFinished`).
+  const runsOn = story || !!onFinished;
   // Swipes: the page follows the finger sideways (to the next / previous) or down (to close).
   const motion = motionEnabled();
   const x = useSharedValue(0), y = useSharedValue(0), axis = useSharedValue<0 | 1 | 2>(0);
@@ -331,9 +339,9 @@ export function PostViewer({ api, items, start, story, onClose, onFinished, onPr
     return () => { live = false; };
   }, [own, story, current?.id]);
   const bar = useAnimatedStyle(() => ({ width: `${progress.value * 100}%` }));
-  const hasNext = index + 1 < items.length || story; const hasPrevious = index > 0 || !!onPrevious;
+  const hasNext = index + 1 < items.length || runsOn; const hasPrevious = index > 0 || !!onPrevious;
   const step = (direction: 1 | -1) => {
-    if (direction > 0) { if (index + 1 < items.length) { entering.current = 1; setIndex(index + 1); } else if (story) finish(); return; }
+    if (direction > 0) { if (index + 1 < items.length) { entering.current = 1; setIndex(index + 1); } else if (runsOn) finish(); return; }
     if (index > 0) { entering.current = -1; setIndex(index - 1); } else if (onPrevious && !closing.current) { closing.current = true; onPrevious(); }
   };
   const goNext = () => step(1), goPrevious = () => step(-1);
@@ -390,7 +398,7 @@ export function PostViewer({ api, items, start, story, onClose, onFinished, onPr
           (with onLongPress set, letting go after a hold does not also count as a tap). */}
       <View style={[StyleSheet.absoluteFill, { flexDirection: 'row' }]}>
         <Pressable accessibilityRole="button" accessibilityLabel="Предыдущее" style={{ flex: 1 }} onPress={previous} delayLongPress={220} onLongPress={() => setHold('press')} onPressOut={() => release('press')} />
-        <Pressable accessibilityRole="button" accessibilityLabel="Следующее" style={{ flex: 2 }} onPress={() => { if (index + 1 < items.length) setIndex(index + 1); else if (story) next(); }} delayLongPress={220} onLongPress={() => setHold('press')} onPressOut={() => release('press')} />
+        <Pressable accessibilityRole="button" accessibilityLabel="Следующее" style={{ flex: 2 }} onPress={() => { if (index + 1 < items.length) setIndex(index + 1); else if (runsOn) next(); }} delayLongPress={220} onLongPress={() => setHold('press')} onPressOut={() => release('press')} />
       </View>
       <View pointerEvents="box-none" style={{ position: 'absolute', top: insets.top + 8, left: 10, right: 10, gap: 10, opacity: held ? 0 : 1 }}>
         {story || items.length > 1 ? <View style={{ flexDirection: 'row', gap: 4 }}>{items.map((item, i) => <View key={item.id} style={{ flex: 1, height: 3, borderRadius: 2, overflow: 'hidden', backgroundColor: 'rgba(255,255,255,0.3)' }}>

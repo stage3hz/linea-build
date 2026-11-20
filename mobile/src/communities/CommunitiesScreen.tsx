@@ -37,6 +37,8 @@ export function CommunitiesScreen({ api, me, store, openId, onOpenInvite, onOpen
   const progress = useSharedValue(1);
   // A room opens over the list like a community does (one of the two at a time).
   const roomId = useRooms().openId; const roomsCount = useRooms().rooms?.length || 0;
+  // A room asked for while a community is open (a call from the chat list, a tapped notification): the community closes.
+  useEffect(() => { if (roomId && openId) onOpened(null); }, [roomId, openId, onOpened]);
   // Offline is not an error card (the chat list title shows the network state); the list reloads on reconnect.
   const load = useCallback(() => { api.communities().then(result => { setList(result.communities); setCommunitySummaries(result.communities); setError(''); }).catch(failure => setError(shownError(failure, e => e instanceof Error ? e.message : 'Не удалось загрузить.'))); }, [api]);
   useEffect(load, [load]);

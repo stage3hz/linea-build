@@ -2915,5 +2915,15 @@
 "ты": "you",
 "Не удалось загрузить комнаты.": "Could not load the rooms.",
 "подключение…": "connecting…",
-"Комната": "Room"
+"Комната": "Room",
+"Истории и записи": "Stories and posts",
+"Кто видит мои истории и записи": "Who can see my stories and posts",
+"Истории и записи видят только твои друзья.": "Only your friends see your stories and posts.",
+"Истории и записи видит любой, кого ты не заблокировал.": "Anyone you have not blocked sees your stories and posts.",
+"запись": "post",
+"заявка": "request",
+"Музыка для всех": "Music for everyone",
+"Выключить музыку для всех": "Turn the music off for everyone",
+"Свой файл нельзя включить для всех — выбери трек из каталога": "Your own file cannot be played for everyone — pick a track from the catalogue",
+"Музыка для всех: сначала включи трек во вкладке «Музыка»": "Music for everyone: first play a track in the «Music» tab"
 }

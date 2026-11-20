@@ -22,7 +22,8 @@ import { GlassStage, GlassSurface } from './glass';
 import { useTheme } from './theme';
 import { StatusEmoji } from './StatusEmoji';
 import { DecoratedAvatar, ProfileBanner } from './platina/Decor';
-import { ProfileLight, peerTint } from './design/peerLight';
+import { ProfileLight } from './design/peerLight';
+import { tintOf, useAvatarTints } from './design/avatarTint';
 import { lightFeedback } from './haptics';
 import { motionEnabled } from './motion';
 import { backSwipeIntent, shouldGoBack } from './media/swipeMath';
@@ -122,6 +123,7 @@ export function UserProfile({ api, user, onClose, chat, onMessage, onMute, onSea
     api.userProfile(user.id).then(result => { if (live) { setContact(result.isContact); setPendingRequest(result.friendRequest ?? null); setFresh(result.user); setBlocked(!!result.blocked); } }).catch(e => { if (live) setError(e instanceof Error ? e.message : 'Не удалось загрузить профиль.'); });
     return () => { live = false; };
   }, [api, user?.id]);
+  useAvatarTints();
   if (!user) return null;
   const shown = fresh || user;
   function openViewer() { if (stories.length) { setStoryOpen(true); return; } if (profileMedia(shown).length) { lightFeedback(); setViewer(0); } }
@@ -196,7 +198,7 @@ export function UserProfile({ api, user, onClose, chat, onMessage, onMute, onSea
     {card ? <Pressable accessibilityRole="button" accessibilityLabel="Закрыть профиль" onPress={onClose} style={[StyleSheet.absoluteFill, { backgroundColor: 'rgba(0,0,0,0.55)' }]} /> : null}
     <GestureHandlerRootView style={{ flex: 1 }}><GestureDetector gesture={edgeSwipe}><Animated.View pointerEvents="box-none" style={[card ? { flex: 1, alignItems: 'center', justifyContent: 'center', padding: 24 } : { flex: 1, backgroundColor: t.bg }, card ? null : pushIn]}>
     <View style={card ? { width: cardWidth, height: '88%', maxHeight: 860, borderRadius: 22, overflow: 'hidden', borderWidth: StyleSheet.hairlineWidth, borderColor: t.border, shadowColor: '#000', shadowOpacity: 0.4, shadowRadius: 30 } : { flex: 1 }}>
-    <GlassStage>{!tinted && !shown.bannerId && !shown.bannerPreset ? <ProfileLight color={peerTint(shown.avatarColor, '#8A8F98')} /> : null}{tinted && heroBottom ? <Animated.View pointerEvents="none" style={[{ position: 'absolute', top: 0, left: 0, right: 0, overflow: 'hidden' }, heroColor]}><LinearGradient colors={birthdayToday ? [festive[0], festive[1]] : [shade(shown.avatarColor, 0.15), shade(shown.avatarColor, -0.12)]} style={StyleSheet.absoluteFill} /></Animated.View> : null}{/* PC: the banner is as wide as the card, not the window (it was cut off at the card's edge). */}{shown.bannerId || shown.bannerPreset ? <View pointerEvents="none" style={{ position: 'absolute', top: 0, left: 0, right: 0, height: 260 }}><ProfileBanner user={shown} api={api} height={260} width={card ? cardWidth : width} /></View> : null}<InsetView style={{ flex: 1 }}>
+    <GlassStage>{!tinted && !shown.bannerId && !shown.bannerPreset ? <ProfileLight color={tintOf(api, shown)} /> : null}{tinted && heroBottom ? <Animated.View pointerEvents="none" style={[{ position: 'absolute', top: 0, left: 0, right: 0, overflow: 'hidden' }, heroColor]}><LinearGradient colors={birthdayToday ? [festive[0], festive[1]] : [shade(shown.avatarColor, 0.15), shade(shown.avatarColor, -0.12)]} style={StyleSheet.absoluteFill} /></Animated.View> : null}{/* PC: the banner is as wide as the card, not the window (it was cut off at the card's edge). */}{shown.bannerId || shown.bannerPreset ? <View pointerEvents="none" style={{ position: 'absolute', top: 0, left: 0, right: 0, height: 260 }}><ProfileBanner user={shown} api={api} height={260} width={card ? cardWidth : width} /></View> : null}<InsetView style={{ flex: 1 }}>
       {float ? <ScrollEdgeEffect edge="top" size={topInset + barHeight} color={t.bg} alpha={Platform.OS === 'ios' ? .78 : .97} zIndex={1} /> : null}
       <View onLayout={e => { const h = Math.round(e.nativeEvent.layout.height); if (h && h !== barHeight) setBarHeight(h); }} style={{ flexDirection: 'row', alignItems: 'center', paddingHorizontal: 10, paddingVertical: 6, zIndex: 2 }}>
         <IconButton name="chevron-back" label="Назад" onPress={back} />

@@ -6,7 +6,7 @@ import { requestProfileEdit, requestStatusPicker } from './statusPickerRequest';
 import * as FileSystem from 'expo-file-system/legacy';
 import Constants from 'expo-constants';
 import { Image } from 'expo-image';
-import type { Api } from './api';
+import type { Api, PostsAudience } from './api';
 import { Avatar, Button, Icon, IconButton, Notice, Sheet, ThemeSwitch, type IconName } from './components';
 import { GlassBackdrop, GlassSurface } from './glass';
 import { useTheme, formatSize, palette } from './theme';
@@ -338,6 +338,26 @@ function TimePicker({ value, onDone }: { value: string; onDone: (value: string) 
   </View>;
 }
 
+const POSTS_AUDIENCES: { value: PostsAudience; label: string; hint: string }[] = [
+  { value: 'friends', label: 'Друзья', hint: 'Истории и записи видят только твои друзья.' },
+  { value: 'everyone', label: 'Все', hint: 'Истории и записи видит любой, кого ты не заблокировал.' },
+];
+/** «Кто видит мои истории и записи»: the same segmented control as «Кто может звонить», the explanation under it. */
+function PostsAudienceRow({ mode, disabled, onMode }: { mode: PostsAudience; disabled?: boolean; onMode: (mode: PostsAudience) => void }) {
+  const t = useTheme();
+  const current = POSTS_AUDIENCES.find(item => item.value === mode) || POSTS_AUDIENCES[0];
+  return <View style={{ padding: 14, gap: 12 }}>
+    <Text style={{ color: t.text, fontSize: 15, fontWeight: '600' }}>Кто видит мои истории и записи</Text>
+    <View accessibilityRole="radiogroup" style={{ flexDirection: 'row', padding: 3, borderRadius: 14, backgroundColor: t.surface2 }}>
+      {POSTS_AUDIENCES.map(item => { const on = item.value === mode; return <Pressable key={item.value} disabled={disabled} accessibilityRole="radio" accessibilityState={{ selected: on, disabled }} accessibilityLabel={item.label} onPress={() => { if (!on) { lightFeedback(); onMode(item.value); } }}
+        style={{ flex: 1, minHeight: 36, borderRadius: 11, alignItems: 'center', justifyContent: 'center', backgroundColor: on ? t.accent : 'transparent' }}>
+        <Text style={{ color: on ? t.onAccent : t.text, fontSize: 13, fontWeight: on ? '700' : '500' }}>{item.label}</Text>
+      </Pressable>; })}
+    </View>
+    <Text numberOfLines={2} style={{ color: t.muted, fontSize: 12.5, lineHeight: 18 }}>{current.hint}</Text>
+  </View>;
+}
+
 function PrivacySection({ api, open }: { api: Api; open: (section: Section) => void }) {
   const t = useTheme(); const preferences = useChatPreferences(); const language = useLanguage();
   // Shared with the «Время захода» pages (privacy/privacyStore): a change there shows here at once.
@@ -355,6 +375,9 @@ function PrivacySection({ api, open }: { api: Api; open: (section: Section) => v
         {/* Not in Telegram's private chats: hides the checkmarks themselves (both ways), a Platina extra. «Время прочтения» is on the «Время захода» page. */}
         <Toggle label="Отчёты о прочтении" badge={platina ? undefined : 'Platina'} description={platina ? 'Взаимно: если выключить, ты тоже не увидишь, прочитали ли твои сообщения.' : 'Скрывать прочтение можно с Platina.'} value={privacy.readReceipts} disabled={saving || !platina} onChange={value => change({ readReceipts: value })} />
       </>}
+    </Group>
+    <Group label="Истории и записи">
+      {!privacy ? <ActivityIndicator color={t.accent} style={{ padding: 20 }} /> : <PostsAudienceRow mode={privacy.posts || 'friends'} disabled={saving} onMode={posts => change({ posts })} />}
     </Group>
     <Group label="Звонки">
       {!privacy ? <ActivityIndicator color={t.accent} style={{ padding: 20 }} /> : <CallPrivacy api={api} mode={privacy.calls || 'everyone'} disabled={saving} onMode={calls => change({ calls })} />}

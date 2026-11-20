@@ -13,9 +13,11 @@ import { GlassSurface } from '../glass';
 import { Text } from '../typography';
 import { useTheme } from '../theme';
 import { useTabInset } from '../tabInset';
-import { brightTint, peerTint } from '../design/peerLight';
+import { brightTint } from '../design/peerLight';
+import { tintOf, useAvatarTints } from '../design/avatarTint';
 import { toggleVoiceMute, toggleVoiceSpeaker, useVoice, voiceSpeaking } from '../communities/voice';
-import { enterRoom, exitRoom, insideLine, seatSize, seats, sleepLine, useRooms, type Room, type RoomMember } from './rooms';
+import { RoomMusicLine, roomMusicAvailable } from './roomMusic';
+import { enterRoom, exitRoom, forgetRoom, insideLine, seatSize, seats, sleepLine, useRooms, type Room, type RoomMember } from './rooms';
 
 const TALK = '#3EE08E';
 const asUser = (member: RoomMember) => member as unknown as User;
@@ -24,7 +26,7 @@ const sameSet = (a: Set<string>, b: Set<string>) => a.size === b.size && [...a].
 export function RoomScreen({ api, me, store, roomId, onBack }: { api: Api; me: User; store: MessengerStore; roomId: string; onBack: () => void }) {
   const t = useTheme(); const insets = useSafeAreaInsets(); const tabInset = useTabInset();
   const room = useRooms().rooms?.find(item => item.id === roomId);
-  const voice = useVoice(); const here = !!voice && voice.roomId === roomId;
+  const voice = useVoice(); const here = !!voice && voice.roomId === roomId; useAvatarTints();
   const [stage, setStage] = useState({ w: 0, h: 0 });
   const [speaking, setSpeaking] = useState<Set<string>>(() => new Set());
   const [busy, setBusy] = useState(false); const [error, setError] = useState(''); const [menu, setMenu] = useState(false);
@@ -62,7 +64,7 @@ export function RoomScreen({ api, me, store, roomId, onBack }: { api: Api; me: U
   const enter = async () => { setBusy(true); setError(''); try { await enterRoom(api, store, room, me.id); } catch (failure) { setError(failure instanceof Error ? failure.message : 'Не удалось зайти.'); } finally { setBusy(false); } };
   const ring = async () => { setError(''); try { const result = await api.ringRoom(room.id); setRang(result.rang || 0); setTimeout(() => setRang(0), 4000); } catch (failure) { setError(failure instanceof Error ? failure.message : 'Не удалось позвать.'); } };
   const saveName = async () => { if (rename === null) return; try { await api.renameRoom(room.id, rename.trim()); setRename(null); } catch (failure) { setError(failure instanceof Error ? failure.message : 'Не удалось переименовать.'); setRename(null); } };
-  const leaveForGood = async () => { setMenu(false); try { if (here) exitRoom(); await api.leaveRoom(room.id); onBack(); } catch (failure) { setError(failure instanceof Error ? failure.message : 'Не удалось выйти.'); } };
+  const leaveForGood = async () => { setMenu(false); try { if (here) exitRoom(); await api.leaveRoom(room.id); forgetRoom(room.id); onBack(); } catch (failure) { setError(failure instanceof Error ? failure.message : 'Не удалось выйти.'); } };
 
   return <View style={{ flex: 1 }}>
     <GlassSurface lens material="clear" radius={27} style={{ marginHorizontal: 14, marginTop: 12 }} contentStyle={{ flexDirection: 'row', alignItems: 'center', padding: 8, gap: 6, minHeight: 64 }}>
@@ -78,7 +80,7 @@ export function RoomScreen({ api, me, store, roomId, onBack }: { api: Api; me: U
       {stage.w > 0 ? <>
         <View pointerEvents="none" style={StyleSheet.absoluteFill}>
           <Svg width={stage.w} height={stage.h}>
-            <Defs>{lit.map(member => { const p = at(member.id); const color = brightTint(peerTint(member.avatarColor, '#8A8F98'), 150); return <RadialGradient key={member.id} id={`light-${member.id}`} cx={p.x} cy={p.y} r={size * 2.3} gradientUnits="userSpaceOnUse"><Stop offset="0" stopColor={color} stopOpacity={speaking.has(member.id) ? 0.42 : 0.26} /><Stop offset="1" stopColor={color} stopOpacity={0} /></RadialGradient>; })}</Defs>
+            <Defs>{lit.map(member => { const p = at(member.id); const color = brightTint(tintOf(api, member), 150); return <RadialGradient key={member.id} id={`light-${member.id}`} cx={p.x} cy={p.y} r={size * 2.3} gradientUnits="userSpaceOnUse"><Stop offset="0" stopColor={color} stopOpacity={speaking.has(member.id) ? 0.42 : 0.26} /><Stop offset="1" stopColor={color} stopOpacity={0} /></RadialGradient>; })}</Defs>
             {lit.map(member => <Rect key={member.id} x={0} y={0} width={stage.w} height={stage.h} fill={`url(#light-${member.id})`} />)}
           </Svg>
         </View>
@@ -99,6 +101,7 @@ export function RoomScreen({ api, me, store, roomId, onBack }: { api: Api; me: U
     <View style={{ paddingHorizontal: 18, paddingBottom: 18 + insets.bottom + tabInset, gap: 14, alignItems: 'center' }}>
       {error ? <View style={{ alignSelf: 'stretch' }}><Notice text={error} error /></View> : null}
       {voice?.error && here ? <View style={{ alignSelf: 'stretch' }}><Notice text={voice.error} error /></View> : null}
+      {here && roomMusicAvailable ? <RoomMusicLine members={room.members} peers={voice?.peers || []} /> : null}
       <Pressable accessibilityRole="button" accessibilityLabel="Позвать всех" onPress={ring} style={({ pressed }) => ({ paddingHorizontal: 16, paddingVertical: 9, borderRadius: 18, borderWidth: 1, borderColor: t.glassBorder, backgroundColor: pressed ? t.accentSoft : 'transparent' })}>
         <Text style={{ color: t.text, fontSize: 14, fontWeight: '500' }}>{rang ? `Позвали: ${rang}` : 'Позвать всех'}</Text>
       </Pressable>

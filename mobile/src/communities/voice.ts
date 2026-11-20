@@ -110,15 +110,31 @@ function releaseLocalStream(stream: any) {
 function sendScreenState(channel: any) {
   if (channel.readyState === 'open') channel.send(JSON.stringify({ type: 'screen', active: !!state?.sharing, quality: state?.sharing || '720p60' }));
 }
+const musicListeners = new Set<(peer: string, data: any) => void>();
+const musicJoined = new Set<(peer: string) => void>();
+/** Listens to «music for everyone» messages of the room's peers; `joined` fires when a peer's channel opens. */
+export function onRoomMusic(listener: (peer: string, data: any) => void, joined?: (peer: string) => void) {
+  musicListeners.add(listener); if (joined) musicJoined.add(joined);
+  return () => { musicListeners.delete(listener); if (joined) musicJoined.delete(joined); };
+}
+/** Tells the checked peers what plays; small on purpose (the channel takes 512 characters). */
+export function sendRoomMusic(data: object): boolean {
+  const text = JSON.stringify({ type: 'music', ...data });
+  if (text.length > 512) return false;
+  controls.forEach((channel, peer) => { if (verified.has(peer) && channel.readyState === 'open') { try { channel.send(text); } catch { /* closing */ } } });
+  return true;
+}
 function bindControl(peer: string, channel: any) {
   if (channel.label !== 'screen-control') return;
   controls.set(peer, channel);
-  channel.addEventListener('open', () => { sendScreenState(channel); sendCaps(channel); });
+  channel.addEventListener('open', () => { sendScreenState(channel); sendCaps(channel); musicJoined.forEach(listener => listener(peer)); });
   channel.addEventListener('message', (event: any) => {
     if (controls.get(peer) !== channel) return;
     // SFU: the peer can watch through the server; its share keys arrive only over this channel.
     if (typeof event.data === 'string' && event.data.length <= 512) {
       let extra: any = null; try { extra = JSON.parse(event.data); } catch { /* not ours */ }
+      // Music for everyone in a room (rooms/roomMusic.tsx): only from a peer whose connection passed the check.
+      if (extra?.type === 'music') { if (verified.has(peer)) musicListeners.forEach(listener => listener(peer, extra)); return; }
       if (extra?.type === 'caps') {
         if (extra.lk === true && sfuSession) {
           sfuPeers.add(peer);
@@ -524,6 +540,9 @@ export async function voiceSpeaking(): Promise<Set<string>> {
   }));
   return out;
 }
+
+/** The voice state right now, outside React. */
+export const voiceNow = () => state;
 
 export function leaveVoice() {
   if (!state) return;

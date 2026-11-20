@@ -408,7 +408,7 @@ export function useMessenger(api: Api, user: User, onExpired: ()=>void) {
         lastReceive=Date.now();
         let data:any;try{data=JSON.parse(String(event.data));}catch{return;}
         // `story` / `story.view` reach the stories strip above the chat list (StoriesStrip).
-        if(typeof data.type==='string'&&(data.type.startsWith('community')||data.type.startsWith('voice')||data.type.startsWith('sfu')||data.type.startsWith('story')||data.type==='call.reach'||data.type==='friends'||data.type==='ready'||data.type==='error'))socketListeners.current.forEach(listener=>{try{listener(data);}catch{/* keep other listeners */}});
+        if(typeof data.type==='string'&&(data.type.startsWith('community')||data.type.startsWith('voice')||data.type.startsWith('sfu')||data.type.startsWith('story')||data.type.startsWith('room.')||data.type==='call.reach'||data.type==='friends'||data.type==='ready'||data.type==='error'))socketListeners.current.forEach(listener=>{try{listener(data);}catch{/* keep other listeners */}});
         if(data.type==='ready'){
           // «Обновление…» in the title until the list is fresh again (Telegram).
           attempts=0;setConnection('connected');setUpdating(true);

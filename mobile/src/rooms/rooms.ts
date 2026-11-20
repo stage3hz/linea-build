@@ -65,6 +65,10 @@ export function handleRoomEvent(data: any, me: string): boolean {
 }
 
 export const openRoom = (id: string | null) => set({ openId: id });
+/** Drops a room from the list at once (you left it); the server's own event confirms it later. */
+export const forgetRoom = (id: string) => set({ rooms: state.rooms?.filter(room => room.id !== id) || null, ...(state.openId === id ? { openId: null } : null) });
+/** The account signed out: nothing of it may be shown to the next one. */
+export const resetRooms = () => { state = { owner: '', rooms: null, openId: null, ring: null, error: '' }; listeners.forEach(listener => listener()); };
 export const dismissRing = () => set({ ring: null });
 
 /** Walks into the room: the microphone opens and the others hear you. */
