@@ -1,0 +1,25 @@
+44812405126	CI report	2a98791	workflow_run	queued	-	2026-11-20T20:33:16Z	2026-11-20T20:33:16Z
+44801528661	CI report	2a98791	workflow_run	completed	success	2026-11-20T19:22:33Z	2026-11-20T19:24:04Z
+44799056080	CI report	2a98791	workflow_run	completed	success	2026-11-20T19:06:39Z	2026-11-20T19:07:44Z
+44797770235	CI report	2a98791	workflow_run	completed	success	2026-11-20T18:58:25Z	2026-11-20T19:01:52Z
+44797183266	CI report	2a98791	workflow_run	completed	cancelled	2026-11-20T18:54:35Z	2026-11-20T18:58:27Z
+44797170810	CI report	2a98791	workflow_run	completed	success	2026-11-20T18:54:31Z	2026-11-20T19:00:53Z
+44797061567	iOS unsigned IPA (iphoneos arm64)	2a98791	push	completed	success	2026-11-20T18:53:48Z	2026-11-20T19:22:29Z
+44797061137	iOS Simulator UI check	2a98791	push	completed	failure	2026-11-20T18:53:48Z	2026-11-20T20:33:12Z
+44797061009	Android APK	2a98791	push	completed	success	2026-11-20T18:53:48Z	2026-11-20T19:06:33Z
+44797060910	Quality gate	2a98791	push	completed	success	2026-11-20T18:53:48Z	2026-11-20T19:00:42Z
+44797060893	Windows desktop EXE	2a98791	push	completed	success	2026-11-20T18:53:48Z	2026-11-20T18:58:22Z
+44794543939	CI report	2c7de98	workflow_run	completed	success	2026-11-20T18:37:36Z	2026-11-20T18:38:31Z
+44794425648	iOS Simulator UI check	2a98791	push	completed	cancelled	2026-11-20T18:36:51Z	2026-11-20T18:54:26Z
+44793732992	CI report	2c7de98	workflow_run	completed	success	2026-11-20T18:32:29Z	2026-11-20T18:33:45Z
+44793520245	iOS Simulator UI check	09da154	push	completed	cancelled	2026-11-20T18:31:08Z	2026-11-20T18:37:32Z
+44792727779	CI report	2c7de98	workflow_run	completed	success	2026-11-20T18:26:11Z	2026-11-20T18:27:32Z
+44791306853	CI report	2c7de98	workflow_run	completed	success	2026-11-20T18:17:07Z	2026-11-20T18:18:03Z
+44790689538	CI report	2c7de98	workflow_run	completed	success	2026-11-20T18:13:15Z	2026-11-20T18:15:22Z
+44790653836	CI report	2c7de98	workflow_run	completed	success	2026-11-20T18:13:01Z	2026-11-20T18:14:09Z
+44790555404	iOS unsigned IPA (iphoneos arm64)	2c7de98	push	completed	cancelled	2026-11-20T18:12:23Z	2026-11-20T18:54:32Z
+44790555227	Quality gate	2c7de98	push	completed	success	2026-11-20T18:12:23Z	2026-11-20T18:19:23Z
+44790555223	Windows desktop EXE	2c7de98	push	completed	success	2026-11-20T18:12:23Z	2026-11-20T18:17:03Z
+44790555221	Android APK	2c7de98	push	completed	success	2026-11-20T18:12:23Z	2026-11-20T18:26:08Z
+44790555180	iOS Simulator UI check	2c7de98	push	completed	cancelled	2026-11-20T18:12:23Z	2026-11-20T18:32:25Z
+44790358157	CI report	8d1b262	workflow_run	completed	success	2026-11-20T18:11:09Z	2026-11-20T18:12:53Z

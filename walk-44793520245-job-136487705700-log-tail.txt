@@ -1,0 +1,355 @@
+ui (macos-15-intel)	UNKNOWN STEP	﻿2026-11-20T18:32:30.8139340Z Current runner version: '2.338.2'
+ui (macos-15-intel)	UNKNOWN STEP	2026-11-20T18:32:30.8210060Z ##[group]Runner Image Provisioner
+ui (macos-15-intel)	UNKNOWN STEP	2026-11-20T18:32:30.8211150Z Hosted Compute Agent
+ui (macos-15-intel)	UNKNOWN STEP	2026-11-20T18:32:30.8212980Z Version: 20260819.586
+ui (macos-15-intel)	UNKNOWN STEP	2026-11-20T18:32:30.8214000Z Commit: 3cc4a88dfa507ef76119ad1bb3eccc6378bb2b76
+ui (macos-15-intel)	UNKNOWN STEP	2026-11-20T18:32:30.8215010Z Build Date: 2026-08-18T23:20:18Z
+ui (macos-15-intel)	UNKNOWN STEP	2026-11-20T18:32:30.8216700Z Worker ID: {961dc714-0425-4a01-ba8e-59c2770b0389}
+ui (macos-15-intel)	UNKNOWN STEP	2026-11-20T18:32:30.8217670Z Azure Region: westus
+ui (macos-15-intel)	UNKNOWN STEP	2026-11-20T18:32:30.8220630Z ##[endgroup]
+ui (macos-15-intel)	UNKNOWN STEP	2026-11-20T18:32:30.8225940Z ##[group]Operating System
+ui (macos-15-intel)	UNKNOWN STEP	2026-11-20T18:32:30.8227510Z macOS
+ui (macos-15-intel)	UNKNOWN STEP	2026-11-20T18:32:30.8228500Z 15.7.9
+ui (macos-15-intel)	UNKNOWN STEP	2026-11-20T18:32:30.8231870Z 24G830
+ui (macos-15-intel)	UNKNOWN STEP	2026-11-20T18:32:30.8235080Z ##[endgroup]
+ui (macos-15-intel)	UNKNOWN STEP	2026-11-20T18:32:30.8237020Z ##[group]Runner Image
+ui (macos-15-intel)	UNKNOWN STEP	2026-11-20T18:32:30.8239990Z Image: macos-15
+ui (macos-15-intel)	UNKNOWN STEP	2026-11-20T18:32:30.8242160Z Version: 20260824.0482.1
+ui (macos-15-intel)	UNKNOWN STEP	2026-11-20T18:32:30.8246770Z Included Software: https://github.com/actions/runner-images/blob/macos-15/20260824.0482/images/macos/macos-15-Readme.md
+ui (macos-15-intel)	UNKNOWN STEP	2026-11-20T18:32:30.8252460Z Image Release: https://github.com/actions/runner-images/releases/tag/macos-15%2F20260824.0482
+ui (macos-15-intel)	UNKNOWN STEP	2026-11-20T18:32:30.8255210Z ##[endgroup]
+ui (macos-15-intel)	UNKNOWN STEP	2026-11-20T18:32:30.8260390Z ##[group]GITHUB_TOKEN Permissions
+ui (macos-15-intel)	UNKNOWN STEP	2026-11-20T18:32:30.8264820Z Contents: write
+ui (macos-15-intel)	UNKNOWN STEP	2026-11-20T18:32:30.8265890Z Metadata: read
+ui (macos-15-intel)	UNKNOWN STEP	2026-11-20T18:32:30.8267040Z ##[endgroup]
+ui (macos-15-intel)	UNKNOWN STEP	2026-11-20T18:32:30.8272700Z Secret source: Actions
+ui (macos-15-intel)	UNKNOWN STEP	2026-11-20T18:32:30.8276300Z Cache mode: write
+ui (macos-15-intel)	UNKNOWN STEP	2026-11-20T18:32:30.8279400Z Prepare workflow directory
+ui (macos-15-intel)	UNKNOWN STEP	2026-11-20T18:32:30.9421230Z Prepare all required actions
+ui (macos-15-intel)	UNKNOWN STEP	2026-11-20T18:32:30.9521910Z Getting action download info
+ui (macos-15-intel)	UNKNOWN STEP	2026-11-20T18:32:31.1674990Z Download action repository 'actions/checkout@v4' (SHA:11d5960a326750d5838078e36cf38b85af677262)
+ui (macos-15-intel)	UNKNOWN STEP	2026-11-20T18:32:31.7258700Z Download action repository 'actions/setup-node@v4' (SHA:49933ea5288caeca8642d1e84afbd3f7d6820020)
+ui (macos-15-intel)	UNKNOWN STEP	2026-11-20T18:32:32.3718830Z Download action repository 'actions/upload-artifact@v4' (SHA:ea165f8d65b6e75b540449e92b4886f43607fa02)
+ui (macos-15-intel)	UNKNOWN STEP	2026-11-20T18:32:32.8513170Z Complete job name: ui (macos-15-intel)
+ui (macos-15-intel)	UNKNOWN STEP	2026-11-20T18:32:33.1040850Z ##[group]Run actions/checkout@v4
+ui (macos-15-intel)	UNKNOWN STEP	2026-11-20T18:32:33.1042780Z with:
+ui (macos-15-intel)	UNKNOWN STEP	2026-11-20T18:32:33.1043630Z   repository: stage3hz/linea-build
+ui (macos-15-intel)	UNKNOWN STEP	2026-11-20T18:32:33.1051720Z   token: ***
+ui (macos-15-intel)	UNKNOWN STEP	2026-11-20T18:32:33.1052570Z   ssh-strict: true
+ui (macos-15-intel)	UNKNOWN STEP	2026-11-20T18:32:33.1054600Z   ssh-user: git
+ui (macos-15-intel)	UNKNOWN STEP	2026-11-20T18:32:33.1056090Z   persist-credentials: true
+ui (macos-15-intel)	UNKNOWN STEP	2026-11-20T18:32:33.1056970Z   clean: true
+ui (macos-15-intel)	UNKNOWN STEP	2026-11-20T18:32:33.1057730Z   sparse-checkout-cone-mode: true
+ui (macos-15-intel)	UNKNOWN STEP	2026-11-20T18:32:33.1058630Z   fetch-depth: 1
+ui (macos-15-intel)	UNKNOWN STEP	2026-11-20T18:32:33.1059380Z   fetch-tags: false
+ui (macos-15-intel)	UNKNOWN STEP	2026-11-20T18:32:33.1060140Z   show-progress: true
+ui (macos-15-intel)	UNKNOWN STEP	2026-11-20T18:32:33.1060930Z   lfs: false
+ui (macos-15-intel)	UNKNOWN STEP	2026-11-20T18:32:33.1061660Z   submodules: false
+ui (macos-15-intel)	UNKNOWN STEP	2026-11-20T18:32:33.1062540Z   set-safe-directory: true
+ui (macos-15-intel)	UNKNOWN STEP	2026-11-20T18:32:33.1063630Z   allow-unsafe-pr-checkout: false
+ui (macos-15-intel)	UNKNOWN STEP	2026-11-20T18:32:33.1065860Z env:
+ui (macos-15-intel)	UNKNOWN STEP	2026-11-20T18:32:33.1066910Z   APP_ENV: development
+ui (macos-15-intel)	UNKNOWN STEP	2026-11-20T18:32:33.1068060Z   EXPO_PUBLIC_ALLOW_LOCAL_HTTP: 0
+ui (macos-15-intel)	UNKNOWN STEP	2026-11-20T18:32:33.1069770Z   EXPO_PUBLIC_SIMULATOR_SERVER: https://localhost:8443
+ui (macos-15-intel)	UNKNOWN STEP	2026-11-20T18:32:33.1071620Z   EXPO_PUBLIC_NATIVE_CHAT: 1
+ui (macos-15-intel)	UNKNOWN STEP	2026-11-20T18:32:33.1073030Z   EXPO_NO_TELEMETRY: 1
+ui (macos-15-intel)	UNKNOWN STEP	2026-11-20T18:32:33.1074410Z   CI: 1
+ui (macos-15-intel)	UNKNOWN STEP	2026-11-20T18:32:33.1075480Z   MAESTRO_DRIVER_STARTUP_TIMEOUT: 600000
+ui (macos-15-intel)	UNKNOWN STEP	2026-11-20T18:32:33.1077020Z ##[endgroup]
+ui (macos-15-intel)	UNKNOWN STEP	2026-11-20T18:32:33.6986020Z Syncing repository: stage3hz/linea-build
+ui (macos-15-intel)	UNKNOWN STEP	2026-11-20T18:32:33.6993640Z ##[group]Getting Git version info
+ui (macos-15-intel)	UNKNOWN STEP	2026-11-20T18:32:33.6996390Z Working directory is '/Users/runner/work/linea-build/linea-build'
+ui (macos-15-intel)	UNKNOWN STEP	2026-11-20T18:32:33.7000330Z [command]/usr/local/bin/git version
+ui (macos-15-intel)	UNKNOWN STEP	2026-11-20T18:32:33.7456880Z git version 2.55.0
+ui (macos-15-intel)	UNKNOWN STEP	2026-11-20T18:32:33.7496000Z ##[endgroup]
+ui (macos-15-intel)	UNKNOWN STEP	2026-11-20T18:32:33.7518250Z Copying '/Users/runner/.gitconfig' to '/Users/runner/work/_temp/7f06a26a-f1fa-4064-a566-5595c9c8a6fc/.gitconfig'
+ui (macos-15-intel)	UNKNOWN STEP	2026-11-20T18:32:33.7540000Z Temporarily overriding HOME='/Users/runner/work/_temp/7f06a26a-f1fa-4064-a566-5595c9c8a6fc' before making global git config changes
+ui (macos-15-intel)	UNKNOWN STEP	2026-11-20T18:32:33.7546320Z Adding repository directory to the temporary git global config as a safe directory
+ui (macos-15-intel)	UNKNOWN STEP	2026-11-20T18:32:33.7550140Z [command]/usr/local/bin/git config --global --add safe.directory /Users/runner/work/linea-build/linea-build
+ui (macos-15-intel)	UNKNOWN STEP	2026-11-20T18:32:33.7727760Z Deleting the contents of '/Users/runner/work/linea-build/linea-build'
+ui (macos-15-intel)	UNKNOWN STEP	2026-11-20T18:32:33.7737250Z ##[group]Initializing the repository
+ui (macos-15-intel)	UNKNOWN STEP	2026-11-20T18:32:33.7744690Z [command]/usr/local/bin/git init /Users/runner/work/linea-build/linea-build
+ui (macos-15-intel)	UNKNOWN STEP	2026-11-20T18:32:33.8290200Z hint: Using 'master' as the name for the initial branch. This default branch name
+ui (macos-15-intel)	UNKNOWN STEP	2026-11-20T18:32:33.8294930Z hint: will change to "main" in Git 3.0. To configure the initial branch name
+ui (macos-15-intel)	UNKNOWN STEP	2026-11-20T18:32:33.8299980Z hint: to use in all of your new repositories, which will suppress this warning,
+ui (macos-15-intel)	UNKNOWN STEP	2026-11-20T18:32:33.8304540Z hint: call:
+ui (macos-15-intel)	UNKNOWN STEP	2026-11-20T18:32:33.8306840Z hint:
+ui (macos-15-intel)	UNKNOWN STEP	2026-11-20T18:32:33.8309340Z hint: 	git config --global init.defaultBranch <name>
+ui (macos-15-intel)	UNKNOWN STEP	2026-11-20T18:32:33.8312300Z hint:
+ui (macos-15-intel)	UNKNOWN STEP	2026-11-20T18:32:33.8315320Z hint: Names commonly chosen instead of 'master' are 'main', 'trunk' and
+ui (macos-15-intel)	UNKNOWN STEP	2026-11-20T18:32:33.8319690Z hint: 'development'. The just-created branch can be renamed via this command:
+ui (macos-15-intel)	UNKNOWN STEP	2026-11-20T18:32:33.8323170Z hint:
+ui (macos-15-intel)	UNKNOWN STEP	2026-11-20T18:32:33.8325520Z hint: 	git branch -m <name>
+ui (macos-15-intel)	UNKNOWN STEP	2026-11-20T18:32:33.8327770Z hint:
+ui (macos-15-intel)	UNKNOWN STEP	2026-11-20T18:32:33.8330760Z hint: Disable this message with "git config set advice.defaultBranchName false"
+ui (macos-15-intel)	UNKNOWN STEP	2026-11-20T18:32:33.8409800Z Initialized empty Git repository in /Users/runner/work/linea-build/linea-build/.git/
+ui (macos-15-intel)	UNKNOWN STEP	2026-11-20T18:32:33.8420730Z [command]/usr/local/bin/git remote add origin https://github.com/stage3hz/linea-build
+ui (macos-15-intel)	UNKNOWN STEP	2026-11-20T18:32:33.8463220Z ##[endgroup]
+ui (macos-15-intel)	UNKNOWN STEP	2026-11-20T18:32:33.8467420Z ##[group]Disabling automatic garbage collection
+ui (macos-15-intel)	UNKNOWN STEP	2026-11-20T18:32:33.8470660Z [command]/usr/local/bin/git config --local gc.auto 0
+ui (macos-15-intel)	UNKNOWN STEP	2026-11-20T18:32:33.8591320Z ##[endgroup]
+ui (macos-15-intel)	UNKNOWN STEP	2026-11-20T18:32:33.8594250Z ##[group]Setting up auth
+ui (macos-15-intel)	UNKNOWN STEP	2026-11-20T18:32:33.8609550Z [command]/usr/local/bin/git config --local --name-only --get-regexp core\.sshCommand
+ui (macos-15-intel)	UNKNOWN STEP	2026-11-20T18:32:33.9115030Z [command]/usr/local/bin/git submodule foreach --recursive sh -c "git config --local --name-only --get-regexp 'core\.sshCommand' && git config --local --unset-all 'core.sshCommand' || :"
+ui (macos-15-intel)	UNKNOWN STEP	2026-11-20T18:32:34.2157250Z [command]/usr/local/bin/git config --local --name-only --get-regexp http\.https\:\/\/github\.com\/\.extraheader
+ui (macos-15-intel)	UNKNOWN STEP	2026-11-20T18:32:34.2355700Z [command]/usr/local/bin/git submodule foreach --recursive sh -c "git config --local --name-only --get-regexp 'http\.https\:\/\/github\.com\/\.extraheader' && git config --local --unset-all 'http.https://github.com/.extraheader' || :"
+ui (macos-15-intel)	UNKNOWN STEP	2026-11-20T18:32:34.5862100Z [command]/usr/local/bin/git config --local --name-only --get-regexp ^includeIf\.gitdir:
+ui (macos-15-intel)	UNKNOWN STEP	2026-11-20T18:32:34.5886450Z [command]/usr/local/bin/git submodule foreach --recursive git config --local --show-origin --name-only --get-regexp remote.origin.url
+ui (macos-15-intel)	UNKNOWN STEP	2026-11-20T18:32:34.7643110Z [command]/usr/local/bin/git config --local http.https://github.com/.extraheader AUTHORIZATION: basic ***
+ui (macos-15-intel)	UNKNOWN STEP	2026-11-20T18:32:34.7813730Z ##[endgroup]
+ui (macos-15-intel)	UNKNOWN STEP	2026-11-20T18:32:34.7829790Z ##[group]Fetching the repository
+ui (macos-15-intel)	UNKNOWN STEP	2026-11-20T18:32:34.7839300Z [command]/usr/local/bin/git -c protocol.version=2 fetch --no-tags --prune --no-recurse-submodules --depth=1 origin +09da154afa5d65c59dde084eb3e186b5575a28e1:refs/remotes/origin/walk
+ui (macos-15-intel)	UNKNOWN STEP	2026-11-20T18:32:36.5449680Z From https://github.com/stage3hz/linea-build
+ui (macos-15-intel)	UNKNOWN STEP	2026-11-20T18:32:36.5451220Z  * [new ref]         09da154afa5d65c59dde084eb3e186b5575a28e1 -> origin/walk
+ui (macos-15-intel)	UNKNOWN STEP	2026-11-20T18:32:36.5461580Z ##[endgroup]
+ui (macos-15-intel)	UNKNOWN STEP	2026-11-20T18:32:36.5462400Z ##[group]Determining the checkout info
+ui (macos-15-intel)	UNKNOWN STEP	2026-11-20T18:32:36.5464460Z ##[endgroup]
+ui (macos-15-intel)	UNKNOWN STEP	2026-11-20T18:32:36.5473180Z [command]/usr/local/bin/git sparse-checkout disable
+ui (macos-15-intel)	UNKNOWN STEP	2026-11-20T18:32:36.5594740Z [command]/usr/local/bin/git config --local --unset-all extensions.worktreeConfig
+ui (macos-15-intel)	UNKNOWN STEP	2026-11-20T18:32:36.5702040Z ##[group]Checking out the ref
+ui (macos-15-intel)	UNKNOWN STEP	2026-11-20T18:32:36.5708960Z [command]/usr/local/bin/git checkout --progress --force -B walk refs/remotes/origin/walk
+ui (macos-15-intel)	UNKNOWN STEP	2026-11-20T18:32:37.7171340Z Updating files:  96% (1273/1316)
+ui (macos-15-intel)	UNKNOWN STEP	2026-11-20T18:32:37.7229510Z Updating files:  97% (1277/1316)
+ui (macos-15-intel)	UNKNOWN STEP	2026-11-20T18:32:37.7276380Z Updating files:  98% (1290/1316)
+ui (macos-15-intel)	UNKNOWN STEP	2026-11-20T18:32:37.7333080Z Updating files:  99% (1303/1316)
+ui (macos-15-intel)	UNKNOWN STEP	2026-11-20T18:32:37.7334130Z Updating files: 100% (1316/1316)
+ui (macos-15-intel)	UNKNOWN STEP	2026-11-20T18:32:37.7335170Z Updating files: 100% (1316/1316), done.
+ui (macos-15-intel)	UNKNOWN STEP	2026-11-20T18:32:37.7467100Z Switched to a new branch 'walk'
+ui (macos-15-intel)	UNKNOWN STEP	2026-11-20T18:32:37.7491810Z branch 'walk' set up to track 'origin/walk'.
+ui (macos-15-intel)	UNKNOWN STEP	2026-11-20T18:32:37.7515410Z ##[endgroup]
+ui (macos-15-intel)	UNKNOWN STEP	2026-11-20T18:32:37.7829190Z [command]/usr/local/bin/git log -1 --format=%H
+ui (macos-15-intel)	UNKNOWN STEP	2026-11-20T18:32:37.7988040Z 09da154afa5d65c59dde084eb3e186b5575a28e1
+ui (macos-15-intel)	UNKNOWN STEP	2026-11-20T18:32:37.8571960Z ##[group]Run mkdir started && cd started
+ui (macos-15-intel)	UNKNOWN STEP	2026-11-20T18:32:37.8573670Z ^[[36;1mmkdir started && cd started^[[0m
+ui (macos-15-intel)	UNKNOWN STEP	2026-11-20T18:32:37.8575550Z ^[[36;1mecho "started $GITHUB_SHA $(date -u) macos-15-intel $(uname -m)" > STATUS.txt^[[0m
+ui (macos-15-intel)	UNKNOWN STEP	2026-11-20T18:32:37.8578070Z ^[[36;1mgit init -q -b started^[[0m
+ui (macos-15-intel)	UNKNOWN STEP	2026-11-20T18:32:37.8579890Z ^[[36;1mgit config user.name "linea-ci"; git config user.email "ci@localhost"^[[0m
+ui (macos-15-intel)	UNKNOWN STEP	2026-11-20T18:32:37.8581940Z ^[[36;1mgit add -A && git commit -qm "Simulator walk started for $GITHUB_SHA"^[[0m
+ui (macos-15-intel)	UNKNOWN STEP	2026-11-20T18:32:37.8595600Z ^[[36;1mgit push -f "***github.com/stage3hz/linea-build.git" "HEAD:sim-started-macos-15-intel" || true^[[0m
+ui (macos-15-intel)	UNKNOWN STEP	2026-11-20T18:32:37.8597950Z ^[[36;1mcd .. && rm -rf started^[[0m
+ui (macos-15-intel)	UNKNOWN STEP	2026-11-20T18:32:37.8770600Z shell: /bin/bash -e {0}
+ui (macos-15-intel)	UNKNOWN STEP	2026-11-20T18:32:37.8771330Z env:
+ui (macos-15-intel)	UNKNOWN STEP	2026-11-20T18:32:37.8771820Z   APP_ENV: development
+ui (macos-15-intel)	UNKNOWN STEP	2026-11-20T18:32:37.8772510Z   EXPO_PUBLIC_ALLOW_LOCAL_HTTP: 0
+ui (macos-15-intel)	UNKNOWN STEP	2026-11-20T18:32:37.8773780Z   EXPO_PUBLIC_SIMULATOR_SERVER: https://localhost:8443
+ui (macos-15-intel)	UNKNOWN STEP	2026-11-20T18:32:37.8775410Z   EXPO_PUBLIC_NATIVE_CHAT: 1
+ui (macos-15-intel)	UNKNOWN STEP	2026-11-20T18:32:37.8776500Z   EXPO_NO_TELEMETRY: 1
+ui (macos-15-intel)	UNKNOWN STEP	2026-11-20T18:32:37.8776990Z   CI: 1
+ui (macos-15-intel)	UNKNOWN STEP	2026-11-20T18:32:37.8777450Z   MAESTRO_DRIVER_STARTUP_TIMEOUT: 600000
+ui (macos-15-intel)	UNKNOWN STEP	2026-11-20T18:32:37.8778150Z ##[endgroup]
+ui (macos-15-intel)	UNKNOWN STEP	2026-11-20T18:32:40.0427720Z To https://github.com/stage3hz/linea-build.git
+ui (macos-15-intel)	UNKNOWN STEP	2026-11-20T18:32:40.1151410Z  + 17a4e7a...deeed41 HEAD -> sim-started-macos-15-intel (forced update)
+ui (macos-15-intel)	UNKNOWN STEP	2026-11-20T18:32:40.1322490Z ##[group]Run XC=$(ls -d /Applications/Xcode_*.app | grep -v -i beta | sort -V | tail -1)
+ui (macos-15-intel)	UNKNOWN STEP	2026-11-20T18:32:40.1324350Z ^[[36;1mXC=$(ls -d /Applications/Xcode_*.app | grep -v -i beta | sort -V | tail -1)^[[0m
+ui (macos-15-intel)	UNKNOWN STEP	2026-11-20T18:32:40.1325850Z ^[[36;1msudo xcode-select -s "$XC/Contents/Developer"^[[0m
+ui (macos-15-intel)	UNKNOWN STEP	2026-11-20T18:32:40.1326930Z ^[[36;1mxcodebuild -version^[[0m
+ui (macos-15-intel)	UNKNOWN STEP	2026-11-20T18:32:40.1327940Z ^[[36;1mpod --version || sudo gem install cocoapods^[[0m
+ui (macos-15-intel)	UNKNOWN STEP	2026-11-20T18:32:40.1471470Z shell: /bin/bash -e {0}
+ui (macos-15-intel)	UNKNOWN STEP	2026-11-20T18:32:40.1472400Z env:
+ui (macos-15-intel)	UNKNOWN STEP	2026-11-20T18:32:40.1473070Z   APP_ENV: development
+ui (macos-15-intel)	UNKNOWN STEP	2026-11-20T18:32:40.1473860Z   EXPO_PUBLIC_ALLOW_LOCAL_HTTP: 0
+ui (macos-15-intel)	UNKNOWN STEP	2026-11-20T18:32:40.1474910Z   EXPO_PUBLIC_SIMULATOR_SERVER: https://localhost:8443
+ui (macos-15-intel)	UNKNOWN STEP	2026-11-20T18:32:40.1476030Z   EXPO_PUBLIC_NATIVE_CHAT: 1
+ui (macos-15-intel)	UNKNOWN STEP	2026-11-20T18:32:40.1476820Z   EXPO_NO_TELEMETRY: 1
+ui (macos-15-intel)	UNKNOWN STEP	2026-11-20T18:32:40.1477640Z   CI: 1
+ui (macos-15-intel)	UNKNOWN STEP	2026-11-20T18:32:40.1478220Z   MAESTRO_DRIVER_STARTUP_TIMEOUT: 600000
+ui (macos-15-intel)	UNKNOWN STEP	2026-11-20T18:32:40.1479060Z ##[endgroup]
+ui (macos-15-intel)	UNKNOWN STEP	2026-11-20T18:32:48.7839200Z Xcode 26.3
+ui (macos-15-intel)	UNKNOWN STEP	2026-11-20T18:32:48.7845150Z Build version 17C529
+ui (macos-15-intel)	UNKNOWN STEP	2026-11-20T18:32:55.8006200Z 1.17.0
+ui (macos-15-intel)	UNKNOWN STEP	2026-11-20T18:32:55.8346790Z ##[group]Run actions/setup-node@v4
+ui (macos-15-intel)	UNKNOWN STEP	2026-11-20T18:32:55.8347690Z with:
+ui (macos-15-intel)	UNKNOWN STEP	2026-11-20T18:32:55.8348430Z   node-version: 24
+ui (macos-15-intel)	UNKNOWN STEP	2026-11-20T18:32:55.8349220Z   always-auth: false
+ui (macos-15-intel)	UNKNOWN STEP	2026-11-20T18:32:55.8350140Z   check-latest: false
+ui (macos-15-intel)	UNKNOWN STEP	2026-11-20T18:32:55.8358300Z   token: ***
+ui (macos-15-intel)	UNKNOWN STEP	2026-11-20T18:32:55.8358800Z env:
+ui (macos-15-intel)	UNKNOWN STEP	2026-11-20T18:32:55.8359420Z   APP_ENV: development
+ui (macos-15-intel)	UNKNOWN STEP	2026-11-20T18:32:55.8360150Z   EXPO_PUBLIC_ALLOW_LOCAL_HTTP: 0
+ui (macos-15-intel)	UNKNOWN STEP	2026-11-20T18:32:55.8361060Z   EXPO_PUBLIC_SIMULATOR_SERVER: https://localhost:8443
+ui (macos-15-intel)	UNKNOWN STEP	2026-11-20T18:32:55.8361990Z   EXPO_PUBLIC_NATIVE_CHAT: 1
+ui (macos-15-intel)	UNKNOWN STEP	2026-11-20T18:32:55.8362770Z   EXPO_NO_TELEMETRY: 1
+ui (macos-15-intel)	UNKNOWN STEP	2026-11-20T18:32:55.8363490Z   CI: 1
+ui (macos-15-intel)	UNKNOWN STEP	2026-11-20T18:32:55.8364120Z   MAESTRO_DRIVER_STARTUP_TIMEOUT: 600000
+ui (macos-15-intel)	UNKNOWN STEP	2026-11-20T18:32:55.8366000Z ##[endgroup]
+ui (macos-15-intel)	UNKNOWN STEP	2026-11-20T18:32:57.0381910Z (node:5705) [DEP0040] DeprecationWarning: The `punycode` module is deprecated. Please use a userland alternative instead.
+ui (macos-15-intel)	UNKNOWN STEP	2026-11-20T18:32:57.0492790Z (Use `node --trace-deprecation ...` to show where the warning was created)
+ui (macos-15-intel)	UNKNOWN STEP	2026-11-20T18:32:57.1658230Z Found in cache @ /Users/runner/hostedtoolcache/node/24.19.0/x64
+ui (macos-15-intel)	UNKNOWN STEP	2026-11-20T18:32:57.1773570Z ##[group]Environment details
+ui (macos-15-intel)	UNKNOWN STEP	2026-11-20T18:32:59.6850870Z node: v24.19.0
+ui (macos-15-intel)	UNKNOWN STEP	2026-11-20T18:32:59.6890570Z npm: 11.17.0
+ui (macos-15-intel)	UNKNOWN STEP	2026-11-20T18:32:59.7018650Z yarn: 1.22.22
+ui (macos-15-intel)	UNKNOWN STEP	2026-11-20T18:32:59.7089260Z ##[endgroup]
+ui (macos-15-intel)	UNKNOWN STEP	2026-11-20T18:32:59.7770140Z ##[group]Run xcrun simctl list devices available --json > simulators.json
+ui (macos-15-intel)	UNKNOWN STEP	2026-11-20T18:32:59.7771960Z ^[[36;1mxcrun simctl list devices available --json > simulators.json^[[0m
+ui (macos-15-intel)	UNKNOWN STEP	2026-11-20T18:32:59.7773070Z ^[[36;1mpython3 - <<'PY'^[[0m
+ui (macos-15-intel)	UNKNOWN STEP	2026-11-20T18:32:59.7773890Z ^[[36;1mimport json,os,re^[[0m
+ui (macos-15-intel)	UNKNOWN STEP	2026-11-20T18:32:59.7774790Z ^[[36;1mdevices=json.load(open('simulators.json'))['devices']^[[0m
+ui (macos-15-intel)	UNKNOWN STEP	2026-11-20T18:32:59.7777180Z ^[[36;1mphones=[(tuple(map(int,re.findall(r'\d+',runtime))),d) for runtime,items in devices.items() if 'iOS' in runtime for d in items if 'iPhone' in d['name']]^[[0m
+ui (macos-15-intel)	UNKNOWN STEP	2026-11-20T18:32:59.7780980Z ^[[36;1mif not phones: raise SystemExit('No iPhone simulator runtime installed')^[[0m
+ui (macos-15-intel)	UNKNOWN STEP	2026-11-20T18:32:59.7782520Z ^[[36;1mlatest=max(v for v,_ in phones)^[[0m
+ui (macos-15-intel)	UNKNOWN STEP	2026-11-20T18:32:59.7784110Z ^[[36;1mpros=[d for v,d in phones if v==latest and 'Pro' in d['name'] and 'Max' not in d['name']] or [d for v,d in phones if v==latest]^[[0m
+ui (macos-15-intel)	UNKNOWN STEP	2026-11-20T18:32:59.7786230Z ^[[36;1mphone=sorted(pros,key=lambda d:d['name'])[-1]^[[0m
+ui (macos-15-intel)	UNKNOWN STEP	2026-11-20T18:32:59.7787860Z ^[[36;1mwith open(os.environ['GITHUB_ENV'],'a') as out: out.write('SIMULATOR_UDID='+phone['udid']+'\n')^[[0m
+ui (macos-15-intel)	UNKNOWN STEP	2026-11-20T18:32:59.7789520Z ^[[36;1mprint('Simulator:',phone['name'],latest)^[[0m
+ui (macos-15-intel)	UNKNOWN STEP	2026-11-20T18:32:59.7790440Z ^[[36;1mPY^[[0m
+ui (macos-15-intel)	UNKNOWN STEP	2026-11-20T18:32:59.7791310Z ^[[36;1mARCH=$(uname -m); echo "SIM_ARCH=$ARCH" >> "$GITHUB_ENV"^[[0m
+ui (macos-15-intel)	UNKNOWN STEP	2026-11-20T18:32:59.7793930Z ^[[36;1mif [ "$ARCH" = arm64 ]; then echo "SIM_RUST=aarch64-apple-ios-sim" >> "$GITHUB_ENV"; else echo "SIM_RUST=x86_64-apple-ios" >> "$GITHUB_ENV"; fi^[[0m
+ui (macos-15-intel)	UNKNOWN STEP	2026-11-20T18:32:59.7913470Z shell: /bin/bash -e {0}
+ui (macos-15-intel)	UNKNOWN STEP	2026-11-20T18:32:59.7914380Z env:
+ui (macos-15-intel)	UNKNOWN STEP	2026-11-20T18:32:59.7914940Z   APP_ENV: development
+ui (macos-15-intel)	UNKNOWN STEP	2026-11-20T18:32:59.7915660Z   EXPO_PUBLIC_ALLOW_LOCAL_HTTP: 0
+ui (macos-15-intel)	UNKNOWN STEP	2026-11-20T18:32:59.7916820Z   EXPO_PUBLIC_SIMULATOR_SERVER: https://localhost:8443
+ui (macos-15-intel)	UNKNOWN STEP	2026-11-20T18:32:59.7917830Z   EXPO_PUBLIC_NATIVE_CHAT: 1
+ui (macos-15-intel)	UNKNOWN STEP	2026-11-20T18:32:59.7918830Z   EXPO_NO_TELEMETRY: 1
+ui (macos-15-intel)	UNKNOWN STEP	2026-11-20T18:32:59.7919500Z   CI: 1
+ui (macos-15-intel)	UNKNOWN STEP	2026-11-20T18:32:59.7920380Z   MAESTRO_DRIVER_STARTUP_TIMEOUT: 600000
+ui (macos-15-intel)	UNKNOWN STEP	2026-11-20T18:32:59.7921310Z ##[endgroup]
+ui (macos-15-intel)	UNKNOWN STEP	2026-11-20T18:33:17.1440210Z Simulator: iPhone 17 Pro (26, 2)
+ui (macos-15-intel)	UNKNOWN STEP	2026-11-20T18:33:17.2118340Z ##[group]Run (cd mobile && npm ci --no-audit --no-fund)
+ui (macos-15-intel)	UNKNOWN STEP	2026-11-20T18:33:17.2119430Z ^[[36;1m(cd mobile && npm ci --no-audit --no-fund)^[[0m
+ui (macos-15-intel)	UNKNOWN STEP	2026-11-20T18:33:17.2120350Z ^[[36;1m(cd server && npm ci --no-audit --no-fund)^[[0m
+ui (macos-15-intel)	UNKNOWN STEP	2026-11-20T18:33:17.2121890Z ^[[36;1m# tools/sim-seed.mjs encrypts with the official libsignal that desktop pins; Electron itself is not needed.^[[0m
+ui (macos-15-intel)	UNKNOWN STEP	2026-11-20T18:33:17.2123400Z ^[[36;1m(cd desktop && ELECTRON_SKIP_BINARY_DOWNLOAD=1 npm ci --no-audit --no-fund)^[[0m
+ui (macos-15-intel)	UNKNOWN STEP	2026-11-20T18:33:17.2227720Z shell: /bin/bash -e {0}
+ui (macos-15-intel)	UNKNOWN STEP	2026-11-20T18:33:17.2228690Z env:
+ui (macos-15-intel)	UNKNOWN STEP	2026-11-20T18:33:17.2229540Z   APP_ENV: development
+ui (macos-15-intel)	UNKNOWN STEP	2026-11-20T18:33:17.2230670Z   EXPO_PUBLIC_ALLOW_LOCAL_HTTP: 0
+ui (macos-15-intel)	UNKNOWN STEP	2026-11-20T18:33:17.2231470Z   EXPO_PUBLIC_SIMULATOR_SERVER: https://localhost:8443
+ui (macos-15-intel)	UNKNOWN STEP	2026-11-20T18:33:17.2232530Z   EXPO_PUBLIC_NATIVE_CHAT: 1
+ui (macos-15-intel)	UNKNOWN STEP	2026-11-20T18:33:17.2233690Z   EXPO_NO_TELEMETRY: 1
+ui (macos-15-intel)	UNKNOWN STEP	2026-11-20T18:33:17.2235490Z   CI: 1
+ui (macos-15-intel)	UNKNOWN STEP	2026-11-20T18:33:17.2236340Z   MAESTRO_DRIVER_STARTUP_TIMEOUT: 600000
+ui (macos-15-intel)	UNKNOWN STEP	2026-11-20T18:33:17.2237500Z   SIMULATOR_UDID: C15FAC2A-CB46-4F16-B882-3970BD44CFAD
+ui (macos-15-intel)	UNKNOWN STEP	2026-11-20T18:33:17.2238710Z   SIM_ARCH: x86_64
+ui (macos-15-intel)	UNKNOWN STEP	2026-11-20T18:33:17.2239400Z   SIM_RUST: x86_64-apple-ios
+ui (macos-15-intel)	UNKNOWN STEP	2026-11-20T18:33:17.2240150Z ##[endgroup]
+ui (macos-15-intel)	UNKNOWN STEP	2026-11-20T18:34:40.0294420Z 
+ui (macos-15-intel)	UNKNOWN STEP	2026-11-20T18:34:40.0553540Z > linea-mobile@0.16.3 postinstall
+ui (macos-15-intel)	UNKNOWN STEP	2026-11-20T18:34:40.0584100Z > node scripts/patch-screen-capture.cjs && node scripts/patch-expo-video.cjs && node scripts/patch-expo-audio.cjs && node scripts/patch-incall-manager.cjs
+ui (macos-15-intel)	UNKNOWN STEP	2026-11-20T18:34:40.1590400Z 
+ui (macos-15-intel)	UNKNOWN STEP	2026-11-20T18:34:40.9337230Z 
+ui (macos-15-intel)	UNKNOWN STEP	2026-11-20T18:34:40.9916570Z added 595 packages in 1m
+ui (macos-15-intel)	UNKNOWN STEP	2026-11-20T18:34:46.6970990Z npm warn deprecated node-domexception@1.0.0: Use your platform's native DOMException instead
+ui (macos-15-intel)	UNKNOWN STEP	2026-11-20T18:37:04.6026080Z ##[error]The operation was canceled.
+ui (macos-15-intel)	UNKNOWN STEP	2026-11-20T18:37:04.6376800Z ##[group]Run mkdir -p shots
+ui (macos-15-intel)	UNKNOWN STEP	2026-11-20T18:37:04.6378600Z ^[[36;1mmkdir -p shots^[[0m
+ui (macos-15-intel)	UNKNOWN STEP	2026-11-20T18:37:04.6380150Z ^[[36;1mcp server.log proxy.log simulators.json shots/ 2>/dev/null || true^[[0m
+ui (macos-15-intel)	UNKNOWN STEP	2026-11-20T18:37:04.6382150Z ^[[36;1mtail -300 simulator-build.log > shots/simulator-build-tail.log 2>/dev/null || true^[[0m
+ui (macos-15-intel)	UNKNOWN STEP	2026-11-20T18:37:04.6384910Z ^[[36;1mcp -R "$HOME/.maestro/tests" shots/maestro-tests 2>/dev/null || true^[[0m
+ui (macos-15-intel)	UNKNOWN STEP	2026-11-20T18:37:04.6387820Z ^[[36;1m# The whole walk (it takes up to two hours), not the last minutes: a launch crash happens early.^[[0m
+ui (macos-15-intel)	UNKNOWN STEP	2026-11-20T18:37:04.6391480Z ^[[36;1mperl -e 'alarm shift; exec @ARGV' 300 xcrun simctl spawn "$SIMULATOR_UDID" log show --last 3h --style compact --predicate 'process == "INVIZENT"' > shots/app.log 2>/dev/null || true^[[0m
+ui (macos-15-intel)	UNKNOWN STEP	2026-11-20T18:37:04.6398400Z ^[[36;1mperl -e 'alarm shift; exec @ARGV' 300 xcrun simctl spawn "$SIMULATOR_UDID" log show --last 3h --style compact --predicate 'eventMessage CONTAINS[c] "INVIZENT" OR eventMessage CONTAINS[c] "linea.messenger"' > shots/system-about-app.log 2>/dev/null || true^[[0m
+ui (macos-15-intel)	UNKNOWN STEP	2026-11-20T18:37:04.6403020Z ^[[36;1m# Crash reports of the app (simulator crashes land in the host's DiagnosticReports).^[[0m
+ui (macos-15-intel)	UNKNOWN STEP	2026-11-20T18:37:04.6405290Z ^[[36;1mmkdir -p shots/crashes^[[0m
+ui (macos-15-intel)	UNKNOWN STEP	2026-11-20T18:37:04.6408030Z ^[[36;1mfind "$HOME/Library/Logs/DiagnosticReports" -maxdepth 2 \( -name 'INVIZENT*' -o -name '*linea*' \) -mmin -240 -exec cp {} shots/crashes/ \; 2>/dev/null || true^[[0m
+ui (macos-15-intel)	UNKNOWN STEP	2026-11-20T18:37:04.6411050Z ^[[36;1mls -la shots/crashes || true^[[0m
+ui (macos-15-intel)	UNKNOWN STEP	2026-11-20T18:37:04.6922450Z shell: /bin/bash -e {0}
+ui (macos-15-intel)	UNKNOWN STEP	2026-11-20T18:37:04.6923900Z env:
+ui (macos-15-intel)	UNKNOWN STEP	2026-11-20T18:37:04.6925020Z   APP_ENV: development
+ui (macos-15-intel)	UNKNOWN STEP	2026-11-20T18:37:04.6926240Z   EXPO_PUBLIC_ALLOW_LOCAL_HTTP: 0
+ui (macos-15-intel)	UNKNOWN STEP	2026-11-20T18:37:04.6928330Z   EXPO_PUBLIC_SIMULATOR_SERVER: https://localhost:8443
+ui (macos-15-intel)	UNKNOWN STEP	2026-11-20T18:37:04.6930170Z   EXPO_PUBLIC_NATIVE_CHAT: 1
+ui (macos-15-intel)	UNKNOWN STEP	2026-11-20T18:37:04.6931720Z   EXPO_NO_TELEMETRY: 1
+ui (macos-15-intel)	UNKNOWN STEP	2026-11-20T18:37:04.6933170Z   CI: 1
+ui (macos-15-intel)	UNKNOWN STEP	2026-11-20T18:37:04.6934620Z   MAESTRO_DRIVER_STARTUP_TIMEOUT: 600000
+ui (macos-15-intel)	UNKNOWN STEP	2026-11-20T18:37:04.6936560Z   SIMULATOR_UDID: C15FAC2A-CB46-4F16-B882-3970BD44CFAD
+ui (macos-15-intel)	UNKNOWN STEP	2026-11-20T18:37:04.6938320Z   SIM_ARCH: x86_64
+ui (macos-15-intel)	UNKNOWN STEP	2026-11-20T18:37:04.6939760Z   SIM_RUST: x86_64-apple-ios
+ui (macos-15-intel)	UNKNOWN STEP	2026-11-20T18:37:04.6941140Z ##[endgroup]
+ui (macos-15-intel)	UNKNOWN STEP	2026-11-20T18:37:06.3159860Z total 0
+ui (macos-15-intel)	UNKNOWN STEP	2026-11-20T18:37:06.4184290Z drwxr-xr-x  2 runner  staff   64 Nov 20 18:37 .
+ui (macos-15-intel)	UNKNOWN STEP	2026-11-20T18:37:06.5193200Z drwxr-xr-x  7 runner  staff  224 Nov 20 18:37 ..
+ui (macos-15-intel)	UNKNOWN STEP	2026-11-20T18:37:06.5669050Z ##[group]Run actions/upload-artifact@v4
+ui (macos-15-intel)	UNKNOWN STEP	2026-11-20T18:37:06.5670100Z with:
+ui (macos-15-intel)	UNKNOWN STEP	2026-11-20T18:37:06.5670610Z   name: ios-simulator-ui-macos-15-intel
+ui (macos-15-intel)	UNKNOWN STEP	2026-11-20T18:37:06.5671280Z   path: shots
+ui (macos-15-intel)	UNKNOWN STEP	2026-11-20T18:37:06.5671710Z   if-no-files-found: ignore
+ui (macos-15-intel)	UNKNOWN STEP	2026-11-20T18:37:06.5672260Z   compression-level: 6
+ui (macos-15-intel)	UNKNOWN STEP	2026-11-20T18:37:06.5673030Z   overwrite: false
+ui (macos-15-intel)	UNKNOWN STEP	2026-11-20T18:37:06.5673690Z   include-hidden-files: false
+ui (macos-15-intel)	UNKNOWN STEP	2026-11-20T18:37:06.5674420Z env:
+ui (macos-15-intel)	UNKNOWN STEP	2026-11-20T18:37:06.5675050Z   APP_ENV: development
+ui (macos-15-intel)	UNKNOWN STEP	2026-11-20T18:37:06.5675760Z   EXPO_PUBLIC_ALLOW_LOCAL_HTTP: 0
+ui (macos-15-intel)	UNKNOWN STEP	2026-11-20T18:37:06.5676740Z   EXPO_PUBLIC_SIMULATOR_SERVER: https://localhost:8443
+ui (macos-15-intel)	UNKNOWN STEP	2026-11-20T18:37:06.5677630Z   EXPO_PUBLIC_NATIVE_CHAT: 1
+ui (macos-15-intel)	UNKNOWN STEP	2026-11-20T18:37:06.5678220Z   EXPO_NO_TELEMETRY: 1
+ui (macos-15-intel)	UNKNOWN STEP	2026-11-20T18:37:06.5678780Z   CI: 1
+ui (macos-15-intel)	UNKNOWN STEP	2026-11-20T18:37:06.5679230Z   MAESTRO_DRIVER_STARTUP_TIMEOUT: 600000
+ui (macos-15-intel)	UNKNOWN STEP	2026-11-20T18:37:06.5680050Z   SIMULATOR_UDID: C15FAC2A-CB46-4F16-B882-3970BD44CFAD
+ui (macos-15-intel)	UNKNOWN STEP	2026-11-20T18:37:06.5680770Z   SIM_ARCH: x86_64
+ui (macos-15-intel)	UNKNOWN STEP	2026-11-20T18:37:06.5681420Z   SIM_RUST: x86_64-apple-ios
+ui (macos-15-intel)	UNKNOWN STEP	2026-11-20T18:37:06.5683120Z ##[endgroup]
+ui (macos-15-intel)	UNKNOWN STEP	2026-11-20T18:37:07.2916210Z (node:11488) [DEP0040] DeprecationWarning: The `punycode` module is deprecated. Please use a userland alternative instead.
+ui (macos-15-intel)	UNKNOWN STEP	2026-11-20T18:37:07.3923790Z (Use `node --trace-deprecation ...` to show where the warning was created)
+ui (macos-15-intel)	UNKNOWN STEP	2026-11-20T18:37:07.8955410Z (node:11488) [DEP0169] DeprecationWarning: `url.parse()` behavior is not standardized and prone to errors that have security implications. Use the WHATWG URL API instead. CVEs are not issued for `url.parse()` vulnerabilities.
+ui (macos-15-intel)	UNKNOWN STEP	2026-11-20T18:37:08.8467670Z With the provided path, there will be 4 files uploaded
+ui (macos-15-intel)	UNKNOWN STEP	2026-11-20T18:37:09.0474140Z Artifact name is valid!
+ui (macos-15-intel)	UNKNOWN STEP	2026-11-20T18:37:09.0528400Z Root directory input is valid!
+ui (macos-15-intel)	UNKNOWN STEP	2026-11-20T18:37:10.1943640Z Beginning upload of artifact content to blob storage
+ui (macos-15-intel)	UNKNOWN STEP	2026-11-20T18:37:10.4036540Z Uploaded bytes 5873
+ui (macos-15-intel)	UNKNOWN STEP	2026-11-20T18:37:10.4997650Z Finished uploading artifact content to blob storage!
+ui (macos-15-intel)	UNKNOWN STEP	2026-11-20T18:37:10.5382400Z SHA256 digest of uploaded artifact zip is 35c06aeac2fe4031bfb1e38fc67df805070e98f2c9fb86a3c1d62fc88aa01c15
+ui (macos-15-intel)	UNKNOWN STEP	2026-11-20T18:37:10.6387890Z Finalizing artifact upload
+ui (macos-15-intel)	UNKNOWN STEP	2026-11-20T18:37:11.1339470Z Artifact ios-simulator-ui-macos-15-intel.zip successfully finalized. Artifact ID 14657248697
+ui (macos-15-intel)	UNKNOWN STEP	2026-11-20T18:37:11.2345310Z Artifact ios-simulator-ui-macos-15-intel has been successfully uploaded! Final size is 5873 bytes. Artifact ID is 14657248697
+ui (macos-15-intel)	UNKNOWN STEP	2026-11-20T18:37:11.3351280Z Artifact download URL: https://github.com/stage3hz/linea-build/actions/runs/44793520245/artifacts/14657248697
+ui (macos-15-intel)	UNKNOWN STEP	2026-11-20T18:37:11.3764360Z ##[group]Run set -e
+ui (macos-15-intel)	UNKNOWN STEP	2026-11-20T18:37:11.3765290Z ^[[36;1mset -e^[[0m
+ui (macos-15-intel)	UNKNOWN STEP	2026-11-20T18:37:11.3765980Z ^[[36;1m[ -d shots ] || exit 0^[[0m
+ui (macos-15-intel)	UNKNOWN STEP	2026-11-20T18:37:11.3766840Z ^[[36;1mrm -rf pub && cp -R shots pub^[[0m
+ui (macos-15-intel)	UNKNOWN STEP	2026-11-20T18:37:11.3768170Z ^[[36;1mecho "cancelled $GITHUB_SHA $(date -u) macos-15-intel" > pub/STATUS.txt^[[0m
+ui (macos-15-intel)	UNKNOWN STEP	2026-11-20T18:37:11.3769530Z ^[[36;1mcd pub^[[0m
+ui (macos-15-intel)	UNKNOWN STEP	2026-11-20T18:37:11.3771280Z ^[[36;1mfind . -name '*.png' -exec sh -c 'sips -Z 1400 -s format jpeg -s formatOptions 80 "$1" --out "${1%.png}.jpg" >/dev/null 2>&1 && rm "$1"' _ {} \;^[[0m
+ui (macos-15-intel)	UNKNOWN STEP	2026-11-20T18:37:11.3773650Z ^[[36;1mfind . -name 'commands-*.json' -delete^[[0m
+ui (macos-15-intel)	UNKNOWN STEP	2026-11-20T18:37:11.3775280Z ^[[36;1mfind . -type f -size +3000k -exec sh -c 'tail -c 1500000 "$1" > "$1.tail" && rm "$1"' _ {} \;^[[0m
+ui (macos-15-intel)	UNKNOWN STEP	2026-11-20T18:37:11.3776990Z ^[[36;1mgit init -q -b sim-output^[[0m
+ui (macos-15-intel)	UNKNOWN STEP	2026-11-20T18:37:11.3778240Z ^[[36;1mgit config user.name "linea-ci"; git config user.email "ci@localhost"^[[0m
+ui (macos-15-intel)	UNKNOWN STEP	2026-11-20T18:37:11.3780700Z ^[[36;1mgit add -A && git commit -qm "Simulator shots for $GITHUB_SHA"^[[0m
+ui (macos-15-intel)	UNKNOWN STEP	2026-11-20T18:37:11.3791110Z ^[[36;1mgit push -f "***github.com/stage3hz/linea-build.git" "HEAD:sim-output-macos-15-intel"^[[0m
+ui (macos-15-intel)	UNKNOWN STEP	2026-11-20T18:37:11.3902280Z shell: /bin/bash -e {0}
+ui (macos-15-intel)	UNKNOWN STEP	2026-11-20T18:37:11.3903100Z env:
+ui (macos-15-intel)	UNKNOWN STEP	2026-11-20T18:37:11.3903710Z   APP_ENV: development
+ui (macos-15-intel)	UNKNOWN STEP	2026-11-20T18:37:11.3904430Z   EXPO_PUBLIC_ALLOW_LOCAL_HTTP: 0
+ui (macos-15-intel)	UNKNOWN STEP	2026-11-20T18:37:11.3905440Z   EXPO_PUBLIC_SIMULATOR_SERVER: https://localhost:8443
+ui (macos-15-intel)	UNKNOWN STEP	2026-11-20T18:37:11.3906560Z   EXPO_PUBLIC_NATIVE_CHAT: 1
+ui (macos-15-intel)	UNKNOWN STEP	2026-11-20T18:37:11.3907350Z   EXPO_NO_TELEMETRY: 1
+ui (macos-15-intel)	UNKNOWN STEP	2026-11-20T18:37:11.3908040Z   CI: 1
+ui (macos-15-intel)	UNKNOWN STEP	2026-11-20T18:37:11.3908690Z   MAESTRO_DRIVER_STARTUP_TIMEOUT: 600000
+ui (macos-15-intel)	UNKNOWN STEP	2026-11-20T18:37:11.3909770Z   SIMULATOR_UDID: C15FAC2A-CB46-4F16-B882-3970BD44CFAD
+ui (macos-15-intel)	UNKNOWN STEP	2026-11-20T18:37:11.3910790Z   SIM_ARCH: x86_64
+ui (macos-15-intel)	UNKNOWN STEP	2026-11-20T18:37:11.3911480Z   SIM_RUST: x86_64-apple-ios
+ui (macos-15-intel)	UNKNOWN STEP	2026-11-20T18:37:11.3912220Z ##[endgroup]
+ui (macos-15-intel)	UNKNOWN STEP	2026-11-20T18:37:13.8627110Z To https://github.com/stage3hz/linea-build.git
+ui (macos-15-intel)	UNKNOWN STEP	2026-11-20T18:37:13.9632380Z  + 0082fee...f23fd78 HEAD -> sim-output-macos-15-intel (forced update)
+ui (macos-15-intel)	UNKNOWN STEP	2026-11-20T18:37:14.1044650Z Post job cleanup.
+ui (macos-15-intel)	UNKNOWN STEP	2026-11-20T18:37:15.1447620Z [command]/usr/local/bin/git version
+ui (macos-15-intel)	UNKNOWN STEP	2026-11-20T18:37:15.2449840Z git version 2.55.0
+ui (macos-15-intel)	UNKNOWN STEP	2026-11-20T18:37:15.7467020Z Copying '/Users/runner/.gitconfig' to '/Users/runner/work/_temp/2270d26e-aa9e-4152-a151-5bdad9cea8b2/.gitconfig'
+ui (macos-15-intel)	UNKNOWN STEP	2026-11-20T18:37:15.8468860Z Temporarily overriding HOME='/Users/runner/work/_temp/2270d26e-aa9e-4152-a151-5bdad9cea8b2' before making global git config changes
+ui (macos-15-intel)	UNKNOWN STEP	2026-11-20T18:37:15.9474060Z Adding repository directory to the temporary git global config as a safe directory
+ui (macos-15-intel)	UNKNOWN STEP	2026-11-20T18:37:16.0477760Z [command]/usr/local/bin/git config --global --add safe.directory /Users/runner/work/linea-build/linea-build
+ui (macos-15-intel)	UNKNOWN STEP	2026-11-20T18:37:16.3348720Z [command]/usr/local/bin/git config --local --name-only --get-regexp core\.sshCommand
+ui (macos-15-intel)	UNKNOWN STEP	2026-11-20T18:37:16.6372180Z [command]/usr/local/bin/git submodule foreach --recursive sh -c "git config --local --name-only --get-regexp 'core\.sshCommand' && git config --local --unset-all 'core.sshCommand' || :"
+ui (macos-15-intel)	UNKNOWN STEP	2026-11-20T18:37:16.9483480Z [command]/usr/local/bin/git config --local --name-only --get-regexp http\.https\:\/\/github\.com\/\.extraheader
+ui (macos-15-intel)	UNKNOWN STEP	2026-11-20T18:37:17.0489400Z http.https://github.com/.extraheader
+ui (macos-15-intel)	UNKNOWN STEP	2026-11-20T18:37:17.3506370Z [command]/usr/local/bin/git config --local --unset-all http.https://github.com/.extraheader
+ui (macos-15-intel)	UNKNOWN STEP	2026-11-20T18:37:17.6514270Z [command]/usr/local/bin/git submodule foreach --recursive sh -c "git config --local --name-only --get-regexp 'http\.https\:\/\/github\.com\/\.extraheader' && git config --local --unset-all 'http.https://github.com/.extraheader' || :"
+ui (macos-15-intel)	UNKNOWN STEP	2026-11-20T18:37:17.9526610Z [command]/usr/local/bin/git config --local --name-only --get-regexp ^includeIf\.gitdir:
+ui (macos-15-intel)	UNKNOWN STEP	2026-11-20T18:37:18.1788930Z [command]/usr/local/bin/git submodule foreach --recursive git config --local --show-origin --name-only --get-regexp remote.origin.url
+ui (macos-15-intel)	UNKNOWN STEP	2026-11-20T18:37:18.6313220Z Cleaning up orphan processes
+ui (macos-15-intel)	UNKNOWN STEP	2026-11-20T18:37:21.9974040Z Terminate orphan process: pid (11560) (clang)
+ui (macos-15-intel)	UNKNOWN STEP	2026-11-20T18:37:22.3319420Z Terminate orphan process: pid (11559) (clang)
+ui (macos-15-intel)	UNKNOWN STEP	2026-11-20T18:37:23.0008310Z Terminate orphan process: pid (11550) (clang)
+ui (macos-15-intel)	UNKNOWN STEP	2026-11-20T18:37:23.3345340Z Terminate orphan process: pid (11549) (clang)
+ui (macos-15-intel)	UNKNOWN STEP	2026-11-20T18:37:23.6740970Z Terminate orphan process: pid (11540) (clang)
+ui (macos-15-intel)	UNKNOWN STEP	2026-11-20T18:37:24.0084270Z Terminate orphan process: pid (11539) (clang)
+ui (macos-15-intel)	UNKNOWN STEP	2026-11-20T18:37:25.7852730Z Terminate orphan process: pid (11127) (clang)
+ui (macos-15-intel)	UNKNOWN STEP	2026-11-20T18:37:26.1870890Z Terminate orphan process: pid (11124) (clang)
+ui (macos-15-intel)	UNKNOWN STEP	2026-11-20T18:37:26.5287510Z Terminate orphan process: pid (11120) (clang)
+ui (macos-15-intel)	UNKNOWN STEP	2026-11-20T18:37:27.7095940Z Terminate orphan process: pid (11119) (clang)
+ui (macos-15-intel)	UNKNOWN STEP	2026-11-20T18:37:27.9373200Z Terminate orphan process: pid (9805) (ninja)
+ui (macos-15-intel)	UNKNOWN STEP	2026-11-20T18:37:28.1249870Z Terminate orphan process: pid (9683) (Python)
+ui (macos-15-intel)	UNKNOWN STEP	2026-11-20T18:37:28.1647810Z Terminate orphan process: pid (8154) (Python)
+ui (macos-15-intel)	UNKNOWN STEP	2026-11-20T18:37:28.9497130Z Terminate orphan process: pid (7581) (bash)
+ui (macos-15-intel)	UNKNOWN STEP	2026-11-20T18:37:29.2286460Z ##[warning]Node.js 20 is deprecated. The following actions target Node.js 20 but are being forced to run on Node.js 24: actions/checkout@v4, actions/setup-node@v4, actions/upload-artifact@v4. For more information see: https://github.blog/changelog/2025-09-19-deprecation-of-node-20-on-github-actions-runners/
