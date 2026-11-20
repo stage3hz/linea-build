@@ -20,7 +20,7 @@ import { MiniPlayer } from './music/PlayerControls';
 import { ChatListSkeleton } from './effects';
 import { FloatingHeader, TabBarEdge, isWideLayout, useBleed } from './tabInset';
 import { tabBarMarginBottom } from './chatLayout';
-import { Avatar, Bouncy, Button, Empty, Icon, IconButton, Notice } from './components';
+import { Avatar, Bouncy, Button, Empty, Icon, IconButton, Notice, Sheet } from './components';
 import { GlassSurface } from './glass';
 import { SnowLedge } from './SnowPhone';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -123,6 +123,7 @@ export function ChatListScreen({api,user,store,onProfile,onNewChat,onMusic,onAI,
   // Rows remount when a chat closes: a press interrupted by opening the chat otherwise left the
   // row stuck in its pressed (highlighted) colour after coming back.
   const t=useTheme();const [searching,setSearching]=useState(false);const query:string='';const [refreshing,setRefreshing]=useState(false);
+  const [savedMenu,setSavedMenu]=useState<{y:number}|null>(null);const [savedClear,setSavedClear]=useState(false);
   const [archive,setArchive]=useState(false);const [editing,setEditing]=useState<Set<string>|null>(null);const [removeAsk,setRemoveAsk]=useState<Chat[]|null>(null);const [menu,setMenu]=useState<{chat:Chat;y:number;x?:number}|null>(null);const [menuError,setMenuError]=useState('');const [muteAsk,setMuteAsk]=useState<Chat[]|null>(null);
   const archivedCount=store.chats.filter(c=>c.settings?.archived).length;
   const folders=useChatFolders(user.id);const [filter,setFilter]=useState<FolderFilter>('all');const [editor,setEditor]=useState<{folder:ChatFolder|null}|null>(null);
@@ -245,7 +246,7 @@ export function ChatListScreen({api,user,store,onProfile,onNewChat,onMusic,onAI,
     if(id===SAVED_ROW){onSaved();return;}if(id===ARCHIVE_ROW){setArchive(true);return;}if(id===BACK_ROW){setArchive(false);return;}
     const chat=chats.find(c=>c.id===id);if(!chat)return;const a=rowActionsRef.current;if(a.editing)a.toggleEdit(chat);else a.select(chat);
   };
-  const nativeLongPress=(id:string,y:number)=>{const chat=chats.find(c=>c.id===id);if(chat)rowActionsRef.current.menu(chat,y);};
+  const nativeLongPress=(id:string,y:number)=>{if(id===SAVED_ROW){lightFeedback();setSavedMenu({y});return;}const chat=chats.find(c=>c.id===id);if(chat)rowActionsRef.current.menu(chat,y);};
   const listRef=useRef<FlatList<Chat>>(null);const [archiveH,setArchiveH]=useState(0);const [listH,setListH]=useState(0);
   const hideArchive=useRef(true);const listOffset=useRef(0);const contentH=useRef(0);const dragFrom=useRef(0);
   const dragAt=useRef(0);const lastPull=useRef(0);
@@ -324,6 +325,15 @@ export function ChatListScreen({api,user,store,onProfile,onNewChat,onMusic,onAI,
     </GlassSurface>:null}
     <RemoveChatSheet chats={removeAsk} onClose={()=>setRemoveAsk(null)} onRemove={list=>{setEditing(null);list.forEach(chat=>store.removeChat(chat));}} onRemoveForEveryone={list=>{setEditing(null);void Promise.all(list.map(chat=>store.removeChatForEveryone(chat))).catch(e=>store.setError(e instanceof Error?e.message:'Не удалось удалить чат. Попробуй ещё раз.'));}}/>
     <MuteSheet visible={!!muteAsk} title={muteAsk&&muteAsk.length>1?countChats(muteAsk.length):muteAsk?.[0]?.peer.displayName||''} current={muteAsk&&muteAsk.length===1?muteAsk[0].settings:null} onClose={()=>setMuteAsk(null)} onMute={until=>{if(muteAsk)mute(muteAsk,until);}} onUnmute={()=>{const list=muteAsk||[];setMuteAsk(null);list.forEach(c=>change(c,{muted:false}));}}/>
+    {/* A hold on «Избранное»: open it, or clear it completely (asked once more, it cannot be undone). */}
+    <ContextMenu visible={!!savedMenu} y={savedMenu?.y||0} onClose={()=>setSavedMenu(null)} preview="Избранное">
+      <MenuItem icon="bookmark-outline" label="Открыть" onPress={()=>{setSavedMenu(null);onSaved();}}/>
+      <MenuItem separated icon="trash-outline" danger label="Очистить Избранное" onPress={()=>{setSavedMenu(null);setTimeout(()=>setSavedClear(true),CLOSE_MS+110);}}/>
+    </ContextMenu>
+    <Sheet visible={savedClear} title="Очистить Избранное?" onClose={()=>setSavedClear(false)}>
+      <Text style={{color:t.muted,fontSize:14,lineHeight:20,marginBottom:14}}>Все заметки, файлы и голосовые из Избранного будут удалены с этого устройства. Вернуть их нельзя.</Text>
+      <View style={{gap:8}}><Button danger secondary icon="trash-outline" label={`Удалить всё: ${store.saved.items.length}`} disabled={!store.saved.items.length} onPress={()=>{setSavedClear(false);void store.saved.clear().catch(()=>{});}}/><Button secondary label="Отмена" onPress={()=>setSavedClear(false)}/></View>
+    </Sheet>
     <ContextMenu visible={!!menu} y={menu?.y||0} x={menu?.x} onClose={()=>setMenu(null)} preview={menu?.chat.peer.displayName} peek={menu?<ChatPeek chat={menu.chat} api={api} userId={user.id} messages={store.messages[menu.chat.id]}/>:undefined}>
       {menu?<>
         {showsUnread(menu.chat,marked)?<MenuItem icon="chatbubble-outline" label="Пометить как прочитанное" onPress={()=>{const chat=menu.chat;setMenu(null);lightFeedback();readChat(chat);}}/>:<MenuItem icon="chatbubble" label="Пометить как непрочитанное" onPress={()=>markUnread(menu.chat)}/>}

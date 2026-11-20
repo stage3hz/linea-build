@@ -265,26 +265,38 @@ async function downloadChunked(api:Api,attachment:Attachment,target:string,onPro
   if(!api.fileUrl(attachment.id).startsWith('https://'))throw new Error('Файлы загружаются только по защищённому соединению.');
   const bridge=getSignalBridge();
   const size=attachment.size,count=chunkCount(size),full=CHUNK_PLAIN+TAG,total=chunkedCipherSize(size);
-  const temp=`${FileSystem.cacheDirectory}linea-view-dl-${Crypto.randomUUID()}.bin`;
+  const temp=`${FileSystem.cacheDirectory}linea-view-dl-${Crypto.randomUUID()}`;
+  const part=(index:number)=>`${temp}.${index}.bin`;
   const out=new File(target);
   if(out.exists)out.delete();
   out.create();
   const handle=out.open();
   let ok=false;
+  // One part from the server into its own file, tried again on a bad connection. Nothing is trusted yet: every
+  // part is checked below (its own nonce and associated data, its exact size) before a byte of it is written.
+  const fetchPart=async(index:number):Promise<void>=>{
+    const start=index*full,end=Math.min(total,start+full)-1;
+    for(let attempt=0;;attempt++){
+      checkAbort(signal);
+      const result=await FileSystem.downloadAsync(api.fileUrl(attachment.id),part(index),{headers:{...api.authHeaders,Range:`bytes=${start}-${end}`},cache:false,sessionType:FOREGROUND}).catch(()=>null);
+      const info=result?await FileSystem.getInfoAsync(part(index)):null;
+      if(result&&(result.status===206||(result.status===200&&count===1))&&info?.exists&&!info.isDirectory&&info.size===end-start+1)return;
+      if(result&&[401,403,404].includes(result.status))throw new Error('Файл недоступен.');
+      if(attempt>=5)throw new Error('Не удалось загрузить файл. Проверь интернет и попробуй ещё раз.');
+      await wait(800*2**attempt);
+    }
+  };
+  // Up to three parts are on their way at once (a minute-long round video is three parts: one after another it
+  // took three times as long to arrive). They are still opened and written strictly in order.
+  const AHEAD=3;const fetches=new Map<number,Promise<void>>();
+  const want=(index:number)=>{if(index<count&&!fetches.has(index)){const run=fetchPart(index);run.catch(()=>{});fetches.set(index,run);}};
   try{
     for(let index=0;index<count;index++){
       checkAbort(signal);
-      const start=index*full,end=Math.min(total,start+full)-1;
-      for(let attempt=0;;attempt++){
-        checkAbort(signal);
-        const result=await FileSystem.downloadAsync(api.fileUrl(attachment.id),temp,{headers:{...api.authHeaders,Range:`bytes=${start}-${end}`},cache:false,sessionType:FOREGROUND}).catch(()=>null);
-        const info=result?await FileSystem.getInfoAsync(temp):null;
-        if(result&&(result.status===206||(result.status===200&&count===1))&&info?.exists&&!info.isDirectory&&info.size===end-start+1)break;
-        if(result&&[401,403,404].includes(result.status))throw new Error('Файл недоступен.');
-        if(attempt>=5)throw new Error('Не удалось загрузить файл. Проверь интернет и попробуй ещё раз.');
-        await wait(800*2**attempt);
-      }
-      const cipher=await FileSystem.readAsStringAsync(temp,{encoding:FileSystem.EncodingType.Base64});
+      for(let ahead=0;ahead<AHEAD;ahead++)want(index+ahead);
+      await fetches.get(index);
+      const cipher=await FileSystem.readAsStringAsync(part(index),{encoding:FileSystem.EncodingType.Base64});
+      await FileSystem.deleteAsync(part(index),{idempotent:true}).catch(()=>{});
       let plain:string;
       try{plain=await bridge.open(cipher,encryption.key,chunkNonce(encryption.nonce,index),chunkAd(encryption.fileKeyId,index,count));}
       catch{throw new Error('Проверка вложения не пройдена. Файл не будет открыт.');}
@@ -296,7 +308,9 @@ async function downloadChunked(api:Api,attachment:Attachment,target:string,onPro
     ok=true;
   }finally{
     handle.close();
-    await FileSystem.deleteAsync(temp,{idempotent:true}).catch(()=>{});
+    // Parts still on their way are waited for, so their files are not written after the cleanup.
+    await Promise.all([...fetches.values()].map(run=>run.catch(()=>{})));
+    await Promise.all([...fetches.keys()].map(index=>FileSystem.deleteAsync(part(index),{idempotent:true}).catch(()=>{})));
     if(!ok)await FileSystem.deleteAsync(target,{idempotent:true}).catch(()=>{});
   }
 }

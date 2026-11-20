@@ -17,7 +17,9 @@ test('a code is kept only as a salted PBKDF2 hash and verifies against the same 
   assert.equal(record.iterations, 2000);
   assert.equal(record.salt.length, 32);
   assert.equal(record.hash.length, 64);
-  assert.ok(!JSON.stringify(record).includes('1234'), 'the code itself is never stored');
+  // No field holds the code. (Searching the whole JSON for «1234» failed about once in a thousand runs: random
+  // hex of the salt or the hash can contain those four characters.)
+  assert.ok(Object.values(record).every(value => value !== '1234' && value !== 1234), 'the code itself is never stored');
   assert.equal(record.hash, pbkdf2Sync('1234', Buffer.from(salt), 2000, 32, 'sha256').toString('hex'));
   assert.equal(await verifyCode('1234', record, nodeKdf), true);
   assert.equal(await verifyCode('1235', record, nodeKdf), false);

@@ -98,9 +98,12 @@ test('circle sizes: 212 in the chat, up to 404 when playing, never wider than th
 });
 test('autoload follows the network tier and power saving', () => {
   assert.equal(P.noteAutoload(1e6, 'fast', true), true);
-  assert.equal(P.noteAutoload(9 * 1024 * 1024, 'fast', true), false);
+  // A full minute (about 9.5 MB) loads by itself on a fast link; nothing bigger than a round video can be does.
+  assert.equal(P.noteAutoload(10 * 1024 * 1024, 'fast', true), true);
+  assert.equal(P.noteAutoload(13 * 1024 * 1024, 'fast', true), false);
   assert.equal(P.noteAutoload(1e6, 'medium', true), true);
-  assert.equal(P.noteAutoload(3 * 1024 * 1024, 'medium', true), false);
+  assert.equal(P.noteAutoload(3 * 1024 * 1024, 'medium', true), true);
+  assert.equal(P.noteAutoload(5 * 1024 * 1024, 'medium', true), false);
   assert.equal(P.noteAutoload(1e5, 'slow', true), false);
   assert.equal(P.noteAutoload(1e5, 'fast', false), false);
 });

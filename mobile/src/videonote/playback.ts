@@ -31,7 +31,9 @@ export function reduceNote(state: NoteState, event: NoteEvent, ctx: NoteContext)
 }
 
 /** Telegram downloads round videos by itself on Wi-Fi/fast links; on a medium link only small ones; never on EDGE. */
-export const NOTE_AUTOLOAD_BYTES = 8 * 1024 * 1024, NOTE_AUTOLOAD_MEDIUM_BYTES = 2 * 1024 * 1024;
+// A full minute is about 9.5 MB (1.2 Mbit/s video, 64 kbit/s sound): with 8 MB the longest round videos were the
+// only ones that waited for a tap, and then loaded slowly.
+export const NOTE_AUTOLOAD_BYTES = 12 * 1024 * 1024, NOTE_AUTOLOAD_MEDIUM_BYTES = 4 * 1024 * 1024;
 export function noteAutoload(size: number, tier: 'slow' | 'medium' | 'fast', powerVideo: boolean): boolean {
   if (!powerVideo) return false;
   if (tier === 'fast') return size <= NOTE_AUTOLOAD_BYTES;

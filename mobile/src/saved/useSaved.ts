@@ -51,6 +51,11 @@ export function useSaved(runtime: CryptoRuntime) {
   const remove = useCallback((id: string) => commit(list => removeSaved(list, id)), [commit]);
   const edit = useCallback((id: string, text: string) => commit(list => editSaved(list, id, text, new Date().toISOString())), [commit]);
 
-  return { items, loaded, error, save, remove, edit };
+  /** «Выбрать» → «Удалить»: several notes in one write. */
+  const removeMany = useCallback((ids: string[]) => { const gone = new Set(ids); return commit(list => list.filter(item => !gone.has(item.id))); }, [commit]);
+  /** «Очистить Избранное» (a hold on its row in the chat list): everything, in one write. */
+  const clear = useCallback(() => commit(() => []), [commit]);
+
+  return { items, loaded, error, save, remove, removeMany, clear, edit };
 }
 export type SavedStore = ReturnType<typeof useSaved>;

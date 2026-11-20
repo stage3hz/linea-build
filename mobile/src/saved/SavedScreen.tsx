@@ -4,6 +4,8 @@ import { RightClick } from '../RightClick';
 import { ContextMenu, MenuItem } from '../ContextMenu';
 import { ComposerInput } from '../ComposerInput';
 import { ActivityIndicator, FlatList, Keyboard, Platform, Pressable, View } from 'react-native';
+import { Gesture, GestureDetector } from 'react-native-gesture-handler';
+import { runOnJS } from 'react-native-reanimated';
 import * as Clipboard from 'expo-clipboard';
 import * as FileSystem from 'expo-file-system/legacy';
 import { Text, TextInput } from '../typography';
@@ -38,6 +40,15 @@ const SAVED_NOTES = 'saved';
 /** A round video with no text or origin is shown alone, without a bubble (Telegram). */
 const circleOnly = (item: { text?: string; origin?: unknown; attachment?: Parameters<typeof isVideoNote>[0] | null }) => !!item.attachment && isVideoNote(item.attachment) && !item.text && !item.origin;
 
+/** A hold anywhere on a note opens its menu, whatever is under the finger: a voice message, a round video and a
+ *  file have controls of their own that took the touch, so in the middle of them the menu never came up. */
+function NoteHold({ enabled, onHold, children }: { enabled: boolean; onHold: (pageY: number) => void; children: React.ReactNode }) {
+  const held = useRef(onHold); held.current = onHold;
+  const fire = (pageY: number) => held.current(pageY);
+  const hold = Gesture.LongPress().enabled(enabled).minDuration(400).maxDistance(14).onStart(event => { runOnJS(fire)(event.absoluteY); });
+  return <GestureDetector gesture={hold}><View collapsable={false}>{children}</View></GestureDetector>;
+}
+
 /** The key of «Избранное» among the drafts (chat ids are UUIDs, so it cannot clash). */
 const SAVED_DRAFT = 'saved';
 
@@ -51,6 +62,9 @@ export function SavedScreen({ api, user, store, onBack, wide = false }: { api: A
   const draftSeen = useRef(!!store.drafts[SAVED_DRAFT]);
   useEffect(() => { const saved = store.drafts[SAVED_DRAFT]; if (!draftSeen.current && saved) { draftSeen.current = true; setTextState(current => current || saved); } }, [store.drafts]);
   const [editing, setEditing] = useState<SavedItem | null>(null); editingNow.current = !!editing;
+  // «Выбрать» (Telegram): several notes are ticked and removed together.
+  const [selection, setSelection] = useState<Set<string> | null>(null);
+  const toggleSelect = (id: string) => setSelection(current => { if (!current) return current; const next = new Set(current); if (next.has(id)) next.delete(id); else next.add(id); return next; });
   const [actions, setActions] = useState<SavedItem | null>(null); const [at, setAt] = useState<{ x?: number; y: number }>({ y: 300 });
   const [forwarding, setForwarding] = useState<SavedItem | null>(null);
   const [preview, setPreview] = useState<Attachment | null>(null);
@@ -167,18 +181,26 @@ export function SavedScreen({ api, user, store, onBack, wide = false }: { api: A
           const older = rows[index + 1]; const showDay = !older || new Date(older.savedAt).toDateString() !== new Date(item.savedAt).toDateString();
           return <View>
             {showDay ? <View style={{ alignSelf: 'center', paddingVertical: 6, paddingHorizontal: 14, borderRadius: 14, marginTop: 15, marginBottom: 14, backgroundColor: t.dark ? t.glass : 'rgba(255,255,255,0.52)' }}><Text style={{ color: t.muted, fontSize: 10, fontWeight: '600' }}>{formatDay(item.savedAt)}</Text></View> : null}
-            <View style={{ alignItems: 'flex-end', marginBottom: 8 }}>
-              <RightClick onMenu={(x, y) => { setAt({ x, y }); setActions(item); }} style={{ maxWidth: wide ? '76%' : '85%', alignItems: 'flex-end' }}><Pressable onLongPress={e => { setAt({ y: e.nativeEvent.pageY }); setActions(item); }} delayLongPress={400} accessibilityLabel={item.text || item.attachment?.name || 'Запись'} style={circleOnly(item) ? { maxWidth: '100%', alignItems: 'flex-end' } : { maxWidth: '100%', minWidth: 74, backgroundColor: t.bubble, borderRadius: 23, borderBottomRightRadius: 8, paddingHorizontal: 12, paddingTop: item.attachment ? 7 : 11, paddingBottom: 7, borderWidth: 1, borderColor: t.dark ? 'rgba(157,182,255,0.25)' : 'rgba(255,255,255,0.83)' }}>
+            <Pressable disabled={!selection} onPress={() => toggleSelect(item.id)} accessibilityRole={selection ? 'checkbox' : undefined} accessibilityState={selection ? { checked: selection.has(item.id) } : undefined} style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 8 }}>
+              {selection ? <View style={{ width: 30 }}><Icon name={selection.has(item.id) ? 'checkmark-circle' : 'ellipse-outline'} size={24} color={selection.has(item.id) ? t.accent : t.subtle} /></View> : null}
+            <View pointerEvents={selection ? 'none' : 'auto'} style={{ flex: 1, alignItems: 'flex-end' }}>
+              <RightClick onMenu={(x, y) => { setAt({ x, y }); setActions(item); }} style={{ maxWidth: wide ? '76%' : '85%', alignItems: 'flex-end' }}><NoteHold enabled={!selection && Platform.OS !== 'web'} onHold={y => { setAt({ y }); setActions(item); }}><Pressable onLongPress={e => { setAt({ y: e.nativeEvent.pageY }); setActions(item); }} delayLongPress={400} accessibilityLabel={item.text || item.attachment?.name || 'Запись'} style={circleOnly(item) ? { maxWidth: '100%', alignItems: 'flex-end' } : { maxWidth: '100%', minWidth: 74, backgroundColor: t.bubble, borderRadius: 23, borderBottomRightRadius: 8, paddingHorizontal: 12, paddingTop: item.attachment ? 7 : 11, paddingBottom: 7, borderWidth: 1, borderColor: t.dark ? 'rgba(157,182,255,0.25)' : 'rgba(255,255,255,0.83)' }}>
                 {item.origin ? <Text style={{ color: t.accent, fontSize: 11, fontWeight: '600', marginBottom: 4 }}>{item.origin.author === user.displayName ? 'Твоё сообщение' : `От ${item.origin.author}`} · {formatDay(item.origin.sentAt)}</Text> : null}
                 {item.attachment ? <View style={{ marginBottom: item.text ? 7 : 1 }}>{isVoice(item.attachment) ? <VoiceBubble attachment={item.attachment} mine /> : isVideoNote(item.attachment) ? <VideoNoteBubble api={api} attachment={item.attachment} scope={SAVED_NOTES} side="right" maxSide={listWidth ? Math.floor((listWidth - (wide ? 56 : 30)) * (wide ? .76 : .85)) : undefined} /> : <AttachmentCard api={api} attachment={item.attachment} onPress={() => open(item.attachment!)} />}</View> : null}
                 {item.text ? <Text selectable={false} style={{ color: t.text, fontSize: metrics.fontSize, lineHeight: metrics.lineHeight }}>{linkify(item.text, t.text)}</Text> : null}
                 {circleOnly(item) ? <View style={{ alignSelf: 'flex-end', marginTop: 4, paddingHorizontal: 8, paddingVertical: 3, borderRadius: 10, backgroundColor: t.dark ? 'rgba(0,0,0,0.45)' : 'rgba(0,0,0,0.32)' }}><Text style={{ color: '#FFFFFF', fontSize: 11 }}>{formatTime(item.savedAt)}</Text></View>
                   : <Text style={{ color: t.muted, fontSize: 9, alignSelf: 'flex-end', marginTop: 4 }}>{item.editedAt ? 'изм. ' : ''}{formatTime(item.savedAt)}</Text>}
-              </Pressable></RightClick>
+              </Pressable></NoteHold></RightClick>
             </View>
+            </Pressable>
           </View>;
         }} />}
     <GlassSurface material="regular" radius={28} style={{ marginHorizontal: 12, marginTop: 5, marginBottom: 10 }} contentStyle={{ padding: 8 }}>
+      {selection ? <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8, minHeight: 44, paddingHorizontal: 6 }}>
+        <Pressable accessibilityRole="button" onPress={() => setSelection(null)} hitSlop={8} style={({ pressed }) => ({ paddingHorizontal: 8, height: 44, justifyContent: 'center', opacity: pressed ? .6 : 1 })}><Text style={{ color: t.accent, fontSize: 16 }}>Отмена</Text></Pressable>
+        <Text style={{ flex: 1, textAlign: 'center', color: t.text, fontSize: 15, fontWeight: '600' }}>{`Выбрано: ${selection.size}`}</Text>
+        <Pressable accessibilityRole="button" accessibilityLabel="Удалить выбранное" disabled={!selection.size} onPress={() => { const ids = [...selection]; setSelection(null); saved.removeMany(ids).catch(e => fail(e, 'Не удалось удалить.')); }} hitSlop={8} style={({ pressed }) => ({ paddingHorizontal: 8, height: 44, flexDirection: 'row', alignItems: 'center', gap: 6, opacity: !selection.size ? .4 : pressed ? .6 : 1 })}><Icon name="trash-outline" size={19} color={t.danger} /><Text style={{ color: t.danger, fontSize: 16 }}>Удалить</Text></Pressable>
+      </View> : <>
       {editing ? <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8, paddingLeft: 8, paddingBottom: 6 }}><Icon name="create-outline" size={18} color={t.accent} /><Text style={{ flex: 1, color: t.accent, fontSize: 12, fontWeight: '700' }}>Редактирование заметки</Text><IconButton name="close" label="Отменить редактирование" size={18} color={t.muted} onPress={() => { setEditing(null); setText(''); }} style={{ width: 36, height: 36 }} /></View> : null}
       {busy ? <View style={{ flexDirection: 'row', alignItems: 'center', gap: 9, padding: 10, paddingTop: 4 }}><ActivityIndicator size="small" color={t.accent} /><Text style={{ fontSize: 12, color: t.muted }}>Шифруем и сохраняем…</Text></View> : null}
       {voice.active && !(recHold?.kind === 'voice' && !recHold.locked) ? <VoiceRecordingBar durationMs={voice.durationMs} levels={voice.levels} paused={voice.paused} onPause={voice.togglePause} onCancel={() => { setRecHold(null); void finishVoice(false); }} onSend={() => { setRecHold(null); void finishVoice(true); }} /> :
@@ -192,6 +214,7 @@ export function SavedScreen({ api, user, store, onBack, wide = false }: { api: A
           {!text.trim() && !editing && signalAvailable ? <View key="rec" style={{ zIndex: 5, height: 44, justifyContent: 'center' }}><RecordButton mode={recordMode} disabled={busy} onTouchDown={() => { if (recordModeRef.current === 'voice') voice.prepare(); }} level={recHold?.kind === 'voice' ? voice.levels.at(-1) || 0 : 0} onToggleMode={toggleRecordMode} onHoldStart={holdStart} onHoldEnd={holdEnd} onLock={holdLock} onSlide={setCancelProgress} /></View> :
             <Pressable accessibilityRole="button" testID="chat-send" accessibilityLabel={editing ? 'Сохранить изменения' : 'Сохранить заметку'} disabled={!text.trim() || busy || !signalAvailable} onPress={submit} style={({ pressed }) => ({ height: 44, width: 44, borderRadius: 22, backgroundColor: t.accent, alignItems: 'center', justifyContent: 'center', opacity: !text.trim() || busy || !signalAvailable ? .4 : pressed ? .75 : 1 })}><Icon name={editing ? 'checkmark' : 'arrow-up'} color={t.onAccent} size={23} /></Pressable>}
         </View>}
+      </>}
     </GlassSurface>
     <VideoNoteRecorder visible={circleOpen} hold={videoHold} onClose={() => { setCircleOpen(false); setVideoHold(null); setRecHold(null); }} onDone={take => void saveVideoNote(take)} />
     <AttachmentPanel visible={attachMenu} busy={busy} canAdd={signalAvailable} remainingSlots={1} onClose={() => setAttachMenu(false)} onAdd={item => uploadAndSave(item.file)} />
@@ -199,6 +222,7 @@ export function SavedScreen({ api, user, store, onBack, wide = false }: { api: A
     <ContextMenu visible={!!actions} x={at.x} y={at.y} mine preview={actions?.text || (actions?.attachment ? attachmentLabel(actions.attachment) : undefined)} onClose={() => setActions(null)}>
       {actions?.text ? <MenuItem icon="copy-outline" label="Скопировать текст" onPress={() => void copy(actions.text)} /> : null}
       {actions && !actions.origin && actions.text ? <MenuItem icon="create-outline" label="Изменить" onPress={() => { setEditing(actions); setText(actions.text); setActions(null); }} /> : null}
+      {actions ? <MenuItem icon="checkmark-circle-outline" label="Выбрать" onPress={() => { setSelection(new Set([actions.id])); setActions(null); }} /> : null}
       {actions ? <MenuItem icon="arrow-redo-outline" label="Переслать в чат" onPress={() => { setForwarding(actions); setActions(null); }} /> : null}
       {actions?.attachment ? <MenuItem icon="download-outline" label={isVideoNote(actions.attachment) ? "Сохранить видео" : "Сохранить файл"} onPress={() => { const file = actions.attachment!; setActions(null); shareEncryptedAttachment(api, file).catch(e => fail(e, 'Не удалось открыть файл.')); }} /> : null}
       {actions ? <MenuItem separated icon="trash-outline" label="Удалить из Избранного" danger onPress={() => { const id = actions.id; setActions(null); saved.remove(id).catch(e => fail(e, 'Не удалось удалить.')); }} /> : null}
