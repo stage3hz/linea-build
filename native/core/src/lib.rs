@@ -7,3 +7,4 @@
 //! `tests/generate-vectors.mjs`).
 
 pub mod attest;
+pub mod json;
