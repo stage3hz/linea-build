@@ -178,7 +178,7 @@ function Root({ api, user, theme, darkTheme, nightState = DAY_STATE, onBack, onP
       <View style={{ position: 'absolute', top: insets.top + 6, left: 16, right: 16, flexDirection: 'row', justifyContent: 'space-between' }}>
         {/* Settings is a tab root (Telegram): no back button; the space keeps «Изм.» on the right. */}
         <View style={{ width: 44, height: 44 }} />
-        <GlassSurface radius={22} shadow={false} interactive contentStyle={{ height: 44, paddingHorizontal: 16, justifyContent: 'center' }}><Pressable accessibilityRole="button" onPress={() => { requestProfileEdit(); onProfile(); }} hitSlop={6}><Text style={{ color: t.text, fontSize: 16, fontWeight: '600' }}>Изм.</Text></Pressable></GlassSurface>
+        <GlassSurface radius={22} shadow={false} interactive contentStyle={{ height: 44, paddingHorizontal: 16, justifyContent: 'center' }}><Pressable accessibilityRole="button" onPress={() => { requestProfileEdit(); onProfile(); }} hitSlop={6}><Text style={{ color: t.text, fontSize: 16, fontWeight: '600' }}>Изменить</Text></Pressable></GlassSurface>
       </View>
     </View>
     {/* Same column as the list below (on a wide PC window the head used to hug the left edge). */}
