@@ -8,6 +8,7 @@ import { fail, objectBody, publicName } from './security.js';
 import { transaction, privacyOf } from './database.js';
 import { blockedBetween, blockedByMe } from './moderation.js';
 import { roomNotification } from './push.js';
+import { canCall } from './callprivacy.js';
 
 const uuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 /** Members of a room, the creator included (the same number a voice channel holds). */
@@ -48,7 +49,8 @@ export function autoRoomName(names) {
  * `voice`: the voice engine of app.js — `members(roomId)` (who is inside, the shape `voice.state` uses),
  * `close(roomId)` (everyone out) and `evict(userId, roomId)` (one person out).
  * `closed()`: true once the database is closed (a timer must not touch it then).
- * Returns what the engine needs back: `voiceAllowed`, `voiceChanged`, and `forget` for a deleted account.
+ * Returns what the engine needs back (`voiceAllowed`, `voiceChanged`, `voiceState`), `forget` for a
+ * deleted account and `separated` for a block or an ended friendship.
  */
 export function installRoomRoutes({ app, db, authOptions, now, timestamp, limiter, emitUser, voice, push = null, roomSleepMs = 300_000, closed = () => false }) {
   db.exec(ROOM_SCHEMA);
@@ -96,9 +98,16 @@ export function installRoomRoutes({ app, db, authOptions, now, timestamp, limite
   const friends = (a, b) => !!db.prepare('SELECT 1 FROM contacts WHERE owner_id=? AND contact_id=?').get(a, b) && !!db.prepare('SELECT 1 FROM contacts WHERE owner_id=? AND contact_id=?').get(b, a);
   const roomName = value => (typeof value === 'string' && !value.trim() ? null : publicName(value, 'Название комнаты', 1, MAX_ROOM_NAME));
 
-  // The voice engine reports that someone entered or left `roomId` (or changed their microphone).
-  // Members get `room.state` (the list of rooms) and `voice.state` (the open voice screen, exactly as
-  // for a community channel). When the last person leaves the room stays awake for `roomSleepMs`.
+  // Two people may share a room only while they are friends both ways and neither blocked the other.
+  const together = (a, b) => friends(a, b) && !blockedBetween(db, a, b);
+  // `voice.state` for the open voice screen, exactly as for a community channel; it goes to every
+  // member of the room. A microphone switched on or off needs only this.
+  const voiceState = roomId => {
+    const members = voice.members(roomId);
+    for (const userId of memberIds(roomId)) emitUser(userId, { type: 'voice.state', channelId: roomId, roomId, members });
+  };
+  // The voice engine reports that someone entered or left `roomId`. Members get `room.state` (the
+  // list of rooms) and `voice.state`. When the last person leaves the room stays awake for `roomSleepMs`.
   const voiceChanged = roomId => {
     let row = roomRow(roomId);
     if (!row) { sleepNow(roomId); return; }
@@ -118,7 +127,7 @@ export function installRoomRoutes({ app, db, authOptions, now, timestamp, limite
     db.prepare('UPDATE rooms SET last_active_at=? WHERE id=?').run(now(), roomId);
     row = roomRow(roomId);
     emitState(row);
-    for (const userId of memberIds(roomId)) emitUser(userId, { type: 'voice.state', channelId: roomId, roomId, members: inside });
+    voiceState(roomId);
   };
 
   // Takes one person out of a room: out of its voice first, then out of the list. A room is for at
@@ -157,11 +166,13 @@ export function installRoomRoutes({ app, db, authOptions, now, timestamp, limite
     if (!others.length) fail(400, 'Выбери, кого позвать в комнату.');
     if (others.length > ROOM_LIMIT - 1) fail(400, `В комнате максимум ${ROOM_LIMIT} человек.`);
     const name = body.name === undefined || body.name === null ? null : roomName(body.name);
-    // Friends only, and nobody who blocked the creator or was blocked by them. One answer for all
-    // three cases (a stranger, a block, no such account), so it tells nothing about who blocked whom.
-    for (const id of others) if (!friends(me, id) || blockedBetween(db, me, id)) fail(403, 'В комнату можно позвать только друзей.');
-    // The same people already have a room: it is returned instead of a second one.
+    // Every two members must be friends with no block between them — not only the creator and each
+    // guest: a room must not put someone together with a person they blocked or do not know. One
+    // answer for every case (a stranger, a block, no such account, whichever pair it is), so it tells
+    // nothing about who blocked whom.
     const ids = [me, ...others];
+    for (let i = 0; i < ids.length; i++) for (let j = i + 1; j < ids.length; j++) if (!together(ids[i], ids[j])) fail(403, 'В комнату можно позвать только друзей.');
+    // The same people already have a room: it is returned instead of a second one.
     const marks = ids.map(() => '?').join(',');
     const same = db.prepare(`SELECT room_id FROM room_members WHERE room_id IN (SELECT room_id FROM room_members WHERE user_id=?)
       GROUP BY room_id HAVING COUNT(*)=? AND SUM(user_id IN (${marks}))=? LIMIT 1`).get(me, ids.length, ...ids, ids.length);
@@ -200,7 +211,7 @@ export function installRoomRoutes({ app, db, authOptions, now, timestamp, limite
 
   // «Позвать в комнату»: everyone who is not inside right now gets a socket event and an ordinary
   // notification (not a call: nothing rings for a minute). Someone who blocked the caller, or whom the
-  // caller blocked, is not called.
+  // caller blocked, is not called; neither is someone whose «кто может мне звонить» leaves the caller out.
   app.post('/rooms/:id/ring', authOptions, async request => {
     const me = request.auth.user_id;
     const row = memberRoom(request.params.id, me);
@@ -210,7 +221,7 @@ export function installRoomRoutes({ app, db, authOptions, now, timestamp, limite
     const callerName = caller?.display_name || 'Инвиз';
     let rang = 0;
     for (const userId of memberIds(row.id)) {
-      if (userId === me || inside.has(userId) || blockedBetween(db, me, userId)) continue;
+      if (userId === me || inside.has(userId) || blockedBetween(db, me, userId) || !canCall(db, me, userId)) continue;
       rang++;
       const name = publicRoom(row, userId).name;
       emitUser(userId, { type: 'room.ring', roomId: row.id, name, fromId: me, fromName: callerName });
@@ -228,9 +239,20 @@ export function installRoomRoutes({ app, db, authOptions, now, timestamp, limite
   app.addHook('onClose', async () => { for (const timer of awake.values()) clearTimeout(timer); awake.clear(); });
 
   return {
-    /** May this person enter the room's voice? */
-    voiceAllowed: (roomId, userId) => { const row = roomRow(roomId); return !!row && isMember(row.id, userId); },
+    /** May this person enter the room's voice? A member, with no block between them and any other member
+     *  (`separated` already takes such a person out of the room; this is the second lock on the same door). */
+    voiceAllowed: (roomId, userId) => {
+      const row = roomRow(roomId);
+      return !!row && isMember(row.id, userId) && !memberIds(row.id).some(other => other !== userId && blockedBetween(db, userId, other));
+    },
     voiceChanged,
+    voiceState,
+    /** `actorId` blocked `otherId` or removed them from friends: the one who did it leaves every room the
+     *  two share (out of its voice too; the room closes when fewer than two remain). */
+    separated: (actorId, otherId) => {
+      const rows = db.prepare('SELECT r.* FROM rooms r JOIN room_members a ON a.room_id=r.id AND a.user_id=? JOIN room_members b ON b.room_id=r.id AND b.user_id=?').all(actorId, otherId);
+      for (const row of rows) removeMember(row, actorId);
+    },
     /** The account is being deleted: it leaves every room (called before its rows go). */
     forget: userId => { for (const row of db.prepare('SELECT r.* FROM rooms r JOIN room_members m ON m.room_id=r.id WHERE m.user_id=?').all(userId)) removeMember(row, userId); },
   };

@@ -13,7 +13,7 @@ const MAX_MUTE_MS = 366 * 24 * 3600 * 1000;  // a timed mute runs at most a year
 
 
 /** `friendsChanged(a, b)`: a friendship began or ended — «Время захода: Мои контакты» may now differ. */
-export function installSocialRoutes({ app, db, authOptions, publicUser, timestamp, serializationOptions, emitUser, friendsChanged }) {
+export function installSocialRoutes({ app, db, authOptions, publicUser, timestamp, serializationOptions, emitUser, friendsChanged, separated }) {
   const userId = value => { if (typeof value !== 'string' || !uuid.test(value)) fail(400, 'Некорректный пользователь.'); return value; };
 
   app.get('/users/:id', authOptions, async request => {
@@ -75,7 +75,8 @@ export function installSocialRoutes({ app, db, authOptions, publicUser, timestam
   app.delete('/contacts/:id', authOptions, async request => {
     const id = userId(request.params.id), viewer = request.auth.user_id;
     const gone = db.prepare('DELETE FROM contacts WHERE (owner_id=? AND contact_id=?) OR (owner_id=? AND contact_id=?)').run(viewer, id, id, viewer).changes;
-    if (gone) { notify(viewer, id); friendsChanged?.(viewer, id); }
+    // The one who ended the friendship leaves the rooms (rooms.js) the two share.
+    if (gone) { notify(viewer, id); friendsChanged?.(viewer, id); separated?.(viewer, id); }
     return { ok: true };
   });
 

@@ -7,7 +7,7 @@ import { once } from 'node:events';
 import WebSocket from 'ws';
 import { DatabaseSync } from 'node:sqlite';
 import { buildApp } from '../src/app.js';
-import { purgeExpiredStories, STORY_OWNERS_SQL } from '../src/posts.js';
+import { purgeExpiredStories, canSeePosts, STORY_OWNERS_SQL, RECENT_POST_OWNERS_SQL } from '../src/posts.js';
 
 const PNG = Buffer.from('iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+jWZkAAAAASUVORK5CYII=', 'base64');
 function multipart(bytes) {
@@ -288,4 +288,180 @@ test('F8 stories feed: the owners query reads the partial index profile_posts_ex
   assert.ok(!plan.some(step => /^SCAN p\b/.test(step)), plan.join('\n'));
   // The contacts check is a lookup in the contacts primary key, one per live story.
   assert.ok(plan.some(step => /SEARCH c .*contacts.*owner_id=\? AND contact_id=\?/.test(step)), plan.join('\n'));
+});
+
+// Shared by the «Кто видит мои истории и записи» tests below: an app on a movable clock and the usual helpers.
+async function audienceFixture(t, prefix) {
+  const state = { clock: Date.parse('2026-11-07T10:00:00Z') };
+  const dataDir = await mkdtemp(join(tmpdir(), `linea-${prefix}-`)), app = await buildApp({ dataDir, authRateLimit: false, now: () => state.clock });
+  t.after(async () => { await app.close(); await rm(dataDir, { recursive: true, force: true }); });
+  const register = async name => (await app.inject({ method: 'POST', url: '/auth/register', payload: { username: `${prefix}_${name}`, displayName: name, password: 'Solid-test-passphrase_2026!', confirmationWord: 'корабль', recoveryWord: 'астра' } })).json();
+  const as = u => ({ authorization: `Bearer ${u.token}` });
+  const call = (method, url, u, payload) => app.inject({ method, url, headers: as(u), ...(payload ? { payload } : {}) });
+  const ask = (from, to) => call('PUT', `/contacts/${to.user.id}`, from); // a friend request (or accepting theirs)
+  const befriend = async (a, b) => { await ask(a, b); await ask(b, a); };
+  const audience = async (u, posts) => { const r = await call('PATCH', '/me/privacy', u, { posts }); assert.equal(r.statusCode, 200, r.body); };
+  const publish = async (u, kind) => {
+    const form = multipart(PNG); const up = await app.inject({ method: 'POST', url: '/uploads', payload: form.payload, headers: { ...form.headers, ...as(u) } });
+    const r = await call('POST', '/me/posts', u, { uploadId: up.json().attachment.id, kind }); assert.equal(r.statusCode, 201, r.body);
+    return { id: r.json().post.id, file: up.json().attachment.id };
+  };
+  const feed = (u, query = '?posts=1') => call('GET', `/stories/feed${query}`, u).then(r => r.json());
+  return { state, app, dataDir, register, as, call, ask, befriend, audience, publish, feed };
+}
+
+test('privacy «Кто видит мои истории и записи»: friends by default, only the two known values are stored, other settings stay', async t => {
+  const { register, call } = await audienceFixture(t, 'aud');
+  const user = await register('user');
+  assert.equal((await call('GET', '/me/privacy', user)).json().privacy.posts, 'friends');
+  for (const bad of ['nobody', 'contacts', true, 1, null, '']) assert.equal((await call('PATCH', '/me/privacy', user, { posts: bad })).statusCode, 400, JSON.stringify(bad));
+  assert.equal((await call('GET', '/me/privacy', user)).json().privacy.posts, 'friends', 'a refused value changes nothing');
+  assert.equal((await call('PATCH', '/me/privacy', user, { posts: 'everyone' })).json().privacy.posts, 'everyone');
+  // Another setting saved later keeps it, and it does not disturb the others.
+  const after = (await call('PATCH', '/me/privacy', user, { allowNewChats: false })).json().privacy;
+  assert.equal(after.posts, 'everyone'); assert.equal(after.allowNewChats, false); assert.equal(after.calls, 'everyone'); assert.equal(after.lastSeen, 'everyone');
+  assert.equal((await call('PATCH', '/me/privacy', user, { posts: 'friends' })).json().privacy.posts, 'friends');
+});
+
+test('canSeePosts: a friend always; a stranger only with «Все»; a block either way hides everything; gifts stay friends-only', async t => {
+  const { dataDir, register, call, befriend, audience, publish } = await audienceFixture(t, 'see');
+  const owner = await register('owner'), friend = await register('friend'), stranger = await register('stranger'), blocked = await register('blocked'), blocker = await register('blocker');
+  await befriend(owner, friend);
+  const post = await publish(owner, 'post'), story = await publish(owner, 'story');
+  const db = new DatabaseSync(join(dataDir, 'linea.sqlite')); t.after(() => db.close());
+  const sees = viewer => canSeePosts(db, owner.user.id, viewer.user.id);
+  // What a viewer gets over HTTP: the profile lists, both files, marking the story watched.
+  const reach = async viewer => {
+    const lists = (await call('GET', `/users/${owner.user.id}/posts`, viewer)).json();
+    return { visible: lists.visible, posts: lists.posts.length, stories: lists.stories.length, postFile: (await call('GET', `/files/${post.file}`, viewer)).statusCode,
+      storyFile: (await call('GET', `/files/${story.file}`, viewer)).statusCode, view: (await call('POST', `/stories/${story.id}/view`, viewer)).statusCode };
+  };
+  const open = { visible: true, posts: 1, stories: 1, postFile: 200, storyFile: 200, view: 200 }, closed = { visible: false, posts: 0, stories: 0, postFile: 404, storyFile: 404, view: 404 };
+
+  // Friends-only (the default): the friend and the owner, nobody else.
+  assert.equal(sees(owner), true); assert.equal(sees(friend), true); assert.equal(sees(stranger), false);
+  assert.deepEqual(await reach(friend), open); assert.deepEqual(await reach(stranger), closed);
+
+  // «Все»: the stranger too — but not someone the owner blocked, nor someone who blocked the owner.
+  await audience(owner, 'everyone');
+  await call('PUT', `/blocks/${blocked.user.id}`, owner); await call('PUT', `/blocks/${owner.user.id}`, blocker);
+  assert.equal(sees(friend), true); assert.equal(sees(stranger), true); assert.equal(sees(blocked), false); assert.equal(sees(blocker), false);
+  assert.deepEqual(await reach(friend), open); assert.deepEqual(await reach(stranger), open);
+  assert.deepEqual(await reach(blocked), closed); assert.deepEqual(await reach(blocker), closed);
+  assert.equal(canSeePosts(db, owner.user.id, undefined), false, 'no viewer, no access');
+  // Another person's «Все» opens nothing of the owner's, and the setting is per owner.
+  assert.equal(canSeePosts(db, stranger.user.id, owner.user.id), false);
+
+  // Gifts are not posts: a stranger neither sees nor sends them even with «Все».
+  assert.deepEqual((await call('GET', `/users/${owner.user.id}/gifts`, stranger)).json(), { visible: false, gifts: [] });
+  const gift = await call('POST', `/users/${owner.user.id}/gifts`, stranger, { gift: 'bear' });
+  assert.equal(gift.statusCode, 403); assert.equal(gift.json().message ?? gift.json().error, 'Подарки можно дарить только друзьям.');
+  assert.equal((await call('POST', `/users/${owner.user.id}/gifts`, friend, { gift: 'bear' })).statusCode, 201);
+
+  // A blocked friend loses access whatever the setting; back to friends-only the stranger does too.
+  await call('PUT', `/blocks/${friend.user.id}`, owner);
+  assert.equal(sees(friend), false); assert.deepEqual(await reach(friend), closed);
+  await audience(owner, 'friends');
+  assert.equal(sees(stranger), false); assert.deepEqual(await reach(stranger), closed);
+});
+
+test('stories feed: friends, plus people I sent a still-waiting request to when they show to everyone (`pending`); an incoming request is not enough', async t => {
+  const { register, call, ask, befriend, audience, publish, feed } = await audienceFixture(t, 'pend');
+  const me = await register('me'), friend = await register('friend'), open = await register('open'), shut = await register('shut'), asker = await register('asker'), nobody = await register('nobody');
+  await befriend(me, friend);
+  await ask(me, open); await ask(me, shut); await ask(asker, me);
+  await audience(open, 'everyone'); await audience(asker, 'everyone'); await audience(nobody, 'everyone');
+  const stories = {};
+  for (const [name, user] of Object.entries({ friend, open, shut, asker, nobody })) { stories[name] = (await publish(user, 'story')).id; }
+  const shape = result => result.items.map(item => [item.user.id, item.pending === true, item.stories.map(s => s.id)]).sort((a, b) => a[0].localeCompare(b[0]));
+  const expected = [[friend.user.id, false, [stories.friend]], [open.user.id, true, [stories.open]]].sort((a, b) => a[0].localeCompare(b[0]));
+  // `shut` keeps friends-only; `asker` only asked me; `nobody` has «Все» but no request from me.
+  assert.deepEqual(shape(await feed(me)), expected);
+  assert.deepEqual(shape(await feed(me, '')), expected, 'an older app (no ?posts=1) gets the same story items');
+  assert.equal('pending' in (await feed(me)).items.find(item => item.user.id === friend.user.id), false, 'a friend carries no `pending`');
+  // The pending person's story can be watched and counts as seen afterwards.
+  assert.equal((await call('POST', `/stories/${stories.open}/view`, me)).statusCode, 200);
+  assert.equal((await feed(me)).items.find(item => item.user.id === open.user.id).unseen, 0);
+  assert.equal((await call('POST', `/stories/${stories.shut}/view`, me)).statusCode, 404);
+  // The other side sees nothing of mine through my own request: I am friends-only.
+  await publish(me, 'story');
+  assert.deepEqual((await feed(open)).items, []);
+  assert.deepEqual((await feed(asker)).items, [], 'sending a request does not open a friends-only person');
+
+  // `shut` switches to «Все»: now in the strip, marked pending. Cancelling the request removes them again.
+  await audience(shut, 'everyone');
+  assert.deepEqual((await feed(me)).items.filter(item => item.pending).map(item => item.user.id).sort(), [open.user.id, shut.user.id].sort());
+  assert.equal((await call('DELETE', `/friends/requests/${shut.user.id}`, me)).statusCode, 200);
+  assert.deepEqual((await feed(me)).items.map(item => item.user.id).sort(), [friend.user.id, open.user.id].sort());
+  // Accepted: an ordinary friend, no longer pending.
+  await ask(open, me);
+  assert.equal((await feed(me)).items.find(item => item.user.id === open.user.id).pending, undefined);
+  // A block removes a pending person (the block also drops the request).
+  await ask(me, nobody);
+  assert.equal((await feed(me)).items.find(item => item.user.id === nobody.user.id).pending, true);
+  await call('PUT', `/blocks/${me.user.id}`, nobody);
+  assert.equal((await feed(me)).items.some(item => item.user.id === nobody.user.id), false);
+});
+
+test('stories feed with ?posts=1: a person without a live story but with a post in the last 48 h is listed with `posts`', async t => {
+  const { state, register, ask, befriend, audience, publish, feed, call } = await audienceFixture(t, 'recent');
+  const me = await register('me'), friend = await register('friend'), open = await register('open'), shut = await register('shut'), stranger = await register('stranger'), teller = await register('teller');
+  await befriend(me, friend); await befriend(me, teller);
+  await ask(me, open); await ask(me, shut);
+  await audience(open, 'everyone'); await audience(stranger, 'everyone');
+  const first = await publish(friend, 'post'); state.clock += 60_000;
+  const second = await publish(friend, 'post'); state.clock += 60_000;
+  const openPost = await publish(open, 'post'); state.clock += 60_000;
+  await publish(shut, 'post'); await publish(stranger, 'post'); state.clock += 60_000;
+  const tale = await publish(teller, 'story'); await publish(teller, 'post');
+
+  // Unseen stories first; then the newest post. Posts come newest first; a person with a live story has no `posts`.
+  let items = (await feed(me)).items;
+  assert.deepEqual(items.map(item => item.user.id), [teller.user.id, open.user.id, friend.user.id]);
+  assert.deepEqual(items.map(item => [item.stories.map(s => s.id), (item.posts || []).map(p => p.id), item.unseen, item.pending === true]),
+    [[[tale.id], [], 1, false], [[], [openPost.id], 0, true], [[], [second.id, first.id], 0, false]]);
+  assert.equal(items[2].posts[0].kind, 'post'); assert.equal(items[2].posts[0].seen, undefined); assert.equal(items[2].posts[0].media.id, second.file);
+  assert.equal((await call('GET', `/files/${openPost.file}`, me)).statusCode, 200, 'the listed post can be opened');
+  // An app that did not ask for posts gets story items only (it could not open the others).
+  assert.deepEqual((await feed(me, '')).items.map(item => item.user.id), [teller.user.id]);
+  assert.deepEqual((await feed(me, '?posts=yes')).items.map(item => item.user.id), [teller.user.id]);
+
+  // A post taken down leaves the strip; the older one is still inside 48 h.
+  assert.equal((await call('DELETE', `/me/posts/${second.id}`, friend)).statusCode, 200);
+  assert.deepEqual((await feed(me)).items.find(item => item.user.id === friend.user.id).posts.map(p => p.id), [first.id]);
+  // 48 h after the friend's first post it is no longer news; the younger posts still are — the storyteller's
+  // too, now that the story has expired (newest first).
+  state.clock = Date.parse('2026-11-07T10:00:00Z') + 48 * 60 * 60 * 1000 + 90_000;
+  items = (await feed(me)).items;
+  assert.deepEqual(items.map(item => [item.user.id, item.stories.length, item.posts.length]), [[teller.user.id, 0, 1], [open.user.id, 0, 1]]);
+  state.clock += 60 * 60 * 1000;
+  assert.deepEqual((await feed(me)).items, []);
+  // The post itself stays on the profile: only the strip forgets it.
+  assert.equal((await call('GET', `/users/${friend.user.id}/posts`, me)).json().posts.length, 1);
+});
+
+test('stories feed: the recent posts query reads the partial index profile_posts_recent instead of scanning the posts', async t => {
+  const { dataDir } = await audienceFixture(t, 'plan');
+  const db = new DatabaseSync(join(dataDir, 'linea.sqlite')); t.after(() => db.close());
+  const plan = db.prepare(`EXPLAIN QUERY PLAN ${RECENT_POST_OWNERS_SQL}`).all(new Date().toISOString(), 'me', 'me').map(row => row.detail);
+  assert.ok(plan.some(step => /SEARCH p USING INDEX profile_posts_recent \(created_at>\?\)/.test(step)), plan.join('\n'));
+  assert.ok(!plan.some(step => /^SCAN p\b/.test(step)), plan.join('\n'));
+});
+
+test('stories over the socket: a new story or post reaches friends and, with «Все», people whose request is waiting; never a stranger', async t => {
+  const { app, register, ask, befriend, audience, publish } = await audienceFixture(t, 'tell');
+  const owner = await register('owner'), friend = await register('friend'), asker = await register('asker'), stranger = await register('stranger');
+  await befriend(owner, friend); await ask(asker, owner);
+  const friendSocket = await socketFor(t, app, friend), askerSocket = await socketFor(t, app, asker), strangerSocket = await socketFor(t, app, stranger);
+  const told = { type: 'story', ownerId: owner.user.id };
+  // Friends-only: the person who asked hears nothing; a post is announced like a story (it shows in the strip).
+  await publish(owner, 'post');
+  assert.deepEqual(await friendSocket.next(packet => packet.type === 'story'), told);
+  await askerSocket.settle();
+  assert.deepEqual(askerSocket.of('story'), []);
+  await audience(owner, 'everyone');
+  await publish(owner, 'story');
+  assert.deepEqual(await askerSocket.next(packet => packet.type === 'story'), told);
+  await strangerSocket.settle();
+  assert.deepEqual(strangerSocket.of('story'), [], 'a stranger learns nothing even with «Все»');
 });

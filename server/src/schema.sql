@@ -260,6 +260,8 @@ CREATE TABLE IF NOT EXISTS profile_posts (
 CREATE INDEX IF NOT EXISTS profile_posts_owner ON profile_posts(owner_id, kind, created_at);
 -- Expired stories are swept by expires_at (posts.js purgeExpiredStories); posts (NULL) stay out of the index.
 CREATE INDEX IF NOT EXISTS profile_posts_expires ON profile_posts(expires_at) WHERE expires_at IS NOT NULL;
+-- The stories strip also shows friends who published a post in the last 48 h (posts.js RECENT_POST_OWNERS_SQL).
+CREATE INDEX IF NOT EXISTS profile_posts_recent ON profile_posts(created_at) WHERE kind='post';
 
 -- Who watched a story and when (Telegram «Просмотры»): one row a viewer, shown to the owner only.
 CREATE TABLE IF NOT EXISTS story_views (

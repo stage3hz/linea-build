@@ -604,7 +604,7 @@ test('privacy: new chats, avatar visibility and mutual read receipts are enforce
   const alice = await register(app, 'alice_priv'), bob = await register(app, 'bob_priv'), carol = await register(app, 'carol_priv');
   const defaults = await request(app, 'GET', '/me/privacy', alice);
   assert.equal(defaults.statusCode, 200);
-  assert.deepEqual(defaults.json().privacy, { allowNewChats: true, showAvatar: true, readReceipts: true, showLastSeen: true, lastSeen: 'everyone', hideReadTime: false, calls: 'everyone' });
+  assert.deepEqual(defaults.json().privacy, { allowNewChats: true, showAvatar: true, readReceipts: true, showLastSeen: true, lastSeen: 'everyone', hideReadTime: false, calls: 'everyone', posts: 'friends' });
   assert.equal((await request(app, 'PATCH', '/me/privacy', alice, { allowNewChats: 'no' })).statusCode, 400);
   assert.equal((await request(app, 'PATCH', '/me/privacy', alice, { unknown: true })).statusCode, 400);
 

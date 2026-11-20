@@ -1,12 +1,13 @@
 // Profile posts and stories (Telegram «Публикации» / «Истории»): photos and videos a person pins to
-// their profile. Like the birthday, they are seen by friends only (and by the owner). A story lives 24 h.
+// their profile. Like the birthday, they are seen by friends only (and by the owner) unless the owner set
+// «Кто видит мои истории и записи» to «Все» (user_privacy.posts). A story lives 24 h.
 // Files are the ordinary profile uploads (POST /uploads); messages stay end-to-end encrypted — these are
 // profile media, published on purpose, exactly like the avatar and the banner.
 import { randomUUID } from 'node:crypto';
 import { unlink } from 'node:fs/promises';
 import { join } from 'node:path';
 import { fail, objectBody } from './security.js';
-import { transaction, publicUser, userForViewer } from './database.js';
+import { transaction, publicUser, userForViewer, privacyOf } from './database.js';
 import { blockedByMe } from './moderation.js';
 import { isGift } from './cosmetics.js';
 
@@ -17,12 +18,28 @@ export const MAX_ACTIVE_STORIES = 50;
 const MAX_CAPTION = 300;
 // How often expired stories are swept from the database and the disk (B30).
 export const STORY_SWEEP_MS = 60_000;
+// The stories strip also shows a person who has no live story but published a post this recently.
+export const RECENT_POST_MS = 48 * 60 * 60 * 1000;
+const MAX_STRIP_POSTS = 10;
 
-/** True when `viewerId` may see `ownerId`'s posts and stories: the owner, or a friend who is not blocked. */
-export function canSeePosts(db, ownerId, viewerId) {
+const hasContact = (db, ownerId, contactId) => !!db.prepare('SELECT 1 FROM contacts WHERE owner_id=? AND contact_id=?').get(ownerId, contactId);
+const blockedEither = (db, a, b) => blockedByMe(db, a, b) || blockedByMe(db, b, a);
+
+/** True when `viewerId` is `ownerId` or a friend of theirs (in the owner's contacts) with no block either way. */
+function isFriend(db, ownerId, viewerId) {
   if (ownerId === viewerId) return true;
-  if (!db.prepare('SELECT 1 FROM contacts WHERE owner_id=? AND contact_id=?').get(ownerId, viewerId)) return false;
-  return !blockedByMe(db, ownerId, viewerId) && !blockedByMe(db, viewerId, ownerId);
+  return hasContact(db, ownerId, viewerId) && !blockedEither(db, ownerId, viewerId);
+}
+
+/**
+ * True when `viewerId` may see `ownerId`'s posts and stories: the owner; a friend; or, when the owner's
+ * «Кто видит мои истории и записи» is «Все», any signed-in account. A block either way always hides them.
+ */
+export function canSeePosts(db, ownerId, viewerId) {
+  if (!ownerId || !viewerId) return false;
+  if (ownerId === viewerId) return true;
+  if (blockedEither(db, ownerId, viewerId)) return false;
+  return hasContact(db, ownerId, viewerId) || privacyOf(db, ownerId).posts === 'everyone';
 }
 
 /** The owner of a still-visible post or story that uses this upload, or null. */
@@ -85,10 +102,20 @@ const MAX_GIFT_MESSAGE = 120;
 export const STORY_OWNERS_SQL = `SELECT DISTINCT p.owner_id FROM profile_posts p
       WHERE p.expires_at IS NOT NULL AND p.expires_at > ? AND p.kind='story' AND p.owner_id<>?
       AND EXISTS(SELECT 1 FROM contacts c WHERE c.owner_id=p.owner_id AND c.contact_id=?)`;
+/**
+ * People who published a post after a moment and have `me` among their contacts (parameters: the ISO time,
+ * me, me). Built like STORY_OWNERS_SQL: `kind='post'` makes the partial index profile_posts_recent usable,
+ * so only the last two days of posts are read, not every post ever published. The index is named because
+ * without ANALYZE statistics the planner prefers a full scan of profile_posts_owner (it covers the query).
+ */
+export const RECENT_POST_OWNERS_SQL = `SELECT DISTINCT p.owner_id FROM profile_posts p INDEXED BY profile_posts_recent
+      WHERE p.kind='post' AND p.created_at > ? AND p.owner_id<>?
+      AND EXISTS(SELECT 1 FROM contacts c WHERE c.owner_id=p.owner_id AND c.contact_id=?)`;
 
 export function installPostRoutes({ app, db, authOptions, now, timestamp, limiter, uploadDir, emitUser }) {
   // Gifts (Telegram «Подарки»): a friend sends one of GIFTS with a short note; the profile shows them to
-  // the owner and friends, like posts. Free, up to MAX_GIFTS_PER_DAY a day from one person.
+  // the owner and friends. Free, up to MAX_GIFTS_PER_DAY a day from one person. Gifts stay friends-only
+  // whatever «Кто видит мои истории и записи» says (isFriend, not canSeePosts).
   const giftRows = id => db.prepare('SELECT g.*, u.id AS s_id FROM profile_gifts g JOIN users u ON u.id=g.sender_id WHERE g.recipient_id=? ORDER BY g.created_ms DESC LIMIT 500').all(id);
   const publicGift = row => {
     const sender = db.prepare('SELECT * FROM users WHERE id=?').get(row.sender_id);
@@ -97,7 +124,7 @@ export function installPostRoutes({ app, db, authOptions, now, timestamp, limite
   app.get('/users/:id/gifts', authOptions, async request => {
     const id = request.params.id; if (typeof id !== 'string' || !uuid.test(id)) fail(400, 'Некорректный пользователь.');
     if (!db.prepare('SELECT 1 FROM users WHERE id=?').get(id)) fail(404, 'Пользователь не найден.');
-    if (!canSeePosts(db, id, request.auth.user_id)) return { visible: false, gifts: [] };
+    if (!isFriend(db, id, request.auth.user_id)) return { visible: false, gifts: [] };
     return { visible: true, gifts: giftRows(id).map(publicGift) };
   });
   app.post('/users/:id/gifts', authOptions, async (request, reply) => {
@@ -105,7 +132,7 @@ export function installPostRoutes({ app, db, authOptions, now, timestamp, limite
     if (typeof id !== 'string' || !uuid.test(id)) fail(400, 'Некорректный пользователь.');
     if (id === me) fail(400, 'Себе подарок не отправить.');
     if (!db.prepare('SELECT 1 FROM users WHERE id=?').get(id)) fail(404, 'Пользователь не найден.');
-    if (!canSeePosts(db, id, me) || !db.prepare('SELECT 1 FROM contacts WHERE owner_id=? AND contact_id=?').get(me, id)) fail(403, 'Подарки можно дарить только друзьям.');
+    if (!isFriend(db, id, me) || !hasContact(db, me, id)) fail(403, 'Подарки можно дарить только друзьям.');
     const body = objectBody(request.body, ['gift', 'message']);
     if (!isGift(body.gift)) fail(400, 'Неизвестный подарок.');
     const note = body.message === undefined || body.message === null ? '' : body.message;
@@ -151,19 +178,36 @@ export function installPostRoutes({ app, db, authOptions, now, timestamp, limite
     return { visible: true, posts: list(id, 'post', request.auth.user_id), stories: list(id, 'story', request.auth.user_id) };
   });
 
-  // The strip above the chat list (Telegram): friends with a live story, those with something unseen first,
-  // then by the newest story. Only people whose posts this account may see (canSeePosts: friends, no block).
-  // Own stories come as `mine` so the strip's «Моя история» needs no second request.
+  // The strip above the chat list (Telegram). Who is in it:
+  //  - friends (people who have this account among their contacts) with a live story;
+  //  - people this account sent a friend request to that is still waiting, when their «Кто видит мои
+  //    истории и записи» is «Все» — marked `pending: true` (an incoming request is not enough);
+  //  - with `?posts=1` (apps that can show them), the same people when they have no live story but
+  //    published a post in the last 48 h: `stories` is empty and `posts` holds those posts, newest first.
+  // Nobody else, and always through canSeePosts (no block either way). Those with an unseen story come
+  // first, then by the newest story or post (`latest`); the server keeps no "seen" state for posts, so the
+  // app orders them itself. Own stories come as `mine` so the strip's «Моя история» needs no second request.
+  const recentPosts = (ownerId, since) => db.prepare(`SELECT ${POST_COLUMNS} FROM profile_posts p JOIN uploads u ON u.id=p.upload_id
+    WHERE p.owner_id=? AND p.kind='post' AND p.created_at > ? ORDER BY p.created_at DESC, p.id DESC LIMIT ?`).all(ownerId, since, MAX_STRIP_POSTS).map(publicPost);
   app.get('/stories/feed', authOptions, async request => {
     const me = request.auth.user_id; const time = now();
-    const owners = db.prepare(STORY_OWNERS_SQL).all(time, me, me).map(row => row.owner_id).filter(ownerId => canSeePosts(db, ownerId, me));
-    const items = owners.map(ownerId => {
+    const withPosts = request.query?.posts === '1'; const since = new Date(time - RECENT_POST_MS).toISOString();
+    // owner id → whether they are here only because of a waiting request of mine.
+    const owners = new Map();
+    for (const { owner_id } of db.prepare(STORY_OWNERS_SQL).all(time, me, me)) owners.set(owner_id, false);
+    if (withPosts) for (const { owner_id } of db.prepare(RECENT_POST_OWNERS_SQL).all(since, me, me)) owners.set(owner_id, false);
+    for (const { to_id } of db.prepare('SELECT to_id FROM friend_requests WHERE from_id=?').all(me)) {
+      if (!owners.has(to_id) && !hasContact(db, to_id, me) && privacyOf(db, to_id).posts === 'everyone') owners.set(to_id, true);
+    }
+    const items = [...owners].filter(([ownerId]) => canSeePosts(db, ownerId, me)).map(([ownerId, pending]) => {
       const row = db.prepare('SELECT * FROM users WHERE id=?').get(ownerId); if (!row) return null;
       const stories = list(ownerId, 'story', me).reverse(); // oldest first: they play in order
-      // A story may expire between the two queries (or be swept): nothing to show for this person.
-      if (!stories.length) return null;
-      return { user: userForViewer(db, publicUser(row, { db, now }), me), stories, unseen: stories.filter(story => !story.seen).length, latest: stories[stories.length - 1].createdAt };
-    }).filter(Boolean).sort((a, b) => (b.unseen > 0) - (a.unseen > 0) || b.latest.localeCompare(a.latest)).map(({ latest: _latest, ...item }) => item);
+      // No live story (one may also expire between the two queries, or be swept): a recent post, or nothing to show.
+      const posts = !stories.length && withPosts ? recentPosts(ownerId, since) : [];
+      if (!stories.length && !posts.length) return null;
+      return { user: userForViewer(db, publicUser(row, { db, now }), me), stories, unseen: stories.filter(story => !story.seen).length,
+        ...(posts.length ? { posts } : {}), ...(pending ? { pending: true } : {}), latest: stories.length ? stories[stories.length - 1].createdAt : posts[0].createdAt };
+    }).filter(Boolean).sort((a, b) => (b.unseen > 0) - (a.unseen > 0) || b.latest.localeCompare(a.latest));
     return { items, mine: list(me, 'story', me).reverse() };
   });
 
@@ -211,25 +255,29 @@ export function installPostRoutes({ app, db, authOptions, now, timestamp, limite
     db.prepare('INSERT INTO profile_posts(id,owner_id,upload_id,kind,caption,created_at,expires_at) VALUES(?,?,?,?,?,?,?)')
       .run(id, me, upload.id, kind, caption.trim(), timestamp(), kind === 'story' ? time + STORY_TTL_MS : null);
     const row = db.prepare(`SELECT ${POST_COLUMNS} FROM profile_posts p JOIN uploads u ON u.id=p.upload_id WHERE p.id=?`).get(id);
-    if (kind === 'story') notifyFriends(me);
+    notifyFriends(me);
     return reply.code(201).send({ post: publicPost(row) });
   });
 
   app.delete('/me/posts/:id', authOptions, async request => {
     const id = request.params.id; if (typeof id !== 'string' || !uuid.test(id)) fail(400, 'Некорректная публикация.');
     const me = request.auth.user_id;
-    const post = db.prepare('SELECT id, owner_id, upload_id, kind, expires_at FROM profile_posts WHERE id=? AND owner_id=?').get(id, me);
+    const post = db.prepare('SELECT id, owner_id, upload_id, kind, created_at, expires_at FROM profile_posts WHERE id=? AND owner_id=?').get(id, me);
     if (!post) fail(404, 'Публикация не найдена.');
     await removePost(db, post, uploadDir);
-    // A live story taken down leaves the friends' strip at once (an expired one was never there).
-    if (post.kind === 'story' && post.expires_at > now()) notifyFriends(me);
+    // A live story or a recent post taken down leaves the strip at once (an expired story or an older post was not there).
+    if (post.kind === 'story' ? post.expires_at > now() : post.created_at > new Date(now() - RECENT_POST_MS).toISOString()) notifyFriends(me);
     return { ok: true };
   });
 
-  // Friends learn of a new or removed story at once, so the strip above their chat list updates
-  // (blocked people get nothing). The payload says only whose stories changed: the strip re-reads the feed.
+  // Friends learn of a new or removed story or post at once, so the strip above their chat list updates
+  // (blocked people get nothing); so do people whose friend request to the owner is still waiting, when the
+  // owner shows stories and posts to everyone. The payload says only whose strip entry changed: the strip
+  // re-reads the feed.
   function notifyFriends(ownerId) {
     if (!emitUser) return;
-    for (const { contact_id } of db.prepare('SELECT contact_id FROM contacts WHERE owner_id=?').all(ownerId)) if (canSeePosts(db, ownerId, contact_id)) emitUser(contact_id, { type: 'story', ownerId });
+    const viewers = new Set(db.prepare('SELECT contact_id FROM contacts WHERE owner_id=?').all(ownerId).map(row => row.contact_id));
+    if (privacyOf(db, ownerId).posts === 'everyone') for (const { from_id } of db.prepare('SELECT from_id FROM friend_requests WHERE to_id=?').all(ownerId)) viewers.add(from_id);
+    for (const viewerId of viewers) if (canSeePosts(db, ownerId, viewerId)) emitUser(viewerId, { type: 'story', ownerId });
   }
 }

@@ -31,7 +31,7 @@ export const blockedBetween = (db, a, b) => !!db.prepare('SELECT 1 FROM blocks W
 export const blockedByMe = (db, me, other) => !!db.prepare('SELECT 1 FROM blocks WHERE blocker_id=? AND blocked_id=?').get(me, other);
 
 /** `blocksChanged(a, b)`: app.js pushes the new presence and chat state to both accounts at once. */
-export function installModerationRoutes({ app, db, authOptions, publicUser, timestamp, limiter, blocksChanged = () => {} }) {
+export function installModerationRoutes({ app, db, authOptions, publicUser, timestamp, limiter, blocksChanged = () => {}, separated = () => {} }) {
   const id = value => { if (typeof value !== 'string' || !uuid.test(value)) fail(400, 'Некорректный пользователь.'); return value; };
   app.get('/blocks', authOptions, async request => {
     const rows = db.prepare('SELECT u.* FROM blocks b JOIN users u ON u.id=b.blocked_id WHERE b.blocker_id=? ORDER BY b.created_at DESC').all(request.auth.user_id);
@@ -46,6 +46,8 @@ export function installModerationRoutes({ app, db, authOptions, publicUser, time
     db.prepare('DELETE FROM friend_requests WHERE (from_id=? AND to_id=?) OR (from_id=? AND to_id=?)').run(me, target, target, me);
     db.prepare('DELETE FROM contacts WHERE (owner_id=? AND contact_id=?) OR (owner_id=? AND contact_id=?)').run(me, target, target, me);
     blocksChanged(me, target);
+    // The blocker leaves the rooms (rooms.js) the two share.
+    separated(me, target);
     return { ok: true, blocked: true };
   });
   app.delete('/blocks/:id', authOptions, async request => {

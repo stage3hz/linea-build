@@ -77,6 +77,8 @@ export function openDatabase(dataDir) {
       }
       // «Скрывать время прочтения»: free, off by default.
       if (!privacyColumns.has('hide_read_time')) db.exec('ALTER TABLE user_privacy ADD COLUMN hide_read_time INTEGER NOT NULL DEFAULT 0 CHECK(hide_read_time IN (0,1))');
+      // «Кто видит мои истории и записи»: friends (as before) or everyone who is signed in and not blocked.
+      if (!privacyColumns.has('posts')) db.exec("ALTER TABLE user_privacy ADD COLUMN posts TEXT NOT NULL DEFAULT 'friends' CHECK(posts IN ('friends','everyone'))");
       db.exec('UPDATE users SET login_name=username WHERE login_name IS NULL');
       db.exec(`
         CREATE UNIQUE INDEX IF NOT EXISTS users_login_name ON users(login_name);
@@ -205,13 +207,15 @@ export function publicUser(row, { db, now = Date.now, own = false } = {}) {
 }
 
 export const LAST_SEEN_MODES = Object.freeze(['everyone', 'contacts', 'nobody']);
-const PRIVACY_DEFAULTS = { allowNewChats: true, showAvatar: true, readReceipts: true, showLastSeen: true, lastSeen: 'everyone', hideReadTime: false, calls: 'everyone' };
+/** «Кто видит мои истории и записи»: «Друзья» (friends, the default) or «Все» (posts.js canSeePosts). */
+export const POSTS_MODES = Object.freeze(['friends', 'everyone']);
+const PRIVACY_DEFAULTS = { allowNewChats: true, showAvatar: true, readReceipts: true, showLastSeen: true, lastSeen: 'everyone', hideReadTime: false, calls: 'everyone', posts: 'friends' };
 /** `showLastSeen` is kept for older apps: true unless «Время захода» is «Никто». */
 export function privacyOf(db, userId) {
   const row = db.prepare('SELECT * FROM user_privacy WHERE user_id=?').get(userId);
   if (!row) return { ...PRIVACY_DEFAULTS };
   const lastSeen = LAST_SEEN_MODES.includes(row.last_seen) ? row.last_seen : row.show_last_seen === 0 ? 'nobody' : 'everyone';
-  return { allowNewChats: row.allow_new_chats === 1, showAvatar: row.show_avatar === 1, readReceipts: row.read_receipts === 1, showLastSeen: lastSeen !== 'nobody', lastSeen, hideReadTime: row.hide_read_time === 1, calls: row.calls || 'everyone' };
+  return { allowNewChats: row.allow_new_chats === 1, showAvatar: row.show_avatar === 1, readReceipts: row.read_receipts === 1, showLastSeen: lastSeen !== 'nobody', lastSeen, hideReadTime: row.hide_read_time === 1, calls: row.calls || 'everyone', posts: POSTS_MODES.includes(row.posts) ? row.posts : 'friends' };
 }
 
 /** A serialized user as another account may see it. The owner always sees everything. */

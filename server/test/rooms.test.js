@@ -5,6 +5,7 @@ import { once } from 'node:events';
 import { tmpdir } from 'node:os';
 import { join as joinPath } from 'node:path';
 import { randomUUID } from 'node:crypto';
+import { DatabaseSync } from 'node:sqlite';
 import WebSocket from 'ws';
 import { buildApp } from '../src/app.js';
 import { createPush } from '../src/push.js';
@@ -50,15 +51,15 @@ async function socketFor(t, app, account) {
 }
 const sleep = ms => new Promise(resolve => setTimeout(resolve, ms));
 
-/** An app with `names.length` accounts; the first is a friend of all the others. */
+/** An app with `names.length` accounts, every two of them friends. */
 async function fixture(t, names, options = {}) {
   const dataDir = await mkdtemp(joinPath(tmpdir(), 'linea-rooms-'));
   const app = await buildApp({ dataDir, logger: false, authRateLimit: false, ...options });
   t.after(async () => { await app.close(); await rm(dataDir, { recursive: true, force: true }); });
   const people = [];
   for (const [username, displayName] of names) people.push(await register(app, username, displayName));
-  for (const other of people.slice(1)) await befriend(app, people[0], other);
-  return { app, people };
+  for (let i = 0; i < people.length; i++) for (const other of people.slice(i + 1)) await befriend(app, people[i], other);
+  return { app, people, dataDir };
 }
 const createRoom = (app, who, others, name) => request(app, 'POST', '/rooms', who, { memberIds: others.map(p => p.user.id), ...(name === undefined ? {} : { name }) });
 
@@ -73,6 +74,11 @@ test('rooms: create, the same set returns the same room, friends only, no blocks
   for (let i = 0; i < 10; i++) names.push([`room_extra_${i}`, `Гость ${i}`]);
   const { app, people } = await fixture(t, names);
   const [owner, lara, timur, anna] = people;
+  const extras = people.slice(4);
+  const befriendAgain = async (blocker, other) => {
+    assert.equal((await request(app, 'DELETE', `/blocks/${other.user.id}`, blocker)).statusCode, 200);
+    await befriend(app, blocker, other);
+  };
 
   assert.equal((await request(app, 'POST', '/rooms', null, { memberIds: [lara.user.id] })).statusCode, 401);
   const created = await createRoom(app, owner, [lara, timur]);
@@ -99,10 +105,21 @@ test('rooms: create, the same set returns the same room, friends only, no blocks
   assert.equal(pair.json().created, true);
   assert.notEqual(pair.json().room.id, room.id);
 
-  // Лариса and Тимур are not friends with each other: Лариса cannot make a room with him.
-  const stranger = await createRoom(app, lara, [timur]);
+  // Соло is a friend of Вера only: Лариса cannot make a room with him…
+  const solo = await register(app, 'room_solo', 'Соло');
+  await befriend(app, owner, solo);
+  const stranger = await createRoom(app, lara, [solo]);
   assert.equal(stranger.statusCode, 403);
-  assert.match(stranger.json().error, /друзей/);
+  assert.equal(stranger.json().error, 'В комнату можно позвать только друзей.');
+  // …and Вера cannot put the two in one room either: every two members must be friends.
+  const pairless = await createRoom(app, owner, [lara, solo]);
+  assert.equal(pairless.statusCode, 403);
+  assert.equal(pairless.json().error, stranger.json().error, 'the same answer whichever pair it is');
+  assert.equal((await createRoom(app, owner, [solo])).statusCode, 201);
+  // A block between two guests refuses the room as well.
+  assert.equal((await request(app, 'PUT', `/blocks/${extras[0].user.id}`, extras[1])).statusCode, 200);
+  assert.equal((await createRoom(app, owner, [extras[0], extras[1]])).statusCode, 403);
+  await befriendAgain(extras[1], extras[0]);
   // A one-sided contact is not enough, and an unknown account reads the same.
   assert.equal((await request(app, 'POST', '/rooms', owner, { memberIds: [randomUUID()] })).statusCode, 403);
 
@@ -120,7 +137,6 @@ test('rooms: create, the same set returns the same room, friends only, no blocks
   assert.equal((await request(app, 'POST', '/rooms', owner, { memberIds: 'x' })).statusCode, 400);
 
   // 11 others is the most (12 with the caller); 12 others is refused.
-  const extras = people.slice(4);
   const full = await createRoom(app, owner, [lara, ...extras]);
   assert.equal(full.statusCode, 201, full.body);
   assert.equal(full.json().room.members.length, 12);
@@ -258,9 +274,19 @@ test('rooms: voice — members only, peers see each other, signalling and state 
 
   // Unmuting reaches the members as a new state.
   ownerSocket.send({ type: 'voice.mute', muted: false });
+  const roomStates = () => timurSocket.packets.filter(p => p.type === 'room.state').length;
+  const statesBefore = roomStates();
+  const activeBefore = (await request(app, 'GET', '/rooms', timur)).json().rooms[0].lastActiveAt;
+  await sleep(20);
+  ownerSocket.send({ type: 'voice.mute', muted: false });
   const unmuted = await timurSocket.next(p => p.type === 'voice.state' && p.members.length === 2 && p.members[0].muted === false);
-  assert.equal(unmuted.roomId, room.id);
-  await timurSocket.next(p => p.type === 'room.state' && p.inside.length === 2 && p.inside[0].muted === false);
+  assert.deepEqual(unmuted, { type: 'voice.state', channelId: room.id, roomId: room.id, members: [{ userId: owner.user.id, muted: false, serverMuted: false, serverDeafened: false }, { userId: lara.user.id, muted: false, serverMuted: false, serverDeafened: false }] });
+  await sleep(80);
+  // …and only that: nobody entered or left, so no `room.state` and no new time of activity.
+  assert.equal(roomStates(), statesBefore, 'a microphone toggle sends no room.state');
+  const afterMute = (await request(app, 'GET', '/rooms', timur)).json().rooms[0];
+  assert.equal(afterMute.lastActiveAt, activeBefore);
+  assert.equal(afterMute.inside[0].muted, false, 'the list over HTTP still shows the microphone as it is');
   // Screen sharing through the server is refused in a room.
   laraSocket.send({ type: 'sfu', id: 1, op: 'caps' });
   await laraSocket.next(p => p.type === 'error' && /Демонстрация/.test(p.error));
@@ -380,4 +406,91 @@ test('rooms: a deleted account leaves its rooms', async t => {
   assert.deepEqual(rooms.map(r => r.id), [trio.id]);
   assert.deepEqual(rooms[0].members.map(m => m.id), [owner.user.id, lara.user.id]);
   assert.equal(rooms.some(r => r.id === pair.id), false);
+});
+
+test('rooms: a block after creation takes the blocker out of the shared rooms, voice seat included', async t => {
+  const { app, people } = await fixture(t, [['blk_vera', 'Вера'], ['blk_boris', 'Борис'], ['blk_clara', 'Клара']]);
+  const [vera, boris, clara] = people;
+  const trio = (await createRoom(app, vera, [boris, clara])).json().room;
+  const pair = (await createRoom(app, boris, [clara])).json().room;
+  const apart = (await createRoom(app, vera, [boris])).json().room;
+  const veraSocket = await socketFor(t, app, vera), borisSocket = await socketFor(t, app, boris), claraSocket = await socketFor(t, app, clara);
+  borisSocket.send({ type: 'voice.join', roomId: trio.id }); await borisSocket.next(p => p.type === 'voice.joined');
+  claraSocket.send({ type: 'voice.join', roomId: trio.id }); await claraSocket.next(p => p.type === 'voice.joined');
+  await veraSocket.next(p => p.type === 'room.state' && p.inside.length === 2);
+
+  assert.equal((await request(app, 'PUT', `/blocks/${clara.user.id}`, boris)).statusCode, 200);
+  // Борис is out of the room's voice and out of the room; Вера and Клара keep it.
+  assert.deepEqual(await borisSocket.next(p => p.type === 'voice.kicked'), { type: 'voice.kicked', channelId: trio.id, roomId: trio.id });
+  await borisSocket.next(p => p.type === 'room.removed' && p.roomId === trio.id);
+  await claraSocket.next(p => p.type === 'voice.left');
+  const updated = await veraSocket.next(p => p.type === 'room.updated' && p.room.id === trio.id && p.room.members.length === 2);
+  assert.deepEqual(updated.room.members.map(m => m.id), [vera.user.id, clara.user.id]);
+  const state = await veraSocket.next(p => p.type === 'room.state' && p.roomId === trio.id && p.inside.length === 1 && p.inside[0].userId === clara.user.id);
+  assert.deepEqual(state.inside.map(m => m.userId), [clara.user.id]);
+  // The room of the two alone is closed for both.
+  await claraSocket.next(p => p.type === 'room.removed' && p.roomId === pair.id);
+  await borisSocket.next(p => p.type === 'room.removed' && p.roomId === pair.id);
+  const ids = async who => (await request(app, 'GET', '/rooms', who)).json().rooms.map(r => r.id).sort();
+  assert.deepEqual(await ids(clara), [trio.id]);
+  assert.deepEqual(await ids(vera), [trio.id, apart.id].sort());
+  assert.deepEqual(await ids(boris), [apart.id], 'a room without the blocked person is untouched');
+  borisSocket.send({ type: 'voice.join', roomId: trio.id });
+  assert.equal((await borisSocket.next(p => p.type === 'error')).error, 'Нет доступа к комнате.');
+});
+
+test('rooms: voice.join is refused while a block stands between the joiner and another member', async t => {
+  const { app, people, dataDir } = await fixture(t, [['lock_vera', 'Вера'], ['lock_boris', 'Борис'], ['lock_clara', 'Клара']]);
+  const [vera, boris, clara] = people;
+  const room = (await createRoom(app, vera, [boris, clara])).json().room;
+  // A block that reached the table without the route's hook (an older row, another code path): both stay
+  // members, yet neither of the two may enter; the third still may.
+  const side = new DatabaseSync(joinPath(dataDir, 'linea.sqlite'));
+  side.exec('PRAGMA busy_timeout=2000');
+  side.prepare('INSERT INTO blocks(blocker_id,blocked_id,created_at) VALUES(?,?,?)').run(boris.user.id, clara.user.id, new Date().toISOString());
+  side.close();
+  assert.equal((await request(app, 'GET', '/rooms', boris)).json().rooms.length, 1, 'still a member');
+  const veraSocket = await socketFor(t, app, vera), borisSocket = await socketFor(t, app, boris), claraSocket = await socketFor(t, app, clara);
+  borisSocket.send({ type: 'voice.join', roomId: room.id });
+  assert.equal((await borisSocket.next(p => p.type === 'error')).error, 'Нет доступа к комнате.');
+  claraSocket.send({ type: 'voice.join', roomId: room.id });
+  assert.equal((await claraSocket.next(p => p.type === 'error')).error, 'Нет доступа к комнате.');
+  veraSocket.send({ type: 'voice.join', roomId: room.id });
+  await veraSocket.next(p => p.type === 'voice.joined');
+});
+
+test('rooms: removing a friend takes the one who did it out of the shared rooms', async t => {
+  const { app, people } = await fixture(t, [['unf_vera', 'Вера'], ['unf_boris', 'Борис'], ['unf_clara', 'Клара']]);
+  const [vera, boris, clara] = people;
+  const trio = (await createRoom(app, vera, [boris, clara])).json().room;
+  const veraSocket = await socketFor(t, app, vera), borisSocket = await socketFor(t, app, boris);
+  borisSocket.send({ type: 'voice.join', roomId: trio.id }); await borisSocket.next(p => p.type === 'voice.joined');
+  await veraSocket.next(p => p.type === 'room.state' && p.inside.length === 1);
+
+  assert.equal((await request(app, 'DELETE', `/contacts/${clara.user.id}`, boris)).statusCode, 200);
+  assert.deepEqual(await borisSocket.next(p => p.type === 'voice.kicked'), { type: 'voice.kicked', channelId: trio.id, roomId: trio.id });
+  await borisSocket.next(p => p.type === 'room.removed' && p.roomId === trio.id);
+  const updated = await veraSocket.next(p => p.type === 'room.updated' && p.room.members.length === 2);
+  assert.deepEqual(updated.room.members.map(m => m.id), [vera.user.id, clara.user.id]);
+  await veraSocket.next(p => p.type === 'room.state' && p.inside.length === 0);
+  assert.deepEqual((await request(app, 'GET', '/rooms', boris)).json().rooms, []);
+  assert.deepEqual((await request(app, 'GET', '/rooms', clara)).json().rooms.map(r => r.id), [trio.id]);
+  // Removing someone who is no longer a friend changes nothing more.
+  assert.equal((await request(app, 'DELETE', `/contacts/${clara.user.id}`, boris)).statusCode, 200);
+  assert.equal((await request(app, 'GET', '/rooms', vera)).json().rooms[0].members.length, 2);
+});
+
+test('rooms: a ring skips a member whose call privacy leaves the caller out', async t => {
+  const { app, people } = await fixture(t, [['priv_vera', 'Вера'], ['priv_boris', 'Борис'], ['priv_clara', 'Клара']]);
+  const [vera, boris, clara] = people;
+  const room = (await createRoom(app, vera, [boris, clara])).json().room;
+  const borisSocket = await socketFor(t, app, boris), claraSocket = await socketFor(t, app, clara);
+  assert.equal((await request(app, 'PUT', `/me/call-rules/${vera.user.id}`, clara, { rule: 'deny' })).statusCode, 200);
+  assert.deepEqual((await request(app, 'POST', `/rooms/${room.id}/ring`, vera)).json(), { ok: true, rang: 1 });
+  await borisSocket.next(p => p.type === 'room.ring');
+  await sleep(60);
+  assert.equal(claraSocket.packets.some(p => p.type === 'room.ring'), false);
+  // Борис is not on her list: his ring reaches her.
+  assert.deepEqual((await request(app, 'POST', `/rooms/${room.id}/ring`, boris)).json(), { ok: true, rang: 2 });
+  assert.equal((await claraSocket.next(p => p.type === 'room.ring')).fromId, boris.user.id);
 });

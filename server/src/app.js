@@ -18,7 +18,7 @@ import { join, resolve } from 'node:path';
 import { Transform } from 'node:stream';
 import { pipeline } from 'node:stream/promises';
 import { CALL_MODES, canCall, installCallPrivacyRoutes, migrateCallPrivacy } from './callprivacy.js';
-import { openDatabase, transaction, publicUser as serializePublicUser, publicChat, publicMessage, publicAttachment, privacyOf, effectivePrivacy, PLATINA_PRIVACY, LAST_SEEN_MODES, userForViewer, receiptsVisible, readTimeVisible, presenceView, chatSettings } from './database.js';
+import { openDatabase, transaction, publicUser as serializePublicUser, publicChat, publicMessage, publicAttachment, privacyOf, effectivePrivacy, PLATINA_PRIVACY, LAST_SEEN_MODES, POSTS_MODES, userForViewer, receiptsVisible, readTimeVisible, presenceView, chatSettings } from './database.js';
 import { installLastSeenRoutes } from './lastseen.js';
 import { isAvatarFrame, isBannerPreset, isProfileEffect, isNameplate, isProfilePattern, MAX_PROFILE_VIDEO_BYTES, videoMime } from './cosmetics.js';
 import { platinaState } from './entitlements.js';
@@ -435,7 +435,7 @@ export async function buildApp({
   registerAiRoutes(app,{authenticate:requireAuth,apiKey:aiApiKey,provider:aiProvider(aiProviderConfig),fetchImpl:aiFetch,allowedOrigins,now,isPlatina:userId=>platinaState(db,userId,now()).active});
   installUsernameRoutes({app,db,now,authOptions,emitUser,emitChat});
   installCallRoutes({app,authOptions,now,turn});
-  installSocialRoutes({app,db,authOptions,publicUser,timestamp,serializationOptions,emitUser,friendsChanged:presencePairChanged});
+  installSocialRoutes({app,db,authOptions,publicUser,timestamp,serializationOptions,emitUser,friendsChanged:presencePairChanged,separated:(a,b)=>roomApi.separated(a,b)});
   installPostRoutes({ app, db, authOptions, now, timestamp, limiter, uploadDir, emitUser });
   migratePushTokens(db);
   db.exec(PUSH_SCHEMA);
@@ -444,7 +444,7 @@ export async function buildApp({
   migrateCallPrivacy(db);
   installCallPrivacyRoutes({ app, db, authOptions, publicUser, timestamp });
   installLastSeenRoutes({ app, db, authOptions, publicUser, timestamp, changed: presencePairChanged });
-  installModerationRoutes({ app, db, authOptions, publicUser, timestamp, limiter, blocksChanged });
+  installModerationRoutes({ app, db, authOptions, publicUser, timestamp, limiter, blocksChanged, separated: (a, b) => roomApi.separated(a, b) });
   installSoundCloudRoutes({ app, authOptions, soundcloud, limiter });
   // Push token of this signed-in device. It lives as long as the session: a revoked or
   // expired session stops receiving pushes.
@@ -687,7 +687,7 @@ export async function buildApp({
   app.get('/me/privacy', authOptions, async request => privacyResponse(request.auth.user_id));
 
   app.patch('/me/privacy', authOptions, async request => {
-    const body = objectBody(request.body, ['allowNewChats', 'showAvatar', 'readReceipts', 'showLastSeen', 'lastSeen', 'hideReadTime', 'calls']);
+    const body = objectBody(request.body, ['allowNewChats', 'showAvatar', 'readReceipts', 'showLastSeen', 'lastSeen', 'hideReadTime', 'calls', 'posts']);
     const userId = request.auth.user_id;
     const next = { ...privacyOf(db, userId) };
     const platinaActive = platinaState(db, userId, now()).active;
@@ -702,9 +702,11 @@ export async function buildApp({
     if (body.lastSeen !== undefined) { if (!LAST_SEEN_MODES.includes(body.lastSeen)) fail(400, 'Неизвестная настройка времени захода.'); next.lastSeen = body.lastSeen; }
     else if (body.showLastSeen !== undefined) next.lastSeen = body.showLastSeen ? (next.lastSeen === 'nobody' ? 'everyone' : next.lastSeen) : 'nobody';
     if (body.calls !== undefined) { if (!CALL_MODES.includes(body.calls)) fail(400, 'Неизвестная настройка звонков.'); next.calls = body.calls; }
-    db.prepare(`INSERT INTO user_privacy(user_id,allow_new_chats,show_avatar,read_receipts,show_last_seen,last_seen,hide_read_time,calls,updated_at) VALUES(?,?,?,?,?,?,?,?,?)
-      ON CONFLICT(user_id) DO UPDATE SET allow_new_chats=excluded.allow_new_chats,show_avatar=excluded.show_avatar,read_receipts=excluded.read_receipts,show_last_seen=excluded.show_last_seen,last_seen=excluded.last_seen,hide_read_time=excluded.hide_read_time,calls=excluded.calls,updated_at=excluded.updated_at`)
-      .run(userId, next.allowNewChats ? 1 : 0, next.showAvatar ? 1 : 0, next.readReceipts ? 1 : 0, next.lastSeen === 'nobody' ? 0 : 1, next.lastSeen, next.hideReadTime ? 1 : 0, next.calls, timestamp());
+    // «Кто видит мои истории и записи»: friends or everyone (posts.js canSeePosts reads it).
+    if (body.posts !== undefined) { if (!POSTS_MODES.includes(body.posts)) fail(400, 'Неизвестная настройка историй и записей.'); next.posts = body.posts; }
+    db.prepare(`INSERT INTO user_privacy(user_id,allow_new_chats,show_avatar,read_receipts,show_last_seen,last_seen,hide_read_time,calls,posts,updated_at) VALUES(?,?,?,?,?,?,?,?,?,?)
+      ON CONFLICT(user_id) DO UPDATE SET allow_new_chats=excluded.allow_new_chats,show_avatar=excluded.show_avatar,read_receipts=excluded.read_receipts,show_last_seen=excluded.show_last_seen,last_seen=excluded.last_seen,hide_read_time=excluded.hide_read_time,calls=excluded.calls,posts=excluded.posts,updated_at=excluded.updated_at`)
+      .run(userId, next.allowNewChats ? 1 : 0, next.showAvatar ? 1 : 0, next.readReceipts ? 1 : 0, next.lastSeen === 'nobody' ? 0 : 1, next.lastSeen, next.hideReadTime ? 1 : 0, next.calls, next.posts, timestamp());
     // Peers learn the new visibility even when it is now hidden; «last seen» is reciprocal, so this
     // account's own view of its peers changes too.
     broadcastPresence(userId, { includeHidden: true });
@@ -978,7 +980,7 @@ export async function buildApp({
     const publicAvatar = Boolean(avatarOwner) && (avatarOwner.id === userId || privacyOf(db, avatarOwner.id).showAvatar);
     if (!upload.is_encrypted && upload.attached_message_id && !publicAvatar) fail(404, 'Файл не найден.');
     let permitted = upload.owner_id === userId || publicAvatar;
-    // A profile post or a live story: its owner's friends may open it.
+    // A profile post or a live story: whoever may see the owner's posts (friends, or everyone if the owner chose so) may open it.
     if (!permitted && !upload.is_encrypted && !upload.attached_message_id) { const owner = postOwnerOfUpload(db, upload.id, now()); permitted = Boolean(owner) && canSeePosts(db, owner, userId); }
     if (!permitted && upload.is_encrypted) {
       permitted = Boolean(db.prepare('SELECT 1 FROM e2ee_message_attachments a JOIN messages m ON m.id=a.message_id JOIN chat_members c ON c.chat_id=m.chat_id WHERE a.upload_id=? AND c.user_id=?')
@@ -1121,7 +1123,9 @@ export async function buildApp({
           const item = state.voice && voiceRooms.get(state.voice.channelId)?.get(state.id);
           if (!item || typeof data.muted !== 'boolean') return;
           item.muted = data.muted;
-          emitVoiceState(state.voice.communityId, state.voice.channelId);
+          // In a room a microphone toggle is only a `voice.state`: nobody entered or left (no `room.state`).
+          if (state.voice.roomId) roomApi.voiceState(state.voice.roomId);
+          else emitVoiceState(state.voice.communityId, state.voice.channelId);
           return;
         }
         if (data.type === 'voice.signal') {
