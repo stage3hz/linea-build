@@ -384,16 +384,15 @@ const [removeAsk,setRemoveAsk]=useState<Chat[]|null>(null);const [menu,setMenu]=
   </View>;
 }
 
-// The light under the bar's glass. iPhone glass shows what lies behind it, so there the light is put behind the
-// glass. Android's glass looks only at the page behind the bar, and the browser's frosted fill dims whatever is
-// behind it (seen on the stand: the light was barely there), so on those the light is drawn on the glass.
-const GLOW_UNDER=Platform.OS==='ios';
+// The bar's light is drawn on the glass, under the icons, on every platform. On the iPhone it was put behind the
+// system glass, and there it could not be seen at all (the owner's phone, the simulator): the dark glass swallowed it.
+const GLOW_UNDER=false;
 const CALM_DARK:GlowColors=['#E9EDF5','#7F8EA8','#C9D2E0'],CALM_LIGHT:GlowColors=['#8E99AE','#B4BCCB','#9AA5B8'];
 /** Calm silver while nothing plays; the three colours of the cover while a track with a cover plays. */
 function TabsGlow(){
   const t=useTheme();const music=useMusic();useCoverTints();
   const cover=music.current&&music.playing?coverGlow(music.current):null;
-  return <BarGlow colors={cover??(t.dark?CALM_DARK:CALM_LIGHT)} radius={31} inset={3.6} strength={cover?1:t.dark?.55:.4}/>;
+  return <BarGlow colors={cover??(t.dark?CALM_DARK:CALM_LIGHT)} radius={31} inset={3.6} strength={cover?1:t.dark?.8:.5}/>;
 }
 
 /** The bar's own width: two icons. */
@@ -420,7 +419,7 @@ export function MessengerTabs({onProfile,onNewChat,onMusic,onAI,onChats,activeTa
     {hint&&scrub===null?<View pointerEvents="none" style={{alignSelf:'center',marginBottom:3,height:28,paddingHorizontal:13,borderRadius:14,justifyContent:'center',backgroundColor:t.dark?'rgba(22,24,29,0.94)':'rgba(255,255,255,0.96)',borderWidth:1,borderColor:t.glassBorder}}><Text maxFontSizeMultiplier={1.2} style={{color:t.text,fontSize:12.5,fontWeight:'600'}}>Удержи «Чаты» — остальные разделы</Text></View>:null}
     <SnowLedge id="tabs" radius={31} max={7} inset={{left:side,right:side,top:5,bottom:tabBarMarginBottom(Platform.OS==='ios',insets.bottom)}}><View style={{alignSelf:'center',width:BAR_WIDTH,marginBottom:tabBarMarginBottom(Platform.OS==='ios',insets.bottom),marginTop:5}}>
     {scrub!==null?<View pointerEvents="none" style={{position:'absolute',bottom:'100%',left:(BAR_WIDTH-216)/2,marginBottom:12}}><GlassSurface material="regular" radius={24}><TabList items={items} pick={scrub}/></GlassSurface></View>:null}
-    {GLOW_UNDER?<TabsGlow/>:null}<GlassSurface pure lens material="regular" radius={31} contentStyle={{paddingHorizontal:3.6,paddingVertical:3}}>{GLOW_UNDER?null:<TabsGlow/>}
+    {GLOW_UNDER?<TabsGlow/>:null}{/* «clear»: the system's see-through glass, not the frosted one — the page is seen through the bar. */}<GlassSurface pure lens material="clear" radius={31} contentStyle={{paddingHorizontal:3.6,paddingVertical:3}}>{GLOW_UNDER?null:<TabsGlow/>}
     <TabBar onScrub={setScrub} onMenu={()=>setMenu(true)} active={activeTab==='people'?'people':activeTab==='channels'?'channels':activeTab==='profile'?'profile':activeTab==='music'?'music':activeTab==='ai'?'ai':'chats'} items={items}/>
   </GlassSurface></View></SnowLedge>
     <Modal visible={menu} transparent animationType="fade" statusBarTranslucent onRequestClose={()=>setMenu(false)}>
