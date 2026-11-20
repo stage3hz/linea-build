@@ -10,7 +10,7 @@ import { ProfileInfoCard } from './ProfileInfo';
 import { PlatinaName } from './platina/PlatinaMark';
 import { isBirthdayToday } from './birthday';
 import { ActivityIndicator, AppState, KeyboardAvoidingView, Platform, Pressable, ScrollView, StyleSheet, View, useWindowDimensions } from 'react-native';
-import { Text } from './typography';
+import { TITLE_FONT, Text } from './typography';
 import * as ImagePicker from 'expo-image-picker';
 import * as Clipboard from 'expo-clipboard';
 import * as ImageManipulator from 'expo-image-manipulator';
@@ -302,7 +302,7 @@ export function ProfileScreen({ api, user, theme, darkTheme, onTheme, onDarkThem
       </View>
       <View onLayout={event => setHeroBottom(Math.round(event.nativeEvent.layout.height))} style={{ alignItems: 'center', gap: 6, paddingBottom: 6 }}>
         <Animated.View style={avatarShrink}><Pressable disabled={!stories.length && !profileMedia(previewUser).length} onPress={() => stories.length ? setStoryOpen(true) : setViewer(0)} accessibilityRole="button" accessibilityLabel={stories.length ? 'Истории' : 'Фото и видео профиля'}><StoryRing active={stories.length > 0} size={116}><DecoratedAvatar user={previewUser} api={api} size={116} animated round/></StoryRing></Pressable></Animated.View>
-        <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 7, alignSelf: 'stretch', marginTop: 10, paddingHorizontal: 16 }}><PlatinaName user={previewUser} onDark={tinted} numberOfLines={2} style={{ flexShrink: 1, color: tinted ? '#FFFFFF' : t.text, fontSize: 26, fontWeight: '800', letterSpacing: -.6, textAlign: 'center' }}/><Pressable accessibilityRole="button" accessibilityLabel="Сменить статус рядом с именем" hitSlop={10} disabled={!ready || !status?.platina.active && !status?.statusEmoji} onPress={event => { setPickerY(event.nativeEvent.pageY); setPickerOpen(true); }}><StatusEmoji user={previewUser} size={22} animated/></Pressable></View>
+        <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 7, alignSelf: 'stretch', marginTop: 10, paddingHorizontal: 16 }}><PlatinaName user={previewUser} onDark={tinted} numberOfLines={2} style={{ flexShrink: 1, color: tinted ? '#FFFFFF' : t.text, fontFamily: TITLE_FONT, fontSize: 27, lineHeight: 33, fontWeight: '800', letterSpacing: -.9, textAlign: 'center' }}/><Pressable accessibilityRole="button" accessibilityLabel="Сменить статус рядом с именем" hitSlop={10} disabled={!ready || !status?.platina.active && !status?.statusEmoji} onPress={event => { setPickerY(event.nativeEvent.pageY); setPickerOpen(true); }}><StatusEmoji user={previewUser} size={22} animated/></Pressable></View>
         <Text style={{ color: tinted ? 'rgba(255,255,255,0.78)' : t.accent, fontSize: 15 }}>в сети</Text>
         {birthdayToday ? <View style={{ marginTop: 4, paddingHorizontal: 12, paddingVertical: 5, borderRadius: 14, backgroundColor: tinted ? 'rgba(255,255,255,0.22)' : t.accentSoft }}><Text style={{ color: tinted ? '#FFF' : t.text, fontSize: 13, fontWeight: '700' }}>🎉 Сегодня день рождения</Text></View> : null}
       </View>

@@ -15,7 +15,7 @@ import { ProfileMediaViewer, profileMedia } from './ProfileMediaViewer';
 import { PostViewer, PostsSection, ProfilePattern, StoryRing, useProfilePosts } from './ProfilePosts';
 import { ProfileInfoCard } from './ProfileInfo';
 import * as Clipboard from 'expo-clipboard';
-import { Text } from './typography';
+import { TITLE_FONT, Text } from './typography';
 import { Avatar, Bouncy, Button, Icon, InsetView, IconButton, Notice, Sheet, SheetAction, type IconName } from './components';
 import { ContextMenu, MenuItem } from './ContextMenu';
 import { GlassStage, GlassSurface } from './glass';
@@ -212,7 +212,7 @@ export function UserProfile({ api, user, onClose, chat, onMessage, onMute, onSea
         {shown.profilePattern ? <View pointerEvents="none" style={{ position: 'absolute', left: -18, right: -18, top: -90, height: 90 + Math.max(220, heroBottom) }}><ProfilePattern emoji={shown.profilePattern} width={(card ? cardWidth : Math.min(680, width))} height={90 + Math.max(220, heroBottom)} cx={(card ? cardWidth : Math.min(680, width)) / 2} cy={90 + (stories.length ? 64 : 58)} /></View> : null}
         <Animated.View style={avatarStretch}><Pressable accessibilityRole="button" accessibilityLabel={stories.length ? 'Истории' : 'Фото и видео профиля'} disabled={!stories.length && !profileMedia(shown).length} onPress={openViewer}><Animated.View style={avatarIn}><StoryRing active={stories.length > 0} size={116}><DecoratedAvatar user={shown} api={api} size={116} animated round /></StoryRing></Animated.View><Animated.View pointerEvents="none" style={[{ position: 'absolute', left: 0, top: 0, right: 0, bottom: 0, borderRadius: 58, backgroundColor: '#000' }, avatarDim]} /></Pressable></Animated.View>
         <View style={{ alignItems: 'center', gap: 6 }}>
-          <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 7, alignSelf: 'stretch', paddingHorizontal: 16 }}><PlatinaName user={shown} onDark={tinted} numberOfLines={2} style={{ flexShrink: 1, textAlign: 'center', color: tinted ? '#FFFFFF' : t.text, fontSize: 26, fontWeight: '800', letterSpacing: -.6 }} /><StatusEmoji user={shown} size={22} animated /></View>
+          <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 7, alignSelf: 'stretch', paddingHorizontal: 16 }}><PlatinaName user={shown} onDark={tinted} numberOfLines={2} style={{ flexShrink: 1, textAlign: 'center', color: tinted ? '#FFFFFF' : t.text, fontFamily: TITLE_FONT, fontSize: 27, lineHeight: 33, fontWeight: '800', letterSpacing: -.9 }} /><StatusEmoji user={shown} size={22} animated /></View>
           {/* Telegram: only the presence under the name; @username lives in the card below (it was shown twice). */}
           {status ? <Text style={{ color: tinted ? 'rgba(255,255,255,0.78)' : status === 'в сети' ? t.accent : t.muted, fontSize: 15 }}>{status}</Text> : null}
           {birthdayToday ? <View style={{ paddingHorizontal: 12, paddingVertical: 5, borderRadius: 14, backgroundColor: tinted ? 'rgba(255,255,255,0.22)' : t.accentSoft }}><Text style={{ color: tinted ? '#FFF' : t.text, fontSize: 13, fontWeight: '700' }}>🎉 Сегодня день рождения</Text></View> : null}
