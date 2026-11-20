@@ -110,6 +110,6 @@ export function RoomMusicLine({ members, peers }: { members: RoomMember[]; peers
   </View>;
   return <Pressable accessibilityRole="button" accessibilityLabel="Музыка для всех" disabled={!music.current || local} onPress={start} style={({ pressed }) => ({ flexDirection: 'row', alignItems: 'center', gap: 8, opacity: !music.current || local ? 0.55 : pressed ? 0.7 : 1 })}>
     <Icon name="musical-notes-outline" size={17} color={t.muted} />
-    <Text numberOfLines={1} style={{ color: t.muted, fontSize: 13.5, maxWidth: 380 }}>{local ? 'Свой файл нельзя включить для всех — выбери трек из каталога' : music.current ? `Включить «${music.current.title.slice(0, 40)}» для всех` : 'Музыка для всех: сначала включи трек во вкладке «Музыка»'}</Text>
+    <Text numberOfLines={1} style={{ color: t.muted, fontSize: 13.5, maxWidth: 460 }}>{local ? 'Свой файл нельзя включить для всех — выбери трек из каталога' : music.current ? `Включить «${music.current.title.slice(0, 40)}» для всех` : 'Музыка для всех: включи трек в «Музыке»'}</Text>
   </Pressable>;
 }
