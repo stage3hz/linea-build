@@ -18,6 +18,9 @@ import { setCommunitySummaries, useCommunityCounts } from './unread';
 import { badgeText } from '../unreadBadge';
 import { InviteCard } from './InviteCard';
 import { useTabInset } from '../tabInset';
+import { RoomsSection } from '../rooms/RoomsSection';
+import { RoomScreen } from '../rooms/RoomScreen';
+import { openRoom, useRooms } from '../rooms/rooms';
 
 /**
  * «Каналы» tab: the user's game servers and blogs, create a new one (choose the type, as in
@@ -32,6 +35,8 @@ export function CommunitiesScreen({ api, me, store, openId, onOpenInvite, onOpen
   useEffect(() => { if (list) lastList = { owner: me.id, list }; }, [list, me.id]);
   const [create, setCreate] = useState<CommunityKind | 'choose' | null>(null); const [join, setJoin] = useState(false);
   const progress = useSharedValue(1);
+  // A room opens over the list like a community does (one of the two at a time).
+  const roomId = useRooms().openId; const roomsCount = useRooms().rooms?.length || 0;
   // Offline is not an error card (the chat list title shows the network state); the list reloads on reconnect.
   const load = useCallback(() => { api.communities().then(result => { setList(result.communities); setCommunitySummaries(result.communities); setError(''); }).catch(failure => setError(shownError(failure, e => e instanceof Error ? e.message : 'Не удалось загрузить.'))); }, [api]);
   useEffect(load, [load]);
@@ -48,16 +53,17 @@ export function CommunitiesScreen({ api, me, store, openId, onOpenInvite, onOpen
 
   // PC/browser: the list slides aside under an opened community and must not paint over the nav rail.
   return <View style={{ flex: 1, overflow: Platform.OS === 'web' ? 'hidden' : 'visible' }}>
-    <StackBase progress={progress} covered={!!openId}>
+    <StackBase progress={progress} covered={!!openId || !!roomId}>
       <View style={{ flex: 1 }}>
         <GlassSurface lens material="clear" radius={27} style={{ marginHorizontal: 14, marginTop: 12 }} contentStyle={{ flexDirection: 'row', alignItems: 'center', padding: 10, gap: 9, minHeight: 64 }}>
-          <View style={{ flex: 1, paddingLeft: 6 }}><Text style={{ fontSize: 22, fontWeight: '700', color: t.text }}>Каналы</Text><Text style={{ fontSize: 12, color: t.muted }}>Игровые серверы и каналы</Text></View>
+          <View style={{ flex: 1, paddingLeft: 6 }}><Text style={{ fontSize: 22, fontWeight: '700', color: t.text }}>Каналы</Text><Text style={{ fontSize: 12, color: t.muted }}>Комнаты, серверы и каналы</Text></View>
           <IconButton name="link-outline" label="Вступить по ссылке" onPress={() => setJoin(true)} />
           <Pressable accessibilityRole="button" accessibilityLabel="Создать" onPress={() => setCreate('choose')} style={{ width: 42, height: 42, borderRadius: 21, backgroundColor: t.accent, alignItems: 'center', justifyContent: 'center' }}><Icon name="add" color={t.onAccent} size={24} /></Pressable>
         </GlassSurface>
         {error ? <View style={{ padding: 14 }}><Notice text={error} error onRetry={load} /></View> : null}
         {!list ? <ActivityIndicator color={t.accent} style={{ marginTop: 40 }} /> : <FlatList data={rows} keyExtractor={item => 'header' in item ? item.header : item.id} contentContainerStyle={{ padding: 12, paddingBottom: 30 + insets.bottom + tabInset, flexGrow: 1, width: '100%', maxWidth: LIST_WIDTH }}
-          ListEmptyComponent={<View style={{ flex: 1, justifyContent: 'center' }}><Empty icon="planet-outline" title="Свои места для своих" description="Создай игровой сервер с текстовыми и голосовыми каналами или стандартный канал — блог, новости, музыку, что угодно." action={<Button label="Создать" icon="add" onPress={() => setCreate('choose')} />} /></View>}
+          ListHeaderComponent={<RoomsSection api={api} me={me} store={store} />}
+          ListEmptyComponent={roomsCount ? null : <View style={{ flex: 1, justifyContent: 'center' }}><Empty icon="planet-outline" title="Свои места для своих" description="Создай игровой сервер с текстовыми и голосовыми каналами или стандартный канал — блог, новости, музыку, что угодно." action={<Button label="Создать" icon="add" onPress={() => setCreate('choose')} />} /></View>}
           renderItem={({ item }) => 'header' in item ? <Text style={{ color: t.muted, fontSize: 11, fontWeight: '700', letterSpacing: 1.2, paddingHorizontal: 8, paddingTop: 10, paddingBottom: 6 }}>{item.header.toUpperCase()}</Text> :
             <Pressable onPress={() => onOpened(item.id)} accessibilityRole="button" style={({ pressed }) => ({ flexDirection: 'row', alignItems: 'center', gap: 12, padding: 8, borderRadius: 16, backgroundColor: pressed ? t.accentSoft : 'transparent' })}>
               <CommunityAvatar api={api} community={item} size={54} />
@@ -69,6 +75,7 @@ export function CommunitiesScreen({ api, me, store, openId, onOpenInvite, onOpen
       </View>
     </StackBase>
     {openId ? <StackScreen key={openId} progress={progress} onBack={() => onOpened(null)}>{back => <View style={{ flex: 1 }}><Backdrop /><CommunityScreen api={api} me={me} store={store} communityId={openId} onBack={back} onOpenInvite={onOpenInvite} onLeft={() => { onOpened(null); load(); }} /></View>}</StackScreen> : null}
+    {roomId && !openId ? <StackScreen key={roomId} progress={progress} onBack={() => openRoom(null)}>{back => <View style={{ flex: 1 }}><Backdrop /><RoomScreen api={api} me={me} store={store} roomId={roomId} onBack={back} /></View>}</StackScreen> : null}
     <CreateSheet api={api} mode={create} onMode={setCreate} onCreated={id => { setCreate(null); load(); onOpened(id); }} />
     <JoinSheet api={api} visible={join} onClose={() => setJoin(false)} onOpenInvite={code => { setJoin(false); onOpenInvite(code); }} />
   </View>;

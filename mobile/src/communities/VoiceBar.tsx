@@ -5,6 +5,8 @@ import { GlassSurface } from '../glass';
 import { Text } from '../typography';
 import { useTheme } from '../theme';
 import { leaveVoice, stopVoiceScreen, toggleVoiceMute, useVoice } from './voice';
+import { openRoom } from '../rooms/rooms';
+import { navigate } from '../navigation';
 
 /** Strip shown everywhere while connected to a voice channel (as Discord's voice panel). */
 export function VoiceBar({ onOpen }: { onOpen?: (communityId: string) => void }) {
@@ -12,11 +14,11 @@ export function VoiceBar({ onOpen }: { onOpen?: (communityId: string) => void })
   if (!voice) return null;
   const connected = voice.peers.filter(peer => peer.connected).length;
   return <GlassSurface lens radius={18} material="regular" shadow={false} style={{ marginHorizontal: 12, marginBottom: 6 }} contentStyle={{ flexDirection: 'row', alignItems: 'center', minHeight: 48, paddingLeft: 12, paddingRight: 4, gap: 8 }}>
-    <Pressable accessibilityRole="button" accessibilityLabel={`Голосовой канал ${voice.channelName}`} onPress={() => onOpen?.(voice.communityId)} style={{ flex: 1, minWidth: 0, flexDirection: 'row', alignItems: 'center', gap: 9 }}>
+    <Pressable accessibilityRole="button" accessibilityLabel={`Голосовой канал ${voice.channelName}`} onPress={() => { if (voice.roomId) { openRoom(voice.roomId); navigate({ to: 'channels' }); } else onOpen?.(voice.communityId); }} style={{ flex: 1, minWidth: 0, flexDirection: 'row', alignItems: 'center', gap: 9 }}>
       <View style={{ width: 8, height: 8, borderRadius: 4, backgroundColor: voice.status === 'connected' ? '#2FD27A' : '#F5C542' }} />
       <View style={{ flex: 1, minWidth: 0 }}>
         <Text numberOfLines={1} style={{ color: voice.status === 'connected' ? '#2FD27A' : t.muted, fontSize: 13, fontWeight: '700' }}>{voice.status === 'connected' ? 'Голосовая связь' : 'Подключение…'}</Text>
-        <Text numberOfLines={1} style={{ color: t.muted, fontSize: 12 }}>{voice.channelName} · {voice.communityName}{voice.status === 'connected' ? ` · ${connected + 1} в канале` : ''}</Text>
+        <Text numberOfLines={1} style={{ color: t.muted, fontSize: 12 }}>{voice.channelName} · {voice.communityName}{voice.status === 'connected' ? ` · ${connected + 1} ${voice.roomId ? 'внутри' : 'в канале'}` : ''}</Text>
       </View>
     </Pressable>
     {voice.sharing ? <IconButton name="stop-circle-outline" label="Остановить демонстрацию" color={t.danger} onPress={stopVoiceScreen} size={23}/> : null}

@@ -362,6 +362,12 @@ export class Api {
   socketUrl = () => this.endpoint.replace(/^http/, 'ws') + '/ws';
 
   // Communities (game servers and blog channels). Not end-to-end encrypted by design.
+  // Rooms: a lasting voice room for a fixed set of «свои» (server/src/rooms.js).
+  rooms = () => this.request<{rooms: import('./rooms/rooms').Room[]}>('/rooms');
+  createRoom = (memberIds: string[], name?: string) => this.request<{room: import('./rooms/rooms').Room; created: boolean}>('/rooms', {method: 'POST', body: JSON.stringify({memberIds, ...(name ? {name} : {})})});
+  renameRoom = (id: string, name: string) => this.request<{room: import('./rooms/rooms').Room}>(`/rooms/${encodeURIComponent(id)}`, {method: 'PATCH', body: JSON.stringify({name})});
+  leaveRoom = (id: string) => this.request<{ok: true}>(`/rooms/${encodeURIComponent(id)}/leave`, {method: 'POST'});
+  ringRoom = (id: string) => this.request<{ok: true; rang: number}>(`/rooms/${encodeURIComponent(id)}/ring`, {method: 'POST'});
   communities = () => this.request<{communities: import('./communities/types').CommunitySummary[]}>('/communities');
   createCommunity = (fields: {kind: 'server'|'blog'; name: string; description?: string; avatarId?: string|null; category?: string}) => this.request<{community: import('./communities/types').Community}>('/communities', {method: 'POST', body: JSON.stringify(fields)});
   community = (id: string) => this.request<{community: import('./communities/types').Community}>(`/communities/${encodeURIComponent(id)}`);

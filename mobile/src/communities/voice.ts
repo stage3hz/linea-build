@@ -30,6 +30,8 @@ const loadInCall = (): any => { try { return require('react-native-incall-manage
 export type VoicePeer = { peer: string; userId: string; muted: boolean; serverMuted?: boolean; serverDeafened?: boolean; connected: boolean; screen?: { stream: any; quality: ScreenQuality } };
 export type VoiceState = {
   communityId: string; channelId: string; channelName: string; communityName: string;
+  /** A room of «свои» (outside any community): the same engine, `channelId` is the room's id. */
+  roomId?: string;
   sharing: ScreenQuality | null; screenStream: any;
   /** The PC's sound goes out with the picture (false: the system gave no audio, e.g. Linux). */
   sharingAudio?: boolean;
@@ -459,7 +461,7 @@ async function handle(data: any) {
     stopVoiceScreen();
     const current = state; connections.forEach((_c, peer) => drop(peer, true));
     patch({ status: 'connecting', peers: [] });
-    storeRef?.sendSocket({ type: 'voice.join', communityId: current.communityId, channelId: current.channelId, muted: current.muted, device: ownDevice });
+    storeRef?.sendSocket(current.roomId ? { type: 'voice.join', roomId: current.roomId, muted: current.muted, device: ownDevice } : { type: 'voice.join', communityId: current.communityId, channelId: current.channelId, muted: current.muted, device: ownDevice });
   }
 }
 
@@ -480,7 +482,7 @@ function cleanup(error: string) {
   set(error && state ? { ...state, error } : null);
 }
 
-export async function joinVoice(api: Api, store: MessengerStore, target: { communityId: string; communityName: string; channelId: string; channelName: string; userId?: string }) {
+export async function joinVoice(api: Api, store: MessengerStore, target: { communityId: string; communityName: string; channelId: string; channelName: string; userId?: string; roomId?: string }) {
   if (!voiceAvailable()) throw new Error('Голосовые каналы работают в приложении Android/iPhone.');
   if (state?.channelId === target.channelId) return;
   lastJoin = [api, store, target];
@@ -500,7 +502,27 @@ export async function joinVoice(api: Api, store: MessengerStore, target: { commu
   stopNetwork?.(); stopNetwork = onNetworkChange(() => connections.forEach((connection, peer) => feedLink(peer, connection, { kind: 'network' })));
   set({ ...target, sharing: null, screenStream: null, status: 'connecting', muted: false, deafened: false, speaker: true, peers: [], error: '' });
   ownDevice = device;
-  if (!store.sendSocket({ type: 'voice.join', communityId: target.communityId, channelId: target.channelId, device })) { cleanup(''); throw new Error('Нет соединения с сервером.'); }
+  if (!store.sendSocket(target.roomId ? { type: 'voice.join', roomId: target.roomId, device } : { type: 'voice.join', communityId: target.communityId, channelId: target.channelId, device })) { cleanup(''); throw new Error('Нет соединения с сервером.'); }
+}
+
+/**
+ * Who is heard right now: peer ids whose incoming sound is above a whisper, and 'me' for the own microphone.
+ * Read from the connections' own statistics, so it works on phones too (no Web Audio there).
+ */
+export async function voiceSpeaking(): Promise<Set<string>> {
+  const out = new Set<string>();
+  await Promise.all([...connections].map(async ([peer, connection]) => {
+    try {
+      const stats = await connection.getStats();
+      stats.forEach((report: any) => {
+        if (typeof report?.audioLevel !== 'number' || report.audioLevel <= 0.02) return;
+        const audio = report.kind === 'audio' || report.mediaType === 'audio';
+        if (report.type === 'inbound-rtp' && audio) out.add(peer);
+        else if (report.type === 'media-source' && audio && !state?.muted) out.add('me');
+      });
+    } catch { /* the connection is closing */ }
+  }));
+  return out;
 }
 
 export function leaveVoice() {

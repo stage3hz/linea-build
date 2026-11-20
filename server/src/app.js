@@ -31,6 +31,7 @@ import { registerAiRoutes, aiProvider } from './ai.js';
 import { installUsernameRoutes } from './username.js';
 import { installSocialRoutes } from './social.js';
 import { installPostRoutes, canSeePosts, postOwnerOfUpload } from './posts.js';
+import { installRoomRoutes, ROOM_LIMIT } from './rooms.js';
 import { privacyHtml, supportHtml } from './legal.js';
 import {
   HttpError, fail, passwordHash, tokenHash, newToken, validToken,
@@ -91,6 +92,8 @@ export async function buildApp({
   maxConcurrentPasswordJobs = 4,
   /** How long a voice-room member survives its socket closing before the room is told it left. */
   voiceGraceMs = 25_000,
+  /** How long a room (src/rooms.js) stays awake after the last person left it. */
+  roomSleepMs = 300_000,
   /** Period of the housekeeping tick (socket pings, expired rows, last seen, session touch). */
   maintenanceIntervalMs = 30_000,
   /** Cluster (src/cluster.js): false while this process is not the primary with a live lease — timed work that writes (scheduled messages) waits. */
@@ -423,6 +426,7 @@ export async function buildApp({
     allowAccountLogin, withPasswordJob, newSession, dummyPasswordHash,
     closeRevokedSockets, emitUser, authTestHooks,
     deleteAccount: async userId => {
+      roomApi.forget(userId);
       const peers = await deleteAccount(db, uploadDir, userId);
       closeRevokedSockets();
       for (const { chatId, userId: peer } of peers) emitUser(peer, { type: 'chat.deleted', chatId });
@@ -533,7 +537,11 @@ export async function buildApp({
   const voiceMembers = channelId => [...(voiceRooms.get(channelId)?.values() || [])].map(item => ({ userId: item.userId, muted: item.muted, ...(communityApi?.serverVoice(item.state.voice?.communityId, item.userId) || {}) }));
   // Who is in a voice channel goes only to members who can see that channel (a role-gated room is
   // not listed to the rest). A community or channel that is already gone has nobody left to tell.
+  // A room (src/rooms.js) uses the same engine with its id as the channel and no community: its
+  // seats carry `roomId`, every `voice.*` event of a room carries it too, and rooms.js tells the members.
+  const roomTag = voice => (voice?.roomId ? { roomId: voice.roomId } : {});
   const emitVoiceState = (communityId, channelId) => {
+    if (!communityId) { roomApi?.voiceChanged(channelId); return; }
     const row = db.prepare('SELECT * FROM communities WHERE id=?').get(communityId);
     const item = row && db.prepare('SELECT * FROM community_channels WHERE id=? AND community_id=?').get(channelId, row.id);
     if (!item) return;
@@ -542,10 +550,10 @@ export async function buildApp({
   const leaveVoice = state => {
     clearTimeout(state.voiceGrace); state.voiceGrace = undefined;
     const channelId = state.voice?.channelId; if (!channelId) return;
-    const room = voiceRooms.get(channelId); const communityId = state.voice.communityId; state.voice = null;
+    const room = voiceRooms.get(channelId); const communityId = state.voice.communityId; const tag = roomTag(state.voice); state.voice = null;
     sfu?.leave(channelId, state.id);
     if (room) { room.delete(state.id); if (!room.size) voiceRooms.delete(channelId); }
-    for (const item of room?.values() || []) sendSocket(item.state, { type: 'voice.left', channelId, peer: state.id });
+    for (const item of room?.values() || []) sendSocket(item.state, { type: 'voice.left', channelId, ...tag, peer: state.id });
     emitVoiceState(communityId, channelId);
   };
   // The socket dropped (a tunnel, a network change, the app sent to the background for a moment):
@@ -575,9 +583,12 @@ export async function buildApp({
     kick: (userId, communityId) => { for (const state of seatsOf(userId, communityId)) { sendSocket(state, { type: 'voice.kicked', channelId: state.voice.channelId }); leaveVoice(state); } },
     // A moderator changed someone's server mute/deafen: everyone in that person's voice room gets the new state.
     moderated: (userId, communityId) => { for (const channelId of new Set(seatsOf(userId, communityId).map(state => state.voice.channelId))) emitVoiceState(communityId, channelId); },
-    close: channelId => { for (const item of [...(voiceRooms.get(channelId)?.values() || [])]) { sendSocket(item.state, { type: 'voice.kicked', channelId }); leaveVoice(item.state); } },
+    close: channelId => { for (const item of [...(voiceRooms.get(channelId)?.values() || [])]) { sendSocket(item.state, { type: 'voice.kicked', channelId, ...roomTag(item.state.voice) }); leaveVoice(item.state); } },
+    // One person out of one room (they left the room's member list): every seat of theirs, ghosts included.
+    evict: (userId, channelId) => { for (const item of [...(voiceRooms.get(channelId)?.values() || [])]) if (item.userId === userId) { sendSocket(item.state, { type: 'voice.kicked', channelId, ...roomTag(item.state.voice) }); leaveVoice(item.state); } },
   };
   const communityApi = installCommunityRoutes({ app, db, authOptions, publicUser, timestamp, now, emitUser, limiter, voice, isOnline: userId => isOnline(userId) });
+  const roomApi = installRoomRoutes({ app, db, authOptions, now, timestamp, limiter, emitUser, voice, push, roomSleepMs, closed: () => databaseClosed });
   // Storage per account depends on Platina (20 GB without, 40 GB with); big files reserve their size while uploading.
   const isPlatinaActive = userId => platinaState(db, userId, now()).active;
   const tierTotal = userId => (isPlatinaActive(userId) ? fileLimits.platina.total : fileLimits.free.total);
@@ -1068,29 +1079,36 @@ export async function buildApp({
           return;
         }
         if (data.type === 'voice.join') {
-          const allowed = typeof data.communityId === 'string' && typeof data.channelId === 'string' ? communityApi.voiceAllowed(data.communityId, data.channelId, state.auth.user_id) : null;
-          if (!allowed) fail(403, 'Нет доступа к голосовому каналу.');
+          // `{ roomId }` instead of `{ communityId, channelId }`: a room (src/rooms.js). Its id is the channel id from here on.
+          const roomId = typeof data.roomId === 'string' ? data.roomId : null;
+          if (roomId && !roomApi.voiceAllowed(roomId, state.auth.user_id)) fail(403, 'Нет доступа к комнате.');
+          const allowed = roomId ? null : typeof data.communityId === 'string' && typeof data.channelId === 'string' ? communityApi.voiceAllowed(data.communityId, data.channelId, state.auth.user_id) : null;
+          if (!roomId && !allowed) fail(403, 'Нет доступа к голосовому каналу.');
+          const channelId = roomId || data.channelId;
           if (state.voice) leaveVoice(state);
-          const room = voiceRooms.get(data.channelId) || new Map();
+          const room = voiceRooms.get(channelId) || new Map();
           // This user's own dropped sockets still in their grace period are not peers and take no seat; they leave once the new socket is seated, so the member list never loses the person.
           const ghost = item => item.userId === state.auth.user_id && item.state.voiceGrace;
           const live = [...room.values()].filter(item => !ghost(item));
-          if (live.length >= VOICE_LIMIT) fail(403, `В голосовом канале максимум ${VOICE_LIMIT} человек.`);
+          if (roomId && live.length >= ROOM_LIMIT) fail(403, `В комнате максимум ${ROOM_LIMIT} человек.`);
+          if (!roomId && live.length >= VOICE_LIMIT) fail(403, `В голосовом канале максимум ${VOICE_LIMIT} человек.`);
           // `device`: the member's encryption device. The others seal their connection checks for it
           // (Signal, end to end) — a wrong value here only makes the check fail, it cannot fake it.
           const device = typeof data.device === 'string' && /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(data.device) ? data.device : null;
           const peers = live.map(item => ({ peer: item.state.id, userId: item.userId, muted: item.muted, device: item.device }));
-          room.set(state.id, { state, userId: state.auth.user_id, muted: data.muted === true, device }); voiceRooms.set(data.channelId, room);
-          state.voice = { channelId: data.channelId, communityId: data.communityId };
+          room.set(state.id, { state, userId: state.auth.user_id, muted: data.muted === true, device }); voiceRooms.set(channelId, room);
+          state.voice = roomId ? { channelId, roomId } : { channelId, communityId: data.communityId };
           dropGhosts(state.auth.user_id);
-          sendSocket(state, { type: 'voice.joined', channelId: data.channelId, self: state.id, peers, sfu: !!sfu });
-          communityApi.emitCommunity(allowed.row, { type: 'voice.state', communityId: data.communityId, channelId: data.channelId, members: voiceMembers(data.channelId) }, allowed.item);
+          // Screen sharing through the SFU is not offered in a room yet.
+          sendSocket(state, { type: 'voice.joined', channelId, ...roomTag(state.voice), self: state.id, peers, sfu: !!sfu && !roomId });
+          if (roomId) roomApi.voiceChanged(roomId);
+          else communityApi.emitCommunity(allowed.row, { type: 'voice.state', communityId: data.communityId, channelId, members: voiceMembers(channelId) }, allowed.item);
           return;
         }
         if (data.type === 'voice.leave') { leaveVoice(state); return; }
         if (data.type === 'sfu') {
           // Screen sharing through the SFU: only members of the voice channel, with a rate limit.
-          if (!sfu || !state.voice) fail(403, 'Демонстрация через сервер недоступна.');
+          if (!sfu || !state.voice || state.voice.roomId) fail(403, 'Демонстрация через сервер недоступна.');
           if (!limiter.allow(`sfu:${state.auth.user_id}`, 120, 10_000)) fail(429, 'Слишком много запросов.');
           const channelId = state.voice.channelId, id = data.id;
           const notify = (socketId, payload) => { const target = voiceRooms.get(channelId)?.get(socketId); if (target) sendSocket(target.state, payload); };
@@ -1113,7 +1131,7 @@ export async function buildApp({
           if (!target || target.state === state) fail(404, 'Участник вышел из канала.');
           const payload = data.data;
           if (!payload || typeof payload !== 'object' || !['offer', 'answer'].includes(payload.kind) || typeof payload.sdp !== 'string' || payload.sdp.length > 60_000 || !payload.sdp.startsWith('v=0')) fail(400, 'Некорректный сигнал.');
-          sendSocket(target.state, { type: 'voice.signal', channelId: state.voice.channelId, from: state.id, userId: state.auth.user_id, device: room.get(state.id)?.device ?? null, data: { kind: payload.kind, sdp: payload.sdp } });
+          sendSocket(target.state, { type: 'voice.signal', channelId: state.voice.channelId, ...roomTag(state.voice), from: state.id, userId: state.auth.user_id, device: room.get(state.id)?.device ?? null, data: { kind: payload.kind, sdp: payload.sdp } });
           return;
         }
         if (data.type === 'voice.auth') {
@@ -1124,7 +1142,7 @@ export async function buildApp({
           if (!target || target.state === state) fail(404, 'Участник вышел из канала.');
           const note = data.note;
           if (!note || typeof note !== 'object' || typeof note.senderDeviceId !== 'string' || note.senderDeviceId.length > 64 || (note.type !== 2 && note.type !== 3) || typeof note.body !== 'string' || note.body.length > 16_000) fail(400, 'Некорректная проверка соединения.');
-          sendSocket(target.state, { type: 'voice.auth', channelId: state.voice.channelId, from: state.id, userId: state.auth.user_id, note: { senderDeviceId: note.senderDeviceId, type: note.type, body: note.body } });
+          sendSocket(target.state, { type: 'voice.auth', channelId: state.voice.channelId, ...roomTag(state.voice), from: state.id, userId: state.auth.user_id, note: { senderDeviceId: note.senderDeviceId, type: note.type, body: note.body } });
           return;
         }
         sendSocket(state, { type: 'error', error: 'Неизвестный тип события.' });

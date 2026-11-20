@@ -65,7 +65,7 @@ function GearIcon({ size, active, accent, muted }: { size: number; active: boole
 }
 
 export type TabId = 'ai' | 'people' | 'channels' | 'chats' | 'music' | 'profile';
-export type TabItem = { id: TabId; label: string; icon: IconName; activeIcon: IconName; badge: number; onPress: () => void };
+export type TabItem = { id: TabId; label: string; icon: IconName; activeIcon: IconName; badge: number; /** A quiet coloured dot when there is no number (somebody is in one of your rooms). */ dot?: string; onPress: () => void };
 
 // Which of «Люди» / «Каналы» the slot shows: remembered on this device.
 const SLOT_KEY = 'linea.tabs.slot';
@@ -103,6 +103,7 @@ function TabIcon({ item, active, kick, pressed, index }: { item: TabItem; active
   });
   return <Animated.View style={style}>
     {item.id === 'profile' ? <View style={{ width: BOX, height: BOX, alignItems: 'center', justifyContent: 'center' }}><GearIcon size={GEAR_SIZE} active={active} accent={t.accent} muted={t.muted} /></View> : <View style={{ width: BOX, height: BOX, alignItems: 'center', justifyContent: 'center', overflow: 'visible' }}><Ionicons name={active ? item.activeIcon : item.icon} size={iconSize(item.icon)} color={active ? t.accent : t.muted} style={{ width: iconSize(item.icon), height: iconSize(item.icon), lineHeight: iconSize(item.icon), textAlign: 'center', transform: [{ translateY: iconShift(item.icon) }] }} {...HIDDEN_ICON} /></View>}
+    {!item.badge && item.dot ? <View style={{ position: 'absolute', top: -3, left: 21, width: 11, height: 11, borderRadius: 6, borderWidth: 2, borderColor: t.dark ? '#15171D' : '#FFF', backgroundColor: item.dot }} /> : null}
     {item.badge ? <View style={{ position: 'absolute', top: -6, left: 16, minWidth: 18, height: 18, paddingHorizontal: 5, borderRadius: 9, borderWidth: 2, borderColor: t.dark ? '#15171D' : '#FFF', backgroundColor: t.accent, alignItems: 'center', justifyContent: 'center' }}><Text maxFontSizeMultiplier={1} style={{ color: t.onAccent, fontSize: 10, fontWeight: '800' }}>{badgeText(item.badge)}</Text></View> : null}
   </Animated.View>;
 }

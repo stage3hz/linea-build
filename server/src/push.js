@@ -201,4 +201,21 @@ export function chatNotification({ chatId, senderName, kind, unread, badge, ring
   };
 }
 
+/** «Позвать в комнату» (rooms.js): an ordinary notification — the room's name and who is calling. Not a call:
+ *  it uses the messages channel and does not ring; a second ring for the same room replaces the first. */
+export function roomNotification({ roomId, roomName, callerName }) {
+  const body = `${callerName} зовёт в комнату`;
+  return {
+    data: { roomId, kind: 'room' },
+    android: {
+      priority: 'high', ttl: '300s', collapse_key: `room:${roomId}`,
+      notification: { title: roomName, body, tag: `room:${roomId}`, channel_id: 'messages', icon: 'notification_icon', color: '#4C7DFF', sound: 'default' },
+    },
+    apns: {
+      headers: { 'apns-collapse-id': `room:${roomId}`.slice(0, 64), 'apns-expiration': String(Math.floor(Date.now() / 1000) + 300) },
+      payload: { aps: { alert: { title: roomName, body }, sound: 'default', 'thread-id': `room:${roomId}` }, roomId, kind: 'room' },
+    },
+  };
+}
+
 export const PUSH_KINDS = new Set(['message', 'call', 'none', 'silent', 'missed']);

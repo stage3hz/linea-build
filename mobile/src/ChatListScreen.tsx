@@ -34,6 +34,9 @@ import { FRAMES } from './platina/Decor';
 import { findDecoration } from './platina/Decorations';
 import { CODE_FRAME_SCALE, CodeFrame, isCodeFrame, type CodeFrameId } from './platina/CodeFrames';
 import { VoiceBar } from './communities/VoiceBar';
+import { startRoomCall } from './rooms/rooms';
+import { useRoomsAwake } from './rooms/RoomsSection';
+import { useCalls } from './calls/CallProvider';
 import { formatListTime, useTheme } from './theme';
 import type { Api } from './api';
 import type { Chat, Message, User } from './types';
@@ -108,6 +111,7 @@ function nativeThumb(chat:Chat,typing:boolean,userId:string):{thumb:string;thumb
 
 export function ChatListScreen({api,user,store,onProfile,onNewChat,onMusic,onAI,onQuickAI,onChats,onSaved,savedActive=false,activeTab='chats',rail=false,banner=null}: {api:Api;user:User;store:MessengerStore;onQuickAI:()=>void;onSaved:()=>void;savedActive?:boolean;rail?:boolean;banner?:React.ReactNode}&Navigation) {
   // Tabs float over the list (it scrolls under the blurred bar, like Telegram); the list keeps room for them at the end.
+  const calls=useCalls();
   const [tabsHeight,setTabsHeight]=useState(96);const [headerHeight,setHeaderHeight]=useState(170);const bleed=useBleed();
   const float=!rail&&Platform.OS!=='web';
   // A tablet held upright has no rail but room for the «Поиск» field; only the phone gets the magnifier instead.
@@ -198,6 +202,7 @@ export function ChatListScreen({api,user,store,onProfile,onNewChat,onMusic,onAI,
   // Row callbacks read through a ref: ChatListItem stays memoized, so one chat updating re-renders one row, not the list.
   const rowActionsRef=useRef<RowActions>(null as unknown as RowActions);rowActionsRef.current={editing:!!editing,swipe:(chat,action)=>{switch(action){case 'read':readChat(chat);break;case 'unread':markUnread(chat);break;case 'pin':case 'unpin':change(chat,{pinned:action==='pin'});break;case 'mute':case 'unmute':askMute([chat]);break;case 'delete':setRemoveAsk([chat]);break;case 'archive':case 'unarchive':change(chat,{archived:action==='archive'});break;}},toggleEdit,select:chat=>store.selectChat(chat),menu:(chat,y,x)=>{impactFeedback();setMenu({chat,y,x});}};
   const selectedChats=editing?chats.filter(c=>editing.has(c.id)):[];
+  const callSelected=()=>{const list=selectedChats;setEditing(null);lightFeedback();if(list.length===1){void calls.start(list[0],false);return;}void startRoomCall(api,store,user.id,list.map(chat=>chat.peer.id)).catch(e=>store.setError(e instanceof Error?e.message:'Не удалось позвонить.'));};
   const bulk=(fn:(chat:Chat)=>void)=>{const list=selectedChats.length?selectedChats:chats;list.forEach(fn);setEditing(null);lightFeedback();};
   const refresh=async()=>{if(Platform.OS==='android')openSearchRef.current();setRefreshing(true);await store.refreshChats();setRefreshing(false);};
   // Telegram keeps «Архив» above the first chat, out of sight until the list is pulled down: the list
@@ -320,6 +325,8 @@ export function ChatListScreen({api,user,store,onProfile,onNewChat,onMusic,onAI,
       renderItem={({item})=><ChatListItem chat={item} marked={marked.has(item.id)} api={api} userId={user.id} editable={!editing} selected={wideLayout&&store.selectedId===item.id} idle={!store.selectedId} typing={!!store.typing[item.id]} muted={isMuted(item.settings)} checked={editing?editing.has(item.id):undefined} actions={rowActionsRef}/>}/></Animated.View></GestureDetector>}
     {editing?<GlassSurface lens material="regular" radius={26} style={{marginHorizontal:16,marginBottom:6}} contentStyle={{flexDirection:'row',justifyContent:'space-around',alignItems:'center',minHeight:52}}>
       <Pressable onPress={()=>bulk(readChat)} accessibilityRole="button" style={{padding:10}}><Text style={{color:t.accent,fontSize:14,fontWeight:'600'}}>{selectedChats.length?'Прочитать':'Прочитать все'}</Text></Pressable>
+      {/* One chosen person is an ordinary call; several become a room and everyone is called at once. */}
+      <Pressable disabled={!selectedChats.length} onPress={callSelected} accessibilityRole="button" accessibilityLabel="Позвонить выбранным" style={{padding:10,opacity:selectedChats.length?1:.4}}><Text style={{color:t.accent,fontSize:14,fontWeight:'600'}}>{selectedChats.length>1?`Звонок · ${selectedChats.length}`:'Звонок'}</Text></Pressable>
       <Pressable disabled={!selectedChats.length} onPress={()=>bulk(chat=>change(chat,{archived:!archive}))} accessibilityRole="button" style={{padding:10,opacity:selectedChats.length?1:.4}}><Text style={{color:t.accent,fontSize:14,fontWeight:'600'}}>{archive?'Из архива':'В архив'}</Text></Pressable>
       <Pressable disabled={!selectedChats.length} onPress={()=>setRemoveAsk(selectedChats)} accessibilityRole="button" style={{padding:10,opacity:selectedChats.length?1:.4}}><Text style={{color:t.danger,fontSize:14,fontWeight:'600'}}>Удалить</Text></Pressable>
     </GlassSurface>:null}
@@ -351,6 +358,7 @@ export function ChatListScreen({api,user,store,onProfile,onNewChat,onMusic,onAI,
 
 export function MessengerTabs({onProfile,onNewChat,onMusic,onAI,onChats,activeTab='chats'}: Navigation) {
   const t=useTheme();const insets=useSafeAreaInsets();const tabBadges:Record<string,number>=useTabBadges(useUnreadTotal()+useMarkedExtra());
+  const roomsAwake=useRoomsAwake();
   const narrow=useWindowDimensions().width<350; // e.g. 320 pt phones, a folded Galaxy Fold cover screen
   // The music screen shows its own player above the same tab bar; everywhere else it sits here, above the tabs.
   return <><VoiceBar onOpen={communityId=>navigate({to:'channels',communityId})}/>{activeTab!=='music'?<MiniPlayer onOpen={onMusic}/>:null}<SnowLedge id="tabs" radius={31} max={7} inset={{left:narrow?8:12,right:narrow?8:12,top:5,bottom:tabBarMarginBottom(Platform.OS==='ios',insets.bottom)}}><GlassSurface systemGlass={false} material="regular" radius={31} style={{marginHorizontal:narrow?8:12,marginBottom:tabBarMarginBottom(Platform.OS==='ios',insets.bottom),marginTop:5}} contentStyle={{paddingHorizontal:3.6,paddingVertical:3}}>{/* 3.6 at the ends: the pill of the first and last tab then sits as far from the bar's end as from its top and bottom (6.6 pt), concentric with the bar's rounded ends (simulator: 5 pt vs 6.7 pt with 2) */}
@@ -358,7 +366,7 @@ export function MessengerTabs({onProfile,onNewChat,onMusic,onAI,onChats,activeTa
     <TabBar active={activeTab==='people'?'people':activeTab==='channels'?'channels':activeTab==='profile'?'profile':activeTab==='music'?'music':activeTab==='ai'?'ai':'chats'} items={[
       {id:'ai',label:'AI',icon:'sparkles-outline',activeIcon:'sparkles',badge:0,onPress:onAI},
       {id:'people',label:'Люди',icon:'people-outline',activeIcon:'people',badge:tabBadges.people||0,onPress:onNewChat},
-      {id:'channels',label:'Каналы',icon:'planet-outline',activeIcon:'planet',badge:tabBadges.channels||0,onPress:()=>navigate({to:'channels'})},
+      {id:'channels',label:'Каналы',icon:'planet-outline',activeIcon:'planet',badge:tabBadges.channels||0,dot:roomsAwake?'#3EE08E':undefined,onPress:()=>navigate({to:'channels'})},
       {id:'chats',label:'Чаты',icon:'chatbubbles-outline',activeIcon:'chatbubbles',badge:tabBadges.chats||0,onPress:onChats},
       {id:'music',label:'Музыка',icon:'headset-outline',activeIcon:'headset',badge:0,onPress:onMusic},
       {id:'profile',label:'Настройки',icon:'settings-outline',activeIcon:'settings',badge:0,onPress:onProfile},
