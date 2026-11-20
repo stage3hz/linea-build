@@ -2,7 +2,7 @@ import { orbColors } from './design/peerLight';
 import React, { useEffect, useMemo, useState } from 'react';
 import { Image as CachedImage } from 'expo-image';
 import { ActivityIndicator, Image, KeyboardAvoidingView, Modal, Platform, Pressable as RNPressable, ScrollView, StyleSheet, Switch, View, type ImageStyle, type StyleProp, type TextInputProps, type ViewStyle } from 'react-native';
-import { Pressable, Text, TextInput } from './typography';
+import { TITLE_FONT, Pressable, Text, TextInput } from './typography';
 import { tr, trA11y, useLanguage } from './i18n';
 import Animated, { FadeIn, FadeOut, useAnimatedStyle, useSharedValue, withSpring } from 'react-native-reanimated';
 import { Ionicons } from '@expo/vector-icons';
@@ -113,7 +113,7 @@ export function Logo({size=58}:{size?:number}) {
 export function Empty({icon,title,description,action}:{icon:IconName;title:string;description:string;action?:React.ReactNode}) {
   const t=useTheme();return <View style={{alignItems:'center',paddingHorizontal:28,paddingVertical:38,gap:13}}>
     <View style={{width:126,height:126,alignItems:'center',justifyContent:'center',marginBottom:8}}><View pointerEvents="none" style={{position:'absolute',width:126,height:126,borderRadius:47,borderWidth:1,borderColor:t.glassBorder,backgroundColor:t.accentSoft,transform:[{rotate:'-15deg'}]}}/><GlassSurface radius={34} material="clear" style={{width:94,height:94,transform:[{rotate:'-5deg'}]}} contentStyle={{flex:1,alignItems:'center',justifyContent:'center'}}><Icon name={icon} color={t.accent} size={35}/></GlassSurface></View>
-    <Text style={{color:t.text,fontSize:23,fontWeight:'700',letterSpacing:-.6,textAlign:'center'}}>{title}</Text><Text style={{color:t.muted,fontSize:15,lineHeight:23,textAlign:'center',maxWidth:310}}>{description}</Text>{action?<View style={{marginTop:11,width:'100%',maxWidth:270}}>{action}</View>:null}
+    <Text style={{color:t.text,fontFamily:TITLE_FONT,fontSize:21,lineHeight:27,fontWeight:'800',letterSpacing:-.7,textAlign:'center'}}>{title}</Text><Text style={{color:t.muted,fontSize:15,lineHeight:23,textAlign:'center',maxWidth:310}}>{description}</Text>{action?<View style={{marginTop:11,width:'100%',maxWidth:270}}>{action}</View>:null}
   </View>;
 }
 
@@ -182,7 +182,7 @@ export function Sheet({visible,title,onClose,onClosed,children}:{visible:boolean
     <GestureHandlerRootView style={{flex:1}}><KeyboardAvoidingView style={{flex:1}} behavior={Platform.OS==='ios'?'padding':undefined}><View style={{flex:1,justifyContent:'flex-end',paddingHorizontal:12,paddingBottom:Math.max(12,insets.bottom)}}>
       <Animated.View style={[StyleSheet.absoluteFill,{backgroundColor:t.black?'rgba(0,0,0,0.55)':t.dark?'rgba(0,5,19,0.5)':'rgba(20,32,60,0.28)'},swipe.backdropStyle]}><Pressable style={StyleSheet.absoluteFill} onPress={onClose} accessibilityRole="button" accessibilityLabel="Закрыть"/></Animated.View>
       <SwipeDismissView swipe={swipe} style={{width:'100%',maxWidth:580,maxHeight:'88%',alignSelf:'center',borderRadius:32,backgroundColor:t.glassOpaque,borderWidth:StyleSheet.hairlineWidth,borderColor:t.border,padding:22,paddingBottom:25,flexShrink:1,shadowColor:'#000',shadowOpacity:.18,shadowRadius:24,shadowOffset:{width:0,height:-4},elevation:12}}><FlatGlassScope>
-        <View style={{width:36,height:4,backgroundColor:t.subtle,opacity:.45,borderRadius:2,alignSelf:'center',marginBottom:17}}/><View style={{flexDirection:'row',alignItems:'center',justifyContent:'space-between',gap:12,marginBottom:13}}><Text style={{fontSize:21,fontWeight:'700',letterSpacing:-.45,color:t.text,flex:1}}>{title}</Text><IconButton name="close" label="Закрыть" onPress={onClose}/></View><SwipeDismissScrollView swipe={swipe} style={{flexGrow:0,flexShrink:1}} keyboardShouldPersistTaps="handled" showsVerticalScrollIndicator={false}>{children}</SwipeDismissScrollView>
+        <View style={{width:36,height:4,backgroundColor:t.subtle,opacity:.45,borderRadius:2,alignSelf:'center',marginBottom:17}}/><View style={{flexDirection:'row',alignItems:'center',justifyContent:'space-between',gap:12,marginBottom:13}}><Text style={{fontFamily:TITLE_FONT,fontSize:19,lineHeight:25,fontWeight:'800',letterSpacing:-.6,color:t.text,flex:1}}>{title}</Text><IconButton name="close" label="Закрыть" onPress={onClose}/></View><SwipeDismissScrollView swipe={swipe} style={{flexGrow:0,flexShrink:1}} keyboardShouldPersistTaps="handled" showsVerticalScrollIndicator={false}>{children}</SwipeDismissScrollView>
       </FlatGlassScope></SwipeDismissView>
     </View></KeyboardAvoidingView></GestureHandlerRootView>
   </Modal>;

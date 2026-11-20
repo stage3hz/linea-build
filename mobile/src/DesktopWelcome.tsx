@@ -6,7 +6,7 @@ import React, { useEffect, useState } from 'react';
 import { Image, Platform, Pressable, StyleSheet, View } from 'react-native';
 import Animated, { Easing, FadeIn, FadeInDown, FadeOut, useAnimatedProps, useAnimatedStyle, useSharedValue, withDelay, withRepeat, withSequence, withSpring, withTiming } from 'react-native-reanimated';
 import Svg, { Circle } from 'react-native-svg';
-import { Text } from './typography';
+import { TITLE_FONT, Text } from './typography';
 import { Icon, type IconName } from './components';
 import { useTheme } from './theme';
 import { APP_VERSION } from './serverConfig';
@@ -64,7 +64,7 @@ export function DesktopWelcome() {
         </Animated.View>
       </View>
       <Animated.View entering={FadeInDown.delay(500).duration(400)} style={{ alignItems: 'center', gap: 6 }}>
-        <Text style={{ color: t.text, fontSize: 28, fontWeight: '800', letterSpacing: -0.6 }}>{state === 'installed' ? 'Инвиз установлен' : 'Инвиз обновлён'}</Text>
+        <Text style={{ color: t.text, fontFamily: TITLE_FONT, fontSize: 26, lineHeight: 33, fontWeight: '800', letterSpacing: -0.9 }}>{state === 'installed' ? 'Инвиз установлен' : 'Инвиз обновлён'}</Text>
         <Text style={{ color: t.muted, fontSize: 14 }}>Версия {APP_VERSION} · сквозное шифрование включено</Text>
       </Animated.View>
       <View style={{ alignSelf: 'stretch', gap: 8 }}>

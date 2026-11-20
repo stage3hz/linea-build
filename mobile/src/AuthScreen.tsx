@@ -1,6 +1,6 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { ActivityIndicator, KeyboardAvoidingView, Platform, Pressable, ScrollView, View } from 'react-native';
-import { Text } from './typography';
+import { TITLE_FONT, Text } from './typography';
 import { Api, ApiError } from './api';
 import { Button, Field, Icon, IconButton, Logo, Notice } from './components';
 import { GlassSurface } from './glass';
@@ -18,7 +18,7 @@ export function ConnectScreen({initialUrl='',onConnect}: {initialUrl?:string;onC
   return <KeyboardAvoidingView style={{flex:1,backgroundColor:'transparent'}} behavior={Platform.OS==='ios'?'padding':undefined}>
     <ScrollView keyboardShouldPersistTaps="handled" contentContainerStyle={{flexGrow:1,paddingHorizontal:22,paddingTop:72,paddingBottom:32}}>
       <View style={{width:'100%',maxWidth:440,alignSelf:'center'}}>
-        <View style={{flexDirection:'row',alignItems:'center',gap:12,paddingHorizontal:6,marginBottom:32}}><Logo size={43}/><Text style={{color:t.text,fontSize:25,fontWeight:'800',letterSpacing:-1}}>Инвиз</Text></View>
+        <View style={{flexDirection:'row',alignItems:'center',gap:12,paddingHorizontal:6,marginBottom:32}}><Logo size={43}/><Text style={{color:t.text,fontFamily:TITLE_FONT,fontSize:25,lineHeight:31,fontWeight:'800',letterSpacing:-1}}>Инвиз</Text></View>
         <View style={{paddingHorizontal:6,marginBottom:26,gap:13}}><AppearingText delay={150} style={{fontSize:39,lineHeight:45,fontWeight:'800',letterSpacing:-1.7,color:t.text}}>{'Ближе.\nДаже на расстоянии.'}</AppearingText><Text style={{color:t.muted,fontSize:15,lineHeight:23,maxWidth:340}}>Место для твоих разговоров. Подключись, чтобы войти или создать аккаунт.</Text></View>
         <GlassSurface material="regular" radius={30} contentStyle={{padding:23,gap:18}}>
           <View style={{flexDirection:'row',gap:10,alignItems:'center'}}><View style={{height:34,width:34,borderRadius:12,alignItems:'center',justifyContent:'center',backgroundColor:t.accentSoft}}><Icon name="link-outline" size={19} color={t.accent}/></View><Text style={{color:t.text,fontSize:17,fontWeight:'700'}}>Подключение</Text></View>
