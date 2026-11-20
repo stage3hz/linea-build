@@ -125,7 +125,7 @@ function ListSection({text}:{text:string}){
 }
 /** The lighter and deeper corner colours of a letter avatar for the native rows. */
 const orbPair=(color:string)=>{const [light,,deep]=orbColors(color);return {orbA:colorNumber(light),orbB:colorNumber(deep)};};
-export function ChatListScreen({api,user,store,onProfile,onNewChat,onMusic,onAI,onQuickAI,onChats,onSaved,savedActive=false,activeTab='chats',rail=false,banner=null}: {api:Api;user:User;store:MessengerStore;onQuickAI:()=>void;onSaved:()=>void;savedActive?:boolean;rail?:boolean;banner?:React.ReactNode}&Navigation) {
+export function ChatListScreen({api,user,store,onProfile,onNewChat,onMusic,onAI,onQuickAI,onChats,onSaved,savedActive=false,activeTab='chats',rail=false,banner=null,sharedTabs,onEditing}: {/** The tab bar is drawn by the app (one bar for every tab): its height, so the list keeps room for it. */sharedTabs?:number;/** «Изм.» was opened or closed (the shared bar gives way to the actions). */onEditing?:(editing:boolean)=>void;api:Api;user:User;store:MessengerStore;onQuickAI:()=>void;onSaved:()=>void;savedActive?:boolean;rail?:boolean;banner?:React.ReactNode}&Navigation) {
   // Tabs float over the list (it scrolls under the blurred bar, like Telegram); the list keeps room for them at the end.
   const calls=useCalls();
   const [tabsHeight,setTabsHeight]=useState(96);const [headerHeight,setHeaderHeight]=useState(170);const bleed=useBleed();
@@ -144,7 +144,11 @@ export function ChatListScreen({api,user,store,onProfile,onNewChat,onMusic,onAI,
   // row stuck in its pressed (highlighted) colour after coming back.
   const t=useTheme();const [searching,setSearching]=useState(false);const query:string='';const [refreshing,setRefreshing]=useState(false);
   const [savedMenu,setSavedMenu]=useState<{y:number}|null>(null);const [savedClear,setSavedClear]=useState(false);
-  const [archive,setArchive]=useState(false);const [editing,setEditing]=useState<Set<string>|null>(null);const [removeAsk,setRemoveAsk]=useState<Chat[]|null>(null);const [menu,setMenu]=useState<{chat:Chat;y:number;x?:number}|null>(null);const [menuError,setMenuError]=useState('');const [muteAsk,setMuteAsk]=useState<Chat[]|null>(null);
+  const [archive,setArchive]=useState(false);const [editing,setEditing]=useState<Set<string>|null>(null);
+  // One tab bar for the whole phone (drawn by the app): the list only keeps room for it and says when «Изм.» is open.
+  useEffect(()=>{if(sharedTabs&&Math.abs(sharedTabs-tabsHeight)>1)setTabsHeight(sharedTabs);},[sharedTabs,tabsHeight]);
+  const isEditing=!!editing;useEffect(()=>{onEditing?.(isEditing);},[isEditing,onEditing]);
+const [removeAsk,setRemoveAsk]=useState<Chat[]|null>(null);const [menu,setMenu]=useState<{chat:Chat;y:number;x?:number}|null>(null);const [menuError,setMenuError]=useState('');const [muteAsk,setMuteAsk]=useState<Chat[]|null>(null);
   const archivedCount=store.chats.filter(c=>c.settings?.archived).length;
   const folders=useChatFolders(user.id);const [filter,setFilter]=useState<FolderFilter>('all');const [editor,setEditor]=useState<{folder:ChatFolder|null}|null>(null);
   // Chats marked unread by hand (Telegram «Пометить как непрочитанное»): a device-local flag (src/markedUnread.ts).
@@ -374,7 +378,7 @@ export function ChatListScreen({api,user,store,onProfile,onNewChat,onMusic,onAI,
     </ContextMenu>
     {/* The bottom scroll-edge effect behind the floating tab bar (the other tabs get it from TabsOverlay). */}
     {editing||rail?null:<TabBarEdge bar={tabsHeight}/>}
-    {editing?null:rail?<><VoiceBar onOpen={communityId=>navigate({to:'channels',communityId})}/><MiniPlayer onOpen={onMusic}/></>:<View pointerEvents="box-none" onLayout={e=>{const h=Math.round(e.nativeEvent.layout.height);if(h&&Math.abs(h-tabsHeight)>1)setTabsHeight(h);}} style={{position:'absolute',left:0,right:0,bottom:0}}><MessengerTabs onProfile={onProfile} onNewChat={onNewChat} onMusic={onMusic} onAI={onAI} onChats={onChats} activeTab={activeTab}/></View>}
+    {editing||sharedTabs?null:rail?<><VoiceBar onOpen={communityId=>navigate({to:'channels',communityId})}/><MiniPlayer onOpen={onMusic}/></>:<View pointerEvents="box-none" onLayout={e=>{const h=Math.round(e.nativeEvent.layout.height);if(h&&Math.abs(h-tabsHeight)>1)setTabsHeight(h);}} style={{position:'absolute',left:0,right:0,bottom:0}}><MessengerTabs onProfile={onProfile} onNewChat={onNewChat} onMusic={onMusic} onAI={onAI} onChats={onChats} activeTab={activeTab}/></View>}
   </View>;
 }
 

@@ -76,6 +76,8 @@ function setSlot(next: 'people' | 'channels') { slot = next; listeners.forEach(l
 const useSlot = () => useSyncExternalStore(l => { listeners.add(l); return () => { listeners.delete(l); }; }, () => slot, () => slot);
 
 const SPRING = { damping: 20, stiffness: 320, mass: 0.7 };
+// The unread badge keeps one colour that reads both on the glass and on the light capsule under an active tab.
+const BADGE = '#FF4D5E';
 // The chat list draws its own bar and the other pages share another, so a tap that moves from «Чаты» to another
 // tab (or back) mounts a new bar: its icon animation and the pill's slide were lost (the gear turned only on a
 // second tap). The tap is remembered for a moment and the new bar plays it; the pill starts where it was.
@@ -88,6 +90,21 @@ let lastPill: number | null = null;
 const PILL = makeMutable(-1);
 let pillTarget = -1;
 const kickTiming = (id: TabId) => id === 'profile' ? { duration: 760, easing: Easing.out(Easing.back(1.7)) } : { duration: 650, easing: Easing.out(Easing.quad) };
+
+/**
+ * Two looks of one thing in the same place: `far` while the capsule is elsewhere, `near` while it is on this tab.
+ * The cross-fade follows the capsule's own position on the UI thread, so an icon turns dark exactly as the light
+ * capsule arrives under it — also while React is still busy building the next page (Telegram does the same).
+ */
+function Under({ index, far, near }: { index: number; far: React.ReactNode; near: React.ReactNode }) {
+  const away = useAnimatedStyle(() => ({ opacity: 1 - Math.max(0, 1 - Math.abs(PILL.value - index)) }));
+  const here = useAnimatedStyle(() => ({ opacity: Math.max(0, 1 - Math.abs(PILL.value - index)) }));
+  return <View>
+    <Animated.View style={away}>{far}</Animated.View>
+    <Animated.View pointerEvents="none" style={[{ position: 'absolute', left: 0, right: 0, top: 0, bottom: 0, alignItems: 'center', justifyContent: 'center' }, here]}>{near}</Animated.View>
+  </View>;
+}
+const TabLabel = ({ text, color }: { text: string; color: string }) => <Text numberOfLines={1} adjustsFontSizeToFit minimumFontScale={.8} maxFontSizeMultiplier={1} style={{ maxWidth: CAPTION_MAX, fontSize: 9, lineHeight: 12, letterSpacing: -.25, color, fontWeight: '600' }}>{text}</Text>;
 
 function TabIcon({ item, active, kick, pressed, index }: { item: TabItem; active: boolean; kick: SharedValue<number>; pressed: SharedValue<number>; index: number }) {
   const t = useTheme();
@@ -102,9 +119,9 @@ function TabIcon({ item, active, kick, pressed, index }: { item: TabItem; active
     return { transform: [{ scale: press * (1 + bump * 0.3) }, { rotate: `${Math.sin(k * Math.PI * 2) * 18}deg` }] };
   });
   return <Animated.View style={style}>
-    {item.id === 'profile' ? <View style={{ width: BOX, height: BOX, alignItems: 'center', justifyContent: 'center' }}><GearIcon size={GEAR_SIZE} active={active} accent={t.accent} muted={t.muted} /></View> : <View style={{ width: BOX, height: BOX, alignItems: 'center', justifyContent: 'center', overflow: 'visible' }}><Ionicons name={active ? item.activeIcon : item.icon} size={iconSize(item.icon)} color={active ? t.accent : t.muted} style={{ width: iconSize(item.icon), height: iconSize(item.icon), lineHeight: iconSize(item.icon), textAlign: 'center', transform: [{ translateY: iconShift(item.icon) }] }} {...HIDDEN_ICON} /></View>}
+    {item.id === 'profile' ? <View style={{ width: BOX, height: BOX, alignItems: 'center', justifyContent: 'center' }}><Under index={index} far={<GearIcon size={GEAR_SIZE} active={false} accent={t.accent} muted={t.muted} />} near={<GearIcon size={GEAR_SIZE} active accent={t.onAccent} muted={t.onAccent} />} /></View> : <View style={{ width: BOX, height: BOX, alignItems: 'center', justifyContent: 'center', overflow: 'visible' }}><Under index={index} far={<Ionicons name={item.icon} size={iconSize(item.icon)} color={t.muted} style={{ width: iconSize(item.icon), height: iconSize(item.icon), lineHeight: iconSize(item.icon), textAlign: 'center', transform: [{ translateY: iconShift(item.icon) }] }} {...HIDDEN_ICON} />} near={<Ionicons name={item.activeIcon} size={iconSize(item.icon)} color={t.onAccent} style={{ width: iconSize(item.icon), height: iconSize(item.icon), lineHeight: iconSize(item.icon), textAlign: 'center', transform: [{ translateY: iconShift(item.icon) }] }} {...HIDDEN_ICON} />} /></View>}
     {!item.badge && item.dot ? <View style={{ position: 'absolute', top: -3, left: 21, width: 11, height: 11, borderRadius: 6, borderWidth: 2, borderColor: t.dark ? '#15171D' : '#FFF', backgroundColor: item.dot }} /> : null}
-    {item.badge ? <View style={{ position: 'absolute', top: -6, left: 16, minWidth: 18, height: 18, paddingHorizontal: 5, borderRadius: 9, borderWidth: 2, borderColor: t.dark ? '#15171D' : '#FFF', backgroundColor: t.accent, alignItems: 'center', justifyContent: 'center' }}><Text maxFontSizeMultiplier={1} style={{ color: t.onAccent, fontSize: 10, fontWeight: '800' }}>{badgeText(item.badge)}</Text></View> : null}
+    {item.badge ? <View style={{ position: 'absolute', top: -6, left: 16, minWidth: 18, height: 18, paddingHorizontal: 5, borderRadius: 9, backgroundColor: BADGE, alignItems: 'center', justifyContent: 'center' }}><Text maxFontSizeMultiplier={1} style={{ color: '#FFFFFF', fontSize: 10, fontWeight: '800' }}>{badgeText(item.badge)}</Text></View> : null}
   </Animated.View>;
 }
 
@@ -121,7 +138,7 @@ function SlotReel({ reel, people, channels, active, kick, pressed, index }: { re
   const roll = useAnimatedStyle(() => ({ transform: [{ translateY: -reel.value * REEL }] }));
   const row = (item: TabItem, key: string) => <View key={key} style={{ height: REEL, alignItems: 'center', justifyContent: 'center', gap: 1 }}>
     <TabIcon item={item} active={active} kick={kick} pressed={pressed} index={index} />
-    <Text numberOfLines={1} adjustsFontSizeToFit minimumFontScale={.8} maxFontSizeMultiplier={1} style={{ maxWidth: CAPTION_MAX, fontSize: 9, lineHeight: 12, letterSpacing: -.25, color: active ? t.accent : t.muted, fontWeight: '600' }}>{item.label}</Text>
+    <Under index={index} far={<TabLabel text={item.label} color={t.muted} />} near={<TabLabel text={item.label} color={t.onAccent} />} />
   </View>;
   return <View style={{ height: REEL, overflow: 'hidden', alignSelf: 'stretch' }}>
     <Animated.View style={roll}>{row(people, 'a')}{row(channels, 'b')}{row(people, 'c')}</Animated.View>
@@ -198,12 +215,12 @@ export function TabBar({ items, active }: { items: TabItem[]; active: TabId }) {
   const gesture = Gesture.Exclusive(swipeUp, slide, tap);
 
   const pillStyle = useAnimatedStyle(() => ({ top: 1 - lens.value * 9, bottom: 1 - lens.value * 9, transform: [{ translateX: pill.value * cell + EDGE_SHIFT * (Math.max(0, 1 - pill.value) - Math.max(0, pill.value - (n - 2))) }, { scale: 1 + lens.value * 0.12 }] }));
-  const pillInner = useAnimatedStyle(() => ({ backgroundColor: lens.value > 0.5 ? (t.dark ? 'rgba(255,255,255,0.16)' : 'rgba(255,255,255,0.75)') : t.accentSoft, borderRadius: 25 + lens.value * 10 /* a capsule, concentric with the bar: 31 − 6 */ }));
+  const pillInner = useAnimatedStyle(() => ({ backgroundColor: t.accent, opacity: lens.value > 0.5 ? 0.82 : 1, borderRadius: 25 + lens.value * 10 /* a capsule, concentric with the bar: 31 − 6 */ }));
 
   return <GestureDetector gesture={gesture}>
     <View collapsable={false} onLayout={e => setWidth(e.nativeEvent.layout.width)} accessibilityRole="tablist" style={{ flexDirection: 'row', alignItems: 'center', minHeight: 57 }}>
       {width ? <Animated.View pointerEvents="none" style={[{ position: 'absolute', left: 0, width: cell, padding: 2 }, pillStyle]}>
-        <Animated.View style={[{ flex: 1, borderWidth: 0.5, borderColor: t.glassBorder }, pillInner]} />
+        <Animated.View style={[{ flex: 1 }, pillInner]} />
       </Animated.View> : null}
       {shown.map((item, index) => { const on = index === activeIndex; const slotted = index === slotIndex; return <View key={slotted ? 'slot' : item.id} accessible accessibilityRole="tab"
         accessibilityLabel={`${item.label}${item.badge ? `, ${item.badge}` : ''}${slotted && other ? `. Смахни вверх — ${other.label}` : ''}`} accessibilityState={{ selected: on }}
@@ -212,7 +229,7 @@ export function TabBar({ items, active }: { items: TabItem[]; active: TabId }) {
         onAccessibilityTap={() => open(index)} style={{ flex: 1, alignItems: 'center', justifyContent: 'center', gap: 1, paddingVertical: 7, transform: [{ translateX: index === 0 ? EDGE_SHIFT : index === n - 1 ? -EDGE_SHIFT : 0 }] }}>
         {slotted && other ? <SlotReel reel={reel} people={item.id === 'people' ? item : other} channels={item.id === 'channels' ? item : other} active={on} kick={kicks[index]} pressed={pressed} index={index} /> : <>
           <TabIcon item={item} active={on} kick={kicks[index]} pressed={pressed} index={index} />
-          <Text numberOfLines={1} adjustsFontSizeToFit minimumFontScale={.8} maxFontSizeMultiplier={1} style={{ maxWidth: CAPTION_MAX, fontSize: 9, lineHeight: 12, letterSpacing: -.25, color: on ? t.accent : t.muted, fontWeight: '600' }}>{item.label}</Text>
+          <Under index={index} far={<TabLabel text={item.label} color={t.muted} />} near={<TabLabel text={item.label} color={t.onAccent} />} />
         </>}
         {/* A small hint that the slot switches: a dot (with the other section's unread count) above it. */}
         {slotted && other ? other.badge ? <View pointerEvents="none" accessibilityElementsHidden style={{ position: 'absolute', top: -2, minWidth: 18, height: 14, paddingHorizontal: 4, borderRadius: 7, backgroundColor: t.accent, alignItems: 'center', justifyContent: 'center' }}><Text maxFontSizeMultiplier={1} style={{ color: t.onAccent, fontSize: 9, fontWeight: '800' }}>{badgeText(other.badge)}</Text></View>

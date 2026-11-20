@@ -2,10 +2,10 @@ import { UpdateGate } from './src/update/UpdateScreen';
 import { AuthBackdrop } from './src/auth/AuthBackdrop';
 import { appBecameActive, checkForUpdate } from './src/update/store';
 import { TitleBar } from './src/TitleBar';
-import { TabsOverlay, isWideLayout } from './src/tabInset';
+import { TabsFrame, TabsOverlay, isWideLayout } from './src/tabInset';
 import { DesktopWelcome } from './src/DesktopWelcome';
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { ActivityIndicator, Alert, AppState, BackHandler, Linking, Platform, Pressable, View, useColorScheme, useWindowDimensions } from 'react-native';
+import { ActivityIndicator, Alert, AppState, BackHandler, Linking, Platform, Pressable, View, useColorScheme, useWindowDimensions, StyleSheet } from 'react-native';
 import { Text } from './src/typography';
 import { SafeAreaProvider, SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { StatusBar } from 'expo-status-bar';
@@ -194,7 +194,7 @@ function ThemeAccess({mode,darkTheme,nightState,onChange,onDarkTheme,onMusic}:{m
 
 function Messenger({api,session,onUser,themeMode,darkTheme,nightState,onTheme,onDarkTheme,onLogout,onExpired,onCredentialsChanged,onSensitiveActionPending}: {api:Api;session:Session;onUser:(user:User)=>void;themeMode:ThemeMode;darkTheme:DarkTheme;nightState:NightState;onTheme:(mode:ThemeMode)=>void;onDarkTheme:(mode:DarkTheme)=>void;onLogout:()=>Promise<void>;onExpired:()=>void;onCredentialsChanged:(message:string)=>Promise<void>;onSensitiveActionPending:(pending:boolean)=>void}) {
   const t=useTheme();const {width,height}=useWindowDimensions();const wide=isWideLayout(width,height);const store=useMessenger(api,session.user,onExpired);usePlatina(api,session.user.id);const [page,setPage]=useState<'chats'|'saved'|'people'|'channels'|'music'|'ai'|'profile'|'security'|'settings'>(session.securitySetupRequired?'security':'chats');
-  const [openCommunity,setOpenCommunity]=useState<string|null>(null);const [inviteCode,setInviteCode]=useState<string|null>(null);
+  const [openCommunity,setOpenCommunity]=useState<string|null>(null);const [barHeight,setBarHeight]=useState(92);const [listEditing,setListEditing]=useState(false);const [inviteCode,setInviteCode]=useState<string|null>(null);
   // The person whose @name was tapped in a message: their profile is shown over whatever is open.
   const [mentioned,setMentioned]=useState<User|null>(null);
   const [quickAI,setQuickAI]=useState(false);
@@ -274,7 +274,19 @@ function Messenger({api,session,onUser,themeMode,darkTheme,nightState,onTheme,on
   // screens: there they sat under the status bar / Dynamic Island and the header's edge effect.
   const notices=<><RecoveryNotice requests={store.recoveryRequests} error={store.recoveryError} onRefresh={store.refreshRecoveryRequests} onCancel={store.cancelRecovery}/><NewLoginNotice api={api} onOpenSecurity={()=>{store.selectChat(null);setPage('security');}}/></>;
   const mentionProfile=mentioned?<UserProfile api={api} user={mentioned} onClose={()=>setMentioned(null)} onMessage={person=>{setMentioned(null);void api.createChat(person.id).then(({chat})=>{setPage('chats');store.selectChat(chat);}).catch(()=>{});}}/>:null;
-  if(!wide&&(page==='chats'||page==='saved'))return <CallProvider api={api} store={store} me={session.user}><View style={{flex:1,width:'100%'}}><NearbyOffer/>{mentionProfile}<View style={{flex:1}}><StackBase progress={stackProgress} covered={!!pushed}><ChatListScreen api={api} user={session.user} store={listStore} banner={notices} onNewChat={newChat} onProfile={profile} onMusic={openMusic} onAI={openAI} onQuickAI={()=>setQuickAI(true)} onChats={openChats} onSaved={openSaved} savedActive={page==='saved'} activeTab={page==='saved'?'chats':page}/></StackBase>{pushedScreen}</View><AIQuickDialog api={api} visible={quickAI} onClose={()=>setQuickAI(false)}/><InviteSheet api={api} code={inviteCode} onClose={()=>setInviteCode(null)} onJoined={id=>{setInviteCode(null);store.selectChat(null);setPage('channels');setOpenCommunity(id);}}/><PlatinaShowcaseHost api={api} me={session.user} onCustomize={()=>{store.selectChat(null);setPage('profile');}}/><RoomsHost api={api} me={session.user} store={store}/></View></CallProvider>;
+  // Phone. One tree for every tab: the chat list stays mounted (only hidden) while another tab is shown, and
+  // there is ONE tab bar. Before, «Чаты» and the other tabs were two different trees: a tap on a tab threw the
+  // whole screen and its bar away and built them again — the bar jumped and the capsule lagged behind.
+  if(!wide){
+    const onList=page==='chats'||page==='saved';
+    return <CallProvider api={api} store={store} me={session.user}><View style={{flex:1,width:'100%'}}><NearbyOffer/>{mentionProfile}<View style={{flex:1}}>
+      <View pointerEvents={onList?'auto':'none'} style={[StyleSheet.absoluteFill,{display:onList?'flex':'none'}]}><StackBase progress={stackProgress} covered={!!pushed}><ChatListScreen sharedTabs={barHeight} onEditing={setListEditing} api={api} user={session.user} store={listStore} banner={notices} onNewChat={newChat} onProfile={profile} onMusic={openMusic} onAI={openAI} onQuickAI={()=>setQuickAI(true)} onChats={openChats} onSaved={openSaved} savedActive={page==='saved'} activeTab={page==='saved'?'chats':page==='security'||page==='settings'?'profile':page}/></StackBase></View>
+      {onList?null:<TabsFrame height={barHeight}><View style={{flex:1}}>{detail}</View></TabsFrame>}
+      {/* The bar: above the list and the pages, under a chat that slides in over them. */}
+      {onList&&listEditing?null:<View pointerEvents="box-none" onLayout={e=>{const h=Math.round(e.nativeEvent.layout.height);if(h&&Math.abs(h-barHeight)>1)setBarHeight(h);}} style={{position:'absolute',left:0,right:0,bottom:0}}><MessengerTabs onNewChat={newChat} onProfile={profile} onMusic={openMusic} onAI={openAI} onChats={openChats} activeTab={page==='saved'?'chats':page==='security'||page==='settings'?'profile':page}/></View>}
+      {onList?pushedScreen:null}
+    </View><AIQuickDialog api={api} visible={quickAI} onClose={()=>setQuickAI(false)}/><InviteSheet api={api} code={inviteCode} onClose={()=>setInviteCode(null)} onJoined={id=>{setInviteCode(null);store.selectChat(null);setPage('channels');setOpenCommunity(id);}}/><PlatinaShowcaseHost api={api} me={session.user} onCustomize={()=>{store.selectChat(null);setPage('profile');}}/><RoomsHost api={api} me={session.user} store={store}/></View></CallProvider>;
+  }
   // Desktop: rail of sections | chat list (only for chats and people) | content.
   const railTab=page==='security'||page==='settings'||page==='profile'?'profile':page==='saved'?'chats':page;
   const showList=!wide?(!chat&&page==='chats'):page==='chats'||page==='saved'||page==='people';

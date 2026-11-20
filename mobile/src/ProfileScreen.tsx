@@ -402,7 +402,7 @@ function ReadOnlyValue({ label, value, onCopy, copied, small = false }: { label:
 function EditRow({ icon, color, label, value, swatch, onPress, disabled = false }: { icon: React.ComponentProps<typeof Icon>['name']; color: string; label: string; value?: string; swatch?: string; onPress: () => void; disabled?: boolean }) {
   const t = useTheme();
   return <Pressable accessibilityRole="button" accessibilityLabel={value ? `${label}: ${value}` : label} disabled={disabled} onPress={onPress} style={({ pressed }) => ({ flexDirection: 'row', alignItems: 'center', gap: 13, minHeight: 48, paddingHorizontal: 14, backgroundColor: pressed ? 'rgba(127,127,127,0.12)' : 'transparent', opacity: disabled ? .5 : 1 })}>
-    <View style={{ width: 30, height: 30, borderRadius: 8, backgroundColor: color, alignItems: 'center', justifyContent: 'center' }}><Icon name={icon} size={17} color="#FFF"/></View>
+    <View style={{ width: 34, height: 34, borderRadius: 17, backgroundColor: t.dark ? 'rgba(255,255,255,0.07)' : 'rgba(0,0,0,0.05)', alignItems: 'center', justifyContent: 'center' }}><Icon name={icon} size={18} color={t.text}/></View>
     <Text numberOfLines={1} style={{ flex: 1, color: t.text, fontSize: 15 }}>{label}</Text>
     {value ? <Text raw numberOfLines={1} style={{ color: t.muted, fontSize: 14, maxWidth: '40%' }}>{value}</Text> : null}
     {swatch ? <View style={{ width: 20, height: 20, borderRadius: 10, backgroundColor: swatch }}/> : null}

@@ -25,6 +25,14 @@ export function TabsOverlay({ tabs, children }: { tabs: React.ReactNode | null; 
   </View>;
 }
 
+/** The same frame for a page whose tab bar is drawn elsewhere (the phone keeps one bar for every tab). */
+export function TabsFrame({ height, children }: { height: number; children: React.ReactNode }) {
+  return <View style={{ flex: 1 }}>
+    <TabInset.Provider value={height}>{children}</TabInset.Provider>
+    <TabsFade bar={height} />
+  </View>;
+}
+
 // Telegram / iOS 26: rows passing behind the floating tab bar dissolve into the page — nothing readable
 // under the pill, beside its rounded ends or in the home-indicator strip below it (reported: a chat row,
 // its avatar frame and its check mark peeked out there). Above the bar rows are untouched: a fade from

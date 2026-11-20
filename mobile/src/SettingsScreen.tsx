@@ -622,7 +622,7 @@ function MotionSettings() {
 function PowerRow({ icon, color, title, text, value, onChange }: { icon: IconName; color: string; title: string; text: string; value: boolean; onChange: (value: boolean) => void }) {
   const t = useTheme();
   return <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12, paddingHorizontal: 14, paddingVertical: 10 }}>
-    <View style={{ width: 30, height: 30, borderRadius: 8, backgroundColor: color, alignItems: 'center', justifyContent: 'center' }}><Icon name={icon} size={17} color="#FFF" /></View>
+    <View style={{ width: 34, height: 34, borderRadius: 17, backgroundColor: t.dark ? 'rgba(255,255,255,0.07)' : 'rgba(0,0,0,0.05)', alignItems: 'center', justifyContent: 'center' }}><Icon name={icon} size={18} color={t.text} /></View>
     <View style={{ flex: 1, gap: 2 }}><Text style={{ color: t.text, fontSize: 15 }}>{title}</Text><Text style={{ color: t.muted, fontSize: 12, lineHeight: 16 }}>{text}</Text></View>
     <ThemeSwitch accessibilityLabel={title} value={value} onValueChange={onChange} />
   </View>;
