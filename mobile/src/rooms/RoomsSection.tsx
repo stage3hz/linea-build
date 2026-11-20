@@ -15,6 +15,7 @@ import { playCallSound, stopCallSound } from '../calls/callSounds';
 import { useVoice } from '../communities/voice';
 import { useCalls } from '../calls/CallProvider';
 import { navigate } from '../navigation';
+import { onRoomNotificationTap } from '../push';
 import { RoomFaces } from './RoomScreen';
 import { dismissRing, enterRoom, handleRoomEvent, insideLine, loadRooms, openRoom, sleepLine, useRooms, type Room } from './rooms';
 
@@ -75,6 +76,8 @@ export function RoomsSection({ api, me, store }: { api: Api; me: User; store: Me
 export function RoomsHost({ api, me, store }: { api: Api; me: User; store: MessengerStore }) {
   const t = useTheme(); const insets = useSafeAreaInsets(); const { ring, rooms } = useRooms();
   const callBusy = useCalls().busy;
+  // A tap on the «зовёт в комнату» notification opens that room (walking in stays a press on «Зайти»).
+  useEffect(() => { onRoomNotificationTap(id => { openRoom(id); navigate({ to: 'channels' }); }); return () => onRoomNotificationTap(null); }, []);
   useEffect(() => { void loadRooms(api, me.id); }, [api, me.id]);
   useEffect(() => store.onSocket(data => { if (data?.type === 'ready') void loadRooms(api, me.id); else handleRoomEvent(data, me.id); }), [store, api, me.id]);
   useEffect(() => {

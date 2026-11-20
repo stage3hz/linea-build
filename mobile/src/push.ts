@@ -1,5 +1,3 @@
-import { openRoom } from './rooms/rooms';
-import { navigate } from './navigation';
 import { useEffect, useRef, useSyncExternalStore } from 'react';
 import { AppState, Platform } from 'react-native';
 import * as Notifications from 'expo-notifications';
@@ -107,7 +105,7 @@ export function usePush(api: Api, onOpenChat: (chatId: string) => void) {
       if (typeof chatId === 'string') open.current(chatId);
       // «<имя> зовёт в комнату»: a tap opens that room in «Каналы» (walking in stays a deliberate press on «Зайти»).
       const roomId = response?.notification.request.content.data?.roomId;
-      if (typeof roomId === 'string') { openRoom(roomId); navigate({ to: 'channels' }); }
+      if (typeof roomId === 'string') roomTapped(roomId);
     };
     void Notifications.getLastNotificationResponseAsync().then(response => { if (alive) { handle(response); void Notifications.clearLastNotificationResponseAsync?.().catch(() => {}); } }).catch(() => {});
     const tapped = Notifications.addNotificationResponseReceivedListener(handle);
@@ -122,4 +120,13 @@ export async function stopPush(api: Api) {
   if (!pushSupported) return;
   await api.unregisterPush().catch(() => {});
   setStatus('pending');
+}
+
+// A tapped «зовёт в комнату» notification. The rooms screen registers how to open a room; a tap that came
+// before it was ready (the app was started by that tap) waits here.
+let roomOpener: ((roomId: string) => void) | null = null, waitingRoom: string | null = null;
+function roomTapped(roomId: string) { if (roomOpener) roomOpener(roomId); else waitingRoom = roomId; }
+export function onRoomNotificationTap(open: ((roomId: string) => void) | null) {
+  roomOpener = open;
+  if (open && waitingRoom) { const id = waitingRoom; waitingRoom = null; open(id); }
 }
