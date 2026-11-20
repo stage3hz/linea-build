@@ -106,9 +106,12 @@ export type GlassSurfaceProps = {
   /** false: never the system Liquid Glass / refracting shader — an even frosted blur with a thin rim
    *  (the tab bar: the refraction bent the rows behind it at the edges and the bar looked uneven). */
   systemGlass?:boolean;
+  /** The glass with nothing mixed into it: no theme tint over the system Liquid Glass and the thin fill elsewhere.
+   *  For the tab bar, which should be as clear as the system's own bars are set to be. */
+  pure?:boolean;
 };
 
-export function GlassSurface({children,style,contentStyle,radius=26,material='regular',interactive=false,shadow=true,targetRef,lens,systemGlass=true}:GlassSurfaceProps) {
+export function GlassSurface({children,style,contentStyle,radius=26,material='regular',interactive=false,shadow=true,targetRef,lens,systemGlass=true,pure=false}:GlassSurfaceProps) {
   const t=useTheme();const context=useContext(GlassContext);const target=targetRef||context.targetRef;
   const nested=useContext(NestedGlass);
   const renderActive=useRenderActive();
@@ -119,14 +122,14 @@ export function GlassSurface({children,style,contentStyle,radius=26,material='re
   const reduceTransparency=context.reduceTransparency;
   const hasBlur=!nested&&!reduceTransparency&&(Platform.OS!=='android'||!!target);
   const regular=material==='regular';
-  const fill=reduceTransparency?t.glassOpaque:regular?t.glass:t.glassClear;
+  const fill=reduceTransparency?t.glassOpaque:pure?(t.dark?'rgba(255,255,255,0.05)':'rgba(255,255,255,0.22)'):regular?t.glass:t.glassClear;
   const shadowStyle:ViewStyle=shadow?Platform.OS==='web'?{boxShadow:`0 10px 34px ${t.black?'rgba(0,0,0,0.24)':t.dark?'rgba(0,4,18,0.24)':'rgba(38,66,125,0.09)'}, 0 2px 5px ${t.black?'rgba(0,0,0,0.13)':t.dark?'rgba(0,4,18,0.13)':'rgba(38,66,125,0.035)'}`}:{shadowColor:t.shadow,shadowOffset:{width:0,height:8},shadowOpacity:t.dark?.19:.09,shadowRadius:18,elevation:0}:{};
   // Keep native bounds for the absolute glass layer and content: flattening layout-only
   // Views can attach the effect to a taller ancestor (e.g. a header with a pinned bar).
   // iOS 26: only the system Liquid Glass, rounded by the glass itself. Our own fill, gradient and
   // two-colour border on top of it were clipped together with the glass and showed stepped edges.
   if(nativeGlass&&!reduceTransparency)return <View collapsable={false} style={[{borderRadius:radius},style]}>
-    <GlassView pointerEvents="none" colorScheme={t.dark?'dark':'light'} glassEffectStyle={material} isInteractive={interactive} tintColor={t.glassTint} style={[StyleSheet.absoluteFill,{borderRadius:radius}]}/>
+    <GlassView pointerEvents="none" colorScheme={t.dark?'dark':'light'} glassEffectStyle={material} isInteractive={interactive} {...(pure?null:{tintColor:t.glassTint})} style={[StyleSheet.absoluteFill,{borderRadius:radius}]}/>
     {/* «Ледяное стекло»: rime along the rim, under the content. */}{nested?null:<IceLayer radius={radius}/>}<NestedGlass.Provider value={true}><View collapsable={false} style={[{flexGrow:1},contentStyle]}>{children}</View></NestedGlass.Provider>
   </View>;
   // Android 13+: the same Liquid Glass look as iOS 26 — the real content behind is blurred and
