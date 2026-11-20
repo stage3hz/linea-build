@@ -42,6 +42,8 @@ export const GoHome = createContext<(() => void) | null>(null);
 const LONG_HOLD_MS = 600;
 /** How many pushed screens are on the page that is on screen: a section's own swipe to «Чаты» waits while there are any. */
 const PUSHED = makeMutable(0);
+// Counted here and written as a number: a value written from this side cannot be read back at once on a phone.
+let pushedCount = 0;
 
 export function StackScreen({ progress, onBack, children, waitReady = false }: { progress: SharedValue<number>; onBack: () => void; children: (back: () => void) => React.ReactNode; /** Hold the slide until the screen reports its first content (a chat: its first messages), at most READY_WAIT_MS. The screen mounting its rows while it slides is what dropped frames. */ waitReady?: boolean }) {
   const { width } = useWindowDimensions();
@@ -67,7 +69,7 @@ export function StackScreen({ progress, onBack, children, waitReady = false }: {
   // A page kept built behind another tab must not catch the system «back» meant for the tab on screen.
   const visible = useContext(PageVisible);
   useEffect(() => { if (!visible) return; const sub = BackHandler.addEventListener('hardwareBackPress', () => { back(); return true; }); return () => sub.remove(); }, [back, visible]);
-  useEffect(() => { if (!visible) return; PUSHED.value = PUSHED.value + 1; return () => { PUSHED.value = Math.max(0, PUSHED.value - 1); }; }, [visible]);
+  useEffect(() => { if (!visible) return; PUSHED.value = ++pushedCount; return () => { pushedCount = Math.max(0, pushedCount - 1); PUSHED.value = pushedCount; }; }, [visible]);
   // A long swipe back: the finger stays past the «leave» point — the words «Отпусти — в чаты» appear and letting go
   // then goes straight to the chat list instead of one screen back.
   const home = useContext(GoHome); const homeRef = useRef(home); homeRef.current = home; const canHome = !!home;

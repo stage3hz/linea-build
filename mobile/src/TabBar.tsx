@@ -163,7 +163,10 @@ export function TabBar({ items, active, onScrub, onMenu }: { items: TabItem[]; a
   // A section without an icon of its own: the light stands between the two icons and neither is lit.
   const target = found < 0 ? (n - 1) / 2 : found;
   const pill = PILL; const pressed = useSharedValue(-1); const hold = useSharedValue(0); const step = useSharedValue(-1); const armed = useSharedValue(0);
-  useState(() => { if (PILL.value < 0) { PILL.value = lastPill ?? target; TAIL.value = PILL.value; pillTarget = lastPill ?? target; SHOWN.value = found < 0 ? 0 : 1; } return 0; });
+  // The tail gets the same number, not `PILL.value` read back: on a phone a value written from here is not there
+  // to be read yet, so the tail stayed at −1 and the capsule was drawn two tabs wide, sticking out of the bar to
+  // the left (seen in the iPhone simulator; the browser reads the value back at once and looked right).
+  useState(() => { if (pillTarget < 0) { const at = lastPill ?? target; PILL.value = at; TAIL.value = at; pillTarget = at; SHOWN.value = found < 0 ? 0 : 1; } return 0; });
   const k0 = useSharedValue(0), k1 = useSharedValue(0);
   const kicks = [k0, k1];
   // Only when the page changed by something other than a tap on this bar (a tap has started the move itself).
@@ -227,7 +230,7 @@ export function TabBar({ items, active, onScrub, onMenu }: { items: TabItem[]; a
   const gesture = Gesture.Race(scrub, press, tap);
 
   // The capsule spans from its tail to its front: equal at rest, stretched on the way. It rises a little under the finger.
-  const pillStyle = useAnimatedStyle(() => { const front = pill.value, back = TAIL.value; return { opacity: SHOWN.value, left: Math.min(front, back) * cell, width: cell * (1 + Math.abs(front - back)), transform: [{ scale: 1 + LIFT.value * 0.05 }] }; });
+  const pillStyle = useAnimatedStyle(() => { const front = Math.max(0, pill.value), back = TAIL.value < 0 ? front : TAIL.value; return { opacity: SHOWN.value, left: Math.min(front, back) * cell, width: cell * (1 + Math.abs(front - back)), transform: [{ scale: 1 + LIFT.value * 0.05 }] }; });
   const grow = useAnimatedStyle(() => ({ transform: [{ scale: 1 + hold.value * 0.06 }] }));
   const others = items.filter(item => !BAR_TABS.includes(item.id)); const waiting = others.reduce((sum, item) => sum + (item.badge || 0), 0); const awake = others.find(item => item.dot)?.dot;
 
