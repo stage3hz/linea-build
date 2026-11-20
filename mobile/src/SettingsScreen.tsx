@@ -106,7 +106,7 @@ function Page({ title, backLabel, onBack, children }: { title: string; backLabel
     <FloatingHeader onHeight={setHeaderHeight}>
     <GlassSurface lens radius={27} style={{ margin: 12, marginBottom: 7 }} contentStyle={{ padding: 8, flexDirection: 'row', alignItems: 'center', gap: 9, minHeight: 60 }}>
       <IconButton name="chevron-back" label={backLabel} onPress={onBack} />
-      <Text numberOfLines={1} style={[TITLE, { flex: 1, color: t.text, fontSize: 22, lineHeight: 28 }]}>{title}</Text>
+      <Text numberOfLines={1} adjustsFontSizeToFit minimumFontScale={0.62} style={[TITLE, { flex: 1, color: t.text, fontSize: 22, lineHeight: 28 }]}>{title}</Text>
     </GlassSurface>
     </FloatingHeader>
   </View>;
