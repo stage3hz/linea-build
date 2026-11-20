@@ -1,3 +1,5 @@
+import { openRoom } from './rooms/rooms';
+import { navigate } from './navigation';
 import { useEffect, useRef, useSyncExternalStore } from 'react';
 import { AppState, Platform } from 'react-native';
 import * as Notifications from 'expo-notifications';
@@ -103,6 +105,9 @@ export function usePush(api: Api, onOpenChat: (chatId: string) => void) {
     const handle = (response: Notifications.NotificationResponse | null) => {
       const chatId = response?.notification.request.content.data?.chatId;
       if (typeof chatId === 'string') open.current(chatId);
+      // «<имя> зовёт в комнату»: a tap opens that room in «Каналы» (walking in stays a deliberate press on «Зайти»).
+      const roomId = response?.notification.request.content.data?.roomId;
+      if (typeof roomId === 'string') { openRoom(roomId); navigate({ to: 'channels' }); }
     };
     void Notifications.getLastNotificationResponseAsync().then(response => { if (alive) { handle(response); void Notifications.clearLastNotificationResponseAsync?.().catch(() => {}); } }).catch(() => {});
     const tapped = Notifications.addNotificationResponseReceivedListener(handle);

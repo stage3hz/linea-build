@@ -22,6 +22,7 @@ import { GlassSurface } from './glass';
 import { ThemeSettings } from './ThemeSettings';
 import { StatusEmoji } from './StatusEmoji';
 import { DecoratedAvatar, ProfileBanner, birthdayColors } from './platina/Decor';
+import { ProfileLight, peerTint } from './design/peerLight';
 import { PlatinaStudio, type PlatinaStudioHandle } from './platina/PlatinaStudio';
 import { MONTHS, daysInMonth, formatBirthday, parseBirthday, birthdayValue as toBirthday } from './birthday';
 import { AvatarCropper } from './photo/AvatarCropper';
@@ -290,6 +291,7 @@ export function ProfileScreen({ api, user, theme, darkTheme, onTheme, onDarkThem
     </View>}
     <Animated.ScrollView onScroll={onScroll} scrollEventThrottle={16} keyboardShouldPersistTaps="handled" style={bleed.style} contentInsetAdjustmentBehavior="never" scrollIndicatorInsets={{ top: editing ? headerHeight : 0, bottom: tabInset + bleed.bottom }} contentContainerStyle={{ padding: 17, paddingTop: editing ? headerHeight + 8 : 60 + 8, paddingBottom: 36 + tabInset + bleed.bottom, maxWidth: 600, width: '100%', alignSelf: 'center', gap: 17 }}>
       {!editing ? <>
+      {!hasBanner && !tinted ? <ProfileLight color={peerTint(user.avatarColor, '#8A8F98')} /> : null}
       {/* The top sits on the profile's colour (or banner), as others see it; it stretches when pulled down. */}
       <View pointerEvents="none" style={{ position: 'absolute', top: -700, left: 0, right: 0, height: 700 + 68 + heroBottom + 14, overflow: 'hidden' }}>
         {tinted ? <LinearGradient colors={birthdayToday ? [festive[0], festive[1]] : [shade(user.avatarColor, 0.15), shade(user.avatarColor, -0.12)]} style={StyleSheet.absoluteFill}/> : null}

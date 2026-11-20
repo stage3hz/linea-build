@@ -68,3 +68,24 @@ export const PeerLight = memo(function PeerLight({ color, style }: { color: stri
     </Svg>
   </View>;
 });
+
+/**
+ * The same light at the top of a person's profile when they have no banner: it falls from above, behind the
+ * avatar, and fades into the page.
+ */
+export const ProfileLight = memo(function ProfileLight({ color, height = 440 }: { color: string; height?: number }) {
+  const t = useTheme();
+  const glow = brightTint(color, 150);
+  return <View pointerEvents="none" style={{ position: 'absolute', top: 0, left: 0, right: 0, height }}>
+    <Svg width="100%" height="100%" preserveAspectRatio="none">
+      <Defs>
+        <RadialGradient id="profile" cx="50%" cy="6%" rx="92%" ry="88%" gradientUnits="objectBoundingBox">
+          <Stop offset="0" stopColor={glow} stopOpacity={t.dark ? 0.5 : 0.22} />
+          <Stop offset="0.5" stopColor={glow} stopOpacity={t.dark ? 0.16 : 0.08} />
+          <Stop offset="1" stopColor={glow} stopOpacity={0} />
+        </RadialGradient>
+      </Defs>
+      <Rect x="0" y="0" width="100%" height="100%" fill="url(#profile)" />
+    </Svg>
+  </View>;
+});
