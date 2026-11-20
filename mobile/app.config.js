@@ -48,6 +48,9 @@ module.exports = {
       bundleIdentifier: development ? 'com.linea.messenger.preview' : (process.env.IOS_BUNDLE_ID || 'com.invizent.app'),
       ...(process.env.IOS_BUILD_NUMBER ? { buildNumber: process.env.IOS_BUILD_NUMBER } : {}),
       infoPlist: {
+        // iPhones with a 120 Hz screen draw an app's animations at 60 Hz unless it asks otherwise (Apple: «Optimizing
+        // ProMotion refresh rates for iPhone 13 Pro and iPad Pro»). With this key every transition runs at the screen's full rate.
+        CADisableMinimumFrameDurationOnPhone: true,
         NSLocalNetworkUsageDescription: 'Чтобы писать без интернета тем, кто рядом, и подключаться к серверу мессенджера в вашей сети.',
         NSBluetoothAlwaysUsageDescription: 'Bluetooth нужен, чтобы писать без интернета тем, кто рядом. Сообщения остаются зашифрованными, местоположение не определяется.',
         // Music keeps playing and a call keeps its audio when the app goes to the background.

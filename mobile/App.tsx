@@ -68,7 +68,7 @@ import { MotionRoot } from './src/motion';
 import { Snow } from './src/Snow';
 import { SnowPhone } from './src/SnowPhone';
 import { PixelTrail } from './src/PixelTrail';
-import { StackBase, StackScreen } from './src/stack';
+import { PageVisible, StackBase, StackScreen } from './src/stack';
 import { CommunitiesScreen } from './src/communities/CommunitiesScreen';
 import { InviteSheet } from './src/communities/InviteSheet';
 import { inviteCodeFrom } from './src/communities/types';
@@ -194,7 +194,7 @@ function ThemeAccess({mode,darkTheme,nightState,onChange,onDarkTheme,onMusic}:{m
 
 function Messenger({api,session,onUser,themeMode,darkTheme,nightState,onTheme,onDarkTheme,onLogout,onExpired,onCredentialsChanged,onSensitiveActionPending}: {api:Api;session:Session;onUser:(user:User)=>void;themeMode:ThemeMode;darkTheme:DarkTheme;nightState:NightState;onTheme:(mode:ThemeMode)=>void;onDarkTheme:(mode:DarkTheme)=>void;onLogout:()=>Promise<void>;onExpired:()=>void;onCredentialsChanged:(message:string)=>Promise<void>;onSensitiveActionPending:(pending:boolean)=>void}) {
   const t=useTheme();const {width,height}=useWindowDimensions();const wide=isWideLayout(width,height);const store=useMessenger(api,session.user,onExpired);usePlatina(api,session.user.id);const [page,setPage]=useState<'chats'|'saved'|'people'|'channels'|'music'|'ai'|'profile'|'security'|'settings'>(session.securitySetupRequired?'security':'chats');
-  const [openCommunity,setOpenCommunity]=useState<string|null>(null);const [barHeight,setBarHeight]=useState(92);const [listEditing,setListEditing]=useState(false);const [inviteCode,setInviteCode]=useState<string|null>(null);
+  const [openCommunity,setOpenCommunity]=useState<string|null>(null);const openedTabs=useRef(new Set<string>());const [barHeight,setBarHeight]=useState(92);const [listEditing,setListEditing]=useState(false);const [inviteCode,setInviteCode]=useState<string|null>(null);
   // The person whose @name was tapped in a message: their profile is shown over whatever is open.
   const [mentioned,setMentioned]=useState<User|null>(null);
   const [quickAI,setQuickAI]=useState(false);
@@ -279,9 +279,12 @@ function Messenger({api,session,onUser,themeMode,darkTheme,nightState,onTheme,on
   // whole screen and its bar away and built them again — the bar jumped and the capsule lagged behind.
   if(!wide){
     const onList=page==='chats'||page==='saved';
+    const shownTab=page==='settings'||page==='profile'||page==='security'?'settings':page;
+    if(!onList)openedTabs.current.add(shownTab);
     return <CallProvider api={api} store={store} me={session.user}><View style={{flex:1,width:'100%'}}><NearbyOffer/>{mentionProfile}<View style={{flex:1}}>
       <View pointerEvents={onList?'auto':'none'} style={[StyleSheet.absoluteFill,{display:onList?'flex':'none'}]}><StackBase progress={stackProgress} covered={!!pushed}><ChatListScreen sharedTabs={barHeight} onEditing={setListEditing} api={api} user={session.user} store={listStore} banner={notices} onNewChat={newChat} onProfile={profile} onMusic={openMusic} onAI={openAI} onQuickAI={()=>setQuickAI(true)} onChats={openChats} onSaved={openSaved} savedActive={page==='saved'} activeTab={page==='saved'?'chats':page==='security'||page==='settings'?'profile':page}/></StackBase></View>
-      {onList?null:<TabsFrame height={barHeight}><View style={{flex:1}}>{detail}</View></TabsFrame>}
+      {/* A tab that was opened once stays built (hidden and frozen): coming back to it shows it at once instead of building it again. */}
+      {[...openedTabs.current].map(tab=><KeptPage key={tab} active={!onList&&shownTab===tab}><TabsFrame height={barHeight}><View style={{flex:1}}>{tab==='channels'?<CommunitiesScreen api={api} me={session.user} store={store} openId={openCommunity} onOpened={setOpenCommunity} onOpenInvite={setInviteCode}/>:tab==='people'?<PeopleScreen api={api} onBack={goBack} onOpen={newChat=>{setPage('chats');store.selectChat(newChat);}}/>:tab==='music'?<MusicScreen onBack={goBack}/>:tab==='ai'?<AIScreen api={api} onBack={goBack} history={store.aiHistory} name={session.user.displayName}/>:settingsStack}</View></TabsFrame></KeptPage>)}
       {/* The bar: above the list and the pages, under a chat that slides in over them. */}
       {onList&&listEditing?null:<View pointerEvents="box-none" onLayout={e=>{const h=Math.round(e.nativeEvent.layout.height);if(h&&Math.abs(h-barHeight)>1)setBarHeight(h);}} style={{position:'absolute',left:0,right:0,bottom:0}}><MessengerTabs onNewChat={newChat} onProfile={profile} onMusic={openMusic} onAI={openAI} onChats={openChats} activeTab={page==='saved'?'chats':page==='security'||page==='settings'?'profile':page}/></View>}
       {onList?pushedScreen:null}
@@ -299,3 +302,12 @@ function StackBackdrop(){
   const insets=useSafeAreaInsets();
   return <View pointerEvents="none" style={{position:'absolute',top:-insets.top,bottom:-insets.bottom,left:0,right:0}}><GlassBackdrop/></View>;
 }
+
+/**
+ * A tab's page that stays mounted after its first visit. While it is not the one on screen it is hidden and
+ * frozen: the app's state changing (a message arrives, someone types) does not re-render it, so a hidden page
+ * costs nothing. The moment it is shown again it renders once with the current state.
+ */
+const KeptPage=React.memo(function KeptPage({active,children}:{active:boolean;children:React.ReactNode}){
+  return <PageVisible.Provider value={active}><View pointerEvents={active?'auto':'none'} style={[StyleSheet.absoluteFill,{display:active?'flex':'none'}]}>{children}</View></PageVisible.Provider>;
+},(before,after)=>!before.active&&!after.active);

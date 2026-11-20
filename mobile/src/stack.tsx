@@ -1,4 +1,4 @@
-import React, { memo, useCallback, useEffect, useRef } from 'react';
+import React, { createContext, useContext, memo, useCallback, useEffect, useRef } from 'react';
 import { Keyboard, StyleSheet, View, useWindowDimensions, BackHandler } from 'react-native';
 import { Gesture, GestureDetector } from 'react-native-gesture-handler';
 import Animated, { Easing, interpolate, runOnJS, useAnimatedStyle, useSharedValue, withTiming, type SharedValue } from 'react-native-reanimated';
@@ -24,6 +24,9 @@ const CLOSE = { duration: 240, easing: Easing.bezier(0.3, 0.1, 0.3, 1) };
  */
 export function dismissForLeave() { stopFocusRetries(); Keyboard.dismiss(); }
 
+/** False inside a tab's page that is kept built but is not the one on screen. */
+export const PageVisible = createContext(true);
+
 export function StackScreen({ progress, onBack, children }: { progress: SharedValue<number>; onBack: () => void; children: (back: () => void) => React.ReactNode }) {
   const { width } = useWindowDimensions();
   const backRef = useRef(onBack); backRef.current = onBack;
@@ -38,7 +41,9 @@ export function StackScreen({ progress, onBack, children }: { progress: SharedVa
   }, [progress, finish]);
   // Android system back closes the top pushed screen first (e.g. Settings › Оформление returns to
   // Settings, not to Chats). Registered after the app-level handler, so it runs first.
-  useEffect(() => { const sub = BackHandler.addEventListener('hardwareBackPress', () => { back(); return true; }); return () => sub.remove(); }, [back]);
+  // A page kept built behind another tab must not catch the system «back» meant for the tab on screen.
+  const visible = useContext(PageVisible);
+  useEffect(() => { if (!visible) return; const sub = BackHandler.addEventListener('hardwareBackPress', () => { back(); return true; }); return () => sub.remove(); }, [back, visible]);
   // Direction lock like Telegram-iOS: the swipe takes over once the finger has moved right and mostly
   // sideways (2:1); a clearly vertical move (scrolling a list) lets it go. Fixed ±14 pt vertical
   // limits used to cancel the swipe on any slight wobble.
