@@ -40,6 +40,8 @@ shot 06b-register --ez auth true --es authmode register
 shot 06c-recover --ez auth true --es authmode recover
 shot 06d-waiting --ez auth true --es authmode waiting
 shot 09c-attach-demo --ez demo true --ez chat true --es attachdemo 1
+shot 20-channels-demo --es channelsdemo 1
+shot 20b-channels-demo-chat --es channelsdemo chat
 # What the app itself said while it ran (crashes show here).
 adb logcat -d -t 400 '*:E' > "$OUT/logcat-errors.txt" 2>/dev/null || true
 adb shell dumpsys package "$APP" | grep -E "versionName|primaryCpuAbi" || true

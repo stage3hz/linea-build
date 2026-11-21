@@ -63,6 +63,9 @@ live 09b-photo-open 35 --ez openchat true --es openattachment photo
 live 10-people 25 --es tab people
 live 11-profile 30 --es profile chat
 live 12-people-search 30 --es peoplesearch simpeer
+live 17-channels 25 --es tab channels
+live 18-community 30 --es channels community
+live 19-channel-chat 35 --es channels chat
 live 13-settings 25 --es settings root
 live 14-settings-profile 25 --es settings profile
 live 15-settings-sessions 25 --es settings sessions
