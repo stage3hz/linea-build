@@ -46,6 +46,8 @@ enum CallAudio {
         let session = AVAudioSession.sharedInstance()
         try? session.overrideOutputAudioPort(.none)
         try? session.setActive(false, options: [.notifyOthersOnDeactivation])
+        // What plays next (music, a voice message) sets the sound up for itself; until then it is ordinary playback.
+        try? session.setCategory(.playback, mode: .default, options: [])
     }
 
     /// Asks for the microphone (and the camera, for a video call) the first time a call needs them; the system's

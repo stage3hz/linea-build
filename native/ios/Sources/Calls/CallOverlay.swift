@@ -12,7 +12,7 @@ private final class CallWindow: UIWindow {
 
 private final class CallHostController: UIViewController {
     let bar = CallBarView()
-    var screen: CallScreenView?
+    var callScreen: CallScreenView?
 
     override func viewDidLoad() {
         super.viewDidLoad()
@@ -25,7 +25,7 @@ private final class CallHostController: UIViewController {
         super.viewDidLayoutSubviews()
         // Right under the status bar: the clock, the island and the battery stay visible above it.
         bar.frame = CGRect(x: 0, y: view.safeAreaInsets.top, width: view.bounds.width, height: CGFloat(CallRules.barHeight))
-        if let screen, screen.transform.isIdentity { screen.frame = view.bounds }
+        if let callScreen, callScreen.transform.isIdentity { callScreen.frame = view.bounds }
     }
 
     override var supportedInterfaceOrientations: UIInterfaceOrientationMask { .portrait }
@@ -188,9 +188,9 @@ final class CallOverlay {
     }
 
     private func presentScreen() -> CallScreenView {
-        if let screen = host.screen { return screen }
+        if let screen = host.callScreen { return screen }
         let screen = CallScreenView(frame: host.view.bounds)
-        host.screen = screen
+        host.callScreen = screen
         host.view.addSubview(screen)
         // Slides up from the bottom, as the reference's call screen does.
         screen.transform = CGAffineTransform(translationX: 0, y: host.view.bounds.height)
@@ -199,8 +199,8 @@ final class CallOverlay {
     }
 
     private func dismissScreen(_ done: (() -> Void)?) {
-        guard let screen = host.screen else { done?(); return }
-        host.screen = nil
+        guard let screen = host.callScreen else { done?(); return }
+        host.callScreen = nil
         let away = CGAffineTransform(translationX: 0, y: host.view.bounds.height)
         UIView.animate(withDuration: 0.25, delay: 0, options: [.beginFromCurrentState, .curveEaseIn], animations: { screen.transform = away }, completion: { (_: Bool) -> Void in
             screen.retire()

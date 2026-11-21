@@ -159,7 +159,7 @@ final class CallMedia: NSObject, LKRTCPeerConnectionDelegate {
         })
     }
 
-    private static func description(_ kind: String, _ sdp: String) -> LKRTCSessionDescription {
+    private static func sessionDescription(_ kind: String, _ sdp: String) -> LKRTCSessionDescription {
         let type: LKRTCSdpType = kind == "offer" ? .offer : kind == "answer" ? .answer : .rollback
         return LKRTCSessionDescription(type: type, sdp: sdp)
     }
@@ -167,7 +167,7 @@ final class CallMedia: NSObject, LKRTCPeerConnectionDelegate {
     /// `kind`: "offer", "answer" or "rollback" (takes this phone's pending offer back). `done`: whether it was taken.
     func setLocal(_ kind: String, sdp: String, done: @escaping (Bool) -> Void) {
         guard let connection else { return done(false) }
-        connection.setLocalDescription(CallMedia.description(kind, sdp), completionHandler: { (error: Error?) -> Void in
+        connection.setLocalDescription(CallMedia.sessionDescription(kind, sdp), completionHandler: { (error: Error?) -> Void in
             let fine = error == nil
             DispatchQueue.main.async { done(fine) }
         })
@@ -175,7 +175,7 @@ final class CallMedia: NSObject, LKRTCPeerConnectionDelegate {
 
     func setRemote(_ kind: String, sdp: String, done: @escaping (Bool) -> Void) {
         guard let connection else { return done(false) }
-        connection.setRemoteDescription(CallMedia.description(kind, sdp), completionHandler: { (error: Error?) -> Void in
+        connection.setRemoteDescription(CallMedia.sessionDescription(kind, sdp), completionHandler: { (error: Error?) -> Void in
             let fine = error == nil
             DispatchQueue.main.async { done(fine) }
         })
