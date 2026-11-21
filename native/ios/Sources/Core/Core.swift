@@ -24,4 +24,32 @@ enum Core {
         guard let data = try? JSONEncoder().encode(Pair(own: own, other: other)), let json = String(data: data, encoding: .utf8) else { return nil }
         return json.withCString { take(invizent_safety_code($0)) }
     }
+
+    /// A JSON value as text, and back.
+    static func text(_ value: Any) -> String? {
+        guard JSONSerialization.isValidJSONObject(value), let data = try? JSONSerialization.data(withJSONObject: value) else { return nil }
+        return String(data: data, encoding: .utf8)
+    }
+    static func value(_ text: String?) -> Any? {
+        guard let data = text?.data(using: .utf8) else { return nil }
+        return try? JSONSerialization.jsonObject(with: data, options: [.fragmentsAllowed])
+    }
+
+    /// The headers and the time limit (seconds) of one request.
+    static func prepare(method: String, path: String, jsonBody: Bool, token: String?, proof: String?) -> (headers: [(String, String)], timeout: TimeInterval)? {
+        var request: [String: Any] = ["method": method, "path": path, "jsonBody": jsonBody, "platform": "ios",
+                                      "version": Bundle.main.object(forInfoDictionaryKey: "CFBundleShortVersionString") as? String ?? "0",
+                                      "nowMs": Int(Date().timeIntervalSince1970 * 1000)]
+        if let token { request["token"] = token }
+        if let proof { request["proof"] = proof }
+        guard let json = text(request), let made = value(json.withCString { take(invizent_http_prepare($0)) }) as? [String: Any],
+              let list = made["headers"] as? [[String]], let limit = made["timeoutMs"] as? Double else { return nil }
+        return (list.compactMap { $0.count == 2 ? ($0[0], $0[1]) : nil }, limit / 1000)
+    }
+
+    /// What the server's answer means (see `invizent_http_read`).
+    static func read(status: Int, body: String) -> [String: Any] {
+        let answer = body.withCString { take(invizent_http_read(UInt16(clamping: status), $0)) }
+        return value(answer) as? [String: Any] ?? [:]
+    }
 }
