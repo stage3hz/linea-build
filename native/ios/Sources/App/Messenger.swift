@@ -186,6 +186,10 @@ final class Messenger {
                          "text": body, "time": (message["edited"] as? Bool == true ? "изм. " : "") + (date.map { Self.clock.string(from: $0) } ?? ""),
                          "chips": (message["reactions"] as? [[String: Any]] ?? []).flatMap { [$0["emoji"] as? String ?? "", String(($0["count"] as? NSNumber)?.intValue ?? 1), $0["mine"] as? Bool == true ? "1" : ""] },
                          "ticks": mine ? (peerLastRead >= id ? 2 : 1) : 0, "tail": next?["senderId"] as? String != message["senderId"] as? String])
+            // Attachments: a photo's small picture or a file's name and size (Sources/Attachments/AttachmentOpen.swift).
+            if message["attachment"] is [String: Any], let key = rows[rows.count - 1]["key"] as? String {
+                rows[rows.count - 1].merge(AttachmentRows.fields(message, key: key)) { _, new in new }
+            }
         }
         return rows
     }
@@ -223,6 +227,13 @@ final class Messenger {
     func send(chatId: String, peerId: String, text: String, done: @escaping (Result<Void, CryptoFailure>) -> Void) {
         let clientId = UUID().uuidString.lowercased()
         crypto.run({ crypto in self.deliver(crypto, chatId: chatId, peerId: peerId, clientId: clientId, text: text, attachment: NSNull(), meta: NSNull()) }, done: done)
+    }
+
+    /// Attachments: sends a message that carries a file — already sealed, uploaded and described by the core
+    /// (Sources/Attachments/ChatAttachments.swift).
+    func send(chatId: String, peerId: String, text: String, attachment: [String: Any], done: @escaping (Result<Void, CryptoFailure>) -> Void) {
+        let clientId = UUID().uuidString.lowercased()
+        crypto.run({ crypto in self.deliver(crypto, chatId: chatId, peerId: peerId, clientId: clientId, text: text, attachment: attachment, meta: NSNull()) }, done: done)
     }
 
     /// Messages that were encrypted and kept but never confirmed by the server (the app was closed, the network

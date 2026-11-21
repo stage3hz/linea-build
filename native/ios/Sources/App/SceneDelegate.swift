@@ -86,6 +86,7 @@ final class SceneDelegate: UIResponder, UIWindowSceneDelegate {
     ///   -openchat 1                     with an account: opens the first chat of the list
     ///   -tab people / -peoplesearch <query> / -profile friend|chat    «Люди» and a profile, with an account or -demo (People/PeopleSimulator.swift)
     ///   -settings <page>                «Настройки» and one of its pages, with an account (about: also with -demo) (Settings/SettingsSimulator.swift)
+    ///   -attachdemo 1|viewer / -openattachment photo|file    attachments: sample rows in the -demo chat; with an account, opens the chat's newest photo or file (Attachments/ChatAttachments.swift)
     private func simulatorStart() -> Bool {
         let args = UserDefaults.standard
         if args.bool(forKey: "corecheck") { window?.rootViewController = CoreCheckViewController(); return true }

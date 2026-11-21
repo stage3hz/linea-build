@@ -369,10 +369,10 @@ final class ChatAttachments: NSObject, PHPickerViewControllerDelegate, UIDocumen
     static func demoRows() -> [[String: Any]] {
         let picture = demoPicture(width: 240, height: 160).jpegData(compressionQuality: 0.6)?.base64EncodedString() ?? ""
         return [
-            ["key": "attach-demo-1", "kind": 0, "mine": false, "text": "", "time": "09:38", "tail": false, "thumb": picture, "thumbWide": 1.5],
-            ["key": "attach-demo-2", "kind": 0, "mine": false, "text": "Договор и приложение к нему", "time": "09:39", "tail": false, "label": "📎 Договор № 7.pdf\n" + FileCore.sizeText(1_258_291)],
-            ["key": "attach-demo-3", "kind": 0, "mine": false, "text": "", "time": "09:39", "tail": true, "label": "🎬 Видео\n" + FileCore.sizeText(3_221_225_472)],
-            ["key": "attach-demo-4", "kind": 0, "mine": true, "text": "", "time": "09:41", "ticks": 3, "tail": true, "thumb": picture, "thumbWide": 1.5, "label": FileCore.sizeText(2_202_009) + " из " + FileCore.sizeText(5_505_024)],
+            ["key": "sample-attach-1", "kind": 0, "mine": false, "text": "", "time": "09:38", "tail": false, "thumb": picture, "thumbWide": 1.5],
+            ["key": "sample-attach-2", "kind": 0, "mine": false, "text": "Договор и приложение к нему", "time": "09:39", "tail": false, "label": "📎 Договор № 7.pdf\n" + FileCore.sizeText(1_258_291)],
+            ["key": "sample-attach-3", "kind": 0, "mine": false, "text": "", "time": "09:39", "tail": true, "label": "🎬 Видео\n" + FileCore.sizeText(3_221_225_472)],
+            ["key": "sample-attach-4", "kind": 0, "mine": true, "text": "", "time": "09:41", "ticks": 3, "tail": true, "thumb": picture, "thumbWide": 1.5, "label": FileCore.sizeText(2_202_009) + " из " + FileCore.sizeText(5_505_024)],
         ]
     }
 
@@ -395,7 +395,7 @@ final class ChatAttachments: NSObject, PHPickerViewControllerDelegate, UIDocumen
     /// `-attachdemo viewer`: the photo viewer with the drawn picture.
     static func demoViewer(over host: UIViewController) {
         DispatchQueue.main.asyncAfter(deadline: .now() + 1) { [weak host] in
-            host?.present(PhotoViewer(small: demoPicture(width: 1200, height: 800), load: nil), animated: false)
+            host?.present(PhotoViewer(small: ChatAttachments.demoPicture(width: 1200, height: 800), load: nil), animated: false)
         }
     }
     #endif

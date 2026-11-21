@@ -120,7 +120,9 @@ enum PhotoPrepare {
 
     /// Whether the bytes are a picture the system can decode (a photo picked as a file is prepared as a photo).
     static func isPicture(_ source: CGImageSource) -> Bool {
-        CGImageSourceGetType(source) != nil && CGImageSourceGetCount(source) > 0 && CGImageSourceGetStatus(source) == .statusComplete
+        // A PDF is a document even though the system could draw its first page.
+        guard let type = CGImageSourceGetType(source), let kind = UTType(type as String), kind.conforms(to: .image) else { return false }
+        return CGImageSourceGetCount(source) > 0 && CGImageSourceGetStatus(source) == .statusComplete
     }
 
     /// Prepares the picture of an image file. `fileSize`: the size of the original, which decides the format.

@@ -17,6 +17,8 @@ final class ChatViewController: UIViewController, UITextFieldDelegate {
     private let messenger: Messenger?
     private let chatId: String
     private let peerId: String
+    /// Attachments: the paperclip, sending and opening photos and files (Sources/Attachments/ChatAttachments.swift).
+    private lazy var attachments = ChatAttachments(messenger: messenger, chatId: chatId, peerId: peerId)
 
     /// With a `messenger`: the real chat. Without: the simulator's sample chat.
     init(name: String, messenger: Messenger? = nil, chatId: String = "", peerId: String = "") {
@@ -37,7 +39,9 @@ final class ChatViewController: UIViewController, UITextFieldDelegate {
         messenger?.messagesAndNewest(chatId: chatId, peerLastRead: peerLastRead) { [weak self] result in
             guard let self, case .success(let page) = result else { return }
             self.rows = page.rows
-            self.list.setRows(MsgRow.parse(page.rows))
+            // Attachments: what is still on its way out stands after the chat's own rows.
+            self.rows += self.attachments.loaded(page.rows)
+            self.list.setRows(MsgRow.parse(self.rows))
             // Reported once per new message: the server answers a read mark with an event, which reads the page again.
             if self.viewIfLoaded?.window != nil, page.newestTheirs > self.reportedRead {
                 self.reportedRead = page.newestTheirs
@@ -97,6 +101,10 @@ final class ChatViewController: UIViewController, UITextFieldDelegate {
         send.accessibilityLabel = "Отправить"
         send.addTarget(self, action: #selector(sendNow), for: .touchUpInside)
         composer.contentView.addSubview(send)
+        // Attachments: the paperclip in the composer; a touch on a row opens its photo or file.
+        attachments.install(host: self, composer: composer.contentView)
+        attachments.onPendingChanged = { [weak self] in self?.showPendingAttachments() }
+        list.onMsgPress = { [weak self] row in self?.attachments.pressed(row["key"] as? String ?? "") }
 
         if let messenger {
             NotificationCenter.default.addObserver(self, selector: #selector(changed(_:)), name: Messenger.changed, object: nil)
@@ -112,6 +120,11 @@ final class ChatViewController: UIViewController, UITextFieldDelegate {
         } else {
             #if targetEnvironment(simulator)
             rows = SimulatorDemo.messages()
+            // Attachments: -attachdemo 1 adds sample rows with a photo and files, -attachdemo viewer also opens the photo viewer.
+            if let sample = UserDefaults.standard.string(forKey: "attachdemo") {
+                rows += ChatAttachments.demoRows()
+                if sample == "viewer" { ChatAttachments.demoViewer(over: self) }
+            }
             onSend = { [weak self] text in
                 guard let self else { return }
                 self.rows.append(["key": "local-\(self.rows.count)", "kind": 0, "mine": true, "text": text, "time": "09:41", "ticks": 1, "tail": true])
@@ -153,8 +166,16 @@ final class ChatViewController: UIViewController, UITextFieldDelegate {
         if composer.effect == nil { composer.effect = TabGlass.effect(clear: false, interactive: false, dark: true) }
         field.frame = CGRect(x: 18, y: 0, width: composer.bounds.width - 18 - 50, height: composerHeight)
         send.frame = CGRect(x: composer.bounds.width - 46, y: 2, width: 44, height: 44)
+        attachments.place(field: field, height: composerHeight)
         list.frame = view.bounds
         list.setPad(top: Double(header.frame.maxY + 8), bottom: Double(view.bounds.height - composer.frame.minY + 8))
+    }
+
+    /// Attachments: shows the rows of what is being sent (they change while a file is prepared and uploaded).
+    private func showPendingAttachments() {
+        rows.removeAll { ($0["key"] as? String ?? "").hasPrefix("attach-") }
+        rows += attachments.pendingRows
+        list.setRows(MsgRow.parse(rows))
     }
 
     @objc private func goBack() { navigationController?.popViewController(animated: true) }

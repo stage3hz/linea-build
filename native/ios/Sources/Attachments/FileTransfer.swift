@@ -170,11 +170,10 @@ extension Server {
     func uploadSealedFile(_ sealed: Data, transfer: FileTransfer) -> Result<String, FileTransfer.Failure> {
         for attempt in 0..<2 {
             if case .failure(let error) = sendAndWait("GET", "/e2ee/limits") {
-                if case .refused(_, let status, _, _) = error, status != 401 {
-                    // The limits themselves are not needed here; only a signed-out session stops the upload.
-                } else {
-                    return .failure(.words(error.words))
-                }
+                // The limits themselves are not needed here: only no connection or an ended session stops the upload.
+                var stops = true
+                if case .refused(_, let status, _, _) = error, status != 401 { stops = false }
+                if stops { return .failure(.words(error.words)) }
             }
             let fresh = attempt == 0 ? transfer : FileTransfer()
             fresh.onProgress = transfer.onProgress

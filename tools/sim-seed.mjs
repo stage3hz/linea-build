@@ -86,6 +86,30 @@ const found = (await people[0].api.users('@' + handle)).users[0];
 if (!found) { console.error(`the test account @${handle} was not found`); process.exit(1); }
 let sent = 0;
 for (const [index, [, , texts]] of PEOPLE.entries()) for (const text of texts) { await say(people[index], found.id, text); sent++; }
+// An encrypted photo and an encrypted file from the last person (their chat is then the first in the list), sent
+// the way the app sends them: sealed with a fresh key, uploaded as ciphertext, the key travelling inside the
+// message. Not fatal: an older server without the files route just has no attachments to show.
+async function sayFile(from, to, bytes, { name, mimeType, media }, text = '') {
+  const { randomBytes } = await import('node:crypto');
+  if (!from.chatId) from.chatId = (await from.api.createChat(to)).chat.id;
+  const fileKeyId = randomUUID(), key = randomBytes(32).toString('base64'), nonce = randomBytes(12).toString('base64');
+  const ad = Buffer.from(`linea-attachment-v1:${fileKeyId}`).toString('base64');
+  const cipher = Buffer.from(await nodeSignalBridge.seal(bytes.toString('base64'), key, nonce, ad), 'base64');
+  const form = new FormData(); form.append('file', new Blob([cipher], { type: 'application/octet-stream' }), 'encrypted.bin');
+  const response = await fetch(base + '/e2ee/files', { method: 'POST', headers: from.api.authHeaders, body: form });
+  const uploaded = await response.json();
+  if (!response.ok) throw new Error(uploaded.error || String(response.status));
+  const attachment = { id: uploaded.id, name, mimeType, size: bytes.length, encryption: { scheme: 'aes-256-gcm-siv', key, nonce, fileKeyId }, ...(media ? { media } : {}) };
+  const clientId = randomUUID();
+  await from.api.sendEncrypted(from.chatId, clientId, await from.service.encrypt(from.chatId, to, clientId, text, attachment));
+  await from.service.delivered(from.chatId, clientId);
+}
+try {
+  const last = people[people.length - 1];
+  await sayFile(last, found.id, Buffer.from('%PDF-1.4\n% a made-up file for the simulator\n', 'utf8'), { name: 'Договор.pdf', mimeType: 'application/pdf' }, 'Посмотри договор');
+  await sayFile(last, found.id, png([61, 139, 208], [240, 168, 96]), { name: 'photo.png', mimeType: 'image/png', media: { width: 96, height: 96, hdr: 'sdr' } });
+  sent += 2;
+} catch (error) { console.log(`attachments not sent: ${error.message}`); }
 // Platina looks (the metal name, the platinum ring, a nameplate, a colour frame) for three of the people, when the
 // local server's data folder is given: the grant goes through the server's own administrator tool, as in production.
 const dataDir = process.argv[4];
