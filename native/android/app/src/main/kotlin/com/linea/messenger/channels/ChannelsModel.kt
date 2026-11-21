@@ -334,7 +334,7 @@ object ChannelWords {
 
   // Invite links are recognised only on the app's own addresses (reference: types.ts INVITE_LINK); a look-alike
   // on any other host stays plain text.
-  private val inviteLink = Pattern.compile("(^|[\\s(«\"'])(?:(?:invizent|linea)://invite/|https://(?:(?:api\\.)?invizent\\.com|141-133-194-51\\.nip\\.io)/i/)([A-Za-z0-9]{6,16})(?![A-Za-z0-9])", Pattern.UNICODE_CHARACTER_CLASS)
+  private val inviteLink = Pattern.compile("(^|[\\s(«\"'])(?:(?:invizent|linea)://invite/|https://(?:(?:api\\.)?invizent\\.com|141-133-194-51\\.nip\\.io)/i/)([A-Za-z0-9]{6,16})(?![A-Za-z0-9])") // Android's regex already reads \s as any Unicode space; the flag itself is refused there
   private val bareCode = Pattern.compile("^[A-Za-z0-9]{6,16}$")
   private val spacesBeforeBreak = Pattern.compile("[ \\t]+\\n")
   private val manyBreaks = Pattern.compile("\\n{3,}")
