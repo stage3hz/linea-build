@@ -185,7 +185,7 @@ private final class TabListOverlay: UIView {
 }
 
 /// The system's glass where it exists, a thin blur where it does not.
-private enum TabGlass {
+enum TabGlass {
   static func effect(clear: Bool, interactive: Bool, dark: Bool) -> UIVisualEffect {
     #if compiler(>=6.2)
     if #available(iOS 26.0, *) {

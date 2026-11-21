@@ -26,5 +26,23 @@ enum SimulatorDemo {
         }
         return ChatRow.parse(rows)
     }
+
+    static func messages() -> [[String: Any]] {
+        let said: [(Bool, String, String)] = [
+            (false, "Привет! Ты завтра будешь на встрече?", "09:12"),
+            (true, "Привет. Да, к десяти подойду", "09:14"),
+            (false, "Отлично. Я подготовила короткий план — три пункта, должно уложиться в полчаса, если никто не уйдёт в детали", "09:15"),
+            (true, "Хорошо", "09:15"),
+            (true, "Распечатки нужны или хватит экрана?", "09:16"),
+            (false, "Лучше распечатки, там таблица", "09:30"),
+            (false, "Тогда до завтра, я принесу распечатки", "09:38"),
+        ]
+        var rows: [[String: Any]] = [["key": "day", "kind": 1, "text": "Сегодня"]]
+        for (index, line) in said.enumerated() {
+            let last = index + 1 == said.count || said[index + 1].0 != line.0
+            rows.append(["key": "m\(index)", "kind": 0, "mine": line.0, "text": line.1, "time": line.2, "ticks": line.0 ? 2 : 0, "tail": last])
+        }
+        return rows
+    }
 }
 #endif

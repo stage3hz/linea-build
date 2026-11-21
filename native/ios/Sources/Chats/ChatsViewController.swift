@@ -26,6 +26,10 @@ final class ChatsViewController: UIViewController {
         #endif
         list.setRows(rows)
         empty.isHidden = !rows.isEmpty
+        list.onRowPress = { [weak self] event in
+            guard let self, let id = event["id"] as? String, let row = rows.first(where: { $0.id == id }) else { return }
+            self.navigationController?.pushViewController(ChatViewController(name: row.title), animated: true)
+        }
     }
 
     override func viewDidLayoutSubviews() {
