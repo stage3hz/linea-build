@@ -219,7 +219,7 @@ class SettingsPagesTest {
     find(top) { it.contentDescription == "Цвет 7" }!!.performClick()
     account.answers["profile"] = { args -> @Suppress("UNCHECKED_CAST") Result.success(mapOf("user" to (account.profile + (args[0] as Map<String, Any?>)))) }
     press("Сохранить")
-    assertEquals(mapOf("displayName" to "Маша Орлова", "bio" to "Пишу код", "birthday" to "1999-03-02", "gender" to "female", "avatarColor" to "#3FA37C"), account.last("profile")[0])
+    assertEquals(mapOf("displayName" to "Маша Орлова", "bio" to "Пишу код", "birthday" to "1999-03-02", "gender" to "female", "avatarColor" to "#3FA37C", "profilePattern" to null), account.last("profile")[0])
     has("Профиль сохранён.")
     assertEquals("Маша Орлова", account.profile["displayName"])
 
@@ -551,6 +551,8 @@ class SettingsPagesTest {
       var target: View? = find(section) { it is TextView && it.text.toString() == row }
       while (target != null && !target.isClickable) target = target.parent as? View
       target!!.performClick(); idle()
+      // Profile: «Мой профиль» shows the sample person's read-only profile, as the iOS simulator does.
+      if (row == "Мой профиль") { assertEquals(row, 2, stack.depth); stack.pop(animated = false); idle() }
       assertEquals(row, 1, stack.depth)
     }
     assertNull(ShadowAlertDialog.getLatestAlertDialog())

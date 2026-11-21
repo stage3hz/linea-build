@@ -23,7 +23,7 @@ class PeopleRulesTest {
   @Test fun aPersonAsTheServerDescribesThem() {
     val full = Person.from(mapOf("id" to "u1", "username" to "alisa_v", "displayName" to "Алиса Воронцова", "bio" to "о себе", "birthday" to "1999-03-02",
       "avatarColor" to "#F2A33C", "avatarId" to "файл 1", "extra" to 5.0))!!
-    assertEquals(Person("u1", "alisa_v", "Алиса Воронцова", "о себе", "1999-03-02", 0xF2A33C, "файл 1"), full)
+    assertEquals(Person("u1", "alisa_v", "Алиса Воронцова", "о себе", "1999-03-02", 0xF2A33C, "файл 1", com.linea.messenger.avatars.PersonLook(birthday = "1999-03-02")), full)
     // What is missing is empty; a colour that is not one is the app's blue.
     assertEquals(Person("u2", "", "", "", "", 0x5E7BFF, ""), Person.from(mapOf("id" to "u2", "avatarColor" to "red")))
     assertNull(Person.from(mapOf("username" to "nobody")))

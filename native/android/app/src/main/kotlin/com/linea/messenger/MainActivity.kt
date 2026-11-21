@@ -85,6 +85,12 @@ class MainActivity : Activity(), Launcher, AccountHost, com.linea.messenger.sett
     if (!Picks.result(requestCode, resultCode, data)) super.onActivityResult(requestCode, resultCode, data)
   }
 
+  /** Profile: a tapped birthday reminder while the window lives (profile/Birthdays.kt). */
+  override fun onNewIntent(intent: android.content.Intent) {
+    super.onNewIntent(intent)
+    com.linea.messenger.profile.BirthdayReminders.tapped(intent)
+  }
+
   /** Voice/Video: the system's answer about the microphone or the camera, asked at the moment of the first
    *  recording (voice/VoiceRecorder.kt, `Permits`). */
   override fun onRequestPermissionsResult(requestCode: Int, permissions: Array<out String>, grantResults: IntArray) {
@@ -95,6 +101,7 @@ class MainActivity : Activity(), Launcher, AccountHost, com.linea.messenger.sett
   private fun start() {
     // For the emulator check (debug builds only; a release build has an empty `Demo.start`).
     if (Demo.start(intent, this)) return
+    com.linea.messenger.profile.BirthdayReminders.tapped(intent) // Profile: opened by a birthday reminder
     val token = Account.token ?: return showAuth()
     Account.cachedUser?.let { return open(token, it) }
     // Signed in by the previous app: the token is there, the profile is asked from the server once.

@@ -485,6 +485,7 @@ class ChoiceSheet(context: Context, val heading: String, val note: String = "", 
     val wide = LinearLayout.LayoutParams.MATCH_PARENT; val wrap = LinearLayout.LayoutParams.WRAP_CONTENT
     stack.addView(TextView(context).apply {
       text = heading; textSize = 20f; typeface = Theme.weight(700); setTextColor(Theme.text); maxLines = 1; ellipsize = TextUtils.TruncateAt.END
+      com.linea.messenger.design.Titles.title(this, Theme.TypeSize.sheetTitle) // Fonts: a sheet's heading
     }, LinearLayout.LayoutParams(wide, wrap).apply { leftMargin = dp(12f); rightMargin = dp(12f); bottomMargin = dp(6f) })
     if (note.isNotEmpty()) stack.addView(TextView(context).apply {
       text = note; textSize = 13f; setTextColor(Theme.muted); maxLines = 2; ellipsize = TextUtils.TruncateAt.END

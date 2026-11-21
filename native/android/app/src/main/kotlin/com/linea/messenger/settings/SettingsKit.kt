@@ -118,6 +118,10 @@ open class SettingsPage(context: Context, private val pageName: String, private 
     heading.maxLines = 1
     heading.gravity = Gravity.CENTER_VERTICAL
     heading.setAutoSizeTextTypeUniformWithConfiguration(if (large) 24 else 14, if (large) 34 else 20, 1, TypedValue.COMPLEX_UNIT_SP)
+    // Fonts: the reference's page title in Unbounded (22 / 19 / 17 by length; the section's own title 30, as «Чаты»).
+    val titleSize = if (large) com.linea.messenger.design.Theme.TypeSize.chatsTitle else com.linea.messenger.design.Theme.TypeSize.pageTitleSize(pageName)
+    com.linea.messenger.design.Titles.title(heading, titleSize)
+    heading.setAutoSizeTextTypeUniformWithConfiguration(Math.round(titleSize * 0.62f), Math.round(titleSize), 1, TypedValue.COMPLEX_UNIT_SP)
     if (Build.VERSION.SDK_INT >= 28) heading.isAccessibilityHeading = true
     addView(heading)
 

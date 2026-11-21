@@ -82,7 +82,10 @@ object Demo {
   const val authLogin = "nativetester"
 
   /** The person «Настройки» shows when there is no account behind the shell (`--ez demo true`). */
-  fun settingsPerson(): Map<String, Any?> = mapOf("displayName" to "Мария Орлова", "username" to "maria", "avatarColor" to "#9271C3")
+  fun settingsPerson(): Map<String, Any?> =
+    // Profile: the sample person wears Platina when a shot asks for it (`--ez profilelook true`, profile/ProfileSamples.kt).
+    if (com.linea.messenger.profile.ProfileSimulator.look) com.linea.messenger.profile.ProfileSamples.meRaw
+    else mapOf("id" to "sample-me", "displayName" to "Мария Орлова", "username" to "maria", "avatarColor" to "#9271C3")
 
   /** `--es settings <page>`: opens «Настройки» and one of its pages as soon as the shell is on the screen (after
    *  the sign-in of the same launch, when there is one). */
@@ -110,6 +113,8 @@ object Demo {
    *    --es calldemo outgoing|incoming|active|video|ended|retry|bar        calls: a sample call in each state, no account (calls/CallsDemo.kt)
    *    --es storiesdemo strip|viewer|viewers|compose|posts|own / --es stories viewer|own|ownstories|compose    stories and profile posts (stories/StoriesDemo.kt)
    *    --es roomsdemo list|empty|room|music|outside|ring|bar|menu|rename|gone|picker / --es rooms list|room|enter|picker    rooms (rooms/RoomsDemo.kt)
+   *    --es profiledemo rings|code|art|list|marks|fonts|person|birthday|own|gifts|showcase|studio|confetti|offer|mini|…  /  --ez profilelook true
+   *                                                avatars, profiles, Platina and gifts (profile/ProfileSamples.kt)
    *    --es chatsdemo waiting|connecting|updating|skeleton|empty|folders|folder|foldereditor|foldersettings|savedmenu|saved|savedsearch|calls|hint|select|mutecustom|archivepull
    *                                                the chat list's extras (chatsplus/ChatsPlusDemo.kt)
    *    --es shelldemo mini|chatstrip|swipe|long|home / --es updatedemo required|optional    the shell (shell/ShellDemo.kt) */
@@ -126,6 +131,8 @@ object Demo {
     authMode = intent.getStringExtra("authmode")
     // AI and Music: `aidemo`, `musicdemo` (music/MusicDemo.kt).
     if (AIMusicSimulator.start(intent, launcher)) return true
+    // Profile: `profiledemo` — avatars, profiles, Platina, gifts (profile/ProfileSamples.kt); `profilelook` for Settings.
+    if (com.linea.messenger.profile.ProfileSimulator.demo(intent, launcher)) return true
     // Calls: `calldemo` — a sample call in each state (calls/CallsDemo.kt).
     if (com.linea.messenger.calls.CallsDemo.start(intent, launcher)) return true
     if (intent.getBooleanExtra("auth", false)) { launcher.showAuth(); return true }

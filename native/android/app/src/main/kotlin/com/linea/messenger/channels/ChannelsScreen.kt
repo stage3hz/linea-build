@@ -31,7 +31,7 @@ class ChannelsScreen(context: Context, private val messenger: Messenger?) : Scre
     class Row(val community: CommunitySummary) : Item()
   }
 
-  private val heading = context.words("Каналы", 34f, Theme.text, 700)
+  private val heading = context.words("Каналы", 34f, Theme.text, 700).also { com.linea.messenger.design.Titles.title(it, Theme.TypeSize.sectionTitle) } // Fonts: the reference's TITLE, 26
   private val joinButton = ChannelIconButton(context, "link", 20f, Theme.text, plate = Theme.surface2)
   private val createButton = ChannelIconButton(context, "plus", 20f, Theme.onAccent, plate = Theme.accent)
   private val list = ListView(context)

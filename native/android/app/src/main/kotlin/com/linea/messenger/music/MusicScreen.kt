@@ -651,7 +651,7 @@ class MusicScreen(context: Context, private val messenger: Messenger?) : Screen(
     val info = AIIconButton(context, "info", 22f, Theme.text, "О музыкальном разделе")
     info.setOnClickListener { showInfo() }
     addButton.setOnClickListener { addFiles() }
-    titleRow.addView(AIKit.label(context, "Музыка", 34f, 700, lines = 1), LinearLayout.LayoutParams(0, wrap, 1f))
+    titleRow.addView(AIKit.label(context, "Музыка", 34f, 700, lines = 1).also { com.linea.messenger.design.Titles.title(it, Theme.TypeSize.sectionTitle) }, LinearLayout.LayoutParams(0, wrap, 1f)) // Fonts: the reference's TITLE, 26
     titleRow.addView(addButton, LinearLayout.LayoutParams(dp(40f), dp(40f)))
     titleRow.addView(info, LinearLayout.LayoutParams(dp(40f), dp(40f)).apply { marginStart = dp(6f) })
     column.addView(titleRow, LinearLayout.LayoutParams(wide, wrap))

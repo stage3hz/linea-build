@@ -250,8 +250,6 @@ class CallHistoryPanel(private val context: Context, private val messenger: Mess
       val tall = maxOf(0, page.height - barRoom)
       if (params.height != tall) { params.height = tall; empty.layoutParams = params }
     }
-    page.bringToFront()
-    switcher.bringToFront()
     return below
   }
 

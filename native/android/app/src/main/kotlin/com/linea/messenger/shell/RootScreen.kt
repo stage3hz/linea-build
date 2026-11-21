@@ -75,6 +75,12 @@ class RootScreen(context: Context, private val messenger: Messenger?, private va
     show("chats")
     // People: the requests to be friends of this account (people/PeopleServer.kt).
     FriendRequests.start(messenger)
+    // Avatars / Profile / Platina: the motion policy, the chat list's plates and still frames, the account's Platina
+    // (confetti on a grant) and the friends' birthday reminders (avatars/, platina/PlatinaState.kt, profile/Birthdays.kt).
+    com.linea.messenger.avatars.AvatarMotion.attach(context)
+    com.linea.messenger.avatars.ChatListDecor.install(context)
+    com.linea.messenger.platina.PlatinaState.start(messenger, this)
+    com.linea.messenger.profile.BirthdayReminders.start(messenger, this)
     // Music: the bar is lit by the playing track's cover (music/CoverTint.kt).
     MusicGlow.attach(this)
     // Channels: what is unread in the communities of this account (channels/ChannelsStore.kt).

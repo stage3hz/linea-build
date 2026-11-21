@@ -184,7 +184,7 @@ class PersonProfileScreen(
         refresh()
       }
     } else if (PeopleDemo.present) {
-      person = PeopleDemo.named(name)
+      if (person == null) person = PeopleDemo.named(name) // Profile: a sample person handed over keeps its decorations
       isFriend = PeopleDemo.friends.any { it.displayName == name }
       if (PeopleDemo.incoming.any { it.displayName == name }) request = "incoming"
       if (PeopleDemo.outgoing.any { it.displayName == name }) request = "outgoing"
@@ -264,6 +264,15 @@ class PersonProfileScreen(
     }
     return super.dispatchTouchEvent(event)
   }
+
+  /** Profile, for the emulator check: the shared media (a tab by name, or the first) scrolled into view. */
+  fun emulatorShared(tab: String) {
+    com.linea.messenger.profile.SharedMediaView.Tab.values().firstOrNull { it.name.equals(tab, ignoreCase = true) }?.let { sharedMedia.select(it) }
+    post { scroll.scrollTo(0, maxOf(0, sharedMedia.top - dp(120f))) }
+  }
+
+  /** Profile, for the emulator check: «Ещё» opened. */
+  fun emulatorMore() = showMore(more)
 
   private fun avatarTapped() {
     if (postsBlock.openStoriesIfAny()) return

@@ -36,8 +36,8 @@ import com.linea.messenger.design.words
  *  the ones this device has already decrypted; nothing is asked of the server for the card
  *  (native/ios/Sources/ChatsPlus/ChatPeekMenu.swift). */
 class ChatPeekMenu(
-  context: Context, private val anchorY: Float, name: String, username: String, initials: String, avatarColor: Int,
-  lines: List<Line>, private val choices: List<ChoiceSheet.Choice>,
+  context: Context, private val anchorY: Float, val name: String, username: String, initials: String, avatarColor: Int,
+  lines: List<Line>, val choices: List<ChoiceSheet.Choice>,
 ) : Dialog(context, android.R.style.Theme_Translucent_NoTitleBar) {
   class Line(val text: String, val mine: Boolean)
 

@@ -94,7 +94,6 @@ class ChatListEdit(private val context: Context, private val messenger: Messenge
     val x = if (selecting) width - dp(20f) - side else searchLeft - dp(8f) - side
     put(button, x, safeTop + dp(8f), side, dp(40f))
     put(bar, dp(16f), height - maxOf(safeBottom, dp(12f)) - dp(6f) - dp(BAR_HEIGHT), width - dp(32f), dp(BAR_HEIGHT))
-    bar.bringToFront()
   }
 
   /** The room the list keeps at its bottom while choosing (the bar and its margins), px. */

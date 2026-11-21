@@ -90,7 +90,14 @@ class TitleSpan : MetricAffectingSpan() {
 fun titleWords(text: String): CharSequence = SpannableString(text).apply { setSpan(TitleSpan(), 0, length, Spanned.SPAN_EXCLUSIVE_EXCLUSIVE) }
 
 /** A TextView set as a title: Unbounded ExtraBold at `size` sp with the reference's −0.2 letter spacing. */
-fun TextView.titled(size: Float): TextView {
+fun TextView.titled(size: Float): TextView = Titles.title(this, size)
+
+/** The same as a plain call, for a file that sets one title without importing the extension. */
+object Titles {
+  fun title(view: TextView, size: Float): TextView = view.titledNow(size)
+}
+
+private fun TextView.titledNow(size: Float): TextView {
   typeface = Fonts.title
   textSize = size
   letterSpacing = Theme.titleKern / size

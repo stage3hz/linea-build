@@ -131,6 +131,32 @@ shot 301-search-people --ez demo true --es chatsearch мар
 shot 302-saved-composer --ez demo true --es chatsdemo saved
 shot 303-mute-sheet-custom-row --ez demo true --es chatlist mute
 
+# Avatars / Profile / Platina: frames, art, Platina's marks, profiles, gifts, the showcase and the studio, the mini
+# profile, the photo viewer, the cropper, the pickers (avatars/, profile/, platina/), the same numbers as the iOS check.
+shot 100-avatar-rings --es profiledemo rings
+shot 101-avatar-code-frames --es profiledemo code
+shot 102-avatar-art --es profiledemo art
+shot 103-avatar-list-sizes --es profiledemo list
+shot 104-platina-marks --es profiledemo marks
+shot 105-fonts --es profiledemo fonts
+shot 106-profile-platina --es profiledemo person
+shot 107-profile-birthday --es profiledemo birthday
+shot 108-own-profile --es profiledemo own
+shot 109-gifts --es profiledemo gifts
+shot 110-platina-showcase --es profiledemo showcase
+shot 111-platina-studio --es profiledemo studio
+shot 112-platina-confetti --es profiledemo confetti
+shot 113-settings-offer --es profiledemo offer
+shot 114-settings-head --ez demo true --es tab profile --ez profilelook true
+shot 115-mini-profile --es profiledemo mini
+shot 116-mini-profile-chat --es profiledemo mini-chat
+shot 117-profile-media --es profiledemo media
+shot 118-avatar-cropper --es profiledemo cropper
+shot 119-banner-preview --es profiledemo banner
+shot 120-profile-pattern --es profiledemo pattern
+shot 121-status-picker --es profiledemo status
+shot 122-gift-sheet --es profiledemo giftsheet
+
 # What the app itself said while it ran (crashes show here).
 adb logcat -d -t 400 '*:E' > "$OUT/logcat-errors.txt" 2>/dev/null || true
 adb shell dumpsys package "$APP" | grep -E "versionName|primaryCpuAbi" || true

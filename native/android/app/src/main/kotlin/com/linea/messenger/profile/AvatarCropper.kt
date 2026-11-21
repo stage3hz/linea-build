@@ -47,7 +47,12 @@ object AvatarCrop {
     return tx.coerceIn(-mx, mx) to ty.coerceIn(-my, my)
   }
 
-  fun rect(width: Float, height: Float, viewport: Float, zoom: Float, tx: Float, ty: Float): Rect {
+  /** The square under the circle: its left, top and side, in source pixels. */
+  data class Square(val left: Int, val top: Int, val side: Int) {
+    fun rect(): Rect = Rect(left, top, left + side, top + side)
+  }
+
+  fun rect(width: Float, height: Float, viewport: Float, zoom: Float, tx: Float, ty: Float): Square {
     val z = zoom.coerceIn(1f, MAX_ZOOM)
     val (ox, oy) = clamp(width, height, viewport, z, tx, ty)
     val s = coverScale(width, height, viewport) * z
@@ -56,7 +61,7 @@ object AvatarCrop {
     val x = (width / 2 - ox / s - side / 2).coerceIn(0f, width - side)
     val y = (height / 2 - oy / s - side / 2).coerceIn(0f, height - side)
     val left = Math.round(x); val top = Math.round(y); val edge = floor(side).toInt()
-    return Rect(left, top, left + edge, top + edge)
+    return Square(left, top, edge)
   }
 }
 
@@ -123,7 +128,7 @@ class AvatarCropper(context: Context, private val picture: Bitmap) : Dialog(cont
   private val touch: View.OnTouchListener by lazy { View.OnTouchListener { _, event -> scale.onTouchEvent(event); gestures.onTouchEvent(event); true } }
 
   private fun finish() {
-    val crop = AvatarCrop.rect(w, h, viewport, zoom, tx, ty)
+    val crop = AvatarCrop.rect(w, h, viewport, zoom, tx, ty).rect()
     val done = onDone
     dismiss()
     done?.invoke(crop)

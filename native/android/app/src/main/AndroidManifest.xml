@@ -59,6 +59,11 @@
             android:grantUriPermissions="true" />
         <!-- Music: keeps the playback, its notification and its lock-screen controls while the app is not on the
              screen. Not exported: only the app itself starts it. -->
+        <!-- Profile: shows a friend's birthday reminder when the system's alarm clock rings for it (profile/Birthdays.kt).
+             Not exported: only the app's own alarms reach it. The alarms are inexact: no extra permission. -->
+        <receiver
+            android:name=".profile.BirthdayReceiver"
+            android:exported="false" />
         <service
             android:name=".music.MusicService"
             android:exported="false"

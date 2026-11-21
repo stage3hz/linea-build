@@ -75,7 +75,7 @@ class MiniProfile(
     build(width)
     setContentView(root, ViewGroup.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.MATCH_PARENT))
     window?.apply { setBackgroundDrawable(ColorDrawable(Color.TRANSPARENT)); setLayout(WindowManager.LayoutParams.MATCH_PARENT, WindowManager.LayoutParams.MATCH_PARENT) }
-    card.setOnTouchListener(pull)
+    card.post { card.setOnTouchListener(pull) }
     if (quick != null && messenger != null) {
       messenger.personProfile(person.id) { result ->
         val profile = result.getOrNull()

@@ -103,6 +103,7 @@ class ChatListPlus(private val context: Context, private val messenger: Messenge
     statusSpinner.visibility = View.GONE
     host.addView(statusSpinner)
     statusWords.visibility = View.GONE
+    statusWords.gravity = android.view.Gravity.CENTER_VERTICAL
     statusWords.isFocusable = true
     host.addView(statusWords)
     skeleton.setBackgroundColor(Theme.bg)
@@ -169,7 +170,6 @@ class ChatListPlus(private val context: Context, private val messenger: Messenge
     subtitle.visibility = if (searching || statusWords.visibility == View.VISIBLE) View.GONE else View.VISIBLE
     put(statusSpinner, dp(20f), safeTop + dp(18f), dp(20f), dp(21f))
     put(statusWords, dp(46f), safeTop + dp(8f), width - dp(40f + 100f + 26f), dp(41f))
-    statusWords.gravity = android.view.Gravity.CENTER_VERTICAL
     var top = listTop + if (searching) 0 else dp(10f)
     val showTabs = folders.folders.isNotEmpty() && actions?.showingArchive != true && !searching
     tabs.visibility = if (showTabs) View.VISIBLE else View.GONE

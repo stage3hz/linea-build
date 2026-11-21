@@ -236,7 +236,9 @@ class PlatinaStudioView(context: Context, private val messenger: Messenger?, pri
 
   // Frames
 
-  private val gridTabs = listOf("Анимация") + AvatarCatalog.decorationCollections + listOf("Кольца")
+  companion object {
+    private val gridTabs = listOf("Анимация") + AvatarCatalog.decorationCollections + listOf("Кольца")
+  }
 
   /** Tabs and an even three-column grid; the chosen tile wears a check mark and plays its motion. */
   private fun frameGrid(look: PersonLook): View {

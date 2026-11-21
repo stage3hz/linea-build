@@ -74,7 +74,8 @@ object UpdateGate {
   private var window: ViewGroup? = null
   private var screen: UpdateScreen? = null
   private var leftAt: Long? = null
-  private val main = Handler(Looper.getMainLooper())
+  private val main by lazy { Handler(Looper.getMainLooper()) }
+  private var clockOn = false
   private val clock = object : Runnable {
     override fun run() { recheckDeadline(); screen?.refresh(); main.postDelayed(this, 30_000) }
   }
@@ -88,9 +89,9 @@ object UpdateGate {
   fun start(messenger: Messenger?, host: View) {
     window = host.rootView.findViewById(android.R.id.content) ?: host.rootView as? ViewGroup
     appVersion = try { host.context.packageManager.getPackageInfo(host.context.packageName, 0).versionName ?: "0.0.0" } catch (_: Exception) { "0.0.0" }
-    main.removeCallbacks(clock)
-    main.postDelayed(clock, 30_000)
     ShellDemo.update?.let { demo ->
+      // A fresh look for the check: nothing of an earlier launch stays.
+      mandatory = false; available = false; dismissed = false; screen = null
       val now = System.currentTimeMillis()
       info = Info("9.0.0", if (demo == "required") "9.0.0" else null, "https://github.com/stage3hz/linea-build/releases",
         Asset(GITHUB_PREFIX + "v9.0.0/INVIZENT-9.0.0.apk", "0".repeat(64), 58_000_000), now - 2 * 3_600_000, now + (2 * 86_400_000 + 14 * 3_600_000 + 5 * 60_000), 0)
@@ -173,6 +174,8 @@ object UpdateGate {
 
   private fun publish(kept: Boolean) {
     val info = info ?: return
+    // The deadline is checked every 30 s from the first answer on.
+    if (!clockOn) { clockOn = true; main.postDelayed(clock, 30_000) }
     val decided = decide(info, appVersion, System.currentTimeMillis())
     // A 426 already heard stays mandatory.
     mandatory = mandatory || decided.first
