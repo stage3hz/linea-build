@@ -26,8 +26,9 @@ jobs:
         run: |
           # Written into this checkout only; never printed, never committed.
           if printf '%s' "$ATTEST_KEY" | grep -Eq '^[A-Za-z0-9+/=_-]{16,200}$'; then
-            printf 'let attestKey = "%s"\n' "$ATTEST_KEY" > native/ios/Sources/Net/AttestKey.swift; echo "signing key: set"
-          else echo "signing key: none"; fi
+            printf 'let attestKey = "%s"\n' "$ATTEST_KEY" > native/ios/Sources/Net/AttestKey.swift; echo "set" > "$RUNNER_TEMP/attest.txt"
+          else echo "none" > "$RUNNER_TEMP/attest.txt"; fi
+          echo "signing key: $(cat "$RUNNER_TEMP/attest.txt")"
       - name: Build
         id: work
         continue-on-error: true
@@ -55,6 +56,7 @@ jobs:
           {
             echo "commit $GITHUB_SHA"; xcodebuild -version | tr '\n' ' '; echo
             echo "== size"; ls -l "$OUT/INVIZENT-native-iOS-arm64-unsigned.ipa" | awk '{print $5" bytes"}'; shasum -a 256 "$OUT/INVIZENT-native-iOS-arm64-unsigned.ipa" | awk '{print "sha256 "$1}'
+            echo "== request-signing key: $(cat "$RUNNER_TEMP/attest.txt" 2>/dev/null || echo unknown)"
             echo "== identity"; for key in CFBundleIdentifier CFBundleShortVersionString CFBundleVersion MinimumOSVersion CFBundleDisplayName; do printf '%s: ' "$key"; /usr/libexec/PlistBuddy -c "Print :$key" "$A/Info.plist"; done
             echo "== executable"; file "$A/Invizent"; lipo -info "$A/Invizent"
             echo "== code signature (expected none)"; codesign -dv "$A" 2>&1 | head -3 || true
