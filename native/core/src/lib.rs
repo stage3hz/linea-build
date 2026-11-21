@@ -7,4 +7,5 @@
 //! `tests/generate-vectors.mjs`).
 
 pub mod attest;
+pub mod device_proof;
 pub mod json;

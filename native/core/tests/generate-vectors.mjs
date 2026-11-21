@@ -4,6 +4,7 @@ import { writeFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import { dirname, join } from 'node:path';
 import { signRequest, verifyAttest } from '../../../server/src/attest.js';
+import { deviceMessage } from '../../../server/src/devicebind.js';
 
 const out = join(dirname(fileURLToPath(import.meta.url)), 'vectors');
 
@@ -36,3 +37,8 @@ writeFileSync(join(out, 'json.json'), JSON.stringify(jsonTexts.map(text => ({ te
 const numbers = [0, 1, -1, 0.5, 1/3, 2/3, 1e21, 1e20, 123456789, 1.5e-7, 1e-6, 1e-7, 255, 4294967296, 9007199254740991, 9007199254740992, 1.1, 2.2, 3.3, 100.5, 0.000123, 6.02214076e23, 1.602e-19, 1763660000123, 12.5, 99.99, 1e100];
 writeFileSync(join(out, 'numbers.json'), JSON.stringify(numbers.map(n => ({ bits: Buffer.from(new Float64Array([n]).buffer).reverse().toString('hex'), text: String(n) })), null, 1) + '\n');
 console.log('json.json', jsonTexts.length, 'numbers.json', numbers.length);
+
+// What the device signs, as the server builds it.
+const messages = [['bind', 'session-1', 'c1'], ['proof', 'session-1', 'c2'], ['bind', '0f8fad5b-d9cb-469f-a165-70867728950e', 'Zm9vYmFyLV9hYmM'], ['proof', 'сессия', 'вызов ✓']];
+writeFileSync(join(out, 'device-message.json'), JSON.stringify(messages.map(([purpose, sessionId, challenge]) => ({ purpose, sessionId, challenge, message: deviceMessage(purpose, sessionId, challenge).toString('utf8') })), null, 1) + '\n');
+console.log('device-message.json', messages.length);

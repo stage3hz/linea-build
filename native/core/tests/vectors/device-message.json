@@ -1,0 +1,26 @@
+[
+ {
+  "purpose": "bind",
+  "sessionId": "session-1",
+  "challenge": "c1",
+  "message": "invizent-device-bind-v1\nsession-1\nc1"
+ },
+ {
+  "purpose": "proof",
+  "sessionId": "session-1",
+  "challenge": "c2",
+  "message": "invizent-device-proof-v1\nsession-1\nc2"
+ },
+ {
+  "purpose": "bind",
+  "sessionId": "0f8fad5b-d9cb-469f-a165-70867728950e",
+  "challenge": "Zm9vYmFyLV9hYmM",
+  "message": "invizent-device-bind-v1\n0f8fad5b-d9cb-469f-a165-70867728950e\nZm9vYmFyLV9hYmM"
+ },
+ {
+  "purpose": "proof",
+  "sessionId": "сессия",
+  "challenge": "вызов ✓",
+  "message": "invizent-device-proof-v1\nсессия\nвызов ✓"
+ }
+]
