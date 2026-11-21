@@ -465,3 +465,17 @@ pub unsafe extern "system" fn Java_com_linea_messenger_video_ChunkCore_fileOpenC
     let words = invizent_file_open_chunk(cipher.as_ptr(), cipher.len(), attachment.as_ptr(), index, &mut out);
     file_answer(env, words, out)
 }
+
+// ── Cards of links ───────────────────────────────────────────────────────────────────────────────────────────
+//
+// The function of `object LinkCore` (Kotlin, `com.linea.messenger.linkpreview`).
+
+/// `LinkCore.linkCall(name: String, argsJson: String): String?` — see `invizent_link_call`.
+///
+/// # Safety
+/// Called by the JVM with its own environment pointer and strings of its own (or null).
+#[no_mangle]
+pub unsafe extern "system" fn Java_com_linea_messenger_linkpreview_LinkCore_linkCall(env: *mut JNIEnv, _class: jclass, name: jstring, args_json: jstring) -> jstring {
+    let (Some(name), Some(args)) = (c_text(env, name), c_text(env, args_json)) else { return std::ptr::null_mut() };
+    give(env, crate::ffi::invizent_link_call(name.as_ptr(), args.as_ptr()))
+}
