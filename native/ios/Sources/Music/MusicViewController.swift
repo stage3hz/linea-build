@@ -532,7 +532,11 @@ final class MusicViewController: UIViewController, UITableViewDataSource, UITabl
             $0.widthAnchor.constraint(equalToConstant: 40).isActive = true
             $0.heightAnchor.constraint(equalToConstant: 40).isActive = true
         }
-        [AIKit.label("Музыка", size: 34, weight: .bold, lines: 1), addButton, info].forEach { titleRow.addArrangedSubview($0) }
+        // TITLE: Unbounded 26, line 32, as the reference's section titles.
+        let heading = UILabel()
+        heading.attributedText = Theme.titleWords("Музыка", size: Theme.TypeSize.sectionTitle, color: Theme.text, lineHeight: Theme.TypeSize.sectionTitleLine)
+        heading.accessibilityTraits = .header
+        [heading, addButton, info].forEach { titleRow.addArrangedSubview($0) }
         column.addArrangedSubview(titleRow)
 
         tabs.selectedSegmentIndex = 0
