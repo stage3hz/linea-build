@@ -59,6 +59,8 @@ final class AttachmentLoad {
     private var transfer: FileTransfer?
     private var cancelled = false
     private var shownPercent = -1
+    /// Which start is the current one: what an earlier start still reports (progress, the result) is dropped.
+    private var run = 0
     /// «1.2 МБ из 3.4 МБ», on the main queue.
     var onProgress: ((String) -> Void)?
 
@@ -71,6 +73,9 @@ final class AttachmentLoad {
     func start(done: @escaping (Result<Data, FileCore.Failure>) -> Void) {
         guard let id = attachment["id"] as? String else { return done(.failure(FileCore.Failure(words: "Не удалось загрузить зашифрованный файл."))) }
         cancelled = false
+        run += 1
+        let current = run
+        self.transfer?.cancel()
         let transfer = FileTransfer()
         self.transfer = transfer
         let size = max(0, cipherSize - 16)
@@ -79,7 +84,7 @@ final class AttachmentLoad {
         transfer.onProgress = { [weak self] (got: Int, all: Int) -> Void in
             let percent = all > 0 ? got * 100 / all : 0
             DispatchQueue.main.async {
-                guard let self, !self.cancelled, percent != self.shownPercent else { return }
+                guard let self, !self.cancelled, self.run == current, percent != self.shownPercent else { return }
                 self.shownPercent = percent
                 self.onProgress?(FileCore.sizeText(size * percent / 100) + " из " + whole)
             }
@@ -94,7 +99,7 @@ final class AttachmentLoad {
             case .failure(.cancelled): result = .failure(FileCore.Failure(words: "Загрузка отменена."))
             }
             DispatchQueue.main.async {
-                guard let self, !self.cancelled else { return }
+                guard let self, !self.cancelled, self.run == current else { return }
                 done(result)
             }
         }

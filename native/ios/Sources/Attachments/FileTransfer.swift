@@ -25,6 +25,8 @@ final class FileTransfer: NSObject, URLSessionDataDelegate {
     private let lock = NSLock()
     private var task: URLSessionTask?
     private var stopped = false
+    /// The transfer that repeats this one's request (an upload sent again with a fresh proof): stopped with it.
+    private var follower: FileTransfer?
     private var received = Data()
     private var status = 0
     private var limit = 0
@@ -39,8 +41,20 @@ final class FileTransfer: NSObject, URLSessionDataDelegate {
         lock.lock()
         stopped = true
         let running = task
+        let next = follower
         lock.unlock()
         running?.cancel()
+        next?.cancel()
+    }
+
+    /// Hands the request over to `other`, which repeats it: from now on `cancel()` stops that one too.
+    /// False when this transfer was already stopped — the repeat must not start.
+    func handOver(to other: FileTransfer) -> Bool {
+        lock.lock()
+        defer { lock.unlock() }
+        if stopped { return false }
+        follower = other
+        return true
     }
 
     private var isStopped: Bool {
@@ -175,8 +189,13 @@ extension Server {
                 if case .refused(_, let status, _, _) = error, status != 401 { stops = false }
                 if stops { return .failure(.words(error.words)) }
             }
-            let fresh = attempt == 0 ? transfer : FileTransfer()
-            fresh.onProgress = transfer.onProgress
+            var fresh = transfer
+            if attempt > 0 {
+                // A transfer runs once; the repeat is a new one, and stopping the first must stop it as well.
+                fresh = FileTransfer()
+                fresh.onProgress = transfer.onProgress
+                if !transfer.handOver(to: fresh) { return .failure(.cancelled) }
+            }
             let result = fresh.upload(self, sealed: sealed)
             if case .failure(.proof) = result, attempt == 0 { continue }
             if case .failure(.proof) = result { return .failure(.words("Не удалось подтвердить устройство. Попробуй ещё раз.")) }

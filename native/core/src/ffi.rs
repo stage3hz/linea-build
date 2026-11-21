@@ -402,6 +402,11 @@ pub unsafe extern "C" fn invizent_proof_call(proof: *mut InvizentProof, input: *
 /// - `replyPreview [message]` → the short line quoted in an answer.
 /// - `nativeText [text, entities|null]` → `{text, fmt, urls}`: a message's text with its formatting as runs
 ///   `[flags, offset, length]` in UTF-16 units and one address per run with the link flag (`format`).
+/// - `editWindowOpen [createdAt, nowMs]` → whether a message sent then may still be edited (48 hours).
+/// - `actionFallback [action, targetText]` → the readable text stored with an action (an edit, a reaction, a pin…);
+///   null for an action of an unknown kind.
+/// - `listPreviewMessage [messages]` → the message the chat list shows for them (quiet actions and deleted ones
+///   skipped, the latest edit applied, spoilers hidden); null when there is none.
 ///
 /// # Safety
 /// `name` and `args` are NUL-terminated strings that stay valid for the call (or null).
@@ -421,6 +426,9 @@ pub unsafe extern "C" fn invizent_view(name: *const c_char, args: *const c_char)
             ("replyPreview", [message]) => text(chat_view::reply_preview(message)),
             // A null answer: the formatting is malformed in a way the reference itself stops on — show the text plain.
             ("nativeText", [Value::String(body), entities]) => crate::format::native_text(body, if matches!(entities, Value::Null) { None } else { Some(entities) }),
+            ("editWindowOpen", [Value::String(created), Value::Number(now)]) => Value::Bool(chat_view::edit_window_open(&created.to_string_lossy(), *now)),
+            ("actionFallback", [action, Value::String(target)]) => chat_view::action_fallback(action, target).map_or(Value::Null, text),
+            ("listPreviewMessage", [Value::Array(list)]) => chat_view::list_preview_message(list).unwrap_or(Value::Null),
             _ => return None,
         };
         Some(json::stringify(&out))
