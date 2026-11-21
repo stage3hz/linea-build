@@ -28,6 +28,9 @@ shot() { # name, launch arguments…
   adb exec-out screencap -p > "$OUT/$name.png"
   # A PNG of a real screen is far bigger than this; an empty file means the screen was not read.
   [ "$(wc -c < "$OUT/$name.png")" -gt 2000 ] || { echo "No picture for $name" >&2; exit 1; }
+  # What crashed during this launch, if anything, under the shot's name.
+  { echo "== $name"; adb logcat -d -b crash 2>/dev/null | tail -60; } >> "$OUT/crashes.txt" || true
+  adb logcat -b crash -c 2>/dev/null || true
   echo "shot $name"
 }
 # The shell with sample chats (`demo`), then the first thing a person without an account sees.

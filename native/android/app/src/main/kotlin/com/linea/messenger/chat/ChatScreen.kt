@@ -73,7 +73,7 @@ class ChatScreen(
     page.addView(list, FrameLayout.LayoutParams(FrameLayout.LayoutParams.MATCH_PARENT, FrameLayout.LayoutParams.MATCH_PARENT))
     addView(page)
 
-    header.setBackgroundColor(Theme.alpha(Theme.bg, 0.92f))
+    header.setBackgroundColor(Theme.bg)
     addView(header)
     back.contentDescription = "Назад"
     back.setOnClickListener { leave() }
