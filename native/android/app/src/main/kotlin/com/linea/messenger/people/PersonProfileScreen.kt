@@ -373,9 +373,10 @@ class PersonProfileScreen(
       for (item in top) menu.menu.add(0, 0, 0, item.title).setOnMenuItemClickListener { item.run(); true }
       menu.menu.add(1, 0, 1, clear.title).setOnMenuItemClickListener { clear.run(); true }
     }
-    if (blocked) menu.menu.add("Разблокировать").setOnMenuItemClickListener { setBlocked(false); true }
-    else menu.menu.add("Заблокировать").setOnMenuItemClickListener { confirmBlock(); true }
-    menu.menu.add("Пожаловаться").setOnMenuItemClickListener { report(); true }
+    if (blocked) menu.menu.add(1, 0, 2, "Разблокировать").setOnMenuItemClickListener { setBlocked(false); true }
+    else menu.menu.add(1, 0, 2, "Заблокировать").setOnMenuItemClickListener { confirmBlock(); true }
+    menu.menu.add(1, 0, 3, "Пожаловаться").setOnMenuItemClickListener { report(); true }
+    if (android.os.Build.VERSION.SDK_INT >= 28 && chatLink != null) menu.menu.setGroupDividerEnabled(true)
     menu.show()
   }
 
