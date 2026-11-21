@@ -228,6 +228,22 @@ jobs:
           shot 152-people-calls -demo 1 -tab people -chatsdemo calls
           shot 153-bar-hint -demo 1 -chatsdemo hint
           shot 154-chats-unread-badge -demo 1
+          shot 240-snow-chats -demo 1 -effects 1
+          shot 241-snow-settings -demo 1 -effects 1 -settings root
+          shot 242-snow-melted -demo 1 -effects 1 -snowheat 0.9
+          shot 243-appearance-effects -demo 1 -settings appearance
+          shot 244-power-settings -demo 1 -settings power
+          shot 245-language-page -demo 1 -settings language
+          shot 246-language-english -demo 1 -setlanguage en -settings root
+          shot 247-language-back-ru -demo 1 -setlanguage ru -settings root
+          shot 248-passcode-off -demo 1 -settings passcode
+          shot 249-lock-digits -demo 1 -lockdemo digits
+          shot 250-lock-wrong -demo 1 -lockdemo wrong
+          shot 251-lock-password -demo 1 -lockdemo password
+          shot 252-notices-chats -demo 1 -noticedemo both
+          shot 253-new-login-sheet -demo 1 -noticedemo loginsheet
+          shot 254-recovery-sheet -demo 1 -noticedemo recoverysheet
+          shot 255-trust-sheet -demo 1 -trustdemo 1
           shot 62-bar-with-track -musicdemo chats
           shot 63-light-chats -demo 1 -settheme light
           shot 64-light-chat -demo 1 -chat 1 -settheme light
