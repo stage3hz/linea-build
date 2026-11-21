@@ -46,14 +46,32 @@ enum PeopleSimulator {
         if let query, let page = root.peoplePage() { page.simulatorSearch(query) }
         if profile == "friend" { root.peoplePage()?.simulatorOpenFirstProfile() }
         if profile == "chat" {
-            root.openFirstChat()
-            // Without an account there is no list to open the first chat of: the sample chat.
-            if !(stack.topViewController is ChatViewController) && args.bool(forKey: "demo") {
-                stack.pushViewController(ChatViewController(name: "Алиса Воронцова"), animated: false)
+            if args.bool(forKey: "demo") {
+                // Without an account there is no list to open the first chat of: the sample chat.
+                if !(stack.topViewController is ChatViewController) { stack.pushViewController(ChatViewController(name: "Алиса Воронцова"), animated: false) }
+                DispatchQueue.main.asyncAfter(deadline: .now() + 1.5) {
+                    (stack.topViewController as? ChatViewController)?.openProfile()
+                }
+            } else {
+                // With an account the list of chats comes from the server: the first chat is opened once it is there.
+                openFirstChat(stack: stack, root: root, tries: 20) { (chat: ChatViewController) -> Void in
+                    DispatchQueue.main.asyncAfter(deadline: .now() + 1.5) { chat.openProfile() }
+                }
             }
-            DispatchQueue.main.asyncAfter(deadline: .now() + 1.5) {
-                (stack.topViewController as? ChatViewController)?.openProfile()
-            }
+        }
+    }
+
+    /// Opens the first chat of the list as soon as the list has one (asked once a second, `tries` times), then
+    /// hands the chat's screen over.
+    static func openFirstChat(stack: NavigationController, root: RootViewController, tries: Int, then: @escaping (ChatViewController) -> Void) {
+        if let chat = stack.topViewController as? ChatViewController { return then(chat) }
+        root.loadViewIfNeeded()
+        root.show("chats")
+        root.openFirstChat()
+        if let chat = stack.topViewController as? ChatViewController { return then(chat) }
+        guard tries > 0 else { return }
+        DispatchQueue.main.asyncAfter(deadline: .now() + 1) {
+            openFirstChat(stack: stack, root: root, tries: tries - 1, then: then)
         }
     }
 }
