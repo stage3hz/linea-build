@@ -18,7 +18,10 @@ import UIKit
 //   PlatinaNameLabel   — a name in moving platinum when the person has Platina (Avatars/PlatinaMark.swift)
 //   PlatinaSealView    — the «PLATINA» seal; a tap opens the showcase (PlatinaShowcase.open(from:owner:))
 //   PlatinaGemView     — the small platinum diamond for list rows
-//   StatusEmojiView    — the emoji status next to a name, or the diamond for Platina without one (StatusEmoji.swift)
+//   StatusEmojiView    — the emoji status next to a name, or the diamond for Platina without one (StatusEmoji.swift);
+//                        `animated: true` in profiles and the chat header
+//   AnimatedEmojiView  — one emoji moving as on the reference's iPhone: the Apple glyph popping in, then breathing
+//                        (AnimatedEmoji.swift); BigEmojiPop — big emoji of messages pop in once (BigEmojiPop.swift)
 //   NameplateView      — the picture behind a row (Avatars/Nameplates.swift)
 //   ChatListDecor.fields(look, name:) — the chat list's row keys (`ring`, `deco`, `decoScale`, `plate`, `metal`,
 //                        `nameLen`) for ChatRow.parse, and ChatListDecor.install() bakes the plates and the still

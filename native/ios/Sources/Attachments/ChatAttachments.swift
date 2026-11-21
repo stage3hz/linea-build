@@ -6,8 +6,8 @@ import UniformTypeIdentifiers
 /// Attachments of one chat: the paperclip in the composer, choosing a photo or a file, getting it ready, sealing
 /// and uploading it, sending the message — and opening the attachments of the messages on screen.
 ///
-/// A photo comes from the system's picker, which runs outside the app and hands over only what was chosen, so no
-/// permission to the photo library is asked. Every picture is drawn anew before it leaves (`PhotoPrepare`):
+/// A photo comes from the paperclip's own panel (Sources/Attachments/AttachmentPanel.swift): the photo library is
+/// asked for only when the panel opens, and the system's picker stays as the way without that permission. Every picture is drawn anew before it leaves (`PhotoPrepare`):
 /// what is sent has no EXIF, no place, no camera data and not the original name. A file is sent as it is.
 /// The key of a file exists only in memory and inside the encrypted message.
 final class ChatAttachments: NSObject, PHPickerViewControllerDelegate, UIDocumentPickerDelegate {
@@ -99,14 +99,12 @@ final class ChatAttachments: NSObject, PHPickerViewControllerDelegate, UIDocumen
     @objc private func choose() {
         guard let host else { return }
         host.view.endEditing(true)
-        let sheet = UIAlertController(title: nil, message: nil, preferredStyle: .actionSheet)
-        sheet.addAction(UIAlertAction(title: "Галерея", style: .default, handler: { [weak self] _ in self?.pickPhotos() }))
-        if onVideo != nil { sheet.addAction(UIAlertAction(title: "Видео", style: .default, handler: { [weak self] _ in self?.onVideo?() })) }
-        sheet.addAction(UIAlertAction(title: "Файл", style: .default, handler: { [weak self] _ in self?.pickFiles() }))
-        if onPoll != nil { sheet.addAction(UIAlertAction(title: "Опрос", style: .default, handler: { [weak self] _ in self?.onPoll?() })) }
-        sheet.addAction(UIAlertAction(title: "Отмена", style: .cancel, handler: nil))
-        sheet.popoverPresentationController?.sourceView = button
-        host.present(sheet, animated: true)
+        // Composer: the reference's own panel — «Недавние» from the gallery, the camera, «Файл», «Опрос», «Аудио»
+        // (Sources/Attachments/AttachmentPanel.swift). The gallery is read only once the panel is open.
+        let panel = AttachmentPanelController(pollAvailable: onPoll != nil)
+        panel.onPoll = { [weak self] in self?.onPoll?() }
+        panel.onSend = { [weak self] (items: [AttachmentPanelController.Picked]) -> Void in self?.take(items) }
+        host.present(panel, animated: false)
     }
 
     private func pickPhotos() {
@@ -176,16 +174,72 @@ final class ChatAttachments: NSObject, PHPickerViewControllerDelegate, UIDocumen
             for url in urls { try? FileManager.default.removeItem(at: url) }
             return
         }
-        for url in urls {
-            if ChatAttachments.isVideo(url), let onVideoFile, onVideoFile(url) { continue }
-            let item = add(Pending(heading: "📎 " + url.lastPathComponent))
+        for url in urls { sendFile(url) }
+    }
+
+    /// A file copy in the app's own folder: prepared, sent, and the copy removed.
+    private func sendFile(_ url: URL) {
+        if ChatAttachments.isVideo(url), let onVideoFile, onVideoFile(url) { return }
+        let item = add(Pending(heading: "📎 " + url.lastPathComponent))
+        item.meta = takeReply?()
+        DispatchQueue.global(qos: .userInitiated).async { [weak self] in
+            guard let self else { return }
+            self.preparing.lock()
+            let prepared = self.file(at: url)
+            // The picker gave a copy of the file inside the app's own folder; it is not kept.
+            try? FileManager.default.removeItem(at: url)
+            self.preparing.unlock()
+            DispatchQueue.main.async { self.ready(item, prepared) }
+        }
+    }
+
+    /// Composer: what the panel added — the photos as one album (up to ten per album) in their order, each video
+    /// the way of «Видео» (written anew without its metadata), each file as it is.
+    private func take(_ items: [AttachmentPanelController.Picked]) {
+        guard messenger != nil else {
+            for item in items {
+                switch item {
+                case .video(let url), .file(let url): try? FileManager.default.removeItem(at: url)
+                case .photo: break
+                }
+            }
+            return
+        }
+        var photos: [(Data, String?)] = []
+        for item in items {
+            switch item {
+            case .photo(let data, let format):
+                photos.append((data, format))
+            case .video(let url):
+                if let onVideoFile, onVideoFile(url) { continue }
+                try? FileManager.default.removeItem(at: url)
+                let failed = add(Pending(heading: "🎬 Видео"))
+                fail(failed, "Видео пока нельзя отправить в этой версии приложения.")
+            case .file(let url):
+                sendFile(url)
+            }
+        }
+        let albums = AlbumRows.groups(photos.count)
+        for (index, photo) in photos.enumerated() {
+            let item = add(Pending(heading: "🖼 Фотография"))
             item.meta = takeReply?()
+            if index < albums.count, let album = albums[index] {
+                var meta = item.meta ?? [:]
+                meta["album"] = ["id": album.id, "index": album.index, "count": album.count]
+                item.meta = meta
+            }
+            let (bytes, format) = photo
             DispatchQueue.global(qos: .userInitiated).async { [weak self] in
                 guard let self else { return }
                 self.preparing.lock()
-                let prepared = self.file(at: url)
-                // The picker gave a copy of the file inside the app's own folder; it is not kept.
-                try? FileManager.default.removeItem(at: url)
+                let prepared: Result<Prepared, PhotoPrepare.Failure>
+                if let source = CGImageSourceCreateWithData(bytes as CFData, nil) {
+                    prepared = PhotoPrepare.prepare(source, fileSize: bytes.count, format: format).map { (photo: PhotoPrepare.Prepared) -> Prepared in
+                        Prepared(bytes: photo.bytes, name: photo.name, mimeType: photo.mimeType, media: ["width": photo.width, "height": photo.height, "hdr": "sdr"], preview: photo.preview)
+                    }
+                } else {
+                    prepared = .failure(PhotoPrepare.Failure(words: "Не удалось обработать фото. Файл не отправлен."))
+                }
                 self.preparing.unlock()
                 DispatchQueue.main.async { self.ready(item, prepared) }
             }
@@ -223,18 +277,19 @@ final class ChatAttachments: NSObject, PHPickerViewControllerDelegate, UIDocumen
             return
         }
         let editor = PhotoEditorController(image: picture)
-        editor.onDone = { [weak self] (edited: UIImage?) -> Void in
+        editor.onDone = { [weak self] (edited: PhotoEditorController.Output?) -> Void in
             guard let self else { return }
             let item = self.add(Pending(heading: "🖼 Фотография"))
             item.meta = self.takeReply?()
             DispatchQueue.global(qos: .userInitiated).async { [weak self] in
                 guard let self else { return }
                 var bytes = data
-                if let edited, let jpeg = edited.jpegData(compressionQuality: 0.95) { bytes = jpeg }
+                // Attachments: the edited bitmap goes as lossless PNG and is written in the editor's chosen format.
+                if let edited, let png = AttachmentPanelController.png(edited.image) { bytes = png }
                 self.preparing.lock()
                 let prepared: Result<Prepared, PhotoPrepare.Failure>
                 if let source = CGImageSourceCreateWithData(bytes as CFData, nil) {
-                    prepared = PhotoPrepare.prepare(source, fileSize: bytes.count).map { (photo: PhotoPrepare.Prepared) -> Prepared in
+                    prepared = PhotoPrepare.prepare(source, fileSize: bytes.count, format: edited?.format).map { (photo: PhotoPrepare.Prepared) -> Prepared in
                         Prepared(bytes: photo.bytes, name: photo.name, mimeType: photo.mimeType, media: ["width": photo.width, "height": photo.height, "hdr": "sdr"], preview: photo.preview)
                     }
                 } else {
@@ -480,6 +535,12 @@ final class ChatAttachments: NSObject, PHPickerViewControllerDelegate, UIDocumen
                 host.present(editor, animated: false)
                 editor.simulatorShow(tool)
             }
+            return
+        }
+        // Composer: -attachdemo panel|panellimited|paneldenied|panelselected opens the paperclip's panel with drawn tiles.
+        if !simulatorOpened, let demo = UserDefaults.standard.string(forKey: "attachdemo"), demo.hasPrefix("panel") {
+            simulatorOpened = true
+            DispatchQueue.main.asyncAfter(deadline: .now() + 1) { [weak self] in self?.choose() }
             return
         }
         guard !simulatorOpened, let wanted = UserDefaults.standard.string(forKey: "openattachment") else { return }

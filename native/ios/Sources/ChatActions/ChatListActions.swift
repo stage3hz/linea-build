@@ -766,7 +766,8 @@ final class ChatListActions: NSObject, UITextFieldDelegate {
             let fields: [String: Any] = ["id": row.id, "title": row.title, "preview": row.preview, "time": row.time, "unread": row.unread, "muted": row.muted, "pinned": row.pinned,
                                          "ticks": row.ticks, "avatarColor": row.avatarColor, "initials": row.initials, "orbA": row.orbA, "orbB": row.orbB, "section": row.section,
                                          "previewIcon": row.previewIcon]
-            let chat: [String: Any] = ["settings": settings, "unreadCount": row.unread, "sampleSection": part == "Закреплённые" ? "Сегодня" : part]
+            var chat: [String: Any] = ["settings": settings, "unreadCount": row.unread, "sampleSection": part == "Закреплённые" ? "Сегодня" : part]
+            if let peer = ChatListDecor.samplePeer(index, name: row.title) { chat["peer"] = peer } // Avatars: -chatlistdecor 1
             made.append(Messenger.ChatSummary(id: row.id, peerId: "demo-person-\(index)", title: row.title, peerLastRead: 0, row: fields, chat: chat, last: [:]))
         }
         show(made)

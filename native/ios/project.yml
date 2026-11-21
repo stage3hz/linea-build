@@ -47,10 +47,15 @@ targets:
         # Voice messages and round videos (Sources/Voice, Sources/Video): asked when the record button is first held.
         # Calls (Sources/Calls) use the same two: asked at the first call and at the first video call.
         NSMicrophoneUsageDescription: "Микрофон нужен для звонков и чтобы записывать голосовые и видеосообщения. Он включается только во время звонка и пока вы держите кнопку записи."
-        NSCameraUsageDescription: "Камера нужна для видеозвонков и чтобы записывать видеосообщения в кружке. Она включается только во время видеозвонка и пока открыта запись."
+        # Composer: also the camera tile of the paperclip's panel (a photo or a video straight from the chat).
+        NSCameraUsageDescription: "Камера нужна для видеозвонков, видеосообщений в кружке и снимков прямо из чата. Она включается только во время видеозвонка, пока открыта запись или съёмка."
         # Composer/Attachments: «Сохранить фото» / «Сохранить видео» of a message (Sources/Attachments/SaveMedia.swift) —
         # add-only: the app puts the chosen photo or video into the gallery and never sees what else is there.
         NSPhotoLibraryAddUsageDescription: "Чтобы сохранять фото и видео из чатов в галерею. Инвиз только добавляет выбранный снимок и не видит остальные фото."
+        # Composer: the paperclip's panel shows «Недавние» from the gallery (Sources/Attachments/AttachmentPanel.swift) —
+        # asked only when the panel is first opened; the limited-library choice is offered as the reference did.
+        NSPhotoLibraryUsageDescription: "Выберите фото и видео для вложения в сообщение."
+        PHPhotoLibraryPreventAutomaticLimitedAccessAlert: true
         # Security: «Код-пароль» — Face ID is asked only when the person turns «Разблокировка Face ID» on (Sources/Security).
         NSFaceIDUsageDescription: "Face ID открывает Инвиз без ввода код-пароля."
         # Links: invitations open the app (Sources/Links/DeepLinks.swift), as linea://invite/CODE did before.

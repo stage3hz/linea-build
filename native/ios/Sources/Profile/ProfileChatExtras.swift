@@ -30,11 +30,16 @@ final class ProfileChatLink {
         if let sampleMessages { return sampleMessages }
         #endif
         guard let shown = chat?.actions.history.shown else { return [] }
-        return shown.order.compactMap { (key: String) -> [String: Any]? in
-            guard var message = shown.messages[key] else { return nil }
-            message["rowKey"] = key
-            return message
+        var list: [[String: Any]] = []
+        for key in shown.order {
+            // An album's further photos are messages of their own, folded into the album's row.
+            for part in [key] + (shown.albumParts[key] ?? []) {
+                guard var message = shown.messages[part] else { continue }
+                message["rowKey"] = part
+                list.append(message)
+            }
         }
+        return list
     }
 
     /// The encrypted rules: «Автоудаление» (seconds, 0 = off) and «копирование запрещено».
@@ -76,8 +81,10 @@ final class ProfileChatLink {
         afterClosing(profile, delay: 0.35) { (chat: ChatViewController) -> Void in WallpaperPickerController.present(over: chat, chatId: chatId) }
     }
 
-    /// An attachment of the shared media: the profile closes and the chat opens it as a touch on its row would.
-    func openAttachment(key: String, from profile: UIViewController) {
+    /// An attachment of the shared media: the profile closes and the chat opens it as a touch on its row would
+    /// (the attachment is put where the chat looks for it first: an album's further photo has no row of its own).
+    func openAttachment(key: String, attachment: [String: Any], from profile: UIViewController) {
+        AttachmentStore.shared.remember(key, attachment)
         afterClosing(profile, delay: 0.25) { (chat: ChatViewController) -> Void in chat.actions.openAttachment(key: key) }
     }
 }
@@ -235,8 +242,9 @@ enum ProfileChatExtras {
                             image: UIImage(systemName: noCopy ? "lock.fill" : "lock.open")) { [weak link] (_: UIAction) -> Void in
             guard let link else { return }
             Haptic.light()
-            link.setRules(ttl: link.ttl, noCopy: !noCopy)
-            notice(ProfileChatExtras.noCopyNotice(wasNoCopy: noCopy))
+            let was = link.noCopy
+            link.setRules(ttl: link.ttl, noCopy: !was)
+            notice(ProfileChatExtras.noCopyNotice(wasNoCopy: was))
         })
         top.append(UIAction(title: "Обои", image: UIImage(systemName: "photo")) { [weak profile, weak link] (_: UIAction) -> Void in
             guard let profile, let link else { return }
@@ -329,8 +337,8 @@ final class SharedMediaView: UIView, UIGestureRecognizerDelegate {
         let message: [String: Any]
     }
 
-    /// A touch on a photo, a video, a file or a voice message: the message's row key.
-    var onOpen: ((String) -> Void)?
+    /// A touch on a photo, a video, a file or a voice message: the message's row key and its attachment.
+    var onOpen: ((String, [String: Any]) -> Void)?
 
     private let column = UIStackView()
     private let strip = UIScrollView()
@@ -556,7 +564,8 @@ final class SharedMediaView: UIView, UIGestureRecognizerDelegate {
             tile.isAccessibilityElement = true
             tile.accessibilityTraits = .button
             let key = item.message["rowKey"] as? String ?? ""
-            tile.addAction(UIAction { [weak self] (_: UIAction) -> Void in self?.onOpen?(key) }, for: .touchUpInside)
+            let attachment = item.attachment
+            tile.addAction(UIAction { [weak self] (_: UIAction) -> Void in self?.onOpen?(key, attachment) }, for: .touchUpInside)
             holder.addSubview(tile)
         }
         let height = rows == 0 ? 0 : CGFloat(rows) * cell + CGFloat(rows - 1) * 2
@@ -631,8 +640,9 @@ final class SharedMediaView: UIView, UIGestureRecognizerDelegate {
             let bytes = (item.attachment["size"] as? NSNumber)?.intValue ?? 0
             let when = Messenger.date(item.message["createdAt"] as? String).map { SharedMediaView.day.string(from: $0) } ?? ""
             let key = item.message["rowKey"] as? String ?? ""
+            let attachment = item.attachment
             stack.addArrangedSubview(row(icon: icon, title: title, titleColor: Theme.text, titleSize: 15, titleBold: true, subtitle: SharedMediaView.size(bytes) + " · " + when) { [weak self] in
-                self?.onOpen?(key)
+                self?.onOpen?(key, attachment)
             })
         }
         return stack
@@ -664,8 +674,10 @@ final class SharedMediaView: UIView, UIGestureRecognizerDelegate {
 
     private var activeIndex: Int { return max(0, tabs.firstIndex { $0.id == active } ?? 0) }
 
-    func gestureRecognizerShouldBegin(_ gestureRecognizer: UIGestureRecognizer) -> Bool {
-        guard gestureRecognizer === pan, tabs.count > 1 else { return false }
+    override func gestureRecognizerShouldBegin(_ gestureRecognizer: UIGestureRecognizer) -> Bool {
+        // UIView's own method and the pan's delegate at once: only the pan is decided here.
+        guard gestureRecognizer === pan else { return super.gestureRecognizerShouldBegin(gestureRecognizer) }
+        guard tabs.count > 1 else { return false }
         let move = pan.translation(in: self)
         let speed = pan.velocity(in: self)
         let dx = abs(move.x) > 0.5 ? move.x : speed.x

@@ -308,6 +308,18 @@ jobs:
           shot 320-music-ambient-light -musicdemo 1 -settheme light
           shot 321-music-ambient-graphite -musicdemo 1 -settheme graphite
           shot 322-community-glass-header -channelsdemo community
+          shot 340-chatlist-decor -demo 1 -chatlistdecor 1
+          shot 341-chatheader-codeframe -demo 1 -chat 1 -chatlook header -chatlookframe fx-neon
+          shot 342-chatheader-ring -demo 1 -chat 1 -chatlook header -chatlookframe aurora
+          shot 343-chatheader-peek-art -demo 1 -chat 1 -chatlook peek -chatlookframe deco-corona
+          shot 344-profile-chat -profiledemo chatprofile
+          shot 345-profile-chat-files -profiledemo chatprofile-files
+          shot 346-profile-chat-more -profiledemo chatprofile-more
+          shot 347-profile-chat-mute -profiledemo chatprofile-mute
+          shot 348-profile-chat-ttl -profiledemo chatprofile-ttl
+          shot 349-big-emoji -demo 1 -chat 1 -chatdemo emoji
+          shot 350-profile-status-animated -profiledemo person
+          shot 351-people-status -demo 1 -tab people
           shot 62-bar-with-track -musicdemo chats
           shot 63-light-chats -demo 1 -settheme light
           shot 64-light-chat -demo 1 -chat 1 -settheme light

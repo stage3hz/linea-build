@@ -60,4 +60,37 @@ enum ChatListDecor {
         }
         return made
     }
+
+    #if targetEnvironment(simulator)
+    /// -chatlistdecor 1: the sample list's first chats wear decorations (a code frame with a nameplate and Platina,
+    /// painted art, a colour ring with an emoji status, Platina's own ring, a birthday ring, another code frame).
+    static func samplePeer(_ index: Int, name: String) -> [String: Any]? {
+        guard UserDefaults.standard.string(forKey: "chatlistdecor") != nil, index < 6 else { return nil }
+        let clean = name.components(separatedBy: " 🔕").first ?? name
+        var peer: [String: Any] = ["id": "demo-person-\(index)", "displayName": clean, "username": "sample\(index)", "avatarColor": "#4F8CFF"]
+        let today = Calendar.current.dateComponents([.month, .day], from: Date())
+        switch index {
+        case 0:
+            peer["avatarFrame"] = "fx-neon"
+            peer["seal"] = "platina"
+            peer["nameplate"] = "crows"
+        case 1:
+            peer["avatarFrame"] = "deco-corona"
+        case 2:
+            peer["avatarFrame"] = "aurora"
+            peer["statusEmoji"] = "🌿"
+            peer["statusEmojiPermanent"] = true
+            peer["statusEmojiExpiresAt"] = NSNull()
+        case 3:
+            peer["seal"] = "platina"
+        case 4:
+            peer["birthday"] = String(format: "%02ld-%02ld", today.month ?? 1, today.day ?? 1)
+            peer["gender"] = "female"
+        default:
+            peer["avatarFrame"] = "fx-flame"
+            peer["nameplate"] = "sakura"
+        }
+        return peer
+    }
+    #endif
 }

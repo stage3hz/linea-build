@@ -121,9 +121,9 @@ final class PersonProfileViewController: UIViewController, UIScrollViewDelegate 
         postsBlock.attach(host: self, messenger: messenger, userId: userId, own: false, avatar: avatar)
         // Profile: «Фото · Видео · Файлы · Голосовые · Ссылки» of the chat (SharedMedia.tsx).
         content.addArrangedSubview(sharedMedia)
-        sharedMedia.onOpen = { [weak self] (key: String) -> Void in
+        sharedMedia.onOpen = { [weak self] (key: String, attachment: [String: Any]) -> Void in
             guard let self, let link = self.chatLink, !key.isEmpty else { return }
-            link.openAttachment(key: key, from: self)
+            link.openAttachment(key: key, attachment: attachment, from: self)
         }
 
         // Profile: the content scrolls under the floating back / «Ещё» row and dissolves there.
@@ -411,6 +411,8 @@ final class PersonProfileViewController: UIViewController, UIScrollViewDelegate 
         if let link = chatLink {
             let items = ProfileChatExtras.menuItems(link, profile: self, name: shownPerson.displayName.isEmpty ? name : shownPerson.displayName) { [weak self] (words: String) -> Void in
                 self?.say(notice: words)
+                // The rule is folded into the history a moment later: the items' words follow it then.
+                DispatchQueue.main.asyncAfter(deadline: .now() + 0.6) { [weak self] in self?.refresh() }
             }
             actions.append(contentsOf: items.top)
             tail.append(items.clear)

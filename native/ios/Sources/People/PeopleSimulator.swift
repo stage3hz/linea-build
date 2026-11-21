@@ -5,7 +5,11 @@ import UIKit
 /// Compiled for the simulator only: a build for a phone does not contain this file's contents.
 enum PeopleDemo {
     private static func person(_ index: Int, _ name: String, _ username: String, _ color: UInt32, _ bio: String = "", _ birthday: String = "") -> Person {
-        Person(id: "demo-person-\(index)", username: username, displayName: name, bio: bio, birthday: birthday, avatarColor: color, avatarId: "")
+        var made = Person(id: "demo-person-\(index)", username: username, displayName: name, bio: bio, birthday: birthday, avatarColor: color, avatarId: "")
+        // Avatars: two of them show what follows a name in the lists — an emoji status and the Platina gem.
+        if index == 1 { made.look = PersonLook(["statusEmoji": "🔥", "statusEmojiPermanent": true, "statusEmojiExpiresAt": NSNull()] as [String: Any]) }
+        if index == 3 { made.look = PersonLook(["seal": "platina"] as [String: Any]) }
+        return made
     }
 
     static let friends: [Person] = [
