@@ -173,7 +173,12 @@ final class ChatLookScreen: NSObject {
                             avatarColor: peer["avatarColor"] == nil ? 0x5E7BFF : avatarColor, avatarId: avatarId)
         // Avatars: the decorations of the same `user` (the gap of a ring is the page colour, as the reference's t.bg).
         let look = PersonLook(peer)
-        avatar.show(person, look: look, base: messenger?.server.endpoint ?? "", animated: true)
+        // Owner's rule: frames only in the chat list and profiles — the header avatar is plain (the video avatar stays).
+        var plain = look
+        plain.avatarFrame = ""
+        plain.seal = ""
+        plain.birthday = ""
+        avatar.show(person, look: plain, base: messenger?.server.endpoint ?? "", animated: true)
         emoji.show(look, size: 16, animated: true)
         let platina = peer["seal"] as? String == "platina"
         metal.isHidden = !platina
