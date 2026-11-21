@@ -120,6 +120,8 @@ dependencies {
     implementation(libs.okhttp)
     implementation(libs.sqlcipher)
     implementation(libs.androidx.sqlite)
+    // Calls: the media of a call (calls/CallMedia.kt is the only file that knows it).
+    implementation(libs.webrtc)
     testImplementation(libs.junit)
     testImplementation(libs.robolectric)
 }

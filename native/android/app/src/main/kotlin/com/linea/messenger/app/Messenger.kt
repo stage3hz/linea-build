@@ -79,6 +79,8 @@ class Messenger(context: Context, token: String, val user: Map<String, Any?>) {
 
   /** The account's window is gone: the line is closed, the encryption ends after the work it has, the storage closes. */
   fun close() {
+    // Calls: a call that is on ends with the account (the other side is told while the session still lives).
+    com.linea.messenger.calls.Calls.left(this)
     closed = true
     watchers.clear()
     live.sleep()
@@ -169,11 +171,13 @@ class Messenger(context: Context, token: String, val user: Map<String, Any?>) {
    *  - No answer: it stays in the list of unsent messages and goes out later with the very same ciphertext.
    *
    *  LinkPreview: `linkPreview` is the card of a link in the text (linkpreview/), or null; the core checks it and
-   *  carries it inside the ciphertext. */
-  fun deliver(crypto: CryptoService, chatId: String, peerId: String, clientId: String, text: Any?, attachment: Any?, meta: Any?, again: Boolean = true, linkPreview: Any? = null): Result<Unit> {
+   *  carries it inside the ciphertext.
+   *  Calls: `push` is what the server does about the notification ("call" rings, "missed", "none"); null — an
+   *  ordinary message. */
+  fun deliver(crypto: CryptoService, chatId: String, peerId: String, clientId: String, text: Any?, attachment: Any?, meta: Any?, again: Boolean = true, linkPreview: Any? = null, push: String? = null): Result<Unit> {
     val encrypted = crypto.callNow("encrypt", listOf(chatId, peerId, clientId, text, attachment, meta, null, linkPreview))
     if (encrypted.isFailure) return Result.failure(CryptoService.failure(encrypted) ?: CryptoFailure("Error", "Шифрование недоступно."))
-    val sent = server.opAndWait("sendEncrypted", listOf(chatId, clientId, encrypted.getOrNull()))
+    val sent = server.opAndWait("sendEncrypted", listOfNotNull<Any?>(chatId, clientId, encrypted.getOrNull() ?: emptyMap<String, Any?>(), push))
     if (sent.isSuccess) {
       crypto.callNow("delivered", listOf(chatId, clientId))
       return Result.success(Unit)
@@ -183,7 +187,7 @@ class Messenger(context: Context, token: String, val user: Map<String, Any?>) {
     when (afterRefusal(error.status, error.code)) {
       Refusal.AFRESH -> {
         crypto.callNow("forget", listOf(chatId, clientId))
-        if (again) return deliver(crypto, chatId, peerId, clientId, text, attachment, meta, again = false, linkPreview = linkPreview)
+        if (again) return deliver(crypto, chatId, peerId, clientId, text, attachment, meta, again = false, linkPreview = linkPreview, push = push)
       }
       Refusal.FORGET -> crypto.callNow("forget", listOf(chatId, clientId))
       Refusal.KEEP -> {}

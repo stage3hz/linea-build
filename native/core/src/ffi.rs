@@ -408,6 +408,7 @@ pub unsafe extern "C" fn invizent_proof_call(proof: *mut InvizentProof, input: *
 /// - `listPreviewMessage [messages]` → the message the chat list shows for them (quiet actions and deleted ones
 ///   skipped, the latest edit applied, spoilers hidden); null when there is none.
 /// - `call… […]` → the rules of one-to-one calls (see `calls::view` for the names).
+/// - `settings… […]` → the rules behind the settings pages (see `settings::view` for the names).
 ///
 /// # Safety
 /// `name` and `args` are NUL-terminated strings that stay valid for the call (or null).
@@ -430,6 +431,8 @@ pub unsafe extern "C" fn invizent_view(name: *const c_char, args: *const c_char)
             ("editWindowOpen", [Value::String(created), Value::Number(now)]) => Value::Bool(chat_view::edit_window_open(&created.to_string_lossy(), *now)),
             ("actionFallback", [action, Value::String(target)]) => chat_view::action_fallback(action, target).map_or(Value::Null, text),
             ("listPreviewMessage", [Value::Array(list)]) => chat_view::list_preview_message(list).unwrap_or(Value::Null),
+            // Settings (`settings.rs`): every name that starts with `settings`.
+            (name, args) if name.starts_with("settings") => crate::settings::view(name, args)?,
             // Calls (`calls.rs`): every name that starts with `call`.
             (name, args) => crate::calls::view(name, args)?,
         };

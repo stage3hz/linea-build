@@ -44,7 +44,17 @@ class Live(private val server: Server) {
   var presence: Map<String, Map<String, Any?>> = emptyMap()
     private set
 
+  // Calls (calls/): whether the line is up — "connecting", "connected" or "offline" — told as `callEvent`
+  // (`{"type": "line"}`) when it changes; and the hold a live call puts on the line: while it is held the line
+  // is not taken down when the app leaves the screen, and goes down once the call lets go of it.
+  var line = "offline"
+    private set(value) { if (field != value) { field = value; callEvent.post(mapOf("type" to "line")) } }
+  private var sleepWanted = false
+  var heldByCall = false
+    set(value) { val was = field; field = value; if (was && !value && sleepWanted) sleep() }
+
   fun start() {
+    sleepWanted = false
     stopped = false
     connect()
     main.removeCallbacks(beat)
@@ -52,11 +62,15 @@ class Live(private val server: Server) {
   }
 
   /** The app came to the front. */
-  fun wake() { if (stopped) start() }
+  fun wake() { sleepWanted = false; if (stopped) start() }
 
   /** The app left the screen (or the account is being closed): the line is taken down and not retried. */
   fun sleep() {
+    // Calls: a live call keeps the line open in the background (its signalling goes through it).
+    if (heldByCall) { sleepWanted = true; return }
+    sleepWanted = false
     stopped = true
+    line = "offline"
     main.removeCallbacks(beat)
     main.removeCallbacks(again)
     socket?.close(1001, null)
@@ -67,6 +81,7 @@ class Live(private val server: Server) {
     if (stopped || socket != null || !server.base.startsWith("https://")) return
     val request = try { Request.Builder().url("wss://" + server.base.removePrefix("https://") + "/ws").build() } catch (_: IllegalArgumentException) { return }
     lastReceive = SystemClock.elapsedRealtime()
+    line = "connecting"
     // The same client as every request: TLS with the system's certificate checks, no redirects.
     socket = Server.client.newWebSocket(request, Listener())
   }
@@ -94,9 +109,9 @@ class Live(private val server: Server) {
 
     override fun onClosing(webSocket: WebSocket, code: Int, reason: String) { webSocket.close(code, null) }
 
-    override fun onClosed(webSocket: WebSocket, code: Int, reason: String) = onMain(webSocket) { socket = null; retry() }
+    override fun onClosed(webSocket: WebSocket, code: Int, reason: String) = onMain(webSocket) { socket = null; line = "offline"; retry() }
 
-    override fun onFailure(webSocket: WebSocket, t: Throwable, response: Response?) = onMain(webSocket) { socket = null; retry() }
+    override fun onFailure(webSocket: WebSocket, t: Throwable, response: Response?) = onMain(webSocket) { socket = null; line = "offline"; retry() }
   }
 
   private fun retry() {
@@ -113,6 +128,7 @@ class Live(private val server: Server) {
     if (SystemClock.elapsedRealtime() - lastReceive > 45_000) {
       line.cancel()
       socket = null
+      this.line = "offline"
       return connect()
     }
     line.send("{\"type\":\"ping\"}")
@@ -121,6 +137,10 @@ class Live(private val server: Server) {
   private fun handle(type: String, data: Map<String, Any?>) {
     // Channels (channels/): events about communities go to that section as they come.
     if (type == "ready" || type.startsWith("community")) communityEvent.post(data)
+    // Calls (calls/): a message may be a call's signal (only its decrypted copy says), `call.reach` says how far
+    // an outgoing call got, `ready` — that the line is up again.
+    if (type == "ready") line = "connected"
+    if (type == "ready" || type == "message" || type == "call.reach") callEvent.post(data)
     when (type) {
       "ready" -> { attempts = 0; onEvent?.invoke(Event.Ready) }
       "message" -> onEvent?.invoke(Event.Chat(Core.map(data["message"])?.get("chatId") as? String))
@@ -171,5 +191,8 @@ class Live(private val server: Server) {
     /** Posted on the main thread for every event of the line about communities (its `type` begins with
      *  «community») and when the line is ready again: the event as it came. */
     val communityEvent = Signal<Map<String, Any?>>()
+    /** Posted on the main thread for what a call needs from the line: the server's event — a `message`,
+     *  `call.reach`, `ready` — or `{"type": "line"}` when the line went up or down (see `line`). */
+    val callEvent = Signal<Map<String, Any?>>()
   }
 }

@@ -23,6 +23,7 @@ pub mod message_meta;
 pub mod network;
 pub mod photo;
 pub mod servers;
+pub mod settings;
 #[cfg(feature = "signal")]
 pub mod signal;
 pub mod time;
