@@ -124,9 +124,16 @@ class ChatScreen(
       if (page == null || !isAttachedToWindow) return@messages
       real = page.rows
       list.setRows(MsgRow.parse(page.rows))
-      messenger.markRead(chatId, page.newestTheirs)
+      // Reported once per new message: the server answers a read mark with an event, which reads the page again.
+      if (page.newestTheirs > reportedRead) {
+        reportedRead = page.newestTheirs
+        messenger.markRead(chatId, page.newestTheirs)
+      }
     }
   }
+
+  /** Up to which message this screen has told the server «read». */
+  private var reportedRead = 0
 
   override fun changed(chatId: String?) {
     if (chatId != null && chatId != this.chatId) return
