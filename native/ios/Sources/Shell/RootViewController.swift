@@ -64,6 +64,12 @@ final class RootViewController: UIViewController {
         MusicGlow.attach(self)
         // Calls: the call screen and the bar of a minimised call, over every section (Calls/CallOverlay.swift).
         CallOverlay.shared.start(messenger)
+        // Rooms: the list of rooms, the ring and the bar of the room this phone is in (Sources/Rooms); the quiet
+        // dot on «Каналы» while somebody is inside one of them.
+        NotificationCenter.default.addObserver(self, selector: #selector(peopleBadge), name: Rooms.changed, object: nil)
+        Rooms.shared.start(messenger)
+        RoomMusic.shared.start()
+        RoomOverlay.shared.start()
     }
 
     override func viewDidLayoutSubviews() {
@@ -93,7 +99,7 @@ final class RootViewController: UIViewController {
     }
 
     @objc private func peopleBadge() {
-        bar.setItems(sections.map { TabEntry(id: $0.id, label: $0.label, symbol: $0.symbol, badge: $0.id == "people" ? FriendRequests.shared.incoming.count : ($0.id == "channels" ? ChannelsStore.shared.badge : 0), dot: "") })
+        bar.setItems(sections.map { TabEntry(id: $0.id, label: $0.label, symbol: $0.symbol, badge: $0.id == "people" ? FriendRequests.shared.incoming.count : ($0.id == "channels" ? ChannelsStore.shared.badge : 0), dot: $0.id == "channels" && Rooms.shared.awake ? RoomRules.talkHex : "") })
     }
 
     #if targetEnvironment(simulator)

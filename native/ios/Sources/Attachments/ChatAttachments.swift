@@ -33,6 +33,8 @@ final class ChatAttachments: NSObject, PHPickerViewControllerDelegate, UIDocumen
         var transfer: FileTransfer?
         var removed = false
         var percent = -1
+        /// What goes with the message inside the ciphertext: the answer it is, or nil.
+        var meta: [String: Any]?
 
         init(heading: String) {
             self.heading = heading
@@ -56,6 +58,11 @@ final class ChatAttachments: NSObject, PHPickerViewControllerDelegate, UIDocumen
     var mediaPressed: ((String) -> Bool)?
     /// Voice/Video: «Видео» of the paperclip's sheet.
     var onVideo: (() -> Void)?
+    /// Voice/Video: a video chosen in «Файл» goes the way of «Видео» (written anew without its metadata); the
+    /// copy the picker gave is handed over. True: it was taken.
+    var onVideoFile: ((URL) -> Bool)?
+    /// ChatActions: the answer being written, taken by the first thing sent (see `ChatScreenActions.takeReply`).
+    var takeReply: (() -> [String: Any]?)?
 
     init(messenger: Messenger?, chatId: String, peerId: String) {
         self.messenger = messenger
@@ -128,6 +135,7 @@ final class ChatAttachments: NSObject, PHPickerViewControllerDelegate, UIDocumen
         guard messenger != nil else { return }
         for result in results {
             let item = add(Pending(heading: "🖼 Фотография"))
+            item.meta = takeReply?()
             let provider = result.itemProvider
             guard provider.hasItemConformingToTypeIdentifier(UTType.image.identifier) else {
                 fail(item, "Не удалось обработать фото. Файл не отправлен.")
@@ -152,7 +160,9 @@ final class ChatAttachments: NSObject, PHPickerViewControllerDelegate, UIDocumen
             return
         }
         for url in urls {
+            if ChatAttachments.isVideo(url), let onVideoFile, onVideoFile(url) { continue }
             let item = add(Pending(heading: "📎 " + url.lastPathComponent))
+            item.meta = takeReply?()
             DispatchQueue.global(qos: .userInitiated).async { [weak self] in
                 guard let self else { return }
                 self.preparing.lock()
@@ -173,8 +183,26 @@ final class ChatAttachments: NSObject, PHPickerViewControllerDelegate, UIDocumen
         }
     }
 
-    /// A file chosen in «Файлы»: a picture is prepared as a photo whatever its name says, a video is not sent
-    /// (it cannot be cleaned of its metadata here yet), anything else goes as it is.
+    /// Whether a chosen file is a video: by its name or by how it begins (a picture is never one).
+    private static func isVideo(_ url: URL) -> Bool {
+        if let source = CGImageSourceCreateWithURL(url as CFURL, nil), PhotoPrepare.isPicture(source) { return false }
+        let type = UTType(filenameExtension: url.pathExtension)
+        var head = Data()
+        if let handle = try? FileHandle(forReadingFrom: url) {
+            head = (try? handle.read(upToCount: 16)) ?? Data()
+            try? handle.close()
+        }
+        let audio = type?.conforms(to: .audio) ?? false
+        let named = type.map { (found: UTType) -> Bool in found.conforms(to: .movie) || found.conforms(to: .video) } ?? false
+        let iso = head.count >= 12 && head.subdata(in: 4..<8) == Data("ftyp".utf8)
+        let matroska = head.starts(with: [0x1a, 0x45, 0xdf, 0xa3])
+        let avi = head.count >= 12 && head.starts(with: Data("RIFF".utf8)) && head.subdata(in: 8..<12) == Data("AVI ".utf8)
+        return named || (iso && !audio) || matroska || avi
+    }
+
+    /// A file chosen in «Файлы»: a picture is prepared as a photo whatever its name says, a video goes the way of
+    /// «Видео» (see `onVideoFile`; with nobody to take it, it is not sent — it cannot be cleaned of its metadata
+    /// here), anything else goes as it is.
     private func file(at url: URL) -> Result<Prepared, PhotoPrepare.Failure> {
         let size = (try? url.resourceValues(forKeys: [.fileSizeKey]))?.fileSize ?? 0
         guard size > 0 else { return .failure(PhotoPrepare.Failure(words: "Не удалось прочитать файл.")) }
@@ -278,7 +306,7 @@ final class ChatAttachments: NSObject, PHPickerViewControllerDelegate, UIDocumen
             guard let attachment = FileCore.call("attachment", parts) as? [String: Any] else { return failed("Не удалось отправить файл.") }
             DispatchQueue.main.async {
                 guard !item.removed else { return }
-                messenger.send(chatId: chatId, peerId: peerId, text: "", attachment: attachment) { [weak self] result in
+                messenger.send(chatId: chatId, peerId: peerId, text: "", attachment: attachment, meta: item.meta) { [weak self] result in
                     guard let self else { return }
                     // Without an answer the message stays among the unsent ones and goes out by itself later,
                     // with this very attachment: the row has done its part either way.

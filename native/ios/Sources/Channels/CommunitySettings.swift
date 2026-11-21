@@ -200,7 +200,14 @@ final class CommunitySettingsPage: SettingsPage, PHPickerViewControllerDelegate 
     }
 
     private func update(_ fields: [String: Any], done words: String) {
-        guard let messenger, !busy else { return }
+        guard let messenger else { return }
+        if busy {
+            // Nothing was sent while another save is running: the switch goes back to what is saved.
+            DispatchQueue.main.async { [weak self] in
+                self?.render()
+            }
+            return
+        }
         busy = true
         showSave()
         messenger.server.ask("updateCommunity", [community.id, fields]) { [weak self] result in
@@ -219,6 +226,7 @@ final class CommunitySettingsPage: SettingsPage, PHPickerViewControllerDelegate 
     }
 
     private func save() {
+        if busy { return }
         saveButton.setBusy(true)
         update(["name": nameField.value.trimmingCharacters(in: .whitespacesAndNewlines), "description": aboutArea.value.trimmingCharacters(in: .whitespacesAndNewlines)], done: "Сохранено.")
     }
@@ -256,7 +264,11 @@ final class CommunitySettingsPage: SettingsPage, PHPickerViewControllerDelegate 
 
     private func openMember(_ member: CommunityMember) {
         guard let messenger else { return }
-        open(MemberPage(messenger: messenger, community: community, member: member))
+        let page = MemberPage(messenger: messenger, community: community, member: member)
+        page.onParted = { [weak self] (words: String) -> Void in
+            self?.tell(words)
+        }
+        open(page)
     }
 
     // MARK: The picture
@@ -379,6 +391,8 @@ final class MemberPage: SettingsPage {
     private let member: CommunityMember
     private var roleIds: [String]
     private var busy = false
+    /// The member was excluded or blocked: the words about it, for the page this one returns to.
+    var onParted: ((String) -> Void)?
 
     init(messenger: Messenger, community: Community, member: CommunityMember) {
         self.messenger = messenger
@@ -454,7 +468,16 @@ final class MemberPage: SettingsPage {
             self.busy = false
             switch result {
             case .success:
-                self.navigationController?.popViewController(animated: true)
+                let told = self.onParted
+                let stack = self.navigationController
+                stack?.popViewController(animated: true)
+                if let coordinator = stack?.transitionCoordinator {
+                    coordinator.animate(alongsideTransition: nil, completion: { (_: UIViewControllerTransitionCoordinatorContext) -> Void in
+                        told?(words)
+                    })
+                } else {
+                    told?(words)
+                }
             case .failure(let error):
                 self.tell(error.words)
             }

@@ -68,6 +68,8 @@ final class SceneDelegate: UIResponder, UIWindowSceneDelegate {
         // Nothing of the closed account goes on by itself: its live line and the music stop here.
         // Calls: a call that is on ends with the account (the other side is told while the session still lives).
         Calls.shared.stop()
+        // Rooms: the room this phone is in is left with the account, and its list is forgotten.
+        Rooms.shared.stop()
         LinkFetcher.shared.forget()
         messenger?.live.stop()
         MusicPlayer.shared.stop()
@@ -103,6 +105,7 @@ final class SceneDelegate: UIResponder, UIWindowSceneDelegate {
     ///   -chatdemo menu|delete|reply|edit|pinned|select|forward|quotes|typing|draft    actions on messages in the -demo chat; -chataction menu|delete|reply|edit|pin|select|forward|react with -openchat 1 (ChatActions/ChatScreenActions.swift)
     ///   -chatlist menu|mute|delete|archive|archived|draft|unread / -chatsearch <query>    actions on the chats of the list, with an account or -demo (ChatActions/ChatListActions.swift)
     ///   -calldemo outgoing|incoming|active|video|ended|retry|bar / -call 1    calls: a sample call in each state, no account; with an account, a call to the person of the first chat (Calls/CallOverlay.swift)
+    ///   -roomsdemo list|empty|room|video|outside|ring|bar|music|menu|rename|gone|picker / -rooms list|room|enter|picker    rooms: samples without an account; with an account, the list in «Каналы», the first room, «Выбрать» (Rooms/RoomsSimulator.swift)
     ///   -storiesdemo strip|viewer|viewers|compose|posts|own / -stories viewer|own|ownstories|compose    stories and posts: samples with drawn pictures, no account; with an account, the strip's first person, the account's own page (Stories/StoriesSimulator.swift)
     ///   -linkdemo 1|composer / -linksend 1    cards of links: sample rows in the -demo chat (composer: also the card above the field); with -openchat 1 on the local test server, sends one message with a prepared card (LinkPreview/LinkDemo.swift)
     private func simulatorStart() -> Bool {
@@ -111,6 +114,7 @@ final class SceneDelegate: UIResponder, UIWindowSceneDelegate {
         if args.bool(forKey: "auth") { showAuth(); return true }
         if simulatorChannels() { return true }
         if simulatorCalls() { return true }
+        if simulatorRooms() { return true }
         if simulatorAIMusic() { return true }
         if simulatorStories() { return true }
         if let page = args.string(forKey: "settings") { simulatorSettings(page) }

@@ -282,6 +282,8 @@ final class RoomViewController: UIViewController {
         super.viewDidDisappear(animated)
         speakingTimer?.invalidate()
         speakingTimer = nil
+        // The room goes on without its screen: its bar takes over.
+        RoomOverlay.shared.refresh()
     }
 
     // MARK: What is shown
@@ -318,6 +320,7 @@ final class RoomViewController: UIViewController {
     override func viewDidAppear(_ animated: Bool) {
         super.viewDidAppear(animated)
         watchSpeaking()
+        RoomOverlay.shared.refresh()
     }
 
     override func viewDidLayoutSubviews() {
@@ -377,7 +380,8 @@ final class RoomViewController: UIViewController {
         if let voice {
             if voice.status == "connected" {
                 let link = voice.link == "good" ? "" : CallRules.linkWords(voice.link)
-                status = "комната · " + RoomRules.insideLine(inside.count) + (link.isEmpty ? "" : " · " + link)
+                status = "комната · " + RoomRules.insideLine(inside.count)
+                if !link.isEmpty { status += " · " + link }
             } else {
                 status = "подключение…"
             }
@@ -445,17 +449,23 @@ final class RoomViewController: UIViewController {
         let places = RoomRules.seats(room, me: me)
         let stageWide = stage.bounds.width, stageHigh = stage.bounds.height
         // On a wide screen the people stay together in the middle instead of drifting to the edges.
-        let span = min(stageWide, 620), left = (stageWide - span) / 2
-        let size = RoomRules.seatSize(members: room.members.count, stage: span > 0 ? span : 360)
-        let pad = size * 0.62
+        let span: CGFloat = min(stageWide, 620)
+        let left: CGFloat = (stageWide - span) / 2
+        let size: CGFloat = RoomRules.seatSize(members: room.members.count, stage: span > 0 ? span : 360)
+        let pad: CGFloat = size * 0.62
         var lit: [RoomLightsView.Light] = []
         var kept = Set<String>()
         for member in room.members {
             let place = places[member.id] ?? CGPoint(x: 0.5, y: 0.5)
-            let center = CGPoint(x: left + pad + place.x * max(0, span - pad * 2), y: pad * 0.9 + place.y * max(0, stageHigh - pad * 2.1))
+            let roomWide: CGFloat = max(0, span - pad * 2), roomHigh: CGFloat = max(0, stageHigh - pad * 2.1)
+            let centerX: CGFloat = left + pad + place.x * roomWide
+            let centerY: CGFloat = pad * 0.9 + place.y * roomHigh
+            let center = CGPoint(x: centerX, y: centerY)
             let mine = member.id == me, present = inside.contains(member.id)
             let talking = present && speaking.contains(member.id)
-            let side = ((mine ? size * 0.82 : size) * (present || mine ? 1 : 0.72)).rounded()
+            let full: CGFloat = mine ? size * 0.82 : size
+            let scale: CGFloat = (present || mine) ? 1 : 0.72
+            let side = (full * scale).rounded()
             let seat: RoomSeatView
             if let known = seatViews[member.id] { seat = known } else {
                 seat = RoomSeatView()

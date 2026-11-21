@@ -669,16 +669,30 @@ final class ChatScreenActions: NSObject, UITextViewDelegate {
         guard !text.isEmpty else { return }
         UISelectionFeedbackGenerator().selectionChanged()
         var meta: [String: Any]? = nil
-        if let replyTo, let client = replyTo["clientId"] as? String, let sender = replyTo["senderId"] as? String {
-            let line = Core.view("replyPreview", [replyTo]) as? String ?? ""
-            meta = ["reply": ["clientId": client, "senderId": sender, "preview": ChatForward.clipped(line, units: 200)]]
-        }
+        if let replyTo { meta = ChatScreenActions.replyMeta(replyTo) }
         replyTo = nil
         // LinkPreview: the card made while the link was typed goes inside the same encrypted message.
         history.send(text: text, meta: meta, linkPreview: links.take(for: text))
         clearField()
         showBar()
         list?.scrollToNewest(animated: true)
+    }
+
+    /// What a message goes out with when it answers `message`.
+    private static func replyMeta(_ message: [String: Any]) -> [String: Any]? {
+        guard let client = message["clientId"] as? String, let sender = message["senderId"] as? String else { return nil }
+        let line = Core.view("replyPreview", [message]) as? String ?? ""
+        return ["reply": ["clientId": client, "senderId": sender, "preview": ChatForward.clipped(line, units: 200)]]
+    }
+
+    /// Attachments, Voice/Video: a photo, a file, a voice message or a video sent while an answer is being
+    /// written is that answer — its `meta`, and the bar above the field closes. Nil: nothing is being answered.
+    func takeReply() -> [String: Any]? {
+        guard editing == nil, let message = replyTo else { return nil }
+        let meta = ChatScreenActions.replyMeta(message)
+        replyTo = nil
+        showBar()
+        return meta
     }
 
     private func clearField() {

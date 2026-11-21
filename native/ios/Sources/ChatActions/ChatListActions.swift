@@ -420,6 +420,11 @@ final class ChatListActions: NSObject, UITextFieldDelegate {
         choices.append(ChoiceSheet.Choice(symbol: isPinned ? "pin.slash" : "pin", label: isPinned ? "Открепить" : "Закрепить", run: { [weak self] in self?.change(chat, ["pinned": !isPinned]) }))
         choices.append(ChoiceSheet.Choice(symbol: quiet ? "bell" : "bell.slash", label: quiet ? "Включить звук" : "Выключить звук", run: { [weak self] in self?.askMute(chat) }))
         choices.append(ChoiceSheet.Choice(symbol: "archivebox", label: isArchived ? "Вернуть из архива" : "В архив", run: { [weak self] in self?.change(chat, ["archived": !isArchived]) }))
+        // Rooms: «Выбрать» — mark several people and ring them all at once; that makes a room (Rooms/RoomPicker.swift).
+        choices.append(ChoiceSheet.Choice(symbol: "checkmark.circle", label: "Выбрать", run: { [weak self] in
+            guard let self, let host = self.host else { return }
+            host.present(RoomPickerController(messenger: self.messenger, first: chat.id), animated: true)
+        }))
         choices.append(ChoiceSheet.Choice(symbol: "trash", label: "Удалить чат", danger: true, run: { [weak self] in self?.askRemove(chat) }))
         host.present(ChoiceSheet(heading: chat.title, choices: choices), animated: true)
     }

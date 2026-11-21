@@ -172,12 +172,15 @@ class Messenger(context: Context, token: String, val user: Map<String, Any?>) {
    *
    *  LinkPreview: `linkPreview` is the card of a link in the text (linkpreview/), or null; the core checks it and
    *  carries it inside the ciphertext.
-   *  Calls: `push` is what the server does about the notification ("call" rings, "missed", "none"); null — an
-   *  ordinary message. */
+   *  `push` is what the server does about the notification ("call" rings, "missed", "none", "silent"); null — the
+   *  core decides by the message's `meta` (an ordinary message stays without one). */
   fun deliver(crypto: CryptoService, chatId: String, peerId: String, clientId: String, text: Any?, attachment: Any?, meta: Any?, again: Boolean = true, linkPreview: Any? = null, push: String? = null): Result<Unit> {
     val encrypted = crypto.callNow("encrypt", listOf(chatId, peerId, clientId, text, attachment, meta, null, linkPreview))
     if (encrypted.isFailure) return Result.failure(CryptoService.failure(encrypted) ?: CryptoFailure("Error", "Шифрование недоступно."))
-    val sent = server.opAndWait("sendEncrypted", listOf(chatId, clientId, encrypted.getOrNull()) + listOfNotNull(push))
+    // The notification follows the message itself when the caller did not name it: nothing for an action
+    // (a reaction, an edit, a vote…), a quiet one for «без звука».
+    val kind = push ?: (Core.view("callPushKind", listOf(meta)) as? String)
+    val sent = server.opAndWait("sendEncrypted", listOf(chatId, clientId, encrypted.getOrNull()) + listOfNotNull(kind))
     if (sent.isSuccess) {
       crypto.callNow("delivered", listOf(chatId, clientId))
       return Result.success(Unit)

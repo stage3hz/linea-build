@@ -16,6 +16,8 @@ final class ChannelsViewController: UIViewController, UITableViewDataSource, UIT
     private let emptyButton = UIButton(type: .system)
     private var sections: [(name: String, items: [CommunitySummary])] = []
     private var loaded = false
+    /// Rooms: «Комнаты», the first thing in the section (Sources/Rooms/RoomsSectionView.swift).
+    private let rooms = RoomsSectionView()
 
     init(messenger: Messenger? = nil) {
         self.messenger = messenger
@@ -41,6 +43,9 @@ final class ChannelsViewController: UIViewController, UITableViewDataSource, UIT
         table.dataSource = self
         table.delegate = self
         view.addSubview(table)
+        // Rooms: above the communities, as the table's header; it says when its height changes.
+        rooms.onResize = { [weak self] in self?.placeRooms() }
+        table.tableHeaderView = rooms
 
         heading.text = "Каналы"
         heading.font = .systemFont(ofSize: 34, weight: .bold)
@@ -127,14 +132,26 @@ final class ChannelsViewController: UIViewController, UITableViewDataSource, UIT
             table.contentInset = insets
             table.contentOffset = CGPoint(x: 0, y: -insets.top)
         }
-        spinner.center = CGPoint(x: width / 2, y: top + 140)
-        notice.frame = CGRect(x: 20, y: top + 62, width: width - 40, height: 44)
-        let middle = view.bounds.midY - 30
+        placeRooms()
+        spinner.center = CGPoint(x: width / 2, y: top + 140 + rooms.tall)
+        notice.frame = CGRect(x: 20, y: top + 62 + rooms.tall, width: width - 40, height: 44)
+        // Rooms: «Свои места для своих» stays under the rooms.
+        let middle = max(view.bounds.midY - 30, top + 57 + rooms.tall + 126)
         emptyIcon.frame = CGRect(x: 0, y: middle - 110, width: width, height: 50)
         emptyHeading.frame = CGRect(x: 24, y: middle - 50, width: width - 48, height: 26)
         let wordsHeight = ceil(emptyWords.sizeThatFits(CGSize(width: width - 64, height: 200)).height)
         emptyWords.frame = CGRect(x: 32, y: middle - 16, width: width - 64, height: wordsHeight)
         emptyButton.frame = CGRect(x: (width - 150) / 2, y: emptyWords.frame.maxY + 18, width: 150, height: 44)
+    }
+
+    /// Rooms: gives the section of rooms the height it asks for (the table reads its header's size when it is set).
+    private func placeRooms() {
+        let wanted = CGRect(x: 0, y: 0, width: table.bounds.width, height: rooms.tall)
+        if rooms.frame.size != wanted.size {
+            rooms.frame = wanted
+            table.tableHeaderView = rooms
+            view.setNeedsLayout()
+        }
     }
 
     // MARK: What is shown

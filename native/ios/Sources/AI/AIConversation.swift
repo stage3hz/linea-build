@@ -264,6 +264,8 @@ final class AIConversation {
         self.consent = consent
         pending = false
         error = ""
+        // The works of the conversation that was open belong to its turns, not to these (which may bear the same numbers).
+        tasks = [:]
         turns = AIModel.storedTurns(stored)
         publish()
     }

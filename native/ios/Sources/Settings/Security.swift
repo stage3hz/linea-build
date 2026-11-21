@@ -190,7 +190,6 @@ final class SecretChangeViewController: SettingsPage {
 
     override func build() {
         add(SettingsLook.foot("Подтверди текущие данные. После сохранения все устройства выйдут из аккаунта. Новое значение введи дважды вручную."), gap: 4)
-        currentPassword.input.textContentType = .password
         add(currentPassword, gap: 16)
         if confirmationConfigured { add(currentWord, gap: 14) }
         add(fresh, gap: 14)
@@ -346,7 +345,6 @@ final class DeleteAccountViewController: SettingsPage {
     required init?(coder: NSCoder) { return nil }
 
     override func build() {
-        password.input.textContentType = .password
         noticeBox.axis = .vertical
         removeButton.onPress = { [weak self] in self?.remove() }
         fill()

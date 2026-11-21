@@ -209,7 +209,8 @@ final class Messenger {
     /// - Refused for good (not «try later», not a dead session): the kept copy is forgotten, so it is not sent
     ///   again after every start.
     /// - No answer: it stays in the list of unsent messages and goes out later with the very same ciphertext.
-    /// - Calls: `push` is what the server does about the notification ("call" rings, "missed", "none"); nil — an ordinary message.
+    /// - `push` is what the server does about the notification ("call" rings, "missed", "none", "silent"); nil — the
+    ///   core decides by the message's `meta` (an ordinary message stays without one).
     ///
     /// LinkPreview: `linkPreview` is the card of a link in the text (Sources/LinkPreview), or NSNull; the core
     /// checks it and carries it inside the ciphertext.
@@ -218,7 +219,10 @@ final class Messenger {
         case .failure(let failure): return .failure(failure)
         case .success(let encrypted):
             var sent: [Any] = [chatId, clientId, encrypted]
-            if let push { sent.append(push) }
+            // The notification follows the message itself when the caller did not name it: nothing for an action
+            // (a reaction, an edit, a vote…), a quiet one for «без звука».
+            let kind: String? = push ?? (Core.view("callPushKind", [meta]) as? String)
+            if let kind { sent.append(kind) }
             switch server.opAndWait("sendEncrypted", sent) {
             case .success:
                 _ = crypto.callNow("delivered", [chatId, clientId])
@@ -245,9 +249,13 @@ final class Messenger {
 
     /// Attachments: sends a message that carries a file — already sealed, uploaded and described by the core
     /// (Sources/Attachments/ChatAttachments.swift).
-    func send(chatId: String, peerId: String, text: String, attachment: [String: Any], done: @escaping (Result<Void, CryptoFailure>) -> Void) {
+    /// `meta`: what goes with it inside the ciphertext (the answer it is — `reply`), or nil.
+    func send(chatId: String, peerId: String, text: String, attachment: [String: Any], meta: [String: Any]? = nil, done: @escaping (Result<Void, CryptoFailure>) -> Void) {
         let clientId = UUID().uuidString.lowercased()
-        crypto.run({ crypto in self.deliver(crypto, chatId: chatId, peerId: peerId, clientId: clientId, text: text, attachment: attachment, meta: NSNull()) }, done: done)
+        var fields: Any = NSNull()
+        if let meta { fields = meta }
+        let sentMeta = fields
+        crypto.run({ crypto in self.deliver(crypto, chatId: chatId, peerId: peerId, clientId: clientId, text: text, attachment: attachment, meta: sentMeta) }, done: done)
     }
 
     /// Messages that were encrypted and kept but never confirmed by the server (the app was closed, the network

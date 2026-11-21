@@ -225,6 +225,7 @@ class CommunitySettingsPage(context: Context, private val messenger: Messenger?,
   }
 
   private fun save() {
+    if (busy) return
     saveButton.setBusy(true)
     update(mapOf("name" to nameField.value.trim(), "description" to aboutArea.value.trim()), "Сохранено.")
   }
@@ -247,7 +248,12 @@ class CommunitySettingsPage(context: Context, private val messenger: Messenger?,
 
   private fun openChannel(channel: CommunityChannel?, kind: String) { messenger?.let { open(ChannelEditPage(context, it, community, channel, kind)) } }
   private fun openRole(role: CommunityRole?) { messenger?.let { open(RoleEditPage(context, it, community, role, owner)) } }
-  private fun openMember(member: CommunityMember) { messenger?.let { open(MemberPage(context, it, community, member)) } }
+  private fun openMember(member: CommunityMember) {
+    val messenger = messenger ?: return
+    val page = MemberPage(context, messenger, community, member)
+    page.onParted = { words -> post { tell(words) } }
+    open(page)
+  }
 
   // The picture
 
@@ -387,6 +393,8 @@ class MemberRow(context: Context, member: CommunityMember, community: Community,
 class MemberPage(context: Context, private val messenger: Messenger, private val community: Community, private val member: CommunityMember) : SettingsPage(context, member.user.displayName) {
   private var roleIds = member.roleIds
   private var busy = false
+  /** The member was excluded or blocked: the words about it, for the page this one returns to. */
+  var onParted: ((String) -> Unit)? = null
 
   override fun build() = render()
 
@@ -403,8 +411,8 @@ class MemberPage(context: Context, private val messenger: Messenger, private val
     }
     val other = !member.owner && member.user.id != messenger.userId
     val rows = ArrayList<View>()
-    if (other && community.can(Perm.kick)) rows.add(SettingsRow(context, "person.minus", "Исключить", danger = true).apply { onPress = { part("kickMember") } })
-    if (other && community.can(Perm.ban)) rows.add(SettingsRow(context, "blocked", "Заблокировать", danger = true).apply { onPress = { part("banMember") } })
+    if (other && community.can(Perm.kick)) rows.add(SettingsRow(context, "person.minus", "Исключить", danger = true).apply { onPress = { part("kickMember", "Участник исключён.") } })
+    if (other && community.can(Perm.ban)) rows.add(SettingsRow(context, "blocked", "Заблокировать", danger = true).apply { onPress = { part("banMember", "Участник заблокирован.") } })
     if (rows.isNotEmpty()) {
       addGroup(rows = rows)
       if (other && community.can(Perm.ban)) add(SettingsLook.foot(context, "Заблокировать: исключить и не пускать обратно по приглашениям"))
@@ -423,12 +431,15 @@ class MemberPage(context: Context, private val messenger: Messenger, private val
     }
   }
 
-  private fun part(operation: String) {
+  private fun part(operation: String, done: String) {
     if (busy) return
     busy = true
     messenger.server.ask(operation, listOf(community.id, member.user.id)) { result ->
       busy = false
-      if (result.isSuccess) goBack() else tell(Server.error(result).words)
+      if (result.isSuccess) {
+        goBack()
+        onParted?.invoke(done)
+      } else tell(Server.error(result).words)
     }
   }
 }

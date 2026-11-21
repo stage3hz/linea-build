@@ -633,6 +633,8 @@ final class SettingsField: UIView, UITextFieldDelegate {
         input.attributedPlaceholder = NSAttributedString(string: placeholder, attributes: [.foregroundColor: Theme.subtle])
         input.accessibilityLabel = caption.isEmpty ? placeholder : caption
         input.isSecureTextEntry = secret
+        // A secret is typed by hand: no suggestions of saved or new passwords (as on the sign-in screen).
+        input.textContentType = secret ? UITextContentType.oneTimeCode : nil
         input.delegate = self
         input.addTarget(self, action: #selector(edited), for: .editingChanged)
         input.translatesAutoresizingMaskIntoConstraints = false
@@ -686,7 +688,10 @@ final class SettingsField: UIView, UITextFieldDelegate {
     }
 
     @objc private func eyePressed() {
+        let kept = input.text
         input.isSecureTextEntry.toggle()
+        input.text = kept
+        input.textContentType = input.isSecureTextEntry ? UITextContentType.oneTimeCode : nil
         eye.setImage(SettingsLook.symbol(input.isSecureTextEntry ? "eye" : "eye.slash", size: 15), for: .normal)
         eye.accessibilityLabel = input.isSecureTextEntry ? "Показать" : "Скрыть"
     }
