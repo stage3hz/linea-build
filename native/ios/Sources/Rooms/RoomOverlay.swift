@@ -141,6 +141,8 @@ final class RoomBarView: RoomGlassView {
     private let micButton = UIButton(type: .system)
     private let leaveButton = UIButton(type: .system)
     private var roomId = ""
+    /// Channels: the bar of a community's voice channel opens the community.
+    private var communityId: String?
 
     init() {
         super.init(radius: 18, clear: false)
@@ -171,6 +173,7 @@ final class RoomBarView: RoomGlassView {
 
     func show(_ voice: RoomVoiceState) {
         roomId = voice.roomId
+        communityId = voice.communityId
         let connected = voice.status == "connected"
         let green = UIColor(hex: 0x2FD27A)
         dot.backgroundColor = connected ? green : UIColor(hex: 0xF5C542)
@@ -181,8 +184,16 @@ final class RoomBarView: RoomGlassView {
             let flowing = voice.peers.filter { (peer: RoomVoicePeer) -> Bool in peer.connected }.count
             line += " · \(flowing + 1) внутри"
         }
+        if voice.communityId != nil {
+            // A community's voice channel: «канал · сервер · N в канале».
+            line = voice.name + " · " + voice.communityName
+            if connected {
+                let flowing = voice.peers.filter { (peer: RoomVoicePeer) -> Bool in peer.connected }.count
+                line += " · \(flowing + 1) в канале"
+            }
+        }
         words.text = line
-        opener.accessibilityLabel = "Комната " + voice.name
+        opener.accessibilityLabel = (voice.communityId != nil ? "Голосовой канал " : "Комната ") + voice.name
         micButton.setImage(UIImage(systemName: voice.muted ? "mic.slash.fill" : "mic.fill", withConfiguration: UIImage.SymbolConfiguration(pointSize: 17, weight: .regular)), for: .normal)
         micButton.tintColor = voice.muted ? Theme.danger : Theme.text
         micButton.accessibilityLabel = voice.muted ? "Включить микрофон" : "Выключить микрофон"
@@ -199,7 +210,10 @@ final class RoomBarView: RoomGlassView {
         words.frame = CGRect(x: 29, y: 25, width: max(0, opener.bounds.width - 29), height: 16)
     }
 
-    @objc private func open() { RoomRouter.open(roomId) }
+    @objc private func open() {
+        if let communityId { return RoomRouter.openCommunity(communityId) }
+        RoomRouter.open(roomId)
+    }
     @objc private func mute() { RoomVoice.shared.toggleMute() }
     @objc private func leave() { Rooms.shared.exit() }
 }
@@ -273,6 +287,8 @@ final class RoomOverlay {
         var voice = RoomVoice.shared.state
         // The room's own screen has the same controls: no bar over it. A one-to-one call has its own bar.
         if let shown = voice, let top = RoomRouter.navigation()?.topViewController as? RoomViewController, top.roomId == shown.roomId { voice = nil }
+        // Channels: the community's own screen shows its voice panel.
+        if let shown = voice, let id = shown.communityId, let top = RoomRouter.navigation()?.topViewController as? CommunityViewController, top.shownCommunityId == id { voice = nil }
         if Calls.shared.call != nil { voice = nil }
         guard ring != nil || voice != nil else {
             setBarRoom(false)

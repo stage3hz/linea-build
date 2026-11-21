@@ -313,6 +313,16 @@ enum RoomRouter {
         stack.setViewControllers([root, RoomViewController(roomId: roomId)], animated: stack.viewControllers.count == 1)
     }
 
+    /// Channels: the community whose voice channel this phone is in, over the «Каналы» section.
+    static func openCommunity(_ communityId: String) {
+        guard let stack = navigation(), let root = stack.viewControllers.first as? RootViewController, let messenger = RoomVoice.shared.messenger else { return }
+        if let shown = stack.topViewController as? CommunityViewController, shown.shownCommunityId == communityId { return }
+        stack.presentedViewController?.dismiss(animated: false)
+        root.loadViewIfNeeded()
+        root.show("channels")
+        stack.setViewControllers([root, CommunityViewController(messenger: messenger, communityId: communityId, known: nil)], animated: stack.viewControllers.count == 1)
+    }
+
     static func navigation() -> NavigationController? {
         for scene in UIApplication.shared.connectedScenes {
             guard let scene = scene as? UIWindowScene else { continue }

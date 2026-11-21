@@ -8,6 +8,9 @@ struct RoomVoicePeer {
     let userId: String
     var muted: Bool
     var connected: Bool
+    /// Channels: a moderator turned this person's microphone off / their sound off (Discord's server mute / deafen).
+    var serverMuted = false
+    var serverDeafened = false
 }
 
 /// The room this phone is inside, as the screens show it (the reference's `VoiceState` for a room).
@@ -23,6 +26,15 @@ struct RoomVoiceState {
     var error = ""
     /// The worst link among the people this phone is connected to: "good", "weak" or "bad".
     var link = "good"
+    /// Channels: a voice channel of a community — the same engine as a room (communities/voice.ts); `roomId` is then
+    /// the channel's id, `name` the channel's name.
+    var communityId: String? = nil
+    var communityName = ""
+    /// «Звук выключен»: nobody is heard (and, as in Discord, the microphone is off too).
+    var deafened = false
+    /// Set by a moderator for this account: cannot be lifted from here.
+    var serverMuted = false
+    var serverDeafened = false
 }
 
 /// The voice of a room: the reference's communities/voice.ts, as far as a room uses it.
@@ -64,7 +76,9 @@ final class RoomVoice {
     /// This phone is about to leave the room (its connections are still open): the last word to the others.
     var onLeaving: (() -> Void)?
 
-    private weak var messenger: Messenger?
+    private(set) weak var messenger: Messenger?
+    /// Channels: the microphone was on before «Звук» went off (it comes back on with the sound).
+    private var mutedBeforeDeafen = false
     private var microphone: RoomMicrophone?
     private var iceServers: [[String: Any]] = []
     private var ownDevice = ""
@@ -119,7 +133,8 @@ final class RoomVoice {
 
     /// Walks into the room: the microphone opens and the others hear this phone once each connection is checked.
     /// `done` gets nil, or the words that say why not. The microphone is asked for here, the first time.
-    func join(_ messenger: Messenger, roomId: String, name: String, done: @escaping (String?) -> Void) {
+    /// `community`: a voice channel of a community (Channels): `roomId` is the channel's id, `name` its name.
+    func join(_ messenger: Messenger, roomId: String, name: String, community: (id: String, name: String)? = nil, done: @escaping (String?) -> Void) {
         if state?.roomId == roomId { return done(nil) }
         // A one-to-one call and a room share the phone's microphone and its sound: one at a time.
         if let call = Calls.shared.call, !call.isOver { return done("Сначала заверши звонок.") }
@@ -143,13 +158,13 @@ final class RoomVoice {
                     guard let self, self.joining == attempt else { return } // a newer attempt answers instead
                     guard let device, !device.isEmpty else { return done("Шифрование ещё не готово. Попробуй ещё раз.") }
                     if let call = Calls.shared.call, !call.isOver { return done("Сначала заверши звонок.") }
-                    self.begin(messenger, roomId: roomId, name: name, device: device, done: done)
+                    self.begin(messenger, roomId: roomId, name: name, community: community, device: device, done: done)
                 })
             }
         }
     }
 
-    private func begin(_ messenger: Messenger, roomId: String, name: String, device: String, done: @escaping (String?) -> Void) {
+    private func begin(_ messenger: Messenger, roomId: String, name: String, community: (id: String, name: String)?, device: String, done: @escaping (String?) -> Void) {
         self.messenger = messenger
         ownDevice = device
         CallAudio.start(video: false)
@@ -166,13 +181,16 @@ final class RoomVoice {
         watch.start()
         network = watch
         messenger.live.heldByCall = true
-        state = RoomVoiceState(roomId: roomId, name: name, status: "connecting", speaker: speaker)
+        var made = RoomVoiceState(roomId: roomId, name: name, status: "connecting", speaker: speaker)
+        made.communityId = community?.id
+        made.communityName = community?.name ?? ""
+        state = made
         linkTimer = Timer.scheduledTimer(withTimeInterval: RoomRules.linkPoll, repeats: true) { [weak self] (_: Timer) -> Void in self?.checkLinks() }
         beat = Timer.scheduledTimer(withTimeInterval: 1, repeats: true) { [weak self] (_: Timer) -> Void in
             guard let self else { return }
             for media in self.connections.values { media.tellState() }
         }
-        guard send(["type": "voice.join", "roomId": roomId, "device": device]) else {
+        guard send(joinFrame(roomId: roomId, communityId: community?.id, muted: nil, device: device)) else {
             cleanup()
             return done("Нет соединения с сервером.")
         }
@@ -252,9 +270,42 @@ final class RoomVoice {
     func toggleMute() {
         guard let current = state else { return }
         let muted = !current.muted
+        if !muted && current.serverMuted {
+            patch { (state: inout RoomVoiceState) -> Void in state.error = "Модератор отключил тебе микрофон на этом сервере." }
+            return
+        }
         microphone?.set(on: !muted)
         _ = send(["type": "voice.mute", "muted": muted])
         patch { (state: inout RoomVoiceState) -> Void in state.muted = muted }
+    }
+
+    /// Channels: «Звук» off — nobody is heard, and the microphone goes off too; on again — the microphone as it was.
+    func toggleDeafen() {
+        guard let current = state else { return }
+        let deafened = !current.deafened
+        if !deafened && current.serverDeafened {
+            patch { (state: inout RoomVoiceState) -> Void in state.error = "Модератор отключил тебе звук на этом сервере." }
+            return
+        }
+        patch { (state: inout RoomVoiceState) -> Void in state.deafened = deafened }
+        applyAudio()
+        if deafened {
+            mutedBeforeDeafen = current.muted
+            if !current.muted { toggleMute() }
+        } else if !mutedBeforeDeafen, state?.muted == true {
+            toggleMute()
+        }
+    }
+
+    /// Whether a person's voice is played: only over a checked connection, not while this phone's sound is off (by
+    /// itself or by a moderator), and not when a moderator turned that person's microphone off.
+    private func audible(_ peer: String) -> Bool {
+        guard let current = state, !current.deafened, !current.serverDeafened, verified.contains(peer) else { return false }
+        return !(current.peers.first(where: { (item: RoomVoicePeer) -> Bool in item.peer == peer })?.serverMuted ?? false)
+    }
+
+    private func applyAudio() {
+        for (peer, media) in connections where verified.contains(peer) { media.setAudible(audible(peer)) }
     }
 
     /// «Звук на динамике» ↔ «Звук в трубке» (with headphones on, the second one is the headphones).
@@ -362,16 +413,26 @@ final class RoomVoice {
             if let peer = data["peer"] as? String { drop(peer) }
         case "voice.state":
             guard here, let members = data["members"] as? [[String: Any]] else { return }
-            // The microphones of everyone in the room.
-            var muted: [String: Bool] = [:]
+            // The microphones of everyone in the room, and in a channel a moderator's server mute / deafen.
+            var byUser: [String: [String: Any]] = [:]
             for item in members {
-                if let userId = item["userId"] as? String { muted[userId] = item["muted"] as? Bool ?? false }
+                if let userId = item["userId"] as? String { byUser[userId] = item }
             }
+            let mine = messenger.flatMap { (owner: Messenger) -> [String: Any]? in byUser[owner.userId] }
+            let serverMuted = mine?["serverMuted"] as? Bool ?? false
+            let serverDeafened = mine?["serverDeafened"] as? Bool ?? false
+            if serverMuted && !current.muted { toggleMute() }
             patch { (state: inout RoomVoiceState) -> Void in
+                state.serverMuted = serverMuted
+                state.serverDeafened = serverDeafened
                 for index in state.peers.indices {
-                    if let known = muted[state.peers[index].userId] { state.peers[index].muted = known }
+                    guard let known = byUser[state.peers[index].userId] else { continue }
+                    state.peers[index].muted = known["muted"] as? Bool ?? false
+                    state.peers[index].serverMuted = known["serverMuted"] as? Bool ?? false
+                    state.peers[index].serverDeafened = known["serverDeafened"] as? Bool ?? false
                 }
             }
+            applyAudio()
         case "voice.kicked":
             // No longer a member, or the room is gone.
             if here { cleanup() }
@@ -399,7 +460,20 @@ final class RoomVoice {
             state.status = "connecting"
             state.peers = []
         }
-        _ = send(["type": "voice.join", "roomId": roomId, "muted": current.muted, "device": ownDevice])
+        _ = send(joinFrame(roomId: roomId, communityId: current.communityId, muted: current.muted, device: ownDevice))
+    }
+
+    /// `voice.join` for a room, or for a community's voice channel.
+    private func joinFrame(roomId: String, communityId: String?, muted: Bool?, device: String) -> [String: Any] {
+        var frame: [String: Any] = ["type": "voice.join", "device": device]
+        if let communityId {
+            frame["communityId"] = communityId
+            frame["channelId"] = roomId
+        } else {
+            frame["roomId"] = roomId
+        }
+        if let muted { frame["muted"] = muted }
+        return frame
     }
 
     // MARK: Connections
@@ -591,8 +665,8 @@ final class RoomVoice {
             self.verified.insert(peer)
             self.authTimers[peer]?.invalidate()
             self.authTimers[peer] = nil
-            // The connection is proven end to end: sound both ways.
-            media.setAudible(true)
+            // The connection is proven end to end: sound both ways (unless the sound is off in a channel).
+            media.setAudible(self.audible(peer))
             media.setMicrophone(live: true)
             self.onPeerReady?(peer)
         }

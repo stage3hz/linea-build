@@ -311,11 +311,25 @@ private final class ForwardCell: UITableViewCell {
         nameLabel.text = name
         accessibilityLabel = name
         if let person { avatar.show(person, address: address) }
+        // ChatsPlus: «Избранное» has a round bookmark instead of a person's picture.
+        avatar.isHidden = person == nil
+        if person == nil && savedMark.superview == nil {
+            savedMark.image = chatSymbol("bookmark.fill", 19)
+            savedMark.tintColor = Theme.onAccent
+            savedMark.backgroundColor = Theme.accent
+            savedMark.contentMode = .center
+            savedMark.layer.cornerRadius = 22
+            savedMark.clipsToBounds = true
+            contentView.addSubview(savedMark)
+        }
+        savedMark.isHidden = person != nil
     }
+    private let savedMark = UIImageView()
 
     override func layoutSubviews() {
         super.layoutSubviews()
         avatar.frame = CGRect(x: 16, y: (contentView.bounds.height - 44) / 2, width: 44, height: 44)
+        savedMark.frame = avatar.frame
         nameLabel.frame = CGRect(x: 72, y: 0, width: max(0, contentView.bounds.width - 88), height: contentView.bounds.height)
     }
 }
