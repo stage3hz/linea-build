@@ -14,6 +14,8 @@ final class ProfileTopLayers {
     private let effect = ProfileEffectView()
     private var look = PersonLook()
     private var celebrated = false
+    /// False when the page already has its own light (ChatLook's on someone's profile).
+    var showsLight = true
     /// The header turned festive (no banner, birthday): texts over it are white.
     private(set) var tinted = false
 
@@ -33,7 +35,7 @@ final class ProfileTopLayers {
         banner.show(look, base: base)
         let birthday = look.birthdayToday
         tinted = !look.hasBanner && birthday
-        light.isHidden = look.hasBanner || tinted
+        light.isHidden = look.hasBanner || tinted || !showsLight
         light.color = LookColor.tint(avatarId: person.avatarId, address: AvatarMedia.address(base: base, id: person.avatarId), chosen: person.avatarColor)
         festiveView.isHidden = !tinted
         let colors = AvatarCatalog.birthdayColors(look.gender)

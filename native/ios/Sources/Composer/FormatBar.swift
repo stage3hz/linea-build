@@ -10,7 +10,9 @@ enum ComposeRules {
 
     /// Adds `type` over the selection, or takes it off when the whole selection has it (`toggleEntity`).
     static func toggle(_ entities: [[String: Any]], text: String, start: Int, end: Int, type: String, url: String? = nil) -> [[String: Any]] {
-        let args: [Any] = [entities, text, start, end, type, url ?? NSNull()]
+        var link: Any = NSNull()
+        if let url { link = url }
+        let args: [Any] = [entities, text, start, end, type, link]
         return Core.view("composeToggle", args) as? [[String: Any]] ?? entities
     }
 

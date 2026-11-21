@@ -138,6 +138,11 @@ final class ChatAttachments: NSObject, PHPickerViewControllerDelegate, UIDocumen
     func picker(_ picker: PHPickerViewController, didFinishPicking results: [PHPickerResult]) {
         picker.dismiss(animated: true)
         guard messenger != nil else { return }
+        // Attachments: one photo opens in the editor first — crop, turn, draw, size (Sources/Attachments/PhotoEditor.swift).
+        if results.count == 1, let only = results.first, only.itemProvider.hasItemConformingToTypeIdentifier(UTType.image.identifier) {
+            editThenSend(only)
+            return
+        }
         // Attachments: two or more photos go out as one album — up to ten per album (Sources/Attachments/AlbumGrid.swift).
         let albums = AlbumRows.groups(results.count)
         for (index, result) in results.enumerated() {
@@ -185,6 +190,61 @@ final class ChatAttachments: NSObject, PHPickerViewControllerDelegate, UIDocumen
                 DispatchQueue.main.async { self.ready(item, prepared) }
             }
         }
+    }
+
+    /// Attachments: the photo is read once (the system's copy lives only during the call), shown in the editor,
+    /// and sent as edited — or as it was, when nothing was changed, with its HDR kept by `PhotoPrepare`.
+    private func editThenSend(_ result: PHPickerResult) {
+        _ = result.itemProvider.loadFileRepresentation(forTypeIdentifier: UTType.image.identifier) { [weak self] (url: URL?, _: Error?) -> Void in
+            let data = url.flatMap { try? Data(contentsOf: $0) }
+            var picture: UIImage?
+            if let data, let source = CGImageSourceCreateWithData(data as CFData, nil) {
+                let options: [CFString: Any] = [kCGImageSourceCreateThumbnailFromImageAlways: true, kCGImageSourceCreateThumbnailWithTransform: true,
+                                                kCGImageSourceThumbnailMaxPixelSize: 4096, kCGImageSourceShouldCacheImmediately: true]
+                if let made = CGImageSourceCreateThumbnailAtIndex(source, 0, options as CFDictionary) { picture = UIImage(cgImage: made) }
+            }
+            DispatchQueue.main.async {
+                guard let self else { return }
+                guard let data, let picture else {
+                    let item = self.add(Pending(heading: "🖼 Фотография"))
+                    self.fail(item, "Не удалось обработать фото. Файл не отправлен.")
+                    return
+                }
+                self.presentEditor(picture, data: data, tries: 0)
+            }
+        }
+    }
+
+    private func presentEditor(_ picture: UIImage, data: Data, tries: Int) {
+        guard let host else { return }
+        // The system's picker may still be going away.
+        if host.presentedViewController != nil {
+            if tries < 10 { DispatchQueue.main.asyncAfter(deadline: .now() + 0.25) { [weak self] in self?.presentEditor(picture, data: data, tries: tries + 1) } }
+            return
+        }
+        let editor = PhotoEditorController(image: picture)
+        editor.onDone = { [weak self] (edited: UIImage?) -> Void in
+            guard let self else { return }
+            let item = self.add(Pending(heading: "🖼 Фотография"))
+            item.meta = self.takeReply?()
+            DispatchQueue.global(qos: .userInitiated).async { [weak self] in
+                guard let self else { return }
+                var bytes = data
+                if let edited, let jpeg = edited.jpegData(compressionQuality: 0.95) { bytes = jpeg }
+                self.preparing.lock()
+                let prepared: Result<Prepared, PhotoPrepare.Failure>
+                if let source = CGImageSourceCreateWithData(bytes as CFData, nil) {
+                    prepared = PhotoPrepare.prepare(source, fileSize: bytes.count).map { (photo: PhotoPrepare.Prepared) -> Prepared in
+                        Prepared(bytes: photo.bytes, name: photo.name, mimeType: photo.mimeType, media: ["width": photo.width, "height": photo.height, "hdr": "sdr"], preview: photo.preview)
+                    }
+                } else {
+                    prepared = .failure(PhotoPrepare.Failure(words: "Не удалось обработать фото. Файл не отправлен."))
+                }
+                self.preparing.unlock()
+                DispatchQueue.main.async { self.ready(item, prepared) }
+            }
+        }
+        host.present(editor, animated: true)
     }
 
     private func photo(at url: URL) -> Result<Prepared, PhotoPrepare.Failure> {
@@ -411,6 +471,17 @@ final class ChatAttachments: NSObject, PHPickerViewControllerDelegate, UIDocumen
 
     /// `-openattachment photo|file`: once the chat is on screen, opens its newest photo or file by itself.
     private func simulatorOpen(_ rows: [[String: Any]]) {
+        // Attachments: -photoeditor crop|draw|size opens the editor with a drawn picture (with or without an account).
+        if !simulatorOpened, let tool = UserDefaults.standard.string(forKey: "photoeditor") {
+            simulatorOpened = true
+            DispatchQueue.main.asyncAfter(deadline: .now() + 1) { [weak self] in
+                guard let host = self?.host else { return }
+                let editor = PhotoEditorController(image: ChatAttachments.demoPicture(width: 1200, height: 800))
+                host.present(editor, animated: false)
+                editor.simulatorShow(tool)
+            }
+            return
+        }
         guard !simulatorOpened, let wanted = UserDefaults.standard.string(forKey: "openattachment") else { return }
         for row in rows.reversed() {
             guard let key = row["key"] as? String, let attachment = AttachmentStore.shared.attachment(key) else { continue }

@@ -29,6 +29,9 @@ final class EffectsHost: NSObject {
     private var snowOn = false
     private var trailOn = false
     private var iceOn = false
+    /// A palette theme's page (Effects/PaletteBackdrop.swift) at the back of each screen; static, so it does not
+    /// depend on the animations.
+    private var backdropOn = false
 
     private override init() {
         super.init()
@@ -86,7 +89,12 @@ final class EffectsHost: NSObject {
             TrailHub.shared.enabled = trail
         }
         iceOn = ice
-        let wanted = snow || trail || ice
+        let backdrop = PaletteBackdropView.wanted
+        if backdrop != backdropOn || backdrop {
+            backdropOn = backdrop
+            for layer in backs.allObjects { (layer as? EffectsBackLayer)?.repaint() }
+        }
+        let wanted = snow || trail || ice || backdrop
         if wanted && timer == nil {
             let made = Timer(timeInterval: 0.4, target: self, selector: #selector(look), userInfo: nil, repeats: true)
             RunLoop.main.add(made, forMode: .common)
@@ -151,7 +159,7 @@ final class EffectsHost: NSObject {
 
     /// The falling snow and the trail: at the back of each screen, right over its background colour.
     private func placeBacks(in window: UIWindow) {
-        let wanted = snowOn || trailOn
+        let wanted = snowOn || trailOn || backdropOn
         var keep = Set<ObjectIdentifier>()
         if wanted {
             for screen in screens(in: window) {
@@ -165,7 +173,7 @@ final class EffectsHost: NSObject {
         }
         for layer in backs.allObjects {
             guard let holder = layer as? EffectsBackLayer else { continue }
-            holder.show(snow: snowOn, trail: trailOn)
+            holder.show(snow: snowOn, trail: trailOn, backdrop: backdropOn)
         }
     }
 
@@ -335,8 +343,10 @@ final class EffectsHost: NSObject {
     }
 }
 
-/// The back of one screen: the trail's surface and the falling snow, under everything else on the screen.
+/// The back of one screen: a palette theme's page, the trail's surface and the falling snow, under everything else
+/// on the screen.
 final class EffectsBackLayer: UIView {
+    private let page = PaletteBackdropView(frame: .zero)
     private let trail = TrailBackgroundView(frame: .zero)
     private let flakes = SnowOverlayView(frame: .zero)
 
@@ -352,16 +362,23 @@ final class EffectsBackLayer: UIView {
         flakes.frame = bounds
         flakes.autoresizingMask = [.flexibleWidth, .flexibleHeight]
         flakes.snowRole = 1
+        page.frame = bounds
+        page.autoresizingMask = [.flexibleWidth, .flexibleHeight]
     }
 
     required init?(coder: NSCoder) { return nil }
 
-    func show(snow: Bool, trail on: Bool) {
+    func show(snow: Bool, trail on: Bool, backdrop: Bool = false) {
+        if backdrop && page.superview == nil { insertSubview(page, at: 0) }
+        if !backdrop && page.superview != nil { page.removeFromSuperview() }
         if on && trail.superview == nil { addSubview(trail) }
         if !on && trail.superview != nil { trail.removeFromSuperview() }
         if snow && flakes.superview == nil { addSubview(flakes) }
         if !snow && flakes.superview != nil { flakes.removeFromSuperview() }
     }
+
+    /// The theme changed: the page is drawn again in its colours.
+    func repaint() { page.paint() }
 
     override func hitTest(_ point: CGPoint, with event: UIEvent?) -> UIView? { return nil }
 }

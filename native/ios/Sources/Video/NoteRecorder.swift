@@ -25,6 +25,17 @@ final class NoteRecorder: UIViewController, AVCaptureFileOutputRecordingDelegate
     private let closeButton = UIButton(type: .system)
     private let recordButton = UIButton(type: .system)
     private let flipButton = UIButton(type: .system)
+    /// Video: «Вспышка» — the screen lights up for the front camera, the torch for the back one (VideoNote.tsx).
+    private let flashButton = UIButton(type: .system)
+    private let screenFlash = UIView()
+    private var flash = false
+    private var brightnessBefore: CGFloat?
+    /// Video: pinch to zoom (0 = widest, 1 = up to 6× or the camera's limit), with its «2,0×» pill.
+    private var zoom: CGFloat = 0
+    private var zoomBase: CGFloat = 0
+    private let zoomPill = UILabel()
+    /// Video: the line under the circle («До 60 секунд · шифруется перед отправкой»).
+    private let hint = UILabel()
     private var front = true
     private var ready = false
     private var keep = false
@@ -91,6 +102,31 @@ final class NoteRecorder: UIViewController, AVCaptureFileOutputRecordingDelegate
         flipButton.accessibilityLabel = "Сменить камеру"
         flipButton.addTarget(self, action: #selector(flip), for: .touchUpInside)
         view.addSubview(flipButton)
+        // Video: the parts of the reference's recorder this screen had not had yet.
+        screenFlash.backgroundColor = UIColor(red: 1, green: 0.965, blue: 0.91, alpha: 1)
+        screenFlash.isHidden = true
+        screenFlash.isUserInteractionEnabled = false
+        view.insertSubview(screenFlash, at: 0)
+        flashButton.tintColor = .white
+        flashButton.layer.cornerRadius = 22
+        flashButton.accessibilityLabel = "Вспышка"
+        flashButton.accessibilityTraits = .button
+        flashButton.addTarget(self, action: #selector(flashTapped), for: .touchUpInside)
+        view.addSubview(flashButton)
+        zoomPill.font = .systemFont(ofSize: 12, weight: .bold)
+        zoomPill.textColor = .white
+        zoomPill.textAlignment = .center
+        zoomPill.backgroundColor = UIColor(white: 0, alpha: 0.45)
+        zoomPill.layer.cornerRadius = 10
+        zoomPill.clipsToBounds = true
+        zoomPill.isHidden = true
+        circle.addSubview(zoomPill)
+        circle.addGestureRecognizer(UIPinchGestureRecognizer(target: self, action: #selector(pinched(_:))))
+        hint.font = .systemFont(ofSize: 12)
+        hint.textColor = UIColor(white: 1, alpha: 0.6)
+        hint.textAlignment = .center
+        view.addSubview(hint)
+        showFlash()
         showButtons()
         askAccess()
     }
@@ -110,6 +146,13 @@ final class NoteRecorder: UIViewController, AVCaptureFileOutputRecordingDelegate
         recordButton.frame = CGRect(x: width / 2 - 39, y: line - 39, width: 78, height: 78)
         closeButton.frame = CGRect(x: width / 2 - 39 - 40 - 52, y: line - 26, width: 52, height: 52)
         flipButton.frame = CGRect(x: width / 2 + 39 + 40, y: line - 26, width: 52, height: 52)
+        // Video: the flash beside the circle's top, the zoom pill at the circle's foot, the hint under it.
+        screenFlash.frame = view.bounds
+        flashButton.frame = CGRect(x: circle.frame.maxX - 44, y: circle.frame.minY - 56, width: 44, height: 44)
+        let pillWidth: CGFloat = 46
+        zoomPill.frame = CGRect(x: (side - pillWidth) / 2, y: side - 14 - 18, width: pillWidth, height: 18)
+        hint.frame = CGRect(x: 24, y: circle.frame.maxY + 14, width: width - 48, height: 16)
+        hint.isHidden = !problem.isHidden
     }
 
     private func showButtons() {
@@ -121,6 +164,82 @@ final class NoteRecorder: UIViewController, AVCaptureFileOutputRecordingDelegate
         // The camera is not turned in the middle of a take: the file would end there.
         flipButton.isEnabled = !recording && ready
         flipButton.alpha = recording ? 0.3 : 1
+        hint.text = recording ? "Нажми ещё раз, чтобы отправить" : "До 60 секунд · шифруется перед отправкой"
+        showFlash()
+    }
+
+    // MARK: Video: the flash and the zoom
+
+    @objc private func flashTapped() {
+        UIImpactFeedbackGenerator(style: .light).impactOccurred()
+        flash.toggle()
+        showFlash()
+    }
+
+    /// The front camera's «flash» is the screen itself — warm white at full brightness — only while recording;
+    /// the back camera's is its torch.
+    private func showFlash() {
+        let recording = startedAt != nil
+        flashButton.setImage(UIImage(systemName: flash ? "bolt.fill" : "bolt.slash", withConfiguration: UIImage.SymbolConfiguration(pointSize: 18, weight: .regular)), for: .normal)
+        flashButton.backgroundColor = flash ? UIColor(red: 1, green: 0.84, blue: 0.04, alpha: 0.28) : UIColor(white: 1, alpha: 0.14)
+        flashButton.accessibilityValue = flash ? "включена" : "выключена"
+        let lit = flash && front && recording
+        if lit != !screenFlash.isHidden {
+            screenFlash.isHidden = !lit
+            if lit {
+                brightnessBefore = view.window?.windowScene?.screen.brightness
+                view.window?.windowScene?.screen.brightness = 1
+            } else if let before = brightnessBefore {
+                view.window?.windowScene?.screen.brightness = before
+                brightnessBefore = nil
+            }
+        }
+        let torch = flash && !front
+        work.async { [weak self] in self?.applyTorch(torch) }
+    }
+
+    private var videoDevice: AVCaptureDevice? {
+        session.inputs.compactMap { $0 as? AVCaptureDeviceInput }.first { $0.device.hasMediaType(.video) }?.device
+    }
+
+    /// Camera queue.
+    private func applyTorch(_ on: Bool) {
+        guard let device = videoDevice, device.hasTorch, device.isTorchModeSupported(on ? .on : .off) else { return }
+        do {
+            try device.lockForConfiguration()
+            device.torchMode = on ? .on : .off
+            device.unlockForConfiguration()
+        } catch {}
+    }
+
+    /// Pinch as in the reference: the scale moves the zoom by 0.6 of its change, between 0 and 1.
+    @objc private func pinched(_ pinch: UIPinchGestureRecognizer) {
+        switch pinch.state {
+        case .began:
+            zoomBase = zoom
+        case .changed:
+            zoom = min(1, max(0, zoomBase + (pinch.scale - 1) * 0.6))
+            showZoom()
+        default:
+            break
+        }
+    }
+
+    private func showZoom() {
+        let shown = String(format: "%.1f", Double(1 + zoom * 5)).replacingOccurrences(of: ".", with: ",") + "×"
+        zoomPill.text = shown
+        zoomPill.isHidden = zoom <= 0.02
+        let wanted = zoom
+        work.async { [weak self] in
+            guard let device = self?.videoDevice else { return }
+            let top = min(device.activeFormat.videoMaxZoomFactor, 6)
+            let factor = max(device.minAvailableVideoZoomFactor, min(top, 1 + wanted * (top - 1)))
+            do {
+                try device.lockForConfiguration()
+                device.videoZoomFactor = factor
+                device.unlockForConfiguration()
+            } catch {}
+        }
     }
 
     private func say(_ words: String) {
@@ -155,6 +274,11 @@ final class NoteRecorder: UIViewController, AVCaptureFileOutputRecordingDelegate
         work.async { [weak self] in
             guard let self else { return }
             var failed = true
+            // Video: Center Stage off before the camera is added (it would pan the picture inside the circle).
+            if AVCaptureDevice.isCenterStageEnabled {
+                AVCaptureDevice.centerStageControlMode = .cooperative
+                AVCaptureDevice.isCenterStageEnabled = false
+            }
             self.session.beginConfiguration()
             if self.session.canSetSessionPreset(.vga640x480) { self.session.sessionPreset = .vga640x480 }
             if let device = self.camera(front: wantFront), let video = try? AVCaptureDeviceInput(device: device), self.session.canAddInput(video) {
@@ -196,6 +320,10 @@ final class NoteRecorder: UIViewController, AVCaptureFileOutputRecordingDelegate
     @objc private func flip() {
         guard ready, startedAt == nil else { return }
         front.toggle()
+        // Video: a new camera starts at its widest; the flash follows the camera.
+        zoom = 0
+        zoomPill.isHidden = true
+        showFlash()
         let wantFront = front
         UIImpactFeedbackGenerator(style: .light).impactOccurred()
         work.async { [weak self] in
@@ -207,6 +335,8 @@ final class NoteRecorder: UIViewController, AVCaptureFileOutputRecordingDelegate
             if self.session.canAddInput(next) { self.session.addInput(next) }
             self.session.commitConfiguration()
             self.upright()
+            let torch = self.flash && !wantFront
+            self.applyTorch(torch)
         }
     }
 
@@ -252,6 +382,9 @@ final class NoteRecorder: UIViewController, AVCaptureFileOutputRecordingDelegate
     }
 
     private func close() {
+        // Video: the screen's brightness comes back, the torch goes off.
+        flash = false
+        showFlash()
         work.async { [session] in
             if session.isRunning { session.stopRunning() }
         }

@@ -60,6 +60,8 @@ final class MusicPlayer: NSObject {
         NotificationCenter.default.addObserver(self, selector: #selector(interrupted(_:)), name: AVAudioSession.interruptionNotification, object: nil)
         NotificationCenter.default.addObserver(self, selector: #selector(coverReady(_:)), name: MusicCovers.ready, object: nil)
         loadLibrary()
+        // «Эквалайзер» (Music/MusicEqualizer.swift): the filter goes on every track this player plays.
+        MusicEqualizer.attach(engine)
     }
 
     // MARK: What the screens read

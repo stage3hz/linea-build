@@ -30,6 +30,8 @@ final class EmojiPanel: UIView, UICollectionViewDataSource, UICollectionViewDele
     private let grid: UICollectionView
     private let emptyLabel = UILabel()
     private var chosen = "recent"
+    /// The swipe down that closes the panel.
+    private let closePan = UIPanGestureRecognizer()
     private var recent: [String] = []
 
     override init(frame: CGRect) {
@@ -91,9 +93,9 @@ final class EmojiPanel: UIView, UICollectionViewDataSource, UICollectionViewDele
         emptyLabel.textAlignment = .center
         surface.contentView.addSubview(emptyLabel)
         // A swipe down closes the panel: from the header at any time, from the grid when it is at its top.
-        let pan = UIPanGestureRecognizer(target: self, action: #selector(dragged(_:)))
-        pan.delegate = self
-        addGestureRecognizer(pan)
+        closePan.addTarget(self, action: #selector(dragged(_:)))
+        closePan.delegate = self
+        addGestureRecognizer(closePan)
 
         recent = (UserDefaults.standard.array(forKey: EmojiPanel.recentKey) as? [String] ?? []).prefix(32).map { $0 }
         if recent.isEmpty { chosen = "faces" }
@@ -159,7 +161,7 @@ final class EmojiPanel: UIView, UICollectionViewDataSource, UICollectionViewDele
     // MARK: The swipe down
 
     override func gestureRecognizerShouldBegin(_ gestureRecognizer: UIGestureRecognizer) -> Bool {
-        guard let pan = gestureRecognizer as? UIPanGestureRecognizer else { return true }
+        guard gestureRecognizer === closePan, let pan = gestureRecognizer as? UIPanGestureRecognizer else { return super.gestureRecognizerShouldBegin(gestureRecognizer) }
         let move = pan.translation(in: self), speed = pan.velocity(in: self)
         let down = (speed.y > 0 && abs(speed.y) > abs(speed.x) * 1.4) || (move.y > 8 && abs(move.y) > abs(move.x) * 1.4)
         let inHeader = pan.location(in: self).y < 52

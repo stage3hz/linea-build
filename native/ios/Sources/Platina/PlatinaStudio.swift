@@ -55,7 +55,7 @@ final class PlatinaStudioView: UIView {
 
     private var active: Bool {
         #if targetEnvironment(simulator)
-        if messenger == nil { return UserDefaults.standard.string(forKey: "setplatina") != "off" }
+        if messenger == nil { return UserDefaults.standard.string(forKey: "setplatina") != "0" }
         #endif
         return PlatinaState.shared.active
     }

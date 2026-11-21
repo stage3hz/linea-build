@@ -753,7 +753,7 @@ final class ChatScreenActions: NSObject, UITextViewDelegate {
 
     /// The send button: the edit, the forward with its comment, or the message (an answer when one is being written).
     /// Composer: `silent` and `deliverAt` come from the long touch on the send button («Отправить без звука»,
-    /// «Отправить позже», Sources/Composer/SendMenu.swift); they apply to a new message, not to an edit or a forward.
+    /// «Отправить позже», Sources/Composer/ComposerExtras.swift); they apply to a new message, not to an edit or a forward.
     func submit(silent: Bool = false, deliverAt: Date? = nil) {
         guard let field else { return }
         // Composer: the shortcuts typed (**жирный**…) and the styles of the panel become entities; the text is
@@ -1121,7 +1121,8 @@ final class ChatScreenActions: NSObject, UITextViewDelegate {
             if let local { local.setDraft(chatId, value) } else { sampleDraft = value }
         }
         if Date().timeIntervalSince(typingAt) > 1.5 {
-            messenger?.live.typing(chatId: chatId, on: !value.isEmpty)
+            // Composer: «Показывать «печатает…»» off — the other side is never told (DevicePreferences `sendTyping`).
+            messenger?.live.typing(chatId: chatId, on: !value.isEmpty && (DevicePreferences.flag("sendTyping") ?? true))
             typingAt = Date()
         }
         typingStop?.cancel()

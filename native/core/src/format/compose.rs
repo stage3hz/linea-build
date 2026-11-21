@@ -232,7 +232,7 @@ fn parse_markdown(text: &[u16], entities: &[Value]) -> Option<(Vec<u16>, Vec<Val
             let content_start = index + open.len();
             let mut close = index_of(text, &open, content_start);
             while let Some(at) = close {
-                let glued = false && word_char(text, (at + open.len()) as i64) && !word_char(text, at as i64 - 1);
+                let glued = !fence && word_char(text, (at + open.len()) as i64) && !word_char(text, at as i64 - 1);
                 if inside(at) || in_url(at) || glued { close = index_of(text, &open, at + 1) } else { break }
             }
             let Some(close) = close else { continue };

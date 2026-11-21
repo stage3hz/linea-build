@@ -37,7 +37,7 @@ enum MusicDemo {
 
 /// What the simulator check asks of «AI» and «Музыка» by launch arguments (see SceneDelegate.simulatorStart):
 ///   -aidemo 1 | history     «AI» with a sample conversation (a block of code in it); `history`: the history sheet over it
-///   -musicdemo 1 | player | chats   «Музыка» with sample tracks and the strip of the playing one; `player`: the full player over it
+///   -musicdemo 1 | player | equalizer | chats   «Музыка» with sample tracks and the strip of the playing one; `player`: the full player over it; `equalizer`: «Эквалайзер» over the player
 /// With an account (or with -demo 1) the sections themselves open by `-tab ai` and `-tab music`.
 extension SceneDelegate {
     func simulatorAIMusic() -> Bool {
@@ -54,6 +54,10 @@ extension SceneDelegate {
         }
         if music == "player" {
             DispatchQueue.main.asyncAfter(deadline: .now() + 1.5) { root.musicPage()?.simulatorPlayer() }
+        }
+        if music == "equalizer" {
+            // «Эквалайзер» over the full player, the custom curve (+4 / −2 / +6 dB).
+            DispatchQueue.main.asyncAfter(deadline: .now() + 1.5) { root.musicPage()?.simulatorEqualizer() }
         }
         return true
     }

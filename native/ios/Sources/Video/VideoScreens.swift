@@ -5,6 +5,40 @@ import UIKit
 /// The system's player over the whole screen; when it is closed, the decrypted copy it played goes.
 final class PlayerScreen: AVPlayerViewController {
     var onGone: (() -> Void)?
+    /// Video: the rate before a press and hold took it to 2×.
+    private var rateBeforeHold: Float = 1
+
+    /// Video: the reference's player (VideoPlayerView.tsx, playerModel.ts) — its speeds from ¼× to 2×, picture in
+    /// picture when the app is left while the film plays, and a press and hold that plays at 2× (after 500 ms).
+    override func viewDidLoad() {
+        super.viewDidLoad()
+        if #available(iOS 16.0, *) {
+            speeds = [0.25, 0.5, 0.75, 1, 1.25, 1.5, 1.75, 2].map { (rate: Float) -> AVPlaybackSpeed in
+                AVPlaybackSpeed(rate: rate, localizedName: rate == 1 ? "Обычная" : String(format: "%g×", Double(rate)).replacingOccurrences(of: ".", with: ","))
+            }
+        }
+        allowsPictureInPicturePlayback = true
+        canStartPictureInPictureAutomaticallyFromInline = true
+        let hold = UILongPressGestureRecognizer(target: self, action: #selector(held(_:)))
+        hold.minimumPressDuration = 0.5
+        hold.cancelsTouchesInView = false
+        view.addGestureRecognizer(hold)
+    }
+
+    @objc private func held(_ recognizer: UILongPressGestureRecognizer) {
+        guard let player else { return }
+        switch recognizer.state {
+        case .began:
+            guard player.rate > 0 else { return }
+            rateBeforeHold = player.rate
+            player.rate = 2
+            UIImpactFeedbackGenerator(style: .light).impactOccurred()
+        case .ended, .cancelled, .failed:
+            if player.rate == 2 && rateBeforeHold != 2 { player.rate = rateBeforeHold }
+        default:
+            break
+        }
+    }
 
     override func viewDidDisappear(_ animated: Bool) {
         super.viewDidDisappear(animated)

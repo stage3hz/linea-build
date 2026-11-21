@@ -384,7 +384,9 @@ final class CodeFrameView: UIView {
                 let steps: [Double] = [0.06, 0.07, 0.05, 0.26, (700 + seed * 420) / 1000]
                 let total = steps.reduce(0, +)
                 let flash = CAKeyframeAnimation(keyPath: "opacity")
-                flash.values = [index == 0 ? 1 : 0, 1, 0.2, 1, 0, 0].map { NSNumber(value: $0) }
+                let first: Double = index == 0 ? 1 : 0
+                let levels: [Double] = [first, 1, 0.2, 1, 0, 0]
+                flash.values = levels.map { (level: Double) -> NSNumber in NSNumber(value: level) }
                 var at = 0.0
                 var times: [NSNumber] = [0]
                 for step in steps { at += step; times.append(NSNumber(value: at / total)) }

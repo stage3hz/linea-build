@@ -9,7 +9,15 @@ final class ProfileEditViewController: SettingsPage {
     private var color: String
     private var busy = false
 
-    private let ball = SettingsAvatar(frame: CGRect(x: 0, y: 0, width: 96, height: 96))
+    // Profile: the banner and the decorated avatar at the top, tapped to change (photo, GIF, video up to 10 s), the
+    // background pattern and «Рамки и анимации» (Sources/Profile, Sources/Platina).
+    private let ball = DecoratedAvatarView(frame: CGRect(x: 0, y: 0, width: 96, height: 96))
+    private let bannerTile = UIControl()
+    private let bannerArt = ProfileBannerView()
+    private let photoWords = UIButton(type: .system)
+    private var pattern: String?
+    private let patternRow = SettingsRow(symbol: "sparkles", label: "Узор фона")
+    private lazy var media = ProfilePhotoChange(messenger: messenger, host: self)
     private let noticeBox = UIStackView()
     private let nameField = SettingsField(caption: "", placeholder: "Имя")
     private let bioArea = SettingsTextArea(placeholder: "О себе")
@@ -28,6 +36,7 @@ final class ProfileEditViewController: SettingsPage {
         birthday = own["birthday"] as? String
         gender = own["gender"] as? String
         color = own["avatarColor"] as? String ?? "#5E7BFF"
+        pattern = own["profilePattern"] as? String // Profile
         super.init(name: "Мой профиль")
     }
 
@@ -39,17 +48,16 @@ final class ProfileEditViewController: SettingsPage {
         let own = messenger.ownProfile
         NotificationCenter.default.addObserver(self, selector: #selector(profileChanged), name: Messenger.ownProfileChanged, object: nil)
 
-        ball.translatesAutoresizingMaskIntoConstraints = false
-        let ballBox = UIView()
-        ballBox.addSubview(ball)
-        NSLayoutConstraint.activate([
-            ball.topAnchor.constraint(equalTo: ballBox.topAnchor, constant: 4),
-            ball.bottomAnchor.constraint(equalTo: ballBox.bottomAnchor, constant: -4),
-            ball.centerXAnchor.constraint(equalTo: ballBox.centerXAnchor),
-            ball.widthAnchor.constraint(equalToConstant: 96),
-            ball.heightAnchor.constraint(equalToConstant: 96),
-        ])
-        add(ballBox, gap: 0)
+        add(ProfileEditMedia.top(banner: bannerTile, art: bannerArt, avatar: ball, words: photoWords), gap: 0) // Profile
+        bannerTile.addAction(UIAction { [weak self] (_: UIAction) -> Void in self?.media.ask(kind: "banner") }, for: .touchUpInside)
+        ball.isUserInteractionEnabled = true
+        ball.addGestureRecognizer(UITapGestureRecognizer(target: self, action: #selector(avatarPressed)))
+        photoWords.addAction(UIAction { [weak self] (_: UIAction) -> Void in self?.media.ask(kind: "avatar") }, for: .touchUpInside)
+        media.onBusy = { [weak self] (busy: Bool) -> Void in self?.photoWords.setTitle(busy ? "Загружаем…" : "Изменить фотографию", for: .normal) }
+        media.onNotice = { [weak self] (words: String, error: Bool) -> Void in
+            if !words.isEmpty { self?.showNotice(words, error: error) }
+        }
+        PlatinaState.shared.start(messenger)
 
         noticeBox.axis = .vertical
         noticeBox.spacing = 8
@@ -83,7 +91,17 @@ final class ProfileEditViewController: SettingsPage {
             self.open(page)
         }
         genderRow.onPress = { [weak self] in self?.chooseGender() }
-        addGroup(rows: [birthdayRow, genderRow])
+        // Profile: «Узор фона» — the emoji around the photo in the profile (saved with «Сохранить»).
+        patternRow.onPress = { [weak self] in
+            guard let self, !self.busy else { return }
+            let picker = PatternPickerViewController(current: self.pattern) { [weak self] (chosen: String?) -> Void in
+                self?.pattern = chosen
+                self?.showValues()
+                self?.clearNotice()
+            }
+            self.present(picker, animated: true, completion: nil)
+        }
+        addGroup(rows: [birthdayRow, genderRow, patternRow])
 
         let row = UIStackView()
         row.axis = .horizontal
@@ -108,8 +126,14 @@ final class ProfileEditViewController: SettingsPage {
 
         saveButton.onPress = { [weak self] in self?.save() }
         add(saveButton, gap: 20)
+        // Profile: «Рамки и анимации» — the decorations of Platina, saved at once (Sources/Platina/PlatinaStudio.swift).
+        add(SettingsLook.caption("Рамки и анимации"), gap: 24)
+        let studio = PlatinaStudioView(messenger: messenger, compact: true)
+        add(SettingsLook.inset(ProfileEditMedia.card(studio), top: 0, side: 0, bottom: 0), gap: 7)
         showValues()
     }
+
+    @objc private func avatarPressed() { media.ask(kind: "avatar") } // Profile
 
     @objc private func profileChanged() {
         // The @username was changed on its own page: the row follows.
@@ -126,7 +150,12 @@ final class ProfileEditViewController: SettingsPage {
         let typed = nameField.value.trimmingCharacters(in: .whitespacesAndNewlines)
         if !typed.isEmpty { shown["displayName"] = typed }
         shown["avatarColor"] = color
-        ball.show(shown, base: messenger.server.endpoint)
+        // Profile: the decorated avatar and the banner as they are now.
+        if var person = Person(shown) {
+            person.look = PersonLook(shown)
+            ball.show(person, look: person.look, base: messenger.server.endpoint, animated: true)
+            bannerArt.show(person.look, base: messenger.server.endpoint, preview: true)
+        }
     }
 
     private func showValues() {
@@ -136,6 +165,7 @@ final class ProfileEditViewController: SettingsPage {
         let day = BirthdayWords.format(birthday)
         birthdayRow.setValue(day.isEmpty ? "Не указан" : day)
         genderRow.setValue(gender == "male" ? "Мужской" : gender == "female" ? "Женский" : "Не указан")
+        patternRow.setValue(pattern ?? "Нет") // Profile
         for (index, dot) in swatches.enumerated() {
             let on = ProfileEditViewController.colors[index].uppercased() == color.uppercased()
             dot.layer.borderWidth = on ? 3 : 0
@@ -200,6 +230,7 @@ final class ProfileEditViewController: SettingsPage {
         if let birthday { fields["birthday"] = birthday } else { fields["birthday"] = NSNull() }
         if let gender { fields["gender"] = gender } else { fields["gender"] = NSNull() }
         fields["avatarColor"] = color
+        if let pattern { fields["profilePattern"] = pattern } else { fields["profilePattern"] = NSNull() } // Profile
         view.endEditing(true)
         setBusy(true)
         messenger.accountCall("profile", [fields]) { [weak self] result in
@@ -212,6 +243,7 @@ final class ProfileEditViewController: SettingsPage {
                     self.birthday = fresh["birthday"] as? String
                     self.gender = fresh["gender"] as? String
                     self.color = fresh["avatarColor"] as? String ?? self.color
+                    self.pattern = fresh["profilePattern"] as? String // Profile
                     self.showValues()
                 }
                 self.showNotice("Профиль сохранён.", error: false)

@@ -28,6 +28,13 @@ final class RootViewController: UIViewController {
     private let bar = TabBarView()
     /// ChatsPlus: «Удержи «Чаты» — остальные разделы» until the hold has been used (Sources/ChatsPlus/BarHint.swift).
     private let barHint = BarHintView()
+    /// Shell: the mini-player over every section but «Музыка», the soft edges under the bar and under the status bar,
+    /// and the bar giving way while the chat list chooses chats (Sources/Shell/PlayerStrips.swift, ScrollEdges.swift).
+    private let miniHolder = UIView()
+    private let mini = MiniPlayerView()
+    private let barEdge = TabBarEdgeView()
+    private let statusStrip = StatusStripView()
+    private var barAway = false
     private let stage = UIView()
     private var pages: [String: UIViewController] = [:]
     private(set) var open = ""
@@ -60,6 +67,15 @@ final class RootViewController: UIViewController {
         }
         view.addSubview(bar)
         show("chats")
+        // Shell: the edges and the mini-player stand under the bar, over the sections; the update window over all.
+        view.insertSubview(barEdge, belowSubview: bar)
+        view.insertSubview(statusStrip, belowSubview: bar)
+        mini.onOpen = { [weak self] in self?.openPlayer() }
+        miniHolder.addSubview(mini)
+        view.insertSubview(miniHolder, belowSubview: bar)
+        NotificationCenter.default.addObserver(self, selector: #selector(refreshMini), name: MusicPlayer.changed, object: nil)
+        refreshMini()
+        UpdateGate.shared.start(messenger, host: self)
         // People: the number of requests to be friends on the row of «Люди» (People/PeopleServer.swift).
         NotificationCenter.default.addObserver(self, selector: #selector(peopleBadge), name: FriendRequests.changed, object: nil)
         FriendRequests.shared.start(messenger)
@@ -79,6 +95,11 @@ final class RootViewController: UIViewController {
         Rooms.shared.start(messenger)
         RoomMusic.shared.start()
         RoomOverlay.shared.start()
+        // Profile: Platina's state and its confetti, birthday reminders of friends, and the chat list's decorations
+        // (Sources/Platina/PlatinaState.swift, Sources/Profile/Birthdays.swift, Sources/Avatars/ChatListDecor.swift).
+        PlatinaState.shared.start(messenger, host: self)
+        BirthdayReminders.shared.start(messenger)
+        ChatListDecor.install()
     }
 
     override func viewDidLayoutSubviews() {
@@ -86,6 +107,7 @@ final class RootViewController: UIViewController {
         let gap = BarMetrics.bottomGap(safeBottom: view.safeAreaInsets.bottom)
         bar.frame = CGRect(x: (view.bounds.width - BarMetrics.width) / 2, y: view.bounds.height - gap - BarMetrics.height, width: BarMetrics.width, height: BarMetrics.height)
         barHint.place(above: bar.frame, width: view.bounds.width) // ChatsPlus
+        layoutShell() // Shell
     }
 
     /// Opens a section. `quiet`: a look from the list — the bar's own choice stays where it is.
@@ -100,6 +122,7 @@ final class RootViewController: UIViewController {
         stage.addSubview(next.view)
         open = id
         if !quiet { bar.setActive(id) }
+        refreshMini() // Shell: «Музыка» shows its own player
         UIView.animate(withDuration: 0.16, delay: 0, options: [.beginFromCurrentState, .curveEaseOut], animations: {
             next.view.alpha = 1
             previous?.alpha = 0
@@ -130,6 +153,55 @@ final class RootViewController: UIViewController {
 
     /// Settings: the same shell built again, for a theme that has just been put on (Settings/ThemeStore.swift).
     func rebuilt() -> RootViewController { RootViewController(messenger: messenger) }
+
+    // MARK: Shell — the mini-player, the edges, the bar giving way
+
+    private func layoutShell() {
+        let width = view.bounds.width, height = view.bounds.height
+        let lift = BarMetrics.bottomGap(safeBottom: view.safeAreaInsets.bottom)
+        miniHolder.frame = CGRect(x: 12, y: bar.frame.minY - ShellInsets.miniGap - ShellInsets.miniHeight, width: width - 24, height: ShellInsets.miniHeight)
+        mini.frame = miniHolder.bounds
+        // The tab block: the pill, its 5 pt margin above, the mini-player when it is shown.
+        let block = height - bar.frame.minY + 5 + ShellInsets.miniPlayer
+        barEdge.place(width: width, height: height, block: block, lift: lift)
+        statusStrip.place(width: width, safeTop: view.safeAreaInsets.top)
+        // The hint about the hold stands above the whole block (above the mini-player when it is there).
+        if !miniHolder.isHidden { barHint.place(above: miniHolder.frame, width: width) }
+        view.bringSubviewToFront(miniHolder)
+        view.bringSubviewToFront(bar)
+        view.bringSubviewToFront(barHint)
+    }
+
+    /// The mini-player is shown while a track is chosen, everywhere but «Музыка» and while the bar is away; the
+    /// sections are told the room it takes.
+    @objc private func refreshMini() {
+        let visible = !barAway && open != "music" && MusicPlayer.shared.current != nil
+        miniHolder.isHidden = !visible
+        let room: CGFloat = visible ? ShellInsets.miniHeight + ShellInsets.miniGap : 0
+        guard room != ShellInsets.miniPlayer else { return }
+        ShellInsets.miniPlayer = room
+        for page in pages.values { page.viewIfLoaded?.setNeedsLayout() }
+        view.setNeedsLayout()
+        NotificationCenter.default.post(name: ShellInsets.changed, object: nil)
+    }
+
+    private func openPlayer() {
+        guard presentedViewController == nil else { return }
+        present(PlayerViewController(), animated: true)
+    }
+
+    /// The bar, its edge and the mini-player give way (the chat list while choosing chats: its own actions stand there).
+    func setBarAway(_ away: Bool) {
+        guard away != barAway else { return }
+        barAway = away
+        UIView.animate(withDuration: 0.18, delay: 0, options: [.beginFromCurrentState, .curveEaseOut], animations: {
+            self.bar.alpha = away ? 0 : 1
+            self.barEdge.alpha = away ? 0 : 1
+            self.barHint.alpha = away ? 0 : 1
+        })
+        bar.isUserInteractionEnabled = !away
+        refreshMini()
+    }
 
     /// Music: three colours of the playing track's cover for the bar's light; an empty list restores the calm silver.
     func setBarGlow(_ hexes: [String]) { bar.setGlow(hexes) }

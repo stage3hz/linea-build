@@ -112,6 +112,7 @@ final class SceneDelegate: UIResponder, UIWindowSceneDelegate {
     ///   -roomsdemo list|empty|room|video|outside|ring|bar|music|menu|rename|gone|picker / -rooms list|room|enter|picker    rooms: samples without an account; with an account, the list in «Каналы», the first room, «Выбрать» (Rooms/RoomsSimulator.swift)
     ///   -storiesdemo strip|viewer|viewers|compose|posts|own / -stories viewer|own|ownstories|compose    stories and posts: samples with drawn pictures, no account; with an account, the strip's first person, the account's own page (Stories/StoriesSimulator.swift)
     ///   -linkdemo 1|composer / -linksend 1    cards of links: sample rows in the -demo chat (composer: also the card above the field); with -openchat 1 on the local test server, sends one message with a prepared card (LinkPreview/LinkDemo.swift)
+    ///   -profiledemo rings|code|art|list|marks|fonts|person|birthday|own|gifts|showcase|studio|confetti|offer|mini|mini-chat|media|cropper|banner|pattern|status|giftsheet    avatars, profiles, Platina, gifts, fonts with samples, no account (Profile/ProfileSimulator.swift)
     private func simulatorStart() -> Bool {
         let args = UserDefaults.standard
         if args.bool(forKey: "corecheck") { window?.rootViewController = CoreCheckViewController(); return true }
@@ -121,6 +122,7 @@ final class SceneDelegate: UIResponder, UIWindowSceneDelegate {
         if simulatorRooms() { return true }
         if simulatorAIMusic() { return true }
         if simulatorStories() { return true }
+        if simulatorProfiles() { return true } // Profile: avatars, profiles, Platina, gifts, fonts (Profile/ProfileSimulator.swift)
         if let page = args.string(forKey: "settings") { simulatorSettings(page) }
         if args.bool(forKey: "demo") {
             let root = RootViewController()

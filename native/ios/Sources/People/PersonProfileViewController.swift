@@ -3,7 +3,7 @@ import UIKit
 /// A person's profile: the picture, the name, when they were in the line, the buttons («Написать», friends,
 /// «Ещё») and the card with the @username, the birthday and «о себе». Ported from the reference's
 /// UserProfile.tsx and ProfileInfo.tsx.
-final class PersonProfileViewController: UIViewController {
+final class PersonProfileViewController: UIViewController, UIScrollViewDelegate {
     private let messenger: Messenger?
     private let userId: String
     private let name: String
@@ -30,9 +30,12 @@ final class PersonProfileViewController: UIViewController {
     private let topBar = UIView()
     private let back = UIButton(type: .system)
     private let more = UIButton(type: .system)
-    private let avatar = PersonAvatarView()
-    private let nameLabel = UILabel()
-    private let statusLabel = UILabel()
+    // Profile: the top as the reference's UserProfile.tsx — banner / festive colour, the decorated avatar, the
+    // platinum name and emoji status, the effect (Sources/Profile/ProfileHead.swift).
+    private let hero = ProfileHeroView()
+    private let topLayers = ProfileTopLayers()
+    private let topShade = CAGradientLayer()
+    private var avatar: DecoratedAvatarView { return hero.avatar }
     private let tiles = UIStackView()
     private let noticeLabel = UILabel()
     private let problemLabel = UILabel()
@@ -64,8 +67,11 @@ final class PersonProfileViewController: UIViewController {
         super.viewDidLoad()
         view.backgroundColor = Theme.bg
 
+        topLayers.showsLight = false // Profile: ChatLook's light below is the page's light
+        view.addSubview(topLayers.back)
         scroll.alwaysBounceVertical = true
         scroll.showsVerticalScrollIndicator = false
+        scroll.delegate = self // Profile: the top follows the scroll
         scroll.translatesAutoresizingMaskIntoConstraints = false
         view.addSubview(scroll)
         profileLight = ProfileLightView.install(in: view, color: 0x5E7BFF) // ChatLook
@@ -75,21 +81,8 @@ final class PersonProfileViewController: UIViewController {
         content.translatesAutoresizingMaskIntoConstraints = false
         scroll.addSubview(content)
 
-        let avatarHolder = UIView()
-        avatar.translatesAutoresizingMaskIntoConstraints = false
-        avatarHolder.addSubview(avatar)
-        content.addArrangedSubview(avatarHolder)
-
-        nameLabel.font = .systemFont(ofSize: 27, weight: .heavy)
-        nameLabel.textColor = Theme.text
-        nameLabel.textAlignment = .center
-        nameLabel.numberOfLines = 2
-        statusLabel.font = .systemFont(ofSize: 15)
-        statusLabel.textAlignment = .center
-        let names = UIStackView(arrangedSubviews: [nameLabel, statusLabel])
-        names.axis = .vertical
-        names.spacing = 6
-        content.addArrangedSubview(names)
+        content.addArrangedSubview(hero) // Profile
+        hero.avatarHolder.addGestureRecognizer(UITapGestureRecognizer(target: self, action: #selector(avatarTapped)))
 
         let tilesHolder = UIView()
         tiles.axis = .horizontal
@@ -123,8 +116,13 @@ final class PersonProfileViewController: UIViewController {
         content.addArrangedSubview(postsBlock)
         postsBlock.attach(host: self, messenger: messenger, userId: userId, own: false, avatar: avatar)
 
-        topBar.backgroundColor = Theme.bg
+        // Profile: the content scrolls under the floating back / «Ещё» row and dissolves there.
+        topShade.colors = [Theme.bg.withAlphaComponent(0.92).cgColor, Theme.bg.withAlphaComponent(0).cgColor]
+        topShade.opacity = 0
+        topBar.layer.addSublayer(topShade)
+        topBar.backgroundColor = .clear
         topBar.translatesAutoresizingMaskIntoConstraints = false
+        view.addSubview(topLayers.front)
         view.addSubview(topBar)
         back.setImage(UIImage(systemName: "chevron.left", withConfiguration: UIImage.SymbolConfiguration(pointSize: 20, weight: .semibold)), for: .normal)
         back.tintColor = Theme.text
@@ -141,21 +139,15 @@ final class PersonProfileViewController: UIViewController {
 
         let safe = view.safeAreaLayoutGuide
         NSLayoutConstraint.activate([
-            scroll.topAnchor.constraint(equalTo: topBar.bottomAnchor),
+            scroll.topAnchor.constraint(equalTo: view.topAnchor), // Profile
             scroll.leadingAnchor.constraint(equalTo: view.leadingAnchor),
             scroll.trailingAnchor.constraint(equalTo: view.trailingAnchor),
             scroll.bottomAnchor.constraint(equalTo: view.bottomAnchor),
-            content.topAnchor.constraint(equalTo: scroll.contentLayoutGuide.topAnchor, constant: 10),
+            content.topAnchor.constraint(equalTo: scroll.contentLayoutGuide.topAnchor, constant: 48 + 18), // Profile: under the floating row
             content.bottomAnchor.constraint(equalTo: scroll.contentLayoutGuide.bottomAnchor, constant: -32),
             content.leadingAnchor.constraint(equalTo: scroll.contentLayoutGuide.leadingAnchor, constant: 18),
             content.trailingAnchor.constraint(equalTo: scroll.contentLayoutGuide.trailingAnchor, constant: -18),
             content.widthAnchor.constraint(equalTo: scroll.frameLayoutGuide.widthAnchor, constant: -36),
-
-            avatar.widthAnchor.constraint(equalToConstant: 116),
-            avatar.heightAnchor.constraint(equalToConstant: 116),
-            avatar.centerXAnchor.constraint(equalTo: avatarHolder.centerXAnchor),
-            avatar.topAnchor.constraint(equalTo: avatarHolder.topAnchor),
-            avatar.bottomAnchor.constraint(equalTo: avatarHolder.bottomAnchor),
 
             tiles.centerXAnchor.constraint(equalTo: tilesHolder.centerXAnchor),
             tiles.topAnchor.constraint(equalTo: tilesHolder.topAnchor),
@@ -199,7 +191,7 @@ final class PersonProfileViewController: UIViewController {
             }
         } else {
             #if targetEnvironment(simulator)
-            person = PeopleDemo.named(name)
+            if person == nil { person = PeopleDemo.named(name) } // Profile: a sample person handed over keeps its decorations
             isFriend = PeopleDemo.friends.contains { $0.displayName == name }
             if PeopleDemo.incoming.contains(where: { $0.displayName == name }) { request = "incoming" }
             if PeopleDemo.outgoing.contains(where: { $0.displayName == name }) { request = "outgoing" }
@@ -224,6 +216,46 @@ final class PersonProfileViewController: UIViewController {
 
     @objc private func goBack() { navigationController?.popViewController(animated: true) }
 
+    // MARK: Profile: the top follows the scroll
+
+    override func viewDidLayoutSubviews() {
+        super.viewDidLayoutSubviews()
+        layoutTop()
+    }
+
+    override func viewDidAppear(_ animated: Bool) {
+        super.viewDidAppear(animated)
+        topLayers.celebrate(in: view)
+    }
+
+    private func layoutTop() {
+        let scrolled = scroll.contentOffset.y + scroll.adjustedContentInset.top
+        let heroBottom = tiles.superview?.frame.maxY ?? hero.frame.maxY
+        topLayers.layout(width: view.bounds.width, topInset: view.safeAreaInsets.top, scrolled: scrolled, heroBottom: heroBottom)
+        hero.applyScroll(scrolled)
+        CATransaction.begin()
+        CATransaction.setDisableActions(true)
+        topShade.frame = topBar.bounds
+        topShade.opacity = Float(max(0, min(1, scrolled / 60)))
+        CATransaction.commit()
+    }
+
+    func scrollViewDidScroll(_ scrollView: UIScrollView) { layoutTop() }
+
+    /// A long pull opens the stories, or the photo and video full screen (as the reference).
+    func scrollViewWillEndDragging(_ scrollView: UIScrollView, withVelocity velocity: CGPoint, targetContentOffset: UnsafeMutablePointer<CGPoint>) {
+        if scrollView.contentOffset.y + scrollView.adjustedContentInset.top < -110 { avatarTapped() }
+    }
+
+    @objc private func avatarTapped() {
+        guard presentedViewController == nil else { return }
+        if postsBlock.openStoriesIfAny() { return }
+        let items = ProfileMediaViewer.items(shownPerson)
+        guard !items.isEmpty else { return }
+        UIImpactFeedbackGenerator(style: .light).impactOccurred()
+        present(ProfileMediaViewer(person: shownPerson, base: messenger?.server.endpoint ?? ""), animated: true, completion: nil)
+    }
+
     @objc private func presenceChanged() { refreshStatus() }
 
     // MARK: What is shown
@@ -242,19 +274,20 @@ final class PersonProfileViewController: UIViewController {
             words = "в сети"
             #endif
         }
-        statusLabel.text = words
-        statusLabel.textColor = words == "в сети" ? Theme.accent : Theme.muted
-        statusLabel.isHidden = words == nil
+        hero.setPresence(words) // Profile
     }
 
     private func refresh() {
         guard isViewLoaded else { return }
         let shown = shownPerson
-        avatar.show(shown, address: messenger?.personAvatarAddress(shown.avatarId) ?? "")
+        // Profile: the decorated top (banner, festive colour, effect, avatar, name, status).
+        let base = messenger?.server.endpoint ?? ""
+        topLayers.show(shown, base: base)
+        hero.show(shown, base: base, presenceWords: hero.presence.text, tinted: topLayers.tinted)
+        profileLight?.isHidden = shown.look.hasBanner || topLayers.tinted
         // ChatLook: the light in the colour of the person's photo, else of the colour they chose.
         profileLight?.color = LookColor.tint(avatarId: shown.avatarId, address: messenger?.personAvatarAddress(shown.avatarId) ?? "", chosen: shown.avatarColor)
         postsBlock.setColor(shown.avatarColor) // Stories: the ring is lit by the person's own colour
-        nameLabel.text = shown.displayName
         refreshStatus()
         noticeLabel.text = noticeWords
         noticeLabel.isHidden = noticeWords.isEmpty

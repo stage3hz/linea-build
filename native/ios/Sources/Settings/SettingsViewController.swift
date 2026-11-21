@@ -7,6 +7,8 @@ final class SettingsViewController: SettingsPage {
     /// but «О приложении»).
     private let messenger: Messenger?
     private var leaving = false
+    // Profile: the banner, the effect, «Изменить» and the decorated head (Sources/Profile/SettingsProfileHead.swift).
+    private let profileChrome = SettingsProfileChrome()
 
     init(messenger: Messenger? = nil) {
         self.messenger = messenger
@@ -20,6 +22,7 @@ final class SettingsViewController: SettingsPage {
     override func viewDidLoad() {
         super.viewDidLoad()
         NotificationCenter.default.addObserver(self, selector: #selector(profileChanged), name: Messenger.ownProfileChanged, object: nil)
+        NotificationCenter.default.addObserver(self, selector: #selector(profileChanged), name: PlatinaState.changed, object: nil) // Profile: the offer
     }
 
     override func viewWillAppear(_ animated: Bool) {
@@ -41,7 +44,9 @@ final class SettingsViewController: SettingsPage {
     private var person: [String: Any] {
         if let messenger { return messenger.ownProfile }
         #if targetEnvironment(simulator)
-        return ["displayName": "Мария Орлова", "username": "maria", "avatarColor": "#9271C3"]
+        // Profile: the sample person wears Platina when a shot asks for it (`-profilelook 1`, Profile/ProfileSamples.swift).
+        if UserDefaults.standard.bool(forKey: "profilelook") { return ProfileSamples.meRaw }
+        return ["id": "sample-me", "displayName": "Мария Орлова", "username": "maria", "avatarColor": "#9271C3"]
         #else
         return [:]
         #endif
@@ -51,9 +56,10 @@ final class SettingsViewController: SettingsPage {
         clear()
         let who = person
         if !who.isEmpty {
-            let head = SettingsHead(person: who, base: messenger?.server.endpoint ?? "")
-            head.onPress = { [weak self] in self?.openProfile() }
-            add(head, gap: 0)
+            // Profile: the reference's head (banner under the status bar, decorated avatar, platinum name, seal).
+            profileChrome.attach(self, messenger: messenger)
+            add(profileChrome.head(person: who), gap: 0)
+            if !PlatinaState.shared.active && !PersonLook(who).platina { add(profileChrome.offer(), gap: 18) }
         }
 
         let profile = SettingsRow(symbol: "person", label: "Мой профиль")
@@ -135,8 +141,8 @@ final class SettingsViewController: SettingsPage {
     }
 
     private func openProfile() {
-        guard let messenger else { return }
-        open(ProfileEditViewController(messenger: messenger))
+        // Profile: «Мой профиль» is the read-only profile; «Изменить» there opens the editor.
+        open(OwnProfileViewController(messenger: messenger))
     }
 
     private func openPage(_ name: String) {

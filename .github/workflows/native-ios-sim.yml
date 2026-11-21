@@ -244,6 +244,43 @@ jobs:
           shot 253-new-login-sheet -demo 1 -noticedemo loginsheet
           shot 254-recovery-sheet -demo 1 -noticedemo recoverysheet
           shot 255-trust-sheet -demo 1 -trustdemo 1
+          shot 200-composer-silent -demo 1 -chat 1 -composerdemo silent
+          shot 201-composer-later -demo 1 -chat 1 -composerdemo later
+          shot 202-composer-scheduled-pill -demo 1 -chat 1 -composerdemo scheduled
+          shot 203-composer-scheduled-list -demo 1 -chat 1 -composerdemo list
+          shot 204-composer-emoji -demo 1 -chat 1 -composerdemo emoji
+          shot 205-composer-format -demo 1 -chat 1 -composerdemo format
+          shot 206-chat-features -demo 1 -chat 1 -chatdemo features
+          shot 207-poll-new -demo 1 -chat 1 -chatdemo newpoll
+          shot 208-chat-search -demo 1 -chat 1 -chatdemo search
+          shot 209-album-menu -demo 1 -chat 1 -chatdemo albummenu
+          shot 210-photo-editor-crop -demo 1 -chat 1 -photoeditor crop
+          shot 211-photo-editor-draw -demo 1 -chat 1 -photoeditor draw
+          shot 212-photo-editor-size -demo 1 -chat 1 -photoeditor size
+          shot 213-forward-saved -demo 1 -chat 1 -chatdemo forward
+          shot 100-avatar-rings -profiledemo rings
+          shot 101-avatar-code-frames -profiledemo code
+          shot 102-avatar-art -profiledemo art
+          shot 103-avatar-list-sizes -profiledemo list
+          shot 104-platina-marks -profiledemo marks
+          shot 105-fonts -profiledemo fonts
+          shot 106-profile-platina -profiledemo person
+          shot 107-profile-birthday -profiledemo birthday
+          shot 108-own-profile -profiledemo own
+          shot 109-gifts -profiledemo gifts
+          shot 110-platina-showcase -profiledemo showcase
+          shot 111-platina-studio -profiledemo studio
+          shot 112-platina-confetti -profiledemo confetti
+          shot 113-settings-offer -profiledemo offer
+          shot 114-settings-head -demo 1 -tab profile -profilelook 1
+          shot 115-mini-profile -profiledemo mini
+          shot 116-mini-profile-chat -profiledemo mini-chat
+          shot 117-profile-media -profiledemo media
+          shot 118-avatar-cropper -profiledemo cropper
+          shot 119-banner-preview -profiledemo banner
+          shot 120-profile-pattern -profiledemo pattern
+          shot 121-status-picker -profiledemo status
+          shot 122-gift-sheet -profiledemo giftsheet
           shot 62-bar-with-track -musicdemo chats
           shot 63-light-chats -demo 1 -settheme light
           shot 64-light-chat -demo 1 -chat 1 -settheme light

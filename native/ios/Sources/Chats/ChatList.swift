@@ -573,6 +573,13 @@ final class ChatListView: UIView, UITableViewDataSource, UITableViewDelegate {
   private let table = UITableView(frame: .zero, style: .plain)
   private var rows: [ChatRow] = []
   private var palette = ChatPalette()
+  // ChatsPlus: «Архив» hidden above the first chat, brought out by a pull (see `setPull`).
+  private var pullView: UIView?
+  private var pullHeight: CGFloat = 0
+  private(set) var pullOpen = false
+  private var padTop: CGFloat = 0
+  private var padBottom: CGFloat = 0
+  private var dragFrom: CGFloat = 0
 
   override init(frame: CGRect) {
     super.init(frame: frame)
@@ -643,6 +650,8 @@ final class ChatListView: UIView, UITableViewDataSource, UITableViewDelegate {
 
   func setRows(_ next: [ChatRow]) {
     if next == rows { return }
+    // ChatsPlus: a chat that moves up (a new message, a pin) slides to its place instead of jumping.
+    if moveSmoothly(to: next) { return }
     let sameOrder = next.count == rows.count && zip(next, rows).allSatisfy { $0.id == $1.id }
     // A heading that appears or goes changes its row's height: redrawing the cell alone left the old height
     // (a heading squeezed into a row without room for it, or an empty band where one used to be).
@@ -673,7 +682,9 @@ final class ChatListView: UIView, UITableViewDataSource, UITableViewDelegate {
   }
 
   func setPad(top: Double, bottom: Double) {
-    let insets = UIEdgeInsets(top: CGFloat(top), left: 0, bottom: CGFloat(bottom), right: 0)
+    padTop = CGFloat(top)
+    padBottom = CGFloat(bottom)
+    let insets = UIEdgeInsets(top: CGFloat(top) + (pullOpen ? pullHeight : 0), left: 0, bottom: CGFloat(bottom), right: 0)
     if table.contentInset == insets { return }
     let atTop = table.contentOffset.y <= -table.contentInset.top + 1
     table.contentInset = insets
@@ -703,5 +714,125 @@ final class ChatListView: UIView, UITableViewDataSource, UITableViewDelegate {
     let point = recognizer.location(in: table)
     guard let path = table.indexPathForRow(at: point), path.row < rows.count else { return }
     onRowLongPress(["id": rows[path.row].id, "y": Double(recognizer.location(in: nil).y)])
+  }
+}
+
+// MARK: ChatsPlus — rows that move, «Архив» behind a pull
+
+extension ChatListView {
+  /// The reference's LayoutAnimation (220 ms, ease in-out, opacity): when only a few chats come or go and the rest
+  /// change places, the rows slide to their new places and the new ones fade in. False: nothing was done here.
+  fileprivate func moveSmoothly(to next: [ChatRow]) -> Bool {
+    guard !UIAccessibility.isReduceMotionEnabled, window != nil, !rows.isEmpty, !next.isEmpty else { return false }
+    let oldIds = rows.map { $0.id }, newIds = next.map { $0.id }
+    let oldSet = Set(oldIds), newSet = Set(newIds)
+    guard oldSet.count == oldIds.count, newSet.count == newIds.count, oldIds != newIds else { return false }
+    let gone = oldIds.enumerated().filter { !newSet.contains($0.element) }.map { IndexPath(row: $0.offset, section: 0) }
+    let came = newIds.enumerated().filter { !oldSet.contains($0.element) }.map { IndexPath(row: $0.offset, section: 0) }
+    guard gone.count + came.count <= 4 else { return false }
+    var oldIndex: [String: Int] = [:]
+    for (index, id) in oldIds.enumerated() { oldIndex[id] = index }
+    rows = next
+    UIView.animate(withDuration: 0.22, delay: 0, options: [.curveEaseInOut, .allowUserInteraction], animations: {
+      self.table.performBatchUpdates({
+        self.table.deleteRows(at: gone, with: .fade)
+        self.table.insertRows(at: came, with: .fade)
+        for (index, id) in newIds.enumerated() {
+          guard let from = oldIndex[id] else { continue }
+          self.table.moveRow(at: IndexPath(row: from, section: 0), to: IndexPath(row: index, section: 0))
+        }
+      }, completion: { (_: Bool) -> Void in self.refreshVisible() })
+    })
+    refreshVisible()
+    return true
+  }
+
+  /// The rows on screen drawn again from the current list.
+  fileprivate func refreshVisible() {
+    for cell in table.visibleCells {
+      guard let rowCell = cell as? ChatRowCell, let path = table.indexPath(for: cell), path.row < rows.count else { continue }
+      rowCell.show(rows[path.row], palette)
+    }
+  }
+
+  /// A view hidden above the first row (the stories strip included), brought out by pulling the list down
+  /// (ChatListScreen.tsx: «Архив» above the first chat, out of sight until the list is pulled). A drag that ends with
+  /// it partly shown settles open or shut in the drag's direction (listSwipes.ts `archiveSnap`); scrolling down into
+  /// the chats puts it away again. nil takes it away.
+  func setPull(_ view: UIView?, height: CGFloat) {
+    if view === pullView && height == pullHeight { return }
+    pullView?.removeFromSuperview()
+    pullView = view
+    pullHeight = view == nil ? 0 : height
+    if view == nil && pullOpen {
+      pullOpen = false
+      applyPullInset()
+    }
+    if let view {
+      view.frame = CGRect(x: 0, y: -height, width: table.bounds.width, height: height)
+      view.autoresizingMask = [.flexibleWidth]
+      table.addSubview(view)
+      placePull()
+    }
+  }
+
+  private func applyPullInset() {
+    var insets = table.contentInset
+    insets.top = padTop + (pullOpen ? pullHeight : 0)
+    table.contentInset = insets
+    table.verticalScrollIndicatorInsets = insets
+  }
+
+  /// The pull view is seen only while pulled or open (at rest its place is under the floating header).
+  private func placePull() {
+    guard let pullView else { return }
+    pullView.frame = CGRect(x: 0, y: -pullHeight, width: table.bounds.width, height: pullHeight)
+    let revealed = -padTop - table.contentOffset.y
+    let shown: CGFloat = pullOpen ? 1 : max(0, min(1, revealed / max(1, pullHeight)))
+    pullView.alpha = shown
+    pullView.isHidden = shown <= 0.01
+  }
+
+  func scrollViewWillBeginDragging(_ scrollView: UIScrollView) {
+    dragFrom = scrollView.contentOffset.y
+  }
+
+  func scrollViewDidScroll(_ scrollView: UIScrollView) {
+    guard pullView != nil else { return }
+    // Scrolled down into the chats: the open block is put away (it is out of sight already, nothing jumps).
+    if pullOpen && scrollView.contentOffset.y >= -padTop - 0.5 && (scrollView.isDragging || scrollView.isDecelerating) {
+      pullOpen = false
+      applyPullInset()
+    }
+    placePull()
+  }
+
+  func scrollViewWillEndDragging(_ scrollView: UIScrollView, withVelocity velocity: CGPoint, targetContentOffset: UnsafeMutablePointer<CGPoint>) {
+    guard pullView != nil, pullHeight > 0 else { return }
+    let base = -padTop
+    let offset = scrollView.contentOffset.y
+    let moved = offset - dragFrom
+    let direction: Int = moved > 6 ? 1 : (moved < -6 ? -1 : 0)
+    if !pullOpen {
+      let revealed = base - offset
+      guard revealed > 0 else { return }
+      let open = revealed >= pullHeight || direction < 0 || (direction == 0 && revealed >= pullHeight / 2)
+      guard open else { return }
+      pullOpen = true
+      applyPullInset()
+      targetContentOffset.pointee.y = base - pullHeight
+      Haptic.light()
+    } else {
+      let into = offset - (base - pullHeight)
+      guard into > 0, into < pullHeight else { return }
+      let hide = direction > 0 || (direction == 0 && into >= pullHeight / 2)
+      if hide {
+        pullOpen = false
+        applyPullInset()
+        targetContentOffset.pointee.y = max(targetContentOffset.pointee.y, base)
+      } else {
+        targetContentOffset.pointee.y = base - pullHeight
+      }
+    }
   }
 }

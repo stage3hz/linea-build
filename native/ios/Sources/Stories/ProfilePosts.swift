@@ -6,7 +6,7 @@ import UIKit
 // button adds one and holding a tile removes it. A tap opens the viewer. The ring around the avatar says there
 // are stories and opens them.
 //
-// The reference has a third tab, «Подарки»; gifts are not part of this feature and are not built here.
+// The third tab, «Подарки», is Sources/Profile/Gifts.swift (`GiftsPanel`).
 
 /// One tile of the grid. Its picture is asked for only when the tile comes near the screen.
 final class StoryTileView: UIControl {
@@ -75,6 +75,10 @@ final class ProfilePostsBlock: UIView {
     private let tabsBox = UIView()
     private let postsTab = UIButton(type: .system)
     private let storiesTab = UIButton(type: .system)
+    // Gifts: the third tab and its panel (Sources/Profile/Gifts.swift).
+    private let giftsTab = UIButton(type: .system)
+    private let giftsPanel = GiftsPanel(frame: .zero)
+    private var giftCount = 0
     private let problemLabel = UILabel()
     private let spinner = UIActivityIndicatorView(style: .medium)
     private let lockIcon = UIImageView()
@@ -95,12 +99,21 @@ final class ProfilePostsBlock: UIView {
         tabsBox.layer.cornerRadius = 23
         tabsBox.layer.cornerCurve = .continuous
         addSubview(tabsBox)
-        for (button, name) in [(postsTab, "post"), (storiesTab, "story")] {
+        for (button, name) in [(postsTab, "post"), (storiesTab, "story"), (giftsTab, "gift")] {
             button.layer.cornerRadius = 19
             button.layer.cornerCurve = .continuous
             button.accessibilityIdentifier = name
             button.addTarget(self, action: #selector(tabPressed(_:)), for: .touchUpInside)
             tabsBox.addSubview(button)
+        }
+        // Gifts
+        giftsPanel.isHidden = true
+        addSubview(giftsPanel)
+        giftsPanel.onHeight = { [weak self] in self?.setNeedsLayout() }
+        giftsPanel.onCount = { [weak self] (count: Int) -> Void in
+            guard let self, self.giftCount != count else { return }
+            self.giftCount = count
+            self.rebuild()
         }
         problemLabel.font = .systemFont(ofSize: 14)
         problemLabel.textColor = Theme.danger
@@ -202,8 +215,16 @@ final class ProfilePostsBlock: UIView {
                 ringButton.heightAnchor.constraint(equalTo: avatar.heightAnchor),
             ])
         }
+        giftsPanel.attach(host: host, messenger: messenger, userId: userId, own: own) // Gifts
         rebuild()
         reload()
+    }
+
+    /// Gifts / Profile: a tap on the avatar opens the stories when there are any (true then).
+    func openStoriesIfAny() -> Bool {
+        guard let stories = data?.stories, !stories.isEmpty else { return false }
+        ringPressed()
+        return true
     }
 
     /// The person's colour lights the ring.
@@ -214,6 +235,7 @@ final class ProfilePostsBlock: UIView {
 
     /// Reads the posts and stories again (after a change, and when the two became friends or stopped being).
     func reload() {
+        if !userId.isEmpty { giftsPanel.reload() } // Gifts: who may see them can change with the friendship
         guard let messenger else {
             #if targetEnvironment(simulator)
             data = StoriesDemo.profile(own: own)
@@ -238,14 +260,16 @@ final class ProfilePostsBlock: UIView {
 
     private var items: [StoryPost] {
         guard let data else { return [] }
+        if tab == "gift" { return [] } // Gifts
         return tab == "post" ? data.posts : data.stories
     }
 
     private func rebuild() {
         let labels = Core.view("storiesTabs", [data?.posts.count ?? 0, data?.stories.count ?? 0]) as? [String] ?? [StoryRules.word("tabPosts"), StoryRules.word("tabStories")]
-        for (position, button) in [postsTab, storiesTab].enumerated() {
-            let on = (position == 0) == (tab == "post")
-            button.setTitle(position < labels.count ? labels[position] : "", for: .normal)
+        let titles = Array(labels.prefix(2)) + [giftCount > 0 ? "Подарки \(giftCount)" : "Подарки"] // Gifts
+        for (position, button) in [postsTab, storiesTab, giftsTab].enumerated() {
+            let on = ["post", "story", "gift"][position] == tab
+            button.setTitle(position < titles.count ? titles[position] : "", for: .normal)
             button.setTitleColor(on ? Theme.text : Theme.muted, for: .normal)
             button.titleLabel?.font = .systemFont(ofSize: 15, weight: on ? .bold : .semibold)
             button.titleLabel?.adjustsFontSizeToFitWidth = true
@@ -305,7 +329,9 @@ final class ProfilePostsBlock: UIView {
         problemLabel.isHidden = closed || problem.isEmpty
         grid.isHidden = closed || waiting || !has
         addButton.isHidden = closed || waiting || !has || !own
-        let showEmpty = !closed && !waiting && !has
+        let gifting = tab == "gift" && !closed && !waiting // Gifts
+        giftsPanel.isHidden = !gifting
+        let showEmpty = !closed && !waiting && !has && !gifting
         emptyEmoji.isHidden = !showEmpty
         emptyHeading.isHidden = !showEmpty
         emptyHint.isHidden = !showEmpty
@@ -322,9 +348,10 @@ final class ProfilePostsBlock: UIView {
 
         let tabsWidth = min(420, width)
         tabsBox.frame = CGRect(x: (width - tabsWidth) / 2, y: y, width: tabsWidth, height: 46)
-        let half = (tabsWidth - 8) / 2
-        postsTab.frame = CGRect(x: 4, y: 4, width: half, height: 38)
-        storiesTab.frame = CGRect(x: 4 + half, y: 4, width: half, height: 38)
+        let third = (tabsWidth - 8) / 3 // Gifts: three tabs
+        postsTab.frame = CGRect(x: 4, y: 4, width: third, height: 38)
+        storiesTab.frame = CGRect(x: 4 + third, y: 4, width: third, height: 38)
+        giftsTab.frame = CGRect(x: 4 + third * 2, y: 4, width: third, height: 38)
         y += 46 + 14
         if !problem.isEmpty {
             let size = problemLabel.sizeThatFits(CGSize(width: width - 24, height: 200))
@@ -334,6 +361,14 @@ final class ProfilePostsBlock: UIView {
         if waiting {
             spinner.center = CGPoint(x: width / 2, y: y + 34)
             setHeight(y + 68)
+            return
+        }
+        if gifting {
+            // Gifts: the panel lays itself out, then says how tall it is.
+            giftsPanel.frame = CGRect(x: 0, y: y, width: width, height: max(1, giftsPanel.contentHeight))
+            giftsPanel.layoutIfNeeded()
+            giftsPanel.frame.size.height = giftsPanel.contentHeight
+            setHeight(y + giftsPanel.contentHeight)
             return
         }
         if has {
@@ -413,7 +448,7 @@ final class ProfilePostsBlock: UIView {
     // MARK: What the person does
 
     @objc private func tabPressed(_ sender: UIButton) {
-        let next = sender === storiesTab ? "story" : "post"
+        let next = sender === giftsTab ? "gift" : sender === storiesTab ? "story" : "post" // Gifts
         guard next != tab else { return }
         tab = next
         problem = ""

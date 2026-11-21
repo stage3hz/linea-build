@@ -22,6 +22,14 @@ enum ProfileSamples {
 
     static let permanentStatus: [String: Any] = ["statusEmoji": "🔥", "statusEmojiPermanent": true, "statusEmojiExpiresAt": NSNull()]
 
+    /// The sample account as the server's `user` (Settings' head without an account).
+    static var meRaw: [String: Any] {
+        var fields: [String: Any] = ["id": "sample-person-0", "displayName": "Мария Орлова", "username": "maria", "avatarColor": "#9271C3", "bio": "Рисую карты и собираю гербарий.", "birthday": "03-02",
+                                     "seal": "platina", "avatarFrame": "platinum", "bannerPreset": "aurora", "profileEffect": "sparks", "nameplate": "deep", "profilePattern": "⭐"]
+        for (key, value) in permanentStatus { fields[key] = value }
+        return fields
+    }
+
     /// The signed-in sample account.
     static var me: Person {
         var fields: [String: Any] = ["seal": "platina", "avatarFrame": "platinum", "bannerPreset": "aurora", "profileEffect": "sparks", "nameplate": "deep", "profilePattern": "⭐"]

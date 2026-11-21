@@ -241,6 +241,12 @@ final class MusicViewController: UIViewController, UITableViewDataSource, UITabl
     private let footer = UIStackView()
     private let mini = MiniPlayerView()
     private var miniBottom: NSLayoutConstraint?
+    /// «Любимое» and «Артисты» (Music/MusicShelves.swift), on «Главная» while nothing is searched.
+    private let shelves = UIStackView()
+    private var shelvesMark = ""
+    /// The cold «эмбиент» behind the top of the page (Effects/MusicAmbient.swift); it runs under the status bar,
+    /// scrolls away with the list and fades out by transparency.
+    private let ambient = MusicAmbientView(tone: MusicAmbientView.themeTone, fade: true)
 
     init(messenger: Messenger?) {
         self.messenger = messenger
@@ -476,6 +482,7 @@ final class MusicViewController: UIViewController, UITableViewDataSource, UITabl
     // MARK: The page
 
     private func build() {
+        view.addSubview(ambient)
         table.translatesAutoresizingMaskIntoConstraints = false
         table.backgroundColor = .clear
         table.separatorStyle = .none
@@ -552,6 +559,9 @@ final class MusicViewController: UIViewController, UITableViewDataSource, UITabl
         search.heightAnchor.constraint(equalToConstant: 46).isActive = true
         search.addTarget(self, action: #selector(typed), for: .editingChanged)
         column.addArrangedSubview(search)
+        shelves.axis = .vertical
+        shelves.spacing = 16
+        column.addArrangedSubview(shelves)
 
         sources.accessibilityLabel = "Источник музыки"
         sources.addTarget(self, action: #selector(sourceChanged), for: .valueChanged)
@@ -612,6 +622,52 @@ final class MusicViewController: UIViewController, UITableViewDataSource, UITabl
         }
         fit(header)
         fit(footer)
+        placeAmbient()
+    }
+
+    /// The ambient's height: most of the top half on «Главная» without a search, a strip otherwise.
+    private func placeAmbient() {
+        let top = view.safeAreaInsets.top
+        let tall = (section == "catalog" && query.isEmpty ? min(430, view.bounds.height * 0.5) : 132) + top
+        let scrolled = table.contentOffset.y + table.adjustedContentInset.top
+        ambient.frame = CGRect(x: 0, y: -scrolled, width: view.bounds.width, height: tall)
+    }
+
+    func scrollViewDidScroll(_ scrollView: UIScrollView) {
+        if scrollView === table { placeAmbient() }
+    }
+
+    /// The shelves, built again only when what they show changed.
+    private func refreshShelves(_ list: [MusicTrack]) {
+        let open = section == "catalog" && query.isEmpty
+        let favorites = open ? Array(player.favorites.prefix(12)) : []
+        let artists = open ? MusicShelves.artists(list) : []
+        let mark = favorites.map { $0.id }.joined(separator: ",") + "|" + (artists.count > 1 ? artists.map { $0.id }.joined(separator: ",") : "")
+        guard mark != shelvesMark else { return }
+        shelvesMark = mark
+        shelves.arrangedSubviews.forEach { $0.removeFromSuperview() }
+        if !favorites.isEmpty {
+            let all = player.favorites
+            let cards = favorites.map { (track: MusicTrack) -> UIView in
+                MusicShelves.coverCard(track) { MusicPlayer.shared.play(track, queue: all) }
+            }
+            shelves.addArrangedSubview(MusicShelves.shelf("Любимое", cards: cards, edge: 18))
+        }
+        if artists.count > 1 {
+            let cards = artists.map { (track: MusicTrack) -> UIView in
+                MusicShelves.artistCircle(track) { [weak self] in self?.searchArtist(track.artist) }
+            }
+            shelves.addArrangedSubview(MusicShelves.shelf("Артисты", cards: cards, edge: 18))
+        }
+        shelves.isHidden = shelves.arrangedSubviews.isEmpty
+    }
+
+    private func searchArtist(_ name: String) {
+        search.text = name
+        typing?.invalidate()
+        query = name
+        reloadCatalog()
+        refresh()
     }
 
     /// A table's header and footer do not size themselves: their height is measured for the table's width.
@@ -686,6 +742,7 @@ final class MusicViewController: UIViewController, UITableViewDataSource, UITabl
             moodRow.addArrangedSubview(button)
         }
         let list = rows
+        refreshShelves(list)
         mixRow.isHidden = !(catalog && query.isEmpty)
         mixButton.isEnabled = !list.isEmpty
         mixButton.alpha = list.isEmpty ? 0.5 : 1
@@ -758,5 +815,20 @@ final class MusicViewController: UIViewController, UITableViewDataSource, UITabl
     #if targetEnvironment(simulator)
     /// `-musicdemo player`: the full player over the sample list.
     func simulatorPlayer() { openPlayer() }
+
+    /// `-musicdemo equalizer`: the equalizer over the full player.
+    func simulatorEqualizer() {
+        openPlayer()
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.8) { [weak self] in
+            guard let shown = self?.presentedViewController else { return }
+            var profile = EqualizerSettings.Profile()
+            profile.mode = "custom"
+            profile.low = 4
+            profile.mid = -2
+            profile.high = 6
+            EqualizerSettings.profile = profile
+            shown.present(EqualizerViewController(), animated: false)
+        }
+    }
     #endif
 }

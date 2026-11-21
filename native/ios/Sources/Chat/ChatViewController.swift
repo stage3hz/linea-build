@@ -30,6 +30,8 @@ final class ChatViewController: UIViewController {
     private(set) lazy var look = ChatLookScreen(messenger: messenger, chatId: chatId, peerId: peerId, name: name)
     /// Attachments: the simulator's sample rows (-attachdemo), kept after the chat's own.
     private var sampleRows: [[String: Any]] = []
+    /// Music: the playing track's strip under the header (Sources/Shell/PlayerStrips.swift).
+    private lazy var playerStrip = ChatPlayerStrip(host: self)
 
     /// With a `messenger`: the real chat. Without: the simulator's sample chat.
     init(name: String, messenger: Messenger? = nil, chatId: String = "", peerId: String = "") {
@@ -196,7 +198,9 @@ final class ChatViewController: UIViewController {
         media.place(composerFrame: composer.frame, in: view)
         list.frame = view.bounds
         // ChatActions: the status under the name, the pinned message, the bar above the field, the way down.
-        let room = actions.place(in: view, headerBottom: header.frame.maxY, safeTop: top, composerFrame: composer.frame)
+        // Music: the player strip under the header; what ChatActions places there moves down by its room.
+        let stripRoom = playerStrip.place(in: view, headerBottom: header.frame.maxY, hidden: actions.history.selection != nil)
+        let room = actions.place(in: view, headerBottom: header.frame.maxY + stripRoom, safeTop: top, composerFrame: composer.frame)
         look.place(in: view, safeTop: top) // ChatLook: the pills of the header, after ChatActions placed the name and the status
         list.setPad(top: Double(room.top), bottom: Double(room.bottom))
     }
