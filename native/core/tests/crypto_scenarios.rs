@@ -90,7 +90,7 @@ impl Vault for Memory {
 #[test]
 fn the_service_does_exactly_what_the_reference_does() {
     let scenarios: Vec<Scenario> = serde_json::from_str(include_str!("vectors/crypto-scenarios.json")).expect("vectors");
-    assert!(scenarios.len() >= 15);
+    assert!(scenarios.len() >= 27);
     let mut steps_run = 0;
     for scenario in &scenarios {
         let tape = Tape::default();
@@ -116,10 +116,24 @@ fn the_service_does_exactly_what_the_reference_does() {
                 "snapshot" => service.trust_snapshot(&args[0].as_str().unwrap_or_default()).map(|snapshot| Some(json::stringify(&snapshot))),
                 "approve" => service.approve_devices(&args[0]).map(|_| None),
                 "pendingOutbox" => service.pending_outbox().map(|items| Some(json::stringify(&Value::Array(items)))),
+                "sync" => service.sync_chat(&args[0].as_str().unwrap_or_default(), match args[1] { Value::Number(pages) => pages as usize, _ => 100 }).map(|_| None),
+                "preview" => service.preview(&args[0]).map(|shown| Some(json::stringify(&shown))),
+                "mesh" => service.receive_mesh(&args[0]).map(|plain| plain.map(|plain| json::stringify(&plain))),
+                "delivered" => service.delivered(&args[0].as_str().unwrap_or_default(), &args[1].as_str().unwrap_or_default()).map(|_| None),
+                "forget" => { service.forget(&args[0].as_str().unwrap_or_default(), &args[1].as_str().unwrap_or_default()); Ok(None) }
+                "forgetChat" => service.forget_chat(&args[0].as_str().unwrap_or_default()).map(|_| None),
+                "historyPage" => service.history_page(&args[0].as_str().unwrap_or_default(), match args[1] { Value::Number(page) => Some(page), _ => None }).map(|page| Some(json::stringify(&page))),
+                "history" => service.history(&args[0].as_str().unwrap_or_default(), match args[1] { Value::Number(limit) => Some(limit as usize), _ => None }, match args[2] { Value::Number(page) => Some(page), _ => None }).map(|items| Some(json::stringify(&Value::Array(items)))),
+                "storeCache" => service.store_cache(&args[0].as_str().unwrap_or_default(), args[1].as_str().as_deref()).map(|_| None),
+                "loadCache" => service.load_cache(&args[0].as_str().unwrap_or_default()).map(|held| held.map(|held| json::stringify(&Value::str(&held)))),
+                "sealNote" => service.seal_note(&args[0].as_str().unwrap_or_default(), &args[1].as_str().unwrap_or_default(), &args[2].as_str().unwrap_or_default()).map(|note| Some(json::stringify(&note))),
+                "openNote" => service.open_note(&args[0].as_str().unwrap_or_default(), &args[1]).map(|text| Some(json::stringify(&Value::str(&text)))),
                 other => panic!("unknown step {other}"),
             };
             match (&outcome, &step.error) {
                 (Ok(result), None) => assert_eq!(result, &step.ok, "{place}: the result"),
+                // The words of these two are the JavaScript engine's own; the kind is what counts.
+                (Err(error), Some(wanted)) if matches!(wanted.name.as_str(), "SyntaxError" | "TypeError") => assert_eq!(error.name(), wanted.name, "{place}: the refusal"),
                 (Err(error), Some(wanted)) => assert_eq!((error.name(), error.message()), (wanted.name.as_str(), wanted.message.as_str()), "{place}: the refusal"),
                 (Ok(_), Some(wanted)) => panic!("{place}: the reference refused with «{}», the core did not", wanted.message),
                 (Err(error), None) => panic!("{place}: the core refused with «{}», the reference did not", error.message()),
@@ -135,5 +149,5 @@ fn the_service_does_exactly_what_the_reference_does() {
             steps_run += 1;
         }
     }
-    assert!(steps_run >= 160, "{steps_run} steps");
+    assert!(steps_run >= 380, "{steps_run} steps");
 }

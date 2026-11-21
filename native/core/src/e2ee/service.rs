@@ -5,9 +5,9 @@
 //! library and the server in the same order, the same records in the vault, the same refusals in the same
 //! words. Checked by replaying recordings of the reference itself (`tests/crypto_scenarios.rs`).
 
-use super::attachment::{valid_attachment, wire_body};
+use super::attachment::{valid_attachment, wire_body, with_waveform};
 use super::bridge::{keys, CryptoTransport, Env, SignalBridge, SignalError, TransportError, Vault};
-use super::wire::{canonical_encrypted, id_order, sha256_hex};
+use super::wire::{canonical_encrypted, id_order, sha256_hex, valid_ciphertext_body, valid_encrypted};
 use crate::json::{self, JsString, Value};
 use crate::media::js_string;
 use crate::message_meta::valid_meta;
@@ -21,6 +21,11 @@ const HISTORY_PAGES: f64 = 40.0;
 /// A separate session that is never answered in stays «unacknowledged» for the Signal library, which refuses to
 /// encrypt in one older than 30 days: it is started afresh once it is this old.
 const LANE_SESSION_MAX_AGE_MS: f64 = 20.0 * 86_400_000.0;
+pub const FAILED_TEXT: &str = "Не удалось расшифровать на этом устройстве. Напиши собеседнику — шифрование восстановится — и попроси отправить сообщение ещё раз.";
+const FAILED_AFTER: f64 = 3.0;
+/// Pages of 100 messages one opening of a chat may read.
+pub const SYNC_PAGES: usize = 100;
+pub const PARTIAL_TEXT: &str = "Загружена часть истории. Открой чат ещё раз, чтобы продолжить безопасную расшифровку.";
 const MAX_SAFE_INTEGER: f64 = 9_007_199_254_740_991.0;
 
 #[derive(Clone, PartialEq, Debug)]
@@ -34,15 +39,21 @@ pub enum CryptoError {
     /// The server said no.
     Server(String),
     Signal(SignalError),
+    /// A background catch-up stopped at its page limit; the next one goes on from where this one ended.
+    Partial,
+    /// Text that is not JSON where JSON was expected (the reference's `SyntaxError`).
+    Syntax,
+    /// A value of another kind than the code relies on (the reference's `TypeError`).
+    Type,
 }
 
 impl CryptoError {
     /// The error's name as the reference's callers see it.
     pub fn name(&self) -> &str {
-        match self { CryptoError::Untrusted => "UntrustedDeviceError", CryptoError::Network(_) => "NetworkError", CryptoError::Signal(error) if !error.name.is_empty() => &error.name, _ => "Error" }
+        match self { CryptoError::Untrusted => "UntrustedDeviceError", CryptoError::Network(_) => "NetworkError", CryptoError::Signal(error) if !error.name.is_empty() => &error.name, CryptoError::Partial => "PartialSync", CryptoError::Syntax => "SyntaxError", CryptoError::Type => "TypeError", _ => "Error" }
     }
     pub fn message(&self) -> &str {
-        match self { CryptoError::Message(text) | CryptoError::Network(text) | CryptoError::Server(text) => text, CryptoError::Untrusted => UNTRUSTED, CryptoError::Signal(error) => &error.message }
+        match self { CryptoError::Message(text) | CryptoError::Network(text) | CryptoError::Server(text) => text, CryptoError::Untrusted => UNTRUSTED, CryptoError::Signal(error) => &error.message, CryptoError::Partial => PARTIAL_TEXT, CryptoError::Syntax => "Unexpected token in JSON", CryptoError::Type => "Cannot read properties" }
     }
 }
 impl From<TransportError> for CryptoError {
@@ -81,7 +92,7 @@ fn same_device(a: &Value, b: &Value) -> bool {
     strict_eq(a.get("identityKey"), b.get("identityKey")) && strict_eq(a.get("registrationId"), b.get("registrationId"))
 }
 fn parse(text: Option<String>) -> Result<Option<Value>, CryptoError> {
-    match text { None => Ok(None), Some(text) => json::parse(&text).map(Some).map_err(|_| CryptoError::Message("Unexpected token in JSON".to_string())) }
+    match text { None => Ok(None), Some(text) => json::parse(&text).map(Some).map_err(|_| CryptoError::Syntax) }
 }
 fn js_blank(text: &str) -> bool {
     text.encode_utf16().all(|unit| matches!(unit, 0x09..=0x0d | 0x20 | 0xa0 | 0x1680 | 0x2000..=0x200a | 0x2028 | 0x2029 | 0x202f | 0x205f | 0x3000 | 0xfeff))
@@ -465,5 +476,400 @@ impl<S: SignalBridge, V: Vault, T: CryptoTransport, E: Env> Crypto<S, V, T, E> {
         }
         if kept.len() != refs.len() { self.vault.commit(vec![(keys::OUTBOX_INDEX.to_string(), if kept.is_empty() { None } else { Some(json::stringify(&Value::Array(kept))) })]) }
         Ok(items)
+    }
+}
+
+// ── Receiving ────────────────────────────────────────────────────────────────────────────────────────────────
+
+/// `Number(text || 0)` for a stored counter.
+fn js_number(text: Option<String>) -> f64 {
+    match text.as_deref().map(str::trim) { None | Some("") => 0.0, Some(text) => text.parse().unwrap_or(f64::NAN) }
+}
+fn is_failed(value: Option<&Value>) -> bool { matches!(value, Some(record @ Value::Object(_)) if matches!(record.get("failed"), Some(Value::Bool(true)))) }
+fn auto_record(device: &Value) -> String {
+    json::stringify(&json::object(vec![("identityKey", device.get("identityKey").cloned().unwrap_or(Value::Null)), ("registrationId", device.get("registrationId").cloned().unwrap_or(Value::Null)), ("checkedAt", Value::Null), ("auto", Value::Bool(true))]))
+}
+/// `{...base, key: value, …}`; a value that is not there is not written.
+fn spread(base: &Value, extra: Vec<(&str, Option<Value>)>) -> Value {
+    let mut entries = match base { Value::Object(entries) => entries.clone(), _ => Vec::new() };
+    for (key, value) in extra {
+        let key = JsString::from_str(key);
+        match value {
+            Some(value) => match entries.iter_mut().find(|(name, _)| *name == key) { Some(entry) => entry.1 = value, None => entries.push((key, value)) },
+            None => entries.retain(|(name, _)| *name != key),
+        }
+    }
+    Value::Object(entries)
+}
+fn object_of(entries: Vec<(&str, Option<Value>)>) -> Value { json::object(entries.into_iter().filter_map(|(key, value)| value.map(|value| (key, value))).collect()) }
+fn same_plain(a: &Value, b: &Value) -> bool {
+    let text = |value: Option<&Value>| value.map(json::stringify);
+    let meta = |plain: &Value| json::stringify(plain.get("meta").unwrap_or(&Value::Null));
+    strict_eq(a.get("text"), b.get("text")) && text(a.get("attachment")) == text(b.get("attachment")) && meta(a) == meta(b)
+}
+/// The names the cache of the chat list may use: the list itself and one page per chat.
+pub fn cache_name(name: &str) -> bool {
+    name == "chats:v1" || name.strip_prefix("page:v1:").is_some_and(|rest| (1..=80).contains(&rest.len()) && rest.bytes().all(|byte| byte.is_ascii_alphanumeric() || byte == b'_' || byte == b'-'))
+}
+fn message_key(message: &Value) -> String { keys::message(&text_of(message.get("chatId")), &text_of(message.get("senderId")), &text_of(message.get("clientId"))) }
+
+struct OpenedMessage { plain: Value, protocol: String, sender: (String, String) }
+
+impl<S: SignalBridge, V: Vault, T: CryptoTransport, E: Env> Crypto<S, V, T, E> {
+    /// A trust record for a sender not seen before, when keys are accepted on first sight: looked up in the
+    /// server's list. `None`: no record and none may be made.
+    fn sender_trust(&mut self, sender: &(String, String), keep: bool) -> Result<(Option<Value>, Option<(String, String)>), CryptoError> {
+        let key = keys::trust(&sender.0, &sender.1);
+        let trusted = parse(self.vault.get(&key))?.filter(|record| truthy(Some(record)));
+        if trusted.is_some() || !self.auto_trust { return Ok((trusted, None)) }
+        let devices = self.targets(&sender.0)?;
+        let Some(device) = devices.iter().find(|device| is_text(device.get("userId"), &sender.0) && is_text(device.get("id"), &sender.1)) else { return Ok((None, None)) };
+        let record = auto_record(device);
+        let trusted = json::parse(&record).ok();
+        if keep { self.vault.commit(vec![(key, Some(record))]); return Ok((trusted, None)) }
+        Ok((trusted, Some((key, record))))
+    }
+
+    /// Decrypts this device's envelope of a message (from the server or from Mesh) and checks it is addressed
+    /// exactly as claimed. `None`: the message has no envelope for this device.
+    fn open(&mut self, message: &Value, encrypted: &Value) -> Result<Option<OpenedMessage>, CryptoError> {
+        let local_id = self.local_id();
+        let envelopes = match encrypted.get("envelopes") { Some(Value::Array(list)) => list.clone(), _ => Vec::new() };
+        let Some(envelope) = envelopes.iter().find(|item| is_text(item.get("userId"), &self.user_id) && is_text(item.get("deviceId"), &local_id)) else { return Ok(None) };
+        let sender = (text_of(message.get("senderId")), text_of(encrypted.get("senderDeviceId")));
+        let (trusted, _) = self.sender_trust(&sender, true)?;
+        let Some(trusted) = trusted else { return Err(CryptoError::Untrusted) };
+        let state = self.vault.get(keys::PROTOCOL).unwrap_or_default();
+        // A scheduled message was encrypted in the sender's separate session. It is opened at a receive-only
+        // address (`….scheduled.in`): at the address our own scheduled messages go to, an incoming one would
+        // become our sending session there and that session would start to ratchet.
+        let lane = encrypted.get("lane").filter(|lane| truthy(Some(lane)));
+        let from = match lane { Some(lane) => format!("{}.in", keys::address(&sender.0, &sender.1, Some(&text_of(Some(lane))))), None => keys::address(&sender.0, &sender.1, None) };
+        let state = self.bridge.trust_identity(&state, &from, 1, &text_of(trusted.get("identityKey")))?;
+        let kind = match envelope.get("type") { Some(Value::Number(kind)) => *kind, _ => f64::NAN };
+        let result = self.bridge.decrypt(&state, &from, 1, kind, &text_of(envelope.get("body")))?;
+        let body = json::parse(&result.plaintext).map_err(|_| CryptoError::Syntax)?;
+        if matches!(body, Value::Null) { return Err(CryptoError::Type) }
+        // `lane` is also inside the ciphertext: a server that adds or strips the flag is refused here, before
+        // any protocol state is kept.
+        let body_lane = body.get("lane").filter(|lane| !matches!(lane, Value::Null));
+        let preview_ok = &self.preview_ok;
+        let addressed = (match (body_lane, encrypted.get("lane")) { (None, None) => true, (a, b) => strict_eq(a, b) })
+            && matches!(body.get("version"), Some(Value::Number(version)) if *version == 1.0)
+            && strict_eq(body.get("chatId"), message.get("chatId")) && strict_eq(body.get("clientId"), message.get("clientId")) && strict_eq(body.get("senderId"), message.get("senderId"))
+            && strict_eq(body.get("senderDeviceId"), encrypted.get("senderDeviceId")) && is_text(body.get("recipientId"), &self.user_id) && is_text(body.get("recipientDeviceId"), &local_id)
+            && matches!(body.get("text"), Some(Value::String(text)) if text.0.len() <= 8000)
+            && body.get("attachment").is_some_and(|attachment| valid_attachment(attachment, &|preview| preview_ok(preview)))
+            && matches!(body.get("sentAt"), Some(Value::String(_))) && body.get("sentAt").and_then(Value::as_str).is_some_and(|at| parse_iso_ms(&at).is_some())
+            && valid_meta(body.get("meta"));
+        if !addressed { return refuse("Содержимое не соответствует адресу сообщения.") }
+        let attachment = body.get("attachment").cloned().unwrap_or(Value::Null);
+        let own_ids = if truthy(Some(&attachment)) { vec![attachment.get("id").cloned().unwrap_or(Value::Null)] } else { Vec::new() };
+        let mut listed = match encrypted.get("attachmentIds") { Some(Value::Array(list)) => list.clone(), _ => Vec::new() };
+        listed.sort_by(|a, b| js_string(Some(a)).cmp(&js_string(Some(b))));
+        if json::stringify(&Value::Array(listed)) != json::stringify(&Value::Array(own_ids)) { return refuse("Неверная привязка зашифрованного вложения.") }
+        let plain = object_of(vec![("text", body.get("text").cloned()), ("attachment", Some(with_waveform(&attachment, body.get("voiceWaveform")))), ("sentAt", body.get("sentAt").cloned()), ("meta", body.get("meta").filter(|meta| truthy(Some(meta))).cloned())]);
+        Ok(Some(OpenedMessage { plain, protocol: result.state, sender }))
+    }
+
+    fn decode(&mut self, message: &Value, cursor_key: &str) -> Result<(), CryptoError> {
+        let cursor = (cursor_key.to_string(), Some(text_of(message.get("id"))));
+        // Our own device's message left out by a lean inbox: nothing to open here (there is no envelope for
+        // ourselves, and our copy was kept when it was sent) — the cursor just moves.
+        if !truthy(message.get("encrypted")) && truthy(message.get("lean")) && is_text(message.get("senderId"), &self.user_id) { self.vault.commit(vec![cursor]); return Ok(()) }
+        let encrypted = message.get("encrypted").cloned().unwrap_or(Value::Null);
+        if !valid_encrypted(&encrypted) { return refuse("Некорректный зашифрованный пакет.") }
+        let fingerprint = sha256_hex(&canonical_encrypted(&encrypted));
+        let key = message_key(message);
+        let cached = parse(self.vault.get(&key))?.filter(|record| truthy(Some(record)));
+        let same = cached.as_ref().is_some_and(|record| is_text(record.get("fingerprint"), &fingerprint));
+        let from_mesh = cached.as_ref().is_some_and(|record| truthy(record.get("mesh")));
+        if cached.is_some() && (same || !from_mesh) {
+            if !same { return refuse("Сервер изменил сохранённое сообщение.") }
+            self.vault.commit(vec![cursor]);
+            return Ok(());
+        }
+        if is_failed(cached.as_ref()) && same { self.vault.commit(vec![cursor]); return Ok(()) }
+        let lane = truthy(encrypted.get("lane"));
+        let opened = match self.open(message, &encrypted) {
+            Ok(opened) => opened,
+            Err(error) if error.name() == "NetworkError" || error == CryptoError::Untrusted => return Err(error),
+            Err(error) => {
+                // A damaged copy may be a passing glitch, so the chat first stops and tries again. But one
+                // message that never opens must not block the chat for good: after a few attempts it is
+                // marked as failed and skipped, and our next message to the sender's device starts a fresh
+                // Signal session, which puts their side back in step too.
+                let attempts_key = format!("attempts:{key}");
+                let attempts = js_number(self.vault.get(&attempts_key)) + 1.0;
+                if attempts < FAILED_AFTER { self.vault.commit(vec![(attempts_key, Some(json::number_text(attempts)))]); return Err(error) }
+                let mut changes = vec![(attempts_key, None)];
+                // A broken scheduled message says nothing about the ordinary session.
+                if !lane { changes.push((keys::rekey(&text_of(message.get("senderId")), &text_of(encrypted.get("senderDeviceId"))), Some("1".to_string()))) }
+                changes.push((key, Some(json::stringify(&json::object(vec![("fingerprint", Value::str(&fingerprint)), ("failed", Value::Bool(true))])))));
+                changes.push(cursor);
+                self.vault.commit(changes);
+                return Ok(());
+            }
+        };
+        let Some(opened) = opened else { self.vault.commit(vec![cursor]); return Ok(()) };
+        // Already got it over Mesh, then the sender encrypted it again for the server: the text must match.
+        if from_mesh && !cached.as_ref().and_then(|record| record.get("plain")).is_some_and(|plain| same_plain(plain, &opened.plain)) { return refuse("Сообщение по Mesh и с сервера не совпадают.") }
+        // The first time this message is kept here (a Mesh copy was named already) it is named for the local search.
+        let mut changes = if cached.is_some() && !is_failed(cached.as_ref()) { Vec::new() } else { self.history_change(&text_of(message.get("chatId")), &text_of(message.get("senderId")), &text_of(message.get("clientId")))? };
+        changes.push((keys::PROTOCOL.to_string(), Some(opened.protocol)));
+        // Only an ordinary message says there is an ordinary session with that device.
+        if !lane { changes.push((keys::session(&opened.sender.0, &opened.sender.1, None), Some("1".to_string()))) }
+        changes.push((key, Some(json::stringify(&json::object(vec![("fingerprint", Value::str(&fingerprint)), ("plain", opened.plain)])))));
+        changes.push(cursor);
+        self.vault.commit(changes);
+        Ok(())
+    }
+
+    /// Opens this device's envelopes of a chat in the server's order, each exactly once: the ratchet, the
+    /// decrypted copy and the cursor are kept together per message, so a message already opened (or marked as
+    /// failed) is never handed to Signal again. `max_pages` (100 messages each) bounds a background catch-up;
+    /// it stops with `Partial` and the next one goes on from the cursor.
+    pub fn sync_chat(&mut self, chat_id: &str, max_pages: usize) -> Result<(), CryptoError> {
+        self.initialize()?;
+        let cursor_key = keys::cursor(chat_id);
+        let mut after = js_number(self.vault.get(&cursor_key));
+        let local_id = self.local_id();
+        for _ in 0..max_pages {
+            let result = self.transport.crypto_inbox(&local_id, chat_id, after)?;
+            let Some(Value::Array(messages)) = result.get("messages").cloned() else { return Err(CryptoError::Type) };
+            for message in &messages {
+                let id = safe_integer(message.get("id"));
+                // (written so that a spoilt cursor behaves as in the reference)
+                if !is_text(message.get("chatId"), chat_id) || !id.is_some_and(|id| !(id <= after)) { return refuse("Неверный порядок зашифрованных сообщений.") }
+                self.decode(message, &cursor_key)?;
+                after = id.unwrap_or(after);
+            }
+            if !truthy(result.get("hasMore")) { return Ok(()) }
+            if messages.is_empty() || !matches!(result.get("nextCursor"), Some(Value::Number(next)) if *next == after) { return refuse("Сервер вернул неверную страницу сообщений.") }
+        }
+        if max_pages < SYNC_PAGES { Err(CryptoError::Partial) } else { refuse(PARTIAL_TEXT) }
+    }
+
+    /// A message that came over Mesh (Bluetooth) instead of the server. Gives the content to show, or `None` if
+    /// it is not for this device or was received already. The server's copy, when it comes later, is matched
+    /// to this one and not shown twice.
+    pub fn receive_mesh(&mut self, input: &Value) -> Result<Option<Value>, CryptoError> {
+        self.initialize()?;
+        let encrypted = input.get("encrypted").cloned().unwrap_or(Value::Null);
+        if !truthy(Some(input)) || !uuid_test(input.get("chatId")) || !uuid_test(input.get("clientId")) || !uuid_test(input.get("senderId")) || is_text(input.get("senderId"), &self.user_id) || !valid_encrypted(&encrypted) { return Ok(None) }
+        let key = message_key(input);
+        if self.vault.get(&key).is_some_and(|held| !held.is_empty()) { return Ok(None) }
+        let fingerprint = sha256_hex(&canonical_encrypted(&encrypted));
+        let opened = match self.open(input, &encrypted) { Ok(opened) => opened, Err(error) if error.name() == "NetworkError" => return Ok(None), Err(error) => return Err(error) };
+        let Some(opened) = opened else { return Ok(None) };
+        let mut changes = self.history_change(&text_of(input.get("chatId")), &text_of(input.get("senderId")), &text_of(input.get("clientId")))?;
+        changes.push((keys::PROTOCOL.to_string(), Some(opened.protocol)));
+        if !truthy(encrypted.get("lane")) { changes.push((keys::session(&opened.sender.0, &opened.sender.1, None), Some("1".to_string()))) }
+        changes.push((key, Some(json::stringify(&json::object(vec![("fingerprint", Value::str(&fingerprint)), ("plain", opened.plain.clone()), ("mesh", Value::Bool(true))])))));
+        self.vault.commit(changes);
+        Ok(Some(opened.plain))
+    }
+
+    /// A message of a list as it may be shown: with the decrypted copy kept here, or with words about why
+    /// there is none. The text shown is only ever that copy, never anything the server put in the list.
+    pub fn preview(&mut self, message: &Value) -> Result<Value, CryptoError> {
+        self.initialize()?;
+        let shown = |text: &str, state: &str| Ok(spread(message, vec![("text", Some(Value::str(text))), ("attachment", Some(Value::Null)), ("cryptoState", Some(Value::str(state)))]));
+        let decrypted = |cached: &Value| -> Result<Value, CryptoError> {
+            let Some(plain @ Value::Object(_)) = cached.get("plain") else { return Err(CryptoError::Type) };
+            let mut extra = vec![("text", plain.get("text").cloned()), ("attachment", plain.get("attachment").cloned()), ("createdAt", plain.get("sentAt").cloned()), ("cryptoState", Some(Value::str("decrypted")))];
+            if truthy(plain.get("meta")) { extra.push(("meta", plain.get("meta").cloned())) }
+            Ok(spread(message, extra))
+        };
+        let encrypted = message.get("encrypted").filter(|encrypted| truthy(Some(encrypted)));
+        let stored = |vault: &V| parse(vault.get(&message_key(message))).map(|record| record.filter(|record| truthy(Some(record))));
+        let Some(encrypted) = encrypted else {
+            if !truthy(message.get("lean")) { return shown("Сообщение из старой версии без сквозного шифрования.", "legacy") }
+            let stored = stored(&self.vault)?;
+            if is_failed(stored.as_ref()) { return shown(FAILED_TEXT, "failed") }
+            return match stored { Some(cached) => decrypted(&cached), None => shown("Зашифрованное сообщение. Открой чат для расшифровки.", "no-key") };
+        };
+        if !valid_encrypted(encrypted) { return shown("Проверка сообщения не пройдена.", "invalid") }
+        let stored = stored(&self.vault)?;
+        if is_failed(stored.as_ref()) { return shown(FAILED_TEXT, "failed") }
+        if let Some(cached) = stored {
+            if !is_text(cached.get("fingerprint"), &sha256_hex(&canonical_encrypted(encrypted))) { return shown("Проверка сообщения не пройдена.", "invalid") }
+            return decrypted(&cached);
+        }
+        let local_id = self.local_id();
+        let target = matches!(encrypted.get("envelopes"), Some(Value::Array(list)) if list.iter().any(|item| is_text(item.get("userId"), &self.user_id) && is_text(item.get("deviceId"), &local_id)));
+        if !target { return shown("Это сообщение недоступно на данном устройстве.", "no-key") }
+        let trusted = self.vault.get(&keys::trust(&text_of(message.get("senderId")), &text_of(encrypted.get("senderDeviceId")))).is_some_and(|record| !record.is_empty());
+        if trusted { shown("Зашифрованное сообщение. Открой чат для расшифровки.", "no-key") } else { shown("Проверь ключ устройства собеседника в разделе «Защита чата».", "unverified") }
+    }
+
+    // ── What is kept: the unsent, the history, the caches ───────────────────────────────────────────────────
+
+    /// The server took the message: it leaves the list of unsent ones.
+    pub fn delivered(&mut self, chat_id: &str, client_id: &str) -> Result<(), CryptoError> {
+        self.initialize()?;
+        let mut changes = self.outbox_index_change(chat_id, client_id, false);
+        changes.push((keys::outbox(chat_id, client_id), None));
+        self.vault.commit(changes);
+        Ok(())
+    }
+
+    /// A message the server will never take: its ciphertext, its place in the list of unsent ones and the copy
+    /// kept here go, so it is not sent again after a restart. The next `encrypt` with the same id starts
+    /// afresh. The vault only: works without internet.
+    pub fn forget(&mut self, chat_id: &str, client_id: &str) {
+        let mut changes = self.outbox_index_change(chat_id, client_id, false);
+        changes.push((keys::outbox(chat_id, client_id), None));
+        changes.push((keys::message(chat_id, &self.user_id, client_id), None));
+        self.vault.commit(changes);
+    }
+
+    /// A chat deleted here: its history names, its cached page and every unsent message of it leave the vault.
+    pub fn forget_chat(&mut self, chat_id: &str) -> Result<(), CryptoError> {
+        let mut changes: Vec<(String, Option<String>)> = Vec::new();
+        let meta = parse(self.vault.get(&keys::history_meta(chat_id)))?.filter(|meta| truthy(Some(meta)));
+        if let Some(meta) = &meta {
+            if let (Some(first), Some(last)) = (safe_integer(meta.get("first")), safe_integer(meta.get("last"))) {
+                if last - first < HISTORY_PAGES * 2.0 { let mut page = first; while page <= last { changes.push((keys::history_page(chat_id, page), None)); page += 1.0 } }
+            }
+            changes.push((keys::history_meta(chat_id), None));
+        }
+        let chats = self.history_chats();
+        if chats.iter().any(|id| id == chat_id) {
+            let rest: Vec<Value> = chats.iter().filter(|id| *id != chat_id).map(|id| Value::str(id)).collect();
+            changes.push((keys::HISTORY_CHATS.to_string(), if chats.len() > 1 { Some(json::stringify(&Value::Array(rest))) } else { None }));
+        }
+        let page = format!("page:v1:{chat_id}");
+        if cache_name(&page) && self.vault.get(&page).is_some() { changes.push((page, None)) }
+        let refs = self.outbox_refs();
+        let rest: Vec<Value> = refs.iter().filter(|item| !is_text(item.get("chatId"), chat_id)).cloned().collect();
+        if rest.len() != refs.len() {
+            for item in refs.iter().filter(|item| is_text(item.get("chatId"), chat_id)) {
+                let client_id = text_of(item.get("clientId"));
+                changes.push((keys::outbox(chat_id, &client_id), None));
+                changes.push((keys::message(chat_id, &self.user_id, &client_id), None));
+            }
+            changes.push((keys::OUTBOX_INDEX.to_string(), if rest.is_empty() { None } else { Some(json::stringify(&Value::Array(rest))) }));
+        }
+        if !changes.is_empty() { self.vault.commit(changes) }
+        Ok(())
+    }
+
+    /// One page of the decrypted messages kept for a chat, newest first (the search on the device is built
+    /// from these). `page`: `None` for the newest. Gives `{items, page, previous}`; `previous` names the older
+    /// page, `null` past the oldest kept.
+    pub fn history_page(&self, chat_id: &str, page: Option<f64>) -> Result<Value, CryptoError> {
+        let answer = |items: Vec<Value>, page: f64, previous: Option<f64>| json::object(vec![("items", Value::Array(items)), ("page", Value::Number(page)), ("previous", previous.map_or(Value::Null, Value::Number))]);
+        let meta = parse(self.vault.get(&keys::history_meta(chat_id)))?.filter(|meta| truthy(Some(meta)));
+        let range = meta.as_ref().and_then(|meta| Some((safe_integer(meta.get("first"))?, safe_integer(meta.get("last"))?))).filter(|(first, last)| first <= last);
+        let Some((first, last)) = range else { return Ok(answer(Vec::new(), page.unwrap_or(0.0), None)) };
+        let current = page.unwrap_or(last);
+        let previous = (current - 1.0 >= first).then_some(current - 1.0);
+        if current > last || current < first { return Ok(answer(Vec::new(), current, previous)) }
+        let list = match self.vault.get(&keys::history_page(chat_id, current)).map(|text| json::parse(&text)) { Some(Ok(Value::Array(list))) => list, _ => Vec::new() };
+        let mut items = Vec::new();
+        for item in list.iter().rev() {
+            let Value::Array(pair) = item else { continue };
+            let (Some(Value::String(_)), Some(Value::String(_))) = (pair.first(), pair.get(1)) else { continue };
+            let (sender_id, client_id) = (text_of(pair.first()), text_of(pair.get(1)));
+            let Some(Ok(cached)) = self.vault.get(&keys::message(chat_id, &sender_id, &client_id)).map(|text| json::parse(&text)) else { continue };
+            if !truthy(Some(&cached)) || is_failed(Some(&cached)) || !truthy(cached.get("plain")) { continue }
+            let plain = cached.get("plain").cloned().unwrap_or(Value::Null);
+            items.push(object_of(vec![("chatId", Some(Value::str(chat_id))), ("senderId", pair.first().cloned()), ("clientId", pair.get(1).cloned()), ("text", plain.get("text").cloned()), ("attachment", plain.get("attachment").cloned()), ("sentAt", plain.get("sentAt").cloned()), ("meta", plain.get("meta").filter(|meta| truthy(Some(meta))).cloned())]));
+        }
+        Ok(answer(items, current, previous))
+    }
+
+    /// The kept pages of a chat, newest first, up to `limit` messages, starting at `from_page` when given.
+    pub fn history(&self, chat_id: &str, limit: Option<usize>, from_page: Option<f64>) -> Result<Vec<Value>, CryptoError> {
+        let limit = limit.unwrap_or(HISTORY_PAGE * HISTORY_PAGES as usize);
+        let (mut out, mut page) = (Vec::new(), from_page);
+        while out.len() < limit {
+            let result = self.history_page(chat_id, page)?;
+            if let Some(Value::Array(items)) = result.get("items") { for item in items { if out.len() >= limit { break } out.push(item.clone()) } }
+            match result.get("previous") { Some(Value::Number(previous)) => page = Some(*previous), _ => break }
+        }
+        Ok(out)
+    }
+
+    /// Data that lives on this device only, in the same encrypted storage: `saved:v1` («Избранное»), `ai:v1`,
+    /// `drafts:v1`. No server is needed first, so they open without a network.
+    pub fn load_local(&self, name: &str) -> Option<String> { self.vault.get(name) }
+    pub fn store_local(&mut self, name: &str, value: &str) { self.vault.commit(vec![(name.to_string(), Some(value.to_string()))]) }
+    /// The last shown chat list (`chats:v1`) and chat pages (`page:v1:<chat>`).
+    pub fn load_cache(&self, name: &str) -> Result<Option<String>, CryptoError> { if !cache_name(name) { return refuse("Unknown cache entry.") } Ok(self.vault.get(name)) }
+    pub fn store_cache(&mut self, name: &str, value: Option<&str>) -> Result<(), CryptoError> {
+        if !cache_name(name) { return refuse("Unknown cache entry.") }
+        self.vault.commit(vec![(name.to_string(), value.map(str::to_string))]);
+        Ok(())
+    }
+
+    // ── Notes for one device (voice rooms) ──────────────────────────────────────────────────────────────────
+
+    /// A short note for exactly one device of `peer_id`, outside every chat (nothing goes to the history or
+    /// to the unsent list). It travels in its own session, like a scheduled message; the trust rules are those
+    /// of chat messages. Gives `{senderDeviceId, type, body}`.
+    pub fn seal_note(&mut self, peer_id: &str, device_id: &str, text: &str) -> Result<Value, CryptoError> {
+        self.initialize()?;
+        const LANE: Option<&str> = Some("voice");
+        if !uuid_str(device_id) || text.is_empty() || text.encode_utf16().count() > 4000 { return refuse("Некорректная заметка.") }
+        let Some(device) = self.targets(peer_id)?.into_iter().find(|item| is_text(item.get("userId"), peer_id) && is_text(item.get("id"), device_id)) else { return refuse("Устройство собеседника не найдено.") };
+        let mut state = self.vault.get(keys::PROTOCOL).unwrap_or_default();
+        let mut changes: Vec<(String, Option<String>)> = Vec::new();
+        let trusted = parse(self.vault.get(&device_key(&device, keys::trust)))?.filter(|record| truthy(Some(record)));
+        let mut rekey = false;
+        let identity_key = text_of(device.get("identityKey"));
+        if !trusted.as_ref().is_some_and(|record| same_device(record, &device)) {
+            if !self.auto_trust { return Err(CryptoError::Untrusted) }
+            state = self.bridge.trust_identity(&state, &device_address(&device, None), 1, &identity_key)?;
+            changes.push((device_key(&device, keys::trust), Some(auto_record(&device))));
+            rekey = trusted.is_some();
+        }
+        state = self.bridge.trust_identity(&state, &device_address(&device, LANE), 1, &identity_key)?;
+        let now = self.env.now_iso();
+        let session = self.vault.get(&session_key(&device, LANE)).filter(|session| !session.is_empty());
+        let stale = session.as_ref().is_some_and(|started| !(parse_iso_ms(started).unwrap_or(f64::NAN) > parse_iso_ms(&now).unwrap_or(f64::NAN) - LANE_SESSION_MAX_AGE_MS));
+        let mut bundle = if rekey || session.is_none() || stale { Some(self.claim(&device)?) } else { None };
+        let local_id = self.local_id();
+        let payload = json::stringify(&json::object(vec![("version", Value::Number(1.0)), ("note", Value::str("voice")), ("senderId", Value::str(&self.user_id)), ("senderDeviceId", Value::str(&local_id)),
+            ("recipientId", device.get("userId").cloned().unwrap_or(Value::Null)), ("recipientDeviceId", device.get("id").cloned().unwrap_or(Value::Null)), ("text", Value::str(text))]));
+        let address = device_address(&device, LANE);
+        let sealed = match self.bridge.encrypt(&state, &address, 1, &payload, bundle.as_ref()) {
+            Ok(sealed) => sealed,
+            Err(error) if bundle.is_none() && error.name != "NetworkError" && lane_session_error(&error) => {
+                bundle = Some(self.claim(&device)?);
+                self.bridge.encrypt(&state, &address, 1, &payload, bundle.as_ref())?
+            }
+            Err(error) => return Err(error.into()),
+        };
+        changes.push((session_key(&device, LANE), Some(if bundle.is_some() { now } else { session.unwrap_or_default() })));
+        changes.push((keys::PROTOCOL.to_string(), Some(sealed.state)));
+        self.vault.commit(changes);
+        Ok(json::object(vec![("senderDeviceId", Value::str(&local_id)), ("type", Value::Number(sealed.kind)), ("body", Value::str(&sealed.body))]))
+    }
+
+    /// Opens a note from `sender_id`; refuses unless that person's trusted device sealed it for this very device.
+    pub fn open_note(&mut self, sender_id: &str, note: &Value) -> Result<String, CryptoError> {
+        self.initialize()?;
+        let kind = match note.get("type") { Some(Value::Number(kind)) if *kind == 2.0 || *kind == 3.0 => *kind, _ => f64::NAN };
+        if !uuid_str(sender_id) || sender_id == self.user_id || !truthy(Some(note)) || !uuid_test(note.get("senderDeviceId")) || kind.is_nan() || !valid_ciphertext_body(note.get("body")) { return refuse("Некорректная заметка.") }
+        let sender = (sender_id.to_string(), text_of(note.get("senderDeviceId")));
+        let (trusted, new_record) = self.sender_trust(&sender, false)?;
+        let Some(trusted) = trusted else { return Err(CryptoError::Untrusted) };
+        let from = format!("{}.in", keys::address(&sender.0, &sender.1, Some("voice")));
+        let state = self.vault.get(keys::PROTOCOL).unwrap_or_default();
+        let state = self.bridge.trust_identity(&state, &from, 1, &text_of(trusted.get("identityKey")))?;
+        let result = self.bridge.decrypt(&state, &from, 1, kind, &text_of(note.get("body")))?;
+        let body = json::parse(&result.plaintext).map_err(|_| CryptoError::Syntax)?;
+        if matches!(body, Value::Null) { return Err(CryptoError::Type) }
+        let local_id = self.local_id();
+        let ours = matches!(body.get("version"), Some(Value::Number(version)) if *version == 1.0) && is_text(body.get("note"), "voice") && is_text(body.get("senderId"), sender_id)
+            && strict_eq(body.get("senderDeviceId"), note.get("senderDeviceId")) && is_text(body.get("recipientId"), &self.user_id) && is_text(body.get("recipientDeviceId"), &local_id)
+            && matches!(body.get("text"), Some(Value::String(text)) if text.0.len() <= 4000);
+        if !ours { return refuse("Заметка адресована не этому устройству.") }
+        let mut changes: Vec<(String, Option<String>)> = new_record.into_iter().map(|(key, record)| (key, Some(record))).collect();
+        changes.push((keys::PROTOCOL.to_string(), Some(result.state)));
+        self.vault.commit(changes);
+        Ok(text_of(body.get("text")))
     }
 }

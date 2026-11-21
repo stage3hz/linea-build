@@ -30,7 +30,7 @@ fn all_different(texts: &[Vec<u16>]) -> bool { texts.iter().enumerate().all(|(at
 pub const MAX_BODY_BYTES: usize = 65536;
 
 /// Standard base64 in its one canonical spelling, of at most 64 KiB of bytes and not empty.
-fn valid_ciphertext_body(value: Option<&Value>) -> bool {
+pub fn valid_ciphertext_body(value: Option<&Value>) -> bool {
     let Some(text) = units(value) else { return false };
     if text.is_empty() || text.len() > MAX_BODY_BYTES.div_ceil(3) * 4 || text.len() % 4 != 0 { return false }
     let Ok(bytes): Result<Vec<u8>, _> = text.iter().map(|unit| u8::try_from(*unit)).collect() else { return false };
