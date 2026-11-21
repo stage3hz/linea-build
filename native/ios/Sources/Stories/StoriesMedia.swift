@@ -164,7 +164,11 @@ final class StoryPictureView: UIImageView {
 
     @objc private func arrived(_ note: Notification) {
         guard let id = note.object as? String, id == wantedId, !id.isEmpty, image == nil else { return }
-        if !load() { gaveUp = true }
+        if !load() {
+            // The same file finished at another size: this size is still on its way, and its own word will come.
+            if !wantsFrame && ChannelImages.shared.waiting(id: id, pixels: wantedPixels) { return }
+            gaveUp = true
+        }
         onSettled?()
     }
 }

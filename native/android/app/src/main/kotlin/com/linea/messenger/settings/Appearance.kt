@@ -168,8 +168,25 @@ class AppearanceScreen(context: Context, private val account: SettingsAccount?) 
       val active = Core.map(body["platina"])?.get("active") as? Boolean ?: false
       if (active == ThemeStore.platina) return@accountCall
       ThemeStore.platina = active
-      if (isAttachedToWindow) apply()
+      // The answer may come while «Ночная тема» or «Цвет интерфейса» is open over this page: it stays open.
+      if (isAttachedToWindow && !ThemeStore.refresh(openPages())) fill()
     }
+  }
+
+  /** This page and those open over it, by the names the settings reopen them with after the app is redrawn. */
+  private fun openPages(): List<String> {
+    val pages = arrayListOf("appearance")
+    val stack = parent as? ViewGroup ?: return pages
+    val at = stack.indexOfChild(this)
+    if (at < 0) return pages
+    for (index in at + 1 until stack.childCount) {
+      when (stack.getChildAt(index)) {
+        is NightThemeScreen -> pages.add("night")
+        is AccentColorScreen -> pages.add("accent")
+        else -> break
+      }
+    }
+    return pages
   }
 
   /** Puts on what was just chosen. The app is redrawn when the look changed; otherwise only this page is. */

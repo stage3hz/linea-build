@@ -23,23 +23,30 @@ private final class CallHostController: UIViewController {
 
     override func viewDidLayoutSubviews() {
         super.viewDidLayoutSubviews()
-        // Right under the status bar: the clock, the island and the battery stay visible above it.
-        bar.frame = CGRect(x: 0, y: view.safeAreaInsets.top, width: view.bounds.width, height: CGFloat(CallRules.barHeight))
+        // Below the status bar with a gap: the clock, the island and the battery stay visible above it.
+        let gap = CallBarView.gap
+        bar.frame = CGRect(x: gap, y: view.safeAreaInsets.top + gap, width: max(0, view.bounds.width - gap * 2), height: CGFloat(CallRules.barHeight))
         if let callScreen, callScreen.transform.isIdentity { callScreen.frame = view.bounds }
     }
 
     override var supportedInterfaceOrientations: UIInterfaceOrientationMask { .portrait }
 }
 
-/// The active-call bar while the call is minimised (the reference's `CallBanner`): a full-width strip under the
-/// status bar — the name and the status in the middle, a tap opens the call, the round button on the right ends
+/// The active-call bar while the call is minimised (the reference's `CallBanner`): a rounded strip a little below
+/// the status bar — the name and the status in the middle, a tap opens the call, the round button on the right ends
 /// it. Green while the call is up, orange while it reconnects or waits, blue before it connects.
 final class CallBarView: UIControl {
+    /// The space between the bar and the status bar above it, and the screen's edges at its sides.
+    static let gap: CGFloat = 8
+    /// What the app's screens give up at the top while the bar is shown: the gap, the bar and the gap under it.
+    static var room: CGFloat { return gap + CGFloat(CallRules.barHeight) + gap }
     private let words = UILabel()
     private let end = UIButton(type: .system)
 
     override init(frame: CGRect) {
         super.init(frame: frame)
+        layer.cornerRadius = 14
+        layer.cornerCurve = .continuous
         words.textAlignment = .center
         words.lineBreakMode = .byTruncatingMiddle
         addSubview(words)
@@ -144,7 +151,7 @@ final class CallOverlay {
 
     /// The app's screens start lower while the bar is shown.
     private func setBarRoom(_ on: Bool) {
-        let room: CGFloat = on ? CGFloat(CallRules.barHeight) : 0
+        let room: CGFloat = on ? CallBarView.room : 0
         guard let root = appWindow?.rootViewController, root.additionalSafeAreaInsets.top != room else { return }
         root.additionalSafeAreaInsets.top = room
         UIView.animate(withDuration: 0.25) { root.view.layoutIfNeeded() }

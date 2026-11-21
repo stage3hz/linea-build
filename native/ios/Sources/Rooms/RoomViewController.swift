@@ -434,7 +434,7 @@ final class RoomViewController: UIViewController {
 
         var words = problem
         if let voice, !voice.error.isEmpty { words = words.isEmpty ? voice.error : words + "\n" + voice.error }
-        if voice == nil, words.isEmpty { words = RoomVoice.shared.lastError }
+        if voice == nil, words.isEmpty, RoomVoice.shared.lastErrorRoom == roomId { words = RoomVoice.shared.lastError }
         notice.text = words
         notice.isHidden = words.isEmpty
         if !words.isEmpty {

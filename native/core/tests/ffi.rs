@@ -113,6 +113,12 @@ fn what_is_shown_crosses_the_boundary() {
         assert_eq!(ask("actionFallback", r#"[{"type":"pin","target":"0b0b0b0b-0000-4000-8000-000000000001"}," привет "]"#).as_deref(), Some(r#""Закреплено сообщение «привет»""#));
         assert_eq!(ask("actionFallback", r#"[{"type":"nothing"},""]"#).as_deref(), Some("null"));
         assert_eq!(ask("listPreviewMessage", r#"[[{"id":1,"senderId":"a","clientId":"c1","text":"раз","createdAt":"2026-01-01T00:00:00.000Z"},{"id":2,"senderId":"a","clientId":"c2","text":"🗑 Сообщение удалено","createdAt":"2026-01-01T00:00:01.000Z","meta":{"action":{"type":"delete","target":"c9"}}}]]"#).is_some_and(|line| line.contains("раз")), true);
+        // Rooms (`rooms.rs`): every name that starts with `room` reaches its rules.
+        assert_eq!(ask("roomInsideLine", "[3]").as_deref(), Some("\"трое внутри\""));
+        assert_eq!(ask("roomCallCheck", r#"[["a","me","a"],"me"]"#).as_deref(), Some(r#"{"error":"Выбери хотя бы двоих: одному звонят обычным звонком."}"#));
+        assert_eq!(ask("roomCallCheck", r#"[["a","b"],"me"]"#).as_deref(), Some(r#"{"ids":["a","b"]}"#));
+        assert_eq!(ask("roomRestartOfferer", r#"["a","b"]"#).as_deref(), Some("true"));
+        assert!(ask("roomSort", "[[{}]]").is_none() && ask("roomNothing", "[]").is_none());
         assert!(ask("foldChat", "[]").is_none() && ask("nothing", "[]").is_none() && ask("chatListText", "{}").is_none());
         assert!(invizent_view(std::ptr::null(), std::ptr::null()).is_null());
     }

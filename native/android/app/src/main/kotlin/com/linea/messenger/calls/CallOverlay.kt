@@ -27,8 +27,8 @@ import com.linea.messenger.people.Person
 import com.linea.messenger.shell.Screen
 import java.lang.ref.WeakReference
 
-/** The active-call bar while the call is minimised (the reference's `CallBanner`): a full-width strip under the
- *  status bar — the name and the status in the middle, a tap opens the call, the round button on the right ends
+/** The active-call bar while the call is minimised (the reference's `CallBanner`): a rounded strip a little below
+ *  the status bar — the name and the status in the middle, a tap opens the call, the round button on the right ends
  *  it. Green while the call is up, orange while it reconnects or waits, blue before it connects. */
 class CallBarView(context: Context) : ViewGroup(context) {
   private val d = resources.displayMetrics.density
@@ -79,7 +79,11 @@ class CallBarView(context: Context) : ViewGroup(context) {
 
   fun show(call: CallState) {
     val status = CallRules.status(call, Calls.signalNetwork)
-    setBackgroundColor(CallRules.barColor(status.tone))
+    val color = CallRules.barColor(status.tone)
+    if (color != shownColor) {
+      shownColor = color
+      background = context.plate(color, 14f)
+    }
     val line = SpannableStringBuilder()
     line.append(" ", IconSpan(if (call.video) "video.fill" else "phone.fill", 14f * d), Spanned.SPAN_EXCLUSIVE_EXCLUSIVE)
     line.append("  ")
@@ -92,7 +96,14 @@ class CallBarView(context: Context) : ViewGroup(context) {
     end.visibility = if (call.isOver) GONE else VISIBLE
   }
 
+  private var shownColor = 0
+
   companion object {
+    /** The space between the bar and the status bar above it, and the screen's edges at its sides, dp. */
+    const val GAP = 8f
+    /** What the app's pages give up at the top while the bar is shown, dp: the gap, the bar and the gap under it. */
+    val room: Float get() = GAP + CallRules.barHeight + GAP
+
     /** What the bar says, read aloud: the name, the status and the clock. */
     fun barWords(name: String, status: CallRules.Status): String = name + ", " + status.text + (status.clock?.let { " $it" } ?: "")
   }
@@ -111,8 +122,9 @@ class CallHost(context: Context) : Screen(context) {
   }
 
   override fun place(width: Int, height: Int) {
-    // Right under the status bar: the clock and the battery stay visible above it.
-    put(bar, 0, edges.top, width, dp(CallRules.barHeight))
+    // Below the status bar with a gap: the clock and the battery stay visible above it.
+    val gap = dp(CallBarView.GAP)
+    put(bar, gap, edges.top + gap, maxOf(0, width - gap * 2), dp(CallRules.barHeight))
     callScreen?.let { put(it, 0, 0, width, height) }
   }
 }
@@ -165,7 +177,7 @@ object CallOverlay {
   private fun setBarRoom(on: Boolean) {
     val activity = window.get() ?: return
     val content = activity.findViewById<ViewGroup>(android.R.id.content) ?: return
-    val room = if (on) Math.round(CallRules.barHeight * activity.resources.displayMetrics.density) else 0
+    val room = if (on) Math.round(CallBarView.room * activity.resources.displayMetrics.density) else 0
     for (index in 0 until content.childCount) {
       val page = content.getChildAt(index)
       if (page is CallHost) continue

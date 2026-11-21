@@ -291,7 +291,11 @@ class StoryPictureView(context: Context) : ImageView(context) {
 
   private fun arrived(id: String) {
     if (id != wantedId || id.isEmpty() || shown != null) return
-    if (!load()) gaveUp = true
+    if (!load()) {
+      // The same file finished at another size: this size is still on its way, and its own word will come.
+      if (!wantsFrame && ChannelImages.waiting(id, wantedPixels)) return
+      gaveUp = true
+    }
     onSettled?.invoke()
   }
 }

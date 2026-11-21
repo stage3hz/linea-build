@@ -420,7 +420,8 @@ class MemberPage(context: Context, private val messenger: Messenger, private val
   }
 
   private fun setRole(id: String, on: Boolean) {
-    if (busy) return
+    // Another change is on its way: nothing is sent, and the switch shows what is saved again.
+    if (busy) { post { render() }; return }
     busy = true
     val wanted = roleIds.filter { it != id } + (if (on) listOf(id) else emptyList())
     messenger.server.ask("setMemberRoles", listOf(community.id, member.user.id, wanted)) { result ->

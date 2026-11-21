@@ -18,6 +18,8 @@ final class ChannelsViewController: UIViewController, UITableViewDataSource, UIT
     private var loaded = false
     /// Rooms: «Комнаты», the first thing in the section (Sources/Rooms/RoomsSectionView.swift).
     private let rooms = RoomsSectionView()
+    /// Rooms: no communities and no failure — «Свои места для своих» is shown only when there are no rooms either.
+    private var nothingListed = false
 
     init(messenger: Messenger? = nil) {
         self.messenger = messenger
@@ -133,6 +135,7 @@ final class ChannelsViewController: UIViewController, UITableViewDataSource, UIT
             table.contentOffset = CGPoint(x: 0, y: -insets.top)
         }
         placeRooms()
+        showEmpty()
         spinner.center = CGPoint(x: width / 2, y: top + 140 + rooms.tall)
         notice.frame = CGRect(x: 20, y: top + 62 + rooms.tall, width: width - 40, height: 44)
         // Rooms: «Свои места для своих» stays under the rooms.
@@ -183,7 +186,13 @@ final class ChannelsViewController: UIViewController, UITableViewDataSource, UIT
         if !blogs.isEmpty { found.append((name: "Каналы", items: blogs)) }
         sections = found
         table.reloadData()
-        let empty = list.isEmpty && failure.isEmpty
+        nothingListed = list.isEmpty && failure.isEmpty
+        showEmpty()
+    }
+
+    /// Rooms: as in the reference, the call to create something gives way to the rooms when there are any.
+    private func showEmpty() {
+        let empty = nothingListed && (Rooms.shared.rooms?.isEmpty ?? true)
         for part in [emptyIcon, emptyHeading, emptyWords, emptyButton] as [UIView] { part.isHidden = !empty }
     }
 

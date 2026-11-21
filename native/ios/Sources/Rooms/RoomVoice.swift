@@ -54,11 +54,15 @@ final class RoomVoice {
     }
     /// Why the last attempt to walk in ended, in the server's words; empty when it did not fail.
     private(set) var lastError = ""
+    /// The room the last failed attempt was for (its screen shows `lastError`; another room's does not).
+    private(set) var lastErrorRoom = ""
 
     /// Music for everyone (RoomMusic.swift): a text of a checked person's peer-to-peer channel, and a person
     /// whose channel has just become usable.
     var onPeerText: ((String, String) -> Void)?
     var onPeerReady: ((String) -> Void)?
+    /// This phone is about to leave the room (its connections are still open): the last word to the others.
+    var onLeaving: (() -> Void)?
 
     private weak var messenger: Messenger?
     private var microphone: RoomMicrophone?
@@ -198,6 +202,7 @@ final class RoomVoice {
     }
 
     private func cleanup() {
+        if state != nil { onLeaving?() }
         for media in connections.values { media.close() }
         connections = [:]
         for timer in authTimers.values { timer.invalidate() }
@@ -372,6 +377,7 @@ final class RoomVoice {
             // The server refused the way in (the room is full, no longer a member).
             if current.status == "connecting" {
                 lastError = data["error"] as? String ?? ""
+                lastErrorRoom = roomId
                 cleanup()
             }
         case "ready":

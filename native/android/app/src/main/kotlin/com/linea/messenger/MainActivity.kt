@@ -36,6 +36,8 @@ class MainActivity : Activity(), Launcher, AccountHost, com.linea.messenger.sett
   private var gate: BackGate? = null
   /** Settings: the few words shown over signing in after the account was left (`closeAccount`). */
   private var said: android.app.Dialog? = null
+  /** Calls: Back is the app's own while the call screen is open (it minimises the call). */
+  private val callWatch: (Unit) -> Unit = { syncBack() }
 
   override fun onCreate(savedInstanceState: Bundle?) {
     super.onCreate(savedInstanceState)
@@ -45,9 +47,10 @@ class MainActivity : Activity(), Launcher, AccountHost, com.linea.messenger.sett
     stack = Navigation(this)
     setContentView(stack)
     if (Build.VERSION.SDK_INT >= 33) {
-      gate = BackGate(this, onBack = { goBack() }, onProgress = { if (root?.sectionsOpen != true) stack.backProgress(it) }, onCancel = { stack.backCancelled() })
+      gate = BackGate(this, onBack = { goBack() }, onProgress = { if (root?.sectionsOpen != true && !callShown()) stack.backProgress(it) }, onCancel = { stack.backCancelled() })
     }
     stack.onDepthChange = { syncBack() }
+    com.linea.messenger.calls.Calls.changed.watch(callWatch)
     start()
   }
 
@@ -65,6 +68,7 @@ class MainActivity : Activity(), Launcher, AccountHost, com.linea.messenger.sett
   }
 
   override fun onDestroy() {
+    com.linea.messenger.calls.Calls.changed.unwatch(callWatch)
     said?.dismiss()
     messenger?.close()
     messenger = null
@@ -222,12 +226,21 @@ class MainActivity : Activity(), Launcher, AccountHost, com.linea.messenger.sett
     }
   }
 
-  /** There is somewhere to go back to inside the app: an open chat, or the open list of sections. */
-  private fun wantsBack(): Boolean = stack.depth > 1 || root?.sectionsOpen == true
+  /** There is somewhere to go back to inside the app: the open call screen, an open chat, or the open list of
+   *  sections. */
+  private fun wantsBack(): Boolean = callShown() || stack.depth > 1 || root?.sectionsOpen == true
 
   private fun syncBack() { gate?.set(wantsBack()) }
 
+  /** Calls: the call screen covers the app (the call is not minimised). */
+  private fun callShown(): Boolean {
+    val call = com.linea.messenger.calls.Calls.call ?: return false
+    return !call.minimized
+  }
+
   private fun goBack() {
+    // Calls: Back minimises the call to its bar (an incoming call or one that is ending stays as it is).
+    if (callShown()) return com.linea.messenger.calls.Calls.minimize()
     val shell = root
     if (shell != null && shell.sectionsOpen) shell.closeSections() else stack.pop()
   }

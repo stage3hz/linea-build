@@ -238,6 +238,9 @@ object ChannelImages {
     return null
   }
 
+  /** Main thread only. Whether the picture at `pixels` is still on its way (`ready` will be posted for it). */
+  fun waiting(id: String, pixels: Int): Boolean = loading.contains("$id@$pixels")
+
   /** A new account: the pictures of the previous one are not shown to it. Main thread. */
   fun forget() {
     memory.evictAll(); loading.clear(); failedAt.clear()

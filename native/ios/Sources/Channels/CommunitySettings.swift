@@ -443,7 +443,13 @@ final class MemberPage: SettingsPage {
     }
 
     private func setRole(_ id: String, _ on: Bool) {
-        guard !busy else { return }
+        if busy {
+            // Another change is on its way: nothing is sent, and the switch shows what is saved again.
+            DispatchQueue.main.async { [weak self] in
+                self?.render()
+            }
+            return
+        }
         busy = true
         var wanted = roleIds.filter { $0 != id }
         if on { wanted.append(id) }

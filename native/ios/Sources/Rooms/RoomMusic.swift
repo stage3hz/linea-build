@@ -34,6 +34,11 @@ final class RoomMusic {
             guard let self, self.host == "me" else { return }
             self.tell()
         }
+        // Leaving the room while leading: the others are told while the connections are still open.
+        RoomVoice.shared.onLeaving = { [weak self] in
+            guard let self, self.host == "me" else { return }
+            RoomVoice.shared.sendToPeers(RoomRules.musicOff)
+        }
         NotificationCenter.default.addObserver(self, selector: #selector(moved), name: RoomVoice.changed, object: nil)
         NotificationCenter.default.addObserver(self, selector: #selector(moved), name: AVAudioSession.routeChangeNotification, object: nil)
         NotificationCenter.default.addObserver(self, selector: #selector(playerMoved), name: MusicPlayer.changed, object: nil)
@@ -49,6 +54,13 @@ final class RoomMusic {
         #if targetEnvironment(simulator)
         if RoomVoice.shared.isDemo { now = RoomVoice.shared.state != nil && demoAllowed }
         #endif
+        // The one who led left the room without a word (their connection dropped): nothing is shared any more.
+        if let host, host != "me", now, RoomVoice.shared.userId(ofPeer: host) == nil {
+            self.host = nil
+            track = nil
+            if MusicPlayer.shared.playing { MusicPlayer.shared.togglePlayback() }
+            NotificationCenter.default.post(name: RoomMusic.changed, object: nil)
+        }
         if now == allowed { return }
         allowed = now
         if !now { end() }

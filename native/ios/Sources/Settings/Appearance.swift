@@ -159,6 +159,8 @@ final class ThemeCard: UIControl {
 final class AppearanceViewController: SettingsPage {
     private let messenger: Messenger?
     private var lockedHint = false
+    /// The page has been on the screen once: its first appearance follows `build()`, which filled it already.
+    private var appeared = false
 
     init(messenger: Messenger?) {
         self.messenger = messenger
@@ -175,7 +177,8 @@ final class AppearanceViewController: SettingsPage {
     override func viewWillAppear(_ animated: Bool) {
         super.viewWillAppear(animated)
         // Back from «Ночная тема» or «Цвет интерфейса»: what they changed is shown.
-        if isViewLoaded, !column.arrangedSubviews.isEmpty { fill() }
+        if appeared { fill() }
+        appeared = true
     }
 
     /// The palettes belong to Platina: the server says whether the account has it.
@@ -186,13 +189,31 @@ final class AppearanceViewController: SettingsPage {
             let active = (body["platina"] as? [String: Any])?["active"] as? Bool ?? false
             guard active != ThemeStore.platina else { return }
             ThemeStore.platina = active
-            self?.apply()
+            guard let self else { return }
+            // The answer may come while «Ночная тема» or «Цвет интерфейса» is open over this page: it stays open.
+            if !ThemeStore.refresh(reopen: self.openPages()) { self.fill() }
         }
     }
 
     /// Puts on what was just chosen. The app is redrawn when the look changed; otherwise only this page is.
     private func apply() {
         if !ThemeStore.refresh(reopen: ["appearance"]) { fill() }
+    }
+
+    /// This page and those open over it, by the names the settings reopen them with after the app is redrawn.
+    private func openPages() -> [String] {
+        var pages: [String] = ["appearance"]
+        guard let stack = navigationController?.viewControllers, let at = stack.firstIndex(where: { (page: UIViewController) -> Bool in page === self }) else { return pages }
+        for page in stack.dropFirst(at + 1) {
+            if page is NightThemeViewController {
+                pages.append("night")
+            } else if page is AccentColorViewController {
+                pages.append("accent")
+            } else {
+                break
+            }
+        }
+        return pages
     }
 
     private func fill() {

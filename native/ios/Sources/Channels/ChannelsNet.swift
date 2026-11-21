@@ -219,6 +219,11 @@ final class ChannelImages {
         return nil
     }
 
+    /// Main queue only. Whether the picture at `pixels` is still on its way (`ready` will be posted for it).
+    func waiting(id: String, pixels: Int) -> Bool {
+        return loading.contains(id + "@" + String(pixels))
+    }
+
     private func keep(_ image: UIImage, key: String) {
         let cost = (image.cgImage?.bytesPerRow ?? 0) * (image.cgImage?.height ?? 0)
         memory.setObject(image, forKey: key as NSString, cost: max(1, cost))
