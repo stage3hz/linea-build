@@ -96,7 +96,13 @@ enum CoverTint {
             return true
         }
         guard made else { return nil }
-        return [0, 1, 2].map { (Int(pixels[$0 * 4]), Int(pixels[$0 * 4 + 1]), Int(pixels[$0 * 4 + 2])) }
+        var out: [(Int, Int, Int)] = []
+        for place in 0..<3 {
+            let at = place * 4
+            let red = Int(pixels[at]), green = Int(pixels[at + 1]), blue = Int(pixels[at + 2])
+            out.append((red, green, blue))
+        }
+        return out
     }
 
     private static func remember(_ id: String, _ glow: [String]) {
