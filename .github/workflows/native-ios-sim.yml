@@ -74,6 +74,9 @@ jobs:
           shot 04-settings -demo 1 -tab profile
           shot 05-chat -demo 1 -chat 1
           shot 06-auth -auth 1
+          shot 06b-register -auth 1 -authmode register
+          shot 06c-recover -auth 1 -authmode recover
+          shot 06d-waiting -auth 1 -authmode waiting
           echo "UDID=$UDID" >> "$GITHUB_ENV"
           echo "== done"
       - uses: actions/setup-node@v4
