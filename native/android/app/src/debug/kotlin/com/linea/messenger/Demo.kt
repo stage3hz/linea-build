@@ -103,11 +103,13 @@ object Demo {
    *    --ez openchat true                          with an account: opens the first chat of the list
    *    --es tab people / --es peoplesearch … / --es profile friend|chat    «Люди» and a profile (people/PeopleDemo.kt)
    *    --es channelsdemo 1|community|blog|chat|menu|settings / --es channels community|chat|create|join    «Каналы» (channels/ChannelsDemo.kt)
-   *    --es attachdemo 1|viewer / --es openattachment photo|file           attachments (attachments/AttachmentsDemo.kt) */
+   *    --es attachdemo 1|viewer / --es openattachment photo|file           attachments (attachments/AttachmentsDemo.kt)
+   *    --es chatdemo … / --es chataction … / --es chatlist … / --es chatsearch …   actions on messages and chats (chatactions/ChatActionsDemo.kt) */
   fun start(intent: Intent?, launcher: Launcher): Boolean {
     if (intent == null) return false
     testServer = intent.getStringExtra("server")?.takeIf { local.matches(it) }
     AttachmentsDemo.read(intent)
+    com.linea.messenger.chatactions.ChatActionsDemo.read(intent)
     authMode = intent.getStringExtra("authmode")
     // AI and Music: `aidemo`, `musicdemo` (music/MusicDemo.kt).
     if (AIMusicSimulator.start(intent, launcher)) return true

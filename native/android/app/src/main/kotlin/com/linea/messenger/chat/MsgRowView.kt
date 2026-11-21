@@ -62,6 +62,18 @@ class MsgRowView(context: Context) : View(context) {
   /** Where the body text was drawn last (for taps on links and spoilers). */
   private var bodyX = 0f
   private var bodyY = 0f
+  /** ChatActions: the row is lit for a moment (the message a quote or the pinned bar jumped to). */
+  var flash = false
+    set(value) { if (field != value) { field = value; invalidate() } }
+  /** ChatActions: where the quote of an answer was drawn last (a tap on it jumps to the original). */
+  private var quoteLeft = 0f
+  private var quoteTop = 0f
+  private var quoteRight = 0f
+  private var quoteBottom = 0f
+
+  /** ChatActions: whether a point of this view is on the quote of an answer. */
+  fun quoteAt(px: Float, py: Float): Boolean =
+    quoteLayout != null && quoteRight > quoteLeft && px >= quoteLeft - 2f * d && px <= quoteRight + 2f * d && py >= quoteTop - 3f * d && py <= quoteBottom + 3f * d
   private val chipEmoji = TextPaint(Paint.ANTI_ALIAS_FLAG).apply { textSize = 15f * d }
   private val chipCount = TextPaint(Paint.ANTI_ALIAS_FLAG).apply { textSize = 12f * d; typeface = Typeface.create(Typeface.DEFAULT, Typeface.BOLD) }
   private class Chip(val emoji: String, val count: Int, val mine: Boolean, val x: Float, val y: Float, val w: Float)
@@ -288,6 +300,8 @@ class MsgRowView(context: Context) : View(context) {
     path.reset(); path.addRoundRect(left, 0f, left + bubbleW, bubbleH, radii, Path.Direction.CW)
     if (!MSG_OPEN_LOOK) canvas.drawPath(path, fill)
     if (isPressed) { fill.color = 0x14FFFFFF; canvas.drawPath(path, fill) }
+    // ChatActions: the message a jump ended at is lit.
+    if (flash) { fill.color = 0x29FFFFFF; canvas.drawPath(path, fill) }
 
     val x = left + 13f * d
     var y = 9f * d
@@ -300,6 +314,7 @@ class MsgRowView(context: Context) : View(context) {
     }
     quoteLayout?.let { quote ->
       val height = 17f * d + quote.height
+      quoteLeft = x; quoteTop = y; quoteRight = left + bubbleW - 13f * d; quoteBottom = y + height + 2f * d
       fill.color = palette.quote; canvas.drawRoundRect(x, y, left + bubbleW - 13f * d, y + height + 2f * d, 6f * d, 6f * d, fill)
       fill.color = markColor; canvas.drawRoundRect(x, y, x + 3f * d, y + height + 2f * d, 2f * d, 2f * d, fill)
       smallBold.color = markColor

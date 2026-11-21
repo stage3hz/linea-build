@@ -16,6 +16,9 @@ import com.linea.messenger.Demo
 import com.linea.messenger.app.Messenger
 import com.linea.messenger.attachments.AttachmentsDemo
 import com.linea.messenger.attachments.ChatAttachments
+import com.linea.messenger.chatactions.ChatScreenActions
+import com.linea.messenger.chatactions.ComposerField
+import com.linea.messenger.chatactions.SendButton
 import com.linea.messenger.design.Glass
 import com.linea.messenger.design.GlassSource
 import com.linea.messenger.design.IconButton
@@ -44,17 +47,18 @@ class ChatScreen(
   private val composer = object : FrameLayout(context) {
     val glass = Glass(this).apply { source = page }
     init { setWillNotDraw(false) }
-    override fun onDraw(canvas: Canvas) = glass.draw(canvas, 0f, 0f, width.toFloat(), height.toFloat(), height / 2f)
+    override fun onDraw(canvas: Canvas) = glass.draw(canvas, 0f, 0f, width.toFloat(), height.toFloat(), minOf(24f * d, height / 2f))
   }
-  private val field = EditText(context)
-  private val send = IconButton(context, "send", 30f, Theme.text)
-  /** The sample chat's rows. */
-  private var rows: List<MsgRow> = emptyList()
-  /** The real chat's rows, as the messenger gave them (and what is being sent, until the server has taken it). */
+  /** ChatActions: several lines, growing with the text (chatactions/ChatParts.kt). */
+  private val field = ComposerField(context)
+  private val send = SendButton(context)
+  /** The chat's rows as they are now (and what is being sent, until the server has taken it). */
   private var real: List<Map<String, Any?>> = emptyList()
-
-  /** What sends a message; null while there is nothing to send with. */
-  var onSend: ((String) -> Unit)? = null
+  /** Attachments: the debug build's sample rows (`attachdemo`), kept after the chat's own. */
+  private var sampleRows: List<Map<String, Any?>> = emptyList()
+  /** ChatActions: the menu of a message with its reactions, answers, edits, forwards, pins, deletions, the
+   *  multi-select, the draft, «печатает…», the way down and older pages (chatactions/ChatScreenActions.kt). */
+  val actions = ChatScreenActions(context, messenger, chatId, peerId, name)
   /** Attachments: the paperclip, sending and opening photos and files (attachments/ChatAttachments.kt). */
   private val attachments = ChatAttachments(this, messenger, chatId, peerId)
 
@@ -80,70 +84,58 @@ class ChatScreen(
     // People: a tap on the name opens the person's profile.
     heading.setOnClickListener { openProfile() }
 
-    field.hint = "Сообщение"
-    field.setHintTextColor(Theme.muted)
-    field.setTextColor(Theme.text)
-    field.textSize = 17f
-    field.background = null
-    field.setPadding(0, 0, 0, 0)
-    field.maxLines = 1
-    field.isSingleLine = true
-    field.inputType = InputType.TYPE_CLASS_TEXT or InputType.TYPE_TEXT_FLAG_CAP_SENTENCES or InputType.TYPE_TEXT_FLAG_AUTO_CORRECT
-    field.imeOptions = EditorInfo.IME_ACTION_SEND or EditorInfo.IME_FLAG_NO_EXTRACT_UI
-    field.gravity = Gravity.CENTER_VERTICAL
-    field.setOnEditorActionListener { _, action, _ -> if (action == EditorInfo.IME_ACTION_SEND) { sendNow(); true } else false }
     composer.addView(field, FrameLayout.LayoutParams(FrameLayout.LayoutParams.MATCH_PARENT, FrameLayout.LayoutParams.MATCH_PARENT).apply { leftMargin = dp(18f); rightMargin = dp(50f) })
-    send.contentDescription = "Отправить"
-    send.setOnClickListener { sendNow() }
-    composer.addView(send, FrameLayout.LayoutParams(dp(44f), dp(44f), Gravity.END or Gravity.CENTER_VERTICAL).apply { rightMargin = dp(2f) })
+    composer.addView(send, FrameLayout.LayoutParams(dp(44f), dp(44f), Gravity.END or Gravity.BOTTOM).apply { rightMargin = dp(2f); bottomMargin = dp(2f) })
     // Attachments: the paperclip in the composer; a touch on a row opens its photo or file.
     attachments.install(composer, field)
     attachments.onPendingChanged = { showPendingAttachments() }
-    list.onMsgPress = { key -> attachments.pressed(key) }
     addView(composer)
+    // ChatActions: a touch on a message (the menu, a reaction, an attachment), the field, the bars, the header's
+    // status line — and the rows themselves, with or without an account (the debug build's sample chat).
+    actions.peerLastRead = peerLastRead
+    actions.install(this, page, list, heading, back, composer, field, send, attachments)
+    actions.onRows = { made -> showRows(made) }
+    actions.onLoaded = { newestTheirs -> loaded(newestTheirs) }
 
-    if (messenger != null) {
-      onSend = { text ->
-        // Shown at once as being sent; the list is read again when the server has taken it.
-        real = real + mapOf("key" to "sending-${real.size}", "kind" to 0, "mine" to true, "text" to text, "time" to Messenger.clock(Instant.now(), ZoneId.systemDefault()), "ticks" to 3, "tail" to true)
-        list.setRows(MsgRow.parse(real))
-        messenger.send(chatId, peerId, text) { load() }
-      }
-    } else {
-      // Made-up messages in a debug build, and "sending" that only adds the text to them; nothing in a release one.
+    if (messenger == null) {
       // Attachments: `attachdemo 1` adds sample rows with a photo and files, `attachdemo viewer` also opens the photo viewer.
-      rows = Demo.messages() + MsgRow.parse(AttachmentsDemo.rows())
+      sampleRows = AttachmentsDemo.rows()
       AttachmentsDemo.viewer(this)
-      Demo.send?.let { sender -> onSend = { text -> rows = sender(rows, text); list.setRows(rows) } }
-      list.setRows(rows)
     }
   }
 
   override fun onAttachedToWindow() {
     super.onAttachedToWindow()
     messenger?.watch(this)
+    actions.attached()
     load()
   }
 
   override fun onDetachedFromWindow() {
     messenger?.unwatch(this)
+    actions.detached()
     super.onDetachedFromWindow()
   }
 
-  /** Reads the chat's newest page and shows it; what came from the other side is reported as read. */
+  /** Reads the chat's newest page and shows it.
+   *  ChatActions: the pages are read, folded and turned into rows there; they come back through `actions.onRows`. */
   private fun load() {
-    val messenger = messenger ?: return
-    messenger.messages(chatId, peerLastRead) { result ->
-      val page = result.getOrNull()
-      if (page == null || !isAttachedToWindow) return@messages
-      // Attachments: what is still on its way out stands after the chat's own rows.
-      real = page.rows + attachments.loaded(page.rows)
-      list.setRows(MsgRow.parse(real))
-      // Reported once per new message: the server answers a read mark with an event, which reads the page again.
-      if (page.newestTheirs > reportedRead) {
-        reportedRead = page.newestTheirs
-        messenger.markRead(chatId, page.newestTheirs)
-      }
+    actions.load()
+  }
+
+  /** The chat's rows as they are now, with what the attachments add after them. */
+  private fun showRows(made: List<Map<String, Any?>>) {
+    // Attachments: what is still on its way out stands after the chat's own rows.
+    real = made + attachments.loaded(made) + sampleRows
+    list.setRows(MsgRow.parse(real))
+  }
+
+  /** The newest page was read: what came from the other side is reported as read. */
+  private fun loaded(newestTheirs: Long) {
+    // Reported once per new message: the server answers a read mark with an event, which reads the page again.
+    if (isAttachedToWindow && newestTheirs > reportedRead) {
+      reportedRead = newestTheirs
+      messenger?.markRead(chatId, newestTheirs)
     }
   }
 
@@ -158,6 +150,7 @@ class ChatScreen(
   override fun peerRead(chatId: String, messageId: Long) {
     if (chatId != this.chatId || messageId <= peerLastRead) return
     peerLastRead = messageId
+    actions.peerLastRead = messageId
     load()
   }
 
@@ -166,13 +159,18 @@ class ChatScreen(
     put(header, 0, 0, width, top + dp(48f))
     put(back, dp(6f), top + dp(2f), dp(44f), dp(44f))
     put(heading, dp(56f), top + dp(2f), width - dp(112f), dp(44f))
-    val composerHeight = dp(48f)
+    // ChatActions: the composer is as tall as the field's text asks (one line at first); the send button and
+    // the paperclip stay at its lower edge.
+    val composerHeight = actions.composerHeight(width - dp(24f) - dp(100f))
     // Above the keyboard when it is up, above the system's bar otherwise.
     val floor = if (edges.keyboard > 0) height - edges.keyboard - dp(8f) else height - maxOf(edges.bottom, dp(12f))
     val composerTop = floor - composerHeight
-    list.setPad(top + dp(48f) + dp(8f), height - composerTop + dp(8f))
-    put(page, 0, 0, width, height)
     put(composer, dp(12f), composerTop, width - dp(24f), composerHeight)
+    // ChatActions: the status under the name, the pinned message, the bar above the field, the way down.
+    actions.keyboardUp = edges.keyboard > 0
+    val room = actions.place(width, height, top + dp(48f), top, dp(12f), composerTop, width - dp(24f), composerHeight)
+    list.setPad(room.first, room.second)
+    put(page, 0, 0, width, height)
   }
 
   /** Attachments: shows the rows of what is being sent (they change while a file is prepared and uploaded). */
@@ -190,13 +188,5 @@ class ChatScreen(
   private fun leave() {
     (context.getSystemService(Context.INPUT_METHOD_SERVICE) as? InputMethodManager)?.hideSoftInputFromWindow(windowToken, 0)
     goBack()
-  }
-
-  private fun sendNow() {
-    val text = field.text.toString().trim()
-    val sender = onSend ?: return
-    if (text.isEmpty()) return
-    field.setText("")
-    sender(text)
   }
 }

@@ -8,6 +8,7 @@ import android.widget.TextView
 import com.linea.messenger.Demo
 import com.linea.messenger.app.ChatTarget
 import com.linea.messenger.app.Messenger
+import com.linea.messenger.chatactions.ChatListActions
 import com.linea.messenger.design.BarMetrics
 import com.linea.messenger.design.Theme
 import com.linea.messenger.net.Server
@@ -33,6 +34,9 @@ class ChatsScreen(
   /** The page is in the window and not covered by another one. */
   private var showing = false
   private val reloadSoon = Runnable { reload() }
+  /** ChatActions: the buttons behind a row, the long-press choices, «Архив», drafts and the search
+   *  (chatactions/ChatListActions.kt). */
+  private val actions = ChatListActions(context, messenger)
 
   init {
     setBackgroundColor(Theme.bg)
@@ -52,30 +56,40 @@ class ChatsScreen(
     empty.setTextColor(Theme.muted)
     empty.gravity = Gravity.CENTER
     addView(empty)
+    // ChatActions: the rows are made there (swipe buttons, drafts, «Архив», what the search found) and come back here.
+    actions.install(this, list)
+    actions.onRows = { rows, emptyWords ->
+      list.setRows(rows)
+      empty.text = emptyWords
+      empty.visibility = if (rows.isEmpty()) View.VISIBLE else View.GONE
+    }
+    actions.onHeading = { words -> if (heading.text.toString() != words) heading.text = words }
+    actions.onReload = { reload() }
     list.onRowPress = { id ->
-      val chat = summaries.firstOrNull { it.id == id }
-      if (chat != null && messenger != null) openChat(target(chat))
-      else demo.firstOrNull { it.id == id }?.let { openChat(ChatTarget(it.title)) }
+      // ChatActions: «Архив», a found message, and the chats of an account are opened there.
+      if (!actions.pressed(id)) demo.firstOrNull { it.id == id }?.let { openChat(ChatTarget(it.title)) }
     }
     if (messenger == null) {
       demo = Demo.chats()
       list.setRows(demo)
       empty.visibility = if (demo.isEmpty()) View.VISIBLE else View.GONE
+      // ChatActions: the samples as chats the actions can work on.
+      if (demo.isNotEmpty()) actions.showSamples(demo)
     } else {
       empty.text = "Загрузка…"
     }
   }
 
-  private fun target(chat: Messenger.ChatSummary) = ChatTarget(chat.title, chat.id, chat.peerId, chat.peerLastRead)
-
   override fun onAttachedToWindow() {
     super.onAttachedToWindow()
     messenger?.watch(this)
+    actions.attached()
     appeared()
   }
 
   override fun onDetachedFromWindow() {
     messenger?.unwatch(this)
+    actions.detached()
     removeCallbacks(reloadSoon)
     showing = false
     super.onDetachedFromWindow()
@@ -110,7 +124,7 @@ class ChatsScreen(
   /** Opens the first chat of the list (for a check on the emulator). */
   fun openFirst() {
     val chat = summaries.firstOrNull() ?: return
-    if (messenger != null) openChat(target(chat))
+    if (messenger != null) actions.open(chat.id, "", animated = false)
   }
 
   /** Asks the server for the chats again. */
@@ -121,9 +135,8 @@ class ChatsScreen(
       val chats = result.getOrNull()
       if (chats != null) {
         summaries = chats
-        list.setRows(ChatRow.parse(chats.map { it.row }))
-        empty.text = "Пока нет чатов"
-        empty.visibility = if (chats.isEmpty()) View.VISIBLE else View.GONE
+        // ChatActions: shown through `actions.onRows`.
+        actions.show(chats)
       } else if (summaries.isEmpty()) {
         empty.text = Server.error(result).words
         empty.visibility = View.VISIBLE
@@ -136,7 +149,8 @@ class ChatsScreen(
     val headingHeight = putText(heading, dp(20f), top + dp(8f), width - dp(40f))
     put(newChat, width - dp(20f) - dp(40f), top + dp(8f), dp(40f), dp(40f))
     val barRoom = dp(BarMetrics.bottomGap(edges.bottom / d) + BarMetrics.height + 12f)
-    list.setPad(top + dp(8f) + headingHeight + dp(8f), barRoom)
+    // ChatActions: the search button beside «Новый чат»; the search field, when open, under the heading.
+    list.setPad(actions.place(width, top, top + dp(8f) + headingHeight + dp(8f)), barRoom)
     put(list, 0, 0, width, height)
     put(empty, dp(20f), height / 2 - dp(24f), width - dp(40f), dp(48f))
   }

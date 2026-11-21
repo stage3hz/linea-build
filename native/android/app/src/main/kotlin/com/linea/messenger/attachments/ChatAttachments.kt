@@ -111,10 +111,11 @@ class ChatAttachments(private val host: View, private val messenger: Messenger?,
 
   // The composer
 
-  /** Puts the paperclip at the composer's leading edge and moves the text field next to it. */
+  /** Puts the paperclip at the composer's leading edge and moves the text field next to it.
+   *  At the composer's lower edge: the field grows upwards with its text (ChatActions). */
   fun install(composer: FrameLayout, field: View) {
     button.setOnClickListener { choose() }
-    composer.addView(button, FrameLayout.LayoutParams((44f * d).toInt(), (44f * d).toInt(), Gravity.START or Gravity.CENTER_VERTICAL).apply { leftMargin = (4f * d).toInt() })
+    composer.addView(button, FrameLayout.LayoutParams((44f * d).toInt(), (44f * d).toInt(), Gravity.START or Gravity.BOTTOM).apply { leftMargin = (4f * d).toInt(); bottomMargin = (2f * d).toInt() })
     (field.layoutParams as? FrameLayout.LayoutParams)?.let { it.leftMargin = (50f * d).toInt(); field.layoutParams = it }
   }
 
