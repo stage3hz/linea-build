@@ -119,11 +119,11 @@ final class InviteCardView: UIView {
 
     init(_ preview: InvitePreview) {
         super.init(frame: .zero)
-        backgroundColor = UIColor(white: 1, alpha: 0.06)
+        backgroundColor = Theme.veil(0.06)
         layer.cornerRadius = 16
         layer.cornerCurve = .continuous
         layer.borderWidth = 0.5
-        layer.borderColor = UIColor(white: 1, alpha: 0.08).cgColor
+        layer.borderColor = Theme.veil(0.08).cgColor
         let community = preview.community
         let kind = UILabel()
         kind.attributedText = NSAttributedString(string: (community.blog ? "КАНАЛ" : "СЕРВЕР") + (community.closed ? " · ЗАКРЫТЫЙ" : ""),

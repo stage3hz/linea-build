@@ -133,10 +133,10 @@ final class ChatMedia: NSObject, PHPickerViewControllerDelegate {
         notes = NotePlayback(server: messenger?.server, list: list)
 
         toast.font = .systemFont(ofSize: 14)
-        toast.textColor = .white
+        toast.textColor = Theme.onBlack(.white, otherwise: Theme.text)
         toast.textAlignment = .center
         toast.numberOfLines = 0
-        toast.backgroundColor = UIColor(red: 20 / 255, green: 24 / 255, blue: 36 / 255, alpha: 0.92)
+        toast.backgroundColor = Theme.panel(UIColor(red: 20 / 255, green: 24 / 255, blue: 36 / 255, alpha: 0.92))
         toast.layer.cornerRadius = 14
         toast.layer.masksToBounds = true
         toast.isHidden = true

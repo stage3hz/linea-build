@@ -340,7 +340,7 @@ final class PersonProfileViewController: UIViewController {
     private func hairline() -> UIView {
         let holder = UIView()
         let line = UIView()
-        line.backgroundColor = UIColor(white: 1, alpha: 0.1)
+        line.backgroundColor = Theme.veil(0.1)
         line.translatesAutoresizingMaskIntoConstraints = false
         holder.addSubview(line)
         NSLayoutConstraint.activate([
@@ -609,8 +609,8 @@ final class ReportSheetViewController: UIViewController {
 
     override func viewDidLoad() {
         super.viewDidLoad()
-        overrideUserInterfaceStyle = .dark
-        view.backgroundColor = UIColor(hex: 0x141516)
+        overrideUserInterfaceStyle = Theme.dark ? .dark : .light
+        view.backgroundColor = Theme.page(UIColor(hex: 0x141516))
 
         let heading = UILabel()
         heading.text = "Пожаловаться"

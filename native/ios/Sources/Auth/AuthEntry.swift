@@ -62,7 +62,7 @@ final class AuthEntry: UIView, UITextFieldDelegate {
         field.font = .systemFont(ofSize: 17)
         field.textColor = Theme.text
         field.tintColor = Theme.text
-        field.keyboardAppearance = .dark
+        field.keyboardAppearance = Theme.dark ? .dark : .light
         field.autocorrectionType = .no
         field.autocapitalizationType = .none
         field.spellCheckingType = .no

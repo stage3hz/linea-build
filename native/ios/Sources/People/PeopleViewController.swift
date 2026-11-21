@@ -91,7 +91,7 @@ final class PeopleViewController: UIViewController, UITableViewDataSource, UITab
         field.font = .systemFont(ofSize: 15)
         field.textColor = Theme.text
         field.tintColor = Theme.accent
-        field.keyboardAppearance = .dark
+        field.keyboardAppearance = Theme.dark ? .dark : .light
         field.autocapitalizationType = .none
         field.autocorrectionType = .no
         field.spellCheckingType = .no
@@ -475,7 +475,7 @@ final class PeopleEmptyCell: UITableViewCell {
         super.init(style: style, reuseIdentifier: reuseIdentifier)
         backgroundColor = .clear
         selectionStyle = .none
-        badge.backgroundColor = UIColor(white: 1, alpha: 0.07)
+        badge.backgroundColor = Theme.veil(0.07)
         badge.layer.cornerRadius = 30
         badge.layer.cornerCurve = .continuous
         contentView.addSubview(badge)
@@ -560,8 +560,8 @@ final class PersonCell: UITableViewCell {
         nameLabel.text = person.displayName
         handleLabel.text = handle
         card.layer.borderWidth = framed ? 1 : 0
-        card.layer.borderColor = UIColor(white: 1, alpha: 0.08).cgColor
-        card.backgroundColor = framed ? UIColor(white: 1, alpha: 0.04) : .clear
+        card.layer.borderColor = Theme.veil(0.08).cgColor
+        card.backgroundColor = framed ? Theme.veil(0.04) : .clear
         card.alpha = dimmed ? 0.5 : 1
         for button in buttons { button.removeFromSuperview() }
         buttons = []
@@ -580,14 +580,14 @@ final class PersonCell: UITableViewCell {
                 button.tintColor = Theme.muted
             case .soft:
                 button.tintColor = Theme.accent
-                button.backgroundColor = UIColor(white: 1, alpha: 0.08)
+                button.backgroundColor = Theme.veil(0.08)
             case .primary:
                 button.tintColor = Theme.onAccent
                 button.backgroundColor = Theme.accent
             case .outline:
                 button.tintColor = Theme.muted
                 button.layer.borderWidth = 1
-                button.layer.borderColor = UIColor(white: 1, alpha: 0.14).cgColor
+                button.layer.borderColor = Theme.veil(0.14).cgColor
             }
             let run = action.run
             button.addAction(UIAction { _ in run() }, for: .touchUpInside)
@@ -600,7 +600,7 @@ final class PersonCell: UITableViewCell {
 
     override func setHighlighted(_ highlighted: Bool, animated: Bool) {
         super.setHighlighted(highlighted, animated: animated)
-        card.backgroundColor = highlighted ? UIColor(white: 1, alpha: 0.07) : (framed ? UIColor(white: 1, alpha: 0.04) : .clear)
+        card.backgroundColor = highlighted ? Theme.veil(0.07) : (framed ? Theme.veil(0.04) : .clear)
     }
 
     override func layoutSubviews() {

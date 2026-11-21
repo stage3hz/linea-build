@@ -94,7 +94,7 @@ final class RecordControl: NSObject {
         lockPill.backgroundColor = Theme.surface2
         lockPill.layer.cornerRadius = 20
         lockPill.layer.borderWidth = 1
-        lockPill.layer.borderColor = UIColor(white: 1, alpha: 0.12).cgColor
+        lockPill.layer.borderColor = Theme.veil(0.12).cgColor
         lockPill.isHidden = true
         lockPill.isUserInteractionEnabled = false
         let lock = UIImageView(image: UIImage(systemName: "lock.open", withConfiguration: UIImage.SymbolConfiguration(pointSize: 15, weight: .regular)))

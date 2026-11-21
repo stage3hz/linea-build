@@ -177,7 +177,7 @@ final class ChatViewController: UIViewController {
         composer.frame = CGRect(x: 12, y: floor - composerHeight, width: width - 24, height: composerHeight)
         composer.layer.cornerRadius = min(24, composerHeight / 2)
         composer.layer.cornerCurve = .continuous
-        if composer.effect == nil { composer.effect = TabGlass.effect(clear: false, interactive: false, dark: true) }
+        if composer.effect == nil { composer.effect = TabGlass.effect(clear: false, interactive: false, dark: Theme.dark) }
         field.frame = CGRect(x: 18, y: 0, width: composer.bounds.width - 18 - 50, height: composerHeight)
         send.frame = CGRect(x: composer.bounds.width - 46, y: composerHeight - 46, width: 44, height: 44)
         attachments.place(field: field, height: composerHeight)

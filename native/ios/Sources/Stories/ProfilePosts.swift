@@ -17,7 +17,7 @@ final class StoryTileView: UIControl {
 
     override init(frame: CGRect) {
         super.init(frame: frame)
-        backgroundColor = UIColor(hex: 0x1A1D24)
+        backgroundColor = Theme.onBlack(UIColor(hex: 0x1A1D24), otherwise: Theme.surface2)
         clipsToBounds = true
         picture.contentMode = .scaleAspectFill
         picture.isUserInteractionEnabled = false

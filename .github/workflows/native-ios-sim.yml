@@ -185,6 +185,12 @@ jobs:
           shot 22-music-demo -musicdemo 1
           shot 23-music-player -musicdemo player
           shot 62-bar-with-track -musicdemo chats
+          shot 63-light-chats -demo 1 -settheme light
+          shot 64-light-chat -demo 1 -chat 1 -settheme light
+          shot 65-light-channels -demo 1 -tab channels -settheme light
+          shot 66-light-music -musicdemo 1 -settheme light
+          shot 67-light-room -roomsdemo room -settheme light
+          shot 68-reset -demo 1 -settheme black
           live 24-ai 25 -tab ai
           live 13-settings 25 -settings root
           live 14-settings-profile 25 -settings profile

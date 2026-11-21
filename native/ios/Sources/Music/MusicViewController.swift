@@ -9,7 +9,7 @@ final class MusicCoverView: UIView {
 
     init(radius: CGFloat) {
         super.init(frame: .zero)
-        backgroundColor = UIColor(white: 1, alpha: 0.07)
+        backgroundColor = Theme.veil(0.07)
         layer.cornerRadius = radius
         clipsToBounds = true
         note.tintColor = Theme.muted
@@ -59,10 +59,10 @@ final class MiniPlayerView: UIView {
 
     override init(frame: CGRect) {
         super.init(frame: frame)
-        backgroundColor = UIColor(red: 30 / 255, green: 31 / 255, blue: 33 / 255, alpha: 0.97)
+        backgroundColor = Theme.panel(UIColor(red: 30 / 255, green: 31 / 255, blue: 33 / 255, alpha: 0.97))
         layer.cornerRadius = 24
         layer.borderWidth = 1
-        layer.borderColor = UIColor(white: 1, alpha: 0.1).cgColor
+        layer.borderColor = Theme.veil(0.1).cgColor
         clipsToBounds = true
         heading.font = .systemFont(ofSize: 14, weight: .bold)
         heading.textColor = Theme.text
@@ -90,7 +90,7 @@ final class MiniPlayerView: UIView {
         row.setCustomSpacing(11, after: cover)
         row.translatesAutoresizingMaskIntoConstraints = false
         addSubview(row)
-        track.backgroundColor = UIColor(white: 1, alpha: 0.1)
+        track.backgroundColor = Theme.veil(0.1)
         done.backgroundColor = Theme.accent
         addSubview(track)
         track.addSubview(done)
@@ -152,7 +152,7 @@ final class MusicTrackCell: UITableViewCell {
         super.init(style: style, reuseIdentifier: reuseIdentifier)
         backgroundColor = .clear
         selectedBackgroundView = UIView()
-        selectedBackgroundView?.backgroundColor = UIColor(white: 1, alpha: 0.06)
+        selectedBackgroundView?.backgroundColor = Theme.veil(0.06)
         heading.font = .systemFont(ofSize: 15, weight: .semibold)
         line.font = .systemFont(ofSize: 12)
         line.textColor = Theme.muted
@@ -184,7 +184,7 @@ final class MusicTrackCell: UITableViewCell {
     func show(_ track: MusicTrack, current: Bool, favorite: Bool, menu: UIMenu) {
         cover.bind(track)
         heading.text = track.title
-        heading.textColor = current ? .white : Theme.text
+        heading.textColor = current ? Theme.onBlack(.white, otherwise: Theme.accent) : Theme.text
         let badge = track.source == "local" ? "НА УСТРОЙСТВЕ" : (track.source == "soundcloud" ? "SOUNDCLOUD" : "AUDIUS")
         var words = track.artist
         if track.duration > 0 { words += " · " + MusicCatalog.time(track.duration) }
@@ -532,12 +532,12 @@ final class MusicViewController: UIViewController, UITableViewDataSource, UITabl
         tabs.addTarget(self, action: #selector(tabChanged), for: .valueChanged)
         column.addArrangedSubview(tabs)
 
-        search.backgroundColor = UIColor(white: 1, alpha: 0.08)
+        search.backgroundColor = Theme.veil(0.08)
         search.layer.cornerRadius = 14
         search.textColor = Theme.text
         search.tintColor = Theme.accent
         search.font = .systemFont(ofSize: 16)
-        search.keyboardAppearance = .dark
+        search.keyboardAppearance = Theme.dark ? .dark : .light
         search.returnKeyType = .search
         search.autocorrectionType = .no
         search.clearButtonMode = .whileEditing
@@ -575,7 +575,7 @@ final class MusicViewController: UIViewController, UITableViewDataSource, UITabl
         mixRow.spacing = 16
         mixButton.setImage(UIImage(systemName: "play.fill", withConfiguration: UIImage.SymbolConfiguration(pointSize: 24, weight: .bold)), for: .normal)
         mixButton.tintColor = Theme.onAccent
-        mixButton.backgroundColor = .white
+        mixButton.backgroundColor = Theme.onBlack(.white, otherwise: Theme.accent)
         mixButton.layer.cornerRadius = 33
         mixButton.accessibilityLabel = "Слушать микс"
         mixButton.widthAnchor.constraint(equalToConstant: 66).isActive = true
@@ -636,7 +636,7 @@ final class MusicViewController: UIViewController, UITableViewDataSource, UITabl
 
     private func noticeBox(_ text: String, error: Bool, close: (() -> Void)?) -> UIView {
         let box = UIView()
-        box.backgroundColor = UIColor(white: 1, alpha: 0.06)
+        box.backgroundColor = Theme.veil(0.06)
         box.layer.cornerRadius = 14
         let label = AIKit.label(text, size: 13, color: error ? Theme.danger : Theme.text)
         let shut = UIButton(type: .system)
@@ -677,7 +677,7 @@ final class MusicViewController: UIViewController, UITableViewDataSource, UITabl
             config.imagePadding = 6
             config.cornerStyle = .capsule
             let selected = chip.0 == mood
-            config.baseBackgroundColor = selected ? Theme.text : UIColor(white: 1, alpha: 0.08)
+            config.baseBackgroundColor = selected ? Theme.text : Theme.veil(0.08)
             config.baseForegroundColor = selected ? Theme.onAccent : Theme.text
             config.contentInsets = NSDirectionalEdgeInsets(top: 8, leading: 12, bottom: 8, trailing: 12)
             let button = UIButton(configuration: config)

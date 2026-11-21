@@ -66,13 +66,30 @@ private final class RoomSeatView: UIView {
     }
 }
 
-/// The light behind the people who are inside: each has a soft glow of their own colour, brighter while they talk.
+/// The light behind the people who are inside: each has a soft glow of their own colour, a little brighter while
+/// they talk. The colours are kept quiet (little saturation, low alpha), so the stage reads as a calm room and not
+/// as a bright many-coloured gradient.
 private final class RoomLightsView: UIView {
     struct Light {
         let center: CGPoint
         let radius: CGFloat
         let color: UIColor
         let strength: CGFloat
+    }
+
+    /// How strong a person's light is: while talking and while quiet.
+    static let talkingStrength: CGFloat = 0.2
+    static let quietStrength: CGFloat = 0.11
+
+    /// A person's colour (0xRRGGBB) made quiet for the light behind their seat: the same hue, far less saturated,
+    /// a little lighter on a dark theme and a little deeper on a light one.
+    static func calm(_ rgb: UInt32) -> UIColor {
+        let base = UIColor(hex: rgb)
+        var hue: CGFloat = 0, saturation: CGFloat = 0, brightness: CGFloat = 0, alpha: CGFloat = 0
+        guard base.getHue(&hue, saturation: &saturation, brightness: &brightness, alpha: &alpha) else { return base }
+        let quiet: CGFloat = min(saturation * 0.45, 0.32)
+        let level: CGFloat = Theme.dark ? max(brightness, 0.72) : min(max(brightness, 0.55), 0.78)
+        return UIColor(hue: hue, saturation: quiet, brightness: level, alpha: 1)
     }
 
     var lights: [Light] = [] {
@@ -475,8 +492,9 @@ final class RoomViewController: UIViewController {
             seat.show(member, mine: mine, present: present, talking: talking, muted: muted.contains(member.id), side: side, center: center)
             kept.insert(member.id)
             if present {
-                let glow = UIColor(hex: UInt32(truncatingIfNeeded: orbPair(member.avatarColor).light) & 0xFFFFFF)
-                lit.append(RoomLightsView.Light(center: center, radius: size * 2.3, color: glow, strength: talking ? 0.42 : 0.26))
+                let glow: UIColor = RoomLightsView.calm(member.avatarColor)
+                let strength: CGFloat = talking ? RoomLightsView.talkingStrength : RoomLightsView.quietStrength
+                lit.append(RoomLightsView.Light(center: center, radius: size * 2.1, color: glow, strength: strength))
             }
         }
         for (id, seat) in seatViews where !kept.contains(id) {

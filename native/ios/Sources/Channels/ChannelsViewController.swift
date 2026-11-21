@@ -284,7 +284,7 @@ final class CommunityCell: UITableViewCell {
         backgroundColor = .clear
         contentView.backgroundColor = .clear
         let pressed = UIView()
-        pressed.backgroundColor = UIColor(white: 1, alpha: 0.07)
+        pressed.backgroundColor = Theme.veil(0.07)
         selectedBackgroundView = pressed
         name.font = .systemFont(ofSize: 16, weight: .semibold)
         name.textColor = Theme.text

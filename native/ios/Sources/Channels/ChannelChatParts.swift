@@ -144,11 +144,11 @@ final class ChannelMenuView: UIView {
         shade.addTarget(self, action: #selector(close), for: .touchUpInside)
         addSubview(shade)
         for box in [reactionBar, panel] {
-            box.backgroundColor = UIColor(hex: 0x1B1C1E)
+            box.backgroundColor = Theme.panel(UIColor(hex: 0x1B1C1E))
             box.layer.cornerRadius = 16
             box.layer.cornerCurve = .continuous
             box.layer.borderWidth = 0.5
-            box.layer.borderColor = UIColor(white: 1, alpha: 0.10).cgColor
+            box.layer.borderColor = Theme.veil(0.10).cgColor
             box.clipsToBounds = true
             addSubview(box)
         }
@@ -159,7 +159,7 @@ final class ChannelMenuView: UIView {
             button.titleLabel?.font = .systemFont(ofSize: 24)
             button.tag = index
             button.layer.cornerRadius = 19
-            button.backgroundColor = reaction.chosen ? UIColor(white: 1, alpha: 0.16) : .clear
+            button.backgroundColor = reaction.chosen ? Theme.veil(0.16) : .clear
             button.accessibilityLabel = "Реакция " + reaction.emoji
             button.addTarget(self, action: #selector(reacted(_:)), for: .touchUpInside)
             reactionBar.addSubview(button)

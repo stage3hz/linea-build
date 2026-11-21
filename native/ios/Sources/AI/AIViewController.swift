@@ -376,7 +376,7 @@ final class AIViewController: UIViewController, UITextViewDelegate, UIDocumentPi
             config.baseForegroundColor = Theme.text
             config.contentInsets = NSDirectionalEdgeInsets(top: 12, leading: 10, bottom: 12, trailing: 10)
             if item.id == conversationId {
-                config.background.backgroundColor = UIColor(white: 1, alpha: 0.1)
+                config.background.backgroundColor = Theme.veil(0.1)
                 config.background.cornerRadius = 16
             }
             let openButton = UIButton(configuration: config)
@@ -527,10 +527,10 @@ final class AIViewController: UIViewController, UITextViewDelegate, UIDocumentPi
         emptyBox.translatesAutoresizingMaskIntoConstraints = false
         view.addSubview(emptyBox)
 
-        composer.backgroundColor = UIColor(red: 46 / 255, green: 46 / 255, blue: 48 / 255, alpha: 0.96)
+        composer.backgroundColor = Theme.raised(UIColor(red: 46 / 255, green: 46 / 255, blue: 48 / 255, alpha: 0.96))
         composer.layer.cornerRadius = 30
         composer.layer.borderWidth = 1
-        composer.layer.borderColor = UIColor(white: 1, alpha: 0.1).cgColor
+        composer.layer.borderColor = Theme.veil(0.1).cgColor
         composer.translatesAutoresizingMaskIntoConstraints = false
         view.addSubview(composer)
         let column = UIStackView()
@@ -543,7 +543,7 @@ final class AIViewController: UIViewController, UITextViewDelegate, UIDocumentPi
         input.font = .systemFont(ofSize: 17)
         input.textColor = Theme.text
         input.tintColor = Theme.accent
-        input.keyboardAppearance = .dark
+        input.keyboardAppearance = Theme.dark ? .dark : .light
         input.isScrollEnabled = false
         input.textContainerInset = UIEdgeInsets(top: 10, left: 6, bottom: 6, right: 6)
         input.delegate = self
@@ -643,7 +643,7 @@ final class AIViewController: UIViewController, UITextViewDelegate, UIDocumentPi
 
     private func notice(_ text: String, error: Bool) -> UIView {
         let box = UIView()
-        box.backgroundColor = UIColor(white: 1, alpha: 0.06)
+        box.backgroundColor = Theme.veil(0.06)
         box.layer.cornerRadius = 14
         let label = AIKit.label(text, size: 13, color: error ? Theme.danger : Theme.text)
         label.translatesAutoresizingMaskIntoConstraints = false
@@ -660,7 +660,7 @@ final class AIViewController: UIViewController, UITextViewDelegate, UIDocumentPi
         let turns = conversation.turns
         newButton.isHidden = turns.isEmpty
         privateButton.setImage(UIImage(systemName: incognito ? "eye.slash.fill" : "eye.slash", withConfiguration: UIImage.SymbolConfiguration(pointSize: 18, weight: .medium)), for: .normal)
-        privateButton.backgroundColor = incognito ? UIColor(white: 1, alpha: 0.16) : Theme.surface2
+        privateButton.backgroundColor = incognito ? Theme.veil(0.16) : Theme.surface2
         privateButton.accessibilityLabel = incognito ? "Приватная беседа включена: не сохраняется" : "Приватная беседа: не сохранять в историю"
 
         // The middle of an empty page: checking, an error, «not connected», or the greeting.

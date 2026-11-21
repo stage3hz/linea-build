@@ -181,7 +181,7 @@ final class ForwardPickerController: UIViewController, UITableViewDataSource, UI
         searchField.font = .systemFont(ofSize: 16)
         searchField.textColor = Theme.text
         searchField.tintColor = Theme.text
-        searchField.keyboardAppearance = .dark
+        searchField.keyboardAppearance = Theme.dark ? .dark : .light
         searchField.autocorrectionType = .no
         searchField.autocapitalizationType = .none
         searchField.returnKeyType = .search
@@ -288,7 +288,7 @@ private final class ForwardCell: UITableViewCell {
         backgroundColor = .clear
         contentView.backgroundColor = .clear
         let pressed = UIView()
-        pressed.backgroundColor = UIColor(white: 1, alpha: 0.07)
+        pressed.backgroundColor = Theme.veil(0.07)
         selectedBackgroundView = pressed
         contentView.addSubview(avatar)
         nameLabel.font = .systemFont(ofSize: 17)

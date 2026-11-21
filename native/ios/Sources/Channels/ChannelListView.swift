@@ -83,7 +83,7 @@ final class ChannelListView: UIView, UITableViewDataSource, UITableViewDelegate,
         toEnd.backgroundColor = Theme.surface2
         toEnd.layer.cornerRadius = 19
         toEnd.layer.borderWidth = 0.5
-        toEnd.layer.borderColor = UIColor(white: 1, alpha: 0.10).cgColor
+        toEnd.layer.borderColor = Theme.veil(0.10).cgColor
         toEnd.accessibilityLabel = "К новым сообщениям"
         toEnd.alpha = 0
         toEnd.addTarget(self, action: #selector(goToEnd), for: .touchUpInside)

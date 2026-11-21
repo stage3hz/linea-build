@@ -4,7 +4,7 @@ import UIKit
 // bar above it (an answer, an edit, a forward), the pinned message's bar, the way down, a short notice, and the
 // two bars of the multi-select.
 
-func chatGlass() -> UIVisualEffect { TabGlass.effect(clear: false, interactive: false, dark: true) }
+func chatGlass() -> UIVisualEffect { TabGlass.effect(clear: false, interactive: false, dark: Theme.dark) }
 
 func chatSymbol(_ name: String, _ size: CGFloat, _ weight: UIImage.SymbolWeight = .regular) -> UIImage? {
     UIImage(systemName: name, withConfiguration: UIImage.SymbolConfiguration(pointSize: size, weight: weight))
@@ -28,7 +28,7 @@ final class ComposerField: UITextView {
         font = .systemFont(ofSize: 17)
         textColor = Theme.text
         tintColor = Theme.text
-        keyboardAppearance = .dark
+        keyboardAppearance = Theme.dark ? .dark : .light
         textContainerInset = UIEdgeInsets(top: 14, left: 0, bottom: 13, right: 0)
         textContainer.lineFragmentPadding = 0
         isScrollEnabled = false
@@ -251,7 +251,7 @@ final class ChatNotice: UIView {
         backgroundColor = Theme.surface2
         layer.cornerRadius = 16
         layer.borderWidth = 1
-        layer.borderColor = UIColor(white: 1, alpha: 0.1).cgColor
+        layer.borderColor = Theme.veil(0.1).cgColor
         label.font = .systemFont(ofSize: 13)
         label.textColor = Theme.text
         label.textAlignment = .center
@@ -270,7 +270,7 @@ final class ChatNotice: UIView {
         hiding?.cancel()
         label.text = words
         label.textColor = danger ? Theme.danger : Theme.text
-        layer.borderColor = (danger ? Theme.danger.withAlphaComponent(0.6) : UIColor(white: 1, alpha: 0.1)).cgColor
+        layer.borderColor = (danger ? Theme.danger.withAlphaComponent(0.6) : Theme.veil(0.1)).cgColor
         isHidden = false
         superview?.setNeedsLayout()
         guard !stay else { return }
@@ -460,7 +460,7 @@ final class ChoiceSheet: UIViewController {
 
     override func viewDidLoad() {
         super.viewDidLoad()
-        view.backgroundColor = UIColor(hex: 0x141516)
+        view.backgroundColor = Theme.page(UIColor(hex: 0x141516))
         headingLabel.text = headingWords
         headingLabel.font = .systemFont(ofSize: 20, weight: .bold)
         headingLabel.textColor = Theme.text
@@ -537,7 +537,7 @@ private final class ChoiceRow: UIControl {
     required init?(coder: NSCoder) { return nil }
 
     override var isHighlighted: Bool {
-        didSet { backgroundColor = isHighlighted ? UIColor(white: 1, alpha: 0.07) : .clear }
+        didSet { backgroundColor = isHighlighted ? Theme.veil(0.07) : .clear }
     }
 
     override func layoutSubviews() {

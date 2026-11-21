@@ -166,7 +166,7 @@ final class StoryViewerController: UIViewController, UIGestureRecognizerDelegate
     // MARK: Building
 
     private func glass(_ holder: UIVisualEffectView, radius: CGFloat) {
-        holder.effect = chatGlass()
+        holder.effect = TabGlass.effect(clear: false, interactive: false, dark: true) // the viewer stays dark on every theme
         holder.clipsToBounds = true
         holder.layer.cornerRadius = radius
         holder.layer.cornerCurve = .continuous
@@ -174,6 +174,8 @@ final class StoryViewerController: UIViewController, UIGestureRecognizerDelegate
 
     override func viewDidLoad() {
         super.viewDidLoad()
+        // The viewer keeps its dark full-screen look whatever the theme: its glass and keyboard are the dark ones.
+        view.overrideUserInterfaceStyle = .dark
         view.backgroundColor = .clear
         backdrop.backgroundColor = .black
         view.addSubview(backdrop)

@@ -29,7 +29,7 @@ final class MessageMenuController: UIViewController {
     /// A reaction was chosen (the menu is already closed).
     var onReact: ((String) -> Void)?
 
-    private let backdrop = UIVisualEffectView(effect: UIBlurEffect(style: .systemUltraThinMaterialDark))
+    private let backdrop = UIVisualEffectView(effect: Theme.thinBlur)
     private let dim = UIButton(type: .custom)
     private let pill = UIVisualEffectView(effect: nil)
     private let moreButton = UIButton(type: .system)
@@ -73,7 +73,7 @@ final class MessageMenuController: UIViewController {
             let button = UIButton(type: .custom)
             button.setTitle(reaction.emoji, for: .normal)
             button.titleLabel?.font = .systemFont(ofSize: 25)
-            button.backgroundColor = reaction.chosen ? UIColor(white: 1, alpha: 0.16) : .clear
+            button.backgroundColor = reaction.chosen ? Theme.veil(0.16) : .clear
             button.layer.cornerRadius = 20
             button.tag = index
             button.accessibilityLabel = "Реакция " + reaction.emoji
@@ -88,7 +88,7 @@ final class MessageMenuController: UIViewController {
         moreButton.addTarget(self, action: #selector(showAll), for: .touchUpInside)
         pill.contentView.addSubview(moreButton)
 
-        bubble.backgroundColor = UIColor(hex: 0x1F2023)
+        bubble.backgroundColor = Theme.panel(UIColor(hex: 0x1F2023))
         bubble.layer.cornerRadius = 18
         bubble.layer.cornerCurve = .continuous
         bubble.isHidden = previewWords.isEmpty
@@ -248,7 +248,7 @@ private final class MessageMenuRow: UIControl {
     required init?(coder: NSCoder) { return nil }
 
     override var isHighlighted: Bool {
-        didSet { backgroundColor = isHighlighted ? UIColor(white: 1, alpha: 0.1) : .clear }
+        didSet { backgroundColor = isHighlighted ? Theme.veil(0.1) : .clear }
     }
 
     override func layoutSubviews() {

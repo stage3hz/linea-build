@@ -119,7 +119,7 @@ struct MsgLinkCardLayout: Equatable {
         context.saveGState()
         context.addPath(plate.cgPath)
         context.clip()
-        context.setFillColor(UIColor(white: 1, alpha: pressed ? 0.11 : 0.06).cgColor)
+        context.setFillColor(Theme.veil(pressed ? 0.11 : 0.06).cgColor)
         context.fill(box)
         context.setFillColor(accent.cgColor)
         context.fill(CGRect(x: box.minX, y: box.minY, width: 3, height: box.height))
@@ -143,7 +143,7 @@ struct MsgLinkCardLayout: Equatable {
                 let drawn = CGSize(width: image.size.width * scale, height: image.size.height * scale)
                 image.draw(in: CGRect(x: frame.midX - drawn.width / 2, y: frame.midY - drawn.height / 2, width: drawn.width, height: drawn.height))
             } else {
-                context.setFillColor(UIColor(white: 1, alpha: 0.05).cgColor)
+                context.setFillColor(Theme.veil(0.05).cgColor)
                 context.fill(frame)
             }
             context.restoreGState()

@@ -98,7 +98,7 @@ final class ChannelChatViewController: UIViewController, UITextViewDelegate, PHP
         notice.titleLabel?.numberOfLines = 2
         notice.titleLabel?.textAlignment = .center
         notice.setTitleColor(Theme.danger, for: .normal)
-        notice.backgroundColor = UIColor(hex: 0x1B1C1E)
+        notice.backgroundColor = Theme.panel(UIColor(hex: 0x1B1C1E))
         notice.layer.cornerRadius = 12
         notice.isHidden = true
         notice.addTarget(self, action: #selector(noticePressed), for: .touchUpInside)
@@ -146,7 +146,7 @@ final class ChannelChatViewController: UIViewController, UITextViewDelegate, PHP
         field.font = .systemFont(ofSize: 16)
         field.textColor = Theme.text
         field.tintColor = Theme.text
-        field.keyboardAppearance = .dark
+        field.keyboardAppearance = Theme.dark ? .dark : .light
         field.textContainerInset = UIEdgeInsets(top: 13, left: 0, bottom: 13, right: 0)
         field.textContainer.lineFragmentPadding = 0
         field.showsVerticalScrollIndicator = false
@@ -274,7 +274,7 @@ final class ChannelChatViewController: UIViewController, UITextViewDelegate, PHP
             composer.frame = CGRect(x: 12, y: floor - tall, width: width - 24, height: tall)
             composer.layer.cornerRadius = 24
             composer.layer.cornerCurve = .continuous
-            if composer.effect == nil { composer.effect = TabGlass.effect(clear: false, interactive: false, dark: true) }
+            if composer.effect == nil { composer.effect = TabGlass.effect(clear: false, interactive: false, dark: Theme.dark) }
             attachButton.frame = CGRect(x: 2, y: tall - 46, width: 44, height: 44)
             field.frame = CGRect(x: side, y: 0, width: fieldWidth, height: tall)
             hint.frame = CGRect(x: side, y: 13, width: fieldWidth, height: 22)

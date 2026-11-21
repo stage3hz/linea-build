@@ -158,7 +158,7 @@ final class AuthViewController: UIViewController {
         hint.textColor = Theme.muted
         hint.numberOfLines = 0
 
-        switcher.selectedSegmentTintColor = UIColor(white: 1, alpha: 0.14)
+        switcher.selectedSegmentTintColor = Theme.veil(0.14)
         switcher.backgroundColor = Theme.surface2
         switcher.setTitleTextAttributes([.foregroundColor: Theme.muted, .font: UIFont.systemFont(ofSize: 13, weight: .medium)], for: .normal)
         switcher.setTitleTextAttributes([.foregroundColor: Theme.text, .font: UIFont.systemFont(ofSize: 13, weight: .bold)], for: .selected)
@@ -408,7 +408,7 @@ final class AuthViewController: UIViewController {
         progress.isHidden = step == 0
         for (index, bar) in bars.enumerated() {
             bar.isHidden = index >= stepCount
-            bar.backgroundColor = index < step ? Theme.accent : UIColor(white: 1, alpha: 0.12)
+            bar.backgroundColor = index < step ? Theme.accent : Theme.veil(0.12)
         }
         progressLabel.text = "\(step) / \(stepCount)"
         progress.accessibilityLabel = "Шаг \(step) из \(stepCount)"

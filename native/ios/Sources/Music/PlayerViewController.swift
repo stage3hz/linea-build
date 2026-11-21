@@ -50,7 +50,7 @@ final class PlayerViewController: UIViewController {
         config.image = UIImage(systemName: name, withConfiguration: UIImage.SymbolConfiguration(pointSize: 12, weight: .medium))
         config.imagePadding = 6
         config.cornerStyle = .capsule
-        config.baseBackgroundColor = on ? Theme.text : UIColor(white: 1, alpha: 0.08)
+        config.baseBackgroundColor = on ? Theme.text : Theme.veil(0.08)
         config.baseForegroundColor = on ? Theme.onAccent : Theme.text
         config.contentInsets = NSDirectionalEdgeInsets(top: 8, leading: 12, bottom: 8, trailing: 12)
         button.configuration = config
@@ -58,7 +58,7 @@ final class PlayerViewController: UIViewController {
 
     override func viewDidLoad() {
         super.viewDidLoad()
-        view.backgroundColor = UIColor(hex: 0x101112)
+        view.backgroundColor = Theme.page(UIColor(hex: 0x101112))
         let scroll = UIScrollView()
         scroll.translatesAutoresizingMaskIntoConstraints = false
         scroll.alwaysBounceVertical = true
@@ -127,7 +127,7 @@ final class PlayerViewController: UIViewController {
         column.addArrangedSubview(chips)
 
         slider.minimumTrackTintColor = Theme.text
-        slider.maximumTrackTintColor = UIColor(white: 1, alpha: 0.16)
+        slider.maximumTrackTintColor = Theme.veil(0.16)
         slider.accessibilityLabel = "Позиция воспроизведения"
         slider.addTarget(self, action: #selector(dragBegan), for: .touchDown)
         slider.addTarget(self, action: #selector(dragMoved), for: .valueChanged)
@@ -145,7 +145,7 @@ final class PlayerViewController: UIViewController {
         backButton.tintColor = Theme.text
         backButton.accessibilityLabel = "Предыдущий трек или начало текущего"
         backButton.addTarget(self, action: #selector(goBack), for: .touchUpInside)
-        playButton.backgroundColor = .white
+        playButton.backgroundColor = Theme.onBlack(.white, otherwise: Theme.accent)
         playButton.tintColor = Theme.onAccent
         playButton.layer.cornerRadius = 36
         playButton.widthAnchor.constraint(equalToConstant: 72).isActive = true
@@ -174,7 +174,7 @@ final class PlayerViewController: UIViewController {
         let panel = UIStackView(arrangedSubviews: [queueButton, lyricsButton])
         panel.axis = .horizontal
         panel.distribution = .fillEqually
-        panel.backgroundColor = UIColor(white: 1, alpha: 0.06)
+        panel.backgroundColor = Theme.veil(0.06)
         panel.layer.cornerRadius = 16
         panel.heightAnchor.constraint(equalToConstant: 48).isActive = true
         column.addArrangedSubview(panel)

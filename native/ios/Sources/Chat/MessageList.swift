@@ -475,12 +475,12 @@ final class MsgRowCanvas: UIView {
       context.fillPath()
     }
     if pressed {
-      context.setFillColor(UIColor(white: 1, alpha: 0.08).cgColor)
+      context.setFillColor(Theme.veil(0.08).cgColor)
       context.addPath(shape.cgPath)
       context.fillPath()
     }
     if flash {
-      context.setFillColor(UIColor(white: 1, alpha: 0.14).cgColor)
+      context.setFillColor(Theme.veil(0.14).cgColor)
       context.addPath(shape.cgPath)
       context.fillPath()
     }

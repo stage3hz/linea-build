@@ -92,7 +92,7 @@ final class ChatListActions: NSObject, UITextFieldDelegate {
         searchField.font = .systemFont(ofSize: 16)
         searchField.textColor = Theme.text
         searchField.tintColor = Theme.text
-        searchField.keyboardAppearance = .dark
+        searchField.keyboardAppearance = Theme.dark ? .dark : .light
         searchField.autocorrectionType = .no
         searchField.autocapitalizationType = .none
         searchField.returnKeyType = .search

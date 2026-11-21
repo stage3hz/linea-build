@@ -11,7 +11,7 @@ enum AIText {
         let style = NSMutableParagraphStyle()
         style.lineSpacing = 4
         let plain: [NSAttributedString.Key: Any] = [.font: UIFont.systemFont(ofSize: size), .foregroundColor: color, .paragraphStyle: style]
-        let code: [NSAttributedString.Key: Any] = [.font: UIFont.monospacedSystemFont(ofSize: size - 2, weight: .regular), .foregroundColor: Theme.text, .backgroundColor: UIColor(white: 1, alpha: 0.07)]
+        let code: [NSAttributedString.Key: Any] = [.font: UIFont.monospacedSystemFont(ofSize: size - 2, weight: .regular), .foregroundColor: Theme.text, .backgroundColor: Theme.veil(0.07)]
         let parts = text.components(separatedBy: "```")
         // An unclosed fence is not a block: the text is shown as it is.
         guard parts.count >= 3, parts.count % 2 == 1 else { return NSAttributedString(string: text, attributes: plain) }
@@ -49,10 +49,10 @@ enum AIKit {
         let button = UIButton(type: .system)
         button.setImage(UIImage(systemName: symbol, withConfiguration: UIImage.SymbolConfiguration(pointSize: 18, weight: .medium)), for: .normal)
         button.tintColor = Theme.text
-        button.backgroundColor = active ? UIColor(white: 1, alpha: 0.16) : Theme.surface2
+        button.backgroundColor = active ? Theme.veil(0.16) : Theme.surface2
         button.layer.cornerRadius = size / 2
         button.layer.borderWidth = 1
-        button.layer.borderColor = UIColor(white: 1, alpha: active ? 0.5 : 0.1).cgColor
+        button.layer.borderColor = Theme.veil(active ? 0.5 : 0.1).cgColor
         button.accessibilityLabel = words
         button.translatesAutoresizingMaskIntoConstraints = false
         NSLayoutConstraint.activate([button.widthAnchor.constraint(equalToConstant: size), button.heightAnchor.constraint(equalToConstant: size)])
@@ -94,7 +94,7 @@ final class AISheetController: UIViewController {
 
     override func viewDidLoad() {
         super.viewDidLoad()
-        view.backgroundColor = UIColor(hex: 0x141516)
+        view.backgroundColor = Theme.page(UIColor(hex: 0x141516))
         let scroll = UIScrollView()
         scroll.translatesAutoresizingMaskIntoConstraints = false
         scroll.alwaysBounceVertical = true
@@ -166,10 +166,10 @@ final class AITurnView: UIView {
         let code = turn.question.hasPrefix(AIModel.codeTaskPrefix)
         let row = UIView()
         let bubble = UIView()
-        bubble.backgroundColor = UIColor(red: 31 / 255, green: 32 / 255, blue: 35 / 255, alpha: 0.96)
+        bubble.backgroundColor = ThemeStore.look.bubble
         bubble.layer.cornerRadius = 22
         bubble.layer.borderWidth = 1
-        bubble.layer.borderColor = UIColor(white: 1, alpha: 0.08).cgColor
+        bubble.layer.borderColor = Theme.veil(0.08).cgColor
         bubble.translatesAutoresizingMaskIntoConstraints = false
         row.addSubview(bubble)
         let inner = UIStackView()
@@ -194,7 +194,7 @@ final class AITurnView: UIView {
         card.backgroundColor = Theme.surface2
         card.layer.cornerRadius = 23
         card.layer.borderWidth = 1
-        card.layer.borderColor = UIColor(white: 1, alpha: 0.08).cgColor
+        card.layer.borderColor = Theme.veil(0.08).cgColor
         let inner = UIStackView()
         inner.axis = .vertical
         inner.spacing = 11
@@ -233,7 +233,7 @@ final class AITurnView: UIView {
                 picture.contentMode = .scaleAspectFill
                 picture.clipsToBounds = true
                 picture.layer.cornerRadius = 16
-                picture.backgroundColor = UIColor(white: 1, alpha: 0.05)
+                picture.backgroundColor = Theme.veil(0.05)
                 picture.isUserInteractionEnabled = true
                 picture.isAccessibilityElement = true
                 picture.accessibilityTraits = .button

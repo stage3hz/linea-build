@@ -5,17 +5,18 @@ import UIKit
 // themselves, already broken and shaped. A layout is made OFF the main thread (ChannelEngine) and never changes
 // afterwards; the main thread only draws what is in it: no measuring, no line breaking, no Auto Layout.
 
-/// The colours and fonts of a channel's chat (the black look).
+/// The colours and fonts of a channel's chat. The colours are those of the theme that is on, read each time, so a
+/// change of theme reaches the next layout without a restart.
 enum ChannelLook {
-    static let text = Theme.text
-    static let muted = Theme.muted
-    static let subtle = Theme.subtle
-    static let accent = Theme.accent
-    static let onAccent = Theme.onAccent
-    static let surface = Theme.surface2
-    static let card = UIColor(red: 22 / 255, green: 23 / 255, blue: 24 / 255, alpha: 0.96)
-    static let soft = UIColor(white: 1, alpha: 0.10)
-    static let line = UIColor(white: 1, alpha: 0.08)
+    static var text: UIColor { Theme.text }
+    static var muted: UIColor { Theme.muted }
+    static var subtle: UIColor { Theme.subtle }
+    static var accent: UIColor { Theme.accent }
+    static var onAccent: UIColor { Theme.onAccent }
+    static var surface: UIColor { Theme.surface2 }
+    static var card: UIColor { Theme.raised(UIColor(red: 22 / 255, green: 23 / 255, blue: 24 / 255, alpha: 0.96)) }
+    static var soft: UIColor { Theme.veil(0.10) }
+    static var line: UIColor { Theme.veil(0.08) }
     static let mark = UIColor(hex: 0xF5C542)
     static let join = UIColor(hex: 0x2FA36B)
 
@@ -327,7 +328,7 @@ final class ChannelRowLayout {
             return y + 44
         }
         let box = CGRect(x: x, y: y, width: wide, height: 144)
-        pieces.append(.fill(box, 16, UIColor(white: 1, alpha: 0.06).cgColor))
+        pieces.append(.fill(box, 16, Theme.veil(0.06).cgColor))
         pieces.append(.border(box, 16, ChannelLook.line.cgColor))
         let kind = ChannelType.line((invite.blog ? "КАНАЛ" : "СЕРВЕР") + (invite.closed ? " · ЗАКРЫТЫЙ" : ""), UIFont.systemFont(ofSize: 11, weight: .bold), ChannelLook.muted, width: wide - 24)
         pieces.append(.text(kind.line, CGPoint(x: x + 12, y: y + 12 + kind.ascent)))
