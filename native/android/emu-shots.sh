@@ -27,6 +27,9 @@ shot() { # name, launch arguments…
   adb shell am force-stop "$APP"
   adb shell am start -W -n "$APP/com.linea.messenger.MainActivity" "$@"
   sleep 6
+  # The emulator's own launcher stalls on a slow runner and its "isn't responding" window covers the app: stop it.
+  adb shell am force-stop com.google.android.apps.nexuslauncher >/dev/null 2>&1 || true
+  sleep 1
   adb exec-out screencap -p > "$OUT/$name.png"
   # A PNG of a real screen is far bigger than this; an empty file means the screen was not read.
   [ "$(wc -c < "$OUT/$name.png")" -gt 2000 ] || { echo "No picture for $name" >&2; exit 1; }
