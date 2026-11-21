@@ -1,0 +1,10 @@
+appId: com.invizent.app
+---
+# A long touch on the avatar in the chat's header: the large picture with «Открыть профиль» and «Поиск».
+- longPressOn:
+    text: "Полный профиль Тимур.*"
+- extendedWaitUntil:
+    visible: "Открыть профиль"
+    timeout: 15000
+    optional: true
+- waitForAnimationToEnd

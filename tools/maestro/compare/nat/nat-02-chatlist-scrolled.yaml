@@ -1,0 +1,5 @@
+appId: com.invizent.app
+---
+# Comparison shot 02-chatlist-scrolled of the native app, started by the workflow with its launch arguments (no launchApp here).
+- runFlow: ../act/list-scroll.yaml
+- takeScreenshot: nat-02-chatlist-scrolled

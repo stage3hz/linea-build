@@ -1,0 +1,6 @@
+appId: com.invizent.app
+---
+# The emoji button of the composer: the emoji / stickers panel.
+- tapOn:
+    text: "Стикеры и эмодзи"
+- waitForAnimationToEnd

@@ -1,0 +1,14 @@
+appId: com.invizent.app
+---
+# The reference app started afresh (the session and the storage stay), on the chat list with the seeded people.
+- launchApp
+- extendedWaitUntil:
+    visible: "Чаты"
+    timeout: 300000
+- tapOn:
+    text: "Allow|Разрешить|Not Now|Не сейчас"
+    optional: true
+- extendedWaitUntil:
+    visible: "Тимур Богданов.*"
+    timeout: 180000
+- waitForAnimationToEnd

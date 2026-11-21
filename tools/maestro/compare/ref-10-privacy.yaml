@@ -1,0 +1,15 @@
+appId: com.invizent.app
+---
+# Comparison shot 10-privacy of the reference app (.github/workflows/native-compare.yml).
+- runFlow: act/ref-home.yaml
+- tapOn:
+    text: "Настройки"
+- scrollUntilVisible:
+    element:
+      text: "Конфиденциальность.*"
+    direction: DOWN
+    timeout: 15000
+- tapOn:
+    text: "Конфиденциальность.*"
+- waitForAnimationToEnd
+- takeScreenshot: ref-10-privacy

@@ -1,0 +1,12 @@
+appId: com.invizent.app
+---
+# The open chat moved back to its older messages (the list with the formatting), two slow swipes down.
+- swipe:
+    start: "50%,30%"
+    end: "50%,80%"
+    duration: 700
+- swipe:
+    start: "50%,30%"
+    end: "50%,80%"
+    duration: 700
+- waitForAnimationToEnd

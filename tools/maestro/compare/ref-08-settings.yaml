@@ -1,0 +1,11 @@
+appId: com.invizent.app
+---
+# Comparison shot 08-settings of the reference app (.github/workflows/native-compare.yml).
+- runFlow: act/ref-home.yaml
+- tapOn:
+    text: "Настройки"
+- extendedWaitUntil:
+    visible: "Оформление.*"
+    timeout: 30000
+- waitForAnimationToEnd
+- takeScreenshot: ref-08-settings

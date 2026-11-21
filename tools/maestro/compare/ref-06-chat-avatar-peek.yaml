@@ -1,0 +1,7 @@
+appId: com.invizent.app
+---
+# Comparison shot 06-chat-avatar-peek of the reference app (.github/workflows/native-compare.yml).
+- runFlow: act/ref-home.yaml
+- runFlow: act/open-timur.yaml
+- runFlow: act/avatar-peek.yaml
+- takeScreenshot: ref-06-chat-avatar-peek

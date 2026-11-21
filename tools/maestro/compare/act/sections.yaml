@@ -1,0 +1,23 @@
+appId: com.invizent.app
+---
+# A plain hold on «Чаты» in the tab bar: the list of the other sections opens and stays.
+# The tab is found by its label when it carries the unread count («Чаты, 5»); otherwise by its place
+# (the bar is 176 pt wide in the middle of the screen, «Чаты» is its left half).
+- evalScript: ${output.held = false}
+- runFlow:
+    when:
+      visible: "Чаты, .*"
+    commands:
+      - longPressOn:
+          text: "Чаты, .*"
+      - evalScript: ${output.held = true}
+- runFlow:
+    when:
+      true: ${!output.held}
+    commands:
+      - longPressOn:
+          point: "39%,93%"
+- extendedWaitUntil:
+    visible: "Музыка"
+    timeout: 15000
+- waitForAnimationToEnd

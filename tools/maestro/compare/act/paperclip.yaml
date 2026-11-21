@@ -1,0 +1,12 @@
+appId: com.invizent.app
+---
+# The paperclip: the attachment panel (gallery, files, poll). Photos access is granted by the workflow beforehand;
+# should iOS still ask, the question is answered.
+- tapOn:
+    text: "Вложения: галерея, файлы, опрос"
+- runFlow:
+    when:
+      visible: "Allow Full Access|Allow Access to All Photos|Разрешить доступ ко всем фото"
+    commands:
+      - tapOn: "Allow Full Access|Allow Access to All Photos|Разрешить доступ ко всем фото"
+- waitForAnimationToEnd

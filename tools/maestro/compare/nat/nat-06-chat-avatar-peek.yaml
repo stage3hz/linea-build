@@ -1,0 +1,6 @@
+appId: com.invizent.app
+---
+# Comparison shot 06-chat-avatar-peek of the native app, started by the workflow with its launch arguments (no launchApp here).
+- runFlow: ../act/wait-timur.yaml
+- runFlow: ../act/avatar-peek.yaml
+- takeScreenshot: nat-06-chat-avatar-peek

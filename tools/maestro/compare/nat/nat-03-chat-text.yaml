@@ -1,0 +1,6 @@
+appId: com.invizent.app
+---
+# Comparison shot 03-chat-text of the native app, started by the workflow with its launch arguments (no launchApp here).
+- runFlow: ../act/wait-timur.yaml
+- runFlow: ../act/chat-top.yaml
+- takeScreenshot: nat-03-chat-text

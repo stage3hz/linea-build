@@ -1,0 +1,13 @@
+appId: com.invizent.app
+---
+# Comparison shot 07-profile of the reference app (.github/workflows/native-compare.yml).
+- runFlow: act/ref-home.yaml
+- runFlow: act/open-timur.yaml
+- tapOn:
+    text: "Профиль Тимур Богданов.*"
+- extendedWaitUntil:
+    notVisible: ".*Как тебе фото.*"
+    timeout: 15000
+    optional: true
+- waitForAnimationToEnd
+- takeScreenshot: ref-07-profile

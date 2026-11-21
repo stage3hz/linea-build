@@ -78,6 +78,16 @@ const PEOPLE = [
   ['Ксюша', [[224, 128, 59], [240, 168, 96]], ['😂😂😂', 'Ну ты даёшь', 'Давай в семь у метро']],
   ['Dimas', null, ['Го вечером?', 'Я освобожусь после шести']],
   ['Лариса Новикова', [[176, 74, 122], [224, 106, 154]], Array.from({ length: 24 }, (_, i) => `Сообщение номер ${i + 1}${i % 5 === 4 ? ' — подлиннее, чтобы перенеслось на вторую строку и было видно, как ведёт себя пузырь' : ''}`)],
+  // SIM_SEED_RICH=1 (.github/workflows/native-compare.yml): more people, so the list scrolls; inserted before the
+  // last person, whose chat stays the first of the list. Off by default: the other workflows see the same list as before.
+  ...(process.env.SIM_SEED_RICH === '1' ? [
+    ['Олег Смирнов', [[90, 160, 90], [140, 200, 120]], ['Завтра созвон в 11, не забудь']],
+    ['Вера', null, ['Спасибо! 🙏']],
+    ['Павел Крылов', [[200, 90, 70], [240, 140, 100]], ['Фото с выходных скину вечером', 'Там их штук двести 😅']],
+    ['Софья Миронова', [[120, 100, 210], [170, 150, 240]], ['Ключи у консьержа']],
+    ['Игорь', null, ['Ок']],
+    ['Наташа Белова', [[60, 170, 200], [110, 210, 230]], ['С днём рождения! 🎉 Желаю, чтобы всё получалось и было побольше поводов улыбаться']],
+  ] : []),
   ['Тимур Богданов', [[61, 139, 208], [94, 176, 240]], ['Список покупок:\n— молоко\n— хлеб\n— сыр', FORMATTED, 'Не забудь!']],
 ];
 const people = [];
@@ -120,6 +130,9 @@ try {
   head.write('data', 36); head.writeUInt32LE(pcm.length, 40);
   await sayFile(last, found.id, Buffer.concat([head, pcm]), { name: `voice-${Date.now()}.m4a`, mimeType: 'audio/mp4', media: { durationMs: 3000, waveform: 'AFKPUZbfbZUPKFA'.repeat(6) } });
   sent += 1;
+  // SIM_SEED_RICH=1: a text after the media, so the newest message of the chat (the one the native app's
+  // `-chataction menu` holds) is one the reference flow can hold by its words too.
+  if (process.env.SIM_SEED_RICH === '1') { await say(last, found.id, 'Как тебе фото'); sent += 1; }
 } catch (error) { console.log(`attachments not sent: ${error.message}`); }
 // A community with two channels and a blog, when the test account's sign-in is given (the fifth to seventh
 // arguments: login, password, confirmation word): the account joins by invite as a person would. Not fatal.
@@ -131,7 +144,15 @@ if (seedLogin && seedPassword) {
     const [general, news] = community.channels.filter(channel => channel.kind === 'text');
     const { invite } = await owner.createInvite(community.id);
     const session = await new Api(base).login(seedLogin, seedPassword, seedWord || '');
-    await new Api(base, session.token).acceptInvite(invite.code);
+    const mine = new Api(base, session.token);
+    await mine.acceptInvite(invite.code);
+    // SIM_SEED_RICH=1: «Люди» with a friend (Анна, accepted from both sides) and an incoming request (Максим).
+    if (process.env.SIM_SEED_RICH === '1') {
+      try {
+        await people[0].api.addContact(found.id); await mine.addContact(people[0].id); await people[1].api.addContact(found.id);
+        console.log('friends seeded');
+      } catch (error) { console.log(`friends not seeded: ${error.message}`); }
+    }
     for (const person of people.slice(1, 4)) await person.api.acceptInvite(invite.code);
     const first = (await owner.sendChannelMessage(community.id, general.id, { text: 'Всем привет! Сбор в восемь.' })).message;
     await people[1].api.sendChannelMessage(community.id, general.id, { text: 'Буду', replyTo: first.id });

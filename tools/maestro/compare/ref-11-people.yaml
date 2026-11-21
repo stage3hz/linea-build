@@ -1,0 +1,9 @@
+appId: com.invizent.app
+---
+# Comparison shot 11-people of the reference app (.github/workflows/native-compare.yml).
+- runFlow: act/ref-home.yaml
+- runFlow: act/sections.yaml
+- tapOn:
+    text: "Люди.*"
+- waitForAnimationToEnd
+- takeScreenshot: ref-11-people

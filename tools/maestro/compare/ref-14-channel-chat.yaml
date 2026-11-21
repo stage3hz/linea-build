@@ -1,0 +1,23 @@
+appId: com.invizent.app
+---
+# Comparison shot 14-channel-chat of the reference app (.github/workflows/native-compare.yml).
+- runFlow: act/ref-home.yaml
+- runFlow: act/sections.yaml
+- tapOn:
+    text: "Каналы.*"
+- extendedWaitUntil:
+    visible: "Клан «Север».*"
+    timeout: 60000
+- tapOn:
+    text: "Клан «Север».*"
+- extendedWaitUntil:
+    visible: "Текстовый канал общий.*"
+    timeout: 60000
+- tapOn:
+    text: "Текстовый канал общий.*"
+- extendedWaitUntil:
+    visible: ".*глянь, пожалуйста.*"
+    timeout: 60000
+    optional: true
+- waitForAnimationToEnd
+- takeScreenshot: ref-14-channel-chat

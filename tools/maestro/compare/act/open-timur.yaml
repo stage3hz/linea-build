@@ -1,0 +1,9 @@
+appId: com.invizent.app
+---
+# The chat with Тимур (text with formatting, a file, a photo, a voice message, then «Как тебе фото»).
+- tapOn:
+    text: "Тимур Богданов.*"
+- extendedWaitUntil:
+    visible: ".*Как тебе фото.*"
+    timeout: 120000
+- waitForAnimationToEnd

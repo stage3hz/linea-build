@@ -1,0 +1,9 @@
+appId: com.invizent.app
+---
+# The search of the chat list with «Тим» typed; Return puts the keyboard away (the native `-chatsearch` shows
+# the results without the keyboard too).
+- tapOn:
+    text: "Поиск"
+- inputText: "Тим"
+- pressKey: enter
+- waitForAnimationToEnd

@@ -1,0 +1,7 @@
+appId: com.invizent.app
+---
+# Comparison shot 18-emoji-panel of the reference app (.github/workflows/native-compare.yml).
+- runFlow: act/ref-home.yaml
+- runFlow: act/open-timur.yaml
+- runFlow: act/emoji.yaml
+- takeScreenshot: ref-18-emoji-panel

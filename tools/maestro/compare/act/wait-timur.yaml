@@ -1,0 +1,8 @@
+appId: com.invizent.app
+---
+# The native app opened the first chat by `-openchat 1`: wait for its newest message.
+- extendedWaitUntil:
+    visible: ".*Как тебе фото.*"
+    timeout: 120000
+    optional: true
+- waitForAnimationToEnd

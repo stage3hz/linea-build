@@ -1,0 +1,8 @@
+appId: com.invizent.app
+---
+# The chat list moved up by about half a screen.
+- swipe:
+    start: "50%,78%"
+    end: "50%,30%"
+    duration: 700
+- waitForAnimationToEnd
