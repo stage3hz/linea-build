@@ -176,6 +176,8 @@ final class Live: NSObject, URLSessionWebSocketDelegate {
         if type == "ready" || type == "error" || type.hasPrefix("room.") || type.hasPrefix("voice.") { NotificationCenter.default.post(name: Live.roomEvent, object: nil, userInfo: ["event": data]) }
         // Stories (Sources/Stories): somebody's stories or posts changed, or a story of this account was watched.
         if type == "ready" || type.hasPrefix("story") { NotificationCenter.default.post(name: Live.storyEvent, object: nil, userInfo: ["event": data]) }
+        // Composer: the list of scheduled messages changed on the server (Sources/Composer/ScheduledStore.swift).
+        if type == "ready" || type == "scheduled" { NotificationCenter.default.post(name: Live.scheduledEvent, object: nil, userInfo: ["event": data]) }
         switch type {
         case "ready":
             attempts = 0

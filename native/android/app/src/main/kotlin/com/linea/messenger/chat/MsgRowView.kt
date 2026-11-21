@@ -168,7 +168,7 @@ class MsgRowView(context: Context) : View(context) {
     // LinkPreview: the card's picture is decoded once per row, not on every drawing.
     val cardImage = next.linkCard?.image ?: ""
     if (cardImage != cardOf) { cardOf = cardImage; cardPicture = next.linkCard?.picture() }
-    contentDescription = if (next.kind == 1) next.text else listOf(MediaRowArt.spoken(next), next.label, next.text, next.linkCard?.spoken ?: "", next.time).filter { it.isNotEmpty() }.joinToString(". ")
+    contentDescription = if (next.kind == 1 || next.kind == 2) next.text else listOf(MediaRowArt.spoken(next), next.label, next.text, next.linkCard?.spoken ?: "", next.time).filter { it.isNotEmpty() }.joinToString(". ")
     if (relayout) requestLayout()
     invalidate()
   }
@@ -252,7 +252,12 @@ class MsgRowView(context: Context) : View(context) {
     body.textSize = fontSize * d
     textLayout = null; quoteLayout = null; labelLayout = null; noticeLayout = null; reactLayout = null; thumbW = 0f; thumbH = 0f; voiceW = 0f; voiceH = 0f
     chips = emptyList(); chipsW = 0f; chipsH = 0f; timeInline = false; card = null
-    if (item.kind == 1) {
+    if (item.kind == 2) {
+      // Offline: the lock notice of messages sent before this device signed in (the reference's MissingRow).
+      val box = minOf(width - 2 * edge, 360f * d)
+      noticeLayout = layout(item.text, small, (box - 54f * d).toInt(), 8, false)
+      bubbleW = minOf(box, widest(noticeLayout) + 54f * d); bubbleH = maxOf((noticeLayout?.height ?: 0).toFloat(), 18f * d) + 20f * d
+    } else if (item.kind == 1) {
       noticeLayout = layout(item.text, small, (width * 0.8f).toInt(), 6, true)
       bubbleW = widest(noticeLayout) + 24f * d; bubbleH = (noticeLayout?.height ?: 0) + 12f * d
     } else {
@@ -306,7 +311,7 @@ class MsgRowView(context: Context) : View(context) {
     val item = row
     if (item == null) { setMeasuredDimension(width, 0); return }
     if (builtFor != item || builtWidth != width || builtFont != fontSize) build(item, width)
-    val gap = if (item.kind == 1) 8f * d else if (item.tail) 7f * d else 2f * d
+    val gap = if (item.kind == 2) 20f * d else if (item.kind == 1) 8f * d else if (item.tail) 7f * d else 2f * d
     setMeasuredDimension(width, (bubbleH + gap).toInt())
   }
 
@@ -323,6 +328,21 @@ class MsgRowView(context: Context) : View(context) {
     val item = row ?: return
     if (builtFor != item || builtWidth != width) build(item, width)
     val w = width.toFloat()
+    if (item.kind == 2) {
+      val left = (w - bubbleW) / 2; val top = 10f * d
+      fill.color = palette.notice; canvas.drawRoundRect(left, top, left + bubbleW, top + bubbleH, 16f * d, 16f * d, fill)
+      // The lock: its body and its shackle, in the notice's colour.
+      val lx = left + 14f * d + 8f * d; val ly = top + bubbleH / 2 + 1f * d
+      fill.color = palette.noticeText
+      canvas.drawRoundRect(lx - 6f * d, ly - 2f * d, lx + 6f * d, ly + 6f * d, 2f * d, 2f * d, fill)
+      stroke.color = palette.noticeText; stroke.strokeWidth = 1.6f * d
+      canvas.drawArc(lx - 4f * d, ly - 9f * d, lx + 4f * d, ly - 1f * d, 180f, 180f, false, stroke)
+      canvas.drawLine(lx - 4f * d, ly - 5f * d, lx - 4f * d, ly - 2f * d, stroke)
+      canvas.drawLine(lx + 4f * d, ly - 5f * d, lx + 4f * d, ly - 2f * d, stroke)
+      small.color = palette.noticeText
+      noticeLayout?.let { canvas.save(); canvas.translate(left + 40f * d, top + 10f * d); it.draw(canvas); canvas.restore() }
+      return
+    }
     if (item.kind == 1) {
       val left = (w - bubbleW) / 2
       fill.color = palette.notice; canvas.drawRoundRect(left, 0f, left + bubbleW, bubbleH, 14f * d, 14f * d, fill)

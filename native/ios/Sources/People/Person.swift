@@ -13,6 +13,9 @@ struct Person {
     let avatarColor: UInt32
     /// Empty when there is no picture (or the person does not show it to this account).
     let avatarId: String
+    /// Avatars: frames, art, banner, Platina, the emoji status, gender (Sources/Avatars/AvatarLook.swift). None for a
+    /// person built by hand.
+    var look = PersonLook()
 
     init(id: String, username: String, displayName: String, bio: String, birthday: String, avatarColor: UInt32, avatarId: String) {
         self.id = id
@@ -33,6 +36,7 @@ struct Person {
         birthday = fields["birthday"] as? String ?? ""
         avatarColor = Messenger.color(fields["avatarColor"] as? String)
         avatarId = fields["avatarId"] as? String ?? ""
+        look = PersonLook(fields) // Avatars: the decorations of the same `user`
     }
 
     static func list(_ raw: Any?) -> [Person] {

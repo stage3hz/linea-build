@@ -27,6 +27,8 @@ data class ChatRow(
   val previewIcon: String = "",
   /** The first N characters of the preview are drawn in the danger colour («Черновик:»). */
   val previewRed: Int = 0,
+  /** Offline: the last message cannot be opened on this device — the line is said quietly (subtle, italic, a lock). */
+  val quietPreview: Boolean = false,
 ) {
   companion object {
     private fun int(value: Any?, fallback: Int) = (value as? Number)?.toInt() ?: fallback
@@ -45,7 +47,7 @@ data class ChatRow(
         text(row["deco"]), ((row["decoScale"] as? Number)?.toDouble() ?: 1.0).coerceIn(1.0, 2.0), text(row["plate"]),
         (row["lead"] as? List<*>)?.mapNotNull { it as? String } ?: emptyList(), (row["trail"] as? List<*>)?.mapNotNull { it as? String } ?: emptyList(),
         (row["metal"] as? List<*>)?.mapNotNull { (it as? Number)?.toInt() } ?: emptyList(), int(row["nameLen"], 0).coerceAtLeast(0),
-        text(row["previewIcon"]), int(row["previewRed"], 0).coerceAtLeast(0),
+        text(row["previewIcon"]), int(row["previewRed"], 0).coerceAtLeast(0), flag(row["quietPreview"]),
       )
     }
   }

@@ -354,6 +354,23 @@ class ChatActionsRulesTest {
     assertEquals(listOf("peer:c1"), shown.order)
   }
 
+  @Test fun daysOfMessagesWithoutAKeyAreOneNoticeWithoutDayLines() {
+    val raw = listOf(
+      message(1, "peer", "", at = "2026-11-17T06:00:00.000Z", state = "no-key"),
+      message(2, "peer", "", at = "2026-11-18T06:00:00.000Z", state = "no-key"),
+      message(3, "peer", "", at = "2026-11-19T06:00:00.000Z", state = "no-key"),
+      message(4, "peer", "", at = "2026-11-20T06:00:00.000Z", state = "no-key"),
+      message(5, "peer", "", at = "2026-11-20T07:00:00.000Z", state = "no-key"),
+      message(6, me, "Теперь видно", at = "2026-11-20T08:00:00.000Z"),
+      message(7, "peer", "", at = "2026-11-21T06:00:00.000Z", state = "no-key"),
+      message(8, "peer", "Привет", at = "2026-11-21T06:05:00.000Z"),
+    )
+    val rows = MsgRow.parse(build(raw).rows)
+    assertEquals(listOf("17 ноября", "5 сообщений до входа на этом устройстве. Они зашифрованы для других твоих устройств и здесь не открываются.",
+      "Вчера", "Теперь видно", "Сегодня", "1 сообщение до входа на этом устройстве. Они зашифрованы для других твоих устройств и здесь не открываются.", "Привет"), rows.map { it.text })
+    assertEquals(listOf(1, 2, 1, 0, 1, 2, 0), rows.map { it.kind })
+  }
+
   @Test fun unreadLineRunsOfMessagesWithoutAKeyAndTheSelection() {
     val raw = listOf(
       message(1, "peer", "", at = "2026-11-20T06:00:00.000Z", state = "no-key"),
@@ -368,7 +385,9 @@ class ChatActionsRulesTest {
       ChatHistory.Pending("p3", "❤️", mapOf("action" to mapOf("type" to "react", "target" to "c6", "emoji" to "❤️")), null, "2026-11-21T08:59:40.000Z", failed = true))
     val shown = build(raw, pending, selection = setOf("$me:c4"), read = 4, unreadAfter = 5)
     val rows = MsgRow.parse(shown.rows)
-    assertEquals(listOf("Вчера", "2 сообщения до входа на этом устройстве", "Сегодня", "Привет", "Ты тут?", "Ау", "Непрочитанные сообщения", "Тут", "Отвечаю", "Иду", "Не ушло"), rows.map { it.text })
+    assertEquals(listOf("Вчера", "2 сообщения до входа на этом устройстве. Они зашифрованы для других твоих устройств и здесь не открываются.", "Сегодня", "Привет", "Ты тут?", "Ау", "Непрочитанные сообщения", "Тут", "Отвечаю", "Иду", "Не ушло"), rows.map { it.text })
+    // Offline: the notice of messages from before this device has its own look (the lock), kind 2.
+    assertEquals(2, rows[1].kind)
     assertEquals(setOf("c1", "c2"), shown.noKey)
     assertEquals(7L, shown.newestTheirs)
     assertEquals(1, shown.failedActions)

@@ -25,6 +25,9 @@ final class ChatViewController: UIViewController {
     private lazy var media = ChatMedia(messenger: messenger, chatId: chatId, peerId: peerId)
     /// Calls: «Позвонить» in the header; a long touch offers «Видеозвонок» too (Sources/Calls/CallOverlay.swift).
     private(set) lazy var callButton = CallEntry.headerButton(messenger: messenger, chatId: chatId, peerId: peerId, name: name)
+    /// ChatLook: the glass header with the avatar, the person's light or the wallpaper, bubbles, the swipe to answer
+    /// (Sources/ChatLook/ChatLookScreen.swift).
+    private(set) lazy var look = ChatLookScreen(messenger: messenger, chatId: chatId, peerId: peerId, name: name)
     /// Attachments: the simulator's sample rows (-attachdemo), kept after the chat's own.
     private var sampleRows: [[String: Any]] = []
 
@@ -89,6 +92,7 @@ final class ChatViewController: UIViewController {
         list.setPalette(Theme.messages)
         list.setFontSize(ThemeStore.textSize) // Settings: «Размер текста в чатах» (Settings/ThemeStore.swift)
         view.addSubview(list)
+        look.installBackdrop(in: view, below: list) // ChatLook: the wallpaper or the person's light under the messages
 
         header.backgroundColor = Theme.bg
         view.addSubview(header)
@@ -128,6 +132,11 @@ final class ChatViewController: UIViewController {
         media.install(host: self, list: list, composer: composer.contentView, field: field, send: send, attachments: attachments, actions: actions)
         media.onPendingChanged = { [weak self] in self?.showPendingMedia() }
         actions.onLoaded = { [weak self] (newestTheirs: Int) -> Void in self?.loaded(newestTheirs: newestTheirs) }
+        // ChatLook: the header's views go into glass pills; the avatar on the right; the swipe to answer.
+        look.installHeader(host: self, header: header, heading: heading, back: back, call: callButton, status: actions.statusView, list: list, actions: actions)
+        #if targetEnvironment(simulator)
+        if messenger == nil { ChatLookDemo.run(self) } // ChatLook: -chatlook … (Sources/ChatLook/ChatLookDemo.swift)
+        #endif
 
         if messenger != nil {
             NotificationCenter.default.addObserver(self, selector: #selector(changed(_:)), name: Messenger.changed, object: nil)
@@ -166,14 +175,16 @@ final class ChatViewController: UIViewController {
 
     private func place() {
         let width = view.bounds.width, top = view.safeAreaInsets.top
-        header.frame = CGRect(x: 0, y: 0, width: width, height: top + 48)
+        header.frame = CGRect(x: 0, y: 0, width: width, height: top + 52) // ChatLook: 8 above the 44-point pills
         back.frame = CGRect(x: 6, y: top + 2, width: 44, height: 44)
         heading.frame = CGRect(x: 56, y: top + 2, width: width - 112, height: 44)
         callButton.frame = CGRect(x: width - 50, y: top + 2, width: 44, height: 44)
         // ChatActions: the composer is as tall as the field's text asks (one line at first); the send button and
         // the paperclip stay at its lower edge.
         let composerHeight = actions.composerHeight(fieldWidth: width - 24 - 100)
-        let floor = keyboardTop.map { $0 - 8 } ?? (view.bounds.height - max(view.safeAreaInsets.bottom, 12))
+        var floor = keyboardTop.map { $0 - 8 } ?? (view.bounds.height - max(view.safeAreaInsets.bottom, 12))
+        // Composer: the emoji panel stands where the keyboard was (Sources/Composer/EmojiPanel.swift).
+        if keyboardTop == nil, let panelTop = actions.extras.panelTop(in: view) { floor = panelTop - 8 }
         composer.frame = CGRect(x: 12, y: floor - composerHeight, width: width - 24, height: composerHeight)
         composer.layer.cornerRadius = min(24, composerHeight / 2)
         composer.layer.cornerCurve = .continuous
@@ -186,6 +197,7 @@ final class ChatViewController: UIViewController {
         list.frame = view.bounds
         // ChatActions: the status under the name, the pinned message, the bar above the field, the way down.
         let room = actions.place(in: view, headerBottom: header.frame.maxY, safeTop: top, composerFrame: composer.frame)
+        look.place(in: view, safeTop: top) // ChatLook: the pills of the header, after ChatActions placed the name and the status
         list.setPad(top: Double(room.top), bottom: Double(room.bottom))
     }
 
@@ -201,6 +213,12 @@ final class ChatViewController: UIViewController {
         rows.removeAll { ($0["key"] as? String ?? "").hasPrefix("media-") }
         rows += media.pendingRows
         list.setRows(MsgRow.parse(rows))
+    }
+
+    /// ChatLook: back from the profile or the settings, the wallpaper and the bubbles may have changed.
+    override func viewWillAppear(_ animated: Bool) {
+        super.viewWillAppear(animated)
+        look.apply()
     }
 
     /// Voice/Video: round videos move while the chat is on screen; leaving it stops every sound and a take.

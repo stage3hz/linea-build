@@ -254,6 +254,8 @@ final class ChatRowCanvas: UIView {
 
   private static let titleFont = UIFont.systemFont(ofSize: 16, weight: .semibold)
   private static let previewFont = UIFont.systemFont(ofSize: 15)
+  /// Offline: the quiet line of a message this device cannot open.
+  private static let quietFont = UIFont.italicSystemFont(ofSize: 14)
   private static let timeFont = UIFont.systemFont(ofSize: 13)
   private static let badgeFont = UIFont.systemFont(ofSize: 12, weight: .bold)
   private static let avatarFont = UIFont.systemFont(ofSize: 21, weight: .bold)

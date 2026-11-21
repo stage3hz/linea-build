@@ -37,10 +37,10 @@ object ChannelTransfer {
   /** A request of the signed-in session; null when it cannot be made (no HTTPS address, no headers). */
   fun request(server: Server, method: String, path: String, contentType: String?, body: ByteArray?): Pair<Request, Long>? {
     val token = server.token ?: return null
-    if (!server.base.startsWith("https://")) return null
+    if (!server.endpoint.startsWith("https://")) return null
     val made = Core.prepare(method, path, jsonBody = false, token = token, proof = server.currentProof) ?: return null
     return try {
-      val builder = Request.Builder().url(server.base + path)
+      val builder = Request.Builder().url(server.endpoint + path)
       for ((name, value) in made.headers) builder.header(name, value)
       if (contentType != null) builder.header("Content-Type", contentType)
       val request = builder.method(method, body?.toRequestBody(null)).build()

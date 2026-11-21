@@ -44,6 +44,8 @@ final class Messenger {
         // Publishes this device's keys (making them on the very first start). The live line opens at once beside
         // it, as in the reference: a slow or failing key publication must not hold back everything else.
         crypto.call("initialize") { _ in }
+        // Composer: the scheduled messages listen to the live line from the start (Sources/Composer/ScheduledStore.swift).
+        DispatchQueue.main.async { [weak self] in if let self { _ = ScheduledStore.of(self) } }
         live.start()
     }
 

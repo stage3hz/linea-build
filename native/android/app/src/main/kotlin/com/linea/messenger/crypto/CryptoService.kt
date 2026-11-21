@@ -68,6 +68,14 @@ class CryptoService(userId: String, private val vault: Vault, private val server
     } catch (_: RejectedExecutionException) {}
   }
 
+  /** Offline: what the core's `loadCache` gives (the vault's copy of the chat list or of a chat's page), read at once
+   *  on the caller's thread (never the main one) instead of waiting behind network work on the service's thread.
+   *  Only the names the core accepts; null after `close` or when the storage cannot be read. */
+  fun loadCacheAtOnce(name: String): String? {
+    if (!com.linea.messenger.offline.ChatCache.isCacheName(name)) return null
+    return try { vault.get(name) } catch (_: Exception) { null }
+  }
+
   /** One operation, on the current (the service's) thread. A failure is a `CryptoFailure`. */
   fun callNow(op: String, args: List<Any?> = emptyList()): Result<Any?> {
     val unavailable = Result.failure<Any?>(CryptoFailure("Error", "Шифрование недоступно."))

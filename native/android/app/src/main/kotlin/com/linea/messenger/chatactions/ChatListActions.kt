@@ -688,6 +688,8 @@ class ChatListActions(private val context: Context, private val messenger: Messe
         row["title"] = chat.title + (if (quiet) " 🔕" else "")
         row["unread"] = if (count > 0) count else if (isMarked) 1 else 0
         val draft = draftLine(state.draft(chat.id))
+        // Offline: the quiet look belongs to the line of a message that cannot be opened here, nothing else.
+        if (state.typing(chat.id) || draft.isNotEmpty() || state.fills[chat.id] != null) row["quietPreview"] = false
         if (state.typing(chat.id)) {
           row["preview"] = "Печатает…"
           row["accentPreview"] = true

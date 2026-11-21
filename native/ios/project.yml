@@ -42,6 +42,8 @@ targets:
         UIUserInterfaceStyle: Dark
         # Music keeps playing when the app is not on the screen (Sources/Music/MusicPlayer.swift).
         UIBackgroundModes: [audio]
+        # Chats: the reference's typefaces — Montserrat for text, Unbounded ExtraBold for titles (Sources/Design/AppFont.swift).
+        UIAppFonts: [Montserrat-Regular.ttf, Montserrat-Medium.ttf, Montserrat-SemiBold.ttf, Montserrat-Bold.ttf, Montserrat-ExtraBold.ttf, Unbounded-ExtraBold.ttf]
         # Voice messages and round videos (Sources/Voice, Sources/Video): asked when the record button is first held.
         # Calls (Sources/Calls) use the same two: asked at the first call and at the first video call.
         NSMicrophoneUsageDescription: "Микрофон нужен для звонков и чтобы записывать голосовые и видеосообщения. Он включается только во время звонка и пока вы держите кнопку записи."

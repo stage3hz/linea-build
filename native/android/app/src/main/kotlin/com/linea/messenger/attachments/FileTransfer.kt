@@ -88,10 +88,10 @@ class FileTransfer {
 
   /** The request with the session's headers from the core; null when it cannot be made (not HTTPS, no core). */
   private fun request(server: Server, method: String, path: String, contentType: String?, body: RequestBody?): Asked? {
-    if (!server.base.startsWith("https://")) return null
+    if (!server.endpoint.startsWith("https://")) return null
     val made = Core.prepare(method, path, jsonBody = false, token = server.token, proof = server.currentProof) ?: return null
     return try {
-      val builder = Request.Builder().url(server.base + path)
+      val builder = Request.Builder().url(server.endpoint + path)
       for ((name, value) in made.headers) builder.header(name, value)
       if (contentType != null) builder.header("Content-Type", contentType)
       val request = builder.method(method, body).build()
@@ -137,7 +137,7 @@ class FileTransfer {
   /** `GET /files/<id>`: the sealed bytes of an attachment, exactly `cipherSize` of them or nothing. */
   fun download(server: Server, id: String, cipherSize: Int): Result<ByteArray> {
     if (server.token == null) return Result.failure(Failure.Words("Нужно войти в аккаунт."))
-    if (!server.base.startsWith("https://")) return Result.failure(Failure.Words("Файлы загружаются только по защищённому соединению."))
+    if (!server.endpoint.startsWith("https://")) return Result.failure(Failure.Words("Файлы загружаются только по защищённому соединению."))
     val asked = request(server, "GET", "/files/" + Messenger.pathPart(id), null, null) ?: return Result.failure(Failure.Words(unreachable))
     val answer = run(asked, limit = cipherSize, download = true).getOrElse { return Result.failure(it) }
     if (answer.status !in 200..299) return Result.failure(Failure.Words("Не удалось загрузить зашифрованный файл."))

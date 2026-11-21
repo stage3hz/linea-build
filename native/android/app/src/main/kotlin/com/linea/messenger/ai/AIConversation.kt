@@ -92,11 +92,11 @@ object AIClient {
       val checked = server.sendAndWait("GET", "/ai/status")
       if (checked.isFailure) return@Thread finish(Result.failure(AIFailure(Server.error(checked).words)))
       val unreachable = AIFailure("Нет связи с сервером. Проверь интернет и адрес подключения.")
-      val made = (if (server.base.startsWith("https://")) Core.prepare("POST", "/ai/video", jsonBody = true, token = server.token, proof = server.currentProof) else null)
+      val made = (if (server.endpoint.startsWith("https://")) Core.prepare("POST", "/ai/video", jsonBody = true, token = server.token, proof = server.currentProof) else null)
         ?: return@Thread finish(Result.failure(unreachable))
       val body = Core.text(linkedMapOf<String, Any?>("prompt" to prompt, "duration" to duration, "consent" to true)) ?: return@Thread finish(Result.failure(unreachable))
       val request = try {
-        val builder = Request.Builder().url(server.base + "/ai/video")
+        val builder = Request.Builder().url(server.endpoint + "/ai/video")
         for ((name, value) in made.headers) builder.header(name, value)
         builder.header("Accept", "video/mp4").post(body.toByteArray(Charsets.UTF_8).toRequestBody(null)).build()
       } catch (_: IllegalArgumentException) { return@Thread finish(Result.failure(unreachable)) }

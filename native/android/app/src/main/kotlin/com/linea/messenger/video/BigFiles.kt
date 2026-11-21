@@ -79,10 +79,10 @@ class ChunkRequest {
 
   /** Sends the request and waits. Null: no answer (no connection, cancelled, or more bytes than `limit`). */
   fun run(server: Server, method: String, path: String, range: String?, body: ByteArray?, limit: Int): Answer? {
-    if (!server.base.startsWith("https://")) return null
+    if (!server.endpoint.startsWith("https://")) return null
     val made = Core.prepare(method, path, jsonBody = false, token = server.token, proof = server.currentProof) ?: return null
     val request = try {
-      val builder = Request.Builder().url(server.base + path)
+      val builder = Request.Builder().url(server.endpoint + path)
       for ((name, value) in made.headers) builder.header(name, value)
       if (range != null) builder.header("Range", range)
       if (body != null) builder.header("Content-Type", "application/octet-stream")
@@ -310,7 +310,7 @@ object BigFiles {
     val id = attachment["id"] as? String; val message = Core.text(bare)
     if (size == null || count == null || id == null || message == null) return fail("У вложения нет ключа сквозного шифрования.")
     if (server.token == null) return fail("Нужно войти в аккаунт.")
-    if (!server.base.startsWith("https://")) return fail("Файлы загружаются только по защищённому соединению.")
+    if (!server.endpoint.startsWith("https://")) return fail("Файлы загружаются только по защищённому соединению.")
     val name = Messenger.pathPart(id)
     if (name.isEmpty()) return fail("Файл недоступен.")
     target.delete()

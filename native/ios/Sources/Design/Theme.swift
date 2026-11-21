@@ -73,3 +73,61 @@ func orbPair(_ rgb: UInt32) -> (light: Int, deep: Int) {
     let s = min(1, sat * 1.15 + 0.08)
     return (hsl(hue + 38, s, min(0.72, l + 0.16)), hsl(hue - 34, s, max(0.22, l - 0.14)))
 }
+
+// Fonts: the reference's type (mobile/src/typography.tsx). Every text is Montserrat — `Theme.font(size, weight)`, or
+// the plain `UIFont.systemFont(ofSize:weight:)`, which gives Montserrat once Design/Typography.swift is installed at
+// launch. Titles and the big names of profiles are Unbounded ExtraBold with −0.2 letter spacing: `Theme.title(size)`
+// for the font, `Theme.titleWords(…)` for ready text with the spacing. `Theme.TypeSize` lists the reference's sizes.
+extension Theme {
+    /// Montserrat at the reference's weight (800 ExtraBold, 700 Bold, 600 SemiBold, 500 Medium, else Regular).
+    static func font(_ size: CGFloat, _ weight: UIFont.Weight = .regular) -> UIFont {
+        return Typography.montserrat(size, weight) ?? UIFont.systemFont(ofSize: size, weight: weight)
+    }
+
+    /// Unbounded ExtraBold: the reference's TITLE_FONT (screen titles, profile names, sheet headings, empty states).
+    static func title(_ size: CGFloat) -> UIFont {
+        return UIFont(name: Typography.titleFace, size: size) ?? UIFont.systemFont(ofSize: size, weight: .heavy)
+    }
+
+    /// The reference's TITLE letter spacing (the face is wide; tighter, the letters touched).
+    static let titleKern: CGFloat = -0.2
+
+    /// A title as the reference sets it: Unbounded ExtraBold, −0.2 spacing, the given line height (0: the font's own).
+    static func titleWords(_ text: String, size: CGFloat, color: UIColor, lineHeight: CGFloat = 0, centered: Bool = false) -> NSAttributedString {
+        let paragraph = NSMutableParagraphStyle()
+        if lineHeight > 0 {
+            paragraph.minimumLineHeight = lineHeight
+            paragraph.maximumLineHeight = lineHeight
+        }
+        paragraph.alignment = centered ? .center : .natural
+        paragraph.lineBreakMode = .byTruncatingTail
+        return NSAttributedString(string: text, attributes: [.font: title(size), .kern: titleKern, .foregroundColor: color, .paragraphStyle: paragraph])
+    }
+
+    /// The sizes (and line heights) the reference uses, by where they appear.
+    enum TypeSize {
+        /// «Чаты» / «Архив» over the chat list: Unbounded 30, line 36.
+        static let chatsTitle: CGFloat = 30, chatsTitleLine: CGFloat = 36
+        /// «Каналы», «Музыка», «Люди»: Unbounded 26, line 32.
+        static let sectionTitle: CGFloat = 26, sectionTitleLine: CGFloat = 32
+        /// A profile's name (own, someone's, the settings head): Unbounded 27, line 33.
+        static let profileName: CGFloat = 27, profileNameLine: CGFloat = 33
+        /// The sign-in screen's «Инвиз»: Unbounded 25, line 31.
+        static let authTitle: CGFloat = 25, authTitleLine: CGFloat = 31
+        /// A settings page's heading: Unbounded 22 (19 over 12 letters, 17 over 16), line 28.
+        static let pageTitle: CGFloat = 22, pageTitleLine: CGFloat = 28
+        /// An empty state's heading: Unbounded 21, line 27; its words Montserrat 15, line 23.
+        static let emptyTitle: CGFloat = 21, emptyTitleLine: CGFloat = 27
+        /// A room's name: Unbounded 20, line 26.
+        static let roomTitle: CGFloat = 20, roomTitleLine: CGFloat = 26
+        /// A sheet's heading: Unbounded 19, line 25.
+        static let sheetTitle: CGFloat = 19, sheetTitleLine: CGFloat = 25
+        /// Montserrat body sizes: a row's label 15, a list name 16, a message 17, small words 13, a caption 12, a tag 11.
+        static let row: CGFloat = 15, name: CGFloat = 16, message: CGFloat = 17, small: CGFloat = 13, caption: CGFloat = 12, tag: CGFloat = 11
+
+        /// A settings page heading's size for its length, as the reference shrinks it.
+        static func pageTitleSize(_ text: String) -> CGFloat {
+            return text.count > 16 ? 17 : text.count > 12 ? 19 : 22
+        }
+    }
+}

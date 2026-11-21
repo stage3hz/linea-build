@@ -138,6 +138,15 @@ jobs:
           live 08-real-chats 25
           live 09-real-chat 30 -openchat 1
           live 09b-photo-open 35 -openchat 1 -openattachment photo
+          echo "== offline: the test server stopped — the list and the chat come from the vault's copy, at once"
+          # The list is kept 1.5 s and an open chat's page 2 s after the server answered (Sources/Offline/ChatCache.swift).
+          # With the address refusing connections the app must still show the chats and the chat's messages.
+          pkill -f "tools/sim-tls-proxy.mjs" || true
+          sleep 1
+          live 09d-offline-chats 12
+          live 09e-offline-chat 15 -openchat 1
+          nohup node tools/sim-tls-proxy.mjs tls/leaf.pem tls/leaf.key 8443 3999 >> proxy.log 2>&1 &
+          for i in $(seq 1 30); do curl -fsS --cacert tls/ca.pem https://localhost:8443/health >/dev/null && break; sleep 1; done
           shot 09c-attach-demo -demo 1 -chat 1 -attachdemo 1
           live 10-people 25 -tab people
           live 11-profile 30 -profile chat

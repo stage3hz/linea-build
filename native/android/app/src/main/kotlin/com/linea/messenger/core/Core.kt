@@ -122,13 +122,15 @@ object Core {
   class Prepared(val headers: List<Pair<String, String>>, val timeoutMs: Long)
 
   /** The headers and the time limit of one request. */
-  fun prepare(method: String, path: String, jsonBody: Boolean, token: String?, proof: String? = null): Prepared? {
+  /** Offline: `tier` ("slow" / "medium" / "fast", offline/NetPool.kt) stretches the time limit on a slow link. */
+  fun prepare(method: String, path: String, jsonBody: Boolean, token: String?, proof: String? = null, tier: String? = null): Prepared? {
     if (!loaded) return null
     val request = linkedMapOf<String, Any?>("method" to method, "path" to path, "jsonBody" to jsonBody, "platform" to "android",
       "version" to Account.appVersion, "nowMs" to System.currentTimeMillis())
     if (attestKey.isNotEmpty()) request["attestKey"] = attestKey
     if (token != null) request["token"] = token
     if (proof != null) request["proof"] = proof
+    if (tier != null) request["tier"] = tier
     val made = map(value(httpPrepare(text(request) ?: return null))) ?: return null
     val list = made["headers"] as? List<*> ?: return null
     val limit = (made["timeoutMs"] as? Number)?.toLong() ?: return null

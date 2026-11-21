@@ -77,9 +77,20 @@ class Live(private val server: Server) {
     socket = null
   }
 
+  /** Offline: the address the current line was opened to, and whether it ever opened. */
+  private var socketTarget = ""
+  private var socketOpened = false
+  /** Offline: the network came back — connect now instead of waiting out the pause (offline/NetPool.kt). */
+  private val stopWatching = com.linea.messenger.offline.NetPool.onNetworkBack {
+    if (!stopped) { attempts = 0; if (socket == null) { main.removeCallbacks(again); connect() } }
+  }
+
   private fun connect() {
-    if (stopped || socket != null || !server.base.startsWith("https://")) return
-    val request = try { Request.Builder().url("wss://" + server.base.removePrefix("https://") + "/ws").build() } catch (_: IllegalArgumentException) { return }
+    val target = server.endpoint
+    if (stopped || socket != null || !target.startsWith("https://")) return
+    val request = try { Request.Builder().url("wss://" + target.removePrefix("https://") + "/ws").build() } catch (_: IllegalArgumentException) { return }
+    socketTarget = target
+    socketOpened = false
     lastReceive = SystemClock.elapsedRealtime()
     line = "connecting"
     // The same client as every request: TLS with the system's certificate checks, no redirects.
@@ -92,6 +103,7 @@ class Live(private val server: Server) {
     private fun onMain(webSocket: WebSocket, work: () -> Unit) { main.post { if (webSocket === socket) work() } }
 
     override fun onOpen(webSocket: WebSocket, response: Response) = onMain(webSocket) {
+      socketOpened = true
       val token = server.token ?: return@onMain
       // A session bound to this device sends its proof with the token; without one the server closes the line.
       val auth = linkedMapOf<String, Any?>("type" to "auth", "token" to token, "lean" to true)
@@ -116,8 +128,12 @@ class Live(private val server: Server) {
 
   private fun retry() {
     if (stopped) return
-    val pause = min(2.0.pow(attempts), 15.0)
-    attempts += 1
+    // Offline: the address could not be reached at all — the next one is tried at once instead of backing off.
+    val target = socketTarget; val opened = socketOpened
+    if (!opened && target.isNotEmpty() && server.endpoint == target) com.linea.messenger.offline.NetPool.reportFailure(target)
+    val moved = !opened && target.isNotEmpty() && server.endpoint != target
+    val pause = if (moved) 0.3 else min(2.0.pow(attempts), 15.0)
+    if (!moved) attempts += 1
     main.removeCallbacks(again)
     main.postDelayed(again, (pause * 1000).toLong())
   }

@@ -20,6 +20,8 @@ final class ChatHistory {
         var failed = false
         /// LinkPreview: the card of a link in the text, made on this phone (Sources/LinkPreview); nil: none.
         var linkPreview: [String: Any]? = nil
+        /// Composer: «Отправить позже» — the moment the server releases it (ISO); nil: now.
+        var deliverAt: String? = nil
     }
 
     /// What the screen shows, made from the messages by `build`.
@@ -81,6 +83,8 @@ final class ChatHistory {
     private var demoHidden: [String] = []
     private var demoNext = 100
     private(set) var loadedOnce = false
+    /// Offline: the page shown last time was looked for in the vault (once per opening).
+    private var cacheTried = false
 
     private(set) var shown = Shown()
     /// Rows chosen in the multi-select; nil when nothing is being selected.
@@ -127,15 +131,25 @@ final class ChatHistory {
         } else {
             if loadingNewest { loadAgain = true; done?(false); return }
             loadingNewest = true
+            showKept(messenger)
         }
         let (chatId, me) = (self.chatId, self.userId)
         let pageBefore = before
         messenger.crypto.run({ (crypto: CryptoService) -> Result<(page: Page, newestTheirs: Int), ServerError> in
-            // First everything new is opened and kept (each message exactly once), then the page is shown from the kept copies.
-            if case .failure(let failure) = crypto.callNow("sync", [chatId]), failure.name == "NetworkError" { return .failure(.network(failure.message)) }
             var args: [Any] = [chatId]
             if let pageBefore { args.append(pageBefore) }
-            switch messenger.server.opAndWait("messages", args) {
+            // Offline: the page request goes out together with the inbox sync (one round trip saved before the chat
+            // shows, as in the reference); a sync that failed does not hold the page back — what was opened and kept
+            // before is shown. The page is opened only after the sync has consumed the envelopes.
+            var asked: Result<Any, ServerError> = .failure(.timeout)
+            let answered = DispatchSemaphore(value: 0)
+            messenger.server.op("messages", args) { (result: Result<Any, ServerError>) -> Void in
+                asked = result
+                answered.signal()
+            }
+            _ = crypto.callNow("sync", [chatId])
+            answered.wait()
+            switch asked {
             case .failure(let error): return .failure(error)
             case .success(let body):
                 let fields = body as? [String: Any]
@@ -160,6 +174,7 @@ final class ChatHistory {
                 self.loadedOnce = true
                 self.apply(answer.page.messages, older: older, more: answer.page.hasMore)
                 self.rebuild()
+                self.keepSoon()
                 if !older { self.onLoaded?(answer.newestTheirs) }
                 done?(true)
             }
@@ -169,6 +184,36 @@ final class ChatHistory {
             }
         })
     }
+
+    /// Offline: the page shown last time (the vault's copy) is on screen at once, also without a network, while
+    /// the server is asked (the reference's useMessenger `loadMessages`).
+    private func showKept(_ messenger: Messenger) {
+        guard !cacheTried, raw.isEmpty, let name = ChatCache.pageName(chatId) else { return }
+        cacheTried = true
+        let (crypto, chatId) = (messenger.crypto, self.chatId)
+        DispatchQueue.global(qos: .userInitiated).async { [weak self] in
+            let kept = ChatCache.decodePage(crypto.loadCacheAtOnce(name), chatId: chatId)
+            DispatchQueue.main.async {
+                guard let self, let kept, self.raw.isEmpty else { return }
+                self.raw = kept.messages
+                self.hasMore = kept.hasMore
+                self.rebuild()
+            }
+        }
+    }
+
+    /// Offline: the chat's newest messages go to the vault a moment after a page came.
+    private func keepSoon() {
+        keepWork?.cancel()
+        guard let messenger, let name = ChatCache.pageName(chatId) else { return }
+        let work = DispatchWorkItem { [weak self] in
+            guard let self, !self.raw.isEmpty, let text = ChatCache.encodePage(self.raw, hasMore: self.hasMore) else { return }
+            messenger.crypto.call("storeCache", [name, text]) { _ in }
+        }
+        keepWork = work
+        DispatchQueue.main.asyncAfter(deadline: .now() + 2, execute: work)
+    }
+    private var keepWork: DispatchWorkItem?
 
     /// A page applied to what is loaded (the reference's messagePages.ts `applyPage`): an older page is only added;
     /// the newest page replaces its own range of ids, so a message deleted on the server goes, while the history
@@ -215,9 +260,12 @@ final class ChatHistory {
 
     /// Sends a message of this chat: a plain one, an answer (`meta.reply`), a forwarded one, or an action.
     /// LinkPreview: `linkPreview` is the card of a link the person typed (the core checks it once more).
-    func send(text: String, meta: [String: Any]?, attachment: [String: Any]? = nil, linkPreview: [String: Any]? = nil) {
+    func send(text: String, meta: [String: Any]?, attachment: [String: Any]? = nil, linkPreview: [String: Any]? = nil, deliverAt: String? = nil) {
         var item = Pending(clientId: UUID().uuidString.lowercased(), text: text, meta: meta, attachment: attachment, createdAt: ChatHistory.stamp.string(from: Date()))
         item.linkPreview = linkPreview
+        // Composer: a scheduled message is shown as being sent until the server keeps it (then it is in the list
+        // of «Отложенные сообщения», Sources/Composer/ScheduledScreen.swift).
+        item.deliverAt = deliverAt
         pending.append(item)
         rebuild()
         deliver(item)
@@ -240,6 +288,11 @@ final class ChatHistory {
     }
 
     private func deliver(_ item: Pending) {
+        // Composer: «Отправить позже» goes its own road (Sources/Composer/ScheduledStore.swift).
+        if let deliverAt = item.deliverAt {
+            deliverLater(item, at: deliverAt)
+            return
+        }
         guard let messenger else {
             #if targetEnvironment(simulator)
             // The sample chat: the message is simply there.
@@ -281,6 +334,48 @@ final class ChatHistory {
         })
     }
 
+    /// Composer: a scheduled message was handed to the server (the moment it goes out, ISO).
+    var onScheduled: ((String) -> Void)?
+
+    /// Composer: encrypted now, kept by the server until `deliverAt`. While it is on its way it is shown as being
+    /// sent; once the server keeps it, it leaves the chat for the list of scheduled messages.
+    private func deliverLater(_ item: Pending, at deliverAt: String) {
+        guard let messenger else {
+            pending.removeAll { $0.clientId == item.clientId }
+            rebuild()
+            onScheduled?(deliverAt)
+            return
+        }
+        let (chatId, peerId) = (self.chatId, self.peerId)
+        var attachment: Any = NSNull()
+        if let file = item.attachment { attachment = file }
+        var meta: Any = NSNull()
+        if let fields = item.meta { meta = fields }
+        let (sentAttachment, sentMeta) = (attachment, meta)
+        messenger.crypto.run({ (crypto: CryptoService) -> Result<Bool, CryptoFailure> in
+            messenger.deliverLater(crypto, chatId: chatId, peerId: peerId, clientId: item.clientId, text: item.text, attachment: sentAttachment, meta: sentMeta, deliverAt: deliverAt)
+        }, done: { [weak self] (result: Result<Bool, CryptoFailure>) -> Void in
+            guard let self else { return }
+            switch result {
+            case .success(let later):
+                if later {
+                    self.pending.removeAll { $0.clientId == item.clientId }
+                    self.rebuild()
+                    ScheduledStore.of(messenger).refresh()
+                    self.onScheduled?(deliverAt)
+                } else {
+                    // The time had passed: it went out at once and the next page holds it.
+                    self.load()
+                }
+            case .failure(let failure):
+                if failure.name == "NetworkError" { return }
+                if let index = self.pending.firstIndex(where: { $0.clientId == item.clientId }) { self.pending[index].failed = true }
+                self.rebuild()
+                self.onProblem?(failure.message)
+            }
+        })
+    }
+
     /// «Удалить у меня»: the messages disappear on this device only.
     func hideForMe(_ keys: [String]) {
         if let local { local.hide(keys) } else { demoHidden += keys }
@@ -308,6 +403,11 @@ final class ChatHistory {
         if count % 10 == 1 && count % 100 != 11 { return "сообщение" }
         if count % 10 >= 2 && count % 10 <= 4 && (count % 100 < 12 || count % 100 > 14) { return "сообщения" }
         return "сообщений"
+    }
+
+    /// The notice of a run of messages this device cannot open, in the reference's words (MessageRow.tsx `MissingRow`).
+    static func missingText(_ count: Int) -> String {
+        "\(count) \(missingWords(count)) до входа на этом устройстве. Они зашифрованы для других твоих устройств и здесь не открываются."
     }
 
     /// The quote above an answer (the reference's replyQuote.ts): the original as it is now when it is loaded,
@@ -365,6 +465,14 @@ final class ChatHistory {
             let date = Messenger.date(message["createdAt"] as? String)
             let today = date.map { Messenger.dayWords($0) } ?? ""
             let clock = date.map { Messenger.clock.string(from: $0) } ?? ""
+            // Offline: messages this device has no key for (sent before it signed in) are ONE notice for the whole
+            // run, across days — no day lines between them; the next readable message gets its day line again.
+            if message["cryptoState"] as? String == "no-key", missingRow >= 0 {
+                out.noKey.insert(client)
+                missingCount += 1
+                rows[missingRow]["text"] = missingText(missingCount)
+                continue
+            }
             if today != day, !today.isEmpty {
                 day = today
                 rows.append(["key": "d" + key, "kind": 1, "text": today])
@@ -381,14 +489,9 @@ final class ChatHistory {
             // A run of messages this device has no key for is one line.
             if message["cryptoState"] as? String == "no-key" {
                 out.noKey.insert(client)
-                if missingRow >= 0 {
-                    missingCount += 1
-                } else {
-                    missingCount = 1
-                    missingRow = rows.count
-                    rows.append(["key": "x" + key, "kind": 1, "text": ""])
-                }
-                rows[missingRow]["text"] = "\(missingCount) \(missingWords(missingCount)) до входа на этом устройстве"
+                missingCount = 1
+                missingRow = rows.count
+                rows.append(["key": "x" + key, "kind": 2, "text": missingText(missingCount)])
                 continue
             }
             missingRow = -1

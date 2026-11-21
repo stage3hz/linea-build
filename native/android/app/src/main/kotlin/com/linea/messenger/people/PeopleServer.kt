@@ -52,7 +52,7 @@ private fun Messenger.peopleDone(name: String, args: List<Any?>, done: (ServerEr
 
 /** The address of a person's picture (pictures are fetched as this session: see `preparePersonAvatars`). */
 fun Messenger.personAvatarAddress(avatarId: String): String =
-  if (avatarId.isEmpty()) "" else server.base + "/files/" + Messenger.pathPart(avatarId)
+  if (avatarId.isEmpty()) "" else server.endpoint + "/files/" + Messenger.pathPart(avatarId)
 
 /** The headers pictures of people are asked with. Main thread only. */
 fun Messenger.preparePersonAvatars() {

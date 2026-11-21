@@ -2,6 +2,7 @@ package com.linea.messenger.net
 
 import com.linea.messenger.core.Core
 import com.linea.messenger.auth.DeviceProof
+import com.linea.messenger.offline.NetPool
 import okhttp3.Call
 import okhttp3.ConnectionSpec
 import okhttp3.OkHttpClient
@@ -44,12 +45,16 @@ class Server(base: String, @Volatile var token: String? = null) {
   /** The proof for the live line's first frame. */
   val currentProof: String? get() = if (token == null) null else proof.current
 
-  private fun request(method: String, path: String, body: String?): Asked {
+  /** Offline: where the requests go now — the account's server itself, or, for the real server, the fastest live
+   *  address of it (offline/NetPool.kt). `base` stays the account's identity. */
+  val endpoint: String get() = NetPool.endpoint(base)
+
+  private fun request(method: String, path: String, body: String?, target: String = endpoint): Asked {
     val token = token
-    val made = (if (base.startsWith("https://")) Core.prepare(method, path, jsonBody = body != null, token = token, proof = if (token == null) null else proof.current) else null)
+    val made = (if (target.startsWith("https://")) Core.prepare(method, path, jsonBody = body != null, token = token, proof = if (token == null) null else proof.current, tier = NetPool.tier) else null)
       ?: throw ServerError.Network("Нет связи с сервером. Проверь интернет и адрес подключения.")
     val request = try {
-      val builder = Request.Builder().url(base + path)
+      val builder = Request.Builder().url(target + path)
       for ((name, value) in made.headers) builder.header(name, value)
       // The content type is the core's header; the body itself adds none of its own.
       val sent = body?.toByteArray(Charsets.UTF_8)?.toRequestBody(null) ?: if (method == "GET" || method == "HEAD") null else ByteArray(0).toRequestBody(null)
@@ -59,25 +64,49 @@ class Server(base: String, @Volatile var token: String? = null) {
     return Asked(request, made.timeoutMs)
   }
 
-  private fun call(asked: Asked): Call = client.newBuilder().callTimeout(asked.timeoutMs, TimeUnit.MILLISECONDS).build().newCall(asked.request)
+  /** Offline: the whole request has the core's time limit (stretched on a slow link), as the reference's own timer;
+   *  no separate 10-second limit between two packets of the answer (OkHttp's default), which a slow VPN cut off. */
+  private fun call(asked: Asked): Call = client.newBuilder().callTimeout(asked.timeoutMs, TimeUnit.MILLISECONDS)
+    .readTimeout(0, TimeUnit.MILLISECONDS).writeTimeout(0, TimeUnit.MILLISECONDS).build().newCall(asked.request)
 
   private fun failure(error: IOException): ServerError =
     if (error is InterruptedIOException) ServerError.Timeout() else ServerError.Network("Нет связи с сервером. Проверь интернет и адрес подключения.")
 
-  private fun answer(response: Response): Result<Any?> = response.use {
-    val body = try { it.body?.string() ?: "" } catch (error: IOException) { return Result.failure(failure(error)) }
+  /** One answer read. `unreached`: no answer at all (no connection, no answer in time, or the proxy in front of a
+   *  server that is down); `notDelivered`: provably never reached the server itself (502/503/504). */
+  private class Attempt(val result: Result<Any?>, val unreached: Boolean = false, val notDelivered: Boolean = false)
+
+  private fun answer(response: Response, started: Long): Attempt = response.use {
+    val body = try { it.body?.string() ?: "" } catch (error: IOException) { return Attempt(Result.failure(failure(error)), unreached = true) }
+    if (it.code < 500) { NetPool.quality.report(System.currentTimeMillis() - started, body.length); NetPool.markServerOk() }
     val read = Core.read(it.code, body)
-    if (read.containsKey("ok")) return Result.success(read["ok"])
+    if (read.containsKey("ok")) return Attempt(Result.success(read["ok"]))
     val refused = Core.map(read["refused"])
     if (refused != null) {
-      return Result.failure(ServerError.Refused(refused["message"] as? String ?: "Не удалось выполнить запрос. Попробуй ещё раз.", it.code, refused["code"] as? String, refused))
+      return Attempt(Result.failure(ServerError.Refused(refused["message"] as? String ?: "Не удалось выполнить запрос. Попробуй ещё раз.", it.code, refused["code"] as? String, refused)))
     }
-    Result.failure(ServerError.Network("Сервер недоступен."))
+    Attempt(Result.failure(ServerError.Network("Сервер недоступен.")), unreached = true, notDelivered = true)
   }
 
+  private fun attempt(method: String, path: String, body: String?, target: String): Attempt {
+    val asked = try { request(method, path, body, target) } catch (error: ServerError) { return Attempt(Result.failure(error)) }
+    val started = System.currentTimeMillis()
+    return try { answer(call(asked).execute(), started) } catch (error: IOException) { Attempt(Result.failure(failure(error)), unreached = true) }
+  }
+
+  /** One request; for the real server, an address that gives no answer is skipped at once (the reference's
+   *  `Api.send`): only reads, or a request that provably never arrived, are repeated on the next address by
+   *  themselves — writes have their own retries (messages are idempotent by their client id), so nothing is ever
+   *  done twice. */
   private fun once(method: String, path: String, body: String?): Result<Any?> {
-    val asked = try { request(method, path, body) } catch (error: ServerError) { return Result.failure(error) }
-    return try { answer(call(asked).execute()) } catch (error: IOException) { Result.failure(failure(error)) }
+    val target = endpoint
+    val first = attempt(method, path, body, target)
+    if (!first.unreached || !NetPool.pooled(base)) return first.result
+    NetPool.reportFailure(target)
+    val next = endpoint
+    val verb = method.uppercase()
+    if (next == target || !(verb == "GET" || verb == "HEAD" || first.notDelivered)) return first.result
+    return attempt(method, path, body, next).result
   }
 
   /** Whether the server refused a request for lack of a good device proof. */
@@ -129,12 +158,15 @@ class Server(base: String, @Volatile var token: String? = null) {
   companion object {
     /** One client for the whole app: TLS only (never plain HTTP), certificates checked by the system, no cookie
      *  jar and no cache (neither is ever set), and a redirect is never followed — the server does not send
-     *  them, and following one would carry the session elsewhere. The client itself sends a request once: the
-     *  only repeat is the one after a refused device proof (`sendAndWait`). */
+     *  them, and following one would carry the session elsewhere.
+     *  Offline: a connection that fails is recovered by the client itself, as the reference's (React Native's
+     *  OkHttp with its defaults): the next address of the name (IPv6 → IPv4 when a VPN carries no IPv6), and a
+     *  pooled connection a network change left dead. Without it one such failure was «no connection» for the whole
+     *  request. Messages are idempotent by their client id, so a repeat never sends one twice. */
     val client: OkHttpClient = OkHttpClient.Builder()
       .connectionSpecs(listOf(ConnectionSpec.MODERN_TLS))
       .followRedirects(false).followSslRedirects(false)
-      .retryOnConnectionFailure(false)
+      .retryOnConnectionFailure(true)
       .build()
 
     /** Where the requests of `send` wait for their answers, each on a thread of its own. */

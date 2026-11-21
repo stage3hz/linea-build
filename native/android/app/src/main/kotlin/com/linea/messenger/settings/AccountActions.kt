@@ -144,7 +144,7 @@ fun Result<*>.failureWords(otherwise: String): String = Server.error(this).words
 /** The signed-in account, as the pages of the settings ask it. */
 class MessengerAccount(private val messenger: Messenger) : SettingsAccount {
   override val userId: String get() = messenger.userId
-  override val base: String get() = messenger.server.base
+  override val base: String get() = messenger.server.endpoint
   override val ownProfile: Map<String, Any?> get() = messenger.ownProfile
   override fun keepOwnProfile(fresh: Map<String, Any?>) = messenger.keepOwnProfile(fresh)
   override fun accountCall(name: String, args: List<Any?>, done: (Result<Map<String, Any?>>) -> Unit) = messenger.accountCall(name, args, done)

@@ -12,6 +12,7 @@ import com.linea.messenger.chatactions.ChatListActions
 import com.linea.messenger.design.BarMetrics
 import com.linea.messenger.design.Theme
 import com.linea.messenger.net.Server
+import com.linea.messenger.offline.catchUpList
 import com.linea.messenger.people.RoundIconButton
 import com.linea.messenger.shell.RootScreen
 import com.linea.messenger.shell.Screen
@@ -39,6 +40,12 @@ class ChatsScreen(
   private val actions = ChatListActions(context, messenger)
   /** Stories: the strip of stories above the chats (stories/StoriesStrip.kt). */
   private val stories = com.linea.messenger.stories.StoriesStrip(context, messenger)
+  /** Offline: the list on screen came from the server at least once (until then it is the vault's copy). */
+  private var serverLoaded = false
+  /** Offline: lines opened in the background since the rows were last shown (offline/ListCatchUp.kt). */
+  private val opened = ArrayList<Triple<String, Long, Map<String, Any?>>>()
+  private val showOpened = Runnable { showOpened() }
+  private val keepRun = Runnable { keepNow() }
 
   init {
     setBackgroundColor(Theme.bg)
@@ -81,6 +88,13 @@ class ChatsScreen(
       if (demo.isNotEmpty()) actions.showSamples(demo)
     } else {
       empty.text = "Загрузка…"
+      // Offline: the list as it was shown last time, from the vault — at once, before (or without) the network.
+      com.linea.messenger.offline.ChatCache.cachedChats(messenger) { cached ->
+        if (!serverLoaded && summaries.isEmpty() && cached.isNotEmpty()) {
+          summaries = cached
+          actions.show(cached)
+        }
+      }
     }
   }
 
@@ -134,18 +148,66 @@ class ChatsScreen(
   /** Asks the server for the chats again. */
   fun reload() {
     val messenger = messenger ?: return
-    messenger.chats { result ->
+    // Offline: a line already shown opened is never turned back into a closed one by a fresh list.
+    val previous = summaries.filter { it.last.isNotEmpty() }.associate { it.id to it.last }
+    messenger.chats(previous) { result ->
       if (!isAttachedToWindow) return@chats
       val chats = result.getOrNull()
       if (chats != null) {
+        serverLoaded = true
         summaries = chats
         // ChatActions: shown through `actions.onRows`.
         actions.show(chats)
+        keepSoon()
+        // Offline: the lines still closed are opened in the background, then shown.
+        messenger.catchUpList(chats) { chatId, lastId, line -> lineOpened(chatId, lastId, line) }
       } else if (summaries.isEmpty()) {
+        // Offline: the chats on screen (the vault's copy) stay; the words only when there is nothing to show.
         empty.text = Server.error(result).words
         empty.visibility = View.VISIBLE
       }
     }
+  }
+
+  /** Offline: a closed line opened in the background; a burst of them is shown once. */
+  private fun lineOpened(chatId: String, lastId: Long, line: Map<String, Any?>) {
+    opened.add(Triple(chatId, lastId, line))
+    removeCallbacks(showOpened)
+    postDelayed(showOpened, 200)
+  }
+
+  private fun showOpened() {
+    val messenger = messenger ?: return
+    if (opened.isEmpty()) return
+    val lines = opened.toList()
+    opened.clear()
+    val next = summaries.toMutableList()
+    var changed = false
+    for ((chatId, lastId, line) in lines) {
+      val index = next.indexOfFirst { it.id == chatId }
+      if (index < 0) continue
+      val chat = next[index]
+      // Only for the very message the line was opened for: a newer one may have come meanwhile.
+      if (((com.linea.messenger.core.Core.map(chat.chat["lastMessage"])?.get("id") as? Number)?.toLong() ?: 0L) != lastId) continue
+      next[index] = messenger.lineSummary(chat.chat, line) ?: continue
+      changed = true
+    }
+    if (!changed) return
+    summaries = next
+    actions.show(next)
+    keepSoon()
+  }
+
+  /** Offline: the list as shown goes to the vault a moment after it changes (only once the server answered, so an
+   *  empty list at start never overwrites it). */
+  private fun keepSoon() {
+    removeCallbacks(keepRun)
+    postDelayed(keepRun, 1500)
+  }
+
+  private fun keepNow() {
+    val messenger = messenger ?: return
+    if (serverLoaded) com.linea.messenger.offline.ChatCache.storeChats(messenger, summaries)
   }
 
   override fun place(width: Int, height: Int) {

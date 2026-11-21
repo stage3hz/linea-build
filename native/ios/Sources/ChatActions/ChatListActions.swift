@@ -134,6 +134,7 @@ final class ChatListActions: NSObject, UITextFieldDelegate {
     /// The chats as the server lists them now.
     func show(_ list: [Messenger.ChatSummary]) {
         chats = list
+        ChatLookUnread.take(list) // ChatLook: the number on «назад» in a chat, and each chat's person (Sources/ChatLook/UnreadElsewhere.swift)
         refresh()
         fillQuiet()
         #if targetEnvironment(simulator)
@@ -243,6 +244,8 @@ final class ChatListActions: NSObject, UITextFieldDelegate {
             row["title"] = chat.title + (quiet ? " 🔕" : "")
             row["unread"] = count > 0 ? count : (isMarked ? 1 : 0)
             let draft = draftLine(chat.id)
+            // Offline: the quiet look belongs to the line of a message that cannot be opened here, nothing else.
+            if ChatTyping.shared.isTyping(chat.id) || !draft.isEmpty || fills[chat.id] != nil { row["quietPreview"] = false }
             if ChatTyping.shared.isTyping(chat.id) {
                 row["preview"] = "Печатает…"
                 row["accentPreview"] = true

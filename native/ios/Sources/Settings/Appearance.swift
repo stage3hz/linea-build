@@ -280,6 +280,8 @@ final class AppearanceViewController: SettingsPage {
         }
         addGroup(rows: [nightNow, nightRule])
 
+        // Effects: «Иконка приложения» (Settings/AppearanceEffects.swift).
+        addIconGroup()
         // «Свои цвета». Only the colour of the interface: the chat here has no bubbles to colour.
         let own = DevicePreferences.word("accentColor")
         let accentRow = SettingsRow(label: "Цвет интерфейса", value: own == nil ? "Как в теме" : "Свой", swatch: Theme.accent)
@@ -288,6 +290,8 @@ final class AppearanceViewController: SettingsPage {
             self.open(AccentColorViewController())
         }
         addGroup("Свои цвета", rows: [accentRow])
+        // Effects: «Пиксельный след», «Снег», «Ледяное стекло» (Settings/AppearanceEffects.swift).
+        addEffectGroups()
 
         // «Размер текста в чатах»: a sample message, then the sizes.
         let chosenSize = DevicePreferences.word("textSize") ?? "medium"

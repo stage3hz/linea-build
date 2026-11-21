@@ -63,6 +63,12 @@ final class ChatScreenActions: NSObject, UITextViewDelegate {
     private var sampleDraft = ""
     /// LinkPreview: the card of a link being written, above the field (Sources/LinkPreview/LinkComposer.swift).
     private let links = LinkComposer()
+    /// Composer: the long touch on the send button, the scheduled messages, the emoji panel and the formatting
+    /// panel (Sources/Composer/ComposerExtras.swift).
+    let extras = ComposerExtras()
+    /// Composer: the words and the «без звука» of the message scheduled last (the sample chat's list shows them).
+    private var lastScheduledText = ""
+    private var lastScheduledSilent = false
 
     init(messenger: Messenger?, chatId: String, peerId: String, name: String) {
         self.messenger = messenger
@@ -176,6 +182,19 @@ final class ChatScreenActions: NSObject, UITextViewDelegate {
             LinkOpen.cardPressed(url: event["url"] as? String ?? "")
         }
         links.install(in: host.view)
+        // Composer: the long touch on the send button, the scheduled pill, the emoji panel, the formatting bar.
+        extras.install(host: host, field: field, send: send, composer: composer, messenger: messenger, chatId: chatId, peerId: peerId, peerName: peerName)
+        extras.onSend = { [weak self] (silent: Bool, deliverAt: Date?) -> Void in self?.submit(silent: silent, deliverAt: deliverAt) }
+        extras.canOffer = { [weak self] () -> Bool in
+            guard let self else { return false }
+            return self.editing == nil && self.forwardItems.isEmpty
+        }
+        extras.onLayout = { [weak self] in self?.relayout() }
+        extras.onSay = { [weak self] (words: String) -> Void in self?.say(words) }
+        history.onScheduled = { [weak self] (deliverAt: String) -> Void in
+            guard let self else { return }
+            self.extras.scheduled(deliverAt: deliverAt, text: self.lastScheduledText, silent: self.lastScheduledSilent)
+        }
         links.onChanged = { [weak self] in self?.relayout() }
         list.onNearTop = { [weak self] (_: [String: Any]) -> Void in
             guard let self, self.history.hasMore else { return }
@@ -192,6 +211,8 @@ final class ChatScreenActions: NSObject, UITextViewDelegate {
         let center = NotificationCenter.default
         center.addObserver(self, selector: #selector(statusChanged(_:)), name: ChatTyping.changed, object: nil)
         center.addObserver(self, selector: #selector(statusChanged(_:)), name: Live.presenceChanged, object: nil)
+        // ChatLook: «соединение…» / «ожидание сети…» in the same line (Sources/ChatLook/ConnectionWords.swift).
+        center.addObserver(self, selector: #selector(statusChanged(_:)), name: ChatLookConnection.changed, object: nil)
         center.addObserver(self, selector: #selector(keyboardShown), name: UIResponder.keyboardWillShowNotification, object: nil)
         center.addObserver(self, selector: #selector(keyboardHidden), name: UIResponder.keyboardWillHideNotification, object: nil)
         // «был(а) 5 минут назад» grows old by itself.
@@ -241,6 +262,11 @@ final class ChatScreenActions: NSObject, UITextViewDelegate {
             lit = true
         }
         #endif
+        // ChatLook: while the connection is not up, the line says so (the reference's `headerStatus`).
+        if let line = ChatLookConnection.shared.words(messenger) {
+            words = line
+            lit = false
+        }
         if statusLabel.text == words { return }
         statusLabel.text = words
         statusLabel.textColor = lit ? Theme.accent : Theme.muted
@@ -252,9 +278,11 @@ final class ChatScreenActions: NSObject, UITextViewDelegate {
     /// The height the composer needs for the field's text at this width of the field.
     func composerHeight(fieldWidth: CGFloat) -> CGFloat {
         guard let field else { return ComposerField.lowest }
-        let scrolls = field.overflows(width: fieldWidth)
+        // Composer: the emoji button takes its room right of the field.
+        let room = fieldWidth - ComposerExtras.emojiRoom
+        let scrolls = field.overflows(width: room)
         if field.isScrollEnabled != scrolls { field.isScrollEnabled = scrolls }
-        return field.wantedHeight(width: fieldWidth)
+        return field.wantedHeight(width: room)
     }
 
     /// Places what this object added, after the screen has placed its own views. Gives the room the list must
@@ -295,6 +323,8 @@ final class ChatScreenActions: NSObject, UITextViewDelegate {
         }
         // LinkPreview: the card of the link being written stands above the field (and above the bar of an answer).
         above = links.place(composerFrame: composerFrame, above: above, hidden: chosen)
+        // Composer: the formatting bar over a selection, the emoji button and panel, the scheduled pill.
+        above = extras.place(in: view, composerFrame: composerFrame, above: above, top: top, hidden: chosen)
         downButton.frame = CGRect(x: width - 14 - DownButton.side, y: above - 12 - DownButton.side, width: DownButton.side, height: DownButton.side)
         return (top, view.bounds.height - above + 8)
     }
@@ -590,11 +620,27 @@ final class ChatScreenActions: NSObject, UITextViewDelegate {
         if focus { field?.becomeFirstResponder() }
     }
 
+    // ChatLook: the status line for the glass header, and a swipe to the left that answers a message
+    // (Sources/ChatLook/ChatLookScreen.swift, MsgMotion.swift).
+    var statusView: UILabel { statusLabel }
+
+    func canSwipeReply(_ key: String) -> Bool {
+        guard !selecting, let message = history.shown.messages[key] else { return false }
+        return ChatScreenActions.readable(message) && !ChatScreenActions.outgoing(message)
+    }
+
+    func swipeReply(_ key: String) {
+        guard canSwipeReply(key), let message = history.shown.messages[key] else { return }
+        startReply(message, focus: true)
+    }
+
     /// «Изменить»: the message's text is edited in the field; the chat's draft is not touched and comes back after.
     private func startEdit(_ message: [String: Any], focus: Bool) {
         replyTo = nil
         editing = message
         field?.text = message["text"] as? String ?? ""
+        // Composer: the message's own formatting comes into the field with its text.
+        extras.reset(text: field?.text ?? "", with: (message["meta"] as? [String: Any])?["entities"] as? [[String: Any]] ?? [])
         showBar()
         if focus { field?.becomeFirstResponder() }
     }
@@ -602,6 +648,7 @@ final class ChatScreenActions: NSObject, UITextViewDelegate {
     private func endEdit() {
         editing = nil
         field?.text = local?.draft(chatId) ?? sampleDraft
+        extras.reset(text: field?.text ?? "")
         showBar()
     }
 
@@ -657,17 +704,25 @@ final class ChatScreenActions: NSObject, UITextViewDelegate {
     // MARK: Sending
 
     /// The send button: the edit, the forward with its comment, or the message (an answer when one is being written).
-    func submit() {
+    /// Composer: `silent` and `deliverAt` come from the long touch on the send button («Отправить без звука»,
+    /// «Отправить позже», Sources/Composer/SendMenu.swift); they apply to a new message, not to an edit or a forward.
+    func submit(silent: Bool = false, deliverAt: Date? = nil) {
         guard let field else { return }
-        let text = (field.text ?? "").trimmingCharacters(in: .whitespacesAndNewlines)
+        // Composer: the shortcuts typed (**жирный**…) and the styles of the panel become entities; the text is
+        // what remains of the field, trimmed (Sources/Composer/FormatBar.swift).
+        let composed = extras.compose(full: field.text ?? "")
+        let text = composed.text
         if let editing {
             guard !text.isEmpty else { return }
-            let changed = text != (editing["text"] as? String ?? "")
+            let before = ((editing["meta"] as? [String: Any])?["entities"] as? [Any] ?? []) as NSArray
+            let changed = text != (editing["text"] as? String ?? "") || before != ((composed.entities ?? []) as NSArray)
             if changed && !editWindowOpen(editing) {
                 say(ChatScreenActions.editWindowClosed)
             } else if changed, let client = editing["clientId"] as? String {
-                // The new text replaces the old one with its formatting (this field does not format yet).
-                history.sendAction(["type": "edit", "target": client, "text": text])
+                // The new text replaces the old one with its formatting.
+                var action: [String: Any] = ["type": "edit", "target": client, "text": text]
+                if let entities = composed.entities { action["entities"] = entities }
+                history.sendAction(action)
             }
             endEdit()
             stopTyping()
@@ -681,9 +736,16 @@ final class ChatScreenActions: NSObject, UITextViewDelegate {
         UISelectionFeedbackGenerator().selectionChanged()
         var meta: [String: Any]? = nil
         if let replyTo { meta = ChatScreenActions.replyMeta(replyTo) }
+        // Composer: the formatting chosen in the panel above the field, and «без звука».
+        if let entities = composed.entities { meta = (meta ?? [:]).merging(["entities": entities]) { _, new in new } }
+        meta = ScheduleModel.withSilent(meta, silent: silent)
         replyTo = nil
         // LinkPreview: the card made while the link was typed goes inside the same encrypted message.
-        history.send(text: text, meta: meta, linkPreview: links.take(for: text))
+        if deliverAt != nil {
+            lastScheduledText = text
+            lastScheduledSilent = silent
+        }
+        history.send(text: text, meta: meta, linkPreview: links.take(for: text), deliverAt: deliverAt.map { ScheduleModel.iso($0) })
         clearField()
         showBar()
         list?.scrollToNewest(animated: true)
@@ -710,6 +772,7 @@ final class ChatScreenActions: NSObject, UITextViewDelegate {
         field?.text = ""
         if let local { local.setDraft(chatId, "") } else { sampleDraft = "" }
         links.reset()
+        extras.reset(text: "")
         stopTyping()
         relayout()
     }
@@ -917,8 +980,15 @@ final class ChatScreenActions: NSObject, UITextViewDelegate {
         DispatchQueue.main.asyncAfter(deadline: .now() + 1.8, execute: work)
         // LinkPreview: a link typed into a new message gets its card (not an edit, not the comment of a forward).
         links.typed(value, active: editing == nil && forwardItems.isEmpty)
+        // Composer: the styles move with the text.
+        extras.textChanged(value)
         showSend()
         relayout()
+    }
+
+    /// Composer: a selection shows the formatting bar.
+    func textViewDidChangeSelection(_ textView: UITextView) {
+        extras.selectionChanged()
     }
 
     func textView(_ textView: UITextView, shouldChangeTextIn range: NSRange, replacementText text: String) -> Bool {

@@ -59,6 +59,17 @@ live 09-real-chat 30 --ez openchat true
 echo "chat lists read: $(asked 'GET /chats 200'), inbox pages: $(asked 'GET /e2ee/inbox 200'), message pages: $(grep -cE ' GET /chats/[^ ]+/messages 200 ' "$WORK/proxy.log" || true), read marks: $(grep -cE ' POST /chats/[^ ]+/read 20[04] ' "$WORK/proxy.log" || true)"
 [ "$(grep -cE ' GET /chats/[^ ]+/messages 200 ' "$WORK/proxy.log" || true)" -ge 1 ] || { echo "The app did not open a chat" >&2; FAILED=1; }
 
+echo "== offline: the test server stopped — the list and the chat come from the vault's copy, at once"
+# The list is kept 1.5 s and an open chat's page 2 s after the server answered (offline/ChatCache.kt); the shots
+# above waited longer. With the address refusing connections the app must still show the chats (names, lines,
+# times) and the chat's messages, not «Загрузка…» or an error.
+kill "$(cat "$WORK/proxy.pid")" 2>/dev/null || true
+sleep 1
+live 09d-offline-chats 12
+live 09e-offline-chat 15 --ez openchat true
+(cd "$ROOT" && nohup node tools/sim-tls-proxy.mjs "$TLS/leaf.pem" "$TLS/leaf.key" 8443 3999 >> "$WORK/proxy.log" 2>&1 & echo $! > "$WORK/proxy.pid")
+for i in $(seq 1 30); do if curl -fsS --cacert "$TLS/ca.pem" https://localhost:8443/health >/dev/null; then break; fi; sleep 1; done
+
 echo "== the other sections, with the same account"
 live 09b-photo-open 35 --ez openchat true --es openattachment photo
 live 10-people 25 --es tab people

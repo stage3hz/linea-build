@@ -31,6 +31,8 @@ class Messenger(context: Context, token: String, val user: Map<String, Any?>) {
   private val vault = Vault(context, Account.server, userId, earlierServers = listOf("https://141-133-194-51.nip.io"))
   val crypto = CryptoService(userId, vault, server)
   val live = Live(server)
+  /** Offline: the background opening of the chat list's closed lines (offline/ListCatchUp.kt). */
+  val catchUp = com.linea.messenger.offline.ListCatchUp()
 
   /** What a screen hears of, on the main thread. */
   interface Watcher {
@@ -66,11 +68,13 @@ class Messenger(context: Context, token: String, val user: Map<String, Any?>) {
         is Live.Event.Typing -> { if (event.userId != userId) com.linea.messenger.chatactions.ChatTyping.heard(event.chatId, event.on) }
       }
     }
-    // Publishes this device's keys (making them on the very first start), then opens the live line.
-    crypto.call("initialize") {
-      ready = true
-      if (front && !closed) live.start()
-    }
+    // Offline: the fastest live address of the server, and the phone's network (offline/NetPool.kt).
+    com.linea.messenger.offline.NetPool.start(context, Account.server)
+    // Publishes this device's keys (making them on the very first start). The live line opens at once beside it,
+    // as in the reference: a slow or failing key publication must not hold back everything else.
+    crypto.call("initialize") { }
+    ready = true
+    if (front && !closed) live.start()
   }
 
   /** The app came to the front, or left the screen: the live line follows. */
@@ -101,8 +105,11 @@ class Messenger(context: Context, token: String, val user: Map<String, Any?>) {
     /** ChatActions: the chat as the server lists it (its settings, what is unread), and its last message as this device shows it. */
     val chat: Map<String, Any?> = emptyMap(), val last: Map<String, Any?> = emptyMap())
 
-  /** The chats as the server lists them, each with its last message as this device has decrypted it. */
-  fun chats(done: (Result<List<ChatSummary>>) -> Unit) {
+  /** The chats as the server lists them, each with its last message as this device has decrypted it.
+   *  Offline: `previous` — the lines on screen now by chat id (a line already opened here never turns closed
+   *  again); chats whose line is still closed are opened afterwards in the background (`catchUpList`), not here,
+   *  so one slow chat never holds the whole list back. */
+  fun chats(previous: Map<String, Map<String, Any?>> = emptyMap(), done: (Result<List<ChatSummary>>) -> Unit) {
     server.op("chats", emptyList()) { result ->
       if (result.isFailure) {
         main.post { done(Result.failure(Server.error(result))) }
@@ -118,29 +125,20 @@ class Messenger(context: Context, token: String, val user: Map<String, Any?>) {
             val own = section(chat, now, zone)
             val heading = if (own != part) own else ""
             part = own
-            summary(chat, crypto, heading, now, zone)
+            val id = chat["id"] as? String
+            val last = Core.map(chat["lastMessage"])
+            val shown = if (id != null && last != null) catchUp.line(id, last, crypto, previous[id]) else last
+            summary(chat, shown, userId, now, zone, heading, server.endpoint)
           })
         }, done)
       }
     }
   }
 
-  /** One chat as a row of the list. Runs on the encryption thread (the last message is read from the kept copy). */
-  private fun summary(chat: Map<String, Any?>, crypto: CryptoService, section: String, now: Instant, zone: ZoneId): ChatSummary? {
-    val id = chat["id"] as? String ?: return null
-    var last = Core.map(chat["lastMessage"])
-    if (last != null) {
-      // The list never shows the server's own text: only the copy this device decrypted and kept.
-      var shown = Core.map(crypto.callNow("preview", listOf(last)).getOrNull())
-      if (shown?.get("cryptoState") as? String == "no-key") {
-        // Not opened on this device yet: a short catch-up of this chat, then the kept copy.
-        crypto.callNow("sync", listOf(id, 2))
-        shown = Core.map(crypto.callNow("preview", listOf(last)).getOrNull())
-      }
-      if (shown != null) last = shown
-    }
-    return summary(chat, last, userId, now, zone, section, server.base)
-  }
+  /** Offline: one chat as a row, with its last message as this device shows it (the vault's copy of the list, a
+   *  line opened in the background). Any thread. */
+  fun lineSummary(chat: Map<String, Any?>, shown: Map<String, Any?>?): ChatSummary? =
+    summary(chat, shown, userId, Instant.now(), ZoneId.systemDefault(), "", server.endpoint)
 
   // One chat
 
@@ -282,6 +280,8 @@ class Messenger(context: Context, token: String, val user: Map<String, Any?>) {
         "section" to section, "avatarUrl" to avatarUrl, "avatarKey" to avatarId, "id" to id, "title" to title, "preview" to preview, "time" to time, "unread" to ((chat["unreadCount"] as? Number)?.toInt() ?: 0),
         "muted" to (settings?.get("muted") as? Boolean ?: false), "pinned" to (settings?.get("pinnedAt") is String), "ticks" to ticks,
         "avatarColor" to (0xFF000000.toInt() or color), "initials" to initials(title), "orbA" to orb.first, "orbB" to orb.second,
+        // Offline: a message this device cannot open is said in a quieter way than a real line.
+        "quietPreview" to com.linea.messenger.offline.ListCatchUp.awaitsInbox(last),
       )
       return ChatSummary(id, peerId, title, peerLastRead, row, chat, last ?: emptyMap())
     }

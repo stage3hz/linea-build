@@ -252,9 +252,11 @@ func msgBody(_ row: MsgRow, fontSize: CGFloat, text: UIColor, link: UIColor, quo
 /// Where everything of one row goes, for the width it is shown at.
 /// The open look: no bubbles. A message is its text on the page — own at the right edge, the other side's at
 /// the left — and the time follows the last word on the same line.
-let msgOpenLook = true
+/// ChatLook: the open look is the default; bubbles come with a wallpaper or the choice in «Оформление»
+/// (Sources/ChatLook/BubbleLook.swift).
+var msgOpenLook: Bool { ChatBubbleLook.open }
 /// From the screen's edge to a message's plate (the text stands 13 further in).
-private let msgEdge: CGFloat = msgOpenLook ? 3 : 9
+private var msgEdge: CGFloat { msgOpenLook ? 3 : 9 }
 
 struct MsgLayout {
   /// The time stands on the text's last line, at this point from the text's corner (x: its left, y: the line's bottom).
@@ -274,6 +276,15 @@ struct MsgLayout {
 
   static func make(_ row: MsgRow, width: CGFloat, fontSize: CGFloat, hasThumb: Bool) -> MsgLayout {
     var layout = MsgLayout()
+    if row.kind == 2 {
+      // Offline: the lock notice of messages sent before this device signed in (the reference's MissingRow).
+      let box = min(width - 2 * msgEdge, 360)
+      let size = msgSize(row.text, msgSmallFont, box - 28 - 26, 200)
+      layout.textSize = size
+      layout.bubble = CGSize(width: min(box, size.width + 28 + 26), height: max(size.height, 18) + 20)
+      layout.height = layout.bubble.height + 20
+      return layout
+    }
     if row.kind == 1 {
       let size = msgSize(row.text, msgSmallFont, width * 0.8, 120)
       layout.textSize = size
@@ -430,6 +441,23 @@ final class MsgRowCanvas: UIView {
     let bubble = layoutInfo.bubble
     quoteBox = .zero
     cardBox = .zero
+    if item.kind == 2 {
+      let box = CGRect(x: (w - bubble.width) / 2, y: 10, width: bubble.width, height: bubble.height)
+      context.setFillColor(palette.notice.cgColor)
+      context.addPath(UIBezierPath(roundedRect: box, cornerRadius: 16).cgPath)
+      context.fillPath()
+      if let lock = UIImage(systemName: "lock", withConfiguration: UIImage.SymbolConfiguration(pointSize: 14, weight: .regular))?
+        .withTintColor(palette.noticeText, renderingMode: .alwaysOriginal) {
+        lock.draw(at: CGPoint(x: box.minX + 14 + (16 - lock.size.width) / 2, y: box.midY - lock.size.height / 2))
+      }
+      let style = NSMutableParagraphStyle()
+      style.alignment = .left
+      style.lineSpacing = 2
+      let textBox = CGRect(x: box.minX + 14 + 16 + 10, y: box.minY + 10, width: box.width - 28 - 26, height: box.height - 20)
+      NSAttributedString(string: item.text, attributes: [.font: msgSmallFont, .foregroundColor: palette.noticeText, .paragraphStyle: style])
+        .draw(with: textBox, options: [.usesLineFragmentOrigin, .truncatesLastVisibleLine], context: nil)
+      return
+    }
     if item.kind == 1 {
       let box = CGRect(x: (w - bubble.width) / 2, y: 0, width: bubble.width, height: bubble.height)
       context.setFillColor(palette.notice.cgColor)
@@ -466,13 +494,15 @@ final class MsgRowCanvas: UIView {
     let left = item.mine ? w - msgEdge - bubble.width : side
     let box = CGRect(x: left, y: 0, width: bubble.width, height: bubble.height)
     // The corner by the sender's edge is tight on the last bubble of a run (the «tail»).
-    var corners: UIRectCorner = [.topLeft, .topRight, .bottomLeft, .bottomRight]
-    if item.tail { corners.remove(item.mine ? .bottomRight : .bottomLeft) }
-    let shape = UIBezierPath(roundedRect: box, byRoundingCorners: corners, cornerRadii: CGSize(width: 20, height: 20))
+    // ChatLook: «Углы сообщений» (8, 14, 20), the tail corner 6 at most (Sources/ChatLook/BubbleLook.swift).
+    let shape = ChatBubbleLook.shape(box, mine: item.mine, tail: item.tail)
     if !msgOpenLook {
       context.setFillColor((item.mine ? palette.mine : palette.theirs).cgColor)
       context.addPath(shape.cgPath)
       context.fillPath()
+    } else if !item.mine && item.checked < 0 && item.thumb.isEmpty && item.media != "note" && item.media != "video" {
+      // ChatLook: the open look — the other side's words carry a thin line in their colour.
+      ChatBubbleLook.drawPeerLine(context, box: box, fallback: palette.accent)
     }
     if pressed {
       context.setFillColor(Theme.veil(0.08).cgColor)
@@ -715,6 +745,13 @@ final class MsgListView: UIView, UITableViewDataSource, UITableViewDelegate, UIG
   private var pinned = true
   /// What `pad` asked for.
   private var padInsets = UIEdgeInsets.zero
+  /// ChatLook: a swipe to the left answers a message (`key`); new messages slide in; the look the rows were laid
+  /// out for (Sources/ChatLook/MsgMotion.swift, BubbleLook.swift).
+  var onSwipeReply: ([String: Any]) -> Void = { _ in }
+  var canSwipeReply: (String) -> Bool = { _ in false }
+  private var swipeReply: MsgSwipeReply?
+  private let arrivals = MsgArrivals()
+  private var lookKey = ChatBubbleLook.key
 
   required init?(coder: NSCoder) { return nil }
 
@@ -741,6 +778,7 @@ final class MsgListView: UIView, UITableViewDataSource, UITableViewDelegate, UIG
     // A tap on a link or on a hidden spoiler is taken before the row gets it; any other tap goes to the row.
     linkTap.delegate = self
     table.addGestureRecognizer(linkTap)
+    lookInstall() // ChatLook
   }
 
   private func run(atTablePoint point: CGPoint) -> (path: IndexPath, key: String, hit: (flags: Int, url: String, shown: String))? {
@@ -877,6 +915,7 @@ final class MsgListView: UIView, UITableViewDataSource, UITableViewDelegate, UIG
     let sameHeights = sameOrder && zip(next, rows).allSatisfy { $0 == $1 || layout($0).height == layout($1).height }
     // Telegram: a message of your own takes the list to its end, wherever it was scrolled to.
     let ownNew = !rows.isEmpty && (next.first.map { $0.mine && $0.key != rows.first?.key } ?? false)
+    arrivals.take(next) // ChatLook: which rows are new and slide in
     rows = next
     if layouts.count > rows.count * 2 + 200 { layouts.removeAll() }
     if sameHeights {
@@ -972,6 +1011,10 @@ final class MsgListView: UIView, UITableViewDataSource, UITableViewDelegate, UIG
   }
 
   func tableView(_ tableView: UITableView, willDisplay cell: UITableViewCell, forRowAt indexPath: IndexPath) {
+    // ChatLook: a message that just arrived slides in.
+    if let rowCell = cell as? MsgRowCell, indexPath.row < rows.count {
+      arrivals.play(rowCell.canvas, key: rows[indexPath.row].key, note: rows[indexPath.row].media == "note")
+    }
     // Once per «oldest row»: asked again only after older rows have arrived.
     guard let oldest = rows.last, indexPath.row >= rows.count - 5, askedAt != oldest.key else { return }
     askedAt = oldest.key
@@ -995,5 +1038,31 @@ final class MsgListView: UIView, UITableViewDataSource, UITableViewDelegate, UIG
     if recognizer.state != .began { return }
     guard let path = table.indexPathForRow(at: recognizer.location(in: table)), path.row < rows.count, rows[path.row].kind == 0 else { return }
     onMsgLongPress(["key": rows[path.row].key, "y": Double(recognizer.location(in: nil).y)])
+  }
+}
+
+// MARK: ChatLook — swipe to answer, the look of the rows (Sources/ChatLook/)
+
+extension MsgListView {
+  fileprivate func lookInstall() {
+    let swipe = MsgSwipeReply(table: table)
+    swipe.rowAt = { [weak self] (point: CGPoint) -> (key: String, view: UIView)? in
+      guard let self, let path = self.table.indexPathForRow(at: point), path.row < self.rows.count, self.rows[path.row].kind == 0,
+            self.rows[path.row].checked < 0, let cell = self.table.cellForRow(at: path) as? MsgRowCell else { return nil }
+      return (self.rows[path.row].key, cell.canvas)
+    }
+    swipe.canReply = { [weak self] (key: String) -> Bool in self?.canSwipeReply(key) ?? false }
+    swipe.onReply = { [weak self] (key: String) -> Void in self?.onSwipeReply(["key": key]) }
+    swipeReply = swipe
+  }
+
+  /// The look changed (bubbles or not, the corners, the colours): every row is laid out and drawn again.
+  func setLook(palette next: MsgPalette) {
+    let key = ChatBubbleLook.key
+    if key == lookKey && next == palette { return }
+    lookKey = key
+    palette = next
+    layouts.removeAll()
+    table.reloadData()
   }
 }

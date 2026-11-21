@@ -66,14 +66,18 @@ final class SettingsViewController: SettingsPage {
         }
         addGroup(rows: [profile, posts])
 
-        // How it sounds and looks. (The reference also has «Папки с чатами», «Энергосбережение и анимации» and
-        // «Язык» here: not built in this app yet.)
+        // How it sounds and looks. (The reference also has «Папки с чатами» here: not built in this app yet.)
         let notifications = SettingsRow(symbol: "bell", label: "Уведомления и звуки")
         notifications.onPress = { [weak self] in self?.openPage("notifications") }
         let shownTheme = ThemeStore.nightState()["shown"] as? String ?? "black"
         let appearance = SettingsRow(symbol: "paintpalette", label: "Оформление", value: ThemeStore.themeName(shownTheme))
         appearance.onPress = { [weak self] in self?.openPage("appearance") }
-        addGroup(rows: [notifications, appearance])
+        // Effects: «Энергосбережение и анимации» and «Язык» (Settings/PowerSettings.swift, Settings/LanguageSettings.swift).
+        let power = SettingsRow(symbol: "battery.50", label: "Энергосбережение и анимации")
+        power.onPress = { [weak self] in self?.openPage("power") }
+        let language = SettingsRow(symbol: "globe", label: "Язык", value: Language.chosenName)
+        language.onPress = { [weak self] in self?.openPage("language") }
+        addGroup(rows: [notifications, appearance, power, language])
 
         let privacy = SettingsRow(symbol: "lock", label: "Конфиденциальность")
         privacy.onPress = { [weak self] in
@@ -149,7 +153,8 @@ final class SettingsViewController: SettingsPage {
         case "data":
             guard let messenger else { return nil }
             return DataViewController(messenger: messenger)
-        default: return nil
+        // Effects / Security: «Энергосбережение и анимации», «Язык», «Код-пароль» (Settings/ParityPages.swift).
+        default: return parityPage(named: name, messenger: messenger)
         }
     }
 

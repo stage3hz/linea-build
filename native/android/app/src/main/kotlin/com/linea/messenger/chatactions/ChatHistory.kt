@@ -116,13 +116,17 @@ class ChatHistory(private val messenger: Messenger?, private val local: ChatLoca
     } else {
       if (loadingNewest) { loadAgain = true; done?.invoke(false); return }
       loadingNewest = true
+      showKept(messenger)
     }
     val chatId = chatId; val me = userId; val pageBefore = before
     messenger.crypto.run({ crypto: CryptoService ->
-      // First everything new is opened and kept (each message exactly once), then the page is shown from the kept copies.
-      val synced = CryptoService.failure(crypto.callNow("sync", listOf(chatId)))
-      if (synced != null && synced.name == "NetworkError") return@run Result.failure<Loaded>(ServerError.Network(synced.words))
-      val answer = messenger.server.opAndWait("messages", if (pageBefore != null) listOf(chatId, pageBefore) else listOf(chatId))
+      // Offline: the page request goes out together with the inbox sync (one round trip saved before the chat
+      // shows, as in the reference); a sync that failed does not hold the page back — what was opened and kept
+      // before is shown. The page is opened only after the sync has consumed the envelopes.
+      val asked = java.util.concurrent.CompletableFuture<Result<Any?>>()
+      messenger.server.op("messages", if (pageBefore != null) listOf(chatId, pageBefore) else listOf(chatId)) { asked.complete(it) }
+      crypto.callNow("sync", listOf(chatId))
+      val answer = asked.get()
       if (answer.isFailure) return@run Result.failure<Loaded>(Server.error(answer))
       val fields = Core.map(answer.getOrNull())
       val list = (fields?.get("messages") as? List<*>).orEmpty().mapNotNull { Core.map(it) }
@@ -144,6 +148,7 @@ class ChatHistory(private val messenger: Messenger?, private val local: ChatLoca
         raw = applied.raw
         hasMore = applied.hasMore
         rebuild()
+        keepSoon()
         if (!older) onLoaded?.invoke(answer.newestTheirs)
         done?.invoke(true)
       }
@@ -152,6 +157,43 @@ class ChatHistory(private val messenger: Messenger?, private val local: ChatLoca
         load()
       }
     })
+  }
+
+  /** Offline: the page shown last time was looked for in the vault (once per opening). */
+  private var cacheTried = false
+  private val keepRun = Runnable { keepNow() }
+
+  /** Offline: the page shown last time (the vault's copy) is on screen at once, also without a network, while the
+   *  server is asked (the reference's useMessenger `loadMessages`). */
+  private fun showKept(messenger: Messenger) {
+    val name = com.linea.messenger.offline.ChatCache.pageName(chatId)
+    if (cacheTried || raw.isNotEmpty() || name == null) return
+    cacheTried = true
+    val crypto = messenger.crypto; val chatId = chatId
+    com.linea.messenger.offline.ChatCache.reader.execute {
+      val kept = com.linea.messenger.offline.ChatCache.decodePage(crypto.loadCacheAtOnce(name), chatId)
+      main.post {
+        if (kept != null && raw.isEmpty()) {
+          raw = kept.messages
+          hasMore = kept.hasMore
+          rebuild()
+        }
+      }
+    }
+  }
+
+  /** Offline: the chat's newest messages go to the vault a moment after a page came. */
+  private fun keepSoon() {
+    main.removeCallbacks(keepRun)
+    main.postDelayed(keepRun, 2000)
+  }
+
+  private fun keepNow() {
+    val messenger = messenger ?: return
+    val name = com.linea.messenger.offline.ChatCache.pageName(chatId) ?: return
+    if (raw.isEmpty()) return
+    val text = com.linea.messenger.offline.ChatCache.encodePage(raw, hasMore) ?: return
+    messenger.crypto.call("storeCache", listOf(name, text)) { }
   }
 
   /** Whether a message is known to be gone: it is loaded but folded out of the view, or its deletion is loaded. */
@@ -291,6 +333,10 @@ class ChatHistory(private val messenger: Messenger?, private val local: ChatLoca
       return "сообщений"
     }
 
+    /** The notice of a run of messages this device cannot open, in the reference's words (MessageRow.tsx `MissingRow`). */
+    fun missingText(count: Int): String =
+      "$count ${missingWords(count)} до входа на этом устройстве. Они зашифрованы для других твоих устройств и здесь не открываются."
+
     private val blanks = Regex("[ \\n\\t]+")
 
     /** The quote above an answer (the reference's replyQuote.ts): the original as it is now when it is loaded,
@@ -344,6 +390,14 @@ class ChatHistory(private val messenger: Messenger?, private val local: ChatLoca
         val date = Messenger.date(message["createdAt"] as? String)
         val today = date?.let { Messenger.dayWords(it, input.now, input.zone) } ?: ""
         val clock = date?.let { Messenger.clock(it, input.zone) } ?: ""
+        // Offline: messages this device has no key for (sent before it signed in) are ONE notice for the whole
+        // run, across days — no day lines between them; the next readable message gets its day line again.
+        if (message["cryptoState"] as? String == "no-key" && missingRow >= 0) {
+          noKey.add(client)
+          missingCount += 1
+          rows[missingRow]["text"] = missingText(missingCount)
+          return@forEachIndexed
+        }
         if (today != day && today.isNotEmpty()) {
           day = today
           rows.add(linkedMapOf("key" to "d$key", "kind" to 1, "text" to today))
@@ -361,14 +415,9 @@ class ChatHistory(private val messenger: Messenger?, private val local: ChatLoca
         // A run of messages this device has no key for is one line.
         if (message["cryptoState"] as? String == "no-key") {
           noKey.add(client)
-          if (missingRow >= 0) {
-            missingCount += 1
-          } else {
-            missingCount = 1
-            missingRow = rows.size
-            rows.add(linkedMapOf("key" to "x$key", "kind" to 1, "text" to ""))
-          }
-          rows[missingRow]["text"] = "$missingCount ${missingWords(missingCount)} до входа на этом устройстве"
+          missingCount = 1
+          missingRow = rows.size
+          rows.add(linkedMapOf("key" to "x$key", "kind" to 2, "text" to missingText(missingCount)))
           return@forEachIndexed
         }
         missingRow = -1
