@@ -118,6 +118,14 @@ object RoomsSimulator {
     return true
   }
 
+  /** ScreenShare (`--es screendemo room`): inside «Походники», somebody's screen under the room's bar. */
+  fun screenDemo(root: com.linea.messenger.shell.RootScreen) {
+    Rooms.showDemo(RoomsDemo.me, RoomsDemo.rooms(), null)
+    RoomsDemo.walkIn()
+    root.pages()?.push(RoomScreen(root.context, "demo-room-1"), animated = false)
+    RoomOverlay.refresh()
+  }
+
   /** With an account: waits for the shell (the sign-in of the same launch may still be going) and for the list of
    *  rooms, then opens what was asked. */
   fun later(intent: Intent, launcher: Launcher) {

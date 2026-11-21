@@ -304,6 +304,8 @@ private class RoomStage(context: Context) : GlassSource(context) {
  *  Pushed over «Каналы»: Back goes back (the voice goes on — see RoomOverlay.kt). */
 @SuppressLint("ViewConstructor")
 class RoomScreen(context: Context, val roomId: String) : Screen(context) {
+  /** ScreenShare: the screens shared in this room, under its bar (screenshare/ScreenShareViews.kt). */
+  private val screenStrip = com.linea.messenger.screenshare.ScreenShareStrip(context, roomId) { id -> Rooms.room(roomId)?.members?.firstOrNull { it.id == id }?.displayName?.takeIf { it.isNotEmpty() } ?: "Участник" }
   private val stage = RoomStage(context)
   private val bar = RoomBar(context)
   private val seatViews = HashMap<String, RoomSeatView>()
@@ -363,6 +365,7 @@ class RoomScreen(context: Context, val roomId: String) : Screen(context) {
     leaveButton.onPress = { Rooms.exit() }
     leaveButton.show("xmark", "Выйти из комнаты", 0xFFFF4D5E.toInt(), 0xFFFFFFFF.toInt(), bordered = false)
     for (button in listOf(speakerButton, micButton, leaveButton)) addView(button)
+    addView(screenStrip) // ScreenShare: whoever shares their screen in the room
   }
 
   override fun onAttachedToWindow() {
@@ -411,6 +414,7 @@ class RoomScreen(context: Context, val roomId: String) : Screen(context) {
   override fun place(width: Int, height: Int) {
     if (width != appliedWidth || height != appliedHeight) post { if (this.width > 0 && this.height > 0 && (this.width != appliedWidth || this.height != appliedHeight)) refresh() }
     for ((view, box) in frames) if (view.visibility != GONE) put(view, box[0], box[1], box[2], box[3])
+    if (screenStrip.visibility != GONE) putText(screenStrip, dp(14f), edges.top + dp(86f), width - dp(28f)) // ScreenShare
   }
 
   /** Who is talking: asked of the connections a few times a second, only while this phone is inside and the screen

@@ -17,16 +17,67 @@ import java.io.ByteArrayOutputStream
  *                              file and an upload on its way
  *    --es attachdemo viewer    the same, and the photo viewer with a drawn picture over them
  *    --es openattachment photo|file    with an account and `--ez openchat true`: once the chat is on screen,
- *                              opens its newest photo or file by itself */
+ *                              opens its newest photo or file by itself
+ *  Media (the same names as the iPhone's launch arguments), with `--ez demo true --ez chat true`:
+ *    --es attachdemo panel|panelselected|panellimited|paneldenied   the paperclip's panel with drawn tiles
+ *    --es photoeditor crop|draw|size|remove|background|enhance       the photo editor on that tab, a drawn picture
+ *    --es videodemo player|sheet|speed|locked|seek                   the video player over a drawn sample film
+ *    --es notedemo 1                                                 the round video recorder */
 object AttachmentsDemo {
   private var sample: String? = null
   private var wanted: String? = null
   private var done = false
+  private var editor: String? = null
+  private var video: String? = null
+  private var note: String? = null
+  private var mediaDone = false
 
   fun read(intent: Intent) {
     sample = intent.getStringExtra("attachdemo")
     wanted = intent.getStringExtra("openattachment")
     done = false
+    editor = intent.getStringExtra("photoeditor")
+    video = intent.getStringExtra("videodemo")
+    note = intent.getStringExtra("notedemo")
+    mediaDone = false
+  }
+
+  /** Media: the panel opened by `attachdemo panel…` shows drawn tiles instead of the gallery. True: it does. */
+  fun panelSamples(panel: AttachmentPanel): Boolean {
+    val demo = sample ?: return false
+    if (!demo.startsWith("panel")) return false
+    panel.demoSamples(demo)
+    return true
+  }
+
+  /** Media: once the chat is on screen, the editor, the player, the round video recorder or the panel, once. */
+  fun media(attachments: ChatAttachments, host: View) {
+    if (mediaDone) return
+    val activity = host.context as? android.app.Activity ?: (host.context as? android.content.ContextWrapper)?.baseContext as? android.app.Activity ?: return
+    val tool = editor
+    val state = video
+    val panel = sample?.takeIf { it.startsWith("panel") }
+    if (tool == null && state == null && note == null && panel == null) return
+    mediaDone = true
+    host.postDelayed({
+      if (!host.isAttachedToWindow) return@postDelayed
+      when {
+        tool != null -> PhotoEditor(activity, picture(1200, 800)).also { it.show(); it.demoShow(tool) }
+        state != null -> {
+          val folder = java.io.File(activity.cacheDir, "invizent-view-" + java.util.UUID.randomUUID().toString().lowercase())
+          val file = java.io.File(folder, "sample.mp4")
+          Thread {
+            val made = folder.mkdirs() && SampleMovie.write(file)
+            host.post {
+              if (!made || !host.isAttachedToWindow) { folder.deleteRecursively(); return@post }
+              com.linea.messenger.video.VideoPlayer.open(activity, file, folder, mapOf("id" to "sample-video", "encryption" to mapOf("fileKeyId" to "sample")))?.demoState(state)
+            }
+          }.start()
+        }
+        note != null -> com.linea.messenger.video.NoteRecorder(activity, false).show()
+        panel != null -> attachments.openPanel()
+      }
+    }, 1000)
   }
 
   /** The sample rows to stand after the sample chat's own; none unless asked for. */
@@ -74,6 +125,69 @@ object AttachmentsDemo {
       done = true
       host.postDelayed({ press(key) }, 1000)
       return
+    }
+  }
+}
+
+/** Media: a few seconds of drawn colour written as a film, for the player check (no film of anyone). */
+object SampleMovie {
+  fun write(file: java.io.File): Boolean {
+    val width = 640; val height = 360
+    var codec: android.media.MediaCodec? = null
+    var muxer: android.media.MediaMuxer? = null
+    var input: android.view.Surface? = null
+    return try {
+      val format = android.media.MediaFormat.createVideoFormat(android.media.MediaFormat.MIMETYPE_VIDEO_AVC, width, height).apply {
+        setInteger(android.media.MediaFormat.KEY_COLOR_FORMAT, android.media.MediaCodecInfo.CodecCapabilities.COLOR_FormatSurface)
+        setInteger(android.media.MediaFormat.KEY_BIT_RATE, 1_000_000)
+        setInteger(android.media.MediaFormat.KEY_FRAME_RATE, 30)
+        setInteger(android.media.MediaFormat.KEY_I_FRAME_INTERVAL, 1)
+      }
+      val encoder = android.media.MediaCodec.createEncoderByType(android.media.MediaFormat.MIMETYPE_VIDEO_AVC)
+      codec = encoder
+      encoder.configure(format, null, null, android.media.MediaCodec.CONFIGURE_FLAG_ENCODE)
+      val surface = encoder.createInputSurface()
+      input = surface
+      encoder.start()
+      val writer = android.media.MediaMuxer(file.path, android.media.MediaMuxer.OutputFormat.MUXER_OUTPUT_MPEG_4)
+      muxer = writer
+      var track = -1
+      val info = android.media.MediaCodec.BufferInfo()
+      val paint = Paint(Paint.ANTI_ALIAS_FLAG)
+      fun drain(end: Boolean) {
+        while (true) {
+          val index = encoder.dequeueOutputBuffer(info, if (end) 10_000 else 0)
+          if (index == android.media.MediaCodec.INFO_TRY_AGAIN_LATER) { if (!end) return else continue }
+          if (index == android.media.MediaCodec.INFO_OUTPUT_FORMAT_CHANGED) { track = writer.addTrack(encoder.outputFormat); writer.start(); continue }
+          if (index < 0) continue
+          val buffer = encoder.getOutputBuffer(index)
+          if (buffer != null && info.size > 0 && track >= 0 && info.flags and android.media.MediaCodec.BUFFER_FLAG_CODEC_CONFIG == 0) writer.writeSampleData(track, buffer, info)
+          encoder.releaseOutputBuffer(index, false)
+          if (info.flags and android.media.MediaCodec.BUFFER_FLAG_END_OF_STREAM != 0) return
+        }
+      }
+      for (index in 0 until 90) {
+        val canvas = surface.lockHardwareCanvas()
+        val t = index / 90f
+        canvas.drawColor(android.graphics.Color.HSVToColor(floatArrayOf(209f + 29f * t, 0.5f, 0.45f)))
+        paint.color = 0xD9FFFFFF.toInt()
+        canvas.drawCircle(130f + 400f * t, 180f, 50f, paint)
+        surface.unlockCanvasAndPost(canvas)
+        Thread.sleep(33)
+        drain(false)
+      }
+      encoder.signalEndOfInputStream()
+      drain(true)
+      true
+    } catch (_: Throwable) {
+      file.delete()
+      false
+    } finally {
+      try { codec?.stop() } catch (_: Throwable) {}
+      try { codec?.release() } catch (_: Throwable) {}
+      input?.release()
+      try { muxer?.stop() } catch (_: Throwable) {}
+      try { muxer?.release() } catch (_: Throwable) {}
     }
   }
 }

@@ -176,6 +176,21 @@ class MsgRowView(context: Context) : View(context) {
   private var timeX = 0f
   private var timeBase = 0f
 
+  // Media: an album's mosaic (attachments/AlbumGrid.kt), its decoded small pictures, and where it was drawn last.
+  private var albumLayout: com.linea.messenger.attachments.MsgAlbumLayout? = null
+  private var albumOf: com.linea.messenger.attachments.MsgAlbum? = null
+  private var albumPictures: Map<String, Bitmap> = emptyMap()
+  private var albumX = 0f
+  private var albumY = 0f
+
+  /** Media: the row key of the album's part under a point of this view, or null. */
+  fun albumAt(px: Float, py: Float): String? {
+    val laid = albumLayout ?: return null
+    val album = row?.album ?: return null
+    if (builtFor != row) return null
+    return laid.part(px - albumX, py - albumY, album)
+  }
+
   fun bind(next: MsgRow, colors: MsgPalette, size: Float, open: Boolean = false) {
     // ChatLook: a new look (bubbles, corners) lays the row out again.
     val look = com.linea.messenger.chatlook.ChatBubbleLook.key
@@ -186,6 +201,7 @@ class MsgRowView(context: Context) : View(context) {
     val relayout = row != next || fontSize != size || styledAgain
     if (styledAgain) builtFor = null
     row = next; palette = colors; fontSize = size; revealed = open
+    if (next.album != albumOf) { albumOf = next.album; albumPictures = next.album?.let { com.linea.messenger.attachments.MsgAlbumLayout.pictures(it) } ?: emptyMap() } // Media
     if (next.thumb != thumbOf) {
       thumbOf = next.thumb
       thumb = if (next.thumb.isEmpty()) null else try { val bytes = Base64.decode(next.thumb, Base64.DEFAULT); BitmapFactory.decodeByteArray(bytes, 0, bytes.size) } catch (_: Throwable) { null }
@@ -277,6 +293,7 @@ class MsgRowView(context: Context) : View(context) {
     body.textSize = fontSize * d
     textLayout = null; quoteLayout = null; labelLayout = null; noticeLayout = null; reactLayout = null; thumbW = 0f; thumbH = 0f; voiceW = 0f; voiceH = 0f
     chips = emptyList(); chipsW = 0f; chipsH = 0f; timeInline = false; card = null; pollLayout = null; bigGlyphs = emptyList(); bigBox = 0f
+    albumLayout = null // Media
     if (item.kind == 2) {
       // Offline: the lock notice of messages sent before this device signed in (the reference's MissingRow).
       val box = minOf(width - 2 * edge, 360f * d)
@@ -309,6 +326,8 @@ class MsgRowView(context: Context) : View(context) {
       // Polls: the poll stands where the text would (a poll's text is only for clients without polls).
       item.poll?.let { poll -> pollLayout = com.linea.messenger.polls.MsgPollLayout.make(poll, inner.toFloat(), d).also { w = maxOf(w, it.width) } }
       if (bigGlyphs.isNotEmpty()) w = maxOf(w, bigBox * bigGlyphs.size)
+      // Media: an album's mosaic stands above its caption.
+      item.album?.let { album -> albumLayout = com.linea.messenger.attachments.MsgAlbumLayout.make(album, width.toFloat(), inner.toFloat(), d).also { w = maxOf(w, it.width) } }
       // The open look: the time goes after the last word when the line has room for it (plain left-to-right
       // text only: not under reactions, not after a quote or a code block).
       val text = textLayout
@@ -324,6 +343,7 @@ class MsgRowView(context: Context) : View(context) {
       if (item.forward.isNotEmpty()) h += 18f * d
       if (quoteLayout != null) h += 17f * d + quoteLayout!!.height + 8f * d
       if (thumbH > 0f) h += thumbH + 6f * d
+      albumLayout?.let { h += it.height + 6f * d } // Media
       if (voiceH > 0f) h += voiceH + 4f * d
       if (labelLayout != null) h += labelLayout!!.height + 4f * d
       pollLayout?.let { h += it.height + 4f * d } // Polls
@@ -441,6 +461,8 @@ class MsgRowView(context: Context) : View(context) {
     if (image != null && thumbH > 0f) { drawPicture(canvas, image, x, y, thumbW, thumbH, if (item.thumbRound) minOf(thumbW, thumbH) / 2 else 12f * d); y += thumbH + 6f * d }
     // Voice/Video: the play mark and the length over the picture; the waveform row of a voice message.
     if (!mediaBoxes.thumb.isEmpty) MediaRowArt.marks(canvas, item, mediaState, palette, mediaPicture, d)
+    // Media: the album's mosaic.
+    albumLayout?.let { albumX = x; albumY = y; it.draw(canvas, item.album ?: return@let, albumPictures, x, y, palette); y += it.height + 6f * d }
     if (voiceH > 0f) { MediaRowArt.voice(canvas, item, mediaState, palette, x, y, voiceW, d, mediaBoxes); y += voiceH + 4f * d }
     labelLayout?.let { small.color = markColor; canvas.save(); canvas.translate(x, y); it.draw(canvas); canvas.restore(); y += it.height + 4f * d }
     // Polls: the question, the options and the results.

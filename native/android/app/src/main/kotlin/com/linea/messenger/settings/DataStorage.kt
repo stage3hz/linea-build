@@ -117,6 +117,7 @@ class DataScreen(context: Context, private val account: SettingsAccount) : Setti
     val app = context.applicationContext
     thread(name = "invizent-cache-clear") {
       DecryptedFiles.sweep(app)
+      com.linea.messenger.video.KeptMedia.wipe(app) // Media: and the films kept for watching without the network (the reference clears them too)
       main.post {
         clearing = false
         doneWords = "Кэш очищен. Переписка, ключи шифрования и твои музыкальные файлы не затронуты."

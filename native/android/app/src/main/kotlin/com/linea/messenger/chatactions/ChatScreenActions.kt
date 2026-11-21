@@ -597,7 +597,9 @@ class ChatScreenActions(private val context: Context, private val messenger: Mes
     val file = Core.map(message["attachment"] as? Map<*, *>)
     if (!shown.noCopy && readable(message) && file != null) {
       val at = items.indexOfFirst { it.symbol == "copy" }.let { if (it >= 0) it + 1 else minOf(1, items.size) }
-      items.add(at, MessageMenu.Item("square.and.arrow.down", com.linea.messenger.attachments.MediaSave.label(file)) { saveFiles(listOf(file)) })
+      // Media: an album's row saves every photo of it.
+      val files = listOf(file) + (shown.albumParts[key] ?: emptyList()).mapNotNull { Core.map(shown.messages[it]?.get("attachment") as? Map<*, *>) }
+      items.add(at, MessageMenu.Item("square.and.arrow.down", com.linea.messenger.attachments.MediaSave.label(file)) { saveFiles(files) })
     }
     // ChatsPlus: «В Избранное» — the message goes to this device's saved messages (chatsplus/SavedMessages.kt),
     // after «Скопировать» as on the iPhone.
@@ -623,7 +625,7 @@ class ChatScreenActions(private val context: Context, private val messenger: Mes
   /** «Удалить у меня и у <имя>» — either side's messages, for both — and «Удалить у меня». */
   private fun deleteItems(keys: List<String>, done: () -> Unit): List<MessageMenu.Item> {
     val shown = history.shown
-    val messages = keys.mapNotNull { shown.messages[it] }
+    val messages = keys.flatMap { listOf(it) + (shown.albumParts[it] ?: emptyList()) }.mapNotNull { shown.messages[it] } // Media: an album's row stands for every photo of it
     val everyone = messages.isNotEmpty() && messages.all { readable(it) }
     val items = ArrayList<MessageMenu.Item>()
     if (everyone) {
@@ -1146,6 +1148,8 @@ class ChatScreenActions(private val context: Context, private val messenger: Mes
       // ChatActions, Polls, Composer: `chatdemo search|newpoll|gift` (with the messages of `chatdemo features`).
       "search" -> { openSearch(); searchBar?.input?.setText("распечат") }
       "newpoll" -> newPoll()
+      // Media: `chatdemo albummenu` — the menu of the sample album (attachments/AlbumGrid.kt).
+      "albummenu" -> shown.albumParts.keys.sorted().firstOrNull()?.let { openMenu(it, middle) }
       "gift" -> sendGift()
       "forwardmany" -> target?.let { startForward(listOf(it)) }
       "react" -> incoming?.let { message ->

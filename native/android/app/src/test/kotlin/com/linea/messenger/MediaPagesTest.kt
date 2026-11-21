@@ -134,10 +134,11 @@ class MediaPagesTest {
     field.setText(""); idle(activity)
     assertNotNull(described(chat, "Голосовое:"))
     assertFalse(named(chat).contains("Отправить"))
-    // The paperclip offers a video between the gallery and the files.
+    // Media: the paperclip opens its own panel — the gallery, the files, a poll, sound (attachments/AttachmentPanel.kt).
     described(chat, "Вложения:")!!.performClick(); idle(activity)
-    val sheet = ShadowAlertDialog.getLatestAlertDialog()!!
-    assertEquals(listOf("Галерея", "Видео", "Файл", "Опрос"), shadowOf(sheet).items.map { it.toString() })
+    val sheet = org.robolectric.shadows.ShadowDialog.getLatestDialog()
+    assertTrue(sheet is com.linea.messenger.attachments.AttachmentPanel)
+    assertTrue(named(sheet.window!!.decorView).containsAll(listOf("Галерея", "Файл", "Опрос", "Аудио", "Закрыть выбор вложений")))
     sheet.dismiss()
   }
 

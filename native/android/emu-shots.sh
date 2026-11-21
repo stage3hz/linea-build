@@ -189,6 +189,45 @@ shot 213-forward-saved --ez demo true --ez chat true --es chatdemo forward
 shot 360-forward-many --ez demo true --ez chat true --es chatdemo forwardmany
 shot 375-gift-from-chat --ez demo true --ez chat true --es chatdemo gift
 
+# Effects / Security / Language / Links / Music / Channels voice / AI / ScreenShare (effects/, security/, language/, links/,
+# music/, channels/CommunityVoice.kt, ai/AIAttachments.kt, screenshare/), the same numbers as the iOS check.
+shot 240-snow-chats --ez demo true --es effects 1
+shot 241-snow-settings --ez demo true --es effects 1 --es settings root
+shot 242-snow-melted --ez demo true --es effects 1 --es snowheat 0.9
+shot 243-appearance-effects --ez demo true --es settings appearance
+shot 244-power-settings --ez demo true --es settings power
+shot 245-language-page --ez demo true --es settings language
+shot 246-language-english --ez demo true --es setlanguage en --es settings root
+shot 247-language-back-ru --ez demo true --es setlanguage ru --es settings root
+shot 248-passcode-off --ez demo true --es settings passcode
+shot 249-lock-digits --ez demo true --es lockdemo digits
+shot 250-lock-wrong --ez demo true --es lockdemo wrong
+shot 251-lock-password --ez demo true --es lockdemo password
+shot 252-notices-chats --ez demo true --es noticedemo both
+shot 253-new-login-sheet --ez demo true --es noticedemo loginsheet
+shot 254-recovery-sheet --ez demo true --es noticedemo recoverysheet
+shot 255-trust-sheet --ez demo true --es trustdemo 1
+shot 310-palette-backdrop --es channelsdemo community --es settheme lagoon --ez setplatina true
+shot 311-music-ambient-shelves --es musicdemo 1
+shot 312-music-player-cover --es musicdemo player
+shot 313-music-equalizer --es musicdemo equalizer
+shot 314-voice-channel --es channelsdemo voice
+shot 315-voice-member-menu --es channelsdemo voicemenu
+shot 316-ai-photo --es aidemo photo
+shot 317-ai-quick --es aidemo quick
+shot 318-auth-wordmark --ez auth true
+shot 319-auth-wordmark-light --ez auth true --es settheme light
+shot 320-music-ambient-light --es musicdemo 1 --es settheme light
+shot 321-music-ambient-graphite --es musicdemo 1 --es settheme graphite
+shot 322-community-glass-header --es channelsdemo community
+shot 380-screen-panel --es screendemo panel
+shot 381-screen-viewer --es screendemo viewer
+shot 382-screen-starting --es screendemo starting
+shot 383-screen-sharing --es screendemo sharing
+shot 384-screen-error --es screendemo error
+shot 385-screen-room --es screendemo room
+shot 386-screen-bar --es screendemo bar
+
 # What the app itself said while it ran (crashes show here).
 adb logcat -d -t 400 '*:E' > "$OUT/logcat-errors.txt" 2>/dev/null || true
 adb shell dumpsys package "$APP" | grep -E "versionName|primaryCpuAbi" || true

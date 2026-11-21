@@ -22,6 +22,7 @@ import com.linea.messenger.design.words
 import com.linea.messenger.net.Live
 import com.linea.messenger.net.Server
 import com.linea.messenger.people.pages
+import com.linea.messenger.rooms.RoomVoice
 import com.linea.messenger.shell.Screen
 import java.util.Locale
 
@@ -119,7 +120,16 @@ class CommunityScreen(context: Context, private val messenger: Messenger?, priva
     class About(val words: String) : Item()
     class Group(val name: String) : Item()
     class Channel(val channel: CommunityChannel) : Item()
+    /** Channels: a person inside the voice channel above (channels/CommunityVoice.kt). */
+    class Member(val channel: CommunityChannel, val member: CommunityVoiceMember) : Item()
   }
+  /** Channels: the people of the community (the names under the voice channels), the voice panel under the list. */
+  private val people = HashMap<String, com.linea.messenger.people.Person>()
+  private val voicePanel = CommunityVoicePanel(context)
+  private val voiceBox = android.widget.FrameLayout(context)
+  private val me: String get() = messenger?.userId ?: "demo-me"
+  private val onVoiceEvent: (Map<String, Any?>) -> Unit = { data -> voiceEvent(data) }
+  private val onVoice: (Unit) -> Unit = { placeVoicePanel(); if (community != null && chat == null) adapter.notifyDataSetChanged() }
 
   private var community: Community? = null
   private var items: List<Item> = emptyList()
@@ -140,10 +150,14 @@ class CommunityScreen(context: Context, private val messenger: Messenger?, priva
     override fun getCount() = items.size
     override fun getItem(position: Int) = items[position]
     override fun getItemId(position: Int) = position.toLong()
-    override fun getViewTypeCount() = 3
-    override fun getItemViewType(position: Int) = when (items[position]) { is Item.About -> 0; is Item.Group -> 1; is Item.Channel -> 2 }
+    override fun getViewTypeCount() = 4
+    override fun getItemViewType(position: Int) = when (items[position]) { is Item.About -> 0; is Item.Group -> 1; is Item.Channel -> 2; is Item.Member -> 3 }
     override fun areAllItemsEnabled() = false
-    override fun isEnabled(position: Int) = items[position] is Item.Channel
+    override fun isEnabled(position: Int) = when (val item = items[position]) {
+      is Item.Channel -> true
+      is Item.Member -> community?.let { CommunityVoice.hasActions(it, me, item.member.userId) } == true
+      else -> false
+    }
     override fun getView(position: Int, convertView: View?, parent: ViewGroup?): View = when (val item = items[position]) {
       is Item.About -> ((convertView as? TextView) ?: context.words("", 14f, Theme.muted).apply { setPadding(dp(20f), dp(8f), dp(20f), dp(6f)) }).apply { text = item.words }
       is Item.Group -> ((convertView as? TextView) ?: ChannelsScreen.sectionLabel(context, 1.0f, 36f)).apply { text = item.name.uppercase(Locale.ROOT) }
@@ -151,6 +165,10 @@ class CommunityScreen(context: Context, private val messenger: Messenger?, priva
         // Without an account (the debug build's samples) the counters are the channel's own.
         val counts = if (messenger == null) ChannelsStore.Counts(item.channel.unread, item.channel.mentions, false, communityId) else ChannelsStore.channel(item.channel.id)
         show(item.channel, counts.unread, counts.mentions)
+      }
+      is Item.Member -> ((convertView as? VoiceMemberCell) ?: VoiceMemberCell(context)).apply {
+        val actions = community?.let { CommunityVoice.hasActions(it, me, item.member.userId) } == true
+        show(item.member, people[item.member.userId], me, messenger?.server?.endpoint ?: "", actions)
       }
     }
   }
@@ -162,7 +180,17 @@ class CommunityScreen(context: Context, private val messenger: Messenger?, priva
     list.selector = ColorDrawable(Theme.veil(0.07f)); list.cacheColorHint = Color.TRANSPARENT
     list.isVerticalScrollBarEnabled = false; list.clipToPadding = false
     list.adapter = adapter
-    list.setOnItemClickListener { _, _, position, _ -> (items.getOrNull(position) as? Item.Channel)?.let { open(it.channel) } }
+    list.setOnItemClickListener { _, _, position, _ ->
+      when (val item = items.getOrNull(position)) {
+        is Item.Channel -> open(item.channel)
+        is Item.Member -> memberActions(item.member) // Channels
+        else -> {}
+      }
+    }
+    voiceBox.setPadding(dp(12f), dp(16f), dp(12f), dp(8f))
+    voiceBox.addView(voicePanel, android.widget.FrameLayout.LayoutParams(android.widget.FrameLayout.LayoutParams.MATCH_PARENT, android.widget.FrameLayout.LayoutParams.WRAP_CONTENT))
+    voiceBox.visibility = View.GONE
+    list.addFooterView(voiceBox, null, false) // Channels: the panel of the voice channel this phone is in
     addView(list)
 
     header.onBack = { pages()?.pop() }
@@ -189,7 +217,10 @@ class CommunityScreen(context: Context, private val messenger: Messenger?, priva
     if (messenger != null) {
       Live.communityEvent.watch(onEvent)
       ChannelsStore.changed.watch(onCounts)
+      Live.roomEvent.watch(onVoiceEvent) // Channels: `voice.state` of this community's channels
     }
+    RoomVoice.changed.watch(onVoice)
+    placeVoicePanel()
     if (started) return
     started = true
     if (messenger != null) reload() else ChannelsDemo.community(communityId)?.let { show(it) }
@@ -198,6 +229,8 @@ class CommunityScreen(context: Context, private val messenger: Messenger?, priva
   override fun onDetachedFromWindow() {
     Live.communityEvent.unwatch(onEvent)
     ChannelsStore.changed.unwatch(onCounts)
+    Live.roomEvent.unwatch(onVoiceEvent)
+    RoomVoice.changed.unwatch(onVoice)
     main.removeCallbacks(again)
     super.onDetachedFromWindow()
   }
@@ -253,10 +286,61 @@ class CommunityScreen(context: Context, private val messenger: Messenger?, priva
     if (found.summary.about.isNotEmpty()) made.add(Item.About(found.summary.about))
     for (group in found.groups) {
       made.add(Item.Group(group.name))
-      for (channel in group.channels) made.add(Item.Channel(channel))
+      for (channel in group.channels) {
+        made.add(Item.Channel(channel))
+        if (!channel.isText) for (member in channel.voiceMembers) made.add(Item.Member(channel, member)) // Channels
+      }
     }
     items = made
     adapter.notifyDataSetChanged()
+    if (people.isEmpty()) loadPeople()
+    placeVoicePanel()
+  }
+
+  // Channels: the voice channels
+
+  /** The people of the community (for the names under the voice channels). */
+  private fun loadPeople() {
+    val messenger = messenger ?: return ChannelsDemo.members().forEach { people[it.user.id] = it.user }
+    messenger.server.ask("communityMembers", listOf(communityId)) { result ->
+      val body = result.getOrNull() ?: return@ask
+      for (member in CommunityMember.list(body["members"])) people[member.user.id] = member.user
+      adapter.notifyDataSetChanged()
+    }
+  }
+
+  /** `voice.state` of one of this community's channels: who is inside now. */
+  private fun voiceEvent(data: Map<String, Any?>) {
+    if (data["type"] != "voice.state") return
+    val found = community ?: return
+    if (data["communityId"] as? String != null && data["communityId"] != communityId) return
+    val channelId = data["channelId"] as? String ?: return
+    if (found.channels.none { it.id == channelId }) return
+    val members = CommunityVoiceMember.list(data["members"])
+    show(found.withVoice(channelId, members))
+  }
+
+  /** The panel of the voice channel this phone is in — when it is one of this community's. */
+  private fun placeVoicePanel() {
+    val voice = RoomVoice.state
+    if (voice == null || voice.communityId != communityId) { voiceBox.visibility = View.GONE; return }
+    voicePanel.screenPanel.names = { userId -> people[userId]?.displayName } // ScreenShare
+    voicePanel.show(voice)
+    voiceBox.visibility = View.VISIBLE
+  }
+
+  private fun enterVoice(channel: CommunityChannel) {
+    val community = community ?: return
+    if (RoomVoice.state?.roomId == channel.id) return
+    val messenger = messenger ?: return channelSay(context, "Голосовые каналы работают с аккаунтом.")
+    RoomVoice.join(messenger, channel.id, channel.name, community.id to community.summary.name) { words -> if (words != null) channelSay(context, words) }
+  }
+
+  private fun memberActions(member: CommunityVoiceMember) {
+    val community = community ?: return
+    if (!CommunityVoice.hasActions(community, me, member.userId)) return
+    val name = people[member.userId]?.displayName?.takeIf { it.isNotEmpty() } ?: "Участник"
+    CommunityVoice.actions(context, community, me, member, name, messenger) { words -> channelSay(context, words) }
   }
 
   /** A blog channel: the posts of its channel, under the community's own header. */
@@ -319,7 +403,7 @@ class CommunityScreen(context: Context, private val messenger: Messenger?, priva
   private fun open(channel: CommunityChannel) {
     val community = community ?: return
     if (channel.isText) pages()?.push(ChannelChatScreen(context, messenger, community, channel, root = false))
-    else channelSay(context, "Голосовые каналы в этой версии приложения пока не работают.")
+    else enterVoice(channel) // Channels: the voice channel (rooms/RoomVoice.kt)
   }
 
   /** For the emulator check: opens the first text channel. False while the community is not read yet. */
@@ -330,6 +414,11 @@ class CommunityScreen(context: Context, private val messenger: Messenger?, priva
     val channel = community.channels.firstOrNull { it.isText } ?: return true
     pages()?.push(ChannelChatScreen(context, messenger, community, channel, root = false), animated = false)
     return true
+  }
+
+  /** For the emulator check (`--es channelsdemo voicemenu`): the moderator's actions on the person a moderator muted. */
+  fun emulatorVoiceMenu() {
+    for (item in items) if (item is Item.Member && item.member.serverMuted) return memberActions(item.member)
   }
 
   /** For the emulator check: the chat of a blog's posts, once it is shown. */

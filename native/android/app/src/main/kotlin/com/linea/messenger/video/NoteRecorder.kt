@@ -82,6 +82,39 @@ class NoteRecorder(private val activity: Activity, private val startAtOnce: Bool
    *  was called off. */
   var onDone: ((File) -> Unit)? = null
 
+  // Media: both cameras at once where the phone can (the reference's VideoNoteDualCamera.kt, video/NoteDualCamera.kt):
+  // a turn only changes which camera is drawn — on screen and into the file —, so it is instant and works in the
+  // middle of a take. Elsewhere (or if anything of it fails before the take runs) the single camera above.
+  private var dual: NoteDualCamera? = null
+  private var dualFile: File? = null
+  private var dualStopping = false
+  private var dualTried = false
+  /** The single path took over from a take that could not start on both cameras: it records once ready. */
+  private var beginWhenReady = false
+  private val lifecycleOwner = object : androidx.lifecycle.LifecycleOwner {
+    val registry = androidx.lifecycle.LifecycleRegistry(this)
+    override fun getLifecycle(): androidx.lifecycle.Lifecycle = registry
+  }
+  private val dualHost = object : NoteDualCamera.Host {
+    override fun dualReady(facing: String) {
+      if (closed) return
+      ready = true
+      recordButton.isEnabled = true
+      recordButton.alpha = 1f
+      showButtons()
+      if (startAtOnce && startedAt == 0L) begin()
+    }
+    override fun dualFailed() { if (!closed) singleInstead(beginAfter = false) }
+    override fun dualRecordingFailed(file: File, started: ((Boolean) -> Unit)?) {
+      file.delete()
+      if (closed) return
+      recording = false
+      main.removeCallbacks(clock)
+      progress = 0f
+      singleInstead(beginAfter = true)
+    }
+  }
+
   private inner class RoundButton(val symbol: () -> String, val plate: Boolean, val tint: () -> Int, val symbolSize: () -> Float) : View(context) {
     private val paint = Paint(Paint.ANTI_ALIAS_FLAG)
     init { isClickable = true; isFocusable = true }
@@ -188,9 +221,11 @@ class NoteRecorder(private val activity: Activity, private val startAtOnce: Bool
   private fun showButtons() {
     recordButton.contentDescription = if (recording) "Остановить и отправить" else "Начать запись"
     recordButton.invalidate()
-    // The camera is not turned in the middle of a take: the file would end there.
-    flipButton.isEnabled = !recording && ready
-    flipButton.alpha = if (recording) 0.3f else 1f
+    // The single camera is not turned in the middle of a take: the file would end there. With both cameras
+    // (Media) the turn is instant, also while recording.
+    val turnable = ready && (!recording || dual != null)
+    flipButton.isEnabled = turnable
+    flipButton.alpha = if (recording && dual == null) 0.3f else 1f
   }
 
   private fun say(words: String) {
@@ -205,8 +240,42 @@ class NoteRecorder(private val activity: Activity, private val startAtOnce: Bool
       if (closed) return@ask
       if (!allowed) return@ask say(noAccess)
       granted = true
-      open()
+      tryDual()
     }
+  }
+
+  /** Media: both cameras where `NoteDualCamera.pair` finds a front and back pair that may stream together. */
+  private fun tryDual() {
+    if (dualTried) return open()
+    dualTried = true
+    val future = try { androidx.camera.lifecycle.ProcessCameraProvider.getInstance(context) } catch (_: Throwable) { return open() }
+    future.addListener({
+      if (closed) return@addListener
+      val provider = try { future.get() } catch (_: Throwable) { null }
+      val pair = provider?.let { NoteDualCamera.pair(context, it) }
+      if (provider == null || pair == null) return@addListener open()
+      lifecycleOwner.registry.currentState = androidx.lifecycle.Lifecycle.State.RESUMED
+      val made = NoteDualCamera(context, lifecycleOwner, provider, pair, dualHost, if (front) "front" else "back", 0f)
+      circle.removeView(preview)
+      circle.addView(made.view, 0, FrameLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.MATCH_PARENT))
+      dual = made
+      if (!made.open()) singleInstead(beginAfter = false)
+    }, context.mainExecutor)
+  }
+
+  /** Media: back to the single camera (both could not run here). */
+  private fun singleInstead(beginAfter: Boolean) {
+    val made = dual ?: return
+    dual = null
+    made.release()
+    circle.removeView(made.view)
+    if (preview.parent == null) circle.addView(preview, 0, FrameLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.MATCH_PARENT))
+    ready = false
+    recordButton.isEnabled = false
+    recordButton.alpha = 0.4f
+    beginWhenReady = beginAfter
+    showButtons()
+    open()
   }
 
   override fun onSurfaceTextureAvailable(made: SurfaceTexture, width: Int, height: Int) {
@@ -241,7 +310,7 @@ class NoteRecorder(private val activity: Activity, private val startAtOnce: Bool
   @SuppressLint("MissingPermission")
   private fun open() {
     val texture = texture ?: return
-    if (!granted || closed || camera != null) return
+    if (!granted || closed || camera != null || dual != null || !dualTried) return
     val mine = ++generation
     try {
       val id = choose(front) ?: return say("Камера недоступна.")
@@ -316,7 +385,7 @@ class NoteRecorder(private val activity: Activity, private val startAtOnce: Bool
           recordButton.isEnabled = true
           recordButton.alpha = 1f
           showButtons()
-          if (startAtOnce && startedAt == 0L) begin()
+          if ((startAtOnce && startedAt == 0L) || beginWhenReady) { beginWhenReady = false; begin() }
         }
         override fun onConfigureFailed(failed: CameraCaptureSession) { if (mine == generation) lost() }
       }, main)
@@ -372,6 +441,13 @@ class NoteRecorder(private val activity: Activity, private val startAtOnce: Bool
   }
 
   private fun flip() {
+    dual?.let { both ->
+      if (!ready) return
+      front = !front
+      flipButton.performHapticFeedback(HapticFeedbackConstants.KEYBOARD_TAP)
+      both.setFacing(if (front) "front" else "back")
+      return
+    }
     if (!ready || recording) return
     front = !front
     flipButton.performHapticFeedback(HapticFeedbackConstants.KEYBOARD_TAP)
@@ -392,11 +468,25 @@ class NoteRecorder(private val activity: Activity, private val startAtOnce: Bool
       heading.text = FileCore.call("voiceTimeFine", listOf(ms)) as? String ?: ""
       progress = minOf(1f, ms.toFloat() / MAX_MS)
       root.invalidate()
+      // Media: the two-camera recorder has no limit of its own: the minute ends here.
+      if (dual != null && ms >= MAX_MS) { finish(keep = true); return }
       main.postDelayed(this, 50)
     }
   }
 
   private fun begin() {
+    dual?.let { both ->
+      if (!ready || recording) return
+      if (MusicPlayer.shared.current != null) MusicPlayer.shared.stop()
+      val target = VideoPrepare.freshFile(context, "mp4")
+      dualFile = target
+      recording = true
+      startedAt = SystemClock.elapsedRealtime()
+      main.post(clock)
+      showButtons()
+      both.startRecording(target) { started -> if (!started && dual === both && recording) { recording = false; main.removeCallbacks(clock); showButtons() } }
+      return
+    }
     val recorder = recorder ?: return
     if (!ready || recording) return
     if (MusicPlayer.shared.current != null) MusicPlayer.shared.stop()
@@ -410,6 +500,7 @@ class NoteRecorder(private val activity: Activity, private val startAtOnce: Bool
   /** Ends the take (or the waiting for one) and closes the screen. */
   private fun finish(keep: Boolean) {
     if (closed) return
+    dual?.let { both -> return finishDual(both, keep) }
     closed = true
     main.removeCallbacks(clock)
     val taken = file
@@ -425,6 +516,26 @@ class NoteRecorder(private val activity: Activity, private val startAtOnce: Bool
     shut()
     if (taken != null) {
       if (keeps(whole, keep, ms) && taken.length() > 0) onDone?.invoke(taken) else taken.delete()
+    }
+    if (isShowing) dismiss()
+  }
+
+  /** Media: the two-camera take ends; the cameras are let go once its file is written. */
+  private fun finishDual(both: NoteDualCamera, keep: Boolean) {
+    closed = true
+    main.removeCallbacks(clock)
+    val ms = if (recording) SystemClock.elapsedRealtime() - startedAt else 0L
+    val wasRecording = recording
+    recording = false
+    dualFile = null
+    if (wasRecording) {
+      dualStopping = true
+      both.stopRecording { file, _ ->
+        dualStopping = false
+        if (file != null && keeps(true, keep, ms) && file.length() > 0) onDone?.invoke(file) else file?.delete()
+        both.release()
+        lifecycleOwner.registry.currentState = androidx.lifecycle.Lifecycle.State.DESTROYED
+      }
     }
     if (isShowing) dismiss()
   }
@@ -451,6 +562,18 @@ class NoteRecorder(private val activity: Activity, private val startAtOnce: Bool
   }
 
   private fun release() {
+    // Media: both cameras (unless a finished take is still being written: it lets them go itself).
+    dual?.let { both ->
+      if (!dualStopping) {
+        if (!closed) { closed = true; main.removeCallbacks(clock) }
+        if (recording) { recording = false; both.stopRecording { file, _ -> file?.delete() } }
+        both.release()
+        dualFile?.delete()
+        lifecycleOwner.registry.currentState = androidx.lifecycle.Lifecycle.State.DESTROYED
+      }
+      dual = null
+      return
+    }
     // Closed in a way that did not go through `finish` (the window was taken down): nothing is kept.
     if (!closed) { closed = true; main.removeCallbacks(clock); if (recording) { recording = false; try { recorder?.stop() } catch (_: Exception) {} } }
     shut()

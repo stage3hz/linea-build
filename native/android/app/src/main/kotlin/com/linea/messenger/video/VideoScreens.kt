@@ -114,6 +114,13 @@ class MediaOpenController(private val host: View, private val server: Server, pr
     val size = (attachment["size"] as? Number)?.toLong() ?: 0L
     val whole = FileCore.sizeText(size)
     setOnShowListener {
+      // Media: a film kept for watching without the network opens from the phone, nothing is downloaded.
+      val kept = if (video) KeptMedia.file(context, attachment) else null
+      if (kept != null) {
+        dismiss()
+        VideoPlayer.open(host.context, kept, null, attachment)
+        return@setOnShowListener
+      }
       fetch.start(context.applicationContext, server, attachment,
         progress = { part -> progress.text = FileCore.sizeText((size * part).toLong()) + " из " + whole },
         done = { result -> finished(result) })
@@ -125,7 +132,9 @@ class MediaOpenController(private val host: View, private val server: Server, pr
     val brought = result.getOrNull() ?: return ChatAttachments.say(host.context, FileCore.words(result))
     if (!host.isAttachedToWindow) { brought.folder.deleteRecursively(); return }
     if (video) {
-      try { PlayerScreen(host.context, brought.file) { brought.folder.deleteRecursively() }.show() } catch (_: Exception) { brought.folder.deleteRecursively() }
+      // Media: the reference's own player (video/VideoPlayer.kt) — screen lock, speeds, picture in picture, keeping
+      // for watching without the network, its own sheet. It removes the decrypted copy when it closes.
+      VideoPlayer.open(host.context, brought.file, brought.folder, attachment)
       return
     }
     val written = DecryptedFiles.Written(brought.folder, brought.file)

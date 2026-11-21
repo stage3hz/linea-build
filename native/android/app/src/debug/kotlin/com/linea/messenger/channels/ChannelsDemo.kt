@@ -40,7 +40,19 @@ object ChannelsDemo {
     CommunitySummary("demo-blog-2", "blog", "music", false, "Винил по пятницам", "", "", "demo-u4", 342, true, Perm.invite, "", true, 31, 0),
   )
 
+  /** Channels: `--es channelsdemo voice|voicemenu` — the sample server as seen by a moderator, with three people in
+   *  «Общий»: this phone (inside), Лев (his own microphone off) and Марина (microphone and sound turned off by a moderator). */
+  var voice = false
+
   fun community(id: String): Community? {
+    val found = plainCommunity(id) ?: return null
+    if (!voice || found.blog) return found
+    val base = found.summary
+    val members = listOf(CommunityVoiceMember(me, false, false, false), CommunityVoiceMember("demo-u2", true, false, false), CommunityVoiceMember("demo-u3", false, true, true))
+    return found.copy(summary = base.copy(perms = base.perms or Perm.muteMembers or Perm.deafenMembers or Perm.kick or Perm.ban)).withVoice("$id-voice", members)
+  }
+
+  private fun plainCommunity(id: String): Community? {
     val summary = summaries().firstOrNull { it.id == id } ?: return null
     val everyone = CommunityRole("demo-role-all", if (summary.blog) "Подписчики" else "Участники", "#8A9BB8", 0, Perm.invite or Perm.send or Perm.voice, true)
     val moderator = CommunityRole("demo-role-mod", "Модератор", "#3FA9F5", 10, Perm.manageMessages or Perm.kick or Perm.ban, false)
@@ -144,7 +156,16 @@ object ChannelsSimulator {
     root.show("channels")
     val stack = root.pages() ?: return true
     val context = root.context
-    if (demo == "community" || demo == "blog") {
+    if (demo == "voice" || demo == "voicemenu") {
+      // Channels: inside «Общий» of the sample server (channels/CommunityVoice.kt).
+      ChannelsDemo.voice = true
+      val peers = listOf(com.linea.messenger.rooms.RoomVoicePeer("peer-2", "demo-u2", muted = true, connected = true),
+        com.linea.messenger.rooms.RoomVoicePeer("peer-3", "demo-u3", muted = false, connected = true, serverMuted = true, serverDeafened = true))
+      com.linea.messenger.rooms.RoomVoice.showDemo("demo-server-voice", "Общий", peers, muted = false, speaking = emptySet(), community = "demo-server" to "Клан «Север»")
+      val screen = CommunityScreen(context, null, "demo-server", ChannelsDemo.summaries().firstOrNull { it.id == "demo-server" })
+      stack.push(screen, animated = false)
+      if (demo == "voicemenu") root.postDelayed({ screen.emulatorVoiceMenu() }, 1500)
+    } else if (demo == "community" || demo == "blog") {
       val id = if (demo == "blog") "demo-blog" else "demo-server"
       stack.push(CommunityScreen(context, null, id, ChannelsDemo.summaries().firstOrNull { it.id == id }), animated = false)
     } else if (demo == "chat" || demo == "menu") {

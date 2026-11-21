@@ -74,6 +74,10 @@ class AuthPagesTest {
   private fun texts(view: View = page, into: MutableList<String> = ArrayList()): List<String> {
     if (view.visibility != View.VISIBLE) return into
     if (view is TextView && view !is EditText) into.add(view.text.toString())
+    // Effects: the drawn parts of the screen (the wordmark, the title's words, the button with states).
+    if (view is com.linea.messenger.effects.WordmarkView) into.add("Инвиз")
+    if (view is com.linea.messenger.effects.AppearingTextView) into.add(view.text)
+    if (view is com.linea.messenger.effects.ActionButton) { into.add(view.label); if (view.shownText != view.label) into.add(view.shownText) }
     if (view is ViewGroup) for (index in 0 until view.childCount) texts(view.getChildAt(index), into)
     return into
   }
@@ -89,7 +93,7 @@ class AuthPagesTest {
 
   /** Presses what carries these words: the text itself, or the button it is in. */
   private fun press(words: String) {
-    val label = find(page) { it is TextView && it.text.toString() == words && shown(it) }
+    val label = find(page) { (it is TextView && it.text.toString() == words || it is com.linea.messenger.effects.ActionButton && (it.label == words || it.shownText == words)) && shown(it) }
     assertNotNull("No «$words» on the screen: ${texts()}", label)
     var target: View? = label
     while (target != null && !target.isClickable) target = target.parent as? View
@@ -99,7 +103,7 @@ class AuthPagesTest {
 
   /** Presses the screen's main button, whatever it says now. */
   private fun submit() {
-    assertTrue(find(page) { it is com.linea.messenger.design.BusyButton && shown(it) }!!.performClick())
+    assertTrue(find(page) { it is com.linea.messenger.effects.ActionButton && shown(it) }!!.performClick())
     idle()
   }
 

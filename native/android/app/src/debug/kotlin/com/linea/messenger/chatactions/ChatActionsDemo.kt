@@ -94,6 +94,17 @@ object ChatActionsDemo {
           "attachment" to null, "createdAt" to at("09:47", id), "cryptoState" to "decrypted"))
       }
       add(true, "Не буду звонить, напиши, как проснёшься", "09:48", mapOf("silent" to true))
+      // Media: an album of three photos (attachments/AlbumGrid.kt), as the iPhone's sample chat has it.
+      val albumId = "a0000000-0000-4000-8000-000000000001"
+      for ((index, shape) in listOf(240 to 160, 160 to 240, 240 to 180).withIndex()) {
+        val bytes = java.io.ByteArrayOutputStream().also { com.linea.messenger.attachments.AttachmentsDemo.picture(shape.first, shape.second).compress(android.graphics.Bitmap.CompressFormat.JPEG, 60, it) }.toByteArray()
+        val picture = android.util.Base64.encodeToString(bytes, android.util.Base64.NO_WRAP)
+        val attachment = mapOf("id" to "f000000$index-0000-4000-8000-000000000000", "name" to "photo.jpg", "mimeType" to "image/jpeg", "size" to 120_000,
+          "encryption" to mapOf("scheme" to "aes-256-gcm-siv"), "preview" to mapOf("base64" to picture, "width" to shape.first, "height" to shape.second))
+        val id = list.size + 1
+        list.add(mapOf("id" to id, "chatId" to chatId, "senderId" to peer, "clientId" to client(id), "text" to (if (index == 0) "Фото с прогулки" else ""),
+          "attachment" to attachment, "createdAt" to at("09:50", id), "cryptoState" to "decrypted", "meta" to mapOf("album" to mapOf("id" to albumId, "index" to index, "count" to 3))))
+      }
     }
     return list
   }

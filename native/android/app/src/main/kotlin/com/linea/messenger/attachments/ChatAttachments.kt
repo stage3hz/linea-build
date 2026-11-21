@@ -87,13 +87,15 @@ class ChatAttachments(private val host: View, private val messenger: Messenger?,
     var percent = -1
     /** What goes with the message inside the ciphertext: the answer it is, or null. */
     var meta: Map<String, Any?>? = null
+    /** Media: the upload has begun (the photos of an album start in their order). */
+    var started = false
   }
 
   private val context: Context = host.context
   private val main = Handler(Looper.getMainLooper())
   private val d = context.resources.displayMetrics.density
   private val button = object : View(context) {
-    init { isClickable = true; isFocusable = true; contentDescription = "Вложения: галерея, файлы" }
+    init { isClickable = true; isFocusable = true; contentDescription = "Вложения: галерея, файлы, опрос" }
     override fun getAccessibilityClassName(): CharSequence = "android.widget.Button"
     override fun drawableStateChanged() { super.drawableStateChanged(); invalidate() }
     override fun onDraw(canvas: android.graphics.Canvas) =
@@ -145,6 +147,9 @@ class ChatAttachments(private val host: View, private val messenger: Messenger?,
 
   private fun choose() {
     hideKeyboard()
+    // Media: the reference's own panel — «Недавние» from the gallery, the camera, «Файл», «Опрос», «Аудио»
+    // (attachments/AttachmentPanel.kt). The gallery is read only once the panel is open.
+    if (openPanel() != null) return
     // Voice/Video: «Видео» stands between the two when there is somebody to take it.
     val video = onVideo
     val base = if (video != null) listOf("Галерея", "Видео", "Файл") else listOf("Галерея", "Файл")
@@ -170,14 +175,76 @@ class ChatAttachments(private val host: View, private val messenger: Messenger?,
     if (!Picks.ask(activity, documentPicker("*/*")) { chosen -> filesPicked(chosen) }) say(context, "Не удалось открыть файлы.")
   }
 
+  /** Media: opens the paperclip's panel; false when there is no window for it. */
+  fun openPanel(): AttachmentPanel? {
+    val activity = activity() ?: return null
+    val panel = AttachmentPanel(activity, onPoll != null)
+    panel.onPoll = { onPoll?.invoke() }
+    panel.onSend = { items -> take(items) }
+    panel.show()
+    return panel
+  }
+
+  /** Media: what the panel added — the photos as one album (up to ten per album) in their order, each video the way
+   *  of «Видео» (written anew without its metadata), each file as it is. */
+  private fun take(items: List<AttachmentPanel.Picked>) {
+    if (messenger == null) { for (item in items) (item as? AttachmentPanel.Picked.Photo)?.temporary?.delete(); return }
+    val photos = ArrayList<AttachmentPanel.Picked.Photo>()
+    val files = ArrayList<Uri>()
+    for (item in items) {
+      when (item) {
+        is AttachmentPanel.Picked.Photo -> photos.add(item)
+        is AttachmentPanel.Picked.Video -> {
+          val meta = takeReply?.invoke()
+          if (onVideoFile?.invoke(item.uri, meta) != true) fail(add(Pending("🎬 Видео")), "Видео пока нельзя отправить в этой версии приложения.")
+        }
+        is AttachmentPanel.Picked.File -> files.add(item.uri)
+      }
+    }
+    if (files.isNotEmpty()) filesPicked(files)
+    val albums = AlbumRows.groups(photos.size)
+    val resolver = context.contentResolver
+    photos.forEachIndexed { index, photo ->
+      val item = add(Pending("🖼 Фотография"))
+      item.meta = withAlbum(takeReply?.invoke(), albums.getOrNull(index))
+      preparing.execute {
+        val prepared = if (photo.edited != null) edited(photo.edited, photo.format)
+          else photo.uri?.let { photo(resolver, it) } ?: Result.failure(PhotoPrepare.Failure("Не удалось обработать фото. Файл не отправлен."))
+        photo.temporary?.delete()
+        main.post { ready(item, prepared) }
+      }
+    }
+  }
+
+  /** Media: the album mark joined to what goes with a photo's message. */
+  private fun withAlbum(meta: Map<String, Any?>?, group: AlbumRows.Group?): Map<String, Any?>? {
+    if (group == null) return meta
+    return (meta ?: emptyMap()) + ("album" to AlbumRows.meta(group))
+  }
+
+  /** Media: the editor's bitmap written in its chosen format (JPEG over white: it has no transparency). */
+  private fun edited(bitmap: android.graphics.Bitmap, format: String?): Result<Prepared> {
+    val jpeg = format == "jpeg"
+    var fresh = bitmap
+    if (jpeg && bitmap.hasAlpha()) {
+      fresh = android.graphics.Bitmap.createBitmap(bitmap.width, bitmap.height, android.graphics.Bitmap.Config.ARGB_8888)
+      android.graphics.Canvas(fresh).apply { drawColor(android.graphics.Color.WHITE); drawBitmap(bitmap, 0f, 0f, null) }
+    }
+    return PhotoPrepare.finish(fresh, jpeg).map { photo ->
+      Prepared(photo.bytes, photo.name, photo.mimeType, mapOf("width" to photo.width, "height" to photo.height, "hdr" to "sdr"), photo.preview)
+    }
+  }
+
   // What was chosen
 
   private fun photosPicked(chosen: List<Uri>) {
     if (messenger == null) return
     val resolver = context.contentResolver
-    for (uri in chosen) {
+    // Media: two or more photos go out as one album — up to ten per album (attachments/AlbumGrid.kt).
+    val albums = AlbumRows.groups(chosen.size)
+    for ((index, uri) in chosen.withIndex()) {
       val item = add(Pending("🖼 Фотография"))
-      item.meta = takeReply?.invoke()
+      item.meta = withAlbum(takeReply?.invoke(), albums.getOrNull(index))
       // What the picker gave is read and drawn anew right here, one picture at a time.
       preparing.execute {
         val prepared = photo(resolver, uri)
@@ -224,6 +291,8 @@ class ChatAttachments(private val host: View, private val messenger: Messenger?,
         }
       }
     } catch (_: Exception) {}
+    // Media: a track of «Моя музыка» is a file of the app's own: its name and size are its own.
+    if (uri.scheme == "file") uri.path?.let { java.io.File(it) }?.let { file -> name = file.name; size = file.length() }
     // Only the last part of a name: never a path.
     name = name.substringAfterLast('/').trim()
     val type = try { resolver.getType(uri) } catch (_: Exception) { null }
@@ -285,6 +354,19 @@ class ChatAttachments(private val host: View, private val messenger: Messenger?,
     item.failed = words
     item.transfer = null
     onPendingChanged?.invoke()
+    sendAlbumInOrder() // Media: the next photo of an album need not wait for this one
+  }
+
+  /** Media: starts the photos of albums whose turn it is — each once the ones before it are ready (or failed), so
+   *  the album keeps its order on both sides. */
+  private fun sendAlbumInOrder() {
+    for (item in pending) {
+      if (item.meta?.get("album") == null || item.started) continue
+      if (item.failed != null) continue
+      if (item.prepared == null) return
+      item.started = true
+      send(item)
+    }
   }
 
   private fun remove(item: Pending) {
@@ -306,7 +388,7 @@ class ChatAttachments(private val host: View, private val messenger: Messenger?,
       item.wide = width / height
     }
     item.note = FileCore.sizeText(made.bytes.size.toLong())
-    send(item)
+    if (item.meta?.get("album") != null) sendAlbumInOrder() else { item.started = true; send(item) }
   }
 
   /** Seals the prepared bytes under a key of their own, uploads them and sends the message (from the main thread). */
@@ -403,6 +485,7 @@ class ChatAttachments(private val host: View, private val messenger: Messenger?,
   /** The chat's rows were read: gives the rows of outgoing attachments to add to them. */
   fun loaded(rows: List<Map<String, Any?>>): List<Map<String, Any?>> {
     AttachmentsDemo.opened(rows, host) { key -> pressed(key) }
+    AttachmentsDemo.media(this, host) // Media: the editor, the player, the round video, the panel
     return pendingRows
   }
 

@@ -220,6 +220,14 @@ class ForwardPicker(context: Context, private val messenger: Messenger?, private
   private val searchField = EditText(context)
   private val emptyLabel = TextView(context)
   private val table = ListView(context)
+  // Media: the folder tabs («Все чаты» and the person's folders, chatsplus/ChatFolders.kt), as the reference's
+  // forward/ForwardPicker.tsx; no row at all while there are no folders (its `tabs.length > 1`).
+  private val tabsScroll = android.widget.HorizontalScrollView(context)
+  private val tabsRow = LinearLayout(context)
+  private var folders: List<com.linea.messenger.chatsplus.ChatFolder> = emptyList()
+  private var filterId = "all"
+  private val folderStore get() = com.linea.messenger.chatsplus.ChatFolderStore.of(context, messenger?.userId ?: "sample")
+  private val foldersChanged: (Unit) -> Unit = { buildTabs(); filter() }
 
   /** One chat of the picker: the person's round picture and name. */
   private inner class Cell : FrameLayout(context) {
@@ -298,6 +306,13 @@ class ForwardPicker(context: Context, private val messenger: Messenger?, private
       override fun afterTextChanged(text: Editable?) = filter()
     })
     column.addView(searchField, LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, dp(40f)).apply { leftMargin = dp(14f); rightMargin = dp(14f); topMargin = dp(6f); bottomMargin = dp(8f) })
+    // Media: the folder tabs under the search.
+    tabsScroll.isHorizontalScrollBarEnabled = false
+    tabsRow.orientation = LinearLayout.HORIZONTAL
+    tabsRow.setPadding(dp(16f), 0, dp(10f), 0)
+    tabsScroll.addView(tabsRow, FrameLayout.LayoutParams(FrameLayout.LayoutParams.WRAP_CONTENT, dp(34f)))
+    column.addView(tabsScroll, LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, dp(34f)).apply { bottomMargin = dp(6f) })
+    buildTabs()
 
     val body = FrameLayout(context)
     table.divider = null
@@ -383,11 +398,59 @@ class ForwardPicker(context: Context, private val messenger: Messenger?, private
     }
 
   private fun filter() {
-    shown = savedTargets + matching(everyone, searchField.text.toString())
+    // Media: the chats of the chosen folder tab; «Избранное» only under «Все чаты».
+    val store = folderStore
+    val inTab = everyone.filter { store.matches(it.chatId, false, filterId) }
+    shown = (if (filterId == "all") savedTargets else emptyList()) + matching(inTab, searchField.text.toString())
     emptyLabel.text = "Ничего не найдено"
     emptyLabel.visibility = if (shown.isEmpty()) View.VISIBLE else View.GONE
     adapter.notifyDataSetChanged()
   }
+
+  // Media: the folder tabs
+
+  /** «Все чаты» and the folders; hidden while there are none. */
+  private fun buildTabs() {
+    folders = folderStore.folders
+    if (filterId != "all" && folders.none { it.id == filterId }) filterId = "all"
+    tabsRow.removeAllViews()
+    val tabs = listOf("all" to "Все чаты") + folders.map { it.id to it.name }
+    for ((id, name) in tabs) {
+      val tab = TextView(context)
+      tab.text = name
+      tab.textSize = 14f
+      tab.typeface = Theme.weight(600)
+      tab.gravity = Gravity.CENTER
+      tab.maxLines = 1
+      tab.setPadding(dp(14f), 0, dp(14f), 0)
+      tab.isClickable = true
+      tab.isFocusable = true
+      tab.tag = id
+      tab.setOnClickListener { filterId = id; paintTabs(); filter() }
+      tabsRow.addView(tab, LinearLayout.LayoutParams(LinearLayout.LayoutParams.WRAP_CONTENT, dp(34f)).apply { rightMargin = dp(6f) })
+    }
+    paintTabs()
+    tabsScroll.visibility = if (folders.isEmpty()) View.GONE else View.VISIBLE
+  }
+
+  private fun paintTabs() {
+    for (index in 0 until tabsRow.childCount) {
+      val tab = tabsRow.getChildAt(index) as? TextView ?: continue
+      val on = tab.tag == filterId
+      tab.background = GradientDrawable().apply {
+        cornerRadius = 17f * d
+        if (on) setColor(Theme.surface2) else setStroke(maxOf(1, dp(1f)), Theme.veil(0.14f))
+      }
+      tab.setTextColor(if (on) Theme.text else Theme.muted)
+      tab.isSelected = on
+    }
+  }
+
+  override fun onStart() { super.onStart(); com.linea.messenger.chatsplus.ChatFolderStore.changed.watch(foldersChanged) }
+  override fun onStop() { com.linea.messenger.chatsplus.ChatFolderStore.changed.unwatch(foldersChanged); super.onStop() }
+
+  /** `chatdemo forwardfolders` and the checks: the tab of a folder (by its id). */
+  fun chooseTab(id: String) { filterId = id; buildTabs(); filter() }
 
   // Composer: choosing several
 

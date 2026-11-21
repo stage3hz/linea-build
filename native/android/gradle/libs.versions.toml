@@ -16,6 +16,14 @@ webrtc = "150.7871.01"
 # Avatars: the animated emoji of the status and big emoji — the very Lottie build the previous app's Android side
 # links (lottie-react-native/android/build.gradle: com.airbnb.android:lottie:6.7.1) with its Noto files (assets/emoji).
 lottie = "6.7.1"
+# Media: the round video with both cameras at once — the very CameraX build the previous app's own Android module
+# links (modules/linea-photo/android/build.gradle: androidx.camera 1.6.0, its VideoNoteDualCamera.kt), and «Фон» of
+# the photo editor — the very ML Kit subject segmentation it links (play-services-mlkit-subject-segmentation
+# 16.0.0-beta1, a Google Play services module whose model Play services downloads onto the phone; the photo itself is
+# processed on the phone), with play-services-base for the module-install client.
+camerax = "1.6.0"
+mlkit-subject = "16.0.0-beta1"
+play-services-base = "18.10.1"
 # Read by the build scripts, so every module agrees.
 jvm = "17"
 compileSdk = "36"
@@ -29,6 +37,11 @@ sqlcipher = { module = "net.zetetic:sqlcipher-android", version.ref = "sqlcipher
 androidx-sqlite = { module = "androidx.sqlite:sqlite", version.ref = "androidx-sqlite" }
 lottie = { module = "com.airbnb.android:lottie", version.ref = "lottie" }
 webrtc = { module = "io.github.webrtc-sdk:android-prefixed", version.ref = "webrtc" }
+camera-core = { module = "androidx.camera:camera-core", version.ref = "camerax" }
+camera-camera2 = { module = "androidx.camera:camera-camera2", version.ref = "camerax" }
+camera-lifecycle = { module = "androidx.camera:camera-lifecycle", version.ref = "camerax" }
+mlkit-subject = { module = "com.google.android.gms:play-services-mlkit-subject-segmentation", version.ref = "mlkit-subject" }
+play-services-base = { module = "com.google.android.gms:play-services-base", version.ref = "play-services-base" }
 junit = { module = "junit:junit", version.ref = "junit" }
 robolectric = { module = "org.robolectric:robolectric", version.ref = "robolectric" }
 kotlin-test-junit = { module = "org.jetbrains.kotlin:kotlin-test-junit", version.ref = "kotlin" }

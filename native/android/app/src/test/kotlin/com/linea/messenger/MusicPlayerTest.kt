@@ -431,6 +431,7 @@ class MusicPlayerTest {
     val page = find(activity.window.decorView, "AIScreen")
     assertNotNull(page)
     val words = texts(page!!)
+    java.io.File("/tmp/claude-0/-home-user-linea-build/5c8e3f4d-68c9-5b80-a480-0dad40296d92/scratchpad/music.txt").writeText(words.toString())
     assertTrue(words.containsAll(listOf("Чем отличается val от var в Kotlin?", "Покажи пример со списком", "А если добавить элемент в names?", "Ответ за 3 с", "Ответ за 5 с",
       "AI-сервис не вернул допустимый ответ бесплатной модели. Попробуй ещё раз.", "Повторить этот вопрос", "Умная ⌄")))
     // The block of code is shown without its fence.
@@ -467,8 +468,10 @@ class MusicPlayerTest {
     assertNotNull(page)
     // A list builds its rows when it is laid out.
     val words = texts(page!!)
-    assertTrue(words.containsAll(listOf("Музыка", "Главная", "Любимое", "Мои файлы", "Любое", "Спокойно", "Слушать микс", "Новые имена и любимый звук", "ОТКРОЙ ДЛЯ СЕБЯ",
-      "Северное сияние", "Лера Туман · 3:34 · AUDIUS", "Полночь над рекой", "Музыка предоставлена авторами через Audius.")))
+    assertTrue(words.toString(), words.containsAll(listOf("Музыка", "Главная", "Любимое", "Мои файлы", "Любое", "Спокойно", "Слушать микс", "Новые имена и любимый звук", "ОТКРОЙ ДЛЯ СЕБЯ",
+      "Северное сияние", "Лера Туман · 3:34 · AUDIUS", "Полночь над рекой")))
+    // Music: the shelves «Любимое» and «Артисты» stand above the list now (music/MusicShelves.kt); the footer is further down.
+    assertTrue(words.containsAll(listOf("Артисты", "Артист")))
     // The strip of the «playing» track above the bar.
     val mini = find(page, "MiniPlayerView")!!
     assertEquals(View.VISIBLE, mini.visibility)

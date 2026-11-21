@@ -208,10 +208,14 @@ class ProfilePhotoChange(private val context: Context, private val messenger: Me
       val copied = VideoPrepare.copy(context, context.contentResolver, uri, job)
       if (copied == null) { main.post { setBusy(false); say("Не удалось выбрать файл.", true) }; return@execute }
       val seconds = try { MediaMetadataRetriever().run { setDataSource(copied.path); val ms = extractMetadata(MediaMetadataRetriever.METADATA_KEY_DURATION)?.toLongOrNull() ?: 0L; release(); ms / 1000.0 } } catch (_: Throwable) { 0.0 }
-      if (seconds > 10.5) { copied.delete(); main.post { setBusy(false); say("Видео — не длиннее 10 секунд.", true) }; return@execute }
+      // Profile: a longer video is cut to its first ten seconds (profile/ProfileVideoTrim.kt), as iOS's trimmer does.
+      if (seconds > 600) { copied.delete(); main.post { setBusy(false); say("Видео — не длиннее 10 секунд.", true) }; return@execute }
       VideoPrepare.prepare(context, copied, job) { result ->
         copied.delete()
-        val bytes = result.getOrNull()?.let { prepared -> try { prepared.file.readBytes() } catch (_: Throwable) { null }.also { prepared.file.delete() } }
+        val bytes = result.getOrNull()?.let { prepared ->
+          val cut = ProfileVideoTrim.firstSeconds(prepared.file)
+          try { cut.readBytes() } catch (_: Throwable) { null }.also { prepared.file.delete(); cut.delete() }
+        }
         main.post {
           setBusy(false)
           if (bytes == null) return@post say(VideoPrepare.failed, true)

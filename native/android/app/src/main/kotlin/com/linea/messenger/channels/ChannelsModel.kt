@@ -189,6 +189,8 @@ data class CommunityChannel(
   val voiceCount: Int,
   val unread: Int,
   val mentions: Int,
+  /** Channels: who is in a voice channel now (channels/CommunityVoice.kt). */
+  val voiceMembers: List<CommunityVoiceMember> = emptyList(),
 ) {
   val isText: Boolean get() = kind == "text"
 
@@ -199,6 +201,7 @@ data class CommunityChannel(
       return CommunityChannel(
         id, fields["kind"] as? String ?: "text", fields["name"] as? String ?: "", fields["topic"] as? String ?: "", fields["category"] as? String ?: "",
         int(fields["position"]), strings(fields["roleIds"]), (fields["voice"] as? List<*>)?.size ?: 0, int(fields["unread"]), int(fields["mentions"]),
+        CommunityVoiceMember.list(fields["voice"]),
       )
     }
   }
@@ -209,6 +212,10 @@ data class Community(val summary: CommunitySummary, val roles: List<CommunityRol
   val id: String get() = summary.id
   val blog: Boolean get() = summary.blog
   fun can(bit: Int): Boolean = summary.can(bit)
+
+  /** Channels: the same community with who is in a voice channel now (`voice.state`). */
+  fun withVoice(channelId: String, members: List<CommunityVoiceMember>): Community =
+    copy(channels = channels.map { if (it.id == channelId) it.copy(voiceMembers = members, voiceCount = members.size) else it })
 
   class Group(val name: String, val channels: List<CommunityChannel>)
 

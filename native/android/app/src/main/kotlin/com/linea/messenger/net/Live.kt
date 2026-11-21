@@ -162,7 +162,7 @@ class Live(private val server: Server) {
     if (type == "ready" || type.startsWith("story")) storyEvent.post(data)
     // Rooms (rooms/): the list of rooms (`room.*`), the voice of the room this phone is in (`voice.*`), and the
     // server's refusal of what was asked of it over the line (`error`).
-    if (type == "ready" || type == "error" || type.startsWith("room.") || type.startsWith("voice.")) roomEvent.post(data)
+    if (type == "ready" || type == "error" || type.startsWith("room.") || type.startsWith("voice.") || type.startsWith("sfu.")) roomEvent.post(data) // ScreenShare: `sfu.*` (screenshare/SfuSession.kt)
     // Composer: the server's list of scheduled messages changed (`scheduled`), or the line opened (composer/ScheduledStore.kt).
     if (type == "ready" || type == "scheduled") scheduledEvent.post(data)
     // Security: a sign-in from another device, a recovery request (security/AccountNotices.kt).

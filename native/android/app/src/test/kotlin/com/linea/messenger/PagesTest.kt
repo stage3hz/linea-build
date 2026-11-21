@@ -53,6 +53,10 @@ class PagesTest {
 
   private fun texts(view: View, into: MutableList<String> = ArrayList()): List<String> {
     if (view is TextView && view.visibility == View.VISIBLE) into.add(view.text.toString())
+    // Effects: the drawn parts of the sign-in screen (the wordmark, the button with states).
+    if (view is com.linea.messenger.effects.WordmarkView) into.add("Инвиз")
+    if (view is com.linea.messenger.effects.ActionButton) into.add(view.label)
+    if (view is com.linea.messenger.effects.AppearingTextView) into.add(view.text)
     if (view is ViewGroup) for (index in 0 until view.childCount) texts(view.getChildAt(index), into)
     return into
   }

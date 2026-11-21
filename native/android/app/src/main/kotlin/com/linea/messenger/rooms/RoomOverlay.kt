@@ -102,6 +102,17 @@ class RoomBarView(context: Context) : RoomGlassView(context, 18f) {
   private val words = context.words("", 12f, Theme.muted)
   private val micButton = RoomIconView(context, "mic.fill", 20f, Theme.text)
   private val leaveButton = RoomIconView(context, "phone.down.fill", 18f, 0xFFFFFFFF.toInt())
+  /** ScreenShare: «Остановить демонстрацию» while this phone shares its screen (the reference's VoiceBar). */
+  private val stopShareButton = object : View(context) {
+    private val ring = android.graphics.Paint(android.graphics.Paint.ANTI_ALIAS_FLAG).apply { style = android.graphics.Paint.Style.STROKE }
+    private val fill = android.graphics.Paint(android.graphics.Paint.ANTI_ALIAS_FLAG)
+    override fun onDraw(canvas: android.graphics.Canvas) {
+      val d = resources.displayMetrics.density
+      ring.color = Theme.danger; ring.strokeWidth = 1.8f * d; fill.color = Theme.danger
+      canvas.drawCircle(width / 2f, height / 2f, 10 * d, ring)
+      canvas.drawRoundRect(width / 2f - 4 * d, height / 2f - 4 * d, width / 2f + 4 * d, height / 2f + 4 * d, 1.5f * d, 1.5f * d, fill)
+    }
+  }
   private var roomId = ""
 
   init {
@@ -120,6 +131,11 @@ class RoomBarView(context: Context) : RoomGlassView(context, 18f) {
     leaveButton.isClickable = true
     leaveButton.setOnClickListener { Rooms.exit() }
     addView(leaveButton)
+    stopShareButton.contentDescription = "Остановить демонстрацию" // ScreenShare
+    stopShareButton.isClickable = true
+    stopShareButton.setOnClickListener { com.linea.messenger.screenshare.ScreenShare.stop() }
+    stopShareButton.visibility = GONE
+    addView(stopShareButton)
   }
 
   val shownHeading: String get() = heading.text.toString()
@@ -139,6 +155,8 @@ class RoomBarView(context: Context) : RoomGlassView(context, 18f) {
     micButton.color = if (voice.muted) Theme.danger else Theme.text
     micButton.ink = Theme.surface2
     micButton.contentDescription = if (voice.muted) "Включить микрофон" else "Выключить микрофон"
+    stopShareButton.visibility = if (com.linea.messenger.screenshare.ScreenShare.sharing == null) GONE else VISIBLE // ScreenShare
+    requestLayout()
   }
 
   override fun onLayout(changed: Boolean, l: Int, t: Int, r: Int, b: Int) {
@@ -147,7 +165,10 @@ class RoomBarView(context: Context) : RoomGlassView(context, 18f) {
     put(leaveButton, leaveLeft, (height - dp(40f)) / 2, dp(40f), dp(40f))
     val micLeft = leaveLeft - dp(44f)
     put(micButton, micLeft, (height - dp(40f)) / 2, dp(40f), dp(40f))
-    put(opener, 0, 0, micLeft - dp(4f), height)
+    // ScreenShare: the stop button left of the microphone while sharing.
+    val stopLeft = micLeft - dp(44f)
+    put(stopShareButton, stopLeft, (height - dp(40f)) / 2, dp(40f), dp(40f))
+    put(opener, 0, 0, (if (stopShareButton.visibility == VISIBLE) stopLeft else micLeft) - dp(4f), height)
   }
 
   companion object {
@@ -200,6 +221,7 @@ object RoomOverlay {
       watching = true
       Rooms.changed.watch { refresh() }
       RoomVoice.changed.watch { refresh() }
+      com.linea.messenger.screenshare.ScreenShare.changed.watch { refresh() } // ScreenShare: the stop button
       // The overlay of calls gives the pages their room back when a call is gone (calls/CallOverlay.kt): the
       // room's bar, if it is shown, takes its own room again right after.
       Calls.changed.watch {

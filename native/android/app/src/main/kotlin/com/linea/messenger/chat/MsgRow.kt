@@ -28,6 +28,8 @@ data class MsgRow(
   val bigEmoji: Int = 0,
   /** Composer: an own message sent «без звука» (a crossed bell before the time). */
   val silent: Boolean = false,
+  /** Media: several photos sent together, drawn as one mosaic (attachments/AlbumGrid.kt); null: none. */
+  val album: com.linea.messenger.attachments.MsgAlbum? = null,
 ) {
   companion object {
     private fun text(value: Any?) = value as? String ?: ""
@@ -43,6 +45,7 @@ data class MsgRow(
         text(row["media"]), text(row["wave"]), text(row["mediaTime"]), com.linea.messenger.linkpreview.MsgLinkCard.parse(row["card"]),
         // Polls, Composer: what those parts add to a row.
         com.linea.messenger.polls.MsgPoll.parse(row["poll"]), int(row["bigEmoji"], 0).coerceIn(0, 3), flag(row["silent"]),
+        com.linea.messenger.attachments.MsgAlbum.parse(row["album"]), // Media
       )
     }
   }

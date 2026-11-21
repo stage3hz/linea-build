@@ -56,6 +56,8 @@ class ChatHistory(private val messenger: Messenger?, private val local: ChatLoca
     val calls: Map<String, Map<String, Any?>> = emptyMap(),
     /** ChatActions: how many messages hold the words of the search (0 without a search). */
     val found: Int = 0,
+    /** Media: the keys of an album's further photos, by the key of the album's row (attachments/AlbumGrid.kt). */
+    val albumParts: Map<String, List<String>> = emptyMap(),
   )
 
   /** Everything `build` reads, taken at one moment. */
@@ -442,6 +444,7 @@ class ChatHistory(private val messenger: Messenger?, private val local: ChatLoca
       var unreadShown = false
       val calls = HashMap<String, Map<String, Any?>>() // ChatsPlus
       var found = 0 // ChatActions: the search
+      val albumParts = HashMap<String, ArrayList<String>>() // Media: the albums
       messages.forEachIndexed { index, message ->
         val sender = message["senderId"] as? String ?: ""
         val client = message["clientId"] as? String ?: ""
@@ -515,6 +518,27 @@ class ChatHistory(private val messenger: Messenger?, private val local: ChatLoca
         }
         val state = message["localState"] as? String ?: ""
         val ticks = if (state == "failed") 4 else if (state == "sending") 3 else if (mine) (if (input.peerLastRead >= id) 2 else 1) else 0
+        // Media: the next photo of an album joins the album's row (attachments/AlbumGrid.kt).
+        val lastRow = rows.lastOrNull()
+        val head = lastRow?.get("key") as? String
+        if (lastRow != null && head != null && com.linea.messenger.attachments.AlbumRows.joins(message, sender, lastRow)) {
+          val parts = ArrayList((lastRow["album"] as? List<*>).orEmpty())
+          if (parts.isEmpty()) lastRow["albumFirst"]?.let { parts.add(it) }
+          parts.add(com.linea.messenger.attachments.AlbumRows.part(message, key))
+          lastRow["album"] = parts
+          for (field in listOf("thumb", "thumbWide", "thumbRound", "media", "mediaTime", "label")) lastRow.remove(field)
+          lastRow["time"] = (if (message["edited"] == true) "изм. " else "") + clock
+          lastRow["tail"] = tail
+          lastRow["ticks"] = ticks
+          // The caption is the first part that has words.
+          if ((lastRow["text"] as? String ?: "").isEmpty() && (message["text"] as? String ?: "").isNotEmpty()) {
+            lastRow["text"] = body; lastRow["fmt"] = fmt; lastRow["urls"] = urls
+          }
+          albumParts.getOrPut(head) { ArrayList() }.add(key)
+          shownMessages[key] = message
+          keyOfClient[client] = head
+          return@forEachIndexed
+        }
         val chips = ArrayList<String>()
         for (reaction in (message["reactions"] as? List<*>).orEmpty().mapNotNull { Core.map(it) }) {
           chips.add(reaction["emoji"] as? String ?: "")
@@ -538,8 +562,13 @@ class ChatHistory(private val messenger: Messenger?, private val local: ChatLoca
           row["forward"] = if (from.isEmpty()) "Пересланное сообщение" else "Переслано от $from"
         }
         // Attachments: a photo's small picture or a file's name and size (attachments/AttachmentOpen.kt).
-        if (Core.map(message["attachment"] as? Map<*, *>) != null) row.putAll(AttachmentRows.fields(message, key))
-        else if (meta?.get("poll") != null) {
+        if (Core.map(message["attachment"] as? Map<*, *>) != null) {
+          row.putAll(AttachmentRows.fields(message, key))
+          // Media: the first photo of an album keeps what the album's row needs once the next one joins.
+          val album = Core.map(meta?.get("album") as? Map<*, *>)
+          val albumId = album?.get("id") as? String
+          if (albumId != null) { row["albumId"] = albumId; row["albumSender"] = sender; row["albumFirst"] = com.linea.messenger.attachments.AlbumRows.part(message, key) }
+        } else if (meta?.get("poll") != null) {
           // Polls: the poll itself (polls/PollRow.kt); its text is only for clients without polls.
           val usable = state.isEmpty() && message["cryptoState"] as? String == "decrypted" && input.selection == null
           val poll = com.linea.messenger.polls.PollRows.fields(message, input.pollDrafts[key] ?: emptyList(), disabled = !usable)
@@ -560,7 +589,7 @@ class ChatHistory(private val messenger: Messenger?, private val local: ChatLoca
         keyOfClient[client] = key
         order.add(key)
       }
-      return Shown(rows, shownMessages, keyOfClient, order, pinned, noCopy, newestTheirs, noKey, failedActions, ttl, calls = calls, found = found)
+      return Shown(rows, shownMessages, keyOfClient, order, pinned, noCopy, newestTheirs, noKey, failedActions, ttl, calls = calls, found = found, albumParts = albumParts)
     }
   }
 }

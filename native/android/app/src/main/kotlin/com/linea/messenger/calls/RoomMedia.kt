@@ -55,6 +55,10 @@ class RoomPeerMedia private constructor(private val microphone: RoomMicrophone) 
   private val main = Handler(Looper.getMainLooper())
   private var connection: PeerConnection? = null
   private var micSender: RtpSender? = null
+  /** ScreenShare: the video slot every connection reserves (screenshare/ScreenShare.kt); this phone's screen goes in it. */
+  private var screenSender: RtpSender? = null
+  /** ScreenShare: the person's screen arrived over this connection (their copy over the checked link). */
+  var onVideo: ((livekit.org.webrtc.VideoTrack) -> Unit)? = null
   private var channel: DataChannel? = null
   private var audible = false
   private var lastState = ""
@@ -112,7 +116,12 @@ class RoomPeerMedia private constructor(private val microphone: RoomMicrophone) 
     override fun onRenegotiationNeeded() {}
     override fun onAddTrack(receiver: RtpReceiver?, streams: Array<out MediaStream>?) {
       // Whatever arrives is silent until the connection is checked.
-      main.post { if (!closed) setAudible(audible) }
+      val video = try { receiver?.track() as? livekit.org.webrtc.VideoTrack } catch (_: Exception) { null } // ScreenShare: the person's screen slot
+      main.post {
+        if (closed) return@post
+        setAudible(audible)
+        if (video != null) onVideo?.invoke(video) // ScreenShare
+      }
     }
   }
 
@@ -129,6 +138,34 @@ class RoomPeerMedia private constructor(private val microphone: RoomMicrophone) 
       for (receiver in connection.receivers) {
         val track = receiver.track() ?: continue
         if (track.kind() == "audio") track.setEnabled(on)
+      }
+    } catch (_: Exception) {}
+  }
+
+  /** ScreenShare: this phone's screen goes into the connection (null: out of it), with the quality's cap. */
+  fun setScreen(track: livekit.org.webrtc.VideoTrack?, maxBitrate: Int?) {
+    val sender = screenSender ?: return
+    try {
+      sender.setTrack(track, false)
+      if (track == null || maxBitrate == null) return
+      val parameters = sender.parameters
+      val encoding = parameters.encodings.firstOrNull() ?: return
+      encoding.maxBitrateBps = maxBitrate
+      encoding.maxFramerate = 60
+      sender.parameters = parameters
+    } catch (_: Exception) {}
+  }
+
+  /** ScreenShare: the answering side takes the video slot of the offer as its own, and may send its screen there. */
+  private fun takeScreenSlot() {
+    if (screenSender != null) return
+    val connection = connection ?: return
+    try {
+      for (transceiver in connection.transceivers) {
+        if (transceiver.mediaType != livekit.org.webrtc.MediaStreamTrack.MediaType.MEDIA_TYPE_VIDEO || transceiver.mid.isNullOrEmpty()) continue
+        transceiver.direction = livekit.org.webrtc.RtpTransceiver.RtpTransceiverDirection.SEND_RECV
+        screenSender = transceiver.sender
+        return
       }
     } catch (_: Exception) {}
   }
@@ -180,7 +217,9 @@ class RoomPeerMedia private constructor(private val microphone: RoomMicrophone) 
 
   fun setRemote(kind: String, sdp: String, done: (Boolean) -> Unit) {
     val connection = connection ?: return done(false)
-    try { connection.setRemoteDescription(Heard(taken = done), description(kind, sdp)) } catch (_: Exception) { done(false) }
+    // ScreenShare: an offer brings the video slot; the answer takes it as this phone's own.
+    val taken: (Boolean) -> Unit = { fine -> if (fine && kind == "offer") takeScreenSlot(); done(fine) }
+    try { connection.setRemoteDescription(Heard(taken = taken), description(kind, sdp)) } catch (_: Exception) { done(false) }
   }
 
   // The addresses (non-trickle ICE: they travel once, inside the offer or the answer)
@@ -266,6 +305,9 @@ class RoomPeerMedia private constructor(private val microphone: RoomMicrophone) 
     onState = null
     onMessage = null
     onChannelOpen = null
+    onVideo = null // ScreenShare
+    try { screenSender?.setTrack(null, false) } catch (_: Exception) {}
+    screenSender = null
     val open = channel
     channel = null
     try { open?.unregisterObserver() } catch (_: Exception) {}
@@ -296,10 +338,21 @@ class RoomPeerMedia private constructor(private val microphone: RoomMicrophone) 
         config.sdpSemantics = PeerConnection.SdpSemantics.UNIFIED_PLAN
         val connection = CallMedia.factory(context.applicationContext).createPeerConnection(config, media.observer) ?: return null
         media.connection = connection
+        // ScreenShare: as the reference, the newcomer reserves a video slot before the first offer (a screen that is
+        // started or stopped only swaps its picture, nothing is negotiated again). The answering side takes the slot
+        // the offer brings (`takeScreenSlot`).
+        if (initiator) {
+          media.screenSender = connection.addTransceiver(livekit.org.webrtc.MediaStreamTrack.MediaType.MEDIA_TYPE_VIDEO,
+            livekit.org.webrtc.RtpTransceiver.RtpTransceiverInit(livekit.org.webrtc.RtpTransceiver.RtpTransceiverDirection.SEND_RECV))?.sender
+        }
         // The microphone's place is agreed now, but the sound goes in only once the connection is checked.
         val sender = connection.addTrack(microphone.track, listOf(microphone.streamId))
         sender?.setTrack(null, false)
         media.micSender = sender
+        // ScreenShare: after the microphone, the slot of a shared computer's sound (the reference's second audio
+        // section: a computer sends its sound there; this phone only listens to it).
+        if (initiator) connection.addTransceiver(livekit.org.webrtc.MediaStreamTrack.MediaType.MEDIA_TYPE_AUDIO,
+          livekit.org.webrtc.RtpTransceiver.RtpTransceiverInit(livekit.org.webrtc.RtpTransceiver.RtpTransceiverDirection.SEND_RECV))
         if (initiator) {
           connection.createDataChannel("screen-control", DataChannel.Init())?.let { opened ->
             media.channel = opened

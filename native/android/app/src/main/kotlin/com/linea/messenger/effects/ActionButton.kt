@@ -100,6 +100,9 @@ class ActionButton(context: Context, label: String) : View(context) {
     minimumHeight = (HEIGHT * d).toInt()
   }
 
+  /** The words the button shows now (a screen reader and the page checks read them). */
+  val shownText: String get() = current
+
   /** A new error happened: «Ошибка» with a cross for 1.4 s. */
   fun signalError() {
     main.removeCallbacksAndMessages(null)

@@ -11,4 +11,11 @@ object AttachmentsDemo {
 
   @Suppress("UNUSED_PARAMETER")
   fun opened(rows: List<Map<String, Any?>>, host: View, press: (String) -> Unit) {}
+
+  /** Media: never drawn tiles in a release build. */
+  @Suppress("UNUSED_PARAMETER")
+  fun panelSamples(panel: AttachmentPanel): Boolean = false
+
+  @Suppress("UNUSED_PARAMETER")
+  fun media(attachments: ChatAttachments, host: View) {}
 }

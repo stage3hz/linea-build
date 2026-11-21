@@ -130,8 +130,10 @@ class ChatLookPagesTest {
 
   @Test fun thePollsTheSearchAndForwarding() {
     val (_, features) = chat("206-chat-features", "chatdemo" to "features")
-    assertTrue(described(features).any { it.contains("Куда пойдём в пятницу?") })
-    assertTrue(described(features).any { it.contains("без звука") })
+    // Media: the sample album now stands last (attachments/AlbumGrid.kt) and pushes the poll and «без звука» above the screen.
+    assertTrue(features.actions.history.shown.rows.any { (it["poll"] as? Map<*, *>)?.get("question") == "Куда пойдём в пятницу?" || it["text"].toString().contains("Куда пойдём в пятницу?") })
+    assertTrue(features.actions.history.shown.rows.any { it["silent"] == true })
+    assertTrue(features.actions.history.shown.albumParts.values.any { it.size == 2 })
     chat("207-poll-new", "chatdemo" to "newpoll")
     assertTrue(texts(dialog("207-poll-new-sheet").window!!.decorView).containsAll(listOf("Новый опрос", "Отправить опрос")))
     val (_, search) = chat("208-chat-search", "chatdemo" to "search")

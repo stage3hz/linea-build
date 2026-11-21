@@ -92,7 +92,14 @@ class MainActivity : Activity(), Launcher, AccountHost, com.linea.messenger.sett
   @Deprecated("The platform's own way for a plain Activity.")
   @Suppress("DEPRECATION")
   override fun onActivityResult(requestCode: Int, resultCode: Int, data: android.content.Intent?) {
+    if (com.linea.messenger.screenshare.ScreenShare.result(requestCode, resultCode, data)) return // ScreenShare: the system's answer about the screen
     if (!Picks.result(requestCode, resultCode, data)) super.onActivityResult(requestCode, resultCode, data)
+  }
+
+  /** Media: the video player's small window (video/VideoPlayer.kt). */
+  override fun onPictureInPictureModeChanged(isInPictureInPictureMode: Boolean, newConfig: android.content.res.Configuration) {
+    super.onPictureInPictureModeChanged(isInPictureInPictureMode, newConfig)
+    com.linea.messenger.video.VideoPlayer.pipChanged(isInPictureInPictureMode)
   }
 
   /** Profile: a tapped birthday reminder while the window lives (profile/Birthdays.kt). */
@@ -199,6 +206,7 @@ class MainActivity : Activity(), Launcher, AccountHost, com.linea.messenger.sett
    *  The session is already forgotten (settings/AccountActions.kt); the account's work on this device ends —
    *  its storage and keys stay — and signing in is shown, with a few words why. */
   override fun closeAccount(notice: String) {
+    com.linea.messenger.video.KeptMedia.wipe(this) // Media: films kept for watching without the network go with the account
     messenger?.close()
     messenger = null
     showAuth()

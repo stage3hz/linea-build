@@ -20,7 +20,9 @@ import java.lang.ref.WeakReference
 
 /** Somebody this phone is connected to inside the room: `peer` is the id the server gave that person's connection
  *  (one person may be inside from two devices), `connected` — the voice is flowing. */
-data class RoomVoicePeer(val peer: String, val userId: String, val muted: Boolean, val connected: Boolean)
+data class RoomVoicePeer(val peer: String, val userId: String, val muted: Boolean, val connected: Boolean,
+  /** Channels: a moderator turned this person's microphone off / their sound off (the server mute / deafen). */
+  val serverMuted: Boolean = false, val serverDeafened: Boolean = false)
 
 /** The room this phone is inside, as the screens show it (the reference's `VoiceState` for a room). */
 data class RoomVoiceState(
@@ -35,6 +37,14 @@ data class RoomVoiceState(
   val error: String = "",
   /** The worst link among the people this phone is connected to: "good", "weak" or "bad". */
   val link: String = "good",
+  /** Channels: a community's voice channel (its community's id and name); null for a room (channels/CommunityVoice.kt). */
+  val communityId: String? = null,
+  val communityName: String = "",
+  /** «Звук» off: nobody is heard (and the microphone goes off too). */
+  val deafened: Boolean = false,
+  /** A moderator of the community turned this phone's microphone / sound off. */
+  val serverMuted: Boolean = false,
+  val serverDeafened: Boolean = false,
 )
 
 /** The voice of a room: the reference's communities/voice.ts, as far as a room uses it.
@@ -84,7 +94,9 @@ object RoomVoice {
   private class Grade(var grade: String = "good", var calm: Int = 0, var sample: Map<String, Any?>? = null)
 
   private val main = Handler(Looper.getMainLooper())
-  private var messenger: Messenger? = null
+  /** ScreenShare: the account inside (its line carries the SFU's signalling). */
+  var messenger: Messenger? = null
+    private set
   private var app: Context? = null
   private var window = WeakReference<Activity>(null)
   private var microphone: RoomMicrophone? = null
@@ -151,7 +163,10 @@ object RoomVoice {
 
   /** Walks into the room: the microphone opens and the others hear this phone once each connection is checked.
    *  `done` gets null, or the words that say why not. The microphone is asked for here, the first time. */
-  fun join(messenger: Messenger, roomId: String, name: String, done: (String?) -> Unit) {
+  fun join(messenger: Messenger, roomId: String, name: String, done: (String?) -> Unit) = join(messenger, roomId, name, null, done)
+
+  /** Channels: a community's voice channel is walked into the same way (`community`: its id and name). */
+  fun join(messenger: Messenger, roomId: String, name: String, community: Pair<String, String>?, done: (String?) -> Unit) {
     if (state?.roomId == roomId) return done(null)
     // A one-to-one call and a room share the phone's microphone and its sound: one at a time.
     if (Calls.call?.isOver == false) return done("Сначала заверши звонок.")
@@ -174,13 +189,13 @@ object RoomVoice {
           if (joining != attempt) return@run // a newer attempt answers instead
           if (device.isNullOrEmpty()) return@run done("Шифрование ещё не готово. Попробуй ещё раз.")
           if (Calls.call?.isOver == false) return@run done("Сначала заверши звонок.")
-          begin(messenger, roomId, name, device, done)
+          begin(messenger, roomId, name, device, community, done)
         }
       }
     }
   }
 
-  private fun begin(messenger: Messenger, roomId: String, name: String, device: String, done: (String?) -> Unit) {
+  private fun begin(messenger: Messenger, roomId: String, name: String, device: String, community: Pair<String, String>?, done: (String?) -> Unit) {
     val context = app ?: return done("Не удалось зайти в комнату.")
     val opened = RoomMicrophone.open(context) ?: return done("Не удалось зайти в комнату.")
     this.messenger = messenger
@@ -196,14 +211,14 @@ object RoomVoice {
     watch.start(context)
     network = watch
     messenger.live.heldByCall = true
-    state = RoomVoiceState(roomId, name, status = "connecting", speaker = speaker)
+    state = RoomVoiceState(roomId, name, status = "connecting", speaker = speaker, communityId = community?.first, communityName = community?.second ?: "")
     val links = object : Runnable { override fun run() { checkLinks(); main.postDelayed(this, RoomRules.linkPoll) } }
     linkTimer = links
     main.postDelayed(links, RoomRules.linkPoll)
     val ticks = object : Runnable { override fun run() { for (media in connections.values.toList()) media.tellState(); main.postDelayed(this, 1000) } }
     beat = ticks
     main.postDelayed(ticks, 1000)
-    if (!send(mapOf("type" to "voice.join", "roomId" to roomId, "device" to device))) {
+    if (!send(joinFrame(roomId, community?.first, null, device))) {
       cleanup()
       return done("Нет соединения с сервером.")
     }
@@ -233,6 +248,7 @@ object RoomVoice {
 
   private fun cleanup() {
     if (state != null) onLeaving?.invoke()
+    com.linea.messenger.screenshare.ScreenShare.voiceEnded() // ScreenShare: the share stops while the channels are still open
     for (media in connections.values) media.close()
     connections.clear()
     for (timer in authTimers.values) cancel(timer)
@@ -276,9 +292,44 @@ object RoomVoice {
   fun toggleMute() {
     val current = state ?: return
     val muted = !current.muted
+    // Channels: a moderator's mute is not undone from here.
+    if (!muted && current.serverMuted) return patch { it.copy(error = "Модератор отключил тебе микрофон на этом сервере.") }
     microphone?.set(!muted)
     send(mapOf("type" to "voice.mute", "muted" to muted))
     patch { it.copy(muted = muted) }
+  }
+
+  /** Channels: «Звук» off — nobody is heard, and the microphone goes off too; on again — the microphone as it was. */
+  fun toggleDeafen() {
+    val current = state ?: return
+    val deafened = !current.deafened
+    if (!deafened && current.serverDeafened) return patch { it.copy(error = "Модератор отключил тебе звук на этом сервере.") }
+    patch { it.copy(deafened = deafened) }
+    applyAudio()
+    if (deafened) {
+      mutedBeforeDeafen = current.muted
+      if (!current.muted) toggleMute()
+    } else if (!mutedBeforeDeafen && state?.muted == true) toggleMute()
+  }
+
+  private var mutedBeforeDeafen = false
+
+  /** Whether a person's voice is played: only over a checked connection, not while this phone's sound is off (by itself
+   *  or by a moderator), and not when a moderator turned that person's microphone off. */
+  private fun audible(peer: String): Boolean {
+    val current = state ?: return false
+    if (current.deafened || current.serverDeafened || peer !in verified) return false
+    return current.peers.firstOrNull { it.peer == peer }?.serverMuted != true
+  }
+
+  private fun applyAudio() { for ((peer, media) in connections.toList()) if (peer in verified) media.setAudible(audible(peer)) }
+
+  /** `voice.join` for a room, or for a community's voice channel. */
+  private fun joinFrame(roomId: String, communityId: String?, muted: Boolean?, device: String): Map<String, Any?> {
+    val frame = linkedMapOf<String, Any?>("type" to "voice.join", "device" to device)
+    if (communityId != null) { frame["communityId"] = communityId; frame["channelId"] = roomId } else frame["roomId"] = roomId
+    if (muted != null) frame["muted"] = muted
+    return frame
   }
 
   /** «Звук на динамике» ↔ «Звук в трубке» (with headphones on, the second one is the headphones). */
@@ -378,10 +429,18 @@ object RoomVoice {
       "voice.state" -> {
         if (!here) return
         val members = (data["members"] as? List<*>)?.mapNotNull { Core.map(it as? Map<*, *>) } ?: return
-        // The microphones of everyone in the room.
-        val muted = HashMap<String, Boolean>()
-        for (item in members) (item["userId"] as? String)?.let { muted[it] = item["muted"] as? Boolean ?: false }
-        patch { voice -> voice.copy(peers = voice.peers.map { peer -> muted[peer.userId]?.let { peer.copy(muted = it) } ?: peer }) }
+        // The microphones of everyone in the room, and in a channel a moderator's server mute / deafen.
+        val byUser = HashMap<String, Map<String, Any?>>()
+        for (item in members) (item["userId"] as? String)?.let { byUser[it] = item }
+        val mine = messenger?.userId?.let { byUser[it] }
+        val serverMuted = mine?.get("serverMuted") as? Boolean ?: false
+        val serverDeafened = mine?.get("serverDeafened") as? Boolean ?: false
+        if (serverMuted && !current.muted) toggleMute()
+        patch { voice -> voice.copy(serverMuted = serverMuted, serverDeafened = serverDeafened, peers = voice.peers.map { peer ->
+          val known = byUser[peer.userId] ?: return@map peer
+          peer.copy(muted = known["muted"] as? Boolean ?: false, serverMuted = known["serverMuted"] as? Boolean ?: false, serverDeafened = known["serverDeafened"] as? Boolean ?: false)
+        }) }
+        applyAudio()
       }
       // No longer a member, or the room is gone.
       "voice.kicked" -> if (here) cleanup()
@@ -405,7 +464,7 @@ object RoomVoice {
     for (peer in connections.keys.toList()) drop(peer)
     selfPeer = null
     patch { it.copy(status = "connecting", peers = emptyList()) }
-    send(mapOf("type" to "voice.join", "roomId" to roomId, "muted" to current.muted, "device" to ownDevice))
+    send(joinFrame(roomId, current.communityId, current.muted, ownDevice))
   }
 
   // Connections
@@ -423,14 +482,20 @@ object RoomVoice {
     media.onState = { state ->
       if (connections[peer] === media) {
         feedLink(peer, media, mapOf("kind" to "state", "state" to state))
-        if (state == "connected") peerUpdate(peer, connected = true)
+        if (state == "connected") { peerUpdate(peer, connected = true); com.linea.messenger.screenshare.ScreenShare.connected(peer) } // ScreenShare
         else if (state == "failed" || state == "closed") peerUpdate(peer, connected = false)
       }
     }
-    // Only from a person whose connection passed the check.
-    media.onMessage = { text -> if (connections[peer] === media && peer in verified) onPeerText?.invoke(peer, text) }
-    media.onChannelOpen = { if (connections[peer] === media) onPeerReady?.invoke(peer) }
+    media.onMessage = { text ->
+      // ScreenShare: the screen's messages (its state, what the person can open, frame keys held until the check).
+      if (connections[peer] === media && !com.linea.messenger.screenshare.ScreenShare.message(peer, text, peer in verified)) {
+        // Only from a person whose connection passed the check.
+        if (peer in verified) onPeerText?.invoke(peer, text)
+      }
+    }
+    media.onChannelOpen = { if (connections[peer] === media) { com.linea.messenger.screenshare.ScreenShare.channelOpened(peer); onPeerReady?.invoke(peer) } } // ScreenShare
     connections[peer] = media
+    com.linea.messenger.screenshare.ScreenShare.attach(peer, media) // ScreenShare
     return media
   }
 
@@ -442,6 +507,7 @@ object RoomVoice {
   }
 
   private fun drop(peer: String) {
+    com.linea.messenger.screenshare.ScreenShare.dropped(peer) // ScreenShare
     unverify(peer)
     peerInfo.remove(peer)
     grades.remove(peer)
@@ -590,9 +656,11 @@ object RoomVoice {
       if (!fine) return@call refuse(peer)
       verified.add(peer)
       cancel(authTimers.remove(peer))
-      // The connection is proven end to end: sound both ways.
-      media.setAudible(true)
+      // The connection is proven end to end: sound both ways (Channels: unless this phone's sound is off, or a moderator
+      // turned that person's microphone off).
+      media.setAudible(audible(peer))
       media.setMicrophone(live = true)
+      com.linea.messenger.screenshare.ScreenShare.verified(peer) // ScreenShare: the screen and its frame key
       onPeerReady?.invoke(peer)
     }
   }
@@ -715,9 +783,9 @@ object RoomVoice {
   // The debug build's samples
 
   /** A room this phone is «inside» without a server or any media (`--es roomsdemo`). */
-  fun showDemo(roomId: String, name: String, peers: List<RoomVoicePeer>, muted: Boolean, speaking: Set<String>) {
+  fun showDemo(roomId: String, name: String, peers: List<RoomVoicePeer>, muted: Boolean, speaking: Set<String>, community: Pair<String, String>? = null) {
     demo = true
     demoSpeaking = speaking
-    state = RoomVoiceState(roomId, name, status = "connected", muted = muted, speaker = true, peers = peers)
+    state = RoomVoiceState(roomId, name, status = "connected", muted = muted, speaker = true, peers = peers, communityId = community?.first, communityName = community?.second ?: "")
   }
 }

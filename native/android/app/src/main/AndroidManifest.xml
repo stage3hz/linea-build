@@ -27,6 +27,20 @@
          the system installer is opened. The person still confirms the installation in the system's window (and allows
          «install from INVIZENT» once); nothing is installed silently. -->
     <uses-permission android:name="android.permission.REQUEST_INSTALL_PACKAGES" />
+    <!-- ScreenShare: showing this phone's screen in a voice channel (screenshare/ScreenShare.kt), as the reference declares
+         it (plugins/withScreenBroadcast.js). The system asks the person for every share; a foreground service of the type
+         «mediaProjection» holds the capture only while it runs. Security: the fingerprint or the face for «Код-пароль»
+         (security/LockModel.kt, the reference's expo-local-authentication); given with the install, asks nothing. -->
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE_MEDIA_PROJECTION" />
+    <uses-permission android:name="android.permission.USE_BIOMETRIC" />
+    <!-- Media: the paperclip's own panel (attachments/AttachmentPanel.kt) shows the gallery, as the reference's
+         expo-media-library declares it: the person is asked only when the panel first opens, never at the start, and on
+         Android 14 and later may allow only some photos and videos (READ_MEDIA_VISUAL_USER_SELECTED). Only photos and
+         videos are read, never other files; the system's own pickers stay as the way without this access. -->
+    <uses-permission android:name="android.permission.READ_MEDIA_IMAGES" />
+    <uses-permission android:name="android.permission.READ_MEDIA_VIDEO" />
+    <uses-permission android:name="android.permission.READ_MEDIA_VISUAL_USER_SELECTED" />
+    <uses-permission android:name="android.permission.READ_EXTERNAL_STORAGE" android:maxSdkVersion="32" />
     <uses-feature android:name="android.hardware.microphone" android:required="false" />
     <uses-feature android:name="android.hardware.camera" android:required="false" />
     <uses-feature android:name="android.hardware.camera.front" android:required="false" />
@@ -45,6 +59,7 @@
             android:name=".MainActivity"
             android:configChanges="orientation|screenSize|screenLayout|smallestScreenSize|keyboard|keyboardHidden"
             android:windowSoftInputMode="adjustResize"
+            android:supportsPictureInPicture="true"
             android:exported="true">
             <!-- Links: an invitation to a channel or a server — linea://invite/CODE and invizent://invite/CODE (the
                  reference's scheme `linea`, communities/types.ts INVITE_LINK). Only the code is read (app/DeepLinks.kt);
@@ -111,6 +126,13 @@
             android:authorities="${applicationId}.files"
             android:exported="false"
             android:grantUriPermissions="true" />
+        <!-- Media: where the system's camera writes a photo taken from the paperclip's panel (attachments/CaptureProvider.kt).
+             Not exported: only the camera app handed one address with a write grant can write that one file. -->
+        <provider
+            android:name=".attachments.CaptureProvider"
+            android:authorities="${applicationId}.capture"
+            android:exported="false"
+            android:grantUriPermissions="true" />
         <!-- Music: keeps the playback, its notification and its lock-screen controls while the app is not on the
              screen. Not exported: only the app itself starts it. -->
         <!-- Profile: shows a friend's birthday reminder when the system's alarm clock rings for it (profile/Birthdays.kt).
@@ -118,6 +140,11 @@
         <receiver
             android:name=".profile.BirthdayReceiver"
             android:exported="false" />
+        <!-- ScreenShare: holds the screen capture while this phone shares its screen. Not exported. -->
+        <service
+            android:name=".screenshare.ScreenCaptureService"
+            android:exported="false"
+            android:foregroundServiceType="mediaProjection" />
         <service
             android:name=".music.MusicService"
             android:exported="false"

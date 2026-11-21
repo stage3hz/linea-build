@@ -124,6 +124,13 @@ dependencies {
     implementation(libs.webrtc)
     // Avatars: the animated emoji (avatars/AnimatedEmoji.kt is the only file that knows it).
     implementation(libs.lottie)
+    // Media: the round video with both cameras at once (video/NoteDualCamera.kt is the only file that knows it).
+    implementation(libs.camera.core)
+    implementation(libs.camera.camera2)
+    implementation(libs.camera.lifecycle)
+    // Media: «Фон» of the photo editor (attachments/PhotoBackground.kt is the only file that knows it).
+    implementation(libs.mlkit.subject)
+    implementation(libs.play.services.base)
     testImplementation(libs.junit)
     testImplementation(libs.robolectric)
 }

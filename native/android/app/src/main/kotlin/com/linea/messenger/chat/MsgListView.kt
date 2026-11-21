@@ -91,6 +91,9 @@ class MsgListView(context: Context) : FrameLayout(context) {
       // Polls: an option, «Голосовать», «Отменить голос» (not while messages are being chosen).
       val poll = if (row.checked < 0) (view as? MsgRowView)?.pollAt(upX - view.left, upY - view.top) else null
       if (poll != null) { onPollPress(row.key, poll); return@setOnItemClickListener }
+      // Media: a photo of an album opens that photo (not while messages are being chosen).
+      val albumPart = if (row.checked < 0) (view as? MsgRowView)?.albumAt(upX - view.left, upY - view.top) else null
+      if (albumPart != null) { view.getLocationOnScreen(place); onMsgPress(albumPart, place[1] + view.height / 2f); return@setOnItemClickListener }
       val hit = (view as? MsgRowView)?.runAt(upX - view.left, upY - view.top)
       if (hit == null) {
         if ((view as? MsgRowView)?.quoteAt(upX - view.left, upY - view.top) == true) { onQuotePress(row.key); return@setOnItemClickListener }
