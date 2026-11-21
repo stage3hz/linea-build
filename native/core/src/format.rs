@@ -466,7 +466,8 @@ impl<T: Clone, F: FnMut(&T, &T) -> f64> Sorter<T, F> {
         base_a += skipped;
         length_a -= skipped;
         if length_a == 0 { return }
-        
+        length_b = Self::gallop_left(&mut self.order, &self.work, &self.work[base_a + length_a - 1], base_b, length_b, length_b - 1);
+        if length_b == 0 { return }
         if length_a <= length_b { self.merge_low(base_a, length_a, base_b, length_b) } else { self.merge_high(base_a, length_a, base_b, length_b) }
     }
     /// Merges the runs A and B (B follows A) from the left, with A copied aside.
@@ -521,7 +522,6 @@ impl<T: Clone, F: FnMut(&T, &T) -> f64> Sorter<T, F> {
                     length_a -= 1;
                     if length_a == 1 { break 'merge true }
                 }
-                min_gallop += 1;
                 self.min_gallop = min_gallop;
             }
         };
