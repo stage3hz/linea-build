@@ -27,13 +27,28 @@ final class ChatViewController: UIViewController, UITextFieldDelegate {
         super.init(nibName: nil, bundle: nil)
     }
 
-    /// Reads the chat's newest page and shows it.
+    /// Up to which message the other side has read (for the two ticks).
+    var peerLastRead = 0
+
+    /// Reads the chat's newest page and shows it; what came from the other side is reported as read.
     private func load() {
-        messenger?.messages(chatId: chatId, peerLastRead: 0) { [weak self] result in
-            guard let self, case .success(let rows) = result else { return }
-            self.rows = rows
-            self.list.setRows(MsgRow.parse(rows))
+        messenger?.messagesAndNewest(chatId: chatId, peerLastRead: peerLastRead) { [weak self] result in
+            guard let self, case .success(let page) = result else { return }
+            self.rows = page.rows
+            self.list.setRows(MsgRow.parse(page.rows))
+            if self.viewIfLoaded?.window != nil { self.messenger?.markRead(chatId: self.chatId, messageId: page.newestTheirs) }
         }
+    }
+
+    @objc private func changed(_ note: Notification) {
+        if let id = note.object as? String, id != chatId { return }
+        load()
+    }
+
+    @objc private func peerRead(_ note: Notification) {
+        guard note.userInfo?["chatId"] as? String == chatId, let id = note.userInfo?["messageId"] as? Int, id > peerLastRead else { return }
+        peerLastRead = id
+        load()
     }
 
     required init?(coder: NSCoder) { return nil }
@@ -74,6 +89,8 @@ final class ChatViewController: UIViewController, UITextFieldDelegate {
         composer.contentView.addSubview(send)
 
         if let messenger {
+            NotificationCenter.default.addObserver(self, selector: #selector(changed(_:)), name: Messenger.changed, object: nil)
+            NotificationCenter.default.addObserver(self, selector: #selector(peerRead(_:)), name: Messenger.peerRead, object: nil)
             onSend = { [weak self] text in
                 guard let self else { return }
                 // Shown at once as being sent; the list is read again when the server has taken it.

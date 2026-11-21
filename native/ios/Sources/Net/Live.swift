@@ -1,0 +1,140 @@
+import UIKit
+
+/// The live line to the server: what happens while the app is open comes over it at once — a new message, a
+/// read mark, the other side typing. It carries no message text the app trusts: an event only says «look again»,
+/// and what is shown is read and decrypted the usual way.
+///
+/// Closed in the background (the other side then sees «был(а) только что»), opened again in front; a lost line
+/// is retried with growing pauses. The line alone never signs anyone out.
+final class Live: NSObject, URLSessionWebSocketDelegate {
+    enum Event {
+        /// Connected and signed in: everything should be read afresh.
+        case ready
+        /// Something changed in a chat (a message, an edit, a read mark of ours).
+        case chat(String?)
+        /// The other side read up to a message.
+        case read(chatId: String, userId: String, messageId: Int)
+        case typing(chatId: String, userId: String, on: Bool)
+    }
+
+    private let server: Server
+    private lazy var session = URLSession(configuration: .ephemeral, delegate: self, delegateQueue: .main)
+    private var socket: URLSessionWebSocketTask?
+    private var attempts = 0
+    private var stopped = true
+    private var lastReceive = Date()
+    private var beat: Timer?
+    /// Called on the main queue.
+    var onEvent: ((Event) -> Void)?
+
+    init(server: Server) {
+        self.server = server
+        super.init()
+        NotificationCenter.default.addObserver(self, selector: #selector(sleep), name: UIApplication.didEnterBackgroundNotification, object: nil)
+        NotificationCenter.default.addObserver(self, selector: #selector(wake), name: UIApplication.willEnterForegroundNotification, object: nil)
+    }
+
+    deinit {
+        NotificationCenter.default.removeObserver(self)
+        beat?.invalidate()
+        socket?.cancel(with: .goingAway, reason: nil)
+    }
+
+    func start() {
+        stopped = false
+        connect()
+        beat?.invalidate()
+        beat = Timer.scheduledTimer(withTimeInterval: 15, repeats: true) { [weak self] _ in self?.tick() }
+    }
+
+    @objc private func wake() { if stopped { start() } }
+
+    @objc private func sleep() {
+        stopped = true
+        beat?.invalidate()
+        socket?.cancel(with: .goingAway, reason: nil)
+        socket = nil
+    }
+
+    private func connect() {
+        guard !stopped, socket == nil, server.base.hasPrefix("https://"), let url = URL(string: "wss://" + String(server.base.dropFirst("https://".count)) + "/ws") else { return }
+        let task = session.webSocketTask(with: url)
+        socket = task
+        lastReceive = Date()
+        task.resume()
+        listen(task)
+    }
+
+    func urlSession(_ session: URLSession, webSocketTask: URLSessionWebSocketTask, didOpenWithProtocol protocol: String?) {
+        guard webSocketTask === socket, let token = server.token, let frame = Core.text(["type": "auth", "token": token, "lean": true]) else { return }
+        webSocketTask.send(.string(frame)) { _ in }
+    }
+
+    func urlSession(_ session: URLSession, task: URLSessionTask, didCompleteWithError error: Error?) {
+        guard task === socket else { return }
+        socket = nil
+        retry()
+    }
+
+    func urlSession(_ session: URLSession, webSocketTask: URLSessionWebSocketTask, didCloseWith closeCode: URLSessionWebSocketTask.CloseCode, reason: Data?) {
+        guard webSocketTask === socket else { return }
+        socket = nil
+        retry()
+    }
+
+    private func retry() {
+        guard !stopped else { return }
+        let pause = min(pow(2, Double(attempts)), 15)
+        attempts += 1
+        DispatchQueue.main.asyncAfter(deadline: .now() + pause) { [weak self] in self?.connect() }
+    }
+
+    private func tick() {
+        guard let socket else { return connect() }
+        // A line that has been silent for too long is taken down and opened again.
+        if Date().timeIntervalSince(lastReceive) > 45 {
+            socket.cancel(with: .goingAway, reason: nil)
+            self.socket = nil
+            return connect()
+        }
+        socket.send(.string("{\"type\":\"ping\"}")) { _ in }
+    }
+
+    private func listen(_ task: URLSessionWebSocketTask) {
+        task.receive { [weak self] result in
+            DispatchQueue.main.async {
+                guard let self, task === self.socket else { return }
+                guard case .success(let message) = result else { return }
+                self.lastReceive = Date()
+                if case .string(let text) = message, let data = Core.value(text) as? [String: Any], let type = data["type"] as? String { self.handle(type, data) }
+                self.listen(task)
+            }
+        }
+    }
+
+    private func handle(_ type: String, _ data: [String: Any]) {
+        switch type {
+        case "ready":
+            attempts = 0
+            onEvent?(.ready)
+        case "message":
+            onEvent?(.chat((data["message"] as? [String: Any])?["chatId"] as? String))
+        case "chat":
+            onEvent?(.chat((data["chat"] as? [String: Any])?["id"] as? String))
+        case "chat.deleted", "e2ee.devices", "profile":
+            onEvent?(.chat(nil))
+        case "read":
+            if let chatId = data["chatId"] as? String, let userId = data["userId"] as? String, let id = (data["messageId"] as? NSNumber)?.intValue { onEvent?(.read(chatId: chatId, userId: userId, messageId: id)) }
+        case "typing":
+            if let chatId = data["chatId"] as? String, let userId = data["userId"] as? String { onEvent?(.typing(chatId: chatId, userId: userId, on: data["isTyping"] as? Bool ?? false)) }
+        default:
+            break
+        }
+    }
+
+    /// Tells the other side that the person is typing in a chat (or stopped).
+    func typing(chatId: String, on: Bool) {
+        guard let frame = Core.text(["type": "typing", "chatId": chatId, "isTyping": on]) else { return }
+        socket?.send(.string(frame)) { _ in }
+    }
+}

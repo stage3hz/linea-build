@@ -34,11 +34,14 @@ final class ChatsViewController: UIViewController {
         list.onRowPress = { [weak self] event in
             guard let self, let id = event["id"] as? String else { return }
             if let chat = self.summaries.first(where: { $0.id == id }), let messenger = self.messenger {
-                self.navigationController?.pushViewController(ChatViewController(name: chat.title, messenger: messenger, chatId: chat.id, peerId: chat.peerId), animated: true)
+                let screen = ChatViewController(name: chat.title, messenger: messenger, chatId: chat.id, peerId: chat.peerId)
+                screen.peerLastRead = chat.peerLastRead
+                self.navigationController?.pushViewController(screen, animated: true)
             } else if let row = self.demo.first(where: { $0.id == id }) {
                 self.navigationController?.pushViewController(ChatViewController(name: row.title), animated: true)
             }
         }
+        if messenger != nil { NotificationCenter.default.addObserver(self, selector: #selector(changed), name: Messenger.changed, object: nil) }
         if messenger == nil {
             #if targetEnvironment(simulator)
             demo = SimulatorDemo.chats()
@@ -50,6 +53,16 @@ final class ChatsViewController: UIViewController {
         }
     }
 
+    deinit { NotificationCenter.default.removeObserver(self) }
+
+    /// Something changed on the server: the list is read again (a burst of events is one reading).
+    @objc private func changed() {
+        NSObject.cancelPreviousPerformRequests(withTarget: self, selector: #selector(reloadSoon), object: nil)
+        perform(#selector(reloadSoon), with: nil, afterDelay: 0.25)
+    }
+
+    @objc private func reloadSoon() { reload() }
+
     override func viewWillAppear(_ animated: Bool) {
         super.viewWillAppear(animated)
         reload()
@@ -58,7 +71,9 @@ final class ChatsViewController: UIViewController {
     #if targetEnvironment(simulator)
     func openFirst() {
         guard let chat = summaries.first, let messenger else { return }
-        navigationController?.pushViewController(ChatViewController(name: chat.title, messenger: messenger, chatId: chat.id, peerId: chat.peerId), animated: false)
+        let screen = ChatViewController(name: chat.title, messenger: messenger, chatId: chat.id, peerId: chat.peerId)
+        screen.peerLastRead = chat.peerLastRead
+        navigationController?.pushViewController(screen, animated: false)
     }
     #endif
 

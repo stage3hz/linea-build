@@ -7,6 +7,11 @@ final class Messenger {
     let userId: String
     private let vault: Vault
     let crypto: CryptoService
+    let live: Live
+    /// Posted on the main queue when something on the server changed: `object` is the chat's id, or nil for «anything».
+    static let changed = Notification.Name("invizent.changed")
+    /// Posted when the other side read up to a message: `userInfo` holds `chatId` and `messageId`.
+    static let peerRead = Notification.Name("invizent.peer-read")
 
     /// Opens the account's storage and encryption. Throws when the storage cannot be opened: the app then says
     /// so and changes nothing (a lost key never silently makes a new identity).
@@ -17,6 +22,26 @@ final class Messenger {
         server = Server(base: Account.server, token: token)
         vault = try Vault(server: Account.server, userId: id, earlierServers: ["https://141-133-194-51.nip.io"])
         crypto = CryptoService(userId: id, vault: vault, server: server)
+        live = Live(server: server)
+        live.onEvent = { [weak self] event in
+            guard let self else { return }
+            switch event {
+            case .ready: NotificationCenter.default.post(name: Messenger.changed, object: nil)
+            case .chat(let id): NotificationCenter.default.post(name: Messenger.changed, object: id)
+            case .read(let chatId, let userId, let messageId):
+                if userId != self.userId { NotificationCenter.default.post(name: Messenger.peerRead, object: nil, userInfo: ["chatId": chatId, "messageId": messageId]) }
+                NotificationCenter.default.post(name: Messenger.changed, object: nil)
+            case .typing: break
+            }
+        }
+        // Publishes this device's keys (making them on the very first start), then opens the live line.
+        crypto.call("initialize") { [weak self] _ in self?.live.start() }
+    }
+
+    /// Tells the server the chat was read up to a message.
+    func markRead(chatId: String, messageId: Int) {
+        guard messageId > 0 else { return }
+        server.op("read", [chatId, messageId]) { _ in }
     }
 
     // MARK: The list of chats
@@ -25,6 +50,7 @@ final class Messenger {
         let id: String
         let peerId: String
         let title: String
+        let peerLastRead: Int
         let row: [String: Any]
     }
 
@@ -47,9 +73,14 @@ final class Messenger {
         let title = peer["displayName"] as? String ?? ""
         var preview = "", time = "", ticks = 0
         if var last = chat["lastMessage"] as? [String: Any] {
-            // Open what has come since the last look, then show the kept copy; the list never shows the server's own text.
-            _ = crypto.callNow("sync", [id, 2])
-            if case .success(let shown) = crypto.callNow("preview", [last]), let shown = shown as? [String: Any] { last = shown }
+            // The list never shows the server's own text: only the copy this device decrypted and kept.
+            var shown = (try? crypto.callNow("preview", [last]).get()) as? [String: Any]
+            if shown?["cryptoState"] as? String == "no-key" {
+                // Not opened on this device yet: a short catch-up of this chat, then the kept copy.
+                _ = crypto.callNow("sync", [id, 2])
+                shown = (try? crypto.callNow("preview", [last]).get()) as? [String: Any]
+            }
+            if let shown { last = shown }
             preview = Self.previewText(last)
             time = Self.listTime(last["createdAt"] as? String)
             if last["senderId"] as? String == userId {
@@ -63,14 +94,23 @@ final class Messenger {
         let row: [String: Any] = ["id": id, "title": title, "preview": preview, "time": time, "unread": (chat["unreadCount"] as? NSNumber)?.intValue ?? 0,
                                   "muted": settings?["muted"] as? Bool ?? false, "pinned": settings?["pinnedAt"] is String, "ticks": ticks,
                                   "avatarColor": Int(0xFF00_0000 | color), "initials": Self.initials(title), "orbA": orb.light, "orbB": orb.deep]
-        return ChatSummary(id: id, peerId: peerId, title: title, row: row)
+        return ChatSummary(id: id, peerId: peerId, title: title, peerLastRead: (chat["peerLastReadMessageId"] as? NSNumber)?.intValue ?? 0, row: row)
     }
 
     // MARK: One chat
 
     /// The newest page of a chat as rows for the message list, oldest first.
     func messages(chatId: String, peerLastRead: Int, done: @escaping (Result<[[String: Any]], ServerError>) -> Void) {
-        crypto.run({ crypto -> Result<[[String: Any]], ServerError> in
+        messagesAndNewest(chatId: chatId, peerLastRead: peerLastRead) { result in done(result.map { $0.rows }) }
+    }
+
+    /// The same with the id of the newest message from the other side (what «read» is reported up to).
+    func messagesAndNewest(chatId: String, peerLastRead: Int, done: @escaping (Result<(rows: [[String: Any]], newestTheirs: Int), ServerError>) -> Void) {
+        messagesPage(chatId: chatId, peerLastRead: peerLastRead, done: done)
+    }
+
+    private func messagesPage(chatId: String, peerLastRead: Int, done: @escaping (Result<(rows: [[String: Any]], newestTheirs: Int), ServerError>) -> Void) {
+        crypto.run({ crypto -> Result<(rows: [[String: Any]], newestTheirs: Int), ServerError> in
             // First everything new is opened and kept (each message exactly once), then the page is shown from the kept copies.
             if case .failure(let failure) = crypto.callNow("sync", [chatId]), failure.name == "NetworkError" { return .failure(.network(failure.message)) }
             switch self.server.opAndWait("messages", [chatId]) {
@@ -84,7 +124,8 @@ final class Messenger {
                     if (opened["meta"] as? [String: Any])?["action"] != nil { continue }
                     shown.append(opened)
                 }
-                return .success(self.rows(shown, peerLastRead: peerLastRead))
+                let newest = list.filter { $0["senderId"] as? String != self.userId }.compactMap { ($0["id"] as? NSNumber)?.intValue }.max() ?? 0
+                return .success((self.rows(shown, peerLastRead: peerLastRead), newest))
             }
         }, done: done)
     }

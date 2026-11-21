@@ -29,7 +29,7 @@ object Theme {
   /** The colours a chat's messages draw with. */
   val messages = MsgPalette(
     text = text, muted = muted, accent = accent, onAccent = onAccent, mine = 0xF51F2023.toInt(), theirs = 0xF5161718.toInt(),
-    notice = 0x8C0C1222.toInt(), noticeText = text, danger = danger, quote = 0x14FFFFFF, mineMeta = muted, mineMark = text, subtle = subtle,
+    notice = 0x0FFFFFFF, noticeText = text, danger = danger, quote = 0x14FFFFFF, mineMeta = muted, mineMark = text, subtle = subtle,
   )
 
   /** A colour with another alpha (0…1). */
