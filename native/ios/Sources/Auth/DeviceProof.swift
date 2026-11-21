@@ -34,7 +34,7 @@ final class DeviceProof {
     /// Gets a proof (binding the session first, if it has no key yet). Waits for the answer: never on the main queue.
     /// `force`: the server has just refused the proof we hold; `seen`: the generation when that request left.
     func ensure(force: Bool, seen: Int? = nil) -> Outcome {
-        exchange.sync {
+        exchange.sync { () -> Outcome in
             var step = call(["op": "refresh", "force": force, "seen": seen.map { $0 as Any } ?? NSNull()])
             for _ in 0..<12 {
                 if step["refresh"] != nil { return .ok }
