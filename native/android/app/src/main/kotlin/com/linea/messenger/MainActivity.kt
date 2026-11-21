@@ -10,6 +10,7 @@ import com.linea.messenger.app.ChatTarget
 import com.linea.messenger.app.Launcher
 import com.linea.messenger.app.Messenger
 import com.linea.messenger.app.WaitingScreen
+import com.linea.messenger.attachments.Picks
 import com.linea.messenger.auth.Account
 import com.linea.messenger.auth.AuthScreen
 import com.linea.messenger.chat.ChatScreen
@@ -61,6 +62,13 @@ class MainActivity : Activity(), Launcher {
     messenger?.close()
     messenger = null
     super.onDestroy()
+  }
+
+  /** Attachments: what the system's photo picker or file chooser was closed with (attachments/ChatAttachments.kt). */
+  @Deprecated("The platform's own way for a plain Activity.")
+  @Suppress("DEPRECATION")
+  override fun onActivityResult(requestCode: Int, resultCode: Int, data: android.content.Intent?) {
+    if (!Picks.result(requestCode, resultCode, data)) super.onActivityResult(requestCode, resultCode, data)
   }
 
   /** Decides what the app opens with: the chats of the signed-in account, or signing in. */

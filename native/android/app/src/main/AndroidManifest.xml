@@ -22,5 +22,12 @@
                 <category android:name="android.intent.category.LAUNCHER" />
             </intent-filter>
         </activity>
+        <!-- Attachments: gives the one app the person chose the one decrypted file it was asked to show, to read
+             only (attachments/DecryptedFileProvider.kt). Not exported: nothing can ask it on its own. -->
+        <provider
+            android:name=".attachments.DecryptedFileProvider"
+            android:authorities="${applicationId}.files"
+            android:exported="false"
+            android:grantUriPermissions="true" />
     </application>
 </manifest>

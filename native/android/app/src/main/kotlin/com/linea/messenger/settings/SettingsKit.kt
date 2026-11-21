@@ -241,9 +241,11 @@ open class SettingsPage(context: Context, private val pageName: String, private 
     stack?.push(page, animated)
   }
 
-  private fun present(made: AlertDialog.Builder) {
+  private fun present(made: AlertDialog.Builder): AlertDialog {
     dialog?.dismiss()
-    dialog = made.show()
+    val shown = made.show()
+    dialog = shown
+    return shown
   }
 
   /** A question with one action and «Отмена». */
@@ -259,9 +261,7 @@ open class SettingsPage(context: Context, private val pageName: String, private 
   }
 
   /** A question of the page's own making (a choice of several). */
-  protected fun ask(made: AlertDialog.Builder) {
-    if (isAttachedToWindow) present(made)
-  }
+  protected fun ask(made: AlertDialog.Builder): AlertDialog? = if (isAttachedToWindow) present(made) else null
 
   /** The account is closed on this device: signing in is shown, with a few words why. */
   fun closeAccount(notice: String) {

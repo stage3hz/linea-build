@@ -2,6 +2,9 @@ package com.linea.messenger
 
 import com.linea.messenger.core.Core
 import com.linea.messenger.app.Messenger
+import com.linea.messenger.attachments.AttachmentRows
+import com.linea.messenger.attachments.FileCore
+import com.linea.messenger.attachments.FileTransfer
 import com.linea.messenger.chat.MsgRow
 import com.linea.messenger.core.CryptoHost
 import org.junit.Assert.assertEquals
@@ -185,5 +188,85 @@ class CoreJniTest {
     assertNotNull(refused)
     assertNull(Core.cryptoCall(0L, "deviceId", "[]"))
     Core.cryptoFree(0L)
+  }
+
+  // Files attached to encrypted messages (attachments/FileCore.kt ↔ the `…_attachments_FileCore_…` functions of jni.rs).
+
+  @Test fun aFileIsSealedDescribedAndOpenedByTheCore() {
+    assumeTrue(Core.loaded)
+    val encryption = Core.map(FileCore.call("newEncryption"))!!
+    assertEquals("aes-256-gcm-siv", encryption["scheme"])
+    // Every file has a key of its own.
+    assertNotEquals(encryption["key"], Core.map(FileCore.call("newEncryption"))!!["key"])
+    val plain = ByteArray(300_000) { (it * 31 + it / 255).toByte() }
+    val sealed = FileCore.seal(plain, encryption).getOrThrow()
+    assertEquals(plain.size + 16, sealed.size)
+    assertTrue(!sealed.copyOf(64).contentEquals(plain.copyOf(64)))
+
+    val id = java.util.UUID.randomUUID().toString()
+    val attachment = Core.map(FileCore.call("attachment", listOf(id, "Договор № 7.pdf", "application/pdf", plain.size, encryption, null, null)))!!
+    assertEquals(listOf(id, "Договор № 7.pdf", "application/pdf", plain.size.toDouble()), listOf(attachment["id"], attachment["name"], attachment["mimeType"], attachment["size"]))
+    val about = FileCore.describe(attachment)
+    assertEquals(listOf("file", sealed.size, null), listOf(about.kind, about.cipherSize, about.refusal))
+    assertTrue(about.fileName.endsWith(".pdf") && !about.fileName.contains('/'))
+    assertTrue(about.sizeText.isNotEmpty())
+    assertTrue(FileCore.open(sealed, attachment).getOrThrow().contentEquals(plain))
+
+    // One changed byte, a cut file, or another file's key: nothing is given out, and the words say why.
+    val changed = sealed.copyOf().also { it[1000] = (it[1000] + 1).toByte() }
+    assertEquals("Проверка вложения не пройдена. Файл не будет открыт.", FileCore.words(FileCore.open(changed, attachment)))
+    assertEquals("Размер вложения не совпадает с сообщением.", FileCore.words(FileCore.open(sealed.copyOf(sealed.size - 1), attachment)))
+    val other = Core.map(FileCore.call("attachment", listOf(id, "a.pdf", "application/pdf", plain.size, Core.map(FileCore.call("newEncryption"))!!, null, null)))!!
+    assertTrue(FileCore.open(sealed, other).isFailure)
+    assertEquals("У вложения нет ключа сквозного шифрования.", FileCore.describe(mapOf("id" to id, "name" to "a.pdf", "size" to 5.0)).refusal)
+    // An empty file is a file too.
+    val nothing = FileCore.seal(ByteArray(0), encryption).getOrThrow()
+    assertEquals(16, nothing.size)
+    // Not what a message may carry.
+    assertNull(FileCore.call("attachment", listOf("not-an-id", "a.pdf", "application/pdf", 1, encryption, null, null)))
+    assertTrue(FileCore.seal(plain, mapOf("scheme" to "aes-256-gcm-siv")).isFailure)
+  }
+
+  @Test fun theRestTheCoreSaysAboutFiles() {
+    assumeTrue(Core.loaded)
+    assertEquals("1.2 МБ", FileCore.sizeText(1_258_291))
+    assertTrue(FileCore.sizeText(3_221_225_472).endsWith("ГБ"))
+    assertNull(FileCore.call("no-such-function"))
+    // How a message with a photo that cannot be opened here looks: by the core's own word.
+    val row = AttachmentRows.fields(mapOf("text" to "", "attachment" to mapOf("name" to "a.jpg", "mimeType" to "image/jpeg", "size" to 2048.0)), "peer:c9")
+    assertEquals(listOf("", "🖼 Фотография\n" + FileCore.sizeText(2048)), listOf(row["text"], row["label"]))
+    assertEquals("🎬 Видео\n" + FileCore.sizeText(3_221_225_472), AttachmentRows.fields(mapOf("text" to "x", "attachment" to mapOf("name" to "big.mkv", "mimeType" to "video/x-matroska", "size" to 3221225472.0,
+      "encryption" to mapOf("scheme" to "aes-256-gcm-siv-chunked"))), "peer:c10")["label"])
+
+    // The body of an upload and the answers to it.
+    val form = Core.map(FileCore.call("uploadForm"))!!
+    assertTrue((form["contentType"] as String).startsWith("multipart/form-data; boundary="))
+    assertTrue((form["head"] as String).contains("name=\"file\"") && (form["tail"] as String).isNotEmpty())
+    assertEquals("f-1", FileTransfer.uploaded(201, """{"id":"f-1"}"""))
+    assertTrue(runCatching { FileTransfer.uploaded(401, """{"error":"Нужно подтверждение устройства","code":"device_proof"}""") }.exceptionOrNull() is FileTransfer.Failure.Proof)
+    assertEquals("Файл слишком большой", (runCatching { FileTransfer.uploaded(413, """{"error":"Файл слишком большой"}""") }.exceptionOrNull() as FileTransfer.Failure.Words).words)
+    assertEquals("Сервер недоступен.", (runCatching { FileTransfer.uploaded(502, "<html>") }.exceptionOrNull() as FileTransfer.Failure.Words).words)
+    // A download is judged before a byte of its body is taken.
+    assertNull(FileCore.call("received", listOf(200, 1016)))
+    assertNull(FileCore.call("received", listOf(200, null)))
+    assertEquals("Не удалось загрузить зашифрованный файл.", FileCore.call("received", listOf(404, 20)))
+    assertTrue(FileCore.call("received", listOf(200, 9_000_000_000L)) is String)
+
+    // A JPEG that is not one is not let out; neither is a small picture that is not one.
+    assertEquals("Не удалось обработать фото. Файл не отправлен.", FileCore.words(FileCore.cleanJpeg(ByteArray(100) { 7 })))
+    assertNull(FileCore.call("preview", listOf(java.util.Base64.getEncoder().encodeToString(ByteArray(100) { 7 }))))
+  }
+
+  @Test fun theServerOperationsOfPeopleAreInTheCoresTable() {
+    assumeTrue(Core.loaded)
+    fun asked(op: String, vararg args: Any?) = Core.call(op, args.toList())!!.let { listOf(it.method, it.path) }
+    assertEquals("GET", asked("contacts")[0])
+    assertEquals("GET", asked("friendRequests")[0])
+    assertTrue(asked("users", "@alisa")[1].contains("alisa"))
+    assertTrue(asked("userProfile", "u-1")[1].contains("u-1"))
+    for (op in listOf("addContact", "acceptFriend", "dropFriendRequest", "removeContact", "block", "unblock", "createChat")) assertNotNull(op, Core.call(op, listOf("u-1")))
+    val report = Core.call("report", listOf(mapOf("userId" to "u-1"), "spam"))!!
+    assertEquals("POST", report.method)
+    assertEquals(listOf("u-1", "spam"), Core.map(Core.value(report.body))!!.let { listOf(it["userId"], it["reason"]) })
   }
 }

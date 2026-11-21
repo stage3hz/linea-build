@@ -5,9 +5,11 @@ import android.os.Handler
 import android.os.Looper
 import com.linea.messenger.app.ChatTarget
 import com.linea.messenger.app.Launcher
+import com.linea.messenger.attachments.AttachmentsDemo
 import com.linea.messenger.chat.MsgRow
 import com.linea.messenger.chats.ChatRow
 import com.linea.messenger.design.orbPair
+import com.linea.messenger.people.PeopleSimulator
 
 /** Made-up chats and messages for looking at the app with no account behind it, and the launch arguments of
  *  the emulator check. This file is in the debug source set: a release build is compiled with the
@@ -96,10 +98,13 @@ object Demo {
    *    --ez demo true                              the shell with sample chats (no account)
    *    --es tab profile / --ez sections true / --ez chat true    with demo: a section, the list of sections, the sample chat
    *    --es login … --es password … --es word …    signs in, to the test server given by `server` only
-   *    --ez openchat true                          with an account: opens the first chat of the list */
+   *    --ez openchat true                          with an account: opens the first chat of the list
+   *    --es tab people / --es peoplesearch … / --es profile friend|chat    «Люди» and a profile (people/PeopleDemo.kt)
+   *    --es attachdemo 1|viewer / --es openattachment photo|file           attachments (attachments/AttachmentsDemo.kt) */
   fun start(intent: Intent?, launcher: Launcher): Boolean {
     if (intent == null) return false
     testServer = intent.getStringExtra("server")?.takeIf { local.matches(it) }
+    AttachmentsDemo.read(intent)
     authMode = intent.getStringExtra("authmode")
     if (intent.getBooleanExtra("auth", false)) { launcher.showAuth(); return true }
     intent.getStringExtra("settings")?.let { openSettings(launcher, it) }
@@ -107,6 +112,7 @@ object Demo {
       val root = launcher.showDemo()
       if (intent.getBooleanExtra("chat", false)) launcher.openChat(ChatTarget("Алиса Воронцова"), animated = false)
       intent.getStringExtra("tab")?.let { root.show(it) }
+      PeopleSimulator.run(intent, launcher, root)
       if (intent.getBooleanExtra("sections", false)) root.postDelayed({ root.showSections() }, 1500)
       return true
     }
@@ -118,6 +124,7 @@ object Demo {
     if (intent.getBooleanExtra("openchat", false)) {
       Handler(Looper.getMainLooper()).postDelayed({ launcher.openFirstChat() }, 6000)
     }
+    PeopleSimulator.later(intent, launcher)
     return false
   }
 }

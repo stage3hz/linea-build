@@ -1,6 +1,8 @@
 package com.linea.messenger
 
 import com.linea.messenger.app.Messenger
+import com.linea.messenger.attachments.AttachmentRows
+import com.linea.messenger.attachments.FileCore
 import com.linea.messenger.auth.Account
 import com.linea.messenger.auth.AuthScreen
 import com.linea.messenger.chat.MsgRow
@@ -55,9 +57,14 @@ class RealDataRulesTest {
       message(2, me, "Привет!", "2026-11-20T10:01:00.000Z"),
       message(3, me, "Как дела?", "2026-11-21T06:00:00.000Z"),
       message(4, "peer", "", "2026-11-21T06:02:00.000Z") + mapOf("attachment" to mapOf("mimeType" to "image/jpeg", "name" to "a.jpg")),
-    ), me, peerLastRead = 2, now, moscow)
+    ), me, peerLastRead = 2, now, moscow, attached = { message, key ->
+      // The core's word about the attachment stands in here: a photo that cannot be opened (it has no key).
+      AttachmentRows.fields(message, key) { FileCore.Description("photo", "a.jpg", "", null, "У вложения нет ключа сквозного шифрования.") }
+    })
     assertEquals(listOf("day-0", "peer:c1", "$me:c2", "day-2", "$me:c3", "peer:c4"), rows.map { it["key"] })
-    assertEquals(listOf("Вчера", "Привет", "Привет!", "Сегодня", "Как дела?", "Фото"), rows.map { it["text"] })
+    // A message that is only an attachment has no words of its own: its label says what it is.
+    assertEquals(listOf("Вчера", "Привет", "Привет!", "Сегодня", "Как дела?", ""), rows.map { it["text"] })
+    assertEquals(listOf(null, null, null, null, null, "🖼 Фотография"), rows.map { it["label"] })
     assertEquals(listOf(1, 0, 0, 1, 0, 0), rows.map { it["kind"] })
     // Two ticks up to what the other side has read, one after it, none on their messages.
     assertEquals(listOf(null, 0, 2, null, 1, 0), rows.map { it["ticks"] })
@@ -91,7 +98,7 @@ class RealDataRulesTest {
     }
     assertEquals(listOf<Pair<String, Any?>>("Смотри https://example.com" to null, "Очень важно" to listOf(mapOf("type" to "bold", "offset" to 6.0, "length" to 5.0)), "" to null), asked)
     val drawn = MsgRow.parse(rows)
-    assertEquals(listOf("Сегодня", "Смотри https://example.com", "Очень важно", "Фото"), drawn.map { it.text })
+    assertEquals(listOf("Сегодня", "Смотри https://example.com", "Очень важно", ""), drawn.map { it.text })
     // «изм. » stands before the time of the edited message only.
     assertEquals(listOf("", "09:00", "изм. 09:01", "09:02"), drawn.map { it.time })
     assertEquals(listOf(emptyList(), listOf(64, 7, 19), listOf(1, 6, 5), emptyList()), drawn.map { it.fmt })
@@ -101,7 +108,7 @@ class RealDataRulesTest {
     assertEquals(listOf(0, 0, 2, 1), drawn.map { it.ticks })
     // Without an answer of the layout the text is shown plain.
     val plain = MsgRow.parse(Messenger.rows(page, me, 2, now, moscow) { _, _ -> null })
-    assertEquals(listOf("Сегодня", "Смотри https://example.com", "Очень важно", "Фото"), plain.map { it.text })
+    assertEquals(listOf("Сегодня", "Смотри https://example.com", "Очень важно", ""), plain.map { it.text })
     assertTrue(plain.all { it.fmt.isEmpty() && it.urls.isEmpty() })
   }
 

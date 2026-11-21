@@ -289,10 +289,11 @@ class Messenger(context: Context, token: String, val user: Map<String, Any?>) {
     /** The opened messages of a page, oldest first, as rows of the message list: a line with the day before the
      *  first message of each day; two ticks on the person's own messages the other side has read. The messages
      *  are the folded ones (`folded`): «изм. » stands before the time of an edited one, reactions are chips
-     *  (triples [emoji, count, "1" if mine]); `layout` gives a text its formatting (the core's `nativeText`). */
+     *  (triples [emoji, count, "1" if mine]); `layout` gives a text its formatting (the core's `nativeText`);
+     *  `attached` gives a message with a file its picture or label (attachments/AttachmentOpen.kt). */
     fun rows(messages: List<Map<String, Any?>>, userId: String, peerLastRead: Long, now: Instant, zone: ZoneId,
-             layout: (text: String, entities: Any?) -> Map<String, Any?>? = ::laidOut,
-             attached: (message: Map<String, Any?>, key: String) -> Map<String, Any?> = AttachmentRows::fields): List<Map<String, Any?>> {
+             attached: (message: Map<String, Any?>, key: String) -> Map<String, Any?> = AttachmentRows::fields,
+             layout: (text: String, entities: Any?) -> Map<String, Any?>? = ::laidOut): List<Map<String, Any?>> {
       val rows = ArrayList<Map<String, Any?>>()
       var day = ""
       messages.forEachIndexed { index, message ->

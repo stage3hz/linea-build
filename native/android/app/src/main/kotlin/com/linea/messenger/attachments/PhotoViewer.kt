@@ -282,8 +282,7 @@ class PhotoViewer(
     fun shownSize(width: Int, height: Int): Pair<Int, Int> {
       val longest = maxOf(width, height)
       if (longest <= MAX_SIDE) return Pair(width, height)
-      val scale = MAX_SIDE.toDouble() / longest
-      return Pair(maxOf(1, (width * scale).toInt()), maxOf(1, (height * scale).toInt()))
+      return Pair(maxOf(1, (width.toLong() * MAX_SIDE / longest).toInt()), maxOf(1, (height.toLong() * MAX_SIDE / longest).toInt()))
     }
 
     /** The picture of decrypted bytes, upright, no bigger than the screen can draw; null when it is not one. */

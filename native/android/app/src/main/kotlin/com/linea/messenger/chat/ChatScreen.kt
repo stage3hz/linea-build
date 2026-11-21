@@ -14,6 +14,8 @@ import android.widget.FrameLayout
 import android.widget.TextView
 import com.linea.messenger.Demo
 import com.linea.messenger.app.Messenger
+import com.linea.messenger.attachments.AttachmentsDemo
+import com.linea.messenger.attachments.ChatAttachments
 import com.linea.messenger.design.Glass
 import com.linea.messenger.design.GlassSource
 import com.linea.messenger.design.IconButton
@@ -53,6 +55,8 @@ class ChatScreen(
 
   /** What sends a message; null while there is nothing to send with. */
   var onSend: ((String) -> Unit)? = null
+  /** Attachments: the paperclip, sending and opening photos and files (attachments/ChatAttachments.kt). */
+  private val attachments = ChatAttachments(this, messenger, chatId, peerId)
 
   init {
     setBackgroundColor(Theme.bg)
@@ -92,6 +96,10 @@ class ChatScreen(
     send.contentDescription = "Отправить"
     send.setOnClickListener { sendNow() }
     composer.addView(send, FrameLayout.LayoutParams(dp(44f), dp(44f), Gravity.END or Gravity.CENTER_VERTICAL).apply { rightMargin = dp(2f) })
+    // Attachments: the paperclip in the composer; a touch on a row opens its photo or file.
+    attachments.install(composer, field)
+    attachments.onPendingChanged = { showPendingAttachments() }
+    list.onMsgPress = { key -> attachments.pressed(key) }
     addView(composer)
 
     if (messenger != null) {
@@ -103,7 +111,9 @@ class ChatScreen(
       }
     } else {
       // Made-up messages in a debug build, and "sending" that only adds the text to them; nothing in a release one.
-      rows = Demo.messages()
+      // Attachments: `attachdemo 1` adds sample rows with a photo and files, `attachdemo viewer` also opens the photo viewer.
+      rows = Demo.messages() + MsgRow.parse(AttachmentsDemo.rows())
+      AttachmentsDemo.viewer(this)
       Demo.send?.let { sender -> onSend = { text -> rows = sender(rows, text); list.setRows(rows) } }
       list.setRows(rows)
     }
@@ -126,8 +136,9 @@ class ChatScreen(
     messenger.messages(chatId, peerLastRead) { result ->
       val page = result.getOrNull()
       if (page == null || !isAttachedToWindow) return@messages
-      real = page.rows
-      list.setRows(MsgRow.parse(page.rows))
+      // Attachments: what is still on its way out stands after the chat's own rows.
+      real = page.rows + attachments.loaded(page.rows)
+      list.setRows(MsgRow.parse(real))
       // Reported once per new message: the server answers a read mark with an event, which reads the page again.
       if (page.newestTheirs > reportedRead) {
         reportedRead = page.newestTheirs
@@ -162,6 +173,12 @@ class ChatScreen(
     list.setPad(top + dp(48f) + dp(8f), height - composerTop + dp(8f))
     put(page, 0, 0, width, height)
     put(composer, dp(12f), composerTop, width - dp(24f), composerHeight)
+  }
+
+  /** Attachments: shows the rows of what is being sent (they change while a file is prepared and uploaded). */
+  private fun showPendingAttachments() {
+    real = real.filter { !(it["key"] as? String ?: "").startsWith("attach-") } + attachments.pendingRows
+    list.setRows(MsgRow.parse(real))
   }
 
   /** People: the profile of the person of this chat (people/PersonProfileScreen.kt). */
