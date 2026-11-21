@@ -279,7 +279,7 @@ final class WallpaperView: UIView {
             }
         }
         // «Движение»: the picture follows the phone's tilt by up to 14 points, drawn 8 % larger.
-        if next.isImage && next.motion && !UIAccessibility.isReduceMotionEnabled {
+        if next.isImage && next.motion && Motion.enabled { // Effects: «Анимации интерфейса»
             if motion == nil {
                 let x = UIInterpolatingMotionEffect(keyPath: "center.x", type: .tiltAlongHorizontalAxis)
                 x.minimumRelativeValue = -14

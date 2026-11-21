@@ -126,7 +126,8 @@ enum PhotoPrepare {
     }
 
     /// Prepares the picture of an image file. `fileSize`: the size of the original, which decides the format.
-    static func prepare(_ source: CGImageSource, fileSize: Int) -> Result<Prepared, Failure> {
+    /// Attachments: `format` — the photo editor's «JPEG» / «PNG» choice for an edited picture (nil: decided here).
+    static func prepare(_ source: CGImageSource, fileSize: Int, format: String? = nil) -> Result<Prepared, Failure> {
         guard isPicture(source), let properties = CGImageSourceCopyPropertiesAtIndex(source, 0, nil) as? [CFString: Any],
               let pixelWidth = (properties[kCGImagePropertyPixelWidth] as? NSNumber)?.intValue, let pixelHeight = (properties[kCGImagePropertyPixelHeight] as? NSNumber)?.intValue,
               let size = fit(width: pixelWidth, height: pixelHeight, limit: maxPixels) else { return .failure(unreadable) }
@@ -137,7 +138,7 @@ enum PhotoPrepare {
         let hasAlpha = ![CGImageAlphaInfo.none, .noneSkipFirst, .noneSkipLast].contains(decoded.alphaInfo)
         // A big original without transparency (a camera JPEG, HEIC, RAW) becomes JPEG, so it stays sharp within
         // 20 MiB; everything else is PNG, exact to the pixel.
-        let jpeg = fileSize > maxBytes && !hasAlpha
+        let jpeg = format.map { $0 == "jpeg" } ?? (fileSize > maxBytes && !hasAlpha)
         guard var current = redraw(decoded, width: decoded.width, height: decoded.height, opaque: jpeg) else { return .failure(unreadable) }
         for _ in 0..<4 {
             guard let written = encode(current, jpeg: jpeg) else { return .failure(unreadable) }

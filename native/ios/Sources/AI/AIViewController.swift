@@ -942,7 +942,7 @@ extension AIViewController: PHPickerViewControllerDelegate {
             let provider = result.itemProvider
             let id = (result.assetIdentifier ?? UUID().uuidString) + "#\(index)"
             if provider.hasItemConformingToTypeIdentifier(UTType.movie.identifier) {
-                provider.loadFileRepresentation(forTypeIdentifier: UTType.movie.identifier) { [weak self] (url: URL?, _: Error?) -> Void in
+                _ = provider.loadFileRepresentation(forTypeIdentifier: UTType.movie.identifier) { [weak self] (url: URL?, _: Error?) -> Void in
                     guard let url else { return }
                     let length = AIAttach.videoLength(url)
                     let stops: [Double] = length > 1 ? [length * 0.1, length * 0.5, length * 0.9] : [0]
@@ -950,7 +950,7 @@ extension AIViewController: PHPickerViewControllerDelegate {
                     DispatchQueue.main.async { self?.addPictures(made, id: id, video: true) }
                 }
             } else if provider.canLoadObject(ofClass: UIImage.self) {
-                provider.loadObject(ofClass: UIImage.self) { [weak self] (object: NSItemProviderReading?, _: Error?) -> Void in
+                _ = provider.loadObject(ofClass: UIImage.self) { [weak self] (object: NSItemProviderReading?, _: Error?) -> Void in
                     guard let image = object as? UIImage else { return }
                     DispatchQueue.main.async { self?.addPictures([image], id: id, video: false) }
                 }

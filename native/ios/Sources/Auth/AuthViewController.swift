@@ -51,7 +51,7 @@ final class AuthViewController: UIViewController {
 
     private let scroll = UIScrollView()
     private let column = UIStackView()
-    private let brand = UILabel()
+    private let brand = WordmarkView(size: 60) // Effects: «Инвиз» in moving platinum, the reference's Wordmark (Auth/AuthBackdrop.swift)
     private let motto = UILabel()
     private let heading = AppearingTextView() // Effects: the title's words rise in one after another (AppearingText)
     private let hint = UILabel()
@@ -145,9 +145,6 @@ final class AuthViewController: UIViewController {
     }
 
     private func build() {
-        brand.text = "Инвиз"
-        brand.font = Theme.title(Theme.TypeSize.authTitle) // Fonts: «Инвиз», the reference's TITLE 25
-        brand.textColor = Theme.text
         motto.text = "Твоя линия связи."
         motto.font = .systemFont(ofSize: 17)
         motto.textColor = Theme.muted

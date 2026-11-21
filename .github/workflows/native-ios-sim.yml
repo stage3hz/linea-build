@@ -295,6 +295,19 @@ jobs:
           shot 301-search-people -demo 1 -chatsearch мар
           shot 302-saved-composer -demo 1 -chatsdemo saved
           shot 303-mute-sheet-custom-row -demo 1 -chatlist mute
+          shot 310-palette-backdrop -channelsdemo community -settheme lagoon -setplatina 1
+          shot 311-music-ambient-shelves -musicdemo 1
+          shot 312-music-player-cover -musicdemo player
+          shot 313-music-equalizer -musicdemo equalizer
+          shot 314-voice-channel -channelsdemo voice
+          shot 315-voice-member-menu -channelsdemo voicemenu
+          shot 316-ai-photo -aidemo photo
+          shot 317-ai-quick -aidemo quick
+          shot 318-auth-wordmark -auth 1
+          shot 319-auth-wordmark-light -auth 1 -settheme light
+          shot 320-music-ambient-light -musicdemo 1 -settheme light
+          shot 321-music-ambient-graphite -musicdemo 1 -settheme graphite
+          shot 322-community-glass-header -channelsdemo community
           shot 62-bar-with-track -musicdemo chats
           shot 63-light-chats -demo 1 -settheme light
           shot 64-light-chat -demo 1 -chat 1 -settheme light

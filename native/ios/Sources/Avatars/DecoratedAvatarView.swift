@@ -66,12 +66,13 @@ final class AvatarFaceView: UIView {
                 // List sizes: the chat list's own store (its 180 px copy is the same picture, already decoded).
                 image = ChatAvatarStore.shared.image(key: pictureId, url: AvatarMedia.address(base: base, id: pictureId))
             } else {
-                image = AvatarMedia.shared.image(id: pictureId, base: base, pixels: max(240, pixels), animated: animated)
+                // Effects: a GIF avatar moves only with «Автозапуск GIF» on and no power saving (motionPolicy.ts).
+                image = AvatarMedia.shared.image(id: pictureId, base: base, pixels: max(240, pixels), animated: animated && Motion.feature("gif"))
             }
         }
         picture.image = image
         picture.isHidden = image == nil
-        if image?.images != nil && animated { picture.startAnimating() }
+        if image?.images != nil && animated && Motion.feature("gif") { picture.startAnimating() }
     }
 
     private var wantedPixels: Int { return Int(max(bounds.width, 54) * UIScreen.main.scale) }

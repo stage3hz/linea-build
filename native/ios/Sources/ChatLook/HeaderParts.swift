@@ -95,7 +95,7 @@ final class MetalNameView: UIView {
         if width == sheenWidth && metal.animation(forKey: "sheen") != nil { return }
         sheenWidth = width
         metal.removeAnimation(forKey: "sheen")
-        guard width > 0, !UIAccessibility.isReduceMotionEnabled else { return }
+        guard width > 0, Motion.enabled else { return } // Effects: «Анимации интерфейса» (motionPolicy.ts)
         let sheen = CABasicAnimation(keyPath: "position.x")
         sheen.fromValue = metal.position.x
         sheen.toValue = metal.position.x - width * 1.5

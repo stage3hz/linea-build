@@ -155,7 +155,7 @@ final class MsgArrivals {
 
     /// Called as a row comes on screen: a fresh one slides in; any other is put straight.
     func play(_ view: UIView, key: String, note: Bool) {
-        guard fresh.remove(key) != nil, !UIAccessibility.isReduceMotionEnabled else {
+        guard fresh.remove(key) != nil, Motion.enabled else { // Effects: «Анимации интерфейса»
             if view.alpha != 1 || view.transform != .identity {
                 view.layer.removeAllAnimations()
                 view.alpha = 1

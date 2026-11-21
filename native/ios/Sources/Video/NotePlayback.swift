@@ -260,6 +260,8 @@ final class NotePlayback {
         }
         if fetchForSound && fetch != nil { return }
         if holdsSilence?() == true || MusicPlayer.shared.current != nil { return }
+        // Effects: «Автозапуск видео и кружков» off, or power saving — no silent loop (motionPolicy.ts).
+        if !Motion.feature("video") { return }
         for rowKey in list.visibleKeys() {
             guard let attachment = note(rowKey), list.mediaHost(rowKey) != nil else { continue }
             if let file = files[rowKey] {
