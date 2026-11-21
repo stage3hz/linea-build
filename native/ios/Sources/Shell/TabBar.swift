@@ -39,6 +39,29 @@ private func badgeWords(_ count: Int) -> String { return count > 999 ? "999+" : 
 
 private let badgeRed = UIColor(red: 1, green: 0.30, blue: 0.37, alpha: 1)
 
+/// The same colour with its saturation and brightness scaled.
+private func tabTone(_ color: UIColor, saturation: CGFloat, brightness: CGFloat) -> UIColor {
+  var hue: CGFloat = 0, sat: CGFloat = 0, bri: CGFloat = 0, alpha: CGFloat = 0
+  guard color.getHue(&hue, saturation: &sat, brightness: &bri, alpha: &alpha) else { return color }
+  return UIColor(hue: hue, saturation: sat * saturation, brightness: min(1, bri * brightness), alpha: alpha)
+}
+
+/// A small tile of random grey, made once, for the grain over the glow.
+private let tabNoise: UIImage = {
+  let side = 96
+  let format = UIGraphicsImageRendererFormat()
+  format.scale = 1
+  format.opaque = true
+  return UIGraphicsImageRenderer(size: CGSize(width: side, height: side), format: format).image { (context: UIGraphicsImageRendererContext) -> Void in
+    for y in 0..<side {
+      for x in 0..<side {
+        UIColor(white: CGFloat(UInt8.random(in: 0...255)) / 255, alpha: 1).setFill()
+        context.fill(CGRect(x: x, y: y, width: 1, height: 1))
+      }
+    }
+  }
+}()
+
 /// One icon of the bar; an accessibility element of its own.
 private final class TabIconView: UIView {
   let image = UIImageView()
@@ -212,6 +235,14 @@ final class TabBarView: UIView, UIGestureRecognizerDelegate {
   private let trail = UIView()
   private let capsule = UIView()
   private let capsuleRim = CALayer()
+  /// Light along the bar's upper edge above the chosen tab (rides in `spotView`).
+  private let sheen = CAGradientLayer()
+  /// Light on the upper half of the chosen capsule.
+  private let gloss = CAGradientLayer()
+  /// Fine grain over the glow, so a gradient reads as material rather than as a smooth fill.
+  private let grain = UIView()
+  /// Which glow look is on. Being chosen by the owner: the simulator check shows each with `-barlook N`.
+  var look = 0 { didSet { laidOut = .zero; setNeedsLayout(); paintGlow(animated: false) } }
   private var icons: [TabIconView] = []
 
   private var items: [TabEntry] = []
@@ -249,12 +280,23 @@ final class TabBarView: UIView, UIGestureRecognizerDelegate {
     glowView.layer.addSublayer(glowRight)
     spotView.isUserInteractionEnabled = false
     spotView.layer.addSublayer(spot)
+    sheen.startPoint = CGPoint(x: 0, y: 0.5)
+    sheen.endPoint = CGPoint(x: 1, y: 0.5)
+    spotView.layer.addSublayer(sheen)
     glowView.addSubview(spotView)
+    grain.isUserInteractionEnabled = false
+    grain.backgroundColor = UIColor(patternImage: tabNoise)
+    grain.layer.compositingFilter = "overlayBlendMode"
+    grain.alpha = 0
+    glowView.addSubview(grain)
     glass.contentView.addSubview(glowView)
     trail.isUserInteractionEnabled = false
     trail.alpha = 0
     glass.contentView.addSubview(trail)
     capsule.isUserInteractionEnabled = false
+    gloss.startPoint = CGPoint(x: 0.5, y: 0)
+    gloss.endPoint = CGPoint(x: 0.5, y: 0.55)
+    capsule.layer.addSublayer(gloss)
     capsule.layer.addSublayer(capsuleRim)
     glass.contentView.addSubview(capsule)
 
@@ -321,7 +363,7 @@ final class TabBarView: UIView, UIGestureRecognizerDelegate {
     return CGRect(x: CGFloat(slot) * cell, y: 0, width: cell, height: bounds.height).insetBy(dx: 4, dy: 4)
   }
   private func spotFrame(_ index: Int) -> CGRect {
-    let width = max(110, bounds.width * 0.7)
+    let width = (look == 1 || look == 3) ? max(90, cell * 1.1) : max(110, bounds.width * 0.7)
     let centre = index < 0 ? bounds.midX : (CGFloat(index) + 0.5) * cell
     return CGRect(x: centre - width / 2, y: 0, width: width, height: bounds.height)
   }
@@ -355,6 +397,8 @@ final class TabBarView: UIView, UIGestureRecognizerDelegate {
     glowRight.frame = CGRect(x: bounds.width * 0.46, y: 0, width: bounds.width * 0.72, height: bounds.height)
     spotView.frame = spotFrame(activeIndex)
     spot.frame = spotView.bounds
+    sheen.frame = CGRect(x: spotView.bounds.width * 0.18, y: 0.5, width: spotView.bounds.width * 0.64, height: 1.2)
+    grain.frame = bounds
     capsule.frame = capsuleFrame(activeIndex)
     capsule.alpha = activeIndex < 0 ? 0 : 1
     trail.frame = capsule.frame
@@ -373,6 +417,9 @@ final class TabBarView: UIView, UIGestureRecognizerDelegate {
       view.layer.cornerCurve = .continuous
     }
     capsuleRim.frame = capsule.bounds
+    gloss.frame = capsule.bounds
+    gloss.cornerRadius = radius
+    gloss.cornerCurve = .continuous
     capsuleRim.cornerRadius = radius
     capsuleRim.cornerCurve = .continuous
   }
@@ -400,9 +447,34 @@ final class TabBarView: UIView, UIGestureRecognizerDelegate {
     CATransaction.begin()
     CATransaction.setAnimationDuration(animated ? 0.5 : 0)
     if !animated { CATransaction.setDisableActions(true) }
-    spot.colors = [colors[0].withAlphaComponent(0.8 * strength).cgColor, colors[0].withAlphaComponent(0).cgColor]
-    glowLeft.colors = [colors[1].withAlphaComponent(0.6 * strength).cgColor, colors[1].withAlphaComponent(0).cgColor]
-    glowRight.colors = [colors[2].withAlphaComponent(0.6 * strength).cgColor, colors[2].withAlphaComponent(0).cgColor]
+    var spotColor = colors[0], leftColor = colors[1], rightColor = colors[2], sheenColor = UIColor.white
+    var spotAlpha: CGFloat = 0.8 * strength, sideAlpha: CGFloat = 0.6 * strength
+    var sheenAlpha: CGFloat = 0, glossAlpha: CGFloat = 0, grainAlpha: CGFloat = 0
+    switch look {
+    case 1: // a soft spot under the chosen tab only
+      spotAlpha *= 0.45; sideAlpha = 0
+    case 2: // chrome: no hue of its own, light on the capsule and along the edge
+      spotColor = coloured ? tabTone(colors[0], saturation: 0.3, brightness: 1.1) : UIColor(white: 0.92, alpha: 1)
+      spotAlpha = 0.38; sideAlpha = 0; glossAlpha = 0.22; sheenAlpha = 0.35
+    case 3: // one quiet colour under the chosen tab, with grain
+      spotColor = coloured ? tabTone(colors[0], saturation: 0.55, brightness: 1) : UIColor(white: 0.85, alpha: 1)
+      spotAlpha = 0.55; sideAlpha = 0; grainAlpha = 0.09
+    case 4: // light along the upper edge only
+      sheenColor = coloured ? tabTone(colors[0], saturation: 0.5, brightness: 1.2) : .white
+      sheenAlpha = 0.75; spotColor = sheenColor; spotAlpha = 0.16; sideAlpha = 0
+    case 5: // depth: the colours darkened and muted, spread wide, with grain
+      leftColor = tabTone(colors[1], saturation: 0.6, brightness: 0.55)
+      rightColor = tabTone(colors[2], saturation: 0.6, brightness: 0.55)
+      spotColor = tabTone(colors[0], saturation: 0.6, brightness: 0.8)
+      sideAlpha = 0.55; spotAlpha = 0.35; grainAlpha = 0.08
+    default: break
+    }
+    spot.colors = [spotColor.withAlphaComponent(spotAlpha).cgColor, spotColor.withAlphaComponent(0).cgColor]
+    glowLeft.colors = [leftColor.withAlphaComponent(sideAlpha).cgColor, leftColor.withAlphaComponent(0).cgColor]
+    glowRight.colors = [rightColor.withAlphaComponent(sideAlpha).cgColor, rightColor.withAlphaComponent(0).cgColor]
+    sheen.colors = [sheenColor.withAlphaComponent(0).cgColor, sheenColor.withAlphaComponent(sheenAlpha).cgColor, sheenColor.withAlphaComponent(0).cgColor]
+    gloss.colors = [UIColor.white.withAlphaComponent(glossAlpha).cgColor, UIColor.white.withAlphaComponent(0).cgColor]
+    grain.alpha = grainAlpha
     CATransaction.commit()
   }
 

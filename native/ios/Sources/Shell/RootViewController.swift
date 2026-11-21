@@ -41,6 +41,10 @@ final class RootViewController: UIViewController {
         bar.setItems(sections.map { TabEntry(id: $0.id, label: $0.label, symbol: $0.symbol, badge: 0, dot: "") })
         bar.setBar(inBar)
         bar.setDark(Theme.dark) // Settings: the theme that is on (Settings/ThemeStore.swift)
+        #if targetEnvironment(simulator)
+        // For choosing the glow on a screenshot: `-barlook 0…5`.
+        if UserDefaults.standard.object(forKey: "barlook") != nil { bar.look = UserDefaults.standard.integer(forKey: "barlook") }
+        #endif
         bar.moreWords = "Остальные разделы"
         bar.onSelect = { [weak self] event in
             guard let self, let id = event["id"] as? String else { return }
@@ -99,7 +103,10 @@ final class RootViewController: UIViewController {
     }
 
     @objc private func peopleBadge() {
-        bar.setItems(sections.map { TabEntry(id: $0.id, label: $0.label, symbol: $0.symbol, badge: $0.id == "people" ? FriendRequests.shared.incoming.count : ($0.id == "channels" ? ChannelsStore.shared.badge : 0), dot: $0.id == "channels" && Rooms.shared.awake ? RoomRules.talkHex : "") })
+        let requests: Int = FriendRequests.shared.incoming.count, unread: Int = ChannelsStore.shared.badge
+        // Rooms: a quiet green dot on «Каналы» while somebody is inside one of the rooms.
+        let roomsDot: String = Rooms.shared.awake ? RoomRules.talkHex : ""
+        bar.setItems(sections.map { TabEntry(id: $0.id, label: $0.label, symbol: $0.symbol, badge: $0.id == "people" ? requests : ($0.id == "channels" ? unread : 0), dot: $0.id == "channels" ? roomsDot : "") })
     }
 
     #if targetEnvironment(simulator)
