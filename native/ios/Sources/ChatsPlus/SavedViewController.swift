@@ -39,6 +39,7 @@ final class SavedViewController: UIViewController, UITableViewDataSource, UITabl
     private var editing: [String: Any]?
     private var selection: Set<String>?
     private var noticeRun = 0
+    private var keyboardHeight: CGFloat = 0
 
     init(messenger: Messenger?, saved: SavedMessages) {
         self.messenger = messenger
@@ -184,6 +185,7 @@ final class SavedViewController: UIViewController, UITableViewDataSource, UITabl
         composer.contentView.addSubview(selectDelete)
 
         NotificationCenter.default.addObserver(self, selector: #selector(changed), name: SavedMessages.changed, object: nil)
+        NotificationCenter.default.addObserver(self, selector: #selector(keyboardMoved(_:)), name: UIResponder.keyboardWillChangeFrameNotification, object: nil)
         rebuild(scrollToNewest: true)
         refreshComposer()
         #if targetEnvironment(simulator)
@@ -225,8 +227,7 @@ final class SavedViewController: UIViewController, UITableViewDataSource, UITabl
             y += 52
         }
         // The field grows with the text up to 136 pt, as the reference's composer.
-        let keyboard = view.keyboardLayoutGuide.layoutFrame.height
-        let bottomGap = max(view.safeAreaInsets.bottom, keyboard) + 10
+        let bottomGap = max(view.safeAreaInsets.bottom, keyboardHeight) + 10
         let fieldWidth = width - 24 - 16 - 44 - 6
         let wanted = min(136, max(44, ceil(field.sizeThatFits(CGSize(width: fieldWidth, height: .greatestFiniteMagnitude)).height)))
         let banner: CGFloat = editing != nil && selection == nil ? 36 : 0
@@ -244,6 +245,14 @@ final class SavedViewController: UIViewController, UITableViewDataSource, UITabl
         table.frame = CGRect(x: 0, y: y, width: width, height: max(0, composer.frame.minY - 5 - y))
         empty.frame = table.frame
         notice.frame = CGRect(x: (width - 200) / 2, y: y + 4, width: 200, height: 30)
+    }
+
+    @objc private func keyboardMoved(_ note: Notification) {
+        guard isViewLoaded, let frame = (note.userInfo?[UIResponder.keyboardFrameEndUserInfoKey] as? NSValue)?.cgRectValue else { return }
+        let top = view.convert(frame, from: nil).minY
+        keyboardHeight = max(0, view.bounds.height - top)
+        view.setNeedsLayout()
+        UIView.animate(withDuration: 0.25) { self.view.layoutIfNeeded() }
     }
 
     override func viewSafeAreaInsetsDidChange() {
