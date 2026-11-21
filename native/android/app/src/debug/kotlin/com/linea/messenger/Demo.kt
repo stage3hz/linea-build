@@ -1,13 +1,16 @@
 package com.linea.messenger
 
 import android.content.Intent
+import android.os.Handler
+import android.os.Looper
+import com.linea.messenger.app.ChatTarget
+import com.linea.messenger.app.Launcher
 import com.linea.messenger.chat.MsgRow
 import com.linea.messenger.chats.ChatRow
 import com.linea.messenger.design.orbPair
-import com.linea.messenger.shell.RootScreen
 
-/** Made-up chats and messages for looking at the app while there is no account behind it yet, and the launch
- *  arguments of the emulator check. This file is in the debug source set: a release build is compiled with the
+/** Made-up chats and messages for looking at the app with no account behind it, and the launch arguments of
+ *  the emulator check. This file is in the debug source set: a release build is compiled with the
  *  empty `Demo` of src/release instead and contains none of this. */
 object Demo {
   private class Person(val title: String, val preview: String, val time: String, val color: Int, val unread: Int, val muted: Boolean, val pinned: Boolean, val ticks: Int, val section: String)
@@ -60,12 +63,40 @@ object Demo {
     rows + MsgRow.parse(listOf(mapOf("key" to "local-${rows.size}", "kind" to 0, "mine" to true, "text" to text, "time" to "09:41", "ticks" to 1, "tail" to true)))
   }
 
-  /** For the emulator check, as the launch arguments of the iOS app: `--es tab profile` opens a section at once,
-   *  `--ez sections true` opens the list of sections, `--ez chat true` opens a chat. */
-  fun launch(intent: Intent?, root: RootScreen, openChat: (name: String) -> Unit) {
-    if (intent == null) return
-    if (intent.getBooleanExtra("chat", false)) openChat("Алиса Воронцова")
-    intent.getStringExtra("tab")?.let { root.show(it) }
-    if (intent.getBooleanExtra("sections", false)) root.postDelayed({ root.showSections() }, 1500)
+  /** The local test server a launch argument pointed this debug build at (`--es server https://10.0.2.2:8443`):
+   *  only the emulator's own host or this device itself, only HTTPS. Null = the real server. */
+  var testServer: String? = null
+    private set
+
+  private val local = Regex("^https://(10\\.0\\.2\\.2|localhost):[0-9]{1,5}$")
+
+  /** What the emulator check asks for by launch arguments, as the iOS simulator check does. True when one of
+   *  them decided the start.
+   *    --es server https://10.0.2.2:8443           the local test server (kept for this launch only)
+   *    --ez auth true                              the sign-in screen
+   *    --ez demo true                              the shell with sample chats (no account)
+   *    --es tab profile / --ez sections true / --ez chat true    with demo: a section, the list of sections, the sample chat
+   *    --es login … --es password … --es word …    signs in, to the test server given by `server` only
+   *    --ez openchat true                          with an account: opens the first chat of the list */
+  fun start(intent: Intent?, launcher: Launcher): Boolean {
+    if (intent == null) return false
+    testServer = intent.getStringExtra("server")?.takeIf { local.matches(it) }
+    if (intent.getBooleanExtra("auth", false)) { launcher.showAuth(); return true }
+    if (intent.getBooleanExtra("demo", false)) {
+      val root = launcher.showDemo()
+      if (intent.getBooleanExtra("chat", false)) launcher.openChat(ChatTarget("Алиса Воронцова"), animated = false)
+      intent.getStringExtra("tab")?.let { root.show(it) }
+      if (intent.getBooleanExtra("sections", false)) root.postDelayed({ root.showSections() }, 1500)
+      return true
+    }
+    val login = intent.getStringExtra("login"); val password = intent.getStringExtra("password")
+    if (login != null && password != null && testServer != null) {
+      launcher.signIn(login, password, intent.getStringExtra("word") ?: "")
+      return true
+    }
+    if (intent.getBooleanExtra("openchat", false)) {
+      Handler(Looper.getMainLooper()).postDelayed({ launcher.openFirstChat() }, 6000)
+    }
+    return false
   }
 }

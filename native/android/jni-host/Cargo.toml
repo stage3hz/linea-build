@@ -1,0 +1,20 @@
+# The JNI layer of the core (native/core/src/jni.rs) built for the machine the unit tests run on, so the JVM of
+# `./gradlew :app:testDebugUnitTest` can load it and CoreJniTest can call it as the app does on a phone.
+# Not part of the app: the phone's library is the core itself (build-core.sh). See build-core-host.sh.
+[package]
+name = "invizent-core-jni-host"
+version = "0.0.0"
+edition = "2021"
+license = "AGPL-3.0-only"
+publish = false
+
+[lib]
+# Its own name in the shared build folder; build-core-host.sh copies it out under the name the app loads.
+name = "invizent_core_host"
+crate-type = ["cdylib"]
+
+[dependencies]
+invizent-core = { path = "../../core", features = ["signal"] }
+jni-sys = "=0.3.0"
+
+[workspace]

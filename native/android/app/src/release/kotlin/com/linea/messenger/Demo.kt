@@ -1,12 +1,12 @@
 package com.linea.messenger
 
 import android.content.Intent
+import com.linea.messenger.app.Launcher
 import com.linea.messenger.chat.MsgRow
 import com.linea.messenger.chats.ChatRow
-import com.linea.messenger.shell.RootScreen
 
 /** The release build's side of the demo (see src/debug): no made-up chats, no made-up messages, nothing to
- *  "send" with, and no launch arguments. */
+ *  "send" with, no launch arguments, and no server but the real one. */
 object Demo {
   fun chats(): List<ChatRow> = emptyList()
 
@@ -14,6 +14,9 @@ object Demo {
 
   val send: ((rows: List<MsgRow>, text: String) -> List<MsgRow>)? = null
 
+  /** A release build is never pointed at a test server. */
+  val testServer: String? get() = null
+
   @Suppress("UNUSED_PARAMETER")
-  fun launch(intent: Intent?, root: RootScreen, openChat: (name: String) -> Unit) = Unit
+  fun start(intent: Intent?, launcher: Launcher): Boolean = false
 }

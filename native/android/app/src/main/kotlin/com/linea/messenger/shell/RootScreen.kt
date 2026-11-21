@@ -1,21 +1,26 @@
 package com.linea.messenger.shell
 
+import android.annotation.SuppressLint
 import android.content.Context
 import android.view.View
 import android.widget.FrameLayout
 import android.widget.TextView
+import com.linea.messenger.app.ChatTarget
+import com.linea.messenger.app.Messenger
 import com.linea.messenger.chats.ChatsScreen
 import com.linea.messenger.design.BarMetrics
 import com.linea.messenger.design.GlassSource
 import com.linea.messenger.design.Theme
 import com.linea.messenger.settings.SettingsScreen
 
-/** The app's shell: the sections one over another, and the bar at the bottom that chooses between them. */
-class RootScreen(context: Context, private val openChat: (name: String) -> Unit) : Screen(context) {
+/** The app's shell: the sections one over another, and the bar at the bottom that chooses between them.
+ *  `messenger` is the signed-in account; without one the chats are the debug build's samples. */
+@SuppressLint("ViewConstructor")
+class RootScreen(context: Context, private val messenger: Messenger?, private val openChat: (ChatTarget) -> Unit) : Screen(context) {
   private class Section(val id: String, val label: String, val symbol: String, val make: (Context) -> View)
 
   private val sections = listOf(
-    Section("chats", "Чаты", "chats") { ChatsScreen(it, openChat) },
+    Section("chats", "Чаты", "chats") { ChatsScreen(it, messenger, openChat) },
     Section("ai", "AI", "sparkles") { PlaceholderScreen(it, "AI") },
     Section("people", "Люди", "people") { PlaceholderScreen(it, "Люди") },
     Section("channels", "Каналы", "waves") { PlaceholderScreen(it, "Каналы") },
@@ -85,6 +90,9 @@ class RootScreen(context: Context, private val openChat: (name: String) -> Unit)
   fun showSections() = bar.openList(sticky = true)
 
   fun closeSections() = bar.closeList()
+
+  /** Opens the first chat of the list (for a check on the emulator). */
+  fun openFirstChat() { (pages["chats"] as? ChatsScreen)?.openFirst() }
 }
 
 /** A section that is not built yet: its name on the page, nothing else. */

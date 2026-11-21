@@ -12,7 +12,7 @@ android {
         minSdk = libs.versions.minSdk.get().toInt()
         targetSdk = libs.versions.targetSdk.get().toInt()
         versionCode = 1
-        versionName = "0.16.3"
+        versionName = "0.17.0"
     }
 
     buildTypes {
@@ -43,12 +43,61 @@ kotlin {
     }
 }
 
+// The emulator check of CI runs a test server on the build machine, behind HTTPS with a certificate authority
+// made for that one run. A debug build made with INVIZENT_TEST_CA (or -PtestCa) pointing at that authority's
+// certificate trusts it — for https://10.0.2.2 (the emulator's name for the build machine) and localhost only;
+// every other address keeps the system's authorities alone. Without the variable a debug build trusts nothing
+// extra, and a release build never has this configuration at all (it is added to the debug variant only; the
+// manifest attribute that names it is in src/debug).
+abstract class TestCaConfig : DefaultTask() {
+    @get:InputFiles @get:Optional @get:PathSensitive(PathSensitivity.NONE) abstract val authority: ConfigurableFileCollection
+    @get:OutputDirectory abstract val out: DirectoryProperty
+
+    @TaskAction fun write() {
+        val folder = out.get().asFile
+        folder.deleteRecursively()
+        val certificate = authority.files.firstOrNull { it.isFile }
+        val trust = if (certificate == null) "    <base-config cleartextTrafficPermitted=\"false\" />" else {
+            File(folder, "raw").mkdirs()
+            certificate.copyTo(File(folder, "raw/invizent_test_ca.pem"))
+            """    <base-config cleartextTrafficPermitted="false" />
+    <domain-config cleartextTrafficPermitted="false">
+        <domain includeSubdomains="false">10.0.2.2</domain>
+        <domain includeSubdomains="false">localhost</domain>
+        <trust-anchors>
+            <certificates src="system" />
+            <certificates src="@raw/invizent_test_ca" />
+        </trust-anchors>
+    </domain-config>"""
+        }
+        File(folder, "xml").mkdirs()
+        File(folder, "xml/network_security_config.xml").writeText("<?xml version=\"1.0\" encoding=\"utf-8\"?>\n<!-- Written by the build (app/build.gradle.kts, TestCaConfig); debug builds only. -->\n<network-security-config>\n$trust\n</network-security-config>\n")
+    }
+}
+
+val testCa = (findProperty("testCa") as String?) ?: System.getenv("INVIZENT_TEST_CA")
+val testCaConfig = tasks.register<TestCaConfig>("debugTestCaConfig") {
+    if (!testCa.isNullOrBlank()) authority.from(testCa)
+}
+androidComponents {
+    onVariants(selector().withBuildType("debug")) { variant ->
+        variant.sources.res?.addGeneratedSourceDirectory(testCaConfig, TestCaConfig::out)
+    }
+}
+
 dependencies {
     implementation(project(":core"))
+    implementation(libs.okhttp)
+    implementation(libs.sqlcipher)
+    implementation(libs.androidx.sqlite)
     testImplementation(libs.junit)
     testImplementation(libs.robolectric)
 }
 
 tasks.withType<Test>().configureEach {
     testLogging { events("failed") }
+    // The core built for this machine (build-core-host.sh), when it is there: CoreJniTest then calls it for real.
+    val hostCore = layout.buildDirectory.dir("host-core").get().asFile
+    inputs.dir(hostCore).optional().withPropertyName("hostCore")
+    if (hostCore.isDirectory) systemProperty("java.library.path", hostCore.absolutePath)
 }

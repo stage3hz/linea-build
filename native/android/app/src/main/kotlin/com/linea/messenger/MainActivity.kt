@@ -6,36 +6,149 @@ import android.os.Build
 import android.os.Bundle
 import android.view.View
 import android.view.WindowManager
+import com.linea.messenger.app.ChatTarget
+import com.linea.messenger.app.Launcher
+import com.linea.messenger.app.Messenger
+import com.linea.messenger.app.WaitingScreen
+import com.linea.messenger.auth.Account
+import com.linea.messenger.auth.AuthScreen
 import com.linea.messenger.chat.ChatScreen
+import com.linea.messenger.core.Core
+import com.linea.messenger.net.Server
+import com.linea.messenger.net.ServerError
 import com.linea.messenger.shell.BackGate
 import com.linea.messenger.shell.Navigation
 import com.linea.messenger.shell.RootScreen
 
-/** The app's only window: the stack of pages with the shell at its bottom. */
-class MainActivity : Activity() {
+/** The app's only window: the stack of pages with the shell at its bottom. It decides what the app opens with —
+ *  the chats of the signed-in account, or signing in — and holds the account while the window lives. */
+class MainActivity : Activity(), Launcher {
   private lateinit var stack: Navigation
-  private lateinit var root: RootScreen
+  /** The shell, when it is what the window shows (not while signing in or waiting). */
+  private var root: RootScreen? = null
+  private var messenger: Messenger? = null
+  /** The window is on the screen (between `onStart` and `onStop`). */
+  private var front = false
   /** The system's Back on Android 13 and later; before that `onBackPressed` is asked. */
   private var gate: BackGate? = null
 
   override fun onCreate(savedInstanceState: Bundle?) {
     super.onCreate(savedInstanceState)
+    Account.start(this)
     edgeToEdge()
     stack = Navigation(this)
-    root = RootScreen(this) { name -> openChat(name, animated = true) }
-    stack.setRoot(root)
     setContentView(stack)
     if (Build.VERSION.SDK_INT >= 33) {
-      gate = BackGate(this, onBack = { goBack() }, onProgress = { if (!root.sectionsOpen) stack.backProgress(it) }, onCancel = { stack.backCancelled() })
+      gate = BackGate(this, onBack = { goBack() }, onProgress = { if (root?.sectionsOpen != true) stack.backProgress(it) }, onCancel = { stack.backCancelled() })
     }
     stack.onDepthChange = { syncBack() }
-    root.onSectionsChange = { syncBack() }
-    // For the emulator check (debug builds only; a release build has an empty `Demo.launch`).
-    if (savedInstanceState == null) Demo.launch(intent, root) { name -> openChat(name, animated = false) }
+    start()
   }
 
-  private fun openChat(name: String, animated: Boolean) {
-    stack.push(ChatScreen(this, name) { stack.pop() }, animated)
+  override fun onStart() {
+    super.onStart()
+    front = true
+    messenger?.wake()
+  }
+
+  override fun onStop() {
+    front = false
+    messenger?.sleep()
+    super.onStop()
+  }
+
+  override fun onDestroy() {
+    messenger?.close()
+    messenger = null
+    super.onDestroy()
+  }
+
+  /** Decides what the app opens with: the chats of the signed-in account, or signing in. */
+  private fun start() {
+    // For the emulator check (debug builds only; a release build has an empty `Demo.start`).
+    if (Demo.start(intent, this)) return
+    val token = Account.token ?: return showAuth()
+    Account.cachedUser?.let { return open(token, it) }
+    // Signed in by the previous app: the token is there, the profile is asked from the server once.
+    showWaiting("Загрузка…")
+    Server(Account.server, token).op("me", emptyList()) { result ->
+      runOnUiThread {
+        if (isDestroyed) return@runOnUiThread
+        val user = Core.map(Core.map(result.getOrNull())?.get("user"))
+        val error = result.exceptionOrNull()
+        when {
+          result.isSuccess && user != null -> open(token, user)
+          result.isSuccess -> showAuth()
+          error is ServerError.Refused && error.status == 401 -> { Account.token = null; showAuth() }
+          else -> showWaiting(Server.error(result).words + "\nКоснись, чтобы повторить.")
+        }
+      }
+    }
+  }
+
+  private fun open(token: String, user: Map<String, Any?>) {
+    try {
+      messenger?.close()
+      messenger = null
+      val made = Messenger(this, token, user)
+      messenger = made
+      if (!front) made.sleep()
+      Account.token = token
+      Account.cachedUser = user
+      showShell(RootScreen(this, made) { target -> openChat(target, animated = true) })
+    } catch (_: Exception) {
+      // The storage did not open: nothing is replaced, nothing is deleted — the person is told.
+      showWaiting("Не удалось открыть зашифрованное хранилище. Ключи и сообщения сохранены без изменений.\nКоснись, чтобы повторить.")
+    }
+  }
+
+  private fun showShell(shell: RootScreen) {
+    root = shell
+    shell.onSectionsChange = { syncBack() }
+    stack.setRoot(shell)
+    syncBack()
+  }
+
+  override fun showAuth() {
+    root = null
+    val auth = AuthScreen(this, Server(Account.server))
+    auth.onSignedIn = { token, user -> open(token, user) }
+    stack.setRoot(auth)
+    syncBack()
+  }
+
+  private fun showWaiting(words: String) {
+    root = null
+    val screen = WaitingScreen(this, words)
+    screen.onRetry = { start() }
+    stack.setRoot(screen)
+    syncBack()
+  }
+
+  override fun showDemo(): RootScreen {
+    val shell = RootScreen(this, null) { target -> openChat(target, animated = true) }
+    showShell(shell)
+    return shell
+  }
+
+  override fun signIn(login: String, password: String, word: String) {
+    showWaiting("Вход…")
+    Server(Account.server).op("login", listOf(login, password, word)) { result ->
+      runOnUiThread {
+        if (isDestroyed) return@runOnUiThread
+        val session = Core.map(result.getOrNull())
+        val token = session?.get("token") as? String
+        val user = Core.map(session?.get("user"))
+        if (token != null && user != null) open(token, user)
+        else if (result.isFailure) showWaiting("Вход не удался: " + Server.error(result).words)
+      }
+    }
+  }
+
+  override fun openFirstChat() { root?.openFirstChat() }
+
+  override fun openChat(target: ChatTarget, animated: Boolean) {
+    stack.push(ChatScreen(this, target.name, messenger.takeIf { target.chatId.isNotEmpty() }, target.chatId, target.peerId, target.peerLastRead) { stack.pop() }, animated)
   }
 
   /** The page is drawn under the system's bars; every page keeps its own parts clear of them. */
@@ -52,12 +165,13 @@ class MainActivity : Activity() {
   }
 
   /** There is somewhere to go back to inside the app: an open chat, or the open list of sections. */
-  private fun wantsBack(): Boolean = stack.depth > 1 || root.sectionsOpen
+  private fun wantsBack(): Boolean = stack.depth > 1 || root?.sectionsOpen == true
 
   private fun syncBack() { gate?.set(wantsBack()) }
 
   private fun goBack() {
-    if (root.sectionsOpen) root.closeSections() else stack.pop()
+    val shell = root
+    if (shell != null && shell.sectionsOpen) shell.closeSections() else stack.pop()
   }
 
   @Deprecated("Android 12 and earlier; later the system asks BackGate.")

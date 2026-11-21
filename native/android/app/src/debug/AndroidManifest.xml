@@ -1,0 +1,7 @@
+<?xml version="1.0" encoding="utf-8"?>
+<manifest xmlns:android="http://schemas.android.com/apk/res/android">
+    <!-- Debug builds only: the network configuration the build writes (app/build.gradle.kts, TestCaConfig). It
+         adds the test authority of a CI run for the emulator's local test server, when the build was given one,
+         and nothing otherwise. A release build has neither this attribute nor that file. -->
+    <application android:networkSecurityConfig="@xml/network_security_config" />
+</manifest>

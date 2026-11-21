@@ -8,3 +8,5 @@ local.properties
 attest.properties
 # The shared core, built by build-core.sh.
 app/src/main/jniLibs/
+jni-host/Cargo.lock
+jni-host/target/

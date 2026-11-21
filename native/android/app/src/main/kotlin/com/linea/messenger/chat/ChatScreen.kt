@@ -13,15 +13,25 @@ import android.widget.EditText
 import android.widget.FrameLayout
 import android.widget.TextView
 import com.linea.messenger.Demo
+import com.linea.messenger.app.Messenger
 import com.linea.messenger.design.Glass
 import com.linea.messenger.design.GlassSource
 import com.linea.messenger.design.IconButton
 import com.linea.messenger.design.Theme
 import com.linea.messenger.shell.Screen
+import java.time.Instant
+import java.time.ZoneId
 
-/** One chat: the messages, the header with the person's name, the field to write in. */
+/** One chat: the messages, the header with the person's name, the field to write in.
+ *  With a `messenger`: the real chat. Without: the debug build's sample chat. */
 @SuppressLint("ViewConstructor")
-class ChatScreen(context: Context, name: String, private val goBack: () -> Unit) : Screen(context) {
+class ChatScreen(
+  context: Context, name: String,
+  private val messenger: Messenger? = null, private val chatId: String = "", private val peerId: String = "",
+  /** Up to which message the other side has read (for the two ticks). */
+  private var peerLastRead: Long = 0,
+  private val goBack: () -> Unit,
+) : Screen(context), Messenger.Watcher {
   private val page = GlassSource(context)
   private val list = MsgListView(context)
   private val header = View(context)
@@ -34,7 +44,10 @@ class ChatScreen(context: Context, name: String, private val goBack: () -> Unit)
   }
   private val field = EditText(context)
   private val send = IconButton(context, "send", 30f, Theme.text)
+  /** The sample chat's rows. */
   private var rows: List<MsgRow> = emptyList()
+  /** The real chat's rows, as the messenger gave them (and what is being sent, until the server has taken it). */
+  private var real: List<Map<String, Any?>> = emptyList()
 
   /** What sends a message; null while there is nothing to send with. */
   var onSend: ((String) -> Unit)? = null
@@ -77,10 +90,53 @@ class ChatScreen(context: Context, name: String, private val goBack: () -> Unit)
     composer.addView(send, FrameLayout.LayoutParams(dp(44f), dp(44f), Gravity.END or Gravity.CENTER_VERTICAL).apply { rightMargin = dp(2f) })
     addView(composer)
 
-    // Made-up messages in a debug build, and "sending" that only adds the text to them; nothing in a release one.
-    rows = Demo.messages()
-    Demo.send?.let { sender -> onSend = { text -> rows = sender(rows, text); list.setRows(rows) } }
-    list.setRows(rows)
+    if (messenger != null) {
+      onSend = { text ->
+        // Shown at once as being sent; the list is read again when the server has taken it.
+        real = real + mapOf("key" to "sending-${real.size}", "kind" to 0, "mine" to true, "text" to text, "time" to Messenger.clock(Instant.now(), ZoneId.systemDefault()), "ticks" to 3, "tail" to true)
+        list.setRows(MsgRow.parse(real))
+        messenger.send(chatId, peerId, text) { load() }
+      }
+    } else {
+      // Made-up messages in a debug build, and "sending" that only adds the text to them; nothing in a release one.
+      rows = Demo.messages()
+      Demo.send?.let { sender -> onSend = { text -> rows = sender(rows, text); list.setRows(rows) } }
+      list.setRows(rows)
+    }
+  }
+
+  override fun onAttachedToWindow() {
+    super.onAttachedToWindow()
+    messenger?.watch(this)
+    load()
+  }
+
+  override fun onDetachedFromWindow() {
+    messenger?.unwatch(this)
+    super.onDetachedFromWindow()
+  }
+
+  /** Reads the chat's newest page and shows it; what came from the other side is reported as read. */
+  private fun load() {
+    val messenger = messenger ?: return
+    messenger.messages(chatId, peerLastRead) { result ->
+      val page = result.getOrNull()
+      if (page == null || !isAttachedToWindow) return@messages
+      real = page.rows
+      list.setRows(MsgRow.parse(page.rows))
+      messenger.markRead(chatId, page.newestTheirs)
+    }
+  }
+
+  override fun changed(chatId: String?) {
+    if (chatId != null && chatId != this.chatId) return
+    load()
+  }
+
+  override fun peerRead(chatId: String, messageId: Long) {
+    if (chatId != this.chatId || messageId <= peerLastRead) return
+    peerLastRead = messageId
+    load()
   }
 
   override fun place(width: Int, height: Int) {
