@@ -60,8 +60,16 @@ final class PlayerViewController: UIViewController {
         config.cornerStyle = .capsule
         config.baseBackgroundColor = on ? Theme.text : Theme.veil(0.08)
         config.baseForegroundColor = on ? Theme.onAccent : Theme.text
-        config.contentInsets = NSDirectionalEdgeInsets(top: 8, leading: 12, bottom: 8, trailing: 12)
+        config.contentInsets = NSDirectionalEdgeInsets(top: 8, leading: 10, bottom: 8, trailing: 10)
+        // One line, as the reference: the wider Montserrat made the words break inside the chip.
+        config.titleLineBreakMode = .byTruncatingTail
+        config.titleTextAttributesTransformer = UIConfigurationTextAttributesTransformer { (incoming: AttributeContainer) -> AttributeContainer in
+            var out = incoming
+            out.font = Theme.font(13, .semibold)
+            return out
+        }
         button.configuration = config
+        button.titleLabel?.numberOfLines = 1
     }
 
     override func viewDidLoad() {
