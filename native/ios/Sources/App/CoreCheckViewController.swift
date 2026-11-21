@@ -27,7 +27,16 @@ final class CoreCheckViewController: UIViewController {
         codeLabel.textAlignment = .center
         codeLabel.accessibilityIdentifier = "safety-code"
 
-        let stack = UIStackView(arrangedSubviews: [title, version, codeLabel])
+        let vault = UILabel()
+        vault.font = .systemFont(ofSize: 13)
+        vault.textColor = UIColor(white: 0.6, alpha: 1)
+        vault.numberOfLines = 0
+        vault.textAlignment = .center
+        #if targetEnvironment(simulator)
+        vault.text = Vault.selfCheck()
+        #endif
+
+        let stack = UIStackView(arrangedSubviews: [title, version, codeLabel, vault])
         stack.axis = .vertical
         stack.alignment = .center
         stack.spacing = 12

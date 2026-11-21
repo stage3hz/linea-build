@@ -30,3 +30,24 @@ fn version_and_safety_code_cross_the_boundary() {
         invizent_string_free(std::ptr::null_mut());
     }
 }
+
+#[test]
+fn requests_and_answers_cross_the_boundary() {
+    unsafe {
+        let ask = |json: &str| { let input = CString::new(json).unwrap(); text(invizent_http_prepare(input.as_ptr())) };
+        let made = ask(r#"{"method":"post","path":"/auth/login","jsonBody":true,"version":"0.17.0","platform":"ios","nowMs":1795244400000}"#).expect("headers");
+        assert_eq!(made, r#"{"headers":[["X-Linea-Client","invizent; v=0.17.0; p=ios"],["Content-Type","application/json"]],"timeoutMs":45000}"#);
+        let signed_in = ask(r#"{"path":"/chats?lean=1","version":"0.17.0","platform":"android","token":"t0ken","proof":"pr00f","nowMs":1}"#).expect("headers");
+        assert!(signed_in.contains(r#"["Authorization","Bearer t0ken"],["X-Linea-Proof","pr00f"]"#) && signed_in.contains("p=android") && !signed_in.contains("Content-Type"), "{signed_in}");
+        for bad in ["", "{}", r#"{"path":"/x","version":"1","platform":"windows","nowMs":1}"#, r#"{"path":"/x","version":"1","platform":"ios"}"#] { assert!(ask(bad).is_none(), "{bad}") }
+        assert!(invizent_http_prepare(std::ptr::null()).is_null());
+
+        let read = |status: u16, body: &str| { let input = CString::new(body).unwrap(); text(invizent_http_read(status, input.as_ptr())).unwrap() };
+        assert_eq!(read(200, r#"{"chats":[]}"#), r#"{"ok":{"chats":[]},"serverOk":true,"updateRequired":false}"#);
+        assert_eq!(read(200, "не JSON"), r#"{"ok":{},"serverOk":true,"updateRequired":false}"#);
+        assert_eq!(read(401, r#"{"error":"Неверный пароль.","attemptsLeft":4,"code":"bad_password"}"#), r#"{"refused":{"message":"Неверный пароль.","status":401,"code":"bad_password","attemptsLeft":4},"serverOk":true,"updateRequired":false}"#);
+        assert_eq!(read(426, "{}"), r#"{"refused":{"message":"Не удалось выполнить запрос. Попробуй ещё раз.","status":426},"serverOk":true,"updateRequired":true}"#);
+        assert_eq!(read(503, "<html>"), r#"{"serverDown":true,"serverOk":false,"updateRequired":false}"#);
+        assert!(text(invizent_http_read(500, std::ptr::null())).unwrap().contains("\"refused\""));
+    }
+}

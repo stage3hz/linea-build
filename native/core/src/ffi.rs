@@ -229,3 +229,62 @@ pub unsafe extern "C" fn invizent_crypto_free(crypto: *mut InvizentCrypto) { if 
 
 /// The small picture that rides with an attachment must be exactly what the app's own cleaner would produce.
 fn preview_ok(preview: Option<&Value>) -> bool { crate::photo::valid_preview(preview) }
+
+// ── Requests to the server ───────────────────────────────────────────────────────────────────────────────────
+
+/// The headers and the time limit of one request.
+/// In: `{"method","path","jsonBody":bool,"version","platform":"ios"|"android","token"?,"proof"?,"attestKey"?,
+/// "nowMs","tier"?:"slow"|"medium"|"fast"}`. Out: `{"headers":[[name,value],…],"timeoutMs":n}`, or null.
+///
+/// # Safety
+/// `request_json` is null or a NUL-terminated string that stays valid for the call.
+#[no_mangle]
+pub unsafe extern "C" fn invizent_http_prepare(request_json: *const c_char) -> *mut c_char {
+    let Some(text) = take(request_json) else { return std::ptr::null_mut() };
+    catch_unwind(|| {
+        use crate::http::{client_header, headers, request_timeout, Outgoing, Platform};
+        use crate::network::Tier;
+        let request = json::parse(&text).ok()?;
+        let word = |key: &str| request.get(key).and_then(Value::as_str);
+        let (method, path) = (word("method").unwrap_or_else(|| "GET".to_string()).to_uppercase(), word("path")?);
+        let platform = match word("platform")?.as_str() { "ios" => Platform::Ios, "android" => Platform::Android, _ => return None };
+        let client = client_header(&word("version")?, platform);
+        let now_ms = match request.get("nowMs") { Some(Value::Number(ms)) if *ms >= 0.0 => *ms as u64, _ => return None };
+        let tier = match word("tier").as_deref() { Some("slow") => Tier::Slow, Some("medium") => Tier::Medium, _ => Tier::Fast };
+        let (token, proof, attest_key) = (word("token"), word("proof"), word("attestKey").unwrap_or_default());
+        let list = headers(&Outgoing { method: &method, path: &path, json_body: matches!(request.get("jsonBody"), Some(Value::Bool(true))), client: &client, token: token.as_deref(), proof: proof.as_deref(), attest_key: &attest_key, now_ms });
+        let list = list.into_iter().map(|(name, value)| Value::Array(vec![Value::str(name), Value::str(&value)])).collect();
+        Some(json::stringify(&json::object(vec![("headers", Value::Array(list)), ("timeoutMs", Value::Number(f64::from(request_timeout(&path, &method, tier))))])))
+    }).ok().flatten().map_or(std::ptr::null_mut(), give)
+}
+
+/// What the server's answer means. Out, always with `"serverOk"` and `"updateRequired"`:
+/// `{"ok":body}` · `{"refused":{"message","status","code"?,…}}` · `{"serverDown":true}` (the request did not
+/// reach the server itself: it may go to the next one).
+///
+/// # Safety
+/// `body` is null or a NUL-terminated string that stays valid for the call.
+#[no_mangle]
+pub unsafe extern "C" fn invizent_http_read(status: u16, body: *const c_char) -> *mut c_char {
+    let body = take(body).unwrap_or_default();
+    catch_unwind(|| {
+        use crate::http::{read_answer, Outcome};
+        let answer = read_answer(status, &body);
+        let mut out = match answer.outcome {
+            Outcome::Ok(data) => vec![("ok", data)],
+            Outcome::ServerDown => vec![("serverDown", Value::Bool(true))],
+            Outcome::Refused(error) => {
+                let mut fields = vec![("message", Value::str(&error.message)), ("status", Value::Number(f64::from(error.status)))];
+                let mut text = |key: &'static str, value: Option<String>| if let Some(value) = value { fields.push((key, Value::str(&value))) };
+                text("code", error.code); text("readyAt", error.ready_at); text("serverTime", error.server_time); text("expiresAt", error.expires_at);
+                let mut number = |key: &'static str, value: Option<f64>| if let Some(value) = value { fields.push((key, Value::Number(value))) };
+                number("attemptsRemaining", error.attempts_remaining.map(f64::from)); number("attemptsLeft", error.attempts_left.map(f64::from));
+                number("retryAfterSeconds", error.retry_after_seconds); number("received", error.received);
+                vec![("refused", json::object(fields))]
+            }
+        };
+        out.push(("serverOk", Value::Bool(answer.server_ok)));
+        out.push(("updateRequired", Value::Bool(answer.update_required)));
+        json::stringify(&json::object(out))
+    }).map_or(std::ptr::null_mut(), give)
+}
