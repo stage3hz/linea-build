@@ -45,7 +45,6 @@ final class ChannelChatViewController: UIViewController, UITextViewDelegate, PHP
     private var loadedOnce = false
     private var reportedRead = 0
     private var keyboardTop: CGFloat?
-    private var names: [String: String] = [:]
     private let opener = ChannelFileOpener()
     private var tools: [(symbol: String, label: String, action: () -> Void)] = []
 
@@ -111,7 +110,7 @@ final class ChannelChatViewController: UIViewController, UITextViewDelegate, PHP
         list.onWidth = { [weak self] wide in self?.engine.setWidth(wide) }
         list.onNearTop = { [weak self] in self?.engine.loadOlder() }
         list.onPress = { [weak self] layout, hit in self?.pressed(layout, hit) }
-        list.onLongPress = { [weak self] layout, y in self?.openMenu(layout.message, at: y) }
+        list.onLongPress = { [weak self] layout, y in self?.openMenu(layout, at: y) }
         engine.onPatch = { [weak self] patch in
             guard let self else { return }
             self.list.apply(patch)
@@ -347,15 +346,12 @@ final class ChannelChatViewController: UIViewController, UITextViewDelegate, PHP
             guard case .success(let body) = result else { return }
             var authors: [String: ChannelAuthor] = [:]
             var colors: [String: UInt32] = [:]
-            var shown: [String: String] = [:]
             for raw in (body as? [String: Any])?["members"] as? [[String: Any]] ?? [] {
                 guard let user = raw["user"] as? [String: Any], let id = user["id"] as? String, let author = ChannelAuthor(user) else { continue }
                 authors[id] = author
-                shown[id] = author.name
                 if let color = snapshot.nameColor(roleIds: raw["roleIds"] as? [String] ?? []) { colors[id] = color }
             }
             self?.engine.setMembers(authors: authors, roleColors: colors)
-            DispatchQueue.main.async { self?.names.merge(shown) { _, new in new } }
         }
     }
 
@@ -644,18 +640,20 @@ final class ChannelChatViewController: UIViewController, UITextViewDelegate, PHP
     #if targetEnvironment(simulator)
     /// For the simulator check: the menu of the newest message.
     func simulatorMenu() {
-        if let layout = list.newest { openMenu(layout.message, at: view.bounds.midY) }
+        if let layout = list.newest { openMenu(layout, at: view.bounds.midY) }
     }
     #endif
 
-    private func openMenu(_ message: CommunityMessage, at y: CGFloat) {
+    private func openMenu(_ layout: ChannelRowLayout, at y: CGFloat) {
+        let message = layout.message
+        let author = layout.row.author
         view.endEditing(true)
         UIImpactFeedbackGenerator(style: .light).impactOccurred()
         let me = messenger?.userId ?? ""
         let mine = message.senderId == me
         var actions: [ChannelMenuView.Action] = []
         if canWrite {
-            actions.append(ChannelMenuView.Action(symbol: "arrowshape.turn.up.left", label: "Ответить", danger: false, run: { [weak self] in self?.startReply(message) }))
+            actions.append(ChannelMenuView.Action(symbol: "arrowshape.turn.up.left", label: "Ответить", danger: false, run: { [weak self] in self?.startReply(message, author: author) }))
         }
         if !message.text.isEmpty {
             actions.append(ChannelMenuView.Action(symbol: "doc.on.doc", label: "Скопировать", danger: false, run: { UIPasteboard.general.string = message.text }))
@@ -673,10 +671,10 @@ final class ChannelChatViewController: UIViewController, UITextViewDelegate, PHP
         menu.show(in: navigationController?.view ?? view)
     }
 
-    private func startReply(_ message: CommunityMessage) {
+    private func startReply(_ message: CommunityMessage, author: String) {
         editingMessage = nil
         reply = message
-        replyAuthor = names[message.senderId] ?? ""
+        replyAuthor = author
         showContext()
         field.becomeFirstResponder()
     }

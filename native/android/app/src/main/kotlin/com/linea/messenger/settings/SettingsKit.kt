@@ -495,9 +495,10 @@ class SettingsField(context: Context, caption: String, placeholder: String, priv
     input.typeface = Typeface.DEFAULT
     input.contentDescription = caption.ifEmpty { placeholder }
     input.filters = arrayOf(InputFilter { source, start, end, dest, dstart, dend ->
+      // A change that is not taken leaves what was there.
       val only = allowed
-      if (only != null && (start until end).any { !only(source[it]) }) return@InputFilter ""
-      if (limit > 0 && dest.length - (dend - dstart) + (end - start) > limit) return@InputFilter ""
+      if (only != null && (start until end).any { !only(source[it]) }) return@InputFilter dest.subSequence(dstart, dend)
+      if (limit > 0 && dest.length - (dend - dstart) + (end - start) > limit) return@InputFilter dest.subSequence(dstart, dend)
       null
     })
     input.setOnEditorActionListener { _, _, _ ->
@@ -571,7 +572,7 @@ class SettingsTextArea(context: Context, placeholder: String) : FrameLayout(cont
     area.setPadding(context.px(15f), context.px(13f), context.px(15f), context.px(13f))
     area.inputType = InputType.TYPE_CLASS_TEXT or InputType.TYPE_TEXT_FLAG_MULTI_LINE or InputType.TYPE_TEXT_FLAG_CAP_SENTENCES
     area.filters = arrayOf(InputFilter { _, start, end, dest, dstart, dend ->
-      if (limit > 0 && dest.length - (dend - dstart) + (end - start) > limit) "" else null
+      if (limit > 0 && dest.length - (dend - dstart) + (end - start) > limit) dest.subSequence(dstart, dend) else null
     })
     area.addTextChangedListener(object : TextWatcher {
       override fun beforeTextChanged(s: CharSequence?, start: Int, count: Int, after: Int) {}

@@ -110,6 +110,28 @@ try {
   await sayFile(last, found.id, png([61, 139, 208], [240, 168, 96]), { name: 'photo.png', mimeType: 'image/png', media: { width: 96, height: 96, hdr: 'sdr' } });
   sent += 2;
 } catch (error) { console.log(`attachments not sent: ${error.message}`); }
+// A community with two channels and a blog, when the test account's sign-in is given (the fifth to seventh
+// arguments: login, password, confirmation word): the account joins by invite as a person would. Not fatal.
+const [seedLogin, seedPassword, seedWord] = process.argv.slice(5);
+if (seedLogin && seedPassword) {
+  try {
+    const owner = people[0].api;
+    const { community } = await owner.createCommunity({ kind: 'server', name: 'Клан «Север»', description: 'Собираемся по вечерам.' });
+    const [general, news] = community.channels.filter(channel => channel.kind === 'text');
+    const { invite } = await owner.createInvite(community.id);
+    const session = await new Api(base).login(seedLogin, seedPassword, seedWord || '');
+    await new Api(base, session.token).acceptInvite(invite.code);
+    for (const person of people.slice(1, 4)) await person.api.acceptInvite(invite.code);
+    const first = (await owner.sendChannelMessage(community.id, general.id, { text: 'Всем привет! Сбор в восемь.' })).message;
+    await people[1].api.sendChannelMessage(community.id, general.id, { text: 'Буду', replyTo: first.id });
+    await people[2].api.reactChannelMessage(community.id, general.id, first.id, '🔥');
+    for (let i = 0; i < 60; i++) await people[1 + i % 3].api.sendChannelMessage(community.id, general.id, { text: `Сообщение ${i + 1}${i % 7 === 3 ? ' — подлиннее, чтобы перенеслось на вторую строку' : ''}` });
+    await people[3].api.sendChannelMessage(community.id, general.id, { text: `@${handle} глянь, пожалуйста` });
+    if (news) await owner.sendChannelMessage(community.id, news.id, { text: 'Турнир в субботу, начало в полдень.' });
+    await owner.createCommunity({ kind: 'blog', name: 'Заметки', category: 'blog' });
+    console.log('communities seeded');
+  } catch (error) { console.log(`communities not seeded: ${error.message}`); }
+}
 // Platina looks (the metal name, the platinum ring, a nameplate, a colour frame) for three of the people, when the
 // local server's data folder is given: the grant goes through the server's own administrator tool, as in production.
 const dataDir = process.argv[4];

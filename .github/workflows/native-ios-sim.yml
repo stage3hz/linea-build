@@ -123,7 +123,7 @@ jobs:
           echo "== sign in (the app makes its keys and publishes them)"
           live 07-signed-in 25 -login nativetester -password 'Synthetic!Native.42' -word ambergardenprism
           echo "== other people write"
-          node tools/sim-seed.mjs http://127.0.0.1:3999 native_check "$GITHUB_WORKSPACE/srvdata" || echo "seeding failed"
+          node tools/sim-seed.mjs http://127.0.0.1:3999 native_check "$GITHUB_WORKSPACE/srvdata" nativetester 'Synthetic!Native.42' ambergardenprism || echo "seeding failed"
           echo "== the list and a chat"
           live 08-real-chats 25
           live 09-real-chat 30 -openchat 1
@@ -132,6 +132,10 @@ jobs:
           live 10-people 25 -tab people
           live 11-profile 30 -profile chat
           live 12-people-search 30 -peoplesearch simpeer
+          live 17-channels 25 -tab channels
+          live 18-community 30 -channels community
+          live 19-channel-chat 35 -channels chat
+          shot 20-channels-demo-chat -channelsdemo chat
           live 13-settings 25 -settings root
           live 14-settings-profile 25 -settings profile
           live 15-settings-sessions 25 -settings sessions
