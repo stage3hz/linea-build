@@ -175,6 +175,12 @@ jobs:
           shot 53-story-compose -storiesdemo compose
           shot 54-profile-posts -storiesdemo posts
           shot 55-own-posts -storiesdemo own
+          shot 56-rooms-list -roomsdemo list
+          shot 57-room -roomsdemo room
+          shot 58-room-music -roomsdemo music
+          shot 59-room-ring -roomsdemo ring
+          shot 60-room-bar -roomsdemo bar
+          shot 61-room-picker -roomsdemo picker
           shot 21-ai-demo -aidemo 1
           shot 22-music-demo -musicdemo 1
           shot 23-music-player -musicdemo player

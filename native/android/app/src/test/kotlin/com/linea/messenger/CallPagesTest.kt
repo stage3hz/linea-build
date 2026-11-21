@@ -155,11 +155,13 @@ class CallPagesTest {
     val bar = all(page(activity), CallBarView::class.java).first()
     val d = activity.resources.displayMetrics.density
     assertEquals(Math.round(36f * d), bar.height)
-    assertEquals(page(activity).width, bar.width)
+    // Rounded, 8 dp from the screen's edges and below the status bar.
+    assertEquals(page(activity).width - 2 * Math.round(8f * d), bar.width)
+    assertEquals(Math.round(8f * d), bar.left)
     assertTrue(texts(bar).first().contains("Алиса Воронцова"))
     assertTrue(bar.contentDescription.toString().endsWith("Вернуться к звонку"))
     val pages = all(page(activity), Navigation::class.java).first()
-    assertEquals(Math.round(36f * d), (pages.layoutParams as ViewGroup.MarginLayoutParams).topMargin)
+    assertEquals(Math.round((8f + 36f + 8f) * d), (pages.layoutParams as ViewGroup.MarginLayoutParams).topMargin)
     // A touch on the bar opens the call again; the pages go back up.
     bar.performClick()
     idle(activity)
