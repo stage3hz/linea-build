@@ -9,7 +9,7 @@
 
 use crate::ffi::{
     invizent_api_call, invizent_core_version, invizent_crypto_call, invizent_crypto_free, invizent_crypto_new, invizent_http_prepare, invizent_http_read,
-    invizent_proof_call, invizent_proof_free, invizent_proof_new, invizent_safety_code, invizent_string_free, InvizentCrypto, InvizentHost, InvizentProof,
+    invizent_proof_call, invizent_proof_free, invizent_proof_new, invizent_safety_code, invizent_string_free, invizent_view, InvizentCrypto, InvizentHost, InvizentProof,
 };
 use jni_sys::{jboolean, jclass, jint, jlong, jmethodID, jobject, jsize, jstring, jvalue, JNIEnv, JavaVM, JNI_EDETACHED, JNI_OK, JNI_VERSION_1_6};
 use std::ffi::{c_char, c_void, CStr, CString};
@@ -95,6 +95,17 @@ pub unsafe extern "system" fn Java_com_linea_messenger_core_Core_httpRead(env: *
 pub unsafe extern "system" fn Java_com_linea_messenger_core_Core_apiCall(env: *mut JNIEnv, _class: jclass, op: jstring, args_json: jstring, device_json: jstring) -> jstring {
     let (Some(op), Some(args), Some(device)) = (c_text(env, op), c_text(env, args_json), c_text(env, device_json)) else { return std::ptr::null_mut() };
     give(env, invizent_api_call(op.as_ptr(), args.as_ptr(), device.as_ptr()))
+}
+
+/// `Core.view(name: String, argsJson: String): String?` — a pure function of the core by its name, see
+/// `invizent_view`. Null for an unknown name, arguments of the wrong kind, or a text that is not a text.
+///
+/// # Safety
+/// Called by the JVM with its own environment pointer and strings of its own (or null).
+#[no_mangle]
+pub unsafe extern "system" fn Java_com_linea_messenger_core_Core_view(env: *mut JNIEnv, _class: jclass, name: jstring, args_json: jstring) -> jstring {
+    let (Some(name), Some(args)) = (c_text(env, name), c_text(env, args_json)) else { return std::ptr::null_mut() };
+    give(env, invizent_view(name.as_ptr(), args.as_ptr()))
 }
 
 // ── The device proof of a session ────────────────────────────────────────────────────────────────────────────

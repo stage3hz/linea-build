@@ -45,6 +45,10 @@ object Core {
   /** The request of one server operation by its name (`invizent_api_call`); null for an unknown one. */
   @JvmStatic external fun apiCall(op: String, argsJson: String, deviceJson: String): String?
 
+  /** A pure function of the core by its name (`invizent_view`): `argsJson` is a JSON array, the answer is JSON.
+   *  Null for an unknown name or arguments of the wrong kind. */
+  @JvmStatic external fun view(name: String, argsJson: String): String?
+
   /** One session's exchange of device proofs (`invizent_proof_new`); given back with `proofFree`. */
   @JvmStatic external fun proofNew(): Long
 
@@ -141,5 +145,13 @@ object Core {
     if (!loaded) return null
     val made = map(value(apiCall(op, text(args) ?: return null, text(Account.deviceFields) ?: return null))) ?: return null
     return Call(made["method"] as? String ?: return null, made["path"] as? String ?: return null, made["body"] as? String)
+  }
+
+  /** A pure function of the core by its name (see `invizent_view`): `foldChat`, `chatListText`, `replyPreview`,
+   *  `nativeText`. Null when it has no answer (or the library is missing, or is an older one without it). */
+  fun view(name: String, args: List<Any?>): Any? {
+    if (!loaded) return null
+    val argsText = text(args) ?: return null
+    return try { value(view(name, argsText)) } catch (_: UnsatisfiedLinkError) { null }
   }
 }

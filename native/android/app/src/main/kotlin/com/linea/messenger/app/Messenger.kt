@@ -53,7 +53,7 @@ class Messenger(context: Context, token: String, val user: Map<String, Any?>) {
   init {
     live.onEvent = { event ->
       when (event) {
-        is Live.Event.Ready -> tellChanged(null)
+        is Live.Event.Ready -> { resendPending(); tellChanged(null) }
         is Live.Event.Chat -> tellChanged(event.id)
         is Live.Event.Read -> {
           if (event.userId != userId) for (watcher in watchers.toList()) watcher.peerRead(event.chatId, event.messageId)
@@ -146,37 +146,92 @@ class Messenger(context: Context, token: String, val user: Map<String, Any?>) {
       val answer = server.opAndWait("messages", listOf(chatId))
       if (answer.isFailure) return@run Result.failure<Page>(Server.error(answer))
       val list = (Core.map(answer.getOrNull())?.get("messages") as? List<*>).orEmpty().mapNotNull { Core.map(it) }
-      val shown = ArrayList<Map<String, Any?>>()
-      for (message in list) {
-        val opened = Core.map(crypto.callNow("preview", listOf(message)).getOrNull()) ?: continue
-        // Service messages (edits, reactions, calls) are not lines of the chat; they are folded in later work.
-        if (Core.map(opened["meta"])?.get("action") != null) continue
-        shown.add(opened)
-      }
+      val opened = list.mapNotNull { message -> Core.map(crypto.callNow("preview", listOf(message)).getOrNull()) }
+      // Edits, deletions, reactions, pins and the rest are folded into the lines they belong to (the core's rules).
+      val shown = folded(opened, userId, System.currentTimeMillis())
       val newest = list.filter { it["senderId"] as? String != userId }.mapNotNull { (it["id"] as? Number)?.toLong() }.maxOrNull() ?: 0L
       Result.success(Page(rows(shown, userId, peerLastRead, Instant.now(), ZoneId.systemDefault()), newest))
     }, done)
   }
 
-  /** Encrypts a text for every device of the conversation, keeps it, and hands it to the server. A failure is a
-   *  `CryptoFailure`. */
+  /** Encrypts one message for every device of the conversation (or takes the ciphertext already kept for this
+   *  id), hands it to the server and marks it delivered. Runs on the encryption thread. A failure is a `CryptoFailure`.
+   *
+   *  - The device list changed since the ciphertext was made: it is dropped and the message encrypted afresh, once.
+   *  - Refused for good (not «try later», not a dead session): the kept copy is forgotten, so it is not sent
+   *    again after every start.
+   *  - No answer: it stays in the list of unsent messages and goes out later with the very same ciphertext. */
+  private fun deliver(crypto: CryptoService, chatId: String, peerId: String, clientId: String, text: Any?, attachment: Any?, meta: Any?, again: Boolean = true): Result<Unit> {
+    val encrypted = crypto.callNow("encrypt", listOf(chatId, peerId, clientId, text, attachment, meta, null))
+    if (encrypted.isFailure) return Result.failure(CryptoService.failure(encrypted) ?: CryptoFailure("Error", "Шифрование недоступно."))
+    val sent = server.opAndWait("sendEncrypted", listOf(chatId, clientId, encrypted.getOrNull()))
+    if (sent.isSuccess) {
+      crypto.callNow("delivered", listOf(chatId, clientId))
+      return Result.success(Unit)
+    }
+    val error = Server.error(sent)
+    if (error !is ServerError.Refused) return Result.failure(CryptoFailure("NetworkError", error.words))
+    when (afterRefusal(error.status, error.code)) {
+      Refusal.AFRESH -> {
+        crypto.callNow("forget", listOf(chatId, clientId))
+        if (again) return deliver(crypto, chatId, peerId, clientId, text, attachment, meta, again = false)
+      }
+      Refusal.FORGET -> crypto.callNow("forget", listOf(chatId, clientId))
+      Refusal.KEEP -> {}
+    }
+    return Result.failure(CryptoFailure("Error", error.words))
+  }
+
+  /** Sends a text. A failure is a `CryptoFailure`. */
   fun send(chatId: String, peerId: String, text: String, done: (Result<Unit>) -> Unit) {
     val clientId = UUID.randomUUID().toString().lowercase()
+    crypto.run({ crypto -> deliver(crypto, chatId, peerId, clientId, text, null, null) }, done)
+  }
+
+  /** Messages that were encrypted and kept but never confirmed by the server (the app was closed, the network
+   *  went away) go out again — each with the very ciphertext it was first given, so nothing is sent twice. */
+  fun resendPending() {
     crypto.run({ crypto ->
-      val encrypted = crypto.callNow("encrypt", listOf(chatId, peerId, clientId, text, null, null, null))
-      CryptoService.failure(encrypted)?.let { return@run Result.failure<Unit>(it) }
-      if (encrypted.isFailure) return@run Result.failure<Unit>(CryptoFailure("Error", "Шифрование недоступно."))
-      val sent = server.opAndWait("sendEncrypted", listOf(chatId, clientId, encrypted.getOrNull()))
-      // Not taken by the server: kept in the list of unsent messages, it goes out again with the very same ciphertext.
-      if (sent.isFailure) return@run Result.failure<Unit>(CryptoFailure("NetworkError", Server.error(sent).words))
-      crypto.callNow("delivered", listOf(chatId, clientId))
-      Result.success(Unit)
-    }, done)
+      val items = (crypto.callNow("pendingOutbox").getOrNull() as? List<*>).orEmpty().mapNotNull { Core.map(it) }
+      var sent = 0
+      for (item in items) {
+        // Scheduled messages have their own road to the server; they are not built here yet.
+        if (item["deliverAt"] != null) continue
+        val chatId = item["chatId"] as? String ?: continue
+        val clientId = item["clientId"] as? String ?: continue
+        val peerId = item["peerId"] as? String ?: continue
+        val result = deliver(crypto, chatId, peerId, clientId, item["text"] ?: "", item["attachment"], item["meta"])
+        if (result.isSuccess) sent += 1 else if (CryptoService.failure(result)?.name == "NetworkError") break
+      }
+      sent
+    }, { sent -> if (sent > 0) tellChanged(null) })
   }
 
   // Words and looks: plain functions of what they are given, so they can be checked without a phone.
 
+  /** What becomes of a kept ciphertext the server refused. */
+  enum class Refusal { AFRESH, FORGET, KEEP }
+
   companion object {
+    /** The rule of a refused sending: the list of devices changed — forget and encrypt afresh (once); refused for
+     *  good (4xx, but not a dead session 401, «too slow» 408 or «too often» 429) — forget; else it is kept. */
+    fun afterRefusal(status: Int, code: String?): Refusal = when {
+      code == "E2EE_DEVICES_CHANGED" -> Refusal.AFRESH
+      status in 400..499 && status != 401 && status != 408 && status != 429 -> Refusal.FORGET
+      else -> Refusal.KEEP
+    }
+
+    /** A chat's opened messages folded into the lines that are shown (the core's `foldChat`): an edit changes
+     *  its message and marks it `edited`, a deleted one is gone, reactions are gathered on their message. Without
+     *  the core's answer the service messages are only left out. */
+    fun folded(opened: List<Map<String, Any?>>, userId: String, nowMs: Long): List<Map<String, Any?>> {
+      val lines = Core.map(Core.view("foldChat", listOf(opened, userId, emptyList<String>(), nowMs)))?.get("messages") as? List<*>
+      return lines?.mapNotNull { Core.map(it) } ?: opened.filter { Core.map(it["meta"])?.get("action") == null }
+    }
+
+    /** A message's text as the core lays it out (`nativeText`): `{text, fmt, urls}`; null without an answer. */
+    fun laidOut(text: String, entities: Any?): Map<String, Any?>? = Core.map(Core.view("nativeText", listOf(text, entities)))
+
     /** One chat of the server's list as a row; `last` is its last message as this device opened it (or as the
      *  server gave it, when it could not be opened). Null for a chat without an id or the other person. */
     fun summary(chat: Map<String, Any?>, last: Map<String, Any?>?, userId: String, now: Instant, zone: ZoneId, section: String = "", base: String = ""): ChatSummary? {
@@ -187,7 +242,8 @@ class Messenger(context: Context, token: String, val user: Map<String, Any?>) {
       val peerLastRead = (chat["peerLastReadMessageId"] as? Number)?.toLong() ?: 0L
       var preview = ""; var time = ""; var ticks = 0
       if (last != null) {
-        preview = previewText(last)
+        // The line of the list as the core words it (a call's outcome, hidden spoilers); else the plain words.
+        preview = (Core.view("chatListText", listOf(last)) as? String).orEmpty().ifEmpty { previewText(last) }
         time = listTime(last["createdAt"] as? String, now, zone)
         if (last["senderId"] as? String == userId) ticks = if (peerLastRead >= ((last["id"] as? Number)?.toLong() ?: 0L)) 2 else 1
       }
@@ -221,8 +277,11 @@ class Messenger(context: Context, token: String, val user: Map<String, Any?>) {
     }
 
     /** The opened messages of a page, oldest first, as rows of the message list: a line with the day before the
-     *  first message of each day; two ticks on the person's own messages the other side has read. */
-    fun rows(messages: List<Map<String, Any?>>, userId: String, peerLastRead: Long, now: Instant, zone: ZoneId): List<Map<String, Any?>> {
+     *  first message of each day; two ticks on the person's own messages the other side has read. The messages
+     *  are the folded ones (`folded`): «изм. » stands before the time of an edited one, reactions are chips
+     *  (triples [emoji, count, "1" if mine]); `layout` gives a text its formatting (the core's `nativeText`). */
+    fun rows(messages: List<Map<String, Any?>>, userId: String, peerLastRead: Long, now: Instant, zone: ZoneId,
+             layout: (text: String, entities: Any?) -> Map<String, Any?>? = ::laidOut): List<Map<String, Any?>> {
       val rows = ArrayList<Map<String, Any?>>()
       var day = ""
       messages.forEachIndexed { index, message ->
@@ -233,9 +292,22 @@ class Messenger(context: Context, token: String, val user: Map<String, Any?>) {
         if (today != day && today.isNotEmpty()) { day = today; rows.add(mapOf("key" to "day-$index", "kind" to 1, "text" to today)) }
         val next = messages.getOrNull(index + 1)
         val id = (message["id"] as? Number)?.toLong() ?: 0L
+        // Bold, links, spoilers and the rest: the text and its runs as the core lays them out.
+        var body = previewText(message)
+        var fmt = emptyList<Int>(); var urls = emptyList<String>()
+        val laid = layout(message["text"] as? String ?: "", Core.map(message["meta"])?.get("entities"))
+        val text = laid?.get("text") as? String
+        if (!text.isNullOrEmpty()) {
+          body = text
+          fmt = (laid["fmt"] as? List<*>).orEmpty().mapNotNull { (it as? Number)?.toInt() }
+          urls = (laid["urls"] as? List<*>).orEmpty().mapNotNull { it as? String }
+        }
+        val chips = (message["reactions"] as? List<*>).orEmpty().mapNotNull { Core.map(it) }.flatMap { reaction ->
+          listOf(reaction["emoji"] as? String ?: "", ((reaction["count"] as? Number)?.toInt() ?: 1).toString(), if (reaction["mine"] == true) "1" else "")
+        }
         rows.add(mapOf(
-          "key" to "${sender ?: ""}:${message["clientId"] as? String ?: ""}", "kind" to 0, "mine" to mine,
-          "text" to previewText(message), "time" to (date?.let { clock(it, zone) } ?: ""),
+          "key" to "${sender ?: ""}:${message["clientId"] as? String ?: ""}", "kind" to 0, "mine" to mine, "fmt" to fmt, "urls" to urls,
+          "text" to body, "time" to ((if (message["edited"] == true) "изм. " else "") + (date?.let { clock(it, zone) } ?: "")), "chips" to chips,
           "ticks" to (if (mine) (if (peerLastRead >= id) 2 else 1) else 0), "tail" to (next?.get("senderId") as? String != sender),
         ))
       }

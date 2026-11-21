@@ -1,6 +1,8 @@
 package com.linea.messenger
 
 import com.linea.messenger.core.Core
+import com.linea.messenger.app.Messenger
+import com.linea.messenger.chat.MsgRow
 import com.linea.messenger.core.CryptoHost
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertNotEquals
@@ -113,6 +115,65 @@ class CoreJniTest {
       assertEquals(made, call(again, "deviceId")["ok"])
       assertEquals(size, host.kept.size)
     } finally { Core.cryptoFree(again) }
+  }
+
+  @Test fun aTextIsLaidOutByTheCore() {
+    assumeTrue(Core.loaded)
+    // Plain words stay as they are, without runs.
+    assertEquals(mapOf("text" to "Привет", "fmt" to emptyList<Any?>(), "urls" to emptyList<Any?>()), Core.view("nativeText", listOf("Привет", null)))
+    // Bold over «жирный» (flag 1), and an address found in the text itself (flag 64): offsets in UTF-16 units.
+    val laid = Core.map(Core.view("nativeText", listOf("😀 жирный и https://example.com/a", listOf(mapOf("type" to "bold", "offset" to 3, "length" to 6)))))!!
+    assertEquals("😀 жирный и https://example.com/a", laid["text"])
+    assertEquals(listOf(1.0, 3.0, 6.0, 64.0, 12.0, 21.0), laid["fmt"])
+    assertEquals(listOf("https://example.com/a"), laid["urls"])
+    // The very JSON the core gives, as the JNI function hands it over.
+    assertEquals("""{"text":"a","fmt":[2,0,1],"urls":[]}""", Core.view("nativeText", """["a",[{"type":"italic","offset":0,"length":1}]]"""))
+    // The app's row takes these as they are.
+    val row = MsgRow.parse(Messenger.rows(listOf(mapOf("id" to 1.0, "senderId" to "peer", "clientId" to "c1", "createdAt" to "2026-11-21T06:00:00.000Z",
+      "text" to "жирный", "meta" to mapOf("entities" to listOf(mapOf("type" to "bold", "offset" to 0, "length" to 6))))), "me", 0, java.time.Instant.parse("2026-11-21T07:00:00Z"), java.time.ZoneId.of("Europe/Moscow"))).last()
+    assertEquals(listOf("жирный", listOf(1, 0, 6), emptyList<String>()), listOf(row.text, row.fmt, row.urls))
+    // No answer for an unknown name, arguments of the wrong kind, or a text that is not JSON.
+    assertNull(Core.view("no-such-view", listOf("a")))
+    assertNull(Core.view("nativeText", listOf(1, null)))
+    assertNull(Core.view("nativeText", "not json"))
+    assertEquals("Привет", Core.view("chatListText", listOf(mapOf("text" to "Привет"))))
+  }
+
+  @Test fun aChatIsFoldedByTheCore() {
+    assumeTrue(Core.loaded)
+    fun message(id: Int, sender: String, text: String, at: String, action: Map<String, Any?>? = null) =
+      mapOf<String, Any?>("id" to id, "senderId" to sender, "clientId" to "c$id", "text" to text, "createdAt" to at) + (if (action == null) emptyMap() else mapOf("meta" to mapOf("action" to action)))
+    val raw = listOf(
+      message(1, "peer", "Привет", "2026-11-21T06:00:00.000Z"),
+      message(2, "me", "Превет", "2026-11-21T06:01:00.000Z"),
+      message(3, "me", "", "2026-11-21T06:02:00.000Z", mapOf("type" to "edit", "target" to "c2", "text" to "Привет!")),
+      message(4, "peer", "лишнее", "2026-11-21T06:03:00.000Z"),
+      message(5, "peer", "", "2026-11-21T06:04:00.000Z", mapOf("type" to "delete", "target" to "c4")),
+      message(6, "me", "", "2026-11-21T06:05:00.000Z", mapOf("type" to "react", "target" to "c1", "emoji" to "👍")),
+      message(7, "peer", "", "2026-11-21T06:06:00.000Z", mapOf("type" to "react", "target" to "c1", "emoji" to "👍")),
+      message(8, "peer", "", "2026-11-21T06:07:00.000Z", mapOf("type" to "react", "target" to "c2", "emoji" to "❤️")),
+    )
+    val now = 1795245600000L
+    // Through the JNI function itself: the core's own JSON.
+    val text = Core.view("foldChat", Core.text(listOf(raw.take(3), "me", emptyList<String>(), now))!!)!!
+    assertEquals(
+      """{"messages":[{"id":1,"senderId":"peer","clientId":"c1","text":"Привет","createdAt":"2026-11-21T06:00:00.000Z","edited":false,"reactions":[]},""" +
+        """{"id":2,"senderId":"me","clientId":"c2","text":"Привет!","createdAt":"2026-11-21T06:01:00.000Z","edited":true,"reactions":[]}],""" +
+        """"pinned":null,"rules":{"ttl":null,"noCopy":false},"nextExpiry":null}""", text)
+    // As the app asks: the edit shows the new text, the deleted message is gone, reactions are gathered.
+    val lines = Messenger.folded(raw, "me", now)
+    assertEquals(listOf("c1", "c2"), lines.map { it["clientId"] })
+    assertEquals(listOf("Привет", "Привет!"), lines.map { it["text"] })
+    assertEquals(listOf(false, true), lines.map { it["edited"] })
+    assertEquals(listOf(mapOf("emoji" to "👍", "count" to 2.0, "mine" to true)), lines[0]["reactions"])
+    assertEquals(listOf(mapOf("emoji" to "❤️", "count" to 1.0, "mine" to false)), lines[1]["reactions"])
+    // And the rows of the list from that page.
+    val rows = MsgRow.parse(Messenger.rows(lines, "me", 0, java.time.Instant.parse("2026-11-21T07:00:00Z"), java.time.ZoneId.of("Europe/Moscow")))
+    assertEquals(listOf("Сегодня", "Привет", "Привет!"), rows.map { it.text })
+    assertEquals(listOf("", "09:00", "изм. 09:01"), rows.map { it.time })
+    assertEquals(listOf(emptyList(), listOf("👍", "2", "1"), listOf("❤️", "1", "")), rows.map { it.chips })
+    // Arguments of the wrong kind have no answer.
+    assertNull(Core.view("foldChat", listOf(raw, "me")))
   }
 
   @Test fun aHostWithoutTheThreeMethodsIsRefused() {

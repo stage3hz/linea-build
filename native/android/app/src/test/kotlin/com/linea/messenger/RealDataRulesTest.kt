@@ -70,6 +70,51 @@ class RealDataRulesTest {
     assertEquals(emptyList<Map<String, Any?>>(), Messenger.rows(emptyList(), me, 0, now, moscow))
   }
 
+  @Test fun theRowsOfAFoldedPage() {
+    // A page as the core folds it: an edited message with its formatting, reactions gathered on their messages.
+    val page = listOf(
+      message(1, "peer", "Смотри https://example.com", "2026-11-21T06:00:00.000Z") + mapOf("edited" to false,
+        "reactions" to listOf(mapOf("emoji" to "👍", "count" to 2.0, "mine" to true), mapOf("emoji" to "🔥", "count" to 1.0, "mine" to false))),
+      message(2, me, "Очень важно", "2026-11-21T06:01:00.000Z") + mapOf("edited" to true, "reactions" to emptyList<Any?>(),
+        "meta" to mapOf("entities" to listOf(mapOf("type" to "bold", "offset" to 6.0, "length" to 5.0)))),
+      message(3, me, "", "2026-11-21T06:02:00.000Z") + mapOf("attachment" to mapOf("mimeType" to "image/jpeg"), "reactions" to listOf(mapOf("emoji" to "❤️"))),
+    )
+    // The layout of a text stands in for the core's `nativeText` here: what it is asked, and what the row does with the answer.
+    val asked = ArrayList<Pair<String, Any?>>()
+    val rows = Messenger.rows(page, me, peerLastRead = 2, now, moscow) { text, entities ->
+      asked.add(text to entities)
+      when (text) {
+        "Смотри https://example.com" -> mapOf("text" to text, "fmt" to listOf(64.0, 7.0, 19.0), "urls" to listOf("https://example.com"))
+        "Очень важно" -> mapOf("text" to text, "fmt" to listOf(1.0, 6.0, 5.0), "urls" to emptyList<Any?>())
+        else -> mapOf("text" to "", "fmt" to emptyList<Any?>(), "urls" to emptyList<Any?>())
+      }
+    }
+    assertEquals(listOf<Pair<String, Any?>>("Смотри https://example.com" to null, "Очень важно" to listOf(mapOf("type" to "bold", "offset" to 6.0, "length" to 5.0)), "" to null), asked)
+    val drawn = MsgRow.parse(rows)
+    assertEquals(listOf("Сегодня", "Смотри https://example.com", "Очень важно", "Фото"), drawn.map { it.text })
+    // «изм. » stands before the time of the edited message only.
+    assertEquals(listOf("", "09:00", "изм. 09:01", "09:02"), drawn.map { it.time })
+    assertEquals(listOf(emptyList(), listOf(64, 7, 19), listOf(1, 6, 5), emptyList()), drawn.map { it.fmt })
+    assertEquals(listOf(emptyList(), listOf("https://example.com"), emptyList(), emptyList()), drawn.map { it.urls })
+    // Chips: [emoji, count, "1" if mine] for each reaction, in the page's order; a count that is missing is one.
+    assertEquals(listOf(emptyList(), listOf("👍", "2", "1", "🔥", "1", ""), emptyList(), listOf("❤️", "1", "")), drawn.map { it.chips })
+    assertEquals(listOf(0, 0, 2, 1), drawn.map { it.ticks })
+    // Without an answer of the layout the text is shown plain.
+    val plain = MsgRow.parse(Messenger.rows(page, me, 2, now, moscow) { _, _ -> null })
+    assertEquals(listOf("Сегодня", "Смотри https://example.com", "Очень важно", "Фото"), plain.map { it.text })
+    assertTrue(plain.all { it.fmt.isEmpty() && it.urls.isEmpty() })
+  }
+
+  @Test fun whatBecomesOfARefusedSending() {
+    // The list of devices changed: the ciphertext is dropped and made afresh, whatever the status.
+    assertEquals(Messenger.Refusal.AFRESH, Messenger.afterRefusal(409, "E2EE_DEVICES_CHANGED"))
+    // Refused for good: forgotten, so it is not sent again after every start.
+    for (status in listOf(400, 403, 404, 413, 422)) assertEquals(Messenger.Refusal.FORGET, Messenger.afterRefusal(status, null))
+    assertEquals(Messenger.Refusal.FORGET, Messenger.afterRefusal(403, "BLOCKED"))
+    // A dead session, «too slow», «too often», and the server's own trouble: kept for later.
+    for (status in listOf(401, 408, 429, 500, 503, 0)) assertEquals(Messenger.Refusal.KEEP, Messenger.afterRefusal(status, null))
+  }
+
   @Test fun aChatOfTheList() {
     val chat = mapOf<String, Any?>(
       "id" to "chat-1", "unreadCount" to 3.0, "peerLastReadMessageId" to 7.0,
