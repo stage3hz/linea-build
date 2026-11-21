@@ -324,6 +324,15 @@ final class MsgRowCanvas: UIView {
   private var bodyBox = CGRect.zero
   /// The reaction chips as drawn last.
   private var chipBoxes: [(frame: CGRect, emoji: String)] = []
+  /// ChatActions: the row is lit for a moment (the message a quote or the pinned bar jumped to).
+  var flash = false
+  /// ChatActions: where the quote of an answer was drawn last (a tap on it jumps to the original).
+  private var quoteBox = CGRect.zero
+
+  /// ChatActions: whether a point of this view is on the quote of an answer.
+  func quote(at point: CGPoint) -> Bool {
+    quoteBox != .zero && quoteBox.insetBy(dx: -2, dy: -3).contains(point)
+  }
 
   /// The reaction chip under a point of this view.
   func chip(at point: CGPoint) -> String? {
@@ -371,6 +380,7 @@ final class MsgRowCanvas: UIView {
     guard let item = row, let context = UIGraphicsGetCurrentContext() else { return }
     let w = bounds.width
     let bubble = layoutInfo.bubble
+    quoteBox = .zero
     if item.kind == 1 {
       let box = CGRect(x: (w - bubble.width) / 2, y: 0, width: bubble.width, height: bubble.height)
       context.setFillColor(palette.notice.cgColor)
@@ -420,6 +430,11 @@ final class MsgRowCanvas: UIView {
       context.addPath(shape.cgPath)
       context.fillPath()
     }
+    if flash {
+      context.setFillColor(UIColor(white: 1, alpha: 0.14).cgColor)
+      context.addPath(shape.cgPath)
+      context.fillPath()
+    }
 
     let x = left + 13
     var y: CGFloat = 9
@@ -432,6 +447,7 @@ final class MsgRowCanvas: UIView {
     }
     if layoutInfo.quoteSize != .zero {
       let height = 17 + layoutInfo.quoteSize.height + 2
+      quoteBox = CGRect(x: x, y: y, width: inner, height: height)
       context.setFillColor(palette.quote.cgColor)
       context.addPath(UIBezierPath(roundedRect: CGRect(x: x, y: y, width: inner, height: height), cornerRadius: 6).cgPath)
       context.fillPath()
@@ -593,6 +609,12 @@ final class MsgListView: UIView, UITableViewDataSource, UITableViewDelegate, UIG
   var onMsgPress: ([String: Any]) -> Void = { _ in }
   var onMsgLongPress: ([String: Any]) -> Void = { _ in }
   var onNearTop: ([String: Any]) -> Void = { _ in }
+  /// ChatActions: a tap on the quote of an answer (`key`: the row of the answer).
+  var onQuotePress: ([String: Any]) -> Void = { _ in }
+  /// ChatActions: the list moved; `fromNewest` is how far it stands from its newest message, in points.
+  var onScrolled: ([String: Any]) -> Void = { _ in }
+  /// ChatActions: the row lit after a jump to it.
+  private var flashKey = ""
 
   private let table = UITableView(frame: .zero, style: .plain)
   /// Newest first (index 0 is at the bottom of the screen).
@@ -645,10 +667,17 @@ final class MsgListView: UIView, UITableViewDataSource, UITableViewDelegate, UIG
     return (rows[path.row].key, emoji)
   }
 
+  /// ChatActions: the row whose quote is under a point of the table.
+  private func quote(atTablePoint point: CGPoint) -> String? {
+    guard let path = table.indexPathForRow(at: point), path.row < rows.count, let cell = table.cellForRow(at: path) as? MsgRowCell,
+          cell.canvas.quote(at: table.convert(point, to: cell.canvas)) else { return nil }
+    return rows[path.row].key
+  }
+
   override func gestureRecognizerShouldBegin(_ gestureRecognizer: UIGestureRecognizer) -> Bool {
     if gestureRecognizer === linkTap {
       let point = gestureRecognizer.location(in: table)
-      return chip(atTablePoint: point) != nil || run(atTablePoint: point) != nil
+      return chip(atTablePoint: point) != nil || run(atTablePoint: point) != nil || quote(atTablePoint: point) != nil
     }
     return super.gestureRecognizerShouldBegin(gestureRecognizer)
   }
@@ -659,7 +688,10 @@ final class MsgListView: UIView, UITableViewDataSource, UITableViewDelegate, UIG
       onReactPress(["key": chip.key, "emoji": chip.emoji])
       return
     }
-    guard let found = run(atTablePoint: recognizer.location(in: table)) else { return }
+    guard let found = run(atTablePoint: recognizer.location(in: table)) else {
+      if let key = quote(atTablePoint: recognizer.location(in: table)) { onQuotePress(["key": key]) }
+      return
+    }
     if found.hit.url.isEmpty {
       // Telegram: one tap shows every spoiler of the message.
       revealed.insert(found.key)
@@ -717,6 +749,7 @@ final class MsgListView: UIView, UITableViewDataSource, UITableViewDelegate, UIG
     if sameHeights {
       for cell in table.visibleCells {
         guard let rowCell = cell as? MsgRowCell, let path = table.indexPath(for: cell), path.row < rows.count else { continue }
+        rowCell.canvas.flash = !flashKey.isEmpty && rows[path.row].key == flashKey
         rowCell.show(rows[path.row], palette, fontSize, layout(rows[path.row]), revealed.contains(rows[path.row].key))
       }
     } else {
@@ -751,6 +784,41 @@ final class MsgListView: UIView, UITableViewDataSource, UITableViewDelegate, UIG
 
   func scrollViewDidScroll(_ scrollView: UIScrollView) {
     if scrollView.isDragging || scrollView.isDecelerating { pinned = scrollView.contentOffset.y <= -scrollView.contentInset.top + 24 }
+    onScrolled(["fromNewest": Double(scrollView.contentOffset.y + scrollView.contentInset.top)])
+  }
+
+  // MARK: ChatActions — going to a message
+
+  /// Takes the list to its newest message.
+  func scrollToNewest(animated: Bool) {
+    pinned = true
+    table.setContentOffset(CGPoint(x: 0, y: -table.contentInset.top), animated: animated)
+  }
+
+  /// Scrolls to the row with this key and lights it for a moment. False when there is no such row.
+  func jump(to key: String) -> Bool {
+    guard let index = rows.firstIndex(where: { $0.key == key }) else { return false }
+    pinned = index == 0
+    table.scrollToRow(at: IndexPath(row: index, section: 0), at: .middle, animated: true)
+    flashKey = key
+    showFlash()
+    DispatchQueue.main.asyncAfter(deadline: .now() + 1.6) { [weak self] in
+      guard let self, self.flashKey == key else { return }
+      self.flashKey = ""
+      self.showFlash()
+    }
+    return true
+  }
+
+  private func showFlash() {
+    for cell in table.visibleCells {
+      guard let rowCell = cell as? MsgRowCell, let path = table.indexPath(for: cell), path.row < rows.count else { continue }
+      let lit = !flashKey.isEmpty && rows[path.row].key == flashKey
+      if rowCell.canvas.flash != lit {
+        rowCell.canvas.flash = lit
+        rowCell.canvas.setNeedsDisplay()
+      }
+    }
   }
 
   func tableView(_ tableView: UITableView, numberOfRowsInSection section: Int) -> Int { rows.count }
@@ -762,6 +830,7 @@ final class MsgListView: UIView, UITableViewDataSource, UITableViewDelegate, UIG
   func tableView(_ tableView: UITableView, cellForRowAt indexPath: IndexPath) -> UITableViewCell {
     let cell = tableView.dequeueReusableCell(withIdentifier: "msg", for: indexPath)
     if let rowCell = cell as? MsgRowCell, indexPath.row < rows.count {
+      rowCell.canvas.flash = !flashKey.isEmpty && rows[indexPath.row].key == flashKey
       rowCell.show(rows[indexPath.row], palette, fontSize, layout(rows[indexPath.row]), revealed.contains(rows[indexPath.row].key))
     }
     return cell
@@ -780,7 +849,11 @@ final class MsgListView: UIView, UITableViewDataSource, UITableViewDelegate, UIG
 
   func tableView(_ tableView: UITableView, didSelectRowAt indexPath: IndexPath) {
     tableView.deselectRow(at: indexPath, animated: false)
-    if indexPath.row < rows.count { onMsgPress(["key": rows[indexPath.row].key]) }
+    if indexPath.row < rows.count {
+      // ChatActions: `y` is the middle of the row on the screen (the menu opens next to it).
+      let box = tableView.convert(tableView.rectForRow(at: indexPath), to: nil)
+      onMsgPress(["key": rows[indexPath.row].key, "y": Double(box.midY)])
+    }
   }
 
   @objc private func held(_ recognizer: UILongPressGestureRecognizer) {

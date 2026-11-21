@@ -32,6 +32,8 @@ targets:
         UILaunchScreen: {}
         UISupportedInterfaceOrientations: [UIInterfaceOrientationPortrait]
         UIUserInterfaceStyle: Dark
+        # Music keeps playing when the app is not on the screen (Sources/Music/MusicPlayer.swift).
+        UIBackgroundModes: [audio]
         UIApplicationSceneManifest:
           UIApplicationSupportsMultipleScenes: false
           UISceneConfigurations:

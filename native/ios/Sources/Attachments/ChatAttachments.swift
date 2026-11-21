@@ -74,7 +74,8 @@ final class ChatAttachments: NSObject, PHPickerViewControllerDelegate, UIDocumen
 
     /// Places the paperclip at the composer's leading edge and moves the text field next to it.
     func place(field: UIView, height: CGFloat) {
-        button.frame = CGRect(x: 4, y: (height - 44) / 2, width: 44, height: 44)
+        // At the composer's lower edge: the field grows upwards with its text (ChatActions).
+        button.frame = CGRect(x: 4, y: height - 46, width: 44, height: 44)
         let right = field.frame.maxX
         field.frame = CGRect(x: 50, y: field.frame.minY, width: max(0, right - 50), height: field.frame.height)
     }

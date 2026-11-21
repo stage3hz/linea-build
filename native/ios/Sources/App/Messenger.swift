@@ -33,7 +33,8 @@ final class Messenger {
             case .read(let chatId, let userId, let messageId):
                 if userId != self.userId { NotificationCenter.default.post(name: Messenger.peerRead, object: nil, userInfo: ["chatId": chatId, "messageId": messageId]) }
                 NotificationCenter.default.post(name: Messenger.changed, object: nil)
-            case .typing: break
+            // ChatActions: «печатает…» of the other side (Sources/ChatActions/ChatLocal.swift).
+            case .typing(let chatId, let userId, let on): if userId != self.userId { ChatTyping.shared.heard(chatId: chatId, on: on) }
             }
         }
         // Publishes this device's keys (making them on the very first start), then opens the live line.
@@ -54,6 +55,9 @@ final class Messenger {
         let title: String
         let peerLastRead: Int
         let row: [String: Any]
+        /// ChatActions: the chat as the server lists it (its settings, what is unread), and its last message as this device shows it.
+        var chat: [String: Any] = [:]
+        var last: [String: Any] = [:]
     }
 
     /// The chats as the server lists them, each with its last message as this device has decrypted it.
@@ -97,6 +101,7 @@ final class Messenger {
         guard let id = chat["id"] as? String, let peer = chat["peer"] as? [String: Any], let peerId = peer["id"] as? String else { return nil }
         let title = peer["displayName"] as? String ?? ""
         var preview = "", time = "", ticks = 0
+        var shownLast: [String: Any] = [:]
         if var last = chat["lastMessage"] as? [String: Any] {
             // The list never shows the server's own text: only the copy this device decrypted and kept.
             var shown = (try? crypto.callNow("preview", [last]).get()) as? [String: Any]
@@ -106,6 +111,7 @@ final class Messenger {
                 shown = (try? crypto.callNow("preview", [last]).get()) as? [String: Any]
             }
             if let shown { last = shown }
+            shownLast = last
             // The line of the list as the core words it (a call's outcome, hidden spoilers); else the plain words.
             let line = Core.view("chatListText", [last]) as? String ?? ""
             preview = line.isEmpty ? Self.previewText(last) : line
@@ -123,7 +129,7 @@ final class Messenger {
         let row: [String: Any] = ["section": section, "avatarUrl": avatarUrl, "avatarKey": avatarId, "id": id, "title": title, "preview": preview, "time": time, "unread": (chat["unreadCount"] as? NSNumber)?.intValue ?? 0,
                                   "muted": settings?["muted"] as? Bool ?? false, "pinned": settings?["pinnedAt"] is String, "ticks": ticks,
                                   "avatarColor": Int(0xFF00_0000 | color), "initials": Self.initials(title), "orbA": orb.light, "orbB": orb.deep]
-        return ChatSummary(id: id, peerId: peerId, title: title, peerLastRead: (chat["peerLastReadMessageId"] as? NSNumber)?.intValue ?? 0, row: row)
+        return ChatSummary(id: id, peerId: peerId, title: title, peerLastRead: (chat["peerLastReadMessageId"] as? NSNumber)?.intValue ?? 0, row: row, chat: chat, last: shownLast)
     }
 
     // MARK: One chat
@@ -201,7 +207,7 @@ final class Messenger {
     /// - Refused for good (not «try later», not a dead session): the kept copy is forgotten, so it is not sent
     ///   again after every start.
     /// - No answer: it stays in the list of unsent messages and goes out later with the very same ciphertext.
-    private func deliver(_ crypto: CryptoService, chatId: String, peerId: String, clientId: String, text: Any, attachment: Any, meta: Any, again: Bool = true) -> Result<Void, CryptoFailure> {
+    func deliver(_ crypto: CryptoService, chatId: String, peerId: String, clientId: String, text: Any, attachment: Any, meta: Any, again: Bool = true) -> Result<Void, CryptoFailure> {
         switch crypto.callNow("encrypt", [chatId, peerId, clientId, text, attachment, meta, NSNull()]) {
         case .failure(let failure): return .failure(failure)
         case .success(let encrypted):

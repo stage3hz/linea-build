@@ -16,10 +16,10 @@ final class RootViewController: UIViewController {
 
     private lazy var sections: [Section] = [
         Section(id: "chats", label: "Чаты", symbol: "bubble.left.and.bubble.right") { [messenger] in ChatsViewController(messenger: messenger) },
-        Section(id: "ai", label: "AI", symbol: "sparkles") { PlaceholderViewController(title: "AI") },
+        Section(id: "ai", label: "AI", symbol: "sparkles") { [messenger] in AIViewController(messenger: messenger) },
         Section(id: "people", label: "Люди", symbol: "person.2") { [messenger] in PeopleViewController(messenger: messenger) },
         Section(id: "channels", label: "Каналы", symbol: "dot.radiowaves.left.and.right") { [messenger] in ChannelsViewController(messenger: messenger) },
-        Section(id: "music", label: "Музыка", symbol: "headphones") { PlaceholderViewController(title: "Музыка") },
+        Section(id: "music", label: "Музыка", symbol: "headphones") { [messenger] in MusicViewController(messenger: messenger) },
         Section(id: "profile", label: "Настройки", symbol: "gearshape") { [messenger] in SettingsViewController(messenger: messenger) },
     ]
     /// The two sections that have an icon in the bar; the others are in the list under the first one.
@@ -60,6 +60,8 @@ final class RootViewController: UIViewController {
         // Channels: what is unread in the communities on the row of «Каналы» (Channels/ChannelsStore.swift).
         NotificationCenter.default.addObserver(self, selector: #selector(peopleBadge), name: ChannelsStore.changed, object: nil)
         ChannelsStore.shared.start(messenger)
+        // Music: the bar is lit by the playing track's cover (Music/CoverTint.swift).
+        MusicGlow.attach(self)
     }
 
     override func viewDidLayoutSubviews() {
@@ -99,9 +101,14 @@ final class RootViewController: UIViewController {
     func settingsPage() -> SettingsViewController? { pages["profile"] as? SettingsViewController }
     /// For the simulator check: the «Каналы» section, once it has been opened.
     func channelsPage() -> ChannelsViewController? { pages["channels"] as? ChannelsViewController }
+    /// For the simulator check: the «Музыка» section, once it has been opened.
+    func musicPage() -> MusicViewController? { pages["music"] as? MusicViewController }
     /// For the simulator check: opens the first chat of the list.
     func openFirstChat() { (pages["chats"] as? ChatsViewController)?.openFirst() }
     #endif
+
+    /// Music: three colours of the playing track's cover for the bar's light; an empty list restores the calm silver.
+    func setBarGlow(_ hexes: [String]) { bar.setGlow(hexes) }
 
     /// The list of the sections without an icon (for a check on the simulator and for accessibility).
     func showSections() { bar.openList(sticky: true) }

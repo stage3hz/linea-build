@@ -55,7 +55,14 @@ final class Live: NSObject, URLSessionWebSocketDelegate {
         beat = Timer.scheduledTimer(withTimeInterval: 15, repeats: true) { [weak self] _ in self?.tick() }
     }
 
-    @objc private func wake() { if stopped { start() } }
+    /// Closes the line for good (the account was signed out): it does not come back with the app.
+    func stop() {
+        closed = true
+        sleep()
+    }
+    private var closed = false
+
+    @objc private func wake() { if stopped && !closed { start() } }
 
     @objc private func sleep() {
         stopped = true

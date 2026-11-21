@@ -61,6 +61,9 @@ final class SceneDelegate: UIResponder, UIWindowSceneDelegate {
     /// Settings: the account was left (signed out, a secret changed, the session ended, the account deleted).
     /// The session is already forgotten (Settings/AccountActions.swift); signing in is shown, with a few words why.
     func closeAccount(notice: String) {
+        // Nothing of the closed account goes on by itself: its live line and the music stop here.
+        messenger?.live.stop()
+        MusicPlayer.shared.stop()
         messenger = nil
         showAuth()
         guard !notice.isEmpty else { return }
@@ -88,11 +91,13 @@ final class SceneDelegate: UIResponder, UIWindowSceneDelegate {
     ///   -settings <page>                «Настройки» and one of its pages, with an account (about: also with -demo) (Settings/SettingsSimulator.swift)
     ///   -attachdemo 1|viewer / -openattachment photo|file    attachments: sample rows in the -demo chat; with an account, opens the chat's newest photo or file (Attachments/ChatAttachments.swift)
     ///   -channelsdemo 1|community|blog|chat|menu|settings / -channels community|chat|create|join    «Каналы»: samples without an account; with an account, a community, a channel, a form (Channels/ChannelsSimulator.swift)
+    ///   -aidemo 1|history / -musicdemo 1|player    «AI» and «Музыка» with samples, no account (Music/MusicSimulator.swift); with an account: -tab ai, -tab music
     private func simulatorStart() -> Bool {
         let args = UserDefaults.standard
         if args.bool(forKey: "corecheck") { window?.rootViewController = CoreCheckViewController(); return true }
         if args.bool(forKey: "auth") { showAuth(); return true }
         if simulatorChannels() { return true }
+        if simulatorAIMusic() { return true }
         if let page = args.string(forKey: "settings") { simulatorSettings(page) }
         if args.bool(forKey: "demo") {
             let root = RootViewController()
