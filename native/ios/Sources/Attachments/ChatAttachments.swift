@@ -35,6 +35,8 @@ final class ChatAttachments: NSObject, PHPickerViewControllerDelegate, UIDocumen
         var percent = -1
         /// What goes with the message inside the ciphertext: the answer it is, or nil.
         var meta: [String: Any]?
+        /// Attachments: the upload has begun (the photos of an album start in their order).
+        var started = false
 
         init(heading: String) {
             self.heading = heading
@@ -63,6 +65,8 @@ final class ChatAttachments: NSObject, PHPickerViewControllerDelegate, UIDocumen
     var onVideoFile: ((URL) -> Bool)?
     /// ChatActions: the answer being written, taken by the first thing sent (see `ChatScreenActions.takeReply`).
     var takeReply: (() -> [String: Any]?)?
+    /// Polls: «Опрос» of the paperclip's sheet (Sources/Polls/PollComposer.swift).
+    var onPoll: (() -> Void)?
 
     init(messenger: Messenger?, chatId: String, peerId: String) {
         self.messenger = messenger
@@ -79,7 +83,7 @@ final class ChatAttachments: NSObject, PHPickerViewControllerDelegate, UIDocumen
         self.host = host
         button.setImage(UIImage(systemName: "paperclip", withConfiguration: UIImage.SymbolConfiguration(pointSize: 20, weight: .regular)), for: .normal)
         button.tintColor = Theme.text
-        button.accessibilityLabel = "Вложения: галерея, файлы"
+        button.accessibilityLabel = "Вложения: галерея, файлы, опрос"
         button.addTarget(self, action: #selector(choose), for: .touchUpInside)
         composer.addSubview(button)
     }
@@ -99,6 +103,7 @@ final class ChatAttachments: NSObject, PHPickerViewControllerDelegate, UIDocumen
         sheet.addAction(UIAlertAction(title: "Галерея", style: .default, handler: { [weak self] _ in self?.pickPhotos() }))
         if onVideo != nil { sheet.addAction(UIAlertAction(title: "Видео", style: .default, handler: { [weak self] _ in self?.onVideo?() })) }
         sheet.addAction(UIAlertAction(title: "Файл", style: .default, handler: { [weak self] _ in self?.pickFiles() }))
+        if onPoll != nil { sheet.addAction(UIAlertAction(title: "Опрос", style: .default, handler: { [weak self] _ in self?.onPoll?() })) }
         sheet.addAction(UIAlertAction(title: "Отмена", style: .cancel, handler: nil))
         sheet.popoverPresentationController?.sourceView = button
         host.present(sheet, animated: true)
@@ -133,9 +138,16 @@ final class ChatAttachments: NSObject, PHPickerViewControllerDelegate, UIDocumen
     func picker(_ picker: PHPickerViewController, didFinishPicking results: [PHPickerResult]) {
         picker.dismiss(animated: true)
         guard messenger != nil else { return }
-        for result in results {
+        // Attachments: two or more photos go out as one album — up to ten per album (Sources/Attachments/AlbumGrid.swift).
+        let albums = AlbumRows.groups(results.count)
+        for (index, result) in results.enumerated() {
             let item = add(Pending(heading: "🖼 Фотография"))
             item.meta = takeReply?()
+            if index < albums.count, let album = albums[index] {
+                var meta = item.meta ?? [:]
+                meta["album"] = ["id": album.id, "index": album.index, "count": album.count]
+                item.meta = meta
+            }
             let provider = result.itemProvider
             guard provider.hasItemConformingToTypeIdentifier(UTType.image.identifier) else {
                 fail(item, "Не удалось обработать фото. Файл не отправлен.")
@@ -226,6 +238,7 @@ final class ChatAttachments: NSObject, PHPickerViewControllerDelegate, UIDocumen
         item.failed = words
         item.transfer = nil
         onPendingChanged?()
+        sendAlbumInOrder() // Attachments: the next photo of an album need not wait for this one
     }
 
     private func remove(_ item: Pending) {
@@ -248,6 +261,23 @@ final class ChatAttachments: NSObject, PHPickerViewControllerDelegate, UIDocumen
                 item.wide = width / height
             }
             item.note = FileCore.sizeText(made.bytes.count)
+            // Attachments: the photos of an album go out in the order they were chosen, each once the ones before
+            // it are ready (or have failed), so the album keeps its order on both sides.
+            if item.meta?["album"] != nil {
+                sendAlbumInOrder()
+            } else {
+                item.started = true
+                send(item)
+            }
+        }
+    }
+
+    /// Starts the photos of albums whose turn it is.
+    private func sendAlbumInOrder() {
+        for item in pending where item.meta?["album"] != nil && !item.started {
+            if item.failed != nil { continue }
+            guard item.prepared != nil else { return }
+            item.started = true
             send(item)
         }
     }

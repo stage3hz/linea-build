@@ -27,6 +27,7 @@ enum ChatLookDemo {
         default:
             break
         }
+        screen.look.apply()
         DispatchQueue.main.asyncAfter(deadline: .now() + 1.2) { [weak screen] in
             guard let screen else { return }
             switch ask {

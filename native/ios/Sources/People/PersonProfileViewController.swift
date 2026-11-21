@@ -417,6 +417,8 @@ final class PersonProfileViewController: UIViewController {
         secure.isLayoutMarginsRelativeArrangement = true
         secure.layoutMargins = UIEdgeInsets(top: 11, left: 16, bottom: 11, right: 16)
         card.addArrangedSubview(secure)
+        // Security: «Защита чата» — the safety codes of the devices to compare (Security/TrustSheet.swift).
+        TrustSheet.attach(to: secure, words: words, from: self, messenger: messenger, peerId: userId)
     }
 
     // MARK: What the person does

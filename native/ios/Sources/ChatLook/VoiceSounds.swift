@@ -24,7 +24,7 @@ enum VoiceSounds {
         player.play()
         playing.append(player)
         DispatchQueue.main.asyncAfter(deadline: .now() + 1.5) {
-            playing.removeAll { (item: AVAudioPlayer) -> Bool in item === player }
+            VoiceSounds.playing.removeAll { (item: AVAudioPlayer) -> Bool in item === player }
         }
     }
 }

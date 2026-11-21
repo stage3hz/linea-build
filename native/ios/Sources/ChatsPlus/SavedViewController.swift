@@ -36,7 +36,7 @@ final class SavedViewController: UIViewController, UITableViewDataSource, UITabl
 
     private var lines: [Line] = []
     private var searching = false
-    private var editing: [String: Any]?
+    private var editingRow: [String: Any]?
     private var selection: Set<String>?
     private var noticeRun = 0
     private var keyboardHeight: CGFloat = 0
@@ -230,7 +230,7 @@ final class SavedViewController: UIViewController, UITableViewDataSource, UITabl
         let bottomGap = max(view.safeAreaInsets.bottom, keyboardHeight) + 10
         let fieldWidth = width - 24 - 16 - 44 - 6
         let wanted = min(136, max(44, ceil(field.sizeThatFits(CGSize(width: fieldWidth, height: .greatestFiniteMagnitude)).height)))
-        let banner: CGFloat = editing != nil && selection == nil ? 36 : 0
+        let banner: CGFloat = editingRow != nil && selection == nil ? 36 : 0
         let inner = selection != nil ? 44 : wanted
         let composerHeight = 16 + banner + inner
         composer.frame = CGRect(x: 12, y: view.bounds.height - bottomGap - composerHeight, width: width - 24, height: composerHeight)
@@ -414,10 +414,10 @@ final class SavedViewController: UIViewController, UITableViewDataSource, UITabl
         let ready = !field.text.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty && (messenger != nil || isSample)
         send.isEnabled = ready
         send.alpha = ready ? 1 : 0.4
-        send.setImage(UIImage(systemName: editing != nil ? "checkmark" : "arrow.up", withConfiguration: UIImage.SymbolConfiguration(pointSize: 19, weight: .bold)), for: .normal)
-        send.accessibilityLabel = editing != nil ? "Сохранить изменения" : "Сохранить заметку"
-        editBanner.isHidden = editing == nil || choosing
-        editClose.isHidden = editing == nil || choosing
+        send.setImage(UIImage(systemName: editingRow != nil ? "checkmark" : "arrow.up", withConfiguration: UIImage.SymbolConfiguration(pointSize: 19, weight: .bold)), for: .normal)
+        send.accessibilityLabel = editingRow != nil ? "Сохранить изменения" : "Сохранить заметку"
+        editBanner.isHidden = editingRow == nil || choosing
+        editClose.isHidden = editingRow == nil || choosing
         selectCancel.isHidden = !choosing
         selectCount.isHidden = !choosing
         selectDelete.isHidden = !choosing
@@ -430,11 +430,11 @@ final class SavedViewController: UIViewController, UITableViewDataSource, UITabl
     @objc private func submit() {
         let value = field.text.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !value.isEmpty else { return }
-        if let editing, let id = editing["id"] as? String {
+        if let editingRow, let id = editingRow["id"] as? String {
             saved.edit(id, text: value) { [weak self] (failure: SavedMessages.Failure?) -> Void in
                 guard let self else { return }
                 if let failure { self.flash(failure.words); return }
-                self.editing = nil
+                self.editingRow = nil
                 self.field.text = ""
                 self.refreshComposer()
             }
@@ -453,14 +453,14 @@ final class SavedViewController: UIViewController, UITableViewDataSource, UITabl
     }
 
     private func startEditing(_ item: [String: Any]) {
-        editing = item
+        editingRow = item
         field.text = item["text"] as? String ?? ""
         refreshComposer()
         field.becomeFirstResponder()
     }
 
     @objc private func stopEditing() {
-        editing = nil
+        editingRow = nil
         field.text = ""
         refreshComposer()
     }

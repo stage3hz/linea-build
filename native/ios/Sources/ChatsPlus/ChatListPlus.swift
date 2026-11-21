@@ -455,7 +455,7 @@ final class ChatListPlus: NSObject, UIGestureRecognizerDelegate {
             case "foldereditor": self.editFolder(nil)
             case "foldersettings": host.navigationController?.pushViewController(FoldersSettingsPage(messenger: self.messenger), animated: false)
             case "savedmenu": self.savedMenu()
-            case "saved": self.openSaved()
+            case "saved", "savedsearch": self.openSaved()
             default: break
             }
         }

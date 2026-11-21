@@ -134,6 +134,15 @@ final class ForwardPickerController: UIViewController, UITableViewDataSource, UI
         let person: Person?
         /// The chat as the list knows it (nil in the simulator's samples).
         let summary: Messenger.ChatSummary?
+        /// ChatsPlus: «Избранное» — the saved messages of this device, not a chat.
+        var isSaved: Bool { chatId == ForwardPickerController.savedId }
+    }
+    /// ChatsPlus: the id of «Избранное» among the targets (never the id of a chat).
+    static let savedId = "invizent-saved"
+    /// ChatsPlus: «Избранное» as the first target (Sources/ChatsPlus/SavedMessages.swift).
+    private var savedTarget: [Target] {
+        guard SavedMessages.shared(messenger) != nil else { return [] }
+        return [Target(chatId: ForwardPickerController.savedId, peerId: "", name: "Избранное", person: nil, summary: nil)]
     }
 
     private let messenger: Messenger?
@@ -207,7 +216,7 @@ final class ForwardPickerController: UIViewController, UITableViewDataSource, UI
     private func load() {
         guard let messenger else {
             #if targetEnvironment(simulator)
-            everyone = PeopleDemo.friends.map { (person: Person) -> Target in
+            everyone = savedTarget + PeopleDemo.friends.map { (person: Person) -> Target in
                 Target(chatId: "demo-chat-" + person.id, peerId: person.id, name: person.displayName, person: person, summary: nil)
             }
             #endif
@@ -222,7 +231,7 @@ final class ForwardPickerController: UIViewController, UITableViewDataSource, UI
                 self.emptyLabel.text = error.words
                 self.emptyLabel.isHidden = false
             case .success(let chats):
-                self.everyone = chats.compactMap { (chat: Messenger.ChatSummary) -> Target? in
+                self.everyone = self.savedTarget + chats.compactMap { (chat: Messenger.ChatSummary) -> Target? in
                     let last = ChatHistory.number((chat.chat["lastMessage"] as? [String: Any])?["id"])
                     if local.isRemoved(chat.id, lastMessageId: last) { return nil }
                     return Target(chatId: chat.id, peerId: chat.peerId, name: chat.title, person: Person(chat.chat["peer"]), summary: chat)

@@ -68,6 +68,9 @@ extension SceneDelegate {
     /// Effects, Security, Links and Language: everything they need at start, in one place.
     /// `early`: before the first screen is made (the language must be in place before any text is shown).
     static func parityEarly() {
+        #if targetEnvironment(simulator)
+        simulatorLanguage()
+        #endif
         Language.install()
     }
 

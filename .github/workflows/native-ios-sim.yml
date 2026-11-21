@@ -213,6 +213,21 @@ jobs:
           shot 184-chatlook-plain -demo 1 -chat 1
           shot 185-chatlook-appearance -demo 1 -settings appearance
           shot 186-chatlook-profile-light -demo 1 -profile chat
+          shot 140-chats-waiting -demo 1 -chatsdemo waiting
+          shot 141-chats-connecting -demo 1 -chatsdemo connecting
+          shot 142-chats-updating -demo 1 -chatsdemo updating
+          shot 143-chats-skeleton -demo 1 -chatsdemo skeleton
+          shot 144-chats-empty -demo 1 -chatsdemo empty
+          shot 145-chats-folders -demo 1 -chatsdemo folders
+          shot 146-chats-folder -demo 1 -chatsdemo folder
+          shot 147-folder-editor -demo 1 -chatsdemo foldereditor
+          shot 148-folder-settings -demo 1 -chatsdemo foldersettings
+          shot 149-saved-menu -demo 1 -chatsdemo savedmenu
+          shot 150-saved -demo 1 -chatsdemo saved
+          shot 151-saved-search -demo 1 -chatsdemo savedsearch
+          shot 152-people-calls -demo 1 -tab people -chatsdemo calls
+          shot 153-bar-hint -demo 1 -chatsdemo hint
+          shot 154-chats-unread-badge -demo 1
           shot 62-bar-with-track -musicdemo chats
           shot 63-light-chats -demo 1 -settheme light
           shot 64-light-chat -demo 1 -chat 1 -settheme light

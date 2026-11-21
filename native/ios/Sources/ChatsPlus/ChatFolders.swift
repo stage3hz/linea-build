@@ -23,12 +23,15 @@ final class ChatFolderStore {
     }
 
     private let key: String
+    /// The simulator's sample list (no account) keeps its folders in memory only.
+    private let kept: Bool
     private(set) var folders: [ChatFolder] = []
 
     private init(userId: String) {
         key = "linea.folders.v1:" + userId
+        kept = userId != "sample"
         // The reference's AsyncStorage entry, here in the app's own defaults; a broken entry is ignored.
-        if let raw = UserDefaults.standard.string(forKey: key), let list = Core.value(raw) as? [Any] {
+        if kept, let raw = UserDefaults.standard.string(forKey: key), let list = Core.value(raw) as? [Any] {
             folders = Array(list.compactMap { (item: Any) -> ChatFolder? in
                 guard let fields = item as? [String: Any], let id = fields["id"] as? String, let name = fields["name"] as? String, let ids = fields["chatIds"] as? [Any] else { return nil }
                 return ChatFolder(id: id, name: name, chatIds: ids.compactMap { $0 as? String })
@@ -39,7 +42,7 @@ final class ChatFolderStore {
     private func save(_ next: [ChatFolder]) {
         folders = next
         let plain: [[String: Any]] = next.map { ["id": $0.id, "name": $0.name, "chatIds": $0.chatIds] }
-        if let json = Core.text(plain) { UserDefaults.standard.set(json, forKey: key) }
+        if kept, let json = Core.text(plain) { UserDefaults.standard.set(json, forKey: key) }
         NotificationCenter.default.post(name: ChatFolderStore.changed, object: self)
     }
 

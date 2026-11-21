@@ -35,7 +35,8 @@ final class BarHintView: UIView {
             defaults.set(String(seen + 1), forKey: key)
         }
         #if targetEnvironment(simulator)
-        if UserDefaults.standard.string(forKey: "chatsdemo") == "hint" { show = true }
+        // The screenshots of the other checks stay as they were: the words are shown only when asked for.
+        show = UserDefaults.standard.string(forKey: "chatsdemo") == "hint"
         #endif
         decided = show
         return show

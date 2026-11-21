@@ -36,6 +36,8 @@ final class ChatScreenActions: NSObject, UITextViewDelegate {
     private let failedNotice = ChatNotice(frame: .zero)
     private let selectionHeader = SelectionHeader(frame: .zero)
     private let selectionBar = SelectionBar()
+    /// ChatActions: «Поиск в этом чате» (Sources/ChatActions/ChatSearch.swift).
+    private let searchBar = ChatSearchBar()
     private weak var openedMenu: MessageMenuController?
 
     /// The rows of the chat changed (oldest first, for `MsgRow.parse`).
@@ -186,6 +188,23 @@ final class ChatScreenActions: NSObject, UITextViewDelegate {
         list.onCardPress = { (event: [String: Any]) -> Void in
             LinkOpen.cardPressed(url: event["url"] as? String ?? "")
         }
+        // Polls: voting in a poll, and «Опрос» of the paperclip (Sources/Polls).
+        list.onPollPress = { [weak self] (event: [String: Any]) -> Void in
+            self?.pollPressed(event["key"] as? String ?? "", part: event["part"] as? String ?? "")
+        }
+        attachments.onPoll = { [weak self] in self?.newPoll() }
+        // Attachments: one photo of an album opens by itself (Sources/Attachments/AlbumGrid.swift).
+        list.onAlbumPress = { [weak self] (event: [String: Any]) -> Void in
+            guard let self else { return }
+            let key = event["key"] as? String ?? ""
+            if self.selecting { self.toggle(key); return }
+            self.attachments?.pressed(event["part"] as? String ?? "")
+        }
+        // ChatActions: «Поиск в этом чате».
+        searchBar.isHidden = true
+        searchBar.onChange = { [weak self] (needle: String) -> Void in self?.history.searchNeedle = needle }
+        searchBar.onClose = { [weak self] in self?.closeSearch() }
+        host.view.addSubview(searchBar)
         links.install(in: host.view)
         // Composer: the long touch on the send button, the scheduled pill, the emoji panel, the formatting bar.
         extras.install(host: host, field: field, send: send, composer: composer, messenger: messenger, chatId: chatId, peerId: peerId, peerName: peerName)
@@ -306,6 +325,11 @@ final class ChatScreenActions: NSObject, UITextViewDelegate {
         selectionHeader.frame = CGRect(x: 0, y: safeTop + 2, width: width, height: 44)
 
         var top = headerBottom + 8
+        // ChatActions: the search line stands where the pinned message would.
+        if !searchBar.isHidden {
+            searchBar.frame = CGRect(x: 12, y: headerBottom + 4, width: width - 24, height: ChatSearchBar.height)
+            top = searchBar.frame.maxY + 8
+        }
         if !pinnedBar.isHidden {
             pinnedBar.frame = CGRect(x: 12, y: headerBottom + 4, width: width - 24, height: PinnedBar.height)
             top = pinnedBar.frame.maxY + 8
@@ -358,7 +382,8 @@ final class ChatScreenActions: NSObject, UITextViewDelegate {
             let line = Core.view("replyPreview", [pinned]) as? String ?? ""
             pinnedBar.show(words: line.isEmpty ? "Вложение" : line)
         }
-        let pinnedHidden = shown.pinned == nil
+        let pinnedHidden = shown.pinned == nil || !searchBar.isHidden // ChatActions: not while searching
+        if !searchBar.isHidden { searchBar.show(found: shown.found) }
         if pinnedBar.isHidden != pinnedHidden {
             pinnedBar.isHidden = pinnedHidden
             relayout()
@@ -551,6 +576,15 @@ final class ChatScreenActions: NSObject, UITextViewDelegate {
         if !locked && !text.isEmpty {
             items.append(MessageMenuController.Item(symbol: "doc.on.doc", label: "Скопировать", run: { [weak self] in self?.copyWords(text) }))
         }
+        // Attachments: «Сохранить фото» / «Сохранить видео» / «Сохранить» (Sources/Attachments/SaveMedia.swift).
+        if !locked, readable, let file = message["attachment"] as? [String: Any] {
+            let files = [file] + (shown.albumParts[key] ?? []).compactMap { shown.messages[$0]?["attachment"] as? [String: Any] }
+            items.append(MessageMenuController.Item(symbol: "square.and.arrow.down", label: MediaSave.label(file), run: { [weak self] in self?.saveFiles(files) }))
+        }
+        // ChatsPlus: «В Избранное» — the message goes to this device's saved messages (Sources/ChatsPlus/SavedMessages.swift).
+        if !locked && readable && !outgoing && SavedMessages.shared(messenger) != nil {
+            items.append(MessageMenuController.Item(symbol: "bookmark", label: "В Избранное", run: { [weak self] in self?.saveToFavorites([message]) }))
+        }
         if readable && !outgoing {
             items.append(MessageMenuController.Item(symbol: pinnedNow ? "pin.slash" : "pin", label: pinnedNow ? "Открепить" : "Закрепить", run: { [weak self] in
                 var action: [String: Any] = ["type": "pin"]
@@ -599,7 +633,8 @@ final class ChatScreenActions: NSObject, UITextViewDelegate {
     /// «Удалить у меня и у <имя>» — either side's messages, for both — and «Удалить у меня».
     private func deleteItems(_ keys: [String], done: @escaping () -> Void) -> [MessageMenuController.Item] {
         let shown = history.shown
-        let messages = keys.compactMap { shown.messages[$0] }
+        // Attachments: an album's row stands for every photo of it.
+        let messages = keys.flatMap { [$0] + (shown.albumParts[$0] ?? []) }.compactMap { shown.messages[$0] }
         let everyone = !messages.isEmpty && messages.allSatisfy { ChatScreenActions.readable($0) }
         var items: [MessageMenuController.Item] = []
         if everyone {
@@ -806,6 +841,11 @@ final class ChatScreenActions: NSObject, UITextViewDelegate {
         picker.onPick = { [weak self] (target: ForwardPickerController.Target) -> Void in
             guard let self else { return }
             self.history.selection = nil
+            // ChatsPlus: «Избранное» keeps the messages on this device instead of sending them anywhere.
+            if target.isSaved {
+                self.saveToFavorites(messages)
+                return
+            }
             guard let messenger = self.messenger, target.summary != nil || target.chatId == self.chatId else {
                 // The simulator's samples: nothing is sent anywhere.
                 self.say("Переслано: " + target.name)
@@ -925,6 +965,105 @@ final class ChatScreenActions: NSObject, UITextViewDelegate {
             ChoiceSheet.Choice(symbol: item.symbol, label: item.label, danger: true, run: item.run)
         }
         host.present(ChoiceSheet(heading: "Выбрано: \(keys.count)", choices: choices), animated: true)
+    }
+
+    // MARK: Polls, albums, saving, the search
+
+    /// Polls: a tap on an option, «Голосовать» or «Отменить голос» (the reference's PollBubble.tsx): one answer
+    /// is sent at once; several are ticked first. A vote is an encrypted action the core folds into the results.
+    private func pollPressed(_ key: String, part: String) {
+        guard let message = history.shown.messages[key], let client = message["clientId"] as? String else { return }
+        if selecting { toggle(key); return }
+        guard ChatScreenActions.readable(message), !ChatScreenActions.outgoing(message),
+              let poll = (message["meta"] as? [String: Any])?["poll"] as? [String: Any] else { return }
+        let multiple = poll["multiple"] as? Bool ?? false
+        let mine = ((message["poll"] as? [String: Any])?["mine"] as? [NSNumber] ?? []).map { $0.intValue }
+        let line = Core.view("replyPreview", [message]) as? String ?? ""
+        let vote: ([Int]) -> Void = { [weak self] (options: [Int]) -> Void in
+            self?.history.sendAction(["type": "vote", "target": client, "options": options], targetText: line)
+        }
+        if part == "retract" {
+            UISelectionFeedbackGenerator().selectionChanged()
+            vote([])
+            return
+        }
+        if part == "vote" {
+            let draft = history.pollDrafts[key] ?? []
+            guard !draft.isEmpty else { return }
+            history.pollDrafts[key] = nil
+            vote(draft.sorted())
+            return
+        }
+        guard part.hasPrefix("option:"), let index = Int(part.dropFirst(7)) else { return }
+        UISelectionFeedbackGenerator().selectionChanged()
+        if !mine.isEmpty { return }
+        if !multiple {
+            vote([index])
+            return
+        }
+        var draft = history.pollDrafts[key] ?? []
+        if let at = draft.firstIndex(of: index) { draft.remove(at: at) } else { draft.append(index) }
+        history.pollDrafts[key] = draft
+    }
+
+    /// Polls: «Новый опрос»; the poll goes inside an encrypted message with its readable text for older clients.
+    func newPoll() {
+        guard let host, host.presentedViewController == nil else { return }
+        host.view.endEditing(true)
+        let sheet = PollComposerController()
+        sheet.onSend = { [weak self] (poll: [String: Any]) -> Void in
+            guard let self else { return }
+            UISelectionFeedbackGenerator().selectionChanged()
+            self.history.send(text: PollText.fallback(poll), meta: ["poll": poll])
+            self.list?.scrollToNewest(animated: true)
+        }
+        host.present(sheet, animated: true)
+    }
+
+    /// Attachments: photos and videos to the gallery, any other file through the share sheet.
+    private func saveFiles(_ files: [[String: Any]]) {
+        guard let host else { return }
+        guard let messenger else {
+            say("Сохранено в галерею")
+            return
+        }
+        MediaSave.save(files, messenger: messenger, from: host) { [weak self] (words: String, danger: Bool) -> Void in
+            self?.say(words, danger: danger)
+        }
+    }
+
+    /// ChatsPlus: «В Избранное» — «Сохранено в Избранное» or «Уже в Избранном».
+    private func saveToFavorites(_ messages: [[String: Any]]) {
+        guard let saved = SavedMessages.shared(messenger) else { return }
+        for message in messages {
+            saved.save(message: message, chatId: chatId, author: String(author(of: message).prefix(80))) { [weak self] (result: Result<Bool, SavedMessages.Failure>) -> Void in
+                switch result {
+                case .success(let added): self?.say(added ? "Сохранено в Избранное" : "Уже в Избранном")
+                case .failure(let failure): self?.say(failure.words, danger: true)
+                }
+            }
+        }
+    }
+
+    /// ChatActions: «Поиск в этом чате» opens under the header (the avatar's menu and the profile's «Поиск» call it).
+    func openSearch() {
+        guard searchBar.isHidden else {
+            searchBar.input.becomeFirstResponder()
+            return
+        }
+        history.selection = nil
+        searchBar.isHidden = false
+        searchBar.begin()
+        pinnedBar.isHidden = true
+        relayout()
+    }
+
+    func closeSearch() {
+        guard !searchBar.isHidden else { return }
+        searchBar.input.resignFirstResponder()
+        searchBar.isHidden = true
+        history.searchNeedle = ""
+        relayout()
     }
 
     // MARK: Going to a message

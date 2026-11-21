@@ -205,6 +205,8 @@ final class LockCoverViewController: UIViewController {
 /// The lock screen: the logo, «ИНВИЗ», and the code entry with Face ID / Touch ID when it is on.
 final class LockViewController: UIViewController {
     var onUnlock: (() -> Void)?
+    /// The simulator check: the kind of a sample code (nothing is read or kept).
+    var sampleKind: String?
     private var entry: CodeEntryView?
     private var wrong = false
     private var checking = false
@@ -218,7 +220,7 @@ final class LockViewController: UIViewController {
         super.viewDidLoad()
         view.backgroundColor = Theme.bg
         let record = LockStore.shared.current.record
-        let kind = record?.kind ?? "digits"
+        let kind = sampleKind ?? record?.kind ?? "digits"
         let logo = UIImageView(image: UIImage(named: "IconPreviewBlue"))
         logo.layer.cornerRadius = 15
         logo.layer.masksToBounds = true
@@ -301,6 +303,15 @@ final class LockViewController: UIViewController {
         entry.setTitle(digits ? "Введи код-пароль" : "Введи пароль", hint: hint, error: wrong && wait <= 0 ? "Неверный код-пароль" : "")
         entry.disabled = checking || wait > 0
     }
+
+    #if targetEnvironment(simulator)
+    /// The simulator check: a wrong code was typed (the shake and the red line); nothing is kept.
+    func simulatorWrong() {
+        wrong = true
+        entry?.shake()
+        refreshWords()
+    }
+    #endif
 
     private func submit(_ code: String) {
         guard !checking, LockStore.shared.waitMs <= 0 else { return }
