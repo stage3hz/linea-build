@@ -124,6 +124,9 @@ jobs:
           echo "== the list and a chat"
           live 08-real-chats 25
           live 09-real-chat 30 -openchat 1
+          live 10-people 25 -tab people
+          live 11-profile 30 -profile chat
+          live 12-people-search 30 -peoplesearch simpeer
           tail -5 server.log || true
           echo "== live done"
       - name: Publish the result (branch native-sim-output-<runner>)
