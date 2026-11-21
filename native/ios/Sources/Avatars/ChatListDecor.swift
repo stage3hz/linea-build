@@ -25,6 +25,15 @@ enum ChatListDecor {
             if let still = CodeFrameView.still(frame.id, avatar: 60), let png = still.pngData() { pictures[frame.id] = png.base64EncodedString() }
         }
         _ = ChatDecorStore.shared.setPlates(pictures)
+        // The chat list's hook (ChatsPlus/ChatRowLooks.swift `avatarDecor`): every person row gets the decoration
+        // as the reference's `nativeRows` — art or a code frame (still), else the colour ring (the birthday's
+        // first), the nameplate, the Platina metal. The ring ChatRowLooks guessed is replaced by this answer.
+        ChatRowLooks.avatarDecor = { (row: inout [String: Any], peer: [String: Any]) -> Void in
+            let name = peer["displayName"] as? String ?? ""
+            let made = ChatListDecor.fields(PersonLook(peer), name: name)
+            for key in ["ring", "deco", "decoScale", "plate", "metal", "nameLen"] { row[key] = nil }
+            row.merge(made) { (_: Any, new: Any) -> Any in new }
+        }
     }
 
     /// The row keys for a person's decoration; `name` is the person's display name (the row's title begins with it).

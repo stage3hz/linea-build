@@ -393,6 +393,10 @@ final class MsgRowCanvas: UIView {
   var revealed = false
   /// Where the body text was drawn last (for taps on links and spoilers).
   private var bodyBox = CGRect.zero
+  /// Avatars: a big emoji's glyphs are left out while their pop plays over them (Sources/Avatars/BigEmojiPop.swift).
+  var hideBody = false
+  /// Avatars: where the body was drawn last, for the pop of big emoji.
+  var drawnBodyBox: CGRect { return bodyBox }
   /// The reaction chips as drawn last.
   private var chipBoxes: [(frame: CGRect, emoji: String)] = []
   /// ChatActions: the row is lit for a moment (the message a quote or the pinned bar jumped to).
@@ -630,7 +634,9 @@ final class MsgRowCanvas: UIView {
     bodyBox = .zero
     if layoutInfo.textSize != .zero {
       bodyBox = CGRect(x: x, y: y, width: inner, height: layoutInfo.textSize.height + 2)
-      if item.fmt.isEmpty {
+      if hideBody && item.bigEmoji > 0 {
+        // Avatars: the big emoji is drawn by its pop for the moment (Sources/Avatars/BigEmojiPop.swift).
+      } else if item.fmt.isEmpty {
         draw(item.text, UIFont.systemFont(ofSize: fontSize), palette.text, bodyBox, lines: true)
       } else {
         let laid = MsgText(msgBody(item, fontSize: fontSize, text: palette.text, link: markColor, quote: palette.quote, revealed: revealed), width: inner)
@@ -771,6 +777,7 @@ final class MsgRowCell: UITableViewCell {
       cardOf = cardPicture
       canvas.cardImage = row.linkCard?.picture()
     }
+    BigEmojiPop.shown(self, row) // Avatars: big emoji pop in as on the reference's iPhone
     accessibilityLabel = [MediaRowArt.spoken(row), row.album.map { "Альбом · \($0.parts.count)" } ?? "", row.poll?.spoken ?? "", row.label, row.text, row.linkCard?.spoken ?? "", row.silent ? "без звука" : "", row.time].filter { !$0.isEmpty }.joined(separator: ". ")
     canvas.setNeedsDisplay()
   }

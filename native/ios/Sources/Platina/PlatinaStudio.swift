@@ -188,8 +188,8 @@ final class PlatinaStudioView: UIView {
             self?.apply(["bannerId": NSNull(), "bannerPreset": NSNull()], ok: "Баннер убран.")
         })
         for banner in AvatarCatalog.banners {
-            let swatch = AmbientView(frame: CGRect(x: 0, y: 0, width: 84, height: 46))
-            swatch.show(tone: banner.id, still: true)
+            let swatch = MusicAmbientView(tone: banner.id, still: true) // Avatars: the one ambient view of the app
+            swatch.frame = CGRect(x: 0, y: 0, width: 84, height: 46)
             swatch.layer.cornerRadius = 12
             banners.addArrangedSubview(choice(banner.label, selected: look.bannerId.isEmpty && look.bannerPreset == banner.id, swatch: sized(swatch, CGSize(width: 84, height: 46))) { [weak self] in
                 self?.apply(["bannerId": NSNull(), "bannerPreset": banner.id], ok: "Баннер «\(banner.label)».")
@@ -514,7 +514,7 @@ final class ProfileHeroCard: UIView {
         empty.isHidden = banner.hasContent
         avatar.show(person, look: look, base: base, animated: true)
         name.show(person.displayName, platina: look.platina)
-        status.show(look, size: 22)
+        status.show(look, size: 22, animated: true) // Avatars: animated as the reference
         handle.text = person.username.isEmpty ? "" : "@" + person.username
         seal.isHidden = !look.platina
         seal.owner = (id: person.id, name: person.displayName)

@@ -70,7 +70,7 @@ final class SettingsProfileChrome {
         name.numberOfLines = 2
         name.show(person.displayName, platina: person.look.platina)
         let status = StatusEmojiView()
-        status.show(person.look, size: 22)
+        status.show(person.look, size: 22, animated: true) // Avatars: animated as the reference
         status.isUserInteractionEnabled = true
         status.accessibilityHint = "Сменить статус рядом с именем"
         status.addGestureRecognizer(UITapGestureRecognizer(target: self, action: #selector(statusPressed)))

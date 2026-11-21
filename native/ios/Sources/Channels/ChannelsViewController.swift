@@ -50,7 +50,7 @@ final class ChannelsViewController: UIViewController, UITableViewDataSource, UIT
         table.tableHeaderView = rooms
 
         heading.text = "Каналы"
-        heading.font = .systemFont(ofSize: 34, weight: .bold)
+        heading.font = Theme.title(Theme.TypeSize.sectionTitle) // Fonts: the reference's TITLE, 26
         heading.textColor = Theme.text
         heading.accessibilityTraits = .header
         view.addSubview(heading)
@@ -84,7 +84,7 @@ final class ChannelsViewController: UIViewController, UITableViewDataSource, UIT
         emptyIcon.tintColor = Theme.subtle
         emptyIcon.contentMode = .center
         emptyHeading.text = "Свои места для своих"
-        emptyHeading.font = .systemFont(ofSize: 20, weight: .bold)
+        emptyHeading.font = Theme.title(Theme.TypeSize.emptyTitle) // Fonts
         emptyHeading.textColor = Theme.text
         emptyHeading.textAlignment = .center
         emptyWords.text = "Создай игровой сервер с текстовыми и голосовыми каналами или стандартный канал — блог, новости, музыку, что угодно."

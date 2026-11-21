@@ -29,10 +29,10 @@ final class ChatLookScreen: NSObject {
     private let namePill = GlassPill()
     private let callPill = GlassPill()
     private let badge = UILabel()
-    private let emoji = UILabel()
+    private let emoji = StatusEmojiView() // Avatars: the emoji status (animated) or the Platina gem, as StatusEmoji size 16
     private let metal = MetalNameView()
     private let avatarControl = UIControl()
-    private let avatar = PersonAvatarView()
+    private let avatar = DecoratedAvatarView() // Avatars: frame (inside the 44 pt box, as the reference at this size) and video avatar
     /// The person as the server describes them (`User`): colour, picture, emoji status, Platina.
     private var peer: [String: Any] = [:]
     private var unread = 0
@@ -90,7 +90,6 @@ final class ChatLookScreen: NSObject {
         header.addSubview(namePill)
         namePill.contentView.addSubview(heading)
         namePill.contentView.addSubview(metal)
-        emoji.font = .systemFont(ofSize: 16)
         namePill.contentView.addSubview(emoji)
         namePill.contentView.addSubview(status)
         status.font = .systemFont(ofSize: 12)
@@ -108,8 +107,8 @@ final class ChatLookScreen: NSObject {
         Bouncy.attach(call, scale: 0.86, view: callPill)
 
         // The avatar: a tap opens the profile, a long touch shows the large picture.
-        // Avatars: the decorated avatar of Sources/Avatars (frame, video avatar) belongs here when it exists;
-        // until then the round picture or the person's coloured ball with initials.
+        // Avatars: the decorated avatar (Sources/Avatars): as the reference's header — DecoratedAvatar size 44,
+        // animated: a ring stays inside the box, art and code frames reach 1.3× it, the silent video avatar plays.
         header.addSubview(avatarControl)
         avatar.isUserInteractionEnabled = false
         avatarControl.addSubview(avatar)
@@ -172,10 +171,10 @@ final class ChatLookScreen: NSObject {
         let shownName = (peer["displayName"] as? String).flatMap { $0.isEmpty ? nil : $0 } ?? name
         let person = Person(id: peerId, username: peer["username"] as? String ?? "", displayName: shownName, bio: "", birthday: "",
                             avatarColor: peer["avatarColor"] == nil ? 0x5E7BFF : avatarColor, avatarId: avatarId)
-        avatar.show(person, address: address)
-        emoji.text = StatusEmojiWords.visible(peer)
-        emoji.accessibilityLabel = emoji.text.map { "Статус " + $0 }
-        emoji.isHidden = emoji.text == nil
+        // Avatars: the decorations of the same `user` (the gap of a ring is the page colour, as the reference's t.bg).
+        let look = PersonLook(peer)
+        avatar.show(person, look: look, base: messenger?.server.endpoint ?? "", animated: true)
+        emoji.show(look, size: 16, animated: true)
         let platina = peer["seal"] as? String == "platina"
         metal.isHidden = !platina
         host?.view.setNeedsLayout()
@@ -332,11 +331,14 @@ final class ChatLookScreen: NSObject {
     /// The large picture with «Открыть профиль» and «Поиск».
     func showPeek() {
         guard let host else { return }
-        // Avatars: the decorated, animated avatar (220 points) belongs here when Sources/Avatars has it.
-        let large = PersonAvatarView()
+        // Avatars: the decorated, animated avatar of 220 points (the reference's `DecoratedAvatar size={220} animated
+        // round`): its frame, art or code frame, the silent video avatar; the gap of a ring is the card's colour.
+        let large = DecoratedAvatarView()
         let shownName = (peer["displayName"] as? String).flatMap { $0.isEmpty ? nil : $0 } ?? name
+        large.ringBackground = Theme.dark ? UIColor(hex: 0x1C1C1E) : .white
         large.show(Person(id: peerId, username: "", displayName: shownName, bio: "", birthday: "",
-                          avatarColor: peer["avatarColor"] == nil ? 0x5E7BFF : avatarColor, avatarId: avatarId), address: address)
+                          avatarColor: peer["avatarColor"] == nil ? 0x5E7BFF : avatarColor, avatarId: avatarId),
+                   look: PersonLook(peer), base: messenger?.server.endpoint ?? "", animated: true)
         var items: [AvatarPeekController.Item] = [
             AvatarPeekController.Item(symbol: "person.crop.circle", label: "Открыть профиль", run: { [weak self] in self?.openProfile() }),
         ]

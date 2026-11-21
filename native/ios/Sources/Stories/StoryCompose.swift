@@ -232,7 +232,7 @@ final class StoryComposeViewController: UIViewController, UITextFieldDelegate {
         backButton.accessibilityLabel = "Назад"
         backButton.addTarget(self, action: #selector(goBack), for: .touchUpInside)
         heading.text = StoryRules.word(kind == "story" ? "removeStory" : "removePost")
-        heading.font = .systemFont(ofSize: 20, weight: .semibold)
+        heading.font = Theme.title(Theme.TypeSize.sheetTitle) // Fonts
         heading.textColor = Theme.text
         heading.accessibilityTraits = .header
 

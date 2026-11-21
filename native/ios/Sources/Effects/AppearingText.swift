@@ -47,6 +47,9 @@ final class AppearingTextView: UIView {
         if text.isEqual(to: words) { return }
         words = text
         label.attributedText = text
+        isAccessibilityElement = true
+        accessibilityLabel = text.string
+        label.isAccessibilityElement = false
         let paragraph = text.length > 0 ? text.attribute(.paragraphStyle, at: 0, effectiveRange: nil) as? NSParagraphStyle : nil
         let font = text.length > 0 ? text.attribute(.font, at: 0, effectiveRange: nil) as? UIFont : nil
         lineHeight = max(paragraph?.maximumLineHeight ?? 0, font?.lineHeight ?? 20)

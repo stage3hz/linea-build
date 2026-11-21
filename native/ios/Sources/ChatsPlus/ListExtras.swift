@@ -99,6 +99,12 @@ final class ListPeopleSearch {
                          "preview": "@" + person.username, "time": "", "unread": 0, "initials": ListPeopleSearch.initials(person.displayName),
                          "avatarColor": Int(0xFF00_0000) | Int(person.avatarColor & 0xFF_FFFF), "orbA": pair.light, "orbB": pair.deep,
                          "section": rows.isEmpty ? "Люди" : "", "previewIcon": ""])
+            // Avatars: as ChatSearch.tsx — the decorated avatar (still frame, art, ring, plate, Platina name) and the
+            // emoji status after the name.
+            if !person.displayName.isEmpty {
+                rows[rows.count - 1].merge(ChatListDecor.fields(person.look, name: person.displayName)) { (_: Any, new: Any) -> Any in new }
+                if let status = person.look.visibleStatus() { rows[rows.count - 1]["title"] = person.displayName + " " + status }
+            }
         }
         return rows
     }

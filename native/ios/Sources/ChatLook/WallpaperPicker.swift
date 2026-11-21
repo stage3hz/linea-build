@@ -48,7 +48,7 @@ final class WallpaperPickerController: UIViewController, PHPickerViewControllerD
         stack.arrangedSubviews.forEach { $0.removeFromSuperview() }
         let title = UILabel()
         title.text = "Обои чатов"
-        title.font = .systemFont(ofSize: 20, weight: .bold)
+        title.font = Theme.title(Theme.TypeSize.sheetTitle) // Fonts
         title.textColor = Theme.text
         stack.addArrangedSubview(title)
 

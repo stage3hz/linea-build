@@ -107,7 +107,7 @@ class SettingsPage: UIViewController {
         view.backgroundColor = Theme.bg
         heading.text = pageName
         heading.textColor = Theme.text
-        heading.font = large ? .systemFont(ofSize: 34, weight: .bold) : .systemFont(ofSize: 20, weight: .semibold)
+        heading.font = Theme.title(Theme.TypeSize.pageTitleSize(pageName)) // Fonts: the reference's page title, 22 / 19 / 17 by length
         heading.adjustsFontSizeToFitWidth = true
         heading.minimumScaleFactor = 0.7
         heading.accessibilityTraits = .header

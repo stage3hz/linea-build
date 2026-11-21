@@ -222,7 +222,7 @@ final class RoomViewController: UIViewController {
         backButton.accessibilityLabel = "Назад"
         backButton.addTarget(self, action: #selector(back), for: .touchUpInside)
         bar.contentView.addSubview(backButton)
-        nameLabel.font = .systemFont(ofSize: 20, weight: .bold)
+        nameLabel.font = Theme.title(Theme.TypeSize.roomTitle) // Fonts
         nameLabel.textColor = Theme.text
         nameLabel.accessibilityTraits = .header
         bar.contentView.addSubview(nameLabel)

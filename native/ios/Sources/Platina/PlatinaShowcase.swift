@@ -189,8 +189,8 @@ final class PlatinaShowcaseViewController: UIViewController, UIScrollViewDelegat
             banner.show(look, base: base)
             top.addSubview(banner)
         } else {
-            let ambient = AmbientView(frame: top.bounds)
-            ambient.show(tone: "deep", still: false)
+            let ambient = MusicAmbientView(tone: "deep") // Avatars: the one ambient view of the app
+            ambient.frame = top.bounds
             top.addSubview(ambient)
         }
         let shade = CAGradientLayer()

@@ -55,6 +55,18 @@ struct AITurn: Equatable {
     var stage: String?
     /// Asked while «Приватная беседа» was on: never written to the history.
     var isPrivate = false
+    /// AI: the pictures (cleaned JPEG data URLs) and documents' text sent with this question (`options.image`,
+    /// `options.documents` of the reference). Memory only, for «Повторить»; never stored in the history.
+    var images: [String] = []
+    var documents: [AIDocumentText] = []
+}
+
+/// A document read into text by the server (`AIDocument` of ai/client.ts).
+struct AIDocumentText: Equatable {
+    var name: String
+    var text: String
+    var truncated = false
+    var pages: Int?
 }
 
 struct AICapability {
@@ -191,14 +203,18 @@ enum AIModel {
     private static let videoNoun = "(видео\\p{L}*|ролик\\p{L}*|клип\\p{L}*|анимаци\\p{L}*|video|clip|animation)"
     private static let speechPattern = "^\\s*(озвучь|озвучи|прочитай вслух|скажи голосом|read aloud|say)(?=[\\s:,.!?]|$)\\s*:?"
 
+    /// With a photo: a request to change it («сделай фон…», «перерисуй», «в стиле аниме»).
+    private static let editPattern = "(перерису\\p{L}*|переделай|отредактиру\\p{L}*|измени\\p{L}*|замени\\p{L}*|убери|добавь|сделай (из|его|её|ее|фон|в стиле|как)|в стиле|стилизу\\p{L}*|edit|restyle|make it)"
+
     /// text · image · video · speech
-    static func detectIntent(_ text: String) -> String {
+    static func detectIntent(_ text: String, hasPhoto: Bool = false) -> String {
         let value = text.trimmingCharacters(in: .whitespacesAndNewlines)
         if value.isEmpty { return "text" }
         if matches(speechPattern, value, options: [.caseInsensitive]) { return "speech" }
         if matches(make + "[^.!?\\n]{0,40}?" + videoNoun, value, options: [.caseInsensitive]) { return "video" }
         if matches("^\\s*(нарису\\p{L}*|изобрази\\p{L}*|draw|paint)(?=[\\s:,.!?]|$)", value, options: [.caseInsensitive]) { return "image" }
         if matches(make + "[^.!?\\n]{0,40}?" + imageNoun, value, options: [.caseInsensitive]) { return "image" }
+        if hasPhoto && matches(editPattern, value, options: [.caseInsensitive]) { return "image" }
         return "text"
     }
 

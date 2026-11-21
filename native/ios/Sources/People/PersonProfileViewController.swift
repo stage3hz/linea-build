@@ -654,7 +654,7 @@ final class ReportSheetViewController: UIViewController {
 
         let heading = UILabel()
         heading.text = "Пожаловаться"
-        heading.font = .systemFont(ofSize: 20, weight: .bold)
+        heading.font = Theme.title(Theme.TypeSize.sheetTitle) // Fonts
         heading.textColor = Theme.text
         let words = UILabel()
         words.text = "Переписка зашифрована: модератор увидит только причину и профиль, но не сообщения."

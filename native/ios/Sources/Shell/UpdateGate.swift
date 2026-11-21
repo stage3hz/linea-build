@@ -53,7 +53,8 @@ final class UpdateGate: NSObject {
             let now = Date().timeIntervalSince1970 * 1000
             info = Info(version: "9.0.0", minVersion: demo == "required" ? "9.0.0" : nil, page: "https://github.com/stage3hz/linea-build/releases",
                         releasedAt: now - 2 * 3_600_000, requiredAt: now + (2 * 86_400_000 + 14 * 3_600_000 + 5 * 60_000), clockOffset: 0)
-            publish(dismissed: false)
+            // Once the app's window is on screen.
+            DispatchQueue.main.asyncAfter(deadline: .now() + 1) { [weak self] in self?.publish(dismissed: false) }
             return
         }
         #endif

@@ -2,6 +2,7 @@ import UIKit
 import AVFoundation
 import AVKit
 import UniformTypeIdentifiers
+import PhotosUI
 
 /// The «AI» section: one conversation with the free model behind the person's server. Ported from
 /// mobile/src/ai/AIScreen.tsx: the same steps, limits and words.
@@ -24,6 +25,17 @@ final class AIViewController: UIViewController, UITextViewDelegate, UIDocumentPi
     private var audioFile: URL?
     private var clock: Timer?
     private weak var pendingView: AITurnView?
+    /// AI: photos (video frames) and documents attached to the next question (ai/attach.ts). Pictures go with one
+    /// question; documents stay with the whole conversation.
+    private var pictures: [AIPicture] = []
+    private var documents: [AIDocumentText] = []
+    private var reading = 0
+    /// What the document picker was opened for: «Документ» or «Аудиофайл → текст».
+    private var pickingDocuments = false
+    private let attachScroll = UIScrollView()
+    private let attachRow = UIStackView()
+    /// The quick dialog (`AIQuickDialog`): over another screen, no history, a «Закрыть» button instead of the history.
+    private let quick: Bool
 
     private let topBar = UIStackView()
     private let historyButton = AIKit.round("line.3.horizontal", "История AI-бесед")
@@ -43,8 +55,9 @@ final class AIViewController: UIViewController, UITextViewDelegate, UIDocumentPi
     private var barClearance: NSLayoutConstraint?
     private var inputHeight: NSLayoutConstraint?
 
-    init(messenger: Messenger?) {
+    init(messenger: Messenger?, quick: Bool = false) {
         self.messenger = messenger
+        self.quick = quick
         self.history = AIHistory(crypto: messenger?.crypto)
         super.init(nibName: nil, bundle: nil)
     }
@@ -69,10 +82,11 @@ final class AIViewController: UIViewController, UITextViewDelegate, UIDocumentPi
         view.backgroundColor = Theme.bg
         build()
         let server = messenger?.server
-        conversation = AIConversation(transport: { messages, model, done in
+        conversation = AIConversation(transport: { (messages: [[String: String]], model: String?, images: [String], documents: [AIDocumentText], done: @escaping (Result<AIReply, AIFailure>) -> Void) -> Void in
             guard let server else { return done(.failure(AIFailure("Нужно войти в аккаунт."))) }
-            AIClient.chat(server, messages: messages, model: model, done: done)
+            AIClient.chat(server, messages: messages, model: model, images: images, documents: documents, done: done)
         })
+        if quick { conversationId = "quick-" + conversationId }
         conversation.discardMedia = { media in AIMediaCache.delete([media.uri]) }
         conversation.onChange = { [weak self] in self?.changed() }
         history.onChange = { [weak self] in self?.historyChanged() }
@@ -82,7 +96,8 @@ final class AIViewController: UIViewController, UITextViewDelegate, UIDocumentPi
             return
         }
         #endif
-        history.load()
+        // The quick dialog has no history.
+        if !quick { history.load() }
         refreshStatus()
     }
 
@@ -130,10 +145,10 @@ final class AIViewController: UIViewController, UITextViewDelegate, UIDocumentPi
     }
 
     private func changed() {
-        if !incognito, !conversation.pending, !conversation.turns.isEmpty, messenger != nil {
+        if !quick, !incognito, !conversation.pending, !conversation.turns.isEmpty, messenger != nil {
             history.save(id: conversationId, turns: conversation.turns, consent: conversation.consent)
         }
-        if history.loaded, !conversation.pending, messenger != nil {
+        if !quick, history.loaded, !conversation.pending, messenger != nil {
             let open = AIMediaCache.names(conversation.turns)
             let stored = history.items.flatMap { AIMediaCache.names($0.turns) }
             DispatchQueue.global(qos: .utility).async { AIMediaCache.prune(keep: stored + open, protect: open) }
@@ -170,17 +185,26 @@ final class AIViewController: UIViewController, UITextViewDelegate, UIDocumentPi
     private func sent() {
         if conversation.pending {
             input.text = ""
+            // The photos went with this question (setPhoto(null)).
+            pictures = []
             textViewDidChange(input)
         }
     }
 
+    private var vision: Bool { return status?.can("vision") == true }
+    private var docs: Bool { return status?.can("documents") == true }
+    /// What goes with a text question (`askOptions`): pictures and documents when the server takes them, with Platina.
+    private var askImages: [String] { return full && vision ? pictures.map { $0.data } : [] }
+    private var askDocuments: [AIDocumentText] { return full && docs ? documents : [] }
+
     private func send() {
         guard ready, let server = messenger?.server else { return }
         let question = draft.trimmingCharacters(in: .whitespacesAndNewlines)
-        let intent = AIModel.detectIntent(question)
+        let photo = pictures.first?.data
+        let intent = AIModel.detectIntent(question, hasPhoto: photo != nil)
         if intent == "text" {
             taskError = ""
-            conversation.ask(question, model: askModel())
+            conversation.ask(question, model: askModel(), images: askImages, documents: askDocuments)
             sent()
             return
         }
@@ -188,7 +212,7 @@ final class AIViewController: UIViewController, UITextViewDelegate, UIDocumentPi
         if !full { return showPlatina(label) }
         if !router || status?.can(intent) != true {
             taskError = "\(label) пока не подключены на сервере — отвечу текстом."
-            conversation.ask(question, model: askModel())
+            conversation.ask(question, model: askModel(), images: askImages, documents: askDocuments)
             sent()
             return
         }
@@ -196,15 +220,28 @@ final class AIViewController: UIViewController, UITextViewDelegate, UIDocumentPi
         let work: AIConversation.Work
         if intent == "image" {
             work = { stage, done in
-                stage("Рисую картинку")
-                AIClient.image(server, prompt: question) { result in
+                let draw: (String) -> Void = { (prompt: String) -> Void in
+                    stage("Рисую картинку")
+                    AIClient.image(server, prompt: prompt) { result in
+                        switch result {
+                        case .failure(let failure): done(.failure(failure))
+                        case .success(let made):
+                            do {
+                                let name = try AIMediaCache.write(conversationId: owner, data: made.data, mimeType: made.mimeType)
+                                let words = photo != nil ? "Новая картинка по мотивам твоего фото (провайдер рисует заново по описанию, само фото не меняется). Нажми на картинку, чтобы сохранить или отправить." : "Готово. Нажми на картинку, чтобы сохранить или отправить."
+                                done(.success(AIConversation.TaskResult(text: words, model: made.routedVia ?? "генерация картинок", routedVia: made.routedVia, media: AIMedia(uri: name, mimeType: made.mimeType))))
+                            } catch { done(.failure((error as? AIFailure) ?? AIFailure("Кэш недоступен на этом устройстве."))) }
+                        }
+                    }
+                }
+                guard let photo else { return draw(question) }
+                // The provider draws from text, so the photo is first described (vision) together with the request.
+                stage("Смотрю на твоё фото")
+                let ask = "Опиши это изображение для генератора картинок: что на нём, цвета, композиция, стиль. Учти просьбу пользователя и выдай один итоговый промпт на английском до 900 символов, без пояснений.\n\nПросьба: " + question
+                AIClient.chat(server, messages: [["role": "user", "content": ask]], model: nil, images: [photo]) { result in
                     switch result {
                     case .failure(let failure): done(.failure(failure))
-                    case .success(let made):
-                        do {
-                            let name = try AIMediaCache.write(conversationId: owner, data: made.data, mimeType: made.mimeType)
-                            done(.success(AIConversation.TaskResult(text: "Готово. Нажми на картинку, чтобы сохранить или отправить.", model: made.routedVia ?? "генерация картинок", routedVia: made.routedVia, media: AIMedia(uri: name, mimeType: made.mimeType))))
-                        } catch { done(.failure((error as? AIFailure) ?? AIFailure("Кэш недоступен на этом устройстве."))) }
+                    case .success(let reply): draw(String(reply.text.prefix(3900)))
                     }
                 }
             }
@@ -245,7 +282,9 @@ final class AIViewController: UIViewController, UITextViewDelegate, UIDocumentPi
     @objc private func stop() { conversation.cancel() }
 
     @objc private func newConversation() {
-        AIMediaCache.delete(AIMediaCache.names(conversation.turns.filter { $0.isPrivate }))
+        AIMediaCache.delete(AIMediaCache.names(conversation.turns.filter { $0.isPrivate || quick }))
+        documents = []
+        pictures = []
         conversation.clear()
         conversationId = UUID().uuidString.lowercased()
         input.text = ""
@@ -273,10 +312,12 @@ final class AIViewController: UIViewController, UITextViewDelegate, UIDocumentPi
         let picker = UIDocumentPickerViewController(forOpeningContentTypes: [UTType.audio], asCopy: true)
         picker.delegate = self
         picker.allowsMultipleSelection = false
+        pickingDocuments = false
         present(picker, animated: true)
     }
 
     func documentPicker(_ controller: UIDocumentPickerViewController, didPickDocumentsAt urls: [URL]) {
+        if pickingDocuments { return tookDocuments(urls) }
         guard let file = urls.first, let server = messenger?.server else { return }
         let name = file.lastPathComponent
         let limit = 10 * 1024 * 1024
@@ -305,7 +346,7 @@ final class AIViewController: UIViewController, UITextViewDelegate, UIDocumentPi
         let sheet = AISheetController(heading: "Отправить вопрос AI?")
         let via = status?.provider == "freellmapi" ? "в сервис FreeLLMAPI и бесплатному поставщику модели, которого он выберет" : "в OpenRouter и поставщику модели"
         sheet.stack.addArrangedSubview(AIKit.label("Вопросы и история этой беседы передаются через твой сервер \(via). В AI попадает только то, что ты пишешь и прикладываешь здесь: текст, фото и кадры видео (без геометки и других данных EXIF) и текст приложенных документов. Разрешение действует только для этой беседы.", size: 12, color: Theme.muted))
-        sheet.stack.addArrangedSubview(AIKit.label(incognito ? "Это приватная беседа: на устройстве она не сохранится." : "История бесед хранится зашифрованной только на этом устройстве.", size: 12, color: Theme.muted))
+        sheet.stack.addArrangedSubview(AIKit.label(quick ? "В быстром вопросе история очищается при закрытии окна." : (incognito ? "Это приватная беседа: на устройстве она не сохранится." : "История бесед хранится зашифрованной только на этом устройстве."), size: 12, color: Theme.muted))
         if status?.provider != "freellmapi" {
             let link = UIButton(type: .system)
             link.setTitle("Конфиденциальность OpenRouter", for: .normal)
@@ -455,7 +496,18 @@ final class AIViewController: UIViewController, UITextViewDelegate, UIDocumentPi
             if !self.full { return self.showPlatina("Аудиофайл → текст") }
             self.transcribeFile()
         }
-        return UIMenu(title: "Вложения", children: [audioAction])
+        // «Фото и видео» and «Документ» (with Platina; when the server allows them).
+        let photosAction = UIAction(title: "Фото и видео", image: UIImage(systemName: full ? "photo.on.rectangle" : "lock.fill"), attributes: vision ? [] : [.disabled]) { [weak self] _ in
+            guard let self else { return }
+            if !self.full { return self.showPlatina("Фото и видео") }
+            self.pickPictures()
+        }
+        let documentAction = UIAction(title: "Документ", image: UIImage(systemName: full ? "doc.text" : "lock.fill"), attributes: docs ? [] : [.disabled]) { [weak self] _ in
+            guard let self else { return }
+            if !self.full { return self.showPlatina("Документ") }
+            self.pickDocuments()
+        }
+        return UIMenu(title: "Всё в одном чате: приложи фото, видео или документ и спроси о них. Попроси «нарисуй…» — AI нарисует, «сделай из этого аниме» с фото — перерисует.", children: [photosAction, documentAction, audioAction])
     }
 
     // MARK: Media of an answer
@@ -507,7 +559,14 @@ final class AIViewController: UIViewController, UITextViewDelegate, UIDocumentPi
         topBar.translatesAutoresizingMaskIntoConstraints = false
         let gap = UIView()
         [historyButton, gap, newButton, privateButton].forEach { topBar.addArrangedSubview($0) }
-        historyButton.addTarget(self, action: #selector(showHistory), for: .touchUpInside)
+        if quick {
+            // `AIQuickDialog`: «Закрыть» in place of the history.
+            historyButton.setImage(UIImage(systemName: "xmark", withConfiguration: UIImage.SymbolConfiguration(pointSize: 18, weight: .medium)), for: .normal)
+            historyButton.accessibilityLabel = "Закрыть быстрый вопрос AI"
+            historyButton.addTarget(self, action: #selector(closeQuick), for: .touchUpInside)
+        } else {
+            historyButton.addTarget(self, action: #selector(showHistory), for: .touchUpInside)
+        }
         newButton.addTarget(self, action: #selector(newConversation), for: .touchUpInside)
         privateButton.addTarget(self, action: #selector(togglePrivate), for: .touchUpInside)
         view.addSubview(topBar)
@@ -550,6 +609,23 @@ final class AIViewController: UIViewController, UITextViewDelegate, UIDocumentPi
         input.accessibilityLabel = "Вопрос AI"
         placeholder.translatesAutoresizingMaskIntoConstraints = false
         input.addSubview(placeholder)
+        // The attachments, above the question.
+        attachScroll.showsHorizontalScrollIndicator = false
+        attachScroll.isHidden = true
+        attachRow.axis = .horizontal
+        attachRow.spacing = 8
+        attachRow.alignment = .center
+        attachRow.translatesAutoresizingMaskIntoConstraints = false
+        attachScroll.addSubview(attachRow)
+        NSLayoutConstraint.activate([
+            attachScroll.heightAnchor.constraint(equalToConstant: 62),
+            attachRow.topAnchor.constraint(equalTo: attachScroll.contentLayoutGuide.topAnchor, constant: 4),
+            attachRow.bottomAnchor.constraint(equalTo: attachScroll.contentLayoutGuide.bottomAnchor),
+            attachRow.leadingAnchor.constraint(equalTo: attachScroll.contentLayoutGuide.leadingAnchor, constant: 4),
+            attachRow.trailingAnchor.constraint(equalTo: attachScroll.contentLayoutGuide.trailingAnchor, constant: -4),
+            attachRow.heightAnchor.constraint(equalToConstant: 58),
+        ])
+        column.addArrangedSubview(attachScroll)
         column.addArrangedSubview(input)
 
         toolsRow.axis = .horizontal
@@ -622,7 +698,7 @@ final class AIViewController: UIViewController, UITextViewDelegate, UIDocumentPi
     override func viewDidLayoutSubviews() {
         super.viewDidLayoutSubviews()
         // The section sits under the shell's bar: the composer stays above it.
-        barClearance?.constant = -(BarMetrics.bottomGap(safeBottom: view.safeAreaInsets.bottom) + BarMetrics.height + 10)
+        barClearance?.constant = quick ? -12 : -(BarMetrics.bottomGap(safeBottom: view.safeAreaInsets.bottom) + BarMetrics.height + 10)
     }
 
     func textViewDidChange(_ textView: UITextView) {
@@ -717,6 +793,8 @@ final class AIViewController: UIViewController, UITextViewDelegate, UIDocumentPi
         }
         if !conversation.error.isEmpty, conversation.error != turns.last?.error { list.addArrangedSubview(notice(conversation.error, error: true)) }
         if !taskError.isEmpty { list.addArrangedSubview(notice(taskError, error: true)) }
+        renderAttachments()
+        privateButton.isHidden = quick
 
         let pending = conversation.pending
         input.isHidden = pending
@@ -746,6 +824,12 @@ final class AIViewController: UIViewController, UITextViewDelegate, UIDocumentPi
     #if targetEnvironment(simulator)
     /// `-aidemo 1`: a short sample conversation (with a block of code) and a sample history, no server.
     private func simulatorDemo() {
+        if quick {
+            // The quick dialog starts empty.
+            status = AIDemo.status
+            render()
+            return
+        }
         status = AIDemo.status
         models = AIDemo.models
         chosenModel = "auto:smart"
@@ -757,6 +841,301 @@ final class AIViewController: UIViewController, UITextViewDelegate, UIDocumentPi
         if UserDefaults.standard.string(forKey: "aidemo") == "history" {
             DispatchQueue.main.asyncAfter(deadline: .now() + 1.5) { [weak self] in self?.showHistory() }
         }
+        // AI: `photo` — attachments above the question; `quick` — the quick dialog over the section.
+        let wanted = UserDefaults.standard.string(forKey: "aidemo")
+        if wanted == "photo" { simulatorAttachments() }
+        if wanted == "quick", !quick {
+            DispatchQueue.main.asyncAfter(deadline: .now() + 1.5) { [weak self] in
+                guard let self else { return }
+                AIViewController.presentQuick(over: self, messenger: nil)
+            }
+        }
     }
     #endif
 }
+
+// MARK: AI: attachments and the quick dialog
+
+/// A picture ready to send: a small cleaned JPEG (no EXIF / GPS) as a data URL, and its preview.
+struct AIPicture {
+    let id: String
+    let preview: UIImage
+    let data: String
+    var video = false
+}
+
+/// How a photo or a video becomes pictures for the model (ai/attach.ts): a photo is re-encoded as JPEG (longest side at
+/// most 1280, quality .8 — which drops the metadata), a video becomes three frames (beginning, middle, end).
+enum AIAttach {
+    static let maxPictures = 8
+    static let maxDocument = 15 * 1024 * 1024
+    static let mediaAsDocument = "Фото и видео прикрепляй кнопкой «Фото и видео»: модель получит копию без метаданных (места съёмки, даты, модели камеры)."
+
+    static func jpeg(_ image: UIImage) throws -> (data: String, preview: UIImage) {
+        let size = image.size
+        let edge = max(size.width, size.height)
+        var target = size
+        if edge > 1280 {
+            let scale = 1280 / edge
+            target = CGSize(width: (size.width * scale).rounded(), height: (size.height * scale).rounded())
+        }
+        let format = UIGraphicsImageRendererFormat.default()
+        format.scale = 1
+        let small = UIGraphicsImageRenderer(size: target, format: format).image { (_: UIGraphicsImageRendererContext) -> Void in
+            image.draw(in: CGRect(origin: .zero, size: target))
+        }
+        guard let bytes = small.jpegData(compressionQuality: 0.8) else { throw AIFailure("Не удалось подготовить фото.") }
+        let text = bytes.base64EncodedString()
+        if text.count > 5_000_000 { throw AIFailure("Фото слишком большое для вопроса.") }
+        return ("data:image/jpeg;base64," + text, small)
+    }
+
+    /// Frames of a video at the given seconds (those past its end are skipped).
+    static func frames(_ file: URL, at seconds: [Double]) -> [UIImage] {
+        let asset = AVURLAsset(url: file)
+        let generator = AVAssetImageGenerator(asset: asset)
+        generator.appliesPreferredTrackTransform = true
+        generator.requestedTimeToleranceBefore = CMTime(seconds: 0.5, preferredTimescale: 600)
+        generator.requestedTimeToleranceAfter = CMTime(seconds: 0.5, preferredTimescale: 600)
+        var out: [UIImage] = []
+        for second in seconds {
+            if let frame = try? generator.copyCGImage(at: CMTime(seconds: second, preferredTimescale: 600), actualTime: nil) { out.append(UIImage(cgImage: frame)) }
+        }
+        return out
+    }
+
+    static func videoLength(_ file: URL) -> Double {
+        let seconds = AVURLAsset(url: file).duration.seconds
+        return seconds.isFinite ? seconds : 0
+    }
+}
+
+extension AIViewController: PHPickerViewControllerDelegate {
+    @objc private func closeQuick() { dismiss(animated: true) }
+
+    /// Opens the quick dialog over a screen (`AIQuickDialog`): a page sheet with its own conversation, no history.
+    static func presentQuick(over screen: UIViewController, messenger: Messenger?) {
+        let dialog = AIViewController(messenger: messenger, quick: true)
+        dialog.modalPresentationStyle = .pageSheet
+        screen.present(dialog, animated: true)
+    }
+
+    fileprivate func pickPictures() {
+        let room = AIAttach.maxPictures - pictures.count
+        if room <= 0 {
+            taskError = "К вопросу — до \(AIAttach.maxPictures) фото и кадров."
+            return render()
+        }
+        var config = PHPickerConfiguration()
+        config.filter = .any(of: [.images, .videos])
+        config.selectionLimit = room
+        config.preferredAssetRepresentationMode = .compatible
+        let picker = PHPickerViewController(configuration: config)
+        picker.delegate = self
+        present(picker, animated: true)
+    }
+
+    func picker(_ picker: PHPickerViewController, didFinishPicking results: [PHPickerResult]) {
+        picker.dismiss(animated: true)
+        let room = AIAttach.maxPictures - pictures.count
+        for (index, result) in results.prefix(max(0, room)).enumerated() {
+            let provider = result.itemProvider
+            let id = (result.assetIdentifier ?? UUID().uuidString) + "#\(index)"
+            if provider.hasItemConformingToTypeIdentifier(UTType.movie.identifier) {
+                provider.loadFileRepresentation(forTypeIdentifier: UTType.movie.identifier) { [weak self] (url: URL?, _: Error?) -> Void in
+                    guard let url else { return }
+                    let length = AIAttach.videoLength(url)
+                    let stops: [Double] = length > 1 ? [length * 0.1, length * 0.5, length * 0.9] : [0]
+                    let made = AIAttach.frames(url, at: stops)
+                    DispatchQueue.main.async { self?.addPictures(made, id: id, video: true) }
+                }
+            } else if provider.canLoadObject(ofClass: UIImage.self) {
+                provider.loadObject(ofClass: UIImage.self) { [weak self] (object: NSItemProviderReading?, _: Error?) -> Void in
+                    guard let image = object as? UIImage else { return }
+                    DispatchQueue.main.async { self?.addPictures([image], id: id, video: false) }
+                }
+            }
+        }
+    }
+
+    private func addPictures(_ images: [UIImage], id: String, video: Bool) {
+        for (index, image) in images.enumerated() {
+            if pictures.count >= AIAttach.maxPictures { break }
+            do {
+                let made = try AIAttach.jpeg(image)
+                pictures.append(AIPicture(id: id + "-\(index)", preview: made.preview, data: made.data, video: video))
+                taskError = ""
+            } catch {
+                taskError = (error as? AIFailure)?.words ?? "Не удалось подготовить фото."
+            }
+        }
+        render()
+    }
+
+    fileprivate func pickDocuments() {
+        let picker = UIDocumentPickerViewController(forOpeningContentTypes: [UTType.item], asCopy: true)
+        picker.delegate = self
+        picker.allowsMultipleSelection = true
+        pickingDocuments = true
+        present(picker, animated: true)
+    }
+
+    /// Files chosen as «Документ»: a photo or a video in them is prepared like «Фото и видео» does (never sent as it is);
+    /// everything else is read into text by the server.
+    fileprivate func tookDocuments(_ urls: [URL]) {
+        guard let server = messenger?.server else { return }
+        for file in urls {
+            let type = UTType(filenameExtension: file.pathExtension)
+            let video = type?.conforms(to: .movie) == true || type?.conforms(to: .video) == true
+            let photo = type?.conforms(to: .image) == true
+            if video || photo {
+                if pictures.count >= AIAttach.maxPictures {
+                    taskError = "К вопросу — до \(AIAttach.maxPictures) фото и кадров."
+                } else if photo, let image = UIImage(contentsOfFile: file.path) {
+                    addPictures([image], id: file.lastPathComponent, video: false)
+                } else if video {
+                    // The length is not known here: a frame near the start and, when the video is long enough, two later ones.
+                    let made = AIAttach.frames(file, at: [0.4, 3, 9])
+                    if made.isEmpty { taskError = AIAttach.mediaAsDocument } else { addPictures(made, id: file.lastPathComponent, video: true) }
+                } else {
+                    taskError = AIAttach.mediaAsDocument
+                }
+                try? FileManager.default.removeItem(at: file)
+                continue
+            }
+            let name = file.lastPathComponent
+            let size = (try? file.resourceValues(forKeys: [.fileSizeKey]))?.fileSize ?? 0
+            guard size <= AIAttach.maxDocument, let bytes = try? Data(contentsOf: file), bytes.count <= AIAttach.maxDocument else {
+                try? FileManager.default.removeItem(at: file)
+                taskError = size > AIAttach.maxDocument ? "«\(name)» больше 15 МБ." : "Не удалось открыть документ."
+                continue
+            }
+            try? FileManager.default.removeItem(at: file)
+            reading += 1
+            taskError = ""
+            AIClient.document(server, name: name, data: bytes) { [weak self] (result: Result<AIDocumentText, AIFailure>) -> Void in
+                guard let self else { return }
+                self.reading -= 1
+                switch result {
+                case .success(let doc):
+                    var kept = self.documents.filter { (item: AIDocumentText) -> Bool in item.name != doc.name }
+                    kept.append(doc)
+                    self.documents = Array(kept.suffix(5))
+                case .failure(let failure):
+                    self.taskError = "«\(name)»: " + (failure.words.isEmpty ? "не удалось прочитать." : failure.words)
+                }
+                self.render()
+            }
+        }
+        render()
+    }
+
+    /// The strip of attachments above the question.
+    fileprivate func renderAttachments() {
+        attachRow.arrangedSubviews.forEach { $0.removeFromSuperview() }
+        for item in pictures {
+            let box = UIView()
+            let face = UIImageView(image: item.preview)
+            face.contentMode = .scaleAspectFill
+            face.clipsToBounds = true
+            face.layer.cornerRadius = 12
+            face.backgroundColor = Theme.surface2
+            face.frame = CGRect(x: 0, y: 4, width: 54, height: 54)
+            box.addSubview(face)
+            if item.video {
+                let mark = UIImageView(image: UIImage(systemName: "video.fill", withConfiguration: UIImage.SymbolConfiguration(pointSize: 9, weight: .bold)))
+                mark.tintColor = .white
+                mark.backgroundColor = UIColor(white: 0, alpha: 0.55)
+                mark.layer.cornerRadius = 6
+                mark.contentMode = .center
+                mark.frame = CGRect(x: 4, y: 42, width: 20, height: 13)
+                box.addSubview(mark)
+            }
+            let remove = UIButton(type: .system)
+            remove.setImage(UIImage(systemName: "xmark", withConfiguration: UIImage.SymbolConfiguration(pointSize: 9, weight: .bold)), for: .normal)
+            remove.tintColor = Theme.dark ? UIColor(hex: 0x111111) : .white
+            remove.backgroundColor = Theme.text
+            remove.layer.cornerRadius = 10
+            remove.frame = CGRect(x: 54 - 15, y: -1, width: 20, height: 20)
+            remove.accessibilityLabel = "Убрать"
+            let id = item.id
+            remove.addAction(UIAction { [weak self] _ in
+                self?.pictures.removeAll { (other: AIPicture) -> Bool in other.id == id }
+                self?.render()
+            }, for: .touchUpInside)
+            box.addSubview(remove)
+            box.widthAnchor.constraint(equalToConstant: 60).isActive = true
+            box.heightAnchor.constraint(equalToConstant: 58).isActive = true
+            attachRow.addArrangedSubview(box)
+        }
+        for doc in documents {
+            let chip = UIStackView()
+            chip.axis = .horizontal
+            chip.spacing = 7
+            chip.alignment = .center
+            chip.backgroundColor = Theme.surface2
+            chip.layer.cornerRadius = 12
+            chip.isLayoutMarginsRelativeArrangement = true
+            chip.layoutMargins = UIEdgeInsets(top: 0, left: 10, bottom: 0, right: 6)
+            let icon = UIImageView(image: UIImage(systemName: "doc.text", withConfiguration: UIImage.SymbolConfiguration(pointSize: 17, weight: .regular)))
+            icon.tintColor = Theme.accent
+            let title = AIKit.label(doc.name, size: 13, weight: .semibold, lines: 1)
+            let state = AIKit.label((doc.pages.map { "\($0) стр. · " } ?? "") + (doc.truncated ? "прочитано начало" : "прочитан"), size: 10, color: Theme.muted, lines: 1)
+            let words = UIStackView(arrangedSubviews: [title, state])
+            words.axis = .vertical
+            let remove = UIButton(type: .system)
+            remove.setImage(UIImage(systemName: "xmark", withConfiguration: UIImage.SymbolConfiguration(pointSize: 12, weight: .semibold)), for: .normal)
+            remove.tintColor = Theme.muted
+            remove.accessibilityLabel = "Убрать документ \(doc.name)"
+            let name = doc.name
+            remove.addAction(UIAction { [weak self] _ in
+                self?.documents.removeAll { (other: AIDocumentText) -> Bool in other.name == name }
+                self?.render()
+            }, for: .touchUpInside)
+            [icon, words, remove].forEach { chip.addArrangedSubview($0) }
+            chip.heightAnchor.constraint(equalToConstant: 54).isActive = true
+            chip.widthAnchor.constraint(lessThanOrEqualToConstant: 220).isActive = true
+            attachRow.addArrangedSubview(chip)
+        }
+        if reading > 0 {
+            let chip = UIStackView()
+            chip.axis = .horizontal
+            chip.spacing = 7
+            chip.alignment = .center
+            chip.backgroundColor = Theme.surface2
+            chip.layer.cornerRadius = 12
+            chip.isLayoutMarginsRelativeArrangement = true
+            chip.layoutMargins = UIEdgeInsets(top: 0, left: 12, bottom: 0, right: 12)
+            let spin = UIActivityIndicatorView(style: .medium)
+            spin.color = Theme.accent
+            spin.startAnimating()
+            [spin, AIKit.label("Читаю документ…", size: 12, color: Theme.muted, lines: 1)].forEach { chip.addArrangedSubview($0) }
+            chip.heightAnchor.constraint(equalToConstant: 54).isActive = true
+            attachRow.addArrangedSubview(chip)
+        }
+        attachScroll.isHidden = attachRow.arrangedSubviews.isEmpty || conversation.pending
+    }
+
+    #if targetEnvironment(simulator)
+    /// `-aidemo photo`: two attached pictures (drawn here, a video frame among them) and a document, above the question.
+    fileprivate func simulatorAttachments() {
+        func drawn(_ colours: [UInt32]) -> UIImage {
+            return UIGraphicsImageRenderer(size: CGSize(width: 120, height: 120)).image { (context: UIGraphicsImageRendererContext) -> Void in
+                let stops = colours.map { UIColor(hex: $0).cgColor } as CFArray
+                if let gradient = CGGradient(colorsSpace: CGColorSpaceCreateDeviceRGB(), colors: stops, locations: [0, 1]) {
+                    context.cgContext.drawLinearGradient(gradient, start: .zero, end: CGPoint(x: 120, y: 120), options: [])
+                }
+            }
+        }
+        pictures = [AIPicture(id: "demo-1", preview: drawn([0x2F5BE0, 0x58B7F2]), data: ""),
+                    AIPicture(id: "demo-2", preview: drawn([0x0E7C66, 0x2BD4A0]), data: "", video: true)]
+        var doc = AIDocumentText(name: "Отчёт.pdf", text: "")
+        doc.pages = 12
+        documents = [doc]
+        input.text = "Сделай из этого аниме"
+        textViewDidChange(input)
+        render()
+    }
+    #endif
+}
+

@@ -136,6 +136,7 @@ final class ChatViewController: UIViewController {
         actions.onLoaded = { [weak self] (newestTheirs: Int) -> Void in self?.loaded(newestTheirs: newestTheirs) }
         // ChatLook: the header's views go into glass pills; the avatar on the right; the swipe to answer.
         look.installHeader(host: self, header: header, heading: heading, back: back, call: callButton, status: actions.statusView, list: list, actions: actions)
+        look.onSearch = { [weak self] in self?.actions.openSearch() } // Profile: «Поиск» of the avatar's hold menu
         #if targetEnvironment(simulator)
         if messenger == nil { ChatLookDemo.run(self) } // ChatLook: -chatlook … (Sources/ChatLook/ChatLookDemo.swift)
         #endif
@@ -241,7 +242,9 @@ final class ChatViewController: UIViewController {
     /// People: the profile of the person of this chat (Sources/People/PersonProfileViewController.swift).
     @objc func openProfile() {
         view.endEditing(true)
-        navigationController?.pushViewController(PersonProfileViewController(messenger: messenger, userId: peerId, name: name, chatId: messenger == nil ? "demo" : chatId), animated: true)
+        let profile = PersonProfileViewController(messenger: messenger, userId: peerId, name: name, chatId: messenger == nil ? "demo" : chatId)
+        profile.chatLink = ProfileChatLink(chat: self) // Profile: sound, search, shared media, «Ещё» of this chat
+        navigationController?.pushViewController(profile, animated: true)
     }
 
     /// ChatActions: the message, an answer, an edit or a forward — whatever the field is for at the moment.

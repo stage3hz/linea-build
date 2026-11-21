@@ -73,7 +73,7 @@ final class PeopleViewController: UIViewController, UITableViewDataSource, UITab
         view.addSubview(table)
 
         heading.text = "Люди"
-        heading.font = .systemFont(ofSize: 34, weight: .bold)
+        heading.font = Theme.title(Theme.TypeSize.sectionTitle) // Fonts: the reference's TITLE, 26
         heading.textColor = Theme.text
         view.addSubview(heading)
         caption.text = "Друзья, заявки и поиск по @имени"
@@ -487,7 +487,7 @@ final class PeopleEmptyCell: UITableViewCell {
         icon.tintColor = Theme.accent
         icon.contentMode = .center
         badge.addSubview(icon)
-        heading.font = .systemFont(ofSize: 21, weight: .heavy)
+        heading.font = Theme.title(Theme.TypeSize.emptyTitle) // Fonts
         heading.textColor = Theme.text
         heading.textAlignment = .center
         contentView.addSubview(heading)

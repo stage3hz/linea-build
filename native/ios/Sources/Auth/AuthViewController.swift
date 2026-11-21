@@ -53,7 +53,7 @@ final class AuthViewController: UIViewController {
     private let column = UIStackView()
     private let brand = UILabel()
     private let motto = UILabel()
-    private let heading = UILabel()
+    private let heading = AppearingTextView() // Effects: the title's words rise in one after another (AppearingText)
     private let hint = UILabel()
     private let switcher = UISegmentedControl(items: ["Войти", "Создать аккаунт"])
     private let progress = UIStackView()
@@ -81,7 +81,7 @@ final class AuthViewController: UIViewController {
     private let notice = AuthNotice(error: false)
     private let failure = AuthNotice(error: true)
     private let loginLock = AuthNotice(error: true)
-    private let proceed = UIButton(type: .system)
+    private let proceed = ActionButton(label: "Продолжить") // Effects: the button with states (ActionButton)
     private let forgot = UIButton(type: .system)
     private let back = UIButton(type: .system)
 
@@ -146,13 +146,11 @@ final class AuthViewController: UIViewController {
 
     private func build() {
         brand.text = "Инвиз"
-        brand.font = .systemFont(ofSize: 40, weight: .bold)
+        brand.font = Theme.title(Theme.TypeSize.authTitle) // Fonts: «Инвиз», the reference's TITLE 25
         brand.textColor = Theme.text
         motto.text = "Твоя линия связи."
         motto.font = .systemFont(ofSize: 17)
         motto.textColor = Theme.muted
-        heading.font = .systemFont(ofSize: 22, weight: .semibold)
-        heading.textColor = Theme.text
         heading.accessibilityTraits = .header
         hint.font = .systemFont(ofSize: 15)
         hint.textColor = Theme.muted
@@ -219,13 +217,6 @@ final class AuthViewController: UIViewController {
         for part in [clock, clockOwner, waitingAbout, waitingLeave] as [UIView] { waitingBox.addArrangedSubview(part) }
         waitingBox.setCustomSpacing(18, after: clockOwner)
 
-        var look = UIButton.Configuration.filled()
-        look.baseBackgroundColor = Theme.accent
-        look.baseForegroundColor = Theme.onAccent
-        look.cornerStyle = .capsule
-        look.imagePadding = 8
-        look.contentInsets = NSDirectionalEdgeInsets(top: 15, leading: 20, bottom: 15, trailing: 20)
-        proceed.configuration = look
         proceed.accessibilityIdentifier = "auth-submit"
         proceed.addTarget(self, action: #selector(submit), for: .touchUpInside)
         forgot.setTitle("Забыл пароль?", for: .normal)
@@ -389,7 +380,7 @@ final class AuthViewController: UIViewController {
         // A field that was closed for the time of a request gets the keyboard back.
         let freed = shownBusy && !busy
         shownBusy = busy
-        heading.text = headingWords(mode)
+        heading.show(headingWords(mode), font: .systemFont(ofSize: 22, weight: .semibold), color: Theme.text) // Effects
         hint.text = hintWords(mode)
 
         switcher.isHidden = !(isLogin || isRegister)
@@ -512,10 +503,11 @@ final class AuthViewController: UIViewController {
         var words = buttonWords(mode)
         if closed { words = "Подожди \(loginLockText)" } else if entered { words = "Готово" }
         let loading = !entered && (pending || (checking && mode == .waiting))
-        if proceed.configuration?.title != words { proceed.configuration?.title = words }
-        if proceed.configuration?.showsActivityIndicator != loading { proceed.configuration?.showsActivityIndicator = loading }
-        let done: UIImage? = entered ? UIImage(systemName: "checkmark") : nil
-        if proceed.configuration?.image != done { proceed.configuration?.image = done }
+        // Effects: «Готово» rolls in with a check once signed in; a spinner while the request goes.
+        if entered { words = buttonWords(mode) }
+        if proceed.label != words { proceed.label = words }
+        if proceed.loading != loading { proceed.loading = loading }
+        if proceed.success != entered { proceed.success = entered }
         proceed.isEnabled = !(recoveryClosed || closed)
     }
 
@@ -569,6 +561,7 @@ final class AuthViewController: UIViewController {
 
     private func fail(_ words: String) {
         errorText = words
+        proceed.signalError() // Effects: «Ошибка» with a shake for 1.4 s
         render()
     }
 

@@ -1082,6 +1082,11 @@ final class ChatScreenActions: NSObject, UITextViewDelegate {
         relayout()
     }
 
+    /// Profile: an attachment of the shared media (the profile's tabs) opens as a touch on its row would.
+    func openAttachment(key: String) {
+        attachments?.pressed(key)
+    }
+
     func closeSearch() {
         guard !searchBar.isHidden else { return }
         searchBar.input.resignFirstResponder()

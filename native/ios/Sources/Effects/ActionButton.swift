@@ -124,7 +124,11 @@ final class ActionButton: UIControl {
     static func readable(on colour: UIColor) -> UIColor {
         var r: CGFloat = 0, g: CGFloat = 0, b: CGFloat = 0, a: CGFloat = 0
         colour.getRed(&r, green: &g, blue: &b, alpha: &a)
-        return (r * 255 * 299 + g * 255 * 587 + b * 255 * 114) / 1000 > 150 ? UIColor(hex: 0x09090B) : .white
+        let red: CGFloat = r * 255 * 299
+        let green: CGFloat = g * 255 * 587
+        let blue: CGFloat = b * 255 * 114
+        let light: CGFloat = (red + green + blue) / 1000
+        return light > 150 ? UIColor(hex: 0x09090B) : .white
     }
 
     private func look(_ phase: Phase) -> (bg: UIColor, fg: UIColor) {
@@ -223,8 +227,11 @@ final class ActionButton: UIControl {
         feedback.notificationOccurred(next == .success ? .success : .error)
         if next == .error && moving {
             let shake = CAKeyframeAnimation(keyPath: "transform.translation.x")
-            shake.values = [0, 10, -8, 6, -4, 2, 0]
-            shake.keyTimes = [0, 1 / 6.0, 2 / 6.0, 3 / 6.0, 4 / 6.0, 5 / 6.0, 1].map { NSNumber(value: $0) }
+            shake.values = [0.0, 10.0, -8.0, 6.0, -4.0, 2.0, 0.0] as [Double]
+            let sixth: Double = 1.0 / 6.0
+            var times: [NSNumber] = []
+            for step in 0...6 { times.append(NSNumber(value: Double(step) * sixth)) }
+            shake.keyTimes = times
             shake.duration = 0.3
             layer.add(shake, forKey: "shake")
         }

@@ -322,7 +322,7 @@ final class AITurnView: UIView {
         spin.color = Theme.accent
         spin.startAnimating()
         let lead = UIStackView(arrangedSubviews: [mark, spin])
-        column.addArrangedSubview(stepRow(lead, AIKit.label("Запрос отправлен на сервер", size: 13, color: Theme.muted)))
+        column.addArrangedSubview(stepRow(lead, AIKit.label(turn.images.isEmpty ? "Запрос отправлен на сервер" : "Запрос и фото отправлены на сервер", size: 13, color: Theme.muted)))
         let second = UIActivityIndicatorView(style: .medium)
         second.color = Theme.accent
         second.startAnimating()

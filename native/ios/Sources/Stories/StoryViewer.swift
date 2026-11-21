@@ -839,7 +839,7 @@ final class StoryViewersSheet: UIViewController, UITableViewDataSource {
         super.viewDidLoad()
         view.backgroundColor = Theme.bg
         heading.text = StoryRules.word("views")
-        heading.font = .systemFont(ofSize: 20, weight: .semibold)
+        heading.font = Theme.title(Theme.TypeSize.sheetTitle) // Fonts
         heading.textColor = Theme.text
         heading.accessibilityTraits = .header
         view.addSubview(heading)

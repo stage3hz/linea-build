@@ -39,6 +39,8 @@ final class ChatHistory {
         var pinned: [String: Any]?
         /// The chat's rule «копирование запрещено» (an encrypted setting both sides follow).
         var noCopy = false
+        /// Profile: the chat's encrypted rule «Автоудаление» in seconds (0: off), as the core folds it.
+        var ttl: Double = 0
         /// The newest message of the other side among everything loaded (what «read» is reported up to).
         var newestTheirs = 0
         /// Messages that are loaded but cannot be read on this device (sent before it signed in), by clientId.
@@ -458,6 +460,7 @@ final class ChatHistory {
             messages = lines
             out.pinned = folded["pinned"] as? [String: Any]
             out.noCopy = (folded["rules"] as? [String: Any])?["noCopy"] as? Bool ?? false
+            out.ttl = ((folded["rules"] as? [String: Any])?["ttl"] as? NSNumber)?.doubleValue ?? 0 // Profile
         } else {
             messages = all.filter { action($0) == nil }
         }

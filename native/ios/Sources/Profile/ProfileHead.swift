@@ -157,7 +157,7 @@ final class ProfileHeroView: UIView {
         name.onDark = tinted
         name.plainColor = tinted ? .white : Theme.text
         name.show(person.displayName, platina: person.look.platina)
-        status.show(person.look, size: 22)
+        status.show(person.look, size: 22, animated: true) // Avatars: animated as the reference
         pattern.show(person.look.profilePattern)
         setPresence(presenceWords)
         party.isHidden = !person.look.birthdayToday

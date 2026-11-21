@@ -3,133 +3,11 @@ import UIKit
 
 // What the top of a profile is made of (the reference's music/MusicAmbient.tsx, platina/Decor.tsx ProfileBanner,
 // platina/Effects.tsx, design/peerLight.tsx ProfileLight and ProfilePosts.tsx ProfilePattern):
-//   AmbientView        soft light patches drifting while their colour flows (the animated banner presets)
+//   (the animated banner presets are the music screen's MusicAmbientView, Sources/Effects/MusicAmbient.swift)
 //   ProfileBannerView  the banner: an uploaded photo / video or a preset, soft top and bottom edges, fading out below
 //   ProfileEffectView  particles over the top of an open profile (snow, sparks, petals, bubbles, stars, embers)
 //   (the person's light is ChatLook's ProfileLightView, Sources/ChatLook/PeerLight.swift)
 //   ProfilePatternView the chosen emoji repeated in rings around the avatar
-
-/// The music screen's moving light, here the banner presets (MusicAmbient.tsx): four patches, each five glows of
-/// the palette crossfading in turn (6 s a colour), drifting slowly. `still` holds them.
-final class AmbientView: UIView {
-    struct Palette { let base: String; let colors: [String]; let accent: Int; let green: Int }
-    static let palettes: [String: Palette] = [
-        "dark": Palette(base: "#0A1529", colors: ["#0D3480", "#0B6450", "#123E92", "#0A2F6E", "#B8D8F5"], accent: 4, green: 1),
-        "black": Palette(base: "#000000", colors: ["#0A2766", "#08483A", "#0E2F72", "#071F4F", "#8FB3D9"], accent: 4, green: 1),
-        "light": Palette(base: "#E7EFFC", colors: ["#9DBDF2", "#A9E0CF", "#B5CDF5", "#8FB0EA", "#FFFFFF"], accent: 4, green: 1),
-        "deep": Palette(base: "#050B1C", colors: ["#0D3480", "#0A2F6E", "#143F9E", "#08245A", "#8FB3D9"], accent: 4, green: 1),
-        "glacier": Palette(base: "#0B1B2E", colors: ["#4C8FD6", "#7FC8E8", "#2F6DB5", "#9FD6F2", "#FFFFFF"], accent: 4, green: 1),
-        "aurora": Palette(base: "#04131C", colors: ["#0B6450", "#1AA889", "#0D3480", "#2EE6C8", "#CFF7EE"], accent: 4, green: 1),
-        "ocean": Palette(base: "#031424", colors: ["#0A4E8A", "#0C7A9E", "#063A6B", "#1593B8", "#B8E4F5"], accent: 4, green: 1),
-        "mint": Palette(base: "#061A16", colors: ["#118A6A", "#4FD1A5", "#0B5C4A", "#7BE8C3", "#E6FFF6"], accent: 4, green: 1),
-        "night": Palette(base: "#000000", colors: ["#0A1A40", "#101F4D", "#06122E", "#1A2C66", "#5D7BB8"], accent: 4, green: 1),
-    ]
-    private let count = 5
-    private let step: Double = 6
-    private var tone = "deep"
-    private var still = false
-    private var built = CGSize.zero
-
-    override init(frame: CGRect) {
-        super.init(frame: frame)
-        isUserInteractionEnabled = false
-        clipsToBounds = true
-        NotificationCenter.default.addObserver(self, selector: #selector(again), name: UIApplication.willEnterForegroundNotification, object: nil)
-        NotificationCenter.default.addObserver(self, selector: #selector(again), name: Motion.changed, object: nil)
-    }
-
-    required init?(coder: NSCoder) { return nil }
-
-    deinit { NotificationCenter.default.removeObserver(self) }
-
-    func show(tone: String, still: Bool) {
-        self.tone = AmbientView.palettes[tone] == nil ? "deep" : tone
-        self.still = still
-        built = .zero
-        setNeedsLayout()
-    }
-
-    @objc private func again() { built = .zero; setNeedsLayout() }
-
-    override func didMoveToWindow() {
-        super.didMoveToWindow()
-        if window != nil { built = .zero; setNeedsLayout() }
-    }
-
-    override func layoutSubviews() {
-        super.layoutSubviews()
-        guard bounds.width > 0, bounds.size != built, let palette = AmbientView.palettes[tone] else { return }
-        built = bounds.size
-        layer.sublayers?.forEach { $0.removeFromSuperlayer() }
-        backgroundColor = lookColor(palette.base)
-        let paused = still || !Motion.enabled
-        let strength: Double = tone == "light" ? 0.75 : 1
-        let w = Double(bounds.width), h = Double(bounds.height)
-        patch(palette, x: w * 0.25, y: h * 0.35, size: w * 1.3, offset: 0, drift: 50, strength: 0.55 * strength, paused: paused)
-        patch(palette, x: w * 0.85, y: h * 0.55, size: w * 1.2, offset: 1.7, drift: 45, strength: 0.45 * strength, paused: paused)
-        patch(palette, x: w * 0.5, y: h * 0.85, size: w * 1.3, offset: 3.1, drift: 40, strength: 0.5 * strength, paused: paused)
-        patch(palette, x: w * 0.55, y: h * 0.3, size: w * 0.8, offset: 4.2, drift: 55, strength: 0.3 * strength, paused: paused)
-    }
-
-    /// How strongly glow `index` shows at `phase`: a smooth bump around its slot of the cycle.
-    private func weight(_ phase: Double, _ index: Int) -> Double {
-        let n = Double(count)
-        var d = abs(((phase - Double(index)).truncatingRemainder(dividingBy: n) + n).truncatingRemainder(dividingBy: n))
-        d = min(d, n - d)
-        let k = max(0, 1 - d)
-        return k * k * (3 - 2 * k)
-    }
-
-    private func patch(_ palette: Palette, x: Double, y: Double, size: Double, offset: Double, drift: Double, strength: Double, paused: Bool) {
-        let holder = CALayer()
-        holder.frame = CGRect(x: x - size / 2, y: y - size / 2, width: size, height: size)
-        for (index, hex) in palette.colors.enumerated() {
-            let glow = CAGradientLayer()
-            glow.type = .radial
-            glow.frame = holder.bounds
-            glow.startPoint = CGPoint(x: 0.5, y: 0.5)
-            glow.endPoint = CGPoint(x: 1, y: 1)
-            let opacity = index == palette.accent ? strength * (tone == "light" ? 0.8 : 0.35) : index == palette.green ? strength * 0.7 : strength
-            let color = lookColor(hex)
-            glow.colors = [color.withAlphaComponent(CGFloat(opacity)).cgColor, color.withAlphaComponent(0).cgColor]
-            glow.opacity = Float(weight(offset, index))
-            if !paused {
-                let samples = 60
-                let fade = CAKeyframeAnimation(keyPath: "opacity")
-                fade.values = (0...samples).map { (n: Int) -> NSNumber in NSNumber(value: weight(offset + Double(count) * Double(n) / Double(samples), index)) }
-                fade.duration = step * Double(count)
-                fade.repeatCount = .infinity
-                fade.isRemovedOnCompletion = false
-                glow.add(fade, forKey: "flow")
-            }
-            holder.addSublayer(glow)
-        }
-        if !paused {
-            let ease = CAMediaTimingFunction(name: .easeInEaseOut)
-            let across = CABasicAnimation(keyPath: "transform.translation.x")
-            across.fromValue = -drift
-            across.toValue = drift
-            across.duration = (9000 + offset * 900) / 1000
-            across.autoreverses = true
-            across.repeatCount = .infinity
-            across.timingFunction = ease
-            across.timeOffset = across.duration / 2
-            across.isRemovedOnCompletion = false
-            holder.add(across, forKey: "x")
-            let down = CABasicAnimation(keyPath: "transform.translation.y")
-            down.fromValue = drift * 0.7
-            down.toValue = -drift * 0.7
-            down.duration = (11000 + offset * 700) / 1000
-            down.autoreverses = true
-            down.repeatCount = .infinity
-            down.timingFunction = ease
-            down.timeOffset = down.duration / 2
-            down.isRemovedOnCompletion = false
-            holder.add(down, forKey: "y")
-        }
-        layer.addSublayer(holder)
-    }
-}
 
 /// The phone-proportioned head of a profile (banner height 200 under a ~59 pt status bar).
 let profileHeroRatio: CGFloat = 259 / 393
@@ -145,7 +23,7 @@ final class ProfileBannerView: UIView {
     private let video = LoopVideoView()
     private let liveBlur = UIVisualEffectView(effect: UIBlurEffect(style: .regular))
     private let liveBlurMask = CAGradientLayer()
-    private let ambient = AmbientView()
+    private let ambient = MusicAmbientView(tone: "deep") // Avatars: the one ambient view of the app
     private let fadeMask = CAGradientLayer()
     private var look = PersonLook()
     private var base = ""

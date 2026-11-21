@@ -42,7 +42,7 @@ final class CodeEntryView: UIView, UITextFieldDelegate {
             column.leadingAnchor.constraint(equalTo: leadingAnchor),
             column.trailingAnchor.constraint(equalTo: trailingAnchor),
         ])
-        titleLabel.font = .systemFont(ofSize: 20, weight: .bold)
+        titleLabel.font = Theme.title(Theme.TypeSize.sheetTitle) // Fonts
         titleLabel.textColor = Theme.text
         titleLabel.textAlignment = .center
         titleLabel.numberOfLines = 0

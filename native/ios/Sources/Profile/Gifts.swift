@@ -52,7 +52,7 @@ final class GiftsPanel: UIView {
         emptyEmoji.textAlignment = .center
         addSubview(emptyEmoji)
         emptyHeading.text = "Подарков пока нет…"
-        emptyHeading.font = .systemFont(ofSize: 19, weight: .bold)
+        emptyHeading.font = Theme.title(Theme.TypeSize.emptyTitle) // Fonts
         emptyHeading.textColor = Theme.text
         emptyHeading.textAlignment = .center
         addSubview(emptyHeading)

@@ -462,7 +462,7 @@ final class ChoiceSheet: UIViewController {
         super.viewDidLoad()
         view.backgroundColor = Theme.page(UIColor(hex: 0x141516))
         headingLabel.text = headingWords
-        headingLabel.font = .systemFont(ofSize: 20, weight: .bold)
+        headingLabel.font = Theme.title(Theme.TypeSize.sheetTitle) // Fonts: a sheet's heading
         headingLabel.textColor = Theme.text
         view.addSubview(headingLabel)
         noteLabel.text = noteWords

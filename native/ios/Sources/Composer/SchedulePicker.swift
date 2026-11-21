@@ -44,7 +44,7 @@ final class SchedulePickerController: UIViewController, UITextFieldDelegate {
         scroll.alwaysBounceVertical = true
 
         headingLabel.text = "Отправить позже"
-        headingLabel.font = .systemFont(ofSize: 20, weight: .bold)
+        headingLabel.font = Theme.title(Theme.TypeSize.sheetTitle) // Fonts
         headingLabel.textColor = Theme.text
         scroll.addSubview(headingLabel)
 

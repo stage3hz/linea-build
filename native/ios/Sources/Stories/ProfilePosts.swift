@@ -151,7 +151,7 @@ final class ProfilePostsBlock: UIView {
         emptyEmoji.font = .systemFont(ofSize: 54)
         emptyEmoji.textAlignment = .center
         addSubview(emptyEmoji)
-        emptyHeading.font = .systemFont(ofSize: 19, weight: .bold)
+        emptyHeading.font = Theme.title(Theme.TypeSize.emptyTitle) // Fonts
         emptyHeading.textColor = Theme.text
         emptyHeading.textAlignment = .center
         emptyHeading.numberOfLines = 0

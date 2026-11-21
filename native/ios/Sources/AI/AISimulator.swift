@@ -7,7 +7,7 @@ enum AIDemo {
     static let status = AIStatus(configured: true, model: "auto", provider: "freellmapi", platina: true, capabilities: [
         "text": AICapability(enabled: true, reason: nil), "code": AICapability(enabled: true, reason: nil), "image": AICapability(enabled: true, reason: nil),
         "video": AICapability(enabled: false, reason: nil), "speech": AICapability(enabled: true, reason: nil), "transcribe": AICapability(enabled: true, reason: nil),
-        "models": AICapability(enabled: true, reason: nil),
+        "models": AICapability(enabled: true, reason: nil), "vision": AICapability(enabled: true, reason: nil), "documents": AICapability(enabled: true, reason: nil),
     ])
     static let models = ["meta/llama-3.3-70b", "qwen/qwen3-coder", "mistral/mistral-small"]
 

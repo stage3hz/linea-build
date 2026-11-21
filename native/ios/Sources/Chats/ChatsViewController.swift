@@ -37,7 +37,7 @@ final class ChatsViewController: UIViewController {
         list.setPalette(Theme.chatList)
         view.addSubview(list)
         heading.text = "Чаты"
-        heading.font = .systemFont(ofSize: 34, weight: .bold)
+        heading.font = AppFont.title(Theme.TypeSize.chatsTitle) // Fonts
         heading.textColor = Theme.text
         view.addSubview(heading)
         newChat.setImage(UIImage(systemName: "square.and.pencil", withConfiguration: UIImage.SymbolConfiguration(pointSize: 16, weight: .semibold)), for: .normal)

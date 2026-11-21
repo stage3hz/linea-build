@@ -40,7 +40,7 @@ final class PollComposerController: UIViewController, UITextFieldDelegate {
         scroll.alwaysBounceVertical = true
         view.addSubview(scroll)
         headingLabel.text = "Новый опрос"
-        headingLabel.font = .systemFont(ofSize: 20, weight: .bold)
+        headingLabel.font = Theme.title(Theme.TypeSize.sheetTitle) // Fonts
         headingLabel.textColor = Theme.text
         scroll.addSubview(headingLabel)
         style(questionField, hint: "Вопрос")

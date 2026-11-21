@@ -4,14 +4,17 @@ import UIKit
 /// account without one shows the Platina gem instead (`gem: false` turns that off). It disappears by itself when
 /// the status runs out. Size: the emoji's point size; `intrinsicContentSize` follows what is shown.
 ///
-/// The reference plays a bundled animation of the emoji with Platina (Lottie, Noto Emoji Animation); there is no
-/// animation player in this app, so the emoji is the still glyph everywhere.
+/// `animated` (profiles, the chat header — as the reference's `animated`): the glyph moves as on the reference's
+/// iPhone (Avatars/AnimatedEmoji.swift: a pop, then a gentle breath; box `size × 1.2`) while animations and
+/// «Анимированные эмодзи» are on; lists keep the plain glyph.
 final class StatusEmojiView: UIView {
     private let glyph = UILabel()
     private var gemView: PlatinaGemView?
     private var look = PersonLook()
     private var size: CGFloat = 16
     private var gem = true
+    private var animated = false
+    private var moving: AnimatedEmojiView?
     private var timer: Timer?
 
     override init(frame: CGRect) {
@@ -22,6 +25,7 @@ final class StatusEmojiView: UIView {
         setContentHuggingPriority(.required, for: .horizontal)
         setContentCompressionResistancePriority(.required, for: .horizontal)
         NotificationCenter.default.addObserver(self, selector: #selector(refresh), name: UIApplication.didBecomeActiveNotification, object: nil)
+        NotificationCenter.default.addObserver(self, selector: #selector(refresh), name: Motion.changed, object: nil)
     }
 
     required init?(coder: NSCoder) { return nil }
@@ -31,10 +35,11 @@ final class StatusEmojiView: UIView {
         NotificationCenter.default.removeObserver(self)
     }
 
-    func show(_ look: PersonLook, size: CGFloat = 16, gem: Bool = true) {
+    func show(_ look: PersonLook, size: CGFloat = 16, gem: Bool = true, animated: Bool = false) {
         self.look = look
         self.size = size
         self.gem = gem
+        self.animated = animated
         refresh()
     }
 
@@ -48,7 +53,20 @@ final class StatusEmojiView: UIView {
         gemView?.removeFromSuperview()
         gemView = nil
         if let emoji {
-            glyph.isHidden = false
+            // StatusEmoji.tsx: `animated && emojiOn && hasAnimatedEmoji(emoji)` plays it, else the plain glyph.
+            if animated && Motion.feature("emoji") {
+                let player = moving ?? AnimatedEmojiView()
+                if moving == nil {
+                    addSubview(player)
+                    moving = player
+                }
+                player.isHidden = false
+                player.show(emoji, size: size * 1.2, mode: .loop, feature: "emoji")
+                glyph.isHidden = true
+            } else {
+                moving?.isHidden = true
+                glyph.isHidden = false
+            }
             glyph.text = emoji
             glyph.font = .systemFont(ofSize: size)
             accessibilityLabel = "Статус \(emoji)"
@@ -59,6 +77,7 @@ final class StatusEmojiView: UIView {
             isHidden = false
         } else if gem && look.platina {
             glyph.isHidden = true
+            moving?.isHidden = true
             let made = PlatinaGemView(size: (size * 0.8).rounded())
             addSubview(made)
             gemView = made
@@ -66,6 +85,7 @@ final class StatusEmojiView: UIView {
             isHidden = false
         } else {
             glyph.isHidden = true
+            moving?.isHidden = true
             isHidden = true
         }
         isAccessibilityElement = !isHidden
@@ -76,6 +96,7 @@ final class StatusEmojiView: UIView {
     override var intrinsicContentSize: CGSize {
         if isHidden { return CGSize(width: 0, height: 0) }
         if let gemView { return gemView.intrinsicContentSize }
+        if let moving, !moving.isHidden { return CGSize(width: ceil(size * 1.2), height: ceil(size * 1.4)) }
         return CGSize(width: ceil(size * 1.25), height: ceil(size * 1.4))
     }
 
@@ -84,6 +105,10 @@ final class StatusEmojiView: UIView {
     override func layoutSubviews() {
         super.layoutSubviews()
         glyph.frame = bounds
+        if let moving {
+            let side = ceil(size * 1.2)
+            moving.frame = CGRect(x: (bounds.width - side) / 2, y: (bounds.height - side) / 2, width: side, height: side)
+        }
         if let gemView {
             let side = gemView.intrinsicContentSize
             gemView.frame = CGRect(x: (bounds.width - side.width) / 2, y: (bounds.height - side.height) / 2, width: side.width, height: side.height)

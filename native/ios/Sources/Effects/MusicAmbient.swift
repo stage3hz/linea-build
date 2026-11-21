@@ -61,14 +61,14 @@ final class MusicAmbientView: UIView {
         return themePalette(bg: colors.bgHex, accent: colors.accentHex)
     }
 
-    private let tone: String
+    private var tone: String
     private let custom: Palette?
-    private let still: Bool
+    private var still: Bool
     private let fadeMask: Bool
     private var patches: [CALayer] = []
     private var shownSize = CGSize.zero
     private var shownMoving = false
-    private let mask = CAGradientLayer()
+    private let fadeLayer = CAGradientLayer()
 
     /// `fade`: the lower part fades out to transparency (the top of «Музыка», which runs into the list below).
     init(tone: String = "dark", custom: Palette? = nil, still: Bool = false, fade: Bool = false) {
@@ -83,9 +83,9 @@ final class MusicAmbientView: UIView {
         clipsToBounds = true
         backgroundColor = UIColor(hex: palette.base)
         if fade {
-            mask.colors = [UIColor.black.cgColor, UIColor.black.cgColor, UIColor.clear.cgColor]
-            mask.locations = [0, 0.6, 1]
-            layer.mask = mask
+            fadeLayer.colors = [UIColor.black.cgColor, UIColor.black.cgColor, UIColor.clear.cgColor]
+            fadeLayer.locations = [0, 0.6, 1]
+            layer.mask = fadeLayer
         }
         NotificationCenter.default.addObserver(self, selector: #selector(motionChanged), name: Motion.changed, object: nil)
     }
@@ -94,12 +94,23 @@ final class MusicAmbientView: UIView {
 
     deinit { NotificationCenter.default.removeObserver(self) }
 
+    /// Avatars: another palette or stillness on the same view (the profile banner presets, the studio's swatches;
+    /// an unknown preset is «deep»). Profile's former AmbientView was this same view twice; it is gone.
+    func show(tone next: String, still nextStill: Bool) {
+        let known = MusicAmbientView.palettes[next] == nil ? "deep" : next
+        guard known != tone || nextStill != still else { return }
+        tone = known
+        still = nextStill
+        backgroundColor = UIColor(hex: palette.base)
+        build()
+    }
+
     private var palette: Palette { return custom ?? MusicAmbientView.palettes[tone] ?? MusicAmbientView.palettes["dark"]! }
     private var moving: Bool { return !still && Motion.enabled }
 
     override func layoutSubviews() {
         super.layoutSubviews()
-        if fadeMask { mask.frame = bounds }
+        if fadeMask { fadeLayer.frame = bounds }
         if bounds.size != shownSize || moving != shownMoving { build() }
     }
 

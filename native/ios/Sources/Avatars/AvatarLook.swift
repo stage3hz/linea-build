@@ -168,7 +168,7 @@ enum AvatarCatalog {
         Decoration(id: "deco-arch", label: "Арка", collection: "Ночь", file: "decoration-arch", scale: 1.335, sweep: true, glow: "", particles: "#FFE7A3", rise: false),
     ]
 
-    /// Animated banner presets; the colours are AmbientView's palettes (Decor.tsx BANNERS).
+    /// Animated banner presets; the colours are MusicAmbientView's palettes (Decor.tsx BANNERS).
     static let banners: [Item] = [
         Item(id: "deep", label: "Глубина"), Item(id: "glacier", label: "Ледник"), Item(id: "aurora", label: "Сияние"),
         Item(id: "ocean", label: "Океан"), Item(id: "mint", label: "Мята"), Item(id: "night", label: "Ночь"),

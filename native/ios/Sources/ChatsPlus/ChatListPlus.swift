@@ -537,6 +537,7 @@ final class ChatListPlus: NSObject, UIGestureRecognizerDelegate {
     ///   folders | folder                    two sample folders: the tabs on «Все» / on the first folder
     ///   foldereditor | foldersettings       the editor of a new folder / Настройки → Папки с чатами
     ///   savedmenu | saved                   the hold menu of «Избранное» / the «Избранное» screen
+    ///   select | mutecustom | archivepull   choosing with two chats marked / «Настроить…» of the sound / «Архив» pulled out
     private func simulatorPrepare() {
         guard !demo.isEmpty else { return }
         if demo == "folders" || demo == "folder" || demo == "foldersettings" {
@@ -554,6 +555,14 @@ final class ChatListPlus: NSObject, UIGestureRecognizerDelegate {
             case "foldereditor": self.editFolder(nil)
             case "foldersettings": host.navigationController?.pushViewController(FoldersSettingsPage(messenger: self.messenger), animated: false)
             case "savedmenu": self.savedMenu()
+            case "select":
+                // «Выбрать» with two chats marked: the round marks, «Выбрано: 2», the bar of actions.
+                let ids = Array(self.chats.prefix(2).map { $0.id })
+                self.edit.set(Set(ids))
+            case "mutecustom":
+                host.present(MuteCustomSheet(done: { (_: String) -> Void in }), animated: false)
+            case "archivepull":
+                self.list?.simulatorOpenPull()
             case "saved", "savedsearch": self.openSaved()
             default: break
             }

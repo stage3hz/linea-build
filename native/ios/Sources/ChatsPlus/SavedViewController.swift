@@ -33,6 +33,9 @@ final class SavedViewController: UIViewController, UITableViewDataSource, UITabl
     private let selectCancel = UIButton(type: .system)
     private let selectCount = UILabel()
     private let selectDelete = UIButton(type: .system)
+    /// ChatsPlus: photos, files, voice notes and round videos in «Избранное» (SavedAttach.swift).
+    private lazy var attach = SavedAttach(messenger: messenger, saved: saved)
+    private let clip = UIButton(type: .system)
 
     private var lines: [Line] = []
     private var searching = false
@@ -183,6 +186,18 @@ final class SavedViewController: UIViewController, UITableViewDataSource, UITabl
         selectDelete.accessibilityLabel = "Удалить выбранное"
         selectDelete.addTarget(self, action: #selector(deleteSelected), for: .touchUpInside)
         composer.contentView.addSubview(selectDelete)
+        // ChatsPlus: the paperclip at the left of the field, the microphone / round video where «Сохранить» stands.
+        clip.setImage(UIImage(systemName: "paperclip", withConfiguration: UIImage.SymbolConfiguration(pointSize: 19, weight: .regular)), for: .normal)
+        clip.tintColor = Theme.muted
+        clip.accessibilityLabel = "Добавить фото или файл"
+        clip.addTarget(self, action: #selector(attachTapped), for: .touchUpInside)
+        composer.contentView.addSubview(clip)
+        attach.install(host: self, composer: composer.contentView)
+        attach.say = { [weak self] (words: String) -> Void in self?.flash(words) }
+        attach.onBusy = { [weak self] (busy: Bool) -> Void in
+            self?.clip.isEnabled = !busy
+            self?.refreshComposer()
+        }
 
         NotificationCenter.default.addObserver(self, selector: #selector(changed), name: SavedMessages.changed, object: nil)
         NotificationCenter.default.addObserver(self, selector: #selector(keyboardMoved(_:)), name: UIResponder.keyboardWillChangeFrameNotification, object: nil)
@@ -242,6 +257,13 @@ final class SavedViewController: UIViewController, UITableViewDataSource, UITabl
         selectCancel.frame = CGRect(x: 8, y: 8, width: 80, height: 44)
         selectDelete.frame = CGRect(x: composer.bounds.width - 8 - 110, y: 8, width: 110, height: 44)
         selectCount.frame = CGRect(x: 90, y: 8, width: composer.bounds.width - 200, height: 44)
+        // ChatsPlus: the paperclip takes room at the left; the record button stands where «Сохранить» is.
+        clip.frame = CGRect(x: 4, y: composer.bounds.height - 8 - 44, width: 36, height: 44)
+        if !clip.isHidden {
+            field.frame = CGRect(x: field.frame.minX + 34, y: field.frame.minY, width: field.frame.width - 34, height: field.frame.height)
+            placeholder.frame = CGRect(x: placeholder.frame.minX + 34, y: placeholder.frame.minY, width: placeholder.frame.width - 34, height: placeholder.frame.height)
+        }
+        attach.control.place(composerBounds: composer.contentView.bounds, composerFrame: composer.frame)
         table.frame = CGRect(x: 0, y: y, width: width, height: max(0, composer.frame.minY - 5 - y))
         empty.frame = table.frame
         notice.frame = CGRect(x: (width - 200) / 2, y: y + 4, width: 200, height: 30)
@@ -363,22 +385,22 @@ final class SavedViewController: UIViewController, UITableViewDataSource, UITabl
 
     /// «Переслать в чат»: the same picker as in chats; the chat opens with the forward waiting above its field.
     private func forward(_ item: [String: Any]) {
-        let picker = ForwardPickerController(messenger: messenger, count: 1)
+        // Composer: as the reference's SavedScreen — «Избранное» is left out of the list, a tap sends at once,
+        // «Выбрать» sends to several chats with the comment first.
+        let picker = ForwardPickerController(messenger: messenger, count: 1, hideSaved: true)
         let author = (item["origin"] as? [String: Any])?["author"] as? String ?? ownName
         var message: [String: Any] = ["text": item["text"] as? String ?? "", "senderId": messenger?.userId ?? ""]
         if let attachment = item["attachment"] as? [String: Any] { message["attachment"] = attachment }
-        picker.onPick = { [weak self] (target: ForwardPickerController.Target) -> Void in
+        let items = [ForwardDraft.Item(message: message, author: author.isEmpty ? "Я" : author)]
+        let send: ([ForwardPickerController.Target], String) -> Void = { [weak self] (targets: [ForwardPickerController.Target], comment: String) -> Void in
             guard let self else { return }
-            guard let messenger = self.messenger else { self.flash("Переслано: " + target.name); return }
-            ForwardDraft.put(chatId: target.chatId, items: [ForwardDraft.Item(message: message, author: author.isEmpty ? "Я" : author)])
-            guard let stack = self.navigationController, let first = stack.viewControllers.first else { return }
-            let screen = ChatViewController(name: target.name, messenger: messenger, chatId: target.chatId, peerId: target.peerId)
-            if let summary = target.summary {
-                screen.peerLastRead = summary.peerLastRead
-                screen.actions.opened(summary)
+            guard let messenger = self.messenger else { self.flash(ChatForward.notice(targets)); return }
+            ChatForward.sendMany(messenger: messenger, targets: targets, comment: comment, items: items) { [weak self] (problem: String?) -> Void in
+                self?.flash(problem ?? ChatForward.notice(targets))
             }
-            stack.setViewControllers([first, screen], animated: true)
         }
+        picker.onPick = { (target: ForwardPickerController.Target) -> Void in send([target], "") }
+        picker.onSendMany = send
         present(picker, animated: true)
     }
 
@@ -415,6 +437,11 @@ final class SavedViewController: UIViewController, UITableViewDataSource, UITabl
         send.isEnabled = ready
         send.alpha = ready ? 1 : 0.4
         send.setImage(UIImage(systemName: editingRow != nil ? "checkmark" : "arrow.up", withConfiguration: UIImage.SymbolConfiguration(pointSize: 19, weight: .bold)), for: .normal)
+        // ChatsPlus: with an empty field the microphone stands there instead (not while changing a note or choosing).
+        let canRecord = field.text.isEmpty && editingRow == nil && !choosing && (messenger != nil || isSample) && !attach.busy
+        attach.control.setVisible(canRecord)
+        if canRecord || attach.control.isBusy { send.isHidden = true }
+        clip.isHidden = choosing || editingRow != nil
         send.accessibilityLabel = editingRow != nil ? "Сохранить изменения" : "Сохранить заметку"
         editBanner.isHidden = editingRow == nil || choosing
         editClose.isHidden = editingRow == nil || choosing
@@ -504,6 +531,12 @@ final class SavedViewController: UIViewController, UITableViewDataSource, UITabl
     }
 
     @objc private func goBack() { navigationController?.popViewController(animated: true) }
+
+    /// ChatsPlus: the paperclip — «Фото» or «Файл».
+    @objc private func attachTapped() {
+        view.endEditing(true)
+        attach.openMenu()
+    }
 }
 
 /// The quiet day above the notes of one day.

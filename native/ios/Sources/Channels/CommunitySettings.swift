@@ -161,7 +161,8 @@ final class CommunitySettingsPage: SettingsPage, PHPickerViewControllerDelegate 
 
     private func showSave() {
         let name = nameField.value.trimmingCharacters(in: .whitespacesAndNewlines)
-        saveButton.isEnabled = !busy && !name.isEmpty && (nameField.value != community.summary.name || aboutArea.value != community.summary.about)
+        let changed = nameField.value != community.summary.name || aboutArea.value != community.summary.about
+        saveButton.isEnabled = saveButton.success || saving || (!busy && !name.isEmpty && changed)
     }
 
     // MARK: Reading and changing
@@ -217,21 +218,35 @@ final class CommunitySettingsPage: SettingsPage, PHPickerViewControllerDelegate 
         messenger.server.ask("updateCommunity", [community.id, fields]) { [weak self] result in
             guard let self else { return }
             self.busy = false
-            self.saveButton.setBusy(false)
+            let wasSaving = self.saving
+            self.saving = false
+            self.saveButton.loading = false
             switch result {
             case .success(let body):
                 if let found = Community(body["community"]) { self.took(found) }
+                if wasSaving {
+                    // «Сохранено» on the button for 1.6 s (useSuccessFlash).
+                    self.saveButton.success = true
+                    self.savedTimer?.invalidate()
+                    self.savedTimer = Timer.scheduledTimer(withTimeInterval: 1.6, repeats: false) { [weak self] (_: Timer) -> Void in
+                        self?.saveButton.success = false
+                        self?.showSave()
+                    }
+                }
                 if !words.isEmpty { self.tell(words) }
             case .failure(let error):
+                if wasSaving { self.saveButton.signalError() }
                 self.render()
                 self.tell(error.words)
             }
+            self.showSave()
         }
     }
 
     private func save() {
-        if busy { return }
-        saveButton.setBusy(true)
+        if busy || saveButton.success { return }
+        saving = true
+        saveButton.loading = true
         update(["name": nameField.value.trimmingCharacters(in: .whitespacesAndNewlines), "description": aboutArea.value.trimmingCharacters(in: .whitespacesAndNewlines)], done: "Сохранено.")
     }
 

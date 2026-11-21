@@ -145,7 +145,7 @@ final class MiniProfileViewController: UIViewController {
         name.font = .systemFont(ofSize: 20, weight: .heavy)
         name.show(person.displayName, platina: look.platina)
         let status = StatusEmojiView()
-        status.show(look, size: 18)
+        status.show(look, size: 18, animated: true) // Avatars: animated as the reference
         let nameRow = UIStackView(arrangedSubviews: [name, status])
         nameRow.axis = .horizontal
         nameRow.alignment = .center

@@ -835,4 +835,15 @@ extension ChatListView {
       }
     }
   }
+
+  #if targetEnvironment(simulator)
+  /// For the simulator check: «Архив» pulled out and left open.
+  func simulatorOpenPull() {
+    guard pullView != nil else { return }
+    pullOpen = true
+    applyPullInset()
+    table.setContentOffset(CGPoint(x: 0, y: -padTop - pullHeight), animated: false)
+    placePull()
+  }
+  #endif
 }

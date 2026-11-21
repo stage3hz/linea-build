@@ -13,6 +13,7 @@ enum ChatLookUnread {
         var counts: [String: Int] = [:]
         for chat in chats {
             if let peer = chat.chat["peer"] as? [String: Any] { peers[chat.id] = peer }
+            settingsOf[chat.id] = chat.chat["settings"] as? [String: Any] ?? [:] // Profile: the sound of a chat
             let settings = chat.chat["settings"] as? [String: Any] ?? [:]
             if settings["archived"] as? Bool == true || muted(settings) { continue }
             let count = (chat.chat["unreadCount"] as? NSNumber)?.intValue ?? 0
@@ -37,4 +38,8 @@ enum ChatLookUnread {
 
     /// The person of a chat as the list knows them (empty when the list has not shown it).
     static func peer(_ chatId: String) -> [String: Any] { peers[chatId] ?? [:] }
+
+    /// Profile: the chat's own settings as the list last read them (`muted`, `mutedUntil`, …); the profile's
+    /// «Звук» tile changes them here too, so the list's next reading and the profile agree.
+    static var settingsOf: [String: [String: Any]] = [:]
 }

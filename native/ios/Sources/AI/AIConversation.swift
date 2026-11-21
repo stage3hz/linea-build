@@ -40,9 +40,12 @@ enum AIClient {
         }
     }
 
-    static func chat(_ server: Server, messages: [[String: String]], model: String?, done: @escaping (Result<AIReply, AIFailure>) -> Void) {
+    static func chat(_ server: Server, messages: [[String: String]], model: String?, images: [String] = [], documents: [AIDocumentText] = [], done: @escaping (Result<AIReply, AIFailure>) -> Void) {
         var body: [String: Any] = ["messages": messages, "consent": true]
         if let model { body["model"] = model }
+        // One picture goes as a string, several as a list (aiQuestion).
+        if images.count == 1 { body["image"] = images[0] } else if images.count > 1 { body["image"] = images }
+        if !documents.isEmpty { body["documents"] = documents.map { (doc: AIDocumentText) -> [String: Any] in ["name": doc.name, "text": doc.text] } }
         post(server, "/ai/chat", body) { result in
             switch result {
             case .failure(let failure): done(.failure(failure))
@@ -86,6 +89,23 @@ enum AIClient {
     /// Video comes back as MP4 bytes, not JSON: it is not in the core's table of operations, so the request is
     /// made here with the session's headers from `Core.prepare` (as Attachments/FileTransfer.swift does). A small
     /// signed-in request goes first: it renews the device proof when one is due.
+    /// The server reads a document into text (nothing is stored there); the text then goes with the questions.
+    static func document(_ server: Server, name: String, data: Data, done: @escaping (Result<AIDocumentText, AIFailure>) -> Void) {
+        post(server, "/ai/document", ["name": name, "data": data.base64EncodedString(), "consent": true]) { result in
+            switch result {
+            case .failure(let failure): done(.failure(failure))
+            case .success(let value):
+                guard let fields = value as? [String: Any], let text = fields["text"] as? String, !text.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty else {
+                    return done(.failure(AIFailure("Сервер не вернул текст документа.")))
+                }
+                var doc = AIDocumentText(name: name, text: text)
+                doc.truncated = fields["truncated"] as? Bool == true
+                doc.pages = (fields["pages"] as? NSNumber)?.intValue
+                done(.success(doc))
+            }
+        }
+    }
+
     static func video(_ server: Server, prompt: String, duration: Int, done: @escaping (Result<Data, AIFailure>) -> Void) {
         DispatchQueue.global(qos: .userInitiated).async {
             let finish: (Result<Data, AIFailure>) -> Void = { result in DispatchQueue.main.async { done(result) } }
@@ -137,7 +157,7 @@ final class AIConversation {
         var routedVia: String?
         var media: AIMedia?
     }
-    typealias Transport = (_ messages: [[String: String]], _ model: String?, _ done: @escaping (Result<AIReply, AIFailure>) -> Void) -> Void
+    typealias Transport = (_ messages: [[String: String]], _ model: String?, _ images: [String], _ documents: [AIDocumentText], _ done: @escaping (Result<AIReply, AIFailure>) -> Void) -> Void
     typealias Work = (_ stage: @escaping (String) -> Void, _ done: @escaping (Result<TaskResult, AIFailure>) -> Void) -> Void
 
     private(set) var consent = false
@@ -177,7 +197,7 @@ final class AIConversation {
         return false
     }
 
-    func ask(_ question: String, model: String?) {
+    func ask(_ question: String, model: String?, images: [String] = [], documents: [AIDocumentText] = []) {
         guard canStart() else { return }
         let messages: [[String: String]]
         do { messages = try AIModel.historyForQuestion(turns, question) }
@@ -191,6 +211,8 @@ final class AIConversation {
         turn.startedAt = Date()
         turn.model = model
         turn.isPrivate = privateTurns
+        turn.images = images
+        turn.documents = documents
         turns.append(turn)
         pending = true
         error = ""
@@ -350,7 +372,8 @@ final class AIConversation {
             }
             work(stage) { result in finish(result, "freellmapi") }
         } else {
-            transport(messages, model) { result in
+            let asked = turns.first(where: { (item: AITurn) -> Bool in item.id == turnId })
+            transport(messages, model, asked?.images ?? [], asked?.documents ?? []) { result in
                 switch result {
                 case .success(let reply): finish(.success(TaskResult(text: reply.text, model: reply.model, routedVia: reply.routedVia, media: nil)), reply.provider)
                 case .failure(let failure): finish(.failure(failure), "")

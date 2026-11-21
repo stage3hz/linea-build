@@ -76,6 +76,9 @@ final class RootViewController: UIViewController {
         NotificationCenter.default.addObserver(self, selector: #selector(refreshMini), name: MusicPlayer.changed, object: nil)
         refreshMini()
         UpdateGate.shared.start(messenger, host: self)
+        #if targetEnvironment(simulator)
+        ShellDemo.run(self) // Shell: -shelldemo … (Shell/ShellSimulator.swift)
+        #endif
         // People: the number of requests to be friends on the row of «Люди» (People/PeopleServer.swift).
         NotificationCenter.default.addObserver(self, selector: #selector(peopleBadge), name: FriendRequests.changed, object: nil)
         FriendRequests.shared.start(messenger)
@@ -224,7 +227,7 @@ final class PlaceholderViewController: UIViewController {
     override func viewDidLoad() {
         super.viewDidLoad()
         view.backgroundColor = Theme.bg
-        heading.font = .systemFont(ofSize: 34, weight: .bold)
+        heading.font = Theme.title(Theme.TypeSize.sectionTitle) // Fonts
         heading.textColor = Theme.text
         heading.translatesAutoresizingMaskIntoConstraints = false
         view.addSubview(heading)

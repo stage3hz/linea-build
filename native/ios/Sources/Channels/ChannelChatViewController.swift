@@ -76,7 +76,7 @@ final class ChannelChatViewController: UIViewController, UITextViewDelegate, PHP
         emptyIcon.image = UIImage(systemName: blog ? "megaphone" : "bubble.left.and.bubble.right", withConfiguration: UIImage.SymbolConfiguration(pointSize: 38, weight: .regular))
         emptyIcon.tintColor = Theme.subtle
         emptyIcon.contentMode = .center
-        emptyHeading.font = .systemFont(ofSize: 18, weight: .bold)
+        emptyHeading.font = Theme.title(Theme.TypeSize.emptyTitle) // Fonts
         emptyHeading.textColor = Theme.text
         emptyHeading.textAlignment = .center
         emptyWords.font = .systemFont(ofSize: 14)
