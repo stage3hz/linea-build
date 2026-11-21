@@ -139,7 +139,9 @@ const POOLS = {
   'chatSettings.1': objects({ pinned: bool, archived: bool, muted: bool, mutedUntil: ['2027-01-01T00:00:00.000Z', null] }, { exhaustive: true }),
   'sendEncrypted.2': ENCRYPTED, 'sendEncrypted.3': PUSH,
   'scheduleEncrypted.2': ENCRYPTED, 'scheduleEncrypted.3': ['2027-01-01T00:00:00.000Z', '', 'завтра', '2026-11-21T10:00:00+03:00'], 'scheduleEncrypted.4': ['silent', '', 'x', null],
-  'scheduled.0': [{}, null, ...objects({ chatId: [UUID, '', 'a b&c', 'Чат 😀', null], lean: [true, false, null] }, { exhaustive: true }).filter(value => !ODD_OBJECTS.includes(value)),
+  'scheduled.0': [{}, null, ...objects({ chatId: [UUID, '', 'a b&c', 'Чат 😀', null], lean: [true, false, null] }, { exhaustive: true })
+    // only options of the declared kinds: the reference reads these two keys instead of sending them (the Rust core refuses the rest)
+    .filter(value => !ODD_OBJECTS.includes(value) && ['string', 'undefined'].includes(typeof (value.chatId ?? undefined)) && ['boolean', 'undefined'].includes(typeof (value.lean ?? undefined))),
     { chatId: 'c', lean: true, other: 1 }, { other: 'ignored' }, { lean: true, chatId: 'c' }, { chatId: '\ud800' }, { chatId: 'x\udc00', lean: true }, { chatId: 'x'.repeat(500) }, { 1: 'a', chatId: 'c' }],
   'registerPush.1': ['android', 'ios', 'web', '', 'Айос'],
   'updatePrivacy.0': objects({ allowNewChats: bool, showAvatar: bool, readReceipts: bool, showLastSeen: bool, lastSeen: ['everyone', 'contacts', 'nobody'], hideReadTime: bool, calls: ['everyone', 'contacts', 'allowed'], posts: ['friends', 'everyone'] }),
