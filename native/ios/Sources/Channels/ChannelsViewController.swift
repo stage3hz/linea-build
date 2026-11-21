@@ -201,6 +201,11 @@ final class ChannelsViewController: UIViewController, UITableViewDataSource, UIT
         navigationController?.pushViewController(screen, animated: false)
         return screen
     }
+
+    /// For the simulator check: «Что создаём?» or «Вступить по ссылке».
+    func simulatorForm(_ which: String) {
+        if which == "create" { create() } else { join() }
+    }
     #endif
 
     // MARK: The table

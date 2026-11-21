@@ -177,8 +177,10 @@ final class ChannelEngine {
 
     #if targetEnvironment(simulator)
     /// For the simulator's samples: a channel that is simply there.
-    func demo(messages: [CommunityMessage], authors: [String: ChannelAuthor], roleColors: [String: UInt32], invites: [String: ChannelInviteCard]) {
+    func demo(messages: [CommunityMessage], authors: [String: ChannelAuthor], roleColors: [String: UInt32], invites: [String: ChannelInviteCard], meId: String, meUsername: String) {
         queue.async {
+            self.context.meId = meId
+            self.context.meUsername = meUsername
             self.context.authors = authors
             self.context.roleColors = roleColors
             self.context.invites = invites

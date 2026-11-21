@@ -87,10 +87,12 @@ final class SceneDelegate: UIResponder, UIWindowSceneDelegate {
     ///   -tab people / -peoplesearch <query> / -profile friend|chat    «Люди» and a profile, with an account or -demo (People/PeopleSimulator.swift)
     ///   -settings <page>                «Настройки» and one of its pages, with an account (about: also with -demo) (Settings/SettingsSimulator.swift)
     ///   -attachdemo 1|viewer / -openattachment photo|file    attachments: sample rows in the -demo chat; with an account, opens the chat's newest photo or file (Attachments/ChatAttachments.swift)
+    ///   -channelsdemo 1|community|blog|chat|menu|settings / -channels community|chat|create|join    «Каналы»: samples without an account; with an account, a community, a channel, a form (Channels/ChannelsSimulator.swift)
     private func simulatorStart() -> Bool {
         let args = UserDefaults.standard
         if args.bool(forKey: "corecheck") { window?.rootViewController = CoreCheckViewController(); return true }
         if args.bool(forKey: "auth") { showAuth(); return true }
+        if simulatorChannels() { return true }
         if let page = args.string(forKey: "settings") { simulatorSettings(page) }
         if args.bool(forKey: "demo") {
             let root = RootViewController()

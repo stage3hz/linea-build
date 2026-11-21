@@ -188,6 +188,9 @@ final class ChannelImages {
     /// posted when it is.
     func image(id: String, pixels: Int) -> UIImage? {
         guard !id.isEmpty else { return nil }
+        #if targetEnvironment(simulator)
+        if let sample = samples[id] { return sample }
+        #endif
         let key = id + "@" + String(pixels)
         if let hit = memory.object(forKey: key as NSString) { return hit }
         if loading.contains(key) { return nil }
@@ -232,9 +235,11 @@ final class ChannelImages {
     }
 
     #if targetEnvironment(simulator)
-    /// For the simulator's samples: a picture that is simply there.
-    func put(_ image: UIImage, id: String, pixels: Int) {
-        keep(image, key: id + "@" + String(pixels))
+    /// For the simulator's samples: pictures that are simply there, at whatever size they are asked for.
+    private var samples: [String: UIImage] = [:]
+
+    func putSample(_ image: UIImage, id: String) {
+        samples[id] = image
     }
     #endif
 }

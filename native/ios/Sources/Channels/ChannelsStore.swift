@@ -40,6 +40,7 @@ final class ChannelsStore: NSObject {
         if let messenger, let current = self.messenger, current === messenger { return }
         self.messenger = messenger
         ChannelImages.shared.server = messenger?.server
+        ChannelOutbox.shared.start(messenger)
         list = nil
         failure = ""
         communities = [:]

@@ -304,14 +304,15 @@ class PeopleAttachmentsPagesTest {
   @Test fun aDecryptedFileIsGivenOutToReadOnlyAndRemoved() {
     val context = RuntimeEnvironment.getApplication()
     val provider = Robolectric.setupContentProvider(DecryptedFileProvider::class.java, context.packageName + ".files")
-    val written = DecryptedFiles.write(context, "содержимое".toByteArray(), "Договор № 7.pdf")!!
+    // (A Latin name: the JVM of this machine cannot spell others in a file name; a phone can.)
+    val written = DecryptedFiles.write(context, "содержимое".toByteArray(), "Contract 7.pdf")!!
     assertTrue(written.file.isFile && written.folder.parentFile == context.cacheDir && DecryptedFiles.folderName.matches(written.folder.name))
     val address = DecryptedFiles.address(context, written)
     assertEquals("content", address.scheme); assertEquals(context.packageName + ".files", address.authority)
     assertEquals("содержимое", provider.openFile(address, "r").use { java.io.FileInputStream(it.fileDescriptor).readBytes().toString(Charsets.UTF_8) })
     provider.query(address, null, null, null, null)!!.use { cursor ->
       assertTrue(cursor.moveToFirst())
-      assertEquals("Договор № 7.pdf", cursor.getString(cursor.getColumnIndexOrThrow(OpenableColumns.DISPLAY_NAME)))
+      assertEquals("Contract 7.pdf", cursor.getString(cursor.getColumnIndexOrThrow(OpenableColumns.DISPLAY_NAME)))
       assertEquals(written.file.length(), cursor.getLong(cursor.getColumnIndexOrThrow(OpenableColumns.SIZE)))
     }
     // Reading only, and only the files of this folder.

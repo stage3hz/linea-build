@@ -125,6 +125,8 @@ final class Live: NSObject, URLSessionWebSocketDelegate {
     }
 
     private func handle(_ type: String, _ data: [String: Any]) {
+        // Channels (Sources/Channels): events about communities go to that section as they come.
+        if type == "ready" || type.hasPrefix("community") { NotificationCenter.default.post(name: Live.communityEvent, object: nil, userInfo: ["event": data]) }
         switch type {
         case "ready":
             attempts = 0

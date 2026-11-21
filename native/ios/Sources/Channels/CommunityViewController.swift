@@ -321,10 +321,14 @@ final class CommunityViewController: UIViewController, UITableViewDataSource, UI
     }
 
     #if targetEnvironment(simulator)
-    /// For the simulator check: opens the first text channel.
-    func openFirstChannel() {
-        guard let community, chat == nil, let channel = community.channels.first(where: { $0.isText }) else { return }
+    /// For the simulator check: opens the first text channel. False while the community is not read yet.
+    func openFirstChannel() -> Bool {
+        guard let community else { return false }
+        // A blog channel is its posts already.
+        if chat != nil { return true }
+        guard let channel = community.channels.first(where: { $0.isText }) else { return true }
         navigationController?.pushViewController(ChannelChatViewController(messenger: messenger, community: community, channel: channel, root: false), animated: false)
+        return true
     }
     #endif
 

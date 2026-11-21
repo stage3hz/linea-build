@@ -270,10 +270,10 @@ class PeopleScreen(
     val captionTop = top + dp(8f) + headingHeight + dp(2f)
     val captionHeight = putText(caption, dp(20f), captionTop, width - dp(40f))
     val boxTop = captionTop + captionHeight + dp(14f); val boxWidth = width - dp(34f); val boxHeight = dp(52f)
-    put(searchBox, dp(17f), boxTop, boxWidth, boxHeight)
     place(clearButton, boxWidth - dp(46f), dp(4f), dp(44f), dp(44f))
     place(spinner, boxWidth - dp(46f) + dp(11f), dp(4f) + dp(11f), dp(22f), dp(22f))
     place(field, dp(46f), 0, boxWidth - dp(46f) - dp(48f), boxHeight)
+    put(searchBox, dp(17f), boxTop, boxWidth, boxHeight)
     val listTop = boxTop + boxHeight + dp(12f)
     val barRoom = dp(BarMetrics.bottomGap(edges.bottom / d) + BarMetrics.height + 12f)
     // Above the keyboard when it is up, above the bar otherwise.
@@ -284,6 +284,9 @@ class PeopleScreen(
 
   /** A part of the search box at an exact place and size (the box lays nothing out itself). */
   private fun place(view: View, left: Int, top: Int, width: Int, height: Int) {
+    val now = view.layoutParams as? FrameLayout.LayoutParams
+    // Only a change is a new layout: a part put where it already is asks for nothing.
+    if (now != null && now.width == width.coerceAtLeast(0) && now.height == height.coerceAtLeast(0) && now.leftMargin == left && now.topMargin == top) return
     view.layoutParams = FrameLayout.LayoutParams(width.coerceAtLeast(0), height.coerceAtLeast(0)).apply { leftMargin = left; topMargin = top }
   }
 

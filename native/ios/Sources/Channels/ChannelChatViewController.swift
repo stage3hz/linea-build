@@ -641,8 +641,14 @@ final class ChannelChatViewController: UIViewController, UITextViewDelegate, PHP
         UIApplication.shared.open(url, options: [:], completionHandler: nil)
     }
 
+    #if targetEnvironment(simulator)
+    /// For the simulator check: the menu of the newest message.
+    func simulatorMenu() {
+        if let layout = list.newest { openMenu(layout.message, at: view.bounds.midY) }
+    }
+    #endif
+
     private func openMenu(_ message: CommunityMessage, at y: CGFloat) {
-        guard messenger != nil else { return }
         view.endEditing(true)
         UIImpactFeedbackGenerator(style: .light).impactOccurred()
         let me = messenger?.userId ?? ""

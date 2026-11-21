@@ -54,7 +54,7 @@ interface SettingsAccount {
 // more: the session's token and the kept copy of the profile are removed from this device. The encrypted
 // storage and the keys of the conversations stay where they are.
 
-private val mainThread = Handler(Looper.getMainLooper())
+private val mainThread by lazy { Handler(Looper.getMainLooper()) }
 
 /** The account's profile as the server last gave it. */
 val Messenger.ownProfile: Map<String, Any?>

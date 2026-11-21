@@ -75,29 +75,7 @@ class PagesTest {
     assertEquals(null, find(other.window.decorView, "ChatScreen"))
   }
 
-  @Test fun signingInGoesStepByStepAndChecksEachOne() {
-    val activity = launch("06-auth-steps", intent().putExtra("auth", true))
-    val page = activity.window.decorView
-    val field = field(page)!!
-    fun proceed() { field.onEditorAction(EditorInfo.IME_ACTION_NEXT); shadowOf(activity.mainLooper).idle() }
-    field.setText("ab"); proceed()
-    assertTrue(texts(page).contains("Логин: 3–24 символа — латинские буквы, цифры и знак _."))
-    assertTrue(texts(page).contains("Логин"))
-    field.setText("  native_tester  "); proceed()
-    assertTrue(texts(page).containsAll(listOf("Пароль", "Назад", "Продолжить")))
-    assertEquals("", field.text.toString())
-    proceed()
-    assertTrue(texts(page).contains("Введи свой пароль. Максимум — 128 символов."))
-    field.setText("x".repeat(129)); proceed()
-    assertTrue(texts(page).contains("Пароль"))
-    field.setText("a password"); proceed()
-    assertTrue(texts(page).containsAll(listOf("Слово подтверждения", "Войти в Инвиз", "Назад")))
-    // The password is hidden as it is typed, and so is the word.
-    assertEquals(InputType.TYPE_CLASS_TEXT or InputType.TYPE_TEXT_VARIATION_PASSWORD, field.inputType)
-    // Back from the word: the password is asked again; back again: the login is still there.
-    click(page, "Назад"); assertTrue(texts(page).contains("Пароль")); assertEquals("", field.text.toString())
-    click(page, "Назад"); assertTrue(texts(page).contains("Логин")); assertEquals("native_tester", field.text.toString())
-  }
+  // Signing in step by step, creating an account and a forgotten password: AuthPagesTest.
 
   private fun click(view: View, words: String): Boolean {
     if (view is TextView && view.text.toString() == words && view.visibility == View.VISIBLE) { view.performClick(); return true }

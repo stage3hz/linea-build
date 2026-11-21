@@ -46,6 +46,8 @@ final class ChannelListView: UIView, UITableViewDataSource, UITableViewDelegate,
     private var knownWidth: CGFloat = 0
 
     var isEmpty: Bool { return items.isEmpty }
+    /// The newest row shown, if any.
+    var newest: ChannelRowLayout? { return items.first }
 
     required init?(coder: NSCoder) { return nil }
 
