@@ -22,6 +22,7 @@ pub mod media;
 pub mod message_meta;
 pub mod network;
 pub mod photo;
+pub mod rooms;
 pub mod servers;
 pub mod settings;
 pub mod stories;

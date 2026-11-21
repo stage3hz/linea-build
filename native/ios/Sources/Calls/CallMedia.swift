@@ -12,7 +12,8 @@ import UIKit
 final class CallMedia: NSObject, LKRTCPeerConnectionDelegate {
     /// One factory for the app's life: the audio module of the reference (the audio-engine one, with the phone's
     /// own echo cancellation, noise suppression and gain), the default video codecs.
-    private static let factory: LKRTCPeerConnectionFactory = {
+    /// Rooms (RoomMedia.swift) make their connections with the same factory: the app has one audio module.
+    static let factory: LKRTCPeerConnectionFactory = {
         let encoder = LKRTCDefaultVideoEncoderFactory()
         let decoder = LKRTCDefaultVideoDecoderFactory()
         return LKRTCPeerConnectionFactory(audioDeviceModuleType: .audioEngine, bypassVoiceProcessing: false, encoderFactory: encoder, decoderFactory: decoder, audioProcessingModule: nil)

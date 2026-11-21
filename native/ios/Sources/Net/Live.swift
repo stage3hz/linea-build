@@ -150,6 +150,9 @@ final class Live: NSObject, URLSessionWebSocketDelegate {
         if type == "ready" || type.hasPrefix("community") { NotificationCenter.default.post(name: Live.communityEvent, object: nil, userInfo: ["event": data]) }
         // Calls (Sources/Calls): a message may be a call's step; `call.reach` says how far an outgoing call got.
         if type == "ready" || type == "message" || type == "call.reach" { NotificationCenter.default.post(name: Live.callEvent, object: nil, userInfo: ["event": data]) }
+        // Rooms (Sources/Rooms): the list of rooms (`room.*`), the voice of the room this phone is in (`voice.*`),
+        // and the server's refusal of what was asked of it over the line (`error`).
+        if type == "ready" || type == "error" || type.hasPrefix("room.") || type.hasPrefix("voice.") { NotificationCenter.default.post(name: Live.roomEvent, object: nil, userInfo: ["event": data]) }
         // Stories (Sources/Stories): somebody's stories or posts changed, or a story of this account was watched.
         if type == "ready" || type.hasPrefix("story") { NotificationCenter.default.post(name: Live.storyEvent, object: nil, userInfo: ["event": data]) }
         switch type {
@@ -185,6 +188,14 @@ final class Live: NSObject, URLSessionWebSocketDelegate {
         default:
             break
         }
+    }
+
+    /// Rooms (Sources/Rooms): sends one frame of the room's voice signalling (`voice.join`, `voice.signal`, …).
+    /// False when the line is down: nothing was sent.
+    func send(_ frame: [String: Any]) -> Bool {
+        guard line == "connected", let socket, let text = Core.text(frame) else { return false }
+        socket.send(.string(text)) { _ in }
+        return true
     }
 
     /// Tells the other side that the person is typing in a chat (or stopped).
