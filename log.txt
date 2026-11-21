@@ -1,0 +1,409 @@
+
+Running kernel seems to be up-to-date.
+
+Restarting services...
+
+Service restarts being deferred:
+ systemctl restart hosted-compute-agent.service
+
+No containers need to be restarted.
+
+No user sessions are running outdated binaries.
+
+No VM guests are running outdated hypervisor (qemu) binaries on this host.
+== core for phones (arm64-v8a)
+NDK: /usr/local/lib/android/sdk/ndk/27.3.13750724
+info: downloading component rust-std
+    Updating crates.io index
+    Updating git repository `https://github.com/signalapp/libsignal`
+    Updating git repository `https://github.com/signalapp/SparsePostQuantumRatchet.git`
+ Downloading crates ...
+  Downloaded assert_matches v1.5.0
+  Downloaded crypto-common v0.2.2
+  Downloaded cpubits v0.1.1
+  Downloaded num_enum_derive v0.7.6
+  Downloaded multimap v0.10.1
+  Downloaded block-buffer v0.10.4
+  Downloaded generic-array v0.14.7
+  Downloaded libcrux-platform v0.0.3
+  Downloaded num_enum v0.7.6
+  Downloaded libcrux-intrinsics v0.0.8
+  Downloaded data-encoding-macro-internal v0.1.18
+  Downloaded heck v0.5.0
+  Downloaded pem-rfc7468 v0.7.0
+  Downloaded curve25519-dalek-derive v0.1.1
+  Downloaded equivalent v1.0.2
+  Downloaded base64ct v1.8.3
+  Downloaded crossbeam-deque v0.8.7
+  Downloaded fixedbitset v0.5.7
+  Downloaded once_cell v1.21.4
+  Downloaded const-oid v0.9.6
+  Downloaded crossbeam-utils v0.8.22
+  Downloaded chacha20 v0.10.2
+  Downloaded aead v0.6.1
+  Downloaded digest v0.11.3
+  Downloaded aes-gcm-siv v0.12.0
+  Downloaded ctutils v0.4.5
+  Downloaded hmac v0.12.1
+  Downloaded hpke-rs v0.7.0
+  Downloaded litemap v0.8.3
+  Downloaded icu_provider v2.4.0
+  Downloaded libcrux-sha3 v0.0.10
+  Downloaded bytes v1.12.0
+  Downloaded libcrux-hacl-rs v0.0.5
+  Downloaded rustc_version v0.4.1
+  Downloaded getrandom v0.4.3
+  Downloaded icu_normalizer_data v2.4.0
+  Downloaded percent-encoding v2.3.2
+  Downloaded const-oid v0.10.2
+  Downloaded derive_more v2.1.1
+  Downloaded icu_collections v2.4.0
+  Downloaded indexmap v2.14.0
+  Downloaded ed25519-dalek v2.2.0
+  Downloaded aes v0.9.1
+  Downloaded hashbrown v0.17.1
+  Downloaded itertools v0.15.0
+  Downloaded aho-corasick v1.1.4
+  Downloaded rand_core v0.9.5
+  Downloaded proc-macro-crate v3.5.0
+  Downloaded sha2 v0.11.1
+  Downloaded serde_core v1.0.229
+  Downloaded regex v1.12.4
+  Downloaded signature v2.2.0
+  Downloaded yoke-derive v0.8.4
+  Downloaded sorted-vec v0.8.11
+  Downloaded crossbeam-epoch v0.9.20
+  Downloaded toml_datetime v1.1.1+spec-1.1.0
+  Downloaded utf8_iter v1.1.0
+  Downloaded rand_core v0.10.1
+  Downloaded thiserror-impl v2.0.18
+  Downloaded sha2 v0.10.9
+  Downloaded synstructure v0.14.0
+  Downloaded rustversion v1.0.23
+  Downloaded unicode-ident v1.0.27
+  Downloaded async-trait v0.1.89
+  Downloaded potential_utf v0.1.6
+  Downloaded stable_deref_trait v1.2.1
+  Downloaded zeroize_derive v1.5.0
+  Downloaded ctr v0.10.1
+  Downloaded rand_core v0.6.4
+  Downloaded sha1 v0.11.0
+  Downloaded toml_parser v1.1.2+spec-1.1.0
+  Downloaded universal-hash v0.6.1
+  Downloaded tinystr v0.8.5
+  Downloaded prost-derive v0.14.4
+  Downloaded spki v0.7.3
+  Downloaded subtle v2.6.1
+  Downloaded zerovec-derive v0.11.7
+  Downloaded ppv-lite86 v0.2.21
+  Downloaded proc-macro2 v1.0.107
+  Downloaded prost-build v0.14.4
+  Downloaded rand_chacha v0.9.0
+  Downloaded rayon-core v1.13.0
+  Downloaded serde_derive v1.0.229
+  Downloaded pkcs8 v0.10.2
+  Downloaded smallvec v1.16.6
+  Downloaded prost v0.14.4
+  Downloaded version_check v0.9.5
+  Downloaded zerofrom v0.1.8
+  Downloaded serde v1.0.229
+  Downloaded zerofrom-derive v0.1.8
+  Downloaded thiserror v2.0.18
+  Downloaded uuid v1.23.4
+  Downloaded zeroize v1.9.2
+  Downloaded semver v1.0.28
+  Downloaded utf_types v1.0.0
+  Downloaded polyval v0.7.3
+  Downloaded toml_edit v0.25.12+spec-1.1.0
+  Downloaded typenum v1.20.1
+  Downloaded tempfile v3.27.0
+  Downloaded yoke v0.8.4
+  Downloaded prettyplease v0.2.37
+  Downloaded quote v1.0.47
+  Downloaded url v2.5.9
+  Downloaded writeable v0.6.4
+  Downloaded x25519-dalek v3.0.0
+  Downloaded prost-types v0.14.4
+  Downloaded zerocopy-derive v0.8.53
+  Downloaded zerotrie v0.2.5
+  Downloaded zerovec v0.11.9
+  Downloaded rand v0.9.4
+  Downloaded rand v0.10.2
+  Downloaded rayon v1.12.0
+  Downloaded winnow v1.0.3
+  Downloaded syn v2.0.119
+  Downloaded syn v3.0.10
+  Downloaded regex-syntax v0.8.11
+  Downloaded zerocopy v0.8.53
+  Downloaded rustix v1.1.4
+  Downloaded regex-automata v0.4.14
+  Downloaded petgraph v0.8.3
+  Downloaded anyhow v1.0.103
+  Downloaded cpufeatures v0.2.17
+  Downloaded libcrux-sha2 v0.0.8
+  Downloaded hybrid-array v0.4.13
+  Downloaded hex v0.4.3
+  Downloaded block-padding v0.4.2
+  Downloaded libcrux-hmac v0.0.8
+  Downloaded fastrand v2.4.1
+  Downloaded jni-sys v0.3.0
+  Downloaded block-buffer v0.12.1
+  Downloaded idna_adapter v1.2.2
+  Downloaded memchr v2.8.3
+  Downloaded der v0.7.10
+  Downloaded cmov v0.5.4
+  Downloaded libcrux-secrets v0.0.6
+  Downloaded ed25519 v2.2.3
+  Downloaded hpke-rs-crypto v0.7.0
+  Downloaded data-encoding-macro v0.1.20
+  Downloaded crypto-common v0.1.7
+  Downloaded icu_normalizer v2.4.0
+  Downloaded form_urlencoded v1.2.3
+  Downloaded itertools v0.13.0
+  Downloaded hashbrown v0.15.5
+  Downloaded errno v0.3.14
+  Downloaded cipher v0.5.2
+  Downloaded data-encoding v2.11.0
+  Downloaded icu_properties v2.4.0
+  Downloaded digest v0.10.7
+  Downloaded libcrux-traits v0.0.8
+  Downloaded cbc v0.2.1
+  Downloaded either v1.16.0
+  Downloaded derive_more-impl v2.1.1
+  Downloaded hmac v0.13.0
+  Downloaded cpufeatures v0.3.1
+  Downloaded hax-lib-macros v0.3.7
+  Downloaded getrandom v0.2.17
+  Downloaded getrandom v0.3.4
+  Downloaded bitflags v2.13.0
+  Downloaded libcrux-macros v0.0.3
+  Downloaded inout v0.2.2
+  Downloaded foldhash v0.1.5
+  Downloaded icu_locale_core v2.4.0
+  Downloaded curve25519-dalek v4.1.3
+  Downloaded libc v0.2.191
+  Downloaded linux-raw-sys v0.12.1
+  Downloaded log v0.4.33
+  Downloaded icu_properties_data v2.4.0
+  Downloaded base64 v0.22.1
+  Downloaded derive-where v1.6.1
+  Downloaded ghash v0.6.0
+  Downloaded idna v1.1.0
+  Downloaded hkdf v0.13.0
+  Downloaded hax-lib v0.3.7
+  Downloaded const-str v1.1.0
+  Downloaded curve25519-dalek v5.0.0
+  Downloaded displaydoc v0.2.7
+  Downloaded libcrux-ml-kem v0.0.10
+  Downloaded cfg-if v1.0.5
+   Compiling proc-macro2 v1.0.107
+   Compiling quote v1.0.47
+   Compiling unicode-ident v1.0.27
+   Compiling libc v0.2.191
+   Compiling typenum v1.20.1
+   Compiling cfg-if v1.0.5
+   Compiling rand_core v0.10.1
+   Compiling syn v2.0.119
+   Compiling syn v3.0.10
+   Compiling getrandom v0.4.3
+   Compiling cmov v0.5.4
+   Compiling ctutils v0.4.5
+   Compiling equivalent v1.0.2
+   Compiling hashbrown v0.17.1
+   Compiling anyhow v1.0.103
+   Compiling hax-lib v0.3.7
+   Compiling stable_deref_trait v1.2.1
+   Compiling either v1.16.0
+   Compiling indexmap v2.14.0
+   Compiling semver v1.0.28
+   Compiling subtle v2.6.1
+   Compiling rustc_version v0.4.1
+   Compiling synstructure v0.14.0
+   Compiling itertools v0.13.0
+   Compiling const-oid v0.10.2
+   Compiling zerofrom-derive v0.1.8
+   Compiling displaydoc v0.2.7
+   Compiling yoke-derive v0.8.4
+   Compiling zerovec-derive v0.11.7
+   Compiling zerofrom v0.1.8
+   Compiling rand v0.10.2
+   Compiling yoke v0.8.4
+   Compiling cpufeatures v0.3.1
+   Compiling version_check v0.9.5
+   Compiling rustix v1.1.4
+   Compiling generic-array v0.14.7
+   Compiling regex-syntax v0.8.11
+   Compiling bitflags v2.13.0
+   Compiling zerovec v0.11.9
+   Compiling foldhash v0.1.5
+   Compiling zerocopy v0.8.53
+   Compiling zeroize_derive v1.5.0
+   Compiling hax-lib-macros v0.3.7
+   Compiling prost-derive v0.14.4
+   Compiling zeroize v1.9.2
+   Compiling hybrid-array v0.4.13
+   Compiling libcrux-secrets v0.0.6
+   Compiling getrandom v0.3.4
+   Compiling linux-raw-sys v0.12.1
+   Compiling crypto-common v0.2.2
+   Compiling block-buffer v0.12.1
+   Compiling block-padding v0.4.2
+   Compiling bytes v1.12.0
+   Compiling prettyplease v0.2.37
+   Compiling inout v0.2.2
+   Compiling libcrux-traits v0.0.8
+   Compiling regex-automata v0.4.14
+   Compiling digest v0.11.3
+   Compiling prost v0.14.4
+   Compiling zerocopy-derive v0.8.53
+   Compiling hashbrown v0.15.5
+   Compiling fixedbitset v0.5.7
+   Compiling fastrand v2.4.1
+   Compiling once_cell v1.21.4
+   Compiling libcrux-intrinsics v0.0.8
+   Compiling tempfile v3.27.0
+   Compiling petgraph v0.8.3
+   Compiling regex v1.12.4
+   Compiling prost-types v0.14.4
+   Compiling tinystr v0.8.5
+   Compiling utf_types v1.0.0
+   Compiling litemap v0.8.3
+   Compiling winnow v1.0.3
+   Compiling log v0.4.33
+   Compiling multimap v0.10.1
+   Compiling heck v0.5.0
+   Compiling writeable v0.6.4
+   Compiling libcrux-sha3 v0.0.10
+   Compiling crossbeam-utils v0.8.22
+   Compiling icu_locale_core v2.4.0
+   Compiling prost-build v0.14.4
+   Compiling toml_parser v1.1.2+spec-1.1.0
+   Compiling utf8_iter v1.1.0
+   Compiling rand_core v0.9.5
+   Compiling cipher v0.5.2
+   Compiling potential_utf v0.1.6
+   Compiling zerotrie v0.2.5
+   Compiling curve25519-dalek v5.0.0
+   Compiling libcrux-platform v0.0.3
+   Compiling icu_properties_data v2.4.0
+   Compiling toml_datetime v1.1.1+spec-1.1.0
+   Compiling cpubits v0.1.1
+   Compiling crossbeam-epoch v0.9.20
+   Compiling thiserror v2.0.18
+   Compiling icu_normalizer_data v2.4.0
+   Compiling toml_edit v0.25.12+spec-1.1.0
+   Compiling ppv-lite86 v0.2.21
+   Compiling rand_chacha v0.9.0
+   Compiling icu_provider v2.4.0
+   Compiling icu_collections v2.4.0
+   Compiling block-buffer v0.10.4
+   Compiling crypto-common v0.1.7
+   Compiling universal-hash v0.6.1
+   Compiling thiserror-impl v2.0.18
+   Compiling libcrux-macros v0.0.3
+   Compiling crossbeam-deque v0.8.7
+   Compiling rustversion v1.0.23
+   Compiling libcrux-hacl-rs v0.0.5
+   Compiling polyval v0.7.3
+   Compiling digest v0.10.7
+   Compiling rand v0.9.4
+   Compiling proc-macro-crate v3.5.0
+   Compiling sha2 v0.11.1
+   Compiling hmac v0.13.0
+   Compiling derive_more-impl v2.1.1
+   Compiling smallvec v1.16.6
+   Compiling libcrux-ml-kem v0.0.10
+   Compiling serde_core v1.0.229
+   Compiling rayon-core v1.13.0
+   Compiling icu_normalizer v2.4.0
+   Compiling derive_more v2.1.1
+   Compiling hkdf v0.13.0
+   Compiling libcrux-sha2 v0.0.8
+   Compiling icu_properties v2.4.0
+   Compiling num_enum_derive v0.7.6
+   Compiling x25519-dalek v3.0.0
+   Compiling aes v0.9.1
+   Compiling ctr v0.10.1
+   Compiling spqr v1.6.0 (https://github.com/signalapp/SparsePostQuantumRatchet.git?tag=v1.6.0#06959b47)
+   Compiling hpke-rs-crypto v0.7.0
+   Compiling curve25519-dalek v4.1.3
+   Compiling libsignal-debug v0.106.0 (https://github.com/signalapp/libsignal?tag=v0.106.0#fc90b90f)
+   Compiling data-encoding v2.11.0
+   Compiling uuid v1.23.4
+   Compiling serde v1.0.229
+   Compiling libsignal-core v0.1.0 (https://github.com/signalapp/libsignal?tag=v0.106.0#fc90b90f)
+   Compiling data-encoding-macro-internal v0.1.18
+   Compiling hpke-rs v0.7.0
+   Compiling num_enum v0.7.6
+   Compiling idna_adapter v1.2.2
+   Compiling libcrux-hmac v0.0.8
+   Compiling ghash v0.6.0
+   Compiling cbc v0.2.1
+   Compiling libsignal-protocol v0.1.0 (https://github.com/signalapp/libsignal?tag=v0.106.0#fc90b90f)
+   Compiling sha1 v0.11.0
+   Compiling aead v0.6.1
+   Compiling serde_derive v1.0.229
+   Compiling cpufeatures v0.2.17
+   Compiling signature v2.2.0
+   Compiling sorted-vec v0.8.11
+   Compiling percent-encoding v2.3.2
+   Compiling form_urlencoded v1.2.3
+   Compiling ed25519 v2.2.3
+   Compiling data-encoding-macro v0.1.20
+   Compiling sha2 v0.10.9
+   Compiling aes-gcm-siv v0.12.0
+   Compiling signal-crypto v0.1.0 (https://github.com/signalapp/libsignal?tag=v0.106.0#fc90b90f)
+   Compiling rayon v1.12.0
+   Compiling idna v1.1.0
+   Compiling itertools v0.15.0
+   Compiling derive-where v1.6.1
+   Compiling async-trait v0.1.89
+   Compiling assert_matches v1.5.0
+   Compiling hex v0.4.3
+   Compiling const-str v1.1.0
+   Compiling ed25519-dalek v2.2.0
+   Compiling url v2.5.9
+   Compiling hmac v0.12.1
+   Compiling getrandom v0.2.17
+   Compiling base64 v0.22.1
+   Compiling jni-sys v0.3.0
+   Compiling invizent-core v0.1.0 (/home/runner/work/linea-build/linea-build/native/core)
+    Finished `release` profile [optimized] target(s) in 1m 33s
+-rwxr-xr-x 1 runner runner 2939320 Nov 21 17:05 /home/runner/work/linea-build/linea-build/native/android/app/src/main/jniLibs/arm64-v8a/libinvizent_core.so
+commit 76b237da07babe44a9133cb2dbae91ca71eb57f2
+== size
+39369977 bytes
+sha256 ae4655f6b81d29321250394b296bab957e2c7e50a788a14a20788b20599f5528
+== request-signing key: none
+== identity
+package: name='com.linea.messenger.native' versionCode='1' versionName='0.17.0' platformBuildVersionName='16' platformBuildVersionCode='36' compileSdkVersion='36' compileSdkVersionCodename='16'
+targetSdkVersion:'36'
+application-label:'INVIZENT'
+== permissions (expected: INTERNET only)
+package: com.linea.messenger.native
+uses-permission: name='android.permission.INTERNET'
+uses-permission: name='android.permission.FOREGROUND_SERVICE'
+uses-permission: name='android.permission.FOREGROUND_SERVICE_MEDIA_PLAYBACK'
+uses-permission: name='android.permission.POST_NOTIFICATIONS'
+uses-permission: name='android.permission.RECORD_AUDIO'
+uses-permission: name='android.permission.CAMERA'
+uses-permission: name='android.permission.MODIFY_AUDIO_SETTINGS'
+uses-permission: name='android.permission.ACCESS_NETWORK_STATE'
+uses-permission: name='android.permission.WAKE_LOCK'
+uses-permission: name='android.permission.VIBRATE'
+== signature
+V2 Signer: certificate DN: CN=INVIZENT test build
+V2 Signer: certificate SHA-256 digest: fa9369c390efcabe97b33934ef9775d50002cbd8bbe3c550528429a7fad828e2
+V2 Signer: certificate SHA-1 digest: 35ec09c29450701691496f781313130042c7bbd5
+V2 Signer: certificate MD5 digest: 1837467260b76e9737a95f4bb1ac1175
+== libraries
+lib/arm64-v8a/libinvizent_core.so 2939320
+lib/arm64-v8a/liblkjingle_peerconnection_so.so 12290928
+lib/arm64-v8a/libsqlcipher.so 2110992
+lib/x86_64/liblkjingle_peerconnection_so.so 16169872
+lib/x86_64/libsqlcipher.so 2249352
+== debuggable (expected: no)
+0
+== sample data and test hooks (expected absent)
+absent
+== done

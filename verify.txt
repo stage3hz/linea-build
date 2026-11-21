@@ -1,0 +1,36 @@
+commit 76b237da07babe44a9133cb2dbae91ca71eb57f2
+== size
+39369977 bytes
+sha256 ae4655f6b81d29321250394b296bab957e2c7e50a788a14a20788b20599f5528
+== request-signing key: none
+== identity
+package: name='com.linea.messenger.native' versionCode='1' versionName='0.17.0' platformBuildVersionName='16' platformBuildVersionCode='36' compileSdkVersion='36' compileSdkVersionCodename='16'
+targetSdkVersion:'36'
+application-label:'INVIZENT'
+== permissions (expected: INTERNET only)
+package: com.linea.messenger.native
+uses-permission: name='android.permission.INTERNET'
+uses-permission: name='android.permission.FOREGROUND_SERVICE'
+uses-permission: name='android.permission.FOREGROUND_SERVICE_MEDIA_PLAYBACK'
+uses-permission: name='android.permission.POST_NOTIFICATIONS'
+uses-permission: name='android.permission.RECORD_AUDIO'
+uses-permission: name='android.permission.CAMERA'
+uses-permission: name='android.permission.MODIFY_AUDIO_SETTINGS'
+uses-permission: name='android.permission.ACCESS_NETWORK_STATE'
+uses-permission: name='android.permission.WAKE_LOCK'
+uses-permission: name='android.permission.VIBRATE'
+== signature
+V2 Signer: certificate DN: CN=INVIZENT test build
+V2 Signer: certificate SHA-256 digest: fa9369c390efcabe97b33934ef9775d50002cbd8bbe3c550528429a7fad828e2
+V2 Signer: certificate SHA-1 digest: 35ec09c29450701691496f781313130042c7bbd5
+V2 Signer: certificate MD5 digest: 1837467260b76e9737a95f4bb1ac1175
+== libraries
+lib/arm64-v8a/libinvizent_core.so 2939320
+lib/arm64-v8a/liblkjingle_peerconnection_so.so 12290928
+lib/arm64-v8a/libsqlcipher.so 2110992
+lib/x86_64/liblkjingle_peerconnection_so.so 16169872
+lib/x86_64/libsqlcipher.so 2249352
+== debuggable (expected: no)
+0
+== sample data and test hooks (expected absent)
+absent
