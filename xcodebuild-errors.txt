@@ -1,0 +1,2 @@
+544:/Users/runner/work/linea-build/linea-build/native/ios/Sources/Attachments/AttachmentPanel.swift:60:17: error: overriding property must be as accessible as its enclosing type
+551:/Users/runner/work/linea-build/linea-build/native/ios/Sources/Attachments/AttachmentPanel.swift:60:17: error: property 'tab' with type 'String' cannot override a property with type 'UITab?'
