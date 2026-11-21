@@ -176,7 +176,7 @@ fn replenish(state: &str, count: u32) -> Outcome<(String, Value)> {
 
 fn generated(mut store: Store, count: u32) -> Outcome<(String, Value)> {
     require((1..=100).contains(&count), "INVALID_PREKEY_COUNT")?;
-    require(store.pre_keys.records.len() + count as usize <= MAX_PRE_KEYS, "PREKEY_CAPACITY")?;
+    require(store.pre_keys.0.records.len() + count as usize <= MAX_PRE_KEYS, "PREKEY_CAPACITY")?;
     let first = store.head.next_pre_key_id;
     require(first >= 1 && first <= i32::MAX as u32 - count, "PREKEY_ID_EXHAUSTED")?;
     let mut rng = os_rng();
@@ -416,8 +416,6 @@ struct KyberPreKeys { table: Table, used: BTreeMap<String, bool> }
 struct Sessions(Table);
 struct SenderKeys(Table);
 
-impl std::ops::Deref for PreKeys { type Target = Table; fn deref(&self) -> &Table { &self.0 } }
-
 impl Identities {
     fn identity(&self, address: &ProtocolAddress) -> Outcome<Option<IdentityKey>> {
         match self.table.read(&key(address))? { None => Ok(None), Some(bytes) => Ok(Some(IdentityKey::decode(&bytes)?)) }
@@ -453,6 +451,7 @@ impl KyberPreKeys {
     fn mark_used(&mut self, id: u32, signed_pre_key_id: u32, base_key: &PublicKey) -> Outcome<()> {
         self.load(id)?;
         let tuple = format!("{id}:{signed_pre_key_id}:{}", encode(&base_key.serialize()));
+        require(!self.used.contains_key(&tuple), "REUSED_BASE_KEY")?;
         require(self.used.len() < MAX_KYBER_USED, "REPLAY_RECORD_CAPACITY")?;
         self.used.insert(tuple, true);
         Ok(())

@@ -25,6 +25,11 @@ android {
         }
     }
 
+    testOptions {
+        // The page tests (PagesTest) build the real screens on the JVM: they need the manifest and the resources.
+        unitTests.isIncludeAndroidResources = true
+    }
+
     compileOptions {
         sourceCompatibility = JavaVersion.toVersion(libs.versions.jvm.get())
         targetCompatibility = JavaVersion.toVersion(libs.versions.jvm.get())
@@ -41,6 +46,7 @@ kotlin {
 dependencies {
     implementation(project(":core"))
     testImplementation(libs.junit)
+    testImplementation(libs.robolectric)
 }
 
 tasks.withType<Test>().configureEach {

@@ -1,0 +1,74 @@
+# The native Android app (native/android, Kotlin) with the shared core (native/core, Rust), built for the emulator
+# and photographed. Runs only for the branch `native-walk`. The result — the screenshots, or the end of the
+# build log when something failed — goes to the branch native-emu-output, so it can be read without the Actions
+# page. Nothing here touches the real server.
+name: Native Android emulator check
+on:
+  push:
+    branches: [native-walk]
+  workflow_dispatch:
+permissions:
+  contents: write
+concurrency:
+  group: native-android-emu
+  cancel-in-progress: true
+jobs:
+  emu:
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: 21
+      - name: Build the core and the app
+        id: build
+        continue-on-error: true
+        run: |
+          set -euo pipefail
+          mkdir -p "$RUNNER_TEMP/out"; OUT="$RUNNER_TEMP/out"
+          exec > >(tee "$OUT/log.txt") 2>&1
+          SDK="${ANDROID_HOME:-${ANDROID_SDK_ROOT:-}}"; echo "SDK: $SDK"; ls "$SDK/ndk" || true
+          # The runner's image comes with NDKs; if one day it does not, the pinned one is installed.
+          if ! ls -d "$SDK"/ndk/*/ >/dev/null 2>&1; then yes | "$SDK/cmdline-tools/latest/bin/sdkmanager" "ndk;27.1.12297006" >/dev/null; fi
+          echo "== core tests"; (cd native/core && cargo test --quiet 2>&1 | grep -E "test result|FAILED|panicked" || true)
+          echo "== core for the emulator (x86_64)"; native/android/build-core.sh x86_64
+          echo "== app"
+          cd native/android
+          ./gradlew --no-daemon :app:testDebugUnitTest :app:assembleDebug > "$OUT/gradle.log" 2>&1 || { grep -nE "^e: |error:|FAILED|What went wrong" -A4 "$OUT/gradle.log" | head -80; tail -60 "$OUT/gradle.log"; exit 1; }
+          tail -3 "$OUT/gradle.log"
+          unzip -l app/build/outputs/apk/debug/app-debug.apk | grep -E "libinvizent_core|classes"
+          # The pages as drawn on the JVM by the tests (no phone): kept beside the emulator's own pictures.
+          mkdir -p "$OUT/jvm-pages" && cp app/build/pages/*.png "$OUT/jvm-pages/" 2>/dev/null || true
+          echo "== built"
+      - name: Enable KVM
+        run: |
+          echo 'KERNEL=="kvm", GROUP="kvm", MODE="0666", OPTIONS+="static_node=kvm"' | sudo tee /etc/udev/rules.d/99-kvm4all.rules
+          sudo udevadm control --reload-rules
+          sudo udevadm trigger --name-match=kvm
+      - name: Launch on the emulator and photograph
+        id: shots
+        if: steps.build.outcome == 'success'
+        continue-on-error: true
+        uses: reactivecircus/android-emulator-runner@v2
+        with:
+          api-level: 34
+          target: google_apis
+          arch: x86_64
+          profile: pixel_6
+          disable-animations: true
+          emulator-options: -no-window -gpu swiftshader_indirect -no-snapshot -noaudio -no-boot-anim -camera-back none
+          script: native/android/emu-shots.sh "$RUNNER_TEMP/out" > "$RUNNER_TEMP/out/shots-log.txt" 2>&1
+      - name: Publish the result (branch native-emu-output)
+        if: always()
+        run: |
+          cd "$RUNNER_TEMP/out" 2>/dev/null || { mkdir -p "$RUNNER_TEMP/out" && cd "$RUNNER_TEMP/out"; }
+          echo "build: ${{ steps.build.outcome }}, emulator: ${{ steps.shots.outcome }} $GITHUB_SHA $(date -u) $(uname -m)" > STATUS.txt
+          [ -f gradle.log ] && { grep -nE "^e: |^w: |error:|FAILED" gradle.log | head -200 > gradle-errors.txt; tail -200 gradle.log > gradle-tail.txt; rm gradle.log; } || true
+          git init -q -b out && git config user.name "linea-ci" && git config user.email "ci@localhost"
+          git add -A && git commit -qm "Native emulator check for $GITHUB_SHA: build ${{ steps.build.outcome }}, emulator ${{ steps.shots.outcome }}"
+          for attempt in 1 2 3; do git push -qf "https://x-access-token:${{ github.token }}@github.com/${{ github.repository }}.git" "HEAD:native-emu-output" && break; sleep 15; done
+      - name: Fail the job if the work failed
+        if: steps.build.outcome != 'success' || steps.shots.outcome != 'success'
+        run: exit 1

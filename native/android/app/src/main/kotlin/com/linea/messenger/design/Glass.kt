@@ -48,7 +48,7 @@ class Glass(private val owner: View) {
   var source: GlassSource? = null
   /** The fill over the blur, and the fill without one. */
   var tint = 0x8C141518.toInt()
-  var plain = Theme.surface2
+  var plain = 0xF7161718.toInt()
   var rim = 0x1FFFFFFF
 
   private val d = owner.resources.displayMetrics.density
