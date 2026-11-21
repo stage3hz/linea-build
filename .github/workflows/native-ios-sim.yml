@@ -184,18 +184,7 @@ jobs:
           shot 21-ai-demo -aidemo 1
           shot 22-music-demo -musicdemo 1
           shot 23-music-player -musicdemo player
-          shot look-1a -demo 1 -barlook 1
-          shot look-1b -musicdemo chats -barlook 1
-          shot look-1c -demo 1 -tab profile -barlook 1
-          shot look-6a -demo 1 -barlook 6
-          shot look-6b -musicdemo chats -barlook 6
-          shot look-6c -demo 1 -tab profile -barlook 6
-          shot look-7a -demo 1 -barlook 7
-          shot look-7b -musicdemo chats -barlook 7
-          shot look-7c -demo 1 -tab profile -barlook 7
-          shot look-8a -demo 1 -barlook 8
-          shot look-8b -musicdemo chats -barlook 8
-          shot look-8c -demo 1 -tab profile -barlook 8
+          shot 62-bar-with-track -musicdemo chats
           live 24-ai 25 -tab ai
           live 13-settings 25 -settings root
           live 14-settings-profile 25 -settings profile

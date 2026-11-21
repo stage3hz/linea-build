@@ -7,6 +7,7 @@ import android.content.Context
 import android.graphics.Canvas
 import android.graphics.Paint
 import android.graphics.Path
+import android.graphics.Color
 import android.graphics.RadialGradient
 import android.graphics.Shader
 import android.graphics.Typeface
@@ -353,11 +354,12 @@ class TabBarView(context: Context) : ViewGroup(context) {
     val coloured = glow.size == 3
     val colors = if (coloured) glow else listOf(0xFFE8EDF5.toInt(), 0xFF808FA8.toInt(), 0xFFC9D1E0.toInt())
     val strength = if (coloured) 1f else 0.7f
-    for (index in 0 until 3) {
-      val color = colors[index]
-      // Each light is drawn in a square of one unit and stretched to its place: bright at the bar's lower edge.
-      lights[index].shader = RadialGradient(0f, 0f, 1f, Theme.alpha(color, (if (index == 0) 0.8f else 0.6f) * strength), Theme.alpha(color, 0f), Shader.TileMode.CLAMP)
-    }
+    // The owner's choice: one small round glow right behind the chosen icon; a track's colour a little softened.
+    val hsv = FloatArray(3)
+    Color.colorToHSV(colors[0], hsv)
+    if (coloured) hsv[1] *= 0.8f
+    val color = Color.HSVToColor(hsv)
+    lights[0].shader = RadialGradient(0f, 0f, 1f, Theme.alpha(color, 0.55f * strength), Theme.alpha(color, 0f), Shader.TileMode.CLAMP)
     invalidate()
   }
 
@@ -376,10 +378,11 @@ class TabBarView(context: Context) : ViewGroup(context) {
 
     clip.reset(); clip.addRoundRect(0f, 0f, w, h, h / 2, h / 2, Path.Direction.CW)
     canvas.save(); canvas.clipPath(clip)
-    shine(canvas, -w * 0.16f, w * 0.72f, lights[1])
-    shine(canvas, w * 0.46f, w * 0.72f, lights[2])
-    val spot = max(110f * d, w * 0.7f)
-    shine(canvas, spotX - spot / 2, spot, lights[0])
+    // The glow behind the chosen icon: a circle almost the bar's height, centred on the icon.
+    val halo = h * 0.95f / 2
+    canvas.save(); canvas.translate(spotX, h / 2); canvas.scale(halo, halo)
+    canvas.drawCircle(0f, 0f, 1f, lights[0])
+    canvas.restore()
     canvas.restore()
 
     val top = 4f * d; val wide = cell - 8f * d; val tall = h - 8f * d; val round = tall / 2

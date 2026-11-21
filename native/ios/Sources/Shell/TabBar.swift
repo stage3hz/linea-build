@@ -241,8 +241,8 @@ final class TabBarView: UIView, UIGestureRecognizerDelegate {
   private let gloss = CAGradientLayer()
   /// Fine grain over the glow, so a gradient reads as material rather than as a smooth fill.
   private let grain = UIView()
-  /// Which glow look is on. Being chosen by the owner: the simulator check shows each with `-barlook N`.
-  var look = 0 {
+  /// Which glow look is on: 6, chosen by the owner (a small round glow behind the chosen icon). Others stay for comparison (`-barlook N` in the simulator).
+  var look = 6 {
     didSet {
       // 6…8: a halo centred on the chosen icon (6, 7) or just below it (8), instead of light rising from the edge.
       let halo = look >= 6
@@ -284,6 +284,10 @@ final class TabBarView: UIView, UIGestureRecognizerDelegate {
       layer.startPoint = CGPoint(x: 0.5, y: 1)
       layer.endPoint = CGPoint(x: 1, y: 0)
     }
+    // The owner's choice (look 6): a small round glow right behind the chosen icon.
+    let halo = look >= 6
+    spot.startPoint = halo ? CGPoint(x: 0.5, y: 0.5) : CGPoint(x: 0.5, y: 1)
+    spot.endPoint = halo ? CGPoint(x: 1, y: 1) : CGPoint(x: 1, y: 0)
     glowView.layer.addSublayer(glowLeft)
     glowView.layer.addSublayer(glowRight)
     spotView.isUserInteractionEnabled = false
