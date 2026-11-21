@@ -136,7 +136,7 @@ class CallScreenView(context: Context) : Screen(context) {
     clockLabel.visibility = GONE
     addView(clockLabel)
 
-    localBox.setBackgroundColor(0xFF000000.toInt())
+    localBox.background = context.plate(0xFF000000.toInt(), 16f)
     localBox.outlineProvider = object : ViewOutlineProvider() {
       override fun getOutline(view: View, outline: Outline) = outline.setRoundRect(0, 0, view.width, view.height, 16f * d)
     }
@@ -253,7 +253,7 @@ class CallScreenView(context: Context) : Screen(context) {
     if (Calls.isDemo) {
       remoteVideo.visibility = GONE
       localVideo.visibility = GONE
-      localBox.background = GradientDrawable(GradientDrawable.Orientation.TOP_BOTTOM, intArrayOf(0xFF3A3F4B.toInt(), 0xFF14161B.toInt()))
+      localBox.background = GradientDrawable(GradientDrawable.Orientation.TOP_BOTTOM, intArrayOf(0xFF3A3F4B.toInt(), 0xFF14161B.toInt())).apply { cornerRadius = 16f * d }
     } else {
       remoteVideo.visibility = if (showsVideo) VISIBLE else GONE
       remoteVideo.showRemote(if (showsVideo) Calls.media else null)
