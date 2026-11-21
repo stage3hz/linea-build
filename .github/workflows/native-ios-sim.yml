@@ -72,6 +72,7 @@ jobs:
           shot 03-sections -sections 1
           shot 04-settings -tab profile
           shot 05-chat -chat 1
+          shot 06-auth -auth 1
           echo "== done"
       - name: Publish the result (branch native-sim-output-<runner>)
         if: always()

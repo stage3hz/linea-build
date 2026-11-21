@@ -11,6 +11,10 @@ final class SceneDelegate: UIResponder, UIWindowSceneDelegate {
         let root = RootViewController()
         let stack = NavigationController(rootViewController: root)
         window.rootViewController = UserDefaults.standard.bool(forKey: "corecheck") ? CoreCheckViewController() : stack
+        #if targetEnvironment(simulator)
+        // `-auth 1`: the sign-in screen, for the simulator check.
+        if UserDefaults.standard.bool(forKey: "auth") { window.rootViewController = AuthViewController(server: Server(base: Account.server)) }
+        #endif
         window.makeKeyAndVisible()
         self.window = window
         #if targetEnvironment(simulator)
