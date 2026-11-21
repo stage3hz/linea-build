@@ -125,6 +125,9 @@ final class MusicPlayer: NSObject {
     // MARK: Playing
 
     private func prepareSession() throws {
+        // Rooms (Sources/Rooms): inside a room the phone's sound is the room's own (the microphone is open) —
+        // the music plays through it and must not take it over.
+        if RoomVoice.shared.state != nil { return }
         let session = AVAudioSession.sharedInstance()
         try session.setCategory(.playback, mode: .default, options: [])
         try session.setActive(true)

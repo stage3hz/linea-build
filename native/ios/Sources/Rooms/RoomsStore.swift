@@ -40,6 +40,11 @@ final class Rooms {
             NotificationCenter.default.addObserver(self, selector: #selector(voiceMoved), name: RoomVoice.changed, object: nil)
         }
         if let messenger, let current = self.messenger, current === messenger { return }
+        #if targetEnvironment(simulator)
+        // The samples stay when the shell is built again (a theme put on) without an account.
+        if messenger == nil, demoMe != nil { return }
+        demoMe = nil
+        #endif
         if self.messenger != nil { RoomVoice.shared.stop() }
         self.messenger = messenger
         show(rooms: nil, ring: nil)

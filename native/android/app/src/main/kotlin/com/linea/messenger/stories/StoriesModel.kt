@@ -107,7 +107,7 @@ object StoryRules {
   fun text(key: String, otherwise: String): String = all[key] as? String ?: otherwise
 }
 
-private val main = Handler(Looper.getMainLooper())
+private val main by lazy { Handler(Looper.getMainLooper()) }
 
 // The server calls of stories and posts. Every answer comes back on the main thread.
 

@@ -210,6 +210,8 @@ class ProfilePostsBlock(context: Context) : ViewGroup(context) {
       ringAvatar = avatar
       ringAround = around
       // The ring is drawn over the page, around the picture, wherever the page puts it.
+      // (A layout with nothing of its own to draw is otherwise passed over together with what lies over it.)
+      around.setWillNotDraw(false)
       avatar.addOnLayoutChangeListener { view, _, _, _, _, _, _, _, _ -> ring.setBounds(view.left - dp(6f), view.top - dp(6f), view.right + dp(6f), view.bottom + dp(6f)); around.invalidate() }
       ring.setBounds(avatar.left - dp(6f), avatar.top - dp(6f), avatar.right + dp(6f), avatar.bottom + dp(6f))
       avatar.setOnClickListener { ringPressed() }
