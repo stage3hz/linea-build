@@ -24,6 +24,7 @@ pub mod network;
 pub mod photo;
 pub mod servers;
 pub mod settings;
+pub mod stories;
 #[cfg(feature = "signal")]
 pub mod signal;
 pub mod time;

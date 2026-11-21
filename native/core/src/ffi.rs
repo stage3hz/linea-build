@@ -409,6 +409,7 @@ pub unsafe extern "C" fn invizent_proof_call(proof: *mut InvizentProof, input: *
 ///   skipped, the latest edit applied, spoilers hidden); null when there is none.
 /// - `call… […]` → the rules of one-to-one calls (see `calls::view` for the names).
 /// - `settings… […]` → the rules behind the settings pages (see `settings::view` for the names).
+/// - `stories… […]` → the rules of stories and profile posts (see `stories::view` for the names).
 ///
 /// # Safety
 /// `name` and `args` are NUL-terminated strings that stay valid for the call (or null).
@@ -433,6 +434,8 @@ pub unsafe extern "C" fn invizent_view(name: *const c_char, args: *const c_char)
             ("listPreviewMessage", [Value::Array(list)]) => chat_view::list_preview_message(list).unwrap_or(Value::Null),
             // Settings (`settings.rs`): every name that starts with `settings`.
             (name, args) if name.starts_with("settings") => crate::settings::view(name, args)?,
+            // Stories and profile posts (`stories.rs`): every name that starts with `stories`.
+            (name, args) if name.starts_with("stories") => crate::stories::view(name, args)?,
             // Calls (`calls.rs`): every name that starts with `call`.
             (name, args) => crate::calls::view(name, args)?,
         };
