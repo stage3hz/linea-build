@@ -104,7 +104,9 @@ final class Messenger {
                 shown = (try? crypto.callNow("preview", [last]).get()) as? [String: Any]
             }
             if let shown { last = shown }
-            preview = Self.previewText(last)
+            // The line of the list as the core words it (a call's outcome, hidden spoilers); else the plain words.
+            let line = Core.view("chatListText", [last]) as? String ?? ""
+            preview = line.isEmpty ? Self.previewText(last) : line
             time = Self.listTime(last["createdAt"] as? String)
             if last["senderId"] as? String == userId {
                 let read = (chat["peerLastReadMessageId"] as? NSNumber)?.intValue ?? 0, own = (last["id"] as? NSNumber)?.intValue ?? 0
@@ -145,9 +147,13 @@ final class Messenger {
                 var shown: [[String: Any]] = []
                 for message in list {
                     guard case .success(let value) = crypto.callNow("preview", [message]), let opened = value as? [String: Any] else { continue }
-                    // Service messages (edits, reactions, calls) are not lines of the chat; they are folded in later work.
-                    if (opened["meta"] as? [String: Any])?["action"] != nil { continue }
                     shown.append(opened)
+                }
+                // Edits, deletions, reactions, pins and the rest are folded into the lines they belong to (the core's rules).
+                if let folded = Core.view("foldChat", [shown, self.userId, [String](), Date().timeIntervalSince1970 * 1000]) as? [String: Any], let lines = folded["messages"] as? [[String: Any]] {
+                    shown = lines
+                } else {
+                    shown = shown.filter { ($0["meta"] as? [String: Any])?["action"] == nil }
                 }
                 let newest = list.filter { $0["senderId"] as? String != self.userId }.compactMap { ($0["id"] as? NSNumber)?.intValue }.max() ?? 0
                 return .success((self.rows(shown, peerLastRead: peerLastRead), newest))
@@ -166,7 +172,8 @@ final class Messenger {
             let next = index + 1 < messages.count ? messages[index + 1] : nil
             let id = (message["id"] as? NSNumber)?.intValue ?? 0
             rows.append(["key": "\(message["senderId"] as? String ?? ""):\(message["clientId"] as? String ?? "")", "kind": 0, "mine": mine,
-                         "text": Self.previewText(message), "time": date.map { Self.clock.string(from: $0) } ?? "",
+                         "text": Self.previewText(message), "time": (message["edited"] as? Bool == true ? "изм. " : "") + (date.map { Self.clock.string(from: $0) } ?? ""),
+                         "chips": (message["reactions"] as? [[String: Any]] ?? []).flatMap { [$0["emoji"] as? String ?? "", String(($0["count"] as? NSNumber)?.intValue ?? 1), $0["mine"] as? Bool == true ? "1" : ""] },
                          "ticks": mine ? (peerLastRead >= id ? 2 : 1) : 0, "tail": next?["senderId"] as? String != message["senderId"] as? String])
         }
         return rows

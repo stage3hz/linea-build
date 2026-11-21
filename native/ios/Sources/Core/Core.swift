@@ -61,4 +61,10 @@ enum Core {
         guard let made = value(answer) as? [String: Any], let method = made["method"] as? String, let path = made["path"] as? String else { return nil }
         return (method, path, made["body"] as? String)
     }
+
+    /// A pure function of the core by its name (see `invizent_view`); nil when it has no answer.
+    static func view(_ name: String, _ args: [Any]) -> Any? {
+        guard let argsText = text(args) else { return nil }
+        return value(name.withCString { name in argsText.withCString { take(invizent_view(name, $0)) } })
+    }
 }

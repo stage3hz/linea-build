@@ -391,3 +391,34 @@ pub unsafe extern "C" fn invizent_proof_call(proof: *mut InvizentProof, input: *
         Some(json::stringify(&out))
     })).ok().flatten().map_or(std::ptr::null_mut(), give)
 }
+
+// ── What is shown ────────────────────────────────────────────────────────────────────────────────────────────
+
+/// Pure functions of the core by name; `args` is a JSON array, the answer is JSON (null for an unknown name or
+/// arguments of the wrong kind):
+/// - `foldChat [messages, userId, hiddenForMe[], nowMs]` → `{messages, pinned, rules, nextExpiry}`: a chat's raw
+///   (decrypted) messages folded into what is shown — edits, deletions, reactions, pins, polls, auto-delete.
+/// - `chatListText [message]` → the line of a chat in the list.
+/// - `replyPreview [message]` → the short line quoted in an answer.
+///
+/// # Safety
+/// `name` and `args` are NUL-terminated strings that stay valid for the call (or null).
+#[no_mangle]
+pub unsafe extern "C" fn invizent_view(name: *const c_char, args: *const c_char) -> *mut c_char {
+    let (Some(name), Some(args)) = (take(name), take(args)) else { return std::ptr::null_mut() };
+    catch_unwind(|| {
+        use crate::chat_view;
+        let Ok(Value::Array(args)) = json::parse(&args) else { return None };
+        let text = |units: crate::json::JsString| Value::String(units);
+        let out = match (name.as_str(), args.as_slice()) {
+            ("foldChat", [Value::Array(messages), Value::String(user_id), Value::Array(hidden), Value::Number(now)]) => {
+                let hidden: Vec<String> = hidden.iter().filter_map(Value::as_str).collect();
+                chat_view::fold_chat(messages, &user_id.to_string_lossy(), &hidden, *now)
+            }
+            ("chatListText", [message]) => text(chat_view::chat_list_text(message)),
+            ("replyPreview", [message]) => text(chat_view::reply_preview(message)),
+            _ => return None,
+        };
+        Some(json::stringify(&out))
+    }).ok().flatten().map_or(std::ptr::null_mut(), give)
+}

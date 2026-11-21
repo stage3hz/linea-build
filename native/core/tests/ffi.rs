@@ -1,6 +1,7 @@
 //! The C functions the apps call, called the way they call them.
 use invizent_core::e2ee::wire::{safety_code, DeviceIdentity};
 use invizent_core::ffi::*;
+use invizent_core::json::Value;
 use std::ffi::{CStr, CString};
 
 unsafe fn text(pointer: *mut std::ffi::c_char) -> Option<String> {
@@ -86,5 +87,26 @@ fn the_device_proof_exchange_crosses_the_boundary() {
         invizent_proof_free(proof);
         invizent_proof_free(std::ptr::null_mut());
         assert!(invizent_proof_call(std::ptr::null_mut(), std::ptr::null()).is_null());
+    }
+}
+
+#[test]
+fn what_is_shown_crosses_the_boundary() {
+    unsafe {
+        let ask = |name: &str, args: &str| { let (name, args) = (CString::new(name).unwrap(), CString::new(args).unwrap()); text(invizent_view(name.as_ptr(), args.as_ptr())) };
+        let me = "0f8fad5b-d9cb-469f-a165-70867728950e";
+        let message = |id: u32, client: &str, body: &str, meta: &str| format!(r#"{{"id":{id},"chatId":"c","senderId":"{me}","clientId":"{client}","text":"{body}","attachment":null,"createdAt":"2026-11-21T07:00:0{id}.000Z","cryptoState":"decrypted"{meta}}}"#);
+        // A message and its edit: one line is shown, with the new text, marked as edited.
+        let (first, second) = ("e0000001-0000-4000-8000-000000000001", "e0000002-0000-4000-8000-000000000002");
+        let edit = format!(r#","meta":{{"action":{{"type":"edit","target":"{first}","text":"исправленное"}}}}"#);
+        let folded = ask("foldChat", &format!(r#"[[{},{}],"{me}",[],1795244500000]"#, message(1, first, "первое", ""), message(2, second, "", &edit))).expect("a fold");
+        let folded = invizent_core::json::parse(&folded).unwrap();
+        let Some(Value::Array(shown)) = folded.get("messages") else { panic!("messages") };
+        assert_eq!(shown.len(), 1, "{}", invizent_core::json::stringify(&folded));
+        assert_eq!(shown[0].get("text").and_then(Value::as_str).as_deref(), Some("исправленное"));
+        assert_eq!(shown[0].get("edited"), Some(&Value::Bool(true)));
+        assert_eq!(ask("chatListText", &format!("[{}]", message(1, "a", "привет", ""))).as_deref(), Some("\"привет\""));
+        assert!(ask("foldChat", "[]").is_none() && ask("nothing", "[]").is_none() && ask("chatListText", "{}").is_none());
+        assert!(invizent_view(std::ptr::null(), std::ptr::null()).is_null());
     }
 }

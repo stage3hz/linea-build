@@ -30,6 +30,9 @@ InvizentCrypto *invizent_crypto_new(const char *user_id, bool auto_trust, const 
 char *invizent_crypto_call(InvizentCrypto *crypto, const char *op, const char *args_json);
 void invizent_crypto_free(InvizentCrypto *crypto);
 
+// Pure functions of the core by name (foldChat, chatListText, replyPreview): JSON array in, JSON out.
+char *invizent_view(const char *name, const char *args_json);
+
 // One session's exchange of device proofs, moved step by step (see ffi.rs: invizent_proof_call).
 typedef struct InvizentProof InvizentProof;
 InvizentProof *invizent_proof_new(void);
