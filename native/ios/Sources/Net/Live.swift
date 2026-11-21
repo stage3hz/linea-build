@@ -62,10 +62,22 @@ final class Live: NSObject, URLSessionWebSocketDelegate {
     }
     private var closed = false
 
+    // Calls (Sources/Calls): whether the line is up — "connecting", "connected" or "offline" — told as
+    // `Live.callEvent` when it changes; and the hold a live call puts on the line.
+    private(set) var line = "offline" {
+        didSet { if line != oldValue { NotificationCenter.default.post(name: Live.callEvent, object: nil, userInfo: ["event": ["type": "line"]]) } }
+    }
+    var heldByCall = false {
+        didSet { if oldValue && !heldByCall && UIApplication.shared.applicationState == .background { sleep() } }
+    }
+
     @objc private func wake() { if stopped && !closed { start() } }
 
     @objc private func sleep() {
+        // Calls: a live call keeps the line open in the background (its signalling goes through it).
+        if heldByCall && !closed { return }
         stopped = true
+        line = "offline"
         beat?.invalidate()
         socket?.cancel(with: .goingAway, reason: nil)
         socket = nil
@@ -75,6 +87,7 @@ final class Live: NSObject, URLSessionWebSocketDelegate {
         guard !stopped, socket == nil, server.base.hasPrefix("https://"), let url = URL(string: "wss://" + String(server.base.dropFirst("https://".count)) + "/ws") else { return }
         let task = session.webSocketTask(with: url)
         socket = task
+        line = "connecting"
         lastReceive = Date()
         task.resume()
         listen(task)
@@ -102,6 +115,7 @@ final class Live: NSObject, URLSessionWebSocketDelegate {
     }
 
     private func retry() {
+        line = "offline"
         guard !stopped else { return }
         let pause = min(pow(2, Double(attempts)), 15)
         attempts += 1
@@ -134,9 +148,12 @@ final class Live: NSObject, URLSessionWebSocketDelegate {
     private func handle(_ type: String, _ data: [String: Any]) {
         // Channels (Sources/Channels): events about communities go to that section as they come.
         if type == "ready" || type.hasPrefix("community") { NotificationCenter.default.post(name: Live.communityEvent, object: nil, userInfo: ["event": data]) }
+        // Calls (Sources/Calls): a message may be a call's step; `call.reach` says how far an outgoing call got.
+        if type == "ready" || type == "message" || type == "call.reach" { NotificationCenter.default.post(name: Live.callEvent, object: nil, userInfo: ["event": data]) }
         switch type {
         case "ready":
             attempts = 0
+            line = "connected"
             onEvent?(.ready)
         case "message":
             onEvent?(.chat((data["message"] as? [String: Any])?["chatId"] as? String))

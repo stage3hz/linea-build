@@ -62,6 +62,8 @@ final class SceneDelegate: UIResponder, UIWindowSceneDelegate {
     /// The session is already forgotten (Settings/AccountActions.swift); signing in is shown, with a few words why.
     func closeAccount(notice: String) {
         // Nothing of the closed account goes on by itself: its live line and the music stop here.
+        // Calls: a call that is on ends with the account (the other side is told while the session still lives).
+        Calls.shared.stop()
         messenger?.live.stop()
         MusicPlayer.shared.stop()
         messenger = nil
@@ -94,11 +96,14 @@ final class SceneDelegate: UIResponder, UIWindowSceneDelegate {
     ///   -aidemo 1|history / -musicdemo 1|player    «AI» and «Музыка» with samples, no account (Music/MusicSimulator.swift); with an account: -tab ai, -tab music
     ///   -chatdemo menu|delete|reply|edit|pinned|select|forward|quotes|typing|draft    actions on messages in the -demo chat; -chataction menu|delete|reply|edit|pin|select|forward|react with -openchat 1 (ChatActions/ChatScreenActions.swift)
     ///   -chatlist menu|mute|delete|archive|archived|draft|unread / -chatsearch <query>    actions on the chats of the list, with an account or -demo (ChatActions/ChatListActions.swift)
+    ///   -calldemo outgoing|incoming|active|video|ended|retry|bar / -call 1    calls: a sample call in each state, no account; with an account, a call to the person of the first chat (Calls/CallOverlay.swift)
+    ///   -linkdemo 1|composer / -linksend 1    cards of links: sample rows in the -demo chat (composer: also the card above the field); with -openchat 1 on the local test server, sends one message with a prepared card (LinkPreview/LinkDemo.swift)
     private func simulatorStart() -> Bool {
         let args = UserDefaults.standard
         if args.bool(forKey: "corecheck") { window?.rootViewController = CoreCheckViewController(); return true }
         if args.bool(forKey: "auth") { showAuth(); return true }
         if simulatorChannels() { return true }
+        if simulatorCalls() { return true }
         if simulatorAIMusic() { return true }
         if let page = args.string(forKey: "settings") { simulatorSettings(page) }
         if args.bool(forKey: "demo") {
@@ -138,6 +143,8 @@ final class SceneDelegate: UIResponder, UIWindowSceneDelegate {
                 PeopleSimulator.run(stack: stack, root: root)
             }
         }
+        // Calls: -call 1 presses «Позвонить» in the first chat (Calls/CallOverlay.swift).
+        simulatorCallWithAccount()
         return false
     }
     #endif

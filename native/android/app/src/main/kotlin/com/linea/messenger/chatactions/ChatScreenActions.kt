@@ -602,6 +602,10 @@ class ChatScreenActions(private val context: Context, private val messenger: Mes
   val bar: String get() = if (barShown) composerBar.heading else ""
   val barWords: String get() = if (barShown) composerBar.words else ""
 
+  /** Voice/Video: the send button has work even over an empty field (an edit, a forward that waits), so the
+   *  microphone does not take its place (voice/ChatMedia.kt). */
+  val wantsSendButton: Boolean get() = editing != null || forwardItems.isNotEmpty()
+
   /** The send button: a tick while editing (greyed over an empty field), the arrow otherwise. */
   private fun showSend() {
     val sendButton = sendButton ?: return

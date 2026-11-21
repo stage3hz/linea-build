@@ -290,12 +290,25 @@ final class PersonProfileViewController: UIViewController {
             write.addTarget(self, action: #selector(writeTapped), for: .touchUpInside)
             tiles.addArrangedSubview(write)
         }
-        let symbol = isFriend == true ? "person.badge.minus" : request == "outgoing" ? "clock" : "person.badge.plus"
-        let words = isFriend == true ? "В друзьях" : request == "outgoing" ? "Заявка" : request == "incoming" ? "Принять" : "В друзья"
-        let friend = makeTile(symbol: symbol, words: words, loading: isFriend == nil && problemWords.isEmpty)
-        if isFriend == nil { friend.isEnabled = false }
-        friend.addTarget(self, action: #selector(friendTapped), for: .touchUpInside)
-        tiles.addArrangedSubview(friend)
+        if fromChat {
+            // Calls: opened from a chat, the row is «Звонок», «Видео», «Ещё», as in the reference (the friends
+            // action is in «Ещё» then). Sources/Calls/CallOverlay.swift places the call.
+            for video in [false, true] {
+                let tile = makeTile(symbol: video ? "video.fill" : "phone.fill", words: video ? "Видео" : "Звонок", loading: false)
+                tile.addAction(UIAction { [weak self] (_: UIAction) -> Void in
+                    guard let self else { return }
+                    CallEntry.call(messenger: self.messenger, chatId: self.chatId, peerId: self.userId, name: self.name, person: self.shownPerson, video: video)
+                }, for: .touchUpInside)
+                tiles.addArrangedSubview(tile)
+            }
+        } else {
+            let symbol = isFriend == true ? "person.badge.minus" : request == "outgoing" ? "clock" : "person.badge.plus"
+            let words = isFriend == true ? "В друзьях" : request == "outgoing" ? "Заявка" : request == "incoming" ? "Принять" : "В друзья"
+            let friend = makeTile(symbol: symbol, words: words, loading: isFriend == nil && problemWords.isEmpty)
+            if isFriend == nil { friend.isEnabled = false }
+            friend.addTarget(self, action: #selector(friendTapped), for: .touchUpInside)
+            tiles.addArrangedSubview(friend)
+        }
         let other = makeTile(symbol: "ellipsis", words: "Ещё", loading: false)
         other.menu = moreMenu()
         other.showsMenuAsPrimaryAction = true

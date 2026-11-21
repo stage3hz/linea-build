@@ -23,6 +23,8 @@ final class ChatViewController: UIViewController {
     private(set) lazy var actions = ChatScreenActions(messenger: messenger, chatId: chatId, peerId: peerId, name: name)
     /// Voice/Video: the record button, voice messages, videos and round videos (Sources/Voice/ChatMedia.swift).
     private lazy var media = ChatMedia(messenger: messenger, chatId: chatId, peerId: peerId)
+    /// Calls: «Позвонить» in the header; a long touch offers «Видеозвонок» too (Sources/Calls/CallOverlay.swift).
+    private(set) lazy var callButton = CallEntry.headerButton(messenger: messenger, chatId: chatId, peerId: peerId, name: name)
     /// Attachments: the simulator's sample rows (-attachdemo), kept after the chat's own.
     private var sampleRows: [[String: Any]] = []
 
@@ -117,6 +119,8 @@ final class ChatViewController: UIViewController {
         attachments.onPendingChanged = { [weak self] in self?.showPendingAttachments() }
         // ChatActions: a touch on a message (the menu, a reaction, an attachment), the field, the bars, the header's
         // status line — and the rows themselves, with or without an account (the simulator's sample chat).
+        // Calls: the button stands under what ChatActions lays over the header (the selection's own header).
+        header.addSubview(callButton)
         actions.install(host: self, list: list, header: header, heading: heading, back: back, composer: composer, field: field, send: send, attachments: attachments)
         actions.onRows = { [weak self] (made: [[String: Any]]) -> Void in self?.showRows(made) }
         // Voice/Video: the microphone in the send button's place, recording, playing in the rows.
@@ -134,6 +138,8 @@ final class ChatViewController: UIViewController {
                 sampleRows = ChatAttachments.demoRows()
                 if sample == "viewer" { ChatAttachments.demoViewer(over: self) }
             }
+            // LinkPreview: -linkdemo 1|composer adds two rows with the cards of links (Sources/LinkPreview/LinkDemo.swift).
+            if UserDefaults.standard.string(forKey: "linkdemo") != nil { sampleRows += LinkDemo.rows() }
             #endif
         }
         load()
@@ -162,6 +168,7 @@ final class ChatViewController: UIViewController {
         header.frame = CGRect(x: 0, y: 0, width: width, height: top + 48)
         back.frame = CGRect(x: 6, y: top + 2, width: 44, height: 44)
         heading.frame = CGRect(x: 56, y: top + 2, width: width - 112, height: 44)
+        callButton.frame = CGRect(x: width - 50, y: top + 2, width: 44, height: 44)
         // ChatActions: the composer is as tall as the field's text asks (one line at first); the send button and
         // the paperclip stay at its lower edge.
         let composerHeight = actions.composerHeight(fieldWidth: width - 24 - 100)

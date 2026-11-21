@@ -61,6 +61,8 @@ final class ChatScreenActions: NSObject, UITextViewDelegate {
     private var clock: Timer?
     /// The sample chat's own draft (no account, nothing is kept).
     private var sampleDraft = ""
+    /// LinkPreview: the card of a link being written, above the field (Sources/LinkPreview/LinkComposer.swift).
+    private let links = LinkComposer()
 
     init(messenger: Messenger?, chatId: String, peerId: String, name: String) {
         self.messenger = messenger
@@ -166,6 +168,15 @@ final class ChatScreenActions: NSObject, UITextViewDelegate {
         list.onQuotePress = { [weak self] (event: [String: Any]) -> Void in
             self?.quotePressed(event["key"] as? String ?? "")
         }
+        // LinkPreview: a link in the text and the card of a link open in the system browser (Sources/LinkPreview/LinkOpen.swift).
+        list.onLinkPress = { [weak self] (event: [String: Any]) -> Void in
+            LinkOpen.pressed(url: event["url"] as? String ?? "", shown: event["shown"] as? String ?? "", over: self?.host)
+        }
+        list.onCardPress = { (event: [String: Any]) -> Void in
+            LinkOpen.cardPressed(url: event["url"] as? String ?? "")
+        }
+        links.install(in: host.view)
+        links.onChanged = { [weak self] in self?.relayout() }
         list.onNearTop = { [weak self] (_: [String: Any]) -> Void in
             guard let self, self.history.hasMore else { return }
             self.history.load(older: true)
@@ -282,6 +293,8 @@ final class ChatScreenActions: NSObject, UITextViewDelegate {
             composerBar.frame = CGRect(x: composerFrame.minX, y: above - 6 - ComposerBar.height, width: composerFrame.width, height: ComposerBar.height)
             above = composerBar.frame.minY
         }
+        // LinkPreview: the card of the link being written stands above the field (and above the bar of an answer).
+        above = links.place(composerFrame: composerFrame, above: above, hidden: chosen)
         downButton.frame = CGRect(x: width - 14 - DownButton.side, y: above - 12 - DownButton.side, width: DownButton.side, height: DownButton.side)
         return (top, view.bounds.height - above + 8)
     }
@@ -609,6 +622,8 @@ final class ChatScreenActions: NSObject, UITextViewDelegate {
             hidden = true
         }
         composerBar.isHidden = hidden
+        // LinkPreview: an edit or a forward takes the field over; the card of a link typed before goes.
+        if editing != nil || !forwardItems.isEmpty { links.reset() }
         showSend()
         relayout()
     }
@@ -659,7 +674,8 @@ final class ChatScreenActions: NSObject, UITextViewDelegate {
             meta = ["reply": ["clientId": client, "senderId": sender, "preview": ChatForward.clipped(line, units: 200)]]
         }
         replyTo = nil
-        history.send(text: text, meta: meta)
+        // LinkPreview: the card made while the link was typed goes inside the same encrypted message.
+        history.send(text: text, meta: meta, linkPreview: links.take(for: text))
         clearField()
         showBar()
         list?.scrollToNewest(animated: true)
@@ -668,6 +684,7 @@ final class ChatScreenActions: NSObject, UITextViewDelegate {
     private func clearField() {
         field?.text = ""
         if let local { local.setDraft(chatId, "") } else { sampleDraft = "" }
+        links.reset()
         stopTyping()
         relayout()
     }
@@ -873,6 +890,8 @@ final class ChatScreenActions: NSObject, UITextViewDelegate {
         }
         typingStop = work
         DispatchQueue.main.asyncAfter(deadline: .now() + 1.8, execute: work)
+        // LinkPreview: a link typed into a new message gets its card (not an edit, not the comment of a forward).
+        links.typed(value, active: editing == nil && forwardItems.isEmpty)
         showSend()
         relayout()
     }
@@ -912,6 +931,8 @@ final class ChatScreenActions: NSObject, UITextViewDelegate {
     private func simulatorAct() {
         guard !simulatorDone else { return }
         simulatorDone = true
+        // LinkPreview: -linksend 1 sends one message with a prepared card to this chat (Sources/LinkPreview/LinkDemo.swift).
+        if messenger != nil { LinkDemo.sendSample(history: history) }
         let args = UserDefaults.standard
         let shown = history.shown
         let ask = messenger == nil ? args.string(forKey: "chatdemo") : args.string(forKey: "chataction")

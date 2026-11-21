@@ -18,6 +18,8 @@ final class ChatHistory {
         let attachment: [String: Any]?
         let createdAt: String
         var failed = false
+        /// LinkPreview: the card of a link in the text, made on this phone (Sources/LinkPreview); nil: none.
+        var linkPreview: [String: Any]? = nil
     }
 
     /// What the screen shows, made from the messages by `build`.
@@ -212,8 +214,10 @@ final class ChatHistory {
     // MARK: Sending
 
     /// Sends a message of this chat: a plain one, an answer (`meta.reply`), a forwarded one, or an action.
-    func send(text: String, meta: [String: Any]?, attachment: [String: Any]? = nil) {
-        let item = Pending(clientId: UUID().uuidString.lowercased(), text: text, meta: meta, attachment: attachment, createdAt: ChatHistory.stamp.string(from: Date()))
+    /// LinkPreview: `linkPreview` is the card of a link the person typed (the core checks it once more).
+    func send(text: String, meta: [String: Any]?, attachment: [String: Any]? = nil, linkPreview: [String: Any]? = nil) {
+        var item = Pending(clientId: UUID().uuidString.lowercased(), text: text, meta: meta, attachment: attachment, createdAt: ChatHistory.stamp.string(from: Date()))
+        item.linkPreview = linkPreview
         pending.append(item)
         rebuild()
         deliver(item)
@@ -244,6 +248,7 @@ final class ChatHistory {
             var message: [String: Any] = ["id": demoNext, "chatId": chatId, "senderId": userId, "clientId": item.clientId, "text": item.text,
                                           "attachment": NSNull(), "createdAt": item.createdAt, "cryptoState": "decrypted"]
             if let meta = item.meta { message["meta"] = meta }
+            if let card = item.linkPreview { message["linkPreview"] = card }
             raw.append(message)
             rebuild()
             #endif
@@ -255,8 +260,11 @@ final class ChatHistory {
         var meta: Any = NSNull()
         if let fields = item.meta { meta = fields }
         let (sentAttachment, sentMeta) = (attachment, meta)
+        var card: Any = NSNull()
+        if let preview = item.linkPreview { card = preview }
+        let sentCard = card
         messenger.crypto.run({ (crypto: CryptoService) -> Result<Void, CryptoFailure> in
-            messenger.deliver(crypto, chatId: chatId, peerId: peerId, clientId: item.clientId, text: item.text, attachment: sentAttachment, meta: sentMeta)
+            messenger.deliver(crypto, chatId: chatId, peerId: peerId, clientId: item.clientId, text: item.text, attachment: sentAttachment, meta: sentMeta, linkPreview: sentCard)
         }, done: { [weak self] (result: Result<Void, CryptoFailure>) -> Void in
             guard let self else { return }
             switch result {
@@ -320,6 +328,7 @@ final class ChatHistory {
                                           "localState": item.failed ? "failed" : "sending"]
             if let file = item.attachment { message["attachment"] = file }
             if let meta = item.meta { message["meta"] = meta }
+            if let card = item.linkPreview { message["linkPreview"] = card }
             if item.failed, item.meta?["action"] != nil {
                 out.failedActions += 1
                 continue
@@ -386,7 +395,8 @@ final class ChatHistory {
             let meta = message["meta"] as? [String: Any]
             // A finished call is a line of its own, not a message of anyone's.
             if let action = meta?["action"] as? [String: Any], action["type"] as? String == "call" {
-                let words = Core.view("chatListText", [message]) as? String ?? (message["text"] as? String ?? "")
+                // Calls: the row names the direction («Исходящий звонок · 3:12»), as the reference's chat does.
+                let words = Core.view("callServiceText", [action, sender, input.userId]) as? String ?? Core.view("chatListText", [message]) as? String ?? (message["text"] as? String ?? "")
                 rows.append(["key": key, "kind": 1, "text": clock.isEmpty ? words : words + " · " + clock])
                 continue
             }
@@ -433,6 +443,8 @@ final class ChatHistory {
             } else if meta?["poll"] != nil {
                 row["label"] = "Опрос"
             }
+            // LinkPreview: the card of a link, as it came inside the message (Sources/LinkPreview/LinkCard.swift).
+            if let card = message["linkPreview"] as? [String: Any] { row["card"] = card }
             if let selection = input.selection { row["checked"] = selection.contains(key) ? 1 : 0 }
             rows.append(row)
             out.messages[key] = message

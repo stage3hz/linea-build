@@ -103,6 +103,11 @@ class ChatAttachments(private val host: View, private val messenger: Messenger?,
   private val work = Executors.newSingleThreadExecutor { run -> Thread(run, "invizent.attachments").apply { isDaemon = true } }
   /** Called on the main thread when the rows of outgoing attachments changed. */
   var onPendingChanged: (() -> Unit)? = null
+  /** Voice/Video (voice/ChatMedia.kt): a touched row is offered there first — a voice message, a video, a round
+   *  video, a big (chunked) file of any kind or one of its own unsent rows; true: it took it. */
+  var mediaPressed: ((String) -> Boolean)? = null
+  /** Voice/Video: «Видео» of the paperclip's list. */
+  var onVideo: (() -> Unit)? = null
 
   init {
     val app = context.applicationContext
@@ -131,8 +136,11 @@ class ChatAttachments(private val host: View, private val messenger: Messenger?,
 
   private fun choose() {
     hideKeyboard()
+    // Voice/Video: «Видео» stands between the two when there is somebody to take it.
+    val video = onVideo
+    val items = if (video != null) arrayOf("Галерея", "Видео", "Файл") else arrayOf("Галерея", "Файл")
     AlertDialog.Builder(context)
-      .setItems(arrayOf("Галерея", "Файл")) { _, which -> if (which == 0) pickPhotos() else pickFiles() }
+      .setItems(items) { _, which -> when (items[which]) { "Галерея" -> pickPhotos(); "Видео" -> video?.invoke(); else -> pickFiles() } }
       .setNegativeButton("Отмена", null)
       .show()
   }
@@ -327,6 +335,8 @@ class ChatAttachments(private val host: View, private val messenger: Messenger?,
 
   /** A row of the chat was touched: an unsent attachment offers to try again, a received one is opened. */
   fun pressed(key: String) {
+    // Voice/Video: voice messages, videos, round videos and big files are played and opened there.
+    if (mediaPressed?.invoke(key) == true) return
     val item = pending.firstOrNull { it.key == key }
     if (item != null) {
       val failed = item.failed ?: return

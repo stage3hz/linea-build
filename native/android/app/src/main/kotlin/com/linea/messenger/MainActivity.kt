@@ -75,6 +75,12 @@ class MainActivity : Activity(), Launcher, AccountHost {
     if (!Picks.result(requestCode, resultCode, data)) super.onActivityResult(requestCode, resultCode, data)
   }
 
+  /** Voice/Video: the system's answer about the microphone or the camera, asked at the moment of the first
+   *  recording (voice/VoiceRecorder.kt, `Permits`). */
+  override fun onRequestPermissionsResult(requestCode: Int, permissions: Array<out String>, grantResults: IntArray) {
+    if (!com.linea.messenger.voice.Permits.result(requestCode, grantResults)) super.onRequestPermissionsResult(requestCode, permissions, grantResults)
+  }
+
   /** Decides what the app opens with: the chats of the signed-in account, or signing in. */
   private fun start() {
     // For the emulator check (debug builds only; a release build has an empty `Demo.start`).

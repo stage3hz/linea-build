@@ -61,6 +61,8 @@ class ChatScreen(
   val actions = ChatScreenActions(context, messenger, chatId, peerId, name)
   /** Attachments: the paperclip, sending and opening photos and files (attachments/ChatAttachments.kt). */
   private val attachments = ChatAttachments(this, messenger, chatId, peerId)
+  /** Voice/Video: the record button, voice messages, videos and round videos (voice/ChatMedia.kt). */
+  private val media = com.linea.messenger.voice.ChatMedia(this, messenger, chatId, peerId)
 
   init {
     setBackgroundColor(Theme.bg)
@@ -96,6 +98,9 @@ class ChatScreen(
     actions.install(this, page, list, heading, back, composer, field, send, attachments)
     actions.onRows = { made -> showRows(made) }
     actions.onLoaded = { newestTheirs -> loaded(newestTheirs) }
+    // Voice/Video: the microphone in the send button's place, the rows of what is being sent, playing.
+    media.install(list, composer, field, send, attachments, actions)
+    media.onPendingChanged = { showPendingMedia() }
 
     if (messenger == null) {
       // Attachments: `attachdemo 1` adds sample rows with a photo and files, `attachdemo viewer` also opens the photo viewer.
@@ -108,12 +113,16 @@ class ChatScreen(
     super.onAttachedToWindow()
     messenger?.watch(this)
     actions.attached()
+    // Voice/Video: round videos move while the chat is on screen.
+    media.appeared()
     load()
   }
 
   override fun onDetachedFromWindow() {
     messenger?.unwatch(this)
     actions.detached()
+    // Voice/Video: leaving the chat stops every sound and a take.
+    media.left()
     super.onDetachedFromWindow()
   }
 
@@ -126,7 +135,8 @@ class ChatScreen(
   /** The chat's rows as they are now, with what the attachments add after them. */
   private fun showRows(made: List<Map<String, Any?>>) {
     // Attachments: what is still on its way out stands after the chat's own rows.
-    real = made + attachments.loaded(made) + sampleRows
+    // Voice/Video: voice messages and videos on their way out (and the debug build's sample rows).
+    real = made + attachments.loaded(made) + media.loaded(made) + sampleRows
     list.setRows(MsgRow.parse(real))
   }
 
@@ -166,6 +176,8 @@ class ChatScreen(
     val floor = if (edges.keyboard > 0) height - edges.keyboard - dp(8f) else height - maxOf(edges.bottom, dp(12f))
     val composerTop = floor - composerHeight
     put(composer, dp(12f), composerTop, width - dp(24f), composerHeight)
+    // Voice/Video: the microphone or the send button, the lock of a take, the words over the chat.
+    media.place(width, top, dp(12f), composerTop, width - dp(24f))
     // ChatActions: the status under the name, the pinned message, the bar above the field, the way down.
     actions.keyboardUp = edges.keyboard > 0
     val room = actions.place(width, height, top + dp(48f), top, dp(12f), composerTop, width - dp(24f), composerHeight)
@@ -176,6 +188,12 @@ class ChatScreen(
   /** Attachments: shows the rows of what is being sent (they change while a file is prepared and uploaded). */
   private fun showPendingAttachments() {
     real = real.filter { !(it["key"] as? String ?: "").startsWith("attach-") } + attachments.pendingRows
+    list.setRows(MsgRow.parse(real))
+  }
+
+  /** Voice/Video: shows the rows of voice messages and videos being sent. */
+  private fun showPendingMedia() {
+    real = real.filter { !(it["key"] as? String ?: "").startsWith("media-") } + media.pendingRows
     list.setRows(MsgRow.parse(real))
   }
 

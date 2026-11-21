@@ -49,6 +49,23 @@ class MsgMediaBoxes {
   }
 }
 
+/** The bars of voice messages' waveforms, as the rows draw them. Main thread only (the cache is shared). */
+object WaveBars {
+  private val barCache = HashMap<String, FloatArray>()
+
+  /** The bars of a waveform fitted into `count` bars (the core decodes and fits them, as the reference does). */
+  fun bars(wave: String, count: Int): FloatArray {
+    val cacheKey = "$wave/$count"
+    barCache[cacheKey]?.let { return it }
+    val numbers = FileCore.call("waveformBars", listOf(wave.ifEmpty { null }, count)) as? List<*>
+    var made = numbers?.mapNotNull { (it as? Number)?.toFloat() }?.toFloatArray() ?: FloatArray(0)
+    if (made.isEmpty()) made = FloatArray(count.coerceIn(12, 48)) { 0.12f }
+    if (barCache.size > 300) barCache.clear()
+    barCache[cacheKey] = made
+    return made
+  }
+}
+
 /** The drawing of voice messages, videos and round videos inside a row of the chat (`MsgRowView` calls it).
  *  Reference: mobile/src/voice/VoiceMessage.tsx (`VoiceBubbleView`: a 44 dp button, bars 2.5 dp wide every
  *  4.5 dp in a strip 30 dp tall, the played part in full light, the time under it, the speed while it plays),
@@ -71,19 +88,6 @@ object MediaRowArt {
   private val pillPaint = TextPaint(Paint.ANTI_ALIAS_FLAG).apply { fontFeatureSettings = "tnum" }
   private val path = Path()
   private val box = RectF()
-  private val barCache = HashMap<String, FloatArray>()
-
-  /** The bars of a waveform fitted into `count` bars (the core decodes and fits them, as the reference does). */
-  fun bars(wave: String, count: Int): FloatArray {
-    val cacheKey = "$wave/$count"
-    barCache[cacheKey]?.let { return it }
-    val numbers = FileCore.call("waveformBars", listOf(wave.ifEmpty { null }, count)) as? List<*>
-    var made = numbers?.mapNotNull { (it as? Number)?.toFloat() }?.toFloatArray() ?: FloatArray(0)
-    if (made.isEmpty()) made = FloatArray(count.coerceIn(12, 48)) { 0.12f }
-    if (barCache.size > 300) barCache.clear()
-    barCache[cacheKey] = made
-    return made
-  }
 
   /** What the screen reader says about a media row. */
   fun spoken(row: MsgRow): String = when (row.media) {
@@ -139,7 +143,7 @@ object MediaRowArt {
       canvas.drawCircle(cx, cy, 26f * d, fill)
       triangle(canvas, cx, cy, 22f * d, 0xFFFFFFFF.toInt())
     }
-    if (row.media == "note" && inPlace && live != null && live.progress > 0f) {
+    if (row.media == "note" && live != null && live.inPlace && live.progress > 0f) {
       stroke.color = palette.accent
       stroke.strokeWidth = 3f * d
       val radius = minOf(at.width(), at.height()) / 2 - 1.5f * d
@@ -175,7 +179,7 @@ object MediaRowArt {
     val stripWidth = maxOf(20f * d, width - 56f * d)
     boxes.wave.set(stripLeft, top, stripLeft + stripWidth, top + waveHeight * d)
     val count = maxOf(12, (stripWidth / (barStep * d)).toInt())
-    val values = bars(row.wave, count)
+    val values = WaveBars.bars(row.wave, count)
     val bar = barWidth * d
     val step = if (values.size > 1) (stripWidth - bar) / (values.size - 1) else 0f
     val middle = boxes.wave.centerY()

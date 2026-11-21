@@ -240,7 +240,7 @@ class RecordControl(private val context: Context) {
 
     composer.addView(button, FrameLayout.LayoutParams(dp(40f), dp(40f), Gravity.END or Gravity.BOTTOM).apply { rightMargin = dp(4f); bottomMargin = dp(4f) })
 
-    lockPill.background = GradientDrawable().apply { setColor(Theme.surface2); cornerRadius = 20f * d; setStroke(maxOf(1, dp(1f)), 0x1FFFFFFF) }
+    lockPill.background = GradientDrawable().apply { setColor(Theme.surface2 or 0xFF000000.toInt()); cornerRadius = 20f * d; setStroke(maxOf(1, dp(1f)), 0x1FFFFFFF) }
     lockPill.visibility = View.GONE
     host.addView(lockPill)
     lockHint.text = "Вверх — без рук"
@@ -248,7 +248,7 @@ class RecordControl(private val context: Context) {
     lockHint.setTextColor(Theme.text)
     lockHint.gravity = Gravity.CENTER
     lockHint.includeFontPadding = false
-    lockHint.background = GradientDrawable().apply { setColor(Theme.surface2); cornerRadius = 12f * d }
+    lockHint.background = GradientDrawable().apply { setColor(Theme.surface2 or 0xFF000000.toInt()); cornerRadius = 12f * d }
     lockHint.visibility = View.GONE
     host.addView(lockHint)
     show()

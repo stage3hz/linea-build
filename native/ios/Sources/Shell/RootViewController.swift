@@ -62,6 +62,8 @@ final class RootViewController: UIViewController {
         ChannelsStore.shared.start(messenger)
         // Music: the bar is lit by the playing track's cover (Music/CoverTint.swift).
         MusicGlow.attach(self)
+        // Calls: the call screen and the bar of a minimised call, over every section (Calls/CallOverlay.swift).
+        CallOverlay.shared.start(messenger)
     }
 
     override func viewDidLayoutSubviews() {

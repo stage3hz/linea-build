@@ -31,7 +31,8 @@ char *invizent_crypto_call(InvizentCrypto *crypto, const char *op, const char *a
 void invizent_crypto_free(InvizentCrypto *crypto);
 
 // Pure functions of the core by name (foldChat, chatListText, replyPreview, nativeText, editWindowOpen,
-// actionFallback, listPreviewMessage): JSON array in, JSON out.
+// actionFallback, listPreviewMessage; and every `call…` name — the rules of calls, native/core/src/calls.rs):
+// JSON array in, JSON out.
 char *invizent_view(const char *name, const char *args_json);
 
 // One session's exchange of device proofs, moved step by step (see ffi.rs: invizent_proof_call).

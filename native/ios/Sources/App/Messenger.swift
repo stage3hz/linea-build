@@ -196,6 +196,8 @@ final class Messenger {
             if message["attachment"] is [String: Any], let key = rows[rows.count - 1]["key"] as? String {
                 rows[rows.count - 1].merge(AttachmentRows.fields(message, key: key)) { _, new in new }
             }
+            // LinkPreview: the card of a link, as it came inside the message.
+            if let card = message["linkPreview"] as? [String: Any] { rows[rows.count - 1]["card"] = card }
         }
         return rows
     }
@@ -207,18 +209,24 @@ final class Messenger {
     /// - Refused for good (not «try later», not a dead session): the kept copy is forgotten, so it is not sent
     ///   again after every start.
     /// - No answer: it stays in the list of unsent messages and goes out later with the very same ciphertext.
-    func deliver(_ crypto: CryptoService, chatId: String, peerId: String, clientId: String, text: Any, attachment: Any, meta: Any, again: Bool = true) -> Result<Void, CryptoFailure> {
-        switch crypto.callNow("encrypt", [chatId, peerId, clientId, text, attachment, meta, NSNull()]) {
+    /// - Calls: `push` is what the server does about the notification ("call" rings, "missed", "none"); nil — an ordinary message.
+    ///
+    /// LinkPreview: `linkPreview` is the card of a link in the text (Sources/LinkPreview), or NSNull; the core
+    /// checks it and carries it inside the ciphertext.
+    func deliver(_ crypto: CryptoService, chatId: String, peerId: String, clientId: String, text: Any, attachment: Any, meta: Any, again: Bool = true, push: String? = nil, linkPreview: Any = NSNull()) -> Result<Void, CryptoFailure> {
+        switch crypto.callNow("encrypt", [chatId, peerId, clientId, text, attachment, meta, NSNull(), linkPreview]) {
         case .failure(let failure): return .failure(failure)
         case .success(let encrypted):
-            switch server.opAndWait("sendEncrypted", [chatId, clientId, encrypted]) {
+            var sent: [Any] = [chatId, clientId, encrypted]
+            if let push { sent.append(push) }
+            switch server.opAndWait("sendEncrypted", sent) {
             case .success:
                 _ = crypto.callNow("delivered", [chatId, clientId])
                 return .success(())
             case .failure(.refused(let message, let status, let code, _)):
                 if code == "E2EE_DEVICES_CHANGED" {
                     _ = crypto.callNow("forget", [chatId, clientId])
-                    if again { return deliver(crypto, chatId: chatId, peerId: peerId, clientId: clientId, text: text, attachment: attachment, meta: meta, again: false) }
+                    if again { return deliver(crypto, chatId: chatId, peerId: peerId, clientId: clientId, text: text, attachment: attachment, meta: meta, again: false, push: push, linkPreview: linkPreview) }
                 } else if (400..<500).contains(status), status != 401, status != 408, status != 429 {
                     _ = crypto.callNow("forget", [chatId, clientId])
                 }

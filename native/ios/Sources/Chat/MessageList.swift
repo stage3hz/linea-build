@@ -36,6 +36,8 @@ struct MsgRow: Equatable {
   let wave: String
   /// Voice/Video: the length («0:23»); empty when the message does not say.
   let mediaTime: String
+  /// LinkPreview: the card of a link under the text (Sources/LinkPreview/LinkCard.swift); nil: none.
+  var linkCard: MsgLinkCard? = nil
 
   static func parse(_ rows: [[String: Any]]) -> [MsgRow] {
     func text(_ value: Any?) -> String { (value as? String) ?? "" }
@@ -52,7 +54,7 @@ struct MsgRow: Equatable {
         quoteText: text(row["quoteText"]), forward: text(row["forward"]), label: text(row["label"]), thumb: text(row["thumb"]),
         thumbRound: flag(row["thumbRound"]), thumbWide: CGFloat(min(2.5, max(0.4, wide))), checked: min(1, max(-1, int(row["checked"], -1))), reactions: text(row["reactions"]), chips: (row["chips"] as? [String]) ?? [],
         fmt: ((row["fmt"] as? [NSNumber]) ?? []).map { $0.intValue }, urls: (row["urls"] as? [String]) ?? [],
-        media: text(row["media"]), wave: text(row["wave"]), mediaTime: text(row["mediaTime"])))
+        media: text(row["media"]), wave: text(row["wave"]), mediaTime: text(row["mediaTime"]), linkCard: MsgLinkCard.parse(row["card"])))
     }
     return result
   }
@@ -266,6 +268,8 @@ struct MsgLayout {
   var reactSize = CGSize.zero
   /// Voice: the play button with the waveform (Sources/Voice/MediaRowArt.swift).
   var voiceSize = CGSize.zero
+  /// LinkPreview: the card of a link under the text (zero size: none).
+  var card = MsgLinkCardLayout()
   var height: CGFloat = 0
 
   static func make(_ row: MsgRow, width: CGFloat, fontSize: CGFloat, hasThumb: Bool) -> MsgLayout {
@@ -306,7 +310,12 @@ struct MsgLayout {
       w = max(w, min(inner, max(layout.quoteSize.width, author) + 12))
     }
     if !row.forward.isEmpty { w = max(w, min(inner, ceil(NSAttributedString(string: row.forward, attributes: [.font: msgSmallBold]).size().width))) }
-    if msgOpenLook && layout.textSize != .zero && layout.reactSize == .zero && !stride(from: 0, to: row.fmt.count, by: 3).contains(where: { row.fmt[$0] & (128 | 256) != 0 }) {
+    // LinkPreview: the card stands under the text, and the time then goes under the card.
+    if let card = row.linkCard {
+      layout.card = MsgLinkCardLayout.make(card, width: inner)
+      w = max(w, layout.card.size.width)
+    }
+    if msgOpenLook && layout.textSize != .zero && layout.reactSize == .zero && layout.card.size == .zero && !stride(from: 0, to: row.fmt.count, by: 3).contains(where: { row.fmt[$0] & (128 | 256) != 0 }) {
       let laid = MsgText(row.fmt.isEmpty ? NSAttributedString(string: row.text, attributes: [.font: body, .paragraphStyle: msgWrap(true)])
         : msgBody(row, fontSize: fontSize, text: .black, link: .black, quote: .clear, revealed: true), width: inner)
       let last = laid.lastLine
@@ -324,6 +333,7 @@ struct MsgLayout {
     if layout.voiceSize != .zero { h += layout.voiceSize.height + 4 }
     if layout.labelSize != .zero { h += layout.labelSize.height + 4 }
     h += layout.textSize.height
+    if layout.card.size != .zero { h += layout.card.size.height + 7 }
     if layout.reactSize != .zero { h += layout.reactSize.height + 6 }
     h += layout.timeInline ? 6 : 16 + 6
     layout.bubble = CGSize(width: w + 26, height: h)
@@ -352,6 +362,15 @@ final class MsgRowCanvas: UIView {
   /// Voice/Video: what is playing in this row right now (nil: nothing), and where its parts were drawn last.
   var mediaState: MsgMediaState?
   private(set) var mediaBoxes = MsgMediaBoxes()
+  /// LinkPreview: the decoded picture of the row's card, and where the card was drawn last.
+  var cardImage: UIImage?
+  private var cardBox = CGRect.zero
+
+  /// LinkPreview: the address of the card under a point of this view.
+  func card(at point: CGPoint) -> String? {
+    guard cardBox != .zero, cardBox.contains(point) else { return nil }
+    return row?.linkCard?.url
+  }
 
   /// Voice/Video: the part of a voice message, a video or a round video under a point of this view.
   func media(at point: CGPoint) -> (part: String, fraction: CGFloat)? {
@@ -410,6 +429,7 @@ final class MsgRowCanvas: UIView {
     let w = bounds.width
     let bubble = layoutInfo.bubble
     quoteBox = .zero
+    cardBox = .zero
     if item.kind == 1 {
       let box = CGRect(x: (w - bubble.width) / 2, y: 0, width: bubble.width, height: bubble.height)
       context.setFillColor(palette.notice.cgColor)
@@ -546,6 +566,12 @@ final class MsgRowCanvas: UIView {
       }
       y += layoutInfo.textSize.height
     }
+    // LinkPreview: the card of the link, under the text.
+    if layoutInfo.card.size != .zero, let card = item.linkCard {
+      cardBox = CGRect(x: x, y: y + 7, width: layoutInfo.card.size.width, height: layoutInfo.card.size.height)
+      layoutInfo.card.draw(card, in: context, at: cardBox.origin, palette: palette, accent: markColor, picture: cardImage, pressed: false)
+      y += layoutInfo.card.size.height + 7
+    }
     chipBoxes = []
     if layoutInfo.reactSize != .zero && !item.chips.isEmpty {
       for chip in msgChips(item, width: inner).chips {
@@ -608,6 +634,8 @@ final class MsgRowCanvas: UIView {
 final class MsgRowCell: UITableViewCell {
   let canvas = MsgRowCanvas(frame: .zero)
   private var thumbOf = ""
+  /// LinkPreview: the picture of the card this cell decoded last.
+  private var cardOf = ""
 
   override init(style: UITableViewCell.CellStyle, reuseIdentifier: String?) {
     super.init(style: style, reuseIdentifier: reuseIdentifier)
@@ -634,7 +662,13 @@ final class MsgRowCell: UITableViewCell {
       thumbOf = row.thumb
       canvas.thumbImage = row.thumb.isEmpty ? nil : Data(base64Encoded: row.thumb, options: .ignoreUnknownCharacters).flatMap { UIImage(data: $0) }
     }
-    accessibilityLabel = [MediaRowArt.spoken(row), row.label, row.text, row.time].filter { !$0.isEmpty }.joined(separator: ". ")
+    // LinkPreview: the card's picture is decoded once per cell, not on every drawing.
+    let cardPicture = row.linkCard?.image ?? ""
+    if cardPicture != cardOf {
+      cardOf = cardPicture
+      canvas.cardImage = row.linkCard?.picture()
+    }
+    accessibilityLabel = [MediaRowArt.spoken(row), row.label, row.text, row.linkCard?.spoken ?? "", row.time].filter { !$0.isEmpty }.joined(separator: ". ")
     canvas.setNeedsDisplay()
   }
 
@@ -665,6 +699,8 @@ final class MsgListView: UIView, UITableViewDataSource, UITableViewDelegate, UIG
   /// Voice/Video: a tap on a part of a voice message, a video or a round video (`key`, `part`: "play", "wave",
   /// "rate" or "thumb"; `fraction`: where on the waveform, 0…1).
   var onMediaPress: ([String: Any]) -> Void = { _ in }
+  /// LinkPreview: a tap on the card of a link (`key`: the row, `url`: where the card leads).
+  var onCardPress: ([String: Any]) -> Void = { _ in }
   /// Voice/Video: what is playing, by the key of its row (one at a time).
   private var mediaState: MsgMediaState?
 
@@ -733,6 +769,13 @@ final class MsgListView: UIView, UITableViewDataSource, UITableViewDelegate, UIG
     return (rows[path.row].key, hit.part, hit.fraction)
   }
 
+  /// LinkPreview: the card of a link under a point of the table (not while messages are being chosen).
+  private func card(atTablePoint point: CGPoint) -> (key: String, url: String)? {
+    guard let path = table.indexPathForRow(at: point), path.row < rows.count, rows[path.row].checked < 0, let cell = table.cellForRow(at: path) as? MsgRowCell,
+          let url = cell.canvas.card(at: table.convert(point, to: cell.canvas)) else { return nil }
+    return (rows[path.row].key, url)
+  }
+
   /// Voice/Video: shows what is playing in its row (nil: nothing plays). Only that row is drawn again.
   func setMediaState(_ next: MsgMediaState?) {
     if next == mediaState { return }
@@ -763,6 +806,7 @@ final class MsgListView: UIView, UITableViewDataSource, UITableViewDelegate, UIG
     if gestureRecognizer === linkTap {
       let point = gestureRecognizer.location(in: table)
       return chip(atTablePoint: point) != nil || run(atTablePoint: point) != nil || quote(atTablePoint: point) != nil || media(atTablePoint: point) != nil
+        || card(atTablePoint: point) != nil
     }
     return super.gestureRecognizerShouldBegin(gestureRecognizer)
   }
@@ -776,7 +820,9 @@ final class MsgListView: UIView, UITableViewDataSource, UITableViewDelegate, UIG
     guard let found = run(atTablePoint: recognizer.location(in: table)) else {
       if let key = quote(atTablePoint: recognizer.location(in: table)) { onQuotePress(["key": key]); return }
       // Voice/Video: the play button, the waveform, the speed, the picture of a video.
-      if let hit = media(atTablePoint: recognizer.location(in: table)) { onMediaPress(["key": hit.key, "part": hit.part, "fraction": Double(hit.fraction)]) }
+      if let hit = media(atTablePoint: recognizer.location(in: table)) { onMediaPress(["key": hit.key, "part": hit.part, "fraction": Double(hit.fraction)]); return }
+      // LinkPreview: the card of a link opens the link.
+      if let hit = card(atTablePoint: recognizer.location(in: table)) { onCardPress(["key": hit.key, "url": hit.url]) }
       return
     }
     if found.hit.url.isEmpty {

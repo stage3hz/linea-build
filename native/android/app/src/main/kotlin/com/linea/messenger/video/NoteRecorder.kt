@@ -52,7 +52,6 @@ import java.io.File
  *  reference's module stands on the CameraX library; here the platform's own Camera2 and MediaRecorder do the
  *  same, and — as on the iPhone — the camera is not turned in the middle of a take. Before the take is sent it
  *  is written anew without metadata (`VideoPrepare.prepare`), like any other video. */
-@SuppressLint("ViewConstructor")
 class NoteRecorder(private val activity: Activity, private val startAtOnce: Boolean) : Dialog(activity, android.R.style.Theme_Translucent_NoTitleBar), TextureView.SurfaceTextureListener {
   private val d = context.resources.displayMetrics.density
   private fun dp(value: Float) = Math.round(value * d)
@@ -182,7 +181,6 @@ class NoteRecorder(private val activity: Activity, private val startAtOnce: Bool
     }
     // Back calls the take off, as the cross does.
     setOnCancelListener { finish(keep = false) }
-    setOnDismissListener { release() }
     showButtons()
     setOnShowListener { askAccess() }
   }
@@ -444,6 +442,12 @@ class NoteRecorder(private val activity: Activity, private val startAtOnce: Bool
     previewSurface = null
     file?.delete()
     file = null
+  }
+
+  /** The window is gone, whichever way it was closed. */
+  override fun onStop() {
+    super.onStop()
+    release()
   }
 
   private fun release() {

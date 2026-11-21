@@ -186,6 +186,9 @@ final class PrivacyViewController: SettingsPage {
         }
         addGroup("Звонки", rows: [callBox])
 
+        // LinkPreview: kept on this phone, not on the server (Sources/LinkPreview/LinkSettings.swift).
+        addGroup("Ссылки", rows: [LinkSettings.row()])
+
         add(SettingsLook.foot("Содержимое сообщений, ответы, реакции, правки и закрепления шифруются на устройстве. Сервер видит только служебные данные: кто, кому и когда."), gap: 16)
     }
 

@@ -46,10 +46,14 @@ object AttachmentStore {
 /** How a message with an attachment looks in the list (`MsgRow`: `thumb`, `thumbWide`, `label`). */
 object AttachmentRows {
   /** The fields to put over a message's row; empty for a message without an attachment. `key`: the row's key. */
-  fun fields(message: Map<String, Any?>, key: String): Map<String, Any?> = fields(message, key, FileCore::describe)
+  fun fields(message: Map<String, Any?>, key: String): Map<String, Any?> = fields(message, key, { com.linea.messenger.voice.MediaRows.fields(it) }, FileCore::describe)
 
   /** The same with the core's word about the attachment given (so the rule can be checked without the core). */
-  fun fields(message: Map<String, Any?>, key: String, describe: (Map<String, Any?>) -> FileCore.Description): Map<String, Any?> {
+  fun fields(message: Map<String, Any?>, key: String, describe: (Map<String, Any?>) -> FileCore.Description): Map<String, Any?> = fields(message, key, { null }, describe)
+
+  /** Voice/Video: `media` gives the row of a voice message, a video or a round video (null: the attachment is
+   *  none of them, and is shown as a photo or a file). */
+  fun fields(message: Map<String, Any?>, key: String, media: (Map<String, Any?>) -> Map<String, Any?>?, describe: (Map<String, Any?>) -> FileCore.Description): Map<String, Any?> {
     val attachment = Core.map(message["attachment"] as? Map<*, *>) ?: return emptyMap()
     AttachmentStore.remember(key, attachment)
     val fields = LinkedHashMap<String, Any?>()
@@ -59,6 +63,8 @@ object AttachmentRows {
       fields["fmt"] = emptyList<Int>()
       fields["urls"] = emptyList<String>()
     }
+    // Voice/Video: a voice message, a video and a round video have rows of their own (voice/ChatMedia.kt).
+    media(attachment)?.let { return fields + it }
     val about = describe(attachment)
     val name = attachment["name"] as? String ?: "Файл"
     // The small picture was checked by the core when the message was opened (`photo::valid_preview`).

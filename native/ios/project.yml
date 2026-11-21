@@ -11,6 +11,13 @@ packages:
   SQLCipher:
     url: https://github.com/sqlcipher/SQLCipher.swift
     exactVersion: 4.20.0
+  # WebRTC for calls (Sources/Calls): LiveKit's prebuilt framework of milestone 150 — the very build the previous
+  # app links through @livekit/react-native-webrtc 150.1.0 (its podspec pins LiveKitWebRTC 150.7871.03). The
+  # package is one binary target pinned by its checksum; it holds slices for the phone (arm64) and the simulator
+  # (arm64 and x86_64). Its classes carry the `LK` prefix.
+  LiveKitWebRTC:
+    url: https://github.com/livekit/webrtc-xcframework
+    exactVersion: 150.7871.03
 settings:
   base:
     SWIFT_VERSION: "5.9"
@@ -23,6 +30,7 @@ targets:
     sources: [Sources]
     dependencies:
       - package: SQLCipher
+      - package: LiveKitWebRTC
     info:
       path: Info.plist
       properties:
@@ -35,8 +43,9 @@ targets:
         # Music keeps playing when the app is not on the screen (Sources/Music/MusicPlayer.swift).
         UIBackgroundModes: [audio]
         # Voice messages and round videos (Sources/Voice, Sources/Video): asked when the record button is first held.
-        NSMicrophoneUsageDescription: "Микрофон нужен, чтобы записывать голосовые и видеосообщения. Запись идёт только пока вы держите кнопку записи."
-        NSCameraUsageDescription: "Камера нужна, чтобы записывать видеосообщения в кружке. Она включается только пока открыта запись."
+        # Calls (Sources/Calls) use the same two: asked at the first call and at the first video call.
+        NSMicrophoneUsageDescription: "Микрофон нужен для звонков и чтобы записывать голосовые и видеосообщения. Он включается только во время звонка и пока вы держите кнопку записи."
+        NSCameraUsageDescription: "Камера нужна для видеозвонков и чтобы записывать видеосообщения в кружке. Она включается только во время видеозвонка и пока открыта запись."
         UIApplicationSceneManifest:
           UIApplicationSupportsMultipleScenes: false
           UISceneConfigurations:
