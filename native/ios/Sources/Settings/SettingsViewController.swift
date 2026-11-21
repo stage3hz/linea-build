@@ -60,6 +60,15 @@ final class SettingsViewController: SettingsPage {
         profile.onPress = { [weak self] in self?.openProfile() }
         addGroup(rows: [profile])
 
+        // How it sounds and looks. (The reference also has «Папки с чатами», «Энергосбережение и анимации» and
+        // «Язык» here: not built in this app yet.)
+        let notifications = SettingsRow(symbol: "bell", label: "Уведомления и звуки")
+        notifications.onPress = { [weak self] in self?.openPage("notifications") }
+        let shownTheme = ThemeStore.nightState()["shown"] as? String ?? "black"
+        let appearance = SettingsRow(symbol: "paintpalette", label: "Оформление", value: ThemeStore.themeName(shownTheme))
+        appearance.onPress = { [weak self] in self?.openPage("appearance") }
+        addGroup(rows: [notifications, appearance])
+
         let privacy = SettingsRow(symbol: "lock", label: "Конфиденциальность")
         privacy.onPress = { [weak self] in
             guard let self, let messenger = self.messenger else { return }
@@ -80,7 +89,9 @@ final class SettingsViewController: SettingsPage {
             guard let self, let messenger = self.messenger else { return }
             self.open(BlockedViewController(messenger: messenger))
         }
-        addGroup(rows: [privacy, security, sessions, blocked])
+        let data = SettingsRow(symbol: "externaldrive", label: "Данные и память")
+        data.onPress = { [weak self] in self?.openPage("data") }
+        addGroup(rows: [privacy, security, sessions, blocked, data])
 
         let help = SettingsRow(symbol: "lifepreserver", label: "Помощь и поддержка")
         help.onPress = { [weak self] in
@@ -115,6 +126,27 @@ final class SettingsViewController: SettingsPage {
         open(ProfileEditViewController(messenger: messenger))
     }
 
+    private func openPage(_ name: String) {
+        if let page = page(named: name) { open(page) }
+    }
+
+    /// The pages of how the app looks and sounds, by name (also what a change of the theme opens again on top
+    /// of the rebuilt shell, see ThemeStore.swift). «Оформление» needs no account: it is kept on the device.
+    func page(named name: String) -> UIViewController? {
+        switch name {
+        case "appearance": return AppearanceViewController(messenger: messenger)
+        case "night": return NightThemeViewController()
+        case "accent": return AccentColorViewController()
+        case "notifications":
+            guard let messenger else { return nil }
+            return NotificationsViewController(messenger: messenger)
+        case "data":
+            guard let messenger else { return nil }
+            return DataViewController(messenger: messenger)
+        default: return nil
+        }
+    }
+
     /// «Выйти из аккаунта» asks first: coming back needs the login, the long password and the confirmation word.
     private func askToLeave() {
         guard messenger != nil, !leaving else { return }
@@ -139,6 +171,14 @@ final class SettingsViewController: SettingsPage {
     #if targetEnvironment(simulator)
     /// For the simulator check (`-settings <name>`): opens one page of the settings at once.
     func openDetail(_ name: String) {
+        // «Оформление» and its pages: «night» and «accent» stand on top of «Оформление», as they are reached.
+        if name == "night" || name == "accent" {
+            if let under = page(named: "appearance") { navigationController?.pushViewController(under, animated: false) }
+        }
+        if let own = page(named: name) {
+            navigationController?.pushViewController(own, animated: false)
+            return
+        }
         guard let messenger else {
             if name == "about" { navigationController?.pushViewController(AboutViewController(), animated: false) }
             return

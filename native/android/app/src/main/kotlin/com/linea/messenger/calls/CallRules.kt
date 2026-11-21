@@ -116,4 +116,35 @@ object CallRules {
     call.isOver -> if (call.retry) listOf("Закрыть", "Повторить") else emptyList()
     else -> listOfNotNull("Динамик", "Видео", if (call.video && !call.cameraOff) "Повернуть" else null, if (call.muted) "Звук выкл" else "Убрать звук", "Завершить")
   }
+
+  /** Where the call sounds: "speaker", "earpiece", "bluetooth" or "wired". `forced` true: the loudspeaker;
+   *  false: the phone's earpiece; null: the system's own route — Bluetooth or wired headphones when they are
+   *  connected, else the earpiece (a video call: the loudspeaker). */
+  fun soundRoute(forced: Boolean?, video: Boolean, bluetooth: Boolean, wired: Boolean): String = when {
+    forced == true -> "speaker"
+    forced == false -> "earpiece"
+    bluetooth -> "bluetooth"
+    wired -> "wired"
+    video -> "speaker"
+    else -> "earpiece"
+  }
+
+  /** The public address finder: what a call is left with when the server gives it no servers of its own. */
+  val publicIce = listOf(mapOf<String, Any?>("urls" to listOf("stun:stun.l.google.com:19302")))
+
+  /** The servers a call uses: the fresh ones; without them those of the last call while they may be used again;
+   *  else the public address finder alone. */
+  fun iceChoice(fresh: List<Map<String, Any?>>?, kept: Pair<Long, List<Map<String, Any?>>>?, nowMs: Long, reuseMs: Long): List<Map<String, Any?>> {
+    if (fresh != null) return fresh
+    if (kept != null && nowMs - kept.first < reuseMs) return kept.second
+    return publicIce
+  }
+
+  /** The name a step is remembered by, so that the same message is acted on once; null when it has none. */
+  fun stepKey(message: Map<String, Any?>): String? {
+    val id = (message["id"] as? Number)?.toLong()
+    if (id != null && id > 0) return "id:$id"
+    val clientId = message["clientId"] as? String ?: return null
+    return (message["senderId"] as? String ?: "") + ":" + clientId
+  }
 }

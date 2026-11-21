@@ -38,18 +38,6 @@ object CallAudio {
     override fun onAudioDevicesRemoved(removed: Array<out AudioDeviceInfo>?) { if (running) route(forcedNow, isVideo) }
   }
 
-  /** Where the call sounds: "speaker", "earpiece", "bluetooth" or "wired". `forced` true: the loudspeaker;
-   *  false: the phone's earpiece; null: the system's own route — Bluetooth or wired headphones when they are
-   *  connected, else the earpiece (a video call: the loudspeaker). */
-  fun choice(forced: Boolean?, video: Boolean, bluetooth: Boolean, wired: Boolean): String = when {
-    forced == true -> "speaker"
-    forced == false -> "earpiece"
-    bluetooth -> "bluetooth"
-    wired -> "wired"
-    video -> "speaker"
-    else -> "earpiece"
-  }
-
   private fun kind(type: Int): String? = when (type) {
     AudioDeviceInfo.TYPE_BUILTIN_SPEAKER -> "speaker"
     AudioDeviceInfo.TYPE_BUILTIN_EARPIECE -> "earpiece"
@@ -92,7 +80,7 @@ object CallAudio {
     try {
       if (Build.VERSION.SDK_INT >= 31) {
         val offered = system.availableCommunicationDevices
-        val wanted = choice(forced, video, offered.any { kind(it.type) == "bluetooth" }, offered.any { kind(it.type) == "wired" })
+        val wanted = CallRules.soundRoute(forced, video, offered.any { kind(it.type) == "bluetooth" }, offered.any { kind(it.type) == "wired" })
         val device = offered.firstOrNull { kind(it.type) == wanted }
         if (device != null) system.setCommunicationDevice(device) else system.clearCommunicationDevice()
       } else {
@@ -106,7 +94,7 @@ object CallAudio {
   @Suppress("DEPRECATION")
   private fun legacyRoute(system: AudioManager, forced: Boolean?, video: Boolean) {
     val outputs = system.getDevices(AudioManager.GET_DEVICES_OUTPUTS)
-    val wanted = choice(forced, video, system.isBluetoothScoAvailableOffCall && outputs.any { kind(it.type) == "bluetooth" }, outputs.any { kind(it.type) == "wired" })
+    val wanted = CallRules.soundRoute(forced, video, system.isBluetoothScoAvailableOffCall && outputs.any { kind(it.type) == "bluetooth" }, outputs.any { kind(it.type) == "wired" })
     if (wanted == "bluetooth") {
       if (!scoOn) { scoOn = true; system.startBluetoothSco(); system.isBluetoothScoOn = true }
     } else if (scoOn) {

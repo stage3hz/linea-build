@@ -162,7 +162,16 @@ jobs:
           shot 41-call-video -calldemo video
           shot 42-call-retry -calldemo retry
           shot 43-call-bar -calldemo bar
+          shot 44-appearance -demo 1 -settings appearance
+          shot 45-appearance-graphite -demo 1 -settings appearance -settheme graphite
+          shot 46-appearance-light -demo 1 -settings appearance -settheme light
+          shot 47-accent -demo 1 -settings accent -settheme black -setaccent FF9500
+          shot 48-text-xlarge -demo 1 -chat 1 -setaccent none -settextsize xlarge
+          shot 49-night -demo 1 -settings night -settextsize medium -setnight schedule
+          shot 49b-reset -demo 1 -setnight off -settheme black
           shot 21-ai-demo -aidemo 1
+          live 16b-settings-notifications 25 -settings notifications
+          live 16c-settings-data 25 -settings data
           shot 22-music-demo -musicdemo 1
           shot 23-music-player -musicdemo player
           live 24-ai 25 -tab ai

@@ -10,6 +10,10 @@ final class SceneDelegate: UIResponder, UIWindowSceneDelegate {
         window.backgroundColor = .black
         window.overrideUserInterfaceStyle = .dark
         self.window = window
+        #if targetEnvironment(simulator)
+        SceneDelegate.simulatorLook() // Settings: -settheme and the like (Settings/SettingsSimulator.swift)
+        #endif
+        ThemeStore.attach(window) // Settings: the theme the person chose (Settings/ThemeStore.swift)
         start()
         window.makeKeyAndVisible()
     }
@@ -91,7 +95,8 @@ final class SceneDelegate: UIResponder, UIWindowSceneDelegate {
     ///   -login … -password … -word …    signs in to the test server given by -server (https://localhost:…) only
     ///   -openchat 1                     with an account: opens the first chat of the list
     ///   -tab people / -peoplesearch <query> / -profile friend|chat    «Люди» and a profile, with an account or -demo (People/PeopleSimulator.swift)
-    ///   -settings <page>                «Настройки» and one of its pages, with an account (about: also with -demo) (Settings/SettingsSimulator.swift)
+    ///   -settings <page>                «Настройки» and one of its pages, with an account (about, appearance, night, accent: also with -demo) (Settings/SettingsSimulator.swift)
+    ///   -settheme / -setaccent / -settextsize / -setnight / -setplatina    the look for the shot (Settings/SettingsSimulator.swift)
     ///   -attachdemo 1|viewer / -openattachment photo|file    attachments: sample rows in the -demo chat; with an account, opens the chat's newest photo or file (Attachments/ChatAttachments.swift)
     ///   -channelsdemo 1|community|blog|chat|menu|settings / -channels community|chat|create|join    «Каналы»: samples without an account; with an account, a community, a channel, a form (Channels/ChannelsSimulator.swift)
     ///   -aidemo 1|history / -musicdemo 1|player    «AI» and «Музыка» with samples, no account (Music/MusicSimulator.swift); with an account: -tab ai, -tab music

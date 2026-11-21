@@ -189,7 +189,9 @@ class PeopleAttachmentsPagesTest {
     assertNotNull(find(activity.window.decorView, "ChatScreen"))
     // The chat is one step back: there is no «Написать» here.
     assertFalse(named(page).contains("Написать"))
-    assertTrue(named(page).containsAll(listOf("В друзьях", "Ещё")))
+    // Calls: the row is «Звонок», «Видео», «Ещё» there (the friends action is inside «Ещё»), as on the iPhone.
+    assertTrue(named(page).containsAll(listOf("Звонок", "Видео", "Ещё")))
+    assertFalse(named(page).contains("В друзьях"))
     assertTrue(texts(page).contains("Алиса Воронцова"))
   }
 

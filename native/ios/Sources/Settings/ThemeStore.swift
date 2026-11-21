@@ -232,7 +232,7 @@ enum ThemeStore {
         ThemeStore.window = window
         current = compute()
         paint(window)
-        NotificationCenter.default.addObserver(forName: UIApplication.didBecomeActiveNotification, object: nil, queue: .main) { (_: Notification) -> Void in
+        _ = NotificationCenter.default.addObserver(forName: UIApplication.didBecomeActiveNotification, object: nil, queue: .main) { (_: Notification) -> Void in
             ThemeStore.cameBack()
         }
     }

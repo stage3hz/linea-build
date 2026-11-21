@@ -7,24 +7,28 @@ extension UIColor {
     }
 }
 
-/// The black theme: the app's own look.
+/// The app's colours: those of the theme that is on. «Чёрная», the app's own look, unless the person chose
+/// another in Настройки → Оформление (Settings/ThemeStore.swift keeps the choice and makes the colours).
 enum Theme {
-    static let bg = UIColor(hex: 0x08090A)
-    static let text = UIColor(hex: 0xE5E5E6)
-    static let muted = UIColor(hex: 0x8A8F98)
-    static let subtle = UIColor(hex: 0x62666D)
-    static let accent = UIColor(hex: 0xE5E5E6)
-    static let onAccent = UIColor(hex: 0x08090A)
-    static let surface2 = UIColor(red: 22 / 255, green: 23 / 255, blue: 24 / 255, alpha: 0.92)
-    static let danger = UIColor(hex: 0xFF9CB0)
+    static var bg: UIColor { ThemeStore.look.bg }
+    static var text: UIColor { ThemeStore.look.text }
+    static var muted: UIColor { ThemeStore.look.muted }
+    static var subtle: UIColor { ThemeStore.look.subtle }
+    static var accent: UIColor { ThemeStore.look.accent }
+    static var onAccent: UIColor { ThemeStore.look.onAccent }
+    static var surface2: UIColor { ThemeStore.look.surface2 }
+    static var danger: UIColor { ThemeStore.look.danger }
+    /// Settings: a dark theme or a light one, and a thin veil over the page (white on dark, black on light).
+    static var dark: Bool { ThemeStore.look.dark }
+    static func veil(_ alpha: CGFloat) -> UIColor { ThemeStore.look.veil(alpha) }
 
     /// The colours the chat list draws with.
     static var chatList: ChatPalette {
         var palette = ChatPalette()
         palette.bg = bg; palette.text = text; palette.muted = muted; palette.subtle = subtle
         palette.accent = accent; palette.onAccent = onAccent; palette.border = .clear
-        palette.pressed = UIColor(white: 1, alpha: 0.07); palette.selected = UIColor(white: 1, alpha: 0.07)
-        palette.badgeMuted = surface2; palette.danger = danger; palette.pinned = UIColor(white: 1, alpha: 0.055)
+        palette.pressed = veil(0.07); palette.selected = veil(0.07)
+        palette.badgeMuted = surface2; palette.danger = danger; palette.pinned = veil(0.055)
         return palette
     }
 }
@@ -34,10 +38,10 @@ extension Theme {
     static var messages: MsgPalette {
         var palette = MsgPalette()
         palette.text = text; palette.muted = muted; palette.accent = accent; palette.onAccent = onAccent; palette.subtle = subtle
-        palette.mine = UIColor(red: 31 / 255, green: 32 / 255, blue: 35 / 255, alpha: 0.96)
-        palette.theirs = UIColor(red: 22 / 255, green: 23 / 255, blue: 24 / 255, alpha: 0.96)
-        palette.notice = UIColor(white: 1, alpha: 0.06); palette.noticeText = text
-        palette.danger = danger; palette.quote = UIColor(white: 1, alpha: 0.08)
+        palette.mine = ThemeStore.look.bubble
+        palette.theirs = ThemeStore.look.incoming
+        palette.notice = veil(0.06); palette.noticeText = text
+        palette.danger = danger; palette.quote = veil(0.08)
         palette.mineMeta = muted; palette.mineMark = text
         return palette
     }

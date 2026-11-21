@@ -40,7 +40,7 @@ final class RootViewController: UIViewController {
         view.addSubview(stage)
         bar.setItems(sections.map { TabEntry(id: $0.id, label: $0.label, symbol: $0.symbol, badge: 0, dot: "") })
         bar.setBar(inBar)
-        bar.setDark(true)
+        bar.setDark(Theme.dark) // Settings: the theme that is on (Settings/ThemeStore.swift)
         bar.moreWords = "Остальные разделы"
         bar.onSelect = { [weak self] event in
             guard let self, let id = event["id"] as? String else { return }
@@ -108,6 +108,9 @@ final class RootViewController: UIViewController {
     /// For the simulator check: opens the first chat of the list.
     func openFirstChat() { (pages["chats"] as? ChatsViewController)?.openFirst() }
     #endif
+
+    /// Settings: the same shell built again, for a theme that has just been put on (Settings/ThemeStore.swift).
+    func rebuilt() -> RootViewController { RootViewController(messenger: messenger) }
 
     /// Music: three colours of the playing track's cover for the bar's light; an empty list restores the calm silver.
     func setBarGlow(_ hexes: [String]) { bar.setGlow(hexes) }

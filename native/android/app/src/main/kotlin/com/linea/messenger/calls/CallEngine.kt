@@ -95,8 +95,6 @@ object Calls {
   /** Whether the call on screen is a sample (its pictures are drawn, not filmed). */
   val isDemo: Boolean get() = samples != null
 
-  private val fallbackIce = listOf(mapOf<String, Any?>("urls" to listOf("stun:stun.l.google.com:19302")))
-
   private fun after(ms: Long, work: () -> Unit): Runnable = Runnable { work() }.also { main.postDelayed(it, ms) }
   private fun cancel(timer: Runnable?) { if (timer != null) main.removeCallbacks(timer) }
   private fun tap(strong: Boolean = false) {
@@ -274,23 +272,15 @@ object Calls {
    *  up at the first failure: one more try, then the servers of the last call (the relay's password lasts 6
    *  hours), then the public address finder alone. */
   private fun iceServers(attempt: Int, done: (List<Map<String, Any?>>) -> Unit) {
-    val messenger = messenger ?: return done(fallbackIce)
+    val messenger = messenger ?: return done(CallRules.publicIce)
     messenger.callIceServers { servers ->
       if (servers != null) {
         lastIce = Pair(System.currentTimeMillis(), servers)
         return@callIceServers done(servers)
       }
       if (attempt == 0) { after(400) { iceServers(1, done) }; return@callIceServers }
-      done(iceChoice(null, lastIce, System.currentTimeMillis(), CallRules.iceReuse))
+      done(CallRules.iceChoice(null, lastIce, System.currentTimeMillis(), CallRules.iceReuse))
     }
-  }
-
-  /** The servers a call uses: the fresh ones; without them those of the last call while they may be used again;
-   *  else the public address finder alone. */
-  fun iceChoice(fresh: List<Map<String, Any?>>?, kept: Pair<Long, List<Map<String, Any?>>>?, nowMs: Long, reuseMs: Long): List<Map<String, Any?>> {
-    if (fresh != null) return fresh
-    if (kept != null && nowMs - kept.first < reuseMs) return kept.second
-    return fallbackIce
   }
 
   /** Our SDP, with economy voice on slow links: the other phone sends us less, and our own audio is capped. */
@@ -376,14 +366,6 @@ object Calls {
 
   // An incoming call
 
-  /** The name a step is remembered by, so that the same message is acted on once; null when it has none. */
-  fun stepKey(message: Map<String, Any?>): String? {
-    val id = (message["id"] as? Number)?.toLong()
-    if (id != null && id > 0) return "id:$id"
-    val clientId = message["clientId"] as? String ?: return null
-    return (message["senderId"] as? String ?: "") + ":" + clientId
-  }
-
   /** A decrypted message of the other side that carries a call's step. */
   private fun signalArrived(message: Map<String, Any?>) {
     val action = Core.map(Core.map(message["meta"])?.get("action")) ?: return
@@ -395,7 +377,7 @@ object Calls {
     val gen = (action["gen"] as? Number)?.toInt()
     val video = action["video"] as? Boolean ?: false
     // The line looks into a chat again after every reconnection: a step that was already acted on is not a new one.
-    stepKey(message)?.let { key ->
+    CallRules.stepKey(message)?.let { key ->
       if (!heardSteps.add(key)) return
       if (heardSteps.size > 400) heardSteps.remove(heardSteps.first())
     }

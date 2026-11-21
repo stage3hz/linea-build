@@ -2,13 +2,13 @@ import UIKit
 
 /// What the pages of the settings are made of: the page itself (its own header, a column that scrolls),
 /// a group of rows on a card, a row, a switch, a choice of several, a notice, a button, a field.
-/// The black look only, as the rest of the app for now.
+/// In the colours of the theme that is on (ThemeStore.swift).
 enum SettingsLook {
-    static let card = Theme.surface2
-    static let line = UIColor(white: 1, alpha: 0.08)
-    static let chip = UIColor(white: 1, alpha: 0.07)
-    static let dangerChip = UIColor(hex: 0xFF9CB0, alpha: 0.14)
-    static let pressed = UIColor(white: 1, alpha: 0.07)
+    static var card: UIColor { Theme.surface2 }
+    static var line: UIColor { Theme.veil(0.08) }
+    static var chip: UIColor { Theme.veil(0.07) }
+    static var dangerChip: UIColor { Theme.danger.withAlphaComponent(0.14) }
+    static var pressed: UIColor { Theme.veil(0.07) }
     static let switchOn = UIColor(hex: 0x5E7BFF)
 
     static func symbol(_ name: String, size: CGFloat, weight: UIImage.SymbolWeight = .regular) -> UIImage? {
@@ -624,7 +624,7 @@ final class SettingsField: UIView, UITextFieldDelegate {
         input.font = .systemFont(ofSize: 16)
         input.textColor = Theme.text
         input.tintColor = Theme.text
-        input.keyboardAppearance = .dark
+        input.keyboardAppearance = Theme.dark ? .dark : .light
         input.autocorrectionType = .no
         input.autocapitalizationType = .none
         input.spellCheckingType = .no
@@ -731,7 +731,7 @@ final class SettingsTextArea: UIView, UITextViewDelegate {
         area.font = .systemFont(ofSize: 16)
         area.textColor = Theme.text
         area.tintColor = Theme.text
-        area.keyboardAppearance = .dark
+        area.keyboardAppearance = Theme.dark ? .dark : .light
         area.isScrollEnabled = false
         area.textContainerInset = UIEdgeInsets(top: 13, left: 10, bottom: 13, right: 10)
         area.accessibilityLabel = placeholder

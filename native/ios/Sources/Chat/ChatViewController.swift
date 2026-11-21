@@ -87,6 +87,7 @@ final class ChatViewController: UIViewController {
         super.viewDidLoad()
         view.backgroundColor = Theme.bg
         list.setPalette(Theme.messages)
+        list.setFontSize(ThemeStore.textSize) // Settings: «Размер текста в чатах» (Settings/ThemeStore.swift)
         view.addSubview(list)
 
         header.backgroundColor = Theme.bg
