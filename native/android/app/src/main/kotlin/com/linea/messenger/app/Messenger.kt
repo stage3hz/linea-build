@@ -3,6 +3,7 @@ package com.linea.messenger.app
 import android.content.Context
 import android.os.Handler
 import android.os.Looper
+import com.linea.messenger.attachments.AttachmentRows
 import com.linea.messenger.auth.Account
 import com.linea.messenger.chats.AvatarStore
 import com.linea.messenger.core.Core
@@ -44,6 +45,8 @@ class Messenger(context: Context, token: String, val user: Map<String, Any?>) {
   fun watch(watcher: Watcher) { watchers.add(watcher) }
   fun unwatch(watcher: Watcher) { watchers.remove(watcher) }
   private fun tellChanged(chatId: String?) { for (watcher in watchers.toList()) watcher.changed(chatId) }
+  /** Attachments: this device itself changed a chat (a message with a file went out). Main thread only. */
+  fun noteChanged(chatId: String?) = tellChanged(chatId)
 
   /** The app is on the screen; the keys are published. The live line is open only when both are true. */
   private var front = true
@@ -188,6 +191,13 @@ class Messenger(context: Context, token: String, val user: Map<String, Any?>) {
     crypto.run({ crypto -> deliver(crypto, chatId, peerId, clientId, text, null, null) }, done)
   }
 
+  /** Attachments: sends a message that carries a file — already sealed, uploaded and described by the core
+   *  (attachments/ChatAttachments.kt). A failure is a `CryptoFailure`. */
+  fun send(chatId: String, peerId: String, text: String, attachment: Map<String, Any?>, done: (Result<Unit>) -> Unit) {
+    val clientId = UUID.randomUUID().toString().lowercase()
+    crypto.run({ crypto -> deliver(crypto, chatId, peerId, clientId, text, attachment, null) }, done)
+  }
+
   /** Messages that were encrypted and kept but never confirmed by the server (the app was closed, the network
    *  went away) go out again — each with the very ciphertext it was first given, so nothing is sent twice. */
   fun resendPending() {
@@ -281,7 +291,8 @@ class Messenger(context: Context, token: String, val user: Map<String, Any?>) {
      *  are the folded ones (`folded`): «изм. » stands before the time of an edited one, reactions are chips
      *  (triples [emoji, count, "1" if mine]); `layout` gives a text its formatting (the core's `nativeText`). */
     fun rows(messages: List<Map<String, Any?>>, userId: String, peerLastRead: Long, now: Instant, zone: ZoneId,
-             layout: (text: String, entities: Any?) -> Map<String, Any?>? = ::laidOut): List<Map<String, Any?>> {
+             layout: (text: String, entities: Any?) -> Map<String, Any?>? = ::laidOut,
+             attached: (message: Map<String, Any?>, key: String) -> Map<String, Any?> = AttachmentRows::fields): List<Map<String, Any?>> {
       val rows = ArrayList<Map<String, Any?>>()
       var day = ""
       messages.forEachIndexed { index, message ->
@@ -310,6 +321,8 @@ class Messenger(context: Context, token: String, val user: Map<String, Any?>) {
           "text" to body, "time" to ((if (message["edited"] == true) "изм. " else "") + (date?.let { clock(it, zone) } ?: "")), "chips" to chips,
           "ticks" to (if (mine) (if (peerLastRead >= id) 2 else 1) else 0), "tail" to (next?.get("senderId") as? String != sender),
         ))
+        // Attachments: a photo's small picture or a file's name and size (attachments/AttachmentOpen.kt).
+        if (Core.map(message["attachment"] as? Map<*, *>) != null) rows[rows.size - 1] = rows.last().let { row -> row + attached(message, row["key"] as String) }
       }
       return rows
     }

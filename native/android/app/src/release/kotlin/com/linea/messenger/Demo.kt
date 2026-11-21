@@ -17,6 +17,13 @@ object Demo {
   /** A release build is never pointed at a test server. */
   val testServer: String? get() = null
 
+  /** A release build's sign-in screen always opens at its first step, and has no made-up recovery request. */
+  val authMode: String? get() = null
+  const val authLogin = ""
+
+  /** A release build shows no made-up person in the settings. */
+  fun settingsPerson(): Map<String, Any?> = emptyMap()
+
   @Suppress("UNUSED_PARAMETER")
   fun start(intent: Intent?, launcher: Launcher): Boolean = false
 }

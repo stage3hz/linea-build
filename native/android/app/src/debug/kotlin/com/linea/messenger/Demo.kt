@@ -70,10 +70,29 @@ object Demo {
 
   private val local = Regex("^https://(10\\.0\\.2\\.2|localhost):[0-9]{1,5}$")
 
+  /** `--es authmode register|recover|waiting|reset` (with `--ez auth true`): the step the sign-in screen opens
+   *  at. `waiting` and `reset` show those two steps with a made-up request: no server is asked, nothing is kept. */
+  var authMode: String? = null
+    private set
+  /** The login of that made-up request. */
+  const val authLogin = "nativetester"
+
+  /** The person «Настройки» shows when there is no account behind the shell (`--ez demo true`). */
+  fun settingsPerson(): Map<String, Any?> = mapOf("displayName" to "Мария Орлова", "username" to "maria", "avatarColor" to "#9271C3")
+
+  /** `--es settings <page>`: opens «Настройки» and one of its pages as soon as the shell is on the screen (after
+   *  the sign-in of the same launch, when there is one). */
+  private fun openSettings(launcher: Launcher, page: String, tries: Int = 60) {
+    Handler(Looper.getMainLooper()).postDelayed({ if (!launcher.openSettings(page) && tries > 1) openSettings(launcher, page, tries - 1) }, 1000)
+  }
+
   /** What the emulator check asks for by launch arguments, as the iOS simulator check does. True when one of
    *  them decided the start.
    *    --es server https://10.0.2.2:8443           the local test server (kept for this launch only)
    *    --ez auth true                              the sign-in screen
+   *    --es authmode register|recover|waiting|reset    with auth: that step of the sign-in screen
+   *    --es settings root|profile|username|birthday|privacy|lastseen|security|password|confirmation|recovery|sessions|session|blocked|delete|about
+   *                                                «Настройки» and one of its pages, with an account (root and about: also with demo)
    *    --ez demo true                              the shell with sample chats (no account)
    *    --es tab profile / --ez sections true / --ez chat true    with demo: a section, the list of sections, the sample chat
    *    --es login … --es password … --es word …    signs in, to the test server given by `server` only
@@ -81,7 +100,9 @@ object Demo {
   fun start(intent: Intent?, launcher: Launcher): Boolean {
     if (intent == null) return false
     testServer = intent.getStringExtra("server")?.takeIf { local.matches(it) }
+    authMode = intent.getStringExtra("authmode")
     if (intent.getBooleanExtra("auth", false)) { launcher.showAuth(); return true }
+    intent.getStringExtra("settings")?.let { openSettings(launcher, it) }
     if (intent.getBooleanExtra("demo", false)) {
       val root = launcher.showDemo()
       if (intent.getBooleanExtra("chat", false)) launcher.openChat(ChatTarget("Алиса Воронцова"), animated = false)

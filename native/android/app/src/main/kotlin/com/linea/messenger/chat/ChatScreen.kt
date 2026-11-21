@@ -18,6 +18,8 @@ import com.linea.messenger.design.Glass
 import com.linea.messenger.design.GlassSource
 import com.linea.messenger.design.IconButton
 import com.linea.messenger.design.Theme
+import com.linea.messenger.people.PersonProfileScreen
+import com.linea.messenger.people.pages
 import com.linea.messenger.shell.Screen
 import java.time.Instant
 import java.time.ZoneId
@@ -71,6 +73,8 @@ class ChatScreen(
     heading.maxLines = 1
     heading.ellipsize = TextUtils.TruncateAt.END
     addView(heading)
+    // People: a tap on the name opens the person's profile.
+    heading.setOnClickListener { openProfile() }
 
     field.hint = "Сообщение"
     field.setHintTextColor(Theme.muted)
@@ -158,6 +162,12 @@ class ChatScreen(
     list.setPad(top + dp(48f) + dp(8f), height - composerTop + dp(8f))
     put(page, 0, 0, width, height)
     put(composer, dp(12f), composerTop, width - dp(24f), composerHeight)
+  }
+
+  /** People: the profile of the person of this chat (people/PersonProfileScreen.kt). */
+  fun openProfile() {
+    (context.getSystemService(Context.INPUT_METHOD_SERVICE) as? InputMethodManager)?.hideSoftInputFromWindow(windowToken, 0)
+    pages()?.push(PersonProfileScreen(context, messenger, peerId, heading.text.toString(), chatId = if (messenger == null) "demo" else chatId))
   }
 
   private fun leave() {

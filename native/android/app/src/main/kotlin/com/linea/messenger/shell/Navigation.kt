@@ -13,6 +13,8 @@ class Navigation(context: Context) : FrameLayout(context) {
   /** How many pages are in the stack now (1 = only the root). */
   var onDepthChange: (depth: Int) -> Unit = {}
   val depth: Int get() = stack.size
+  /** The page on top of the stack; null before the first one. */
+  val top: View? get() = stack.lastOrNull()
 
   private val stack = ArrayList<View>()
   private val curve = PathInterpolator(0.2f, 0f, 0f, 1f)

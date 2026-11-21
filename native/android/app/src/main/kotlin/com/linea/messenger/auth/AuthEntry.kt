@@ -88,7 +88,7 @@ class AuthEntry(context: Context, caption: String, placeholder: String, private 
     }
 
   /** Whether what is typed is behind dots now. */
-  val hidden: Boolean get() = field.transformationMethod is PasswordTransformationMethod
+  val hidden: Boolean get() = this.field.transformationMethod is PasswordTransformationMethod
 
   init {
     orientation = VERTICAL

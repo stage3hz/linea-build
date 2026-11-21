@@ -11,6 +11,8 @@ import com.linea.messenger.app.Messenger
 import com.linea.messenger.design.BarMetrics
 import com.linea.messenger.design.Theme
 import com.linea.messenger.net.Server
+import com.linea.messenger.people.RoundIconButton
+import com.linea.messenger.shell.RootScreen
 import com.linea.messenger.shell.Screen
 
 /** The first section: the list of chats. */
@@ -24,6 +26,8 @@ class ChatsScreen(
   private val heading = TextView(context)
   private val list = ChatListView(context)
   private val empty = TextView(context)
+  /** People: «Новый чат» opens the «Люди» section, as in the reference. */
+  private val newChat = RoundIconButton(context, "compose", RoundIconButton.Look.PRIMARY, 20f)
   private var summaries: List<Messenger.ChatSummary> = emptyList()
   private var demo: List<ChatRow> = emptyList()
   /** The page is in the window and not covered by another one. */
@@ -40,6 +44,9 @@ class ChatsScreen(
     heading.setTextColor(Theme.text)
     heading.includeFontPadding = false
     addView(heading)
+    newChat.contentDescription = "Новый чат"
+    newChat.setOnClickListener { openPeople() }
+    addView(newChat)
     empty.text = "Пока нет чатов"
     empty.textSize = 17f
     empty.setTextColor(Theme.muted)
@@ -93,6 +100,13 @@ class ChatsScreen(
     postDelayed(reloadSoon, 250)
   }
 
+  /** People: the shell this section stands in shows «Люди». */
+  private fun openPeople() {
+    var above = parent
+    while (above != null && above !is RootScreen) above = above.parent
+    (above as? RootScreen)?.show("people")
+  }
+
   /** Opens the first chat of the list (for a check on the emulator). */
   fun openFirst() {
     val chat = summaries.firstOrNull() ?: return
@@ -120,6 +134,7 @@ class ChatsScreen(
   override fun place(width: Int, height: Int) {
     val top = edges.top
     val headingHeight = putText(heading, dp(20f), top + dp(8f), width - dp(40f))
+    put(newChat, width - dp(20f) - dp(40f), top + dp(8f), dp(40f), dp(40f))
     val barRoom = dp(BarMetrics.bottomGap(edges.bottom / d) + BarMetrics.height + 12f)
     list.setPad(top + dp(8f) + headingHeight + dp(8f), barRoom)
     put(list, 0, 0, width, height)

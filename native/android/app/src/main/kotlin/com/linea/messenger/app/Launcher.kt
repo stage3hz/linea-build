@@ -17,4 +17,6 @@ interface Launcher {
   fun signIn(login: String, password: String, word: String)
   /** With an account: opens the first chat of the list. */
   fun openFirstChat()
+  /** «Настройки» and one of its pages (`root` — the section itself). False while the shell is not on the screen yet. */
+  fun openSettings(page: String): Boolean = false
 }

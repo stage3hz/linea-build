@@ -11,6 +11,8 @@ import com.linea.messenger.chats.ChatsScreen
 import com.linea.messenger.design.BarMetrics
 import com.linea.messenger.design.GlassSource
 import com.linea.messenger.design.Theme
+import com.linea.messenger.people.FriendRequests
+import com.linea.messenger.people.PeopleScreen
 import com.linea.messenger.settings.SettingsScreen
 
 /** The app's shell: the sections one over another, and the bar at the bottom that chooses between them.
@@ -22,7 +24,7 @@ class RootScreen(context: Context, private val messenger: Messenger?, private va
   private val sections = listOf(
     Section("chats", "Чаты", "chats") { ChatsScreen(it, messenger, openChat) },
     Section("ai", "AI", "sparkles") { PlaceholderScreen(it, "AI") },
-    Section("people", "Люди", "people") { PlaceholderScreen(it, "Люди") },
+    Section("people", "Люди", "people") { PeopleScreen(it, messenger) },
     Section("channels", "Каналы", "waves") { PlaceholderScreen(it, "Каналы") },
     Section("music", "Музыка", "headphones") { PlaceholderScreen(it, "Музыка") },
     Section("profile", "Настройки", "gear") { SettingsScreen(it) },
@@ -60,7 +62,28 @@ class RootScreen(context: Context, private val messenger: Messenger?, private va
     bar.onListChange = { onSectionsChange(it) }
     addView(bar)
     show("chats")
+    // People: the requests to be friends of this account (people/PeopleServer.kt).
+    FriendRequests.start(messenger)
   }
+
+  /** People: the number of requests to be friends on the row of «Люди». */
+  private val peopleBadge: (Unit) -> Unit = {
+    bar.setItems(sections.map { TabEntry(it.id, it.label, it.symbol, badge = if (it.id == "people") FriendRequests.incoming.size else 0) })
+  }
+
+  override fun onAttachedToWindow() {
+    super.onAttachedToWindow()
+    FriendRequests.changed.watch(peopleBadge)
+    peopleBadge(Unit)
+  }
+
+  override fun onDetachedFromWindow() {
+    FriendRequests.changed.unwatch(peopleBadge)
+    super.onDetachedFromWindow()
+  }
+
+  /** For the emulator check: the «Люди» section, once it has been opened. */
+  fun peoplePage(): PeopleScreen? = pages["people"] as? PeopleScreen
 
   override fun place(width: Int, height: Int) {
     put(stage, 0, 0, width, height)

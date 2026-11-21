@@ -1,0 +1,303 @@
+import UIKit
+
+/// The «Каналы» section: the person's game servers and blog channels with what is unread in them, a way to
+/// create one and a way to join one by an invite link. Reference: mobile/src/communities/CommunitiesScreen.tsx.
+final class ChannelsViewController: UIViewController, UITableViewDataSource, UITableViewDelegate {
+    private let messenger: Messenger?
+    private let heading = UILabel()
+    private let joinButton = UIButton(type: .system)
+    private let createButton = UIButton(type: .system)
+    private let table = UITableView(frame: .zero, style: .plain)
+    private let spinner = UIActivityIndicatorView(style: .medium)
+    private let notice = UIButton(type: .system)
+    private let emptyIcon = UIImageView()
+    private let emptyHeading = UILabel()
+    private let emptyWords = UILabel()
+    private let emptyButton = UIButton(type: .system)
+    private var sections: [(name: String, items: [CommunitySummary])] = []
+    private var loaded = false
+
+    init(messenger: Messenger? = nil) {
+        self.messenger = messenger
+        super.init(nibName: nil, bundle: nil)
+    }
+
+    required init?(coder: NSCoder) { return nil }
+
+    deinit { NotificationCenter.default.removeObserver(self) }
+
+    override func viewDidLoad() {
+        super.viewDidLoad()
+        view.backgroundColor = Theme.bg
+
+        table.backgroundColor = .clear
+        table.separatorStyle = .none
+        table.showsVerticalScrollIndicator = false
+        table.contentInsetAdjustmentBehavior = .never
+        table.rowHeight = 70
+        table.estimatedRowHeight = 0
+        table.sectionHeaderTopPadding = 0
+        table.register(CommunityCell.self, forCellReuseIdentifier: "community")
+        table.dataSource = self
+        table.delegate = self
+        view.addSubview(table)
+
+        heading.text = "Каналы"
+        heading.font = .systemFont(ofSize: 34, weight: .bold)
+        heading.textColor = Theme.text
+        heading.accessibilityTraits = .header
+        view.addSubview(heading)
+
+        joinButton.setImage(UIImage(systemName: "link", withConfiguration: UIImage.SymbolConfiguration(pointSize: 16, weight: .semibold)), for: .normal)
+        joinButton.tintColor = Theme.text
+        joinButton.backgroundColor = Theme.surface2
+        joinButton.layer.cornerRadius = 20
+        joinButton.accessibilityLabel = "Вступить по ссылке"
+        joinButton.addTarget(self, action: #selector(join), for: .touchUpInside)
+        view.addSubview(joinButton)
+        createButton.setImage(UIImage(systemName: "plus", withConfiguration: UIImage.SymbolConfiguration(pointSize: 17, weight: .semibold)), for: .normal)
+        createButton.tintColor = Theme.onAccent
+        createButton.backgroundColor = Theme.accent
+        createButton.layer.cornerRadius = 20
+        createButton.accessibilityLabel = "Создать"
+        createButton.addTarget(self, action: #selector(create), for: .touchUpInside)
+        view.addSubview(createButton)
+
+        spinner.color = Theme.muted
+        view.addSubview(spinner)
+        notice.titleLabel?.font = .systemFont(ofSize: 13)
+        notice.titleLabel?.numberOfLines = 0
+        notice.titleLabel?.textAlignment = .center
+        notice.setTitleColor(Theme.danger, for: .normal)
+        notice.isHidden = true
+        notice.addTarget(self, action: #selector(retry), for: .touchUpInside)
+        view.addSubview(notice)
+
+        emptyIcon.image = UIImage(systemName: "globe.europe.africa", withConfiguration: UIImage.SymbolConfiguration(pointSize: 40, weight: .regular))
+        emptyIcon.tintColor = Theme.subtle
+        emptyIcon.contentMode = .center
+        emptyHeading.text = "Свои места для своих"
+        emptyHeading.font = .systemFont(ofSize: 20, weight: .bold)
+        emptyHeading.textColor = Theme.text
+        emptyHeading.textAlignment = .center
+        emptyWords.text = "Создай игровой сервер с текстовыми и голосовыми каналами или стандартный канал — блог, новости, музыку, что угодно."
+        emptyWords.font = .systemFont(ofSize: 14)
+        emptyWords.textColor = Theme.muted
+        emptyWords.textAlignment = .center
+        emptyWords.numberOfLines = 0
+        emptyButton.setTitle("Создать", for: .normal)
+        emptyButton.setTitleColor(Theme.onAccent, for: .normal)
+        emptyButton.titleLabel?.font = .systemFont(ofSize: 15, weight: .semibold)
+        emptyButton.backgroundColor = Theme.accent
+        emptyButton.layer.cornerRadius = 22
+        emptyButton.addTarget(self, action: #selector(create), for: .touchUpInside)
+        for part in [emptyIcon, emptyHeading, emptyWords, emptyButton] as [UIView] {
+            part.isHidden = true
+            view.addSubview(part)
+        }
+
+        if messenger != nil {
+            NotificationCenter.default.addObserver(self, selector: #selector(storeChanged), name: ChannelsStore.changed, object: nil)
+            storeChanged()
+        } else {
+            #if targetEnvironment(simulator)
+            show(ChannelsDemo.summaries(), failure: "")
+            #else
+            show([], failure: "")
+            #endif
+        }
+    }
+
+    override func viewWillAppear(_ animated: Bool) {
+        super.viewWillAppear(animated)
+        // Coming back from a community: its last message and counters may have changed.
+        if loaded, messenger != nil { ChannelsStore.shared.reload() }
+    }
+
+    override func viewDidLayoutSubviews() {
+        super.viewDidLayoutSubviews()
+        let top = view.safeAreaInsets.top, width = view.bounds.width
+        heading.frame = CGRect(x: 20, y: top + 8, width: width - 40 - 100, height: 41)
+        createButton.frame = CGRect(x: width - 20 - 40, y: top + 8, width: 40, height: 40)
+        joinButton.frame = CGRect(x: width - 20 - 40 - 10 - 40, y: top + 8, width: 40, height: 40)
+        table.frame = view.bounds
+        let barRoom = BarMetrics.bottomGap(safeBottom: view.safeAreaInsets.bottom) + BarMetrics.height + 12
+        let insets = UIEdgeInsets(top: top + 8 + 41 + 8, left: 0, bottom: barRoom, right: 0)
+        if table.contentInset != insets {
+            table.contentInset = insets
+            table.contentOffset = CGPoint(x: 0, y: -insets.top)
+        }
+        spinner.center = CGPoint(x: width / 2, y: top + 140)
+        notice.frame = CGRect(x: 20, y: top + 62, width: width - 40, height: 44)
+        let middle = view.bounds.midY - 30
+        emptyIcon.frame = CGRect(x: 0, y: middle - 110, width: width, height: 50)
+        emptyHeading.frame = CGRect(x: 24, y: middle - 50, width: width - 48, height: 26)
+        let wordsHeight = ceil(emptyWords.sizeThatFits(CGSize(width: width - 64, height: 200)).height)
+        emptyWords.frame = CGRect(x: 32, y: middle - 16, width: width - 64, height: wordsHeight)
+        emptyButton.frame = CGRect(x: (width - 150) / 2, y: emptyWords.frame.maxY + 18, width: 150, height: 44)
+    }
+
+    // MARK: What is shown
+
+    @objc private func storeChanged() {
+        let store = ChannelsStore.shared
+        if let list = store.list {
+            show(list, failure: store.failure)
+        } else {
+            // Not read yet: waiting, or the reason it could not be read.
+            spinner.isHidden = !store.failure.isEmpty
+            if store.failure.isEmpty { spinner.startAnimating() } else { spinner.stopAnimating() }
+            showNotice(store.failure)
+        }
+    }
+
+    private func showNotice(_ words: String) {
+        notice.setTitle(words.isEmpty ? "" : words + "\nКоснись, чтобы повторить.", for: .normal)
+        notice.isHidden = words.isEmpty
+    }
+
+    private func show(_ list: [CommunitySummary], failure: String) {
+        loaded = true
+        spinner.stopAnimating()
+        showNotice(failure)
+        let servers = list.filter { !$0.blog }, blogs = list.filter { $0.blog }
+        var found: [(name: String, items: [CommunitySummary])] = []
+        if !servers.isEmpty { found.append((name: "Игровые серверы", items: servers)) }
+        if !blogs.isEmpty { found.append((name: "Каналы", items: blogs)) }
+        sections = found
+        table.reloadData()
+        let empty = list.isEmpty && failure.isEmpty
+        for part in [emptyIcon, emptyHeading, emptyWords, emptyButton] as [UIView] { part.isHidden = !empty }
+    }
+
+    @objc private func retry() {
+        showNotice("")
+        spinner.isHidden = false
+        spinner.startAnimating()
+        ChannelsStore.shared.reload()
+    }
+
+    // MARK: Create, join, open
+
+    @objc private func create() {
+        guard let messenger else { return }
+        navigationController?.pushViewController(CommunityKindPage(messenger: messenger), animated: true)
+    }
+
+    @objc private func join() {
+        guard let messenger else { return }
+        navigationController?.pushViewController(CommunityJoinPage(messenger: messenger), animated: true)
+    }
+
+    private func open(_ community: CommunitySummary, animated: Bool = true) {
+        navigationController?.pushViewController(CommunityViewController(messenger: messenger, communityId: community.id, known: community), animated: animated)
+    }
+
+    #if targetEnvironment(simulator)
+    /// For the simulator check: opens the first community of the list (a server when there is one).
+    func openFirst() -> CommunityViewController? {
+        guard let first = sections.first?.items.first else { return nil }
+        let screen = CommunityViewController(messenger: messenger, communityId: first.id, known: first)
+        navigationController?.pushViewController(screen, animated: false)
+        return screen
+    }
+    #endif
+
+    // MARK: The table
+
+    func numberOfSections(in tableView: UITableView) -> Int { return sections.count }
+
+    func tableView(_ tableView: UITableView, numberOfRowsInSection section: Int) -> Int { return sections[section].items.count }
+
+    func tableView(_ tableView: UITableView, heightForHeaderInSection section: Int) -> CGFloat { return 34 }
+
+    func tableView(_ tableView: UITableView, viewForHeaderInSection section: Int) -> UIView? {
+        let box = UIView()
+        box.backgroundColor = Theme.bg
+        let label = UILabel(frame: CGRect(x: 20, y: 10, width: tableView.bounds.width - 40, height: 18))
+        label.attributedText = NSAttributedString(string: sections[section].name.uppercased(), attributes: [.kern: 1.2, .font: UIFont.systemFont(ofSize: 11, weight: .bold), .foregroundColor: Theme.muted])
+        label.accessibilityTraits = .header
+        box.addSubview(label)
+        return box
+    }
+
+    func tableView(_ tableView: UITableView, cellForRowAt indexPath: IndexPath) -> UITableViewCell {
+        let cell = tableView.dequeueReusableCell(withIdentifier: "community", for: indexPath)
+        if let row = cell as? CommunityCell {
+            let community = sections[indexPath.section].items[indexPath.row]
+            // Without an account (the simulator's samples) the counters are the summaries' own.
+            let counts = messenger == nil ? ChannelsStore.Counts(unread: community.unread, mentions: community.mentions, muted: community.muted, communityId: community.id)
+                : ChannelsStore.shared.counts(community: community.id)
+            row.show(community, counts: counts)
+        }
+        return cell
+    }
+
+    func tableView(_ tableView: UITableView, didSelectRowAt indexPath: IndexPath) {
+        tableView.deselectRow(at: indexPath, animated: true)
+        open(sections[indexPath.section].items[indexPath.row])
+    }
+}
+
+/// A community in the list: its picture, its name with the counters, the newest words.
+final class CommunityCell: UITableViewCell {
+    private let avatar = CommunityAvatarView()
+    private let name = UILabel()
+    private let words = UILabel()
+    private let quiet = UIImageView()
+    private let mentions = ChannelBadgeLabel()
+    private let unread = ChannelBadgeLabel()
+
+    override init(style: UITableViewCell.CellStyle, reuseIdentifier: String?) {
+        super.init(style: style, reuseIdentifier: reuseIdentifier)
+        backgroundColor = .clear
+        contentView.backgroundColor = .clear
+        let pressed = UIView()
+        pressed.backgroundColor = UIColor(white: 1, alpha: 0.07)
+        selectedBackgroundView = pressed
+        name.font = .systemFont(ofSize: 16, weight: .semibold)
+        name.textColor = Theme.text
+        words.font = .systemFont(ofSize: 14)
+        words.textColor = Theme.muted
+        quiet.image = UIImage(systemName: "speaker.slash.fill", withConfiguration: UIImage.SymbolConfiguration(pointSize: 11, weight: .regular))
+        quiet.tintColor = Theme.subtle
+        quiet.contentMode = .center
+        for part in [avatar, name, words, quiet, mentions, unread] as [UIView] { contentView.addSubview(part) }
+    }
+
+    required init?(coder: NSCoder) { return nil }
+
+    func show(_ community: CommunitySummary, counts: ChannelsStore.Counts) {
+        avatar.show(community)
+        name.text = community.name
+        let last = community.lastText.replacingOccurrences(of: "\n", with: " ")
+        words.text = !last.isEmpty ? last : (!community.about.isEmpty ? community.about : community.countWords)
+        quiet.isHidden = !(counts.muted && counts.unread == 0)
+        mentions.show(counts.mentions > 0 ? "@" : "", spoken: "упоминаний: \(counts.mentions)")
+        unread.show(ChannelWords.badge(counts.unread), quiet: counts.muted, spoken: "непрочитанных: \(counts.unread)")
+        accessibilityLabel = community.name
+        setNeedsLayout()
+    }
+
+    override func layoutSubviews() {
+        super.layoutSubviews()
+        let width = contentView.bounds.width
+        avatar.frame = CGRect(x: 20, y: 8, width: 54, height: 54)
+        var right = width - 20
+        if !unread.isHidden {
+            let wide = unread.wide
+            unread.frame = CGRect(x: right - wide, y: 15, width: wide, height: 20)
+            right -= wide + 4
+        }
+        if !mentions.isHidden {
+            mentions.frame = CGRect(x: right - 20, y: 15, width: 20, height: 20)
+            right -= 24
+        }
+        if !quiet.isHidden {
+            quiet.frame = CGRect(x: right - 18, y: 15, width: 18, height: 20)
+            right -= 22
+        }
+        name.frame = CGRect(x: 86, y: 13, width: max(0, right - 86 - 4), height: 22)
+        words.frame = CGRect(x: 86, y: 37, width: max(0, width - 86 - 20), height: 20)
+    }
+}
