@@ -2,8 +2,8 @@
 # Payload/Invizent.app inside an .ipa — for installing with the owner's own signing tool. Runs only for the
 # branch `native-ipa`. The file and a check of what is inside go to the branch native-ipa-output.
 #
-# The test build has its own identifier (com.invizent.app.native): it installs BESIDE the current app and
-# cannot touch its keys or history. Nothing here talks to any server.
+# The build carries the previous app's identifier (com.invizent.app), as the owner decided: it installs OVER the
+# current app and keeps its keys and history (the storage is the same). Nothing here talks to any server.
 name: Native iOS unsigned IPA
 on:
   push:
@@ -45,7 +45,7 @@ jobs:
           echo "== app"
           xcodebuild -project Invizent.xcodeproj -scheme Invizent -configuration Release -sdk iphoneos \
             -destination 'generic/platform=iOS' -derivedDataPath build/dd ARCHS=arm64 ONLY_ACTIVE_ARCH=NO \
-            PRODUCT_BUNDLE_IDENTIFIER=com.invizent.app.native \
+            PRODUCT_BUNDLE_IDENTIFIER=com.invizent.app \
             CODE_SIGNING_ALLOWED=NO CODE_SIGNING_REQUIRED=NO CODE_SIGN_IDENTITY="" CODE_SIGN_ENTITLEMENTS="" \
             build > "$OUT/xcodebuild.log" 2>&1 || { grep -E "error|ld: " "$OUT/xcodebuild.log" | head -60; tail -40 "$OUT/xcodebuild.log"; exit 1; }
           APP="$PWD/build/dd/Build/Products/Release-iphoneos/Invizent.app"
