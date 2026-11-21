@@ -151,6 +151,7 @@ final class DataViewController: SettingsPage {
         fill()
         DispatchQueue.global(qos: .utility).async { [weak self] in
             DecryptedFiles.sweep()
+            KeptMedia.wipe() // Video: and the films kept for watching without the network (the reference clears them too)
             DispatchQueue.main.async {
                 guard let self else { return }
                 self.clearing = false

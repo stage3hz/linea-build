@@ -18,6 +18,8 @@ data class Person(
   val avatarColor: Int,
   /** Empty when there is no picture (or the person does not show it to this account). */
   val avatarId: String,
+  /** Avatars: the person's decorations (frame, banner, status, Platina…; avatars/AvatarLook.kt). */
+  val look: com.linea.messenger.avatars.PersonLook = com.linea.messenger.avatars.PersonLook(),
 ) {
   /** The birthday as the reference shows it (birthday.ts `formatBirthday`): «2 мар» or «2 мар 1999». */
   val birthdayWords: String
@@ -48,6 +50,7 @@ data class Person(
       return Person(
         id, fields["username"] as? String ?: "", fields["displayName"] as? String ?: "", fields["bio"] as? String ?: "",
         fields["birthday"] as? String ?: "", Messenger.color(fields["avatarColor"] as? String), fields["avatarId"] as? String ?: "",
+        com.linea.messenger.avatars.PersonLook.from(fields), // Avatars
       )
     }
 

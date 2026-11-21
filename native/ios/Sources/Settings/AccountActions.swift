@@ -58,6 +58,7 @@ extension Messenger {
         Account.cachedUser = nil
         server.token = nil
         ChatAvatarStore.shared.headers = [:]
+        KeptMedia.wipe() // Video: films kept for watching without the network go with the account (as the reference's cache)
         return gone
     }
 

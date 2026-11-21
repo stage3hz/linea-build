@@ -14,7 +14,7 @@ enum KeptMedia {
     }
 
     /// The reference's `mediaKey`: the file's id and its key id, hashed into a safe folder name.
-    private static func folder(_ attachment: [String: Any]) -> URL? {
+    private static func place(_ attachment: [String: Any]) -> URL? {
         guard let id = attachment["id"] as? String, !id.isEmpty, let root else { return nil }
         let keyId = (attachment["encryption"] as? [String: Any])?["fileKeyId"] as? String ?? ""
         let digest = SHA256.hash(data: Data((id + ":" + keyId).utf8)).map { String(format: "%02x", $0) }.joined()
@@ -23,7 +23,7 @@ enum KeptMedia {
 
     /// The kept file of an attachment, if there is one.
     static func file(for attachment: [String: Any]) -> URL? {
-        guard let folder = folder(attachment) else { return nil }
+        guard let folder = place(attachment) else { return nil }
         let names = (try? FileManager.default.contentsOfDirectory(atPath: folder.path)) ?? []
         guard let name = names.first(where: { !$0.hasPrefix(".") }) else { return nil }
         return folder.appendingPathComponent(name)
@@ -33,7 +33,7 @@ enum KeptMedia {
 
     /// Copies the decrypted file in (from the player's temporary copy). Runs on any queue.
     static func keep(_ source: URL, for attachment: [String: Any]) -> Bool {
-        guard let root, var folder = folder(attachment) else { return false }
+        guard let root, var folder = place(attachment) else { return false }
         let manager = FileManager.default
         do {
             try manager.createDirectory(at: root, withIntermediateDirectories: true, attributes: [.protectionKey: FileProtectionType.complete])
@@ -55,7 +55,7 @@ enum KeptMedia {
     }
 
     static func remove(for attachment: [String: Any]) {
-        guard let folder = folder(attachment) else { return }
+        guard let folder = place(attachment) else { return }
         try? FileManager.default.removeItem(at: folder)
     }
 
@@ -202,7 +202,7 @@ final class VideoPlayerController: UIViewController, AVPictureInPictureControlle
     private var frameWanted: Double?
     private var framesOff = false
     private lazy var generator: AVAssetImageGenerator = {
-        let made = AVAssetImageGenerator(asset: AVURLAsset(url: file))
+        let made = AVAssetImageGenerator(asset: AVURLAsset(url: self.file))
         made.appliesPreferredTrackTransform = true
         made.maximumSize = CGSize(width: 320, height: 320)
         made.requestedTimeToleranceBefore = CMTime(seconds: 0.5, preferredTimescale: 600)
@@ -274,7 +274,8 @@ final class VideoPlayerController: UIViewController, AVPictureInPictureControlle
         view.addSubview(surface)
         player.actionAtItemEnd = .pause
         try? AVAudioSession.sharedInstance().setCategory(.playback, mode: .moviePlayback, options: [])
-        if AVPictureInPictureController.isPictureInPictureSupported(), let made = AVPictureInPictureController(playerLayer: surface.playerLayer) {
+        let possible: AVPictureInPictureController? = AVPictureInPictureController.isPictureInPictureSupported() ? AVPictureInPictureController(playerLayer: surface.playerLayer) : nil
+        if let made = possible {
             made.canStartPictureInPictureAutomaticallyFromInline = true
             made.delegate = self
             pip = made
@@ -290,7 +291,6 @@ final class VideoPlayerController: UIViewController, AVPictureInPictureControlle
         hold.minimumPressDuration = PlayerModel.hold
         hold.allowableMovement = 24
         touchSurface.addGestureRecognizer(hold)
-        tap.require(toFail: hold)
         view.addSubview(seekSide)
         seekSide.isUserInteractionEnabled = false
         seekSide.isHidden = true
@@ -608,8 +608,18 @@ final class VideoPlayerController: UIViewController, AVPictureInPictureControlle
         pip.startPictureInPicture()
     }
 
-    func pictureInPictureControllerDidStartPictureInPicture(_ pictureInPictureController: AVPictureInPictureController) { inPip = true }
-    func pictureInPictureControllerDidStopPictureInPicture(_ pictureInPictureController: AVPictureInPictureController) { inPip = false }
+    /// Kept alive while the small window shows the film after the player itself was closed.
+    private static var playingInWindow: VideoPlayerController?
+
+    func pictureInPictureControllerDidStartPictureInPicture(_ pictureInPictureController: AVPictureInPictureController) {
+        inPip = true
+        VideoPlayerController.playingInWindow = self
+    }
+    func pictureInPictureControllerDidStopPictureInPicture(_ pictureInPictureController: AVPictureInPictureController) {
+        inPip = false
+        if presentingViewController == nil { cleanUp() }
+        VideoPlayerController.playingInWindow = nil
+    }
     func pictureInPictureController(_ pictureInPictureController: AVPictureInPictureController, failedToStartPictureInPictureWithError error: Error) {
         inPip = false
         say("Окно не открылось")
@@ -905,26 +915,21 @@ final class VideoPlayerController: UIViewController, AVPictureInPictureControlle
     private func toggleKeep() {
         guard let attachment, !keepBusy else { return }
         let kept = KeptMedia.isKept(attachment) && !forgetKept
+        // Playing the kept file itself: it is not touched while it plays — it goes (or stays) once the player closes.
+        if folder == nil {
+            forgetKept = kept
+            closeSheet(then: nil)
+            say(kept ? "Убрано из сохранённых" : "Сохранено")
+            return
+        }
         keepBusy = true
         let source = file
         DispatchQueue.global(qos: .userInitiated).async { [weak self] in
-            var now = kept
-            if kept {
-                if self?.folder == nil {
-                    // Playing the kept file itself: it goes once the player is closed.
-                    now = false
-                } else {
-                    KeptMedia.remove(for: attachment)
-                    now = false
-                }
-            } else {
-                now = KeptMedia.keep(source, for: attachment)
-            }
+            var now = false
+            if kept { KeptMedia.remove(for: attachment) } else { now = KeptMedia.keep(source, for: attachment) }
             DispatchQueue.main.async {
                 guard let self else { return }
                 self.keepBusy = false
-                if kept && self.folder == nil { self.forgetKept = true }
-                if !kept && now { self.forgetKept = false }
                 self.closeSheet(then: nil)
                 self.say(now ? "Сохранено" : "Убрано из сохранённых")
             }
@@ -932,9 +937,9 @@ final class VideoPlayerController: UIViewController, AVPictureInPictureControlle
     }
 
     private func share() {
-        let sheet = UIActivityViewController(activityItems: [file], applicationActivities: nil)
-        sheet.popoverPresentationController?.sourceView = gearButton
-        present(sheet, animated: true)
+        let activity = UIActivityViewController(activityItems: [file], applicationActivities: nil)
+        activity.popoverPresentationController?.sourceView = gearButton
+        present(activity, animated: true)
     }
 
     // MARK: Closing
@@ -944,6 +949,11 @@ final class VideoPlayerController: UIViewController, AVPictureInPictureControlle
         guard isBeingDismissed || presentingViewController == nil else { return }
         // Picture in picture may still be showing the film: then it is left to finish there.
         if inPip { return }
+        cleanUp()
+    }
+
+    /// The decrypted copy goes once nothing shows it any more.
+    private func cleanUp() {
         player.pause()
         if let folder { try? FileManager.default.removeItem(at: folder) }
         if forgetKept, let attachment { KeptMedia.remove(for: attachment) }
@@ -986,7 +996,7 @@ final class VideoPlayerController: UIViewController, AVPictureInPictureControlle
         noteLabel.frame = noteBox.bounds.insetBy(dx: 14, dy: 8)
         if dragging { placeTooltip() }
         sheetDim.frame = bounds
-        let rowsHeight = sheetRows.systemLayoutSizeFitting(CGSize(width: bounds.width - 16, height: UIView.layoutFittingCompressedSize.height)).height
+        let rowsHeight = CGFloat(sheetRows.arrangedSubviews.count) * 50
         let sheetHeight = min(max(160, bounds.height - safe.top - 24), 8 + 14 + rowsHeight + safe.bottom + 8)
         sheet.bounds = CGRect(x: 0, y: 0, width: bounds.width - 16 - safe.left - safe.right, height: sheetHeight)
         sheet.center = CGPoint(x: bounds.midX, y: bounds.height - 8 - sheetHeight / 2)

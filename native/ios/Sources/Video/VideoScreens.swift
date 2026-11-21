@@ -103,6 +103,12 @@ final class MediaOpenController: UIViewController, QLPreviewControllerDataSource
         stop.addTarget(self, action: #selector(stopNow), for: .touchUpInside)
         card.addSubview(stop)
 
+        // Video: a film kept for watching without the network opens from the device, nothing is downloaded.
+        if video, let kept = KeptMedia.file(for: attachment) {
+            keptFile = kept
+            progress.text = ""
+            return
+        }
         let size = (attachment["size"] as? NSNumber)?.intValue ?? 0
         let whole = FileCore.sizeText(size)
         fetch.start(server: server, attachment: attachment, progress: { [weak self] (part: Double) -> Void in
@@ -114,6 +120,20 @@ final class MediaOpenController: UIViewController, QLPreviewControllerDataSource
             }
             self.finished(result)
         })
+    }
+
+    /// Video: the kept copy to play (see `KeptMedia`), set when nothing has to be brought.
+    private var keptFile: URL?
+
+    override func viewDidAppear(_ animated: Bool) {
+        super.viewDidAppear(animated)
+        guard let kept = keptFile else { return }
+        keptFile = nil
+        let host = presenter
+        let attachment = self.attachment
+        dismiss(animated: false) {
+            host?.present(VideoPlayerController(file: kept, folder: nil, attachment: attachment), animated: true)
+        }
     }
 
     override func viewDidLayoutSubviews() {
@@ -147,11 +167,9 @@ final class MediaOpenController: UIViewController, QLPreviewControllerDataSource
                     return
                 }
                 if video {
-                    let screen = PlayerScreen()
-                    screen.player = AVPlayer(url: brought.file)
-                    screen.onGone = { try? FileManager.default.removeItem(at: brought.folder) }
-                    try? AVAudioSession.sharedInstance().setCategory(.playback, mode: .moviePlayback, options: [])
-                    host.present(screen, animated: true) { screen.player?.play() }
+                    // Video: the reference's own player (Sources/Video/VideoPlayer.swift) — screen lock, keeping for
+                    // watching without the network, its own sheet. It removes the decrypted copy when it closes.
+                    host.present(VideoPlayerController(file: brought.file, folder: brought.folder, attachment: attachment), animated: true)
                 } else {
                     let preview = QLPreviewController()
                     preview.dataSource = self

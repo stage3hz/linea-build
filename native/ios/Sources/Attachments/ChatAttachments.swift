@@ -537,6 +537,15 @@ final class ChatAttachments: NSObject, PHPickerViewControllerDelegate, UIDocumen
             }
             return
         }
+        // Video: -videodemo player|sheet|speed|locked|seek opens the reference's own player over a drawn sample film.
+        if !simulatorOpened, let state = UserDefaults.standard.string(forKey: "videodemo") {
+            simulatorOpened = true
+            DispatchQueue.main.asyncAfter(deadline: .now() + 1) { [weak self] in
+                guard let host = self?.host else { return }
+                VideoPlayerController.simulatorOpen(over: host, state: state)
+            }
+            return
+        }
         // Composer: -attachdemo panel|panellimited|paneldenied|panelselected opens the paperclip's panel with drawn tiles.
         if !simulatorOpened, let demo = UserDefaults.standard.string(forKey: "attachdemo"), demo.hasPrefix("panel") {
             simulatorOpened = true
