@@ -116,6 +116,18 @@ open class GlassPill(context: Context, source: GlassSource?) : FrameLayout(conte
 
   init { setWillNotDraw(false); clipChildren = true }
 
+  /** The owner places the children itself (the pill only draws the glass under them). */
+  var placesChildren = false
+
+  override fun onMeasure(widthMeasureSpec: Int, heightMeasureSpec: Int) {
+    if (placesChildren) super.onMeasure(widthMeasureSpec, heightMeasureSpec)
+    else setMeasuredDimension(MeasureSpec.getSize(widthMeasureSpec), MeasureSpec.getSize(heightMeasureSpec))
+  }
+
+  override fun onLayout(changed: Boolean, left: Int, top: Int, right: Int, bottom: Int) {
+    if (placesChildren) super.onLayout(changed, left, top, right, bottom)
+  }
+
   override fun onDraw(canvas: Canvas) {
     val r = if (radius < 0) height / 2f else radius
     glass.draw(canvas, 0f, 0f, width.toFloat(), height.toFloat(), r)

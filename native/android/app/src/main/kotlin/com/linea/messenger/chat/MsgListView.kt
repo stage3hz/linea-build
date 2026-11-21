@@ -66,6 +66,9 @@ class MsgListView(context: Context) : FrameLayout(context) {
       view.bind(rows[position], palette, fontSize, revealed.contains(rows[position].key))
       view.flash = flashKey.isNotEmpty() && rows[position].key == flashKey
       view.mediaState = mediaState?.takeIf { it.key == rows[position].key }
+      // ChatLook: a reused row stands straight unless it is the one being swiped; a new message slides in.
+      if (swipe?.movingKey != rows[position].key && view.translationX != 0f) view.translationX = 0f
+      arrivals.play(view, rows[position].key, rows[position].media == "note")
       return view
     }
   }
@@ -116,6 +119,50 @@ class MsgListView(context: Context) : FrameLayout(context) {
 
   init { addView(list, LayoutParams(LayoutParams.MATCH_PARENT, LayoutParams.MATCH_PARENT)) }
 
+  // ChatLook: a swipe to the left answers a message; new messages slide in (chatlook/MsgMotion.kt).
+  private val arrivals = com.linea.messenger.chatlook.MsgArrivals()
+  private var swipe: com.linea.messenger.chatlook.MsgSwipeReply? = null
+
+  /** ChatLook: the swipe to answer, with what can be answered and what answering does. */
+  fun swipeReply(canReply: (String) -> Boolean, onReply: (String) -> Unit) {
+    val made = swipe ?: com.linea.messenger.chatlook.MsgSwipeReply(this).also { swipe = it }
+    made.canReply = { key -> rows.firstOrNull { it.key == key }?.let { it.kind == 0 && it.checked < 0 } == true && canReply(key) }
+    made.onReply = onReply
+    made.rowAt = { x, y -> rowAt(x, y) }
+  }
+
+  /** ChatLook: the row under a point of this view and its view. */
+  private fun rowAt(x: Float, y: Float): Pair<String, View>? {
+    val position = list.pointToPosition(x.toInt(), y.toInt())
+    if (position == AbsListView.INVALID_POSITION) return null
+    val row = rows.getOrNull(position) ?: return null
+    val view = list.getChildAt(position - list.firstVisiblePosition) ?: return null
+    return Pair(row.key, view)
+  }
+
+  override fun onInterceptTouchEvent(event: MotionEvent): Boolean = swipe?.intercept(event) == true || super.onInterceptTouchEvent(event)
+
+  @SuppressLint("ClickableViewAccessibility")
+  override fun onTouchEvent(event: MotionEvent): Boolean = swipe?.touch(event) == true || super.onTouchEvent(event)
+
+  /** ChatLook: the colours and the look (bubbles or the open look) changed: every row is laid out again. */
+  fun setLook(next: MsgPalette) { palette = next; adapter.notifyDataSetChanged() }
+
+  /** ChatLook: the emulator check — the view of the newest row of the other side on screen, its key. */
+  fun demoTheirs(): Pair<String, View>? {
+    for (index in list.childCount - 1 downTo 0) {
+      val row = rows.getOrNull(list.firstVisiblePosition + index) ?: continue
+      if (row.kind == 0 && !row.mine) return Pair(row.key, list.getChildAt(index))
+    }
+    return null
+  }
+
+  /** ChatLook: the emulator check — a row held half-way in the swipe. */
+  fun demoSwipe(view: View) { swipe?.demo(view) }
+
+  /** ChatLook: the emulator check — this row slides in when it is drawn. */
+  fun markFresh(key: String) { arrivals.markFresh(key) }
+
   fun setRows(next: List<MsgRow>) {
     if (next == rows) return
     // Older rows put in front: the row that was first on screen stays where it is.
@@ -124,6 +171,7 @@ class MsgListView(context: Context) : FrameLayout(context) {
     val prepended = rows.isNotEmpty() && next.size > rows.size && next.firstOrNull()?.key != rows.firstOrNull()?.key && next.lastOrNull()?.key == rows.lastOrNull()?.key
     // A message of your own takes the list to its end, wherever it was scrolled to.
     val ownNew = rows.isNotEmpty() && next.lastOrNull()?.let { it.mine && it.key != rows.lastOrNull()?.key } == true
+    arrivals.take(next) // ChatLook: which rows are new and slide in
     rows = next; adapter.notifyDataSetChanged()
     if (ownNew) list.post { list.setSelection(next.size - 1) }
     if (prepended && anchor != null) { val index = next.indexOfFirst { it.key == anchor }; if (index >= 0) list.setSelectionFromTop(index, top - list.paddingTop) }

@@ -11,7 +11,7 @@ object SettingsIcons {
   private val stroke = Paint(Paint.ANTI_ALIAS_FLAG).apply { style = Paint.Style.STROKE; strokeCap = Paint.Cap.ROUND; strokeJoin = Paint.Join.ROUND }
   private val path = Path()
   private val box = RectF()
-  private val own = setOf("bell", "drive", "cloud", "moon", "sun")
+  private val own = setOf("bell", "drive", "cloud", "moon", "sun", "battery", "video", "photo", "smile", "sparkles", "wand", "passcode") // Effects / Security: the last seven
 
   fun adds(name: String): Boolean = name in own
 
@@ -55,6 +55,40 @@ object SettingsIcons {
           canvas.drawLine(12f, 2.8f, 12f, 5f, stroke)
           canvas.restore()
         }
+      }
+      // Effects: «Энергосбережение и анимации» and its rows; Security: «Код-пароль».
+      "battery" -> {
+        canvas.drawRoundRect(3f, 7.5f, 19f, 16.5f, 2.4f, 2.4f, stroke)
+        canvas.drawLine(21f, 10.6f, 21f, 13.4f, stroke)
+        canvas.drawLine(6.2f, 10.6f, 6.2f, 13.4f, stroke); canvas.drawLine(9.4f, 10.6f, 9.4f, 13.4f, stroke)
+      }
+      "video" -> {
+        canvas.drawRoundRect(3f, 6.5f, 15.5f, 17.5f, 2.6f, 2.6f, stroke)
+        path.moveTo(15.5f, 10.4f); path.lineTo(21f, 7.4f); path.lineTo(21f, 16.6f); path.lineTo(15.5f, 13.6f); canvas.drawPath(path, stroke)
+      }
+      "photo" -> {
+        canvas.drawRoundRect(3.5f, 5f, 20.5f, 19f, 2.6f, 2.6f, stroke)
+        path.moveTo(3.8f, 16.4f); path.lineTo(9f, 11.4f); path.lineTo(13f, 15.2f); path.lineTo(15.6f, 12.8f); path.lineTo(20.2f, 16.8f); canvas.drawPath(path, stroke)
+        canvas.drawCircle(15.8f, 8.8f, 1.4f, stroke)
+      }
+      "smile" -> {
+        canvas.drawCircle(12f, 12f, 8.6f, stroke)
+        box.set(8f, 9.6f, 16f, 16.4f); canvas.drawArc(box, 20f, 140f, false, stroke)
+        canvas.drawLine(9.3f, 9.6f, 9.3f, 10.2f, stroke); canvas.drawLine(14.7f, 9.6f, 14.7f, 10.2f, stroke)
+      }
+      "sparkles" -> {
+        path.moveTo(10f, 4f); path.quadTo(10.8f, 9.2f, 16f, 10f); path.quadTo(10.8f, 10.8f, 10f, 16f); path.quadTo(9.2f, 10.8f, 4f, 10f); path.quadTo(9.2f, 9.2f, 10f, 4f)
+        canvas.drawPath(path, stroke)
+        canvas.drawLine(18f, 14.6f, 18f, 19.4f, stroke); canvas.drawLine(15.6f, 17f, 20.4f, 17f, stroke)
+      }
+      "wand" -> {
+        canvas.drawLine(4.4f, 19.6f, 15.2f, 8.8f, stroke)
+        canvas.drawLine(17.4f, 3.6f, 17.4f, 7.2f, stroke); canvas.drawLine(15.6f, 5.4f, 19.2f, 5.4f, stroke)
+        canvas.drawLine(20.2f, 10.2f, 20.2f, 12.2f, stroke); canvas.drawLine(19.2f, 11.2f, 21.2f, 11.2f, stroke)
+      }
+      "passcode" -> {
+        canvas.drawRoundRect(3f, 7f, 21f, 17f, 3f, 3f, stroke)
+        for (x in floatArrayOf(7.5f, 12f, 16.5f)) canvas.drawCircle(x, 12f, 0.9f, stroke)
       }
     }
     canvas.restore()

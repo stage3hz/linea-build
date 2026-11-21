@@ -19,7 +19,7 @@ jobs:
       matrix:
         runner: [macos-15-intel, macos-26]
     runs-on: ${{ matrix.runner }}
-    timeout-minutes: 100
+    timeout-minutes: 200
     steps:
       - uses: actions/checkout@v4
       - name: Build, launch and photograph
@@ -65,7 +65,7 @@ jobs:
             local name="$1"; shift
             limit 60 xcrun simctl terminate "$UDID" com.invizent.app >/dev/null 2>&1 || true
             limit 120 xcrun simctl launch "$UDID" com.invizent.app "$@"
-            sleep 12
+            sleep "${SHOT_WAIT:-8}"
             # The simulator sometimes stalls on a screenshot: one more try, then go on without that picture.
             limit 60 xcrun simctl io "$UDID" screenshot "$OUT/$name.png" || { sleep 5; limit 90 xcrun simctl io "$UDID" screenshot "$OUT/$name.png"; } || echo "no picture: $name"
           }
@@ -270,7 +270,7 @@ jobs:
           shot 109-gifts -profiledemo gifts
           shot 110-platina-showcase -profiledemo showcase
           shot 111-platina-studio -profiledemo studio
-          shot 112-platina-confetti -profiledemo confetti
+          SHOT_WAIT=12 shot 112-platina-confetti -profiledemo confetti
           shot 113-settings-offer -profiledemo offer
           shot 114-settings-head -demo 1 -tab profile -profilelook 1
           shot 115-mini-profile -profiledemo mini

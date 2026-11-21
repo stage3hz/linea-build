@@ -139,9 +139,9 @@ class ThemeCard(context: Context, val label: String, spoken: String, val chosen:
 /** «Оформление»: the theme, the night theme, the person's own colour of the interface, the size of the text in
  *  chats. (The previous app: `Appearance` of `mobile/src/SettingsScreen.tsx`, `ThemeSettings.tsx`.)
  *
- *  Everything here is kept on this device, as in the previous app. Not on this page yet, as on the iPhone: the
- *  app's icon, wallpapers of chats, the corners and the colour of one's own messages, «Пиксельный след», «Снег»,
- *  «Ледяное стекло».
+ *  Everything here is kept on this device, as in the previous app. ChatLook adds the wallpapers of chats, the
+ *  bubbles, their corners and the colour of one's own messages (chatlook/ChatLookSettings.kt). Not on this page
+ *  yet: the app's icon, «Пиксельный след», «Снег», «Ледяное стекло».
  *  `account`: the signed-in account (it says whether the palettes are open); null in the shell that has none. */
 @SuppressLint("ViewConstructor")
 class AppearanceScreen(context: Context, private val account: SettingsAccount?) : SettingsPage(context, "Оформление") {
@@ -252,12 +252,17 @@ class AppearanceScreen(context: Context, private val account: SettingsAccount?) 
     val nightRule = SettingsRow(context, symbol = "moon", label = "Ночная тема", value = kindName)
     nightRule.onPress = { open(NightThemeScreen(context)) }
     addGroup(rows = listOf(nightNow, nightRule))
+    // Effects: «Иконка приложения» (settings/AppearanceEffects.kt).
+    addIconGroup()
 
     // «Свои цвета». Only the colour of the interface, as on the iPhone.
     val own = DevicePreferences.word("accentColor")
     val accentRow = SettingsRow(context, label = "Цвет интерфейса", value = if (own == null) "Как в теме" else "Свой", swatch = Theme.accent)
     accentRow.onPress = { open(AccentColorScreen(context)) }
-    addGroup("Свои цвета", listOf(accentRow))
+    // ChatLook: «Цвет своих сообщений» — seen in chats with bubbles (chatlook/ChatLookSettings.kt).
+    addGroup("Свои цвета", listOf(accentRow, com.linea.messenger.chatlook.ChatLookSettings.colourRow(this)))
+    // Effects: «Пиксельный след», «Снег», «Ледяное стекло» (settings/AppearanceEffects.kt).
+    addEffectGroups()
 
     // «Размер текста в чатах»: a sample message, then the sizes.
     val chosenSize = DevicePreferences.word("textSize") ?: "medium"
@@ -276,6 +281,8 @@ class AppearanceScreen(context: Context, private val account: SettingsAccount?) 
       sizeRows.add(row)
     }
     addGroup("Размер текста в чатах", sizeRows)
+    // ChatLook: «Обои чатов», «Пузыри сообщений», «Углы сообщений» (chatlook/ChatLookSettings.kt).
+    com.linea.messenger.chatlook.ChatLookSettings.addGroups(this) { fill() }
     add(SettingsLook.foot(context, "Тема, цвет и размер текста хранятся только на этом устройстве."), 10f)
   }
 

@@ -65,12 +65,16 @@ class ChatScreen(
   private val media = com.linea.messenger.voice.ChatMedia(this, messenger, chatId, peerId)
   /** Calls: «Позвонить» in the header; a long touch offers «Видеозвонок» too (calls/CallOverlay.kt). */
   val callButton: View = com.linea.messenger.calls.CallEntry.headerButton(context, messenger, chatId, peerId, name)
+  /** ChatLook: the glass header with the avatar, the person's light or the wallpaper, bubbles, the swipe to answer
+   *  (chatlook/ChatLookScreen.kt). */
+  val look = com.linea.messenger.chatlook.ChatLookScreen(this, messenger, chatId, peerId, name)
 
   init {
     setBackgroundColor(Theme.bg)
     list.setPalette(Theme.messages)
     list.setFontSize(com.linea.messenger.settings.ThemeStore.textSize) // Settings: «Размер текста в чатах» (settings/ThemeStore.kt)
     page.addView(list, FrameLayout.LayoutParams(FrameLayout.LayoutParams.MATCH_PARENT, FrameLayout.LayoutParams.MATCH_PARENT))
+    look.installBackdrop(page) // ChatLook: the wallpaper or the person's light under the messages
     addView(page)
 
     header.setBackgroundColor(Theme.bg)
@@ -105,6 +109,9 @@ class ChatScreen(
     // Voice/Video: the microphone in the send button's place, the rows of what is being sent, playing.
     media.install(list, composer, field, send, attachments, actions)
     media.onPendingChanged = { showPendingMedia() }
+    // ChatLook: the header's views go into glass pills; the avatar on the right; the swipe to answer.
+    look.installHeader(page, header, heading, back, callButton, actions.statusView, list, actions)
+    if (messenger == null) com.linea.messenger.chatlook.LookDemo.run(this) // ChatLook: --es chatlook … (chatlook/LookDemo.kt of src/debug)
 
     if (messenger == null) {
       // Attachments: `attachdemo 1` adds sample rows with a photo and files, `attachdemo viewer` also opens the photo viewer.
@@ -118,6 +125,7 @@ class ChatScreen(
     super.onAttachedToWindow()
     messenger?.watch(this)
     actions.attached()
+    look.attached() // ChatLook: back from the profile or the settings, the wallpaper and the bubbles may have changed
     // Voice/Video: round videos move while the chat is on screen.
     media.appeared()
     load()
@@ -126,6 +134,7 @@ class ChatScreen(
   override fun onDetachedFromWindow() {
     messenger?.unwatch(this)
     actions.detached()
+    look.detached() // ChatLook
     // Voice/Video: leaving the chat stops every sound and a take.
     media.left()
     super.onDetachedFromWindow()
@@ -175,7 +184,7 @@ class ChatScreen(
 
   override fun place(width: Int, height: Int) {
     val top = edges.top
-    put(header, 0, 0, width, top + dp(48f))
+    put(header, 0, 0, width, top + dp(52f)) // ChatLook: 8 above the 44 dp pills
     put(back, dp(6f), top + dp(2f), dp(44f), dp(44f))
     put(heading, dp(56f), top + dp(2f), width - dp(112f), dp(44f))
     put(callButton, width - dp(50f), top + dp(2f), dp(44f), dp(44f))
@@ -190,10 +199,11 @@ class ChatScreen(
     media.place(width, top, dp(12f), composerTop, width - dp(24f))
     // ChatActions: the status under the name, the pinned message, the bar above the field, the way down.
     actions.keyboardUp = edges.keyboard > 0
-    val strip = playerStrip.place(width, top + dp(48f), hidden = false) // Shell: the strip takes its room under the header
-    val room = actions.place(width, height, top + dp(48f) + strip, top, dp(12f), composerTop, width - dp(24f), composerHeight)
+    val strip = playerStrip.place(width, top + dp(52f), hidden = false) // Shell: the strip takes its room under the header
+    val room = actions.place(width, height, top + dp(52f) + strip, top, dp(12f), composerTop, width - dp(24f), composerHeight)
     list.setPad(room.first, room.second)
     put(page, 0, 0, width, height)
+    look.place(width, height, top) // ChatLook: the pills of the header, after ChatActions placed the name and the status
   }
 
   /** Attachments: shows the rows of what is being sent (they change while a file is prepared and uploaded). */
@@ -216,6 +226,9 @@ class ChatScreen(
     profile.chatLink = com.linea.messenger.profile.ProfileChatLink(this, chatId)
     pages()?.push(profile)
   }
+
+  /** ChatLook: the emulator check — a sample row added after the chat's own (a message that arrives). */
+  fun addSampleRow(row: Map<String, Any?>) { sampleRows = sampleRows + row; load() }
 
   /** Profile: an attachment of the shared media is opened as a touch on its row would (profile/ProfileChatExtras.kt). */
   fun openAttachment(key: String) = attachments.pressed(key)

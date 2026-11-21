@@ -52,7 +52,11 @@ object DevicePreferences {
     val text = Core.text(next) ?: return
     ThemeStore.kept?.set(KEY, text)
     kept = Core.map(Core.view("settingsPreferences", listOf(text))) ?: next
+    changed.post(Unit) // Effects: the snow, the trail, the animations follow the switches (effects/Motion.kt)
   }
+
+  /** Effects: posted on the main thread after every change (effects/Motion.kt, effects/EffectsHost.kt). */
+  val changed = com.linea.messenger.net.Live.Signal<Unit>()
 
   fun word(name: String): String? = all[name] as? String
   fun flag(name: String): Boolean? = all[name] as? Boolean

@@ -1,0 +1,6 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Effects: the app's icon «aurora» (the reference's expo-alternate-app-icons entry: assets/icons/aurora-android.png on #162563). -->
+<adaptive-icon xmlns:android="http://schemas.android.com/apk/res/android">
+    <background android:drawable="@color/app_icon_aurora_bg" />
+    <foreground android:drawable="@drawable/app_icon_aurora_fg" />
+</adaptive-icon>

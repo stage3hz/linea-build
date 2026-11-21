@@ -59,6 +59,8 @@ class Glass(private val owner: View) {
     const val LIGHT_TINT = 0xA6F7F7F9.toInt()
     const val LIGHT_PLAIN = 0xF7F7F7F9.toInt()
     const val LIGHT_RIM = 0x14000000
+    /** Effects: every plate that has been drawn (weakly held; effects/EffectsHost.kt reads it). */
+    val plates = java.util.WeakHashMap<Glass, Unit>()
   }
 
   private val d = owner.resources.displayMetrics.density
@@ -68,8 +70,16 @@ class Glass(private val owner: View) {
   private val here = IntArray(2)
   private val there = IntArray(2)
 
+  /** Effects: where this plate was last drawn (owner's coordinates) and its corners — the snow lies on it and «Ледяное
+   *  стекло» rimes it (effects/EffectsHost.kt). */
+  val owned: View get() = owner
+  val drawn = android.graphics.RectF()
+  var drawnRadius = 0f
+    private set
+
   /** Draws the plate into the rectangle (owner's coordinates) with corners of `radius`. */
   fun draw(canvas: Canvas, left: Float, top: Float, right: Float, bottom: Float, radius: Float) {
+    drawn.set(left, top, right, bottom); drawnRadius = radius; plates[this] = Unit // Effects
     var blurred = false
     val page = source
     val node = blur

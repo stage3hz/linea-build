@@ -163,6 +163,8 @@ class Live(private val server: Server) {
     // Rooms (rooms/): the list of rooms (`room.*`), the voice of the room this phone is in (`voice.*`), and the
     // server's refusal of what was asked of it over the line (`error`).
     if (type == "ready" || type == "error" || type.startsWith("room.") || type.startsWith("voice.")) roomEvent.post(data)
+    // Composer: the server's list of scheduled messages changed (`scheduled`), or the line opened (composer/ScheduledStore.kt).
+    if (type == "ready" || type == "scheduled") scheduledEvent.post(data)
     when (type) {
       "ready" -> { attempts = 0; onEvent?.invoke(Event.Ready) }
       "message" -> onEvent?.invoke(Event.Chat(Core.map(data["message"])?.get("chatId") as? String))
@@ -217,6 +219,8 @@ class Live(private val server: Server) {
   companion object {
     /** Posted on the main thread when `presence` changed: the person's id, or null for everyone. */
     val presenceChanged = Signal<String?>()
+    /** Composer: `scheduled` and `ready` events of the line, posted on the main thread (composer/ScheduledStore.kt). */
+    val scheduledEvent = Signal<Map<String, Any?>>()
     /** Posted on the main thread when friends or requests to be friends changed on the server. */
     val friendsChanged = Signal<Unit>()
     /** Posted on the main thread for every event of the line about communities (its `type` begins with

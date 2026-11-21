@@ -1,0 +1,770 @@
+package com.linea.messenger.effects
+
+import android.animation.ValueAnimator
+import android.annotation.SuppressLint
+import android.annotation.TargetApi
+import android.content.Context
+import android.graphics.Bitmap
+import android.graphics.BitmapShader
+import android.graphics.Canvas
+import android.graphics.Color
+import android.graphics.LinearGradient
+import android.graphics.Paint
+import android.graphics.Path
+import android.graphics.Rect
+import android.graphics.RectF
+import android.graphics.Shader
+import android.os.Build
+import android.os.Handler
+import android.os.Looper
+import android.os.PowerManager
+import android.view.ActionMode
+import android.view.Choreographer
+import android.view.KeyEvent
+import android.view.KeyboardShortcutGroup
+import android.view.Menu
+import android.view.MotionEvent
+import android.view.View
+import android.view.Window
+import kotlin.math.PI
+import kotlin.math.atan2
+import kotlin.math.cos
+import kotlin.math.floor
+import kotlin.math.max
+import kotlin.math.min
+import kotlin.math.pow
+import kotlin.math.roundToInt
+import kotlin.math.sin
+import kotlin.math.sqrt
+import kotlin.random.Random
+import java.util.concurrent.LinkedBlockingQueue
+import java.util.concurrent.ThreadPoolExecutor
+import java.util.concurrent.TimeUnit
+
+/** The rime of one glass surface as a bitmap (the demo's `frost()`), rendered off the main thread: the haze maths
+ *  is pure and a software Canvas may draw into its own bitmap on any thread. One low-priority worker; a request
+ *  that was superseded while it waited in the queue costs nothing. */
+internal object Frost {
+  private const val PIXELS = 320_000f
+  val main = Handler(Looper.getMainLooper())
+  private val worker = ThreadPoolExecutor(1, 1, 30, TimeUnit.SECONDS, LinkedBlockingQueue<Runnable>()) { task ->
+    Thread(task, "linea-snow-rime").apply { isDaemon = true; priority = Thread.MIN_PRIORITY + 1 }
+  }.apply { allowCoreThreadTimeOut(true) }
+
+  fun submit(task: () -> Unit) {
+    try { worker.execute { try { task() } catch (_: Throwable) { /* decorative: no rime */ } } } catch (_: Throwable) { /* decorative */ }
+  }
+
+  /** The demo's `frost()`: the haze, then sub-pixel specks near the rim, then thin ice feathers growing inward. */
+  fun render(width: Float, height: Float, radius: Float, seed: Int, dark: Boolean, density: Float): Bitmap? {
+    // 2 px per dp at most; a large card gets fewer, so no surface costs more than ~1.3 MB.
+    var scale = min(2f, max(1f, density))
+    if (width * height * scale * scale > PIXELS) scale = max(.5f, sqrt(PIXELS / (width * height)))
+    val pw = (width * scale).roundToInt(); val ph = (height * scale).roundToInt()
+    if (pw < 1 || ph < 1 || pw > 4096 || ph > 4096 || pw.toLong() * ph > PIXELS * 2) return null
+    val field = FrostField(width, height, radius, seed, !dark)
+    val pixels = IntArray(pw * ph)
+    field.fill(pixels, pw, ph, scale)
+    val bitmap = Bitmap.createBitmap(pw, ph, Bitmap.Config.ARGB_8888)
+    bitmap.setPixels(pixels, 0, pw, 0, 0, pw, ph)
+    val canvas = Canvas(bitmap)
+    canvas.scale(scale, scale)
+    val w = field.w; val h = field.h; val light = field.light
+    val paint = Paint(Paint.ANTI_ALIAS_FLAG)
+    var k = 0
+    val specks = w * h / 14
+    while (k < specks) {
+      k++
+      val px = field.rand() * w; val py = field.rand() * h
+      val power = field.power(px, py)
+      if (field.rand() > power * power) continue
+      val alpha = ((.10f + field.rand() * .22f) * 255).roundToInt()
+      if (light) paint.setARGB(alpha, 110, 150, 215) else paint.setARGB(alpha, 255, 255, 255)
+      canvas.drawRect(px, py, px + .5f, py + .5f, paint)
+    }
+    paint.style = Paint.Style.STROKE
+    paint.strokeCap = Paint.Cap.ROUND
+    val r = field.r
+    val rim = 2 * (w - 2 * r) + 2 * (h - 2 * r) + 2 * PI.toFloat() * r
+    for (f in 0 until max(1, (rim / 90).toInt())) {
+      // A point on the rim and the direction inward.
+      var px: Float; var py: Float; var tries = 0
+      do {
+        px = field.rand() * w
+        py = if (field.rand() < .5f) (if (field.rand() < .5f) 1f else h - 1) else field.rand() * h
+        if (py > 1 && py < h - 1) px = if (field.rand() < .5f) 1f else w - 1
+      } while (field.inside(px, py) < 0 && ++tries < 8)
+      if (field.inside(px, py) < 0) continue
+      val e = 1.5f
+      val gx = field.inside(px + e, py) - field.inside(px - e, py); val gy = field.inside(px, py + e) - field.inside(px, py - e)
+      feather(canvas, paint, field, px, py, atan2(gy, gx) + (field.rand() - .5f) * 1.1f, field.reach * (1 + field.rand() * 1.4f), 0)
+    }
+    return bitmap
+  }
+
+  /** One ice feather: grows from the rim, bends a little, branches unevenly (two levels at most). */
+  private fun feather(canvas: Canvas, paint: Paint, field: FrostField, px: Float, py: Float, angle: Float, length: Float, depth: Int) {
+    var cx = px; var cy = py; var a = angle
+    val steps = max(3, (length / 2.2f).toInt())
+    val stride = length / steps
+    for (t in 0 until steps) {
+      a += (field.rand() - .5f) * .22f
+      val nx = cx + cos(a) * stride; val ny = cy + sin(a) * stride
+      if (field.inside(nx, ny) < .5f) break
+      val part = t.toFloat() / steps
+      val alpha = ((.22f * (1 - part) + .03f) * 255).roundToInt()
+      if (field.light) paint.setARGB(alpha, 120, 160, 225) else paint.setARGB(alpha, 245, 250, 255)
+      paint.strokeWidth = (if (depth > 0) .3f else .45f) * (1 - part * .5f)
+      canvas.drawLine(cx, cy, nx, ny, paint)
+      if (depth < 2 && t > 0 && field.rand() < .62f) {
+        val turn = (if (field.rand() < .5f) -1 else 1) * (.75f + field.rand() * .5f)
+        feather(canvas, paint, field, nx, ny, a + turn, length * (1 - part) * (.35f + field.rand() * .3f), depth + 1)
+      }
+      cx = nx; cy = ny
+    }
+  }
+}
+
+/** Device heat (API 29+). Kept in its own class so that older devices never load the listener type. */
+@TargetApi(29)
+private class ThermalWatch(private val power: PowerManager, sink: (Int) -> Unit) {
+  private val listener = PowerManager.OnThermalStatusChangedListener { status -> sink(status) }
+  fun start(): Int { power.addThermalStatusListener(listener); return power.currentThermalStatus }
+  fun stop() { power.removeThermalStatusListener(listener) }
+}
+
+/** The snow of the app (main thread only): the model in window dp, the mounted views, the pre-rendered art, the
+ *  frame loop and the thermal listener. The loop (Choreographer) runs only while the snow is enabled, the app is in
+ *  the foreground, a mounted view is active and shown, and something is left to animate.
+ *  Two kinds of views draw the one model: the 'front' view above the app (caps, knocked-off snow, drops) and
+ *  any number of 'back' views inside the screens' backgrounds (the falling flakes only, behind the content).
+ *  'rime' views belong to the frozen glass, not to the snow: each draws the rime of its own surface, whether the
+ *  snow is on or not. The hub only tells them the theme and the heat (which takes the rime off). */
+internal object SnowHub {
+  val model = SnowModel()
+  var enabled = false
+    private set
+  var foreground = true
+    set(value) { if (field == value) return; field = value; if (value) frame() else { park(); heat(true) } }
+  /** Theme of the rime; works with the snow off too. */
+  var dark = true
+    set(value) { if (field == value) return; field = value; for (k in rimes.indices) rimes[k].requestRime() }
+  var density = 1f
+    private set
+  /** Time of the last frame, ms: the phase of the sparkles. */
+  var now = 0.0
+    private set
+  /** System «Remove animations» (animator duration scale 0) = no snow, as with the pixel trail. */
+  var still = false
+    private set
+  /** Aggregate flake sprites and the grain of the caps; built in tick(), never in onDraw. */
+  var sprites: Array<Bitmap>? = null
+    private set
+  var grain: BitmapShader? = null
+    private set
+  /** Top display cutout in window dp (x, y, width, height), refreshed on the main thread, read from JS. */
+  @Volatile var cutout: FloatArray? = null
+    private set
+  @Volatile var cutoutKnown = false
+    private set
+
+  private val views = ArrayList<SnowView>() // front
+  private val backs = ArrayList<SnowView>()
+  private val rimes = ArrayList<SnowView>()
+  /** The heat the rime views show (or animate to), and whether they were last set directly, past the model. */
+  private var rimeHeat = 0f
+  private var direct = true
+  // What the front view showed last frame: it is redrawn only when something on it changed or moves.
+  private var hadParticles = false
+  private var hadSparkle = false
+  private var flakesShown = false
+  private val main = Handler(Looper.getMainLooper())
+  private var running = false
+  private var lastNanos = 0L
+  private var lead = -1 // pointer id of the first finger; the others are ignored
+  private var override = -1f
+  private var device = 0f
+  private var thermal: ThermalWatch? = null
+  private var artDensity = 0f
+  private val random = Random.Default
+  private val callback = Choreographer.FrameCallback { nanos ->
+    try { tick(nanos) } catch (_: Throwable) { running = false /* decorative: a failed frame draws nothing */ }
+  }
+
+  /** An attached view joins the list of its layer (a view whose layer changes is removed and added again). */
+  fun add(view: SnowView) {
+    if (view.role == SnowView.RIME) {
+      if (!rimes.contains(view)) rimes.add(view)
+      // The rime melts with the device's heat even when the snow is off.
+      listen(view.context)
+      heat(false)
+      view.heat(rimeHeat, false)
+      view.requestRime()
+      return
+    }
+    val list = if (view.role == SnowView.BACK) backs else views
+    if (!list.contains(view)) list.add(view)
+    density = view.resources.displayMetrics.density
+    readCutout(view.rootView)
+    view.invalidate()
+    frame()
+  }
+
+  fun remove(view: SnowView) {
+    if (rimes.remove(view)) { if (rimes.isEmpty() && !enabled) unlisten(); return }
+    views.remove(view); backs.remove(view)
+    if (views.isEmpty() && backs.isEmpty()) park()
+  }
+
+  fun start(context: Context?) { enabled = true; listen(context); frame() }
+
+  /** Snow off: no loop, nothing remembered. The rime views stay as they are and keep following the heat. */
+  fun stop() {
+    enabled = false
+    park()
+    if (rimes.isEmpty()) unlisten()
+    lead = -1
+    model.clear()
+    redraw()
+    heat(true)
+  }
+
+  private fun target() = if (override >= 0) override else device
+
+  /** The frame loop is (or is about to be) in charge: the rime follows the model's eased heat. */
+  private fun live() = enabled && foreground && !still && shown() != null
+
+  /** The heat may have changed. With the loop in charge a frame is enough; otherwise the rime views go to the
+   *  target themselves (a view alpha animation, no frames of ours). */
+  private fun heat(animate: Boolean) {
+    if (live()) { frame(); return }
+    direct = true
+    val value = target()
+    if (value == rimeHeat) return
+    rimeHeat = value
+    for (k in rimes.indices) rimes[k].heat(value, animate)
+  }
+
+  fun setLedges(specs: List<LedgeSpec>) { model.setLedges(specs); frame() }
+
+  /** Test override of the heat; negative = the device's real thermal state. */
+  fun setHeat(value: Float) { override = if (value.isNaN() || value < 0) -1f else min(1f, value); heat(true) }
+
+  private fun listen(context: Context?) {
+    if (thermal != null || context == null || Build.VERSION.SDK_INT < 29) return
+    try {
+      val power = context.applicationContext.getSystemService(Context.POWER_SERVICE) as? PowerManager ?: return
+      val watch = ThermalWatch(power) { status -> main.post { device = SnowRules.thermal(status); heat(true) } }
+      device = SnowRules.thermal(watch.start())
+      thermal = watch
+    } catch (_: Throwable) { device = 0f }
+  }
+
+  private fun unlisten() {
+    try { thermal?.stop() } catch (_: Throwable) { /* decorative */ }
+    thermal = null; device = 0f
+  }
+
+  /** The top cutout of the window `decor` belongs to (API 28+). Only getters: safe to call for a first read off the main thread. */
+  fun readCutout(decor: View?) {
+    cutout = try { topCutout(decor) } catch (_: Throwable) { null }
+    if (decor != null) cutoutKnown = true
+  }
+
+  private fun topCutout(decor: View?): FloatArray? {
+    if (decor == null || Build.VERSION.SDK_INT < 28) return null
+    val shape = decor.rootWindowInsets?.displayCutout ?: return null
+    var rect: Rect? = null
+    if (Build.VERSION.SDK_INT >= 29) rect = shape.boundingRectTop
+    else if (shape.safeInsetTop > 0) for (r in shape.boundingRects) if (r.top <= 0 && (rect == null || r.width() > rect.width())) rect = r
+    if (rect == null || rect.isEmpty) return null
+    val scale = decor.resources.displayMetrics.density
+    if (scale <= 0f) return null
+    return floatArrayOf(rect.left / scale, rect.top / scale, rect.width() / scale, rect.height() / scale)
+  }
+
+  /** Some active view on the screen, the front one first; null = nobody to draw for. */
+  private fun shown(): SnowView? {
+    for (k in views.indices) { val view = views[k]; if (view.active && view.isShown) return view }
+    for (k in backs.indices) { val view = backs[k]; if (view.active && view.isShown) return view }
+    return null
+  }
+
+  /** Everything, after a change of state (on, off, «Remove animations»). */
+  private fun redraw() {
+    for (k in views.indices) views[k].invalidate()
+    for (k in backs.indices) backs[k].invalidate()
+  }
+
+  /** Index of the q-th sparkle's column on a ledge of n columns; the places hop every 2.6 s. */
+  fun sparkleColumn(q: Int, n: Int): Int = ((q * 37 + 11 + floor(now / 2600).toLong() * 13 + q * 7) % n).toInt()
+
+  /** Brightness of the q-th sparkle of the ledge at x: a crystal face catches the light for a moment. */
+  fun sparkle(q: Int, x: Float): Float = max(0.0, sin(now / 330 + q * 2.1 + x)).pow(10).toFloat()
+
+  private fun sparkling(): Boolean {
+    val ledges = model.ledges
+    for (k in ledges.indices) {
+      val s = ledges[k]
+      if (s.n < 1) continue
+      val count = max(1f, s.n / 22f)
+      var q = 0
+      while (q < count) {
+        if (s.h[sparkleColumn(q, s.n)] >= 2 && sparkle(q, s.x) * s.opacity >= .05f) return true
+        q++
+      }
+    }
+    return false
+  }
+
+  /** One frame's invalidations: the flakes' views while flakes fall, the front view only when it would differ. */
+  private fun present() {
+    val falling = !model.asleep
+    // One more pass after the snowfall stops, to wipe the last flakes.
+    if (falling || flakesShown) for (k in backs.indices) { val view = backs[k]; if (view.active) view.invalidate() }
+    flakesShown = falling
+    val particles = model.particles > 0
+    val sparkle = sparkling()
+    val changed = model.takeDirty() || particles || hadParticles || sparkle || hadSparkle
+    hadParticles = particles; hadSparkle = sparkle
+    if (changed) for (k in views.indices) { val view = views[k]; if (view.active) view.invalidate() }
+  }
+
+  private fun park() {
+    if (running) { running = false; Choreographer.getInstance().removeFrameCallback(callback) }
+    lastNanos = 0
+  }
+
+  /** Asks for a frame; the tick decides whether the loop goes on. Safe to call at any time. */
+  fun frame() {
+    if (running || !enabled || !foreground) return
+    val frozen = !ValueAnimator.areAnimatorsEnabled()
+    if (frozen != still) { still = frozen; redraw() }
+    if (frozen || shown() == null) return
+    running = true
+    Choreographer.getInstance().postFrameCallback(callback)
+  }
+
+  /** Called from the window callback BEFORE the app sees the event; never consumes it. Window coordinates. */
+  fun observe(event: MotionEvent) {
+    if (!enabled || still || (views.isEmpty() && backs.isEmpty())) return
+    when (event.actionMasked) {
+      MotionEvent.ACTION_DOWN -> {
+        lead = event.getPointerId(0)
+        model.down(event.getX(0) / density, event.getY(0) / density)
+      }
+      MotionEvent.ACTION_MOVE -> {
+        val index = if (lead >= 0) event.findPointerIndex(lead) else -1
+        if (index >= 0) model.move(event.getX(index) / density, event.getY(index) / density)
+      }
+      MotionEvent.ACTION_POINTER_UP, MotionEvent.ACTION_UP -> {
+        val index = event.actionIndex
+        if (lead < 0 || event.getPointerId(index) != lead) return
+        lead = -1
+        model.up(event.getX(index) / density, event.getY(index) / density)
+      }
+      MotionEvent.ACTION_CANCEL -> { lead = -1; model.cancel() }
+    }
+  }
+
+  private fun tick(nanos: Long) {
+    running = false
+    still = !ValueAnimator.areAnimatorsEnabled()
+    val view = shown()
+    if (!enabled || !foreground || still || view == null) { lastNanos = 0; redraw(); heat(true); return }
+    density = view.resources.displayMetrics.density
+    val root = view.rootView
+    model.resize(root.width / density, root.height / density)
+    if (model.width <= 0f || model.height <= 0f) { frame(); return } // not laid out yet
+    now = nanos / 1e6
+    val dt = if (lastNanos == 0L) 0f else ((nanos - lastNanos) / 1e9).toFloat()
+    lastNanos = nanos
+    model.heatTarget = target()
+    // The rime views went to the target without us meanwhile: start from there, not from a stale heat.
+    if (direct && rimes.isNotEmpty()) model.settleHeat()
+    direct = false
+    val awake = model.step(now, dt)
+    if (model.heat != rimeHeat) { rimeHeat = model.heat; for (k in rimes.indices) rimes[k].heat(rimeHeat, false) }
+    art()
+    present()
+    // Hot, melted and fallen: sleep until the heat drops (saves the battery exactly when the phone is hot).
+    if (awake) frame() else lastNanos = 0
+  }
+
+  // ---- pre-rendered art ----
+
+  private fun art() {
+    if (sprites != null && grain != null && artDensity == density) return
+    artDensity = density
+    val scale = min(3f, max(1f, density))
+    val side = kotlin.math.ceil(SnowView.SPRITE * scale).toInt()
+    val paint = Paint(Paint.ANTI_ALIAS_FLAG).apply { color = Color.WHITE; setShadowLayer(.6f, 0f, 0f, 0xE6FFFFFF.toInt()) }
+    // Aggregates: a few crystals stuck together, each sprite of its own shape. No six-armed stars.
+    sprites = Array(SnowRules.SPRITES) {
+      val bitmap = Bitmap.createBitmap(side, side, Bitmap.Config.ARGB_8888)
+      val canvas = Canvas(bitmap)
+      canvas.translate(side / 2f, side / 2f)
+      for (m in 0 until 3 + random.nextInt(5)) {
+        val a = random.nextFloat() * 6.283f; val r = random.nextFloat() * 2.2f * scale
+        paint.alpha = ((.55f + random.nextFloat() * .45f) * 255).roundToInt()
+        val rx = (.5f + random.nextFloat() * 1.1f) * scale; val ry = (.4f + random.nextFloat() * .7f) * scale
+        canvas.save()
+        canvas.translate(cos(a) * r, sin(a) * r)
+        canvas.rotate(random.nextFloat() * 172f)
+        canvas.drawOval(-rx, -ry, rx, ry, paint)
+        canvas.restore()
+      }
+      bitmap
+    }
+    // The grain of a cap's surface: bright specks and small cold shadows between them. One texel = 1 dp.
+    val tile = Bitmap.createBitmap(SnowView.TILE, SnowView.TILE, Bitmap.Config.ARGB_8888)
+    val canvas = Canvas(tile)
+    val speck = Paint(Paint.ANTI_ALIAS_FLAG)
+    for (k in 0 until 1500) {
+      if (random.nextFloat() < .5f) speck.setARGB(((.10f + random.nextFloat() * .22f) * 255).roundToInt(), 120, 145, 190)
+      else speck.setARGB(((.3f + random.nextFloat() * .5f) * 255).roundToInt(), 255, 255, 255)
+      val x = random.nextFloat() * SnowView.TILE; val y = random.nextFloat() * SnowView.TILE
+      canvas.drawRect(x, y, x + 1, y + 1, speck)
+    }
+    grain = BitmapShader(tile, Shader.TileMode.REPEAT, Shader.TileMode.REPEAT)
+  }
+
+}
+
+/** A transparent surface of the snow (src/SnowPhone.tsx). It never takes touches, focus or accessibility and draws
+ *  its layer of the hub's model: 'front' (one view above everything) — caps, knocked-off snow, meltwater;
+ *  'back' (a view inside each screen's background) — the falling flakes only, so they pass behind the content.
+ *  The model is in window dp, so drawing is offset by the view's own position in the window and clipped to the
+ *  view. Paints, the path and the rectangles are reused — no allocation per frame.
+ *  'rime' is the frozen glass («Ледяное стекло»): a child of a glass surface that draws only the rime for its own
+ *  bounds and `radius`, so it scrolls and clips with the surface. It does not depend on the snow being on. */
+@SuppressLint("ViewConstructor")
+class SnowView(context: Context) : View(context) {
+  /** false: the view stops drawing and (when no other view is shown) the frame loop sleeps. */
+  var active = true
+    set(value) { if (field != value) { field = value; invalidate(); if (value) SnowHub.frame() } }
+
+  /** 'back': the falling flakes only; 'rime': the rime of this view's own bounds; anything else (the default):
+   *  the front layer. The prop may arrive after the view is attached, so the view then changes lists in the hub. */
+  var layer: String? = null
+    set(value) {
+      field = value
+      val next = when (value) { "back" -> BACK; "rime" -> RIME; else -> FRONT }
+      if (next == role) return
+      val attached = isAttachedToWindow
+      try { if (attached) SnowHub.remove(this) } catch (_: Throwable) { /* decorative */ }
+      role = next
+      animate().cancel()
+      // Background snow is dimmed: at full brightness the flakes outshone the text they pass behind.
+      // (A rime view's alpha is the heat's; the hub sets it when the view is added.)
+      alpha = if (next == BACK) .45f else 1f
+      if (next != RIME) forgetRime()
+      try { if (attached) SnowHub.add(this) } catch (_: Throwable) { /* decorative */ }
+      invalidate()
+    }
+  var role = FRONT
+    private set
+
+  /** 'rime' only: corner radius of the glass surface, dp. */
+  var radius = 0f
+    set(value) { val next = if (value.isNaN() || value < 0f) 0f else value; if (field != next) { field = next; requestRime() } }
+
+  // ---- 'rime' ----
+  // Chosen once per view, so equal buttons do not carry the identical pattern.
+  private val seed = 1 + Random.nextInt(996)
+  private var frost: Bitmap? = null
+  // What the last request was made for (px, dp, theme), and its number: a result for an older request is dropped.
+  private var askedW = 0; private var askedH = 0; private var askedR = -1f; private var askedDark = false
+  @Volatile private var ticket = 0
+  private var appearing = 1f
+  private var fader: ValueAnimator? = null
+
+  /** Renders the rime for the current size, radius and theme — on the worker, never in onDraw. Until it is ready
+   *  the previous bitmap (if any) is shown stretched; the first one fades in. */
+  fun requestRime() {
+    if (role != RIME || !isAttachedToWindow) return
+    val w = width; val h = height
+    if (w <= 0 || h <= 0) return
+    val dark = SnowHub.dark; val r = radius
+    if (askedW == w && askedH == h && askedR == r && askedDark == dark) return
+    askedW = w; askedH = h; askedR = r; askedDark = dark
+    val mine = ++ticket
+    val density = resources.displayMetrics.density
+    val pattern = seed
+    Frost.submit {
+      if (mine != ticket) return@submit // superseded while it waited (a surface that is still resizing)
+      val bitmap = try { Frost.render(w / density, h / density, r, pattern, dark, density) } catch (_: Throwable) { null }
+      Frost.main.post { try { accept(mine, bitmap) } catch (_: Throwable) { /* decorative */ } }
+    }
+  }
+
+  private fun accept(mine: Int, bitmap: Bitmap?) {
+    // A stale result was never drawn: it is safe to recycle at once.
+    if (mine != ticket || role != RIME) { bitmap?.recycle(); return }
+    val first = frost == null
+    // The replaced bitmap may still be referenced by the last recorded frame: it is left to the GC, not recycled.
+    frost = bitmap
+    if (first && bitmap != null) appear()
+    invalidate()
+  }
+
+  /** The first rime of a surface fades in (~0.3 s); with «Remove animations» it is simply there. */
+  private fun appear() {
+    fader?.cancel()
+    appearing = 1f
+    if (!ValueAnimator.areAnimatorsEnabled()) return
+    appearing = 0f
+    fader = ValueAnimator.ofFloat(0f, 1f).apply {
+      duration = 300
+      addUpdateListener { appearing = it.animatedValue as Float; invalidate() }
+      start()
+    }
+  }
+
+  private fun forgetRime() {
+    ticket++
+    fader?.cancel(); fader = null; appearing = 1f
+    frost = null; askedW = 0; askedH = 0; askedR = -1f
+  }
+
+  /** The heat takes the rime off: alpha = clamp(1 − heat·1.4). Animated (~0.6 s) when the frame loop is not the
+   *  one easing the heat; the system's animator scale 0 turns that into a plain set. */
+  fun heat(value: Float, animate: Boolean) {
+    val target = (1 - value * 1.4f).coerceIn(0f, 1f)
+    animate().cancel()
+    if (animate && isShown && alpha != target) animate().alpha(target).setDuration(600).start() else alpha = target
+  }
+
+  // Flakes (and one rime bitmap) do not overlap in a way that matters: the view's alpha needs no offscreen buffer.
+  override fun hasOverlappingRendering(): Boolean = false
+
+  private val capPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
+    style = Paint.Style.FILL
+    // White at the cap's top, cold 9 dp lower; drawn translated to the top, so one shader serves every cap.
+    shader = LinearGradient(0f, 0f, 0f, 9f, 0xF5FFFFFF.toInt(), 0xEBD6E0F0.toInt(), Shader.TileMode.CLAMP)
+    // Soft shadow under the cap (shape shadows need API 28+ on a hardware canvas; older: no shadow).
+    setShadowLayer(1.8f, 0f, 1f, 0x59283C6E)
+  }
+  private val grainPaint = Paint().apply { style = Paint.Style.FILL; isFilterBitmap = false; alpha = 128 }
+  private val flakePaint = Paint(Paint.ANTI_ALIAS_FLAG).apply { style = Paint.Style.FILL; color = Color.WHITE }
+  private val spritePaint = Paint(Paint.FILTER_BITMAP_FLAG)
+  private val rimePaint = Paint(Paint.FILTER_BITMAP_FLAG)
+  private val snowPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply { style = Paint.Style.FILL; color = Color.WHITE }
+  private val underPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply { style = Paint.Style.FILL; color = 0xFFC9D4E6.toInt() }
+  private val dropPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply { style = Paint.Style.FILL; color = 0x8CCDE4FF.toInt() }
+  private val glintPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply { style = Paint.Style.FILL; color = 0xE6FFFFFF.toInt() }
+  private var capOpacity = 1f // what capPaint and grainPaint are set up for
+  private val path = Path()
+  private val rect = RectF()
+  private val spriteRect = RectF(-SPRITE / 2, -SPRITE / 2, SPRITE / 2, SPRITE / 2)
+  private val place = IntArray(2)
+
+  init {
+    isClickable = false
+    isFocusable = false
+    isLongClickable = false
+    importantForAccessibility = IMPORTANT_FOR_ACCESSIBILITY_NO_HIDE_DESCENDANTS
+    setWillNotDraw(false)
+  }
+
+  // Never part of touch dispatch: a touch falls through to the app.
+  @SuppressLint("ClickableViewAccessibility")
+  override fun onTouchEvent(event: MotionEvent?) = false
+  override fun dispatchTouchEvent(event: MotionEvent?) = false
+
+  // A view that says it is disabled is passed over by anything that looks for a touch target.
+  override fun isEnabled(): Boolean = false
+
+  override fun onAttachedToWindow() { super.onAttachedToWindow(); try { SnowHub.add(this) } catch (_: Throwable) { /* decorative */ } }
+  override fun onDetachedFromWindow() {
+    try { SnowHub.remove(this); fader?.cancel(); appearing = 1f } catch (_: Throwable) { /* decorative */ }
+    super.onDetachedFromWindow()
+  }
+
+  // Shown again (screen, window): wake the loop; hidden: the next tick finds no shown view and stops.
+  override fun onVisibilityChanged(changedView: View, visibility: Int) {
+    super.onVisibilityChanged(changedView, visibility)
+    if (visibility == VISIBLE) try { SnowHub.frame() } catch (_: Throwable) { /* decorative */ }
+  }
+
+  override fun onWindowVisibilityChanged(visibility: Int) {
+    super.onWindowVisibilityChanged(visibility)
+    if (visibility == VISIBLE) try { SnowHub.frame() } catch (_: Throwable) { /* decorative */ }
+  }
+
+  override fun onSizeChanged(w: Int, h: Int, oldw: Int, oldh: Int) {
+    super.onSizeChanged(w, h, oldw, oldh)
+    try {
+      if (role == RIME) requestRime() else { SnowHub.readCutout(rootView); SnowHub.frame() }
+    } catch (_: Throwable) { /* decorative */ }
+  }
+
+  override fun onDraw(canvas: Canvas) {
+    super.onDraw(canvas)
+    val saved = canvas.save()
+    try { paint(canvas) } catch (_: Throwable) { /* decorative: draw nothing */ } finally { canvas.restoreToCount(saved) }
+  }
+
+  private fun paint(canvas: Canvas) {
+    if (!active) return
+    if (role == RIME) {
+      // The frozen glass is not the snow: it shows with the snow off and with «Remove animations» (static).
+      val bitmap = frost ?: return
+      rimePaint.alpha = (appearing * 255).roundToInt().coerceIn(0, 255)
+      rect.set(0f, 0f, width.toFloat(), height.toFloat())
+      canvas.drawBitmap(bitmap, null, rect, rimePaint)
+      return
+    }
+    val hub = SnowHub
+    val model = hub.model
+    if (!hub.enabled || hub.still || model.width <= 0f) return
+    val back = role == BACK
+    getLocationInWindow(place)
+    // A back view may be smaller than the window or offset in it: nothing outside its own bounds.
+    if (back) canvas.clipRect(0, 0, width, height)
+    canvas.translate(-place[0].toFloat(), -place[1].toFloat())
+    canvas.scale(hub.density, hub.density) // from here on: window dp
+    if (back) { if (!model.asleep) flakes(canvas, model, hub.sprites); return }
+    caps(canvas, model, hub.grain)
+    particles(canvas, model)
+  }
+
+  /** 1) The caps: a smoothed top, back along the ledge's outline; gradient + shadow, grain, sparkles. */
+  private fun caps(canvas: Canvas, model: SnowModel, grain: BitmapShader?) {
+    val col = SnowRules.COL
+    val ledges = model.ledges
+    for (k in ledges.indices) {
+      val s = ledges[k]
+      val n = s.n
+      if (n < 1) continue
+      val h = s.h
+      var top = Float.MAX_VALUE
+      for (i in 0 until n) top = min(top, s.base(i) - h[i])
+      path.rewind()
+      for (i in 0 until n) {
+        val a = if (i > 0) h[i - 1] else 0f; val c = if (i < n - 1) h[i + 1] else 0f
+        val y = s.base(i) - (a + 2 * h[i] + c) / 4 - top
+        if (i == 0) path.moveTo(.5f * col, y) else path.lineTo((i + .5f) * col, y)
+      }
+      for (i in n - 1 downTo 0) path.lineTo((i + .5f) * col, s.base(i) + .5f - top)
+      path.close()
+      // A ledge that has just appeared fades in: the cap, its shadow, the grain and the sparkles together.
+      val opacity = s.opacity
+      if (opacity <= 0f) continue
+      if (opacity != capOpacity) {
+        capOpacity = opacity
+        capPaint.alpha = (opacity * 255).roundToInt()
+        // A translucent shadow colour ignores the paint's alpha, so it is faded by hand.
+        capPaint.setShadowLayer(1.8f, 0f, 1f, ((0x59 * opacity).roundToInt() shl 24) or 0x283C6E)
+        grainPaint.alpha = (opacity * 128).roundToInt()
+      }
+      canvas.save()
+      canvas.translate(s.x, top)
+      canvas.drawPath(path, capPaint)
+      canvas.restore()
+      if (grain != null) {
+        // The grain is fixed to the window (not to the cap's top), so it does not shimmer as the cap grows.
+        path.offset(s.x, top)
+        if (grainPaint.shader !== grain) grainPaint.shader = grain
+        canvas.drawPath(path, grainPaint)
+      }
+      // Sparkles: single crystal faces catch the light for a moment; the places hop every 2.6 s.
+      val count = max(1f, n / 22f)
+      var q = 0
+      while (q < count) {
+        val i = SnowHub.sparkleColumn(q, n)
+        val hh = h[i]
+        if (hh >= 2) {
+          val twinkle = SnowHub.sparkle(q, s.x) * opacity
+          if (twinkle >= .05f) {
+            val x = s.x + (i + .5f) * col; val y = s.base(i) - hh * .6f
+            flakePaint.alpha = (twinkle * 255).roundToInt().coerceIn(0, 255)
+            canvas.drawRect(x - 1.6f, y - .3f, x + 1.6f, y + .3f, flakePaint)
+            canvas.drawRect(x - .3f, y - 1.6f, x + .3f, y + 1.6f, flakePaint)
+          }
+        }
+        q++
+      }
+    }
+  }
+
+  /** Back layer. Falling snow: far flakes are pale dots, nearer ones slowly turning fluffy aggregates. */
+  private fun flakes(canvas: Canvas, model: SnowModel, sprites: Array<Bitmap>?) {
+    for (k in 0 until model.falling) {
+      val z = model.flakeZ[k]
+      val alpha = (model.flakeA[k] * 255).roundToInt().coerceIn(0, 255)
+      if (z < SnowRules.FAR || sprites == null) {
+        flakePaint.alpha = alpha
+        canvas.drawCircle(model.flakeX[k], model.flakeY[k], model.flakeR[k], flakePaint)
+      } else {
+        val scale = .45f + z * .75f
+        spritePaint.alpha = alpha
+        canvas.save()
+        canvas.translate(model.flakeX[k], model.flakeY[k])
+        canvas.rotate(model.flakeRot[k] * DEGREES)
+        canvas.scale(scale, scale)
+        canvas.drawBitmap(sprites[model.flakeSprite[k] % sprites.size], null, spriteRect, spritePaint)
+        canvas.restore()
+      }
+    }
+  }
+
+  /** 2) Knocked-off snow (clumps, grains) and meltwater drops. Opaque: they fall off the window, never fade. */
+  private fun particles(canvas: Canvas, model: SnowModel) {
+    val stride = SnowRules.BLOBS * 3
+    for (k in 0 until model.particles) {
+      val x = model.partX[k]; val y = model.partY[k]; val r = model.partR[k]
+      when (model.kind[k]) {
+        SnowRules.DROP -> {
+          // Stretched by its speed once it has left the glass.
+          val stretch = if (y < model.partEnd[k]) 1f else min(2.4f, 1 + model.partVy[k] / 260)
+          val ry = r * 1.35f * stretch
+          canvas.drawOval(x - r, y - ry, x + r, y + ry, dropPaint)
+          canvas.drawRect(x - r * .35f, y - r * .6f, x + r * .1f, y - r * .15f, glintPaint)
+        }
+        SnowRules.CLUMP -> {
+          // A clump: the cold underside first, then the white body — a loose volume.
+          val c = cos(model.partRot[k]); val s = sin(model.partRot[k])
+          val at = k * stride
+          val blobs = model.blobs
+          val count = model.blobCount[k]
+          for (b in 0 until count) {
+            val ax = blobs[at + b * 3]; val ay = blobs[at + b * 3 + 1]
+            canvas.drawCircle(x + ax * c - ay * s, y + ax * s + ay * c + .7f, blobs[at + b * 3 + 2], underPaint)
+          }
+          for (b in 0 until count) {
+            val ax = blobs[at + b * 3]; val ay = blobs[at + b * 3 + 1]
+            canvas.drawCircle(x + ax * c - ay * s, y + ax * s + ay * c - .3f, blobs[at + b * 3 + 2] * .9f, snowPaint)
+          }
+        }
+        else -> canvas.drawCircle(x, y, r, snowPaint)
+      }
+    }
+  }
+
+  companion object {
+    const val FRONT = 0
+    const val BACK = 1
+    const val RIME = 2
+    const val SPRITE = 12f  // side of a flake sprite, dp
+    const val TILE = 96     // side of the grain tile, texels (= dp)
+    private const val DEGREES = 57.29578f
+  }
+}
+
+/** Wraps the Activity's Window.Callback: every touch is shown to the hub first, then handed on unchanged.
+ *  The result is always the wrapped callback's own; nothing here can consume or alter an event. */
+class SnowCallback(val inner: Window.Callback) : Window.Callback by inner {
+  override fun dispatchTouchEvent(event: MotionEvent?): Boolean {
+    if (event != null) {
+      try { SnowHub.observe(event) } catch (_: Throwable) { /* decorative: never in the way */ }
+    }
+    return inner.dispatchTouchEvent(event)
+  }
+
+  // Default interface methods are spelled out so the Activity's own overrides keep working.
+  override fun onProvideKeyboardShortcuts(data: MutableList<KeyboardShortcutGroup>?, menu: Menu?, deviceId: Int) = inner.onProvideKeyboardShortcuts(data, menu, deviceId)
+  override fun onPointerCaptureChanged(hasCapture: Boolean) = inner.onPointerCaptureChanged(hasCapture)
+  override fun dispatchKeyEvent(event: KeyEvent?) = inner.dispatchKeyEvent(event)
+  override fun onWindowStartingActionMode(callback: ActionMode.Callback?, type: Int): ActionMode? = inner.onWindowStartingActionMode(callback, type)
+}

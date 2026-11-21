@@ -218,6 +218,7 @@ object RoomVoice {
       state = null
       return
     }
+    com.linea.messenger.chatlook.VoiceSounds.play(app, com.linea.messenger.chatlook.VoiceSounds.Kind.LEAVE) // ChatLook: this phone walks out
     send(mapOf("type" to "voice.leave"))
     cleanup()
   }
@@ -343,6 +344,7 @@ object RoomVoice {
     when (type) {
       "voice.joined" -> {
         if (!here) return
+        com.linea.messenger.chatlook.VoiceSounds.play(app, com.linea.messenger.chatlook.VoiceSounds.Kind.JOIN) // ChatLook: the rising chime (chatlook/ChatLookState.kt)
         selfPeer = data["self"] as? String
         val peers = ArrayList<RoomVoicePeer>()
         for (item in (data["peers"] as? List<*>).orEmpty().mapNotNull { Core.map(it as? Map<*, *>) }) {
@@ -446,6 +448,7 @@ object RoomVoice {
     connections.remove(peer)?.close()
     val current = state ?: return
     if (current.peers.none { it.peer == peer }) return
+    com.linea.messenger.chatlook.VoiceSounds.play(app, com.linea.messenger.chatlook.VoiceSounds.Kind.LEAVE) // ChatLook: the falling chime
     patch { voice -> voice.copy(peers = voice.peers.filter { it.peer != peer }) }
   }
 
@@ -470,6 +473,7 @@ object RoomVoice {
     peerInfo[from] = Info(userId, device)
     val current = state
     if (current != null && current.peers.none { it.peer == from }) {
+      com.linea.messenger.chatlook.VoiceSounds.play(app, com.linea.messenger.chatlook.VoiceSounds.Kind.JOIN) // ChatLook: someone walked in
       patch { it.copy(peers = it.peers + RoomVoicePeer(from, userId, muted = false, connected = false)) }
     }
     val media = connectionFor(from, initiator = false) ?: return drop(from)

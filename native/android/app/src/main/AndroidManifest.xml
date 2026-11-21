@@ -34,6 +34,7 @@
     <application
         android:allowBackup="false"
         android:label="@string/app_name"
+        android:icon="@mipmap/app_icon_outline"
         android:supportsRtl="true"
         android:theme="@style/Theme.Invizent"
         android:enableOnBackInvokedCallback="true"
@@ -45,11 +46,64 @@
             android:configChanges="orientation|screenSize|screenLayout|smallestScreenSize|keyboard|keyboardHidden"
             android:windowSoftInputMode="adjustResize"
             android:exported="true">
+            <!-- Links: an invitation to a channel or a server — linea://invite/CODE and invizent://invite/CODE (the
+                 reference's scheme `linea`, communities/types.ts INVITE_LINK). Only the code is read (app/DeepLinks.kt);
+                 the invitation itself is always asked from the account's own server. -->
+            <intent-filter>
+                <action android:name="android.intent.action.VIEW" />
+                <category android:name="android.intent.category.DEFAULT" />
+                <category android:name="android.intent.category.BROWSABLE" />
+                <data android:scheme="linea" android:host="invite" />
+                <data android:scheme="invizent" android:host="invite" />
+            </intent-filter>
+        </activity>
+        <!-- Effects: the app's icon on the launcher, «Оформление › Иконка приложения» (settings/AppearanceEffects.kt), as
+             the reference's expo-alternate-app-icons: one alias of the window per icon, exactly one enabled. «Контур» is
+             the default. -->
+        <activity-alias
+            android:name=".MainActivityOutline"
+            android:targetActivity=".MainActivity"
+            android:icon="@mipmap/app_icon_outline"
+            android:enabled="true"
+            android:exported="true">
             <intent-filter>
                 <action android:name="android.intent.action.MAIN" />
                 <category android:name="android.intent.category.LAUNCHER" />
             </intent-filter>
-        </activity>
+        </activity-alias>
+        <activity-alias
+            android:name=".MainActivityBlue"
+            android:targetActivity=".MainActivity"
+            android:icon="@mipmap/app_icon_default"
+            android:enabled="false"
+            android:exported="true">
+            <intent-filter>
+                <action android:name="android.intent.action.MAIN" />
+                <category android:name="android.intent.category.LAUNCHER" />
+            </intent-filter>
+        </activity-alias>
+        <activity-alias
+            android:name=".MainActivityLight"
+            android:targetActivity=".MainActivity"
+            android:icon="@mipmap/app_icon_light"
+            android:enabled="false"
+            android:exported="true">
+            <intent-filter>
+                <action android:name="android.intent.action.MAIN" />
+                <category android:name="android.intent.category.LAUNCHER" />
+            </intent-filter>
+        </activity-alias>
+        <activity-alias
+            android:name=".MainActivityAurora"
+            android:targetActivity=".MainActivity"
+            android:icon="@mipmap/app_icon_aurora"
+            android:enabled="false"
+            android:exported="true">
+            <intent-filter>
+                <action android:name="android.intent.action.MAIN" />
+                <category android:name="android.intent.category.LAUNCHER" />
+            </intent-filter>
+        </activity-alias>
         <!-- Attachments: gives the one app the person chose the one decrypted file it was asked to show, to read
              only (attachments/DecryptedFileProvider.kt). Not exported: nothing can ask it on its own. -->
         <provider

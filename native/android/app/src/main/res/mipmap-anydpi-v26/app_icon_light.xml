@@ -1,0 +1,6 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Effects: the app's icon «light» (the reference's expo-alternate-app-icons entry: assets/icons/light-android.png on #F5F4F9). -->
+<adaptive-icon xmlns:android="http://schemas.android.com/apk/res/android">
+    <background android:drawable="@color/app_icon_light_bg" />
+    <foreground android:drawable="@drawable/app_icon_light_fg" />
+</adaptive-icon>

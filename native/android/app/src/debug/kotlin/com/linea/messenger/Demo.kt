@@ -125,6 +125,8 @@ object Demo {
     // Settings: `settheme`, `setaccent`, `settextsize`, `setnight`, `setplatina` — the look for the shot (settings/SettingsDemo.kt).
     com.linea.messenger.settings.SettingsSimulator.look(intent)
     com.linea.messenger.chatactions.ChatActionsDemo.read(intent)
+    // ChatLook, Composer, Attachments, Video: `chatlook`, `chatlookline`, `chatlookframe`, `composerdemo`, … (chatlook/LookDemo.kt).
+    com.linea.messenger.chatlook.LookDemo.read(intent)
     // ChatsPlus and Shell: `chatsdemo`, `shelldemo`, `updatedemo` (chatsplus/ChatsPlusDemo.kt, shell/ShellDemo.kt).
     com.linea.messenger.chatsplus.ChatsPlusDemo.read(intent)
     com.linea.messenger.shell.ShellDemo.read(intent)

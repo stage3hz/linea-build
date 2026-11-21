@@ -98,6 +98,8 @@ object PeopleSimulator {
   /** The chat on top of the stack of pages, if that is what is there. */
   private fun topChat(root: RootScreen): ChatScreen? {
     val stack = root.pages() ?: return null
-    return stack.getChildAt(stack.childCount - 1) as? ChatScreen
+    // The shell's own views (the HomePill marks of the swipe back) may lie above the pages: the topmost chat page.
+    for (index in stack.childCount - 1 downTo 0) (stack.getChildAt(index) as? ChatScreen)?.let { return it }
+    return null
   }
 }

@@ -35,7 +35,9 @@ import com.linea.messenger.voice.MsgMediaState
 
 /** The open look: no bubbles. A message is its text on the page — own at the right edge, the other side's at
  *  the left — and the time follows the last word on the same line. */
-const val MSG_OPEN_LOOK = true
+// ChatLook: the open look is the default; bubbles come with a wallpaper or the choice in «Оформление»
+// (chatlook/BubbleLook.kt).
+val MSG_OPEN_LOOK: Boolean get() = com.linea.messenger.chatlook.ChatBubbleLook.open
 /** From the screen's edge to a message's plate, dp (the text stands 13 further in). */
 private const val MSG_EDGE = 3f
 /** The same without the open look. */
@@ -44,7 +46,9 @@ private const val MSG_EDGE_BUBBLES = 9f
 /** One chat row drawn on the canvas: a message (forward line, quote, picture with its label, text, time and ticks)
  *  or a centred notice. Its height comes from the text it lays out for the width it is given. */
 class MsgRowView(context: Context) : View(context) {
-  private val edge = (if (MSG_OPEN_LOOK) MSG_EDGE else MSG_EDGE_BUBBLES) * resources.displayMetrics.density
+  private val edge: Float get() = (if (MSG_OPEN_LOOK) MSG_EDGE else MSG_EDGE_BUBBLES) * resources.displayMetrics.density
+  /** ChatLook: the look the last layout was made for (bubbles or not, the corners, the line's colour). */
+  private var builtLook = ""
   private val d = resources.displayMetrics.density
   private val fill = Paint(Paint.ANTI_ALIAS_FLAG)
   private val stroke = Paint(Paint.ANTI_ALIAS_FLAG).apply { style = Paint.Style.STROKE; strokeCap = Paint.Cap.ROUND; strokeJoin = Paint.Join.ROUND }
@@ -55,6 +59,7 @@ class MsgRowView(context: Context) : View(context) {
   private val picture = Paint(Paint.ANTI_ALIAS_FLAG or Paint.FILTER_BITMAP_FLAG)
   private val matrix = Matrix()
   private val path = Path()
+  private val plateBox = android.graphics.RectF()
 
   private var row: MsgRow? = null
   private var palette = MsgPalette.DARK
@@ -155,7 +160,10 @@ class MsgRowView(context: Context) : View(context) {
   private var timeBase = 0f
 
   fun bind(next: MsgRow, colors: MsgPalette, size: Float, open: Boolean = false) {
-    if (row == next && palette == colors && fontSize == size && revealed == open) return
+    // ChatLook: a new look (bubbles, corners) lays the row out again.
+    val look = com.linea.messenger.chatlook.ChatBubbleLook.key
+    if (look != builtLook) { builtLook = look; builtFor = null; requestLayout() }
+    if (row == next && palette == colors && fontSize == size && revealed == open) { invalidate(); return }
     // Formatted text carries its colours in spans, so new colours mean a new layout as well.
     val styledAgain = next.fmt.isNotEmpty() && (palette != colors || revealed != open)
     val relayout = row != next || fontSize != size || styledAgain
@@ -361,12 +369,18 @@ class MsgRowView(context: Context) : View(context) {
       if (!item.mine) side += 34f * d
     }
     val left = if (item.mine) w - edge - bubbleW else side
-    val r = 20f * d; val tight = 7f * d
     fill.color = if (item.mine) palette.mine else palette.theirs
-    // The corner by the sender's edge is tight on the last bubble of a run (the «tail»).
-    val radii = floatArrayOf(r, r, r, r, if (item.mine && item.tail) tight else r, if (item.mine && item.tail) tight else r, if (!item.mine && item.tail) tight else r, if (!item.mine && item.tail) tight else r)
-    path.reset(); path.addRoundRect(left, 0f, left + bubbleW, bubbleH, radii, Path.Direction.CW)
+    // ChatLook: «Углы сообщений» (8, 14, 20), the corner by the sender's edge 6 at most on the last bubble of a run
+    // (chatlook/BubbleLook.kt).
+    plateBox.set(left, 0f, left + bubbleW, bubbleH)
+    com.linea.messenger.chatlook.ChatBubbleLook.shape(path, plateBox, item.mine, item.tail, d)
     if (!MSG_OPEN_LOOK) canvas.drawPath(path, fill)
+    // ChatLook: the open look — the other side's words carry a thin line in their colour.
+    if (MSG_OPEN_LOOK && !item.mine && (item.text.isNotEmpty() || item.label.isNotEmpty())) {
+      val line = com.linea.messenger.chatlook.ChatBubbleLook.peerLine
+      fill.color = if (line != 0) line else palette.accent
+      canvas.drawRect(left, 2f * d, left + 2f * d, bubbleH - 2f * d, fill)
+    }
     if (isPressed) { fill.color = Theme.veil(0.08f); canvas.drawPath(path, fill) }
     // ChatActions: the message a jump ended at is lit.
     if (flash) { fill.color = Theme.veil(0.16f); canvas.drawPath(path, fill) }

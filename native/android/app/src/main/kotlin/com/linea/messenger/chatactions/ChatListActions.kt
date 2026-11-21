@@ -195,7 +195,10 @@ class ChatListActions(private val context: Context, private val messenger: Messe
   // The chats
 
   /** The chats as the server lists them now. */
-  fun show(list: List<Messenger.ChatSummary>) = showChats(list.map { Chat(it) })
+  fun show(list: List<Messenger.ChatSummary>) {
+    com.linea.messenger.chatlook.ChatLookUnread.take(list) // ChatLook: the number on «назад» in a chat, and each chat's person (chatlook/ChatLookState.kt)
+    showChats(list.map { Chat(it) })
+  }
 
   private fun showChats(list: List<Chat>) {
     chats = list

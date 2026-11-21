@@ -174,7 +174,7 @@ class ChannelsEngineTest {
     assertTrue(block.layout.lineCount >= 2)
     // The link's first letter is on the first line, 17 letters in.
     val x = block.x + block.layout.getPrimaryHorizontal(20); val y = block.y + block.layout.getLineBaseline(0) - 5
-    assertEquals("https://example.com/turnir", (layout.hit(x, y) as ChannelHit.Link).url)
+    println("DBG hit=${layout.hit(x, y)} x=$x y=$y lines=${block.layout.lineCount} w=${block.layout.getLineWidth(0)} by=${block.y} h=${layout.height}");     assertEquals("https://example.com/turnir", (layout.hit(x, y) as ChannelHit.Link).url)
     assertTrue(layout.hit(block.x + 5, y) is ChannelHit.Row)
     val chip = layout.pieces.filterIsInstance<ChannelPiece.Border>().first().box
     assertEquals("👍", (layout.hit(chip.centerX(), chip.centerY()) as ChannelHit.Chip).emoji)

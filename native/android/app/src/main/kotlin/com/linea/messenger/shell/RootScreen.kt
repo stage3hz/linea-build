@@ -186,6 +186,9 @@ class RootScreen(context: Context, private val messenger: Messenger?, private va
   /** For the emulator check: the «Настройки» section, once it has been opened. */
   fun settingsPage(): SettingsScreen? = pages["profile"] as? SettingsScreen
 
+  /** Effects: the section on the screen now (the falling snow and the trail lie behind its content, effects/EffectsHost.kt). */
+  fun shownSection(): View? = pages[open]
+
   /** Opens the first chat of the list (for a check on the emulator). */
   fun openFirstChat() { (pages["chats"] as? ChatsScreen)?.openFirst() }
 }

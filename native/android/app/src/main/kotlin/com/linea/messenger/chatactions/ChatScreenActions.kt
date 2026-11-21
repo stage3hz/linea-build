@@ -87,6 +87,8 @@ class ChatScreenActions(private val context: Context, private val messenger: Mes
   private var demoDone = false
 
   private val statusWatcher: (String?) -> Unit = { id -> if (id == null || id == chatId || id == peerId) showStatus() }
+  /** ChatLook: «соединение…» / «ожидание сети…» in the same line (chatlook/ChatLookState.kt). */
+  private val connectionWatcher: (Unit) -> Unit = { showStatus() }
   /** «был(а) 5 минут назад» grows old by itself. */
   private val clock = object : Runnable {
     override fun run() {
@@ -159,6 +161,7 @@ class ChatScreenActions(private val context: Context, private val messenger: Mes
     downButton.behind = behind
     downButton.visibility = View.GONE
     downButton.onPress = {
+      com.linea.messenger.chatlook.Haptic.light(downButton) // ChatLook: as the reference's «Вниз к новым сообщениям»
       unseen = 0
       list.scrollToNewest(animated = true)
     }
@@ -209,6 +212,7 @@ class ChatScreenActions(private val context: Context, private val messenger: Mes
     attached = true
     ChatTyping.changed.watch(statusWatcher)
     Live.presenceChanged.watch(statusWatcher)
+    com.linea.messenger.chatlook.ChatLookConnection.changed.watch(connectionWatcher) // ChatLook
     host?.postDelayed(clock, 30_000)
     showStatus()
   }
@@ -219,6 +223,7 @@ class ChatScreenActions(private val context: Context, private val messenger: Mes
     attached = false
     ChatTyping.changed.unwatch(statusWatcher)
     Live.presenceChanged.unwatch(statusWatcher)
+    com.linea.messenger.chatlook.ChatLookConnection.changed.unwatch(connectionWatcher) // ChatLook
     host?.removeCallbacks(clock)
     host?.removeCallbacks(typingStop)
     tapWork?.let { host?.removeCallbacks(it) }
@@ -252,6 +257,8 @@ class ChatScreenActions(private val context: Context, private val messenger: Mes
       words = if (ChatActionsDemo.chatdemo == "typing") "печатает…" else "в сети"
       lit = true
     }
+    // ChatLook: while the connection is not up, the line says so (the reference's `headerStatus`).
+    com.linea.messenger.chatlook.ChatLookConnection.words(context, messenger)?.let { words = it; lit = false }
     if (statusLabel.text.toString() == words) return
     statusLabel.text = words
     statusLabel.setTextColor(if (lit) Theme.accent else Theme.muted)
@@ -408,6 +415,24 @@ class ChatScreenActions(private val context: Context, private val messenger: Mes
     field.requestFocus()
     (context.getSystemService(Context.INPUT_METHOD_SERVICE) as? InputMethodManager)?.showSoftInput(field, 0)
   }
+
+  // ChatLook: the status line for the glass header, and a swipe to the left that answers a message
+  // (chatlook/ChatLookScreen.kt, MsgMotion.kt).
+  val statusView: TextView get() = statusLabel
+
+  fun canSwipeReply(key: String): Boolean {
+    if (selecting) return false
+    val message = history.shown.messages[key] ?: return false
+    return readable(message) && !outgoing(message)
+  }
+
+  fun swipeReply(key: String) {
+    if (!canSwipeReply(key)) return
+    startReply(history.shown.messages[key] ?: return, focus = true)
+  }
+
+  /** ChatLook: the emulator check — the answer bar for the newest message of the other side (as a finished swipe). */
+  fun demoReply(key: String) { history.shown.messages[key]?.let { startReply(it, focus = false) } }
 
   private fun thump() { host?.performHapticFeedback(HapticFeedbackConstants.LONG_PRESS) }
   private fun tick() { host?.performHapticFeedback(HapticFeedbackConstants.CLOCK_TICK) }
