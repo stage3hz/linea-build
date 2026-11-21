@@ -1225,6 +1225,16 @@ final class ChatScreenActions: NSObject, UITextViewDelegate {
                 let mine = (message["reactions"] as? [[String: Any]] ?? []).contains { $0["mine"] as? Bool == true }
                 if !mine { react(message, "❤️") }
             }
+        // ChatActions, Polls, Attachments: -chatdemo search|newpoll|albummenu (with -chatdemo features' messages
+        // for the last two: «search» brings its own).
+        case "search":
+            openSearch()
+            searchBar.input.text = "распечат"
+            history.searchNeedle = searchBar.needle
+        case "newpoll":
+            newPoll()
+        case "albummenu":
+            if let head = shown.albumParts.keys.sorted().first { openMenu(head, y: middle) }
         default:
             break
         }

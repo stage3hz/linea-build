@@ -6,8 +6,8 @@ import UIKit
 
 /// Messages written while the server could not be reached: they wait and go out by themselves when the live
 /// line is back, whichever screen is open (reference: communities/channelOutbox.ts). Each carries a key the
-/// server knows a repeated send by, so nothing is posted twice. Kept in memory for as long as the app runs
-/// (the reference also keeps them on disk across restarts — not built here). Main queue only.
+/// server knows a repeated send by, so nothing is posted twice. Kept on this device per account, as the reference
+/// does, so they survive a restart (`ChannelOutboxDisk`, Channels/ChannelOutboxDisk.swift). Main queue only.
 final class ChannelOutbox: NSObject {
     static let shared = ChannelOutbox()
     /// Posted when the waiting or refused messages changed; `userInfo["channelId"]`, and `userInfo["message"]`
@@ -39,6 +39,12 @@ final class ChannelOutbox: NSObject {
         waiting = []
         refused = []
         sending = false
+        // Channels: what waited when the app was closed (Channels/ChannelOutboxDisk.swift).
+        if let messenger {
+            let kept = ChannelOutboxDisk.load(userId: messenger.userId)
+            waiting = kept.waiting
+            refused = kept.refused
+        }
         if !observing {
             observing = true
             NotificationCenter.default.addObserver(self, selector: #selector(event(_:)), name: Live.communityEvent, object: nil)
@@ -50,6 +56,7 @@ final class ChannelOutbox: NSObject {
     }
 
     private func post(_ channelId: String, message: Any? = nil) {
+        if let messenger { ChannelOutboxDisk.save(userId: messenger.userId, waiting: waiting, refused: refused) } // Channels: kept on disk
         var info: [String: Any] = ["channelId": channelId]
         if let message { info["message"] = message }
         NotificationCenter.default.post(name: ChannelOutbox.changed, object: nil, userInfo: info)

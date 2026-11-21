@@ -669,7 +669,7 @@ final class ChatHistory {
         }
         // Polls, Attachments, Composer: -chatdemo features — a poll with results, a poll with several answers, big
         // emoji, a message sent «без звука» and an album of three photos.
-        if extra == "features" || extra == "poll" || extra == "album" || extra == "emoji" || extra == "search" {
+        if ["features", "poll", "album", "emoji", "search", "albummenu", "newpoll"].contains(extra) {
             let lunch: [String: Any] = ["question": "Куда пойдём в пятницу?", "options": ["Кино", "Боулинг", "Остаться дома"], "multiple": false]
             add(false, PollText.fallback(lunch), "09:44", ["poll": lunch])
             let pollClient = client(list.count)
