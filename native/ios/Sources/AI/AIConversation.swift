@@ -91,7 +91,7 @@ enum AIClient {
             let finish: (Result<Data, AIFailure>) -> Void = { result in DispatchQueue.main.async { done(result) } }
             if case .failure(let error) = server.sendAndWait("GET", "/ai/status") { return finish(.failure(AIFailure(error.words))) }
             let unreachable = AIFailure("Нет связи с сервером. Проверь интернет и адрес подключения.")
-            guard server.base.hasPrefix("https://"), let url = URL(string: server.base + "/ai/video"),
+            guard server.endpoint.hasPrefix("https://"), let url = URL(string: server.endpoint + "/ai/video"),
                   let made = Core.prepare(method: "POST", path: "/ai/video", jsonBody: true, token: server.token, proof: server.currentProof),
                   let body = Core.text(["prompt": prompt, "duration": duration, "consent": true] as [String: Any]) else { return finish(.failure(unreachable)) }
             var request = URLRequest(url: url, timeoutInterval: made.timeout)

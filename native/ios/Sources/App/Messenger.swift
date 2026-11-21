@@ -8,6 +8,8 @@ final class Messenger {
     private let vault: Vault
     let crypto: CryptoService
     let live: Live
+    /// Offline: the background opening of the chat list's closed lines (Sources/Offline/ListCatchUp.swift).
+    let catchUp = ListCatchUp()
     /// Posted on the main queue when something on the server changed: `object` is the chat's id, or nil for «anything».
     static let changed = Notification.Name("invizent.changed")
     /// Posted when the other side read up to a message: `userInfo` holds `chatId` and `messageId`.
@@ -37,8 +39,12 @@ final class Messenger {
             case .typing(let chatId, let userId, let on): if userId != self.userId { ChatTyping.shared.heard(chatId: chatId, on: on) }
             }
         }
-        // Publishes this device's keys (making them on the very first start), then opens the live line.
-        crypto.call("initialize") { [weak self] _ in self?.live.start() }
+        // Offline: the fastest live address of the server, and the phone's network (Sources/Offline/ServerPool.swift).
+        ServerPool.shared.start(base: Account.server)
+        // Publishes this device's keys (making them on the very first start). The live line opens at once beside
+        // it, as in the reference: a slow or failing key publication must not hold back everything else.
+        crypto.call("initialize") { _ in }
+        live.start()
     }
 
     /// Tells the server the chat was read up to a message.
@@ -61,7 +67,10 @@ final class Messenger {
     }
 
     /// The chats as the server lists them, each with its last message as this device has decrypted it.
-    func chats(done: @escaping (Result<[ChatSummary], ServerError>) -> Void) {
+    /// Offline: `previous` — the lines on screen now by chat id (a line already opened here never turns closed
+    /// again); chats whose line is still closed are opened afterwards in the background (`catchUpList`), not
+    /// here, so one slow chat never holds the whole list back.
+    func chats(previous: [String: [String: Any]] = [:], done: @escaping (Result<[ChatSummary], ServerError>) -> Void) {
         server.op("chats", []) { [weak self] result in
             guard let self else { return }
             switch result {
@@ -75,12 +84,16 @@ final class Messenger {
                 }
                 self.crypto.run({ crypto -> [ChatSummary] in
                     var part = ""
-                    return list.compactMap { chat in
+                    return list.compactMap { (chat: [String: Any]) -> ChatSummary? in
                         // A quiet heading above the first chat of each part of the list.
                         let own = Self.section(chat)
                         let heading = own != part ? own : ""
                         part = own
-                        return self.summary(chat, crypto, section: heading)
+                        var shown: [String: Any]? = nil
+                        if let id = chat["id"] as? String, let last = chat["lastMessage"] as? [String: Any] {
+                            shown = self.catchUp.line(chatId: id, last: last, crypto: crypto, previous: previous[id])
+                        }
+                        return self.summary(chat, shown: shown, section: heading)
                     }
                 }, done: { done(.success($0)) })
             }
@@ -97,21 +110,18 @@ final class Messenger {
         return days <= 0 ? "Сегодня" : days == 1 ? "Вчера" : "Раньше"
     }
 
-    private func summary(_ chat: [String: Any], _ crypto: CryptoService, section: String) -> ChatSummary? {
+    /// `shown`: the chat's last message as this device shows it (the list never shows the server's own text:
+    /// only the copy this device decrypted and kept). Any queue.
+    func summary(_ chat: [String: Any], shown: [String: Any]?, section: String) -> ChatSummary? {
         guard let id = chat["id"] as? String, let peer = chat["peer"] as? [String: Any], let peerId = peer["id"] as? String else { return nil }
         let title = peer["displayName"] as? String ?? ""
         var preview = "", time = "", ticks = 0
         var shownLast: [String: Any] = [:]
-        if var last = chat["lastMessage"] as? [String: Any] {
-            // The list never shows the server's own text: only the copy this device decrypted and kept.
-            var shown = (try? crypto.callNow("preview", [last]).get()) as? [String: Any]
-            if shown?["cryptoState"] as? String == "no-key" {
-                // Not opened on this device yet: a short catch-up of this chat, then the kept copy.
-                _ = crypto.callNow("sync", [id, 2])
-                shown = (try? crypto.callNow("preview", [last]).get()) as? [String: Any]
-            }
-            if let shown { last = shown }
+        var quiet = false
+        if chat["lastMessage"] is [String: Any], let last = shown {
             shownLast = last
+            // Offline: a message this device cannot open is said in a quieter way than a real line.
+            quiet = ListCatchUp.awaitsInbox(last)
             // The line of the list as the core words it (a call's outcome, hidden spoilers); else the plain words.
             let line = Core.view("chatListText", [last]) as? String ?? ""
             preview = line.isEmpty ? Self.previewText(last) : line
@@ -125,10 +135,11 @@ final class Messenger {
         let orb = orbPair(color)
         let settings = chat["settings"] as? [String: Any]
         let avatarId = peer["avatarId"] as? String ?? ""
-        let avatarUrl = avatarId.isEmpty ? "" : server.base + "/files/" + (avatarId.addingPercentEncoding(withAllowedCharacters: .alphanumerics.union(CharacterSet(charactersIn: "-_.~"))) ?? "")
+        let avatarUrl = avatarId.isEmpty ? "" : server.endpoint + "/files/" + (avatarId.addingPercentEncoding(withAllowedCharacters: .alphanumerics.union(CharacterSet(charactersIn: "-_.~"))) ?? "")
         let row: [String: Any] = ["section": section, "avatarUrl": avatarUrl, "avatarKey": avatarId, "id": id, "title": title, "preview": preview, "time": time, "unread": (chat["unreadCount"] as? NSNumber)?.intValue ?? 0,
                                   "muted": settings?["muted"] as? Bool ?? false, "pinned": settings?["pinnedAt"] is String, "ticks": ticks,
-                                  "avatarColor": Int(0xFF00_0000 | color), "initials": Self.initials(title), "orbA": orb.light, "orbB": orb.deep]
+                                  "avatarColor": Int(0xFF00_0000 | color), "initials": Self.initials(title), "orbA": orb.light, "orbB": orb.deep,
+                                  "quietPreview": quiet]
         return ChatSummary(id: id, peerId: peerId, title: title, peerLastRead: (chat["peerLastReadMessageId"] as? NSNumber)?.intValue ?? 0, row: row, chat: chat, last: shownLast)
     }
 

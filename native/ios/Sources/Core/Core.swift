@@ -36,13 +36,15 @@ enum Core {
     }
 
     /// The headers and the time limit (seconds) of one request.
-    static func prepare(method: String, path: String, jsonBody: Bool, token: String?, proof: String?) -> (headers: [(String, String)], timeout: TimeInterval)? {
+    /// Offline: `tier` ("slow" / "medium" / "fast", Sources/Offline/ServerPool.swift) stretches the time limit on a slow link.
+    static func prepare(method: String, path: String, jsonBody: Bool, token: String?, proof: String?, tier: String? = nil) -> (headers: [(String, String)], timeout: TimeInterval)? {
         var request: [String: Any] = ["method": method, "path": path, "jsonBody": jsonBody, "platform": "ios",
                                       "version": Bundle.main.object(forInfoDictionaryKey: "CFBundleShortVersionString") as? String ?? "0",
                                       "nowMs": Int(Date().timeIntervalSince1970 * 1000)]
         if !attestKey.isEmpty { request["attestKey"] = attestKey }
         if let token { request["token"] = token }
         if let proof { request["proof"] = proof }
+        if let tier { request["tier"] = tier }
         guard let json = text(request), let made = value(json.withCString { take(invizent_http_prepare($0)) }) as? [String: Any],
               let list = made["headers"] as? [[String]], let limit = made["timeoutMs"] as? Double else { return nil }
         return (list.compactMap { $0.count == 2 ? ($0[0], $0[1]) : nil }, limit / 1000)

@@ -40,7 +40,19 @@ final class Live: NSObject, URLSessionWebSocketDelegate {
         super.init()
         NotificationCenter.default.addObserver(self, selector: #selector(sleep), name: UIApplication.didEnterBackgroundNotification, object: nil)
         NotificationCenter.default.addObserver(self, selector: #selector(wake), name: UIApplication.willEnterForegroundNotification, object: nil)
+        // Offline: the network came back — connect now instead of waiting out the pause (Sources/Offline/ServerPool.swift).
+        NotificationCenter.default.addObserver(self, selector: #selector(networkBack), name: ServerPool.networkBack, object: nil)
     }
+
+    @objc private func networkBack() {
+        guard !stopped, !closed else { return }
+        attempts = 0
+        if socket == nil { connect() }
+    }
+
+    /// Offline: the address the current line was opened to, and whether it ever opened.
+    private var socketTarget = ""
+    private var socketOpened = false
 
     deinit {
         NotificationCenter.default.removeObserver(self)
@@ -84,9 +96,12 @@ final class Live: NSObject, URLSessionWebSocketDelegate {
     }
 
     private func connect() {
-        guard !stopped, socket == nil, server.base.hasPrefix("https://"), let url = URL(string: "wss://" + String(server.base.dropFirst("https://".count)) + "/ws") else { return }
+        let target = server.endpoint
+        guard !stopped, socket == nil, target.hasPrefix("https://"), let url = URL(string: "wss://" + String(target.dropFirst("https://".count)) + "/ws") else { return }
         let task = session.webSocketTask(with: url)
         socket = task
+        socketTarget = target
+        socketOpened = false
         line = "connecting"
         lastReceive = Date()
         task.resume()
@@ -94,7 +109,9 @@ final class Live: NSObject, URLSessionWebSocketDelegate {
     }
 
     func urlSession(_ session: URLSession, webSocketTask: URLSessionWebSocketTask, didOpenWithProtocol protocol: String?) {
-        guard webSocketTask === socket, let token = server.token else { return }
+        guard webSocketTask === socket else { return }
+        socketOpened = true
+        guard let token = server.token else { return }
         // A session bound to this device sends its proof with the token; without one the server closes the line.
         var auth: [String: Any] = ["type": "auth", "token": token, "lean": true]
         if let proof = server.currentProof { auth["proof"] = proof }
@@ -117,8 +134,12 @@ final class Live: NSObject, URLSessionWebSocketDelegate {
     private func retry() {
         line = "offline"
         guard !stopped else { return }
-        let pause = min(pow(2, Double(attempts)), 15)
-        attempts += 1
+        // Offline: the address could not be reached at all — the next one is tried at once instead of backing off.
+        let target = socketTarget, opened = socketOpened
+        if !opened, !target.isEmpty, server.endpoint == target { ServerPool.shared.reportFailure(target) }
+        let moved = !opened && !target.isEmpty && server.endpoint != target
+        let pause = moved ? 0.3 : min(pow(2, Double(attempts)), 15)
+        if !moved { attempts += 1 }
         DispatchQueue.main.asyncAfter(deadline: .now() + pause) { [weak self] in self?.connect() }
     }
 

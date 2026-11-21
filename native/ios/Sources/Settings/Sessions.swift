@@ -465,7 +465,7 @@ final class BlockedViewController: SettingsPage {
     private func person(_ user: [String: Any]) -> UIView {
         let id = user["id"] as? String ?? ""
         let ball = SettingsAvatar(frame: CGRect(x: 0, y: 0, width: 40, height: 40))
-        ball.show(user, base: messenger.server.base)
+        ball.show(user, base: messenger.server.endpoint)
         ball.translatesAutoresizingMaskIntoConstraints = false
         ball.widthAnchor.constraint(equalToConstant: 40).isActive = true
         ball.heightAnchor.constraint(equalToConstant: 40).isActive = true

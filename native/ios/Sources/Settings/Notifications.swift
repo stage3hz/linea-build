@@ -206,7 +206,7 @@ final class NotificationsViewController: SettingsPage {
             let settings = chat.chat["settings"] as? [String: Any] ?? [:]
             let state = NotificationsViewController.muteState(settings)
             guard state["muted"] as? Bool == true else { continue }
-            let row = MutedChatRow(person: chat.chat["peer"] as? [String: Any] ?? [:], base: messenger.server.base, name: chat.title, status: state["status"] as? String ?? "")
+            let row = MutedChatRow(person: chat.chat["peer"] as? [String: Any] ?? [:], base: messenger.server.endpoint, name: chat.title, status: state["status"] as? String ?? "")
             row.onPress = { [weak self] in self?.askMute(chat, settings: settings) }
             row.onBell = { [weak self] in self?.change(chat, ["muted": false]) }
             quiet.append(row)

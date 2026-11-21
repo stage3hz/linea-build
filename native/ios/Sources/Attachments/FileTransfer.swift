@@ -129,7 +129,7 @@ final class FileTransfer: NSObject, URLSessionDataDelegate {
     private static let unreachable = "Нет связи с сервером. Проверь интернет и адрес подключения."
 
     private static func request(_ server: Server, _ method: String, _ path: String, contentType: String?) -> URLRequest? {
-        guard server.base.hasPrefix("https://"), let url = URL(string: server.base + path),
+        guard server.endpoint.hasPrefix("https://"), let url = URL(string: server.endpoint + path),
               let made = Core.prepare(method: method, path: path, jsonBody: false, token: server.token, proof: server.currentProof) else { return nil }
         var request = URLRequest(url: url, timeoutInterval: made.timeout)
         request.httpMethod = method
@@ -163,7 +163,7 @@ final class FileTransfer: NSObject, URLSessionDataDelegate {
     /// `GET /files/<id>`: the sealed bytes of an attachment, exactly `cipherSize` of them or nothing.
     func download(_ server: Server, id: String, cipherSize: Int) -> Result<Data, Failure> {
         guard server.token != nil else { return .failure(.words("Нужно войти в аккаунт.")) }
-        guard server.base.hasPrefix("https://") else { return .failure(.words("Файлы загружаются только по защищённому соединению.")) }
+        guard server.endpoint.hasPrefix("https://") else { return .failure(.words("Файлы загружаются только по защищённому соединению.")) }
         let allowed = CharacterSet.alphanumerics.union(CharacterSet(charactersIn: "-_.~"))
         guard let name = id.addingPercentEncoding(withAllowedCharacters: allowed), let request = FileTransfer.request(server, "GET", "/files/" + name, contentType: nil) else { return .failure(.words(FileTransfer.unreachable)) }
         switch run(request, body: nil, limit: cipherSize) {

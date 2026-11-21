@@ -129,7 +129,7 @@ final class CommunitySettingsPage: SettingsPage, PHPickerViewControllerDelegate 
             let pressable = community.can(Perm.manageRoles) || community.can(Perm.kick) || community.can(Perm.ban)
             var rows: [UIView] = []
             for member in members {
-                let row = MemberRow(member, community: community, base: messenger?.server.base ?? "")
+                let row = MemberRow(member, community: community, base: messenger?.server.endpoint ?? "")
                 row.isEnabled = pressable
                 row.onPress = { [weak self] in self?.openMember(member) }
                 rows.append(row)

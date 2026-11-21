@@ -78,6 +78,14 @@ final class CryptoService {
         }
     }
 
+    /// Offline: what the core's `loadCache` gives (the vault's copy of the chat list or of a chat's page), read at
+    /// once on the caller's queue (never the main one) instead of waiting behind network work on the service's
+    /// queue. Only the names the core accepts; the storage is opened for use from several threads.
+    func loadCacheAtOnce(_ name: String) -> String? {
+        guard ChatCache.isCacheName(name) else { return nil }
+        return try? vault.get(name)
+    }
+
     /// One operation, on the current (the service's) queue.
     func callNow(_ op: String, _ args: [Any] = []) -> Result<Any, CryptoFailure> {
         guard let handle, let argsText = Core.text(args) else { return .failure(CryptoFailure(name: "Error", message: "Шифрование недоступно.")) }

@@ -51,7 +51,7 @@ final class SettingsViewController: SettingsPage {
         clear()
         let who = person
         if !who.isEmpty {
-            let head = SettingsHead(person: who, base: messenger?.server.base ?? "")
+            let head = SettingsHead(person: who, base: messenger?.server.endpoint ?? "")
             head.onPress = { [weak self] in self?.openProfile() }
             add(head, gap: 0)
         }

@@ -58,9 +58,14 @@ final class Server: NSObject, URLSessionTaskDelegate {
     var currentProof: String? { token == nil ? nil : proof.current }
     private let work = DispatchQueue(label: "invizent.server", qos: .userInitiated, attributes: .concurrent)
 
-    private func request(_ method: String, _ path: String, _ body: String?) throws -> URLRequest {
-        guard base.hasPrefix("https://"), let url = URL(string: base + path),
-              let made = Core.prepare(method: method, path: path, jsonBody: body != nil, token: token, proof: token == nil ? nil : proof.current) else { throw ServerError.network("Нет связи с сервером. Проверь интернет и адрес подключения.") }
+    /// Offline: where the requests go now — the account's server itself, or, for the real server, the fastest live
+    /// address of it (Sources/Offline/ServerPool.swift). `base` stays the account's identity.
+    var endpoint: String { ServerPool.shared.endpoint(for: base) }
+
+    private func request(_ method: String, _ path: String, _ body: String?, to target: String? = nil) throws -> URLRequest {
+        let host = target ?? endpoint
+        guard host.hasPrefix("https://"), let url = URL(string: host + path),
+              let made = Core.prepare(method: method, path: path, jsonBody: body != nil, token: token, proof: token == nil ? nil : proof.current, tier: NetQuality.shared.tier) else { throw ServerError.network("Нет связи с сервером. Проверь интернет и адрес подключения.") }
         var request = URLRequest(url: url, timeoutInterval: made.timeout)
         request.httpMethod = method
         for (name, value) in made.headers { request.setValue(value, forHTTPHeaderField: name) }
@@ -76,17 +81,36 @@ final class Server: NSObject, URLSessionTaskDelegate {
         return result
     }
 
-    private func once(_ method: String, _ path: String, _ body: String?) -> Result<Any, ServerError> {
-        guard let request = try? request(method, path, body) else { return .failure(.network("Нет связи с сервером. Проверь интернет и адрес подключения.")) }
+    /// One request to one address. `unreached`: no answer at all (no connection, no answer in time, or the proxy in
+    /// front of a server that is down); `notDelivered`: provably never reached the server itself (502/503/504).
+    private func attempt(_ method: String, _ path: String, _ body: String?, to target: String) -> (result: Result<Any, ServerError>, unreached: Bool, notDelivered: Bool) {
+        guard let request = try? request(method, path, body, to: target) else { return (Result<Any, ServerError>.failure(.network("Нет связи с сервером. Проверь интернет и адрес подключения.")), false, false) }
+        let started = Date()
         let (data, response, error) = wait(request)
-        if let error = error as? URLError, error.code == .timedOut { return .failure(.timeout) }
-        guard error == nil, let http = response as? HTTPURLResponse else { return .failure(.network("Нет связи с сервером. Проверь интернет и адрес подключения.")) }
+        if let error = error as? URLError, error.code == .timedOut { return (Result<Any, ServerError>.failure(.timeout), true, false) }
+        guard error == nil, let http = response as? HTTPURLResponse else { return (Result<Any, ServerError>.failure(.network("Нет связи с сервером. Проверь интернет и адрес подключения.")), true, false) }
+        if http.statusCode < 500 { NetQuality.shared.report(ms: Date().timeIntervalSince(started) * 1000, bytes: data?.count ?? 0) }
         let read = Core.read(status: http.statusCode, body: String(data: data ?? Data(), encoding: .utf8) ?? "")
-        if let ok = read["ok"] { return .success(ok) }
+        if let ok = read["ok"] { return (Result<Any, ServerError>.success(ok), false, false) }
         if let refused = read["refused"] as? [String: Any] {
-            return .failure(.refused(message: refused["message"] as? String ?? "Не удалось выполнить запрос. Попробуй ещё раз.", status: http.statusCode, code: refused["code"] as? String, details: refused))
+            return (Result<Any, ServerError>.failure(.refused(message: refused["message"] as? String ?? "Не удалось выполнить запрос. Попробуй ещё раз.", status: http.statusCode, code: refused["code"] as? String, details: refused)), false, false)
         }
-        return .failure(.network("Сервер недоступен."))
+        return (Result<Any, ServerError>.failure(.network("Сервер недоступен.")), true, true)
+    }
+
+    /// One request; for the real server, an address that gives no answer is skipped at once (the reference's
+    /// `Api.send`): only reads, or a request that provably never arrived, are repeated on the next address by
+    /// themselves — writes have their own retries (messages are idempotent by their client id), so nothing is
+    /// ever done twice.
+    private func once(_ method: String, _ path: String, _ body: String?) -> Result<Any, ServerError> {
+        let target = endpoint
+        let first = attempt(method, path, body, to: target)
+        guard first.unreached, ServerPool.shared.pooled(base) else { return first.result }
+        ServerPool.shared.reportFailure(target)
+        let next = endpoint
+        let verb = method.uppercased()
+        guard next != target, verb == "GET" || verb == "HEAD" || first.notDelivered else { return first.result }
+        return attempt(method, path, body, to: next).result
     }
 
     /// One request with everything around it, waiting for the answer on the calling thread (never the main one).

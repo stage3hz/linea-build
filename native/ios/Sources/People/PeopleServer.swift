@@ -44,7 +44,7 @@ extension Messenger {
     func personAvatarAddress(_ avatarId: String) -> String {
         guard !avatarId.isEmpty else { return "" }
         let allowed = CharacterSet.alphanumerics.union(CharacterSet(charactersIn: "-_.~"))
-        return server.base + "/files/" + (avatarId.addingPercentEncoding(withAllowedCharacters: allowed) ?? "")
+        return server.endpoint + "/files/" + (avatarId.addingPercentEncoding(withAllowedCharacters: allowed) ?? "")
     }
 
     /// Main thread only.

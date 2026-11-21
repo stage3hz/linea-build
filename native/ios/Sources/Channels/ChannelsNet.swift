@@ -26,7 +26,7 @@ final class ChannelTransfer: NSObject, URLSessionTaskDelegate {
 
     /// A request of the signed-in session; nil when it cannot be made (no HTTPS address, no headers).
     static func request(_ server: Server, _ method: String, _ path: String, contentType: String?) -> URLRequest? {
-        guard server.token != nil, server.base.hasPrefix("https://"), let url = URL(string: server.base + path),
+        guard server.token != nil, server.endpoint.hasPrefix("https://"), let url = URL(string: server.endpoint + path),
               let made = Core.prepare(method: method, path: path, jsonBody: false, token: server.token, proof: server.currentProof) else { return nil }
         var request = URLRequest(url: url, timeoutInterval: made.timeout)
         request.httpMethod = method

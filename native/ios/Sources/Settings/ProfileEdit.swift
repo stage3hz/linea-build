@@ -126,7 +126,7 @@ final class ProfileEditViewController: SettingsPage {
         let typed = nameField.value.trimmingCharacters(in: .whitespacesAndNewlines)
         if !typed.isEmpty { shown["displayName"] = typed }
         shown["avatarColor"] = color
-        ball.show(shown, base: messenger.server.base)
+        ball.show(shown, base: messenger.server.endpoint)
     }
 
     private func showValues() {

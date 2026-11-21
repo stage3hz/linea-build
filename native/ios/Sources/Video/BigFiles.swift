@@ -111,7 +111,7 @@ final class ChunkRequest: NSObject, URLSessionDataDelegate {
 
     /// Sends the request and waits. Nil: no answer (no connection, cancelled, or more bytes than `limit`).
     func run(_ server: Server, method: String, path: String, range: String?, body: Data?, limit: Int) -> (status: Int, body: Data)? {
-        guard server.base.hasPrefix("https://"), let url = URL(string: server.base + path),
+        guard server.endpoint.hasPrefix("https://"), let url = URL(string: server.endpoint + path),
               let made = Core.prepare(method: method, path: path, jsonBody: false, token: server.token, proof: server.currentProof) else { return nil }
         var request = URLRequest(url: url, timeoutInterval: max(made.timeout, 120))
         request.httpMethod = method
@@ -339,7 +339,7 @@ enum BigFiles {
         guard let size = (about["size"] as? NSNumber)?.intValue, let count = (about["count"] as? NSNumber)?.intValue,
               let id = attachment["id"] as? String, let message = Core.text(bare) else { return fail("У вложения нет ключа сквозного шифрования.") }
         guard server.token != nil else { return fail("Нужно войти в аккаунт.") }
-        guard server.base.hasPrefix("https://") else { return fail("Файлы загружаются только по защищённому соединению.") }
+        guard server.endpoint.hasPrefix("https://") else { return fail("Файлы загружаются только по защищённому соединению.") }
         let allowed = CharacterSet.alphanumerics.union(CharacterSet(charactersIn: "-_.~"))
         guard let name = id.addingPercentEncoding(withAllowedCharacters: allowed) else { return fail("Файл недоступен.") }
         let manager = FileManager.default
