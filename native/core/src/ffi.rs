@@ -400,6 +400,8 @@ pub unsafe extern "C" fn invizent_proof_call(proof: *mut InvizentProof, input: *
 ///   (decrypted) messages folded into what is shown — edits, deletions, reactions, pins, polls, auto-delete.
 /// - `chatListText [message]` → the line of a chat in the list.
 /// - `replyPreview [message]` → the short line quoted in an answer.
+/// - `nativeText [text, entities|null]` → `{text, fmt, urls}`: a message's text with its formatting as runs
+///   `[flags, offset, length]` in UTF-16 units and one address per run with the link flag (`format`).
 ///
 /// # Safety
 /// `name` and `args` are NUL-terminated strings that stay valid for the call (or null).
@@ -417,6 +419,8 @@ pub unsafe extern "C" fn invizent_view(name: *const c_char, args: *const c_char)
             }
             ("chatListText", [message]) => text(chat_view::chat_list_text(message)),
             ("replyPreview", [message]) => text(chat_view::reply_preview(message)),
+            // A null answer: the formatting is malformed in a way the reference itself stops on — show the text plain.
+            ("nativeText", [Value::String(body), entities]) => crate::format::native_text(body, if matches!(entities, Value::Null) { None } else { Some(entities) }),
             _ => return None,
         };
         Some(json::stringify(&out))

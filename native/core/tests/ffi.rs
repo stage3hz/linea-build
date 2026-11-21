@@ -106,6 +106,8 @@ fn what_is_shown_crosses_the_boundary() {
         assert_eq!(shown[0].get("text").and_then(Value::as_str).as_deref(), Some("исправленное"));
         assert_eq!(shown[0].get("edited"), Some(&Value::Bool(true)));
         assert_eq!(ask("chatListText", &format!("[{}]", message(1, "a", "привет", ""))).as_deref(), Some("\"привет\""));
+        assert_eq!(ask("nativeText", r#"["Жирный и www.example.com",[{"type":"bold","offset":0,"length":6}]]"#).as_deref(), Some(r#"{"text":"Жирный и www.example.com","fmt":[1,0,6,64,9,15],"urls":["https://www.example.com"]}"#));
+        assert_eq!(ask("nativeText", r#"["просто текст",null]"#).as_deref(), Some(r#"{"text":"просто текст","fmt":[],"urls":[]}"#));
         assert!(ask("foldChat", "[]").is_none() && ask("nothing", "[]").is_none() && ask("chatListText", "{}").is_none());
         assert!(invizent_view(std::ptr::null(), std::ptr::null()).is_null());
     }

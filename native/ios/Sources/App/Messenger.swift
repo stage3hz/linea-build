@@ -173,8 +173,17 @@ final class Messenger {
             if today != day, !today.isEmpty { day = today; rows.append(["key": "day-\(index)", "kind": 1, "text": today]) }
             let next = index + 1 < messages.count ? messages[index + 1] : nil
             let id = (message["id"] as? NSNumber)?.intValue ?? 0
-            rows.append(["key": "\(message["senderId"] as? String ?? ""):\(message["clientId"] as? String ?? "")", "kind": 0, "mine": mine,
-                         "text": Self.previewText(message), "time": (message["edited"] as? Bool == true ? "изм. " : "") + (date.map { Self.clock.string(from: $0) } ?? ""),
+            // Bold, links, spoilers and the rest: the text and its runs as the core lays them out.
+            var body = Self.previewText(message)
+            var fmt: [Int] = [], urls: [String] = []
+            if let laid = Core.view("nativeText", [message["text"] as? String ?? "", (message["meta"] as? [String: Any])?["entities"] ?? NSNull()]) as? [String: Any],
+               let text = laid["text"] as? String, !text.isEmpty {
+                body = text
+                fmt = (laid["fmt"] as? [NSNumber] ?? []).map { $0.intValue }
+                urls = laid["urls"] as? [String] ?? []
+            }
+            rows.append(["key": "\(message["senderId"] as? String ?? ""):\(message["clientId"] as? String ?? "")", "kind": 0, "mine": mine, "fmt": fmt, "urls": urls,
+                         "text": body, "time": (message["edited"] as? Bool == true ? "изм. " : "") + (date.map { Self.clock.string(from: $0) } ?? ""),
                          "chips": (message["reactions"] as? [[String: Any]] ?? []).flatMap { [$0["emoji"] as? String ?? "", String(($0["count"] as? NSNumber)?.intValue ?? 1), $0["mine"] as? Bool == true ? "1" : ""] },
                          "ticks": mine ? (peerLastRead >= id ? 2 : 1) : 0, "tail": next?["senderId"] as? String != message["senderId"] as? String])
         }
