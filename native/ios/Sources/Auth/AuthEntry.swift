@@ -25,12 +25,17 @@ final class AuthEntry: UIView, UITextFieldDelegate {
     /// Spaces are not taken at all (the @username).
     var noSpaces = false
     var onReturn: (() -> Void)?
+    /// Whether an empty field starts out showing what is typed (a secret being created) or hiding it.
+    var shownWhenEmpty = false
 
     var value: String {
         get { return field.text ?? "" }
         set {
             field.text = newValue
-            if newValue.isEmpty { refusal.isHidden = true }
+            if newValue.isEmpty {
+                refusal.isHidden = true
+                reveal(shownWhenEmpty)
+            }
         }
     }
 
@@ -167,6 +172,7 @@ final class AuthEntry: UIView, UITextFieldDelegate {
             textField.selectedTextRange = textField.textRange(from: place, to: place)
         }
         refusal.isHidden = true
+        if made.isEmpty { reveal(shownWhenEmpty) }
         return false
     }
 

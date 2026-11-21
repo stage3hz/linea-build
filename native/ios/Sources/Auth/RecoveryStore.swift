@@ -93,7 +93,8 @@ enum RecoveryStore {
 
     /// Removes the request kept for this server — only the one with `resetToken` when it is given.
     static func clear(base: String, resetToken: String? = nil) {
-        let raw: String? = (try? Keychain.get(name)) ?? nil
+        var raw: String?
+        do { raw = try Keychain.get(name) } catch { return }
         guard let saved = decode(raw), saved.base == base else { return }
         if let resetToken, saved.grant.resetToken != resetToken { return }
         Keychain.remove(name)

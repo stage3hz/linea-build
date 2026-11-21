@@ -426,3 +426,162 @@ pub unsafe extern "C" fn invizent_view(name: *const c_char, args: *const c_char)
         Some(json::stringify(&out))
     }).ok().flatten().map_or(std::ptr::null_mut(), give)
 }
+
+// ── Files attached to encrypted messages ─────────────────────────────────────────────────────────────────────
+//
+// A file's bytes cross the boundary as a pointer and a length, and the answer is a buffer of the core's own,
+// given back with `invizent_file_bytes_free`. (Not base64 inside JSON: a 20 MiB photo would be a 27 MB text,
+// escaped and parsed on both sides — several copies of the picture in memory at once on a phone.)
+
+/// Bytes the core hands out; `data` is null when there are none.
+#[repr(C)]
+pub struct InvizentBytes { pub data: *mut u8, pub len: usize }
+
+fn give_bytes(bytes: Vec<u8>, out: *mut InvizentBytes) {
+    let boxed = bytes.into_boxed_slice();
+    let len = boxed.len();
+    unsafe { *out = InvizentBytes { data: Box::into_raw(boxed).cast::<u8>(), len } }
+}
+/// # Safety
+/// `data` is null or points to `len` readable bytes.
+unsafe fn file_bytes<'a>(data: *const u8, len: usize) -> &'a [u8] { if data.is_null() || len == 0 { &[] } else { std::slice::from_raw_parts(data, len) } }
+
+/// One step on a file: `work` gives the bytes for `out`, or the words of the refusal (the answer; null: done).
+fn file_step(out: *mut InvizentBytes, work: impl FnOnce() -> Result<Vec<u8>, &'static str>) -> *mut c_char {
+    if out.is_null() { return give(crate::e2ee::files::NOT_SEALED.to_string()) }
+    unsafe { *out = InvizentBytes { data: std::ptr::null_mut(), len: 0 } }
+    match catch_unwind(AssertUnwindSafe(work)) {
+        Ok(Ok(bytes)) => { give_bytes(bytes, out); std::ptr::null_mut() }
+        Ok(Err(words)) => give(words.to_string()),
+        Err(_) => give(crate::e2ee::files::NOT_SEALED.to_string()),
+    }
+}
+
+/// Seals a file for upload (AES-256-GCM-SIV, the Signal library's): `encryption_json` is what
+/// `invizent_file_call("newEncryption")` gave. Answer: null, and `out` holds the ciphertext with its tag; or the
+/// words for the person (given back with `invizent_string_free`), and `out` is empty.
+///
+/// # Safety
+/// `plain` points to `plain_len` bytes, `encryption_json` is a NUL-terminated string, `out` is writable.
+#[no_mangle]
+pub unsafe extern "C" fn invizent_file_seal(plain: *const u8, plain_len: usize, encryption_json: *const c_char, out: *mut InvizentBytes) -> *mut c_char {
+    let (plain, encryption) = (file_bytes(plain, plain_len), take(encryption_json).and_then(|text| json::parse(&text).ok()));
+    file_step(out, || {
+        let encryption = encryption.ok_or(crate::e2ee::files::NOT_SEALED)?;
+        #[cfg(feature = "signal")]
+        { crate::e2ee::files::seal_file(plain, &encryption) }
+        #[cfg(not(feature = "signal"))]
+        { let _ = (plain, encryption); Err(crate::e2ee::files::NOT_SEALED) }
+    })
+}
+
+/// Opens a downloaded file with the key of its message: `attachment_json` is the attachment of the decrypted
+/// message. Answer: null, and `out` holds the file; or the words for the person, and `out` is empty — a file
+/// of another size than the message names, or with a single changed byte, is never given out.
+///
+/// # Safety
+/// `cipher` points to `cipher_len` bytes, `attachment_json` is a NUL-terminated string, `out` is writable.
+#[no_mangle]
+pub unsafe extern "C" fn invizent_file_open(cipher: *const u8, cipher_len: usize, attachment_json: *const c_char, out: *mut InvizentBytes) -> *mut c_char {
+    let (cipher, attachment) = (file_bytes(cipher, cipher_len), take(attachment_json).and_then(|text| json::parse(&text).ok()));
+    file_step(out, || {
+        let attachment = attachment.ok_or(crate::e2ee::files::NO_KEY)?;
+        #[cfg(feature = "signal")]
+        { crate::e2ee::files::open_file(cipher, &attachment) }
+        #[cfg(not(feature = "signal"))]
+        { let _ = (cipher, attachment); Err(crate::e2ee::files::NOT_AUTHENTIC) }
+    })
+}
+
+/// A JPEG the phone has just written, as the reference's gate lets it out: only the picture, no metadata of any
+/// kind. Answer: null, and `out` holds the cleaned file; or words, and `out` is empty (the photo is not sent).
+///
+/// # Safety
+/// `jpeg` points to `jpeg_len` bytes, `out` is writable.
+#[no_mangle]
+pub unsafe extern "C" fn invizent_file_clean_jpeg(jpeg: *const u8, jpeg_len: usize, out: *mut InvizentBytes) -> *mut c_char {
+    let jpeg = file_bytes(jpeg, jpeg_len);
+    file_step(out, || {
+        const REFUSED: &str = "Не удалось обработать фото. Файл не отправлен.";
+        // A picture with a gain map needs the gate that rebuilds both of its images; this one would drop the map.
+        if crate::photo::jpeg_hdr::announces_gainmap(jpeg) { return Err(REFUSED) }
+        crate::photo::jpeg::sanitize_jpeg(jpeg).map(|clean| clean.bytes).map_err(|_| REFUSED)
+    })
+}
+
+/// Gives back bytes the core handed out.
+///
+/// # Safety
+/// `bytes` came from one of the functions above and is not used afterwards (empty bytes are fine).
+#[no_mangle]
+pub unsafe extern "C" fn invizent_file_bytes_free(bytes: InvizentBytes) {
+    if !bytes.data.is_null() { drop(Box::from_raw(std::ptr::slice_from_raw_parts_mut(bytes.data, bytes.len))) }
+}
+
+/// The rest about files, by name; `args` is a JSON array, the answer is JSON (null for an unknown name or
+/// arguments of the wrong kind):
+/// - `newEncryption []` → `{scheme, key, nonce, fileKeyId}`: a key, a nonce and a key id for one new file.
+/// - `uploadForm []` → `{head, tail, contentType}`: the body of `POST /e2ee/files` is `head`, the sealed bytes,
+///   `tail` (both plain ASCII), sent with that `Content-Type`.
+/// - `attachment [id, name, mimeType, size, encryption, media|null, preview|null]` → the attachment for the
+///   encryption service's `encrypt` (`id`: the server's answer to the upload; `size`: plaintext bytes), or null
+///   when it is not one a message may carry.
+/// - `preview [jpegBase64]` → `{mimeType, base64, width, height}`: the small picture that rides with a photo,
+///   cleaned and checked (at most 256 px a side and 8 KiB), or null when it is not acceptable.
+/// - `describe [attachment]` → `{kind: "photo"|"video"|"audio"|"file", fileName, sizeText, cipherSize|null,
+///   refusal|null}`: how it is shown, the safe name of its temporary file, how many bytes the server must send,
+///   and — when it cannot be opened here (no key, too big, the chunked scheme) — the words that say so.
+/// - `received [status, contentLength|null]` → null, or the words for an answer whose body must not be read.
+/// - `sizeText [bytes]` → «1.5 МБ».
+///
+/// # Safety
+/// `name` and `args` are NUL-terminated strings that stay valid for the call (or null).
+#[no_mangle]
+pub unsafe extern "C" fn invizent_file_call(name: *const c_char, args: *const c_char) -> *mut c_char {
+    let (Some(name), Some(args)) = (take(name), take(args)) else { return std::ptr::null_mut() };
+    catch_unwind(|| {
+        use crate::e2ee::files;
+        let Ok(Value::Array(args)) = json::parse(&args) else { return None };
+        let optional = |value: &Value| if matches!(value, Value::Null) { None } else { Some(value.clone()) };
+        let whole = |number: f64| (number.fract() == 0.0 && (0.0..=9007199254740991.0).contains(&number)).then_some(number as u64);
+        let out = match (name.as_str(), args.as_slice()) {
+            ("newEncryption", []) => files::fresh_encryption(),
+            ("uploadForm", []) => {
+                let form = files::upload_form(&files::fresh_boundary());
+                json::object(vec![("head", Value::str(&String::from_utf8_lossy(&form.head))), ("tail", Value::str(&String::from_utf8_lossy(&form.tail))), ("contentType", Value::str(&form.content_type))])
+            }
+            ("attachment", [Value::String(id), Value::String(file_name), Value::String(mime_type), Value::Number(size), encryption, media, preview]) => {
+                let size = usize::try_from(whole(*size)?).ok()?;
+                let made = files::attachment(&id.to_str()?, file_name, mime_type, size, encryption, optional(media).as_ref(), optional(preview).as_ref());
+                if !crate::e2ee::attachment::valid_attachment(&made, &|preview| preview_ok(preview)) { return None }
+                made
+            }
+            ("preview", [Value::String(jpeg)]) => {
+                use base64::Engine as _;
+                let bytes = base64::engine::general_purpose::STANDARD.decode(jpeg.to_str()?).ok()?;
+                let made = crate::photo::preview::create_preview(&bytes).ok()?;
+                let preview = json::object(vec![("mimeType", Value::str("image/jpeg")), ("base64", Value::str(&made.base64)), ("width", Value::Number(f64::from(made.width))), ("height", Value::Number(f64::from(made.height)))]);
+                if !preview_ok(Some(&preview)) { return None }
+                preview
+            }
+            ("describe", [attachment @ Value::Object(_)]) => {
+                let words = |key: &str| match attachment.get(key) { Some(Value::String(text)) => text.clone(), _ => crate::json::JsString::default() };
+                let size = match attachment.get("size") { Some(Value::Number(size)) => whole(*size), _ => None };
+                let refusal = files::before_download(attachment).err();
+                json::object(vec![
+                    ("kind", Value::str(files::kind(&words("name"), &words("mimeType")).word())), ("fileName", Value::str(&files::safe_name(&words("name")))),
+                    ("sizeText", Value::str(&size.map(files::size_text).unwrap_or_default())),
+                    ("cipherSize", files::cipher_size(attachment).filter(|_| refusal.is_none()).map_or(Value::Null, |size| Value::Number(size as f64))),
+                    ("refusal", refusal.map_or(Value::Null, Value::str)),
+                ])
+            }
+            ("received", [Value::Number(status), claimed]) => {
+                let claimed = match claimed { Value::Number(claimed) => Some(*claimed), _ => None };
+                files::before_body((200.0..300.0).contains(status), claimed).err().map_or(Value::Null, Value::str)
+            }
+            ("sizeText", [Value::Number(bytes)]) => Value::str(&files::size_text(whole(*bytes)?)),
+            _ => return None,
+        };
+        Some(json::stringify(&out))
+    }).ok().flatten().map_or(std::ptr::null_mut(), give)
+}

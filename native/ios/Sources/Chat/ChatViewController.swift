@@ -77,6 +77,10 @@ final class ChatViewController: UIViewController, UITextFieldDelegate {
         heading.textColor = Theme.text
         heading.textAlignment = .center
         header.addSubview(heading)
+        // People: a tap on the name opens the person's profile.
+        heading.isUserInteractionEnabled = true
+        heading.accessibilityTraits = .button
+        heading.addGestureRecognizer(UITapGestureRecognizer(target: self, action: #selector(openProfile)))
 
         composer.clipsToBounds = true
         view.addSubview(composer)
@@ -154,6 +158,12 @@ final class ChatViewController: UIViewController, UITextFieldDelegate {
     }
 
     @objc private func goBack() { navigationController?.popViewController(animated: true) }
+
+    /// People: the profile of the person of this chat (Sources/People/PersonProfileViewController.swift).
+    @objc func openProfile() {
+        view.endEditing(true)
+        navigationController?.pushViewController(PersonProfileViewController(messenger: messenger, userId: peerId, name: name, chatId: messenger == nil ? "demo" : chatId), animated: true)
+    }
 
     @objc private func sendNow() {
         let text = (field.text ?? "").trimmingCharacters(in: .whitespacesAndNewlines)

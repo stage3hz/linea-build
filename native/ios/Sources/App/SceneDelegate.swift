@@ -68,10 +68,12 @@ final class SceneDelegate: UIResponder, UIWindowSceneDelegate {
     /// What the simulator check asks for by launch arguments. True when one of them decided the start.
     ///   -corecheck 1                    the Swift↔core and storage check screen
     ///   -auth 1                         the sign-in screen
+    ///   -authmode register / recover / waiting / reset    with -auth: that step of the sign-in screen (read in AuthViewController)
     ///   -demo 1                         the shell with sample chats (no account)
     ///   -tab profile / -sections 1 / -chat 1    with -demo: a section, the list of sections, the sample chat
     ///   -login … -password … -word …    signs in to the test server given by -server (https://localhost:…) only
     ///   -openchat 1                     with an account: opens the first chat of the list
+    ///   -tab people / -peoplesearch <query> / -profile friend|chat    «Люди» and a profile, with an account or -demo (People/PeopleSimulator.swift)
     private func simulatorStart() -> Bool {
         let args = UserDefaults.standard
         if args.bool(forKey: "corecheck") { window?.rootViewController = CoreCheckViewController(); return true }
@@ -83,6 +85,7 @@ final class SceneDelegate: UIResponder, UIWindowSceneDelegate {
             if args.bool(forKey: "chat") { stack.pushViewController(ChatViewController(name: "Алиса Воронцова"), animated: false) }
             if let tab = args.string(forKey: "tab") { root.loadViewIfNeeded(); root.show(tab) }
             if args.bool(forKey: "sections") { DispatchQueue.main.asyncAfter(deadline: .now() + 1.5) { root.showSections() } }
+            if args.string(forKey: "peoplesearch") != nil || args.string(forKey: "profile") != nil { DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) { PeopleSimulator.run(stack: stack, root: root) } }
             return true
         }
         if let login = args.string(forKey: "login"), let password = args.string(forKey: "password"), Account.server.hasPrefix("https://localhost:") {
@@ -102,6 +105,13 @@ final class SceneDelegate: UIResponder, UIWindowSceneDelegate {
             DispatchQueue.main.asyncAfter(deadline: .now() + 6) { [weak self] in
                 guard let stack = self?.window?.rootViewController as? NavigationController, let root = stack.viewControllers.first as? RootViewController else { return }
                 root.openFirstChat()
+            }
+        }
+        // People: with an account — a section, the search, a profile (People/PeopleSimulator.swift).
+        if args.string(forKey: "tab") != nil || args.string(forKey: "peoplesearch") != nil || args.string(forKey: "profile") != nil {
+            DispatchQueue.main.asyncAfter(deadline: .now() + 6) { [weak self] in
+                guard let stack = self?.window?.rootViewController as? NavigationController, let root = stack.viewControllers.first as? RootViewController else { return }
+                PeopleSimulator.run(stack: stack, root: root)
             }
         }
         return false

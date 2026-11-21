@@ -8,5 +8,6 @@
 pub mod attachment;
 pub mod bridge;
 pub mod dispatch;
+pub mod files;
 pub mod service;
 pub mod wire;

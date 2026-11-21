@@ -5,6 +5,8 @@ final class ChatsViewController: UIViewController {
     private let heading = UILabel()
     private let list = ChatListView()
     private let empty = UILabel()
+    /// People: «Новый чат» opens the «Люди» section, as in the reference.
+    private let newChat = UIButton(type: .system)
     /// The account whose chats are shown; nil shows the simulator's samples (or nothing on a phone).
     private let messenger: Messenger?
     private var summaries: [Messenger.ChatSummary] = []
@@ -26,6 +28,13 @@ final class ChatsViewController: UIViewController {
         heading.font = .systemFont(ofSize: 34, weight: .bold)
         heading.textColor = Theme.text
         view.addSubview(heading)
+        newChat.setImage(UIImage(systemName: "square.and.pencil", withConfiguration: UIImage.SymbolConfiguration(pointSize: 16, weight: .semibold)), for: .normal)
+        newChat.tintColor = Theme.onAccent
+        newChat.backgroundColor = Theme.accent
+        newChat.layer.cornerRadius = 20
+        newChat.accessibilityLabel = "Новый чат"
+        newChat.addTarget(self, action: #selector(openPeople), for: .touchUpInside)
+        view.addSubview(newChat)
         empty.text = "Пока нет чатов"
         empty.font = .systemFont(ofSize: 17)
         empty.textColor = Theme.muted
@@ -63,6 +72,8 @@ final class ChatsViewController: UIViewController {
 
     @objc private func reloadSoon() { reload() }
 
+    @objc private func openPeople() { (parent as? RootViewController)?.show("people") }
+
     override func viewWillAppear(_ animated: Bool) {
         super.viewWillAppear(animated)
         reload()
@@ -97,6 +108,7 @@ final class ChatsViewController: UIViewController {
         super.viewDidLayoutSubviews()
         let top = view.safeAreaInsets.top
         heading.frame = CGRect(x: 20, y: top + 8, width: view.bounds.width - 40, height: 41)
+        newChat.frame = CGRect(x: view.bounds.width - 20 - 40, y: top + 8, width: 40, height: 40)
         list.frame = view.bounds
         let barRoom = BarMetrics.bottomGap(safeBottom: view.safeAreaInsets.bottom) + BarMetrics.height + 12
         list.setPad(top: Double(top + 8 + 41 + 8), bottom: Double(barRoom))

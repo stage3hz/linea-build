@@ -1,26 +1,100 @@
 import UIKit
 
-/// Signing in: the login, then the password, then the confirmation word — one field at a time. All three go to
-/// the server together at the last step; which of them was wrong is never told.
-final class AuthViewController: UIViewController, UITextFieldDelegate {
-    private enum Step: Int { case name, password, word }
+/// The sign-in screen (`mobile/src/AuthScreen.tsx`), one step at a time:
+/// - signing in: the login, the password, the confirmation word — all three go to the server together at the
+///   last step, and which of them was wrong is never told;
+/// - creating an account: the login, the public profile, the password, the confirmation word, the recovery word;
+/// - a forgotten password: the login with the recovery word, the waiting period, the new password.
+/// What is typed is kept only in the fields, and the secrets are forgotten on every way out of a flow.
+final class AuthViewController: UIViewController {
+    private enum Mode {
+        case loginName, loginPassword, loginWord
+        case registerName, registerProfile, registerPassword, registerConfirmation, registerRecovery
+        case recover, waiting, reset
+    }
+
+    /// What the server said about the recovery attempts of one login.
+    private struct RecoveryFeedback {
+        let username: String
+        let remaining: Int?
+        let lockedUntil: Date?
+    }
+
+    private static let loginSteps: [Mode] = [.loginName, .loginPassword, .loginWord]
+    private static let registerSteps: [Mode] = [.registerName, .registerProfile, .registerPassword, .registerConfirmation, .registerRecovery]
 
     private let server: Server
     /// Called with the session's token and the account (`user` of the server's answer) once signed in.
     var onSignedIn: ((String, [String: Any]) -> Void)?
 
-    private var step = Step.name
-    private var login = "", password = "", word = ""
-    private var busy = false
-    private var lockedUntil: Date?
+    private var mode = Mode.loginName
+    private var shownMode: Mode?
+    private var shownBusy = false
+    /// The permission to set a new password, while a recovery is under way.
+    private var grant: RecoveryGrant?
+    /// The server's clock minus this phone's, in milliseconds.
+    private var serverOffset: Double = 0
+    private var entered = false
+    private var pending = false
+    private var checking = false
+    private var statusPending = false
+    private var generation = 0
+    private var statusGeneration = 0
+    private var lastStatusCheck = Date.distantPast
+    private var loginLockUntil: Date?
+    private var feedback: RecoveryFeedback?
+    private var errorText = ""
+    private var noticeText = ""
+    /// A made-up request shown for the simulator check: nothing is asked from the server and nothing is kept.
+    private var sample = false
+    private var ticker: Timer?
 
-    private let brand = UILabel(), motto = UILabel(), heading = UILabel(), hint = UILabel(), failure = UILabel()
-    private let field = UITextField()
-    private let plate = UIView()
-    private let proceed = UIButton(type: .system)
-    private let back = UIButton(type: .system)
-    private let spinner = UIActivityIndicatorView(style: .medium)
+    private let scroll = UIScrollView()
     private let column = UIStackView()
+    private let brand = UILabel()
+    private let motto = UILabel()
+    private let heading = UILabel()
+    private let hint = UILabel()
+    private let switcher = UISegmentedControl(items: ["Войти", "Создать аккаунт"])
+    private let progress = UIStackView()
+    private var bars: [UIView] = []
+    private let progressLabel = UILabel()
+
+    private let nameEntry = AuthEntry(caption: "Логин", placeholder: "Введите логин", secret: false)
+    private let loginWarning = AuthNotice(error: false)
+    private let displayEntry = AuthEntry(caption: "Имя", placeholder: "Как тебя видят в чатах", secret: false)
+    private let handleEntry = AuthEntry(caption: "Публичный @юзернейм", placeholder: "Для поиска, не как логин", secret: false)
+    private let profileHelp = AuthViewController.note("По @юзернейму тебя найдут. Логин для входа другой, его не видит никто.")
+    private let passwordEntry = AuthEntry(caption: "Пароль", placeholder: "Твой пароль", secret: true)
+    private let confirmationEntry = AuthEntry(caption: "Слово подтверждения", placeholder: "Твоё слово для входа", secret: true)
+    private let confirmationHelp = AuthViewController.note("")
+    private let recoveryEntry = AuthEntry(caption: "Слово восстановления", placeholder: "Отдельное слово для восстановления", secret: true)
+    private let recoveryHelp = AuthViewController.note(AuthViewController.wordHelp)
+    private let recoveryExtra = AuthViewController.note("")
+    private let waitingBox = UIStackView()
+    private let clock = UILabel()
+    private let clockOwner = AuthViewController.note("")
+    private let resetValidity = AuthViewController.note("")
+    private let recoveryLock = AuthNotice(error: true)
+    private let attemptsNote = AuthViewController.note("")
+    private let manualNote = AuthViewController.note("Только ручной ввод. Вставка и автозаполнение отключены.", size: 11, color: Theme.subtle)
+    private let notice = AuthNotice(error: false)
+    private let failure = AuthNotice(error: true)
+    private let loginLock = AuthNotice(error: true)
+    private let proceed = UIButton(type: .system)
+    private let forgot = UIButton(type: .system)
+    private let back = UIButton(type: .system)
+
+    private static let wordHelp = "От 4 до 64 русских или английских букв, без пробелов. Регистр не важен; «е» и «ё» различаются."
+
+    private static func note(_ words: String, size: CGFloat = 12, color: UIColor = Theme.muted) -> UILabel {
+        let label = UILabel()
+        label.text = words
+        label.font = .systemFont(ofSize: size)
+        label.textColor = color
+        label.numberOfLines = 0
+        return label
+    }
 
     init(server: Server) {
         self.server = server
@@ -29,9 +103,48 @@ final class AuthViewController: UIViewController, UITextFieldDelegate {
 
     required init?(coder: NSCoder) { return nil }
 
+    // MARK: The screen
+
     override func viewDidLoad() {
         super.viewDidLoad()
         view.backgroundColor = Theme.bg
+        build()
+        restore()
+        #if targetEnvironment(simulator)
+        simulatorMode()
+        #endif
+        render()
+        if mode == .waiting { checkRecovery() }
+    }
+
+    override func viewWillAppear(_ animated: Bool) {
+        super.viewWillAppear(animated)
+        ticker?.invalidate()
+        ticker = Timer.scheduledTimer(withTimeInterval: 1, repeats: true) { [weak self] _ in
+            self?.tick()
+        }
+    }
+
+    override func viewDidAppear(_ animated: Bool) {
+        super.viewDidAppear(animated)
+        focus()
+    }
+
+    override func viewDidDisappear(_ animated: Bool) {
+        super.viewDidDisappear(animated)
+        // The screen is leaving: answers still on their way are not for it any more, and nothing typed stays.
+        ticker?.invalidate()
+        ticker = nil
+        generation += 1
+        statusGeneration += 1
+        pending = false
+        statusPending = false
+        checking = false
+        entered = false
+        clearSecrets()
+    }
+
+    private func build() {
         brand.text = "Инвиз"
         brand.font = .systemFont(ofSize: 40, weight: .bold)
         brand.textColor = Theme.text
@@ -40,178 +153,839 @@ final class AuthViewController: UIViewController, UITextFieldDelegate {
         motto.textColor = Theme.muted
         heading.font = .systemFont(ofSize: 22, weight: .semibold)
         heading.textColor = Theme.text
+        heading.accessibilityTraits = .header
         hint.font = .systemFont(ofSize: 15)
         hint.textColor = Theme.muted
         hint.numberOfLines = 0
-        failure.font = .systemFont(ofSize: 15)
-        failure.textColor = Theme.danger
-        failure.numberOfLines = 0
-        failure.accessibilityTraits = .staticText
 
-        plate.backgroundColor = Theme.surface2
-        plate.layer.cornerRadius = 16
-        plate.layer.cornerCurve = .continuous
-        field.font = .systemFont(ofSize: 17)
-        field.textColor = Theme.text
-        field.tintColor = Theme.text
-        field.keyboardAppearance = .dark
-        field.autocorrectionType = .no
-        field.autocapitalizationType = .none
-        field.spellCheckingType = .no
-        field.smartQuotesType = .no
-        field.smartDashesType = .no
-        field.delegate = self
-        field.translatesAutoresizingMaskIntoConstraints = false
-        plate.addSubview(field)
+        switcher.selectedSegmentTintColor = UIColor(white: 1, alpha: 0.14)
+        switcher.backgroundColor = Theme.surface2
+        switcher.setTitleTextAttributes([.foregroundColor: Theme.muted, .font: UIFont.systemFont(ofSize: 13, weight: .medium)], for: .normal)
+        switcher.setTitleTextAttributes([.foregroundColor: Theme.text, .font: UIFont.systemFont(ofSize: 13, weight: .bold)], for: .selected)
+        switcher.addTarget(self, action: #selector(switched), for: .valueChanged)
+
+        let barRow = UIStackView()
+        barRow.axis = .horizontal
+        barRow.spacing = 8
+        barRow.distribution = .fillEqually
+        for _ in 0..<AuthViewController.registerSteps.count {
+            let bar = UIView()
+            bar.layer.cornerRadius = 2
+            bar.heightAnchor.constraint(equalToConstant: 4).isActive = true
+            bars.append(bar)
+            barRow.addArrangedSubview(bar)
+        }
+        progressLabel.font = .monospacedDigitSystemFont(ofSize: 11, weight: .regular)
+        progressLabel.textColor = Theme.muted
+        progressLabel.setContentHuggingPriority(.required, for: .horizontal)
+        progressLabel.setContentCompressionResistancePriority(.required, for: .horizontal)
+        progress.axis = .horizontal
+        progress.alignment = .center
+        progress.spacing = 13
+        progress.addArrangedSubview(barRow)
+        progress.addArrangedSubview(progressLabel)
+        progress.isAccessibilityElement = true
+
+        loginWarning.words = "Это твой логин для входа. Его видишь только ты, и сменить его потом нельзя. Публичный @юзернейм задашь на следующем шаге — он будет другим. Запомни логин или запиши в надёжное место."
+        nameEntry.limit = 24
+        displayEntry.limit = 50
+        displayEntry.field.autocapitalizationType = .words
+        displayEntry.field.returnKeyType = .next
+        handleEntry.limit = 25
+        handleEntry.noSpaces = true
+        for entry in [nameEntry, handleEntry, passwordEntry, confirmationEntry, recoveryEntry] {
+            entry.field.returnKeyType = .go
+            entry.onReturn = { [weak self] in
+                self?.submit()
+            }
+        }
+        nameEntry.onReturn = { [weak self] in
+            guard let self else { return }
+            if self.mode == .recover { _ = self.recoveryEntry.field.becomeFirstResponder() } else { self.submit() }
+        }
+        displayEntry.onReturn = { [weak self] in
+            _ = self?.handleEntry.field.becomeFirstResponder()
+        }
+
+        clock.font = .monospacedDigitSystemFont(ofSize: 43, weight: .bold)
+        clock.textColor = Theme.text
+        clock.textAlignment = .center
+        clock.accessibilityLabel = "Осталось до проверки сервером"
+        clockOwner.textAlignment = .center
+        let waitingAbout = AuthViewController.note("На устройствах с открытым аккаунтом этот запрос можно отменить. Если запрос сохранён, можно закрыть приложение и вернуться. Готовность проверяется на сервере каждые 10 секунд.")
+        let waitingLeave = AuthViewController.note("Переход ко входу удалит запрос с этого устройства. Продолжить его здесь после этого не получится.")
+        waitingBox.axis = .vertical
+        waitingBox.spacing = 10
+        for part in [clock, clockOwner, waitingAbout, waitingLeave] as [UIView] { waitingBox.addArrangedSubview(part) }
+        waitingBox.setCustomSpacing(18, after: clockOwner)
 
         var look = UIButton.Configuration.filled()
         look.baseBackgroundColor = Theme.accent
         look.baseForegroundColor = Theme.onAccent
         look.cornerStyle = .capsule
+        look.imagePadding = 8
         look.contentInsets = NSDirectionalEdgeInsets(top: 15, leading: 20, bottom: 15, trailing: 20)
         proceed.configuration = look
-        proceed.addTarget(self, action: #selector(goOn), for: .touchUpInside)
-        back.setTitle("Назад", for: .normal)
+        proceed.accessibilityIdentifier = "auth-submit"
+        proceed.addTarget(self, action: #selector(submit), for: .touchUpInside)
+        forgot.setTitle("Забыл пароль?", for: .normal)
+        forgot.tintColor = Theme.text
+        forgot.titleLabel?.font = .systemFont(ofSize: 14, weight: .bold)
+        forgot.addTarget(self, action: #selector(forgotPassword), for: .touchUpInside)
         back.tintColor = Theme.muted
-        back.titleLabel?.font = .systemFont(ofSize: 16)
+        back.titleLabel?.font = .systemFont(ofSize: 15)
         back.addTarget(self, action: #selector(goBack), for: .touchUpInside)
-        spinner.color = Theme.muted
-        spinner.hidesWhenStopped = true
+        forgot.heightAnchor.constraint(greaterThanOrEqualToConstant: 44).isActive = true
+        back.heightAnchor.constraint(greaterThanOrEqualToConstant: 44).isActive = true
 
         column.axis = .vertical
-        column.spacing = 10
+        column.spacing = 12
         column.translatesAutoresizingMaskIntoConstraints = false
-        for part in [brand, motto, heading, hint, plate, failure, proceed, back, spinner] as [UIView] { column.addArrangedSubview(part) }
+        let parts: [UIView] = [brand, motto, heading, hint, switcher, progress, nameEntry, loginWarning, displayEntry, handleEntry, profileHelp,
+                               passwordEntry, confirmationEntry, confirmationHelp, recoveryEntry, recoveryHelp, recoveryExtra, waitingBox, resetValidity,
+                               recoveryLock, attemptsNote, manualNote, notice, failure, loginLock, proceed, forgot, back]
+        for part in parts { column.addArrangedSubview(part) }
         column.setCustomSpacing(4, after: brand)
-        column.setCustomSpacing(40, after: motto)
-        column.setCustomSpacing(18, after: hint)
-        column.setCustomSpacing(18, after: failure)
-        view.addSubview(column)
+        column.setCustomSpacing(28, after: motto)
+        column.setCustomSpacing(8, after: heading)
+        column.setCustomSpacing(20, after: hint)
+        column.setCustomSpacing(16, after: switcher)
+        column.setCustomSpacing(18, after: progress)
+        column.setCustomSpacing(4, after: proceed)
+        column.setCustomSpacing(0, after: forgot)
+
+        scroll.keyboardDismissMode = .interactive
+        scroll.alwaysBounceVertical = true
+        scroll.showsVerticalScrollIndicator = false
+        scroll.translatesAutoresizingMaskIntoConstraints = false
+        view.addSubview(scroll)
+        scroll.addSubview(column)
         NSLayoutConstraint.activate([
-            column.leadingAnchor.constraint(equalTo: view.leadingAnchor, constant: 24),
-            column.trailingAnchor.constraint(equalTo: view.trailingAnchor, constant: -24),
-            column.topAnchor.constraint(equalTo: view.safeAreaLayoutGuide.topAnchor, constant: 56),
-            plate.heightAnchor.constraint(equalToConstant: 54),
-            field.leadingAnchor.constraint(equalTo: plate.leadingAnchor, constant: 16),
-            field.trailingAnchor.constraint(equalTo: plate.trailingAnchor, constant: -16),
-            field.topAnchor.constraint(equalTo: plate.topAnchor),
-            field.bottomAnchor.constraint(equalTo: plate.bottomAnchor),
+            scroll.topAnchor.constraint(equalTo: view.safeAreaLayoutGuide.topAnchor),
+            scroll.leadingAnchor.constraint(equalTo: view.leadingAnchor),
+            scroll.trailingAnchor.constraint(equalTo: view.trailingAnchor),
+            scroll.bottomAnchor.constraint(equalTo: view.keyboardLayoutGuide.topAnchor),
+            column.topAnchor.constraint(equalTo: scroll.contentLayoutGuide.topAnchor, constant: 28),
+            column.bottomAnchor.constraint(equalTo: scroll.contentLayoutGuide.bottomAnchor, constant: -24),
+            column.leadingAnchor.constraint(equalTo: scroll.contentLayoutGuide.leadingAnchor, constant: 24),
+            column.trailingAnchor.constraint(equalTo: scroll.contentLayoutGuide.trailingAnchor, constant: -24),
+            column.widthAnchor.constraint(equalTo: scroll.frameLayoutGuide.widthAnchor, constant: -48),
         ])
-        show(.name)
     }
 
-    override func viewDidAppear(_ animated: Bool) {
-        super.viewDidAppear(animated)
-        field.becomeFirstResponder()
-    }
-
-    private func show(_ next: Step, error: String = "") {
-        step = next
-        failure.text = error
-        failure.isHidden = error.isEmpty
-        back.isHidden = next == .name
-        field.text = ""
-        switch next {
-        case .name:
-            heading.text = "Логин"
-            hint.text = "Вход без почты и номера телефона. Данные проверим вместе на последнем шаге."
-            field.attributedPlaceholder = NSAttributedString(string: "Введите логин", attributes: [.foregroundColor: Theme.subtle])
-            field.isSecureTextEntry = false
-            field.textContentType = .username
-            field.text = login
-            field.returnKeyType = .next
-        case .password:
-            heading.text = "Пароль"
-            hint.text = "Введи пароль вручную. Следом понадобится слово подтверждения."
-            field.attributedPlaceholder = NSAttributedString(string: "Пароль", attributes: [.foregroundColor: Theme.subtle])
-            field.isSecureTextEntry = true
-            field.textContentType = .password
-            field.returnKeyType = .next
-        case .word:
-            heading.text = "Слово подтверждения"
-            hint.text = "Введи слово подтверждения, которое выбрал при регистрации."
-            field.attributedPlaceholder = NSAttributedString(string: "Твоё слово для входа", attributes: [.foregroundColor: Theme.subtle])
-            field.isSecureTextEntry = true
-            field.textContentType = nil
-            field.returnKeyType = .go
+    /// A recovery request kept from an earlier launch brings the screen back to its waiting period.
+    private func restore() {
+        do {
+            guard let saved = try RecoveryStore.read(base: server.base) else { return }
+            nameEntry.value = saved.username
+            grant = saved.grant
+            serverOffset = saved.grant.serverMs - nowMs
+            mode = .waiting
+            noticeText = "Запрос восстановления найден. Проверяем его состояние на сервере."
+        } catch {
+            noticeText = "Не удалось прочитать сохранённый запрос восстановления. Можно начать новый запрос."
         }
-        proceed.configuration?.title = next == .word ? "Войти в Инвиз" : "Продолжить"
-        field.reloadInputViews()
-        UIAccessibility.post(notification: .screenChanged, argument: heading)
     }
 
-    private func forgetSecrets() { password = ""; word = "" }
+    #if targetEnvironment(simulator)
+    /// `-authmode register` / `recover` open the first step of that flow; `waiting` / `reset` show those two
+    /// screens with a made-up request (no server is asked, nothing is kept).
+    private func simulatorMode() {
+        guard let wanted = UserDefaults.standard.string(forKey: "authmode") else { return }
+        if wanted == "register" || wanted == "recover" {
+            grant = nil
+            noticeText = ""
+            nameEntry.value = ""
+            mode = wanted == "register" ? .registerName : .recover
+            return
+        }
+        guard wanted == "waiting" || wanted == "reset" else { return }
+        let stamp = ISO8601DateFormatter()
+        stamp.formatOptions = [.withInternetDateTime, .withFractionalSeconds]
+        let now = Date()
+        let ready = wanted == "waiting" ? now.addingTimeInterval(9 * 60 + 41) : now.addingTimeInterval(-60)
+        let fields: [String: Any] = ["resetToken": "sample", "requestId": "sample", "readyAt": stamp.string(from: ready),
+                                     "expiresAt": stamp.string(from: ready.addingTimeInterval(20 * 60)), "serverTime": stamp.string(from: now)]
+        guard let made = RecoveryGrant(fields) else { return }
+        sample = true
+        grant = made
+        serverOffset = 0
+        nameEntry.value = "nativetester"
+        noticeText = wanted == "reset" ? "Сервер разрешил сменить пароль. Оба секретных слова останутся прежними." : ""
+        mode = wanted == "waiting" ? .waiting : .reset
+    }
+    #endif
+
+    // MARK: What is on the screen
+
+    private var nowMs: Double { return Date().timeIntervalSince1970 * 1000 }
+    private var login: String { return AuthRules.name(nameEntry.value) }
+    private var isLogin: Bool { return AuthViewController.loginSteps.contains(mode) }
+    private var isRegister: Bool { return AuthViewController.registerSteps.contains(mode) }
+
+    /// Five wrong sign-ins close the entrance for five minutes (the server enforces it; this shows the countdown).
+    private var loginLocked: Bool {
+        guard isLogin, let until = loginLockUntil else { return false }
+        return until > Date()
+    }
+
+    private var loginLockText: String {
+        let left = Int(max(0, (loginLockUntil ?? Date()).timeIntervalSinceNow.rounded(.up)))
+        return "\(left / 60):" + String(format: "%02d", left % 60)
+    }
+
+    /// Until when the recovery of the login now typed is closed; nil when it is not.
+    private var recoveryLockedUntil: Date? {
+        guard let known = feedback, known.username == login, let until = known.lockedUntil, until > Date() else { return nil }
+        return until
+    }
+
+    private func headingWords(_ mode: Mode) -> String {
+        switch mode {
+        case .loginName, .registerName: return "Логин"
+        case .loginPassword, .registerPassword: return "Пароль"
+        case .loginWord, .registerConfirmation: return "Слово подтверждения"
+        case .registerProfile: return "Профиль"
+        case .registerRecovery: return "Слово восстановления"
+        case .recover: return "Восстановление"
+        case .waiting: return "Ожидание"
+        case .reset: return "Новый пароль"
+        }
+    }
+
+    private func hintWords(_ mode: Mode) -> String {
+        switch mode {
+        case .loginName: return "Вход без почты и номера телефона. Данные проверим вместе на последнем шаге."
+        case .loginPassword: return "Введи пароль вручную. Следом понадобится слово подтверждения."
+        case .loginWord: return "Введи слово подтверждения, которое выбрал при регистрации."
+        case .registerName: return "Всё вводится один раз. Перед тем как идти дальше, проверь, что нет опечатки."
+        case .registerProfile: return "Это видят другие: имя и @юзернейм для поиска. Логин остаётся тайным."
+        case .registerPassword: return "От 10 до 128 символов. Длинная фраза тоже подходит."
+        case .registerConfirmation: return "Это слово нужно при входе после пароля. Оно должно отличаться от логина и пароля."
+        case .registerRecovery: return "Это отдельное слово понадобится, если забудешь пароль. Оно должно отличаться от первого."
+        case .recover: return "Введи логин и слово восстановления. После подтверждения нужно будет подождать 10 минут."
+        case .waiting: return "Слово восстановления подтверждено. Через 10 минут сервер разрешит задать новый пароль."
+        case .reset: return "Введи новый пароль и проверь его глазами. Слово подтверждения и слово восстановления сохранятся."
+        }
+    }
+
+    private func buttonWords(_ mode: Mode) -> String {
+        switch mode {
+        case .registerRecovery: return "Создать аккаунт"
+        case .loginWord: return "Войти в Инвиз"
+        case .recover: return "Подтвердить слово"
+        case .waiting: return "Проверить статус"
+        case .reset: return "Сохранить новый пароль"
+        default: return "Продолжить"
+        }
+    }
+
+    /// Puts everything the screen knows on it.
+    private func render() {
+        guard isViewLoaded else { return }
+        let changed = shownMode != mode
+        shownMode = mode
+        let busy = pending || entered
+        // A field that was closed for the time of a request gets the keyboard back.
+        let freed = shownBusy && !busy
+        shownBusy = busy
+        heading.text = headingWords(mode)
+        hint.text = hintWords(mode)
+
+        switcher.isHidden = !(isLogin || isRegister)
+        switcher.selectedSegmentIndex = isRegister ? 1 : 0
+        switcher.isEnabled = !busy
+
+        var step = 0
+        var stepCount = 0
+        if let at = AuthViewController.registerSteps.firstIndex(of: mode) {
+            step = at + 1
+            stepCount = AuthViewController.registerSteps.count
+        } else if let at = AuthViewController.loginSteps.firstIndex(of: mode) {
+            step = at + 1
+            stepCount = AuthViewController.loginSteps.count
+        }
+        progress.isHidden = step == 0
+        for (index, bar) in bars.enumerated() {
+            bar.isHidden = index >= stepCount
+            bar.backgroundColor = index < step ? Theme.accent : UIColor(white: 1, alpha: 0.12)
+        }
+        progressLabel.text = "\(step) / \(stepCount)"
+        progress.accessibilityLabel = "Шаг \(step) из \(stepCount)"
+
+        nameEntry.isHidden = !(mode == .loginName || mode == .registerName || mode == .recover)
+        loginWarning.isHidden = mode != .registerName
+        displayEntry.isHidden = mode != .registerProfile
+        handleEntry.isHidden = mode != .registerProfile
+        profileHelp.isHidden = mode != .registerProfile
+        passwordEntry.isHidden = !(mode == .loginPassword || mode == .registerPassword || mode == .reset)
+        let asksConfirmation = mode == .loginWord || mode == .registerConfirmation
+        confirmationEntry.isHidden = !asksConfirmation
+        confirmationHelp.isHidden = !asksConfirmation
+        if mode == .registerConfirmation {
+            confirmationHelp.text = AuthViewController.wordHelp
+        } else {
+            confirmationHelp.text = "Если в старом аккаунте слово ещё не настроено, оставь поле пустым. После входа сможешь добавить его в безопасности."
+        }
+        let asksRecovery = mode == .registerRecovery || mode == .recover
+        recoveryEntry.isHidden = !asksRecovery
+        recoveryHelp.isHidden = !asksRecovery
+        recoveryExtra.isHidden = !asksRecovery
+        if mode == .registerRecovery {
+            recoveryExtra.text = "Запомни оба слова и храни их отдельно. В приложении их нельзя будет посмотреть повторно."
+        } else {
+            recoveryExtra.text = "Всего 3 неверные попытки, затем восстановление блокируется на 24 часа. Вход с паролем и словом подтверждения остаётся доступен."
+        }
+        waitingBox.isHidden = !(mode == .waiting && grant != nil)
+        clockOwner.text = "Запрос для логина \(login)"
+        manualNote.isHidden = mode == .waiting
+        notice.words = noticeText
+        failure.words = errorText
+
+        forgot.isHidden = !isLogin
+        forgot.isEnabled = !busy
+        back.isHidden = mode == .loginName || mode == .registerName
+        back.isEnabled = !busy
+        let leavesRecovery = mode == .recover || mode == .waiting || mode == .reset
+        back.setTitle(leavesRecovery ? "‹ Вернуться ко входу" : "‹ Назад", for: .normal)
+        for entry in [nameEntry, displayEntry, handleEntry, passwordEntry, confirmationEntry] { entry.isEnabled = !busy }
+
+        if changed {
+            passwordEntry.set(caption: mode == .reset ? "Новый пароль" : "Пароль", placeholder: mode == .loginPassword ? "Твой пароль" : "От 10 символов — можно фразу")
+            // A secret being created is typed once, so it is shown while typed; the one being entered is hidden.
+            setShown(passwordEntry, mode != .loginPassword)
+            setShown(confirmationEntry, mode == .registerConfirmation)
+            setShown(recoveryEntry, mode == .registerRecovery)
+        }
+        renderTime()
+        if changed {
+            scroll.setContentOffset(.zero, animated: false)
+            focus()
+            UIAccessibility.post(notification: .screenChanged, argument: heading)
+        } else if freed {
+            focus()
+        }
+    }
+
+    private func setShown(_ entry: AuthEntry, _ shown: Bool) {
+        entry.shownWhenEmpty = shown
+        if entry.value.isEmpty { entry.reveal(shown) }
+    }
+
+    /// The parts that change as time passes: the countdowns and what they close.
+    private func renderTime() {
+        let busy = pending || entered
+        if let held = grant, mode == .waiting {
+            let left = AuthRules.countdown(until: held.readyMs, now: nowMs + serverOffset)
+            clock.text = left
+            clock.accessibilityValue = left
+        }
+        if let held = grant, mode == .reset {
+            let left = AuthRules.countdown(until: held.expiresMs, now: nowMs + serverOffset)
+            resetValidity.text = "Подтверждение действительно ещё \(left)."
+            resetValidity.isHidden = false
+        } else {
+            resetValidity.isHidden = true
+        }
+
+        var recoveryClosed = false
+        var attempts = ""
+        var lockWords = ""
+        if mode == .recover {
+            if let until = recoveryLockedUntil {
+                recoveryClosed = true
+                let left = AuthRules.countdown(until: until.timeIntervalSince1970 * 1000, now: nowMs)
+                lockWords = "Восстановление временно заблокировано. Повторная попытка через \(left). Ограничение действует на сервере."
+            } else if let known = feedback, known.username == login, let remaining = known.remaining, remaining > 0 {
+                attempts = "По ответу сервера осталось попыток: \(remaining) из 3."
+            }
+        }
+        if recoveryLock.words != lockWords { recoveryLock.words = lockWords }
+        attemptsNote.text = attempts
+        attemptsNote.isHidden = attempts.isEmpty
+        recoveryEntry.isEnabled = !busy && !recoveryClosed
+
+        let closed = loginLocked
+        let lockText = closed ? "Вход временно закрыт. Попробуй через \(loginLockText)." : ""
+        if loginLock.words != lockText { loginLock.words = lockText }
+
+        var words = buttonWords(mode)
+        if closed { words = "Подожди \(loginLockText)" } else if entered { words = "Готово" }
+        let loading = !entered && (pending || (checking && mode == .waiting))
+        if proceed.configuration?.title != words { proceed.configuration?.title = words }
+        if proceed.configuration?.showsActivityIndicator != loading { proceed.configuration?.showsActivityIndicator = loading }
+        let done: UIImage? = entered ? UIImage(systemName: "checkmark") : nil
+        if proceed.configuration?.image != done { proceed.configuration?.image = done }
+        proceed.isEnabled = !(recoveryClosed || closed)
+    }
+
+    /// The keyboard goes to the first field of the step; the waiting period has none.
+    private func focus() {
+        guard view.window != nil, !pending, !entered else { return }
+        for entry in [nameEntry, displayEntry, passwordEntry, confirmationEntry, recoveryEntry] {
+            if !entry.isHidden && entry.isEnabled {
+                _ = entry.field.becomeFirstResponder()
+                return
+            }
+        }
+        view.endEditing(true)
+    }
+
+    private func tick() {
+        if mode == .reset, !pending, !sample, let held = grant, held.expiresMs <= nowMs + serverOffset {
+            clearSecrets()
+            grant = nil
+            mode = .recover
+            errorText = "Время для смены пароля закончилось. Начни восстановление заново."
+            RecoveryStore.clear(base: server.base, resetToken: held.resetToken)
+            render()
+            return
+        }
+        // The server is asked every ten seconds whether the waiting period is over.
+        if mode == .waiting, Date().timeIntervalSince(lastStatusCheck) >= 10 { checkRecovery() }
+        renderTime()
+    }
+
+    // MARK: Steps
+
+    private func current(_ id: Int) -> Bool { return generation == id }
+
+    private func clearSecrets() {
+        passwordEntry.value = ""
+        confirmationEntry.value = ""
+        recoveryEntry.value = ""
+    }
+
+    /// Starts a request to the server; nil when one is already under way.
+    private func begin() -> Int? {
+        if pending || entered { return nil }
+        pending = true
+        errorText = ""
+        noticeText = ""
+        generation += 1
+        render()
+        return generation
+    }
+
+    private func fail(_ words: String) {
+        errorText = words
+        render()
+    }
+
+    private func go(_ to: Mode) {
+        errorText = ""
+        noticeText = ""
+        mode = to
+        render()
+    }
+
+    private func usernameCheck() -> Bool {
+        if AuthRules.validName(nameEntry.value) { return true }
+        fail(AuthRules.nameError)
+        return false
+    }
+
+    @objc private func switched() {
+        let register = switcher.selectedSegmentIndex == 1
+        if pending || entered || register == isRegister {
+            render()
+            return
+        }
+        generation += 1
+        clearSecrets()
+        nameEntry.value = ""
+        go(register ? .registerName : .loginName)
+    }
+
+    @objc private func forgotPassword() {
+        guard !pending, !entered else { return }
+        generation += 1
+        clearSecrets()
+        go(.recover)
+    }
 
     @objc private func goBack() {
-        guard !busy else { return }
-        switch step {
-        case .name: break
-        case .password: forgetSecrets(); show(.name)
-        case .word: forgetSecrets(); show(.password)
+        guard !pending, !entered else { return }
+        if mode == .waiting || mode == .reset {
+            leaveRecovery()
+            return
+        }
+        generation += 1
+        errorText = ""
+        noticeText = ""
+        switch mode {
+        case .loginWord:
+            confirmationEntry.value = ""
+            passwordEntry.value = ""
+            mode = .loginPassword
+        case .loginPassword:
+            clearSecrets()
+            mode = .loginName
+        case .registerRecovery:
+            recoveryEntry.value = ""
+            mode = .registerConfirmation
+        case .registerConfirmation:
+            confirmationEntry.value = ""
+            mode = .registerPassword
+        case .registerPassword:
+            clearSecrets()
+            mode = .registerProfile
+        case .registerProfile:
+            mode = .registerName
+        default:
+            clearSecrets()
+            nameEntry.value = ""
+            mode = .loginName
+        }
+        render()
+    }
+
+    @objc private func submit() {
+        guard !pending, !entered else { return }
+        if isRegister {
+            registerNext()
+            return
+        }
+        switch mode {
+        case .loginName:
+            if loginLocked { return }
+            if usernameCheck() { go(.loginPassword) }
+        case .loginPassword:
+            if AuthRules.passwordEntered(passwordEntry.value) { go(.loginWord) } else { fail(AuthRules.passwordEntryError) }
+        case .loginWord:
+            signIn()
+        case .recover:
+            verifyRecovery()
+        case .waiting:
+            checkRecovery()
+        case .reset:
+            resetPassword()
+        default:
+            break
         }
     }
 
-    @objc private func goOn() {
-        guard !busy else { return }
-        let typed = field.text ?? ""
-        switch step {
-        case .name:
-            if let until = lockedUntil, until > Date() { return show(.name, error: "Слишком много неверных попыток. Вход снова откроется через 5 минут.") }
-            login = typed.trimmingCharacters(in: .whitespacesAndNewlines)
-            guard login.range(of: "^[A-Za-z0-9_]{3,24}$", options: .regularExpression) != nil else { return show(.name, error: "Логин: 3–24 символа — латинские буквы, цифры и знак _.") }
-            show(.password)
-        case .password:
-            guard !typed.isEmpty, typed.count <= 128 else { return show(.password, error: "Введи свой пароль. Максимум — 128 символов.") }
-            password = typed
-            show(.word)
-        case .word:
-            // An empty word is sent as it is: only the server decides whether an older account may enter without one.
-            word = typed.trimmingCharacters(in: .whitespacesAndNewlines).precomposedStringWithCanonicalMapping.lowercased()
-            signIn()
+    // MARK: Signing in and creating an account
+
+    /// The session of an answer nobody waits for any more is closed on the server at once.
+    private static func discard(_ result: Result<Any, ServerError>, base: String) {
+        guard case .success(let answer) = result, let token = (answer as? [String: Any])?["token"] as? String, !token.isEmpty else { return }
+        Server(base: base, token: token).op("logout", []) { _ in }
+    }
+
+    /// Takes the session of a sign-in answer; false when the answer is not one.
+    private func accept(_ answer: Any) -> Bool {
+        guard let session = answer as? [String: Any], let token = session["token"] as? String, !token.isEmpty,
+              let user = session["user"] as? [String: Any] else { return false }
+        clearSecrets()
+        // The button shows «Готово» for a moment before the chats open.
+        entered = true
+        pending = false
+        view.endEditing(true)
+        render()
+        let base = server.base
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.55) { [weak self] in
+            if let screen = self, screen.entered {
+                screen.onSignedIn?(token, user)
+            } else {
+                Server(base: base, token: token).op("logout", []) { _ in }
+            }
         }
+        return true
     }
 
     private func signIn() {
-        var body: [String: Any] = ["username": login, "password": password, "confirmationWord": word]
-        for (key, value) in Account.deviceFields { body[key] = value }
-        guard let json = Core.text(body) else { return }
-        busy = true
-        spinner.startAnimating()
-        proceed.isEnabled = false
-        server.send("POST", "/auth/login", body: json) { [weak self] result in
+        guard usernameCheck() else { return }
+        if !AuthRules.passwordEntered(passwordEntry.value) {
+            fail(AuthRules.passwordEntryError)
+            return
+        }
+        // An empty word is sent as it is: only the server decides whether an older account may enter without one.
+        let args: [Any] = [login, passwordEntry.value, AuthRules.word(confirmationEntry.value)]
+        guard let id = begin() else { return }
+        let base = server.base
+        server.op("login", args) { [weak self] result in
             DispatchQueue.main.async {
-                guard let self else { return }
-                self.busy = false
-                self.spinner.stopAnimating()
-                self.proceed.isEnabled = true
+                guard let screen = self, screen.current(id) else {
+                    AuthViewController.discard(result, base: base)
+                    return
+                }
                 switch result {
                 case .success(let answer):
-                    guard let session = answer as? [String: Any], let token = session["token"] as? String, !token.isEmpty, let user = session["user"] as? [String: Any] else {
-                        self.forgetSecrets()
-                        return self.show(.name, error: "Не удалось выполнить запрос. Попробуй ещё раз.")
-                    }
-                    self.forgetSecrets()
-                    self.field.text = ""
-                    self.onSignedIn?(token, user)
+                    if screen.accept(answer) { return }
+                    screen.clearSecrets()
+                    screen.mode = .loginName
+                    screen.errorText = "Не удалось выполнить запрос. Попробуй ещё раз."
                 case .failure(let error):
-                    // Wrong login, password or word: back to the first step, with how many tries are left.
-                    self.forgetSecrets()
                     if case .refused(let message, let status, let code, let details) = error, code == "LOGIN_FAILED" || code == "LOGIN_LOCKED" || status == 401 {
-                        if code == "LOGIN_LOCKED", let wait = details["retryAfterSeconds"] as? Double {
-                            self.lockedUntil = Date().addingTimeInterval(wait)
-                            return self.show(.name, error: "Слишком много неверных попыток. Вход снова откроется через 5 минут.")
+                        // Wrong login, password or word: back to the first step (which of the three was wrong is
+                        // never told), with how many tries are left; after five the server closes the entrance.
+                        screen.clearSecrets()
+                        screen.mode = .loginName
+                        let wait = (details["retryAfterSeconds"] as? NSNumber)?.doubleValue ?? 0
+                        if code == "LOGIN_LOCKED", wait > 0 {
+                            screen.loginLockUntil = Date().addingTimeInterval(wait)
+                            screen.errorText = "Слишком много неверных попыток. Вход снова откроется через 5 минут."
+                        } else if let left = (details["attemptsLeft"] as? NSNumber)?.intValue {
+                            screen.errorText = "Неверный логин, пароль или слово подтверждения. Осталось попыток: \(left)."
+                        } else {
+                            screen.errorText = message
                         }
-                        if let left = details["attemptsLeft"] as? Int { return self.show(.name, error: "Неверный логин, пароль или слово подтверждения. Осталось попыток: \(left).") }
-                        return self.show(.name, error: message)
+                    } else {
+                        screen.confirmationEntry.value = ""
+                        screen.errorText = error.words
                     }
-                    self.show(.name, error: error.words)
                 }
+                screen.pending = false
+                screen.render()
             }
         }
     }
 
-    func textFieldShouldReturn(_ textField: UITextField) -> Bool {
-        goOn()
-        return false
+    private func registerNext() {
+        switch mode {
+        case .registerName:
+            if usernameCheck() { go(.registerProfile) }
+            return
+        case .registerProfile:
+            let shownName = displayEntry.value.trimmingCharacters(in: .whitespacesAndNewlines)
+            let publicName = AuthRules.handle(handleEntry.value)
+            if shownName.isEmpty || shownName.unicodeScalars.count > 50 {
+                fail("Имя: от 1 до 50 символов.")
+            } else if !AuthRules.validName(publicName) {
+                fail("@юзернейм: 3–24 символа — латинские буквы, цифры и знак _.")
+            } else if publicName == login {
+                fail("@юзернейм должен отличаться от логина: логин никто не должен видеть.")
+            } else {
+                go(.registerPassword)
+            }
+            return
+        case .registerPassword:
+            let invalid = AuthRules.newPasswordError(passwordEntry.value)
+            if invalid.isEmpty { go(.registerConfirmation) } else { fail(invalid) }
+            return
+        case .registerConfirmation:
+            let invalid = AuthRules.wordError(confirmationEntry.value, password: passwordEntry.value, login: login)
+            if invalid.isEmpty { go(.registerRecovery) } else { fail(invalid) }
+            return
+        default:
+            break
+        }
+        let invalid = AuthRules.wordError(recoveryEntry.value, password: passwordEntry.value, login: login, otherWord: confirmationEntry.value)
+        if !invalid.isEmpty {
+            fail(invalid)
+            return
+        }
+        let args: [Any] = [login, passwordEntry.value, displayEntry.value.trimmingCharacters(in: .whitespacesAndNewlines),
+                           AuthRules.word(confirmationEntry.value), AuthRules.word(recoveryEntry.value), AuthRules.handle(handleEntry.value)]
+        guard let id = begin() else { return }
+        let base = server.base
+        server.op("register", args) { [weak self] result in
+            DispatchQueue.main.async {
+                guard let screen = self, screen.current(id) else {
+                    AuthViewController.discard(result, base: base)
+                    return
+                }
+                switch result {
+                case .success(let answer):
+                    if screen.accept(answer) { return }
+                    screen.errorText = "Не удалось создать аккаунт."
+                case .failure(let error):
+                    let message = error.words
+                    // A taken @username is fixed on the profile step, not by typing every secret again; a taken
+                    // login — on the first step, with the password and the words kept. There is no early «is it
+                    // free» question on purpose: the login is secret and must not be probed.
+                    if message.contains("@юзернейм") {
+                        screen.mode = .registerProfile
+                    } else if message.contains("логин уже занят") {
+                        screen.mode = .registerName
+                    }
+                    screen.errorText = message
+                }
+                screen.pending = false
+                screen.render()
+            }
+        }
+    }
+
+    // MARK: A forgotten password
+
+    private func verifyRecovery() {
+        if recoveryLockedUntil != nil { return }
+        guard usernameCheck() else { return }
+        let invalid = AuthRules.wordError(recoveryEntry.value)
+        if !invalid.isEmpty {
+            fail(invalid)
+            return
+        }
+        let name = login
+        let args: [Any] = [name, AuthRules.word(recoveryEntry.value)]
+        guard let id = begin() else { return }
+        let base = server.base
+        server.op("verifyRecovery", args) { [weak self] result in
+            DispatchQueue.main.async {
+                guard let screen = self, screen.current(id) else { return }
+                screen.pending = false
+                switch result {
+                case .success(let answer):
+                    if let made = RecoveryGrant(answer) {
+                        screen.clearSecrets()
+                        screen.grant = made
+                        screen.serverOffset = made.serverMs - screen.nowMs
+                        screen.feedback = nil
+                        do {
+                            try RecoveryStore.save(base: base, username: name, grant: made)
+                        } catch {
+                            screen.noticeText = "Не удалось сохранить запрос на устройстве. Оставь этот экран открытым до окончания ожидания."
+                        }
+                        screen.mode = .waiting
+                    } else {
+                        screen.recoveryEntry.value = ""
+                        screen.errorText = "Сервер вернул некорректное подтверждение. Попробуй ещё раз."
+                    }
+                case .failure(let error):
+                    screen.recoveryEntry.value = ""
+                    screen.errorText = error.words
+                    if case .refused(_, _, _, let details) = error {
+                        var remaining: Int?
+                        if let number = details["attemptsRemaining"] as? NSNumber { remaining = max(0, min(3, number.intValue)) }
+                        var seconds: Double?
+                        if let number = details["retryAfterSeconds"] as? NSNumber { seconds = max(0, number.doubleValue) }
+                        if remaining != nil || seconds != nil {
+                            var until: Date?
+                            if let wait = seconds, wait > 0 { until = Date().addingTimeInterval(wait) }
+                            screen.feedback = RecoveryFeedback(username: name, remaining: remaining, lockedUntil: until)
+                        }
+                    }
+                }
+                screen.render()
+                if screen.mode == .waiting { screen.checkRecovery() }
+            }
+        }
+    }
+
+    /// Asks the server whether the waiting period is over.
+    private func checkRecovery() {
+        guard let held = grant, !statusPending, !pending, !entered, mode == .waiting, !sample else { return }
+        let life = generation
+        statusGeneration += 1
+        let asked = statusGeneration
+        statusPending = true
+        checking = true
+        lastStatusCheck = Date()
+        renderTime()
+        let base = server.base
+        server.op("recoveryStatus", [held.resetToken]) { [weak self] result in
+            DispatchQueue.main.async {
+                guard let screen = self else { return }
+                if asked == screen.statusGeneration {
+                    screen.statusPending = false
+                    screen.checking = false
+                }
+                guard screen.current(life), screen.grant?.resetToken == held.resetToken, screen.mode == .waiting else {
+                    screen.renderTime()
+                    return
+                }
+                switch result {
+                case .success(let answer):
+                    if let status = answer as? [String: Any], let requestId = status["requestId"] as? String, requestId == held.requestId,
+                       let state = status["status"] as? String, state == "ready" || state == "waiting",
+                       let readyAt = status["readyAt"] as? String, RecoveryGrant.ms(readyAt) != nil,
+                       let expiresAt = status["expiresAt"] as? String, RecoveryGrant.ms(expiresAt) != nil,
+                       let serverTime = status["serverTime"] as? String, RecoveryGrant.ms(serverTime) != nil {
+                        var updated = held
+                        updated.readyAt = readyAt
+                        updated.expiresAt = expiresAt
+                        updated.serverTime = serverTime
+                        screen.grant = updated
+                        screen.serverOffset = updated.serverMs - screen.nowMs
+                        screen.errorText = ""
+                        if state == "ready" {
+                            screen.noticeText = "Сервер разрешил сменить пароль. Оба секретных слова останутся прежними."
+                            screen.mode = .reset
+                        }
+                    } else {
+                        screen.errorText = "Не удалось проверить состояние запроса."
+                    }
+                case .failure(let error):
+                    if case .refused(_, let status, _, _) = error, status == 401 || status == 410 {
+                        RecoveryStore.clear(base: base, resetToken: held.resetToken)
+                        screen.clearSecrets()
+                        screen.grant = nil
+                        screen.mode = .recover
+                        screen.noticeText = "Запрос отменён, уже использован или его срок закончился. Можно начать восстановление заново."
+                        screen.errorText = ""
+                    } else {
+                        screen.errorText = error.words
+                    }
+                }
+                screen.render()
+            }
+        }
+    }
+
+    private func resetPassword() {
+        guard let held = grant else {
+            clearSecrets()
+            go(.recover)
+            return
+        }
+        let invalid = AuthRules.newPasswordError(passwordEntry.value)
+        if !invalid.isEmpty {
+            fail(invalid)
+            return
+        }
+        if sample { return }
+        let args: [Any] = [held.resetToken, passwordEntry.value]
+        guard let id = begin() else { return }
+        let base = server.base
+        server.op("resetPassword", args) { [weak self] result in
+            DispatchQueue.main.async {
+                // The request is used up whoever is still looking: it is not kept any longer.
+                if case .success = result { RecoveryStore.clear(base: base, resetToken: held.resetToken) }
+                guard let screen = self, screen.current(id) else { return }
+                screen.pending = false
+                switch result {
+                case .success:
+                    screen.clearSecrets()
+                    screen.grant = nil
+                    screen.feedback = nil
+                    screen.nameEntry.value = ""
+                    screen.mode = .loginName
+                    screen.noticeText = "Пароль изменён. Все устройства вышли из аккаунта. Войди с новым паролем и прежним словом подтверждения."
+                case .failure(let error):
+                    if case .refused(_, let status, let code, _) = error {
+                        if code == "RECOVERY_WAIT" {
+                            screen.clearSecrets()
+                            screen.mode = .waiting
+                        }
+                        if status == 401 || status == 410 {
+                            RecoveryStore.clear(base: base, resetToken: held.resetToken)
+                            screen.clearSecrets()
+                            screen.grant = nil
+                            screen.mode = .recover
+                        }
+                    }
+                    screen.errorText = error.words
+                }
+                screen.render()
+                if screen.mode == .waiting { screen.checkRecovery() }
+            }
+        }
+    }
+
+    /// Back to signing in: the request is removed from this device and cannot be continued here.
+    private func leaveRecovery() {
+        guard !pending, !entered else { return }
+        if !sample { RecoveryStore.clear(base: server.base, resetToken: grant?.resetToken) }
+        sample = false
+        generation += 1
+        statusGeneration += 1
+        statusPending = false
+        checking = false
+        clearSecrets()
+        grant = nil
+        nameEntry.value = ""
+        go(.loginName)
     }
 }

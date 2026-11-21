@@ -1,0 +1,672 @@
+import UIKit
+
+/// A person's profile: the picture, the name, when they were in the line, the buttons («Написать», friends,
+/// «Ещё») and the card with the @username, the birthday and «о себе». Ported from the reference's
+/// UserProfile.tsx and ProfileInfo.tsx.
+final class PersonProfileViewController: UIViewController {
+    private let messenger: Messenger?
+    private let userId: String
+    private let name: String
+    /// Not empty: the profile was opened from this chat (then there is no «Написать» — the chat is one step back).
+    private let chatId: String
+
+    private var person: Person?
+    /// nil while the profile is being read.
+    private var isFriend: Bool?
+    /// "incoming", "outgoing" or nil.
+    private var request: String?
+    private var blocked = false
+    private var busy = false
+    private var copied = false
+    private var copyTurn = 0
+    private var noticeWords = ""
+    private var problemWords = ""
+    private var clock: Timer?
+
+    private let scroll = UIScrollView()
+    private let content = UIStackView()
+    private let topBar = UIView()
+    private let back = UIButton(type: .system)
+    private let more = UIButton(type: .system)
+    private let avatar = PersonAvatarView()
+    private let nameLabel = UILabel()
+    private let statusLabel = UILabel()
+    private let tiles = UIStackView()
+    private let noticeLabel = UILabel()
+    private let problemLabel = UILabel()
+    private let cardBox = UIView()
+    private let card = UIStackView()
+
+    /// `person`: what is already known about them (a row of a list), shown until the profile is read.
+    init(messenger: Messenger?, userId: String, name: String, person: Person? = nil, chatId: String = "") {
+        self.messenger = messenger
+        self.userId = userId
+        self.name = name
+        self.person = person
+        self.chatId = chatId
+        super.init(nibName: nil, bundle: nil)
+    }
+
+    required init?(coder: NSCoder) { return nil }
+
+    deinit {
+        clock?.invalidate()
+        NotificationCenter.default.removeObserver(self)
+    }
+
+    private var fromChat: Bool { !chatId.isEmpty }
+
+    override func viewDidLoad() {
+        super.viewDidLoad()
+        view.backgroundColor = Theme.bg
+
+        scroll.alwaysBounceVertical = true
+        scroll.showsVerticalScrollIndicator = false
+        scroll.translatesAutoresizingMaskIntoConstraints = false
+        view.addSubview(scroll)
+        content.axis = .vertical
+        content.alignment = .fill
+        content.spacing = 16
+        content.translatesAutoresizingMaskIntoConstraints = false
+        scroll.addSubview(content)
+
+        let avatarHolder = UIView()
+        avatar.translatesAutoresizingMaskIntoConstraints = false
+        avatarHolder.addSubview(avatar)
+        content.addArrangedSubview(avatarHolder)
+
+        nameLabel.font = .systemFont(ofSize: 27, weight: .heavy)
+        nameLabel.textColor = Theme.text
+        nameLabel.textAlignment = .center
+        nameLabel.numberOfLines = 2
+        statusLabel.font = .systemFont(ofSize: 15)
+        statusLabel.textAlignment = .center
+        let names = UIStackView(arrangedSubviews: [nameLabel, statusLabel])
+        names.axis = .vertical
+        names.spacing = 6
+        content.addArrangedSubview(names)
+
+        let tilesHolder = UIView()
+        tiles.axis = .horizontal
+        tiles.spacing = 10
+        tiles.translatesAutoresizingMaskIntoConstraints = false
+        tilesHolder.addSubview(tiles)
+        content.addArrangedSubview(tilesHolder)
+
+        noticeLabel.font = .systemFont(ofSize: 13)
+        noticeLabel.textColor = Theme.accent
+        noticeLabel.textAlignment = .center
+        noticeLabel.numberOfLines = 0
+        noticeLabel.isHidden = true
+        content.addArrangedSubview(noticeLabel)
+        problemLabel.font = .systemFont(ofSize: 14)
+        problemLabel.textColor = Theme.danger
+        problemLabel.textAlignment = .center
+        problemLabel.numberOfLines = 0
+        problemLabel.isHidden = true
+        content.addArrangedSubview(problemLabel)
+
+        cardBox.backgroundColor = Theme.surface2
+        cardBox.layer.cornerRadius = 22
+        cardBox.layer.cornerCurve = .continuous
+        cardBox.clipsToBounds = true
+        card.axis = .vertical
+        card.translatesAutoresizingMaskIntoConstraints = false
+        cardBox.addSubview(card)
+        content.addArrangedSubview(cardBox)
+
+        topBar.backgroundColor = Theme.bg.withAlphaComponent(0.92)
+        topBar.translatesAutoresizingMaskIntoConstraints = false
+        view.addSubview(topBar)
+        back.setImage(UIImage(systemName: "chevron.left", withConfiguration: UIImage.SymbolConfiguration(pointSize: 20, weight: .semibold)), for: .normal)
+        back.tintColor = Theme.text
+        back.accessibilityLabel = "Назад"
+        back.addTarget(self, action: #selector(goBack), for: .touchUpInside)
+        back.translatesAutoresizingMaskIntoConstraints = false
+        topBar.addSubview(back)
+        more.setImage(UIImage(systemName: "ellipsis", withConfiguration: UIImage.SymbolConfiguration(pointSize: 20, weight: .semibold)), for: .normal)
+        more.tintColor = Theme.text
+        more.accessibilityLabel = "Ещё"
+        more.showsMenuAsPrimaryAction = true
+        more.translatesAutoresizingMaskIntoConstraints = false
+        topBar.addSubview(more)
+
+        let safe = view.safeAreaLayoutGuide
+        NSLayoutConstraint.activate([
+            scroll.topAnchor.constraint(equalTo: topBar.bottomAnchor),
+            scroll.leadingAnchor.constraint(equalTo: view.leadingAnchor),
+            scroll.trailingAnchor.constraint(equalTo: view.trailingAnchor),
+            scroll.bottomAnchor.constraint(equalTo: view.bottomAnchor),
+            content.topAnchor.constraint(equalTo: scroll.contentLayoutGuide.topAnchor, constant: 10),
+            content.bottomAnchor.constraint(equalTo: scroll.contentLayoutGuide.bottomAnchor, constant: -32),
+            content.leadingAnchor.constraint(equalTo: scroll.contentLayoutGuide.leadingAnchor, constant: 18),
+            content.trailingAnchor.constraint(equalTo: scroll.contentLayoutGuide.trailingAnchor, constant: -18),
+            content.widthAnchor.constraint(equalTo: scroll.frameLayoutGuide.widthAnchor, constant: -36),
+
+            avatar.widthAnchor.constraint(equalToConstant: 116),
+            avatar.heightAnchor.constraint(equalToConstant: 116),
+            avatar.centerXAnchor.constraint(equalTo: avatarHolder.centerXAnchor),
+            avatar.topAnchor.constraint(equalTo: avatarHolder.topAnchor),
+            avatar.bottomAnchor.constraint(equalTo: avatarHolder.bottomAnchor),
+
+            tiles.centerXAnchor.constraint(equalTo: tilesHolder.centerXAnchor),
+            tiles.topAnchor.constraint(equalTo: tilesHolder.topAnchor),
+            tiles.bottomAnchor.constraint(equalTo: tilesHolder.bottomAnchor),
+            tiles.leadingAnchor.constraint(greaterThanOrEqualTo: tilesHolder.leadingAnchor),
+
+            card.topAnchor.constraint(equalTo: cardBox.topAnchor),
+            card.bottomAnchor.constraint(equalTo: cardBox.bottomAnchor),
+            card.leadingAnchor.constraint(equalTo: cardBox.leadingAnchor),
+            card.trailingAnchor.constraint(equalTo: cardBox.trailingAnchor),
+
+            topBar.topAnchor.constraint(equalTo: view.topAnchor),
+            topBar.leadingAnchor.constraint(equalTo: view.leadingAnchor),
+            topBar.trailingAnchor.constraint(equalTo: view.trailingAnchor),
+            topBar.bottomAnchor.constraint(equalTo: safe.topAnchor, constant: 48),
+            back.leadingAnchor.constraint(equalTo: topBar.leadingAnchor, constant: 6),
+            back.bottomAnchor.constraint(equalTo: topBar.bottomAnchor, constant: -2),
+            back.widthAnchor.constraint(equalToConstant: 44),
+            back.heightAnchor.constraint(equalToConstant: 44),
+            more.trailingAnchor.constraint(equalTo: topBar.trailingAnchor, constant: -6),
+            more.bottomAnchor.constraint(equalTo: topBar.bottomAnchor, constant: -2),
+            more.widthAnchor.constraint(equalToConstant: 44),
+            more.heightAnchor.constraint(equalToConstant: 44),
+        ])
+
+        if let messenger {
+            messenger.preparePersonAvatars()
+            NotificationCenter.default.addObserver(self, selector: #selector(presenceChanged), name: Live.presenceChanged, object: nil)
+            messenger.personProfile(userId) { [weak self] result in
+                guard let self else { return }
+                switch result {
+                case .success(let profile):
+                    self.person = profile.person
+                    self.isFriend = profile.isFriend
+                    self.request = profile.request
+                    self.blocked = profile.blocked
+                case .failure(let error):
+                    self.problemWords = error.words
+                }
+                self.refresh()
+            }
+        } else {
+            #if targetEnvironment(simulator)
+            person = PeopleDemo.named(name)
+            isFriend = PeopleDemo.friends.contains { $0.displayName == name }
+            if PeopleDemo.incoming.contains(where: { $0.displayName == name }) { request = "incoming" }
+            if PeopleDemo.outgoing.contains(where: { $0.displayName == name }) { request = "outgoing" }
+            #endif
+        }
+        refresh()
+    }
+
+    override func viewWillAppear(_ animated: Bool) {
+        super.viewWillAppear(animated)
+        refreshStatus()
+        clock?.invalidate()
+        // «был(а) 5 минут назад» grows old by itself.
+        clock = Timer.scheduledTimer(withTimeInterval: 30, repeats: true) { [weak self] _ in self?.refreshStatus() }
+    }
+
+    override func viewWillDisappear(_ animated: Bool) {
+        super.viewWillDisappear(animated)
+        clock?.invalidate()
+        clock = nil
+    }
+
+    @objc private func goBack() { navigationController?.popViewController(animated: true) }
+
+    @objc private func presenceChanged() { refreshStatus() }
+
+    // MARK: What is shown
+
+    private var shownPerson: Person {
+        person ?? Person(id: userId, username: "", displayName: name, bio: "", birthday: "", avatarColor: 0x5E7BFF, avatarId: "")
+    }
+
+    private func refreshStatus() {
+        guard isViewLoaded else { return }
+        var words: String? = nil
+        if let messenger {
+            words = PresenceWords.text(messenger.live.presence[userId])
+        } else {
+            #if targetEnvironment(simulator)
+            words = "в сети"
+            #endif
+        }
+        statusLabel.text = words
+        statusLabel.textColor = words == "в сети" ? Theme.accent : Theme.muted
+        statusLabel.isHidden = words == nil
+    }
+
+    private func refresh() {
+        guard isViewLoaded else { return }
+        let shown = shownPerson
+        avatar.show(shown, address: messenger?.personAvatarAddress(shown.avatarId) ?? "")
+        nameLabel.text = shown.displayName
+        refreshStatus()
+        noticeLabel.text = noticeWords
+        noticeLabel.isHidden = noticeWords.isEmpty
+        problemLabel.text = problemWords
+        problemLabel.isHidden = problemWords.isEmpty
+        more.menu = moreMenu()
+        more.isEnabled = !busy
+        rebuildTiles()
+        rebuildCard(shown)
+    }
+
+    private func makeTile(symbol: String, words: String, loading: Bool) -> UIButton {
+        var config = UIButton.Configuration.plain()
+        config.image = UIImage(systemName: symbol, withConfiguration: UIImage.SymbolConfiguration(pointSize: 18, weight: .medium))
+        config.title = words
+        config.imagePlacement = .top
+        config.imagePadding = 6
+        config.baseForegroundColor = Theme.text
+        config.background.backgroundColor = Theme.surface2
+        config.background.cornerRadius = 18
+        config.contentInsets = NSDirectionalEdgeInsets(top: 8, leading: 4, bottom: 8, trailing: 4)
+        config.titleLineBreakMode = .byTruncatingTail
+        config.showsActivityIndicator = loading
+        config.titleTextAttributesTransformer = UIConfigurationTextAttributesTransformer { (incoming: AttributeContainer) -> AttributeContainer in
+            var outgoing = incoming
+            outgoing.font = UIFont.systemFont(ofSize: 12, weight: .semibold)
+            return outgoing
+        }
+        let button = UIButton(configuration: config)
+        button.isEnabled = !loading && !busy
+        button.translatesAutoresizingMaskIntoConstraints = false
+        button.widthAnchor.constraint(equalToConstant: 104).isActive = true
+        button.heightAnchor.constraint(equalToConstant: 66).isActive = true
+        return button
+    }
+
+    private func rebuildTiles() {
+        for old in tiles.arrangedSubviews {
+            tiles.removeArrangedSubview(old)
+            old.removeFromSuperview()
+        }
+        if !fromChat {
+            let write = makeTile(symbol: "bubble.left.fill", words: "Написать", loading: false)
+            write.addTarget(self, action: #selector(writeTapped), for: .touchUpInside)
+            tiles.addArrangedSubview(write)
+        }
+        let symbol = isFriend == true ? "person.badge.minus" : request == "outgoing" ? "clock" : "person.badge.plus"
+        let words = isFriend == true ? "В друзьях" : request == "outgoing" ? "Заявка" : request == "incoming" ? "Принять" : "В друзья"
+        let friend = makeTile(symbol: symbol, words: words, loading: isFriend == nil && problemWords.isEmpty)
+        if isFriend == nil { friend.isEnabled = false }
+        friend.addTarget(self, action: #selector(friendTapped), for: .touchUpInside)
+        tiles.addArrangedSubview(friend)
+        let other = makeTile(symbol: "ellipsis", words: "Ещё", loading: false)
+        other.menu = moreMenu()
+        other.showsMenuAsPrimaryAction = true
+        tiles.addArrangedSubview(other)
+    }
+
+    private func moreMenu() -> UIMenu {
+        var actions: [UIMenuElement] = []
+        if fromChat, let friendNow = isFriend {
+            let words = friendNow ? "Удалить из друзей" : request == "outgoing" ? "Отменить заявку" : request == "incoming" ? "Принять в друзья" : "Добавить в друзья"
+            let symbol = friendNow ? "person.badge.minus" : "person.badge.plus"
+            actions.append(UIAction(title: words, image: UIImage(systemName: symbol)) { [weak self] _ in self?.friendTapped() })
+        }
+        if blocked {
+            actions.append(UIAction(title: "Разблокировать", image: UIImage(systemName: "hand.raised")) { [weak self] _ in self?.setBlocked(false) })
+        } else {
+            actions.append(UIAction(title: "Заблокировать", image: UIImage(systemName: "minus.circle"), attributes: .destructive) { [weak self] _ in self?.confirmBlock() })
+        }
+        actions.append(UIAction(title: "Пожаловаться", image: UIImage(systemName: "exclamationmark.triangle"), attributes: .destructive) { [weak self] _ in self?.report() })
+        return UIMenu(title: "", children: actions)
+    }
+
+    private func hairline() -> UIView {
+        let holder = UIView()
+        let line = UIView()
+        line.backgroundColor = UIColor(white: 1, alpha: 0.1)
+        line.translatesAutoresizingMaskIntoConstraints = false
+        holder.addSubview(line)
+        NSLayoutConstraint.activate([
+            line.leadingAnchor.constraint(equalTo: holder.leadingAnchor, constant: 16),
+            line.trailingAnchor.constraint(equalTo: holder.trailingAnchor, constant: -16),
+            line.topAnchor.constraint(equalTo: holder.topAnchor),
+            line.bottomAnchor.constraint(equalTo: holder.bottomAnchor),
+            line.heightAnchor.constraint(equalToConstant: 1 / max(1, traitCollection.displayScale)),
+        ])
+        return holder
+    }
+
+    /// A row of the card: a small grey label above the value.
+    private func infoRow(label: String, value: String, accent: Bool) -> UIStackView {
+        let small = UILabel()
+        small.text = label
+        small.font = .systemFont(ofSize: 14)
+        small.textColor = Theme.muted
+        let big = UILabel()
+        big.text = value
+        big.font = .systemFont(ofSize: 17)
+        big.textColor = accent ? Theme.accent : Theme.text
+        big.numberOfLines = 0
+        let row = UIStackView(arrangedSubviews: [small, big])
+        row.axis = .vertical
+        row.spacing = 2
+        row.isLayoutMarginsRelativeArrangement = true
+        row.layoutMargins = UIEdgeInsets(top: 11, left: 16, bottom: 11, right: 16)
+        row.isAccessibilityElement = true
+        row.accessibilityLabel = "\(label): \(value)"
+        return row
+    }
+
+    private func rebuildCard(_ shown: Person) {
+        for old in card.arrangedSubviews {
+            card.removeArrangedSubview(old)
+            old.removeFromSuperview()
+        }
+        if !shown.username.isEmpty {
+            let row = infoRow(label: "имя пользователя", value: copied ? "Скопировано" : "@\(shown.username)", accent: true)
+            row.accessibilityTraits = .button
+            row.accessibilityHint = "Нажми, чтобы скопировать"
+            row.addGestureRecognizer(UITapGestureRecognizer(target: self, action: #selector(copyUsername)))
+            card.addArrangedSubview(row)
+        }
+        let birthday = shown.birthdayWords
+        if !birthday.isEmpty {
+            if !card.arrangedSubviews.isEmpty { card.addArrangedSubview(hairline()) }
+            card.addArrangedSubview(infoRow(label: "день рождения", value: birthday, accent: false))
+        }
+        if !shown.bio.isEmpty {
+            if !card.arrangedSubviews.isEmpty { card.addArrangedSubview(hairline()) }
+            card.addArrangedSubview(infoRow(label: "о себе", value: shown.bio, accent: false))
+        }
+        if !card.arrangedSubviews.isEmpty { card.addArrangedSubview(hairline()) }
+        let lock = UIImageView(image: UIImage(systemName: "lock.fill", withConfiguration: UIImage.SymbolConfiguration(pointSize: 11, weight: .regular)))
+        lock.tintColor = Theme.accent
+        lock.setContentHuggingPriority(.required, for: .horizontal)
+        lock.setContentCompressionResistancePriority(.required, for: .horizontal)
+        let words = UILabel()
+        words.text = "Переписка защищена сквозным шифрованием"
+        words.font = .systemFont(ofSize: 12)
+        words.textColor = Theme.muted
+        words.numberOfLines = 0
+        let secure = UIStackView(arrangedSubviews: [lock, words])
+        secure.axis = .horizontal
+        secure.alignment = .center
+        secure.spacing = 8
+        secure.isLayoutMarginsRelativeArrangement = true
+        secure.layoutMargins = UIEdgeInsets(top: 11, left: 16, bottom: 11, right: 16)
+        card.addArrangedSubview(secure)
+    }
+
+    // MARK: What the person does
+
+    private func say(notice: String = "", problem: String = "") {
+        noticeWords = notice
+        problemWords = problem
+        refresh()
+    }
+
+    /// As on the own profile in the reference: the row itself reads «Скопировано» for a moment.
+    @objc private func copyUsername() {
+        guard let username = person?.username, !username.isEmpty else { return }
+        UIPasteboard.general.string = "@" + username
+        UIImpactFeedbackGenerator(style: .light).impactOccurred()
+        copied = true
+        copyTurn += 1
+        let turn = copyTurn
+        refresh()
+        DispatchQueue.main.asyncAfter(deadline: .now() + 1.8) { [weak self] in
+            guard let self, self.copyTurn == turn else { return }
+            self.copied = false
+            self.refresh()
+        }
+    }
+
+    @objc private func writeTapped() {
+        guard !busy else { return }
+        guard let messenger else {
+            #if targetEnvironment(simulator)
+            navigationController?.pushViewController(ChatViewController(name: shownPerson.displayName), animated: true)
+            #endif
+            return
+        }
+        busy = true
+        say()
+        messenger.openChat(with: shownPerson, from: self) { [weak self] error in
+            guard let self else { return }
+            self.busy = false
+            self.say(problem: error?.words ?? "")
+        }
+    }
+
+    @objc private func friendTapped() {
+        guard let friendNow = isFriend, !busy else { return }
+        guard friendNow else { return toggleFriend() }
+        // Removing a friend asks first.
+        let sheet = UIAlertController(title: "Удалить \(shownPerson.displayName) из друзей?",
+                                      message: "Публикации, истории и подарки друг друга вы больше не увидите. Заявку можно отправить снова.", preferredStyle: .actionSheet)
+        sheet.addAction(UIAlertAction(title: "Удалить из друзей", style: .destructive) { [weak self] _ in self?.toggleFriend() })
+        sheet.addAction(UIAlertAction(title: "Отмена", style: .cancel))
+        present(sheet, animated: true)
+    }
+
+    /// The one friends button of the reference (`toggleContact`): remove, take the request back, accept, or ask.
+    private func toggleFriend() {
+        guard let friendNow = isFriend, !busy else { return }
+        guard let messenger else {
+            #if targetEnvironment(simulator)
+            if friendNow { isFriend = false; say(notice: "Удалён из друзей") }
+            else if request == "outgoing" { request = nil; say(notice: "Заявка отменена") }
+            else if request == "incoming" { request = nil; isFriend = true; say(notice: "Теперь вы друзья") }
+            else { request = "outgoing"; say(notice: "Заявка отправлена") }
+            #endif
+            return
+        }
+        UIImpactFeedbackGenerator(style: .light).impactOccurred()
+        busy = true
+        say()
+        let finish: (ServerError?, String, () -> Void) -> Void = { [weak self] error, notice, apply in
+            guard let self else { return }
+            self.busy = false
+            if let error {
+                self.say(problem: error.words)
+            } else {
+                apply()
+                self.say(notice: notice)
+                FriendRequests.shared.refresh()
+            }
+        }
+        if friendNow {
+            messenger.removeFriend(userId) { [weak self] error in finish(error, "Удалён из друзей") { self?.isFriend = false } }
+        } else if request == "outgoing" {
+            messenger.dropFriendRequest(userId) { [weak self] error in finish(error, "Заявка отменена") { self?.request = nil } }
+        } else if request == "incoming" {
+            messenger.acceptFriend(userId) { [weak self] error in
+                finish(error, "Теперь вы друзья") {
+                    self?.request = nil
+                    self?.isFriend = true
+                }
+            }
+        } else {
+            messenger.addFriend(userId) { [weak self] result in
+                switch result {
+                case .failure(let error):
+                    finish(error, "") { }
+                case .success(let friends):
+                    if friends {
+                        finish(nil, "Теперь вы друзья") { self?.isFriend = true }
+                    } else {
+                        finish(nil, "Заявка отправлена") { self?.request = "outgoing" }
+                    }
+                }
+            }
+        }
+    }
+
+    private func confirmBlock() {
+        let sheet = UIAlertController(title: "Заблокировать \(shownPerson.displayName)?", message: "Он не сможет писать и звонить тебе, пока ты не разблокируешь.", preferredStyle: .actionSheet)
+        sheet.addAction(UIAlertAction(title: "Заблокировать", style: .destructive) { [weak self] _ in self?.setBlocked(true) })
+        sheet.addAction(UIAlertAction(title: "Отмена", style: .cancel))
+        present(sheet, animated: true)
+    }
+
+    /// Blocking also ends the friendship and drops a request between the two (the server does; the screen follows).
+    private func setBlocked(_ block: Bool) {
+        guard !busy else { return }
+        guard let messenger else {
+            #if targetEnvironment(simulator)
+            blocked = block
+            if block { isFriend = false; request = nil }
+            say(notice: block ? "Заблокирован: он не сможет тебе писать и звонить" : "Разблокирован")
+            #endif
+            return
+        }
+        busy = true
+        say()
+        messenger.setPersonBlocked(userId, block) { [weak self] error in
+            guard let self else { return }
+            self.busy = false
+            if let error { return self.say(problem: error.words) }
+            self.blocked = block
+            if block {
+                if self.isFriend != nil { self.isFriend = false }
+                self.request = nil
+                FriendRequests.shared.refresh()
+            }
+            self.say(notice: block ? "Заблокирован: он не сможет тебе писать и звонить" : "Разблокирован")
+        }
+    }
+
+    private func report() {
+        let sheet = ReportSheetViewController()
+        sheet.onSend = { [weak self] reason in self?.sendReport(reason) }
+        present(sheet, animated: true)
+    }
+
+    private func sendReport(_ reason: String) {
+        guard !busy else { return }
+        guard let messenger else {
+            #if targetEnvironment(simulator)
+            say(notice: "Жалоба отправлена. Спасибо!")
+            #endif
+            return
+        }
+        busy = true
+        say()
+        messenger.reportPerson(userId, reason: reason) { [weak self] error in
+            guard let self else { return }
+            self.busy = false
+            if let error { self.say(problem: error.words) } else { self.say(notice: "Жалоба отправлена. Спасибо!") }
+        }
+    }
+}
+
+/// «Пожаловаться»: the reason is chosen, then sent. The reasons and the words are the reference's.
+final class ReportSheetViewController: UIViewController {
+    private static let reasons: [(id: String, label: String)] = [
+        (id: "spam", label: "Спам"), (id: "scam", label: "Мошенничество"), (id: "abuse", label: "Оскорбления и травля"),
+        (id: "violence", label: "Насилие"), (id: "sexual", label: "Откровенный контент"), (id: "illegal", label: "Незаконное"), (id: "other", label: "Другое"),
+    ]
+
+    /// Called with the chosen reason after the sheet has gone.
+    var onSend: ((String) -> Void)?
+    private var chosen = -1
+    private var rows: [UIButton] = []
+    private let sendButton = UIButton(type: .system)
+
+    init() {
+        super.init(nibName: nil, bundle: nil)
+        modalPresentationStyle = .pageSheet
+        if let sheet = sheetPresentationController {
+            let tall = UISheetPresentationController.Detent.custom(resolver: { context -> CGFloat? in
+                return min(600, context.maximumDetentValue)
+            })
+            sheet.detents = [tall]
+            sheet.prefersGrabberVisible = true
+            sheet.preferredCornerRadius = 28
+        }
+    }
+
+    required init?(coder: NSCoder) { return nil }
+
+    override func viewDidLoad() {
+        super.viewDidLoad()
+        overrideUserInterfaceStyle = .dark
+        view.backgroundColor = UIColor(hex: 0x141516)
+
+        let heading = UILabel()
+        heading.text = "Пожаловаться"
+        heading.font = .systemFont(ofSize: 20, weight: .bold)
+        heading.textColor = Theme.text
+        let words = UILabel()
+        words.text = "Переписка зашифрована: модератор увидит только причину и профиль, но не сообщения."
+        words.font = .systemFont(ofSize: 13)
+        words.textColor = Theme.muted
+        words.numberOfLines = 0
+
+        let stack = UIStackView(arrangedSubviews: [heading, words])
+        stack.axis = .vertical
+        stack.alignment = .fill
+        stack.spacing = 6
+        stack.setCustomSpacing(10, after: heading)
+        stack.translatesAutoresizingMaskIntoConstraints = false
+
+        for (index, reason) in ReportSheetViewController.reasons.enumerated() {
+            var config = UIButton.Configuration.plain()
+            config.title = reason.label
+            config.image = UIImage(systemName: "circle")
+            config.imagePadding = 12
+            config.baseForegroundColor = Theme.text
+            config.contentInsets = NSDirectionalEdgeInsets(top: 11, leading: 0, bottom: 11, trailing: 0)
+            let row = UIButton(configuration: config)
+            row.contentHorizontalAlignment = .leading
+            row.tag = index
+            row.addTarget(self, action: #selector(pick(_:)), for: .touchUpInside)
+            rows.append(row)
+            stack.addArrangedSubview(row)
+        }
+
+        var config = UIButton.Configuration.filled()
+        config.title = "Отправить жалобу"
+        config.baseBackgroundColor = Theme.accent
+        config.baseForegroundColor = Theme.onAccent
+        config.cornerStyle = .capsule
+        config.contentInsets = NSDirectionalEdgeInsets(top: 15, leading: 16, bottom: 15, trailing: 16)
+        sendButton.configuration = config
+        sendButton.isEnabled = false
+        sendButton.addTarget(self, action: #selector(sendNow), for: .touchUpInside)
+        stack.addArrangedSubview(sendButton)
+        if let last = rows.last { stack.setCustomSpacing(14, after: last) }
+
+        let scroll = UIScrollView()
+        scroll.translatesAutoresizingMaskIntoConstraints = false
+        scroll.alwaysBounceVertical = false
+        view.addSubview(scroll)
+        scroll.addSubview(stack)
+        NSLayoutConstraint.activate([
+            scroll.topAnchor.constraint(equalTo: view.topAnchor),
+            scroll.leadingAnchor.constraint(equalTo: view.leadingAnchor),
+            scroll.trailingAnchor.constraint(equalTo: view.trailingAnchor),
+            scroll.bottomAnchor.constraint(equalTo: view.bottomAnchor),
+            stack.topAnchor.constraint(equalTo: scroll.contentLayoutGuide.topAnchor, constant: 30),
+            stack.bottomAnchor.constraint(equalTo: scroll.contentLayoutGuide.bottomAnchor, constant: -24),
+            stack.leadingAnchor.constraint(equalTo: scroll.contentLayoutGuide.leadingAnchor, constant: 22),
+            stack.trailingAnchor.constraint(equalTo: scroll.contentLayoutGuide.trailingAnchor, constant: -22),
+            stack.widthAnchor.constraint(equalTo: scroll.frameLayoutGuide.widthAnchor, constant: -44),
+        ])
+    }
+
+    @objc private func pick(_ sender: UIButton) {
+        chosen = sender.tag
+        for row in rows {
+            let on = row.tag == chosen
+            row.configuration?.image = UIImage(systemName: on ? "checkmark.circle.fill" : "circle")
+            row.accessibilityTraits = on ? [.button, .selected] : .button
+        }
+        sendButton.isEnabled = true
+    }
+
+    @objc private func sendNow() {
+        guard chosen >= 0, chosen < ReportSheetViewController.reasons.count else { return }
+        let reason = ReportSheetViewController.reasons[chosen].id
+        let send = onSend
+        dismiss(animated: true) { send?(reason) }
+    }
+}

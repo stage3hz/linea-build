@@ -1,30 +1,244 @@
 import UIKit
 
-/// The settings section. For now: what the app is made of.
-final class SettingsViewController: UIViewController {
+/// The settings section: who is signed in, then the groups of what can be set up — each row opens its own page.
+/// (The previous app: `mobile/src/SettingsScreen.tsx`, `Root`.)
+final class SettingsViewController: SettingsPage {
+    /// The signed-in account; nil shows the page with the simulator's sample person (rows then open nothing
+    /// but «О приложении»).
+    private let messenger: Messenger?
+    private var leaving = false
+
+    init(messenger: Messenger? = nil) {
+        self.messenger = messenger
+        super.init(name: "Настройки", large: true)
+    }
+
+    required init?(coder: NSCoder) { return nil }
+
+    deinit { NotificationCenter.default.removeObserver(self) }
+
     override func viewDidLoad() {
         super.viewDidLoad()
-        view.backgroundColor = Theme.bg
-        let heading = UILabel()
-        heading.text = "Настройки"
-        heading.font = .systemFont(ofSize: 34, weight: .bold)
-        heading.textColor = Theme.text
-        let version = UILabel()
-        let app = Bundle.main.object(forInfoDictionaryKey: "CFBundleShortVersionString") as? String ?? "?"
-        version.text = "INVIZENT \(app) · ядро \(Core.version)"
-        version.font = .systemFont(ofSize: 15)
-        version.textColor = Theme.muted
-        version.accessibilityIdentifier = "core-version"
-        let stack = UIStackView(arrangedSubviews: [heading, version])
-        stack.axis = .vertical
-        stack.alignment = .leading
-        stack.spacing = 6
-        stack.translatesAutoresizingMaskIntoConstraints = false
-        view.addSubview(stack)
+        NotificationCenter.default.addObserver(self, selector: #selector(profileChanged), name: Messenger.ownProfileChanged, object: nil)
+    }
+
+    override func viewWillAppear(_ animated: Bool) {
+        super.viewWillAppear(animated)
+        messenger?.prepareSettingsAvatars()
+        messenger?.refreshOwnProfile()
+    }
+
+    override func viewDidLayoutSubviews() {
+        super.viewDidLayoutSubviews()
+        let barRoom = BarMetrics.bottomGap(safeBottom: view.safeAreaInsets.bottom) + BarMetrics.height + 12
+        if scroll.contentInset.bottom != barRoom { scroll.contentInset.bottom = barRoom }
+    }
+
+    @objc private func profileChanged() {
+        build()
+    }
+
+    private var person: [String: Any] {
+        if let messenger { return messenger.ownProfile }
+        #if targetEnvironment(simulator)
+        return ["displayName": "Мария Орлова", "username": "maria", "avatarColor": "#9271C3"]
+        #else
+        return [:]
+        #endif
+    }
+
+    override func build() {
+        clear()
+        let who = person
+        if !who.isEmpty {
+            let head = SettingsHead(person: who, base: messenger?.server.base ?? "")
+            head.onPress = { [weak self] in self?.openProfile() }
+            add(head, gap: 0)
+        }
+
+        let profile = SettingsRow(symbol: "person", label: "Мой профиль")
+        profile.onPress = { [weak self] in self?.openProfile() }
+        addGroup(rows: [profile])
+
+        let privacy = SettingsRow(symbol: "lock", label: "Конфиденциальность")
+        privacy.onPress = { [weak self] in
+            guard let self, let messenger = self.messenger else { return }
+            self.open(PrivacyViewController(messenger: messenger))
+        }
+        let security = SettingsRow(symbol: "checkmark.shield", label: "Безопасность")
+        security.onPress = { [weak self] in
+            guard let self, let messenger = self.messenger else { return }
+            self.open(SecurityViewController(messenger: messenger))
+        }
+        let sessions = SettingsRow(symbol: "iphone", label: "Активные сеансы")
+        sessions.onPress = { [weak self] in
+            guard let self, let messenger = self.messenger else { return }
+            self.open(SessionsViewController(messenger: messenger))
+        }
+        let blocked = SettingsRow(symbol: "hand.raised", label: "Заблокированные")
+        blocked.onPress = { [weak self] in
+            guard let self, let messenger = self.messenger else { return }
+            self.open(BlockedViewController(messenger: messenger))
+        }
+        addGroup(rows: [privacy, security, sessions, blocked])
+
+        let help = SettingsRow(symbol: "lifepreserver", label: "Помощь и поддержка")
+        help.onPress = { [weak self] in
+            guard self?.messenger != nil, let address = URL(string: Account.server + "/support") else { return }
+            UIApplication.shared.open(address, options: [:], completionHandler: nil)
+        }
+        let about = SettingsRow(symbol: "info.circle", label: "О приложении", value: SettingsViewController.appVersion)
+        about.onPress = { [weak self] in self?.open(AboutViewController()) }
+        addGroup(rows: [help, about])
+
+        let leave = SettingsRow(symbol: "rectangle.portrait.and.arrow.right", label: "Выйти из аккаунта", danger: true)
+        leave.onPress = { [weak self] in self?.askToLeave() }
+        addGroup(rows: [leave])
+
+        // What the app is made of, in one quiet line (the simulator check reads it by its identifier).
+        let made = UILabel()
+        made.text = "INVIZENT \(SettingsViewController.appVersion) · ядро \(Core.version)"
+        made.font = .monospacedSystemFont(ofSize: 12, weight: .regular)
+        made.textColor = Theme.subtle
+        made.textAlignment = .center
+        made.numberOfLines = 0
+        made.accessibilityIdentifier = "core-version"
+        add(made, gap: 18)
+    }
+
+    static var appVersion: String {
+        return Bundle.main.object(forInfoDictionaryKey: "CFBundleShortVersionString") as? String ?? "?"
+    }
+
+    private func openProfile() {
+        guard let messenger else { return }
+        open(ProfileEditViewController(messenger: messenger))
+    }
+
+    /// «Выйти из аккаунта» asks first: coming back needs the login, the long password and the confirmation word.
+    private func askToLeave() {
+        guard messenger != nil, !leaving else { return }
+        confirm(heading: "Выйти из Инвиза?",
+                words: "Сеанс на этом устройстве завершится. Для следующего входа понадобятся логин, пароль и слово подтверждения. Публичное имя может отличаться от логина.",
+                action: "Выйти") { [weak self] in self?.leave() }
+    }
+
+    private func leave() {
+        guard let messenger, !leaving else { return }
+        leaving = true
+        messenger.signOut { [weak self] result in
+            guard let self else { return }
+            self.leaving = false
+            switch result {
+            case .success(let notice): self.closeAccount(notice: notice)
+            case .failure(let error): self.tell(error.words)
+            }
+        }
+    }
+
+    #if targetEnvironment(simulator)
+    /// For the simulator check (`-settings <name>`): opens one page of the settings at once.
+    func openDetail(_ name: String) {
+        guard let messenger else {
+            if name == "about" { navigationController?.pushViewController(AboutViewController(), animated: false) }
+            return
+        }
+        var page: UIViewController? = nil
+        switch name {
+        case "profile": page = ProfileEditViewController(messenger: messenger)
+        case "username": page = UsernameViewController(messenger: messenger)
+        case "birthday": page = BirthdayViewController(value: messenger.ownProfile["birthday"] as? String, done: { _ in })
+        case "privacy": page = PrivacyViewController(messenger: messenger)
+        case "lastseen":
+            let model = SettingsPrivacyModel(messenger: messenger)
+            model.load()
+            page = LastSeenViewController(model: model)
+        case "security": page = SecurityViewController(messenger: messenger)
+        case "password": page = SecretChangeViewController(messenger: messenger, form: .password, confirmationConfigured: true)
+        case "confirmation": page = SecretChangeViewController(messenger: messenger, form: .confirmation, confirmationConfigured: true)
+        case "recovery": page = SecretChangeViewController(messenger: messenger, form: .recovery, confirmationConfigured: true)
+        case "sessions": page = SessionsViewController(messenger: messenger)
+        case "session":
+            let list = SessionsViewController(messenger: messenger)
+            list.opensFirstWhenLoaded = true
+            page = list
+        case "blocked": page = BlockedViewController(messenger: messenger)
+        case "delete": page = DeleteAccountViewController(messenger: messenger)
+        case "about": page = AboutViewController()
+        default: page = nil
+        }
+        if let page { navigationController?.pushViewController(page, animated: false) }
+    }
+    #endif
+}
+
+/// The top of the settings: the person's ball, their name and @username. Pressing it opens the profile.
+final class SettingsHead: UIControl {
+    var onPress: (() -> Void)?
+
+    init(person: [String: Any], base: String) {
+        super.init(frame: .zero)
+        let ball = SettingsAvatar(frame: CGRect(x: 0, y: 0, width: 84, height: 84))
+        ball.show(person, base: base)
+        ball.isUserInteractionEnabled = false
+        ball.translatesAutoresizingMaskIntoConstraints = false
+        let name = person["displayName"] as? String ?? ""
+        let handle = person["username"] as? String ?? ""
+        let nameLabel = SettingsLook.words(name, size: 27, color: Theme.text, weight: .heavy)
+        nameLabel.numberOfLines = 2
+        let handleLabel = SettingsLook.words(handle.isEmpty ? "" : "@" + handle, size: 15, color: Theme.muted)
+        handleLabel.numberOfLines = 1
+        let texts = UIStackView(arrangedSubviews: [nameLabel, handleLabel])
+        texts.axis = .vertical
+        texts.spacing = 5
+        texts.isUserInteractionEnabled = false
+        texts.translatesAutoresizingMaskIntoConstraints = false
+        addSubview(ball)
+        addSubview(texts)
         NSLayoutConstraint.activate([
-            stack.topAnchor.constraint(equalTo: view.safeAreaLayoutGuide.topAnchor, constant: 8),
-            stack.leadingAnchor.constraint(equalTo: view.leadingAnchor, constant: 20),
-            stack.trailingAnchor.constraint(lessThanOrEqualTo: view.trailingAnchor, constant: -20),
+            ball.topAnchor.constraint(equalTo: topAnchor, constant: 6),
+            ball.leadingAnchor.constraint(equalTo: leadingAnchor, constant: 4),
+            ball.widthAnchor.constraint(equalToConstant: 84),
+            ball.heightAnchor.constraint(equalToConstant: 84),
+            texts.topAnchor.constraint(equalTo: ball.bottomAnchor, constant: 12),
+            texts.leadingAnchor.constraint(equalTo: leadingAnchor, constant: 4),
+            texts.trailingAnchor.constraint(equalTo: trailingAnchor, constant: -4),
+            texts.bottomAnchor.constraint(equalTo: bottomAnchor, constant: -4),
         ])
+        isAccessibilityElement = true
+        accessibilityTraits.insert(.button)
+        accessibilityLabel = "Мой профиль: " + name + (handle.isEmpty ? "" : ", @" + handle)
+        addTarget(self, action: #selector(pressed), for: .touchUpInside)
+    }
+
+    required init?(coder: NSCoder) { return nil }
+
+    override var isHighlighted: Bool {
+        didSet { alpha = isHighlighted ? 0.7 : 1 }
+    }
+
+    @objc private func pressed() {
+        onPress?()
+    }
+}
+
+/// «О приложении»: what the app is made of.
+final class AboutViewController: SettingsPage {
+    init() {
+        super.init(name: "О приложении")
+    }
+
+    required init?(coder: NSCoder) { return nil }
+
+    override func build() {
+        let buildNumber = Bundle.main.object(forInfoDictionaryKey: "CFBundleVersion") as? String ?? "?"
+        let app = SettingsRow(label: "Приложение", value: "INVIZENT " + SettingsViewController.appVersion, arrow: false)
+        app.isUserInteractionEnabled = false
+        let number = SettingsRow(label: "Сборка", value: buildNumber, arrow: false)
+        number.isUserInteractionEnabled = false
+        let core = SettingsRow(label: "Ядро", value: Core.version, arrow: false)
+        core.isUserInteractionEnabled = false
+        addGroup(rows: [app, number, core])
+        add(SettingsLook.foot("Инвиз \(SettingsViewController.appVersion) · переписка защищена сквозным шифрованием"), gap: 10)
     }
 }

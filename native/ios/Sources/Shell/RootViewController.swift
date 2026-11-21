@@ -17,7 +17,7 @@ final class RootViewController: UIViewController {
     private lazy var sections: [Section] = [
         Section(id: "chats", label: "Чаты", symbol: "bubble.left.and.bubble.right") { [messenger] in ChatsViewController(messenger: messenger) },
         Section(id: "ai", label: "AI", symbol: "sparkles") { PlaceholderViewController(title: "AI") },
-        Section(id: "people", label: "Люди", symbol: "person.2") { PlaceholderViewController(title: "Люди") },
+        Section(id: "people", label: "Люди", symbol: "person.2") { [messenger] in PeopleViewController(messenger: messenger) },
         Section(id: "channels", label: "Каналы", symbol: "dot.radiowaves.left.and.right") { PlaceholderViewController(title: "Каналы") },
         Section(id: "music", label: "Музыка", symbol: "headphones") { PlaceholderViewController(title: "Музыка") },
         Section(id: "profile", label: "Настройки", symbol: "gearshape") { SettingsViewController() },
@@ -54,6 +54,9 @@ final class RootViewController: UIViewController {
         }
         view.addSubview(bar)
         show("chats")
+        // People: the number of requests to be friends on the row of «Люди» (People/PeopleServer.swift).
+        NotificationCenter.default.addObserver(self, selector: #selector(peopleBadge), name: FriendRequests.changed, object: nil)
+        FriendRequests.shared.start(messenger)
     }
 
     override func viewDidLayoutSubviews() {
@@ -82,7 +85,13 @@ final class RootViewController: UIViewController {
         })
     }
 
+    @objc private func peopleBadge() {
+        bar.setItems(sections.map { TabEntry(id: $0.id, label: $0.label, symbol: $0.symbol, badge: $0.id == "people" ? FriendRequests.shared.incoming.count : 0, dot: "") })
+    }
+
     #if targetEnvironment(simulator)
+    /// For the simulator check: the «Люди» section, once it has been opened.
+    func peoplePage() -> PeopleViewController? { pages["people"] as? PeopleViewController }
     /// For the simulator check: opens the first chat of the list.
     func openFirstChat() { (pages["chats"] as? ChatsViewController)?.openFirst() }
     #endif
