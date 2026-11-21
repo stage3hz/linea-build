@@ -173,7 +173,7 @@ final class Live: NSObject, URLSessionWebSocketDelegate {
         if type == "ready" || type == "message" || type == "call.reach" { NotificationCenter.default.post(name: Live.callEvent, object: nil, userInfo: ["event": data]) }
         // Rooms (Sources/Rooms): the list of rooms (`room.*`), the voice of the room this phone is in (`voice.*`),
         // and the server's refusal of what was asked of it over the line (`error`).
-        if type == "ready" || type == "error" || type.hasPrefix("room.") || type.hasPrefix("voice.") { NotificationCenter.default.post(name: Live.roomEvent, object: nil, userInfo: ["event": data]) }
+        if type == "ready" || type == "error" || type.hasPrefix("room.") || type.hasPrefix("voice.") || type.hasPrefix("sfu.") { NotificationCenter.default.post(name: Live.roomEvent, object: nil, userInfo: ["event": data]) } // ScreenShare: `sfu.*` (the SFU's replies) too
         // Stories (Sources/Stories): somebody's stories or posts changed, or a story of this account was watched.
         if type == "ready" || type.hasPrefix("story") { NotificationCenter.default.post(name: Live.storyEvent, object: nil, userInfo: ["event": data]) }
         // Composer: the list of scheduled messages changed on the server (Sources/Composer/ScheduledStore.swift).

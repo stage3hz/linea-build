@@ -167,6 +167,7 @@ final class RoomVoice {
     private func begin(_ messenger: Messenger, roomId: String, name: String, community: (id: String, name: String)?, device: String, done: @escaping (String?) -> Void) {
         self.messenger = messenger
         ownDevice = device
+        _ = ScreenShare.shared // ScreenShare: listens from the first `voice.joined` on (the SFU's flag)
         CallAudio.start(video: false)
         // A room sounds on the loudspeaker, as in the reference — unless headphones are on.
         let speaker = !RoomVoice.headphones
@@ -222,6 +223,7 @@ final class RoomVoice {
 
     private func cleanup() {
         if state != nil { onLeaving?() }
+        ScreenShare.shared.voiceEnded() // ScreenShare: the share stops while the channels are still open
         for media in connections.values { media.close() }
         connections = [:]
         for timer in authTimers.values { timer.invalidate() }
@@ -492,20 +494,26 @@ final class RoomVoice {
             self.feedLink(peer, media, ["kind": "state", "state": state])
             if state == "connected" {
                 self.peerUpdate(peer, connected: true)
+                ScreenShare.shared.connected(peer) // ScreenShare
             } else if state == "failed" || state == "closed" {
                 self.peerUpdate(peer, connected: false)
             }
         }
         media.onMessage = { [weak self, weak media] (text: String) -> Void in
+            guard let self, let media, self.connections[peer] === media else { return }
+            // ScreenShare: the screen's messages (its state, what the person can open, frame keys held until the check).
+            if ScreenShare.shared.message(peer, text, verified: self.verified.contains(peer)) { return }
             // Only from a person whose connection passed the check.
-            guard let self, let media, self.connections[peer] === media, self.verified.contains(peer) else { return }
+            guard self.verified.contains(peer) else { return }
             self.onPeerText?(peer, text)
         }
         media.onChannelOpen = { [weak self, weak media] in
             guard let self, let media, self.connections[peer] === media else { return }
+            ScreenShare.shared.channelOpened(peer) // ScreenShare
             self.onPeerReady?(peer)
         }
         connections[peer] = media
+        ScreenShare.shared.attach(peer, media) // ScreenShare
         return media
     }
 
@@ -515,6 +523,7 @@ final class RoomVoice {
     }
 
     private func drop(_ peer: String) {
+        ScreenShare.shared.dropped(peer) // ScreenShare
         unverify(peer)
         peerInfo[peer] = nil
         grades[peer] = nil
@@ -668,6 +677,7 @@ final class RoomVoice {
             // The connection is proven end to end: sound both ways (unless the sound is off in a channel).
             media.setAudible(self.audible(peer))
             media.setMicrophone(live: true)
+            ScreenShare.shared.verified(peer) // ScreenShare: the screen and its frame key
             self.onPeerReady?(peer)
         }
     }

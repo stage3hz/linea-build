@@ -163,6 +163,8 @@ final class CommunityVoicePanel: UIView {
     private let speakerButton = CommunityVoiceButton()
     private let leaveButton = CommunityVoiceButton()
     private let column = UIStackView()
+    // ScreenShare: «Демонстрация экрана» (Sources/ScreenShare), as the reference's ScreenSharePanel under the heading.
+    let screenPanel = ScreenSharePanel()
 
     override init(frame: CGRect) {
         super.init(frame: frame)
@@ -191,7 +193,7 @@ final class CommunityVoicePanel: UIView {
         column.axis = .vertical
         column.spacing = 12
         column.translatesAutoresizingMaskIntoConstraints = false
-        for part in [heading, alone, problem, row] as [UIView] { column.addArrangedSubview(part) }
+        for part in [heading, screenPanel, alone, problem, row] as [UIView] { column.addArrangedSubview(part) } // ScreenShare: screenPanel
         glass.contentView.addSubview(column)
         NSLayoutConstraint.activate([
             glass.topAnchor.constraint(equalTo: topAnchor), glass.bottomAnchor.constraint(equalTo: bottomAnchor),
@@ -207,6 +209,7 @@ final class CommunityVoicePanel: UIView {
         let connected = voice.status == "connected"
         heading.text = connected ? "Ты в канале «\(voice.name)»" : "Подключение…"
         alone.isHidden = !(connected && voice.peers.isEmpty)
+        screenPanel.show(voice) // ScreenShare
         problem.text = voice.error
         problem.isHidden = voice.error.isEmpty
         micButton.show(symbol: voice.muted ? "mic.slash.fill" : "mic.fill", words: voice.muted ? "Микрофон выкл." : "Микрофон", active: !voice.muted, danger: false)

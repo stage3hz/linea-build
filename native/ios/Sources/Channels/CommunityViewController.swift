@@ -342,6 +342,7 @@ final class CommunityViewController: UIViewController, UITableViewDataSource, UI
             if table.tableFooterView != nil { table.tableFooterView = nil }
             return
         }
+        voicePanel.screenPanel.names = { [weak self] (userId: String) -> String? in self?.people[userId]?.displayName } // ScreenShare
         voicePanel.show(voice)
         let width = table.bounds.width > 0 ? table.bounds.width : view.bounds.width
         let box = table.tableFooterView ?? UIView()

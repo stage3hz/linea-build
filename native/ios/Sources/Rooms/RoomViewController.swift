@@ -282,6 +282,7 @@ final class RoomViewController: UIViewController {
         leaveButton.onPress = { Rooms.shared.exit() }
         leaveButton.show(symbol: "xmark", words: "Выйти из комнаты", fill: UIColor(hex: 0xFF4D5E), tint: .white, bordered: false)
         for button in [speakerButton, micButton, leaveButton] { view.addSubview(button) }
+        ScreenShareStrip.attach(to: view, roomId: roomId) // ScreenShare: who shows their screen here
 
         NotificationCenter.default.addObserver(self, selector: #selector(refresh), name: Rooms.changed, object: nil)
         NotificationCenter.default.addObserver(self, selector: #selector(refresh), name: RoomVoice.changed, object: nil)
