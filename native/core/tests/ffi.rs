@@ -117,3 +117,50 @@ fn what_is_shown_crosses_the_boundary() {
         assert!(invizent_view(std::ptr::null(), std::ptr::null()).is_null());
     }
 }
+
+#[test]
+fn link_cards_cross_the_boundary() {
+    use base64::Engine as _;
+    unsafe {
+        let ask = |name: &str, args: &str| { let (name, args) = (CString::new(name).unwrap(), CString::new(args).unwrap()); text(invizent_link_call(name.as_ptr(), args.as_ptr())) };
+        let b64 = |bytes: &[u8]| base64::engine::general_purpose::STANDARD.encode(bytes);
+        assert_eq!(ask("limits", "[]").as_deref(), Some(r#"{"htmlBytes":262144,"imageDownloadBytes":2097152,"imageBytes":24576,"imageSide":480,"redirects":3,"timeoutMs":6000}"#));
+        assert_eq!(ask("candidate", r#"["смотри https://example.ru/a, да",null]"#).as_deref(), Some(r#""https://example.ru/a""#));
+        assert_eq!(ask("candidate", r#"["http://example.ru/a и просто слова",null]"#).as_deref(), Some("null"));
+        assert_eq!(ask("candidate", r#"["слова",[{"type":"text_link","offset":0,"length":5,"url":"https://example.ru/b"}]]"#).as_deref(), Some(r#""https://example.ru/b""#));
+        assert_eq!(ask("fetchable", r#"["https://example.ru/a"]"#).as_deref(), Some("true"));
+        for bad in ["http://example.ru/", "https://127.0.0.1/", "https://example.ru:8080/", "https://localhost/"] { assert_eq!(ask("fetchable", &format!(r#"["{bad}"]"#)).as_deref(), Some("false"), "{bad}") }
+        assert_eq!(ask("privateAddress", r#"["10.0.0.1"]"#).as_deref(), Some("true"));
+        assert_eq!(ask("privateAddress", r#"["не адрес"]"#).as_deref(), Some("true"));
+        assert_eq!(ask("privateAddress", r#"["93.184.216.34"]"#).as_deref(), Some("false"));
+
+        let html = "<head><meta property=\"og:site_name\" content=\"Пример\"><meta property=\"og:title\" content=\"Заголовок &amp; ещё\"><meta name=\"description\" content=\"Описание\"><meta property=\"og:image\" content=\"/cover.jpg\"></head>";
+        let parsed = ask("parse", &format!(r#"["{}","text/html; charset=utf-8","https://example.ru/story"]"#, b64(html.as_bytes()))).expect("a page");
+        assert_eq!(parsed, r#"{"site":"Пример","title":"Заголовок & ещё","description":"Описание","imageUrl":"https://example.ru/cover.jpg"}"#);
+        assert_eq!(ask("parse", &format!(r#"["{}",null,"https://example.ru/story"]"#, b64(b"<title>x</title>"))).as_deref(), Some(r#"{"site":"example.ru","title":"x","description":"","imageUrl":null}"#));
+        assert_eq!(ask("parse", &format!(r#"["{}",null,"http://example.ru/story"]"#, b64(b"<title>x</title>"))).as_deref(), Some("null"));
+
+        // A JPEG as a phone writes it, with a comment: the cleaner keeps only the picture.
+        let clean: Vec<u8> = [&[0xff, 0xd8, 0xff, 0xc0, 0x00, 0x0b, 0x08, 0x00, 0xb4, 0x01, 0x40, 0x01, 0x01, 0x11, 0x00, 0xff, 0xda, 0x00, 0x08, 0x01, 0x01, 0x00, 0x00, 0x3f, 0x00][..], &[0x12; 300][..], &[0xff, 0xd9][..]].concat();
+        let mut dirty = clean[..2].to_vec();
+        dirty.extend_from_slice(&[0xff, 0xfe, 0x00, 0x06, b'G', b'P', b'S', b'!']);
+        dirty.extend_from_slice(&clean[2..]);
+        let image = format!(r#"{{"mimeType":"image/jpeg","base64":"{}","width":320,"height":180}}"#, b64(&clean));
+        assert_eq!(ask("image", &format!(r#"["{}"]"#, b64(&dirty))).as_deref(), Some(image.as_str()));
+        assert_eq!(ask("image", &format!(r#"["{}"]"#, b64(b"not a jpeg"))), None);
+
+        let card = ask("wire", &format!(r#"["https://example.ru/a","","  Заголовок\n ","Описание","{}"]"#, b64(&dirty))).expect("a card");
+        assert_eq!(card, format!(r#"{{"url":"https://example.ru/a","site":"example.ru","title":"Заголовок","description":"Описание","image":{image}}}"#));
+        assert_eq!(ask("wire", r#"["https://example.ru/a","Сайт","Заголовок","",null]"#).as_deref(), Some(r#"{"url":"https://example.ru/a","site":"Сайт","title":"Заголовок","description":""}"#));
+        assert_eq!(ask("wire", r#"["http://example.ru/a","Сайт","Заголовок","",null]"#).as_deref(), Some("null"));
+        assert_eq!(ask("valid", &format!(r#"[{card},"вот https://example.ru/a",null]"#)).as_deref(), Some("true"));
+        assert_eq!(ask("valid", &format!(r#"[{card},"вот https://example.ru/b",null]"#)).as_deref(), Some("false"));
+        assert_eq!(ask("valid", r#"[null,"вот https://example.ru/a",null]"#).as_deref(), Some("false"));
+
+        // Unknown names and arguments of the wrong kind get no answer, and nothing breaks.
+        for (name, args) in [("unknown", "[]"), ("candidate", "[]"), ("candidate", "[1,null]"), ("parse", r#"["@@@",null,"https://example.ru/"]"#), ("parse", r#"["",1,"https://example.ru/"]"#), ("wire", r#"["https://example.ru/a"]"#), ("wire", r#"["https://example.ru/a","","t","",5]"#), ("image", "[null]"), ("limits", "[1]"), ("fetchable", "[1]"), ("valid", "{"), ("valid", "")] {
+            assert!(ask(name, args).is_none(), "{name} {args}");
+        }
+        assert!(invizent_link_call(std::ptr::null(), std::ptr::null()).is_null());
+    }
+}

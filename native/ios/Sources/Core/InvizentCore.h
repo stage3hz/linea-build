@@ -56,4 +56,7 @@ char *invizent_file_call(const char *name, const char *args_json);
 // waveform, waveformBars, voiceTime, voiceTimeFine, voiceName, noteName, mediaKind, recordRules.
 char *invizent_file_seal_chunk(const uint8_t *plain, size_t plain_len, const char *encryption_json, uint64_t index, uint64_t size, InvizentBytes *out);
 char *invizent_file_open_chunk(const uint8_t *cipher, size_t cipher_len, const char *attachment_json, uint64_t index, InvizentBytes *out);
+// Cards of links in one-to-one chats (ffi.rs: invizent_link_call), by name: limits, candidate, fetchable,
+// privateAddress, parse, image, wire, valid. JSON array in, JSON out; bytes travel as base64.
+char *invizent_link_call(const char *name, const char *args_json);
 #endif
