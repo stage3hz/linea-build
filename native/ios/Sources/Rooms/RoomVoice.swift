@@ -801,10 +801,12 @@ final class RoomVoice {
 
     #if targetEnvironment(simulator)
     /// A room this phone is «inside» without a server or any media (-roomsdemo).
-    func showDemo(roomId: String, name: String, peers: [RoomVoicePeer], muted: Bool, speaking: Set<String>) {
+    func showDemo(roomId: String, name: String, peers: [RoomVoicePeer], muted: Bool, speaking: Set<String>, community: (id: String, name: String)? = nil) {
         demo = true
         demoSpeaking = speaking
         var made = RoomVoiceState(roomId: roomId, name: name, status: "connected", speaker: true)
+        made.communityId = community?.id
+        made.communityName = community?.name ?? ""
         made.muted = muted
         made.peers = peers
         state = made

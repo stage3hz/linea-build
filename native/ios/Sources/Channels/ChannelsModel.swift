@@ -248,7 +248,9 @@ struct CommunityChannel {
     /// Not empty: only these roles see the channel.
     let roleIds: [String]
     /// How many people are in a voice channel now.
-    let voiceCount: Int
+    var voiceCount: Int
+    /// Who is in a voice channel now, with their microphones (Channels/CommunityVoice.swift).
+    var voiceMembers: [CommunityVoiceMember] = []
     let unread: Int
     let mentions: Int
 
@@ -277,6 +279,7 @@ struct CommunityChannel {
         position = (fields["position"] as? NSNumber)?.intValue ?? 0
         roleIds = fields["roleIds"] as? [String] ?? []
         voiceCount = (fields["voice"] as? [Any])?.count ?? 0
+        voiceMembers = CommunityVoiceMember.list(fields["voice"])
         unread = (fields["unread"] as? NSNumber)?.intValue ?? 0
         mentions = (fields["mentions"] as? NSNumber)?.intValue ?? 0
     }

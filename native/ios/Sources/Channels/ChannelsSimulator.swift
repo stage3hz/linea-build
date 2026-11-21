@@ -45,6 +45,29 @@ enum ChannelsDemo {
         return Community(summary: summary, roles: [moderator, veteran, everyone], myRoleIds: [], channels: channels)
     }
 
+    /// Voice channels: the sample server as seen by a moderator, with three people in «Общий» — this phone (inside),
+    /// Лев (his own microphone off) and Марина (microphone turned off by a moderator).
+    static func voiceCommunity(_ id: String) -> Community? {
+        guard var found = community(id), !found.blog else { return nil }
+        let base = found.summary
+        found.summary = CommunitySummary(id: base.id, kind: base.kind, category: base.category, closed: base.closed, name: base.name, about: base.about, avatarId: base.avatarId, ownerId: base.ownerId,
+                                         memberCount: base.memberCount, isMember: true, perms: base.perms | Perm.muteMembers | Perm.deafenMembers | Perm.kick | Perm.ban,
+                                         lastText: base.lastText, muted: base.muted, unread: base.unread, mentions: base.mentions)
+        if let index = found.channels.firstIndex(where: { (item: CommunityChannel) -> Bool in item.id == id + "-voice" }) {
+            found.channels[index].voiceMembers = [
+                CommunityVoiceMember(userId: me, muted: false, serverMuted: false, serverDeafened: false),
+                CommunityVoiceMember(userId: "demo-u2", muted: true, serverMuted: false, serverDeafened: false),
+                CommunityVoiceMember(userId: "demo-u3", muted: false, serverMuted: true, serverDeafened: true),
+            ]
+            found.channels[index].voiceCount = 3
+        }
+        return found
+    }
+
+    static func meAsPerson() -> Person {
+        return Person(id: me, username: "nativetester", displayName: "Ты", bio: "", birthday: "", avatarColor: 0x8A9BB8, avatarId: "")
+    }
+
     static func members() -> [CommunityMember] {
         var found: [CommunityMember] = []
         for (index, person) in people.enumerated() {
@@ -128,6 +151,9 @@ enum ChannelsDemo {
 ///   -channelsdemo chat        a sample channel's chat: about 200 messages of mixed lengths
 ///   -channelsdemo menu        the same chat with the menu of its newest message (reactions and actions)
 ///   -channelsdemo settings    the settings of the sample server (as a member without special rights)
+///   -channelsdemo voice       the sample server as a moderator, this phone inside «Общий»: the people under the
+///                             channel with their marks, the green channel, the panel «Микрофон · Звук · Динамик · Выйти»
+///   -channelsdemo voicemenu   the same with the moderator's actions on Марина («Включить микрофон», «Включить звук»…)
 ///   -tab channels             with an account (or -demo 1): the section's root
 ///   -channels community       with an account: opens the first community of the list
 ///   -channels chat            with an account: the first community, then its first text channel
@@ -142,7 +168,14 @@ extension SceneDelegate {
             window?.rootViewController = stack
             root.loadViewIfNeeded()
             root.show("channels")
-            if demo == "community" || demo == "blog" {
+            if demo == "voice" || demo == "voicemenu" {
+                let peers = [RoomVoicePeer(peer: "peer-2", userId: "demo-u2", muted: true, connected: true),
+                             RoomVoicePeer(peer: "peer-3", userId: "demo-u3", muted: false, connected: true, serverMuted: true, serverDeafened: true)]
+                RoomVoice.shared.showDemo(roomId: "demo-server-voice", name: "Общий", peers: peers, muted: false, speaking: [], community: (id: "demo-server", name: "Клан «Север»"))
+                let screen = CommunityViewController(messenger: nil, communityId: "demo-server", known: ChannelsDemo.summaries().first { $0.id == "demo-server" })
+                stack.pushViewController(screen, animated: false)
+                if demo == "voicemenu" { DispatchQueue.main.asyncAfter(deadline: .now() + 1.5) { screen.simulatorVoiceMenu() } }
+            } else if demo == "community" || demo == "blog" {
                 let id = demo == "blog" ? "demo-blog" : "demo-server"
                 stack.pushViewController(CommunityViewController(messenger: nil, communityId: id, known: ChannelsDemo.summaries().first { $0.id == id }), animated: false)
             } else if demo == "chat" || demo == "menu", let community = ChannelsDemo.community("demo-server"), let channel = community.channels.first {

@@ -199,7 +199,8 @@ final class ChatsViewController: UIViewController {
         heading.frame = CGRect(x: 20, y: top + 8, width: view.bounds.width - 40, height: 41)
         newChat.frame = CGRect(x: view.bounds.width - 20 - 40, y: top + 8, width: 40, height: 40)
         list.frame = view.bounds
-        let barRoom = BarMetrics.bottomGap(safeBottom: view.safeAreaInsets.bottom) + BarMetrics.height + 12
+        // Shell: the mini-player's room above the bar; ChatsPlus: the choosing bar's room while choosing chats.
+        let barRoom = plus.listBottom(BarMetrics.bottomGap(safeBottom: view.safeAreaInsets.bottom) + BarMetrics.height + 12 + ShellInsets.miniPlayer, safeBottom: view.safeAreaInsets.bottom)
         // ChatActions: the search button beside «Новый чат»; the search field, when open, under the heading.
         let listTop = actions.place(in: view, safeTop: top)
         // ChatsPlus: the line under the title and the folder tabs take their room above the list.
@@ -207,8 +208,10 @@ final class ChatsViewController: UIViewController {
         // Security: «Новый вход» and «Запрос восстановления» under the heading (Security/AccountNotices.swift).
         let noticesEnd = AccountNotices.shared.place(in: view, top: plusTop, account: messenger != nil)
         list.setPad(top: Double(noticesEnd), bottom: Double(barRoom))
+        plus.placeHeaderEdge(top: noticesEnd, width: view.bounds.width) // ChatsPlus: the floating header's edge
+        newChat.isHidden = plus.selecting // ChatsPlus: «Выбрать» — «Новый чат» gives way
         // Stories: not in «Архив» and not while searching (the search field takes room under the heading).
-        stories.place(allowed: heading.text == "Чаты" && listTop <= top + 58, width: view.bounds.width)
+        stories.place(allowed: heading.text == "Чаты" && listTop <= top + 58 && !plus.selecting, width: view.bounds.width) // ChatsPlus: not while choosing
         empty.frame = CGRect(x: 20, y: view.bounds.midY - 12, width: view.bounds.width - 40, height: 24)
     }
 }

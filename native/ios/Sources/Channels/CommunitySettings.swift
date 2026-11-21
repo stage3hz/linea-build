@@ -16,7 +16,10 @@ final class CommunitySettingsPage: SettingsPage, PHPickerViewControllerDelegate 
     private var members: [CommunityMember]?
     private let nameField = SettingsField(caption: "Название", placeholder: "")
     private let aboutArea = SettingsTextArea(placeholder: "Описание")
-    private let saveButton = SettingsButton(label: "Сохранить")
+    /// The button with states (Effects/ActionButton.swift): «Сохранить» → spinner → «Сохранено» for 1.6 s, or «Ошибка».
+    private let saveButton = ActionButton(label: "Сохранить")
+    private var saving = false
+    private var savedTimer: Timer?
     private var busy = false
 
     init(messenger: Messenger?, community: Community) {
@@ -38,7 +41,8 @@ final class CommunitySettingsPage: SettingsPage, PHPickerViewControllerDelegate 
         aboutArea.limit = 500
         aboutArea.value = community.summary.about
         aboutArea.onEdit = { [weak self] in self?.showSave() }
-        saveButton.onPress = { [weak self] in self?.save() }
+        saveButton.successLabel = "Сохранено"
+        saveButton.addAction(UIAction { [weak self] _ in self?.save() }, for: .touchUpInside)
         render()
         loadMembers()
     }
@@ -93,7 +97,7 @@ final class CommunitySettingsPage: SettingsPage, PHPickerViewControllerDelegate 
                                            value: community.summary.closed)
             closed.onChange = { [weak self] on in self?.update(["closed": on], done: "") }
             addGroup(rows: [closed])
-            add(saveButton, gap: 14)
+            add(SettingsLook.inset(saveButton, top: 0, side: 4, bottom: 0), gap: 14)
             showSave()
         }
         if community.can(Perm.invite) {

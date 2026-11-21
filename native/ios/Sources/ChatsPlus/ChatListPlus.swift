@@ -36,6 +36,16 @@ final class ChatListPlus: NSObject, UIGestureRecognizerDelegate {
     private let emptyState = EmptyStateView()
     private let tabs = FolderTabsView()
     private let folderSwipe = UIPanGestureRecognizer()
+    /// «Выбрать» and the choosing of chats (ChatListEdit.swift).
+    let edit: ChatListEdit
+    /// People by @name in the search (ListExtras.swift).
+    private let people: ListPeopleSearch
+    /// «Архив» behind the pull (ListExtras.swift).
+    private let archivePullView = ArchivePullView()
+    /// The floating header: rows passing under the title, the search and the folders fade out (tabInset.tsx).
+    private let headerEdge = ScrollEdgeView(edge: .top)
+    /// Where on the screen the last hold on a row was (the peek card comes up from there).
+    var holdY: CGFloat = 0
 
     private var serverLoaded = false
     private var hardError = false
@@ -56,6 +66,8 @@ final class ChatListPlus: NSObject, UIGestureRecognizerDelegate {
 
     init(messenger: Messenger?) {
         self.messenger = messenger
+        edit = ChatListEdit(messenger: messenger)
+        people = ListPeopleSearch(messenger: messenger)
         super.init()
     }
 
@@ -99,6 +111,15 @@ final class ChatListPlus: NSObject, UIGestureRecognizerDelegate {
         tabs.onChange = { [weak self] (id: String) -> Void in self?.choose(id) }
         tabs.onEdit = { [weak self] (folder: ChatFolder) -> Void in self?.editFolder(folder) }
         host.view.addSubview(tabs)
+        // The floating header's edge: above the rows, under the title and the buttons.
+        host.view.insertSubview(headerEdge, aboveSubview: list)
+        edit.install(host: host, actions: actions)
+        edit.onChange = { [weak self] in
+            self?.actions?.redraw()
+            self?.refreshTitle()
+        }
+        people.onChange = { [weak self] in self?.actions?.redraw() }
+        archivePullView.addTarget(self, action: #selector(archivePulled), for: .touchUpInside)
         folderSwipe.addTarget(self, action: #selector(swiped(_:)))
         folderSwipe.delegate = self
         list.addGestureRecognizer(folderSwipe)
@@ -138,6 +159,7 @@ final class ChatListPlus: NSObject, UIGestureRecognizerDelegate {
             tabs.frame = CGRect(x: 16, y: top, width: width - 32, height: 40)
             top += 48
         }
+        edit.place(in: view, safeTop: safeTop, searchLeft: width - 20 - 40 - 8 - 40)
         let below = top + (savedOnScreen ? 76 : 0) + (actions?.showingArchive ?? false ? 76 : 0)
         let barRoom = BarMetrics.bottomGap(safeBottom: view.safeAreaInsets.bottom) + BarMetrics.height + 12
         skeleton.frame = CGRect(x: 0, y: below, width: width, height: max(0, view.bounds.height - below))
@@ -163,8 +185,85 @@ final class ChatListPlus: NSObject, UIGestureRecognizerDelegate {
         folders.matches(chatId: chatId, unread: unread, filter: filter)
     }
 
-    /// The parts of the list («Сегодня», «Вчера»…) are shown only in «Все».
-    var showsSections: Bool { filter == "all" }
+    /// The parts of the list («Сегодня», «Вчера»…) are shown only in «Все», and not while choosing chats.
+    var showsSections: Bool { filter == "all" && !edit.selecting }
+
+    // MARK: Choosing, the floating header, «Архив» behind the pull, people, the peek
+
+    var selecting: Bool { edit.selecting }
+    func isChosen(_ id: String) -> Bool { edit.isChosen(id) }
+    func toggle(_ id: String) { edit.toggle(id) }
+
+    /// The room the list keeps at its bottom: the bar's, or the choosing bar's while choosing.
+    func listBottom(_ normal: CGFloat, safeBottom: CGFloat) -> CGFloat {
+        return edit.selecting ? edit.listBottom(safeBottom: safeBottom) : normal
+    }
+
+    /// The edge under the floating header, as tall as the header (the status bar included).
+    func placeHeaderEdge(top: CGFloat, width: CGFloat) {
+        headerEdge.color = Theme.bg
+        headerEdge.place(width: width, size: top)
+    }
+
+    /// «Архив» goes behind the pull in «Все» (not while searching or choosing). True: it is there, the actions must
+    /// not add its row. `count`: the archived chats (0 takes it away).
+    func archivePull(count: Int) -> Bool {
+        guard count > 0, filter == "all", !edit.selecting else {
+            list?.setPull(nil, height: 0)
+            return false
+        }
+        archivePullView.set(count: count)
+        list?.setPull(archivePullView, height: ArchivePullView.height)
+        return true
+    }
+
+    @objc private func archivePulled() {
+        _ = actions?.pressed(ChatListActions.archiveRow)
+    }
+
+    /// «Люди» under the chats the search found.
+    func peopleRows(query: String) -> [[String: Any]] {
+        return people.rows(query: query, known: Set(chats.map { $0.peerId }), me: messenger?.userId ?? "")
+    }
+
+    /// A touch on a person found by the search: the chat with them (the one there is, or a new one).
+    func openPerson(_ rowId: String) {
+        let personId = String(rowId.dropFirst("user|".count))
+        if let chat = chats.first(where: { $0.peerId == personId }) {
+            actions?.open(chat.id, focus: "")
+            return
+        }
+        guard let host, let person = people.person(personId), let messenger else { return }
+        host.view.endEditing(true)
+        messenger.openChat(with: person, from: host) { [weak host] (error: ServerError?) -> Void in
+            guard let error, let host else { return }
+            let alert = UIAlertController(title: nil, message: error.words.isEmpty ? "Не удалось открыть чат." : error.words + " Нажми ещё раз, чтобы повторить.", preferredStyle: .alert)
+            alert.addAction(UIAlertAction(title: "Понятно", style: .default, handler: nil))
+            host.present(alert, animated: true)
+        }
+    }
+
+    /// The hold menu with the chat's card over it. False: it could not be shown (the caller shows its plain list).
+    func presentPeek(chat: Messenger.ChatSummary, choices: [ChoiceSheet.Choice]) -> Bool {
+        guard let host, host.presentedViewController == nil else { return false }
+        let peer = chat.chat["peer"] as? [String: Any] ?? [:]
+        let colorValue = (chat.row["avatarColor"] as? NSNumber)?.intValue ?? Int(0xFF4B_73BB)
+        let color = UIColor(red: CGFloat((colorValue >> 16) & 255) / 255, green: CGFloat((colorValue >> 8) & 255) / 255, blue: CGFloat(colorValue & 255) / 255, alpha: 1)
+        var lines: [ChatPeekMenu.Line] = []
+        #if targetEnvironment(simulator)
+        if messenger == nil {
+            lines = [ChatPeekMenu.Line(text: "Привет! Ты завтра свободна?", mine: false), ChatPeekMenu.Line(text: "Да, после обеда", mine: true),
+                     ChatPeekMenu.Line(text: "Отлично, тогда в три у входа", mine: false), ChatPeekMenu.Line(text: "Договорились 👍", mine: true)]
+        }
+        #endif
+        let card = ChatPeekMenu(anchorY: holdY, name: chat.title, username: peer["username"] as? String ?? "", initials: chat.row["initials"] as? String ?? "",
+                                avatarColor: color, lines: lines, choices: choices)
+        host.present(card, animated: true)
+        if let messenger {
+            ChatListPlus.peekLines(messenger: messenger, chatId: chat.id) { [weak card] (found: [ChatPeekMenu.Line]) -> Void in card?.setLines(found) }
+        }
+        return true
+    }
 
     /// The chats shown in the list now: the line under the title counts those with unread messages.
     func shown(unread: Int) {
@@ -284,7 +383,7 @@ final class ChatListPlus: NSObject, UIGestureRecognizerDelegate {
         statusWords.text = state.words
         status.accessibilityLabel = state.words
         if connecting { statusSpinner.startAnimating() } else { statusSpinner.stopAnimating() }
-        subtitle.text = ChatListStatus.unreadLine(unreadChats)
+        subtitle.text = edit.selecting ? (edit.count > 0 ? "Выбрано: \(edit.count)" : "Отметь чаты") : ChatListStatus.unreadLine(unreadChats)
         subtitle.isHidden = connecting || (actions?.searchOpen ?? false)
     }
 

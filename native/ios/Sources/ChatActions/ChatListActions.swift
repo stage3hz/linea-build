@@ -46,6 +46,8 @@ final class ChatListActions: NSObject, UITextFieldDelegate {
     private let searchField = UITextField()
     private let searchClose = UIButton(type: .system)
     private var searching = false
+    /// ChatsPlus: the chats the list shows now (for «Прочитать все» while choosing).
+    private var lastShown: [String] = []
 
     /// The rows to show, and the words for an empty list.
     var onRows: (([ChatRow], String) -> Void)?
@@ -79,6 +81,7 @@ final class ChatListActions: NSObject, UITextFieldDelegate {
         list.onRowLongPress = { [weak self] (event: [String: Any]) -> Void in
             // ChatsPlus: a hold on «Избранное» has its own menu.
             if event["id"] as? String == ChatListPlus.savedRow { self?.plus?.savedMenu(); return }
+            self?.plus?.holdY = CGFloat(event["y"] as? Double ?? 0) // ChatsPlus: the peek card comes up from the finger
             self?.openMenu(event["id"] as? String ?? "")
         }
         searchButton.setImage(chatSymbol("magnifyingglass", 16, .semibold), for: .normal)
@@ -124,6 +127,7 @@ final class ChatListActions: NSObject, UITextFieldDelegate {
     func place(in view: UIView, safeTop: CGFloat) -> CGFloat {
         let width = view.bounds.width
         searchButton.frame = CGRect(x: width - 20 - 40 - 8 - 40, y: safeTop + 8, width: 40, height: 40)
+        searchButton.isHidden = plus?.selecting ?? false // ChatsPlus: «Выбрать» — the search gives way
         var top = safeTop + 8 + 41 + 8
         if searching {
             searchBox.frame = CGRect(x: 16, y: top, width: width - 32, height: 40)
@@ -238,9 +242,10 @@ final class ChatListActions: NSObject, UITextFieldDelegate {
         var rows: [[String: Any]] = []
         // ChatsPlus: «Избранное» above everything in «Все».
         if !inArchive, let saved = plus?.savedRow(query: query) { rows.append(saved) }
+        if inArchive || !wanted.isEmpty || archivedCount == 0 { _ = plus?.archivePull(count: 0) } // ChatsPlus: no pull here
         if inArchive {
             rows.append(special(ChatListActions.backRow, title: "‹ Архив", preview: "Вернуться к чатам", initials: "‹"))
-        } else if archivedCount > 0 && wanted.isEmpty {
+        } else if archivedCount > 0 && wanted.isEmpty && !(plus?.archivePull(count: archivedCount) ?? false) { // ChatsPlus: behind the pull when it can be
             let count = "\(archivedCount) " + ChatListActions.plural(archivedCount, "чат", "чата", "чатов")
             rows.append(special(ChatListActions.archiveRow, title: "Архив", preview: count, initials: "▤"))
         }
@@ -289,6 +294,12 @@ final class ChatListActions: NSObject, UITextFieldDelegate {
             let trail: [String] = [inArchive ? "unarchive" : "archive", "delete", quiet ? "unmute" : "mute"]
             row["lead"] = lead.map { $0 + ":" + (ChatListActions.swipeWords[$0] ?? $0) }
             row["trail"] = trail.map { $0 + ":" + (ChatListActions.swipeWords[$0] ?? $0) }
+            // ChatsPlus: while choosing, a round mark and no buttons behind the row.
+            if let plus, plus.selecting {
+                row["checked"] = plus.isChosen(chat.id) ? 1 : 0
+                row["lead"] = [String]()
+                row["trail"] = [String]()
+            }
             let own = inArchive || !wanted.isEmpty || !(plus?.showsSections ?? true) ? "" : section(chat)
             row["section"] = own != part ? own : ""
             part = own
@@ -310,6 +321,9 @@ final class ChatListActions: NSObject, UITextFieldDelegate {
             row["thumb"] = ""
             rows.append(row)
         }
+        // ChatsPlus: «Люди» — people by @name the server found, who have no chat here yet.
+        if !wanted.isEmpty && !inArchive, let found = plus?.peopleRows(query: query) { rows += found }
+        lastShown = shown.map { $0.id } // ChatsPlus: «Прочитать все»
         var words = "Пока нет чатов"
         if !wanted.isEmpty { words = searchingHistory ? "Поиск…" : "Ничего не нашли." }
         onHeading?(inArchive ? "Архив" : "Чаты")
@@ -391,6 +405,9 @@ final class ChatListActions: NSObject, UITextFieldDelegate {
             refresh()
             return true
         }
+        // ChatsPlus: while choosing, a touch marks the chat; a person found by @name opens the chat with them.
+        if let plus, plus.selecting, chats.contains(where: { $0.id == id }) { plus.toggle(id); return true }
+        if id.hasPrefix("user|") { plus?.openPerson(id); return true }
         if id.hasPrefix("msg|") {
             let parts = id.split(separator: "|").map(String.init)
             if parts.count == 3 { open(parts[1], focus: parts[2]) }
@@ -452,6 +469,8 @@ final class ChatListActions: NSObject, UITextFieldDelegate {
             host.present(RoomPickerController(messenger: self.messenger, first: chat.id), animated: true)
         }))
         choices.append(ChoiceSheet.Choice(symbol: "trash", label: "Удалить чат", danger: true, run: { [weak self] in self?.askRemove(chat) }))
+        // ChatsPlus: the menu under a card with the chat itself (Sources/ChatsPlus/ChatPeekMenu.swift).
+        if let plus, plus.presentPeek(chat: chat, choices: choices) { return }
         host.present(ChoiceSheet(heading: chat.title, choices: choices), animated: true)
     }
 
@@ -552,6 +571,15 @@ final class ChatListActions: NSObject, UITextFieldDelegate {
         choices.append(ChoiceSheet.Choice(symbol: "bell.slash", label: "Навсегда", note: "Пока не включишь снова. Звонки продолжат звонить.", run: { [weak self] in
             self?.change(chat, ["muted": true])
         }))
+        // ChatsPlus: «Настроить…» — своё время (Sources/ChatsPlus/MuteCustom.swift).
+        choices.append(ChoiceSheet.Choice(symbol: "slider.horizontal.3", label: "Настроить…", note: "Своё время: дни, часы и минуты.", run: { [weak self] in
+            DispatchQueue.main.asyncAfter(deadline: .now() + 0.35) {
+                guard let self, let host = self.host, host.presentedViewController == nil else { return }
+                let custom = MuteCustomSheet(done: { [weak self] (until: String) -> Void in self?.change(chat, ["mutedUntil": until]) })
+                custom.onBack = { [weak self] in self?.askMute(chat) }
+                host.present(custom, animated: true)
+            }
+        }))
         host?.present(ChoiceSheet(heading: "Выключить звук", note: chat.title, choices: choices), animated: true)
     }
 
@@ -612,6 +640,48 @@ final class ChatListActions: NSObject, UITextFieldDelegate {
                 }
             }
         }
+    }
+
+    // MARK: ChatsPlus — what is done with several chats at once («Выбрать», Sources/ChatsPlus/ChatListEdit.swift)
+
+    /// The chats with these ids, in the list's order.
+    func summaries(_ ids: [String]) -> [Messenger.ChatSummary] {
+        let wanted = Set(ids)
+        return chats.filter { wanted.contains($0.id) }
+    }
+
+    /// «Прочитать» the chosen chats; nothing chosen — «Прочитать все» the chats shown.
+    func groupRead(_ ids: [String]) {
+        let list = ids.isEmpty ? summaries(lastShown) : summaries(ids)
+        for chat in list { read(chat) }
+    }
+
+    /// «В архив» / «Из архива».
+    func groupArchive(_ ids: [String], archived: Bool) {
+        for chat in summaries(ids) { change(chat, ["archived": archived]) }
+    }
+
+    /// «Удалить» several chats: for me or for both, asked once for all of them. `done`: a choice was made.
+    func groupRemove(_ ids: [String], done: @escaping () -> Void) {
+        let list = summaries(ids)
+        guard !list.isEmpty else { return }
+        if list.count == 1, let only = list.first {
+            askRemove(only)
+            done()
+            return
+        }
+        let heading = "Удалить \(list.count) " + ChatListActions.plural(list.count, "чат", "чата", "чатов") + "?"
+        let choices: [ChoiceSheet.Choice] = [
+            ChoiceSheet.Choice(symbol: "trash", label: "Удалить у меня", note: "Чаты и загруженные сообщения исчезнут на этом устройстве. Если собеседник напишет снова, чат вернётся.", danger: true, run: { [weak self] in
+                for chat in list { self?.removeForMe(chat) }
+                done()
+            }),
+            ChoiceSheet.Choice(symbol: "person.2", label: "Удалить у меня и у собеседника", note: "Чаты, все сообщения и файлы будут удалены на сервере и у обоих. Отменить нельзя.", danger: true, run: { [weak self] in
+                for chat in list { self?.removeForEveryone(chat) }
+                done()
+            }),
+        ]
+        host?.present(ChoiceSheet(heading: heading, choices: choices), animated: true)
     }
 
     // MARK: The search

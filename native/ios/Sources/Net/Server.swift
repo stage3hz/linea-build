@@ -91,6 +91,7 @@ final class Server: NSObject, URLSessionTaskDelegate {
         guard error == nil, let http = response as? HTTPURLResponse else { return (Result<Any, ServerError>.failure(.network("Нет связи с сервером. Проверь интернет и адрес подключения.")), true, false) }
         if http.statusCode < 500 { NetQuality.shared.report(ms: Date().timeIntervalSince(started) * 1000, bytes: data?.count ?? 0) }
         let read = Core.read(status: http.statusCode, body: String(data: data ?? Data(), encoding: .utf8) ?? "")
+        if read["updateRequired"] as? Bool == true { UpdateGate.markRequired() } // Shell: 426 — this build is retired (Shell/UpdateGate.swift)
         if let ok = read["ok"] { return (Result<Any, ServerError>.success(ok), false, false) }
         if let refused = read["refused"] as? [String: Any] {
             return (Result<Any, ServerError>.failure(.refused(message: refused["message"] as? String ?? "Не удалось выполнить запрос. Попробуй ещё раз.", status: http.statusCode, code: refused["code"] as? String, details: refused)), false, false)
