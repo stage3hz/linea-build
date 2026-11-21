@@ -6,6 +6,9 @@ import { dirname, join } from 'node:path';
 import { signRequest, verifyAttest } from '../../../server/src/attest.js';
 import { deviceMessage } from '../../../server/src/devicebind.js';
 import { generateKeyPairSync, sign as edSign } from 'node:crypto';
+import { readFileSync } from 'node:fs';
+import { stripTypeScriptTypes } from 'node:module';
+import { classify, addSample, timeoutFor, autoload } from '../../../mobile/src/network/quality.ts';
 import { normalizeServer, verifyServerList, chooseServer, fallbackServer } from '../../../mobile/src/servers/list.ts';
 
 const out = join(dirname(fileURLToPath(import.meta.url)), 'vectors');
@@ -80,3 +83,36 @@ const fallbackCases = [
 ];
 writeFileSync(join(out, 'server-fallback.json'), JSON.stringify(fallbackCases.map(([failed, all, rtt, down, now]) => ({ failed, all, rtt: Object.entries(rtt), down: Object.entries(down), now, downMs: 60000, next: fallbackServer(failed, all, rtt, down, now, 60000) })), null, 1) + '\n');
 console.log('servers', addresses.length, listCases.length, chooseCases.length, fallbackCases.length);
+
+// Network quality (pure functions of the reference).
+const tiers = ['slow', 'medium', 'fast'];
+const classifyCases = [[null, null], [100, null], [351, null], [350, null], [901, null], [900, null], [null, 199], [null, 200], [null, 1999], [null, 2000], [1000, 5000], [100, 100], [400, 3000]];
+let q = { rttMs: null, kbps: null, tier: 'fast' };
+const samples = [[120, 300], [80, 1000], [0, 10], [50, -1], [900, 2000], [2000, 20000], [400, 100000], [30, 5000], [1500, 100], [1500, 200], [10, 16384], [3000, 16384], [100, 4095], [100, 4096]];
+const sampleSteps = samples.map(([ms, bytes]) => { q = addSample(q, { ms, bytes }); return { ms, bytes, rttMs: q.rttMs, kbps: q.kbps, tier: q.tier }; });
+writeFileSync(join(out, 'network.json'), JSON.stringify({
+  classify: classifyCases.map(([rttMs, kbps]) => ({ rttMs, kbps, tier: classify(rttMs, kbps) })), samples: sampleSteps,
+  timeouts: ['send', 'read', 'upload'].flatMap(kind => tiers.map(tier => ({ kind, tier, ms: timeoutFor(kind, tier) }))),
+  autoload: ['photo', 'video', 'animatedAvatar', 'cover'].flatMap(kind => tiers.map(tier => ({ kind, tier, loads: autoload(kind, tier) }))),
+}, null, 1) + '\n');
+// The reference's own ApiError class and requestTimeout function, taken from its source text and run as they are.
+const apiSource = readFileSync(new URL('../../../mobile/src/api.ts', import.meta.url), 'utf8');
+const cut = (from, to) => { const start = apiSource.indexOf(from); const end = apiSource.indexOf(to, start); if (start < 0 || end < 0) throw new Error('api.ts changed: ' + from); return apiSource.slice(start, end); };
+const errorClass = stripTypeScriptTypes(cut('export class ApiError', '\n// AI media jobs').replace('export class', 'class'), { mode: 'transform' });
+const ApiError = new Function(`${errorClass}; return ApiError;`)();
+const timeoutText = cut('const AI_TIMEOUTS', '\nexport class NetworkError');
+const timeoutSource = stripTypeScriptTypes(timeoutText.slice(0, timeoutText.lastIndexOf('\n}') + 2), { mode: 'transform' });
+const errorBodies = [{}, { error: 'Нет доступа', code: 'device_proof' }, { error: 5, code: 7 }, { attemptsRemaining: 2, attemptsLeft: 5, retryAfterSeconds: 12.5, readyAt: 'r', serverTime: 's', expiresAt: 'e', received: 4096 },
+  { attemptsRemaining: 4, attemptsLeft: 6, retryAfterSeconds: -1, received: -1 }, { attemptsRemaining: 1.5, attemptsLeft: '3', received: 1.5, readyAt: 1 }, { attemptsRemaining: 0, attemptsLeft: 0, retryAfterSeconds: 0, received: 0 },
+  { received: 9007199254740991 }, { received: 9007199254740992 }, { error: '', code: '' }];
+const field = v => (v === undefined ? null : v);
+writeFileSync(join(out, 'api-error.json'), JSON.stringify(errorBodies.map(body => { const e = new ApiError(typeof body.error === 'string' ? body.error : 'Не удалось выполнить запрос. Попробуй ещё раз.', 400, body);
+  return { body: JSON.stringify(body), message: e.message, code: field(e.code), attemptsRemaining: field(e.attemptsRemaining), attemptsLeft: field(e.attemptsLeft), retryAfterSeconds: field(e.retryAfterSeconds), readyAt: field(e.readyAt), serverTime: field(e.serverTime), expiresAt: field(e.expiresAt), received: field(e.received) }; }), null, 1) + '\n');
+const timeoutPaths = [['/me', 'GET'], ['/chats/1/messages?lean=1', 'POST'], ['/chats/1/messages', 'POST'], ['/chats/1/messages?lean=1', 'GET'], ['/chats/1/messages/5/read-date', 'POST'], ['/communities/2/channels/3/messages', 'DELETE'],
+  ['/uploads', 'POST'], ['/uploads?purpose=post', 'POST'], ['/e2ee/files', 'POST'], ['/e2ee/uploads/abc', 'PUT'], ['/uploads/sessions/abc', 'PUT'], ['/e2ee/uploads/abc', 'GET'], ['/e2ee/uploads', 'POST'],
+  ['/auth/login', 'POST'], ['/auth/register', 'POST'], ['/auth/recovery/verify', 'POST'], ['/auth/recovery/reset', 'POST'], ['/auth/password', 'POST'], ['/auth/confirmation-word', 'POST'], ['/auth/recovery-word', 'POST'],
+  ['/auth/login', 'GET'], ['/auth/logout', 'POST'], ['/auth/login?x=1', 'POST'], ['/ai/chat', 'POST'], ['/ai/image', 'POST'], ['/ai/speech', 'POST'], ['/ai/transcribe', 'POST'], ['/ai/video', 'POST'], ['/ai/models', 'GET'], ['/ai/chat?x=1', 'POST']];
+writeFileSync(join(out, 'request-timeout.json'), JSON.stringify(timeoutPaths.flatMap(([path, method]) => tiers.map(tier => {
+  const requestTimeout = new Function('timeoutFor', 'networkTier', 'SIMULATOR_TEST_BUILD', `${timeoutSource}; return requestTimeout;`)(timeoutFor, () => tier, false);
+  return { path, method, tier, ms: requestTimeout(path, method) }; })), null, 1) + '\n');
+console.log('network', classifyCases.length, samples.length, 'api-error', errorBodies.length, 'timeouts', timeoutPaths.length * 3);

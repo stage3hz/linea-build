@@ -1,0 +1,122 @@
+[
+ {
+  "body": "{}",
+  "message": "Не удалось выполнить запрос. Попробуй ещё раз.",
+  "code": null,
+  "attemptsRemaining": null,
+  "attemptsLeft": null,
+  "retryAfterSeconds": null,
+  "readyAt": null,
+  "serverTime": null,
+  "expiresAt": null,
+  "received": null
+ },
+ {
+  "body": "{\"error\":\"Нет доступа\",\"code\":\"device_proof\"}",
+  "message": "Нет доступа",
+  "code": "device_proof",
+  "attemptsRemaining": null,
+  "attemptsLeft": null,
+  "retryAfterSeconds": null,
+  "readyAt": null,
+  "serverTime": null,
+  "expiresAt": null,
+  "received": null
+ },
+ {
+  "body": "{\"error\":5,\"code\":7}",
+  "message": "Не удалось выполнить запрос. Попробуй ещё раз.",
+  "code": null,
+  "attemptsRemaining": null,
+  "attemptsLeft": null,
+  "retryAfterSeconds": null,
+  "readyAt": null,
+  "serverTime": null,
+  "expiresAt": null,
+  "received": null
+ },
+ {
+  "body": "{\"attemptsRemaining\":2,\"attemptsLeft\":5,\"retryAfterSeconds\":12.5,\"readyAt\":\"r\",\"serverTime\":\"s\",\"expiresAt\":\"e\",\"received\":4096}",
+  "message": "Не удалось выполнить запрос. Попробуй ещё раз.",
+  "code": null,
+  "attemptsRemaining": 2,
+  "attemptsLeft": 5,
+  "retryAfterSeconds": 12.5,
+  "readyAt": "r",
+  "serverTime": "s",
+  "expiresAt": "e",
+  "received": 4096
+ },
+ {
+  "body": "{\"attemptsRemaining\":4,\"attemptsLeft\":6,\"retryAfterSeconds\":-1,\"received\":-1}",
+  "message": "Не удалось выполнить запрос. Попробуй ещё раз.",
+  "code": null,
+  "attemptsRemaining": null,
+  "attemptsLeft": null,
+  "retryAfterSeconds": null,
+  "readyAt": null,
+  "serverTime": null,
+  "expiresAt": null,
+  "received": null
+ },
+ {
+  "body": "{\"attemptsRemaining\":1.5,\"attemptsLeft\":\"3\",\"received\":1.5,\"readyAt\":1}",
+  "message": "Не удалось выполнить запрос. Попробуй ещё раз.",
+  "code": null,
+  "attemptsRemaining": null,
+  "attemptsLeft": null,
+  "retryAfterSeconds": null,
+  "readyAt": null,
+  "serverTime": null,
+  "expiresAt": null,
+  "received": null
+ },
+ {
+  "body": "{\"attemptsRemaining\":0,\"attemptsLeft\":0,\"retryAfterSeconds\":0,\"received\":0}",
+  "message": "Не удалось выполнить запрос. Попробуй ещё раз.",
+  "code": null,
+  "attemptsRemaining": 0,
+  "attemptsLeft": 0,
+  "retryAfterSeconds": 0,
+  "readyAt": null,
+  "serverTime": null,
+  "expiresAt": null,
+  "received": 0
+ },
+ {
+  "body": "{\"received\":9007199254740991}",
+  "message": "Не удалось выполнить запрос. Попробуй ещё раз.",
+  "code": null,
+  "attemptsRemaining": null,
+  "attemptsLeft": null,
+  "retryAfterSeconds": null,
+  "readyAt": null,
+  "serverTime": null,
+  "expiresAt": null,
+  "received": 9007199254740991
+ },
+ {
+  "body": "{\"received\":9007199254740992}",
+  "message": "Не удалось выполнить запрос. Попробуй ещё раз.",
+  "code": null,
+  "attemptsRemaining": null,
+  "attemptsLeft": null,
+  "retryAfterSeconds": null,
+  "readyAt": null,
+  "serverTime": null,
+  "expiresAt": null,
+  "received": null
+ },
+ {
+  "body": "{\"error\":\"\",\"code\":\"\"}",
+  "message": "",
+  "code": "",
+  "attemptsRemaining": null,
+  "attemptsLeft": null,
+  "retryAfterSeconds": null,
+  "readyAt": null,
+  "serverTime": null,
+  "expiresAt": null,
+  "received": null
+ }
+]

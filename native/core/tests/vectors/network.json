@@ -1,0 +1,278 @@
+{
+ "classify": [
+  {
+   "rttMs": null,
+   "kbps": null,
+   "tier": "fast"
+  },
+  {
+   "rttMs": 100,
+   "kbps": null,
+   "tier": "fast"
+  },
+  {
+   "rttMs": 351,
+   "kbps": null,
+   "tier": "medium"
+  },
+  {
+   "rttMs": 350,
+   "kbps": null,
+   "tier": "fast"
+  },
+  {
+   "rttMs": 901,
+   "kbps": null,
+   "tier": "slow"
+  },
+  {
+   "rttMs": 900,
+   "kbps": null,
+   "tier": "medium"
+  },
+  {
+   "rttMs": null,
+   "kbps": 199,
+   "tier": "slow"
+  },
+  {
+   "rttMs": null,
+   "kbps": 200,
+   "tier": "medium"
+  },
+  {
+   "rttMs": null,
+   "kbps": 1999,
+   "tier": "medium"
+  },
+  {
+   "rttMs": null,
+   "kbps": 2000,
+   "tier": "fast"
+  },
+  {
+   "rttMs": 1000,
+   "kbps": 5000,
+   "tier": "slow"
+  },
+  {
+   "rttMs": 100,
+   "kbps": 100,
+   "tier": "slow"
+  },
+  {
+   "rttMs": 400,
+   "kbps": 3000,
+   "tier": "medium"
+  }
+ ],
+ "samples": [
+  {
+   "ms": 120,
+   "bytes": 300,
+   "rttMs": 120,
+   "kbps": null,
+   "tier": "fast"
+  },
+  {
+   "ms": 80,
+   "bytes": 1000,
+   "rttMs": 112,
+   "kbps": null,
+   "tier": "fast"
+  },
+  {
+   "ms": 0,
+   "bytes": 10,
+   "rttMs": 112,
+   "kbps": null,
+   "tier": "fast"
+  },
+  {
+   "ms": 50,
+   "bytes": -1,
+   "rttMs": 112,
+   "kbps": null,
+   "tier": "fast"
+  },
+  {
+   "ms": 900,
+   "bytes": 2000,
+   "rttMs": 269.6,
+   "kbps": null,
+   "tier": "fast"
+  },
+  {
+   "ms": 2000,
+   "bytes": 20000,
+   "rttMs": 269.6,
+   "kbps": 92.46417013407304,
+   "tier": "slow"
+  },
+  {
+   "ms": 400,
+   "bytes": 100000,
+   "rttMs": 269.6,
+   "kbps": 1300.9652011379335,
+   "tier": "medium"
+  },
+  {
+   "ms": 30,
+   "bytes": 5000,
+   "rttMs": 269.6,
+   "kbps": 1300.9652011379335,
+   "tier": "medium"
+  },
+  {
+   "ms": 1500,
+   "bytes": 100,
+   "rttMs": 515.6800000000001,
+   "kbps": 1300.9652011379335,
+   "tier": "medium"
+  },
+  {
+   "ms": 1500,
+   "bytes": 200,
+   "rttMs": 712.5440000000001,
+   "kbps": 1300.9652011379335,
+   "tier": "medium"
+  },
+  {
+   "ms": 10,
+   "bytes": 16384,
+   "rttMs": 712.5440000000001,
+   "kbps": 2351.4921609103467,
+   "tier": "medium"
+  },
+  {
+   "ms": 3000,
+   "bytes": 16384,
+   "rttMs": 712.5440000000001,
+   "kbps": 1892.6537961568968,
+   "tier": "medium"
+  },
+  {
+   "ms": 100,
+   "bytes": 4095,
+   "rttMs": 590.0352,
+   "kbps": 1892.6537961568968,
+   "tier": "medium"
+  },
+  {
+   "ms": 100,
+   "bytes": 4096,
+   "rttMs": 590.0352,
+   "kbps": 1892.6537961568968,
+   "tier": "medium"
+  }
+ ],
+ "timeouts": [
+  {
+   "kind": "send",
+   "tier": "slow",
+   "ms": 60000
+  },
+  {
+   "kind": "send",
+   "tier": "medium",
+   "ms": 30000
+  },
+  {
+   "kind": "send",
+   "tier": "fast",
+   "ms": 20000
+  },
+  {
+   "kind": "read",
+   "tier": "slow",
+   "ms": 54000
+  },
+  {
+   "kind": "read",
+   "tier": "medium",
+   "ms": 27000
+  },
+  {
+   "kind": "read",
+   "tier": "fast",
+   "ms": 18000
+  },
+  {
+   "kind": "upload",
+   "tier": "slow",
+   "ms": 360000
+  },
+  {
+   "kind": "upload",
+   "tier": "medium",
+   "ms": 180000
+  },
+  {
+   "kind": "upload",
+   "tier": "fast",
+   "ms": 120000
+  }
+ ],
+ "autoload": [
+  {
+   "kind": "photo",
+   "tier": "slow",
+   "loads": false
+  },
+  {
+   "kind": "photo",
+   "tier": "medium",
+   "loads": true
+  },
+  {
+   "kind": "photo",
+   "tier": "fast",
+   "loads": true
+  },
+  {
+   "kind": "video",
+   "tier": "slow",
+   "loads": false
+  },
+  {
+   "kind": "video",
+   "tier": "medium",
+   "loads": false
+  },
+  {
+   "kind": "video",
+   "tier": "fast",
+   "loads": true
+  },
+  {
+   "kind": "animatedAvatar",
+   "tier": "slow",
+   "loads": false
+  },
+  {
+   "kind": "animatedAvatar",
+   "tier": "medium",
+   "loads": false
+  },
+  {
+   "kind": "animatedAvatar",
+   "tier": "fast",
+   "loads": true
+  },
+  {
+   "kind": "cover",
+   "tier": "slow",
+   "loads": false
+  },
+  {
+   "kind": "cover",
+   "tier": "medium",
+   "loads": true
+  },
+  {
+   "kind": "cover",
+   "tier": "fast",
+   "loads": true
+  }
+ ]
+}

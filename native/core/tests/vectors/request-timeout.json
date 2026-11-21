@@ -1,0 +1,542 @@
+[
+ {
+  "path": "/me",
+  "method": "GET",
+  "tier": "slow",
+  "ms": 54000
+ },
+ {
+  "path": "/me",
+  "method": "GET",
+  "tier": "medium",
+  "ms": 27000
+ },
+ {
+  "path": "/me",
+  "method": "GET",
+  "tier": "fast",
+  "ms": 18000
+ },
+ {
+  "path": "/chats/1/messages?lean=1",
+  "method": "POST",
+  "tier": "slow",
+  "ms": 60000
+ },
+ {
+  "path": "/chats/1/messages?lean=1",
+  "method": "POST",
+  "tier": "medium",
+  "ms": 30000
+ },
+ {
+  "path": "/chats/1/messages?lean=1",
+  "method": "POST",
+  "tier": "fast",
+  "ms": 20000
+ },
+ {
+  "path": "/chats/1/messages",
+  "method": "POST",
+  "tier": "slow",
+  "ms": 60000
+ },
+ {
+  "path": "/chats/1/messages",
+  "method": "POST",
+  "tier": "medium",
+  "ms": 30000
+ },
+ {
+  "path": "/chats/1/messages",
+  "method": "POST",
+  "tier": "fast",
+  "ms": 20000
+ },
+ {
+  "path": "/chats/1/messages?lean=1",
+  "method": "GET",
+  "tier": "slow",
+  "ms": 54000
+ },
+ {
+  "path": "/chats/1/messages?lean=1",
+  "method": "GET",
+  "tier": "medium",
+  "ms": 27000
+ },
+ {
+  "path": "/chats/1/messages?lean=1",
+  "method": "GET",
+  "tier": "fast",
+  "ms": 18000
+ },
+ {
+  "path": "/chats/1/messages/5/read-date",
+  "method": "POST",
+  "tier": "slow",
+  "ms": 54000
+ },
+ {
+  "path": "/chats/1/messages/5/read-date",
+  "method": "POST",
+  "tier": "medium",
+  "ms": 27000
+ },
+ {
+  "path": "/chats/1/messages/5/read-date",
+  "method": "POST",
+  "tier": "fast",
+  "ms": 18000
+ },
+ {
+  "path": "/communities/2/channels/3/messages",
+  "method": "DELETE",
+  "tier": "slow",
+  "ms": 60000
+ },
+ {
+  "path": "/communities/2/channels/3/messages",
+  "method": "DELETE",
+  "tier": "medium",
+  "ms": 30000
+ },
+ {
+  "path": "/communities/2/channels/3/messages",
+  "method": "DELETE",
+  "tier": "fast",
+  "ms": 20000
+ },
+ {
+  "path": "/uploads",
+  "method": "POST",
+  "tier": "slow",
+  "ms": 360000
+ },
+ {
+  "path": "/uploads",
+  "method": "POST",
+  "tier": "medium",
+  "ms": 180000
+ },
+ {
+  "path": "/uploads",
+  "method": "POST",
+  "tier": "fast",
+  "ms": 120000
+ },
+ {
+  "path": "/uploads?purpose=post",
+  "method": "POST",
+  "tier": "slow",
+  "ms": 360000
+ },
+ {
+  "path": "/uploads?purpose=post",
+  "method": "POST",
+  "tier": "medium",
+  "ms": 180000
+ },
+ {
+  "path": "/uploads?purpose=post",
+  "method": "POST",
+  "tier": "fast",
+  "ms": 120000
+ },
+ {
+  "path": "/e2ee/files",
+  "method": "POST",
+  "tier": "slow",
+  "ms": 360000
+ },
+ {
+  "path": "/e2ee/files",
+  "method": "POST",
+  "tier": "medium",
+  "ms": 180000
+ },
+ {
+  "path": "/e2ee/files",
+  "method": "POST",
+  "tier": "fast",
+  "ms": 120000
+ },
+ {
+  "path": "/e2ee/uploads/abc",
+  "method": "PUT",
+  "tier": "slow",
+  "ms": 360000
+ },
+ {
+  "path": "/e2ee/uploads/abc",
+  "method": "PUT",
+  "tier": "medium",
+  "ms": 180000
+ },
+ {
+  "path": "/e2ee/uploads/abc",
+  "method": "PUT",
+  "tier": "fast",
+  "ms": 120000
+ },
+ {
+  "path": "/uploads/sessions/abc",
+  "method": "PUT",
+  "tier": "slow",
+  "ms": 360000
+ },
+ {
+  "path": "/uploads/sessions/abc",
+  "method": "PUT",
+  "tier": "medium",
+  "ms": 180000
+ },
+ {
+  "path": "/uploads/sessions/abc",
+  "method": "PUT",
+  "tier": "fast",
+  "ms": 120000
+ },
+ {
+  "path": "/e2ee/uploads/abc",
+  "method": "GET",
+  "tier": "slow",
+  "ms": 54000
+ },
+ {
+  "path": "/e2ee/uploads/abc",
+  "method": "GET",
+  "tier": "medium",
+  "ms": 27000
+ },
+ {
+  "path": "/e2ee/uploads/abc",
+  "method": "GET",
+  "tier": "fast",
+  "ms": 18000
+ },
+ {
+  "path": "/e2ee/uploads",
+  "method": "POST",
+  "tier": "slow",
+  "ms": 54000
+ },
+ {
+  "path": "/e2ee/uploads",
+  "method": "POST",
+  "tier": "medium",
+  "ms": 27000
+ },
+ {
+  "path": "/e2ee/uploads",
+  "method": "POST",
+  "tier": "fast",
+  "ms": 18000
+ },
+ {
+  "path": "/auth/login",
+  "method": "POST",
+  "tier": "slow",
+  "ms": 135000
+ },
+ {
+  "path": "/auth/login",
+  "method": "POST",
+  "tier": "medium",
+  "ms": 67500
+ },
+ {
+  "path": "/auth/login",
+  "method": "POST",
+  "tier": "fast",
+  "ms": 45000
+ },
+ {
+  "path": "/auth/register",
+  "method": "POST",
+  "tier": "slow",
+  "ms": 135000
+ },
+ {
+  "path": "/auth/register",
+  "method": "POST",
+  "tier": "medium",
+  "ms": 67500
+ },
+ {
+  "path": "/auth/register",
+  "method": "POST",
+  "tier": "fast",
+  "ms": 45000
+ },
+ {
+  "path": "/auth/recovery/verify",
+  "method": "POST",
+  "tier": "slow",
+  "ms": 135000
+ },
+ {
+  "path": "/auth/recovery/verify",
+  "method": "POST",
+  "tier": "medium",
+  "ms": 67500
+ },
+ {
+  "path": "/auth/recovery/verify",
+  "method": "POST",
+  "tier": "fast",
+  "ms": 45000
+ },
+ {
+  "path": "/auth/recovery/reset",
+  "method": "POST",
+  "tier": "slow",
+  "ms": 135000
+ },
+ {
+  "path": "/auth/recovery/reset",
+  "method": "POST",
+  "tier": "medium",
+  "ms": 67500
+ },
+ {
+  "path": "/auth/recovery/reset",
+  "method": "POST",
+  "tier": "fast",
+  "ms": 45000
+ },
+ {
+  "path": "/auth/password",
+  "method": "POST",
+  "tier": "slow",
+  "ms": 135000
+ },
+ {
+  "path": "/auth/password",
+  "method": "POST",
+  "tier": "medium",
+  "ms": 67500
+ },
+ {
+  "path": "/auth/password",
+  "method": "POST",
+  "tier": "fast",
+  "ms": 45000
+ },
+ {
+  "path": "/auth/confirmation-word",
+  "method": "POST",
+  "tier": "slow",
+  "ms": 135000
+ },
+ {
+  "path": "/auth/confirmation-word",
+  "method": "POST",
+  "tier": "medium",
+  "ms": 67500
+ },
+ {
+  "path": "/auth/confirmation-word",
+  "method": "POST",
+  "tier": "fast",
+  "ms": 45000
+ },
+ {
+  "path": "/auth/recovery-word",
+  "method": "POST",
+  "tier": "slow",
+  "ms": 135000
+ },
+ {
+  "path": "/auth/recovery-word",
+  "method": "POST",
+  "tier": "medium",
+  "ms": 67500
+ },
+ {
+  "path": "/auth/recovery-word",
+  "method": "POST",
+  "tier": "fast",
+  "ms": 45000
+ },
+ {
+  "path": "/auth/login",
+  "method": "GET",
+  "tier": "slow",
+  "ms": 54000
+ },
+ {
+  "path": "/auth/login",
+  "method": "GET",
+  "tier": "medium",
+  "ms": 27000
+ },
+ {
+  "path": "/auth/login",
+  "method": "GET",
+  "tier": "fast",
+  "ms": 18000
+ },
+ {
+  "path": "/auth/logout",
+  "method": "POST",
+  "tier": "slow",
+  "ms": 54000
+ },
+ {
+  "path": "/auth/logout",
+  "method": "POST",
+  "tier": "medium",
+  "ms": 27000
+ },
+ {
+  "path": "/auth/logout",
+  "method": "POST",
+  "tier": "fast",
+  "ms": 18000
+ },
+ {
+  "path": "/auth/login?x=1",
+  "method": "POST",
+  "tier": "slow",
+  "ms": 135000
+ },
+ {
+  "path": "/auth/login?x=1",
+  "method": "POST",
+  "tier": "medium",
+  "ms": 67500
+ },
+ {
+  "path": "/auth/login?x=1",
+  "method": "POST",
+  "tier": "fast",
+  "ms": 45000
+ },
+ {
+  "path": "/ai/chat",
+  "method": "POST",
+  "tier": "slow",
+  "ms": 70000
+ },
+ {
+  "path": "/ai/chat",
+  "method": "POST",
+  "tier": "medium",
+  "ms": 70000
+ },
+ {
+  "path": "/ai/chat",
+  "method": "POST",
+  "tier": "fast",
+  "ms": 70000
+ },
+ {
+  "path": "/ai/image",
+  "method": "POST",
+  "tier": "slow",
+  "ms": 130000
+ },
+ {
+  "path": "/ai/image",
+  "method": "POST",
+  "tier": "medium",
+  "ms": 130000
+ },
+ {
+  "path": "/ai/image",
+  "method": "POST",
+  "tier": "fast",
+  "ms": 130000
+ },
+ {
+  "path": "/ai/speech",
+  "method": "POST",
+  "tier": "slow",
+  "ms": 70000
+ },
+ {
+  "path": "/ai/speech",
+  "method": "POST",
+  "tier": "medium",
+  "ms": 70000
+ },
+ {
+  "path": "/ai/speech",
+  "method": "POST",
+  "tier": "fast",
+  "ms": 70000
+ },
+ {
+  "path": "/ai/transcribe",
+  "method": "POST",
+  "tier": "slow",
+  "ms": 130000
+ },
+ {
+  "path": "/ai/transcribe",
+  "method": "POST",
+  "tier": "medium",
+  "ms": 130000
+ },
+ {
+  "path": "/ai/transcribe",
+  "method": "POST",
+  "tier": "fast",
+  "ms": 130000
+ },
+ {
+  "path": "/ai/video",
+  "method": "POST",
+  "tier": "slow",
+  "ms": 340000
+ },
+ {
+  "path": "/ai/video",
+  "method": "POST",
+  "tier": "medium",
+  "ms": 340000
+ },
+ {
+  "path": "/ai/video",
+  "method": "POST",
+  "tier": "fast",
+  "ms": 340000
+ },
+ {
+  "path": "/ai/models",
+  "method": "GET",
+  "tier": "slow",
+  "ms": 20000
+ },
+ {
+  "path": "/ai/models",
+  "method": "GET",
+  "tier": "medium",
+  "ms": 20000
+ },
+ {
+  "path": "/ai/models",
+  "method": "GET",
+  "tier": "fast",
+  "ms": 20000
+ },
+ {
+  "path": "/ai/chat?x=1",
+  "method": "POST",
+  "tier": "slow",
+  "ms": 54000
+ },
+ {
+  "path": "/ai/chat?x=1",
+  "method": "POST",
+  "tier": "medium",
+  "ms": 27000
+ },
+ {
+  "path": "/ai/chat?x=1",
+  "method": "POST",
+  "tier": "fast",
+  "ms": 18000
+ }
+]
