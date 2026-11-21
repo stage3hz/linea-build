@@ -15,5 +15,6 @@ pub mod json;
 pub mod media;
 pub mod message_meta;
 pub mod network;
+pub mod photo;
 pub mod servers;
 pub mod time;

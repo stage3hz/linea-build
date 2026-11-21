@@ -227,5 +227,5 @@ pub unsafe extern "C" fn invizent_crypto_call(crypto: *mut InvizentCrypto, op: *
 #[no_mangle]
 pub unsafe extern "C" fn invizent_crypto_free(crypto: *mut InvizentCrypto) { if !crypto.is_null() { drop(Box::from_raw(crypto)) } }
 
-// Until the check of the small picture itself is here, a message that carries one is not accepted.
-fn preview_ok(preview: Option<&Value>) -> bool { preview.is_none() }
+/// The small picture that rides with an attachment must be exactly what the app's own cleaner would produce.
+fn preview_ok(preview: Option<&Value>) -> bool { crate::photo::valid_preview(preview) }

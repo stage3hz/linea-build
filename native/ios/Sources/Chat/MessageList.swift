@@ -165,6 +165,12 @@ final class MsgText {
     return CGSize(width: ceil(used.maxX), height: ceil(used.height))
   }
 
+  /// The part of the last line that holds text.
+  var lastLine: CGRect {
+    let glyphs = manager.numberOfGlyphs
+    return glyphs > 0 ? manager.lineFragmentUsedRect(forGlyphAt: glyphs - 1, effectiveRange: nil) : .zero
+  }
+
   func rect(_ range: NSRange) -> CGRect {
     manager.boundingRect(forGlyphRange: manager.glyphRange(forCharacterRange: range, actualCharacterRange: nil), in: container)
   }
@@ -235,7 +241,16 @@ func msgBody(_ row: MsgRow, fontSize: CGFloat, text: UIColor, link: UIColor, quo
 }
 
 /// Where everything of one row goes, for the width it is shown at.
+/// The open look: no bubbles. A message is its text on the page — own at the right edge, the other side's at
+/// the left — and the time follows the last word on the same line.
+let msgOpenLook = true
+/// From the screen's edge to a message's plate (the text stands 13 further in).
+private let msgEdge: CGFloat = msgOpenLook ? 3 : 9
+
 struct MsgLayout {
+  /// The time stands on the text's last line, at this point from the text's corner (x: its left, y: the line's bottom).
+  var timeInline = false
+  var timeAt = CGPoint.zero
   var bubble = CGSize.zero
   var textSize = CGSize.zero
   var quoteSize = CGSize.zero
@@ -271,6 +286,16 @@ struct MsgLayout {
       w = max(w, min(inner, max(layout.quoteSize.width, author) + 12))
     }
     if !row.forward.isEmpty { w = max(w, min(inner, ceil(NSAttributedString(string: row.forward, attributes: [.font: msgSmallBold]).size().width))) }
+    if msgOpenLook && layout.textSize != .zero && layout.reactSize == .zero && !stride(from: 0, to: row.fmt.count, by: 3).contains(where: { row.fmt[$0] & (128 | 256) != 0 }) {
+      let laid = MsgText(row.fmt.isEmpty ? NSAttributedString(string: row.text, attributes: [.font: body, .paragraphStyle: msgWrap(true)])
+        : msgBody(row, fontSize: fontSize, text: .black, link: .black, quote: .clear, revealed: true), width: inner)
+      let last = laid.lastLine
+      if last != .zero && ceil(last.maxX) + 8 + timeWidth <= inner {
+        layout.timeInline = true
+        layout.timeAt = CGPoint(x: ceil(last.maxX) + 8, y: last.maxY)
+        w = max(w, ceil(last.maxX) + 8 + timeWidth)
+      }
+    }
     var h: CGFloat = 9
     if !row.forward.isEmpty { h += 18 }
     if layout.quoteSize != .zero { h += 17 + layout.quoteSize.height + 8 }
@@ -278,7 +303,7 @@ struct MsgLayout {
     if layout.labelSize != .zero { h += layout.labelSize.height + 4 }
     h += layout.textSize.height
     if layout.reactSize != .zero { h += layout.reactSize.height + 6 }
-    h += 16 + 6
+    h += layout.timeInline ? 6 : 16 + 6
     layout.bubble = CGSize(width: w + 26, height: h)
     layout.height = h + (row.tail ? 7 : 2)
     return layout
@@ -357,7 +382,7 @@ final class MsgRowCanvas: UIView {
         .draw(with: box.insetBy(dx: 12, dy: 6), options: [.usesLineFragmentOrigin, .truncatesLastVisibleLine], context: nil)
       return
     }
-    var side: CGFloat = 9
+    var side: CGFloat = msgEdge
     if item.checked >= 0 {
       let center = CGPoint(x: 21, y: bubble.height / 2)
       if item.checked == 1 {
@@ -378,15 +403,17 @@ final class MsgRowCanvas: UIView {
       }
       if !item.mine { side += 34 }
     }
-    let left = item.mine ? w - 9 - bubble.width : side
+    let left = item.mine ? w - msgEdge - bubble.width : side
     let box = CGRect(x: left, y: 0, width: bubble.width, height: bubble.height)
     // The corner by the sender's edge is tight on the last bubble of a run (the «tail»).
     var corners: UIRectCorner = [.topLeft, .topRight, .bottomLeft, .bottomRight]
     if item.tail { corners.remove(item.mine ? .bottomRight : .bottomLeft) }
     let shape = UIBezierPath(roundedRect: box, byRoundingCorners: corners, cornerRadii: CGSize(width: 20, height: 20))
-    context.setFillColor((item.mine ? palette.mine : palette.theirs).cgColor)
-    context.addPath(shape.cgPath)
-    context.fillPath()
+    if !msgOpenLook {
+      context.setFillColor((item.mine ? palette.mine : palette.theirs).cgColor)
+      context.addPath(shape.cgPath)
+      context.fillPath()
+    }
     if pressed {
       context.setFillColor(UIColor(white: 1, alpha: 0.08).cgColor)
       context.addPath(shape.cgPath)
@@ -477,12 +504,15 @@ final class MsgRowCanvas: UIView {
       draw(item.reactions, msgSmallFont, palette.text, CGRect(x: x, y: y + 6, width: inner, height: layoutInfo.reactSize.height + 2), lines: true)
     }
 
-    let right = left + bubble.width - 13
     let marks: CGFloat = item.mine ? 20 : 0
     let time = NSAttributedString(string: item.time, attributes: [.font: msgMetaFont, .foregroundColor: item.ticks == 4 ? palette.danger : metaColor])
     let timeSize = time.size()
-    time.draw(at: CGPoint(x: right - marks - ceil(timeSize.width), y: bubble.height - 8 - timeSize.height + 2))
-    let my = bubble.height - 12
+    // After the last word of the text, or in the plate's lower corner.
+    let inline = layoutInfo.timeInline && bodyBox != .zero
+    let right = inline ? bodyBox.minX + layoutInfo.timeAt.x + ceil(timeSize.width) + marks : left + bubble.width - 13
+    let timeBottom = inline ? bodyBox.minY + layoutInfo.timeAt.y - 2 : bubble.height - 6
+    time.draw(at: CGPoint(x: right - marks - ceil(timeSize.width), y: timeBottom - timeSize.height))
+    let my = timeBottom - 6
     if item.mine && (item.ticks == 1 || item.ticks == 2) {
       context.setStrokeColor((item.ticks == 2 ? markColor : metaColor).cgColor)
       context.setLineWidth(1.5)
