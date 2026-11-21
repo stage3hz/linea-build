@@ -346,7 +346,7 @@ mod big {
             // The chunks stand one after another and cover the whole file, each with its tag.
             let count = files::chunk_count(case.size);
             let (mut plain, mut at) = (0u64, 0u64);
-            for index in [0, 1, count / 2, count.saturating_sub(2), count - 1] {
+            for index in [0, 1, count / 2, count.saturating_sub(2), count - 1].into_iter().filter(|index| *index < count) {
                 let (start, end) = files::chunk_range(case.size, index).expect("a chunk");
                 assert_eq!(start, index * (files::CHUNK_PLAIN + files::TAG) as u64);
                 assert_eq!(end + 1 - start, (files::chunk_plain_len(case.size, index).unwrap() + files::TAG) as u64);
@@ -375,7 +375,9 @@ mod big {
         assert!(made >= 120 && none >= 6, "{made} {none}");
         for case in &all.bars {
             let units: Option<Vec<u16>> = case.waveform.as_ref().map(|text| text.encode_utf16().collect());
-            assert_eq!(media::waveform_bars(units.as_deref(), case.count), case.bars, "{:?} into {}", case.waveform, case.count);
+            // (The vectors' fractions are read by serde_json here, which may be one last digit off.)
+            let made = media::waveform_bars(units.as_deref(), case.count);
+            assert!(made.len() == case.bars.len() && made.iter().zip(&case.bars).all(|(a, b)| (a - b).abs() < 1e-12), "{:?} into {}: {made:?}", case.waveform, case.count);
         }
         for case in &all.times { assert_eq!((media::voice_time(case.ms), media::voice_time_fine(case.ms)), (case.time.clone(), case.fine.clone()), "{}", case.ms) }
         for case in &all.names { assert_eq!((media::voice_file_name(case.now), media::video_note_file_name(case.now)), (case.voice.clone(), case.note.clone()), "{}", case.now) }
