@@ -173,7 +173,7 @@ class StoriesPagesTest {
     launch("posts")
     snap("54-stories-posts")
     val block = all(page).first { it is ProfilePostsBlock } as ProfilePostsBlock
-    assertEquals(listOf("Публикации 8", "Истории 2"), texts(block))
+    assertEquals(listOf("Публикации 8", "Истории 2", "Подарки 5"), texts(block)) // Gifts: the third tab (profile/Gifts.kt)
     assertEquals("post", block.shownTab)
     val tiles = all(block).filterIsInstance<StoryTileView>()
     assertEquals(8, tiles.size)
@@ -200,11 +200,11 @@ class StoriesPagesTest {
     launch("own")
     snap("55-own-posts")
     val screen = top as OwnPostsScreen
-    assertEquals(listOf("Публикации и истории", "Публикации 8", "Истории 2", "Добавить публикацию"), texts(screen))
+    assertEquals(listOf("Публикации и истории", "Публикации 8", "Истории 2", "Подарки 5", "Добавить публикацию"), texts(screen))
     assertEquals(8, all(screen).filterIsInstance<StoryTileView>().size)
     screen.block.emulatorShow("story")
     idle()
-    assertEquals(listOf("Публикации и истории", "Публикации 8", "Истории 2", "Добавить историю"), texts(screen))
+    assertEquals(listOf("Публикации и истории", "Публикации 8", "Истории 2", "Подарки 5", "Добавить историю"), texts(screen))
     // The account's own story: who watched instead of an answer.
     screen.block.emulatorOpenFirst()
     idle()
