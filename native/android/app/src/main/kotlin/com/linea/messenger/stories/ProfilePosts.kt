@@ -43,7 +43,7 @@ class StoryTileView(context: Context) : FrameLayout(context) {
   private var asked = false
 
   init {
-    setBackgroundColor(0xFF1A1D24.toInt())
+    setBackgroundColor(Theme.onBlack(0xFF1A1D24.toInt(), Theme.surface2))
     picture.scaleType = ImageView.ScaleType.CENTER_CROP
     addView(picture, LayoutParams(LayoutParams.MATCH_PARENT, LayoutParams.MATCH_PARENT))
     addView(playMark, LayoutParams(Math.round(20f * d), Math.round(20f * d), Gravity.BOTTOM or Gravity.END).apply { rightMargin = Math.round(6f * d); bottomMargin = Math.round(6f * d) })

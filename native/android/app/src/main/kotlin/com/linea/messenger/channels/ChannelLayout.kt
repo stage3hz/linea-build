@@ -28,16 +28,17 @@ import kotlin.math.ceil
 // themselves, already broken and measured. A layout is made OFF the main thread (ChannelEngine) and never
 // changes afterwards; the main thread only draws what is in it: no measuring, no line breaking, no nested views.
 
-/** The colours of a channel's chat (the black look), 0xAARRGGBB. */
+/** The colours of a channel's chat, 0xAARRGGBB. The colours are those of the theme that is on, read each time, so a
+ *  change of theme reaches the next layout without a restart (on «Чёрная» they are the black look's own). */
 object ChannelLook {
   val text: Int get() = Theme.text
   val muted: Int get() = Theme.muted
   val subtle: Int get() = Theme.subtle
   val accent: Int get() = Theme.accent
   val surface: Int get() = Theme.surface2
-  const val card = 0xF5161718.toInt()
-  const val soft = 0x1AFFFFFF
-  const val line = 0x14FFFFFF
+  val card: Int get() = Theme.raised(0xF5161718.toInt())
+  val soft: Int get() = Theme.veil(0.1f)
+  val line: Int get() = Theme.veil(0.08f)
   const val mark = 0xFFF5C542.toInt()
   const val join = 0xFF2FA36B.toInt()
   const val white = 0xFFFFFFFF.toInt()
@@ -305,7 +306,7 @@ class ChannelRowLayout(val row: ChannelRow, /** The message the row was made fro
       return y + 44 * d
     }
     val card = box(x, y, wide, 144 * d)
-    pieces.add(ChannelPiece.Fill(card, 16 * d, 0x0FFFFFFF))
+    pieces.add(ChannelPiece.Fill(card, 16 * d, Theme.veil(0.06f)))
     pieces.add(ChannelPiece.Border(card, 16 * d, ChannelLook.line))
     val kind = line((if (invite.blog) "КАНАЛ" else "СЕРВЕР") + (if (invite.closed) " · ЗАКРЫТЫЙ" else ""), ChannelFont.KIND, ChannelLook.muted, wide - 24 * d)
     text(kind, x + 12 * d, y + 12 * d + kind.ascent)

@@ -46,6 +46,9 @@ private fun badgeWords(count: Int): String = if (count > 999) "999+" else count.
 private const val BADGE_RED = 0xFFFF4D5E.toInt()
 private const val WHITE = 0xFFFFFFFF.toInt()
 
+/** What the bar draws with: white on a dark theme, black on a light one, as the iPhone's bar (`setDark`). */
+private val ink: Int get() = if (Theme.dark) WHITE else 0xFF000000.toInt()
+
 /** One icon of the bar; an accessibility element of its own. */
 @SuppressLint("ViewConstructor")
 private class TabIconView(context: Context) : View(context) {
@@ -63,7 +66,7 @@ private class TabIconView(context: Context) : View(context) {
 
   override fun onDraw(canvas: Canvas) {
     val midX = width / 2f; val midY = height / 2f
-    Icons.draw(canvas, symbol, midX, midY, 27f * d, Theme.alpha(WHITE, if (on) 1f else 0.58f), filled = on)
+    Icons.draw(canvas, symbol, midX, midY, 27f * d, Theme.alpha(ink, if (on) 1f else 0.58f), filled = on)
     if (badge.isNotEmpty()) {
       val wide = max(18f * d, words.measureText(badge) + 10f * d)
       fill.color = BADGE_RED
@@ -103,8 +106,8 @@ private class TabRowView(context: Context, val entry: TabEntry) : View(context) 
 
   override fun onDraw(canvas: Canvas) {
     val w = width.toFloat(); val h = height.toFloat()
-    if (lit) { fill.color = Theme.alpha(WHITE, 0.14f); canvas.drawRoundRect(0f, 0f, w, h, 16f * d, 16f * d, fill) }
-    Icons.draw(canvas, entry.symbol, 24f * d, h / 2, 21f * d, Theme.alpha(WHITE, if (lit) 1f else 0.62f))
+    if (lit) { fill.color = Theme.alpha(ink, if (Theme.dark) 0.14f else 0.08f); canvas.drawRoundRect(0f, 0f, w, h, 16f * d, 16f * d, fill) }
+    Icons.draw(canvas, entry.symbol, 24f * d, h / 2, 21f * d, Theme.alpha(ink, if (lit) 1f else 0.62f))
     var badgeWidth = 0f
     if (entry.badge > 0) {
       val text = badgeWords(entry.badge)
@@ -113,7 +116,7 @@ private class TabRowView(context: Context, val entry: TabEntry) : View(context) 
       canvas.drawRoundRect(w - 10f * d - badgeWidth, h / 2 - 10f * d, w - 10f * d, h / 2 + 10f * d, 10f * d, 10f * d, fill)
       canvas.drawText(text, w - 10f * d - badgeWidth / 2, h / 2 - (count.ascent() + count.descent()) / 2, count)
     }
-    label.color = Theme.alpha(WHITE, if (lit) 1f else 0.72f)
+    label.color = Theme.alpha(ink, if (lit) 1f else 0.72f)
     val shown = TextUtils.ellipsize(entry.label, label, w - 48f * d - badgeWidth - 16f * d, TextUtils.TruncateAt.END)
     canvas.drawText(shown, 0, shown.length, 48f * d, h / 2 - (label.ascent() + label.descent()) / 2, label)
   }
@@ -207,7 +210,8 @@ private class TabListOverlay(context: Context, entries: List<TabEntry>, behind: 
 }
 
 /** The phone's tab bar, drawn and driven by plain views.
- *  - The bar is a plate of dark glass (see Glass: the page behind it, blurred, on Android 12 and later).
+ *  - The bar is a plate of glass (see Glass: the page behind it, blurred, on Android 12 and later): dark on a dark
+ *    theme, light with dark icons on a light one.
  *  - The chosen tab stands on a light capsule; choosing another tab sends the capsule there with a spring and a
  *    faint second capsule follows a little late and fades — the trail.
  *  - A light lives in the bar: two quiet colours at the sides, a brighter one under the chosen tab; with a
@@ -352,8 +356,11 @@ class TabBarView(context: Context) : ViewGroup(context) {
   private fun paintGlow() {
     // Calm: a cool silver. With colours (a track's cover): centre, left, right.
     val coloured = glow.size == 3
-    val colors = if (coloured) glow else listOf(0xFFE8EDF5.toInt(), 0xFF808FA8.toInt(), 0xFFC9D1E0.toInt())
-    val strength = if (coloured) 1f else 0.7f
+    val dark = Theme.dark
+    val colors = if (coloured) glow
+      else if (dark) listOf(0xFFE8EDF5.toInt(), 0xFF808FA8.toInt(), 0xFFC9D1E0.toInt())
+      else listOf(0xFF8F99AD.toInt(), 0xFFB5BDCC.toInt(), 0xFF99A6B8.toInt())
+    val strength = if (coloured) 1f else if (dark) 0.7f else 0.45f
     // The owner's choice: one small round glow right behind the chosen icon; a track's colour a little softened.
     val hsv = FloatArray(3)
     Color.colorToHSV(colors[0], hsv)
@@ -387,14 +394,14 @@ class TabBarView(context: Context) : ViewGroup(context) {
 
     val top = 4f * d; val wide = cell - 8f * d; val tall = h - 8f * d; val round = tall / 2
     if (trailAlpha > 0f) {
-      fill.color = Theme.alpha(WHITE, 0.16f * trailAlpha)
+      fill.color = Theme.alpha(ink, (if (Theme.dark) 0.16f else 0.08f) * trailAlpha)
       canvas.drawRoundRect(trailX, top, trailX + wide, top + tall, round, round, fill)
     }
     if (capsuleAlpha > 0f) {
       canvas.save(); canvas.scale(liftScale, liftScale, capsuleX + wide / 2, h / 2)
-      fill.color = Theme.alpha(WHITE, 0.14f * capsuleAlpha)
+      fill.color = Theme.alpha(ink, (if (Theme.dark) 0.14f else 0.07f) * capsuleAlpha)
       canvas.drawRoundRect(capsuleX, top, capsuleX + wide, top + tall, round, round, fill)
-      rim.color = Theme.alpha(WHITE, 0.22f * capsuleAlpha)
+      rim.color = Theme.alpha(WHITE, (if (Theme.dark) 0.22f else 0.8f) * capsuleAlpha)
       val half = rim.strokeWidth / 2
       canvas.drawRoundRect(capsuleX + half, top + half, capsuleX + wide - half, top + tall - half, round - half, round - half, rim)
       canvas.restore()

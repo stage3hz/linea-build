@@ -55,7 +55,7 @@ class PlayerScreen(context: Context, private val player: MusicPlayer) : Screen(c
   private val changed: () -> Unit = { refresh() }
 
   init {
-    setBackgroundColor(0xFF101112.toInt())
+    setBackgroundColor(Theme.page(0xFF101112.toInt()))
     isClickable = true
     val wide = LinearLayout.LayoutParams.MATCH_PARENT; val wrap = LinearLayout.LayoutParams.WRAP_CONTENT
     scroll.isVerticalScrollBarEnabled = false
@@ -110,7 +110,7 @@ class PlayerScreen(context: Context, private val player: MusicPlayer) : Screen(c
 
     slider.progressTintList = ColorStateList.valueOf(Theme.text)
     slider.thumbTintList = ColorStateList.valueOf(Theme.text)
-    slider.progressBackgroundTintList = ColorStateList.valueOf(0x29FFFFFF)
+    slider.progressBackgroundTintList = ColorStateList.valueOf(Theme.veil(0.16f))
     slider.contentDescription = "Позиция воспроизведения"
     slider.setPadding(dp(8f), dp(8f), dp(8f), dp(8f))
     slider.setOnSeekBarChangeListener(object : SeekBar.OnSeekBarChangeListener {
@@ -134,7 +134,7 @@ class PlayerScreen(context: Context, private val player: MusicPlayer) : Screen(c
 
     repeatButton.setOnClickListener { player.toggleRepeat() }
     backButton.setOnClickListener { player.previous() }
-    playButton.fill = Color.WHITE
+    playButton.fill = Theme.onBlack(Color.WHITE, Theme.accent)
     playButton.ink = Theme.onAccent
     playButton.setOnClickListener { player.togglePlayback() }
     forwardButton.setOnClickListener { player.next() }
@@ -161,7 +161,7 @@ class PlayerScreen(context: Context, private val player: MusicPlayer) : Screen(c
     lyricsButton.contentDescription = "Текст"
     lyricsButton.setOnClickListener { lyrics() }
     for (button in listOf(queueButton, lyricsButton)) { button.isClickable = true; button.isFocusable = true }
-    val panel = LinearLayout(context).apply { orientation = LinearLayout.HORIZONTAL; background = context.plate(0x0FFFFFFF, 16f) }
+    val panel = LinearLayout(context).apply { orientation = LinearLayout.HORIZONTAL; background = context.plate(Theme.veil(0.06f), 16f) }
     panel.addView(queueButton, LinearLayout.LayoutParams(0, dp(48f), 1f))
     panel.addView(lyricsButton, LinearLayout.LayoutParams(0, dp(48f), 1f))
     AIKit.add(column, panel, 16f)

@@ -62,7 +62,7 @@ class MessageMenu(
   /** One line of the menu. */
   private inner class Row(val item: Item) : View(context) {
     private val text = TextPaint(Paint.ANTI_ALIAS_FLAG).apply { textSize = 16f * d }
-    private val fill = Paint(Paint.ANTI_ALIAS_FLAG).apply { color = 0x1AFFFFFF }
+    private val fill = Paint(Paint.ANTI_ALIAS_FLAG).apply { color = Theme.veil(0.1f) }
     init { isClickable = true; isFocusable = true; contentDescription = item.label }
     override fun getAccessibilityClassName(): CharSequence = "android.widget.Button"
     override fun drawableStateChanged() { super.drawableStateChanged(); invalidate() }
@@ -98,7 +98,7 @@ class MessageMenu(
     maxLines = 6
     ellipsize = TextUtils.TruncateAt.END
     setPadding(dp(12f), dp(7f), dp(12f), dp(7f))
-    background = GradientDrawable().apply { setColor(0xFF1F2023.toInt()); cornerRadius = 18f * d }
+    background = GradientDrawable().apply { setColor(Theme.panel(0xFF1F2023.toInt())); cornerRadius = 18f * d }
   }
   private var rowViews: List<Row> = emptyList()
 
@@ -203,7 +203,7 @@ class MessageMenu(
         isFocusable = true
         contentDescription = "Реакция $emoji"
         isSelected = chosen
-        if (chosen) background = GradientDrawable().apply { setColor(0x29FFFFFF); cornerRadius = 20f * d }
+        if (chosen) background = GradientDrawable().apply { setColor(Theme.veil(0.16f)); cornerRadius = 20f * d }
         setOnClickListener { dismiss(); onReact?.invoke(emoji) }
       }
       pill.addView(button)
@@ -219,7 +219,8 @@ class MessageMenu(
       window.setBackgroundDrawable(ColorDrawable(Color.TRANSPARENT))
       window.setLayout(WindowManager.LayoutParams.MATCH_PARENT, WindowManager.LayoutParams.MATCH_PARENT)
       window.addFlags(WindowManager.LayoutParams.FLAG_DIM_BEHIND)
-      window.setDimAmount(0.5f)
+      // The thin veil behind the menu: dark on a dark theme; on a light one the page stays light (Theme.thinBlur on iOS).
+      window.setDimAmount(if (Theme.dark) 0.5f else 0.18f)
       if (Build.VERSION.SDK_INT >= 31) Blur.behind(window, Math.round(18f * d))
       if (Build.VERSION.SDK_INT >= 30) window.setDecorFitsSystemWindows(false)
       window.setWindowAnimations(android.R.style.Animation_Dialog)

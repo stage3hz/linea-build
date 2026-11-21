@@ -126,7 +126,7 @@ class MsgLinkCardLayout private constructor(
     clip.reset(); clip.addRoundRect(box, 12f * d, 12f * d, Path.Direction.CW)
     canvas.save()
     canvas.clipPath(clip)
-    fill.color = if (pressed) 0x1CFFFFFF else 0x0FFFFFFF
+    fill.color = if (pressed) Theme.veil(0.11f) else Theme.veil(0.06f)
     canvas.drawRect(box, fill)
     fill.color = accent
     canvas.drawRect(x, y, x + 3f * d, y + height, fill)
@@ -156,7 +156,7 @@ class MsgLinkCardLayout private constructor(
         canvas.drawRoundRect(left, top, left + w, top + h, 9f * d, 9f * d, image)
         image.shader = null
       } else {
-        fill.color = 0x0DFFFFFF
+        fill.color = Theme.veil(0.05f)
         canvas.drawRoundRect(left, top, left + w, top + h, 9f * d, 9f * d, fill)
       }
     }

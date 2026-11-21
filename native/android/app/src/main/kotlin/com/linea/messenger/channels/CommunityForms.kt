@@ -118,7 +118,7 @@ class InviteCardView(context: Context, preview: InvitePreview) : LinearLayout(co
 
   init {
     orientation = VERTICAL
-    background = context.plate(0x0FFFFFFF, 16f, 0x14FFFFFF)
+    background = context.plate(Theme.veil(0.06f), 16f, Theme.veil(0.08f))
     setPadding(context.px(12f), context.px(12f), context.px(12f), context.px(12f))
     val community = preview.community
     val kind = context.words((if (community.blog) "КАНАЛ" else "СЕРВЕР") + (if (community.closed) " · ЗАКРЫТЫЙ" else ""), 11f, Theme.muted, 700)

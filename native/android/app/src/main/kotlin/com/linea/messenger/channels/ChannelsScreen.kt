@@ -72,7 +72,7 @@ class ChannelsScreen(context: Context, private val messenger: Messenger?) : Scre
   init {
     setBackgroundColor(Theme.bg)
     list.divider = null; list.dividerHeight = 0
-    list.selector = ColorDrawable(0x12FFFFFF); list.cacheColorHint = Color.TRANSPARENT
+    list.selector = ColorDrawable(Theme.veil(0.07f)); list.cacheColorHint = Color.TRANSPARENT
     list.isVerticalScrollBarEnabled = false; list.clipToPadding = false
     // Rooms: above the communities, as the list's header.
     list.addHeaderView(rooms, null, false)

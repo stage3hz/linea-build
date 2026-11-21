@@ -357,7 +357,7 @@ class ChatNotice(context: Context) : TextView(context) {
     setTextColor(if (danger) Theme.danger else Theme.text)
     background = GradientDrawable().apply {
       setColor(Theme.surface2); cornerRadius = 16f * d
-      setStroke(maxOf(1, Math.round(d)), if (danger) Theme.alpha(Theme.danger, 0.6f) else 0x1AFFFFFF)
+      setStroke(maxOf(1, Math.round(d)), if (danger) Theme.alpha(Theme.danger, 0.6f) else Theme.veil(0.1f))
     }
   }
 
@@ -480,7 +480,7 @@ class ChoiceSheet(context: Context, val heading: String, val note: String = "", 
     val stack = LinearLayout(context).apply {
       orientation = LinearLayout.VERTICAL
       setPadding(dp(8f), dp(30f), dp(8f), dp(24f))
-      background = GradientDrawable().apply { setColor(0xFF141516.toInt()); cornerRadii = floatArrayOf(28f * d, 28f * d, 28f * d, 28f * d, 0f, 0f, 0f, 0f) }
+      background = GradientDrawable().apply { setColor(Theme.page(0xFF141516.toInt())); cornerRadii = floatArrayOf(28f * d, 28f * d, 28f * d, 28f * d, 0f, 0f, 0f, 0f) }
     }
     val wide = LinearLayout.LayoutParams.MATCH_PARENT; val wrap = LinearLayout.LayoutParams.WRAP_CONTENT
     stack.addView(TextView(context).apply {
@@ -513,7 +513,7 @@ class ChoiceSheet(context: Context, val heading: String, val note: String = "", 
       isFocusable = true
       contentDescription = if (choice.note.isEmpty()) choice.label else choice.label + ". " + choice.note
       background = android.graphics.drawable.StateListDrawable().apply {
-        addState(intArrayOf(android.R.attr.state_pressed), GradientDrawable().apply { setColor(0x12FFFFFF); cornerRadius = 14f * d })
+        addState(intArrayOf(android.R.attr.state_pressed), GradientDrawable().apply { setColor(Theme.veil(0.07f)); cornerRadius = 14f * d })
       }
       setOnClickListener { chosen(choice) }
     }

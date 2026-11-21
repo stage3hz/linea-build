@@ -88,6 +88,14 @@ shot 58-room-music --es roomsdemo music
 shot 59-room-ring --es roomsdemo ring
 shot 60-room-bar --es roomsdemo bar
 shot 61-room-picker --es roomsdemo picker
+
+# Every section follows the theme (design/Theme.kt `page`/`raised`/`panel`, light glass in shell/TabBar.kt); the last shot puts «Чёрная» back.
+shot 63-light-chats --ez demo true --es settheme light
+shot 64-light-chat --ez demo true --ez chat true --es settheme light
+shot 65-light-channels --es channelsdemo 1 --es settheme light
+shot 66-light-music --es musicdemo 1 --es settheme light
+shot 67-light-room --es roomsdemo room --es settheme light
+shot 68-reset --ez demo true --es settheme black
 # What the app itself said while it ran (crashes show here).
 adb logcat -d -t 400 '*:E' > "$OUT/logcat-errors.txt" 2>/dev/null || true
 adb shell dumpsys package "$APP" | grep -E "versionName|primaryCpuAbi" || true

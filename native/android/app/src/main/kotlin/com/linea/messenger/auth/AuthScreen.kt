@@ -355,7 +355,7 @@ class AuthScreen(context: Context, private val server: Server) : Screen(context)
     show(switcher, isLogin || isRegister)
     switches.forEachIndexed { index, item ->
       val on = (index == 1) == isRegister
-      item.background = if (on) context.plate(0x24FFFFFF, 7f) else null
+      item.background = if (on) context.plate(Theme.veil(0.14f), 7f) else null
       item.setTextColor(if (on) Theme.text else Theme.muted)
       item.typeface = Theme.weight(if (on) 700 else 500)
       item.isSelected = on
@@ -369,7 +369,7 @@ class AuthScreen(context: Context, private val server: Server) : Screen(context)
     show(progress, step != 0)
     bars.forEachIndexed { index, bar ->
       show(bar, index < stepCount)
-      bar.background = context.plate(if (index < step) Theme.accent else 0x1FFFFFFF, 2f)
+      bar.background = context.plate(if (index < step) Theme.accent else Theme.veil(0.12f), 2f)
     }
     progressLabel.text = "$step / $stepCount"
     progress.contentDescription = "Шаг $step из $stepCount"

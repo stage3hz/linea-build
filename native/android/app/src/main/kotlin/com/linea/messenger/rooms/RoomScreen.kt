@@ -22,7 +22,6 @@ import com.linea.messenger.chatactions.ChoiceSheet
 import com.linea.messenger.design.Glass
 import com.linea.messenger.design.GlassSource
 import com.linea.messenger.design.Theme
-import com.linea.messenger.design.orbPair
 import com.linea.messenger.design.plate
 import com.linea.messenger.design.words
 import com.linea.messenger.people.Person
@@ -108,9 +107,44 @@ class RoomSeatView(context: Context) : RoomPartsView(context) {
   }
 }
 
-/** The light behind the people who are inside: each has a soft glow of their own colour, brighter while they talk. */
+/** The light behind the people who are inside: each has a soft glow of their own colour, a little brighter while
+ *  they talk. The colours are kept quiet (little saturation, low alpha), so the stage reads as a calm room and not
+ *  as a bright many-coloured gradient (as on the iPhone: RoomViewController.swift, RoomLightsView). */
 class RoomLightsView(context: Context) : View(context) {
   class Light(val x: Float, val y: Float, val radius: Float, val color: Int, val strength: Float)
+
+  companion object {
+    /** How strong a person's light is: while talking and while quiet. */
+    const val TALKING_STRENGTH = 0.2f
+    const val QUIET_STRENGTH = 0.11f
+    /** How far the light reaches, in seats. */
+    const val REACH = 2.1f
+
+    /** A person's colour (0xRRGGBB) made quiet for the light behind their seat: the same hue, far less saturated,
+     *  a little lighter on a dark theme and a little deeper on a light one. Opaque 0xAARRGGBB. */
+    fun calm(rgb: Int, dark: Boolean = Theme.dark): Int {
+      val r = ((rgb shr 16) and 255) / 255f; val g = ((rgb shr 8) and 255) / 255f; val b = (rgb and 255) / 255f
+      val top = maxOf(r, g, b); val low = minOf(r, g, b); val span = top - low
+      val hue = when {
+        span == 0f -> 0f
+        top == r -> ((g - b) / span).let { if (it < 0f) it + 6f else it }
+        top == g -> (b - r) / span + 2f
+        else -> (r - g) / span + 4f
+      } / 6f
+      val saturation = if (top == 0f) 0f else span / top
+      val quiet = minOf(saturation * 0.45f, 0.32f)
+      val level = if (dark) maxOf(top, 0.72f) else minOf(maxOf(top, 0.55f), 0.78f)
+      // Back from hue, saturation and brightness.
+      val turn = hue * 6f; val sector = turn.toInt() % 6; val part = turn - turn.toInt()
+      val p = level * (1 - quiet); val q = level * (1 - quiet * part); val t = level * (1 - quiet * (1 - part))
+      val (red, green, blue) = when (sector) {
+        0 -> Triple(level, t, p); 1 -> Triple(q, level, p); 2 -> Triple(p, level, t)
+        3 -> Triple(p, q, level); 4 -> Triple(t, p, level); else -> Triple(level, p, q)
+      }
+      fun byte(v: Float) = Math.round(v * 255f).coerceIn(0, 255)
+      return (0xFF shl 24) or (byte(red) shl 16) or (byte(green) shl 8) or byte(blue)
+    }
+  }
 
   private val paint = Paint(Paint.ANTI_ALIAS_FLAG)
   var lights: List<Light> = emptyList()
@@ -530,7 +564,10 @@ class RoomScreen(context: Context, val roomId: String) : Screen(context) {
       val seat = seatViews.getOrPut(member.id) { RoomSeatView(context).also { stage.addView(it) } }
       seat.show(member, mine, present, talking, member.id in muted, side, Math.round(x), Math.round(y))
       kept.add(member.id)
-      if (present) lit.add(RoomLightsView.Light(x, y, size * 2.3f * d, orbPair(member.avatarColor).first, if (talking) 0.42f else 0.26f))
+      if (present) {
+        val strength = if (talking) RoomLightsView.TALKING_STRENGTH else RoomLightsView.QUIET_STRENGTH
+        lit.add(RoomLightsView.Light(x, y, size * RoomLightsView.REACH * d, RoomLightsView.calm(member.avatarColor), strength))
+      }
     }
     for (id in seatViews.keys.toList()) if (id !in kept) seatViews.remove(id)?.let { stage.removeView(it) }
     stage.lights.lights = lit

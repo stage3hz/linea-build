@@ -39,6 +39,7 @@ import com.linea.messenger.design.Theme
 import com.linea.messenger.design.plate
 import com.linea.messenger.design.px
 import com.linea.messenger.design.words
+import com.linea.messenger.settings.ThemeStore
 import java.io.File
 import java.util.UUID
 
@@ -78,7 +79,7 @@ object AIText {
       out.setSpan(TypefaceSpan("monospace"), start, out.length, Spanned.SPAN_EXCLUSIVE_EXCLUSIVE)
       out.setSpan(AbsoluteSizeSpan(Math.round(TypedValue.applyDimension(TypedValue.COMPLEX_UNIT_SP, size - 2f, context.resources.displayMetrics))), start, out.length, Spanned.SPAN_EXCLUSIVE_EXCLUSIVE)
       out.setSpan(ForegroundColorSpan(Theme.text), start, out.length, Spanned.SPAN_EXCLUSIVE_EXCLUSIVE)
-      out.setSpan(BackgroundColorSpan(0x12FFFFFF), start, out.length, Spanned.SPAN_EXCLUSIVE_EXCLUSIVE)
+      out.setSpan(BackgroundColorSpan(Theme.veil(0.07f)), start, out.length, Spanned.SPAN_EXCLUSIVE_EXCLUSIVE)
     }
     return out
   }
@@ -186,13 +187,13 @@ class AIRoundButton(context: Context, symbol: String, words: String, active: Boo
     val cx = width / 2f; val cy = height / 2f; val radius = minOf(width, height) / 2f
     val dim = if (isPressed || !isEnabled) 0.5f else 1f
     paint.style = Paint.Style.FILL
-    paint.color = if (fill != 0) fill else if (active) 0x29FFFFFF else Theme.surface2
+    paint.color = if (fill != 0) fill else if (active) Theme.veil(0.16f) else Theme.surface2
     paint.alpha = Math.round(paint.alpha * dim)
     canvas.drawCircle(cx, cy, radius, paint)
     if (bordered && fill == 0) {
       paint.style = Paint.Style.STROKE
       paint.strokeWidth = d
-      paint.color = Theme.alpha(Color.WHITE, (if (active) 0.5f else 0.1f) * dim)
+      paint.color = Theme.veil((if (active) 0.5f else 0.1f) * dim)
       canvas.drawCircle(cx, cy, radius - d / 2, paint)
     }
     AIIcons.draw(canvas, symbol, cx, cy, icon * d, Theme.alpha(ink, (ink ushr 24) / 255f * dim))
@@ -207,7 +208,7 @@ class AIWideButton(context: Context, label: String, symbol: String? = null, seco
   init {
     orientation = HORIZONTAL
     gravity = Gravity.CENTER
-    background = context.plate(if (secondary) Theme.surface2 else Theme.accent, 24f, if (secondary) 0x1AFFFFFF else 0)
+    background = context.plate(if (secondary) Theme.surface2 else Theme.accent, 24f, if (secondary) Theme.veil(0.1f) else 0)
     setPadding(context.px(18f), context.px(13f), context.px(18f), context.px(13f))
     minimumHeight = context.px(46f)
     if (symbol != null) addView(AIIconView(context, symbol, 16f, if (secondary) Theme.text else Theme.onAccent), LayoutParams(context.px(18f), context.px(18f)).apply { marginEnd = context.px(8f) })
@@ -246,7 +247,7 @@ object AIKit {
 
   /** A few words on a quiet plate. */
   fun notice(context: Context, text: String, error: Boolean): View = LinearLayout(context).apply {
-    background = context.plate(0x0FFFFFFF, 14f)
+    background = context.plate(Theme.veil(0.06f), 14f)
     setPadding(context.px(14f), context.px(12f), context.px(14f), context.px(12f))
     addView(label(context, text, 13f, color = if (error) Theme.danger else Theme.text), LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT))
     if (error) accessibilityLiveRegion = View.ACCESSIBILITY_LIVE_REGION_POLITE
@@ -278,7 +279,7 @@ class AISheet(context: Context, heading: String) : Dialog(context) {
       }
     }
     scroll.isVerticalScrollBarEnabled = false
-    scroll.background = GradientDrawable().apply { setColor(0xFF141516.toInt()); cornerRadii = floatArrayOf(24f * d, 24f * d, 24f * d, 24f * d, 0f, 0f, 0f, 0f) }
+    scroll.background = GradientDrawable().apply { setColor(Theme.page(0xFF141516.toInt())); cornerRadii = floatArrayOf(24f * d, 24f * d, 24f * d, 24f * d, 0f, 0f, 0f, 0f) }
     stack.setPadding(dp(20f), dp(24f), dp(20f), dp(28f))
     scroll.addView(stack, FrameLayout.LayoutParams(FrameLayout.LayoutParams.MATCH_PARENT, FrameLayout.LayoutParams.WRAP_CONTENT))
     if (heading.isNotEmpty()) stack.addView(AIKit.label(context, heading, 20f, 700))
@@ -309,7 +310,7 @@ class AISheet(context: Context, heading: String) : Dialog(context) {
       gravity = Gravity.CENTER_VERTICAL
       minimumHeight = dp(48f)
       setPadding(dp(10f), dp(8f), dp(10f), dp(8f))
-      if (checked) background = context.plate(0x1AFFFFFF, 16f)
+      if (checked) background = context.plate(Theme.veil(0.1f), 16f)
       isClickable = true
       isFocusable = true
       isEnabled = enabled
@@ -362,7 +363,7 @@ class AITurnView(context: Context, private val turn: AITurn, retryable: Boolean,
     val row = FrameLayout(context)
     val bubble = LinearLayout(context).apply {
       orientation = VERTICAL
-      background = context.plate(0xF51F2023.toInt(), 22f, 0x14FFFFFF)
+      background = context.plate(ThemeStore.look.bubble, 22f, Theme.veil(0.08f))
       setPadding(dp(14f), dp(14f), dp(14f), dp(14f))
     }
     if (code) bubble.addView(AIKit.label(context, "Задача по коду", 10f, 700))
@@ -376,7 +377,7 @@ class AITurnView(context: Context, private val turn: AITurn, retryable: Boolean,
   private fun answerCard(answer: AIReply, details: Boolean, playing: Boolean): View {
     val card = LinearLayout(context).apply {
       orientation = VERTICAL
-      background = context.plate(Theme.surface2, 23f, 0x14FFFFFF)
+      background = context.plate(Theme.surface2, 23f, Theme.veil(0.08f))
       setPadding(dp(16f), dp(16f), dp(16f), dp(10f))
     }
     val head = LinearLayout(context).apply {
@@ -407,7 +408,7 @@ class AITurnView(context: Context, private val turn: AITurn, retryable: Boolean,
           override fun onMeasure(widthSpec: Int, heightSpec: Int) = super.onMeasure(widthSpec, MeasureSpec.makeMeasureSpec(MeasureSpec.getSize(widthSpec), MeasureSpec.EXACTLY))
         }
         picture.scaleType = ImageView.ScaleType.CENTER_CROP
-        picture.setBackgroundColor(0x0DFFFFFF)
+        picture.setBackgroundColor(Theme.veil(0.05f))
         picture.clipToOutline = true
         picture.outlineProvider = object : ViewOutlineProvider() {
           override fun getOutline(view: View, outline: Outline) = outline.setRoundRect(0, 0, view.width, view.height, 16f * resources.displayMetrics.density)

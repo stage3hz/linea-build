@@ -40,16 +40,26 @@ private class SourceNode {
   }
 }
 
-/** A plate of dark glass drawn by `owner`: the page behind it blurred (Android 12 and later, on a
- *  hardware-accelerated canvas), under a translucent dark fill and a thin light rim. Where the blur is not
- *  available the fill alone is drawn, and denser. */
+/** A plate of glass drawn by `owner`: the page behind it blurred (Android 12 and later, on a
+ *  hardware-accelerated canvas), under a translucent fill and a thin rim. Where the blur is not available the fill
+ *  alone is drawn, and denser. Dark glass with a light rim on a dark theme (as it always was); on a light theme
+ *  light glass with a faint dark rim, as the iPhone's glass turns light there (TabGlass.effect `dark:`). */
 class Glass(private val owner: View) {
   /** The page behind the plate; null = no blur. */
   var source: GlassSource? = null
   /** The fill over the blur, and the fill without one. */
-  var tint = 0x8C141518.toInt()
-  var plain = 0xF7161718.toInt()
-  var rim = 0x1FFFFFFF
+  var tint = if (Theme.dark) DARK_TINT else LIGHT_TINT
+  var plain = if (Theme.dark) DARK_PLAIN else LIGHT_PLAIN
+  var rim = if (Theme.dark) DARK_RIM else LIGHT_RIM
+
+  companion object {
+    const val DARK_TINT = 0x8C141518.toInt()
+    const val DARK_PLAIN = 0xF7161718.toInt()
+    const val DARK_RIM = 0x1FFFFFFF
+    const val LIGHT_TINT = 0xA6F7F7F9.toInt()
+    const val LIGHT_PLAIN = 0xF7F7F7F9.toInt()
+    const val LIGHT_RIM = 0x14000000
+  }
 
   private val d = owner.resources.displayMetrics.density
   private val fill = Paint(Paint.ANTI_ALIAS_FLAG)

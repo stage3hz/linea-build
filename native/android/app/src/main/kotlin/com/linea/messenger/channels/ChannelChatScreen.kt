@@ -148,7 +148,7 @@ class ChannelChatScreen(context: Context, private val messenger: Messenger?, pri
     addView(header)
     notice.gravity = Gravity.CENTER
     notice.maxLines = 2
-    notice.background = context.plate(0xFF1B1C1E.toInt(), 12f)
+    notice.background = context.plate(Theme.panel(0xFF1B1C1E.toInt()), 12f)
     notice.visibility = View.GONE
     notice.isClickable = true
     notice.setOnClickListener { noticePressed() }

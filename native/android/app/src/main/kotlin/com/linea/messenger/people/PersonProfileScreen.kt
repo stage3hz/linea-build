@@ -271,7 +271,7 @@ class PersonProfileScreen(
   }
 
   private fun hairline(): View = View(context).apply {
-    setBackgroundColor(0x1AFFFFFF)
+    setBackgroundColor(Theme.veil(0.1f))
     layoutParams = LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, maxOf(1, dp(0.5f))).apply { leftMargin = dp(16f); rightMargin = dp(16f) }
   }
 
@@ -529,7 +529,7 @@ class ReportSheet(context: Context, private val onSend: (String) -> Unit) : Dial
     override fun getAccessibilityClassName(): CharSequence = "android.widget.RadioButton"
     override fun onDraw(canvas: Canvas) {
       val on = index == chosen
-      PeopleIcons.draw(canvas, if (on) "radio.on" else "radio", 11f * d, height / 2f, 22f * d, if (on) Theme.accent else Theme.muted, 0xFF141516.toInt())
+      PeopleIcons.draw(canvas, if (on) "radio.on" else "radio", 11f * d, height / 2f, 22f * d, if (on) Theme.accent else Theme.muted, Theme.page(0xFF141516.toInt()))
       canvas.drawText(words, 34f * d, height / 2f - (text.ascent() + text.descent()) / 2, text)
     }
   }
@@ -541,7 +541,7 @@ class ReportSheet(context: Context, private val onSend: (String) -> Unit) : Dial
     val stack = LinearLayout(context).apply {
       orientation = LinearLayout.VERTICAL
       setPadding(dp(22f), dp(30f), dp(22f), dp(24f))
-      background = GradientDrawable().apply { setColor(0xFF141516.toInt()); cornerRadii = floatArrayOf(28f * d, 28f * d, 28f * d, 28f * d, 0f, 0f, 0f, 0f) }
+      background = GradientDrawable().apply { setColor(Theme.page(0xFF141516.toInt())); cornerRadii = floatArrayOf(28f * d, 28f * d, 28f * d, 28f * d, 0f, 0f, 0f, 0f) }
     }
     val wide = LinearLayout.LayoutParams.MATCH_PARENT; val wrap = LinearLayout.LayoutParams.WRAP_CONTENT
     stack.addView(TextView(context).apply { text = "Пожаловаться"; textSize = 20f; typeface = Theme.weight(700); setTextColor(Theme.text) })

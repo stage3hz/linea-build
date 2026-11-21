@@ -461,7 +461,7 @@ class PeopleLabelCell(context: Context) : TextView(context) {
 /** «Кому напишем?» — the list is empty. */
 class PeopleEmptyCell(context: Context) : ViewGroup(context) {
   private val d = resources.displayMetrics.density
-  private val paint = Paint(Paint.ANTI_ALIAS_FLAG).apply { color = 0x12FFFFFF }
+  private val paint = Paint(Paint.ANTI_ALIAS_FLAG).apply { color = Theme.veil(0.07f) }
   private val heading = TextView(context)
   private val words = TextView(context)
 
@@ -613,10 +613,10 @@ class PersonCell(context: Context) : ViewGroup(context) {
   override fun onDraw(canvas: Canvas) {
     val gap = (if (framed) 6f else 7f) * d
     val l = 14f * d; val r = width - 14f * d; val b = height - gap; val radius = 24f * d
-    val fill = if (isPressed) 0x12FFFFFF else if (framed) 0x0AFFFFFF else 0
+    val fill = if (isPressed) Theme.veil(0.07f) else if (framed) Theme.veil(0.04f) else 0
     if (fill != 0) { paint.style = Paint.Style.FILL; paint.color = fill; canvas.drawRoundRect(l, 0f, r, b, radius, radius, paint) }
     if (framed) {
-      paint.style = Paint.Style.STROKE; paint.strokeWidth = d; paint.color = 0x14FFFFFF
+      paint.style = Paint.Style.STROKE; paint.strokeWidth = d; paint.color = Theme.veil(0.08f)
       canvas.drawRoundRect(l + d / 2, d / 2, r - d / 2, b - d / 2, radius, radius, paint)
     }
   }

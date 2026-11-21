@@ -142,9 +142,9 @@ class RoundIconButton(context: Context, private val symbol: String, private val 
     var ink = Theme.bg
     val color = when (look) {
       Look.PLAIN -> Theme.muted
-      Look.SOFT -> { paint.style = Paint.Style.FILL; paint.color = shade(0x14FFFFFF); canvas.drawCircle(cx, cy, radius, paint); Theme.accent }
+      Look.SOFT -> { paint.style = Paint.Style.FILL; paint.color = shade(Theme.veil(0.08f)); canvas.drawCircle(cx, cy, radius, paint); Theme.accent }
       Look.PRIMARY -> { paint.style = Paint.Style.FILL; paint.color = shade(Theme.accent); canvas.drawCircle(cx, cy, radius, paint); ink = Theme.accent; Theme.onAccent }
-      Look.OUTLINE -> { paint.style = Paint.Style.STROKE; paint.strokeWidth = d; paint.color = shade(0x24FFFFFF); canvas.drawCircle(cx, cy, radius - d / 2, paint); Theme.muted }
+      Look.OUTLINE -> { paint.style = Paint.Style.STROKE; paint.strokeWidth = d; paint.color = shade(Theme.veil(0.14f)); canvas.drawCircle(cx, cy, radius - d / 2, paint); Theme.muted }
     }
     PeopleIcons.draw(canvas, symbol, cx, cy, size * d, shade(color), ink)
   }

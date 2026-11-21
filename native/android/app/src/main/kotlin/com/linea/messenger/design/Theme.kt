@@ -26,6 +26,27 @@ object Theme {
   val dark: Boolean get() = ThemeStore.look.dark
   fun veil(alpha: Float): Int = ThemeStore.look.veil(alpha)
 
+  // Colours that the screens once fixed for the black look, made to follow the theme that is on
+  // (native/ios/Sources/Design/ThemeFollow.swift). On «Чёрная» each gives back the very colour the screen always
+  // had, so the app's own look does not change by a pixel; every other theme takes its own colours.
+  /** «Чёрная», the app's own look, is on. */
+  val black: Boolean get() = ThemeStore.look.black
+  /** On «Чёрная» the fixed colour; on any other theme the given one. */
+  fun onBlack(fixed: Int, otherwise: Int): Int = if (black) fixed else otherwise
+  /** An opaque page of its own (a sheet, a screen opened on top): `fixed` on «Чёрная», the theme's page elsewhere. */
+  fun page(fixed: Int): Int = onBlack(fixed, bg)
+  /** A card, a field or a bubble raised over the page: `fixed` on «Чёрная», the theme's card colour elsewhere. */
+  fun raised(fixed: Int): Int = onBlack(fixed, ThemeStore.look.incoming)
+  /** An opaque panel floating over the page (a menu, a toast, a bar): `fixed` on «Чёрная»; elsewhere the theme's
+   *  card colour laid over its page, so nothing shows through. */
+  fun panel(fixed: Int): Int = onBlack(fixed, solid(ThemeStore.look.incoming, bg))
+  /** One colour laid over another, as a single opaque colour. */
+  fun solid(top: Int, bottom: Int): Int {
+    val a = (top ushr 24) / 255f; val keep = 1 - a
+    fun mix(shift: Int): Int = (((top shr shift) and 255) * a + ((bottom shr shift) and 255) * keep).roundToInt().coerceIn(0, 255) shl shift
+    return 0xFF000000.toInt() or mix(16) or mix(8) or mix(0)
+  }
+
   /** The colours the chat list draws with. */
   val chatList: ChatPalette get() = ChatPalette(
     text = text, muted = muted, subtle = subtle, accent = accent, onAccent = onAccent, border = 0,

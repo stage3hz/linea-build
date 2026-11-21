@@ -20,6 +20,7 @@ import android.view.ViewGroup
 import android.view.inputmethod.InputMethodManager
 import android.widget.FrameLayout
 import android.widget.TextView
+import com.linea.messenger.design.Theme
 import com.linea.messenger.app.Messenger
 import com.linea.messenger.attachments.AttachmentStore
 import com.linea.messenger.attachments.ChatAttachments
@@ -188,9 +189,9 @@ class ChatMedia(private val host: ViewGroup, private val messenger: Messenger?, 
     this.notes = notes
 
     toast.textSize = 14f
-    toast.setTextColor(0xFFFFFFFF.toInt())
+    toast.setTextColor(Theme.onBlack(0xFFFFFFFF.toInt(), Theme.text))
     toast.gravity = Gravity.CENTER
-    toast.background = GradientDrawable().apply { setColor(0xEB141824.toInt()); cornerRadius = 14f * d }
+    toast.background = GradientDrawable().apply { setColor(Theme.panel(0xEB141824.toInt())); cornerRadius = 14f * d }
     toast.setPadding(dp(14f), dp(10f), dp(14f), dp(10f))
     toast.visibility = View.GONE
     toast.isClickable = false

@@ -167,8 +167,8 @@ class ChannelMenuView(
     isClickable = true
     contentDescription = "Закрыть"
     setOnClickListener { close() }
-    reactionBar.background = context.plate(0xFF1B1C1E.toInt(), 24f, 0x1AFFFFFF)
-    panel.background = context.plate(0xFF1B1C1E.toInt(), 16f, 0x1AFFFFFF)
+    reactionBar.background = context.plate(Theme.panel(0xFF1B1C1E.toInt()), 24f, Theme.veil(0.1f))
+    panel.background = context.plate(Theme.panel(0xFF1B1C1E.toInt()), 16f, Theme.veil(0.1f))
     panel.clipToOutline = true
     reactionBar.isClickable = true
     for ((emoji, chosen) in reactions) {
@@ -178,7 +178,7 @@ class ChannelMenuView(
       button.setTextColor(Theme.text)
       button.gravity = Gravity.CENTER
       button.includeFontPadding = false
-      button.background = if (chosen) context.plate(0x29FFFFFF, 19f) else null
+      button.background = if (chosen) context.plate(Theme.veil(0.16f), 19f) else null
       button.contentDescription = "Реакция $emoji"
       button.isClickable = true; button.isFocusable = true
       button.setOnClickListener { close(); onReact(emoji) }
@@ -208,7 +208,7 @@ class ChannelMenuView(
     override fun drawableStateChanged() { super.drawableStateChanged(); invalidate() }
 
     override fun onDraw(canvas: android.graphics.Canvas) {
-      if (isPressed) canvas.drawColor(0x12FFFFFF)
+      if (isPressed) canvas.drawColor(Theme.veil(0.07f))
       ChannelIcons.draw(canvas, action.symbol, 26f * d, height / 2f, 19f * d, color)
       paint.color = color
       canvas.drawText(action.label, 50f * d, height / 2f - (paint.ascent() + paint.descent()) / 2, paint)

@@ -28,6 +28,7 @@ import android.text.TextPaint
 import android.text.TextUtils
 import android.util.Base64
 import android.view.View
+import com.linea.messenger.design.Theme
 import com.linea.messenger.voice.MediaRowArt
 import com.linea.messenger.voice.MsgMediaBoxes
 import com.linea.messenger.voice.MsgMediaState
@@ -346,9 +347,9 @@ class MsgRowView(context: Context) : View(context) {
     val radii = floatArrayOf(r, r, r, r, if (item.mine && item.tail) tight else r, if (item.mine && item.tail) tight else r, if (!item.mine && item.tail) tight else r, if (!item.mine && item.tail) tight else r)
     path.reset(); path.addRoundRect(left, 0f, left + bubbleW, bubbleH, radii, Path.Direction.CW)
     if (!MSG_OPEN_LOOK) canvas.drawPath(path, fill)
-    if (isPressed) { fill.color = 0x14FFFFFF; canvas.drawPath(path, fill) }
+    if (isPressed) { fill.color = Theme.veil(0.08f); canvas.drawPath(path, fill) }
     // ChatActions: the message a jump ended at is lit.
-    if (flash) { fill.color = 0x29FFFFFF; canvas.drawPath(path, fill) }
+    if (flash) { fill.color = Theme.veil(0.16f); canvas.drawPath(path, fill) }
 
     val x = left + 13f * d
     var y = 9f * d

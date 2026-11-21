@@ -135,7 +135,7 @@ class MusicCoverView(context: Context, private val radius: Float) : View(context
   }
 
   override fun onDraw(canvas: Canvas) {
-    paint.color = 0x12FFFFFF
+    paint.color = Theme.veil(0.07f)
     canvas.drawRect(0f, 0f, width.toFloat(), height.toFloat(), paint)
     val picture = track?.let { MusicCovers.image(it) }
     if (picture == null) {
@@ -171,7 +171,7 @@ class MusicChip(context: Context, label: String, symbol: String, selected: Boole
   override fun getAccessibilityClassName(): CharSequence = "android.widget.Button"
 
   fun show(label: String, symbol: String, selected: Boolean) {
-    background = context.plate(if (selected) Theme.text else 0x14FFFFFF, 19f)
+    background = context.plate(if (selected) Theme.text else Theme.veil(0.08f), 19f)
     val ink = if (selected) Theme.onAccent else Theme.text
     icon.symbol = symbol
     icon.color = ink
@@ -192,7 +192,7 @@ class MusicSegments(context: Context, labels: List<String>, spoken: String = "")
 
   init {
     orientation = HORIZONTAL
-    background = context.plate(0x12FFFFFF, 14f)
+    background = context.plate(Theme.veil(0.07f), 14f)
     setPadding(context.px(3f), context.px(3f), context.px(3f), context.px(3f))
     labels.forEachIndexed { index, label ->
       val button = AIKit.label(context, label, 13f, 500, lines = 1, align = Gravity.CENTER)
@@ -246,7 +246,7 @@ class MiniPlayerView(context: Context, private val player: MusicPlayer) : Linear
     orientation = HORIZONTAL
     gravity = Gravity.CENTER_VERTICAL
     setWillNotDraw(false)
-    background = context.plate(0xF71E1F21.toInt(), 24f, 0x1AFFFFFF)
+    background = context.plate(Theme.panel(0xF71E1F21.toInt()), 24f, Theme.veil(0.1f))
     setPadding(context.px(10f), context.px(8f), context.px(6f), context.px(8f))
     addView(cover, LayoutParams(context.px(46f), context.px(46f)))
     val words = LinearLayout(context).apply { orientation = VERTICAL }
@@ -280,7 +280,7 @@ class MiniPlayerView(context: Context, private val player: MusicPlayer) : Linear
   override fun dispatchDraw(canvas: Canvas) {
     super.dispatchDraw(canvas)
     val left = 15f * d; val wide = maxOf(0f, width - 30f * d); val top = height - 2f * d
-    paint.color = 0x1AFFFFFF
+    paint.color = Theme.veil(0.1f)
     canvas.drawRect(left, top, left + wide, height.toFloat(), paint)
     val part = if (player.duration > 0) (player.position / player.duration).coerceIn(0.0, 1.0) else 0.0
     paint.color = Theme.accent
@@ -338,7 +338,7 @@ class MusicTrackCell(context: Context) : LinearLayout(context) {
   fun show(track: MusicTrack, current: Boolean, favorite: Boolean) {
     cover.bind(track)
     heading.text = track.title
-    heading.setTextColor(if (current) Color.WHITE else Theme.text)
+    heading.setTextColor(if (current) Theme.onBlack(Color.WHITE, Theme.accent) else Theme.text)
     line.text = MusicWords.rowLine(track)
     heart.symbol = if (favorite) "heart.fill" else "heart"
     heart.color = if (favorite) Theme.text else Theme.muted
@@ -638,7 +638,7 @@ class MusicScreen(context: Context, private val messenger: Messenger?) : Screen(
   private fun build() {
     val wide = LinearLayout.LayoutParams.MATCH_PARENT; val wrap = LinearLayout.LayoutParams.WRAP_CONTENT
     list.divider = null; list.dividerHeight = 0
-    list.selector = ColorDrawable(0x0FFFFFFF); list.cacheColorHint = Color.TRANSPARENT
+    list.selector = ColorDrawable(Theme.veil(0.06f)); list.cacheColorHint = Color.TRANSPARENT
     list.isVerticalScrollBarEnabled = false; list.clipToPadding = false
     list.setOnScrollListener(object : AbsListView.OnScrollListener {
       override fun onScrollStateChanged(view: AbsListView?, state: Int) { if (state == AbsListView.OnScrollListener.SCROLL_STATE_TOUCH_SCROLL) hideKeyboard() }
@@ -663,7 +663,7 @@ class MusicScreen(context: Context, private val messenger: Messenger?) : Screen(
     }
     AIKit.add(column, tabs, 14f)
 
-    searchBox.background = context.plate(0x14FFFFFF, 14f)
+    searchBox.background = context.plate(Theme.veil(0.08f), 14f)
     searchBox.addView(AIIconView(context, "search", 18f, Theme.muted), FrameLayout.LayoutParams(dp(40f), dp(46f)))
     search.setHintTextColor(Theme.muted)
     search.setTextColor(Theme.text)
@@ -701,7 +701,7 @@ class MusicScreen(context: Context, private val messenger: Messenger?) : Screen(
 
     mixRow.orientation = LinearLayout.HORIZONTAL
     mixRow.gravity = Gravity.CENTER_VERTICAL
-    mixButton.fill = Color.WHITE
+    mixButton.fill = Theme.onBlack(Color.WHITE, Theme.accent)
     mixButton.ink = Theme.onAccent
     mixButton.setOnClickListener { mix() }
     val mixWords = LinearLayout(context).apply { orientation = LinearLayout.VERTICAL }
@@ -746,7 +746,7 @@ class MusicScreen(context: Context, private val messenger: Messenger?) : Screen(
   private fun noticeBox(text: String, error: Boolean, close: (() -> Unit)?): View {
     val box = LinearLayout(context).apply {
       orientation = LinearLayout.HORIZONTAL
-      background = context.plate(0x0FFFFFFF, 14f)
+      background = context.plate(Theme.veil(0.06f), 14f)
       setPadding(dp(14f), dp(12f), dp(8f), dp(12f))
     }
     box.addView(AIKit.label(context, text, 13f, color = if (error) Theme.danger else Theme.text), LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 1f))

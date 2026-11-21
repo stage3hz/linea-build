@@ -377,7 +377,7 @@ class AIScreen(context: Context, private val messenger: Messenger?) : Screen(con
       val open = LinearLayout(context).apply {
         orientation = LinearLayout.VERTICAL
         setPadding(dp(10f), dp(12f), dp(10f), dp(12f))
-        if (item.id == conversationId) background = context.plate(0x1AFFFFFF, 16f)
+        if (item.id == conversationId) background = context.plate(Theme.veil(0.1f), 16f)
         isClickable = true
         isFocusable = true
       }
@@ -554,7 +554,7 @@ class AIScreen(context: Context, private val messenger: Messenger?) : Screen(con
     addView(emptyBox)
 
     composer.orientation = LinearLayout.VERTICAL
-    composer.background = context.plate(0xF52E2E30.toInt(), 30f, 0x1AFFFFFF)
+    composer.background = context.plate(Theme.raised(0xF52E2E30.toInt()), 30f, Theme.veil(0.1f))
     composer.setPadding(dp(8f), dp(8f), dp(8f), dp(8f))
     input.hint = "Спроси что угодно"
     input.setHintTextColor(Theme.muted)

@@ -159,7 +159,7 @@ class CommunityScreen(context: Context, private val messenger: Messenger?, priva
     setBackgroundColor(Theme.bg)
     isClickable = true
     list.divider = null; list.dividerHeight = 0
-    list.selector = ColorDrawable(0x12FFFFFF); list.cacheColorHint = Color.TRANSPARENT
+    list.selector = ColorDrawable(Theme.veil(0.07f)); list.cacheColorHint = Color.TRANSPARENT
     list.isVerticalScrollBarEnabled = false; list.clipToPadding = false
     list.adapter = adapter
     list.setOnItemClickListener { _, _, position, _ -> (items.getOrNull(position) as? Item.Channel)?.let { open(it.channel) } }
