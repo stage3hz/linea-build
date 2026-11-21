@@ -13,6 +13,9 @@ android {
         targetSdk = libs.versions.targetSdk.get().toInt()
         versionCode = 1
         versionName = "0.17.0"
+        // The two the core is built for (build-core.sh): phones, and the emulator. A library that comes with
+        // more (SQLCipher) is packed for these only, so the app is never installed where its core is missing.
+        ndk { abiFilters += listOf("arm64-v8a", "x86_64") }
     }
 
     buildTypes {

@@ -1,6 +1,7 @@
 #!/bin/sh
 # Installs the debug build on the running emulator (or the one connected phone) and photographs its pages,
-# driving the app with launch arguments as the iOS simulator check does.
+# driving the app with launch arguments as the iOS simulator check does (the arguments: Demo.start in src/debug).
+# The pages with real data from a local test server are emu-live.sh.
 #   ./emu-shots.sh <folder for the pictures> [apk]
 # Each line of the progress goes to the terminal; a page that could not be photographed fails the script.
 set -eu
@@ -29,10 +30,12 @@ shot() { # name, launch arguments…
   [ "$(wc -c < "$OUT/$name.png")" -gt 2000 ] || { echo "No picture for $name" >&2; exit 1; }
   echo "shot $name"
 }
-shot 01-chats
-shot 02-sections --ez sections true
-shot 03-settings --es tab profile
-shot 04-chat --ez chat true
+# The shell with sample chats (`demo`), then the first thing a person without an account sees.
+shot 01-chats --ez demo true
+shot 02-sections --ez demo true --ez sections true
+shot 03-settings --ez demo true --es tab profile
+shot 04-chat --ez demo true --ez chat true
+shot 05-auth
 # What the app itself said while it ran (crashes show here).
 adb logcat -d -t 400 '*:E' > "$OUT/logcat-errors.txt" 2>/dev/null || true
 adb shell dumpsys package "$APP" | grep -E "versionName|primaryCpuAbi" || true
