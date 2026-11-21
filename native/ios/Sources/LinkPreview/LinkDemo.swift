@@ -17,6 +17,8 @@ enum LinkDemo {
         let format = UIGraphicsImageRendererFormat()
         format.scale = 1
         format.opaque = true
+        // Plain sRGB: the colour profile does not travel with the cleaned picture.
+        format.preferredRange = .standard
         let image = UIGraphicsImageRenderer(size: size, format: format).image { (renderer: UIGraphicsImageRendererContext) -> Void in
             let context = renderer.cgContext
             let colors = [UIColor(hex: 0x24345E).cgColor, UIColor(hex: 0x8C6FB5).cgColor, UIColor(hex: 0xF2A97E).cgColor] as CFArray

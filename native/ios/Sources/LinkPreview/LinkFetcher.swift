@@ -20,8 +20,8 @@ final class LinkFetcher {
 
     private let work = DispatchQueue(label: "invizent.link-fetch", qos: .utility)
     /// Cards made in this run of the app, by the link as written: typing on does not fetch the page again.
-    /// In memory only; `nil` inside means «this page gives no card».
-    private var made: [String: [String: Any]?] = [:]
+    /// In memory only. A page that gave no card is not remembered: it may have been the network.
+    private var made: [String: [String: Any]] = [:]
     private var order: [String] = []
 
     /// One piece of work that can be given up.
@@ -80,11 +80,11 @@ final class LinkFetcher {
             guard let self else { return }
             ticket.job = nil
             if ticket.cancelled { return }
-            if self.made[url] == nil {
+            if let card, self.made[url] == nil {
                 self.order.append(url)
                 if self.order.count > 24 { self.made.removeValue(forKey: self.order.removeFirst()) }
+                self.made[url] = card
             }
-            self.made.updateValue(card, forKey: url)
             done(card)
         }
     }
@@ -119,6 +119,8 @@ final class LinkFetcher {
             let format = UIGraphicsImageRendererFormat()
             format.scale = 1
             format.opaque = true
+            // Plain sRGB: the colour profile does not travel with the cleaned picture.
+            format.preferredRange = .standard
             let flat = UIGraphicsImageRenderer(size: size, format: format).image { (context: UIGraphicsImageRendererContext) -> Void in
                 UIColor.white.setFill()
                 context.fill(CGRect(origin: .zero, size: size))
