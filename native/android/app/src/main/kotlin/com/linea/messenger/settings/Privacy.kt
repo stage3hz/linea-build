@@ -178,6 +178,9 @@ class PrivacyScreen(context: Context, account: SettingsAccount) : SettingsPage(c
     }
     addGroup("Звонки", listOf(callBox))
 
+    // LinkPreview: kept on this phone, not on the server (linkpreview/LinkSettings.kt).
+    addGroup("Ссылки", listOf(com.linea.messenger.linkpreview.LinkSettings.row(context)))
+
     add(SettingsLook.foot(context, "Содержимое сообщений, ответы, реакции, правки и закрепления шифруются на устройстве. Сервер видит только служебные данные: кто, кому и когда."), 16f)
   }
 

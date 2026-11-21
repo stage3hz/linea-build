@@ -104,7 +104,8 @@ class ChatScreen(
 
     if (messenger == null) {
       // Attachments: `attachdemo 1` adds sample rows with a photo and files, `attachdemo viewer` also opens the photo viewer.
-      sampleRows = AttachmentsDemo.rows()
+      // LinkPreview: `linkdemo 1|composer` adds two rows with the cards of links (linkpreview/LinkDemo.kt of src/debug).
+      sampleRows = AttachmentsDemo.rows() + com.linea.messenger.linkpreview.LinkDemo.rows((context as? android.app.Activity)?.intent)
       AttachmentsDemo.viewer(this)
     }
   }

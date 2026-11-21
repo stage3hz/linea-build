@@ -183,6 +183,8 @@ final class LinkDownload: NSObject, URLSessionDataDelegate {
             configuration.urlCache = nil
             configuration.requestCachePolicy = .reloadIgnoringLocalAndRemoteCacheData
             configuration.urlCredentialStorage = nil
+            // No system proxy: through one the address really reached could not be checked.
+            configuration.connectionProxyDictionary = [:]
             configuration.timeoutIntervalForRequest = limits.timeout
             configuration.timeoutIntervalForResource = limits.timeout
             configuration.waitsForConnectivity = false

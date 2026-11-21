@@ -64,6 +64,7 @@ final class SceneDelegate: UIResponder, UIWindowSceneDelegate {
         // Nothing of the closed account goes on by itself: its live line and the music stop here.
         // Calls: a call that is on ends with the account (the other side is told while the session still lives).
         Calls.shared.stop()
+        LinkFetcher.shared.forget()
         messenger?.live.stop()
         MusicPlayer.shared.stop()
         messenger = nil

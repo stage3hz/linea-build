@@ -89,6 +89,20 @@ class MsgRowView(context: Context) : View(context) {
   /** Voice/Video: where the picture of this row's video or round video was drawn last (null: it has none). */
   fun mediaThumb(): android.graphics.RectF? = if (mediaBoxes.thumb.isEmpty) null else mediaBoxes.thumb
 
+  /** LinkPreview: the card of the row laid out by the last measure, its decoded picture, and where it was drawn last. */
+  private var card: com.linea.messenger.linkpreview.MsgLinkCardLayout? = null
+  private var cardOf = ""
+  private var cardPicture: Bitmap? = null
+  private var cardX = 0f
+  private var cardY = 0f
+
+  /** LinkPreview: the address of the card under a point of this view. */
+  fun cardAt(px: Float, py: Float): String? {
+    val laid = card ?: return null
+    if (builtFor != row || px < cardX || px > cardX + laid.width || py < cardY || py > cardY + laid.height) return null
+    return laid.card.url
+  }
+
   /** The key of the row this view shows. */
   val rowKey: String get() = row?.key ?: ""
 
@@ -150,7 +164,10 @@ class MsgRowView(context: Context) : View(context) {
       thumbOf = next.thumb
       thumb = if (next.thumb.isEmpty()) null else try { val bytes = Base64.decode(next.thumb, Base64.DEFAULT); BitmapFactory.decodeByteArray(bytes, 0, bytes.size) } catch (_: Throwable) { null }
     }
-    contentDescription = if (next.kind == 1) next.text else listOf(MediaRowArt.spoken(next), next.label, next.text, next.time).filter { it.isNotEmpty() }.joinToString(". ")
+    // LinkPreview: the card's picture is decoded once per row, not on every drawing.
+    val cardImage = next.linkCard?.image ?: ""
+    if (cardImage != cardOf) { cardOf = cardImage; cardPicture = next.linkCard?.picture() }
+    contentDescription = if (next.kind == 1) next.text else listOf(MediaRowArt.spoken(next), next.label, next.text, next.linkCard?.spoken ?: "", next.time).filter { it.isNotEmpty() }.joinToString(". ")
     if (relayout) requestLayout()
     invalidate()
   }
@@ -233,7 +250,7 @@ class MsgRowView(context: Context) : View(context) {
   private fun build(item: MsgRow, width: Int) {
     body.textSize = fontSize * d
     textLayout = null; quoteLayout = null; labelLayout = null; noticeLayout = null; reactLayout = null; thumbW = 0f; thumbH = 0f; voiceW = 0f; voiceH = 0f
-    chips = emptyList(); chipsW = 0f; chipsH = 0f; timeInline = false
+    chips = emptyList(); chipsW = 0f; chipsH = 0f; timeInline = false; card = null
     if (item.kind == 1) {
       noticeLayout = layout(item.text, small, (width * 0.8f).toInt(), 6, true)
       bubbleW = widest(noticeLayout) + 24f * d; bubbleH = (noticeLayout?.height ?: 0) + 12f * d
@@ -254,10 +271,12 @@ class MsgRowView(context: Context) : View(context) {
       var w = maxOf(maxOf(widest(textLayout), metaWidth, thumbW, widest(labelLayout)), maxOf(widest(reactLayout), chipsW, voiceW))
       if (quoteLayout != null) w = maxOf(w, maxOf(widest(quoteLayout), smallBold.measureText(item.quoteAuthor)) + 12f * d)
       if (item.forward.isNotEmpty()) w = maxOf(w, minOf(inner.toFloat(), smallBold.measureText(item.forward)))
+      // LinkPreview: the card stands under the text, and the time then goes under the card.
+      item.linkCard?.let { link -> card = com.linea.messenger.linkpreview.MsgLinkCardLayout.make(link, inner.toFloat(), d).also { w = maxOf(w, it.width) } }
       // The open look: the time goes after the last word when the line has room for it (plain left-to-right
       // text only: not under reactions, not after a quote or a code block).
       val text = textLayout
-      if (MSG_OPEN_LOOK && text != null && text.lineCount > 0 && reactLayout == null && chips.isEmpty() && (0 until item.fmt.size step 3).none { item.fmt[it] and (128 or 256) != 0 }) {
+      if (MSG_OPEN_LOOK && text != null && text.lineCount > 0 && reactLayout == null && chips.isEmpty() && card == null && (0 until item.fmt.size step 3).none { item.fmt[it] and (128 or 256) != 0 }) {
         val last = text.lineCount - 1
         val end = Math.ceil(text.getLineMax(last).toDouble()).toFloat()
         if (text.getParagraphDirection(last) == Layout.DIR_LEFT_TO_RIGHT && text.getEllipsisCount(last) == 0 && end + 8f * d + metaWidth <= inner) {
@@ -272,6 +291,7 @@ class MsgRowView(context: Context) : View(context) {
       if (voiceH > 0f) h += voiceH + 4f * d
       if (labelLayout != null) h += labelLayout!!.height + 4f * d
       if (textLayout != null) h += textLayout!!.height
+      card?.let { h += it.height + 7f * d }
       if (reactLayout != null) h += reactLayout!!.height + 6f * d
       if (chipsH > 0f) h += chipsH + 6f * d
       h += if (timeInline) 6f * d else 16f * d + 6f * d
@@ -366,6 +386,8 @@ class MsgRowView(context: Context) : View(context) {
     labelLayout?.let { small.color = markColor; canvas.save(); canvas.translate(x, y); it.draw(canvas); canvas.restore(); y += it.height + 4f * d }
     val textTop = y
     textLayout?.let { body.color = palette.text; bodyX = x; bodyY = y; canvas.save(); canvas.translate(x, y); it.draw(canvas); canvas.restore(); y += it.height }
+    // LinkPreview: the card of the link, under the text.
+    card?.let { cardX = x; cardY = y + 7f * d; it.draw(canvas, cardX, cardY, palette, markColor, cardPicture, pressed = false); y += it.height + 7f * d }
     reactLayout?.let { small.color = palette.text; canvas.save(); canvas.translate(x, y + 6f * d); it.draw(canvas); canvas.restore() }
     chipsX = x; chipsY = y + 6f * d
     for (chip in chips) {

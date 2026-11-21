@@ -25,7 +25,9 @@ import java.util.concurrent.Executors
  *  Main thread only; the folding itself runs on a thread of its own and its result comes back to the main one. */
 class ChatHistory(private val messenger: Messenger?, private val local: ChatLocal?, val chatId: String, val peerId: String, var peerName: String) {
   /** A message handed to the encryption and not yet seen in a page from the server. */
-  data class Pending(val clientId: String, val text: String, val meta: Map<String, Any?>?, val attachment: Map<String, Any?>?, val createdAt: String, val failed: Boolean = false)
+  data class Pending(val clientId: String, val text: String, val meta: Map<String, Any?>?, val attachment: Map<String, Any?>?, val createdAt: String, val failed: Boolean = false,
+    /** LinkPreview: the card of a link in the text, made on this phone (linkpreview/); null: none. */
+    val linkPreview: Map<String, Any?>? = null)
 
   /** What the screen shows, made from the messages by `build`. */
   class Shown(
@@ -164,9 +166,10 @@ class ChatHistory(private val messenger: Messenger?, private val local: ChatLoca
 
   // Sending
 
-  /** Sends a message of this chat: a plain one, an answer (`meta.reply`), a forwarded one, or an action. */
-  fun send(text: String, meta: Map<String, Any?>?, attachment: Map<String, Any?>? = null) {
-    val item = Pending(UUID.randomUUID().toString().lowercase(), text, meta, attachment, Instant.now().truncatedTo(ChronoUnit.MILLIS).toString())
+  /** Sends a message of this chat: a plain one, an answer (`meta.reply`), a forwarded one, or an action.
+   *  LinkPreview: `linkPreview` is the card of a link the person typed (the core checks it once more). */
+  fun send(text: String, meta: Map<String, Any?>?, attachment: Map<String, Any?>? = null, linkPreview: Map<String, Any?>? = null) {
+    val item = Pending(UUID.randomUUID().toString().lowercase(), text, meta, attachment, Instant.now().truncatedTo(ChronoUnit.MILLIS).toString(), linkPreview = linkPreview)
     pending = pending + item
     rebuild()
     deliver(item)
@@ -197,13 +200,14 @@ class ChatHistory(private val messenger: Messenger?, private val local: ChatLoca
       val message = linkedMapOf<String, Any?>("id" to demoNext, "chatId" to chatId, "senderId" to userId, "clientId" to item.clientId, "text" to item.text,
         "attachment" to null, "createdAt" to item.createdAt, "cryptoState" to "decrypted")
       if (item.meta != null) message["meta"] = item.meta
+      if (item.linkPreview != null) message["linkPreview"] = item.linkPreview
       raw = raw + message
       rebuild()
       return
     }
     val chatId = chatId; val peerId = peerId
     messenger.crypto.run({ crypto: CryptoService ->
-      messenger.deliver(crypto, chatId, peerId, item.clientId, item.text, item.attachment, item.meta)
+      messenger.deliver(crypto, chatId, peerId, item.clientId, item.text, item.attachment, item.meta, linkPreview = item.linkPreview)
     }, { result ->
       if (result.isSuccess) {
         // The page read next holds it; until then it stays shown as being sent.
@@ -309,6 +313,7 @@ class ChatHistory(private val messenger: Messenger?, private val local: ChatLoca
         val message = linkedMapOf<String, Any?>("id" to localBase + index, "senderId" to input.userId, "clientId" to item.clientId, "text" to item.text,
           "attachment" to item.attachment, "createdAt" to item.createdAt, "cryptoState" to "decrypted", "localState" to (if (item.failed) "failed" else "sending"))
         if (item.meta != null) message["meta"] = item.meta
+        if (item.linkPreview != null) message["linkPreview"] = item.linkPreview
         all.add(message)
       }
       val newestTheirs = input.raw.filter { it["senderId"] as? String != input.userId }.maxOfOrNull { number(it["id"]) } ?: 0L
@@ -421,6 +426,8 @@ class ChatHistory(private val messenger: Messenger?, private val local: ChatLoca
         // Attachments: a photo's small picture or a file's name and size (attachments/AttachmentOpen.kt).
         if (Core.map(message["attachment"] as? Map<*, *>) != null) row.putAll(AttachmentRows.fields(message, key))
         else if (meta?.get("poll") != null) row["label"] = "Опрос"
+        // LinkPreview: the card of a link, as it came inside the message (linkpreview/LinkCard.kt).
+        Core.map(message["linkPreview"] as? Map<*, *>)?.let { row["card"] = it }
         input.selection?.let { row["checked"] = if (it.contains(key)) 1 else 0 }
         rows.add(row)
         shownMessages[key] = message

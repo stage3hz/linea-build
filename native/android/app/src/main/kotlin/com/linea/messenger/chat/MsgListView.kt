@@ -40,6 +40,8 @@ class MsgListView(context: Context) : FrameLayout(context) {
   /** Voice/Video: the rows on screen moved or changed (a round video playing in its row follows it). */
   var onRowsMoved: () -> Unit = {}
   private var mediaState: com.linea.messenger.voice.MsgMediaState? = null
+  /** LinkPreview: a tap on the card of a link (`key`: the row, `url`: where the card leads). */
+  var onCardPress: (key: String, url: String) -> Unit = { _, _ -> }
   /** Messages whose spoilers were tapped open (until the chat is left). */
   private val revealed = HashSet<String>()
   private var upX = 0f
@@ -85,6 +87,9 @@ class MsgListView(context: Context) : FrameLayout(context) {
         // Voice/Video: the play button, the waveform, the speed, the picture of a video.
         val media = if (row.checked < 0) (view as? MsgRowView)?.mediaAt(upX - view.left, upY - view.top) else null
         if (media != null) { onMediaPress(row.key, media.first, media.second); return@setOnItemClickListener }
+        // LinkPreview: the card of a link opens the link (not while messages are being chosen).
+        val card = if (row.checked < 0) (view as? MsgRowView)?.cardAt(upX - view.left, upY - view.top) else null
+        if (card != null) { onCardPress(row.key, card); return@setOnItemClickListener }
         view.getLocationOnScreen(place)
         onMsgPress(row.key, place[1] + view.height / 2f)
       }

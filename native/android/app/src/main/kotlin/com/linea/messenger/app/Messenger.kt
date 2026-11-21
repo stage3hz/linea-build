@@ -166,9 +166,12 @@ class Messenger(context: Context, token: String, val user: Map<String, Any?>) {
    *  - The device list changed since the ciphertext was made: it is dropped and the message encrypted afresh, once.
    *  - Refused for good (not «try later», not a dead session): the kept copy is forgotten, so it is not sent
    *    again after every start.
-   *  - No answer: it stays in the list of unsent messages and goes out later with the very same ciphertext. */
-  fun deliver(crypto: CryptoService, chatId: String, peerId: String, clientId: String, text: Any?, attachment: Any?, meta: Any?, again: Boolean = true): Result<Unit> {
-    val encrypted = crypto.callNow("encrypt", listOf(chatId, peerId, clientId, text, attachment, meta, null))
+   *  - No answer: it stays in the list of unsent messages and goes out later with the very same ciphertext.
+   *
+   *  LinkPreview: `linkPreview` is the card of a link in the text (linkpreview/), or null; the core checks it and
+   *  carries it inside the ciphertext. */
+  fun deliver(crypto: CryptoService, chatId: String, peerId: String, clientId: String, text: Any?, attachment: Any?, meta: Any?, again: Boolean = true, linkPreview: Any? = null): Result<Unit> {
+    val encrypted = crypto.callNow("encrypt", listOf(chatId, peerId, clientId, text, attachment, meta, null, linkPreview))
     if (encrypted.isFailure) return Result.failure(CryptoService.failure(encrypted) ?: CryptoFailure("Error", "Шифрование недоступно."))
     val sent = server.opAndWait("sendEncrypted", listOf(chatId, clientId, encrypted.getOrNull()))
     if (sent.isSuccess) {
@@ -180,7 +183,7 @@ class Messenger(context: Context, token: String, val user: Map<String, Any?>) {
     when (afterRefusal(error.status, error.code)) {
       Refusal.AFRESH -> {
         crypto.callNow("forget", listOf(chatId, clientId))
-        if (again) return deliver(crypto, chatId, peerId, clientId, text, attachment, meta, again = false)
+        if (again) return deliver(crypto, chatId, peerId, clientId, text, attachment, meta, again = false, linkPreview = linkPreview)
       }
       Refusal.FORGET -> crypto.callNow("forget", listOf(chatId, clientId))
       Refusal.KEEP -> {}
@@ -327,6 +330,8 @@ class Messenger(context: Context, token: String, val user: Map<String, Any?>) {
         ))
         // Attachments: a photo's small picture or a file's name and size (attachments/AttachmentOpen.kt).
         if (Core.map(message["attachment"] as? Map<*, *>) != null) rows[rows.size - 1] = rows.last().let { row -> row + attached(message, row["key"] as String) }
+        // LinkPreview: the card of a link, as it came inside the message.
+        Core.map(message["linkPreview"] as? Map<*, *>)?.let { card -> rows[rows.size - 1] = rows.last() + ("card" to card) }
       }
       return rows
     }

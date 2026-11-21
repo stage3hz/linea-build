@@ -57,6 +57,8 @@ class ChatScreenActions(private val context: Context, private val messenger: Mes
   private val selectionHeader = SelectionHeader(context)
   private val selectionBar = SelectionBar(context)
   private var openedMenu: MessageMenu? = null
+  /** LinkPreview: the card of a link being written, above the field (linkpreview/LinkComposer.kt). */
+  private val links = com.linea.messenger.linkpreview.LinkComposer(context)
 
   /** The rows of the chat changed (oldest first, for `MsgRow.parse`). */
   var onRows: ((List<Map<String, Any?>>) -> Unit)? = null
@@ -178,6 +180,11 @@ class ChatScreenActions(private val context: Context, private val messenger: Mes
     list.onMsgLongPress = { key, y -> held(key, y) }
     list.onReactPress = { key, emoji -> chipPressed(key, emoji) }
     list.onQuotePress = { key -> quotePressed(key) }
+    // LinkPreview: a link in the text and the card of a link open in the system browser (linkpreview/LinkOpen.kt).
+    list.onLinkPress = { _, url, shown -> com.linea.messenger.linkpreview.LinkOpen.pressed(context, url, shown) }
+    list.onCardPress = { _, url -> com.linea.messenger.linkpreview.LinkOpen.cardPressed(context, url) }
+    links.install(host, behind)
+    links.onChanged = { relayout() }
     list.onNearTop = { if (history.hasMore) history.load(older = true) }
     list.onScrolled = { distance -> scrolled(distance / d) }
 
@@ -306,6 +313,8 @@ class ChatScreenActions(private val context: Context, private val messenger: Mes
       above = composerTop - dp(6f) - dp(ComposerBar.height)
       put(composerBar, composerLeft, above, composerWidth, dp(ComposerBar.height))
     }
+    // LinkPreview: the card of the link being written stands above the field (and above the bar of an answer).
+    above = links.place(composerLeft, composerWidth, above, hidden = selecting)
     val side = dp(DownButton.side); val over = dp(DownButton.over)
     put(downButton, width - dp(14f) - side, above - dp(12f) - side - over, side, side + over)
     return Pair(top, height - above + dp(8f))
@@ -593,6 +602,8 @@ class ChatScreenActions(private val context: Context, private val messenger: Mes
     } else {
       barShown = false
     }
+    // LinkPreview: an edit or a forward takes the field over; the card of a link typed before goes.
+    if (editing != null || forwardItems.isNotEmpty()) links.reset()
     showHeader()
     showSend()
     relayout()
@@ -642,7 +653,8 @@ class ChatScreenActions(private val context: Context, private val messenger: Mes
     tick()
     val meta = replyTo?.let { replyMeta(it) }
     replyTo = null
-    history.send(text, meta)
+    // LinkPreview: the card made while the link was typed goes inside the same encrypted message.
+    history.send(text, meta, linkPreview = links.take(text))
     clearField()
     showBar()
     list?.scrollToNewest(animated = true)
@@ -651,6 +663,7 @@ class ChatScreenActions(private val context: Context, private val messenger: Mes
   private fun clearField() {
     field?.put("")
     if (local != null) local.setDraft(chatId, "") else sampleDraft = ""
+    links.reset()
     stopTyping()
     relayout()
   }
@@ -837,6 +850,8 @@ class ChatScreenActions(private val context: Context, private val messenger: Mes
     }
     host?.removeCallbacks(typingStop)
     host?.postDelayed(typingStop, 1800)
+    // LinkPreview: a link typed into a new message gets its card (not an edit, not the comment of a forward).
+    links.typed(value, active = editing == null && forwardItems.isEmpty())
     showSend()
     relayout()
   }
@@ -866,6 +881,8 @@ class ChatScreenActions(private val context: Context, private val messenger: Mes
   private fun demoAct() {
     if (demoDone) return
     demoDone = true
+    // LinkPreview: `--ez linksend true` sends one message with a prepared card to this chat (linkpreview/LinkDemo.kt of src/debug).
+    if (messenger != null) com.linea.messenger.linkpreview.LinkDemo.sendSample((context as? android.app.Activity)?.intent, history)
     val shown = history.shown
     val ask = (if (messenger == null) ChatActionsDemo.chatdemo else ChatActionsDemo.chataction) ?: return
     val host = host ?: return

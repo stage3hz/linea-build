@@ -8,7 +8,10 @@ enum LinkSettings {
 
     static var on: Bool {
         get { return !UserDefaults.standard.bool(forKey: key) }
-        set { UserDefaults.standard.set(!newValue, forKey: key) }
+        set {
+            UserDefaults.standard.set(!newValue, forKey: key)
+            if !newValue { LinkFetcher.shared.forget() }
+        }
     }
 
     /// The switch for the privacy page of the settings.

@@ -20,6 +20,8 @@ data class MsgRow(
   val wave: String = "",
   /** Voice/Video: the length, «1:05» (empty: not known). */
   val mediaTime: String = "",
+  /** LinkPreview: the card of a link under the text (linkpreview/LinkCard.kt); null: none. */
+  val linkCard: com.linea.messenger.linkpreview.MsgLinkCard? = null,
 ) {
   companion object {
     private fun text(value: Any?) = value as? String ?: ""
@@ -32,7 +34,7 @@ data class MsgRow(
         flag(row["tail"]), text(row["quoteAuthor"]), text(row["quoteText"]), text(row["forward"]), text(row["label"]),
         text(row["thumb"]), flag(row["thumbRound"]), ((row["thumbWide"] as? Number)?.toDouble() ?: 1.0).coerceIn(0.4, 2.5), int(row["checked"], -1).coerceIn(-1, 1), text(row["reactions"]),
         (row["fmt"] as? List<*>)?.mapNotNull { (it as? Number)?.toInt() } ?: emptyList(), (row["urls"] as? List<*>)?.mapNotNull { it as? String } ?: emptyList(), (row["chips"] as? List<*>)?.mapNotNull { it as? String } ?: emptyList(),
-        text(row["media"]), text(row["wave"]), text(row["mediaTime"]),
+        text(row["media"]), text(row["wave"]), text(row["mediaTime"]), com.linea.messenger.linkpreview.MsgLinkCard.parse(row["card"]),
       )
     }
   }
