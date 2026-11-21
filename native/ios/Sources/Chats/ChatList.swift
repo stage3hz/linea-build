@@ -47,6 +47,8 @@ struct ChatRow: Equatable {
   /// A Platina name: the first `nameLen` UTF-16 units of the title are drawn in this metal (ARGB); empty = plain.
   let metal: [Int]
   let nameLen: Int
+  /// Offline: the last message cannot be opened on this device — the line is said quietly (subtle, italic, a lock).
+  var quietPreview = false
 
   private static func int(_ value: Any?, _ fallback: Int) -> Int { (value as? NSNumber)?.intValue ?? fallback }
   private static func flag(_ value: Any?) -> Bool { (value as? Bool) ?? false }
@@ -69,6 +71,7 @@ struct ChatRow: Equatable {
         ring: ((row["ring"] as? [Any]) ?? []).compactMap { ($0 as? NSNumber)?.intValue }, deco: text(row["deco"]),
         decoScale: CGFloat(min(2, max(1, (row["decoScale"] as? NSNumber)?.doubleValue ?? 1))), plate: text(row["plate"]),
         metal: ((row["metal"] as? [Any]) ?? []).compactMap { ($0 as? NSNumber)?.intValue }, nameLen: max(0, int(row["nameLen"], 0))))
+      result[result.count - 1].quietPreview = flag(row["quietPreview"])
     }
     return result
   }
@@ -452,9 +455,10 @@ final class ChatRowCanvas: UIView {
                  options: [.usesLineFragmentOrigin, .truncatesLastVisibleLine], context: nil)
     }
 
-    let previewColor = item.accentPreview ? palette.accent : mutedColor
+    let previewColor = item.accentPreview ? palette.accent : item.quietPreview ? palette.subtle : mutedColor
+    let previewFont = item.quietPreview ? ChatRowCanvas.quietFont : ChatRowCanvas.previewFont
     let preview = NSMutableAttributedString(string: item.preview, attributes: [
-      .font: ChatRowCanvas.previewFont, .foregroundColor: previewColor, .paragraphStyle: paragraph(.byWordWrapping)])
+      .font: previewFont, .foregroundColor: previewColor, .paragraphStyle: paragraph(.byWordWrapping)])
     // Telegram: the word «Черновик:» of a draft is red.
     if item.previewRed > 0 {
       preview.addAttribute(.foregroundColor, value: palette.danger, range: NSRange(location: 0, length: min(item.previewRed, preview.length)))
@@ -472,6 +476,11 @@ final class ChatRowCanvas: UIView {
       // Telegram: a voice message is a grey microphone before its name.
       mic.draw(at: CGPoint(x: x + 1, y: top + 22 + (ChatRowCanvas.previewFont.lineHeight - mic.size.height) / 2))
       thumbRoom = ceil(mic.size.width) + 7
+    } else if item.quietPreview, let lock = UIImage(systemName: "lock.fill", withConfiguration: UIImage.SymbolConfiguration(pointSize: 11, weight: .regular))?
+                .withTintColor(palette.subtle, renderingMode: .alwaysOriginal) {
+      // Offline: a message this device cannot open — a small lock before the quiet words.
+      lock.draw(at: CGPoint(x: x + 1, y: top + 22 + (ChatRowCanvas.previewFont.lineHeight - lock.size.height) / 2))
+      thumbRoom = ceil(lock.size.width) + 6
     }
     let previewWidth = max(0, right - x - thumbRoom - (markWidth > 0 ? markWidth + 8 : 0))
     preview.draw(with: CGRect(x: x + thumbRoom, y: top + 22, width: previewWidth, height: 38),

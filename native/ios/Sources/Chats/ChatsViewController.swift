@@ -16,6 +16,10 @@ final class ChatsViewController: UIViewController {
     private lazy var actions = ChatListActions(messenger: messenger)
     /// Stories: the strip of stories above the chats (Sources/Stories/StoriesStrip.swift).
     private lazy var stories = StoriesStrip(messenger: messenger)
+    /// Offline: the list on screen came from the server at least once (until then it is the vault's copy).
+    private var serverLoaded = false
+    /// Offline: lines opened in the background since the rows were last shown (Sources/Offline/ListCatchUp.swift).
+    private var opened: [(chatId: String, lastId: Int, line: [String: Any])] = []
 
     init(messenger: Messenger? = nil) {
         self.messenger = messenger
@@ -81,6 +85,12 @@ final class ChatsViewController: UIViewController {
             #endif
         } else {
             empty.text = "Загрузка…"
+            // Offline: the list as it was shown last time, from the vault — at once, before (or without) the network.
+            messenger?.cachedChats { [weak self] (cached: [Messenger.ChatSummary]) -> Void in
+                guard let self, !self.serverLoaded, self.summaries.isEmpty, !cached.isEmpty else { return }
+                self.summaries = cached
+                self.actions.show(cached)
+            }
         }
     }
 
@@ -110,17 +120,66 @@ final class ChatsViewController: UIViewController {
 
     /// Asks the server for the chats again (on opening the screen and on coming back from a chat).
     func reload() {
-        messenger?.chats { [weak self] result in
+        guard let messenger else { return }
+        // Offline: a line already shown opened is never turned back into a closed one by a fresh list.
+        var previous: [String: [String: Any]] = [:]
+        for chat in summaries where !chat.last.isEmpty { previous[chat.id] = chat.last }
+        messenger.chats(previous: previous) { [weak self] result in
             guard let self else { return }
             switch result {
             case .success(let chats):
+                self.serverLoaded = true
                 self.summaries = chats
                 // ChatActions: shown through `actions.onRows`.
                 self.actions.show(chats)
+                self.keepSoon()
+                // Offline: the lines still closed are opened in the background, then shown.
+                messenger.catchUpList(chats) { [weak self] (chatId: String, lastId: Int, line: [String: Any]) -> Void in
+                    self?.lineOpened(chatId: chatId, lastId: lastId, line: line)
+                }
             case .failure(let error):
+                // Offline: the chats on screen (the vault's copy) stay; the words only when there is nothing to show.
                 if self.summaries.isEmpty { self.empty.text = error.words; self.empty.isHidden = false }
             }
         }
+    }
+
+    /// Offline: a closed line opened in the background; a burst of them is shown once.
+    private func lineOpened(chatId: String, lastId: Int, line: [String: Any]) {
+        opened.append((chatId: chatId, lastId: lastId, line: line))
+        NSObject.cancelPreviousPerformRequests(withTarget: self, selector: #selector(showOpened), object: nil)
+        perform(#selector(showOpened), with: nil, afterDelay: 0.2)
+    }
+
+    @objc private func showOpened() {
+        guard let messenger, !opened.isEmpty else { return }
+        let lines = opened
+        opened = []
+        var changed = false
+        for item in lines {
+            guard let index = summaries.firstIndex(where: { $0.id == item.chatId }) else { continue }
+            let chat = summaries[index]
+            // Only for the very message the line was opened for: a newer one may have come meanwhile.
+            guard ((chat.chat["lastMessage"] as? [String: Any])?["id"] as? NSNumber)?.intValue == item.lastId,
+                  let made = messenger.summary(chat.chat, shown: item.line, section: "") else { continue }
+            summaries[index] = made
+            changed = true
+        }
+        guard changed else { return }
+        actions.show(summaries)
+        keepSoon()
+    }
+
+    /// Offline: the list as shown goes to the vault a moment after it changes (only once the server answered,
+    /// so an empty list at start never overwrites it).
+    private func keepSoon() {
+        NSObject.cancelPreviousPerformRequests(withTarget: self, selector: #selector(keepNow), object: nil)
+        perform(#selector(keepNow), with: nil, afterDelay: 1.5)
+    }
+
+    @objc private func keepNow() {
+        guard serverLoaded, let messenger else { return }
+        messenger.storeChats(summaries)
     }
 
     override func viewDidLayoutSubviews() {
