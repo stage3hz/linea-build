@@ -411,6 +411,7 @@ pub unsafe extern "C" fn invizent_proof_call(proof: *mut InvizentProof, input: *
 /// - `settings… […]` → the rules behind the settings pages (see `settings::view` for the names).
 /// - `stories… […]` → the rules of stories and profile posts (see `stories::view` for the names).
 /// - `room… […]` → the rules of rooms (see `rooms::view` for the names).
+/// - `compose… […]` → formatting while a message is written (see `format::compose::view` for the names).
 ///
 /// # Safety
 /// `name` and `args` are NUL-terminated strings that stay valid for the call (or null).
@@ -439,6 +440,8 @@ pub unsafe extern "C" fn invizent_view(name: *const c_char, args: *const c_char)
             (name, args) if name.starts_with("stories") => crate::stories::view(name, args)?,
             // Rooms (`rooms.rs`): every name that starts with `room`.
             (name, args) if name.starts_with("room") => crate::rooms::view(name, args)?,
+            // The composer's formatting (`format/compose.rs`): every name that starts with `compose`.
+            (name, args) if name.starts_with("compose") => crate::format::compose::view(name, args)?,
             // Calls (`calls.rs`): every name that starts with `call`.
             (name, args) => crate::calls::view(name, args)?,
         };

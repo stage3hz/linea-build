@@ -17,6 +17,9 @@
 use crate::json::{self, JsString, Value};
 use crate::message_meta::valid_link_url;
 
+/// Formatting while a message is written (the composer's toolbar, `parseMarkdown`): `format/compose.rs`.
+pub mod compose;
+
 pub const BOLD: u32 = 1;
 pub const ITALIC: u32 = 2;
 pub const UNDERLINE: u32 = 4;

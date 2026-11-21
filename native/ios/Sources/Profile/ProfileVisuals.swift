@@ -6,19 +6,8 @@ import UIKit
 //   AmbientView        soft light patches drifting while their colour flows (the animated banner presets)
 //   ProfileBannerView  the banner: an uploaded photo / video or a preset, soft top and bottom edges, fading out below
 //   ProfileEffectView  particles over the top of an open profile (snow, sparks, petals, bubbles, stars, embers)
-//   ProfileLightView   the person's colour as light falling from above when there is no banner
+//   (the person's light is ChatLook's ProfileLightView, Sources/ChatLook/PeerLight.swift)
 //   ProfilePatternView the chosen emoji repeated in rings around the avatar
-
-/// A colour lifted until its brightest channel reaches `floor` (peerLight.tsx `brightTint`): the hue is kept.
-func brightTint(_ rgb: UInt32, floor: CGFloat = 190) -> UIColor {
-    var channels = [CGFloat((rgb >> 16) & 255), CGFloat((rgb >> 8) & 255), CGFloat(rgb & 255)]
-    let top = channels.max() ?? 0
-    if top < floor {
-        let lift = (floor - top) / max(1, 255 - top)
-        channels = channels.map { ($0 + (255 - $0) * lift).rounded() }
-    }
-    return UIColor(red: channels[0] / 255, green: channels[1] / 255, blue: channels[2] / 255, alpha: 1)
-}
 
 /// The music screen's moving light, here the banner presets (MusicAmbient.tsx): four patches, each five glows of
 /// the palette crossfading in turn (6 s a colour), drifting slowly. `still` holds them.
@@ -425,38 +414,6 @@ final class ProfileEffectView: UIView {
             }
             layer.addSublayer(piece)
         }
-    }
-}
-
-/// The light of a person at the top of their profile when they have no banner (peerLight.tsx `ProfileLight`): it falls
-/// from above, behind the avatar, and fades into the page.
-final class ProfileLightView: UIView {
-    private let glow = CAGradientLayer()
-
-    override init(frame: CGRect) {
-        super.init(frame: frame)
-        isUserInteractionEnabled = false
-        glow.type = .radial
-        glow.startPoint = CGPoint(x: 0.5, y: 0.06)
-        glow.endPoint = CGPoint(x: 0.5 + 0.92, y: 0.06 + 0.88)
-        glow.locations = [0, 0.5, 1]
-        layer.addSublayer(glow)
-    }
-
-    required init?(coder: NSCoder) { return nil }
-
-    func show(color rgb: UInt32) {
-        let light = brightTint(rgb, floor: 150)
-        let dark = Theme.dark
-        glow.colors = [light.withAlphaComponent(dark ? 0.5 : 0.22).cgColor, light.withAlphaComponent(dark ? 0.16 : 0.08).cgColor, light.withAlphaComponent(0).cgColor]
-    }
-
-    override func layoutSubviews() {
-        super.layoutSubviews()
-        CATransaction.begin()
-        CATransaction.setDisableActions(true)
-        glow.frame = bounds
-        CATransaction.commit()
     }
 }
 
