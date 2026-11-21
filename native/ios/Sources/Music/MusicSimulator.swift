@@ -37,7 +37,7 @@ enum MusicDemo {
 
 /// What the simulator check asks of «AI» and «Музыка» by launch arguments (see SceneDelegate.simulatorStart):
 ///   -aidemo 1 | history     «AI» with a sample conversation (a block of code in it); `history`: the history sheet over it
-///   -musicdemo 1 | player   «Музыка» with sample tracks and the strip of the playing one; `player`: the full player over it
+///   -musicdemo 1 | player | chats   «Музыка» with sample tracks and the strip of the playing one; `player`: the full player over it
 /// With an account (or with -demo 1) the sections themselves open by `-tab ai` and `-tab music`.
 extension SceneDelegate {
     func simulatorAIMusic() -> Bool {
@@ -48,6 +48,10 @@ extension SceneDelegate {
         window?.rootViewController = NavigationController(rootViewController: root)
         root.loadViewIfNeeded()
         root.show(music != nil ? "music" : "ai")
+        if music == "chats" {
+            // The sample track plays, then the chats: how the bar looks with a track's colours.
+            DispatchQueue.main.asyncAfter(deadline: .now() + 1.5) { root.show("chats") }
+        }
         if music == "player" {
             DispatchQueue.main.asyncAfter(deadline: .now() + 1.5) { root.musicPage()?.simulatorPlayer() }
         }

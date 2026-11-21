@@ -242,7 +242,15 @@ final class TabBarView: UIView, UIGestureRecognizerDelegate {
   /// Fine grain over the glow, so a gradient reads as material rather than as a smooth fill.
   private let grain = UIView()
   /// Which glow look is on. Being chosen by the owner: the simulator check shows each with `-barlook N`.
-  var look = 0 { didSet { laidOut = .zero; setNeedsLayout(); paintGlow(animated: false) } }
+  var look = 0 {
+    didSet {
+      // 6…8: a halo centred on the chosen icon (6, 7) or just below it (8), instead of light rising from the edge.
+      let halo = look >= 6
+      spot.startPoint = halo ? CGPoint(x: 0.5, y: 0.5) : CGPoint(x: 0.5, y: 1)
+      spot.endPoint = halo ? CGPoint(x: 1, y: 1) : CGPoint(x: 1, y: 0)
+      laidOut = .zero; setNeedsLayout(); paintGlow(animated: false)
+    }
+  }
   private var icons: [TabIconView] = []
 
   private var items: [TabEntry] = []
@@ -363,8 +371,20 @@ final class TabBarView: UIView, UIGestureRecognizerDelegate {
     return CGRect(x: CGFloat(slot) * cell, y: 0, width: cell, height: bounds.height).insetBy(dx: 4, dy: 4)
   }
   private func spotFrame(_ index: Int) -> CGRect {
-    let width = (look == 1 || look == 3) ? max(90, cell * 1.1) : max(110, bounds.width * 0.7)
     let centre = index < 0 ? bounds.midX : (CGFloat(index) + 0.5) * cell
+    switch look {
+    case 6:
+      let side = bounds.height * 0.95
+      return CGRect(x: centre - side / 2, y: bounds.midY - side / 2, width: side, height: side)
+    case 7:
+      let width = cell * 0.95, height = bounds.height * 1.1
+      return CGRect(x: centre - width / 2, y: bounds.midY - height / 2, width: width, height: height)
+    case 8:
+      let width = cell * 0.9, height = bounds.height * 0.9
+      return CGRect(x: centre - width / 2, y: bounds.height * 0.8 - height / 2, width: width, height: height)
+    default: break
+    }
+    let width = (look == 1 || look == 3) ? max(90, cell * 1.1) : max(110, bounds.width * 0.7)
     return CGRect(x: centre - width / 2, y: 0, width: width, height: bounds.height)
   }
 
@@ -467,6 +487,9 @@ final class TabBarView: UIView, UIGestureRecognizerDelegate {
       rightColor = tabTone(colors[2], saturation: 0.6, brightness: 0.55)
       spotColor = tabTone(colors[0], saturation: 0.6, brightness: 0.8)
       sideAlpha = 0.55; spotAlpha = 0.35; grainAlpha = 0.08
+    case 6, 7, 8: // a halo at the chosen icon; a track's colour softened a little
+      spotColor = coloured ? tabTone(colors[0], saturation: 0.8, brightness: 1) : colors[0]
+      spotAlpha = (look == 6 ? 0.55 : (look == 7 ? 0.45 : 0.5)) * strength; sideAlpha = 0
     default: break
     }
     spot.colors = [spotColor.withAlphaComponent(spotAlpha).cgColor, spotColor.withAlphaComponent(0).cgColor]
