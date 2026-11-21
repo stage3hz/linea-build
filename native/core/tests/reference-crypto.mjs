@@ -38,7 +38,7 @@ export function world({ userId, start = Date.parse('2026-11-21T07:00:00.000Z') }
   const key44 = name => Buffer.concat([createHash('sha256').update(name).digest(), Buffer.from([5])]).toString('base64');
   const bundleOf = (address, preKeys) => ({ registrationId: 1 + (createHash('sha256').update(address).digest().readUInt16BE(0) % 16383), identityKey: key44(address), signedPreKey: { id: 1, publicKey: 'spk', signature: 'sig' }, kyberPreKey: { id: 1, publicKey: 'kpk', signature: 'ksig' }, preKeys: Array.from({ length: preKeys }, (_, i) => ({ id: i + 1, publicKey: `pk${i + 1}` })) });
   const failures = [];
-  const recorded = (method, args, work) => { const planned = failures.findIndex(f => f.method === method); if (planned >= 0) { const [f] = failures.splice(planned, 1); io.push({ kind: 'bridge', method, args, error: f.message }); const error = new Error(f.message); if (f.name) error.name = f.name; throw error; } const result = work(); io.push({ kind: 'bridge', method, args, result }); return result; };
+  const recorded = (method, args, work) => { const planned = failures.findIndex(f => f.method === method); if (planned >= 0) { const [f] = failures.splice(planned, 1); io.push({ kind: 'bridge', method, args, error: f.message, errorName: f.name || 'Error' }); const error = new Error(f.message); if (f.name) error.name = f.name; throw error; } const result = work(); io.push({ kind: 'bridge', method, args, result }); return result; };
   const bridge = {
     createState: async (address, deviceId) => recorded('createState', [address, deviceId], () => ({ state: `S|create:${address}`, bundle: bundleOf(address, 4) })),
     replenish: async (state, count) => recorded('replenish', [state, count], () => ({ state: `${state}|replenish:${count}`, bundle: bundleOf(state.split('|')[1].slice(7), 4 + count) })),
@@ -55,7 +55,7 @@ export function world({ userId, start = Date.parse('2026-11-21T07:00:00.000Z') }
   };
   const deviceRow = (owner, id, bundle) => ({ id, userId: owner, deviceName: 'Телефон', identityKey: bundle.identityKey, registrationId: bundle.registrationId, createdAt: '2026-11-01T00:00:00.000Z', active: true });
   const transport = {
-    registerCryptoDevice: async (deviceId, bundle) => call('registerCryptoDevice', [deviceId, bundle], () => { const list = server.devices.get(userId) || []; const row = deviceRow(userId, deviceId, bundle); server.devices.set(userId, [...list.filter(d => d.id !== deviceId), row]); return { device: row, preKeyCount: server.preKeyCount }; }),
+    registerCryptoDevice: async (deviceId, bundle) => call('registerCryptoDevice', [deviceId, bundle], () => { const list = server.devices.get(userId) || []; const row = deviceRow(userId, deviceId, bundle); server.devices.set(userId, [...list.filter(d => d.id !== deviceId), row]); return { device: server.registerOverride ? server.registerOverride(row) : row, preKeyCount: server.preKeyCount }; }),
     cryptoDevices: async id => call('cryptoDevices', [id], () => ({ devices: structuredClone(server.devices.get(id) || []) })),
     claimPreKey: async (owner, deviceId) => call('claimPreKey', [owner, deviceId], () => { const row = (server.devices.get(owner) || []).find(d => d.id === deviceId); if (!row) throw new Error('no such device'); const claimed = server.claimOverride?.(row); return claimed ?? { device: structuredClone(row), bundle: { registrationId: row.registrationId, identityKey: row.identityKey, signedPreKey: { id: 1, publicKey: 'spk', signature: 'sig' }, kyberPreKey: { id: 1, publicKey: 'kpk', signature: 'ksig' }, preKey: { id: 7, publicKey: 'pk7' } } }; }),
     cryptoInbox: async (deviceId, chatId, after) => call('cryptoInbox', [deviceId, chatId, after], () => server.inbox?.(deviceId, chatId, after) ?? { messages: [], nextCursor: after, hasMore: false }),
@@ -72,6 +72,8 @@ export async function step(w, steps, op, args, work) {
   const from = w.io.length;
   let ok = null, error = null;
   try { const value = await work(); ok = value === undefined ? null : value; } catch (e) { error = { name: e.name, message: e.message }; }
-  steps.push({ op, args, ok: ok === null ? null : JSON.stringify(ok), error, io: w.io.slice(from).map(entry => ({ ...entry, args: entry.args === undefined ? undefined : JSON.stringify(entry.args), result: entry.result === undefined ? undefined : (typeof entry.result === 'string' ? entry.result : JSON.stringify(entry.result)) })), vault: w.snapshot() });
+  const now = w.snapshot(), before = w.last || {}; w.last = now;
+  const set = Object.fromEntries(Object.entries(now).filter(([key, value]) => before[key] !== value)), removed = Object.keys(before).filter(key => !(key in now));
+  steps.push({ op, args, ok: ok === null ? null : JSON.stringify(ok), error, io: w.io.slice(from).map(entry => ({ ...entry, args: entry.args === undefined ? undefined : JSON.stringify(entry.args), result: entry.result === undefined ? undefined : (typeof entry.result === 'string' ? entry.result : JSON.stringify(entry.result)) })), set, removed });
   return { ok, error };
 }

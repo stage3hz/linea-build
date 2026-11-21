@@ -63,7 +63,7 @@ fn stored_records_keep_the_names_the_reference_gave_them() {
     assert_eq!(keys::message("c", "s", "m"), "message:c:s:m");
     assert_eq!(keys::outbox("c", "m"), "outbox:c:m");
     assert_eq!(keys::history_meta("c"), "history:c");
-    assert_eq!(keys::history_page("c", 3), "history:c:3");
+    assert_eq!(keys::history_page("c", 3.0), "history:c:3");
     assert_eq!(keys::address("u", "d", None), "u.d");
     assert_eq!(keys::address("u", "d", Some("voice")), "u.d.voice");
 }

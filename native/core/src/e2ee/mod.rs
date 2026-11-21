@@ -7,4 +7,5 @@
 
 pub mod attachment;
 pub mod bridge;
+pub mod service;
 pub mod wire;
