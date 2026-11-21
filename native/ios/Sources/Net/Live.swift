@@ -66,7 +66,11 @@ final class Live: NSObject, URLSessionWebSocketDelegate {
     }
 
     func urlSession(_ session: URLSession, webSocketTask: URLSessionWebSocketTask, didOpenWithProtocol protocol: String?) {
-        guard webSocketTask === socket, let token = server.token, let frame = Core.text(["type": "auth", "token": token, "lean": true]) else { return }
+        guard webSocketTask === socket, let token = server.token else { return }
+        // A session bound to this device sends its proof with the token; without one the server closes the line.
+        var auth: [String: Any] = ["type": "auth", "token": token, "lean": true]
+        if let proof = server.currentProof { auth["proof"] = proof }
+        guard let frame = Core.text(auth) else { return }
         webSocketTask.send(.string(frame)) { _ in }
     }
 

@@ -29,4 +29,10 @@ typedef struct InvizentCrypto InvizentCrypto;
 InvizentCrypto *invizent_crypto_new(const char *user_id, bool auto_trust, const InvizentHost *host);
 char *invizent_crypto_call(InvizentCrypto *crypto, const char *op, const char *args_json);
 void invizent_crypto_free(InvizentCrypto *crypto);
+
+// One session's exchange of device proofs, moved step by step (see ffi.rs: invizent_proof_call).
+typedef struct InvizentProof InvizentProof;
+InvizentProof *invizent_proof_new(void);
+char *invizent_proof_call(InvizentProof *proof, const char *input_json);
+void invizent_proof_free(InvizentProof *proof);
 #endif

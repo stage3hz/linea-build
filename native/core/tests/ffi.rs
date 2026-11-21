@@ -63,3 +63,28 @@ fn server_operations_cross_the_boundary() {
         assert!(invizent_api_call(std::ptr::null(), std::ptr::null(), std::ptr::null()).is_null());
     }
 }
+
+#[test]
+fn the_device_proof_exchange_crosses_the_boundary() {
+    unsafe {
+        let proof = invizent_proof_new();
+        let call = |input: &str| { let input = CString::new(input).unwrap(); text(invizent_proof_call(proof, input.as_ptr())) };
+        assert_eq!(call(r#"{"op":"state","now":1000}"#).as_deref(), Some(r#"{"proof":null,"due":true,"known":false,"generation":0,"renewAfterMs":null}"#));
+        // A session not bound yet: challenge → sign for binding → bind → the proof is held.
+        assert_eq!(call(r#"{"op":"refresh","force":false,"seen":null,"now":1000}"#).as_deref(), Some(r#"{"post":{"path":"/auth/device/challenge","body":null}}"#));
+        assert_eq!(call(r#"{"op":"refresh","force":false,"seen":null,"now":1000}"#).as_deref(), Some(r#"{"refresh":"running"}"#));
+        assert_eq!(call(r#"{"op":"reply","hasKey":true,"ok":{"challenge":"c1","sessionId":"s1","bound":false},"now":1100}"#).as_deref(), Some(r#"{"sign":{"message":"invizent-device-bind-v1\ns1\nc1","purpose":"bind"}}"#));
+        assert_eq!(call(r#"{"op":"signed","signature":"sig","publicKey":"pub","kind":"hardware","now":1200}"#).as_deref(), Some(r#"{"post":{"path":"/auth/device/bind","body":{"publicKey":"pub","kind":"hardware","signature":"sig"}}}"#));
+        assert_eq!(call(r#"{"op":"reply","hasKey":true,"ok":{"proof":"p1","expiresIn":600},"now":1300}"#).as_deref(), Some(r#"{"done":"held"}"#));
+        assert_eq!(call(r#"{"op":"state","now":2000}"#).as_deref(), Some(r#"{"proof":"p1","due":false,"known":true,"generation":1,"renewAfterMs":480000}"#));
+        assert_eq!(call(r#"{"op":"refresh","force":false,"seen":null,"now":2000}"#).as_deref(), Some(r#"{"refresh":"held"}"#));
+        // The server refuses the proof we hold: a new one is proven with the same key; a lost key ends the session here.
+        assert_eq!(call(r#"{"op":"refresh","force":true,"seen":1,"now":3000}"#).as_deref(), Some(r#"{"post":{"path":"/auth/device/challenge","body":null}}"#));
+        assert_eq!(call(r#"{"op":"reply","hasKey":true,"ok":{"challenge":"c2","sessionId":"s1","bound":true},"now":3100}"#).as_deref(), Some(r#"{"sign":{"message":"invizent-device-proof-v1\ns1\nc2","purpose":"proof"}}"#));
+        assert_eq!(call(r#"{"op":"signed","failed":true,"keyChanged":true,"now":3200}"#).as_deref(), Some(r#"{"done":"lost"}"#));
+        for bad in ["", "{}", r#"{"op":"state"}"#, r#"{"op":"dance","now":1}"#] { assert!(call(bad).is_none(), "{bad}") }
+        invizent_proof_free(proof);
+        invizent_proof_free(std::ptr::null_mut());
+        assert!(invizent_proof_call(std::ptr::null_mut(), std::ptr::null()).is_null());
+    }
+}

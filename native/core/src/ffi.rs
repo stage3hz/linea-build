@@ -317,3 +317,77 @@ pub unsafe extern "C" fn invizent_api_call(op: *const c_char, args: *const c_cha
         Some(json::stringify(&json::object(out)))
     }).ok().flatten().map_or(std::ptr::null_mut(), give)
 }
+
+// ── The device proof of a session ────────────────────────────────────────────────────────────────────────────
+
+/// One session's exchange of device proofs (`device_proof`), driven by the app step by step.
+pub struct InvizentProof(Mutex<crate::device_proof::DeviceProof>);
+
+#[no_mangle]
+pub extern "C" fn invizent_proof_new() -> *mut InvizentProof { Box::into_raw(Box::new(InvizentProof(Mutex::new(crate::device_proof::DeviceProof::new())))) }
+
+/// # Safety
+/// `proof` is null or came from `invizent_proof_new` and is not used afterwards.
+#[no_mangle]
+pub unsafe extern "C" fn invizent_proof_free(proof: *mut InvizentProof) { if !proof.is_null() { drop(Box::from_raw(proof)) } }
+
+/// One move of the exchange. `input`, always with `"now"` (milliseconds):
+/// - `{"op":"state"}` → `{"proof":text|null,"due":bool,"known":bool,"generation":n,"renewAfterMs":n|null}`
+/// - `{"op":"refresh","force":bool,"seen":n|null}` → `{"refresh":"held"|"notUsed"|"running"}` or a step
+/// - `{"op":"reply","hasKey":bool, "ok":body}` / `…"refused":{"status":n,"code":text}` / `…"failed":true` → a step
+/// - `{"op":"signed","signature","publicKey","kind":"hardware"|"software"}` / `{"op":"signed","failed":true,"keyChanged":bool}` → a step
+/// A step: `{"post":{"path":text,"body":json|null}}` (POST it with the session's token, then `reply`) ·
+/// `{"sign":{"message":text,"purpose":"bind"|"proof"}}` (sign with the device key, then `signed`) ·
+/// `{"done":"held"|"notUsed"|"lost"|"unavailable"|"transport"}`.
+///
+/// # Safety
+/// `proof` came from `invizent_proof_new`; `input` is a NUL-terminated string.
+#[no_mangle]
+pub unsafe extern "C" fn invizent_proof_call(proof: *mut InvizentProof, input: *const c_char) -> *mut c_char {
+    use crate::device_proof::{KeyKind, ProofError, Purpose, Refresh, Reply, Signed, Step};
+    if proof.is_null() { return std::ptr::null_mut() }
+    let Some(text) = take(input) else { return std::ptr::null_mut() };
+    let proof = &*proof;
+    catch_unwind(AssertUnwindSafe(|| {
+        let input = json::parse(&text).ok()?;
+        let now = match input.get("now") { Some(Value::Number(now)) => *now as i64, _ => return None };
+        let flag = |key: &str| matches!(input.get(key), Some(Value::Bool(true)));
+        let word = |key: &str| input.get(key).and_then(Value::as_str);
+        let step = |step: Step| -> Value {
+            match step {
+                Step::Post { path, body } => json::object(vec![("post", json::object(vec![("path", Value::str(path)), ("body", body.unwrap_or(Value::Null))]))]),
+                Step::Sign { message, purpose } => json::object(vec![("sign", json::object(vec![("message", Value::str(&message)), ("purpose", Value::str(match purpose { Purpose::Bind => "bind", Purpose::Proof => "proof" }))]))]),
+                Step::Done(result) => json::object(vec![("done", Value::str(match result { Ok(true) => "held", Ok(false) => "notUsed", Err(ProofError::Lost) => "lost", Err(ProofError::Unavailable) => "unavailable", Err(ProofError::Transport(_)) => "transport" }))]),
+            }
+        };
+        let mut held = proof.0.lock().unwrap_or_else(|poisoned| poisoned.into_inner());
+        let out = match word("op")?.as_str() {
+            "state" => json::object(vec![("proof", held.current(now).map_or(Value::Null, Value::str)), ("due", Value::Bool(held.due(now))), ("known", Value::Bool(held.known())),
+                ("generation", Value::Number(held.generation() as f64)), ("renewAfterMs", held.renew_after_ms().map_or(Value::Null, |ms| Value::Number(ms as f64)))]),
+            "refresh" => {
+                let seen = match input.get("seen") { Some(Value::Number(seen)) => Some(*seen as u64), _ => None };
+                match held.refresh(flag("force"), seen, now) {
+                    Refresh::Held => json::object(vec![("refresh", Value::str("held"))]),
+                    Refresh::NotUsed => json::object(vec![("refresh", Value::str("notUsed"))]),
+                    Refresh::Running => json::object(vec![("refresh", Value::str("running"))]),
+                    Refresh::Start(first) => step(first),
+                }
+            }
+            "reply" => {
+                let reply = if let Some(body) = input.get("ok") { Reply::Ok(body.clone()) }
+                    else if let Some(refused) = input.get("refused") { Reply::Refused { status: match refused.get("status") { Some(Value::Number(status)) => *status as u16, _ => 0 }, code: refused.get("code").and_then(Value::as_str).unwrap_or_default() } }
+                    else { Reply::Failed };
+                step(held.on_reply(reply, flag("hasKey"), now))
+            }
+            "signed" => {
+                let signed = match (word("signature"), word("publicKey")) {
+                    (Some(signature), Some(public_key)) if !flag("failed") => Signed::Ok { signature, public_key, kind: if word("kind").as_deref() == Some("hardware") { KeyKind::Hardware } else { KeyKind::Software } },
+                    _ => Signed::Failed { key_changed: flag("keyChanged") },
+                };
+                step(held.on_signed(signed, now))
+            }
+            _ => return None,
+        };
+        Some(json::stringify(&out))
+    })).ok().flatten().map_or(std::ptr::null_mut(), give)
+}

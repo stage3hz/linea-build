@@ -43,9 +43,24 @@ final class Server: NSObject, URLSessionTaskDelegate {
         completionHandler(nil)
     }
 
+    /// The session's device proof (see DeviceProof). Its own requests go out without waiting for a proof.
+    private lazy var proof: DeviceProof = {
+        let proof = DeviceProof()
+        proof.post = { [weak self] path, body in
+            guard let self, let request = try? self.request("POST", path, body) else { return nil }
+            let (data, response, error) = self.wait(request)
+            guard error == nil, let http = response as? HTTPURLResponse else { return nil }
+            return Core.read(status: http.statusCode, body: String(data: data ?? Data(), encoding: .utf8) ?? "")
+        }
+        return proof
+    }()
+    /// The proof for the live line's first frame.
+    var currentProof: String? { token == nil ? nil : proof.current }
+    private let work = DispatchQueue(label: "invizent.server", qos: .userInitiated, attributes: .concurrent)
+
     private func request(_ method: String, _ path: String, _ body: String?) throws -> URLRequest {
         guard base.hasPrefix("https://"), let url = URL(string: base + path),
-              let made = Core.prepare(method: method, path: path, jsonBody: body != nil, token: token, proof: nil) else { throw ServerError.network("Нет связи с сервером. Проверь интернет и адрес подключения.") }
+              let made = Core.prepare(method: method, path: path, jsonBody: body != nil, token: token, proof: token == nil ? nil : proof.current) else { throw ServerError.network("Нет связи с сервером. Проверь интернет и адрес подключения.") }
         var request = URLRequest(url: url, timeoutInterval: made.timeout)
         request.httpMethod = method
         for (name, value) in made.headers { request.setValue(value, forHTTPHeaderField: name) }
@@ -53,7 +68,17 @@ final class Server: NSObject, URLSessionTaskDelegate {
         return request
     }
 
-    private func answer(_ data: Data?, _ response: URLResponse?, _ error: Error?) -> Result<Any, ServerError> {
+    private func wait(_ request: URLRequest) -> (Data?, URLResponse?, Error?) {
+        let waiting = DispatchSemaphore(value: 0)
+        var result: (Data?, URLResponse?, Error?) = (nil, nil, nil)
+        session.dataTask(with: request) { data, response, error in result = (data, response, error); waiting.signal() }.resume()
+        waiting.wait()
+        return result
+    }
+
+    private func once(_ method: String, _ path: String, _ body: String?) -> Result<Any, ServerError> {
+        guard let request = try? request(method, path, body) else { return .failure(.network("Нет связи с сервером. Проверь интернет и адрес подключения.")) }
+        let (data, response, error) = wait(request)
         if let error = error as? URLError, error.code == .timedOut { return .failure(.timeout) }
         guard error == nil, let http = response as? HTTPURLResponse else { return .failure(.network("Нет связи с сервером. Проверь интернет и адрес подключения.")) }
         let read = Core.read(status: http.statusCode, body: String(data: data ?? Data(), encoding: .utf8) ?? "")
@@ -64,25 +89,35 @@ final class Server: NSObject, URLSessionTaskDelegate {
         return .failure(.network("Сервер недоступен."))
     }
 
-    /// Sends a request; the answer's JSON body comes back on a background queue.
-    func send(_ method: String, _ path: String, body: String? = nil, done: @escaping (Result<Any, ServerError>) -> Void) {
-        do {
-            let request = try request(method, path, body)
-            session.dataTask(with: request) { [weak self] data, response, error in
-                done(self?.answer(data, response, error) ?? .failure(.network("Запрос отменён.")))
-            }.resume()
-        } catch { done(.failure(error as? ServerError ?? .network("Нет связи с сервером."))) }
-    }
-
-    /// The same, waiting for the answer on the calling thread (never the main one): the encryption service
-    /// asks the server in the middle of its own work.
+    /// One request with everything around it, waiting for the answer on the calling thread (never the main one).
+    /// A signed-in session is bound to this device's key: a request known to need the proof waits for a fresh
+    /// one, and a request the server refuses for lack of it is repeated once with a new proof (the refused
+    /// request did nothing, so repeating a write is safe).
     func sendAndWait(_ method: String, _ path: String, body: String? = nil) -> Result<Any, ServerError> {
         precondition(!Thread.isMainThread)
-        let waiting = DispatchSemaphore(value: 0)
-        var result: Result<Any, ServerError> = .failure(.network("Нет связи с сервером."))
-        send(method, path, body: body) { result = $0; waiting.signal() }
-        waiting.wait()
-        return result
+        let bound = token != nil && !path.hasPrefix("/auth/device/")
+        guard bound else { return once(method, path, body) }
+        let first = proof.due && !proof.known
+        if proof.due && !first { _ = proof.ensure(force: false) }
+        let seen = proof.generation
+        // Not known yet whether this session needs a proof: the request goes at once, the exchange starts beside it.
+        if first { work.async { [proof] in _ = proof.ensure(force: false) } }
+        let result = once(method, path, body)
+        guard case .failure(.refused(_, 401, let code, _)) = result, code == "device_proof" else { return result }
+        switch proof.ensure(force: true, seen: seen) {
+        case .lost: return .failure(.refused(message: "Войдите в аккаунт заново.", status: 401, code: nil, details: [:]))
+        case .failed: return .failure(.network("Не удалось подтвердить устройство. Проверь подключение."))
+        case .ok:
+            let again = once(method, path, body)
+            // Still refused with a fresh proof: not a reason to sign the account out — say it could not be done.
+            if case .failure(.refused(_, 401, let code, _)) = again, code == "device_proof" { return .failure(.network("Не удалось подтвердить устройство. Попробуй ещё раз.")) }
+            return again
+        }
+    }
+
+    /// Sends a request; the answer's JSON body comes back on a background queue.
+    func send(_ method: String, _ path: String, body: String? = nil, done: @escaping (Result<Any, ServerError>) -> Void) {
+        work.async { done(self.sendAndWait(method, path, body: body)) }
     }
 
     /// A server operation by its name (the table is in the core): `op("chats", [])`.
