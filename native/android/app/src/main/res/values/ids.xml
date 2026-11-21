@@ -1,0 +1,5 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- The first tab's extra action for a screen reader: opening the list of the other sections. -->
+    <item name="action_more_sections" type="id" />
+</resources>
