@@ -62,13 +62,36 @@ final class Messenger {
             case .failure(let error): DispatchQueue.main.async { done(.failure(error)) }
             case .success(let body):
                 let list = (body as? [String: Any])?["chats"] as? [[String: Any]] ?? []
-                self.crypto.run({ crypto in list.compactMap { self.summary($0, crypto) } }, done: { done(.success($0)) })
+                // Pictures of people are fetched by the list itself, as this session.
+                if let made = Core.prepare(method: "GET", path: "/files/x", jsonBody: false, token: self.server.token, proof: self.server.currentProof) {
+                    let headers = Dictionary(made.headers, uniquingKeysWith: { first, _ in first })
+                    DispatchQueue.main.async { ChatAvatarStore.shared.headers = headers }
+                }
+                self.crypto.run({ crypto -> [ChatSummary] in
+                    var part = ""
+                    return list.compactMap { chat in
+                        // A quiet heading above the first chat of each part of the list.
+                        let own = Self.section(chat)
+                        let heading = own != part ? own : ""
+                        part = own
+                        return self.summary(chat, crypto, section: heading)
+                    }
+                }, done: { done(.success($0)) })
             }
         }
     }
 
     /// One chat as a row of the list. Runs on the encryption queue (the last message is read from the kept copy).
-    private func summary(_ chat: [String: Any], _ crypto: CryptoService) -> ChatSummary? {
+    /// The part of the list a chat belongs to: pinned ones first, then by the day of the last message.
+    private static func section(_ chat: [String: Any]) -> String {
+        if (chat["settings"] as? [String: Any])?["pinnedAt"] is String { return "Закреплённые" }
+        guard let at = date((chat["lastMessage"] as? [String: Any])?["createdAt"] as? String) else { return "Раньше" }
+        let calendar = Calendar.current
+        let days = calendar.dateComponents([.day], from: calendar.startOfDay(for: at), to: calendar.startOfDay(for: Date())).day ?? 2
+        return days <= 0 ? "Сегодня" : days == 1 ? "Вчера" : "Раньше"
+    }
+
+    private func summary(_ chat: [String: Any], _ crypto: CryptoService, section: String) -> ChatSummary? {
         guard let id = chat["id"] as? String, let peer = chat["peer"] as? [String: Any], let peerId = peer["id"] as? String else { return nil }
         let title = peer["displayName"] as? String ?? ""
         var preview = "", time = "", ticks = 0
@@ -91,7 +114,9 @@ final class Messenger {
         let color = Self.color(peer["avatarColor"] as? String)
         let orb = orbPair(color)
         let settings = chat["settings"] as? [String: Any]
-        let row: [String: Any] = ["id": id, "title": title, "preview": preview, "time": time, "unread": (chat["unreadCount"] as? NSNumber)?.intValue ?? 0,
+        let avatarId = peer["avatarId"] as? String ?? ""
+        let avatarUrl = avatarId.isEmpty ? "" : server.base + "/files/" + (avatarId.addingPercentEncoding(withAllowedCharacters: .alphanumerics.union(CharacterSet(charactersIn: "-_.~"))) ?? "")
+        let row: [String: Any] = ["section": section, "avatarUrl": avatarUrl, "avatarKey": avatarId, "id": id, "title": title, "preview": preview, "time": time, "unread": (chat["unreadCount"] as? NSNumber)?.intValue ?? 0,
                                   "muted": settings?["muted"] as? Bool ?? false, "pinned": settings?["pinnedAt"] is String, "ticks": ticks,
                                   "avatarColor": Int(0xFF00_0000 | color), "initials": Self.initials(title), "orbA": orb.light, "orbB": orb.deep]
         return ChatSummary(id: id, peerId: peerId, title: title, peerLastRead: (chat["peerLastReadMessageId"] as? NSNumber)?.intValue ?? 0, row: row)
