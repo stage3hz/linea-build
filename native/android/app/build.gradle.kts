@@ -28,6 +28,21 @@ android {
 
     buildFeatures { buildConfig = true }
 
+    // A release build for trying on a phone beside the current app (workflow native-android-apk.yml): its own
+    // identifier suffix (-PtestSuffix=.native) and a signing key made for that one build (-PtestKeystore=…,
+    // password in INVIZENT_TEST_KEYSTORE_PASSWORD). The real release key is never in this repository.
+    val testKeystore = (findProperty("testKeystore") as String?)?.takeIf { it.isNotBlank() }
+    if (testKeystore != null) {
+        signingConfigs {
+            create("test") {
+                storeFile = file(testKeystore)
+                storePassword = System.getenv("INVIZENT_TEST_KEYSTORE_PASSWORD") ?: ""
+                keyAlias = "test"
+                keyPassword = System.getenv("INVIZENT_TEST_KEYSTORE_PASSWORD") ?: ""
+            }
+        }
+    }
+
     buildTypes {
         debug {
             // Installs beside the release app, as the preview build of the previous app did.
@@ -35,6 +50,8 @@ android {
         }
         release {
             isMinifyEnabled = false
+            (findProperty("testSuffix") as String?)?.takeIf { it.isNotBlank() }?.let { applicationIdSuffix = it }
+            if (testKeystore != null) signingConfig = signingConfigs.getByName("test")
         }
     }
 

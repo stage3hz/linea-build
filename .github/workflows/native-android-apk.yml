@@ -1,0 +1,73 @@
+# The native Android app (native/android, Kotlin + the Rust core) built for a real phone as a RELEASE build with
+# its own identifier (com.linea.messenger.native) — it installs BESIDE the current app and cannot touch its keys
+# or history. Runs only for the branch `native-apk`; the file and a check of what is inside go to the branch
+# native-apk-output. Signed with a key made for this one build (thrown away afterwards): a later test build
+# cannot update this one — the earlier test build is removed first. Nothing here talks to any server.
+name: Native Android test APK
+on:
+  push:
+    branches: [native-apk]
+  workflow_dispatch:
+permissions:
+  contents: write
+concurrency:
+  group: native-android-apk
+  cancel-in-progress: true
+jobs:
+  apk:
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: 21
+      - name: Build
+        id: work
+        continue-on-error: true
+        env:
+          INVIZENT_ATTEST_KEY: ${{ secrets.ATTEST_KEY }}
+        run: |
+          set -euo pipefail
+          mkdir -p "$RUNNER_TEMP/out"; OUT="$RUNNER_TEMP/out"
+          exec > >(tee "$OUT/log.txt") 2>&1
+          # A request-signing key of another shape than this build accepts is left out rather than stopping the build.
+          printf '%s' "${INVIZENT_ATTEST_KEY:-}" | grep -Eq '^[A-Za-z0-9+/=_-]{16,200}$' && ATTEST=set || { ATTEST=none; export INVIZENT_ATTEST_KEY=""; }
+          sudo apt-get install -y protobuf-compiler >/dev/null
+          SDK="${ANDROID_HOME:-${ANDROID_SDK_ROOT:-}}"
+          if ! ls -d "$SDK"/ndk/*/ >/dev/null 2>&1; then yes | "$SDK/cmdline-tools/latest/bin/sdkmanager" "ndk;27.1.12297006" >/dev/null; fi
+          echo "== core for phones (arm64-v8a)"; native/android/build-core.sh arm64-v8a
+          export INVIZENT_TEST_KEYSTORE_PASSWORD="$(head -c 24 /dev/urandom | base64 | tr -dc 'A-Za-z0-9')"
+          keytool -genkeypair -keystore "$RUNNER_TEMP/test.jks" -storepass "$INVIZENT_TEST_KEYSTORE_PASSWORD" -keypass "$INVIZENT_TEST_KEYSTORE_PASSWORD" -alias test -keyalg RSA -keysize 3072 -validity 365 -dname "CN=INVIZENT test build" >/dev/null 2>&1
+          cd native/android
+          ./gradlew --no-daemon :app:assembleRelease -PtestSuffix=.native -PtestKeystore="$RUNNER_TEMP/test.jks" > "$OUT/gradle.log" 2>&1 || { grep -nE "^e: |error:|FAILED|What went wrong" -A4 "$OUT/gradle.log" | head -80; tail -40 "$OUT/gradle.log"; exit 1; }
+          APK=$(ls app/build/outputs/apk/release/*.apk | head -1)
+          cp "$APK" "$OUT/INVIZENT-native-Android-arm64-test.apk"
+          BT=$(ls -d "$SDK"/build-tools/* | sort -V | tail -1)
+          {
+            echo "commit $GITHUB_SHA"
+            echo "== size"; ls -l "$OUT/INVIZENT-native-Android-arm64-test.apk" | awk '{print $5" bytes"}'; sha256sum "$OUT/INVIZENT-native-Android-arm64-test.apk" | awk '{print "sha256 "$1}'
+            echo "== request-signing key: $ATTEST"
+            echo "== identity"; "$BT/aapt2" dump badging "$APK" | grep -E "^package:|^sdkVersion|^targetSdkVersion|application-label:" || true
+            echo "== permissions (expected: INTERNET only)"; "$BT/aapt2" dump permissions "$APK" || true
+            echo "== signature"; "$BT/apksigner" verify --print-certs "$APK" | head -4 || true
+            echo "== libraries"; unzip -l "$APK" | grep -E "\.so$" | awk '{print $4, $1}'
+            echo "== debuggable (expected: no)"; "$BT/aapt2" dump badging "$APK" | grep -c "application-debuggable" || true
+            echo "== sample data and test hooks (expected absent)"; if unzip -p "$APK" 'classes*.dex' | strings | grep -q "Книжный клуб"; then echo "PRESENT"; else echo "absent"; fi
+          } > "$OUT/verify.txt"
+          cat "$OUT/verify.txt"
+          ! grep -q "PRESENT" "$OUT/verify.txt"
+          echo "== done"
+      - name: Publish (branch native-apk-output)
+        if: always()
+        run: |
+          cd "$RUNNER_TEMP/out" 2>/dev/null || { mkdir -p "$RUNNER_TEMP/out" && cd "$RUNNER_TEMP/out"; }
+          echo "${{ steps.work.outcome }} $GITHUB_SHA $(date -u)" > STATUS.txt
+          [ -f gradle.log ] && { grep -nE "^e: |error:|FAILED|What went wrong" -A3 gradle.log | head -200 > gradle-errors.txt; tail -80 gradle.log > gradle-tail.txt; : > gradle.log; } || true
+          git init -q -b out && git config user.name "linea-ci" && git config user.email "ci@localhost"
+          git add -A && git commit -qm "Native Android test APK for $GITHUB_SHA: ${{ steps.work.outcome }}"
+          for attempt in 1 2 3; do git push -qf "https://x-access-token:${{ github.token }}@github.com/${{ github.repository }}.git" "HEAD:native-apk-output" && break; sleep 15; done
+      - name: Fail the job if the build failed
+        if: steps.work.outcome != 'success'
+        run: exit 1
