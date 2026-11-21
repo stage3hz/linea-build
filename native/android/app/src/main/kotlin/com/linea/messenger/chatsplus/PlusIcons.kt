@@ -22,6 +22,12 @@ object PlusIcons {
   private val fromAI = setOf("plus", "xmark", "arrow.up", "chevron.down", "chevron.up", "copy", "play", "pause", "mic", "doc", "download", "compose")
   private val fromChats = setOf("pin", "pin.slash", "forward", "bell", "bell.slash", "archive", "person.2", "search", "bubble", "bubble.fill", "clock", "trash", "check", "check.circle", "chevron.left", "chevron.right")
 
+  private val own = setOf("folder", "bookmark", "bookmark.fill", "bubbles", "checkmark.circle", "circle", "circle.fill.check", "video", "arrow.up.right",
+    "arrow.down.left", "nosign", "exclamation.circle", "cloud.down", "slider", "photo", "pencil", "arrow.down.circle", "checkmark", "archivebox.fill", "bell.slash.fill")
+
+  /** Whether this set draws `name` itself (design/Symbols.kt hands such names here, for the rows of the settings). */
+  fun adds(name: String): Boolean = name in own || name == "plus"
+
   /** Draws `name` in a square of `size` px with its centre at (cx, cy). */
   fun draw(canvas: Canvas, name: String, cx: Float, cy: Float, size: Float, color: Int) {
     if (name in fromAI) return AIIcons.draw(canvas, name, cx, cy, size, color)

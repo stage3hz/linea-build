@@ -44,6 +44,10 @@ final class RoomPeerMedia: NSObject, LKRTCPeerConnectionDelegate, LKRTCDataChann
     var onMessage: ((String) -> Void)?
     /// The peer-to-peer channel opened.
     var onChannelOpen: (() -> Void)?
+    // ScreenShare: the slot of a shared screen (Sources/ScreenShare): what this phone sends there, and the person's
+    // picture that arrives over the connection (it shows only while their channel says they share).
+    private var screenSender: LKRTCRtpSender?
+    var onVideo: ((LKRTCVideoTrack) -> Void)?
 
     /// `iceServers`: the server's answer to `GET /calls/ice`. `initiator`: this phone walked in and calls the
     /// person who was already inside (it also opens the text channel). nil when the connection cannot be made.
@@ -64,10 +68,25 @@ final class RoomPeerMedia: NSObject, LKRTCPeerConnectionDelegate, LKRTCDataChann
         let none = LKRTCMediaConstraints(mandatoryConstraints: nil, optionalConstraints: nil)
         guard let made = CallMedia.factory.peerConnection(with: config, constraints: none, delegate: self) else { return nil }
         connection = made
+        // ScreenShare: as the reference, the newcomer reserves a video slot before the first offer (a screen that is
+        // started or stopped only swaps its picture, nothing is negotiated again). The answering side takes the slot
+        // the offer brings (`takeScreenSlot`).
+        if initiator {
+            let slot = LKRTCRtpTransceiverInit()
+            slot.direction = .sendRecv
+            screenSender = made.addTransceiver(of: .video, init: slot)?.sender
+        }
         // The microphone's place is agreed now, but the sound goes in only once the connection is checked.
         let sender = made.add(microphone.track, streamIds: [microphone.streamId])
         sender?.track = nil
         micSender = sender
+        // ScreenShare: after the microphone, the slot of a shared computer's sound (the reference's second audio
+        // section: a computer sends its sound there; this phone only listens to it).
+        if initiator {
+            let sound = LKRTCRtpTransceiverInit()
+            sound.direction = .sendRecv
+            _ = made.addTransceiver(of: .audio, init: sound)
+        }
         if initiator, let opened = made.dataChannel(forLabel: "screen-control", configuration: LKRTCDataChannelConfiguration()) {
             opened.delegate = self
             channel = opened
@@ -84,6 +103,28 @@ final class RoomPeerMedia: NSObject, LKRTCPeerConnectionDelegate, LKRTCDataChann
         audible = on
         guard let connection else { return }
         for receiver in connection.receivers where receiver.track?.kind == "audio" { receiver.track?.isEnabled = on }
+    }
+
+    // ScreenShare: this phone's screen goes into the connection (nil: out of it), with the quality's cap.
+    func setScreen(_ track: LKRTCVideoTrack?, maxBitrate: Int?) {
+        guard let sender = screenSender else { return }
+        sender.track = track
+        guard track != nil, let maxBitrate else { return }
+        let parameters = sender.parameters
+        guard let encoding = parameters.encodings.first else { return }
+        encoding.maxBitrateBps = NSNumber(value: maxBitrate)
+        encoding.maxFramerate = NSNumber(value: 60)
+        sender.parameters = parameters
+    }
+
+    // ScreenShare: the answering side takes the video slot of the offer as its own, and may send its screen there.
+    private func takeScreenSlot() {
+        guard screenSender == nil, let connection else { return }
+        for transceiver in connection.transceivers where transceiver.mediaType == .video && !transceiver.mid.isEmpty {
+            transceiver.setDirection(.sendRecv, error: nil)
+            screenSender = transceiver.sender
+            return
+        }
     }
 
     /// Sends a text over the peer-to-peer channel; false when the channel is not open.
@@ -116,7 +157,7 @@ final class RoomPeerMedia: NSObject, LKRTCPeerConnectionDelegate, LKRTCDataChann
         let mandatory: [String: String] = iceRestart ? ["IceRestart": "true"] : [:]
         let constraints = LKRTCMediaConstraints(mandatoryConstraints: mandatory, optionalConstraints: nil)
         connection.offer(for: constraints, completionHandler: { (description: LKRTCSessionDescription?, _: Error?) -> Void in
-            let sdp = description?.sdp
+            let sdp = description?.sdp.map { (made: String) -> String in ScreenShareModel.stereoScreenAudio(made) } // ScreenShare: stereo for a computer's sound
             DispatchQueue.main.async { done(sdp) }
         })
     }
@@ -125,7 +166,7 @@ final class RoomPeerMedia: NSObject, LKRTCPeerConnectionDelegate, LKRTCDataChann
         guard let connection else { return done(nil) }
         let constraints = LKRTCMediaConstraints(mandatoryConstraints: nil, optionalConstraints: nil)
         connection.answer(for: constraints, completionHandler: { (description: LKRTCSessionDescription?, _: Error?) -> Void in
-            let sdp = description?.sdp
+            let sdp = description?.sdp.map { (made: String) -> String in ScreenShareModel.stereoScreenAudio(made) } // ScreenShare: stereo for a computer's sound
             DispatchQueue.main.async { done(sdp) }
         })
     }
@@ -148,7 +189,10 @@ final class RoomPeerMedia: NSObject, LKRTCPeerConnectionDelegate, LKRTCDataChann
         guard let connection else { return done(false) }
         connection.setRemoteDescription(RoomPeerMedia.sessionDescription(kind, sdp), completionHandler: { (error: Error?) -> Void in
             let fine = error == nil
-            DispatchQueue.main.async { done(fine) }
+            DispatchQueue.main.async { [weak self] in
+                if fine && kind == "offer" { self?.takeScreenSlot() } // ScreenShare: before the answer is made
+                done(fine)
+            }
         })
     }
 
@@ -238,6 +282,8 @@ final class RoomPeerMedia: NSObject, LKRTCPeerConnectionDelegate, LKRTCDataChann
         onState = nil
         onMessage = nil
         onChannelOpen = nil
+        onVideo = nil // ScreenShare
+        screenSender = nil // ScreenShare
         channel?.delegate = nil
         channel?.close()
         channel = nil
@@ -277,10 +323,12 @@ final class RoomPeerMedia: NSObject, LKRTCPeerConnectionDelegate, LKRTCDataChann
         DispatchQueue.main.async { [weak self] in self?.tellState() }
     }
     func peerConnection(_ peerConnection: LKRTCPeerConnection, didAdd rtpReceiver: LKRTCRtpReceiver, streams mediaStreams: [LKRTCMediaStream]) {
+        let video = rtpReceiver.track as? LKRTCVideoTrack // ScreenShare: the person's screen slot
         DispatchQueue.main.async { [weak self] in
             guard let self, !self.closed else { return }
             // Whatever arrives is silent until the connection is checked.
             self.setAudible(self.audible)
+            if let video { self.onVideo?(video) } // ScreenShare
         }
     }
 

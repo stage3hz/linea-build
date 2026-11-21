@@ -546,6 +546,15 @@ final class ChatAttachments: NSObject, PHPickerViewControllerDelegate, UIDocumen
             }
             return
         }
+        // Video: -notedemo 1 opens the round-video recorder (the simulator has no camera: it shows the screen and
+        // «Камера недоступна.»; on a phone with two cameras at once the turn is instant).
+        if !simulatorOpened, UserDefaults.standard.string(forKey: "notedemo") != nil {
+            simulatorOpened = true
+            DispatchQueue.main.asyncAfter(deadline: .now() + 1) { [weak self] in
+                self?.host?.present(NoteRecorder(startAtOnce: false), animated: false)
+            }
+            return
+        }
         // Composer: -attachdemo panel|panellimited|paneldenied|panelselected opens the paperclip's panel with drawn tiles.
         if !simulatorOpened, let demo = UserDefaults.standard.string(forKey: "attachdemo"), demo.hasPrefix("panel") {
             simulatorOpened = true

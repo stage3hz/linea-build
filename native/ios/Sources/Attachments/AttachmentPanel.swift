@@ -57,7 +57,7 @@ final class AttachmentPanelController: UIViewController, UICollectionViewDataSou
     var onPoll: (() -> Void)?
     private let pollAvailable: Bool
 
-    private var tab = "gallery"
+    private var panelTab = "gallery"
     private var selected: [Item] = []
     /// picking · opening · adding
     private var phase = ""
@@ -553,24 +553,24 @@ final class AttachmentPanelController: UIViewController, UICollectionViewDataSou
     /// Everything that follows the state: the title, the panes, the strip, the buttons, the notes.
     private func refreshAll() {
         let locked = !phase.isEmpty
-        if tab == "gallery" {
+        if panelTab == "gallery" {
             titleLabel.text = selected.isEmpty ? "Недавние" : "Выбрано: \(selected.count)"
         } else {
-            titleLabel.text = tab == "audio" ? "Аудио" : "Файлы"
+            titleLabel.text = panelTab == "audio" ? "Аудио" : "Файлы"
         }
         let allowed = samples || status == .authorized || status == .limited
         let denied = !samples && asked && (status == .denied || status == .restricted)
-        grid.isHidden = tab != "gallery" || denied
-        limitedRow.isHidden = tab != "gallery" || status != .limited
-        deniedView.isHidden = tab != "gallery" || !denied
+        grid.isHidden = panelTab != "gallery" || denied
+        limitedRow.isHidden = panelTab != "gallery" || status != .limited
+        deniedView.isHidden = panelTab != "gallery" || !denied
         let count = galleryCount
-        emptyView.isHidden = tab != "gallery" || denied || !allowed || count > 0
+        emptyView.isHidden = panelTab != "gallery" || denied || !allowed || count > 0
         emptyLabel.text = "В разрешённой галерее пока нет фото или видео"
-        audioView.isHidden = tab != "audio"
-        filesView.isHidden = tab != "files"
-        if tab == "audio" { fillAudio() }
+        audioView.isHidden = panelTab != "audio"
+        filesView.isHidden = panelTab != "files"
+        if panelTab == "audio" { fillAudio() }
         for button in tabButtons {
-            let on = button.accessibilityIdentifier == tab
+            let on = button.accessibilityIdentifier == panelTab
             button.backgroundColor = on ? ThemeStore.look.accentSoft : .clear
             var config = button.configuration
             config?.baseForegroundColor = on ? Theme.accent : Theme.text
@@ -582,7 +582,7 @@ final class AttachmentPanelController: UIViewController, UICollectionViewDataSou
         closeButton.alpha = closeButton.isEnabled ? 1 : 0.4
         errorLabel.text = errorWords
         errorLabel.isHidden = errorWords.isEmpty
-        fallbackButton.isHidden = errorWords.isEmpty || tab != "gallery" || !galleryFailed
+        fallbackButton.isHidden = errorWords.isEmpty || panelTab != "gallery" || !galleryFailed
         phaseRow.isHidden = phase.isEmpty && notice.isEmpty
         if phase.isEmpty { phaseSpinner.stopAnimating() } else { phaseSpinner.startAnimating() }
         phaseIcon.isHidden = !phase.isEmpty
@@ -788,7 +788,7 @@ final class AttachmentPanelController: UIViewController, UICollectionViewDataSou
             close(then: { DispatchQueue.main.asyncAfter(deadline: .now() + 0.35) { poll?() } })
             return
         }
-        tab = id
+        panelTab = id
         errorWords = ""
         refreshAll()
     }

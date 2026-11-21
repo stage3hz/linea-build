@@ -685,7 +685,8 @@ class ChatListActions(private val context: Context, private val messenger: Messe
         val isMarked = state.marked(chat.id)
         row["muted"] = quiet
         row["pinned"] = isPinned
-        row["title"] = chat.title + (if (quiet) " 🔕" else "")
+        // Avatars: the title may carry the person's status emoji (avatars/ChatListDecor.kt).
+        row["title"] = (chat.row["title"] as? String ?: chat.title) + (if (quiet) " 🔕" else "")
         row["unread"] = if (count > 0) count else if (isMarked) 1 else 0
         val draft = draftLine(state.draft(chat.id))
         // Offline: the quiet look belongs to the line of a message that cannot be opened here, nothing else.

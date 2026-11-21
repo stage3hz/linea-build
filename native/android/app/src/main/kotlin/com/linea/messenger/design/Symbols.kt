@@ -25,6 +25,8 @@ object Symbols {
     if (com.linea.messenger.settings.SettingsIcons.adds(name)) return com.linea.messenger.settings.SettingsIcons.draw(canvas, name, cx, cy, size, color)
     // Stories: the picture of «Публикации и истории» (stories/StoriesMedia.kt).
     if (com.linea.messenger.stories.StoryIcons.adds(name)) return com.linea.messenger.stories.StoryIcons.draw(canvas, name, cx, cy, size, color)
+    // ChatsPlus: the pictures of «Папки с чатами» and the chat list's extras (chatsplus/PlusIcons.kt).
+    if (com.linea.messenger.chatsplus.PlusIcons.adds(name)) return com.linea.messenger.chatsplus.PlusIcons.draw(canvas, name, cx, cy, size, color)
     stroke.color = color; fill.color = color; letters.color = color; stroke.strokeWidth = 1.7f
     canvas.save()
     canvas.translate(cx - size / 2, cy - size / 2)

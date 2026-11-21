@@ -8,17 +8,18 @@ import UIKit
 ///
 /// Reference: mobile/src/videonote/VideoNote.tsx (`VideoNoteRecorder`: front camera first, 60 s at most, the
 /// wording) and mobile/modules/linea-photo/ios/VideoNoteCamera.swift (640×480 capture, 480×640 H.264 + AAC).
-/// The system's recorder writes a QuickTime file here; before it is sent it is written anew as an MP4 without
-/// metadata (`VideoPrepare.prepare(small: true)`), which is what every other app plays.
-final class NoteRecorder: UIViewController, AVCaptureFileOutputRecordingDelegate {
+/// Video: the camera is the reference's own writer (Sources/Video/NoteCamera.swift) — both cameras at once where the
+/// iPhone can, and the camera can be turned in the middle of a take; the circle turns like a card meanwhile
+/// (VideoNote.tsx, TURN_HALF_MS 290). Before it is sent the file is written anew without metadata
+/// (`VideoPrepare.prepare(small: true)`).
+final class NoteRecorder: UIViewController {
     static let maxSeconds = 60.0
     static let noAccess = "Нужен доступ к камере и микрофону. Разреши их для Инвиза в настройках телефона."
 
-    private let session = AVCaptureSession()
-    private let output = AVCaptureMovieFileOutput()
-    private let work = DispatchQueue(label: "invizent.note.camera")
+    private let camera = NoteCamera()
+    private var recording = false
+    private var turning = false
     private let circle = UIView()
-    private var previewLayer: AVCaptureVideoPreviewLayer?
     private let ring = CAShapeLayer()
     private let heading = UILabel()
     private let problem = UILabel()
@@ -137,7 +138,7 @@ final class NoteRecorder: UIViewController, AVCaptureFileOutputRecordingDelegate
         let side = min(300, width - 48)
         circle.frame = CGRect(x: (width - side) / 2, y: (height - side) / 2 - 40, width: side, height: side)
         circle.layer.cornerRadius = side / 2
-        previewLayer?.frame = circle.bounds
+        camera.layout(circle.bounds)
         ring.frame = view.bounds
         ring.path = UIBezierPath(arcCenter: CGPoint(x: circle.frame.midX, y: circle.frame.midY), radius: side / 2 + 6, startAngle: -CGFloat.pi / 2, endAngle: CGFloat.pi * 1.5, clockwise: true).cgPath
         heading.frame = CGRect(x: 24, y: circle.frame.minY - 56, width: width - 48, height: 24)
@@ -161,9 +162,9 @@ final class NoteRecorder: UIViewController, AVCaptureFileOutputRecordingDelegate
         recordButton.setImage(UIImage(systemName: symbol, withConfiguration: UIImage.SymbolConfiguration(pointSize: recording ? 28 : 44, weight: .bold)), for: .normal)
         recordButton.tintColor = recording ? .white : Theme.danger
         recordButton.accessibilityLabel = recording ? "Остановить и отправить" : "Начать запись"
-        // The camera is not turned in the middle of a take: the file would end there.
-        flipButton.isEnabled = !recording && ready
-        flipButton.alpha = recording ? 0.3 : 1
+        // Video: the camera turns in the middle of a take too (the writer keeps going).
+        flipButton.isEnabled = ready
+        flipButton.alpha = ready ? 1 : 0.4
         hint.text = recording ? "Нажми ещё раз, чтобы отправить" : "До 60 секунд · шифруется перед отправкой"
         showFlash()
     }
@@ -194,22 +195,7 @@ final class NoteRecorder: UIViewController, AVCaptureFileOutputRecordingDelegate
                 brightnessBefore = nil
             }
         }
-        let torch = flash && !front
-        work.async { [weak self] in self?.applyTorch(torch) }
-    }
-
-    private var videoDevice: AVCaptureDevice? {
-        session.inputs.compactMap { $0 as? AVCaptureDeviceInput }.first { $0.device.hasMediaType(.video) }?.device
-    }
-
-    /// Camera queue.
-    private func applyTorch(_ on: Bool) {
-        guard let device = videoDevice, device.hasTorch, device.isTorchModeSupported(on ? .on : .off) else { return }
-        do {
-            try device.lockForConfiguration()
-            device.torchMode = on ? .on : .off
-            device.unlockForConfiguration()
-        } catch {}
+        camera.setTorch(flash && !front)
     }
 
     /// Pinch as in the reference: the scale moves the zoom by 0.6 of its change, between 0 and 1.
@@ -229,17 +215,7 @@ final class NoteRecorder: UIViewController, AVCaptureFileOutputRecordingDelegate
         let shown = String(format: "%.1f", Double(1 + zoom * 5)).replacingOccurrences(of: ".", with: ",") + "×"
         zoomPill.text = shown
         zoomPill.isHidden = zoom <= 0.02
-        let wanted = zoom
-        work.async { [weak self] in
-            guard let device = self?.videoDevice else { return }
-            let top = min(device.activeFormat.videoMaxZoomFactor, 6)
-            let factor = max(device.minAvailableVideoZoomFactor, min(top, 1 + wanted * (top - 1)))
-            do {
-                try device.lockForConfiguration()
-                device.videoZoomFactor = factor
-                device.unlockForConfiguration()
-            } catch {}
-        }
+        camera.setZoom(zoom)
     }
 
     private func say(_ words: String) {
@@ -260,84 +236,52 @@ final class NoteRecorder: UIViewController, AVCaptureFileOutputRecordingDelegate
         }
     }
 
-    private func camera(front: Bool) -> AVCaptureDevice? {
-        AVCaptureDevice.default(.builtInWideAngleCamera, for: .video, position: front ? .front : .back)
-    }
-
     private func open() {
-        let layer = AVCaptureVideoPreviewLayer(session: session)
-        layer.videoGravity = .resizeAspectFill
-        layer.frame = circle.bounds
-        circle.layer.addSublayer(layer)
-        previewLayer = layer
-        let wantFront = front
-        work.async { [weak self] in
-            guard let self else { return }
-            var failed = true
-            // Video: Center Stage off before the camera is added (it would pan the picture inside the circle).
-            if AVCaptureDevice.isCenterStageEnabled {
-                AVCaptureDevice.centerStageControlMode = .cooperative
-                AVCaptureDevice.isCenterStageEnabled = false
-            }
-            self.session.beginConfiguration()
-            if self.session.canSetSessionPreset(.vga640x480) { self.session.sessionPreset = .vga640x480 }
-            if let device = self.camera(front: wantFront), let video = try? AVCaptureDeviceInput(device: device), self.session.canAddInput(video) {
-                self.session.addInput(video)
-                if let microphone = AVCaptureDevice.default(for: .audio), let audio = try? AVCaptureDeviceInput(device: microphone), self.session.canAddInput(audio) {
-                    self.session.addInput(audio)
-                }
-                if self.session.canAddOutput(self.output) {
-                    self.session.addOutput(self.output)
-                    self.output.maxRecordedDuration = CMTime(seconds: NoteRecorder.maxSeconds, preferredTimescale: 600)
-                    failed = false
-                }
-            }
-            self.session.commitConfiguration()
-            if !failed {
-                self.upright()
-                self.session.startRunning()
-            }
-            DispatchQueue.main.async {
-                if failed {
-                    self.say("Камера недоступна.")
-                    return
-                }
-                self.ready = true
-                self.recordButton.isEnabled = true
-                self.recordButton.alpha = 1
-                self.showButtons()
-                if self.startAtOnce { self.begin() }
-            }
+        circle.insertSubview(camera.view, at: 0)
+        camera.layout(circle.bounds)
+        camera.onFailure = { [weak self] (words: String) -> Void in self?.say(words) }
+        camera.onReady = { [weak self] in
+            guard let self, !self.ready else { return }
+            self.ready = true
+            self.recordButton.isEnabled = true
+            self.recordButton.alpha = 1
+            self.showButtons()
+            if self.startAtOnce { self.begin() }
         }
+        camera.start(front: front)
     }
 
-    /// The picture is written upright (the phone is held upright: the app is portrait only).
-    private func upright() {
-        guard let connection = output.connection(with: .video) else { return }
-        if connection.isVideoRotationAngleSupported(90) { connection.videoRotationAngle = 90 }
-    }
-
+    /// The circle turns like a card around its vertical axis: 0 → 90° (edge-on, the camera switches) → −90° → 0,
+    /// 290 ms each half; with reduced motion it switches at once.
     @objc private func flip() {
-        guard ready, startedAt == nil else { return }
+        guard ready, !turning else { return }
         front.toggle()
         // Video: a new camera starts at its widest; the flash follows the camera.
         zoom = 0
         zoomPill.isHidden = true
-        showFlash()
-        let wantFront = front
         UIImpactFeedbackGenerator(style: .light).impactOccurred()
-        work.async { [weak self] in
-            guard let self, let device = self.camera(front: wantFront), let next = try? AVCaptureDeviceInput(device: device) else { return }
-            self.session.beginConfiguration()
-            for input in self.session.inputs {
-                if let old = input as? AVCaptureDeviceInput, old.device.hasMediaType(.video) { self.session.removeInput(old) }
-            }
-            if self.session.canAddInput(next) { self.session.addInput(next) }
-            self.session.commitConfiguration()
-            self.upright()
-            let torch = self.flash && !wantFront
-            self.applyTorch(torch)
+        if UIAccessibility.isReduceMotionEnabled {
+            camera.flip()
+            camera.setZoom(0)
+            showFlash()
+            return
         }
+        turning = true
+        var perspective = CATransform3DIdentity
+        perspective.m34 = -1 / 900
+        UIView.animate(withDuration: 0.29, delay: 0, options: [.curveEaseIn], animations: { () -> Void in
+            self.circle.layer.transform = CATransform3DRotate(perspective, .pi / 2, 0, 1, 0)
+        }, completion: { (_: Bool) -> Void in
+            self.camera.flip()
+            self.camera.setZoom(0)
+            self.showFlash()
+            self.circle.layer.transform = CATransform3DRotate(perspective, -.pi / 2, 0, 1, 0)
+            UIView.animate(withDuration: 0.29, delay: 0, options: [.curveEaseOut], animations: { () -> Void in
+                self.circle.layer.transform = CATransform3DIdentity
+            }, completion: { (_: Bool) -> Void in
+                self.turning = false
+            })
+        })
     }
 
     // MARK: The take
@@ -347,12 +291,21 @@ final class NoteRecorder: UIViewController, AVCaptureFileOutputRecordingDelegate
     }
 
     private func begin() {
-        guard ready, startedAt == nil, !output.isRecording else { return }
+        guard ready, startedAt == nil, !recording else { return }
         if MusicPlayer.shared.current != nil { MusicPlayer.shared.stop() }
-        let file = VideoPrepare.freshFile("mov")
+        let file = VideoPrepare.freshFile("mp4")
         startedAt = Date()
         keep = false
-        output.startRecording(to: file, recordingDelegate: self)
+        recording = true
+        camera.startRecording(to: file) { [weak self] (ok: Bool) -> Void in
+            guard let self, !ok else { return }
+            self.recording = false
+            self.startedAt = nil
+            self.clock?.invalidate()
+            self.clock = nil
+            self.say("Не удалось начать запись видео.")
+            self.showButtons()
+        }
         let timer = Timer(timeInterval: 0.05, repeats: true) { [weak self] _ in self?.ticked() }
         RunLoop.main.add(timer, forMode: .common)
         clock = timer
@@ -364,16 +317,27 @@ final class NoteRecorder: UIViewController, AVCaptureFileOutputRecordingDelegate
         let seconds = Date().timeIntervalSince(startedAt)
         heading.text = FileCore.call("voiceTimeFine", [Int(seconds * 1000)]) as? String ?? ""
         ring.strokeEnd = CGFloat(min(1, seconds / NoteRecorder.maxSeconds))
+        // The longest take ends by itself and is sent.
+        if seconds >= NoteRecorder.maxSeconds { finish(keep: true) }
     }
 
     private func finish(keep: Bool) {
         self.keep = keep
         clock?.invalidate()
         clock = nil
-        if output.isRecording {
-            output.stopRecording()
-        } else {
+        guard recording else {
             close()
+            return
+        }
+        recording = false
+        let seconds = startedAt.map { Date().timeIntervalSince($0) } ?? 0
+        camera.stopRecording { [weak self] (file: URL?) -> Void in
+            guard let self else { return }
+            self.startedAt = nil
+            if let file {
+                if self.keep && seconds >= 1 { self.onDone?(file) } else { try? FileManager.default.removeItem(at: file) }
+            }
+            self.close()
         }
     }
 
@@ -385,28 +349,7 @@ final class NoteRecorder: UIViewController, AVCaptureFileOutputRecordingDelegate
         // Video: the screen's brightness comes back, the torch goes off.
         flash = false
         showFlash()
-        work.async { [session] in
-            if session.isRunning { session.stopRunning() }
-        }
+        camera.stop()
         dismiss(animated: true)
-    }
-
-    func fileOutput(_ output: AVCaptureFileOutput, didFinishRecordingTo outputFileURL: URL, from connections: [AVCaptureConnection], error: Error?) {
-        // The longest take ends by itself with an «error» that says the file is whole: it is sent.
-        var whole = error == nil
-        if let error = error as NSError?, let finished = error.userInfo[AVErrorRecordingSuccessfullyFinishedKey] as? Bool { whole = finished }
-        let limit = (error as NSError?)?.code == AVError.Code.maximumDurationReached.rawValue
-        DispatchQueue.main.async { [self] in
-            clock?.invalidate()
-            clock = nil
-            let seconds = startedAt.map { Date().timeIntervalSince($0) } ?? 0
-            startedAt = nil
-            if whole && (keep || limit) && seconds >= 1 {
-                onDone?(outputFileURL)
-            } else {
-                try? FileManager.default.removeItem(at: outputFileURL)
-            }
-            close()
-        }
     }
 }

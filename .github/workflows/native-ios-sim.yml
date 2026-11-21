@@ -320,6 +320,22 @@ jobs:
           shot 349-big-emoji -demo 1 -chat 1 -chatdemo emoji
           shot 350-profile-status-animated -profiledemo person
           shot 351-people-status -demo 1 -tab people
+          shot 360-forward-many -demo 1 -chat 1 -chatdemo forwardmany
+          shot 361-attach-panel -demo 1 -chat 1 -attachdemo panel
+          shot 362-attach-panel-selected -demo 1 -chat 1 -attachdemo panelselected
+          shot 363-attach-panel-limited -demo 1 -chat 1 -attachdemo panellimited
+          shot 364-attach-panel-denied -demo 1 -chat 1 -attachdemo paneldenied
+          shot 365-photo-editor-remove -demo 1 -chat 1 -photoeditor remove
+          shot 366-photo-editor-background -demo 1 -chat 1 -photoeditor background
+          shot 367-photo-editor-enhance -demo 1 -chat 1 -photoeditor enhance
+          shot 368-photo-editor-format -demo 1 -chat 1 -photoeditor size
+          shot 369-video-player -demo 1 -chat 1 -videodemo player
+          shot 370-video-player-sheet -demo 1 -chat 1 -videodemo sheet
+          shot 371-video-player-speed -demo 1 -chat 1 -videodemo speed
+          shot 372-video-player-locked -demo 1 -chat 1 -videodemo locked
+          shot 373-video-player-seek -demo 1 -chat 1 -videodemo seek
+          shot 374-note-recorder -demo 1 -chat 1 -notedemo 1
+          shot 375-gift-from-chat -demo 1 -chat 1 -chatdemo gift
           shot 62-bar-with-track -musicdemo chats
           shot 63-light-chats -demo 1 -settheme light
           shot 64-light-chat -demo 1 -chat 1 -settheme light

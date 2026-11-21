@@ -282,7 +282,7 @@ class Messenger(context: Context, token: String, val user: Map<String, Any?>) {
         "avatarColor" to (0xFF000000.toInt() or color), "initials" to initials(title), "orbA" to orb.first, "orbB" to orb.second,
         // Offline: a message this device cannot open is said in a quieter way than a real line.
         "quietPreview" to com.linea.messenger.offline.ListCatchUp.awaitsInbox(last),
-      )
+      ) + com.linea.messenger.avatars.ChatListDecor.fields(peer) // Avatars: status emoji, frame, art, plate, Platina name
       return ChatSummary(id, peerId, title, peerLastRead, row, chat, last ?: emptyMap())
     }
 

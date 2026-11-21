@@ -1069,6 +1069,16 @@ final class ChatScreenActions: NSObject, UITextViewDelegate {
         }
     }
 
+    /// Composer: «Отправить подарок» of the reference's chat menu (ChatScreen.tsx `headerSheet === 'gift'`): the gift
+    /// sheet of Sources/Profile/Gifts.swift for this person; «Подарок отправлен» once it went. For the chat's menu.
+    func sendGift() {
+        guard let host, !peerId.isEmpty || messenger == nil else { return }
+        host.view.endEditing(true)
+        let sheet = GiftSheetViewController(messenger: messenger, userId: messenger == nil ? "sample" : peerId)
+        sheet.onSent = { [weak self] in self?.say("Подарок отправлен") }
+        host.present(sheet, animated: true, completion: nil)
+    }
+
     /// ChatActions: «Поиск в этом чате» opens under the header (the avatar's menu and the profile's «Поиск» call it).
     func openSearch() {
         guard searchBar.isHidden else {
@@ -1265,6 +1275,9 @@ final class ChatScreenActions: NSObject, UITextViewDelegate {
             newPoll()
         case "albummenu":
             if let head = shown.albumParts.keys.sorted().first { openMenu(head, y: middle) }
+        // Composer: -chatdemo gift — «Отправить подарок» from the chat; -chatdemo forwardmany — «Выбрать» in «Переслать».
+        case "gift":
+            sendGift()
         default:
             break
         }
