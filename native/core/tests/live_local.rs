@@ -19,22 +19,27 @@ use std::rc::Rc;
 fn device() -> Value { json::parse(r#"{"deviceName":"iPhone","platform":"ios","deviceModel":"iPhone","osVersion":"iOS 26.1","appVersion":"0.17.0"}"#).unwrap() }
 
 #[derive(Clone)]
-struct Http { base: String, token: Option<String> }
+struct Http { base: String, token: Option<String>, proof: Option<String> }
 impl Http {
-    fn op(&self, name: &str, args: Vec<Value>) -> Result<Value, TransportError> {
-        let call = api::call(name, &args, &device()).unwrap_or_else(|| panic!("no such operation: {name}"));
+    /// One request: the status and the JSON body.
+    fn raw(&self, method: &str, path: &str, body: Option<String>, proof: Option<&str>) -> (u16, Value) {
         let client = client_header("0.17.0", Platform::Ios);
         let now_ms = std::time::SystemTime::now().duration_since(std::time::UNIX_EPOCH).unwrap().as_millis() as u64;
-        let list = headers(&Outgoing { method: &call.method, path: &call.path, json_body: call.body.is_some(), client: &client, token: self.token.as_deref(), proof: None, attest_key: "", now_ms });
+        let list = headers(&Outgoing { method, path, json_body: body.is_some(), client: &client, token: self.token.as_deref(), proof: proof.or(self.proof.as_deref()), attest_key: "", now_ms });
         let mut curl = Command::new("curl");
-        curl.args(["-sS", "--noproxy", "*", "-X", &call.method, "-w", "\n%{http_code}"]);
+        curl.args(["-sS", "--noproxy", "*", "-X", method, "-w", "\n%{http_code}"]);
         for (name, value) in &list { curl.args(["-H", &format!("{name}: {value}")]); }
-        if let Some(body) = &call.body { curl.args(["--data-binary", body]); }
-        let out = curl.arg(format!("{}{}", self.base, call.path)).output().map_err(|error| TransportError::Network(error.to_string()))?;
-        if !out.status.success() { return Err(TransportError::Network(String::from_utf8_lossy(&out.stderr).to_string())) }
+        if let Some(body) = &body { curl.args(["--data-binary", body]); }
+        let out = curl.arg(format!("{}{}", self.base, path)).output().expect("curl");
+        assert!(out.status.success(), "{}", String::from_utf8_lossy(&out.stderr));
         let text = String::from_utf8_lossy(&out.stdout).to_string();
         let (body, status) = text.rsplit_once('\n').expect("a status line");
-        match read_answer(status.parse().expect("a status"), body).outcome {
+        (status.parse().expect("a status"), json::parse(body).unwrap_or(Value::Null))
+    }
+    fn op(&self, name: &str, args: Vec<Value>) -> Result<Value, TransportError> {
+        let call = api::call(name, &args, &device()).unwrap_or_else(|| panic!("no such operation: {name}"));
+        let (status, data) = self.raw(&call.method, &call.path, call.body.clone(), None);
+        match read_answer(status, &json::stringify(&data)).outcome {
             Outcome::Ok(data) => Ok(data),
             Outcome::Refused(error) => Err(TransportError::Refused(error.message)),
             Outcome::ServerDown => Err(TransportError::Network("down".into())),
@@ -64,10 +69,41 @@ fn sign_in_receive_and_answer_on_a_local_server() {
     let Ok(base) = std::env::var("INVIZENT_LOCAL_SERVER") else { eprintln!("SKIPPED: no INVIZENT_LOCAL_SERVER"); return };
     assert!(base.starts_with("http://127.0.0.1:"), "a local test server only");
     let var = |name: &str| std::env::var(name).unwrap_or_else(|_| panic!("{name}"));
-    let mut http = Http { base: base.clone(), token: None };
+    let mut http = Http { base: base.clone(), token: None, proof: None };
     let session = http.op("login", vec![Value::str(&var("INVIZENT_LOGIN")), Value::str(&var("INVIZENT_PASSWORD")), Value::str(&var("INVIZENT_WORD"))]).expect("signed in");
     http.token = session.get("token").and_then(Value::as_str);
     let user_id = session.get("user").and_then(|user| user.get("id")).and_then(Value::as_str).expect("a user");
+    // The session is bound to a device key (here a software P-256 key), and from then on needs its proof.
+    {
+        use invizent_core::device_proof::{DeviceProof, KeyKind, Refresh, Reply, Signed, Step};
+        use p256::ecdsa::{signature::Signer, Signature, SigningKey};
+        use base64::Engine as _;
+        let b64 = base64::engine::general_purpose::URL_SAFE_NO_PAD;
+        let key = SigningKey::random(&mut rand_core::OsRng);
+        let public = b64.encode(key.verifying_key().to_encoded_point(false).as_bytes());
+        let now = || std::time::SystemTime::now().duration_since(std::time::UNIX_EPOCH).unwrap().as_millis() as i64;
+        let mut proof = DeviceProof::new();
+        let Refresh::Start(mut step) = proof.refresh(false, None, now()) else { panic!("an exchange starts") };
+        let held = loop {
+            step = match step {
+                Step::Post { path, body } => {
+                    let reply = match http.raw("POST", path, body.as_ref().map(json::stringify), None) { (200..=299, data) => Reply::Ok(data), (status, data) => Reply::Refused { status, code: data.get("code").and_then(Value::as_str).unwrap_or_default() } };
+                    proof.on_reply(reply, true, now())
+                }
+                Step::Sign { message, .. } => { let signature: Signature = key.sign(message.as_bytes()); proof.on_signed(Signed::Ok { signature: b64.encode(signature.to_der().as_bytes()), public_key: public.clone(), kind: KeyKind::Software }, now()) }
+                Step::Done(result) => break result.expect("the exchange ends well"),
+            };
+        };
+        assert!(held, "the session is bound and a proof is held");
+        let current = proof.current(now()).expect("a proof").to_string();
+        // Without the proof the bound session is refused in the words the app acts on; with it, it works.
+        let (status, refused) = http.raw("GET", "/me", None, None);
+        assert_eq!((status, refused.get("code").and_then(Value::as_str).as_deref()), (401, Some("device_proof")), "{}", json::stringify(&refused));
+        let (status, _) = http.raw("GET", "/me", None, Some(&current));
+        assert_eq!(status, 200);
+        http.proof = Some(current);
+        eprintln!("LIVE: the session is bound to a device key; requests carry its proof");
+    }
     let memory = Memory::default();
     let mut crypto = Crypto::new(&user_id, LibSignal, memory.clone(), http.clone(), Clock(0), true, Box::new(invizent_core::photo::valid_preview));
     dispatch(&mut crypto, "initialize", &[]).expect("keys made and published");
