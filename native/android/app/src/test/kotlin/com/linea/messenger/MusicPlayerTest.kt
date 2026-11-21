@@ -431,7 +431,6 @@ class MusicPlayerTest {
     val page = find(activity.window.decorView, "AIScreen")
     assertNotNull(page)
     val words = texts(page!!)
-    java.io.File("/tmp/claude-0/-home-user-linea-build/5c8e3f4d-68c9-5b80-a480-0dad40296d92/scratchpad/music.txt").writeText(words.toString())
     assertTrue(words.containsAll(listOf("Чем отличается val от var в Kotlin?", "Покажи пример со списком", "А если добавить элемент в names?", "Ответ за 3 с", "Ответ за 5 с",
       "AI-сервис не вернул допустимый ответ бесплатной модели. Попробуй ещё раз.", "Повторить этот вопрос", "Умная ⌄")))
     // The block of code is shown without its fence.
