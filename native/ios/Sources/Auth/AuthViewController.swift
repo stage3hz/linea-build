@@ -17,7 +17,7 @@ final class AuthViewController: UIViewController, UITextFieldDelegate {
     private let brand = UILabel(), motto = UILabel(), heading = UILabel(), hint = UILabel(), failure = UILabel()
     private let field = UITextField()
     private let plate = UIView()
-    private let next = UIButton(type: .system)
+    private let proceed = UIButton(type: .system)
     private let back = UIButton(type: .system)
     private let spinner = UIActivityIndicatorView(style: .medium)
     private let column = UIStackView()
@@ -69,8 +69,8 @@ final class AuthViewController: UIViewController, UITextFieldDelegate {
         look.baseForegroundColor = Theme.onAccent
         look.cornerStyle = .capsule
         look.contentInsets = NSDirectionalEdgeInsets(top: 15, leading: 20, bottom: 15, trailing: 20)
-        next.configuration = look
-        next.addTarget(self, action: #selector(goOn), for: .touchUpInside)
+        proceed.configuration = look
+        proceed.addTarget(self, action: #selector(goOn), for: .touchUpInside)
         back.setTitle("Назад", for: .normal)
         back.tintColor = Theme.muted
         back.titleLabel?.font = .systemFont(ofSize: 16)
@@ -81,7 +81,7 @@ final class AuthViewController: UIViewController, UITextFieldDelegate {
         column.axis = .vertical
         column.spacing = 10
         column.translatesAutoresizingMaskIntoConstraints = false
-        for part in [brand, motto, heading, hint, plate, failure, next, back, spinner] as [UIView] { column.addArrangedSubview(part) }
+        for part in [brand, motto, heading, hint, plate, failure, proceed, back, spinner] as [UIView] { column.addArrangedSubview(part) }
         column.setCustomSpacing(4, after: brand)
         column.setCustomSpacing(40, after: motto)
         column.setCustomSpacing(18, after: hint)
@@ -135,7 +135,7 @@ final class AuthViewController: UIViewController, UITextFieldDelegate {
             field.textContentType = nil
             field.returnKeyType = .go
         }
-        self.next.configuration?.title = next == .word ? "Войти в Инвиз" : "Продолжить"
+        proceed.configuration?.title = next == .word ? "Войти в Инвиз" : "Продолжить"
         field.reloadInputViews()
         UIAccessibility.post(notification: .screenChanged, argument: heading)
     }
@@ -177,13 +177,13 @@ final class AuthViewController: UIViewController, UITextFieldDelegate {
         guard let json = Core.text(body) else { return }
         busy = true
         spinner.startAnimating()
-        next.isEnabled = false
+        proceed.isEnabled = false
         server.send("POST", "/auth/login", body: json) { [weak self] result in
             DispatchQueue.main.async {
                 guard let self else { return }
                 self.busy = false
                 self.spinner.stopAnimating()
-                self.next.isEnabled = true
+                self.proceed.isEnabled = true
                 switch result {
                 case .success(let answer):
                     guard let session = answer as? [String: Any], let token = session["token"] as? String, !token.isEmpty, let user = session["user"] as? [String: Any] else {
