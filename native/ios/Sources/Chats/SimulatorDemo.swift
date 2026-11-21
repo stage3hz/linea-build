@@ -1,0 +1,30 @@
+#if targetEnvironment(simulator)
+import UIKit
+
+/// Made-up chats for looking at the list in the simulator while there is no account behind it yet.
+/// Compiled for the simulator only: a build for a phone does not contain this file's contents.
+enum SimulatorDemo {
+    static func chats() -> [ChatRow] {
+        let people: [(String, String, String, UInt32, Int, Bool, Bool, Int, String)] = [
+            ("Алиса Воронцова", "Тогда до завтра, я принесу распечатки", "09:38", 0x5E7BFF, 2, false, true, 0, "Закреплённые"),
+            ("Команда запуска", "Игорь: сборка прошла, смотрю снимки", "09:12", 0x34C3A0, 14, false, false, 0, "Сегодня"),
+            ("Мама", "Позвони, как освободишься", "08:47", 0xE86F9B, 0, false, false, 2, ""),
+            ("Дмитрий Орлов", "Голосовое сообщение", "08:05", 0xF2A33C, 0, false, false, 1, ""),
+            ("Книжный клуб", "Вера: в четверг обсуждаем третью главу", "Вчера", 0x9B6BF2, 131, true, false, 0, "Вчера"),
+            ("Саша", "Ок", "Вчера", 0x3CA7F2, 0, false, false, 2, ""),
+            ("Поддержка", "Спасибо, вопрос решён", "Пн", 0x7A8699, 0, false, false, 0, "Раньше"),
+            ("Марина Ким", "Фото", "Пн", 0xF26B5E, 0, false, false, 0, ""),
+            ("Лев", "Пришли адрес ещё раз, пожалуйста", "12.11", 0x4FB86A, 0, false, false, 2, ""),
+        ]
+        let rows: [[String: Any]] = people.enumerated().map { index, person -> [String: Any] in
+            let (title, preview, time, color, unread, muted, pinned, ticks, section) = person
+            let orb = orbPair(color)
+            let initials = title.split(separator: " ").prefix(2).compactMap { $0.first }.map { String($0) }.joined()
+            return ["id": "demo-\(index)", "title": title, "preview": preview, "time": time, "unread": unread, "muted": muted, "pinned": pinned, "ticks": ticks,
+                    "avatarColor": Int(0xFF00_0000 | color), "initials": initials, "orbA": orb.light, "orbB": orb.deep, "section": section,
+                    "previewIcon": preview == "Голосовое сообщение" ? "mic" : ""]
+        }
+        return ChatRow.parse(rows)
+    }
+}
+#endif

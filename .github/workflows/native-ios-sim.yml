@@ -60,9 +60,17 @@ jobs:
           limit 60 xcrun simctl status_bar "$UDID" override --time 9:41 --batteryState charged --batteryLevel 100 || true
           limit 60 xcrun simctl ui "$UDID" appearance dark || true
           limit 600 xcrun simctl install "$UDID" "$APP"
-          limit 120 xcrun simctl launch "$UDID" com.invizent.app
-          sleep 20
-          limit 60 xcrun simctl io "$UDID" screenshot "$OUT/01-core-check.png"
+          shot() { # name, launch arguments…
+            local name="$1"; shift
+            limit 60 xcrun simctl terminate "$UDID" com.invizent.app >/dev/null 2>&1 || true
+            limit 120 xcrun simctl launch "$UDID" com.invizent.app "$@"
+            sleep 12
+            limit 60 xcrun simctl io "$UDID" screenshot "$OUT/$name.png"
+          }
+          shot 01-core-check -corecheck 1
+          shot 02-chats
+          shot 03-sections -sections 1
+          shot 04-settings -tab profile
           echo "== done"
       - name: Publish the result (branch native-sim-output-<runner>)
         if: always()

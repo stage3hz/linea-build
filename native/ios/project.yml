@@ -17,10 +17,10 @@ targets:
     platform: iOS
     sources: [Sources]
     info:
-      path: Sources/Info.plist
+      path: Info.plist
       properties:
         CFBundleDisplayName: INVIZENT
-        UILaunchScreen: { UIColorName: "" }
+        UILaunchScreen: {}
         UISupportedInterfaceOrientations: [UIInterfaceOrientationPortrait]
         UIUserInterfaceStyle: Dark
         UIApplicationSceneManifest:

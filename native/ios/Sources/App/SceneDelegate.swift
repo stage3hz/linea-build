@@ -8,8 +8,14 @@ final class SceneDelegate: UIResponder, UIWindowSceneDelegate {
         let window = UIWindow(windowScene: scene)
         window.backgroundColor = .black
         window.overrideUserInterfaceStyle = .dark
-        window.rootViewController = CoreCheckViewController()
+        let root = RootViewController()
+        window.rootViewController = UserDefaults.standard.bool(forKey: "corecheck") ? CoreCheckViewController() : root
         window.makeKeyAndVisible()
         self.window = window
+        #if targetEnvironment(simulator)
+        // For the simulator check: `-tab profile` opens a section at once, `-sections 1` opens the list of sections.
+        if let tab = UserDefaults.standard.string(forKey: "tab") { root.loadViewIfNeeded(); root.show(tab) }
+        if UserDefaults.standard.bool(forKey: "sections") { DispatchQueue.main.asyncAfter(deadline: .now() + 1.5) { root.showSections() } }
+        #endif
     }
 }

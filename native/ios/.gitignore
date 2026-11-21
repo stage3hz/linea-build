@@ -1,4 +1,4 @@
 build/
 *.xcodeproj
-Sources/Info.plist
+Info.plist
 DerivedData/
