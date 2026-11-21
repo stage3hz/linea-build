@@ -50,10 +50,10 @@ shot 31-list-archive --ez demo true --es chatlist archive
 shot 21-ai-demo --es aidemo 1
 shot 22-music-demo --es musicdemo 1
 shot 23-music-player --es musicdemo player
+shot 33-voice --ez demo true --ez chat true --es voicedemo 1
+shot 34-voice-recording --ez demo true --ez chat true --es voicedemo recording
+shot 35-video --ez demo true --ez chat true --es videodemo 1
 # What the app itself said while it ran (crashes show here).
 adb logcat -d -t 400 '*:E' > "$OUT/logcat-errors.txt" 2>/dev/null || true
 adb shell dumpsys package "$APP" | grep -E "versionName|primaryCpuAbi" || true
 echo "== done"
-shot 33-voice --ez demo true --ez chat true --es voicedemo 1
-shot 34-voice-recording --ez demo true --ez chat true --es voicedemo recording
-shot 35-video --ez demo true --ez chat true --es videodemo 1
