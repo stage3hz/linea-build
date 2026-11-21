@@ -94,6 +94,7 @@ final class SceneDelegate: UIResponder, UIWindowSceneDelegate {
     #if targetEnvironment(simulator)
     /// What the simulator check asks for by launch arguments. True when one of them decided the start.
     ///   -corecheck 1                    the Swift↔core and storage check screen
+    ///   -takeovercheck 1 -takeoveruser <id> [-takeoverexpect "a|b"]    what the previous app left: session, keys, storage, history (Storage/TakeoverCheck.swift)
     ///   -auth 1                         the sign-in screen
     ///   -authmode register / recover / waiting / reset    with -auth: that step of the sign-in screen (read in AuthViewController)
     ///   -demo 1                         the shell with sample chats (no account)
@@ -117,6 +118,8 @@ final class SceneDelegate: UIResponder, UIWindowSceneDelegate {
     private func simulatorStart() -> Bool {
         let args = UserDefaults.standard
         if args.bool(forKey: "corecheck") { window?.rootViewController = CoreCheckViewController(); return true }
+        // Update check: what the previous app left on the phone, read only (Storage/TakeoverCheck.swift).
+        if args.bool(forKey: "takeovercheck") { window?.rootViewController = TakeoverCheckViewController(); return true }
         if args.bool(forKey: "auth") { showAuth(); return true }
         if simulatorScreenShare() { return true } // ScreenShare: -screendemo panel|viewer|starting|sharing|error|room|bar (ScreenShare/ScreenShareSimulator.swift)
         if simulatorChannels() { return true }

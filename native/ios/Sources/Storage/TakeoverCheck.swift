@@ -98,9 +98,10 @@ enum TakeoverCheck {
             }
             lines.append("messages[message:*]=\(messages.count) (decrypted with text: \(texts.filter { !$0.isEmpty }.count), could not be opened: \(failed))")
             need(!texts.filter { !$0.isEmpty }.isEmpty)
-            lines.append("history[history:*]=\(try vault.records(prefix: "history:", limit: 0).count)")
-            lines.append("sessions[session:*]=\(try vault.records(prefix: "session:", limit: 0).count)")
-            lines.append("trust[trust:*]=\(try vault.records(prefix: "trust:", limit: 0).count)")
+            for (label, prefix) in [("history", "history:"), ("sessions", "session:"), ("trust", "trust:"), ("devices", "devices:")] {
+                let found = try vault.records(prefix: prefix, limit: 0)
+                lines.append("\(label)[\(prefix)*]=\(found.count)")
+            }
             let list = (try vault.get("chats:v1")).flatMap { json($0) as? [Any] }
             lines.append("chats-cache[chats:v1]=" + (list.map { "\($0.count) chats" } ?? "missing"))
             let pages = try vault.records(prefix: "page:v1:", limit: 200)

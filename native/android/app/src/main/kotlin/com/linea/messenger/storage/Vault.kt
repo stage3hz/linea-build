@@ -43,9 +43,9 @@ class Vault(context: Context, server: String, userId: String, earlierServers: Li
           if (found != null) { scope = candidate; key = found; break }
         }
       }
-      val folder = File(app.filesDir, "SQLite")
+      val folder = folder(app)
       if (!folder.isDirectory && !folder.mkdirs()) throw Failure(Kind.CANNOT_OPEN)
-      val file = File(folder, "linea-e2ee-$scope.db")
+      val file = file(app, scope)
       try { System.loadLibrary("sqlcipher") } catch (_: UnsatisfiedLinkError) { throw Failure(Kind.NO_CIPHER) }
       if (key != null) {
         if (!Regex("^[a-f0-9]{64}$").matches(key)) throw Failure(Kind.BAD_KEY)
@@ -129,6 +129,10 @@ class Vault(context: Context, server: String, userId: String, earlierServers: Li
       MessageDigest.getInstance("SHA-256").digest("$server\u0000$userId".toByteArray(Charsets.UTF_8)).joinToString("") { String.format(Locale.ROOT, "%02x", it.toInt() and 0xFF) }
 
     fun keyName(scope: String) = "linea.e2ee.v1.$scope"
+
+    /** expo-sqlite's default folder on Android (SQLiteModule.defaultDatabaseDirectory: `filesDir/SQLite`). */
+    fun folder(context: Context) = File(context.applicationContext.filesDir, "SQLite")
+    fun file(context: Context, scope: String) = File(folder(context), "linea-e2ee-$scope.db")
 
     /** A database that cannot be read is never deleted here, whatever the library's own habit is. */
     private val keepFile = DatabaseErrorHandler { _, _ -> }
