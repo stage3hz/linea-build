@@ -83,7 +83,7 @@ final class ChatViewController: UIViewController {
         list.setPalette(Theme.messages)
         view.addSubview(list)
 
-        header.backgroundColor = Theme.bg.withAlphaComponent(0.92)
+        header.backgroundColor = Theme.bg
         view.addSubview(header)
         back.setImage(UIImage(systemName: "chevron.left", withConfiguration: UIImage.SymbolConfiguration(pointSize: 20, weight: .semibold)), for: .normal)
         back.tintColor = Theme.text

@@ -115,7 +115,7 @@ final class PersonProfileViewController: UIViewController {
         cardBox.addSubview(card)
         content.addArrangedSubview(cardBox)
 
-        topBar.backgroundColor = Theme.bg.withAlphaComponent(0.92)
+        topBar.backgroundColor = Theme.bg
         topBar.translatesAutoresizingMaskIntoConstraints = false
         view.addSubview(topBar)
         back.setImage(UIImage(systemName: "chevron.left", withConfiguration: UIImage.SymbolConfiguration(pointSize: 20, weight: .semibold)), for: .normal)

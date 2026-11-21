@@ -310,6 +310,8 @@ final class SelectionHeader: UIView {
 
     override init(frame: CGRect) {
         super.init(frame: frame)
+        // Opaque: messages scrolled under it must not show through its words.
+        backgroundColor = Theme.bg
         cancelButton.setTitle("Отмена", for: .normal)
         cancelButton.titleLabel?.font = .systemFont(ofSize: 16, weight: .semibold)
         cancelButton.tintColor = Theme.accent
