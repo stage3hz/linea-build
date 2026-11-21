@@ -376,7 +376,8 @@ class ChatHistory(private val messenger: Messenger?, private val local: ChatLoca
         // A finished call is a line of its own, not a message of anyone's.
         val own = Core.map(meta?.get("action"))
         if (own != null && own["type"] as? String == "call") {
-          val words = Core.view("chatListText", listOf(message)) as? String ?: (message["text"] as? String ?: "")
+          // Calls: the row names the direction («Исходящий звонок · 3:12»), as the reference's chat does.
+          val words = Core.view("callServiceText", listOf(own, sender, input.userId)) as? String ?: Core.view("chatListText", listOf(message)) as? String ?: (message["text"] as? String ?: "")
           rows.add(linkedMapOf("key" to key, "kind" to 1, "text" to (if (clock.isEmpty()) words else "$words · $clock")))
           return@forEachIndexed
         }

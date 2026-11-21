@@ -302,7 +302,7 @@ fn night(settings: &Value, mode: &str, dark_theme: &str, system: Option<&str>, m
         "system" => system == Some("dark"),
         "schedule" => {
             let (a, b) = (clock_minutes(&settings.get("from")?.as_str()?)?, clock_minutes(&settings.get("to")?.as_str()?)?);
-            if a == b { false } else if a < b { minute >= a && minute <= b } else { minute >= a || minute < b }
+            if a == b { false } else if a < b { minute >= a && minute < b } else { minute >= a || minute < b }
         }
         "auto" => { let Some(Value::Number(limit)) = settings.get("brightness") else { return None }; brightness.is_some_and(|level| level <= *limit) }
         "off" => false,

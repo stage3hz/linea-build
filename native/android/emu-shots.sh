@@ -55,6 +55,12 @@ shot 34-voice-recording --ez demo true --ez chat true --es voicedemo recording
 shot 35-video --ez demo true --ez chat true --es videodemo 1
 shot 36-link-cards --ez demo true --ez chat true --es linkdemo 1
 shot 37-link-composer --ez demo true --ez chat true --es linkdemo composer
+shot 38-call-outgoing --es calldemo outgoing
+shot 39-call-incoming --es calldemo incoming
+shot 40-call-active --es calldemo active
+shot 41-call-video --es calldemo video
+shot 42-call-retry --es calldemo retry
+shot 43-call-bar --es calldemo bar
 # What the app itself said while it ran (crashes show here).
 adb logcat -d -t 400 '*:E' > "$OUT/logcat-errors.txt" 2>/dev/null || true
 adb shell dumpsys package "$APP" | grep -E "versionName|primaryCpuAbi" || true

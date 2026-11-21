@@ -104,7 +104,8 @@ object Demo {
    *    --es tab people / --es peoplesearch … / --es profile friend|chat    «Люди» and a profile (people/PeopleDemo.kt)
    *    --es channelsdemo 1|community|blog|chat|menu|settings / --es channels community|chat|create|join    «Каналы» (channels/ChannelsDemo.kt)
    *    --es attachdemo 1|viewer / --es openattachment photo|file           attachments (attachments/AttachmentsDemo.kt)
-   *    --es chatdemo … / --es chataction … / --es chatlist … / --es chatsearch …   actions on messages and chats (chatactions/ChatActionsDemo.kt) */
+   *    --es chatdemo … / --es chataction … / --es chatlist … / --es chatsearch …   actions on messages and chats (chatactions/ChatActionsDemo.kt)
+   *    --es calldemo outgoing|incoming|active|video|ended|retry|bar        calls: a sample call in each state, no account (calls/CallsDemo.kt) */
   fun start(intent: Intent?, launcher: Launcher): Boolean {
     if (intent == null) return false
     testServer = intent.getStringExtra("server")?.takeIf { local.matches(it) }
@@ -113,6 +114,8 @@ object Demo {
     authMode = intent.getStringExtra("authmode")
     // AI and Music: `aidemo`, `musicdemo` (music/MusicDemo.kt).
     if (AIMusicSimulator.start(intent, launcher)) return true
+    // Calls: `calldemo` — a sample call in each state (calls/CallsDemo.kt).
+    if (com.linea.messenger.calls.CallsDemo.start(intent, launcher)) return true
     if (intent.getBooleanExtra("auth", false)) { launcher.showAuth(); return true }
     intent.getStringExtra("settings")?.let { openSettings(launcher, it) }
     if (ChannelsSimulator.demo(intent, launcher)) return true

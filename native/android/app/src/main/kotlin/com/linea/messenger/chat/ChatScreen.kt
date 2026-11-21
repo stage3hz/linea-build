@@ -63,6 +63,8 @@ class ChatScreen(
   private val attachments = ChatAttachments(this, messenger, chatId, peerId)
   /** Voice/Video: the record button, voice messages, videos and round videos (voice/ChatMedia.kt). */
   private val media = com.linea.messenger.voice.ChatMedia(this, messenger, chatId, peerId)
+  /** Calls: «Позвонить» in the header; a long touch offers «Видеозвонок» too (calls/CallOverlay.kt). */
+  val callButton: View = com.linea.messenger.calls.CallEntry.headerButton(context, messenger, chatId, peerId, name)
 
   init {
     setBackgroundColor(Theme.bg)
@@ -85,6 +87,7 @@ class ChatScreen(
     addView(heading)
     // People: a tap on the name opens the person's profile.
     heading.setOnClickListener { openProfile() }
+    addView(callButton)
 
     composer.addView(field, FrameLayout.LayoutParams(FrameLayout.LayoutParams.MATCH_PARENT, FrameLayout.LayoutParams.MATCH_PARENT).apply { leftMargin = dp(18f); rightMargin = dp(50f) })
     composer.addView(send, FrameLayout.LayoutParams(dp(44f), dp(44f), Gravity.END or Gravity.BOTTOM).apply { rightMargin = dp(2f); bottomMargin = dp(2f) })
@@ -170,6 +173,7 @@ class ChatScreen(
     put(header, 0, 0, width, top + dp(48f))
     put(back, dp(6f), top + dp(2f), dp(44f), dp(44f))
     put(heading, dp(56f), top + dp(2f), width - dp(112f), dp(44f))
+    put(callButton, width - dp(50f), top + dp(2f), dp(44f), dp(44f))
     // ChatActions: the composer is as tall as the field's text asks (one line at first); the send button and
     // the paperclip stay at its lower edge.
     val composerHeight = actions.composerHeight(width - dp(24f) - dp(100f))

@@ -14,6 +14,14 @@
          Neither is required: the app installs on a device without them. -->
     <uses-permission android:name="android.permission.RECORD_AUDIO" />
     <uses-permission android:name="android.permission.CAMERA" />
+    <!-- Calls (calls/): the microphone and the camera above are asked of the person when a call first needs
+         them. The four below are given with the install and ask nothing: choosing where a call sounds (the
+         earpiece, the loudspeaker, headphones), the system's word on whether there is a network (nothing is
+         contacted), the screen going dark at the ear, and the hum of an incoming call. -->
+    <uses-permission android:name="android.permission.MODIFY_AUDIO_SETTINGS" />
+    <uses-permission android:name="android.permission.ACCESS_NETWORK_STATE" />
+    <uses-permission android:name="android.permission.WAKE_LOCK" />
+    <uses-permission android:name="android.permission.VIBRATE" />
     <uses-feature android:name="android.hardware.microphone" android:required="false" />
     <uses-feature android:name="android.hardware.camera" android:required="false" />
     <uses-feature android:name="android.hardware.camera.front" android:required="false" />

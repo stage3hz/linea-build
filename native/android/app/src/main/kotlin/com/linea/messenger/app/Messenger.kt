@@ -177,7 +177,7 @@ class Messenger(context: Context, token: String, val user: Map<String, Any?>) {
   fun deliver(crypto: CryptoService, chatId: String, peerId: String, clientId: String, text: Any?, attachment: Any?, meta: Any?, again: Boolean = true, linkPreview: Any? = null, push: String? = null): Result<Unit> {
     val encrypted = crypto.callNow("encrypt", listOf(chatId, peerId, clientId, text, attachment, meta, null, linkPreview))
     if (encrypted.isFailure) return Result.failure(CryptoService.failure(encrypted) ?: CryptoFailure("Error", "Шифрование недоступно."))
-    val sent = server.opAndWait("sendEncrypted", listOfNotNull<Any?>(chatId, clientId, encrypted.getOrNull() ?: emptyMap<String, Any?>(), push))
+    val sent = server.opAndWait("sendEncrypted", listOf(chatId, clientId, encrypted.getOrNull()) + listOfNotNull(push))
     if (sent.isSuccess) {
       crypto.callNow("delivered", listOf(chatId, clientId))
       return Result.success(Unit)

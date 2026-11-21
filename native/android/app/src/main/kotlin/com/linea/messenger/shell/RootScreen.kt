@@ -73,6 +73,8 @@ class RootScreen(context: Context, private val messenger: Messenger?, private va
     MusicGlow.attach(this)
     // Channels: what is unread in the communities of this account (channels/ChannelsStore.kt).
     ChannelsStore.start(context, messenger)
+    // Calls: the call screen and the bar of a minimised call, over every section (calls/CallOverlay.kt).
+    com.linea.messenger.calls.CallOverlay.start(context, messenger)
   }
 
   /** People: the number of requests to be friends on the row of «Люди». */

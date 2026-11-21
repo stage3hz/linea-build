@@ -235,10 +235,20 @@ class PersonProfileScreen(
   private fun rebuildTiles() {
     tiles.removeAllViews()
     if (!fromChat) makeTile("bubble.fill", "Написать", loading = false).setOnClickListener { writeTapped() }
-    val (symbol, words) = ProfileWords.friendTile(isFriend, request)
-    val friend = makeTile(symbol, words, loading = isFriend == null && problemWords.isEmpty())
-    if (isFriend == null) friend.isEnabled = false
-    friend.setOnClickListener { friendTapped() }
+    if (fromChat) {
+      // Calls: opened from a chat, the row is «Звонок», «Видео», «Ещё», as in the reference (the friends
+      // action is in «Ещё» then). calls/CallOverlay.kt places the call.
+      for (video in listOf(false, true)) {
+        makeTile(if (video) "video.fill" else "phone.fill", if (video) "Видео" else "Звонок", loading = false).setOnClickListener {
+          com.linea.messenger.calls.CallEntry.call(messenger, chatId, userId, name, shownPerson, video)
+        }
+      }
+    } else {
+      val (symbol, words) = ProfileWords.friendTile(isFriend, request)
+      val friend = makeTile(symbol, words, loading = isFriend == null && problemWords.isEmpty())
+      if (isFriend == null) friend.isEnabled = false
+      friend.setOnClickListener { friendTapped() }
+    }
     val other = makeTile("dots", "Ещё", loading = false)
     other.setOnClickListener { showMore(other) }
   }
