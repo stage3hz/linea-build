@@ -651,6 +651,8 @@ final class Calls {
             // The camera is not allowed: the call goes on with audio.
             guard let self, refusal == nil, self.isCurrent(id), self.media === made, self.call?.status == "active" else { return }
             made.addCamera()
+            // No camera could be opened: the call stays audio.
+            guard made.hasCamera else { return }
             CallAudio.route(true, video: true)
             self.patch { (call: inout CallState) -> Void in
                 call.video = true

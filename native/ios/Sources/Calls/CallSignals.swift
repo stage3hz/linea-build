@@ -77,6 +77,7 @@ extension Messenger {
 final class CallSignals {
     private weak var messenger: Messenger?
     private let userId: String
+    private var handed = Set<Int>()
     /// A decrypted message of the other side whose `meta.action` is a call's step.
     var onSignal: (([String: Any]) -> Void)?
     /// The server says how far an outgoing call got: the chat and "online", "push" or "none".
@@ -162,9 +163,22 @@ final class CallSignals {
                 found.append(((message["id"] as? NSNumber)?.intValue ?? 0, opened))
             }
             found.sort { (a: (id: Int, message: [String: Any]), b: (id: Int, message: [String: Any])) -> Bool in a.id < b.id }
-            return found.map { (item: (id: Int, message: [String: Any])) -> [String: Any] in item.message }
+            return found.map { (item: (id: Int, message: [String: Any])) -> [String: Any] in
+                var message = item.message
+                message["callStepId"] = item.id
+                return message
+            }
         }, done: { [weak self] (signals: [[String: Any]]) -> Void in
-            for signal in signals { self?.onSignal?(signal) }
+            // Each step is handed over once: after a reconnection the same page is read again.
+            for signal in signals {
+                guard let self else { return }
+                let id = signal["callStepId"] as? Int ?? 0
+                if id != 0 {
+                    if self.handed.contains(id) { continue }
+                    self.handed.insert(id)
+                }
+                self.onSignal?(signal)
+            }
         })
     }
 }
