@@ -29,17 +29,22 @@ class SettingsScreen internal constructor(context: Context, private val account:
 
   private var leaving = false
   private val profileChanged: () -> Unit = { if (built) build() }
+  // Profile: the banner, the effect, «Изменить» and the decorated head (profile/SettingsProfileHead.kt).
+  private val profileChrome = com.linea.messenger.profile.SettingsProfileChrome(context)
+  private val platinaChanged: (Unit) -> Unit = { if (built) build() }
 
   override fun onAttachedToWindow() {
     val again = built
     super.onAttachedToWindow()
     OwnProfile.watch(profileChanged)
+    com.linea.messenger.platina.PlatinaState.changed.watch(platinaChanged) // Profile: the offer
     // Back in the window: what changed while the section was away is shown.
     if (again) build()
   }
 
   override fun onDetachedFromWindow() {
     OwnProfile.unwatch(profileChanged)
+    com.linea.messenger.platina.PlatinaState.changed.unwatch(platinaChanged)
     super.onDetachedFromWindow()
   }
 
@@ -57,9 +62,13 @@ class SettingsScreen internal constructor(context: Context, private val account:
     clear()
     val who = person
     if (who.isNotEmpty()) {
-      val head = SettingsHead(context, who, account?.base ?: "")
-      head.onPress = { openProfile() }
-      add(head, 0f)
+      // Profile: the reference's head (banner under the status bar, decorated avatar, platinum name, seal).
+      profileChrome.attach(this, scroll, account?.messenger)
+      profileChrome.onProfile = { openProfile() }
+      profileChrome.onEdit = { account?.let { open(ProfileEditScreen(context, it)) } }
+      profileChrome.onStatus = { open(com.linea.messenger.profile.OwnProfileScreen(context, account?.messenger, account).also { it.opensStatusPicker = true }) }
+      add(profileChrome.head(who), 0f)
+      if (!com.linea.messenger.platina.PlatinaState.active && !com.linea.messenger.avatars.PersonLook.from(who).platina) add(profileChrome.offer(), 18f)
     }
 
     val profile = SettingsRow(context, symbol = "person", label = "Мой профиль")
@@ -76,7 +85,10 @@ class SettingsScreen internal constructor(context: Context, private val account:
     val shownTheme = ThemeStore.nightState()["shown"] as? String ?: "black"
     val appearance = SettingsRow(context, symbol = "palette", label = "Оформление", value = ThemeStore.themeName(shownTheme))
     appearance.onPress = { openPage("appearance") }
-    addGroup(rows = listOf(notifications, appearance))
+    // ChatsPlus: «Папки с чатами» — the folders above the chat list, kept on this device (chatsplus/ChatFolders.kt).
+    val folders = SettingsRow(context, symbol = "folder", label = "Папки с чатами")
+    folders.onPress = { open(com.linea.messenger.chatsplus.FoldersSettingsPage(context, account?.messenger)) }
+    addGroup(rows = listOf(notifications, appearance, folders))
 
     val privacy = SettingsRow(context, symbol = "lock", label = "Конфиденциальность")
     privacy.onPress = { account?.let { open(PrivacyScreen(context, it)) } }
@@ -108,7 +120,8 @@ class SettingsScreen internal constructor(context: Context, private val account:
   }
 
   private fun openProfile() {
-    account?.let { open(ProfileEditScreen(context, it)) }
+    // Profile: «Мой профиль» is the read-only profile; «Изменить» there opens the editor.
+    if (account != null || com.linea.messenger.platina.PlatinaSamples.me != null) open(com.linea.messenger.profile.OwnProfileScreen(context, account?.messenger, account))
   }
 
   private fun openPage(name: String) {

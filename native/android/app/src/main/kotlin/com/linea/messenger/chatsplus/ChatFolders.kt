@@ -303,7 +303,7 @@ class FolderEditor(context: Context, private val folder: ChatFolder?, private va
   var onSave: ((ChatFolder) -> Unit)? = null
   var onDelete: ((String) -> Unit)? = null
   private val picked = ArrayList(folder?.chatIds ?: emptyList())
-  private val field = EditText(context)
+  private val nameField = EditText(context)
   private val save = LinearLayout(context)
   private val d = context.resources.displayMetrics.density
   private fun dp(value: Float) = Math.round(value * d)
@@ -332,25 +332,25 @@ class FolderEditor(context: Context, private val folder: ChatFolder?, private va
     val close = PlusIconView(context, "xmark", 15f, Theme.muted).apply { contentDescription = "Закрыть"; isClickable = true; setOnClickListener { dismiss() } }
     head.addView(close, LinearLayout.LayoutParams(dp(44f), dp(44f)).apply { rightMargin = dp(8f) })
     page.addView(head, LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, dp(48f)))
-    field.setText(folder?.name ?: "")
-    field.hint = "Название, например «Работа»"
-    field.setHintTextColor(Theme.muted)
-    field.setTextColor(Theme.text)
-    field.textSize = 15f
-    field.typeface = Theme.weight(400)
-    field.isSingleLine = true
+    nameField.setText(folder?.name ?: "")
+    nameField.hint = "Название, например «Работа»"
+    nameField.setHintTextColor(Theme.muted)
+    nameField.setTextColor(Theme.text)
+    nameField.textSize = 15f
+    nameField.typeface = Theme.weight(400)
+    nameField.isSingleLine = true
     // maxLength 24, as in the reference.
-    field.filters = arrayOf(InputFilter.LengthFilter(24))
-    field.inputType = InputType.TYPE_CLASS_TEXT or InputType.TYPE_TEXT_FLAG_CAP_SENTENCES
-    field.imeOptions = EditorInfo.IME_ACTION_DONE
-    field.background = context.plate(Theme.surface2, 14f, ThemeStore.look.border)
-    field.setPadding(dp(14f), 0, dp(14f), 0)
-    field.addTextChangedListener(object : TextWatcher {
+    nameField.filters = arrayOf(InputFilter.LengthFilter(24))
+    nameField.inputType = InputType.TYPE_CLASS_TEXT or InputType.TYPE_TEXT_FLAG_CAP_SENTENCES
+    nameField.imeOptions = EditorInfo.IME_ACTION_DONE
+    nameField.background = context.plate(Theme.surface2, 14f, ThemeStore.look.border)
+    nameField.setPadding(dp(14f), 0, dp(14f), 0)
+    nameField.addTextChangedListener(object : TextWatcher {
       override fun beforeTextChanged(s: CharSequence?, start: Int, count: Int, after: Int) {}
       override fun onTextChanged(s: CharSequence?, start: Int, before: Int, count: Int) {}
       override fun afterTextChanged(s: Editable?) { refresh() }
     })
-    page.addView(field, LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, dp(46f)).apply { leftMargin = dp(16f); rightMargin = dp(16f); topMargin = dp(6f) })
+    page.addView(nameField, LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, dp(46f)).apply { leftMargin = dp(16f); rightMargin = dp(16f); topMargin = dp(6f) })
     val caption = context.words("ЧАТЫ В ПАПКЕ", 11f, Theme.muted, 700).apply { letterSpacing = 0.11f }
     page.addView(caption, LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT).apply { leftMargin = dp(18f); topMargin = dp(14f); bottomMargin = dp(6f) })
     val list = ListView(context).apply {
@@ -393,7 +393,7 @@ class FolderEditor(context: Context, private val folder: ChatFolder?, private va
     refresh()
   }
 
-  private val ready: Boolean get() = field.text.toString().trim().isNotEmpty() && picked.isNotEmpty()
+  private val ready: Boolean get() = nameField.text.toString().trim().isNotEmpty() && picked.isNotEmpty()
 
   private fun refresh() {
     save.isEnabled = ready
@@ -402,7 +402,7 @@ class FolderEditor(context: Context, private val folder: ChatFolder?, private va
 
   private fun saved() {
     if (!ready) return
-    val made = ChatFolder(folder?.id ?: ChatFolderStore.newId(), field.text.toString().trim(), picked.toList())
+    val made = ChatFolder(folder?.id ?: ChatFolderStore.newId(), nameField.text.toString().trim(), picked.toList())
     dismiss()
     onSave?.invoke(made)
   }

@@ -99,6 +99,38 @@ shot 65-light-channels --es channelsdemo 1 --es settheme light
 shot 66-light-music --es musicdemo 1 --es settheme light
 shot 67-light-room --es roomsdemo room --es settheme light
 shot 68-reset --ez demo true --es settheme black
+# ChatsPlus: the chat list's extras (chatsplus/), the same numbers as the iOS check.
+shot 140-chats-waiting --ez demo true --es chatsdemo waiting
+shot 141-chats-connecting --ez demo true --es chatsdemo connecting
+shot 142-chats-updating --ez demo true --es chatsdemo updating
+shot 143-chats-skeleton --ez demo true --es chatsdemo skeleton
+shot 144-chats-empty --ez demo true --es chatsdemo empty
+shot 145-chats-folders --ez demo true --es chatsdemo folders
+shot 146-chats-folder --ez demo true --es chatsdemo folder
+shot 147-folder-editor --ez demo true --es chatsdemo foldereditor
+shot 148-folder-settings --ez demo true --es chatsdemo foldersettings
+shot 149-saved-menu --ez demo true --es chatsdemo savedmenu
+shot 150-saved --ez demo true --es chatsdemo saved
+shot 151-saved-search --ez demo true --es chatsdemo savedsearch
+shot 152-people-calls --ez demo true --es tab people --es chatsdemo calls
+shot 153-bar-hint --ez demo true --es chatsdemo hint
+shot 154-chats-unread-badge --ez demo true
+# Shell: the mini-player, the player strip, the swipe back, the update screen (shell/), and more of the chat list.
+shot 290-mini-player-people --ez demo true --es shelldemo mini
+shot 291-chat-player-strip --ez demo true --es shelldemo chatstrip
+shot 292-swipe-back-half --ez demo true --es shelldemo swipe
+shot 293-long-swipe-to-chats --ez demo true --es shelldemo long
+shot 294-section-home-swipe --ez demo true --es shelldemo home
+shot 295-update-required --ez demo true --es updatedemo required
+shot 296-update-optional --ez demo true --es updatedemo optional
+shot 297-chats-select --ez demo true --es chatsdemo select
+shot 298-chat-peek --ez demo true --es chatlist menu
+shot 299-archive-pulled --ez demo true --es chatlist archive --es chatsdemo archivepull
+shot 300-mute-custom --ez demo true --es chatsdemo mutecustom
+shot 301-search-people --ez demo true --es chatsearch мар
+shot 302-saved-composer --ez demo true --es chatsdemo saved
+shot 303-mute-sheet-custom-row --ez demo true --es chatlist mute
+
 # What the app itself said while it ran (crashes show here).
 adb logcat -d -t 400 '*:E' > "$OUT/logcat-errors.txt" 2>/dev/null || true
 adb shell dumpsys package "$APP" | grep -E "versionName|primaryCpuAbi" || true

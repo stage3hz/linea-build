@@ -148,7 +148,6 @@ class ChatPlayerStrip(private val host: ViewGroup) {
     val show = bar.shown && !hidden
     bar.visibility = if (show) View.VISIBLE else View.GONE
     if (!show) return 0
-    bar.bringToFront()
     val left = (12 * d).toInt(); val top = headerBottom + (4 * d).toInt(); val tall = (TopPlayerBar.HEIGHT * d).toInt()
     bar.measure(View.MeasureSpec.makeMeasureSpec(width - 2 * left, View.MeasureSpec.EXACTLY), View.MeasureSpec.makeMeasureSpec(tall, View.MeasureSpec.EXACTLY))
     bar.layout(left, top, width - left, top + tall)

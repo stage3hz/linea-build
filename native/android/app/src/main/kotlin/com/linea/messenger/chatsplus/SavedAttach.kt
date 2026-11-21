@@ -131,7 +131,7 @@ class SavedAttach(private val host: View, private val messenger: Messenger?, pri
     say?.invoke("Сохраняем в Избранное…")
     val transfer = FileTransfer()
     work.execute {
-      fun failed(words: String) = main.post { done(words) }
+      fun failed(words: String) { main.post { done(words) } }
       // A new key, nonce and key id for every upload: the same key never seals two files.
       val encryption = Core.map(FileCore.call("newEncryption")) ?: return@execute run { failed("Шифрование ещё не готово. Попробуй ещё раз.") }
       val sealed = FileCore.seal(prepared.bytes, encryption)

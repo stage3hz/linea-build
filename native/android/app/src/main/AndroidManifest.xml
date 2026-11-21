@@ -22,6 +22,11 @@
     <uses-permission android:name="android.permission.ACCESS_NETWORK_STATE" />
     <uses-permission android:name="android.permission.WAKE_LOCK" />
     <uses-permission android:name="android.permission.VIBRATE" />
+    <!-- Shell: the update the account's server offers (shell/UpdateGate.kt), as the reference's withSelfUpdate: after
+         «Установить» the build's APK is downloaded from this project's releases, its size and SHA-256 are checked, and
+         the system installer is opened. The person still confirms the installation in the system's window (and allows
+         «install from INVIZENT» once); nothing is installed silently. -->
+    <uses-permission android:name="android.permission.REQUEST_INSTALL_PACKAGES" />
     <uses-feature android:name="android.hardware.microphone" android:required="false" />
     <uses-feature android:name="android.hardware.camera" android:required="false" />
     <uses-feature android:name="android.hardware.camera.front" android:required="false" />

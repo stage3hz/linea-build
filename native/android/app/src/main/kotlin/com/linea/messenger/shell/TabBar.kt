@@ -41,7 +41,44 @@ private fun tabColor(hex: String): Int? {
   return text.toIntOrNull(16)?.let { 0xFF000000.toInt() or it }
 }
 
-private fun badgeWords(count: Int): String = if (count > 999) "999+" else count.toString()
+// ChatsPlus: the reference's badgeText — exact up to 999, then «4,3K» (chatsplus/ChatListStatus.kt).
+private fun badgeWords(count: Int): String = com.linea.messenger.chatsplus.ChatListStatus.badgeText(count)
+
+/** ChatsPlus: each icon's own little motion on a tap (TabBar.tsx `TabIcon`): the gear turns once (760 ms, out-back
+ *  1.7), the chat bubble hops (650 ms, out-quad: up 4 dp and 22 % larger at the top), any other icon wobbles. */
+private fun tabKick(view: View, id: String) {
+  val off = try { android.provider.Settings.Global.getFloat(view.context.contentResolver, android.provider.Settings.Global.ANIMATOR_DURATION_SCALE, 1f) == 0f } catch (_: Exception) { false }
+  if (off) return
+  val d = view.resources.displayMetrics.density
+  val gear = id == "profile"
+  (view.getTag(R.id.action_more_sections) as? ValueAnimator)?.cancel()
+  val kick = ValueAnimator.ofFloat(0f, 1f).apply {
+    duration = if (gear) 760 else 650
+    interpolator = android.view.animation.LinearInterpolator()
+    addUpdateListener {
+      val t = it.animatedValue as Float
+      if (gear) {
+        val s = 1.7f; val u = 1 - t
+        view.rotation = (1 - u * u * ((s + 1) * u - s)) * 360f
+      } else {
+        val k = 1 - (1 - t) * (1 - t)
+        val bump = Math.sin(k * Math.PI).toFloat()
+        if (id == "chats") {
+          view.translationY = -bump * 4f * d
+          view.scaleX = 1 + bump * 0.22f; view.scaleY = 1 + bump * 0.22f
+        } else {
+          view.rotation = Math.sin(k * Math.PI * 2).toFloat() * 18f
+          view.scaleX = 1 + bump * 0.3f; view.scaleY = 1 + bump * 0.3f
+        }
+      }
+    }
+    addListener(object : android.animation.AnimatorListenerAdapter() {
+      override fun onAnimationEnd(animation: android.animation.Animator) { view.rotation = 0f; view.translationY = 0f; view.scaleX = 1f; view.scaleY = 1f }
+    })
+  }
+  view.setTag(R.id.action_more_sections, kick)
+  kick.start()
+}
 
 private const val BADGE_RED = 0xFFFF4D5E.toInt()
 private const val WHITE = 0xFFFFFFFF.toInt()
@@ -493,12 +530,8 @@ class TabBarView(context: Context) : ViewGroup(context) {
 
   private fun choose(index: Int) {
     val id = bar.getOrNull(index) ?: return
-    icons.getOrNull(index)?.let { icon ->
-      // The icon answers with a small jump.
-      icon.animate().cancel()
-      icon.scaleX = 1.16f; icon.scaleY = 1.16f
-      icon.animate().scaleX(1f).scaleY(1f).setDuration(360).setInterpolator(SpringCurve(0.55f)).start()
-    }
+    // ChatsPlus: the reference's own motion of each icon (the gear turns, the bubble hops).
+    icons.getOrNull(index)?.let { icon -> tabKick(icon, id) }
     // The capsule goes at once; the owner confirms with `setActive`.
     if (id != active) {
       val before = activeIndex

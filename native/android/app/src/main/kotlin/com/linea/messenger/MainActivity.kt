@@ -60,10 +60,12 @@ class MainActivity : Activity(), Launcher, AccountHost, com.linea.messenger.sett
     front = true
     com.linea.messenger.settings.ThemeStore.cameBack() // Settings: the night theme may have come by itself
     messenger?.wake()
+    com.linea.messenger.shell.UpdateGate.cameBack() // Shell: the update window comes back after five minutes away
   }
 
   override fun onStop() {
     front = false
+    com.linea.messenger.shell.UpdateGate.wentAway() // Shell
     messenger?.sleep()
     super.onStop()
   }
@@ -131,6 +133,7 @@ class MainActivity : Activity(), Launcher, AccountHost, com.linea.messenger.sett
   private fun showShell(shell: RootScreen) {
     root = shell
     shell.onSectionsChange = { syncBack() }
+    shell.onSectionChange = { syncBack() } // Shell: Back from a section goes to «Чаты»
     stack.setRoot(shell)
     syncBack()
   }
@@ -229,7 +232,7 @@ class MainActivity : Activity(), Launcher, AccountHost, com.linea.messenger.sett
 
   /** There is somewhere to go back to inside the app: the open call screen, an open chat, or the open list of
    *  sections. */
-  private fun wantsBack(): Boolean = callShown() || stack.depth > 1 || root?.sectionsOpen == true
+  private fun wantsBack(): Boolean = callShown() || stack.depth > 1 || root?.sectionsOpen == true || (stack.depth == 1 && root?.wantsBack == true) // Shell: a section, choosing chats, the update window
 
   private fun syncBack() { gate?.set(wantsBack()) }
 
@@ -243,7 +246,9 @@ class MainActivity : Activity(), Launcher, AccountHost, com.linea.messenger.sett
     // Calls: Back minimises the call to its bar (an incoming call or one that is ending stays as it is).
     if (callShown()) return com.linea.messenger.calls.Calls.minimize()
     val shell = root
-    if (shell != null && shell.sectionsOpen) shell.closeSections() else stack.pop()
+    if (shell != null && shell.sectionsOpen) shell.closeSections()
+    else if (stack.depth == 1 && shell != null) { shell.back(); syncBack() } // Shell: the reference's App.tsx back
+    else stack.pop()
   }
 
   @Deprecated("Android 12 and earlier; later the system asks BackGate.")

@@ -37,6 +37,13 @@ class ChatListView(context: Context) : FrameLayout(context) {
   var onRowLongPress: (id: String, y: Float) -> Unit = { _, _ -> }
   /** One of the row's swipe buttons. */
   var onRowAction: (id: String, action: String) -> Unit = { _, _ -> }
+  /** ChatsPlus: whether a sideways drag that began at `startX` and went `dx` turns the folder instead of opening a
+   *  row's buttons (chatsplus/ChatListPlus.kt); then the drag goes to `onFolderDrag` and `onFolderRelease`. */
+  var folderClaims: ((startX: Float, dx: Float) -> Boolean)? = null
+  var onFolderDrag: ((dx: Float) -> Unit)? = null
+  var onFolderRelease: ((dx: Float, velocity: Float) -> Unit)? = null
+  private var folderDrag = false
+  private var folderTracker: android.view.VelocityTracker? = null
   private var rows: List<ChatRow> = emptyList()
   private var palette = ChatPalette.DARK
   private var lastTouchY = 0f
@@ -85,7 +92,8 @@ class ChatListView(context: Context) : FrameLayout(context) {
   private fun swipeTouch(list: ListView, event: MotionEvent): Boolean {
     when (event.actionMasked) {
       MotionEvent.ACTION_DOWN -> {
-        downX = event.x; downY = event.y; dragging = false
+        downX = event.x; downY = event.y; dragging = false; folderDrag = false
+        folderTracker?.recycle(); folderTracker = android.view.VelocityTracker.obtain(); folderTracker?.addMovement(event)
         val position = list.pointToPosition(event.x.toInt(), event.y.toInt())
         target = if (position < 0) null else list.getChildAt(position - list.firstVisiblePosition) as? ChatRowView
         val shown = open
@@ -96,6 +104,19 @@ class ChatListView(context: Context) : FrameLayout(context) {
         return swallow
       }
       MotionEvent.ACTION_MOVE -> {
+        folderTracker?.addMovement(event)
+        // ChatsPlus: a drag that turns the folder (from the middle of a row; listSwipes.ts `rowClaimsSwipe`).
+        if (folderDrag) { onFolderDrag?.invoke(event.x - downX); return true }
+        if (!dragging && !swallow && open == null) {
+          val fx = event.x - downX; val fy = event.y - downY
+          if (Math.abs(fx) >= slop && Math.abs(fx) > Math.abs(fy) * 1.3f && folderClaims?.invoke(downX, fx) == true) {
+            folderDrag = true
+            list.parent?.requestDisallowInterceptTouchEvent(true)
+            val cancel = MotionEvent.obtain(event); cancel.action = MotionEvent.ACTION_CANCEL; list.onTouchEvent(cancel); cancel.recycle()
+            onFolderDrag?.invoke(fx)
+            return true
+          }
+        }
         val view = target ?: return swallow
         val dx = event.x - downX; val dy = event.y - downY
         if (!dragging) {
@@ -111,6 +132,14 @@ class ChatListView(context: Context) : FrameLayout(context) {
         return true
       }
       MotionEvent.ACTION_UP, MotionEvent.ACTION_CANCEL -> {
+        if (folderDrag) {
+          folderDrag = false
+          folderTracker?.addMovement(event); folderTracker?.computeCurrentVelocity(1000)
+          val velocity = if (event.actionMasked == MotionEvent.ACTION_UP) folderTracker?.xVelocity ?: 0f else 0f
+          onFolderRelease?.invoke(if (event.actionMasked == MotionEvent.ACTION_UP) event.x - downX else 0f, velocity)
+          target = null
+          return true
+        }
         val view = target; target = null
         if (dragging && view != null) {
           dragging = false
@@ -151,12 +180,112 @@ class ChatListView(context: Context) : FrameLayout(context) {
     }
   }
 
-  init { addView(list, LayoutParams(LayoutParams.MATCH_PARENT, LayoutParams.MATCH_PARENT)) }
+  init {
+    addView(list, LayoutParams(LayoutParams.MATCH_PARENT, LayoutParams.MATCH_PARENT))
+    // ChatsPlus: «Архив» behind the pull settles open or shut when the list comes to rest.
+    list.setOnScrollListener(object : android.widget.AbsListView.OnScrollListener {
+      override fun onScrollStateChanged(view: android.widget.AbsListView?, state: Int) {
+        if (state == android.widget.AbsListView.OnScrollListener.SCROLL_STATE_IDLE) snapPull()
+      }
+      override fun onScroll(view: android.widget.AbsListView?, first: Int, visible: Int, total: Int) {
+        val top = list.getChildAt(0)?.top ?: 0
+        if (first == 0) { if (top > lastFirstTop) pullDirection = -1 else if (top < lastFirstTop) pullDirection = 1 }
+        lastFirstTop = top
+      }
+    })
+  }
 
   fun setRows(next: List<ChatRow>) {
     if (next == rows) return
+    // ChatsPlus: a chat that moves up (a new message, a pin) slides to its place instead of jumping.
+    val before = movable(next)
     rows = next; open?.let { settle?.cancel(); it.swipeX = 0f; open = null }; adapter.notifyDataSetChanged()
+    if (before != null) slideFrom(before)
   }
+
+  // ChatsPlus — rows that move, «Архив» behind a pull
+
+  private val motionOff: Boolean
+    get() = try { android.provider.Settings.Global.getFloat(context.contentResolver, android.provider.Settings.Global.ANIMATOR_DURATION_SCALE, 1f) == 0f } catch (_: Exception) { false }
+
+  /** The reference's LayoutAnimation (220 ms, ease in-out, opacity): when only a few chats come or go and the rest
+   *  change places, the rows on screen slide from where they stood and the new ones fade in. The tops of the rows on
+   *  screen by id, or null when nothing should move. */
+  private fun movable(next: List<ChatRow>): Map<String, Int>? {
+    if (motionOff || !isAttachedToWindow || rows.isEmpty() || next.isEmpty()) return null
+    val oldIds = rows.map { it.id }; val newIds = next.map { it.id }
+    if (oldIds == newIds || oldIds.toSet().size != oldIds.size || newIds.toSet().size != newIds.size) return null
+    val gone = oldIds.count { it !in newIds.toSet() }; val came = newIds.count { it !in oldIds.toSet() }
+    if (gone + came > 4) return null
+    val tops = HashMap<String, Int>()
+    for (index in 0 until list.childCount) {
+      val child = list.getChildAt(index) as? ChatRowView ?: continue
+      if (child.rowId.isNotEmpty()) tops[child.rowId] = child.top
+    }
+    return tops
+  }
+
+  private fun slideFrom(before: Map<String, Int>) {
+    list.viewTreeObserver.addOnPreDrawListener(object : android.view.ViewTreeObserver.OnPreDrawListener {
+      override fun onPreDraw(): Boolean {
+        list.viewTreeObserver.removeOnPreDrawListener(this)
+        val curve = android.view.animation.AccelerateDecelerateInterpolator()
+        for (index in 0 until list.childCount) {
+          val child = list.getChildAt(index) as? ChatRowView ?: continue
+          child.animate().cancel()
+          val was = before[child.rowId]
+          if (was == null) {
+            child.alpha = 0f; child.translationY = 0f
+            child.animate().alpha(1f).setDuration(220).setInterpolator(curve).start()
+          } else if (was != child.top) {
+            child.translationY = (was - child.top).toFloat(); child.alpha = 1f
+            child.animate().translationY(0f).setDuration(220).setInterpolator(curve).start()
+          } else { child.translationY = 0f; child.alpha = 1f }
+        }
+        return true
+      }
+    })
+  }
+
+  private var pull: View? = null
+
+  /** A view hidden above the first row (the stories strip included), brought out by pulling the list down
+   *  (ChatListScreen.tsx: «Архив» above the first chat, out of sight until the list is pulled). A drag that ends with it
+   *  partly shown settles open or shut in the drag's direction (listSwipes.ts `archiveSnap`). null takes it away. */
+  fun setPull(view: View?) {
+    if (view === pull) return
+    val hadPull = pull != null
+    pull?.let { list.removeHeaderView(it) }
+    pull = view
+    val strip = header
+    if (view != null) {
+      // The pull comes first, the stories after it.
+      strip?.let { list.removeHeaderView(it) }
+      list.addHeaderView(view, null, false)
+      strip?.let { list.addHeaderView(it, null, false) }
+      // At rest it is out of sight under the floating header.
+      if (!hadPull) list.post { if (pull === view && list.firstVisiblePosition == 0) list.setSelectionFromTop(1, list.paddingTop) }
+    }
+  }
+
+  /** For the emulator check: «Архив» pulled out and left open. */
+  fun openPull() { if (pull != null) list.post { list.setSelectionFromTop(0, list.paddingTop) } }
+
+  private fun snapPull() {
+    val view = pull ?: return
+    if (list.firstVisiblePosition != 0) return
+    val first = list.getChildAt(0) ?: return
+    if (first !== view) return
+    val shown = view.bottom - list.paddingTop
+    val tall = view.height
+    if (shown <= 0 || shown >= tall) return
+    val open = if (pullDirection < 0) true else if (pullDirection > 0) false else shown >= tall / 2
+    if (open) list.smoothScrollBy(-(tall - shown), 180) else list.smoothScrollBy(shown, 180)
+    if (open) performHapticFeedback(android.view.HapticFeedbackConstants.CLOCK_TICK)
+  }
+
+  private var pullDirection = 0
+  private var lastFirstTop = 0
 
   fun setPalette(next: ChatPalette) {
     if (next == palette) return
@@ -178,6 +307,9 @@ class ChatListView(context: Context) : FrameLayout(context) {
     header = view
     if (view != null) list.addHeaderView(view, null, false)
   }
+
+  /** Whether a header (the pull, the stories) stands above the rows: the rows' positions start after them. */
+  val headers: Int get() = list.headerViewsCount
   private var header: View? = null
 
   fun setPad(top: Int, bottom: Int) { if (list.paddingTop != top || list.paddingBottom != bottom) list.setPadding(0, top, 0, bottom) }

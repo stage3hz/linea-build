@@ -50,6 +50,8 @@ interface SettingsAccount {
   fun chatList(done: (Result<List<Messenger.ChatSummary>>) -> Unit) { done(Result.success(emptyList())) }
   /** «Данные и память»: a GET whose answer is an object (not one of the named operations). */
   fun serverGet(path: String, done: (Result<Map<String, Any?>>) -> Unit) { done(Result.failure(ServerError.Network("Нет связи с сервером."))) }
+  /** Profile: the account itself, for what goes beyond these calls (uploading a photo; profile/ProfilePhotoChange.kt). */
+  val messenger: Messenger? get() = null
 }
 
 // What the settings ask of the signed-in account: its own profile, and leaving it.
@@ -142,7 +144,8 @@ val Result<*>.refusalStatus: Int get() = (exceptionOrNull() as? ServerError.Refu
 fun Result<*>.failureWords(otherwise: String): String = Server.error(this).words.ifEmpty { otherwise }
 
 /** The signed-in account, as the pages of the settings ask it. */
-class MessengerAccount(private val messenger: Messenger) : SettingsAccount {
+class MessengerAccount(private val account: Messenger) : SettingsAccount {
+  override val messenger: Messenger get() = account
   override val userId: String get() = messenger.userId
   override val base: String get() = messenger.server.endpoint
   override val ownProfile: Map<String, Any?> get() = messenger.ownProfile

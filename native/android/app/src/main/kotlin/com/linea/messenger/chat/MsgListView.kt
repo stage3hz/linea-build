@@ -19,6 +19,8 @@ import android.widget.ListView
 class MsgListView(context: Context) : FrameLayout(context) {
   /** A tap on a message; `y` is the middle of its row on the screen, px (ChatActions: the menu opens next to it). */
   var onMsgPress: (key: String, y: Float) -> Unit = { _, _ -> }
+  /** ChatsPlus: a notice row that takes a touch — a finished call («Перезвонить», MessageRow.tsx). */
+  var noticeTappable: (key: String) -> Boolean = { false }
   /** ChatActions: a tap on the quote of an answer (`key`: the row of the answer). */
   var onQuotePress: (key: String) -> Unit = {}
   /** ChatActions: the list moved; how far it stands from its newest message, px. */
@@ -57,7 +59,7 @@ class MsgListView(context: Context) : FrameLayout(context) {
     override fun getItem(position: Int) = rows[position]
     override fun getItemId(position: Int) = rows[position].key.hashCode().toLong()
     override fun hasStableIds() = true
-    override fun isEnabled(position: Int) = rows[position].kind == 0
+    override fun isEnabled(position: Int) = rows[position].kind == 0 || noticeTappable(rows[position].key) // ChatsPlus: a finished call calls back
     override fun areAllItemsEnabled() = false
     override fun getView(position: Int, convertView: View?, parent: ViewGroup?): View {
       val view = convertView as? MsgRowView ?: MsgRowView(context)

@@ -80,6 +80,7 @@ class Server(base: String, @Volatile var token: String? = null) {
     val body = try { it.body?.string() ?: "" } catch (error: IOException) { return Attempt(Result.failure(failure(error)), unreached = true) }
     if (it.code < 500) { NetPool.quality.report(System.currentTimeMillis() - started, body.length); NetPool.markServerOk() }
     val read = Core.read(it.code, body)
+    if (read["updateRequired"] == true) com.linea.messenger.shell.UpdateGate.markRequired() // Shell: 426 — this build is retired (shell/UpdateGate.kt)
     if (read.containsKey("ok")) return Attempt(Result.success(read["ok"]))
     val refused = Core.map(read["refused"])
     if (refused != null) {

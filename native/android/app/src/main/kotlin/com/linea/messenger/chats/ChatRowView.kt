@@ -27,10 +27,11 @@ class ChatRowView(context: Context) : View(context) {
   private val orb = Paint(Paint.ANTI_ALIAS_FLAG)
   private val sectionPaint = TextPaint(Paint.ANTI_ALIAS_FLAG).apply { textSize = 11f * d; typeface = Typeface.create(Typeface.DEFAULT, Typeface.BOLD); letterSpacing = 0.12f }
   private val stroke = Paint(Paint.ANTI_ALIAS_FLAG).apply { style = Paint.Style.STROKE; strokeCap = Paint.Cap.ROUND; strokeJoin = Paint.Join.ROUND }
-  private val titlePaint = TextPaint(Paint.ANTI_ALIAS_FLAG).apply { textSize = 16f * d; typeface = Typeface.create(Typeface.DEFAULT, Typeface.BOLD) }
-  private val previewPaint = TextPaint(Paint.ANTI_ALIAS_FLAG).apply { textSize = 15f * d }
-  private val timePaint = TextPaint(Paint.ANTI_ALIAS_FLAG).apply { textSize = 13f * d }
-  private val badgePaint = TextPaint(Paint.ANTI_ALIAS_FLAG).apply { textSize = 12f * d; typeface = Typeface.create(Typeface.DEFAULT, Typeface.BOLD); textAlign = Paint.Align.CENTER }
+  // ChatsPlus: Montserrat, as the reference's row (design/Fonts.kt): the name 16 semibold, the line 15, the time 13.
+  private val titlePaint = TextPaint(Paint.ANTI_ALIAS_FLAG).apply { textSize = 16f * d; typeface = com.linea.messenger.design.Theme.weight(600) }
+  private val previewPaint = TextPaint(Paint.ANTI_ALIAS_FLAG).apply { textSize = 15f * d; typeface = com.linea.messenger.design.Theme.weight(400) }
+  private val timePaint = TextPaint(Paint.ANTI_ALIAS_FLAG).apply { textSize = 13f * d; typeface = com.linea.messenger.design.Theme.weight(400) }
+  private val badgePaint = TextPaint(Paint.ANTI_ALIAS_FLAG).apply { textSize = 12f * d; typeface = com.linea.messenger.design.Theme.weight(700); textAlign = Paint.Align.CENTER }
   private val avatarPaint = TextPaint(Paint.ANTI_ALIAS_FLAG).apply { textSize = 21f * d; typeface = Typeface.create(Typeface.DEFAULT, Typeface.BOLD); textAlign = Paint.Align.CENTER; color = 0xFFFFFFFF.toInt() }
   private val path = Path()
   private val picture = Paint(Paint.ANTI_ALIAS_FLAG or Paint.FILTER_BITMAP_FLAG)
@@ -213,12 +214,15 @@ class ChatRowView(context: Context) : View(context) {
     val right = w - 16f * d
     timePaint.color = if (item.unread > 0 && !item.muted) palette.accent else mutedColor
     val timeWidth = timePaint.measureText(item.time)
-    val badge = if (item.unread > 0) (if (item.unread > 999) "999+" else item.unread.toString()) else ""
+    // ChatsPlus: the reference's badgeText — exact up to 999, then «4,3K».
+    val badge = if (item.unread > 0) com.linea.messenger.chatsplus.ChatListStatus.badgeText(item.unread) else ""
     val badgeWidth = if (badge.isEmpty()) 0f else maxOf(22f * d, badgePaint.measureText(badge) + 12f * d)
     // The ticks stand before the time; under the time is the unread badge or, without one, the pin.
     val tickWidth = if (item.ticks > 0) 22f * d else 0f
     val markWidth = if (badge.isEmpty() && item.pinned) 20f * d else badgeWidth
-    val titleWidth = right - x - timeWidth - 8f * d - tickWidth
+    // ChatsPlus: a chat without sound shows a crossed bell right after its name (ChatListScreen.tsx), room kept for it.
+    val bellRoom = if (item.muted) 18f * d else 0f
+    val titleWidth = right - x - timeWidth - 8f * d - tickWidth - bellRoom
     val small = thumb
     val mic = small == null && item.previewIcon == "mic"
     val lock = small == null && !mic && item.quietPreview
@@ -237,6 +241,11 @@ class ChatRowView(context: Context) : View(context) {
       titlePaint.shader = null
       if (nameEnd < title.length) canvas.drawText(title, nameEnd, title.length, x + nameWidth, top - titlePaint.ascent(), titlePaint)
     } else canvas.drawText(title, 0, title.length, x, top - titlePaint.ascent(), titlePaint)
+    if (item.muted) {
+      val drawn = titlePaint.measureText(title, 0, title.length)
+      val bellSize = 13f * d
+      com.linea.messenger.chatsplus.PlusIcons.draw(canvas, "bell.slash.fill", x + drawn + 5f * d + bellSize / 2, top + (titlePaint.descent() - titlePaint.ascent()) / 2, bellSize, if (plate != null) 0x9EFFFFFF.toInt() else palette.subtle)
+    }
     canvas.drawText(item.time, right - timeWidth, top - timePaint.ascent() + 1.5f * d, timePaint)
 
     previewPaint.color = if (item.accentPreview) palette.accent else if (item.quietPreview) palette.subtle else mutedColor

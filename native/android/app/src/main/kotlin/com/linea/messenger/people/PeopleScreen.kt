@@ -28,6 +28,7 @@ import com.linea.messenger.app.Messenger
 import com.linea.messenger.chat.ChatScreen
 import com.linea.messenger.design.BarMetrics
 import com.linea.messenger.design.Theme
+import com.linea.messenger.design.titled
 import com.linea.messenger.net.Server
 import com.linea.messenger.shell.Screen
 
@@ -117,6 +118,8 @@ class PeopleScreen(
   private var showing = false
   private var profileWanted = false
   private val requestsChanged: (Unit) -> Unit = { loadFriends(); rebuild() }
+  /** ChatsPlus: «Друзья | Звонки» and the list of recent calls (chatsplus/CallHistory.kt). */
+  private val calls = com.linea.messenger.chatsplus.CallHistoryPanel(context, messenger)
 
   private val incoming: List<Person> get() = if (messenger == null) demoIncoming else FriendRequests.incoming
   private val outgoing: List<Person> get() = if (messenger == null) demoOutgoing else FriendRequests.outgoing
@@ -187,6 +190,7 @@ class PeopleScreen(
     heading.text = "Люди"
     heading.textSize = 34f
     heading.typeface = Theme.weight(700)
+    heading.titled(Theme.TypeSize.sectionTitle) // Fonts: Unbounded, as the reference
     heading.setTextColor(Theme.text)
     heading.includeFontPadding = false
     addView(heading)
@@ -224,6 +228,7 @@ class PeopleScreen(
     spinner.indeterminateTintList = ColorStateList.valueOf(Theme.accent)
     spinner.visibility = View.GONE
     searchBox.addView(spinner)
+    calls.install(this, caption) // ChatsPlus
 
     if (messenger != null) {
       lastFriends?.takeIf { it.first == messenger.userId }?.let { friends = it.second }
@@ -238,11 +243,13 @@ class PeopleScreen(
   override fun onAttachedToWindow() {
     super.onAttachedToWindow()
     if (messenger != null) FriendRequests.changed.watch(requestsChanged)
+    calls.attached() // ChatsPlus
     appeared()
   }
 
   override fun onDetachedFromWindow() {
     FriendRequests.changed.unwatch(requestsChanged)
+    calls.detached() // ChatsPlus
     showing = false
     super.onDetachedFromWindow()
   }
@@ -269,7 +276,8 @@ class PeopleScreen(
     val headingHeight = putText(heading, dp(20f), top + dp(8f), width - dp(40f))
     val captionTop = top + dp(8f) + headingHeight + dp(2f)
     val captionHeight = putText(caption, dp(20f), captionTop, width - dp(40f))
-    val boxTop = captionTop + captionHeight + dp(14f); val boxWidth = width - dp(34f); val boxHeight = dp(52f)
+    // ChatsPlus: the switch «Друзья | Звонки» stands between the caption and the search.
+    val boxTop = calls.place(width, height, captionTop + captionHeight, edges.bottom) + dp(14f); val boxWidth = width - dp(34f); val boxHeight = dp(52f)
     place(clearButton, boxWidth - dp(46f), dp(4f), dp(44f), dp(44f))
     place(spinner, boxWidth - dp(46f) + dp(11f), dp(4f) + dp(11f), dp(22f), dp(22f))
     place(field, dp(46f), 0, boxWidth - dp(46f) - dp(48f), boxHeight)
@@ -518,6 +526,8 @@ class PersonCell(context: Context) : ViewGroup(context) {
   private val avatar = PersonAvatarView(context)
   private val nameLabel = TextView(context)
   private val handleLabel = TextView(context)
+  /** Avatars: the person's emoji status after the name (avatars/StatusEmoji.kt). */
+  private val statusEmoji = com.linea.messenger.avatars.StatusEmojiView(context)
   private val waiting = ProgressBar(context)
   private var buttons: List<RoundIconButton> = emptyList()
   private var framed = false
@@ -539,6 +549,7 @@ class PersonCell(context: Context) : ViewGroup(context) {
     handleLabel.ellipsize = TextUtils.TruncateAt.END
     handleLabel.includeFontPadding = false
     addView(handleLabel)
+    addView(statusEmoji) // Avatars
     waiting.isIndeterminate = true
     waiting.indeterminateTintList = ColorStateList.valueOf(Theme.accent)
     waiting.visibility = View.GONE
@@ -550,6 +561,7 @@ class PersonCell(context: Context) : ViewGroup(context) {
     this.busy = busy
     avatar.show(person, address)
     nameLabel.text = person.displayName
+    statusEmoji.show(person.look, if (framed) 14f else 15f) // Avatars
     handleLabel.text = handle
     alpha = if (dimmed) 0.5f else 1f
     for (button in buttons) removeView(button)
@@ -586,7 +598,10 @@ class PersonCell(context: Context) : ViewGroup(context) {
     for (button in buttons) button.measure(exactly(38f), exactly(38f))
     val taken = 28f + 14f + 48f + 14f + 12f + (buttons.size + if (busy) 1 else 0) * 44f
     val room = MeasureSpec.makeMeasureSpec((width - taken * d).toInt().coerceAtLeast(0), MeasureSpec.EXACTLY)
-    nameLabel.measure(room, MeasureSpec.makeMeasureSpec(0, MeasureSpec.UNSPECIFIED))
+    // Avatars: the status takes its room after the name.
+    statusEmoji.measure(MeasureSpec.makeMeasureSpec(0, MeasureSpec.UNSPECIFIED), MeasureSpec.makeMeasureSpec(0, MeasureSpec.UNSPECIFIED))
+    val emojiRoom = if (statusEmoji.visibility == View.VISIBLE) statusEmoji.measuredWidth + (6f * d).toInt() else 0
+    nameLabel.measure(MeasureSpec.makeMeasureSpec((MeasureSpec.getSize(room) - emojiRoom).coerceAtLeast(0), MeasureSpec.AT_MOST), MeasureSpec.makeMeasureSpec(0, MeasureSpec.UNSPECIFIED))
     handleLabel.measure(room, MeasureSpec.makeMeasureSpec(0, MeasureSpec.UNSPECIFIED))
     setMeasuredDimension(width, ((if (framed) 78f else 83f) * d).toInt())
   }
@@ -607,6 +622,7 @@ class PersonCell(context: Context) : ViewGroup(context) {
     }
     val textLeft = cardLeft + (14f + 48f + 14f) * d
     put(nameLabel, textLeft, height / 2 - 1f * d - nameLabel.measuredHeight)
+    if (statusEmoji.visibility == View.VISIBLE) put(statusEmoji, textLeft + nameLabel.measuredWidth + 6f * d, height / 2 - 1f * d - nameLabel.measuredHeight / 2f - statusEmoji.measuredHeight / 2f) // Avatars
     put(handleLabel, textLeft, height / 2 + 4f * d)
   }
 

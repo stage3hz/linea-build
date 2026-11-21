@@ -40,6 +40,8 @@ class RootScreen(context: Context, private val messenger: Messenger?, private va
   private val bar = TabBarView(context)
   private val stage = GlassSource(context)
   private val pages = HashMap<String, View>()
+  /** Shell: what the shell lays over the sections besides the bar (shell/ShellExtras.kt). */
+  private var extras: ShellExtras? = null
   var open = ""
     private set
   /** The section that was open when a preview from the list began: a cancelled list goes back to it. */
@@ -47,6 +49,8 @@ class RootScreen(context: Context, private val messenger: Messenger?, private va
 
   /** The list of sections opened or closed. */
   var onSectionsChange: (open: Boolean) -> Unit = {}
+  /** Shell: another section came on screen (the system's Back from a section goes to «Чаты»). */
+  var onSectionChange: (id: String) -> Unit = {}
   val sectionsOpen: Boolean get() = bar.listOpen
 
   init {
@@ -64,8 +68,10 @@ class RootScreen(context: Context, private val messenger: Messenger?, private va
       if (id.isEmpty()) beforePreview?.let { back -> beforePreview = null; show(back) }
       else { if (beforePreview == null) beforePreview = open; show(id, quiet = true) }
     }
-    bar.onListChange = { onSectionsChange(it) }
+    bar.onListChange = { extras?.listChanged(it); onSectionsChange(it) }
     addView(bar)
+    // Shell: the mini-player, the soft edges, the words about the hold and the update window (shell/ShellExtras.kt).
+    extras = ShellExtras(this, bar, messenger)
     show("chats")
     // People: the requests to be friends of this account (people/PeopleServer.kt).
     FriendRequests.start(messenger)
@@ -86,7 +92,8 @@ class RootScreen(context: Context, private val messenger: Messenger?, private va
   private val peopleBadge: (Unit) -> Unit = {
     // Rooms: a quiet green dot on «Каналы» while somebody is inside one of the rooms.
     val roomsDot = if (com.linea.messenger.rooms.Rooms.awake) com.linea.messenger.rooms.RoomRules.talkHex else ""
-    bar.setItems(sections.map { TabEntry(it.id, it.label, it.symbol, badge = if (it.id == "people") FriendRequests.incoming.size else if (it.id == "channels") ChannelsStore.badge else 0, dot = if (it.id == "channels") roomsDot else "") })
+    // ChatsPlus: the unread of the chats on «Чаты» (chatsplus/ChatListStatus.kt, UnreadTotal).
+    bar.setItems(sections.map { TabEntry(it.id, it.label, it.symbol, badge = if (it.id == "people") FriendRequests.incoming.size else if (it.id == "channels") ChannelsStore.badge else if (it.id == "chats") com.linea.messenger.chatsplus.UnreadTotal.total else 0, dot = if (it.id == "channels") roomsDot else "") })
   }
 
   override fun onAttachedToWindow() {
@@ -94,6 +101,8 @@ class RootScreen(context: Context, private val messenger: Messenger?, private va
     FriendRequests.changed.watch(peopleBadge)
     ChannelsStore.changed.watch(peopleBadge)
     com.linea.messenger.rooms.Rooms.changed.watch(peopleBadge)
+    com.linea.messenger.chatsplus.UnreadTotal.changed.watch(peopleBadge) // ChatsPlus
+    extras?.attached() // Shell
     peopleBadge(Unit)
   }
 
@@ -101,6 +110,8 @@ class RootScreen(context: Context, private val messenger: Messenger?, private va
     FriendRequests.changed.unwatch(peopleBadge)
     ChannelsStore.changed.unwatch(peopleBadge)
     com.linea.messenger.rooms.Rooms.changed.unwatch(peopleBadge)
+    com.linea.messenger.chatsplus.UnreadTotal.changed.unwatch(peopleBadge) // ChatsPlus
+    extras?.detached() // Shell
     super.onDetachedFromWindow()
   }
 
@@ -112,6 +123,7 @@ class RootScreen(context: Context, private val messenger: Messenger?, private va
     val gap = dp(BarMetrics.bottomGap(edges.bottom / d))
     val wide = minOf(dp(BarMetrics.width), width); val tall = dp(BarMetrics.height)
     put(bar, (width - wide) / 2, height - gap - tall, wide, tall)
+    extras?.place(width, height, height - gap - tall, gap, edges.top) // Shell
   }
 
   /** Opens a section. `quiet`: a look from the list — the bar's own choice stays where it is. */
@@ -125,10 +137,30 @@ class RootScreen(context: Context, private val messenger: Messenger?, private va
     else stage.bringChildToFront(next)
     open = id
     if (!quiet) bar.setActive(id)
+    extras?.sectionShown(id) // Shell: «Музыка» shows its own player
+    onSectionChange(id)
     if (previous == null) { next.alpha = 1f; return }
     next.alpha = 0f
     next.animate().alpha(1f).setDuration(160).start()
     previous.animate().alpha(0f).setDuration(160).withEndAction { if (pages[open] !== previous) stage.removeView(previous) }.start()
+  }
+
+  /** Shell: the bar, its edge and the mini-player give way (the chat list while choosing chats). */
+  fun setBarAway(away: Boolean) { extras?.setBarAway(away); backChanged() }
+
+  /** Shell: what the system's Back would do inside the shell has changed (see `wantsBack`). */
+  fun backChanged() = onSectionChange(open)
+
+  /** Shell: the system's Back has somewhere to go inside the shell — the chat list's choosing, the optional update
+   *  window, or «Чаты» from another section (the reference's App.tsx: `page !== 'chats'` → «Чаты»). */
+  val wantsBack: Boolean get() = UpdateGate.optionalShown || open != "chats" || (pages["chats"] as? ChatsScreen)?.selecting == true
+
+  /** Shell: what the system's Back does inside the shell (see `wantsBack`). False: nothing to do here. */
+  fun back(): Boolean {
+    if (UpdateGate.optionalShown) { UpdateGate.dismissUpdate(); return true }
+    if (open != "chats") { show("chats"); return true }
+    (pages["chats"] as? ChatsScreen)?.let { if (it.selecting) { it.endSelecting(); return true } }
+    return false
   }
 
   /** Settings: the same shell built again, for a theme that has just been put on (settings/ThemeStore.kt). */

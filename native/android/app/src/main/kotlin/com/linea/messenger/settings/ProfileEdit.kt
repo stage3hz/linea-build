@@ -33,7 +33,12 @@ class ProfileEditScreen(context: Context, private val account: SettingsAccount) 
   private var color: String = account.ownProfile["avatarColor"] as? String ?: "#5E7BFF"
   private var busy = false
 
-  private val ball = SettingsAvatar(context)
+  // Profile: the banner and the decorated avatar at the top, tapped to change (photo, GIF, video up to 10 s), the
+  // background pattern and «Рамки и анимации» (profile/, platina/).
+  private val top = com.linea.messenger.profile.ProfileEditTop(context)
+  private var pattern: String? = account.ownProfile["profilePattern"] as? String
+  private val patternRow = SettingsRow(context, symbol = "gift", label = "Узор фона")
+  private val media: com.linea.messenger.profile.ProfilePhotoChange? = account.messenger?.let { com.linea.messenger.profile.ProfilePhotoChange(context, it) }
   private val noticeBox = LinearLayout(context)
   private val nameField = SettingsField(context, "", "Имя")
   private val bioArea = SettingsTextArea(context, "О себе")
@@ -49,10 +54,13 @@ class ProfileEditScreen(context: Context, private val account: SettingsAccount) 
     // The @username was changed on its own page: the row follows.
     OwnProfile.watch(profileChanged)
 
-    val ballBox = FrameLayout(context)
-    ballBox.setPadding(0, dp(4f), 0, dp(4f))
-    ballBox.addView(ball, FrameLayout.LayoutParams(dp(96f), dp(96f), Gravity.CENTER_HORIZONTAL))
-    add(ballBox, 0f)
+    add(top, 0f) // Profile
+    top.banner.setOnClickListener { media?.ask("banner") }
+    top.avatar.setOnClickListener { media?.ask("avatar") }
+    top.words.setOnClickListener { media?.ask("avatar") }
+    media?.onBusy = { busy -> top.words.text = if (busy) "Загружаем…" else "Изменить фотографию" }
+    media?.onNotice = { words, error -> if (words.isNotEmpty()) showNotice(words, error) }
+    com.linea.messenger.platina.PlatinaState.start(account.messenger)
 
     noticeBox.orientation = LinearLayout.VERTICAL
     add(noticeBox, 10f)
@@ -80,7 +88,11 @@ class ProfileEditScreen(context: Context, private val account: SettingsAccount) 
       })
     }
     genderRow.onPress = { chooseGender() }
-    addGroup(rows = listOf(birthdayRow, genderRow))
+    // Profile: «Узор фона» — the emoji around the photo in the profile (saved with «Сохранить»).
+    patternRow.onPress = {
+      if (!busy) com.linea.messenger.profile.PatternPicker(context, pattern) { chosen -> pattern = chosen; showValues(); clearNotice() }.show()
+    }
+    addGroup(rows = listOf(birthdayRow, genderRow, patternRow))
 
     val row = LinearLayout(context)
     row.orientation = LinearLayout.HORIZONTAL
@@ -100,6 +112,9 @@ class ProfileEditScreen(context: Context, private val account: SettingsAccount) 
 
     saveButton.onPress = { save() }
     add(saveButton, 20f)
+    // Profile: «Рамки и анимации» — the decorations of Platina, saved at once (platina/PlatinaStudio.kt).
+    add(SettingsLook.caption(context, "Рамки и анимации"), 24f)
+    add(com.linea.messenger.profile.ProfileEditTop.card(com.linea.messenger.platina.PlatinaStudioView(context, account.messenger, compact = true)), 7f)
     showValues()
   }
 
@@ -118,7 +133,11 @@ class ProfileEditScreen(context: Context, private val account: SettingsAccount) 
     val typed = nameField.value.trim()
     if (typed.isNotEmpty()) shown["displayName"] = typed
     shown["avatarColor"] = color
-    ball.show(shown, account.base)
+    // Profile: the decorated avatar and the banner as they are now.
+    com.linea.messenger.people.Person.from(shown)?.let { person ->
+      top.avatar.show(person, person.look, account.base, animated = true)
+      top.art.show(person.look, account.base, preview = true)
+    }
   }
 
   private fun showValues() {
@@ -127,6 +146,7 @@ class ProfileEditScreen(context: Context, private val account: SettingsAccount) 
     handleRow.setValue(if (handle.isEmpty()) "" else "@$handle")
     birthdayRow.setValue(BirthdayWords.format(birthday).ifEmpty { "Не указан" })
     genderRow.setValue(if (gender == "male") "Мужской" else if (gender == "female") "Женский" else "Не указан")
+    patternRow.setValue(pattern ?: "Нет") // Profile
     swatches.forEachIndexed { index, dot ->
       val on = palette[index].equals(color, ignoreCase = true)
       dot.background = GradientDrawable().apply {
@@ -193,7 +213,7 @@ class ProfileEditScreen(context: Context, private val account: SettingsAccount) 
     if (busy) return
     val name = nameField.value.trim()
     if (name.isEmpty()) return showNotice("Имя не может быть пустым.", error = true)
-    val fields = linkedMapOf<String, Any?>("displayName" to name, "bio" to bioArea.value.trim(), "birthday" to birthday, "gender" to gender, "avatarColor" to color)
+    val fields = linkedMapOf<String, Any?>("displayName" to name, "bio" to bioArea.value.trim(), "birthday" to birthday, "gender" to gender, "avatarColor" to color, "profilePattern" to pattern)
     endEditing()
     setBusy(true)
     account.accountCall("profile", listOf(fields)) { result ->
@@ -205,6 +225,7 @@ class ProfileEditScreen(context: Context, private val account: SettingsAccount) 
           birthday = fresh["birthday"] as? String
           gender = fresh["gender"] as? String
           color = fresh["avatarColor"] as? String ?: color
+          pattern = fresh["profilePattern"] as? String // Profile
           showValues()
         }
         showNotice("Профиль сохранён.", error = false)

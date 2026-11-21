@@ -208,8 +208,7 @@ class PlatinaButton(context: Context, title: String, size: Float = 16f, private 
   }
 }
 
-/** Where the seals open the showcase (set by platina/PlatinaShowcase.kt, so the marks know nothing of the screen):
- *  (the seal, whose seal — id and name — or null). */
+/** Where the seals open the showcase (platina/PlatinaShowcase.kt): (the seal, whose seal — id and name — or null). */
 object PlatinaOpen {
-  var showcase: ((View, Pair<String, String>?) -> Unit)? = null
+  var showcase: ((View, Pair<String, String>?) -> Unit)? = { view, owner -> com.linea.messenger.platina.PlatinaShowcase.open(view, owner) }
 }

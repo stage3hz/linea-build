@@ -109,7 +109,10 @@ object Demo {
    *    --es chatdemo … / --es chataction … / --es chatlist … / --es chatsearch …   actions on messages and chats (chatactions/ChatActionsDemo.kt)
    *    --es calldemo outgoing|incoming|active|video|ended|retry|bar        calls: a sample call in each state, no account (calls/CallsDemo.kt)
    *    --es storiesdemo strip|viewer|viewers|compose|posts|own / --es stories viewer|own|ownstories|compose    stories and profile posts (stories/StoriesDemo.kt)
-   *    --es roomsdemo list|empty|room|music|outside|ring|bar|menu|rename|gone|picker / --es rooms list|room|enter|picker    rooms (rooms/RoomsDemo.kt) */
+   *    --es roomsdemo list|empty|room|music|outside|ring|bar|menu|rename|gone|picker / --es rooms list|room|enter|picker    rooms (rooms/RoomsDemo.kt)
+   *    --es chatsdemo waiting|connecting|updating|skeleton|empty|folders|folder|foldereditor|foldersettings|savedmenu|saved|savedsearch|calls|hint|select|mutecustom|archivepull
+   *                                                the chat list's extras (chatsplus/ChatsPlusDemo.kt)
+   *    --es shelldemo mini|chatstrip|swipe|long|home / --es updatedemo required|optional    the shell (shell/ShellDemo.kt) */
   fun start(intent: Intent?, launcher: Launcher): Boolean {
     if (intent == null) return false
     testServer = intent.getStringExtra("server")?.takeIf { local.matches(it) }
@@ -117,6 +120,9 @@ object Demo {
     // Settings: `settheme`, `setaccent`, `settextsize`, `setnight`, `setplatina` — the look for the shot (settings/SettingsDemo.kt).
     com.linea.messenger.settings.SettingsSimulator.look(intent)
     com.linea.messenger.chatactions.ChatActionsDemo.read(intent)
+    // ChatsPlus and Shell: `chatsdemo`, `shelldemo`, `updatedemo` (chatsplus/ChatsPlusDemo.kt, shell/ShellDemo.kt).
+    com.linea.messenger.chatsplus.ChatsPlusDemo.read(intent)
+    com.linea.messenger.shell.ShellDemo.read(intent)
     authMode = intent.getStringExtra("authmode")
     // AI and Music: `aidemo`, `musicdemo` (music/MusicDemo.kt).
     if (AIMusicSimulator.start(intent, launcher)) return true
@@ -135,6 +141,7 @@ object Demo {
       intent.getStringExtra("tab")?.let { root.show(it) }
       PeopleSimulator.run(intent, launcher, root)
       if (intent.getBooleanExtra("sections", false)) root.postDelayed({ root.showSections() }, 1500)
+      com.linea.messenger.shell.ShellDemo.run(root, launcher, root.parent as? com.linea.messenger.shell.Navigation) // Shell
       return true
     }
     val login = intent.getStringExtra("login"); val password = intent.getStringExtra("password")

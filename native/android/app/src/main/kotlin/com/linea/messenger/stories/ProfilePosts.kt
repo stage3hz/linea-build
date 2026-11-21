@@ -31,7 +31,7 @@ import java.lang.ref.WeakReference
 // button adds one and holding a tile removes it. A tap opens the viewer. The ring around the avatar says there
 // are stories and opens them.
 //
-// The reference has a third tab, «Подарки»; gifts are not part of this feature and are not built here.
+// The third tab, «Подарки», is profile/Gifts.kt (`GiftsPanel`).
 
 /** One tile of the grid. Its picture is asked for only when the tile comes near the screen. */
 class StoryTileView(context: Context) : FrameLayout(context) {
@@ -106,6 +106,10 @@ class ProfilePostsBlock(context: Context) : ViewGroup(context) {
   private val tabsBox = View(context)
   private val postsTab = TextView(context)
   private val storiesTab = TextView(context)
+  // Gifts: the third tab and its panel (profile/Gifts.kt).
+  private val giftsTab = TextView(context)
+  private val giftsPanel = com.linea.messenger.profile.GiftsPanel(context)
+  private var giftCount = 0
   private val problemLabel = TextView(context)
   private val spinner = ProgressBar(context)
   private val lockIcon = StoryIconView(context, "lock", 22f, Theme.muted)
@@ -130,7 +134,7 @@ class ProfilePostsBlock(context: Context) : ViewGroup(context) {
   init {
     tabsBox.background = context.plate(Theme.surface2, 23f)
     addView(tabsBox)
-    for ((button, name) in listOf(postsTab to "post", storiesTab to "story")) {
+    for ((button, name) in listOf(postsTab to "post", storiesTab to "story", giftsTab to "gift")) {
       button.textSize = 15f
       button.gravity = Gravity.CENTER
       button.maxLines = 1
@@ -139,6 +143,11 @@ class ProfilePostsBlock(context: Context) : ViewGroup(context) {
       button.setOnClickListener { tabPressed(name) }
       addView(button)
     }
+    // Gifts
+    giftsPanel.visibility = View.GONE
+    addView(giftsPanel)
+    giftsPanel.onHeight = { requestLayout() }
+    giftsPanel.onCount = { count -> if (giftCount != count) { giftCount = count; rebuild() } }
     problemLabel.textSize = 14f
     problemLabel.setTextColor(Theme.danger)
     problemLabel.gravity = Gravity.CENTER
@@ -217,8 +226,17 @@ class ProfilePostsBlock(context: Context) : ViewGroup(context) {
       avatar.setOnClickListener { ringPressed() }
       avatar.isClickable = false
     }
+    giftsPanel.attach(messenger, userId, own) // Gifts
     rebuild()
     reload()
+  }
+
+  /** Gifts / Profile: a tap on the avatar opens the stories when there are any (true then). */
+  fun openStoriesIfAny(): Boolean {
+    val stories = data?.stories ?: return false
+    if (stories.isEmpty()) return false
+    ringPressed()
+    return true
   }
 
   /** The person's colour lights the ring. */
@@ -230,6 +248,7 @@ class ProfilePostsBlock(context: Context) : ViewGroup(context) {
 
   /** Reads the posts and stories again (after a change, and when the two became friends or stopped being). */
   fun reload() {
+    if (userId.isNotEmpty()) giftsPanel.reload() // Gifts: who may see them can change with the friendship
     val messenger = messenger
     if (messenger == null) {
       StoriesDemo.profile(own)?.let { data = it; rebuild() }
@@ -248,7 +267,7 @@ class ProfilePostsBlock(context: Context) : ViewGroup(context) {
 
   // What is shown
 
-  private val items: List<StoryPost> get() = data?.let { if (tab == "post") it.posts else it.stories } ?: emptyList()
+  private val items: List<StoryPost> get() = if (tab == "gift") emptyList() else data?.let { if (tab == "post") it.posts else it.stories } ?: emptyList()
 
   /** The tab that is open: "post" or "story". */
   val shownTab: String get() = tab
@@ -256,9 +275,10 @@ class ProfilePostsBlock(context: Context) : ViewGroup(context) {
   private fun rebuild() {
     val labels = (Core.view("storiesTabs", listOf(data?.posts?.size ?: 0, data?.stories?.size ?: 0)) as? List<*>)?.mapNotNull { it as? String }
       ?: listOf(StoryRules.word("tabPosts"), StoryRules.word("tabStories"))
-    listOf(postsTab, storiesTab).forEachIndexed { position, button ->
-      val on = (position == 0) == (tab == "post")
-      button.text = labels.getOrNull(position) ?: ""
+    val titles = labels.take(2) + listOf(if (giftCount > 0) "Подарки $giftCount" else "Подарки") // Gifts
+    listOf(postsTab, storiesTab, giftsTab).forEachIndexed { position, button ->
+      val on = listOf("post", "story", "gift")[position] == tab
+      button.text = titles.getOrNull(position) ?: ""
       button.setTextColor(if (on) Theme.text else Theme.muted)
       button.typeface = Theme.weight(if (on) 700 else 600)
       button.background = if (on) context.plate(Theme.veil(0.14f), 19f) else null
@@ -323,10 +343,13 @@ class ProfilePostsBlock(context: Context) : ViewGroup(context) {
     shown(tabsBox, !closed)
     shown(postsTab, !closed)
     shown(storiesTab, !closed)
+    shown(giftsTab, !closed)
+    val gifting = tab == "gift" && !closed && !waiting // Gifts
+    shown(giftsPanel, gifting)
     shown(problemLabel, !closed && problem.isNotEmpty())
     shown(grid, !closed && !waiting && has)
-    shown(addButton, !closed && !waiting && has && own)
-    val showEmpty = !closed && !waiting && !has
+    shown(addButton, !closed && !waiting && has && own && !gifting)
+    val showEmpty = !closed && !waiting && !has && !gifting
     shown(emptyEmoji, showEmpty)
     shown(emptyHeading, showEmpty)
     shown(emptyHint, showEmpty)
@@ -359,10 +382,17 @@ class ProfilePostsBlock(context: Context) : ViewGroup(context) {
     val tabsWidth = minOf(dp(420f), width)
     val tabsLeft = (width - tabsWidth) / 2
     put(tabsBox, tabsLeft, y, tabsWidth, dp(46f))
-    val half = (tabsWidth - dp(8f)) / 2
-    put(postsTab, tabsLeft + dp(4f), y + dp(4f), half, dp(38f))
-    put(storiesTab, tabsLeft + dp(4f) + half, y + dp(4f), half, dp(38f))
+    val third = (tabsWidth - dp(8f)) / 3
+    put(postsTab, tabsLeft + dp(4f), y + dp(4f), third, dp(38f))
+    put(storiesTab, tabsLeft + dp(4f) + third, y + dp(4f), third, dp(38f))
+    put(giftsTab, tabsLeft + dp(4f) + third * 2, y + dp(4f), third, dp(38f))
     y += dp(46f + 14f)
+    if (tab == "gift" && !waiting) {
+      // Gifts: the panel lays itself out.
+      giftsPanel.measure(MeasureSpec.makeMeasureSpec(width, MeasureSpec.EXACTLY), MeasureSpec.makeMeasureSpec(0, MeasureSpec.UNSPECIFIED))
+      if (lay) giftsPanel.layout(0, y, width, y + giftsPanel.measuredHeight)
+      return y + giftsPanel.measuredHeight
+    }
     if (problem.isNotEmpty()) y += text(problemLabel, y) + dp(14f)
     if (waiting) {
       put(spinner, width / 2 - dp(13f), y + dp(21f), dp(26f), dp(26f))

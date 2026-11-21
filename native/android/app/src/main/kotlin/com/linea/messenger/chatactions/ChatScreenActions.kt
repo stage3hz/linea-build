@@ -178,6 +178,8 @@ class ChatScreenActions(private val context: Context, private val messenger: Mes
     send.setOnClickListener { submit() }
 
     list.onMsgPress = { key, y -> pressed(key, y) }
+    // ChatsPlus: the row of a finished call calls back (MessageRow.tsx «Перезвонить»).
+    list.noticeTappable = { key -> history.shown.calls[key] != null }
     list.onMsgLongPress = { key, y -> held(key, y) }
     list.onReactPress = { key, emoji -> chipPressed(key, emoji) }
     list.onQuotePress = { key -> quotePressed(key) }
@@ -415,6 +417,13 @@ class ChatScreenActions(private val context: Context, private val messenger: Mes
   /** A tap, as in the reference: it opens the menu, a second tap right after it puts ❤️ instead. With the
    *  keyboard up a tap only puts the keyboard away; a tap on a photo or a file opens it. */
   private fun pressed(key: String, y: Float) {
+    // ChatsPlus: «Перезвонить» — the same kind of call again, from the row of a finished one.
+    val call = history.shown.calls[key]
+    if (call != null && !selecting) {
+      tick()
+      com.linea.messenger.calls.CallEntry.call(messenger, chatId, peerId, peerName, video = call["video"] == true)
+      return
+    }
     val message = history.shown.messages[key]
     if (message == null) {
       // A row that is not a message of the chat yet: an attachment on its way out.

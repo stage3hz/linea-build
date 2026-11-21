@@ -169,6 +169,10 @@ class ChatScreen(
     load()
   }
 
+  /** Shell: the player strip under the header while music plays (shell/PlayerStrips.kt); made after the page's own
+   *  parts, so it lies over them. */
+  private val playerStrip = com.linea.messenger.shell.ChatPlayerStrip(this)
+
   override fun place(width: Int, height: Int) {
     val top = edges.top
     put(header, 0, 0, width, top + dp(48f))
@@ -186,7 +190,8 @@ class ChatScreen(
     media.place(width, top, dp(12f), composerTop, width - dp(24f))
     // ChatActions: the status under the name, the pinned message, the bar above the field, the way down.
     actions.keyboardUp = edges.keyboard > 0
-    val room = actions.place(width, height, top + dp(48f), top, dp(12f), composerTop, width - dp(24f), composerHeight)
+    val strip = playerStrip.place(width, top + dp(48f), hidden = false) // Shell: the strip takes its room under the header
+    val room = actions.place(width, height, top + dp(48f) + strip, top, dp(12f), composerTop, width - dp(24f), composerHeight)
     list.setPad(room.first, room.second)
     put(page, 0, 0, width, height)
   }

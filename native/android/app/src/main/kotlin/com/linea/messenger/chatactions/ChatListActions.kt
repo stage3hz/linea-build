@@ -58,10 +58,22 @@ class ChatListActions(private val context: Context, private val messenger: Messe
     val searchingHistory: Boolean = false, val fills: Map<String, Fill> = emptyMap(), val hidden: Set<String> = emptySet(),
     val removed: (Chat) -> Boolean = { false }, val marked: (String) -> Boolean = { false }, val draft: (String) -> String = { "" },
     val typing: (String) -> Boolean = { false }, val now: Instant = Instant.now(), val zone: ZoneId = ZoneId.systemDefault(),
+    /** ChatsPlus: whether a chat stands in the folder shown (id, unread or marked). */
+    val keeps: (String, Boolean) -> Boolean = { _, _ -> true },
+    /** ChatsPlus: the «Избранное» row above everything (null: none), and «Архив» kept behind the pull instead of a row. */
+    val savedRow: Map<String, Any?>? = null, val archivePulled: Boolean = false,
+    /** ChatsPlus: choosing chats — every row has a round mark (`chosen`: the marked ones) and no buttons behind it. */
+    val selecting: Boolean = false, val chosen: (String) -> Boolean = { false },
+    /** ChatsPlus: the parts of the list («Сегодня», «Вчера»…) are shown (only in «Все», not while choosing). */
+    val sections: Boolean = true,
+    /** ChatsPlus: «Люди» — people by @name the server found, who have no chat here yet. */
+    val people: List<Map<String, Any?>> = emptyList(),
   )
 
   /** What `rows` made: the rows, the words for an empty list, the heading, and whether «Архив» stays open. */
-  class Made(val rows: List<Map<String, Any?>>, val emptyWords: String, val heading: String, val archiveOpen: Boolean)
+  class Made(val rows: List<Map<String, Any?>>, val emptyWords: String, val heading: String, val archiveOpen: Boolean,
+    /** ChatsPlus: the chats shown (for «Прочитать все»), and how many of them have unread messages. */
+    val shownIds: List<String> = emptyList(), val unreadShown: Int = 0)
 
   private val local: ChatLocal? = messenger?.let { ChatLocal.of(context, it) }
   private val main = Handler(Looper.getMainLooper())
@@ -96,6 +108,13 @@ class ChatListActions(private val context: Context, private val messenger: Messe
   var onHeading: ((String) -> Unit)? = null
   /** The chats should be read from the server again. */
   var onReload: (() -> Unit)? = null
+  /** ChatsPlus: folders, «Избранное», choosing, the badges and the rest around the rows (chatsplus/ChatListPlus.kt). */
+  var plus: com.linea.messenger.chatsplus.ChatListPlus? = null
+  val showingArchive: Boolean get() = archiveOpen
+  val searchWords: String get() = query.trim(' ')
+  fun redraw() = refresh()
+  /** ChatsPlus: the chats the list shows now (for «Прочитать все» while choosing). */
+  private var lastShown: List<String> = emptyList()
 
   private val localWatcher: (String?) -> Unit = { refresh() }
 
@@ -104,7 +123,11 @@ class ChatListActions(private val context: Context, private val messenger: Messe
   fun install(host: ViewGroup, list: ChatListView) {
     this.host = host
     list.onRowAction = { id, action -> act(id, action) }
-    list.onRowLongPress = { id, _ -> openMenu(id) }
+    list.onRowLongPress = { id, y ->
+      // ChatsPlus: a hold on «Избранное» has its own menu; the peek card comes up from the finger.
+      if (id == com.linea.messenger.chatsplus.ChatListPlus.SAVED_ROW) plus?.savedMenu()
+      else { plus?.holdY = y; openMenu(id) }
+    }
     searchButton.contentDescription = "Поиск"
     searchButton.setOnClickListener { toggleSearch() }
     host.addView(searchButton)
@@ -163,6 +186,7 @@ class ChatListActions(private val context: Context, private val messenger: Messe
    *  heading ends, px). Gives the room the list must leave at the top. */
   fun place(width: Int, safeTop: Int, below: Int): Int {
     put(searchButton, width - dp(20f) - dp(40f) - dp(8f) - dp(40f), safeTop + dp(8f), dp(40f), dp(40f))
+    searchButton.visibility = if (plus?.selecting == true) View.GONE else View.VISIBLE // ChatsPlus: «Выбрать» — the search gives way
     if (!searching) return below
     put(searchBox, dp(16f), below, width - dp(32f), dp(40f))
     return below + dp(48f)
@@ -184,10 +208,25 @@ class ChatListActions(private val context: Context, private val messenger: Messe
   private fun removed(chat: Chat): Boolean = local?.isRemoved(chat.id, lastId(chat)) ?: false
 
   private fun refresh() {
+    // ChatsPlus: the badges count every chat; «Архив» behind the pull; «Избранное», folders, choosing, people.
+    val plus = plus
+    val visible = chats.filter { !removed(it) }
+    val now = Instant.now()
+    plus?.listed(visible.map { com.linea.messenger.chatsplus.ChatListStatus.Counted(it.id, unread(it), marked(it.id), muted(it, now), archived(it)) },
+      visible.map { Messenger.ChatSummary(it.id, it.peerId, it.title, it.peerLastRead, it.row, it.chat, it.last) })
+    val archivedCount = visible.count { archived(it) }
+    val inArchive = archiveOpen && archivedCount > 0
+    val wanted = query.trim(' ')
+    val pulled = if (plus == null) false else if (inArchive || wanted.isNotEmpty() || archivedCount == 0) plus.archivePull(0) else plus.archivePull(archivedCount)
     val made = rows(State(chats, messenger?.userId, archiveOpen, query, hits, searchingHistory, fills, local?.hiddenKeys?.toSet() ?: emptySet(),
-      removed = { removed(it) }, marked = { marked(it) }, draft = { local?.draft(it) ?: sampleDrafts[it] ?: "" }, typing = { ChatTyping.isTyping(it) }))
+      removed = { removed(it) }, marked = { marked(it) }, draft = { local?.draft(it) ?: sampleDrafts[it] ?: "" }, typing = { ChatTyping.isTyping(it) },
+      keeps = { id, unread -> plus?.keeps(id, unread) ?: true }, savedRow = if (inArchive) null else plus?.savedRow(query), archivePulled = pulled,
+      selecting = plus?.selecting ?: false, chosen = { plus?.isChosen(it) ?: false }, sections = plus?.showsSections ?: true,
+      people = if (wanted.isNotEmpty() && !inArchive) plus?.peopleRows(query) ?: emptyList() else emptyList()))
     archiveOpen = made.archiveOpen
+    lastShown = made.shownIds
     onHeading?.invoke(made.heading)
+    plus?.shown(made.unreadShown)
     onRows?.invoke(ChatRow.parse(made.rows), made.emptyWords)
   }
 
@@ -231,6 +270,11 @@ class ChatListActions(private val context: Context, private val messenger: Messe
 
   /** A row was touched. True when it was dealt with here; false leaves it to the screen (the sample chats). */
   fun pressed(id: String): Boolean {
+    // ChatsPlus: «Избранное».
+    if (id == com.linea.messenger.chatsplus.ChatListPlus.SAVED_ROW) { plus?.openSaved(); return true }
+    // ChatsPlus: while choosing, a touch marks the chat; a person found by @name opens the chat with them.
+    plus?.let { if (it.selecting && chats.any { chat -> chat.id == id }) { it.toggle(id); return true } }
+    if (id.startsWith("user|")) { plus?.openPerson(id); return true }
     if (id == archiveRow) {
       archiveOpen = true
       refresh()
@@ -290,7 +334,7 @@ class ChatListActions(private val context: Context, private val messenger: Messe
   private fun openMenu(id: String) {
     val chat = chats.firstOrNull { it.id == id } ?: return
     host?.performHapticFeedback(HapticFeedbackConstants.LONG_PRESS)
-    ChoiceSheet(context, chat.title, choices = menuChoices(unread(chat) > 0 || marked(chat.id), pinned(chat), muted(chat, Instant.now()), archived(chat)).map { (name, symbol, label) ->
+    val choices = menuChoices(unread(chat) > 0 || marked(chat.id), pinned(chat), muted(chat, Instant.now()), archived(chat)).map { (name, symbol, label) ->
       ChoiceSheet.Choice(symbol, label, danger = name == "delete") {
         when (name) {
           "read" -> read(chat)
@@ -303,7 +347,11 @@ class ChatListActions(private val context: Context, private val messenger: Messe
           else -> askRemove(chat)
         }
       }
-    }).show()
+    }
+    // ChatsPlus: the menu under a card with the chat itself (chatsplus/ChatPeekMenu.kt).
+    val summary = Messenger.ChatSummary(chat.id, chat.peerId, chat.title, chat.peerLastRead, chat.row, chat.chat, chat.last)
+    if (plus?.presentPeek(summary, choices) == true) return
+    ChoiceSheet(context, chat.title, choices = choices).show()
   }
 
   private fun say(words: String) = ChatAttachments.say(context, words)
@@ -358,7 +406,15 @@ class ChatListActions(private val context: Context, private val messenger: Messe
         // Counted from the moment of the choice, not from the moment the sheet was opened.
         change(chat, mapOf("mutedUntil" to Instant.now().plusSeconds(seconds).truncatedTo(ChronoUnit.MILLIS).toString()))
       }
-    } + ChoiceSheet.Choice("bell.slash", "Навсегда", "Пока не включишь снова. Звонки продолжат звонить.") { change(chat, mapOf("muted" to true)) }
+    } + ChoiceSheet.Choice("bell.slash", "Навсегда", "Пока не включишь снова. Звонки продолжат звонить.") { change(chat, mapOf("muted" to true)) } +
+      // ChatsPlus: «Настроить…» — своё время (chatsplus/MuteCustom.kt).
+      ChoiceSheet.Choice("slider", "Настроить…", "Своё время: дни, часы и минуты.") {
+        main.postDelayed({
+          val custom = com.linea.messenger.chatsplus.MuteCustomSheet(context) { until -> change(chat, mapOf("mutedUntil" to until)) }
+          custom.onBack = { askMute(chat) }
+          custom.show()
+        }, 350)
+      }
     ChoiceSheet(context, "Выключить звук", chat.title, choices).show()
   }
 
@@ -409,6 +465,45 @@ class ChatListActions(private val context: Context, private val messenger: Messe
         }
       }
     }
+  }
+
+  // ChatsPlus — what is done with several chats at once («Выбрать», chatsplus/ChatListEdit.kt)
+
+  /** The chats with these ids, in the list's order. */
+  fun summaries(ids: List<String>): List<Messenger.ChatSummary> {
+    val wanted = ids.toSet()
+    return chats.filter { wanted.contains(it.id) }.map { Messenger.ChatSummary(it.id, it.peerId, it.title, it.peerLastRead, it.row, it.chat, it.last) }
+  }
+
+  /** «Прочитать» the chosen chats; nothing chosen — «Прочитать все» the chats shown. */
+  fun groupRead(ids: List<String>) {
+    val wanted = (if (ids.isEmpty()) lastShown else ids).toSet()
+    for (chat in chats.filter { wanted.contains(it.id) }) read(chat)
+  }
+
+  /** «В архив» / «Из архива». */
+  fun groupArchive(ids: List<String>, archived: Boolean) {
+    val wanted = ids.toSet()
+    for (chat in chats.filter { wanted.contains(it.id) }) change(chat, mapOf("archived" to archived))
+  }
+
+  /** «Удалить» several chats: for me or for both, asked once for all of them. `done`: a choice was made. */
+  fun groupRemove(ids: List<String>, done: () -> Unit) {
+    val wanted = ids.toSet()
+    val list = chats.filter { wanted.contains(it.id) }
+    if (list.isEmpty()) return
+    if (list.size == 1) { askRemove(list[0]); done(); return }
+    val heading = "Удалить ${list.size} " + plural(list.size, "чат", "чата", "чатов") + "?"
+    ChoiceSheet(context, heading, choices = listOf(
+      ChoiceSheet.Choice("trash", "Удалить у меня", "Чаты и загруженные сообщения исчезнут на этом устройстве. Если собеседник напишет снова, чат вернётся.", danger = true) {
+        for (chat in list) removeForMe(chat)
+        done()
+      },
+      ChoiceSheet.Choice("person.2", "Удалить у меня и у собеседника", "Чаты, все сообщения и файлы будут удалены на сервере и у обоих. Отменить нельзя.", danger = true) {
+        for (chat in list) removeForEveryone(chat)
+        done()
+      },
+    )).show()
   }
 
   // The search
@@ -664,6 +759,8 @@ class ChatListActions(private val context: Context, private val messenger: Messe
       val inArchive = state.archiveOpen && archivedCount > 0
       val wanted = state.query.trim(' ').lowercase()
       var shown = visible.filter { archived(it) == inArchive }
+      // ChatsPlus: the folder shown keeps its own chats (not in «Архив»).
+      if (!inArchive) shown = shown.filter { state.keeps(it.id, unread(it) > 0 || state.marked(it.id)) }
       if (wanted.isNotEmpty()) {
         shown = shown.filter { chat ->
           val username = Core.map(chat.chat["peer"])?.get("username") as? String ?: ""
@@ -671,9 +768,11 @@ class ChatListActions(private val context: Context, private val messenger: Messe
         }
       }
       val rows = ArrayList<Map<String, Any?>>()
+      // ChatsPlus: «Избранное» above everything in «Все».
+      if (!inArchive) state.savedRow?.let { rows.add(it) }
       if (inArchive) {
         rows.add(special(backRow, "‹ Архив", "Вернуться к чатам", "‹"))
-      } else if (archivedCount > 0 && wanted.isEmpty()) {
+      } else if (archivedCount > 0 && wanted.isEmpty() && !state.archivePulled) {
         rows.add(special(archiveRow, "Архив", "$archivedCount " + plural(archivedCount, "чат", "чата", "чатов"), "▤"))
       }
       var part = ""
@@ -686,7 +785,8 @@ class ChatListActions(private val context: Context, private val messenger: Messe
         row["muted"] = quiet
         row["pinned"] = isPinned
         // Avatars: the title may carry the person's status emoji (avatars/ChatListDecor.kt).
-        row["title"] = (chat.row["title"] as? String ?: chat.title) + (if (quiet) " 🔕" else "")
+        // ChatsPlus: the crossed bell is drawn after the name (chats/ChatRowView.kt), not a 🔕 in it.
+        row["title"] = chat.row["title"] as? String ?: chat.title
         row["unread"] = if (count > 0) count else if (isMarked) 1 else 0
         val draft = draftLine(state.draft(chat.id))
         // Offline: the quiet look belongs to the line of a message that cannot be opened here, nothing else.
@@ -709,6 +809,9 @@ class ChatListActions(private val context: Context, private val messenger: Messe
             row["preview"] = ""
           } else if (isPin(chat.last)) {
             row["preview"] = pinLine(chat.last["text"] as? String ?: "", mine, chat.title)
+          } else {
+            // ChatsPlus: the small picture of a photo, a video or a round video; the microphone of a voice message.
+            com.linea.messenger.chatsplus.ChatRowLooks.applyMedia(row, chat.last)
           }
         }
         // The buttons behind the row (the reference's `rowActions`): the outermost first.
@@ -716,7 +819,13 @@ class ChatListActions(private val context: Context, private val messenger: Messe
         val trail = listOf(if (inArchive) "unarchive" else "archive", "delete", if (quiet) "unmute" else "mute")
         row["lead"] = lead.map { it + ":" + (swipeWords[it] ?: it) }
         row["trail"] = trail.map { it + ":" + (swipeWords[it] ?: it) }
-        val own = if (inArchive || wanted.isNotEmpty()) "" else section(chat, state.now, state.zone)
+        // ChatsPlus: while choosing, a round mark and no buttons behind the row.
+        if (state.selecting) {
+          row["checked"] = if (state.chosen(chat.id)) 1 else 0
+          row["lead"] = emptyList<String>()
+          row["trail"] = emptyList<String>()
+        }
+        val own = if (inArchive || wanted.isNotEmpty() || !state.sections) "" else section(chat, state.now, state.zone)
         row["section"] = if (own != part) own else ""
         part = own
         rows.add(row)
@@ -739,8 +848,10 @@ class ChatListActions(private val context: Context, private val messenger: Messe
         row["thumb"] = ""
         rows.add(row)
       }
+      // ChatsPlus: «Люди» — people by @name the server found, who have no chat here yet.
+      if (wanted.isNotEmpty() && !inArchive) rows.addAll(state.people)
       val words = if (wanted.isEmpty()) "Пока нет чатов" else if (state.searchingHistory) "Поиск…" else "Ничего не нашли."
-      return Made(rows, words, if (inArchive) "Архив" else "Чаты", inArchive)
+      return Made(rows, words, if (inArchive) "Архив" else "Чаты", inArchive, shown.map { it.id }, shown.count { unread(it) > 0 })
     }
   }
 }

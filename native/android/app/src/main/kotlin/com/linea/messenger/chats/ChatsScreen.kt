@@ -40,6 +40,13 @@ class ChatsScreen(
   private val actions = ChatListActions(context, messenger)
   /** Stories: the strip of stories above the chats (stories/StoriesStrip.kt). */
   private val stories = com.linea.messenger.stories.StoriesStrip(context, messenger)
+  /** ChatsPlus: the connection in the title, the line under it, the skeleton, the empty states, the folders,
+   *  «Избранное», «Выбрать» and the rest around the rows (chatsplus/ChatListPlus.kt). */
+  private val plus = com.linea.messenger.chatsplus.ChatListPlus(context, messenger)
+  /** ChatsPlus: chats are being chosen («Выбрать»); the system's Back ends it. */
+  val selecting: Boolean get() = plus.selecting
+  fun endSelecting() = plus.edit.set(null)
+  private val shellChanged: (Unit) -> Unit = { requestLayout() }
   /** Offline: the list on screen came from the server at least once (until then it is the vault's copy). */
   private var serverLoaded = false
   /** Offline: lines opened in the background since the rows were last shown (offline/ListCatchUp.kt). */
@@ -69,10 +76,15 @@ class ChatsScreen(
     actions.install(this, list)
     // Stories: the strip is the list's header.
     stories.install(this, list)
+    // ChatsPlus: hooked into the actions and the screen.
+    actions.plus = plus
+    plus.install(this, heading, empty, list, actions)
+    plus.onNewChat = { openPeople() }
     actions.onRows = { rows, emptyWords ->
       list.setRows(rows)
       empty.text = emptyWords
       empty.visibility = if (rows.isEmpty()) View.VISIBLE else View.GONE
+      plus.rowsShown(rows, emptyWords) // ChatsPlus
     }
     actions.onHeading = { words -> if (heading.text.toString() != words) heading.text = words }
     actions.onReload = { reload() }
@@ -102,12 +114,16 @@ class ChatsScreen(
     super.onAttachedToWindow()
     messenger?.watch(this)
     actions.attached()
+    plus.attached() // ChatsPlus
+    com.linea.messenger.shell.ShellInsets.changed.watch(shellChanged) // Shell: the mini-player's room
     appeared()
   }
 
   override fun onDetachedFromWindow() {
     messenger?.unwatch(this)
     actions.detached()
+    plus.detached() // ChatsPlus
+    com.linea.messenger.shell.ShellInsets.changed.unwatch(shellChanged) // Shell
     removeCallbacks(reloadSoon)
     showing = false
     super.onDetachedFromWindow()
@@ -155,16 +171,20 @@ class ChatsScreen(
       val chats = result.getOrNull()
       if (chats != null) {
         serverLoaded = true
+        plus.serverAnswered() // ChatsPlus
         summaries = chats
         // ChatActions: shown through `actions.onRows`.
         actions.show(chats)
         keepSoon()
         // Offline: the lines still closed are opened in the background, then shown.
         messenger.catchUpList(chats) { chatId, lastId, line -> lineOpened(chatId, lastId, line) }
-      } else if (summaries.isEmpty()) {
-        // Offline: the chats on screen (the vault's copy) stay; the words only when there is nothing to show.
-        empty.text = Server.error(result).words
-        empty.visibility = View.VISIBLE
+      } else {
+        if (summaries.isEmpty()) {
+          // Offline: the chats on screen (the vault's copy) stay; the words only when there is nothing to show.
+          empty.text = Server.error(result).words
+          empty.visibility = View.VISIBLE
+        }
+        plus.serverFailed(Server.error(result)) // ChatsPlus
       }
     }
   }
@@ -212,15 +232,22 @@ class ChatsScreen(
 
   override fun place(width: Int, height: Int) {
     val top = edges.top
-    val headingHeight = putText(heading, dp(20f), top + dp(8f), width - dp(40f))
+    // ChatsPlus: the title in Unbounded takes the reference's 41 dp line, left of «Выбрать», the search and «Новый чат».
+    put(heading, dp(20f), top + dp(8f), width - dp(40f) - dp(150f), dp(41f))
+    val headingHeight = dp(41f)
     put(newChat, width - dp(20f) - dp(40f), top + dp(8f), dp(40f), dp(40f))
-    val barRoom = dp(BarMetrics.bottomGap(edges.bottom / d) + BarMetrics.height + 12f)
+    // Shell: the mini-player's room above the bar; ChatsPlus: the choosing bar's room while choosing chats.
+    val barRoom = plus.listBottom(dp(BarMetrics.bottomGap(edges.bottom / d) + BarMetrics.height + 12f + com.linea.messenger.shell.ShellInsets.miniPlayer), edges.bottom)
     // ChatActions: the search button beside «Новый чат»; the search field, when open, under the heading.
     val listTop = top + dp(8f) + headingHeight + dp(8f)
-    val pad = actions.place(width, top, listTop)
+    val searchTop = actions.place(width, top, listTop)
+    // ChatsPlus: the line under the title and the folder tabs take their room above the list.
+    val pad = plus.place(width, height, top, edges.bottom, searchTop, barRoom)
     list.setPad(pad, barRoom)
-    // Stories: not in «Архив» and not while searching (the search field takes room under the heading).
-    stories.place(allowed = heading.text.toString() == "Чаты" && pad <= listTop)
+    plus.placeHeaderEdge(pad, width) // ChatsPlus: the floating header's edge
+    newChat.visibility = if (plus.selecting) View.GONE else View.VISIBLE // ChatsPlus: «Выбрать» — «Новый чат» gives way
+    // Stories: not in «Архив» and not while searching (the search field takes room under the heading); ChatsPlus: not while choosing.
+    stories.place(allowed = heading.text.toString() == "Чаты" && searchTop <= listTop && !plus.selecting)
     put(list, 0, 0, width, height)
     put(empty, dp(20f), height / 2 - dp(24f), width - dp(40f), dp(48f))
   }

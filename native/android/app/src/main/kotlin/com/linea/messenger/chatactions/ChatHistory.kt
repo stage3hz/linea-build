@@ -49,6 +49,8 @@ class ChatHistory(private val messenger: Messenger?, private val local: ChatLoca
     val failedActions: Int = 0,
     /** Profile: the chat's rule «Автоудаление», seconds (0 = off; an encrypted setting both sides follow). */
     val ttl: Long = 0,
+    /** ChatsPlus: the `end` action of a finished call, by its row's key (a touch calls back). */
+    val calls: Map<String, Map<String, Any?>> = emptyMap()
   )
 
   /** Everything `build` reads, taken at one moment. */
@@ -384,6 +386,7 @@ class ChatHistory(private val messenger: Messenger?, private val local: ChatLoca
       var missingRow = -1
       var missingCount = 0
       var unreadShown = false
+      val calls = HashMap<String, Map<String, Any?>>() // ChatsPlus
       messages.forEachIndexed { index, message ->
         val sender = message["senderId"] as? String ?: ""
         val client = message["clientId"] as? String ?: ""
@@ -428,6 +431,7 @@ class ChatHistory(private val messenger: Messenger?, private val local: ChatLoca
         // A finished call is a line of its own, not a message of anyone's.
         val own = Core.map(meta?.get("action"))
         if (own != null && own["type"] as? String == "call") {
+          if (own["step"] == "end") calls[key] = own // ChatsPlus: «Перезвонить»
           // Calls: the row names the direction («Исходящий звонок · 3:12»), as the reference's chat does.
           val words = Core.view("callServiceText", listOf(own, sender, input.userId)) as? String ?: Core.view("chatListText", listOf(message)) as? String ?: (message["text"] as? String ?: "")
           rows.add(linkedMapOf("key" to key, "kind" to 1, "text" to (if (clock.isEmpty()) words else "$words · $clock")))
@@ -487,7 +491,7 @@ class ChatHistory(private val messenger: Messenger?, private val local: ChatLoca
         keyOfClient[client] = key
         order.add(key)
       }
-      return Shown(rows, shownMessages, keyOfClient, order, pinned, noCopy, newestTheirs, noKey, failedActions, ttl)
+      return Shown(rows, shownMessages, keyOfClient, order, pinned, noCopy, newestTheirs, noKey, failedActions, ttl, calls = calls)
     }
   }
 }
