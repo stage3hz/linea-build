@@ -39,7 +39,7 @@ final class PhotoEditorController: UIViewController {
     private var history: [Edit] = [Edit()]
     private var at = 0
     private var present: Edit { history[at] }
-    private var tab = "crop"
+    private var editorTab = "crop"
     private var aspect: CGFloat?
     private var penColor: UInt32 = 0xFF3B30
     private var penWidth: CGFloat = 0.012
@@ -159,7 +159,7 @@ final class PhotoEditorController: UIViewController {
     // MARK: The tools
 
     @objc private func tabChosen(_ sender: UIButton) {
-        tab = sender.accessibilityIdentifier ?? "crop"
+        editorTab = sender.accessibilityIdentifier ?? "crop"
         show()
     }
 
@@ -200,13 +200,13 @@ final class PhotoEditorController: UIViewController {
         resetButton.isEnabled = edited
         resetButton.alpha = edited ? 1 : 0.4
         canvas.edit = present
-        canvas.tool = tab
+        canvas.tool = editorTab
         canvas.aspect = aspect
         canvas.penColor = penColor
         canvas.penWidth = penWidth
         canvas.setNeedsDisplay()
         for button in tabButtons {
-            let on = button.accessibilityIdentifier == tab
+            let on = button.accessibilityIdentifier == editorTab
             button.backgroundColor = on ? UIColor(red: 10 / 255, green: 132 / 255, blue: 1, alpha: 0.2) : .clear
             button.tintColor = on ? PhotoEditorController.accent : .white
             var config = button.configuration
@@ -214,7 +214,7 @@ final class PhotoEditorController: UIViewController {
             button.configuration = config
         }
         hint.text = ""
-        switch tab {
+        switch editorTab {
         case "crop":
             var aspectChips: [UIView] = []
             for (index, item) in PhotoEditorController.aspects.enumerated() {
@@ -358,15 +358,15 @@ final class PhotoEditorController: UIViewController {
     /// `-photoeditor crop|draw|size`: the editor on a tab, with a square frame or a line drawn.
     func simulatorShow(_ tool: String) {
         loadViewIfNeeded()
-        tab = tool == "draw" || tool == "size" ? tool : "crop"
-        if tab == "crop" {
+        editorTab = tool == "draw" || tool == "size" ? tool : "crop"
+        if editorTab == "crop" {
             aspect = 1
             var next = present
             let turned = canvas.turnedSize
             let sourceAspect = turned.width / max(1, turned.height)
             next.crop = CGRect(x: (1 - 1 / sourceAspect) / 2, y: 0, width: 1 / sourceAspect, height: 1)
             commit(next)
-        } else if tab == "draw" {
+        } else if editorTab == "draw" {
             var next = present
             next.strokes.append(Stroke(color: 0xFF3B30, width: 0.012, points: [CGPoint(x: 0.2, y: 0.6), CGPoint(x: 0.35, y: 0.45), CGPoint(x: 0.5, y: 0.62), CGPoint(x: 0.7, y: 0.4)]))
             commit(next)

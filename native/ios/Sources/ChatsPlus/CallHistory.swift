@@ -320,7 +320,7 @@ final class CallHistoryPanel: NSObject, UITableViewDataSource, UITableViewDelega
     /// «Перезвонить»: the same kind of call again (a video call for a video one).
     private func callBack(_ call: CallRecord) {
         UIImpactFeedbackGenerator(style: .light).impactOccurred()
-        CallOverlay.call(messenger: messenger, chatId: call.chat.id, peerId: call.chat.peerId, name: call.chat.title, video: call.video)
+        CallEntry.call(messenger: messenger, chatId: call.chat.id, peerId: call.chat.peerId, name: call.chat.title, video: call.video)
     }
 
     #if targetEnvironment(simulator)

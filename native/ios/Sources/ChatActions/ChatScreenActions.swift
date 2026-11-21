@@ -445,7 +445,7 @@ final class ChatScreenActions: NSObject, UITextViewDelegate {
         // ChatsPlus: «Перезвонить» — the same kind of call again, from the row of a finished one.
         if let action = history.shown.calls[key], !selecting {
             UIImpactFeedbackGenerator(style: .light).impactOccurred()
-            CallOverlay.call(messenger: messenger, chatId: chatId, peerId: peerId, name: peerName, video: action["video"] as? Bool == true)
+            CallEntry.call(messenger: messenger, chatId: chatId, peerId: peerId, name: peerName, video: action["video"] as? Bool == true)
             return
         }
         guard let message = history.shown.messages[key] else {
@@ -866,6 +866,30 @@ final class ChatScreenActions: NSObject, UITextViewDelegate {
             }
             stack.setViewControllers([first, screen], animated: true)
         }
+        // Composer: «Выбрать» → several chats at once, the comment first in each (the reference's `onSendMany`).
+        picker.onSendMany = { [weak self] (targets: [ForwardPickerController.Target], comment: String) -> Void in
+            guard let self else { return }
+            self.history.selection = nil
+            if targets.contains(where: { $0.isSaved }) { self.saveToFavorites(messages) }
+            guard let messenger = self.messenger else {
+                self.say(ChatForward.notice(targets))
+                return
+            }
+            ChatForward.sendMany(messenger: messenger, targets: targets, comment: comment, items: items) { [weak self] (problem: String?) -> Void in
+                guard let self else { return }
+                if let problem { self.say(problem, danger: true) } else { self.say(ChatForward.notice(targets)) }
+                if targets.contains(where: { $0.chatId == self.chatId }) { self.history.load() }
+            }
+        }
+        #if targetEnvironment(simulator)
+        if messenger == nil && UserDefaults.standard.string(forKey: "chatdemo") == "forwardmany" {
+            if ChatFolderStore.of("sample").folders.isEmpty, PeopleDemo.friends.count > 1 {
+                let ids = PeopleDemo.friends.prefix(3).map { "demo-chat-" + $0.id }
+                ChatFolderStore.of("sample").upsert(ChatFolder(id: "fdemo", name: "Друзья", chatIds: Array(ids)))
+            }
+            picker.simulatorChooseSeveral()
+        }
+        #endif
         host.present(picker, animated: true)
     }
 
@@ -1215,7 +1239,7 @@ final class ChatScreenActions: NSObject, UITextViewDelegate {
             if let message = outgoing { startEdit(message, focus: false) }
         case "select":
             history.selection = Set(all.suffix(2).map { ChatHistory.key($0) })
-        case "forward":
+        case "forward", "forwardmany":
             if let message = incoming ?? all.last { startForward([message]) }
         case "pin":
             if shown.pinned == nil, let message = incoming ?? all.last, let client = message["clientId"] as? String {
