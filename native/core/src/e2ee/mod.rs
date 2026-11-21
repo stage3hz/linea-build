@@ -5,4 +5,6 @@
 //! like, its canonical form, who is trusted, what is sent to whom and what is remembered. It is ported exactly:
 //! the same protocol, the same formats, the same refusals.
 
+pub mod attachment;
+pub mod bridge;
 pub mod wire;

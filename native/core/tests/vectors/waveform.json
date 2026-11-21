@@ -1,0 +1,214 @@
+{
+ "wire": [
+  {
+   "plain": "{\"text\":\"hi\",\"attachment\":null,\"sentAt\":\"2026-11-21T00:00:00.000Z\"}",
+   "wire": "{\"text\":\"hi\",\"attachment\":null,\"sentAt\":\"2026-11-21T00:00:00.000Z\"}"
+  },
+  {
+   "plain": "{\"text\":\"\",\"attachment\":{\"id\":\"0f8fad5b-d9cb-469f-a165-70867728950e\",\"name\":\"voice.m4a\",\"mimeType\":\"audio/mp4\",\"size\":12345,\"encryption\":{\"scheme\":\"aes-256-gcm-siv\",\"key\":\"AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA=\",\"nonce\":\"bbbbbbbbbbbbbbbb\",\"fileKeyId\":\"7C9E6679-7425-40DE-944B-E07FC1F90AE7\"},\"media\":{\"durationMs\":16000,\"waveform\":\"ABCDEFGHabcdef\"},\"preview\":\"OK\"},\"sentAt\":\"s\",\"meta\":{\"silent\":true}}",
+   "wire": "{\"text\":\"\",\"attachment\":{\"id\":\"0f8fad5b-d9cb-469f-a165-70867728950e\",\"name\":\"voice.m4a\",\"mimeType\":\"audio/mp4\",\"size\":12345,\"encryption\":{\"scheme\":\"aes-256-gcm-siv\",\"key\":\"AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA=\",\"nonce\":\"bbbbbbbbbbbbbbbb\",\"fileKeyId\":\"7C9E6679-7425-40DE-944B-E07FC1F90AE7\"},\"media\":{\"durationMs\":16000},\"preview\":\"OK\"},\"sentAt\":\"s\",\"meta\":{\"silent\":true},\"voiceWaveform\":\"ABCDEFGHabcdef\"}"
+  },
+  {
+   "plain": "{\"text\":\"\",\"attachment\":{\"id\":\"0f8fad5b-d9cb-469f-a165-70867728950e\",\"name\":\"photo.jpg\",\"mimeType\":\"image/jpeg\",\"size\":12345,\"encryption\":{\"scheme\":\"aes-256-gcm-siv\",\"key\":\"AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA=\",\"nonce\":\"bbbbbbbbbbbbbbbb\",\"fileKeyId\":\"7C9E6679-7425-40DE-944B-E07FC1F90AE7\"},\"media\":{\"waveform\":\"ABCDEFGH\"}},\"sentAt\":\"s\"}",
+   "wire": "{\"text\":\"\",\"attachment\":{\"id\":\"0f8fad5b-d9cb-469f-a165-70867728950e\",\"name\":\"photo.jpg\",\"mimeType\":\"image/jpeg\",\"size\":12345,\"encryption\":{\"scheme\":\"aes-256-gcm-siv\",\"key\":\"AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA=\",\"nonce\":\"bbbbbbbbbbbbbbbb\",\"fileKeyId\":\"7C9E6679-7425-40DE-944B-E07FC1F90AE7\"}},\"sentAt\":\"s\",\"voiceWaveform\":\"ABCDEFGH\"}"
+  },
+  {
+   "plain": "{\"text\":\"t\",\"attachment\":{\"id\":\"0f8fad5b-d9cb-469f-a165-70867728950e\",\"name\":\"photo.jpg\",\"mimeType\":\"image/jpeg\",\"size\":12345,\"encryption\":{\"scheme\":\"aes-256-gcm-siv\",\"key\":\"AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA=\",\"nonce\":\"bbbbbbbbbbbbbbbb\",\"fileKeyId\":\"7C9E6679-7425-40DE-944B-E07FC1F90AE7\"}},\"sentAt\":\"s\"}",
+   "wire": "{\"text\":\"t\",\"attachment\":{\"id\":\"0f8fad5b-d9cb-469f-a165-70867728950e\",\"name\":\"photo.jpg\",\"mimeType\":\"image/jpeg\",\"size\":12345,\"encryption\":{\"scheme\":\"aes-256-gcm-siv\",\"key\":\"AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA=\",\"nonce\":\"bbbbbbbbbbbbbbbb\",\"fileKeyId\":\"7C9E6679-7425-40DE-944B-E07FC1F90AE7\"}},\"sentAt\":\"s\"}"
+  },
+  {
+   "plain": "{\"text\":\"t\",\"attachment\":{\"id\":\"0f8fad5b-d9cb-469f-a165-70867728950e\",\"name\":\"video.mp4\",\"mimeType\":\"video/mp4\",\"size\":10737418240,\"encryption\":{\"scheme\":\"aes-256-gcm-siv-chunked\",\"key\":\"AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA=\",\"nonce\":\"bbbbbbbbbbbbbbbb\",\"fileKeyId\":\"7C9E6679-7425-40DE-944B-E07FC1F90AE7\",\"chunkSize\":4194304},\"media\":{\"width\":1920,\"height\":1080,\"durationMs\":60000}},\"sentAt\":\"s\"}",
+   "wire": "{\"text\":\"t\",\"attachment\":{\"id\":\"0f8fad5b-d9cb-469f-a165-70867728950e\",\"name\":\"video.mp4\",\"mimeType\":\"video/mp4\",\"size\":10737418240,\"encryption\":{\"scheme\":\"aes-256-gcm-siv-chunked\",\"key\":\"AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA=\",\"nonce\":\"bbbbbbbbbbbbbbbb\",\"fileKeyId\":\"7C9E6679-7425-40DE-944B-E07FC1F90AE7\",\"chunkSize\":4194304},\"media\":{\"width\":1920,\"height\":1080,\"durationMs\":60000}},\"sentAt\":\"s\"}"
+  },
+  {
+   "plain": "{\"attachment\":{\"media\":{\"waveform\":5,\"width\":1},\"id\":1},\"text\":\"t\"}",
+   "wire": "{\"attachment\":{\"media\":{\"width\":1},\"id\":1},\"text\":\"t\",\"voiceWaveform\":5}"
+  },
+  {
+   "plain": "{\"text\":\"t\",\"attachment\":{\"id\":\"0f8fad5b-d9cb-469f-a165-70867728950e\",\"name\":\"photo.jpg\",\"mimeType\":\"image/jpeg\",\"size\":12345,\"encryption\":{\"scheme\":\"aes-256-gcm-siv\",\"key\":\"AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA=\",\"nonce\":\"bbbbbbbbbbbbbbbb\",\"fileKeyId\":\"7C9E6679-7425-40DE-944B-E07FC1F90AE7\"},\"media\":{\"waveform\":null}},\"sentAt\":\"s\"}",
+   "wire": "{\"text\":\"t\",\"attachment\":{\"id\":\"0f8fad5b-d9cb-469f-a165-70867728950e\",\"name\":\"photo.jpg\",\"mimeType\":\"image/jpeg\",\"size\":12345,\"encryption\":{\"scheme\":\"aes-256-gcm-siv\",\"key\":\"AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA=\",\"nonce\":\"bbbbbbbbbbbbbbbb\",\"fileKeyId\":\"7C9E6679-7425-40DE-944B-E07FC1F90AE7\"}},\"sentAt\":\"s\",\"voiceWaveform\":null}"
+  }
+ ],
+ "back": [
+  {
+   "attachment": "null",
+   "waveform": null,
+   "result": "null"
+  },
+  {
+   "attachment": "null",
+   "waveform": "\"ABCDEFGH\"",
+   "result": "null"
+  },
+  {
+   "attachment": "null",
+   "waveform": "\"short\"",
+   "result": "null"
+  },
+  {
+   "attachment": "null",
+   "waveform": "5",
+   "result": "null"
+  },
+  {
+   "attachment": "null",
+   "waveform": "\"AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA\"",
+   "result": "null"
+  },
+  {
+   "attachment": "null",
+   "waveform": "\"abcdefgh\"",
+   "result": "null"
+  },
+  {
+   "attachment": "{\"id\":\"0f8fad5b-d9cb-469f-a165-70867728950e\",\"name\":\"photo.jpg\",\"mimeType\":\"image/jpeg\",\"size\":12345,\"encryption\":{\"scheme\":\"aes-256-gcm-siv\",\"key\":\"AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA=\",\"nonce\":\"bbbbbbbbbbbbbbbb\",\"fileKeyId\":\"7C9E6679-7425-40DE-944B-E07FC1F90AE7\"}}",
+   "waveform": null,
+   "result": "{\"id\":\"0f8fad5b-d9cb-469f-a165-70867728950e\",\"name\":\"photo.jpg\",\"mimeType\":\"image/jpeg\",\"size\":12345,\"encryption\":{\"scheme\":\"aes-256-gcm-siv\",\"key\":\"AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA=\",\"nonce\":\"bbbbbbbbbbbbbbbb\",\"fileKeyId\":\"7C9E6679-7425-40DE-944B-E07FC1F90AE7\"}}"
+  },
+  {
+   "attachment": "{\"id\":\"0f8fad5b-d9cb-469f-a165-70867728950e\",\"name\":\"photo.jpg\",\"mimeType\":\"image/jpeg\",\"size\":12345,\"encryption\":{\"scheme\":\"aes-256-gcm-siv\",\"key\":\"AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA=\",\"nonce\":\"bbbbbbbbbbbbbbbb\",\"fileKeyId\":\"7C9E6679-7425-40DE-944B-E07FC1F90AE7\"}}",
+   "waveform": "\"ABCDEFGH\"",
+   "result": "{\"id\":\"0f8fad5b-d9cb-469f-a165-70867728950e\",\"name\":\"photo.jpg\",\"mimeType\":\"image/jpeg\",\"size\":12345,\"encryption\":{\"scheme\":\"aes-256-gcm-siv\",\"key\":\"AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA=\",\"nonce\":\"bbbbbbbbbbbbbbbb\",\"fileKeyId\":\"7C9E6679-7425-40DE-944B-E07FC1F90AE7\"},\"media\":{\"waveform\":\"ABCDEFGH\"}}"
+  },
+  {
+   "attachment": "{\"id\":\"0f8fad5b-d9cb-469f-a165-70867728950e\",\"name\":\"photo.jpg\",\"mimeType\":\"image/jpeg\",\"size\":12345,\"encryption\":{\"scheme\":\"aes-256-gcm-siv\",\"key\":\"AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA=\",\"nonce\":\"bbbbbbbbbbbbbbbb\",\"fileKeyId\":\"7C9E6679-7425-40DE-944B-E07FC1F90AE7\"}}",
+   "waveform": "\"short\"",
+   "result": "{\"id\":\"0f8fad5b-d9cb-469f-a165-70867728950e\",\"name\":\"photo.jpg\",\"mimeType\":\"image/jpeg\",\"size\":12345,\"encryption\":{\"scheme\":\"aes-256-gcm-siv\",\"key\":\"AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA=\",\"nonce\":\"bbbbbbbbbbbbbbbb\",\"fileKeyId\":\"7C9E6679-7425-40DE-944B-E07FC1F90AE7\"}}"
+  },
+  {
+   "attachment": "{\"id\":\"0f8fad5b-d9cb-469f-a165-70867728950e\",\"name\":\"photo.jpg\",\"mimeType\":\"image/jpeg\",\"size\":12345,\"encryption\":{\"scheme\":\"aes-256-gcm-siv\",\"key\":\"AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA=\",\"nonce\":\"bbbbbbbbbbbbbbbb\",\"fileKeyId\":\"7C9E6679-7425-40DE-944B-E07FC1F90AE7\"}}",
+   "waveform": "5",
+   "result": "{\"id\":\"0f8fad5b-d9cb-469f-a165-70867728950e\",\"name\":\"photo.jpg\",\"mimeType\":\"image/jpeg\",\"size\":12345,\"encryption\":{\"scheme\":\"aes-256-gcm-siv\",\"key\":\"AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA=\",\"nonce\":\"bbbbbbbbbbbbbbbb\",\"fileKeyId\":\"7C9E6679-7425-40DE-944B-E07FC1F90AE7\"}}"
+  },
+  {
+   "attachment": "{\"id\":\"0f8fad5b-d9cb-469f-a165-70867728950e\",\"name\":\"photo.jpg\",\"mimeType\":\"image/jpeg\",\"size\":12345,\"encryption\":{\"scheme\":\"aes-256-gcm-siv\",\"key\":\"AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA=\",\"nonce\":\"bbbbbbbbbbbbbbbb\",\"fileKeyId\":\"7C9E6679-7425-40DE-944B-E07FC1F90AE7\"}}",
+   "waveform": "\"AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA\"",
+   "result": "{\"id\":\"0f8fad5b-d9cb-469f-a165-70867728950e\",\"name\":\"photo.jpg\",\"mimeType\":\"image/jpeg\",\"size\":12345,\"encryption\":{\"scheme\":\"aes-256-gcm-siv\",\"key\":\"AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA=\",\"nonce\":\"bbbbbbbbbbbbbbbb\",\"fileKeyId\":\"7C9E6679-7425-40DE-944B-E07FC1F90AE7\"}}"
+  },
+  {
+   "attachment": "{\"id\":\"0f8fad5b-d9cb-469f-a165-70867728950e\",\"name\":\"photo.jpg\",\"mimeType\":\"image/jpeg\",\"size\":12345,\"encryption\":{\"scheme\":\"aes-256-gcm-siv\",\"key\":\"AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA=\",\"nonce\":\"bbbbbbbbbbbbbbbb\",\"fileKeyId\":\"7C9E6679-7425-40DE-944B-E07FC1F90AE7\"}}",
+   "waveform": "\"abcdefgh\"",
+   "result": "{\"id\":\"0f8fad5b-d9cb-469f-a165-70867728950e\",\"name\":\"photo.jpg\",\"mimeType\":\"image/jpeg\",\"size\":12345,\"encryption\":{\"scheme\":\"aes-256-gcm-siv\",\"key\":\"AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA=\",\"nonce\":\"bbbbbbbbbbbbbbbb\",\"fileKeyId\":\"7C9E6679-7425-40DE-944B-E07FC1F90AE7\"}}"
+  },
+  {
+   "attachment": "{\"id\":\"0f8fad5b-d9cb-469f-a165-70867728950e\",\"name\":\"voice.m4a\",\"mimeType\":\"audio/mp4\",\"size\":12345,\"encryption\":{\"scheme\":\"aes-256-gcm-siv\",\"key\":\"AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA=\",\"nonce\":\"bbbbbbbbbbbbbbbb\",\"fileKeyId\":\"7C9E6679-7425-40DE-944B-E07FC1F90AE7\"},\"media\":{\"durationMs\":16000,\"waveform\":\"ABCDEFGHabcdef\"},\"preview\":\"OK\"}",
+   "waveform": null,
+   "result": "{\"id\":\"0f8fad5b-d9cb-469f-a165-70867728950e\",\"name\":\"voice.m4a\",\"mimeType\":\"audio/mp4\",\"size\":12345,\"encryption\":{\"scheme\":\"aes-256-gcm-siv\",\"key\":\"AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA=\",\"nonce\":\"bbbbbbbbbbbbbbbb\",\"fileKeyId\":\"7C9E6679-7425-40DE-944B-E07FC1F90AE7\"},\"media\":{\"durationMs\":16000,\"waveform\":\"ABCDEFGHabcdef\"},\"preview\":\"OK\"}"
+  },
+  {
+   "attachment": "{\"id\":\"0f8fad5b-d9cb-469f-a165-70867728950e\",\"name\":\"voice.m4a\",\"mimeType\":\"audio/mp4\",\"size\":12345,\"encryption\":{\"scheme\":\"aes-256-gcm-siv\",\"key\":\"AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA=\",\"nonce\":\"bbbbbbbbbbbbbbbb\",\"fileKeyId\":\"7C9E6679-7425-40DE-944B-E07FC1F90AE7\"},\"media\":{\"durationMs\":16000,\"waveform\":\"ABCDEFGHabcdef\"},\"preview\":\"OK\"}",
+   "waveform": "\"ABCDEFGH\"",
+   "result": "{\"id\":\"0f8fad5b-d9cb-469f-a165-70867728950e\",\"name\":\"voice.m4a\",\"mimeType\":\"audio/mp4\",\"size\":12345,\"encryption\":{\"scheme\":\"aes-256-gcm-siv\",\"key\":\"AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA=\",\"nonce\":\"bbbbbbbbbbbbbbbb\",\"fileKeyId\":\"7C9E6679-7425-40DE-944B-E07FC1F90AE7\"},\"media\":{\"durationMs\":16000,\"waveform\":\"ABCDEFGHabcdef\"},\"preview\":\"OK\"}"
+  },
+  {
+   "attachment": "{\"id\":\"0f8fad5b-d9cb-469f-a165-70867728950e\",\"name\":\"voice.m4a\",\"mimeType\":\"audio/mp4\",\"size\":12345,\"encryption\":{\"scheme\":\"aes-256-gcm-siv\",\"key\":\"AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA=\",\"nonce\":\"bbbbbbbbbbbbbbbb\",\"fileKeyId\":\"7C9E6679-7425-40DE-944B-E07FC1F90AE7\"},\"media\":{\"durationMs\":16000,\"waveform\":\"ABCDEFGHabcdef\"},\"preview\":\"OK\"}",
+   "waveform": "\"short\"",
+   "result": "{\"id\":\"0f8fad5b-d9cb-469f-a165-70867728950e\",\"name\":\"voice.m4a\",\"mimeType\":\"audio/mp4\",\"size\":12345,\"encryption\":{\"scheme\":\"aes-256-gcm-siv\",\"key\":\"AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA=\",\"nonce\":\"bbbbbbbbbbbbbbbb\",\"fileKeyId\":\"7C9E6679-7425-40DE-944B-E07FC1F90AE7\"},\"media\":{\"durationMs\":16000,\"waveform\":\"ABCDEFGHabcdef\"},\"preview\":\"OK\"}"
+  },
+  {
+   "attachment": "{\"id\":\"0f8fad5b-d9cb-469f-a165-70867728950e\",\"name\":\"voice.m4a\",\"mimeType\":\"audio/mp4\",\"size\":12345,\"encryption\":{\"scheme\":\"aes-256-gcm-siv\",\"key\":\"AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA=\",\"nonce\":\"bbbbbbbbbbbbbbbb\",\"fileKeyId\":\"7C9E6679-7425-40DE-944B-E07FC1F90AE7\"},\"media\":{\"durationMs\":16000,\"waveform\":\"ABCDEFGHabcdef\"},\"preview\":\"OK\"}",
+   "waveform": "5",
+   "result": "{\"id\":\"0f8fad5b-d9cb-469f-a165-70867728950e\",\"name\":\"voice.m4a\",\"mimeType\":\"audio/mp4\",\"size\":12345,\"encryption\":{\"scheme\":\"aes-256-gcm-siv\",\"key\":\"AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA=\",\"nonce\":\"bbbbbbbbbbbbbbbb\",\"fileKeyId\":\"7C9E6679-7425-40DE-944B-E07FC1F90AE7\"},\"media\":{\"durationMs\":16000,\"waveform\":\"ABCDEFGHabcdef\"},\"preview\":\"OK\"}"
+  },
+  {
+   "attachment": "{\"id\":\"0f8fad5b-d9cb-469f-a165-70867728950e\",\"name\":\"voice.m4a\",\"mimeType\":\"audio/mp4\",\"size\":12345,\"encryption\":{\"scheme\":\"aes-256-gcm-siv\",\"key\":\"AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA=\",\"nonce\":\"bbbbbbbbbbbbbbbb\",\"fileKeyId\":\"7C9E6679-7425-40DE-944B-E07FC1F90AE7\"},\"media\":{\"durationMs\":16000,\"waveform\":\"ABCDEFGHabcdef\"},\"preview\":\"OK\"}",
+   "waveform": "\"AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA\"",
+   "result": "{\"id\":\"0f8fad5b-d9cb-469f-a165-70867728950e\",\"name\":\"voice.m4a\",\"mimeType\":\"audio/mp4\",\"size\":12345,\"encryption\":{\"scheme\":\"aes-256-gcm-siv\",\"key\":\"AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA=\",\"nonce\":\"bbbbbbbbbbbbbbbb\",\"fileKeyId\":\"7C9E6679-7425-40DE-944B-E07FC1F90AE7\"},\"media\":{\"durationMs\":16000,\"waveform\":\"ABCDEFGHabcdef\"},\"preview\":\"OK\"}"
+  },
+  {
+   "attachment": "{\"id\":\"0f8fad5b-d9cb-469f-a165-70867728950e\",\"name\":\"voice.m4a\",\"mimeType\":\"audio/mp4\",\"size\":12345,\"encryption\":{\"scheme\":\"aes-256-gcm-siv\",\"key\":\"AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA=\",\"nonce\":\"bbbbbbbbbbbbbbbb\",\"fileKeyId\":\"7C9E6679-7425-40DE-944B-E07FC1F90AE7\"},\"media\":{\"durationMs\":16000,\"waveform\":\"ABCDEFGHabcdef\"},\"preview\":\"OK\"}",
+   "waveform": "\"abcdefgh\"",
+   "result": "{\"id\":\"0f8fad5b-d9cb-469f-a165-70867728950e\",\"name\":\"voice.m4a\",\"mimeType\":\"audio/mp4\",\"size\":12345,\"encryption\":{\"scheme\":\"aes-256-gcm-siv\",\"key\":\"AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA=\",\"nonce\":\"bbbbbbbbbbbbbbbb\",\"fileKeyId\":\"7C9E6679-7425-40DE-944B-E07FC1F90AE7\"},\"media\":{\"durationMs\":16000,\"waveform\":\"ABCDEFGHabcdef\"},\"preview\":\"OK\"}"
+  },
+  {
+   "attachment": "{\"id\":\"0f8fad5b-d9cb-469f-a165-70867728950e\",\"name\":\"video.mp4\",\"mimeType\":\"video/mp4\",\"size\":10737418240,\"encryption\":{\"scheme\":\"aes-256-gcm-siv-chunked\",\"key\":\"AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA=\",\"nonce\":\"bbbbbbbbbbbbbbbb\",\"fileKeyId\":\"7C9E6679-7425-40DE-944B-E07FC1F90AE7\",\"chunkSize\":4194304},\"media\":{\"width\":1920,\"height\":1080,\"durationMs\":60000}}",
+   "waveform": null,
+   "result": "{\"id\":\"0f8fad5b-d9cb-469f-a165-70867728950e\",\"name\":\"video.mp4\",\"mimeType\":\"video/mp4\",\"size\":10737418240,\"encryption\":{\"scheme\":\"aes-256-gcm-siv-chunked\",\"key\":\"AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA=\",\"nonce\":\"bbbbbbbbbbbbbbbb\",\"fileKeyId\":\"7C9E6679-7425-40DE-944B-E07FC1F90AE7\",\"chunkSize\":4194304},\"media\":{\"width\":1920,\"height\":1080,\"durationMs\":60000}}"
+  },
+  {
+   "attachment": "{\"id\":\"0f8fad5b-d9cb-469f-a165-70867728950e\",\"name\":\"video.mp4\",\"mimeType\":\"video/mp4\",\"size\":10737418240,\"encryption\":{\"scheme\":\"aes-256-gcm-siv-chunked\",\"key\":\"AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA=\",\"nonce\":\"bbbbbbbbbbbbbbbb\",\"fileKeyId\":\"7C9E6679-7425-40DE-944B-E07FC1F90AE7\",\"chunkSize\":4194304},\"media\":{\"width\":1920,\"height\":1080,\"durationMs\":60000}}",
+   "waveform": "\"ABCDEFGH\"",
+   "result": "{\"id\":\"0f8fad5b-d9cb-469f-a165-70867728950e\",\"name\":\"video.mp4\",\"mimeType\":\"video/mp4\",\"size\":10737418240,\"encryption\":{\"scheme\":\"aes-256-gcm-siv-chunked\",\"key\":\"AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA=\",\"nonce\":\"bbbbbbbbbbbbbbbb\",\"fileKeyId\":\"7C9E6679-7425-40DE-944B-E07FC1F90AE7\",\"chunkSize\":4194304},\"media\":{\"width\":1920,\"height\":1080,\"durationMs\":60000,\"waveform\":\"ABCDEFGH\"}}"
+  },
+  {
+   "attachment": "{\"id\":\"0f8fad5b-d9cb-469f-a165-70867728950e\",\"name\":\"video.mp4\",\"mimeType\":\"video/mp4\",\"size\":10737418240,\"encryption\":{\"scheme\":\"aes-256-gcm-siv-chunked\",\"key\":\"AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA=\",\"nonce\":\"bbbbbbbbbbbbbbbb\",\"fileKeyId\":\"7C9E6679-7425-40DE-944B-E07FC1F90AE7\",\"chunkSize\":4194304},\"media\":{\"width\":1920,\"height\":1080,\"durationMs\":60000}}",
+   "waveform": "\"short\"",
+   "result": "{\"id\":\"0f8fad5b-d9cb-469f-a165-70867728950e\",\"name\":\"video.mp4\",\"mimeType\":\"video/mp4\",\"size\":10737418240,\"encryption\":{\"scheme\":\"aes-256-gcm-siv-chunked\",\"key\":\"AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA=\",\"nonce\":\"bbbbbbbbbbbbbbbb\",\"fileKeyId\":\"7C9E6679-7425-40DE-944B-E07FC1F90AE7\",\"chunkSize\":4194304},\"media\":{\"width\":1920,\"height\":1080,\"durationMs\":60000}}"
+  },
+  {
+   "attachment": "{\"id\":\"0f8fad5b-d9cb-469f-a165-70867728950e\",\"name\":\"video.mp4\",\"mimeType\":\"video/mp4\",\"size\":10737418240,\"encryption\":{\"scheme\":\"aes-256-gcm-siv-chunked\",\"key\":\"AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA=\",\"nonce\":\"bbbbbbbbbbbbbbbb\",\"fileKeyId\":\"7C9E6679-7425-40DE-944B-E07FC1F90AE7\",\"chunkSize\":4194304},\"media\":{\"width\":1920,\"height\":1080,\"durationMs\":60000}}",
+   "waveform": "5",
+   "result": "{\"id\":\"0f8fad5b-d9cb-469f-a165-70867728950e\",\"name\":\"video.mp4\",\"mimeType\":\"video/mp4\",\"size\":10737418240,\"encryption\":{\"scheme\":\"aes-256-gcm-siv-chunked\",\"key\":\"AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA=\",\"nonce\":\"bbbbbbbbbbbbbbbb\",\"fileKeyId\":\"7C9E6679-7425-40DE-944B-E07FC1F90AE7\",\"chunkSize\":4194304},\"media\":{\"width\":1920,\"height\":1080,\"durationMs\":60000}}"
+  },
+  {
+   "attachment": "{\"id\":\"0f8fad5b-d9cb-469f-a165-70867728950e\",\"name\":\"video.mp4\",\"mimeType\":\"video/mp4\",\"size\":10737418240,\"encryption\":{\"scheme\":\"aes-256-gcm-siv-chunked\",\"key\":\"AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA=\",\"nonce\":\"bbbbbbbbbbbbbbbb\",\"fileKeyId\":\"7C9E6679-7425-40DE-944B-E07FC1F90AE7\",\"chunkSize\":4194304},\"media\":{\"width\":1920,\"height\":1080,\"durationMs\":60000}}",
+   "waveform": "\"AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA\"",
+   "result": "{\"id\":\"0f8fad5b-d9cb-469f-a165-70867728950e\",\"name\":\"video.mp4\",\"mimeType\":\"video/mp4\",\"size\":10737418240,\"encryption\":{\"scheme\":\"aes-256-gcm-siv-chunked\",\"key\":\"AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA=\",\"nonce\":\"bbbbbbbbbbbbbbbb\",\"fileKeyId\":\"7C9E6679-7425-40DE-944B-E07FC1F90AE7\",\"chunkSize\":4194304},\"media\":{\"width\":1920,\"height\":1080,\"durationMs\":60000}}"
+  },
+  {
+   "attachment": "{\"id\":\"0f8fad5b-d9cb-469f-a165-70867728950e\",\"name\":\"video.mp4\",\"mimeType\":\"video/mp4\",\"size\":10737418240,\"encryption\":{\"scheme\":\"aes-256-gcm-siv-chunked\",\"key\":\"AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA=\",\"nonce\":\"bbbbbbbbbbbbbbbb\",\"fileKeyId\":\"7C9E6679-7425-40DE-944B-E07FC1F90AE7\",\"chunkSize\":4194304},\"media\":{\"width\":1920,\"height\":1080,\"durationMs\":60000}}",
+   "waveform": "\"abcdefgh\"",
+   "result": "{\"id\":\"0f8fad5b-d9cb-469f-a165-70867728950e\",\"name\":\"video.mp4\",\"mimeType\":\"video/mp4\",\"size\":10737418240,\"encryption\":{\"scheme\":\"aes-256-gcm-siv-chunked\",\"key\":\"AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA=\",\"nonce\":\"bbbbbbbbbbbbbbbb\",\"fileKeyId\":\"7C9E6679-7425-40DE-944B-E07FC1F90AE7\",\"chunkSize\":4194304},\"media\":{\"width\":1920,\"height\":1080,\"durationMs\":60000}}"
+  },
+  {
+   "attachment": "{\"id\":\"0f8fad5b-d9cb-469f-a165-70867728950e\",\"name\":\"photo.jpg\",\"mimeType\":\"image/jpeg\",\"size\":12345,\"encryption\":{\"scheme\":\"aes-256-gcm-siv\",\"key\":\"AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA=\",\"nonce\":\"bbbbbbbbbbbbbbbb\",\"fileKeyId\":\"7C9E6679-7425-40DE-944B-E07FC1F90AE7\"},\"media\":{}}",
+   "waveform": null,
+   "result": "{\"id\":\"0f8fad5b-d9cb-469f-a165-70867728950e\",\"name\":\"photo.jpg\",\"mimeType\":\"image/jpeg\",\"size\":12345,\"encryption\":{\"scheme\":\"aes-256-gcm-siv\",\"key\":\"AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA=\",\"nonce\":\"bbbbbbbbbbbbbbbb\",\"fileKeyId\":\"7C9E6679-7425-40DE-944B-E07FC1F90AE7\"},\"media\":{}}"
+  },
+  {
+   "attachment": "{\"id\":\"0f8fad5b-d9cb-469f-a165-70867728950e\",\"name\":\"photo.jpg\",\"mimeType\":\"image/jpeg\",\"size\":12345,\"encryption\":{\"scheme\":\"aes-256-gcm-siv\",\"key\":\"AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA=\",\"nonce\":\"bbbbbbbbbbbbbbbb\",\"fileKeyId\":\"7C9E6679-7425-40DE-944B-E07FC1F90AE7\"},\"media\":{}}",
+   "waveform": "\"ABCDEFGH\"",
+   "result": "{\"id\":\"0f8fad5b-d9cb-469f-a165-70867728950e\",\"name\":\"photo.jpg\",\"mimeType\":\"image/jpeg\",\"size\":12345,\"encryption\":{\"scheme\":\"aes-256-gcm-siv\",\"key\":\"AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA=\",\"nonce\":\"bbbbbbbbbbbbbbbb\",\"fileKeyId\":\"7C9E6679-7425-40DE-944B-E07FC1F90AE7\"},\"media\":{\"waveform\":\"ABCDEFGH\"}}"
+  },
+  {
+   "attachment": "{\"id\":\"0f8fad5b-d9cb-469f-a165-70867728950e\",\"name\":\"photo.jpg\",\"mimeType\":\"image/jpeg\",\"size\":12345,\"encryption\":{\"scheme\":\"aes-256-gcm-siv\",\"key\":\"AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA=\",\"nonce\":\"bbbbbbbbbbbbbbbb\",\"fileKeyId\":\"7C9E6679-7425-40DE-944B-E07FC1F90AE7\"},\"media\":{}}",
+   "waveform": "\"short\"",
+   "result": "{\"id\":\"0f8fad5b-d9cb-469f-a165-70867728950e\",\"name\":\"photo.jpg\",\"mimeType\":\"image/jpeg\",\"size\":12345,\"encryption\":{\"scheme\":\"aes-256-gcm-siv\",\"key\":\"AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA=\",\"nonce\":\"bbbbbbbbbbbbbbbb\",\"fileKeyId\":\"7C9E6679-7425-40DE-944B-E07FC1F90AE7\"},\"media\":{}}"
+  },
+  {
+   "attachment": "{\"id\":\"0f8fad5b-d9cb-469f-a165-70867728950e\",\"name\":\"photo.jpg\",\"mimeType\":\"image/jpeg\",\"size\":12345,\"encryption\":{\"scheme\":\"aes-256-gcm-siv\",\"key\":\"AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA=\",\"nonce\":\"bbbbbbbbbbbbbbbb\",\"fileKeyId\":\"7C9E6679-7425-40DE-944B-E07FC1F90AE7\"},\"media\":{}}",
+   "waveform": "5",
+   "result": "{\"id\":\"0f8fad5b-d9cb-469f-a165-70867728950e\",\"name\":\"photo.jpg\",\"mimeType\":\"image/jpeg\",\"size\":12345,\"encryption\":{\"scheme\":\"aes-256-gcm-siv\",\"key\":\"AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA=\",\"nonce\":\"bbbbbbbbbbbbbbbb\",\"fileKeyId\":\"7C9E6679-7425-40DE-944B-E07FC1F90AE7\"},\"media\":{}}"
+  },
+  {
+   "attachment": "{\"id\":\"0f8fad5b-d9cb-469f-a165-70867728950e\",\"name\":\"photo.jpg\",\"mimeType\":\"image/jpeg\",\"size\":12345,\"encryption\":{\"scheme\":\"aes-256-gcm-siv\",\"key\":\"AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA=\",\"nonce\":\"bbbbbbbbbbbbbbbb\",\"fileKeyId\":\"7C9E6679-7425-40DE-944B-E07FC1F90AE7\"},\"media\":{}}",
+   "waveform": "\"AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA\"",
+   "result": "{\"id\":\"0f8fad5b-d9cb-469f-a165-70867728950e\",\"name\":\"photo.jpg\",\"mimeType\":\"image/jpeg\",\"size\":12345,\"encryption\":{\"scheme\":\"aes-256-gcm-siv\",\"key\":\"AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA=\",\"nonce\":\"bbbbbbbbbbbbbbbb\",\"fileKeyId\":\"7C9E6679-7425-40DE-944B-E07FC1F90AE7\"},\"media\":{}}"
+  },
+  {
+   "attachment": "{\"id\":\"0f8fad5b-d9cb-469f-a165-70867728950e\",\"name\":\"photo.jpg\",\"mimeType\":\"image/jpeg\",\"size\":12345,\"encryption\":{\"scheme\":\"aes-256-gcm-siv\",\"key\":\"AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA=\",\"nonce\":\"bbbbbbbbbbbbbbbb\",\"fileKeyId\":\"7C9E6679-7425-40DE-944B-E07FC1F90AE7\"},\"media\":{}}",
+   "waveform": "\"abcdefgh\"",
+   "result": "{\"id\":\"0f8fad5b-d9cb-469f-a165-70867728950e\",\"name\":\"photo.jpg\",\"mimeType\":\"image/jpeg\",\"size\":12345,\"encryption\":{\"scheme\":\"aes-256-gcm-siv\",\"key\":\"AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA=\",\"nonce\":\"bbbbbbbbbbbbbbbb\",\"fileKeyId\":\"7C9E6679-7425-40DE-944B-E07FC1F90AE7\"},\"media\":{}}"
+  },
+  {
+   "attachment": "{\"id\":\"0f8fad5b-d9cb-469f-a165-70867728950e\",\"name\":\"photo.jpg\",\"mimeType\":\"image/jpeg\",\"size\":12345,\"encryption\":{\"scheme\":\"aes-256-gcm-siv\",\"key\":\"AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA=\",\"nonce\":\"bbbbbbbbbbbbbbbb\",\"fileKeyId\":\"7C9E6679-7425-40DE-944B-E07FC1F90AE7\"},\"media\":{\"width\":3}}",
+   "waveform": null,
+   "result": "{\"id\":\"0f8fad5b-d9cb-469f-a165-70867728950e\",\"name\":\"photo.jpg\",\"mimeType\":\"image/jpeg\",\"size\":12345,\"encryption\":{\"scheme\":\"aes-256-gcm-siv\",\"key\":\"AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA=\",\"nonce\":\"bbbbbbbbbbbbbbbb\",\"fileKeyId\":\"7C9E6679-7425-40DE-944B-E07FC1F90AE7\"},\"media\":{\"width\":3}}"
+  },
+  {
+   "attachment": "{\"id\":\"0f8fad5b-d9cb-469f-a165-70867728950e\",\"name\":\"photo.jpg\",\"mimeType\":\"image/jpeg\",\"size\":12345,\"encryption\":{\"scheme\":\"aes-256-gcm-siv\",\"key\":\"AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA=\",\"nonce\":\"bbbbbbbbbbbbbbbb\",\"fileKeyId\":\"7C9E6679-7425-40DE-944B-E07FC1F90AE7\"},\"media\":{\"width\":3}}",
+   "waveform": "\"ABCDEFGH\"",
+   "result": "{\"id\":\"0f8fad5b-d9cb-469f-a165-70867728950e\",\"name\":\"photo.jpg\",\"mimeType\":\"image/jpeg\",\"size\":12345,\"encryption\":{\"scheme\":\"aes-256-gcm-siv\",\"key\":\"AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA=\",\"nonce\":\"bbbbbbbbbbbbbbbb\",\"fileKeyId\":\"7C9E6679-7425-40DE-944B-E07FC1F90AE7\"},\"media\":{\"width\":3,\"waveform\":\"ABCDEFGH\"}}"
+  },
+  {
+   "attachment": "{\"id\":\"0f8fad5b-d9cb-469f-a165-70867728950e\",\"name\":\"photo.jpg\",\"mimeType\":\"image/jpeg\",\"size\":12345,\"encryption\":{\"scheme\":\"aes-256-gcm-siv\",\"key\":\"AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA=\",\"nonce\":\"bbbbbbbbbbbbbbbb\",\"fileKeyId\":\"7C9E6679-7425-40DE-944B-E07FC1F90AE7\"},\"media\":{\"width\":3}}",
+   "waveform": "\"short\"",
+   "result": "{\"id\":\"0f8fad5b-d9cb-469f-a165-70867728950e\",\"name\":\"photo.jpg\",\"mimeType\":\"image/jpeg\",\"size\":12345,\"encryption\":{\"scheme\":\"aes-256-gcm-siv\",\"key\":\"AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA=\",\"nonce\":\"bbbbbbbbbbbbbbbb\",\"fileKeyId\":\"7C9E6679-7425-40DE-944B-E07FC1F90AE7\"},\"media\":{\"width\":3}}"
+  },
+  {
+   "attachment": "{\"id\":\"0f8fad5b-d9cb-469f-a165-70867728950e\",\"name\":\"photo.jpg\",\"mimeType\":\"image/jpeg\",\"size\":12345,\"encryption\":{\"scheme\":\"aes-256-gcm-siv\",\"key\":\"AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA=\",\"nonce\":\"bbbbbbbbbbbbbbbb\",\"fileKeyId\":\"7C9E6679-7425-40DE-944B-E07FC1F90AE7\"},\"media\":{\"width\":3}}",
+   "waveform": "5",
+   "result": "{\"id\":\"0f8fad5b-d9cb-469f-a165-70867728950e\",\"name\":\"photo.jpg\",\"mimeType\":\"image/jpeg\",\"size\":12345,\"encryption\":{\"scheme\":\"aes-256-gcm-siv\",\"key\":\"AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA=\",\"nonce\":\"bbbbbbbbbbbbbbbb\",\"fileKeyId\":\"7C9E6679-7425-40DE-944B-E07FC1F90AE7\"},\"media\":{\"width\":3}}"
+  },
+  {
+   "attachment": "{\"id\":\"0f8fad5b-d9cb-469f-a165-70867728950e\",\"name\":\"photo.jpg\",\"mimeType\":\"image/jpeg\",\"size\":12345,\"encryption\":{\"scheme\":\"aes-256-gcm-siv\",\"key\":\"AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA=\",\"nonce\":\"bbbbbbbbbbbbbbbb\",\"fileKeyId\":\"7C9E6679-7425-40DE-944B-E07FC1F90AE7\"},\"media\":{\"width\":3}}",
+   "waveform": "\"AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA\"",
+   "result": "{\"id\":\"0f8fad5b-d9cb-469f-a165-70867728950e\",\"name\":\"photo.jpg\",\"mimeType\":\"image/jpeg\",\"size\":12345,\"encryption\":{\"scheme\":\"aes-256-gcm-siv\",\"key\":\"AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA=\",\"nonce\":\"bbbbbbbbbbbbbbbb\",\"fileKeyId\":\"7C9E6679-7425-40DE-944B-E07FC1F90AE7\"},\"media\":{\"width\":3}}"
+  },
+  {
+   "attachment": "{\"id\":\"0f8fad5b-d9cb-469f-a165-70867728950e\",\"name\":\"photo.jpg\",\"mimeType\":\"image/jpeg\",\"size\":12345,\"encryption\":{\"scheme\":\"aes-256-gcm-siv\",\"key\":\"AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA=\",\"nonce\":\"bbbbbbbbbbbbbbbb\",\"fileKeyId\":\"7C9E6679-7425-40DE-944B-E07FC1F90AE7\"},\"media\":{\"width\":3}}",
+   "waveform": "\"abcdefgh\"",
+   "result": "{\"id\":\"0f8fad5b-d9cb-469f-a165-70867728950e\",\"name\":\"photo.jpg\",\"mimeType\":\"image/jpeg\",\"size\":12345,\"encryption\":{\"scheme\":\"aes-256-gcm-siv\",\"key\":\"AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA=\",\"nonce\":\"bbbbbbbbbbbbbbbb\",\"fileKeyId\":\"7C9E6679-7425-40DE-944B-E07FC1F90AE7\"},\"media\":{\"width\":3}}"
+  }
+ ]
+}

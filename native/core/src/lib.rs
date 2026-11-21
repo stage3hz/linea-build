@@ -11,6 +11,7 @@ pub mod device_proof;
 pub mod e2ee;
 pub mod http;
 pub mod json;
+pub mod media;
 pub mod message_meta;
 pub mod network;
 pub mod servers;

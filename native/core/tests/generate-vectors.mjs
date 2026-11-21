@@ -220,3 +220,41 @@ for (const own of people) for (const other of people) { const pair = [line(own),
 const sets = [people, people.slice(0, 2), [people[3], people[0]], []].map(devices => { const sorted = [...devices].sort((a, b) => `${a.userId}.${a.deviceId}`.localeCompare(`${b.userId}.${b.deviceId}`)); return { devices, sorted: sorted.map(d => d.deviceId), fingerprint: sha(JSON.stringify(sorted.map(d => [d.userId, d.deviceId, d.identityKey, d.registrationId]))) }; });
 writeFileSync(join(out, 'trust.json'), JSON.stringify({ codes, sets }, null, 1) + '\n');
 console.log('id-order', order.length, 'encrypted', wireValues.length, 'valid', wireValues.filter(wire.validEncrypted).length, 'codes', codes.length);
+
+// Media descriptions and attachments: the reference's own functions, cut from its source.
+const previewSource = readFileSync(new URL('../../../mobile/src/media/previewModel.ts', import.meta.url), 'utf8');
+const previewCut = (from, to) => { const start = previewSource.indexOf(from); const end = previewSource.indexOf(to, start); if (start < 0 || end < 0) throw new Error('previewModel.ts changed: ' + from); return previewSource.slice(start, end); };
+const mediaCode = stripTypeScriptTypes(['const record=', 'const dimension=', 'const only='].map(name => previewCut(name, '\n')).join('\n') + '\n' + previewCut('export function validMedia', '\n/**').replace('export function', 'function') + '\n' + previewSource.slice(previewSource.indexOf('export function wireMedia')).replace('export function', 'function'), { mode: 'transform' });
+const media = new Function(`${mediaCode}; return { validMedia, wireMedia };`)();
+const okPreview = value => value === undefined || value === 'OK';
+const attachCode = stripTypeScriptTypes(coreCut('function hasOnlyKeys', 'function validCiphertextBody') + coreCut('const WAVEFORM', '\nexport class CryptoService').replace('export function', 'function'), { mode: 'transform' });
+const attach = new Function('validMedia', 'validPreview', `const uuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i; ${attachCode}; return { validAttachment, wireBody, withWaveform };`)(media.validMedia, okPreview);
+const mediaGood = [{}, { width: 1, height: 20000 }, { width: 1280, height: 720, durationMs: 0, hdr: 'sdr' }, { durationMs: 86400000, waveform: 'AZaf09'.replace('09', 'AB') + 'ABCDEF' }, { hdr: 'pq' }, { hdr: 'hlg' }, { hdr: 'gainmap', width: 4000, height: 3000 }, { waveform: 'A'.repeat(100) }, { hdr: ['sdr'] }, { hdr: [['pq']] }];
+const mediaOdd = [null, true, false, 0, 1, -1, 1.5, 20000, 20001, 86400000, 86400001, 1e21, '', 'sdr', 'SDR', 'gainmap', 'hdr', 'ABCDEFG', 'ABCDEFGH', 'ABCDEFGg', 'A'.repeat(101), [], ['sdr'], ['sdr', 'pq'], [null, 'pq'], {}, { a: 1 }];
+const mediaValues = [undefined, null, 5, 'x', [], [1]];
+const seenMedia = new Set(mediaValues.map(v => JSON.stringify(v) ?? 'undefined'));
+const addMedia = v => { const key = JSON.stringify(v); if (!seenMedia.has(key)) { seenMedia.add(key); mediaValues.push(v); } };
+for (const sample of mediaGood) { addMedia(sample); addMedia({ ...sample, extra: 1 }); for (const key of ['width', 'height', 'durationMs', 'hdr', 'waveform']) for (const value of mediaOdd) addMedia({ ...sample, [key]: value }); }
+writeFileSync(join(out, 'media.json'), '[\n' + mediaValues.map(value => JSON.stringify({ value: value === undefined ? null : JSON.stringify(value), valid: media.validMedia(value), wire: value === undefined ? null : JSON.stringify(media.wireMedia(value) ?? null) })).join(',\n') + '\n]\n');
+const KEY = 'A'.repeat(43) + '=', NONCE = 'b'.repeat(16);
+const small = { id: U, name: 'photo.jpg', mimeType: 'image/jpeg', size: 12345, encryption: { scheme: 'aes-256-gcm-siv', key: KEY, nonce: NONCE, fileKeyId: V } };
+const big = { id: U, name: 'video.mp4', mimeType: 'video/mp4', size: 10 * 1024 * 1024 * 1024, encryption: { scheme: 'aes-256-gcm-siv-chunked', key: KEY, nonce: NONCE, fileKeyId: V, chunkSize: 4 * 1024 * 1024 }, media: { width: 1920, height: 1080, durationMs: 60000 } };
+const voice = { ...small, name: 'voice.m4a', mimeType: 'audio/mp4', media: { durationMs: 16000, waveform: 'ABCDEFGHabcdef' }, preview: 'OK' };
+const attachOdd = [null, true, 0, 1, -1, 1.5, 12345, 20 * 1024 * 1024, 20 * 1024 * 1024 + 1, 10 * 1024 * 1024 * 1024 + 1, 4 * 1024 * 1024, 4 * 1024 * 1024 + 1, 9007199254740993, '', 'x', 'OK', U, [U], [[U]], [U, U], V.toUpperCase(), KEY, [KEY], KEY.slice(1), KEY.replace('=', 'A'), NONCE, [NONCE], NONCE + 'b', 'n'.repeat(240), 'n'.repeat(241), 'm'.repeat(150), 'm'.repeat(151), 'aes-256-gcm-siv', 'aes-256-gcm-siv-chunked', 'aes-256-gcm', [], {}, { width: 5 }, { width: 0 }];
+const attachValues = [null, 5, 'x', [], {}];
+const seenAttach = new Set(attachValues.map(v => JSON.stringify(v)));
+const addAttach = v => { const key = JSON.stringify(v); if (!seenAttach.has(key)) { seenAttach.add(key); attachValues.push(v); } };
+const walkAttach = (root, node, path) => { for (const key of Object.keys(node)) { const at = [...path, key];
+  const put = value => { const copy = structuredClone(root); let target = copy; for (const step of at.slice(0, -1)) target = target[step]; if (value === walkAttach) delete target[key]; else target[key] = value; return copy; };
+  addAttach(put(walkAttach)); for (const value of attachOdd) addAttach(put(value));
+  if (node[key] && typeof node[key] === 'object' && !Array.isArray(node[key])) { const extra = structuredClone(root); let target = extra; for (const step of at) target = target[step]; target.extra = 1; addAttach(extra); walkAttach(root, node[key], at); } } };
+for (const sample of [small, big, voice]) { addAttach(sample); addAttach({ ...sample, extra: 1 }); walkAttach(sample, sample, []); }
+addAttach({ ...small, encryption: { ...small.encryption, chunkSize: 4 * 1024 * 1024 } }); addAttach({ ...big, size: 0 }); addAttach({ ...small, size: 0 });
+writeFileSync(join(out, 'attachment.json'), '[\n' + attachValues.map(value => JSON.stringify({ value: JSON.stringify(value), valid: attach.validAttachment(value) })).join(',\n') + '\n]\n');
+const plains = [{ text: 'hi', attachment: null, sentAt: '2026-11-21T00:00:00.000Z' }, { text: '', attachment: voice, sentAt: 's', meta: { silent: true } }, { text: '', attachment: { ...small, media: { waveform: 'ABCDEFGH' } }, sentAt: 's' },
+  { text: 't', attachment: small, sentAt: 's' }, { text: 't', attachment: big, sentAt: 's' }, { attachment: { media: { waveform: 5, width: 1 }, id: 1 }, text: 't' }, { text: 't', attachment: { ...small, media: { waveform: null } }, sentAt: 's' }];
+const waves = [undefined, 'ABCDEFGH', 'short', 5, 'A'.repeat(101), 'abcdefgh'];
+const attachments = [null, small, voice, big, { ...small, media: {} }, { ...small, media: { width: 3 } }];
+writeFileSync(join(out, 'waveform.json'), JSON.stringify({ wire: plains.map(plain => ({ plain: JSON.stringify(plain), wire: JSON.stringify(attach.wireBody(plain)) })),
+  back: attachments.flatMap(attachment => waves.map(waveform => ({ attachment: JSON.stringify(attachment), waveform: waveform === undefined ? null : JSON.stringify(waveform), result: JSON.stringify(attach.withWaveform(attachment, waveform)) }))) }, null, 1) + '\n');
+console.log('media', mediaValues.length, 'valid', mediaValues.filter(media.validMedia).length, 'attachment', attachValues.length, 'valid', attachValues.filter(attach.validAttachment).length);

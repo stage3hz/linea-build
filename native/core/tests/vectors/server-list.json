@@ -1,12 +1,12 @@
 {
  "keys": [
-  "pXeYVuZ/8eduJuCXZqkC0RT5d+0k4BqhyyRx4EuStZI="
+  "X/wZEGgfnWvBdFW+ICnul4nM3NL38BkrshcD3hzsgfs="
  ],
  "cases": [
   {
    "name": "good",
    "payload": "{\"version\":3,\"issuedAt\":\"2026-11-01T00:00:00Z\",\"servers\":[{\"url\":\"https://api.invizent.com\",\"region\":\"eu\"},{\"url\":\"https://b.invizent.ru/\"}]}",
-   "sig": "N6HC1oy/02bg/L9/3ORgvDqK2RURTs1qr5xeg6T3n+i5ORtsdUBYtEuX2DKRywBjKTUgPWPprkpgXBaoWx46DQ==",
+   "sig": "IxoBMTO9Mc7O8X9UXqdeW0qKQllQ8Q8DG+PQLpdcK8iCpzX22gCnmoDSGU9YxrZlDa3vumBQ0/PKmbhtUajFBQ==",
    "minVersion": 0,
    "list": {
     "version": 3,
@@ -25,14 +25,14 @@
   {
    "name": "replayed older",
    "payload": "{\"version\":3,\"issuedAt\":\"2026-11-01T00:00:00Z\",\"servers\":[{\"url\":\"https://api.invizent.com\",\"region\":\"eu\"},{\"url\":\"https://b.invizent.ru/\"}]}",
-   "sig": "N6HC1oy/02bg/L9/3ORgvDqK2RURTs1qr5xeg6T3n+i5ORtsdUBYtEuX2DKRywBjKTUgPWPprkpgXBaoWx46DQ==",
+   "sig": "IxoBMTO9Mc7O8X9UXqdeW0qKQllQ8Q8DG+PQLpdcK8iCpzX22gCnmoDSGU9YxrZlDa3vumBQ0/PKmbhtUajFBQ==",
    "minVersion": 4,
    "list": null
   },
   {
    "name": "exact version",
    "payload": "{\"version\":3,\"issuedAt\":\"2026-11-01T00:00:00Z\",\"servers\":[{\"url\":\"https://api.invizent.com\",\"region\":\"eu\"},{\"url\":\"https://b.invizent.ru/\"}]}",
-   "sig": "N6HC1oy/02bg/L9/3ORgvDqK2RURTs1qr5xeg6T3n+i5ORtsdUBYtEuX2DKRywBjKTUgPWPprkpgXBaoWx46DQ==",
+   "sig": "IxoBMTO9Mc7O8X9UXqdeW0qKQllQ8Q8DG+PQLpdcK8iCpzX22gCnmoDSGU9YxrZlDa3vumBQ0/PKmbhtUajFBQ==",
    "minVersion": 3,
    "list": {
     "version": 3,
@@ -51,63 +51,63 @@
   {
    "name": "stranger key",
    "payload": "{\"version\":3,\"issuedAt\":\"2026-11-01T00:00:00Z\",\"servers\":[{\"url\":\"https://api.invizent.com\",\"region\":\"eu\"},{\"url\":\"https://b.invizent.ru/\"}]}",
-   "sig": "o1w9GtKqNpaOmdIyowIfumihv0ZZtMBqyfNtzDdF7cxbvtPLo+swUy6cFkSrMBUoasjiAKGH9Bp/sy6hJjyECQ==",
+   "sig": "X7PfB9Y0tqikhRFyENjqh1Gom6Xnj0fc398j0uVX/VtLhzWEbrgavW2j93TCQbU8US+6XIQBS+W9ivdBezFEBg==",
    "minVersion": 0,
    "list": null
   },
   {
    "name": "edited payload",
    "payload": "{\"version\":9,\"issuedAt\":\"2026-11-01T00:00:00Z\",\"servers\":[{\"url\":\"https://api.invizent.com\",\"region\":\"eu\"},{\"url\":\"https://b.invizent.ru/\"}]}",
-   "sig": "N6HC1oy/02bg/L9/3ORgvDqK2RURTs1qr5xeg6T3n+i5ORtsdUBYtEuX2DKRywBjKTUgPWPprkpgXBaoWx46DQ==",
+   "sig": "IxoBMTO9Mc7O8X9UXqdeW0qKQllQ8Q8DG+PQLpdcK8iCpzX22gCnmoDSGU9YxrZlDa3vumBQ0/PKmbhtUajFBQ==",
    "minVersion": 0,
    "list": null
   },
   {
    "name": "foreign server",
    "payload": "{\"version\":1,\"servers\":[{\"url\":\"https://evil.org\"}]}",
-   "sig": "p/F37joH4oWgLfHavHQ2yKQUlonE+pnP3B849y9rMRjUFyAl8/AF9gqNcd+nAIuEQy78qs1iSvldPzkAoQGzBw==",
+   "sig": "cMepKb/hhTCeUdAnOjBz2qxzKTWEgyyB+bd9rtwKaeut9Kis90z8Uq6pf5/0i7BF6IhRLyzZ4mlnVhMSi7erCw==",
    "minVersion": 0,
    "list": null
   },
   {
    "name": "duplicate",
    "payload": "{\"version\":1,\"servers\":[{\"url\":\"https://api.invizent.com\"},{\"url\":\"https://API.invizent.com/\"}]}",
-   "sig": "+EWnNcu9BE5Ev3jk0mqCCNUwj2T0ss1FakuXZEJH49RPctpNozh0G0dFMFo8hyWiodI2GBi6VfO1LkYkVG2VAA==",
+   "sig": "YBPz1T4pObgo32ttiqQQIlsOVkpQmlaV32PsxhIVPVLX+groy9keKj7gFEfB3IZIPlpCPeWzEv+7fk/ElZ9BAA==",
    "minVersion": 0,
    "list": null
   },
   {
    "name": "no servers",
    "payload": "{\"version\":1,\"servers\":[]}",
-   "sig": "CK0bWhidcOV0J0tfetgs9q3UTT18TvPbz11ckIuV6h8vhE/aKSQZfEaGmGiPdkI0uHXdCKRcWcB+E3o952I2DA==",
+   "sig": "44RIUo539dwEuthtkR9/b6Jx52aCnYkPpZdCU9kTR5Atv8c1POsLqnxKUjYl3Yo0lb0wVN2zMzT78WtmCWOvDw==",
    "minVersion": 0,
    "list": null
   },
   {
    "name": "fraction version",
    "payload": "{\"version\":1.5,\"servers\":[{\"url\":\"https://api.invizent.com\"}]}",
-   "sig": "NKP+O39fWWXgRhT+5QgsAZ6Xz/oWI8CqvVJOphrtOg4wDWXxbnLBBvsP5G/YLPIW/6brw4hsBb7urWogUPUvAQ==",
+   "sig": "6gQ9fq2F+rTFKJoKHB3WNY+SFAdomZWLEWznaOT/ju+S5Hchq9do84gXmLFc/5Ms2XuzuMmN0eJ55jayncR/AQ==",
    "minVersion": 0,
    "list": null
   },
   {
    "name": "text version",
    "payload": "{\"version\":\"2\",\"servers\":[{\"url\":\"https://api.invizent.com\"}]}",
-   "sig": "/TuvbD7uj0AHxuqSsWhUGkz9pauNT4Bf8JOKGBB25bVMjqjheAcTvcP+mHGSSo/luzFRv1IqUq0fC/vUzuqkDw==",
+   "sig": "hyo2Mi1UKJeDN9KBJvSRwIcVA6XwQAkEHMeVe5EGlSLvrQqeTaQdg3RZ3pK7Ei8FmKjz59M0x3eEC+jmG7o8Dw==",
    "minVersion": 0,
    "list": null
   },
   {
    "name": "not json",
    "payload": "nope",
-   "sig": "Wqxtyd0G6mopJ1+zhDhGQ4WChdi8EP7kWG/clsGueFoeVxZ3D5IYzSg8z6NRVfZiNFXlL3x7Z57BuUWOn0u6DQ==",
+   "sig": "n9vg5FqSuTPm0SnnsqIEP2AFBwIXojwPk69EuaJw6FsA+vsEOAdfdWWC9mbZnJLBkJzJeMlpW9gz68AKQraNAA==",
    "minVersion": 0,
    "list": null
   },
   {
    "name": "long region dropped",
    "payload": "{\"version\":2,\"issuedAt\":5,\"servers\":[{\"url\":\"https://api.invizent.com\",\"region\":\"rrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrr\"}]}",
-   "sig": "IOQ/DbcgRpcGHVpRuhEdC0UpMlZlpYxDL4uU2G9VhbtAM6pYzhUIduYmgRSiZMLnnKcTyR4p+yWU4B6Y0tDcBw==",
+   "sig": "ljd5+/DomtB2SrGC2zfyiiVM5/taFHaAGYFUtZJ1ChI8KgRiiWbimPm7m6a2nteX7Vt4wGoZdJzo6udd9aYcDw==",
    "minVersion": 0,
    "list": {
     "version": 2,
@@ -122,7 +122,7 @@
   {
    "name": "no date",
    "payload": "{\"version\":2,\"servers\":[{\"url\":\"https://api.invizent.com\",\"region\":7}]}",
-   "sig": "RpTZ3xrzOlOs7k9l6p7UN440PpvWclTOgG89OEW0CAwSMDtPMSF2mgrV9ref91Tr0KsfVvahrwb/TJ+/caAaDw==",
+   "sig": "14vcdMiCwnghH1RNMbgjMs80NsZdOhnfvjVeI3j7NkKFkkUnDODSU9kHvi+5IKImM6V8qm+YxMbC+W3hrPwyDw==",
    "minVersion": 0,
    "list": {
     "version": 2,
@@ -144,7 +144,7 @@
   {
    "name": "33 servers",
    "payload": "{\"version\":1,\"servers\":[{\"url\":\"https://s0.invizent.com\"},{\"url\":\"https://s1.invizent.com\"},{\"url\":\"https://s2.invizent.com\"},{\"url\":\"https://s3.invizent.com\"},{\"url\":\"https://s4.invizent.com\"},{\"url\":\"https://s5.invizent.com\"},{\"url\":\"https://s6.invizent.com\"},{\"url\":\"https://s7.invizent.com\"},{\"url\":\"https://s8.invizent.com\"},{\"url\":\"https://s9.invizent.com\"},{\"url\":\"https://s10.invizent.com\"},{\"url\":\"https://s11.invizent.com\"},{\"url\":\"https://s12.invizent.com\"},{\"url\":\"https://s13.invizent.com\"},{\"url\":\"https://s14.invizent.com\"},{\"url\":\"https://s15.invizent.com\"},{\"url\":\"https://s16.invizent.com\"},{\"url\":\"https://s17.invizent.com\"},{\"url\":\"https://s18.invizent.com\"},{\"url\":\"https://s19.invizent.com\"},{\"url\":\"https://s20.invizent.com\"},{\"url\":\"https://s21.invizent.com\"},{\"url\":\"https://s22.invizent.com\"},{\"url\":\"https://s23.invizent.com\"},{\"url\":\"https://s24.invizent.com\"},{\"url\":\"https://s25.invizent.com\"},{\"url\":\"https://s26.invizent.com\"},{\"url\":\"https://s27.invizent.com\"},{\"url\":\"https://s28.invizent.com\"},{\"url\":\"https://s29.invizent.com\"},{\"url\":\"https://s30.invizent.com\"},{\"url\":\"https://s31.invizent.com\"},{\"url\":\"https://s32.invizent.com\"}]}",
-   "sig": "bH9bR5gWb6kj1/LfX8tIsbqUcuBwcbUNyYtqpdMO2tS4GrhDn8S1m6VQUb5Tf7jxw+aSUTrU+KqqG8Ba8RMQCQ==",
+   "sig": "dUjVrOiPU2EqcB2/NIl1Tx8YV0OKY9Ia8fUANeWyZz3U/zXGNMNu0bYJi1jLNAi+zH1XYt37AiDAVrrVN4s9Aw==",
    "minVersion": 0,
    "list": null
   }
