@@ -34,7 +34,8 @@ jobs:
           sudo xcode-select -s "$XC/Contents/Developer"; xcodebuild -version; uname -m
           ARCH=$(uname -m); if [ "$ARCH" = arm64 ]; then SIM_RUST=aarch64-apple-ios-sim; else SIM_RUST=x86_64-apple-ios; fi
           echo "== core tests"; (cd native/core && cargo test --quiet 2>&1 | grep -E "test result|FAILED|panicked" || true)
-          echo "== core for $SIM_RUST"; native/ios/build-core.sh "$SIM_RUST"
+          echo "== core for $SIM_RUST"; which protoc || brew install protobuf
+          native/ios/build-core.sh "$SIM_RUST"
           echo "== project"; which xcodegen || brew install xcodegen
           cd native/ios && xcodegen generate
           echo "== app"
@@ -73,12 +74,63 @@ jobs:
           shot 04-settings -demo 1 -tab profile
           shot 05-chat -demo 1 -chat 1
           shot 06-auth -auth 1
+          echo "UDID=$UDID" >> "$GITHUB_ENV"
           echo "== done"
+      - uses: actions/setup-node@v4
+        if: steps.work.outcome == 'success'
+        with:
+          node-version: 24
+      - name: Real data — a local test server, a test account, really encrypted chats
+        # The app signs in to a server started on this Mac (HTTPS with a test CA trusted inside this simulator
+        # only), other «people» write to it with the current app's own code, and the list and a chat are
+        # photographed. Nothing here touches the real server.
+        id: live
+        if: steps.work.outcome == 'success'
+        continue-on-error: true
+        timeout-minutes: 25
+        run: |
+          set -euo pipefail
+          OUT="$RUNNER_TEMP/out"
+          exec > >(tee "$OUT/live-log.txt") 2>&1
+          limit() { local s="$1"; shift; perl -e 'alarm shift; exec @ARGV' "$s" "$@"; }
+          (cd mobile && npm ci --no-audit --no-fund >/dev/null 2>&1)
+          (cd server && npm ci --no-audit --no-fund >/dev/null 2>&1)
+          (cd desktop && ELECTRON_SKIP_BINARY_DOWNLOAD=1 npm ci --no-audit --no-fund >/dev/null 2>&1)
+          OSSL=$(brew --prefix openssl@3 2>/dev/null)/bin/openssl; [ -x "$OSSL" ] || OSSL=openssl
+          mkdir -p tls && cd tls
+          "$OSSL" req -x509 -newkey rsa:2048 -nodes -days 2 -subj "/CN=INVIZENT Simulator Test CA" -keyout ca.key -out ca.pem -addext "basicConstraints=critical,CA:TRUE" -addext "keyUsage=critical,keyCertSign,cRLSign" 2>/dev/null
+          "$OSSL" req -newkey rsa:2048 -nodes -subj "/CN=localhost" -keyout leaf.key -out leaf.csr 2>/dev/null
+          printf "subjectAltName=DNS:localhost,IP:127.0.0.1\nextendedKeyUsage=serverAuth\nbasicConstraints=CA:FALSE\nkeyUsage=digitalSignature,keyEncipherment\n" > ext.cnf
+          "$OSSL" x509 -req -in leaf.csr -CA ca.pem -CAkey ca.key -CAcreateserial -days 2 -sha256 -extfile ext.cnf -out leaf.pem 2>/dev/null
+          cd ..
+          mkdir -p srvdata
+          (cd server && DATA_DIR="$GITHUB_WORKSPACE/srvdata" PORT=3999 HOST=127.0.0.1 nohup node src/index.js > ../server.log 2>&1 &)
+          nohup node tools/sim-tls-proxy.mjs tls/leaf.pem tls/leaf.key 8443 3999 > proxy.log 2>&1 &
+          for i in $(seq 1 30); do curl -fsS --cacert tls/ca.pem https://localhost:8443/health && break; sleep 1; done
+          limit 120 xcrun simctl keychain "$UDID" add-root-cert tls/ca.pem
+          echo "== account"
+          node tools/native-sim-account.mjs http://127.0.0.1:3999 nativetester native_check | sed 's/"password":"[^"]*"/"password":"…"/'
+          live() { # name, seconds to wait, launch arguments…
+            local name="$1" wait="$2"; shift 2
+            limit 60 xcrun simctl terminate "$UDID" com.invizent.app >/dev/null 2>&1 || true
+            limit 120 xcrun simctl launch "$UDID" com.invizent.app -server https://localhost:8443 "$@"
+            sleep "$wait"
+            limit 60 xcrun simctl io "$UDID" screenshot "$OUT/$name.png"
+          }
+          echo "== sign in (the app makes its keys and publishes them)"
+          live 07-signed-in 25 -login nativetester -password 'Synthetic!Native.42' -word ambergardenprism
+          echo "== other people write"
+          node tools/sim-seed.mjs http://127.0.0.1:3999 native_check "$GITHUB_WORKSPACE/srvdata" || echo "seeding failed"
+          echo "== the list and a chat"
+          live 08-real-chats 25
+          live 09-real-chat 30 -openchat 1
+          tail -5 server.log || true
+          echo "== live done"
       - name: Publish the result (branch native-sim-output-<runner>)
         if: always()
         run: |
           cd "$RUNNER_TEMP/out" 2>/dev/null || { mkdir -p "$RUNNER_TEMP/out" && cd "$RUNNER_TEMP/out"; }
-          echo "${{ steps.work.outcome }} $GITHUB_SHA $(date -u) ${{ matrix.runner }} $(uname -m)" > STATUS.txt
+          echo "${{ steps.work.outcome }} $GITHUB_SHA $(date -u) ${{ matrix.runner }} $(uname -m) live:${{ steps.live.outcome }}" > STATUS.txt
           [ -f xcodebuild.log ] && { grep -nE "error:|warning: unre|ld: " xcodebuild.log | head -200 > xcodebuild-errors.txt; tail -200 xcodebuild.log > xcodebuild-tail.txt; rm xcodebuild.log; } || true
           git init -q -b out && git config user.name "linea-ci" && git config user.email "ci@localhost"
           git add -A && git commit -qm "Native simulator check for $GITHUB_SHA: ${{ steps.work.outcome }}"

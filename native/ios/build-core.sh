@@ -7,6 +7,7 @@ set -eu
 TARGET="${1:?target}"
 HERE="$(cd "$(dirname "$0")" && pwd)"
 rustup target add "$TARGET"
-(cd "$HERE/../core" && cargo build --release --lib --target "$TARGET")
+# The Signal library is built into the core (feature `signal`); its build needs `protoc` on this machine.
+(cd "$HERE/../core" && cargo build --release --lib --features signal --target "$TARGET")
 mkdir -p "$HERE/build/core"
 cp "$HERE/../core/target/$TARGET/release/libinvizent_core.a" "$HERE/build/core/libinvizent_core.a"
