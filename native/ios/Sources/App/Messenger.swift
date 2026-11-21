@@ -26,7 +26,9 @@ final class Messenger {
         live.onEvent = { [weak self] event in
             guard let self else { return }
             switch event {
-            case .ready: NotificationCenter.default.post(name: Messenger.changed, object: nil)
+            case .ready:
+                self.resendPending()
+                NotificationCenter.default.post(name: Messenger.changed, object: nil)
             case .chat(let id): NotificationCenter.default.post(name: Messenger.changed, object: id)
             case .read(let chatId, let userId, let messageId):
                 if userId != self.userId { NotificationCenter.default.post(name: Messenger.peerRead, object: nil, userInfo: ["chatId": chatId, "messageId": messageId]) }
@@ -179,23 +181,57 @@ final class Messenger {
         return rows
     }
 
-    /// Encrypts a text for every device of the conversation, keeps it, and hands it to the server.
+    /// Encrypts one message for every device of the conversation (or takes the ciphertext already kept for this
+    /// id), hands it to the server and marks it delivered. Runs on the encryption queue.
+    ///
+    /// - The device list changed since the ciphertext was made: it is dropped and the message encrypted afresh, once.
+    /// - Refused for good (not «try later», not a dead session): the kept copy is forgotten, so it is not sent
+    ///   again after every start.
+    /// - No answer: it stays in the list of unsent messages and goes out later with the very same ciphertext.
+    private func deliver(_ crypto: CryptoService, chatId: String, peerId: String, clientId: String, text: Any, attachment: Any, meta: Any, again: Bool = true) -> Result<Void, CryptoFailure> {
+        switch crypto.callNow("encrypt", [chatId, peerId, clientId, text, attachment, meta, NSNull()]) {
+        case .failure(let failure): return .failure(failure)
+        case .success(let encrypted):
+            switch server.opAndWait("sendEncrypted", [chatId, clientId, encrypted]) {
+            case .success:
+                _ = crypto.callNow("delivered", [chatId, clientId])
+                return .success(())
+            case .failure(.refused(let message, let status, let code, _)):
+                if code == "E2EE_DEVICES_CHANGED" {
+                    _ = crypto.callNow("forget", [chatId, clientId])
+                    if again { return deliver(crypto, chatId: chatId, peerId: peerId, clientId: clientId, text: text, attachment: attachment, meta: meta, again: false) }
+                } else if (400..<500).contains(status), status != 401, status != 408, status != 429 {
+                    _ = crypto.callNow("forget", [chatId, clientId])
+                }
+                return .failure(CryptoFailure(name: "Error", message: message))
+            case .failure(let error):
+                return .failure(CryptoFailure(name: "NetworkError", message: error.words))
+            }
+        }
+    }
+
+    /// Sends a text.
     func send(chatId: String, peerId: String, text: String, done: @escaping (Result<Void, CryptoFailure>) -> Void) {
         let clientId = UUID().uuidString.lowercased()
-        crypto.run({ crypto -> Result<Void, CryptoFailure> in
-            switch crypto.callNow("encrypt", [chatId, peerId, clientId, text, NSNull(), NSNull(), NSNull()]) {
-            case .failure(let failure): return .failure(failure)
-            case .success(let encrypted):
-                switch self.server.opAndWait("sendEncrypted", [chatId, clientId, encrypted]) {
-                case .failure(let error):
-                    // Kept in the list of unsent messages: it goes out again with the very same ciphertext.
-                    return .failure(CryptoFailure(name: "NetworkError", message: error.words))
-                case .success:
-                    _ = crypto.callNow("delivered", [chatId, clientId])
-                    return .success(())
+        crypto.run({ crypto in self.deliver(crypto, chatId: chatId, peerId: peerId, clientId: clientId, text: text, attachment: NSNull(), meta: NSNull()) }, done: done)
+    }
+
+    /// Messages that were encrypted and kept but never confirmed by the server (the app was closed, the network
+    /// went away) go out again — each with the very ciphertext it was first given, so nothing is sent twice.
+    func resendPending() {
+        crypto.run({ crypto -> Int in
+            guard case .success(let value) = crypto.callNow("pendingOutbox"), let items = value as? [[String: Any]] else { return 0 }
+            var sent = 0
+            for item in items {
+                // Scheduled messages have their own road to the server; they are not built here yet.
+                guard item["deliverAt"] == nil, let chatId = item["chatId"] as? String, let clientId = item["clientId"] as? String, let peerId = item["peerId"] as? String else { continue }
+                switch self.deliver(crypto, chatId: chatId, peerId: peerId, clientId: clientId, text: item["text"] ?? "", attachment: item["attachment"] ?? NSNull(), meta: item["meta"] ?? NSNull()) {
+                case .success: sent += 1
+                case .failure(let failure): if failure.name == "NetworkError" { return sent }
                 }
             }
-        }, done: done)
+            return sent
+        }, done: { sent in if sent > 0 { NotificationCenter.default.post(name: Messenger.changed, object: nil) } })
     }
 
     // MARK: Words and looks
