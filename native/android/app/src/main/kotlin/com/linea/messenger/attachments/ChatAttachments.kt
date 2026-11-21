@@ -122,7 +122,7 @@ class ChatAttachments(private val host: View, private val messenger: Messenger?,
 
   init {
     val app = context.applicationContext
-    sweeping.execute { DecryptedFiles.sweep(app) }
+    sweeping.execute { DecryptedFiles.sweep(app); CaptureProvider.sweep(app) /* Media: camera shots of earlier runs */ }
   }
 
   // The composer

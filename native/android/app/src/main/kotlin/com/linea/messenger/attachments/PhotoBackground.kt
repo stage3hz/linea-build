@@ -27,7 +27,8 @@ class PhotoBackground(private val context: Context) {
 
   companion object { private val inferencePending = AtomicBoolean(false) }
 
-  private fun client() = SubjectSegmentation.getClient(SubjectSegmenterOptions.Builder().enableForegroundBitmap().build())
+  // ML Kit is started here, on the first use of «Фон», not with the app (its start-up provider is removed in the manifest).
+  private fun client() = com.google.mlkit.common.sdkinternal.MlKitContext.initializeIfNeeded(context.applicationContext).let { SubjectSegmentation.getClient(SubjectSegmenterOptions.Builder().enableForegroundBitmap().build()) }
   private fun googleAvailable() = try { GoogleApiAvailability.getInstance().isGooglePlayServicesAvailable(context) == ConnectionResult.SUCCESS } catch (_: Throwable) { false }
 
   fun capabilities(): Abilities {

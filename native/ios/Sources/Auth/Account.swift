@@ -10,7 +10,7 @@ enum Account {
         return "https://api.invizent.com"
     }
 
-    private static let tokenName = "linea.session.v1"
+    static let tokenName = "linea.session.v1"
 
     /// The session's token: in the keychain, under the name the previous app used, so an update stays signed in.
     static var token: String? {

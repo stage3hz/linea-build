@@ -115,6 +115,29 @@ final class Vault {
 
 #if targetEnvironment(simulator)
 extension Vault {
+    /// For the update check (TakeoverCheck.swift): the records whose names start with `prefix` — how many, and the
+    /// values of up to `limit` of them. Read only.
+    func records(prefix: String, limit: Int) throws -> (count: Int, values: [String]) {
+        guard let db else { throw Failure.closed }
+        let pattern = prefix.replacingOccurrences(of: "\\", with: "\\\\").replacingOccurrences(of: "%", with: "\\%").replacingOccurrences(of: "_", with: "\\_") + "%"
+        let count = Int(try text("SELECT count(*) FROM private_values WHERE key LIKE ? ESCAPE '\\'", [pattern]) ?? "0") ?? 0
+        var statement: OpaquePointer?
+        guard sqlite3_prepare_v2(db, "SELECT value FROM private_values WHERE key LIKE ? ESCAPE '\\' LIMIT ?", -1, &statement, nil) == SQLITE_OK else { throw Failure.write }
+        defer { sqlite3_finalize(statement) }
+        sqlite3_bind_text(statement, 1, pattern, -1, transient)
+        sqlite3_bind_int(statement, 2, Int32(limit))
+        var values: [String] = []
+        while sqlite3_step(statement) == SQLITE_ROW {
+            if let value = sqlite3_column_text(statement, 0) { values.append(String(cString: value)) }
+        }
+        return (count, values)
+    }
+
+    func cipherVersion() -> String {
+        guard let version = try? text("PRAGMA cipher_version") else { return "?" }
+        return version
+    }
+
     /// For the simulator check: makes a storage for a made-up account, writes, closes, opens again and reads.
     /// Says what happened in a line.
     static func selfCheck() -> String {

@@ -270,4 +270,24 @@ class MediaParityTest {
       editor.dismiss()
     }
   }
+
+  @Test fun theForwardPickerHasFolderTabs() {
+    val activity = launch(demo(), wait = 1200)
+    val store = com.linea.messenger.chatsplus.ChatFolderStore.of(activity, "sample")
+    val people = com.linea.messenger.chatactions.ChatActionsDemo.forwardTargets()
+    store.upsert(com.linea.messenger.chatsplus.ChatFolder("work", "Работа", listOf(people.first().chatId)))
+    try {
+      val picker = com.linea.messenger.chatactions.ForwardPicker(activity, null, 1)
+      picker.show()
+      shadowOf(activity.mainLooper).idleFor(300, TimeUnit.MILLISECONDS)
+      val page = picker.window!!.decorView
+      assertTrue(texts(page).containsAll(listOf("Все чаты", "Работа")))
+      val all = picker.names.size
+      picker.chooseTab("work")
+      assertEquals(listOf(people.first().name), picker.names)
+      picker.chooseTab("all")
+      assertEquals(all, picker.names.size)
+      picker.dismiss()
+    } finally { store.remove("work") }
+  }
 }

@@ -228,6 +228,27 @@ shot 384-screen-error --es screendemo error
 shot 385-screen-room --es screendemo room
 shot 386-screen-bar --es screendemo bar
 
+# Media: the album and its menu, the paperclip's panel, the photo editor, the video player, the round video
+# (attachments/AttachmentsDemo.kt and chatactions/ChatActionsDemo.kt of src/debug; the numbers of the iPhone's shots).
+shot 209-album-menu --ez demo true --ez chat true --es chatdemo albummenu
+shot 210-photo-editor-crop --ez demo true --ez chat true --es photoeditor crop
+shot 211-photo-editor-draw --ez demo true --ez chat true --es photoeditor draw
+shot 212-photo-editor-size --ez demo true --ez chat true --es photoeditor size
+shot 361-attach-panel --ez demo true --ez chat true --es attachdemo panel
+shot 362-attach-panel-selected --ez demo true --ez chat true --es attachdemo panelselected
+shot 363-attach-panel-limited --ez demo true --ez chat true --es attachdemo panellimited
+shot 364-attach-panel-denied --ez demo true --ez chat true --es attachdemo paneldenied
+shot 365-photo-editor-remove --ez demo true --ez chat true --es photoeditor remove
+shot 366-photo-editor-background --ez demo true --ez chat true --es photoeditor background
+shot 367-photo-editor-enhance --ez demo true --ez chat true --es photoeditor enhance
+shot 368-photo-editor-format --ez demo true --ez chat true --es photoeditor size
+shot 369-video-player --ez demo true --ez chat true --es videodemo player
+shot 370-video-player-sheet --ez demo true --ez chat true --es videodemo sheet
+shot 371-video-player-speed --ez demo true --ez chat true --es videodemo speed
+shot 372-video-player-locked --ez demo true --ez chat true --es videodemo locked
+shot 373-video-player-seek --ez demo true --ez chat true --es videodemo seek
+shot 374-note-recorder --ez demo true --ez chat true --es notedemo 1
+
 # What the app itself said while it ran (crashes show here).
 adb logcat -d -t 400 '*:E' > "$OUT/logcat-errors.txt" 2>/dev/null || true
 adb shell dumpsys package "$APP" | grep -E "versionName|primaryCpuAbi" || true

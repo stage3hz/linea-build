@@ -35,26 +35,15 @@ final class LockStore {
         NotificationCenter.default.post(name: LockStore.changed, object: nil)
     }
 
-    private static func query() -> [String: Any] {
-        let account = Data(name.utf8)
-        return [kSecClass as String: kSecClassGenericPassword, kSecAttrService as String: "app:no-auth", kSecAttrGeneric as String: account, kSecAttrAccount as String: account]
-    }
-
     private static func write(_ text: String?) {
         guard let text else {
-            SecItemDelete(query() as CFDictionary)
+            Keychain.remove(name)
             return
         }
-        let data = Data(text.utf8)
         // Readable after the first unlock since boot even while the phone is locked again: the app may be woken in
-        // the background and must still find the lock, or it would start open.
-        var add = query()
-        add[kSecValueData as String] = data
-        add[kSecAttrAccessible as String] = kSecAttrAccessibleAfterFirstUnlockThisDeviceOnly
-        let status = SecItemAdd(add as CFDictionary, nil)
-        if status == errSecDuplicateItem {
-            SecItemUpdate(query() as CFDictionary, [kSecValueData as String: data, kSecAttrAccessible as String: kSecAttrAccessibleAfterFirstUnlockThisDeviceOnly] as CFDictionary)
-        }
+        // the background and must still find the lock, or it would start open (the previous app's
+        // AFTER_FIRST_UNLOCK_THIS_DEVICE_ONLY, mobile/src/lock/storage.ts).
+        try? Keychain.set(name, text, accessible: kSecAttrAccessibleAfterFirstUnlockThisDeviceOnly)
     }
 
     // MARK: The shared counter of wrong codes (the lock screen and the settings' check cost the same)

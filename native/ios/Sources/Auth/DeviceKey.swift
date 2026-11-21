@@ -75,6 +75,16 @@ enum DeviceKey {
     return ["publicKey": base64url(point), "kind": inEnclave(privateKey) ? "hardware" : "software"]
   }
 
+  #if targetEnvironment(simulator)
+  /// For the update check (Storage/TakeoverCheck.swift): the previous app's public key, when it is there — never makes one.
+  static func existingPublicKey() -> String? {
+    guard let privateKey = find(), let publicKey = SecKeyCopyPublicKey(privateKey) else { return nil }
+    var error: Unmanaged<CFError>?
+    guard let point = SecKeyCopyExternalRepresentation(publicKey, &error) as Data? else { error?.release(); return nil }
+    return base64url(point)
+  }
+  #endif
+
   /// ECDSA over SHA-256 of the message's UTF-8 bytes, DER-encoded, base64url.
   static func sign(_ message: String) throws -> String {
     let privateKey = try key()

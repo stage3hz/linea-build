@@ -479,7 +479,8 @@ class MusicPlayerTest {
     assertTrue(spoken(mini).containsAll(listOf("Предыдущий трек или начало текущего", "Пауза", "Следующий трек", "Закрыть плеер и остановить музыку")))
     val bar = find(activity.window.decorView, "TabBarView")!!
     assertTrue(mini.bottom <= bar.top + (bar.parent as View).top)
-    assertTrue(spoken(page).containsAll(listOf("Убрать из любимого: Северное сияние", "В любимое: Полночь над рекой", "Действия: Тихий час", "О музыкальном разделе", "Поиск музыки")))
+    // Music: the shelves push the later rows below the screen; the rows on it still say what their buttons do.
+    assertTrue(spoken(page).containsAll(listOf("Убрать из любимого: Северное сияние", "В любимое: Полночь над рекой", "О музыкальном разделе", "Поиск музыки", "Слушать: Северное сияние, Лера Туман")))
   }
 
   @Test fun theFullPlayerOverTheSamples() {

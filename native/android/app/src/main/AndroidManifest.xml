@@ -1,5 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
-<manifest xmlns:android="http://schemas.android.com/apk/res/android">
+<manifest xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:tools="http://schemas.android.com/tools">
 
     <uses-permission android:name="android.permission.INTERNET" />
     <!-- Music: playing on while the app is not on the screen (music/MusicService.kt). The first two are given
@@ -133,6 +134,12 @@
             android:authorities="${applicationId}.capture"
             android:exported="false"
             android:grantUriPermissions="true" />
+        <!-- Media: ML Kit (the photo editor's «Фон», attachments/PhotoBackground.kt) is not started with the app: its own
+             start-up provider is taken out, and it is started only when the person opens «Фон». -->
+        <provider
+            android:name="com.google.mlkit.common.internal.MlKitInitProvider"
+            android:authorities="${applicationId}.mlkitinitprovider"
+            tools:node="remove" />
         <!-- Music: keeps the playback, its notification and its lock-screen controls while the app is not on the
              screen. Not exported: only the app itself starts it. -->
         <!-- Profile: shows a friend's birthday reminder when the system's alarm clock rings for it (profile/Birthdays.kt).
