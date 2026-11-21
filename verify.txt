@@ -1,0 +1,36 @@
+commit 76b237da07babe44a9133cb2dbae91ca71eb57f2
+Xcode 26.6 Build version 17F113 
+== size
+10395354 bytes
+sha256 4a0c2c27b6dc0f57cc226f27697e8f5138a94be028e5052eabab53db972651c5
+== request-signing key: none
+== identity
+CFBundleIdentifier: com.invizent.app.native
+CFBundleShortVersionString: 0.17.0
+CFBundleVersion: 1
+MinimumOSVersion: 17.0
+CFBundleDisplayName: INVIZENT
+== executable
+pack/Payload/Invizent.app/Invizent: Mach-O 64-bit executable arm64
+Non-fat file: pack/Payload/Invizent.app/Invizent is architecture: arm64
+== code signature (expected none)
+pack/Payload/Invizent.app: code object is not signed at all
+== permissions asked in Info.plist (expected none)
+    NSCameraUsageDescription = Камера нужна для видеозвонков и чтобы записывать видеосообщения в кружке. Она включается только во время видеозвонка и пока открыта запись.
+    NSMicrophoneUsageDescription = Микрофон нужен для звонков и чтобы записывать голосовые и видеосообщения. Он включается только во время звонка и пока вы держите кнопку записи.
+== simulator-only sample data (expected absent)
+absent
+== files
+.
+./Invizent
+./call_incoming.wav
+./AppIcon60x60@2x.png
+./call_connecting.wav
+./Assets.car
+./AppIcon76x76@2x~ipad.png
+./call_outgoing.wav
+./Frameworks
+./Frameworks/LiveKitWebRTC.framework
+./Frameworks/SQLCipher.framework
+./Info.plist
+./PkgInfo
