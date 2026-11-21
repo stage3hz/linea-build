@@ -156,6 +156,12 @@ jobs:
           shot 35-video-demo -demo 1 -chat 1 -videodemo 1
           shot 36-link-cards -demo 1 -chat 1 -linkdemo 1
           shot 37-link-composer -demo 1 -chat 1 -linkdemo composer
+          shot 38-call-outgoing -calldemo outgoing
+          shot 39-call-incoming -calldemo incoming
+          shot 40-call-active -calldemo active
+          shot 41-call-video -calldemo video
+          shot 42-call-retry -calldemo retry
+          shot 43-call-bar -calldemo bar
           shot 21-ai-demo -aidemo 1
           shot 22-music-demo -musicdemo 1
           shot 23-music-player -musicdemo player
