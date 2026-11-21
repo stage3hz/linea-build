@@ -6,7 +6,6 @@ import com.linea.messenger.ai.AILimits
 import com.linea.messenger.ai.AIMedia
 import com.linea.messenger.ai.AIMediaCache
 import com.linea.messenger.ai.AIModel
-import com.linea.messenger.ai.AIClient
 import com.linea.messenger.ai.AIReply
 import com.linea.messenger.ai.AITaskResult
 import com.linea.messenger.ai.AIText
@@ -24,7 +23,7 @@ import java.time.ZoneId
 
 /** The rules of «AI» that need no phone and no server: what the server's answers must be, what fits into a
  *  question, what a request asks for, the stored history in the reference's JSON, the conversation's steps,
- *  the cache of made files. The samples are written by hand after mobile/src/ai/*. */
+ *  the cache of made files. The samples are written by hand after the files of mobile/src/ai. */
 class AIRulesTest {
   private fun json(text: String): Any? = Core.value(text)
   private fun words(work: () -> Unit): String = try { work(); "" } catch (failure: AIFailure) { failure.words }
@@ -67,16 +66,16 @@ class AIRulesTest {
   }
 
   @Test fun aMadeFile() {
-    val made = AIModel.parseMedia(json("""{"mimeType":"image/png","base64":"aGVsbG8=","routedVia":"pollinations"}"""), AIClient.imageKinds)
+    val made = AIModel.parseMedia(json("""{"mimeType":"image/png","base64":"aGVsbG8=","routedVia":"pollinations"}"""), AIModel.imageKinds)
     assertEquals("image/png", made.mimeType)
     assertEquals("hello", String(made.data))
     assertEquals("pollinations", made.routedVia)
     val wrong = "AI-сервис вернул некорректный файл."
-    assertEquals(wrong, words { AIModel.parseMedia(json("""{"mimeType":"image/svg+xml","base64":"aGVsbG8="}"""), AIClient.imageKinds) })
-    assertEquals(wrong, words { AIModel.parseMedia(json("""{"mimeType":"image/png","base64":""}"""), AIClient.imageKinds) })
-    assertEquals(wrong, words { AIModel.parseMedia(json("""{"mimeType":"image/png","base64":"не base64"}"""), AIClient.imageKinds) })
-    assertEquals(wrong, words { AIModel.parseMedia(json("""{"mimeType":"text/html","base64":"aGVsbG8="}"""), AIClient.speechKinds) })
-    assertEquals("audio/mpeg", AIModel.parseMedia(json("""{"mimeType":"audio/mpeg","base64":"aGVsbG8="}"""), AIClient.speechKinds).mimeType)
+    assertEquals(wrong, words { AIModel.parseMedia(json("""{"mimeType":"image/svg+xml","base64":"aGVsbG8="}"""), AIModel.imageKinds) })
+    assertEquals(wrong, words { AIModel.parseMedia(json("""{"mimeType":"image/png","base64":""}"""), AIModel.imageKinds) })
+    assertEquals(wrong, words { AIModel.parseMedia(json("""{"mimeType":"image/png","base64":"не base64"}"""), AIModel.imageKinds) })
+    assertEquals(wrong, words { AIModel.parseMedia(json("""{"mimeType":"text/html","base64":"aGVsbG8="}"""), AIModel.speechKinds) })
+    assertEquals("audio/mpeg", AIModel.parseMedia(json("""{"mimeType":"audio/mpeg","base64":"aGVsbG8="}"""), AIModel.speechKinds).mimeType)
   }
 
   private fun done(id: Int, question: String, answer: String) = AITurn(id = id, question = question, status = "complete", answer = AIReply(answer, "m", "freellmapi"))

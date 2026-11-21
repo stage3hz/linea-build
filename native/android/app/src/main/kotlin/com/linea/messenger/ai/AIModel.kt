@@ -117,6 +117,10 @@ object AIModel {
     return list.mapNotNull { it as? String }.filter { validModel(it) }.take(300)
   }
 
+  /** The kinds of a made picture and of made speech that are taken. */
+  val imageKinds = Regex("^image/(png|jpeg|webp)$")
+  val speechKinds = Regex("^audio/[a-z0-9.+-]+$")
+
   private val base64Text = Regex("^[A-Za-z0-9+/]+={0,2}$")
 
   /** `{mimeType, base64, routedVia?}` of a picture or speech. `kinds`: the pattern of the kinds that are taken. */

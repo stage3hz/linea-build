@@ -23,7 +23,7 @@ import java.util.concurrent.TimeUnit
 /** The AI requests. Plain ones go through `Server.send` (the core gives the long AI time limits by path);
  *  the answers come back on the main thread. */
 object AIClient {
-  private val main = Handler(Looper.getMainLooper())
+  private val main: Handler by lazy { Handler(Looper.getMainLooper()) }
 
   private fun post(server: Server, path: String, body: Map<String, Any?>, done: (Result<Any?>) -> Unit) {
     val text = Core.text(body) ?: return done(Result.failure(AIFailure("Не удалось получить ответ. Попробуй ещё раз.")))
@@ -65,14 +65,11 @@ object AIClient {
     }
   }
 
-  val imageKinds = Regex("^image/(png|jpeg|webp)$")
-  val speechKinds = Regex("^audio/[a-z0-9.+-]+$")
-
   fun image(server: Server, prompt: String, done: (Result<AIMade>) -> Unit) =
-    media(server, "/ai/image", linkedMapOf("prompt" to prompt, "consent" to true), imageKinds, done)
+    media(server, "/ai/image", linkedMapOf("prompt" to prompt, "consent" to true), AIModel.imageKinds, done)
 
   fun speech(server: Server, text: String, voice: String, done: (Result<AIMade>) -> Unit) =
-    media(server, "/ai/speech", linkedMapOf("text" to text, "voice" to voice, "consent" to true), speechKinds, done)
+    media(server, "/ai/speech", linkedMapOf("text" to text, "voice" to voice, "consent" to true), AIModel.speechKinds, done)
 
   fun transcribe(server: Server, audio: ByteArray, done: (Result<String>) -> Unit) {
     post(server, "/ai/transcribe", linkedMapOf("audio" to Base64.getEncoder().encodeToString(audio), "consent" to true)) { result ->
@@ -261,6 +258,8 @@ class AIConversation(private val transport: AITransport, private val clock: () -
     this.consent = consent
     pending = false
     error = ""
+    // The works of the conversation that was open belong to its turns, not to these (which may bear the same numbers).
+    tasks.clear()
     turns = AIModel.storedTurns(stored)
     publish()
   }

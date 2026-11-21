@@ -42,6 +42,9 @@ shot 06d-waiting --ez auth true --es authmode waiting
 shot 09c-attach-demo --ez demo true --ez chat true --es attachdemo 1
 shot 20-channels-demo --es channelsdemo 1
 shot 20b-channels-demo-chat --es channelsdemo chat
+shot 21-ai-demo --es aidemo 1
+shot 22-music-demo --es musicdemo 1
+shot 23-music-player --es musicdemo player
 # What the app itself said while it ran (crashes show here).
 adb logcat -d -t 400 '*:E' > "$OUT/logcat-errors.txt" 2>/dev/null || true
 adb shell dumpsys package "$APP" | grep -E "versionName|primaryCpuAbi" || true

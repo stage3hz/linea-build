@@ -384,7 +384,8 @@ final class MusicViewController: UIViewController, UITableViewDataSource, UITabl
     }
 
     private func pickMood(_ value: String?) {
-        mood = value
+        // A second tap on the chosen mood takes it off again.
+        mood = value == mood ? nil : value
         reloadCatalog()
         refresh()
     }
