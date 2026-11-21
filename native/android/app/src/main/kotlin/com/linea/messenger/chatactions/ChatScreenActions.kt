@@ -108,6 +108,7 @@ class ChatScreenActions(private val context: Context, private val messenger: Mes
    *  person's @name for the header, and where the unread messages begin. */
   fun opened(chat: Map<String, Any?>) {
     peerUsername = Core.map(chat["peer"])?.get("username") as? String ?: ""
+    com.linea.messenger.profile.ProfileChatLink.settingsOf[chatId] = Core.map(chat["settings"]) ?: emptyMap() // Profile: the sound
     if (ChatHistory.number(chat["unreadCount"]) > 0) history.unreadAfter = ChatHistory.number(chat["lastReadMessageId"])
     showStatus()
   }

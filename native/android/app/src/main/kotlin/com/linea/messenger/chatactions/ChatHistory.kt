@@ -47,6 +47,8 @@ class ChatHistory(private val messenger: Messenger?, private val local: ChatLoca
     /** Messages that are loaded but cannot be read on this device (sent before it signed in), by clientId. */
     val noKey: Set<String> = emptySet(),
     val failedActions: Int = 0,
+    /** Profile: the chat's rule «Автоудаление», seconds (0 = off; an encrypted setting both sides follow). */
+    val ttl: Long = 0,
   )
 
   /** Everything `build` reads, taken at one moment. */
@@ -369,6 +371,7 @@ class ChatHistory(private val messenger: Messenger?, private val local: ChatLoca
       val messages = lines ?: all.filter { action(it) == null }.sortedBy { number(it["id"]) }
       val pinned = if (lines != null) Core.map(folded["pinned"]) else null
       val noCopy = if (lines != null) Core.map(folded["rules"])?.get("noCopy") as? Boolean ?: false else false
+      val ttl = if (lines != null) number(Core.map(folded["rules"])?.get("ttl")) else 0L // Profile
       val byClient = HashMap<String, Map<String, Any?>>()
       for (message in messages) (message["clientId"] as? String)?.let { byClient[it] = message }
 
@@ -484,7 +487,7 @@ class ChatHistory(private val messenger: Messenger?, private val local: ChatLoca
         keyOfClient[client] = key
         order.add(key)
       }
-      return Shown(rows, shownMessages, keyOfClient, order, pinned, noCopy, newestTheirs, noKey, failedActions)
+      return Shown(rows, shownMessages, keyOfClient, order, pinned, noCopy, newestTheirs, noKey, failedActions, ttl)
     }
   }
 }

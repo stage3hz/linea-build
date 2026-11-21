@@ -157,7 +157,7 @@ final class RoomPeerMedia: NSObject, LKRTCPeerConnectionDelegate, LKRTCDataChann
         let mandatory: [String: String] = iceRestart ? ["IceRestart": "true"] : [:]
         let constraints = LKRTCMediaConstraints(mandatoryConstraints: mandatory, optionalConstraints: nil)
         connection.offer(for: constraints, completionHandler: { (description: LKRTCSessionDescription?, _: Error?) -> Void in
-            let sdp = description?.sdp.map { (made: String) -> String in ScreenShareModel.stereoScreenAudio(made) } // ScreenShare: stereo for a computer's sound
+            let sdp = (description?.sdp).map { (made: String) -> String in ScreenShareModel.stereoScreenAudio(made) } // ScreenShare: stereo for a computer's sound
             DispatchQueue.main.async { done(sdp) }
         })
     }
@@ -166,7 +166,7 @@ final class RoomPeerMedia: NSObject, LKRTCPeerConnectionDelegate, LKRTCDataChann
         guard let connection else { return done(nil) }
         let constraints = LKRTCMediaConstraints(mandatoryConstraints: nil, optionalConstraints: nil)
         connection.answer(for: constraints, completionHandler: { (description: LKRTCSessionDescription?, _: Error?) -> Void in
-            let sdp = description?.sdp.map { (made: String) -> String in ScreenShareModel.stereoScreenAudio(made) } // ScreenShare: stereo for a computer's sound
+            let sdp = (description?.sdp).map { (made: String) -> String in ScreenShareModel.stereoScreenAudio(made) } // ScreenShare: stereo for a computer's sound
             DispatchQueue.main.async { done(sdp) }
         })
     }

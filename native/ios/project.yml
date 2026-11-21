@@ -31,6 +31,9 @@ targets:
     dependencies:
       - package: SQLCipher
       - package: LiveKitWebRTC
+      # ScreenShare: the broadcast upload extension, embedded in PlugIns/ (as the reference app's ScreenBroadcast).
+      - target: ScreenBroadcast
+        embed: true
     info:
       path: Info.plist
       properties:
@@ -62,6 +65,10 @@ targets:
         CFBundleURLTypes:
           - CFBundleURLName: com.invizent.app.invite
             CFBundleURLSchemes: [linea, invizent]
+        # ScreenShare (Sources/ScreenShare): the App Group shared with the broadcast extension and the extension's
+        # identifier — the reference's names (mobile/plugins/withScreenBroadcast.js: group.<bundle>.screen, <bundle>.ScreenBroadcast).
+        RTCAppGroupIdentifier: group.com.invizent.app.screen
+        RTCScreenSharingExtension: com.invizent.app.ScreenBroadcast
         UIApplicationSceneManifest:
           UIApplicationSupportsMultipleScenes: false
           UISceneConfigurations:
@@ -79,3 +86,34 @@ targets:
         OTHER_LDFLAGS: ["$(inherited)", "-linvizent_core"]
         TARGETED_DEVICE_FAMILY: "1"
         GENERATE_INFOPLIST_FILE: NO
+        # ScreenShare: the App Group, for builds signed with Xcode (the unsigned IPA leaves entitlements to the signing tool).
+        "CODE_SIGN_ENTITLEMENTS[sdk=iphoneos*]": Invizent.entitlements
+  # ScreenShare: «INVIZENT Screen», the broadcast upload extension (ReplayKit) that sends this phone's screen to the app
+  # over the shared App Group — the reference's mobile/plugins/screen-broadcast, same identifier and group.
+  ScreenBroadcast:
+    type: app-extension
+    platform: iOS
+    sources:
+      - path: ScreenBroadcast
+        excludes: ["*.entitlements", "Info.plist"]
+    info:
+      path: ScreenBroadcast/Info.plist
+      properties:
+        CFBundleDisplayName: INVIZENT Screen
+        CFBundleShortVersionString: $(MARKETING_VERSION)
+        CFBundleVersion: $(CURRENT_PROJECT_VERSION)
+        RTCAppGroupIdentifier: group.com.invizent.app.screen
+        NSExtension:
+          NSExtensionPointIdentifier: com.apple.broadcast-services-upload
+          NSExtensionPrincipalClass: $(PRODUCT_MODULE_NAME).SampleHandler
+          NSExtensionAttributes:
+            RPBroadcastProcessMode: RPBroadcastProcessModeSampleBuffer
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: com.invizent.app.ScreenBroadcast
+        PRODUCT_NAME: ScreenBroadcast
+        GENERATE_INFOPLIST_FILE: NO
+        APPLICATION_EXTENSION_API_ONLY: YES
+        SKIP_INSTALL: YES
+        TARGETED_DEVICE_FAMILY: "1"
+        "CODE_SIGN_ENTITLEMENTS[sdk=iphoneos*]": ScreenBroadcast/ScreenBroadcast.entitlements

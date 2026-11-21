@@ -90,9 +90,16 @@ class PersonProfileScreen(
   private val topBar = View(context)
   private val back = IconButton(context, "back", 24f, Theme.text)
   private val more = RoundIconButton(context, "dots", RoundIconButton.Look.PLAIN, 24f)
-  private val avatar = PersonAvatarView(context)
-  private val nameLabel = TextView(context)
-  private val statusLabel = TextView(context)
+  // Profile: the top as the reference's UserProfile.tsx — banner / festive colour, the decorated avatar, the
+  // platinum name and emoji status, the effect (profile/ProfileHead.kt).
+  private val hero = com.linea.messenger.profile.ProfileHeroView(context)
+  private val topLayers = com.linea.messenger.profile.ProfileTopLayers(context)
+  private val avatar: View get() = hero.avatar
+  /** Profile: the chat this profile was opened from — «Звук», «Поиск», the shared media and the chat's items of
+   *  «Ещё» (profile/ProfileChatExtras.kt). Null: opened from elsewhere. */
+  var chatLink: com.linea.messenger.profile.ProfileChatLink? = null
+    set(value) { field = value; refresh() }
+  private val sharedMedia = com.linea.messenger.profile.SharedMediaView(context)
   private val tiles = LinearLayout(context)
   private val noticeLabel = TextView(context)
   private val problemLabel = TextView(context)
@@ -108,27 +115,24 @@ class PersonProfileScreen(
   init {
     setBackgroundColor(Theme.bg)
 
+    addView(topLayers.back) // Profile
     scroll.isVerticalScrollBarEnabled = false
     scroll.isFillViewport = false
+    scroll.clipChildren = false
+    scroll.overScrollMode = View.OVER_SCROLL_ALWAYS
     content.orientation = LinearLayout.VERTICAL
+    content.clipChildren = false
     content.setPadding(dp(18f), dp(10f), dp(18f), dp(32f))
     scroll.addView(content, FrameLayout.LayoutParams(FrameLayout.LayoutParams.MATCH_PARENT, FrameLayout.LayoutParams.WRAP_CONTENT))
     addView(scroll)
+    // Profile: the top follows the scroll.
+    scroll.setOnScrollChangeListener { _, _, _, _, _ -> layoutTop() }
 
     fun row(view: View, width: Int, height: Int, gap: Float) =
       content.addView(view, LinearLayout.LayoutParams(width, height).apply { gravity = Gravity.CENTER_HORIZONTAL; topMargin = dp(gap) })
     val wide = LinearLayout.LayoutParams.MATCH_PARENT; val wrap = LinearLayout.LayoutParams.WRAP_CONTENT
-    row(avatar, dp(116f), dp(116f), 0f)
-    nameLabel.textSize = 27f
-    nameLabel.typeface = Theme.weight(800)
-    nameLabel.setTextColor(Theme.text)
-    nameLabel.gravity = Gravity.CENTER
-    nameLabel.maxLines = 2
-    nameLabel.ellipsize = TextUtils.TruncateAt.END
-    row(nameLabel, wide, wrap, 16f)
-    statusLabel.textSize = 15f
-    statusLabel.gravity = Gravity.CENTER
-    row(statusLabel, wide, wrap, 6f)
+    row(hero, wide, wrap, 0f) // Profile
+    hero.avatarHolder.setOnClickListener { avatarTapped() }
     tiles.orientation = LinearLayout.HORIZONTAL
     row(tiles, wrap, wrap, 16f)
     noticeLabel.textSize = 13f
@@ -148,8 +152,15 @@ class PersonProfileScreen(
     // Stories: the person's posts and stories.
     row(postsBlock, wide, wrap, 16f)
     postsBlock.attach(this, messenger, userId, own = false, avatar = avatar)
+    // Profile: «Фото · Видео · Файлы · Голосовые · Ссылки» of the chat (SharedMedia.tsx).
+    row(sharedMedia, wide, wrap, 16f)
+    sharedMedia.onOpen = { key, attachment -> if (key.isNotEmpty()) chatLink?.openAttachment(key, attachment, this) }
 
-    topBar.setBackgroundColor(Theme.alpha(Theme.bg, 0.92f))
+    addView(topLayers.front) // Profile
+
+    // Profile: the content scrolls under the floating back / «Ещё» row and dissolves there.
+    topBar.background = android.graphics.drawable.GradientDrawable(android.graphics.drawable.GradientDrawable.Orientation.TOP_BOTTOM, intArrayOf(Theme.alpha(Theme.bg, 0.92f), Theme.alpha(Theme.bg, 0f)))
+    topBar.alpha = 0f
     addView(topBar)
     back.contentDescription = "Назад"
     back.setOnClickListener { pages()?.pop() }
@@ -186,6 +197,8 @@ class PersonProfileScreen(
     if (messenger != null) Live.presenceChanged.watch(presenceChanged)
     removeCallbacks(clock)
     clock.run()
+    // Profile: on the birthday, the confetti once.
+    post { topLayers.celebrate(this) }
   }
 
   override fun onDetachedFromWindow() {
@@ -199,8 +212,65 @@ class PersonProfileScreen(
     put(topBar, 0, 0, width, top + dp(48f))
     put(back, dp(6f), top + dp(2f), dp(44f), dp(44f))
     put(more, width - dp(50f), top + dp(2f), dp(44f), dp(44f))
-    if (content.paddingBottom != dp(32f) + edges.bottom) content.setPadding(dp(18f), dp(10f), dp(18f), dp(32f) + edges.bottom)
-    put(scroll, 0, top + dp(48f), width, height - top - dp(48f))
+    // Profile: the page scrolls from the very top, under the floating row.
+    val padTop = top + dp(48f + 18f)
+    if (content.paddingBottom != dp(32f) + edges.bottom || content.paddingTop != padTop) content.setPadding(dp(18f), padTop, dp(18f), dp(32f) + edges.bottom)
+    put(scroll, 0, 0, width, height)
+    put(topLayers.back, 0, 0, width, topLayers.backHeight(hero.bottom))
+    put(topLayers.front, 0, 0, width, topLayers.frontHeight())
+    fitTiles(width)
+    layoutTop()
+  }
+
+  // Profile: the top follows the scroll
+
+  private var pulled = 0
+
+  private fun layoutTop() {
+    val scrolled = scroll.scrollY - pulled
+    val heroBottom = tiles.bottom
+    topLayers.layout(width, edges.top, scrolled, heroBottom)
+    hero.applyScroll(scrolled)
+    topBar.alpha = (scrolled / (60f * d)).coerceIn(0f, 1f)
+  }
+
+  /** Up to five tiles share the row (the reference's `flex: 1, maxWidth: 120`): each as wide as the room allows. */
+  private fun fitTiles(width: Int) {
+    val count = tiles.childCount
+    if (count == 0 || width <= 0) return
+    val room = maxOf(dp(200f), width - dp(36f))
+    val each = minOf(dp(104f), (room - dp(10f) * (count - 1)) / count)
+    for (index in 0 until count) {
+      val params = tiles.getChildAt(index).layoutParams
+      if (params.width != each) { params.width = each; tiles.getChildAt(index).layoutParams = params }
+    }
+  }
+
+  // A long pull opens the stories, or the photo and video full screen (as the reference).
+  private var pullStart = -1f
+
+  override fun dispatchTouchEvent(event: android.view.MotionEvent): Boolean {
+    when (event.actionMasked) {
+      android.view.MotionEvent.ACTION_DOWN -> pullStart = if (scroll.scrollY == 0) event.rawY else -1f
+      android.view.MotionEvent.ACTION_MOVE -> if (pullStart >= 0 && scroll.scrollY == 0) {
+        val next = maxOf(0, ((event.rawY - pullStart) * 0.5f).toInt())
+        if (next != pulled) { pulled = next; layoutTop() }
+      }
+      android.view.MotionEvent.ACTION_UP, android.view.MotionEvent.ACTION_CANCEL -> {
+        if (pulled > dp(110f)) post { avatarTapped() }
+        if (pulled != 0) { pulled = 0; layoutTop() }
+        pullStart = -1f
+      }
+    }
+    return super.dispatchTouchEvent(event)
+  }
+
+  private fun avatarTapped() {
+    if (postsBlock.openStoriesIfAny()) return
+    val shown = shownPerson
+    if (com.linea.messenger.profile.ProfileMediaViewer.items(shown).isEmpty()) return
+    performHapticFeedback(HapticFeedbackConstants.KEYBOARD_TAP)
+    com.linea.messenger.profile.ProfileMediaViewer(context, shown, messenger?.server?.endpoint ?: "").show()
   }
 
   // What is shown
@@ -210,16 +280,16 @@ class PersonProfileScreen(
 
   private fun refreshStatus() {
     val words = if (messenger != null) PresenceWords.text(messenger.live.presence[userId]) else PeopleDemo.status
-    statusLabel.text = words ?: ""
-    statusLabel.setTextColor(if (words == "в сети") Theme.accent else Theme.muted)
-    statusLabel.visibility = if (words == null) View.GONE else View.VISIBLE
+    hero.setPresence(words) // Profile
   }
 
   private fun refresh() {
     val shown = shownPerson
-    avatar.show(shown, messenger?.personAvatarAddress(shown.avatarId) ?: "")
+    // Profile: the decorated top (banner, festive colour, effect, avatar, name, status).
+    val base = messenger?.server?.endpoint ?: ""
+    topLayers.show(shown, base)
+    hero.show(shown, base, hero.presence.text?.toString()?.takeIf { it.isNotEmpty() }, topLayers.tinted)
     postsBlock.setColor(shown.avatarColor) // Stories: the ring is lit by the person's own colour
-    nameLabel.text = shown.displayName
     refreshStatus()
     noticeLabel.text = noticeWords
     noticeLabel.visibility = if (noticeWords.isEmpty()) View.GONE else View.VISIBLE
@@ -228,6 +298,7 @@ class PersonProfileScreen(
     more.isEnabled = !busy
     rebuildTiles()
     rebuildCard(shown)
+    sharedMedia.show(chatLink?.messages ?: emptyList()) // Profile
   }
 
   private fun makeTile(symbol: String, words: String, loading: Boolean): ProfileTile {
@@ -255,8 +326,40 @@ class PersonProfileScreen(
       if (isFriend == null) friend.isEnabled = false
       friend.setOnClickListener { friendTapped() }
     }
+    chatLink?.let { link ->
+      // Profile: «Звук» / «Без звука» (with how long under it) and «Поиск», as the reference's row
+      // «call · video · sound · search · more».
+      val quiet = com.linea.messenger.profile.ProfileChatExtras.muted(link.settings)
+      val sound = makeTile(if (quiet) "bell.slash" else "bell", if (quiet) "Без звука" else "Звук", loading = false)
+      if (quiet) sound.contentDescription = "Без звука, " + com.linea.messenger.profile.ProfileChatExtras.untilLabel(link.settings["mutedUntil"] as? String)
+      sound.setOnClickListener { soundTapped() }
+      if (link.canSearch) makeTile("search", "Поиск", loading = false).setOnClickListener { link.openSearch(this) }
+    }
     val other = makeTile("dots", "Ещё", loading = false)
     other.setOnClickListener { showMore(other) }
+    fitTiles(width)
+  }
+
+  /** «Звук»: a chat without sound gets it back in one touch; otherwise the sheet asks for how long. */
+  private fun soundTapped() {
+    val link = chatLink ?: return
+    if (busy) return
+    performHapticFeedback(HapticFeedbackConstants.KEYBOARD_TAP)
+    if (com.linea.messenger.profile.ProfileChatExtras.muted(link.settings)) return changeSound(link, mapOf("muted" to false), "Звук включён")
+    val title = shownPerson.displayName.ifEmpty { name }
+    com.linea.messenger.profile.ProfileChatExtras.muteSheet(context, title) { until ->
+      if (until != null) changeSound(link, mapOf("mutedUntil" to until), "Звук выключен " + com.linea.messenger.profile.ProfileChatExtras.untilLabel(until))
+      else changeSound(link, mapOf("muted" to true), "Звук выключен навсегда")
+    }
+  }
+
+  private fun changeSound(link: com.linea.messenger.profile.ProfileChatLink, update: Map<String, Any?>, ok: String) {
+    busy = true
+    refresh()
+    com.linea.messenger.profile.ProfileChatExtras.changeSound(link, messenger, update) { failure ->
+      busy = false
+      if (failure != null) say(problem = failure) else say(notice = ok)
+    }
   }
 
   /** «Ещё»: the friends line (in a profile opened from a chat), blocking, a complaint. */
@@ -264,6 +367,12 @@ class PersonProfileScreen(
     val menu = PopupMenu(context, anchor)
     val friendNow = isFriend
     if (fromChat && friendNow != null) menu.menu.add(ProfileWords.friendMenu(friendNow, request)).setOnMenuItemClickListener { friendTapped(); true }
+    // Profile: the chat's own items, then «Очистить историю» apart with «Заблокировать» and «Пожаловаться».
+    chatLink?.let { link ->
+      val (top, clear) = com.linea.messenger.profile.ProfileChatExtras.menuItems(link, this, shownPerson.displayName.ifEmpty { name }) { words -> say(notice = words) }
+      for (item in top) menu.menu.add(0, 0, 0, item.title).setOnMenuItemClickListener { item.run(); true }
+      menu.menu.add(1, 0, 1, clear.title).setOnMenuItemClickListener { clear.run(); true }
+    }
     if (blocked) menu.menu.add("Разблокировать").setOnMenuItemClickListener { setBlocked(false); true }
     else menu.menu.add("Заблокировать").setOnMenuItemClickListener { confirmBlock(); true }
     menu.menu.add("Пожаловаться").setOnMenuItemClickListener { report(); true }

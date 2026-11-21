@@ -45,7 +45,6 @@ jobs:
           echo "== app"
           xcodebuild -project Invizent.xcodeproj -scheme Invizent -configuration Release -sdk iphoneos \
             -destination 'generic/platform=iOS' -derivedDataPath build/dd ARCHS=arm64 ONLY_ACTIVE_ARCH=NO \
-            PRODUCT_BUNDLE_IDENTIFIER=com.invizent.app \
             CODE_SIGNING_ALLOWED=NO CODE_SIGNING_REQUIRED=NO CODE_SIGN_IDENTITY="" CODE_SIGN_ENTITLEMENTS="" \
             build > "$OUT/xcodebuild.log" 2>&1 || { grep -E "error|ld: " "$OUT/xcodebuild.log" | head -60; tail -40 "$OUT/xcodebuild.log"; exit 1; }
           APP="$PWD/build/dd/Build/Products/Release-iphoneos/Invizent.app"
@@ -63,9 +62,18 @@ jobs:
             echo "== permissions asked in Info.plist (expected none)"; /usr/libexec/PlistBuddy -c "Print" "$A/Info.plist" | grep -i "UsageDescription" || echo "none"
             echo "== simulator-only sample data (expected absent)"; if strings -a "$A/Invizent" | grep -q "Книжный клуб"; then echo "PRESENT"; else echo "absent"; fi
             echo "== files"; (cd "$A" && find . -maxdepth 2 | head -40)
+            # ScreenShare: the broadcast extension must be inside (PlugIns/ScreenBroadcast.appex), with its own identifier.
+            # Unsigned: the App Group group.com.invizent.app.screen has to be granted to BOTH by the signing tool.
+            echo "== extensions"; ls "$A/PlugIns" 2>/dev/null || echo "none"
+            X="$A/PlugIns/ScreenBroadcast.appex"
+            if [ -d "$X" ]; then for key in CFBundleIdentifier NSExtension:NSExtensionPointIdentifier RTCAppGroupIdentifier; do printf '%s: ' "$key"; /usr/libexec/PlistBuddy -c "Print :$key" "$X/Info.plist"; done; file "$X/ScreenBroadcast"; fi
+            printf 'app RTCAppGroupIdentifier: '; /usr/libexec/PlistBuddy -c "Print :RTCAppGroupIdentifier" "$A/Info.plist" || true
           } > "$OUT/verify.txt"
           cat "$OUT/verify.txt"
           lipo -info "$A/Invizent" | grep -q arm64
+          test -f "$A/PlugIns/ScreenBroadcast.appex/ScreenBroadcast"
+          [ "$(/usr/libexec/PlistBuddy -c 'Print :CFBundleIdentifier' "$A/PlugIns/ScreenBroadcast.appex/Info.plist")" = "com.invizent.app.ScreenBroadcast" ]
+          [ "$(/usr/libexec/PlistBuddy -c 'Print :CFBundleIdentifier' "$A/Info.plist")" = "com.invizent.app" ]
           ! grep -q "PRESENT" "$OUT/verify.txt"
           echo "== done"
       - name: Publish (branch native-ipa-output)

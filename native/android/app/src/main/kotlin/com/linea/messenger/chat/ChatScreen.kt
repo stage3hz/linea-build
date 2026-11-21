@@ -206,8 +206,14 @@ class ChatScreen(
   /** People: the profile of the person of this chat (people/PersonProfileScreen.kt). */
   fun openProfile() {
     (context.getSystemService(Context.INPUT_METHOD_SERVICE) as? InputMethodManager)?.hideSoftInputFromWindow(windowToken, 0)
-    pages()?.push(PersonProfileScreen(context, messenger, peerId, heading.text.toString(), chatId = if (messenger == null) "demo" else chatId))
+    val profile = PersonProfileScreen(context, messenger, peerId, heading.text.toString(), chatId = if (messenger == null) "demo" else chatId)
+    // Profile: «Звук», «Поиск», the shared media and the chat's items of «Ещё» (profile/ProfileChatExtras.kt).
+    profile.chatLink = com.linea.messenger.profile.ProfileChatLink(this, chatId)
+    pages()?.push(profile)
   }
+
+  /** Profile: an attachment of the shared media is opened as a touch on its row would (profile/ProfileChatExtras.kt). */
+  fun openAttachment(key: String) = attachments.pressed(key)
 
   private fun leave() {
     (context.getSystemService(Context.INPUT_METHOD_SERVICE) as? InputMethodManager)?.hideSoftInputFromWindow(windowToken, 0)

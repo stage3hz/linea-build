@@ -336,6 +336,13 @@ jobs:
           shot 373-video-player-seek -demo 1 -chat 1 -videodemo seek
           shot 374-note-recorder -demo 1 -chat 1 -notedemo 1
           shot 375-gift-from-chat -demo 1 -chat 1 -chatdemo gift
+          shot 380-screen-panel -screendemo panel
+          shot 381-screen-viewer -screendemo viewer
+          shot 382-screen-starting -screendemo starting
+          shot 383-screen-sharing -screendemo sharing
+          shot 384-screen-error -screendemo error
+          shot 385-screen-room -screendemo room
+          shot 386-screen-bar -screendemo bar
           shot 62-bar-with-track -musicdemo chats
           shot 63-light-chats -demo 1 -settheme light
           shot 64-light-chat -demo 1 -chat 1 -settheme light

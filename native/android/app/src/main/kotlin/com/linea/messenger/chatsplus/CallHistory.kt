@@ -26,7 +26,6 @@ import com.linea.messenger.core.Core
 import com.linea.messenger.crypto.CryptoService
 import com.linea.messenger.design.BarMetrics
 import com.linea.messenger.design.Theme
-import com.linea.messenger.design.edges
 import com.linea.messenger.design.plate
 import com.linea.messenger.design.px
 import com.linea.messenger.design.words
@@ -390,6 +389,3 @@ private class CallRowView(context: Context) : LinearLayout(context) {
     contentDescription = name.text.toString() + ": " + call.label + ", " + time.text
   }
 }
-
-@Suppress("unused")
-private fun keep(view: View) = view.rootWindowInsets?.edges()
