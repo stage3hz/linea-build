@@ -34,6 +34,12 @@ class MsgListView(context: Context) : FrameLayout(context) {
   var onLinkPress: (key: String, url: String, shown: String) -> Unit = { _, _, _ -> }
   /** A tap on a reaction chip. */
   var onReactPress: (key: String, emoji: String) -> Unit = { _, _ -> }
+  /** Voice/Video: a tap on a part of a voice message, a video or a round video (`part`: "play", "wave", "rate"
+   *  or "thumb"; `fraction`: where on the waveform, 0…1). */
+  var onMediaPress: (key: String, part: String, fraction: Float) -> Unit = { _, _, _ -> }
+  /** Voice/Video: the rows on screen moved or changed (a round video playing in its row follows it). */
+  var onRowsMoved: () -> Unit = {}
+  private var mediaState: com.linea.messenger.voice.MsgMediaState? = null
   /** Messages whose spoilers were tapped open (until the chat is left). */
   private val revealed = HashSet<String>()
   private var upX = 0f
@@ -55,6 +61,7 @@ class MsgListView(context: Context) : FrameLayout(context) {
       val view = convertView as? MsgRowView ?: MsgRowView(context)
       view.bind(rows[position], palette, fontSize, revealed.contains(rows[position].key))
       view.flash = flashKey.isNotEmpty() && rows[position].key == flashKey
+      view.mediaState = mediaState?.takeIf { it.key == rows[position].key }
       return view
     }
   }
@@ -75,6 +82,9 @@ class MsgListView(context: Context) : FrameLayout(context) {
       val hit = (view as? MsgRowView)?.runAt(upX - view.left, upY - view.top)
       if (hit == null) {
         if ((view as? MsgRowView)?.quoteAt(upX - view.left, upY - view.top) == true) { onQuotePress(row.key); return@setOnItemClickListener }
+        // Voice/Video: the play button, the waveform, the speed, the picture of a video.
+        val media = if (row.checked < 0) (view as? MsgRowView)?.mediaAt(upX - view.left, upY - view.top) else null
+        if (media != null) { onMediaPress(row.key, media.first, media.second); return@setOnItemClickListener }
         view.getLocationOnScreen(place)
         onMsgPress(row.key, place[1] + view.height / 2f)
       }
@@ -92,6 +102,7 @@ class MsgListView(context: Context) : FrameLayout(context) {
         val oldest = rows.firstOrNull()?.key ?: return
         if (total > 0 && first <= 4 && askedAt != oldest) { askedAt = oldest; onNearTop(oldest) }
         onScrolled(fromNewest())
+        onRowsMoved()
       }
     })
   }
@@ -150,6 +161,33 @@ class MsgListView(context: Context) : FrameLayout(context) {
       view.flash = flashKey.isNotEmpty() && row.key == flashKey
     }
   }
+
+  // Voice/Video
+
+  /** Shows what is playing in its row (null: nothing plays). Only that row is drawn again. */
+  fun setMediaState(next: com.linea.messenger.voice.MsgMediaState?) {
+    if (next == mediaState) return
+    val keys = listOf(mediaState?.key, next?.key)
+    mediaState = next
+    for (index in 0 until list.childCount) {
+      val view = list.getChildAt(index) as? MsgRowView ?: continue
+      if (view.rowKey in keys) view.mediaState = next?.takeIf { it.key == view.rowKey }
+    }
+  }
+
+  /** The place of a row's picture in this view while the row is on screen, px (a round video plays there). */
+  fun mediaHost(key: String): android.graphics.RectF? {
+    for (index in 0 until list.childCount) {
+      val view = list.getChildAt(index) as? MsgRowView ?: continue
+      if (view.rowKey != key) continue
+      val thumb = view.mediaThumb() ?: return null
+      return android.graphics.RectF(thumb).apply { offset(view.left.toFloat(), view.top.toFloat()) }
+    }
+    return null
+  }
+
+  /** The rows on screen, by key. */
+  fun visibleKeys(): List<String> = (0 until list.childCount).mapNotNull { (list.getChildAt(it) as? MsgRowView)?.rowKey?.takeIf { key -> key.isNotEmpty() } }
 
   fun setPalette(next: MsgPalette) { if (next != palette) { palette = next; adapter.notifyDataSetChanged() } }
   fun setFontSize(size: Float) { val next = size.coerceIn(10f, 40f); if (next != fontSize) { fontSize = next; adapter.notifyDataSetChanged() } }

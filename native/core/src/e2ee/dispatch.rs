@@ -10,7 +10,8 @@ fn number(args: &[Value], at: usize) -> Option<f64> { match args.get(at) { Some(
 fn text(value: String) -> Value { Value::str(&value) }
 
 /// Runs one operation. Operations and their arguments (a missing optional argument is `null`):
-/// `initialize []` · `encrypt [chatId, peerId, clientId, text, attachment|null, meta|null, deliverAt|null]` ·
+/// `initialize []` · `encrypt [chatId, peerId, clientId, text, attachment|null, meta|null, deliverAt|null, linkPreview|null]`
+/// (`linkPreview`: the card of a link in the text, made by `link_preview::wire`; may be left out) ·
 /// `snapshot [peerId]` · `approve [snapshot]` · `pendingOutbox []` · `sync [chatId, maxPages|null]` ·
 /// `preview [message]` · `mesh [envelope]` · `delivered [chatId, clientId]` · `forget [chatId, clientId]` ·
 /// `forgetChat [chatId]` · `historyChats []` · `historyPage [chatId, page|null]` ·
@@ -27,7 +28,8 @@ pub fn dispatch<S: SignalBridge, V: Vault, T: CryptoTransport, E: Env>(service: 
         "encrypt" => {
             let (chat, peer, client, body, deliver) = (word(args, 0), word(args, 1), word(args, 2), word(args, 3), args.get(6).and_then(Value::as_str));
             let meta = args.get(5).filter(|meta| !matches!(meta, Value::Null));
-            service.encrypt(&Outgoing { chat_id: &chat, peer_id: &peer, client_id: &client, text: &body, attachment: arg(4), meta, deliver_at: deliver.as_deref() })
+            let card = args.get(7).filter(|card| !matches!(card, Value::Null));
+            service.encrypt(&Outgoing { chat_id: &chat, peer_id: &peer, client_id: &client, text: &body, attachment: arg(4), meta, deliver_at: deliver.as_deref(), link_preview: card })
         }
         "snapshot" => service.trust_snapshot(&word(args, 0)),
         "approve" => service.approve_devices(arg(0)).map(|_| Value::Null),

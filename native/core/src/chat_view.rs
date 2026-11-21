@@ -160,6 +160,8 @@ pub fn with_edit(message: &Value, text: &Value, entities: Option<&Value>) -> Val
     if let Some(entities) = entities { if !array(Some(entities)).is_empty() { meta.push((JsString::from_str("entities"), entities.clone())) } }
     let mut out = entries_of(message);
     set(&mut out, "text", text.clone());
+    // The card of a link belongs to the text it was made for: an edited message has none.
+    out.retain(|(name, _)| !name.0.iter().copied().eq("linkPreview".encode_utf16()));
     // `meta: undefined` when nothing is left: the key is there in JavaScript, and never written.
     if meta.is_empty() { out.retain(|(name, _)| !name.0.iter().copied().eq("meta".encode_utf16())) } else { set(&mut out, "meta", Value::Object(meta)) }
     Value::Object(out)
@@ -189,7 +191,7 @@ fn mask_spoilers(text: &[u16], entities: Option<&Value>) -> Vec<u16> {
 }
 
 /// `formatCallDuration`: 0:42, 3:12, 1:02:05 (hours appear only from the first full hour).
-fn format_call_duration(seconds: f64) -> String {
+pub(crate) fn format_call_duration(seconds: f64) -> String {
     let total = if seconds.is_finite() { seconds.floor().max(0.0) } else { 0.0 };
     let (h, m, s) = ((total / 3600.0).floor(), ((total % 3600.0) / 60.0).floor(), total % 60.0);
     if h != 0.0 { format!("{}:{}:{}", json::number_text(h), two_digits(m), two_digits(s)) } else { format!("{}:{}", json::number_text(m), two_digits(s)) }

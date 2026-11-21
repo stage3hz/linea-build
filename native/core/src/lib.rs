@@ -8,6 +8,7 @@
 
 pub mod api;
 pub mod attest;
+pub mod calls;
 pub mod chat_view;
 pub mod device_proof;
 pub mod e2ee;
@@ -16,6 +17,7 @@ pub mod format;
 pub mod http;
 #[cfg(target_os = "android")] mod jni;
 pub mod json;
+pub mod link_preview;
 pub mod media;
 pub mod message_meta;
 pub mod network;

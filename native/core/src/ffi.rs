@@ -407,6 +407,7 @@ pub unsafe extern "C" fn invizent_proof_call(proof: *mut InvizentProof, input: *
 ///   null for an action of an unknown kind.
 /// - `listPreviewMessage [messages]` → the message the chat list shows for them (quiet actions and deleted ones
 ///   skipped, the latest edit applied, spoilers hidden); null when there is none.
+/// - `call… […]` → the rules of one-to-one calls (see `calls::view` for the names).
 ///
 /// # Safety
 /// `name` and `args` are NUL-terminated strings that stay valid for the call (or null).
@@ -429,7 +430,8 @@ pub unsafe extern "C" fn invizent_view(name: *const c_char, args: *const c_char)
             ("editWindowOpen", [Value::String(created), Value::Number(now)]) => Value::Bool(chat_view::edit_window_open(&created.to_string_lossy(), *now)),
             ("actionFallback", [action, Value::String(target)]) => chat_view::action_fallback(action, target).map_or(Value::Null, text),
             ("listPreviewMessage", [Value::Array(list)]) => chat_view::list_preview_message(list).unwrap_or(Value::Null),
-            _ => return None,
+            // Calls (`calls.rs`): every name that starts with `call`.
+            (name, args) => crate::calls::view(name, args)?,
         };
         Some(json::stringify(&out))
     }).ok().flatten().map_or(std::ptr::null_mut(), give)
@@ -696,4 +698,68 @@ pub unsafe extern "C" fn invizent_file_open_chunk(cipher: *const u8, cipher_len:
         #[cfg(not(feature = "signal"))]
         { let _ = (cipher, attachment, index); Err(crate::e2ee::files::NOT_AUTHENTIC) }
     })
+}
+
+// ── Cards of links ───────────────────────────────────────────────────────────────────────────────────────────
+
+/// The card of a link in a one-to-one chat (`link_preview`), by name; `args` is a JSON array, the answer is JSON
+/// (null for an unknown name or arguments of the wrong kind). Bytes travel as standard base64.
+/// - `limits []` → `{htmlBytes, imageDownloadBytes, imageBytes, imageSide, redirects, timeoutMs}`: what a phone
+///   keeps to when it fetches a page for a card.
+/// - `candidate [text, entities|null]` → the link of a text that gets the card (its first `https` link, when it
+///   may be fetched), or null.
+/// - `fetchable [url]` → whether a phone may fetch this address (the page, a redirect's target, the picture):
+///   `https`, the default port, a public host name.
+/// - `privateAddress [ip]` → whether an address a host name resolved to must NOT be contacted.
+/// - `parse [htmlBase64, contentType|null, pageUrl]` → `{site, title, description, imageUrl|null}`: what the head
+///   of a fetched page says; null when `pageUrl` is not an address a card may come from.
+/// - `image [jpegBase64]` → `{mimeType, base64, width, height}`: the card's picture cleaned of everything but the
+///   picture (at most 480 px a side and 24 KiB), or null when it is not acceptable.
+/// - `wire [url, site, title, description, jpegBase64|null]` → the card for the encryption service's `encrypt`
+///   (texts made plain and cut, the picture cleaned; a picture that is not acceptable is left out), or null when
+///   there is nothing to show.
+/// - `valid [linkPreview, text, entities|null]` → whether a card is one a message with this text may carry.
+///
+/// # Safety
+/// `name` and `args` are NUL-terminated strings that stay valid for the call (or null).
+#[no_mangle]
+pub unsafe extern "C" fn invizent_link_call(name: *const c_char, args: *const c_char) -> *mut c_char {
+    let (Some(name), Some(args)) = (take(name), take(args)) else { return std::ptr::null_mut() };
+    catch_unwind(|| {
+        use crate::link_preview as link;
+        use base64::Engine as _;
+        let Ok(Value::Array(args)) = json::parse(&args) else { return None };
+        let bytes = |text: &crate::json::JsString| base64::engine::general_purpose::STANDARD.decode(text.to_str()?).ok();
+        let optional = |value: &Value| if matches!(value, Value::Null) { None } else { Some(value.clone()) };
+        let out = match (name.as_str(), args.as_slice()) {
+            ("limits", []) => json::object(vec![
+                ("htmlBytes", Value::Number(link::MAX_HTML_BYTES as f64)), ("imageDownloadBytes", Value::Number(link::MAX_IMAGE_DOWNLOAD_BYTES as f64)),
+                ("imageBytes", Value::Number(crate::photo::preview::MAX_LINK_IMAGE_BYTES as f64)), ("imageSide", Value::Number(f64::from(crate::photo::preview::MAX_LINK_IMAGE_SIDE))),
+                ("redirects", Value::Number(link::MAX_REDIRECTS as f64)), ("timeoutMs", Value::Number(link::FETCH_TIMEOUT_MS)),
+            ]),
+            ("candidate", [Value::String(text), entities]) => link::candidate(text, optional(entities).as_ref()).map_or(Value::Null, |url| Value::str(&url)),
+            ("fetchable", [Value::String(url)]) => Value::Bool(url.to_str().is_some_and(|url| link::fetchable(&url))),
+            ("privateAddress", [Value::String(ip)]) => Value::Bool(ip.to_str().is_none_or(|ip| link::private_address(&ip))),
+            ("parse", [Value::String(html), content_type, Value::String(page_url)]) => {
+                let content_type = match content_type { Value::String(text) => Some(text.to_string_lossy()), Value::Null => None, _ => return None };
+                match link::parse_page(&bytes(html)?, content_type.as_deref(), &page_url.to_str()?) {
+                    Some(page) => json::object(vec![("site", Value::str(&page.site)), ("title", Value::str(&page.title)), ("description", Value::str(&page.description)), ("imageUrl", page.image_url.map_or(Value::Null, |url| Value::str(&url)))]),
+                    None => Value::Null,
+                }
+            }
+            ("image", [Value::String(jpeg)]) => {
+                let made = crate::photo::preview::create_link_image(&bytes(jpeg)?).ok()?;
+                let image = json::object(vec![("mimeType", Value::str("image/jpeg")), ("base64", Value::str(&made.base64)), ("width", Value::Number(f64::from(made.width))), ("height", Value::Number(f64::from(made.height)))]);
+                if !crate::photo::preview::valid_link_image(&image) { return None }
+                image
+            }
+            ("wire", [Value::String(url), Value::String(site), Value::String(title), Value::String(description), jpeg]) => {
+                let jpeg = match jpeg { Value::String(text) => Some(bytes(text)?), Value::Null => None, _ => return None };
+                link::wire(&url.to_str()?, &site.to_string_lossy(), &title.to_string_lossy(), &description.to_string_lossy(), jpeg.as_deref()).unwrap_or(Value::Null)
+            }
+            ("valid", [card, Value::String(text), entities]) => Value::Bool(link::valid_wire(card, text, optional(entities).as_ref())),
+            _ => return None,
+        };
+        Some(json::stringify(&out))
+    }).ok().flatten().map_or(std::ptr::null_mut(), give)
 }

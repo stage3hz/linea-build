@@ -25,21 +25,28 @@ fn dimension(value: Option<&Value>, max: f64) -> Option<f64> {
 /// A preview as this app makes it; its `mimeType` is always `image/jpeg`.
 pub struct Preview { pub base64: String, pub width: u32, pub height: u32 }
 
-pub fn create_preview(bytes: &[u8]) -> Result<Preview, Refused> {
+pub fn create_preview(bytes: &[u8]) -> Result<Preview, Refused> { create_within(bytes, MAX_PREVIEW_BYTES, 256) }
+
+/// The picture of a link's card (`link_preview`): made the same way, with its own, larger limits.
+pub const MAX_LINK_IMAGE_BYTES: usize = 24 * 1024;
+pub const MAX_LINK_IMAGE_SIDE: u32 = 480;
+pub fn create_link_image(bytes: &[u8]) -> Result<Preview, Refused> { create_within(bytes, MAX_LINK_IMAGE_BYTES, MAX_LINK_IMAGE_SIDE) }
+
+fn create_within(bytes: &[u8], max_bytes: usize, max_side: u32) -> Result<Preview, Refused> {
     // Android 14+ image tools keep the gain map in a derived JPEG; the preview takes only its SDR base.
     let clean = if announces_gainmap(bytes) { sanitize_jpeg(&primary_jpeg(bytes)?)? } else { sanitize_jpeg(bytes)? };
-    if clean.bytes.len() > MAX_PREVIEW_BYTES || clean.width > 256 || clean.height > 256 { return Err("the preview is over the allowed size") }
+    if clean.bytes.len() > max_bytes || clean.width > max_side || clean.height > max_side { return Err("the preview is over the allowed size") }
     Ok(Preview { base64: base64::engine::general_purpose::STANDARD.encode(&clean.bytes), width: clean.width, height: clean.height })
 }
 
 /// The fields of a well-shaped preview: its base64 text, width and height.
-fn preview_header(value: &Value) -> Option<(&[u16], f64, f64)> {
+fn preview_header(value: &Value, max_bytes: usize, max_side: f64) -> Option<(&[u16], f64, f64)> {
     let Value::Object(entries) = value else { return None };
     if !only(entries, &["mimeType", "base64", "width", "height"]) { return None }
     if !matches!(field(entries, "mimeType"), Some(Value::String(text)) if text.0.iter().copied().eq("image/jpeg".encode_utf16())) { return None }
     let Some(Value::String(base64)) = field(entries, "base64") else { return None };
-    if base64.0.len() > MAX_PREVIEW_BYTES.div_ceil(3) * 4 { return None }
-    Some((&base64.0, dimension(field(entries, "width"), 256.0)?, dimension(field(entries, "height"), 256.0)?))
+    if base64.0.len() > max_bytes.div_ceil(3) * 4 { return None }
+    Some((&base64.0, dimension(field(entries, "width"), max_side)?, dimension(field(entries, "height"), max_side)?))
 }
 
 /// `/^[A-Za-z0-9+/]+={0,2}$/`, giving the text as bytes.
@@ -77,9 +84,16 @@ fn to_byte_array(text: &[u8]) -> Option<Vec<u8>> {
 /// size. `None`: the attachment has no preview.
 pub fn valid_preview(value: Option<&Value>) -> bool {
     let Some(value) = value else { return true };
-    let Some((units, width, height)) = preview_header(value) else { return false };
+    valid_within(value, MAX_PREVIEW_BYTES, 256)
+}
+
+/// The same check for the picture of a link's card, within its limits.
+pub fn valid_link_image(value: &Value) -> bool { valid_within(value, MAX_LINK_IMAGE_BYTES, MAX_LINK_IMAGE_SIDE) }
+
+fn valid_within(value: &Value, max_bytes: usize, max_side: u32) -> bool {
+    let Some((units, width, height)) = preview_header(value, max_bytes, f64::from(max_side)) else { return false };
     let Some(text) = base64_text(units) else { return false };
     let Some(bytes) = to_byte_array(&text) else { return false };
-    let Ok(clean) = create_preview(&bytes) else { return false };
+    let Ok(clean) = create_within(&bytes, max_bytes, max_side) else { return false };
     clean.base64.as_bytes() == text && f64::from(clean.width) == width && f64::from(clean.height) == height
 }

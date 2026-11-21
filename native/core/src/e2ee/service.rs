@@ -9,6 +9,7 @@ use super::attachment::{valid_attachment, wire_body, with_waveform};
 use super::bridge::{keys, CryptoTransport, Env, SignalBridge, SignalError, TransportError, Vault};
 use super::wire::{canonical_encrypted, id_order, sha256_hex, valid_ciphertext_body, valid_encrypted};
 use crate::json::{self, JsString, Value};
+use crate::link_preview::{for_message, valid_wire, without_image, MAX_PAYLOAD_BYTES};
 use crate::media::js_string;
 use crate::message_meta::valid_meta;
 use crate::time::parse_iso_ms;
@@ -117,6 +118,9 @@ pub struct Outgoing<'a> {
     pub meta: Option<&'a Value>,
     /// «Отправить позже»: the message is dated at that time inside the ciphertext and travels in its own session.
     pub deliver_at: Option<&'a str>,
+    /// The card of a link in the text (`link_preview`), or none. One that does not fit the message exactly is
+    /// left out; the message goes without it.
+    pub link_preview: Option<&'a Value>,
 }
 
 pub struct Crypto<S: SignalBridge, V: Vault, T: CryptoTransport, E: Env> {
@@ -358,7 +362,7 @@ impl<S: SignalBridge, V: Vault, T: CryptoTransport, E: Env> Crypto<S, V, T, E> {
     /// with the same id gives back exactly the same ciphertext.
     pub fn encrypt(&mut self, message: &Outgoing) -> Result<Value, CryptoError> {
         self.initialize()?;
-        let Outgoing { chat_id, peer_id, client_id, text, attachment, meta, deliver_at } = *message;
+        let Outgoing { chat_id, peer_id, client_id, text, attachment, meta, deliver_at, link_preview } = *message;
         let has_attachment = truthy(Some(attachment));
         let preview_ok = &self.preview_ok;
         if !uuid_str(chat_id) || !uuid_str(client_id) || text.encode_utf16().count() > 8000 || (js_blank(text) && !has_attachment)
@@ -390,6 +394,14 @@ impl<S: SignalBridge, V: Vault, T: CryptoTransport, E: Env> Crypto<S, V, T, E> {
         let local_id = self.local_id();
         let mut plain = vec![("text", Value::str(text)), ("attachment", attachment.clone()), ("sentAt", Value::str(deliver_at.unwrap_or(&now)))];
         if let Some(meta) = meta.filter(|meta| truthy(Some(meta))) { plain.push(("meta", meta.clone())) }
+        // The card of a link travels inside the ciphertext next to the text, and only while the whole body fits
+        // one envelope: first its picture goes, then the card. A message without a card is written as before.
+        if let Some(card) = for_message(link_preview, &JsString::from_str(text), attachment, meta) {
+            let fits = |card: &Value| { let mut body = plain.clone(); body.push(("linkPreview", card.clone())); json::stringify(&json::object(body)).len() + 512 <= MAX_PAYLOAD_BYTES };
+            let bare = without_image(card);
+            let sent = if fits(card) { Some(card.clone()) } else if bare != *card && valid_wire(&bare, &JsString::from_str(text), meta.and_then(|meta| meta.get("entities"))) && fits(&bare) { Some(bare) } else { None };
+            if let Some(sent) = sent { plain.push(("linkPreview", sent)) }
+        }
         let plain = json::object(plain);
         let mut changes: Vec<(String, Option<String>)> = Vec::new();
         let put = |changes: &mut Vec<(String, Option<String>)>, key: String, value: Option<String>| { changes.retain(|(name, _)| *name != key); changes.push((key, value)) };
@@ -470,6 +482,7 @@ impl<S: SignalBridge, V: Vault, T: CryptoTransport, E: Env> Crypto<S, V, T, E> {
             let field = |key: &str| plain.get(key).cloned();
             let mut item = vec![("chatId", reference.get("chatId").cloned()), ("clientId", reference.get("clientId").cloned()), ("peerId", stored.get("peerId").cloned()), ("text", field("text")), ("attachment", field("attachment")), ("sentAt", field("sentAt"))];
             if truthy(plain.get("meta")) { item.push(("meta", field("meta"))) }
+            if truthy(plain.get("linkPreview")) { item.push(("linkPreview", field("linkPreview"))) }
             if truthy(stored.get("encrypted").and_then(|encrypted| encrypted.get("lane"))) { item.push(("deliverAt", field("sentAt"))) }
             // A missing field is simply not written, as in the reference.
             items.push(json::object(item.into_iter().filter_map(|(key, value)| value.map(|value| (key, value))).collect()));
@@ -568,7 +581,9 @@ impl<S: SignalBridge, V: Vault, T: CryptoTransport, E: Env> Crypto<S, V, T, E> {
         let mut listed = match encrypted.get("attachmentIds") { Some(Value::Array(list)) => list.clone(), _ => Vec::new() };
         listed.sort_by(|a, b| js_string(Some(a)).cmp(&js_string(Some(b))));
         if json::stringify(&Value::Array(listed)) != json::stringify(&Value::Array(own_ids)) { return refuse("Неверная привязка зашифрованного вложения.") }
-        let plain = object_of(vec![("text", body.get("text").cloned()), ("attachment", Some(with_waveform(&attachment, body.get("voiceWaveform")))), ("sentAt", body.get("sentAt").cloned()), ("meta", body.get("meta").filter(|meta| truthy(Some(meta))).cloned())]);
+        let plain = object_of(vec![("text", body.get("text").cloned()), ("attachment", Some(with_waveform(&attachment, body.get("voiceWaveform")))), ("sentAt", body.get("sentAt").cloned()), ("meta", body.get("meta").filter(|meta| truthy(Some(meta))).cloned()),
+            // A card that is not exactly one this app would have made for this text is dropped; the message stays.
+            ("linkPreview", match body.get("text") { Some(Value::String(text)) => for_message(body.get("linkPreview"), text, &attachment, body.get("meta")).cloned(), _ => None })]);
         Ok(Some(OpenedMessage { plain, protocol: result.state, sender }))
     }
 
@@ -679,6 +694,7 @@ impl<S: SignalBridge, V: Vault, T: CryptoTransport, E: Env> Crypto<S, V, T, E> {
             let Some(plain @ Value::Object(_)) = cached.get("plain") else { return Err(CryptoError::Type) };
             let mut extra = vec![("text", plain.get("text").cloned()), ("attachment", plain.get("attachment").cloned()), ("createdAt", plain.get("sentAt").cloned()), ("cryptoState", Some(Value::str("decrypted")))];
             if truthy(plain.get("meta")) { extra.push(("meta", plain.get("meta").cloned())) }
+            if truthy(plain.get("linkPreview")) { extra.push(("linkPreview", plain.get("linkPreview").cloned())) }
             Ok(spread(message, extra))
         };
         let encrypted = message.get("encrypted").filter(|encrypted| truthy(Some(encrypted)));
@@ -775,7 +791,7 @@ impl<S: SignalBridge, V: Vault, T: CryptoTransport, E: Env> Crypto<S, V, T, E> {
             let Some(Ok(cached)) = self.vault.get(&keys::message(chat_id, &sender_id, &client_id)).map(|text| json::parse(&text)) else { continue };
             if !truthy(Some(&cached)) || is_failed(Some(&cached)) || !truthy(cached.get("plain")) { continue }
             let plain = cached.get("plain").cloned().unwrap_or(Value::Null);
-            items.push(object_of(vec![("chatId", Some(Value::str(chat_id))), ("senderId", pair.first().cloned()), ("clientId", pair.get(1).cloned()), ("text", plain.get("text").cloned()), ("attachment", plain.get("attachment").cloned()), ("sentAt", plain.get("sentAt").cloned()), ("meta", plain.get("meta").filter(|meta| truthy(Some(meta))).cloned())]));
+            items.push(object_of(vec![("chatId", Some(Value::str(chat_id))), ("senderId", pair.first().cloned()), ("clientId", pair.get(1).cloned()), ("text", plain.get("text").cloned()), ("attachment", plain.get("attachment").cloned()), ("sentAt", plain.get("sentAt").cloned()), ("meta", plain.get("meta").filter(|meta| truthy(Some(meta))).cloned()), ("linkPreview", plain.get("linkPreview").filter(|card| truthy(Some(card))).cloned())]));
         }
         Ok(answer(items, current, previous))
     }

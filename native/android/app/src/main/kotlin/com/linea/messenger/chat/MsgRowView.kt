@@ -28,6 +28,9 @@ import android.text.TextPaint
 import android.text.TextUtils
 import android.util.Base64
 import android.view.View
+import com.linea.messenger.voice.MediaRowArt
+import com.linea.messenger.voice.MsgMediaBoxes
+import com.linea.messenger.voice.MsgMediaState
 
 /** The open look: no bubbles. A message is its text on the page — own at the right edge, the other side's at
  *  the left — and the time follows the last word on the same line. */
@@ -70,6 +73,24 @@ class MsgRowView(context: Context) : View(context) {
   private var quoteTop = 0f
   private var quoteRight = 0f
   private var quoteBottom = 0f
+
+  /** Voice/Video: what is playing in this row right now (null: nothing), and where its parts were drawn last. */
+  var mediaState: MsgMediaState? = null
+    set(value) { if (field != value) { field = value; invalidate() } }
+  private val mediaBoxes = MsgMediaBoxes()
+  private val mediaPicture = android.graphics.RectF()
+  private var voiceW = 0f
+  private var voiceH = 0f
+
+  /** Voice/Video: the part of a voice message, a video or a round video under a point of this view
+   *  ("play", "wave" with the place on it, "rate" or "thumb"). */
+  fun mediaAt(px: Float, py: Float): Pair<String, Float>? = mediaBoxes.part(px, py, d)
+
+  /** Voice/Video: where the picture of this row's video or round video was drawn last (null: it has none). */
+  fun mediaThumb(): android.graphics.RectF? = if (mediaBoxes.thumb.isEmpty) null else mediaBoxes.thumb
+
+  /** The key of the row this view shows. */
+  val rowKey: String get() = row?.key ?: ""
 
   /** ChatActions: whether a point of this view is on the quote of an answer. */
   fun quoteAt(px: Float, py: Float): Boolean =
@@ -129,7 +150,7 @@ class MsgRowView(context: Context) : View(context) {
       thumbOf = next.thumb
       thumb = if (next.thumb.isEmpty()) null else try { val bytes = Base64.decode(next.thumb, Base64.DEFAULT); BitmapFactory.decodeByteArray(bytes, 0, bytes.size) } catch (_: Throwable) { null }
     }
-    contentDescription = if (next.kind == 1) next.text else listOf(next.label, next.text, next.time).filter { it.isNotEmpty() }.joinToString(". ")
+    contentDescription = if (next.kind == 1) next.text else listOf(MediaRowArt.spoken(next), next.label, next.text, next.time).filter { it.isNotEmpty() }.joinToString(". ")
     if (relayout) requestLayout()
     invalidate()
   }
@@ -211,7 +232,7 @@ class MsgRowView(context: Context) : View(context) {
 
   private fun build(item: MsgRow, width: Int) {
     body.textSize = fontSize * d
-    textLayout = null; quoteLayout = null; labelLayout = null; noticeLayout = null; reactLayout = null; thumbW = 0f; thumbH = 0f
+    textLayout = null; quoteLayout = null; labelLayout = null; noticeLayout = null; reactLayout = null; thumbW = 0f; thumbH = 0f; voiceW = 0f; voiceH = 0f
     chips = emptyList(); chipsW = 0f; chipsH = 0f; timeInline = false
     if (item.kind == 1) {
       noticeLayout = layout(item.text, small, (width * 0.8f).toInt(), 6, true)
@@ -224,8 +245,13 @@ class MsgRowView(context: Context) : View(context) {
       layoutChips(item, inner.toFloat())
       if (item.reactions.isNotEmpty() && chips.isEmpty()) reactLayout = layout(item.reactions, small, inner, 2)
       if (thumb != null) { thumbW = minOf(inner.toFloat(), 220f * d); thumbH = (thumbW / item.thumbWide.toFloat()).coerceIn(90f * d, 300f * d) }
+      // Voice/Video: a round video is a circle, a video keeps its place even before its picture is known, a voice
+      // message is a block of its own.
+      if (item.media == "note") { thumbW = minOf(inner.toFloat(), MediaRowArt.noteSide * d); thumbH = thumbW }
+      else if (item.media == "video" && thumb == null) { thumbW = minOf(inner.toFloat(), 220f * d); thumbH = (thumbW / item.thumbWide.toFloat()).coerceIn(90f * d, 300f * d) }
+      else if (item.media == "voice") { voiceW = minOf(inner.toFloat(), MediaRowArt.voiceWidth * d); voiceH = MediaRowArt.voiceHeight * d }
       val metaWidth = meta.measureText(item.time) + (if (item.mine) 22f * d else 0f)
-      var w = maxOf(maxOf(widest(textLayout), metaWidth, thumbW, widest(labelLayout)), maxOf(widest(reactLayout), chipsW))
+      var w = maxOf(maxOf(widest(textLayout), metaWidth, thumbW, widest(labelLayout)), maxOf(widest(reactLayout), chipsW, voiceW))
       if (quoteLayout != null) w = maxOf(w, maxOf(widest(quoteLayout), smallBold.measureText(item.quoteAuthor)) + 12f * d)
       if (item.forward.isNotEmpty()) w = maxOf(w, minOf(inner.toFloat(), smallBold.measureText(item.forward)))
       // The open look: the time goes after the last word when the line has room for it (plain left-to-right
@@ -243,6 +269,7 @@ class MsgRowView(context: Context) : View(context) {
       if (item.forward.isNotEmpty()) h += 18f * d
       if (quoteLayout != null) h += 17f * d + quoteLayout!!.height + 8f * d
       if (thumbH > 0f) h += thumbH + 6f * d
+      if (voiceH > 0f) h += voiceH + 4f * d
       if (labelLayout != null) h += labelLayout!!.height + 4f * d
       if (textLayout != null) h += textLayout!!.height
       if (reactLayout != null) h += reactLayout!!.height + 6f * d
@@ -325,7 +352,17 @@ class MsgRowView(context: Context) : View(context) {
       y += height + 8f * d
     }
     val image = thumb
+    // Voice/Video: where the picture of a video or a round video stands; without a picture, a quiet plate.
+    mediaBoxes.clear()
+    if (thumbH > 0f && (item.media == "video" || item.media == "note")) {
+      mediaPicture.set(x, y, x + thumbW, y + thumbH)
+      mediaBoxes.thumb.set(mediaPicture)
+      if (image == null) { MediaRowArt.plate(canvas, item.media == "note", palette, mediaPicture, d); y += thumbH + 6f * d }
+    }
     if (image != null && thumbH > 0f) { drawPicture(canvas, image, x, y, thumbW, thumbH, if (item.thumbRound) minOf(thumbW, thumbH) / 2 else 12f * d); y += thumbH + 6f * d }
+    // Voice/Video: the play mark and the length over the picture; the waveform row of a voice message.
+    if (!mediaBoxes.thumb.isEmpty) MediaRowArt.marks(canvas, item, mediaState, palette, mediaPicture, d)
+    if (voiceH > 0f) { MediaRowArt.voice(canvas, item, mediaState, palette, x, y, voiceW, d, mediaBoxes); y += voiceH + 4f * d }
     labelLayout?.let { small.color = markColor; canvas.save(); canvas.translate(x, y); it.draw(canvas); canvas.restore(); y += it.height + 4f * d }
     val textTop = y
     textLayout?.let { body.color = palette.text; bodyX = x; bodyY = y; canvas.save(); canvas.translate(x, y); it.draw(canvas); canvas.restore(); y += it.height }

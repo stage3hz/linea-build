@@ -14,6 +14,12 @@ data class MsgRow(
   val urls: List<String> = emptyList(),
   /** Reactions as chips: triples [emoji, count, "1" if mine]. With them `reactions` is only read aloud. */
   val chips: List<String> = emptyList(),
+  /** Voice/Video: "voice" (a row with a waveform), "video" or "note" (a round video); empty for any other row. */
+  val media: String = "",
+  /** Voice: the letters of the waveform (empty: none came with the message). */
+  val wave: String = "",
+  /** Voice/Video: the length, «1:05» (empty: not known). */
+  val mediaTime: String = "",
 ) {
   companion object {
     private fun text(value: Any?) = value as? String ?: ""
@@ -26,6 +32,7 @@ data class MsgRow(
         flag(row["tail"]), text(row["quoteAuthor"]), text(row["quoteText"]), text(row["forward"]), text(row["label"]),
         text(row["thumb"]), flag(row["thumbRound"]), ((row["thumbWide"] as? Number)?.toDouble() ?: 1.0).coerceIn(0.4, 2.5), int(row["checked"], -1).coerceIn(-1, 1), text(row["reactions"]),
         (row["fmt"] as? List<*>)?.mapNotNull { (it as? Number)?.toInt() } ?: emptyList(), (row["urls"] as? List<*>)?.mapNotNull { it as? String } ?: emptyList(), (row["chips"] as? List<*>)?.mapNotNull { it as? String } ?: emptyList(),
+        text(row["media"]), text(row["wave"]), text(row["mediaTime"]),
       )
     }
   }
