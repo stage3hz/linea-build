@@ -667,6 +667,31 @@ final class ChatHistory {
         if extra == "pinned" {
             add(true, "Закреплено сообщение", "09:43", ["action": ["type": "pin", "target": client(3)]])
         }
+        // Polls, Attachments, Composer: -chatdemo features — a poll with results, a poll with several answers, big
+        // emoji, a message sent «без звука» and an album of three photos.
+        if extra == "features" || extra == "poll" || extra == "album" || extra == "emoji" || extra == "search" {
+            let lunch: [String: Any] = ["question": "Куда пойдём в пятницу?", "options": ["Кино", "Боулинг", "Остаться дома"], "multiple": false]
+            add(false, PollText.fallback(lunch), "09:44", ["poll": lunch])
+            let pollClient = client(list.count)
+            add(false, "🗳 Голос в опросе", "09:45", ["action": ["type": "vote", "target": pollClient, "options": [0]]])
+            add(true, "🗳 Голос в опросе", "09:45", ["action": ["type": "vote", "target": pollClient, "options": [1]]])
+            let picnic: [String: Any] = ["question": "Что взять на пикник?", "options": ["Плед", "Мяч", "Термос", "Гитара"], "multiple": true]
+            add(true, PollText.fallback(picnic), "09:46", ["poll": picnic])
+            add(false, "🎉🔥", "09:47", [:])
+            add(true, "👍", "09:47", [:])
+            add(true, "Не буду звонить, напиши, как проснёшься", "09:48", ["silent": true])
+            let albumId = "a0000000-0000-4000-8000-000000000001"
+            let shapes: [(CGFloat, CGFloat)] = [(240, 160), (160, 240), (240, 180)]
+            for (index, shape) in shapes.enumerated() {
+                let picture = ChatAttachments.demoPicture(width: shape.0, height: shape.1).jpegData(compressionQuality: 0.6)?.base64EncodedString() ?? ""
+                let attachment: [String: Any] = ["id": "f000000\(index)-0000-4000-8000-000000000000", "name": "photo.jpg", "mimeType": "image/jpeg", "size": 120_000,
+                                                 "encryption": ["scheme": "aes-256-gcm-siv"], "preview": ["base64": picture, "width": shape.0, "height": shape.1]]
+                let id = list.count + 1
+                list.append(["id": id, "chatId": chatId, "senderId": ChatHistory.demoPeer, "clientId": client(id), "text": index == 0 ? "Фото с прогулки" : "",
+                             "attachment": attachment, "createdAt": at("09:50", id), "cryptoState": "decrypted",
+                             "meta": ["album": ["id": albumId, "index": index, "count": shapes.count]]])
+            }
+        }
         raw = list
         demoNext = list.count + 1
         peerLastRead = said.count
