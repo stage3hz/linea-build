@@ -164,11 +164,12 @@ class DecoratedAvatarView(context: Context) : ViewGroup(context) {
   /** `base`: the server pictures are asked from (empty: none asked). `animated`: motion and the video avatar
    *  (profiles); false in lists. */
   fun show(person: Person, look: PersonLook = person.look, base: String, animated: Boolean) {
+    // A label given by the page (the ring of stories: «Истории») stays; otherwise the person's name.
+    if (contentDescription.isNullOrEmpty() || contentDescription == this.person.displayName) contentDescription = person.displayName
     this.person = person
     this.look = look
     this.base = base
     this.animated = animated
-    contentDescription = person.displayName
     rebuild()
   }
 
