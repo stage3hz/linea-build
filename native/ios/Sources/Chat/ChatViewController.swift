@@ -29,6 +29,8 @@ final class ChatViewController: UIViewController, UITextFieldDelegate {
 
     /// Up to which message the other side has read (for the two ticks).
     var peerLastRead = 0
+    /// Up to which message this screen has told the server «read».
+    private var reportedRead = 0
 
     /// Reads the chat's newest page and shows it; what came from the other side is reported as read.
     private func load() {
@@ -36,7 +38,11 @@ final class ChatViewController: UIViewController, UITextFieldDelegate {
             guard let self, case .success(let page) = result else { return }
             self.rows = page.rows
             self.list.setRows(MsgRow.parse(page.rows))
-            if self.viewIfLoaded?.window != nil { self.messenger?.markRead(chatId: self.chatId, messageId: page.newestTheirs) }
+            // Reported once per new message: the server answers a read mark with an event, which reads the page again.
+            if self.viewIfLoaded?.window != nil, page.newestTheirs > self.reportedRead {
+                self.reportedRead = page.newestTheirs
+                self.messenger?.markRead(chatId: self.chatId, messageId: page.newestTheirs)
+            }
         }
     }
 
