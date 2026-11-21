@@ -289,7 +289,8 @@ final class AppearanceViewController: SettingsPage {
             guard let self else { return }
             self.open(AccentColorViewController())
         }
-        addGroup("Свои цвета", rows: [accentRow])
+        // ChatLook: «Цвет своих сообщений» — seen in chats with bubbles (Sources/ChatLook/ChatLookSettings.swift).
+        addGroup("Свои цвета", rows: [accentRow, ChatLookSettings.colourRow(page: self)])
         // Effects: «Пиксельный след», «Снег», «Ледяное стекло» (Settings/AppearanceEffects.swift).
         addEffectGroups()
 
@@ -308,6 +309,8 @@ final class AppearanceViewController: SettingsPage {
             sizeRows.append(row)
         }
         addGroup("Размер текста в чатах", rows: sizeRows)
+        // ChatLook: «Обои чатов», «Пузыри сообщений», «Углы сообщений» (Sources/ChatLook/ChatLookSettings.swift).
+        ChatLookSettings.addGroups(to: self, refill: { [weak self] in self?.fill() })
         add(SettingsLook.foot("Тема, цвет и размер текста хранятся только на этом устройстве."), gap: 10)
     }
 

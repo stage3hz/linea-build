@@ -48,6 +48,15 @@ targets:
         # Calls (Sources/Calls) use the same two: asked at the first call and at the first video call.
         NSMicrophoneUsageDescription: "Микрофон нужен для звонков и чтобы записывать голосовые и видеосообщения. Он включается только во время звонка и пока вы держите кнопку записи."
         NSCameraUsageDescription: "Камера нужна для видеозвонков и чтобы записывать видеосообщения в кружке. Она включается только во время видеозвонка и пока открыта запись."
+        # Composer/Attachments: «Сохранить фото» / «Сохранить видео» of a message (Sources/Attachments/SaveMedia.swift) —
+        # add-only: the app puts the chosen photo or video into the gallery and never sees what else is there.
+        NSPhotoLibraryAddUsageDescription: "Чтобы сохранять фото и видео из чатов в галерею. Инвиз только добавляет выбранный снимок и не видит остальные фото."
+        # Security: «Код-пароль» — Face ID is asked only when the person turns «Разблокировка Face ID» on (Sources/Security).
+        NSFaceIDUsageDescription: "Face ID открывает Инвиз без ввода код-пароля."
+        # Links: invitations open the app (Sources/Links/DeepLinks.swift), as linea://invite/CODE did before.
+        CFBundleURLTypes:
+          - CFBundleURLName: com.invizent.app.invite
+            CFBundleURLSchemes: [linea, invizent]
         UIApplicationSceneManifest:
           UIApplicationSupportsMultipleScenes: false
           UISceneConfigurations:
@@ -58,6 +67,8 @@ targets:
       base:
         PRODUCT_BUNDLE_IDENTIFIER: com.invizent.app
         ASSETCATALOG_COMPILER_APPICON_NAME: AppIcon
+        # Effects: «Иконка приложения» — the reference's other icons (Sources/Settings/AppearanceEffects.swift).
+        ASSETCATALOG_COMPILER_ALTERNATE_APPICON_NAMES: "AppIcon-Outline AppIcon-Light AppIcon-Aurora"
         SWIFT_OBJC_BRIDGING_HEADER: Sources/Core/InvizentCore.h
         LIBRARY_SEARCH_PATHS: ["$(inherited)", "$(SRCROOT)/build/core"]
         OTHER_LDFLAGS: ["$(inherited)", "-linvizent_core"]

@@ -252,14 +252,14 @@ final class ChatRowCanvas: UIView {
     context.restoreGState()
   }
 
-  private static let titleFont = UIFont.systemFont(ofSize: 16, weight: .semibold)
-  private static let previewFont = UIFont.systemFont(ofSize: 15)
+  private static let titleFont = AppFont.text(16, .semibold) // ChatsPlus: Montserrat (Design/AppFont.swift)
+  private static let previewFont = AppFont.text(15)
   /// Offline: the quiet line of a message this device cannot open.
   private static let quietFont = UIFont.italicSystemFont(ofSize: 14)
-  private static let timeFont = UIFont.systemFont(ofSize: 13)
-  private static let badgeFont = UIFont.systemFont(ofSize: 12, weight: .bold)
-  private static let avatarFont = UIFont.systemFont(ofSize: 21, weight: .bold)
-  private static let sectionFont = UIFont.systemFont(ofSize: 11, weight: .bold)
+  private static let timeFont = AppFont.text(13)
+  private static let badgeFont = AppFont.text(12, .bold)
+  private static let avatarFont = AppFont.text(21, .bold)
+  private static let sectionFont = AppFont.text(11, .bold)
 
   override init(frame: CGRect) {
     super.init(frame: frame)
@@ -415,7 +415,8 @@ final class ChatRowCanvas: UIView {
     let timeWidth = ceil(time.size().width)
     time.draw(at: CGPoint(x: right - timeWidth, y: top + 2))
 
-    let badgeText = item.unread > 0 ? (item.unread > 999 ? "999+" : String(item.unread)) : ""
+    // ChatsPlus: the reference's badgeText — exact up to 999, then «4,3K».
+    let badgeText = item.unread > 0 ? ChatListStatus.badgeText(item.unread) : ""
     let badgeColor = item.muted ? palette.text : palette.onAccent
     let badge = NSAttributedString(string: badgeText, attributes: [.font: ChatRowCanvas.badgeFont, .foregroundColor: badgeColor])
     let badgeWidth = badgeText.isEmpty ? 0 : max(22, ceil(badge.size().width) + 12)
@@ -425,7 +426,10 @@ final class ChatRowCanvas: UIView {
 
     let title = NSAttributedString(string: item.title, attributes: [
       .font: ChatRowCanvas.titleFont, .foregroundColor: textColor, .paragraphStyle: paragraph(.byTruncatingTail)])
-    let titleRoom = max(0, right - x - timeWidth - 8 - tickWidth)
+    // ChatsPlus: a chat without sound shows a crossed bell right after its name (ChatListScreen.tsx), room kept for it.
+    let bellRoom: CGFloat = item.muted ? 18 : 0
+    let titleRoom = max(0, right - x - timeWidth - 8 - tickWidth - bellRoom)
+    var titleDrawn = min(titleRoom, ceil(title.size().width))
     let whole = item.title as NSString
     if item.metal.count >= 2, item.nameLen > 0, item.nameLen <= whole.length, titleRoom > 1 {
       // A Platina name: the letters of the name show polished metal, the rest of the line stays plain.
@@ -446,7 +450,9 @@ final class ChatRowCanvas: UIView {
         letters.draw(at: .zero, blendMode: .destinationIn, alpha: 1)
       }
       picture.draw(at: CGPoint(x: x, y: top))
+      titleDrawn = nameWidth
       if item.nameLen < whole.length, titleRoom - nameWidth > 8 {
+        titleDrawn = min(titleRoom, nameWidth + ceil(NSAttributedString(string: whole.substring(from: item.nameLen), attributes: [.font: ChatRowCanvas.titleFont]).size().width))
         let rest = NSAttributedString(string: whole.substring(from: item.nameLen), attributes: [
           .font: ChatRowCanvas.titleFont, .foregroundColor: textColor, .paragraphStyle: paragraph(.byTruncatingTail)])
         rest.draw(with: CGRect(x: x + nameWidth, y: top, width: titleRoom - nameWidth, height: 21),
@@ -455,6 +461,10 @@ final class ChatRowCanvas: UIView {
     } else {
       title.draw(with: CGRect(x: x, y: top, width: titleRoom, height: 21),
                  options: [.usesLineFragmentOrigin, .truncatesLastVisibleLine], context: nil)
+    }
+    if item.muted, let bell = UIImage(systemName: "bell.slash.fill", withConfiguration: UIImage.SymbolConfiguration(pointSize: 11, weight: .regular))?
+        .withTintColor(plate != nil ? UIColor(white: 1, alpha: 0.62) : palette.subtle, renderingMode: .alwaysOriginal) {
+      bell.draw(at: CGPoint(x: x + titleDrawn + 5, y: top + (ChatRowCanvas.titleFont.lineHeight - bell.size.height) / 2))
     }
 
     let previewColor = item.accentPreview ? palette.accent : item.quietPreview ? palette.subtle : mutedColor

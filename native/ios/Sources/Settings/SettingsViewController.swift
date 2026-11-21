@@ -77,7 +77,10 @@ final class SettingsViewController: SettingsPage {
         power.onPress = { [weak self] in self?.openPage("power") }
         let language = SettingsRow(symbol: "globe", label: "Язык", value: Language.chosenName)
         language.onPress = { [weak self] in self?.openPage("language") }
-        addGroup(rows: [notifications, appearance, power, language])
+        // ChatsPlus: «Папки с чатами» — the folders above the chat list, kept on this device (Sources/ChatsPlus/ChatFolders.swift).
+        let folders = SettingsRow(symbol: "folder", label: "Папки с чатами")
+        folders.onPress = { [weak self] in self?.open(FoldersSettingsPage(messenger: self?.messenger)) }
+        addGroup(rows: [notifications, appearance, folders, power, language])
 
         let privacy = SettingsRow(symbol: "lock", label: "Конфиденциальность")
         privacy.onPress = { [weak self] in

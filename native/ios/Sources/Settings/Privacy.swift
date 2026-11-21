@@ -5,7 +5,8 @@ import UIKit
 final class SettingsPrivacyModel {
     static let changed = Notification.Name("invizent.settings-privacy")
 
-    private let messenger: Messenger
+    // Security: readable by the pages of the exception lists (Settings/PrivacyLists.swift).
+    let messenger: Messenger
     private(set) var privacy: [String: Any]?
     private(set) var platina = false
     /// How many people are in the two lists of exceptions of «Время захода»; -1 while not known.
@@ -145,6 +146,10 @@ final class PrivacyViewController: SettingsPage {
                 add(SettingsNotice(model.failure, error: true))
             }
         }
+        // Security: the device lock sits first on the privacy screen (Settings/PasscodeSettings.swift).
+        let passcode = SettingsRow(symbol: "circle.grid.3x3", label: "Код-пароль", value: LockStore.shared.current.record != nil ? "Вкл." : "Выкл.")
+        passcode.onPress = { [weak self] in self?.open(PasscodeViewController()) }
+        addGroup("Безопасность", rows: [passcode])
         guard model.privacy != nil else {
             if model.failure.isEmpty { add(SettingsLook.foot("Загрузка…"), gap: 16) }
             return
@@ -184,7 +189,10 @@ final class PrivacyViewController: SettingsPage {
             guard index != callIndex else { return }
             model.change(["calls": PrivacyViewController.callModes[index].value])
         }
-        addGroup("Звонки", rows: [callBox])
+        // Security: the lists «Разрешить» and «Никогда» (Settings/PrivacyLists.swift).
+        let callLists = SettingsRow(symbol: "person.crop.circle.badge.checkmark", label: calls == "everyone" ? "Никогда" : "Разрешить и никогда")
+        callLists.onPress = { [weak self] in self?.open(CallRulesViewController(messenger: model.messenger)) }
+        addGroup("Звонки", rows: [callBox, callLists])
 
         // LinkPreview: kept on this phone, not on the server (Sources/LinkPreview/LinkSettings.swift).
         addGroup("Ссылки", rows: [LinkSettings.row()])
@@ -258,6 +266,21 @@ final class LastSeenViewController: SettingsPage {
         }
         addGroup("Кто видит, когда я в сети", rows: rows)
         add(SettingsLook.foot("Без подписки Platina вы не будете видеть появление в сети и время последнего захода пользователей, от которых скрыли свои. Вместо точного времени будет видно примерное значение (недавно, на этой неделе, в этом месяце)."), gap: 8)
+        // Security: «Исключения» — «Всегда показывать» (not with «Все»), «Никогда не показывать» (not with «Никто»).
+        var lists: [UIView] = []
+        let count = { (people: Int) -> String in people < 0 ? "" : (people > 0 ? String(people) : "Добавить") }
+        if mode != "everyone" {
+            let allow = SettingsRow(symbol: "checkmark.circle", label: "Всегда показывать", value: count(model.allowCount))
+            allow.onPress = { [weak self] in self?.open(LastSeenExceptionsViewController(messenger: model.messenger, model: model, rule: "allow")) }
+            lists.append(allow)
+        }
+        if mode != "nobody" {
+            let deny = SettingsRow(symbol: "minus.circle", label: "Никогда не показывать", value: count(model.denyCount))
+            deny.onPress = { [weak self] in self?.open(LastSeenExceptionsViewController(messenger: model.messenger, model: model, rule: "deny")) }
+            lists.append(deny)
+        }
+        addGroup("Исключения", rows: lists)
+        add(SettingsLook.foot("Вы можете добавить пользователей в список исключений из настроек выше."), gap: 8)
 
         // The time of reading can be hidden once the time of coming is hidden from anyone.
         if mode != "everyone" || model.denyCount > 0 {

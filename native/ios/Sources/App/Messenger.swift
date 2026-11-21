@@ -47,6 +47,8 @@ final class Messenger {
         // Composer: the scheduled messages listen to the live line from the start (Sources/Composer/ScheduledStore.swift).
         DispatchQueue.main.async { [weak self] in if let self { _ = ScheduledStore.of(self) } }
         live.start()
+        // Security: «Новый вход», «Запрос восстановления», the number on the icon, links (Security/AccountNotices.swift).
+        DispatchQueue.main.async { [weak self] in if let self { AccountNotices.shared.start(self) } }
     }
 
     /// Tells the server the chat was read up to a message.

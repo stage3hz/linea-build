@@ -189,6 +189,7 @@ final class RoomVoice {
             return
         }
         #endif
+        VoiceSounds.play(.leave) // ChatLook: this phone walks out
         _ = send(["type": "voice.leave"])
         cleanup()
     }
@@ -331,6 +332,7 @@ final class RoomVoice {
         switch type {
         case "voice.joined":
             guard here else { return }
+            VoiceSounds.play(.join) // ChatLook: the rising chime (Sources/ChatLook/VoiceSounds.swift)
             selfPeer = data["self"] as? String
             var peers: [RoomVoicePeer] = []
             for item in data["peers"] as? [[String: Any]] ?? [] {
@@ -445,6 +447,7 @@ final class RoomVoice {
         connections[peer]?.close()
         connections[peer] = nil
         guard let current = state, current.peers.contains(where: { (item: RoomVoicePeer) -> Bool in item.peer == peer }) else { return }
+        VoiceSounds.play(.leave) // ChatLook: the falling chime
         patch { (state: inout RoomVoiceState) -> Void in
             state.peers.removeAll { (item: RoomVoicePeer) -> Bool in item.peer == peer }
         }
@@ -471,6 +474,7 @@ final class RoomVoice {
     private func offered(_ from: String, userId: String, device: String?, sdp: String) {
         peerInfo[from] = (userId: userId, device: device)
         if let current = state, !current.peers.contains(where: { (item: RoomVoicePeer) -> Bool in item.peer == from }) {
+            VoiceSounds.play(.join) // ChatLook: someone walked in
             patch { (state: inout RoomVoiceState) -> Void in
                 state.peers.append(RoomVoicePeer(peer: from, userId: userId, muted: false, connected: false))
             }

@@ -14,8 +14,11 @@ final class SceneDelegate: UIResponder, UIWindowSceneDelegate {
         SceneDelegate.simulatorLook() // Settings: -settheme and the like (Settings/SettingsSimulator.swift)
         #endif
         ThemeStore.attach(window) // Settings: the theme the person chose (Settings/ThemeStore.swift)
+        SceneDelegate.parityEarly() // Language: the interface language before any text (Links/DeepLinks.swift)
         start()
         window.makeKeyAndVisible()
+        // Effects / Security / Links: snow, trail, rime; the code lock; a link the app was opened with (Links/DeepLinks.swift).
+        parityStart(window, links: connectionOptions.urlContexts, activities: connectionOptions.userActivities)
     }
 
     /// Decides what the app opens with: the chats of the signed-in account, or signing in.
@@ -71,6 +74,7 @@ final class SceneDelegate: UIResponder, UIWindowSceneDelegate {
         // Rooms: the room this phone is in is left with the account, and its list is forgotten.
         Rooms.shared.stop()
         LinkFetcher.shared.forget()
+        AppBadge.shared.clear() // Links: no number on the icon without an account (Links/AppBadge.swift)
         messenger?.live.stop()
         MusicPlayer.shared.stop()
         messenger = nil

@@ -92,6 +92,18 @@ final class MsgSwipeReply: NSObject, UIGestureRecognizerDelegate {
         }
     }
 
+    #if targetEnvironment(simulator)
+    /// The simulator check: a row held 70 points to the left, the arrow fully there.
+    func demo(_ view: UIView) {
+        guard let host = view.superview else { return }
+        badge.backgroundColor = Theme.accent.withAlphaComponent(0.16)
+        arrow.tintColor = Theme.accent
+        host.addSubview(badge)
+        view.transform = CGAffineTransform(translationX: -70, y: 0)
+        place(-70)
+    }
+    #endif
+
     /// The round arrow at the row's right (4 points from the edge, in the middle of the row above its 8-point
     /// gap): it grows from 0.6 and comes in between 12 and 60 points of the move.
     private func place(_ value: CGFloat) {

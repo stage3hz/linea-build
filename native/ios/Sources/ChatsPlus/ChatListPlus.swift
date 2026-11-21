@@ -110,6 +110,10 @@ final class ChatListPlus: NSObject, UIGestureRecognizerDelegate {
         center.addObserver(self, selector: #selector(savedChanged), name: SavedMessages.changed, object: nil)
         NetworkWatch.shared.start()
         if messenger == nil { serverLoaded = true }
+        // The screen's own one-line «Загрузка…» / «Пока нет чатов» gives way to the skeleton and the empty states;
+        // it comes back only for a real error (a refusal), as the reference's notice.
+        empty.alpha = 0
+        skeleton.isHidden = messenger == nil
         if let messenger { _ = SavedMessages.of(messenger) }
         #if targetEnvironment(simulator)
         simulatorPrepare()
@@ -203,11 +207,10 @@ final class ChatListPlus: NSObject, UIGestureRecognizerDelegate {
         let hadSaved = savedOnScreen
         chatsOnScreen = real
         savedOnScreen = rows.contains(where: { $0.id == ChatListPlus.savedRow })
-        oldEmpty?.isHidden = true
         let query = actions?.searchWords ?? ""
         let archive = actions?.showingArchive ?? false
         var wantSkeleton = real == 0 && !serverLoaded && !hardError && messenger != nil && query.isEmpty
-        var wantEmpty = !wantSkeleton && real == 0 && emptyWords != "Поиск…" && (messenger != nil || query.isEmpty == false || archive || filter != "all")
+        var wantEmpty = !wantSkeleton && !hardError && real == 0 && emptyWords != "Поиск…" && (messenger != nil || query.isEmpty == false || archive || filter != "all")
         #if targetEnvironment(simulator)
         if demo == "skeleton" { wantSkeleton = true; wantEmpty = false }
         if demo == "empty" { wantSkeleton = false; wantEmpty = true }
@@ -244,10 +247,11 @@ final class ChatListPlus: NSObject, UIGestureRecognizerDelegate {
         updating = false
         switch error {
         case .network, .timeout:
-            oldEmpty?.isHidden = true
+            break
         case .refused:
             hardError = true
             skeleton.isHidden = true
+            if chatsOnScreen == 0 { emptyState.isHidden = true; oldEmpty?.alpha = 1 }
         }
         refreshTitle()
     }

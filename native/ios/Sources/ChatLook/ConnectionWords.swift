@@ -12,6 +12,7 @@ final class ChatLookConnection {
     private let monitor = NWPathMonitor()
     private(set) var networkUp = true
     private var started = false
+    private var lineWatch: NSObjectProtocol?
 
     private init() {}
 
@@ -29,7 +30,7 @@ final class ChatLookConnection {
         }
         monitor.start(queue: DispatchQueue(label: "invizent.chat-connection", qos: .utility))
         // The live line tells its changes as a call event of type «line» (Net/Live.swift).
-        NotificationCenter.default.addObserver(forName: Live.callEvent, object: nil, queue: .main) { (note: Notification) -> Void in
+        lineWatch = NotificationCenter.default.addObserver(forName: Live.callEvent, object: nil, queue: .main) { (note: Notification) -> Void in
             guard ((note.userInfo?["event"] as? [String: Any])?["type"] as? String) == "line" else { return }
             NotificationCenter.default.post(name: ChatLookConnection.changed, object: nil)
         }

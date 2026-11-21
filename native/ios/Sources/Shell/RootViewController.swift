@@ -26,6 +26,8 @@ final class RootViewController: UIViewController {
     private let inBar = ["chats", "profile"]
 
     private let bar = TabBarView()
+    /// ChatsPlus: «Удержи «Чаты» — остальные разделы» until the hold has been used (Sources/ChatsPlus/BarHint.swift).
+    private let barHint = BarHintView()
     private let stage = UIView()
     private var pages: [String: UIViewController] = [:]
     private(set) var open = ""
@@ -64,6 +66,9 @@ final class RootViewController: UIViewController {
         // Channels: what is unread in the communities on the row of «Каналы» (Channels/ChannelsStore.swift).
         NotificationCenter.default.addObserver(self, selector: #selector(peopleBadge), name: ChannelsStore.changed, object: nil)
         ChannelsStore.shared.start(messenger)
+        // ChatsPlus: the unread of the chats on «Чаты», and the words about the hold above the bar (Sources/ChatsPlus).
+        NotificationCenter.default.addObserver(self, selector: #selector(peopleBadge), name: UnreadTotal.changed, object: nil)
+        barHint.attach(to: view, bar: bar)
         // Music: the bar is lit by the playing track's cover (Music/CoverTint.swift).
         MusicGlow.attach(self)
         // Calls: the call screen and the bar of a minimised call, over every section (Calls/CallOverlay.swift).
@@ -80,6 +85,7 @@ final class RootViewController: UIViewController {
         super.viewDidLayoutSubviews()
         let gap = BarMetrics.bottomGap(safeBottom: view.safeAreaInsets.bottom)
         bar.frame = CGRect(x: (view.bounds.width - BarMetrics.width) / 2, y: view.bounds.height - gap - BarMetrics.height, width: BarMetrics.width, height: BarMetrics.height)
+        barHint.place(above: bar.frame, width: view.bounds.width) // ChatsPlus
     }
 
     /// Opens a section. `quiet`: a look from the list — the bar's own choice stays where it is.
@@ -106,7 +112,7 @@ final class RootViewController: UIViewController {
         let requests: Int = FriendRequests.shared.incoming.count, unread: Int = ChannelsStore.shared.badge
         // Rooms: a quiet green dot on «Каналы» while somebody is inside one of the rooms.
         let roomsDot: String = Rooms.shared.awake ? RoomRules.talkHex : ""
-        bar.setItems(sections.map { TabEntry(id: $0.id, label: $0.label, symbol: $0.symbol, badge: $0.id == "people" ? requests : ($0.id == "channels" ? unread : 0), dot: $0.id == "channels" ? roomsDot : "") })
+        bar.setItems(sections.map { TabEntry(id: $0.id, label: $0.label, symbol: $0.symbol, badge: $0.id == "people" ? requests : ($0.id == "channels" ? unread : ($0.id == "chats" ? UnreadTotal.shared.total : 0)), dot: $0.id == "channels" ? roomsDot : "") })
     }
 
     #if targetEnvironment(simulator)

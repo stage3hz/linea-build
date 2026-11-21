@@ -196,6 +196,23 @@ jobs:
           shot 21-ai-demo -aidemo 1
           shot 22-music-demo -musicdemo 1
           shot 23-music-player -musicdemo player
+          shot 170-chatlook-header -demo 1 -chat 1 -chatlook header
+          shot 171-chatlook-peek -demo 1 -chat 1 -chatlook peek
+          shot 172-chatlook-bubbles -demo 1 -chat 1 -chatlook bubbles
+          shot 173-chatlook-wallpaper -demo 1 -chat 1 -chatlook wallpaper
+          shot 174-chatlook-swipe -demo 1 -chat 1 -chatlook swipe
+          shot 175-chatlook-reply -demo 1 -chat 1 -chatlook reply
+          shot 176-chatlook-arrive -demo 1 -chat 1 -chatlook arrive
+          shot 177-chatlook-picker -demo 1 -chat 1 -chatlook picker
+          shot 178-chatlook-preview -demo 1 -chat 1 -chatlook preview
+          shot 179-chatlook-bubblecolor -demo 1 -chat 1 -chatlook bubblecolor
+          shot 180-chatlook-offline -demo 1 -chat 1 -chatlook header -chatlookline offline
+          shot 181-chatlook-connecting -demo 1 -chat 1 -chatlook header -chatlookline connecting
+          shot 182-chatlook-light-theme -demo 1 -chat 1 -chatlook header -settheme light
+          shot 183-chatlook-reset -demo 1 -settheme black
+          shot 184-chatlook-plain -demo 1 -chat 1
+          shot 185-chatlook-appearance -demo 1 -settings appearance
+          shot 186-chatlook-profile-light -demo 1 -profile chat
           shot 62-bar-with-track -musicdemo chats
           shot 63-light-chats -demo 1 -settheme light
           shot 64-light-chat -demo 1 -chat 1 -settheme light

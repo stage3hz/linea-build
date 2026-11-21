@@ -38,6 +38,14 @@ struct MsgRow: Equatable {
   let mediaTime: String
   /// LinkPreview: the card of a link under the text (Sources/LinkPreview/LinkCard.swift); nil: none.
   var linkCard: MsgLinkCard? = nil
+  /// Polls: the poll the message is (Sources/Polls/PollRow.swift); nil: none.
+  var poll: MsgPoll? = nil
+  /// Attachments: the photos of an album (Sources/Attachments/AlbumGrid.swift); nil: none.
+  var album: MsgAlbum? = nil
+  /// Composer: 1–3 emoji alone, drawn large (Sources/Composer/BigEmoji.swift); 0: ordinary text.
+  var bigEmoji = 0
+  /// Composer: an own message sent «без звука» (a crossed bell before the time).
+  var silent = false
 
   static func parse(_ rows: [[String: Any]]) -> [MsgRow] {
     func text(_ value: Any?) -> String { (value as? String) ?? "" }
@@ -55,6 +63,11 @@ struct MsgRow: Equatable {
         thumbRound: flag(row["thumbRound"]), thumbWide: CGFloat(min(2.5, max(0.4, wide))), checked: min(1, max(-1, int(row["checked"], -1))), reactions: text(row["reactions"]), chips: (row["chips"] as? [String]) ?? [],
         fmt: ((row["fmt"] as? [NSNumber]) ?? []).map { $0.intValue }, urls: (row["urls"] as? [String]) ?? [],
         media: text(row["media"]), wave: text(row["wave"]), mediaTime: text(row["mediaTime"]), linkCard: MsgLinkCard.parse(row["card"])))
+      // Polls, Attachments, Composer: what those parts add to a row.
+      result[result.count - 1].poll = MsgPoll.parse(row["poll"])
+      result[result.count - 1].album = MsgAlbum.parse(row["album"])
+      result[result.count - 1].bigEmoji = min(3, max(0, int(row["bigEmoji"], 0)))
+      result[result.count - 1].silent = flag(row["silent"])
     }
     return result
   }
@@ -272,6 +285,10 @@ struct MsgLayout {
   var voiceSize = CGSize.zero
   /// LinkPreview: the card of a link under the text (zero size: none).
   var card = MsgLinkCardLayout()
+  /// Polls: the poll (zero size: none).
+  var poll = MsgPollLayout()
+  /// Attachments: the album's mosaic (zero size: none).
+  var album = MsgAlbumLayout()
   var height: CGFloat = 0
 
   static func make(_ row: MsgRow, width: CGFloat, fontSize: CGFloat, hasThumb: Bool) -> MsgLayout {
@@ -314,7 +331,7 @@ struct MsgLayout {
     } else if row.media == "voice" {
       layout.voiceSize = CGSize(width: min(inner, 236), height: 50)
     }
-    let timeWidth = ceil(NSAttributedString(string: row.time, attributes: [.font: msgMetaFont]).size().width) + (row.mine ? 22 : 0)
+    let timeWidth = ceil(NSAttributedString(string: row.time, attributes: [.font: msgMetaFont]).size().width) + (row.mine ? 22 : 0) + (row.silent ? 15 : 0) // Composer: the bell of «без звука»
     var w = max(max(layout.textSize.width, timeWidth, layout.thumbSize.width, layout.labelSize.width), max(layout.reactSize.width, layout.voiceSize.width))
     if layout.quoteSize != .zero {
       let author = ceil(NSAttributedString(string: row.quoteAuthor, attributes: [.font: msgSmallBold]).size().width)
@@ -325,6 +342,16 @@ struct MsgLayout {
     if let card = row.linkCard {
       layout.card = MsgLinkCardLayout.make(card, width: inner)
       w = max(w, layout.card.size.width)
+    }
+    // Polls: the poll stands where the text would (a poll's text is only for clients without polls).
+    if let poll = row.poll {
+      layout.poll = MsgPollLayout.make(poll, width: inner)
+      w = max(w, layout.poll.size.width)
+    }
+    // Attachments: an album's mosaic stands above its caption.
+    if let album = row.album {
+      layout.album = MsgAlbumLayout.make(album, screenWidth: width, inner: inner)
+      w = max(w, layout.album.size.width)
     }
     if msgOpenLook && layout.textSize != .zero && layout.reactSize == .zero && layout.card.size == .zero && !stride(from: 0, to: row.fmt.count, by: 3).contains(where: { row.fmt[$0] & (128 | 256) != 0 }) {
       let laid = MsgText(row.fmt.isEmpty ? NSAttributedString(string: row.text, attributes: [.font: body, .paragraphStyle: msgWrap(true)])
@@ -343,6 +370,8 @@ struct MsgLayout {
     if layout.thumbSize != .zero { h += layout.thumbSize.height + 6 }
     if layout.voiceSize != .zero { h += layout.voiceSize.height + 4 }
     if layout.labelSize != .zero { h += layout.labelSize.height + 4 }
+    if layout.album.size != .zero { h += layout.album.size.height + 6 } // Attachments
+    if layout.poll.size != .zero { h += layout.poll.size.height + 4 } // Polls
     h += layout.textSize.height
     if layout.card.size != .zero { h += layout.card.size.height + 7 }
     if layout.reactSize != .zero { h += layout.reactSize.height + 6 }
@@ -376,6 +405,23 @@ final class MsgRowCanvas: UIView {
   /// LinkPreview: the decoded picture of the row's card, and where the card was drawn last.
   var cardImage: UIImage?
   private var cardBox = CGRect.zero
+  /// Polls: where the poll was drawn last (a tap on an option votes).
+  private var pollBox = CGRect.zero
+  /// Attachments: the album's decoded small pictures, and where the album was drawn last.
+  var albumPictures: [String: UIImage] = [:]
+  private var albumBox = CGRect.zero
+
+  /// Polls: the part of the poll under a point of this view ("option:<n>", "vote", "retract").
+  func poll(at point: CGPoint) -> String? {
+    guard pollBox != .zero, pollBox.contains(point), let poll = row?.poll else { return nil }
+    return layoutInfo.poll.part(at: CGPoint(x: point.x - pollBox.minX, y: point.y - pollBox.minY), poll: poll)
+  }
+
+  /// Attachments: the key of the album's part under a point of this view.
+  func albumPart(at point: CGPoint) -> String? {
+    guard albumBox != .zero, albumBox.contains(point), let album = row?.album else { return nil }
+    return layoutInfo.album.part(at: CGPoint(x: point.x - albumBox.minX, y: point.y - albumBox.minY), album: album)
+  }
 
   /// LinkPreview: the address of the card under a point of this view.
   func card(at point: CGPoint) -> String? {
@@ -441,6 +487,8 @@ final class MsgRowCanvas: UIView {
     let bubble = layoutInfo.bubble
     quoteBox = .zero
     cardBox = .zero
+    pollBox = .zero // Polls
+    albumBox = .zero // Attachments
     if item.kind == 2 {
       let box = CGRect(x: (w - bubble.width) / 2, y: 10, width: bubble.width, height: bubble.height)
       context.setFillColor(palette.notice.cgColor)
@@ -537,6 +585,12 @@ final class MsgRowCanvas: UIView {
       draw(item.quoteText, msgSmallFont, metaColor, CGRect(x: x + 9, y: y + 17, width: inner - 12, height: layoutInfo.quoteSize.height), lines: true)
       y += 17 + layoutInfo.quoteSize.height + 8
     }
+    // Attachments: the album's mosaic.
+    if layoutInfo.album.size != .zero, let album = item.album {
+      albumBox = CGRect(x: x, y: y, width: layoutInfo.album.size.width, height: layoutInfo.album.size.height)
+      layoutInfo.album.draw(album, pictures: albumPictures, in: context, at: albumBox.origin, palette: palette)
+      y += layoutInfo.album.size.height + 6
+    }
     // Voice/Video: where the picture of a video or a round video stands; without a picture, a quiet plate.
     mediaBoxes = MsgMediaBoxes()
     let mediaPicture = CGRect(x: x, y: y, width: layoutInfo.thumbSize.width, height: layoutInfo.thumbSize.height)
@@ -566,6 +620,12 @@ final class MsgRowCanvas: UIView {
     if layoutInfo.labelSize != .zero {
       draw(item.label, msgSmallFont, markColor, CGRect(x: x, y: y, width: inner, height: layoutInfo.labelSize.height), lines: true)
       y += layoutInfo.labelSize.height + 4
+    }
+    // Polls: the question, the options and the results.
+    if layoutInfo.poll.size != .zero, let poll = item.poll {
+      pollBox = CGRect(x: x, y: y, width: layoutInfo.poll.size.width, height: layoutInfo.poll.size.height)
+      layoutInfo.poll.draw(poll, in: context, at: pollBox.origin, palette: palette)
+      y += layoutInfo.poll.size.height + 4
     }
     bodyBox = .zero
     if layoutInfo.textSize != .zero {
@@ -629,9 +689,14 @@ final class MsgRowCanvas: UIView {
     let inline = layoutInfo.timeInline && bodyBox != .zero
     // Without a plate, a time on its own line stands under the start of the other side's text.
     let under = msgOpenLook && !item.mine ? x + ceil(timeSize.width) + marks : left + bubble.width - 13
-    let right = inline ? bodyBox.minX + layoutInfo.timeAt.x + ceil(timeSize.width) + marks : under
+    let right = inline ? bodyBox.minX + layoutInfo.timeAt.x + ceil(timeSize.width) + marks + (item.silent ? 15 : 0) : under // Composer: room for the bell
     let timeBottom = inline ? bodyBox.minY + layoutInfo.timeAt.y - 2 : bubble.height - 6
     time.draw(at: CGPoint(x: right - marks - ceil(timeSize.width), y: timeBottom - timeSize.height))
+    // Composer: «без звука» — a crossed bell before the time.
+    if item.silent, let bell = UIImage(systemName: "bell.slash.fill", withConfiguration: UIImage.SymbolConfiguration(pointSize: 9, weight: .regular))?
+      .withTintColor(palette.subtle, renderingMode: .alwaysOriginal) {
+      bell.draw(at: CGPoint(x: right - marks - ceil(timeSize.width) - 4 - bell.size.width, y: timeBottom - timeSize.height / 2 - bell.size.height / 2))
+    }
     let my = timeBottom - 6
     if item.mine && (item.ticks == 1 || item.ticks == 2) {
       context.setStrokeColor((item.ticks == 2 ? markColor : metaColor).cgColor)
@@ -666,6 +731,8 @@ final class MsgRowCell: UITableViewCell {
   private var thumbOf = ""
   /// LinkPreview: the picture of the card this cell decoded last.
   private var cardOf = ""
+  /// Attachments: the album whose pictures this cell decoded last.
+  private var albumOf = ""
 
   override init(style: UITableViewCell.CellStyle, reuseIdentifier: String?) {
     super.init(style: style, reuseIdentifier: reuseIdentifier)
@@ -686,19 +753,25 @@ final class MsgRowCell: UITableViewCell {
     canvas.row = row
     canvas.revealed = revealed
     canvas.palette = palette
-    canvas.fontSize = fontSize
+    canvas.fontSize = row.bigEmoji > 0 ? BigEmoji.fontSize(row.bigEmoji) : fontSize // Composer: big emoji
     canvas.layoutInfo = layout
     if row.thumb != thumbOf {
       thumbOf = row.thumb
       canvas.thumbImage = row.thumb.isEmpty ? nil : Data(base64Encoded: row.thumb, options: .ignoreUnknownCharacters).flatMap { UIImage(data: $0) }
     }
     // LinkPreview: the card's picture is decoded once per cell, not on every drawing.
+    // Attachments: the small pictures of an album are decoded once per cell.
+    let albumKeys = row.album?.parts.map { $0.key }.joined(separator: ",") ?? ""
+    if albumKeys != albumOf {
+      albumOf = albumKeys
+      canvas.albumPictures = row.album.map { MsgAlbumLayout.pictures($0) } ?? [:]
+    }
     let cardPicture = row.linkCard?.image ?? ""
     if cardPicture != cardOf {
       cardOf = cardPicture
       canvas.cardImage = row.linkCard?.picture()
     }
-    accessibilityLabel = [MediaRowArt.spoken(row), row.label, row.text, row.linkCard?.spoken ?? "", row.time].filter { !$0.isEmpty }.joined(separator: ". ")
+    accessibilityLabel = [MediaRowArt.spoken(row), row.album.map { "Альбом · \($0.parts.count)" } ?? "", row.poll?.spoken ?? "", row.label, row.text, row.linkCard?.spoken ?? "", row.silent ? "без звука" : "", row.time].filter { !$0.isEmpty }.joined(separator: ". ")
     canvas.setNeedsDisplay()
   }
 
@@ -731,6 +804,10 @@ final class MsgListView: UIView, UITableViewDataSource, UITableViewDelegate, UIG
   var onMediaPress: ([String: Any]) -> Void = { _ in }
   /// LinkPreview: a tap on the card of a link (`key`: the row, `url`: where the card leads).
   var onCardPress: ([String: Any]) -> Void = { _ in }
+  /// Polls: a tap on a poll (`key`: the row, `part`: "option:<n>", "vote" or "retract").
+  var onPollPress: ([String: Any]) -> Void = { _ in }
+  /// Attachments: a tap on a photo of an album (`key`: the row, `part`: the key of that photo's own message).
+  var onAlbumPress: ([String: Any]) -> Void = { _ in }
   /// Voice/Video: what is playing, by the key of its row (one at a time).
   private var mediaState: MsgMediaState?
 
@@ -807,6 +884,20 @@ final class MsgListView: UIView, UITableViewDataSource, UITableViewDelegate, UIG
     return (rows[path.row].key, hit.part, hit.fraction)
   }
 
+  /// Polls: the part of a poll under a point of the table (not while messages are being chosen).
+  private func poll(atTablePoint point: CGPoint) -> (key: String, part: String)? {
+    guard let path = table.indexPathForRow(at: point), path.row < rows.count, rows[path.row].checked < 0, let cell = table.cellForRow(at: path) as? MsgRowCell,
+          let part = cell.canvas.poll(at: table.convert(point, to: cell.canvas)) else { return nil }
+    return (rows[path.row].key, part)
+  }
+
+  /// Attachments: the photo of an album under a point of the table (not while messages are being chosen).
+  private func album(atTablePoint point: CGPoint) -> (key: String, part: String)? {
+    guard let path = table.indexPathForRow(at: point), path.row < rows.count, rows[path.row].checked < 0, let cell = table.cellForRow(at: path) as? MsgRowCell,
+          let part = cell.canvas.albumPart(at: table.convert(point, to: cell.canvas)) else { return nil }
+    return (rows[path.row].key, part)
+  }
+
   /// LinkPreview: the card of a link under a point of the table (not while messages are being chosen).
   private func card(atTablePoint point: CGPoint) -> (key: String, url: String)? {
     guard let path = table.indexPathForRow(at: point), path.row < rows.count, rows[path.row].checked < 0, let cell = table.cellForRow(at: path) as? MsgRowCell,
@@ -845,6 +936,7 @@ final class MsgListView: UIView, UITableViewDataSource, UITableViewDelegate, UIG
       let point = gestureRecognizer.location(in: table)
       return chip(atTablePoint: point) != nil || run(atTablePoint: point) != nil || quote(atTablePoint: point) != nil || media(atTablePoint: point) != nil
         || card(atTablePoint: point) != nil
+        || poll(atTablePoint: point) != nil || album(atTablePoint: point) != nil // Polls, Attachments
     }
     return super.gestureRecognizerShouldBegin(gestureRecognizer)
   }
@@ -860,7 +952,11 @@ final class MsgListView: UIView, UITableViewDataSource, UITableViewDelegate, UIG
       // Voice/Video: the play button, the waveform, the speed, the picture of a video.
       if let hit = media(atTablePoint: recognizer.location(in: table)) { onMediaPress(["key": hit.key, "part": hit.part, "fraction": Double(hit.fraction)]); return }
       // LinkPreview: the card of a link opens the link.
-      if let hit = card(atTablePoint: recognizer.location(in: table)) { onCardPress(["key": hit.key, "url": hit.url]) }
+      if let hit = card(atTablePoint: recognizer.location(in: table)) { onCardPress(["key": hit.key, "url": hit.url]); return }
+      // Polls: an option, «Голосовать», «Отменить голос».
+      if let hit = poll(atTablePoint: recognizer.location(in: table)) { onPollPress(["key": hit.key, "part": hit.part]); return }
+      // Attachments: one photo of an album.
+      if let hit = album(atTablePoint: recognizer.location(in: table)) { onAlbumPress(["key": hit.key, "part": hit.part]) }
       return
     }
     if found.hit.url.isEmpty {
@@ -903,7 +999,8 @@ final class MsgListView: UIView, UITableViewDataSource, UITableViewDelegate, UIG
   private func layout(_ row: MsgRow) -> MsgLayout {
     let width = max(1, bounds.width)
     if let hit = layouts[row.key], hit.row == row, hit.width == width, hit.font == fontSize { return hit.layout }
-    let made = MsgLayout.make(row, width: width, fontSize: fontSize, hasThumb: !row.thumb.isEmpty)
+    // Composer: 1–3 emoji alone are laid out large.
+    let made = MsgLayout.make(row, width: width, fontSize: row.bigEmoji > 0 ? BigEmoji.fontSize(row.bigEmoji) : fontSize, hasThumb: !row.thumb.isEmpty)
     layouts[row.key] = (row, width, fontSize, made)
     return made
   }
@@ -1021,8 +1118,11 @@ final class MsgListView: UIView, UITableViewDataSource, UITableViewDelegate, UIG
     onNearTop(["key": oldest.key])
   }
 
+  /// ChatsPlus: a notice row that takes a touch — a finished call («Перезвонить», MessageRow.tsx).
+  var noticeTappable: (String) -> Bool = { _ in false }
+
   func tableView(_ tableView: UITableView, shouldHighlightRowAt indexPath: IndexPath) -> Bool {
-    indexPath.row < rows.count && rows[indexPath.row].kind == 0
+    indexPath.row < rows.count && (rows[indexPath.row].kind == 0 || noticeTappable(rows[indexPath.row].key))
   }
 
   func tableView(_ tableView: UITableView, didSelectRowAt indexPath: IndexPath) {
@@ -1055,6 +1155,24 @@ extension MsgListView {
     swipe.onReply = { [weak self] (key: String) -> Void in self?.onSwipeReply(["key": key]) }
     swipeReply = swipe
   }
+
+  #if targetEnvironment(simulator)
+  /// The simulator check: the newest message of the other side on screen, and a new one that arrives.
+  func demoTheirs() -> (key: String, view: UIView)? {
+    for cell in table.visibleCells {
+      guard let rowCell = cell as? MsgRowCell, let row = rowCell.canvas.row, row.kind == 0, !row.mine else { continue }
+      return (row.key, rowCell.canvas)
+    }
+    return nil
+  }
+
+  func swipeDemo(view: UIView) { swipeReply?.demo(view) }
+
+  func demoArrive() {
+    let fresh = MsgRow.parse([["key": "demo-arrive", "kind": 0, "mine": false, "text": "Кстати, я уже на месте 👋", "time": "12:41", "tail": true]])
+    setRows(Array(rows.reversed()) + fresh)
+  }
+  #endif
 
   /// The look changed (bubbles or not, the corners, the colours): every row is laid out and drawn again.
   func setLook(palette next: MsgPalette) {

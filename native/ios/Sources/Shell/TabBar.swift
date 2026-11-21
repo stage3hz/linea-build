@@ -35,7 +35,42 @@ private func tabColor(_ hex: String) -> UIColor? {
   return UIColor(red: CGFloat((value >> 16) & 255) / 255, green: CGFloat((value >> 8) & 255) / 255, blue: CGFloat(value & 255) / 255, alpha: 1)
 }
 
-private func badgeWords(_ count: Int) -> String { return count > 999 ? "999+" : String(count) }
+// ChatsPlus: the reference's badgeText — exact up to 999, then «4,3K» (Sources/ChatsPlus/ChatListStatus.swift).
+private func badgeWords(_ count: Int) -> String { return ChatListStatus.badgeText(count) }
+
+/// ChatsPlus: each icon's own little motion on a tap (TabBar.tsx `TabIcon`): the gear turns once (760 ms, out-back
+/// 1.7), the chat bubble hops (650 ms, out-quad: up 4 pt and 22 % larger at the top), any other icon wobbles.
+private func tabKick(_ view: UIView, id: String) {
+  guard !UIAccessibility.isReduceMotionEnabled else { return }
+  let steps = 30
+  var values: [NSValue] = []
+  let gear = id == "profile"
+  for step in 0...steps {
+    let t = CGFloat(step) / CGFloat(steps)
+    var transform = CATransform3DIdentity
+    if gear {
+      let s: CGFloat = 1.7, u = 1 - t
+      let k = 1 - u * u * ((s + 1) * u - s)
+      transform = CATransform3DMakeRotation(k * 2 * .pi, 0, 0, 1)
+    } else {
+      let k = 1 - (1 - t) * (1 - t)
+      let bump = sin(k * .pi)
+      if id == "chats" {
+        transform = CATransform3DMakeTranslation(0, -bump * 4, 0)
+        transform = CATransform3DScale(transform, 1 + bump * 0.22, 1 + bump * 0.22, 1)
+      } else {
+        transform = CATransform3DMakeRotation(sin(k * .pi * 2) * 18 * .pi / 180, 0, 0, 1)
+        transform = CATransform3DScale(transform, 1 + bump * 0.3, 1 + bump * 0.3, 1)
+      }
+    }
+    values.append(NSValue(caTransform3D: transform))
+  }
+  let kick = CAKeyframeAnimation(keyPath: "transform")
+  kick.values = values
+  kick.duration = gear ? 0.76 : 0.65
+  kick.calculationMode = .linear
+  view.layer.add(kick, forKey: "kick")
+}
 
 private let badgeRed = UIColor(red: 1, green: 0.30, blue: 0.37, alpha: 1)
 
@@ -225,6 +260,8 @@ final class TabBarView: UIView, UIGestureRecognizerDelegate {
   var onSelect: ([String: Any]) -> Void = { _ in }
   var onPreview: ([String: Any]) -> Void = { _ in }
   var moreWords = ""
+  /// ChatsPlus: the list of the other sections was opened (the hold has been learnt: the hint above the bar goes).
+  var onListOpened: () -> Void = {}
 
   private let glass = UIVisualEffectView(effect: nil)
   private let glowView = UIView()
@@ -604,7 +641,7 @@ final class TabBarView: UIView, UIGestureRecognizerDelegate {
     guard index >= 0, index < bar.count else { return }
     let id = bar[index]
     if index < icons.count {
-      if #available(iOS 17.0, *) { icons[index].image.addSymbolEffect(.bounce, options: .nonRepeating) }
+      tabKick(icons[index].image, id: id) // ChatsPlus: the reference's own motion, not the system bounce
     }
     // The capsule goes at once; the owner confirms with `active`.
     if id != active {
@@ -684,6 +721,7 @@ final class TabBarView: UIView, UIGestureRecognizerDelegate {
     overlay = list
     overlaySticky = sticky
     previewed = ""
+    onListOpened() // ChatsPlus
     UIImpactFeedbackGenerator(style: .light).impactOccurred()
     tick.prepare()
     if sticky { UIAccessibility.post(notification: .screenChanged, argument: list) }

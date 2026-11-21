@@ -53,6 +53,12 @@ final class ChatListActions: NSObject, UITextFieldDelegate {
     var onHeading: ((String) -> Void)?
     /// The chats should be read from the server again.
     var onReload: (() -> Void)?
+    /// ChatsPlus: folders, «Избранное», the looks of a row and what counts towards the badges (Sources/ChatsPlus/ChatListPlus.swift).
+    weak var plus: ChatListPlus?
+    var showingArchive: Bool { archiveOpen }
+    var searchWords: String { query.trimmingCharacters(in: .whitespaces) }
+    var searchOpen: Bool { searching }
+    func redraw() { refresh() }
 
     init(messenger: Messenger?) {
         self.messenger = messenger
@@ -71,6 +77,8 @@ final class ChatListActions: NSObject, UITextFieldDelegate {
             self?.act(event["id"] as? String ?? "", event["action"] as? String ?? "")
         }
         list.onRowLongPress = { [weak self] (event: [String: Any]) -> Void in
+            // ChatsPlus: a hold on «Избранное» has its own menu.
+            if event["id"] as? String == ChatListPlus.savedRow { self?.plus?.savedMenu(); return }
             self?.openMenu(event["id"] as? String ?? "")
         }
         searchButton.setImage(chatSymbol("magnifyingglass", 16, .semibold), for: .normal)
@@ -218,6 +226,9 @@ final class ChatListActions: NSObject, UITextFieldDelegate {
         let inArchive = archiveOpen
         let wanted = query.trimmingCharacters(in: .whitespaces).lowercased()
         var shown = visible.filter { archived($0) == inArchive }
+        // ChatsPlus: the badges count every chat; the folder shown keeps its own (not in «Архив»).
+        plus?.listed(visible.map { ChatListPlus.Counted(chat: $0, unread: unread($0), marked: marked($0), muted: muted($0), archived: archived($0)) })
+        if !inArchive, let plus { shown = shown.filter { plus.keeps($0.id, unread: unread($0) > 0 || marked($0)) } }
         if !wanted.isEmpty {
             shown = shown.filter { (chat: Messenger.ChatSummary) -> Bool in
                 let username = (chat.chat["peer"] as? [String: Any])?["username"] as? String ?? ""
@@ -225,6 +236,8 @@ final class ChatListActions: NSObject, UITextFieldDelegate {
             }
         }
         var rows: [[String: Any]] = []
+        // ChatsPlus: «Избранное» above everything in «Все».
+        if !inArchive, let saved = plus?.savedRow(query: query) { rows.append(saved) }
         if inArchive {
             rows.append(special(ChatListActions.backRow, title: "‹ Архив", preview: "Вернуться к чатам", initials: "‹"))
         } else if archivedCount > 0 && wanted.isEmpty {
@@ -241,7 +254,10 @@ final class ChatListActions: NSObject, UITextFieldDelegate {
             let isMarked = marked(chat)
             row["muted"] = quiet
             row["pinned"] = isPinned
-            row["title"] = chat.title + (quiet ? " 🔕" : "")
+            // ChatsPlus: the crossed bell is drawn after the name (Chats/ChatList.swift), not a 🔕 in it; the status emoji,
+            // the Platina name and the frame come from the person's fields.
+            row["title"] = chat.title
+            if let peer = chat.chat["peer"] as? [String: Any] { ChatRowLooks.applyPerson(&row, peer: peer) }
             row["unread"] = count > 0 ? count : (isMarked ? 1 : 0)
             let draft = draftLine(chat.id)
             // Offline: the quiet look belongs to the line of a message that cannot be opened here, nothing else.
@@ -263,6 +279,9 @@ final class ChatListActions: NSObject, UITextFieldDelegate {
                     row["preview"] = ""
                 } else if ChatListActions.isPin(chat.last) {
                     row["preview"] = ChatListActions.pinLine(chat.last["text"] as? String ?? "", mine: mine, name: chat.title)
+                } else {
+                    // ChatsPlus: the small picture of a photo, a video or a round video; the microphone of a voice message.
+                    ChatRowLooks.applyMedia(&row, last: chat.last)
                 }
             }
             // The buttons behind the row (the reference's `rowActions`): the outermost first.
@@ -270,7 +289,7 @@ final class ChatListActions: NSObject, UITextFieldDelegate {
             let trail: [String] = [inArchive ? "unarchive" : "archive", "delete", quiet ? "unmute" : "mute"]
             row["lead"] = lead.map { $0 + ":" + (ChatListActions.swipeWords[$0] ?? $0) }
             row["trail"] = trail.map { $0 + ":" + (ChatListActions.swipeWords[$0] ?? $0) }
-            let own = inArchive || !wanted.isEmpty ? "" : section(chat)
+            let own = inArchive || !wanted.isEmpty || !(plus?.showsSections ?? true) ? "" : section(chat)
             row["section"] = own != part ? own : ""
             part = own
             rows.append(row)
@@ -294,6 +313,8 @@ final class ChatListActions: NSObject, UITextFieldDelegate {
         var words = "Пока нет чатов"
         if !wanted.isEmpty { words = searchingHistory ? "Поиск…" : "Ничего не нашли." }
         onHeading?(inArchive ? "Архив" : "Чаты")
+        // ChatsPlus: the line under the title counts the chats shown with unread messages.
+        plus?.shown(unread: shown.filter { unread($0) > 0 }.count)
         onRows?(ChatRow.parse(rows), words)
     }
 
@@ -358,6 +379,8 @@ final class ChatListActions: NSObject, UITextFieldDelegate {
 
     /// A row was touched. True when it was dealt with here; false leaves it to the screen (the sample chats).
     func pressed(_ id: String) -> Bool {
+        // ChatsPlus: «Избранное».
+        if id == ChatListPlus.savedRow { plus?.openSaved(); return true }
         if id == ChatListActions.archiveRow {
             archiveOpen = true
             refresh()

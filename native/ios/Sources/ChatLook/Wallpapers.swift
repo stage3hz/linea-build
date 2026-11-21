@@ -199,6 +199,14 @@ enum Wallpapers {
         return name
     }
 
+    /// A picture picked and then not used is deleted (unless a wallpaper uses it).
+    static func discard(_ file: String) {
+        guard !file.isEmpty, !file.contains("/") else { return }
+        let all = stored()
+        if files(global: all.global, chats: all.chats).contains(file) { return }
+        try? FileManager.default.removeItem(at: folder.appendingPathComponent(file))
+    }
+
     static func image(_ file: String) -> UIImage? {
         guard !file.isEmpty else { return nil }
         return UIImage(contentsOfFile: folder.appendingPathComponent(file).path)

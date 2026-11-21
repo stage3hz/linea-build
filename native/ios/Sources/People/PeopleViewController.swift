@@ -21,6 +21,8 @@ final class PeopleViewController: UIViewController, UITableViewDataSource, UITab
     private let clearButton = UIButton(type: .system)
     private let spinner = UIActivityIndicatorView(style: .medium)
     private let table = UITableView(frame: .zero, style: .plain)
+    /// ChatsPlus: «Друзья | Звонки» and the list of recent calls (Sources/ChatsPlus/CallHistory.swift).
+    private lazy var calls = CallHistoryPanel(messenger: messenger)
 
     private var items: [Item] = []
     private var friends: [Person] = []
@@ -109,6 +111,7 @@ final class PeopleViewController: UIViewController, UITableViewDataSource, UITab
         spinner.color = Theme.accent
         spinner.hidesWhenStopped = true
         searchBox.addSubview(spinner)
+        calls.install(host: self, caption: caption) // ChatsPlus
 
         if let messenger {
             if let last = PeopleViewController.lastFriends, last.owner == messenger.userId { friends = last.list }
@@ -137,7 +140,8 @@ final class PeopleViewController: UIViewController, UITableViewDataSource, UITab
         let top = view.safeAreaInsets.top, width = view.bounds.width
         heading.frame = CGRect(x: 20, y: top + 8, width: width - 40, height: 41)
         caption.frame = CGRect(x: 20, y: heading.frame.maxY + 2, width: width - 40, height: 17)
-        searchBox.frame = CGRect(x: 17, y: caption.frame.maxY + 14, width: width - 34, height: 52)
+        // ChatsPlus: the switch «Друзья | Звонки» stands between the caption and the search.
+        searchBox.frame = CGRect(x: 17, y: calls.place(in: view, top: caption.frame.maxY) + 14, width: width - 34, height: 52)
         searchIcon.frame = CGRect(x: 12, y: 0, width: 28, height: 52)
         clearButton.frame = CGRect(x: searchBox.bounds.width - 46, y: 4, width: 44, height: 44)
         spinner.center = clearButton.center

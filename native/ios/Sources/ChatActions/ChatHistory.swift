@@ -32,6 +32,8 @@ final class ChatHistory {
         var messages: [String: [String: Any]] = [:]
         /// The row of a message, by its clientId.
         var keyOfClient: [String: String] = [:]
+        /// ChatsPlus: the `end` action of a finished call, by its row's key (a touch calls back).
+        var calls: [String: [String: Any]] = [:]
         /// The keys of the message rows, oldest first.
         var order: [String] = []
         var pinned: [String: Any]?
@@ -42,6 +44,10 @@ final class ChatHistory {
         /// Messages that are loaded but cannot be read on this device (sent before it signed in), by clientId.
         var noKey = Set<String>()
         var failedActions = 0
+        /// Attachments: the keys of an album's further photos, by the key of the album's row.
+        var albumParts: [String: [String]] = [:]
+        /// ChatActions: how many messages hold the words of the search.
+        var found = 0
     }
 
     private struct Snapshot {
@@ -53,6 +59,10 @@ final class ChatHistory {
         let unreadAfter: Int?
         let userId: String
         let peerName: String
+        /// Polls: the options ticked so far in polls with several answers, by row key.
+        var pollDrafts: [String: [Int]] = [:]
+        /// ChatActions: the words of the search in this chat (empty: none).
+        var needle = ""
     }
 
     private typealias Page = (messages: [[String: Any]], hasMore: Bool)
@@ -334,6 +344,11 @@ final class ChatHistory {
         })
     }
 
+    /// Polls: the options ticked so far in polls with several answers, by row key (until «Голосовать»).
+    var pollDrafts: [String: [Int]] = [:] { didSet { rebuild() } }
+    /// ChatActions: the words of the search in this chat (empty: the whole chat shows).
+    var searchNeedle = "" { didSet { if searchNeedle != oldValue { rebuild() } } }
+
     /// Composer: a scheduled message was handed to the server (the moment it goes out, ISO).
     var onScheduled: ((String) -> Void)?
 
@@ -388,7 +403,7 @@ final class ChatHistory {
         generation += 1
         let run = generation
         let snapshot = Snapshot(raw: raw, pending: pending, hidden: local?.hiddenKeys ?? demoHidden, selection: selection, peerLastRead: peerLastRead,
-                                unreadAfter: unreadAfter, userId: userId, peerName: peerName)
+                                unreadAfter: unreadAfter, userId: userId, peerName: peerName, pollDrafts: pollDrafts, needle: searchNeedle)
         ChatHistory.queue.async {
             let made = ChatHistory.build(snapshot)
             DispatchQueue.main.async { [weak self] in
@@ -465,6 +480,10 @@ final class ChatHistory {
             let date = Messenger.date(message["createdAt"] as? String)
             let today = date.map { Messenger.dayWords($0) } ?? ""
             let clock = date.map { Messenger.clock.string(from: $0) } ?? ""
+            // ChatActions: while searching, only the messages that hold the words (Sources/ChatActions/ChatSearch.swift).
+            if !input.needle.isEmpty {
+                guard message["cryptoState"] as? String != "no-key", action(message) == nil, matches(message, needle: input.needle) else { continue }
+            }
             // Offline: messages this device has no key for (sent before it signed in) are ONE notice for the whole
             // run, across days — no day lines between them; the next readable message gets its day line again.
             if message["cryptoState"] as? String == "no-key", missingRow >= 0 {
@@ -501,6 +520,7 @@ final class ChatHistory {
                 // Calls: the row names the direction («Исходящий звонок · 3:12»), as the reference's chat does.
                 let words = Core.view("callServiceText", [action, sender, input.userId]) as? String ?? Core.view("chatListText", [message]) as? String ?? (message["text"] as? String ?? "")
                 rows.append(["key": key, "kind": 1, "text": clock.isEmpty ? words : words + " · " + clock])
+                if action["step"] as? String == "end" { out.calls[key] = action } // ChatsPlus
                 continue
             }
             let next: [String: Any]? = index + 1 < messages.count ? messages[index + 1] : nil
@@ -521,6 +541,27 @@ final class ChatHistory {
             var ticks = 0
             let state = message["localState"] as? String ?? ""
             if state == "failed" { ticks = 4 } else if state == "sending" { ticks = 3 } else if mine { ticks = input.peerLastRead >= id ? 2 : 1 }
+            // Attachments: the next photo of an album joins the album's row (Sources/Attachments/AlbumGrid.swift).
+            if let last = rows.indices.last, AlbumRows.joins(message, sender: sender, row: rows[last]), let head = rows[last]["key"] as? String {
+                var parts = rows[last]["album"] as? [[String: Any]] ?? []
+                if parts.isEmpty, let first = rows[last]["albumFirst"] as? [String: Any] { parts.append(first) }
+                parts.append(AlbumRows.part(message, key: key))
+                rows[last]["album"] = parts
+                for field in ["thumb", "thumbWide", "thumbRound", "media", "mediaTime", "label"] { rows[last][field] = nil }
+                rows[last]["time"] = (message["edited"] as? Bool == true ? "изм. " : "") + clock
+                rows[last]["tail"] = tail
+                rows[last]["ticks"] = ticks
+                // The caption is the first part that has words.
+                if (rows[last]["text"] as? String ?? "").isEmpty, !(message["text"] as? String ?? "").isEmpty {
+                    rows[last]["text"] = body
+                    rows[last]["fmt"] = fmt
+                    rows[last]["urls"] = urls
+                }
+                out.albumParts[head, default: []].append(key)
+                out.messages[key] = message
+                out.keyOfClient[client] = head
+                continue
+            }
             var chips: [String] = []
             for reaction in message["reactions"] as? [[String: Any]] ?? [] {
                 chips.append(reaction["emoji"] as? String ?? "")
@@ -543,12 +584,34 @@ final class ChatHistory {
             // Attachments: a photo's small picture or a file's name and size (Sources/Attachments/AttachmentOpen.swift).
             if message["attachment"] is [String: Any] {
                 row.merge(AttachmentRows.fields(message, key: key)) { _, new in new }
+                // Attachments: the first photo of an album keeps what the album's row needs once the next one joins.
+                if let album = meta?["album"] as? [String: Any], let albumId = album["id"] as? String {
+                    row["albumId"] = albumId
+                    row["albumSender"] = sender
+                    row["albumFirst"] = AlbumRows.part(message, key: key)
+                }
             } else if meta?["poll"] != nil {
-                row["label"] = "Опрос"
+                // Polls: the poll itself (Sources/Polls/PollRow.swift); its text is only for clients without polls.
+                let usable = state.isEmpty && message["cryptoState"] as? String == "decrypted" && input.selection == nil
+                if let poll = PollRows.fields(message, draft: input.pollDrafts[key] ?? [], disabled: !usable) {
+                    row["poll"] = poll
+                    row["text"] = ""
+                    row["fmt"] = [Int]()
+                    row["urls"] = [String]()
+                } else {
+                    row["label"] = "Опрос"
+                }
+            }
+            // Composer: «без звука» on own messages; 1–3 emoji alone are drawn large.
+            if mine, meta?["silent"] as? Bool == true { row["silent"] = true }
+            if !(message["attachment"] is [String: Any]), meta?["poll"] == nil {
+                let count = BigEmoji.count(body)
+                if count > 0 { row["bigEmoji"] = count }
             }
             // LinkPreview: the card of a link, as it came inside the message (Sources/LinkPreview/LinkCard.swift).
             if let card = message["linkPreview"] as? [String: Any] { row["card"] = card }
             if let selection = input.selection { row["checked"] = selection.contains(key) ? 1 : 0 }
+            if !input.needle.isEmpty { out.found += 1 }
             rows.append(row)
             out.messages[key] = message
             out.keyOfClient[client] = key

@@ -16,6 +16,9 @@ final class ChatsViewController: UIViewController {
     private lazy var actions = ChatListActions(messenger: messenger)
     /// Stories: the strip of stories above the chats (Sources/Stories/StoriesStrip.swift).
     private lazy var stories = StoriesStrip(messenger: messenger)
+    /// ChatsPlus: the connection in the title, the line under it, the skeleton, the empty states, the folders and
+    /// «Избранное» (Sources/ChatsPlus/ChatListPlus.swift).
+    private lazy var plus = ChatListPlus(messenger: messenger)
     /// Offline: the list on screen came from the server at least once (until then it is the vault's copy).
     private var serverLoaded = false
     /// Offline: lines opened in the background since the rows were last shown (Sources/Offline/ListCatchUp.swift).
@@ -51,11 +54,16 @@ final class ChatsViewController: UIViewController {
         view.addSubview(empty)
         // ChatActions: the rows are made there (swipe buttons, drafts, «Архив», what the search found) and come back here.
         actions.install(host: self, list: list)
+        // ChatsPlus: hooked into the actions and the screen.
+        actions.plus = plus
+        plus.install(host: self, heading: heading, empty: empty, list: list, actions: actions)
+        plus.onNewChat = { [weak self] in self?.openPeople() }
         actions.onRows = { [weak self] (rows: [ChatRow], emptyWords: String) -> Void in
             guard let self else { return }
             self.list.setRows(rows)
             self.empty.text = emptyWords
             self.empty.isHidden = !rows.isEmpty
+            self.plus.rowsShown(rows, emptyWords: emptyWords) // ChatsPlus
         }
         actions.onHeading = { [weak self] (words: String) -> Void in
             self?.heading.text = words
@@ -129,7 +137,9 @@ final class ChatsViewController: UIViewController {
             switch result {
             case .success(let chats):
                 self.serverLoaded = true
+                self.plus.serverAnswered() // ChatsPlus
                 self.summaries = chats
+                AppBadge.shared.chats(chats) // Links: the number on the app's icon (Links/AppBadge.swift)
                 // ChatActions: shown through `actions.onRows`.
                 self.actions.show(chats)
                 self.keepSoon()
@@ -140,6 +150,7 @@ final class ChatsViewController: UIViewController {
             case .failure(let error):
                 // Offline: the chats on screen (the vault's copy) stay; the words only when there is nothing to show.
                 if self.summaries.isEmpty { self.empty.text = error.words; self.empty.isHidden = false }
+                self.plus.serverFailed(error) // ChatsPlus
             }
         }
     }
@@ -191,7 +202,11 @@ final class ChatsViewController: UIViewController {
         let barRoom = BarMetrics.bottomGap(safeBottom: view.safeAreaInsets.bottom) + BarMetrics.height + 12
         // ChatActions: the search button beside «Новый чат»; the search field, when open, under the heading.
         let listTop = actions.place(in: view, safeTop: top)
-        list.setPad(top: Double(listTop), bottom: Double(barRoom))
+        // ChatsPlus: the line under the title and the folder tabs take their room above the list.
+        let plusTop = plus.place(in: view, safeTop: top, listTop: listTop)
+        // Security: «Новый вход» and «Запрос восстановления» under the heading (Security/AccountNotices.swift).
+        let noticesEnd = AccountNotices.shared.place(in: view, top: plusTop, account: messenger != nil)
+        list.setPad(top: Double(noticesEnd), bottom: Double(barRoom))
         // Stories: not in «Архив» and not while searching (the search field takes room under the heading).
         stories.place(allowed: heading.text == "Чаты" && listTop <= top + 58, width: view.bounds.width)
         empty.frame = CGRect(x: 20, y: view.bounds.midY - 12, width: view.bounds.width - 40, height: 24)

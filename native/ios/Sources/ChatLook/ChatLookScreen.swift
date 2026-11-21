@@ -94,6 +94,8 @@ final class ChatLookScreen: NSObject {
         namePill.contentView.addSubview(emoji)
         namePill.contentView.addSubview(status)
         status.font = .systemFont(ofSize: 12)
+        // The whole pill opens the profile (the label's own tap would open it a second time).
+        heading.isUserInteractionEnabled = false
         let nameTap = UITapGestureRecognizer(target: self, action: #selector(openProfile))
         namePill.addGestureRecognizer(nameTap)
         namePill.accessibilityTraits = .button
@@ -346,6 +348,8 @@ final class ChatLookScreen: NSObject {
     }
 
     #if targetEnvironment(simulator)
+    var listForDemo: MsgListView? { list }
+
     /// The simulator's sample person: a calm teal, a leaf as the emoji status, Platina.
     static func demoPeer(name: String) -> [String: Any] {
         let args = UserDefaults.standard

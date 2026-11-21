@@ -148,6 +148,7 @@ final class ChatScreenActions: NSObject, UITextViewDelegate {
         downButton.isHidden = true
         downButton.onPress = { [weak self] in
             guard let self else { return }
+            Haptic.light() // ChatLook: as the reference's «Вниз к новым сообщениям»
             self.unseen = 0
             self.list?.scrollToNewest(animated: true)
         }
@@ -162,6 +163,10 @@ final class ChatScreenActions: NSObject, UITextViewDelegate {
         field.delegate = self
         field.accessibilityLabel = "Сообщение"
 
+        // ChatsPlus: the row of a finished call calls back (MessageRow.tsx «Перезвонить»).
+        list.noticeTappable = { [weak self] (key: String) -> Bool in
+            self?.history.shown.calls[key] != nil
+        }
         list.onMsgPress = { [weak self] (event: [String: Any]) -> Void in
             self?.pressed(event["key"] as? String ?? "", y: CGFloat((event["y"] as? NSNumber)?.doubleValue ?? 0))
         }
@@ -412,6 +417,12 @@ final class ChatScreenActions: NSObject, UITextViewDelegate {
     /// A tap, as in the reference: it opens the menu, a second tap right after it puts ❤️ instead. With the
     /// keyboard up a tap only puts the keyboard away; a tap on a photo or a file opens it.
     private func pressed(_ key: String, y: CGFloat) {
+        // ChatsPlus: «Перезвонить» — the same kind of call again, from the row of a finished one.
+        if let action = history.shown.calls[key], !selecting {
+            UIImpactFeedbackGenerator(style: .light).impactOccurred()
+            CallOverlay.call(messenger: messenger, chatId: chatId, peerId: peerId, name: peerName, video: action["video"] as? Bool == true)
+            return
+        }
         guard let message = history.shown.messages[key] else {
             // A row that is not a message of the chat yet: an attachment on its way out.
             attachments?.pressed(key)
@@ -593,6 +604,7 @@ final class ChatScreenActions: NSObject, UITextViewDelegate {
         var items: [MessageMenuController.Item] = []
         if everyone {
             items.append(MessageMenuController.Item(symbol: "trash", label: "Удалить у меня и у " + peerName, danger: true, run: { [weak self] in
+                Haptic.light() // ChatLook
                 for message in messages {
                     if let client = message["clientId"] as? String { self?.history.sendAction(["type": "delete", "target": client]) }
                 }
@@ -600,6 +612,7 @@ final class ChatScreenActions: NSObject, UITextViewDelegate {
             }))
         }
         items.append(MessageMenuController.Item(symbol: "eye.slash", label: "Удалить у меня", danger: true, run: { [weak self] in
+            Haptic.light() // ChatLook
             self?.history.hideForMe(messages.map { ChatHistory.key($0) })
             done()
         }))
@@ -733,7 +746,7 @@ final class ChatScreenActions: NSObject, UITextViewDelegate {
             return
         }
         guard !text.isEmpty else { return }
-        UISelectionFeedbackGenerator().selectionChanged()
+        Haptic.light() // ChatLook: the reference's send knock (lightFeedback)
         var meta: [String: Any]? = nil
         if let replyTo { meta = ChatScreenActions.replyMeta(replyTo) }
         // Composer: the formatting chosen in the panel above the field, and «без звука».
@@ -919,6 +932,7 @@ final class ChatScreenActions: NSObject, UITextViewDelegate {
     /// A tap on a quote or on the pinned bar (the reference's replyJump.ts): when the original is not loaded yet,
     /// earlier pages are read one after another until it is there; then the list scrolls to it and it lights up.
     func jumpTo(_ clientId: String) {
+        Haptic.light() // ChatLook: as the reference's jumpTo
         jump = (clientId: clientId, pages: 0)
         stepJump()
     }

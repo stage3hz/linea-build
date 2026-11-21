@@ -25,6 +25,8 @@ final class PersonProfileViewController: UIViewController {
 
     private let scroll = UIScrollView()
     private let content = UIStackView()
+    /// ChatLook: the person's light falling from the top (the reference's ProfileLight; Sources/ChatLook/PeerLight.swift).
+    private var profileLight: ProfileLightView?
     private let topBar = UIView()
     private let back = UIButton(type: .system)
     private let more = UIButton(type: .system)
@@ -66,6 +68,7 @@ final class PersonProfileViewController: UIViewController {
         scroll.showsVerticalScrollIndicator = false
         scroll.translatesAutoresizingMaskIntoConstraints = false
         view.addSubview(scroll)
+        profileLight = ProfileLightView.install(in: view, color: 0x5E7BFF) // ChatLook
         content.axis = .vertical
         content.alignment = .fill
         content.spacing = 16
@@ -248,6 +251,8 @@ final class PersonProfileViewController: UIViewController {
         guard isViewLoaded else { return }
         let shown = shownPerson
         avatar.show(shown, address: messenger?.personAvatarAddress(shown.avatarId) ?? "")
+        // ChatLook: the light in the colour of the person's photo, else of the colour they chose.
+        profileLight?.color = LookColor.tint(avatarId: shown.avatarId, address: messenger?.personAvatarAddress(shown.avatarId) ?? "", chosen: shown.avatarColor)
         postsBlock.setColor(shown.avatarColor) // Stories: the ring is lit by the person's own colour
         nameLabel.text = shown.displayName
         refreshStatus()
