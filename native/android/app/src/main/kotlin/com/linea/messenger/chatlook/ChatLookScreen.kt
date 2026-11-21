@@ -338,6 +338,9 @@ class ChatLookScreen(private val host: ChatScreen, private val messenger: Messen
     AvatarPeek(context, large, shownName, status?.text?.toString() ?: "", top, items).show()
   }
 
+  /** «Обои чатов» for this chat (the profile's «Обои»). */
+  fun openWallpaper() { WallpaperPicker(context, chatId).show() }
+
   /** The emulator check: the list the look works on. */
   val listForDemo: MsgListView? get() = list
 }

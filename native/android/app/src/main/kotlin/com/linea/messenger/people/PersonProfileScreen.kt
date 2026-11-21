@@ -430,13 +430,16 @@ class PersonProfileScreen(
       override fun onDraw(canvas: Canvas) = PeopleIcons.draw(canvas, "lock", width / 2f, height / 2f, width.toFloat(), Theme.accent)
     }
     val words = TextView(context).apply { text = "Переписка защищена сквозным шифрованием"; textSize = 12f; setTextColor(Theme.muted) }
-    card.addView(LinearLayout(context).apply {
+    val secure = LinearLayout(context).apply {
       orientation = LinearLayout.HORIZONTAL
       gravity = Gravity.CENTER_VERTICAL
       setPadding(dp(16f), dp(11f), dp(16f), dp(11f))
       addView(lock, LinearLayout.LayoutParams(dp(14f), dp(14f)))
       addView(words, LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 1f).apply { leftMargin = dp(8f) })
-    })
+    }
+    // Security: «Защита чата» — the safety codes of the devices to compare (security/TrustSheet.kt).
+    com.linea.messenger.security.TrustSheet.attach(secure, words, messenger, userId)
+    card.addView(secure)
   }
 
   // What the person does

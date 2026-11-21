@@ -72,6 +72,9 @@ object Demo {
   var testServer: String? = null
     private set
 
+  /** Security: the emulator check shows a sample lock screen (`--es lockdemo …`): the real lock is not read. */
+  var lockDemo = false
+
   private val local = Regex("^https://(10\\.0\\.2\\.2|localhost):[0-9]{1,5}$")
 
   /** `--es authmode register|recover|waiting|reset` (with `--ez auth true`): the step the sign-in screen opens
@@ -131,6 +134,9 @@ object Demo {
     com.linea.messenger.chatsplus.ChatsPlusDemo.read(intent)
     com.linea.messenger.shell.ShellDemo.read(intent)
     authMode = intent.getStringExtra("authmode")
+    // Effects / Security / Language / Links / ScreenShare: `effects`, `snowheat`, `setlanguage`, `lockdemo`, `noticedemo`,
+    // `trustdemo`, `screendemo` (ParityDemo.kt).
+    if (ParityDemo.start(intent, launcher)) return true
     // AI and Music: `aidemo`, `musicdemo` (music/MusicDemo.kt).
     if (AIMusicSimulator.start(intent, launcher)) return true
     // Profile: `profiledemo` — avatars, profiles, Platina, gifts (profile/ProfileSamples.kt); `profilelook` for Settings.

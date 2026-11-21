@@ -46,7 +46,7 @@ class HeaderEdgeView(context: Context) : View(context) {
     // Fully covered up to 14 dp short of the header's lower edge, then a soft ramp.
     val solid = ((size - 14 * d) / total).coerceIn(0f, 1f)
     // Without the live blur of the iPhone's edge, the cover is a little denser so nothing reads through.
-    val peak = minOf(1f, minOf(0.85f, alphaOfEdge) * 0.78f + 0.12f)
+    val peak = minOf(1f, minOf(0.85f, alphaOfEdge) * 0.78f + 0.2f)
     paint.shader = LinearGradient(0f, 0f, 0f, total,
       intArrayOf(LookColor.argb(color, peak), LookColor.argb(color, peak * 0.9f), LookColor.argb(color, peak * 0.45f), LookColor.argb(color, 0f)),
       floatArrayOf(0f, solid, solid + (1 - solid) * 0.45f, 1f), Shader.TileMode.CLAMP)

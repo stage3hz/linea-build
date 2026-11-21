@@ -76,7 +76,10 @@ class SettingsScreen internal constructor(context: Context, private val account:
     // Stories: the account's own posts and stories (stories/ProfilePosts.kt).
     val posts = SettingsRow(context, symbol = "posts.grid", label = com.linea.messenger.stories.OwnPostsScreen.NAME)
     posts.onPress = { account?.let { own -> com.linea.messenger.stories.StoriesStore.account?.takeIf { it.userId == own.userId }?.let { open(com.linea.messenger.stories.OwnPostsScreen(context, it)) } } }
-    addGroup(rows = listOf(profile, posts))
+    // Platina: «Активна до …» while the account has it (platina/PlatinaState.kt, untilWords; the reference's SettingsScreen.tsx `until`).
+    val until = com.linea.messenger.platina.PlatinaState.untilWords
+    val platinaRows = if (until.isEmpty()) emptyList() else listOf(SettingsRow(context, symbol = "gift", label = "Platina", value = until).apply { onPress = { com.linea.messenger.platina.PlatinaShowcase.open(this) } })
+    addGroup(rows = listOf(profile, posts) + platinaRows)
 
     // How it sounds and looks. (The reference also has «Папки с чатами», «Энергосбережение и анимации» and
     // «Язык» here: not built in this app yet.)
@@ -88,7 +91,12 @@ class SettingsScreen internal constructor(context: Context, private val account:
     // ChatsPlus: «Папки с чатами» — the folders above the chat list, kept on this device (chatsplus/ChatFolders.kt).
     val folders = SettingsRow(context, symbol = "folder", label = "Папки с чатами")
     folders.onPress = { open(com.linea.messenger.chatsplus.FoldersSettingsPage(context, account?.messenger)) }
-    addGroup(rows = listOf(notifications, appearance, folders))
+    // Effects: «Энергосбережение и анимации» and «Язык» (settings/PowerSettings.kt, settings/LanguageSettings.kt).
+    val power = SettingsRow(context, symbol = "battery", label = "Энергосбережение и анимации")
+    power.onPress = { openPage("power") }
+    val language = SettingsRow(context, symbol = "globe", label = "Язык", value = com.linea.messenger.language.Language.chosenName)
+    language.onPress = { openPage("language") }
+    addGroup(rows = listOf(notifications, appearance, folders, power, language))
 
     val privacy = SettingsRow(context, symbol = "lock", label = "Конфиденциальность")
     privacy.onPress = { account?.let { open(PrivacyScreen(context, it)) } }
@@ -136,7 +144,8 @@ class SettingsScreen internal constructor(context: Context, private val account:
     "accent" -> AccentColorScreen(context)
     "notifications" -> account?.let { NotificationsScreen(context, it) }
     "data" -> account?.let { DataScreen(context, it) }
-    else -> null
+    // Effects / Security: «Энергосбережение и анимации», «Язык», «Код-пароль», the privacy lists (settings/LanguageSettings.kt, parityPage).
+    else -> parityPage(context, name, account)
   }
 
   /** The support page of the server, in the browser. */

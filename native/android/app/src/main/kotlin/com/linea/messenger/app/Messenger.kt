@@ -70,6 +70,8 @@ class Messenger(context: Context, token: String, val user: Map<String, Any?>) {
     }
     // Offline: the fastest live address of the server, and the phone's network (offline/NetPool.kt).
     com.linea.messenger.offline.NetPool.start(context, Account.server)
+    // Composer: the scheduled messages listen to the live line from the start (composer/ScheduledStore.kt).
+    com.linea.messenger.composer.ScheduledStore.of(this)
     // Publishes this device's keys (making them on the very first start). The live line opens at once beside it,
     // as in the reference: a slow or failing key publication must not hold back everything else.
     crypto.call("initialize") { }
@@ -219,7 +221,7 @@ class Messenger(context: Context, token: String, val user: Map<String, Any?>) {
       val items = (crypto.callNow("pendingOutbox").getOrNull() as? List<*>).orEmpty().mapNotNull { Core.map(it) }
       var sent = 0
       for (item in items) {
-        // Scheduled messages have their own road to the server; they are not built here yet.
+        // Scheduled messages have their own road to the server (composer/ScheduledStore.kt `online`).
         if (item["deliverAt"] != null) continue
         val chatId = item["chatId"] as? String ?: continue
         val clientId = item["clientId"] as? String ?: continue

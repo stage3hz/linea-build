@@ -4,6 +4,7 @@ import android.os.Handler
 import android.os.Looper
 import com.linea.messenger.app.Messenger
 import com.linea.messenger.attachments.AttachmentRows
+import com.linea.messenger.composer.deliverLater
 import com.linea.messenger.core.Core
 import com.linea.messenger.crypto.CryptoService
 import com.linea.messenger.net.Server
@@ -27,7 +28,9 @@ class ChatHistory(private val messenger: Messenger?, private val local: ChatLoca
   /** A message handed to the encryption and not yet seen in a page from the server. */
   data class Pending(val clientId: String, val text: String, val meta: Map<String, Any?>?, val attachment: Map<String, Any?>?, val createdAt: String, val failed: Boolean = false,
     /** LinkPreview: the card of a link in the text, made on this phone (linkpreview/); null: none. */
-    val linkPreview: Map<String, Any?>? = null)
+    val linkPreview: Map<String, Any?>? = null,
+    /** Composer: «Отправить позже» — the moment the server releases it (ISO); null: now. */
+    val deliverAt: String? = null)
 
   /** What the screen shows, made from the messages by `build`. */
   class Shown(
@@ -50,7 +53,9 @@ class ChatHistory(private val messenger: Messenger?, private val local: ChatLoca
     /** Profile: the chat's rule «Автоудаление», seconds (0 = off; an encrypted setting both sides follow). */
     val ttl: Long = 0,
     /** ChatsPlus: the `end` action of a finished call, by its row's key (a touch calls back). */
-    val calls: Map<String, Map<String, Any?>> = emptyMap()
+    val calls: Map<String, Map<String, Any?>> = emptyMap(),
+    /** ChatActions: how many messages hold the words of the search (0 without a search). */
+    val found: Int = 0,
   )
 
   /** Everything `build` reads, taken at one moment. */
@@ -58,6 +63,10 @@ class ChatHistory(private val messenger: Messenger?, private val local: ChatLoca
     val raw: List<Map<String, Any?>>, val pending: List<Pending>, val hidden: List<String>, val selection: Set<String>?,
     val peerLastRead: Long, val unreadAfter: Long?, val userId: String, val peerName: String,
     val now: Instant = Instant.now(), val zone: ZoneId = ZoneId.systemDefault(),
+    /** Polls: the options ticked so far in polls with several answers, by row key. */
+    val pollDrafts: Map<String, List<Int>> = emptyMap(),
+    /** ChatActions: the words of the search in this chat (empty: the whole chat shows). */
+    val needle: String = "",
   )
 
   /** What is loaded after a page was applied to it. */
@@ -92,6 +101,15 @@ class ChatHistory(private val messenger: Messenger?, private val local: ChatLoca
   /** The last message read before the chat was opened: «Непрочитанные сообщения» stands after it. Null: no line. */
   var unreadAfter: Long? = null
     set(value) { if (field != value) { field = value; rebuild() } }
+
+  /** Polls: the options ticked so far in polls with several answers, by row key (until «Голосовать»). */
+  var pollDrafts: Map<String, List<Int>> = emptyMap()
+    set(value) { if (field != value) { field = value; rebuild() } }
+  /** ChatActions: the words of the search in this chat (empty: the whole chat shows). */
+  var searchNeedle = ""
+    set(value) { if (field != value) { field = value; rebuild() } }
+  /** Composer: a scheduled message was handed to the server (the moment it goes out, ISO). */
+  var onScheduled: ((String) -> Unit)? = null
 
   /** The rows changed. */
   var onShown: ((Shown) -> Unit)? = null
@@ -214,8 +232,10 @@ class ChatHistory(private val messenger: Messenger?, private val local: ChatLoca
 
   /** Sends a message of this chat: a plain one, an answer (`meta.reply`), a forwarded one, or an action.
    *  LinkPreview: `linkPreview` is the card of a link the person typed (the core checks it once more). */
-  fun send(text: String, meta: Map<String, Any?>?, attachment: Map<String, Any?>? = null, linkPreview: Map<String, Any?>? = null) {
-    val item = Pending(UUID.randomUUID().toString().lowercase(), text, meta, attachment, Instant.now().truncatedTo(ChronoUnit.MILLIS).toString(), linkPreview = linkPreview)
+  fun send(text: String, meta: Map<String, Any?>?, attachment: Map<String, Any?>? = null, linkPreview: Map<String, Any?>? = null, deliverAt: String? = null) {
+    // Composer: a scheduled message is shown as being sent until the server keeps it (then it is in the list of
+    // «Отложенные сообщения», composer/SchedulePicker.kt).
+    val item = Pending(UUID.randomUUID().toString().lowercase(), text, meta, attachment, Instant.now().truncatedTo(ChronoUnit.MILLIS).toString(), linkPreview = linkPreview, deliverAt = deliverAt)
     pending = pending + item
     rebuild()
     deliver(item)
@@ -237,6 +257,8 @@ class ChatHistory(private val messenger: Messenger?, private val local: ChatLoca
   }
 
   private fun deliver(item: Pending) {
+    // Composer: «Отправить позже» goes its own road (composer/ScheduledStore.kt).
+    item.deliverAt?.let { return deliverLater(item, it) }
     val messenger = messenger
     if (messenger == null) {
       if (!ChatActionsDemo.present) return
@@ -270,6 +292,38 @@ class ChatHistory(private val messenger: Messenger?, private val local: ChatLoca
     })
   }
 
+  /** Composer: encrypted now, kept by the server until `deliverAt`. While it is on its way it is shown as being sent;
+   *  once the server keeps it, it leaves the chat for the list of scheduled messages. */
+  private fun deliverLater(item: Pending, deliverAt: String) {
+    val messenger = messenger
+    if (messenger == null) {
+      pending = pending.filter { it.clientId != item.clientId }
+      rebuild()
+      onScheduled?.invoke(deliverAt)
+      return
+    }
+    val chatId = chatId; val peerId = peerId
+    messenger.crypto.run({ crypto: CryptoService ->
+      messenger.deliverLater(crypto, chatId, peerId, item.clientId, item.text, item.attachment, item.meta, deliverAt)
+    }, { result ->
+      if (result.isSuccess) {
+        pending = pending.filter { it.clientId != item.clientId }
+        rebuild()
+        if (result.getOrNull() == true) {
+          onScheduled?.invoke(deliverAt)
+          com.linea.messenger.composer.ScheduledStore.of(messenger).refresh()
+        } else load()
+      } else {
+        val failure = CryptoService.failure(result)
+        if (failure?.name != "NetworkError") {
+          pending = pending.map { if (it.clientId == item.clientId) it.copy(failed = true) else it }
+          rebuild()
+          onProblem?.invoke(failure?.words ?: "")
+        }
+      }
+    })
+  }
+
   /** «Удалить у меня»: the messages disappear on this device only. */
   fun hideForMe(keys: List<String>) {
     if (local != null) local.hide(keys) else demoHidden = demoHidden + keys
@@ -281,7 +335,7 @@ class ChatHistory(private val messenger: Messenger?, private val local: ChatLoca
   fun rebuild() {
     generation += 1
     val run = generation
-    val snapshot = Snapshot(raw, pending, local?.hiddenKeys ?: demoHidden, selection, peerLastRead, unreadAfter, userId, peerName)
+    val snapshot = Snapshot(raw, pending, local?.hiddenKeys ?: demoHidden, selection, peerLastRead, unreadAfter, userId, peerName, pollDrafts = pollDrafts, needle = searchNeedle)
     queue.execute {
       val made = build(snapshot)
       main.post {
@@ -387,9 +441,12 @@ class ChatHistory(private val messenger: Messenger?, private val local: ChatLoca
       var missingCount = 0
       var unreadShown = false
       val calls = HashMap<String, Map<String, Any?>>() // ChatsPlus
+      var found = 0 // ChatActions: the search
       messages.forEachIndexed { index, message ->
         val sender = message["senderId"] as? String ?: ""
         val client = message["clientId"] as? String ?: ""
+        // ChatActions: while searching, only the messages that hold the words (chatactions/ChatSearch.kt).
+        if (input.needle.isNotEmpty() && (message["cryptoState"] as? String == "no-key" || action(message) != null || !ChatSearchBar.matches(message, input.needle))) return@forEachIndexed
         val key = "$sender:$client"
         val mine = sender == input.userId
         val id = number(message["id"])
@@ -482,16 +539,28 @@ class ChatHistory(private val messenger: Messenger?, private val local: ChatLoca
         }
         // Attachments: a photo's small picture or a file's name and size (attachments/AttachmentOpen.kt).
         if (Core.map(message["attachment"] as? Map<*, *>) != null) row.putAll(AttachmentRows.fields(message, key))
-        else if (meta?.get("poll") != null) row["label"] = "Опрос"
+        else if (meta?.get("poll") != null) {
+          // Polls: the poll itself (polls/PollRow.kt); its text is only for clients without polls.
+          val usable = state.isEmpty() && message["cryptoState"] as? String == "decrypted" && input.selection == null
+          val poll = com.linea.messenger.polls.PollRows.fields(message, input.pollDrafts[key] ?: emptyList(), disabled = !usable)
+          if (poll != null) { row["poll"] = poll; row["text"] = ""; row["fmt"] = emptyList<Int>(); row["urls"] = emptyList<String>() } else row["label"] = "Опрос"
+        }
+        // Composer: «без звука» on own messages; 1–3 emoji alone are drawn large.
+        if (mine && meta?.get("silent") == true) row["silent"] = true
+        if (Core.map(message["attachment"] as? Map<*, *>) == null && meta?.get("poll") == null) {
+          val count = com.linea.messenger.composer.BigEmoji.count(body)
+          if (count > 0) row["bigEmoji"] = count
+        }
         // LinkPreview: the card of a link, as it came inside the message (linkpreview/LinkCard.kt).
         Core.map(message["linkPreview"] as? Map<*, *>)?.let { row["card"] = it }
         input.selection?.let { row["checked"] = if (it.contains(key)) 1 else 0 }
+        if (input.needle.isNotEmpty()) found += 1
         rows.add(row)
         shownMessages[key] = message
         keyOfClient[client] = key
         order.add(key)
       }
-      return Shown(rows, shownMessages, keyOfClient, order, pinned, noCopy, newestTheirs, noKey, failedActions, ttl, calls = calls)
+      return Shown(rows, shownMessages, keyOfClient, order, pinned, noCopy, newestTheirs, noKey, failedActions, ttl, calls = calls, found = found)
     }
   }
 }

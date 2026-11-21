@@ -96,7 +96,8 @@ class ChatActionsPagesTest {
   @Test fun theMenuOfAMessageAndDeleting() {
     val menu = chat("36-chat-menu", "menu").actions.shownMenu
     assertNotNull(menu)
-    assertEquals(listOf("Ответить", "Скопировать", "Закрепить", "Переслать", "Удалить", "Выбрать"), menu!!.items.map { it.label })
+    // ChatsPlus: «В Избранное» after «Скопировать», as on the iPhone.
+    assertEquals(listOf("Ответить", "Скопировать", "В Избранное", "Закрепить", "Переслать", "Удалить", "Выбрать"), menu!!.items.map { it.label })
     assertTrue(menu.showsReactions)
     menu.dismiss()
     val delete = chat("37-chat-delete", "delete").actions.shownMenu

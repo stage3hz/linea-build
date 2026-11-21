@@ -137,7 +137,7 @@ class MediaPagesTest {
     // The paperclip offers a video between the gallery and the files.
     described(chat, "Вложения:")!!.performClick(); idle(activity)
     val sheet = ShadowAlertDialog.getLatestAlertDialog()!!
-    assertEquals(listOf("Галерея", "Видео", "Файл"), shadowOf(sheet).items.map { it.toString() })
+    assertEquals(listOf("Галерея", "Видео", "Файл", "Опрос"), shadowOf(sheet).items.map { it.toString() })
     sheet.dismiss()
   }
 

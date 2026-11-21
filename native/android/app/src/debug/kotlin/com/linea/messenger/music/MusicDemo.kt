@@ -58,7 +58,8 @@ object MusicDemo {
 /** What the emulator check asks of «AI» and «Музыка» by launch arguments (see `Demo.start`), as the iOS
  *  simulator check does:
  *    --es aidemo 1|history     «AI» with a sample conversation (a block of code in it); `history`: the history sheet over it
- *    --es musicdemo 1|player   «Музыка» with sample tracks and the strip of the playing one; `player`: the full player over it
+ *    --es musicdemo 1|player|equalizer   «Музыка» with sample tracks and the strip of the playing one; `player`: the full player over it; `equalizer`: the equalizer over that
+ *    --es aidemo photo|quick   a photo in the request; the quick question
  *  With an account (or with --ez demo true) the sections themselves open by `--es tab ai` and `--es tab music`. */
 object AIMusicSimulator {
   private fun <T : View> find(view: View, kind: Class<T>): T? {
@@ -75,7 +76,15 @@ object AIMusicSimulator {
     if (ai == null && music == null) return false
     val root: RootScreen = launcher.showDemo()
     root.show(if (music != null) "music" else "ai")
-    if (music == "player") root.postDelayed({ find(root, MusicScreen::class.java)?.openPlayer() }, 1500)
+    if (music == "player" || music == "equalizer") root.postDelayed({ find(root, MusicScreen::class.java)?.openPlayer() }, 1500)
+    // Music: `equalizer` — the equalizer over the full player, a custom curve (music/MusicEqualizer.kt).
+    if (music == "equalizer") root.postDelayed({
+      EqualizerSettings.attach(root.context)
+      EqualizerSettings.profile = EqualizerSettings.Profile("custom", 4.0, -2.0, 6.0)
+      find(root, PlayerScreen::class.java)?.openEqualizer()
+    }, 2300)
+    // AI: `photo` — a photo in the request; `quick` — the quick question over the screen (ai/AIAttachments.kt).
+    if (music == null && (ai == "photo" || ai == "quick")) root.postDelayed({ find(root, AIScreen::class.java)?.let { com.linea.messenger.ai.AIParity.demo(it, ai) } }, 1500)
     if (music == null && ai == "history") root.postDelayed({ find(root, AIScreen::class.java)?.showHistory() }, 1500)
     return true
   }

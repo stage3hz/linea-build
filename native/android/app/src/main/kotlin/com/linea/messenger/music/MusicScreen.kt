@@ -414,6 +414,12 @@ class MusicScreen(context: Context, private val messenger: Messenger?) : Screen(
   private val notices = LinearLayout(context)
   private val footer = LinearLayout(context)
   private val mini = MiniPlayerView(context, player)
+  /** Music: «Любимое» and «Артисты» on «Главная» while nothing is searched (music/MusicShelves.kt); the living light
+   *  behind the top of the page (effects/MusicAmbient.kt). */
+  private val shelves = LinearLayout(context)
+  private var shelvesMark = ""
+  private val ambient = com.linea.messenger.effects.MusicAmbientView(context, com.linea.messenger.effects.MusicAmbientView.themeTone, fade = true)
+  private var listHead: View? = null
 
   private val source: String get() = if (scReady && chosen == "soundcloud") "soundcloud" else "audius"
 
@@ -642,7 +648,7 @@ class MusicScreen(context: Context, private val messenger: Messenger?) : Screen(
     list.isVerticalScrollBarEnabled = false; list.clipToPadding = false
     list.setOnScrollListener(object : AbsListView.OnScrollListener {
       override fun onScrollStateChanged(view: AbsListView?, state: Int) { if (state == AbsListView.OnScrollListener.SCROLL_STATE_TOUCH_SCROLL) hideKeyboard() }
-      override fun onScroll(view: AbsListView?, first: Int, visible: Int, total: Int) {}
+      override fun onScroll(view: AbsListView?, first: Int, visible: Int, total: Int) { placeAmbient() } // Music
     })
 
     column.orientation = LinearLayout.VERTICAL
@@ -685,6 +691,8 @@ class MusicScreen(context: Context, private val messenger: Messenger?) : Screen(
     })
     searchBox.addView(search, FrameLayout.LayoutParams(FrameLayout.LayoutParams.MATCH_PARENT, dp(46f)).apply { leftMargin = dp(40f) })
     column.addView(searchBox, LinearLayout.LayoutParams(wide, dp(46f)).apply { topMargin = dp(14f) })
+    shelves.orientation = LinearLayout.VERTICAL // Music
+    AIKit.add(column, shelves, 14f)
 
     sources.onPick = { index ->
       chosen = if (index == 0) "soundcloud" else "audius"
@@ -722,12 +730,14 @@ class MusicScreen(context: Context, private val messenger: Messenger?) : Screen(
     val head = FrameLayout(context).apply { addView(column, FrameLayout.LayoutParams(FrameLayout.LayoutParams.MATCH_PARENT, FrameLayout.LayoutParams.WRAP_CONTENT)) }
     val foot = FrameLayout(context).apply { addView(footer, FrameLayout.LayoutParams(FrameLayout.LayoutParams.MATCH_PARENT, FrameLayout.LayoutParams.WRAP_CONTENT)) }
     list.addHeaderView(head, null, false)
+    listHead = head // Music
     list.addFooterView(foot, null, false)
     list.adapter = adapter
     list.setOnItemClickListener { _, _, position, _ ->
       val index = position - list.headerViewsCount
       shownRows.getOrNull(index)?.let { player.play(it, shownRows) }
     }
+    addView(ambient) // Music: under the list
     addView(list)
     mini.onOpen = { openPlayer() }
     addView(mini)
@@ -740,7 +750,43 @@ class MusicScreen(context: Context, private val messenger: Messenger?) : Screen(
     val bottom = maxOf(clearance + (if (miniShown) dp(72f) else 0), edges.keyboard + dp(12f))
     if (list.paddingBottom != bottom) list.setPadding(0, 0, 0, bottom)
     put(list, 0, edges.top, width, height - edges.top)
+    placeAmbient() // Music
     put(mini, dp(12f), height - clearance - dp(64f), width - dp(24f), dp(64f))
+  }
+
+  /** Music: the ambient's height — most of the top half on «Главная» without a search, a strip otherwise; it scrolls
+   *  away with the top of the list. */
+  private fun placeAmbient() {
+    if (width <= 0) return
+    val tall = (if (section == "catalog" && query.isEmpty()) minOf(dp(430f), height / 2) else dp(132f)) + edges.top
+    val head = listHead
+    val scrolled = if (list.firstVisiblePosition == 0 && head != null && head.parent != null) -head.top else tall
+    if (ambient.width != width || ambient.height != tall) put(ambient, 0, 0, width, tall)
+    ambient.translationY = -scrolled.toFloat()
+  }
+
+  /** Music: the shelves, built again only when what they show changed. */
+  private fun refreshShelves(list: List<MusicTrack>) {
+    val open = section == "catalog" && query.isEmpty()
+    val favorites = if (open) player.favorites.take(12) else emptyList()
+    val artists = if (open) MusicShelves.artists(list) else emptyList()
+    val mark = favorites.joinToString(",") { it.id } + "|" + (if (artists.size > 1) artists.joinToString(",") { it.id } else "")
+    if (mark == shelvesMark) return
+    shelvesMark = mark
+    shelves.removeAllViews()
+    if (favorites.isNotEmpty()) {
+      val all = player.favorites
+      AIKit.add(shelves, MusicShelves.shelf(context, "Любимое", favorites.map { track -> MusicShelves.coverCard(context, track) { player.play(track, all) } }, 18f), 0f)
+    }
+    if (artists.size > 1) {
+      AIKit.add(shelves, MusicShelves.shelf(context, "Артисты", artists.map { track -> MusicShelves.artistCircle(context, track) { searchArtist(track.artist) } }, 18f), if (shelves.childCount > 0) 16f else 0f)
+    }
+    shelves.visibility = if (shelves.childCount == 0) View.GONE else View.VISIBLE
+  }
+
+  private fun searchArtist(name: String) {
+    search.setText(name)
+    search.setSelection(name.length)
   }
 
   private fun noticeBox(text: String, error: Boolean, close: (() -> Unit)?): View {
@@ -810,6 +856,7 @@ class MusicScreen(context: Context, private val messenger: Messenger?) : Screen(
     }
     if (catalog && (shown.isNotEmpty() || !loading)) AIKit.add(footer, AIKit.label(context, MusicWords.footer(source), 11f, color = Theme.subtle, align = centre), 10f)
     shownRows = shown
+    refreshShelves(shown) // Music
     adapter.notifyDataSetChanged()
     requestLayout()
   }

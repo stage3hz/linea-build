@@ -49,18 +49,4 @@ class PeerLightView(context: Context) : View(context) {
   }
 }
 
-/** The same light at the top of a person's profile when they have no banner (`ProfileLight`): it falls from
- *  above, behind the avatar, and fades into the page. Its height is 440 dp in the reference. */
-class ProfileLightView(context: Context) : View(context) {
-  companion object { const val HEIGHT = 440f }
-
-  var color = 0x5E7BFF
-    set(value) { if (field != value) { field = value; invalidate() } }
-
-  override fun onDraw(canvas: Canvas) {
-    val dark = Theme.dark
-    val glow = LookColor.bright(color, 150)
-    LookGlow(0.5f, 0.06f, 0.92f, 0.88f, listOf(0f to LookColor.argb(glow, if (dark) 0.5f else 0.22f), 0.5f to LookColor.argb(glow, if (dark) 0.16f else 0.08f), 1f to LookColor.argb(glow, 0f)))
-      .draw(canvas, width.toFloat(), height.toFloat())
-  }
-}
+// The same light at the top of a person's profile (`ProfileLight`) is the profile's own: profile/ProfileVisuals.kt.

@@ -21,6 +21,9 @@ object Demo {
   val authMode: String? get() = null
   const val authLogin = ""
 
+  /** Security: a release build always reads the real lock. */
+  val lockDemo: Boolean get() = false
+
   /** A release build shows no made-up person in the settings. */
   fun settingsPerson(): Map<String, Any?> = emptyMap()
 

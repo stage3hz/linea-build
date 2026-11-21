@@ -22,6 +22,12 @@ data class MsgRow(
   val mediaTime: String = "",
   /** LinkPreview: the card of a link under the text (linkpreview/LinkCard.kt); null: none. */
   val linkCard: com.linea.messenger.linkpreview.MsgLinkCard? = null,
+  /** Polls: the poll the message is (polls/PollRow.kt); null: none. */
+  val poll: com.linea.messenger.polls.MsgPoll? = null,
+  /** Composer: 1–3 emoji alone, drawn large (composer/BigEmoji.kt); 0: ordinary text. */
+  val bigEmoji: Int = 0,
+  /** Composer: an own message sent «без звука» (a crossed bell before the time). */
+  val silent: Boolean = false,
 ) {
   companion object {
     private fun text(value: Any?) = value as? String ?: ""
@@ -35,6 +41,8 @@ data class MsgRow(
         text(row["thumb"]), flag(row["thumbRound"]), ((row["thumbWide"] as? Number)?.toDouble() ?: 1.0).coerceIn(0.4, 2.5), int(row["checked"], -1).coerceIn(-1, 1), text(row["reactions"]),
         (row["fmt"] as? List<*>)?.mapNotNull { (it as? Number)?.toInt() } ?: emptyList(), (row["urls"] as? List<*>)?.mapNotNull { it as? String } ?: emptyList(), (row["chips"] as? List<*>)?.mapNotNull { it as? String } ?: emptyList(),
         text(row["media"]), text(row["wave"]), text(row["mediaTime"]), com.linea.messenger.linkpreview.MsgLinkCard.parse(row["card"]),
+        // Polls, Composer: what those parts add to a row.
+        com.linea.messenger.polls.MsgPoll.parse(row["poll"]), int(row["bigEmoji"], 0).coerceIn(0, 3), flag(row["silent"]),
       )
     }
   }

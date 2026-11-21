@@ -143,6 +143,10 @@ class PrivacyScreen(context: Context, account: SettingsAccount) : SettingsPage(c
       if (model.privacy == null) add(SettingsNotice(context, model.failure, error = true, onRetry = { model.load() }))
       else add(SettingsNotice(context, model.failure, error = true))
     }
+    // Security: the device lock sits first on the privacy screen (settings/PasscodeSettings.kt).
+    val passcode = SettingsRow(context, symbol = "passcode", label = "Код-пароль", value = if (com.linea.messenger.security.LockStore.current.record != null) "Вкл." else "Выкл.")
+    passcode.onPress = { open(PasscodeScreen(context)) }
+    addGroup("Безопасность", listOf(passcode))
     if (model.privacy == null) {
       if (model.failure.isEmpty()) add(SettingsLook.foot(context, "Загрузка…"), 16f)
       return

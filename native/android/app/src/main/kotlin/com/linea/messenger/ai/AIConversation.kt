@@ -49,9 +49,12 @@ object AIClient {
     server.send("GET", "/ai/models") { result -> main.post { done(if (result.isSuccess) AIModel.parseModels(result.getOrNull()) else emptyList()) } }
   }
 
-  fun chat(server: Server, messages: List<Map<String, String>>, model: String?, done: (Result<AIReply>) -> Unit) {
+  fun chat(server: Server, messages: List<Map<String, String>>, model: String?, images: List<String> = emptyList(), documents: List<AIDocumentText> = emptyList(), done: (Result<AIReply>) -> Unit) {
     val body = linkedMapOf<String, Any?>("messages" to messages, "consent" to true)
     if (model != null) body["model"] = model
+    // AI: one picture goes as a string, several as a list (aiQuestion); the documents' text goes with every question.
+    if (images.size == 1) body["image"] = images[0] else if (images.size > 1) body["image"] = images
+    if (documents.isNotEmpty()) body["documents"] = documents.map { mapOf("name" to it.name, "text" to it.text) }
     post(server, "/ai/chat", body) { result ->
       if (result.isFailure) done(Result.failure(result.exceptionOrNull()!!))
       else done(read("Не удалось получить ответ. Попробуй ещё раз.") { AIModel.parseReply(result.getOrNull()) })
@@ -62,6 +65,17 @@ object AIClient {
     post(server, path, body) { result ->
       if (result.isFailure) done(Result.failure(result.exceptionOrNull()!!))
       else done(read("AI-сервис вернул некорректный файл.") { AIModel.parseMedia(result.getOrNull(), kinds) })
+    }
+  }
+
+  /** AI: the server reads a document into text (nothing is stored there); the text then goes with the questions. */
+  fun document(server: Server, name: String, data: ByteArray, done: (Result<AIDocumentText>) -> Unit) {
+    post(server, "/ai/document", linkedMapOf("name" to name, "data" to android.util.Base64.encodeToString(data, android.util.Base64.NO_WRAP), "consent" to true)) { result ->
+      if (result.isFailure) return@post done(Result.failure(result.exceptionOrNull()!!))
+      val fields = Core.map(result.getOrNull())
+      val text = fields?.get("text") as? String
+      if (fields == null || text.isNullOrBlank()) return@post done(Result.failure(AIFailure("Сервер не вернул текст документа.")))
+      done(Result.success(AIDocumentText(name, text, fields["truncated"] == true, (fields["pages"] as? Number)?.toInt())))
     }
   }
 
@@ -140,7 +154,7 @@ object AIClient {
 class AITaskResult(val text: String, val model: String, val routedVia: String? = null, val media: AIMedia? = null)
 
 /** How a chat question travels: `done` is called once, on the main thread. */
-typealias AITransport = (messages: List<Map<String, String>>, model: String?, done: (Result<AIReply>) -> Unit) -> Unit
+typealias AITransport = (messages: List<Map<String, String>>, model: String?, images: List<String>, documents: List<AIDocumentText>, done: (Result<AIReply>) -> Unit) -> Unit
 /** The work of a task: `stage` says what is going on, `done` is called once, on the main thread. */
 typealias AIWork = (stage: (String) -> Unit, done: (Result<AITaskResult>) -> Unit) -> Unit
 
@@ -195,11 +209,11 @@ class AIConversation(private val transport: AITransport, private val clock: () -
     return false
   }
 
-  fun ask(question: String, model: String?) {
+  fun ask(question: String, model: String?, images: List<String> = emptyList(), documents: List<AIDocumentText> = emptyList()) {
     if (!canStart()) return
     val messages = try { AIModel.historyForQuestion(turns, question) } catch (failure: AIFailure) { failed(failure); return }
     nextId += 1
-    val turn = AITurn(id = nextId, question = question.trim(), status = "pending", startedAt = clock(), model = model, isPrivate = privateTurns)
+    val turn = AITurn(id = nextId, question = question.trim(), status = "pending", startedAt = clock(), model = model, isPrivate = privateTurns, images = images, documents = documents)
     turns = turns + turn
     pending = true
     error = ""
@@ -322,7 +336,8 @@ class AIConversation(private val transport: AITransport, private val clock: () -
       val stage: (String) -> Unit = { text -> if (current() && turns.any { it.id == turnId }) { change(turnId) { it.copy(stage = text) }; publish() } }
       work(stage) { result -> finish(result, "freellmapi") }
     } else {
-      transport(messages, model) { result ->
+      val asked = turns.firstOrNull { it.id == turnId }
+      transport(messages, model, asked?.images.orEmpty(), asked?.documents.orEmpty()) { result ->
         val reply = result.getOrNull()
         if (reply != null) finish(Result.success(AITaskResult(reply.text, reply.model, reply.routedVia)), reply.provider)
         else finish(Result.failure(result.exceptionOrNull() ?: AIFailure("Не удалось получить ответ. Попробуй ещё раз.")), "")

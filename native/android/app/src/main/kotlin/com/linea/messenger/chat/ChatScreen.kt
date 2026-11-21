@@ -111,6 +111,11 @@ class ChatScreen(
     media.onPendingChanged = { showPendingMedia() }
     // ChatLook: the header's views go into glass pills; the avatar on the right; the swipe to answer.
     look.installHeader(page, header, heading, back, callButton, actions.statusView, list, actions)
+    look.onSearch = { actions.openSearch() } // ChatActions: «Поиск» of the avatar's hold menu
+    look.onGift = { actions.sendGift() } // Composer: «Отправить подарок»
+    // Profile: «Поиск» and «Обои» of the profile come back to this chat (profile/ProfileChatExtras.kt).
+    com.linea.messenger.profile.ProfileChatLink.searchHook = { it.actions.openSearch() }
+    com.linea.messenger.profile.ProfileChatLink.wallpaperHook = { it.look.openWallpaper() }
     if (messenger == null) com.linea.messenger.chatlook.LookDemo.run(this) // ChatLook: --es chatlook … (chatlook/LookDemo.kt of src/debug)
 
     if (messenger == null) {
@@ -192,7 +197,10 @@ class ChatScreen(
     // the paperclip stay at its lower edge.
     val composerHeight = actions.composerHeight(width - dp(24f) - dp(100f))
     // Above the keyboard when it is up, above the system's bar otherwise.
-    val floor = if (edges.keyboard > 0) height - edges.keyboard - dp(8f) else height - maxOf(edges.bottom, dp(12f))
+    var floor = if (edges.keyboard > 0) height - edges.keyboard - dp(8f) else height - maxOf(edges.bottom, dp(12f))
+    // Composer: the emoji panel stands where the keyboard was (composer/EmojiPanel.kt).
+    actions.extras.keyboard(edges.keyboard)
+    if (edges.keyboard == 0) actions.extras.panelTop(height)?.let { floor = it - dp(8f) }
     val composerTop = floor - composerHeight
     put(composer, dp(12f), composerTop, width - dp(24f), composerHeight)
     // Voice/Video: the microphone or the send button, the lock of a take, the words over the chat.

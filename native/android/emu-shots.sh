@@ -157,6 +157,38 @@ shot 120-profile-pattern --es profiledemo pattern
 shot 121-status-picker --es profiledemo status
 shot 122-gift-sheet --es profiledemo giftsheet
 
+# ChatLook: the glass header, the light, bubbles, wallpapers, the swipe to answer, arrivals (chatlook/LookDemo.kt of src/debug).
+shot 170-chatlook-header --ez demo true --ez chat true --es chatlook header
+shot 171-chatlook-peek --ez demo true --ez chat true --es chatlook peek
+shot 172-chatlook-bubbles --ez demo true --ez chat true --es chatlook bubbles
+shot 173-chatlook-wallpaper --ez demo true --ez chat true --es chatlook wallpaper
+shot 174-chatlook-swipe --ez demo true --ez chat true --es chatlook swipe
+shot 175-chatlook-reply --ez demo true --ez chat true --es chatlook reply
+shot 176-chatlook-arrive --ez demo true --ez chat true --es chatlook arrive
+shot 177-chatlook-picker --ez demo true --ez chat true --es chatlook picker
+shot 178-chatlook-preview --ez demo true --ez chat true --es chatlook preview
+shot 179-chatlook-bubblecolor --ez demo true --ez chat true --es chatlook bubblecolor
+shot 180-chatlook-offline --ez demo true --ez chat true --es chatlook header --es chatlookline offline
+shot 181-chatlook-connecting --ez demo true --ez chat true --es chatlook header --es chatlookline connecting
+shot 182-chatlook-light-theme --ez demo true --ez chat true --es chatlook header --es settheme light
+shot 183-chatlook-reset --ez demo true --es settheme black
+shot 184-chatlook-plain --ez demo true --ez chat true
+shot 185-chatlook-appearance --ez demo true --es settings appearance
+shot 186-chatlook-profile-light --ez demo true --es profile chat
+# Composer and Polls: send options, scheduled messages, emoji, formatting, polls, the search, forwarding.
+shot 200-composer-silent --ez demo true --ez chat true --es composerdemo silent
+shot 201-composer-later --ez demo true --ez chat true --es composerdemo later
+shot 202-composer-scheduled-pill --ez demo true --ez chat true --es composerdemo scheduled
+shot 203-composer-scheduled-list --ez demo true --ez chat true --es composerdemo list
+shot 204-composer-emoji --ez demo true --ez chat true --es composerdemo emoji
+shot 205-composer-format --ez demo true --ez chat true --es composerdemo format
+shot 206-chat-features --ez demo true --ez chat true --es chatdemo features
+shot 207-poll-new --ez demo true --ez chat true --es chatdemo newpoll
+shot 208-chat-search --ez demo true --ez chat true --es chatdemo search
+shot 213-forward-saved --ez demo true --ez chat true --es chatdemo forward
+shot 360-forward-many --ez demo true --ez chat true --es chatdemo forwardmany
+shot 375-gift-from-chat --ez demo true --ez chat true --es chatdemo gift
+
 # What the app itself said while it ran (crashes show here).
 adb logcat -d -t 400 '*:E' > "$OUT/logcat-errors.txt" 2>/dev/null || true
 adb shell dumpsys package "$APP" | grep -E "versionName|primaryCpuAbi" || true

@@ -59,6 +59,14 @@ class ChatScreenActions(private val context: Context, private val messenger: Mes
   private var openedMenu: MessageMenu? = null
   /** LinkPreview: the card of a link being written, above the field (linkpreview/LinkComposer.kt). */
   private val links = com.linea.messenger.linkpreview.LinkComposer(context)
+  /** Composer: the long touch on the send button, the scheduled messages, the emoji panel and the formatting panel
+   *  (composer/ComposerExtras.kt). */
+  val extras = com.linea.messenger.composer.ComposerExtras(context)
+  /** Composer: the words and the «без звука» of the message scheduled last (the sample chat's list shows them). */
+  private var lastScheduledText = ""
+  private var lastScheduledSilent = false
+  /** ChatActions: «Поиск в этом чате» (chatactions/ChatSearch.kt); made in `install`. */
+  private var searchBar: ChatSearchBar? = null
 
   /** The rows of the chat changed (oldest first, for `MsgRow.parse`). */
   var onRows: ((List<Map<String, Any?>>) -> Unit)? = null
@@ -191,6 +199,23 @@ class ChatScreenActions(private val context: Context, private val messenger: Mes
     list.onCardPress = { _, url -> com.linea.messenger.linkpreview.LinkOpen.cardPressed(context, url) }
     links.install(host, behind)
     links.onChanged = { relayout() }
+    // Polls: voting in a poll, and «Опрос» of the paperclip (polls/).
+    list.onPollPress = { key, part -> pollPressed(key, part) }
+    attachments.onPoll = { newPoll() }
+    // ChatActions: «Поиск в этом чате».
+    val search = ChatSearchBar(context, behind)
+    search.visibility = View.GONE
+    search.onChange = { needle -> history.searchNeedle = needle }
+    search.onClose = { closeSearch() }
+    host.addView(search)
+    searchBar = search
+    // Composer: the long touch on the send button, the scheduled pill, the emoji panel, the formatting bar.
+    (composer as? android.widget.FrameLayout)?.let { extras.install(host, behind, field, send, it, messenger, chatId, peerId, peerName) }
+    extras.onSend = { silent, deliverAt -> submit(silent, deliverAt) }
+    extras.canOffer = { editing == null && forwardItems.isEmpty() }
+    extras.onLayout = { relayout() }
+    extras.onSay = { words -> say(words) }
+    history.onScheduled = { deliverAt -> extras.scheduled(deliverAt, lastScheduledText, lastScheduledSilent) }
     list.onNearTop = { if (history.hasMore) history.load(older = true) }
     list.onScrolled = { distance -> scrolled(distance / d) }
 
@@ -213,6 +238,7 @@ class ChatScreenActions(private val context: Context, private val messenger: Mes
     ChatTyping.changed.watch(statusWatcher)
     Live.presenceChanged.watch(statusWatcher)
     com.linea.messenger.chatlook.ChatLookConnection.changed.watch(connectionWatcher) // ChatLook
+    extras.attached() // Composer
     host?.postDelayed(clock, 30_000)
     showStatus()
   }
@@ -224,6 +250,7 @@ class ChatScreenActions(private val context: Context, private val messenger: Mes
     ChatTyping.changed.unwatch(statusWatcher)
     Live.presenceChanged.unwatch(statusWatcher)
     com.linea.messenger.chatlook.ChatLookConnection.changed.unwatch(connectionWatcher) // ChatLook
+    extras.detached() // Composer
     host?.removeCallbacks(clock)
     host?.removeCallbacks(typingStop)
     tapWork?.let { host?.removeCallbacks(it) }
@@ -285,7 +312,7 @@ class ChatScreenActions(private val context: Context, private val messenger: Mes
   // Layout
 
   /** The height the composer needs for the field's text at this width of the field, px. */
-  fun composerHeight(fieldWidth: Int): Int = field?.wantedHeight(fieldWidth) ?: dp(ComposerField.lowest)
+  fun composerHeight(fieldWidth: Int): Int = field?.wantedHeight(fieldWidth - dp(com.linea.messenger.composer.ComposerExtras.EMOJI_ROOM)) ?: dp(ComposerField.lowest) // Composer: the emoji button's room
 
   private fun put(view: View, left: Int, top: Int, width: Int, height: Int) {
     view.measure(View.MeasureSpec.makeMeasureSpec(width.coerceAtLeast(0), View.MeasureSpec.EXACTLY), View.MeasureSpec.makeMeasureSpec(height.coerceAtLeast(0), View.MeasureSpec.EXACTLY))
@@ -301,6 +328,11 @@ class ChatScreenActions(private val context: Context, private val messenger: Mes
     put(selectionHeader, 0, safeTop + dp(2f), width, dp(44f))
 
     var top = headerBottom + dp(8f)
+    // ChatActions: the search line stands where the pinned message would.
+    searchBar?.takeIf { it.visibility == View.VISIBLE }?.let {
+      put(it, dp(12f), headerBottom + dp(4f), width - dp(24f), dp(ChatSearchBar.HEIGHT))
+      top = headerBottom + dp(4f) + dp(ChatSearchBar.HEIGHT) + dp(8f)
+    }
     if (pinnedBar.visibility == View.VISIBLE) {
       put(pinnedBar, dp(12f), headerBottom + dp(4f), width - dp(24f), dp(PinnedBar.height))
       top = headerBottom + dp(4f) + dp(PinnedBar.height) + dp(8f)
@@ -325,6 +357,8 @@ class ChatScreenActions(private val context: Context, private val messenger: Mes
     }
     // LinkPreview: the card of the link being written stands above the field (and above the bar of an answer).
     above = links.place(composerLeft, composerWidth, above, hidden = selecting)
+    // Composer: the formatting bar over a selection, the emoji panel, the scheduled pill.
+    above = extras.place(width, height, composerLeft, composerWidth, above, top, hidden = selecting)
     val side = dp(DownButton.side); val over = dp(DownButton.over)
     put(downButton, width - dp(14f) - side, above - dp(12f) - side - over, side, side + over)
     return Pair(top, height - above + dp(8f))
@@ -356,7 +390,8 @@ class ChatScreenActions(private val context: Context, private val messenger: Mes
       val line = Core.view("replyPreview", listOf(pinned)) as? String ?: ""
       pinnedBar.show(line.ifEmpty { "Вложение" })
     }
-    val pinnedShown = pinned != null
+    val pinnedShown = pinned != null && searchBar?.visibility != View.VISIBLE // ChatActions: the search takes the pinned bar's place
+    searchBar?.takeIf { it.visibility == View.VISIBLE }?.show(shown.found)
     if ((pinnedBar.visibility == View.VISIBLE) != pinnedShown) {
       pinnedBar.visibility = if (pinnedShown) View.VISIBLE else View.GONE
       relayout()
@@ -541,7 +576,7 @@ class ChatScreenActions(private val context: Context, private val messenger: Mes
     val pinnedNow = client.isNotEmpty() && shown.pinned?.get("clientId") as? String == client
     val canReact = readable(message) && !outgoing(message)
 
-    val items = menuItems(message, shown.noCopy, pinnedNow, editable(message)).map { name ->
+    val items = menuItems(message, shown.noCopy, pinnedNow, editable(message)).mapTo(ArrayList()) { name ->
       when (name) {
         "reply" -> MessageMenu.Item("reply", "Ответить") { startReply(message, focus = true) }
         "copy" -> MessageMenu.Item("copy", "Скопировать") { copyWords(text) }
@@ -557,6 +592,18 @@ class ChatScreenActions(private val context: Context, private val messenger: Mes
           history.selection = setOf(key)
         }
       }
+    }
+    // Attachments: «Сохранить фото» / «Сохранить видео» / «Сохранить» after «Скопировать» (attachments/MediaSave.kt).
+    val file = Core.map(message["attachment"] as? Map<*, *>)
+    if (!shown.noCopy && readable(message) && file != null) {
+      val at = items.indexOfFirst { it.symbol == "copy" }.let { if (it >= 0) it + 1 else minOf(1, items.size) }
+      items.add(at, MessageMenu.Item("square.and.arrow.down", com.linea.messenger.attachments.MediaSave.label(file)) { saveFiles(listOf(file)) })
+    }
+    // ChatsPlus: «В Избранное» — the message goes to this device's saved messages (chatsplus/SavedMessages.kt),
+    // after «Скопировать» as on the iPhone.
+    if (!shown.noCopy && readable(message) && !outgoing(message) && com.linea.messenger.chatsplus.SavedMessages.shared(messenger) != null) {
+      val at = items.indexOfFirst { it.symbol == "copy" || it.symbol == "square.and.arrow.down" }.let { found -> if (found >= 0) items.indexOfLast { it.symbol == "copy" || it.symbol == "square.and.arrow.down" } + 1 else minOf(1, items.size) }
+      items.add(at, MessageMenu.Item("bookmark", "В Избранное") { saveToFavorites(listOf(message)) })
     }
     if (items.isEmpty()) return
 
@@ -611,6 +658,8 @@ class ChatScreenActions(private val context: Context, private val messenger: Mes
     replyTo = null
     editing = message
     field?.put(message["text"] as? String ?: "")
+    // Composer: the message's own formatting comes into the field with its text.
+    extras.reset(field?.text?.toString() ?: "", (Core.map(message["meta"])?.get("entities") as? List<*>).orEmpty().mapNotNull { Core.map(it) })
     showBar()
     if (focus) showKeyboard()
   }
@@ -618,6 +667,7 @@ class ChatScreenActions(private val context: Context, private val messenger: Mes
   private fun endEdit() {
     editing = null
     field?.put(local?.draft(chatId) ?: sampleDraft)
+    extras.reset(field?.text?.toString() ?: "") // Composer
     showBar()
   }
 
@@ -674,19 +724,26 @@ class ChatScreenActions(private val context: Context, private val messenger: Mes
   // Sending
 
   /** The send button: the edit, the forward with its comment, or the message (an answer when one is being written). */
-  fun submit() {
+  fun submit(silent: Boolean = false, deliverAt: java.time.Instant? = null) {
     val field = field ?: return
-    val text = field.text.toString().trim()
+    // Composer: the shortcuts typed (**жирный**…) and the styles of the panel become entities; the text is what
+    // remains of the field, trimmed (composer/FormatBar.kt). `silent` and `deliverAt` come from the long touch on the
+    // send button; they apply to a new message, not to an edit or a forward.
+    val composed = extras.compose(field.text.toString())
+    val text = composed.first
     val editing = editing
     if (editing != null) {
       if (text.isEmpty()) return
-      val changed = text != (editing["text"] as? String ?: "")
+      val before = (Core.map(editing["meta"])?.get("entities") as? List<*>).orEmpty()
+      val changed = text != (editing["text"] as? String ?: "") || before != (composed.second ?: emptyList<Any?>())
       val client = editing["clientId"] as? String
       if (changed && !editWindowOpen(editing)) {
         say(editWindowClosed)
       } else if (changed && client != null) {
-        // The new text replaces the old one with its formatting (this field does not format yet).
-        history.sendAction(mapOf("type" to "edit", "target" to client, "text" to text))
+        // The new text replaces the old one with its formatting.
+        val action = linkedMapOf<String, Any?>("type" to "edit", "target" to client, "text" to text)
+        composed.second?.let { action["entities"] = it }
+        history.sendAction(action)
       }
       endEdit()
       stopTyping()
@@ -697,11 +754,15 @@ class ChatScreenActions(private val context: Context, private val messenger: Mes
       return
     }
     if (text.isEmpty()) return
-    tick()
-    val meta = replyTo?.let { replyMeta(it) }
+    com.linea.messenger.chatlook.Haptic.light(host) // ChatLook: the reference's send knock (lightFeedback)
+    var meta = replyTo?.let { replyMeta(it) }
+    // Composer: the formatting chosen in the panel above the field, and «без звука».
+    composed.second?.let { meta = (meta ?: emptyMap()) + ("entities" to it) }
+    meta = com.linea.messenger.composer.ScheduleModel.withSilent(meta, silent)
     replyTo = null
+    if (deliverAt != null) { lastScheduledText = text; lastScheduledSilent = silent }
     // LinkPreview: the card made while the link was typed goes inside the same encrypted message.
-    history.send(text, meta, linkPreview = links.take(text))
+    history.send(text, meta, linkPreview = links.take(text), deliverAt = deliverAt?.let { com.linea.messenger.composer.ScheduleModel.iso(it) })
     clearField()
     showBar()
     list?.scrollToNewest(animated = true)
@@ -719,6 +780,7 @@ class ChatScreenActions(private val context: Context, private val messenger: Mes
 
   private fun clearField() {
     field?.put("")
+    extras.reset("") // Composer
     if (local != null) local.setDraft(chatId, "") else sampleDraft = ""
     links.reset()
     stopTyping()
@@ -741,6 +803,8 @@ class ChatScreenActions(private val context: Context, private val messenger: Mes
     val items = messages.map { ForwardDraft.Item(it, author(it)) }
     picker.onPick = pick@{ target ->
       history.selection = null
+      // ChatsPlus: «Избранное» — the messages go to this device's saved messages.
+      if (target.isSaved) { saveToFavorites(messages); return@pick }
       val messenger = messenger
       if (messenger == null || (target.summary == null && target.chatId != chatId)) {
         // The debug build's samples: nothing is sent anywhere.
@@ -761,8 +825,20 @@ class ChatScreenActions(private val context: Context, private val messenger: Mes
       while (stack.depth > 1) stack.pop(animated = false)
       stack.push(screen)
     }
+    // Composer: «Выбрать» → several chats at once, the comment first in each (the reference's `onSendMany`).
+    picker.onSendMany = many@{ targets, comment ->
+      history.selection = null
+      if (targets.any { it.isSaved }) saveToFavorites(messages)
+      val messenger = messenger
+      if (messenger == null) { say(ChatForward.notice(targets)); return@many }
+      ChatForward.sendMany(messenger, targets, comment, items) { problem ->
+        if (problem != null) say(problem, danger = true) else say(ChatForward.notice(targets))
+        if (targets.any { it.chatId == chatId }) history.load()
+      }
+    }
     hideKeyboard()
     picker.show()
+    if (messenger == null && ChatActionsDemo.chatdemo == "forwardmany") picker.demoChooseSeveral()
   }
 
   private fun sendForward(comment: String) {
@@ -861,11 +937,105 @@ class ChatScreenActions(private val context: Context, private val messenger: Mes
     ChoiceSheet(context, "Выбрано: ${keys.size}", choices = choices).show()
   }
 
+  // Polls, saving, the search, the gift
+
+  /** Polls: a tap on an option, «Голосовать» or «Отменить голос» (the reference's PollBubble.tsx): one answer is sent
+   *  at once; several are ticked first. A vote is an encrypted action the core folds into the results. */
+  private fun pollPressed(key: String, part: String) {
+    val message = history.shown.messages[key] ?: return
+    val client = message["clientId"] as? String ?: return
+    if (selecting) { toggle(key); return }
+    if (!readable(message) || outgoing(message)) return
+    val poll = Core.map(Core.map(message["meta"])?.get("poll")) ?: return
+    val multiple = poll["multiple"] == true
+    val mine = (Core.map(message["poll"])?.get("mine") as? List<*>).orEmpty().mapNotNull { (it as? Number)?.toInt() }
+    val line = Core.view("replyPreview", listOf(message)) as? String ?: ""
+    val vote: (List<Int>) -> Unit = { options -> history.sendAction(mapOf("type" to "vote", "target" to client, "options" to options), line) }
+    if (part == "retract") { tick(); vote(emptyList()); return }
+    if (part == "vote") {
+      val draft = history.pollDrafts[key] ?: emptyList()
+      if (draft.isEmpty()) return
+      history.pollDrafts = history.pollDrafts - key
+      vote(draft.sorted())
+      return
+    }
+    val index = part.removePrefix("option:").toIntOrNull() ?: return
+    tick()
+    if (mine.isNotEmpty()) return
+    if (!multiple) { vote(listOf(index)); return }
+    val draft = history.pollDrafts[key] ?: emptyList()
+    history.pollDrafts = history.pollDrafts + (key to (if (draft.contains(index)) draft - index else draft + index))
+  }
+
+  /** Polls: «Новый опрос»; the poll goes inside an encrypted message with its readable text for older clients. */
+  fun newPoll() {
+    hideKeyboard()
+    val sheet = com.linea.messenger.polls.PollComposer(context)
+    sheet.onSend = { poll ->
+      tick()
+      history.send(com.linea.messenger.polls.PollText.fallback(poll), mapOf("poll" to poll))
+      list?.scrollToNewest(animated = true)
+    }
+    sheet.show()
+  }
+
+  /** Attachments: photos and videos to the gallery, any other file through the share sheet. */
+  private fun saveFiles(files: List<Map<String, Any?>>) {
+    val messenger = messenger ?: return say("Сохранено в галерею")
+    com.linea.messenger.attachments.MediaSave.save(context, files, messenger) { words, danger -> say(words, danger) }
+  }
+
+  /** ChatsPlus: «В Избранное» — «Сохранено в Избранное» or «Уже в Избранном». */
+  private fun saveToFavorites(messages: List<Map<String, Any?>>) {
+    val saved = com.linea.messenger.chatsplus.SavedMessages.shared(messenger) ?: return
+    for (message in messages) {
+      saved.save(message, chatId, author(message).take(80)) { result ->
+        val added = result.getOrNull()
+        if (added != null) say(if (added) "Сохранено в Избранное" else "Уже в Избранном")
+        else say((result.exceptionOrNull() as? com.linea.messenger.chatsplus.SavedMessages.Failure)?.words ?: "Не удалось сохранить.", danger = true)
+      }
+    }
+  }
+
+  /** Composer: «Отправить подарок» of the reference's chat menu (ChatScreen.tsx `headerSheet === 'gift'`): the gift
+   *  sheet of profile/Gifts.kt for this person; «Подарок отправлен» once it went. */
+  fun sendGift() {
+    if (peerId.isEmpty() && messenger != null) return
+    hideKeyboard()
+    val sheet = com.linea.messenger.profile.GiftSheet(context, messenger, if (messenger == null) "sample" else peerId)
+    sheet.onSent = { say("Подарок отправлен") }
+    sheet.show()
+  }
+
+  /** ChatActions: «Поиск в этом чате» opens under the header (the avatar's menu and the profile's «Поиск» call it). */
+  fun openSearch() {
+    val search = searchBar ?: return
+    if (search.visibility == View.VISIBLE) { search.input.requestFocus(); return }
+    history.selection = null
+    search.visibility = View.VISIBLE
+    search.begin()
+    pinnedBar.visibility = View.GONE
+    relayout()
+  }
+
+  fun closeSearch() {
+    val search = searchBar ?: return
+    if (search.visibility != View.VISIBLE) return
+    search.end()
+    search.visibility = View.GONE
+    history.searchNeedle = ""
+    relayout()
+  }
+
+  /** The search line is open (for the checks). */
+  val searching: Boolean get() = searchBar?.visibility == View.VISIBLE
+
   // Going to a message
 
   /** A tap on a quote or on the pinned bar (the reference's replyJump.ts): when the original is not loaded yet,
    *  earlier pages are read one after another until it is there; then the list scrolls to it and it lights up. */
   fun jumpTo(clientId: String) {
+    com.linea.messenger.chatlook.Haptic.light(host) // ChatLook: as the reference's jumpTo
     jump = Pair(clientId, 0)
     stepJump()
   }
@@ -902,13 +1072,15 @@ class ChatScreenActions(private val context: Context, private val messenger: Mes
     }
     val now = SystemClock.elapsedRealtime()
     if (typingAt == 0L || now - typingAt > 1500) {
-      messenger?.live?.typing(chatId, value.isNotEmpty())
+      // Composer: «Показывать «печатает…»» off — the other side is never told (DevicePreferences `sendTyping`).
+      messenger?.live?.typing(chatId, value.isNotEmpty() && (com.linea.messenger.settings.DevicePreferences.flag("sendTyping") ?: true))
       typingAt = now
     }
     host?.removeCallbacks(typingStop)
     host?.postDelayed(typingStop, 1800)
     // LinkPreview: a link typed into a new message gets its card (not an edit, not the comment of a forward).
     links.typed(value, active = editing == null && forwardItems.isEmpty())
+    extras.textChanged(value) // Composer: the styles move with the text
     showSend()
     relayout()
   }
@@ -971,6 +1143,11 @@ class ChatScreenActions(private val context: Context, private val messenger: Mes
       "pin" -> if (shown.pinned == null) target?.let { message ->
         (message["clientId"] as? String)?.let { history.sendAction(mapOf("type" to "pin", "target" to it), message["text"] as? String ?: "") }
       }
+      // ChatActions, Polls, Composer: `chatdemo search|newpoll|gift` (with the messages of `chatdemo features`).
+      "search" -> { openSearch(); searchBar?.input?.setText("распечат") }
+      "newpoll" -> newPoll()
+      "gift" -> sendGift()
+      "forwardmany" -> target?.let { startForward(listOf(it)) }
       "react" -> incoming?.let { message ->
         val mine = (message["reactions"] as? List<*>).orEmpty().mapNotNull { Core.map(it) }.any { it["mine"] == true }
         if (!mine) react(message, "❤️")

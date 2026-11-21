@@ -110,6 +110,8 @@ class ChatAttachments(private val host: View, private val messenger: Messenger?,
   var mediaPressed: ((String) -> Boolean)? = null
   /** Voice/Video: «Видео» of the paperclip's list. */
   var onVideo: (() -> Unit)? = null
+  /** Polls: «Опрос» of the paperclip (polls/PollComposer.kt); set by the chat's actions. */
+  var onPoll: (() -> Unit)? = null
   /** Voice/Video: a video chosen in «Файл» goes the way of «Видео» (written anew without its metadata), with the
    *  answer it is. True: it was taken. */
   var onVideoFile: ((Uri, Map<String, Any?>?) -> Boolean)? = null
@@ -145,9 +147,11 @@ class ChatAttachments(private val host: View, private val messenger: Messenger?,
     hideKeyboard()
     // Voice/Video: «Видео» stands between the two when there is somebody to take it.
     val video = onVideo
-    val items = if (video != null) arrayOf("Галерея", "Видео", "Файл") else arrayOf("Галерея", "Файл")
+    val base = if (video != null) listOf("Галерея", "Видео", "Файл") else listOf("Галерея", "Файл")
+    val poll = onPoll
+    val items = (if (poll != null) base + "Опрос" else base).toTypedArray() // Polls
     AlertDialog.Builder(context)
-      .setItems(items) { _, which -> when (items[which]) { "Галерея" -> pickPhotos(); "Видео" -> video?.invoke(); else -> pickFiles() } }
+      .setItems(items) { _, which -> when (items[which]) { "Галерея" -> pickPhotos(); "Видео" -> video?.invoke(); "Опрос" -> poll?.invoke(); else -> pickFiles() } }
       .setNegativeButton("Отмена", null)
       .show()
   }

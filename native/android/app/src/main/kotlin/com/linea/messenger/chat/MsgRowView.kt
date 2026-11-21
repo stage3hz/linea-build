@@ -57,6 +57,7 @@ class MsgRowView(context: Context) : View(context) {
   private val smallBold = TextPaint(Paint.ANTI_ALIAS_FLAG).apply { textSize = 12.5f * d; typeface = Typeface.create(Typeface.DEFAULT, Typeface.BOLD) }
   private val meta = TextPaint(Paint.ANTI_ALIAS_FLAG).apply { textSize = 11f * d }
   private val picture = Paint(Paint.ANTI_ALIAS_FLAG or Paint.FILTER_BITMAP_FLAG)
+  private val bigPaint = TextPaint(Paint.ANTI_ALIAS_FLAG).apply { textAlign = Paint.Align.CENTER }
   private val matrix = Matrix()
   private val path = Path()
   private val plateBox = android.graphics.RectF()
@@ -155,6 +156,22 @@ class MsgRowView(context: Context) : View(context) {
   private var thumbW = 0f
   private var thumbH = 0f
   /** The time stands on the text's last line: `timeX` from the text's left, its baseline `timeBase` under the text's top. */
+  /** Polls: the poll laid out for this row, and where it was drawn last. */
+  private var pollLayout: com.linea.messenger.polls.MsgPollLayout? = null
+  private var pollX = 0f
+  private var pollY = 0f
+  /** Composer: the big emoji of the row (1–3), their box (px), and their animations (composer/BigEmoji.kt). */
+  private var bigGlyphs: List<String> = emptyList()
+  private var bigBox = 0f
+  private val bigArt = com.linea.messenger.composer.BigEmojiArt(this)
+
+  /** Polls: the part of the poll under a point of this view ("option:<n>", "vote", "retract"). */
+  fun pollAt(px: Float, py: Float): String? {
+    val laid = pollLayout ?: return null
+    if (builtFor != row) return null
+    return laid.part(px - pollX, py - pollY)
+  }
+
   private var timeInline = false
   private var timeX = 0f
   private var timeBase = 0f
@@ -176,7 +193,7 @@ class MsgRowView(context: Context) : View(context) {
     // LinkPreview: the card's picture is decoded once per row, not on every drawing.
     val cardImage = next.linkCard?.image ?: ""
     if (cardImage != cardOf) { cardOf = cardImage; cardPicture = next.linkCard?.picture() }
-    contentDescription = if (next.kind == 1 || next.kind == 2) next.text else listOf(MediaRowArt.spoken(next), next.label, next.text, next.linkCard?.spoken ?: "", next.time).filter { it.isNotEmpty() }.joinToString(". ")
+    contentDescription = if (next.kind == 1 || next.kind == 2) next.text else listOf(MediaRowArt.spoken(next), next.label, next.text, next.poll?.spoken ?: "", next.linkCard?.spoken ?: "", if (next.silent) "без звука" else "", next.time).filter { it.isNotEmpty() }.joinToString(". ")
     if (relayout) requestLayout()
     invalidate()
   }
@@ -259,7 +276,7 @@ class MsgRowView(context: Context) : View(context) {
   private fun build(item: MsgRow, width: Int) {
     body.textSize = fontSize * d
     textLayout = null; quoteLayout = null; labelLayout = null; noticeLayout = null; reactLayout = null; thumbW = 0f; thumbH = 0f; voiceW = 0f; voiceH = 0f
-    chips = emptyList(); chipsW = 0f; chipsH = 0f; timeInline = false; card = null
+    chips = emptyList(); chipsW = 0f; chipsH = 0f; timeInline = false; card = null; pollLayout = null; bigGlyphs = emptyList(); bigBox = 0f
     if (item.kind == 2) {
       // Offline: the lock notice of messages sent before this device signed in (the reference's MissingRow).
       val box = minOf(width - 2 * edge, 360f * d)
@@ -270,7 +287,9 @@ class MsgRowView(context: Context) : View(context) {
       bubbleW = widest(noticeLayout) + 24f * d; bubbleH = (noticeLayout?.height ?: 0) + 12f * d
     } else {
       val inner = (width * 0.78f - 26f * d).toInt()
-      if (item.text.isNotEmpty()) textLayout = layout(styled(item), body, inner, 400)
+      // Composer: 1–3 emoji alone stand large, each in its box (the reference's 112 / 84 / 68).
+      if (item.bigEmoji > 0) { bigGlyphs = com.linea.messenger.composer.BigEmoji.graphemes(item.text).take(3); bigBox = com.linea.messenger.composer.BigEmoji.box(bigGlyphs.size) * d }
+      if (item.text.isNotEmpty() && bigGlyphs.isEmpty()) textLayout = layout(styled(item), body, inner, 400)
       if (item.quoteText.isNotEmpty() || item.quoteAuthor.isNotEmpty()) quoteLayout = layout(item.quoteText, small, inner - (12f * d).toInt(), 2)
       if (item.label.isNotEmpty()) labelLayout = layout(item.label, small, inner, 2)
       layoutChips(item, inner.toFloat())
@@ -281,12 +300,15 @@ class MsgRowView(context: Context) : View(context) {
       if (item.media == "note") { thumbW = minOf(inner.toFloat(), MediaRowArt.noteSide * d); thumbH = thumbW }
       else if (item.media == "video" && thumb == null) { thumbW = minOf(inner.toFloat(), 220f * d); thumbH = (thumbW / item.thumbWide.toFloat()).coerceIn(90f * d, 300f * d) }
       else if (item.media == "voice") { voiceW = minOf(inner.toFloat(), MediaRowArt.voiceWidth * d); voiceH = MediaRowArt.voiceHeight * d }
-      val metaWidth = meta.measureText(item.time) + (if (item.mine) 22f * d else 0f)
+      val metaWidth = meta.measureText(item.time) + (if (item.mine) 22f * d else 0f) + (if (item.silent) 15f * d else 0f) // Composer: the bell of «без звука»
       var w = maxOf(maxOf(widest(textLayout), metaWidth, thumbW, widest(labelLayout)), maxOf(widest(reactLayout), chipsW, voiceW))
       if (quoteLayout != null) w = maxOf(w, maxOf(widest(quoteLayout), smallBold.measureText(item.quoteAuthor)) + 12f * d)
       if (item.forward.isNotEmpty()) w = maxOf(w, minOf(inner.toFloat(), smallBold.measureText(item.forward)))
       // LinkPreview: the card stands under the text, and the time then goes under the card.
       item.linkCard?.let { link -> card = com.linea.messenger.linkpreview.MsgLinkCardLayout.make(link, inner.toFloat(), d).also { w = maxOf(w, it.width) } }
+      // Polls: the poll stands where the text would (a poll's text is only for clients without polls).
+      item.poll?.let { poll -> pollLayout = com.linea.messenger.polls.MsgPollLayout.make(poll, inner.toFloat(), d).also { w = maxOf(w, it.width) } }
+      if (bigGlyphs.isNotEmpty()) w = maxOf(w, bigBox * bigGlyphs.size)
       // The open look: the time goes after the last word when the line has room for it (plain left-to-right
       // text only: not under reactions, not after a quote or a code block).
       val text = textLayout
@@ -304,6 +326,8 @@ class MsgRowView(context: Context) : View(context) {
       if (thumbH > 0f) h += thumbH + 6f * d
       if (voiceH > 0f) h += voiceH + 4f * d
       if (labelLayout != null) h += labelLayout!!.height + 4f * d
+      pollLayout?.let { h += it.height + 4f * d } // Polls
+      if (bigGlyphs.isNotEmpty()) h += bigBox // Composer
       if (textLayout != null) h += textLayout!!.height
       card?.let { h += it.height + 7f * d }
       if (reactLayout != null) h += reactLayout!!.height + 6f * d
@@ -419,6 +443,19 @@ class MsgRowView(context: Context) : View(context) {
     if (!mediaBoxes.thumb.isEmpty) MediaRowArt.marks(canvas, item, mediaState, palette, mediaPicture, d)
     if (voiceH > 0f) { MediaRowArt.voice(canvas, item, mediaState, palette, x, y, voiceW, d, mediaBoxes); y += voiceH + 4f * d }
     labelLayout?.let { small.color = markColor; canvas.save(); canvas.translate(x, y); it.draw(canvas); canvas.restore(); y += it.height + 4f * d }
+    // Polls: the question, the options and the results.
+    pollLayout?.let { pollX = x; pollY = y; it.draw(canvas, x, y, palette); y += it.height + 4f * d }
+    // Composer: the big emoji — their animations where the reference has them, the glyphs otherwise.
+    if (bigGlyphs.isNotEmpty()) {
+      bigArt.show(context, item.key, bigGlyphs)
+      bigPaint.textSize = bigBox * 0.86f
+      bigGlyphs.forEachIndexed { index, glyph ->
+        val bx = x + index * bigBox
+        if (bigArt.has(index)) bigArt.draw(canvas, index, bx, y, bigBox)
+        else canvas.drawText(glyph, bx + bigBox / 2, y + bigBox / 2 - (bigPaint.ascent() + bigPaint.descent()) / 2, bigPaint)
+      }
+      y += bigBox
+    }
     val textTop = y
     textLayout?.let { body.color = palette.text; bodyX = x; bodyY = y; canvas.save(); canvas.translate(x, y); it.draw(canvas); canvas.restore(); y += it.height }
     // LinkPreview: the card of the link, under the text.
@@ -441,9 +478,11 @@ class MsgRowView(context: Context) : View(context) {
     val marks = if (item.mine) 20f * d else 0f
     // After the last word of the text, or in the plate's lower corner.
     val inline = timeInline && textLayout != null
-    val right = if (inline) x + timeX + meta.measureText(item.time) + marks else left + bubbleW - 13f * d
+    val right = if (inline) x + timeX + meta.measureText(item.time) + marks + (if (item.silent) 15f * d else 0f) else left + bubbleW - 13f * d // Composer: room for the bell
     val base = if (inline) textTop + timeBase else bubbleH - 8f * d
     canvas.drawText(item.time, right - marks - meta.measureText(item.time), base, meta)
+    // Composer: «без звука» — a crossed bell before the time.
+    if (item.silent) com.linea.messenger.chatactions.ChatIcons.draw(canvas, "bell.slash", right - marks - meta.measureText(item.time) - 8f * d, base - 4f * d, 11f * d, metaColor)
     if (item.mine && item.ticks in 1..2) {
       stroke.color = if (item.ticks == 2) markColor else metaColor; stroke.strokeWidth = 1.5f * d
       val bx = right - 15f * d; val my = base - 4f * d

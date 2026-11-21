@@ -172,10 +172,12 @@ class ChannelsEngineTest {
     assertTrue(layout.height > 400)
     val block = layout.pieces.filterIsInstance<ChannelPiece.Block>().single()
     assertTrue(block.layout.lineCount >= 2)
-    // The link's first letter is on the first line, 17 letters in.
-    val x = block.x + block.layout.getPrimaryHorizontal(20); val y = block.y + block.layout.getLineBaseline(0) - 5
-    println("DBG hit=${layout.hit(x, y)} x=$x y=$y lines=${block.layout.lineCount} w=${block.layout.getLineWidth(0)} by=${block.y} h=${layout.height}");     assertEquals("https://example.com/turnir", (layout.hit(x, y) as ChannelHit.Link).url)
-    assertTrue(layout.hit(block.x + 5, y) is ChannelHit.Row)
+    // The link begins 17 letters in (on the first or, with the app's wider type, the second line): a point inside its
+    // fourth letter, on that letter's line.
+    val line = block.layout.getLineForOffset(20)
+    val x = block.x + (block.layout.getPrimaryHorizontal(20) + block.layout.getPrimaryHorizontal(21)) / 2; val y = block.y + block.layout.getLineBaseline(line) - 5
+    assertEquals("https://example.com/turnir", (layout.hit(x, y) as ChannelHit.Link).url)
+    assertTrue(layout.hit(block.x + 5, block.y + block.layout.getLineBaseline(0) - 5) is ChannelHit.Row)
     val chip = layout.pieces.filterIsInstance<ChannelPiece.Border>().first().box
     assertEquals("👍", (layout.hit(chip.centerX(), chip.centerY()) as ChannelHit.Chip).emoji)
     val face = layout.pieces.filterIsInstance<ChannelPiece.Avatar>().single().box

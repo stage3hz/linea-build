@@ -78,6 +78,23 @@ object ChatActionsDemo {
       add(false, "❤️ Реакция на сообщение", "09:42", mapOf("action" to mapOf("type" to "react", "target" to client(7), "emoji" to "❤️")))
     }
     if (extra == "pinned") add(true, "Закреплено сообщение", "09:43", mapOf("action" to mapOf("type" to "pin", "target" to client(3))))
+    // Polls, Composer: `chatdemo features` — a poll with results, a poll with several answers, big emoji and a message
+    // sent «без звука» (also under search, newpoll and albummenu, as on the iPhone).
+    if (extra in listOf("features", "poll", "album", "emoji", "search", "albummenu", "newpoll")) {
+      val lunch = mapOf("question" to "Куда пойдём в пятницу?", "options" to listOf("Кино", "Боулинг", "Остаться дома"), "multiple" to false)
+      add(false, com.linea.messenger.polls.PollText.fallback(lunch), "09:44", mapOf("poll" to lunch))
+      val pollClient = client(list.size)
+      add(false, "🗳 Голос в опросе", "09:45", mapOf("action" to mapOf("type" to "vote", "target" to pollClient, "options" to listOf(0))))
+      add(true, "🗳 Голос в опросе", "09:45", mapOf("action" to mapOf("type" to "vote", "target" to pollClient, "options" to listOf(1))))
+      val picnic = mapOf("question" to "Что взять на пикник?", "options" to listOf("Плед", "Мяч", "Термос", "Гитара"), "multiple" to true)
+      add(true, com.linea.messenger.polls.PollText.fallback(picnic), "09:46", mapOf("poll" to picnic))
+      for ((mine, words) in listOf(false to "🎉🔥", true to "👍")) {
+        val id = list.size + 1
+        list.add(mapOf("id" to id, "chatId" to chatId, "senderId" to (if (mine) userId else peer), "clientId" to client(id), "text" to words,
+          "attachment" to null, "createdAt" to at("09:47", id), "cryptoState" to "decrypted"))
+      }
+      add(true, "Не буду звонить, напиши, как проснёшься", "09:48", mapOf("silent" to true))
+    }
     return list
   }
 

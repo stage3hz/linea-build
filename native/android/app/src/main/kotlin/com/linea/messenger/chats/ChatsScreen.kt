@@ -242,7 +242,9 @@ class ChatsScreen(
     val listTop = top + dp(8f) + headingHeight + dp(8f)
     val searchTop = actions.place(width, top, listTop)
     // ChatsPlus: the line under the title and the folder tabs take their room above the list.
-    val pad = plus.place(width, height, top, edges.bottom, searchTop, barRoom)
+    val plusPad = plus.place(width, height, top, edges.bottom, searchTop, barRoom)
+    // Security: «Новый вход» and «Запрос восстановления» under the heading (security/AccountNotices.kt).
+    val pad = com.linea.messenger.security.AccountNotices.place(this, plusPad, width, account = messenger != null)
     list.setPad(pad, barRoom)
     plus.placeHeaderEdge(pad, width) // ChatsPlus: the floating header's edge
     newChat.visibility = if (plus.selecting) View.GONE else View.VISIBLE // ChatsPlus: «Выбрать» — «Новый чат» gives way

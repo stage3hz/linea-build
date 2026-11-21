@@ -37,6 +37,9 @@ class PlayerScreen(context: Context, private val player: MusicPlayer) : Screen(c
   private val extra = AIIconButton(context, "more", 20f, Theme.text, "Ещё")
   private val shuffleChip = MusicChip(context, "Перемешать", "shuffle", false)
   private val heartChip = MusicChip(context, "В любимое", "heart", false)
+  /** Music: «Эквалайзер» (music/MusicEqualizer.kt) and the living background (effects/MusicAmbient.kt). */
+  private val equalizerChip = MusicChip(context, "Эквалайзер", "sliders", false)
+  private val ambient = com.linea.messenger.effects.MusicAmbientView(context, com.linea.messenger.effects.MusicAmbientView.themeTone, com.linea.messenger.effects.MusicAmbientView.themeCustom)
   private val slider = SeekBar(context)
   private val elapsed = AIKit.label(context, "0:00", 11f, color = Theme.muted, lines = 1)
   private val total = AIKit.label(context, "—:—", 11f, color = Theme.muted, lines = 1, align = Gravity.END)
@@ -62,6 +65,7 @@ class PlayerScreen(context: Context, private val player: MusicPlayer) : Screen(c
     column.orientation = LinearLayout.VERTICAL
     column.setPadding(dp(24f), dp(12f), dp(24f), dp(28f))
     scroll.addView(column, FrameLayout.LayoutParams(FrameLayout.LayoutParams.MATCH_PARENT, FrameLayout.LayoutParams.WRAP_CONTENT))
+    addView(ambient) // Music
     addView(scroll)
 
     val fold = AIIconButton(context, "chevron.down", 20f, Theme.text, "Свернуть плеер")
@@ -106,6 +110,8 @@ class PlayerScreen(context: Context, private val player: MusicPlayer) : Screen(c
     val chips = LinearLayout(context).apply { orientation = LinearLayout.HORIZONTAL }
     chips.addView(shuffleChip, LinearLayout.LayoutParams(wrap, dp(38f)))
     chips.addView(heartChip, LinearLayout.LayoutParams(wrap, dp(38f)).apply { marginStart = dp(8f) })
+    equalizerChip.setOnClickListener { openEqualizer() } // Music
+    chips.addView(equalizerChip, LinearLayout.LayoutParams(wrap, dp(38f)).apply { marginStart = dp(8f) })
     AIKit.add(column, chips, 16f)
 
     slider.progressTintList = ColorStateList.valueOf(Theme.text)
@@ -182,7 +188,15 @@ class PlayerScreen(context: Context, private val player: MusicPlayer) : Screen(c
   }
 
   override fun place(width: Int, height: Int) {
+    put(ambient, 0, 0, width, height) // Music
     put(scroll, 0, edges.top, width, height - edges.top - edges.bottom)
+  }
+
+  /** Music: «Эквалайзер» over the player. */
+  fun openEqualizer() {
+    val stack = pages() ?: return
+    if (stack.top is EqualizerScreen) return
+    stack.push(EqualizerScreen(context, player))
   }
 
   private fun leave() {

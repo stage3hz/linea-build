@@ -165,6 +165,8 @@ class Live(private val server: Server) {
     if (type == "ready" || type == "error" || type.startsWith("room.") || type.startsWith("voice.")) roomEvent.post(data)
     // Composer: the server's list of scheduled messages changed (`scheduled`), or the line opened (composer/ScheduledStore.kt).
     if (type == "ready" || type == "scheduled") scheduledEvent.post(data)
+    // Security: a sign-in from another device, a recovery request (security/AccountNotices.kt).
+    if (type == "session.new" || type.startsWith("recovery.")) securityEvent.post(data)
     when (type) {
       "ready" -> { attempts = 0; onEvent?.invoke(Event.Ready) }
       "message" -> onEvent?.invoke(Event.Chat(Core.map(data["message"])?.get("chatId") as? String))
@@ -237,5 +239,7 @@ class Live(private val server: Server) {
      *  `voice.auth`, `voice.left`, `voice.state`, `voice.kicked` (the voice of the room this phone is in), `error`
      *  and `ready`: the event as it came (rooms/RoomsStore.kt, rooms/RoomVoice.kt). */
     val roomEvent = Signal<Map<String, Any?>>()
+    /** Security: posted on the main thread for `session.new`, `recovery.requested`, `recovery.updated` (security/AccountNotices.kt). */
+    val securityEvent = Signal<Map<String, Any?>>()
   }
 }

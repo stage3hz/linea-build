@@ -104,6 +104,22 @@ object AIIcons {
         path.moveTo(17.8f, 4.8f); path.lineTo(20.4f, 7.4f); path.lineTo(17.8f, 10f); path.moveTo(17.8f, 14f); path.lineTo(20.4f, 16.6f); path.lineTo(17.8f, 19.2f)
         canvas.drawPath(path, stroke)
       }
+      // Music: «Эквалайзер» (music/MusicEqualizer.kt); AI: a photo or a file in the request (ai/AIAttachments.kt).
+      "sliders" -> {
+        canvas.drawLine(4f, 7f, 20f, 7f, stroke); canvas.drawLine(4f, 12f, 20f, 12f, stroke); canvas.drawLine(4f, 17f, 20f, 17f, stroke)
+        canvas.drawCircle(9f, 7f, 2f, fill); canvas.drawCircle(15f, 12f, 2f, fill); canvas.drawCircle(7f, 17f, 2f, fill)
+      }
+      "photo" -> {
+        canvas.drawRoundRect(3.5f, 5f, 20.5f, 19f, 2.6f, 2.6f, stroke)
+        path.moveTo(3.8f, 16.4f); path.lineTo(9f, 11.4f); path.lineTo(13f, 15.2f); path.lineTo(15.6f, 12.8f); path.lineTo(20.2f, 16.8f); canvas.drawPath(path, stroke)
+        canvas.drawCircle(15.8f, 8.8f, 1.4f, stroke)
+      }
+      "paperclip" -> {
+        path.moveTo(15.5f, 7.5f); path.lineTo(8.6f, 14.4f); path.cubicTo(7.6f, 15.4f, 7.6f, 17f, 8.6f, 18f); path.cubicTo(9.6f, 19f, 11.2f, 19f, 12.2f, 18f)
+        path.lineTo(19f, 11.2f); path.cubicTo(20.8f, 9.4f, 20.8f, 6.6f, 19f, 4.8f); path.cubicTo(17.2f, 3f, 14.4f, 3f, 12.6f, 4.8f); path.lineTo(5.6f, 11.8f)
+        path.cubicTo(3f, 14.4f, 3f, 18.4f, 5.6f, 21f)
+        canvas.drawPath(path, stroke)
+      }
       "note" -> {
         canvas.drawOval(5f, 14.6f, 11f, 19.6f, fill)
         path.moveTo(10.2f, 17f); path.lineTo(10.2f, 5.4f); path.lineTo(18.4f, 3.6f); path.lineTo(18.4f, 8f); path.lineTo(10.2f, 9.8f)

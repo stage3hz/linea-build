@@ -126,6 +126,44 @@ object ChatForward {
     }
   }
 
+  /** Composer: the comment of «Выбрать» → send: a plain message to another chat, end-to-end encrypted like any other
+   *  (the reference's `store.send(target.id, comment, null)`). The answer comes on the main thread. */
+  fun sendText(messenger: Messenger, chatId: String, peerId: String, text: String, done: (String?) -> Unit) {
+    val clientId = UUID.randomUUID().toString().lowercase()
+    messenger.crypto.run({ crypto: CryptoService -> messenger.deliver(crypto, chatId, peerId, clientId, text, null, null) }, { result ->
+      val failure = CryptoService.failure(result)
+      if (result.isFailure && failure?.name != "NetworkError") { done(failure?.words.orEmpty().ifEmpty { "Не удалось переслать." }); return@run }
+      messenger.noteChanged(chatId)
+      done(null)
+    })
+  }
+
+  /** Composer: «Выбрать» → send: to every chosen chat in turn, the comment first, then the messages in their order (the
+   *  reference's `onSendMany`). «Избранное» among the targets is the caller's. `done` gets the first problem, if any. */
+  fun sendMany(messenger: Messenger, targets: List<ForwardPicker.Target>, comment: String, items: List<ForwardDraft.Item>, done: (String?) -> Unit) {
+    val steps = ArrayList<Pair<ForwardPicker.Target, ForwardDraft.Item?>>()
+    for (target in targets) {
+      if (target.isSaved) continue
+      if (comment.isNotEmpty()) steps.add(target to null)
+      for (item in items) steps.add(target to item)
+    }
+    fun step(index: Int) {
+      if (index >= steps.size) return done(null)
+      val (target, item) = steps[index]
+      val next: (String?) -> Unit = { problem -> if (problem != null) done(problem) else step(index + 1) }
+      if (item != null) send(messenger, target.chatId, target.peerId, item.message, item.author, next)
+      else sendText(messenger, target.chatId, target.peerId, comment, next)
+    }
+    step(0)
+  }
+
+  /** «Переслано: Имя» or «Переслано в 3 чата» (the reference's notice; «Избранное» counts as a chat there). */
+  fun notice(targets: List<ForwardPicker.Target>): String {
+    val only = targets.singleOrNull()
+    if (only != null && !only.isSaved) return "Переслано: " + only.name
+    return "Переслано в ${targets.size} " + com.linea.messenger.composer.ScheduleModel.plural(targets.size, "чат", "чата", "чатов")
+  }
+
   /** The file of a message as a new encrypted file on the server. Runs on a background thread. A failure is a
    *  `FileCore.Failure`. */
   private fun copied(attachment: Map<String, Any?>, server: Server): Result<Map<String, Any?>> {
@@ -159,10 +197,21 @@ class ForwardPicker(context: Context, private val messenger: Messenger?, private
     val chatId: String, val peerId: String, val name: String, val person: Person?,
     /** The chat as the list knows it (null in the debug build's samples). */
     val summary: Messenger.ChatSummary?,
-  )
+  ) {
+    /** ChatsPlus: «Избранное» — the saved messages of this device, not a chat. */
+    val isSaved: Boolean get() = chatId == SAVED_ID
+  }
 
   /** A chat was chosen (the picker is already closed). */
   var onPick: ((Target) -> Unit)? = null
+  /** Composer: «Выбрать» → send: the chosen chats in the order of the list, and the comment (trimmed, maybe empty). */
+  var onSendMany: ((List<Target>, String) -> Unit)? = null
+  private var selecting = false
+  private val picked = LinkedHashSet<String>()
+  private val selectButton = TextView(context)
+  private val bottomBar = LinearLayout(context)
+  private val commentField = EditText(context)
+  private val sendButton = TextView(context)
 
   private val d = context.resources.displayMetrics.density
   private fun dp(value: Float) = Math.round(value * d)
@@ -176,16 +225,29 @@ class ForwardPicker(context: Context, private val messenger: Messenger?, private
   private inner class Cell : FrameLayout(context) {
     val avatar = PersonAvatarView(context)
     val nameLabel = TextView(context).apply { textSize = 17f; setTextColor(Theme.text); maxLines = 1; ellipsize = TextUtils.TruncateAt.END; gravity = Gravity.CENTER_VERTICAL }
+    /** ChatsPlus: «Избранное» has a round bookmark instead of a person's picture. */
+    val saved = ChatIconView(context, "bookmark.fill", 20f, Theme.onAccent).apply { background = GradientDrawable().apply { shape = GradientDrawable.OVAL; setColor(Theme.accent) } }
+    /** Composer: the mark of a chat chosen with «Выбрать». */
+    val mark = ChatIconView(context, "check.circle", 22f, Theme.accent)
     init {
       addView(avatar, LayoutParams(dp(44f), dp(44f), Gravity.START or Gravity.CENTER_VERTICAL).apply { leftMargin = dp(16f) })
-      addView(nameLabel, LayoutParams(LayoutParams.MATCH_PARENT, LayoutParams.MATCH_PARENT).apply { leftMargin = dp(72f); rightMargin = dp(16f) })
+      addView(saved, LayoutParams(dp(44f), dp(44f), Gravity.START or Gravity.CENTER_VERTICAL).apply { leftMargin = dp(16f) })
+      addView(nameLabel, LayoutParams(LayoutParams.MATCH_PARENT, LayoutParams.MATCH_PARENT).apply { leftMargin = dp(72f); rightMargin = dp(52f) })
+      addView(mark, LayoutParams(dp(26f), dp(26f), Gravity.END or Gravity.CENTER_VERTICAL).apply { rightMargin = dp(18f) })
       layoutParams = android.widget.AbsListView.LayoutParams(android.widget.AbsListView.LayoutParams.MATCH_PARENT, dp(60f))
     }
     fun show(target: Target) {
       nameLabel.text = target.name
-      contentDescription = target.name
+      saved.visibility = if (target.isSaved) View.VISIBLE else View.GONE
       avatar.visibility = if (target.person == null) View.INVISIBLE else View.VISIBLE
       target.person?.let { avatar.show(it, messenger?.personAvatarAddress(it.avatarId) ?: "") }
+      val chosen = picked.contains(target.chatId)
+      mark.visibility = if (selecting) View.VISIBLE else View.GONE
+      mark.symbol = if (chosen) "check.fill" else ""
+      mark.color = Theme.accent
+      mark.background = if (chosen) null else GradientDrawable().apply { shape = GradientDrawable.OVAL; setStroke(dp(1.6f), Theme.subtle) }
+      mark.invalidate()
+      contentDescription = if (selecting) target.name + (if (chosen) ", выбран" else "") else target.name
     }
   }
 
@@ -212,6 +274,12 @@ class ForwardPicker(context: Context, private val messenger: Messenger?, private
       isClickable = true; isFocusable = true
       setOnClickListener { dismiss() }
     }, FrameLayout.LayoutParams(dp(84f), FrameLayout.LayoutParams.MATCH_PARENT).apply { leftMargin = dp(16f) })
+    // Composer: «Выбрать» several chats (and «Отмена» of it).
+    selectButton.text = "Выбрать"; selectButton.textSize = 16f; selectButton.typeface = Theme.weight(600); selectButton.setTextColor(Theme.accent)
+    selectButton.gravity = Gravity.CENTER_VERTICAL or Gravity.END
+    selectButton.isClickable = true; selectButton.isFocusable = true
+    selectButton.setOnClickListener { toggleSelecting() }
+    top.addView(selectButton, FrameLayout.LayoutParams(dp(100f), FrameLayout.LayoutParams.MATCH_PARENT, Gravity.END).apply { rightMargin = dp(16f) })
     column.addView(top, LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, dp(44f)).apply { topMargin = dp(14f) })
 
     searchField.hint = "Поиск"
@@ -238,6 +306,12 @@ class ForwardPicker(context: Context, private val messenger: Messenger?, private
     table.adapter = adapter
     table.setOnItemClickListener { _, _, position, _ ->
       val target = shown.getOrNull(position) ?: return@setOnItemClickListener
+      if (selecting) {
+        if (!picked.remove(target.chatId)) picked.add(target.chatId)
+        refreshSend()
+        adapter.notifyDataSetChanged()
+        return@setOnItemClickListener
+      }
       dismiss()
       onPick?.invoke(target)
     }
@@ -248,6 +322,25 @@ class ForwardPicker(context: Context, private val messenger: Messenger?, private
     emptyLabel.text = "Загрузка…"
     body.addView(emptyLabel, FrameLayout.LayoutParams(FrameLayout.LayoutParams.MATCH_PARENT, FrameLayout.LayoutParams.WRAP_CONTENT).apply { topMargin = dp(42f); leftMargin = dp(20f); rightMargin = dp(20f) })
     column.addView(body, LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, 0, 1f))
+    // Composer: «Выбрать» — the comment and the send button at the bottom.
+    bottomBar.gravity = Gravity.CENTER_VERTICAL
+    bottomBar.setPadding(dp(14f), dp(8f), dp(14f), dp(14f))
+    bottomBar.visibility = View.GONE
+    commentField.hint = "Комментарий"
+    commentField.setHintTextColor(Theme.muted)
+    commentField.setTextColor(Theme.text)
+    commentField.textSize = 16f
+    commentField.maxLines = 4
+    commentField.background = GradientDrawable().apply { setColor(Theme.surface2); cornerRadius = 20f * d }
+    commentField.setPadding(dp(14f), dp(9f), dp(14f), dp(9f))
+    commentField.contentDescription = "Комментарий"
+    bottomBar.addView(commentField, LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 1f))
+    sendButton.textSize = 14f; sendButton.typeface = Theme.weight(700); sendButton.setTextColor(Theme.onAccent); sendButton.gravity = Gravity.CENTER
+    sendButton.background = GradientDrawable().apply { shape = GradientDrawable.OVAL; setColor(Theme.accent) }
+    sendButton.isClickable = true
+    sendButton.setOnClickListener { sendNow() }
+    bottomBar.addView(sendButton, LinearLayout.LayoutParams(dp(44f), dp(44f)).apply { leftMargin = dp(10f) })
+    column.addView(bottomBar, LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT))
 
     setContentView(column, ViewGroup.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.MATCH_PARENT))
     window?.let { window ->
@@ -281,10 +374,55 @@ class ForwardPicker(context: Context, private val messenger: Messenger?, private
     }
   }
 
+  /** ChatsPlus: «Избранное» as the first target (chatsplus/SavedMessages.kt), only with nothing typed or its own name. */
+  private val savedTargets: List<Target>
+    get() {
+      if (com.linea.messenger.chatsplus.SavedMessages.shared(messenger) == null) return emptyList()
+      val wanted = searchField.text.toString().trim().lowercase()
+      return if (wanted.isEmpty() || "избранное".contains(wanted)) listOf(Target(SAVED_ID, "", "Избранное", null, null)) else emptyList()
+    }
+
   private fun filter() {
-    shown = matching(everyone, searchField.text.toString())
+    shown = savedTargets + matching(everyone, searchField.text.toString())
     emptyLabel.text = "Ничего не найдено"
     emptyLabel.visibility = if (shown.isEmpty()) View.VISIBLE else View.GONE
+    adapter.notifyDataSetChanged()
+  }
+
+  // Composer: choosing several
+
+  private fun toggleSelecting() {
+    selecting = !selecting
+    picked.clear()
+    selectButton.text = if (selecting) "Отмена" else "Выбрать"
+    bottomBar.visibility = if (selecting) View.VISIBLE else View.GONE
+    refreshSend()
+    adapter.notifyDataSetChanged()
+  }
+
+  private fun refreshSend() {
+    val size = picked.size
+    sendButton.isEnabled = size > 0
+    sendButton.alpha = if (size > 0) 1f else 0.4f
+    sendButton.text = if (size > 1) "$size" else "↑"
+    sendButton.contentDescription = "Отправить в $size"
+  }
+
+  private fun sendNow() {
+    if (picked.isEmpty()) return
+    // In the order of the list.
+    val targets = (savedTargets + everyone).filter { picked.contains(it.chatId) }
+    val text = commentField.text.toString().trim()
+    dismiss()
+    onSendMany?.invoke(targets, text)
+  }
+
+  /** `chatdemo forwardmany`: «Выбрать» on, the first chats marked and a comment written. */
+  fun demoChooseSeveral() {
+    if (!selecting) toggleSelecting()
+    for (target in shown.filter { !it.isSaved }.take(3)) picked.add(target.chatId)
+    commentField.setText("Глянь, это про субботу")
+    refreshSend()
     adapter.notifyDataSetChanged()
   }
 
@@ -296,6 +434,9 @@ class ForwardPicker(context: Context, private val messenger: Messenger?, private
   }
 
   companion object {
+    /** ChatsPlus: the id of «Избранное» among the targets (never the id of a chat). */
+    const val SAVED_ID = "saved"
+
     fun heading(count: Int): String = if (count > 1) "Переслать ($count)" else "Переслать"
 
     /** The chats whose person's name or @name holds the words. */

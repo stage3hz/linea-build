@@ -38,7 +38,7 @@ import java.lang.ref.WeakReference
  *  stays paused after a lasting one; where the system asks to be quieter, it is. Pulling the headphones out
  *  pauses too. Main thread only. */
 class MediaEngine(context: Context) : MusicEngine {
-  private val app = context.applicationContext
+  private val app = context.applicationContext.also { EqualizerSettings.attach(it) } // Music: the equalizer's settings
   private val main = Handler(Looper.getMainLooper())
   private val manager = app.getSystemService(Context.AUDIO_SERVICE) as? AudioManager
   private val attributes = AudioAttributes.Builder().setUsage(AudioAttributes.USAGE_MEDIA).setContentType(AudioAttributes.CONTENT_TYPE_MUSIC).build()
@@ -99,6 +99,7 @@ class MediaEngine(context: Context) : MusicEngine {
     silence()
     val made = MediaPlayer()
     player = made
+    MusicEqualizer.attach(made.audioSessionId) // Music: «Эквалайзер» on this session (music/MusicEqualizer.kt)
     try {
       made.setAudioAttributes(attributes)
       made.setOnPreparedListener { if (player === made) { prepared = true; if (wanted) try { made.start() } catch (_: IllegalStateException) {}; onState?.invoke() } }

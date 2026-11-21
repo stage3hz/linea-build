@@ -219,10 +219,10 @@ class PeopleAttachmentsPagesTest {
     val rows = named(chat)
     assertTrue(rows.toString(), rows.any { it.startsWith("📎 Договор № 7.pdf") && it.contains("Договор и приложение к нему") })
     assertTrue(rows.any { it.startsWith("🎬 Видео") })
-    // The paperclip offers the gallery, a video (Voice/Video: voice/ChatMedia.kt) and the files.
+    // The paperclip offers the gallery, a video (Voice/Video: voice/ChatMedia.kt), the files and a poll (Polls).
     assertTrue(press(chat, "Вложения: галерея, файлы")); idle(activity)
     val sheet = ShadowAlertDialog.getLatestAlertDialog()!!
-    assertEquals(listOf("Галерея", "Видео", "Файл"), shadowOf(sheet).items.map { it.toString() })
+    assertEquals(listOf("Галерея", "Видео", "Файл", "Опрос"), shadowOf(sheet).items.map { it.toString() })
     assertEquals("Отмена", sheet.getButton(AlertDialog.BUTTON_NEGATIVE).text.toString())
     sheet.dismiss()
     // Without the argument the sample chat has no such rows.

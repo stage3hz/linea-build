@@ -112,6 +112,10 @@ class AIRulesTest {
     assertEquals("text", AIModel.detectIntent("Сделай вывод. Картинка здесь ни при чём"))
     assertEquals("text", AIModel.detectIntent("озвучьте мне цену"))
     assertEquals("text", AIModel.detectIntent("Расскажи про видео"))
+    // AI: with a photo, a request to change it is a picture (the reference's detectIntent with hasPhoto).
+    assertEquals("image", AIModel.detectIntent("Сделай из этого аниме", hasPhoto = true))
+    assertEquals("text", AIModel.detectIntent("Сделай из этого аниме"))
+    assertEquals("text", AIModel.detectIntent("Что на фото?", hasPhoto = true))
     assertEquals("привет", AIModel.speechText("Озвучь: привет"))
     assertEquals("это письмо", AIModel.speechText("  прочитай вслух это письмо "))
     assertEquals("", AIModel.speechText("озвучь"))
@@ -276,7 +280,7 @@ class AIRulesTest {
     val asked = ArrayList<Pair<List<Map<String, String>>, String?>>()
     var answer: ((Result<AIReply>) -> Unit)? = null
     var time = 1000L
-    val conversation = AIConversation({ messages, model, done -> asked.add(messages to model); answer = done }, { time })
+    val conversation = AIConversation({ messages, model, _, _, done -> asked.add(messages to model); answer = done }, { time })
     var changes = 0
     init { conversation.onChange = { changes += 1 } }
     fun reply(text: String) = answer!!(Result.success(AIReply(text, "meta/llama", "freellmapi", "groq")))

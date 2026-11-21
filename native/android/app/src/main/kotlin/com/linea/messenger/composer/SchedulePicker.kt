@@ -203,7 +203,7 @@ class SchedulePicker(context: Context) : ComposerSheet(context, full = true) {
 class ScheduledScreen(context: Context, private val store: ScheduledStore?, private val chatId: String, private val peerName: String, private var samples: MutableList<ScheduledItem>?) : ComposerSheet(context, full = true) {
   private val subtitle = context.words("", 12f, Theme.muted)
   private val list = LinearLayout(context)
-  private val watcher: (Unit) -> Unit = { show() }
+  private val watcher: (Unit) -> Unit = { fill() }
 
   init {
     stack.setPadding(0, dp(14f), 0, dp(40f))
@@ -221,7 +221,7 @@ class ScheduledScreen(context: Context, private val store: ScheduledStore?, priv
     stack.addView(head)
     list.orientation = LinearLayout.VERTICAL
     stack.addView(list, LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.MATCH_PARENT))
-    show()
+    fill()
     store?.refresh()
   }
 
@@ -230,7 +230,7 @@ class ScheduledScreen(context: Context, private val store: ScheduledStore?, priv
 
   private val items: List<ScheduledItem> get() = samples ?: store?.items(chatId) ?: emptyList()
 
-  private fun show() {
+  private fun fill() {
     val items = items
     subtitle.text = if (items.isEmpty()) peerName else ScheduleModel.countScheduled(items.size)
     list.removeAllViews()
@@ -303,14 +303,14 @@ class ScheduledScreen(context: Context, private val store: ScheduledStore?, priv
   private fun sendNow(item: ScheduledItem, view: View) {
     Haptic.light(view)
     val store = store
-    if (store == null) { samples?.removeAll { it.id == item.id }; show(); return }
+    if (store == null) { samples?.removeAll { it.id == item.id }; fill(); return }
     store.sendNow(item) { problem -> problem?.let { say(it) } }
   }
 
   private fun delete(item: ScheduledItem, view: View) {
     Haptic.light(view)
     val store = store
-    if (store == null) { samples?.removeAll { it.id == item.id }; show(); return }
+    if (store == null) { samples?.removeAll { it.id == item.id }; fill(); return }
     store.delete(item) { problem -> problem?.let { say(it) } }
   }
 

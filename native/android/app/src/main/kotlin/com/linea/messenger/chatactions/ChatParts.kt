@@ -114,6 +114,9 @@ class ChatIconView(context: Context, var symbol: String, private val size: Float
 /** The field a message is written in: several lines, growing with the text up to a height and scrolling past it
  *  (the reference's composer: one line at first, at most 136 pt of text). */
 class ComposerField(context: Context) : EditText(context) {
+  /** Composer: the selection moved (the formatting bar shows over a selection; composer/ComposerExtras.kt). */
+  var onSelection: (() -> Unit)? = null
+  override fun onSelectionChanged(selStart: Int, selEnd: Int) { super.onSelectionChanged(selStart, selEnd); onSelection?.invoke() }
   private val d = resources.displayMetrics.density
   /** The text is being put in by the app, not typed: nobody is told. */
   var quiet = false

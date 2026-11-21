@@ -16,7 +16,6 @@ import android.widget.ScrollView
 import android.widget.TextView
 import com.linea.messenger.Demo
 import com.linea.messenger.core.Core
-import com.linea.messenger.design.BusyButton
 import com.linea.messenger.design.Theme
 import com.linea.messenger.design.plate
 import com.linea.messenger.design.px
@@ -83,9 +82,9 @@ class AuthScreen(context: Context, private val server: Server) : Screen(context)
 
   private val scroll = ScrollView(context)
   private val column = LinearLayout(context)
-  private val brand = context.words("Инвиз", 40f, Theme.text, 700)
+  private val brand = com.linea.messenger.effects.WordmarkView(context, 60f) // Effects: «Инвиз» in moving platinum, the reference's Wordmark (effects/AppearingText.kt)
   private val motto = context.words("Твоя линия связи.", 17f, Theme.muted)
-  private val heading = context.words("", 22f, Theme.text, 600)
+  private val heading = com.linea.messenger.effects.AppearingTextView(context, 22f, Theme.text, 600) // Effects: the title's words rise in one after another
   private val hint = context.words("", 15f, Theme.muted)
   private val switcher = LinearLayout(context)
   private val switches = listOf(context.words("Войти", 13f, Theme.muted, 500), context.words("Создать аккаунт", 13f, Theme.muted, 500))
@@ -114,7 +113,7 @@ class AuthScreen(context: Context, private val server: Server) : Screen(context)
   private val notice = AuthNotice(context, error = false)
   private val failure = AuthNotice(context, error = true)
   private val loginLock = AuthNotice(context, error = true)
-  private val proceed = BusyButton(context, "Продолжить", Theme.accent, Theme.onAccent, radius = 100f, textSize = 17f)
+  private val proceed = com.linea.messenger.effects.ActionButton(context, "Продолжить") // Effects: the button with states (effects/ActionButton.kt)
   private val forgot = context.words("Забыл пароль?", 14f, Theme.text, 700)
   private val back = context.words("", 15f, Theme.muted)
 
@@ -217,8 +216,6 @@ class AuthScreen(context: Context, private val server: Server) : Screen(context)
       waitingBox.addView(item, LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT).apply { bottomMargin = context.px(after) })
     }
 
-    proceed.setPadding(context.px(20f), context.px(15f), context.px(20f), context.px(15f))
-    proceed.minimumHeight = context.px(52f)
     proceed.onPress = { submit() }
     for (link in listOf(forgot, back)) {
       link.gravity = Gravity.CENTER
@@ -349,7 +346,7 @@ class AuthScreen(context: Context, private val server: Server) : Screen(context)
     // A field that was closed for the time of a request gets the keyboard back.
     val freed = shownBusy && !busy
     shownBusy = busy
-    heading.text = headingWords(mode)
+    heading.show(headingWords(mode)) // Effects
     hint.text = hintWords(mode)
 
     show(switcher, isLogin || isRegister)
@@ -532,6 +529,7 @@ class AuthScreen(context: Context, private val server: Server) : Screen(context)
 
   private fun fail(words: String) {
     errorText = words
+    proceed.signalError() // Effects: «Ошибка» with a shake for 1.4 s
     render()
   }
 

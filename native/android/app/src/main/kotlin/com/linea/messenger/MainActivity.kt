@@ -45,6 +45,7 @@ class MainActivity : Activity(), Launcher, AccountHost, com.linea.messenger.sett
     com.linea.messenger.design.Fonts.install(this) // Fonts: Montserrat and Unbounded, as the reference (design/Fonts.kt)
     edgeToEdge()
     com.linea.messenger.settings.ThemeStore.attach(this) // Settings: the theme the person chose (settings/ThemeStore.kt)
+    com.linea.messenger.language.Language.install(this) // Language: «Язык», before the first screen (language/Language.kt)
     stack = Navigation(this)
     setContentView(stack)
     if (Build.VERSION.SDK_INT >= 33) {
@@ -53,6 +54,10 @@ class MainActivity : Activity(), Launcher, AccountHost, com.linea.messenger.sett
     stack.onDepthChange = { syncBack() }
     com.linea.messenger.calls.Calls.changed.watch(callWatch)
     start()
+    // Effects / Security: the snow, the trail, the rime, the palette's page; the code lock (effects/EffectsHost.kt, security/LockGate.kt).
+    com.linea.messenger.effects.EffectsHost.attach(this)
+    if (!Demo.lockDemo) com.linea.messenger.security.LockGate.attach(this)
+    com.linea.messenger.security.LockGate.changed.watch(callWatch)
   }
 
   override fun onStart() {
@@ -61,17 +66,22 @@ class MainActivity : Activity(), Launcher, AccountHost, com.linea.messenger.sett
     com.linea.messenger.settings.ThemeStore.cameBack() // Settings: the night theme may have come by itself
     messenger?.wake()
     com.linea.messenger.shell.UpdateGate.cameBack() // Shell: the update window comes back after five minutes away
+    com.linea.messenger.security.LockGate.cameBack() // Security: the autolock
+    com.linea.messenger.security.AccountNotices.cameBack() // Security: the recovery requests
   }
 
   override fun onStop() {
     front = false
     com.linea.messenger.shell.UpdateGate.wentAway() // Shell
+    com.linea.messenger.security.LockGate.wentAway() // Security: «Сразу» locks now; the time away is kept
+    com.linea.messenger.security.AccountNotices.front = false // Security
     messenger?.sleep()
     super.onStop()
   }
 
   override fun onDestroy() {
     com.linea.messenger.calls.Calls.changed.unwatch(callWatch)
+    com.linea.messenger.security.LockGate.changed.unwatch(callWatch) // Security
     said?.dismiss()
     messenger?.close()
     messenger = null
@@ -89,6 +99,7 @@ class MainActivity : Activity(), Launcher, AccountHost, com.linea.messenger.sett
   override fun onNewIntent(intent: android.content.Intent) {
     super.onNewIntent(intent)
     com.linea.messenger.profile.BirthdayReminders.tapped(intent)
+    com.linea.messenger.links.DeepLinks.open(this, intent) // Links: an invitation opened while the app runs
   }
 
   /** Voice/Video: the system's answer about the microphone or the camera, asked at the moment of the first
@@ -102,6 +113,7 @@ class MainActivity : Activity(), Launcher, AccountHost, com.linea.messenger.sett
     // For the emulator check (debug builds only; a release build has an empty `Demo.start`).
     if (Demo.start(intent, this)) return
     com.linea.messenger.profile.BirthdayReminders.tapped(intent) // Profile: opened by a birthday reminder
+    com.linea.messenger.links.DeepLinks.open(this, intent) // Links: opened by an invitation (it waits for the account)
     val token = Account.token ?: return showAuth()
     Account.cachedUser?.let { return open(token, it) }
     // Signed in by the previous app: the token is there, the profile is asked from the server once.
@@ -210,6 +222,7 @@ class MainActivity : Activity(), Launcher, AccountHost, com.linea.messenger.sett
    *  open, or with the settings pages `pages` opened again on top (settings/ThemeStore.kt). */
   override fun restyle(pages: List<String>) {
     stack.setBackgroundColor(Theme.bg)
+    com.linea.messenger.effects.EffectsHost.restyled() // Effects: the backs in the new colours
     val shell = root ?: return
     val section = shell.open
     val fresh = shell.rebuilt()
@@ -239,7 +252,7 @@ class MainActivity : Activity(), Launcher, AccountHost, com.linea.messenger.sett
 
   /** There is somewhere to go back to inside the app: the open call screen, an open chat, or the open list of
    *  sections. */
-  private fun wantsBack(): Boolean = callShown() || stack.depth > 1 || root?.sectionsOpen == true || (stack.depth == 1 && root?.wantsBack == true) // Shell: a section, choosing chats, the update window
+  private fun wantsBack(): Boolean = com.linea.messenger.security.LockGate.isUp || callShown() || stack.depth > 1 || root?.sectionsOpen == true || (stack.depth == 1 && root?.wantsBack == true) // Shell: a section, choosing chats, the update window
 
   private fun syncBack() { gate?.set(wantsBack()) }
 
@@ -250,6 +263,7 @@ class MainActivity : Activity(), Launcher, AccountHost, com.linea.messenger.sett
   }
 
   private fun goBack() {
+    if (com.linea.messenger.security.LockGate.isUp) return // Security: nothing under the lock is reached
     // Calls: Back minimises the call to its bar (an incoming call or one that is ending stays as it is).
     if (callShown()) return com.linea.messenger.calls.Calls.minimize()
     val shell = root

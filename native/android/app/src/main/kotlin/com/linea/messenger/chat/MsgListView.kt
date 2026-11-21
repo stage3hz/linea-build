@@ -44,6 +44,8 @@ class MsgListView(context: Context) : FrameLayout(context) {
   private var mediaState: com.linea.messenger.voice.MsgMediaState? = null
   /** LinkPreview: a tap on the card of a link (`key`: the row, `url`: where the card leads). */
   var onCardPress: (key: String, url: String) -> Unit = { _, _ -> }
+  /** Polls: a tap on a poll (`part`: "option:<n>", "vote" or "retract"). */
+  var onPollPress: (key: String, part: String) -> Unit = { _, _ -> }
   /** Messages whose spoilers were tapped open (until the chat is left). */
   private val revealed = HashSet<String>()
   private var upX = 0f
@@ -86,6 +88,9 @@ class MsgListView(context: Context) : FrameLayout(context) {
       // A tap on a link or on a hidden spoiler is not a tap on the message.
       val chip = (view as? MsgRowView)?.chipAt(upX - view.left, upY - view.top)
       if (chip != null) { onReactPress(row.key, chip); return@setOnItemClickListener }
+      // Polls: an option, «Голосовать», «Отменить голос» (not while messages are being chosen).
+      val poll = if (row.checked < 0) (view as? MsgRowView)?.pollAt(upX - view.left, upY - view.top) else null
+      if (poll != null) { onPollPress(row.key, poll); return@setOnItemClickListener }
       val hit = (view as? MsgRowView)?.runAt(upX - view.left, upY - view.top)
       if (hit == null) {
         if ((view as? MsgRowView)?.quoteAt(upX - view.left, upY - view.top) == true) { onQuotePress(row.key); return@setOnItemClickListener }

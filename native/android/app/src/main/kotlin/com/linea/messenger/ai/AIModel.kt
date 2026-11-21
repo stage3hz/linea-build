@@ -54,7 +54,14 @@ data class AITurn(
   val stage: String? = null,
   /** Asked while «Приватная беседа» was on: never written to the history. */
   val isPrivate: Boolean = false,
+  /** AI: the pictures (cleaned JPEG data URLs) and documents' text sent with this question (`options.image`,
+   *  `options.documents` of the reference). Memory only, for «Повторить»; never stored in the history. */
+  val images: List<String> = emptyList(),
+  val documents: List<AIDocumentText> = emptyList(),
 )
+
+/** A document read into text by the server (`AIDocument` of ai/client.ts). */
+data class AIDocumentText(val name: String, val text: String, val truncated: Boolean = false, val pages: Int? = null)
 
 class AICapability(val enabled: Boolean, val reason: String? = null)
 
@@ -167,13 +174,17 @@ object AIModel {
   private val startsWithDraw = Regex("^\\s*(нарису\\p{L}*|изобрази\\p{L}*|draw|paint)(?=[\\s:,.!?]|$)", RegexOption.IGNORE_CASE)
   private val imageRequest = Regex("$make[^.!?\\n]{0,40}?$imageNoun", RegexOption.IGNORE_CASE)
 
+  /** With a photo: a request to change it («сделай фон…», «перерисуй», «в стиле аниме»). */
+  private val editRequest = Regex("(перерису\\p{L}*|переделай|отредактиру\\p{L}*|измени\\p{L}*|замени\\p{L}*|убери|добавь|сделай (из|его|её|ее|фон|в стиле|как)|в стиле|стилизу\\p{L}*|edit|restyle|make it)", RegexOption.IGNORE_CASE)
+
   /** text · image · video · speech */
-  fun detectIntent(text: String): String {
+  fun detectIntent(text: String, hasPhoto: Boolean = false): String {
     val value = text.trim()
     if (value.isEmpty()) return "text"
     if (speechRequest.containsMatchIn(value)) return "speech"
     if (videoRequest.containsMatchIn(value)) return "video"
     if (startsWithDraw.containsMatchIn(value) || imageRequest.containsMatchIn(value)) return "image"
+    if (hasPhoto && editRequest.containsMatchIn(value)) return "image"
     return "text"
   }
 

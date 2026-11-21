@@ -181,7 +181,8 @@ class CallPagesTest {
     idle(activity, 800)
     val chat = all(page(activity), ChatScreen::class.java).first()
     assertEquals("Позвонить", chat.callButton.contentDescription)
-    assertTrue(chat.callButton.width > 0 && chat.callButton.left > chat.width / 2)
+    // ChatLook: the button stands in its glass pill, right of the middle, next to the avatar.
+    assertTrue(chat.callButton.width > 0 && (chat.callButton.parent as View).left + chat.callButton.left > chat.width / 2)
     // Opened from the chat, the profile's row is «Звонок», «Видео», «Ещё».
     chat.openProfile()
     idle(activity, 800)
