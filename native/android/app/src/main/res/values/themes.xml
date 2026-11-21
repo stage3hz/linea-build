@@ -13,5 +13,16 @@
         <item name="android:statusBarColor">@android:color/transparent</item>
         <item name="android:navigationBarColor">@android:color/transparent</item>
         <item name="android:windowLightStatusBar">false</item>
+        <!-- Fonts: every text is Montserrat, as in the reference (design/Fonts.kt); a bold text style takes its 700. -->
+        <item name="android:fontFamily">@font/montserrat</item>
+        <item name="android:textViewStyle">@style/Invizent.Text</item>
+        <item name="android:editTextStyle">@style/Invizent.Field</item>
+    </style>
+    <!-- Fonts: the text and the fields of the app in Montserrat, even where a widget's own style names another face. -->
+    <style name="Invizent.Text" parent="android:Widget.TextView">
+        <item name="android:fontFamily">@font/montserrat</item>
+    </style>
+    <style name="Invizent.Field" parent="android:Widget.Material.EditText">
+        <item name="android:fontFamily">@font/montserrat</item>
     </style>
 </resources>

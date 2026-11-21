@@ -122,6 +122,8 @@ dependencies {
     implementation(libs.androidx.sqlite)
     // Calls: the media of a call (calls/CallMedia.kt is the only file that knows it).
     implementation(libs.webrtc)
+    // Avatars: the animated emoji (avatars/AnimatedEmoji.kt is the only file that knows it).
+    implementation(libs.lottie)
     testImplementation(libs.junit)
     testImplementation(libs.robolectric)
 }

@@ -42,6 +42,7 @@ class MainActivity : Activity(), Launcher, AccountHost, com.linea.messenger.sett
   override fun onCreate(savedInstanceState: Bundle?) {
     super.onCreate(savedInstanceState)
     Account.start(this)
+    com.linea.messenger.design.Fonts.install(this) // Fonts: Montserrat and Unbounded, as the reference (design/Fonts.kt)
     edgeToEdge()
     com.linea.messenger.settings.ThemeStore.attach(this) // Settings: the theme the person chose (settings/ThemeStore.kt)
     stack = Navigation(this)
