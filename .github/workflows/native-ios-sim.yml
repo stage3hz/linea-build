@@ -120,6 +120,13 @@ jobs:
             sleep "$wait"
             limit 60 xcrun simctl io "$UDID" screenshot "$OUT/$name.png"
           }
+          shot() { # name, launch arguments… (no server: sample data)
+            local name="$1"; shift
+            limit 60 xcrun simctl terminate "$UDID" com.invizent.app >/dev/null 2>&1 || true
+            limit 120 xcrun simctl launch "$UDID" com.invizent.app "$@"
+            sleep 12
+            limit 60 xcrun simctl io "$UDID" screenshot "$OUT/$name.png"
+          }
           echo "== sign in (the app makes its keys and publishes them)"
           live 07-signed-in 25 -login nativetester -password 'Synthetic!Native.42' -word ambergardenprism
           echo "== other people write"
