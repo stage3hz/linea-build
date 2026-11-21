@@ -170,8 +170,6 @@ jobs:
           shot 49-night -demo 1 -settings night -settextsize medium -setnight schedule
           shot 49b-reset -demo 1 -setnight off -settheme black
           shot 21-ai-demo -aidemo 1
-          live 16b-settings-notifications 25 -settings notifications
-          live 16c-settings-data 25 -settings data
           shot 22-music-demo -musicdemo 1
           shot 23-music-player -musicdemo player
           live 24-ai 25 -tab ai
@@ -179,6 +177,8 @@ jobs:
           live 14-settings-profile 25 -settings profile
           live 15-settings-sessions 25 -settings sessions
           live 16-settings-security 25 -settings security
+          live 16b-settings-notifications 25 -settings notifications
+          live 16c-settings-data 25 -settings data
           tail -5 server.log || true
           echo "== live done"
       - name: Publish the result (branch native-sim-output-<runner>)
