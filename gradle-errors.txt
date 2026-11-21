@@ -1,0 +1,11 @@
+66:w: file:///home/runner/work/linea-build/linea-build/native/android/app/src/main/kotlin/com/linea/messenger/ai/AIModel.kt:313:63 'constructor(p0: String!, p1: String!): Locale' is deprecated. Deprecated in Java.
+67:w: file:///home/runner/work/linea-build/linea-build/native/android/app/src/main/kotlin/com/linea/messenger/auth/AuthEntry.kt:187:9 'fun announceForAccessibility(p0: CharSequence!): Unit' is deprecated. Deprecated in Java.
+68:w: file:///home/runner/work/linea-build/linea-build/native/android/app/src/main/kotlin/com/linea/messenger/auth/AuthScreen.kt:422:7 'fun announceForAccessibility(p0: CharSequence!): Unit' is deprecated. Deprecated in Java.
+69:w: file:///home/runner/work/linea-build/linea-build/native/android/app/src/main/kotlin/com/linea/messenger/auth/AuthScreen.kt:425:35 'fun announceForAccessibility(p0: CharSequence!): Unit' is deprecated. Deprecated in Java.
+70:w: file:///home/runner/work/linea-build/linea-build/native/android/app/src/main/kotlin/com/linea/messenger/calls/CallScreen.kt:39:173 'field scaledDensity: Float' is deprecated. Deprecated in Java.
+71:w: file:///home/runner/work/linea-build/linea-build/native/android/app/src/main/kotlin/com/linea/messenger/calls/CallScreen.kt:63:47 'field scaledDensity: Float' is deprecated. Deprecated in Java.
+72:w: file:///home/runner/work/linea-build/linea-build/native/android/app/src/main/kotlin/com/linea/messenger/chatactions/MessageMenu.kt:225:47 'fun setDecorFitsSystemWindows(p0: Boolean): Unit' is deprecated. Deprecated in Java.
+73:w: file:///home/runner/work/linea-build/linea-build/native/android/app/src/main/kotlin/com/linea/messenger/settings/Security.kt:205:7 'fun announceForAccessibility(p0: CharSequence!): Unit' is deprecated. Deprecated in Java.
+74:w: file:///home/runner/work/linea-build/linea-build/native/android/app/src/main/kotlin/com/linea/messenger/stories/StoryViewer.kt:303:7 'var statusBarColor: Int' is deprecated. Deprecated in Java.
+75:w: file:///home/runner/work/linea-build/linea-build/native/android/app/src/main/kotlin/com/linea/messenger/stories/StoryViewer.kt:304:7 'var navigationBarColor: Int' is deprecated. Deprecated in Java.
+90:w: file:///home/runner/work/linea-build/linea-build/native/android/app/src/test/kotlin/com/linea/messenger/SettingsLookPagesTest.kt:252:75 'field scaledDensity: Float' is deprecated. Deprecated in Java.

@@ -1,0 +1,99 @@
+Downloading https://services.gradle.org/distributions/gradle-8.14.3-bin.zip
+.............10%.............20%.............30%.............40%.............50%.............60%.............70%.............80%.............90%..............100%
+
+Welcome to Gradle 8.14.3!
+
+Here are the highlights of this release:
+ - Java 24 support
+ - GraalVM Native Image toolchain selection
+ - Enhancements to test reporting
+ - Build Authoring improvements
+
+For more details see https://docs.gradle.org/8.14.3/release-notes.html
+
+To honour the JVM settings for this build a single-use Daemon process will be forked. For more on this, please refer to https://docs.gradle.org/8.14.3/userguide/gradle_daemon.html#sec:disabling_the_daemon in the Gradle documentation.
+Daemon will be stopped at the end of the build 
+> Task :core:checkKotlinGradlePluginConfigurationErrors SKIPPED
+> Task :core:processResources NO-SOURCE
+> Task :app:checkKotlinGradlePluginConfigurationErrors SKIPPED
+> Task :app:preBuild UP-TO-DATE
+> Task :app:preDebugBuild UP-TO-DATE
+> Task :app:generateDebugBuildConfig
+> Task :app:checkDebugAarMetadata
+> Task :app:debugTestCaConfig
+> Task :app:generateDebugResValues
+> Task :app:mapDebugSourceSetPaths
+> Task :app:generateDebugResources
+> Task :app:packageDebugResources
+> Task :app:mergeDebugResources
+> Task :app:createDebugCompatibleScreenManifests
+> Task :app:extractDeepLinksDebug
+> Task :app:parseDebugLocalResources
+> Task :app:processDebugMainManifest
+> Task :app:processDebugManifest
+> Task :app:preDebugUnitTestBuild UP-TO-DATE
+> Task :app:javaPreCompileDebug
+> Task :app:javaPreCompileDebugUnitTest FROM-CACHE
+> Task :app:mergeDebugShaders
+> Task :app:processDebugManifestForPackage
+> Task :app:compileDebugShaders NO-SOURCE
+> Task :app:generateDebugAssets UP-TO-DATE
+> Task :app:mergeDebugAssets
+> Task :app:processDebugResources
+> Task :app:processDebugUnitTestManifest
+> Task :app:packageDebugUnitTestForUnitTest
+> Task :app:mergeDebugNativeDebugMetadata NO-SOURCE
+> Task :app:generateDebugUnitTestConfig
+> Task :app:compressDebugAssets
+> Task :app:desugarDebugFileDependencies
+> Task :app:checkDebugDuplicateClasses
+> Task :app:mergeDebugJniLibFolders
+> Task :core:compileKotlin
+> Task :core:compileJava NO-SOURCE
+> Task :core:classes UP-TO-DATE
+> Task :core:jar
+> Task :app:mergeLibDexDebug
+> Task :app:mergeDebugNativeLibs
+> Task :app:mergeExtDexDebug
+> Task :app:validateSigningDebug
+> Task :app:writeDebugAppMetadata
+> Task :app:writeDebugSigningConfigVersions
+
+> Task :app:stripDebugDebugSymbols
+Unable to strip the following libraries, packaging them as they are: libinvizent_core.so, liblkjingle_peerconnection_so.so, libsqlcipher.so. Run with --info option to learn more.
+
+> Task :app:compileDebugKotlin
+w: file:///home/runner/work/linea-build/linea-build/native/android/app/src/main/kotlin/com/linea/messenger/ai/AIModel.kt:313:63 'constructor(p0: String!, p1: String!): Locale' is deprecated. Deprecated in Java.
+w: file:///home/runner/work/linea-build/linea-build/native/android/app/src/main/kotlin/com/linea/messenger/auth/AuthEntry.kt:187:9 'fun announceForAccessibility(p0: CharSequence!): Unit' is deprecated. Deprecated in Java.
+w: file:///home/runner/work/linea-build/linea-build/native/android/app/src/main/kotlin/com/linea/messenger/auth/AuthScreen.kt:422:7 'fun announceForAccessibility(p0: CharSequence!): Unit' is deprecated. Deprecated in Java.
+w: file:///home/runner/work/linea-build/linea-build/native/android/app/src/main/kotlin/com/linea/messenger/auth/AuthScreen.kt:425:35 'fun announceForAccessibility(p0: CharSequence!): Unit' is deprecated. Deprecated in Java.
+w: file:///home/runner/work/linea-build/linea-build/native/android/app/src/main/kotlin/com/linea/messenger/calls/CallScreen.kt:39:173 'field scaledDensity: Float' is deprecated. Deprecated in Java.
+w: file:///home/runner/work/linea-build/linea-build/native/android/app/src/main/kotlin/com/linea/messenger/calls/CallScreen.kt:63:47 'field scaledDensity: Float' is deprecated. Deprecated in Java.
+w: file:///home/runner/work/linea-build/linea-build/native/android/app/src/main/kotlin/com/linea/messenger/chatactions/MessageMenu.kt:225:47 'fun setDecorFitsSystemWindows(p0: Boolean): Unit' is deprecated. Deprecated in Java.
+w: file:///home/runner/work/linea-build/linea-build/native/android/app/src/main/kotlin/com/linea/messenger/settings/Security.kt:205:7 'fun announceForAccessibility(p0: CharSequence!): Unit' is deprecated. Deprecated in Java.
+w: file:///home/runner/work/linea-build/linea-build/native/android/app/src/main/kotlin/com/linea/messenger/stories/StoryViewer.kt:303:7 'var statusBarColor: Int' is deprecated. Deprecated in Java.
+w: file:///home/runner/work/linea-build/linea-build/native/android/app/src/main/kotlin/com/linea/messenger/stories/StoryViewer.kt:304:7 'var navigationBarColor: Int' is deprecated. Deprecated in Java.
+
+> Task :app:compileDebugJavaWithJavac
+> Task :app:processDebugJavaRes
+> Task :app:bundleDebugClassesToCompileJar
+> Task :app:bundleDebugClassesToRuntimeJar
+> Task :app:dexBuilderDebug
+> Task :app:mergeDebugGlobalSynthetics
+> Task :app:mergeDebugJavaResource
+> Task :app:mergeProjectDexDebug
+> Task :app:packageDebug
+> Task :app:createDebugApkListingFileRedirect
+> Task :app:assembleDebug
+
+> Task :app:compileDebugUnitTestKotlin
+w: file:///home/runner/work/linea-build/linea-build/native/android/app/src/test/kotlin/com/linea/messenger/SettingsLookPagesTest.kt:252:75 'field scaledDensity: Float' is deprecated. Deprecated in Java.
+
+> Task :app:compileDebugUnitTestJavaWithJavac NO-SOURCE
+> Task :app:processDebugUnitTestJavaRes
+--- Failed to create image decoder with message 'unimplemented'
+--- Failed to create image decoder with message 'unimplemented'
+> Task :app:testDebugUnitTest
+
+BUILD SUCCESSFUL in 3m 28s
+49 actionable tasks: 48 executed, 1 from cache

@@ -1,0 +1,89 @@
+Performing Streamed Install
+Success
+Starting: Intent { cmp=com.linea.messenger.preview/com.linea.messenger.MainActivity (has extras) }
+Status: ok
+LaunchState: COLD
+Activity: com.linea.messenger.preview/com.linea.messenger.MainActivity
+TotalTime: 4370
+WaitTime: 4375
+Complete
+shot 01-chats
+Starting: Intent { cmp=com.linea.messenger.preview/com.linea.messenger.MainActivity (has extras) }
+Status: ok
+LaunchState: COLD
+Activity: com.linea.messenger.preview/com.linea.messenger.MainActivity
+TotalTime: 2271
+WaitTime: 2274
+Complete
+shot 02-sections
+Starting: Intent { cmp=com.linea.messenger.preview/com.linea.messenger.MainActivity (has extras) }
+Status: ok
+LaunchState: COLD
+Activity: com.linea.messenger.preview/com.linea.messenger.MainActivity
+TotalTime: 2669
+WaitTime: 2674
+Complete
+shot 03-settings
+Starting: Intent { cmp=com.linea.messenger.preview/com.linea.messenger.MainActivity (has extras) }
+Status: ok
+LaunchState: COLD
+Activity: com.linea.messenger.preview/com.linea.messenger.MainActivity
+TotalTime: 2645
+WaitTime: 2650
+Complete
+shot 04-chat
+Starting: Intent { cmp=com.linea.messenger.preview/com.linea.messenger.MainActivity }
+Status: ok
+LaunchState: COLD
+Activity: com.linea.messenger.preview/com.linea.messenger.MainActivity
+TotalTime: 1765
+WaitTime: 1771
+Complete
+shot 05-auth
+Starting: Intent { cmp=com.linea.messenger.preview/com.linea.messenger.MainActivity (has extras) }
+Status: ok
+LaunchState: COLD
+Activity: com.linea.messenger.preview/com.linea.messenger.MainActivity
+TotalTime: 1827
+WaitTime: 1832
+Complete
+shot 06b-register
+Starting: Intent { cmp=com.linea.messenger.preview/com.linea.messenger.MainActivity (has extras) }
+Status: ok
+LaunchState: COLD
+Activity: com.linea.messenger.preview/com.linea.messenger.MainActivity
+TotalTime: 2053
+WaitTime: 2057
+Complete
+shot 06c-recover
+Starting: Intent { cmp=com.linea.messenger.preview/com.linea.messenger.MainActivity (has extras) }
+Status: ok
+LaunchState: COLD
+Activity: com.linea.messenger.preview/com.linea.messenger.MainActivity
+TotalTime: 1280
+WaitTime: 1391
+Complete
+shot 06d-waiting
+Starting: Intent { cmp=com.linea.messenger.preview/com.linea.messenger.MainActivity (has extras) }
+Status: ok
+LaunchState: COLD
+Activity: com.linea.messenger.preview/com.linea.messenger.MainActivity
+TotalTime: 2426
+WaitTime: 2432
+Complete
+shot 09c-attach-demo
+Starting: Intent { cmp=com.linea.messenger.preview/com.linea.messenger.MainActivity (has extras) }
+Status: ok
+LaunchState: COLD
+Activity: com.linea.messenger.preview/com.linea.messenger.MainActivity
+TotalTime: 2330
+WaitTime: 2332
+Complete
+shot 20-channels-demo
+Starting: Intent { cmp=com.linea.messenger.preview/com.linea.messenger.MainActivity (has extras) }
+Status: ok
+LaunchState: COLD
+Activity: com.linea.messenger.preview/com.linea.messenger.MainActivity
+TotalTime: 2209
+WaitTime: 2214
+Complete

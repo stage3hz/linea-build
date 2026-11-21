@@ -1,0 +1,427 @@
+SDK: /usr/local/lib/android/sdk
+27.3.13750724
+29.0.14206865
+30.0.16248370
+Selecting previously unselected package libprotobuf32t64:amd64.
+(Reading database ... (Reading database ... 5%(Reading database ... 10%(Reading database ... 15%(Reading database ... 20%(Reading database ... 25%(Reading database ... 30%(Reading database ... 35%(Reading database ... 40%(Reading database ... 45%(Reading database ... 50%(Reading database ... 55%(Reading database ... 60%(Reading database ... 65%(Reading database ... 70%(Reading database ... 75%(Reading database ... 80%(Reading database ... 85%(Reading database ... 90%(Reading database ... 95%(Reading database ... 100%(Reading database ... 214296 files and directories currently installed.)
+Preparing to unpack .../libprotobuf32t64_3.21.12-15ubuntu1.1_amd64v3.deb ...
+Unpacking libprotobuf32t64:amd64 (3.21.12-15ubuntu1.1) ...
+Selecting previously unselected package libprotoc32t64:amd64.
+Preparing to unpack .../libprotoc32t64_3.21.12-15ubuntu1.1_amd64v3.deb ...
+Unpacking libprotoc32t64:amd64 (3.21.12-15ubuntu1.1) ...
+Selecting previously unselected package libprotobuf-dev:amd64.
+Preparing to unpack .../libprotobuf-dev_3.21.12-15ubuntu1.1_amd64v3.deb ...
+Unpacking libprotobuf-dev:amd64 (3.21.12-15ubuntu1.1) ...
+Selecting previously unselected package protobuf-compiler.
+Preparing to unpack .../protobuf-compiler_3.21.12-15ubuntu1.1_amd64v3.deb ...
+Unpacking protobuf-compiler (3.21.12-15ubuntu1.1) ...
+Setting up libprotobuf32t64:amd64 (3.21.12-15ubuntu1.1) ...
+Setting up libprotobuf-dev:amd64 (3.21.12-15ubuntu1.1) ...
+Setting up libprotoc32t64:amd64 (3.21.12-15ubuntu1.1) ...
+Setting up protobuf-compiler (3.21.12-15ubuntu1.1) ...
+Processing triggers for man-db (2.13.1-1build1) ...
+Not building database; man-db/auto-update is not 'true'.
+Processing triggers for libc-bin (2.43-2ubuntu2.7) ...
+
+Running kernel seems to be up-to-date.
+
+Restarting services...
+
+Service restarts being deferred:
+ systemctl restart hosted-compute-agent.service
+
+No containers need to be restarted.
+
+No user sessions are running outdated binaries.
+
+No VM guests are running outdated hypervisor (qemu) binaries on this host.
+libprotoc 3.21.12
+== test authority for the live check
+leaf.pem: OK
+== core tests
+test result: ok. 6 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+test result: ok. 4 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.30s
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+test result: ok. 2 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.72s
+test result: ok. 5 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 2.35s
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.59s
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.24s
+test result: ok. 8 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.03s
+test result: ok. 4 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.05s
+test result: ok. 5 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.03s
+test result: ok. 3 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.11s
+test result: ok. 6 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+test result: ok. 2 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.32s
+test result: ok. 2 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.69s
+test result: ok. 5 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+test result: ok. 2 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+test result: ok. 20 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.13s
+test result: ok. 7 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.20s
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+test result: ok. 2 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.12s
+test result: ok. 2 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.18s
+test result: ok. 2 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.45s
+test result: ok. 4 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.14s
+test result: ok. 3 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 1.17s
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+test result: ok. 3 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.69s
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.01s
+== core for the emulator (x86_64)
+NDK: /usr/local/lib/android/sdk/ndk/27.3.13750724
+info: downloading component rust-std
+ Downloading crates ...
+  Downloaded data-encoding-macro-internal v0.1.18
+  Downloaded cpufeatures v0.3.1
+  Downloaded hpke-rs-crypto v0.7.0
+  Downloaded aead v0.6.1
+  Downloaded aes-gcm-siv v0.12.0
+  Downloaded anyhow v1.0.103
+  Downloaded data-encoding v2.11.0
+  Downloaded digest v0.11.3
+  Downloaded crossbeam-epoch v0.9.20
+  Downloaded crossbeam-utils v0.8.22
+  Downloaded ctr v0.10.1
+  Downloaded data-encoding-macro v0.1.20
+  Downloaded crypto-common v0.2.2
+  Downloaded either v1.16.0
+  Downloaded multimap v0.10.1
+  Downloaded prost-derive v0.14.4
+  Downloaded ctutils v0.4.5
+  Downloaded derive-where v1.6.1
+  Downloaded derive_more v2.1.1
+  Downloaded prost-build v0.14.4
+  Downloaded aes v0.9.1
+  Downloaded getrandom v0.4.3
+  Downloaded ghash v0.6.0
+  Downloaded derive_more-impl v2.1.1
+  Downloaded foldhash v0.1.5
+  Downloaded block-padding v0.4.2
+  Downloaded cpubits v0.1.1
+  Downloaded libcrux-platform v0.0.3
+  Downloaded proc-macro-crate v3.5.0
+  Downloaded rustversion v1.0.23
+  Downloaded thiserror-impl v2.0.18
+  Downloaded universal-hash v0.6.1
+  Downloaded rand_core v0.9.5
+  Downloaded aho-corasick v1.1.4
+  Downloaded libcrux-macros v0.0.3
+  Downloaded equivalent v1.0.2
+  Downloaded hex v0.4.3
+  Downloaded hkdf v0.13.0
+  Downloaded heck v0.5.0
+  Downloaded cmov v0.5.4
+  Downloaded libcrux-hmac v0.0.8
+  Downloaded sha2 v0.11.1
+  Downloaded errno v0.3.14
+  Downloaded inout v0.2.2
+  Downloaded sha1 v0.11.0
+  Downloaded sorted-vec v0.8.11
+  Downloaded assert_matches v1.5.0
+  Downloaded jni-sys v0.3.0
+  Downloaded libcrux-sha2 v0.0.8
+  Downloaded block-buffer v0.12.1
+  Downloaded toml_parser v1.1.2+spec-1.1.0
+  Downloaded getrandom v0.3.4
+  Downloaded libcrux-ml-kem v0.0.10
+  Downloaded libcrux-secrets v0.0.6
+  Downloaded log v0.4.33
+  Downloaded num_enum_derive v0.7.6
+  Downloaded prost-types v0.14.4
+  Downloaded rand_chacha v0.9.0
+  Downloaded cipher v0.5.2
+  Downloaded rand_core v0.10.1
+  Downloaded thiserror v2.0.18
+  Downloaded const-oid v0.10.2
+  Downloaded crossbeam-deque v0.8.7
+  Downloaded fastrand v2.4.1
+  Downloaded libcrux-intrinsics v0.0.8
+  Downloaded num_enum v0.7.6
+  Downloaded polyval v0.7.3
+  Downloaded fixedbitset v0.5.7
+  Downloaded hmac v0.13.0
+  Downloaded hybrid-array v0.4.13
+  Downloaded once_cell v1.21.4
+  Downloaded prost v0.14.4
+  Downloaded chacha20 v0.10.2
+  Downloaded const-str v1.1.0
+  Downloaded hax-lib-macros v0.3.7
+  Downloaded hpke-rs v0.7.0
+  Downloaded libcrux-hacl-rs v0.0.5
+  Downloaded ppv-lite86 v0.2.21
+  Downloaded tempfile v3.27.0
+  Downloaded async-trait v0.1.89
+  Downloaded libcrux-traits v0.0.8
+  Downloaded prettyplease v0.2.37
+  Downloaded bitflags v2.13.0
+  Downloaded hashbrown v0.15.5
+  Downloaded libcrux-sha3 v0.0.10
+  Downloaded rayon-core v1.13.0
+  Downloaded toml_datetime v1.1.1+spec-1.1.0
+  Downloaded bytes v1.12.0
+  Downloaded indexmap v2.14.0
+  Downloaded rand v0.9.4
+  Downloaded rand v0.10.2
+  Downloaded cbc v0.2.1
+  Downloaded itertools v0.13.0
+  Downloaded hashbrown v0.17.1
+  Downloaded itertools v0.15.0
+  Downloaded rayon v1.12.0
+  Downloaded regex v1.12.4
+  Downloaded curve25519-dalek v5.0.0
+  Downloaded hax-lib v0.3.7
+  Downloaded rustix v1.1.4
+  Downloaded regex-syntax v0.8.11
+  Downloaded regex-automata v0.4.14
+  Downloaded petgraph v0.8.3
+  Downloaded toml_edit v0.25.12+spec-1.1.0
+  Downloaded linux-raw-sys v0.12.1
+  Downloaded zeroize_derive v1.5.0
+  Downloaded zerocopy-derive v0.8.53
+  Downloaded uuid v1.23.4
+  Downloaded x25519-dalek v3.0.0
+  Downloaded winnow v1.0.3
+  Downloaded zerocopy v0.8.53
+   Compiling proc-macro2 v1.0.107
+   Compiling quote v1.0.47
+   Compiling unicode-ident v1.0.27
+   Compiling libc v0.2.191
+   Compiling typenum v1.20.1
+   Compiling cfg-if v1.0.5
+   Compiling rand_core v0.10.1
+   Compiling syn v2.0.119
+   Compiling syn v3.0.10
+   Compiling getrandom v0.4.3
+   Compiling cmov v0.5.4
+   Compiling ctutils v0.4.5
+   Compiling synstructure v0.14.0
+   Compiling equivalent v1.0.2
+   Compiling hax-lib v0.3.7
+   Compiling hashbrown v0.17.1
+   Compiling anyhow v1.0.103
+   Compiling stable_deref_trait v1.2.1
+   Compiling cpufeatures v0.3.1
+   Compiling semver v1.0.28
+   Compiling zerofrom-derive v0.1.8
+   Compiling yoke-derive v0.8.4
+   Compiling displaydoc v0.2.7
+   Compiling indexmap v2.14.0
+   Compiling either v1.16.0
+   Compiling zerofrom v0.1.8
+   Compiling yoke v0.8.4
+   Compiling subtle v2.6.1
+   Compiling itertools v0.13.0
+   Compiling rustc_version v0.4.1
+   Compiling zerovec-derive v0.11.7
+   Compiling const-oid v0.10.2
+   Compiling zeroize_derive v1.5.0
+   Compiling hax-lib-macros v0.3.7
+   Compiling zeroize v1.9.2
+   Compiling hybrid-array v0.4.13
+   Compiling prost-derive v0.14.4
+   Compiling zerovec v0.11.9
+   Compiling rand v0.10.2
+   Compiling version_check v0.9.5
+   Compiling crypto-common v0.2.2
+   Compiling block-buffer v0.12.1
+   Compiling rustix v1.1.4
+   Compiling generic-array v0.14.7
+   Compiling block-padding v0.4.2
+   Compiling libcrux-secrets v0.0.6
+   Compiling regex-syntax v0.8.11
+   Compiling bitflags v2.13.0
+   Compiling digest v0.11.3
+   Compiling foldhash v0.1.5
+   Compiling zerocopy v0.8.53
+   Compiling linux-raw-sys v0.12.1
+   Compiling getrandom v0.3.4
+   Compiling bytes v1.12.0
+   Compiling prettyplease v0.2.37
+   Compiling hashbrown v0.15.5
+   Compiling prost v0.14.4
+   Compiling libcrux-traits v0.0.8
+   Compiling regex-automata v0.4.14
+   Compiling inout v0.2.2
+   Compiling zerocopy-derive v0.8.53
+   Compiling fixedbitset v0.5.7
+   Compiling fastrand v2.4.1
+   Compiling once_cell v1.21.4
+   Compiling libcrux-intrinsics v0.0.8
+   Compiling tempfile v3.27.0
+   Compiling petgraph v0.8.3
+   Compiling regex v1.12.4
+   Compiling prost-types v0.14.4
+   Compiling tinystr v0.8.5
+   Compiling curve25519-dalek-derive v0.1.1
+   Compiling heck v0.5.0
+   Compiling libcrux-sha3 v0.0.10
+   Compiling utf_types v1.0.0
+   Compiling litemap v0.8.3
+   Compiling writeable v0.6.4
+   Compiling winnow v1.0.3
+   Compiling log v0.4.33
+   Compiling crossbeam-utils v0.8.22
+   Compiling multimap v0.10.1
+   Compiling icu_locale_core v2.4.0
+   Compiling prost-build v0.14.4
+   Compiling toml_parser v1.1.2+spec-1.1.0
+   Compiling utf8_iter v1.1.0
+   Compiling rand_core v0.9.5
+   Compiling cipher v0.5.2
+   Compiling potential_utf v0.1.6
+   Compiling curve25519-dalek v5.0.0
+   Compiling zerotrie v0.2.5
+   Compiling libcrux-platform v0.0.3
+   Compiling icu_properties_data v2.4.0
+   Compiling thiserror v2.0.18
+   Compiling ppv-lite86 v0.2.21
+   Compiling toml_datetime v1.1.1+spec-1.1.0
+   Compiling icu_normalizer_data v2.4.0
+   Compiling cpubits v0.1.1
+   Compiling crossbeam-epoch v0.9.20
+   Compiling rand_chacha v0.9.0
+   Compiling toml_edit v0.25.12+spec-1.1.0
+   Compiling icu_provider v2.4.0
+   Compiling icu_collections v2.4.0
+   Compiling block-buffer v0.10.4
+   Compiling crypto-common v0.1.7
+   Compiling universal-hash v0.6.1
+   Compiling thiserror-impl v2.0.18
+   Compiling libcrux-macros v0.0.3
+   Compiling crossbeam-deque v0.8.7
+   Compiling rustversion v1.0.23
+   Compiling libcrux-hacl-rs v0.0.5
+   Compiling polyval v0.7.3
+   Compiling digest v0.10.7
+   Compiling proc-macro-crate v3.5.0
+   Compiling rand v0.9.4
+   Compiling sha2 v0.11.1
+   Compiling hmac v0.13.0
+   Compiling derive_more-impl v2.1.1
+   Compiling smallvec v1.16.6
+   Compiling libcrux-ml-kem v0.0.10
+   Compiling serde_core v1.0.229
+   Compiling rayon-core v1.13.0
+   Compiling icu_normalizer v2.4.0
+   Compiling derive_more v2.1.1
+   Compiling hkdf v0.13.0
+   Compiling libcrux-sha2 v0.0.8
+   Compiling x25519-dalek v3.0.0
+   Compiling num_enum_derive v0.7.6
+   Compiling icu_properties v2.4.0
+   Compiling aes v0.9.1
+   Compiling ctr v0.10.1
+   Compiling spqr v1.6.0 (https://github.com/signalapp/SparsePostQuantumRatchet.git?tag=v1.6.0#06959b47)
+   Compiling hpke-rs-crypto v0.7.0
+   Compiling curve25519-dalek v4.1.3
+   Compiling libsignal-debug v0.106.0 (https://github.com/signalapp/libsignal?tag=v0.106.0#fc90b90f)
+   Compiling cpufeatures v0.2.17
+   Compiling data-encoding v2.11.0
+   Compiling uuid v1.23.4
+   Compiling serde v1.0.229
+   Compiling libsignal-core v0.1.0 (https://github.com/signalapp/libsignal?tag=v0.106.0#fc90b90f)
+   Compiling data-encoding-macro-internal v0.1.18
+   Compiling hpke-rs v0.7.0
+   Compiling idna_adapter v1.2.2
+   Compiling num_enum v0.7.6
+   Compiling libcrux-hmac v0.0.8
+   Compiling ghash v0.6.0
+   Compiling cbc v0.2.1
+   Compiling libsignal-protocol v0.1.0 (https://github.com/signalapp/libsignal?tag=v0.106.0#fc90b90f)
+   Compiling aead v0.6.1
+   Compiling sha1 v0.11.0
+   Compiling serde_derive v1.0.229
+   Compiling sorted-vec v0.8.11
+   Compiling signature v2.2.0
+   Compiling percent-encoding v2.3.2
+   Compiling form_urlencoded v1.2.3
+   Compiling ed25519 v2.2.3
+   Compiling data-encoding-macro v0.1.20
+   Compiling signal-crypto v0.1.0 (https://github.com/signalapp/libsignal?tag=v0.106.0#fc90b90f)
+   Compiling aes-gcm-siv v0.12.0
+   Compiling rayon v1.12.0
+   Compiling idna v1.1.0
+   Compiling itertools v0.15.0
+   Compiling sha2 v0.10.9
+   Compiling derive-where v1.6.1
+   Compiling async-trait v0.1.89
+   Compiling hex v0.4.3
+   Compiling assert_matches v1.5.0
+   Compiling const-str v1.1.0
+   Compiling ed25519-dalek v2.2.0
+   Compiling url v2.5.9
+   Compiling hmac v0.12.1
+   Compiling getrandom v0.2.17
+   Compiling base64 v0.22.1
+   Compiling jni-sys v0.3.0
+   Compiling invizent-core v0.1.0 (/home/runner/work/linea-build/linea-build/native/core)
+    Finished `release` profile [optimized] target(s) in 1m 09s
+-rwxr-xr-x 1 runner runner 3846800 Nov 21 19:43 /home/runner/work/linea-build/linea-build/native/android/app/src/main/jniLibs/x86_64/libinvizent_core.so
+== core for this machine (the JNI test of the unit tests)
+-rwxr-xr-x 1 runner runner 58433312 Nov 21 19:43 /home/runner/work/linea-build/linea-build/native/android/app/build/host-core/libinvizent_core.so
+== app
+
+BUILD SUCCESSFUL in 3m 28s
+49 actionable tasks: 48 executed, 1 from cache
+testsuite name="com.linea.messenger.AIRulesTest" tests="20" skipped="0" failures="0" errors="0"
+testsuite name="com.linea.messenger.AttachmentRulesTest" tests="6" skipped="0" failures="0" errors="0"
+testsuite name="com.linea.messenger.AuthPagesTest" tests="14" skipped="0" failures="0" errors="0"
+testsuite name="com.linea.messenger.AuthRulesTest" tests="11" skipped="0" failures="0" errors="0"
+testsuite name="com.linea.messenger.CallCoreJniTest" tests="5" skipped="0" failures="0" errors="0"
+testsuite name="com.linea.messenger.CallPagesTest" tests="7" skipped="0" failures="0" errors="0"
+testsuite name="com.linea.messenger.CallRulesTest" tests="13" skipped="0" failures="0" errors="0"
+testsuite name="com.linea.messenger.ChannelsEngineTest" tests="9" skipped="0" failures="0" errors="0"
+testsuite name="com.linea.messenger.ChannelsRulesTest" tests="13" skipped="0" failures="0" errors="0"
+testsuite name="com.linea.messenger.ChatActionsPagesTest" tests="8" skipped="6" failures="0" errors="0"
+testsuite name="com.linea.messenger.ChatActionsRulesTest" tests="35" skipped="1" failures="0" errors="0"
+testsuite name="com.linea.messenger.CoreJniTest" tests="8" skipped="0" failures="0" errors="0"
+testsuite name="com.linea.messenger.DeviceProofTest" tests="3" skipped="0" failures="0" errors="0"
+testsuite name="com.linea.messenger.LinkCoreJniTest" tests="6" skipped="0" failures="0" errors="0"
+testsuite name="com.linea.messenger.LinkPreviewPagesTest" tests="9" skipped="0" failures="0" errors="0"
+testsuite name="com.linea.messenger.LinkPreviewRulesTest" tests="9" skipped="0" failures="0" errors="0"
+testsuite name="com.linea.messenger.MediaCoreJniTest" tests="2" skipped="0" failures="0" errors="0"
+testsuite name="com.linea.messenger.MediaPagesTest" tests="5" skipped="0" failures="0" errors="0"
+testsuite name="com.linea.messenger.MediaRulesTest" tests="13" skipped="0" failures="0" errors="0"
+testsuite name="com.linea.messenger.MusicPlayerTest" tests="14" skipped="0" failures="0" errors="0"
+testsuite name="com.linea.messenger.MusicRulesTest" tests="13" skipped="0" failures="0" errors="0"
+testsuite name="com.linea.messenger.OfflineRulesTest" tests="7" skipped="0" failures="0" errors="0"
+testsuite name="com.linea.messenger.PagesTest" tests="5" skipped="0" failures="0" errors="0"
+testsuite name="com.linea.messenger.PeopleAttachmentsPagesTest" tests="11" skipped="0" failures="0" errors="0"
+testsuite name="com.linea.messenger.PeopleRulesTest" tests="6" skipped="0" failures="0" errors="0"
+testsuite name="com.linea.messenger.RealDataRulesTest" tests="12" skipped="0" failures="0" errors="0"
+testsuite name="com.linea.messenger.RoomsCoreJniTest" tests="8" skipped="0" failures="0" errors="0"
+testsuite name="com.linea.messenger.RoomsPagesTest" tests="10" skipped="0" failures="0" errors="0"
+testsuite name="com.linea.messenger.SettingsLookPagesTest" tests="10" skipped="0" failures="0" errors="0"
+testsuite name="com.linea.messenger.SettingsLookRulesTest" tests="16" skipped="0" failures="0" errors="0"
+testsuite name="com.linea.messenger.SettingsPagesTest" tests="17" skipped="0" failures="0" errors="0"
+testsuite name="com.linea.messenger.SettingsRulesTest" tests="9" skipped="0" failures="0" errors="0"
+testsuite name="com.linea.messenger.ShellRulesTest" tests="13" skipped="0" failures="0" errors="0"
+testsuite name="com.linea.messenger.StoriesCoreJniTest" tests="8" skipped="0" failures="0" errors="0"
+testsuite name="com.linea.messenger.StoriesPagesTest" tests="7" skipped="0" failures="0" errors="0"
+testsuite name="com.linea.messenger.StoriesRulesTest" tests="10" skipped="0" failures="0" errors="0"
+testsuite name="com.linea.messenger.ThemeFollowRulesTest" tests="4" skipped="0" failures="0" errors="0"
+  5591428  1981-01-01 01:01   classes.dex
+   548516  1981-01-01 01:01   classes10.dex
+    44872  1981-01-01 01:01   classes11.dex
+    50840  1981-01-01 01:01   classes12.dex
+   445624  1981-01-01 01:01   classes13.dex
+   290220  1981-01-01 01:01   classes14.dex
+   236904  1981-01-01 01:01   classes15.dex
+   668684  1981-01-01 01:01   classes16.dex
+   772224  1981-01-01 01:01   classes17.dex
+   181188  1981-01-01 01:01   classes18.dex
+   242080  1981-01-01 01:01   classes19.dex
+    53588  1981-01-01 01:01   classes2.dex
+   156860  1981-01-01 01:01   classes20.dex
+    32268  1981-01-01 01:01   classes3.dex
+    36024  1981-01-01 01:01   classes4.dex
+    72104  1981-01-01 01:01   classes5.dex
+    77032  1981-01-01 01:01   classes6.dex
+     5264  1981-01-01 01:01   classes7.dex
+     9660  1981-01-01 01:01   classes8.dex
+     3500  1981-01-01 01:01   classes9.dex
+  2110992  1981-01-01 01:01   lib/arm64-v8a/libsqlcipher.so
+  3846800  1981-01-01 01:01   lib/x86_64/libinvizent_core.so
+  2249352  1981-01-01 01:01   lib/x86_64/libsqlcipher.so
+     1180  1981-01-01 01:01   res/raw/invizent_test_ca.pem
+== built
