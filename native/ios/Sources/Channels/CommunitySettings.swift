@@ -361,13 +361,13 @@ final class CommunitySettingsPage: SettingsPage, PHPickerViewControllerDelegate 
 /// A member in the settings: the picture, the name in the colour of the highest role, the roles.
 final class MemberRow: UIControl {
     var onPress: (() -> Void)?
-    private let avatar = PersonAvatarView()
+    private let avatar = DecoratedAvatarView() // Avatars: as CommunitySettings.tsx, DecoratedAvatar size 36 (still)
     private let nameLabel = UILabel()
     private let rolesLabel = UILabel()
 
     init(_ member: CommunityMember, community: Community, base: String) {
         super.init(frame: .zero)
-        avatar.show(member.user, address: member.user.avatarId.isEmpty || base.isEmpty ? "" : base + Server.filePath(member.user.avatarId))
+        avatar.show(member.user, look: member.user.look, base: base, animated: false) // Avatars
         addSubview(avatar)
         nameLabel.text = member.user.displayName + (member.owner ? " 👑" : "")
         nameLabel.font = .systemFont(ofSize: 15, weight: .semibold)

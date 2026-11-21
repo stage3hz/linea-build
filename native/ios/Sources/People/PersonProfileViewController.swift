@@ -43,6 +43,10 @@ final class PersonProfileViewController: UIViewController, UIScrollViewDelegate 
     private let card = UIStackView()
     /// Stories: «Публикации» / «Истории» under the card and the ring around the picture (Sources/Stories/ProfilePosts.swift).
     private let postsBlock = ProfilePostsBlock(frame: .zero)
+    /// Profile: the chat this profile was opened from — «Звук», «Поиск», the shared media and the chat's items of
+    /// «Ещё» (Sources/Profile/ProfileChatExtras.swift). Nil: opened from elsewhere.
+    var chatLink: ProfileChatLink?
+    private let sharedMedia = SharedMediaView()
 
     /// `person`: what is already known about them (a row of a list), shown until the profile is read.
     init(messenger: Messenger?, userId: String, name: String, person: Person? = nil, chatId: String = "") {
@@ -115,6 +119,12 @@ final class PersonProfileViewController: UIViewController, UIScrollViewDelegate 
         // Stories: the person's posts and stories.
         content.addArrangedSubview(postsBlock)
         postsBlock.attach(host: self, messenger: messenger, userId: userId, own: false, avatar: avatar)
+        // Profile: «Фото · Видео · Файлы · Голосовые · Ссылки» of the chat (SharedMedia.tsx).
+        content.addArrangedSubview(sharedMedia)
+        sharedMedia.onOpen = { [weak self] (key: String) -> Void in
+            guard let self, let link = self.chatLink, !key.isEmpty else { return }
+            link.openAttachment(key: key, from: self)
+        }
 
         // Profile: the content scrolls under the floating back / «Ещё» row and dissolves there.
         topShade.colors = [Theme.bg.withAlphaComponent(0.92).cgColor, Theme.bg.withAlphaComponent(0).cgColor]
@@ -297,6 +307,7 @@ final class PersonProfileViewController: UIViewController, UIScrollViewDelegate 
         more.isEnabled = !busy
         rebuildTiles()
         rebuildCard(shown)
+        sharedMedia.show(chatLink?.messages ?? []) // Profile
     }
 
     private func makeTile(symbol: String, words: String, loading: Bool) -> UIButton {
@@ -353,10 +364,39 @@ final class PersonProfileViewController: UIViewController, UIScrollViewDelegate 
             friend.addTarget(self, action: #selector(friendTapped), for: .touchUpInside)
             tiles.addArrangedSubview(friend)
         }
+        if let link = chatLink {
+            // Profile: «Звук» / «Без звука» (with how long under it) and «Поиск», as the reference's row
+            // «call · video · sound · search · more».
+            let quiet = ProfileChatExtras.muted(link.settings)
+            let sound = makeTile(symbol: quiet ? "bell.slash.fill" : "bell.fill", words: quiet ? "Без звука" : "Звук", loading: false)
+            if var config = sound.configuration {
+                if quiet {
+                    config.baseForegroundColor = Theme.accent
+                    config.subtitle = ProfileChatExtras.untilLabel(link.settings["mutedUntil"] as? String)
+                    config.subtitleTextAttributesTransformer = UIConfigurationTextAttributesTransformer { (incoming: AttributeContainer) -> AttributeContainer in
+                        var outgoing = incoming
+                        outgoing.font = UIFont.systemFont(ofSize: 10)
+                        outgoing.foregroundColor = Theme.muted
+                        return outgoing
+                    }
+                    config.titleAlignment = .center
+                }
+                sound.configuration = config
+            }
+            sound.addTarget(self, action: #selector(soundTapped), for: .touchUpInside)
+            tiles.addArrangedSubview(sound)
+            let search = makeTile(symbol: "magnifyingglass", words: "Поиск", loading: false)
+            search.addAction(UIAction { [weak self] (_: UIAction) -> Void in
+                guard let self, let link = self.chatLink else { return }
+                link.openSearch(from: self)
+            }, for: .touchUpInside)
+            tiles.addArrangedSubview(search)
+        }
         let other = makeTile(symbol: "ellipsis", words: "Ещё", loading: false)
         other.menu = moreMenu()
         other.showsMenuAsPrimaryAction = true
         tiles.addArrangedSubview(other)
+        fitTiles() // Profile: up to five tiles share the row, as the reference's flex 1, at most 120 wide
     }
 
     private func moreMenu() -> UIMenu {
@@ -366,14 +406,103 @@ final class PersonProfileViewController: UIViewController, UIScrollViewDelegate 
             let symbol = friendNow ? "person.badge.minus" : "person.badge.plus"
             actions.append(UIAction(title: words, image: UIImage(systemName: symbol)) { [weak self] _ in self?.friendTapped() })
         }
+        // Profile: the chat's own items, then «Очистить историю» apart with «Заблокировать» and «Пожаловаться».
+        var tail: [UIMenuElement] = []
+        if let link = chatLink {
+            let items = ProfileChatExtras.menuItems(link, profile: self, name: shownPerson.displayName.isEmpty ? name : shownPerson.displayName) { [weak self] (words: String) -> Void in
+                self?.say(notice: words)
+            }
+            actions.append(contentsOf: items.top)
+            tail.append(items.clear)
+        }
         if blocked {
             actions.append(UIAction(title: "Разблокировать", image: UIImage(systemName: "hand.raised")) { [weak self] _ in self?.setBlocked(false) })
         } else {
             actions.append(UIAction(title: "Заблокировать", image: UIImage(systemName: "minus.circle"), attributes: .destructive) { [weak self] _ in self?.confirmBlock() })
         }
         actions.append(UIAction(title: "Пожаловаться", image: UIImage(systemName: "exclamationmark.triangle"), attributes: .destructive) { [weak self] _ in self?.report() })
+        if chatLink != nil {
+            // Profile: «Очистить историю» stands apart (the reference's `separated`); block and report follow it.
+            let firstTail = actions.firstIndex { ($0 as? UIAction)?.title == "Разблокировать" || ($0 as? UIAction)?.title == "Заблокировать" } ?? actions.count
+            let head = Array(actions[..<firstTail])
+            tail.append(contentsOf: actions[firstTail...])
+            return UIMenu(title: "", children: [UIMenu(title: "", options: .displayInline, children: head), UIMenu(title: "", options: .displayInline, children: tail)])
+        }
         return UIMenu(title: "", children: actions)
     }
+
+    // MARK: Profile: the row of tiles and the sound
+
+    /// Up to five tiles share the row (the reference's `flex: 1, maxWidth: 120`): each as wide as the room allows.
+    private func fitTiles() {
+        let count = CGFloat(tiles.arrangedSubviews.count)
+        guard count > 0 else { return }
+        let room = max(200, view.bounds.width - 36)
+        let each = min(104, floor((room - 10 * (count - 1)) / count))
+        for tile in tiles.arrangedSubviews {
+            for constraint in tile.constraints where constraint.firstAttribute == .width && constraint.secondItem == nil {
+                constraint.constant = each
+            }
+        }
+    }
+
+    /// «Звук»: a chat without sound gets it back in one touch; otherwise the sheet asks for how long.
+    @objc private func soundTapped() {
+        guard let link = chatLink, !busy else { return }
+        Haptic.light()
+        if ProfileChatExtras.muted(link.settings) {
+            changeSound(link, ["muted": false], ok: "Звук включён")
+            return
+        }
+        let title = shownPerson.displayName.isEmpty ? name : shownPerson.displayName
+        ProfileChatExtras.muteSheet(title: title, over: self) { [weak self] (until: String?) -> Void in
+            guard let self else { return }
+            if let until {
+                self.changeSound(link, ["mutedUntil": until], ok: "Звук выключен " + ProfileChatExtras.untilLabel(until))
+            } else {
+                self.changeSound(link, ["muted": true], ok: "Звук выключен навсегда")
+            }
+        }
+    }
+
+    private func changeSound(_ link: ProfileChatLink, _ update: [String: Any], ok: String) {
+        busy = true
+        refresh()
+        ProfileChatExtras.changeSound(link, messenger: messenger, update: update) { [weak self] (failure: String?) -> Void in
+            guard let self else { return }
+            self.busy = false
+            if let failure { self.say(problem: failure) } else { self.say(notice: ok) }
+        }
+    }
+
+    #if targetEnvironment(simulator)
+    func simulatorSharedTab(_ tab: String) {
+        if let chosen = SharedMediaView.Tab(rawValue: tab) { sharedMedia.select(chosen) }
+        simulatorScrollToShared()
+    }
+
+    func simulatorScrollToShared() {
+        view.layoutIfNeeded()
+        let bottom = max(0, scroll.contentSize.height - scroll.bounds.height + scroll.adjustedContentInset.bottom)
+        let target = min(bottom, max(0, sharedMedia.frame.minY + content.frame.minY - 120))
+        scroll.setContentOffset(CGPoint(x: 0, y: target), animated: false)
+    }
+
+    /// «Ещё» as a sheet of its items (a UIMenu cannot be opened by code): the same items, in order.
+    func simulatorOpenMore() {
+        let menu = moreMenu()
+        let sheet = UIAlertController(title: nil, message: nil, preferredStyle: .actionSheet)
+        func walk(_ elements: [UIMenuElement]) {
+            for element in elements {
+                if let group = element as? UIMenu { walk(group.children) }
+                if let action = element as? UIAction { sheet.addAction(UIAlertAction(title: action.title, style: action.attributes.contains(.destructive) ? .destructive : .default, handler: nil)) }
+            }
+        }
+        walk(menu.children)
+        sheet.addAction(UIAlertAction(title: "Отмена", style: .cancel, handler: nil))
+        present(sheet, animated: false)
+    }
+    #endif
 
     private func hairline() -> UIView {
         let holder = UIView()

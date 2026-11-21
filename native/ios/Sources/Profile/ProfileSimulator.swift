@@ -15,6 +15,9 @@ import UIKit
 ///                                                               the mini profile (plain, in a chat), the photo viewer,
 ///                                                               the round cropper, the banner preview, «Узор фона»,
 ///                                                               the status picker, sending a gift
+///   -profiledemo chatprofile | chatprofile-more | chatprofile-files | chatprofile-mute | chatprofile-ttl
+///                                                               the profile from a chat: «Звук», «Поиск», shared media,
+///                                                               «Ещё», the sound sheet, «Автоудаление»
 extension SceneDelegate {
     func simulatorProfiles() -> Bool {
         guard let what = UserDefaults.standard.string(forKey: "profiledemo") else { return false }
@@ -78,7 +81,8 @@ extension SceneDelegate {
         case "giftsheet":
             later { stack.present(GiftSheetViewController(messenger: nil, userId: "sample"), animated: false, completion: nil) }
         default:
-            break
+            // -profiledemo chatprofile… : the profile opened from the sample chat (Profile/ProfileChatExtras.swift).
+            ProfileChatExtras.simulator(what, stack: stack)
         }
         return true
     }

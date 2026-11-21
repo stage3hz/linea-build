@@ -532,6 +532,8 @@ final class PersonCell: UITableViewCell {
     private let avatar = PersonAvatarView()
     private let nameLabel = UILabel()
     private let handleLabel = UILabel()
+    /// Avatars: the emoji status or the Platina gem after the name (PeopleScreen.tsx `StatusEmoji` 15, requests 14).
+    private let statusEmoji = StatusEmojiView()
     private let waiting = UIActivityIndicatorView(style: .medium)
     private var buttons: [UIButton] = []
     private var framed = false
@@ -550,6 +552,7 @@ final class PersonCell: UITableViewCell {
         handleLabel.font = .systemFont(ofSize: 12)
         handleLabel.textColor = Theme.muted
         card.addSubview(handleLabel)
+        card.addSubview(statusEmoji) // Avatars
         waiting.color = Theme.accent
         waiting.hidesWhenStopped = true
         card.addSubview(waiting)
@@ -562,6 +565,7 @@ final class PersonCell: UITableViewCell {
         self.framed = framed
         avatar.show(person, address: address)
         nameLabel.text = person.displayName
+        statusEmoji.show(person.look, size: framed ? 14 : 15) // Avatars
         handleLabel.text = handle
         card.layer.borderWidth = framed ? 1 : 0
         card.layer.borderColor = Theme.veil(0.08).cgColor
@@ -624,7 +628,12 @@ final class PersonCell: UITableViewCell {
         }
         let left = avatar.frame.maxX + 14
         let room = max(0, right - left)
-        nameLabel.frame = CGRect(x: left, y: height / 2 - 21, width: room, height: 21)
+        // Avatars: the name, then the emoji status 6 pt after it (the name gives way when the room is short).
+        let emojiSize = statusEmoji.isHidden ? CGSize.zero : statusEmoji.intrinsicContentSize
+        let emojiRoom = statusEmoji.isHidden ? 0 : emojiSize.width + 6
+        let nameWidth = min(max(0, room - emojiRoom), ceil(nameLabel.intrinsicContentSize.width))
+        nameLabel.frame = CGRect(x: left, y: height / 2 - 21, width: nameWidth, height: 21)
+        statusEmoji.frame = CGRect(x: left + nameWidth + 6, y: height / 2 - 10.5 - emojiSize.height / 2, width: emojiSize.width, height: emojiSize.height)
         handleLabel.frame = CGRect(x: left, y: height / 2 + 4, width: room, height: 16)
     }
 }

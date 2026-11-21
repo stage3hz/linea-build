@@ -482,7 +482,7 @@ final class SharedMediaView: UIView, UIGestureRecognizerDelegate {
             var config = UIButton.Configuration.plain()
             config.title = tab.label
             config.baseForegroundColor = tab.id == active ? Theme.accent : Theme.text
-            config.background.backgroundColor = tab.id == active ? Theme.accentSoft : .clear
+            config.background.backgroundColor = tab.id == active ? ThemeStore.look.accentSoft : .clear
             config.background.cornerRadius = 14
             config.contentInsets = NSDirectionalEdgeInsets(top: 8, leading: 14, bottom: 8, trailing: 14)
             config.titleTextAttributesTransformer = UIConfigurationTextAttributesTransformer { (incoming: AttributeContainer) -> AttributeContainer in
@@ -642,7 +642,7 @@ final class SharedMediaView: UIView, UIGestureRecognizerDelegate {
         let stack = plate()
         for item in links {
             let icon = UILabel()
-            icon.backgroundColor = Theme.accentSoft
+            icon.backgroundColor = ThemeStore.look.accentSoft
             icon.layer.cornerRadius = 10
             icon.clipsToBounds = true
             icon.textAlignment = .center

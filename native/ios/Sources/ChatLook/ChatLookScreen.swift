@@ -362,6 +362,8 @@ final class ChatLookScreen: NSObject {
             peer["statusEmojiExpiresAt"] = NSNull()
             peer["seal"] = "platina"
         }
+        // Avatars: -chatlookframe <id> dresses the sample person in a frame (a ring, art or a code frame).
+        if let frame = args.string(forKey: "chatlookframe") { peer["avatarFrame"] = frame }
         return peer
     }
     #endif
