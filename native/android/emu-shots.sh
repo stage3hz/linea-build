@@ -19,6 +19,8 @@ adb shell am broadcast -a com.android.systemui.demo -e command enter >/dev/null 
 adb shell am broadcast -a com.android.systemui.demo -e command clock -e hhmm 0941 >/dev/null || true
 adb shell am broadcast -a com.android.systemui.demo -e command battery -e level 100 -e plugged false >/dev/null || true
 adb shell am broadcast -a com.android.systemui.demo -e command notifications -e visible false >/dev/null || true
+# The emulator's own launcher sometimes stops answering on a slow runner; its "isn't responding" window would cover the shots.
+adb shell settings put global hide_error_dialogs 1 >/dev/null 2>&1 || true
 
 shot() { # name, launch arguments…
   name="$1"; shift
