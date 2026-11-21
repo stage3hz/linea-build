@@ -1,0 +1,162 @@
+[
+ {
+  "address": "https://api.invizent.com",
+  "normal": "https://api.invizent.com"
+ },
+ {
+  "address": "https://api.invizent.com/",
+  "normal": "https://api.invizent.com"
+ },
+ {
+  "address": "HTTPS://API.INVIZENT.COM",
+  "normal": "https://api.invizent.com"
+ },
+ {
+  "address": "https://api.invizent.com:443",
+  "normal": "https://api.invizent.com"
+ },
+ {
+  "address": "https://api.invizent.com:444",
+  "normal": null
+ },
+ {
+  "address": "http://api.invizent.com",
+  "normal": null
+ },
+ {
+  "address": "https://invizent.com",
+  "normal": "https://invizent.com"
+ },
+ {
+  "address": "https://invizent.ru",
+  "normal": "https://invizent.ru"
+ },
+ {
+  "address": "https://a.b-c.invizent.ru/",
+  "normal": "https://a.b-c.invizent.ru"
+ },
+ {
+  "address": "https://evilinvizent.com",
+  "normal": null
+ },
+ {
+  "address": "https://invizent.com.evil.org",
+  "normal": null
+ },
+ {
+  "address": "https://api.invizent.org",
+  "normal": null
+ },
+ {
+  "address": "https://user@api.invizent.com",
+  "normal": null
+ },
+ {
+  "address": "https://user:pw@api.invizent.com",
+  "normal": null
+ },
+ {
+  "address": "https://api.invizent.com/path",
+  "normal": null
+ },
+ {
+  "address": "https://api.invizent.com/?",
+  "normal": "https://api.invizent.com"
+ },
+ {
+  "address": "https://api.invizent.com/?a=1",
+  "normal": null
+ },
+ {
+  "address": "https://api.invizent.com/#",
+  "normal": "https://api.invizent.com"
+ },
+ {
+  "address": "https://api.invizent.com/#x",
+  "normal": null
+ },
+ {
+  "address": "https://141-133-194-51.nip.io",
+  "normal": "https://141-133-194-51.nip.io"
+ },
+ {
+  "address": "https://x.141-133-194-51.nip.io",
+  "normal": null
+ },
+ {
+  "address": "https://invizent-api.invizent-8165e2.workers.dev/",
+  "normal": "https://invizent-api.invizent-8165e2.workers.dev"
+ },
+ {
+  "address": "https://other.invizent-8165e2.workers.dev",
+  "normal": null
+ },
+ {
+  "address": "https://api..invizent.com",
+  "normal": null
+ },
+ {
+  "address": " https://api.invizent.com ",
+  "normal": "https://api.invizent.com"
+ },
+ {
+  "address": "https://api.invizent.com.",
+  "normal": null
+ },
+ {
+  "address": "https://api_x.invizent.com",
+  "normal": null
+ },
+ {
+  "address": "https://xn--80a.invizent.com",
+  "normal": "https://xn--80a.invizent.com"
+ },
+ {
+  "address": "https://пример.invizent.com",
+  "normal": "https://xn--e1afmkfd.invizent.com"
+ },
+ {
+  "address": "https://[::1]",
+  "normal": null
+ },
+ {
+  "address": "https://127.0.0.1",
+  "normal": null
+ },
+ {
+  "address": "ftp://api.invizent.com",
+  "normal": null
+ },
+ {
+  "address": "api.invizent.com",
+  "normal": null
+ },
+ {
+  "address": "",
+  "normal": null
+ },
+ {
+  "address": "https://",
+  "normal": null
+ },
+ {
+  "address": "https://API.Invizent.RU:443/",
+  "normal": "https://api.invizent.ru"
+ },
+ {
+  "address": "https://api.invizent.com\\x",
+  "normal": null
+ },
+ {
+  "address": "https:api.invizent.com",
+  "normal": "https://api.invizent.com"
+ },
+ {
+  "address": "https://api.invizent.com:0443",
+  "normal": "https://api.invizent.com"
+ },
+ {
+  "address": "wss://api.invizent.com",
+  "normal": null
+ }
+]

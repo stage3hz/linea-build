@@ -1,0 +1,267 @@
+[
+ {
+  "failed": "https://a.invizent.com",
+  "all": [
+   "https://a.invizent.com",
+   "https://b.invizent.com",
+   "https://c.invizent.com"
+  ],
+  "rtt": [
+   [
+    "https://b.invizent.com",
+    90
+   ],
+   [
+    "https://c.invizent.com",
+    40
+   ]
+  ],
+  "down": [],
+  "now": 1000,
+  "downMs": 60000,
+  "next": "https://c.invizent.com"
+ },
+ {
+  "failed": "https://a.invizent.com",
+  "all": [
+   "https://a.invizent.com",
+   "https://b.invizent.com",
+   "https://c.invizent.com"
+  ],
+  "rtt": [
+   [
+    "https://b.invizent.com",
+    null
+   ],
+   [
+    "https://c.invizent.com",
+    70
+   ]
+  ],
+  "down": [],
+  "now": 1000,
+  "downMs": 60000,
+  "next": "https://c.invizent.com"
+ },
+ {
+  "failed": "https://a.invizent.com",
+  "all": [
+   "https://a.invizent.com",
+   "https://b.invizent.com",
+   "https://c.invizent.com"
+  ],
+  "rtt": [
+   [
+    "https://b.invizent.com",
+    null
+   ]
+  ],
+  "down": [],
+  "now": 1000,
+  "downMs": 60000,
+  "next": "https://c.invizent.com"
+ },
+ {
+  "failed": "https://a.invizent.com",
+  "all": [
+   "https://a.invizent.com",
+   "https://b.invizent.com",
+   "https://c.invizent.com"
+  ],
+  "rtt": [
+   [
+    "https://b.invizent.com",
+    null
+   ],
+   [
+    "https://c.invizent.com",
+    null
+   ]
+  ],
+  "down": [],
+  "now": 1000,
+  "downMs": 60000,
+  "next": "https://a.invizent.com"
+ },
+ {
+  "failed": "https://a.invizent.com",
+  "all": [
+   "https://a.invizent.com",
+   "https://b.invizent.com",
+   "https://c.invizent.com"
+  ],
+  "rtt": [
+   [
+    "https://b.invizent.com",
+    30
+   ],
+   [
+    "https://c.invizent.com",
+    20
+   ]
+  ],
+  "down": [
+   [
+    "https://c.invizent.com",
+    900
+   ]
+  ],
+  "now": 1000,
+  "downMs": 60000,
+  "next": "https://b.invizent.com"
+ },
+ {
+  "failed": "https://a.invizent.com",
+  "all": [
+   "https://a.invizent.com",
+   "https://b.invizent.com",
+   "https://c.invizent.com"
+  ],
+  "rtt": [
+   [
+    "https://b.invizent.com",
+    30
+   ],
+   [
+    "https://c.invizent.com",
+    20
+   ]
+  ],
+  "down": [
+   [
+    "https://c.invizent.com",
+    900
+   ],
+   [
+    "https://b.invizent.com",
+    950
+   ]
+  ],
+  "now": 1000,
+  "downMs": 60000,
+  "next": "https://a.invizent.com"
+ },
+ {
+  "failed": "https://a.invizent.com",
+  "all": [
+   "https://a.invizent.com",
+   "https://b.invizent.com",
+   "https://c.invizent.com"
+  ],
+  "rtt": [
+   [
+    "https://b.invizent.com",
+    30
+   ],
+   [
+    "https://c.invizent.com",
+    20
+   ]
+  ],
+  "down": [
+   [
+    "https://c.invizent.com",
+    100
+   ]
+  ],
+  "now": 100000,
+  "downMs": 60000,
+  "next": "https://c.invizent.com"
+ },
+ {
+  "failed": "https://a.invizent.com",
+  "all": [
+   "https://a.invizent.com"
+  ],
+  "rtt": [],
+  "down": [],
+  "now": 1000,
+  "downMs": 60000,
+  "next": null
+ },
+ {
+  "failed": "https://a.invizent.com",
+  "all": [
+   "https://b.invizent.com",
+   "https://c.invizent.com"
+  ],
+  "rtt": [
+   [
+    "https://b.invizent.com",
+    null
+   ],
+   [
+    "https://c.invizent.com",
+    null
+   ]
+  ],
+  "down": [],
+  "now": 1000,
+  "downMs": 60000,
+  "next": "https://b.invizent.com"
+ },
+ {
+  "failed": "https://a.invizent.com",
+  "all": [
+   "https://a.invizent.com",
+   "https://b.invizent.com",
+   "https://c.invizent.com",
+   "https://d.invizent.com"
+  ],
+  "rtt": [],
+  "down": [
+   [
+    "https://b.invizent.com",
+    990
+   ],
+   [
+    "https://c.invizent.com",
+    980
+   ],
+   [
+    "https://d.invizent.com",
+    970
+   ]
+  ],
+  "now": 1000,
+  "downMs": 60000,
+  "next": "https://a.invizent.com"
+ },
+ {
+  "failed": "https://a.invizent.com",
+  "all": [
+   "https://a.invizent.com",
+   "https://b.invizent.com",
+   "https://c.invizent.com",
+   "https://d.invizent.com"
+  ],
+  "rtt": [
+   [
+    "https://d.invizent.com",
+    5
+   ]
+  ],
+  "down": [
+   [
+    "https://b.invizent.com",
+    990
+   ]
+  ],
+  "now": 1000,
+  "downMs": 60000,
+  "next": "https://d.invizent.com"
+ },
+ {
+  "failed": "https://a.invizent.com",
+  "all": [
+   "https://a.invizent.com",
+   "https://b.invizent.com",
+   "https://c.invizent.com"
+  ],
+  "rtt": [],
+  "down": [],
+  "now": 1000,
+  "downMs": 60000,
+  "next": "https://b.invizent.com"
+ }
+]

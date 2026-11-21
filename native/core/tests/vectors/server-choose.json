@@ -1,0 +1,185 @@
+[
+ {
+  "current": null,
+  "rtt": [
+   [
+    "https://a.invizent.com",
+    120
+   ],
+   [
+    "https://b.invizent.com",
+    80
+   ]
+  ],
+  "chosen": "https://b.invizent.com"
+ },
+ {
+  "current": "https://a.invizent.com",
+  "rtt": [
+   [
+    "https://a.invizent.com",
+    120
+   ],
+   [
+    "https://b.invizent.com",
+    80
+   ]
+  ],
+  "chosen": "https://b.invizent.com"
+ },
+ {
+  "current": "https://a.invizent.com",
+  "rtt": [
+   [
+    "https://a.invizent.com",
+    120
+   ],
+   [
+    "https://b.invizent.com",
+    100
+   ]
+  ],
+  "chosen": "https://a.invizent.com"
+ },
+ {
+  "current": "https://a.invizent.com",
+  "rtt": [
+   [
+    "https://a.invizent.com",
+    200
+   ],
+   [
+    "https://b.invizent.com",
+    139
+   ]
+  ],
+  "chosen": "https://b.invizent.com"
+ },
+ {
+  "current": "https://a.invizent.com",
+  "rtt": [
+   [
+    "https://a.invizent.com",
+    200
+   ],
+   [
+    "https://b.invizent.com",
+    140
+   ]
+  ],
+  "chosen": "https://b.invizent.com"
+ },
+ {
+  "current": "https://a.invizent.com",
+  "rtt": [
+   [
+    "https://a.invizent.com",
+    100
+   ],
+   [
+    "https://b.invizent.com",
+    60
+   ]
+  ],
+  "chosen": "https://b.invizent.com"
+ },
+ {
+  "current": "https://a.invizent.com",
+  "rtt": [
+   [
+    "https://a.invizent.com",
+    100
+   ],
+   [
+    "https://b.invizent.com",
+    61
+   ]
+  ],
+  "chosen": "https://a.invizent.com"
+ },
+ {
+  "current": "https://a.invizent.com",
+  "rtt": [
+   [
+    "https://a.invizent.com",
+    null
+   ],
+   [
+    "https://b.invizent.com",
+    300
+   ]
+  ],
+  "chosen": "https://b.invizent.com"
+ },
+ {
+  "current": "https://a.invizent.com",
+  "rtt": [
+   [
+    "https://a.invizent.com",
+    null
+   ],
+   [
+    "https://b.invizent.com",
+    null
+   ]
+  ],
+  "chosen": "https://a.invizent.com"
+ },
+ {
+  "current": null,
+  "rtt": [
+   [
+    "https://a.invizent.com",
+    null
+   ]
+  ],
+  "chosen": null
+ },
+ {
+  "current": null,
+  "rtt": [],
+  "chosen": null
+ },
+ {
+  "current": "https://c.invizent.com",
+  "rtt": [
+   [
+    "https://a.invizent.com",
+    50
+   ],
+   [
+    "https://b.invizent.com",
+    50
+   ]
+  ],
+  "chosen": "https://a.invizent.com"
+ },
+ {
+  "current": null,
+  "rtt": [
+   [
+    "https://b.invizent.com",
+    50
+   ],
+   [
+    "https://a.invizent.com",
+    50
+   ]
+  ],
+  "chosen": "https://b.invizent.com"
+ },
+ {
+  "current": "https://b.invizent.com",
+  "rtt": [
+   [
+    "https://a.invizent.com",
+    10
+   ],
+   [
+    "https://b.invizent.com",
+    10
+   ]
+  ],
+  "chosen": "https://b.invizent.com"
+ }
+]
