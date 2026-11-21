@@ -575,7 +575,7 @@ final class SettingsButton: UIButton {
         look.title = label
         look.cornerStyle = .large
         look.contentInsets = NSDirectionalEdgeInsets(top: 14, leading: 18, bottom: 14, trailing: 18)
-        look.titleTextAttributesTransformer = UIConfigurationTextAttributesTransformer { incoming in
+        look.titleTextAttributesTransformer = UIConfigurationTextAttributesTransformer { (incoming: AttributeContainer) -> AttributeContainer in
             var outgoing = incoming
             outgoing.font = UIFont.systemFont(ofSize: 15, weight: .semibold)
             return outgoing

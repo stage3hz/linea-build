@@ -38,4 +38,16 @@ typedef struct InvizentProof InvizentProof;
 InvizentProof *invizent_proof_new(void);
 char *invizent_proof_call(InvizentProof *proof, const char *input_json);
 void invizent_proof_free(InvizentProof *proof);
+
+// Files attached to encrypted messages (ffi.rs: invizent_file_*). A file's bytes go in as pointer + length; the
+// answer is null and `out` holds the result (given back with invizent_file_bytes_free), or it is the words for the
+// person (given back with invizent_string_free) and `out` is empty.
+#include <stddef.h>
+typedef struct InvizentBytes { uint8_t *data; size_t len; } InvizentBytes;
+char *invizent_file_seal(const uint8_t *plain, size_t plain_len, const char *encryption_json, InvizentBytes *out);
+char *invizent_file_open(const uint8_t *cipher, size_t cipher_len, const char *attachment_json, InvizentBytes *out);
+char *invizent_file_clean_jpeg(const uint8_t *jpeg, size_t jpeg_len, InvizentBytes *out);
+void invizent_file_bytes_free(InvizentBytes bytes);
+// The rest about files by name (newEncryption, uploadForm, attachment, preview, describe, received, sizeText).
+char *invizent_file_call(const char *name, const char *args_json);
 #endif

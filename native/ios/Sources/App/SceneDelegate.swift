@@ -58,6 +58,17 @@ final class SceneDelegate: UIResponder, UIWindowSceneDelegate {
         window?.rootViewController = auth
     }
 
+    /// Settings: the account was left (signed out, a secret changed, the session ended, the account deleted).
+    /// The session is already forgotten (Settings/AccountActions.swift); signing in is shown, with a few words why.
+    func closeAccount(notice: String) {
+        messenger = nil
+        showAuth()
+        guard !notice.isEmpty else { return }
+        let alert = UIAlertController(title: nil, message: notice, preferredStyle: .alert)
+        alert.addAction(UIAlertAction(title: "Понятно", style: .default, handler: nil))
+        DispatchQueue.main.async { [weak self] in self?.window?.rootViewController?.present(alert, animated: true) }
+    }
+
     private func showWaiting(_ words: String) {
         let screen = WaitingViewController(words: words)
         screen.onRetry = { [weak self] in self?.start() }
@@ -74,10 +85,12 @@ final class SceneDelegate: UIResponder, UIWindowSceneDelegate {
     ///   -login … -password … -word …    signs in to the test server given by -server (https://localhost:…) only
     ///   -openchat 1                     with an account: opens the first chat of the list
     ///   -tab people / -peoplesearch <query> / -profile friend|chat    «Люди» and a profile, with an account or -demo (People/PeopleSimulator.swift)
+    ///   -settings <page>                «Настройки» and one of its pages, with an account (about: also with -demo) (Settings/SettingsSimulator.swift)
     private func simulatorStart() -> Bool {
         let args = UserDefaults.standard
         if args.bool(forKey: "corecheck") { window?.rootViewController = CoreCheckViewController(); return true }
         if args.bool(forKey: "auth") { showAuth(); return true }
+        if let page = args.string(forKey: "settings") { simulatorSettings(page) }
         if args.bool(forKey: "demo") {
             let root = RootViewController()
             let stack = NavigationController(rootViewController: root)

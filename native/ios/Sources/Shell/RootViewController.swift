@@ -20,7 +20,7 @@ final class RootViewController: UIViewController {
         Section(id: "people", label: "Люди", symbol: "person.2") { [messenger] in PeopleViewController(messenger: messenger) },
         Section(id: "channels", label: "Каналы", symbol: "dot.radiowaves.left.and.right") { PlaceholderViewController(title: "Каналы") },
         Section(id: "music", label: "Музыка", symbol: "headphones") { PlaceholderViewController(title: "Музыка") },
-        Section(id: "profile", label: "Настройки", symbol: "gearshape") { SettingsViewController() },
+        Section(id: "profile", label: "Настройки", symbol: "gearshape") { [messenger] in SettingsViewController(messenger: messenger) },
     ]
     /// The two sections that have an icon in the bar; the others are in the list under the first one.
     private let inBar = ["chats", "profile"]
@@ -92,6 +92,8 @@ final class RootViewController: UIViewController {
     #if targetEnvironment(simulator)
     /// For the simulator check: the «Люди» section, once it has been opened.
     func peoplePage() -> PeopleViewController? { pages["people"] as? PeopleViewController }
+    /// For the simulator check: the «Настройки» section, once it has been opened.
+    func settingsPage() -> SettingsViewController? { pages["profile"] as? SettingsViewController }
     /// For the simulator check: opens the first chat of the list.
     func openFirstChat() { (pages["chats"] as? ChatsViewController)?.openFirst() }
     #endif

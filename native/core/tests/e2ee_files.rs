@@ -99,11 +99,6 @@ mod with_the_library {
     use std::process::{Command, Stdio};
 
     fn encryption_of(case: &Sealed) -> Value { files::encryption(&case.key, &case.nonce, &case.file_key_id) }
-    fn cipher_of(case: &Sealed) -> Vec<u8> {
-        let (body, form) = (b64(&case.body), files::upload_form(&case.boundary));
-        body[form.head.len()..body.len() - form.tail.len()].to_vec()
-    }
-
     #[test]
     fn a_file_is_sealed_and_described_exactly_as_the_reference_does() {
         let all = vectors();
