@@ -70,6 +70,10 @@ final class AppBadge: NSObject {
                 if settings.authorizationStatus == .notDetermined {
                     // The number on the icon needs the person's yes once; it is asked when there is first something to show.
                     guard n > 0, !self.asking, UIApplication.shared.applicationState == .active else { return }
+                    #if targetEnvironment(simulator)
+                    // The simulator check takes pictures: the system question would cover them (`-asknotify 1` shows it).
+                    guard UserDefaults.standard.bool(forKey: "asknotify") else { return }
+                    #endif
                     self.asking = true
                     centre.requestAuthorization(options: [.badge]) { (_: Bool, _: Error?) -> Void in
                         DispatchQueue.main.async {

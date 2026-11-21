@@ -78,6 +78,10 @@ final class BirthdayReminders: NSObject, UNUserNotificationCenterDelegate {
             let old = pending.map { $0.identifier }.filter { $0.hasPrefix(BirthdayReminders.prefix) }
             centre.removePendingNotificationRequests(withIdentifiers: old)
             guard !people.isEmpty else { return }
+            #if targetEnvironment(simulator)
+            // The simulator check takes pictures: the system question would cover them (`-asknotify 1` shows it).
+            guard UserDefaults.standard.bool(forKey: "asknotify") else { return }
+            #endif
             centre.requestAuthorization(options: [.alert, .sound]) { (granted: Bool, _: Error?) -> Void in
                 guard granted else { return }
                 var all: [(reminder: Reminder, chatId: String, peerId: String, name: String)] = []
