@@ -52,13 +52,13 @@ import java.util.Locale
 
 /** What the pages of the settings are made of: the page itself (its own header, a column that scrolls), a group
  *  of rows on a card, a row, a switch, a choice of several, a notice, a button, a field.
- *  The black look only, as the rest of the app for now. */
+ *  In the colours of the theme that is on (ThemeStore.kt). */
 object SettingsLook {
-  const val card = Theme.surface2
-  const val line = 0x14FFFFFF
-  const val chip = 0x12FFFFFF
-  const val dangerChip = 0x24FF9CB0
-  const val pressed = 0x12FFFFFF
+  val card: Int get() = Theme.surface2
+  val line: Int get() = Theme.veil(0.08f)
+  val chip: Int get() = Theme.veil(0.07f)
+  val dangerChip: Int get() = Theme.alpha(Theme.danger, 0.14f)
+  val pressed: Int get() = Theme.veil(0.07f)
   const val switchOn = 0xFF5E7BFF.toInt()
 
   /** `inner` with room around it, dp. */
@@ -374,7 +374,7 @@ class SettingsSwitchRow(context: Context, label: String, words: String, value: B
 
     val states = arrayOf(intArrayOf(android.R.attr.state_checked), intArrayOf())
     toggle.thumbTintList = ColorStateList(states, intArrayOf(0xFFFFFFFF.toInt(), 0xFFB4B7BD.toInt()))
-    toggle.trackTintList = ColorStateList(states, intArrayOf(SettingsLook.switchOn, 0x40FFFFFF))
+    toggle.trackTintList = ColorStateList(states, intArrayOf(SettingsLook.switchOn, Theme.veil(0.25f)))
     toggle.isChecked = value
     toggle.isEnabled = enabled
     toggle.contentDescription = label

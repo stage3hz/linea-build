@@ -61,6 +61,12 @@ shot 40-call-active --es calldemo active
 shot 41-call-video --es calldemo video
 shot 42-call-retry --es calldemo retry
 shot 43-call-bar --es calldemo bar
+# Settings: «Оформление» in the app's own look, in «Графит», «Цвет интерфейса» with an orange accent; the last
+# one puts the look back (the choice is kept on the emulator between launches).
+shot 44-appearance --ez demo true --es settings appearance
+shot 45-appearance-graphite --ez demo true --es settings appearance --es settheme graphite
+shot 47-accent --ez demo true --es settings accent --es settheme black --es setaccent FF9500
+shot 49b-reset --ez demo true --es setaccent none --es settheme black
 # What the app itself said while it ran (crashes show here).
 adb logcat -d -t 400 '*:E' > "$OUT/logcat-errors.txt" 2>/dev/null || true
 adb shell dumpsys package "$APP" | grep -E "versionName|primaryCpuAbi" || true

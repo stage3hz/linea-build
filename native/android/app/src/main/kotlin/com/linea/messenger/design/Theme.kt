@@ -4,32 +4,38 @@ import android.graphics.Typeface
 import android.os.Build
 import com.linea.messenger.chat.MsgPalette
 import com.linea.messenger.chats.ChatPalette
+import com.linea.messenger.settings.ThemeStore
 import kotlin.math.abs
 import kotlin.math.max
 import kotlin.math.min
 import kotlin.math.roundToInt
 
-/** The black theme: the app's own look. Colours are 0xAARRGGBB. */
+/** The app's colours: those of the theme that is on. «Чёрная», the app's own look, unless the person chose
+ *  another in Настройки → Оформление (settings/ThemeStore.kt keeps the choice and makes the colours).
+ *  Colours are 0xAARRGGBB. */
 object Theme {
-  const val bg = 0xFF08090A.toInt()
-  const val text = 0xFFE5E5E6.toInt()
-  const val muted = 0xFF8A8F98.toInt()
-  const val subtle = 0xFF62666D.toInt()
-  const val accent = 0xFFE5E5E6.toInt()
-  const val onAccent = 0xFF08090A.toInt()
-  const val surface2 = 0xEB161718.toInt()
-  const val danger = 0xFFFF9CB0.toInt()
+  val bg: Int get() = ThemeStore.look.bg
+  val text: Int get() = ThemeStore.look.text
+  val muted: Int get() = ThemeStore.look.muted
+  val subtle: Int get() = ThemeStore.look.subtle
+  val accent: Int get() = ThemeStore.look.accent
+  val onAccent: Int get() = ThemeStore.look.onAccent
+  val surface2: Int get() = ThemeStore.look.surface2
+  val danger: Int get() = ThemeStore.look.danger
+  /** Settings: a dark theme or a light one, and a thin veil over the page (white on dark, black on light). */
+  val dark: Boolean get() = ThemeStore.look.dark
+  fun veil(alpha: Float): Int = ThemeStore.look.veil(alpha)
 
   /** The colours the chat list draws with. */
-  val chatList = ChatPalette(
+  val chatList: ChatPalette get() = ChatPalette(
     text = text, muted = muted, subtle = subtle, accent = accent, onAccent = onAccent, border = 0,
-    pressed = 0x12FFFFFF, selected = 0x12FFFFFF, badgeMuted = surface2, bg = bg, pinned = 0x0EFFFFFF, danger = danger,
+    pressed = veil(0.07f), selected = veil(0.07f), badgeMuted = surface2, bg = bg, pinned = veil(0.055f), danger = danger,
   )
 
   /** The colours a chat's messages draw with. */
-  val messages = MsgPalette(
-    text = text, muted = muted, accent = accent, onAccent = onAccent, mine = 0xF51F2023.toInt(), theirs = 0xF5161718.toInt(),
-    notice = 0x0FFFFFFF, noticeText = text, danger = danger, quote = 0x14FFFFFF, mineMeta = muted, mineMark = text, subtle = subtle,
+  val messages: MsgPalette get() = MsgPalette(
+    text = text, muted = muted, accent = accent, onAccent = onAccent, mine = ThemeStore.look.bubble, theirs = ThemeStore.look.incoming,
+    notice = veil(0.06f), noticeText = text, danger = danger, quote = veil(0.08f), mineMeta = muted, mineMark = text, subtle = subtle,
   )
 
   /** A colour with another alpha (0…1). */

@@ -30,11 +30,11 @@ import kotlin.math.ceil
 
 /** The colours of a channel's chat (the black look), 0xAARRGGBB. */
 object ChannelLook {
-  const val text = Theme.text
-  const val muted = Theme.muted
-  const val subtle = Theme.subtle
-  const val accent = Theme.accent
-  const val surface = Theme.surface2
+  val text: Int get() = Theme.text
+  val muted: Int get() = Theme.muted
+  val subtle: Int get() = Theme.subtle
+  val accent: Int get() = Theme.accent
+  val surface: Int get() = Theme.surface2
   const val card = 0xF5161718.toInt()
   const val soft = 0x1AFFFFFF
   const val line = 0x14FFFFFF

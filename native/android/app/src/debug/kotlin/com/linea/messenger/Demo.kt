@@ -97,6 +97,8 @@ object Demo {
    *    --es authmode register|recover|waiting|reset    with auth: that step of the sign-in screen
    *    --es settings root|profile|username|birthday|privacy|lastseen|security|password|confirmation|recovery|sessions|session|blocked|delete|about
    *                                                «Настройки» and one of its pages, with an account (root and about: also with demo)
+   *    --es settings appearance|night|accent|notifications|data    «Оформление» and its pages (also with demo), «Уведомления и звуки», «Данные и память»
+   *    --es settheme … / --es setaccent RRGGBB|none / --es settextsize … / --es setnight … / --ez setplatina true    the look for the shot (settings/SettingsDemo.kt)
    *    --ez demo true                              the shell with sample chats (no account)
    *    --es tab profile / --ez sections true / --ez chat true    with demo: a section, the list of sections, the sample chat
    *    --es login … --es password … --es word …    signs in, to the test server given by `server` only
@@ -110,6 +112,8 @@ object Demo {
     if (intent == null) return false
     testServer = intent.getStringExtra("server")?.takeIf { local.matches(it) }
     AttachmentsDemo.read(intent)
+    // Settings: `settheme`, `setaccent`, `settextsize`, `setnight`, `setplatina` — the look for the shot (settings/SettingsDemo.kt).
+    com.linea.messenger.settings.SettingsSimulator.look(intent)
     com.linea.messenger.chatactions.ChatActionsDemo.read(intent)
     authMode = intent.getStringExtra("authmode")
     // AI and Music: `aidemo`, `musicdemo` (music/MusicDemo.kt).

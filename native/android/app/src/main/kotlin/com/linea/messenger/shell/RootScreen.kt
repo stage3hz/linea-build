@@ -122,6 +122,9 @@ class RootScreen(context: Context, private val messenger: Messenger?, private va
     previous.animate().alpha(0f).setDuration(160).withEndAction { if (pages[open] !== previous) stage.removeView(previous) }.start()
   }
 
+  /** Settings: the same shell built again, for a theme that has just been put on (settings/ThemeStore.kt). */
+  fun rebuilt(): RootScreen = RootScreen(context, messenger, openChat)
+
   /** Music: three colours of the playing track's cover for the bar's light; an empty list restores the calm silver. */
   fun setBarGlow(hexes: List<String>) = bar.setGlow(hexes)
 

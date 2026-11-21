@@ -69,6 +69,7 @@ class ChatScreen(
   init {
     setBackgroundColor(Theme.bg)
     list.setPalette(Theme.messages)
+    list.setFontSize(com.linea.messenger.settings.ThemeStore.textSize) // Settings: «Размер текста в чатах» (settings/ThemeStore.kt)
     page.addView(list, FrameLayout.LayoutParams(FrameLayout.LayoutParams.MATCH_PARENT, FrameLayout.LayoutParams.MATCH_PARENT))
     addView(page)
 

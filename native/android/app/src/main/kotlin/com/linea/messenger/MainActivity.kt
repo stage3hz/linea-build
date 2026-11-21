@@ -15,6 +15,7 @@ import com.linea.messenger.auth.Account
 import com.linea.messenger.auth.AuthScreen
 import com.linea.messenger.chat.ChatScreen
 import com.linea.messenger.core.Core
+import com.linea.messenger.design.Theme
 import com.linea.messenger.net.Server
 import com.linea.messenger.net.ServerError
 import com.linea.messenger.settings.AccountHost
@@ -24,7 +25,7 @@ import com.linea.messenger.shell.RootScreen
 
 /** The app's only window: the stack of pages with the shell at its bottom. It decides what the app opens with —
  *  the chats of the signed-in account, or signing in — and holds the account while the window lives. */
-class MainActivity : Activity(), Launcher, AccountHost {
+class MainActivity : Activity(), Launcher, AccountHost, com.linea.messenger.settings.ThemeHost {
   private lateinit var stack: Navigation
   /** The shell, when it is what the window shows (not while signing in or waiting). */
   private var root: RootScreen? = null
@@ -40,6 +41,7 @@ class MainActivity : Activity(), Launcher, AccountHost {
     super.onCreate(savedInstanceState)
     Account.start(this)
     edgeToEdge()
+    com.linea.messenger.settings.ThemeStore.attach(this) // Settings: the theme the person chose (settings/ThemeStore.kt)
     stack = Navigation(this)
     setContentView(stack)
     if (Build.VERSION.SDK_INT >= 33) {
@@ -52,6 +54,7 @@ class MainActivity : Activity(), Launcher, AccountHost {
   override fun onStart() {
     super.onStart()
     front = true
+    com.linea.messenger.settings.ThemeStore.cameBack() // Settings: the night theme may have come by itself
     messenger?.wake()
   }
 
@@ -183,6 +186,23 @@ class MainActivity : Activity(), Launcher, AccountHost {
     shell.show("profile")
     if (page != "root") shell.settingsPage()?.openDetail(page)
     return true
+  }
+
+  /** Settings: nothing lies over the sections (a theme that came by itself is put on only then). */
+  override val shellAlone: Boolean get() = root != null && stack.depth == 1 && root?.sectionsOpen != true
+
+  /** Settings: a theme has just been put on — the shell is built again in its colours, on the section that was
+   *  open, or with the settings pages `pages` opened again on top (settings/ThemeStore.kt). */
+  override fun restyle(pages: List<String>) {
+    stack.setBackgroundColor(Theme.bg)
+    val shell = root ?: return
+    val section = shell.open
+    val fresh = shell.rebuilt()
+    showShell(fresh)
+    if (pages.isEmpty()) return fresh.show(section)
+    fresh.show("profile")
+    val settings = fresh.settingsPage() ?: return
+    for (name in pages) settings.page(name)?.let { stack.push(it, animated = false) }
   }
 
   override fun openChat(target: ChatTarget, animated: Boolean) {

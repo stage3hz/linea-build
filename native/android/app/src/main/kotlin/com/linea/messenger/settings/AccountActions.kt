@@ -46,6 +46,10 @@ interface SettingsAccount {
   fun signOut(done: (Result<String>) -> Unit)
   /** The server has already ended this session: it is forgotten here. Returns the words for the sign-in screen. */
   fun sessionEndedHere(words: String): String
+  /** «Уведомления и звуки»: the chats of the account, as the list of chats has them (none unless given). */
+  fun chatList(done: (Result<List<Messenger.ChatSummary>>) -> Unit) { done(Result.success(emptyList())) }
+  /** «Данные и память»: a GET whose answer is an object (not one of the named operations). */
+  fun serverGet(path: String, done: (Result<Map<String, Any?>>) -> Unit) { done(Result.failure(ServerError.Network("Нет связи с сервером."))) }
 }
 
 // What the settings ask of the signed-in account: its own profile, and leaving it.
@@ -148,4 +152,11 @@ class MessengerAccount(private val messenger: Messenger) : SettingsAccount {
   override fun prepareSettingsAvatars() = messenger.prepareSettingsAvatars()
   override fun signOut(done: (Result<String>) -> Unit) = messenger.signOut(done)
   override fun sessionEndedHere(words: String): String = messenger.sessionEndedHere(words)
+  override fun chatList(done: (Result<List<Messenger.ChatSummary>>) -> Unit) = messenger.chats { result -> mainThread.post { done(result) } }
+  override fun serverGet(path: String, done: (Result<Map<String, Any?>>) -> Unit) = messenger.server.send("GET", path) { result ->
+    mainThread.post {
+      val body = Core.map(result.getOrNull())
+      done(if (body != null) Result.success(body) else Result.failure(if (result.isFailure) Server.error(result) else ServerError.Network("Не удалось выполнить запрос. Попробуй ещё раз.")))
+    }
+  }
 }

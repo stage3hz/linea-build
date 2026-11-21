@@ -66,6 +66,15 @@ class SettingsScreen internal constructor(context: Context, private val account:
     profile.onPress = { openProfile() }
     addGroup(rows = listOf(profile))
 
+    // How it sounds and looks. (The reference also has «Папки с чатами», «Энергосбережение и анимации» and
+    // «Язык» here: not built in this app yet.)
+    val notifications = SettingsRow(context, symbol = "bell", label = "Уведомления и звуки")
+    notifications.onPress = { openPage("notifications") }
+    val shownTheme = ThemeStore.nightState()["shown"] as? String ?: "black"
+    val appearance = SettingsRow(context, symbol = "palette", label = "Оформление", value = ThemeStore.themeName(shownTheme))
+    appearance.onPress = { openPage("appearance") }
+    addGroup(rows = listOf(notifications, appearance))
+
     val privacy = SettingsRow(context, symbol = "lock", label = "Конфиденциальность")
     privacy.onPress = { account?.let { open(PrivacyScreen(context, it)) } }
     val security = SettingsRow(context, symbol = "shield", label = "Безопасность")
@@ -74,7 +83,9 @@ class SettingsScreen internal constructor(context: Context, private val account:
     sessions.onPress = { account?.let { open(SessionsScreen(context, it)) } }
     val blocked = SettingsRow(context, symbol = "blocked", label = "Заблокированные")
     blocked.onPress = { account?.let { open(BlockedScreen(context, it)) } }
-    addGroup(rows = listOf(privacy, security, sessions, blocked))
+    val data = SettingsRow(context, symbol = "drive", label = "Данные и память")
+    data.onPress = { openPage("data") }
+    addGroup(rows = listOf(privacy, security, sessions, blocked, data))
 
     val help = SettingsRow(context, symbol = "lifebuoy", label = "Помощь и поддержка")
     help.onPress = { if (account != null) openSupport() }
@@ -95,6 +106,21 @@ class SettingsScreen internal constructor(context: Context, private val account:
 
   private fun openProfile() {
     account?.let { open(ProfileEditScreen(context, it)) }
+  }
+
+  private fun openPage(name: String) {
+    page(name)?.let { open(it) }
+  }
+
+  /** The pages of how the app looks and sounds, by name (also what a change of the theme opens again on top
+   *  of the rebuilt shell, see ThemeStore.kt). «Оформление» needs no account: it is kept on the device. */
+  fun page(name: String): View? = when (name) {
+    "appearance" -> AppearanceScreen(context, account)
+    "night" -> NightThemeScreen(context)
+    "accent" -> AccentColorScreen(context)
+    "notifications" -> account?.let { NotificationsScreen(context, it) }
+    "data" -> account?.let { DataScreen(context, it) }
+    else -> null
   }
 
   /** The support page of the server, in the browser. */
@@ -125,6 +151,9 @@ class SettingsScreen internal constructor(context: Context, private val account:
 
   /** For the emulator check (`--es settings <name>`): opens one page of the settings at once. */
   fun openDetail(name: String) {
+    // «Оформление» and its pages: «night» and «accent» stand on top of «Оформление», as they are reached.
+    if (name == "night" || name == "accent") page("appearance")?.let { open(it, animated = false) }
+    page(name)?.let { return open(it, animated = false) }
     val account = account
     if (account == null) {
       if (name == "about") open(AboutScreen(context), animated = false)
