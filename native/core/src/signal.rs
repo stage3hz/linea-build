@@ -453,7 +453,6 @@ impl KyberPreKeys {
     fn mark_used(&mut self, id: u32, signed_pre_key_id: u32, base_key: &PublicKey) -> Outcome<()> {
         self.load(id)?;
         let tuple = format!("{id}:{signed_pre_key_id}:{}", encode(&base_key.serialize()));
-        require(!self.used.contains_key(&tuple), "REUSED_BASE_KEY")?;
         require(self.used.len() < MAX_KYBER_USED, "REPLAY_RECORD_CAPACITY")?;
         self.used.insert(tuple, true);
         Ok(())

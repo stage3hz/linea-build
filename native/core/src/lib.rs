@@ -8,6 +8,7 @@
 
 pub mod api;
 pub mod attest;
+pub mod chat_view;
 pub mod device_proof;
 pub mod e2ee;
 pub mod ffi;

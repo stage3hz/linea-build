@@ -30,16 +30,7 @@ import com.linea.messenger.design.Theme
 import kotlin.math.max
 import kotlin.math.min
 
-/** The phone's tab bar, drawn and driven by plain views.
- *  - The bar is a plate of dark glass (see Glass: the page behind it, blurred, on Android 12 and later).
- *  - The chosen tab stands on a light capsule; choosing another tab sends the capsule there with a spring and a
- *    faint second capsule follows a little late and fades — the trail.
- *  - A light lives in the bar: two quiet colours at the sides, a brighter one under the chosen tab; with a
- *    track playing, the three colours of its cover.
- *  - The first tab also holds the other sections: hold it (or move the finger up from it) and their list appears
- *    above the bar; the row under the finger is lit, letting go on a row opens it. A plain hold leaves the list
- *    open: a tap on a row opens it, a tap beside closes the list.
- *  The owner gives the items and the open section and hears `onSelect` / `onPreview`. */
+/** One section as the bar knows it: its icon, its name for a screen reader and the list, what waits in it. */
 data class TabEntry(val id: String, val label: String, val symbol: String, val badge: Int = 0, val dot: String = "")
 
 /** A colour from `#RRGGBB`. */
@@ -214,6 +205,16 @@ private class TabListOverlay(context: Context, entries: List<TabEntry>, behind: 
   companion object { const val ROW_DP = 44f; const val WIDTH_DP = 216f }
 }
 
+/** The phone's tab bar, drawn and driven by plain views.
+ *  - The bar is a plate of dark glass (see Glass: the page behind it, blurred, on Android 12 and later).
+ *  - The chosen tab stands on a light capsule; choosing another tab sends the capsule there with a spring and a
+ *    faint second capsule follows a little late and fades — the trail.
+ *  - A light lives in the bar: two quiet colours at the sides, a brighter one under the chosen tab; with a
+ *    track playing, the three colours of its cover.
+ *  - The first tab also holds the other sections: hold it (or move the finger up from it) and their list appears
+ *    above the bar; the row under the finger is lit, letting go on a row opens it. A plain hold leaves the list
+ *    open: a tap on a row opens it, a tap beside closes the list.
+ *  The owner gives the items and the open section and hears `onSelect` / `onPreview`. */
 class TabBarView(context: Context) : ViewGroup(context) {
   /** A section was chosen: by a tap on its icon or from the list. */
   var onSelect: (id: String) -> Unit = {}
@@ -360,7 +361,7 @@ class TabBarView(context: Context) : ViewGroup(context) {
     invalidate()
   }
 
-  private fun light(canvas: Canvas, left: Float, wide: Float, paint: Paint) {
+  private fun shine(canvas: Canvas, left: Float, wide: Float, paint: Paint) {
     canvas.save()
     canvas.translate(left + wide / 2, height.toFloat())
     canvas.scale(wide / 2, height.toFloat())
@@ -375,10 +376,10 @@ class TabBarView(context: Context) : ViewGroup(context) {
 
     clip.reset(); clip.addRoundRect(0f, 0f, w, h, h / 2, h / 2, Path.Direction.CW)
     canvas.save(); canvas.clipPath(clip)
-    light(canvas, -w * 0.16f, w * 0.72f, lights[1])
-    light(canvas, w * 0.46f, w * 0.72f, lights[2])
+    shine(canvas, -w * 0.16f, w * 0.72f, lights[1])
+    shine(canvas, w * 0.46f, w * 0.72f, lights[2])
     val spot = max(110f * d, w * 0.7f)
-    light(canvas, spotX - spot / 2, spot, lights[0])
+    shine(canvas, spotX - spot / 2, spot, lights[0])
     canvas.restore()
 
     val top = 4f * d; val wide = cell - 8f * d; val tall = h - 8f * d; val round = tall / 2

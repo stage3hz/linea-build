@@ -7,9 +7,15 @@
         android:allowBackup="false"
         android:label="@string/app_name"
         android:supportsRtl="true"
+        android:theme="@style/Theme.Invizent"
+        android:enableOnBackInvokedCallback="true"
         android:usesCleartextTraffic="false">
+        <!-- One window. It lays itself out again when the screen turns or changes size, and makes room for the
+             keyboard itself (the chat's field rides on it). -->
         <activity
             android:name=".MainActivity"
+            android:configChanges="orientation|screenSize|screenLayout|smallestScreenSize|keyboard|keyboardHidden"
+            android:windowSoftInputMode="adjustResize"
             android:exported="true">
             <intent-filter>
                 <action android:name="android.intent.action.MAIN" />

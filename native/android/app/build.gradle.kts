@@ -40,4 +40,9 @@ kotlin {
 
 dependencies {
     implementation(project(":core"))
+    testImplementation(libs.junit)
+}
+
+tasks.withType<Test>().configureEach {
+    testLogging { events("failed") }
 }
