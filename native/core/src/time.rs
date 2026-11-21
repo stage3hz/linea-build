@@ -89,7 +89,7 @@ pub fn iso_from_ms(ms: i64) -> String {
 }
 
 #[cfg(test)]
-mod tests {
+mod written {
     use super::*;
     #[test]
     fn times_are_written_as_they_are_read() {
