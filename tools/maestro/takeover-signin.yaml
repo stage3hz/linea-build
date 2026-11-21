@@ -1,0 +1,84 @@
+appId: com.invizent.app
+---
+# The update check (.github/workflows/native-takeover.yml): the PREVIOUS app (React Native, built with the
+# release identifier com.invizent.app for the simulator) signs in to the test account on the local test server,
+# so that it makes its keys, its encrypted storage and its session exactly as on a phone. LOGIN, PASSWORD and WORD
+# come from the workflow (the made-up account of tools/native-sim-account.mjs).
+# Fields are left with Return (see register-and-screens.yaml for why); a step that did not advance taps the button.
+- launchApp:
+    clearState: true
+- extendedWaitUntil:
+    visible:
+      id: "field-Логин"
+    timeout: 300000
+- waitForAnimationToEnd
+- takeScreenshot: ref-00-auth
+- tapOn:
+    id: "field-Логин"
+- inputText: "${LOGIN}"
+- pressKey: enter
+- runFlow:
+    when:
+      notVisible:
+        id: "field-Пароль"
+    commands:
+      - tapOn:
+          text: "Продолжить"
+- extendedWaitUntil:
+    visible:
+      id: "field-Пароль"
+    timeout: 30000
+# The password is shown while typed (the eye button), so the simulator's typing is not refused by a secure field.
+- tapOn:
+    text: "Показать: пароль"
+    optional: true
+- tapOn:
+    id: "field-Пароль"
+- inputText: "${PASSWORD}"
+- pressKey: enter
+- tapOn:
+    text: "Not Now|Не сейчас"
+    optional: true
+- runFlow:
+    when:
+      notVisible:
+        id: "field-Слово подтверждения"
+    commands:
+      - tapOn:
+          text: "Продолжить"
+- extendedWaitUntil:
+    visible:
+      id: "field-Слово подтверждения"
+    timeout: 30000
+- tapOn:
+    text: "Показать: слово подтверждения"
+    optional: true
+- tapOn:
+    id: "field-Слово подтверждения"
+- inputText: "${WORD}"
+- takeScreenshot: ref-01-word
+- pressKey: enter
+# Sign-in runs now (the server checks the secrets, the app makes and publishes its keys).
+- extendedWaitUntil:
+    visible: "Избранное.*|Чаты|Not Now|Не сейчас|Войти в Инвиз|Сервер не ответил.*|Нет связи.*"
+    timeout: 300000
+- tapOn:
+    text: "Not Now|Не сейчас"
+    optional: true
+- runFlow:
+    when:
+      notVisible: "Чаты"
+      visible: "Войти в Инвиз"
+    commands:
+      - tapOn: "Войти в Инвиз"
+- tapOn:
+    text: "Allow|Разрешить"
+    optional: true
+- extendedWaitUntil:
+    visible: "Избранное.*|Чаты"
+    timeout: 300000
+- tapOn:
+    text: "Allow|Разрешить"
+    optional: true
+- waitForAnimationToEnd
+- takeScreenshot: ref-02-signed-in

@@ -1,0 +1,43 @@
+appId: com.invizent.app
+---
+# The update check, after tools/sim-seed.mjs: the PREVIOUS app receives and decrypts the seeded messages and opens
+# two chats, so that its storage holds the decrypted history and the caches of the list and of the open chats —
+# what a person's phone holds before the update.
+- launchApp
+- extendedWaitUntil:
+    visible: "Чаты"
+    timeout: 300000
+# A system question (notifications, Bluetooth for Mesh) may cover the list once.
+- tapOn:
+    text: "Allow|Разрешить"
+    optional: true
+- extendedWaitUntil:
+    visible: "Анна Лебедева.*"
+    timeout: 180000
+- waitForAnimationToEnd
+- takeScreenshot: ref-03-list
+- tapOn:
+    text: "Анна Лебедева.*"
+- extendedWaitUntil:
+    visible: ".*Ок, жду.*"
+    timeout: 120000
+- waitForAnimationToEnd
+- takeScreenshot: ref-04-chat-anna
+- launchApp
+- extendedWaitUntil:
+    visible: "Тимур Богданов.*"
+    timeout: 300000
+- tapOn:
+    text: "Тимур Богданов.*"
+- extendedWaitUntil:
+    visible: ".*Не забудь!.*"
+    timeout: 120000
+- waitForAnimationToEnd
+- takeScreenshot: ref-05-chat-timur
+# The list cache is written a moment after the list is shown, the page of an open chat a moment after it opens.
+- launchApp
+- extendedWaitUntil:
+    visible: "Чаты"
+    timeout: 300000
+- waitForAnimationToEnd
+- takeScreenshot: ref-06-list-again

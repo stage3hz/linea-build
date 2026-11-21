@@ -1,0 +1,220 @@
+# The update check: the native iPhone app (native/ios) installed OVER the previous app (React Native, mobile/) with
+# the same identifier com.invizent.app must open what that app left on the phone — the session, the device key, the
+# storage key, the encrypted storage and the decrypted history — the way the owner will install it on his phone.
+#
+# On one simulator: the previous app is built for the simulator as a release build with the release identifier,
+# signs in to a test account on a LOCAL test server (HTTPS with a test CA trusted inside this simulator only; TLS
+# stays on), made-up people send it really encrypted messages (tools/sim-seed.mjs), and it opens two chats. Then the
+# native app is installed over it (`simctl install` replaces the app and keeps its data and keychain, as an update
+# on a phone does) and starts with `-takeovercheck` (native/ios/Sources/Storage/TakeoverCheck.swift: read only,
+# no secret shown), then normally — online and with the test server stopped — and is photographed, and the check
+# runs once more. The verdict, the reports and the pictures go to the branch native-takeover-output.
+#
+# Runs only for a push to the branch `native-takeover`. Nothing here talks to the real server: every address of the
+# real service resolves to this Mac for the whole run, the apps are pointed at https://localhost:8443 only.
+name: Native iOS takeover check
+on:
+  push:
+    branches: [native-takeover]
+permissions:
+  contents: write
+concurrency:
+  group: native-takeover
+  cancel-in-progress: true
+jobs:
+  takeover:
+    runs-on: macos-26
+    timeout-minutes: 180
+    env:
+      EXPO_NO_TELEMETRY: '1'
+      CI: '1'
+      MAESTRO_DRIVER_STARTUP_TIMEOUT: '600000'
+      # The made-up account of tools/native-sim-account.mjs (lives for this run only, on the local server only).
+      TEST_LOGIN: nativetester
+      TEST_HANDLE: native_check
+      TEST_PASSWORD: 'Synthetic!Native.42'
+      TEST_WORD: ambergardenprism
+      SERVER: https://localhost:8443
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+      - name: Keep the real service unreachable from this Mac
+        run: |
+          # Belt and braces: the apps are pointed at localhost, but should anything try the real addresses, it gets this Mac.
+          echo "127.0.0.1 api.invizent.com invizent.com invizent-api.invizent-8165e2.workers.dev 141-133-194-51.nip.io" | sudo tee -a /etc/hosts
+          sudo route -n add -host 194.87.254.249 127.0.0.1 || true
+          sudo dscacheutil -flushcache || true; sudo killall -HUP mDNSResponder || true
+      - name: Build both apps, run the update on the simulator
+        id: work
+        continue-on-error: true
+        timeout-minutes: 165
+        run: |
+          set -euo pipefail
+          OUT="$RUNNER_TEMP/out"; mkdir -p "$OUT/ref"
+          exec > >(tee "$OUT/log.txt") 2>&1
+          limit() { local s="$1"; shift; perl -e 'alarm shift; exec @ARGV' "$s" "$@"; }
+          stage() { echo "$1" > "$OUT/STAGE.txt"; echo "== $1"; }
+          XC=$(ls -d /Applications/Xcode_*.app | grep -v -i beta | sort -V | tail -1)
+          sudo xcode-select -s "$XC/Contents/Developer"; xcodebuild -version; uname -m
+          pod --version || sudo gem install cocoapods
+          ARCH=$(uname -m); if [ "$ARCH" = arm64 ]; then SIM_RUST=aarch64-apple-ios-sim; else SIM_RUST=x86_64-apple-ios; fi
+          rustup target add "$SIM_RUST" || true
+          # Both apps are signed the same way for the simulator (ad hoc, no team), so both get the same keychain group.
+          SIGN=(CODE_SIGNING_ALLOWED=YES CODE_SIGNING_REQUIRED=YES CODE_SIGN_STYLE=Manual CODE_SIGN_IDENTITY=- CODE_SIGN_ENTITLEMENTS= CODE_SIGN_INJECT_BASE_ENTITLEMENTS=YES)
+
+          stage "build the native app"
+          which protoc || brew install protobuf
+          which xcodegen || brew install xcodegen
+          native/ios/build-core.sh "$SIM_RUST"
+          (cd native/ios && xcodegen generate && xcodebuild -project Invizent.xcodeproj -scheme Invizent -configuration Release -sdk iphonesimulator \
+            -destination 'generic/platform=iOS Simulator' -derivedDataPath build/dd ARCHS="$ARCH" ONLY_ACTIVE_ARCH=YES "${SIGN[@]}" build > "$OUT/native-build.log" 2>&1) \
+            || { grep -E "error:" "$OUT/native-build.log" | head -60; tail -60 "$OUT/native-build.log"; exit 1; }
+          NATIVE_APP="$PWD/native/ios/build/dd/Build/Products/Release-iphonesimulator/Invizent.app"
+
+          stage "build the previous app (release identifier, local test server baked in)"
+          (cd mobile && npm ci --no-audit --no-fund >/dev/null 2>&1)
+          (cd server && npm ci --no-audit --no-fund >/dev/null 2>&1)
+          (cd desktop && ELECTRON_SKIP_BINARY_DOWNLOAD=1 npm ci --no-audit --no-fund >/dev/null 2>&1)
+          # APP_ENV=production gives the release identifier (mobile/app.config.js), as on the owner's phone.
+          # EXPO_PUBLIC_SIMULATOR_SERVER is accepted by that app only as https://localhost:<port> (src/serverConfig.ts):
+          # it then has no other address at all. EXPO_PUBLIC_API_URL only satisfies the production config's check.
+          (cd mobile && export APP_ENV=production IOS_BUNDLE_ID=com.invizent.app EXPO_PUBLIC_API_URL="$SERVER" EXPO_PUBLIC_SIMULATOR_SERVER="$SERVER" EXPO_PUBLIC_ALLOW_LOCAL_HTTP=0 \
+            && npx expo prebuild --platform ios --clean --no-install \
+            && cd ios && { for attempt in 1 2 3; do pod install && break; [ "$attempt" = 3 ] && exit 1; sleep 30; done; } \
+            && SCHEME=$(basename *.xcworkspace .xcworkspace) && echo "$SCHEME" > "$RUNNER_TEMP/scheme" \
+            && xcodebuild -workspace "$SCHEME.xcworkspace" -scheme "$SCHEME" -configuration Release -sdk iphonesimulator \
+              -destination 'generic/platform=iOS Simulator' -derivedDataPath simbuild ARCHS="$ARCH" ONLY_ACTIVE_ARCH=YES \
+              CARGO_BUILD_TARGET="$SIM_RUST" LINEA_SIGNAL_FFI_TARGET="$SIM_RUST" "${SIGN[@]}" build > "$OUT/reference-build.log" 2>&1) \
+            || { grep -E "error:" "$OUT/reference-build.log" | head -60; tail -80 "$OUT/reference-build.log"; exit 1; }
+          REF_APP="$PWD/mobile/ios/simbuild/Build/Products/Release-iphonesimulator/$(cat "$RUNNER_TEMP/scheme").app"
+          for app in "$REF_APP" "$NATIVE_APP"; do
+            id=$(/usr/libexec/PlistBuddy -c 'Print CFBundleIdentifier' "$app/Info.plist"); echo "$app -> $id"
+            [ "$id" = com.invizent.app ] || { echo "::error::$app has identifier $id, not com.invizent.app"; exit 1; }
+            codesign -d --entitlements :- "$app" > "$OUT/entitlements-$(basename "$app" .app).plist" 2>/dev/null || true
+          done
+
+          stage "local test server"
+          OSSL=$(brew --prefix openssl@3 2>/dev/null)/bin/openssl; [ -x "$OSSL" ] || OSSL=openssl
+          mkdir -p tls && (cd tls \
+            && "$OSSL" req -x509 -newkey rsa:2048 -nodes -days 2 -subj "/CN=INVIZENT Simulator Test CA" -keyout ca.key -out ca.pem -addext "basicConstraints=critical,CA:TRUE" -addext "keyUsage=critical,keyCertSign,cRLSign" 2>/dev/null \
+            && "$OSSL" req -newkey rsa:2048 -nodes -subj "/CN=localhost" -keyout leaf.key -out leaf.csr 2>/dev/null \
+            && printf "subjectAltName=DNS:localhost,IP:127.0.0.1\nextendedKeyUsage=serverAuth\nbasicConstraints=CA:FALSE\nkeyUsage=digitalSignature,keyEncipherment\n" > ext.cnf \
+            && "$OSSL" x509 -req -in leaf.csr -CA ca.pem -CAkey ca.key -CAcreateserial -days 2 -sha256 -extfile ext.cnf -out leaf.pem 2>/dev/null)
+          mkdir -p srvdata
+          (cd server && DATA_DIR="$GITHUB_WORKSPACE/srvdata" PORT=3999 HOST=127.0.0.1 nohup node src/index.js > "$OUT/server.log" 2>&1 &)
+          proxy() { nohup node tools/sim-tls-proxy.mjs tls/leaf.pem tls/leaf.key 8443 3999 >> "$OUT/proxy.log" 2>&1 & for i in $(seq 1 30); do curl -fsS --cacert tls/ca.pem "$SERVER/health" >/dev/null && return 0; sleep 1; done; return 1; }
+          proxy || { echo "::error::the local server never answered"; cat "$OUT/server.log"; exit 1; }
+          ACCOUNT=$(node tools/native-sim-account.mjs http://127.0.0.1:3999 "$TEST_LOGIN" "$TEST_HANDLE")
+          USER_ID=$(printf '%s' "$ACCOUNT" | node -e 'let s="";process.stdin.on("data",d=>s+=d).on("end",()=>console.log(JSON.parse(s).id))')
+          echo "account $TEST_LOGIN id $USER_ID"; echo "$USER_ID" > "$OUT/user-id.txt"
+          SCOPE=$(node -e 'console.log(require("crypto").createHash("sha256").update(process.argv[1]+"\u0000"+process.argv[2]).digest("hex"))' "$SERVER" "$USER_ID")
+          echo "scope of the account's storage: $SCOPE"
+
+          stage "simulator"
+          xcrun simctl list devices available --json > "$RUNNER_TEMP/simulators.json"
+          UDID=$(python3 - "$RUNNER_TEMP/simulators.json" <<'PY'
+          import json,re,sys
+          devices=json.load(open(sys.argv[1]))['devices']
+          phones=[(tuple(map(int,re.findall(r'\d+',runtime))),d) for runtime,items in devices.items() if 'iOS' in runtime for d in items if 'iPhone' in d['name']]
+          latest=max(v for v,_ in phones)
+          pros=[d for v,d in phones if v==latest and 'Pro' in d['name'] and 'Max' not in d['name']] or [d for v,d in phones if v==latest]
+          phone=sorted(pros,key=lambda d:d['name'])[-1]
+          sys.stderr.write('Simulator: %s %s\n'%(phone['name'],latest)); print(phone['udid'])
+          PY
+          )
+          echo "UDID=$UDID" >> "$GITHUB_ENV"
+          limit 120 xcrun simctl boot "$UDID" || true
+          limit 600 xcrun simctl bootstatus "$UDID" -b
+          limit 120 xcrun simctl keychain "$UDID" add-root-cert tls/ca.pem
+          limit 60 xcrun simctl status_bar "$UDID" override --time 9:41 --batteryState charged --batteryLevel 100 || true
+          limit 60 xcrun simctl ui "$UDID" appearance dark || true
+          limit 60 xcrun simctl spawn "$UDID" defaults write com.apple.Accessibility ReduceMotionEnabled -bool true || true
+          shot() { limit 60 xcrun simctl io "$UDID" screenshot "$OUT/$1.png" >/dev/null 2>&1 || { sleep 5; limit 90 xcrun simctl io "$UDID" screenshot "$OUT/$1.png" >/dev/null 2>&1; } || echo "no picture: $1"; }
+          # What is on the simulator for the app: its files and its keychain rows (attributes only, never the data).
+          inventory() {
+            local name="$1" container kc="$HOME/Library/Developer/CoreSimulator/Devices/$UDID/data/Library/Keychains/keychain-2-debug.db"
+            {
+              echo "## $name $(date -u)"
+              container=$(xcrun simctl get_app_container "$UDID" com.invizent.app data 2>/dev/null || true)
+              echo "data container: $container"
+              [ -n "$container" ] && (cd "$container" && find Documents Library/Preferences -maxdepth 3 2>/dev/null | sed "s/$SCOPE/<scope>/g" | sort | head -100; ls -la Documents/SQLite 2>/dev/null | sed "s/$SCOPE/<scope>/g")
+              echo "-- keychain rows (genp: service | account | generic | group | accessibility; keys: tag | group | accessibility)"
+              [ -f "$kc" ] && sqlite3 -readonly "$kc" "select 'genp', cast(svce as text), cast(acct as text), cast(gena as text), agrp, pdmn from genp where agrp not like 'com.apple%'; select 'keys', cast(atag as text), agrp, pdmn from keys where agrp not like 'com.apple%';" 2>&1 | sed "s/$SCOPE/<scope>/g" | head -60 || echo "(keychain database not readable)"
+            } >> "$OUT/inventory.txt" 2>&1 || true
+          }
+
+          stage "the previous app signs in"
+          limit 600 xcrun simctl install "$UDID" "$REF_APP"
+          for attempt in 1 2 3; do curl -fsSL "https://get.maestro.mobile.dev" | bash && "$HOME/.maestro/bin/maestro" --version && break; [ "$attempt" = 3 ] && exit 1; rm -rf "$HOME/.maestro"; sleep 30; done
+          export PATH="$HOME/.maestro/bin:$PATH"
+          (cd "$OUT/ref" && limit 1800 maestro --device "$UDID" test -e LOGIN="$TEST_LOGIN" -e PASSWORD="$TEST_PASSWORD" -e WORD="$TEST_WORD" "$GITHUB_WORKSPACE/tools/maestro/takeover-signin.yaml") \
+            || { shot ref-signin-failed; echo "::error::the previous app did not sign in"; exit 1; }
+
+          stage "people write to the account; the previous app decrypts and opens two chats"
+          node tools/sim-seed.mjs http://127.0.0.1:3999 "$TEST_HANDLE" "$GITHUB_WORKSPACE/srvdata" | tee "$OUT/seed.txt"
+          (cd "$OUT/ref" && limit 1800 maestro --device "$UDID" test "$GITHUB_WORKSPACE/tools/maestro/takeover-read.yaml") \
+            || { shot ref-read-failed; echo "::error::the previous app did not show the chats"; exit 1; }
+          sleep 5
+          limit 60 xcrun simctl terminate "$UDID" com.invizent.app || true
+          inventory "after the previous app"
+
+          stage "the native app is installed OVER the previous one"
+          limit 600 xcrun simctl install "$UDID" "$NATIVE_APP"
+          xcrun simctl appinfo "$UDID" com.invizent.app > "$OUT/appinfo-after-install.txt" 2>&1 || true
+          inventory "after installing the native app (not started yet)"
+          EXPECT='Привет! Ты где?|Ок, жду|Не забудь!'
+          launch() { # name, seconds, launch arguments… — always pointed at the local test server
+            local name="$1" wait="$2"; shift 2
+            limit 60 xcrun simctl terminate "$UDID" com.invizent.app >/dev/null 2>&1 || true
+            limit 120 xcrun simctl launch "$UDID" com.invizent.app -server "$SERVER" "$@"
+            sleep "$wait"; shot "$name"
+          }
+          report() { local container; container=$(xcrun simctl get_app_container "$UDID" com.invizent.app data); cp "$container/Documents/$1" "$OUT/$1" 2>/dev/null || echo "VERDICT=NO REPORT" > "$OUT/$1"; sed -i '' "s/$SCOPE/<scope>/g" "$OUT/$1"; cat "$OUT/$1"; }
+          launch native-01-takeover-check 12 -takeovercheck 1 -takeoveruser "$USER_ID" -takeoverexpect "$EXPECT" -takeoverreport takeover-check-first.txt
+          report takeover-check-first.txt
+
+          stage "the native app starts normally"
+          launch native-02-chats 30
+          launch native-03-chat 35 -openchat 1
+          launch native-04-chat-again 35 -openchat 1
+          echo "== offline: the test server stopped — what is shown comes from the storage"
+          pkill -f "tools/sim-tls-proxy.mjs" || true; sleep 1
+          launch native-05-offline-chats 15
+          launch native-06-offline-chat 20 -openchat 1
+          proxy || true
+          launch native-07-takeover-check-after 12 -takeovercheck 1 -takeoveruser "$USER_ID" -takeoverexpect "$EXPECT" -takeoverreport takeover-check-after.txt
+          report takeover-check-after.txt
+          limit 60 xcrun simctl terminate "$UDID" com.invizent.app || true
+          inventory "after the native app ran"
+
+          stage "verdict"
+          first=$(grep -c '^VERDICT=PASS$' "$OUT/takeover-check-first.txt" || true)
+          after=$(grep -c '^VERDICT=PASS$' "$OUT/takeover-check-after.txt" || true)
+          d1=$(grep '^device=' "$OUT/takeover-check-first.txt" || true); d2=$(grep '^device=' "$OUT/takeover-check-after.txt" || true)
+          k1=$(grep '^devicekey=' "$OUT/takeover-check-first.txt" || true); k2=$(grep '^devicekey=' "$OUT/takeover-check-after.txt" || true)
+          verdict=PASS
+          [ "$first" = 1 ] || verdict=FAIL
+          [ "$after" = 1 ] || verdict=FAIL
+          [ -n "$d1" ] && [ "$d1" = "$d2" ] || { verdict=FAIL; echo "the device record changed: '$d1' -> '$d2'"; }
+          [ -n "$k1" ] && [ "$k1" = "$k2" ] || { verdict=FAIL; echo "the device key changed: '$k1' -> '$k2'"; }
+          echo "$verdict" > "$OUT/VERDICT.txt"
+          echo "verdict: $verdict"
+          [ "$verdict" = PASS ]
+      - name: Publish the result (branch native-takeover-output)
+        if: always()
+        run: |
+          OUT="$RUNNER_TEMP/out"; mkdir -p "$OUT"; cd "$OUT"
+          [ -n "${UDID:-}" ] && perl -e 'alarm shift; exec @ARGV' 300 xcrun simctl spawn "$UDID" log show --last 2h --style compact --predicate 'process == "Invizent" OR process == "INVIZENT"' > app.log 2>/dev/null || true
+          verdict=$(cat VERDICT.txt 2>/dev/null || echo "NOT REACHED (stopped at: $(cat STAGE.txt 2>/dev/null || echo start))")
+          echo "$verdict ${{ steps.work.outcome }} $GITHUB_SHA $(date -u) $(uname -m)" > STATUS.txt
+          for f in native-build.log reference-build.log; do [ -f "$f" ] && { grep -nE "error:|ld: " "$f" | head -200 > "${f%.log}-errors.txt"; tail -200 "$f" > "${f%.log}-tail.txt"; rm "$f"; } || true; done
+          find . -name '*.png' -exec sh -c 'sips -Z 1400 -s format jpeg -s formatOptions 80 "$1" --out "${1%.png}.jpg" >/dev/null 2>&1 && rm "$1"' _ {} \;
+          find . -name 'commands-*.json' -delete; find . -type f -size +3000k -exec sh -c 'tail -c 1500000 "$1" > "$1.tail" && rm "$1"' _ {} \;
+          git init -q -b out && git config user.name "linea-ci" && git config user.email "ci@localhost"
+          git add -A && git commit -qm "Native takeover check for $GITHUB_SHA: $verdict"
+          for attempt in 1 2 3; do git push -qf "https://x-access-token:${{ github.token }}@github.com/${{ github.repository }}.git" "HEAD:native-takeover-output" && break; sleep 15; done
+      - name: Fail the job unless the update kept everything
+        if: steps.work.outcome != 'success'
+        run: exit 1
