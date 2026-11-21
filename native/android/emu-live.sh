@@ -48,7 +48,7 @@ echo "sign-in requests: $(asked 'POST /auth/login 200'), keys published: $(asked
 [ "$(asked 'POST /e2ee/devices 20[01]')" -ge 1 ] || { echo "The app did not publish its keys" >&2; FAILED=1; }
 
 echo "== other people write"
-(cd "$ROOT" && node tools/sim-seed.mjs http://127.0.0.1:3999 native_check "$WORK/srvdata") || { echo "seeding failed"; FAILED=1; }
+(cd "$ROOT" && node tools/sim-seed.mjs http://127.0.0.1:3999 native_check "$WORK/srvdata" nativetester 'Synthetic!Native.42' ambergardenprism) || { echo "seeding failed"; FAILED=1; }
 
 echo "== the list and a chat (the session and the keys are read back from the device's storage)"
 before="$(asked 'POST /auth/login 200')"
@@ -57,6 +57,16 @@ live 09-real-chat 30 --ez openchat true
 [ "$(asked 'POST /auth/login 200')" = "$before" ] || { echo "The app signed in again instead of using the kept session" >&2; FAILED=1; }
 echo "chat lists read: $(asked 'GET /chats 200'), inbox pages: $(asked 'GET /e2ee/inbox 200'), message pages: $(grep -cE ' GET /chats/[^ ]+/messages 200 ' "$WORK/proxy.log" || true), read marks: $(grep -cE ' POST /chats/[^ ]+/read 20[04] ' "$WORK/proxy.log" || true)"
 [ "$(grep -cE ' GET /chats/[^ ]+/messages 200 ' "$WORK/proxy.log" || true)" -ge 1 ] || { echo "The app did not open a chat" >&2; FAILED=1; }
+
+echo "== the other sections, with the same account"
+live 09b-photo-open 35 --ez openchat true --es openattachment photo
+live 10-people 25 --es tab people
+live 11-profile 30 --es profile chat
+live 12-people-search 30 --es peoplesearch simpeer
+live 13-settings 25 --es settings root
+live 14-settings-profile 25 --es settings profile
+live 15-settings-sessions 25 --es settings sessions
+live 16-settings-security 25 --es settings security
 
 echo "== the requests, as the proxy saw them (last 60)"
 tail -60 "$WORK/proxy.log" | cut -c1-160
