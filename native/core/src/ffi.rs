@@ -120,22 +120,32 @@ fn count(n: u32) -> Value { Value::Number(f64::from(n)) }
 
 impl SignalBridge for Host {
     fn create_state(&mut self, address: &str, device_id: u32) -> Result<(String, Value), SignalError> {
+        #[cfg(feature = "signal")]
+        if self.get().bridge.is_none() { return crate::signal::LibSignal.create_state(address, device_id) }
         let made = self.signal("createState", vec![Value::str(address), count(device_id)])?;
         Ok((part(&made, "state")?, made.get("bundle").cloned().unwrap_or(Value::Null)))
     }
     fn replenish(&mut self, state: &str, more: u32) -> Result<(String, Value), SignalError> {
+        #[cfg(feature = "signal")]
+        if self.get().bridge.is_none() { return crate::signal::LibSignal.replenish(state, more) }
         let made = self.signal("replenish", vec![Value::str(state), count(more)])?;
         Ok((part(&made, "state")?, made.get("bundle").cloned().unwrap_or(Value::Null)))
     }
     fn trust_identity(&mut self, state: &str, address: &str, device_id: u32, identity_key: &str) -> Result<String, SignalError> {
+        #[cfg(feature = "signal")]
+        if self.get().bridge.is_none() { return crate::signal::LibSignal.trust_identity(state, address, device_id, identity_key) }
         part(&self.signal("trustIdentity", vec![Value::str(state), Value::str(address), count(device_id), Value::str(identity_key)])?, "state")
     }
     fn encrypt(&mut self, state: &str, address: &str, device_id: u32, plaintext: &str, bundle: Option<&Value>) -> Result<Sealed, SignalError> {
+        #[cfg(feature = "signal")]
+        if self.get().bridge.is_none() { return crate::signal::LibSignal.encrypt(state, address, device_id, plaintext, bundle) }
         let made = self.signal("encrypt", vec![Value::str(state), Value::str(address), count(device_id), Value::str(plaintext), bundle.cloned().unwrap_or(Value::Null)])?;
         let Some(Value::Number(kind)) = made.get("type") else { return Err(part(&made, "type").unwrap_err()) };
         Ok(Sealed { state: part(&made, "state")?, kind: *kind, body: part(&made, "body")? })
     }
     fn decrypt(&mut self, state: &str, address: &str, device_id: u32, kind: f64, body: &str) -> Result<Opened, SignalError> {
+        #[cfg(feature = "signal")]
+        if self.get().bridge.is_none() { return crate::signal::LibSignal.decrypt(state, address, device_id, kind, body) }
         let made = self.signal("decrypt", vec![Value::str(state), Value::str(address), count(device_id), Value::Number(kind), Value::str(body)])?;
         Ok(Opened { state: part(&made, "state")?, plaintext: part(&made, "plaintext")? })
     }
