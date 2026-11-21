@@ -81,6 +81,8 @@ class Messenger(context: Context, token: String, val user: Map<String, Any?>) {
   fun close() {
     // Calls: a call that is on ends with the account (the other side is told while the session still lives).
     com.linea.messenger.calls.Calls.left(this)
+    // Rooms: the room this phone is in is left with the account, and its list is forgotten.
+    com.linea.messenger.rooms.Rooms.left(this)
     closed = true
     watchers.clear()
     live.sleep()

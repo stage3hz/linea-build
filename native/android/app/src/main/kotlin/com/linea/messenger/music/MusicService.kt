@@ -132,8 +132,11 @@ class MediaEngine(context: Context) : MusicEngine {
 
   override fun play(): Boolean {
     resumeOnGain = false
-    if (!held) held = manager?.requestAudioFocus(focusRequest) == AudioManager.AUDIOFOCUS_REQUEST_GRANTED
-    if (!held) return false
+    // Rooms (rooms/RoomMusic.kt): inside a room the phone's sound is the room's own (the microphone is open) — the
+    // music plays alongside it and must not take it over.
+    val inRoom = com.linea.messenger.rooms.RoomVoice.inside
+    if (!held && !inRoom) held = manager?.requestAudioFocus(focusRequest) == AudioManager.AUDIOFOCUS_REQUEST_GRANTED
+    if (!held && !inRoom) return false
     try { player?.setVolume(1f, 1f) } catch (_: IllegalStateException) {}
     begin()
     return true

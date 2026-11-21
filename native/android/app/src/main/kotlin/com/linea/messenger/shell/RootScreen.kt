@@ -75,23 +75,32 @@ class RootScreen(context: Context, private val messenger: Messenger?, private va
     ChannelsStore.start(context, messenger)
     // Calls: the call screen and the bar of a minimised call, over every section (calls/CallOverlay.kt).
     com.linea.messenger.calls.CallOverlay.start(context, messenger)
+    // Rooms: the list of rooms, the ring and the bar of the room this phone is in (rooms/); the quiet dot on
+    // «Каналы» while somebody is inside one of them.
+    com.linea.messenger.rooms.Rooms.start(context, messenger)
+    com.linea.messenger.rooms.RoomMusic.start(context)
+    com.linea.messenger.rooms.RoomOverlay.start(context)
   }
 
   /** People: the number of requests to be friends on the row of «Люди». */
   private val peopleBadge: (Unit) -> Unit = {
-    bar.setItems(sections.map { TabEntry(it.id, it.label, it.symbol, badge = if (it.id == "people") FriendRequests.incoming.size else if (it.id == "channels") ChannelsStore.badge else 0) })
+    // Rooms: a quiet green dot on «Каналы» while somebody is inside one of the rooms.
+    val roomsDot = if (com.linea.messenger.rooms.Rooms.awake) com.linea.messenger.rooms.RoomRules.talkHex else ""
+    bar.setItems(sections.map { TabEntry(it.id, it.label, it.symbol, badge = if (it.id == "people") FriendRequests.incoming.size else if (it.id == "channels") ChannelsStore.badge else 0, dot = if (it.id == "channels") roomsDot else "") })
   }
 
   override fun onAttachedToWindow() {
     super.onAttachedToWindow()
     FriendRequests.changed.watch(peopleBadge)
     ChannelsStore.changed.watch(peopleBadge)
+    com.linea.messenger.rooms.Rooms.changed.watch(peopleBadge)
     peopleBadge(Unit)
   }
 
   override fun onDetachedFromWindow() {
     FriendRequests.changed.unwatch(peopleBadge)
     ChannelsStore.changed.unwatch(peopleBadge)
+    com.linea.messenger.rooms.Rooms.changed.unwatch(peopleBadge)
     super.onDetachedFromWindow()
   }
 

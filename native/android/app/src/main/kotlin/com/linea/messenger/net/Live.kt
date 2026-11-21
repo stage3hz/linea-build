@@ -144,6 +144,9 @@ class Live(private val server: Server) {
     // Stories (stories/): somebody's stories or posts changed (`story`), a story of this account was watched
     // (`story.view`), or the line came up again.
     if (type == "ready" || type.startsWith("story")) storyEvent.post(data)
+    // Rooms (rooms/): the list of rooms (`room.*`), the voice of the room this phone is in (`voice.*`), and the
+    // server's refusal of what was asked of it over the line (`error`).
+    if (type == "ready" || type == "error" || type.startsWith("room.") || type.startsWith("voice.")) roomEvent.post(data)
     when (type) {
       "ready" -> { attempts = 0; onEvent?.invoke(Event.Ready) }
       "message" -> onEvent?.invoke(Event.Chat(Core.map(data["message"])?.get("chatId") as? String))
@@ -170,6 +173,15 @@ class Live(private val server: Server) {
       }
       "friends" -> friendsChanged.post(Unit)
     }
+  }
+
+  /** Rooms (rooms/RoomVoice.kt): one frame of the line (`voice.join`, `voice.signal`, `voice.auth`, …); false when
+   *  the line is not up. */
+  fun send(frame: Map<String, Any?>): Boolean {
+    val open = socket ?: return false
+    if (line != "connected") return false
+    val text = Core.text(frame) ?: return false
+    return open.send(text)
   }
 
   /** Tells the other side that the person is typing in a chat (or stopped). */
@@ -200,5 +212,10 @@ class Live(private val server: Server) {
     /** Stories: posted on the main thread when somebody's stories or posts changed, a story of this account was
      *  watched, or the line came up again — the strip reads the feed anew (stories/StoriesModel.kt). */
     val storyEvent = Signal<Map<String, Any?>>()
+    /** Rooms: posted on the main thread for what rooms need from the line — `room.created`, `room.updated`,
+     *  `room.removed`, `room.state`, `room.ring` (the list and the ring), `voice.joined`, `voice.signal`,
+     *  `voice.auth`, `voice.left`, `voice.state`, `voice.kicked` (the voice of the room this phone is in), `error`
+     *  and `ready`: the event as it came (rooms/RoomsStore.kt, rooms/RoomVoice.kt). */
+    val roomEvent = Signal<Map<String, Any?>>()
   }
 }

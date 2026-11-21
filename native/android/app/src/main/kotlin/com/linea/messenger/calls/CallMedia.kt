@@ -266,8 +266,8 @@ class CallMedia private constructor(private val context: Context) {
     private var made: PeerConnectionFactory? = null
 
     /** One factory for the app's life: the phone's own echo cancellation and noise suppression, the default
-     *  video codecs. */
-    private fun factory(context: Context): PeerConnectionFactory {
+     *  video codecs. Rooms (RoomMedia.kt) make their connections with the same one: the app has one audio module. */
+    internal fun factory(context: Context): PeerConnectionFactory {
       made?.let { return it }
       val app = context.applicationContext
       PeerConnectionFactory.initialize(PeerConnectionFactory.InitializationOptions.builder(app).createInitializationOptions())

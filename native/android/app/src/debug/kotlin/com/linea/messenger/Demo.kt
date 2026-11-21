@@ -108,7 +108,8 @@ object Demo {
    *    --es attachdemo 1|viewer / --es openattachment photo|file           attachments (attachments/AttachmentsDemo.kt)
    *    --es chatdemo … / --es chataction … / --es chatlist … / --es chatsearch …   actions on messages and chats (chatactions/ChatActionsDemo.kt)
    *    --es calldemo outgoing|incoming|active|video|ended|retry|bar        calls: a sample call in each state, no account (calls/CallsDemo.kt)
-   *    --es storiesdemo strip|viewer|viewers|compose|posts|own / --es stories viewer|own|ownstories|compose    stories and profile posts (stories/StoriesDemo.kt) */
+   *    --es storiesdemo strip|viewer|viewers|compose|posts|own / --es stories viewer|own|ownstories|compose    stories and profile posts (stories/StoriesDemo.kt)
+   *    --es roomsdemo list|empty|room|music|outside|ring|bar|menu|rename|gone|picker / --es rooms list|room|enter|picker    rooms (rooms/RoomsDemo.kt) */
   fun start(intent: Intent?, launcher: Launcher): Boolean {
     if (intent == null) return false
     testServer = intent.getStringExtra("server")?.takeIf { local.matches(it) }
@@ -126,6 +127,8 @@ object Demo {
     // Stories: `storiesdemo` — the strip, the viewer, the screen that publishes, a profile's posts (stories/StoriesDemo.kt).
     if (com.linea.messenger.stories.StoriesSimulator.demo(intent, launcher)) return true
     if (ChannelsSimulator.demo(intent, launcher)) return true
+    // Rooms: `roomsdemo` — the list, a room inside and outside, the ring, the bar, «Выбрать» (rooms/RoomsDemo.kt).
+    if (com.linea.messenger.rooms.RoomsSimulator.demo(intent, launcher)) return true
     if (intent.getBooleanExtra("demo", false)) {
       val root = launcher.showDemo()
       if (intent.getBooleanExtra("chat", false)) launcher.openChat(ChatTarget("Алиса Воронцова"), animated = false)
@@ -145,6 +148,7 @@ object Demo {
     PeopleSimulator.later(intent, launcher)
     ChannelsSimulator.later(intent, launcher)
     com.linea.messenger.stories.StoriesSimulator.later(intent, launcher)
+    com.linea.messenger.rooms.RoomsSimulator.later(intent, launcher)
     return false
   }
 }

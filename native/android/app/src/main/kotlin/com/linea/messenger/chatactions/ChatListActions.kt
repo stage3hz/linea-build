@@ -298,6 +298,8 @@ class ChatListActions(private val context: Context, private val messenger: Messe
           "pin", "unpin" -> change(chat, mapOf("pinned" to (name == "pin")))
           "mute", "unmute" -> askMute(chat)
           "archive", "unarchive" -> change(chat, mapOf("archived" to (name == "archive")))
+          // Rooms: «Выбрать» — mark several people and ring them all at once; that makes a room (rooms/RoomPicker.kt).
+          "pick" -> com.linea.messenger.rooms.RoomPicker(context, messenger, chat.id).show()
           else -> askRemove(chat)
         }
       }
@@ -620,6 +622,7 @@ class ChatListActions(private val context: Context, private val messenger: Messe
       if (pinned) Triple("unpin", "pin.slash", "Открепить") else Triple("pin", "pin", "Закрепить"),
       if (muted) Triple("unmute", "bell", "Включить звук") else Triple("mute", "bell.slash", "Выключить звук"),
       if (archived) Triple("unarchive", "archive", "Вернуть из архива") else Triple("archive", "archive", "В архив"),
+      Triple("pick", "check.circle", "Выбрать"),
       Triple("delete", "trash", "Удалить чат"),
     )
 

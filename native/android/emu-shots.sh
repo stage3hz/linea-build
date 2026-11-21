@@ -78,6 +78,14 @@ shot 52-stories-viewers --es storiesdemo viewers
 shot 53-stories-compose --es storiesdemo compose
 shot 54-stories-posts --es storiesdemo posts
 shot 55-own-posts --es storiesdemo own
+# Rooms: «КОМНАТЫ» on top of «Каналы», a room this phone is inside, the same with music for everyone, the ring over
+# the chats, the bar of a room whose screen is closed, «Выбрать» with three people marked.
+shot 56-rooms-list --es roomsdemo list
+shot 57-room --es roomsdemo room
+shot 58-room-music --es roomsdemo music
+shot 59-room-ring --es roomsdemo ring
+shot 60-room-bar --es roomsdemo bar
+shot 61-room-picker --es roomsdemo picker
 # What the app itself said while it ran (crashes show here).
 adb logcat -d -t 400 '*:E' > "$OUT/logcat-errors.txt" 2>/dev/null || true
 adb shell dumpsys package "$APP" | grep -E "versionName|primaryCpuAbi" || true

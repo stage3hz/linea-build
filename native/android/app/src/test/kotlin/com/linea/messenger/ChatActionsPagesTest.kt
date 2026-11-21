@@ -131,7 +131,7 @@ class ChatActionsPagesTest {
   @Test fun theListOfChats() {
     val menu = list("40-list-menu", "chatlist", "menu")
     val sheet = ShadowDialog.getLatestDialog() as? ChoiceSheet
-    assertEquals(listOf("Пометить как прочитанное", "Открепить", "Выключить звук", "В архив", "Удалить чат"), sheet!!.choices.map { it.label })
+    assertEquals(listOf("Пометить как прочитанное", "Открепить", "Выключить звук", "В архив", "Выбрать", "Удалить чат"), sheet!!.choices.map { it.label })
     assertEquals("Алиса Воронцова", sheet.heading)
     sheet.dismiss()
     assertNotNull(find(menu.window.decorView, ChatsScreen::class.java))

@@ -45,6 +45,11 @@ class ChannelsScreen(context: Context, private val messenger: Messenger?) : Scre
   private var loaded = false
   private var showing = false
   private val storeChanged: (Unit) -> Unit = { fromStore() }
+  /** Rooms: «Комнаты», the first thing in the section (rooms/RoomsSectionView.kt). */
+  private val rooms = com.linea.messenger.rooms.RoomsSectionView(context)
+  /** Rooms: no communities and no failure — «Свои места для своих» is shown only when there are no rooms either. */
+  private var nothingListed = false
+  private val roomsChanged: (Unit) -> Unit = { showEmpty() }
 
   private val adapter = object : BaseAdapter() {
     override fun getCount() = items.size
@@ -69,8 +74,10 @@ class ChannelsScreen(context: Context, private val messenger: Messenger?) : Scre
     list.divider = null; list.dividerHeight = 0
     list.selector = ColorDrawable(0x12FFFFFF); list.cacheColorHint = Color.TRANSPARENT
     list.isVerticalScrollBarEnabled = false; list.clipToPadding = false
+    // Rooms: above the communities, as the list's header.
+    list.addHeaderView(rooms, null, false)
     list.adapter = adapter
-    list.setOnItemClickListener { _, _, position, _ -> (items.getOrNull(position) as? Item.Row)?.let { open(it.community) } }
+    list.setOnItemClickListener { _, _, position, _ -> (items.getOrNull(position - list.headerViewsCount) as? Item.Row)?.let { open(it.community) } }
     addView(list)
 
     heading.includeFontPadding = false
@@ -105,10 +112,13 @@ class ChannelsScreen(context: Context, private val messenger: Messenger?) : Scre
   override fun onAttachedToWindow() {
     super.onAttachedToWindow()
     if (messenger != null) { ChannelsStore.changed.watch(storeChanged); fromStore() }
+    com.linea.messenger.rooms.Rooms.changed.watch(roomsChanged)
+    showEmpty()
   }
 
   override fun onDetachedFromWindow() {
     ChannelsStore.changed.unwatch(storeChanged)
+    com.linea.messenger.rooms.Rooms.changed.unwatch(roomsChanged)
     super.onDetachedFromWindow()
   }
 
@@ -160,7 +170,13 @@ class ChannelsScreen(context: Context, private val messenger: Messenger?) : Scre
     showNotice(failure)
     items = rows(found).map { if (it.second == null) Item.Section(it.first) else Item.Row(it.second!!) }
     adapter.notifyDataSetChanged()
-    val empty = found.isEmpty() && failure.isEmpty()
+    nothingListed = found.isEmpty() && failure.isEmpty()
+    showEmpty()
+  }
+
+  /** Rooms: as in the reference, the call to create something gives way to the rooms when there are any. */
+  private fun showEmpty() {
+    val empty = nothingListed && com.linea.messenger.rooms.Rooms.rooms.isNullOrEmpty()
     for (part in listOf(emptyIcon, emptyHeading, emptyWords, emptyButton)) part.visibility = if (empty) View.VISIBLE else View.GONE
   }
 

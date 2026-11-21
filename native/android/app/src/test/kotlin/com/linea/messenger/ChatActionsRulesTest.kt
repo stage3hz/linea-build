@@ -276,9 +276,9 @@ class ChatActionsRulesTest {
   }
 
   @Test fun whatALongPressOnAChatOffers() {
-    assertEquals(listOf("Пометить как непрочитанное", "Закрепить", "Выключить звук", "В архив", "Удалить чат"),
+    assertEquals(listOf("Пометить как непрочитанное", "Закрепить", "Выключить звук", "В архив", "Выбрать", "Удалить чат"),
       ChatListActions.menuChoices(unread = false, pinned = false, muted = false, archived = false).map { it.third })
-    assertEquals(listOf("Пометить как прочитанное", "Открепить", "Включить звук", "Вернуть из архива", "Удалить чат"),
+    assertEquals(listOf("Пометить как прочитанное", "Открепить", "Включить звук", "Вернуть из архива", "Выбрать", "Удалить чат"),
       ChatListActions.menuChoices(unread = true, pinned = true, muted = true, archived = true).map { it.third })
   }
 
